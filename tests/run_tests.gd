@@ -135,6 +135,38 @@ func test_input_actions_exist() -> void:
 		assert_true(InputMap.has_action(action), "input action exists: %s" % action)
 
 
+func test_world_terrain_and_elevation() -> void:
+	var world := ReolWorld.new()
+	world.initialize()
+	var cells: Array[Vector2i] = [
+		Vector2i(0, 0),
+		Vector2i(1, 0),
+		Vector2i(256, 256),
+		Vector2i(511, 511),
+	]
+	for cell in cells:
+		var terrain: int = world.get_terrain(cell)
+		assert_true(
+			terrain >= ReolWorld.TERRAIN_WATER and terrain <= ReolWorld.TERRAIN_ROCK,
+			"terrain range at %s" % str(cell)
+		)
+		var elevation: int = world.get_elevation(cell)
+		assert_true(
+			elevation >= 0 and elevation < ReolWorld.ELEVATION_LEVELS,
+			"elevation range at %s" % str(cell)
+		)
+	assert_eq(
+		world.world_rect().size,
+		Vector2(32768.0, 32768.0),
+		"world rect covers 512x512 tiles"
+	)
+	assert_true(
+		not world.can_move(Vector2i(0, 0), Vector2i(-1, 0)),
+		"cannot move out of bounds"
+	)
+	world.free()
+
+
 func test_scripts_parse() -> void:
 	var files: Array[String] = []
 	_collect_gd_files("res://scripts", files)

@@ -16,6 +16,10 @@ func _ready() -> void:
 	hud.set_world(world, player, camera)
 	world.set_focus(spawn_cell)
 
+	var flying := FlyingMarker.new()
+	flying.setup(world, spawn_cell + Vector2i(3, 0), 1)
+	add_child(flying)
+
 
 func _process(_delta: float) -> void:
 	world.set_focus(player.cell)

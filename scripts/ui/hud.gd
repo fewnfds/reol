@@ -29,13 +29,16 @@ func _process(_delta: float) -> void:
 	if _world == null or _player == null or _camera == null:
 		return
 	var elevation: int = _world.get_elevation(_player.cell)
+	var terrain: String = _world.terrain_name(_player.cell)
 	_label.text = (
-		"Reol M1 · 2D 正交俯视\nFPS %d | cell (%d,%d) | elev %d | chunks %d | zoom %.2f\nWASD 移动 · 方向键 平移 · 滚轮缩放 · 中键拖拽 · F 居中"
+		"Reol M1 · 2D 正交俯视\nFPS %d | cell (%d,%d) | %s | elev %d | alt %d | chunks %d | zoom %.2f\nWASD 移动 · 方向键 平移 · 滚轮缩放 · 中键拖拽 · F 居中"
 		% [
 			int(Engine.get_frames_per_second()),
 			_player.cell.x,
 			_player.cell.y,
+			terrain,
 			elevation,
+			_player.altitude,
 			_world.loaded_chunk_count(),
 			_camera.zoom.x,
 		]

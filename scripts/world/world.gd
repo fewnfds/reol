@@ -1,41 +1,69 @@
 class_name ReolWorld
 extends Node2D
-## Chunked 2D orthographic top-down world.
+## Chunked 2D orthographic top-down world with a simple elevation layer.
 ##
 ## v0.1 slice: one generated region (512x512), 64x64 chunks, 5x5 loaded.
-## Height is data-only for now; visual elevation and fog arrive in the next slice.
+## Terrain type and elevation are separate: grass/water/rock + height 0..3.
+## Each elevation is rendered on its own TileMapLayer shifted up by ELEVATION_PX;
+## south-facing drops get a cliff face. Fog and clock arrive in later slices.
 
 const WORLD_SIZE: int = 512
 const CHUNK_SIZE: int = 64
 const LOAD_RADIUS: int = 2
 const UNLOAD_RADIUS: int = 3
 const WORLD_SEED: int = 20261101
+const ELEVATION_LEVELS: int = 4
+const ELEVATION_PX: int = 16
+const ALTITUDE_PX: int = 28
 
-const TILE_WATER: int = 0
-const TILE_LOW_GRASS: int = 1
-const TILE_GRASS: int = 2
-const TILE_ROCK: int = 3
+const TERRAIN_WATER: int = 0
+const TERRAIN_GRASS: int = 1
+const TERRAIN_ROCK: int = 2
 
-var _layer: TileMapLayer
-var _noise: FastNoiseLite
+var _layers: Array[TileMapLayer] = []
+var _tile_set: TileSet
+var _terrain_noise: FastNoiseLite
+var _height_noise: FastNoiseLite
 var _loaded: Dictionary[Vector2i, bool] = {}
+var _cliff_nodes: Dictionary[Vector2i, CliffChunk] = {}
 var _pending_load: Array[Vector2i] = []
 var _pending_unload: Array[Vector2i] = []
 var _focus_chunk: Vector2i = Vector2i(-9999, -9999)
+var _initialized: bool = false
 
 
 func _ready() -> void:
-	_noise = FastNoiseLite.new()
-	_noise.seed = WORLD_SEED
-	_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	_noise.frequency = 0.018
-	_noise.fractal_octaves = 3
+	initialize()
 
-	_layer = TileMapLayer.new()
-	_layer.name = "Ground"
-	_layer.tile_set = _build_tile_set()
-	_layer.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	add_child(_layer)
+
+func initialize() -> void:
+	if _initialized:
+		return
+	_initialized = true
+
+	_terrain_noise = FastNoiseLite.new()
+	_terrain_noise.seed = WORLD_SEED
+	_terrain_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_terrain_noise.frequency = 0.018
+	_terrain_noise.fractal_octaves = 3
+
+	_height_noise = FastNoiseLite.new()
+	_height_noise.seed = WORLD_SEED + 1
+	_height_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_height_noise.frequency = 0.012
+	_height_noise.fractal_octaves = 3
+
+	_tile_set = _build_tile_set()
+	for level in ELEVATION_LEVELS:
+		var layer := TileMapLayer.new()
+		layer.name = "Ground%d" % level
+		layer.tile_set = _tile_set
+		layer.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		layer.position = Vector2(0.0, -float(level * ELEVATION_PX))
+		var tint: float = 0.9 + 0.05 * float(level)
+		layer.modulate = Color(tint, tint, tint)
+		add_child(layer)
+		_layers.append(layer)
 
 
 func set_focus(cell: Vector2i) -> void:
@@ -58,22 +86,64 @@ func _process(_delta: float) -> void:
 		_load_chunk(load_coord)
 
 
+func get_terrain(cell: Vector2i) -> int:
+	if not _in_bounds(cell):
+		return -1
+	if _terrain_noise == null:
+		return -1
+	var n: float = _terrain_noise.get_noise_2d(float(cell.x), float(cell.y))
+	if n < -0.45:
+		return TERRAIN_WATER
+	if n > 0.5:
+		return TERRAIN_ROCK
+	return TERRAIN_GRASS
+
+
 func get_elevation(cell: Vector2i) -> int:
 	if not _in_bounds(cell):
 		return -1
-	var n: float = _noise.get_noise_2d(float(cell.x), float(cell.y))
-	if n < -0.42:
-		return TILE_WATER
-	if n < -0.05:
-		return TILE_LOW_GRASS
-	if n < 0.38:
-		return TILE_GRASS
-	return TILE_ROCK
+	var terrain: int = get_terrain(cell)
+	if terrain == TERRAIN_WATER:
+		return 0
+
+	var n: float = _height_noise.get_noise_2d(float(cell.x), float(cell.y))
+	var elevation: int = 0
+	if n > 0.38:
+		elevation = 3
+	elif n > 0.08:
+		elevation = 2
+	elif n > -0.28:
+		elevation = 1
+	else:
+		elevation = 0
+
+	if terrain == TERRAIN_ROCK:
+		elevation = maxi(elevation, 2)
+	return mini(elevation, ELEVATION_LEVELS - 1)
 
 
 func is_walkable(cell: Vector2i) -> bool:
-	var elevation: int = get_elevation(cell)
-	return elevation == TILE_LOW_GRASS or elevation == TILE_GRASS
+	return get_terrain(cell) == TERRAIN_GRASS
+
+
+func can_move(from_cell: Vector2i, to_cell: Vector2i) -> bool:
+	if not is_walkable(to_cell):
+		return false
+	var from_elevation: int = get_elevation(from_cell)
+	var to_elevation: int = get_elevation(to_cell)
+	return absi(to_elevation - from_elevation) <= 1
+
+
+func terrain_name(cell: Vector2i) -> String:
+	match get_terrain(cell):
+		TERRAIN_WATER:
+			return "水"
+		TERRAIN_GRASS:
+			return "草"
+		TERRAIN_ROCK:
+			return "岩"
+		_:
+			return "?"
 
 
 func find_spawn_cell() -> Vector2i:
@@ -136,8 +206,19 @@ func _load_chunk(chunk: Vector2i) -> void:
 	for local_y in range(CHUNK_SIZE):
 		for local_x in range(CHUNK_SIZE):
 			var cell := base + Vector2i(local_x, local_y)
+			var terrain: int = get_terrain(cell)
 			var elevation: int = get_elevation(cell)
-			_layer.set_cell(cell, 0, Vector2i(elevation, 0))
+			_layers[elevation].set_cell(cell, 0, Vector2i(terrain, 0))
+
+	var cliff := CliffChunk.new()
+	cliff.world = self
+	cliff.chunk = chunk
+	cliff.chunk_size = CHUNK_SIZE
+	cliff.tile_size = TileGrid.TILE_SIZE
+	cliff.elevation_px = ELEVATION_PX
+	cliff.z_index = 5
+	add_child(cliff)
+	_cliff_nodes[chunk] = cliff
 	_loaded[chunk] = true
 
 
@@ -145,7 +226,14 @@ func _unload_chunk(chunk: Vector2i) -> void:
 	var base := chunk * CHUNK_SIZE
 	for local_y in range(CHUNK_SIZE):
 		for local_x in range(CHUNK_SIZE):
-			_layer.erase_cell(base + Vector2i(local_x, local_y))
+			var cell := base + Vector2i(local_x, local_y)
+			var elevation: int = get_elevation(cell)
+			_layers[elevation].erase_cell(cell)
+
+	var cliff: CliffChunk = _cliff_nodes.get(chunk)
+	if cliff != null:
+		cliff.queue_free()
+		_cliff_nodes.erase(chunk)
 	_loaded.erase(chunk)
 
 
@@ -166,7 +254,7 @@ func _build_tile_set() -> TileSet:
 	var source := TileSetAtlasSource.new()
 	source.texture = _build_atlas_texture()
 	source.texture_region_size = Vector2i(TileGrid.TILE_SIZE, TileGrid.TILE_SIZE)
-	for index in 4:
+	for index in 3:
 		source.create_tile(Vector2i(index, 0))
 	tile_set.add_source(source, 0)
 	return tile_set
@@ -175,7 +263,6 @@ func _build_tile_set() -> TileSet:
 func _build_atlas_texture() -> ImageTexture:
 	var colors: Array[Color] = [
 		Color("#1f3b4d"),
-		Color("#2f4a3a"),
 		Color("#3d5c46"),
 		Color("#4a4a45"),
 	]
