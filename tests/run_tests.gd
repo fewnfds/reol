@@ -75,7 +75,7 @@ func test_project_features() -> void:
 
 func test_main_scene_configured() -> void:
 	var main_scene := str(ProjectSettings.get_setting("application/run/main_scene", ""))
-	assert_eq(main_scene, "res://scenes/boot.tscn", "main scene path")
+	assert_eq(main_scene, "res://scenes/main.tscn", "main scene path")
 	assert_true(ResourceLoader.exists(main_scene), "main scene exists")
 
 
@@ -87,6 +87,52 @@ func test_boot_scene_instantiates() -> void:
 	var node: Node = packed.instantiate()
 	assert_eq(String(node.name), "Boot", "boot root name")
 	node.free()
+
+
+func test_tile_grid_roundtrip() -> void:
+	var cells: Array[Vector2i] = [
+		Vector2i(0, 0),
+		Vector2i(1, 0),
+		Vector2i(0, 1),
+		Vector2i(1, 1),
+		Vector2i(10, 20),
+		Vector2i(511, 511),
+	]
+	for cell in cells:
+		var world_position: Vector2 = TileGrid.cell_to_world(cell)
+		assert_eq(
+			TileGrid.world_to_cell(world_position),
+			cell,
+			"grid roundtrip %s" % str(cell)
+		)
+
+
+func test_tile_grid_offsets() -> void:
+	assert_eq(TileGrid.cell_to_world(Vector2i(0, 0)), Vector2(32.0, 32.0), "origin center")
+	assert_eq(TileGrid.cell_to_world(Vector2i(1, 0)), Vector2(96.0, 32.0), "east offset")
+	assert_eq(TileGrid.cell_to_world(Vector2i(0, 1)), Vector2(32.0, 96.0), "south offset")
+	assert_eq(TileGrid.cell_to_world(Vector2i(1, 1)), Vector2(96.0, 96.0), "south-east offset")
+	assert_eq(TileGrid.world_to_cell(Vector2(0.0, 0.0)), Vector2i(0, 0), "top-left corner")
+	assert_eq(TileGrid.world_to_cell(Vector2(63.9, 63.9)), Vector2i(0, 0), "inside tile")
+	assert_eq(TileGrid.world_to_cell(Vector2(64.0, 64.0)), Vector2i(1, 1), "next tile")
+
+
+func test_input_actions_exist() -> void:
+	var actions: Array[String] = [
+		"move_left",
+		"move_right",
+		"move_up",
+		"move_down",
+		"camera_left",
+		"camera_right",
+		"camera_up",
+		"camera_down",
+		"center_camera",
+		"zoom_in",
+		"zoom_out",
+	]
+	for action in actions:
+		assert_true(InputMap.has_action(action), "input action exists: %s" % action)
 
 
 func test_scripts_parse() -> void:

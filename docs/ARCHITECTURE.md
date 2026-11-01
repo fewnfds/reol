@@ -1,7 +1,7 @@
 # Reol — 目标技术架构（v0.2）
 
 > 状态：**已定方向**。随着原型验证会调整；重大变更记录到 `docs/DECISIONS.md`。
-> 引擎：Godot 4.7.2 / GDScript / **2D 等距 + 高度层**。
+> 引擎：Godot 4.7.2 / GDScript / **2D 正交俯视 + 正方形格 + 高度层**。
 > 原则：**先能跑，再抽象；数据驱动；固定 tick；小系统组合。**
 
 ---
@@ -12,7 +12,7 @@
 - 支持一个 **会持续运转** 的小世界：时间、NPC、工作、事件、宗门、势力。
 - 支持 **玩家角色** 与 **宗门/势力管理** 两种视角在同一场景中切换。
 - 支持 **512×512 首区、64×64 区块流式加载**；远区抽象模拟，近区实例化。
-- 支持 **2D 等距 + 高度层 + 战争迷雾**；固定角相机，平移/缩放。
+- 支持 **2D 正交俯视 + 正方形格 + 高度层 + 战争迷雾**；固定俯视相机，平移/缩放。
 - 支持 **版本化存档**，读旧档不炸。
 - 支持 **无头测试** 和 AI 自动验证。
 - 60 FPS / 模拟 tick < 8ms / v0.1 10–20 个活跃 Pawn，v1 30–50。
@@ -48,7 +48,7 @@
                        │ spatial queries
 ┌──────────────────────▼──────────────────────────────┐
 │ World                                               │
-│  ChunkManager · IsoGrid · FogOfWar · Navigation     │
+│  ChunkManager · TileGrid · FogOfWar · Navigation     │
 │  Time · Weather · POI · Spawner                     │
 └──────────────────────┬──────────────────────────────┘
                        │
@@ -403,15 +403,15 @@ extends Resource
 ### 8.1 v0.1
 
 - 首区 **512×512**；区块 **64×64**（8×8）；加载半径 2（5×5），卸载半径 3。
-- 每个区块 3 层：ground / walls / props；等距 `TileMapLayer` + Y-sort。
+- 每个区块 3 层：ground / walls / props；正方形 `TileMapLayer` + Y-sort。
 - 地形来源：seed + 规则生成（先简单噪声/手工骨架），POI 从数据表放置。
 - 地图尺寸不硬编码；区域元数据 + 世界分区。
 - 只持久化 **deltas**：改格、建造、物品、实体状态。
 - 区块加载用 `ResourceLoader.load_threaded_request()` 或后台生成；每帧最多 1 个；不要同步加载大场景。
 
-### 8.2 等距坐标与高度
+### 8.2 方格坐标与高度
 
-- 逻辑坐标 `cell: Vector2i`；世界坐标 `cell_to_world(cell)`；等距 2:1。
+- 逻辑坐标 `cell: Vector2i`；世界坐标 `cell_to_world(cell)`；正方形格 64×64，1:1 映射。
 - 每格 `elevation: int`（0–3）；实体 `altitude: int`（0/1/2）。
 - 渲染 Y 偏移：`-elevation * ELEVATION_PX - altitude * ALTITUDE_PX`。
 - 影子留在 `ground_position`；随 altitude 变小/变淡。
@@ -674,14 +674,14 @@ func save_game(path: String = "user://saves/slot_01.json") -> Error:
 ## 16. 已定与仍开放
 
 已定（见 `docs/DECISIONS.md`）：
-- 2D 等距 + 高度层（ADR-0013）。
+- 2D 正交俯视 + 正方形格 + 高度层（ADR-0013）。
 - 实时 + 暂停 + 局部慢放（ADR-0017）。
 - 512×512 首区、64×64 区块、5×5 加载（ADR-0015）。
 - 单机模拟、脚本 AI 优先（ADR-0010 / 0018）。
 - 数据包 + 世界生成管线（ADR-0019）。
 
 仍开放（不阻塞 M1）：
-- 等距 tile 最终尺寸（64×32 vs 32×16）——先用 64×32 占位。
+- 正方形 tile 最终尺寸（64×64 vs 32×32）——先用 64×64 占位。
 - 相机缩放范围/边缘滚动速度——M1 调手感。
 - 地图数据格式（JSON vs Resource vs 二进制）——M1 先用 JSON + seed，性能不够再换。
 - 是否引入 LimboAI——先纯 utility/FSM，复杂战斗再评估。

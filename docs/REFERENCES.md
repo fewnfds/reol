@@ -138,7 +138,7 @@
 - **Necesse / Core Keeper**：俯视建造/探索/战斗的轻量循环。
 - **Stardew Valley**：日常节奏、亲切感、UI。
 
-> 本项目已选 **2D 等距**；3D 参考（Quaternius/KayKit/Kenshi 的 3D）只作为未来备选，不进入 v0.1。
+> 本项目已选 **2D 正交俯视（正方形格）**；等距/3D 参考只作为未来备选，不进入 v0.1。
 
 ---
 
@@ -168,7 +168,8 @@
 | 来源 | 链接 | 许可证 | 适合 |
 |---|---|---|---|
 | **Kenney** | https://kenney.nl/assets | CC0 | 2D/3D 占位、UI、音效；首选 |
-| **Kenney Isometric** | https://kenney.nl/assets?q=isometric | CC0 | 2D 等距 tile/建筑/角色占位 |
+| **Kenney Isometric** | https://kenney.nl/assets?q=isometric | CC0 | 2D 等距 tile（备选，不采用） |
+| **Kenney Top-down** | https://kenney.nl/assets?q=top-down | CC0 | 2D 俯视 tile/角色占位 |
 | **LimeZu** | https://limezu.itch.io/ | 各包不同（多为付费） | 精致 2D 室内/角色；Microverse 用过 |
 | **Quaternius** | https://quaternius.com/ | CC0 | 3D 低模（本项目不做 3D，留作未来） |
 | **KayKit** | https://kaylousberg.itch.io/ | CC0/付费 | 3D 角色/场景 |
