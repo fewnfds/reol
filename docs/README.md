@@ -10,22 +10,23 @@
 ### 新会话 / 新成员
 1. `../AGENTS.md` — 硬规则、目录、完成定义
 2. `BASELINE.md` — 基座已完成/未完成、验证记录
-3. `GAME-BRIEF.md` — 游戏是什么、不做什么
-4. `ROADMAP.md` — 现在做到哪、下一步
-5. `AI-WORKFLOW.md` — 怎么和 AI 协作
+3. `GAME-BRIEF.md` — 游戏是什么、不做什么、已拍板方向
+4. `DIRECTION-V0.2.md` — 方向 v0.2 的完整分析与最终选择
+5. `ROADMAP.md` — 现在做到哪、下一步
+6. `AI-WORKFLOW.md` — 怎么和 AI 协作
 
 ### 写代码前
-5. `ARCHITECTURE.md` — 目标架构、tick、存档、性能
-6. `GODOT-FOR-UNITY-DEVS.md` — Godot 心智模型/API 对照
-7. `DECISIONS.md` — 已定方案，别推翻
+7. `ARCHITECTURE.md` — 目标架构、tick、存档、性能
+8. `GODOT-FOR-UNITY-DEVS.md` — Godot 心智模型/API 对照
+9. `DECISIONS.md` — 已定方案，别推翻
 
 ### 工具/排错
-8. `TOOLCHAIN.md` — Godot、MCP、测试、故障排查
-9. `REFERENCES.md` — 示例项目、插件、素材、许可证
+10. `TOOLCHAIN.md` — Godot、MCP、测试、故障排查
+11. `REFERENCES.md` — 示例项目、插件、素材、许可证
 
 ### 设计
-10. `../design/` — 系统设计、数值、边界
-11. `../design/systems/_TEMPLATE.md` — 新系统文档模板
+12. `../design/` — 系统设计、数值、边界
+13. `../design/systems/_TEMPLATE.md` — 新系统文档模板
 
 ---
 
@@ -36,6 +37,7 @@
 | `AGENTS.md` | AI 必须遵守什么？ | 规则/目录/命令变化 |
 | `BASELINE.md` | 基座现在有什么/验证到哪？ | 每次里程碑 |
 | `GAME-BRIEF.md` | 做什么游戏？范围？ | 方向/范围变化 |
+| `DIRECTION-V0.2.md` | 为什么选这个方向？ | 方向定稿/重大修订 |
 | `ROADMAP.md` | 先做什么？怎么验收？ | 每周/里程碑 |
 | `ARCHITECTURE.md` | 代码怎么组织？ | 架构决策 |
 | `DECISIONS.md` | 为什么这样定？ | 每个重要决策 |
@@ -61,13 +63,14 @@
 
 - [x] AGENTS.md
 - [x] BASELINE.md（M0 状态）
-- [x] GAME-BRIEF.md（草案）
-- [x] ROADMAP.md
-- [x] ARCHITECTURE.md（提议）
-- [x] DECISIONS.md（12 条）
+- [x] GAME-BRIEF.md（方向 v0.2 已定稿）
+- [x] DIRECTION-V0.2.md（已定稿）
+- [x] ROADMAP.md（v0.2）
+- [x] ARCHITECTURE.md（v0.2）
+- [x] DECISIONS.md（19 条）
 - [x] TOOLCHAIN.md
 - [x] AI-WORKFLOW.md
 - [x] REFERENCES.md
 - [ ] 系统设计文档（等第一个系统开工）
-- [ ] 美术风格指南（M4 前）
-- [ ] 音频风格指南（M4 前）
+- [ ] 美术风格指南（M1/M5 前）
+- [ ] 音频风格指南（M5 前）

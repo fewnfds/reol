@@ -5,25 +5,28 @@
 
 ## 0. 一句话
 
-Reol 是一个 **Godot 4.7.2 / GDScript / 2D 俯视角**的开放世界沙盒 + 殖民模拟 + RPG。
+Reol 是一个 **Godot 4.7.2 / GDScript / 2D 等距俯视**的修仙开放世界沙盒 + 宗门模拟 + RPG。
 参考坐标：Dwarf Fortress 的模拟深度、RimWorld 的 NPC 与殖民管理、Kenshi 的开放沙盒、
 传统 RPG 的成长与任务、Warcraft 的视角与战斗可读性。
 
 ## 1. 当前阶段（很重要）
 
-- 现在只有 **Godot 初始工程 + AI 开发脚手架**，没有玩法代码。
-- 目标不是一次做完，而是先做 **一个可玩的 vertical slice（垂直切片）**。
+- **M0 已完成**：Godot 4.7.2 工程 + AI 脚手架 + 无头测试 + 6 条测试通过。
+- **方向 v0.2 已定稿**：2D 等距 + 高度层、单机模拟、可暂停即时战斗、脚本 AI 优先。见 `docs/GAME-BRIEF.md` 和 ADR-0013～0019。
+- **M1 尚未开始**：等距相机 + 玩家移动 + 512×512 区块 + 高度 + 迷雾 + 时间。没有玩法代码。
+- 目标不是一次做完，而是先做 **一个可玩的 vertical slice（“一山一宗”，45–60 分钟）**。
 - 大而全的想法先写进 `docs/ROADMAP.md` 或 `docs/GAME-BRIEF.md`，**不要直接开写**。
 - 每次只推进一个系统，做完、验证、记录，再进入下一个。
 
 ## 2. 每个会话的启动流程
 
 1. 读 `docs/BASELINE.md` 的「已完成 / 未完成」。
-2. 读 `docs/GAME-BRIEF.md` 的「当前里程碑」和「开放问题」。
-3. 读 `docs/DECISIONS.md` 最近 3 条，避免推翻已定方案。
-4. 运行 `python tools/godot.py doctor`。
-5. 动手前先用 3–6 行说明：要改什么、为什么、验收标准是什么。
-6. 改完必须运行验证命令。**没有命令输出、日志或截图，不算完成。**
+2. 读 `docs/GAME-BRIEF.md` 的「当前里程碑」和「已拍板」。
+3. 读 `docs/DIRECTION-V0.2.md` 的「最终结论」，确认没有跑偏。
+4. 读 `docs/DECISIONS.md` 最近 3 条，避免推翻已定方案。
+5. 运行 `python tools/godot.py doctor`。
+6. 动手前先用 3–6 行说明：要改什么、为什么、验收标准是什么。
+7. 改完必须运行验证命令。**没有命令输出、日志或截图，不算完成。**
 
 ## 3. 硬性规则
 
@@ -70,9 +73,11 @@ Reol 是一个 **Godot 4.7.2 / GDScript / 2D 俯视角**的开放世界沙盒 + 
 | `EventBus` | 全局 typed signals，解耦系统 |
 | `EntityRegistry` | `entity_id -> Node`，生成/销毁/查询 |
 | `SaveManager` | 版本化存档、迁移、原子写入 |
-| `GameState` | 玩家、殖民地、任务、世界 flags |
-| `JobBoard` | 殖民者工作认领、预约、状态机 |
+| `GameState` | 玩家、宗门、任务、世界 flags |
+| `JobBoard` | 宗门工作认领、预约、状态机 |
 | `World` | 区块流式加载、地形、POI |
+| `WorldSim` | 远区势力/宗门 tick、缺席战斗结算、传闻 |
+| `FactionRegistry` | 阵营定义、关系矩阵、声望查询 |
 
 分层：
 
@@ -129,7 +134,7 @@ res://
 | 写/改 GDScript | `godot-gdscript` |
 | 场景、节点、实例化、autoload | `godot-nodes-scenes` |
 | 系统架构、tick、存档、性能 | `godot-sim-architecture` |
-| 殖民者、需求、工作、库存、房间 | `colony-sim-systems` |
+| 宗门 NPC、需求、工作、库存、房间 | `colony-sim-systems` |
 | 大地图、区块、地图生成、POI | `open-world-2d` + `godot-tilemap` + `procedural-gen` |
 | NPC AI、行为树、效用 AI | `game-ai` + `ai-behavior-trees-utility-ai` |
 | RPG、任务、对话、成长 | `rpg` + `dialogue-systems` + `save-systems` |
@@ -177,9 +182,16 @@ python tools/godot.py run --headless --quit-after 120
 ## 10. 当前阻塞 / 待确认
 
 - [x] **Godot 4.7.2 已安装并验证**：`D:\Tools\Godot\Godot_v4.7.2-stable_win64.exe`；`GODOT_BIN` 已设置。新终端若找不到，重开终端或检查环境变量。
-- [ ] 游戏主题、美术风格、单角色 vs 殖民地管理、实时 vs 回合战斗：见 `docs/GAME-BRIEF.md` 的开放问题。
-- [ ] 是否使用 2.5D 高度层、是否需要联机：暂定不做。
-- [ ] 正式游戏名 `reol` 是否为占位名。
+- [x] **视角/美术**：2D 等距 + 高度层；固定角、平移/缩放、不旋转（ADR-0013）。
+- [x] **联机**：单机模拟的网游感；远区算法结算，不做联机（ADR-0010 / 0014）。
+- [x] **战斗**：实时 + 暂停；局部慢放是后期高阶技能（ADR-0017）。
+- [x] **起始身份**：杂役；架构支持后续多出身（ADR-0016）。
+- [x] **世界**：512×512 首区；64×64 区块；可扩展（ADR-0015）。
+- [x] **AI NPC**：脚本/效用 AI 优先；LLM 后期（ADR-0018）。
+- [ ] **M1 实现**：等距相机、玩家移动、512×512 区块、高度、迷雾、时间。
+- [ ] **美术细节**：等距 tile 最终尺寸（64×32 vs 32×16）、色盘定稿——M1/M5 再用实测决定。
+- [ ] **境界名/数值**：M2 前写设计文档。
+- [ ] 正式游戏名 `reol` 是否为占位名；项目许可证尚未选择。
 
 ## 11. 出问题时
 

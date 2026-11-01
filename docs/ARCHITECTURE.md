@@ -1,7 +1,7 @@
-# Reol — 目标技术架构（Draft v0.1）
+# Reol — 目标技术架构（v0.2）
 
-> 状态：**提议架构**。随着原型验证会调整；重大变更记录到 `docs/DECISIONS.md`。
-> 引擎：Godot 4.7.2 / GDScript / 2D 俯视。
+> 状态：**已定方向**。随着原型验证会调整；重大变更记录到 `docs/DECISIONS.md`。
+> 引擎：Godot 4.7.2 / GDScript / **2D 等距 + 高度层**。
 > 原则：**先能跑，再抽象；数据驱动；固定 tick；小系统组合。**
 
 ---
@@ -9,19 +9,21 @@
 ## 1. 目标与非目标
 
 ### 目标
-- 支持一个 **会持续运转** 的小世界：时间、NPC、工作、事件、聚落。
-- 支持 **玩家角色** 与 **殖民地管理** 两种玩法在同一场景中切换。
-- 支持 **大地图分块加载**，但 v0.1 只做单张 128×128 地图。
+- 支持一个 **会持续运转** 的小世界：时间、NPC、工作、事件、宗门、势力。
+- 支持 **玩家角色** 与 **宗门/势力管理** 两种视角在同一场景中切换。
+- 支持 **512×512 首区、64×64 区块流式加载**；远区抽象模拟，近区实例化。
+- 支持 **2D 等距 + 高度层 + 战争迷雾**；固定角相机，平移/缩放。
 - 支持 **版本化存档**，读旧档不炸。
 - 支持 **无头测试** 和 AI 自动验证。
-- 60 FPS / 模拟 tick < 8ms / 3 人→12 人可扩展。
+- 60 FPS / 模拟 tick < 8ms / v0.1 10–20 个活跃 Pawn，v1 30–50。
 
 ### 非目标（v0.1）
 - 联机、服务器权威、回滚网络。
+- 真 3D、自由旋转/俯仰、体素破坏、真 3D 空战。
 - 完整 ECS、Job System 级并行、GPU 皮肤。
-- 无限世界、无缝大地图、多线程导航。
+- 无限世界；首区之外只做抽象模拟。
 - 复杂流体/温度/气体模拟。
-- 模组沙箱、脚本热重载。
+- LLM 核心模拟、模组沙箱、脚本热重载。
 
 ---
 
@@ -35,8 +37,8 @@
                        │ signals / commands
 ┌──────────────────────▼──────────────────────────────┐
 │ Systems                                             │
-│  JobBoard · Combat · Crafting · Needs · Quest       │
-│  Faction · EventDirector · Economy                  │
+│  JobBoard · Combat · Craft · Needs · Quest          │
+│  Faction · Reputation · Rank · WorldSim · Economy   │
 └──────────────────────┬──────────────────────────────┘
                        │ queries / mutations
 ┌──────────────────────▼──────────────────────────────┐
@@ -46,8 +48,8 @@
                        │ spatial queries
 ┌──────────────────────▼──────────────────────────────┐
 │ World                                               │
-│  ChunkManager · TileMapLayer · Navigation · Time    │
-│  Weather · POI · Spawner                            │
+│  ChunkManager · IsoGrid · FogOfWar · Navigation     │
+│  Time · Weather · POI · Spawner                     │
 └──────────────────────┬──────────────────────────────┘
                        │
 ┌──────────────────────▼──────────────────────────────┐
@@ -77,6 +79,8 @@ res://
 │   ├── jobs/               # JobDef .tres
 │   ├── recipes/            # RecipeDef .tres
 │   ├── pawns/              # PawnDef .tres
+│   ├── factions/           # FactionDef / RankDef .tres
+│   ├── origins/            # OriginDef .tres
 │   ├── events/             # EventDef .tres / .json
 │   └── world/              # biome / POI / loot tables
 ├── scenes/
@@ -89,10 +93,11 @@ res://
 ├── scripts/
 │   ├── autoload/           # GameClock、EventBus、GameState...
 │   ├── core/               # 纯逻辑：ids、rng、save、utils
-│   ├── world/              # chunk、map、nav、time、weather
+│   ├── world/              # chunk、iso grid、fog、nav、time、weather
 │   ├── entities/           # entity、pawn、building、item
-│   ├── ai/                 # needs、jobs、utility、behavior
-│   ├── systems/            # combat、crafting、quest、faction
+│   ├── ai/                 # needs、jobs、utility、behavior、action API
+│   ├── systems/            # combat、craft、quest、faction、reputation、rank
+│   ├── sim/                # world/region tick、缺席战斗结算、传闻
 │   └── ui/                 # hud、panels、widgets
 ├── tests/
 │   ├── run_tests.gd
@@ -112,10 +117,12 @@ res://
 | `EventBus` | 第一个跨系统事件 | 全局 typed signals | 存游戏状态 |
 | `GameClock` | 第一个时间/需求系统 | tick、暂停、速度、日/夜 | 直接改实体 |
 | `EntityRegistry` | 第一个需要按 ID 查找的实体 | ID 分配、注册/注销、查询 | 每帧扫描全树 |
-| `GameState` | 第一个存档字段 | 玩家/殖民地/任务 flags | 变成万能单例 |
+| `GameState` | 第一个存档字段 | 玩家/宗门/任务 flags | 变成万能单例 |
 | `JobBoard` | 第一个工作系统 | 工作发布、认领、预约、完成 | 直接控制 Pawn |
 | `SaveManager` | 第一次存档 | 版本、序列化、迁移、原子写 | 知道每个系统的细节 |
 | `World` | 第一个区块/地图 | 区块流式加载、地图查询 | 承担所有玩法 |
+| `WorldSim` | 第一个远区模拟 | World/Region tick、缺席战斗结算、传闻 | 直接创建场景/节点 |
+| `FactionRegistry` | 第一个阵营/声望 | 阵营定义、关系矩阵、声望查询 | 承担内政玩法 |
 
 > **不要一次创建所有 autoload。** 每个 autoload 都是一个全局依赖；先有需求再建。
 
@@ -173,7 +180,7 @@ signal day_changed(day: int)
 var speed: float = 1.0
 var paused: bool = false
 var tick_index: int = 0
-var minute: int = 0
+var total_minutes: int = 0
 
 var _accumulator: float = 0.0
 
@@ -181,8 +188,8 @@ func _process(delta: float) -> void:
     if paused:
         return
     _accumulator += delta * speed
-    var step := 1.0 / float(ticks_per_second)
-    var budget := 8                 # 防止卡顿后螺旋
+    var step: float = 1.0 / float(ticks_per_second)
+    var budget: int = 8                 # 防止卡顿后螺旋
     while _accumulator >= step and budget > 0:
         _accumulator -= step
         budget -= 1
@@ -192,16 +199,23 @@ func _process(delta: float) -> void:
 
 func _advance_tick() -> void:
     tick_index += 1
+    var prev_day: int = get_day()
+    var prev_hour: int = get_hour()
+    total_minutes += minutes_per_tick
     tick.emit(tick_index)
-    minute += minutes_per_tick
-    if minute >= 60:
-        minute = 0
+    if get_hour() != prev_hour:
         hour_changed.emit(get_hour())
-    if tick_index % (ticks_per_second * 60) == 0:
+    if get_day() != prev_day:
         day_changed.emit(get_day())
 
+func get_day() -> int:
+    return total_minutes / 1440
+
 func get_hour() -> int:
-    return int(minute / 60.0) % 24
+    return (total_minutes / 60) % 24
+
+func get_minute() -> int:
+    return total_minutes % 60
 ```
 
 **速度控制**用 `speed`，不要用 `Engine.time_scale`：
@@ -216,6 +230,27 @@ func get_hour() -> int:
 - 1 tick = 1 游戏分钟（10 tick/s → 1 游戏小时 = 6 秒真实时间）
 - 一天 24 小时 = 1440 tick = 144 秒真实时间（2.4 分钟）
 - 这个比例适合“30 分钟体验一次昼夜”；后续可调。
+
+### 5.4 分层时钟
+
+| 层 | 频率 | 做什么 | 不做什么 |
+|---|---|---|---|
+| World | 每游戏天 | 势力资源/外交/战争/领袖/教义 | 不创建节点、不寻路 |
+| Region | 每游戏小时 | 军队/POI/宗门政策/资源 | 不模拟单个 NPC |
+| Settlement | 每几秒/游戏分钟 | 生产/职位/需求汇总 | 不跑物理 |
+| Local | 10Hz | Pawn/工作/战斗/物理 | 不做全图扫描 |
+| Detail | 每帧 | 动画/插值/UI/粒子 | 不改模拟状态 |
+
+- 远区只跑 World/Region；靠近时把数据“提升”为 Local 实体，离开时“降级”。
+- 具名 NPC 个体持久化；普通 NPC 按 cohort 聚合。
+- 每个领域独立种子 RNG；存档记录 `sim_time`；读档补算设上限。
+
+### 5.5 局部时间缩放（子弹时间）
+
+- 每个 actor 有 `time_scale: float = 1.0`。
+- 移动、AI 决策、冷却、投射物更新都乘自己的 `delta * time_scale`。
+- 不用全局 `Engine.time_scale`，避免 UI/玩家输入/动画被一起拖慢。
+- 暂停用 `GameClock.paused`；暂停时 UI 节点 `PROCESS_MODE_ALWAYS`。
 
 ---
 
@@ -367,18 +402,32 @@ extends Resource
 
 ### 8.1 v0.1
 
-- 单张 **128×128** 地图。
-- 一个 `TileMapLayer` 做地面，一个做墙体/碰撞，一个做装饰。
-- 地图来源：`res://data/world/map_01.json`（或 ASCII + JSON 元数据）。
-- `AStarGrid2D` 做寻路；`NavigationRegion2D` 可选。
+- 首区 **512×512**；区块 **64×64**（8×8）；加载半径 2（5×5），卸载半径 3。
+- 每个区块 3 层：ground / walls / props；等距 `TileMapLayer` + Y-sort。
+- 地形来源：seed + 规则生成（先简单噪声/手工骨架），POI 从数据表放置。
+- 地图尺寸不硬编码；区域元数据 + 世界分区。
+- 只持久化 **deltas**：改格、建造、物品、实体状态。
+- 区块加载用 `ResourceLoader.load_threaded_request()` 或后台生成；每帧最多 1 个；不要同步加载大场景。
 
-### 8.2 后续（v1+）
+### 8.2 等距坐标与高度
 
-- 区块 **64×64**，加载半径 2，卸载半径 3。
-- 每个区块 3 层：ground / walls / props。
-- 地形由 seed + 规则生成；POI 从数据表放置。
-- 只持久化 **deltas**：挖掉的格子、建造、物品、实体状态。
-- 区块加载用 `ResourceLoader.load_threaded_request()`；不要在帧内同步加载大场景。
+- 逻辑坐标 `cell: Vector2i`；世界坐标 `cell_to_world(cell)`；等距 2:1。
+- 每格 `elevation: int`（0–3）；实体 `altitude: int`（0/1/2）。
+- 渲染 Y 偏移：`-elevation * ELEVATION_PX - altitude * ALTITUDE_PX`。
+- 影子留在 `ground_position`；随 altitude 变小/变淡。
+- Y-sort 用脚底世界 Y，不用屏幕 Y。
+- 悬崖/高差：`elevation_delta > 1` 视为不可走；`1` 可走但加移动成本/减速。
+- 飞行：`altitude > 0` 忽略地面障碍；受禁飞区/室内限制；地面近战不能打空中。
+
+### 8.3 战争迷雾
+
+- 每格三态：`HIDDEN` / `EXPLORED` / `VISIBLE`。
+- 可见性 5–10Hz 更新；网格 Bresenham + 高度/墙体遮挡；只更新玩家附近区块。
+- 迷雾层：低分辨率可见度纹理（每区域或每区块）+ shader，在 world 之上、UI 之下。
+- 已探索持久化；单位在不可见格隐藏；地形/建筑保留暗色轮廓。
+- 性能：dirty rect 更新，不整图重算。
+
+### 8.4 区块与寻路
 
 ```gdscript
 # scripts/world/world_chunk.gd
@@ -393,8 +442,6 @@ var dirty: bool = false
 func world_rect() -> Rect2i:
     return Rect2i(coord * SIZE, Vector2i(SIZE, SIZE))
 ```
-
-### 8.3 寻路
 
 ```gdscript
 var astar := AStarGrid2D.new()
@@ -427,6 +474,9 @@ var path: Array[Vector2i] = astar.get_id_path(Vector2i(2, 2), Vector2i(20, 20))
 - **JobBoard**：发布/认领/预约；防止两个 Pawn 抢同一个物品。
 - **Executor**：状态机 `IDLE → MOVING → WORKING → DONE/FAILED`。
 - **Behavior Tree**（可选）：复杂战斗/逃跑用 LimboAI 或 Beehave；日常需求用 utility 更简单。
+- **具名 NPC vs cohort**：具名 NPC 个体跑 utility/日程；普通弟子按 cohort 聚合，靠近/相关时再提升为个体。
+- **Action API**：玩家输入、脚本 AI、未来 LLM/AI 托管都输出同一种 action；系统校验后执行，AI 不直接改状态。
+- **记忆/关系**：结构化表（事件、好感、亏欠、秘密、仇恨），不是 prompt 文本；LLM 只负责把表翻译成话。
 
 ### 9.2 工作生命周期
 
@@ -460,9 +510,12 @@ var priority: float = 1.0
 
 ## 10. 战斗
 
-- **实时 + 暂停**：空格暂停，时间减速 0.25x 用于战术。
+- **实时 + 暂停**：空格暂停；速度 0/1/2/4；暂停时 UI/指令仍响应。
+- **局部慢放**：每个 actor 有 `time_scale`；高阶技能让敌人 0.3、玩家 1.0；不用全局 `Engine.time_scale`。
+- **规模**：玩家 + 3–5 同伴 vs 5–10 敌人；不做百人团战。
+- **高度**：`altitude` 0/1/2；地面近战不能打空中；远程/对空技能可以；高度差影响射程/命中/视线；渲染用偏移 + 影子。
 - **数据驱动**：武器/技能用 `Resource`；伤害公式集中在一个 `CombatMath`。
-- **可读性**：攻击前摇、命中反馈、血条、威胁指示、地面范围指示。
+- **可读性**：攻击前摇、命中反馈、血条、威胁指示、地面范围指示、阵营颜色。
 - **阵营**：`Faction` 资源；关系矩阵；友军伤害默认关闭。
 - **Downed 状态**：死亡不是唯一结果；倒地/救援/俘虏为后续留口。
 - **性能**：近战用 `Area2D` + 形状查询；远程用对象池；不要每帧 `intersect_shape` 全图。
@@ -557,12 +610,13 @@ func save_game(path: String = "user://saves/slot_01.json") -> Error:
 
 | 指标 | 目标 |
 |---|---|
-| 帧率 | 60 FPS（中端 PC，1280×720） |
-| 模拟 tick | < 8 ms（12 个 Pawn + 50 建筑） |
-| 区块加载 | < 4 ms/帧（异步） |
+| 帧率 | 60 FPS（中端 PC，1920×1080） |
+| 模拟 tick | < 8 ms（20 个 Pawn + 50 建筑） |
+| 区块加载 | < 4 ms/帧（异步，每帧最多 1 个） |
 | 实体数 | v0.1 < 100；v1 < 500 |
 | 内存 | < 1 GB |
 | Draw calls | < 500（2D） |
+| 迷雾更新 | < 2 ms/次（5–10Hz，dirty rect） |
 
 手段：
 - `TileMapLayer` 而不是几千个 Sprite。
@@ -617,12 +671,20 @@ func save_game(path: String = "user://saves/slot_01.json") -> Error:
 
 ---
 
-## 16. 待决策
+## 16. 已定与仍开放
 
-- 2D 纯平面 vs 2.5D 高度层（影响 Y-sort、遮挡、寻路）。
-- 单角色操控 + 指挥 vs 纯上帝视角（影响输入、相机、UI）。
-- 实时暂停 vs 回合（影响战斗、AI、动画）。
-- 地图数据格式：JSON vs 自定义二进制 vs Godot Resource。
-- 是否使用 LimboAI（行为树）还是纯 utility AI。
+已定（见 `docs/DECISIONS.md`）：
+- 2D 等距 + 高度层（ADR-0013）。
+- 实时 + 暂停 + 局部慢放（ADR-0017）。
+- 512×512 首区、64×64 区块、5×5 加载（ADR-0015）。
+- 单机模拟、脚本 AI 优先（ADR-0010 / 0018）。
+- 数据包 + 世界生成管线（ADR-0019）。
 
-这些在 `docs/GAME-BRIEF.md` 的开放问题中，确认后更新本文件。
+仍开放（不阻塞 M1）：
+- 等距 tile 最终尺寸（64×32 vs 32×16）——先用 64×32 占位。
+- 相机缩放范围/边缘滚动速度——M1 调手感。
+- 地图数据格式（JSON vs Resource vs 二进制）——M1 先用 JSON + seed，性能不够再换。
+- 是否引入 LimboAI——先纯 utility/FSM，复杂战斗再评估。
+- 具体境界名/数值——M2 前写设计文档。
+
+这些在 M1 过程中用实测决定，不阻塞开工。

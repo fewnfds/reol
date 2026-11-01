@@ -3,6 +3,7 @@
 > 日期：2026-11-01
 > 目的：记录“现在已经有什么、验证到什么程度、下一步讨论什么”。
 > 这不是完成品；是可安全开始开发的基座。
+> **2026-11-01 更新**：方向 v0.2 已定稿（2D 等距 + 高度层、单机模拟、可暂停战斗）；M0 验证记录仍然有效。见 `docs/GAME-BRIEF.md`、`docs/DIRECTION-V0.2.md`、ADR-0013～0019。
 
 ---
 
@@ -43,14 +44,15 @@
   - 6 个项目专属：`reol-project`、`godot-sim-architecture`、`colony-sim-systems`、
     `open-world-2d`、`godot-verify`、`spec-driven-game-dev`。
 - 文档：
-  - `docs/GAME-BRIEF.md`（愿景/范围/开放问题）
+  - `docs/GAME-BRIEF.md`（愿景/范围/已拍板方向）
+  - `docs/DIRECTION-V0.2.md`（方向分析与最终选择）
   - `docs/ARCHITECTURE.md`（tick/实体/数据/区块/存档/性能）
   - `docs/ROADMAP.md`（M0–M5 + 第一冲刺）
   - `docs/GODOT-FOR-UNITY-DEVS.md`
   - `docs/TOOLCHAIN.md`（安装/MCP/排错）
   - `docs/AI-WORKFLOW.md`
   - `docs/REFERENCES.md`（示例项目/插件/素材/许可证）
-  - `docs/DECISIONS.md`（12 条 ADR）
+  - `docs/DECISIONS.md`（19 条 ADR）
 - `design/` 系统设计模板；`data/`、`assets/` 约定。
 - `THIRD_PARTY_NOTICES.md` + 许可证原文。
 - Git 仓库已初始化，根提交 `40f307c`。
@@ -65,7 +67,9 @@
 | Godot AI dock Configure | 需要 GUI 编辑器交互；它会写全局/项目 MCP 配置 |
 | Boot 场景截图 | 需要真实窗口渲染；headless 无画面 |
 | 导出模板 | 打包时才需要；Editor → Manage Export Templates |
-| 设计开放问题 1/2/3 | 需要你拍板，见 `docs/GAME-BRIEF.md` |
+| M1 实现 | 方向已定；等距相机/区块/高度/迷雾/时间尚未开工 |
+| 美术细节 | tile 尺寸（64×32 vs 32×16）/色盘，M1 实测后定 |
+| 境界名/数值 | M2 前写设计文档 |
 | 项目许可证 | 你还没选（MIT / Apache-2.0 / 专有） |
 | CI 首次运行 | 需要 GitHub remote |
 | GUT | 暂用自带 headless runner；复杂后替换 |
@@ -75,22 +79,25 @@
 ## 3. 下一个会话怎么开始
 
 ```text
-读 AGENTS.md 和 docs/BASELINE.md。
-当前 M0 已完成；先不要写玩法。
-我们讨论 docs/GAME-BRIEF.md 的开放问题 1/2/3，确定后更新 DECISIONS.md。
+读 AGENTS.md、docs/BASELINE.md、docs/DIRECTION-V0.2.md。
+M0 已完成；方向 v0.2 已定稿；M1 尚未开始。
+从 docs/ROADMAP.md 的 M1 第一个任务开始：主场景 + 等距基准。
 ```
 
-然后从 `docs/ROADMAP.md` 的 M1 第一个任务开始：玩家移动 + 相机 + 地图 + 时间。
+然后按 `docs/ROADMAP.md` 的 M1 顺序推进：等距相机 → 玩家移动 → 512×512 区块 → 高度 → 迷雾 → 时间。
 
 ---
 
-## 4. 建议讨论的三个问题
+## 4. 已拍板的方向（2026-11-01）
 
-1. **视角/美术**：2D 32×32 像素风（默认），还是 16×16 / 手绘 HD / 2.5D？
-2. **玩家角色**：单角色可操控 + 可指挥殖民者（默认），还是纯上帝视角 / 纯单角色 ARPG？
-3. **战斗**：实时 + 空格暂停/慢放（默认），还是回合制 / 纯即时？
+1. **视角/美术**：2D 等距 + 高度层；固定角、平移/缩放、不旋转；像素等距 + 国风色盘（ADR-0013）。
+2. **世界**：512×512 首区；64×64 区块；5×5 加载；远区抽象模拟（ADR-0014 / 0015）。
+3. **玩家/身份**：杂役起步；数据驱动多出身；阵营/声望/职位（ADR-0016）。
+4. **战斗**：实时 + 暂停；局部慢放后期解锁；WC3 式高度表现（ADR-0017）。
+5. **AI**：脚本/效用 AI 优先；LLM 后期只做对话（ADR-0018）。
+6. **内容生产**：数据包 + schema + 世界生成管线（ADR-0019）。
 
-这三个会决定相机、输入、AI、UI、战斗和美术管线。确认后 M1 才能稳定推进。
+**不再讨论**：3D、联机、体素、LLM 核心模拟。
 
 ---
 

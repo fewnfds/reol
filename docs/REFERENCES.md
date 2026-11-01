@@ -126,12 +126,19 @@
 
 ### 3.7 设计参考（非开源代码）
 
+- **RimWorld**：Pawn 需求/工作/心情、事件导演、可读 AI、低美术高系统。
 - **Dwarf Fortress**：世界生成、历史、系统交互、失败叙事。
-- **RimWorld**：Pawn 需求/工作/心情、事件导演、可读 AI。
-- **Kenshi**：开放沙盒、派系、基地+冒险。
-- **Warcraft III**：俯视角、单位可读性、英雄技能。
+- **Amazing Cultivation Simulator（了不起的修仙模拟器）**：修仙 + 门派经营 + RimWorld 式系统；借“宗门日常/风水/炼丹/事件”，不借过多并行系统和复杂 UI。
+- **Tale of Immortal（鬼谷八荒）**：开放世界修仙、突破、随机事件、人际关系；借成长/事件节奏，不借重复刷。
+- **The Scroll of Taiwu（太吾绘卷）**：世界/势力/关系网、传承、系统叙事；借关系网，不借过度复杂的信息结构。
+- **Path of Immortality（觅长生）**：时间压力、事件、炼丹/修炼循环；借时间感，不借线性流程。
+- **Kenshi**：开放沙盒、派系、基地+冒险；借“无主角光环”，不借粗糙手感。
+- **Warcraft III**：等距视角、单位可读性、英雄技能、飞行高度表现；借可读性，不借 RTS 多线微操。
+- **World of Warcraft**：阵营/声望/敌友、任务、世界感；借声望结构，不借真 MMO 规模。
 - **Necesse / Core Keeper**：俯视建造/探索/战斗的轻量循环。
 - **Stardew Valley**：日常节奏、亲切感、UI。
+
+> 本项目已选 **2D 等距**；3D 参考（Quaternius/KayKit/Kenshi 的 3D）只作为未来备选，不进入 v0.1。
 
 ---
 
@@ -161,8 +168,9 @@
 | 来源 | 链接 | 许可证 | 适合 |
 |---|---|---|---|
 | **Kenney** | https://kenney.nl/assets | CC0 | 2D/3D 占位、UI、音效；首选 |
+| **Kenney Isometric** | https://kenney.nl/assets?q=isometric | CC0 | 2D 等距 tile/建筑/角色占位 |
 | **LimeZu** | https://limezu.itch.io/ | 各包不同（多为付费） | 精致 2D 室内/角色；Microverse 用过 |
-| **Quaternius** | https://quaternius.com/ | CC0 | 3D 低模（如果以后做 2.5D） |
+| **Quaternius** | https://quaternius.com/ | CC0 | 3D 低模（本项目不做 3D，留作未来） |
 | **KayKit** | https://kaylousberg.itch.io/ | CC0/付费 | 3D 角色/场景 |
 | **OpenGameArt** | https://opengameart.org/ | 混合 | 免费素材，逐项看许可 |
 | **Poly Pizza** | https://poly.pizza/ | CC0/混合 | 3D 低模 |
