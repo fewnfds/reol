@@ -183,6 +183,23 @@ func find_spawn_cell() -> Vector2i:
 	return center
 
 
+func find_walkable_near(origin: Vector2i, radius: int = 8) -> Vector2i:
+	if is_walkable(origin):
+		return origin
+	for search_radius in range(1, radius + 1):
+		for dx in range(-search_radius, search_radius + 1):
+			for dy in range(-search_radius, search_radius + 1):
+				if (
+					absi(dx) != search_radius
+					and absi(dy) != search_radius
+				):
+					continue
+				var candidate := origin + Vector2i(dx, dy)
+				if is_walkable(candidate):
+					return candidate
+	return origin
+
+
 func world_rect() -> Rect2:
 	return Rect2(
 		Vector2.ZERO,

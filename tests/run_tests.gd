@@ -319,6 +319,51 @@ func test_game_clock_time_math() -> void:
 	clock.free()
 
 
+func test_content_db_loads() -> void:
+	var db := ReolContentDB.new()
+	assert_true(db.load_all(), "content loads: %s" % str(db.errors))
+	if not db.errors.is_empty():
+		return
+	assert_eq(db.ranks.size(), 3, "three rank definitions")
+	assert_eq(db.origins.size(), 3, "three origin definitions")
+	assert_eq(db.pawns.size(), 6, "player + five named pawns")
+	assert_not_null(db.get_pawn(&"player"), "player definition exists")
+	assert_not_null(db.get_pawn(&"su_zhi"), "su_zhi definition exists")
+	assert_eq(
+		db.get_rank(&"outer_disciple").required_contribution,
+		100,
+		"outer disciple needs 100 contribution"
+	)
+	assert_eq(
+		db.get_origin(&"drifter").starting_rank_id,
+		&"servant",
+		"drifter starts as a servant"
+	)
+
+
+func test_pawn_state_and_promotion() -> void:
+	var db := ReolContentDB.new()
+	if not db.load_all():
+		assert_true(false, "content loads for the pawn state test")
+		return
+	var definition: PawnDef = db.get_pawn(&"player")
+	var state := PawnState.create(definition, db)
+	assert_eq(state.rank_name(), "杂役", "player starts as a servant")
+	assert_eq(state.origin_name(), "流民", "player origin is drifter")
+	assert_eq(state.qi, 20, "player starts with full qi")
+	state.adjust_hunger(-150.0)
+	assert_eq(state.hunger, 0.0, "hunger clamps at zero")
+	state.adjust_qi(999)
+	assert_eq(state.qi, definition.max_qi, "qi clamps at max")
+
+	var next_rank: RankDef = db.get_rank(&"outer_disciple")
+	assert_true(not state.can_promote_to(next_rank), "promotion needs contribution")
+	state.add_contribution(100)
+	assert_true(state.can_promote_to(next_rank), "promotion unlocks at 100")
+	assert_true(state.promote_to(next_rank), "promotion succeeds")
+	assert_eq(state.rank.id, &"outer_disciple", "rank changed")
+
+
 func test_scripts_parse() -> void:
 	var files: Array[String] = []
 	_collect_gd_files("res://scripts", files)

@@ -1,0 +1,25 @@
+{
+  "ranks": [
+    {
+      "id": "servant",
+      "name": "杂役",
+      "tier": 0,
+      "required_contribution": 0,
+      "description": "宗门最底层，负责挑水、砍柴、扫地等杂务。"
+    },
+    {
+      "id": "outer_disciple",
+      "name": "外门弟子",
+      "tier": 1,
+      "required_contribution": 100,
+      "description": "正式踏入山门，可领月例、听晨课、使用演武场。"
+    },
+    {
+      "id": "steward",
+      "name": "杂役管事",
+      "tier": 1,
+      "required_contribution": 0,
+      "description": "管理杂役的名额与差事，不算正式弟子。"
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "pawns": [
+    {
+      "id": "player",
+      "name": "无名",
+      "origin": "drifter",
+      "rank": "servant",
+      "role": "杂役",
+      "realm": 0,
+      "max_qi": 20,
+      "max_stamina": 100,
+      "color": "#b23a2f",
+      "bio": "你。刚被分到杂役院，身上只有一套旧衣和一块木牌。"
+    },
+    {
+      "id": "chen_shouzhuo",
+      "name": "陈守拙",
+      "origin": "sect_orphan",
+      "rank": "steward",
+      "role": "管事",
+      "realm": 1,
+      "max_qi": 60,
+      "max_stamina": 120,
+      "color": "#8a744a",
+      "bio": "杂役管事，规矩比人情大。谁偷懒，他都记得。"
+    },
+    {
+      "id": "a_he",
+      "name": "阿禾",
+      "origin": "drifter",
+      "rank": "servant",
+      "role": "厨娘",
+      "realm": 0,
+      "max_qi": 15,
+      "max_stamina": 90,
+      "color": "#c98b4b",
+      "bio": "灶房掌勺，消息比饭菜传得还快。"
+    },
+    {
+      "id": "shi_tou",
+      "name": "石头",
+      "origin": "hunter",
+      "rank": "servant",
+      "role": "挑水",
+      "realm": 0,
+      "max_qi": 25,
+      "max_stamina": 140,
+      "color": "#7a7f86",
+      "bio": "话少，力气大。一个人能挑两担水。"
+    },
+    {
+      "id": "su_zhi",
+      "name": "苏芷",
+      "origin": "sect_orphan",
+      "rank": "outer_disciple",
+      "role": "药圃",
+      "realm": 1,
+      "max_qi": 80,
+      "max_stamina": 100,
+      "color": "#5f8f7a",
+      "bio": "外门弟子，被派来看药圃。识药，也识人。"
+    },
+    {
+      "id": "lao_zhou",
+      "name": "老周",
+      "origin": "drifter",
+      "rank": "servant",
+      "role": "柴房",
+      "realm": 0,
+      "max_qi": 10,
+      "max_stamina": 80,
+      "color": "#8a6a4f",
+      "bio": "在柴房干了十年，能坐着绝不站着。"
+    }
+  ]
+}

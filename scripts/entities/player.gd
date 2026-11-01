@@ -15,6 +15,8 @@ const MAX_SUBSTEP_PX: float = 12.0
 var cell: Vector2i = Vector2i.ZERO
 var altitude: int = 0
 var blocked: bool = false
+var state: PawnState
+var selected: bool = false
 
 var _world: ReolWorld
 var _velocity: Vector2 = Vector2.ZERO
@@ -23,6 +25,29 @@ var _velocity: Vector2 = Vector2.ZERO
 func _ready() -> void:
 	_world = get_parent().get_node_or_null("World") as ReolWorld
 	z_index = 10
+
+
+func setup_state(value: PawnState) -> void:
+	state = value
+	queue_redraw()
+
+
+func set_selected(value: bool) -> void:
+	selected = value
+	queue_redraw()
+
+
+func selection_center() -> Vector2:
+	var elevation: int = 0
+	if _world != null:
+		elevation = _world.get_elevation(cell)
+	return global_position + Vector2(
+		0.0,
+		-float(
+			elevation * ReolWorld.ELEVATION_PX
+			+ altitude * ReolWorld.ALTITUDE_PX
+		) - 12.0
+	)
 
 
 func spawn_at(spawn_cell: Vector2i) -> void:
@@ -111,6 +136,8 @@ func _draw() -> void:
 		Vector2(0.0, -4.0) + ground_offset,
 	])
 	draw_colored_polygon(shadow, Color(0.0, 0.0, 0.0, 0.28))
+	if selected:
+		draw_arc(ground_offset, 17.0, 0.0, TAU, 24, Color("#e8c86a"), 2.0)
 	draw_circle(Vector2(0.0, -20.0) + body_offset, 8.0, Color("#e6d3b3"))
 	draw_rect(
 		Rect2(Vector2(-8.0, -13.0) + body_offset, Vector2(16.0, 23.0)),
@@ -124,3 +151,27 @@ func _draw() -> void:
 		Rect2(Vector2(1.0, 10.0) + body_offset, Vector2(5.0, 8.0)),
 		Color("#2b2b2b")
 	)
+
+	if state != null:
+		var font: Font = ThemeDB.fallback_font
+		var text: String = state.display_name()
+		var text_pos: Vector2 = body_offset + Vector2(-48.0, -36.0)
+		draw_string_outline(
+			font,
+			text_pos,
+			text,
+			HORIZONTAL_ALIGNMENT_CENTER,
+			96.0,
+			12,
+			3,
+			Color(0.0, 0.0, 0.0, 0.85)
+		)
+		draw_string(
+			font,
+			text_pos,
+			text,
+			HORIZONTAL_ALIGNMENT_CENTER,
+			96.0,
+			12,
+			Color("#e8e0d0")
+		)

@@ -1,0 +1,25 @@
+{
+  "origins": [
+    {
+      "id": "drifter",
+      "name": "流民",
+      "description": "战乱中逃到山门，只求一口饭吃。",
+      "starting_rank": "servant",
+      "starting_contribution": 0
+    },
+    {
+      "id": "sect_orphan",
+      "name": "宗门遗孤",
+      "description": "在宗门长大，熟悉规矩，也见过人情冷暖。",
+      "starting_rank": "servant",
+      "starting_contribution": 10
+    },
+    {
+      "id": "hunter",
+      "name": "猎户",
+      "description": "山下来投，脚力好，胆子大。",
+      "starting_rank": "servant",
+      "starting_contribution": 5
+    }
+  ]
+}
