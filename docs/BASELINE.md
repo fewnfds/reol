@@ -4,7 +4,7 @@
 > 目的：记录“现在已经有什么、验证到什么程度、下一步讨论什么”。
 > 这不是完成品；是可安全开始开发的基座。
 > **2026-11-01 更新**：方向 v0.2 已定稿（2D 正交俯视 + 正方形格 + 高度层、单机模拟、可暂停战斗）；M0 验证记录仍然有效。
-> **2026-11-01 追加**：M1 基础系统已完成（网格/相机/玩家/区块流式/高度层/迷雾/时间），`check` 13 passed；下一步 M2。见 `docs/GAME-BRIEF.md`、`docs/DIRECTION-V0.2.md`、ADR-0013～0019。
+> **2026-11-01 追加**：M1 基础系统已完成（网格/相机/玩家/区块流式/高度层/迷雾/时间/碰撞打磨），`check` 16 passed；下一步 M2。见 `docs/GAME-BRIEF.md`、`docs/DIRECTION-V0.2.md`、ADR-0013～0019。
 
 ---
 
@@ -21,7 +21,7 @@
 | 检查 | 结果 |
 |---|---|
 | `python tools/godot.py doctor` | Godot 4.7.2，全部关键文件存在 |
-| `python tools/godot.py check` | **13 passed / 0 failed**，`CHECK PASSED` |
+| `python tools/godot.py check` | **16 passed / 0 failed**，`CHECK PASSED` |
 | `python tools/godot.py run --headless --quit-after 30` | `Reol boot OK - Godot 4.7.2-stable` |
 | `gdlint scripts tests` | 无问题 |
 | `gdformat --check scripts tests` | 无需重排 |
@@ -68,7 +68,7 @@
 | Godot AI dock Configure | 需要 GUI 编辑器交互；它会写全局/项目 MCP 配置 |
 | Boot 场景截图 | 需要真实窗口渲染；headless 无画面 |
 | 导出模板 | 打包时才需要；Editor → Manage Export Templates |
-| M1 实现 | 已完成：俯视网格/相机/玩家/区块/高度层/战争迷雾/时间（13 条测试） |
+| M1 实现 | 已完成：俯视网格/相机/玩家/区块/高度层/战争迷雾/时间/碰撞打磨（16 条测试） |
 | 美术细节 | tile 尺寸（64×64 vs 32×32）/色盘，M1 实测后定 |
 | 境界名/数值 | M2 前写设计文档 |
 | 项目许可证 | 你还没选（MIT / Apache-2.0 / 专有） |
@@ -85,7 +85,7 @@ M0、M1 已完成；方向 v0.2 已定稿。
 从 docs/ROADMAP.md 的 M2 第一个任务开始：Pawn/玩家数据 + 需求/日程 + 杂役 JobBoard。
 ```
 
-M1 已验证：俯视网格/相机/玩家/512×512 区块流式/高度层/迷雾/时间；`check` 13 passed。
+M1 已验证：俯视网格/相机/玩家/512×512 区块流式/高度层/迷雾/时间/碰撞打磨；`check` 16 passed。
 下一步按 M2 顺序推进：Pawn/Origin/Rank 数据 → 需求/日程 → 杂役 JobBoard → 库存/交互 → 对话/关系 → 声望/职位 → 存档 → UI。
 
 ---

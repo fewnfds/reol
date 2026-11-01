@@ -57,6 +57,24 @@ func assert_not_null(value: Variant, label: String) -> void:
 
 
 # ---------------------------------------------------------------------------
+# Test doubles
+# ---------------------------------------------------------------------------
+
+
+class FakeWalkWorld extends ReolWorld:
+	## Only cells listed in `open_cells` can be entered; avoids noise generation.
+	var open_cells: Dictionary[Vector2i, bool] = {}
+
+
+	func _ready() -> void:
+		pass
+
+
+	func can_move(_from_cell: Vector2i, to_cell: Vector2i) -> bool:
+		return open_cells.has(to_cell)
+
+
+# ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
 
@@ -198,6 +216,72 @@ func test_fog_visibility_states() -> void:
 	assert_true(fog.is_cell_visible(far), "new focus cell is visible")
 
 	fog.free()
+	world.free()
+
+
+func test_can_step_blocks_corner_cut() -> void:
+	var fake := FakeWalkWorld.new()
+	fake.open_cells[Vector2i(1, 1)] = true
+	assert_true(
+		not fake.can_step(Vector2i.ZERO, Vector2i(1, 1)),
+		"diagonal is blocked when both orthogonal sides are blocked"
+	)
+	fake.open_cells[Vector2i(1, 0)] = true
+	assert_true(
+		fake.can_step(Vector2i.ZERO, Vector2i(1, 1)),
+		"diagonal is allowed when one orthogonal side is open"
+	)
+	fake.free()
+
+
+func test_player_cannot_cut_blocked_corner() -> void:
+	var host := Node2D.new()
+	var fake := FakeWalkWorld.new()
+	fake.name = "World"
+	fake.open_cells[Vector2i(1, 1)] = true
+	host.add_child(fake)
+	var player: PlayerCharacter = PlayerCharacter.new()
+	host.add_child(player)
+	get_root().add_child(host)
+	player._ready()
+
+	player.spawn_at(Vector2i.ZERO)
+	player._move_step(Vector2(60.0, 60.0))
+	assert_eq(player.cell, Vector2i.ZERO, "blocked corner keeps the player in place")
+	assert_true(player.blocked, "blocked corner sets the blocked flag")
+
+	fake.open_cells[Vector2i(1, 0)] = true
+	player.spawn_at(Vector2i.ZERO)
+	player._move_step(Vector2(60.0, 60.0))
+	assert_eq(player.cell, Vector2i(1, 1), "an open side allows the diagonal step")
+
+	host.free()
+
+
+func test_diagonal_corner_rule() -> void:
+	assert_true(
+		ReolWorld.diagonal_step_allowed(Vector2i(1, 0), false, false),
+		"cardinal steps ignore the corner rule"
+	)
+	assert_true(
+		ReolWorld.diagonal_step_allowed(Vector2i(1, 1), true, false),
+		"diagonal allowed when the x-side is open"
+	)
+	assert_true(
+		ReolWorld.diagonal_step_allowed(Vector2i(-1, 1), false, true),
+		"diagonal allowed when the y-side is open"
+	)
+	assert_true(
+		not ReolWorld.diagonal_step_allowed(Vector2i(1, 1), false, false),
+		"diagonal blocked when both sides are blocked"
+	)
+
+	var world := ReolWorld.new()
+	world.initialize()
+	assert_true(
+		world.can_step(Vector2i(256, 256), Vector2i.ZERO),
+		"zero step is always legal"
+	)
 	world.free()
 
 

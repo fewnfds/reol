@@ -43,7 +43,7 @@
 
 ## M1 — 能走能看（已完成 2026-11-01）
 
-> 完成情况：8 项任务全部实现；`python tools/godot.py check` = 13 passed / 0 failed；
+> 完成情况：8 项任务全部实现，含碰撞打磨（对角防穿角、子步扫掠、加减速）；`python tools/godot.py check` = 16 passed / 0 failed；
 > 实机截图确认高度层、迷雾、昼夜、暂停/2x 速度。见 `docs/BASELINE.md`。
 
 ### 目标

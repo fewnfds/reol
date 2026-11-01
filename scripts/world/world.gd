@@ -134,6 +134,24 @@ func can_move(from_cell: Vector2i, to_cell: Vector2i) -> bool:
 	return elevation_step_allowed(from_elevation, to_elevation)
 
 
+func can_step(from_cell: Vector2i, step: Vector2i) -> bool:
+	if step == Vector2i.ZERO:
+		return true
+	if not can_move(from_cell, from_cell + step):
+		return false
+	if step.x == 0 or step.y == 0:
+		return true
+	var x_open: bool = can_move(from_cell, from_cell + Vector2i(step.x, 0))
+	var y_open: bool = can_move(from_cell, from_cell + Vector2i(0, step.y))
+	return diagonal_step_allowed(step, x_open, y_open)
+
+
+static func diagonal_step_allowed(step: Vector2i, x_open: bool, y_open: bool) -> bool:
+	if step.x == 0 or step.y == 0:
+		return true
+	return x_open or y_open
+
+
 static func elevation_step_allowed(from_elevation: int, to_elevation: int) -> bool:
 	return absi(to_elevation - from_elevation) <= 1
 
