@@ -2,24 +2,31 @@ extends Node2D
 ## M1 bootstrap: orthographic top-down world + player + fixed camera + debug HUD.
 
 @onready var world: ReolWorld = $World
+@onready var fog: FogOfWar = $Fog
 @onready var player: PlayerCharacter = $Player
 @onready var camera: CameraController = $Camera
 @onready var hud: GameHUD = $HUD
+
+var _flying: FlyingMarker
 
 
 func _ready() -> void:
 	RenderingServer.set_default_clear_color(Color("#0b0f12"))
 	var spawn_cell: Vector2i = world.find_spawn_cell()
 	player.spawn_at(spawn_cell)
+	fog.setup(world, spawn_cell)
 	camera.setup(world.world_rect(), player.global_position)
 	camera.set_focus_target(player)
-	hud.set_world(world, player, camera)
+	hud.set_world(world, player, camera, fog)
 	world.set_focus(spawn_cell)
 
-	var flying := FlyingMarker.new()
-	flying.setup(world, spawn_cell + Vector2i(3, 0), 1)
-	add_child(flying)
+	_flying = FlyingMarker.new()
+	_flying.setup(world, spawn_cell + Vector2i(3, 0), 1)
+	add_child(_flying)
 
 
 func _process(_delta: float) -> void:
 	world.set_focus(player.cell)
+	fog.set_focus(player.cell)
+	if _flying != null:
+		_flying.visible = fog.is_cell_visible(_flying.cell)

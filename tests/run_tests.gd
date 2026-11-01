@@ -167,6 +167,36 @@ func test_world_terrain_and_elevation() -> void:
 	world.free()
 
 
+func test_fog_visibility_states() -> void:
+	var world := ReolWorld.new()
+	world.initialize()
+	var fog := FogOfWar.new()
+	fog.setup(world, Vector2i(256, 256))
+
+	var center := Vector2i(256, 256)
+	assert_true(fog.is_cell_visible(center), "spawn cell is visible")
+	assert_true(fog.is_explored(center), "spawn cell is explored")
+
+	var far := Vector2i(306, 256)
+	assert_eq(
+		fog.get_state(far),
+		FogOfWar.STATE_HIDDEN,
+		"far cell starts hidden"
+	)
+
+	fog.set_focus(far)
+	fog.update_now()
+	assert_eq(
+		fog.get_state(center),
+		FogOfWar.STATE_EXPLORED,
+		"old visible cell becomes explored"
+	)
+	assert_true(fog.is_cell_visible(far), "new focus cell is visible")
+
+	fog.free()
+	world.free()
+
+
 func test_scripts_parse() -> void:
 	var files: Array[String] = []
 	_collect_gd_files("res://scripts", files)

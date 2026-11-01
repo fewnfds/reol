@@ -5,6 +5,7 @@ extends CanvasLayer
 var _world: ReolWorld
 var _player: PlayerCharacter
 var _camera: CameraController
+var _fog: FogOfWar
 var _label: Label
 
 
@@ -19,10 +20,16 @@ func _ready() -> void:
 	add_child(_label)
 
 
-func set_world(world: ReolWorld, player: PlayerCharacter, camera: CameraController) -> void:
+func set_world(
+	world: ReolWorld,
+	player: PlayerCharacter,
+	camera: CameraController,
+	fog: FogOfWar
+) -> void:
 	_world = world
 	_player = player
 	_camera = camera
+	_fog = fog
 
 
 func _process(_delta: float) -> void:
@@ -30,8 +37,12 @@ func _process(_delta: float) -> void:
 		return
 	var elevation: int = _world.get_elevation(_player.cell)
 	var terrain: String = _world.terrain_name(_player.cell)
+	var fog_text: String = "?"
+	if _fog != null:
+		var fog_states: Array[String] = ["hidden", "explored", "visible"]
+		fog_text = fog_states[_fog.get_state(_player.cell)]
 	_label.text = (
-		"Reol M1 · 2D 正交俯视\nFPS %d | cell (%d,%d) | %s | elev %d | alt %d | chunks %d | zoom %.2f\nWASD 移动 · 方向键 平移 · 滚轮缩放 · 中键拖拽 · F 居中"
+		"Reol M1 · 2D 正交俯视\nFPS %d | cell (%d,%d) | %s | elev %d | alt %d | fog %s | chunks %d | zoom %.2f\nWASD 移动 · 方向键 平移 · 滚轮缩放 · 中键拖拽 · F 居中"
 		% [
 			int(Engine.get_frames_per_second()),
 			_player.cell.x,
@@ -39,6 +50,7 @@ func _process(_delta: float) -> void:
 			terrain,
 			elevation,
 			_player.altitude,
+			fog_text,
 			_world.loaded_chunk_count(),
 			_camera.zoom.x,
 		]
