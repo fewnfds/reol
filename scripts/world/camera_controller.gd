@@ -12,6 +12,10 @@ var _focus_target: Node2D
 var _dragging: bool = false
 
 
+func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
+
+
 func setup(world_rect: Rect2, start_position: Vector2) -> void:
 	_world_rect = world_rect
 	global_position = start_position

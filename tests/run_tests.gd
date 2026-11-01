@@ -130,6 +130,10 @@ func test_input_actions_exist() -> void:
 		"center_camera",
 		"zoom_in",
 		"zoom_out",
+		"toggle_pause",
+		"speed_1",
+		"speed_2",
+		"speed_4",
 	]
 	for action in actions:
 		assert_true(InputMap.has_action(action), "input action exists: %s" % action)
@@ -195,6 +199,40 @@ func test_fog_visibility_states() -> void:
 
 	fog.free()
 	world.free()
+
+
+func test_elevation_step_rule() -> void:
+	assert_true(
+		ReolWorld.elevation_step_allowed(1, 2),
+		"one-level step is allowed"
+	)
+	assert_true(
+		ReolWorld.elevation_step_allowed(2, 2),
+		"same elevation is allowed"
+	)
+	assert_true(
+		not ReolWorld.elevation_step_allowed(0, 2),
+		"two-level cliff is blocked"
+	)
+
+
+func test_game_clock_time_math() -> void:
+	var clock := ReolGameClock.new()
+	clock.advance_ticks(60)
+	assert_eq(clock.get_hour(), 1, "60 ticks = 01:00")
+	assert_eq(clock.get_minute(), 0, "60 ticks have zero minutes")
+
+	clock.advance_ticks(1439)
+	assert_eq(clock.get_day(), 1, "1499 ticks enter day 1")
+	assert_eq(clock.get_hour(), 0, "1499 ticks wrap to 00:xx")
+	assert_eq(clock.get_minute(), 59, "1499 ticks have 59 minutes")
+	assert_eq(clock.format_time(), "第 2 天 00:59", "formatted clock")
+
+	clock.set_speed(2.0)
+	assert_eq(clock.speed, 2.0, "speed can be set to 2x")
+	clock.set_speed(10.0)
+	assert_eq(clock.speed, 4.0, "speed clamps to 4x")
+	clock.free()
 
 
 func test_scripts_parse() -> void:

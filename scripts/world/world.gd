@@ -131,6 +131,10 @@ func can_move(from_cell: Vector2i, to_cell: Vector2i) -> bool:
 		return false
 	var from_elevation: int = get_elevation(from_cell)
 	var to_elevation: int = get_elevation(to_cell)
+	return elevation_step_allowed(from_elevation, to_elevation)
+
+
+static func elevation_step_allowed(from_elevation: int, to_elevation: int) -> bool:
 	return absi(to_elevation - from_elevation) <= 1
 
 

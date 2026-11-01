@@ -11,6 +11,7 @@ var _flying: FlyingMarker
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	RenderingServer.set_default_clear_color(Color("#0b0f12"))
 	var spawn_cell: Vector2i = world.find_spawn_cell()
 	player.spawn_at(spawn_cell)
@@ -30,3 +31,18 @@ func _process(_delta: float) -> void:
 	fog.set_focus(player.cell)
 	if _flying != null:
 		_flying.visible = fog.is_cell_visible(_flying.cell)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("toggle_pause"):
+		GameClock.toggle_pause()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("speed_1"):
+		GameClock.set_speed(1.0)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("speed_2"):
+		GameClock.set_speed(2.0)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("speed_4"):
+		GameClock.set_speed(4.0)
+		get_viewport().set_input_as_handled()
