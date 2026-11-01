@@ -18,11 +18,12 @@ Reol 是一个 **Godot 4.7.2 / GDScript / 2D 俯视角**的开放世界沙盒 + 
 
 ## 2. 每个会话的启动流程
 
-1. 读 `docs/GAME-BRIEF.md` 的「当前里程碑」和「开放问题」。
-2. 读 `docs/DECISIONS.md` 最近 3 条，避免推翻已定方案。
-3. 运行 `python tools/godot.py doctor`（Godot 装好后）。
-4. 动手前先用 3–6 行说明：要改什么、为什么、验收标准是什么。
-5. 改完必须运行验证命令。**没有命令输出、日志或截图，不算完成。**
+1. 读 `docs/BASELINE.md` 的「已完成 / 未完成」。
+2. 读 `docs/GAME-BRIEF.md` 的「当前里程碑」和「开放问题」。
+3. 读 `docs/DECISIONS.md` 最近 3 条，避免推翻已定方案。
+4. 运行 `python tools/godot.py doctor`。
+5. 动手前先用 3–6 行说明：要改什么、为什么、验收标准是什么。
+6. 改完必须运行验证命令。**没有命令输出、日志或截图，不算完成。**
 
 ## 3. 硬性规则
 

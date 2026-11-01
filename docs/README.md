@@ -9,9 +9,10 @@
 
 ### 新会话 / 新成员
 1. `../AGENTS.md` — 硬规则、目录、完成定义
-2. `GAME-BRIEF.md` — 游戏是什么、不做什么
-3. `ROADMAP.md` — 现在做到哪、下一步
-4. `AI-WORKFLOW.md` — 怎么和 AI 协作
+2. `BASELINE.md` — 基座已完成/未完成、验证记录
+3. `GAME-BRIEF.md` — 游戏是什么、不做什么
+4. `ROADMAP.md` — 现在做到哪、下一步
+5. `AI-WORKFLOW.md` — 怎么和 AI 协作
 
 ### 写代码前
 5. `ARCHITECTURE.md` — 目标架构、tick、存档、性能
@@ -33,6 +34,7 @@
 | 文档 | 回答的问题 | 更新时机 |
 |---|---|---|
 | `AGENTS.md` | AI 必须遵守什么？ | 规则/目录/命令变化 |
+| `BASELINE.md` | 基座现在有什么/验证到哪？ | 每次里程碑 |
 | `GAME-BRIEF.md` | 做什么游戏？范围？ | 方向/范围变化 |
 | `ROADMAP.md` | 先做什么？怎么验收？ | 每周/里程碑 |
 | `ARCHITECTURE.md` | 代码怎么组织？ | 架构决策 |
@@ -58,6 +60,7 @@
 ## 当前状态
 
 - [x] AGENTS.md
+- [x] BASELINE.md（M0 状态）
 - [x] GAME-BRIEF.md（草案）
 - [x] ROADMAP.md
 - [x] ARCHITECTURE.md（提议）

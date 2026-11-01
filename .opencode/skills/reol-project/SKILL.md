@@ -23,15 +23,17 @@ Reol 是一个 **Godot 4.7.2 / GDScript / 2D 俯视角**的
 ## 每次开始前
 
 1. 读 `AGENTS.md`（硬规则）。
-2. 读 `docs/GAME-BRIEF.md` 的「当前里程碑」和「开放问题」。
-3. 读 `docs/DECISIONS.md` 最近 3 条。
-4. 运行 `python tools/godot.py doctor`（Godot 装好后）。
-5. 用 3–6 行说明：要改什么、为什么、验收标准。
+2. 读 `docs/BASELINE.md` 的「已完成 / 未完成」。
+3. 读 `docs/GAME-BRIEF.md` 的「当前里程碑」和「开放问题」。
+4. 读 `docs/DECISIONS.md` 最近 3 条。
+5. 运行 `python tools/godot.py doctor`。
+6. 用 3–6 行说明：要改什么、为什么、验收标准。
 
 ## 文档地图
 
 | 需要什么 | 读什么 |
 |---|---|
+| 基座现在有什么/验证到哪 | `docs/BASELINE.md` |
 | 游戏是什么/不做什么 | `docs/GAME-BRIEF.md` |
 | 现在做到哪/下一步 | `docs/ROADMAP.md` |
 | 代码怎么组织 | `docs/ARCHITECTURE.md` |
