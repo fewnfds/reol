@@ -1,0 +1,63 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/boot.gd" id="1_boot"]
+
+[node name="Boot" type="Node2D"]
+script = ExtResource("1_boot")
+
+[node name="Background" type="ColorRect" parent="."]
+offset_right = 1280.0
+offset_bottom = 720.0
+color = Color(0.055, 0.063, 0.086, 1)
+
+[node name="Accent" type="ColorRect" parent="."]
+offset_left = 48.0
+offset_top = 48.0
+offset_right = 54.0
+offset_bottom = 168.0
+color = Color(0.35, 0.78, 0.62, 1)
+
+[node name="Title" type="Label" parent="."]
+offset_left = 78.0
+offset_top = 44.0
+offset_right = 900.0
+offset_bottom = 112.0
+theme_override_colors/font_color = Color(0.93, 0.95, 0.98, 1)
+theme_override_font_sizes/font_size = 52
+text = "REOL"
+
+[node name="Subtitle" type="Label" parent="."]
+offset_left = 80.0
+offset_top = 118.0
+offset_right = 1100.0
+offset_bottom = 152.0
+theme_override_colors/font_color = Color(0.35, 0.78, 0.62, 1)
+theme_override_font_sizes/font_size = 18
+text = "Godot 4.7.2 · AI development environment"
+
+[node name="Hint" type="Label" parent="."]
+offset_left = 80.0
+offset_top = 196.0
+offset_right = 1150.0
+offset_bottom = 232.0
+theme_override_colors/font_color = Color(0.72, 0.76, 0.84, 1)
+theme_override_font_sizes/font_size = 16
+text = "Read AGENTS.md and docs/GAME-BRIEF.md before building."
+
+[node name="Command" type="Label" parent="."]
+offset_left = 80.0
+offset_top = 236.0
+offset_right = 1150.0
+offset_bottom = 272.0
+theme_override_colors/font_color = Color(0.52, 0.58, 0.68, 1)
+theme_override_font_sizes/font_size = 15
+text = "python tools/godot.py doctor    ·    python tools/godot.py check"
+
+[node name="Footer" type="Label" parent="."]
+offset_left = 80.0
+offset_top = 640.0
+offset_right = 1200.0
+offset_bottom = 672.0
+theme_override_colors/font_color = Color(0.4, 0.44, 0.52, 1)
+theme_override_font_sizes/font_size = 13
+text = "Placeholder boot scene — replace in M1. Not gameplay code."

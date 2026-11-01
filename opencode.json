@@ -1,0 +1,12 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["AGENTS.md"],
+  "mcp": {
+    "godot": {
+      "type": "local",
+      "command": ["python", "tools/mcp/godot_mcp.py"],
+      "enabled": true,
+      "timeout": 65000
+    }
+  }
+}
