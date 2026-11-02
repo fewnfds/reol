@@ -5,6 +5,7 @@
 > 这不是完成品；是可安全开始开发的基座。
 > **2026-11-01 更新**：方向 v0.2 已定稿（2D 正交俯视 + 正方形格 + 高度层、单机模拟、可暂停战斗）；M0 验证记录仍然有效。
 > **2026-11-01 追加**：M1 基础系统已完成（网格/相机/玩家/区块流式/高度层/迷雾/时间/碰撞打磨），`check` 16 passed；下一步 M2。见 `docs/GAME-BRIEF.md`、`docs/DIRECTION-V0.2.md`、ADR-0013～0019。
+> **2026-11-02 追加**：社会系统设计草案（`design/systems/social_system.md`、ADR-0020/0021）；继任算法原型 `SuccessionResolver` + 10 条测试；`check` 28 passed。
 
 ---
 
@@ -21,7 +22,7 @@
 | 检查 | 结果 |
 |---|---|
 | `python tools/godot.py doctor` | Godot 4.7.2，全部关键文件存在 |
-| `python tools/godot.py check` | **18 passed / 0 failed**，`CHECK PASSED` |
+| `python tools/godot.py check` | **28 passed / 0 failed**，`CHECK PASSED` |
 | `python tools/godot.py run --headless --quit-after 30` | `Reol boot OK - Godot 4.7.2-stable` |
 | `gdlint scripts tests` | 无问题 |
 | `gdformat --check scripts tests` | 无需重排 |
@@ -35,7 +36,9 @@
 - 运行时 `PawnState`：灵力/体力/饱食/疲劳/心情/贡献/声望 + 晋升判定。
 - 世界内玩家 + 5 个具名 NPC（陈守拙、阿禾、石头、苏芷、老周）。
 - 左键选中 NPC，右侧面板显示出身/境界/职位/需求数值；Esc 回到玩家。
-- 已测：数据加载、引用完整性、状态钳制、贡献晋升（`check` 18 passed）。
+- 已测：数据加载、引用完整性、状态钳制、贡献晋升（`check` 28 passed）。
+- 社会系统设计草案：Claim/账本/机构/职位/继任算法；见 `design/systems/social_system.md`。
+- `SuccessionResolver`：纯函数，两阶段（候选人合法性 + 逐笔旧账效用），10 条无头测试覆盖冻结/全认/谈判/拒付/折价/争议继位/空位期/法器门槛/折价率/政策覆盖。
 
 ### AI 工具链
 - **OpenCode** 项目配置：`opencode.json` → `mcp.godot`（Coding-Solo godot-mcp 0.1.1）。
@@ -61,7 +64,7 @@
   - `docs/TOOLCHAIN.md`（安装/MCP/排错）
   - `docs/AI-WORKFLOW.md`
   - `docs/REFERENCES.md`（示例项目/插件/素材/许可证）
-  - `docs/DECISIONS.md`（19 条 ADR）
+  - `docs/DECISIONS.md`（21 条 ADR）
 - `design/` 系统设计模板；`data/`、`assets/` 约定。
 - `THIRD_PARTY_NOTICES.md` + 许可证原文。
 - Git 仓库已初始化，根提交 `40f307c`。
@@ -77,7 +80,7 @@
 | Boot 场景截图 | 需要真实窗口渲染；headless 无画面 |
 | 导出模板 | 打包时才需要；Editor → Manage Export Templates |
 | M1 实现 | 已完成：俯视网格/相机/玩家/区块/高度层/战争迷雾/时间/碰撞打磨（16 条测试） |
-| M2 进展 | 数据层/5 个具名 NPC/选中面板已完成；需求/日程/JobBoard/存档待做（当前 18 条测试） |
+| M2 进展 | 数据层/5 个具名 NPC/选中面板已完成；社会系统设计 + 继任算法原型已完成；需求/日程/JobBoard/存档待做（当前 27 条测试） |
 | 美术细节 | tile 尺寸（64×64 vs 32×32）/色盘，M1 实测后定 |
 | 境界名/数值 | M2 前写设计文档 |
 | 项目许可证 | 你还没选（MIT / Apache-2.0 / 专有） |

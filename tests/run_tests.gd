@@ -385,6 +385,321 @@ func test_required_directories() -> void:
 
 
 # ---------------------------------------------------------------------------
+# Succession resolver
+# ---------------------------------------------------------------------------
+
+
+func test_succession_weak_usurper_freezes_old_claim() -> void:
+	var resolver := SuccessionResolver.new()
+	var traits: Array[StringName] = [&"paranoid"]
+	var candidates: Array[SuccessionResolver.Candidate] = [
+		SuccessionResolver.Candidate.new(&"usurper", {
+			&"mandate": 0.30,
+			&"backing": 0.45,
+			&"power": 0.55,
+			&"control": 0.60,
+			&"standing": 0.40,
+			&"purse": 0.30,
+			&"predecessor": 0.20,
+			&"outside": 0.20,
+		}, traits),
+	]
+	var claims: Array[SuccessionResolver.ClaimCase] = [
+		SuccessionResolver.ClaimCase.new(&"old_contribution", &"contribution", {
+			&"validity": 0.60,
+			&"burden": 0.85,
+			&"continuity": 0.45,
+			&"affinity": 0.20,
+			&"bond": 0.25,
+			&"leverage": 0.15,
+			&"visibility": 0.40,
+			&"precedent": 0.55,
+			&"need": 0.20,
+			&"old_regime": 0.80,
+		}),
+	]
+
+	var result: Dictionary = resolver.resolve_succession(candidates, claims)
+	assert_true(float(result["legitimacy"]) < 0.60, "weak usurper has low legitimacy")
+	var decision: Dictionary = result["claims"][0]
+	assert_eq(decision["action"], &"freeze", "weak usurper freezes old-regime claim")
+	assert_true(decision["reasons"].size() > 0, "freeze explains itself")
+	var tags: Array[StringName] = []
+	for reason in decision["reasons"]:
+		tags.append(reason["tag"])
+	assert_true(tags.has(&"treasury_strained"), "freeze cites empty treasury")
+	assert_true(tags.has(&"weak_mandate"), "freeze cites weak mandate")
+
+
+func test_succession_legitimate_heir_honors_ally() -> void:
+	var resolver := SuccessionResolver.new()
+	var traits: Array[StringName] = [&"honorable"]
+	var candidates: Array[SuccessionResolver.Candidate] = [
+		SuccessionResolver.Candidate.new(&"heir", {
+			&"mandate": 0.90,
+			&"backing": 0.80,
+			&"power": 0.75,
+			&"control": 0.90,
+			&"standing": 0.80,
+			&"purse": 0.80,
+			&"predecessor": 0.90,
+			&"outside": 0.60,
+		}, traits),
+	]
+	var claims: Array[SuccessionResolver.ClaimCase] = [
+		SuccessionResolver.ClaimCase.new(&"loyal_contribution", &"contribution", {
+			&"validity": 0.90,
+			&"burden": 0.20,
+			&"continuity": 0.80,
+			&"affinity": 0.80,
+			&"bond": 0.75,
+			&"leverage": 0.35,
+			&"visibility": 0.65,
+			&"precedent": 0.40,
+			&"need": 0.30,
+			&"old_regime": 0.20,
+		}),
+	]
+
+	var result: Dictionary = resolver.resolve_succession(candidates, claims)
+	assert_true(float(result["legitimacy"]) > 0.75, "legitimate heir has strong mandate")
+	assert_eq(result["claims"][0]["action"], &"honor", "legitimate heir honors allied claim")
+
+
+func test_succession_weak_ruler_bargains_with_powerful_holder() -> void:
+	var resolver := SuccessionResolver.new()
+	var traits: Array[StringName] = [&"pragmatic"]
+	var candidates: Array[SuccessionResolver.Candidate] = [
+		SuccessionResolver.Candidate.new(&"compromise", {
+			&"mandate": 0.45,
+			&"backing": 0.55,
+			&"power": 0.50,
+			&"control": 0.60,
+			&"standing": 0.50,
+			&"purse": 0.40,
+			&"predecessor": 0.35,
+			&"outside": 0.30,
+		}, traits),
+	]
+	var claims: Array[SuccessionResolver.ClaimCase] = [
+		SuccessionResolver.ClaimCase.new(&"sealed_claim", &"contribution", {
+			&"validity": 0.95,
+			&"burden": 0.70,
+			&"continuity": 0.70,
+			&"affinity": 0.35,
+			&"bond": 0.40,
+			&"leverage": 0.90,
+			&"visibility": 0.90,
+			&"precedent": 0.60,
+			&"need": 0.80,
+			&"old_regime": 0.50,
+		}),
+	]
+
+	var result: Dictionary = resolver.resolve_succession(candidates, claims)
+	var decision: Dictionary = result["claims"][0]
+	assert_eq(decision["action"], &"bargain", "powerful holder gets a bargain, not a repudiation")
+	assert_true(decision["unavailable"].has(&"repudiate"), "repudiation is gated by retaliation risk")
+
+
+func test_succession_secure_ruler_repudiates_dubious_claim() -> void:
+	var resolver := SuccessionResolver.new()
+	var candidates: Array[SuccessionResolver.Candidate] = [
+		SuccessionResolver.Candidate.new(&"secure", {
+			&"mandate": 0.90,
+			&"backing": 0.85,
+			&"power": 0.80,
+			&"control": 0.85,
+			&"standing": 0.80,
+			&"purse": 0.75,
+			&"predecessor": 0.80,
+			&"outside": 0.60,
+		}),
+	]
+	var claims: Array[SuccessionResolver.ClaimCase] = [
+		SuccessionResolver.ClaimCase.new(&"dubious_claim", &"contribution", {
+			&"validity": 0.10,
+			&"burden": 0.55,
+			&"continuity": 0.10,
+			&"affinity": 0.25,
+			&"bond": 0.30,
+			&"leverage": 0.10,
+			&"visibility": 0.20,
+			&"precedent": 0.10,
+			&"need": 0.10,
+			&"old_regime": 0.40,
+		}),
+	]
+
+	var result: Dictionary = resolver.resolve_succession(candidates, claims)
+	var decision: Dictionary = result["claims"][0]
+	assert_eq(decision["action"], &"repudiate", "secure ruler repudiates a dubious private claim")
+	assert_true(decision["unavailable"].has(&"honor"), "unproven claim cannot be honored")
+	assert_true(decision["unavailable"].has(&"discount"), "unproven claim cannot be discounted")
+
+
+func test_succession_expensive_valid_claim_is_discounted() -> void:
+	var resolver := SuccessionResolver.new()
+	var candidates: Array[SuccessionResolver.Candidate] = [
+		SuccessionResolver.Candidate.new(&"moderate", {
+			&"mandate": 0.65,
+			&"backing": 0.65,
+			&"power": 0.65,
+			&"control": 0.65,
+			&"standing": 0.65,
+			&"purse": 0.55,
+			&"predecessor": 0.60,
+			&"outside": 0.50,
+		}),
+	]
+	var claims: Array[SuccessionResolver.ClaimCase] = [
+		SuccessionResolver.ClaimCase.new(&"expensive_claim", &"contribution", {
+			&"validity": 0.85,
+			&"burden": 0.85,
+			&"continuity": 0.60,
+			&"affinity": 0.50,
+			&"bond": 0.40,
+			&"leverage": 0.20,
+			&"visibility": 0.40,
+			&"precedent": 0.70,
+			&"need": 0.20,
+			&"old_regime": 0.30,
+		}),
+	]
+
+	var result: Dictionary = resolver.resolve_succession(candidates, claims)
+	var decision: Dictionary = result["claims"][0]
+	assert_eq(decision["action"], &"discount", "valid but expensive claim is discounted")
+	var ratio: float = decision["discount_ratio"]
+	assert_true(ratio > 0.60 and ratio < 0.90, "discount ratio is computed, not fixed at 80%")
+	assert_true(not is_equal_approx(ratio, 0.80), "discount ratio is not the old constant")
+
+
+func test_succession_contest_penalty_and_rivals() -> void:
+	var resolver := SuccessionResolver.new()
+	var candidates: Array[SuccessionResolver.Candidate] = [
+		SuccessionResolver.Candidate.new(&"elder", {
+			&"mandate": 0.70,
+			&"backing": 0.70,
+			&"power": 0.70,
+			&"control": 0.70,
+			&"standing": 0.70,
+			&"purse": 0.70,
+			&"predecessor": 0.70,
+			&"outside": 0.70,
+		}),
+		SuccessionResolver.Candidate.new(&"rival", {
+			&"mandate": 0.68,
+			&"backing": 0.68,
+			&"power": 0.68,
+			&"control": 0.68,
+			&"standing": 0.68,
+			&"purse": 0.68,
+			&"predecessor": 0.68,
+			&"outside": 0.68,
+		}),
+	]
+
+	var result: Dictionary = resolver.resolve_candidates(candidates)
+	assert_eq(result["winner"], &"elder", "higher score wins")
+	assert_true(result["contested"], "near-tie is a contested succession")
+	assert_true(result["unresolved_rivals"].has(&"rival"), "runner-up remains a rival")
+	assert_true(float(result["legitimacy"]) < 0.60, "contest penalizes legitimacy")
+
+
+func test_succession_interregnum_with_no_eligible_candidate() -> void:
+	var resolver := SuccessionResolver.new()
+	var blocked := SuccessionResolver.Candidate.new(&"blocked", {
+		&"mandate": 0.90,
+		&"backing": 0.90,
+		&"power": 0.90,
+		&"control": 0.90,
+		&"standing": 0.90,
+		&"purse": 0.90,
+		&"predecessor": 0.90,
+		&"outside": 0.90,
+	})
+	blocked.eligible = false
+	blocked.ineligible_reason = "fails office charter"
+	var candidates: Array[SuccessionResolver.Candidate] = [blocked]
+
+	var result: Dictionary = resolver.resolve_candidates(candidates)
+	assert_true(result["interregnum"], "no eligible candidate means interregnum")
+	assert_eq(result["winner"], &"", "interregnum has no winner")
+	assert_true(float(result["insecurity"]) >= 1.0, "interregnum is maximally insecure")
+
+
+func test_succession_sealed_artifact_blocks_repudiation() -> void:
+	var resolver := SuccessionResolver.new()
+	var tags: Array[StringName] = [&"sealed_artifact"]
+	var claim := SuccessionResolver.ClaimCase.new(&"artifact_claim", &"contribution", {
+		&"validity": 0.95,
+		&"burden": 0.80,
+		&"continuity": 0.50,
+		&"affinity": 0.20,
+		&"bond": 0.20,
+		&"leverage": 0.10,
+		&"visibility": 0.30,
+		&"precedent": 0.40,
+		&"need": 0.10,
+		&"old_regime": 0.60,
+	}, tags)
+	var context: Dictionary = {
+		"insecurity": 0.40,
+		"legitimacy": 0.60,
+	}
+
+	var decision: Dictionary = resolver.resolve_claim(claim, context)
+	assert_true(decision["unavailable"].has(&"repudiate"), "sealed artifact blocks repudiation")
+	assert_true(
+		decision["unavailable"][&"repudiate"] == &"artifact_validated",
+		"repudiation gate names the artifact"
+	)
+
+
+func test_succession_discount_ratio_varies_with_evidence() -> void:
+	var resolver := SuccessionResolver.new()
+	var strong: float = resolver._discount_ratio({
+		&"validity": 0.90,
+		&"continuity": 0.80,
+		&"burden": 0.20,
+	})
+	var weak: float = resolver._discount_ratio({
+		&"validity": 0.30,
+		&"continuity": 0.20,
+		&"burden": 0.90,
+	})
+	assert_true(strong > weak + 0.20, "better evidence recovers more")
+	assert_true(strong <= 0.90 and weak >= 0.15, "discount ratio stays in bounds")
+
+
+func test_succession_policy_override_changes_winner() -> void:
+	var resolver := SuccessionResolver.new()
+	var candidates: Array[SuccessionResolver.Candidate] = [
+		SuccessionResolver.Candidate.new(&"traditional", {
+			&"mandate": 1.0,
+			&"power": 0.0,
+		}),
+		SuccessionResolver.Candidate.new(&"warlord", {
+			&"mandate": 0.0,
+			&"power": 1.0,
+		}),
+	]
+
+	var before: Dictionary = resolver.resolve_candidates(candidates)
+	assert_eq(before["winner"], &"traditional", "default weights favor mandate")
+
+	resolver.apply_policy({
+		"candidate_weights": {
+			&"mandate": 0.0,
+			&"power": 1.0,
+		},
+	})
+	var after: Dictionary = resolver.resolve_candidates(candidates)
+	assert_eq(after["winner"], &"warlord", "policy override can favor power")
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
