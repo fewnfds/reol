@@ -57,3 +57,5 @@
 末版另经两个独立操作系统进程完整停开复验，入口为`tools/qa/drawing_restart.gd -- replay branch_first`及`branch_second`，直接读取仓库两份不可变v41源档。`logs/drawing-restart-branch-first-20261104.log`与`logs/drawing-restart-branch-second-20261104.log`均退出0，六个未来候选有效；`logs/drawing-restart-branch-manifest-20261104.json`逐字节比较三组结果全部相同，字节与SHA仍为上表数值。该证据覆盖研究保位、精确零速/高度守卫和秒数修正后的最终产品代码。
 
 本包自己的远端CI与最终验收仍待完成；前包CI run 41739857610对应commit `943d16a`，不证明U3-b1通过。旧温石消费不追溯重算；新正 qi 消费沿用原源账与 `artifact_floor`。历史 `from_cell` 的校验依赖固定存放槽坐标，若未来允许该场所迁移，须先核对历史地点证据，不能用现在位置改判过去或当成完整防篡改产权账。
+
+本包产品提交`5d0afd9`已推`codex/drawing-ring-use`，完整检查为[run41742281428](https://github.com/fewnfds/reol/actions/runs/41742281428)，当前执行中。干净Git索引导出的结构检查通过；不把有本地临时文件的工作区当干净checkout证据。
