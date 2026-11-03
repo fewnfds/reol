@@ -1,0 +1,8529 @@
+{
+	"clock": {
+		"elapsed_ms": 2576650,
+		"frame_debt_ms": 20.840666666666873,
+		"paused": true,
+		"speed": 1.0,
+		"tick_index": 42,
+		"total_minutes": 522,
+		"wait_target_ms": 0
+	},
+	"continuity": {
+		"centers": {
+			"home": [
+				256,
+				256
+			],
+			"river": [
+				284,
+				257
+			]
+		},
+		"known_lines": [
+			"河湾农庄传来消息：陆行舟带着12份粮食出发了。"
+		],
+		"player_journey": {},
+		"world": {
+			"active_region": "home",
+			"artifacts": {
+				"active": {},
+				"events": [
+					{
+						"action": "artifact:action:1",
+						"actor": "a_he",
+						"at": 1,
+						"at_ms": 60050,
+						"cell": [
+							254,
+							255
+						],
+						"effect_region": "home",
+						"id": "artifact:event:2",
+						"kind": "observed",
+						"line": "石面仍有余温，细纹似乎通向石芯；用法还需摸索。",
+						"object": "hearth_stone",
+						"qi_spent": 0,
+						"region": "home",
+						"started_ms": 50,
+						"subject": "subject:a_he",
+						"verb": "inspect"
+					},
+					{
+						"action": "artifact:action:3",
+						"actor": "a_he",
+						"at": 5,
+						"at_ms": 300050,
+						"cell": [
+							254,
+							255
+						],
+						"effect_region": "home",
+						"id": "artifact:event:4",
+						"kind": "studied",
+						"line": "循纹探查后，你摸清了导热与温养的手法。",
+						"object": "hearth_stone",
+						"qi_spent": 1,
+						"region": "home",
+						"started_ms": 60050,
+						"subject": "subject:a_he",
+						"verb": "study"
+					},
+					{
+						"action": "artifact:action:5",
+						"actor": "a_he",
+						"at": 8,
+						"at_ms": 480050,
+						"cell": [
+							254,
+							255
+						],
+						"effect_region": "home",
+						"id": "artifact:event:6",
+						"kind": "heated",
+						"line": "以石代柴，锅中米水煮成了饭；成果已留在灶房。凭据需另去登记。",
+						"object": "hearth_stone",
+						"qi_spent": 2,
+						"region": "home",
+						"started_ms": 300050,
+						"subject": "subject:a_he",
+						"verb": "heat"
+					}
+				],
+				"next_id": 7,
+				"objects": {
+					"hearth_stone": {
+						"charge": 4,
+						"container": "kitchen",
+						"definition": "warm_stone",
+						"region": "home"
+					}
+				},
+				"version": 2
+			},
+			"avian_life": {
+				"birds": {
+					"moss_sparrow": {
+						"active": {
+							"due_ms": 2577405,
+							"from": [
+								15968.0,
+								16480.0
+							],
+							"id": "avian:97",
+							"purpose": "drop",
+							"site": "home:garden",
+							"started_ms": 2576382,
+							"to": [
+								16096.0,
+								16224.0
+							],
+							"verb": "fly"
+						},
+						"altitude": 1,
+						"autonomous": true,
+						"carry": {
+							"energy": 40000,
+							"fullness": 20000
+						},
+						"energy": 99882566,
+						"errand": {
+							"requester": "player",
+							"source": "home:crevice",
+							"target": "home:garden"
+						},
+						"fullness": 80055833,
+						"goal": "振翅飞向药圃落架",
+						"home": "home:roost",
+						"known_sites": {
+							"home:crevice": {
+								"at_ms": 2576382,
+								"quantity": 1
+							},
+							"home:garden": {
+								"at_ms": 2576382,
+								"quantity": 0
+							},
+							"home:roost": {
+								"at_ms": 2576382,
+								"quantity": 0
+							},
+							"home:second_seeds": {
+								"at_ms": 2573150,
+								"quantity": 12
+							},
+							"home:seeds": {
+								"at_ms": 2576382,
+								"quantity": 24
+							}
+						},
+						"label": "青苔",
+						"position": [
+							16001.533203125,
+							16412.93359375
+						],
+						"region": "home",
+						"retry_ms": 2576382
+					},
+					"reed_sparrow": {
+						"active": {
+							"due_ms": 2726065.0,
+							"from": [
+								18272.0,
+								16352.0
+							],
+							"id": "avian:87",
+							"purpose": "rest",
+							"site": "river:roost",
+							"started_ms": 2546065.0,
+							"to": [
+								18272.0,
+								16352.0
+							],
+							"verb": "rest"
+						},
+						"altitude": 1.0,
+						"autonomous": true,
+						"carry": {
+							"energy": 0,
+							"fullness": 20000
+						},
+						"energy": 100000000,
+						"errand": {},
+						"fullness": 61055833,
+						"goal": "在树巢避风歇翅",
+						"home": "river:roost",
+						"known_sites": {
+							"river:roost": {
+								"at_ms": 2546065.0,
+								"quantity": 0.0
+							},
+							"river:second_crevice": {
+								"at_ms": 1285546.0,
+								"quantity": 2.0
+							},
+							"river:second_seeds": {
+								"at_ms": 2546065.0,
+								"quantity": 12.0
+							}
+						},
+						"label": "芦花",
+						"position": [
+							18272.0,
+							16352.0
+						],
+						"region": "river",
+						"retry_ms": 2546065.0
+					}
+				},
+				"elapsed_ms": 2576650,
+				"events": [
+					{
+						"at_ms": 12513.0,
+						"bird": "moss_sparrow",
+						"details": {
+							"action": "avian:3"
+						},
+						"id": "avian:4",
+						"kind": "forage",
+						"line": "啄到了草籽。",
+						"site": "home:seeds"
+					},
+					{
+						"at_ms": 180001.0,
+						"bird": "reed_sparrow",
+						"details": {
+							"action": "avian:2"
+						},
+						"id": "avian:7",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "river:roost"
+					},
+					{
+						"at_ms": 192514.0,
+						"bird": "reed_sparrow",
+						"details": {
+							"action": "avian:9"
+						},
+						"id": "avian:10",
+						"kind": "forage",
+						"line": "啄到了草籽。",
+						"site": "river:second_seeds"
+					},
+					{
+						"at_ms": 193026.0,
+						"bird": "moss_sparrow",
+						"details": {
+							"action": "avian:6"
+						},
+						"id": "avian:12",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "home:roost"
+					},
+					{
+						"at_ms": 373027.0,
+						"bird": "moss_sparrow",
+						"details": {
+							"action": "avian:13"
+						},
+						"id": "avian:15",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "home:roost"
+					},
+					{
+						"at_ms": 373027.0,
+						"bird": "reed_sparrow",
+						"details": {
+							"action": "avian:14"
+						},
+						"id": "avian:16",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "river:roost"
+					},
+					{
+						"at_ms": 553028.0,
+						"bird": "moss_sparrow",
+						"details": {
+							"action": "avian:17"
+						},
+						"id": "avian:19",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "home:roost"
+					},
+					{
+						"at_ms": 553028.0,
+						"bird": "reed_sparrow",
+						"details": {
+							"action": "avian:18"
+						},
+						"id": "avian:20",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "river:roost"
+					},
+					{
+						"at_ms": 600000.0,
+						"bird": "",
+						"details": {
+							"amount": 2.0,
+							"item": "seed"
+						},
+						"id": "avian:23",
+						"kind": "ripened",
+						"line": "枝草结出了新的可食种子或药芽。",
+						"site": "home:second_seeds"
+					},
+					{
+						"at_ms": 600000.0,
+						"bird": "",
+						"details": {
+							"amount": 2.0,
+							"item": "seed"
+						},
+						"id": "avian:24",
+						"kind": "ripened",
+						"line": "枝草结出了新的可食种子或药芽。",
+						"site": "home:seeds"
+					},
+					{
+						"at_ms": 600000.0,
+						"bird": "",
+						"details": {
+							"amount": 2.0,
+							"item": "seed"
+						},
+						"id": "avian:25",
+						"kind": "ripened",
+						"line": "枝草结出了新的可食种子或药芽。",
+						"site": "river:second_seeds"
+					},
+					{
+						"at_ms": 600000.0,
+						"bird": "",
+						"details": {
+							"amount": 2.0,
+							"item": "seed"
+						},
+						"id": "avian:26",
+						"kind": "ripened",
+						"line": "枝草结出了新的可食种子或药芽。",
+						"site": "river:seeds"
+					},
+					{
+						"at_ms": 733029.0,
+						"bird": "moss_sparrow",
+						"details": {
+							"action": "avian:21"
+						},
+						"id": "avian:27",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "home:roost"
+					},
+					{
+						"at_ms": 733029.0,
+						"bird": "reed_sparrow",
+						"details": {
+							"action": "avian:22"
+						},
+						"id": "avian:28",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "river:roost"
+					},
+					{
+						"at_ms": 913030.0,
+						"bird": "moss_sparrow",
+						"details": {
+							"action": "avian:29"
+						},
+						"id": "avian:31",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "home:roost"
+					},
+					{
+						"at_ms": 913030.0,
+						"bird": "reed_sparrow",
+						"details": {
+							"action": "avian:30"
+						},
+						"id": "avian:32",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "river:roost"
+					},
+					{
+						"at_ms": 925543.0,
+						"bird": "moss_sparrow",
+						"details": {
+							"action": "avian:35"
+						},
+						"id": "avian:36",
+						"kind": "forage",
+						"line": "啄到了草籽。",
+						"site": "home:seeds"
+					},
+					{
+						"at_ms": 1093031.0,
+						"bird": "reed_sparrow",
+						"details": {
+							"action": "avian:34"
+						},
+						"id": "avian:39",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "river:roost"
+					},
+					{
+						"at_ms": 1106056.0,
+						"bird": "moss_sparrow",
+						"details": {
+							"action": "avian:38"
+						},
+						"id": "avian:41",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "home:roost"
+					},
+					{
+						"at_ms": 1200000.0,
+						"bird": "",
+						"details": {
+							"amount": 2.0,
+							"item": "seed"
+						},
+						"id": "avian:43",
+						"kind": "ripened",
+						"line": "枝草结出了新的可食种子或药芽。",
+						"site": "home:second_seeds"
+					},
+					{
+						"at_ms": 1200000.0,
+						"bird": "",
+						"details": {
+							"amount": 2.0,
+							"item": "seed"
+						},
+						"id": "avian:44",
+						"kind": "ripened",
+						"line": "枝草结出了新的可食种子或药芽。",
+						"site": "home:seeds"
+					},
+					{
+						"at_ms": 1200000.0,
+						"bird": "",
+						"details": {
+							"amount": 2.0,
+							"item": "seed"
+						},
+						"id": "avian:45",
+						"kind": "ripened",
+						"line": "枝草结出了新的可食种子或药芽。",
+						"site": "river:second_seeds"
+					},
+					{
+						"at_ms": 1200000.0,
+						"bird": "",
+						"details": {
+							"amount": 2.0,
+							"item": "seed"
+						},
+						"id": "avian:46",
+						"kind": "ripened",
+						"line": "枝草结出了新的可食种子或药芽。",
+						"site": "river:seeds"
+					},
+					{
+						"at_ms": 1273032.0,
+						"bird": "reed_sparrow",
+						"details": {
+							"action": "avian:40"
+						},
+						"id": "avian:47",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "river:roost"
+					},
+					{
+						"at_ms": 1285545.0,
+						"bird": "reed_sparrow",
+						"details": {
+							"action": "avian:49"
+						},
+						"id": "avian:50",
+						"kind": "forage",
+						"line": "啄到了草籽。",
+						"site": "river:second_seeds"
+					},
+					{
+						"at_ms": 1286057.0,
+						"bird": "moss_sparrow",
+						"details": {
+							"action": "avian:42"
+						},
+						"id": "avian:52",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "home:roost"
+					},
+					{
+						"at_ms": 1466058.0,
+						"bird": "moss_sparrow",
+						"details": {
+							"action": "avian:53"
+						},
+						"id": "avian:55",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "home:roost"
+					},
+					{
+						"at_ms": 1466058.0,
+						"bird": "reed_sparrow",
+						"details": {
+							"action": "avian:54"
+						},
+						"id": "avian:56",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "river:roost"
+					},
+					{
+						"at_ms": 1646059.0,
+						"bird": "moss_sparrow",
+						"details": {
+							"action": "avian:57"
+						},
+						"id": "avian:59",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "home:roost"
+					},
+					{
+						"at_ms": 1646059.0,
+						"bird": "reed_sparrow",
+						"details": {
+							"action": "avian:58"
+						},
+						"id": "avian:60",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "river:roost"
+					},
+					{
+						"at_ms": 1800000.0,
+						"bird": "",
+						"details": {
+							"amount": 2.0,
+							"item": "seed"
+						},
+						"id": "avian:63",
+						"kind": "ripened",
+						"line": "枝草结出了新的可食种子或药芽。",
+						"site": "home:seeds"
+					},
+					{
+						"at_ms": 1800000.0,
+						"bird": "",
+						"details": {
+							"amount": 2.0,
+							"item": "seed"
+						},
+						"id": "avian:64",
+						"kind": "ripened",
+						"line": "枝草结出了新的可食种子或药芽。",
+						"site": "river:second_seeds"
+					},
+					{
+						"at_ms": 1826060.0,
+						"bird": "moss_sparrow",
+						"details": {
+							"action": "avian:61"
+						},
+						"id": "avian:65",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "home:roost"
+					},
+					{
+						"at_ms": 1826060.0,
+						"bird": "reed_sparrow",
+						"details": {
+							"action": "avian:62"
+						},
+						"id": "avian:66",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "river:roost"
+					},
+					{
+						"at_ms": 2006061.0,
+						"bird": "moss_sparrow",
+						"details": {
+							"action": "avian:67"
+						},
+						"id": "avian:69",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "home:roost"
+					},
+					{
+						"at_ms": 2006061.0,
+						"bird": "reed_sparrow",
+						"details": {
+							"action": "avian:68"
+						},
+						"id": "avian:70",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "river:roost"
+					},
+					{
+						"at_ms": 2186062.0,
+						"bird": "moss_sparrow",
+						"details": {
+							"action": "avian:71"
+						},
+						"id": "avian:73",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "home:roost"
+					},
+					{
+						"at_ms": 2186062.0,
+						"bird": "reed_sparrow",
+						"details": {
+							"action": "avian:72"
+						},
+						"id": "avian:74",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "river:roost"
+					},
+					{
+						"at_ms": 2366063.0,
+						"bird": "moss_sparrow",
+						"details": {
+							"action": "avian:75"
+						},
+						"id": "avian:77",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "home:roost"
+					},
+					{
+						"at_ms": 2366063.0,
+						"bird": "reed_sparrow",
+						"details": {
+							"action": "avian:76"
+						},
+						"id": "avian:78",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "river:roost"
+					},
+					{
+						"at_ms": 2378576.0,
+						"bird": "moss_sparrow",
+						"details": {
+							"action": "avian:81"
+						},
+						"id": "avian:82",
+						"kind": "forage",
+						"line": "啄到了草籽。",
+						"site": "home:seeds"
+					},
+					{
+						"at_ms": 2400000.0,
+						"bird": "",
+						"details": {
+							"amount": 1.0,
+							"item": "seed"
+						},
+						"id": "avian:85",
+						"kind": "ripened",
+						"line": "枝草结出了新的可食种子或药芽。",
+						"site": "home:seeds"
+					},
+					{
+						"at_ms": 2546064.0,
+						"bird": "reed_sparrow",
+						"details": {
+							"action": "avian:80"
+						},
+						"id": "avian:86",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "river:roost"
+					},
+					{
+						"at_ms": 2559089.0,
+						"bird": "moss_sparrow",
+						"details": {
+							"action": "avian:84"
+						},
+						"id": "avian:88",
+						"kind": "rest",
+						"line": "歇翅后继续自己的生活。",
+						"site": "home:roost"
+					},
+					{
+						"at_ms": 2573150,
+						"bird": "moss_sparrow",
+						"details": {
+							"action": "avian:90",
+							"actor": "player",
+							"food": "meal",
+							"grain": 1,
+							"seed": 12
+						},
+						"id": "avian:91",
+						"kind": "offered",
+						"line": "有人撒下一份粮饭，留下能啄食的碎粒。",
+						"site": "home:seeds"
+					},
+					{
+						"at_ms": 2573150,
+						"bird": "moss_sparrow",
+						"details": {
+							"action": "avian:89"
+						},
+						"id": "avian:92",
+						"kind": "cancelled",
+						"line": "动作中断，没有退回时间或复制嘴中的东西。",
+						"site": "home:roost"
+					},
+					{
+						"at_ms": 2573150,
+						"bird": "moss_sparrow",
+						"details": {
+							"actor": "player"
+						},
+						"id": "avian:93",
+						"kind": "agreed",
+						"line": "它记得你的投食，答应去衔一枝药。",
+						"site": "home:crevice"
+					},
+					{
+						"at_ms": 2576381,
+						"bird": "moss_sparrow",
+						"details": {
+							"action": "avian:95"
+						},
+						"id": "avian:96",
+						"kind": "pickup",
+						"line": "衔起了一枝药。",
+						"site": "home:crevice"
+					}
+				],
+				"exchanges": {},
+				"inventory": {
+					"containers": {
+						"bird:moss_sparrow": {
+							"herb": 1
+						},
+						"bird:reed_sparrow": {},
+						"home:crevice": {
+							"herb": 1
+						},
+						"home:garden": {},
+						"home:roost": {},
+						"home:second_crevice": {
+							"herb": 2
+						},
+						"home:second_seeds": {
+							"seed": 12
+						},
+						"home:seeds": {
+							"seed": 24
+						},
+						"river:crevice": {
+							"herb": 2
+						},
+						"river:garden": {},
+						"river:roost": {},
+						"river:second_crevice": {
+							"herb": 2
+						},
+						"river:second_seeds": {
+							"seed": 12
+						},
+						"river:seeds": {
+							"seed": 12
+						}
+					},
+					"operations": {
+						"avian:35:eat": {
+							"amount": 1,
+							"container": "home:seeds",
+							"item": "seed",
+							"kind": "consume"
+						},
+						"avian:3:eat": {
+							"amount": 1,
+							"container": "home:seeds",
+							"item": "seed",
+							"kind": "consume"
+						},
+						"avian:49:eat": {
+							"amount": 1,
+							"container": "river:second_seeds",
+							"item": "seed",
+							"kind": "consume"
+						},
+						"avian:81:eat": {
+							"amount": 1,
+							"container": "home:seeds",
+							"item": "seed",
+							"kind": "consume"
+						},
+						"avian:95:pick": {
+							"amount": 1,
+							"item": "herb",
+							"kind": "transfer",
+							"reservation_id": "",
+							"source": "home:crevice",
+							"target": "bird:moss_sparrow"
+						},
+						"avian:9:eat": {
+							"amount": 1,
+							"container": "river:second_seeds",
+							"item": "seed",
+							"kind": "consume"
+						}
+					},
+					"reservations": {}
+				},
+				"next_id": 98,
+				"sites": {
+					"home:crevice": {
+						"cell": [
+							249.0,
+							257.0
+						],
+						"next_growth_ms": 3600000.0,
+						"region": "home",
+						"type": "crevice"
+					},
+					"home:garden": {
+						"cell": [
+							251.0,
+							253.0
+						],
+						"next_growth_ms": 0.0,
+						"region": "home",
+						"type": "garden"
+					},
+					"home:roost": {
+						"cell": [
+							254.0,
+							255.0
+						],
+						"next_growth_ms": 0.0,
+						"region": "home",
+						"type": "roost"
+					},
+					"home:second_crevice": {
+						"cell": [
+							262.0,
+							252.0
+						],
+						"next_growth_ms": 3600000.0,
+						"region": "home",
+						"type": "crevice"
+					},
+					"home:second_seeds": {
+						"cell": [
+							258.0,
+							253.0
+						],
+						"next_growth_ms": 3000000.0,
+						"region": "home",
+						"type": "seeds"
+					},
+					"home:seeds": {
+						"cell": [
+							252.0,
+							254.0
+						],
+						"next_growth_ms": 3000000.0,
+						"region": "home",
+						"type": "seeds"
+					},
+					"river:crevice": {
+						"cell": [
+							278.0,
+							254.0
+						],
+						"next_growth_ms": 3600000.0,
+						"region": "river",
+						"type": "crevice"
+					},
+					"river:garden": {
+						"cell": [
+							277.0,
+							252.0
+						],
+						"next_growth_ms": 0.0,
+						"region": "river",
+						"type": "garden"
+					},
+					"river:roost": {
+						"cell": [
+							285.0,
+							255.0
+						],
+						"next_growth_ms": 0.0,
+						"region": "river",
+						"type": "roost"
+					},
+					"river:second_crevice": {
+						"cell": [
+							289.0,
+							260.0
+						],
+						"next_growth_ms": 3600000.0,
+						"region": "river",
+						"type": "crevice"
+					},
+					"river:second_seeds": {
+						"cell": [
+							287.0,
+							256.0
+						],
+						"next_growth_ms": 3000000.0,
+						"region": "river",
+						"type": "seeds"
+					},
+					"river:seeds": {
+						"cell": [
+							278.0,
+							249.0
+						],
+						"next_growth_ms": 3000000.0,
+						"region": "river",
+						"type": "seeds"
+					}
+				},
+				"version": 1
+			},
+			"couriers": {
+				"river_courier": {
+					"energy": 97.67999999999999,
+					"id": "river_courier",
+					"name": "陆行舟",
+					"phase": "outbound",
+					"progress": 29,
+					"rest_remaining": 0.0,
+					"route": "river_road",
+					"shipment": "world:shipment:2"
+				}
+			},
+			"current_time": 42,
+			"elapsed_ms": 2576650,
+			"embodiment": {
+				"carriers": {
+					"body:a_he": {
+						"form": "human",
+						"source": {
+							"id": "a_he",
+							"kind": "village_actor"
+						}
+					},
+					"body:avian:moss_sparrow": {
+						"form": "sparrow",
+						"source": {
+							"id": "moss_sparrow",
+							"kind": "avian_body"
+						}
+					},
+					"body:avian:reed_sparrow": {
+						"form": "sparrow",
+						"source": {
+							"id": "reed_sparrow",
+							"kind": "avian_body"
+						}
+					},
+					"body:chen_shouzhuo": {
+						"form": "human",
+						"source": {
+							"id": "chen_shouzhuo",
+							"kind": "village_actor"
+						}
+					},
+					"body:lao_zhou": {
+						"form": "human",
+						"source": {
+							"id": "lao_zhou",
+							"kind": "village_actor"
+						}
+					},
+					"body:player": {
+						"form": "human",
+						"source": {
+							"id": "player",
+							"kind": "village_actor"
+						}
+					},
+					"body:river_a_he": {
+						"form": "human",
+						"source": {
+							"id": "river_a_he",
+							"kind": "village_actor"
+						}
+					},
+					"body:river_chen_shouzhuo": {
+						"form": "human",
+						"source": {
+							"id": "river_chen_shouzhuo",
+							"kind": "village_actor"
+						}
+					},
+					"body:river_lao_zhou": {
+						"form": "human",
+						"source": {
+							"id": "river_lao_zhou",
+							"kind": "village_actor"
+						}
+					},
+					"body:river_player": {
+						"form": "human",
+						"source": {
+							"id": "river_player",
+							"kind": "village_actor"
+						}
+					},
+					"body:river_shi_tou": {
+						"form": "human",
+						"source": {
+							"id": "river_shi_tou",
+							"kind": "village_actor"
+						}
+					},
+					"body:river_su_zhi": {
+						"form": "human",
+						"source": {
+							"id": "river_su_zhi",
+							"kind": "village_actor"
+						}
+					},
+					"body:shi_tou": {
+						"form": "human",
+						"source": {
+							"id": "shi_tou",
+							"kind": "village_actor"
+						}
+					},
+					"body:su_zhi": {
+						"form": "human",
+						"source": {
+							"id": "su_zhi",
+							"kind": "village_actor"
+						}
+					}
+				},
+				"controls": {
+					"body:a_he": {
+						"action": "subject:a_he",
+						"communication": "subject:a_he",
+						"motion": "subject:a_he"
+					},
+					"body:avian:moss_sparrow": {
+						"action": "subject:avian:moss_sparrow",
+						"communication": "subject:avian:moss_sparrow",
+						"motion": "subject:avian:moss_sparrow"
+					},
+					"body:avian:reed_sparrow": {
+						"action": "subject:avian:reed_sparrow",
+						"communication": "subject:avian:reed_sparrow",
+						"motion": "subject:avian:reed_sparrow"
+					},
+					"body:chen_shouzhuo": {
+						"action": "subject:chen_shouzhuo",
+						"communication": "subject:chen_shouzhuo",
+						"motion": "subject:chen_shouzhuo"
+					},
+					"body:lao_zhou": {
+						"action": "subject:lao_zhou",
+						"communication": "subject:lao_zhou",
+						"motion": "subject:lao_zhou"
+					},
+					"body:player": {
+						"action": "subject:player",
+						"communication": "subject:player",
+						"motion": "subject:player"
+					},
+					"body:river_a_he": {
+						"action": "subject:river_a_he",
+						"communication": "subject:river_a_he",
+						"motion": "subject:river_a_he"
+					},
+					"body:river_chen_shouzhuo": {
+						"action": "subject:river_chen_shouzhuo",
+						"communication": "subject:river_chen_shouzhuo",
+						"motion": "subject:river_chen_shouzhuo"
+					},
+					"body:river_lao_zhou": {
+						"action": "subject:river_lao_zhou",
+						"communication": "subject:river_lao_zhou",
+						"motion": "subject:river_lao_zhou"
+					},
+					"body:river_player": {
+						"action": "subject:river_player",
+						"communication": "subject:river_player",
+						"motion": "subject:river_player"
+					},
+					"body:river_shi_tou": {
+						"action": "subject:river_shi_tou",
+						"communication": "subject:river_shi_tou",
+						"motion": "subject:river_shi_tou"
+					},
+					"body:river_su_zhi": {
+						"action": "subject:river_su_zhi",
+						"communication": "subject:river_su_zhi",
+						"motion": "subject:river_su_zhi"
+					},
+					"body:shi_tou": {
+						"action": "subject:shi_tou",
+						"communication": "subject:shi_tou",
+						"motion": "subject:shi_tou"
+					},
+					"body:su_zhi": {
+						"action": "subject:su_zhi",
+						"communication": "subject:su_zhi",
+						"motion": "subject:su_zhi"
+					}
+				},
+				"residences": {
+					"subject:a_he": "body:a_he",
+					"subject:avian:moss_sparrow": "body:avian:moss_sparrow",
+					"subject:avian:reed_sparrow": "body:avian:reed_sparrow",
+					"subject:chen_shouzhuo": "body:chen_shouzhuo",
+					"subject:lao_zhou": "body:lao_zhou",
+					"subject:player": "body:player",
+					"subject:river_a_he": "body:river_a_he",
+					"subject:river_chen_shouzhuo": "body:river_chen_shouzhuo",
+					"subject:river_lao_zhou": "body:river_lao_zhou",
+					"subject:river_player": "body:river_player",
+					"subject:river_shi_tou": "body:river_shi_tou",
+					"subject:river_su_zhi": "body:river_su_zhi",
+					"subject:shi_tou": "body:shi_tou",
+					"subject:su_zhi": "body:su_zhi"
+				},
+				"subjects": {
+					"subject:a_he": {
+						"legacy_actor": "a_he"
+					},
+					"subject:avian:moss_sparrow": {
+						"legacy_actor": ""
+					},
+					"subject:avian:reed_sparrow": {
+						"legacy_actor": ""
+					},
+					"subject:chen_shouzhuo": {
+						"legacy_actor": "chen_shouzhuo"
+					},
+					"subject:lao_zhou": {
+						"legacy_actor": "lao_zhou"
+					},
+					"subject:player": {
+						"legacy_actor": "player"
+					},
+					"subject:river_a_he": {
+						"legacy_actor": "river_a_he"
+					},
+					"subject:river_chen_shouzhuo": {
+						"legacy_actor": "river_chen_shouzhuo"
+					},
+					"subject:river_lao_zhou": {
+						"legacy_actor": "river_lao_zhou"
+					},
+					"subject:river_player": {
+						"legacy_actor": "river_player"
+					},
+					"subject:river_shi_tou": {
+						"legacy_actor": "river_shi_tou"
+					},
+					"subject:river_su_zhi": {
+						"legacy_actor": "river_su_zhi"
+					},
+					"subject:shi_tou": {
+						"legacy_actor": "shi_tou"
+					},
+					"subject:su_zhi": {
+						"legacy_actor": "su_zhi"
+					}
+				},
+				"version": 1
+			},
+			"events": [
+				{
+					"at": 13.0,
+					"id": "world:event:3",
+					"kind": "departed",
+					"line": "陆行舟带着12份粮食出发了。",
+					"region": "river",
+					"route": "river_road"
+				}
+			],
+			"in_transit": {
+				"containers": {
+					"cargo:world:shipment:2": {
+						"grain": 12
+					}
+				},
+				"operations": {},
+				"reservations": {}
+			},
+			"local_news": {
+				"home": [
+					{
+						"heard_at": 25.0,
+						"id": "world:message:4",
+						"line": "河湾农庄传来消息：陆行舟带着12份粮食出发了。",
+						"occurred_at": 13.0,
+						"source": "river"
+					}
+				],
+				"river": [
+					{
+						"heard_at": 13.0,
+						"id": "world:message:1",
+						"line": "青岚山门来信：请求补粮。",
+						"occurred_at": 1.0,
+						"source": "home"
+					},
+					{
+						"heard_at": 13.0,
+						"id": "world:event:3",
+						"line": "陆行舟带着12份粮食出发了。",
+						"occurred_at": 13.0,
+						"source": "river"
+					}
+				]
+			},
+			"messages": [
+				{
+					"details": {
+						"amount": 28.0,
+						"line": "青岚山门来信：请求补粮。",
+						"observed_at": 31.0
+					},
+					"due": 43.0,
+					"from": "home",
+					"id": "world:message:5",
+					"kind": "stock_request",
+					"route": "river_road",
+					"sent_at": 31.0,
+					"to": "river"
+				}
+			],
+			"next_id": 6,
+			"operations": {
+				"world:shipment:2:pickup": {
+					"amount": 12.0,
+					"from": "river",
+					"item": "grain",
+					"source": "store",
+					"target": "cargo:world:shipment:2",
+					"to": "transit"
+				}
+			},
+			"regions": {
+				"home": {
+					"actors": {
+						"a_he": {
+							"active": {},
+							"alive": true,
+							"autonomous": true,
+							"cell": [
+								253.0,
+								255.0
+							],
+							"definition_id": "a_he",
+							"energy": 78.926396,
+							"exertion_until_ms": 0.0,
+							"goal": "等候物资或闲暇交往",
+							"hunger": 68.067513,
+							"mood": 60.0,
+							"need_carry": {
+								"energy": 10000,
+								"hunger": 30000
+							},
+							"position": [
+								16224.0,
+								16352.0
+							],
+							"qi": 12.0,
+							"rank_id": "servant",
+							"receipts": [],
+							"retry_ms": 2640050.0,
+							"stamina": 90,
+							"stamina_carry": 0,
+							"stock_memory": {
+								"garden": {
+									"items": {
+										"herb": 12
+									},
+									"tick": 42
+								},
+								"kitchen": {
+									"items": {
+										"grain": 8,
+										"meal": 13,
+										"water": 7,
+										"wood": 6
+									},
+									"tick": 42
+								}
+							}
+						},
+						"chen_shouzhuo": {
+							"active": {
+								"action": "inspect",
+								"carrying": false,
+								"destination": "garden",
+								"due_ms": 3122298.0,
+								"id": "action:10",
+								"path": [],
+								"phase": "work",
+								"request_id": "",
+								"requester": "",
+								"reservations": [],
+								"segment_from": [
+									16096.0,
+									16224.0
+								],
+								"segment_started_ms": 1922298.0,
+								"started_ms": 1922297.0
+							},
+							"alive": true,
+							"autonomous": true,
+							"cell": [
+								251.0,
+								253.0
+							],
+							"definition_id": "chen_shouzhuo",
+							"energy": 87.688663,
+							"exertion_until_ms": 0.0,
+							"goal": "巡视药圃",
+							"hunger": 83.067513,
+							"mood": 60.0,
+							"need_carry": {
+								"energy": 30000,
+								"hunger": 30000
+							},
+							"position": [
+								16096.0,
+								16224.0
+							],
+							"qi": 60.0,
+							"rank_id": "steward",
+							"receipts": [],
+							"retry_ms": 2642297.0,
+							"stamina": 120.0,
+							"stamina_carry": 0.0,
+							"stock_memory": {
+								"garden": {
+									"items": {
+										"herb": 12
+									},
+									"tick": 42
+								},
+								"kitchen": {
+									"items": {
+										"grain": 8,
+										"meal": 13,
+										"water": 7,
+										"wood": 6
+									},
+									"tick": 42
+								},
+								"records": {
+									"items": {},
+									"tick": 0.0
+								},
+								"well": {
+									"items": {
+										"water": 100.0
+									},
+									"tick": 0.0
+								}
+							}
+						},
+						"lao_zhou": {
+							"active": {
+								"action": "rest",
+								"carrying": false,
+								"destination": "dorm",
+								"due_ms": 4624783.0,
+								"id": "action:9",
+								"path": [],
+								"phase": "work",
+								"request_id": "",
+								"requester": "",
+								"reservations": [],
+								"segment_from": [
+									16160.0,
+									16672.0
+								],
+								"segment_started_ms": 1024783.0,
+								"started_ms": 1023226.0
+							},
+							"alive": true,
+							"autonomous": true,
+							"cell": [
+								252.0,
+								260.0
+							],
+							"definition_id": "lao_zhou",
+							"energy": 25.68863,
+							"exertion_until_ms": 0.0,
+							"goal": "休息",
+							"hunger": 68.067513,
+							"mood": 60.0,
+							"need_carry": {
+								"energy": 10000,
+								"hunger": 30000
+							},
+							"position": [
+								16160.0,
+								16672.0
+							],
+							"qi": 10.0,
+							"rank_id": "servant",
+							"receipts": [
+								{
+									"amount": 2.0,
+									"event": "event_5"
+								}
+							],
+							"retry_ms": 1743226.0,
+							"stamina": 80,
+							"stamina_carry": 0,
+							"stock_memory": {
+								"dorm": {
+									"items": {},
+									"tick": 42
+								},
+								"garden": {
+									"items": {
+										"herb": 12.0
+									},
+									"tick": 17.0
+								},
+								"gate": {
+									"items": {},
+									"tick": 42
+								},
+								"kitchen": {
+									"items": {
+										"grain": 8.0,
+										"meal": 14.0,
+										"water": 3.0,
+										"wood": 3.0
+									},
+									"tick": 17.0
+								},
+								"records": {
+									"items": {},
+									"tick": 17.0
+								},
+								"store": {
+									"items": {
+										"grain": 24.0,
+										"wood": 77.0
+									},
+									"tick": 0.0
+								}
+							}
+						},
+						"player": {
+							"active": {},
+							"alive": true,
+							"autonomous": false,
+							"cell": [
+								254,
+								255
+							],
+							"definition_id": "player",
+							"energy": 82.518788,
+							"exertion_until_ms": 0.0,
+							"goal": "已扣1贡献，实物放入你的行囊。",
+							"hunger": 78.067513,
+							"mood": 60.0,
+							"need_carry": {
+								"energy": 50000,
+								"hunger": 30000
+							},
+							"position": [
+								16288.0,
+								16352.0
+							],
+							"qi": 20.0,
+							"rank_id": "servant",
+							"receipts": [],
+							"retry_ms": 2956151.0,
+							"stamina": 100,
+							"stamina_carry": 0,
+							"stock_memory": {
+								"dorm": {
+									"items": {},
+									"tick": 15.0
+								},
+								"garden": {
+									"items": {
+										"herb": 12
+									},
+									"tick": 42
+								},
+								"gate": {
+									"items": {},
+									"tick": 15.0
+								},
+								"kitchen": {
+									"items": {
+										"grain": 8,
+										"meal": 13,
+										"water": 7,
+										"wood": 6
+									},
+									"tick": 42
+								},
+								"records": {
+									"items": {},
+									"tick": 42
+								},
+								"store": {
+									"items": {
+										"grain": 20.0,
+										"wood": 74.0
+									},
+									"tick": 15.0
+								},
+								"well": {
+									"items": {
+										"water": 96.0
+									},
+									"tick": 42.0
+								}
+							}
+						},
+						"shi_tou": {
+							"active": {},
+							"alive": true,
+							"autonomous": true,
+							"cell": [
+								254.0,
+								255.0
+							],
+							"definition_id": "shi_tou",
+							"energy": 88.642318,
+							"exertion_until_ms": 0.0,
+							"goal": "已完成",
+							"hunger": 63.067513,
+							"mood": 60.0,
+							"need_carry": {
+								"energy": 10000,
+								"hunger": 30000
+							},
+							"position": [
+								16288.0,
+								16352.0
+							],
+							"qi": 25.0,
+							"rank_id": "servant",
+							"receipts": [],
+							"retry_ms": 2586167.0,
+							"stamina": 140,
+							"stamina_carry": 0,
+							"stock_memory": {
+								"dorm": {
+									"items": {},
+									"tick": 0.0
+								},
+								"garden": {
+									"items": {
+										"herb": 12
+									},
+									"tick": 42
+								},
+								"gate": {
+									"items": {},
+									"tick": 0.0
+								},
+								"kitchen": {
+									"items": {
+										"grain": 8,
+										"meal": 13,
+										"water": 7,
+										"wood": 6
+									},
+									"tick": 42
+								},
+								"records": {
+									"items": {},
+									"tick": 42
+								},
+								"store": {
+									"items": {
+										"grain": 24.0,
+										"wood": 77.0
+									},
+									"tick": 0.0
+								},
+								"well": {
+									"items": {
+										"water": 96.0
+									},
+									"tick": 14.0
+								}
+							}
+						},
+						"su_zhi": {
+							"active": {},
+							"alive": true,
+							"autonomous": true,
+							"cell": [
+								252.0,
+								259.0
+							],
+							"definition_id": "su_zhi",
+							"energy": 83.926396,
+							"exertion_until_ms": 0.0,
+							"goal": "等候物资或闲暇交往",
+							"hunger": 73.067513,
+							"mood": 60.0,
+							"need_carry": {
+								"energy": 10000,
+								"hunger": 30000
+							},
+							"position": [
+								16160.0,
+								16608.0
+							],
+							"qi": 80.0,
+							"rank_id": "outer_disciple",
+							"receipts": [],
+							"retry_ms": 2880050.0,
+							"stamina": 100,
+							"stamina_carry": 0,
+							"stock_memory": {
+								"dorm": {
+									"items": {},
+									"tick": 42
+								},
+								"gate": {
+									"items": {},
+									"tick": 42
+								},
+								"kitchen": {
+									"items": {
+										"grain": 8,
+										"meal": 13,
+										"water": 7,
+										"wood": 6
+									},
+									"tick": 42
+								}
+							}
+						}
+					},
+					"authorizations": {},
+					"config": {
+						"action_timeout": 360.0,
+						"actions": {
+							"check_kitchen": {
+								"kind": "visit",
+								"label": "查看灶房",
+								"minutes": 2.0,
+								"target": "kitchen"
+							},
+							"cook": {
+								"contribution": 2.0,
+								"inputs": {
+									"grain": 2.0,
+									"water": 1.0,
+									"wood": 1.0
+								},
+								"kind": "recipe",
+								"label": "做饭",
+								"minutes": 20.0,
+								"outputs": {
+									"meal": 6.0
+								},
+								"stock_below": 12.0,
+								"target": "kitchen"
+							},
+							"deliver_grain": {
+								"amount": 4.0,
+								"contribution": 2.0,
+								"item": "grain",
+								"kind": "haul",
+								"label": "运粮",
+								"minutes": 5.0,
+								"source": "store",
+								"stock_below": 6.0,
+								"target": "kitchen"
+							},
+							"deliver_water": {
+								"amount": 4.0,
+								"contribution": 2.0,
+								"item": "water",
+								"kind": "haul",
+								"label": "挑水",
+								"minutes": 5.0,
+								"source": "well",
+								"stock_below": 6.0,
+								"target": "kitchen"
+							},
+							"deliver_wood": {
+								"amount": 3.0,
+								"contribution": 2.0,
+								"item": "wood",
+								"kind": "haul",
+								"label": "送柴",
+								"minutes": 5.0,
+								"source": "store",
+								"stock_below": 6.0,
+								"target": "kitchen"
+							},
+							"eat": {
+								"amount": 1.0,
+								"hunger_gain": 45.0,
+								"item": "meal",
+								"kind": "consume",
+								"label": "取食",
+								"minutes": 8.0,
+								"source": "kitchen"
+							},
+							"inspect": {
+								"kind": "visit",
+								"label": "巡视药圃",
+								"minutes": 20.0,
+								"target": "garden"
+							},
+							"report": {
+								"kind": "visit",
+								"label": "到功德堂报工",
+								"minutes": 5.0,
+								"target": "records"
+							},
+							"rest": {
+								"energy_gain": 80.0,
+								"kind": "rest",
+								"label": "休息",
+								"minutes": 60.0,
+								"target": "dorm"
+							}
+						},
+						"actor_profiles": {
+							"a_he": {
+								"benevolence": 0.8,
+								"duty": "cook",
+								"energy": 80.0,
+								"hunger": 70.0
+							},
+							"chen_shouzhuo": {
+								"benevolence": 0.25,
+								"duty": "inspect",
+								"energy": 90.0,
+								"hunger": 85.0
+							},
+							"lao_zhou": {
+								"benevolence": 0.3,
+								"duty": "deliver_wood",
+								"energy": 28.0,
+								"hunger": 70.0
+							},
+							"player": {
+								"autonomous": false,
+								"energy": 85.0,
+								"hunger": 80.0
+							},
+							"shi_tou": {
+								"benevolence": 0.8,
+								"duty": "deliver_water",
+								"energy": 90.0,
+								"hunger": 65.0
+							},
+							"su_zhi": {
+								"benevolence": 0.6,
+								"duty": "deliver_grain",
+								"energy": 85.0,
+								"hunger": 75.0
+							}
+						},
+						"decision_interval": 12.0,
+						"history_limit": 240.0,
+						"initial_stock": {
+							"dorm": {},
+							"garden": {
+								"herb": 12.0
+							},
+							"gate": {},
+							"kitchen": {
+								"grain": 6.0,
+								"meal": 8.0,
+								"water": 4.0,
+								"wood": 0.0
+							},
+							"records": {},
+							"store": {
+								"grain": 100.0,
+								"wood": 80.0
+							},
+							"well": {
+								"water": 100.0
+							}
+						},
+						"institution": {
+							"id": "sect",
+							"offices": {
+								"registrar": {
+									"holder": "chen_shouzhuo",
+									"permissions": [
+										"record",
+										"pay"
+									]
+								},
+								"steward": {
+									"holder": "chen_shouzhuo",
+									"permissions": [
+										"authorize"
+									]
+								}
+							}
+						},
+						"move_minutes_per_cell": 3.0,
+						"navigation_budget": 4096.0,
+						"navigation_radius": 24.0,
+						"needs": {
+							"eat_below": 55.0,
+							"energy_per_minute": 0.025,
+							"hunger_per_minute": 0.045,
+							"rest_below": 35.0,
+							"work_energy_per_minute": 0.04
+						},
+						"observation_radius": 5.0,
+						"place_defs": [
+							{
+								"id": "kitchen",
+								"label": "灶房",
+								"offset": [
+									-3.0,
+									-1.0
+								]
+							},
+							{
+								"id": "store",
+								"label": "柴粮库",
+								"offset": [
+									5.0,
+									4.0
+								]
+							},
+							{
+								"id": "dorm",
+								"label": "杂役院",
+								"offset": [
+									-4.0,
+									4.0
+								]
+							},
+							{
+								"id": "well",
+								"label": "水井",
+								"offset": [
+									5.0,
+									-3.0
+								]
+							},
+							{
+								"id": "garden",
+								"label": "药圃",
+								"offset": [
+									-5.0,
+									-3.0
+								]
+							},
+							{
+								"id": "records",
+								"label": "功德堂",
+								"offset": [
+									2.0,
+									-3.0
+								]
+							},
+							{
+								"id": "gate",
+								"label": "山门",
+								"offset": [
+									0.0,
+									6.0
+								]
+							}
+						],
+						"request_interval": 60.0,
+						"retry_minutes": 30.0,
+						"scenario": {
+							"helpers": [
+								"lao_zhou",
+								"shi_tou"
+							],
+							"requester": "a_he",
+							"task": "deliver_wood"
+						},
+						"schema_version": 1.0,
+						"seed": 20261102.0,
+						"social_policy": {
+							"accept_threshold": 0.42,
+							"bias": 0.05,
+							"outcome_effects": {
+								"broke_promise": [
+									-0.1,
+									-0.05
+								],
+								"failed": [
+									0.0,
+									0.0
+								],
+								"fulfilled": [
+									0.05,
+									0.04
+								],
+								"refused": [
+									0.0,
+									0.0
+								]
+							},
+							"uncertainty_band": 0.05,
+							"weights": {
+								"affinity": 0.1,
+								"benevolence": 0.3,
+								"busy": -0.7,
+								"distance": -0.15,
+								"duty": 0.25,
+								"energy": 0.3,
+								"offer": 0.3,
+								"reliability": 0.15,
+								"risk": -0.8
+							}
+						},
+						"talk_radius": 14.0
+					},
+					"controlled_actor": "player",
+					"elapsed_ms": 2576650,
+					"institutions": {
+						"entries": [
+							{
+								"amount": 10,
+								"evidence": "origin:sect_orphan",
+								"institution_id": "sect",
+								"issuer": "chen_shouzhuo",
+								"kind": "issue",
+								"office": "registrar",
+								"operation_id": "opening:chen_shouzhuo",
+								"subject": "chen_shouzhuo"
+							},
+							{
+								"amount": 5,
+								"evidence": "origin:hunter",
+								"institution_id": "sect",
+								"issuer": "chen_shouzhuo",
+								"kind": "issue",
+								"office": "registrar",
+								"operation_id": "opening:shi_tou",
+								"subject": "shi_tou"
+							},
+							{
+								"amount": 10,
+								"evidence": "origin:sect_orphan",
+								"institution_id": "sect",
+								"issuer": "chen_shouzhuo",
+								"kind": "issue",
+								"office": "registrar",
+								"operation_id": "opening:su_zhi",
+								"subject": "su_zhi"
+							},
+							{
+								"amount": 2,
+								"evidence": "event_7",
+								"institution_id": "sect",
+								"issuer": "chen_shouzhuo",
+								"kind": "issue",
+								"office": "registrar",
+								"operation_id": "credit:event_7",
+								"subject": "a_he"
+							},
+							{
+								"amount": 2,
+								"evidence": "event_10",
+								"institution_id": "sect",
+								"issuer": "chen_shouzhuo",
+								"kind": "issue",
+								"office": "registrar",
+								"operation_id": "credit:event_10",
+								"subject": "shi_tou"
+							},
+							{
+								"amount": 2,
+								"evidence": "event_13",
+								"institution_id": "sect",
+								"issuer": "chen_shouzhuo",
+								"kind": "issue",
+								"office": "registrar",
+								"operation_id": "credit:event_13",
+								"subject": "player"
+							},
+							{
+								"amount": 1,
+								"evidence": "service:job:13",
+								"institution_id": "sect",
+								"issuer": "chen_shouzhuo",
+								"kind": "debit",
+								"office": "registrar",
+								"operation_id": "service:job:13:debit",
+								"subject": "player"
+							}
+						],
+						"institutions": {
+							"sect": {
+								"offices": {
+									"registrar": {
+										"holder": "chen_shouzhuo",
+										"permissions": [
+											"record",
+											"pay"
+										]
+									},
+									"steward": {
+										"holder": "chen_shouzhuo",
+										"permissions": [
+											"authorize"
+										]
+									}
+								}
+							}
+						},
+						"operations": {
+							"credit:event_10": {
+								"amount": 2,
+								"evidence": "event_10",
+								"institution_id": "sect",
+								"issuer": "chen_shouzhuo",
+								"kind": "issue",
+								"subject": "shi_tou"
+							},
+							"credit:event_13": {
+								"amount": 2,
+								"evidence": "event_13",
+								"institution_id": "sect",
+								"issuer": "chen_shouzhuo",
+								"kind": "issue",
+								"subject": "player"
+							},
+							"credit:event_7": {
+								"amount": 2,
+								"evidence": "event_7",
+								"institution_id": "sect",
+								"issuer": "chen_shouzhuo",
+								"kind": "issue",
+								"subject": "a_he"
+							},
+							"opening:chen_shouzhuo": {
+								"amount": 10,
+								"evidence": "origin:sect_orphan",
+								"institution_id": "sect",
+								"issuer": "chen_shouzhuo",
+								"kind": "issue",
+								"subject": "chen_shouzhuo"
+							},
+							"opening:shi_tou": {
+								"amount": 5,
+								"evidence": "origin:hunter",
+								"institution_id": "sect",
+								"issuer": "chen_shouzhuo",
+								"kind": "issue",
+								"subject": "shi_tou"
+							},
+							"opening:su_zhi": {
+								"amount": 10,
+								"evidence": "origin:sect_orphan",
+								"institution_id": "sect",
+								"issuer": "chen_shouzhuo",
+								"kind": "issue",
+								"subject": "su_zhi"
+							},
+							"service:job:13:debit": {
+								"amount": 1,
+								"evidence": "service:job:13",
+								"institution_id": "sect",
+								"issuer": "chen_shouzhuo",
+								"kind": "debit",
+								"subject": "player"
+							}
+						}
+					},
+					"interaction_results": {
+						"request_1": {
+							"chance": 0.8000000000000008,
+							"context": {
+								"affinity": 0.0,
+								"benevolence": 0.30000000000000004,
+								"busy": 0.0,
+								"distance": 0.5,
+								"duty": 1.0,
+								"energy": 0.2,
+								"offer": 0.0,
+								"reliability": 0.5,
+								"risk": 0.0,
+								"terms": {
+									"amount": 3.0,
+									"item": "wood",
+									"occasion": "situation:1"
+								}
+							},
+							"event_id": "event_1",
+							"execution": "fulfilled",
+							"id": "request_1",
+							"message": "老周答应帮忙送柴。",
+							"policy": {
+								"accept_threshold": 0.42,
+								"bias": 0.05,
+								"context_step": 0.05,
+								"uncertainty_band": 0.05,
+								"weights": {
+									"affinity": 0.1,
+									"benevolence": 0.3,
+									"busy": -0.7,
+									"distance": -0.15,
+									"duty": 0.25,
+									"energy": 0.3,
+									"offer": 0.3,
+									"reliability": 0.15,
+									"risk": -0.8
+								}
+							},
+							"reason": "duty",
+							"reasons": [
+								"duty",
+								"benevolence",
+								"reliability"
+							],
+							"requester": "a_he",
+							"responder": "lao_zhou",
+							"roll": 0.6050356030464172,
+							"score": 0.45000000000000007,
+							"status": "accepted",
+							"task": "deliver_wood",
+							"tick": 0.0,
+							"uncertain": true
+						}
+					},
+					"inventory": {
+						"containers": {
+							"actor:a_he": {},
+							"actor:chen_shouzhuo": {},
+							"actor:lao_zhou": {
+								"wood": 0
+							},
+							"actor:player": {
+								"coin": 6,
+								"grain": 0,
+								"meal": 0,
+								"wood": 0
+							},
+							"actor:shi_tou": {
+								"water": 0
+							},
+							"actor:su_zhi": {},
+							"dorm": {},
+							"garden": {
+								"herb": 12
+							},
+							"gate": {},
+							"kitchen": {
+								"grain": 8,
+								"meal": 13,
+								"water": 7,
+								"wood": 6
+							},
+							"records": {},
+							"store": {
+								"grain": 20,
+								"wood": 74
+							},
+							"well": {
+								"water": 96
+							}
+						},
+						"operations": {
+							"action:2:delivery": {
+								"amount": 3,
+								"item": "wood",
+								"kind": "transfer",
+								"reservation_id": "",
+								"source": "actor:lao_zhou",
+								"target": "kitchen"
+							},
+							"action:2:pickup": {
+								"amount": 3,
+								"item": "wood",
+								"kind": "transfer",
+								"reservation_id": "action:2:wood",
+								"source": "store",
+								"target": "actor:lao_zhou"
+							},
+							"action:6:delivery": {
+								"amount": 4,
+								"item": "grain",
+								"kind": "transfer",
+								"reservation_id": "",
+								"source": "actor:player",
+								"target": "kitchen"
+							},
+							"action:6:pickup": {
+								"amount": 4,
+								"item": "grain",
+								"kind": "transfer",
+								"reservation_id": "action:6:grain",
+								"source": "store",
+								"target": "actor:player"
+							},
+							"action:7:delivery": {
+								"amount": 4,
+								"item": "water",
+								"kind": "transfer",
+								"reservation_id": "",
+								"source": "actor:shi_tou",
+								"target": "kitchen"
+							},
+							"action:7:pickup": {
+								"amount": 4,
+								"item": "water",
+								"kind": "transfer",
+								"reservation_id": "action:7:water",
+								"source": "well",
+								"target": "actor:shi_tou"
+							},
+							"action:8:delivery": {
+								"amount": 3,
+								"item": "wood",
+								"kind": "transfer",
+								"reservation_id": "",
+								"source": "actor:player",
+								"target": "kitchen"
+							},
+							"action:8:pickup": {
+								"amount": 3,
+								"item": "wood",
+								"kind": "transfer",
+								"reservation_id": "action:8:wood",
+								"source": "store",
+								"target": "actor:player"
+							},
+							"artifact:action:5:heat": {
+								"container": "kitchen",
+								"inputs": {
+									"grain": 2,
+									"water": 1
+								},
+								"kind": "transform",
+								"outputs": {
+									"meal": 6
+								}
+							},
+							"avian:90:grain": {
+								"amount": 1,
+								"container": "actor:player",
+								"item": "meal",
+								"kind": "consume"
+							}
+						},
+						"reservations": {}
+					},
+					"last_request": 0,
+					"next_id": 12,
+					"places": {
+						"dorm": {
+							"cell": [
+								252.0,
+								260.0
+							],
+							"label": "杂役院"
+						},
+						"garden": {
+							"cell": [
+								251.0,
+								253.0
+							],
+							"label": "药圃"
+						},
+						"gate": {
+							"cell": [
+								256.0,
+								262.0
+							],
+							"label": "山门"
+						},
+						"kitchen": {
+							"cell": [
+								254.0,
+								255.0
+							],
+							"label": "灶房"
+						},
+						"records": {
+							"cell": [
+								258.0,
+								253.0
+							],
+							"label": "功德堂"
+						},
+						"store": {
+							"cell": [
+								261.0,
+								260.0
+							],
+							"label": "柴粮库"
+						},
+						"well": {
+							"cell": [
+								261.0,
+								253.0
+							],
+							"label": "水井"
+						}
+					},
+					"rng_state": "-3149962968293776070",
+					"situations": {
+						"kitchen_shortage": {
+							"id": "situation:1",
+							"item": "wood",
+							"resolved_at": 5.0,
+							"since": 0.0,
+							"status": "resolved"
+						}
+					},
+					"social": {
+						"actors": [
+							"a_he",
+							"chen_shouzhuo",
+							"lao_zhou",
+							"player",
+							"shi_tou",
+							"su_zhi"
+						],
+						"events": [
+							{
+								"actor": "a_he",
+								"details": {
+									"participants": {
+										"reason": "duty"
+									},
+									"status": "accepted",
+									"task": "deliver_wood"
+								},
+								"id": "event_1",
+								"kind": "request",
+								"target": "lao_zhou",
+								"tick": 0.0,
+								"witnesses": [
+									"player",
+									"su_zhi"
+								]
+							},
+							{
+								"actor": "lao_zhou",
+								"details": {
+									"amount": 3.0,
+									"item": "wood"
+								},
+								"id": "event_2",
+								"kind": "picked_up",
+								"target": "",
+								"tick": 0.0,
+								"witnesses": [
+									"shi_tou"
+								]
+							},
+							{
+								"actor": "player",
+								"details": {
+									"amount": 4.0,
+									"item": "grain"
+								},
+								"id": "event_3",
+								"kind": "picked_up",
+								"target": "",
+								"tick": 0.0,
+								"witnesses": []
+							},
+							{
+								"actor": "shi_tou",
+								"details": {
+									"private": {
+										"reason": "fulfilled"
+									},
+									"public": {
+										"work_credit": 0.0
+									},
+									"task": "check_kitchen"
+								},
+								"id": "event_4",
+								"kind": "completed",
+								"target": "",
+								"tick": 2.0,
+								"witnesses": [
+									"a_he",
+									"chen_shouzhuo",
+									"lao_zhou",
+									"player",
+									"su_zhi"
+								]
+							},
+							{
+								"actor": "lao_zhou",
+								"details": {
+									"private": {
+										"reason": "fulfilled"
+									},
+									"public": {
+										"work_credit": 2.0
+									},
+									"task": "deliver_wood"
+								},
+								"id": "event_5",
+								"kind": "completed",
+								"target": "",
+								"tick": 5.0,
+								"witnesses": [
+									"a_he",
+									"chen_shouzhuo",
+									"player",
+									"shi_tou",
+									"su_zhi"
+								]
+							},
+							{
+								"actor": "player",
+								"details": {
+									"private": {
+										"reason": "fulfilled"
+									},
+									"public": {
+										"work_credit": 0.0
+									},
+									"task": "deliver_grain"
+								},
+								"id": "event_6",
+								"kind": "completed",
+								"target": "",
+								"tick": 5.0,
+								"witnesses": [
+									"a_he",
+									"chen_shouzhuo",
+									"lao_zhou",
+									"shi_tou",
+									"su_zhi"
+								]
+							},
+							{
+								"actor": "a_he",
+								"details": {
+									"private": {
+										"reason": "artifact_heat"
+									},
+									"public": {
+										"work_credit": 2.0
+									},
+									"task": "cook"
+								},
+								"id": "event_7",
+								"kind": "completed",
+								"target": "",
+								"tick": 8.0,
+								"witnesses": [
+									"chen_shouzhuo",
+									"lao_zhou",
+									"shi_tou",
+									"su_zhi"
+								]
+							},
+							{
+								"actor": "shi_tou",
+								"details": {
+									"amount": 4.0,
+									"item": "water"
+								},
+								"id": "event_8",
+								"kind": "picked_up",
+								"target": "",
+								"tick": 14.0,
+								"witnesses": [
+									"player"
+								]
+							},
+							{
+								"actor": "player",
+								"details": {
+									"amount": 3.0,
+									"item": "wood"
+								},
+								"id": "event_9",
+								"kind": "picked_up",
+								"target": "",
+								"tick": 15.0,
+								"witnesses": []
+							},
+							{
+								"actor": "shi_tou",
+								"details": {
+									"private": {
+										"reason": "fulfilled"
+									},
+									"public": {
+										"work_credit": 2.0
+									},
+									"task": "deliver_water"
+								},
+								"id": "event_10",
+								"kind": "completed",
+								"target": "",
+								"tick": 19.0,
+								"witnesses": [
+									"a_he",
+									"chen_shouzhuo",
+									"player",
+									"su_zhi"
+								]
+							},
+							{
+								"actor": "chen_shouzhuo",
+								"details": {
+									"amount": 2.0
+								},
+								"id": "event_11",
+								"kind": "registered",
+								"target": "a_he",
+								"tick": 20.0,
+								"witnesses": [
+									"player",
+									"shi_tou"
+								]
+							},
+							{
+								"actor": "chen_shouzhuo",
+								"details": {
+									"private": {
+										"reason": "fulfilled"
+									},
+									"public": {
+										"work_credit": 0.0
+									},
+									"task": "inspect"
+								},
+								"id": "event_12",
+								"kind": "completed",
+								"target": "",
+								"tick": 20.0,
+								"witnesses": [
+									"a_he",
+									"player",
+									"shi_tou"
+								]
+							},
+							{
+								"actor": "player",
+								"details": {
+									"private": {
+										"reason": "fulfilled"
+									},
+									"public": {
+										"work_credit": 2.0
+									},
+									"task": "deliver_wood"
+								},
+								"id": "event_13",
+								"kind": "completed",
+								"target": "",
+								"tick": 20.0,
+								"witnesses": [
+									"a_he",
+									"chen_shouzhuo",
+									"shi_tou",
+									"su_zhi"
+								]
+							},
+							{
+								"actor": "chen_shouzhuo",
+								"details": {
+									"amount": 2.0
+								},
+								"id": "event_14",
+								"kind": "registered",
+								"target": "shi_tou",
+								"tick": 31.0,
+								"witnesses": [
+									"a_he"
+								]
+							},
+							{
+								"actor": "player",
+								"details": {
+									"private": {
+										"reason": "fulfilled"
+									},
+									"public": {
+										"work_credit": 0.0
+									},
+									"task": "report"
+								},
+								"id": "event_15",
+								"kind": "completed",
+								"target": "",
+								"tick": 37.0,
+								"witnesses": [
+									"shi_tou"
+								]
+							},
+							{
+								"actor": "chen_shouzhuo",
+								"details": {
+									"amount": 2.0
+								},
+								"id": "event_16",
+								"kind": "registered",
+								"target": "player",
+								"tick": 37.0,
+								"witnesses": [
+									"a_he",
+									"shi_tou"
+								]
+							}
+						],
+						"knowledge": {
+							"a_he": {
+								"event_1": {
+									"actor": "a_he",
+									"details": {
+										"reason": "duty",
+										"status": "accepted",
+										"task": "deliver_wood"
+									},
+									"direct": true,
+									"id": "event_1",
+									"kind": "request",
+									"source": "a_he",
+									"target": "lao_zhou",
+									"tick": 0.0
+								},
+								"event_10": {
+									"actor": "shi_tou",
+									"details": {
+										"task": "deliver_water",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_10",
+									"kind": "completed",
+									"source": "a_he",
+									"target": "",
+									"tick": 19.0
+								},
+								"event_11": {
+									"actor": "chen_shouzhuo",
+									"details": {
+										"amount": 2.0
+									},
+									"direct": true,
+									"id": "event_11",
+									"kind": "registered",
+									"source": "a_he",
+									"target": "a_he",
+									"tick": 20.0
+								},
+								"event_12": {
+									"actor": "chen_shouzhuo",
+									"details": {
+										"task": "inspect",
+										"work_credit": 0.0
+									},
+									"direct": true,
+									"id": "event_12",
+									"kind": "completed",
+									"source": "a_he",
+									"target": "",
+									"tick": 20.0
+								},
+								"event_13": {
+									"actor": "player",
+									"details": {
+										"task": "deliver_wood",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_13",
+									"kind": "completed",
+									"source": "a_he",
+									"target": "",
+									"tick": 20.0
+								},
+								"event_14": {
+									"actor": "chen_shouzhuo",
+									"details": {
+										"amount": 2.0
+									},
+									"direct": true,
+									"id": "event_14",
+									"kind": "registered",
+									"source": "a_he",
+									"target": "shi_tou",
+									"tick": 31.0
+								},
+								"event_16": {
+									"actor": "chen_shouzhuo",
+									"details": {
+										"amount": 2.0
+									},
+									"direct": true,
+									"id": "event_16",
+									"kind": "registered",
+									"source": "a_he",
+									"target": "player",
+									"tick": 37.0
+								},
+								"event_4": {
+									"actor": "shi_tou",
+									"details": {
+										"task": "check_kitchen",
+										"work_credit": 0.0
+									},
+									"direct": true,
+									"id": "event_4",
+									"kind": "completed",
+									"source": "a_he",
+									"target": "",
+									"tick": 2.0
+								},
+								"event_5": {
+									"actor": "lao_zhou",
+									"details": {
+										"task": "deliver_wood",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_5",
+									"kind": "completed",
+									"source": "a_he",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_6": {
+									"actor": "player",
+									"details": {
+										"task": "deliver_grain",
+										"work_credit": 0.0
+									},
+									"direct": true,
+									"id": "event_6",
+									"kind": "completed",
+									"source": "a_he",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_7": {
+									"actor": "a_he",
+									"details": {
+										"task": "cook",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_7",
+									"kind": "completed",
+									"source": "a_he",
+									"target": "",
+									"tick": 8.0
+								}
+							},
+							"chen_shouzhuo": {
+								"event_10": {
+									"actor": "shi_tou",
+									"details": {
+										"task": "deliver_water",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_10",
+									"kind": "completed",
+									"source": "chen_shouzhuo",
+									"target": "",
+									"tick": 19.0
+								},
+								"event_11": {
+									"actor": "chen_shouzhuo",
+									"details": {
+										"amount": 2.0
+									},
+									"direct": true,
+									"id": "event_11",
+									"kind": "registered",
+									"source": "chen_shouzhuo",
+									"target": "a_he",
+									"tick": 20.0
+								},
+								"event_12": {
+									"actor": "chen_shouzhuo",
+									"details": {
+										"task": "inspect",
+										"work_credit": 0.0
+									},
+									"direct": true,
+									"id": "event_12",
+									"kind": "completed",
+									"source": "chen_shouzhuo",
+									"target": "",
+									"tick": 20.0
+								},
+								"event_13": {
+									"actor": "player",
+									"details": {
+										"task": "deliver_wood",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_13",
+									"kind": "completed",
+									"source": "chen_shouzhuo",
+									"target": "",
+									"tick": 20.0
+								},
+								"event_14": {
+									"actor": "chen_shouzhuo",
+									"details": {
+										"amount": 2.0
+									},
+									"direct": true,
+									"id": "event_14",
+									"kind": "registered",
+									"source": "chen_shouzhuo",
+									"target": "shi_tou",
+									"tick": 31.0
+								},
+								"event_16": {
+									"actor": "chen_shouzhuo",
+									"details": {
+										"amount": 2.0
+									},
+									"direct": true,
+									"id": "event_16",
+									"kind": "registered",
+									"source": "chen_shouzhuo",
+									"target": "player",
+									"tick": 37.0
+								},
+								"event_4": {
+									"actor": "shi_tou",
+									"details": {
+										"task": "check_kitchen",
+										"work_credit": 0.0
+									},
+									"direct": true,
+									"id": "event_4",
+									"kind": "completed",
+									"source": "chen_shouzhuo",
+									"target": "",
+									"tick": 2.0
+								},
+								"event_5": {
+									"actor": "lao_zhou",
+									"details": {
+										"task": "deliver_wood",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_5",
+									"kind": "completed",
+									"source": "chen_shouzhuo",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_6": {
+									"actor": "player",
+									"details": {
+										"task": "deliver_grain",
+										"work_credit": 0.0
+									},
+									"direct": true,
+									"id": "event_6",
+									"kind": "completed",
+									"source": "chen_shouzhuo",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_7": {
+									"actor": "a_he",
+									"details": {
+										"task": "cook",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_7",
+									"kind": "completed",
+									"source": "chen_shouzhuo",
+									"target": "",
+									"tick": 8.0
+								}
+							},
+							"lao_zhou": {
+								"event_1": {
+									"actor": "a_he",
+									"details": {
+										"reason": "duty",
+										"status": "accepted",
+										"task": "deliver_wood"
+									},
+									"direct": true,
+									"id": "event_1",
+									"kind": "request",
+									"source": "lao_zhou",
+									"target": "lao_zhou",
+									"tick": 0.0
+								},
+								"event_2": {
+									"actor": "lao_zhou",
+									"details": {
+										"amount": 3.0,
+										"item": "wood"
+									},
+									"direct": true,
+									"id": "event_2",
+									"kind": "picked_up",
+									"source": "lao_zhou",
+									"target": "",
+									"tick": 0.0
+								},
+								"event_4": {
+									"actor": "shi_tou",
+									"details": {
+										"task": "check_kitchen",
+										"work_credit": 0.0
+									},
+									"direct": true,
+									"id": "event_4",
+									"kind": "completed",
+									"source": "lao_zhou",
+									"target": "",
+									"tick": 2.0
+								},
+								"event_5": {
+									"actor": "lao_zhou",
+									"details": {
+										"task": "deliver_wood",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_5",
+									"kind": "completed",
+									"source": "lao_zhou",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_6": {
+									"actor": "player",
+									"details": {
+										"task": "deliver_grain",
+										"work_credit": 0.0
+									},
+									"direct": true,
+									"id": "event_6",
+									"kind": "completed",
+									"source": "lao_zhou",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_7": {
+									"actor": "a_he",
+									"details": {
+										"task": "cook",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_7",
+									"kind": "completed",
+									"source": "lao_zhou",
+									"target": "",
+									"tick": 8.0
+								}
+							},
+							"player": {
+								"event_1": {
+									"actor": "a_he",
+									"details": {
+										"status": "accepted",
+										"task": "deliver_wood"
+									},
+									"direct": true,
+									"id": "event_1",
+									"kind": "request",
+									"source": "player",
+									"target": "lao_zhou",
+									"tick": 0.0
+								},
+								"event_10": {
+									"actor": "shi_tou",
+									"details": {
+										"task": "deliver_water",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_10",
+									"kind": "completed",
+									"source": "player",
+									"target": "",
+									"tick": 19.0
+								},
+								"event_11": {
+									"actor": "chen_shouzhuo",
+									"details": {
+										"amount": 2.0
+									},
+									"direct": true,
+									"id": "event_11",
+									"kind": "registered",
+									"source": "player",
+									"target": "a_he",
+									"tick": 20.0
+								},
+								"event_12": {
+									"actor": "chen_shouzhuo",
+									"details": {
+										"task": "inspect",
+										"work_credit": 0.0
+									},
+									"direct": true,
+									"id": "event_12",
+									"kind": "completed",
+									"source": "player",
+									"target": "",
+									"tick": 20.0
+								},
+								"event_13": {
+									"actor": "player",
+									"details": {
+										"task": "deliver_wood",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_13",
+									"kind": "completed",
+									"source": "player",
+									"target": "",
+									"tick": 20.0
+								},
+								"event_15": {
+									"actor": "player",
+									"details": {
+										"task": "report",
+										"work_credit": 0.0
+									},
+									"direct": true,
+									"id": "event_15",
+									"kind": "completed",
+									"source": "player",
+									"target": "",
+									"tick": 37.0
+								},
+								"event_16": {
+									"actor": "chen_shouzhuo",
+									"details": {
+										"amount": 2.0
+									},
+									"direct": true,
+									"id": "event_16",
+									"kind": "registered",
+									"source": "player",
+									"target": "player",
+									"tick": 37.0
+								},
+								"event_3": {
+									"actor": "player",
+									"details": {
+										"amount": 4.0,
+										"item": "grain"
+									},
+									"direct": true,
+									"id": "event_3",
+									"kind": "picked_up",
+									"source": "player",
+									"target": "",
+									"tick": 0.0
+								},
+								"event_4": {
+									"actor": "shi_tou",
+									"details": {
+										"task": "check_kitchen",
+										"work_credit": 0.0
+									},
+									"direct": true,
+									"id": "event_4",
+									"kind": "completed",
+									"source": "player",
+									"target": "",
+									"tick": 2.0
+								},
+								"event_5": {
+									"actor": "lao_zhou",
+									"details": {
+										"task": "deliver_wood",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_5",
+									"kind": "completed",
+									"source": "player",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_6": {
+									"actor": "player",
+									"details": {
+										"task": "deliver_grain",
+										"work_credit": 0.0
+									},
+									"direct": true,
+									"id": "event_6",
+									"kind": "completed",
+									"source": "player",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_8": {
+									"actor": "shi_tou",
+									"details": {
+										"amount": 4.0,
+										"item": "water"
+									},
+									"direct": true,
+									"id": "event_8",
+									"kind": "picked_up",
+									"source": "player",
+									"target": "",
+									"tick": 14.0
+								},
+								"event_9": {
+									"actor": "player",
+									"details": {
+										"amount": 3.0,
+										"item": "wood"
+									},
+									"direct": true,
+									"id": "event_9",
+									"kind": "picked_up",
+									"source": "player",
+									"target": "",
+									"tick": 15.0
+								}
+							},
+							"shi_tou": {
+								"event_10": {
+									"actor": "shi_tou",
+									"details": {
+										"task": "deliver_water",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_10",
+									"kind": "completed",
+									"source": "shi_tou",
+									"target": "",
+									"tick": 19.0
+								},
+								"event_11": {
+									"actor": "chen_shouzhuo",
+									"details": {
+										"amount": 2.0
+									},
+									"direct": true,
+									"id": "event_11",
+									"kind": "registered",
+									"source": "shi_tou",
+									"target": "a_he",
+									"tick": 20.0
+								},
+								"event_12": {
+									"actor": "chen_shouzhuo",
+									"details": {
+										"task": "inspect",
+										"work_credit": 0.0
+									},
+									"direct": true,
+									"id": "event_12",
+									"kind": "completed",
+									"source": "shi_tou",
+									"target": "",
+									"tick": 20.0
+								},
+								"event_13": {
+									"actor": "player",
+									"details": {
+										"task": "deliver_wood",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_13",
+									"kind": "completed",
+									"source": "shi_tou",
+									"target": "",
+									"tick": 20.0
+								},
+								"event_14": {
+									"actor": "chen_shouzhuo",
+									"details": {
+										"amount": 2.0
+									},
+									"direct": true,
+									"id": "event_14",
+									"kind": "registered",
+									"source": "shi_tou",
+									"target": "shi_tou",
+									"tick": 31.0
+								},
+								"event_15": {
+									"actor": "player",
+									"details": {
+										"task": "report",
+										"work_credit": 0.0
+									},
+									"direct": true,
+									"id": "event_15",
+									"kind": "completed",
+									"source": "shi_tou",
+									"target": "",
+									"tick": 37.0
+								},
+								"event_16": {
+									"actor": "chen_shouzhuo",
+									"details": {
+										"amount": 2.0
+									},
+									"direct": true,
+									"id": "event_16",
+									"kind": "registered",
+									"source": "shi_tou",
+									"target": "player",
+									"tick": 37.0
+								},
+								"event_2": {
+									"actor": "lao_zhou",
+									"details": {
+										"amount": 3.0,
+										"item": "wood"
+									},
+									"direct": true,
+									"id": "event_2",
+									"kind": "picked_up",
+									"source": "shi_tou",
+									"target": "",
+									"tick": 0.0
+								},
+								"event_4": {
+									"actor": "shi_tou",
+									"details": {
+										"task": "check_kitchen",
+										"work_credit": 0.0
+									},
+									"direct": true,
+									"id": "event_4",
+									"kind": "completed",
+									"source": "shi_tou",
+									"target": "",
+									"tick": 2.0
+								},
+								"event_5": {
+									"actor": "lao_zhou",
+									"details": {
+										"task": "deliver_wood",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_5",
+									"kind": "completed",
+									"source": "shi_tou",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_6": {
+									"actor": "player",
+									"details": {
+										"task": "deliver_grain",
+										"work_credit": 0.0
+									},
+									"direct": true,
+									"id": "event_6",
+									"kind": "completed",
+									"source": "shi_tou",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_7": {
+									"actor": "a_he",
+									"details": {
+										"task": "cook",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_7",
+									"kind": "completed",
+									"source": "shi_tou",
+									"target": "",
+									"tick": 8.0
+								},
+								"event_8": {
+									"actor": "shi_tou",
+									"details": {
+										"amount": 4.0,
+										"item": "water"
+									},
+									"direct": true,
+									"id": "event_8",
+									"kind": "picked_up",
+									"source": "shi_tou",
+									"target": "",
+									"tick": 14.0
+								}
+							},
+							"su_zhi": {
+								"event_1": {
+									"actor": "a_he",
+									"details": {
+										"status": "accepted",
+										"task": "deliver_wood"
+									},
+									"direct": true,
+									"id": "event_1",
+									"kind": "request",
+									"source": "su_zhi",
+									"target": "lao_zhou",
+									"tick": 0.0
+								},
+								"event_10": {
+									"actor": "shi_tou",
+									"details": {
+										"task": "deliver_water",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_10",
+									"kind": "completed",
+									"source": "su_zhi",
+									"target": "",
+									"tick": 19.0
+								},
+								"event_13": {
+									"actor": "player",
+									"details": {
+										"task": "deliver_wood",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_13",
+									"kind": "completed",
+									"source": "su_zhi",
+									"target": "",
+									"tick": 20.0
+								},
+								"event_4": {
+									"actor": "shi_tou",
+									"details": {
+										"task": "check_kitchen",
+										"work_credit": 0.0
+									},
+									"direct": true,
+									"id": "event_4",
+									"kind": "completed",
+									"source": "su_zhi",
+									"target": "",
+									"tick": 2.0
+								},
+								"event_5": {
+									"actor": "lao_zhou",
+									"details": {
+										"task": "deliver_wood",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_5",
+									"kind": "completed",
+									"source": "su_zhi",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_6": {
+									"actor": "player",
+									"details": {
+										"task": "deliver_grain",
+										"work_credit": 0.0
+									},
+									"direct": true,
+									"id": "event_6",
+									"kind": "completed",
+									"source": "su_zhi",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_7": {
+									"actor": "a_he",
+									"details": {
+										"task": "cook",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_7",
+									"kind": "completed",
+									"source": "su_zhi",
+									"target": "",
+									"tick": 8.0
+								}
+							}
+						},
+						"next_event_id": 17,
+						"next_request_id": 2,
+						"outcome_effects": {
+							"betrayed": [
+								-0.05,
+								-0.05
+							],
+							"broke_promise": [
+								-0.1,
+								-0.05
+							],
+							"completed": [
+								0.05,
+								0.05
+							],
+							"failed": [
+								0.0,
+								0.0
+							],
+							"fulfilled": [
+								0.05,
+								0.04
+							],
+							"helped": [
+								0.05,
+								0.05
+							],
+							"kept_promise": [
+								0.05,
+								0.05
+							],
+							"refused": [
+								0.0,
+								0.0
+							]
+						},
+						"relationships": {
+							"a_he": {
+								"lao_zhou": {
+									"affinity": 0.04,
+									"history": [
+										{
+											"event_id": "event_5",
+											"outcome": "fulfilled",
+											"source": "a_he"
+										}
+									],
+									"reliability": 0.55
+								}
+							},
+							"chen_shouzhuo": {},
+							"lao_zhou": {},
+							"player": {},
+							"shi_tou": {},
+							"su_zhi": {}
+						},
+						"requests": {
+							"{\"context\":{\"affinity\":0,\"benevolence\":0.3,\"busy\":0,\"distance\":0.5,\"duty\":1,\"energy\":0.2,\"offer\":0,\"reliability\":0.5,\"risk\":0,\"terms\":{\"amount\":3,\"item\":\"wood\",\"occasion\":\"situation:1\"}},\"policy\":{\"accept_threshold\":0.42,\"bias\":0.05,\"context_step\":0.05,\"uncertainty_band\":0.05,\"weights\":{\"affinity\":0.1,\"benevolence\":0.3,\"busy\":-0.7,\"distance\":-0.15,\"duty\":0.25,\"energy\":0.3,\"offer\":0.3,\"reliability\":0.15,\"risk\":-0.8}},\"requester\":\"a_he\",\"responder\":\"lao_zhou\",\"task\":\"deliver_wood\"}": {
+								"chance": 0.8000000000000008,
+								"context": {
+									"affinity": 0.0,
+									"benevolence": 0.30000000000000004,
+									"busy": 0.0,
+									"distance": 0.5,
+									"duty": 1.0,
+									"energy": 0.2,
+									"offer": 0.0,
+									"reliability": 0.5,
+									"risk": 0.0,
+									"terms": {
+										"amount": 3.0,
+										"item": "wood",
+										"occasion": "situation:1"
+									}
+								},
+								"id": "request_1",
+								"policy": {
+									"accept_threshold": 0.42,
+									"bias": 0.05,
+									"context_step": 0.05,
+									"uncertainty_band": 0.05,
+									"weights": {
+										"affinity": 0.1,
+										"benevolence": 0.3,
+										"busy": -0.7,
+										"distance": -0.15,
+										"duty": 0.25,
+										"energy": 0.3,
+										"offer": 0.3,
+										"reliability": 0.15,
+										"risk": -0.8
+									}
+								},
+								"reason": "duty",
+								"reasons": [
+									"duty",
+									"benevolence",
+									"reliability"
+								],
+								"requester": "a_he",
+								"responder": "lao_zhou",
+								"roll": 0.6050356030464172,
+								"score": 0.45000000000000007,
+								"status": "accepted",
+								"task": "deliver_wood",
+								"tick": 0.0,
+								"uncertain": true
+							}
+						},
+						"version": 1
+					},
+					"tick_index": 42,
+					"version": 2
+				},
+				"river": {
+					"actors": {
+						"river_a_he": {
+							"active": {},
+							"alive": true,
+							"autonomous": true,
+							"cell": [
+								281.0,
+								258.0
+							],
+							"definition_id": "a_he",
+							"energy": 78.125862,
+							"exertion_until_ms": 0.0,
+							"goal": "已完成",
+							"hunger": 68.067513,
+							"mood": 60.0,
+							"need_carry": {
+								"energy": 10000,
+								"hunger": 30000
+							},
+							"position": [
+								18016.0,
+								16544.0
+							],
+							"qi": 15.0,
+							"rank_id": "servant",
+							"receipts": [
+								{
+									"amount": 2.0,
+									"event": "event_10"
+								}
+							],
+							"retry_ms": 2640851.0,
+							"stamina": 90,
+							"stamina_carry": 0,
+							"stock_memory": {
+								"dorm": {
+									"items": {},
+									"tick": 42
+								},
+								"gate": {
+									"items": {},
+									"tick": 12.0
+								},
+								"kitchen": {
+									"items": {
+										"grain": 8,
+										"meal": 14,
+										"water": 7,
+										"wood": 2
+									},
+									"tick": 42
+								},
+								"records": {
+									"items": {},
+									"tick": 12.0
+								}
+							}
+						},
+						"river_chen_shouzhuo": {
+							"active": {
+								"action": "inspect",
+								"carrying": false,
+								"destination": "garden",
+								"due_ms": 3123654.0,
+								"id": "action:9",
+								"path": [],
+								"phase": "work",
+								"request_id": "",
+								"requester": "",
+								"reservations": [],
+								"segment_from": [
+									17760.0,
+									16160.0
+								],
+								"segment_started_ms": 1923654.0,
+								"started_ms": 1923653.0
+							},
+							"alive": true,
+							"autonomous": true,
+							"cell": [
+								277.0,
+								252.0
+							],
+							"definition_id": "chen_shouzhuo",
+							"energy": 87.688663,
+							"exertion_until_ms": 0.0,
+							"goal": "巡视药圃",
+							"hunger": 83.067513,
+							"mood": 60.0,
+							"need_carry": {
+								"energy": 30000,
+								"hunger": 30000
+							},
+							"position": [
+								17760.0,
+								16160.0
+							],
+							"qi": 60.0,
+							"rank_id": "steward",
+							"receipts": [],
+							"retry_ms": 2643653.0,
+							"stamina": 120.0,
+							"stamina_carry": 0.0,
+							"stock_memory": {
+								"dorm": {
+									"items": {},
+									"tick": 0.0
+								},
+								"garden": {
+									"items": {
+										"herb": 12
+									},
+									"tick": 42
+								},
+								"kitchen": {
+									"items": {
+										"grain": 6.0,
+										"meal": 8.0,
+										"water": 4.0,
+										"wood": 0.0
+									},
+									"tick": 0.0
+								},
+								"records": {
+									"items": {},
+									"tick": 0.0
+								}
+							}
+						},
+						"river_lao_zhou": {
+							"active": {
+								"action": "rest",
+								"carrying": false,
+								"destination": "dorm",
+								"due_ms": 4624783.0,
+								"id": "action:7",
+								"path": [],
+								"phase": "work",
+								"request_id": "",
+								"requester": "",
+								"reservations": [],
+								"segment_from": [
+									17952.0,
+									16736.0
+								],
+								"segment_started_ms": 1024783.0,
+								"started_ms": 1023871.0
+							},
+							"alive": true,
+							"autonomous": true,
+							"cell": [
+								280.0,
+								261.0
+							],
+							"definition_id": "lao_zhou",
+							"energy": 25.68863,
+							"exertion_until_ms": 0.0,
+							"goal": "休息",
+							"hunger": 68.067513,
+							"mood": 60.0,
+							"need_carry": {
+								"energy": 10000,
+								"hunger": 30000
+							},
+							"position": [
+								17952.0,
+								16736.0
+							],
+							"qi": 10.0,
+							"rank_id": "servant",
+							"receipts": [
+								{
+									"amount": 2.0,
+									"event": "event_5"
+								}
+							],
+							"retry_ms": 1743871.0,
+							"stamina": 80,
+							"stamina_carry": 0,
+							"stock_memory": {
+								"dorm": {
+									"items": {},
+									"tick": 42
+								},
+								"gate": {
+									"items": {},
+									"tick": 42
+								},
+								"kitchen": {
+									"items": {
+										"grain": 8,
+										"meal": 14,
+										"water": 7,
+										"wood": 2
+									},
+									"tick": 42
+								},
+								"records": {
+									"items": {},
+									"tick": 0.0
+								},
+								"store": {
+									"items": {
+										"grain": 180.0,
+										"wood": 97.0
+									},
+									"tick": 0.0
+								},
+								"well": {
+									"items": {
+										"water": 100.0
+									},
+									"tick": 0.0
+								}
+							}
+						},
+						"river_player": {
+							"active": {},
+							"alive": true,
+							"autonomous": true,
+							"cell": [
+								284.0,
+								257.0
+							],
+							"definition_id": "player",
+							"energy": 83.926396,
+							"exertion_until_ms": 0.0,
+							"goal": "等候物资或闲暇交往",
+							"hunger": 78.067513,
+							"mood": 60.0,
+							"need_carry": {
+								"energy": 10000,
+								"hunger": 30000
+							},
+							"position": [
+								18208.0,
+								16480.0
+							],
+							"qi": 20.0,
+							"rank_id": "servant",
+							"receipts": [],
+							"retry_ms": 2880050.0,
+							"stamina": 100,
+							"stamina_carry": 0,
+							"stock_memory": {
+								"kitchen": {
+									"items": {
+										"grain": 8,
+										"meal": 14,
+										"water": 7,
+										"wood": 2
+									},
+									"tick": 42
+								},
+								"records": {
+									"items": {},
+									"tick": 42
+								}
+							}
+						},
+						"river_shi_tou": {
+							"active": {},
+							"alive": true,
+							"autonomous": true,
+							"cell": [
+								281.0,
+								258.0
+							],
+							"definition_id": "shi_tou",
+							"energy": 88.72389,
+							"exertion_until_ms": 0.0,
+							"goal": "等候物资或闲暇交往",
+							"hunger": 63.067513,
+							"mood": 60.0,
+							"need_carry": {
+								"energy": 10000,
+								"hunger": 30000
+							},
+							"position": [
+								18016.0,
+								16544.0
+							],
+							"qi": 25.0,
+							"rank_id": "servant",
+							"receipts": [],
+							"retry_ms": 3183809.0,
+							"stamina": 140,
+							"stamina_carry": 0,
+							"stock_memory": {
+								"dorm": {
+									"items": {},
+									"tick": 42
+								},
+								"kitchen": {
+									"items": {
+										"grain": 8,
+										"meal": 14,
+										"water": 7,
+										"wood": 2
+									},
+									"tick": 42
+								},
+								"records": {
+									"items": {},
+									"tick": 0.0
+								},
+								"store": {
+									"items": {
+										"grain": 180.0,
+										"wood": 100.0
+									},
+									"tick": 0.0
+								},
+								"well": {
+									"items": {
+										"water": 96.0
+									},
+									"tick": 0.0
+								}
+							}
+						},
+						"river_su_zhi": {
+							"active": {},
+							"alive": true,
+							"autonomous": true,
+							"cell": [
+								281.0,
+								258.0
+							],
+							"definition_id": "su_zhi",
+							"energy": 83.72346,
+							"exertion_until_ms": 0.0,
+							"goal": "已完成",
+							"hunger": 73.067513,
+							"mood": 60.0,
+							"need_carry": {
+								"energy": 10000,
+								"hunger": 30000
+							},
+							"position": [
+								18016.0,
+								16544.0
+							],
+							"qi": 80.0,
+							"rank_id": "outer_disciple",
+							"receipts": [],
+							"retry_ms": 3184454.0,
+							"stamina": 100,
+							"stamina_carry": 0,
+							"stock_memory": {
+								"dorm": {
+									"items": {},
+									"tick": 42
+								},
+								"gate": {
+									"items": {},
+									"tick": 24.0
+								},
+								"kitchen": {
+									"items": {
+										"grain": 8,
+										"meal": 14,
+										"water": 7,
+										"wood": 2
+									},
+									"tick": 42
+								},
+								"records": {
+									"items": {},
+									"tick": 24.0
+								},
+								"store": {
+									"items": {
+										"grain": 164.0,
+										"wood": 97.0
+									},
+									"tick": 24.0
+								},
+								"well": {
+									"items": {
+										"water": 96.0
+									},
+									"tick": 24.0
+								}
+							}
+						}
+					},
+					"authorizations": {},
+					"config": {
+						"action_timeout": 360.0,
+						"actions": {
+							"check_kitchen": {
+								"kind": "visit",
+								"label": "查看灶房",
+								"minutes": 2.0,
+								"target": "kitchen"
+							},
+							"cook": {
+								"contribution": 2.0,
+								"inputs": {
+									"grain": 2.0,
+									"water": 1.0,
+									"wood": 1.0
+								},
+								"kind": "recipe",
+								"label": "做饭",
+								"minutes": 20.0,
+								"outputs": {
+									"meal": 6.0
+								},
+								"stock_below": 12.0,
+								"target": "kitchen"
+							},
+							"deliver_grain": {
+								"amount": 4.0,
+								"contribution": 2.0,
+								"item": "grain",
+								"kind": "haul",
+								"label": "运粮",
+								"minutes": 5.0,
+								"source": "store",
+								"stock_below": 6.0,
+								"target": "kitchen"
+							},
+							"deliver_water": {
+								"amount": 4.0,
+								"contribution": 2.0,
+								"item": "water",
+								"kind": "haul",
+								"label": "挑水",
+								"minutes": 5.0,
+								"source": "well",
+								"stock_below": 6.0,
+								"target": "kitchen"
+							},
+							"deliver_wood": {
+								"amount": 3.0,
+								"contribution": 2.0,
+								"item": "wood",
+								"kind": "haul",
+								"label": "送柴",
+								"minutes": 5.0,
+								"source": "store",
+								"stock_below": 6.0,
+								"target": "kitchen"
+							},
+							"eat": {
+								"amount": 1.0,
+								"hunger_gain": 45.0,
+								"item": "meal",
+								"kind": "consume",
+								"label": "取食",
+								"minutes": 8.0,
+								"source": "kitchen"
+							},
+							"inspect": {
+								"kind": "visit",
+								"label": "巡视药圃",
+								"minutes": 20.0,
+								"target": "garden"
+							},
+							"report": {
+								"kind": "visit",
+								"label": "到功德堂报工",
+								"minutes": 5.0,
+								"target": "records"
+							},
+							"rest": {
+								"energy_gain": 80.0,
+								"kind": "rest",
+								"label": "休息",
+								"minutes": 60.0,
+								"target": "dorm"
+							}
+						},
+						"actor_profiles": {
+							"river_a_he": {
+								"autonomous": true,
+								"benevolence": 0.8,
+								"definition_id": "a_he",
+								"duty": "cook",
+								"energy": 80.0,
+								"hunger": 70.0
+							},
+							"river_chen_shouzhuo": {
+								"autonomous": true,
+								"benevolence": 0.25,
+								"definition_id": "chen_shouzhuo",
+								"duty": "inspect",
+								"energy": 90.0,
+								"hunger": 85.0
+							},
+							"river_lao_zhou": {
+								"autonomous": true,
+								"benevolence": 0.3,
+								"definition_id": "lao_zhou",
+								"duty": "deliver_wood",
+								"energy": 28.0,
+								"hunger": 70.0
+							},
+							"river_player": {
+								"autonomous": true,
+								"definition_id": "player",
+								"energy": 85.0,
+								"hunger": 80.0
+							},
+							"river_shi_tou": {
+								"autonomous": true,
+								"benevolence": 0.8,
+								"definition_id": "shi_tou",
+								"duty": "deliver_water",
+								"energy": 90.0,
+								"hunger": 65.0
+							},
+							"river_su_zhi": {
+								"autonomous": true,
+								"benevolence": 0.6,
+								"definition_id": "su_zhi",
+								"duty": "deliver_grain",
+								"energy": 85.0,
+								"hunger": 75.0
+							}
+						},
+						"autonomous_controller": true,
+						"controlled_actor": "river_player",
+						"decision_interval": 12.0,
+						"history_limit": 240.0,
+						"initial_stock": {
+							"dorm": {},
+							"garden": {
+								"herb": 12.0
+							},
+							"gate": {},
+							"kitchen": {
+								"grain": 6.0,
+								"meal": 8.0,
+								"water": 4.0,
+								"wood": 0.0
+							},
+							"records": {},
+							"store": {
+								"grain": 180.0,
+								"wood": 100.0
+							},
+							"well": {
+								"water": 100.0
+							}
+						},
+						"institution": {
+							"id": "river_sect",
+							"offices": {
+								"registrar": {
+									"holder": "river_chen_shouzhuo",
+									"permissions": [
+										"record",
+										"pay"
+									]
+								},
+								"steward": {
+									"holder": "river_chen_shouzhuo",
+									"permissions": [
+										"authorize"
+									]
+								}
+							}
+						},
+						"move_minutes_per_cell": 3.0,
+						"navigation_budget": 4096.0,
+						"navigation_radius": 24.0,
+						"needs": {
+							"eat_below": 55.0,
+							"energy_per_minute": 0.025,
+							"hunger_per_minute": 0.045,
+							"rest_below": 35.0,
+							"work_energy_per_minute": 0.04
+						},
+						"observation_radius": 5.0,
+						"place_defs": [
+							{
+								"id": "kitchen",
+								"label": "灶房",
+								"offset": [
+									-3.0,
+									-1.0
+								]
+							},
+							{
+								"id": "store",
+								"label": "柴粮库",
+								"offset": [
+									5.0,
+									4.0
+								]
+							},
+							{
+								"id": "dorm",
+								"label": "杂役院",
+								"offset": [
+									-4.0,
+									4.0
+								]
+							},
+							{
+								"id": "well",
+								"label": "水井",
+								"offset": [
+									5.0,
+									-3.0
+								]
+							},
+							{
+								"id": "garden",
+								"label": "药圃",
+								"offset": [
+									-5.0,
+									-3.0
+								]
+							},
+							{
+								"id": "records",
+								"label": "功德堂",
+								"offset": [
+									2.0,
+									-3.0
+								]
+							},
+							{
+								"id": "gate",
+								"label": "山门",
+								"offset": [
+									0.0,
+									6.0
+								]
+							}
+						],
+						"request_interval": 60.0,
+						"retry_minutes": 30.0,
+						"scenario": {
+							"helpers": [
+								"river_lao_zhou",
+								"river_shi_tou"
+							],
+							"requester": "river_a_he",
+							"task": "deliver_wood"
+						},
+						"schema_version": 1.0,
+						"seed": 20261203.0,
+						"social_policy": {
+							"accept_threshold": 0.42,
+							"bias": 0.05,
+							"outcome_effects": {
+								"broke_promise": [
+									-0.1,
+									-0.05
+								],
+								"failed": [
+									0.0,
+									0.0
+								],
+								"fulfilled": [
+									0.05,
+									0.04
+								],
+								"refused": [
+									0.0,
+									0.0
+								]
+							},
+							"uncertainty_band": 0.05,
+							"weights": {
+								"affinity": 0.1,
+								"benevolence": 0.3,
+								"busy": -0.7,
+								"distance": -0.15,
+								"duty": 0.25,
+								"energy": 0.3,
+								"offer": 0.3,
+								"reliability": 0.15,
+								"risk": -0.8
+							}
+						},
+						"talk_radius": 14.0
+					},
+					"controlled_actor": "river_player",
+					"elapsed_ms": 2576650,
+					"institutions": {
+						"entries": [
+							{
+								"amount": 10,
+								"evidence": "origin:sect_orphan",
+								"institution_id": "river_sect",
+								"issuer": "river_chen_shouzhuo",
+								"kind": "issue",
+								"office": "registrar",
+								"operation_id": "opening:river_chen_shouzhuo",
+								"subject": "river_chen_shouzhuo"
+							},
+							{
+								"amount": 5,
+								"evidence": "origin:hunter",
+								"institution_id": "river_sect",
+								"issuer": "river_chen_shouzhuo",
+								"kind": "issue",
+								"office": "registrar",
+								"operation_id": "opening:river_shi_tou",
+								"subject": "river_shi_tou"
+							},
+							{
+								"amount": 10,
+								"evidence": "origin:sect_orphan",
+								"institution_id": "river_sect",
+								"issuer": "river_chen_shouzhuo",
+								"kind": "issue",
+								"office": "registrar",
+								"operation_id": "opening:river_su_zhi",
+								"subject": "river_su_zhi"
+							},
+							{
+								"amount": 2,
+								"evidence": "event_4",
+								"institution_id": "river_sect",
+								"issuer": "river_chen_shouzhuo",
+								"kind": "issue",
+								"office": "registrar",
+								"operation_id": "credit:event_4",
+								"subject": "river_shi_tou"
+							},
+							{
+								"amount": 2,
+								"evidence": "event_9",
+								"institution_id": "river_sect",
+								"issuer": "river_chen_shouzhuo",
+								"kind": "issue",
+								"office": "registrar",
+								"operation_id": "credit:event_9",
+								"subject": "river_su_zhi"
+							}
+						],
+						"institutions": {
+							"river_sect": {
+								"offices": {
+									"registrar": {
+										"holder": "river_chen_shouzhuo",
+										"permissions": [
+											"record",
+											"pay"
+										]
+									},
+									"steward": {
+										"holder": "river_chen_shouzhuo",
+										"permissions": [
+											"authorize"
+										]
+									}
+								}
+							}
+						},
+						"operations": {
+							"credit:event_4": {
+								"amount": 2,
+								"evidence": "event_4",
+								"institution_id": "river_sect",
+								"issuer": "river_chen_shouzhuo",
+								"kind": "issue",
+								"subject": "river_shi_tou"
+							},
+							"credit:event_9": {
+								"amount": 2,
+								"evidence": "event_9",
+								"institution_id": "river_sect",
+								"issuer": "river_chen_shouzhuo",
+								"kind": "issue",
+								"subject": "river_su_zhi"
+							},
+							"opening:river_chen_shouzhuo": {
+								"amount": 10,
+								"evidence": "origin:sect_orphan",
+								"institution_id": "river_sect",
+								"issuer": "river_chen_shouzhuo",
+								"kind": "issue",
+								"subject": "river_chen_shouzhuo"
+							},
+							"opening:river_shi_tou": {
+								"amount": 5,
+								"evidence": "origin:hunter",
+								"institution_id": "river_sect",
+								"issuer": "river_chen_shouzhuo",
+								"kind": "issue",
+								"subject": "river_shi_tou"
+							},
+							"opening:river_su_zhi": {
+								"amount": 10,
+								"evidence": "origin:sect_orphan",
+								"institution_id": "river_sect",
+								"issuer": "river_chen_shouzhuo",
+								"kind": "issue",
+								"subject": "river_su_zhi"
+							}
+						}
+					},
+					"interaction_results": {
+						"request_1": {
+							"chance": 1.0,
+							"context": {
+								"affinity": 0.0,
+								"benevolence": 0.30000000000000004,
+								"busy": 0.0,
+								"distance": 0.0,
+								"duty": 1.0,
+								"energy": 0.2,
+								"offer": 0.0,
+								"reliability": 0.5,
+								"risk": 0.0,
+								"terms": {
+									"amount": 3.0,
+									"item": "wood",
+									"occasion": "situation:1"
+								}
+							},
+							"event_id": "event_1",
+							"execution": "fulfilled",
+							"id": "request_1",
+							"message": "老周答应帮忙送柴。",
+							"policy": {
+								"accept_threshold": 0.42,
+								"bias": 0.05,
+								"context_step": 0.05,
+								"uncertainty_band": 0.05,
+								"weights": {
+									"affinity": 0.1,
+									"benevolence": 0.3,
+									"busy": -0.7,
+									"distance": -0.15,
+									"duty": 0.25,
+									"energy": 0.3,
+									"offer": 0.3,
+									"reliability": 0.15,
+									"risk": -0.8
+								}
+							},
+							"reason": "duty",
+							"reasons": [
+								"duty",
+								"benevolence",
+								"reliability"
+							],
+							"requester": "river_a_he",
+							"responder": "river_lao_zhou",
+							"roll": -1.0,
+							"score": 0.525,
+							"status": "accepted",
+							"task": "deliver_wood",
+							"tick": 0.0,
+							"uncertain": false
+						}
+					},
+					"inventory": {
+						"containers": {
+							"actor:river_a_he": {
+								"grain": 0,
+								"water": 0,
+								"wood": 0
+							},
+							"actor:river_chen_shouzhuo": {},
+							"actor:river_lao_zhou": {
+								"wood": 0
+							},
+							"actor:river_player": {},
+							"actor:river_shi_tou": {
+								"water": 0
+							},
+							"actor:river_su_zhi": {
+								"grain": 0
+							},
+							"dorm": {},
+							"garden": {
+								"herb": 12
+							},
+							"gate": {},
+							"kitchen": {
+								"grain": 8,
+								"meal": 14,
+								"water": 7,
+								"wood": 2
+							},
+							"records": {},
+							"store": {
+								"grain": 164,
+								"wood": 97
+							},
+							"well": {
+								"water": 96
+							}
+						},
+						"operations": {
+							"action:2:delivery": {
+								"amount": 3,
+								"item": "wood",
+								"kind": "transfer",
+								"reservation_id": "",
+								"source": "actor:river_lao_zhou",
+								"target": "kitchen"
+							},
+							"action:2:pickup": {
+								"amount": 3,
+								"item": "wood",
+								"kind": "transfer",
+								"reservation_id": "action:2:wood",
+								"source": "store",
+								"target": "actor:river_lao_zhou"
+							},
+							"action:5:delivery": {
+								"amount": 4,
+								"item": "water",
+								"kind": "transfer",
+								"reservation_id": "",
+								"source": "actor:river_shi_tou",
+								"target": "kitchen"
+							},
+							"action:5:pickup": {
+								"amount": 4,
+								"item": "water",
+								"kind": "transfer",
+								"reservation_id": "action:5:water",
+								"source": "well",
+								"target": "actor:river_shi_tou"
+							},
+							"action:6:input:grain": {
+								"amount": 2,
+								"item": "grain",
+								"kind": "transfer",
+								"reservation_id": "action:6:grain",
+								"source": "kitchen",
+								"target": "actor:river_a_he"
+							},
+							"action:6:input:water": {
+								"amount": 1,
+								"item": "water",
+								"kind": "transfer",
+								"reservation_id": "action:6:water",
+								"source": "kitchen",
+								"target": "actor:river_a_he"
+							},
+							"action:6:input:wood": {
+								"amount": 1,
+								"item": "wood",
+								"kind": "transfer",
+								"reservation_id": "action:6:wood",
+								"source": "kitchen",
+								"target": "actor:river_a_he"
+							},
+							"action:6:recipe:grain": {
+								"amount": 2,
+								"container": "actor:river_a_he",
+								"item": "grain",
+								"kind": "consume"
+							},
+							"action:6:recipe:water": {
+								"amount": 1,
+								"container": "actor:river_a_he",
+								"item": "water",
+								"kind": "consume"
+							},
+							"action:6:recipe:wood": {
+								"amount": 1,
+								"container": "actor:river_a_he",
+								"item": "wood",
+								"kind": "consume"
+							},
+							"action:8:delivery": {
+								"amount": 4,
+								"item": "grain",
+								"kind": "transfer",
+								"reservation_id": "",
+								"source": "actor:river_su_zhi",
+								"target": "kitchen"
+							},
+							"action:8:pickup": {
+								"amount": 4,
+								"item": "grain",
+								"kind": "transfer",
+								"reservation_id": "action:8:grain",
+								"source": "store",
+								"target": "actor:river_su_zhi"
+							}
+						},
+						"reservations": {}
+					},
+					"last_request": 0,
+					"next_id": 10,
+					"places": {
+						"dorm": {
+							"cell": [
+								280.0,
+								261.0
+							],
+							"label": "杂役院"
+						},
+						"garden": {
+							"cell": [
+								277.0,
+								252.0
+							],
+							"label": "药圃"
+						},
+						"gate": {
+							"cell": [
+								284.0,
+								263.0
+							],
+							"label": "山门"
+						},
+						"kitchen": {
+							"cell": [
+								281.0,
+								258.0
+							],
+							"label": "灶房"
+						},
+						"records": {
+							"cell": [
+								286.0,
+								256.0
+							],
+							"label": "功德堂"
+						},
+						"store": {
+							"cell": [
+								289.0,
+								261.0
+							],
+							"label": "柴粮库"
+						},
+						"well": {
+							"cell": [
+								289.0,
+								255.0
+							],
+							"label": "水井"
+						}
+					},
+					"rng_state": "702188492237687337",
+					"situations": {
+						"kitchen_shortage": {
+							"id": "situation:1",
+							"item": "wood",
+							"resolved_at": 5.0,
+							"since": 0.0,
+							"status": "resolved"
+						}
+					},
+					"social": {
+						"actors": [
+							"river_a_he",
+							"river_chen_shouzhuo",
+							"river_lao_zhou",
+							"river_player",
+							"river_shi_tou",
+							"river_su_zhi"
+						],
+						"events": [
+							{
+								"actor": "river_a_he",
+								"details": {
+									"participants": {
+										"reason": "duty"
+									},
+									"status": "accepted",
+									"task": "deliver_wood"
+								},
+								"id": "event_1",
+								"kind": "request",
+								"target": "river_lao_zhou",
+								"tick": 0.0,
+								"witnesses": [
+									"river_chen_shouzhuo",
+									"river_player",
+									"river_shi_tou",
+									"river_su_zhi"
+								]
+							},
+							{
+								"actor": "river_shi_tou",
+								"details": {
+									"amount": 4.0,
+									"item": "water"
+								},
+								"id": "event_2",
+								"kind": "picked_up",
+								"target": "",
+								"tick": 0.0,
+								"witnesses": []
+							},
+							{
+								"actor": "river_lao_zhou",
+								"details": {
+									"amount": 3.0,
+									"item": "wood"
+								},
+								"id": "event_3",
+								"kind": "picked_up",
+								"target": "",
+								"tick": 0.0,
+								"witnesses": []
+							},
+							{
+								"actor": "river_shi_tou",
+								"details": {
+									"private": {
+										"reason": "fulfilled"
+									},
+									"public": {
+										"work_credit": 2.0
+									},
+									"task": "deliver_water"
+								},
+								"id": "event_4",
+								"kind": "completed",
+								"target": "",
+								"tick": 5.0,
+								"witnesses": [
+									"river_a_he",
+									"river_lao_zhou",
+									"river_player",
+									"river_su_zhi"
+								]
+							},
+							{
+								"actor": "river_lao_zhou",
+								"details": {
+									"private": {
+										"reason": "fulfilled"
+									},
+									"public": {
+										"work_credit": 2.0
+									},
+									"task": "deliver_wood"
+								},
+								"id": "event_5",
+								"kind": "completed",
+								"target": "",
+								"tick": 5.0,
+								"witnesses": [
+									"river_a_he",
+									"river_player",
+									"river_shi_tou",
+									"river_su_zhi"
+								]
+							},
+							{
+								"actor": "river_chen_shouzhuo",
+								"details": {
+									"amount": 2.0
+								},
+								"id": "event_6",
+								"kind": "registered",
+								"target": "river_shi_tou",
+								"tick": 17.0,
+								"witnesses": []
+							},
+							{
+								"actor": "river_chen_shouzhuo",
+								"details": {
+									"private": {
+										"reason": "fulfilled"
+									},
+									"public": {
+										"work_credit": 0.0
+									},
+									"task": "inspect"
+								},
+								"id": "event_7",
+								"kind": "completed",
+								"target": "",
+								"tick": 20.0,
+								"witnesses": []
+							},
+							{
+								"actor": "river_su_zhi",
+								"details": {
+									"amount": 4.0,
+									"item": "grain"
+								},
+								"id": "event_8",
+								"kind": "picked_up",
+								"target": "",
+								"tick": 24.0,
+								"witnesses": []
+							},
+							{
+								"actor": "river_su_zhi",
+								"details": {
+									"private": {
+										"reason": "fulfilled"
+									},
+									"public": {
+										"work_credit": 2.0
+									},
+									"task": "deliver_grain"
+								},
+								"id": "event_9",
+								"kind": "completed",
+								"target": "",
+								"tick": 29.0,
+								"witnesses": [
+									"river_a_he",
+									"river_lao_zhou",
+									"river_player",
+									"river_shi_tou"
+								]
+							},
+							{
+								"actor": "river_a_he",
+								"details": {
+									"private": {
+										"reason": "fulfilled"
+									},
+									"public": {
+										"work_credit": 2.0
+									},
+									"task": "cook"
+								},
+								"id": "event_10",
+								"kind": "completed",
+								"target": "",
+								"tick": 32.0,
+								"witnesses": [
+									"river_lao_zhou",
+									"river_player",
+									"river_shi_tou",
+									"river_su_zhi"
+								]
+							},
+							{
+								"actor": "river_chen_shouzhuo",
+								"details": {
+									"amount": 2.0
+								},
+								"id": "event_11",
+								"kind": "registered",
+								"target": "river_su_zhi",
+								"tick": 41.0,
+								"witnesses": []
+							}
+						],
+						"knowledge": {
+							"river_a_he": {
+								"event_1": {
+									"actor": "river_a_he",
+									"details": {
+										"reason": "duty",
+										"status": "accepted",
+										"task": "deliver_wood"
+									},
+									"direct": true,
+									"id": "event_1",
+									"kind": "request",
+									"source": "river_a_he",
+									"target": "river_lao_zhou",
+									"tick": 0.0
+								},
+								"event_10": {
+									"actor": "river_a_he",
+									"details": {
+										"task": "cook",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_10",
+									"kind": "completed",
+									"source": "river_a_he",
+									"target": "",
+									"tick": 32.0
+								},
+								"event_4": {
+									"actor": "river_shi_tou",
+									"details": {
+										"task": "deliver_water",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_4",
+									"kind": "completed",
+									"source": "river_a_he",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_5": {
+									"actor": "river_lao_zhou",
+									"details": {
+										"task": "deliver_wood",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_5",
+									"kind": "completed",
+									"source": "river_a_he",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_9": {
+									"actor": "river_su_zhi",
+									"details": {
+										"task": "deliver_grain",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_9",
+									"kind": "completed",
+									"source": "river_a_he",
+									"target": "",
+									"tick": 29.0
+								}
+							},
+							"river_chen_shouzhuo": {
+								"event_1": {
+									"actor": "river_a_he",
+									"details": {
+										"status": "accepted",
+										"task": "deliver_wood"
+									},
+									"direct": true,
+									"id": "event_1",
+									"kind": "request",
+									"source": "river_chen_shouzhuo",
+									"target": "river_lao_zhou",
+									"tick": 0.0
+								},
+								"event_11": {
+									"actor": "river_chen_shouzhuo",
+									"details": {
+										"amount": 2.0
+									},
+									"direct": true,
+									"id": "event_11",
+									"kind": "registered",
+									"source": "river_chen_shouzhuo",
+									"target": "river_su_zhi",
+									"tick": 41.0
+								},
+								"event_4": {
+									"actor": "river_shi_tou",
+									"details": {
+										"task": "deliver_water",
+										"work_credit": 2.0
+									},
+									"direct": false,
+									"id": "event_4",
+									"kind": "completed",
+									"source": "river_shi_tou",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_6": {
+									"actor": "river_chen_shouzhuo",
+									"details": {
+										"amount": 2.0
+									},
+									"direct": true,
+									"id": "event_6",
+									"kind": "registered",
+									"source": "river_chen_shouzhuo",
+									"target": "river_shi_tou",
+									"tick": 17.0
+								},
+								"event_7": {
+									"actor": "river_chen_shouzhuo",
+									"details": {
+										"task": "inspect",
+										"work_credit": 0.0
+									},
+									"direct": true,
+									"id": "event_7",
+									"kind": "completed",
+									"source": "river_chen_shouzhuo",
+									"target": "",
+									"tick": 20.0
+								},
+								"event_9": {
+									"actor": "river_su_zhi",
+									"details": {
+										"task": "deliver_grain",
+										"work_credit": 2.0
+									},
+									"direct": false,
+									"id": "event_9",
+									"kind": "completed",
+									"source": "river_su_zhi",
+									"target": "",
+									"tick": 29.0
+								}
+							},
+							"river_lao_zhou": {
+								"event_1": {
+									"actor": "river_a_he",
+									"details": {
+										"reason": "duty",
+										"status": "accepted",
+										"task": "deliver_wood"
+									},
+									"direct": true,
+									"id": "event_1",
+									"kind": "request",
+									"source": "river_lao_zhou",
+									"target": "river_lao_zhou",
+									"tick": 0.0
+								},
+								"event_10": {
+									"actor": "river_a_he",
+									"details": {
+										"task": "cook",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_10",
+									"kind": "completed",
+									"source": "river_lao_zhou",
+									"target": "",
+									"tick": 32.0
+								},
+								"event_3": {
+									"actor": "river_lao_zhou",
+									"details": {
+										"amount": 3.0,
+										"item": "wood"
+									},
+									"direct": true,
+									"id": "event_3",
+									"kind": "picked_up",
+									"source": "river_lao_zhou",
+									"target": "",
+									"tick": 0.0
+								},
+								"event_4": {
+									"actor": "river_shi_tou",
+									"details": {
+										"task": "deliver_water",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_4",
+									"kind": "completed",
+									"source": "river_lao_zhou",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_5": {
+									"actor": "river_lao_zhou",
+									"details": {
+										"task": "deliver_wood",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_5",
+									"kind": "completed",
+									"source": "river_lao_zhou",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_9": {
+									"actor": "river_su_zhi",
+									"details": {
+										"task": "deliver_grain",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_9",
+									"kind": "completed",
+									"source": "river_lao_zhou",
+									"target": "",
+									"tick": 29.0
+								}
+							},
+							"river_player": {
+								"event_1": {
+									"actor": "river_a_he",
+									"details": {
+										"status": "accepted",
+										"task": "deliver_wood"
+									},
+									"direct": true,
+									"id": "event_1",
+									"kind": "request",
+									"source": "river_player",
+									"target": "river_lao_zhou",
+									"tick": 0.0
+								},
+								"event_10": {
+									"actor": "river_a_he",
+									"details": {
+										"task": "cook",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_10",
+									"kind": "completed",
+									"source": "river_player",
+									"target": "",
+									"tick": 32.0
+								},
+								"event_4": {
+									"actor": "river_shi_tou",
+									"details": {
+										"task": "deliver_water",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_4",
+									"kind": "completed",
+									"source": "river_player",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_5": {
+									"actor": "river_lao_zhou",
+									"details": {
+										"task": "deliver_wood",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_5",
+									"kind": "completed",
+									"source": "river_player",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_9": {
+									"actor": "river_su_zhi",
+									"details": {
+										"task": "deliver_grain",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_9",
+									"kind": "completed",
+									"source": "river_player",
+									"target": "",
+									"tick": 29.0
+								}
+							},
+							"river_shi_tou": {
+								"event_1": {
+									"actor": "river_a_he",
+									"details": {
+										"status": "accepted",
+										"task": "deliver_wood"
+									},
+									"direct": true,
+									"id": "event_1",
+									"kind": "request",
+									"source": "river_shi_tou",
+									"target": "river_lao_zhou",
+									"tick": 0.0
+								},
+								"event_10": {
+									"actor": "river_a_he",
+									"details": {
+										"task": "cook",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_10",
+									"kind": "completed",
+									"source": "river_shi_tou",
+									"target": "",
+									"tick": 32.0
+								},
+								"event_2": {
+									"actor": "river_shi_tou",
+									"details": {
+										"amount": 4.0,
+										"item": "water"
+									},
+									"direct": true,
+									"id": "event_2",
+									"kind": "picked_up",
+									"source": "river_shi_tou",
+									"target": "",
+									"tick": 0.0
+								},
+								"event_4": {
+									"actor": "river_shi_tou",
+									"details": {
+										"task": "deliver_water",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_4",
+									"kind": "completed",
+									"source": "river_shi_tou",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_5": {
+									"actor": "river_lao_zhou",
+									"details": {
+										"task": "deliver_wood",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_5",
+									"kind": "completed",
+									"source": "river_shi_tou",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_6": {
+									"actor": "river_chen_shouzhuo",
+									"details": {
+										"amount": 2.0
+									},
+									"direct": true,
+									"id": "event_6",
+									"kind": "registered",
+									"source": "river_shi_tou",
+									"target": "river_shi_tou",
+									"tick": 17.0
+								},
+								"event_9": {
+									"actor": "river_su_zhi",
+									"details": {
+										"task": "deliver_grain",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_9",
+									"kind": "completed",
+									"source": "river_shi_tou",
+									"target": "",
+									"tick": 29.0
+								}
+							},
+							"river_su_zhi": {
+								"event_1": {
+									"actor": "river_a_he",
+									"details": {
+										"status": "accepted",
+										"task": "deliver_wood"
+									},
+									"direct": true,
+									"id": "event_1",
+									"kind": "request",
+									"source": "river_su_zhi",
+									"target": "river_lao_zhou",
+									"tick": 0.0
+								},
+								"event_10": {
+									"actor": "river_a_he",
+									"details": {
+										"task": "cook",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_10",
+									"kind": "completed",
+									"source": "river_su_zhi",
+									"target": "",
+									"tick": 32.0
+								},
+								"event_11": {
+									"actor": "river_chen_shouzhuo",
+									"details": {
+										"amount": 2.0
+									},
+									"direct": true,
+									"id": "event_11",
+									"kind": "registered",
+									"source": "river_su_zhi",
+									"target": "river_su_zhi",
+									"tick": 41.0
+								},
+								"event_4": {
+									"actor": "river_shi_tou",
+									"details": {
+										"task": "deliver_water",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_4",
+									"kind": "completed",
+									"source": "river_su_zhi",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_5": {
+									"actor": "river_lao_zhou",
+									"details": {
+										"task": "deliver_wood",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_5",
+									"kind": "completed",
+									"source": "river_su_zhi",
+									"target": "",
+									"tick": 5.0
+								},
+								"event_8": {
+									"actor": "river_su_zhi",
+									"details": {
+										"amount": 4.0,
+										"item": "grain"
+									},
+									"direct": true,
+									"id": "event_8",
+									"kind": "picked_up",
+									"source": "river_su_zhi",
+									"target": "",
+									"tick": 24.0
+								},
+								"event_9": {
+									"actor": "river_su_zhi",
+									"details": {
+										"task": "deliver_grain",
+										"work_credit": 2.0
+									},
+									"direct": true,
+									"id": "event_9",
+									"kind": "completed",
+									"source": "river_su_zhi",
+									"target": "",
+									"tick": 29.0
+								}
+							}
+						},
+						"next_event_id": 12,
+						"next_request_id": 2,
+						"outcome_effects": {
+							"betrayed": [
+								-0.05,
+								-0.05
+							],
+							"broke_promise": [
+								-0.1,
+								-0.05
+							],
+							"completed": [
+								0.05,
+								0.05
+							],
+							"failed": [
+								0.0,
+								0.0
+							],
+							"fulfilled": [
+								0.05,
+								0.04
+							],
+							"helped": [
+								0.05,
+								0.05
+							],
+							"kept_promise": [
+								0.05,
+								0.05
+							],
+							"refused": [
+								0.0,
+								0.0
+							]
+						},
+						"relationships": {
+							"river_a_he": {
+								"river_lao_zhou": {
+									"affinity": 0.04,
+									"history": [
+										{
+											"event_id": "event_5",
+											"outcome": "fulfilled",
+											"source": "river_a_he"
+										}
+									],
+									"reliability": 0.55
+								}
+							},
+							"river_chen_shouzhuo": {},
+							"river_lao_zhou": {},
+							"river_player": {},
+							"river_shi_tou": {},
+							"river_su_zhi": {}
+						},
+						"requests": {
+							"{\"context\":{\"affinity\":0,\"benevolence\":0.3,\"busy\":0,\"distance\":0,\"duty\":1,\"energy\":0.2,\"offer\":0,\"reliability\":0.5,\"risk\":0,\"terms\":{\"amount\":3,\"item\":\"wood\",\"occasion\":\"situation:1\"}},\"policy\":{\"accept_threshold\":0.42,\"bias\":0.05,\"context_step\":0.05,\"uncertainty_band\":0.05,\"weights\":{\"affinity\":0.1,\"benevolence\":0.3,\"busy\":-0.7,\"distance\":-0.15,\"duty\":0.25,\"energy\":0.3,\"offer\":0.3,\"reliability\":0.15,\"risk\":-0.8}},\"requester\":\"river_a_he\",\"responder\":\"river_lao_zhou\",\"task\":\"deliver_wood\"}": {
+								"chance": 1.0,
+								"context": {
+									"affinity": 0.0,
+									"benevolence": 0.30000000000000004,
+									"busy": 0.0,
+									"distance": 0.0,
+									"duty": 1.0,
+									"energy": 0.2,
+									"offer": 0.0,
+									"reliability": 0.5,
+									"risk": 0.0,
+									"terms": {
+										"amount": 3.0,
+										"item": "wood",
+										"occasion": "situation:1"
+									}
+								},
+								"id": "request_1",
+								"policy": {
+									"accept_threshold": 0.42,
+									"bias": 0.05,
+									"context_step": 0.05,
+									"uncertainty_band": 0.05,
+									"weights": {
+										"affinity": 0.1,
+										"benevolence": 0.3,
+										"busy": -0.7,
+										"distance": -0.15,
+										"duty": 0.25,
+										"energy": 0.3,
+										"offer": 0.3,
+										"reliability": 0.15,
+										"risk": -0.8
+									}
+								},
+								"reason": "duty",
+								"reasons": [
+									"duty",
+									"benevolence",
+									"reliability"
+								],
+								"requester": "river_a_he",
+								"responder": "river_lao_zhou",
+								"roll": -1.0,
+								"score": 0.525,
+								"status": "accepted",
+								"task": "deliver_wood",
+								"tick": 0.0,
+								"uncertain": false
+							}
+						},
+						"version": 1
+					},
+					"tick_index": 42,
+					"version": 2
+				}
+			},
+			"routes": {
+				"river_road": {
+					"blocked": false,
+					"demand": 28.0,
+					"next_assessment": 61.0,
+					"request_time": 1.0
+				}
+			},
+			"services": {
+				"active_jobs": {},
+				"authorizations": {},
+				"definitions": {
+					"access": {
+						"gate": {
+							"label": "申请药圃通行",
+							"minutes": 4.0,
+							"place": "records",
+							"required_contribution": 2.0
+						}
+					},
+					"coin_item": "coin",
+					"hauling": {
+						"amount": 6.0,
+						"credit": 3.0,
+						"credit_region": "home",
+						"label": "领取运粮差事",
+						"pickup_minutes": 4.0,
+						"route": "river_road",
+						"source_floor": 30.0,
+						"unload_minutes": 4.0
+					},
+					"help": {
+						"minimum_fee": 2.0,
+						"policy": {
+							"accept_threshold": 0.5,
+							"bias": 0.0,
+							"context_step": 0.05,
+							"uncertainty_band": 0.03,
+							"weights": {
+								"affinity": 0.0,
+								"benevolence": 0.1,
+								"busy": -1.0,
+								"distance": -0.1,
+								"duty": 0.15,
+								"energy": 0.2,
+								"offer": 0.5,
+								"reliability": 0.1,
+								"risk": -0.5
+							}
+						},
+						"rest_below": 35.0,
+						"seed": 20261103.0,
+						"talk_radius": 6.0
+					},
+					"job_timeout": 1440.0,
+					"move_minutes_per_cell": 3.0,
+					"redemptions": {
+						"meal": {
+							"amount": 1.0,
+							"cost": 1.0,
+							"item": "meal",
+							"label": "用贡献领一份饭",
+							"minutes": 4.0,
+							"place": "records",
+							"source": "kitchen"
+						}
+					},
+					"report": {
+						"label": "向当地管事报工",
+						"minutes": 4.0,
+						"place": "records"
+					},
+					"restricted_actions": {
+						"collect_herb": {
+							"amount": 1.0,
+							"item": "herb",
+							"label": "凭据入圃取药",
+							"minutes": 5.0,
+							"place": "garden",
+							"scope": "gate"
+						}
+					},
+					"version": 1.0,
+					"visitor": {
+						"eat": {
+							"amount": 1.0,
+							"fee": 1.0,
+							"hunger_gain": 45.0,
+							"item": "meal",
+							"label": "在当地取食",
+							"minutes": 8.0,
+							"place": "kitchen"
+						},
+						"rest": {
+							"energy_gain": 80.0,
+							"fee": 1.0,
+							"label": "在当地借宿",
+							"minutes": 60.0,
+							"place": "dorm"
+						}
+					},
+					"work_energy_per_minute": 0.04
+				},
+				"escrow": {
+					"containers": {},
+					"operations": {},
+					"reservations": {}
+				},
+				"events": [
+					{
+						"actor": "player",
+						"at": 5.0,
+						"details": {
+							"job": "service:job:1",
+							"kind": "report",
+							"region": "home"
+						},
+						"id": "service:event:2",
+						"kind": "service_started"
+					},
+					{
+						"actor": "player",
+						"at": 9.0,
+						"details": {
+							"job": "service:job:1",
+							"line": "没有新的交付凭据可报，旧凭据不会重复记功。"
+						},
+						"id": "service:event:3",
+						"kind": "service_interrupted"
+					},
+					{
+						"actor": "player",
+						"at": 10.0,
+						"details": {
+							"job": "service:job:4",
+							"kind": "redeem",
+							"region": "home"
+						},
+						"id": "service:event:5",
+						"kind": "service_started"
+					},
+					{
+						"actor": "player",
+						"at": 14.0,
+						"details": {
+							"job": "service:job:4",
+							"line": "当地认可的贡献不足，不能兑换。"
+						},
+						"id": "service:event:6",
+						"kind": "service_interrupted"
+					},
+					{
+						"actor": "player",
+						"at": 22.0,
+						"details": {
+							"job": "service:job:7",
+							"kind": "report",
+							"region": "home"
+						},
+						"id": "service:event:8",
+						"kind": "service_started"
+					},
+					{
+						"actor": "player",
+						"at": 26.0,
+						"details": {
+							"job": "service:job:7",
+							"line": "没有新的交付凭据可报，旧凭据不会重复记功。"
+						},
+						"id": "service:event:9",
+						"kind": "service_interrupted"
+					},
+					{
+						"actor": "player",
+						"at": 27.0,
+						"details": {
+							"job": "service:job:10",
+							"kind": "redeem",
+							"region": "home"
+						},
+						"id": "service:event:11",
+						"kind": "service_started"
+					},
+					{
+						"actor": "player",
+						"at": 31.0,
+						"details": {
+							"job": "service:job:10",
+							"line": "当地认可的贡献不足，不能兑换。"
+						},
+						"id": "service:event:12",
+						"kind": "service_interrupted"
+					},
+					{
+						"actor": "player",
+						"at": 37.0,
+						"details": {
+							"job": "service:job:13",
+							"kind": "redeem",
+							"region": "home"
+						},
+						"id": "service:event:14",
+						"kind": "service_started"
+					},
+					{
+						"actor": "player",
+						"at": 41.0,
+						"details": {
+							"cost": 1.0,
+							"issuer": "chen_shouzhuo",
+							"job": "service:job:13",
+							"region": "home"
+						},
+						"id": "service:event:15",
+						"kind": "redeemed"
+					},
+					{
+						"actor": "player",
+						"at": 41.0,
+						"details": {
+							"job": "service:job:13",
+							"line": "已扣1贡献，实物放入你的行囊。"
+						},
+						"id": "service:event:16",
+						"kind": "service_completed"
+					}
+				],
+				"help_requests": {},
+				"jobs": {
+					"service:job:1": {
+						"actor": "player",
+						"carrying": false,
+						"due_ms": 577440.0,
+						"finished_at": 9.0,
+						"home": "home",
+						"id": "service:job:1",
+						"kind": "report",
+						"label": "向当地管事报工",
+						"options": {},
+						"outcome": "没有新的交付凭据可报，旧凭据不会重复记功。",
+						"path": [],
+						"phase": "work",
+						"previous_autonomous": false,
+						"region": "home",
+						"segment_from": [
+							16544.0,
+							16224.0
+						],
+						"segment_started_ms": 337440.0,
+						"spec": {
+							"label": "向当地管事报工",
+							"line": "向当地管事报工",
+							"minutes": 4.0,
+							"ok": true,
+							"options": {},
+							"place": "records",
+							"reason": "ready"
+						},
+						"stage": "service",
+						"started": 5.0,
+						"started_ms": 336150.0,
+						"status": "failed"
+					},
+					"service:job:10": {
+						"actor": "player",
+						"carrying": false,
+						"due_ms": 1876151.0,
+						"finished_at": 31.0,
+						"home": "home",
+						"id": "service:job:10",
+						"kind": "redeem",
+						"label": "用贡献领一份饭",
+						"options": {
+							"offer": "meal"
+						},
+						"outcome": "当地认可的贡献不足，不能兑换。",
+						"path": [],
+						"phase": "work",
+						"previous_autonomous": false,
+						"region": "home",
+						"segment_from": [
+							16544.0,
+							16224.0
+						],
+						"segment_started_ms": 1636151.0,
+						"spec": {
+							"label": "用贡献领一份饭",
+							"line": "用贡献领一份饭",
+							"minutes": 4.0,
+							"ok": true,
+							"options": {
+								"offer": "meal"
+							},
+							"place": "records",
+							"reason": "ready"
+						},
+						"stage": "service",
+						"started": 27.0,
+						"started_ms": 1636150.0,
+						"status": "failed"
+					},
+					"service:job:13": {
+						"actor": "player",
+						"carrying": false,
+						"due_ms": 2506151.0,
+						"finished_at": 41.0,
+						"home": "home",
+						"id": "service:job:13",
+						"kind": "redeem",
+						"label": "用贡献领一份饭",
+						"options": {
+							"offer": "meal"
+						},
+						"outcome": "已扣1贡献，实物放入你的行囊。",
+						"path": [],
+						"phase": "work",
+						"previous_autonomous": false,
+						"region": "home",
+						"segment_from": [
+							16544.0,
+							16224.0
+						],
+						"segment_started_ms": 2266151.0,
+						"spec": {
+							"label": "用贡献领一份饭",
+							"line": "用贡献领一份饭",
+							"minutes": 4.0,
+							"ok": true,
+							"options": {
+								"offer": "meal"
+							},
+							"place": "records",
+							"reason": "ready"
+						},
+						"stage": "service",
+						"started": 37.0,
+						"started_ms": 2266150.0,
+						"status": "completed"
+					},
+					"service:job:4": {
+						"actor": "player",
+						"carrying": false,
+						"due_ms": 876151.0,
+						"finished_at": 14.0,
+						"home": "home",
+						"id": "service:job:4",
+						"kind": "redeem",
+						"label": "用贡献领一份饭",
+						"options": {
+							"offer": "meal"
+						},
+						"outcome": "当地认可的贡献不足，不能兑换。",
+						"path": [],
+						"phase": "work",
+						"previous_autonomous": false,
+						"region": "home",
+						"segment_from": [
+							16544.0,
+							16224.0
+						],
+						"segment_started_ms": 636151.0,
+						"spec": {
+							"label": "用贡献领一份饭",
+							"line": "用贡献领一份饭",
+							"minutes": 4.0,
+							"ok": true,
+							"options": {
+								"offer": "meal"
+							},
+							"place": "records",
+							"reason": "ready"
+						},
+						"stage": "service",
+						"started": 10.0,
+						"started_ms": 636150.0,
+						"status": "failed"
+					},
+					"service:job:7": {
+						"actor": "player",
+						"carrying": false,
+						"due_ms": 1577440.0,
+						"finished_at": 26.0,
+						"home": "home",
+						"id": "service:job:7",
+						"kind": "report",
+						"label": "向当地管事报工",
+						"options": {},
+						"outcome": "没有新的交付凭据可报，旧凭据不会重复记功。",
+						"path": [],
+						"phase": "work",
+						"previous_autonomous": false,
+						"region": "home",
+						"segment_from": [
+							16544.0,
+							16224.0
+						],
+						"segment_started_ms": 1337440.0,
+						"spec": {
+							"label": "向当地管事报工",
+							"line": "向当地管事报工",
+							"minutes": 4.0,
+							"ok": true,
+							"options": {},
+							"place": "records",
+							"reason": "ready"
+						},
+						"stage": "service",
+						"started": 22.0,
+						"started_ms": 1336150.0,
+						"status": "failed"
+					}
+				},
+				"last_ms": 2576650,
+				"last_time": 42,
+				"next_id": 17,
+				"operations": {
+					"service:job:13:redeem": {
+						"amount": 1.0,
+						"from": "home",
+						"item": "meal",
+						"source": "kitchen",
+						"target": "actor:player",
+						"to": "home"
+					}
+				},
+				"receipts": {},
+				"rng_state": "-8522135386316858219",
+				"social": {
+					"actors": [
+						"a_he",
+						"chen_shouzhuo",
+						"lao_zhou",
+						"player",
+						"river_a_he",
+						"river_chen_shouzhuo",
+						"river_courier",
+						"river_lao_zhou",
+						"river_player",
+						"river_shi_tou",
+						"river_su_zhi",
+						"shi_tou",
+						"su_zhi"
+					],
+					"events": [],
+					"knowledge": {
+						"a_he": {},
+						"chen_shouzhuo": {},
+						"lao_zhou": {},
+						"player": {},
+						"river_a_he": {},
+						"river_chen_shouzhuo": {},
+						"river_courier": {},
+						"river_lao_zhou": {},
+						"river_player": {},
+						"river_shi_tou": {},
+						"river_su_zhi": {},
+						"shi_tou": {},
+						"su_zhi": {}
+					},
+					"next_event_id": 1,
+					"next_request_id": 1,
+					"outcome_effects": {
+						"betrayed": [
+							-0.05,
+							-0.05
+						],
+						"broke_promise": [
+							-0.05,
+							-0.05
+						],
+						"completed": [
+							0.05,
+							0.05
+						],
+						"failed": [
+							-0.05,
+							0.0
+						],
+						"fulfilled": [
+							0.05,
+							0.05
+						],
+						"helped": [
+							0.05,
+							0.05
+						],
+						"kept_promise": [
+							0.05,
+							0.05
+						],
+						"refused": [
+							0.0,
+							0.0
+						]
+					},
+					"relationships": {
+						"a_he": {},
+						"chen_shouzhuo": {},
+						"lao_zhou": {},
+						"player": {},
+						"river_a_he": {},
+						"river_chen_shouzhuo": {},
+						"river_courier": {},
+						"river_lao_zhou": {},
+						"river_player": {},
+						"river_shi_tou": {},
+						"river_su_zhi": {},
+						"shi_tou": {},
+						"su_zhi": {}
+					},
+					"requests": {},
+					"version": 1
+				},
+				"version": 2
+			},
+			"settings": {
+				"active_region": "home",
+				"courier_needs": {
+					"energy_per_travel_minute": 0.08,
+					"rest_below": 35.0,
+					"rest_gain": 70.0,
+					"rest_minutes": 60.0
+				},
+				"event_budget": 4096.0,
+				"regions": {
+					"home": {
+						"label": "青岚山门",
+						"offset": [
+							0.0,
+							0.0
+						],
+						"stock_overrides": {
+							"store": {
+								"grain": 24.0
+							}
+						}
+					},
+					"river": {
+						"label": "河湾农庄",
+						"offset": [
+							28.0,
+							0.0
+						],
+						"stock_overrides": {
+							"store": {
+								"grain": 180.0,
+								"wood": 100.0
+							}
+						}
+					}
+				},
+				"routes": {
+					"river_road": {
+						"amount": 12.0,
+						"assessment_minutes": 30.0,
+						"courier": "river_courier",
+						"courier_name": "陆行舟",
+						"from": "river",
+						"item": "grain",
+						"message_minutes": 12.0,
+						"path": [
+							[
+								289,
+								261
+							],
+							[
+								288,
+								261
+							],
+							[
+								287,
+								261
+							],
+							[
+								286,
+								261
+							],
+							[
+								285,
+								261
+							],
+							[
+								284,
+								261
+							],
+							[
+								283,
+								261
+							],
+							[
+								282,
+								261
+							],
+							[
+								281,
+								261
+							],
+							[
+								280,
+								261
+							],
+							[
+								279,
+								261
+							],
+							[
+								278,
+								261
+							],
+							[
+								277,
+								261
+							],
+							[
+								276,
+								261
+							],
+							[
+								275,
+								261
+							],
+							[
+								274,
+								261
+							],
+							[
+								273,
+								261
+							],
+							[
+								272,
+								261
+							],
+							[
+								271,
+								261
+							],
+							[
+								270,
+								261
+							],
+							[
+								269,
+								261
+							],
+							[
+								268,
+								261
+							],
+							[
+								267,
+								261
+							],
+							[
+								266,
+								261
+							],
+							[
+								265,
+								261
+							],
+							[
+								264,
+								261
+							],
+							[
+								263,
+								261
+							],
+							[
+								262,
+								261
+							],
+							[
+								261,
+								260
+							]
+						],
+						"reserve_floor": 30.0,
+						"source": "store",
+						"stock_below": 60.0,
+						"target": "store",
+						"to": "home",
+						"travel_minutes": 84
+					}
+				},
+				"runtime": {
+					"enter_radius": 10.0,
+					"exit_radius": 13.0,
+					"help_offer_coins": 2.0,
+					"layout_budget": 16384.0,
+					"layout_radius": 64.0,
+					"minimum_separation": 18.0,
+					"remote_names": {
+						"river_a_he": "河湾·许婶",
+						"river_chen_shouzhuo": "河湾·钱管事",
+						"river_lao_zhou": "河湾·田伯",
+						"river_player": "河湾·林苗",
+						"river_shi_tou": "河湾·小满",
+						"river_su_zhi": "河湾·白芷"
+					},
+					"remote_seed_offset": 101.0,
+					"starting_inventory": {
+						"player": {
+							"coin": 6.0
+						}
+					}
+				},
+				"schema_version": 1.0
+			},
+			"shipments": {
+				"world:shipment:2": {
+					"amount": 12.0,
+					"container": "cargo:world:shipment:2",
+					"delivered_at": -1.0,
+					"departed_at": 13.0,
+					"id": "world:shipment:2",
+					"item": "grain",
+					"route": "river_road",
+					"status": "outbound"
+				}
+			},
+			"sparring": {
+				"bout": {},
+				"last_result": {},
+				"next_id": 1,
+				"version": 1
+			},
+			"target_ms": 2576650,
+			"target_time": 42,
+			"version": 6
+		}
+	},
+	"player": {
+		"altitude": 0,
+		"cell": [
+			254,
+			255
+		],
+		"motion": {
+			"action": {},
+			"blocked": false,
+			"facing": [
+				0.0,
+				1.0
+			],
+			"last_outcome": "",
+			"velocity": [
+				0.0,
+				0.0
+			]
+		},
+		"position": [
+			16288.0,
+			16352.0
+		]
+	},
+	"schema_version": 8,
+	"simulation": {
+		"actors": {
+			"a_he": {
+				"active": {},
+				"alive": true,
+				"autonomous": true,
+				"cell": [
+					253.0,
+					255.0
+				],
+				"definition_id": "a_he",
+				"energy": 78.926396,
+				"exertion_until_ms": 0.0,
+				"goal": "等候物资或闲暇交往",
+				"hunger": 68.067513,
+				"mood": 60.0,
+				"need_carry": {
+					"energy": 10000,
+					"hunger": 30000
+				},
+				"position": [
+					16224.0,
+					16352.0
+				],
+				"qi": 12.0,
+				"rank_id": "servant",
+				"receipts": [],
+				"retry_ms": 2640050.0,
+				"stamina": 90,
+				"stamina_carry": 0,
+				"stock_memory": {
+					"garden": {
+						"items": {
+							"herb": 12
+						},
+						"tick": 42
+					},
+					"kitchen": {
+						"items": {
+							"grain": 8,
+							"meal": 13,
+							"water": 7,
+							"wood": 6
+						},
+						"tick": 42
+					}
+				}
+			},
+			"chen_shouzhuo": {
+				"active": {
+					"action": "inspect",
+					"carrying": false,
+					"destination": "garden",
+					"due_ms": 3122298.0,
+					"id": "action:10",
+					"path": [],
+					"phase": "work",
+					"request_id": "",
+					"requester": "",
+					"reservations": [],
+					"segment_from": [
+						16096.0,
+						16224.0
+					],
+					"segment_started_ms": 1922298.0,
+					"started_ms": 1922297.0
+				},
+				"alive": true,
+				"autonomous": true,
+				"cell": [
+					251.0,
+					253.0
+				],
+				"definition_id": "chen_shouzhuo",
+				"energy": 87.688663,
+				"exertion_until_ms": 0.0,
+				"goal": "巡视药圃",
+				"hunger": 83.067513,
+				"mood": 60.0,
+				"need_carry": {
+					"energy": 30000,
+					"hunger": 30000
+				},
+				"position": [
+					16096.0,
+					16224.0
+				],
+				"qi": 60.0,
+				"rank_id": "steward",
+				"receipts": [],
+				"retry_ms": 2642297.0,
+				"stamina": 120.0,
+				"stamina_carry": 0.0,
+				"stock_memory": {
+					"garden": {
+						"items": {
+							"herb": 12
+						},
+						"tick": 42
+					},
+					"kitchen": {
+						"items": {
+							"grain": 8,
+							"meal": 13,
+							"water": 7,
+							"wood": 6
+						},
+						"tick": 42
+					},
+					"records": {
+						"items": {},
+						"tick": 0.0
+					},
+					"well": {
+						"items": {
+							"water": 100.0
+						},
+						"tick": 0.0
+					}
+				}
+			},
+			"lao_zhou": {
+				"active": {
+					"action": "rest",
+					"carrying": false,
+					"destination": "dorm",
+					"due_ms": 4624783.0,
+					"id": "action:9",
+					"path": [],
+					"phase": "work",
+					"request_id": "",
+					"requester": "",
+					"reservations": [],
+					"segment_from": [
+						16160.0,
+						16672.0
+					],
+					"segment_started_ms": 1024783.0,
+					"started_ms": 1023226.0
+				},
+				"alive": true,
+				"autonomous": true,
+				"cell": [
+					252.0,
+					260.0
+				],
+				"definition_id": "lao_zhou",
+				"energy": 25.68863,
+				"exertion_until_ms": 0.0,
+				"goal": "休息",
+				"hunger": 68.067513,
+				"mood": 60.0,
+				"need_carry": {
+					"energy": 10000,
+					"hunger": 30000
+				},
+				"position": [
+					16160.0,
+					16672.0
+				],
+				"qi": 10.0,
+				"rank_id": "servant",
+				"receipts": [
+					{
+						"amount": 2.0,
+						"event": "event_5"
+					}
+				],
+				"retry_ms": 1743226.0,
+				"stamina": 80,
+				"stamina_carry": 0,
+				"stock_memory": {
+					"dorm": {
+						"items": {},
+						"tick": 42
+					},
+					"garden": {
+						"items": {
+							"herb": 12.0
+						},
+						"tick": 17.0
+					},
+					"gate": {
+						"items": {},
+						"tick": 42
+					},
+					"kitchen": {
+						"items": {
+							"grain": 8.0,
+							"meal": 14.0,
+							"water": 3.0,
+							"wood": 3.0
+						},
+						"tick": 17.0
+					},
+					"records": {
+						"items": {},
+						"tick": 17.0
+					},
+					"store": {
+						"items": {
+							"grain": 24.0,
+							"wood": 77.0
+						},
+						"tick": 0.0
+					}
+				}
+			},
+			"player": {
+				"active": {},
+				"alive": true,
+				"autonomous": false,
+				"cell": [
+					254,
+					255
+				],
+				"definition_id": "player",
+				"energy": 82.518788,
+				"exertion_until_ms": 0.0,
+				"goal": "已扣1贡献，实物放入你的行囊。",
+				"hunger": 78.067513,
+				"mood": 60.0,
+				"need_carry": {
+					"energy": 50000,
+					"hunger": 30000
+				},
+				"position": [
+					16288.0,
+					16352.0
+				],
+				"qi": 20.0,
+				"rank_id": "servant",
+				"receipts": [],
+				"retry_ms": 2956151.0,
+				"stamina": 100,
+				"stamina_carry": 0,
+				"stock_memory": {
+					"dorm": {
+						"items": {},
+						"tick": 15.0
+					},
+					"garden": {
+						"items": {
+							"herb": 12
+						},
+						"tick": 42
+					},
+					"gate": {
+						"items": {},
+						"tick": 15.0
+					},
+					"kitchen": {
+						"items": {
+							"grain": 8,
+							"meal": 13,
+							"water": 7,
+							"wood": 6
+						},
+						"tick": 42
+					},
+					"records": {
+						"items": {},
+						"tick": 42
+					},
+					"store": {
+						"items": {
+							"grain": 20.0,
+							"wood": 74.0
+						},
+						"tick": 15.0
+					},
+					"well": {
+						"items": {
+							"water": 96.0
+						},
+						"tick": 42.0
+					}
+				}
+			},
+			"shi_tou": {
+				"active": {},
+				"alive": true,
+				"autonomous": true,
+				"cell": [
+					254.0,
+					255.0
+				],
+				"definition_id": "shi_tou",
+				"energy": 88.642318,
+				"exertion_until_ms": 0.0,
+				"goal": "已完成",
+				"hunger": 63.067513,
+				"mood": 60.0,
+				"need_carry": {
+					"energy": 10000,
+					"hunger": 30000
+				},
+				"position": [
+					16288.0,
+					16352.0
+				],
+				"qi": 25.0,
+				"rank_id": "servant",
+				"receipts": [],
+				"retry_ms": 2586167.0,
+				"stamina": 140,
+				"stamina_carry": 0,
+				"stock_memory": {
+					"dorm": {
+						"items": {},
+						"tick": 0.0
+					},
+					"garden": {
+						"items": {
+							"herb": 12
+						},
+						"tick": 42
+					},
+					"gate": {
+						"items": {},
+						"tick": 0.0
+					},
+					"kitchen": {
+						"items": {
+							"grain": 8,
+							"meal": 13,
+							"water": 7,
+							"wood": 6
+						},
+						"tick": 42
+					},
+					"records": {
+						"items": {},
+						"tick": 42
+					},
+					"store": {
+						"items": {
+							"grain": 24.0,
+							"wood": 77.0
+						},
+						"tick": 0.0
+					},
+					"well": {
+						"items": {
+							"water": 96.0
+						},
+						"tick": 14.0
+					}
+				}
+			},
+			"su_zhi": {
+				"active": {},
+				"alive": true,
+				"autonomous": true,
+				"cell": [
+					252.0,
+					259.0
+				],
+				"definition_id": "su_zhi",
+				"energy": 83.926396,
+				"exertion_until_ms": 0.0,
+				"goal": "等候物资或闲暇交往",
+				"hunger": 73.067513,
+				"mood": 60.0,
+				"need_carry": {
+					"energy": 10000,
+					"hunger": 30000
+				},
+				"position": [
+					16160.0,
+					16608.0
+				],
+				"qi": 80.0,
+				"rank_id": "outer_disciple",
+				"receipts": [],
+				"retry_ms": 2880050.0,
+				"stamina": 100,
+				"stamina_carry": 0,
+				"stock_memory": {
+					"dorm": {
+						"items": {},
+						"tick": 42
+					},
+					"gate": {
+						"items": {},
+						"tick": 42
+					},
+					"kitchen": {
+						"items": {
+							"grain": 8,
+							"meal": 13,
+							"water": 7,
+							"wood": 6
+						},
+						"tick": 42
+					}
+				}
+			}
+		},
+		"authorizations": {},
+		"config": {
+			"action_timeout": 360.0,
+			"actions": {
+				"check_kitchen": {
+					"kind": "visit",
+					"label": "查看灶房",
+					"minutes": 2.0,
+					"target": "kitchen"
+				},
+				"cook": {
+					"contribution": 2.0,
+					"inputs": {
+						"grain": 2.0,
+						"water": 1.0,
+						"wood": 1.0
+					},
+					"kind": "recipe",
+					"label": "做饭",
+					"minutes": 20.0,
+					"outputs": {
+						"meal": 6.0
+					},
+					"stock_below": 12.0,
+					"target": "kitchen"
+				},
+				"deliver_grain": {
+					"amount": 4.0,
+					"contribution": 2.0,
+					"item": "grain",
+					"kind": "haul",
+					"label": "运粮",
+					"minutes": 5.0,
+					"source": "store",
+					"stock_below": 6.0,
+					"target": "kitchen"
+				},
+				"deliver_water": {
+					"amount": 4.0,
+					"contribution": 2.0,
+					"item": "water",
+					"kind": "haul",
+					"label": "挑水",
+					"minutes": 5.0,
+					"source": "well",
+					"stock_below": 6.0,
+					"target": "kitchen"
+				},
+				"deliver_wood": {
+					"amount": 3.0,
+					"contribution": 2.0,
+					"item": "wood",
+					"kind": "haul",
+					"label": "送柴",
+					"minutes": 5.0,
+					"source": "store",
+					"stock_below": 6.0,
+					"target": "kitchen"
+				},
+				"eat": {
+					"amount": 1.0,
+					"hunger_gain": 45.0,
+					"item": "meal",
+					"kind": "consume",
+					"label": "取食",
+					"minutes": 8.0,
+					"source": "kitchen"
+				},
+				"inspect": {
+					"kind": "visit",
+					"label": "巡视药圃",
+					"minutes": 20.0,
+					"target": "garden"
+				},
+				"report": {
+					"kind": "visit",
+					"label": "到功德堂报工",
+					"minutes": 5.0,
+					"target": "records"
+				},
+				"rest": {
+					"energy_gain": 80.0,
+					"kind": "rest",
+					"label": "休息",
+					"minutes": 60.0,
+					"target": "dorm"
+				}
+			},
+			"actor_profiles": {
+				"a_he": {
+					"benevolence": 0.8,
+					"duty": "cook",
+					"energy": 80.0,
+					"hunger": 70.0
+				},
+				"chen_shouzhuo": {
+					"benevolence": 0.25,
+					"duty": "inspect",
+					"energy": 90.0,
+					"hunger": 85.0
+				},
+				"lao_zhou": {
+					"benevolence": 0.3,
+					"duty": "deliver_wood",
+					"energy": 28.0,
+					"hunger": 70.0
+				},
+				"player": {
+					"autonomous": false,
+					"energy": 85.0,
+					"hunger": 80.0
+				},
+				"shi_tou": {
+					"benevolence": 0.8,
+					"duty": "deliver_water",
+					"energy": 90.0,
+					"hunger": 65.0
+				},
+				"su_zhi": {
+					"benevolence": 0.6,
+					"duty": "deliver_grain",
+					"energy": 85.0,
+					"hunger": 75.0
+				}
+			},
+			"decision_interval": 12.0,
+			"history_limit": 240.0,
+			"initial_stock": {
+				"dorm": {},
+				"garden": {
+					"herb": 12.0
+				},
+				"gate": {},
+				"kitchen": {
+					"grain": 6.0,
+					"meal": 8.0,
+					"water": 4.0,
+					"wood": 0.0
+				},
+				"records": {},
+				"store": {
+					"grain": 100.0,
+					"wood": 80.0
+				},
+				"well": {
+					"water": 100.0
+				}
+			},
+			"institution": {
+				"id": "sect",
+				"offices": {
+					"registrar": {
+						"holder": "chen_shouzhuo",
+						"permissions": [
+							"record",
+							"pay"
+						]
+					},
+					"steward": {
+						"holder": "chen_shouzhuo",
+						"permissions": [
+							"authorize"
+						]
+					}
+				}
+			},
+			"move_minutes_per_cell": 3.0,
+			"navigation_budget": 4096.0,
+			"navigation_radius": 24.0,
+			"needs": {
+				"eat_below": 55.0,
+				"energy_per_minute": 0.025,
+				"hunger_per_minute": 0.045,
+				"rest_below": 35.0,
+				"work_energy_per_minute": 0.04
+			},
+			"observation_radius": 5.0,
+			"place_defs": [
+				{
+					"id": "kitchen",
+					"label": "灶房",
+					"offset": [
+						-3.0,
+						-1.0
+					]
+				},
+				{
+					"id": "store",
+					"label": "柴粮库",
+					"offset": [
+						5.0,
+						4.0
+					]
+				},
+				{
+					"id": "dorm",
+					"label": "杂役院",
+					"offset": [
+						-4.0,
+						4.0
+					]
+				},
+				{
+					"id": "well",
+					"label": "水井",
+					"offset": [
+						5.0,
+						-3.0
+					]
+				},
+				{
+					"id": "garden",
+					"label": "药圃",
+					"offset": [
+						-5.0,
+						-3.0
+					]
+				},
+				{
+					"id": "records",
+					"label": "功德堂",
+					"offset": [
+						2.0,
+						-3.0
+					]
+				},
+				{
+					"id": "gate",
+					"label": "山门",
+					"offset": [
+						0.0,
+						6.0
+					]
+				}
+			],
+			"request_interval": 60.0,
+			"retry_minutes": 30.0,
+			"scenario": {
+				"helpers": [
+					"lao_zhou",
+					"shi_tou"
+				],
+				"requester": "a_he",
+				"task": "deliver_wood"
+			},
+			"schema_version": 1.0,
+			"seed": 20261102.0,
+			"social_policy": {
+				"accept_threshold": 0.42,
+				"bias": 0.05,
+				"outcome_effects": {
+					"broke_promise": [
+						-0.1,
+						-0.05
+					],
+					"failed": [
+						0.0,
+						0.0
+					],
+					"fulfilled": [
+						0.05,
+						0.04
+					],
+					"refused": [
+						0.0,
+						0.0
+					]
+				},
+				"uncertainty_band": 0.05,
+				"weights": {
+					"affinity": 0.1,
+					"benevolence": 0.3,
+					"busy": -0.7,
+					"distance": -0.15,
+					"duty": 0.25,
+					"energy": 0.3,
+					"offer": 0.3,
+					"reliability": 0.15,
+					"risk": -0.8
+				}
+			},
+			"talk_radius": 14.0
+		},
+		"controlled_actor": "player",
+		"elapsed_ms": 2576650,
+		"institutions": {
+			"entries": [
+				{
+					"amount": 10,
+					"evidence": "origin:sect_orphan",
+					"institution_id": "sect",
+					"issuer": "chen_shouzhuo",
+					"kind": "issue",
+					"office": "registrar",
+					"operation_id": "opening:chen_shouzhuo",
+					"subject": "chen_shouzhuo"
+				},
+				{
+					"amount": 5,
+					"evidence": "origin:hunter",
+					"institution_id": "sect",
+					"issuer": "chen_shouzhuo",
+					"kind": "issue",
+					"office": "registrar",
+					"operation_id": "opening:shi_tou",
+					"subject": "shi_tou"
+				},
+				{
+					"amount": 10,
+					"evidence": "origin:sect_orphan",
+					"institution_id": "sect",
+					"issuer": "chen_shouzhuo",
+					"kind": "issue",
+					"office": "registrar",
+					"operation_id": "opening:su_zhi",
+					"subject": "su_zhi"
+				},
+				{
+					"amount": 2,
+					"evidence": "event_7",
+					"institution_id": "sect",
+					"issuer": "chen_shouzhuo",
+					"kind": "issue",
+					"office": "registrar",
+					"operation_id": "credit:event_7",
+					"subject": "a_he"
+				},
+				{
+					"amount": 2,
+					"evidence": "event_10",
+					"institution_id": "sect",
+					"issuer": "chen_shouzhuo",
+					"kind": "issue",
+					"office": "registrar",
+					"operation_id": "credit:event_10",
+					"subject": "shi_tou"
+				},
+				{
+					"amount": 2,
+					"evidence": "event_13",
+					"institution_id": "sect",
+					"issuer": "chen_shouzhuo",
+					"kind": "issue",
+					"office": "registrar",
+					"operation_id": "credit:event_13",
+					"subject": "player"
+				},
+				{
+					"amount": 1,
+					"evidence": "service:job:13",
+					"institution_id": "sect",
+					"issuer": "chen_shouzhuo",
+					"kind": "debit",
+					"office": "registrar",
+					"operation_id": "service:job:13:debit",
+					"subject": "player"
+				}
+			],
+			"institutions": {
+				"sect": {
+					"offices": {
+						"registrar": {
+							"holder": "chen_shouzhuo",
+							"permissions": [
+								"record",
+								"pay"
+							]
+						},
+						"steward": {
+							"holder": "chen_shouzhuo",
+							"permissions": [
+								"authorize"
+							]
+						}
+					}
+				}
+			},
+			"operations": {
+				"credit:event_10": {
+					"amount": 2,
+					"evidence": "event_10",
+					"institution_id": "sect",
+					"issuer": "chen_shouzhuo",
+					"kind": "issue",
+					"subject": "shi_tou"
+				},
+				"credit:event_13": {
+					"amount": 2,
+					"evidence": "event_13",
+					"institution_id": "sect",
+					"issuer": "chen_shouzhuo",
+					"kind": "issue",
+					"subject": "player"
+				},
+				"credit:event_7": {
+					"amount": 2,
+					"evidence": "event_7",
+					"institution_id": "sect",
+					"issuer": "chen_shouzhuo",
+					"kind": "issue",
+					"subject": "a_he"
+				},
+				"opening:chen_shouzhuo": {
+					"amount": 10,
+					"evidence": "origin:sect_orphan",
+					"institution_id": "sect",
+					"issuer": "chen_shouzhuo",
+					"kind": "issue",
+					"subject": "chen_shouzhuo"
+				},
+				"opening:shi_tou": {
+					"amount": 5,
+					"evidence": "origin:hunter",
+					"institution_id": "sect",
+					"issuer": "chen_shouzhuo",
+					"kind": "issue",
+					"subject": "shi_tou"
+				},
+				"opening:su_zhi": {
+					"amount": 10,
+					"evidence": "origin:sect_orphan",
+					"institution_id": "sect",
+					"issuer": "chen_shouzhuo",
+					"kind": "issue",
+					"subject": "su_zhi"
+				},
+				"service:job:13:debit": {
+					"amount": 1,
+					"evidence": "service:job:13",
+					"institution_id": "sect",
+					"issuer": "chen_shouzhuo",
+					"kind": "debit",
+					"subject": "player"
+				}
+			}
+		},
+		"interaction_results": {
+			"request_1": {
+				"chance": 0.8000000000000008,
+				"context": {
+					"affinity": 0.0,
+					"benevolence": 0.30000000000000004,
+					"busy": 0.0,
+					"distance": 0.5,
+					"duty": 1.0,
+					"energy": 0.2,
+					"offer": 0.0,
+					"reliability": 0.5,
+					"risk": 0.0,
+					"terms": {
+						"amount": 3.0,
+						"item": "wood",
+						"occasion": "situation:1"
+					}
+				},
+				"event_id": "event_1",
+				"execution": "fulfilled",
+				"id": "request_1",
+				"message": "老周答应帮忙送柴。",
+				"policy": {
+					"accept_threshold": 0.42,
+					"bias": 0.05,
+					"context_step": 0.05,
+					"uncertainty_band": 0.05,
+					"weights": {
+						"affinity": 0.1,
+						"benevolence": 0.3,
+						"busy": -0.7,
+						"distance": -0.15,
+						"duty": 0.25,
+						"energy": 0.3,
+						"offer": 0.3,
+						"reliability": 0.15,
+						"risk": -0.8
+					}
+				},
+				"reason": "duty",
+				"reasons": [
+					"duty",
+					"benevolence",
+					"reliability"
+				],
+				"requester": "a_he",
+				"responder": "lao_zhou",
+				"roll": 0.6050356030464172,
+				"score": 0.45000000000000007,
+				"status": "accepted",
+				"task": "deliver_wood",
+				"tick": 0.0,
+				"uncertain": true
+			}
+		},
+		"inventory": {
+			"containers": {
+				"actor:a_he": {},
+				"actor:chen_shouzhuo": {},
+				"actor:lao_zhou": {
+					"wood": 0
+				},
+				"actor:player": {
+					"coin": 6,
+					"grain": 0,
+					"meal": 0,
+					"wood": 0
+				},
+				"actor:shi_tou": {
+					"water": 0
+				},
+				"actor:su_zhi": {},
+				"dorm": {},
+				"garden": {
+					"herb": 12
+				},
+				"gate": {},
+				"kitchen": {
+					"grain": 8,
+					"meal": 13,
+					"water": 7,
+					"wood": 6
+				},
+				"records": {},
+				"store": {
+					"grain": 20,
+					"wood": 74
+				},
+				"well": {
+					"water": 96
+				}
+			},
+			"operations": {
+				"action:2:delivery": {
+					"amount": 3,
+					"item": "wood",
+					"kind": "transfer",
+					"reservation_id": "",
+					"source": "actor:lao_zhou",
+					"target": "kitchen"
+				},
+				"action:2:pickup": {
+					"amount": 3,
+					"item": "wood",
+					"kind": "transfer",
+					"reservation_id": "action:2:wood",
+					"source": "store",
+					"target": "actor:lao_zhou"
+				},
+				"action:6:delivery": {
+					"amount": 4,
+					"item": "grain",
+					"kind": "transfer",
+					"reservation_id": "",
+					"source": "actor:player",
+					"target": "kitchen"
+				},
+				"action:6:pickup": {
+					"amount": 4,
+					"item": "grain",
+					"kind": "transfer",
+					"reservation_id": "action:6:grain",
+					"source": "store",
+					"target": "actor:player"
+				},
+				"action:7:delivery": {
+					"amount": 4,
+					"item": "water",
+					"kind": "transfer",
+					"reservation_id": "",
+					"source": "actor:shi_tou",
+					"target": "kitchen"
+				},
+				"action:7:pickup": {
+					"amount": 4,
+					"item": "water",
+					"kind": "transfer",
+					"reservation_id": "action:7:water",
+					"source": "well",
+					"target": "actor:shi_tou"
+				},
+				"action:8:delivery": {
+					"amount": 3,
+					"item": "wood",
+					"kind": "transfer",
+					"reservation_id": "",
+					"source": "actor:player",
+					"target": "kitchen"
+				},
+				"action:8:pickup": {
+					"amount": 3,
+					"item": "wood",
+					"kind": "transfer",
+					"reservation_id": "action:8:wood",
+					"source": "store",
+					"target": "actor:player"
+				},
+				"artifact:action:5:heat": {
+					"container": "kitchen",
+					"inputs": {
+						"grain": 2,
+						"water": 1
+					},
+					"kind": "transform",
+					"outputs": {
+						"meal": 6
+					}
+				},
+				"avian:90:grain": {
+					"amount": 1,
+					"container": "actor:player",
+					"item": "meal",
+					"kind": "consume"
+				}
+			},
+			"reservations": {}
+		},
+		"last_request": 0,
+		"next_id": 12,
+		"places": {
+			"dorm": {
+				"cell": [
+					252.0,
+					260.0
+				],
+				"label": "杂役院"
+			},
+			"garden": {
+				"cell": [
+					251.0,
+					253.0
+				],
+				"label": "药圃"
+			},
+			"gate": {
+				"cell": [
+					256.0,
+					262.0
+				],
+				"label": "山门"
+			},
+			"kitchen": {
+				"cell": [
+					254.0,
+					255.0
+				],
+				"label": "灶房"
+			},
+			"records": {
+				"cell": [
+					258.0,
+					253.0
+				],
+				"label": "功德堂"
+			},
+			"store": {
+				"cell": [
+					261.0,
+					260.0
+				],
+				"label": "柴粮库"
+			},
+			"well": {
+				"cell": [
+					261.0,
+					253.0
+				],
+				"label": "水井"
+			}
+		},
+		"rng_state": "-3149962968293776070",
+		"situations": {
+			"kitchen_shortage": {
+				"id": "situation:1",
+				"item": "wood",
+				"resolved_at": 5.0,
+				"since": 0.0,
+				"status": "resolved"
+			}
+		},
+		"social": {
+			"actors": [
+				"a_he",
+				"chen_shouzhuo",
+				"lao_zhou",
+				"player",
+				"shi_tou",
+				"su_zhi"
+			],
+			"events": [
+				{
+					"actor": "a_he",
+					"details": {
+						"participants": {
+							"reason": "duty"
+						},
+						"status": "accepted",
+						"task": "deliver_wood"
+					},
+					"id": "event_1",
+					"kind": "request",
+					"target": "lao_zhou",
+					"tick": 0.0,
+					"witnesses": [
+						"player",
+						"su_zhi"
+					]
+				},
+				{
+					"actor": "lao_zhou",
+					"details": {
+						"amount": 3.0,
+						"item": "wood"
+					},
+					"id": "event_2",
+					"kind": "picked_up",
+					"target": "",
+					"tick": 0.0,
+					"witnesses": [
+						"shi_tou"
+					]
+				},
+				{
+					"actor": "player",
+					"details": {
+						"amount": 4.0,
+						"item": "grain"
+					},
+					"id": "event_3",
+					"kind": "picked_up",
+					"target": "",
+					"tick": 0.0,
+					"witnesses": []
+				},
+				{
+					"actor": "shi_tou",
+					"details": {
+						"private": {
+							"reason": "fulfilled"
+						},
+						"public": {
+							"work_credit": 0.0
+						},
+						"task": "check_kitchen"
+					},
+					"id": "event_4",
+					"kind": "completed",
+					"target": "",
+					"tick": 2.0,
+					"witnesses": [
+						"a_he",
+						"chen_shouzhuo",
+						"lao_zhou",
+						"player",
+						"su_zhi"
+					]
+				},
+				{
+					"actor": "lao_zhou",
+					"details": {
+						"private": {
+							"reason": "fulfilled"
+						},
+						"public": {
+							"work_credit": 2.0
+						},
+						"task": "deliver_wood"
+					},
+					"id": "event_5",
+					"kind": "completed",
+					"target": "",
+					"tick": 5.0,
+					"witnesses": [
+						"a_he",
+						"chen_shouzhuo",
+						"player",
+						"shi_tou",
+						"su_zhi"
+					]
+				},
+				{
+					"actor": "player",
+					"details": {
+						"private": {
+							"reason": "fulfilled"
+						},
+						"public": {
+							"work_credit": 0.0
+						},
+						"task": "deliver_grain"
+					},
+					"id": "event_6",
+					"kind": "completed",
+					"target": "",
+					"tick": 5.0,
+					"witnesses": [
+						"a_he",
+						"chen_shouzhuo",
+						"lao_zhou",
+						"shi_tou",
+						"su_zhi"
+					]
+				},
+				{
+					"actor": "a_he",
+					"details": {
+						"private": {
+							"reason": "artifact_heat"
+						},
+						"public": {
+							"work_credit": 2.0
+						},
+						"task": "cook"
+					},
+					"id": "event_7",
+					"kind": "completed",
+					"target": "",
+					"tick": 8.0,
+					"witnesses": [
+						"chen_shouzhuo",
+						"lao_zhou",
+						"shi_tou",
+						"su_zhi"
+					]
+				},
+				{
+					"actor": "shi_tou",
+					"details": {
+						"amount": 4.0,
+						"item": "water"
+					},
+					"id": "event_8",
+					"kind": "picked_up",
+					"target": "",
+					"tick": 14.0,
+					"witnesses": [
+						"player"
+					]
+				},
+				{
+					"actor": "player",
+					"details": {
+						"amount": 3.0,
+						"item": "wood"
+					},
+					"id": "event_9",
+					"kind": "picked_up",
+					"target": "",
+					"tick": 15.0,
+					"witnesses": []
+				},
+				{
+					"actor": "shi_tou",
+					"details": {
+						"private": {
+							"reason": "fulfilled"
+						},
+						"public": {
+							"work_credit": 2.0
+						},
+						"task": "deliver_water"
+					},
+					"id": "event_10",
+					"kind": "completed",
+					"target": "",
+					"tick": 19.0,
+					"witnesses": [
+						"a_he",
+						"chen_shouzhuo",
+						"player",
+						"su_zhi"
+					]
+				},
+				{
+					"actor": "chen_shouzhuo",
+					"details": {
+						"amount": 2.0
+					},
+					"id": "event_11",
+					"kind": "registered",
+					"target": "a_he",
+					"tick": 20.0,
+					"witnesses": [
+						"player",
+						"shi_tou"
+					]
+				},
+				{
+					"actor": "chen_shouzhuo",
+					"details": {
+						"private": {
+							"reason": "fulfilled"
+						},
+						"public": {
+							"work_credit": 0.0
+						},
+						"task": "inspect"
+					},
+					"id": "event_12",
+					"kind": "completed",
+					"target": "",
+					"tick": 20.0,
+					"witnesses": [
+						"a_he",
+						"player",
+						"shi_tou"
+					]
+				},
+				{
+					"actor": "player",
+					"details": {
+						"private": {
+							"reason": "fulfilled"
+						},
+						"public": {
+							"work_credit": 2.0
+						},
+						"task": "deliver_wood"
+					},
+					"id": "event_13",
+					"kind": "completed",
+					"target": "",
+					"tick": 20.0,
+					"witnesses": [
+						"a_he",
+						"chen_shouzhuo",
+						"shi_tou",
+						"su_zhi"
+					]
+				},
+				{
+					"actor": "chen_shouzhuo",
+					"details": {
+						"amount": 2.0
+					},
+					"id": "event_14",
+					"kind": "registered",
+					"target": "shi_tou",
+					"tick": 31.0,
+					"witnesses": [
+						"a_he"
+					]
+				},
+				{
+					"actor": "player",
+					"details": {
+						"private": {
+							"reason": "fulfilled"
+						},
+						"public": {
+							"work_credit": 0.0
+						},
+						"task": "report"
+					},
+					"id": "event_15",
+					"kind": "completed",
+					"target": "",
+					"tick": 37.0,
+					"witnesses": [
+						"shi_tou"
+					]
+				},
+				{
+					"actor": "chen_shouzhuo",
+					"details": {
+						"amount": 2.0
+					},
+					"id": "event_16",
+					"kind": "registered",
+					"target": "player",
+					"tick": 37.0,
+					"witnesses": [
+						"a_he",
+						"shi_tou"
+					]
+				}
+			],
+			"knowledge": {
+				"a_he": {
+					"event_1": {
+						"actor": "a_he",
+						"details": {
+							"reason": "duty",
+							"status": "accepted",
+							"task": "deliver_wood"
+						},
+						"direct": true,
+						"id": "event_1",
+						"kind": "request",
+						"source": "a_he",
+						"target": "lao_zhou",
+						"tick": 0.0
+					},
+					"event_10": {
+						"actor": "shi_tou",
+						"details": {
+							"task": "deliver_water",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_10",
+						"kind": "completed",
+						"source": "a_he",
+						"target": "",
+						"tick": 19.0
+					},
+					"event_11": {
+						"actor": "chen_shouzhuo",
+						"details": {
+							"amount": 2.0
+						},
+						"direct": true,
+						"id": "event_11",
+						"kind": "registered",
+						"source": "a_he",
+						"target": "a_he",
+						"tick": 20.0
+					},
+					"event_12": {
+						"actor": "chen_shouzhuo",
+						"details": {
+							"task": "inspect",
+							"work_credit": 0.0
+						},
+						"direct": true,
+						"id": "event_12",
+						"kind": "completed",
+						"source": "a_he",
+						"target": "",
+						"tick": 20.0
+					},
+					"event_13": {
+						"actor": "player",
+						"details": {
+							"task": "deliver_wood",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_13",
+						"kind": "completed",
+						"source": "a_he",
+						"target": "",
+						"tick": 20.0
+					},
+					"event_14": {
+						"actor": "chen_shouzhuo",
+						"details": {
+							"amount": 2.0
+						},
+						"direct": true,
+						"id": "event_14",
+						"kind": "registered",
+						"source": "a_he",
+						"target": "shi_tou",
+						"tick": 31.0
+					},
+					"event_16": {
+						"actor": "chen_shouzhuo",
+						"details": {
+							"amount": 2.0
+						},
+						"direct": true,
+						"id": "event_16",
+						"kind": "registered",
+						"source": "a_he",
+						"target": "player",
+						"tick": 37.0
+					},
+					"event_4": {
+						"actor": "shi_tou",
+						"details": {
+							"task": "check_kitchen",
+							"work_credit": 0.0
+						},
+						"direct": true,
+						"id": "event_4",
+						"kind": "completed",
+						"source": "a_he",
+						"target": "",
+						"tick": 2.0
+					},
+					"event_5": {
+						"actor": "lao_zhou",
+						"details": {
+							"task": "deliver_wood",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_5",
+						"kind": "completed",
+						"source": "a_he",
+						"target": "",
+						"tick": 5.0
+					},
+					"event_6": {
+						"actor": "player",
+						"details": {
+							"task": "deliver_grain",
+							"work_credit": 0.0
+						},
+						"direct": true,
+						"id": "event_6",
+						"kind": "completed",
+						"source": "a_he",
+						"target": "",
+						"tick": 5.0
+					},
+					"event_7": {
+						"actor": "a_he",
+						"details": {
+							"task": "cook",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_7",
+						"kind": "completed",
+						"source": "a_he",
+						"target": "",
+						"tick": 8.0
+					}
+				},
+				"chen_shouzhuo": {
+					"event_10": {
+						"actor": "shi_tou",
+						"details": {
+							"task": "deliver_water",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_10",
+						"kind": "completed",
+						"source": "chen_shouzhuo",
+						"target": "",
+						"tick": 19.0
+					},
+					"event_11": {
+						"actor": "chen_shouzhuo",
+						"details": {
+							"amount": 2.0
+						},
+						"direct": true,
+						"id": "event_11",
+						"kind": "registered",
+						"source": "chen_shouzhuo",
+						"target": "a_he",
+						"tick": 20.0
+					},
+					"event_12": {
+						"actor": "chen_shouzhuo",
+						"details": {
+							"task": "inspect",
+							"work_credit": 0.0
+						},
+						"direct": true,
+						"id": "event_12",
+						"kind": "completed",
+						"source": "chen_shouzhuo",
+						"target": "",
+						"tick": 20.0
+					},
+					"event_13": {
+						"actor": "player",
+						"details": {
+							"task": "deliver_wood",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_13",
+						"kind": "completed",
+						"source": "chen_shouzhuo",
+						"target": "",
+						"tick": 20.0
+					},
+					"event_14": {
+						"actor": "chen_shouzhuo",
+						"details": {
+							"amount": 2.0
+						},
+						"direct": true,
+						"id": "event_14",
+						"kind": "registered",
+						"source": "chen_shouzhuo",
+						"target": "shi_tou",
+						"tick": 31.0
+					},
+					"event_16": {
+						"actor": "chen_shouzhuo",
+						"details": {
+							"amount": 2.0
+						},
+						"direct": true,
+						"id": "event_16",
+						"kind": "registered",
+						"source": "chen_shouzhuo",
+						"target": "player",
+						"tick": 37.0
+					},
+					"event_4": {
+						"actor": "shi_tou",
+						"details": {
+							"task": "check_kitchen",
+							"work_credit": 0.0
+						},
+						"direct": true,
+						"id": "event_4",
+						"kind": "completed",
+						"source": "chen_shouzhuo",
+						"target": "",
+						"tick": 2.0
+					},
+					"event_5": {
+						"actor": "lao_zhou",
+						"details": {
+							"task": "deliver_wood",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_5",
+						"kind": "completed",
+						"source": "chen_shouzhuo",
+						"target": "",
+						"tick": 5.0
+					},
+					"event_6": {
+						"actor": "player",
+						"details": {
+							"task": "deliver_grain",
+							"work_credit": 0.0
+						},
+						"direct": true,
+						"id": "event_6",
+						"kind": "completed",
+						"source": "chen_shouzhuo",
+						"target": "",
+						"tick": 5.0
+					},
+					"event_7": {
+						"actor": "a_he",
+						"details": {
+							"task": "cook",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_7",
+						"kind": "completed",
+						"source": "chen_shouzhuo",
+						"target": "",
+						"tick": 8.0
+					}
+				},
+				"lao_zhou": {
+					"event_1": {
+						"actor": "a_he",
+						"details": {
+							"reason": "duty",
+							"status": "accepted",
+							"task": "deliver_wood"
+						},
+						"direct": true,
+						"id": "event_1",
+						"kind": "request",
+						"source": "lao_zhou",
+						"target": "lao_zhou",
+						"tick": 0.0
+					},
+					"event_2": {
+						"actor": "lao_zhou",
+						"details": {
+							"amount": 3.0,
+							"item": "wood"
+						},
+						"direct": true,
+						"id": "event_2",
+						"kind": "picked_up",
+						"source": "lao_zhou",
+						"target": "",
+						"tick": 0.0
+					},
+					"event_4": {
+						"actor": "shi_tou",
+						"details": {
+							"task": "check_kitchen",
+							"work_credit": 0.0
+						},
+						"direct": true,
+						"id": "event_4",
+						"kind": "completed",
+						"source": "lao_zhou",
+						"target": "",
+						"tick": 2.0
+					},
+					"event_5": {
+						"actor": "lao_zhou",
+						"details": {
+							"task": "deliver_wood",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_5",
+						"kind": "completed",
+						"source": "lao_zhou",
+						"target": "",
+						"tick": 5.0
+					},
+					"event_6": {
+						"actor": "player",
+						"details": {
+							"task": "deliver_grain",
+							"work_credit": 0.0
+						},
+						"direct": true,
+						"id": "event_6",
+						"kind": "completed",
+						"source": "lao_zhou",
+						"target": "",
+						"tick": 5.0
+					},
+					"event_7": {
+						"actor": "a_he",
+						"details": {
+							"task": "cook",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_7",
+						"kind": "completed",
+						"source": "lao_zhou",
+						"target": "",
+						"tick": 8.0
+					}
+				},
+				"player": {
+					"event_1": {
+						"actor": "a_he",
+						"details": {
+							"status": "accepted",
+							"task": "deliver_wood"
+						},
+						"direct": true,
+						"id": "event_1",
+						"kind": "request",
+						"source": "player",
+						"target": "lao_zhou",
+						"tick": 0.0
+					},
+					"event_10": {
+						"actor": "shi_tou",
+						"details": {
+							"task": "deliver_water",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_10",
+						"kind": "completed",
+						"source": "player",
+						"target": "",
+						"tick": 19.0
+					},
+					"event_11": {
+						"actor": "chen_shouzhuo",
+						"details": {
+							"amount": 2.0
+						},
+						"direct": true,
+						"id": "event_11",
+						"kind": "registered",
+						"source": "player",
+						"target": "a_he",
+						"tick": 20.0
+					},
+					"event_12": {
+						"actor": "chen_shouzhuo",
+						"details": {
+							"task": "inspect",
+							"work_credit": 0.0
+						},
+						"direct": true,
+						"id": "event_12",
+						"kind": "completed",
+						"source": "player",
+						"target": "",
+						"tick": 20.0
+					},
+					"event_13": {
+						"actor": "player",
+						"details": {
+							"task": "deliver_wood",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_13",
+						"kind": "completed",
+						"source": "player",
+						"target": "",
+						"tick": 20.0
+					},
+					"event_15": {
+						"actor": "player",
+						"details": {
+							"task": "report",
+							"work_credit": 0.0
+						},
+						"direct": true,
+						"id": "event_15",
+						"kind": "completed",
+						"source": "player",
+						"target": "",
+						"tick": 37.0
+					},
+					"event_16": {
+						"actor": "chen_shouzhuo",
+						"details": {
+							"amount": 2.0
+						},
+						"direct": true,
+						"id": "event_16",
+						"kind": "registered",
+						"source": "player",
+						"target": "player",
+						"tick": 37.0
+					},
+					"event_3": {
+						"actor": "player",
+						"details": {
+							"amount": 4.0,
+							"item": "grain"
+						},
+						"direct": true,
+						"id": "event_3",
+						"kind": "picked_up",
+						"source": "player",
+						"target": "",
+						"tick": 0.0
+					},
+					"event_4": {
+						"actor": "shi_tou",
+						"details": {
+							"task": "check_kitchen",
+							"work_credit": 0.0
+						},
+						"direct": true,
+						"id": "event_4",
+						"kind": "completed",
+						"source": "player",
+						"target": "",
+						"tick": 2.0
+					},
+					"event_5": {
+						"actor": "lao_zhou",
+						"details": {
+							"task": "deliver_wood",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_5",
+						"kind": "completed",
+						"source": "player",
+						"target": "",
+						"tick": 5.0
+					},
+					"event_6": {
+						"actor": "player",
+						"details": {
+							"task": "deliver_grain",
+							"work_credit": 0.0
+						},
+						"direct": true,
+						"id": "event_6",
+						"kind": "completed",
+						"source": "player",
+						"target": "",
+						"tick": 5.0
+					},
+					"event_8": {
+						"actor": "shi_tou",
+						"details": {
+							"amount": 4.0,
+							"item": "water"
+						},
+						"direct": true,
+						"id": "event_8",
+						"kind": "picked_up",
+						"source": "player",
+						"target": "",
+						"tick": 14.0
+					},
+					"event_9": {
+						"actor": "player",
+						"details": {
+							"amount": 3.0,
+							"item": "wood"
+						},
+						"direct": true,
+						"id": "event_9",
+						"kind": "picked_up",
+						"source": "player",
+						"target": "",
+						"tick": 15.0
+					}
+				},
+				"shi_tou": {
+					"event_10": {
+						"actor": "shi_tou",
+						"details": {
+							"task": "deliver_water",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_10",
+						"kind": "completed",
+						"source": "shi_tou",
+						"target": "",
+						"tick": 19.0
+					},
+					"event_11": {
+						"actor": "chen_shouzhuo",
+						"details": {
+							"amount": 2.0
+						},
+						"direct": true,
+						"id": "event_11",
+						"kind": "registered",
+						"source": "shi_tou",
+						"target": "a_he",
+						"tick": 20.0
+					},
+					"event_12": {
+						"actor": "chen_shouzhuo",
+						"details": {
+							"task": "inspect",
+							"work_credit": 0.0
+						},
+						"direct": true,
+						"id": "event_12",
+						"kind": "completed",
+						"source": "shi_tou",
+						"target": "",
+						"tick": 20.0
+					},
+					"event_13": {
+						"actor": "player",
+						"details": {
+							"task": "deliver_wood",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_13",
+						"kind": "completed",
+						"source": "shi_tou",
+						"target": "",
+						"tick": 20.0
+					},
+					"event_14": {
+						"actor": "chen_shouzhuo",
+						"details": {
+							"amount": 2.0
+						},
+						"direct": true,
+						"id": "event_14",
+						"kind": "registered",
+						"source": "shi_tou",
+						"target": "shi_tou",
+						"tick": 31.0
+					},
+					"event_15": {
+						"actor": "player",
+						"details": {
+							"task": "report",
+							"work_credit": 0.0
+						},
+						"direct": true,
+						"id": "event_15",
+						"kind": "completed",
+						"source": "shi_tou",
+						"target": "",
+						"tick": 37.0
+					},
+					"event_16": {
+						"actor": "chen_shouzhuo",
+						"details": {
+							"amount": 2.0
+						},
+						"direct": true,
+						"id": "event_16",
+						"kind": "registered",
+						"source": "shi_tou",
+						"target": "player",
+						"tick": 37.0
+					},
+					"event_2": {
+						"actor": "lao_zhou",
+						"details": {
+							"amount": 3.0,
+							"item": "wood"
+						},
+						"direct": true,
+						"id": "event_2",
+						"kind": "picked_up",
+						"source": "shi_tou",
+						"target": "",
+						"tick": 0.0
+					},
+					"event_4": {
+						"actor": "shi_tou",
+						"details": {
+							"task": "check_kitchen",
+							"work_credit": 0.0
+						},
+						"direct": true,
+						"id": "event_4",
+						"kind": "completed",
+						"source": "shi_tou",
+						"target": "",
+						"tick": 2.0
+					},
+					"event_5": {
+						"actor": "lao_zhou",
+						"details": {
+							"task": "deliver_wood",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_5",
+						"kind": "completed",
+						"source": "shi_tou",
+						"target": "",
+						"tick": 5.0
+					},
+					"event_6": {
+						"actor": "player",
+						"details": {
+							"task": "deliver_grain",
+							"work_credit": 0.0
+						},
+						"direct": true,
+						"id": "event_6",
+						"kind": "completed",
+						"source": "shi_tou",
+						"target": "",
+						"tick": 5.0
+					},
+					"event_7": {
+						"actor": "a_he",
+						"details": {
+							"task": "cook",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_7",
+						"kind": "completed",
+						"source": "shi_tou",
+						"target": "",
+						"tick": 8.0
+					},
+					"event_8": {
+						"actor": "shi_tou",
+						"details": {
+							"amount": 4.0,
+							"item": "water"
+						},
+						"direct": true,
+						"id": "event_8",
+						"kind": "picked_up",
+						"source": "shi_tou",
+						"target": "",
+						"tick": 14.0
+					}
+				},
+				"su_zhi": {
+					"event_1": {
+						"actor": "a_he",
+						"details": {
+							"status": "accepted",
+							"task": "deliver_wood"
+						},
+						"direct": true,
+						"id": "event_1",
+						"kind": "request",
+						"source": "su_zhi",
+						"target": "lao_zhou",
+						"tick": 0.0
+					},
+					"event_10": {
+						"actor": "shi_tou",
+						"details": {
+							"task": "deliver_water",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_10",
+						"kind": "completed",
+						"source": "su_zhi",
+						"target": "",
+						"tick": 19.0
+					},
+					"event_13": {
+						"actor": "player",
+						"details": {
+							"task": "deliver_wood",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_13",
+						"kind": "completed",
+						"source": "su_zhi",
+						"target": "",
+						"tick": 20.0
+					},
+					"event_4": {
+						"actor": "shi_tou",
+						"details": {
+							"task": "check_kitchen",
+							"work_credit": 0.0
+						},
+						"direct": true,
+						"id": "event_4",
+						"kind": "completed",
+						"source": "su_zhi",
+						"target": "",
+						"tick": 2.0
+					},
+					"event_5": {
+						"actor": "lao_zhou",
+						"details": {
+							"task": "deliver_wood",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_5",
+						"kind": "completed",
+						"source": "su_zhi",
+						"target": "",
+						"tick": 5.0
+					},
+					"event_6": {
+						"actor": "player",
+						"details": {
+							"task": "deliver_grain",
+							"work_credit": 0.0
+						},
+						"direct": true,
+						"id": "event_6",
+						"kind": "completed",
+						"source": "su_zhi",
+						"target": "",
+						"tick": 5.0
+					},
+					"event_7": {
+						"actor": "a_he",
+						"details": {
+							"task": "cook",
+							"work_credit": 2.0
+						},
+						"direct": true,
+						"id": "event_7",
+						"kind": "completed",
+						"source": "su_zhi",
+						"target": "",
+						"tick": 8.0
+					}
+				}
+			},
+			"next_event_id": 17,
+			"next_request_id": 2,
+			"outcome_effects": {
+				"betrayed": [
+					-0.05,
+					-0.05
+				],
+				"broke_promise": [
+					-0.1,
+					-0.05
+				],
+				"completed": [
+					0.05,
+					0.05
+				],
+				"failed": [
+					0.0,
+					0.0
+				],
+				"fulfilled": [
+					0.05,
+					0.04
+				],
+				"helped": [
+					0.05,
+					0.05
+				],
+				"kept_promise": [
+					0.05,
+					0.05
+				],
+				"refused": [
+					0.0,
+					0.0
+				]
+			},
+			"relationships": {
+				"a_he": {
+					"lao_zhou": {
+						"affinity": 0.04,
+						"history": [
+							{
+								"event_id": "event_5",
+								"outcome": "fulfilled",
+								"source": "a_he"
+							}
+						],
+						"reliability": 0.55
+					}
+				},
+				"chen_shouzhuo": {},
+				"lao_zhou": {},
+				"player": {},
+				"shi_tou": {},
+				"su_zhi": {}
+			},
+			"requests": {
+				"{\"context\":{\"affinity\":0,\"benevolence\":0.3,\"busy\":0,\"distance\":0.5,\"duty\":1,\"energy\":0.2,\"offer\":0,\"reliability\":0.5,\"risk\":0,\"terms\":{\"amount\":3,\"item\":\"wood\",\"occasion\":\"situation:1\"}},\"policy\":{\"accept_threshold\":0.42,\"bias\":0.05,\"context_step\":0.05,\"uncertainty_band\":0.05,\"weights\":{\"affinity\":0.1,\"benevolence\":0.3,\"busy\":-0.7,\"distance\":-0.15,\"duty\":0.25,\"energy\":0.3,\"offer\":0.3,\"reliability\":0.15,\"risk\":-0.8}},\"requester\":\"a_he\",\"responder\":\"lao_zhou\",\"task\":\"deliver_wood\"}": {
+					"chance": 0.8000000000000008,
+					"context": {
+						"affinity": 0.0,
+						"benevolence": 0.30000000000000004,
+						"busy": 0.0,
+						"distance": 0.5,
+						"duty": 1.0,
+						"energy": 0.2,
+						"offer": 0.0,
+						"reliability": 0.5,
+						"risk": 0.0,
+						"terms": {
+							"amount": 3.0,
+							"item": "wood",
+							"occasion": "situation:1"
+						}
+					},
+					"id": "request_1",
+					"policy": {
+						"accept_threshold": 0.42,
+						"bias": 0.05,
+						"context_step": 0.05,
+						"uncertainty_band": 0.05,
+						"weights": {
+							"affinity": 0.1,
+							"benevolence": 0.3,
+							"busy": -0.7,
+							"distance": -0.15,
+							"duty": 0.25,
+							"energy": 0.3,
+							"offer": 0.3,
+							"reliability": 0.15,
+							"risk": -0.8
+						}
+					},
+					"reason": "duty",
+					"reasons": [
+						"duty",
+						"benevolence",
+						"reliability"
+					],
+					"requester": "a_he",
+					"responder": "lao_zhou",
+					"roll": 0.6050356030464172,
+					"score": 0.45000000000000007,
+					"status": "accepted",
+					"task": "deliver_wood",
+					"tick": 0.0,
+					"uncertain": true
+				}
+			},
+			"version": 1
+		},
+		"tick_index": 42,
+		"version": 2
+	},
+	"world": {
+		"exploration": {
+			"encoding": "explored_runs_v1",
+			"runs": [
+				[
+					124674,
+					1
+				],
+				[
+					125182,
+					9
+				],
+				[
+					125692,
+					13
+				],
+				[
+					126202,
+					16
+				],
+				[
+					126712,
+					19
+				],
+				[
+					127223,
+					20
+				],
+				[
+					127734,
+					19
+				],
+				[
+					128246,
+					19
+				],
+				[
+					128757,
+					20
+				],
+				[
+					129269,
+					21
+				],
+				[
+					129781,
+					21
+				],
+				[
+					130293,
+					21
+				],
+				[
+					130804,
+					22
+				],
+				[
+					131317,
+					22
+				],
+				[
+					131829,
+					21
+				],
+				[
+					132341,
+					20
+				],
+				[
+					132853,
+					19
+				],
+				[
+					133366,
+					18
+				],
+				[
+					133880,
+					16
+				],
+				[
+					134393,
+					14
+				],
+				[
+					134906,
+					13
+				],
+				[
+					135419,
+					12
+				],
+				[
+					135933,
+					8
+				],
+				[
+					136448,
+					1
+				]
+			]
+		},
+		"generator": "reol_noise",
+		"generator_version": 1,
+		"seed": 20261101,
+		"size": 512
+	},
+	"world_seed": 20261101
+}

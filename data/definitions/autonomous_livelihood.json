@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "actor_definitions": ["shi_tou"],
+  "desired_item": "meal",
+  "desired_amount": 1,
+  "purchase_offer": "buy_meal",
+  "capability_claim": "pay_public",
+  "conversation_topic": "ways",
+  "backoff_ms": 3600000,
+  "search_actions": ["seek_records", "seek_garden"],
+  "visits": {
+    "seek_records": {"label": "到功德堂询问办事门路", "kind": "visit", "target": "records", "minutes": 1, "contribution": 0},
+    "seek_garden": {"label": "到药圃询问办事门路", "kind": "visit", "target": "garden", "minutes": 1, "contribution": 0}
+  }
+}

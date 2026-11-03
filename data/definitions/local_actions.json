@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "clock": {"fixed_step_ms": 50, "steps_per_frame": 80, "wait_minutes": 15, "view_transition_ms": 150},
+  "motion": {"speed": 240.0, "acceleration": 1800.0, "friction": 2600.0, "sweep_px": 12.0},
+  "sidestep": {"label": "闪身", "prepare_ms": 100, "travel_ms": 200, "recover_ms": 250, "speed": 600.0, "stamina": 8},
+  "recovery": {"delay_ms": 1000, "stamina_per_second": 8}
+}

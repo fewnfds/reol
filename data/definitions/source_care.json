@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "watch_action": "check_kitchen",
+  "observation_ms": 1000,
+  "revisit_ms": 1000,
+  "grace_ms": 90000,
+  "max_arrangements": 4,
+  "max_warnings": 128,
+  "max_explanations": 128,
+  "interaction_px": 128.0,
+  "policy": {
+    "bias": 0.05,
+    "accept_threshold": 0.15,
+    "uncertainty_band": 0.02,
+    "context_step": 0.20,
+    "weights": {"energy": 0.20, "reliability": 0.15, "affinity": 0.40, "risk": -0.40}
+  },
+  "labels": {
+    "arrangement": "照看灶旁公源与原温石",
+    "warning": "我还没核到这次的借用依据。请先停下引息，或当面说明；宽限后还这样，我会设法请你退开。",
+    "unauthenticated": "口头声称这次已获准（没有可转述的签发依据）",
+    "accepted": "对方采信了这次说明，暂不再阻拦；这不是重新签发许可。",
+    "refused": "对方听到了，但还没有采信这次借用依据；原宽限不会重新开始。"
+  }
+}

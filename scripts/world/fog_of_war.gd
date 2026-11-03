@@ -1,5 +1,6 @@
 class_name FogOfWar
 extends Node2D
+signal visibility_updated
 ## Per-cell fog of war: HIDDEN / EXPLORED / VISIBLE.
 ##
 ## One 512x512 texture is stretched over the region; each pixel is one cell.
@@ -9,6 +10,7 @@ extends Node2D
 const STATE_HIDDEN: int = 0
 const STATE_EXPLORED: int = 1
 const STATE_VISIBLE: int = 2
+const EXPLORATION_ENCODING: String = "explored_runs_v1"
 
 const VISION_RADIUS: int = 10
 const UPDATE_INTERVAL: float = 0.1
@@ -26,11 +28,15 @@ var _texture: ImageTexture
 var _sprite: Sprite2D
 var _accumulator: float = 0.0
 var _active: bool = false
+var _visibility_dirty: bool = true
+var _observer_altitude: int = 0
+var _observer_radius: int = VISION_RADIUS
 
 
 func setup(world_ref: ReolWorld, start_cell: Vector2i) -> void:
 	world = world_ref
 	_focus_cell = start_cell
+	_visibility_dirty = true
 	_states.resize(ReolWorld.WORLD_SIZE * ReolWorld.WORLD_SIZE)
 	_states.fill(STATE_HIDDEN)
 
@@ -57,14 +63,31 @@ func setup(world_ref: ReolWorld, start_cell: Vector2i) -> void:
 
 
 func set_focus(cell: Vector2i) -> void:
+	if _focus_cell == cell:
+		return
 	_focus_cell = cell
+	_visibility_dirty = true
+
+
+func set_observer(altitude: int, radius: int) -> void:
+	altitude = clampi(altitude, 0, 2)
+	radius = clampi(radius, 1, VISION_RADIUS)
+	if altitude != _observer_altitude or radius != _observer_radius:
+		_observer_altitude = altitude
+		_observer_radius = radius
+		_visibility_dirty = true
+
+
+func invalidate_visibility() -> void:
+	# Future terrain/occluder edits can invalidate a stationary observer explicitly.
+	_visibility_dirty = true
 
 
 func _process(delta: float) -> void:
 	if not _active:
 		return
 	_accumulator += delta
-	if _accumulator < UPDATE_INTERVAL:
+	if _accumulator < UPDATE_INTERVAL or not _visibility_dirty:
 		return
 	_accumulator = 0.0
 	update_now()
@@ -73,12 +96,13 @@ func _process(delta: float) -> void:
 func update_now() -> void:
 	if world == null or _image == null:
 		return
+	_visibility_dirty = false
 
 	_clear_visible()
-	var origin_elevation: int = world.get_elevation(_focus_cell)
-	for dy in range(-VISION_RADIUS, VISION_RADIUS + 1):
-		for dx in range(-VISION_RADIUS, VISION_RADIUS + 1):
-			if dx * dx + dy * dy > VISION_RADIUS * VISION_RADIUS:
+	var origin_elevation: int = world.get_elevation(_focus_cell) + _observer_altitude
+	for dy in range(-_observer_radius, _observer_radius + 1):
+		for dx in range(-_observer_radius, _observer_radius + 1):
+			if dx * dx + dy * dy > _observer_radius * _observer_radius:
 				continue
 			var cell := _focus_cell + Vector2i(dx, dy)
 			if not _in_bounds(cell):
@@ -91,6 +115,7 @@ func update_now() -> void:
 			_visible_cells.append(cell)
 
 	_texture.update(_image)
+	visibility_updated.emit()
 
 
 func is_cell_visible(cell: Vector2i) -> bool:
@@ -109,6 +134,67 @@ func get_state(cell: Vector2i) -> int:
 	if not _in_bounds(cell) or _states.is_empty():
 		return STATE_HIDDEN
 	return _states[_index(cell)]
+
+
+static func empty_exploration() -> Dictionary:
+	return {"encoding": EXPLORATION_ENCODING, "runs": []}
+
+
+func exploration_to_dict() -> Dictionary:
+	# Persist memory only. Current visibility is derived from the restored focus.
+	var runs: Array = []
+	var start: int = -1
+	for index in _states.size():
+		if _states[index] != STATE_HIDDEN:
+			if start < 0:
+				start = index
+		elif start >= 0:
+			runs.append([start, index - start])
+			start = -1
+	if start >= 0:
+		runs.append([start, _states.size() - start])
+	return {"encoding": EXPLORATION_ENCODING, "runs": runs}
+
+
+static func is_valid_exploration(data: Variant) -> bool:
+	if not data is Dictionary or data.size() != 2 or data.get("encoding") != EXPLORATION_ENCODING or not data.get("runs") is Array:
+		return false
+	var size: int = ReolWorld.WORLD_SIZE * ReolWorld.WORLD_SIZE
+	if data.runs.size() > size:
+		return false
+	var previous_end: int = -1
+	for run: Variant in data.runs:
+		if not run is Array or run.size() != 2:
+			return false
+		for component: Variant in run:
+			if not (component is int or component is float) or not is_finite(float(component)):
+				return false
+			if float(component) < 0.0 or float(component) > size or float(component) != floorf(float(component)):
+				return false
+		var start: int = int(run[0])
+		var length: int = int(run[1])
+		# Sorted, separated runs form one canonical, bounded representation.
+		if length < 1 or start <= previous_end or start + length > size:
+			return false
+		previous_end = start + length
+	return true
+
+
+func restore_exploration(data: Dictionary, focus: Vector2i) -> bool:
+	if not _active or not is_valid_exploration(data) or not _in_bounds(focus):
+		return false
+	_states.fill(STATE_HIDDEN)
+	_visible_cells.clear()
+	_image.fill(COLOR_HIDDEN)
+	for run: Array in data.runs:
+		for index in range(int(run[0]), int(run[0]) + int(run[1])):
+			_states[index] = STATE_EXPLORED
+			var y: int = floori(float(index) / ReolWorld.WORLD_SIZE)
+			_image.set_pixel(index % ReolWorld.WORLD_SIZE, y, COLOR_EXPLORED)
+	_focus_cell = focus
+	_accumulator = 0.0
+	update_now()
+	return true
 
 
 func _clear_visible() -> void:

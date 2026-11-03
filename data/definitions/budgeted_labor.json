@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "max_contracts": 256,
+  "deadline_ms": 7200000,
+  "claim_minutes": 2,
+  "cash_container": "records",
+  "coin": "coin",
+  "permission": "pay",
+  "offers": {
+    "deliver_wood": {"label": "送柴一趟 · 验收后2钱", "action": "deliver_wood", "coins": 2},
+    "deliver_water": {"label": "挑水一趟 · 验收后2钱", "action": "deliver_water", "coins": 2}
+  }
+}

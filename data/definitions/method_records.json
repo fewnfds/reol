@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "material": "wood",
+  "cost": 1,
+  "write_minutes": 2,
+  "read_minutes": 1,
+  "handling_minutes": 1,
+  "interaction_cells": 3,
+  "observation_cells": 8,
+  "policy": {"bias": 0.0, "accept_threshold": 0.35, "uncertainty_band": 0.03, "context_step": 0.05, "weights": {"energy": 0.2, "busy": -1.0, "distance": -0.1, "risk": -0.3, "duty": 0.2, "offer": 0.0, "benevolence": 0.3, "reliability": 0.15, "affinity": 0.3}}
+}

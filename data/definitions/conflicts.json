@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "step_ms": 50,
+  "max_duration_ms": 90000,
+  "engage_radius": 320.0,
+  "leash_radius": 960.0,
+  "reaction_ms": 600,
+  "stagger_ms": 250,
+  "stop_stamina": 16,
+  "lesson_ms": 60000,
+  "lesson_radius": 128.0,
+  "ai_speed_fraction": 0.55,
+  "ai_pause_ms": 450,
+  "ai_ranged_spacing": 190.0,
+  "ai_melee_spacing": 75.0,
+  "cover_sample_px": 8.0,
+  "sight_radius": 448.0,
+  "last_seen_ms": 4000,
+  "last_seen_arrival_px": 16.0,
+  "threat_margin_px": 24.0,
+  "projectile_radius": 15.0,
+  "retreat_distance": 128.0,
+  "backgrounds": {
+    "chen_shouzhuo": ["sword", "qi_bolt", "qi_guard"],
+    "shi_tou": ["sword", "qi_bolt", "qi_guard"],
+    "su_zhi": ["qi_guard"]
+  },
+  "methods": {
+    "sword": {"label": "木剑横斩", "kind": "melee", "prepare_ms": 300, "contact_ms": 100, "recover_ms": 350, "qi": 0, "stamina": 7, "impact": 12, "pressure": 14, "reach": 104.0, "half_angle_degrees": 60.0},
+    "qi_bolt": {"label": "凝气弹", "kind": "projectile", "prepare_ms": 500, "contact_ms": 50, "recover_ms": 450, "qi": 3, "stamina": 2, "impact": 12, "pressure": 10, "reach": 576.0, "speed": 440.0},
+    "qi_guard": {"label": "护身气障", "kind": "barrier", "prepare_ms": 150, "contact_ms": 50, "recover_ms": 300, "qi": 3, "stamina": 2, "capacity": 12, "duration_ms": 2400}
+  }
+}

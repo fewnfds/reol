@@ -25,12 +25,13 @@ func _draw() -> void:
 		0.0, float(altitude * ReolWorld.ALTITUDE_PX)
 	)
 
-	draw_circle(Vector2(0.0, 0.0) + ground_offset, 9.0, Color(0.0, 0.0, 0.0, 0.22))
-	draw_circle(Vector2(0.0, -8.0) + body_offset, 10.0, Color("#7fd1c7"))
-	draw_line(
-		Vector2(0.0, -4.0) + body_offset,
-		Vector2(0.0, 6.0) + body_offset,
-		Color("#e8e0d0"),
-		2.0
-	)
-	draw_circle(Vector2(0.0, -14.0) + body_offset, 3.0, Color("#e8e0d0"))
+	draw_set_transform(ground_offset + Vector2(0, 3), 0.0, Vector2(1.0, 0.4))
+	draw_circle(Vector2.ZERO, 11.0, Color(0.04, 0.08, 0.08, 0.25))
+	draw_set_transform(Vector2.ZERO)
+	draw_colored_polygon(PackedVector2Array([
+		body_offset + Vector2(-15, -6), body_offset + Vector2(0, -11),
+		body_offset + Vector2(15, -6), body_offset + Vector2(4, -1),
+		body_offset + Vector2(0, 6), body_offset + Vector2(-4, -1),
+	]), Color("#9dc9be"))
+	draw_line(body_offset + Vector2(-12, -6), body_offset + Vector2(12, -6), Color("#dce4cf"), 1.5)
+	draw_circle(body_offset + Vector2(0, -11), 3.0, Color("#edf0d9"))

@@ -1,0 +1,142 @@
+class_name NaturalWorldRuntime
+extends Node2D
+## Read-only local observation. Substrate affinities are not public qi gauges.
+
+const UI = preload("res://scripts/ui/reol_ui_theme.gd")
+var panel: PanelContainer
+var selected_cell: Vector2i = Vector2i(-1, -1)
+var _description: Label
+var _owner: WeakRef
+
+
+func setup(adapter: WorldContinuityRuntime) -> void:
+	_owner = weakref(adapter)
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	z_index = 7
+	var layer := CanvasLayer.new()
+	layer.layer = 6
+	add_child(layer)
+	var screen := Control.new()
+	layer.add_child(screen)
+	screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel = PanelContainer.new()
+	panel.name = "NaturalObservation"
+	panel.theme = UI.create()
+	panel.add_theme_stylebox_override("panel", UI.panel(UI.JADE))
+	screen.add_child(panel)
+	panel.position = Vector2(24, 144)
+	panel.custom_minimum_size = Vector2(340, 0)
+	var column := VBoxContainer.new()
+	panel.add_child(column)
+	UI.label(column, "山川草木 · 眼前所见", UI.GOLD, 19)
+	_description = UI.label(column, "", UI.PAPER, 14)
+	_description.custom_minimum_size = Vector2(318, 150)
+	_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	UI.label(column, "右键观察地面 · 只显示当前可见处", UI.MUTED, 12)
+	UI.button(column, "收起", panel.hide)
+	panel.hide()
+	adapter.avatar_changed.connect(reset_observation)
+	adapter.region_changed.connect(func(_id: String) -> void: reset_observation())
+	GameClock.time_advanced.connect(func(_from: int, _to: int) -> void: refresh())
+	adapter.home_runtime()._player.cell_changed.connect(refresh)
+	var fog: FogOfWar = adapter.home_runtime()._fog
+	if fog != null:
+		fog.visibility_updated.connect(refresh)
+	panel.visibility_changed.connect(queue_redraw)
+
+
+func runtime() -> WorldContinuityRuntime:
+	return _owner.get_ref() as WorldContinuityRuntime if _owner != null else null
+
+
+func reset_observation() -> void:
+	selected_cell = Vector2i(-1, -1)
+	panel.hide()
+	queue_redraw()
+
+
+func observe(cell: Vector2i) -> bool:
+	var adapter: WorldContinuityRuntime = runtime()
+	if adapter == null or adapter.soul_player_active() or not visible_cell(cell):
+		return false
+	selected_cell = cell
+	panel.show()
+	refresh()
+	return true
+
+
+func visible_cell(cell: Vector2i) -> bool:
+	var adapter: WorldContinuityRuntime = runtime()
+	if adapter == null or adapter.soul_player_active() or not adapter.world_sim.map_data.in_bounds(cell):
+		return false
+	var fog: FogOfWar = adapter.home_runtime()._fog
+	return fog.is_cell_visible(cell) if fog != null else cell.distance_to(adapter.controlled_cell()) <= 5.0
+
+
+func describe(cell: Vector2i) -> String:
+	if not visible_cell(cell):
+		return "此处已离开视野，眼下的情形无法确认。"
+	var adapter: WorldContinuityRuntime = runtime()
+	for region: VillageSimulation in adapter.world_sim.regions.values():
+		if SimWorkplaces.roofed(region.places, cell):
+			var layout: Dictionary = region.places.records.workspace
+			var line: String = "值事房 · 铺木地面\n墙体围合，屋面遮雨；画面采用剖开屋顶的视图。"
+			for id: String in layout.fixtures:
+				if SimRouteTravel.cell(layout.fixtures[id].cell) == cell:
+					line += "\n这里安置着%s。" % str(layout.fixtures[id].label)
+			if SimWorkplaces.blocked(region.places, cell):
+				line += "\n墙与桌柜占据实际空间，需要绕行。"
+			line += "\n办事要由有权的人回到桌前，依据机构记录核验。"
+			return line
+	var natural: Dictionary = adapter.world_sim.map_data.natural_cell(cell)
+	var line: String = str(natural.get("label", "地面"))
+	line += "\n土质%s，地势%s。" % ["丰厚" if int(natural.get("fertility", 0)) >= 60 else "瘠薄" if int(natural.get("fertility", 0)) < 35 else "平常", "敞露" if int(natural.get("exposure", 0)) >= 65 else "稍有遮蔽"]
+	line += "\n此地%s。" % ("近水，较易涵养水分" if int(natural.get("water_nearby", 0)) > 0 else "偏于干燥" if int(natural.get("moisture_potential", 0)) < 35 else "草木有适生的土壤")
+	var flora: Dictionary = natural.get("flora", {})
+	if not flora.is_empty():
+		line += "\n可见%s。" % ("青叶灌丛" if flora.id == "spirit_shrub" else str(flora.label))
+	line += "\n五行气机尚未辨明；地表草木不代表可用灵力。"
+	for region: VillageSimulation in adapter.world_sim.regions.values():
+		for source: String in region.land_resources.sources:
+			var place: String = str(region.config.resource_sources[source].place)
+			if SimRouteTravel.cell(region.places[place].cell) == cell:
+				line += "\n这里有%s，可按原有采集方式取用；有其实际储量。" % str(region.land_resources.terms_for(source).label)
+	var weather_region: String = SimClimateRules.region_at(adapter.home_runtime()._content.climate, cell)
+	if adapter.world_sim.weather.definitions.regions.has(weather_region) and adapter.world_sim.weather.current_kind(weather_region) == "rain" and not adapter.world_sim.construction.roofed(cell):
+		line += "\n眼前正落着雨。"
+	return line
+
+
+func refresh() -> void:
+	if panel == null or not panel.visible:
+		return
+	_description.text = describe(selected_cell)
+	queue_redraw()
+
+
+func cell_at_point(point: Vector2) -> Vector2i:
+	var map: WorldMapData = runtime().world_sim.map_data
+	for level: int in range(ReolWorld.ELEVATION_LEVELS - 1, -1, -1):
+		var cell: Vector2i = TileGrid.world_to_cell(point + Vector2(0, level * ReolWorld.ELEVATION_PX))
+		if map.in_bounds(cell) and map.get_elevation(cell) == level:
+			return cell
+	return Vector2i(-1, -1)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		var point: Vector2 = get_canvas_transform().affine_inverse() * event.position
+		if observe(cell_at_point(point)):
+			get_viewport().set_input_as_handled()
+	elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE and panel.visible:
+		panel.hide()
+		get_viewport().set_input_as_handled()
+
+
+func _draw() -> void:
+	if panel == null or not panel.visible or not visible_cell(selected_cell):
+		return
+	var point: Vector2 = TileGrid.cell_to_world(selected_cell)
+	point.y -= runtime().world_sim.map_data.get_elevation(selected_cell) * ReolWorld.ELEVATION_PX
+	draw_rect(Rect2(point - Vector2.ONE * TileGrid.TILE_SIZE * 0.5, Vector2.ONE * TileGrid.TILE_SIZE), Color("#c3bf91"), false, 2.0)

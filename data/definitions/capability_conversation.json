@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "minimum_energy": 15,
+  "topics": {"ways": "你平日能帮些什么？"},
+  "introduction": "平日这些事，我有些经验：",
+  "qualification": "这是我说的门路，眼下能不能办、愿不愿接，还得另谈。",
+  "statements": {
+    "manual_help": {"rule": "native_haul", "value": "haul", "line": "柴水搬运能搭把手，得看我手头的安排。"},
+    "kitchen_work": {"rule": "own_duty", "value": "cook", "line": "我平日照看灶上，会把米水下锅做饭，柴米还得备齐。"},
+    "material_check": {"rule": "practice", "value": "stonecraft", "line": "我修补过受热药炉，能辨些石材接缝；不等于懂得催动。"},
+    "herbal_meridian_care": {"rule": "practice", "value": "herbal_meridian_care", "line": "我学过用鲜药处理温石回卷后的经脉灼涩；须当面查看，你自己备药，敷好后还得休养。"},
+    "warm_stone": {"rule": "learned_base", "value": "warm_stone", "line": "我练过温石引流，可以试着看这类器物的用法。"},
+    "record_work": {"rule": "permission", "value": "record", "line": "我现任的差使可核簿记工，得凭实际交付。"},
+    "pay_public": {"rule": "permission", "value": "pay", "line": "我目前能代表公库签付款办理；有没有钱还要另核。"},
+    "issue_access": {"rule": "permission", "value": "authorize", "line": "我目前可受理通行登记，资格仍要按账核验。"}
+  },
+  "policy": {
+    "bias": 0.12,
+    "accept_threshold": 0.10,
+    "uncertainty_band": 0.03,
+    "context_step": 0.20,
+    "weights": {"energy": 0.25, "busy": -0.06, "benevolence": 0.20, "reliability": 0.10, "affinity": 0.60}
+  }
+}

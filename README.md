@@ -1,71 +1,54 @@
 # Reol
 
-一个 **Godot 4.7.2** 的 2D 正交俯视修仙开放世界沙盒 / 宗门模拟 / RPG 项目。
+Godot **4.7.2** / GDScript / 2D正交俯视的修仙开放世界沙盒。玩家是持续世界中的一员，可以选择生活、修行、创造、交往、冒险或组织他人。reol = reroll，源自 Dota Allstars 的 `/reroll`。
 
-> 当前阶段：M0 基座与工具链、M1 基础系统已完成；M2 宗门生活已开工（Pawn 数据包、5 个具名 NPC、点击选中面板）。
-> 游戏名 `reol` 暂为占位名。
+当前是 **M2系统原型**：双聚落持续生活、真实物资与办事、有限认知、几种生命短循环和宗门工地施工已接通；完整45–60分钟切片与完整游戏仍待完成。用户已再次恢复完整游戏Goal active；本轮的[自然地块与办事场所](docs/plans/natural_world_and_workplaces.md)已接地表/植被覆盖、普通山雀和固定构件值事房。长期方向仍为[超凡者优先](docs/plans/transcendent_focus.md)：普通生产先维持世界循环，优先战斗、装备/法器、功法/学习、冒险、组织与事件化远区。人身C提有限请求/商量劳动安排，也能向真实3×3山兽比划递食；M试验/传授温养办法及实际刻牍/阅读/携带交接，N画蓝图并实际施工/拆改。玩家离场后，NPC继续生活、劳动或阅读，山兽按同一完整占地活动。新局石头还会为自己的随身口粮找人问路、实际接活领薪和买饭；无预算时回原日常。
 
-## 先读什么
+## 先读这三份
 
-| 文件 | 作用 |
-|---|---|
-| `AGENTS.md` | AI 每个会话必读的开发手册（规则、架构、技能路由） |
-| `docs/GAME-BRIEF.md` | 游戏愿景、设计支柱、首个可玩版本的范围 |
-| `docs/ARCHITECTURE.md` | 目标技术架构（tick、区块、存档、AI、UI） |
-| `docs/ROADMAP.md` | 里程碑与第一冲刺任务 |
-| `docs/TOOLCHAIN.md` | Godot、MCP、测试工具的安装与排错 |
-| `docs/AI-WORKFLOW.md` | 如何与 AI 协作、任务拆解、验收 |
-| `docs/REFERENCES.md` | 工具、示例项目、插件、素材、学习资料 |
+U页现可回顾本人的学习/实践来源；亲学护障并完成真实行步练气后，原护障施法时可有限缓步。不是经验购点，资源和学习仍来自原世界。当前验收与限制见[U2-a](docs/qa/20261104_capability_network.md)及构建状态。
 
-## 快速开始
+- [游戏愿景与已拍板方向](docs/GAME-BRIEF.md)：游戏是什么、理念与边界。
+- [当前功能清单](docs/FEATURES.md)：现在能做什么、如何操作、哪些只是局部样本。
+- [当前构建状态](docs/BASELINE.md)：最新验证、存档兼容与未完成项。
 
-1. 确认 **Godot 4.7.2** 可用（本机：`D:\Tools\Godot\Godot_v4.7.2-stable_win64.exe`）。
-2. 确认环境变量 `GODOT_BIN` 指向该文件（新终端生效）。
-3. 运行环境诊断：
+最新[身体后果/实际救护](docs/qa/20261103_health_and_recovery.md)已接原温石反噬、C当面诊断/原鲜药处理与逐步休养，真实进行中完整重启已验；不是完整医疗或死亡系统。
 
-   ```bash
-   python tools/godot.py doctor
-   ```
+[历法/局地冷热首步](docs/qa/20261103_calendar_temperature.md)沿同一时间显示日期和四季，地区室外温度、实际衣着/湿润影响原精力；NPC可御寒加衣、晴热脱外层，真实穿衣中途完整重启保持同一未来。八向代码像素待机/行走/抬手已接，完整气候/室内热交换、五行/风水和全部动作动画仍待做。
 
-4. 打开项目：
+全部入口见[文档目录](docs/README.md)。本轮环境/五行/风水/建筑/组织/策略与AI交互的讨论整理见[世界与交互原则](design/systems/world_interaction_principles.md)。
 
-   ```bash
-   python tools/godot.py editor
-   ```
+## 运行与验证
 
-5. 在 Godot 中确认 **Godot AI** 插件已启用（`addons/godot_ai` 已随仓库提供），
-   在 dock 里点 **Configure** 配置 OpenCode。
-
-## 验证
+安装Godot 4.7.2并配置 `GODOT_BIN`，然后执行：
 
 ```bash
-python tools/godot.py import   # 首次导入资源
-python tools/godot.py test     # 无头测试
-python tools/godot.py check    # 导入 + 测试
-python tools/godot.py run      # 运行游戏
+python tools/godot.py doctor
+python tools/godot.py editor
+python tools/godot.py run
+python tools/godot.py check
+python tools/check_structure.py
+python -m unittest discover -s tests -p 'test_*.py'
 ```
 
-## 目录
+新开局选杂役、雀妖或戒中残识之一；不同身体有不同操作入口，详见[功能清单](docs/FEATURES.md)。
 
+Codex项目工具：`python tools/setup_codex.py`生成本机项目配置；Godot AI连接由编辑器dock的Configure → Codex生成。配置归属与MCP排错见[TOOLCHAIN](docs/TOOLCHAIN.md)，不要覆盖用户全局模型/权限配置。
+
+## 开发入口与目录
+
+[AGENTS](AGENTS.md)是开发规则，[ROADMAP](docs/ROADMAP.md)管理顺序，[ARCHITECTURE](docs/ARCHITECTURE.md)说明现有模块，[PROJECT-STRUCTURE](docs/PROJECT-STRUCTURE.md)规定文件职责。[长期方案](docs/plans/full_game_program.md)与[未来验收](docs/plans/full_game_acceptance.md)是目标，不代表功能已实现。
+
+```text
+scripts/   sim/规则、runtime/适配、persistence/文件、world/entities/ui
+scenes/    场景装配
+data/      definitions/内容规则、scenarios/开局装配
+assets/    美术、音频、字体与来源
+design/    systems/规则、research/研究
+docs/      状态、plans/工作包、qa/证据、archive/历史
+tests/     规则/整合/工具测试与真实旧档
+tools/     Godot脚本、MCP包装与本机配置
+addons/    第三方插件，不手改
 ```
-addons/    第三方插件（Godot AI 等）
-assets/    美术、音频、字体
-data/      游戏数据（Resource / JSON）
-docs/      设计、架构、工具链、参考
-design/    系统设计文档与模板
-scenes/    场景
-scripts/   脚本
-tests/     无头测试
-tools/     开发脚本与 MCP 包装
-```
 
-## 技能库
-
-项目内已内置 30+ 个 Godot / 游戏开发技能，位于 `.opencode/skills/`。
-AI 会按任务自动加载；也可以手动 `@skill-id`。技能来源与许可证见
-`THIRD_PARTY_NOTICES.md`。
-
-## 许可证
-
-项目代码尚未选择许可证。第三方技能、插件、示例项目的许可证见
-`THIRD_PARTY_NOTICES.md` 与 `docs/REFERENCES.md`。
+项目技能位于 `.agents/skills/`，Codex按任务加载；来源与许可见[第三方说明](THIRD_PARTY_NOTICES.md)。项目自身代码许可证尚未选择；资源候选不等于已获授权安装或使用。

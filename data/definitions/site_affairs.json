@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "max_notes": 128,
+  "max_checks": 256,
+  "max_announcements": 128,
+  "deadline_ms": 3600000,
+  "loan_minutes": 1,
+  "inspect_minutes": 1,
+  "register_minutes": 1,
+  "interaction_px": 128.0,
+  "offers": {
+    "source_once_body": {"label": "借地火隙引息归身一次", "case": "hearth_loan", "target": "body"},
+    "source_once_stone": {"label": "借地火隙温养原石一次", "case": "hearth_loan", "target": "stone"}
+  },
+  "labels": {
+    "inquiry": "公用地火隙借用安排",
+    "loan": "核簿签下一次借源",
+    "inspect": "赴灶旁查验公器复位",
+    "register": "回值事房登记核验",
+    "claim": "我已交回这块公用温石，请核验。",
+    "registered": "已核公器复位；申请人声称归还。"
+  },
+  "policy": {
+    "bias": 0.20,
+    "accept_threshold": 0.10,
+    "uncertainty_band": 0.03,
+    "context_step": 0.20,
+    "weights": {"energy": 0.35, "busy": -0.60, "duty": 0.20, "reliability": 0.10, "affinity": 0.15}
+  }
+}

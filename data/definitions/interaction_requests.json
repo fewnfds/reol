@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "communication_cells": 6,
+  "media": {
+    "spoken": "口头说明",
+    "gesture": "指物比划"
+  },
+  "human_media": [
+    "spoken",
+    "gesture"
+  ],
+  "bird_media": [
+    "gesture"
+  ],
+  "verbs": {
+    "explain_source": {
+      "label": "当面说明本次借源依据",
+      "object_kind": "care_basis",
+      "bird_understands": false
+    },
+    "ask_source_care": {
+      "label": "询问公源看护安排",
+      "object_kind": "care_arrangement",
+      "bird_understands": false
+    },
+    "withdraw_source_care": {
+      "label": "商量撤回公源看护",
+      "object_kind": "care_arrangement",
+      "bird_understands": false
+    },
+    "site_arrangement": {
+      "label": "询问公源借用安排",
+      "object_kind": "site_case",
+      "bird_understands": false
+    },
+    "borrow_source": {
+      "label": "申请一次具体借源",
+      "object_kind": "source_offer",
+      "bird_understands": false
+    },
+    "verify_return": {
+      "label": "声称已归还，请人核验",
+      "object_kind": "source_note",
+      "bird_understands": false
+    },
+    "converse": {
+      "label": "交流：询问能帮什么",
+      "object_kind": "conversation_topic",
+      "bird_understands": false
+    },
+    "diagnose": {
+      "label": "请看不适",
+      "object_kind": "body",
+      "bird_understands": false
+    },
+    "treat": {
+      "label": "请处理已查明的不适",
+      "object_kind": "body",
+      "bird_understands": false
+    },
+    "accept_labor": {
+      "label": "商量承接有薪差事",
+      "object_kind": "labor_offer",
+      "bird_understands": false
+    },
+    "claim_wage": {
+      "label": "请求验收并领取工钱",
+      "object_kind": "labor_contract",
+      "bird_understands": false
+    },
+    "offer_food": {
+      "label": "递出一份饭食",
+      "object_kind": "provisions",
+      "bird_understands": false
+    },
+    "examine": {
+      "label": "请对方辨看材料",
+      "object_kind": "artifact",
+      "bird_understands": false
+    },
+    "study": {
+      "label": "请对方探查用法",
+      "object_kind": "artifact",
+      "bird_understands": false
+    },
+    "fetch_herb": {
+      "label": "请对方从石隙取药",
+      "object_kind": "avian_site",
+      "bird_understands": true
+    },
+    "trade": {
+      "label": "商量本地钱货买卖",
+      "object_kind": "trade_offer",
+      "bird_understands": false
+    },
+    "watch_supply": {
+      "label": "商量一段照看供给的分工",
+      "object_kind": "work_plan",
+      "bird_understands": false
+    },
+    "withdraw_work": {
+      "label": "当面撤回照看安排",
+      "object_kind": "work_agreement",
+      "bird_understands": false
+    },
+    "field_clue": {
+      "label": "打听野外去处",
+      "object_kind": "field_question",
+      "bird_understands": false
+    }
+  },
+  "status_labels": {
+    "invalid": "事项不明",
+    "unheard": "尚未传达",
+    "not_understood": "未能理解",
+    "incapable": "无法这样做",
+    "unavailable": "眼下不便",
+    "refused": "没有答应",
+    "started": "开始办理",
+    "pending": "仍在办理",
+    "completed": "已听到结果",
+    "unconfirmed": "尚未确认",
+    "cancelled": "已经中断"
+  }
+}

@@ -11,10 +11,8 @@ var rank: RankDef
 var qi: int = 0
 var stamina: int = 0
 var hunger: float = MAX_NEED
-var fatigue: float = MAX_NEED
+var energy: float = MAX_NEED
 var mood: float = 60.0
-var contribution: int = 0
-var reputation: int = 0
 
 
 static func create(definition: PawnDef, db: ReolContentDB) -> PawnState:
@@ -27,8 +25,6 @@ static func create(definition: PawnDef, db: ReolContentDB) -> PawnState:
 		state.rank = db.get_rank(definition.rank_id)
 	state.qi = definition.max_qi
 	state.stamina = definition.max_stamina
-	if state.origin != null:
-		state.contribution = state.origin.starting_contribution
 	return state
 
 
@@ -77,32 +73,25 @@ func adjust_hunger(amount: float) -> void:
 	hunger = clampf(hunger + amount, 0.0, MAX_NEED)
 
 
-func adjust_fatigue(amount: float) -> void:
-	fatigue = clampf(fatigue + amount, 0.0, MAX_NEED)
+func adjust_energy(amount: float) -> void:
+	energy = clampf(energy + amount, 0.0, MAX_NEED)
 
 
 func adjust_mood(amount: float) -> void:
 	mood = clampf(mood + amount, 0.0, MAX_NEED)
 
 
-func add_contribution(amount: int) -> void:
-	contribution = maxi(0, contribution + amount)
-
-
-func add_reputation(amount: int) -> void:
-	reputation = maxi(0, reputation + amount)
-
-
-func can_promote_to(next_rank: RankDef) -> bool:
+func can_promote_to(next_rank: RankDef, recognized_contribution: int) -> bool:
 	if next_rank == null or rank == null:
 		return false
 	if next_rank.tier <= rank.tier:
 		return false
-	return contribution >= next_rank.required_contribution
+	return recognized_contribution >= next_rank.required_contribution
 
 
-func promote_to(next_rank: RankDef) -> bool:
-	if not can_promote_to(next_rank):
+func promote_to(next_rank: RankDef, recognized_contribution: int) -> bool:
+	# Called after the responsible institution approves. Eligibility is no approval.
+	if not can_promote_to(next_rank, recognized_contribution):
 		return false
 	rank = next_rank
 	return true

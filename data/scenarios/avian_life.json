@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "regions": {
+    "home": {
+      "bird": {"id": "moss_sparrow", "label": "青苔", "fullness": 48, "energy": 72},
+      "sites": {
+        "roost": {"type": "roost", "offset": [-2, -1]},
+        "seeds": {"type": "seeds", "offset": [-4, -2]},
+        "second_seeds": {"type": "seeds", "offset": [2, -3]},
+        "crevice": {"type": "crevice", "offset": [-7, 1]},
+        "second_crevice": {"type": "crevice", "offset": [6, -4]},
+        "garden": {"type": "garden", "place": "garden"}
+      }
+    },
+    "river": {
+      "bird": {"id": "reed_sparrow", "label": "芦花", "fullness": 54, "energy": 28},
+      "sites": {
+        "roost": {"type": "roost", "offset": [1, -2]},
+        "seeds": {"type": "seeds", "offset": [-2, -4]},
+        "second_seeds": {"type": "seeds", "offset": [3, -1]},
+        "crevice": {"type": "crevice", "offset": [-6, -3]},
+        "second_crevice": {"type": "crevice", "offset": [5, 3]},
+        "garden": {"type": "garden", "place": "garden"}
+      }
+    }
+  }
+}

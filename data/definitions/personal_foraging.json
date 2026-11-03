@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "actions": {
+    "keep_wood": {
+      "label": "自留拾柴",
+      "kind": "forage",
+      "resource": "woodlot",
+      "source": "store",
+      "item": "wood",
+      "amount": 3,
+      "minutes": 20,
+      "contribution": 0,
+      "public_action": "gather_wood"
+    },
+    "keep_grain": {
+      "label": "自留采粮",
+      "kind": "forage",
+      "resource": "meadow",
+      "source": "garden",
+      "item": "grain",
+      "amount": 4,
+      "minutes": 25,
+      "contribution": 0,
+      "public_action": "forage_grain"
+    },
+    "keep_water": {
+      "label": "自留汲泉",
+      "kind": "forage",
+      "resource": "spring",
+      "source": "well",
+      "item": "water",
+      "amount": 12,
+      "minutes": 10,
+      "contribution": 0,
+      "public_action": "draw_water"
+    },
+    "keep_herb": {
+      "label": "自留采药",
+      "kind": "forage",
+      "resource": "herb_slope",
+      "source": "garden",
+      "item": "herb",
+      "amount": 2,
+      "minutes": 25,
+      "contribution": 0,
+      "public_action": "gather_herb"
+    }
+  }
+}

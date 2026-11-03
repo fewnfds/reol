@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "calendar": {
+    "version": 1,
+    "days_per_month": 30,
+    "months_per_year": 12,
+    "seasons": ["春", "夏", "秋", "冬"],
+    "start_minutes": 480
+  },
+  "fallback_region": "home",
+  "regions": {
+    "home": {
+      "label": "青岚山地",
+      "bounds": [0, 0, 270, 512],
+      "base_tenths": 215,
+      "seasonal_curve": [[0, 0], [90, 90], [180, -10], [270, -180], [360, 0]],
+      "daily_curve": [[0, -20], [300, -25], [840, 30], [1440, -20]],
+      "weather_offsets": {"clear": 0, "rain": -20}
+    },
+    "river": {
+      "label": "河湾低地",
+      "bounds": [270, 0, 242, 512],
+      "base_tenths": 240,
+      "seasonal_curve": [[0, 0], [90, 80], [180, 0], [270, -150], [360, 0]],
+      "daily_curve": [[0, -10], [300, -15], [840, 20], [1440, -10]],
+      "weather_offsets": {"clear": 0, "rain": -15}
+    }
+  },
+  "human": {
+    "comfort_min_tenths": 180,
+    "comfort_max_tenths": 320,
+    "energy_scale": 1000000,
+    "energy_rate_per_degree": 10000,
+    "max_energy_rate": 200000,
+    "max_insulation_tenths": 120,
+    "insulation_heat_percent": 25
+  },
+  "garments": {
+    "plain_robe": {"insulation_tenths": 60, "wet_loss_percent": 50},
+    "indigo_robe": {"insulation_tenths": 60, "wet_loss_percent": 50},
+    "reed_cape": {"insulation_tenths": 20, "wet_loss_percent": 0}
+  }
+}

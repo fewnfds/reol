@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "vessels": [
+    {"id": "old_ring", "type": "sealed_ring", "region": "home", "container": "kitchen"}
+  ],
+  "residents": [
+    {"id": "yan_heng", "definition": "yan_heng", "vessel": "old_ring"}
+  ]
+}

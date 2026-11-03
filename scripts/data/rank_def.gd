@@ -1,6 +1,6 @@
 class_name RankDef
 extends RefCounted
-## Sect rank loaded from `data/ranks.json`.
+## Sect rank loaded from `data/definitions/ranks.json`.
 
 var id: StringName = &""
 var display_name: String = ""

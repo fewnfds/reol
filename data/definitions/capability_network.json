@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "nodes": {
+    "sword": {"label": "木剑横斩", "kind": "combat", "summary": "本人学过收放才会出招；实际木剑仍须取在手中。"},
+    "qi_bolt": {"label": "凝气弹", "kind": "combat", "summary": "起势、耗气与弹道各有真实过程；学会不等于此刻能施展。"},
+    "qi_guard": {"label": "护身气障", "kind": "combat", "summary": "本人起势形成有限护障；动作结束后原本即可带着余障走动。"},
+    "stone_channeling": {"label": "温石引流", "kind": "foundation", "summary": "循纹引流的亲身基础，与听人介绍、持有温石分别记录。"},
+    "heat_methods": {"label": "温养办法", "kind": "versioned_method", "summary": "只回顾本人拟过、读过或亲手验证的具体版本；草案不等于练成。"},
+    "record_steps": {"label": "木牍中的步骤", "kind": "written_steps", "summary": "拿到、亲自读完与实际练成分别成立；旧记录不会自动变成新版本。"},
+    "mobile_guard": {"label": "行气护身", "kind": "practice", "summary": "学会护障后完成真实行步练气，才可在原护障动作内有限缓步；不额外生成护盾。"}
+  },
+  "edges": [
+    {"from": "qi_guard", "to": "mobile_guard", "kind": "requirement", "label": "先会原护障，再亲自练习"},
+    {"from": "stone_channeling", "to": "heat_methods", "kind": "requirement", "label": "实际引流基础支撑温养试验"},
+    {"from": "record_steps", "to": "heat_methods", "kind": "records", "label": "记录具体版本的步骤，阅读不代替实践"},
+    {"from": "sword", "to": "qi_guard", "kind": "combination", "label": "可按原动作先后选择近身或自保"},
+    {"from": "qi_bolt", "to": "mobile_guard", "kind": "combination", "label": "弹道与护持可形成不同脱身选择"}
+  ]
+}

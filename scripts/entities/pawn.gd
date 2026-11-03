@@ -3,15 +3,23 @@ extends Node2D
 ## A named NPC placed in the world. Static data comes from PawnDef; runtime
 ## values live in PawnState so needs/jobs can mutate them later.
 
-const NAME_WIDTH: float = 96.0
-const NAME_SIZE: int = 12
+const Visuals = preload("res://scripts/entities/pawn_visuals.gd")
 
 var state: PawnState
 var cell: Vector2i = Vector2i.ZERO
 var pawn_id: StringName = &""
 var selected: bool = false
+var display_name_override: String = ""
+var visual_offset: Vector2 = Vector2.ZERO
+var caption_visible: bool = true
+var clothing_appearance: Dictionary = {}
+var appearance_pose: Dictionary = {}
 
 var _world: ReolWorld
+
+
+func _init() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
 
 func setup(
@@ -34,13 +42,28 @@ func set_selected(value: bool) -> void:
 	queue_redraw()
 
 
+func set_view_layout(layout: Dictionary) -> void:
+	visual_offset = layout.get("offset", Vector2.ZERO)
+	caption_visible = bool(layout.get("caption_visible", true))
+	queue_redraw()
+
+
 func selection_center() -> Vector2:
 	var elevation: int = 0
 	if _world != null:
 		elevation = _world.get_elevation(cell)
-	return global_position + Vector2(
+	return global_position + visual_offset + Vector2(
 		0.0, -float(elevation * ReolWorld.ELEVATION_PX) - 12.0
 	)
+
+
+func _process(_delta: float) -> void:
+	# Only presentation advances here; offscreen regions own no animation nodes.
+	if not is_visible_in_tree() or appearance_pose.is_empty():
+		return
+	if int(appearance_pose.get("time_ms", 0)) != GameClock.elapsed_ms:
+		appearance_pose.time_ms = GameClock.elapsed_ms
+		queue_redraw()
 
 
 func _draw() -> void:
@@ -49,37 +72,9 @@ func _draw() -> void:
 	var elevation: int = 0
 	if _world != null:
 		elevation = _world.get_elevation(cell)
-	var ground := Vector2(0.0, -float(elevation * ReolWorld.ELEVATION_PX))
+	var ground: Vector2 = visual_offset + Vector2(0.0, -float(elevation * ReolWorld.ELEVATION_PX))
 	var robe: Color = state.pawn_def.color
-
-	draw_circle(ground, 8.0, Color(0.0, 0.0, 0.0, 0.22))
-	draw_rect(
-		Rect2(ground + Vector2(-7.0, -10.0), Vector2(14.0, 20.0)),
-		robe
-	)
-	draw_circle(ground + Vector2(0.0, -15.0), 6.0, Color("#e6d3b3"))
-	if selected:
-		draw_arc(ground, 18.0, 0.0, TAU, 24, Color("#e8c86a"), 2.0)
-
-	var font: Font = ThemeDB.fallback_font
-	var text: String = state.display_name()
-	var text_pos: Vector2 = ground + Vector2(-NAME_WIDTH * 0.5, -30.0)
-	draw_string_outline(
-		font,
-		text_pos,
-		text,
-		HORIZONTAL_ALIGNMENT_CENTER,
-		NAME_WIDTH,
-		NAME_SIZE,
-		3,
-		Color(0.0, 0.0, 0.0, 0.85)
-	)
-	draw_string(
-		font,
-		text_pos,
-		text,
-		HORIZONTAL_ALIGNMENT_CENTER,
-		NAME_WIDTH,
-		NAME_SIZE,
-		Color("#e8e0d0")
-	)
+	var text: String = display_name_override if not display_name_override.is_empty() else state.display_name()
+	if not caption_visible and not selected:
+		text = ""
+	Visuals.draw_actor(self, ground, ground, robe, text, selected, false, clothing_appearance, appearance_pose)

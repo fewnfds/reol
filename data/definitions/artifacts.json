@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "interaction_radius": 2,
+  "autonomy": {"min_qi_reserve": 3},
+  "backgrounds": {
+    "kiln_repair": {"practice": "stonecraft", "line": "曾随药铺修补药炉，辨过受热石材的接缝。"},
+    "stone_handling": {"practice": "warm_stone_control", "line": "早年用过这一类温火石，知道细流循纹的手法。"}
+  },
+  "verbs": {
+    "inspect": {"label": "端详石头", "minutes": 1, "qi": 0},
+    "take": {"label": "取在手中", "minutes": 1, "qi": 0},
+    "place": {"label": "放回灶房", "minutes": 1, "qi": 0},
+    "study": {"label": "循纹探查", "minutes": 4, "qi": 1},
+    "heat": {"label": "试着催火", "minutes": 3, "qi": 2},
+    "charge": {"label": "注灵温养", "minutes": 2, "qi": 4},
+    "dry": {"label": "以石烘药", "minutes": 6, "qi": 2},
+    "examine": {"label": "辨看石材接缝", "minutes": 2, "qi": 0},
+    "force": {"label": "尝试强注灵气", "minutes": 2, "qi": 6},
+    "warm": {"label": "释热暖身", "minutes": 1, "qi": 0}
+  },
+  "types": {
+    "wooden_sword": {
+      "name": "练习木剑",
+      "unknown_name": "木剑",
+      "appearance": "一柄无刃木剑，木质剑身与护手相接，握柄缠着粗绳。",
+      "method": "握柄便于持剑，护手隔开手指与剑身；熟悉收放不等于已经学会出招与制敌的方法。",
+      "material_cue": "木质剑身、护手与握柄连成一体；这是器形线索，不是已学会剑法的证明。",
+      "capabilities": ["weapon"],
+      "storage_place": "dorm",
+      "actions": {
+        "inspect": {"label": "端详木剑", "minutes": 1, "qi": 0},
+        "take": {"label": "取在手中", "minutes": 1, "qi": 0},
+        "place": {"label": "放回住处", "minutes": 1, "qi": 0},
+        "study": {"label": "熟悉握持与收放", "minutes": 2, "qi": 0},
+        "examine": {"label": "辨看器形与木质", "minutes": 1, "qi": 0}
+      }
+    },
+    "drawing_ring": {
+      "name": "引物环",
+      "unknown_name": "灰纹铜环",
+      "appearance": "一枚细窄铜环，外缘磨得光滑，灰白纹路沿环身回折；它并非套在兵刃上的护手。",
+      "method": "你辨清了环身与回折外纹，记下它的器形。这还不是引动物件的手法，尚不能凭这些外纹遥取器物。",
+      "material_cue": "铜质环身嵌着灰白细纹，内缘有旧磨痕；外形不能说明它实际能做什么。",
+      "capabilities": ["remote_draw"],
+      "storage_place": "site:broken_stele",
+      "actions": {
+        "inspect": {"label": "端详纹环", "minutes": 1, "qi": 0},
+        "take": {"label": "取在手中", "minutes": 1, "qi": 0},
+        "place": {"label": "放回断碑台", "minutes": 1, "qi": 0},
+        "study": {"label": "辨认器形与外纹", "minutes": 2, "qi": 0},
+        "examine": {"label": "辨看环身材质", "minutes": 1, "qi": 0}
+      }
+    },
+    "warm_stone": {
+      "name": "温火石",
+      "unknown_name": "暗红石头",
+      "damage_max": 4,
+      "opening_damage": 1,
+      "unsafe_damage": 1,
+      "force_damage": 1,
+      "force_charge_gain": 10,
+      "force_backlash_stamina": 14,
+      "appearance": "一枚暗红石头，表面有细密纹路，颜色像凝固的余烬。",
+      "method": "细流循纹而入，可把余热导入锅底，也可在药圃烘干原草药；注灵能温养石芯。它供给热，仍须准备真实材料。",
+      "max_charge": 12,
+      "opening_charge": 6,
+      "heat_cost": 2,
+      "warming_charge": 1,
+      "charge_gain": 6,
+      "backlash_stamina": 8,
+      "workplace": "kitchen",
+      "inputs": {"grain": 2, "water": 1},
+      "outputs": {"meal": 6},
+      "credited_action": "cook",
+      "success_line": "以石代柴，锅中米水煮成了饭；成果已留在灶房。",
+      "failure_line": "锅中米水或腾放位置不足，这次没有做成饭；石中余热未耗掉。",
+      "uses": {
+        "dry": {"workplace": "garden", "heat_cost": 1, "inputs": {"herb": 2}, "outputs": {"dried_herb": 2}, "credited_action": "", "success_line": "原草药缓缓失去水气，两份干药已留在药圃；这份工艺记录不等于功德堂已经记功。", "failure_line": "原草药不足或腾放位置不够，烘药没有做成；石中余热未耗掉。"}
+      }
+    }
+  }
+}

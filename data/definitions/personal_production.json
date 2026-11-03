@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "pickup_ms": 30000,
+  "max_batches": 256,
+  "recipes": {
+    "cook_rations": {
+      "label": "私料煮饭",
+      "place": "kitchen",
+      "fuel": {"wood": 1},
+      "inputs": {"grain": 2, "water": 1},
+      "outputs": {"meal": 6},
+      "work_ms": 1200000
+    },
+    "dry_herbs": {
+      "label": "私料焙药",
+      "place": "garden",
+      "fuel": {"wood": 1},
+      "inputs": {"herb": 2},
+      "outputs": {"dried_herb": 2},
+      "work_ms": 360000
+    }
+  }
+}

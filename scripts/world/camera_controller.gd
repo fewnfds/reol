@@ -10,6 +10,7 @@ extends Camera2D
 var _world_rect: Rect2 = Rect2()
 var _focus_target: Node2D
 var _dragging: bool = false
+var follow_focus: bool = false
 
 
 func _ready() -> void:
@@ -32,7 +33,11 @@ func _process(delta: float) -> void:
 		"camera_left", "camera_right", "camera_up", "camera_down"
 	)
 	if direction != Vector2.ZERO:
+		follow_focus = false
 		global_position += direction.normalized() * pan_speed * delta / zoom.x
+		_clamp_to_world()
+	elif follow_focus and not _dragging and is_instance_valid(_focus_target):
+		global_position = _focus_target.global_position
 		_clamp_to_world()
 
 	if Input.is_action_just_pressed("zoom_in"):
@@ -50,6 +55,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		var mouse_button := event as InputEventMouseButton
 		if mouse_button.button_index == MOUSE_BUTTON_MIDDLE:
 			_dragging = mouse_button.pressed
+			if _dragging:
+				follow_focus = false
 	elif event is InputEventMouseMotion and _dragging:
 		var mouse_motion := event as InputEventMouseMotion
 		global_position -= mouse_motion.relative / zoom.x

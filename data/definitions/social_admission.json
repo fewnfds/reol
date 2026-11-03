@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "seed": 20261103,
+  "talk_cells": 4,
+  "scope": "gate",
+  "action": "collect_herb",
+  "grant_ms": 900000,
+  "actions": {"claim": 5000, "show_pass": 5000, "verify": 12000, "receipt": 5000},
+  "risk": 0.35,
+  "policy": {"bias": 0.15, "weights": {"benevolence": 0.4, "reliability": 0.35, "affinity": 0.1, "risk": -0.25}, "accept_threshold": 0.5, "uncertainty_band": 0.1, "context_step": 0.05}
+}

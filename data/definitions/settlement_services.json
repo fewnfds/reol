@@ -1,0 +1,149 @@
+{
+  "version": 1,
+  "move_minutes_per_cell": 3,
+  "work_energy_per_minute": 0.04,
+  "job_timeout": 1440,
+  "coin_item": "coin",
+  "returns": {
+    "label": "交回受托物资",
+    "minutes": 2
+  },
+  "visitor": {
+    "eat": {
+      "label": "在当地取食",
+      "place": "kitchen",
+      "minutes": 8,
+      "fee": 1,
+      "item": "meal",
+      "amount": 1,
+      "hunger_gain": 45
+    },
+    "rest": {
+      "label": "在当地借宿",
+      "place": "dorm",
+      "minutes": 60,
+      "fee": 1,
+      "energy_gain": 80
+    }
+  },
+  "hauling": {
+    "label": "领取运粮差事",
+    "route": "river_road",
+    "amount": 6,
+    "source_floor": 30,
+    "pickup_minutes": 4,
+    "unload_minutes": 4,
+    "credit": 3,
+    "credit_region": "home"
+  },
+  "report": {
+    "label": "向当地管事报工",
+    "place": "records",
+    "minutes": 4
+  },
+  "redemptions": {
+    "meal": {
+      "label": "用贡献领一份饭",
+      "place": "records",
+      "source": "kitchen",
+      "item": "meal",
+      "amount": 1,
+      "cost": 1,
+      "minutes": 4
+    }
+  },
+  "access": {
+    "gate": {
+      "label": "申请药圃通行",
+      "place": "records",
+      "required_contribution": 2,
+      "minutes": 4
+    }
+  },
+  "restricted_actions": {
+    "collect_herb": {
+      "label": "凭据入圃取药",
+      "scope": "gate",
+      "place": "garden",
+      "item": "herb",
+      "amount": 1,
+      "minutes": 5
+    }
+  },
+  "help": {
+    "minimum_fee": 2,
+    "rest_below": 35,
+    "talk_radius": 6,
+    "seed": 20261103,
+    "policy": {
+      "bias": 0.0,
+      "weights": {
+        "energy": 0.2,
+        "busy": -1.0,
+        "distance": -0.1,
+        "risk": -0.5,
+        "duty": 0.15,
+        "offer": 0.5,
+        "benevolence": 0.1,
+        "reliability": 0.1,
+        "affinity": 0.0
+      },
+      "accept_threshold": 0.5,
+      "uncertainty_band": 0.03,
+      "context_step": 0.05
+    }
+  },
+  "trade": {
+    "minutes": 2,
+    "max_lots": 5,
+    "cash_container": "records",
+    "permission": "pay",
+    "offers": {
+      "sell_dried_herb": {
+        "label": "卖干药（每份1干药/3钱）",
+        "direction": "sell",
+        "place": "garden",
+        "item": "dried_herb",
+        "amount": 1,
+        "coins": 3,
+        "stock_limit": 16
+      },
+      "buy_meal": {
+        "label": "买现饭（每份1饭/2钱）",
+        "direction": "buy",
+        "place": "kitchen",
+        "item": "meal",
+        "amount": 1,
+        "coins": 2,
+        "stock_limit": 2
+      },
+      "sell_herb": {
+        "label": "卖药草（每份1药/2钱）",
+        "direction": "sell",
+        "place": "garden",
+        "item": "herb",
+        "amount": 1,
+        "coins": 2,
+        "stock_limit": 24
+      },
+      "sell_wood": {
+        "label": "卖木料（每份3木/1钱）",
+        "direction": "sell",
+        "place": "store",
+        "item": "wood",
+        "amount": 3,
+        "coins": 1,
+        "stock_limit": 24
+      },
+      "sell_grain": {
+        "label": "卖粮食（每份4粮/1钱）",
+        "direction": "sell",
+        "place": "store",
+        "item": "grain",
+        "amount": 4,
+        "coins": 1,
+        "stock_limit": 48
+      }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 class_name OriginDef
 extends RefCounted
-## Starting background loaded from `data/origins.json`.
+## Starting background loaded from `data/definitions/origins.json`.
 
 var id: StringName = &""
 var display_name: String = ""

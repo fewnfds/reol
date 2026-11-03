@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "change_ms": 5000,
+  "handling_ms": 3000,
+  "interaction_cells": 2,
+  "dry_per_pulse": 8,
+  "wet_threshold": 60,
+  "wet_energy_per_minute": 0.03,
+  "types": {
+    "plain_robe": {"label": "粗布常服", "slot": "body", "shape": "robe", "color": "#827861", "rain_cover": false, "absorb_per_pulse": 15, "cue": "粗布交领，便于日常劳作；单凭衣着看不出身份。"},
+    "indigo_robe": {"label": "靛青常服", "slot": "body", "shape": "robe", "color": "#345b79", "rain_cover": false, "absorb_per_pulse": 15, "cue": "靛青交领，领缘齐整，像是为会客收拾过；这不能证明任职。"},
+    "reed_cape": {"label": "蓑衣", "slot": "outer", "shape": "cape", "color": "#99834e", "rain_cover": true, "absorb_per_pulse": 0, "cue": "草编披在肩背，能挡落雨，遮住了里面衣服的细节。"}
+  },
+  "opening": {
+    "robe": "plain_robe",
+    "spares": [
+      {"region": "home", "actor": "player", "type": "indigo_robe", "container": "dorm"},
+      {"region": "home", "actor": "player", "type": "reed_cape", "container": "dorm"},
+      {"region": "home", "actor": "lao_zhou", "type": "reed_cape", "container": "actor:lao_zhou"}
+    ]
+  }
+}

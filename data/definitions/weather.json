@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "phases": [
+    {"kind": "clear", "duration_ms": 1200000},
+    {"kind": "rain", "duration_ms": 600000},
+    {"kind": "clear", "duration_ms": 1800000},
+    {"kind": "rain", "duration_ms": 900000}
+  ],
+  "regions": {"home": {"offset_ms": 0}, "river": {"offset_ms": 300000}},
+  "wet_per_pulse": 12,
+  "dry_per_pulse": 5,
+  "wet_threshold": 30,
+  "wet_recovery": 1,
+  "rain_source_type": "spring",
+  "rain_source_per_pulse": 1
+}

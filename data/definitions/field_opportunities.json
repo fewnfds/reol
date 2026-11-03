@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "site": {
+    "id": "broken_stele",
+    "label": "断碑台",
+    "region": "home",
+    "container": "site:broken_stele",
+    "object": "stele_drawing_ring",
+    "object_definition": "drawing_ring",
+    "minimum_separation": 18,
+    "offsets": [[0, -28], [-24, -20], [24, -24], [0, 30], [-30, 0], [32, -12]]
+  },
+  "purpose": {"actor": "river_shi_tou", "return_place": "dorm", "delay_ms": 300000, "retry_ms": 120000},
+  "opening_knowers": ["chen_shouzhuo", "river_shi_tou"],
+  "navigation_radius": 64,
+  "navigation_budget": 16384,
+  "search_radius": 6,
+  "observation_cells": 5,
+  "observation_ms": 2000,
+  "interaction_px": 128,
+  "max_trips": 64,
+  "policy": {
+    "bias": 0.12, "accept_threshold": 0.10, "uncertainty_band": 0.03, "context_step": 0.20,
+    "weights": {"energy": 0.25, "busy": -0.30, "benevolence": 0.20, "reliability": 0.10, "affinity": 0.60}
+  },
+  "labels": {
+    "clue": "山外断碑台有枚旧环的传闻；这是旧闻，是否还在须亲自去看。",
+    "depart": "循着自己记得的旧闻，往断碑台寻物",
+    "return": "离开断碑台，回原住处歇脚",
+    "present": "亲眼看见断碑台上松置着一枚旧环。",
+    "empty": "亲眼看见断碑台原来的置物处已经空了；尚不知道是谁取走。"
+  }
+}

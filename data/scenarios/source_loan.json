@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "cases": [
+    {"id": "hearth_loan", "label": "灶旁公源与温石的一次借用", "region": "home", "institution": "sect", "office": "steward", "permission": "authorize", "source": "hearth_seam", "object": "hearth_stone", "return_place": "kitchen", "record_place": "records", "record_scope": "source_loan", "record_note": "本处公簿附页另记公器借用，不改贡献余额或器物归属。"}
+  ]
+}

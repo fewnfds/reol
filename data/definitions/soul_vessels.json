@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "interaction_cells": 2,
+  "observation_cells": 8,
+  "recovery_ms": 60000,
+  "verbs": {
+    "take": {
+      "label": "收起旧戒",
+      "ms": 1000,
+      "qi": 0,
+      "attention": 0
+    },
+    "place": {
+      "label": "放下旧戒",
+      "ms": 1000,
+      "qi": 0,
+      "attention": 0
+    },
+    "give": {
+      "label": "交接旧戒",
+      "ms": 5000,
+      "qi": 0,
+      "attention": 0
+    },
+    "wake": {
+      "label": "轻叩封纹传意",
+      "ms": 10000,
+      "qi": 1,
+      "attention": 2
+    },
+    "listen": {
+      "label": "听一段旧事",
+      "ms": 30000,
+      "qi": 0,
+      "attention": 2
+    },
+    "promise": {
+      "label": "答应带他看看药圃",
+      "ms": 5000,
+      "qi": 0,
+      "attention": 1
+    },
+    "fulfill": {
+      "label": "在药圃与他看草木",
+      "ms": 10000,
+      "qi": 0,
+      "attention": 1
+    },
+    "guide": {
+      "label": "请他指点并亲手试石",
+      "ms": 60000,
+      "qi": 1,
+      "attention": 8
+    },
+    "sleep": {
+      "label": "请他歇息",
+      "ms": 5000,
+      "qi": 0,
+      "attention": 0
+    },
+    "force": {
+      "label": "强行叩动封纹",
+      "ms": 5000,
+      "qi": 3,
+      "attention": 2
+    }
+  },
+  "vessel_types": {
+    "sealed_ring": {
+      "name": "封魂旧戒",
+      "unknown_name": "裂纹旧戒",
+      "appearance": "暗银指环上绕着断续的细纹，内圈有一道旧裂。",
+      "damage_max": 4,
+      "opening_damage": 1,
+      "force_damage": 1
+    }
+  },
+  "minds": {
+    "yan_heng": {
+      "name": "晏衡",
+      "energy_max": 24,
+      "opening_energy": 16,
+      "knowledge": [
+        "warm_stone_control",
+        "old_market"
+      ],
+      "goal_region": "home",
+      "goal_place": "garden",
+      "greeting": "我叫晏衡，只剩这点残识。先带我看看山门的药圃；我不愿一醒来便替人卖力。",
+      "old_memory": "三百年前，我在山脚旧集以温石烘药。那时的铺主姓柳；如今人事怎样，我没有消息。"
+    }
+  },
+  "lessons": {
+    "warm_stone_control": {
+      "artifact_definition": "warm_stone",
+      "line": "晏衡逐步指点，你亲手循纹试过细流，才掌握了温石导热与温养；强注仍可能伤石。"
+    }
+  },
+  "agency": {
+    "sense_cells": 3,
+    "actions": {
+      "wake": {
+        "ms": 1000,
+        "attention": 0
+      },
+      "observe": {
+        "ms": 10000,
+        "attention": 1
+      },
+      "call": {
+        "ms": 5000,
+        "attention": 2
+      },
+      "sleep": {
+        "ms": 5000,
+        "attention": 0
+      }
+    }
+  }
+}

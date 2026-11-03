@@ -1,10 +1,15 @@
 # Assets 约定
 
-> 先用占位，M4 再统一风格。不要让“找素材”阻塞玩法。
+2026-11-03用户确认正式复杂资源后置，先由代码生成像素示意支撑玩法；外部提示词保留但无需继续制作。现有人形样本可重复生成，仍遵守八向/非对称/共同动作合同，不把占位图称为正式美术。
+
+> 先用占位验证玩法；素材制作按实际工作包推进。目录职责见[项目文件架构](../docs/PROJECT-STRUCTURE.md)。
+> 新核查的素材/字体与许可流程见[完整资源研究](../design/research/full_game_reference_map.md)，Godot生态与具体音效/UI候选见[资源清单](../design/research/godot_resource_candidates.md)。正式批量资源在[长期方案](../docs/plans/full_game_program.md)玩法Alpha之后；开发中必要的可读反馈仍随玩法实现。
 
 ---
 
 ## 目录
+
+下面是新增素材时的归属约定，按需要创建，不代表当前已有这些素材。多个场景共用的资源放这里；只属于某个场景的小资源可以就近保存。
 
 ```
 assets/
@@ -65,7 +70,7 @@ assets/
 
 ### 字体
 - 只放需要的字重/字符集。
-- 中文字体文件很大；优先用系统字体/子集化。
+- 开发期可用系统回退字体；独立包必须验证中文覆盖，不能直接拷贝系统字体分发。正式字体选有分发许可的确切版本，子集化也检查许可与保留字体名。
 - 保留 OFL/LICENSE。
 
 ---
@@ -115,3 +120,7 @@ assets/third_party/kenney_topdown/
 - **OpenGameArt**：混合许可，逐项检查。
 
 先用纯色块也能做 M1；不要等美术。
+
+## 当前八向样本与外部制作
+
+原创代码生成的人形技术素材在[humanoid_sample](characters/humanoid_sample/README.md)，生成器与运行器合同已验但不是正式角色美术。用户外部模型使用[固定提示词包](../docs/art/character_generation/README.md)，原图先进入[候选接收区](../art_inbox/character_generation/README.md)，核方向/左右/alpha/脚点/来源及实机后才迁入发行素材。不覆盖已验技术样本、不从提示词推断已获得图像或商用授权。

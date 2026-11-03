@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "site": {"region": "home", "source": "store", "builders": ["player", "shi_tou"], "workers": ["shi_tou"], "width": 7, "height": 5, "source_cells": 14, "notice_cells": 18, "observe_cells": 18},
+  "check_ms": 60000,
+  "minimum_fullness": 35,
+  "minimum_energy": 30,
+  "operate_ms": 2000,
+  "pickup_ms": 1000,
+  "roof_span": 2,
+  "types": {
+    "wood_wall": {"label": "木墙", "kind": "wall", "item": "wood", "amount": 3, "work_ms": 180000, "demolish_ms": 60000, "salvage": 2, "door": false},
+    "wood_door": {"label": "木门", "kind": "door", "item": "wood", "amount": 4, "work_ms": 240000, "demolish_ms": 60000, "salvage": 2, "door": true},
+    "wood_bed": {"label": "木床", "kind": "bed", "item": "wood", "amount": 5, "work_ms": 180000, "demolish_ms": 60000, "salvage": 2, "door": false},
+    "wood_roof": {"label": "木屋面", "kind": "roof", "item": "wood", "amount": 4, "work_ms": 180000, "demolish_ms": 60000, "salvage": 2, "door": false}
+  }
+}

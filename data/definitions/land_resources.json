@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "types": {
+    "woodland": {"label": "林缘落枝", "item": "wood", "initial": 12, "capacity": 18, "regrow_ms": 3600000, "regrow_amount": 2, "description": "柴粮库后的林缘会积下落枝；捡拾、整理后才能带回。"},
+    "wild_grain": {"label": "野稗穗丛", "item": "grain", "initial": 12, "capacity": 24, "regrow_ms": 5400000, "regrow_amount": 3, "description": "药圃外沿的野稗分批结穗；采穗脱粒，才能作为粗粮。"},
+    "spring": {"label": "井下泉脉", "item": "water", "initial": 24, "capacity": 36, "regrow_ms": 1800000, "regrow_amount": 6, "description": "井下泉水缓慢回补，需汲取到井边水缸，再挑往灶房。"},
+    "wild_herbs": {
+      "label": "坡边野药", "item": "herb", "initial": 4, "capacity": 8,
+      "regrow_ms": 7200000, "regrow_amount": 1,
+      "description": "药圃附近的多年生野药靠土水与适宜冷暖长出新叶，采回后才进入药圃的保管。",
+      "ecology": {
+        "version": 1,
+        "sample_ms": 60000,
+        "temperature_min_tenths": 50,
+        "temperature_max_tenths": 350,
+        "default_temperature_tenths": 200,
+        "soil_capacity": 180000000,
+        "initial_water": 36000000,
+        "resume_water": 6000000,
+        "water_per_item": 60000000,
+        "rain_per_ms": 20,
+        "evaporation_per_ms": 1,
+        "uptake_per_ms": 4,
+        "growth_ms": 7200000,
+        "counter_limit": 9007199254740991
+      }
+    }
+  }
+}

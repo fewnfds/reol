@@ -1,0 +1,421 @@
+{
+  "schema_version": 1,
+  "seed": 20261102,
+  "navigation_radius": 24,
+  "navigation_budget": 4096,
+  "move_minutes_per_cell": 3,
+  "decision_interval": 12,
+  "retry_minutes": 30,
+  "request_interval": 60,
+  "talk_radius": 14,
+  "observation_radius": 5,
+  "history_limit": 240,
+  "action_timeout": 360,
+  "needs": {
+    "hunger_per_minute": 0.045,
+    "energy_per_minute": 0.025,
+    "work_energy_per_minute": 0.04,
+    "eat_below": 55,
+    "rest_below": 35
+  },
+  "place_defs": [
+    {
+      "id": "kitchen",
+      "label": "灶房",
+      "offset": [
+        -3,
+        -1
+      ]
+    },
+    {
+      "id": "store",
+      "label": "柴粮库",
+      "offset": [
+        5,
+        4
+      ]
+    },
+    {
+      "id": "dorm",
+      "label": "杂役院",
+      "offset": [
+        -4,
+        4
+      ]
+    },
+    {
+      "id": "well",
+      "label": "水井",
+      "offset": [
+        5,
+        -3
+      ]
+    },
+    {
+      "id": "garden",
+      "label": "药圃",
+      "offset": [
+        -5,
+        -3
+      ]
+    },
+    {
+      "id": "records",
+      "label": "功德堂",
+      "offset": [
+        2,
+        -3
+      ]
+    },
+    {
+      "id": "gate",
+      "label": "山门",
+      "offset": [
+        0,
+        6
+      ]
+    }
+  ],
+  "initial_stock": {
+    "store": {
+      "wood": 80,
+      "grain": 100
+    },
+    "kitchen": {
+      "wood": 0,
+      "grain": 6,
+      "water": 4,
+      "meal": 8
+    },
+    "well": {
+      "water": 100
+    },
+    "garden": {
+      "herb": 12
+    },
+    "dorm": {},
+    "records": {},
+    "gate": {}
+  },
+  "resource_sources": {
+    "woodlot": {
+      "definition": "woodland",
+      "place": "store"
+    },
+    "meadow": {
+      "definition": "wild_grain",
+      "place": "garden"
+    },
+    "spring": {
+      "definition": "spring",
+      "place": "well"
+    },
+    "herb_slope": {
+      "definition": "wild_herbs",
+      "place": "garden"
+    }
+  },
+  "actor_profiles": {
+    "player": {
+      "autonomous": false,
+      "hunger": 80,
+      "energy": 85
+    },
+    "chen_shouzhuo": {
+      "duty": "inspect",
+      "hunger": 85,
+      "energy": 90,
+      "benevolence": 0.25
+    },
+    "a_he": {
+      "duty": "cook",
+      "hunger": 70,
+      "energy": 80,
+      "benevolence": 0.8
+    },
+    "shi_tou": {
+      "duty": "deliver_water",
+      "hunger": 65,
+      "energy": 90,
+      "benevolence": 0.8
+    },
+    "su_zhi": {
+      "duty": "deliver_grain",
+      "hunger": 75,
+      "energy": 85,
+      "benevolence": 0.6
+    },
+    "lao_zhou": {
+      "duty": "deliver_wood",
+      "hunger": 70,
+      "energy": 28,
+      "benevolence": 0.3
+    }
+  },
+  "actions": {
+    "irrigate_herb": {"label": "浇灌野药", "kind": "irrigate", "target": "garden", "resource": "herb_slope", "item": "water", "amount": 1, "minutes": 2, "contribution": 0},
+    "seek_records": {"label": "到功德堂询问办事门路", "kind": "visit", "target": "records", "minutes": 1, "contribution": 0},
+    "seek_garden": {"label": "到药圃询问办事门路", "kind": "visit", "target": "garden", "minutes": 1, "contribution": 0},
+    "eat": {
+      "label": "取食",
+      "kind": "consume",
+      "source": "kitchen",
+      "item": "meal",
+      "amount": 1,
+      "minutes": 8,
+      "hunger_gain": 45
+    },
+    "rest": {
+      "label": "休息",
+      "kind": "rest",
+      "target": "dorm",
+      "minutes": 60,
+      "energy_gain": 80
+    },
+    "deliver_wood": {
+      "label": "送柴",
+      "kind": "haul",
+      "source": "store",
+      "target": "kitchen",
+      "item": "wood",
+      "amount": 3,
+      "minutes": 5,
+      "stock_below": 6,
+      "contribution": 2
+    },
+    "deliver_water": {
+      "label": "挑水",
+      "kind": "haul",
+      "source": "well",
+      "target": "kitchen",
+      "item": "water",
+      "amount": 4,
+      "minutes": 5,
+      "stock_below": 6,
+      "contribution": 2
+    },
+    "deliver_grain": {
+      "label": "运粮",
+      "kind": "haul",
+      "source": "store",
+      "target": "kitchen",
+      "item": "grain",
+      "amount": 4,
+      "minutes": 5,
+      "stock_below": 6,
+      "contribution": 2
+    },
+    "cook": {
+      "label": "做饭",
+      "kind": "recipe",
+      "target": "kitchen",
+      "inputs": {
+        "wood": 1,
+        "grain": 2,
+        "water": 1
+      },
+      "outputs": {
+        "meal": 6
+      },
+      "minutes": 20,
+      "stock_below": 12,
+      "contribution": 2
+    },
+    "inspect": {
+      "label": "巡视药圃",
+      "kind": "visit",
+      "target": "garden",
+      "minutes": 20
+    },
+    "check_kitchen": {
+      "label": "查看灶房",
+      "kind": "visit",
+      "target": "kitchen",
+      "minutes": 2
+    },
+    "report": {
+      "label": "到功德堂报工",
+      "kind": "visit",
+      "target": "records",
+      "minutes": 5
+    },
+    "gather_wood": {
+      "label": "拾落枝送回库",
+      "kind": "gather",
+      "resource": "woodlot",
+      "source": "store",
+      "target": "store",
+      "item": "wood",
+      "amount": 3,
+      "minutes": 20,
+      "stock_below": 12,
+      "contribution": 2,
+      "supports": "deliver_wood",
+      "survey": "check_store"
+    },
+    "forage_grain": {
+      "label": "采野稗送回库",
+      "kind": "gather",
+      "resource": "meadow",
+      "source": "garden",
+      "target": "store",
+      "item": "grain",
+      "amount": 4,
+      "minutes": 25,
+      "stock_below": 20,
+      "contribution": 2,
+      "supports": "deliver_grain",
+      "survey": "check_store"
+    },
+    "draw_water": {
+      "label": "汲泉补井边水缸",
+      "kind": "gather",
+      "resource": "spring",
+      "source": "well",
+      "target": "well",
+      "item": "water",
+      "amount": 12,
+      "minutes": 10,
+      "stock_below": 16,
+      "contribution": 2,
+      "supports": "deliver_water",
+      "survey": "check_well"
+    },
+    "gather_herb": {
+      "label": "采野药送回药圃",
+      "kind": "gather",
+      "resource": "herb_slope",
+      "source": "garden",
+      "target": "garden",
+      "item": "herb",
+      "amount": 2,
+      "minutes": 25,
+      "stock_below": 8,
+      "contribution": 1,
+      "supports": "inspect",
+      "survey": "check_garden"
+    },
+    "check_store": {
+      "label": "查看柴粮库",
+      "kind": "visit",
+      "target": "store",
+      "minutes": 2
+    },
+    "check_well": {
+      "label": "查看井边水缸",
+      "kind": "visit",
+      "target": "well",
+      "minutes": 2
+    },
+    "check_garden": {
+      "label": "查看药圃",
+      "kind": "visit",
+      "target": "garden",
+      "minutes": 2
+    },
+    "keep_wood": {
+      "label": "自留拾柴",
+      "kind": "forage",
+      "resource": "woodlot",
+      "source": "store",
+      "item": "wood",
+      "amount": 3,
+      "minutes": 20,
+      "contribution": 0,
+      "public_action": "gather_wood"
+    },
+    "keep_grain": {
+      "label": "自留采粮",
+      "kind": "forage",
+      "resource": "meadow",
+      "source": "garden",
+      "item": "grain",
+      "amount": 4,
+      "minutes": 25,
+      "contribution": 0,
+      "public_action": "forage_grain"
+    },
+    "keep_water": {
+      "label": "自留汲泉",
+      "kind": "forage",
+      "resource": "spring",
+      "source": "well",
+      "item": "water",
+      "amount": 12,
+      "minutes": 10,
+      "contribution": 0,
+      "public_action": "draw_water"
+    },
+    "keep_herb": {
+      "label": "自留采药",
+      "kind": "forage",
+      "resource": "herb_slope",
+      "source": "garden",
+      "item": "herb",
+      "amount": 2,
+      "minutes": 25,
+      "contribution": 0,
+      "public_action": "gather_herb"
+    }
+  },
+  "social_policy": {
+    "bias": 0.05,
+    "weights": {
+      "energy": 0.3,
+      "busy": -0.7,
+      "distance": -0.15,
+      "risk": -0.8,
+      "duty": 0.25,
+      "offer": 0.3,
+      "benevolence": 0.3,
+      "reliability": 0.15,
+      "affinity": 0.1
+    },
+    "accept_threshold": 0.42,
+    "uncertainty_band": 0.05,
+    "outcome_effects": {
+      "fulfilled": [
+        0.05,
+        0.04
+      ],
+      "failed": [
+        0.0,
+        0.0
+      ],
+      "broke_promise": [
+        -0.1,
+        -0.05
+      ],
+      "refused": [
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "institution": {
+    "id": "sect",
+    "offices": {
+      "registrar": {
+        "holder": "chen_shouzhuo",
+        "permissions": [
+          "record",
+          "pay"
+        ]
+      },
+      "steward": {
+        "holder": "chen_shouzhuo",
+        "permissions": [
+          "authorize"
+        ]
+      }
+    }
+  },
+  "scenario": {
+    "requester": "a_he",
+    "helpers": [
+      "lao_zhou",
+      "shi_tou"
+    ],
+    "task": "deliver_wood"
+  }
+}

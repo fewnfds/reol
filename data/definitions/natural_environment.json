@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "cache_cells": 4096,
+  "terrain_ids": {"water": 0, "rock": 2},
+  "noise": {
+    "moisture": {"seed_offset": 41, "frequency": 0.027, "octaves": 3},
+    "canopy": {"seed_offset": 43, "frequency": 0.043, "octaves": 2},
+    "mineral": {"seed_offset": 47, "frequency": 0.031, "octaves": 2}
+  },
+  "land": {
+    "noise_center": 50,
+    "noise_scale": 80,
+    "water_probe_distances": [1, 3],
+    "water_probe_bonus": [32, 15],
+    "elevation_dryness": 5,
+    "fertility_center": 43,
+    "fertility_moisture": 45,
+    "fertility_canopy": 12,
+    "fertility_height_loss": 7,
+    "fertility_mineral_loss": 15,
+    "exposure_center": 57,
+    "exposure_height": 8,
+    "exposure_canopy_loss": 28,
+    "ore_threshold": 66,
+    "shore_water_threshold": 32,
+    "wetland_moisture": 73,
+    "wetland_max_height": 1,
+    "woodland_canopy": 62,
+    "gravel_moisture": 28,
+    "gravel_height": 3,
+    "gravel_fertility": 48,
+    "meadow_fertility": 64,
+    "growth_moisture_floor": 12,
+    "growth_moisture_optimal": 58,
+    "growth_mineral_loss": 25
+  },
+  "elements": {
+    "order": ["metal", "wood", "water", "fire", "earth"],
+    "labels": {"metal": "金", "wood": "木", "water": "水", "fire": "火", "earth": "土"},
+    "engenders": {"wood": "fire", "fire": "earth", "earth": "metal", "metal": "water", "water": "wood"},
+    "controls": {"wood": "earth", "earth": "water", "water": "fire", "fire": "metal", "metal": "wood"},
+    "mineral_metal_bonus": 32,
+    "canopy_wood_bonus": 30,
+    "moisture_water_bonus": 32,
+    "dry_exposure_fire_bonus": 30,
+    "fertility_earth_bonus": 20
+  },
+  "surfaces": {
+    "water": {"label": "山泽水面", "color": "#294f61", "density": 13, "elements": [10, 18, 72, 3, 14], "flora": {"lotus": 1}, "habitat": ["fish", "waterfowl"]},
+    "stone": {"label": "山岩", "color": "#777d78", "density": 16, "elements": [34, 8, 12, 20, 61], "flora": {"lichen": 3, "rock_moss": 1}, "habitat": ["mountain_beast"]},
+    "ore_rock": {"label": "含矿岩脊", "color": "#7e8279", "density": 10, "elements": [65, 5, 8, 18, 48], "flora": {"lichen": 1}, "habitat": ["mountain_beast"]},
+    "shore": {"label": "溪岸湿土", "color": "#647965", "density": 58, "elements": [9, 35, 55, 7, 42], "flora": {"reed": 4, "fern": 1, "wild_herb": 1}, "habitat": ["waterfowl", "sparrow", "deer"]},
+    "wetland": {"label": "湿地", "color": "#526c60", "density": 62, "elements": [7, 43, 63, 4, 32], "flora": {"reed": 3, "fern": 2, "bamboo": 1}, "habitat": ["waterfowl", "insects"]},
+    "woodland": {"label": "山林腐殖土", "color": "#536b51", "density": 43, "elements": [9, 65, 24, 9, 41], "flora": {"pine": 4, "bamboo": 2, "fern": 1, "spirit_shrub": 1}, "habitat": ["sparrow", "deer", "fox", "mountain_beast"]},
+    "gravel": {"label": "砂砾薄土", "color": "#858474", "density": 21, "elements": [30, 12, 8, 32, 48], "flora": {"dry_grass": 3, "pine": 1}, "habitat": ["sparrow", "fox", "mountain_beast"]},
+    "meadow": {"label": "肥沃草甸", "color": "#70875a", "density": 69, "elements": [8, 47, 28, 14, 58], "flora": {"wild_herb": 2, "wildflower": 3, "tall_grass": 4, "spirit_shrub": 1}, "habitat": ["sparrow", "deer", "hare", "insects"]},
+    "grassland": {"label": "山间草地", "color": "#66775a", "density": 46, "elements": [13, 35, 21, 20, 49], "flora": {"tall_grass": 4, "wildflower": 1, "pine": 1, "wild_herb": 1}, "habitat": ["sparrow", "hare", "deer"]}
+  },
+  "flora": {
+    "pine": {"label": "山松", "kind": "tree", "element": "wood", "color": "#365c48", "height": 35},
+    "bamboo": {"label": "青竹", "kind": "bamboo", "element": "wood", "color": "#569156", "height": 32},
+    "spirit_shrub": {"label": "灵蕨灌丛", "kind": "shrub", "element": "wood", "color": "#6e9b7d", "height": 18},
+    "fern": {"label": "阴蕨", "kind": "fern", "element": "wood", "color": "#527a58", "height": 14},
+    "wild_herb": {"label": "野药植被", "kind": "herb", "element": "wood", "color": "#83a27a", "height": 10},
+    "wildflower": {"label": "山花", "kind": "flower", "element": "wood", "color": "#d1b494", "height": 10},
+    "tall_grass": {"label": "长草", "kind": "grass", "element": "wood", "color": "#8c9b60", "height": 11},
+    "dry_grass": {"label": "蒿草", "kind": "grass", "element": "wood", "color": "#b09d6d", "height": 10},
+    "reed": {"label": "芦苇", "kind": "reed", "element": "water", "color": "#9eaf7a", "height": 20},
+    "lotus": {"label": "浮萍荷叶", "kind": "aquatic", "element": "water", "color": "#648f77", "height": 5},
+    "lichen": {"label": "岩衣", "kind": "lichen", "element": "earth", "color": "#a4ad86", "height": 3},
+    "rock_moss": {"label": "石苔", "kind": "moss", "element": "water", "color": "#5c7864", "height": 3}
+  },
+  "fauna": {
+    "sparrow": {"label": "山雀", "diet": "seed", "body": "small_bird"},
+    "hare": {"label": "野兔", "diet": "grazer", "body": "small_beast"},
+    "deer": {"label": "山鹿", "diet": "grazer", "body": "medium_beast"},
+    "fox": {"label": "山狐", "diet": "predator", "body": "small_beast"},
+    "waterfowl": {"label": "水鸟", "diet": "omnivore", "body": "small_bird"},
+    "fish": {"label": "溪鱼", "diet": "aquatic", "body": "fish"},
+    "insects": {"label": "草虫", "diet": "plant", "body": "insect"},
+    "mountain_beast": {"label": "山兽", "diet": "omnivore", "body": "large_beast"}
+  }
+}

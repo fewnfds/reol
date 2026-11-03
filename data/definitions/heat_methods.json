@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "artifact_type": "warm_stone",
+  "title_length": 32,
+  "flows": {
+    "1": {"label": "细流", "qi": 1, "charge": 1},
+    "2": {"label": "匀流", "qi": 2, "charge": 3},
+    "3": {"label": "急灌", "qi": 3, "charge": 5}
+  },
+  "pulses": [1, 2, 4],
+  "pulse_minutes": 1,
+  "safe_flow": 2,
+  "guide_qi": 1,
+  "lesson_risk": 0.05
+}

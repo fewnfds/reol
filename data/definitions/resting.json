@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "region": "home",
+  "members": ["player", "chen_shouzhuo", "a_he", "shi_tou", "su_zhi", "lao_zhou"],
+  "notice_cells": 18,
+  "check_ms": 60000,
+  "rest_ms": 2700000,
+  "energy_per_minute": 2,
+  "wake_energy": 95
+}

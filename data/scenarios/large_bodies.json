@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "bodies": {
+    "hill_beast": {
+      "label": "负岩山兽",
+      "region": "home",
+      "offset": [-9, 9],
+      "search_radius": 20,
+      "roam_distance": 5
+    }
+  }
+}

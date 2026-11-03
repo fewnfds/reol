@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "species": {
+    "sparrow": {
+      "carry_grams": 30,
+      "flight_speed": 280,
+      "observation_cells": 6,
+      "interaction_cells": 3,
+      "hunger_per_minute": 1000000,
+      "energy_per_minute": 300000,
+      "flight_energy_per_minute": 4000000,
+      "rest_gain_per_minute": 15000000,
+      "eat_below": 60,
+      "rest_below": 35,
+      "help_min_fullness": 35,
+      "help_min_energy": 40,
+      "seed_nourishment": 25
+    }
+  },
+  "items_grams": {"seed": 1, "herb": 20, "grain": 1000, "wood": 1500, "dried_herb": 10},
+  "actions_ms": {"forage": 12000, "rest": 180000, "pickup": 2000, "drop": 2000, "idle": 30000},
+  "manual": {"leg_distance_px": 140, "min_flight_energy": 5, "ground_rest_ms": 180000, "ground_rest_gain_per_minute": 6000000},
+  "gift": {"grain": 1, "seed": 12, "foods": ["grain", "meal"]},
+  "site_types": {
+    "roost": {"label": "避风树巢", "opening_mm": 150, "altitude": 1, "item": "", "initial": 0, "capacity": 0, "regrow_ms": 0, "regrow_amount": 0},
+    "seeds": {"label": "结籽草丛", "opening_mm": 0, "altitude": 0, "item": "seed", "initial": 8, "capacity": 12, "regrow_ms": 600000, "regrow_amount": 2},
+    "crevice": {"label": "石隙药枝", "opening_mm": 90, "altitude": 1, "item": "herb", "initial": 2, "capacity": 3, "regrow_ms": 3600000, "regrow_amount": 1},
+    "garden": {"label": "药圃落架", "opening_mm": 0, "altitude": 0, "item": "", "initial": 0, "capacity": 0, "regrow_ms": 0, "regrow_amount": 0}
+  }
+}

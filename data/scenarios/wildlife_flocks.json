@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "placement": {
+    "search_radius": 8,
+    "near_roost_cells": 5,
+    "minimum_center_distance": 2,
+    "seed_surfaces": ["meadow", "grassland", "shore", "wetland"],
+    "seed_flora": ["tall_grass", "wildflower", "dry_grass", "reed"]
+  },
+  "regions": {
+    "home": {
+      "flock": [
+        {"id": "chestnut_sparrow", "label": "栗团·山雀", "fullness": 42, "energy": 68, "understands_gestures": false}
+      ]
+    },
+    "river": {
+      "flock": [
+        {"id": "bank_sparrow", "label": "灰尾·山雀", "fullness": 51, "energy": 77, "understands_gestures": false}
+      ]
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "form": "ancient_beast",
+  "step_ms": 1600,
+  "rest_ms": 15000,
+  "retry_ms": 3000,
+  "feed_interval_ms": 900000,
+  "contact_px": 42,
+  "food": "meal",
+  "food_amount": 1,
+  "navigation_radius": 24,
+  "navigation_budget": 1800,
+  "max_bodies": 8
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "interaction_cells": 3,
+  "diagnose_ms": 60000,
+  "treat_ms": 120000,
+  "material": "herb",
+  "material_amount": 1,
+  "practices": {"su_zhi": ["herbal_meridian_care"]},
+  "recovery": {"required": 180, "normal": 1, "resting": 3, "treated": 4, "treated_resting": 6},
+  "contusion": {"recovery_per_impact": 6, "normal": 1, "resting": 3, "retreat_burden": 24, "max_impact": 100},
+  "policy": {"bias": 0.0, "accept_threshold": 0.35, "uncertainty_band": 0.03, "context_step": 0.05, "weights": {"energy": 0.2, "busy": -1.0, "distance": -0.1, "risk": -0.3, "duty": 0.2, "offer": 0.0, "benevolence": 0.3, "reliability": 0.15, "affinity": 0.3}}
+}

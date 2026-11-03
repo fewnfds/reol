@@ -1,7 +1,10 @@
 # Reol — 参考资料库
 
+2026-11-03最新玩法取舍见[修仙/战略/人生与远区研究](../design/research/transcendent_focus_sources.md)，对应[超凡者优先](plans/transcendent_focus.md)。一手页面区分商店设计陈述与特定版本实现，不把“动态世界”直接解释成纯事件引擎。
+
 > 截至 2026-11-01。链接会过期；以官方页面为准。
 > 每条都标注“借什么”，避免无脑收藏。
+> 2026-11-02补充：本页保留既有学习索引，星数、费用、版本等不是最新选型证据。新一轮核查见[游戏/素材研究](../design/research/full_game_reference_map.md)、[Godot官方库/商店与候选](../design/research/godot_resource_candidates.md)、[本机工具审计](DEVELOPMENT-TOOLS-AUDIT.md)；引入前按具体版本/许可与Godot4.7.2实际验证，不从旧表直接安装。
 
 ---
 
@@ -61,7 +64,7 @@
 | **Microverse** | https://github.com/KsanaDock/Microverse | 2.5k | MIT | Godot 4 + LLM NPC 记忆/对话/任务；**只借技术，不做核心依赖** |
 | NobodyWho | https://github.com/nobodywho-ooo/nobodywho | 1.7k | MIT | 本地 LLM 推理；后期可选 |
 
-> 不要一上来接 LLM。先把规则驱动的 NPC 做好；LLM 只做“对话风味”，不要做核心模拟。
+> 规则驱动世界保障无AI可玩；未来LLM可参与意图理解、对话与计划，实际结果仍经共同动作规则。早期“只做对话风味”的范围由ADR-0050修订，见[最新交互原则](../design/systems/world_interaction_principles.md)。本页资源是参考候选，不是已安装依赖。
 
 ---
 

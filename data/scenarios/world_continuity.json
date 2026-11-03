@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "active_region": "home",
+  "event_budget": 4096,
+  "runtime": {
+    "starting_inventory": {"player": {"coin": 6}},
+    "help_offer_coins": 2,
+    "layout_radius": 64,
+    "layout_budget": 16384,
+    "minimum_separation": 18,
+    "enter_radius": 10,
+    "exit_radius": 13,
+    "remote_seed_offset": 101,
+    "remote_names": {
+      "river_player": "河湾·林苗",
+      "river_chen_shouzhuo": "河湾·钱管事",
+      "river_a_he": "河湾·许婶",
+      "river_shi_tou": "河湾·小满",
+      "river_su_zhi": "河湾·白芷",
+      "river_lao_zhou": "河湾·田伯"
+    }
+  },
+  "regions": {
+    "home": {"label": "青岚山门", "offset": [0, 0], "stock_overrides": {"store": {"grain": 24}}},
+    "river": {"label": "河湾农庄", "offset": [28, 0], "stock_overrides": {"store": {"grain": 180, "wood": 100}}}
+  },
+  "courier_needs": {"energy_per_travel_minute": 0.08, "rest_below": 35, "rest_minutes": 60, "rest_gain": 70},
+  "routes": {
+    "river_road": {
+      "from": "river", "to": "home", "source": "store", "target": "store",
+      "item": "grain", "amount": 12, "reserve_floor": 30, "stock_below": 60,
+      "travel_minutes": 48, "assessment_minutes": 30, "message_minutes": 12,
+      "courier": "river_courier", "courier_name": "陆行舟"
+    }
+  }
+}

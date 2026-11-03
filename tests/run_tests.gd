@@ -10,9 +10,14 @@ extends SceneTree
 
 var passed: int = 0
 var failed: int = 0
+var checks: int = 0
 
 
 func _initialize() -> void:
+	call_deferred("_run_tests")
+
+
+func _run_tests() -> void:
 	print("Reol tests - Godot %s" % Engine.get_version_info()["string"])
 
 	var names: Array[String] = []
@@ -32,10 +37,12 @@ func _initialize() -> void:
 
 	print("")
 	print("Results: %d passed, %d failed" % [passed, failed])
+	print("Assertions: %d" % checks)
 	quit(1 if failed > 0 else 0)
 
 
 func assert_true(condition: bool, label: String) -> void:
+	checks += 1
 	if condition:
 		return
 	failed += 1
@@ -43,6 +50,7 @@ func assert_true(condition: bool, label: String) -> void:
 
 
 func assert_eq(actual: Variant, expected: Variant, label: String) -> void:
+	checks += 1
 	if actual == expected:
 		return
 	failed += 1
@@ -50,6 +58,7 @@ func assert_eq(actual: Variant, expected: Variant, label: String) -> void:
 
 
 func assert_not_null(value: Variant, label: String) -> void:
+	checks += 1
 	if value != null:
 		return
 	failed += 1
@@ -82,6 +91,499 @@ class FakeWalkWorld extends ReolWorld:
 func test_project_name() -> void:
 	var project_name := str(ProjectSettings.get_setting("application/config/name", ""))
 	assert_true(not project_name.is_empty(), "project name is set")
+
+
+func test_snapshot_values() -> void:
+	load("res://tests/runtime/test_snapshot_values.gd").new().run(self)
+
+
+func test_weapon_items() -> void:
+	load("res://tests/sim/test_weapon_items.gd").new().run(self)
+
+
+func test_combat_health() -> void:
+	load("res://tests/sim/test_combat_health.gd").new().run(self)
+
+
+func test_combat_qi_ledger() -> void:
+	load("res://tests/sim/test_combat_qi_ledger.gd").new().run(self)
+
+
+func test_conflict_schema() -> void:
+	load("res://tests/sim/test_conflict_schema.gd").new().run(self)
+
+
+func test_conflict_perception() -> void:
+	load("res://tests/sim/test_conflict_perception.gd").new().run(self)
+
+
+func test_conflict_projectile_precision() -> void:
+	load("res://tests/sim/test_conflict_projectile_precision.gd").new().run(self)
+
+
+func test_conflict_perception_migration() -> void:
+	load("res://tests/runtime/test_conflict_perception_migration.gd").new().run(self)
+
+
+func test_conflict_perception_archive() -> void:
+	load("res://tests/runtime/test_conflict_perception_archive.gd").new().run(self)
+
+
+func test_source_loan() -> void:
+	load("res://tests/sim/test_source_loan.gd").new().run(self)
+
+
+func test_source_care() -> void:
+	load("res://tests/sim/test_source_care.gd").new().run(self)
+
+
+func test_capability_practice() -> void:
+	load("res://tests/sim/test_capability_practice.gd").new().run(self)
+
+
+func test_field_opportunity_migration() -> void:
+	load("res://tests/runtime/test_field_opportunity_migration.gd").new().run(self)
+
+
+func test_field_opportunity_runtime() -> void:
+	load("res://tests/runtime/test_field_opportunity_runtime.gd").new().run(self)
+
+
+func test_field_artifacts() -> void:
+	load("res://tests/sim/test_field_artifacts.gd").new().run(self)
+
+
+func test_field_opportunities() -> void:
+	load("res://tests/sim/test_field_opportunities.gd").new().run(self)
+
+
+func test_field_views_and_travel() -> void:
+	load("res://tests/runtime/test_field_views_and_travel.gd").new().run(self)
+
+
+func test_field_causality() -> void:
+	load("res://tests/sim/test_field_causality.gd").new().run(self)
+
+
+func test_field_opportunity_absence() -> void:
+	load("res://tests/runtime/test_field_opportunity_absence.gd").new().run(self)
+
+
+func test_field_archives() -> void:
+	load("res://tests/runtime/test_field_archives.gd").new().run(self)
+
+
+func test_capability_queries() -> void:
+	load("res://tests/sim/test_capability_queries.gd").new().run(self)
+
+
+func test_capability_migration() -> void:
+	load("res://tests/runtime/test_capability_migration.gd").new().run(self)
+
+
+func test_capability_runtime() -> void:
+	load("res://tests/runtime/test_capability_runtime.gd").new().run(self)
+
+
+func test_mobile_guard_motion() -> void:
+	load("res://tests/sim/test_mobile_guard_motion.gd").new().run(self)
+
+
+func test_mobile_guard_handoff() -> void:
+	load("res://tests/runtime/test_mobile_guard_handoff.gd").new().run(self)
+
+
+func test_mobile_guard_tactics() -> void:
+	load("res://tests/runtime/test_mobile_guard_tactics.gd").new().run(self)
+
+
+func test_source_care_migration() -> void:
+	load("res://tests/runtime/test_source_care_migration.gd").new().run(self)
+
+
+func test_source_care_continuity() -> void:
+	load("res://tests/runtime/test_source_care_continuity.gd").new().run(self)
+
+
+func test_conflict_agency() -> void:
+	load("res://tests/sim/test_conflict_agency.gd").new().run(self)
+
+
+func test_source_loan_migration() -> void:
+	load("res://tests/runtime/test_source_loan_migration.gd").new().run(self)
+
+
+func test_source_loan_continuity() -> void:
+	load("res://tests/runtime/test_source_loan_continuity.gd").new().run(self)
+
+
+func test_conflicts() -> void:
+	load("res://tests/sim/test_conflicts.gd").new().run(self)
+
+
+func test_weapon_items_runtime() -> void:
+	load("res://tests/runtime/test_weapon_items_runtime.gd").new().run(self)
+
+
+func test_conflict_runtime() -> void:
+	load("res://tests/runtime/test_conflict_runtime.gd").new().run(self)
+
+
+func test_conflict_migration() -> void:
+	load("res://tests/runtime/test_conflict_migration.gd").new().run(self)
+
+
+func test_conflict_mobility() -> void:
+	load("res://tests/runtime/test_conflict_mobility.gd").new().run(self)
+
+
+func test_conflict_archive() -> void:
+	load("res://tests/runtime/test_conflict_archive.gd").new().run(self)
+
+
+func test_natural_environment() -> void:
+	load("res://tests/sim/test_natural_environment.gd").new().run(self)
+
+
+func test_natural_world_runtime() -> void:
+	load("res://tests/runtime/test_natural_world_runtime.gd").new().run(self)
+
+
+func test_avian_flock() -> void:
+	load("res://tests/sim/test_avian_flock.gd").new().run(self)
+
+
+func test_workplaces() -> void:
+	load("res://tests/sim/test_workplaces.gd").new().run(self)
+
+
+func test_workplace_runtime() -> void:
+	load("res://tests/runtime/test_workplace_runtime.gd").new().run(self)
+
+
+func test_local_trade() -> void:
+	load("res://tests/sim/test_local_trade.gd").new().run(self)
+
+
+func test_budgeted_labor() -> void:
+	load("res://tests/sim/test_budgeted_labor.gd").new().run(self)
+
+
+func test_autonomous_livelihood() -> void:
+	load("res://tests/sim/test_autonomous_livelihood.gd").new().run(self)
+
+
+func test_calendar_climate() -> void:
+	load("res://tests/sim/test_calendar_climate.gd").new().run(self)
+
+
+func test_environment() -> void:
+	load("res://tests/sim/test_environment.gd").new().run(self)
+
+
+func test_local_heat() -> void:
+	load("res://tests/sim/test_local_heat.gd").new().run(self)
+
+
+func test_herb_ecology_rules() -> void:
+	load("res://tests/sim/test_herb_ecology_rules.gd").new().run(self)
+
+
+func test_activity_ownership() -> void:
+	load("res://tests/sim/test_activity_ownership.gd").new().run(self)
+
+
+func test_spirit_sources() -> void:
+	load("res://tests/sim/test_spirit_sources.gd").new().run(self)
+
+
+func test_spirit_source_integrity() -> void:
+	load("res://tests/sim/test_spirit_source_integrity.gd").new().run(self)
+
+
+func test_spirit_source_continuity() -> void:
+	load("res://tests/runtime/test_spirit_source_continuity.gd").new().run(self)
+
+
+func test_spirit_source_archive() -> void:
+	load("res://tests/runtime/test_spirit_source_archive.gd").new().run(self)
+
+
+func test_herb_irrigation() -> void:
+	load("res://tests/sim/test_herb_irrigation.gd").new().run(self)
+
+
+func test_herb_ecology_runtime() -> void:
+	load("res://tests/runtime/test_herb_ecology_runtime.gd").new().run(self)
+
+
+func test_herb_ecology_migration() -> void:
+	load("res://tests/runtime/test_herb_ecology_migration.gd").new().run(self)
+
+
+func test_herb_ecology_environment() -> void:
+	load("res://tests/sim/test_herb_ecology_environment.gd").new().run(self)
+
+
+func test_herb_ecology_limits() -> void:
+	load("res://tests/sim/test_herb_ecology_limits.gd").new().run(self)
+
+
+func test_herb_ecology_archive() -> void:
+	load("res://tests/runtime/test_herb_ecology_archive.gd").new().run(self)
+
+
+func test_heat_topology() -> void:
+	load("res://tests/sim/test_heat_topology.gd").new().run(self)
+
+
+func test_artifact_warming() -> void:
+	load("res://tests/sim/test_artifact_warming.gd").new().run(self)
+
+
+func test_local_heat_environment() -> void:
+	load("res://tests/sim/test_local_heat_environment.gd").new().run(self)
+
+
+func test_local_heat_migration() -> void:
+	load("res://tests/runtime/test_local_heat_migration.gd").new().run(self)
+
+
+func test_local_heat_archive() -> void:
+	load("res://tests/runtime/test_local_heat_archive.gd").new().run(self)
+
+
+func test_local_heat_building() -> void:
+	load("res://tests/sim/test_local_heat_building.gd").new().run(self)
+
+
+func test_environment_runtime() -> void:
+	load("res://tests/runtime/test_environment_runtime.gd").new().run(self)
+
+
+func test_humanoid_appearance() -> void:
+	load("res://tests/entities/test_humanoid_appearance.gd").new().run(self)
+
+
+func test_body_facing() -> void:
+	load("res://tests/sim/test_body_facing.gd").new().run(self)
+
+
+func test_humanoid_runtime() -> void:
+	load("res://tests/runtime/test_humanoid_runtime.gd").new().run(self)
+
+
+func test_humanoid_archive() -> void:
+	load("res://tests/runtime/test_humanoid_archive.gd").new().run(self)
+
+
+func test_health_runtime() -> void:
+	load("res://tests/runtime/test_health_runtime.gd").new().run(self)
+
+
+func test_health() -> void:
+	load("res://tests/sim/test_health.gd").new().run(self)
+
+
+func test_clothing() -> void:
+	load("res://tests/sim/test_clothing.gd").new().run(self)
+
+
+func test_clothing_runtime() -> void:
+	load("res://tests/runtime/test_clothing_runtime.gd").new().run(self)
+
+
+func test_autonomous_livelihood_runtime() -> void:
+	load("res://tests/runtime/test_autonomous_livelihood_runtime.gd").new().run(self)
+
+
+func test_budgeted_labor_runtime() -> void:
+	load("res://tests/runtime/test_budgeted_labor_runtime.gd").new().run(self)
+
+
+func test_capability_conversation() -> void:
+	load("res://tests/sim/test_capability_conversation.gd").new().run(self)
+
+
+func test_capability_conversation_runtime() -> void:
+	load("res://tests/runtime/test_capability_conversation_runtime.gd").new().run(self)
+
+
+func test_local_trade_runtime() -> void:
+	load("res://tests/runtime/test_local_trade_runtime.gd").new().run(self)
+
+
+func test_personal_foraging() -> void:
+	load("res://tests/sim/test_personal_foraging.gd").new().run(self)
+
+
+func test_personal_production() -> void:
+	load("res://tests/sim/test_personal_production.gd").new().run(self)
+
+
+func test_personal_production_runtime() -> void:
+	load("res://tests/runtime/test_personal_production_runtime.gd").new().run(self)
+
+
+func test_personal_foraging_runtime() -> void:
+	load("res://tests/runtime/test_personal_foraging_runtime.gd").new().run(self)
+
+
+func test_entrusted_goods() -> void:
+	load("res://tests/sim/test_entrusted_goods.gd").new().run(self)
+
+
+func test_entrusted_goods_runtime() -> void:
+	load("res://tests/runtime/test_entrusted_goods_runtime.gd").new().run(self)
+
+
+func test_standing_work() -> void:
+	load("res://tests/sim/test_standing_work.gd").new().run(self)
+
+
+func test_standing_work_runtime() -> void:
+	load("res://tests/runtime/test_standing_work_runtime.gd").new().run(self)
+
+
+func test_large_bodies() -> void:
+	load("res://tests/sim/test_large_bodies.gd").new().run(self)
+
+
+func test_large_bodies_runtime() -> void:
+	load("res://tests/runtime/test_large_bodies_runtime.gd").new().run(self)
+
+
+func test_method_records() -> void:
+	load("res://tests/sim/test_method_records.gd").new().run(self)
+
+
+func test_method_records_runtime() -> void:
+	load("res://tests/runtime/test_method_records_runtime.gd").new().run(self)
+
+
+func test_embodiment() -> void:
+	var suite: Script = load("res://tests/sim/test_embodiment.gd")
+	suite.new().run(self)
+
+
+func test_soul_vessels() -> void:
+	var suite: Script = load("res://tests/sim/test_soul_vessels.gd")
+	suite.new().run(self)
+
+
+func test_soul_agency() -> void:
+	var suite: Script = load("res://tests/sim/test_soul_agency.gd")
+	suite.new().run(self)
+
+
+func test_soul_player() -> void:
+	var suite: Script = load("res://tests/runtime/test_soul_player.gd")
+	suite.new().run(self)
+
+
+func test_social_admission() -> void:
+	load("res://tests/sim/test_social_admission.gd").new().run(self)
+
+
+func test_interaction_requests() -> void:
+	var suite: Script = load("res://tests/sim/test_interaction_requests.gd")
+	suite.new().run(self)
+
+
+func test_heat_method_crafting() -> void:
+	load("res://tests/sim/test_heat_method_crafting.gd").new().run(self)
+
+
+func test_construction() -> void:
+	load("res://tests/sim/test_construction.gd").new().run(self)
+
+
+func test_construction_runtime() -> void:
+	load("res://tests/runtime/test_construction_runtime.gd").new().run(self)
+
+
+func test_rooms_and_rest() -> void:
+	load("res://tests/sim/test_rooms_and_rest.gd").new().run(self)
+
+
+func test_rooms_and_rest_runtime() -> void:
+	load("res://tests/runtime/test_rooms_and_rest_runtime.gd").new().run(self)
+
+
+func test_roofs_and_weather() -> void:
+	load("res://tests/sim/test_roofs_and_weather.gd").new().run(self)
+
+
+func test_roofs_weather_runtime() -> void:
+	load("res://tests/runtime/test_roofs_weather_runtime.gd").new().run(self)
+
+
+func test_heat_methods_runtime() -> void:
+	load("res://tests/runtime/test_heat_methods_runtime.gd").new().run(self)
+
+
+func test_interaction_requests_runtime() -> void:
+	var suite: Script = load("res://tests/runtime/test_interaction_requests_runtime.gd")
+	suite.new().run(self)
+
+
+func test_social_admission_runtime() -> void:
+	load("res://tests/runtime/test_social_admission_runtime.gd").new().run(self)
+
+
+func test_soul_vessel_runtime() -> void:
+	var suite: Script = load("res://tests/runtime/test_soul_vessel_runtime.gd")
+	suite.new().run(self)
+
+
+func test_avian_life() -> void:
+	var suite: Script = load("res://tests/sim/test_avian_life.gd")
+	suite.new().run(self)
+
+
+func test_avian_life_runtime() -> void:
+	var suite: Script = load("res://tests/runtime/test_avian_life_runtime.gd")
+	suite.new().run(self)
+
+
+func test_player_avatar() -> void:
+	var suite: Script = load("res://tests/runtime/test_player_avatar.gd")
+	suite.new().run(self)
+
+
+func test_embodiment_runtime() -> void:
+	var suite: Script = load("res://tests/runtime/test_embodiment_runtime.gd")
+	suite.new().run(self)
+
+
+func test_artifacts() -> void:
+	var suite: Script = load("res://tests/sim/test_artifacts.gd")
+	suite.new().run(self)
+
+
+func test_artifact_understanding() -> void:
+	var suite: Script = load("res://tests/sim/test_artifact_understanding.gd")
+	suite.new().run(self)
+
+
+func test_artifact_understanding_runtime() -> void:
+	var suite: Script = load("res://tests/runtime/test_artifact_understanding_runtime.gd")
+	suite.new().run(self)
+
+
+func test_land_resources() -> void:
+	var suite: Script = load("res://tests/sim/test_land_resources.gd")
+	suite.new().run(self)
+
+
+func test_land_resources_runtime() -> void:
+	var suite: Script = load("res://tests/runtime/test_land_resources_runtime.gd")
+	suite.new().run(self)
+
+
+func test_world_objects_runtime() -> void:
+	var suite: Script = load("res://tests/runtime/test_world_objects_runtime.gd")
+	suite.new().run(self)
 
 
 func test_project_features() -> void:
@@ -187,6 +689,14 @@ func test_world_terrain_and_elevation() -> void:
 		"cannot move out of bounds"
 	)
 	world.free()
+
+
+func test_world_map_data() -> void:
+	load("res://tests/sim/test_world_map_data.gd").new().run(self)
+
+
+func test_world_map_runtime() -> void:
+	load("res://tests/runtime/test_world_map_runtime.gd").new().run(self)
 
 
 func test_fog_visibility_states() -> void:
@@ -357,10 +867,9 @@ func test_pawn_state_and_promotion() -> void:
 	assert_eq(state.qi, definition.max_qi, "qi clamps at max")
 
 	var next_rank: RankDef = db.get_rank(&"outer_disciple")
-	assert_true(not state.can_promote_to(next_rank), "promotion needs contribution")
-	state.add_contribution(100)
-	assert_true(state.can_promote_to(next_rank), "promotion unlocks at 100")
-	assert_true(state.promote_to(next_rank), "promotion succeeds")
+	assert_true(not state.can_promote_to(next_rank, 0), "eligibility reads institutional balance")
+	assert_true(state.can_promote_to(next_rank, 100), "eligibility accepts recognized contribution")
+	assert_true(state.promote_to(next_rank, 100), "approved promotion succeeds")
 	assert_eq(state.rank.id, &"outer_disciple", "rank changed")
 
 
@@ -374,6 +883,94 @@ func test_scripts_parse() -> void:
 			continue
 		var resource: Resource = load(path)
 		assert_not_null(resource, "parse %s" % path)
+
+
+func test_sim_ledgers() -> void:
+	load("res://tests/sim/test_sim_ledgers.gd").new().run(self)
+
+
+func test_social_memory() -> void:
+	load("res://tests/sim/test_social_memory.gd").new().run(self)
+
+
+func test_village_navigation() -> void:
+	load("res://tests/runtime/test_village_navigation.gd").new().run_tests(self)
+
+
+func test_village_runtime() -> void:
+	load("res://tests/runtime/test_village_runtime.gd").new().run_tests(self)
+
+
+func test_village_simulation() -> void:
+	load("res://tests/sim/test_village_simulation.gd").new().run(self)
+
+
+func test_village_batch() -> void:
+	load("res://tests/sim/test_village_batch.gd").new().run(self)
+
+
+func test_regional_simulation() -> void:
+	load("res://tests/sim/test_regional_simulation.gd").new().run(self)
+
+
+func test_world_continuity_runtime() -> void:
+	load("res://tests/runtime/test_world_continuity_runtime.gd").new().run(self)
+
+
+func test_world_persistence() -> void:
+	load("res://tests/runtime/test_world_persistence.gd").new().run(self)
+
+
+func test_clock_scheduling() -> void:
+	load("res://tests/runtime/test_clock_scheduling.gd").new().run(self)
+
+
+func test_local_motion() -> void:
+	load("res://tests/sim/test_local_motion.gd").new().run(self)
+
+
+func test_shared_actions() -> void:
+	load("res://tests/runtime/test_shared_actions.gd").new().run(self)
+
+
+func test_life_execution() -> void:
+	load("res://tests/runtime/test_life_execution.gd").new().run(self)
+
+
+func test_sparring() -> void:
+	load("res://tests/sim/test_sparring.gd").new().run(self)
+
+
+func test_sparring_runtime() -> void:
+	load("res://tests/runtime/test_sparring_runtime.gd").new().run(self)
+
+
+func test_artifact_heat_methods() -> void:
+	load("res://tests/sim/test_artifact_heat_methods.gd").new().run(self)
+
+
+func test_stock_information() -> void:
+	load("res://tests/sim/test_stock_information.gd").new().run(self)
+
+
+func test_settlement_services() -> void:
+	load("res://tests/sim/test_settlement_services.gd").new().run(self)
+
+
+func test_settlement_services_runtime() -> void:
+	load("res://tests/runtime/test_settlement_services_runtime.gd").new().run(self)
+
+
+func test_world_presentation() -> void:
+	load("res://tests/runtime/test_world_presentation.gd").new().run(self)
+
+
+func test_demo_refactor() -> void:
+	load("res://tests/runtime/test_demo_refactor.gd").new().run(self)
+
+
+func test_sim_schema() -> void:
+	load("res://tests/sim/test_sim_schema.gd").new().run(self)
 
 
 func test_required_directories() -> void:

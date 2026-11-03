@@ -1,0 +1,228 @@
+extends RefCounted
+## Real custody UI, authorized senses and continuous holder presentation.
+
+const Fixtures = preload("res://tests/runtime/test_world_continuity_runtime.gd")
+const SWORD: String = "tool:runtime_sword"
+var _fixtures := Fixtures.new()
+
+
+class ControlledFog extends FogOfWar:
+	var showing: bool = true
+
+
+	func is_cell_visible(_cell: Vector2i) -> bool:
+		return showing
+
+
+class RaisedMap extends WorldMapData:
+	func get_elevation(_cell: Vector2i) -> int:
+		return 2
+
+
+func run(runner: Object) -> void:
+	_handling_and_joint_resume(runner)
+	_holder_views(runner)
+	_regional_approach(runner)
+	_limited_observation(runner)
+	_pointer_input(runner)
+	print("SCENARIO weapon UI: configured nonthermal verbs, actual take/place and joint resume, interpolated holders, limited memory and transformed pointer selection")
+
+
+func _fixture(runner: Object) -> Dictionary:
+	var fixture: Dictionary = _fixtures._fixture(runner)
+	if fixture.is_empty():
+		return fixture
+	var runtime: WorldContinuityRuntime = fixture.continuity
+	runtime.world_sim.artifacts.objects[SWORD] = {"definition": "wooden_sword", "region": "home", "container": "dorm"}
+	fixture.player.spawn_at(SimRouteTravel.cell(fixture.home.simulation.places.dorm.cell))
+	runtime.prepare_player_command()
+	return fixture
+
+
+func _canonical(runtime: WorldContinuityRuntime) -> String:
+	return SnapshotValues.canonical_json(SnapshotValues.normalized(runtime.world_sim.to_dict()))
+
+
+func _thermal_hidden(runner: Object, panel: ObjectInspectionPanel, context: String) -> void:
+	for verb: String in ["heat", "charge", "dry", "force", "warm", "methods", "to_garden", "spirit_source"]:
+		runner.assert_true(not panel._buttons[verb].visible, context + " hides unsupported thermal action: " + verb)
+
+
+func _finish(runtime: WorldContinuityRuntime) -> void:
+	GameClock.advance_msec(int(runtime.world_sim.artifacts.active.player.due_ms) - GameClock.elapsed_ms)
+
+
+func _handling_and_joint_resume(runner: Object) -> void:
+	var fixture: Dictionary = _fixture(runner)
+	if fixture.is_empty():
+		return
+	var runtime: WorldContinuityRuntime = fixture.continuity
+	var adapter: WorldObjectsRuntime = runtime.object_adapter
+	var before: String = _canonical(runtime)
+	runner.assert_true(adapter.select_object(SWORD), "nearby wooden sword opens the existing real inspector")
+	runner.assert_true(adapter.panel._buttons.take.visible and adapter.panel._buttons.study.visible and adapter.panel._buttons.examine.visible, "wooden sword exposes its configured handling operations")
+	runner.assert_eq(adapter.panel._buttons.study.text, "熟悉握持与收放", "the selected object's own action supplies its button label")
+	runner.assert_true(adapter.panel._buttons.study.tooltip_text.contains("需2分钟") and adapter.panel._buttons.examine.tooltip_text.contains("需1分钟"), "tooltips use the sword's actual duration rather than stone timings")
+	adapter.panel.set_source_entry(true)
+	_thermal_hidden(runner, adapter.panel, "unfamiliar sword")
+	adapter.refresh()
+	runner.assert_eq(_canonical(runtime), before, "object selection and presentation manufacture no real resources or knowledge")
+	runner.assert_true(adapter.submit("take").ok, "ordinary inspector commits a real timed take for the unique sword")
+	before = _canonical(runtime)
+	for verb: String in ["methods", "spirit_source", "to_garden", "charge", "warm", "force"]:
+		runner.assert_true(not adapter.submit(verb).ok, "raw thermal request cannot bypass the selected tool's affordance: " + verb)
+	runner.assert_eq(_canonical(runtime), before, "unsupported raw requests neither spend qi nor interrupt the in-progress take")
+	_finish(runtime)
+	runner.assert_eq(runtime.world_sim.artifacts.held_weapon("player"), SWORD, "finished take transfers the same actual instance to the player's custody")
+	runner.assert_true(adapter.panel._buttons.place.visible and not adapter.panel._buttons.take.visible, "custody changes the actual available take/place controls")
+	runner.assert_true(adapter.submit("study").ok, "inspector can commit deliberate nonthermal tool familiarization")
+	GameClock.advance_msec(617)
+	var path: String = "user://tests/weapon_runtime_%d.json" % Time.get_ticks_usec()
+	runner.assert_eq(runtime.save_game(path), OK, "unfinished sword handling saves through the ordinary joint world snapshot")
+	before = _canonical(runtime)
+	_finish(runtime)
+	var future: String = _canonical(runtime)
+	runner.assert_eq(runtime.load_game(path), OK, "ordinary load restores the pending tool action and original custody")
+	runner.assert_eq(_canonical(runtime), before, "tool UI does not lose the actual pending action during restore")
+	_finish(runtime)
+	runner.assert_eq(_canonical(runtime), future, "loaded joint world reaches the identical real tool future")
+	runner.assert_true(adapter.select_object(SWORD), "restored familiar sword can reopen in the same inspector")
+	runner.assert_true(runtime.world_sim.artifacts.describe("player", SWORD).method, "actual completed familiarization is known to its operator")
+	_thermal_hidden(runner, adapter.panel, "familiar sword")
+	runner.assert_true(adapter.submit("place").ok, "ordinary place control commits actual placement at the sword's storage place")
+	_finish(runtime)
+	runner.assert_eq(runtime.world_sim.artifacts.objects[SWORD].container, "dorm", "sword returns to its configured room rather than a hard-coded kitchen")
+	for suffix: String in ["", ".tmp", ".bak", ".bak.tmp"]:
+		if FileAccess.file_exists(path + suffix):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
+	_fixtures._dispose(fixture)
+
+
+func _holder_views(runner: Object) -> void:
+	var fixture: Dictionary = _fixture(runner)
+	if fixture.is_empty():
+		return
+	var runtime: WorldContinuityRuntime = fixture.continuity
+	var domain: SimArtifacts = runtime.world_sim.artifacts
+	var adapter: WorldObjectsRuntime = runtime.object_adapter
+	fixture.world.bind_map_data(RaisedMap.new())
+	domain.objects[SWORD].container = "actor:player"
+	fixture.player.global_position += Vector2(7.25, -3.5)
+	fixture.player.altitude = 1
+	var offset := Vector2(20, -24 - 2 * ReolWorld.ELEVATION_PX - ReolWorld.ALTITUDE_PX)
+	runner.assert_true(adapter._display_point(SWORD).is_equal_approx(fixture.player.global_position + offset), "carried sword follows the player's continuous point and both terrain and flight heights")
+	domain.objects[SWORD].container = "actor:chen_shouzhuo"
+	var pawn: Pawn = fixture.home._pawns.chen_shouzhuo
+	pawn.global_position += Vector2(6.75, 4.25)
+	pawn.visual_offset = Vector2(-5, 3)
+	offset = Vector2(20, -24 - 2 * ReolWorld.ELEVATION_PX)
+	runner.assert_true(adapter._display_point(SWORD).is_equal_approx(pawn.global_position + pawn.visual_offset + offset), "NPC-held sword follows its interpolated view and crowd offset without inheriting player flight")
+	runtime.current_region = "river"
+	runtime._refresh_views(true)
+	domain.objects[SWORD].region = "river"
+	domain.objects[SWORD].container = "actor:river_chen_shouzhuo"
+	var remote: Pawn = runtime._remote_views.river_chen_shouzhuo
+	remote.global_position += Vector2(-3.25, 8.5)
+	remote.visual_offset = Vector2(4, -2)
+	runner.assert_true(adapter._display_point(SWORD).is_equal_approx(remote.global_position + remote.visual_offset + offset), "river-held sword uses the remote resident's actual nearby view")
+	runtime._remote_views.erase("river_chen_shouzhuo")
+	var actual: Vector2 = SimRouteTravel.point(runtime.world_sim.regions.river.actors.river_chen_shouzhuo)
+	runner.assert_true(adapter._display_point(SWORD).is_equal_approx(actual + offset), "uninstantiated holder fallback uses the original body's continuous position")
+	_fixtures._dispose(fixture)
+
+
+func _limited_observation(runner: Object) -> void:
+	var fixture: Dictionary = _fixture(runner)
+	if fixture.is_empty():
+		return
+	var runtime: WorldContinuityRuntime = fixture.continuity
+	var adapter: WorldObjectsRuntime = runtime.object_adapter
+	var domain: SimArtifacts = runtime.world_sim.artifacts
+	var fog := ControlledFog.new()
+	fog.showing = false
+	fixture.home._fog = fog
+	var before: String = _canonical(runtime)
+	runner.assert_true(domain.can_see("player", SWORD), "hidden sword fixture is physically close enough for the old distance-only test")
+	runner.assert_true(not adapter.select_object(SWORD) and not adapter._visible(SWORD), "fog prevents discovering a physically close but unseen unknown sword")
+	runner.assert_eq(_canonical(runtime), before, "rejected hidden selection grants no personal record")
+	fog.showing = true
+	runner.assert_true(adapter.select_object(SWORD) and adapter.submit("inspect").ok, "physical observation can create a genuine paid record")
+	_finish(runtime)
+	var remembered: Array = domain.events.back().cell.duplicate()
+	domain.objects[SWORD].container = "garden"
+	fog.showing = false
+	adapter.refresh()
+	var memory: Dictionary = adapter._perception(SWORD)
+	runner.assert_true(memory.known and not memory.near and not memory.held, "departed known tool offers memory rather than live proximity or custody")
+	runner.assert_eq(memory.cell, remembered, "memory retains the last personally known location after an unseen move")
+	runner.assert_true(memory.cell != [domain.object_cell(SWORD).x, domain.object_cell(SWORD).y], "the new hidden actual location cannot leak into the inspection projection")
+	runner.assert_true(str(memory.line).contains("上次留下的记录"), "open object panel identifies remembered information as an old record")
+	before = _canonical(runtime)
+	runner.assert_true(not adapter.submit("inspect").ok, "raw object request cannot act through a memory-only inspection")
+	runner.assert_eq(_canonical(runtime), before, "memory-only raw refusal cannot start work or acquire knowledge")
+	runtime.avatar_subject = "subject:soul:yan_heng"
+	runtime.avatar_changed.emit()
+	runner.assert_true(not adapter.panel.visible and not adapter.select_object(SWORD), "soul embodiment cannot retain the previous body's object inspector or senses")
+	runner.assert_true(not adapter._perception(SWORD).get("known", false), "direct object projection also respects the active embodiment's sense boundary")
+	fixture.home._fog = null
+	fog.free()
+	_fixtures._dispose(fixture)
+
+
+func _regional_approach(runner: Object) -> void:
+	var fixture: Dictionary = _fixture(runner)
+	if fixture.is_empty():
+		return
+	var runtime: WorldContinuityRuntime = fixture.continuity
+	var domain: SimArtifacts = runtime.world_sim.artifacts
+	domain.objects[SWORD].region = "river"
+	var target: Vector2i = domain.object_cell(SWORD)
+	fixture.player.spawn_at(target + Vector2i(3, 0))
+	runtime.prepare_player_command()
+	var adapter: WorldObjectsRuntime = runtime.object_adapter
+	runner.assert_true(adapter.select_object(SWORD), "visible remote-region tool can open from its actual nearby location")
+	runner.assert_true(adapter.submit("approach").ok, "tool inspector can begin an actual approach in the other settlement")
+	runner.assert_eq(runtime.player_journey.get("destination"), "river", "approach records the object's own region rather than a fixed home region")
+	runner.assert_eq(runtime.player_journey.get("target"), [target.x, target.y], "regional approach uses the observed object's actual target cell")
+	_fixtures._dispose(fixture)
+
+
+func _pointer_input(runner: Object) -> void:
+	var saved_clock: Dictionary = GameClock.to_dict()
+	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
+	var main: Node = load("res://scenes/main.tscn").instantiate()
+	runner.root.add_child(main)
+	var runtime: WorldContinuityRuntime = main._continuity
+	var adapter: WorldObjectsRuntime = runtime.object_adapter
+	var target_id: String = "training_sword" if runtime.world_sim.artifacts.objects.has("training_sword") else SWORD
+	if target_id == SWORD:
+		runtime.world_sim.artifacts.objects[SWORD] = {"definition": "wooden_sword", "region": "home", "container": "dorm"}
+	var target: Vector2i = runtime.world_sim.artifacts.object_cell(target_id)
+	main.player.spawn_at(target)
+	runtime.prepare_player_command()
+	main.fog.set_focus(target)
+	main.fog.update_now()
+	main.camera.zoom = Vector2(1.3, 1.3)
+	main.camera.global_position = main.player.global_position + Vector2(91, -57)
+	main.camera.force_update_scroll()
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.position = adapter.get_canvas_transform() * adapter._display_point(target_id)
+	var before: String = _canonical(runtime)
+	adapter._unhandled_input(click)
+	runner.assert_eq(adapter.selected_object, target_id, "left-click selects the event's sword position after camera pan and zoom without moving the physical mouse")
+	runner.assert_true(adapter.panel.visible, "transformed object click opens the real inspector")
+	runner.assert_eq(_canonical(runtime), before, "pointer selection changes no world time, custody, resources or personal knowledge")
+	adapter.reset_observation()
+	click.pressed = false
+	adapter._unhandled_input(click)
+	runner.assert_true(not adapter.panel.visible, "mouse release cannot reopen the object inspector")
+	runtime.world_sim.artifacts.objects.hearth_stone.container = "dorm"
+	var key := InputEventKey.new()
+	key.pressed = true
+	key.keycode = KEY_I
+	adapter._unhandled_input(key)
+	runner.assert_eq(adapter.selected_object, "hearth_stone", "I retains the known thermal-object default while wooden swords remain directly clickable")
+	main.free()
+	GameClock.restore_state(saved_clock)

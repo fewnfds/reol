@@ -5,14 +5,62 @@ extends RefCounted
 ## JSON is used instead of hand-written .tres so new pawns/ranks/origins are a
 ## data-only change. `load_all()` returns false and fills `errors` on bad data.
 
-const RANKS_PATH: String = "res://data/ranks.json"
-const ORIGINS_PATH: String = "res://data/origins.json"
-const PAWNS_PATH: String = "res://data/pawns.json"
+const RANKS_PATH: String = "res://data/definitions/ranks.json"
+const ORIGINS_PATH: String = "res://data/definitions/origins.json"
+const PAWNS_PATH: String = "res://data/definitions/pawns.json"
+const INFORMATION_POLICY_PATH: String = "res://data/definitions/stock_information_policy.json"
+const BODY_FORMS_PATH: String = "res://data/definitions/body_forms.json"
+const ARTIFACTS_PATH: String = "res://data/definitions/artifacts.json"
+const AVIAN_LIFE_PATH: String = "res://data/definitions/avian_life.json"
+const LAND_RESOURCES_PATH: String = "res://data/definitions/land_resources.json"
+const SOUL_VESSELS_PATH: String = "res://data/definitions/soul_vessels.json"
+const SOCIAL_ADMISSION_PATH: String = "res://data/definitions/social_admission.json"
+const INTERACTION_REQUESTS_PATH: String = "res://data/definitions/interaction_requests.json"
+const HEAT_METHODS_PATH: String = "res://data/definitions/heat_methods.json"
+const CONSTRUCTION_PATH: String = "res://data/definitions/construction.json"
+const RESTING_PATH: String = "res://data/definitions/resting.json"
+const WEATHER_PATH: String = "res://data/definitions/weather.json"
+const SERVICES_PATH: String = "res://data/definitions/settlement_services.json"
+const PERSONAL_FORAGING_PATH: String = "res://data/definitions/personal_foraging.json"
 
 var origins: Dictionary[StringName, OriginDef] = {}
 var ranks: Dictionary[StringName, RankDef] = {}
 var pawns: Dictionary[StringName, PawnDef] = {}
 var errors: Array[String] = []
+var stock_information_policy: Dictionary = {}
+var body_forms: Dictionary = {}
+var artifacts: Dictionary = {}
+var avian_life: Dictionary = {}
+var land_resources: Dictionary = {}
+var soul_vessels: Dictionary = {}
+var social_admission: Dictionary = {}
+var interaction_requests: Dictionary = {}
+var heat_methods: Dictionary = {}
+var construction: Dictionary = {}
+var resting: Dictionary = {}
+var weather: Dictionary = {}
+var local_trade: Dictionary = {}
+var personal_foraging: Dictionary = {}
+var entrusted_returns: Dictionary = {}
+var standing_work: Dictionary = {}
+var method_records: Dictionary = {}
+var large_bodies: Dictionary = {}
+var personal_production: Dictionary = {}
+var budgeted_labor: Dictionary = {}
+var capability_conversation: Dictionary = {}
+var autonomous_livelihood: Dictionary = {}
+var clothing: Dictionary = {}
+var health: Dictionary = {}
+var climate: Dictionary = {}
+var local_heat: Dictionary = {}
+var spirit_sources: Dictionary = {}
+var natural_environment: Dictionary = {}
+var conflicts: Dictionary = {}
+var site_affairs: Dictionary = {}
+var source_care: Dictionary = {}
+var capability_practice: Dictionary = {}
+var capability_network: Dictionary = {}
+var field_opportunities: Dictionary = {}
 
 
 func load_all() -> bool:
@@ -20,10 +68,211 @@ func load_all() -> bool:
 	ranks.clear()
 	pawns.clear()
 	errors.clear()
+	stock_information_policy = {}
+	body_forms = {}
+	artifacts = {}
+	avian_life = {}
+	land_resources = {}
+	soul_vessels = {}
+	social_admission = {}
+	interaction_requests = {}
+	heat_methods = {}
+	construction = {}
+	resting = {}
+	weather = {}
+	local_trade = {}
+	personal_foraging = {}
+	entrusted_returns = {}
+	standing_work = {}
+	method_records = {}
+	large_bodies = {}
+	personal_production = {}
+	budgeted_labor = {}
+	capability_conversation = {}
+	autonomous_livelihood = {}
+	clothing = {}
+	health = {}
+	climate = {}
+	local_heat = {}
+	spirit_sources = {}
+	natural_environment = {}
+	conflicts = {}
+	site_affairs = {}
+	var site_rules: Variant = _read_json("res://data/definitions/site_affairs.json")
+	if SimSiteAffairs.valid_definitions(site_rules):
+		site_affairs = site_rules.duplicate(true)
+	else:
+		_error("site_affairs.json: invalid bounded source-loan rules")
+	source_care = {}
+	capability_practice = {}
+	capability_network = {}
+	field_opportunities = {}
+	var field_rules: Variant = _read_json("res://data/definitions/field_opportunities.json")
+	if field_rules is Dictionary and SimFieldOpportunities.valid_definitions(field_rules):
+		field_opportunities = field_rules.duplicate(true)
+	else:
+		_error("field_opportunities.json: invalid bounded field-site rules")
+	var practice_rules: Variant = _read_json("res://data/definitions/capability_practice.json")
+	if practice_rules is Dictionary and SimCapabilityPractice.valid_definitions(practice_rules):
+		capability_practice = practice_rules.duplicate(true)
+	else:
+		_error("capability_practice.json: invalid bounded practice rules")
+	var network_rules: Variant = _read_json("res://data/definitions/capability_network.json")
+	if SimCapabilityQueries.valid_definitions(network_rules):
+		capability_network = network_rules.duplicate(true)
+	else:
+		_error("capability_network.json: invalid sourced capability projection")
+	var care_rules: Variant = _read_json("res://data/definitions/source_care.json")
+	if care_rules is Dictionary and SimSourceCare.valid_definitions(care_rules):
+		source_care = care_rules.duplicate(true)
+	else:
+		_error("source_care.json: invalid bounded source-care rules")
+	var combat_rules: Variant = _read_json("res://data/definitions/conflicts.json")
+	if SimConflicts.valid_rules(combat_rules):
+		conflicts = combat_rules.duplicate(true)
+	else:
+		_error("conflicts.json: invalid embodied technique and conflict rules")
+	var natural_rules: Variant = _read_json("res://data/definitions/natural_environment.json")
+	if NaturalEnvironment.valid_definitions(natural_rules):
+		natural_environment = natural_rules.duplicate(true)
+	else:
+		_error("natural_environment.json: invalid substrate, flora and five-phase definitions")
+	var source_rules: Variant = _read_json("res://data/definitions/spirit_sources.json")
+	if SimSpiritSources.valid_definitions(source_rules):
+		spirit_sources = source_rules.duplicate(true)
+	else:
+		_error("spirit_sources.json: invalid finite spiritual source rules")
 
+	var heat_rules: Variant = _read_json("res://data/definitions/local_heat.json")
+	if SimLocalHeat.valid_definitions(heat_rules):
+		local_heat = heat_rules.duplicate(true)
+	else:
+		_error("local_heat.json: invalid finite local heat rules")
+	var environment_rules: Variant = _read_json("res://data/definitions/climate.json")
+	if SimClimateRules.valid_definitions(environment_rules):
+		climate = environment_rules.duplicate(true)
+	else:
+		_error("climate.json: invalid calendar/local temperature rules")
+	var medicine: Variant = _read_json("res://data/definitions/health.json")
+	if SimHealth.valid_definitions(medicine):
+		health = medicine.duplicate(true)
+	else:
+		_error("health.json: invalid specific bodily consequence rules")
+	var garments: Variant = _read_json("res://data/definitions/clothing.json")
+	if SimClothing.valid_definitions(garments):
+		clothing = garments.duplicate(true)
+	else:
+		_error("clothing.json: invalid physical garment rules")
 	_load_ranks()
 	_load_origins()
 	_load_pawns()
+	var livelihood: Variant = _read_json("res://data/definitions/autonomous_livelihood.json")
+	if SimAutonomousLivelihood.valid_definitions(livelihood):
+		autonomous_livelihood = livelihood.duplicate(true)
+	else:
+		_error("autonomous_livelihood.json: invalid personal livelihood rules")
+	var conversation: Variant = _read_json("res://data/definitions/capability_conversation.json")
+	if SimCapabilityConversation.valid_definitions(conversation):
+		capability_conversation = conversation.duplicate(true)
+	else:
+		_error("capability_conversation.json: invalid attributed conversation rules")
+	var labor: Variant = _read_json("res://data/definitions/budgeted_labor.json")
+	if SimBudgetedLabor.valid_definitions(labor):
+		budgeted_labor = labor.duplicate(true)
+	else:
+		_error("budgeted_labor.json: invalid funded labor rules")
+	var production: Variant = _read_json("res://data/definitions/personal_production.json")
+	if SimPersonalProduction.valid_definitions(production):
+		personal_production = production.duplicate(true)
+	else:
+		_error("personal_production.json: invalid batch production rules")
+	var large: Variant = _read_json("res://data/definitions/large_bodies.json")
+	if SimLargeBodies.valid_definitions(large):
+		large_bodies = large.duplicate(true)
+	else:
+		_error("large_bodies.json: invalid large body rules")
+	var records: Variant = _read_json("res://data/definitions/method_records.json")
+	if SimMethodRecords.valid_definitions(records):
+		method_records = records.duplicate(true)
+	else:
+		_error("method_records.json: invalid physical method record rules")
+	var foraging: Variant = _read_json(PERSONAL_FORAGING_PATH)
+	if SimPersonalForaging.valid_definitions(foraging):
+		personal_foraging = foraging.duplicate(true)
+	else:
+		_error("%s: invalid personal foraging definitions" % PERSONAL_FORAGING_PATH)
+	var service_rules: Variant = _read_json(SERVICES_PATH)
+	var standing: Variant = _read_json("res://data/definitions/standing_work.json")
+	if SimStandingWork.valid_definitions(standing):
+		standing_work = standing.duplicate(true)
+	else:
+		_error("standing_work.json: invalid cooperative work plans")
+	if service_rules is Dictionary and preload("res://scripts/sim/services/local_trade.gd").valid_definitions(service_rules.get("trade")):
+		local_trade = service_rules.trade.duplicate(true)
+		if service_rules.get("returns") is Dictionary:
+			entrusted_returns = service_rules.returns.duplicate(true)
+	else:
+		_error("%s: invalid local trade policy" % SERVICES_PATH)
+	var information: Variant = _read_json(INFORMATION_POLICY_PATH)
+	if SimStockInformation.valid_policy(information):
+		stock_information_policy = information.duplicate(true)
+	else:
+		_error("%s: invalid stock information policy" % INFORMATION_POLICY_PATH)
+	var forms: Variant = _read_json(BODY_FORMS_PATH)
+	if SimEmbodiment.valid_forms(forms):
+		body_forms = forms.duplicate(true)
+	else:
+		_error("%s: invalid body forms" % BODY_FORMS_PATH)
+	var objects: Variant = _read_json(ARTIFACTS_PATH)
+	if SimArtifacts.valid_definitions(objects):
+		artifacts = objects.duplicate(true)
+	else:
+		_error("%s: invalid artifacts" % ARTIFACTS_PATH)
+	var avians: Variant = _read_json(AVIAN_LIFE_PATH)
+	if SimAvianLife.valid_definitions(avians):
+		avian_life = avians.duplicate(true)
+	else:
+		_error("%s: invalid avian life" % AVIAN_LIFE_PATH)
+	var land: Variant = _read_json(LAND_RESOURCES_PATH)
+	if SimLandResources.valid_definitions(land):
+		land_resources = land.duplicate(true)
+	else:
+		_error("%s: invalid land resources" % LAND_RESOURCES_PATH)
+	var souls: Variant = _read_json(SOUL_VESSELS_PATH)
+	if SimSoulVessels.valid_definitions(souls):
+		soul_vessels = souls.duplicate(true)
+	else:
+		_error("%s: invalid soul vessels" % SOUL_VESSELS_PATH)
+	var admissions: Variant = _read_json(SOCIAL_ADMISSION_PATH)
+	if SimSocialAdmission.valid_definitions(admissions):
+		social_admission = admissions.duplicate(true)
+	else:
+		_error("%s: invalid social admission rules" % SOCIAL_ADMISSION_PATH)
+	var requests: Variant = _read_json(INTERACTION_REQUESTS_PATH)
+	if SimInteractionRequests.valid_definitions(requests):
+		interaction_requests = requests.duplicate(true)
+	else:
+		_error("%s: invalid interaction request rules" % INTERACTION_REQUESTS_PATH)
+	var methods: Variant = _read_json(HEAT_METHODS_PATH)
+	if SimHeatMethods.valid_definitions(methods):
+		heat_methods = methods.duplicate(true)
+	else:
+		_error("%s: invalid heat method rules" % HEAT_METHODS_PATH)
+	var building: Variant = _read_json(CONSTRUCTION_PATH)
+	if SimConstruction.valid_definitions(building):
+		construction = building.duplicate(true)
+	else:
+		_error("%s: invalid construction rules" % CONSTRUCTION_PATH)
+	var beds: Variant = _read_json(RESTING_PATH)
+	if SimResting.valid_definitions(beds):
+		resting = beds.duplicate(true)
+	else:
+		_error("%s: invalid resting rules" % RESTING_PATH)
+	var weather_rules: Variant = _read_json(WEATHER_PATH)
+	if SimWeather.valid_definitions(weather_rules):
+		weather = weather_rules.duplicate(true)
+	else:
+		_error("%s: invalid weather rules" % WEATHER_PATH)
 	return errors.is_empty()
 
 

@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "arrangements": [
+    {"id": "hearth_watch", "case": "hearth_loan", "guard": "shi_tou", "duration_ms": 7200000}
+  ]
+}

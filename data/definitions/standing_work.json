@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "policy": {
+    "bias": 0.0,
+    "accept_threshold": 0.35,
+    "uncertainty_band": 0.03,
+    "context_step": 0.05,
+    "weights": {
+      "energy": 0.2,
+      "busy": -1.0,
+      "distance": -0.1,
+      "risk": -0.3,
+      "duty": 0.2,
+      "offer": 0.0,
+      "benevolence": 0.3,
+      "reliability": 0.15,
+      "affinity": 0.3
+    }
+  },
+  "plans": {
+    "kitchen_wood": {
+      "label": "照看灶房柴火（两时辰内）",
+      "duty": "deliver_wood",
+      "place": "kitchen",
+      "minutes": 240
+    },
+    "kitchen_water": {
+      "label": "照看灶房用水（两时辰内）",
+      "duty": "deliver_water",
+      "place": "kitchen",
+      "minutes": 240
+    }
+  }
+}

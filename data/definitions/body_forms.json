@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "forms": {
+    "human": {
+      "label": "人身",
+      "width_mm": 480,
+      "footprint": [1, 1],
+      "channels": ["motion", "action", "communication"],
+      "capabilities": ["walk", "grasp", "spoken_voice", "village_routine"]
+    },
+    "sparrow": {
+      "label": "雀身",
+      "width_mm": 75,
+      "footprint": [1, 1],
+      "channels": ["motion", "action", "communication"],
+      "capabilities": ["hop", "fly", "perch", "carry_in_beak", "bird_voice"]
+    },
+    "ancient_beast": {
+      "label": "庞大兽身",
+      "width_mm": 3000,
+      "footprint": [3, 3],
+      "channels": ["motion", "action", "communication"],
+      "capabilities": ["walk", "push_heavy", "beast_voice"]
+    },
+    "soul_ring": {
+      "label": "封魂戒指",
+      "width_mm": 30,
+      "footprint": [1, 1],
+      "channels": ["communication"],
+      "capabilities": ["spiritual_voice"]
+    }
+  }
+}

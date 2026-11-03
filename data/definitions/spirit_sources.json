@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "interaction_cells": 2,
+  "duration_ms": 120000,
+  "source_cost": 6,
+  "qi_gain": 4,
+  "charge_gain": 6,
+  "artifact_type": "warm_stone",
+  "sources": {
+    "hearth_seam": {
+      "label": "地火隙",
+      "region": "home",
+      "place": "kitchen",
+      "phase": "fire",
+      "capacity": 24,
+      "initial": 12,
+      "deep_supply": 120,
+      "refill_ms": 600000,
+      "refill_amount": 1,
+      "description": "灶旁岩隙间偶有温息透出；须借完整温石循纹导引，源息也有枯竭之时。"
+    }
+  }
+}

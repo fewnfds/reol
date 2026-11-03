@@ -1,29 +1,46 @@
 class_name PlayerCharacter
 extends CharacterBody2D
-## Placeholder player avatar.
+## Player body view and terrain-aware manual movement.
 ##
 ## Movement is grid-aware: the world decides whether a step is legal, and the
 ## player sweeps its motion in small substeps so low FPS cannot tunnel through
 ## blocked cells. Speed ramps up/down instead of snapping to full velocity.
 
-@export var speed: float = 240.0
-@export var acceleration: float = 1800.0
-@export var friction: float = 2600.0
+signal manual_movement_started
+signal resources_changed
+signal cell_changed
 
-const MAX_SUBSTEP_PX: float = 12.0
+var clothing_appearance: Dictionary = {}
+var appearance_pose: Dictionary = {}
+var manual_visual_moving: bool = false
+
+const Visuals = preload("res://scripts/entities/pawn_visuals.gd")
 
 var cell: Vector2i = Vector2i.ZERO
 var altitude: int = 0
 var blocked: bool = false
 var state: PawnState
 var selected: bool = false
+var avatar_active: bool = true
 
 var _world: ReolWorld
-var _velocity: Vector2 = Vector2.ZERO
+var motion: SimLocalMotion = SimLocalMotion.new()
+var _intent: Vector2 = Vector2.ZERO
+var _actor_provider: Callable
+var _action_guard: Callable
+var _action_continuation_guard: Callable
+var _automatic_guard: Callable
+var _walking_provider: Callable
+var _shared_motion_executor: bool = false
+var _clock: ReolGameClock
+var _motion_guard: Callable
+var _has_motion_guard: bool = false
 
 
 func _ready() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_world = get_parent().get_node_or_null("World") as ReolWorld
+	_clock = get_node_or_null("/root/GameClock") as ReolGameClock
 	z_index = 10
 
 
@@ -52,8 +69,8 @@ func selection_center() -> Vector2:
 
 func spawn_at(spawn_cell: Vector2i) -> void:
 	cell = spawn_cell
-	global_position = TileGrid.cell_to_world(cell)
-	_velocity = Vector2.ZERO
+	motion.relocate(TileGrid.cell_to_world(cell))
+	global_position = motion.position
 	blocked = false
 	queue_redraw()
 
@@ -63,61 +80,116 @@ func set_altitude(value: int) -> void:
 	queue_redraw()
 
 
-func _physics_process(delta: float) -> void:
+func set_motion_guard(provider: Callable) -> void:
+	_motion_guard = provider
+	_has_motion_guard = true
+
+
+func has_motion_control() -> bool:
+	return avatar_active and (not _has_motion_guard or (_motion_guard.is_valid() and bool(_motion_guard.call())))
+
+
+func bind_locomotion(world: ReolWorld, clock: ReolGameClock, actor_provider: Callable, action_guard: Callable, automatic_guard: Callable, walking_provider: Callable = Callable(), action_continuation_guard: Callable = Callable()) -> void:
+	_world = world
+	_clock = clock
+	_actor_provider = actor_provider
+	_action_guard = action_guard
+	_action_continuation_guard = action_continuation_guard
+	_automatic_guard = automatic_guard
+	_walking_provider = walking_provider
+	motion.bind_body(actor_provider.call())
+	if not clock.time_advanced.is_connected(_on_time_advanced):
+		clock.time_advanced.connect(_on_time_advanced)
+
+
+func _physics_process(_delta: float) -> void:
+	# Input sampling never displaces the body or spends simulated resources.
+	_intent = Input.get_vector("move_left", "move_right", "move_up", "move_down") if avatar_active else Vector2.ZERO
+	if not _intent.is_zero_approx() and _clock != null:
+		_clock.cancel_wait()
+
+
+func _on_time_advanced(from_ms: int, to_ms: int) -> void:
+	if _shared_motion_executor:
+		# Cancel an old automatic journey before the world adapter projects it
+		# over this interval. This is only an intent handoff, not displacement.
+		if has_motion_control() and motion.action.is_empty() and not _intent.is_zero_approx():
+			manual_movement_started.emit()
+		return
+	advance_motion_interval(from_ms, to_ms)
+
+
+func set_shared_motion_executor(enabled: bool) -> void:
+	# The regional executor calls the same body integrator at each real world
+	# boundary. Its scene-clock callback must not also consume the whole span.
+	_shared_motion_executor = enabled
+
+
+func advance_motion_interval(from_ms: int, to_ms: int, project: bool = true) -> void:
 	if _world == null:
 		return
-
-	var direction := Input.get_vector(
-		"move_left", "move_right", "move_up", "move_down"
-	)
-	var target_velocity: Vector2 = direction.normalized() * speed
-	var rate: float = acceleration if direction != Vector2.ZERO else friction
-	_velocity = _velocity.move_toward(target_velocity, rate * delta)
-	if _velocity.length_squared() < 1.0:
-		_velocity = Vector2.ZERO
-		blocked = false
-		return
-
-	blocked = false
-	var motion: Vector2 = _velocity * delta
-	var substeps: int = maxi(1, ceili(motion.length() / MAX_SUBSTEP_PX))
-	for _index in substeps:
-		_move_step(motion / float(substeps))
-
-
-func _move_step(motion: Vector2) -> void:
-	var target: Vector2 = global_position + motion
-	if _try_move_to(target):
-		return
-
-	var moved: bool = false
-	if not is_zero_approx(motion.x):
-		if _try_move_to(global_position + Vector2(motion.x, 0.0)):
-			moved = true
-		else:
-			_velocity.x = 0.0
-	if not is_zero_approx(motion.y):
-		if _try_move_to(global_position + Vector2(0.0, motion.y)):
-			moved = true
-		else:
-			_velocity.y = 0.0
-
-	if not moved:
-		blocked = true
-		_velocity = Vector2.ZERO
+	var controlled: bool = has_motion_control()
+	if not motion.action.is_empty():
+		var guard: Callable = _action_continuation_guard if _action_continuation_guard.is_valid() else _action_guard
+		controlled = controlled and guard.is_valid() and bool(guard.call())
+	elif controlled and not _intent.is_zero_approx():
+		manual_movement_started.emit()
+	var automatic: bool = _automatic_guard.is_valid() and bool(_automatic_guard.call())
+	var previous_position: Vector2 = motion.position
+	if automatic and motion.action.is_empty():
+		motion.velocity = Vector2.ZERO
+	else:
+		var walking: Dictionary = _walking_provider.call() if _walking_provider.is_valid() else {"allowed": true, "speed_fraction": 1.0}
+		# Sidestep has its own action qualification and must not become a second
+		# cast-time movement path merely because ordinary walking was allowed.
+		controlled = controlled and (not motion.action.is_empty() or bool(walking.allowed))
+		motion.advance(from_ms, to_ms, _intent, _world.can_step, controlled, float(walking.speed_fraction))
+	manual_visual_moving = not automatic and motion.action.is_empty() and not motion.velocity.is_zero_approx() and not previous_position.is_equal_approx(motion.position)
+	if project:
+		_project_motion()
 
 
-func _try_move_to(target: Vector2) -> bool:
-	var target_cell: Vector2i = TileGrid.world_to_cell(target)
-	if target_cell == cell:
-		global_position = target
-		return true
-	if not _world.can_step(cell, target_cell - cell):
+func request_sidestep(direction: Vector2 = Vector2.ZERO) -> bool:
+	if _clock == null or not has_motion_control() or not _actor_provider.is_valid() or not _action_guard.is_valid() or not bool(_action_guard.call()) or not motion.action.is_empty():
 		return false
-	global_position = target
-	cell = target_cell
+	if direction.is_zero_approx():
+		direction = Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	var actor: Dictionary = _actor_provider.call()
+	if not direction.is_finite() or not bool(actor.get("alive", false)) or int(actor.get("stamina", 0)) < int(motion.rules.sidestep.stamina):
+		return false
+	_clock.cancel_wait()
+	manual_movement_started.emit()
+	var accepted: bool = motion.begin_sidestep(_clock.elapsed_ms, direction, actor)
+	if accepted and state != null:
+		state.stamina = int(actor.stamina)
+		resources_changed.emit()
+	_project_motion()
+	return accepted
+
+
+func _project_motion() -> void:
+	var previous_cell: Vector2i = cell
+	global_position = motion.position
+	cell = motion.cell()
+	blocked = motion.blocked
+	if cell != previous_cell:
+		cell_changed.emit()
 	queue_redraw()
+
+
+func restore_motion(data: Dictionary, point: Vector2, now: int) -> bool:
+	if not motion.restore(data, point, now):
+		return false
+	_intent = Vector2.ZERO
+	manual_visual_moving = not motion.velocity.is_zero_approx()
+	_project_motion()
 	return true
+
+
+func _move_step(displacement: Vector2) -> void:
+	# Explicit terrain probe retained for the existing corner regression.
+	motion._move(displacement, _world.can_step)
+	_project_motion()
 
 
 func _draw() -> void:
@@ -129,49 +201,16 @@ func _draw() -> void:
 		0.0, float(altitude * ReolWorld.ALTITUDE_PX)
 	)
 
-	var shadow := PackedVector2Array([
-		Vector2(-12.0, 2.0) + ground_offset,
-		Vector2(0.0, 8.0) + ground_offset,
-		Vector2(12.0, 2.0) + ground_offset,
-		Vector2(0.0, -4.0) + ground_offset,
-	])
-	draw_colored_polygon(shadow, Color(0.0, 0.0, 0.0, 0.28))
-	if selected:
-		draw_arc(ground_offset, 17.0, 0.0, TAU, 24, Color("#e8c86a"), 2.0)
-	draw_circle(Vector2(0.0, -20.0) + body_offset, 8.0, Color("#e6d3b3"))
-	draw_rect(
-		Rect2(Vector2(-8.0, -13.0) + body_offset, Vector2(16.0, 23.0)),
-		Color("#b23a2f")
-	)
-	draw_rect(
-		Rect2(Vector2(-6.0, 10.0) + body_offset, Vector2(5.0, 8.0)),
-		Color("#2b2b2b")
-	)
-	draw_rect(
-		Rect2(Vector2(1.0, 10.0) + body_offset, Vector2(5.0, 8.0)),
-		Color("#2b2b2b")
-	)
+	if not motion.action.is_empty():
+		var phase: String = motion.phase(_clock.elapsed_ms if _clock != null else int(motion.action.advanced_ms))
+		var color := Color("#e9c98b") if phase == "起势" else Color("#87c9cf")
+		draw_arc(ground_offset, 23.0, -PI * 0.8, PI * 0.8, 14, color, 2.5)
+		draw_string(ThemeDB.fallback_font, body_offset + Vector2(-15, -48), phase, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, color)
 
-	if state != null:
-		var font: Font = ThemeDB.fallback_font
-		var text: String = state.display_name()
-		var text_pos: Vector2 = body_offset + Vector2(-48.0, -36.0)
-		draw_string_outline(
-			font,
-			text_pos,
-			text,
-			HORIZONTAL_ALIGNMENT_CENTER,
-			96.0,
-			12,
-			3,
-			Color(0.0, 0.0, 0.0, 0.85)
-		)
-		draw_string(
-			font,
-			text_pos,
-			text,
-			HORIZONTAL_ALIGNMENT_CENTER,
-			96.0,
-			12,
-			Color("#e8e0d0")
-		)
+	var robe := Color("#b23a2f")
+	var caption: String = ""
+	if state != null and state.pawn_def != null:
+		robe = state.pawn_def.color
+		caption = state.display_name()
+	appearance_pose["time_ms"] = _clock.elapsed_ms if _clock != null else 0
+	Visuals.draw_actor(self, ground_offset, body_offset, robe, caption if avatar_active else "无名杂役", selected, avatar_active, clothing_appearance, appearance_pose)

@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "direct_protection_minutes": 20,
+  "memory_lifetime_minutes": 120,
+  "minimum_source_reliability": 0.35,
+  "repeat_statement_minutes": 30
+}

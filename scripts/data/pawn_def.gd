@@ -1,7 +1,7 @@
 class_name PawnDef
 extends RefCounted
-## Static pawn definition loaded from `data/pawns.json`.
-## Runtime values (hunger, contribution, ...) live in PawnState.
+## Static pawn definition loaded from `data/definitions/pawns.json`.
+## Runtime body values are presented by PawnState. Social accounts live in the simulation.
 
 var id: StringName = &""
 var display_name: String = ""

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "return_action": {"label": "回值事房桌前办公", "kind": "visit", "target": "records", "minutes": 1, "contribution": 0},
+  "desk_reach_px": 24,
+  "room_templates": [
+    {"origin": [-2, -3], "size": [5, 5]},
+    {"origin": [-2, -2], "size": [5, 4]}
+  ],
+  "desk_offset": [0, -1],
+  "archive_offset": [1, -1],
+  "permissions": ["record", "pay", "authorize"],
+  "labels": {"room": "值事房", "desk": "办公桌案", "archive": "公账档案柜", "register": "机构记功簿"}
+}
