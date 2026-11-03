@@ -30,6 +30,7 @@ func run(runner: Object) -> void:
 		var projected: Dictionary = current.continuity.world.duplicate(true)
 		projected.erase("field_opportunities")
 		projected.version = 35
+		projected.artifacts.version = source.continuity.world.artifacts.version
 		runner.assert_eq(_json(projected), _json(source.continuity.world), "only explicit empty field domain differs; all existing bodies, abilities, costs and life remain")
 		runner.assert_eq(_json(current.simulation), _json(source.simulation), "migration changes no original body, inventory or personal memory")
 		runner.assert_eq(_json(current.clock), _json(source.clock), "migration changes no shared clock or pending wait")

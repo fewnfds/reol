@@ -147,7 +147,7 @@ static func _historical_exclusion(data: Dictionary, domain: RefCounted, jobs: Ar
 		for original: Dictionary in artifacts:
 			var original_end: int = int(original.get("at_ms", original.get("due_ms", 0)))
 			var overlaps: bool = int(original.started_ms) < end and int(job.started_ms) < original_end
-			if overlaps and (original.actor == job.actor or original.get("method", {}).get("guide") == job.actor or original.object == job.object):
+			if overlaps and (original.actor == job.actor or original.get("method", {}).get("guide") == job.actor or original.object == job.object or original.get("draw", {}).get("target") == job.object):
 				return false
 		for original: Dictionary in souls:
 			var original_end: int = int(original.get("at_ms", original.get("due_ms", 0)))
@@ -203,7 +203,23 @@ static func _baselines(data: Dictionary, domain: RefCounted, jobs: Array[Diction
 			first_stone[job.object] = job
 	var first_cast: Dictionary = {}
 	var first_practice: Dictionary = {}
+	var first_ring: Dictionary = {}
 	var expected_actors: Dictionary = first_actor.duplicate()
+	# Old warm-stone actions did not create a checkpoint. Only the new paid
+	# ring actions establish a first baseline; existing artifacts still enter
+	# _spending from whatever original artifact_floor was actually captured.
+	var artifact_jobs: Array = domain.world.artifacts.events.duplicate()
+	artifact_jobs.append_array(domain.world.artifacts.active.values())
+	for job: Dictionary in artifact_jobs:
+		if job.verb not in ["use_research", "draw"] or int(job.qi_spent) <= 0:
+			continue
+		var actor: String = str(job.actor)
+		var cost: Dictionary = {"domain": "artifact", "number": domain.number(str(job.get("action", job.id))), "at_ms": int(job.started_ms), "amount": int(job.qi_spent)}
+		if not _valid_cost(cost, domain):
+			return false
+		if not first_ring.has(actor) or int(cost.number) < int(first_ring[actor].number):
+			first_ring[actor] = cost
+			expected_actors[actor] = true
 	var conflicts: Variant = domain.world.get("conflicts")
 	if conflicts != null:
 		var allocated: Dictionary = {}
@@ -233,18 +249,23 @@ static func _baselines(data: Dictionary, domain: RefCounted, jobs: Array[Diction
 		var source_ms: int = int(first_actor[actor].started_ms) if first_actor.has(actor) else SimInventory.MAX_COUNT
 		var cast_ms: int = int(first_cast[actor].at_ms) if first_cast.has(actor) else SimInventory.MAX_COUNT
 		var practice_ms: int = int(first_practice[actor].at_ms) if first_practice.has(actor) else SimInventory.MAX_COUNT
-		if not Shape.keys(row, ["at_ms", "qi", "artifact_floor", "soul_floor", "conflict_floor", "practice_floor"]) or not Shape.count(row.at_ms, int(data.activation_ms), int(data.last_ms)) or int(row.at_ms) != mini(source_ms, mini(cast_ms, practice_ms)) or not Shape.count(row.qi, 0, domain.max_qi(actor)) or not _floors(row, domain):
+		var ring_ms: int = int(first_ring[actor].at_ms) if first_ring.has(actor) else SimInventory.MAX_COUNT
+		if not Shape.keys(row, ["at_ms", "qi", "artifact_floor", "soul_floor", "conflict_floor", "practice_floor"]) or not Shape.count(row.at_ms, int(data.activation_ms), int(data.last_ms)) or int(row.at_ms) != mini(ring_ms, mini(source_ms, mini(cast_ms, practice_ms))) or not Shape.count(row.qi, 0, domain.max_qi(actor)) or not _floors(row, domain):
 			return false
 		if first_cast.has(actor):
 			var number: int = int(first_cast[actor].number)
 			# A cast-first checkpoint is taken immediately before its exact
 			# allocation. A source may have opened earlier in the same ms, so
 			# its global floor can be smaller, but never skip this first cost.
-			if int(row.conflict_floor) > number or (cast_ms < mini(source_ms, practice_ms) and int(row.conflict_floor) != number):
+			if int(row.conflict_floor) > number or (cast_ms < mini(ring_ms, mini(source_ms, practice_ms)) and int(row.conflict_floor) != number):
 				return false
 		if first_practice.has(actor):
 			var number: int = int(first_practice[actor].number)
-			if int(row.practice_floor) > number or practice_ms < mini(source_ms, cast_ms) and int(row.practice_floor) != number: return false
+			if int(row.practice_floor) > number or practice_ms < mini(ring_ms, mini(source_ms, cast_ms)) and int(row.practice_floor) != number: return false
+		if first_ring.has(actor):
+			var number: int = int(first_ring[actor].number)
+			if int(row.artifact_floor) > number or ring_ms < mini(source_ms, mini(cast_ms, practice_ms)) and int(row.artifact_floor) != number:
+				return false
 	for id: String in data.charge_baselines:
 		var row: Variant = data.charge_baselines[id]
 		var shape: Dictionary = domain.world.artifacts.definitions.types[domain.world.artifacts.objects[id].definition]

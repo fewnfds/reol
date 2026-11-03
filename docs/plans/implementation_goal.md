@@ -1,8 +1,8 @@
 # 游戏实施 Goal
 
-> **U3-a进行中（2026-11-04）**：正在接一处断碑台、原唯一旧环、个人来源线索/已知地点行旅与河湾小满的自主寻物，并修野外人身显示/选择。仅新局显式装配；根40/区域36从旧39/35迁空域。引物功能/私物交换仍后置，不据definition能力标记宣称已实现。尚未完整导入/测试/实机验收；原Goal仍active，不重写、不complete。本轮包的规格以[first_field_opportunity](first_field_opportunity.md)为准。
+> **U3-b1当前包（2026-11-04）**：断碑台、本人线索/行旅及原NPC寻物之后，主目录已接本人持环、先辨形再独立研究，以及原qi/身体/唯一目标的短距引物。末版定向、两次独立进程停开及原生画面已复验，本包CI及最终验收待完成；范围与证据见[规格](field_ring_use.md)、[QA](../qa/20261104_drawing_ring.md)、[BASELINE](../BASELINE.md)。私人交换/争夺后果另包，完整游戏及首小时切片未完成，原Goal仍active，不重写、不complete。
 
-> **U2-a已验收，原Goal继续active**：有来源小网/真实练习/原护障缓步、普通主局/原生图与真实v39两档run227/228停开同未来已验。最终check session16414退出0、CHECK PASSED（结构/导入055825、测试055831）；旧session28033/36285已结束，不再wait。证据见[QA](../qa/20261104_capability_network.md)，数字只看BASELINE。下一[断碑台与引物环](first_field_opportunity.md)仍为待实施建议，优先新地点/实际器物能力，复杂农务后置。完整游戏和首小时切片未完成，不调用Goal complete。
+> **U2-a前包已验收，原Goal继续active**：有来源小网/真实练习/原护障缓步、普通主局/原生图与真实v39两档run227/228停开同未来已验。最终check session16414退出0、CHECK PASSED（结构/导入055825、测试055831）；旧session28033/36285已结束，不再wait。证据见[QA](../qa/20261104_capability_network.md)，数字只看BASELINE。此后已接断碑台与有限引物，最新状态见上方；复杂农务后置。完整游戏和首小时切片未完成，不调用Goal complete。
 
 > **2026-11-04 U1-b2接续**：工具确认原Goal active，不创建或改写目标。有限看护/具名说明/警告/原NPC主动驱离已接通，真实源/身体/个人认识仍唯一；详情见[QA](../qa/20261104_source_care.md)。三种真实v38档run225/226两次完整停开未来逐字节一致，原生三图已查看。首完整检查session9763已退出1，唯一失败为旧test_conflict_runtime全员非自主前提下期待NPC自动反击（日志015935）；旧fixture自主前提已修且定向通过；第二轮完整check session23893已退出0/CHECK PASSED（结构/导入021025、测试021031），不再等待。新UI源面板遮挡与旧警告串无关交锋已定向回归。以下旧“最新状态”和run为历史。下一[U2-a本领小网/行气护身](capability_network_first.md)只是待实施规格，勿从头重做看护或继续扩农务。
 

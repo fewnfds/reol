@@ -4,7 +4,7 @@ extends RefCounted
 ## Scene adapters may disappear; these instances and their pending work remain.
 
 const DEFINITIONS_VERSION: int = 1
-const SCHEMA_VERSION: int = 36
+const SCHEMA_VERSION: int = 37
 const MINUTE_MS: int = 60000
 const MAX_COUNT: int = SimInventory.MAX_COUNT
 const Services = preload("res://scripts/sim/services/settlement_services.gd")
@@ -357,6 +357,25 @@ static func upgrade_field_opportunities(source: Dictionary) -> Dictionary:
 	# Previously unplayed worlds have no invented site, visitors or treasure.
 	result["field_opportunities"] = SimFieldOpportunities.empty_state()
 	result.version = 36
+	return result
+
+
+static func upgrade_ring_use(source: Dictionary) -> Dictionary:
+	if source.get("version") != 36 or not source.get("artifacts") is Dictionary:
+		return {}
+	var artifacts: Dictionary = source.artifacts
+	if not SimArtifacts.Schema._keys(artifacts, ["version", "objects", "active", "events", "experiences", "next_id"]) or artifacts.version != 4 or not artifacts.active is Dictionary or not artifacts.events is Array:
+		return {}
+	# These actions did not exist in v4. A version downgrade must not bypass
+	# the new knowledge and cost checks, nor manufacture a prior draw.
+	var old_actions: Array = artifacts.active.values()
+	old_actions.append_array(artifacts.events)
+	for row: Variant in old_actions:
+		if not row is Dictionary or row.has("draw") or row.get("verb") in ["use_research", "draw"]:
+			return {}
+	var result: Dictionary = source.duplicate(true)
+	result.artifacts.version = 5
+	result.version = 37
 	return result
 
 
@@ -949,6 +968,8 @@ func restore(data: Dictionary) -> bool:
 		data = upgrade_capability_practice(data)
 	if data.get("version") == 35:
 		data = upgrade_field_opportunities(data)
+	if data.get("version") == 36:
+		data = upgrade_ring_use(data)
 	if _content == null or not _valid_world_shape(data):
 		return false
 	if (services != null) != data.has("services"):
@@ -1172,6 +1193,8 @@ func restore(data: Dictionary) -> bool:
 	if not next_practice.cross_valid():
 		return false
 	if not next_field.cross_valid():
+		return false
+	if not SimArtifacts.Schema.cross_valid(next_artifacts):
 		return false
 	field_opportunities = next_field
 	field_opportunities.bind_world(self)

@@ -12,7 +12,7 @@ func run(runner: Object) -> void:
 	_hearing_is_not_embodied_learning(runner)
 	_private_versions_and_written_steps(runner)
 	_real_mobile_practice(runner)
-	print("SCENARIO capability queries: seven personal sourced projections, original completed lessons and artifact learning, unread/read/practiced separation, private immutable versions, actual paid/cancelled/completed walking practice, typed evidence and mutation-free browsing")
+	print("SCENARIO capability queries: eight personal sourced projections, original completed lessons and artifact learning, unread/read/practiced separation, private immutable versions, actual paid/cancelled/completed walking practice, typed evidence and mutation-free browsing")
 
 
 func _make(runner: Object) -> RegionalSimulation:
@@ -35,7 +35,7 @@ func _definitions_and_identity(runner: Object) -> void:
 	if world == null:
 		return
 	var definitions: Dictionary = world._content.capability_network
-	runner.assert_true(Queries.valid_definitions(definitions), "seven display definitions validate independently of any learned-state mirror")
+	runner.assert_true(Queries.valid_definitions(definitions), "eight display definitions validate independently of any learned-state mirror")
 	for fault: String in ["extra", "missing_node", "unknown_kind", "bad_edge", "duplicate_edge", "untyped_summary"]:
 		var bad: Dictionary = definitions.duplicate(true)
 		match fault:
@@ -48,7 +48,7 @@ func _definitions_and_identity(runner: Object) -> void:
 		runner.assert_true(not Queries.valid_definitions(bad), "bounded personal view definition rejects " + fault)
 	var before: String = _canonical(world)
 	var view: Dictionary = Queries.project(world, "player")
-	runner.assert_true(view.allowed and view.nodes.size() == 7, "ordinary current human can inspect exactly seven bounded display categories")
+	runner.assert_true(view.allowed and view.nodes.size() == 8, "ordinary current human can inspect exactly eight bounded display categories")
 	runner.assert_eq(view.at_ms, world.elapsed_ms, "projection reports the original committed world time without its own clock")
 	runner.assert_eq(_node(world, "player", "sword").state, "unknown", "merely standing beside a swordsman never grants sword knowledge")
 	runner.assert_eq(_node(world, "player", "stone_channeling").state, "unknown", "merely seeing a warm stone does not grant its method")

@@ -3,11 +3,12 @@ extends RefCounted
 ## Unique objects, personal experiments and committed material effects.
 ## Container references own location; observations never expose private charge.
 
-const VERSION: int = 4
+const VERSION: int = 5
 const DEFINITIONS_VERSION: int = 1
 const VERBS: Array[String] = ["inspect", "take", "place", "study", "heat", "charge", "dry", "examine", "force", "warm"]
 const Schema = preload("res://scripts/sim/artifact_schema.gd")
 const Understanding = preload("res://scripts/sim/artifact_understanding.gd")
+const Drawing = preload("res://scripts/sim/artifact_drawing.gd")
 const Space = preload("res://scripts/sim/conflict_space.gd")
 
 var definitions: Dictionary = {}
@@ -50,6 +51,10 @@ static func valid_definitions(data: Variant) -> bool:
 		if item.has("capabilities"):
 			if not _valid_tool_definition(item):
 				return false
+			if item.capabilities[0] == "remote_draw":
+				for target_id: String in item.drawing.target_definitions:
+					if not data.types.has(target_id) or not data.types[target_id] is Dictionary or data.types[target_id].get("capabilities") != ["weapon"]:
+						return false
 			continue
 		for field: String in ["name", "unknown_name", "appearance", "method", "workplace", "credited_action"]:
 			if not SimInventory._nonempty(item.get(field)):
@@ -73,15 +78,29 @@ static func valid_definitions(data: Variant) -> bool:
 
 
 static func _valid_tool_definition(item: Dictionary) -> bool:
-	if not Schema._keys(item, ["name", "unknown_name", "appearance", "method", "material_cue", "capabilities", "storage_place", "actions"]) or not item.capabilities is Array or item.capabilities.size() != 1 or item.capabilities[0] not in ["weapon", "remote_draw"]:
+	var keys: Array = ["name", "unknown_name", "appearance", "method", "material_cue", "capabilities", "storage_place", "actions"]
+	if not item.get("capabilities") is Array or item.capabilities.size() != 1 or item.capabilities[0] not in ["weapon", "remote_draw"]:
+		return false
+	var remote: bool = item.capabilities[0] == "remote_draw"
+	if remote:
+		keys.append("drawing")
+	if not Schema._keys(item, keys):
 		return false
 	for field: String in ["name", "unknown_name", "appearance", "method", "material_cue", "storage_place"]:
 		if not SimInventory._nonempty(item[field]):
 			return false
-	if not item.actions is Dictionary or not Schema._keys(item.actions, ["inspect", "take", "place", "study", "examine"]):
+	var action_keys: Array = ["inspect", "take", "place", "study", "examine"]
+	if remote:
+		action_keys.append("use_research")
+	if not item.actions is Dictionary or not Schema._keys(item.actions, action_keys):
 		return false
-	for action: Variant in item.actions.values():
-		if not action is Dictionary or not Schema._keys(action, ["label", "minutes", "qi"]) or not SimInventory._nonempty(action.label) or not _count(action.minutes, 1) or not _count(action.qi) or action.qi != 0:
+	for verb: String in action_keys:
+		var action: Variant = item.actions[verb]
+		if not action is Dictionary or not Schema._keys(action, ["label", "minutes", "qi"]) or not SimInventory._nonempty(action.label) or not _count(action.minutes, 1) or not _count(action.qi, 1 if verb == "use_research" else 0) or (verb != "use_research" and action.qi != 0):
+			return false
+	if remote:
+		var drawing: Variant = item.drawing
+		if not drawing is Dictionary or not Schema._keys(drawing, ["duration_ms", "qi", "range_cells", "target_definitions"]) or not _count(drawing.duration_ms, 1) or not _count(drawing.qi, 1) or not _count(drawing.range_cells, 1) or not drawing.target_definitions is Array or drawing.target_definitions != ["wooden_sword"]:
 			return false
 	return true
 
@@ -100,7 +119,29 @@ func verbs_for(id: String) -> Dictionary:
 	if not objects.has(id):
 		return {}
 	var definition: Dictionary = definitions.types[objects[id].definition]
-	return (definitions.verbs if type_has_capability(definition, "heat_storage") else definition.actions).duplicate(true)
+	var verbs: Dictionary = (definitions.verbs if type_has_capability(definition, "heat_storage") else definition.actions).duplicate(true)
+	if type_has_capability(definition, "remote_draw"):
+		verbs["draw"] = _draw_terms(definition)
+	return verbs
+
+
+static func _draw_terms(definition: Dictionary) -> Dictionary:
+	return {"label": "引取木剑", "minutes": 0, "qi": int(definition.drawing.qi), "duration_ms": int(definition.drawing.duration_ms)}
+
+
+func shape_studied(actor: String, id: String) -> bool:
+	return Understanding.has_personal_event(self, actor, id, "studied")
+
+
+func learned_use(actor: String, id: String) -> bool:
+	return has_capability(id, "remote_draw") and Understanding.has_personal_event(self, actor, id, "use_learned")
+
+
+func target_in_use(id: String) -> bool:
+	for job: Dictionary in active.values():
+		if job.object == id or job.get("draw", {}).get("target") == id:
+			return true
+	return false
 
 
 func held_weapon(actor: String) -> String:
@@ -273,12 +314,49 @@ func describe(actor: String, id: String) -> Dictionary:
 
 
 func begin(actor: String, verb: String, id: String) -> Dictionary:
+	if verb == "draw":
+		return _response(false, "须先选择要引取的具体实物。")
 	return _begin(actor, verb, id, false)
+
+
+func begin_draw(actor: String, tool: String, target: String) -> Dictionary:
+	if world.elapsed_ms != world.target_ms:
+		return _response(false, "世界事务仍在接续，请稍后再动手。")
+	var home: String = actor_home(actor)
+	if home.is_empty() or not objects.has(tool) or not objects.has(target):
+		return _response(false, "找不到引物环或选中的实物。")
+	world.synchronize_region(home)
+	world.synchronize_region(str(objects[tool].region))
+	world.synchronize_region(str(objects[target].region))
+	var reason: String = Drawing.readiness(self, actor, tool, target)
+	if not reason.is_empty():
+		return _response(false, reason)
+	var person: Dictionary = world.regions[home].actors[actor]
+	var terms: Dictionary = verbs_for(tool).draw
+	if int(person.qi) < int(terms.qi):
+		return _response(false, "你的灵气不足以引取这件实物。")
+	if int(world.elapsed_ms) > SimInventory.MAX_COUNT - int(terms.duration_ms) or next_id > SimInventory.MAX_COUNT - 2:
+		return _response(false, "当前时间无法安排这次操作。")
+	if world.spirit_sources == null or not world.spirit_sources.ensure_qi_baseline(actor):
+		return _response(false, "当前无法核对本人已有的灵气。")
+	var item: Dictionary = objects[target]
+	var cell: Vector2i = object_cell(target)
+	var metadata: Dictionary = {"target": target, "from_region": str(item.region), "from_container": str(item.container),
+		"from_cell": [cell.x, cell.y], "caster_position": person.position.duplicate()}
+	var action_id: String = _allocate("action")
+	person.qi = int(person.qi) - int(terms.qi)
+	active[actor] = {"id": action_id, "actor": actor, "object": tool, "verb": "draw", "region": home,
+		"started_ms": world.elapsed_ms, "due_ms": int(world.elapsed_ms) + int(terms.duration_ms),
+		"qi_spent": int(terms.qi), "previous_autonomous": bool(person.autonomous), "recipient": "", "draw": metadata}
+	person.autonomous = false
+	person.goal = str(terms.label)
+	world.invalidate_region(home)
+	return _response(true, "已凝神引取；完成前木剑仍在原处，已投入%d灵气。" % int(terms.qi))
 
 
 func _begin(actor: String, verb: String, id: String, during_commit: bool, recipient: String = "", method: Dictionary = {}) -> Dictionary:
 	var home: String = actor_home(actor)
-	if home.is_empty() or not objects.has(id) or not verbs_for(id).has(verb):
+	if verb == "draw" or home.is_empty() or not objects.has(id) or not verbs_for(id).has(verb):
 		return _response(false, "暂时找不到可这样使用的器物。")
 	if not during_commit and world.elapsed_ms != world.target_ms:
 		return _response(false, "世界事务仍在接续，请稍后再动手。")
@@ -287,13 +365,12 @@ func _begin(actor: String, verb: String, id: String, during_commit: bool, recipi
 	if not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion"):
 		return _response(false, "眼下无法支配身体操作它。")
 	var person: Dictionary = world.regions[home].actors[actor]
-	if world.health != null and verb in ["heat", "charge", "dry", "force", "warm"] and world.health.blocks_channeling(actor):
+	if world.health != null and verb in ["heat", "charge", "dry", "force", "warm", "use_research"] and world.health.blocks_channeling(actor):
 		return _response(false, "手臂仍灼涩，引流不顺；先停下催动，休养或求助。")
 	if not bool(person.alive) or not person.active.is_empty() or owns_actor(actor) or world.local_action_owns(actor) or (world.services != null and world.services.owns_actor(actor)):
 		return _response(false, "先完成或中断手头的事情。")
-	for job: Dictionary in active.values():
-		if job.object == id:
-			return _response(false, "有人正在操作它，请稍等。")
+	if target_in_use(id):
+		return _response(false, "有人正在操作它，请稍等。")
 	if world.soul_vessels != null and world.soul_vessels.target_in_use(id):
 		return _response(false, "有人正借它练习手法，请稍等。")
 	if world.spirit_sources != null and world.spirit_sources.target_in_use(id):
@@ -312,6 +389,10 @@ func _begin(actor: String, verb: String, id: String, during_commit: bool, recipi
 	if item.container.begins_with("actor:") and not invited_check and (item.container != "actor:" + actor or item.region != home):
 		return _response(false, "它还在别人手中，须先取得对方同意。")
 	var definition: Dictionary = definitions.types[item.definition]
+	if verb == "use_research":
+		var research_reason: String = Drawing.research_readiness(self, actor, id)
+		if not research_reason.is_empty():
+			return _response(false, research_reason)
 	if verb == "warm":
 		var readiness: Dictionary = _warming_readiness(actor, id)
 		if not bool(readiness.ok):
@@ -331,6 +412,10 @@ func _begin(actor: String, verb: String, id: String, during_commit: bool, recipi
 	var maximum_minutes: int = (SimInventory.MAX_COUNT - int(world.elapsed_ms)) / 60000
 	if int(terms.minutes) > maximum_minutes:
 		return _response(false, "当前时间无法安排这次操作。")
+	if verb == "use_research" and next_id > SimInventory.MAX_COUNT - 2:
+		return _response(false, "当前无法安排这次操作。")
+	if verb == "use_research" and (world.spirit_sources == null or not world.spirit_sources.ensure_qi_baseline(actor)):
+		return _response(false, "当前无法核对本人已有的灵气。")
 	var action_id: String = _allocate("action")
 	person.qi = int(person.qi) - int(terms.qi)
 	active[actor] = {"id": action_id, "actor": actor, "object": id, "verb": verb, "region": home,
@@ -397,7 +482,7 @@ func cancel(actor: String) -> bool:
 func next_boundary_ms() -> int:
 	var boundary: int = SimInventory.MAX_COUNT
 	for actor: String in active:
-		if not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion") or not _method_connected(active[actor]):
+		if not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion") or not _method_connected(active[actor]) or not _continuation_reason(active[actor]).is_empty():
 			return world.elapsed_ms + 1
 		boundary = mini(boundary, int(active[actor].due_ms))
 	return boundary
@@ -408,7 +493,7 @@ func settle_at_ms(tick: int) -> void:
 	actors.sort()
 	for actor: String in actors:
 		world.synchronize_region(active[actor].region)
-		if not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion") or not _method_connected(active[actor]):
+		if not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion") or not _method_connected(active[actor]) or not _continuation_reason(active[actor]).is_empty():
 			cancel(actor)
 		elif int(active[actor].due_ms) <= tick:
 			_complete(active[actor])
@@ -419,6 +504,23 @@ func _complete(job: Dictionary) -> void:
 	var definition: Dictionary = definitions.types[item.definition]
 	var sim: RefCounted = world.regions[job.region]
 	var person: Dictionary = sim.actors[job.actor]
+	if job.verb == "draw":
+		var reason: String = _continuation_reason(job)
+		if not reason.is_empty():
+			_finish_record(job, "failed", reason)
+			return
+		var target: Dictionary = objects[job.draw.target]
+		var from_region: String = str(target.region)
+		target.region = job.region
+		target.container = "actor:" + str(job.actor)
+		world.invalidate_region(from_region)
+		_finish_record(job, "drawn", "木剑已从原处引到本人手边；原物没有复制。")
+		return
+	if job.verb == "use_research":
+		var reason: String = _continuation_reason(job)
+		if not reason.is_empty():
+			_finish_record(job, "failed", reason)
+			return
 	if not _near(job.actor, job.object):
 		_finish_record(job, "failed", "已离开器物，操作没有完成。")
 		return
@@ -489,6 +591,7 @@ func _complete_tool(job: Dictionary, item: Dictionary, definition: Dictionary) -
 			item.container = str(definition.storage_place)
 			_finish_record(job, "placed", "已放在约定的存放处，随身不再保管它。")
 		"study": _finish_record(job, "studied", str(definition.method))
+		"use_research": _finish_record(job, "use_learned", "本人持环循纹试探后，学会将同高无遮挡、短距内的松置木剑引到手边。")
 
 
 func _finish_heat(job: Dictionary, recipe: Dictionary) -> void:
@@ -696,6 +799,8 @@ func _finish_record(job: Dictionary, kind: String, line: String) -> Dictionary:
 		"cell": [position_value.x, position_value.y], "recipient": recipient}
 	if job.has("method"):
 		record["method"] = job.method.duplicate(true)
+	if job.has("draw"):
+		record["draw"] = job.draw.duplicate(true)
 	events.append(record)
 	if world.health != null:
 		world.health.record_effect(record)
@@ -707,6 +812,9 @@ func _finish_record(job: Dictionary, kind: String, line: String) -> Dictionary:
 func status(actor: String, object_id: String = "") -> Dictionary:
 	if active.has(actor):
 		var job: Dictionary = active[actor]
+		if job.verb == "draw":
+			var seconds: int = ceili(float(int(job.due_ms) - int(world.elapsed_ms)) / 1000.0)
+			return {"busy": true, "line": str(job_terms(job).label), "remaining": 0, "seconds": seconds}
 		return {"busy": true, "line": str(job_terms(job).label), "remaining": ceili(float(int(job.due_ms) - int(world.elapsed_ms)) / 60000.0)}
 	for job: Dictionary in active.values():
 		if job.get("method", {}).get("guide") == actor:
@@ -734,8 +842,18 @@ func job_terms(job: Dictionary, candidate_objects: Dictionary = {}) -> Dictionar
 	if not source.has(job.object):
 		return {}
 	var definition: Dictionary = definitions.types[source[job.object].definition]
+	if job.verb == "draw" and type_has_capability(definition, "remote_draw"):
+		return _draw_terms(definition)
 	var verbs: Dictionary = definitions.verbs if type_has_capability(definition, "heat_storage") else definition.actions
 	return verbs.get(str(job.verb), {})
+
+
+func _continuation_reason(job: Dictionary) -> String:
+	if job.verb == "use_research":
+		return Drawing.research_readiness(self, str(job.actor), str(job.object), true)
+	if job.verb == "draw":
+		return Drawing.readiness(self, str(job.actor), str(job.object), str(job.draw.target), {}, true, job.draw)
+	return ""
 
 
 func _method_connected(job: Dictionary) -> bool:
@@ -770,10 +888,14 @@ func restore(data: Dictionary) -> bool:
 	for job: Dictionary in active.values():
 		for field: String in ["started_ms", "due_ms", "qi_spent"]:
 			job[field] = int(job[field])
+		if job.has("draw"):
+			job.draw.from_cell = [int(job.draw.from_cell[0]), int(job.draw.from_cell[1])]
 	for event: Dictionary in events:
 		for field: String in ["at", "at_ms", "started_ms", "qi_spent"]:
 			event[field] = int(event[field])
 		event.cell = [int(event.cell[0]), int(event.cell[1])]
+		if event.has("draw"):
+			event.draw.from_cell = [int(event.draw.from_cell[0]), int(event.draw.from_cell[1])]
 	next_id = int(data.next_id)
 	return true
 

@@ -28,6 +28,7 @@ func setup(adapter: WorldContinuityRuntime) -> void:
 	screen.add_child(panel)
 	panel.set_terms(adapter.world_sim.artifacts.definitions.verbs)
 	panel.action_requested.connect(submit)
+	panel.draw_requested.connect(submit_draw)
 	adapter.avatar_changed.connect(reset_observation)
 	if adapter._home._fog != null and not adapter._home._fog.visibility_updated.is_connected(refresh):
 		adapter._home._fog.visibility_updated.connect(refresh)
@@ -111,6 +112,8 @@ func submit(verb: String) -> Dictionary:
 	# Validate the actual object's affordance before cancelling a real activity.
 	if not domain.verbs_for(selected_object).has(verb):
 		return _refuse("这件器物没有这种用法。")
+	if verb == "use_research" and adapter.home_runtime()._player.altitude != 0:
+		return _refuse("先落地停稳，再循内纹试引。")
 	if not bool(view.get("near", false)):
 		return _refuse("先走近并看清器物，再动手操作。")
 	if not adapter.player_journey.is_empty():
@@ -121,7 +124,7 @@ func submit(verb: String) -> Dictionary:
 	var result: Dictionary = domain.begin("player", verb, selected_object)
 	_notice = str(result.line)
 	if bool(result.ok):
-		adapter.hold_player_motion()
+		adapter.hold_player_motion(verb == "use_research")
 	adapter._refresh_panel()
 	refresh()
 	return result
@@ -131,6 +134,49 @@ func _refuse(line: String) -> Dictionary:
 	_notice = line
 	refresh()
 	return {"ok": false, "line": line}
+
+
+func draw_targets() -> Array[Dictionary]:
+	var choices: Array[Dictionary] = []
+	var adapter: WorldContinuityRuntime = runtime()
+	if adapter == null or not adapter.human_player_active():
+		return choices
+	var domain: SimArtifacts = adapter.world_sim.artifacts
+	if not domain.has_capability(selected_object, "remote_draw"):
+		return choices
+	var definition: Dictionary = domain.definitions.types[domain.objects[selected_object].definition]
+	for id: String in adapter.world_sim._sorted_keys(domain.objects):
+		var item: Dictionary = domain.objects[id]
+		if id == selected_object or not definition.drawing.target_definitions.has(item.definition) or str(item.container).begins_with("actor:") or not _visible(id):
+			continue
+		var target: Vector2 = TileGrid.cell_to_world(domain.object_cell(id))
+		var origin: Vector2 = SimRouteTravel.point(adapter.world_sim.regions[domain.actor_home("player")].actors.player)
+		var level: int = SimConflictSpace.level(adapter.world_sim, origin)
+		if origin.distance_to(target) > float(definition.drawing.range_cells) * TileGrid.TILE_SIZE or level != SimConflictSpace.level(adapter.world_sim, target) or not SimConflictSpace.clear_segment(adapter.world_sim, origin, target, level):
+			continue
+		choices.append({"id": id, "label": str(domain.describe("player", id).label)})
+	return choices
+
+
+func submit_draw(target: String) -> Dictionary:
+	var adapter: WorldContinuityRuntime = runtime()
+	if adapter == null or not adapter.human_player_active():
+		return {"ok": false, "line": "当前形体尚不能这样引物。"}
+	var offered: bool = false
+	for choice: Dictionary in draw_targets():
+		offered = offered or choice.id == target
+	if not offered or not bool(_perception(selected_object).get("held", false)):
+		return _refuse("须持环，看清短距内松置且无遮挡的小器物。")
+	if adapter.home_runtime()._player.altitude != 0 or not adapter.player_journey.is_empty() or not adapter.home_runtime()._player.motion.action.is_empty():
+		return _refuse("先落地停稳，结束远行或闪身，再凝神引物。")
+	adapter.prepare_player_command()
+	var response: Dictionary = adapter.world_sim.artifacts.begin_draw("player", selected_object, target)
+	_notice = str(response.line)
+	if bool(response.ok):
+		adapter.hold_player_motion(true)
+	adapter._refresh_panel()
+	refresh()
+	return response
 
 
 func reset_observation() -> void:
@@ -153,9 +199,13 @@ func refresh() -> void:
 			var thermal: bool = adapter.world_sim.artifacts.has_capability(selected_object, "heat_storage")
 			panel.set_terms(adapter.world_sim.artifacts.verbs_for(selected_object), thermal)
 			var status: Dictionary = adapter.world_sim.artifacts.status("player", selected_object)
+			var active_job: Dictionary = adapter.world_sim.artifacts.active.get("player", {})
+			if active_job.get("verb") == "draw":
+				status["remaining_ms"] = maxi(0, int(active_job.due_ms) - int(adapter.world_sim.elapsed_ms))
 			if not bool(status.busy) and not str(status.get("event", "")).is_empty() and _settled_event != str(status.event):
 				_settled_event = str(status.event)
 				_notice = str(status.line)
+			panel.set_draw_targets(draw_targets())
 			panel.update_view(view, status, _notice)
 			var spirit: Node = adapter.get("spirit_adapter") as Node
 			panel.set_source_entry(thermal and spirit != null and spirit.has_known_source())
@@ -254,6 +304,13 @@ func _draw() -> void:
 	var adapter: WorldContinuityRuntime = runtime()
 	if adapter == null or adapter.world_sim == null:
 		return
+	var current: Dictionary = adapter.world_sim.artifacts.active.get("player", {})
+	if current.has("draw") and _visible(str(current.draw.target)):
+		var from: Vector2 = _display_point(str(current.object))
+		var to: Vector2 = _display_point(str(current.draw.target))
+		var progress: float = clampf(float(adapter.world_sim.elapsed_ms - int(current.started_ms)) / float(int(current.due_ms) - int(current.started_ms)), 0.0, 1.0)
+		draw_line(from, to, Color(0.63, 0.81, 0.77, 0.28), 1.0)
+		draw_arc(to, 13.0 + 5.0 * (1.0 - progress), -PI * 0.5, TAU * progress - PI * 0.5, 24, Color("#c4ded5"), 2.0)
 	for id: String in adapter.world_sim.artifacts.objects:
 		if not _visible(id):
 			continue

@@ -1,6 +1,6 @@
 # Reol 文档入口
 
-当前实施包：[U3-a断碑台与自主寻物](plans/first_field_opportunity.md)已接入原地图、本人来源问路/L野外见闻、原路行旅、原NPC自主出行和唯一灰纹铜环取放，**实施中、等待最终验收**。普通主局/真实进行中停开记录见[QA](qa/20261104_field_opportunity.md)，最终状态看[BASELINE](BASELINE.md)。本包研究外形不授能力；隔空搬取、私人物品和平交换与明确争夺后果仍待U2-b。
+当前实施包：[U3-b1引物环](plans/field_ring_use.md)已合入主目录，本人持环并完成外形与独立用法研究后，可短距引取符合条件的松置木剑。末版定向、两次独立进程停开及原生画面已复验，本包CI仍待完成；证据见[QA](qa/20261104_drawing_ring.md)，最终状态看[BASELINE](BASELINE.md)。私人交换与明确争夺后果仍待后续实施。
 
 前包[U2-a本人来源目录与行气护身](qa/20261104_capability_network.md)、[U1-b2有限看护/警告/驱离](plans/source_care.md)、[公源借用/温石验还](qa/20261104_source_loan.md)和[有限感知](qa/20261104_conflict_perception.md)已验收，原U1-a与自然/场所保留。各包边界见FEATURES，构建证据统一见BASELINE，不以局部样本代替完整系统。
 
@@ -14,7 +14,7 @@
 2. [当前功能清单](FEATURES.md)：现在能怎么玩、从哪里操作、后果与限制；设计中的功能另列。
 3. [当前构建状态](BASELINE.md)：最新完整检查、兼容版本、证据和未完成项。
 
-当前是M2系统原型，未达到完整45–60分钟切片。**完整游戏Goal保持active，长期重心仍为[超凡者优先U0–U5](plans/transcendent_focus.md)。** 农业/生活维持循环；U0与自然世界/场所基础已接，U1已有实物武器、有限冲突、借用/验还与具名看护。U2-a有来源本领目录与一项行气用法已验收，U3-a野外连续性正在收尾，完整能力组合/冒险仍未交付；随后继续实际器物用法、组织和事件化远区。[国产修仙/战略/人生研究](../design/research/transcendent_focus_sources.md)说明取舍。此前进度复核和各局部样本保留为历史，不覆盖当前BASELINE。
+当前是M2系统原型，未达到完整45–60分钟切片。**完整游戏Goal保持active，长期重心仍为[超凡者优先U0–U5](plans/transcendent_focus.md)。** 农业/生活维持循环；U0与自然世界/场所基础已接，U1已有实物武器、有限冲突、借用/验还与具名看护。U2-a有来源本领目录与一项行气用法已验收，U3-a野外连续性及U3-b1有限引物已接，完整能力组合/冒险仍未交付；随后继续私人交换、组织和事件化远区。[国产修仙/战略/人生研究](../design/research/transcendent_focus_sources.md)说明取舍。此前进度复核和各局部样本保留为历史，不覆盖当前BASELINE。
 
 本次插入[基础架构审查](ARCHITECTURE-REVIEW-20261103.md)，已明确[天地/四季/温度/五行/风水方案](plans/world_environment.md)与[真八方向外观方案](plans/eight_direction_appearance.md)、[免费资源/工具来源](../design/research/eight_direction_sources.md)。随后[E1历法/室外冷热](qa/20261103_calendar_temperature.md)、[E2屋舍/有限余热](qa/20261103_local_heat.md)与[A1代码像素八向](qa/20261103_eight_direction_sample.md)首包已接通。完整气候/绝对热力学、生态、五行/风水和正式全部动画仍待实施。[固定提示词包](art/character_generation/README.md)保留作后期资料，当前无需外部图像。
 
@@ -51,7 +51,8 @@
 | 公源借用/实际验还 | [规格](plans/source_loan.md)、[验收](qa/20261104_source_loan.md) | 当面具名签发、原用源/公器归位、管事原身体赴场核验再回桌登记；原声明与亲见分开 |
 | 具名看护/警告/驱离 | [规格](plans/source_care.md)、[当前功能](FEATURES.md) | 原人物有限出勤与个人认识，C说明依据、本人警告暂停、宽限后原交锋、旧档空迁移；本轮完整验收状态看BASELINE |
 | 本人本领来源/行气护身 | [规格](plans/capability_network_first.md)、[验收](qa/20261104_capability_network.md) | 七项来源目录、原资源/实际一分钟练习、完成后原护障内缓步；已验收的U2-a有限样本 |
-| 野外断碑台/自主寻物 | [规格](plans/first_field_opportunity.md)、[当前证据](qa/20261104_field_opportunity.md) | 本人线索、L已知地点/原路行旅、原NPC自主出行争取同一环与后来结果；U3-a实施中、待最终验收，引物/交换用途待做 |
+| 野外断碑台/自主寻物 | [规格](plans/first_field_opportunity.md)、[前包证据](qa/20261104_field_opportunity.md) | 本人线索、L已知地点/原路行旅、原NPC自主出行争取同一环与后来结果 |
+| 引物环研究与使用 | [规格](plans/field_ring_use.md)、[当前证据](qa/20261104_drawing_ring.md) | 本人持环研究、原qi/身体/唯一目标与短距引物；待最终验收，私人交换另包 |
 | 实物衣着/纸娃娃 | [规格](plans/clothing_foundation.md)、[实际验收](qa/20261103_clothing_foundation.md) | 唯一位置/穿法、原身体耗时/互斥、晴雨/屋面与原精力，有限表层观察/原NPC自主 |
 | 多格形体/尺度 | [规格](plans/large_bodies.md)、[实际验收](qa/20261103_large_bodies.md) | 真实3×3兽身、完整净空/扫掠、边缘递食、离场/重启接续 |
 | 文件放哪里 | [PROJECT-STRUCTURE](PROJECT-STRUCTURE.md) | 目录职责、命名、来源和迁移约定 |

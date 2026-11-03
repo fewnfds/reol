@@ -49,6 +49,7 @@ func run(runner: Object) -> void:
 					runner.assert_eq(int(row.practice_floor), 1, "pre-practice source-loan archive skips no future real practice costs")
 					row.erase("practice_floor")
 			projected.version = 32
+			projected.artifacts.version = source.continuity.world.artifacts.version
 			projected.erase("site_affairs")
 			runner.assert_eq(_canonical(projected.source_care), _canonical(SimSourceCare.empty_state()), "old perception archive gains no imagined source care")
 			projected.erase("source_care")

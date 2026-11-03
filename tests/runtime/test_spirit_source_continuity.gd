@@ -113,6 +113,7 @@ func _old_archives(runner: Object) -> void:
 				projected.health.version = prior.continuity.world.health.version
 				projected.health.erase("conflict_source_floor")
 				projected.version = prior.continuity.world.version
+				projected.artifacts.version = prior.continuity.world.artifacts.version
 				runner.assert_eq(Support.canonical(projected), Support.canonical(prior.continuity.world), "v33 retains every original ecological, bodily, artifact, stock and in-flight fact after explicit conflict schema projection")
 				runner.assert_eq(Support.canonical(current.simulation), Support.canonical(prior.simulation), "v33 migration leaves the original root/home body and inventory unchanged")
 		runner.assert_eq(Support.canonical(prior), before, "pure source migration leaves its caller's old dictionary unchanged: v%d" % version)

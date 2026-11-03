@@ -3,8 +3,8 @@ extends RefCounted
 ## A disposable view of one's own original evidence, never a learned-state owner.
 
 const Shape = preload("res://scripts/sim/avian_schema.gd")
-const NODE_IDS: Array[String] = ["sword", "qi_bolt", "qi_guard", "stone_channeling", "heat_methods", "record_steps", "mobile_guard"]
-const NODE_KINDS: Array[String] = ["combat", "combat", "combat", "foundation", "versioned_method", "written_steps", "practice"]
+const NODE_IDS: Array[String] = ["sword", "qi_bolt", "qi_guard", "stone_channeling", "heat_methods", "record_steps", "mobile_guard", "drawing_ring"]
+const NODE_KINDS: Array[String] = ["combat", "combat", "combat", "foundation", "versioned_method", "written_steps", "practice", "artifact_use"]
 
 
 static func valid_definitions(data: Variant) -> bool:
@@ -48,6 +48,7 @@ static func project(world: RefCounted, actor: String, requested_actor: String = 
 			"heat_methods": _heat(world, actor, node)
 			"record_steps": _records(world, actor, node)
 			"mobile_guard": _mobile(world, actor, node)
+			"drawing_ring": _drawing(world, actor, node)
 		nodes.append(node)
 	result.allowed = true
 	result.at_ms = int(world.elapsed_ms)
@@ -286,13 +287,57 @@ static func _known_stones(world: RefCounted, actor: String) -> Array[String]:
 	return result
 
 
+static func _drawing(world: RefCounted, actor: String, node: Dictionary) -> void:
+	var artifacts: RefCounted = world.get("artifacts")
+	if artifacts == null:
+		return
+	var seen: Dictionary = {}
+	var learned: bool = false
+	var studied: bool = false
+	for event: Dictionary in artifacts.events:
+		if not artifacts.has_capability(str(event.object), "remote_draw") or event.actor != actor or int(event.at_ms) > int(world.elapsed_ms):
+			continue
+		seen[event.object] = true
+		if event.kind == "use_learned":
+			learned = true
+			node.sources.append(_source("artifact_event", "artifacts", str(event.id), int(event.at_ms), actor, actor, str(event.object)))
+		elif event.kind == "studied":
+			studied = true
+			node.sources.append(_source("outer_form", "artifacts", str(event.id), int(event.at_ms), actor, actor, str(event.object)))
+	for id: String in _sorted(artifacts.objects):
+		if not artifacts.has_capability(id, "remote_draw"):
+			continue
+		var item: Dictionary = artifacts.objects[id]
+		if item.container == "actor:" + actor or artifacts.can_see(actor, id):
+			seen[id] = true
+	for id: String in _sorted(seen):
+		var view: Dictionary = artifacts.describe(actor, id)
+		if not bool(view.get("known", false)):
+			continue
+		var held: bool = bool(view.get("held", false))
+		var knows_use: bool = artifacts.learned_use(actor, id)
+		node.instances.append({"content_id": id, "label": str(view.label), "line": "本人已循内纹练成短距引物；须持环看清目标才能使用。" if knows_use else "外形、持有与用法分开；尚无本人完成内纹研究的依据。"})
+		var missing: Array[String] = _idle_missing(world, actor)
+		if not held:
+			missing.append("须先取得并实际持有这枚环。")
+		if not artifacts.shape_studied(actor, id):
+			missing.append("先亲自辨认环身器形与外纹。")
+		if not knows_use:
+			if int(_body(world, actor).qi) < int(artifacts.verbs_for(id).use_research.qi):
+				missing.append("本人灵气不足以研究内纹。")
+			node.actions.append(_action("use_research", "在原器物页循内纹试引", id, "", missing))
+		else:
+			node.actions.append(_action("inspect_artifact", "在原器物页选择眼前松置目标", id, "", missing))
+	node.state = "learned" if learned else "read" if studied else "observed" if not seen.is_empty() else "unknown"
+	if not learned:
+		node.missing.append("外形研究、听说或持有均不替代本人实际循内纹试引。")
+
+
 static func _artifact_missing(world: RefCounted, actor: String, id: String, qi: int) -> Array[String]:
 	var missing: Array[String] = _idle_missing(world, actor)
 	if not world.artifacts._near(actor, id):
 		missing.append("先实际走到能操作器物的近处。")
-	var object_busy: bool = false
-	for job: Dictionary in world.artifacts.active.values():
-		object_busy = object_busy or job.object == id
+	var object_busy: bool = world.artifacts.target_in_use(id)
 	if object_busy or world.soul_vessels != null and world.soul_vessels.target_in_use(id) or world.spirit_sources != null and world.spirit_sources.target_in_use(id):
 		missing.append("这件温石正在原过程中使用。")
 	if int(_body(world, actor).qi) < qi:

@@ -173,6 +173,7 @@ func refresh() -> void:
 			_last_line = str(agreement.line)
 	var phase: String = str(status.get("phase", ""))
 	var remaining: int = int(status.get("remaining", 0))
+	var seconds: bool = false
 	var conversation: Dictionary = world.admissions.view("player")
 	if not bool(conversation.busy) and not str(conversation.get("id", "")).is_empty() and (_admission_entry != str(conversation.id) or _admission_waiting):
 		_admission_entry = str(conversation.id)
@@ -183,6 +184,7 @@ func refresh() -> void:
 		activity = str(conversation.line)
 		phase = "交谈"
 		remaining = int(conversation.seconds)
+		seconds = true
 		busy = true
 	var native_action: Dictionary = adapter._home.simulation.actors.player.active
 	if world.personal_production.owns_actor("player"):
@@ -191,50 +193,58 @@ func refresh() -> void:
 		activity = ("取回成品：" if production_job.kind == "collect" else "私人加工：") + str(world.personal_production.definitions.recipes[batch.recipe].label)
 		phase = str(production_job.phase)
 		remaining = ceili(float(int(production_job.due_ms) - world.elapsed_ms) / 60000.0)
+		seconds = false
 		busy = true
 	if world.construction.owns_actor("player"):
 		var construction_job: Dictionary = world.construction.active.player
 		activity = "处理工地：" + str(world.construction.definitions.types[world.construction.projects[construction_job.project].type].label)
 		phase = str(construction_job.phase)
 		remaining = ceili(float(int(construction_job.due_ms) - world.elapsed_ms) / 60000.0)
+		seconds = false
 		busy = true
 	var object_status: Dictionary = world.artifacts.status("player")
 	if world.method_records.owns_actor("player"):
 		activity = str(world.method_records.status("player").line)
 		phase = "work"
 		remaining = ceili(float(int(world.method_records.active.player.due_ms) - world.elapsed_ms) / 60000.0)
+		seconds = false
 		busy = true
 	if world.resting.owns_actor("player"):
 		var resting_job: Dictionary = world.resting.active.player
 		activity = "在木床上休息" if resting_job.phase == "sleep" else "起身让出床位" if resting_job.phase == "leave" else "前往已预约的木床"
 		phase = "rest" if resting_job.phase == "sleep" else "travel"
 		remaining = ceili(float(int(resting_job.due_ms) - world.elapsed_ms) / 60000.0)
+		seconds = false
 		busy = true
 	var soul_status: Dictionary = world.soul_vessels.status("player")
 	if bool(soul_status.busy):
 		activity = str(soul_status.line)
 		phase = "work"
 		remaining = int(soul_status.remaining)
+		seconds = false
 		busy = true
 	if bool(object_status.busy):
 		activity = str(object_status.line)
 		phase = "work"
-		remaining = int(object_status.remaining)
+		seconds = object_status.has("seconds")
+		remaining = int(object_status.seconds) if seconds else int(object_status.remaining)
 		busy = true
 	if not native_action.is_empty():
 		activity = adapter._home.simulation.actor_status("player")
 		phase = str(native_action.phase)
 		remaining = ceili(float(int(native_action.due_ms) - int(world.elapsed_ms)) / 60000.0)
+		seconds = false
 		busy = true
 	if not adapter.player_journey.is_empty():
 		activity = "正在前往%s" % adapter._journey_label(str(adapter.player_journey.destination))
 		phase = "travel"
 		remaining = ceili(float(int(adapter.player_journey.due_ms) - world.elapsed_ms) / 60000.0)
+		seconds = false
 		busy = true
 	panel.update_view(label, activity, "\n".join(details), _last_line, not region.is_empty())
 	panel.set_home_work_available(region == "home")
 	panel.set_resource_work(adapter._home.simulation.config, adapter._home.simulation.land_resources, adapter._home.visible_resource_sources(adapter._home.simulation))
-	panel.update_activity(phase, remaining, busy, bool(conversation.busy))
+	panel.update_activity(phase, remaining, busy, seconds)
 	var batches: Array[Dictionary] = []
 	for id: String in world.personal_production.batches:
 		var batch: Dictionary = world.personal_production.batches[id]

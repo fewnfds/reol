@@ -2,6 +2,16 @@ extends RefCounted
 ## Read-only projection from a subject's experience and personally received notes.
 
 
+static func has_personal_event(domain: RefCounted, actor: String, id: String, kind: String) -> bool:
+	if domain.actor_home(actor).is_empty() or not domain.objects.has(id):
+		return false
+	var subject: String = domain.world.embodiment.subject_for_actor(actor)
+	for event: Dictionary in domain.events:
+		if event.object == id and event.subject == subject and event.kind == kind:
+			return true
+	return false
+
+
 static func practiced(domain: RefCounted, actor: String, practice: String) -> bool:
 	var subject: String = domain.world.embodiment.subject_for_actor(actor)
 	for background: String in domain.experiences.get(subject, []):
@@ -34,9 +44,7 @@ static func describe(domain: RefCounted, actor: String, id: String) -> Dictionar
 		if event.subject == subject:
 			last = event
 			shape_studied = shape_studied or event.kind == "studied"
-			# This first field object supports only outer-form research. Its
-			# capability tag does not supply an implemented or learned use.
-			method = method or event.kind == "studied" and not field_ring
+			method = method or (event.kind == "use_learned" if field_ring else event.kind == "studied")
 			if event.kind == "examined":
 				material = event
 		elif event.recipient == actor and event.kind in ["examined", "studied"]:
@@ -51,7 +59,7 @@ static func describe(domain: RefCounted, actor: String, id: String) -> Dictionar
 	var line: String = str(definition.appearance)
 	var instruction: String = str(definition.method)
 	if field_ring:
-		instruction = str(definition.method) if shape_studied else "只能先辨看环身与外纹；真正引动物件的用法尚未掌握。"
+		instruction = "你已亲自学会循纹引取同高、无遮挡的短距松置木剑。" if method else str(definition.method) if shape_studied else "只能先辨看环身与外纹；真正引动物件的用法尚未掌握。"
 	elif not method:
 		instruction = "你还不懂它的纹路与用法。" if thermal else "它的握持与收放可以试着熟悉；能否使出剑招，仍取决于本人实际学过什么。"
 	line += "\n" + instruction
@@ -92,7 +100,7 @@ static func remembered(domain: RefCounted, actor: String, id: String) -> Diction
 		if event.subject == subject:
 			last = event
 			shape_studied = shape_studied or event.kind == "studied"
-			method = method or event.kind == "studied" and not field_ring
+			method = method or (event.kind == "use_learned" if field_ring else event.kind == "studied")
 		elif event.recipient == actor and event.kind in ["examined", "studied"]:
 			last = event
 	if last.is_empty():

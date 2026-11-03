@@ -2,7 +2,7 @@
 
 核对：2026-11-04，Godot4.7.2 / GDScript。本文描述**已有代码及其限制**，不是目标模块清单。可玩行为见[FEATURES](FEATURES.md)，格式与验证见[BASELINE](BASELINE.md)，文件职责见[PROJECT-STRUCTURE](PROJECT-STRUCTURE.md)。
 
-完整游戏Goal保持active，按[超凡者主线](plans/transcendent_focus.md)优先能力、冒险、组织和事件化远区。U0的身体占用、固定域目录/有名结算阶段、公开候选绑定及纯JSON值规范继续支持后续领域。U1有限交锋/感知/借源/看护与U2-a本人本领来源/有限行气用法已验收；当前[U3-a野外连续性](plans/first_field_opportunity.md)已接入，**实施中、等待最终验收**，证据见[QA](qa/20261104_field_opportunity.md)与BASELINE。通用活动生命周期、完整事件队列、完整战争及引物环真实隔空用途仍待实施。
+完整游戏Goal保持active，按[超凡者主线](plans/transcendent_focus.md)优先能力、冒险、组织和事件化远区。U0的身体占用、固定域目录/有名结算阶段、公开候选绑定及纯JSON值规范继续支持后续领域。U1有限交锋/感知/借源/看护与U2-a本人本领来源/有限行气用法已验收；[U3-a野外连续性](plans/first_field_opportunity.md)与[U3-b1有限引物](plans/field_ring_use.md)已接，后者最终验收待完成，证据见[QA](qa/20261104_drawing_ring.md)与BASELINE。通用活动生命周期、完整事件队列、完整战争、私人交换和通用物性仍待实施。
 
 最新横向审查见[世界/人物/事件/地图](ARCHITECTURE-REVIEW-20261103.md)；E1历法、E2余热与E3药丛之后，[E4-a有限灵源](plans/finite_spirit_source.md)已接共同时间和原身体/器物。后续见[天地环境](plans/world_environment.md)、[真八方向外观](plans/eight_direction_appearance.md)。通用事件/实体注册、完整气候/室内热交换、五行场/风水不因目标架构图而算已实现；A1真八向技术样本已按[QA](qa/20261103_eight_direction_sample.md)接原body朝向与共用采样/分层。
 
@@ -63,7 +63,7 @@ main.gd：场景与运行协作者装配
 | [SimHealth](../scripts/sim/health.gd) / [health_schema](../scripts/sim/health_schema.gd) | 原器物反噬与冲突真实命中来源的持续后果、双人诊治与未来分钟恢复；候选核对伤源/原材料/同意/身体 | 不重复精力/灵力；经脉与挫伤分别约束恢复/治疗，不是完整医疗/死亡 |
 | [SimSparring](../scripts/sim/sparring.gd) | 有界自愿对练、短动作、接触去重和同刻结算 | 完整伤亡系统或第二份体力 |
 | [SimConflicts](../scripts/sim/conflicts.gd) / [conflict_schema](../scripts/sim/conflict_schema.gd) | 有界多场驱离意图、当面示范、已付动作/阶段、投射/气障、命中凭据、有限最后目击与真实退开；空间和当前线索分别由[ConflictSpace](../scripts/sim/conflict_space.gd)、[ConflictPerception](../scripts/sim/conflict_perception.gd)查询 | 不持有身体/武器/伤势余额；不从旧线索读取隐藏新动作，尚无听声/神识/完整搜索、战争/致死/事件粗算 |
-| [SimArtifacts](../scripts/sim/artifacts.gd) / [SimArtifactUnderstanding](../scripts/sim/artifact_understanding.gd) | 唯一器物保管、能力类别/动作；温石才有储能/裂损，真实木剑只携实物归处；进行中操作/个人认识 | 由查询自动学会的技能或全知属性；不要求所有物品都有热字段 |
+| [SimArtifacts](../scripts/sim/artifacts.gd) / [SimArtifactUnderstanding](../scripts/sim/artifact_understanding.gd) / [SimArtifactDrawing](../scripts/sim/artifact_drawing.gd) | 唯一器物保管、能力类别/动作与个人认识；本人研究完成证据、引物双物占用及目标转移；温石才有储能/裂损 | 由查询自动学会的技能或全知属性；不复制器物/qi，不要求所有物品都有热字段；引物仅限松置木剑 |
 | [SimCapabilityQueries](../scripts/sim/capability_queries.gd) / [SimCapabilityPractice](../scripts/sim/capability_practice.gd) | 本人原招式/器物/版本/木牍的只读来源投影；新增有限练习过程、原资源成本和完成证据 | 不建全局learned镜像、第二qi余额或第二移动身体；目录不直接授技 |
 | [SimFieldOpportunities](../scripts/sim/field_opportunities.gd) / [field_opportunity_schema](../scripts/sim/field_opportunity_schema.gd) | 一处显式地点/固定槽、一个有限寻物目的、原身体行程与原取物引用；源线索/亲见仍存原个人社会记忆，联合候选核因果 | 不复制身体/器物/背包/时钟，不把POI变第三聚落，不授引物能力或提供通用任务/探索规划 |
 | [SimSpiritSources](../scripts/sim/spirit_sources.gd) / [spirit_source_schema](../scripts/sim/spirit_source_schema.gd) | 固定源存量/有限深层释放/散失、源预约、原身体/温石的引息过程与输出凭据；原qi/charge基准用于跨域对账 | 不复制人物灵力、器物储热、身体/位置或时钟；不是全局五行余额/修炼等级 |
@@ -90,7 +90,7 @@ main.gd：场景与运行协作者装配
 |---|---|
 | VillageRuntime / WorldContinuityRuntime | 场景绑定、区域视图、行旅、公共命令/查询与恢复后的引用替换；按实际位置与FOW显示/点击原人物，数据owner不随行旅改变 |
 | SettlementServicesRuntime / SettlementServicesPanel | 办事/采集/私人制作意图、阶段与本人批次/地点反馈；不是权限/库存判定所有者 |
-| WorldObjectsRuntime / ObjectInspectionPanel | 可见器物、靠近/选择与获准理解；面板不读隐藏储能 |
+| WorldObjectsRuntime / ObjectInspectionPanel | 可见器物、靠近/选择与获准理解，引物目标选择和过程呈现；面板不读隐藏储能、不授予用法或决定转移 |
 | SpiritSourceRuntime / SpiritSourcePanel | 可见地火隙及本人位置记忆、原温石/本人或温石目标、同一引息按钮和本人倒计时；行路/停止走原运行入口，界面不拥有源存量或授予方法 |
 | AvianLifeRuntime / PlayerAvatarRuntime | 可见雀妖、有限请求；会话一次性身份绑定、鸟身输入、视角/迷雾 |
 | LargeBodiesRuntime | 地形中装配一次山兽、可见外形/当前动作绘制与点击指入原C请求；不保存另一份身体或远区实时认知 |
@@ -116,6 +116,8 @@ main.gd：场景与运行协作者装配
 原身体唯一保存连续位置，格子是其空间索引。`SimRouteTravel`沿几何段推进，NPC/自动路线按同一速度，到达后才计算完整劳动；`SimLocalMotion`处理玩家短动作。需求和体力用固定点余数避免粗细推进差异。视图/插值不能推进规则。
 
 U2-a的`walking_projection`分开普通步行与原动作锁；Regional每个真实时间边界回调原手动身体积分，候选用同一投影核速度，命中边界立即收敛。原护障缓步须先完成付费练习，qi仍由原body唯一保存，源对账显式增加`practice_floor`，不由U页或动画帧改变。实际范围见[U2-a QA](qa/20261104_capability_network.md)。
+
+U3-b1的器物域保存本人用法研究及引物过程，开始即支付原qi，完成事件 `use_learned` 才授本人用法，完成引物才移动唯一原目标。联合候选核验本人持环、原身体连续位置与占用、目标/保管和费用；活跃研究/引物的玩家候选拒绝非零高度和精确非零速度。正qi首消费继续原源账 `artifact_floor`，U页只投影本人实际事件。历史 `from_cell` 当前依赖固定槽坐标，未来槽迁移须改用历史位置证据，不能当完整产权账。阶段及末版证据见[引物QA](qa/20261104_drawing_ring.md)。
 
 近区细步，远区跳过稳定区间、处理最早必要变化；跨区写入先同步相关区域，改变条件后使预测失效。当前验证覆盖双聚落和已接领域，不能承诺任意物理轨迹逐位一致或大型世界帧率。路线仍基于格路，顺滑/避让属于后续实际测量事项。
 

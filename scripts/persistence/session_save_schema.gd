@@ -2,7 +2,7 @@ class_name SessionSaveSchema
 extends RefCounted
 ## Explicit migrations at the session boundary. No file I/O or live mutations.
 
-const VERSION: int = 40
+const VERSION: int = 41
 
 
 static func capture_world(fog: FogOfWar, focus: Vector2i) -> Dictionary:
@@ -26,6 +26,18 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			if not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION:
 				return {}
 		return source if is_valid_world(source) else {}
+	if version == 40:
+		if not _valid_world_fields(source, 40):
+			return {}
+		var updated: Dictionary = source.duplicate(true)
+		if updated.has("continuity"):
+			if not updated.continuity is Dictionary or not updated.continuity.get("world") is Dictionary:
+				return {}
+			updated.continuity.world = RegionalSimulation.upgrade_ring_use(updated.continuity.world)
+			if updated.continuity.world.is_empty():
+				return {}
+		updated.schema_version = 41
+		return upgrade(updated, content)
 	if version == 39:
 		if not _valid_world_fields(source, 39):
 			return {}
@@ -108,10 +120,12 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			var regional: Dictionary = updated.continuity.world
 			if regional.get("version") != 29 or regional.has("spirit_sources") or not regional.get("regions") is Dictionary or not ReolGameClock._integer(regional.get("elapsed_ms")):
 				return {}
-			var legacy_sources: Dictionary = SimSpiritSources.empty_state(int(regional.elapsed_ms), content.spirit_sources, regional.regions)
-			legacy_sources.version = 1
-			for row: Dictionary in legacy_sources.qi_baselines.values():
-				row.erase("conflict_floor")
+			var initial_sources: Dictionary = SimSpiritSources.empty_state(int(regional.elapsed_ms), content.spirit_sources, regional.regions).sources
+			# Keep the historical v1 top-level shape independent of future live
+			# source fields. No old checkpoints or source transactions existed.
+			var legacy_sources: Dictionary = {"version": 1, "rules_version": int(content.spirit_sources.version),
+				"activation_ms": int(regional.elapsed_ms), "last_ms": int(regional.elapsed_ms), "sources": initial_sources,
+				"active": {}, "records": {}, "qi_baselines": {}, "charge_baselines": {}, "next_id": 1}
 			regional["spirit_sources"] = legacy_sources
 			regional.version = 30
 		updated.schema_version = 34
@@ -438,9 +452,8 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			if regional.get("version") != 2 or regional.has("artifacts"):
 				return {}
 			# Old worlds had no object instances or investigations.
-			regional["artifacts"] = SimArtifacts.empty_state()
-			regional.artifacts.erase("experiences")
-			regional.artifacts.version = 1
+			# Fix the actual v1 shape here; a newer empty_state may gain fields.
+			regional["artifacts"] = {"version": 1, "objects": {}, "active": {}, "events": [], "next_id": 1}
 			regional["version"] = 3
 		migrated["schema_version"] = 4
 	if migrated.schema_version == 4:

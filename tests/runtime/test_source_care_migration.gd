@@ -84,6 +84,7 @@ func _assert_migration(runtime: WorldContinuityRuntime, source: Dictionary, bad_
 			row.erase("practice_floor")
 	projected.erase("source_care")
 	projected.version = 33
+	projected.artifacts.version = source.continuity.world.artifacts.version
 	projected.conflicts.version = 2
 	for encounter: Dictionary in projected.conflicts.conflicts.values():
 		runner.assert_true(encounter.cause.is_empty(), "old actual encounter gains no invented care-warning cause")

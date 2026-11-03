@@ -132,14 +132,17 @@ func _spawn_and_definition(runner: Object) -> void:
 	var assembled: String = _canonical(domain.to_dict())
 	runner.assert_true(not domain.spawn_field_object(RING, "drawing_ring", "home", SITE) and not domain.spawn_field_object("duplicate_ring", "drawing_ring", "home", SITE), "duplicate identity or occupied slot cannot create a second ring")
 	runner.assert_eq(_canonical(domain.to_dict()), assembled, "repeated field spawn changes no cost, event or identity")
-	runner.assert_true(domain.has_capability(RING, "remote_draw") and not domain.has_capability(RING, "heat_storage") and not domain.has_capability(RING, "weapon"), "future capability tag neither adds heat nor makes a weapon")
+	runner.assert_true(domain.has_capability(RING, "remote_draw") and not domain.has_capability(RING, "heat_storage") and not domain.has_capability(RING, "weapon"), "drawing capability neither adds heat nor makes a weapon")
 	var verbs: Dictionary = domain.verbs_for(RING)
-	runner.assert_eq(verbs.size(), 5, "first ring has only the five physical operations")
-	for verb: String in verbs:
-		runner.assert_eq(verbs[verb].qi, 0, "outer-form operation creates no unimplemented qi debit: " + verb)
+	runner.assert_eq(verbs.size(), 7, "ring exposes five physical operations and two distinct paid uses")
+	for verb: String in ["inspect", "take", "place", "study", "examine"]:
+		runner.assert_eq(verbs[verb].qi, 0, "outer-form operation keeps its original zero qi cost: " + verb)
+	for verb: String in ["use_research", "draw"]:
+		runner.assert_true(int(verbs[verb].qi) > 0, "new practical operation has an explicit qi cost: " + verb)
+	runner.assert_true(not domain.begin("player", "use_research", RING).ok, "unheld and unstudied ring cannot begin practical research")
 	for verb: String in ["draw", "heat", "warm", "charge", "force"]:
-		runner.assert_true(not domain.begin("player", verb, RING).ok, "capability tag alone supplies no action: " + verb)
-	runner.assert_eq(_canonical(domain.to_dict()), assembled, "unsupported ring actions do not allocate costs or processes")
+		runner.assert_true(not domain.begin("player", verb, RING).ok, "draw requires a target and thermal actions remain unsupported: " + verb)
+	runner.assert_eq(_canonical(domain.to_dict()), assembled, "rejected actions do not allocate costs or processes")
 	_roundtrip(runner, world, "loose site ring")
 	for fault: String in ["thermal_payload", "fake_slot", "wrong_registrar"]:
 		var bad: Dictionary = JSON.parse_string(assembled)

@@ -168,9 +168,8 @@ func _can_practice(actor: String, target: String) -> bool:
 		return false
 	if world.spirit_sources != null and world.spirit_sources.target_in_use(target):
 		return false
-	for job: Dictionary in world.artifacts.active.values():
-		if job.object == target:
-			return false
+	if world.artifacts.target_in_use(target):
+		return false
 	var item: Dictionary = world.artifacts.objects[target]
 	return not str(item.container).begins_with("actor:") or (item.region == actor_home(actor) and item.container == "actor:" + actor)
 

@@ -7,7 +7,8 @@
     "stone_channeling": {"label": "温石引流", "kind": "foundation", "summary": "循纹引流的亲身基础，与听人介绍、持有温石分别记录。"},
     "heat_methods": {"label": "温养办法", "kind": "versioned_method", "summary": "只回顾本人拟过、读过或亲手验证的具体版本；草案不等于练成。"},
     "record_steps": {"label": "木牍中的步骤", "kind": "written_steps", "summary": "拿到、亲自读完与实际练成分别成立；旧记录不会自动变成新版本。"},
-    "mobile_guard": {"label": "行气护身", "kind": "practice", "summary": "学会护障后完成真实行步练气，才可在原护障动作内有限缓步；不额外生成护盾。"}
+    "mobile_guard": {"label": "行气护身", "kind": "practice", "summary": "学会护障后完成真实行步练气，才可在原护障动作内有限缓步；不额外生成护盾。"},
+    "drawing_ring": {"label":"循纹引物","kind":"artifact_use","summary":"实物环、器形理解与本人练成的内纹手法共同成立，才可把短距可见的松置小器物引至手边。"}
   },
   "edges": [
     {"from": "qi_guard", "to": "mobile_guard", "kind": "requirement", "label": "先会原护障，再亲自练习"},

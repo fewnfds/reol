@@ -186,4 +186,4 @@ func _source_line(source: Dictionary) -> String:
 
 
 func _state_label(state: String) -> String:
-	return {"unknown": "尚无亲历依据", "learned": "本人会用", "known_versions": "有本人所知的版本", "read": "亲自读过", "held_unread": "实际持有，尚未读", "reported": "曾获具名指点", "draft": "本人草拟", "can_practice": "可尝试练习", "practicing": "正在实际练习", "conditions_missing": "眼下条件不足"}.get(state, state)
+	return {"unknown": "尚无亲历依据", "learned": "本人会用", "known_versions": "有本人所知的版本", "read": "亲自辨读过", "observed": "亲眼见过，尚不懂用", "held_unread": "实际持有，尚未读", "reported": "曾获具名指点", "draft": "本人草拟", "can_practice": "可尝试练习", "practicing": "正在实际练习", "conditions_missing": "眼下条件不足"}.get(state, state)

@@ -191,9 +191,8 @@ func readiness(actor: String, source: String, target: String, object_id: String,
 		return "须借本人持有或灶旁公用的完整温石，别人的器物须先协商。"
 	if not bool(world.artifacts.describe(actor, object_id).get("method", false)):
 		return "还未亲自学会温石循纹手法，暂不能稳妥引息。"
-	for job: Dictionary in world.artifacts.active.values():
-		if job.object == object_id:
-			return "有人正在操作这块温石。"
+	if world.artifacts.target_in_use(object_id):
+		return "有人正在操作这块温石。"
 	if world.soul_vessels != null and world.soul_vessels.target_in_use(object_id):
 		return "有人正借这块温石练习，须先等他结束。"
 	if not owned and target_in_use(object_id):

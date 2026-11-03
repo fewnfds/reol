@@ -96,8 +96,11 @@ static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
 		return {}
 	var travelling: bool = not extra.player_journey.is_empty()
 	var manual_action: bool = not snapshot.player.motion.action.is_empty()
-	var moving: bool = not Vector2(float(snapshot.player.motion.velocity[0]), float(snapshot.player.motion.velocity[1])).is_zero_approx()
+	var velocity := Vector2(float(snapshot.player.motion.velocity[0]), float(snapshot.player.motion.velocity[1]))
+	var moving: bool = not velocity.is_zero_approx()
 	if int(snapshot.player.altitude) != 0 and restored.conflicts.owns_actor("player"):
+		return {}
+	if (int(snapshot.player.altitude) != 0 or velocity != Vector2.ZERO) and restored.artifacts.active.get("player", {}).get("verb", "") in ["use_research", "draw"]:
 		return {}
 	if travelling and restored.owns_for_scope("player", &"journey"):
 		return {}
@@ -106,7 +109,7 @@ static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
 	if moving and restored.owns_for_scope("player", &"stationary"):
 		return {}
 	var walking: Dictionary = restored.conflicts.walking_projection("player")
-	var speed: float = Vector2(float(snapshot.player.motion.velocity[0]), float(snapshot.player.motion.velocity[1])).length()
+	var speed: float = velocity.length()
 	if moving and speed > float(player.motion.rules.motion.speed) * float(walking.speed_fraction) + 0.001:
 		return {}
 	if int(snapshot.clock.wait_target_ms) != 0 and restored.owns_for_scope("player", &"wait"):

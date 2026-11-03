@@ -48,8 +48,10 @@
         "take": {"label": "取在手中", "minutes": 1, "qi": 0},
         "place": {"label": "放回断碑台", "minutes": 1, "qi": 0},
         "study": {"label": "辨认器形与外纹", "minutes": 2, "qi": 0},
-        "examine": {"label": "辨看环身材质", "minutes": 1, "qi": 0}
-      }
+        "examine": {"label": "辨看环身材质", "minutes": 1, "qi": 0},
+        "use_research": {"label": "循纹研究引物手法", "minutes": 2, "qi": 2}
+      },
+      "drawing": {"duration_ms": 2000, "qi": 2, "range_cells": 6, "target_definitions": ["wooden_sword"]}
     },
     "warm_stone": {
       "name": "温火石",

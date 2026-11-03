@@ -34,6 +34,7 @@ func run(runner: Object) -> void:
 		projected.erase("field_opportunities")
 		projected.erase("capability_practice")
 		projected.version = 34
+		projected.artifacts.version = source.continuity.world.artifacts.version
 		projected.spirit_sources.version = 2
 		for baseline: Dictionary in projected.spirit_sources.qi_baselines.values():
 			runner.assert_eq(int(baseline.practice_floor), 1, "old qi checkpoints start before any future practice spending")

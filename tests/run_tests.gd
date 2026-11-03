@@ -1318,3 +1318,19 @@ func _collect_gd_files(path: String, out: Array[String]) -> void:
 			out.append(full)
 		entry = dir.get_next()
 	dir.list_dir_end()
+
+
+func test_artifact_drawing() -> void:
+	load("res://tests/sim/test_artifact_drawing.gd").new().run(self)
+
+
+func test_drawing_migration() -> void:
+	load("res://tests/runtime/test_drawing_migration.gd").new().run(self)
+
+
+func test_drawing_runtime() -> void:
+	load("res://tests/runtime/test_drawing_runtime.gd").new().run(self)
+
+
+func test_drawing_continuity() -> void:
+	load("res://tests/runtime/test_drawing_continuity.gd").new().run(self)

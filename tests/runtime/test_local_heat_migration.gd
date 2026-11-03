@@ -81,6 +81,8 @@ func _existing_samples(runner: Object) -> void:
 		runner.assert_eq(_canonical(restored_old_exposure), _canonical(old_exposure), "all existing sample fields survive without repricing old exposure: v%d" % version)
 		for field: String in ["weather", "clothing", "artifacts", "heat_methods", "construction", "health"]:
 			var expected: Dictionary = old_world[field].duplicate(true)
+			if field == "artifacts":
+				expected.version = SimArtifacts.VERSION
 			if field == "health":
 				expected.version = 2
 				expected["conflict_source_floor"] = 1
@@ -107,6 +109,7 @@ func _existing_samples(runner: Object) -> void:
 			previous_fields.health.erase("conflict_source_floor")
 			previous_fields.environment = restored_old_exposure
 			previous_fields.version = old_world.version
+			previous_fields.artifacts.version = old_world.artifacts.version
 			# The later ecology migration adds care/config/source state after
 			# heat. Project only those documented additions back to v31, then
 			# compare every original regional fact, action and inventory field.
