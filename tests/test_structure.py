@@ -79,6 +79,34 @@ class StructureTests(unittest.TestCase):
         self.assertEqual(len(issues), 1)
         self.assertIn("scripts/example.gd:2", issues[0])
 
+    def test_clean_checkout_allows_generated_runtime_outputs(self):
+        self.project_entries()
+        self.write("tests/runtime/helpers/replay.gd", (
+            'const OUTPUT = "res://logs/replay.json"\n'
+            'const SAVE = "user://saves/session.json"\n'
+            'func write_result() -> void:\n'
+            '    FileAccess.open(OUTPUT, FileAccess.WRITE)\n'
+        ))
+        self.assertFalse((self.root / "logs").exists())
+        self.assertEqual(structure.check_project(self.root)[0], [])
+        self.assertFalse((self.root / "logs").exists())
+
+    def test_generated_namespace_does_not_hide_missing_source_resources(self):
+        self.project_entries()
+        self.write("tests/runtime/helpers/replay.gd", (
+            'const OUTPUT = "res://logs/replay.json"\n'
+            'const SCRIPT = preload("res://scripts/missing.gd")\n'
+            'const TEXTURE = load("res://assets/missing.png")\n'
+            'const LOOKALIKE = "res://logs_backup/missing.json"\n'
+            'const ESCAPE = "res://logs/../scripts/missing.gd"\n'
+        ))
+        issues = structure.check_project(self.root)[0]
+        self.assertEqual(len(issues), 4)
+        self.assertTrue(any("res://scripts/missing.gd" in issue for issue in issues))
+        self.assertTrue(any("res://assets/missing.png" in issue for issue in issues))
+        self.assertTrue(any("res://logs_backup/missing.json" in issue for issue in issues))
+        self.assertTrue(any("res://logs/../scripts/missing.gd" in issue for issue in issues))
+
     def test_missing_responsibility_and_task_entry_is_rejected(self):
         self.project_entries()
         (self.root / "docs/plans/settlement_services.md").unlink()

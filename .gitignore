@@ -31,3 +31,6 @@ Thumbs.db
 /art_inbox/*
 !/art_inbox/README.md
 !/art_inbox/.gdignore
+!/art_inbox/character_generation/
+/art_inbox/character_generation/*
+!/art_inbox/character_generation/README.md

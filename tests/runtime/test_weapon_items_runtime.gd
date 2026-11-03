@@ -119,12 +119,26 @@ func _holder_views(runner: Object) -> void:
 	runner.assert_true(adapter._display_point(SWORD).is_equal_approx(pawn.global_position + pawn.visual_offset + offset), "NPC-held sword follows its interpolated view and crowd offset without inheriting player flight")
 	runtime.current_region = "river"
 	runtime._refresh_views(true)
+	runner.assert_true(not runtime._remote_views.has("river_chen_shouzhuo"), "changing the region label alone does not reveal the distant holder")
+	# This is a presentation fixture with a synthetic elevation map, not a
+	# travel test. Place the original player body by the remote holder so the
+	# no-Fog fallback creates the view from actual physical proximity.
+	var remote_body: Dictionary = runtime.world_sim.regions.river.actors.river_chen_shouzhuo
+	fixture.player.altitude = 0
+	fixture.player.spawn_at(SimRouteTravel.cell(remote_body.cell))
+	runtime.prepare_player_command()
+	runtime._refresh_views(true)
+	runner.assert_true(runtime._remote_views.has("river_chen_shouzhuo"), "physically approaching the remote holder materializes its view")
+	if not runtime._remote_views.has("river_chen_shouzhuo"):
+		_fixtures._dispose(fixture)
+		return
 	domain.objects[SWORD].region = "river"
 	domain.objects[SWORD].container = "actor:river_chen_shouzhuo"
 	var remote: Pawn = runtime._remote_views.river_chen_shouzhuo
 	remote.global_position += Vector2(-3.25, 8.5)
 	remote.visual_offset = Vector2(4, -2)
 	runner.assert_true(adapter._display_point(SWORD).is_equal_approx(remote.global_position + remote.visual_offset + offset), "river-held sword uses the remote resident's actual nearby view")
+	remote.free()
 	runtime._remote_views.erase("river_chen_shouzhuo")
 	var actual: Vector2 = SimRouteTravel.point(runtime.world_sim.regions.river.actors.river_chen_shouzhuo)
 	runner.assert_true(adapter._display_point(SWORD).is_equal_approx(actual + offset), "uninstantiated holder fallback uses the original body's continuous position")

@@ -9,7 +9,7 @@ Archived documents keep their historical paths and are excluded deliberately.
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 from urllib.parse import unquote, urlsplit
 
@@ -52,6 +52,9 @@ REFERENCE = re.compile(
     r"^ {0,3}\[[^\]\n]+\]:\s*(?:<(?P<angle>[^>\n]+)>|(?P<plain>\S+))", re.M
 )
 GD_TOKEN = re.compile(r'''\#[^\n]*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*' ''', re.X)
+# These are runtime outputs, not checked-in Godot source assets. In a fresh
+# checkout the directory itself may not exist until a test writes its output.
+GENERATED_RESOURCE_ROOTS = frozenset({"logs"})
 
 
 def _without_code(text: str) -> str:
@@ -94,7 +97,7 @@ def check_markdown(path: Path, root: Path) -> list[str]:
 
 
 def check_script(path: Path, root: Path) -> list[str]:
-    """Check literal paths including data constants missed by preload checks."""
+    """Check literal source paths, excluding explicitly generated outputs."""
     text = path.read_text(encoding="utf-8-sig")
     issues: list[str] = []
     for match in GD_TOKEN.finditer(text):
@@ -103,6 +106,11 @@ def check_script(path: Path, root: Path) -> list[str]:
             continue
         relative = literal[1:-1].removeprefix("res://")
         if not relative or any(token in relative for token in ("%", "{", "*")):
+            continue
+        # Do not exempt paths escaping the output directory or similarly named
+        # source directories. Godot resource paths use forward slashes.
+        parts = PurePosixPath(relative).parts
+        if "\\" not in relative and parts and parts[0] in GENERATED_RESOURCE_ROOTS and ".." not in parts:
             continue
         line = text.count("\n", 0, match.start()) + 1
         where = f"{path.relative_to(root).as_posix()}:{line}"
