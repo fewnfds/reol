@@ -2,11 +2,11 @@
 
 约2026-11-04 07:25用户已恢复Goal active，并插入Git工作流/公共GitHub CI任务。全局子代理默认Terra配置已写，游戏Goal不重写；下方旧暂停只作历史。
 
-> **当前U3-a收尾**：上一完整check session16284在Codex重启时被中断，无测试结果不能称通过。当前仅一轮重跑session **28457**，07:10:50启动，结构/导入`071050`通过，测试仍在运行；只poll该session。第一轮27182已退出1的三条旧失败已修并定向通过。产品/三真实v40档run231/232完整停开/原生四图均已验，最终数字仍待本轮结果。root40/reg36/地点1；QA见[野外机缘](qa/20261104_field_opportunity.md)。
+> **当前U3-a验收中**：本地完整check session28457已退出1；`check-test-20261104-071058.log`为171 passed/0 failed、16070断言，但旧武器视图测试直接索引远方未显现人物导致SCRIPT ERROR及清理泄漏，因此不算绿色。已修该测试的实际接近前提并保留全部插值/fallback断言，定向121/0且无错误/警告。产品/三真实v40档run231/232完整停开/原生四图已验。当前完整回归交GitHub run **41739857610**，commit`943d16a`，已完成工具与导入前段、游戏全套执行中，不重复开本地check。原root40/reg36/地点1；QA见[野外机缘](qa/20261104_field_opportunity.md)。
 
-> **隔离下一包**：U3-b1研究/短距引物只在`logs/ring_use_work_20261104_0711`，尚未合主目录。根41/reg37/art5，field1不变，复用原training_sword，不做交换；新研究2分钟/2qi、draw2秒/2qi/6格，原身体/双物占用与source首消费。定向365/0、三真实v40迁移/相关历史回归、产品runtime15/0已验；真实新档完整停开、画面、最终完整检查尚待做。主代理还需补玩家高度的联合候选守卫/研究入口守卫。隔离目录已忽略，绝不随Git发布。
+> **隔离下一包**：U3-b1研究/短距引物只在`logs/ring_use_work_20261104_0711`，尚未合主目录。根41/reg37/art5，field1不变，复用原training_sword，不做交换；新研究2分钟/2qi、draw2秒/2qi/6格，原身体/双物占用与source首消费。定向365/0、三真实v40迁移/相关历史回归、产品runtime15/0已验；真实新档完整停开、画面、最终完整检查尚待做。玩家高度的联合候选/研究入口守卫已补，产品runtime17/0；原生四图已逐张看过，真实研究/引物中途两源已保存，完整停开未来对照进行中。隔离目录已忽略，绝不随Git发布。
 
-> **Git工作流插入**：已建公共仓库https://github.com/fewnfds/reol，origin已接；首提交`b555bb1`保存Codex工具/技能迁移与AGENTS Git授权规则。游戏成熟快照与CI尚待分批commit/push；用户已授权，不必重问。GitHub CLI使用fewnfds现有登录，不读/打印token。CI配置已写，固定Godot4.7.2官方SHA/Actions SHA、Python3.14/Ubuntu24.04、1800秒全套与50分钟job、日志总上传。推送后必须等真实run结果再宣布CI接通。原全部未提交游戏文件仍保留。
+> **Git工作流已接，等待完整CI**：公共仓库https://github.com/fewnfds/reol，origin/main已推。`b555bb1`工具/技能与规则、`bd4d5d0`当前游戏快照、`cf6d341`CI，随后`943d16a`修干净checkout和旧视图测试。首CI41739354495失败于本地临时输出/截图被当必需源，已修分类与补23项Python工具回归，导出不含logs/.godot的干净index副本结构0错。第二CI41739857610完整回归中，等实际结论；用户已授权常规commit/push，无需重问，GitHub CLI沿fewnfds现有登录，不读/打印token。后续新功能用codex/分支，隔离目录不上传。
 
 > **U2-a最终验收完成**：有来源目录/真实练习/原护障缓步已实现；最终完整check session16414退出0、CHECK PASSED（结构/导入055825、测试055831）。七套定向、普通主局、真实v39两档run227/228完整停开同未来、战术对照与原生图均已验，详情[QA](qa/20261104_capability_network.md)，数字只看BASELINE。旧失败session28033/定向36285均已结束，不再wait。根39/区域35/练习1/灵源3；Goal仍active，不重写/不complete。下一[断碑台与引物环](plans/first_field_opportunity.md)待实施，先核实际新接缝；复杂农务后置。run229回载128751ms原缓步施法档暂停、qi14、候选有效，操作前核editor_state。
 
