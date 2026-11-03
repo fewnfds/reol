@@ -2,6 +2,8 @@
 
 **最新待收CI**：U3-b1提交`5d0afd9`已推`codex/drawing-ring-use`，run[41742281428](https://github.com/fewnfds/reol/actions/runs/41742281428)运行中；前包main的[41739857610](https://github.com/fewnfds/reol/actions/runs/41739857610)已成功，不能代替U3-b1自己的回归。末版定向、原生四图、两个独立OS停开三分支全联合未来字节一致均已验，不能用这些替代云端完整回归。工作区当前是开发分支，不是远端main；不重复开本地完整check。
 
+**隔离下一包**：[U3-b2私人交换规格](plans/private_artifact_exchange.md)已整理，核心由ring_core在`logs/private_exchange_work_20261104_0755`实施；尚未合主目录/未运行测试。独立过程引用原身体/钱包/环，只在当面有效同意后预约原4钱，5秒完成同时交钱交环；对方返程忙碌时拒绝打断。完整接缝笔记在`logs/private_artifact_trade_notes_20261104.md`。不要整目录覆回，尤其主目录CI成功记录与本轮工具修复。
+
 约2026-11-04 07:25用户已恢复Goal active，并插入Git工作流/公共GitHub CI任务。全局子代理默认Terra配置已写，游戏Goal不重写；下方旧暂停只作历史。
 
 > **本机资源插入任务已排查**：Agents Anywhere连接器出现约27GiB物理/55.5GiB提交历史峰值及当前内存快速波动；没有发现仍在跑的本地游戏测试。用户已自行退出该程序并要求继续，原异常PID已消失，可用物理内存约22.2GiB。开发恢复定向验证，完整回归仍交GitHub；不要停Goal或误杀Godot MCP。证据边界与处理见[排查记录](qa/20261104_python_resource_probe.md)。
