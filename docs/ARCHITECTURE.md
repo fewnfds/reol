@@ -2,7 +2,7 @@
 
 核对：2026-11-04，Godot4.7.2 / GDScript。本文描述**已有代码及其限制**，不是目标模块清单。可玩行为见[FEATURES](FEATURES.md)，格式与验证见[BASELINE](BASELINE.md)，文件职责见[PROJECT-STRUCTURE](PROJECT-STRUCTURE.md)。
 
-完整游戏Goal保持active，按[超凡者主线](plans/transcendent_focus.md)优先能力、冒险、组织和事件化远区。U0的身体占用、固定域目录/有名结算阶段、公开候选绑定及纯JSON值规范继续支持后续领域。U1有限交锋/感知/借源/看护与U2-a本人本领来源/有限行气用法已验收；[U3-a野外连续性](plans/first_field_opportunity.md)与[U3-b1有限引物](plans/field_ring_use.md)已接，后者最终验收待完成，证据见[QA](qa/20261104_drawing_ring.md)与BASELINE。通用活动生命周期、完整事件队列、完整战争、私人交换和通用物性仍待实施。
+完整游戏Goal保持active，按[超凡者主线](plans/transcendent_focus.md)优先能力、冒险、组织和事件化远区。U0的身体占用、固定域目录/有名结算阶段、公开候选绑定及纯JSON值规范继续支持后续领域。U1有限交锋/感知/借源/看护、U2-a本人本领来源/有限行气用法及[U3-a野外连续性](plans/first_field_opportunity.md)已验收；[U3-b1有限引物](plans/field_ring_use.md)已接、最终验收待完成，证据见[QA](qa/20261104_drawing_ring.md)与BASELINE。通用活动生命周期、完整事件队列、完整战争、私人交换和通用物性仍待实施。
 
 最新横向审查见[世界/人物/事件/地图](ARCHITECTURE-REVIEW-20261103.md)；E1历法、E2余热与E3药丛之后，[E4-a有限灵源](plans/finite_spirit_source.md)已接共同时间和原身体/器物。后续见[天地环境](plans/world_environment.md)、[真八方向外观](plans/eight_direction_appearance.md)。通用事件/实体注册、完整气候/室内热交换、五行场/风水不因目标架构图而算已实现；A1真八向技术样本已按[QA](qa/20261103_eight_direction_sample.md)接原body朝向与共用采样/分层。
 

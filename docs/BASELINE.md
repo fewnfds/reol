@@ -4,7 +4,7 @@
 
 > **U3-b1已合入主目录，最终验收待完成（2026-11-04）**：[本人循纹研究与短距引物](qa/20261104_drawing_ring.md)接原环、原身体、原qi与唯一木剑；当前根41/区域37/器物5/地点1。主目录末版定向412断言/0失败、同进程原loader连续性192断言/0失败，原生1280×720四图已复验；本包CI待完成。隔离阶段两真实v41源档的同源三分支两次独立进程完整停开证据先于速度/位置守卫与左栏秒数修正，不冒充末版独立进程结果。完整游戏Goal保持active。
 
-> **U3-a前包证据**：[断碑台/自主寻物](qa/20261104_field_opportunity.md)产品、普通主局、三真实v40档停开与原生四图已有阶段证据。本地完整检查曾因旧武器视图测试脚本错误退出1，修复后定向通过。GitHub [run41739857610](https://github.com/fewnfds/reol/actions/runs/41739857610)针对前包commit `943d16a`，运行结果以该链接为准，不能用作U3-b1通过证据。
+> **U3-a前包最终验收通过**：[断碑台/自主寻物](qa/20261104_field_opportunity.md)产品、普通主局、三真实v40档两次完整停开与原生四图已验；GitHub [run41739857610](https://github.com/fewnfds/reol/actions/runs/41739857610)针对前包commit `943d16ac225d4cca218e15e3a6d755ddc5cfeb8b`完整检查成功。本地旧武器视图测试脚本错误及失败记录保留，修复后定向和云端完整回归通过。该CI不能用作U3-b1通过证据。
 
 > **U2-a最终验收通过（前包历史，2026-11-04）**：[本人本领来源与行气护身](qa/20261104_capability_network.md)已实现；最终完整check为163组、15,645断言、0失败，CHECK PASSED，退出0。真实v39练习/缓步施法两档、run227/228完整停开同未来、战术对照与原生1280×720三图已验。完整游戏/首小时切片未完成，原Goal保持active；后续状态以本页顶部为准。
 
@@ -63,7 +63,9 @@
 
 **U3-b1最终验收待完成**。主目录末版定向`logs/drawing-final-branch-20261104.log`为412断言/0失败，涵盖drawing、真实v40迁移与产品runtime；`logs/drawing-continuity-branch-20261104.log`为192断言/0失败，在同一进程内通过原loader重复回放两真实v41源档的三个同源分支并逐字节比较。两日志无错误/警告。`logs/drawing-native-branch-20261104.log`记录1280×720四图和有效候选，四图已查看、左栏显示秒数。隔离阶段两次独立进程停开及早期画面见[本包QA](qa/20261104_drawing_ring.md)，发生在研究连续位置、联合候选非零高度/精确非零速度守卫与左栏修正之前；末版两个独立进程停开也已复验，同源三分支全联合字节及SHA均与隔离结果一致，日志和manifest见本包QA；本包完整CI仍待完成。
 
-**U3-a前包完整检查历史**：本地`check --test-timeout 1800`结构/导入`071050`通过，测试`logs/check-test-20261104-071058.log`输出171 passed/0 failed、16,070断言，但`test_weapon_items_runtime`的远方视图索引出现SCRIPT ERROR及随后清理泄漏，工具正确退出1/CHECK FAILED；此数字不是最终通过证据。已修纯呈现夹具的实际距离前提并显式释放view，`logs/weapon-target-20261104.log`121断言0失败、0脚本错误/警告。首远程CI41739354495还暴露干净clone缺临时输出引用，已修生成路径分类/历史本地截图索引与收件说明白名单，23项Python工具测试、干净index导出结构177文档/294脚本/0错。GitHub run41739857610针对前包`943d16a`，不证明本包。以下U2-a是更前包的最终通过历史。
+**U3-a前包最终完整检查通过**：GitHub [run41739857610](https://github.com/fewnfds/reol/actions/runs/41739857610)的`test` job成功，commit `943d16ac225d4cca218e15e3a6d755ddc5cfeb8b`，耗时20分49秒；`logs/github-ci-41739857610.log`记录Python工具测试23项OK、完整导入与测试**171组、16,074断言、0失败，CHECK PASSED**。Python工具测试中的错误与超时文本是故意注入以验证失败检测，不是本次游戏检查失败。该结果只属于U3-a，不能代替U3-b1自己的CI。产品路线、三真实v40档两次完整停开与原生四图见[前包QA](qa/20261104_field_opportunity.md)。
+
+**U3-a前包失败与修复历史**：本地`check --test-timeout 1800`结构/导入`071050`通过，测试`logs/check-test-20261104-071058.log`输出171 passed/0 failed、16,070断言，但`test_weapon_items_runtime`的远方视图索引出现SCRIPT ERROR及随后清理泄漏，工具正确退出1/CHECK FAILED；此数字不是最终通过证据。已修纯呈现夹具的实际距离前提并显式释放view，`logs/weapon-target-20261104.log`121断言0失败、0脚本错误/警告。首远程CI41739354495还暴露干净clone缺临时输出引用，已修生成路径分类/历史本地截图索引与收件说明白名单，干净index导出结构177文档/294脚本/0错。以下U2-a是更前包的最终通过历史。
 
 **U2-a最终完整检查通过**：`python -u tools/godot.py check --test-timeout 1800`为**163组、15,645断言、0失败，CHECK PASSED，退出0**。结构/导入`logs/check-structure-20261104-055825.log`、`logs/check-import-20261104-055825.log`，测试`logs/check-test-20261104-055831.log`；最终导入/测试错误、警告与FAIL行数0。首完整check的四组旧测试/七条断言已有限修正，失败日志`check-test-20261104-054733.log`保留，四套定向复测通过；没有改历史fixture。新七套定向、实际普通主局/两份真实在途档的run227/228完整停开同未来与原生三图详见[QA](qa/20261104_capability_network.md)。资源严格检查886文件/0错误/0警告，文档/脚本结构175/282/0错误。以下为前包历史验证。
 

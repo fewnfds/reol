@@ -51,7 +51,7 @@
 | 公源借用/实际验还 | [规格](plans/source_loan.md)、[验收](qa/20261104_source_loan.md) | 当面具名签发、原用源/公器归位、管事原身体赴场核验再回桌登记；原声明与亲见分开 |
 | 具名看护/警告/驱离 | [规格](plans/source_care.md)、[当前功能](FEATURES.md) | 原人物有限出勤与个人认识，C说明依据、本人警告暂停、宽限后原交锋、旧档空迁移；本轮完整验收状态看BASELINE |
 | 本人本领来源/行气护身 | [规格](plans/capability_network_first.md)、[验收](qa/20261104_capability_network.md) | 七项来源目录、原资源/实际一分钟练习、完成后原护障内缓步；已验收的U2-a有限样本 |
-| 野外断碑台/自主寻物 | [规格](plans/first_field_opportunity.md)、[前包证据](qa/20261104_field_opportunity.md) | 本人线索、L已知地点/原路行旅、原NPC自主出行争取同一环与后来结果 |
+| 野外断碑台/自主寻物 | [规格](plans/first_field_opportunity.md)、[前包验收](qa/20261104_field_opportunity.md) | 本人线索、L已知地点/原路行旅、原NPC自主出行争取同一环与后来结果；U3-a已验收 |
 | 引物环研究与使用 | [规格](plans/field_ring_use.md)、[当前证据](qa/20261104_drawing_ring.md) | 本人持环研究、原qi/身体/唯一目标与短距引物；待最终验收，私人交换另包 |
 | 实物衣着/纸娃娃 | [规格](plans/clothing_foundation.md)、[实际验收](qa/20261103_clothing_foundation.md) | 唯一位置/穿法、原身体耗时/互斥、晴雨/屋面与原精力，有限表层观察/原NPC自主 |
 | 多格形体/尺度 | [规格](plans/large_bodies.md)、[实际验收](qa/20261103_large_bodies.md) | 真实3×3兽身、完整净空/扫掠、边缘递食、离场/重启接续 |

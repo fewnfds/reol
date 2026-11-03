@@ -1,6 +1,6 @@
 # Reol 快速交接
 
-**最新待收CI**：U3-b1提交`5d0afd9`已推`codex/drawing-ring-use`，run[41742281428](https://github.com/fewnfds/reol/actions/runs/41742281428)运行中；前包main的[41739857610](https://github.com/fewnfds/reol/actions/runs/41739857610)仍须独立收结论。末版定向、原生四图、两个独立OS停开三分支全联合未来字节一致均已验，不能用这些替代云端完整回归。工作区当前是开发分支，不是远端main；不重复开本地完整check。
+**最新待收CI**：U3-b1提交`5d0afd9`已推`codex/drawing-ring-use`，run[41742281428](https://github.com/fewnfds/reol/actions/runs/41742281428)运行中；前包main的[41739857610](https://github.com/fewnfds/reol/actions/runs/41739857610)已成功，不能代替U3-b1自己的回归。末版定向、原生四图、两个独立OS停开三分支全联合未来字节一致均已验，不能用这些替代云端完整回归。工作区当前是开发分支，不是远端main；不重复开本地完整check。
 
 约2026-11-04 07:25用户已恢复Goal active，并插入Git工作流/公共GitHub CI任务。全局子代理默认Terra配置已写，游戏Goal不重写；下方旧暂停只作历史。
 
@@ -8,9 +8,9 @@
 
 > **U3-b1主目录末版验收中**：研究/短距引物已合入；本人持环并先完成外形研究，另付两分钟/2 qi完成用法研究，才能花两秒/2 qi在六格内引取可见、同高、无遮挡的松置原木剑。原身体、环与目标共占，取消不退qi。主目录末版定向、同进程连续性与原生四图已复验，左栏已显示秒数；隔离阶段两真实源档和同源三分支两次独立进程完整停开一致。本包CI待完成。详细范围和证据见[引物QA](qa/20261104_drawing_ring.md)、[规格](plans/field_ring_use.md)，最新数字和格式以[BASELINE](BASELINE.md)为准。
 
-> **U3-a前包历史**：本地完整check session28457已退出1；`check-test-20261104-071058.log`为171 passed/0 failed、16070断言，但旧武器视图测试直接索引远方未显现人物导致SCRIPT ERROR及清理泄漏，因此不算绿色。已修该测试的实际接近前提并保留全部插值/fallback断言，定向121/0且无错误/警告。产品/三真实v40档run231/232完整停开/原生四图已有证据；QA见[野外机缘](qa/20261104_field_opportunity.md)。前包GitHub run **41739857610** 针对commit `943d16a`，不能证明U3-b1通过。
+> **U3-a前包最终验收通过**：产品/三真实v40档run231/232完整停开/原生四图已验，GitHub run **41739857610** 针对commit `943d16a`的完整回归成功；QA见[野外机缘](qa/20261104_field_opportunity.md)，数字只看BASELINE。本地完整check session28457曾因旧武器视图测试直接索引远方未显现人物而出现SCRIPT ERROR及清理泄漏，退出1；该失败保留，修正接近前提后定向和前包CI通过。该CI不能证明U3-b1通过。
 
-> **Git工作流已接**：公共仓库https://github.com/fewnfds/reol，origin/main已推。`b555bb1`工具/技能与规则、`bd4d5d0`游戏快照、`cf6d341`CI，随后`943d16a`修干净checkout和旧视图测试。首CI41739354495失败于本地临时输出/截图被当必需源，已修分类与补23项Python工具回归，导出不含logs/.godot的干净index副本结构0错。第二CI41739857610只对应前包；U3-b1须自己的最终CI证据。用户已授权常规commit/push，无需重问，GitHub CLI沿fewnfds现有登录，不读/打印token。后续新功能用codex/分支，隔离目录不上传。
+> **Git工作流已接**：公共仓库https://github.com/fewnfds/reol，origin/main已推。`b555bb1`工具/技能与规则、`bd4d5d0`游戏快照、`cf6d341`CI，随后`943d16a`修干净checkout和旧视图测试。首CI41739354495失败于本地临时输出/截图被当必需源，已修分类与补Python工具回归，干净index副本结构检查通过。第二CI41739857610已成功，只对应前包；U3-b1须自己的最终CI证据。用户已授权常规commit/push，无需重问，GitHub CLI沿fewnfds现有登录，不读/打印token。后续新功能用codex/分支，隔离目录不上传。
 
 > **U2-a前包最终验收完成**：有来源目录/真实练习/原护障缓步已实现；最终完整check session16414退出0、CHECK PASSED（结构/导入055825、测试055831）。七套定向、普通主局、真实v39两档run227/228完整停开同未来、战术对照与原生图均已验，详情[QA](qa/20261104_capability_network.md)，数字只看BASELINE。旧失败session28033/定向36285均已结束，不再wait；旧根39/区域35/练习1/灵源3与run229均为当时记录。Goal仍active，不重写/不complete；接续以本页顶部为准。
 
