@@ -169,7 +169,15 @@ python tools/godot.py export --preset "Windows Desktop" --output build/windows/r
 
 这是最小可用的无头测试框架；后续复杂了再换 GUT。
 
-### 2.2 格式化与 Lint（建议）
+### 2.2 GitHub持续集成（2026-11-04）
+
+公共仓库：[fewnfds/reol](https://github.com/fewnfds/reol)，运行入口：[Actions](https://github.com/fewnfds/reol/actions)。用户已授权自主阶段性提交和推送；完整无头验证优先交CI，画面/手感等仍在本地运行。项目本身许可证仍待用户选择，仓库公开不自动授予第三方开源使用权；第三方许可继续随原组件保留。
+
+工作流`.github/workflows/ci.yml`在代码/资源/测试/工具或CI变更推送及PR时运行，也支持手动触发。纯文档、设计、技能和素材收件说明不触发昂贵的游戏回归，仍须本地结构/链接检查。Ubuntu24.04、Python3.14、Godot4.7.2正式Linux无头程序；引擎从官方godot-builds release下载到runner临时目录并核SHA256，不提交二进制或`.godot`缓存。Actions固定commit，不依赖本机MCP服务或登录状态。
+
+CI先执行Python工具测试，再跑`python -u tools/godot.py check --test-timeout 1800`（结构、导入、全部GDScript测试），作业总上限50分钟。通过/失败均上传`godot-logs`保留14天；失败先读第一条真实错误。推送后以具体commit SHA对应run的完成状态为准，不把排队/执行中/旧提交绿色当通过。可用`gh run list`、`gh run view <run-id>`、`gh run view <run-id> --log-failed`读进度；无需持续阻塞长等待。首次配置的远端运行证据待实际完成后更新至BASELINE。
+
+### 2.3 格式化与 Lint（建议）
 
 ```bash
 uv tool install gdtoolkit
