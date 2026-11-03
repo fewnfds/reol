@@ -46,7 +46,16 @@ def main() -> int:
         cmd = [npx, "-y", PACKAGE]
 
     try:
-        return subprocess.call(cmd, cwd=ROOT)
+        return subprocess.call(
+            cmd,
+            cwd=ROOT,
+            # CREATE_NO_WINDOW needs explicit handles to keep the MCP stdio
+            # channel connected when launched by a desktop client.
+            stdin=sys.stdin,
+            stdout=sys.stdout,
+            stderr=sys.stderr,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+        )
     except OSError as exc:
         print(f"[godot-mcp] failed to start npx: {exc}", file=sys.stderr)
         return 127

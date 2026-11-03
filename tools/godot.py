@@ -194,6 +194,9 @@ def _require_godot() -> Path | None:
 
 def _run(cmd: list[str], name: str, timeout: int | None = None) -> int:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
+    # Logs may include temporary GDScript reproducers. Keep generated tooling
+    # out of Godot's importer even on a fresh checkout.
+    (LOG_DIR / ".gdignore").touch(exist_ok=True)
     stamp = time.strftime("%Y%m%d-%H%M%S")
     log_path = LOG_DIR / f"{name}-{stamp}.log"
 
@@ -210,9 +213,16 @@ def _run(cmd: list[str], name: str, timeout: int | None = None) -> int:
             timeout=timeout,
         )
     except subprocess.TimeoutExpired as exc:
-        output = (exc.stdout or "") if isinstance(exc.stdout, str) else ""
+        partial = exc.stdout or ""
+        output = partial.decode("utf-8", errors="replace") if isinstance(partial, bytes) else partial
         print(output, end="" if output.endswith("\n") else "\n")
         print(f"ERROR: timed out after {timeout}s", file=sys.stderr)
+        log_path.write_text(output + f"\nERROR: timed out after {timeout}s\n", encoding="utf-8")
+        try:
+            shown = log_path.relative_to(ROOT)
+        except ValueError:
+            shown = log_path
+        print(f"[log] {shown}")
         return 124
     except OSError as exc:
         print(f"ERROR: failed to start Godot: {exc}", file=sys.stderr)
@@ -226,6 +236,14 @@ def _run(cmd: list[str], name: str, timeout: int | None = None) -> int:
     except ValueError:
         shown = log_path
     print(f"[log] {shown}")
+    # GDScript can abort a test method yet leave SceneTree's exit code at zero.
+    # A green gate must not hide parse/runtime errors behind that exit code.
+    if proc.returncode == 0 and any(
+        line.lstrip().startswith(("SCRIPT ERROR:", "ERROR:"))
+        for line in output.splitlines()
+    ):
+        print("ERROR: Godot reported errors despite a zero exit code.", file=sys.stderr)
+        return 1
     return proc.returncode
 
 
@@ -253,7 +271,8 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
         (".godot/ import cache", ROOT / ".godot"),
         ("addons/godot_ai", ROOT / "addons" / "godot_ai" / "plugin.cfg"),
         ("tests/run_tests.gd", ROOT / "tests" / "run_tests.gd"),
-        ("opencode.json", ROOT / "opencode.json"),
+        (".agents/skills", ROOT / ".agents" / "skills"),
+        (".codex/config.toml", ROOT / ".codex" / "config.toml"),
     ]
     for label, path_to_check in checks:
         print(f"{label + ':':<22} {'yes' if path_to_check.exists() else 'no'}")
@@ -294,7 +313,7 @@ def cmd_import(_args: argparse.Namespace) -> int:
     )
 
 
-def cmd_test(_args: argparse.Namespace) -> int:
+def cmd_test(args: argparse.Namespace) -> int:
     godot = _require_godot()
     if godot is None:
         return 1
@@ -308,11 +327,18 @@ def cmd_test(_args: argparse.Namespace) -> int:
             "res://tests/run_tests.gd",
         ],
         "test",
-        timeout=600,
+        timeout=args.test_timeout,
     )
 
 
-def cmd_check(_args: argparse.Namespace) -> int:
+def cmd_check(args: argparse.Namespace) -> int:
+    structure_code = _run(
+        [sys.executable, str(ROOT / "tools" / "check_structure.py")],
+        "check-structure",
+        timeout=60,
+    )
+    if structure_code != 0:
+        return structure_code
     godot = _require_godot()
     if godot is None:
         return 1
@@ -332,7 +358,7 @@ def cmd_check(_args: argparse.Namespace) -> int:
             "res://tests/run_tests.gd",
         ],
         "check-test",
-        timeout=600,
+        timeout=args.test_timeout,
     )
     if import_code != 0 or test_code != 0:
         print(f"CHECK FAILED (import={import_code}, test={test_code})", file=sys.stderr)
@@ -384,6 +410,16 @@ def cmd_export(args: argparse.Namespace) -> int:
     )
 
 
+def _positive_seconds(value: str) -> int:
+    try:
+        seconds = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("must be a positive integer number of seconds") from exc
+    if seconds <= 0:
+        raise argparse.ArgumentTypeError("must be a positive integer number of seconds")
+    return seconds
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Reol Godot CLI helper.",
@@ -395,8 +431,16 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("which", help="print the Godot executable path").set_defaults(func=cmd_which)
     sub.add_parser("version", help="print the Godot version").set_defaults(func=cmd_version)
     sub.add_parser("import", help="headless import resources").set_defaults(func=cmd_import)
-    sub.add_parser("test", help="run headless tests").set_defaults(func=cmd_test)
-    sub.add_parser("check", help="import + tests (pre-commit gate)").set_defaults(func=cmd_check)
+    for name, help_text, handler in [
+        ("test", "run headless tests", cmd_test),
+        ("check", "import + tests (pre-commit gate)", cmd_check),
+    ]:
+        command = sub.add_parser(name, help=help_text)
+        command.add_argument(
+            "--test-timeout", type=_positive_seconds, default=900, metavar="SECONDS",
+            help="headless test timeout in positive whole seconds (default: 900)",
+        )
+        command.set_defaults(func=handler)
 
     run = sub.add_parser("run", help="run the project")
     run.add_argument("--headless", action="store_true", help="no window")

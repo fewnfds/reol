@@ -1,7 +1,8 @@
 # Reol — 工具链与 MCP 配置
 
 > 目标：让 AI 能**看到** Godot、**运行**项目、**读到**错误、**验证**改动。
-> 日期：2026-11-01
+> 更新：2026-11-02，开发客户端已从 OpenCode 迁移到 Codex。
+> 最新只读复核见[开发工具审计](DEVELOPMENT-TOOLS-AUDIT.md)；更多免费资源/插件候选见[搜集工作包](plans/resource_tooling_scout.md)。下文迁移记录是历史证据，不代表本轮又改配置或安装工具。
 
 ---
 
@@ -19,8 +20,53 @@
 | Git | 2.53.0 (Windows) |
 | 项目 | `D:\users\sunyu\Documents\reol`，Godot 4.7 工程 |
 
-> 本次搭建已跑通 `doctor`、`check`（6 passed）、`run --headless`。
+> 当前游戏构建与测试以 [BASELINE](BASELINE.md) 为准。工具迁移时 Codex 已发现37个项目技能，三个 MCP 均经过协议握手与实际调用验证；下文有日期的验收表保留当时记录。
 > 换机器/重装时，按下面步骤安装，并确保 `python tools/godot.py doctor` 能找到它。
+
+---
+
+## 0.1 Codex 项目配置（从这里开始）
+
+Codex 自动读取根目录 `AGENTS.md`，按需发现 `.agents/skills/*/SKILL.md`。
+OpenCode 的 `opencode.json`、`~/.config/opencode/` 和 `.opencode/skills/` 不会自动迁移。
+本项目原有 37 个技能及 87 个文件已迁到 `.agents/skills/`，没有升级第三方技能，也没有额外的自定义 agent 或 OpenCode 插件需要转换。
+
+```powershell
+python tools/setup_codex.py          # 生成本机项目级 MCP 配置
+python tools/setup_codex.py --check  # 只检查，不写入
+codex mcp list                      # 检查实际加载的服务器配置
+```
+
+- 生成的 `.codex/config.toml` 只设置 `godot` 和 `context7`；脚本用当前 Python 和检出目录生成绝对路径，不安装依赖、不修改全局模型或权限。
+- 本机配置和备份已被 `.codex/.gitignore` 排除。已有无关配置会保留；同名服务器冲突时退出并提示，不覆盖。
+- 项目级配置要求项目已受信任。本机 Reol 已是 trusted；新机器应通过 Codex 的项目信任流程加载。
+- Godot AI 使用 dock → **Configure → Codex**，由插件生成 `~/.codex/config.toml` 中的 `mcp_servers.godot-ai`。不要把 OpenCode JSON 整段粘进 TOML。
+- 配置或技能未在当前聊天出现时，重新打开项目或重启 Codex；用实际工具列表确认。`codex mcp list` 显示 enabled 只证明配置已加载，不能代替连接和调用验证。
+
+配置脚本的自动化验证：`python -X utf8 -m unittest discover -s tests -p test_codex_setup.py -v`。
+技能验证器在 Windows 下应使用 `python -X utf8`，避免中文 UTF-8 文件被按 GBK 解码。
+
+官方说明：[MCP 配置](https://developers.openai.com/codex/mcp)、[技能发现](https://developers.openai.com/codex/skills)。
+
+### 2026-11-02 迁移验收
+
+| 验证 | 实际结果 |
+|---|---|
+| Codex app-server `skills/list`，强制重新扫描本项目 | 37 个项目技能，0 个解析错误 |
+| 技能资源迁移前后 SHA-256 比较 | 87 个文件全部保留，仅项目入口 `reol-project/SKILL.md` 更新 |
+| `godot` 初始化 + `get_godot_version` + `get_project_info` | 14 个工具，返回 Reol / Godot 4.7.2 |
+| `godot-ai` 会话/编辑器/运行/场景/日志/截图 | 插件与后端 4.3.1；游戏 `live`、helper live；游戏/编辑器日志无错误或警告；1280×720 截图成功 |
+| `context7` 搜索 + 查询 4.7 分支 API | 2 个工具，返回官方 4.7 TileMapLayer 方法文档 |
+| `python tools/godot.py doctor` / `check` | Godot 4.7.2；28 passed / 0 failed；CHECK PASSED |
+| 配置脚本自动化测试 | 4 passed：保留已有设置、备份、重复运行、冲突保护及只读检查 |
+
+截图：`artifacts/qa/codex-mcp-game.png`；运行证据：`logs/codex-migration-mcp-runtime.json`；
+Godot 回归日志：`logs/check-test-20261102-154904.log`。这些临时证据已被 Git 排除。
+验证用的临时编辑器已正常关闭；日常使用 Godot AI 时需重新打开 Reol 编辑器。
+
+Windows 备用 MCP 隐藏启动初次复测出现 `Request 'initialize' timed out`；
+已修复 `godot_mcp.py` 的标准流传递：`CREATE_NO_WINDOW` 配合显式 `stdin/stdout/stderr`。
+修复后同样的握手、版本与项目查询全部成功。没有升级或新引入依赖。
 
 ---
 
@@ -58,7 +104,7 @@ D:\Tools\Godot\Godot_v4.7.2-stable_win64.exe
 )
 ```
 
-设置完**重开终端**（以及 OpenCode），否则当前进程读不到。
+设置完**重开终端和 Codex**，否则当前进程读不到。
 
 **Git Bash（当前会话临时）：**
 
@@ -100,6 +146,7 @@ python tools/godot.py version       # 版本
 python tools/godot.py import        # 无头导入资源（新资源/新 class_name 后必跑）
 python tools/godot.py test          # 无头跑 tests/run_tests.gd
 python tools/godot.py check         # import + test
+python tools/godot.py check --test-timeout 1800  # 显式延长本次完整测试的上限
 python tools/godot.py editor        # 打开编辑器
 python tools/godot.py run           # 运行项目
 python tools/godot.py run --headless --quit-after 120
@@ -108,7 +155,9 @@ python tools/godot.py export --preset "Windows Desktop" --output build/windows/r
 
 退出码：
 - `0` = 成功
-- 非 `0` = 失败；日志在 `logs/`（脚本会把输出 tee 到文件）
+- 非 `0` = 失败；日志在 `logs/`（进程结束或超时后写入捕获的输出；运行中可用进程/会话句柄确认状态）
+
+`test`与`check`均支持`--test-timeout`正整数秒，默认仍为900秒；只调整本次无头测试进程上限，结构检查与导入上限不变。完整历史fixture回归持续增长，本机同时运行编辑器/游戏等进程时可显式使用1800秒，例如`python tools/godot.py test --test-timeout 1800`。这不会改变游戏时间、跳过测试或削减回归。超时保留已经输出的日志并按失败退出；`test`超时码为124，`check`会报告失败，超时不等于通过。
 
 ### 2.1 测试脚本做什么
 
@@ -145,9 +194,9 @@ MCP 让 AI 通过工具调用操作 Godot，而不是只“猜代码”。
 
 | 服务器 | 类型 | 用途 | 本项目状态 |
 |---|---|---|---|
-| **godot-ai** | 编辑器插件 + 本地 bridge | 看场景树、改节点、跑游戏、读日志、截图、输入模拟 | 插件已内置，待启用/Configure |
-| **godot**（Coding-Solo） | 本地 stdio（npx） | 无头启动、运行项目、抓调试输出、建场景 | 已连接并验证：`get_godot_version` → 4.7.2 |
-| **context7** | 远程 | 查 Godot / 第三方库最新文档 | 已可用（全局配置） |
+| **godot-ai** | 编辑器插件 + 本地 bridge | 看场景树、改节点、跑游戏、读日志、截图、输入模拟 | Codex 连接实测：47 个工具，Reol 编辑器 ready，插件/后端均为 4.3.1 |
+| **godot**（Coding-Solo） | 本地 stdio（npx） | 无头启动、运行项目、抓调试输出、建场景 | Codex 配置实测：14 个工具，版本/项目信息返回 Godot 4.7.2 |
+| **context7** | 远程 | 查 Godot / 第三方库最新文档 | Codex 项目级 HTTP；2 个工具，已检索并读取 Godot 4.7 TileMapLayer 文档 |
 
 > 不要同时让两个 MCP 抢同一个编辑器/端口。日常优先 `godot-ai`；CI/无头用 `godot` 或 `tools/godot.py`。
 
@@ -157,7 +206,7 @@ MCP 让 AI 通过工具调用操作 Godot，而不是只“猜代码”。
 
 ### 4.1 它是什么
 
-- 46 个 MCP 工具，连接**正在运行的 Godot 编辑器**。
+- 当前 v4.3.1 实测 47 个 MCP 工具，连接**正在运行的 Godot 编辑器**。
 - 能：读场景树、创建/改节点、写脚本并校验、跑项目、读编辑器/游戏日志、截图、模拟输入、跑测试、改 TileMap/导航/材质/动画/UI。
 - 对本项目最有用：**AI 能看见自己改了什么**，而不是盲写 `.tscn`。
 
@@ -188,22 +237,22 @@ enabled=PackedStringArray("res://addons/godot_ai/plugin.cfg")
 - 看 **Output** 面板第一条红色错误。
 - 不要用旧版覆盖；用 dock 的 **Update**。
 
-### 4.4 配置 OpenCode
+### 4.4 配置 Codex
 
-1. 在 Godot AI dock 里点 **Configure**（或 **Configure all**）。
-2. 选择 **OpenCode**。
-3. 插件默认写全局配置 `~/.config/opencode/opencode.json` 的 `mcp.godot-ai`
-   （当前 OpenCode 的 MCP 结构是 `mcp.<name>`，不是 `mcp.servers`）。
-4. 如果你想只在本项目启用：把生成的 `godot-ai` 条目复制到项目 `opencode.json`
-   的 `mcp.godot-ai`，再从全局配置删除。
-5. 用 `/mcps` 查看，确认 `godot-ai` 是 connected。
+1. 保持 Reol 的 Godot 4.7.2 编辑器打开，确认插件已启用。
+2. 在 Godot AI dock 里为 **Codex** 点 **Configure**。
+3. 插件写入 `~/.codex/config.toml` 的 `[mcp_servers.godot-ai]`，Windows 使用隐藏控制台的 `pythonw` 启动桥接。
+4. 重新打开 Codex 项目或重启 Codex，再检查 `codex mcp list` 和当前聊天的实际工具列表。
+5. 调用 `session_manage(op="list")` 和 `editor_state`，核对项目路径、Godot 版本和 readiness；多项目时先 `session_activate` 选 Reol。
+
+2026-11-02 已通过插件的 `client_manage(op="configure", params={"client":"codex"})` 完成同一配置；配置前备份全局 TOML，配置后确认其他全局设置语义不变。
 
 > **不要手写 `godot-ai` 的端口/命令。** v4 使用带认证的 `godot-ai attach`，
 > dock 会写入匹配版本、端口、工具域的命令。手写一个裸 HTTP URL 连不上。
 
 如果自动配置失败：
 - dock 里点 **Run this manually**，复制完整命令。
-- 按它给的格式加到 `opencode.json` 的 `mcp.godot-ai`（注意是 `mcp` 下直接放名字）。
+- 按它给的 Codex 格式添加到 TOML 的 `[mcp_servers.godot-ai]`，保留完整的版本固定和 attach 参数。
 - 仍失败就看 dock 的日志和 `docs/TOOLCHAIN.md` 的 Troubleshooting。
 
 ### 4.5 安全
@@ -226,22 +275,19 @@ enabled=PackedStringArray("res://addons/godot_ai/plugin.cfg")
 
 ### 5.2 本项目配置
 
-`opencode.json` 已经配置：
+运行 `python tools/setup_codex.py` 后，`.codex/config.toml` 包含以下条目（实际文件使用本机绝对路径）：
 
-```json
-{
-  "mcp": {
-    "godot": {
-      "type": "local",
-      "command": ["python", "tools/mcp/godot_mcp.py"],
-      "enabled": true,
-      "timeout": 60000
-    }
-  }
-}
+```toml
+[mcp_servers.godot]
+command = "<本机 Python 可执行文件>"
+args = ["<检出目录>/tools/mcp/godot_mcp.py"]
+cwd = "<检出目录>"
+enabled = true
+startup_timeout_sec = 65
+tool_timeout_sec = 65
 ```
 
-> 当前 OpenCode 使用 `mcp.<name>`；`timeout` 是毫秒数字，不是对象。
+旧 `opencode.json` 保留给 OpenCode；Codex 不读取该文件。
 
 `tools/mcp/godot_mcp.py` 会：
 1. 用 `tools/godot.py` 的查找逻辑定位 Godot。
@@ -258,19 +304,26 @@ python tools/mcp/godot_mcp.py
 
 ### 5.3 如果不想用
 
-从 `opencode.json` 删除 `godot` 条目即可；或加 `"disabled": true`。
+在本机 `.codex/config.toml` 的 `[mcp_servers.godot]` 中设置 `enabled = false`。
 
 ---
 
 ## 6. context7（文档）
 
-已在本会话可用。若你的全局配置没有：
+`tools/setup_codex.py` 会生成以下项目级配置，无需安装新的 npm 包：
 
-```bash
-opencode mcp add context7 --url https://mcp.context7.com/mcp
+```toml
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
+enabled = true
+startup_timeout_sec = 30
+tool_timeout_sec = 60
 ```
 
-用法：让 AI 查 “Godot 4.7 TileMapLayer API”“LimboAI behavior tree” 等。
+迁移时匿名连接实测成功，无需登录；`codex mcp list` 的 `not_logged_in` 本身不是连接失败。
+如服务以后返回认证/限流错误，以实际响应为准，再按服务说明配置凭据。
+用法：先 `resolve-library-id`，再用返回的库和版本调用 `query-docs`。
+已验证 `/godotengine/godot-docs/__branch__4.7` 能返回 4.7 分支的 `TileMapLayer.get_used_rect()` 文档。
 **API 不确定时先查，不要凭记忆写。**
 
 ---
@@ -303,7 +356,7 @@ opencode mcp add context7 --url https://mcp.context7.com/mcp
 
 - 确认 `GODOT_BIN` 指向 `.exe` 文件，不是目录。
 - 路径有空格时用引号。
-- 设置环境变量后**重开终端/OpenCode**。
+- 设置环境变量后**重开终端/Codex**。
 - 直接运行：
 
   ```bash
@@ -324,10 +377,10 @@ opencode mcp add context7 --url https://mcp.context7.com/mcp
   - `node --version` ≥ 18。
   - `npx -y @coding-solo/godot-mcp@0.1.1` 能跑。
   - `python tools/mcp/godot_mcp.py` 能看到 `GODOT_PATH`。
-  - OpenCode 里 `/mcps` 查看状态。
+  - `python tools/setup_codex.py --check` 和 `codex mcp list` 查看配置；重新打开 Codex 后实际调用版本工具。
 - `godot-ai`：
   - Godot 编辑器必须开着，插件 enabled。
-  - dock 里显示 Connected。
+  - dock 里显示 Connected，`session_manage` 返回 Reol，`editor_state.readiness` 为 ready。
   - 重新 Configure；不要手写端口。
   - 看 Godot Output 面板和 `%LOCALAPPDATA%\godot-ai\` 日志。
 
@@ -382,11 +435,15 @@ python tools/godot.py check
 # 3. 运行 boot 场景
 python tools/godot.py run --headless --quit-after 60
 
-# 4. MCP 状态
-opencode mcp list
+# 4. Codex 配置和 MCP 条目
+python tools/setup_codex.py --check
+codex mcp list
 
-# 5. 编辑器（手动）
+# 5. 配置脚本测试
+python -X utf8 -m unittest discover -s tests -p test_codex_setup.py -v
+
+# 6. 编辑器（手动）
 python tools/godot.py editor
 ```
 
-全部通过后，M0 完成。
+MCP 还需在重新加载的 Codex 聊天里实际调用；运行/画面验收仍按 `godot-verify` 执行。

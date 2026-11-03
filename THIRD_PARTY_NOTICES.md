@@ -21,7 +21,7 @@
 - 许可证：**Apache-2.0**
 - 固定 commit：`19d93f97c9c1ea0f8b306e77aa81e0d3e352d3e9`
 - 许可证原文：`docs/third-party/awesome-gamedev-agent-skills-LICENSE`
-- 分发形式：选取以下技能的 `SKILL.md` 及附带 `references/` 复制到 `.opencode/skills/`。
+- 分发形式：选取以下技能的 `SKILL.md` 及附带资源放在 `.agents/skills/`（2026-11-02 从 `.opencode/skills/` 迁移；上游版本不变）。
 
 ### 已选取
 
@@ -48,7 +48,7 @@ Unity/Unreal/其他引擎、C#/多人、平台跳跃、卡牌、视觉小说、�
 
 1. 拉取上游指定 commit。
 2. diff 选中的技能。
-3. 替换 `.opencode/skills/` 对应目录。
+3. 替换 `.agents/skills/` 对应目录。
 4. 更新本文件的 commit。
 5. 跑一遍项目测试（技能不影响运行时，但保持记录）。
 
@@ -73,7 +73,7 @@ Unity/Unreal/其他引擎、C#/多人、平台跳跃、卡牌、视觉小说、�
 - 许可证：**MIT**
 - 分发形式：**不随仓库分发**；运行时由 `npx` 安装。
 - 用途：无头启动、运行项目、抓调试输出、建场景。
-- 配置：`opencode.json` → `mcp.godot` → `tools/mcp/godot_mcp.py`
+- 配置：Codex 用 `tools/setup_codex.py` 生成 `.codex/config.toml` → `mcp_servers.godot` → `tools/mcp/godot_mcp.py`；旧 `opencode.json` 为 OpenCode 保留。
 
 ---
 

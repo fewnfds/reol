@@ -18,14 +18,12 @@ Reol 是一个 **Godot 4.7.2 / GDScript / 2D 正交俯视**的
 - **Warcraft III**：俯视视角、单位可读性、英雄技能、飞行高度表现
 - **传统 RPG**：成长、装备、任务、对话、地牢
 
-当前阶段：**M0 已完成，方向 v0.2 已定稿，M1 尚未开始**。只有空场景和工具链，没有玩法代码。
-目标：先做 **45–60 分钟可玩的 vertical slice（“一山一宗”）**，不是一次性做完所有系统。
-已定：2D 正交俯视 + 正方形格 + 高度层、固定俯视相机、单机模拟、可暂停即时战斗、脚本 AI 优先（ADR-0013～0019）。
+当前阶段与验证以 `docs/BASELINE.md` 为准；最新工作包见 `docs/plans/demo_refactor.md`，实际功能核对见 `docs/DEMO-REFACTOR-REPORT.md`。双聚落连续性和服务闭环已有实现，不要重做M1、人物贡献迁移或远区骨架。文件职责先读 `docs/PROJECT-STRUCTURE.md`，文档总入口 `docs/README.md`。目标先形成45–60分钟“一山一宗”可玩切片。
 
 ## 每次开始前
 
 1. 读 `AGENTS.md`（硬规则）。
-2. 读 `docs/BASELINE.md` 的「已完成 / 未完成」。
+2. 读 `docs/HANDOFF.md` 和 `docs/BASELINE.md` 的「已完成 / 未完成」。
 3. 读 `docs/GAME-BRIEF.md` 的「当前里程碑」和「已拍板」。
 4. 读 `docs/DIRECTION-V0.2.md` 的「最终结论」。
 5. 读 `docs/DECISIONS.md` 最近 3 条。
@@ -80,11 +78,15 @@ Reol 是一个 **Godot 4.7.2 / GDScript / 2D 正交俯视**的
 
 ## 现在最该做的事
 
-1. 运行 `python tools/godot.py doctor` 和 `check`，确认基座仍通过。
-2. 读 `docs/ROADMAP.md` 的 M1，按顺序开工。
-3. 第一冲刺：`main.tscn` + 正方形占位 TileSet（64×64）+ `TileGrid`。
-4. 然后：固定角相机 → 玩家移动 → 512×512 区块 → 高度 → 迷雾 → 时间。
-5. 每步都留测试/截图证据；M1 验收后再进 M2。
+按 `docs/BASELINE.md` 和当前工作包推进；不要把 `docs/archive/` 的旧实施顺序当任务。先验证规则，再接运行适配和UI、存档；有可见行为须实际运行与截图。
+
+## Codex 工具入口
+
+- 技能目录：`.agents/skills/`，仅迁移路径，保留上游来源与许可证。
+- `AGENTS.md` 自动读取；本项目没有需要迁移的自定义 agent。
+- `python tools/setup_codex.py` 生成本机项目级 MCP 配置；`opencode.json` 不会被 Codex 读取。
+- Godot AI 由编辑器 dock 的 Configure → Codex 生成连接；不手写端口、不修改 `addons/`。
+- 新配置和技能是否已在当前聊天加载，要以实际工具/技能列表为准；必要时重新打开项目或重启 Codex。
 
 ## 不要做的事
 

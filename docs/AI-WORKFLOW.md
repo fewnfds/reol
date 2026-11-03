@@ -10,7 +10,7 @@
 | 层 | 文件 | 何时加载 | 放什么 |
 |---|---|---|---|
 | 常驻 | `AGENTS.md` | 每个会话 | 硬规则、目录、完成定义、技能路由 |
-| 技能 | `.opencode/skills/*/SKILL.md` | 按任务 | 具体做法、代码模式、检查清单 |
+| 技能 | `.agents/skills/*/SKILL.md` | 按任务 | 具体做法、代码模式、检查清单 |
 | 项目文档 | `docs/*.md` | 按需 | 愿景、架构、路线图、工具链、决策 |
 | 设计文档 | `design/systems/*.md` | 按系统 | 规则、数值、边界、验收 |
 | 代码注释 | `.gd` | 读代码时 | **为什么**，不是**是什么** |
@@ -139,10 +139,11 @@
 
 ## 6. Git 工作流
 
-- 一个任务一个分支：`feat/player-movement`、`fix/save-crash`。
-- 小提交：数据/逻辑/场景/测试可以分开。
-- 提交前：`python tools/godot.py check`。
-- 不提交 `.godot/`、`build/`、`logs/`、密钥。
+- 一个任务一个分支；Codex 默认使用 `codex/` 前缀，例如 `codex/player-movement`、`codex/save-crash`。
+- 用户已授权自主阶段性commit/push与公共GitHub仓库CI；完成一个可解释的小包就保存记录，不把数日开发一直留在工作区。并行子代理不各自提交共享目录。
+- 小提交按工具迁移、完整玩法与其验证、CI/文档等职责分批；历史未提交成果只作为当前快照补存，不伪造过去的可运行阶段。
+- 本机先解析/定向与实际可见效果验证，完整`python tools/godot.py check --test-timeout 1800`优先交GitHub Actions；按实际commit SHA和run链接核结果，不重复等待本地同一全套。未通过时明确标为待验。
+- 不提交 `.godot/`、`build/`、`logs/`、隔离副本、本机`.codex/config.toml`、未审的外来原图或密钥；公共上传前审拟提交清单与第三方许可。
 - 提交信息：
 
   ```
@@ -155,6 +156,7 @@
 
 - 回滚优先 `git revert`，不要 `reset --hard` 丢工作。
 - AI 不确定时先 `git status` / `git diff`，不要覆盖未提交改动。
+- CI仅验证无头规则、导入与工具；画面、音效和手感仍须本机实际运行。CI执行方式与结果入口见[工具链](TOOLCHAIN.md)。
 
 ---
 
