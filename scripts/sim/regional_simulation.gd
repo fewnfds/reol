@@ -86,6 +86,8 @@ var simulation_work: Dictionary = {"boundaries": 0, "deliveries": 0, "messages":
 var services: RefCounted
 var embodiment: SimEmbodiment
 var artifacts: SimArtifacts
+## Session hooks survive an in-place restore; candidates have separate hooks.
+var artifact_transfers := SimArtifactTransfers.new()
 var heat_methods: SimHeatMethods
 var sparring: SimSparring
 var avian_life: SimAvianLife

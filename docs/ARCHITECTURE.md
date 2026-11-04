@@ -28,6 +28,7 @@ main / 场景装配
 | [SimEmbodiment](../scripts/sim/embodiment.gd) | 主体、载体居留、移动/行动/通信控制 | 居留不等于控制，控制通道不等于行动占用 |
 | [SimEntityQuery](../scripts/sim/entity_query.gd) | 无状态、只读地解析人物/雀身/独特器物/大型身体的原位置与记录所有者 | 不登记第二实体表、不推进时间；区域滞后和世界积压分别标明，不能直接作玩家所知 |
 | [SimStorageQuery](../scripts/sim/storage_query.gd) | 无状态解析原区域/鸟域容器与数量条目；身体/地点/工程/鸟身提供原锚点 | 引用限定domain/region/container，数量多item；不生成实物、同步或赋予搬运权限 |
+| [SimArtifactTransfers](../scripts/sim/artifact_transfers.gd) | 原独特器物归处的同步可拒绝预检与完整事务后通知 | world持有会话钩子、器物域公开；无库存/位置副本或持久事件，不是通用搬运或玩家知识 |
 | [SimInventory](../scripts/sim/inventory_ledger.gd) | 容器内堆叠数量、预约、操作与受托责任 | 责任引用实物，不再存一份数量；不等于完整产权 |
 | [SimArtifacts](../scripts/sim/artifacts.gd)、[SimClothing](../scripts/sim/clothing.gd)、实物方法记录 | 独特物件位置/来源、穿法/湿润、有限器物过程与阅读记录 | 不同时复制成普通数量库存，持有/看见/读过不等于学会 |
 | [SimSocialMemory](../scripts/sim/social_memory.gd)、[SimInstitutionBook](../scripts/sim/institution_book.gd) | 本人有来源的认识/决定；机构任职和贡献记录 | 关系/礼遇/权限/实际履约分开；未实现通用ClaimBook/司法/继任 |
@@ -94,7 +95,9 @@ C1a-3在每次冻结流与边界查询内对默认气候地区复用一次背景
 
 A1b-0容器归处先支持原区域人物/地点、工程材料的carrier/material_cell，以及鸟域的bird/site。`locate`返回原库存及位置owner/time、carrier、stale与积压，`item`只追加entry_present/quantity/available/entrusted。数量引用不是实例ID，原账零项与不存在项明确区分；当前数量账无统一物品目录，不伪造目录限制。工程材料在project库存里随人移动，中断仍在同一库存、位置转material_cell；空容器有锚点不表示有材料。鸟货物只在鸟域账本，位置沿鸟身，不复制成人物库存。原器物的非野外位置查询也复用同一容器接缝，野外slot继续归field域。
 
-这些查询用于规则/编辑调试，不能直接作玩家有限所知，也不能旁路原取放/预约/权限。原位置时刻较旧时不自动结算。当前只支持上述已证明的锚点；自然resource虚拟账、在途货运/嵌套箱等未接时明确unsupported，不推断原点/人物或精确运动。无新增持久状态/格式；统一成功变更通知、受控生成、可搬容器及跨格预检仍待后包。
+这些查询用于规则/编辑调试，不能直接作玩家有限所知，也不能旁路原取放/预约/权限。原位置时刻较旧时不自动结算。当前只支持上述已证明的锚点；自然resource虚拟账、在途货运/嵌套箱等未接时明确unsupported，不推断原点/人物或精确运动。无新增持久状态/格式；受控生成、可搬容器及跨格预检仍待后包。
+
+A1b-1的`world.artifact_transfers`（也由`artifacts.transfers`公开）只覆盖take/place/draw及私人完整交割。`set_guard`安装受信任的纯同步检查，布尔true允许、false/非布尔/失效非空Callable拒绝，空Callable恢复默认；检查中不允许器物begin/begin_draw/cancel和私人request/cancel重入，但它不是任意脚本沙箱。候选载荷含原独特器物引用、from/to限定归处、共同at_ms和原action/cause，守卫/通知传独立值。拒绝终止原到期动作但不回滚已付时间/qi；成功`committed`仅在原物、事件、active释放，以及私交割的钱/收据/工作终态全部提交之后发一次。draw报告被引物而非施术环。world原位restore保留钩子，独立候选各自持有且恢复不补发事件；整world替换时由装配重绑。无新存档字段/版本，不连接真实持续热结算，不能在事后signal里倒推旧位置结热；native/施工/鸟域通知尚未接。
 
 ## 仍需建立的通用接缝
 

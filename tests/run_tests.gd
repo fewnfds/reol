@@ -153,6 +153,10 @@ func test_storage_special_anchors() -> void:
 	load("res://tests/sim/test_storage_special_anchors.gd").new().run(self)
 
 
+func test_artifact_transfers() -> void:
+	load("res://tests/sim/test_artifact_transfers.gd").new().run(self)
+
+
 # ---------------------------------------------------------------------------
 # Test doubles
 # ---------------------------------------------------------------------------

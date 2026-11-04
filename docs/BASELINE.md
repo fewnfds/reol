@@ -291,3 +291,21 @@ C1a-3性能代码提交`9438291bddd0b7d8b676a9b90e1340a2f0cee51e`，一次原生
 本包doctor/导入通过（最终导入控制台`logs/storage-query-final-import-console.log`）。提交准备时核前序e62dee5的CI41869387451为completed/cancelled，非通过；一次发现前序完整SHA `2102ce8a23aac2222911ecad9e0f8c0945d4ca56` 的CI `41872018227`仍in_progress，登记留到下一真实提交，不等待/轮询。
 
 A1b-0已提交`e5fd27e802137fb997ecc198fa8247e968397764`。主原生Sol/custom审查错误地递归启动另一审查后被主动中断，原日志`logs/reviews/<SHA>.explicit-sol.log`不算完成。恢复同一主审查会话`01a1a784-9f11-79e2-8bd1-93a71095e0c8`，显式固定Sol/custom，禁止再派审查或运行验证；114.306秒后正常退出、无可操作发现（`logs/reviews/<SHA>.resume-sol.log`及`.resume-final.txt`）。未修改代码或运行引擎/测试/CI。AGENTS及审查流程已补防递归职责；最终SHA完整回归待CI。证据补包提交检查点核前序2102ce8同run仍in_progress，不等待。
+
+### A1b-1 器物归处的事务边界（定向通过，审查/最终回归接续）
+
+`SimArtifactTransfers`是world持有的会话钩子，无新物品、位置、历史或写档字段；原位restore保留，独立候选隔离且不补发通知。原take/place/draw在完整原条件后可拒绝预检，实际移动并完成原记录/active释放后通知。私交割只在器物、钱、收据及工作终态全部完成后通知，预检前仍为原物/原钱/预约。已付时间/qi不回滚；draw引用目标剑，不把环当被搬物。守卫是受信任规则，传副本并拒绝相应操作重入，不是运行任意玩家脚本的沙箱。当前未接native/施工/鸟域的完整事务、持续热源/跨格或可搬箱。
+
+主代理顺序有界定向（每组30秒/1GiB，无引擎错误/泄漏）通过：
+
+| 组 | 断言/失败 | 时间 / 峰值工作集 | 日志 |
+|---|---|---|---|
+| 原器物 | 91 / 0 | 2.703秒 / 225001472B | `logs/artifact-transfer-original.json` |
+| 取放/拒绝/重入 | 50 / 0 | 2.007秒 / 227815424B | `logs/artifact-transfer-stone.json` |
+| 远引/在途独立恢复 | 31 / 0 | 3.771秒 / 228048896B | `logs/artifact-transfer-draw.json` |
+| 私交割完整提交 | 25 / 0 | 2.814秒 / 227840000B | `logs/artifact-transfer-buy.json` |
+| 私交割拒绝/释放 | 22 / 0 | 2.812秒 / 228335616B | `logs/artifact-transfer-reject.json` |
+
+含守卫/监听载荷修改不改原物、false/非bool拒绝、取消/另一人begin重入拒绝、1ms未到期无通知、同刻重复结算不重发、同world恢复替换器物域后保留钩子、实际远引拒绝后继续并独立恢复同未来，以及交割回调看齐双钱包/收据/锁。原drawing整组曾触及30秒组件额度而有界停止，无断言/引擎错误输出，不当产品失败或通过；之后只跑上述相关窄组，未重跑整套。本包doctor、导入及结构检查通过（最终导入`logs/import-20261105-011913.log`），没有可见变更，不以headless证明视觉/性能。
+
+实际提交准备核前序2102ce8的CI41872018227为completed/cancelled；一次按完整SHA发现已推送的审查证据补包`9753ed264d9c51a9793b880203bb82dfef39fc82`的CI `41875594099`仍in_progress，留下一真实提交检查，不轮询。该补包包含e5fd27e代码；完整回归仍待对应SHA。

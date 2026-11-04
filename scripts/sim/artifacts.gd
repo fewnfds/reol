@@ -24,6 +24,9 @@ var world: RefCounted:
 	get:
 		return _owner.get_ref() if _owner != null else null
 
+var transfers: SimArtifactTransfers:
+	get: return world.artifact_transfers if world != null else null
+
 
 static func valid_definitions(data: Variant) -> bool:
 	if not data is Dictionary or data.get("version") != DEFINITIONS_VERSION or not data.get("verbs") is Dictionary or not data.get("types") is Dictionary or not _count(data.get("interaction_radius"), 1):
@@ -418,12 +421,16 @@ func describe(actor: String, id: String) -> Dictionary:
 
 
 func begin(actor: String, verb: String, id: String) -> Dictionary:
+	if transfers != null and transfers.checking:
+		return _response(false, "器物变更仍在校验，请稍后再动手。")
 	if verb == "draw":
 		return _response(false, "须先选择要引取的具体实物。")
 	return _begin(actor, verb, id, false)
 
 
 func begin_draw(actor: String, tool: String, target: String) -> Dictionary:
+	if transfers != null and transfers.checking:
+		return _response(false, "器物变更仍在校验，请稍后再动手。")
 	if world.elapsed_ms != world.target_ms:
 		return _response(false, "世界事务仍在接续，请稍后再动手。")
 	var home: String = actor_home(actor)
@@ -572,6 +579,8 @@ func request_check(requester: String, responder: String, verb: String, id: Strin
 
 
 func cancel(actor: String) -> bool:
+	if transfers != null and transfers.checking:
+		return false
 	if not active.has(actor):
 		for job: Dictionary in active.values():
 			if job.get("method", {}).get("guide") == actor:
@@ -613,12 +622,7 @@ func _complete(job: Dictionary) -> void:
 		if not reason.is_empty():
 			_finish_record(job, "failed", reason)
 			return
-		var target: Dictionary = objects[job.draw.target]
-		var from_region: String = str(target.region)
-		target.region = job.region
-		target.container = "actor:" + str(job.actor)
-		world.invalidate_region(from_region)
-		_finish_record(job, "drawn", "木剑已从原处引到本人手边；原物没有复制。")
+		_move_and_finish(job, str(job.draw.target), str(job.region), "actor:" + str(job.actor), "drawn", "木剑已从原处引到本人手边；原物没有复制。")
 		return
 	if job.verb == "use_research":
 		var reason: String = _continuation_reason(job)
@@ -635,12 +639,9 @@ func _complete(job: Dictionary) -> void:
 		"inspect": _finish_record(job, "observed", ("石面仍有余温" if int(item.charge) > 0 else "石面已冷") + "，细纹似乎通向石芯；用法还需摸索。")
 		"examine": _finish_record(job, "examined", Understanding.material_line(self, str(job.actor), item))
 		"take":
-			item.region = job.region
-			item.container = "actor:" + str(job.actor)
-			_finish_record(job, "taken", "石头已收在手边；拿到它还不等于懂得使用。")
+			_move_and_finish(job, str(job.object), str(job.region), "actor:" + str(job.actor), "taken", "石头已收在手边；拿到它还不等于懂得使用。")
 		"place":
-			item.container = definition.workplace
-			_finish_record(job, "placed", "石头已放回灶旁。")
+			_move_and_finish(job, str(job.object), str(item.region), str(definition.workplace), "placed", "石头已放回灶旁。")
 		"study": _finish_record(job, "studied", "循纹探查后，你摸清了导热与温养的手法。")
 		"warm": _finish_warming(job)
 		"heat", "charge", "dry", "force":
@@ -675,14 +676,26 @@ func _complete(job: Dictionary) -> void:
 			_finish_heat(job, heat_recipe(definition, str(job.verb)))
 
 
+func _move_and_finish(job: Dictionary, id: String, region: String, container: String, kind: String, line: String) -> void:
+	var item: Dictionary = objects[id]
+	var change: Dictionary = SimArtifactTransfers.describe(id, item, region, container, int(world.elapsed_ms), str(job.id), str(job.verb))
+	if not transfers.allows(change):
+		# The existing action paid its time/qi; only the proposed move is refused.
+		_finish_record(job, "failed", "器物归处变更未获准，原物仍留在原处。")
+		return
+	item.region = region
+	item.container = container
+	world.invalidate_region(str(change.from.region))
+	_finish_record(job, kind, line)
+	transfers.publish(change)
+
+
 func _complete_tool(job: Dictionary, item: Dictionary, definition: Dictionary) -> void:
 	match str(job.verb):
 		"inspect": _finish_record(job, "observed", str(definition.appearance))
 		"examine": _finish_record(job, "examined", Understanding.material_line(self, str(job.actor), item))
 		"take":
-			item.region = job.region
-			item.container = "actor:" + str(job.actor)
-			_finish_record(job, "taken", "已取在自己手边；持有器物不等于学会相应技法。")
+			_move_and_finish(job, str(job.object), str(job.region), "actor:" + str(job.actor), "taken", "已取在自己手边；持有器物不等于学会相应技法。")
 		"place":
 			if str(definition.storage_place).begins_with("site:") and not storage_near(str(job.actor), str(item.region), str(definition.storage_place)):
 				_finish_record(job, "failed", "已离开原野外存放处，器物仍由本人保管。")
@@ -691,9 +704,7 @@ func _complete_tool(job: Dictionary, item: Dictionary, definition: Dictionary) -
 			if destination.is_empty():
 				_finish_record(job, "failed", "原存放处眼下不再有效，器物仍由本人保管。")
 				return
-			item.region = destination
-			item.container = str(definition.storage_place)
-			_finish_record(job, "placed", "已放在约定的存放处，随身不再保管它。")
+			_move_and_finish(job, str(job.object), destination, str(definition.storage_place), "placed", "已放在约定的存放处，随身不再保管它。")
 		"study": _finish_record(job, "studied", str(definition.method))
 		"use_research": _finish_record(job, "use_learned", "本人持环循纹试探后，学会将同高无遮挡、短距内的松置木剑引到手边。")
 

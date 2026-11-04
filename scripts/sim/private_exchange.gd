@@ -169,6 +169,8 @@ func _seller_withdrew(proposal_id: String) -> bool:
 
 
 func request(buyer: String, seller: String, object_id: String) -> Dictionary:
+	if world != null and world.artifact_transfers.checking:
+		return _reply(false, "unavailable", "器物变更仍在校验，请稍后再商量。")
 	if world == null or world.services == null or world.artifacts == null or buyer == seller or home(buyer).is_empty() or home(seller).is_empty():
 		return _reply(false, "unavailable", "须与眼前能交流的人商量这枚环。")
 	if world.elapsed_ms != world.target_ms or world.elapsed_ms > SimInventory.MAX_COUNT - int(definitions.duration_ms):
@@ -320,6 +322,9 @@ func _complete(job: Dictionary) -> bool:
 	var prepared: Dictionary = _money_candidates(job)
 	if prepared.is_empty():
 		return false
+	var change: Dictionary = SimArtifactTransfers.describe(str(job.object), world.artifacts.objects[job.object], str(job.buyer_region), "actor:" + str(job.buyer), int(world.elapsed_ms), str(job.artifact_action), "private_exchange")
+	if not world.artifact_transfers.allows(change):
+		return false
 	# No await, callback, save or other rule runs in this commit section. The
 	# artifact preflight and cloned ledgers have already checked every failure.
 	var event_id: String = world.artifacts.record_exchange(job)
@@ -340,6 +345,7 @@ func _complete(job: Dictionary) -> bool:
 	transfers[payment_id] = {"job": job.id, "from": job.buyer_region, "to": job.seller_region, "source": "actor:" + str(job.buyer), "target": "actor:" + str(job.seller), "item": str(definitions.currency), "amount": int(definitions.price), "artifact_event": event_id, "consent": job.consent, "at_ms": int(world.elapsed_ms)}
 	job.receipt = payment_id
 	_finish(job, "completed")
+	world.artifact_transfers.publish(change)
 	return true
 
 
@@ -371,6 +377,8 @@ func _finish(job: Dictionary, outcome: String, cancelled_by: String = "", reason
 
 
 func cancel(actor: String, reason: String = "cancelled") -> bool:
+	if world != null and world.artifact_transfers.checking:
+		return false
 	for id: String in active_jobs.keys():
 		var job: Dictionary = jobs[id]
 		if actor in [job.buyer, job.seller]:
