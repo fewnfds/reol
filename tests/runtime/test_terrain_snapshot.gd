@@ -62,7 +62,7 @@ func _test_joint_session(runner: Object, path: String, bad_path: String) -> void
 	var saved: Dictionary = read.data
 	var expected: String = _json(saved)
 	var expected_nature: String = _json(original_map.natural_cell(EDIT_CELL))
-	runner.assert_eq(int(saved.schema_version), 46, "current terrain archive uses the explicit v46 envelope")
+	runner.assert_eq(int(saved.schema_version), SessionSaveSchema.VERSION, "current terrain archive uses the explicit current envelope")
 	runner.assert_eq(_json(saved.world.terrain_overrides), _json(expected_rows), "joint archive contains the actual edited cell")
 	runner.assert_eq(int(saved.clock.elapsed_ms), 1517, "terrain save carries the actual fractional shared time")
 	runner.assert_true(_json(WorldSessionSnapshot.capture(runtime)) == expected, "disk save matches the entire live session at the commit boundary")
@@ -119,15 +119,17 @@ func _assert_joint_state(runner: Object, main: Node, saved: Dictionary, expected
 
 
 func _assert_v45_boundary(runner: Object, runtime: WorldContinuityRuntime, blank: Dictionary, bad_path: String) -> void:
-	# Synthetic conversion checks only the declared v45 -> v46 format boundary.
+	# Synthetic conversion retains the v45 -> v46 terrain boundary before the
+	# later artifact-version migration; it is not a genuine historical archive.
 	var source: Dictionary = blank.duplicate(true)
 	source.schema_version = 45
 	source.world.erase("terrain_overrides")
+	_project_regional_38(source)
 	var before: String = _json(source)
 	var upgraded: Dictionary = SessionSaveSchema.upgrade(source)
 	runner.assert_true(not upgraded.is_empty(), "synthetic v45 format without terrain delta upgrades")
 	if not upgraded.is_empty():
-		runner.assert_true(_json(upgraded) == _json(blank), "v45 upgrade adds only the empty terrain delta and current version")
+		runner.assert_true(_json(upgraded) == _json(blank), "v45 upgrade restores the current terrain and artifact envelopes without changing saved facts")
 		var write: Error = SimSaveStore.save_file(bad_path, source)
 		runner.assert_eq(write, OK, "synthetic v45 envelope is written through the ordinary store")
 		if write == OK:
@@ -136,15 +138,33 @@ func _assert_v45_boundary(runner: Object, runtime: WorldContinuityRuntime, blank
 			if loaded == OK:
 				runner.assert_true(_json(WorldSessionSnapshot.capture(runtime)) == _json(blank), "ordinary v45 load preserves the complete unchanged session")
 	runner.assert_true(_json(source) == before, "format migration does not mutate its input")
+	var v46: Dictionary = source.duplicate(true)
+	v46.schema_version = 46
+	v46.world["terrain_overrides"] = []
+	var v46_upgraded: Dictionary = SessionSaveSchema.upgrade(v46)
+	runner.assert_true(not v46_upgraded.is_empty() and _json(v46_upgraded) == _json(blank), "the explicit v46 terrain envelope also advances to the current session")
+	var missing_v46_terrain: Dictionary = v46.duplicate(true)
+	missing_v46_terrain.world.erase("terrain_overrides")
+	runner.assert_true(SessionSaveSchema.upgrade(missing_v46_terrain).is_empty(), "v46 still requires its terrain field before later migrations")
 	var forged: Dictionary = source.duplicate(true)
 	forged.world["terrain_overrides"] = []
 	_reject(runner, runtime, forged, bad_path, "v45 claiming even an empty future terrain field")
 
 
+func _project_regional_38(snapshot: Dictionary) -> void:
+	# Only a temporary current snapshot is projected; genuine archives are read-only.
+	var regional: Dictionary = snapshot.continuity.world
+	regional.version = 38
+	regional.artifacts.version = 6
+	for event: Dictionary in regional.artifacts.events:
+		if event.get("kind") == "warmed":
+			event.erase("heat_amount")
+
+
 func _assert_rejections(runner: Object, runtime: WorldContinuityRuntime, saved: Dictionary, path: String, rows: Array) -> void:
 	var bad: Dictionary = saved.duplicate(true)
 	bad.world.erase("terrain_overrides")
-	_reject(runner, runtime, bad, path, "v46 without its mandatory terrain field")
+	_reject(runner, runtime, bad, path, "current root without its mandatory terrain field")
 	bad = saved.duplicate(true)
 	bad.world.terrain_overrides = [rows[0].duplicate(), rows[0].duplicate()]
 	_reject(runner, runtime, bad, path, "duplicate terrain coordinates")

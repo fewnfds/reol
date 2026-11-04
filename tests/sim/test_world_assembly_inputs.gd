@@ -140,10 +140,15 @@ func _test_root_migration(runner: Object, source: Dictionary, current: Dictionar
 	reconstructed.erase("assembly")
 	reconstructed.world.erase("terrain_overrides")
 	reconstructed.schema_version = 43
+	reconstructed.continuity.world.version = 38
+	reconstructed.continuity.world.artifacts.version = 6
+	for event: Dictionary in reconstructed.continuity.world.artifacts.events:
+		if event.get("kind") == "warmed":
+			event.erase("heat_amount")
 	runner.assert_eq(_json(reconstructed), before, "migration adds no world history or resource state")
 	var bad: Dictionary = migrated.duplicate(true)
 	bad.erase("assembly")
-	runner.assert_true(not SessionSaveSchema.is_valid_world(bad) and SessionSaveSchema.upgrade(bad).is_empty(), "v44 without assembly is rejected")
+	runner.assert_true(not SessionSaveSchema.is_valid_world(bad) and SessionSaveSchema.upgrade(bad).is_empty(), "current root without assembly is rejected")
 	bad = historical.duplicate(true)
 	bad["assembly"] = migrated.assembly.duplicate(true)
 	runner.assert_true(SessionSaveSchema.upgrade(bad).is_empty(), "v43 cannot smuggle a v44 assembly")

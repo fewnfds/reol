@@ -58,13 +58,16 @@ func run(runner: Object) -> void:
 	var v44: Dictionary = legacy_current.duplicate(true)
 	v44.schema_version = 44
 	v44.world.erase("terrain_overrides")
+	_project_regional_38(v44)
 	var upgraded: Dictionary = SessionSaveSchema.upgrade(v44)
-	runner.assert_true(not upgraded.is_empty(), "a genuine legacy-map v44 envelope explicitly upgrades")
+	runner.assert_true(not upgraded.is_empty(), "a synthetic v44 envelope with the genuine legacy map explicitly upgrades")
 	if not upgraded.is_empty():
 		runner.assert_eq(_json(upgraded), _json(legacy_current), "v44 migration preserves its recorded map and all original facts")
 	for older: int in [43, 44]:
 		var forged: Dictionary = saved_a.duplicate(true)
 		forged.schema_version = older
+		forged.world.erase("terrain_overrides")
+		_project_regional_38(forged)
 		if older == 43:
 			forged.erase("assembly")
 		runner.assert_true(SessionSaveSchema.upgrade(forged).is_empty(), "new flat generator cannot masquerade as an older v%d envelope" % older)
@@ -82,6 +85,16 @@ func run(runner: Object) -> void:
 	second.free()
 	GameClock.restore_state(previous_clock)
 	print("SCENARIO flat world: two actual seeded openings, A/B/historical cross-loads, zero new height, preserved old hills, guarded creation input")
+
+
+func _project_regional_38(snapshot: Dictionary) -> void:
+	# Project the temporary newer copy only; the real old archive is unchanged.
+	var regional: Dictionary = snapshot.continuity.world
+	regional.version = 38
+	regional.artifacts.version = 6
+	for event: Dictionary in regional.artifacts.events:
+		if event.get("kind") == "warmed":
+			event.erase("heat_amount")
 
 
 func _assert_flat(runner: Object, terrain: WorldMapData, label: String) -> void:

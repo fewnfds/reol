@@ -2,7 +2,7 @@ class_name SessionSaveSchema
 extends RefCounted
 ## Explicit migrations at the session boundary. No file I/O or live mutations.
 
-const VERSION: int = 46
+const VERSION: int = 47
 
 
 static func capture_world(fog: FogOfWar, focus: Vector2i, terrain: WorldMapData = null) -> Dictionary:
@@ -22,7 +22,7 @@ static func upgrade(source: Dictionary, _content: ReolContentDB = null) -> Dicti
 	var version: Variant = source.get("schema_version")
 	# Array membership distinguishes int/float in this engine; a JSON whole
 	# number must follow the same version path as its in-memory integer value.
-	if version == VERSION or version == 45 or version == 44 or version == 43:
+	if version == VERSION or version == 46 or version == 45 or version == 44 or version == 43:
 		return _upgrade(source, null)
 	if source.has("content_bundle") or source.has("assembly"):
 		return {}
@@ -42,23 +42,35 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 			if not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION:
 				return {}
 		return source if is_valid_world(source) else {}
+	if version == 46:
+		if not _valid_world_fields(source, 46):
+			return {}
+		var updated: Dictionary = source.duplicate(true)
+		if source.has("continuity"):
+			if not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary:
+				return {}
+			updated.continuity.world = RegionalSimulation.upgrade_heat_amounts(source.continuity.world)
+			if updated.continuity.world.is_empty():
+				return {}
+		updated.schema_version = VERSION
+		return _upgrade(updated, null)
 	if version == 45:
 		# This format had no mutable substrate. Only a genuine old envelope may
 		# gain an empty overlay; current archives must already carry the field.
 		if not _valid_world_fields(source, 45):
 			return {}
-		if source.has("continuity") and (not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION):
+		if source.has("continuity") and (not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != 38):
 			return {}
 		var updated: Dictionary = source.duplicate(true)
 		updated.world["terrain_overrides"] = []
-		updated.schema_version = VERSION
+		updated.schema_version = 46
 		return _upgrade(updated, null)
 	if version == 44:
 		# Older envelopes only knew the exact original generator. A new flat map
 		# cannot masquerade as an older save by changing the root version tag.
 		if not _valid_world_fields(source, 44):
 			return {}
-		if source.has("continuity") and (not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION):
+		if source.has("continuity") and (not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != 38):
 			return {}
 		var updated: Dictionary = source.duplicate(true)
 		updated.schema_version = 45
@@ -70,7 +82,7 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 			return {}
 		var assembly: Dictionary = {}
 		if source.has("continuity"):
-			if not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION:
+			if not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != 38:
 				return {}
 			assembly = ReolWorldAssemblyInputs.from_saved(source.continuity.world, source.continuity.get("centers"))
 		else:
@@ -86,7 +98,7 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 	if version == 42:
 		if not _valid_world_fields(source, 42) or source.has("content_bundle") or content == null:
 			return {}
-		if source.has("continuity") and (not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION):
+		if source.has("continuity") and (not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != 38):
 			return {}
 		var updated: Dictionary = source.duplicate(true)
 		updated["content_bundle"] = content.content_bundle()

@@ -3,7 +3,7 @@ extends RefCounted
 ## Unique objects, personal experiments and committed material effects.
 ## Container references own location; observations never expose private charge.
 
-const VERSION: int = 6
+const VERSION: int = 7
 const DEFINITIONS_VERSION: int = 1
 const VERBS: Array[String] = ["inspect", "take", "place", "study", "heat", "charge", "dry", "examine", "force", "warm"]
 const Schema = preload("res://scripts/sim/artifact_schema.gd")
@@ -765,7 +765,7 @@ func _finish_warming(job: Dictionary) -> void:
 		_finish_record(job, "failed", "暖流没有接续，石中余热仍保留着。")
 		return
 	item.charge = int(item.charge) - int(definitions.types[item.definition].warming_charge)
-	_finish_record(job, "warmed", "石中一份余热已释在此处，近旁暖了些；余热会渐渐散去，不会跟着离开的人。")
+	_finish_record(job, "warmed", "石中一份余热已释在此处，近旁暖了些；余热会渐渐散去，不会跟着离开的人。", amount)
 
 
 func _warming_choice(actor: String, at_ms: int) -> String:
@@ -880,7 +880,7 @@ func consider_methods() -> void:
 					break
 
 
-func _finish_record(job: Dictionary, kind: String, line: String) -> Dictionary:
+func _finish_record(job: Dictionary, kind: String, line: String, heat_amount: int = 0) -> Dictionary:
 	var person: Dictionary = world.regions[job.region].actors[job.actor]
 	person.autonomous = bool(job.previous_autonomous)
 	# Other characters can see a finished activity, not its private conclusion.
@@ -901,6 +901,10 @@ func _finish_record(job: Dictionary, kind: String, line: String) -> Dictionary:
 		"kind": kind, "at": world.current_time, "line": line, "region": job.region,
 		"verb": job.verb, "started_ms": job.started_ms, "at_ms": world.elapsed_ms, "qi_spent": job.qi_spent, "effect_region": objects[job.object].region,
 		"cell": [position_value.x, position_value.y], "recipient": recipient}
+	if kind == "warmed":
+		# Publish the exact accepted transfer before any event observer sees it.
+		# Failed/cancelled actions never claim a thermal source amount.
+		record["heat_amount"] = heat_amount
 	if job.has("method"):
 		record["method"] = job.method.duplicate(true)
 	if job.has("draw"):
@@ -997,6 +1001,8 @@ func restore(data: Dictionary) -> bool:
 	for event: Dictionary in events:
 		for field: String in ["at", "at_ms", "started_ms", "qi_spent"]:
 			event[field] = int(event[field])
+		if event.kind == "warmed":
+			event.heat_amount = int(event.heat_amount)
 		event.cell = [int(event.cell[0]), int(event.cell[1])]
 		if event.has("draw"):
 			event.draw.from_cell = [int(event.draw.from_cell[0]), int(event.draw.from_cell[1])]

@@ -4,7 +4,7 @@ extends RefCounted
 ## Scene adapters may disappear; these instances and their pending work remain.
 
 const DEFINITIONS_VERSION: int = 1
-const SCHEMA_VERSION: int = 38
+const SCHEMA_VERSION: int = 39
 const MINUTE_MS: int = 60000
 const MAX_COUNT: int = SimInventory.MAX_COUNT
 const Services = preload("res://scripts/sim/services/settlement_services.gd")
@@ -401,6 +401,31 @@ static func upgrade_private_exchange(source: Dictionary) -> Dictionary:
 	result["private_exchange"] = SimPrivateExchange.empty_state()
 	result.artifacts.version = 6
 	result.version = 38
+	return result
+
+
+static func upgrade_heat_amounts(source: Dictionary) -> Dictionary:
+	if source.get("version") != 38 or not source.get("artifacts") is Dictionary or not source.get("local_heat") is Dictionary:
+		return {}
+	var artifacts_state: Dictionary = source.artifacts
+	var heat: Dictionary = source.local_heat
+	if not SimArtifacts.Schema._keys(artifacts_state, ["version", "objects", "active", "events", "experiences", "next_id"]) or artifacts_state.version != 6 or not artifacts_state.events is Array or heat.get("version") != 1 or not heat.get("receipts") is Dictionary:
+		return {}
+	# This conversion changes no physical state or heat rule. Existing receipts
+	# are the only evidence of old transfers; never price a past event from a
+	# current definition or invent a receipt. Full candidate validation follows.
+	var result: Dictionary = source.duplicate(true)
+	for row: Variant in result.artifacts.events:
+		if not row is Dictionary or row.has("heat_amount"):
+			return {}
+		if row.get("kind") != "warmed":
+			continue
+		var receipt: Variant = heat.receipts.get(row.get("action"))
+		if not receipt is Dictionary or not SimArtifacts.Schema._count(receipt.get("amount"), 1):
+			return {}
+		row["heat_amount"] = int(receipt.amount)
+	result.artifacts.version = 7
+	result.version = 39
 	return result
 
 
@@ -1005,6 +1030,8 @@ func restore(data: Dictionary) -> bool:
 		data = upgrade_ring_use(data)
 	if data.get("version") == 37:
 		data = upgrade_private_exchange(data)
+	if data.get("version") == 38:
+		data = upgrade_heat_amounts(data)
 	if _content == null or not _valid_world_shape(data):
 		return false
 	if (services != null) != data.has("services"):
@@ -1118,6 +1145,13 @@ func restore(data: Dictionary) -> bool:
 	if not data.artifacts is Dictionary or not data.artifacts.get("events") is Array or not next_records.initialize(candidate_world, _content.method_records) or not next_records.restore(data.method_records, data.artifacts.events):
 		return false
 	candidate_world.method_records = next_records
+	# The artifact transfer validator needs this candidate's bound heat rules,
+	# never the live world's field. Restore the same owner later, once geometry
+	# and original source records have independently passed validation.
+	var next_heat := SimLocalHeat.new()
+	if not next_heat.initialize(candidate_world, _content.local_heat):
+		return false
+	candidate_world.local_heat = next_heat
 	var next_artifacts := SimArtifacts.new()
 	candidate_world.artifacts = next_artifacts
 	if not next_artifacts.initialize(candidate_world, _content.artifacts) or not next_artifacts.restore(data.artifacts):
@@ -1200,10 +1234,6 @@ func restore(data: Dictionary) -> bool:
 	if not next_health.initialize(candidate_world, _content.health) or not next_health.restore(data.health):
 		return false
 	candidate_world.health = next_health
-	var next_heat := SimLocalHeat.new()
-	if not next_heat.initialize(candidate_world, _content.local_heat):
-		return false
-	candidate_world.local_heat = next_heat
 	next_heat.set_geometry(next_construction.thermal_roofed, next_construction.thermal_barrier)
 	if not next_heat.restore(data.local_heat):
 		return false

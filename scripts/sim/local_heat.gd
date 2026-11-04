@@ -384,7 +384,7 @@ func _source_matches(receipt: Dictionary) -> bool:
 				return false
 			var source_cell: Variant = event.get("cell")
 			var same_cell: bool = _cell_array(source_cell) and int(source_cell[0]) == int(receipt.cell[0]) and int(source_cell[1]) == int(receipt.cell[1])
-			return event.get("kind") == "warmed" and event.get("actor") == receipt.actor and event.get("object") == receipt.object and event.get("at_ms") == receipt.at_ms and same_cell and (not event.has("heat_amount") or event.heat_amount == receipt.amount)
+			return event.get("kind") == "warmed" and event.get("actor") == receipt.actor and event.get("object") == receipt.object and event.get("at_ms") == receipt.at_ms and same_cell and event.get("heat_amount") == receipt.amount
 	return false
 
 

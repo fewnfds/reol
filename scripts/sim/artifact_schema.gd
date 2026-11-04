@@ -8,7 +8,7 @@ const KINDS: Array[String] = ["observed", "taken", "placed", "studied", "backlas
 
 
 static func validate(data: Dictionary, domain: RefCounted) -> bool:
-	if not _keys(data, ["version", "objects", "active", "events", "experiences", "next_id"]) or data.version != 6 or not data.objects is Dictionary or not data.active is Dictionary or not data.events is Array or not data.experiences is Dictionary or not _count(data.next_id, 1):
+	if not _keys(data, ["version", "objects", "active", "events", "experiences", "next_id"]) or data.version != 7 or not data.objects is Dictionary or not data.active is Dictionary or not data.events is Array or not data.experiences is Dictionary or not _count(data.next_id, 1):
 		return false
 	var world: RefCounted = domain.world
 	for subject: Variant in data.experiences:
@@ -104,6 +104,8 @@ static func validate(data: Dictionary, domain: RefCounted) -> bool:
 			event_keys.append("draw")
 		if event.has("exchange"):
 			event_keys.append("exchange")
+		if event.get("kind") == "warmed":
+			event_keys.append("heat_amount")
 		if not _keys(event, event_keys):
 			return false
 		if not _allocated(event.id, "event", int(data.next_id), allocated) or not _allocated(event.action, "action", int(data.next_id), allocated) or actions.has(event.action):
@@ -129,6 +131,13 @@ static func validate(data: Dictionary, domain: RefCounted) -> bool:
 			continue
 		if event.has("exchange") or event.kind == "exchanged" or not _supported(data.objects, str(event.object), str(event.verb), domain):
 			return false
+		if event.kind == "warmed":
+			# The candidate's original heat authority is initialized before artifact
+			# restoration. Never guess an amount from today's disk definitions or
+			# tolerate an absent amount in this current artifact format.
+			var heat: Variant = world.get("local_heat")
+			if heat == null or not heat.definitions is Dictionary or not Shape.count(heat.definitions.get("pulse_energy"), 1, SimLocalHeat.MAX_INTEGER) or not Shape.count(event.heat_amount, 1, SimLocalHeat.MAX_INTEGER) or event.heat_amount != heat.definitions.pulse_energy:
+				return false
 		if event.has("method") and (not SimArtifacts.type_has_capability(domain.definitions.types[data.objects[event.object].definition], "heat_storage") or not Methods.metadata_valid(event.method, event, domain, data.events, data.objects)):
 			return false
 		var terms: Dictionary = domain.job_terms(event, data.objects)

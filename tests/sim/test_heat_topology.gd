@@ -28,18 +28,19 @@ class HeatObserver extends RefCounted:
 		events.append({"kind": kind, "at_ms": now, "barriers": barriers, "roofs": roofs})
 
 
-class LocalVillage extends RefCounted:
-	var inventory := SimInventory.new()
-	var places: Dictionary = {}
-	var actors: Dictionary = {"builder": {"cell": [90, 90], "alive": true,
-		"active": {}, "autonomous": false, "goal": "", "retry_ms": 0}}
-
-
 class Authority extends RefCounted:
 	var elapsed_ms: int = 123456
-	var regions: Dictionary = {"home": LocalVillage.new()}
+	var regions: Dictionary = {"home": VillageSimulation.new()}
+	# The original motion/road guard reads this explicit empty activity world.
+	# Regions still use the real owner type even though no travel is scheduled.
+	var settings: Dictionary = {"routes": {}}
 	var construction := SimConstruction.new()
 	var local_heat := HeatObserver.new()
+	var services: RefCounted
+	var personal_production: RefCounted
+	var capability_practice: RefCounted
+	var field_opportunities: RefCounted
+	var soul_vessels: RefCounted
 	var large_bodies: RefCounted
 	var avian_life: RefCounted
 	var resting: RefCounted
@@ -60,6 +61,10 @@ func run(runner: Object) -> void:
 
 func _world(runner: Object) -> Authority:
 	var result := Authority.new()
+	var village: VillageSimulation = result.regions.home
+	village.actors = {"builder": {"cell": [90, 90], "position": [0.0, 0.0], "alive": true,
+		"active": {}, "autonomous": false, "goal": "", "retry_ms": 0}}
+	village.set_actor_cell("builder", Vector2i(90, 90))
 	var rules: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/construction.json"))
 	runner.assert_true(result.construction.initialize(result, rules), "topology fixture uses the real construction rules")
 	result.local_heat.construction = weakref(result.construction)
@@ -126,11 +131,11 @@ func _rejected_changes(runner: Object) -> void:
 	_commit(authority, door, "build")
 	_commit(authority, door, "open")
 	authority.local_heat.events.clear()
-	authority.regions.home.actors.builder.cell = [103, 101]
+	authority.regions.home.set_actor_cell("builder", Vector2i(103, 101))
 	_commit(authority, door, "close")
 	runner.assert_true(authority.local_heat.events.is_empty(), "a body obstructing door closure causes no fictitious heat boundary")
 	runner.assert_true(not authority.construction.thermal_barrier(Vector2i(103, 101)), "rejected closure preserves the real opening")
-	authority.regions.home.actors.builder.cell = [90, 90]
+	authority.regions.home.set_actor_cell("builder", Vector2i(90, 90))
 	var unsupported: String = _project(runner, authority, "wood_roof", Vector2i(106, 104))
 	_commit(authority, unsupported, "build")
 	runner.assert_true(authority.local_heat.events.is_empty(), "a roof without actual support never reports thermal coverage")

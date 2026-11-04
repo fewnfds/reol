@@ -105,6 +105,14 @@ func test_large_body_query() -> void:
 	load("res://tests/sim/test_large_body_query.gd").new().run(self)
 
 
+func test_heat_source_amounts() -> void:
+	load("res://tests/sim/test_heat_source_amounts.gd").new().run(self)
+
+
+func test_heat_amount_migration() -> void:
+	load("res://tests/runtime/test_heat_amount_migration.gd").new().run(self)
+
+
 # ---------------------------------------------------------------------------
 # Test doubles
 # ---------------------------------------------------------------------------

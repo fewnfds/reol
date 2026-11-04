@@ -106,7 +106,10 @@ func _ask(runtime: WorldContinuityRuntime, report: Dictionary) -> bool:
 		_senses(runtime)
 		var body: Dictionary = runtime.world_sim.conflicts.body(teacher)
 		if runtime.home_runtime()._fog != null and not runtime.home_runtime()._fog.is_cell_visible(SimRouteTravel.cell(body.cell)):
-			return false
+			if not _find_visible_clue_holder(runtime, teacher):
+				return false
+			body = runtime.world_sim.conflicts.body(teacher)
+			_note(report, "actual_search_found_clue_holder", {"player": runtime.world_sim.conflicts.body("player").cell.duplicate(), "teacher": body.cell.duplicate()})
 		if not _travel(runtime, "home", SimRouteTravel.cell(body.cell)):
 			return false
 		var reply: Dictionary = runtime.interaction_adapter.submit(runtime.world_sim.embodiment.subject_for_actor(teacher), "field_clue", {"kind": "field_question", "id": "nearby_ruins"})
@@ -114,6 +117,46 @@ func _ask(runtime: WorldContinuityRuntime, report: Dictionary) -> bool:
 		if bool(reply.ok) and not runtime.world_sim.field_opportunities.destination("player", "broken_stele").is_empty():
 			return true
 		if not _advance(runtime, 15000):
+			return false
+	return false
+
+
+func _find_visible_clue_holder(runtime: WorldContinuityRuntime, teacher: String) -> bool:
+	# Explore only adjacent cells currently seen by the player. In particular,
+	# the hidden teacher's world position is used only for the visibility test,
+	# never as a destination or a hint about which direction to explore.
+	var world: ReolWorld = runtime.home_runtime()._world
+	var fog: FogOfWar = runtime.home_runtime()._fog
+	var origin: Vector2i = runtime.controlled_cell()
+	var visited: Dictionary[Vector2i, bool] = {origin: true}
+	var stack: Array[Vector2i] = [origin]
+	var directions: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.LEFT, Vector2i.DOWN]
+	for _step: int in 256:
+		_senses(runtime)
+		var body: Dictionary = runtime.world_sim.conflicts.body(teacher)
+		if body.is_empty() or not bool(body.alive):
+			return false
+		if fog.is_cell_visible(SimRouteTravel.cell(body.cell)):
+			return true
+		var current: Vector2i = runtime.controlled_cell()
+		if stack.is_empty() or current != stack.back():
+			return false
+		var moved: bool = false
+		for direction: Vector2i in directions:
+			var next: Vector2i = current + direction
+			if visited.has(next) or maxi(absi(next.x - origin.x), absi(next.y - origin.y)) > 6:
+				continue
+			if not fog.is_cell_visible(next) or not world.can_step(current, direction):
+				continue
+			visited[next] = true
+			if _travel(runtime, "home", next) and runtime.controlled_cell() == next:
+				stack.append(next)
+				moved = true
+				break
+		if moved:
+			continue
+		stack.pop_back()
+		if stack.is_empty() or not _travel(runtime, "home", stack.back()) or runtime.controlled_cell() != stack.back():
 			return false
 	return false
 
