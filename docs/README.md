@@ -9,6 +9,7 @@
 | 现在能怎么玩 | [FEATURES](FEATURES.md) | 查操作与样本边界 |
 | 哪个版本经过什么验证 | [BASELINE](BASELINE.md) | 验收、存档兼容、判断未提交工作 |
 | 真实代码依赖/状态所有者 | [ARCHITECTURE](ARCHITECTURE.md) | 改跨域状态、时间、位置或存读 |
+| 当前格式、旧版支持与退役 | [COMPATIBILITY](COMPATIBILITY.md) | 改存档/生成器兼容或清理历史分支 |
 | 文件放哪里 | [PROJECT-STRUCTURE](PROJECT-STRUCTURE.md) | 新建或迁移文件 |
 | 下一层依赖与长期出口 | [ROADMAP](ROADMAP.md) | 不用路线图中的目标代替恢复授权 |
 | 实施规格 | [plans索引](plans/README.md) | 当前世界引擎执行页和相关分项；旧包按需查 |

@@ -11,12 +11,12 @@
 | 后置美术提示词与收件 | 19 |
 | 理论与参考研究 | 12 |
 | 领域概念与规则 | 18 |
-| 核心入口与工具 | 28 |
+| 核心入口与工具 | 29 |
 | 历史全文：archive | 75 |
 | 实施规格与计划 | 65 |
 | 历史验收与调查 | 49 |
 
-合计：362份Markdown。
+合计：363份Markdown。
 
 ## 技能与附带参考：按任务加载
 
@@ -188,6 +188,7 @@
 - [docs/BASELINE.md](BASELINE.md)
 - [docs/CATALOG.md](CATALOG.md)
 - [docs/CODE-REVIEW-WORKFLOW.md](CODE-REVIEW-WORKFLOW.md)
+- [docs/COMPATIBILITY.md](COMPATIBILITY.md)
 - [docs/DECISIONS.md](DECISIONS.md)
 - [docs/DEMO-REFACTOR-REPORT.md](DEMO-REFACTOR-REPORT.md)
 - [docs/DEVELOPMENT-TOOLS-AUDIT.md](DEVELOPMENT-TOOLS-AUDIT.md)

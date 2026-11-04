@@ -7,8 +7,8 @@ description: "Design game saves, versioned schemas, migrations, slots, autosave,
 
 A save file is a **serialized snapshot of game state** that survives restarts.
 The hard parts aren't writing bytes — they're choosing *what* to save, writing it
-so a crash mid-save can't corrupt it, and reading *old* saves after you ship a
-patch. Get those three right and the rest is plumbing.
+so a crash mid-save can't corrupt it, and handling the explicitly supported save
+versions. Reol's support boundary is defined in [compatibility policy](../../../docs/COMPATIBILITY.md).
 
 ## When to use
 
@@ -36,18 +36,22 @@ applying the patterns here.
 4. **Write atomically.** Serialize to a temp file, flush, then rename over the
    real file. A crash leaves either the old save or the new one — never a
    half-written one.
-5. **Load defensively.** Read version → migrate up to current → validate →
-   instantiate. Keep a backup of the last good save and fall back on parse error.
+5. **Load defensively.** Read and validate the version; migrate only explicitly
+   supported inputs into the one current model, reject unsupported versions
+   clearly, then validate and construct an independent candidate. Publish only
+   after complete validation, preserving live state and source saves on failure.
 6. **Autosave on safe boundaries** (level change, checkpoint), throttled, and to a
    separate slot so it can't clobber a manual save.
 7. **Verify**: save, fully quit, relaunch, load — and confirm by inspection that
-   state matches. Test loading a save from the previous version.
+   state matches. Test every supported migration boundary and rejection of
+   unsupported versions; do not rewrite fixtures or user saves to make tests pass.
 
 ## Patterns
 
 ### 1. Serialize state as plain data (not engine objects)
 
 ```gdscript
+# Member variables in this illustrative script belong to an independent candidate.
 # Build a dictionary of pure data. Each savable object reports its own state.
 func capture_state() -> Dictionary:
     return {
@@ -58,7 +62,8 @@ func capture_state() -> Dictionary:
         "seed": world.seed,                      # regenerate procedural content
     }
 
-# On load, RECONSTRUCT objects from the data — do not expect live references back.
+# After version/shape validation, apply to an independent candidate, never the
+# active world; publish the candidate only after all validation has succeeded.
 func apply_state(data: Dictionary) -> void:
     player.hp = data["player"]["hp"]
     player.position = Vector2(data["player"]["pos"][0], data["player"]["pos"][1])
@@ -69,7 +74,8 @@ func apply_state(data: Dictionary) -> void:
 ### 2. Atomic, crash-safe write (temp + rename)
 
 ```gdscript
-# Godot 4.7. Write a temp file, keep the previous save as .bak, then rename.
+# Illustrative Godot 4.7 I/O only; see Reol's implementation for strict loading
+# and backup decisions. Write a temp file, keep the previous save, then rename.
 func save_atomic(path: String, data: Dictionary) -> Error:
     var tmp := path + ".tmp"
     var f := FileAccess.open(tmp, FileAccess.WRITE)
@@ -87,15 +93,16 @@ func load_save(path: String) -> Dictionary:      # empty = nothing loadable
         if FileAccess.file_exists(p):
             var data = JSON.parse_string(FileAccess.get_file_as_string(p))
             if data is Dictionary and data.has("version"):
-                data["version"] = int(data["version"])   # JSON numbers load as float
+                if not is_valid_integer_version(data["version"]):
+                    return {}                    # reject invalid versions, don't coerce
                 return data
     return {}
 # WRONG: opening `path` directly and writing in place — a crash mid-write leaves a
 # truncated, unloadable save and destroys the player's progress.
 ```
 
-A crash now leaves the old save, the new one, or (between the two renames) only
-the `.bak` — which the loader tries next. Two limits to know: `rename()` replaces
+A crash can leave the old save, the new one, or (between the two renames) only
+the `.bak`; recovery must follow the explicit backup policy. Two limits to know: `rename()` replaces
 the target atomically on POSIX (same volume), but Godot's Windows `rename_absolute`
 deletes the target and then moves, so that platform relies on the `.bak` too; and
 neither `flush()` nor `close()` calls `fsync`, so a power cut right after a save
@@ -108,16 +115,17 @@ when a save fails instead of carrying on.
 SAVE_VERSION = 3
 
 def load_save(raw_bytes):
-    data = parse(raw_bytes)                  # JSON/binary -> dict
-    v = int(data.get("version", 1))          # no field = the first shipped schema
-    if v > SAVE_VERSION:
-        raise NewerSaveError(v)              # save is from a newer build; refuse
-    while v < SAVE_VERSION:                   # apply migrations in order, v -> v+1
+    data = parse(raw_bytes)                  # JSON/binary -> independent dict
+    v = read_version(data)                   # reject missing or invalid versions
+    if v not in SUPPORTED_VERSIONS:
+        raise UnsupportedSaveError(v)        # clearly refuse newer or retired saves
+    validate_source(data, v)                 # validate before migration changes shape
+    while v < SAVE_VERSION:                  # only explicitly supported migrations
         data = MIGRATIONS[v](data)
         v += 1
         data["version"] = v
-    validate(data)                            # check required keys / ranges
-    return data
+    validate(data)                           # check required keys / ranges
+    return construct_candidate(data)         # publish only after all validation
 
 # Each migration is a pure function from one version's shape to the next.
 def migrate_1_to_2(d):
@@ -126,6 +134,7 @@ def migrate_1_to_2(d):
 def migrate_2_to_3(d):
     d.setdefault("difficulty", "normal")      # new field: old saves get the default
     return d
+SUPPORTED_VERSIONS = {1, 2, 3}               # illustrative finite support window
 MIGRATIONS = {1: migrate_1_to_2, 2: migrate_2_to_3}
 ```
 
@@ -152,8 +161,9 @@ func autosave_if_due(dt: float) -> void:
   guessing game. Stamp `version` from version 1.
 - **In-place writes** corrupt saves on crash/power loss. Always temp-write then
   rename; keep a `.bak`.
-- **Trusting the file blindly.** Saves get truncated, hand-edited, or
-  cloud-synced stale. Validate on load and fall back to backup on failure.
+- **Trusting the file blindly.** Saves get truncated or hand-edited. Validate
+  each independent candidate and preserve live state on failure; backup policy
+  must not silently turn an unsupported version into a different history.
 - **Floats and locale.** Text serializers can drop precision or use comma
   decimal separators in some locales. Use a locale-invariant serializer.
 - **Godot JSON turns every number into a float**: `version` 3 loads as `3.0`,
@@ -174,7 +184,7 @@ func autosave_if_due(dt: float) -> void:
 ## References
 
 - `references/versioning-and-migration.md` — schema evolution strategies, the
-  migration chain, backups/rollback, format trade-offs (JSON vs binary), a
+  supported migration boundary, backups/rollback, format trade-offs (JSON vs binary), a
   load-time validation checklist, and where saves live per engine plus Steam
   Cloud setup.
 

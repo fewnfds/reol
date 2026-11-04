@@ -1,7 +1,8 @@
 # Save versioning, migration, and robustness
 
-Saves outlive the code that wrote them. A player who saved in v1.0 expects to
-load in v1.4 after an update. Plan for schema evolution from the first release.
+Saves can outlive the code that wrote them. Reol keeps one current game model
+and write format; supported old inputs are explicitly bounded by the
+[compatibility policy](../../../../docs/COMPATIBILITY.md).
 
 ## The version field is non-negotiable
 
@@ -9,32 +10,35 @@ Stamp every save with an integer `version` (or a structured `{major, minor}` if
 you need it). On load:
 
 1. Read `version`.
-2. If it is **newer** than the running build → refuse with a clear message
-   ("This save is from a newer version"). Do not guess at fields you don't know.
-3. If it is **older** → run migrations in sequence until it matches the current
-   version.
-4. Validate, then instantiate.
+2. If it is **unsupported**, whether newer or retired → refuse with a clear
+   message. Do not guess at fields you don't know or rewrite the source save.
+3. If it is an explicitly supported older input → apply the declared migrations
+   to one current model.
+4. Validate an independent candidate completely, then publish it; failure must
+   leave the live world and source data unchanged.
 
 Prefer a single monotonic integer. Semantic two-part versions are only worth it
 if you genuinely branch save compatibility across release lines.
 
 ## The migration chain
 
-Write each migration as a **pure function** `vN -> vN+1` and apply them in order.
-This keeps any version reachable to current with small, testable steps — never a
-giant "convert anything to latest" function.
+For a declared compatibility window, write each migration as a **pure function**
+`vN -> vN+1` and apply them in order. Runtime logic reads only the current model;
+do not silently accept versions outside the declared window.
 
 ```python
 SAVE_VERSION = 4
 
+SUPPORTED_VERSIONS = {3, 4}  # example only; see Reol's policy for actual support
 MIGRATIONS = {
-    1: migrate_1_to_2,   # added "flags" map
-    2: migrate_2_to_3,   # split "name" into first/last
     3: migrate_3_to_4,   # inventory items gained a "durability" field
 }
 
 def upgrade(data):
-    v = data.get("version", 1)
+    v = read_version(data)  # reject missing or malformed versions
+    if v not in SUPPORTED_VERSIONS:
+        raise UnsupportedSaveError(v)
+    validate_source(data, v)
     while v < SAVE_VERSION:
         data = MIGRATIONS[v](data)
         v += 1
@@ -49,15 +53,16 @@ Guidelines:
 - **Renames/restructures**: move/transform in the migration; never read both old
   and new names in game code.
 - **Removed fields**: drop them in the migration so later steps see a clean shape.
-- **Keep old migrations forever.** Deleting `migrate_1_to_2` strands every v1
-  save. They are cheap to keep and must remain a faithful record.
-- **Test the chain**: keep a corpus of real saves from each shipped version and
-  assert they load after every change (this is your regression net).
+- **Bound compatibility explicitly**: retire migration paths according to the
+  project policy, without editing historical fixtures or player saves.
+- **Test supported boundaries**: exercise each declared migration and verify
+  unsupported versions fail clearly and atomically; retain historical evidence
+  as read-only fixtures rather than promising every version will load forever.
 
 ## Backups and rollback
 
-- Before overwriting, copy the current save to `*.bak`. On a failed load of the
-  primary, try the backup automatically.
+- Before overwriting, copy the current save to `*.bak`. A backup recovery policy
+  must not silently replace an unsupported save with a different history.
 - For autosaves, rotate a small ring (autosave_0..2) so a bad autosave doesn't
   destroy the only recent state.
 - Consider a checksum/hash of the payload to detect truncation or corruption
@@ -80,11 +85,11 @@ that neutral shape, not on format-specific bytes.
 
 - Required keys present; types correct (string vs number vs bool).
 - Numbers within sane ranges (no NaN/Infinity; hp ≥ 0; indices in bounds).
-- Enum/id values still exist in current content (an item id removed in a patch
-  must be handled — drop it or substitute, don't crash).
+- Enum/id values still exist in current content; reject or use only an explicitly
+  supported migration, without silently dropping or substituting owned objects.
 - References resolve (a quest id points to a known quest).
-- On any failure: log, fall back to backup, and if all else fails, fail *loudly*
-  to the player rather than silently loading a broken state.
+- On any failure: report clearly without changing the live world or source save;
+  use a backup only under an explicit recovery policy that preserves history.
 
 ## Where saves live, and cloud sync
 

@@ -50,7 +50,9 @@ A0a的根43与隔离争环稿曾用的根43不是可互换格式。争环稿留�
 
 `8056e5537a8daa4c4ed8371e7c11ab1f9119fb14`的原生Sol审查指出双地运行适配应强制存在服务域，以及已接受的不同居民名单需要重绑home视图。后续修复在提交前拒绝缺服务、对照原身体名单增删显示节点并更新主场景选择列表；不把重建画面当新生成身体。4组定向179断言/0失败（含真实新增居民开局→原开局、雀/残识接续），日志`logs/restore-review-fixes-focused-20261104-185827.log`；修复后原生画面复验通过，`logs/a0b_review_fixes_visual.json`。最终SHA完整回归待CI。
 
-`e3972ef6ad31ca9e773e0dd44d3881d783eeff5a`及`3419c961cd9df52370337b509bf730e0b06240c7`均已完成原生Sol审查，无可操作缺陷；日志位于`logs/reviews/`。GitHub两次服务器错误后恢复，已推送到3419c96；[CI 41819385359](https://github.com/fewnfds/reol/actions/runs/41819385359)对应完整SHA `3419c961cd9df52370337b509bf730e0b06240c7`，观察时in_progress，尚未算通过。Python工具全套56项通过（含故意失败/超时的包装器样例）；Linux进程组实际回归仍待该CI。
+`e3972ef6ad31ca9e773e0dd44d3881d783eeff5a`及`3419c961cd9df52370337b509bf730e0b06240c7`均已完成原生Sol审查，无可操作缺陷；日志位于`logs/reviews/`。GitHub两次服务器错误后恢复，已推送到3419c96；Python工具全套56项通过（含故意失败/超时的包装器样例）。
+
+2026-11-04文档提交检查点通过`tools/ci.py status`核对[CI 41819385359](https://github.com/fewnfds/reol/actions/runs/41819385359)，完整SHA为`3419c961cd9df52370337b509bf730e0b06240c7`，终态**completed/failure**。一次下载失败步骤日志至本机`logs/ci/41819385359.failed.log`：导入退出0，测试退出1，`Results: 177 passed, 28 failed`、17362断言。首个真实失败为`normal loader restores actual original lesson and paid preparation: expected 0, got 30`，后续含普通旧档继续、墙体通行及联合快照断言；根因尚未定位，不能直接归因为历史兼容或忽略失败。此次只登记证据，开发暂停未修改游戏；恢复时集中分析相应路径。后续本地`cadb14f`尚未推送/完整验收，不能把前SHA失败数当作它的实测结果。
 
 新平面普通开局与同档正常存读后原生Compatibility渲染1280×720已观察，进程6.384秒；证据`logs/flat_world_native_result.json`、`logs/flat_world_native.png`。该画面确认原墙门/桌柜/具名人物沿新地图装配，不是独立测试平面；它不证明新候选完整CI或大世界容量。
 

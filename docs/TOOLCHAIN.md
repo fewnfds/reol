@@ -26,7 +26,7 @@ check包括结构、导入和统一同步测试runner；test不替代导入，�
 - 首选实时场景连接为Godot AI：编辑器启用插件后用官方dock的Configure → Codex生成带认证的attach，重载后实际核查Reol会话、日志和运行状态；不手写端口/裸HTTP，不更改第三方addon。当前实现与过滤范围见[套件实装](AI-TOOLKIT-SETUP.md)。
 - python tools/setup_codex.py 补项目中的Context7和默认禁用的Coding-Solo备用入口；已存在连接和无关配置保留。仅在明确需要备用时用 --enable-backup-godot；显式 --review-model gpt-6.1-sol 设置项目审查模型，--check只验证配置而不证实握手。项目配置/备份不入库；用户级路由与认证不在此脚本中改写。
 - API以当前目标版本的Godot官方文档为准，Context7可辅助查询。旧opencode.json属于旧客户端，不是Codex生效配置。
-- GitHub的Python及Godot CI证据按完整受检SHA核对。一次查询只由主代理通过[CI流程](CODE-REVIEW-WORKFLOW.md)登记；共用缓存至少300秒一次，不派等待子代理。当前无GitHub结果自动插入聊天的回调。
+- GitHub的Python及Godot CI证据按完整受检SHA核对。仅在准备实际提交时由主代理按[CI流程](CODE-REVIEW-WORKFLOW.md)集中检查一次；未终态留到下次提交，不开后台等待或派被动代理。300秒缓存是限频底线，不是轮询周期；当前无GitHub结果自动插入聊天的回调。
 
 ## 排错和升级
 
