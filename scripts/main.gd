@@ -19,6 +19,7 @@ const NPC_OFFSETS: Array[Vector2i] = [
 ]
 const SELECT_RADIUS: float = 34.0
 const WORLD_GENERATION_PATH: String = "res://data/scenarios/world_generation.json"
+const WORLD_GEOGRAPHY_PATH: String = "res://data/scenarios/world_geography.json"
 
 @onready var world: ReolWorld = $World
 @onready var fog: FogOfWar = $Fog
@@ -34,6 +35,7 @@ var _village: VillageRuntime
 var _continuity: WorldContinuityRuntime
 var _avatar: PlayerAvatarRuntime
 var _opening_map: WorldMapData
+var _opening_content: ReolContentDB
 var _opening_started: bool = false
 var _terrain_editor: TerrainEditorRuntime
 
@@ -46,6 +48,29 @@ func configure_opening_map(description: Variant, terrain_overrides: Variant = []
 	if candidate == null or not candidate.restore_terrain_overrides(terrain_overrides):
 		return false
 	_opening_map = candidate
+	return true
+
+
+func configure_opening_content(bundle: Variant) -> bool:
+	if _opening_started or is_inside_tree() or _opening_content != null:
+		return false
+	var candidate := ReolContentDB.new()
+	if not candidate.load_bundle(bundle) or int(candidate.climate.calendar.start_minutes) != GameClock.start_minutes:
+		return false
+	_opening_content = candidate
+	return true
+
+
+func configure_opening_geography(profile: Variant) -> bool:
+	if _opening_started or is_inside_tree() or _opening_content != null:
+		return false
+	var source := ReolContentDB.new()
+	if not source.load_all():
+		return false
+	var candidate: ReolContentDB = ReolGeographicContent.build(source.content_bundle(), profile)
+	if candidate == null or int(candidate.climate.calendar.start_minutes) != GameClock.start_minutes:
+		return false
+	_opening_content = candidate
 	return true
 
 
@@ -65,6 +90,21 @@ func _ready() -> void:
 		set_process_input(false)
 		set_process_unhandled_input(false)
 		return
+	_content = _opening_content
+	_opening_content = null
+	if _content == null:
+		var source := ReolContentDB.new()
+		if source.load_all():
+			var geography: Variant = JSON.parse_string(FileAccess.get_file_as_string(WORLD_GEOGRAPHY_PATH))
+			_content = ReolGeographicContent.build(source.content_bundle(), geography)
+	# The existing shared clock owns the opening hour. Reject unsupported
+	# calendars before publishing a map, bodies, or a partially initialized world.
+	if _content == null or int(_content.climate.calendar.start_minutes) != GameClock.start_minutes:
+		push_error("Invalid new-world geography/content or clock origin: " + WORLD_GEOGRAPHY_PATH)
+		set_process(false)
+		set_process_input(false)
+		set_process_unhandled_input(false)
+		return
 	world.bind_map_data(opening_map)
 	if GameClock.elapsed_ms == 0:
 		GameClock.set_paused(true)
@@ -79,11 +119,6 @@ func _ready() -> void:
 	_flying = FlyingMarker.new()
 	_flying.setup(world, spawn_cell + Vector2i(3, 0), 1)
 	add_child(_flying)
-
-	_content = ReolContentDB.new()
-	if not _content.load_all():
-		for message: String in _content.errors:
-			push_error("ContentDB: %s" % message)
 
 	var player_def: PawnDef = _content.get_pawn(&"player")
 	if player_def != null:

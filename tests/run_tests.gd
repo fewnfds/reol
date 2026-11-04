@@ -117,6 +117,18 @@ func test_climate_boundaries() -> void:
 	load("res://tests/sim/test_climate_boundaries.gd").new().run(self)
 
 
+func test_geographic_climate() -> void:
+	load("res://tests/sim/test_geographic_climate.gd").new().run(self)
+
+
+func test_geographic_content() -> void:
+	load("res://tests/runtime/test_geographic_content.gd").new().run(self)
+
+
+func test_geographic_world() -> void:
+	load("res://tests/sim/test_geographic_world.gd").new().run(self)
+
+
 func test_climate_background() -> void:
 	load("res://tests/sim/test_climate_background.gd").new().run(self)
 

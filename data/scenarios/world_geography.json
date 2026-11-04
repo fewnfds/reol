@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "solar": {
+    "latitude_mdeg": 30000,
+    "longitude_mdeg": 0,
+    "meridian_mdeg": 0,
+    "axial_tilt_mdeg": 23500,
+    "vernal_day": 0,
+    "relative_scale": 10000,
+    "clear_transmission": 10000,
+    "rain_transmission": 4500,
+    "roof_transmission": 1000
+  },
+  "regions": {
+    "home": {"continentality_milli": 750, "temperature_offset_tenths": 27},
+    "river": {"continentality_milli": 450, "temperature_offset_tenths": 52}
+  }
+}
