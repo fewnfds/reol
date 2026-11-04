@@ -8,6 +8,7 @@ is not managed: a disabled-only override needs a compatible inherited
 transport, and an unconditional transport can conflict with a custom server.
 This script checks the project file only; use codex mcp list to check the
 effective configuration and same-name inherited transport compatibility.
+The project review model is changed only when --review-model is provided.
 """
 
 from __future__ import annotations
@@ -78,12 +79,49 @@ def enable_generated_backup(original: str, data: dict) -> str | None:
         return None
 
 
+def set_review_model(original: str, model: str) -> str | None:
+    """Edit only the requested root key; reject ambiguous TOML instead of rewriting it."""
+    try:
+        parsed = tomllib.loads(original)
+    except tomllib.TOMLDecodeError:
+        return None
+    if parsed.get("review_model") == model:
+        return original
+    if "review_model" not in parsed:
+        newline = "\r\n" if "\r\n" in original else "\n"
+        updated = f"review_model = {json.dumps(model)}{newline}" + original
+    else:
+        # Root keys precede the first table. Restrict replacement to a simple
+        # quoted value so arbitrary user comments/sections are never rewritten.
+        table = re.search(r"(?m)^[ \t]*\[\[?[^\r\n]*\]\]?[ \t]*(?:#[^\r\n]*)?\r?$", original)
+        root_end = table.start() if table else len(original)
+        root = original[:root_end]
+        key = re.compile(
+            r'''(?m)^([ \t]*review_model[ \t]*=[ \t]*)("(?:[^"\\\r\n]|\\.)*"|'[^'\r\n]*')([ \t]*(?:#[^\r\n]*)?)(?=\r?$)'''
+        )
+        matches = list(key.finditer(root))
+        if len(matches) != 1:
+            return None
+        match = matches[0]
+        updated = original[:match.start()] + match.group(1) + json.dumps(model) + match.group(3) + original[match.end():]
+    expected = copy.deepcopy(parsed)
+    expected["review_model"] = model
+    try:
+        return updated if tomllib.loads(updated) == expected else None
+    except tomllib.TOMLDecodeError:
+        return None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--check", action="store_true", help="Check the requested state without writing")
     parser.add_argument(
         "--enable-backup-godot", action="store_true",
         help="Enable the generated Coding-Solo godot backup; with --check, only verify it is enabled",
+    )
+    parser.add_argument(
+        "--review-model", choices=["gpt-6.1-sol", "gpt-6.1-terra"],
+        help="Set the project review model; with --check, only verify it",
     )
     args = parser.parse_args()
 
@@ -111,6 +149,7 @@ def main() -> int:
     problems: list[str] = []
     updated = original
     changes_backup = False
+    changes_review = False
     for name, expected in expected_servers().items():
         if name not in existing:
             if name == "godot" and args.enable_backup_godot:
@@ -141,13 +180,23 @@ def main() -> int:
                     changes_backup = True
                     print(f"{'DISABLED' if args.check else 'ENABLE'} MCP backup: godot")
 
+    if args.review_model is not None:
+        candidate = set_review_model(updated, args.review_model)
+        if candidate is None:
+            problems.append("review_model: cannot safely edit the existing root value; set it manually")
+        else:
+            changes_review = candidate != updated
+            updated = candidate
+            state = "MISMATCH" if args.check and changes_review else "SET" if changes_review else "PRESENT"
+            print(f"{state} review model: {args.review_model}")
+
     print("langchain-docs: inherited server is not managed by this script; a safe project override depends on its transport.")
 
     if problems:
         for problem in problems:
             print(f"ERROR: {problem}; existing entry preserved", file=sys.stderr)
         return 1
-    if additions or changes_backup:
+    if additions or changes_backup or changes_review:
         newline = "\r\n" if "\r\n" in original else "\n"
         if additions:
             separator = "" if not updated else newline if updated.endswith(("\n", "\r")) else newline * 2
@@ -157,11 +206,13 @@ def main() -> int:
         except tomllib.TOMLDecodeError as exc:
             print(f"ERROR: Cannot safely append MCP entries: {exc}; existing config preserved", file=sys.stderr)
             return 1
-    if args.check and (additions or changes_backup):
+    if args.check and (additions or changes_backup or changes_review):
         suffix = " --enable-backup-godot" if args.enable_backup_godot else ""
+        if args.review_model is not None:
+            suffix += f" --review-model {args.review_model}"
         print(f"Run: python tools/setup_codex.py{suffix}")
         return 1
-    if additions or changes_backup:
+    if additions or changes_backup or changes_review:
         CONFIG.parent.mkdir(parents=True, exist_ok=True)
         if CONFIG.exists():
             stamp = time.strftime("%Y%m%d-%H%M%S")

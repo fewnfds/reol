@@ -77,6 +77,83 @@ class CodexSetupTests(unittest.TestCase):
         self.assertEqual(self.config.read_bytes(), first)
         self.assertFalse(list(self.config.parent.glob("*.bak")))
 
+    def test_without_review_option_preserves_existing_review_model(self) -> None:
+        self.config.parent.mkdir()
+        original = 'review_model = "personal-choice"\nmodel = "main-model"\n'
+        self.config.write_text(original, encoding="utf-8")
+        self.assertEqual(self.run_setup(), 0)
+        updated = self.config.read_text(encoding="utf-8")
+        self.assertTrue(updated.startswith(original))
+        self.assertEqual(tomllib.loads(updated)["review_model"], "personal-choice")
+
+    def test_explicit_review_model_is_root_key_and_preserves_other_settings(self) -> None:
+        self.config.parent.mkdir()
+        original = (
+            '# existing settings\r\nmodel = "main-model"\r\n'
+            'approval_policy = "on-request"\r\nsandbox_mode = "workspace-write"\r\n\r\n'
+            '[mcp_servers.existing]\r\nurl = "https://example.com/mcp"\r\n'
+        )
+        self.config.write_bytes(original.encode("utf-8"))
+        self.assertEqual(self.run_setup(), 0)
+        before = self.config.read_bytes()
+        before_data = tomllib.loads(before.decode("utf-8"))
+        self.assertEqual(self.run_setup("--review-model", "gpt-6.1-sol"), 0)
+        after = self.config.read_bytes()
+        self.assertEqual(after, b'review_model = "gpt-6.1-sol"\r\n' + before)
+        after_data = tomllib.loads(after.decode("utf-8"))
+        self.assertEqual(after_data.pop("review_model"), "gpt-6.1-sol")
+        self.assertEqual(after_data, before_data)
+        self.assertIn(before, [p.read_bytes() for p in self.config.parent.glob("*.bak")])
+
+    def test_explicit_review_model_changes_only_existing_simple_root_value(self) -> None:
+        self.assertEqual(self.run_setup(), 0)
+        before = ('review_model = "gpt-6.1-terra" # user note\n'
+                  'model = "main-model"\n' + self.config.read_text(encoding="utf-8"))
+        self.config.write_text(before, encoding="utf-8")
+        self.assertEqual(self.run_setup("--review-model", "gpt-6.1-sol"), 0)
+        expected = before.replace('review_model = "gpt-6.1-terra"',
+                                  'review_model = "gpt-6.1-sol"', 1)
+        self.assertEqual(self.config.read_text(encoding="utf-8"), expected)
+        self.assertEqual(tomllib.loads(expected)["model"], "main-model")
+
+    def test_review_model_check_does_not_write_and_explicit_set_is_idempotent(self) -> None:
+        self.assertEqual(self.run_setup(), 0)
+        original = self.config.read_bytes()
+        self.assertEqual(self.run_setup("--check", "--review-model", "gpt-6.1-sol"), 1)
+        self.assertEqual(self.config.read_bytes(), original)
+        self.assertFalse(list(self.config.parent.glob("*.bak")))
+        self.assertEqual(self.run_setup("--review-model", "gpt-6.1-sol"), 0)
+        accepted = self.config.read_bytes()
+        backups = list(self.config.parent.glob("*.bak"))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].read_bytes(), original)
+        self.assertEqual(self.run_setup("--check", "--review-model", "gpt-6.1-sol"), 0)
+        self.assertEqual(self.run_setup("--review-model", "gpt-6.1-sol"), 0)
+        self.assertEqual(self.config.read_bytes(), accepted)
+        self.assertEqual(len(list(self.config.parent.glob("*.bak"))), 1)
+        self.assertEqual(self.run_setup("--check", "--review-model", "gpt-6.1-terra"), 1)
+        self.assertEqual(self.config.read_bytes(), accepted)
+        self.assertEqual(len(list(self.config.parent.glob("*.bak"))), 1)
+
+    def test_review_model_with_missing_config_generates_one_complete_file(self) -> None:
+        self.assertEqual(self.run_setup("--check", "--review-model", "gpt-6.1-sol"), 1)
+        self.assertFalse(self.config.exists())
+        self.assertIn("--review-model gpt-6.1-sol", self.stdout)
+        self.assertEqual(self.run_setup("--review-model", "gpt-6.1-sol"), 0)
+        data = tomllib.loads(self.config.read_text(encoding="utf-8"))
+        self.assertEqual(data["review_model"], "gpt-6.1-sol")
+        self.assertIn("context7", data["mcp_servers"])
+        self.assertEqual(self.run_setup("--check", "--review-model", "gpt-6.1-sol"), 0)
+
+    def test_unrecognizable_review_value_is_preserved(self) -> None:
+        self.assertEqual(self.run_setup(), 0)
+        original = ('review_model = """custom-model"""\n' + self.config.read_text(encoding="utf-8")).encode("utf-8")
+        self.config.write_bytes(original)
+        self.assertEqual(self.run_setup("--review-model", "gpt-6.1-sol"), 1)
+        self.assertIn("cannot safely edit", self.stderr)
+        self.assertEqual(self.config.read_bytes(), original)
+        self.assertFalse(list(self.config.parent.glob("*.bak")))
+
     def test_existing_temporary_file_is_not_overwritten(self) -> None:
         self.config.parent.mkdir()
         existing_temp = self.config.with_suffix(".toml.tmp")
