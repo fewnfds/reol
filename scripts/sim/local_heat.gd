@@ -120,6 +120,33 @@ func _baseline(cell: Vector2i, at_ms: int) -> int:
 	return (_background(cell, at_ms) - int(definitions.reference_tenths)) * int(definitions.capacity_per_tenth)
 
 
+func _default_background_context() -> Dictionary:
+	var content: ReolContentDB = world.get("_content")
+	var weather: RefCounted = world.get("weather")
+	return {"climate": content.climate, "weather": weather.definitions, "epoch_ms": weather.epoch_ms}
+
+
+func _baseline_for_pass(cell: Vector2i, at_ms: int, context: Dictionary, by_region: Dictionary) -> int:
+	# One pass has one explicit timestamp. Never reuse a value across freezes,
+	# candidate anchors, worlds, or custom per-cell background providers.
+	if context.is_empty():
+		return _baseline(cell, at_ms)
+	var region: String = SimClimateRules.region_at(context.climate, cell)
+	if not by_region.has(region):
+		var background: Dictionary = SimClimateRules.background_for_region(context.climate, context.weather, int(context.epoch_ms), region, at_ms)
+		by_region[region] = (int(background.temperature_tenths) - int(definitions.reference_tenths)) * int(definitions.capacity_per_tenth)
+	return int(by_region[region])
+
+
+func _boundary_for_pass(cell: Vector2i, at_ms: int, context: Dictionary, by_region: Dictionary) -> int:
+	if context.is_empty():
+		return _background_next(cell, at_ms)
+	var region: String = SimClimateRules.region_at(context.climate, cell)
+	if not by_region.has(region):
+		by_region[region] = SimClimateRules.next_background_boundary_ms(context.climate, context.weather, int(context.epoch_ms), region, at_ms)
+	return int(by_region[region])
+
+
 func _offset(energy: int, cell: Vector2i, at_ms: int) -> int:
 	# Divide nonnegative Q first; negative integer division truncates toward zero.
 	return int(definitions.reference_tenths) + _tenths(energy) - _background(cell, at_ms)
@@ -158,16 +185,18 @@ func refresh_geometry() -> void:
 func _boundary_at(at_ms: int, state: Dictionary, active_flows: Array) -> int:
 	if state.is_empty() or at_ms == MAX_INTEGER:
 		return MAX_INTEGER
+	var context: Dictionary = {} if _background_boundary.is_valid() else _default_background_context()
+	var by_region: Dictionary = {}
 	var next: int = MAX_INTEGER
 	if not active_flows.is_empty():
 		var distance: int = int(definitions.step_ms) - posmod(at_ms, int(definitions.step_ms))
 		next = at_ms + mini(distance, MAX_INTEGER - at_ms)
 	for row: Dictionary in state.values():
 		var point := Vector2i(int(row.cell[0]), int(row.cell[1]))
-		next = mini(next, _background_next(point, at_ms))
+		next = mini(next, _boundary_for_pass(point, at_ms, context, by_region))
 		for side: Vector2i in SIDES:
 			if not state.has(_key(point + side)):
-				next = mini(next, _background_next(point + side, at_ms))
+				next = mini(next, _boundary_for_pass(point + side, at_ms, context, by_region))
 	return next
 
 
@@ -485,18 +514,22 @@ func _freeze() -> void:
 
 func _build_flows(state: Dictionary, at_ms: int) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
+	# Default region curves are spatially constant within a region. Providers
+	# injected for per-cell rules retain their original call sequence instead.
+	var context: Dictionary = {} if state.is_empty() or _background_query.is_valid() else _default_background_context()
+	var by_region: Dictionary = {}
 	for key: String in _sorted(state):
 		var row: Dictionary = state[key]
 		var point := Vector2i(int(row.cell[0]), int(row.cell[1]))
 		var exchange: Array[int] = [0, 0]
 		var roof: bool = _roofed.is_valid() and bool(_roofed.call(point))
-		_bath_rates(exchange, int(row.energy) - _baseline(point, at_ms), int(definitions.bath_loss.roofed if roof else definitions.bath_loss.unroofed))
+		_bath_rates(exchange, int(row.energy) - _baseline_for_pass(point, at_ms, context, by_region), int(definitions.bath_loss.roofed if roof else definitions.bath_loss.unroofed))
 		for side: Vector2i in SIDES:
 			var neighbor: Vector2i = point + side
 			var adjacent: String = _key(neighbor)
 			var coefficient: int = mini(_conductance(point), _conductance(neighbor))
 			if not state.has(adjacent):
-				_bath_rates(exchange, int(row.energy) - _baseline(neighbor, at_ms), coefficient)
+				_bath_rates(exchange, int(row.energy) - _baseline_for_pass(neighbor, at_ms, context, by_region), coefficient)
 			elif key < adjacent:
 				var difference: int = int(row.energy) - int(state[adjacent].energy)
 				var rate: int = _rate(absi(difference), coefficient)

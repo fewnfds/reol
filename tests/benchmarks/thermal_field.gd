@@ -11,8 +11,18 @@ const PULSE_MULTIPLIER: int = 100
 const SPLIT_OFFSETS: Array[int] = [1, 337, 3847, 9999, 10000, 17777, 29999, 30000, 37517, 40000]
 
 
+class BenchmarkWeather extends RefCounted:
+	var definitions: Dictionary = {}
+	var epoch_ms: int = 0
+
+
 class FieldAuthority extends RefCounted:
 	var content: ReolContentDB
+	# SimLocalHeat's production fallback reads these exact owner properties via
+	# Object.get("_content") and Object.get("weather"). The custom backend still
+	# uses the explicit callables below, preserving the original benchmark mode.
+	var _content: ReolContentDB
+	var weather: BenchmarkWeather
 	var elapsed_ms: int = 0
 	var source_receipts: Dictionary = {}
 
@@ -58,10 +68,17 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
-	if args.size() != 1 or not args[0].is_valid_int() or int(args[0]) not in COUNTS:
-		_fail("expected exactly one active-cell target: 25, 128, or 512")
+	if args.size() < 1 or args.size() > 2 or not args[0].is_valid_int() or int(args[0]) not in COUNTS:
+		_fail("expected an active-cell target 25, 128, or 512, optionally followed by custom or default")
 		return
 	var target: int = int(args[0])
+	var backend: String = "custom"
+	if args.size() == 2:
+		if args[1] not in ["custom", "default"]:
+			_fail("backend must be custom or default")
+			return
+		backend = str(args[1])
+	var default_backend: bool = backend == "default"
 	var whole_start: int = Time.get_ticks_usec()
 	var content := ReolContentDB.new()
 	if not content.load_all():
@@ -80,14 +97,14 @@ func _run() -> void:
 	if target > 25:
 		probes.append(Vector2i(270, 100))
 	var authority := FieldAuthority.new()
-	authority.content = content
+	_configure_authority(authority, content)
 	var phase: Dictionary = _actual_phase(authority, probes)
 	if phase.is_empty():
 		_fail("no real temperature-changing weather boundary found for the field")
 		return
 	var boundary: int = int(phase.at_ms)
 	authority.elapsed_ms = boundary - 120000
-	var heat: SimLocalHeat = _new_heat(authority, rules)
+	var heat: SimLocalHeat = _new_heat(authority, rules, default_backend)
 	if heat == null:
 		_fail("fixed-Q component did not initialize")
 		return
@@ -117,10 +134,10 @@ func _run() -> void:
 		return
 	var checkpoint: Dictionary = heat.to_dict()
 	var split_owner := FieldAuthority.new()
-	split_owner.content = content
+	_configure_authority(split_owner, content)
 	split_owner.elapsed_ms = authority.elapsed_ms
 	split_owner.source_receipts = authority.source_receipts.duplicate(true)
-	var split_heat: SimLocalHeat = _new_heat(split_owner, rules)
+	var split_heat: SimLocalHeat = _new_heat(split_owner, rules, default_backend)
 	if split_heat == null or not split_heat.restore(checkpoint):
 		_fail("could not restore an independent checkpoint for bounded split comparison")
 		return
@@ -166,12 +183,13 @@ func _run() -> void:
 	if not bool(split_conservation.ok) or SnapshotValues.normalized(split_heat.to_dict()) != SnapshotValues.normalized(end_state):
 		_fail("bounded split execution diverged from the measured whole field")
 		return
-	var persistence: Dictionary = _measure_persistence(authority, heat, rules, end_state)
+	var persistence: Dictionary = _measure_persistence(authority, heat, rules, end_state, default_backend)
 	if not bool(persistence.get("ok", false)):
 		_fail("snapshot stage failed " + JSON.stringify(persistence.get("diagnostic", {}), "", true, true))
 		return
 	var report: Dictionary = {
 		"kind": "thermal_field_component",
+		"backend": backend,
 		"scope": "isolated fixed-Q field; open unroofed geometry; synthetic receipt-owning component source; actual climate and weather rules; no actor, artifact, world, rendering or full-save benchmark",
 		"engine": Engine.get_version_info(), "debug_build": OS.has_feature("debug"),
 		"required_external_guard": {"seconds": 30, "memory_bytes": 1073741824},
@@ -209,11 +227,20 @@ func _source_centers(count: int) -> Array[Vector2i]:
 	return result
 
 
-func _new_heat(authority: FieldAuthority, rules: Dictionary) -> SimLocalHeat:
+func _configure_authority(authority: FieldAuthority, content: ReolContentDB) -> void:
+	authority.content = content
+	authority._content = content
+	authority.weather = BenchmarkWeather.new()
+	authority.weather.definitions = content.weather.duplicate(true)
+	authority.weather.epoch_ms = 0
+
+
+func _new_heat(authority: FieldAuthority, rules: Dictionary, default_backend: bool = false) -> SimLocalHeat:
 	var heat := SimLocalHeat.new()
 	if not heat.initialize(authority, rules):
 		return null
-	heat.set_background(Callable(authority, "background"), Callable(authority, "background_boundary"))
+	if not default_backend:
+		heat.set_background(Callable(authority, "background"), Callable(authority, "background_boundary"))
 	heat.set_geometry(Callable(authority, "roof"), Callable(authority, "barrier"))
 	heat.set_source_validator(Callable(authority, "matches_receipt"), Callable(authority, "expected_actions"))
 	return heat
@@ -254,7 +281,7 @@ func _conservation(heat: SimLocalHeat) -> Dictionary:
 		"ambient_input": heat.ambient_in, "ambient_loss": heat.loss_energy}
 
 
-func _measure_persistence(authority: FieldAuthority, heat: SimLocalHeat, rules: Dictionary, expected: Dictionary) -> Dictionary:
+func _measure_persistence(authority: FieldAuthority, heat: SimLocalHeat, rules: Dictionary, expected: Dictionary, default_backend: bool) -> Dictionary:
 	var captures: Array[float] = []
 	var encodes: Array[float] = []
 	var decodes: Array[float] = []
@@ -274,14 +301,14 @@ func _measure_persistence(authority: FieldAuthority, heat: SimLocalHeat, rules: 
 		if not decoded is Dictionary:
 			return {"ok": false, "diagnostic": {"stage": "json_decode", "repeat": repeat,
 				"actual_type": type_string(typeof(decoded)), "snapshot_bytes": bytes}}
-		var copy: SimLocalHeat = _new_heat(authority, rules)
+		var copy: SimLocalHeat = _new_heat(authority, rules, default_backend)
 		if copy == null:
 			return {"ok": false, "diagnostic": {"stage": "candidate_initialization", "repeat": repeat}}
 		start = Time.get_ticks_usec()
 		var ok: bool = copy.restore(decoded)
 		restores.append(_ms_since(start))
 		if not ok:
-			return {"ok": false, "diagnostic": _diagnose_restore(authority, copy, rules, snapshot, decoded, repeat)}
+			return {"ok": false, "diagnostic": _diagnose_restore(authority, copy, rules, snapshot, decoded, repeat, default_backend)}
 		var balance: Dictionary = _conservation(copy)
 		if not bool(balance.ok):
 			return {"ok": false, "diagnostic": {"stage": "restored_conservation", "repeat": repeat, "balance": balance}}
@@ -295,9 +322,9 @@ func _measure_persistence(authority: FieldAuthority, heat: SimLocalHeat, rules: 
 		"json_decode_ms": _distribution(decodes), "restore_ms": _distribution(restores)}
 
 
-func _diagnose_restore(authority: FieldAuthority, copy: SimLocalHeat, rules: Dictionary, snapshot: Dictionary, decoded: Dictionary, repeat: int) -> Dictionary:
+func _diagnose_restore(authority: FieldAuthority, copy: SimLocalHeat, rules: Dictionary, snapshot: Dictionary, decoded: Dictionary, repeat: int, default_backend: bool) -> Dictionary:
 	# These extra read-only checks run only after the timed restore has failed.
-	var memory_copy: SimLocalHeat = _new_heat(authority, rules)
+	var memory_copy: SimLocalHeat = _new_heat(authority, rules, default_backend)
 	var memory_ok: bool = memory_copy != null and memory_copy.restore(snapshot)
 	var baseline_sum: int = 0
 	for row: Dictionary in decoded.cells.values():

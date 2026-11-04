@@ -141,6 +141,10 @@ func test_thermal_budget() -> void:
 	load("res://tests/runtime/test_thermal_budget.gd").new().run(self)
 
 
+func test_heat_query_reuse() -> void:
+	load("res://tests/sim/test_heat_query_reuse.gd").new().run(self)
+
+
 # ---------------------------------------------------------------------------
 # Test doubles
 # ---------------------------------------------------------------------------
