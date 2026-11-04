@@ -97,7 +97,7 @@ A1b-0容器归处先支持原区域人物/地点、工程材料的carrier/materi
 
 这些查询用于规则/编辑调试，不能直接作玩家有限所知，也不能旁路原取放/预约/权限。原位置时刻较旧时不自动结算。当前只支持上述已证明的锚点；自然resource虚拟账、在途货运/嵌套箱等未接时明确unsupported，不推断原点/人物或精确运动。无新增持久状态/格式；受控生成、可搬容器及跨格预检仍待后包。
 
-A1b-1的`world.artifact_transfers`（也由`artifacts.transfers`公开）只覆盖take/place/draw及私人完整交割。`set_guard`安装受信任的纯同步检查，布尔true允许、false/非布尔/失效非空Callable拒绝，空Callable恢复默认；检查中不允许器物begin/begin_draw/cancel和私人request/cancel重入，但它不是任意脚本沙箱。候选载荷含原独特器物引用、from/to限定归处、共同at_ms和原action/cause，守卫/通知传独立值。拒绝终止原到期动作但不回滚已付时间/qi；成功`committed`仅在原物、事件、active释放，以及私交割的钱/收据/工作终态全部提交之后发一次。draw报告被引物而非施术环。world原位restore保留钩子，独立候选各自持有且恢复不补发事件；整world替换时由装配重绑。无新存档字段/版本，不连接真实持续热结算，不能在事后signal里倒推旧位置结热；native/施工/鸟域通知尚未接。
+A1b-1的`world.artifact_transfers`（也由`artifacts.transfers`公开）只覆盖take/place/draw及私人完整交割。`set_guard`安装受信任的纯同步检查，布尔true允许、false/非布尔/失效非空Callable拒绝，空Callable恢复默认；检查中不允许器物begin/begin_draw/cancel和私人request/cancel重入，但它不是任意脚本沙箱。候选载荷含原独特器物引用、from/to限定归处、共同at_ms和原action/cause，守卫传副本；通知及entity/from/to嵌套引用均只读，监听者需修改时先duplicate，避免同一signal前后监听者互相污染。拒绝终止原到期动作但不回滚已付时间/qi；成功`committed`仅在原物、事件、active释放，以及私交割的钱/收据/工作终态全部提交之后发一次。draw报告被引物而非施术环。world原位restore保留钩子，独立候选各自持有且恢复不补发事件；整world替换时由装配重绑。无新存档字段/版本，不连接真实持续热结算，不能在事后signal里倒推旧位置结热；native/施工/鸟域通知尚未接。
 
 ## 仍需建立的通用接缝
 

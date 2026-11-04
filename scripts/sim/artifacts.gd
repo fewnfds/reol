@@ -605,6 +605,9 @@ func settle_at_ms(tick: int) -> void:
 	var actors: Array = active.keys()
 	actors.sort()
 	for actor: String in actors:
+		# A previous completion observer may cancel another pending action.
+		if not active.has(actor):
+			continue
 		world.synchronize_region(active[actor].region)
 		if not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion") or not _method_connected(active[actor]) or not _continuation_reason(active[actor]).is_empty():
 			cancel(actor)

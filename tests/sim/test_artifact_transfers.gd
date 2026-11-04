@@ -2,6 +2,7 @@ extends RefCounted
 ## Exercise the live seam through the original artifact and exchange owners.
 
 const Stones = preload("res://tests/sim/test_artifacts.gd")
+const Regional = preload("res://tests/sim/test_regional_simulation.gd")
 const Drawing = preload("res://tests/sim/test_artifact_drawing.gd")
 const Exchange = preload("res://tests/sim/test_private_exchange.gd")
 const STONE: String = "hearth_stone"
@@ -23,6 +24,8 @@ class Observer:
 	var exchange_id: String = ""
 	var guards: Array[Dictionary] = []
 	var notices: Array[Dictionary] = []
+	var notice_read_only: Array[Dictionary] = []
+	var edited_notice_copies: Array[Dictionary] = []
 	var guard_states: Array[Dictionary] = []
 	var notice_states: Array[Dictionary] = []
 	var cancellation_results: Array[bool] = []
@@ -50,10 +53,17 @@ class Observer:
 	func committed(change: Dictionary) -> void:
 		notices.append(change.duplicate(true))
 		notice_states.append(_state(change))
+		var entity: Dictionary = change.entity
+		var source: Dictionary = change.from
+		var destination: Dictionary = change.to
+		notice_read_only.append({"change": change.is_read_only(), "entity": entity.is_read_only(),
+			"from": source.is_read_only(), "to": destination.is_read_only()})
 		if mutate_notice:
-			change.entity.id = "forged"
-			change.from.region = "forged"
-			change.to.container = "forged"
+			var copy: Dictionary = change.duplicate(true)
+			copy.entity.id = "forged"
+			copy.from.region = "forged"
+			copy.to.container = "forged"
+			edited_notice_copies.append(copy)
 
 	func _state(change: Dictionary) -> Dictionary:
 		var world: RegionalSimulation = _owner.get_ref()
@@ -77,8 +87,30 @@ class Observer:
 		return result
 
 
+class CancellingObserver:
+	extends RefCounted
+	var _owner: WeakRef
+	var notices: Array[Dictionary] = []
+	var cancellation_results: Array[bool] = []
+	var first_released: bool = false
+	var second_was_active: bool = false
+
+	func _init(world: RegionalSimulation) -> void:
+		_owner = weakref(world)
+
+	func committed(change: Dictionary) -> void:
+		notices.append(change.duplicate(true))
+		if change.entity.id != "hearth_stone":
+			return
+		var world: RegionalSimulation = _owner.get_ref()
+		first_released = not world.artifacts.owns_actor("chen_shouzhuo")
+		second_was_active = world.artifacts.owns_actor("player")
+		cancellation_results.append(world.artifacts.cancel("player"))
+
+
 func run(runner: Object) -> void:
 	_stone_moves_and_rejections(runner)
+	_cancel_other_due_action(runner)
 	_draw_and_inflight_restore(runner)
 	_exchange(runner, true)
 	_exchange(runner, false)
@@ -107,6 +139,8 @@ func _stone_moves_and_rejections(runner: Object) -> void:
 	observer.probe_artifact_cancel = true
 	world.artifacts.transfers.set_guard(observer.preflight)
 	world.artifacts.transfers.committed.connect(observer.committed)
+	var second_observer := Observer.new(world)
+	world.artifacts.transfers.committed.connect(second_observer.committed)
 	var original: Dictionary = world.artifacts.objects[STONE].duplicate(true)
 	var initial_events: int = world.artifacts.events.size()
 	var take: Dictionary = _stone_action(runner, world, "take")
@@ -118,6 +152,16 @@ func _stone_moves_and_rejections(runner: Object) -> void:
 	runner.assert_true(world.advance_to_ms(int(take.due_ms)), "the original clock settles the stone take")
 	runner.assert_eq(observer.guards, [expected], "take preflight sees the exact canonical source, destination and action")
 	runner.assert_eq(observer.notices, [expected], "mutating the guard's copy cannot corrupt the committed change")
+	runner.assert_eq(second_observer.notices, [expected], "a second listener receives the original change after the first edits its own copy")
+	var read_only: Dictionary = {"change": true, "entity": true, "from": true, "to": true}
+	runner.assert_eq(observer.notice_read_only, [read_only], "the first listener receives a recursively read-only change")
+	runner.assert_eq(second_observer.notice_read_only, [read_only], "the second listener also receives a recursively read-only change")
+	if not observer.edited_notice_copies.is_empty():
+		runner.assert_eq(observer.edited_notice_copies[0].entity.id, "forged", "the listener may edit its own deep copy")
+		runner.assert_eq(observer.edited_notice_copies[0].from.region, "forged", "the copied source is independent")
+		runner.assert_eq(observer.edited_notice_copies[0].to.container, "forged", "the copied destination is independent")
+	else:
+		runner.assert_true(false, "the first listener creates and edits its own deep copy")
 	if not observer.guard_states.is_empty():
 		var before: Dictionary = observer.guard_states[0]
 		runner.assert_eq(before.item, original, "preflight runs while the real stone remains at its source")
@@ -142,11 +186,14 @@ func _stone_moves_and_rejections(runner: Object) -> void:
 	runner.assert_true(world.advance_to_ms(int(place.due_ms)), "the original clock settles the placement")
 	runner.assert_eq(observer.guards.size(), 2, "placement has exactly one preflight")
 	runner.assert_eq(observer.notices.size(), 2, "placement publishes exactly once")
+	runner.assert_eq(second_observer.notices.size(), 2, "both listeners receive exactly one placement")
 	if observer.guards.size() >= 2 and observer.notices.size() >= 2:
 		runner.assert_eq(observer.guards[1], expected, "placement preflight describes the original holder and workplace")
 		runner.assert_eq(observer.notices[1], expected, "placement notification preserves the original change")
 		runner.assert_eq(observer.notice_states[1].last_kind, "placed", "placement success is recorded before its notice")
 		runner.assert_true(not bool(observer.notice_states[1].active), "placement releases its process before notification")
+	if second_observer.notices.size() >= 2:
+		runner.assert_eq(second_observer.notices[1], expected, "the second listener receives the same unmodified placement")
 	runner.assert_eq(world.artifacts.objects[STONE].container, "kitchen", "listener mutation cannot move the placed stone")
 	world.artifacts.describe(BUYER, STONE)
 	runner.assert_true(not bool(world.artifacts.begin(BUYER, "place", STONE).ok), "an already placed stone cannot be placed again")
@@ -177,6 +224,62 @@ func _stone_moves_and_rejections(runner: Object) -> void:
 	runner.assert_eq(world.artifacts.objects[STONE].container, "actor:player", "unguarded default moves the original stone")
 	runner.assert_eq(observer.guards.size(), 4, "clearing the guard makes no stale preflight call")
 	runner.assert_eq(observer.notices.size(), 3, "the later successful action publishes exactly once")
+
+
+func _cancel_other_due_action(runner: Object) -> void:
+	var fixture := Regional.new()
+	var world: RegionalSimulation = fixture._make_world(runner)
+	if world == null:
+		return
+	var opening: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/scenarios/artifacts.json"))
+	var other_id: String = "second_hearth_stone"
+	opening.objects.append({"id": other_id, "definition": "warm_stone", "region": "home", "container": "kitchen"})
+	var spawned: bool = world.artifacts.spawn_opening(opening)
+	runner.assert_true(spawned, "one original scenario creates two distinct warm stones")
+	if not spawned:
+		return
+	var kitchen: Vector2i = SimRouteTravel.cell(world.regions.home.places.kitchen.cell)
+	world.regions.home.set_actor_cell("chen_shouzhuo", kitchen)
+	world.regions.home.set_actor_cell("player", kitchen + Vector2i(1, 0))
+	world.invalidate_region("home")
+	var original: Dictionary = world.artifacts.objects[other_id].duplicate(true)
+	var initial_errors: Array[String] = world.errors.duplicate()
+	var first_reply: Dictionary = world.artifacts.begin("chen_shouzhuo", "take", STONE)
+	var second_reply: Dictionary = world.artifacts.begin("player", "take", other_id)
+	runner.assert_true(bool(first_reply.ok) and bool(second_reply.ok), "two bodies start two real takes on separate stones")
+	if not bool(first_reply.ok) or not bool(second_reply.ok):
+		return
+	var first_job: Dictionary = world.artifacts.active.chen_shouzhuo.duplicate(true)
+	var second_job: Dictionary = world.artifacts.active.player.duplicate(true)
+	runner.assert_eq(int(first_job.due_ms), int(second_job.due_ms), "both real actions are due in the same settlement batch")
+	var observer := CancellingObserver.new(world)
+	world.artifacts.transfers.committed.connect(observer.committed)
+	var expected: Dictionary = _expected(STONE, "home", "kitchen", "home", "actor:chen_shouzhuo", int(first_job.due_ms), str(first_job.id), "take")
+	runner.assert_true(world.advance_to_ms(int(first_job.due_ms)), "shared clock settles the first action and the callback")
+	runner.assert_true(observer.first_released and observer.second_was_active, "first committed callback runs after its own release while the later actor remains active")
+	runner.assert_eq(observer.cancellation_results, [true], "the first committed callback can cancel the other due action")
+	runner.assert_eq(observer.notices, [expected], "the cancelled second action emits no successful transfer")
+	runner.assert_eq(world.artifacts.objects[STONE].container, "actor:chen_shouzhuo", "the first original stone is held after completion")
+	runner.assert_eq(world.artifacts.objects[other_id], original, "the cancelled original stone remains at its source")
+	runner.assert_true(not world.artifacts.owns_actor("chen_shouzhuo") and not world.artifacts.owns_actor("player"), "both original action owners are released")
+	var first_events: Array[Dictionary] = []
+	var second_events: Array[Dictionary] = []
+	for event: Dictionary in world.artifacts.events:
+		if event.action == first_job.id:
+			first_events.append(event)
+		if event.action == second_job.id:
+			second_events.append(event)
+	runner.assert_eq(first_events.size(), 1, "the first action has one terminal record")
+	runner.assert_eq(second_events.size(), 1, "the cancelled second action has one terminal record")
+	if not first_events.is_empty():
+		runner.assert_eq(first_events[0].kind, "taken", "the first action succeeds")
+	if not second_events.is_empty():
+		runner.assert_eq(second_events[0].kind, "cancelled", "the second action only records cancellation")
+	var event_count: int = world.artifacts.events.size()
+	runner.assert_true(world.advance_to_ms(int(first_job.due_ms) + 1), "world time continues after the cancelled batch")
+	runner.assert_eq(world.errors, initial_errors, "settlement and subsequent time add no world errors")
+	runner.assert_eq(world.artifacts.events.size(), event_count, "later settlement creates no second result for either action")
+	runner.assert_eq(observer.notices.size(), 1, "later settlement emits no duplicate or cancelled transfer")
 
 
 func _draw_and_inflight_restore(runner: Object) -> void:

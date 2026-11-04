@@ -28,7 +28,13 @@ func allows(change: Dictionary) -> bool:
 
 
 func publish(change: Dictionary) -> void:
-	committed.emit(change.duplicate(true))
+	# Signals share their arguments across subscribers. Freeze every nested
+	# reference as well so an early observer cannot corrupt later observers.
+	var notice: Dictionary = change.duplicate(true)
+	for key: String in ["entity", "from", "to"]:
+		notice[key].make_read_only()
+	notice.make_read_only()
+	committed.emit(notice)
 
 
 static func describe(id: String, item: Dictionary, region: String, container: String, at_ms: int, action: String, cause: String) -> Dictionary:
