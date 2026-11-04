@@ -5,6 +5,7 @@ extends RefCounted
 
 const Shape = preload("res://scripts/sim/avian_schema.gd")
 const Legacy = preload("res://scripts/persistence/legacy_heat_v1.gd")
+const TransferBudget = preload("res://scripts/sim/thermal_transfer_budget.gd")
 const VERSION: int = 2
 const SIDES: Array[Vector2i] = [Vector2i.LEFT, Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN]
 const MAX_INTEGER: int = 9007199254740991
@@ -190,7 +191,12 @@ func _boundary_at(at_ms: int, state: Dictionary, active_flows: Array) -> int:
 	var next: int = MAX_INTEGER
 	if not active_flows.is_empty():
 		var distance: int = int(definitions.step_ms) - posmod(at_ms, int(definitions.step_ms))
-		next = at_ms + mini(distance, MAX_INTEGER - at_ms)
+		var span: int = TransferBudget.field_span(active_flows, state, int(definitions.max_cell_energy), distance)
+		if span == 0:
+			# A damaged/unsupported slope cannot borrow heat or free room from
+			# another flow in this same segment. Leave time pending explicitly.
+			return at_ms
+		next = at_ms + mini(span, MAX_INTEGER - at_ms)
 	for row: Dictionary in state.values():
 		var point := Vector2i(int(row.cell[0]), int(row.cell[1]))
 		next = mini(next, _boundary_for_pass(point, at_ms, context, by_region))

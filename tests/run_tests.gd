@@ -157,6 +157,10 @@ func test_artifact_transfers() -> void:
 	load("res://tests/sim/test_artifact_transfers.gd").new().run(self)
 
 
+func test_thermal_transfer_budget() -> void:
+	load("res://tests/sim/test_thermal_transfer_budget.gd").new().run(self)
+
+
 # ---------------------------------------------------------------------------
 # Test doubles
 # ---------------------------------------------------------------------------
