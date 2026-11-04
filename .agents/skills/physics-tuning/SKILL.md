@@ -1,11 +1,6 @@
 ---
 name: physics-tuning
-description: >
-  Tune game physics for stable, good-feeling motion — fixed vs variable
-  timestep, render interpolation, mass/gravity/drag, continuous collision
-  detection (CCD) to stop tunneling, fixing jitter, and collision layers/masks.
-  Engine-neutral. Use when the user mentions physics feel, jitter, tunneling,
-  fixed timestep, FixedUpdate, CCD, bouncing/unstable physics, or collision layers.
+description: "Tune game physics timestep, interpolation, collision detection, jitter, and motion stability."
 ---
 
 # Physics tuning

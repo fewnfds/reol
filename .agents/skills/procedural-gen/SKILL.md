@@ -1,12 +1,6 @@
 ---
 name: procedural-gen
-description: >
-  Generate game content procedurally — seeded deterministic RNG, value/Perlin/
-  Simplex noise for terrain and heightmaps, grid dungeon generation (rooms +
-  corridors, BSP, random walk, wave function collapse), and weighted loot/drop
-  tables. Engine-neutral algorithms. Use when the user mentions procedural
-  generation, perlin/simplex noise, random seed, dungeon generator, WFC,
-  heightmap/terrain, or loot tables.
+description: "Generate deterministic game terrain, noise, dungeons, or weighted loot with seeded randomness."
 ---
 
 # Procedural generation

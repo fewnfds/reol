@@ -1,8 +1,6 @@
 ---
 name: survival-crafting
-description: >
-  Build a survival-crafting game: resource gathering, inventory, crafting and a tech tree,
-  needs (hunger/thirst/temperature), and base building. Use for a survival or crafting/base-building game.
+description: "Build survival needs, gathering, inventory, crafting, technology, and base-building systems."
 ---
 
 # Survival Crafting

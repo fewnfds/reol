@@ -1,11 +1,6 @@
 ---
 name: level-design
-description: >
-  Design and build playable levels — the blockout/whitebox-to-playable workflow,
-  player metrics and grid layout, pacing and flow (tension/rest curve), gating
-  and the critical path, and encounter design. Engine-neutral practice. Use when
-  the user mentions level design, blockout/whitebox/greybox, level layout, level
-  pacing, encounter design, or the critical path through a level.
+description: "Design playable level layouts, blockouts, pacing, gating, critical paths, and encounters."
 ---
 
 # Level design

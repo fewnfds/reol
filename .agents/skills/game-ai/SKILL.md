@@ -1,12 +1,6 @@
 ---
 name: game-ai
-description: >
-  Design NPC and enemy decision-making with finite state machines, behavior
-  trees, steering behaviors, and A* pathfinding — engine-neutral algorithms
-  that pair with the detected engine's navigation API. Use when building enemy
-  AI, an FSM or behavior tree, steering/flocking, or pathfinding, or when the
-  user mentions state machine, behavior tree, blackboard, A*, navmesh, seek, or
-  patrol/chase.
+description: "Design NPC or enemy decisions, choose FSMs or behavior trees, and implement steering or pathfinding."
 ---
 
 # Game AI: decisions, steering, and pathfinding

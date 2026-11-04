@@ -1,11 +1,6 @@
 ---
 name: save-systems
-description: >
-  Design save/load for game state — choosing what to serialize, file formats,
-  save slots, atomic crash-safe writes, schema versioning and migration, and
-  autosave. Engine-neutral. Use when the user mentions save system, save/load,
-  game state persistence, save slots, autosave, save file corruption, or
-  migrating old saves to a new version.
+description: "Design game saves, versioned schemas, migrations, slots, autosave, and crash-safe writes."
 ---
 
 # Save systems

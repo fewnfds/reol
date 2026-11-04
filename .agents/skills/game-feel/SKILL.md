@@ -1,12 +1,6 @@
 ---
 name: game-feel
-description: >
-  Add "juice" and game feel that makes actions satisfying — screen shake, hit-stop/freeze
-  frames, tweened/eased motion, squash & stretch, knockback, and layered audio-visual
-  feedback — as engine-neutral techniques that pair with the detected engine's tween,
-  particle, and camera APIs. Use when the user mentions game feel, juice, "make it feel
-  good/punchy", screen shake, hit stop, screen freeze, easing, squash and stretch, impact
-  frames, or feedback/polish on hits, jumps, pickups, and deaths.
+description: "Polish action feedback with hit-stop, camera shake, easing, squash, knockback, or audiovisual effects."
 ---
 
 # Game feel (juice)

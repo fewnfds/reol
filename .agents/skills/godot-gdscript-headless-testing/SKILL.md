@@ -1,12 +1,6 @@
 ---
 name: godot-gdscript-headless-testing
-description: >
-  Run GDScript test suites from the command line with `godot --headless`, using a
-  SceneTree/MainLoop runner script that exits non-zero on failure so CI can gate
-  merges. Use when a Godot project needs unit tests without opening the editor,
-  when wiring a CI job (GitHub Actions or similar) that must fail the build on a
-  failing `.gd` test, or when a `godot --headless` invocation hangs, opens a
-  window, or exits 0 despite failed assertions.
+description: "Build or debug Godot GDScript headless test runners, CI exit codes, hangs, and async tests."
 ---
 
 # Godot GDScript headless testing (4.x)

@@ -1,8 +1,6 @@
 ---
 name: rpg
-description: >
-  Build an RPG: stats and leveling, inventory and equipment, quests, branching dialogue, save/load,
-  and combat. Use for an RPG/JRPG, or designing stat, inventory, quest, or combat systems.
+description: "Build RPG stats, progression, equipment, quests, dialogue, combat, and save systems."
 ---
 
 # RPG

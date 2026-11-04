@@ -1,11 +1,6 @@
 ---
 name: godot-tilemap
-description: >
-  Build and edit tile-based 2D levels in Godot 4.7 with TileMapLayer and TileSet:
-  paint layers, set up collision/navigation/custom-data on tiles, autotile with
-  terrain sets, and read/write cells from code (set_cell, get_cell_tile_data,
-  local_to_map). Use when working with TileMapLayer nodes, .tres TileSets, autotiling,
-  or migrating a deprecated TileMap node to TileMapLayer.
+description: "Build or edit Godot TileMapLayer and TileSet terrain, collisions, navigation, or cell data."
 ---
 
 # Godot TileMap (4.7 TileMapLayer)

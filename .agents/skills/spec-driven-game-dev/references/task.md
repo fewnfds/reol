@@ -23,11 +23,9 @@
 
 ## 验证
 
-```bash
-python tools/godot.py check
-# 或
-python tools/godot.py run --headless --quit-after 120
-```
+列出与任务行为和边界匹配的定向验证。游戏行为变更按项目要求在最终验收点运行
+`python tools/godot.py check`，或核对对应 CI 的结果；不要每改一个文件就重复全套。
+无头启动只能验证启动，不能替代回归或可见效果检查。仅文档变更检查结构、链接和差异。
 
 截图/日志：
 

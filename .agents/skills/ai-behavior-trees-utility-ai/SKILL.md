@@ -1,15 +1,6 @@
 ---
 name: ai-behavior-trees-utility-ai
-description: >
-  Build a production behavior-tree runtime (Blackboard, action/condition leaves,
-  sequence/selector/parallel composites, decorators) and a Utility AI system (response
-  curves — linear, exponential, sigmoid, quadratic — considerations, and action evaluators),
-  plus hybrid BT-drives-Utility agents. Use when implementing a reusable behavior-tree or
-  utility-based decision system, or tuning enemy/NPC decisions beyond a simple FSM, or when
-  the user mentions behavior tree, blackboard, decorator, selector, sequence, tick status,
-  utility AI, response/scoring curve, or consideration. For choosing between FSM/BT/steering
-  or for pathfinding, use game-ai; for Unreal's BehaviorTree/Blackboard assets, use
-  unreal-behavior-trees.
+description: "Build or tune reusable behavior trees, blackboards, decorators, Utility AI scores, or hybrid agents."
 ---
 
 # Behavior Trees & Utility AI

@@ -1,11 +1,6 @@
 ---
 name: godot-gdscript
-description: >
-  Write idiomatic GDScript for Godot 4.7: static typing, the node lifecycle
-  (_ready/_process/_physics_process), @export/@onready/@tool annotations,
-  signals, and await for asynchronous flow. Use when editing .gd scripts in a
-  Godot project (project.godot), writing or debugging GDScript, or porting 3.x
-  GDScript to 4.x (function signatures, yield to await, export to @export).
+description: "Write or debug GDScript typing, lifecycle, signals, annotations, and version migrations."
 ---
 
 # Godot GDScript (4.x)

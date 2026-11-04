@@ -1,12 +1,6 @@
 ---
 name: game-ui-ux
-description: >
-  Design and build game UI/UX — HUDs, menus, and overlays — that survive every screen: anchor-
-  based responsive layout, resolution/aspect scaling and safe areas, keyboard/gamepad focus
-  navigation, a screen/menu state stack, and event-driven (not polled) HUD updates. Engine-
-  neutral patterns that pair with the detected engine's UI skill. Use when the user mentions
-  HUD, health bar, main menu, pause menu, settings screen, UI layout, anchors, UI scaling,
-  aspect ratio, safe area, controller/keyboard menu navigation, or wiring UI to game state.
+description: "Design game HUDs, menus, focus navigation, responsive layout, and event-driven UI behavior."
 ---
 
 # Game UI/UX

@@ -1,11 +1,6 @@
 ---
 name: shader-programming
-description: >
-  Write game shaders from cross-engine fundamentals — the vertex→fragment
-  pipeline, coordinate spaces, UV math, and common 2D/3D effects (tint, UV
-  scroll, dissolve, outline, fresnel rim, vignette) in GLSL with HLSL
-  equivalents. Use when the user mentions shaders, fragment/pixel shader, vertex
-  shader, UV, GLSL, HLSL, or effects like dissolve, outline, or rim light.
+description: "Develop game shader effects using vertex and fragment pipelines, UVs, and GLSL/HLSL concepts."
 ---
 
 # Shader programming (cross-engine)

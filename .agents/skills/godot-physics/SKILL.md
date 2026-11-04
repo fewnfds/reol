@@ -1,12 +1,6 @@
 ---
 name: godot-physics
-description: >
-  Use Godot 4.7 physics bodies and detection in 2D and 3D: RigidBody, StaticBody,
-  Area, and CharacterBody; collision layers vs masks; contact/overlap signals; and
-  raycasts (RayCast nodes and direct space-state queries). Use when configuring
-  collision layers/masks, detecting overlaps with Area2D/Area3D, applying forces to a
-  RigidBody, or casting rays in a Godot project (.tscn with physics bodies), including
-  3D projects running Jolt Physics, the default 3D engine for projects created in 4.6+.
+description: "Configure Godot physics bodies, collision layers, overlaps, signals, or raycasts."
 ---
 
 # Godot Physics (4.x, 2D + 3D)

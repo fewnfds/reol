@@ -1,11 +1,6 @@
 ---
 name: godot-animation
-description: >
-  Animate in Godot 4.7 three ways: AnimationPlayer for keyframed clips (incl. Call
-  Method tracks), AnimationTree with state machines and blend spaces for
-  character animation, and Tween for short procedural/UI tweens via create_tween().
-  Use when working with AnimationPlayer/AnimationTree nodes in a .tscn, blending
-  character states, sprite-sheet animation, or code-driven Tweens.
+description: "Build Godot animations with AnimationPlayer, AnimationTree, sprite sheets, or Tweens."
 ---
 
 # Godot Animation (4.x)

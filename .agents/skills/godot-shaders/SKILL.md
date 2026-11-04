@@ -1,11 +1,6 @@
 ---
 name: godot-shaders
-description: >
-  Write Godot 4.7 shaders in the Godot Shading Language: canvas_item shaders for 2D
-  and spatial shaders for 3D, with vertex/fragment functions, uniforms (source_color,
-  hint_range), TIME/UV animation, and screen-reading via hint_screen_texture. Use
-  when authoring .gdshader files, writing fragment/vertex code, making 2D/3D visual
-  effects, or porting 3.x shaders (SCREEN_TEXTURE, hint_color) to 4.x.
+description: "Write or debug Godot canvas_item or spatial shaders and their uniforms or effects."
 ---
 
 # Godot Shaders (4.x)

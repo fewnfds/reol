@@ -1,11 +1,6 @@
 ---
 name: dialogue-systems
-description: >
-  Build branching dialogue and narrative — a node/choice graph with conditions,
-  variables, and localization hooks — and choose between authoring tools Ink and
-  Yarn Spinner or a custom data-driven runner. Engine-neutral. Use when the user
-  mentions dialogue system, branching dialogue, conversation tree, choices,
-  Ink (.ink), Yarn Spinner (.yarn), or NPC dialogue.
+description: "Build branching dialogue, choices, conditions, localization hooks, or Ink/Yarn/custom runners."
 ---
 
 # Dialogue systems

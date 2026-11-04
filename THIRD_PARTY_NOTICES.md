@@ -23,6 +23,7 @@
 - 许可证原文：`docs/third-party/awesome-gamedev-agent-skills-LICENSE`
 - 上游归属原文：`docs/third-party/awesome-gamedev-agent-skills-NOTICE`（与上述固定commit对应，2026-11-04补齐；未升级技能）
 - 分发形式：选取以下技能的 `SKILL.md` 及附带资源放在 `.agents/skills/`（2026-11-02 从 `.opencode/skills/` 迁移；上游版本不变）。
+- 本地修订（2026-11-04）：仅精简以下 31 项技能的 `SKILL.md` frontmatter 中 `description`，明确触发范围；技能名称、正文及附带资源保持固定 commit 的内容。更新时须保留或重新审查这些本地元数据修订。
 
 ### 已选取
 
@@ -58,12 +59,13 @@ Unity/Unreal/其他引擎、C#/多人、平台跳跃、卡牌、视觉小说、�
 ## 3. Godot AI（编辑器插件）
 
 - 上游：https://github.com/hi-godot/godot-ai
-- 版本：**v4.3.1**
+- 版本：**v4.4.1**；源commit `643c64f3edf984a9668b3043f4d20ebb2bbec6b6`
 - 许可证：**MIT**
 - 许可证原文：`docs/third-party/godot-ai-LICENSE`
 - 分发形式：`addons/godot_ai/`（随仓库提供）
 - 用途：编辑器内 MCP 工具（场景树、脚本、运行、日志、截图、输入模拟等）
-- 注意：插件运行在编辑器权限下；更新走 dock 的签名校验，不要手动覆盖。
+- 更新记录：2026-11-04经官方`script/v4-release verify/install`闭编辑器流程校验签名、身份、完整清单后整树安装；插件源文件未作本地修补，旧树与本机配置备份不入库。平时优先dock的签名更新，不手动混覆盖。
+- 注意：插件运行在编辑器权限下；实际工作流与限制见后续维护记录。
 
 ---
 

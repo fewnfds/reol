@@ -1,11 +1,6 @@
 ---
 name: audio-design
-description: >
-  Implement game audio practice — bus/mixer architecture and gain in decibels,
-  ducking (sidechain), adaptive/dynamic music via layering and re-sequencing,
-  SFX variation, and beat synchronization. Engine-neutral. Use when the user
-  mentions audio mixing, audio buses, adaptive/dynamic music, ducking, SFX
-  variation, music layers, or syncing gameplay to the beat.
+description: "Design game audio buses, ducking, adaptive music, sound variation, and beat synchronization."
 ---
 
 # Audio design

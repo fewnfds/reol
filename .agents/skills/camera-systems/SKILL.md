@@ -1,12 +1,6 @@
 ---
 name: camera-systems
-description: >
-  Build game cameras that feel good — 2D follow with a deadzone, look-ahead, smoothing, and
-  level-bounds clamping; 3D third-person orbit with collision and first-person look; plus
-  multi-target framing and a shake hook. Engine-neutral techniques that pair with the engine's
-  camera node and rigs like Unity Cinemachine or Godot Camera2D/PhantomCamera. Use when the user
-  mentions camera follow, follow camera, deadzone, look-ahead, camera smoothing, camera bounds/
-  limits, third-person camera, orbit camera, first-person look, Cinemachine, or camera jitter.
+description: "Design or tune game camera follow, deadzones, look-ahead, bounds, orbit, or multi-target framing."
 ---
 
 # Camera systems

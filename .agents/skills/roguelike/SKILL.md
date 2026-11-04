@@ -1,8 +1,6 @@
 ---
 name: roguelike
-description: >
-  Build a roguelike: turn-based grid movement, procedural dungeons, permadeath, field-of-view,
-  and loot tables. Use for a roguelike/roguelite or turn-based grid dungeon crawler with procedural levels.
+description: "Build roguelike grid movement, procedural dungeons, field of view, permadeath, or loot."
 ---
 
 # Roguelike

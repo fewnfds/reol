@@ -1,11 +1,6 @@
 ---
 name: godot-audio
-description: >
-  Play and mix audio in Godot 4.7: AudioStreamPlayer (2D/3D variants), audio buses
-  with volume/mute and effects, music vs SFX routing, db/linear volume, and precise
-  sync-to-beat playback timing. Use when playing sounds or music in a Godot project,
-  routing AudioStreamPlayer nodes to buses, adjusting bus volume via AudioServer, or
-  syncing gameplay to the beat.
+description: "Play, route, or mix audio in Godot using players, buses, effects, and playback timing."
 ---
 
 # Godot Audio (4.x)

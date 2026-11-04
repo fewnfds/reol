@@ -1,11 +1,6 @@
 ---
 name: godot-ui-control
-description: >
-  Build Godot 4.7 user interfaces with Control nodes: anchors and offsets for
-  responsive layout, Container nodes (VBox/HBox/Grid/Margin) for automatic
-  arrangement, Theme resources for consistent styling, and keyboard/gamepad focus
-  navigation. Use when laying out a HUD, menu, or UI in a Godot project, working
-  with Control/Container nodes, anchors, themes, or focus in a .tscn.
+description: "Build Godot Control layouts, containers, themes, anchors, and focus navigation."
 ---
 
 # Godot UI / Control nodes (4.x)
