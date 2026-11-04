@@ -585,3 +585,5 @@ doctor正常；最终导入5.822秒/1004765184B工作集，0引擎错误。所�
 另以W2b既有原生50快照和此前已登记的checkpoint/未来SHA运行原`local_light_capture.gd -- read`，继续完全相同未来并保旧手写温度曲线；6.126秒/595738624B、无引擎错误，证据`logs/geographic-old50-native.json`。这是已存在本机原生档的停开验证，不冒称新增入库fixture。最初新QA入口过早静态引用含autoload的runtime导致GameClock编译错误，已改为入树后动态加载；首次warm因身份选择恢复时钟推进350ms，QA改为选择后明确暂停，最终零时刻重测通过。原失败日志保留，不当作产品通过或删门禁。
 
 本次实际提交准备集中核`2364b0fa62aaa4596c7d2f6422a27ac44bc2ce20` / [41908579492](https://github.com/fewnfds/reol/actions/runs/41908579492)为completed/failure，artifact在`logs/ci/41908579492-artifacts/`：223组通过/1断言失败/29069断言，仍是W2b已经窄修的鸟类天光预期及已删小时函数调用，不新增修复或重跑全套；不能称绿色。仅一次发现前推送`12f4cf9b5d968e290c5e955601b0ea1ca1ff0388` / [41913715806](https://github.com/fewnfds/reol/actions/runs/41913715806)为in_progress，登记后不等/不轮询。当前包原生审查及最终SHA完整CI接续，定向和旧绿不替代最终回归，Goal继续active。
+
+W1b代码`a08bc88cafd7d63872937925eb0148d0071c6368`一次Sol/custom显式read-only原生静态审查108.055秒、退出0，无可操作发现；核编译边界/周期、完整包/digest隔离、Main开局与唯一时钟起点、旧热/人体/草木事实保留。审查未运行引擎/测试/基准/CI、未改文件，不重复整包审查。实际日志`logs/reviews/<SHA>.explicit-sol.log`和`.explicit-sol.summary.json`。22文件暂存检查无凭据模式、第三方/原fixture/输出及超大资源，结构201当前文档/395脚本0错误、diff通过；代码与本纯文档登记合并推送，不在推后等待或查询CI，最终SHA完整回归仍待验。
