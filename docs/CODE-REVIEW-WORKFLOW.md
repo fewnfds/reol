@@ -2,6 +2,8 @@
 
 更新：2026-11-04。依据当日实际读取的[桌面审查](https://developers.openai.com/codex/app/review)、[GitHub集成](https://developers.openai.com/codex/integrations/github)、[官方Action](https://developers.openai.com/codex/github-action)及[计费说明](https://developers.openai.com/codex/pricing)。本机CLI为`0.166.0-alpha.6`，`codex review --help`已核对；未升级客户端或改变模型。
 
+**账户与路由约束**：用户使用公司路由API，GPT订阅只有免费额度。默认采用本地原生审查，沿用本机已配置的`custom` provider；不依赖GPT订阅，不启用GitHub云端审查或额外付费模型Action。本轮仅核查了非敏感配置，未读取/输出密钥，也未发起额外模型审查请求。官方[配置说明](https://developers.openai.com/codex/config-advanced)支持自定义路由，[配置参考](https://developers.openai.com/codex/config-reference)说明`review_model`默认沿用当前会话模型；本机未另设审查模型。宿主若有单独覆盖，仍需以实际审查请求记录核对，不能只凭模型名称保证计费线路。
+
 ## 采用的流程
 
 每个可解释的工作包：开发与定向验证 → Git提交 → 一次原生Codex审查 → 修复有效问题 → 推送与一次对应版本CI → 记录结果。以具体提交及代码差异为审查对象，不以聊天历史为唯一依据。文档小改仅检查结构、链接及差异，不启动模型审查或完整Godot回归。
@@ -47,9 +49,11 @@ CI负责执行确定性的检查和测试；Codex负责理解差异、找行为�
 3. 正式采用PR流程时，将重型CI改为PR更新、默认分支推送及手动触发；未建PR的中间提交只跑定向检查，需要完整证据时手动触发一次。改触发器与建立PR流程同包交付，避免分支失去验证。
 4. 若后来要求PR必需检查，先处理纯文档PR：现在`paths-ignore`会使整个workflow不运行。应始终给出轻量检查状态，再按改动选择重型Godot工作；不能直接把会跳过的检查设成必需项。
 
-GitHub审查设置建议先用**手动每包一次**，避免每次推送都消耗模型。需要自动审查时再选择合适的`Review trigger`。云端PR审查和本地审查选一个作为该包主要审查入口；专项复核要有具体理由。原生GitHub集成走账户可用额度；Action要求单独的API密钥，API计费与订阅使用分开，不能当作免费CI测试。
+**当前不采用GitHub云端模型审查**。原生GitHub集成走Codex账号可用额度，不能假定能转到公司的模型路由；免费额度不适合作为持续审查基础。以后用户更换条件时，才考虑手动每包一次或合适的`Review trigger`。Action要求API认证并执行模型任务，API计费与订阅使用分开；官方Action示例也不能直接证明兼容公司网关，不在没有验证的情况下部署。
 
-用户需要操作的账号步骤只有：在Codex设置连接`fewnfds/reol`并开启该仓库的Code Review；自动审查另在仓库/个人偏好中配置。是否可用、额度和开关以实际账号界面为准。本项目已有`gh`和CI，不为查看同一仓库再安装一套GitHub MCP。
+用户当前**无需开启Codex云端仓库审查**。GitHub只运行现有Godot/Python检查，本地Codex通过公司路由审查差异、读取CI结果。一般GitHub Actions计算时间/配额与模型tokens是两回事；不调用模型的测试不消耗模型tokens。本项目已有`gh`和CI，不为查看同一仓库再安装一套GitHub MCP。
+
+审查本身仍是模型工作：差异、相关代码、工具结果及推理都会消耗tokens，没有可信的固定“每个PR用量”。用一个工作包、精确提交和一个主要审查者控制范围；不把全仓每次重读、每次推送审查或CI轮询当常规操作。需要无人值守时，优先评估本机事件驱动地调用原生CLI并沿用公司路由，不先增加云端订阅依赖或长期轮询器。
 
 ## 等待和验收
 

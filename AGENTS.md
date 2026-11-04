@@ -62,6 +62,7 @@ Reol是GDScript / 2D正交俯视的修仙开放世界沙盒、宗门模拟与RPG
 - 采用`docs/CODE-REVIEW-WORKFLOW.md`：工作包定向验证→提交→一次原生Codex审查→修复有效问题→推送/对应版本CI。文档小改不启动模型审查或Godot全套。
 - 普通代码包优先桌面`/review`或CLI`codex review --commit <完整SHA>`；存在其他半成品时不盲用全部未提交改动、存在大段历史时不盲用main作基准。审查只读，修复另一步。
 - 每包一个主要审查者；子代理用于实现或明确的高风险专项，不重复整包审查、不派代理等CI。启用GitHub原生审查后可代替本地主审，不默认叠加；小修只补查受影响路径。
+- 用户使用公司路由API，GPT订阅仅免费额度。原生本地审查沿用已配置provider，不另改全局模型/路由；当前不启用依赖Codex账号额度的GitHub云端审查，不新增模型Action。GitHub CI只运行程序测试，不消耗模型tokens；路由与实际请求须按非敏感配置/记录核对。
 - 当前保留分支push CI。正式采用PR流程时才同步调整重型CI触发去重，区分head与merge SHA；不因只改触发器让无PR分支失去验证，不自动合并积压历史。
 
 ## Code Review Rules
