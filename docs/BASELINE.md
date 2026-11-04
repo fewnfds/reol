@@ -271,3 +271,21 @@ C1a-3实际提交准备一次查得C1a-2修复SHA `e62dee50361c56654db6ecb4ef198
 C1a-3默认/两个独立Callable及混合接入专项113项通过，1.596秒/峰值213270528B（`logs/thermal-reuse-query.json`），覆盖双气候边界、边界前后1ms、非零天气epoch、图外邻格fallback、历史冻流独立JSON恢复并续同未来、自定义同地区不同格底量与各格不同边界。测试不读取或构造缓存内部结构。
 
 C1a-3性能代码提交`9438291bddd0b7d8b676a9b90e1340a2f0cee51e`，一次原生Sol/custom静态审查84.539秒结束，无可操作发现（`logs/reviews/<SHA>.explicit-sol.log`）；审查未运行引擎/测试/CI。导入与结构检查通过（`logs/import-20261105-005042.log`）。最终SHA完整回归仍待CI，下次真实提交集中核对，不主动等待。
+
+### A1b-0 原容器归处与数量查询（审查/最终回归接续）
+
+`SimStorageQuery`只读原village/avian账本及真实身体/地点/工程材料锚点，独特器物非野外位置查询复用；无新实体ID、库存、持久状态或版本。引用严格domain/region/container，数量增加item；报告来源时刻/stale与world backlog，数量含原可用/托管，不提供免费转移。自然虚拟资源、粗粒度货运/嵌套箱等首包明确不支持，不默认原点。
+
+主代理顺序有界定向均通过（30秒/1GiB，无引擎错误），表中数量分别表示覆盖范围，不相加声称完整回归：
+
+| 组 | 断言/失败 | 时间 / 峰值工作集 | 日志 |
+|---|---|---|---|
+| entity | 76 / 0 | 2.918秒 / 226783232B | `logs/storage-query-entity.json` |
+| large | 104 / 0 | 2.211秒 / 223920128B | `logs/storage-query-large.json` |
+| artifacts | 91 / 0 | 2.565秒 / 225116160B | `logs/storage-query-artifacts.json` |
+| storage | 86 / 0 | 2.050秒 / 221671424B | `logs/storage-query-storage.json` |
+| special | 59 / 0 | 3.166秒 / 227028992B | `logs/storage-query-special.json` |
+
+覆盖实际native预约/取货/连续搬运/托管中断/独立JSON恢复后续送同一完整未来、双地同名仓库、陈旧远区/目标积压、不改原账本/输入与返回值隔离；原工程材料取料后仍归project容器、随原身体、中断落material_cell；真实鸟域投食求药/衔药飞行及独立恢复，原库存和高度保持。首次新增测试直接用Dictionary比较JSON托管数值int/float导致一条失败，已统一完整JSON规范值比较，产品账本未放宽。新runner原先引用未注册函数导致临时脚本解析失败，已改动态指定测试，正式runner同步注册。普通画面和玩家功能未改，纯规则定向不代替大世界或视觉性能。
+
+本包doctor/导入通过（最终导入控制台`logs/storage-query-final-import-console.log`）。提交准备时核前序e62dee5的CI41869387451为completed/cancelled，非通过；一次发现前序完整SHA `2102ce8a23aac2222911ecad9e0f8c0945d4ca56` 的CI `41872018227`仍in_progress，登记留到下一真实提交，不等待/轮询。

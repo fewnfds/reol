@@ -145,6 +145,14 @@ func test_heat_query_reuse() -> void:
 	load("res://tests/sim/test_heat_query_reuse.gd").new().run(self)
 
 
+func test_storage_query() -> void:
+	load("res://tests/sim/test_storage_query.gd").new().run(self)
+
+
+func test_storage_special_anchors() -> void:
+	load("res://tests/sim/test_storage_special_anchors.gd").new().run(self)
+
+
 # ---------------------------------------------------------------------------
 # Test doubles
 # ---------------------------------------------------------------------------

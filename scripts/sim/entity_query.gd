@@ -162,18 +162,12 @@ static func _artifact(world: RegionalSimulation, id: String) -> Dictionary:
 		location_owner = "field_opportunities"
 		location_time = world.elapsed_ms
 	else:
-		var sim: VillageSimulation = world.regions[region]
-		if container.begins_with("actor:"):
-			point = _actor_position(sim.actors.get(container.trim_prefix("actor:")))
-		else:
-			var place: Variant = sim.places.get(container)
-			if not place is Dictionary or not VillageSimulation._valid_cell(place.get("cell")):
-				return _failure("invalid_location")
-			point = TileGrid.cell_to_world(SimRouteTravel.cell(place.cell))
-		if point == null:
-			return _failure("invalid_location")
-		location_owner = "village_simulation"
-		location_time = sim.elapsed_ms
+		var anchor: Dictionary = SimStorageQuery.locate(world, {"domain": "village", "region": region, "container": container})
+		if not bool(anchor.ok):
+			return anchor
+		point = anchor.position
+		location_owner = str(anchor.location_owner)
+		location_time = int(anchor.location_time_ms)
 	# Artifacts have the regional world's committed clock; a held object's
 	# position may still depend on an older, independently batched village.
 	var result: Dictionary = _position_result(world, "artifact", id, point, "artifacts", region, world.elapsed_ms, location_owner, location_time)
@@ -186,11 +180,7 @@ static func _actor_position(body: Variant) -> Variant:
 	# Human bodies use the village's own coordinate contract, not the bird
 	# domain's current fixed-map bounds. The original cell still has to match
 	# the continuous position; this query must never silently repair either.
-	if not body is Dictionary or not SimLocalMotion._vector(body.get("position")) or not VillageSimulation._valid_cell(body.get("cell")):
-		return null
-	var raw: Array = body.position
-	var point := Vector2(float(raw[0]), float(raw[1]))
-	return point if TileGrid.world_to_cell(point) == SimRouteTravel.cell(body.cell) else null
+	return SimStorageQuery.actor_position(body)
 
 
 static func _position_result(world: RegionalSimulation, kind: String, id: String, point: Vector2, owner: String, record_region: String, owner_ms: int, location_owner: String, location_ms: int) -> Dictionary:

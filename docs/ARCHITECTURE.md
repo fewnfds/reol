@@ -27,6 +27,7 @@ main / 场景装配
 | [SimMotionClearance](../scripts/sim/motion_clearance.gd) | 只读解析原过程当前首段及对角扫掠；固定运粮道路保守清场 | 不保存第二套位置/路线；施工新增阻挡和兽身清场复用，后续路线重规划仍待接 |
 | [SimEmbodiment](../scripts/sim/embodiment.gd) | 主体、载体居留、移动/行动/通信控制 | 居留不等于控制，控制通道不等于行动占用 |
 | [SimEntityQuery](../scripts/sim/entity_query.gd) | 无状态、只读地解析人物/雀身/独特器物/大型身体的原位置与记录所有者 | 不登记第二实体表、不推进时间；区域滞后和世界积压分别标明，不能直接作玩家所知 |
+| [SimStorageQuery](../scripts/sim/storage_query.gd) | 无状态解析原区域/鸟域容器与数量条目；身体/地点/工程/鸟身提供原锚点 | 引用限定domain/region/container，数量多item；不生成实物、同步或赋予搬运权限 |
 | [SimInventory](../scripts/sim/inventory_ledger.gd) | 容器内堆叠数量、预约、操作与受托责任 | 责任引用实物，不再存一份数量；不等于完整产权 |
 | [SimArtifacts](../scripts/sim/artifacts.gd)、[SimClothing](../scripts/sim/clothing.gd)、实物方法记录 | 独特物件位置/来源、穿法/湿润、有限器物过程与阅读记录 | 不同时复制成普通数量库存，持有/看见/读过不等于学会 |
 | [SimSocialMemory](../scripts/sim/social_memory.gd)、[SimInstitutionBook](../scripts/sim/institution_book.gd) | 本人有来源的认识/决定；机构任职和贡献记录 | 关系/礼遇/权限/实际履约分开；未实现通用ClaimBook/司法/继任 |
@@ -90,6 +91,10 @@ C1a-2当前写根48/区域40/村落7，热定义及状态2、人体环境3、土
 区域和runtime在身体/旅途前预检热场下一冻结段的数值预算。失败保留目标和未处理时间，不扣该段资源；GameClock可已记入期望时间及帧积压，不能声称全局所有时间都未变化。期望时钟与物理时刻不等时，普通save_game在任何文件写入前ERR_BUSY，保护原主档/备份；当前格式不承诺保存未结算时间。当前源仍是原器物的一次有限放热，不包含寒冰石、持续或移动源。
 
 C1a-3在每次冻结流与边界查询内对默认气候地区复用一次背景/下一边界，不保留跨次缓存。温度和边界Callable分别保留逐格语义；候选以自己的传入anchor/segment重建，不借活时刻。该优化不改变Q、时序、版本或512格上限；性能及相同未来证据只见BASELINE。
+
+A1b-0容器归处先支持原区域人物/地点、工程材料的carrier/material_cell，以及鸟域的bird/site。`locate`返回原库存及位置owner/time、carrier、stale与积压，`item`只追加entry_present/quantity/available/entrusted。数量引用不是实例ID，原账零项与不存在项明确区分；当前数量账无统一物品目录，不伪造目录限制。工程材料在project库存里随人移动，中断仍在同一库存、位置转material_cell；空容器有锚点不表示有材料。鸟货物只在鸟域账本，位置沿鸟身，不复制成人物库存。原器物的非野外位置查询也复用同一容器接缝，野外slot继续归field域。
+
+这些查询用于规则/编辑调试，不能直接作玩家有限所知，也不能旁路原取放/预约/权限。原位置时刻较旧时不自动结算。当前只支持上述已证明的锚点；自然resource虚拟账、在途货运/嵌套箱等未接时明确unsupported，不推断原点/人物或精确运动。无新增持久状态/格式；统一成功变更通知、受控生成、可搬容器及跨格预检仍待后包。
 
 ## 仍需建立的通用接缝
 
