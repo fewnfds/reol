@@ -157,6 +157,10 @@ func test_thermal_compressed_field() -> void:
 	load("res://tests/sim/test_thermal_compressed_field.gd").new().run(self)
 
 
+func test_thermal_allocation() -> void:
+	load("res://tests/sim/test_thermal_allocation.gd").new().run(self)
+
+
 func test_heat_geometry_reuse() -> void:
 	load("res://tests/sim/test_heat_geometry_reuse.gd").new().run(self)
 

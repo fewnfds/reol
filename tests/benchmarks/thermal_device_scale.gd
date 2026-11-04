@@ -1,5 +1,5 @@
 extends SceneTree
-## Real-device scale probe. Run with -- 1, 4 or 16 under an external process
+## Real-device scale probe. Run with -- 1, 4, 16, 24 or 64 under an external process
 ## guard. Optional second argument "reference" disables production geometry
 ## reuse for the measured worlds; independent restores keep production policy.
 ## Counts identify original artifacts, never a requested heat-cell count.
@@ -11,6 +11,8 @@ const FUTURE_SLICES: Array = [[337, 5000, 7337], [1, 1199, 7336, 7337]]
 
 var _failed: int = 0
 var _reference_geometry: bool = false
+var _original_max_cells: int = -1
+var _benchmark_max_cells: int = -1
 
 
 func _initialize() -> void:
@@ -26,8 +28,8 @@ func _check(condition: bool, label: String) -> bool:
 
 func _run() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
-	if args.size() < 1 or args.size() > 2 or not args[0].is_valid_int() or int(args[0]) not in [1, 4, 16] or (args.size() == 2 and args[1] != "reference"):
-		_fail("expected actual artifact count 1, 4 or 16, optionally followed by reference")
+	if args.size() < 1 or args.size() > 2 or not args[0].is_valid_int() or int(args[0]) not in [1, 4, 16, 24, 64] or (args.size() == 2 and args[1] != "reference"):
+		_fail("expected actual artifact count 1, 4, 16, 24 or 64, optionally followed by reference")
 		return
 	var count: int = int(args[0])
 	_reference_geometry = args.size() == 2
@@ -59,7 +61,8 @@ func _run() -> void:
 	_check(int(off_result.initial.cells) == 0 and int(off_result.final.cells) == 0 and int(off_result.final.flows) == 0, "off baseline retains a quiet field")
 	_check(int(off_result.final.continuous_input) == 0 and int(off_result.final.absorbed_energy) == 0, "off baseline transfers no device energy")
 	_check(int(enabled_result.initial.devices) == count and int(enabled_result.initial.enabled_devices) == count, "requested count equals actual enabled original artifacts")
-	_check(int(enabled_result.initial.cells) > 0 and int(enabled_result.initial.flows) > 0, "real activation creates field cells and flows")
+	_check(int(enabled_result.final.devices) == count and int(enabled_result.final.enabled_devices) == count, "the measured workload retains every actual enabled artifact")
+	_check(int(enabled_result.initial.cells) == count * 25 and int(enabled_result.final.cells) == count * 25 and int(enabled_result.initial.flows) > 0, "real nonoverlapping devices allocate exactly their 25 actual cells each")
 	for id: String in enabled_result.device_changes:
 		var change: Dictionary = enabled_result.device_changes[id]
 		if change.mode == "emit":
@@ -71,6 +74,11 @@ func _run() -> void:
 		return
 	var report: Dictionary = {
 		"benchmark": "thermal_device_scale", "requested_artifacts": count,
+		"heat_cell_budget": {"loaded_original_max_cells": _original_max_cells,
+			"benchmark_max_cells": _benchmark_max_cells,
+			"changed": _original_max_cells != _benchmark_max_cells,
+			"scope": "Only each independent in-memory benchmark content binding before world initialization; formal data definition is unchanged.",
+			"other_thermal_rules": "unchanged from loaded content"},
 		"geometry_policy": "uncached_reference" if _reference_geometry else "production",
 		"engine": Engine.get_version_info(), "os": OS.get_name(),
 		"processor": OS.get_processor_name(), "logical_processors": OS.get_processor_count(),
@@ -85,7 +93,7 @@ func _run() -> void:
 			"baseline": "Both worlds complete personal study; only enabled completes enable. Existing residents are nonautonomous, helpers empty, home opening grain zero, river IDs prefixed, as in the regional fixture."
 		},
 		"off": off_result, "enabled": enabled_result,
-		"limitations": "One externally guarded headless process; off measured first, enabled second. Actual allocated cells are reported without claiming 128/512-cell workloads. Extra operators and places are declared before initialization. No rendering, frame-time or FPS capacity is measured. Forty timing samples are descriptive; p99 is their maximum."
+		"limitations": "One externally guarded headless process; off measured first, enabled second. For 24/64 sources the in-memory max_cells bound is raised solely for this isolated benchmark, so these results do not establish production capacity beyond its original bound. Extra operators and places are declared before initialization. No rendering, frame-time or FPS capacity is measured. Forty timing samples are descriptive; p99 is their maximum."
 	}
 	print("BENCHMARK_JSON " + JSON.stringify(report, "", true, true))
 	quit(0)
@@ -95,6 +103,16 @@ func _make_world(count: int) -> RegionalSimulation:
 	var content := ReolContentDB.new()
 	if not _check(content.load_all(), "load original content before declaring the benchmark opening"):
 		return null
+	var loaded_max_cells: int = int(content.local_heat.max_cells)
+	var benchmark_max_cells: int = maxi(loaded_max_cells, count * 25)
+	if _original_max_cells < 0:
+		_original_max_cells = loaded_max_cells
+		_benchmark_max_cells = benchmark_max_cells
+	if not _check(loaded_max_cells == _original_max_cells and benchmark_max_cells == _benchmark_max_cells, "every independent world uses the same original and benchmark heat-cell limits"):
+		return null
+	# Change only the isolated in-memory definition before any world owner is
+	# assembled; all other thermal rules still come from the loaded content.
+	content.local_heat.max_cells = benchmark_max_cells
 	var opening: Array[Dictionary] = []
 	for index: int in range(count):
 		var id: String = _device_id(index)
@@ -112,6 +130,8 @@ func _make_world(count: int) -> RegionalSimulation:
 	var settings: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/scenarios/world_continuity.json"))
 	var world := RegionalSimulation.new()
 	if not _check(world.initialize(settings, instances, content), "initialize ordinary regional owners: " + str(world.errors)):
+		return null
+	if not _check(world._content == content and world.local_heat.definitions == content.local_heat, "the world binds the same benchmark thermal content used to assemble it"):
 		return null
 	if _reference_geometry:
 		# Rebind only the callback policy before any object/action/thermal source
@@ -226,10 +246,14 @@ func _measure(world: RegionalSimulation, count: int, label: String) -> Dictionar
 		var candidate_setup_ms: float = _ms_since(started)
 		if candidate == null:
 			return {}
+		if not _check(candidate._content != world._content and candidate._content.local_heat == world._content.local_heat and candidate.local_heat.definitions == world.local_heat.definitions, label + " independent restore candidate binds identical benchmark heat content"):
+			return {}
 		started = Time.get_ticks_usec()
 		var restored: bool = candidate.restore(decoded)
 		var restore_ms: float = _ms_since(started)
 		if not _check(restored, label + " independently restores complete JSON state"):
+			return {}
+		if not _check(candidate.local_heat.definitions == world.local_heat.definitions and candidate._content.local_heat == world._content.local_heat, label + " restored candidate retains the same benchmark heat rules"):
 			return {}
 		_check(candidate != world and candidate.local_heat != world.local_heat and candidate.artifacts != world.artifacts, label + " restore retains independent original owners")
 		if not _check(_json(candidate.to_dict()) == canonical_snapshot, label + " JSON restore preserves every saved domain"):

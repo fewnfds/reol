@@ -22,7 +22,7 @@ var _cell_store := CellStore.new()
 ## Detached diagnostics only. Rules mutate the one cell store, never this view.
 var cells: Dictionary:
 	get:
-		var projected: Dictionary = _cell_store.materialize().duplicate(true)
+		var projected: Dictionary = _cell_store.snapshot()
 		for row: Dictionary in projected.values():
 			row.make_read_only()
 		projected.make_read_only()
@@ -364,26 +364,19 @@ func _switch_plan(id: String, enabled: bool) -> Dictionary:
 	var point: Vector2i = _device_cell(item)
 	if not _valid_cell(point):
 		return {"ok": false}
-	var planned: Dictionary = _cell_store.materialize().duplicate(true)
-	var baseline_sum: int = 0
-	if enabled:
-		for cell: Vector2i in _patch(point):
-			var key: String = _key(cell)
-			if planned.has(key):
-				continue
-			var energy: int = _baseline(cell, now)
-			if energy < 0 or energy > int(definitions.max_cell_energy) or baseline_sum > MAX_INTEGER - energy:
-				return {"ok": false}
-			baseline_sum += energy
-			planned[key] = {"cell": [cell.x, cell.y], "energy": energy, "allocated_ms": now, "baseline_energy": energy}
-	if planned.size() > int(definitions.max_cells) or baseline_sum > int(definitions.max_exchange_energy) - ambient_in or baseline_sum > MAX_INTEGER - input_energy - continuous_input - ambient_in:
+	# Reject logical capacity and allocation costs before projecting the old
+	# field. Its six-Q patches always reserve room for all 25 physical cells.
+	var allocation: Dictionary = _new_cells_plan(point, enabled)
+	if not bool(allocation.ok):
 		return {"ok": false}
+	var planned: Dictionary = _cell_store.snapshot()
+	planned.merge(allocation.cells)
 	var proposed: Dictionary = objects.duplicate(true)
 	proposed[id].enabled = enabled
 	var flow_plan: Dictionary = _flow_plan(planned, now, proposed)
 	if not bool(flow_plan.ok):
 		return {"ok": false}
-	return {"ok": true, "cells": planned, "ambient": baseline_sum}
+	return {"ok": true, "cells": planned, "ambient": int(allocation.ambient)}
 
 
 func can_switch_device(id: String, enabled: bool) -> bool:
@@ -510,37 +503,62 @@ func settle_at_ms(now: int) -> bool:
 
 
 func can_deposit(cell: Vector2i, amount: int) -> bool:
+	return bool(_pulse_plan(cell, amount).ok)
+
+
+func _pulse_plan(cell: Vector2i, amount: int) -> Dictionary:
 	if definitions.is_empty() or not _valid_cell(cell) or not Shape.count(amount, 1, int(definitions.pulse_energy)) or input_energy + continuous_input > int(definitions.max_total_input) - amount:
-		return false
-	var source_q: int = _cell_store.energy_at(_key(cell)) if _cell_store.has(_key(cell)) else _baseline(cell, last_ms)
+		return {"ok": false}
+	var allocation: Dictionary = _new_cells_plan(cell)
+	if not bool(allocation.ok):
+		return allocation
+	var key: String = _key(cell)
+	var source_q: int = _cell_store.energy_at(key) if _cell_store.has(key) else int(allocation.cells[key].energy)
 	if source_q > int(definitions.max_cell_energy) - amount:
-		return false
-	var added: int = 0
+		return {"ok": false}
+	if int(allocation.ambient) > MAX_INTEGER - input_energy - continuous_input - ambient_in - amount:
+		return {"ok": false}
+	return allocation
+
+
+func _new_cells_plan(center: Vector2i, allocate_patch: bool = true) -> Dictionary:
+	# Membership is cheap metadata. Count the entire union before projecting Q
+	# or querying any new baseline, and reserve the fully fine representation.
+	if definitions.is_empty() or not _valid_cell(center):
+		return {"ok": false}
+	var missing: Array[Vector2i] = []
+	if allocate_patch:
+		for point: Vector2i in _patch(center):
+			if not _cell_store.has(_key(point)):
+				missing.append(point)
+	if _cell_store.count() + missing.size() > int(definitions.max_cells):
+		return {"ok": false}
+	var added: Dictionary = {}
 	var baseline_sum: int = 0
-	for point: Vector2i in _patch(cell):
-		if _cell_store.has(_key(point)):
-			continue
+	for point: Vector2i in missing:
 		var energy: int = _baseline(point, last_ms)
 		if energy < 0 or energy > int(definitions.max_cell_energy) or baseline_sum > MAX_INTEGER - energy:
-			return false
+			return {"ok": false}
 		baseline_sum += energy
-		added += 1
-	return _cell_store.count() + added <= int(definitions.max_cells) and baseline_sum <= int(definitions.max_exchange_energy) - ambient_in and baseline_sum <= MAX_INTEGER - input_energy - continuous_input - ambient_in - amount
+		added[_key(point)] = {"cell": [point.x, point.y], "energy": energy, "allocated_ms": last_ms, "baseline_energy": energy}
+	if baseline_sum > int(definitions.max_exchange_energy) - ambient_in or baseline_sum > MAX_INTEGER - input_energy - continuous_input - ambient_in:
+		return {"ok": false}
+	return {"ok": true, "cells": added, "ambient": baseline_sum}
 
 
 func deposit(source_receipt: Dictionary) -> bool:
 	if not _valid_receipt(source_receipt, activation_ms) or receipts.has(source_receipt.action) or int(source_receipt.at_ms) != int(world.get("elapsed_ms")) or int(source_receipt.at_ms) < last_ms:
 		return false
 	var point := Vector2i(int(source_receipt.cell[0]), int(source_receipt.cell[1]))
-	if not settle_at_ms(int(source_receipt.at_ms)) or not can_deposit(point, int(source_receipt.amount)):
+	if not settle_at_ms(int(source_receipt.at_ms)):
+		return false
+	var allocation: Dictionary = _pulse_plan(point, int(source_receipt.amount))
+	if not bool(allocation.ok):
 		return false
 	_compression_sites_dirty = true
-	for cell: Vector2i in _patch(point):
-		var key: String = _key(cell)
-		if not _cell_store.has(key):
-			var energy: int = _baseline(cell, last_ms)
-			_cell_store.allocate(key, {"cell": [cell.x, cell.y], "energy": energy, "allocated_ms": last_ms, "baseline_energy": energy})
-			ambient_in += energy
+	for key: String in allocation.cells:
+		_cell_store.allocate(key, allocation.cells[key])
+	ambient_in += int(allocation.ambient)
 	_cell_store.add_energy(_key(point), int(source_receipt.amount))
 	input_energy += int(source_receipt.amount)
 	receipts[str(source_receipt.action)] = _normalized_receipt(source_receipt)
@@ -570,6 +588,20 @@ func cell_row(key: String) -> Dictionary:
 
 func storage_summary() -> Dictionary:
 	return {"logical_cells": _cell_store.count(), "q_slots": _cell_store.slot_count()}
+
+
+func allocation_capacity() -> Dictionary:
+	# Developer diagnostics only: counts, not memory bytes or a second Q
+	# balance. Every admitted cell reserves a fully fine fallback, so natural
+	# weather/topology boundaries never need a new capacity decision.
+	if definitions.is_empty():
+		return {}
+	var logical: int = _cell_store.count()
+	var slots: int = _cell_store.slot_count()
+	return {"max_logical_cells": int(definitions.max_cells), "logical_cells": logical,
+		"q_slots": slots, "refinement_reserve_q_slots": logical - slots,
+		"fully_fine_q_slots": logical,
+		"flow_record_limit": int(definitions.max_cells) * 6 + _device_objects().size()}
 
 
 func local_tenths(cell: Vector2i, at_ms: int = -1) -> int:
@@ -665,7 +697,7 @@ func to_dict() -> Dictionary:
 		_freeze()
 	return {"version": VERSION, "rules_version": VERSION, "activation_ms": activation_ms,
 		"model_started_ms": model_started_ms, "last_ms": last_ms, "segment_started_ms": segment_started_ms,
-		"cells": _cell_store.materialize().duplicate(true), "flows": flows.duplicate(true), "input_energy": input_energy,
+		"cells": _cell_store.snapshot(), "flows": flows.duplicate(true), "input_energy": input_energy,
 		"ambient_in": ambient_in, "loss_energy": loss_energy, "receipts": receipts.duplicate(true),
 		"continuous_input": continuous_input, "absorbed_energy": absorbed_energy,
 		"device_input": device_input.duplicate(true), "device_absorbed": device_absorbed.duplicate(true),

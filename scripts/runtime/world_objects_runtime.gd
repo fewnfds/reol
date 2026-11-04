@@ -249,10 +249,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		var cursor: Vector2 = get_canvas_transform().affine_inverse() * event.position
 		var closest: String = ""
 		var closest_distance: float = 22.0
-		for id: String in adapter.world_sim.artifacts.objects:
-			if not _visible(id):
-				continue
-			var distance: float = cursor.distance_to(_display_point(id))
+		var authority: RegionalSimulation = adapter.world_sim
+		var points: Dictionary = _visible_display_points(authority)
+		for id: String in points:
+			var distance: float = cursor.distance_to(points[id])
 			if distance <= 22.0 and (closest.is_empty() or distance < closest_distance or distance == closest_distance and id < closest):
 				closest = id
 				closest_distance = distance
@@ -293,6 +293,42 @@ func _perception(id: String) -> Dictionary:
 func _display_point(id: String, observed_world: RegionalSimulation = null) -> Vector2:
 	var adapter: WorldContinuityRuntime = runtime()
 	var authority: RegionalSimulation = observed_world if observed_world != null else adapter.world_sim
+	var points: Dictionary = _visible_display_points(authority)
+	return points[id] if points.has(id) else _base_display_point(id, authority)
+
+
+func _visible_display_points(authority: RegionalSimulation) -> Dictionary:
+	var domain: SimArtifacts = authority.artifacts
+	# Separate only currently visible objects sharing this exact visual anchor.
+	# These offsets are presentation only: cell, custody and reach stay in the
+	# original domain. Singleton positions and holder interpolation stay intact.
+	# Build once per draw or pointer event so many objects do not trigger one
+	# full visibility scan per item. Nothing is cached across frames or saved.
+	var points: Dictionary = {}
+	var groups: Dictionary = {}
+	for id: String in domain.objects:
+		if not _visible(id, authority):
+			continue
+		var cell: Vector2i = domain.object_cell(id)
+		var point: Vector2 = _base_display_point(id, authority)
+		points[id] = point
+		var cells: Dictionary = groups.get(point, {})
+		var peers: Array = cells.get(cell, [])
+		peers.append(id)
+		cells[cell] = peers
+		groups[point] = cells
+	for point: Vector2 in groups:
+		for peers: Array in groups[point].values():
+			if peers.size() <= 1:
+				continue
+			peers.sort()
+			for index: int in range(peers.size()):
+				points[peers[index]] = point + Vector2(0, (float(index) - float(peers.size() - 1) * 0.5) * 32.0)
+	return points
+
+
+func _base_display_point(id: String, authority: RegionalSimulation) -> Vector2:
+	var adapter: WorldContinuityRuntime = runtime()
 	var domain: SimArtifacts = authority.artifacts
 	var cell: Vector2i = domain.object_cell(id)
 	var point: Vector2 = TileGrid.cell_to_world(cell)
@@ -323,17 +359,16 @@ func _draw() -> void:
 	if adapter == null or adapter.world_sim == null:
 		return
 	var authority: RegionalSimulation = adapter.world_sim
+	var points: Dictionary = _visible_display_points(authority)
 	var current: Dictionary = authority.artifacts.active.get("player", {})
-	if current.has("draw") and _visible(str(current.draw.target), authority):
-		var from: Vector2 = _display_point(str(current.object), authority)
-		var to: Vector2 = _display_point(str(current.draw.target), authority)
+	if current.has("draw") and points.has(str(current.draw.target)):
+		var from: Vector2 = points[str(current.object)] if points.has(str(current.object)) else _base_display_point(str(current.object), authority)
+		var to: Vector2 = points[str(current.draw.target)]
 		var progress: float = clampf(float(authority.elapsed_ms - int(current.started_ms)) / float(int(current.due_ms) - int(current.started_ms)), 0.0, 1.0)
 		draw_line(from, to, Color(0.63, 0.81, 0.77, 0.28), 1.0)
 		draw_arc(to, 13.0 + 5.0 * (1.0 - progress), -PI * 0.5, TAU * progress - PI * 0.5, 24, Color("#c4ded5"), 2.0)
-	for id: String in authority.artifacts.objects:
-		if not _visible(id, authority):
-			continue
-		var point: Vector2 = _display_point(id, authority)
+	for id: String in points:
+		var point: Vector2 = points[id]
 		if authority.artifacts.has_capability(id, "weapon"):
 			_draw_wooden_sword(point)
 			continue

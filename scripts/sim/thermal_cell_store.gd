@@ -89,6 +89,12 @@ func materialize() -> Dictionary:
 	return result
 
 
+func snapshot() -> Dictionary:
+	# Exactly one detached row set for a caller that may edit or persist it.
+	# materialize already owns its complete projection when patches exist.
+	return fine.duplicate(true) if _patches.is_empty() else materialize()
+
+
 func allocate(key: String, row: Dictionary) -> void:
 	# The owner has already validated canonical coordinates and non-duplication.
 	assert(not has(key), "A thermal cell must have only one allocation")

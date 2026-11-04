@@ -19,11 +19,22 @@ class RaisedMap extends WorldMapData:
 		return 2
 
 
+class OneCellSightBarrier extends WorldMapData:
+	var blocked_cell: Vector2i
+
+	func get_elevation(_cell: Vector2i) -> int:
+		return 0
+
+	func get_terrain(cell: Vector2i) -> int:
+		return TERRAIN_ROCK if cell == blocked_cell else TERRAIN_GRASS
+
+
 func run(runner: Object) -> void:
 	_handling_and_joint_resume(runner)
 	_holder_views(runner)
 	_regional_approach(runner)
 	_limited_observation(runner)
+	_hidden_peer_layout(runner)
 	_pointer_input(runner)
 	print("SCENARIO weapon UI: configured nonthermal verbs, actual take/place and joint resume, interpolated holders, limited memory and transformed pointer selection")
 
@@ -201,6 +212,38 @@ func _regional_approach(runner: Object) -> void:
 	_fixtures._dispose(fixture)
 
 
+func _hidden_peer_layout(runner: Object) -> void:
+	var fixture: Dictionary = _fixture(runner)
+	if fixture.is_empty():
+		return
+	var runtime: WorldContinuityRuntime = fixture.continuity
+	var adapter: WorldObjectsRuntime = runtime.object_adapter
+	var domain: SimArtifacts = runtime.world_sim.artifacts
+	var target: Vector2i = domain.object_cell(SWORD)
+	var standing: Vector2i = target + Vector2i.RIGHT * 2
+	var map := OneCellSightBarrier.new()
+	map.blocked_cell = target + Vector2i.RIGHT
+	fixture.world.bind_map_data(map)
+	runtime.world_sim.map_data = map
+	fixture.player.spawn_at(standing)
+	runtime.prepare_player_command()
+	var ring_id: String = "tool:hidden_ring"
+	domain.objects[ring_id] = {"definition": "drawing_ring", "region": "home", "container": "dorm"}
+	runner.assert_true(domain.object_cell(ring_id) == target, "the hidden ring and visible sword occupy the same actual cell")
+	runner.assert_true(adapter._visible(SWORD) and adapter._visible("amber_pearl"), "ordinary co-located objects remain visible")
+	runner.assert_true(not adapter._visible(ring_id), "the ring's genuine sight requirement fails at the blocking cell")
+	var before: String = _canonical(runtime)
+	var sword_with_hidden: Vector2 = adapter._display_point(SWORD)
+	var pearl_with_hidden: Vector2 = adapter._display_point("amber_pearl")
+	runner.assert_eq(_canonical(runtime), before, "laying out visible and hidden objects changes no real world state")
+	domain.objects.erase(ring_id)
+	before = _canonical(runtime)
+	runner.assert_true(adapter._display_point(SWORD).is_equal_approx(sword_with_hidden), "removing an unseen co-located ring does not move the visible sword")
+	runner.assert_true(adapter._display_point("amber_pearl").is_equal_approx(pearl_with_hidden), "removing an unseen co-located ring does not move the visible pearl")
+	runner.assert_eq(_canonical(runtime), before, "recomputing the layout without the unseen ring changes no real world state")
+	_fixtures._dispose(fixture)
+
+
 func _pointer_input(runner: Object) -> void:
 	var saved_clock: Dictionary = GameClock.to_dict()
 	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
@@ -219,19 +262,59 @@ func _pointer_input(runner: Object) -> void:
 	main.camera.zoom = Vector2(1.3, 1.3)
 	main.camera.global_position = main.player.global_position + Vector2(91, -57)
 	main.camera.force_update_scroll()
+	var domain: SimArtifacts = runtime.world_sim.artifacts
+	var pearl_id: String = "amber_pearl"
+	runner.assert_true(domain.objects.has(pearl_id), "ordinary opening contains the co-located glowing pearl")
+	if not domain.objects.has(pearl_id):
+		main.free()
+		GameClock.restore_state(saved_clock)
+		return
+	runner.assert_true(domain.object_cell(target_id) == domain.object_cell(pearl_id), "the actual sword and pearl share the original physical cell")
+	runner.assert_true(adapter._visible(target_id) and adapter._visible(pearl_id), "both co-located opening objects are currently visible")
+	var sword_point: Vector2 = adapter._display_point(target_id)
+	var pearl_point: Vector2 = adapter._display_point(pearl_id)
+	runner.assert_true(not sword_point.is_equal_approx(pearl_point), "visible co-located objects have distinct rendered and selectable points")
 	var click := InputEventMouseButton.new()
 	click.button_index = MOUSE_BUTTON_LEFT
 	click.pressed = true
-	click.position = adapter.get_canvas_transform() * adapter._display_point(target_id)
 	var before: String = _canonical(runtime)
-	adapter._unhandled_input(click)
-	runner.assert_eq(adapter.selected_object, target_id, "left-click selects the event's sword position after camera pan and zoom without moving the physical mouse")
-	runner.assert_true(adapter.panel.visible, "transformed object click opens the real inspector")
-	runner.assert_eq(_canonical(runtime), before, "pointer selection changes no world time, custody, resources or personal knowledge")
+	for id: String in [target_id, pearl_id]:
+		adapter.reset_observation()
+		click.position = adapter.get_canvas_transform() * adapter._display_point(id)
+		adapter._unhandled_input(click)
+		runner.assert_eq(adapter.selected_object, id, "transformed left-click selects the correct co-located visible object: " + id)
+		runner.assert_true(adapter.panel.visible, "the co-located object click opens the real inspector: " + id)
+		runner.assert_eq(_canonical(runtime), before, "pointer selection changes no world time, custody, resources or personal knowledge: " + id)
 	adapter.reset_observation()
+	click.position = adapter.get_canvas_transform() * sword_point
 	click.pressed = false
 	adapter._unhandled_input(click)
 	runner.assert_true(not adapter.panel.visible, "mouse release cannot reopen the object inspector")
+	var fire_id: String = "fire_stone"
+	var cold_id: String = "cold_stone"
+	runner.assert_true(domain.objects.has(fire_id) and domain.objects.has(cold_id), "ordinary opening contains both real thermal devices")
+	if domain.objects.has(fire_id) and domain.objects.has(cold_id):
+		var kitchen: Vector2i = domain.object_cell(fire_id)
+		runner.assert_eq(domain.object_cell(cold_id), kitchen, "both thermal modes share the original kitchen anchor")
+		main.player.spawn_at(kitchen)
+		runtime.prepare_player_command()
+		main.fog.set_focus(kitchen)
+		main.fog.update_now()
+		runner.assert_true(adapter._visible(fire_id) and adapter._visible(cold_id), "both thermal devices are visible from their actual kitchen")
+		runner.assert_true(not adapter._display_point(fire_id).is_equal_approx(adapter._display_point(cold_id)), "original emit and absorb devices retain distinct presentation points")
+		before = _canonical(runtime)
+		click.pressed = true
+		for id: String in [fire_id, cold_id]:
+			adapter.reset_observation()
+			click.position = adapter.get_canvas_transform() * adapter._display_point(id)
+			adapter._unhandled_input(click)
+			runner.assert_eq(adapter.selected_object, id, "transformed click selects the correct thermal device: " + id)
+			runner.assert_eq(_canonical(runtime), before, "thermal pointer selection changes no original device or world state: " + id)
+		main.player.spawn_at(target)
+		runtime.prepare_player_command()
+		main.fog.set_focus(target)
+		main.fog.update_now()
+		adapter.reset_observation()
 	runtime.world_sim.artifacts.objects.hearth_stone.container = "dorm"
 	var key := InputEventKey.new()
 	key.pressed = true

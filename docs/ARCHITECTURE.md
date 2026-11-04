@@ -37,6 +37,7 @@ main / 场景装配
 | 日历/气候、weather、environment、local_heat、spirit_sources | 无状态历法曲线、晴雨相位、受体采样、固定参考局地热场、有限源与转换 | 热、五行亲和、qi、储热和灵源不合成万能数值；完整冷热/光/五相场仍待做 |
 | [SimThermalHistory](../scripts/sim/thermal_history.gd)、[SimThermalSample](../scripts/sim/thermal_sample.gd)、[SimThermalSchema](../scripts/sim/thermal_schema.gd) | 来源派生覆盖、旧转换边界与历史采样分别校验；完整候选仍证明全部当前Q、原器物收支及冻结段 | 历史检查不读当前cells/flows，底量只由绑定气候与首次来源时刻推导；无新持久状态或回收，仍最多512活格 |
 | [SimThermalCellStore](../scripts/sim/thermal_cell_store.gd)、SimLocalHeat | 唯一细格Q或孤立对称块的六轨道Q；派生流率执行原冻结段，源/设备/结构边界无损展开 | cells为只读临时投影，has_cell/cell_row/keys按需读取；原v3快照仍完整展开，无512扩容或性能改善承诺 |
+| SimLocalHeat分配预检 | 脉冲/设备共用新格坐标并集与底量计划，容量先核再物化旧场；snapshot仅一份脱离行集 | allocation_capacity仅计逻辑格/实际槽/完全细化预留/流上界，不是字节保证；正式512、自定义绑定限额及原v3保持 |
 | [SimGeographicClimate](../scripts/sim/geographic_climate.gd)、[ReolGeographicContent](../scripts/data/geographic_content.gd)、Main开局配置 | 新局地理草稿编译成原climate2曲线，隔离重建完整内容包/digest并校验后装配；默认草稿为world_geography.json | 只在创建时执行，无运行温度附加项或第二状态；普通Main只支持原时钟起点，恢复仅取档内曲线，不重编 |
 | [SimLocalLight](../scripts/sim/local_light.gd)、[LocalLightRuntime](../scripts/runtime/local_light_runtime.gd) | 即时相对光读原热出流或固有发光器物ID索引，位置沿原承载者/地点查询；共用遮挡、叠加、当前视野纹理 | 索引派生只读不落档，无第二物品/光量/位置；动锚点旧时刻或欠算返回unknown；当前128源/441格，非移动热或完整光能账 |
 | [SimSolarRules](../scripts/sim/solar_rules.gd)、[SimNaturalLight](../scripts/sim/natural_light.gd)、DayNight | 从已接受世界的climate2、原物理时刻/天气、屋顶事实派生太阳高度/昼长/自然光，普通界面与天色读取同源 | 无第二时钟/光量账/持久缓存；单地图宏观纬度；不是局部灯、完整感知或植物受光模型 |
