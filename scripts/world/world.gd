@@ -178,6 +178,11 @@ func _paint_dirty(budget: int) -> int:
 	if _dirty_cursor == _dirty_order.size():
 		_dirty_order.clear()
 		_dirty_cursor = 0
+	elif _dirty_cursor >= PAINT_CELLS_PER_FRAME and _dirty_cursor * 2 >= _dirty_order.size():
+		# A continuous backlog may never drain. Copy only after consuming at
+		# least as many entries as remain, amortizing the retained suffix copy.
+		_dirty_order = _dirty_order.slice(_dirty_cursor)
+		_dirty_cursor = 0
 	return used
 
 

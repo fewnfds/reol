@@ -35,6 +35,7 @@ var _continuity: WorldContinuityRuntime
 var _avatar: PlayerAvatarRuntime
 var _opening_map: WorldMapData
 var _opening_started: bool = false
+var _terrain_editor: TerrainEditorRuntime
 
 
 func configure_opening_map(description: Variant, terrain_overrides: Variant = []) -> bool:
@@ -120,6 +121,11 @@ func _ready() -> void:
 	_avatar.name = "PlayerAvatarRuntime"
 	add_child(_avatar)
 	_avatar.setup(self, _continuity)
+	if OS.get_cmdline_user_args().has("--world-editor"):
+		_terrain_editor = TerrainEditorRuntime.new()
+		_terrain_editor.name = "TerrainEditorRuntime"
+		add_child(_terrain_editor)
+		_terrain_editor.setup(_continuity)
 
 
 func _on_content_replaced(content: ReolContentDB) -> void:
@@ -205,6 +211,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if _terrain_editor != null and _terrain_editor.handle_input(event):
+		get_viewport().set_input_as_handled()
+		return
 	# Global time controls must run before GUI focus can treat Space as a button click.
 	if _avatar != null and _avatar.opening.visible and event is InputEventKey and event.keycode not in [KEY_TAB, KEY_ENTER, KEY_KP_ENTER]:
 		get_viewport().set_input_as_handled()

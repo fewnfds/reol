@@ -4,9 +4,10 @@ extends RefCounted
 
 func run(runner: Object) -> void:
 	_repaint_source_and_shore(runner)
+	_continuous_dirty_backlog(runner)
 	_partial_cleanup_and_rebind(runner)
 	_stationary_fog(runner)
-	print("SCENARIO terrain view: budgeted water/shore repaint, streamed ownership and stationary sight invalidation")
+	print("SCENARIO terrain view: budgeted water/shore repaint, bounded continuous backlog, streamed ownership and stationary sight invalidation")
 
 
 func _fixture(runner: Object) -> Dictionary:
@@ -77,6 +78,58 @@ func _repaint_source_and_shore(runner: Object) -> void:
 	runner.assert_eq(world._flora_layers[0].get_cell_source_id(target), -1, "budgeted repaint removes the stale terrestrial cover")
 	runner.assert_eq(world._layers[0].get_cell_atlas_coords(neighbor).x, NaturalEnvironment.SURFACES.find("shore"), "actual water adjacency repaints neighboring ground as shore")
 	runner.assert_true(world._layers[0].get_cell_atlas_coords(neighbor) != old_neighbor_atlas, "the neighboring rendered tile really changes")
+	world.free()
+
+
+func _continuous_dirty_backlog(runner: Object) -> void:
+	var fixture: Dictionary = _fixture(runner)
+	if fixture.is_empty():
+		return
+	var map: WorldMapData = fixture.map
+	var world: ReolWorld = fixture.world
+	# Exactly two paint budgets remain drawn throughout the edit stream.
+	var view := Rect2i(Vector2i(256, 256), Vector2i(32, 16))
+	var grass_rows: Array = []
+	var water_rows: Array = []
+	for y: int in range(view.position.y, view.end.y):
+		for x: int in range(view.position.x, view.end.x):
+			grass_rows.append([x, y, WorldMapData.TERRAIN_GRASS])
+			water_rows.append([x, y, WorldMapData.TERRAIN_WATER])
+	runner.assert_true(bool(map.apply_terrain_patch(grass_rows).ok), "continuous backlog starts with a terrestrial view")
+	world.set_focus(view.get_center())
+	world.prioritize_view(view)
+	world._process(0.016)
+	world._process(0.016)
+	runner.assert_true(world.is_view_ready(view), "continuous backlog starts with every probe cell actually drawn")
+	var pending_count: int = view.get_area() - ReolWorld.PAINT_CELLS_PER_FRAME
+	for frame: int in 32:
+		# Re-edit both pending and already consumed cells before each frame.
+		# Half the view stays pending: the queue never gets a chance to clear.
+		var rows: Array = water_rows if frame % 2 == 0 else grass_rows
+		runner.assert_true(bool(map.apply_terrain_patch(rows).ok), "ongoing real terrain edit is accepted at frame %d" % frame)
+		runner.assert_eq(world._dirty_cells.size(), view.get_area(), "ongoing edits coalesce each drawn cell at frame %d" % frame)
+		world._process(0.016)
+		runner.assert_eq(world._dirty_cells.size(), pending_count, "the backlog remains nonempty after frame %d" % frame)
+		runner.assert_eq(world._dirty_order.size() - world._dirty_cursor, pending_count, "queued suffix retains every pending cell at frame %d" % frame)
+		runner.assert_true(world._dirty_order.size() <= view.get_area() * 2, "continuous backlog storage stays bounded at frame %d" % frame)
+	# Stop editing only after many continuously backlogged frames, then consume
+	# the final budget and compare every projection with the latest map facts.
+	world._process(0.016)
+	runner.assert_true(world._dirty_cells.is_empty() and world._dirty_order.is_empty() and world._dirty_cursor == 0, "the final pending budget drains and resets the queue")
+	var matching_ground: int = 0
+	var matching_cover: int = 0
+	for y: int in range(view.position.y, view.end.y):
+		for x: int in range(view.position.x, view.end.x):
+			var cell := Vector2i(x, y)
+			var natural: Dictionary = map.natural_cell(cell)
+			if world._layers[0].get_cell_atlas_coords(cell).x == NaturalEnvironment.SURFACES.find(str(natural.surface_id)):
+				matching_ground += 1
+			var flora: Dictionary = natural.flora
+			var expected_source: int = -1 if flora.is_empty() else 1
+			if world._flora_layers[0].get_cell_source_id(cell) == expected_source and (flora.is_empty() or world._flora_layers[0].get_cell_atlas_coords(cell) == Vector2i(world._flora_ids.find(flora.id), int(flora.variant))):
+				matching_cover += 1
+	runner.assert_eq(matching_ground, view.get_area(), "every backlogged tile eventually shows its latest natural surface")
+	runner.assert_eq(matching_cover, view.get_area(), "every backlogged tile eventually shows its latest vegetation")
 	world.free()
 
 

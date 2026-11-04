@@ -21,6 +21,7 @@ var _cells: Dictionary = {}
 var _roofs: Dictionary = {}
 var _blocked: Dictionary = {}
 var _spaces: Dictionary = {}
+var _material_cells: Dictionary[Vector2i, int] = {}
 var world: RefCounted:
 	get:
 		return _owner.get_ref()
@@ -261,7 +262,7 @@ func _arrived(job: Dictionary) -> void:
 	else:
 		var project: Dictionary = projects[job.project]
 		project.carrier = ""
-		project.material_cell = job.stand.duplicate()
+		_set_material_cell(project, job.stand)
 		if job.kind == "build":
 			project.delivered = true
 		var rule: Dictionary = definitions.types[project.type]
@@ -350,7 +351,7 @@ func _release(job: Dictionary, line: String) -> void:
 	var sim: RefCounted = world.regions[definitions.site.region]
 	var project: Dictionary = projects[job.project]
 	if project.carrier == job.actor:
-		project.material_cell = sim.actors[job.actor].cell.duplicate()
+		_set_material_cell(project, sim.actors[job.actor].cell)
 		project.carrier = ""
 		sim.actors[job.actor].goal = "在脚边留下木料"
 	sim.inventory.release(str(job.id))
@@ -520,8 +521,26 @@ func _remove(id: String, material_cell: Array) -> bool:
 	project.removed_ms = world.elapsed_ms
 	project.open = false
 	project.carrier = ""
-	project.material_cell = material_cell.duplicate()
+	_set_material_cell(project, material_cell)
 	return true
+
+
+func material_cell_referenced(cell: Vector2i) -> bool:
+	# The current save contract validates retained project material coordinates,
+	# including zero-stock terminal projects. Do not scan that history per brush.
+	return _material_cells.has(cell)
+
+
+func _set_material_cell(project: Dictionary, raw: Array) -> void:
+	var previous: Vector2i = SimRouteTravel.cell(project.material_cell)
+	var remaining: int = int(_material_cells.get(previous, 0)) - 1
+	if remaining <= 0:
+		_material_cells.erase(previous)
+	else:
+		_material_cells[previous] = remaining
+	project.material_cell = raw.duplicate()
+	var cell: Vector2i = SimRouteTravel.cell(raw)
+	_material_cells[cell] = int(_material_cells.get(cell, 0)) + 1
 
 
 func _collapse_roofs() -> void:
@@ -584,8 +603,11 @@ func _reindex() -> void:
 	_cells.clear()
 	_roofs.clear()
 	_blocked.clear()
+	_material_cells.clear()
 	for id: String in projects:
 		var project: Dictionary = projects[id]
+		var material: Vector2i = SimRouteTravel.cell(project.material_cell)
+		_material_cells[material] = int(_material_cells.get(material, 0)) + 1
 		var cell: Vector2i = SimRouteTravel.cell(project.cell)
 		if project.state in ["blueprint", "built"]:
 			if definitions.types[project.type].kind == "roof":

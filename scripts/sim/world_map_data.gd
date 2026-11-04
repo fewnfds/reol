@@ -169,6 +169,14 @@ func apply_terrain_patch(raw: Variant) -> Dictionary:
 	return _commit_terrain_updates(parsed.rows)
 
 
+func inspect_terrain_patch(raw: Variant) -> Dictionary:
+	# Independent proposed cells only: no full-map copy, cache access or signal.
+	# World commands use the same parser as the final low-level commit.
+	if not _flat:
+		return {"ok": false}
+	return _parse_terrain_rows(raw, false)
+
+
 func _parse_terrain_rows(raw: Variant, reject_base: bool) -> Dictionary:
 	if not raw is Array or raw.size() > _map_size * _map_size:
 		return {"ok": false}

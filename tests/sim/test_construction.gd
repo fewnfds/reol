@@ -80,6 +80,8 @@ func _test_real_material_and_interruptions(runner: Object) -> void:
 	runner.assert_true(continued.restore(carried), "a carried construction batch restores with its original reservation receipt")
 	domain.cancel("player")
 	runner.assert_eq(domain.projects[id].carrier, "", "interruption drops the material at its actual carrier position")
+	runner.assert_true(domain.material_cell_referenced(SimRouteTravel.cell(domain.projects[id].material_cell)), "live terrain guard indexes the actual dropped material coordinate")
+	runner.assert_true(continued.construction.material_cell_referenced(SimRouteTravel.cell(continued.construction.projects[id].material_cell)), "independent carried restore rebuilds material references without saving an index")
 	runner.assert_eq(sim.inventory.quantity("store", "wood"), stock - 3, "cancel does not silently refund moved material")
 	runner.assert_true(domain.begin("player", id).ok, "resume routes to the real dropped batch")
 	for _i: int in 80:
@@ -142,6 +144,8 @@ func _test_door_and_recovery(runner: Object) -> void:
 	runner.assert_eq(sim.inventory.quantity("store", "wood"), stock - 2, "real recovery returns only the salvaged amount")
 	var resumed: RegionalSimulation = _world(runner)
 	runner.assert_true(resumed.restore(JSON.parse_string(_canonical(world))), "dismantled and recovered material receipts restore together")
+	var reference: Vector2i = SimRouteTravel.cell(domain.projects[id].material_cell)
+	runner.assert_true(domain.material_cell_referenced(reference) and resumed.construction.material_cell_referenced(reference), "zero-stock terminal coordinates retain the current archive's declared spatial protection after restore")
 
 
 func _test_remote_duty_and_candidates(runner: Object) -> void:

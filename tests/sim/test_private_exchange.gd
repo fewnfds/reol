@@ -73,6 +73,7 @@ func _timed_original_transfer(runner: Object, seller: String) -> void:
 	if id.is_empty():
 		return
 	var job: Dictionary = world.private_exchange.jobs[id]
+	runner.assert_true(world.private_exchange.active_jobs.has(id), "new present exchange is indexed without copying its original state")
 	runner.assert_true(world.private_exchange.owns_actor(BUYER) and world.private_exchange.owns_actor(seller), "the one bargain owns both original bodies")
 	runner.assert_true(world.artifacts.target_in_use(RING), "other artifact users see the same original ring lock")
 	runner.assert_eq(_coin(world, BUYER), buyer_coin, "acceptance reserves but does not pay")
@@ -84,6 +85,7 @@ func _timed_original_transfer(runner: Object, seller: String) -> void:
 	runner.assert_eq(world.artifacts.objects[RING].container, "actor:" + seller, "unique original ring remains with seller until completion")
 	runner.assert_true(world.advance_to_ms(int(job.due_ms)), "the shared exact deadline commits the bargain")
 	runner.assert_eq(job.status, "completed", "real delivery records one completed result")
+	runner.assert_true(world.private_exchange.active_jobs.is_empty(), "completed exchanges leave no active spatial reservation")
 	runner.assert_eq(_coin(world, BUYER), buyer_coin - price, "buyer pays the exact quoted original coins")
 	runner.assert_eq(_coin(world, seller), seller_coin + price, "seller receives the same original coins")
 	runner.assert_eq(_total(world), total, "same/cross-region transfer conserves all original cash")
@@ -217,6 +219,7 @@ func _candidate_integrity(runner: Object) -> void:
 	if candidate == null:
 		return
 	runner.assert_true(candidate.restore(JSON.parse_string(_json(saved))), "independent candidate restores ongoing body and original coin reservation")
+	runner.assert_true(candidate.private_exchange.active_jobs.has(id) and candidate.private_exchange.owns_actor(BUYER), "ongoing restore rebuilds active spatial references from the original job")
 	runner.assert_eq(_json(candidate.to_dict()), _json(saved), "inflight JSON restore preserves every world fact")
 	for fault: String in ["missing_domain", "missing_consent", "wrong_object", "wrong_price", "missing_reservation", "wrong_position", "duplicate_job", "wrong_source"]:
 		var bad: Dictionary = saved.duplicate(true)

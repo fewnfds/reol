@@ -19,7 +19,8 @@ main / 场景装配
 | 领域/代码入口 | 权威状态或行为 | 边界 |
 |---|---|---|
 | [GameClock](../scripts/autoload/game_clock.gd) | 共同整数毫秒、暂停/倍速/等待、相位与帧欠算 | 分钟通知是投影，不是第二时间轴 |
-| [WorldMapData](../scripts/sim/world_map_data.gd)、[NaturalEnvironment](../scripts/sim/natural_environment.gd) | 版本化底图加稀疏地表覆盖，通行读同一真值；派生地表/植被覆盖/五行亲和和缓存 | 均仍512；改地只接开局草稿与底层数据/存读，运行画笔事务未接；亲和不是能量库存，覆盖不是独立植物 |
+| [WorldMapData](../scripts/sim/world_map_data.gd)、[NaturalEnvironment](../scripts/sim/natural_environment.gd) | 版本化底图加稀疏地表覆盖，通行读同一真值；派生地表/植被覆盖/五行亲和和缓存 | 均仍512；草稿/存读及暂停开发画笔已接，玩家合法改造待接；亲和不是能量库存，覆盖不是独立植物 |
+| [SimTerrainEdits](../scripts/sim/terrain_edits.gd)、[TerrainEditorRuntime](../scripts/runtime/terrain_editor_runtime.gd) | 原地图上的小批量事务、空间预检；开发工具负责暂停准备和输入投影 | 显式启动才开放；沿原active/位置/施工材料引用，单笔最多256格，不发放玩家权限或平行状态 |
 | [VillageSimulation](../scripts/sim/village_simulation.gd) | 人类原身体、唯一位置/朝向、原生活状态和村落配置 | 所属区是保存所有者，不是人物当前所在空间 |
 | [RegionalSimulation](../scripts/sim/regional_simulation.gd) | 区域同步、域装配、共同边界/积压和跨域校验 | 现有固定域目录，非任意世界工厂/完整事件平台 |
 | [SimLocalMotion](../scripts/sim/local_motion.gd)、[SimRouteTravel](../scripts/sim/route_travel.gd) | 手动/闪身及自动路段推进，读写同一身体 | 不复制位置、体力或时钟；显示插值不推进规则 |
@@ -72,4 +73,4 @@ B0a在原地图上增加`[x,y,terrain]`稀疏覆盖，flat支持草/水/岩及�
 
 空间目标见[组合空间合同](../design/systems/construction_and_space.md)：地块承载可跨格的实体，区域指定与推导房间分开。现有多格兽身不等于通用多格家具/植物已接，单格药源也不是未来药田模型；区域种植与通用放置仍待实现。
 
-受控生成/稳定实体查询、数量批次与独特物的统一承载、运行期改地事务/画笔、房间/导航局部失效、冷热/光/五相传播、动作生命周期、可组合能力/影响、独立世界工厂及创作工具、规模与历史索引。已有专用域必须沿这些接缝逐包迁移，不能为规划再造一套平行世界。
+受控生成/稳定实体查询、数量批次与独特物的统一承载、玩家合法改地动作、房间/导航局部失效、冷热/光/五相传播、动作生命周期、可组合能力/影响、独立世界工厂及完整创作工具、规模与历史索引。已有专用域必须沿这些接缝逐包迁移，不能为规划再造一套平行世界。

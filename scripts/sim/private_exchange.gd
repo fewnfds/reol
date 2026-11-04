@@ -15,6 +15,8 @@ var world: RefCounted:
 var definitions: Dictionary = {}
 var proposals: Dictionary = {}
 var jobs: Dictionary = {}
+## Derived live-job IDs; original process state remains in jobs and in the save.
+var active_jobs: Dictionary = {}
 ## Committed cash moves are separate receipts, not another wallet or balance.
 var transfers: Dictionary = {}
 var next_id: int = 1
@@ -76,22 +78,25 @@ func offered_objects(buyer: String, seller: String) -> Array[Dictionary]:
 
 
 func owns_actor(actor: String) -> bool:
-	for job: Dictionary in jobs.values():
-		if job.status == "active" and actor in [job.buyer, job.seller]:
+	for id: String in active_jobs:
+		var job: Dictionary = jobs[id]
+		if actor in [job.buyer, job.seller]:
 			return true
 	return false
 
 
 func previous_autonomy(actor: String) -> bool:
-	for job: Dictionary in jobs.values():
-		if job.status == "active" and actor in [job.buyer, job.seller]:
+	for id: String in active_jobs:
+		var job: Dictionary = jobs[id]
+		if actor in [job.buyer, job.seller]:
 			return bool(job.buyer_autonomous if actor == job.buyer else job.seller_autonomous)
 	return false
 
 
 func target_in_use(object_id: String, except_id: String = "") -> bool:
-	for job: Dictionary in jobs.values():
-		if job.id != except_id and job.status == "active" and job.object == object_id:
+	for id: String in active_jobs:
+		var job: Dictionary = jobs[id]
+		if id != except_id and job.object == object_id:
 			return true
 	return false
 
@@ -238,6 +243,7 @@ func request(buyer: String, seller: String, object_id: String) -> Dictionary:
 		return _reply(false, "unavailable", "暂不能记录这次交接。")
 	next_id += 1
 	jobs[id] = {"id": id, "proposal": proposal.id, "buyer": buyer, "seller": seller, "buyer_region": home(buyer), "seller_region": home(seller), "object": object_id, "source_event": source_event, "consent": consent, "reservation": reservation, "artifact_action": action, "artifact_event": "", "artifact_release": "", "started_ms": int(world.elapsed_ms), "due_ms": int(world.elapsed_ms) + int(definitions.duration_ms), "finished_ms": -1, "status": "active", "cancelled_by": "", "cancel_reason": "", "buyer_position": buyer_body.position.duplicate(), "seller_position": seller_body.position.duplicate(), "buyer_autonomous": bool(buyer_body.autonomous), "seller_autonomous": bool(seller_body.autonomous), "buyer_goal": str(buyer_body.goal), "seller_goal": str(seller_body.goal), "buyer_retry_ms": int(buyer_body.retry_ms), "seller_retry_ms": int(seller_body.retry_ms), "receipt": ""}
+	active_jobs[id] = true
 	buyer_body.autonomous = false
 	seller_body.autonomous = false
 	buyer_body.goal = "当面交割旧环"
@@ -352,6 +358,7 @@ func _finish(job: Dictionary, outcome: String, cancelled_by: String = "", reason
 	job.cancelled_by = cancelled_by
 	job.cancel_reason = reason
 	job.finished_ms = int(world.elapsed_ms)
+	active_jobs.erase(str(job.id))
 	for actor: String in [str(job.buyer), str(job.seller)]:
 		var person: Dictionary = body(actor)
 		if person.is_empty():
@@ -364,8 +371,9 @@ func _finish(job: Dictionary, outcome: String, cancelled_by: String = "", reason
 
 
 func cancel(actor: String, reason: String = "cancelled") -> bool:
-	for job: Dictionary in jobs.values():
-		if job.status == "active" and actor in [job.buyer, job.seller]:
+	for id: String in active_jobs.keys():
+		var job: Dictionary = jobs[id]
+		if actor in [job.buyer, job.seller]:
 			var recorded_reason: String = reason if not reason.is_empty() else "cancelled"
 			if recorded_reason == "seller_withdrew" and actor != job.seller:
 				recorded_reason = "cancelled"
@@ -375,9 +383,8 @@ func cancel(actor: String, reason: String = "cancelled") -> bool:
 
 func next_boundary_ms() -> int:
 	var next: int = SimInventory.MAX_COUNT
-	for job: Dictionary in jobs.values():
-		if job.status != "active":
-			continue
+	for id: String in active_jobs:
+		var job: Dictionary = jobs[id]
 		if not _connected(job):
 			return mini(SimInventory.MAX_COUNT, int(world.elapsed_ms) + 1)
 		next = mini(next, int(job.due_ms))
@@ -385,10 +392,10 @@ func next_boundary_ms() -> int:
 
 
 func settle_at_ms(now: int) -> void:
-	for id: String in world._sorted_keys(jobs):
-		var job: Dictionary = jobs[id]
-		if job.status != "active":
+	for id: String in world._sorted_keys(active_jobs):
+		if not active_jobs.has(id):
 			continue
+		var job: Dictionary = jobs[id]
 		world.synchronize_region(str(job.buyer_region))
 		world.synchronize_region(str(job.seller_region))
 		if not _connected(job):
@@ -437,6 +444,10 @@ func restore(data: Dictionary) -> bool:
 		return false
 	proposals = data.proposals.duplicate(true)
 	jobs = data.jobs.duplicate(true)
+	active_jobs.clear()
+	for id: String in jobs:
+		if jobs[id].status == "active":
+			active_jobs[id] = true
 	transfers = data.transfers.duplicate(true)
 	next_id = int(data.next_id)
 	return true

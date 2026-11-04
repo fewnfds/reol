@@ -77,6 +77,10 @@ func test_terrain_snapshot() -> void:
 	load("res://tests/runtime/test_terrain_snapshot.gd").new().run(self)
 
 
+func test_terrain_edits() -> void:
+	load("res://tests/runtime/test_terrain_edits.gd").new().run(self)
+
+
 # ---------------------------------------------------------------------------
 # Test doubles
 # ---------------------------------------------------------------------------
