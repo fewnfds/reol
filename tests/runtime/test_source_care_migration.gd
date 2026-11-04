@@ -72,6 +72,8 @@ func _assert_migration(runtime: WorldContinuityRuntime, source: Dictionary, bad_
 	runner.assert_eq(_canonical(world.source_care.to_dict()), _canonical(SimSourceCare.empty_state()), "old world gains only empty care, with no imagined duties, sightings, warnings or explanations")
 	runner.assert_eq(_canonical(world.site_affairs.to_dict()), _canonical(source.continuity.world.site_affairs), "care migration preserves every real old signed promise, source association and inspection fact")
 	var projected: Dictionary = snapshot.continuity.world.duplicate(true)
+	runner.assert_eq(SnapshotValues.normalized(projected.private_exchange), SnapshotValues.normalized(SimPrivateExchange.empty_state()), "historical world gains no invented private exchange, consent, or receipt")
+	projected.erase("private_exchange")
 	runner.assert_eq(SnapshotValues.normalized(projected.field_opportunities), SnapshotValues.normalized(SimFieldOpportunities.empty_state()), "historical world gains no invented field site, visitor or treasure")
 	projected.erase("field_opportunities")
 	runner.assert_eq(_canonical(projected.capability_practice), _canonical(SimCapabilityPractice.empty_state()), "old care archive gains no invented practice or advanced capability")

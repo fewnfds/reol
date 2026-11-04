@@ -4,7 +4,7 @@ extends RefCounted
 ## Scene adapters may disappear; these instances and their pending work remain.
 
 const DEFINITIONS_VERSION: int = 1
-const SCHEMA_VERSION: int = 37
+const SCHEMA_VERSION: int = 38
 const MINUTE_MS: int = 60000
 const MAX_COUNT: int = SimInventory.MAX_COUNT
 const Services = preload("res://scripts/sim/services/settlement_services.gd")
@@ -23,6 +23,7 @@ const ACTIVITY_PROFILES: Dictionary = {
 	&"stationary": ActivityScope.STATIONARY, &"wait": ActivityScope.WAIT,
 }
 const ACTIVITY_DOMAINS: Dictionary = {
+	&"private_exchange": ActivityScope.LOCAL | ActivityScope.BODY | ActivityScope.PLAYER_ACTION | ActivityScope.AUTOMATIC_MOTION | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION | ActivityScope.STATIONARY | ActivityScope.RETURN_AUTONOMY,
 	&"field_opportunities": ActivityScope.LOCAL | ActivityScope.BODY | ActivityScope.PLAYER_ACTION | ActivityScope.AUTOMATIC_MOTION | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION | ActivityScope.STATIONARY | ActivityScope.RETURN_AUTONOMY,
 	&"capability_practice": ActivityScope.LOCAL | ActivityScope.BODY | ActivityScope.PLAYER_ACTION | ActivityScope.AUTOMATIC_MOTION | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION | ActivityScope.STATIONARY | ActivityScope.RETURN_AUTONOMY,
 	&"conflicts": ActivityScope.LOCAL | ActivityScope.BODY | ActivityScope.PLAYER_ACTION | ActivityScope.AUTOMATIC_MOTION | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION | ActivityScope.STATIONARY | ActivityScope.WAIT | ActivityScope.RETURN_AUTONOMY,
@@ -45,7 +46,7 @@ const SNAPSHOT_DOMAINS: Array[StringName] = [
 	&"personal_production", &"budgeted_labor", &"autonomous_livelihood", &"clothing",
 	&"health", &"environment", &"local_heat", &"spirit_sources", &"sparring", &"conflicts",
 	&"avian_life", &"soul_vessels", &"admissions", &"construction", &"resting",
-	&"weather", &"standing_work", &"site_affairs", &"source_care", &"capability_practice", &"field_opportunities",
+	&"weather", &"standing_work", &"site_affairs", &"source_care", &"capability_practice", &"field_opportunities", &"private_exchange",
 ]
 # Keep query order stable too: a future derived cache must not silently turn
 # next-boundary collection into an unordered set of domain callbacks.
@@ -53,7 +54,7 @@ const BOUNDARY_DOMAINS: Array[StringName] = [
 	&"artifacts", &"sparring", &"avian_life", &"soul_vessels", &"admissions",
 	&"construction", &"resting", &"weather", &"standing_work", &"large_bodies",
 	&"method_records", &"personal_production", &"budgeted_labor", &"clothing",
-	&"health", &"environment", &"local_heat", &"spirit_sources", &"conflicts", &"source_care", &"capability_practice", &"field_opportunities",
+	&"health", &"environment", &"local_heat", &"spirit_sources", &"conflicts", &"source_care", &"capability_practice", &"field_opportunities", &"private_exchange",
 ]
 
 var regions: Dictionary = {}
@@ -109,6 +110,7 @@ var site_affairs: RefCounted
 var source_care: RefCounted
 var capability_practice: RefCounted
 var field_opportunities: RefCounted
+var private_exchange: RefCounted
 var map_data: WorldMapData
 
 var _content: ReolContentDB
@@ -224,6 +226,10 @@ func initialize(definitions: Dictionary, instances: Dictionary, content: ReolCon
 	field_opportunities = SimFieldOpportunities.new()
 	if not field_opportunities.initialize(self, content.field_opportunities):
 		errors.append("Invalid bounded field-site definitions")
+		return false
+	private_exchange = SimPrivateExchange.new()
+	if not private_exchange.initialize(self, content.private_exchange):
+		errors.append("Invalid bounded private exchange rules")
 		return false
 	spirit_sources = SimSpiritSources.new()
 	if not spirit_sources.initialize(self, content.spirit_sources):
@@ -379,6 +385,25 @@ static func upgrade_ring_use(source: Dictionary) -> Dictionary:
 	return result
 
 
+static func upgrade_private_exchange(source: Dictionary) -> Dictionary:
+	if source.get("version") != 37 or source.has("private_exchange") or not source.get("artifacts") is Dictionary:
+		return {}
+	var artifacts_state: Dictionary = source.artifacts
+	if not SimArtifacts.Schema._keys(artifacts_state, ["version", "objects", "active", "events", "experiences", "next_id"]) or artifacts_state.version != 5 or not artifacts_state.active is Dictionary or not artifacts_state.events is Array:
+		return {}
+	var rows: Array = artifacts_state.active.values()
+	rows.append_array(artifacts_state.events)
+	for row: Variant in rows:
+		if not row is Dictionary or row.has("exchange") or row.get("verb") == "private_exchange" or row.get("kind") == "exchanged":
+			return {}
+	# Activation adds no consent, cash, transfer, object or prior transaction.
+	var result: Dictionary = source.duplicate(true)
+	result["private_exchange"] = SimPrivateExchange.empty_state()
+	result.artifacts.version = 6
+	result.version = 38
+	return result
+
+
 static func upgrade_capability_practice(source: Dictionary) -> Dictionary:
 	if source.get("version") != 34 or source.has("capability_practice") or not source.get("spirit_sources") is Dictionary:
 		return {}
@@ -407,6 +432,8 @@ func interrupt_occupation(actor: String, reason: String) -> void:
 		capability_practice.cancel(actor, reason)
 	if field_opportunities != null:
 		field_opportunities.cancel(actor, reason)
+	if private_exchange != null:
+		private_exchange.cancel(actor, reason)
 	for domain: RefCounted in [artifacts, soul_vessels, admissions, construction, resting, clothing, health, spirit_sources, method_records, personal_production]:
 		if domain != null:
 			domain.cancel(actor)
@@ -670,6 +697,8 @@ func _settle_current_processes() -> void:
 	# can escalate. Care owns intentions/evidence, never another body executor.
 	if source_care != null:
 		source_care.settle_at_ms(elapsed_ms)
+	# Handovers settle before the site observes its current original custody.
+	private_exchange.settle_at_ms(elapsed_ms)
 	if field_opportunities != null:
 		field_opportunities.settle_at_ms(elapsed_ms)
 
@@ -970,6 +999,8 @@ func restore(data: Dictionary) -> bool:
 		data = upgrade_field_opportunities(data)
 	if data.get("version") == 36:
 		data = upgrade_ring_use(data)
+	if data.get("version") == 37:
+		data = upgrade_private_exchange(data)
 	if _content == null or not _valid_world_shape(data):
 		return false
 	if (services != null) != data.has("services"):
@@ -1000,10 +1031,13 @@ func restore(data: Dictionary) -> bool:
 		var production_scope: Dictionary = SimPersonalProduction.Schema.inventory_scope(data.personal_production, region_id, _content.personal_production)
 		var health_scope: Dictionary = SimHealth.Schema.inventory_scope(data.health, region_id, _content.health)
 		var labor_scope: Dictionary = SimBudgetedLabor.Schema.inventory_scope(data.budgeted_labor, region_id)
+		var exchange_scope: Dictionary = SimPrivateExchange.Schema.inventory_scope(data.private_exchange, region_id)
 		for field: String in ["containers", "operations", "reservations"]:
 			inventory_scope[field].merge(production_scope[field])
 			inventory_scope[field].merge(labor_scope[field])
 		inventory_scope["operations"].merge(health_scope.operations)
+		inventory_scope["reservations"].merge(exchange_scope.reservations)
+		inventory_scope["operations"].merge(exchange_scope.operations)
 		inventory_scope["service_custody"] = services != null
 		inventory_scope["rainfall_limit"] = SimWeather.rain_budget(data.weather, _content.weather, region_id, int(data.elapsed_ms))
 		if not simulation.initialize(_content, saved.config, cells, saved.places) or not simulation.restore(saved, subject_scope, inventory_scope):
@@ -1056,6 +1090,10 @@ func restore(data: Dictionary) -> bool:
 	if not next_field.initialize(candidate_world, _content.field_opportunities) or not next_field.restore(data.field_opportunities):
 		return false
 	candidate_world.field_opportunities = next_field
+	var next_exchange := SimPrivateExchange.new()
+	if not next_exchange.initialize(candidate_world, _content.private_exchange) or not next_exchange.restore(data.private_exchange):
+		return false
+	candidate_world.private_exchange = next_exchange
 	if services != null:
 		# Build a candidate authority for cross-validation. Live regions and
 		# services remain untouched until every resource and receipt is valid.
@@ -1192,10 +1230,14 @@ func restore(data: Dictionary) -> bool:
 		return false
 	if not next_practice.cross_valid():
 		return false
+	if not SimPrivateExchange.Schema.cross_valid(next_exchange):
+		return false
 	if not next_field.cross_valid():
 		return false
 	if not SimArtifacts.Schema.cross_valid(next_artifacts):
 		return false
+	private_exchange = next_exchange
+	private_exchange.bind_world(self)
 	field_opportunities = next_field
 	field_opportunities.bind_world(self)
 	capability_practice = next_practice

@@ -2,7 +2,7 @@ class_name SimInteractionRequests
 extends RefCounted
 ## Stateless intent boundary. Jobs, consent, evidence and costs stay in domains.
 
-const VERBS: Array[String] = ["examine", "study", "fetch_herb", "trade", "watch_supply", "withdraw_work", "offer_food", "accept_labor", "claim_wage", "converse", "diagnose", "treat", "site_arrangement", "borrow_source", "verify_return", "explain_source", "ask_source_care", "withdraw_source_care", "field_clue"]
+const VERBS: Array[String] = ["examine", "study", "fetch_herb", "trade", "watch_supply", "withdraw_work", "offer_food", "accept_labor", "claim_wage", "converse", "diagnose", "treat", "site_arrangement", "borrow_source", "verify_return", "explain_source", "ask_source_care", "withdraw_source_care", "field_clue", "private_exchange"]
 const STATUSES: Array[String] = ["invalid", "unheard", "not_understood", "incapable", "unavailable", "refused", "started", "pending", "completed", "unconfirmed", "cancelled"]
 
 
@@ -26,7 +26,7 @@ static func valid_definitions(data: Variant) -> bool:
 		var entry: Variant = data.verbs[verb]
 		if not entry is Dictionary or not SimEmbodiment._keys(entry, ["label", "object_kind", "bird_understands"]) or not SimInventory._nonempty(entry.label) or not entry.bird_understands is bool:
 			return false
-		var kind: String = {"field_clue": "field_question", "trade": "trade_offer", "fetch_herb": "avian_site", "watch_supply": "work_plan", "withdraw_work": "work_agreement", "offer_food": "provisions", "accept_labor": "labor_offer", "claim_wage": "labor_contract", "converse": "conversation_topic", "diagnose": "body", "treat": "body", "site_arrangement": "site_case", "borrow_source": "source_offer", "verify_return": "source_note", "explain_source": "care_basis", "ask_source_care": "care_arrangement", "withdraw_source_care": "care_arrangement"}.get(verb, "artifact")
+		var kind: String = {"private_exchange": "private_artifact", "field_clue": "field_question", "trade": "trade_offer", "fetch_herb": "avian_site", "watch_supply": "work_plan", "withdraw_work": "work_agreement", "offer_food": "provisions", "accept_labor": "labor_offer", "claim_wage": "labor_contract", "converse": "conversation_topic", "diagnose": "body", "treat": "body", "site_arrangement": "site_case", "borrow_source": "source_offer", "verify_return": "source_note", "explain_source": "care_basis", "ask_source_care": "care_arrangement", "withdraw_source_care": "care_arrangement"}.get(verb, "artifact")
 		if entry.object_kind != kind:
 			return false
 	for value: Variant in data.status_labels.values():
@@ -87,6 +87,17 @@ static func submit(world: RefCounted, intent: Dictionary) -> Dictionary:
 			return result("not_understood", "光靠比划，没能问清外面的去处。")
 		var answer: Dictionary = world.field_opportunities.learn_from(actor, str(receiver.id))
 		return result(str(answer.get("code", "completed" if answer.ok else "unavailable")), str(answer.line), answer.get("process", {}))
+	if intent.verb == "private_exchange":
+		if receiver.kind != "human":
+			return result("incapable", "对方还没有当面商量钱物交割的办法。")
+		if intent.medium != "spoken":
+			return result("not_understood", "须当面说清具体器物和标价，光靠比划没有谈妥交易。")
+		var exchange: RefCounted = world.get("private_exchange")
+		if exchange == null:
+			return result("unavailable", "眼下没有可办理的私人器物交割。")
+		var answer: Dictionary = exchange.request(actor, str(receiver.id), str(intent.object.id))
+		var exchange_process: Dictionary = {"domain": "private_exchange", "id": str(answer.id), "performer": str(intent.receiver)} if answer.ok else {}
+		return result(str(answer.code), str(answer.line), exchange_process)
 	if intent.verb in ["explain_source", "ask_source_care", "withdraw_source_care"]:
 		if receiver.kind != "human":
 			return result("incapable", "对方还不能用人的语言商量看护与借源依据。")
@@ -181,6 +192,14 @@ static func pending(world: RefCounted, subject: String) -> Array[Dictionary]:
 	var sender: Dictionary = _resolve(world, subject)
 	if sender.is_empty() or sender.kind != "human":
 		return processes
+	var active_exchanges: Array[Dictionary] = []
+	var exchange: RefCounted = world.get("private_exchange")
+	if exchange != null:
+		for process: Dictionary in exchange.pending(str(sender.id)):
+			if exchange.observe(str(sender.id), process).status == "pending":
+				active_exchanges.append(process)
+			else:
+				processes.append(process)
 	for note: Dictionary in world.standing_work.entries.values():
 		if note.requester == sender.id and note.status != "refused" and world.elapsed_ms < int(note.until_ms):
 			processes.append({"domain": "standing_work", "id": str(note.id), "performer": world.embodiment.subject_for_actor(str(note.responder))})
@@ -212,6 +231,7 @@ static func pending(world: RefCounted, subject: String) -> Array[Dictionary]:
 	# Prefer the current bodily task over older, still-open arrangements when
 	# the request panel reconstructs its last ongoing process after loading.
 	processes.append_array(world.health.pending(str(sender.id)))
+	processes.append_array(active_exchanges)
 	return processes
 
 
@@ -219,6 +239,9 @@ static func observe(world: RefCounted, subject: String, process: Dictionary) -> 
 	var sender: Dictionary = _resolve(world, subject)
 	if sender.is_empty() or sender.kind != "human" or not SimEmbodiment._keys(process, ["domain", "id", "performer"]):
 		return result("unconfirmed", "没有能够核对的后续。")
+	if process.domain == "private_exchange":
+		var exchange: RefCounted = world.get("private_exchange")
+		return exchange.observe(str(sender.id), process) if exchange != null else result("unconfirmed", "本人没有这次私人交割的后续。")
 	if process.domain == "source_care":
 		var care: RefCounted = world.get("source_care")
 		if care == null:
@@ -301,6 +324,14 @@ static func _valid_intent(world: RefCounted, intent: Dictionary) -> bool:
 
 
 static func _known_object(world: RefCounted, actor: String, object: Dictionary, receiver: String = "") -> bool:
+	if object.kind == "private_artifact":
+		var exchange: RefCounted = world.get("private_exchange")
+		if exchange == null or receiver.is_empty():
+			return false
+		for choice: Dictionary in exchange.offered_objects(actor, receiver):
+			if choice.id == object.id:
+				return true
+		return false
 	if object.kind == "field_question":
 		return object.id == "nearby_ruins"
 	if object.kind in ["care_basis", "care_arrangement"]:

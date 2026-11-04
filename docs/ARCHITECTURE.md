@@ -2,7 +2,7 @@
 
 核对：2026-11-04，Godot4.7.2 / GDScript。本文描述**已有代码及其限制**，不是目标模块清单。可玩行为见[FEATURES](FEATURES.md)，格式与验证见[BASELINE](BASELINE.md)，文件职责见[PROJECT-STRUCTURE](PROJECT-STRUCTURE.md)。
 
-完整游戏Goal保持active，按[超凡者主线](plans/transcendent_focus.md)优先能力、冒险、组织和事件化远区。U0的身体占用、固定域目录/有名结算阶段、公开候选绑定及纯JSON值规范继续支持后续领域。U1有限交锋/感知/借源/看护、U2-a本人本领来源/有限行气用法及[U3-a野外连续性](plans/first_field_opportunity.md)已验收；[U3-b1有限引物](plans/field_ring_use.md)已接、最终验收待完成，证据见[QA](qa/20261104_drawing_ring.md)与BASELINE。通用活动生命周期、完整事件队列、完整战争、私人交换和通用物性仍待实施。
+完整游戏Goal保持active，按[超凡者主线](plans/transcendent_focus.md)优先能力、冒险、组织和事件化远区。U0的身体占用、固定域目录/有名结算阶段、公开候选绑定及纯JSON值规范继续支持后续领域。U1有限交锋/感知/借源/看护、U2-a本人本领来源/有限行气用法、[U3-a野外连续性](plans/first_field_opportunity.md)和[U3-b1有限引物](plans/field_ring_use.md)局部样本已验收；引物证据见[QA](qa/20261104_drawing_ring.md)与BASELINE。[U3-b2私人器物交换](plans/private_artifact_exchange.md)正在接入，最终验证状态以BASELINE为准。通用活动生命周期、完整事件队列、完整战争、私人市场和通用物性仍待实施。
 
 最新横向审查见[世界/人物/事件/地图](ARCHITECTURE-REVIEW-20261103.md)；E1历法、E2余热与E3药丛之后，[E4-a有限灵源](plans/finite_spirit_source.md)已接共同时间和原身体/器物。后续见[天地环境](plans/world_environment.md)、[真八方向外观](plans/eight_direction_appearance.md)。通用事件/实体注册、完整气候/室内热交换、五行场/风水不因目标架构图而算已实现；A1真八向技术样本已按[QA](qa/20261103_eight_direction_sample.md)接原body朝向与共用采样/分层。
 
@@ -63,9 +63,10 @@ main.gd：场景与运行协作者装配
 | [SimHealth](../scripts/sim/health.gd) / [health_schema](../scripts/sim/health_schema.gd) | 原器物反噬与冲突真实命中来源的持续后果、双人诊治与未来分钟恢复；候选核对伤源/原材料/同意/身体 | 不重复精力/灵力；经脉与挫伤分别约束恢复/治疗，不是完整医疗/死亡 |
 | [SimSparring](../scripts/sim/sparring.gd) | 有界自愿对练、短动作、接触去重和同刻结算 | 完整伤亡系统或第二份体力 |
 | [SimConflicts](../scripts/sim/conflicts.gd) / [conflict_schema](../scripts/sim/conflict_schema.gd) | 有界多场驱离意图、当面示范、已付动作/阶段、投射/气障、命中凭据、有限最后目击与真实退开；空间和当前线索分别由[ConflictSpace](../scripts/sim/conflict_space.gd)、[ConflictPerception](../scripts/sim/conflict_perception.gd)查询 | 不持有身体/武器/伤势余额；不从旧线索读取隐藏新动作，尚无听声/神识/完整搜索、战争/致死/事件粗算 |
-| [SimArtifacts](../scripts/sim/artifacts.gd) / [SimArtifactUnderstanding](../scripts/sim/artifact_understanding.gd) / [SimArtifactDrawing](../scripts/sim/artifact_drawing.gd) | 唯一器物保管、能力类别/动作与个人认识；本人研究完成证据、引物双物占用及目标转移；温石才有储能/裂损 | 由查询自动学会的技能或全知属性；不复制器物/qi，不要求所有物品都有热字段；引物仅限松置木剑 |
+| [SimArtifacts](../scripts/sim/artifacts.gd) / [SimArtifactUnderstanding](../scripts/sim/artifact_understanding.gd) / [SimArtifactDrawing](../scripts/sim/artifact_drawing.gd) | 唯一器物保管、能力类别/动作与个人认识；本人研究完成证据、引物双物占用、私人交割的原物转移事件；温石才有储能/裂损 | 由查询自动学会的技能或全知属性；不复制器物/qi，不要求所有物品都有热字段；引物仅限松置木剑 |
 | [SimCapabilityQueries](../scripts/sim/capability_queries.gd) / [SimCapabilityPractice](../scripts/sim/capability_practice.gd) | 本人原招式/器物/版本/木牍的只读来源投影；新增有限练习过程、原资源成本和完成证据 | 不建全局learned镜像、第二qi余额或第二移动身体；目录不直接授技 |
 | [SimFieldOpportunities](../scripts/sim/field_opportunities.gd) / [field_opportunity_schema](../scripts/sim/field_opportunity_schema.gd) | 一处显式地点/固定槽、一个有限寻物目的、原身体行程与原取物引用；源线索/亲见仍存原个人社会记忆，联合候选核因果 | 不复制身体/器物/背包/时钟，不把POI变第三聚落，不授引物能力或提供通用任务/探索规划 |
+| [SimPrivateExchange](../scripts/sim/private_exchange.gd) / [private_exchange_schema](../scripts/sim/private_exchange_schema.gd) | 具名固定报价提案、原社会判断与当次同意引用、双人交割过程、原钱预约引用和一次转移凭证；联合候选核对原库存操作与器物来源 | 不另存身体、钱包、器物、时间或机构余额；仅处理当前一枚环的和平交接，不是通用市场 |
 | [SimSpiritSources](../scripts/sim/spirit_sources.gd) / [spirit_source_schema](../scripts/sim/spirit_source_schema.gd) | 固定源存量/有限深层释放/散失、源预约、原身体/温石的引息过程与输出凭据；原qi/charge基准用于跨域对账 | 不复制人物灵力、器物储热、身体/位置或时钟；不是全局五行余额/修炼等级 |
 | [SimSiteAffairs](../scripts/sim/site_affairs.gd) / [site_affair_schema](../scripts/sim/site_affair_schema.gd) | 显式公源case、具名说明、一次note/原用源引用、归还声明/现场证据/登记；真实执行仍归原服务 | 不复制源量、器物、贡献、身体；签注不等于人物全知或便携文书 |
 | [SimSourceCare](../scripts/sim/source_care.gd) / [source_care_schema](../scripts/sim/source_care_schema.gd) | 一处公源的有限看护安排、原查看action引用、本人说明/采信、警告/宽限与原交锋cause；独立候选核对原job/事件/身体 | 不保存第二身体/路径、源量、武器、伤势或许可余额，不提供通用巡逻/产权/执法 |
@@ -99,7 +100,7 @@ main.gd：场景与运行协作者装配
 | SparringRuntime | K/J输入、获准阶段/扇区和收手；命中由sim决定 |
 | ConflictRuntime | U本领/当面意图、Q/E/R暂停排队后真实提交、X停手、有限感知的前摇/气弹/气障；不在绘制帧推进规则 |
 | [FieldOpportunityRuntime](../scripts/runtime/field_opportunity_runtime.gd) | L野外见闻、本人已知地点行旅/到场查看、当前可见物件跳转原I页和C问路；旧探索只画记忆，绘制/刷新不写知识或生物件 |
-| InteractionRequestsRuntime | 人身C的眼前接收者/事项/对象/媒介、贸易份数与劳动分工/当面撤回、野外去处`field_clue`；借用依据说明、看护询问/参与者撤回；过程引用从原领域按个人可知重建，仅当前扮演主体实际收到的看护警告会停止等候、恢复一倍并暂停 |
+| InteractionRequestsRuntime | 人身C的眼前接收者/事项/对象/媒介、贸易份数与劳动分工/当面撤回、野外去处`field_clue`及眼前持环者的私人交割请求；借用依据说明、看护询问/参与者撤回；过程引用从原领域按个人可知重建，仅当前扮演主体实际收到的看护警告会停止等候、恢复一倍并暂停 |
 | HeatMethodsRuntime | M手记的草案参数/本人版本、教学及实物记录页；刻牍/读牍仍由记录域执行，照步骤练习复用原charge任务 |
 | ConstructionRuntime | N施工簿、工地/结构/木料/围合投影、床位安排与使用；调用原施工/休息规则 |
 | WeatherRuntime | 所在地天气文字/有界雨线；只按共同时间重绘，跳过不可见/覆顶格，残识隐藏 |
@@ -118,6 +119,8 @@ main.gd：场景与运行协作者装配
 U2-a的`walking_projection`分开普通步行与原动作锁；Regional每个真实时间边界回调原手动身体积分，候选用同一投影核速度，命中边界立即收敛。原护障缓步须先完成付费练习，qi仍由原body唯一保存，源对账显式增加`practice_floor`，不由U页或动画帧改变。实际范围见[U2-a QA](qa/20261104_capability_network.md)。
 
 U3-b1的器物域保存本人用法研究及引物过程，开始即支付原qi，完成事件 `use_learned` 才授本人用法，完成引物才移动唯一原目标。联合候选核验本人持环、原身体连续位置与占用、目标/保管和费用；活跃研究/引物的玩家候选拒绝非零高度和精确非零速度。正qi首消费继续原源账 `artifact_floor`，U页只投影本人实际事件。历史 `from_cell` 当前依赖固定槽坐标，未来槽迁移须改用历史位置证据，不能当完整产权账。阶段及末版证据见[引物QA](qa/20261104_drawing_ring.md)。
+
+U3-b2以共同毫秒安排双方原身体的当面交割，开始前同步双方原区域，交割时占用双方及同一枚环；实际相遇看连续位置，原区决定身体与行囊的保存者。提案按买方、卖方、环、本次取得来源和固定报价复用原社会判断，反复请求或无关状态变化不重掷；每次开始仍记录当面同意。中断释放预约和占用并恢复原自主安排，不移动钱环。交割截止后同步预检、一次提交，现场观察在交割之后结算；玩家停止时保留真实连续位置。具体合同见[私人交换规格](plans/private_artifact_exchange.md)。
 
 近区细步，远区跳过稳定区间、处理最早必要变化；跨区写入先同步相关区域，改变条件后使预测失效。当前验证覆盖双聚落和已接领域，不能承诺任意物理轨迹逐位一致或大型世界帧率。路线仍基于格路，顺滑/避让属于后续实际测量事项。
 
@@ -142,6 +145,10 @@ U0使候选边界经`home_runtime()`与`VillageRuntime.snapshot_context/valid_sn
 领域各存自己的状态与进行中事务，来源/控制/时间/引用共同校验。固定生成器描述与探索进入会话；可见范围从恢复位置重算。当前格式及不可改写的真实旧档目录统一见[BASELINE](BASELINE.md)。
 
 U3-a先恢复地点形状与固定槽，再恢复原器物候选，等身体/社会记忆/路线/器物等原所有者齐备后核线索来源、亲见、行程和唯一器物保管因果。根候选的`site:<id>`目的地按该候选本人的知识核对，不借活会话后来所知，不允许额外目标坐标覆写。旧档显式迁空新域，不补遗迹、环、线索或旅行；普通主局新建通过`WorldContinuityRuntime.setup`的`opening_field`显式启用，读档整域替换而不根据开局flag补物。真实进行中与坏候选证据见[本包QA](qa/20261104_field_opportunity.md)，当前格式/最终回归只看BASELINE。
+
+私人交割在原买方行囊预约钱，完成后同原区使用一份候选账本和带预约的原`transfer`操作；跨原区分别预检两个原账本，在同一同步提交段记录买方原`consume`并给卖方原行囊加钱。`transfers`只保存本次钱款、同意及原器物事件引用，不是第二钱包；原器物`exchanged`事件和当前位置保存同一环的真实转手来源。区域候选先按交换声明接收原预约/操作，再恢复交换形状，待原身体、社会记忆、器物与其他相关域就绪后联合校验；失败不替换活世界。旧根41/区域37/器物5显式升根42/区域38/器物6，只迁入空私人交换域及器物版本，不补提案、同意、钱、环或交易。
+
+器物动作、成交事件和取消/失败的`artifact:release`共用原器物序号；释放记录次序而不伪造成交，候选用它区分同毫秒后续动作。非共享序号的域只按可证明的半开毫秒区间核对，不能据此重演所有历史同刻先后或历史遮挡。来源与部分历史交叉校验在恢复时扫描已有记录，诊治和器物历史没有固定数量上限，长期索引成本尚未经多年规模实测；未来需统一身体占用区间接缝与按需索引，不应声称已完成全历史重演。定向用例中的受控篡改与普通产品路径分开，实际证据及最终验证状态见BASELINE。
 
 感知包当时形状为根36/区域32/交锋2；当前格式以BASELINE为准。`perception_since_ms`明确启用边界，`people[actor].sight`为空或保存目击时刻、观察者当时位置、对手当时位置及高度。旧v35在保存现在启用且线索为空，原动作、费用、弹、障、伤势及已经决定的退让方向保留；更早迁移固定产生当时交锋1形状，再显式升版。候选检查记录字段、时间、有限距离和记录点的静态高度，但不拿此刻人物位置或门墙证明过去可见；同毫秒后续移动也不改写旧观察。这是有界历史记录的一致性校验，不是完整感知事件重演；本包最终验证状态仍以BASELINE为准。
 

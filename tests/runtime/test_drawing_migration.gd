@@ -32,6 +32,8 @@ func run(runner: Object) -> void:
 		runner.assert_eq(int(current.continuity.world.artifacts.version), SimArtifacts.VERSION, "old artifact envelope migrates to the current version")
 		runner.assert_eq(_json(current.continuity.world.field_opportunities), _json(source.continuity.world.field_opportunities), "old field state and its real route or slot are untouched")
 		var projected: Dictionary = current.continuity.world.duplicate(true)
+		runner.assert_eq(SnapshotValues.normalized(projected.private_exchange), SnapshotValues.normalized(SimPrivateExchange.empty_state()), "old field history gains no invented private exchange, consent, or receipt")
+		projected.erase("private_exchange")
 		projected.version = source.continuity.world.version
 		projected.artifacts.version = source.continuity.world.artifacts.version
 		runner.assert_eq(_json(projected), _json(source.continuity.world), "migration preserves all existing objects, personal evidence, active work and original qi")
@@ -43,10 +45,10 @@ func run(runner: Object) -> void:
 		var before: String = _json(current)
 		var forged: Dictionary = current.duplicate(true)
 		forged.continuity.world.artifacts.version = source.continuity.world.artifacts.version
-		_reject(runtime, forged, path, before, runner, "root 41 refuses an old artifact envelope")
+		_reject(runtime, forged, path, before, runner, "current root refuses an old artifact envelope")
 		forged = current.duplicate(true)
 		forged.continuity.world = source.continuity.world.duplicate(true)
-		_reject(runtime, forged, path, before, runner, "root 41 refuses an old regional envelope")
+		_reject(runtime, forged, path, before, runner, "current root refuses an old regional envelope")
 		forged = source.duplicate(true)
 		forged.continuity.world.artifacts.version = SimArtifacts.VERSION
 		_reject(runtime, forged, path, before, runner, "root 40 cannot smuggle a modern artifact envelope")

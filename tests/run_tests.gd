@@ -1334,3 +1334,23 @@ func test_drawing_runtime() -> void:
 
 func test_drawing_continuity() -> void:
 	load("res://tests/runtime/test_drawing_continuity.gd").new().run(self)
+
+
+func test_private_exchange() -> void:
+	load("res://tests/sim/test_private_exchange.gd").new().run(self)
+
+
+func test_private_exchange_runtime() -> void:
+	load("res://tests/runtime/test_private_exchange_runtime.gd").new().run(self)
+
+
+func test_private_exchange_migration() -> void:
+	load("res://tests/runtime/test_private_exchange_migration.gd").new().run(self)
+
+
+func test_private_exchange_order() -> void:
+	load("res://tests/sim/test_private_exchange_order.gd").new().run(self)
+
+
+func test_private_exchange_continuity() -> void:
+	load("res://tests/runtime/test_private_exchange_continuity.gd").new().run(self)

@@ -570,6 +570,7 @@ func advance_to_ms(target_ms: int) -> void:
 		end = mini(end, world_sim.conflicts.next_boundary_ms())
 		end = mini(end, world_sim.source_care.next_boundary_ms())
 		end = mini(end, world_sim.field_opportunities.next_boundary_ms())
+		end = mini(end, world_sim.private_exchange.next_boundary_ms())
 		end = mini(end, world_sim.capability_practice.next_boundary_ms())
 		end = mini(end, world_sim.environment.next_boundary_ms())
 		end = mini(end, world_sim.large_bodies.next_boundary_ms())
@@ -635,6 +636,10 @@ func advance_to_ms(target_ms: int) -> void:
 
 func travel_to(region_id: String, destination_cell: Variant = null) -> bool:
 	if not human_player_active() or world_sim == null:
+		return false
+	if world_sim != null and world_sim.private_exchange.owns_actor("player"):
+		_notice = "先完成或停止当面交割，再安排远行。"
+		_refresh_panel()
 		return false
 	if world_sim != null and world_sim.capability_practice.owns_actor("player"):
 		_notice = "先完成或中止行气练习，再安排远行；WASD可直接中断练习。"
@@ -745,6 +750,7 @@ func cancel_travel() -> void:
 		world_sim.method_records.cancel("player")
 		world_sim.personal_production.cancel("player")
 		world_sim.capability_practice.cancel("player", "manual_override")
+		world_sim.private_exchange.cancel("player", "manual_override")
 		if world_sim.conflicts.conflict_for("player").is_empty():
 			world_sim.conflicts.cancel("player")
 
@@ -770,10 +776,14 @@ func stop_player_action(reason: String = "player_cancelled") -> void:
 		world_sim.sparring.stop()
 	world_sim.conflicts.cancel("player")
 	world_sim.capability_practice.cancel("player", reason)
+	world_sim.private_exchange.cancel("player", reason)
 	cancel_travel()
 	world_sim.services.cancel("player", reason)
 	_home.simulation.cancel_action("player", reason)
 	world_sim.invalidate_region("home")
+	_refresh_panel()
+	if interaction_adapter != null:
+		interaction_adapter.refresh_progress()
 
 
 func hold_player_motion(preserve_position: bool = false) -> void:

@@ -135,6 +135,7 @@ static func _observation(domain: RefCounted, event: Dictionary) -> bool:
 	var to: Vector2 = TileGrid.cell_to_world(SimRouteTravel.cell(details.cell))
 	if from.distance_to(to) > float(domain.definitions.observation_cells) * TileGrid.TILE_SIZE + 0.001 or Space.level(domain.world, from) != details.level or Space.level(domain.world, to) != details.level: return false
 	var custody: Dictionary = _custody_at(domain, int(details.at_ms))
+	if custody.is_empty(): return false
 	var present: bool = custody.region == domain.sites[details.site].region and custody.container == domain.sites[details.site].container
 	if present != (details.outcome == "present"): return false
 	var payload: Dictionary = details.duplicate(true)
@@ -165,32 +166,20 @@ static func _shared(domain: RefCounted, event: Dictionary, used: Dictionary) -> 
 
 static func _custody_valid(domain: RefCounted) -> bool:
 	var rule: Dictionary = domain.definitions.site
-	var region: String = str(rule.region)
-	var container: String = str(rule.container)
 	var previous_ms: int = int(domain.sites[rule.id].opened_ms)
 	for event: Dictionary in domain.world.artifacts.events:
 		if event.object != rule.object: continue
 		if int(event.started_ms) < int(domain.sites[rule.id].opened_ms) or int(event.at_ms) < previous_ms: return false
 		previous_ms = int(event.at_ms)
-		if event.kind == "taken":
-			if region != rule.region or container != rule.container or event.effect_region != event.region: return false
-			region = str(event.region)
-			container = "actor:" + str(event.actor)
-		elif event.kind == "placed":
-			if region != event.region or container != "actor:" + str(event.actor) or event.effect_region != rule.region: return false
-			region = str(rule.region)
-			container = str(rule.container)
+	var custody: Dictionary = _custody_at(domain, int(domain.world.elapsed_ms))
+	if custody.is_empty(): return false
 	var item: Dictionary = domain.world.artifacts.objects[rule.object]
-	return item.region == region and item.container == container
+	return item.region == custody.region and item.container == custody.container
 
 
 static func _custody_at(domain: RefCounted, at_ms: int) -> Dictionary:
-	var result: Dictionary = {"region": str(domain.definitions.site.region), "container": str(domain.definitions.site.container)}
-	for event: Dictionary in domain.world.artifacts.events:
-		if event.object != domain.definitions.site.object or int(event.at_ms) > at_ms: continue
-		if event.kind == "taken": result = {"region": str(event.region), "container": "actor:" + str(event.actor)}
-		elif event.kind == "placed": result = {"region": str(domain.definitions.site.region), "container": str(domain.definitions.site.container)}
-	return result
+	var state: Dictionary = SimArtifacts.Schema.field_custody(domain.world.artifacts, at_ms)
+	return {} if state.is_empty() else {"region": state.region, "container": state.container}
 
 
 static func _event(domain: RefCounted, id: String, kind: String, actor: String, target: String, at_ms: int, details: Dictionary) -> bool:

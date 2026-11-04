@@ -1,6 +1,6 @@
 # Reol 快速交接
 
-**当前授权（2026-11-04）**：原完整游戏Goal已清除，`get_goal`返回null。用户已授权实际测试、配置和调整AI开发套件；当前不恢复玩法实施、不重建Goal。以下历史中的active、paused或下一包不覆盖本段。
+**当前授权（2026-11-04）**：用户已明确重新授权持续游戏实施，新完整游戏Goal已创建并核对active。已验AI套件作为开发基础，继续超凡者优先路线；[U3-b2私人器物交换](plans/private_artifact_exchange.md)主目录已实现并通过本机定向/普通路线/独立停开/面板图，完整CI待验，见[QA](qa/20261104_private_exchange.md)和BASELINE。隔离草稿逐文件审查采用，不整目录合回。此前清除/仅工具/暂停的记录是历史，不覆盖本段。
 
 **本轮基础设施已实装**：[实际配置与验收](AI-TOOLKIT-SETUP.md)记录单一Godot AI4.4.1、uv/uvx0.13.7、Context7、默认禁用备用Godot、37技能精简及来源/回退。原启动失败源于uv0.9.5不支持新版参数、进程提前退出，另有旧后端占用；已更新启动器、只清理确认归属的旧进程并正常重开。当前Reol插件/后端同为4.4.1、ready/stopped。Godot用户级设置排除csg/gridmap/testing；需重启Codex刷新旧attach，详情与作用范围见实装文档。未改全局模型/权限。
 
@@ -8,7 +8,7 @@
 
 **最新CI已通过**：旧U3-b1 run[41742281428](https://github.com/fewnfds/reol/actions/runs/41742281428)实际失败于三项历史迁移测试前提。本轮工具提交`0ecae3a`后，`0804c70`仅修这三项测试，不改游戏规则或历史fixture；对应完整回归[41755190941](https://github.com/fewnfds/reol/actions/runs/41755190941)已success，确切SHA、数字和日志见BASELINE。U3-b1局部样本的待收CI已补齐，不代表完整游戏通过。当前仍为`codex/drawing-ring-use`开发分支，未合main；不重复本地全检。
 
-**隔离半成品**：[U3-b2私人交换规格](plans/private_artifact_exchange.md)已整理，`logs/private_exchange_work_20261104_0755`内仅有未完成草稿；代理已停止实施，尚未合主目录/未运行测试。独立过程引用原身体/钱包/环，只在当面有效同意后预约原4钱，5秒完成同时交钱交环；对方返程忙碌时拒绝打断。完整接缝笔记在`logs/private_artifact_trade_notes_20261104.md`，器物缺失函数与未验接缝见`logs/private_exchange_artifact_handoff_20261104.md`。不要整目录覆回，尤其主目录CI成功记录与本轮工具文档。
+**旧隔离半成品（已逐文件审查接续）**：[U3-b2私人交换规格](plans/private_artifact_exchange.md)已整理，`logs/private_exchange_work_20261104_0755`内仅有未完成草稿；代理已停止实施，尚未合主目录/未运行测试。独立过程引用原身体/钱包/环，只在当面有效同意后预约原4钱，5秒完成同时交钱交环；对方返程忙碌时拒绝打断。完整接缝笔记在`logs/private_artifact_trade_notes_20261104.md`，器物缺失函数与未验接缝见`logs/private_exchange_artifact_handoff_20261104.md`。不要整目录覆回，尤其主目录CI成功记录与本轮工具文档。
 
 ## 暂停前记录
 

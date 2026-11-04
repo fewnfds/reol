@@ -61,6 +61,7 @@ var source_care: Dictionary = {}
 var capability_practice: Dictionary = {}
 var capability_network: Dictionary = {}
 var field_opportunities: Dictionary = {}
+var private_exchange: Dictionary = {}
 
 
 func load_all() -> bool:
@@ -107,6 +108,12 @@ func load_all() -> bool:
 	capability_practice = {}
 	capability_network = {}
 	field_opportunities = {}
+	private_exchange = {}
+	var exchange_rules: Variant = _read_json("res://data/definitions/private_exchange.json")
+	if exchange_rules is Dictionary and SimPrivateExchange.valid_definitions(exchange_rules):
+		private_exchange = exchange_rules.duplicate(true)
+	else:
+		_error("private_exchange.json: invalid bounded private exchange rules")
 	var field_rules: Variant = _read_json("res://data/definitions/field_opportunities.json")
 	if field_rules is Dictionary and SimFieldOpportunities.valid_definitions(field_rules):
 		field_opportunities = field_rules.duplicate(true)

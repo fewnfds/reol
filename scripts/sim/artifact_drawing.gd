@@ -81,4 +81,6 @@ static func _locked(domain: RefCounted, id: String, actor: String, owned: bool) 
 		if job.object == id or job.get("draw", {}).get("target") == id:
 			return true
 	var world: RefCounted = domain.world
+	if world.get("private_exchange") != null and world.get("private_exchange").target_in_use(id):
+		return true
 	return (world.soul_vessels != null and world.soul_vessels.target_in_use(id)) or (world.spirit_sources != null and world.spirit_sources.target_in_use(id))

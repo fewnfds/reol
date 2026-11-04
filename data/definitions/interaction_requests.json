@@ -13,6 +13,11 @@
     "gesture"
   ],
   "verbs": {
+    "private_exchange": {
+      "label": "商量当面购买这件器物",
+      "object_kind": "private_artifact",
+      "bird_understands": false
+    },
     "explain_source": {
       "label": "当面说明本次借源依据",
       "object_kind": "care_basis",

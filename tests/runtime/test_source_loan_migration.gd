@@ -38,6 +38,8 @@ func run(runner: Object) -> void:
 			runner.assert_eq(int(snapshot.continuity.world.version), RegionalSimulation.SCHEMA_VERSION, "real v36 regional envelope explicitly migrates to the current version")
 			runner.assert_eq(_canonical(runtime.world_sim.site_affairs.to_dict()), _canonical(SimSiteAffairs.empty_state()), "old load adds only empty affairs, without past announcements, permits, observations or returns")
 			var projected: Dictionary = snapshot.continuity.world.duplicate(true)
+			runner.assert_eq(SnapshotValues.normalized(projected.private_exchange), SnapshotValues.normalized(SimPrivateExchange.empty_state()), "historical world gains no invented private exchange, consent, or receipt")
+			projected.erase("private_exchange")
 			runner.assert_eq(SnapshotValues.normalized(projected.field_opportunities), SnapshotValues.normalized(SimFieldOpportunities.empty_state()), "historical world gains no invented field site, visitor or treasure")
 			projected.erase("field_opportunities")
 			runner.assert_eq(_canonical(projected.capability_practice), _canonical(SimCapabilityPractice.empty_state()), "old source-loan archive gains no invented advanced practice or cost history")

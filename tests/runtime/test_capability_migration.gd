@@ -30,6 +30,8 @@ func run(runner: Object) -> void:
 		runner.assert_eq(_json(current.continuity.world.capability_practice), _json(SimCapabilityPractice.empty_state()), "old history gains no imagined training or mastery")
 		runner.assert_true(not runtime.world_sim.capability_practice.learned("player"), "knowing old qi guard never grants new mobile use")
 		var projected: Dictionary = current.continuity.world.duplicate(true)
+		runner.assert_eq(SnapshotValues.normalized(projected.private_exchange), SnapshotValues.normalized(SimPrivateExchange.empty_state()), "historical world gains no invented private exchange, consent, or receipt")
+		projected.erase("private_exchange")
 		runner.assert_eq(SnapshotValues.normalized(projected.field_opportunities), SnapshotValues.normalized(SimFieldOpportunities.empty_state()), "historical world gains no invented field site, visitor or treasure")
 		projected.erase("field_opportunities")
 		projected.erase("capability_practice")

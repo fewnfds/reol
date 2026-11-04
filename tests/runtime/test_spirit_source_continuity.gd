@@ -101,6 +101,8 @@ func _old_archives(runner: Object) -> void:
 				runner.assert_eq(row.lost, 0, "migration never reconstructs fictitious old overflow")
 			if version == 33:
 				var projected: Dictionary = regional.duplicate(true)
+				runner.assert_eq(SnapshotValues.normalized(projected.private_exchange), SnapshotValues.normalized(SimPrivateExchange.empty_state()), "historical world gains no invented private exchange, consent, or receipt")
+				projected.erase("private_exchange")
 				runner.assert_eq(SnapshotValues.normalized(projected.field_opportunities), SnapshotValues.normalized(SimFieldOpportunities.empty_state()), "historical world gains no invented field site, visitor or treasure")
 				projected.erase("field_opportunities")
 				projected.erase("spirit_sources")

@@ -82,6 +82,7 @@ func _existing_samples(runner: Object) -> void:
 		for field: String in ["weather", "clothing", "artifacts", "heat_methods", "construction", "health"]:
 			var expected: Dictionary = old_world[field].duplicate(true)
 			if field == "artifacts":
+				runner.assert_eq(int(expected.version), 4, "the real pre-heat archive has the original artifact v4 envelope")
 				expected.version = SimArtifacts.VERSION
 			if field == "health":
 				expected.version = 2
@@ -95,6 +96,8 @@ func _existing_samples(runner: Object) -> void:
 		runner.assert_eq(new_world.local_heat.activation_ms, old_world.elapsed_ms, "new heat starts at the actual saved present, independent of older exposure time: v%d" % version)
 		if version == 31:
 			var previous_fields: Dictionary = new_world.duplicate(true)
+			runner.assert_eq(SnapshotValues.normalized(previous_fields.private_exchange), SnapshotValues.normalized(SimPrivateExchange.empty_state()), "historical world gains no invented private exchange, consent, or receipt")
+			previous_fields.erase("private_exchange")
 			runner.assert_eq(SnapshotValues.normalized(previous_fields.field_opportunities), SnapshotValues.normalized(SimFieldOpportunities.empty_state()), "historical world gains no invented field site, visitor or treasure")
 			previous_fields.erase("field_opportunities")
 			previous_fields.erase("local_heat")

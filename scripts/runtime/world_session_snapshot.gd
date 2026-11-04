@@ -102,6 +102,8 @@ static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
 		return {}
 	if (int(snapshot.player.altitude) != 0 or velocity != Vector2.ZERO) and restored.artifacts.active.get("player", {}).get("verb", "") in ["use_research", "draw"]:
 		return {}
+	if (int(snapshot.player.altitude) != 0 or velocity != Vector2.ZERO) and restored.private_exchange.owns_actor("player"):
+		return {}
 	if travelling and restored.owns_for_scope("player", &"journey"):
 		return {}
 	if manual_action and restored.owns_for_scope("player", &"manual_action"):

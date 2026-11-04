@@ -2,7 +2,7 @@ class_name SessionSaveSchema
 extends RefCounted
 ## Explicit migrations at the session boundary. No file I/O or live mutations.
 
-const VERSION: int = 41
+const VERSION: int = 42
 
 
 static func capture_world(fog: FogOfWar, focus: Vector2i) -> Dictionary:
@@ -26,6 +26,18 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			if not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION:
 				return {}
 		return source if is_valid_world(source) else {}
+	if version == 41:
+		if not _valid_world_fields(source, 41):
+			return {}
+		var updated: Dictionary = source.duplicate(true)
+		if updated.has("continuity"):
+			if not updated.continuity is Dictionary or not updated.continuity.get("world") is Dictionary:
+				return {}
+			updated.continuity.world = RegionalSimulation.upgrade_private_exchange(updated.continuity.world)
+			if updated.continuity.world.is_empty():
+				return {}
+		updated.schema_version = 42
+		return upgrade(updated, content)
 	if version == 40:
 		if not _valid_world_fields(source, 40):
 			return {}

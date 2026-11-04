@@ -405,8 +405,8 @@ func _legacy_activation(runner: Object) -> void:
 		var expected: Dictionary = before[field].duplicate(true)
 		if field == "artifacts":
 			runner.assert_eq(int(expected.version), 4, "the real pre-environment archive has the original artifact v4 envelope")
-			# Root v40 -> v41 explicitly upgrades only this envelope to v5.
-			expected.version = 5
+			# Subsequent migrations explicitly update the original envelope.
+			expected.version = SimArtifacts.VERSION
 		if field == "health":
 			expected.version = 2
 			expected["conflict_source_floor"] = 1

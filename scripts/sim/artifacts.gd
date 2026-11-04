@@ -3,7 +3,7 @@ extends RefCounted
 ## Unique objects, personal experiments and committed material effects.
 ## Container references own location; observations never expose private charge.
 
-const VERSION: int = 5
+const VERSION: int = 6
 const DEFINITIONS_VERSION: int = 1
 const VERBS: Array[String] = ["inspect", "take", "place", "study", "heat", "charge", "dry", "examine", "force", "warm"]
 const Schema = preload("res://scripts/sim/artifact_schema.gd")
@@ -137,11 +137,115 @@ func learned_use(actor: String, id: String) -> bool:
 	return has_capability(id, "remote_draw") and Understanding.has_personal_event(self, actor, id, "use_learned")
 
 
-func target_in_use(id: String) -> bool:
+func target_in_use(id: String, except_exchange: String = "") -> bool:
 	for job: Dictionary in active.values():
 		if job.object == id or job.get("draw", {}).get("target") == id:
 			return true
+	var exchange: Variant = world.get("private_exchange") if world != null else null
+	if exchange != null and exchange.target_in_use(id, except_exchange):
+		return true
 	return false
+
+
+func can_reserve_exchange_action() -> bool:
+	return _can_start_action()
+
+
+func _can_start_action() -> bool:
+	# Every live artifact or exchange action retains one termination slot.
+	var outstanding: int = active.size()
+	var exchange: Variant = world.get("private_exchange") if world != null else null
+	if exchange != null:
+		for job: Dictionary in exchange.jobs.values():
+			if job.status == "active":
+				outstanding += 1
+	return next_id <= SimInventory.MAX_COUNT - outstanding - 2
+
+
+func reserve_exchange_action() -> String:
+	if not can_reserve_exchange_action():
+		return ""
+	return _allocate("action")
+
+
+func reserve_exchange_release() -> String:
+	# Release orders a cancelled/failed exchange without a fictitious transfer.
+	if next_id >= SimInventory.MAX_COUNT:
+		return ""
+	return _allocate("release")
+
+
+func current_holder_source(object_id: String, actor: String) -> String:
+	var field: Variant = world.get("field_opportunities") if world != null else null
+	if field == null or field.sites.is_empty() or object_id != field.definitions.site.object or not objects.has(object_id):
+		return ""
+	var home: String = actor_home(actor)
+	var item: Dictionary = objects[object_id]
+	if home.is_empty() or item.region != home or item.container != "actor:" + actor:
+		return ""
+	var custody: Dictionary = Schema.field_custody(self, int(world.elapsed_ms))
+	if custody.get("region") != home or custody.get("container") != "actor:" + actor:
+		return ""
+	return str(custody.get("source", ""))
+
+
+func can_record_exchange(job: Dictionary) -> bool:
+	# Consent and wallets belong to the exchange domain and must already have
+	# been preflighted before this synchronous original-object commit.
+	if world == null or next_id >= SimInventory.MAX_COUNT:
+		return false
+	var exchange: Variant = world.get("private_exchange")
+	if exchange == null or not job.get("id") is String or not exchange.jobs.has(job.id) or exchange.jobs[job.id] != job:
+		return false
+	if job.get("status") != "active" or job.get("artifact_event") != "" or job.get("artifact_release") != "" or job.get("finished_ms") != -1:
+		return false
+	if not SimInventory._nonempty(job.get("seller")) or not SimInventory._nonempty(job.get("buyer")) or job.seller == job.buyer or not SimInventory._nonempty(job.get("object")):
+		return false
+	if not job.get("seller_region") is String or not job.get("buyer_region") is String or actor_home(str(job.seller)) != job.seller_region or actor_home(str(job.buyer)) != job.buyer_region or str(job.seller_region).is_empty() or str(job.buyer_region).is_empty():
+		return false
+	if not Schema._count(job.get("started_ms")) or not Schema._count(job.get("due_ms")) or int(job.due_ms) != int(world.elapsed_ms) or int(job.started_ms) >= int(job.due_ms):
+		return false
+	if not Schema._allocated(job.get("artifact_action"), "action", next_id, {}) or not Schema.Shape.position_valid(job.get("seller_position")):
+		return false
+	if not SimInventory._nonempty(job.get("source_event")) or current_holder_source(str(job.object), str(job.seller)) != job.source_event:
+		return false
+	var seller_point := Vector2(float(job.seller_position[0]), float(job.seller_position[1]))
+	if SimRouteTravel.point(world.regions[job.seller_region].actors[job.seller]) != seller_point:
+		return false
+	for item: Dictionary in active.values():
+		if item.id == job.artifact_action:
+			return false
+	for event: Dictionary in events:
+		if event.action == job.artifact_action:
+			return false
+	for other: Dictionary in exchange.jobs.values():
+		if other.id != job.id and other.artifact_action == job.artifact_action:
+			return false
+	if target_in_use(str(job.object), str(job.id)):
+		return false
+	if world.soul_vessels != null and world.soul_vessels.target_in_use(str(job.object)):
+		return false
+	if world.spirit_sources != null and world.spirit_sources.target_in_use(str(job.object)):
+		return false
+	return true
+
+
+func record_exchange(job: Dictionary) -> String:
+	if not can_record_exchange(job):
+		return ""
+	var item: Dictionary = objects[job.object]
+	var seller_point := Vector2(float(job.seller_position[0]), float(job.seller_position[1]))
+	var cell: Vector2i = TileGrid.world_to_cell(seller_point)
+	var event_id: String = _allocate("event")
+	item.region = str(job.buyer_region)
+	item.container = "actor:" + str(job.buyer)
+	events.append({"id": event_id, "action": str(job.artifact_action), "actor": str(job.seller),
+		"subject": world.embodiment.subject_for_actor(str(job.seller)), "object": str(job.object),
+		"kind": "exchanged", "at": int(world.current_time), "line": "双方当面交割，原器物已交到对方手边。",
+		"region": str(job.seller_region), "cell": [cell.x, cell.y], "verb": "private_exchange",
+		"started_ms": int(job.started_ms), "at_ms": int(world.elapsed_ms), "qi_spent": 0,
+		"effect_region": str(job.buyer_region), "recipient": str(job.buyer), "exchange": str(job.id)})
+	return event_id
 
 
 func held_weapon(actor: String) -> String:
@@ -335,7 +439,7 @@ func begin_draw(actor: String, tool: String, target: String) -> Dictionary:
 	var terms: Dictionary = verbs_for(tool).draw
 	if int(person.qi) < int(terms.qi):
 		return _response(false, "你的灵气不足以引取这件实物。")
-	if int(world.elapsed_ms) > SimInventory.MAX_COUNT - int(terms.duration_ms) or next_id > SimInventory.MAX_COUNT - 2:
+	if int(world.elapsed_ms) > SimInventory.MAX_COUNT - int(terms.duration_ms) or not _can_start_action():
 		return _response(false, "当前时间无法安排这次操作。")
 	if world.spirit_sources == null or not world.spirit_sources.ensure_qi_baseline(actor):
 		return _response(false, "当前无法核对本人已有的灵气。")
@@ -412,7 +516,7 @@ func _begin(actor: String, verb: String, id: String, during_commit: bool, recipi
 	var maximum_minutes: int = (SimInventory.MAX_COUNT - int(world.elapsed_ms)) / 60000
 	if int(terms.minutes) > maximum_minutes:
 		return _response(false, "当前时间无法安排这次操作。")
-	if verb == "use_research" and next_id > SimInventory.MAX_COUNT - 2:
+	if not _can_start_action():
 		return _response(false, "当前无法安排这次操作。")
 	if verb == "use_research" and (world.spirit_sources == null or not world.spirit_sources.ensure_qi_baseline(actor)):
 		return _response(false, "当前无法核对本人已有的灵气。")

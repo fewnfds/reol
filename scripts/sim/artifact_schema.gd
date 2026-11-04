@@ -4,11 +4,11 @@ extends RefCounted
 const Methods = preload("res://scripts/sim/heat_method_schema.gd")
 const Shape = preload("res://scripts/sim/avian_schema.gd")
 
-const KINDS: Array[String] = ["observed", "taken", "placed", "studied", "backlash", "charged", "heated", "depleted", "failed", "cancelled", "examined", "fractured", "overcharged", "warmed", "use_learned", "drawn"]
+const KINDS: Array[String] = ["observed", "taken", "placed", "studied", "backlash", "charged", "heated", "depleted", "failed", "cancelled", "examined", "fractured", "overcharged", "warmed", "use_learned", "drawn", "exchanged"]
 
 
 static func validate(data: Dictionary, domain: RefCounted) -> bool:
-	if not _keys(data, ["version", "objects", "active", "events", "experiences", "next_id"]) or data.version != 5 or not data.objects is Dictionary or not data.active is Dictionary or not data.events is Array or not data.experiences is Dictionary or not _count(data.next_id, 1):
+	if not _keys(data, ["version", "objects", "active", "events", "experiences", "next_id"]) or data.version != 6 or not data.objects is Dictionary or not data.active is Dictionary or not data.events is Array or not data.experiences is Dictionary or not _count(data.next_id, 1):
 		return false
 	var world: RefCounted = domain.world
 	for subject: Variant in data.experiences:
@@ -102,6 +102,8 @@ static func validate(data: Dictionary, domain: RefCounted) -> bool:
 			event_keys.append("method")
 		if event.has("draw"):
 			event_keys.append("draw")
+		if event.has("exchange"):
+			event_keys.append("exchange")
 		if not _keys(event, event_keys):
 			return false
 		if not _allocated(event.id, "event", int(data.next_id), allocated) or not _allocated(event.action, "action", int(data.next_id), allocated) or actions.has(event.action):
@@ -112,7 +114,20 @@ static func validate(data: Dictionary, domain: RefCounted) -> bool:
 			return false
 		if not _new_action_valid(event, data, domain):
 			return false
-		if not _supported(data.objects, str(event.object), str(event.verb), domain) or not world.regions.has(event.effect_region) or not _count(event.started_ms) or not _count(event.at_ms) or int(event.at_ms) > world.elapsed_ms or not _count(event.qi_spent) or not _count(event.at, last_at) or int(event.at) > int(world.current_time):
+		if not world.regions.has(event.effect_region) or not _count(event.started_ms) or not _count(event.at_ms) or int(event.at_ms) > world.elapsed_ms or not _count(event.qi_spent) or not _count(event.at, last_at) or int(event.at) > int(world.current_time):
+			return false
+		if event.verb == "private_exchange":
+			var field: Variant = world.get("field_opportunities")
+			if field == null or field.sites.is_empty() or event.object != field.definitions.site.object or event.kind != "exchanged" or not SimInventory._nonempty(event.get("exchange")) or event.has("method") or event.has("draw"):
+				return false
+			if int(event.qi_spent) != 0 or event.effect_region != domain.actor_home(str(event.recipient)) or int(event.at_ms) <= int(event.started_ms) or int(event.at) != floori(float(event.at_ms) / 60000.0) or not Shape.cell_valid(event.cell):
+				return false
+			if _action_number(str(event.action)) >= _serial_number(str(event.id), "event"):
+				return false
+			last_at = int(event.at)
+			actions[event.action] = true
+			continue
+		if event.has("exchange") or event.kind == "exchanged" or not _supported(data.objects, str(event.object), str(event.verb), domain):
 			return false
 		if event.has("method") and (not SimArtifacts.type_has_capability(domain.definitions.types[data.objects[event.object].definition], "heat_storage") or not Methods.metadata_valid(event.method, event, domain, data.events, data.objects)):
 			return false
@@ -172,24 +187,32 @@ static func _new_action_valid(row: Dictionary, data: Dictionary, domain: RefCoun
 
 
 static func _evidence_before(row: Dictionary, events: Array, kind: String) -> bool:
-	var action: String = str(row.get("action", row.id))
 	for event: Variant in events:
 		if not event is Dictionary or event.get("kind") != kind or event.get("actor") != row.actor or event.get("object") != row.object or not _count(event.get("at_ms")):
 			continue
-		if int(event.at_ms) <= int(row.started_ms) and _action_number(str(event.get("action", ""))) < _action_number(action) and _action_number(str(event.get("action", ""))) > 0:
+		if _before(event, row):
 			return true
 	return false
 
 
 static func _action_number(id: String) -> int:
-	if id.get_slice_count(":") != 3 or not id.begins_with("artifact:action:"):
+	return _serial_number(id, "action")
+
+
+static func _serial_number(id: String, kind: String) -> int:
+	if id.get_slice_count(":") != 3 or not id.begins_with("artifact:" + kind + ":"):
 		return 0
-	return int(id.get_slice(":", 2))
+	var suffix: String = id.get_slice(":", 2)
+	if not suffix.is_valid_int() or int(suffix) < 1 or suffix != str(int(suffix)):
+		return 0
+	return int(suffix)
 
 
 static func cross_valid(domain: RefCounted) -> bool:
 	# This runs only after artifacts, bodies, health, geometry, souls and
 	# sources have all been restored into the independent candidate world.
+	if not _exchange_cross_valid(domain):
+		return false
 	var actions: Array = domain.events.duplicate()
 	actions.append_array(domain.active.values())
 	var soul_actions: Array = domain.world.soul_vessels.events.duplicate()
@@ -225,19 +248,233 @@ static func cross_valid(domain: RefCounted) -> bool:
 	return true
 
 
+static func _exchange_cross_valid(domain: RefCounted) -> bool:
+	var world: RefCounted = domain.world
+	var exchange: Variant = world.get("private_exchange")
+	if exchange == null or not exchange.jobs is Dictionary or not _count(domain.next_id, 1):
+		return false
+	var moments: Dictionary = {}
+	var event_by_id: Dictionary = {}
+	var events_by_action: Dictionary = {}
+	var artifact_actions: Array = []
+	var last_event_number: int = 0
+	for event: Variant in domain.events:
+		if not event is Dictionary or not _remember_moment(moments, event.get("action"), "action", event.get("started_ms"), domain.next_id) or not _remember_moment(moments, event.get("id"), "event", event.get("at_ms"), domain.next_id):
+			return false
+		var event_number: int = _serial_number(event.id, "event")
+		if event_number <= _action_number(event.action) or event_number <= last_event_number:
+			return false
+		last_event_number = event_number
+		event_by_id[event.id] = event
+		events_by_action[event.action] = event
+		artifact_actions.append(event)
+	for row: Variant in domain.active.values():
+		if not row is Dictionary or not _remember_moment(moments, row.get("id"), "action", row.get("started_ms"), domain.next_id):
+			return false
+		artifact_actions.append(row)
+	var completed: Dictionary = {}
+	var jobs: Array[Dictionary] = []
+	var outstanding: int = domain.active.size()
+	for key: Variant in exchange.jobs:
+		var job: Variant = exchange.jobs[key]
+		if not key is String or not job is Dictionary or job.get("id") != key or not SimInventory._nonempty(job.get("buyer")) or not SimInventory._nonempty(job.get("seller")) or job.buyer == job.seller:
+			return false
+		if not SimInventory._nonempty(job.get("object")) or not SimInventory._nonempty(job.get("source_event")) or not job.get("buyer_region") is String or not job.get("seller_region") is String or domain.actor_home(str(job.buyer)) != job.buyer_region or domain.actor_home(str(job.seller)) != job.seller_region:
+			return false
+		if not _count(job.get("started_ms")) or not _count(job.get("due_ms")) or int(job.started_ms) >= int(job.due_ms) or int(job.started_ms) > int(world.elapsed_ms) or not Shape.position_valid(job.get("seller_position")):
+			return false
+		if not job.get("artifact_action") is String or not job.get("artifact_event") is String or not job.get("artifact_release") is String or job.get("status") not in ["active", "completed", "cancelled", "failed"]:
+			return false
+		var action: String = str(job.artifact_action)
+		var event: Dictionary = event_by_id.get(job.artifact_event, {})
+		if job.status == "completed":
+			if job.artifact_release != "" or event.is_empty() or events_by_action.get(action, {}) != event or completed.has(job.artifact_event) or not _count(job.get("finished_ms")) or int(job.finished_ms) != int(job.due_ms) or int(job.finished_ms) > int(world.elapsed_ms):
+				return false
+			if not _exchange_matches(event, job, domain):
+				return false
+			completed[job.artifact_event] = true
+		else:
+			if job.artifact_event != "" or events_by_action.has(action) or not _remember_moment(moments, action, "action", job.started_ms, domain.next_id):
+				return false
+			if job.status == "active":
+				if job.get("finished_ms") != -1 or job.artifact_release != "" or int(job.due_ms) <= int(world.elapsed_ms):
+					return false
+				outstanding += 1
+			else:
+				if not _count(job.get("finished_ms"), int(job.started_ms)) or int(job.finished_ms) > int(world.elapsed_ms) or int(job.finished_ms) > int(job.due_ms):
+					return false
+				if not _remember_moment(moments, job.artifact_release, "release", job.finished_ms, domain.next_id) or _serial_number(job.artifact_release, "release") <= _action_number(action):
+					return false
+		var holder_query: Dictionary = {"object": job.object, "actor": job.seller, "region": job.seller_region, "started_ms": job.started_ms, "id": action}
+		if holder_source_before(holder_query, domain) != job.source_event:
+			return false
+		jobs.append(job)
+	for event: Dictionary in domain.events:
+		if event.kind == "exchanged" and not completed.has(event.id):
+			return false
+	if int(domain.next_id) > SimInventory.MAX_COUNT - outstanding:
+		return false
+	var sequence: Array = moments.keys()
+	sequence.sort()
+	var previous_ms: int = 0
+	for number: int in sequence:
+		if int(moments[number]) < previous_ms:
+			return false
+		previous_ms = int(moments[number])
+	for index: int in jobs.size():
+		var job: Dictionary = jobs[index]
+		for prior_index: int in range(index):
+			var other: Dictionary = jobs[prior_index]
+			if _exchange_overlap(job, other) and (job.object == other.object or job.buyer in [other.buyer, other.seller] or job.seller in [other.buyer, other.seller]):
+				return false
+		for other: Dictionary in artifact_actions:
+			if other.get("action", other.get("id")) == job.artifact_action:
+				continue
+			if _exchange_artifact_overlap(job, other) and (other.actor in [job.buyer, job.seller] or other.get("method", {}).get("guide") in [job.buyer, job.seller] or _uses_object(other, str(job.object))):
+				return false
+		var other_domains: Array = world.soul_vessels.events.duplicate()
+		other_domains.append_array(world.soul_vessels.active.values())
+		for other: Dictionary in other_domains:
+			if _exchange_external_overlap(job, other) and (other.actor in [job.buyer, job.seller] or other.get("target") == job.object):
+				return false
+		other_domains = world.spirit_sources.records.values()
+		other_domains.append_array(world.spirit_sources.active.values())
+		for other: Dictionary in other_domains:
+			if _exchange_external_overlap(job, other) and (other.actor in [job.buyer, job.seller] or other.get("object") == job.object):
+				return false
+	return true
+
+
+static func _exchange_matches(event: Dictionary, job: Dictionary, domain: RefCounted) -> bool:
+	if event.get("kind") != "exchanged" or event.get("verb") != "private_exchange" or event.get("exchange") != job.id or event.get("action") != job.artifact_action:
+		return false
+	if event.get("object") != job.object or event.get("actor") != job.seller or event.get("recipient") != job.buyer or event.get("region") != job.seller_region or event.get("effect_region") != job.buyer_region:
+		return false
+	if event.get("started_ms") != job.started_ms or event.get("at_ms") != job.finished_ms or event.get("subject") != domain.world.embodiment.subject_for_actor(str(job.seller)):
+		return false
+	var point := Vector2(float(job.seller_position[0]), float(job.seller_position[1]))
+	return SimRouteTravel.cell(event.cell) == TileGrid.world_to_cell(point)
+
+
+static func _remember_moment(moments: Dictionary, id: Variant, kind: String, at_ms: Variant, next_id: int) -> bool:
+	if not _count(at_ms) or not _allocated(id, kind, next_id, {}):
+		return false
+	var number: int = _serial_number(id, kind)
+	if moments.has(number):
+		return false
+	moments[number] = int(at_ms)
+	return true
+
+
+static func _before_point(ms_a: int, serial_a: int, ms_b: int, serial_b: int) -> bool:
+	return ms_a < ms_b or ms_a == ms_b and serial_a < serial_b
+
+
+static func _exchange_end(job: Dictionary) -> Array[int]:
+	if job.status == "active":
+		return [int(job.due_ms), SimInventory.MAX_COUNT]
+	var serial: int = _serial_number(str(job.artifact_event), "event") if job.status == "completed" else _serial_number(str(job.artifact_release), "release")
+	return [int(job.finished_ms), serial]
+
+
+static func _exchange_overlap(a: Dictionary, b: Dictionary) -> bool:
+	var end_a: Array[int] = _exchange_end(a)
+	var end_b: Array[int] = _exchange_end(b)
+	return _before_point(int(a.started_ms), _action_number(str(a.artifact_action)), end_b[0], end_b[1]) and _before_point(int(b.started_ms), _action_number(str(b.artifact_action)), end_a[0], end_a[1])
+
+
+static func _exchange_artifact_overlap(job: Dictionary, other: Dictionary) -> bool:
+	var job_end: Array[int] = _exchange_end(job)
+	var other_end_ms: int = int(other.get("at_ms", other.get("due_ms", 0)))
+	var other_end_serial: int = _serial_number(str(other.id), "event") if other.has("at_ms") else SimInventory.MAX_COUNT
+	var other_action: int = _action_number(str(other.get("action", other.id)))
+	return _before_point(int(job.started_ms), _action_number(str(job.artifact_action)), other_end_ms, other_end_serial) and _before_point(int(other.started_ms), other_action, job_end[0], job_end[1])
+
+
+static func _exchange_external_overlap(job: Dictionary, other: Dictionary) -> bool:
+	var end: int = int(job.due_ms) if job.status == "active" else int(job.finished_ms)
+	var other_end: int = int(other.get("at_ms", other.get("finished_ms", other.get("due_ms", 0))))
+	return int(job.started_ms) < other_end and int(other.started_ms) < end
+
+
 static func _held_before(row: Dictionary, domain: RefCounted) -> bool:
-	var field: RefCounted = domain.world.field_opportunities
-	if not field is SimFieldOpportunities or field.sites.is_empty() or row.object != field.definitions.site.object:
-		return false
-	var site: Dictionary = field.sites.get(field.definitions.site.id, {})
-	if site.is_empty() or int(row.started_ms) < int(site.opened_ms):
-		return false
-	var custody: Dictionary = {"region": str(site.region), "container": str(site.container)}
+	return not holder_source_before(row, domain).is_empty()
+
+
+static func holder_source_before(row: Dictionary, domain: RefCounted) -> String:
+	var field: Variant = domain.world.get("field_opportunities")
+	if field == null or field.sites.is_empty() or row.get("object") != field.definitions.site.object or not _count(row.get("started_ms")):
+		return ""
+	var custody: Dictionary = field_custody(domain, int(row.started_ms), str(row.get("action", row.get("id", ""))))
+	if custody.get("region") != row.get("region") or custody.get("container") != "actor:" + str(row.get("actor", "")):
+		return ""
+	return str(custody.get("source", ""))
+
+
+static func field_custody(domain: RefCounted, at_ms: int, before_action: String = "") -> Dictionary:
+	# Reconstruct the unique original object; no object/holder is inferred from
+	# an exchange request. An empty result means the history cannot be proved.
+	var field: Variant = domain.world.get("field_opportunities")
+	if field == null or not field.definitions.get("site") is Dictionary:
+		return {}
+	var rule: Dictionary = field.definitions.site
+	var site: Variant = field.sites.get(rule.get("id", ""))
+	if not site is Dictionary or not _count(site.get("opened_ms")) or at_ms < int(site.opened_ms):
+		return {}
+	var limit: int = _action_number(before_action) if not before_action.is_empty() else 0
+	if not before_action.is_empty() and limit == 0:
+		return {}
+	var state: Dictionary = {"region": str(site.region), "container": str(site.container), "source": ""}
 	for event: Dictionary in _ordered_events(domain):
-		if event.object != row.object or event.kind not in ["taken", "placed"] or not _before(event, row):
+		if event.get("object") != rule.object or int(event.at_ms) > at_ms:
 			continue
-		custody = _transfer(event, str(row.object), domain)
-	return custody.region == row.region and custody.container == "actor:" + str(row.actor)
+		if limit > 0 and _serial_number(str(event.id), "event") >= limit:
+			continue
+		if int(event.started_ms) < int(site.opened_ms):
+			return {}
+		if event.kind == "taken":
+			if state.region != site.region or state.container != site.container or event.effect_region != event.region:
+				return {}
+			state = {"region": str(event.region), "container": "actor:" + str(event.actor), "source": str(event.id)}
+		elif event.kind == "placed":
+			if state.region != event.region or state.container != "actor:" + str(event.actor) or event.effect_region != site.region:
+				return {}
+			state = {"region": str(site.region), "container": str(site.container), "source": ""}
+		elif event.kind == "exchanged":
+			if state.region != event.region or state.container != "actor:" + str(event.actor) or event.effect_region != domain.actor_home(str(event.recipient)):
+				return {}
+			state = {"region": str(event.effect_region), "container": "actor:" + str(event.recipient), "source": str(event.id)}
+	return state
+
+
+static func serial_floor_valid(domain: RefCounted, floor_value: Variant, at_value: Variant) -> bool:
+	# The proposal snapshots next_id without consuming it; every subsequently
+	# retained original action, result or release must agree with that boundary.
+	if not _count(floor_value, 1) or int(floor_value) > int(domain.next_id) or not _count(at_value) or int(at_value) > int(domain.world.elapsed_ms):
+		return false
+	var floor_number: int = int(floor_value)
+	var at_ms: int = int(at_value)
+	for event: Variant in domain.events:
+		if not event is Dictionary or not _floor_point(_action_number(str(event.get("action", ""))), event.get("started_ms"), floor_number, at_ms) or not _floor_point(_serial_number(str(event.get("id", "")), "event"), event.get("at_ms"), floor_number, at_ms):
+			return false
+	for job: Variant in domain.active.values():
+		if not job is Dictionary or not _floor_point(_action_number(str(job.get("id", ""))), job.get("started_ms"), floor_number, at_ms):
+			return false
+	var exchange: Variant = domain.world.get("private_exchange")
+	if exchange == null or not exchange.jobs is Dictionary:
+		return false
+	for job: Variant in exchange.jobs.values():
+		if not job is Dictionary or not _floor_point(_action_number(str(job.get("artifact_action", ""))), job.get("started_ms"), floor_number, at_ms):
+			return false
+		if job.get("status") in ["cancelled", "failed"] and not _floor_point(_serial_number(str(job.get("artifact_release", "")), "release"), job.get("finished_ms"), floor_number, at_ms):
+			return false
+	return true
+
+
+static func _floor_point(number: int, value: Variant, floor_number: int, at_ms: int) -> bool:
+	if number < 1 or not _count(value):
+		return false
+	return int(value) <= at_ms if number < floor_number else int(value) >= at_ms
 
 
 static func _overlap(a: Dictionary, b: Dictionary) -> bool:
@@ -255,12 +492,14 @@ static func _same_object(a: Dictionary, b: Dictionary) -> bool:
 
 
 static func _before(event: Dictionary, row: Dictionary) -> bool:
-	return int(event.at_ms) <= int(row.started_ms) and _action_number(str(event.action)) < _action_number(str(row.get("action", row.id)))
+	var completed: int = _serial_number(str(event.get("id", "")), "event")
+	var started: int = _action_number(str(row.get("action", row.get("id", ""))))
+	return completed > 0 and started > 0 and completed < started and int(event.at_ms) <= int(row.started_ms)
 
 
 static func _ordered_events(domain: RefCounted) -> Array:
 	var events: Array = domain.events.duplicate()
-	events.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.at_ms) < int(b.at_ms) or int(a.at_ms) == int(b.at_ms) and _action_number(str(a.action)) < _action_number(str(b.action)))
+	events.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.at_ms) < int(b.at_ms) or int(a.at_ms) == int(b.at_ms) and _serial_number(str(a.id), "event") < _serial_number(str(b.id), "event"))
 	return events
 
 
@@ -290,6 +529,8 @@ static func _transfer(event: Dictionary, id: String, domain: RefCounted) -> Dict
 		return {}
 	if event.kind == "taken":
 		return {"region": str(event.region), "container": "actor:" + str(event.actor)}
+	if event.kind == "exchanged":
+		return {"region": str(event.effect_region), "container": "actor:" + str(event.recipient)}
 	if event.kind == "placed":
 		var definition: Dictionary = domain.definitions.types[domain.objects[id].definition]
 		return {"region": str(event.effect_region), "container": str(definition.get("storage_place", definition.get("workplace", "")))}
@@ -306,7 +547,11 @@ static func _supported(objects: Dictionary, id: String, verb: String, domain: Re
 
 
 static func _valid_recipient(value: Variant, actor: String, verb: String, domain: RefCounted) -> bool:
-	return value is String and (value.is_empty() or (value != actor and verb in ["examine", "study"] and not domain.actor_home(value).is_empty()))
+	if not value is String:
+		return false
+	if verb == "private_exchange":
+		return not value.is_empty() and value != actor and not domain.actor_home(value).is_empty()
+	return value.is_empty() or (value != actor and verb in ["examine", "study"] and not domain.actor_home(value).is_empty())
 
 
 static func _same_items(actual: Dictionary, expected: Dictionary) -> bool:

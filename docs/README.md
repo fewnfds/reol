@@ -1,6 +1,6 @@
 # Reol 文档入口
 
-当前AI基础设施已实际配置，见[套件实装与验收](AI-TOOLKIT-SETUP.md)：Godot AI4.4.1、uv/uvx0.13.7、Context7、精简技能路由和原CLI/CI。来源、升级回退及上下文机制见[基础设施维护](TOOLING-MAINTENANCE.md)。原完整游戏Goal已清除；当前不恢复游戏实施、不重建Goal，下列保留玩法停点。
+当前AI基础设施已实际配置，见[套件实装与验收](AI-TOOLKIT-SETUP.md)：Godot AI4.4.1、uv/uvx0.13.7、Context7、精简技能路由和原CLI/CI。来源、升级回退及上下文机制见[基础设施维护](TOOLING-MAINTENANCE.md)。用户已重新授权持续游戏实施，新完整游戏Goal active，当前接U3-b2私人交换；下列已验功能与在制内容按BASELINE区分。
 
 此前[AI开发套件选型](AI-TOOLKIT-REVIEW.md)比较社区体验、竞品与技能/测试工具，实际采用单一Godot AI并保留默认关闭的备用桥，未叠重复工具。Godot未来跟进最新稳定版，4.7.2只代表当前安装/验证。
 

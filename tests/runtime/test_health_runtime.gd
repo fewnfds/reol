@@ -149,16 +149,25 @@ func _legacy_sources(runner: Object) -> void:
 	legacy.continuity.world.erase("capability_practice")
 	runner.assert_eq(SnapshotValues.normalized(legacy.continuity.world.field_opportunities), SnapshotValues.normalized(SimFieldOpportunities.empty_state()), "temporary pre-health projection has no later field activity to erase")
 	legacy.continuity.world.erase("field_opportunities")
-	# The current capture uses the later artifact v5 envelope. Project only an
-	# actually v4-compatible history: never erase real research or draw work.
+	var exchange_state: Variant = SnapshotValues.normalized(legacy.continuity.world.private_exchange)
+	var empty_exchange: Variant = SnapshotValues.normalized(SimPrivateExchange.empty_state())
+	runner.assert_eq(exchange_state, empty_exchange, "temporary pre-health projection has no exchange, consent, or receipt to erase")
+	if exchange_state != empty_exchange:
+		fixtures._dispose(fixture)
+		return
+	legacy.continuity.world.erase("private_exchange")
+	# Project the current artifact envelope only when the original history is
+	# actually v4-compatible; do not discard research, draw or exchange evidence.
 	var old_artifacts: Dictionary = legacy.continuity.world.artifacts
-	runner.assert_eq(int(old_artifacts.version), 5, "temporary projection starts from the current artifact v5 envelope")
-	var can_project_artifacts: bool = int(old_artifacts.version) == 5
+	runner.assert_eq(int(old_artifacts.version), SimArtifacts.VERSION, "temporary projection starts from the current artifact envelope")
+	var can_project_artifacts: bool = int(old_artifacts.version) == SimArtifacts.VERSION
 	var artifact_history: Array = old_artifacts.active.values()
 	artifact_history.append_array(old_artifacts.events)
 	for row: Variant in artifact_history:
-		var v4_compatible: bool = row is Dictionary and not row.has("draw") and row.get("verb") not in ["use_research", "draw"] and row.get("kind") not in ["use_learned", "drawn"]
-		runner.assert_true(v4_compatible, "temporary pre-health artifact history contains no v5 research or drawing")
+		var no_exchange: bool = row is Dictionary and not row.has("exchange") and row.get("verb") != "private_exchange" and row.get("kind") != "exchanged"
+		runner.assert_true(no_exchange, "temporary pre-health artifact history contains no private exchange evidence")
+		var v4_compatible: bool = no_exchange and not row.has("draw") and row.get("verb") not in ["use_research", "draw"] and row.get("kind") not in ["use_learned", "drawn"]
+		runner.assert_true(v4_compatible, "temporary pre-health artifact history contains no later research or drawing")
 		can_project_artifacts = can_project_artifacts and v4_compatible
 	if not can_project_artifacts:
 		fixtures._dispose(fixture)

@@ -144,7 +144,7 @@ func receivers() -> Array[Dictionary]:
 			var person: Dictionary = sim.actors[actor]
 			var cell: Vector2i = SimRouteTravel.cell(person.cell)
 			if actor != "player" and bool(person.alive) and from.distance_to(cell) <= float(adapter._home.simulation.config.observation_radius) and _seen(cell):
-				choices.append({"key": world.embodiment.subject_for_actor(actor), "label": sim._name(actor)})
+				choices.append({"key": world.embodiment.subject_for_actor(actor), "label": str(adapter.settings.runtime.remote_names.get(actor, sim._name(actor)))})
 	for bird_id: String in SimAvianLife.sorted_keys(world.avian_life.birds):
 		if world.avian_life.visible_to("player", bird_id) and _seen(world.avian_life.body_cell(bird_id)):
 			choices.append({"key": SimAvianLife.subject_id(bird_id), "label": str(world.avian_life.describe("player", bird_id).label)})
@@ -160,7 +160,28 @@ func objects_for(verb: String, receiver_subject: String = "") -> Array[Dictionar
 	if adapter == null or not adapter.human_player_active():
 		return choices
 	var world: RegionalSimulation = adapter.world_sim
-	if verb == "field_clue":
+	if verb == "private_exchange":
+		var exchange: RefCounted = world.get("private_exchange")
+		if exchange == null:
+			return choices
+		var receiver: String = receiver_subject
+		if receiver.is_empty() and receiver_choice != null and receiver_choice.item_count > 0:
+			receiver = str(receiver_choice.get_selected_metadata())
+		var visible: bool = false
+		for person: Dictionary in receivers():
+			if person.key == receiver:
+				visible = true
+				break
+		var target: Dictionary = SimInteractionRequests._resolve(world, receiver)
+		if not visible or target.is_empty() or target.kind != "human":
+			return choices
+		for entry: Dictionary in exchange.offered_objects("player", str(target.id)):
+			var id: String = str(entry.id)
+			if _seen(world.artifacts.object_cell(id)):
+				var name: String = str(world.artifacts.describe("player", id).label)
+				var duration: String = str(float(exchange.definitions.duration_ms) / 1000.0)
+				choices.append({"key": {"kind": "private_artifact", "id": id}, "label": "%s · 出价%d钱 · 交割%s秒" % [name, int(exchange.definitions.price), duration]})
+	elif verb == "field_clue":
 		choices.append({"key": {"kind": "field_question", "id": "nearby_ruins"}, "label": "近来听说的野外去处"})
 	elif verb in ["explain_source", "ask_source_care", "withdraw_source_care"]:
 		var care: RefCounted = world.get("source_care")
@@ -286,6 +307,8 @@ func submit(receiver: String, verb: String, object: Dictionary, medium: String =
 	if adapter == null or not adapter.human_player_active():
 		return SimInteractionRequests.result("invalid", "这段人生还没有这种当面表达方式。")
 	var needs_stillness: bool = verb in ["diagnose", "treat"] and not adapter._home._player.motion.velocity.is_zero_approx()
+	if verb == "private_exchange":
+		needs_stillness = adapter._home._player.altitude != 0 or adapter._home._player.motion.velocity != Vector2.ZERO
 	if not adapter.player_journey.is_empty() or not adapter._home._player.motion.action.is_empty() or needs_stillness:
 		var busy: Dictionary = SimInteractionRequests.result("unavailable", "先停稳，再当面指认或交谈。")
 		_reply.text = str(adapter._home._content.interaction_requests.status_labels[busy.status]) + "：" + str(busy.line)
@@ -304,6 +327,8 @@ func submit(receiver: String, verb: String, object: Dictionary, medium: String =
 	else:
 		adapter.prepare_player_command()
 		answer = SimInteractionRequests.submit(adapter.world_sim, {"sender": adapter.avatar_subject, "receiver": receiver, "verb": verb, "object": object, "medium": medium, "conditions": conditions})
+		if verb == "private_exchange" and bool(answer.ok) and answer.status == "started":
+			adapter.hold_player_motion(true)
 	if not answer.process.is_empty():
 		_receipt = answer.process.duplicate(true)
 	_reply.text = str(adapter._home._content.interaction_requests.status_labels[answer.status]) + "：" + str(answer.line)

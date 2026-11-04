@@ -28,6 +28,8 @@ func run(runner: Object) -> void:
 		runner.assert_eq(int(current.continuity.world.version), RegionalSimulation.SCHEMA_VERSION, "genuine old region explicitly migrates")
 		runner.assert_eq(_json(current.continuity.world.field_opportunities), _json(SimFieldOpportunities.empty_state()), "old history gains no invented site, traveler or treasure")
 		var projected: Dictionary = current.continuity.world.duplicate(true)
+		runner.assert_eq(SnapshotValues.normalized(projected.private_exchange), SnapshotValues.normalized(SimPrivateExchange.empty_state()), "historical world gains no invented private exchange, consent, or receipt")
+		projected.erase("private_exchange")
 		projected.erase("field_opportunities")
 		projected.version = 35
 		projected.artifacts.version = source.continuity.world.artifacts.version
