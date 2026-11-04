@@ -71,7 +71,6 @@ func _ready() -> void:
 	RenderingServer.set_default_clear_color(Color("#0b0f12"))
 	var spawn_cell: Vector2i = world.find_spawn_cell()
 	player.spawn_at(spawn_cell)
-	fog.setup(world, spawn_cell)
 	camera.setup(world.world_rect(), player.global_position)
 	camera.set_focus_target(player)
 	hud.set_world(world, player, camera, fog)
@@ -109,6 +108,12 @@ func _ready() -> void:
 		set_process_input(false)
 		set_process_unhandled_input(false)
 		return
+	# The first observation must use the complete world geometry, including the
+	# opening offices and the regional construction sight provider. Exploration
+	# is persistent, so recomputing after an early observation cannot undo it.
+	fog.setup(world, spawn_cell)
+	# Village setup synchronized the views while every fog cell was still hidden.
+	_village._sync_actor_views(true)
 	_continuity.player_travel_advanced.connect(_on_travel_advanced)
 	_continuity.resident_selected.connect(_select_pawn)
 	_village.simulation_advanced.connect(_refresh_interaction)

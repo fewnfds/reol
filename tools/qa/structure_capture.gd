@@ -336,6 +336,10 @@ func _operate_door(kind: String, baseline: Dictionary) -> bool:
 		return false
 	if not _require(_events.size() > events_before and _fog_updates > updates_before, "loaded completion did not reach the actual structure/fog observer"):
 		return false
+	var target: Vector2i = _origin + Vector2i(2, 3)
+	var marker: String = str(_adapter._cell_buttons[target].text)
+	if not _require(marker != "?" if opened else marker == "?", "paused construction grid did not refresh with automatic visibility"):
+		return false
 	return _require(bool(_events.back().fog_dirty_after_structure_signal), "completion failed to invalidate stationary fog through the original signal chain")
 
 
@@ -387,7 +391,6 @@ func _settle_view() -> void:
 	await create_timer(0.25, true).timeout
 	for frame: int in 8:
 		await process_frame
-	_adapter.queue_redraw()
 	await RenderingServer.frame_post_draw
 
 

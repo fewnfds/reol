@@ -143,6 +143,14 @@ func _masks_and_rejections(runner: Object) -> void:
 	var before: String = _facts(world)
 	runner.assert_eq(QUERY.wall_mask(world, center), 15, "N=1 E=2 S=4 W=8 form the four-way cross across cell 32")
 	runner.assert_eq(QUERY.wall_mask(world, center + Vector2i.UP), QUERY.SOUTH, "an end cap reports only its true southern connection")
+	var only_observed: Callable = func(cell: Vector2i) -> bool: return cell != center + Vector2i.RIGHT
+	var visible_mask: int = QUERY.wall_mask(world, center, only_observed)
+	runner.assert_eq(visible_mask, QUERY.NORTH | QUERY.SOUTH | QUERY.WEST, "presentation does not query an unseen eastern neighbour")
+	world.construction.projects["construction:3"].state = "removed"
+	world.construction._reindex()
+	runner.assert_eq(QUERY.wall_mask(world, center, only_observed), visible_mask, "unseen destruction cannot alter the visible wall arms")
+	world.construction.projects["construction:3"].state = "built"
+	world.construction._reindex()
 	world.construction.projects["construction:3"].open = true
 	world.construction._reindex()
 	runner.assert_eq(QUERY.wall_mask(world, center), 15, "an opened eastern door keeps its frame connection")

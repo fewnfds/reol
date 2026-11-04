@@ -83,7 +83,7 @@ static func at_cell(world: RegionalSimulation, cell: Vector2i, layer: String = "
 	return result
 
 
-static func wall_mask(world: RegionalSimulation, cell: Vector2i) -> int:
+static func wall_mask(world: RegionalSimulation, cell: Vector2i, observed: Callable = Callable()) -> int:
 	# Visual connectivity only: an isolated built wall and an absent/invalid
 	# source both yield zero. Use at_cell to decide whether a wall is present.
 	# Rendering needs a boolean, not five detached full component projections
@@ -92,7 +92,12 @@ static func wall_mask(world: RegionalSimulation, cell: Vector2i) -> int:
 		return 0
 	var mask: int = 0
 	for index: int in SIDES.size():
-		if _wall_connection(world, cell + SIDES[index]):
+		var neighbor: Vector2i = cell + SIDES[index]
+		# Presentation must filter before reading an unseen neighbour's live
+		# physical state. Simulation/diagnostics leave this predicate unset.
+		if observed.is_valid() and not bool(observed.call(neighbor)):
+			continue
+		if _wall_connection(world, neighbor):
 			mask |= 1 << index
 	return mask
 

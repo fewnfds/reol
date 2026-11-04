@@ -113,6 +113,8 @@ func setup(adapter: WorldContinuityRuntime) -> void:
 		other.visibility_changed.connect(_other_panel_changed.bind(other))
 	adapter.avatar_changed.connect(reset_observation)
 	GameClock.time_advanced.connect(_on_advanced)
+	if adapter.home_runtime()._fog != null:
+		adapter.home_runtime()._fog.visibility_updated.connect(_on_visibility_updated)
 	_bind_structure_changes()
 
 
@@ -125,6 +127,15 @@ func _bind_structure_changes() -> void:
 
 func _on_structures_changed(cells: Array[Vector2i]) -> void:
 	runtime().home_runtime()._world.notify_sight_obstacles_changed(cells)
+	queue_redraw()
+
+
+func _on_visibility_updated() -> void:
+	# A paused clock may never emit time_advanced after the delayed fog update.
+	# Rebuild the visible list as well as the drawing and selected-cell details.
+	if panel.visible:
+		refresh_choices()
+		refresh()
 	queue_redraw()
 
 
@@ -451,7 +462,7 @@ func _draw() -> void:
 					if runtime().world_sim.weather.bed_is_wet(id):
 						draw_circle(p + Vector2(0, 6), 5, Color("749faf"))
 				else:
-					var mask: int = SimStructureQuery.wall_mask(runtime().world_sim, cell)
+					var mask: int = SimStructureQuery.wall_mask(runtime().world_sim, cell, _visible)
 					if bool(domain().definitions.types[project.type].door):
 						Walls.draw_door(self, p, mask, bool(project.open))
 					else:

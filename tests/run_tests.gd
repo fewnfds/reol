@@ -89,6 +89,10 @@ func test_structure_updates() -> void:
 	load("res://tests/runtime/test_structure_updates.gd").new().run(self)
 
 
+func test_opening_structure_visibility() -> void:
+	load("res://tests/runtime/test_opening_structure_visibility.gd").new().run(self)
+
+
 # ---------------------------------------------------------------------------
 # Test doubles
 # ---------------------------------------------------------------------------
