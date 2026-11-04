@@ -99,7 +99,10 @@ func _write_phase() -> bool:
 	_adapter.approach_store()
 	if not await _finish_journey(store):
 		return false
-	_adapter.register_yard()
+	_runtime.prepare_player_command()
+	var registered: Dictionary = _domain().register_site("player", _find_road_clear_yard(store))
+	if not _require(bool(registered.ok), "no legal road-clear yard: " + str(registered.line)):
+		return false
 	if not _require(_domain().sites.has("sect_yard"), "real register_yard command failed: " + _adapter._reply.text):
 		return false
 	_origin = _domain().site_bounds().position
@@ -157,6 +160,30 @@ func _write_phase() -> bool:
 	_report["restart_expected"] = EXPECTED
 	_report["restart_status"] = "written; fresh-process read phase required"
 	return _clock_consistent()
+
+
+func _find_road_clear_yard(source: Vector2i) -> Vector2i:
+	# QA selects a legal plot for its entire fixed wall fixture. The ordinary
+	# automatic yard can intersect the now-protected courier road; that rule
+	# remains enabled and every actual registration/build still uses its owner.
+	var size := Vector2i(int(_domain().definitions.site.width), int(_domain().definitions.site.height))
+	var radius: int = int(_domain().definitions.site.source_cells)
+	for ring: int in range(1, radius + 1):
+		for y: int in range(-ring, ring + 1):
+			for x: int in range(-ring, ring + 1):
+				if maxi(absi(x), absi(y)) != ring:
+					continue
+				var origin: Vector2i = source + Vector2i(x, y)
+				if origin.distance_to(source) > radius:
+					continue
+				var valid: bool = true
+				for cell: Vector2i in SimConstruction.cells_in(Rect2i(origin, size)):
+					if not _domain().terrain_open(cell) or _domain().protected_cell(cell) or SimMotionClearance.fixed_road_reserves(_runtime.world_sim, cell):
+						valid = false
+						break
+				if valid and not _runtime._find_path(source, origin).is_empty():
+					return origin
+	return Vector2i(-1, -1)
 
 
 func _read_phase() -> bool:

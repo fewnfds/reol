@@ -183,13 +183,31 @@ func set_source_validator(receipt_validator: Callable, expected_actions: Callabl
 	_expected_actions = expected_actions
 
 
-func before_topology_change(now: int) -> void:
+func can_change_topology(now: int, changed_cells: Array[Vector2i]) -> bool:
+	# Construction calls this before costs or structures change, at its already
+	# settled physical instant. A query cannot consume time or dirty geometry.
+	# The complete footprint includes collateral roof removal; future bounded
+	# representations can refuse expansion here, before any original costs.
+	if definitions.is_empty() or now != last_ms or changed_cells.is_empty():
+		return false
+	for cell: Vector2i in changed_cells:
+		if not _valid_cell(cell):
+			return false
+	return can_settle_at_ms(now)
+
+
+func before_topology_change(now: int) -> bool:
 	# Repeated hooks in a single demolition/collapse transaction are harmless.
 	if not _geometry_dirty:
-		settle_at_ms(now)
+		if not settle_at_ms(now):
+			return false
 	elif now > last_ms:
-		settle_at_ms(now)
+		if not settle_at_ms(now):
+			return false
+	elif now < last_ms:
+		return false
 	_geometry_dirty = true
+	return true
 
 
 func after_topology_change(now: int) -> void:

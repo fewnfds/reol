@@ -308,24 +308,42 @@ func _complete(job: Dictionary) -> void:
 		# clear until that consumer is integrated. Work/materials stay in place.
 		_release(job, "此处属运粮通道；工时与材料保留，调整通道后再续。")
 		return
+	# Preflight the whole transaction before spending completion materials,
+	# issuing salvage, dirtying heat geometry or removing a supporting wall.
+	var removals: Array[String] = []
+	if job.kind == "demolish":
+		removals = _removal_projects(str(job.project))
+	var changed_cells: Array[Vector2i] = [cell]
+	for id: String in removals:
+		var removed_cell: Vector2i = SimRouteTravel.cell(projects[id].cell)
+		if removed_cell not in changed_cells:
+			changed_cells.append(removed_cell)
+	if job.kind == "build" and not sim.inventory.can_consume(str(job.project) + ":build", job.project, str(rule.item), int(rule.amount)):
+		_release(job, "到场工料不足，无法完成结构。")
+		return
+	if job.kind == "demolish" and not _can_remove_all(removals):
+		_release(job, "拆除余料记录不一致；结构与材料保留。")
+		return
+	if not _before_thermal_change(str(rule.kind), changed_cells):
+		_release(job, "环境尚未就绪；工时、材料与原结构保留，稍后再续。")
+		return
 	match str(job.kind):
 		"build":
 			if not sim.inventory.consume(str(job.project) + ":build", job.project, str(rule.item), int(rule.amount)):
+				_after_thermal_change(str(rule.kind))
 				_release(job, "到场工料不足，无法完成结构。")
 				return
-			_before_thermal_change(str(rule.kind))
 			project.state = "built"
 			project.completed_ms = world.elapsed_ms
 		"demolish":
 			if not _remove(str(job.project), job.stand):
+				_after_thermal_change(str(rule.kind))
 				_release(job, "拆除余料记录不一致。")
 				return
 		"open", "close":
-			_before_thermal_change(str(rule.kind))
 			project.open = job.kind == "open"
-	var changed_cells: Array[Vector2i] = [cell]
 	if job.kind == "demolish":
-		changed_cells.append_array(_collapse_roofs())
+		_collapse_roofs(removals.slice(1))
 	_reindex()
 	_after_thermal_change(str(rule.kind))
 	_release(job, "结构已完工。" if job.kind == "build" else "拆除完成，余料还在工地。" if job.kind == "demolish" else "木门已打开。" if job.kind == "open" else "木门已关上。")
@@ -474,9 +492,12 @@ func project_at(cell: Vector2i, layer: String = "ground") -> String:
 	return str((_roofs if layer == "roof" else _cells).get(cell, ""))
 
 
-func roof_supported(cell: Vector2i) -> bool:
+func roof_supported(cell: Vector2i, except_project: String = "") -> bool:
 	var level: int = int(_elevation.call(cell)) if _elevation.is_valid() else 0
-	for project: Dictionary in projects.values():
+	for id: String in projects:
+		if id == except_project:
+			continue
+		var project: Dictionary = projects[id]
 		if project.state != "built" or definitions.types[project.type].kind not in ["wall", "door"]:
 			continue
 		var other: Vector2i = SimRouteTravel.cell(project.cell)
@@ -518,11 +539,12 @@ func thermal_roofed(cell: Vector2i) -> bool:
 	return roofed(cell)
 
 
-func _before_thermal_change(kind: String) -> void:
+func _before_thermal_change(kind: String, changed_cells: Array[Vector2i]) -> bool:
 	if kind in ["wall", "door", "roof"] and world.local_heat != null:
-		# Finish the old geometry before a real structure changes. Inventory
-		# commits already succeeded, so a rejected build/remove cannot notify.
-		world.local_heat.before_topology_change(world.elapsed_ms)
+		if not world.local_heat.can_change_topology(world.elapsed_ms, changed_cells):
+			return false
+		return world.local_heat.before_topology_change(world.elapsed_ms)
+	return true
 
 
 func _after_thermal_change(kind: String) -> void:
@@ -539,7 +561,6 @@ func _remove(id: String, material_cell: Array) -> bool:
 	var salvage: String = id + ":salvage"
 	if not inventory.create_container(salvage, {str(rule.item): int(rule.salvage)}) or not inventory.transfer(salvage, salvage, id, str(rule.item), int(rule.salvage)):
 		return false
-	_before_thermal_change(str(rule.kind))
 	project.state = "removed"
 	project.removed_ms = world.elapsed_ms
 	project.open = false
@@ -566,12 +587,33 @@ func _set_material_cell(project: Dictionary, raw: Array) -> void:
 	_material_cells[cell] = int(_material_cells.get(cell, 0)) + 1
 
 
-func _collapse_roofs() -> Array[Vector2i]:
-	var changed: Array[Vector2i] = []
-	for id: String in projects:
+func _removal_projects(id: String) -> Array[String]:
+	var result: Array[String] = [id]
+	if definitions.types[projects[id].type].kind not in ["wall", "door"]:
+		return result
+	for other: String in projects:
+		var project: Dictionary = projects[other]
+		if project.state == "built" and definitions.types[project.type].kind == "roof" and not roof_supported(SimRouteTravel.cell(project.cell), id):
+			result.append(other)
+	return result
+
+
+func _can_remove_all(ids: Array[String]) -> bool:
+	var inventory: SimInventory = world.regions[definitions.site.region].inventory
+	for id: String in ids:
+		var rule: Dictionary = definitions.types[projects[id].type]
+		var salvage: String = id + ":salvage"
+		# _remove performs no external calls between creating this source and
+		# transferring into the original project container. Check the entire set
+		# now, so a dependent roof cannot fail after its support was removed.
+		if projects[id].state != "built" or not inventory.containers.has(id) or inventory.containers.has(salvage) or inventory.operations.has(salvage) or inventory.quantity(id, str(rule.item)) > SimInventory.MAX_COUNT - int(rule.salvage):
+			return false
+	return true
+
+
+func _collapse_roofs(ids: Array[String]) -> void:
+	for id: String in ids:
 		var project: Dictionary = projects[id]
-		if project.state != "built" or definitions.types[project.type].kind != "roof" or roof_supported(SimRouteTravel.cell(project.cell)):
-			continue
 		for actor: String in active.keys():
 			if active[actor].project == id:
 				cancel(actor)
@@ -585,8 +627,6 @@ func _collapse_roofs() -> Array[Vector2i]:
 					break
 		if _remove(id, drop):
 			project.line = "支撑失去，木屋面塌回有限余料；下方床铺仍在。"
-			changed.append(cell)
-	return changed
 
 
 func blocked(cell: Vector2i) -> bool:

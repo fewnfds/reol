@@ -50,6 +50,7 @@ class Authority extends RefCounted:
 
 
 func run(runner: Object) -> void:
+	_topology_preflight(runner)
 	_definitions(runner)
 	_conservation(runner)
 	_split_and_topology(runner)
@@ -175,6 +176,112 @@ func _split_and_topology(runner: Object) -> void:
 		_deposit(fixture, "warm:1")
 		_advance(fixture, 60000)
 	runner.assert_true(_energy(roof.heat) > _energy(outdoor.heat), "real covering changes loss coefficients rather than issuing a temperature buff")
+
+
+func _topology_snapshot(fixture: Dictionary) -> Dictionary:
+	# Do not call to_dict(): it resolves dirty geometry and would conceal a
+	# preflight that mutated the original segment or performed a freeze.
+	var heat: SimLocalHeat = fixture.heat
+	return {"world_ms": int(fixture.world.elapsed_ms), "last_ms": heat.last_ms,
+		"segment_started_ms": heat.segment_started_ms, "boundary_ms": heat.next_boundary_ms(),
+		"cells": heat.cells.duplicate(true), "flows": heat.flows.duplicate(true),
+		"input_energy": heat.input_energy, "continuous_input": heat.continuous_input,
+		"absorbed_energy": heat.absorbed_energy, "ambient_in": heat.ambient_in,
+		"loss_energy": heat.loss_energy, "device_input": heat.device_input.duplicate(true),
+		"device_absorbed": heat.device_absorbed.duplicate(true),
+		"device_switches": heat.device_switches.duplicate(true), "receipts": heat.receipts.duplicate(true),
+		"last_sample_ms": heat.last_sample_ms, "last_sample_cells": heat.last_sample_cells.duplicate(true),
+		"last_sample_input": heat.last_sample_input, "last_sample_loss": heat.last_sample_loss,
+		"last_sample_ambient_in": heat.last_sample_ambient_in,
+		"last_sample_continuous_input": heat.last_sample_continuous_input,
+		"last_sample_absorbed": heat.last_sample_absorbed, "last_sample_mode": heat.last_sample_mode,
+		"geometry_dirty": heat._geometry_dirty, "roof_queries": int(fixture.world.roof_queries),
+		"barrier_queries": int(fixture.world.barrier_queries)}
+
+
+func _topology_preflight(runner: Object) -> void:
+	var footprint: Array[Vector2i] = [Vector2i(100, 100), Vector2i.ZERO, Vector2i(511, 511)]
+	var empty: Array[Vector2i] = []
+	var fixture: Dictionary = _make()
+	runner.assert_true(_deposit(fixture, "warm:preflight"), "topology preflight uses a real finite heat source")
+	_advance(fixture, 137)
+	var before: Dictionary = _topology_snapshot(fixture)
+	runner.assert_true(fixture.heat.can_change_topology(137, footprint), "current bounded nonempty topology footprint can be preflighted")
+	runner.assert_true(not fixture.heat.can_change_topology(137, empty), "an empty topology footprint is refused")
+	for outside: Vector2i in [Vector2i(-1, 0), Vector2i(0, -1), Vector2i(512, 0), Vector2i(0, 512)]:
+		var invalid: Array[Vector2i] = [Vector2i(100, 100), outside]
+		runner.assert_true(not fixture.heat.can_change_topology(137, invalid), "every changed coordinate must lie inside the world: %s" % outside)
+	runner.assert_true(not fixture.heat.can_change_topology(136, footprint), "a past instant cannot preflight a topology change")
+	runner.assert_true(not fixture.heat.can_change_topology(138, footprint), "a future instant cannot preflight before heat is synchronized")
+	runner.assert_eq(_topology_snapshot(fixture), before, "successful and refused preflights do not settle, dirty, alter Q or query geometry")
+	runner.assert_true(not fixture.heat.before_topology_change(136), "a before hook cannot settle backward")
+	runner.assert_eq(_topology_snapshot(fixture), before, "a past before hook leaves the original frozen state clean")
+	fixture.world.elapsed_ms = 138
+	before = _topology_snapshot(fixture)
+	runner.assert_true(not fixture.heat.can_change_topology(138, footprint), "a world instant ahead of the heat clock is refused instead of settled")
+	runner.assert_eq(_topology_snapshot(fixture), before, "an unsynchronized preflight leaves both clocks and the original field untouched")
+
+	var unresolved: Dictionary = _make()
+	runner.assert_true(_deposit(unresolved, "warm:unresolved_topology"), "unresolved topology case starts from actual heat")
+	runner.assert_true(unresolved.heat.before_topology_change(0), "a current before hook opens the topology transaction")
+	before = _topology_snapshot(unresolved)
+	runner.assert_true(not unresolved.heat.can_change_topology(0, footprint), "a live nonempty field with unresolved geometry cannot pass preflight")
+	runner.assert_true(not unresolved.heat.before_topology_change(-1), "a repeated before hook still refuses a past instant")
+	runner.assert_eq(_topology_snapshot(unresolved), before, "refused preflight and past before hook leave already dirty geometry unresolved without querying it")
+	unresolved.heat.after_topology_change(0)
+	runner.assert_true(unresolved.heat.can_change_topology(0, footprint), "a completed topology transaction can be preflighted again")
+
+	_topology_exhausted_ledger(runner, footprint)
+	_topology_preflight_future(runner, footprint)
+
+
+func _topology_exhausted_ledger(runner: Object, footprint: Array[Vector2i]) -> void:
+	var rules: Dictionary = _rules()
+	rules.source_radius = 0
+	rules.max_exchange_energy = -int(rules.reference_tenths) * int(rules.capacity_per_tenth)
+	var fixture: Dictionary = _make(rules)
+	runner.assert_true(fixture.configured, "finite exchange budget uses valid heat definitions")
+	fixture.world.background_schedule.append({"at_ms": 1, "west": 1000, "east": 1000})
+	runner.assert_true(_deposit(fixture, "warm:bounded_exchange"), "a real source fills the bounded ambient allocation")
+	runner.assert_eq(int(fixture.heat.ambient_in), int(rules.max_exchange_energy), "original cell allocation exhausts the actual ambient input budget")
+	fixture.world.elapsed_ms = 1
+	runner.assert_true(fixture.heat.settle_at_ms(1), "the actual weather boundary settles before the exchange is exhausted")
+	var incoming: bool = false
+	for flow: Dictionary in fixture.heat.flows:
+		incoming = incoming or (str(flow.from).is_empty() and int(flow.rate) > 0)
+	runner.assert_true(incoming, "warmer background creates a genuine incoming heat slope after the boundary")
+	var before: Dictionary = _topology_snapshot(fixture)
+	runner.assert_true(fixture.heat.can_change_topology(1, footprint), "zero elapsed time can preflight even when the ambient ledger is full")
+	runner.assert_true(not fixture.heat.can_settle_at_ms(2), "the next real interval cannot borrow from an exhausted ambient ledger")
+	runner.assert_eq(_topology_snapshot(fixture), before, "budget checks do not alter the full ledger or physical field")
+	fixture.world.elapsed_ms = 2
+	before = _topology_snapshot(fixture)
+	runner.assert_true(not fixture.heat.can_change_topology(2, footprint), "the unsynchronized post-exhaustion instant cannot pass topology preflight")
+	runner.assert_true(not fixture.heat.before_topology_change(2), "a before hook reports the failed physical settlement")
+	runner.assert_eq(_topology_snapshot(fixture), before, "failed settlement neither advances Q nor falsely marks geometry dirty")
+
+
+func _topology_preflight_future(runner: Object, footprint: Array[Vector2i]) -> void:
+	var with_preflight: Dictionary = _make()
+	var reference: Dictionary = _make()
+	for fixture: Dictionary in [with_preflight, reference]:
+		runner.assert_true(_deposit(fixture, "warm:preflight_future"), "the compared topology futures start from the same real source")
+		_advance(fixture, 1250)
+	var before: Dictionary = _topology_snapshot(with_preflight)
+	runner.assert_true(with_preflight.heat.can_change_topology(1250, footprint), "the normal topology transaction passes preflight")
+	runner.assert_eq(_topology_snapshot(with_preflight), before, "successful preflight leaves the existing thermal trajectory unmodified")
+	for fixture: Dictionary in [with_preflight, reference]:
+		var original_q: int = _energy(fixture.heat)
+		runner.assert_true(fixture.heat.before_topology_change(1250), "the settled topology before hook succeeds")
+		runner.assert_true(fixture.heat.before_topology_change(1250), "a repeated same-instant before hook is harmless")
+		fixture.world.roofed = true
+		fixture.world.barriers["101,100"] = "closed_door"
+		fixture.heat.after_topology_change(1250)
+		runner.assert_eq(_energy(fixture.heat), original_q, "roof and door changes do not create heat at the mutation instant")
+	runner.assert_eq(_json(with_preflight.heat), _json(reference.heat), "preflight and direct before/after preserve the same frozen segment and ledger")
+	_advance(with_preflight, 17463, true)
+	_advance(reference, 17463)
+	runner.assert_eq(_json(with_preflight.heat), _json(reference.heat), "the preflighted topology has the same unevenly sliced physical future")
 
 
 func _impulse_timing(runner: Object) -> void:

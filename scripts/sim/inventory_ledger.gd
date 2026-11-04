@@ -152,7 +152,7 @@ func transfer(
 	return true
 
 
-func consume(operation_id: String, container: String, item: String, amount: int, custody_id: String = "") -> bool:
+func can_consume(operation_id: String, container: String, item: String, amount: int, custody_id: String = "") -> bool:
 	if not _nonempty(operation_id):
 		return false
 	var request: Dictionary = {
@@ -164,9 +164,17 @@ func consume(operation_id: String, container: String, item: String, amount: int,
 		return false
 	if not can_use(container, item, amount, custody_id):
 		return false
+	return true
+
+
+func consume(operation_id: String, container: String, item: String, amount: int, custody_id: String = "") -> bool:
+	if not can_consume(operation_id, container, item, amount, custody_id):
+		return false
+	if operations.has(operation_id):
+		return true
 	var items: Dictionary = containers[container]
 	items[item] = quantity(container, item) - amount
-	operations[operation_id] = request
+	operations[operation_id] = {"kind": "consume", "container": container, "item": item, "amount": amount}
 	if not custody_id.is_empty():
 		settle_custody(custody_id, "inventory", operation_id)
 	return true
