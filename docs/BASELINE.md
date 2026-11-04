@@ -398,3 +398,5 @@ C1b-0代码提交`6a074a7eecf064e6f91d271e7e5d6ab346fa9f79`，一次Sol/custom�
 | 当前装配无活世界基线、A/B/A规则与完整独立候选 | 20 | 5.584秒 / 414908416B |
 
 日志`logs/retirement-test_*.json`；本包无呈现改动，未重复旧画面验证。准备实际提交时以完整SHA发现前包`c3cf78be5cd71c71b2809939520a57548a1ddeca`的[CI 41887478073](https://github.com/fewnfds/reol/actions/runs/41887478073)为in_progress，登记后不等待/轮询。首次误以短SHA查找返回空，不作为未运行的证据，已纠正为完整SHA；这不是CI终态结果。当前候选完整回归留最终推送SHA CI。
+
+R0a代码提交`0c70ee26e2e9dbf1bf7032a97ecc5a4e5e709040`的一次Sol/custom原生静态审查84.996秒、退出0，无可操作发现；核九个转换函数机械一致、调用替换和死链不可到达41。审查未启动引擎/测试/CI或修改工作区，日志`logs/reviews/<SHA>.explicit-sol.log`及`.summary.json`。首次读取Git输出的GBK解码错误已在同次审查内改UTF-8读取，不是产品错误；不重复整包审查。最终推送SHA完整回归仍待验。
