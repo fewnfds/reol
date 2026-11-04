@@ -55,6 +55,9 @@ func refresh() -> void:
 	_caption.text = "%s · %s · %s" % [adapter.world_sim.environment.date_label(), "山间落雨" if raining else "天晴", sky]
 	if not feeling.is_empty():
 		_caption.text += " · " + feeling
+	var local: String = SimLocalLight.description(SimLocalLight.at_cell(adapter.world_sim, adapter.controlled_cell())).trim_suffix("。")
+	if not local.is_empty():
+		_caption.text += " · " + local
 	_caption.tooltip_text = "露天床铺会受潮，雨水可回补泉源。" if raining else "雨后的床铺逐渐晾干。"
 	if adapter.human_player_active():
 		_caption.tooltip_text += "\n冷暖取决于当地时令、实际衣着和近旁余热；屋面与门墙会影响余热散失。"

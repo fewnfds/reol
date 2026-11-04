@@ -58,12 +58,30 @@ func _test_cliff_chunk_position(runner: Object) -> void:
 
 
 func _test_dawn_continuity(runner: Object) -> void:
-	var tint := DayNight.new()
-	var just_before: Color = tint._color_for_hour(6.999)
-	var just_after: Color = tint._color_for_hour(7.001)
-	runner.assert_true(absf(just_before.g - just_after.g) < 0.001, "dawn tint does not abruptly snap to full daylight at seven")
-	runner.assert_eq(tint._color_for_hour(9.0), DayNight.DAY, "daylight tint is reached after the dawn transition")
-	tint.free()
+	var climate: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/climate.json"))
+	var solar: Dictionary = SimSolarRules.migration_defaults()
+	# At zero tilt on the equator, geometric sunrise/set are exactly local
+	# 06/18. Test their physical instants rather than the removed hour table.
+	solar.latitude_mdeg = 0
+	solar.axial_tilt_mdeg = 0
+	for hour: int in [6, 18]:
+		var transition: int = SimWorldCalendar.DAY_MS + hour * 3600000 - int(climate.calendar.start_minutes) * 60000
+		var before: Dictionary = SimSolarRules.sample(climate.calendar, solar, transition - 1000)
+		var after: Dictionary = SimSolarRules.sample(climate.calendar, solar, transition + 1000)
+		runner.assert_true(not before.is_empty() and not after.is_empty(), "the geometric horizon has valid before/after solar samples")
+		if before.is_empty() or after.is_empty():
+			continue
+		before.supported = true
+		after.supported = true
+		var just_before: Color = DayNight.color_for_sky(before)
+		var just_after: Color = DayNight.color_for_sky(after)
+		for channel: String in ["r", "g", "b"]:
+			runner.assert_true(absf(float(just_before[channel]) - float(just_after[channel])) < 0.001, "the solar horizon tint has no abrupt %s snap at %d" % [channel, hour])
+	for pair: Array in [[12, DayNight.DAY], [0, DayNight.NIGHT]]:
+		var instant: int = SimWorldCalendar.DAY_MS + int(pair[0]) * 3600000 - int(climate.calendar.start_minutes) * 60000
+		var sky: Dictionary = SimSolarRules.sample(climate.calendar, solar, instant)
+		sky.supported = true
+		runner.assert_eq(DayNight.color_for_sky(sky), pair[1], "the actual equatorial noon/midnight reaches its declared tint")
 
 
 func _test_crowd_layout(runner: Object) -> void:

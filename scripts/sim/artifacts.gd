@@ -91,6 +91,8 @@ static func _valid_tool_definition(item: Dictionary) -> bool:
 		keys.append("drawing")
 	if thermal:
 		keys.append("thermal")
+		if item.has("lighting"):
+			keys.append("lighting")
 	if not Schema._keys(item, keys):
 		return false
 	for field: String in ["name", "unknown_name", "appearance", "method", "material_cue", "storage_place"]:
@@ -119,6 +121,8 @@ static func _valid_tool_definition(item: Dictionary) -> bool:
 		if not rule is Dictionary or not Schema._keys(rule, ["mode", "rate_q_per_ms", "capacity_q", "opening_q"]) or rule.mode not in ["emit", "absorb"]:
 			return false
 		if not _count(rule.rate_q_per_ms, 1) or not _count(rule.capacity_q, 1) or not _count(rule.opening_q) or int(rule.opening_q) > int(rule.capacity_q):
+			return false
+		if item.has("lighting") and (rule.mode != "emit" or not SimLightPropagation.valid_definition(item.lighting)):
 			return false
 	return true
 

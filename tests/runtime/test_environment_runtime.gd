@@ -28,7 +28,9 @@ func run(runner: Object) -> void:
 	_stage_calendar_snapshot(adapter, runner)
 	adapter.avatar_subject = "subject:avian:home_sparrow"
 	view.refresh()
-	runner.assert_true(caption.visible and caption.text == "%s · %s" % [adapter.world_sim.environment.date_label(), "山间落雨" if adapter.world_sim.weather.current_kind(view._weather_region) == "rain" else "天晴"], "bird can see date/weather without being given a human body's cold or heat judgment")
+	var bird_sky: String = SimNaturalLight.description(SimNaturalLight.at_cell(adapter.world_sim, adapter.controlled_cell())).trim_suffix("。")
+	var expected_bird: String = "%s · %s · %s" % [adapter.world_sim.environment.date_label(), "山间落雨" if adapter.world_sim.weather.current_kind(view._weather_region) == "rain" else "天晴", bird_sky]
+	runner.assert_true(caption.visible and caption.text == expected_bird, "bird can see date/weather/sky without being given a human body's cold or heat judgment")
 	runner.assert_true(not caption.tooltip_text.contains("实际衣着"), "bird weather help does not prescribe human clothing")
 	adapter.avatar_subject = "subject:soul:yan_heng"
 	view.refresh()

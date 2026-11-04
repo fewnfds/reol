@@ -62,6 +62,7 @@
       "capabilities": ["thermal_exchange"],
       "storage_place": "kitchen",
       "thermal": {"mode": "emit", "rate_q_per_ms": 1000, "capacity_q": 180000000, "opening_q": 180000000},
+      "lighting": {"version": 1, "peak_relative": 4000, "radius_cells": 4},
       "actions": {
         "inspect": {"label": "端详赤纹石", "minutes": 1, "qi": 0},
         "take": {"label": "取在手中", "minutes": 1, "qi": 0},

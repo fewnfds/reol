@@ -48,6 +48,8 @@ var _background_query: Callable
 var _background_boundary: Callable
 var _frozen_boundary_ms: int = MAX_INTEGER
 var _frozen_groups: SimThermalFrozenGroups
+## Derived once per accepted freeze/restore, never serialized or a Q balance.
+var _emission_rates: Dictionary = {}
 var world: RefCounted:
 	get:
 		return null if _owner == null else _owner.get_ref()
@@ -231,6 +233,22 @@ func _boundary_at(at_ms: int, state: Dictionary, active_flows: Array, object_sta
 
 func next_boundary_ms() -> int:
 	return _frozen_boundary_ms
+
+
+func device_emission_rates(at_ms: int) -> Dictionary:
+	# Read-only current outgoing slopes; callers cannot settle or repair heat.
+	if definitions.is_empty() or at_ms != last_ms or (_geometry_dirty and (not cells.is_empty() or not flows.is_empty())) or (not cells.is_empty() and _frozen_boundary_ms <= last_ms):
+		return {"supported": false, "reason": "unsettled_heat"}
+	return {"supported": true, "rates": _emission_rates}
+
+
+func _rebuild_emission_rates() -> void:
+	_emission_rates = {}
+	for flow: Dictionary in flows:
+		var id: String = _device_id(str(flow.from))
+		if not id.is_empty():
+			_emission_rates[id] = int(_emission_rates.get(id, 0)) + int(flow.rate)
+	_emission_rates.make_read_only()
 
 
 func _device_objects() -> Dictionary:
@@ -620,6 +638,7 @@ func _assign(data: Dictionary) -> void:
 	_geometry_dirty = false
 	_frozen_boundary_ms = int(data.segment_until_ms)
 	_rebuild_frozen_groups()
+	_rebuild_emission_rates()
 
 
 func restore(data: Variant) -> bool:
@@ -718,6 +737,7 @@ func _freeze() -> void:
 	segment_started_ms = last_ms
 	_frozen_boundary_ms = _boundary_at(last_ms, cells, flows) if bool(plan.ok) else last_ms
 	_geometry_dirty = false
+	_rebuild_emission_rates()
 	if bool(plan.ok):
 		_rebuild_frozen_groups()
 	else:

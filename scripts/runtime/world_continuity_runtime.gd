@@ -34,6 +34,7 @@ var clothing_adapter: ClothingRuntime
 var spirit_adapter: SpiritSourceRuntime
 var natural_adapter: NaturalWorldRuntime
 var weather_adapter: WeatherRuntime
+var light_adapter: LocalLightRuntime
 var large_body_adapter: LargeBodiesRuntime
 var avatar_adapter: Node
 var avatar_subject: String = "subject:player"
@@ -237,6 +238,10 @@ func setup(home: VillageRuntime, opening_source_loan: bool = false, opening_sour
 	weather_adapter.name = "WeatherRuntime"
 	add_child(weather_adapter)
 	weather_adapter.setup(self)
+	light_adapter = LocalLightRuntime.new()
+	light_adapter.name = "LocalLightRuntime"
+	add_child(light_adapter)
+	light_adapter.setup(self)
 	clothing_adapter = ClothingRuntime.new()
 	clothing_adapter.name = "ClothingRuntime"
 	add_child(clothing_adapter)

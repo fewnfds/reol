@@ -625,6 +625,18 @@ func test_body_geometry_reuse() -> void:
 	load("res://tests/sim/test_body_geometry_reuse.gd").new().run(self)
 
 
+func test_light_propagation() -> void:
+	load("res://tests/sim/test_light_propagation.gd").new().run(self)
+
+
+func test_local_light() -> void:
+	load("res://tests/sim/test_local_light.gd").new().run(self)
+
+
+func test_local_light_runtime() -> void:
+	load("res://tests/runtime/test_local_light_runtime.gd").new().run(self)
+
+
 func test_large_bodies_runtime() -> void:
 	load("res://tests/runtime/test_large_bodies_runtime.gd").new().run(self)
 

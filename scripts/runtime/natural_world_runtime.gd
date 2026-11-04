@@ -89,6 +89,7 @@ func describe(cell: Vector2i) -> String:
 				line += "\n墙与桌柜占据实际空间，需要绕行。"
 			line += "\n办事要由有权的人回到桌前，依据机构记录核验。"
 			line += "\n" + SimNaturalLight.description(SimNaturalLight.at_cell(adapter.world_sim, cell))
+			line += _local_light_line(cell)
 			return line
 	var natural: Dictionary = adapter.world_sim.map_data.natural_cell(cell)
 	var line: String = str(natural.get("label", "地面"))
@@ -99,6 +100,7 @@ func describe(cell: Vector2i) -> String:
 		line += "\n可见%s。" % ("青叶灌丛" if flora.id == "spirit_shrub" else str(flora.label))
 	line += "\n五行气机尚未辨明；地表草木不代表可用灵力。"
 	line += "\n" + SimNaturalLight.description(SimNaturalLight.at_cell(adapter.world_sim, cell))
+	line += _local_light_line(cell)
 	for region: VillageSimulation in adapter.world_sim.regions.values():
 		for source: String in region.land_resources.sources:
 			var place: String = str(region.config.resource_sources[source].place)
@@ -108,6 +110,11 @@ func describe(cell: Vector2i) -> String:
 	if adapter.world_sim.weather.definitions.regions.has(weather_region) and adapter.world_sim.weather.current_kind(weather_region) == "rain" and not adapter.world_sim.construction.roofed(cell):
 		line += "\n眼前正落着雨。"
 	return line
+
+
+func _local_light_line(cell: Vector2i) -> String:
+	var text: String = SimLocalLight.description(SimLocalLight.at_cell(runtime().world_sim, cell))
+	return "\n" + text if not text.is_empty() else ""
 
 
 func refresh() -> void:
