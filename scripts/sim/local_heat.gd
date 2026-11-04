@@ -6,10 +6,12 @@ extends RefCounted
 const Shape = preload("res://scripts/sim/avian_schema.gd")
 const Legacy = preload("res://scripts/persistence/legacy_heat_v1.gd")
 const TransferBudget = preload("res://scripts/sim/thermal_transfer_budget.gd")
+const FrozenGroups = preload("res://scripts/sim/thermal_frozen_groups.gd")
 const VERSION: int = 3
 const DEVICE_PREFIX: String = "@artifact/"
 const SIDES: Array[Vector2i] = [Vector2i.LEFT, Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN]
 const MAX_INTEGER: int = 9007199254740991
+const GROUP_MIN_CELLS: int = 64
 var definitions: Dictionary = {}
 var activation_ms: int = 0
 var model_started_ms: int = 0
@@ -45,6 +47,7 @@ var _geometry_dirty: bool = false
 var _background_query: Callable
 var _background_boundary: Callable
 var _frozen_boundary_ms: int = MAX_INTEGER
+var _frozen_groups: SimThermalFrozenGroups
 var world: RefCounted:
 	get:
 		return null if _owner == null else _owner.get_ref()
@@ -363,6 +366,9 @@ func can_settle_at_ms(now: int) -> bool:
 	if _geometry_dirty or now > next_boundary_ms():
 		return false
 	var dt: int = now - last_ms
+	if _frozen_groups != null and _frozen_groups.can_settle(dt):
+		return _ledger_can_accept(int(_frozen_groups.ambient_in_rate) * dt,
+			int(_frozen_groups.ambient_out_rate) * dt, 0, 0)
 	var incoming: int = 0
 	var outgoing: int = 0
 	var emitted: int = 0
@@ -399,7 +405,7 @@ func can_settle_at_ms(now: int) -> bool:
 			device_deltas[id] = int(device_deltas.get(id, 0)) + amount
 		else:
 			deltas[flow.to] = int(deltas.get(flow.to, 0)) + amount
-	if emitted > int(definitions.max_total_input) - input_energy - continuous_input or incoming > int(definitions.max_exchange_energy) - ambient_in or emitted > MAX_INTEGER - input_energy - continuous_input - ambient_in or incoming > MAX_INTEGER - input_energy - continuous_input - ambient_in - emitted or outgoing > int(definitions.max_exchange_energy) - loss_energy or absorbed > MAX_INTEGER - absorbed_energy:
+	if not _ledger_can_accept(incoming, outgoing, emitted, absorbed):
 		return false
 	var objects: Dictionary = _device_objects() if not device_deltas.is_empty() else {}
 	for id: String in device_deltas:
@@ -415,6 +421,11 @@ func can_settle_at_ms(now: int) -> bool:
 	return true
 
 
+func _ledger_can_accept(incoming: int, outgoing: int, emitted: int, absorbed: int) -> bool:
+	# Both arithmetic paths retain the same cumulative source/bath limits.
+	return not (emitted > int(definitions.max_total_input) - input_energy - continuous_input or incoming > int(definitions.max_exchange_energy) - ambient_in or emitted > MAX_INTEGER - input_energy - continuous_input - ambient_in or incoming > MAX_INTEGER - input_energy - continuous_input - ambient_in - emitted or outgoing > int(definitions.max_exchange_energy) - loss_energy or absorbed > MAX_INTEGER - absorbed_energy)
+
+
 func settle_at_ms(now: int) -> bool:
 	if definitions.is_empty() or not Shape.count(now, last_ms, MAX_INTEGER):
 		return false
@@ -425,7 +436,8 @@ func settle_at_ms(now: int) -> bool:
 		var target: int = mini(now, boundary)
 		if target <= last_ms or not can_settle_at_ms(target):
 			return false
-		_integrate(target - last_ms)
+		if not _integrate(target - last_ms):
+			return false
 		last_ms = target
 		if target == boundary or cells.is_empty():
 			_freeze()
@@ -607,6 +619,7 @@ func _assign(data: Dictionary) -> void:
 	device_switches = data.device_switches.duplicate(true)
 	_geometry_dirty = false
 	_frozen_boundary_ms = int(data.segment_until_ms)
+	_rebuild_frozen_groups()
 
 
 func restore(data: Variant) -> bool:
@@ -705,6 +718,35 @@ func _freeze() -> void:
 	segment_started_ms = last_ms
 	_frozen_boundary_ms = _boundary_at(last_ms, cells, flows) if bool(plan.ok) else last_ms
 	_geometry_dirty = false
+	if bool(plan.ok):
+		_rebuild_frozen_groups()
+	else:
+		_frozen_groups = null
+
+
+func _rebuild_frozen_groups() -> void:
+	# A derived index of this exact frozen segment, never a Q balance or clock.
+	# Every source/topology change and restore rebuilds it from original rows.
+	_frozen_groups = null
+	if cells.size() < GROUP_MIN_CELLS:
+		return
+	# Q is part of every signature. Require fourfold potential reduction before
+	# graph compilation; the complete in/out signature can split these buckets.
+	var energies: Dictionary = {}
+	@warning_ignore("integer_division")
+	var distinct_limit: int = cells.size() / 4
+	for key: String in cells:
+		var row: Dictionary = cells[key]
+		energies[int(row.energy)] = true
+		if energies.size() > distinct_limit:
+			return
+	if _has_device_flows(flows):
+		return
+	# These original rows/edges were generated here or normalized only after
+	# full candidate validation. External inputs use the strict compile API.
+	var grouped: SimThermalFrozenGroups = FrozenGroups.compile_field(cells, flows, int(definitions.max_cell_energy))
+	if grouped != null and int(grouped.group_count) * 2 <= cells.size():
+		_frozen_groups = grouped
 
 
 func _build_flows(state: Dictionary, at_ms: int, object_state: Dictionary = {}) -> Array[Dictionary]:
@@ -800,7 +842,13 @@ func _rate(energy: int, coefficient: int) -> int:
 	return (energy / divisor) * coefficient + (energy % divisor) * coefficient / divisor
 
 
-func _integrate(dt: int) -> void:
+func _integrate(dt: int) -> bool:
+	if _frozen_groups != null and _frozen_groups.can_settle(dt):
+		if not _frozen_groups.apply(dt):
+			return false
+		ambient_in += int(_frozen_groups.ambient_in_rate) * dt
+		loss_energy += int(_frozen_groups.ambient_out_rate) * dt
+		return true
 	var objects: Dictionary = _device_objects() if _has_device_flows(flows) else {}
 	for flow: Dictionary in flows:
 		var amount: int = int(flow.rate) * dt
@@ -822,6 +870,7 @@ func _integrate(dt: int) -> void:
 			device_absorbed[id] = int(device_absorbed.get(id, 0)) + amount
 		else:
 			cells[flow.to].energy = int(cells[flow.to].energy) + amount
+	return true
 
 
 func _patch(center: Vector2i) -> Array[Vector2i]:

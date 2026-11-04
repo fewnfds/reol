@@ -51,6 +51,63 @@ func _canonical(runtime: WorldContinuityRuntime) -> String:
 	return JSON.stringify(VillageRuntime._json_normalized(WorldSessionSnapshot.capture(runtime)), "", true, true)
 
 
+func _prepare_pre_health_opening(runner: Object, runtime: WorldContinuityRuntime) -> bool:
+	# The shared runtime fixture assembles today's opening, including devices
+	# that did not exist in v42. Build this one old-style test opening before
+	# advancing time or performing the actual injury, never by editing an archive.
+	var old_content: ReolContentDB = ReolContentDB.legacy_v42()
+	var device_ids: Array[String] = ["fire_stone", "cold_stone"]
+	var old_types_ok: bool = old_content != null
+	if old_types_ok:
+		for id: String in device_ids:
+			old_types_ok = old_types_ok and not old_content.artifacts.types.has(id)
+	runner.assert_true(old_types_ok, "pre-health opening excludes devices absent from the bound historical definitions")
+	if not old_types_ok:
+		return false
+	var opening: Dictionary = WorldSessionSnapshot.capture(runtime)
+	var world: RegionalSimulation = runtime.world_sim
+	var state: Dictionary = opening.continuity.world
+	var at_opening: bool = not state.is_empty() and GameClock.elapsed_ms == 0 and world.elapsed_ms == 0 and world.target_ms == 0
+	runner.assert_true(at_opening, "pre-health fixture is still at its initial common time")
+	if not at_opening:
+		return false
+	var empty_heat: bool = SnapshotValues.normalized(state.local_heat) == SnapshotValues.normalized(SimLocalHeat.empty_state(0))
+	runner.assert_true(empty_heat, "pre-health opening has no field, device flow, receipt or heat ledger to erase")
+	if not empty_heat:
+		return false
+	var objects: Dictionary = state.artifacts.objects
+	for id: String in device_ids:
+		var definition: Dictionary = world.artifacts.definitions.types.get(id, {})
+		var thermal: Variant = definition.get("thermal")
+		var intact: bool = thermal is Dictionary and thermal.has("opening_q") and objects.has(id)
+		if intact:
+			var expected: Dictionary = {"definition": id, "region": "home", "container": "kitchen",
+				"stored_q": int(thermal.opening_q), "enabled": false}
+			intact = SnapshotValues.normalized(objects[id]) == SnapshotValues.normalized(expected)
+		runner.assert_true(intact, "later device is still in its unmodified disabled opening state: " + id)
+		if not intact:
+			return false
+		objects.erase(id)
+	for item: Dictionary in objects.values():
+		var old_object: bool = old_content.artifacts.types.has(item.get("definition")) and not item.has("stored_q") and not item.has("enabled")
+		runner.assert_true(old_object, "remaining opening artifact is representable by the historical definitions")
+		if not old_object:
+			return false
+	# The content bundle describes available definitions, not world facts. With
+	# that bundle and the two checked opening rows omitted from this copy, search
+	# all remaining saved facts, including active actions, transit and receipts.
+	opening.erase("content_bundle")
+	var other_facts: String = SnapshotValues.canonical_json(opening)
+	for id: String in device_ids:
+		var unreferenced: bool = not other_facts.contains(id)
+		runner.assert_true(unreferenced, "no saved fact refers to the excluded opening device: " + id)
+		if not unreferenced:
+			return false
+	for id: String in device_ids:
+		world.artifacts.objects.erase(id)
+	return true
+
+
 func _actual_body_care(runner: Object) -> void:
 	var fixture: Dictionary = _fixture(runner)
 	if fixture.is_empty():
@@ -131,6 +188,9 @@ func _legacy_sources(runner: Object) -> void:
 	if fixture.is_empty():
 		return
 	var runtime: WorldContinuityRuntime = fixture.continuity
+	if not _prepare_pre_health_opening(runner, runtime):
+		fixtures._dispose(fixture)
+		return
 	_injure(runner, runtime)
 	# Build an explicit pre-health format from real effects. This is a temporary
 	# migration counterexample, never a replacement of a genuine archive.
@@ -171,6 +231,10 @@ func _legacy_sources(runner: Object) -> void:
 	var old_artifacts: Dictionary = legacy.continuity.world.artifacts
 	runner.assert_eq(int(old_artifacts.version), SimArtifacts.VERSION, "temporary projection starts from the current artifact envelope")
 	var can_project_artifacts: bool = int(old_artifacts.version) == SimArtifacts.VERSION
+	for item: Dictionary in old_artifacts.objects.values():
+		var v4_object: bool = not item.has("stored_q") and not item.has("enabled")
+		runner.assert_true(v4_object, "temporary pre-health artifacts contain no later thermal device fields")
+		can_project_artifacts = can_project_artifacts and v4_object
 	var artifact_history: Array = old_artifacts.active.values()
 	artifact_history.append_array(old_artifacts.events)
 	for row: Variant in artifact_history:

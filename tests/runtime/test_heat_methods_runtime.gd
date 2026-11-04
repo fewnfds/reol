@@ -4,6 +4,12 @@ const Fixtures = preload("res://tests/runtime/test_world_continuity_runtime.gd")
 
 
 func run(runner: Object) -> void:
+	_test_panel_practice(runner)
+	_test_other_life_practice(runner)
+	print("SCENARIO method UI: real foundation→draft→trial→consenting practice→joint restart; old version has no invented techniques")
+
+
+func _test_panel_practice(runner: Object) -> void:
 	var fixtures := Fixtures.new()
 	var fixture: Dictionary = fixtures._fixture(runner)
 	if fixture.is_empty():
@@ -21,19 +27,54 @@ func run(runner: Object) -> void:
 	runtime.prepare_player_command()
 	adapter.show_panel()
 	runner.assert_true(adapter.panel.visible and adapter.method_choice.item_count == 0, "method panel starts from this subject's actual empty notes")
+	if not _select_artifact(runner, adapter, "hearth_stone"):
+		fixtures._dispose(fixture)
+		return
 	adapter.title_edit.text = "小灶留火"
 	adapter.compose_selected()
 	runner.assert_true(world.heat_methods.methods.is_empty(), "UI naming cannot bypass an unlearned foundation")
-	runner.assert_true(world.artifacts.begin("player", "study", "hearth_stone").ok, "same person first learns the existing real foundation")
+	if not world.heat_methods.methods.is_empty():
+		fixtures._dispose(fixture)
+		return
+	var studying: bool = bool(world.artifacts.begin("player", "study", "hearth_stone").ok)
+	runner.assert_true(studying, "same person first learns the existing real foundation")
+	if not studying:
+		fixtures._dispose(fixture)
+		return
 	GameClock.advance_msec(240000)
+	var learned_base: bool = bool(world.artifacts.describe("player", "hearth_stone").get("method", false))
+	runner.assert_true(learned_base, "the original warm-stone study actually completes before authoring")
+	if not learned_base or not _select_artifact(runner, adapter, "cold_stone"):
+		fixtures._dispose(fixture)
+		return
+	adapter.compose_selected()
+	runner.assert_true(world.heat_methods.methods.is_empty(), "learning the warm stone cannot create its method from the distinct cold stone")
+	if not world.heat_methods.methods.is_empty():
+		fixtures._dispose(fixture)
+		return
+	if not _select_artifact(runner, adapter, "hearth_stone"):
+		fixtures._dispose(fixture)
+		return
 	adapter.compose_selected()
 	var id: String = adapter.selected_method()
-	runner.assert_true(not id.is_empty() and world.heat_methods.methods.has(id), "UI saves bounded steps into the actual version directory")
+	var drafted: bool = not id.is_empty() and world.heat_methods.methods.has(id)
+	runner.assert_true(drafted, "UI saves bounded steps into the actual version directory: " + adapter._reply.text)
+	if not drafted:
+		fixtures._dispose(fixture)
+		return
 	adapter.act("trial")
-	runner.assert_true(world.artifacts.active.has("player") and not world.heat_methods.knows("player", id), "UI starts original trial without early learning")
+	var trial_started: bool = world.artifacts.active.has("player") and not world.heat_methods.knows("player", id)
+	runner.assert_true(trial_started, "UI starts original trial without early learning: " + adapter._reply.text)
+	if not trial_started:
+		fixtures._dispose(fixture)
+		return
 	GameClock.advance_msec(60000)
-	runner.assert_true(world.heat_methods.knows("player", id) and str(adapter._note.text).contains("亲手练过"), "completion refreshes authorized understanding immediately")
-	runner.assert_true(adapter.method_choice.get_item_text(0).contains("已练"), "dropdown and detailed note agree after real completion")
+	var learned: bool = world.heat_methods.knows("player", id)
+	runner.assert_true(learned and str(adapter._note.text).contains("亲手练过"), "completion refreshes authorized understanding immediately")
+	runner.assert_true(adapter.method_choice.item_count > 0 and adapter.method_choice.get_item_text(0).contains("已练"), "dropdown and detailed note agree after real completion")
+	if not learned:
+		fixtures._dispose(fixture)
+		return
 	for index: int in adapter.learner_choice.item_count:
 		if adapter.learner_choice.get_item_metadata(index) == "subject:su_zhi":
 			adapter.learner_choice.select(index)
@@ -45,21 +86,44 @@ func run(runner: Object) -> void:
 	runner.assert_true(not runtime.travel_to("river"), "teacher cannot leave through a competing automatic travel command")
 	GameClock.advance_msec(12345)
 	var path: String = "user://tests/heat_methods_%d.json" % Time.get_ticks_usec()
-	runner.assert_eq(runtime.save_game(path), OK, "original joint save contains practice, teacher, paid costs and version")
+	var save_result: Error = runtime.save_game(path)
+	runner.assert_eq(save_result, OK, "original joint save contains practice, teacher, paid costs and version")
+	if save_result != OK:
+		_remove_test_save(path)
+		fixtures._dispose(fixture)
+		return
 	GameClock.advance_msec(70000)
 	var future: String = _canonical(runtime)
 	runner.assert_true(runtime.world_sim.heat_methods.knows("su_zhi", id), "completion teaches the named learner")
-	runner.assert_eq(runtime.load_game(path), OK, "normal file load restores unfinished human instruction")
+	var load_result: Error = runtime.load_game(path)
+	runner.assert_eq(load_result, OK, "normal file load restores unfinished human instruction")
+	if load_result != OK:
+		_remove_test_save(path)
+		fixtures._dispose(fixture)
+		return
 	runner.assert_true(not adapter.panel.visible, "load clears temporary UI selections and future text")
 	adapter.show_panel()
 	GameClock.advance_msec(70000)
 	runner.assert_eq(_canonical(runtime), future, "restored method panel cannot repeat input or change the saved future")
+	_remove_test_save(path)
+	fixtures._dispose(fixture)
+
+
+func _select_artifact(runner: Object, adapter: HeatMethodsRuntime, id: String) -> bool:
+	for index: int in adapter.object_choice.item_count:
+		var metadata: Variant = adapter.object_choice.get_item_metadata(index)
+		if metadata is Dictionary and metadata.get("kind") == "artifact" and metadata.get("id") == id:
+			adapter.object_choice.select(index)
+			runner.assert_eq(adapter.selected_object(), id, "the method panel selects the intended visible original artifact")
+			return adapter.selected_object() == id
+	runner.assert_true(false, "the method panel offers the intended visible original artifact: " + id)
+	return false
+
+
+func _remove_test_save(path: String) -> void:
 	for suffix: String in ["", ".tmp", ".bak", ".bak.tmp"]:
 		if FileAccess.file_exists(path + suffix):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
-	fixtures._dispose(fixture)
-	_test_other_life_practice(runner)
-	print("SCENARIO method UI: real foundation→draft→trial→consenting practice→joint restart; old version has no invented techniques")
 
 
 func _canonical(runtime: WorldContinuityRuntime) -> String:

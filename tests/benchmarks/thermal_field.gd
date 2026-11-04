@@ -3,12 +3,18 @@ extends SceneTree
 ## tools.world_benchmark.run_guarded (30 seconds, 1 GiB); this script cannot
 ## itself enforce the process memory limit. It does not construct a game world.
 
-const COUNTS: Array[int] = [25, 128, 512]
+const COUNTS: Array[int] = [25, 100, 128, 400, 512]
 const ADVANCES: int = 40
 const ADVANCE_MS: int = 1000
 const RESTORES: int = 3
 const PULSE_MULTIPLIER: int = 100
 const SPLIT_OFFSETS: Array[int] = [1, 337, 3847, 9999, 10000, 17777, 29999, 30000, 37517, 40000]
+var _ungrouped_reference: bool = false
+
+
+class ReferenceHeat extends SimLocalHeat:
+	func _rebuild_frozen_groups() -> void:
+		_frozen_groups = null
 
 
 class BenchmarkWeather extends RefCounted:
@@ -68,16 +74,21 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
-	if args.size() < 1 or args.size() > 2 or not args[0].is_valid_int() or int(args[0]) not in COUNTS:
-		_fail("expected an active-cell target 25, 128, or 512, optionally followed by custom or default")
+	if args.size() < 1 or args.size() > 3 or not args[0].is_valid_int() or int(args[0]) not in COUNTS:
+		_fail("expected active-cell target 25/100/128/400/512, optional custom/default backend and optional ungrouped reference")
 		return
 	var target: int = int(args[0])
 	var backend: String = "custom"
-	if args.size() == 2:
+	if args.size() >= 2:
 		if args[1] not in ["custom", "default"]:
 			_fail("backend must be custom or default")
 			return
 		backend = str(args[1])
+	if args.size() == 3:
+		if args[2] != "ungrouped":
+			_fail("third argument must be ungrouped")
+			return
+		_ungrouped_reference = true
 	var default_backend: bool = backend == "default"
 	var whole_start: int = Time.get_ticks_usec()
 	var content := ReolContentDB.new()
@@ -94,7 +105,9 @@ func _run() -> void:
 		return
 	var centers: Array[Vector2i] = _source_centers(target)
 	var probes: Array[Vector2i] = [Vector2i(265, 100)]
-	if target > 25:
+	if target in [100, 400]:
+		probes = [centers[0]]
+	elif target > 25:
 		probes.append(Vector2i(270, 100))
 	var authority := FieldAuthority.new()
 	_configure_authority(authority, content)
@@ -187,9 +200,16 @@ func _run() -> void:
 	if not bool(persistence.get("ok", false)):
 		_fail("snapshot stage failed " + JSON.stringify(persistence.get("diagnostic", {}), "", true, true))
 		return
+	var energy_values: Dictionary = {}
+	for row: Dictionary in heat.cells.values():
+		energy_values[int(row.energy)] = true
 	var report: Dictionary = {
 		"kind": "thermal_field_component",
 		"backend": backend,
+		"integration_policy": "original_flows" if _ungrouped_reference else "frozen_equivalence",
+		"frozen_groups_at_end": 0 if heat._frozen_groups == null else int(heat._frozen_groups.group_count),
+		"distinct_energy_values_at_end": energy_values.size(),
+		"state_sha256": SnapshotValues.canonical_json(SnapshotValues.normalized(end_state)).sha256_text(),
 		"scope": "isolated fixed-Q field; open unroofed geometry; synthetic receipt-owning component source; actual climate and weather rules; no actor, artifact, world, rendering or full-save benchmark",
 		"engine": Engine.get_version_info(), "debug_build": OS.has_feature("debug"),
 		"required_external_guard": {"seconds": 30, "memory_bytes": 1073741824},
@@ -203,7 +223,8 @@ func _run() -> void:
 			"calls_crossing_frozen_boundaries": calls_crossing_frozen_boundaries,
 			"split_calls": SPLIT_OFFSETS.size(), "climate_boundary": phase},
 		"setup_ms": setup_ms, "warmup_ms": warmup_ms,
-		"advance_ms": _distribution(advances), "climate_boundary_advance_ms": climate_step_ms,
+		"advance_ms": _distribution(advances), "advance_samples_ms": advances.duplicate(),
+		"climate_boundary_advance_ms": climate_step_ms,
 		"persistence": persistence, "conservation": conservation, "split_consistent": true,
 		"worker_elapsed_ms": _ms_since(whole_start)}
 	print("BENCHMARK_RESULT " + JSON.stringify(report, "", true, true))
@@ -211,6 +232,13 @@ func _run() -> void:
 
 
 func _source_centers(count: int) -> Array[Vector2i]:
+	if count in [100, 400]:
+		# Identical isolated finite-pulse patches provide a real low-diversity
+		# workload. Keep it separate from the irregular cross-climate lattice.
+		var isolated: Array[Vector2i] = []
+		for index: int in range(4 if count == 100 else 16):
+			isolated.append(Vector2i(100 + (index % 4) * 8, 100 + (index / 4) * 8))
+		return isolated
 	# Real overlapping 5x5 source patches form exactly 5x5, 8x16 and 16x32.
 	var xs: Array[int] = [265]
 	var ys: Array[int] = [100]
@@ -236,7 +264,7 @@ func _configure_authority(authority: FieldAuthority, content: ReolContentDB) -> 
 
 
 func _new_heat(authority: FieldAuthority, rules: Dictionary, default_backend: bool = false) -> SimLocalHeat:
-	var heat := SimLocalHeat.new()
+	var heat: SimLocalHeat = ReferenceHeat.new() if _ungrouped_reference else SimLocalHeat.new()
 	if not heat.initialize(authority, rules):
 		return null
 	if not default_backend:
@@ -395,9 +423,14 @@ func _first_difference(expected: Variant, actual: Variant, path: String) -> Dict
 
 
 func _distribution(values: Array[float]) -> Dictionary:
-	values.sort()
-	return {"samples": values.size(), "p50": _percentile(values, 0.50),
-		"p95": _percentile(values, 0.95), "p99": _percentile(values, 0.99), "max": values[-1]}
+	var sorted: Array[float] = values.duplicate()
+	sorted.sort()
+	var total: float = 0.0
+	for value: float in values:
+		total += value
+	return {"samples": values.size(), "p50": _percentile(sorted, 0.50),
+		"p95": _percentile(sorted, 0.95), "p99": _percentile(sorted, 0.99), "max": sorted[-1],
+		"mean": total / float(values.size())}
 
 
 func _percentile(values: Array[float], fraction: float) -> float:

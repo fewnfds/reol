@@ -133,6 +133,14 @@ func test_heat_geometry_reuse() -> void:
 	load("res://tests/sim/test_heat_geometry_reuse.gd").new().run(self)
 
 
+func test_thermal_frozen_groups() -> void:
+	load("res://tests/sim/test_thermal_frozen_groups.gd").new().run(self)
+
+
+func test_thermal_grouped_field() -> void:
+	load("res://tests/sim/test_thermal_grouped_field.gd").new().run(self)
+
+
 func test_absolute_heat() -> void:
 	load("res://tests/sim/test_absolute_heat.gd").new().run(self)
 
