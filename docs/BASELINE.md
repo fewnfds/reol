@@ -614,3 +614,5 @@ doctor正常；最终导入5.825秒/1006456832B、无引擎错误（`logs/intrin
 初期无头纹理读回7条假失败定位为dummy渲染的ImageTexture.update读回仍为初图，force_sync不修正；保留失败日志。runtime保留本次实际上传图供无头断言，原生QA等待frame_post_draw再独立核GPU，未只删掉视野检查。首次把关闭一个火石等同整幅灯灭的旧测试也已改核原热出流确已消失、其他来源继续作用。API依据目标4.7官方[RenderingServer](https://docs.godotengine.org/en/4.7/classes/class_renderingserver.html)、[视口绘制完成](https://docs.godotengine.org/en/4.7/tutorials/rendering/viewports.html)，参考同步不进入每帧产品热路径。
 
 本包提交检查：前推送12f4cf9/run41913715806 completed/success，artifact `logs/ci/41913715806-artifacts/`中227组/29794断言/0失败且无脚本错误，更新为当前前序完整绿色；W1b最终99eb91c/run41916383335仅一次发现仍in_progress，留下一真实提交，不等待/轮询。本包原生审查和最终SHA完整CI接续，Goal仍active。子代理曾越过文件/验证分工并误建自身Goal，已中断该代理；其未协调探针不计最终验收，主代理接管后重验上述原生/定向，AGENTS已加仅主代理管理Goal和显式验证分工，主线程Goal未重建/缩小。
+
+W2b-1代码`542cb9820ec52a6b96b235550e5d023dc341f094`的一次Sol/custom显式read-only原生静态审查132.798秒、退出0，无可操作发现；核能力组合/严格定义、派生索引生命周期、原保管/已接受位置时钟、整数光贡献复用、Fog/CPU与GPU验证、候选恢复及旧版保留。未运行引擎/测试/基准/CI或修改文件，不重复整包审查；日志`logs/reviews/<SHA>.explicit-sol.log`及`.explicit-sol.summary.json`。26文件暂存检查无凭据模式、第三方/原fixture/生成输出及超大资源；结构201当前文档/398脚本0错误，diff通过。代码与此登记文档阶段推送，推后不查询/等待CI，最终SHA完整回归仍待验，Goal继续active。
