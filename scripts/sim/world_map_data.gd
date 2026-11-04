@@ -1,12 +1,17 @@
 class_name WorldMapData
 extends RefCounted
 ## Authoritative static map queries, independent of loaded/rendered chunks.
-## Version-one generation is deliberately identical to the original ReolWorld.
+## Legacy v1 remains identical to the original; flat v1 has its own identity.
 
 const WORLD_SIZE: int = 512
 const WORLD_SEED: int = 20261101
 const GENERATOR_ID: String = "reol_noise"
 const GENERATOR_VERSION: int = 1
+const FLAT_GENERATOR_ID: String = "reol_flat_noise"
+const FLAT_GENERATOR_VERSION: int = 1
+# NaturalEnvironment permits seed offsets through 10000. Keeping their sum in
+# signed 32-bit range avoids relying on engine integer narrowing behavior.
+const FLAT_MAX_SEED: int = 2147473647
 const ELEVATION_LEVELS: int = 4
 const TERRAIN_WATER: int = 0
 const TERRAIN_GRASS: int = 1
@@ -20,23 +25,32 @@ var _nature_definitions: Dictionary = {}
 var _generation: Dictionary
 var _map_seed: int
 var _map_size: int
+var _flat: bool = false
 
 
 func _init() -> void:
-	# Keep this v1 instance independent of future default-generator constants.
-	_generation = legacy_descriptor()
-	_map_seed = int(_generation.seed)
-	_map_size = int(_generation.size)
 	_terrain_noise = FastNoiseLite.new()
-	_terrain_noise.seed = _map_seed
+	_height_noise = FastNoiseLite.new()
+	# Keep the old seed-before-settings initialization order for legacy v1.
+	_initialize_generation(legacy_descriptor())
 	_terrain_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	_terrain_noise.frequency = 0.018
 	_terrain_noise.fractal_octaves = 3
-	_height_noise = FastNoiseLite.new()
-	_height_noise.seed = _map_seed + 1
 	_height_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	_height_noise.frequency = 0.012
 	_height_noise.fractal_octaves = 3
+
+
+func _initialize_generation(value: Dictionary) -> void:
+	# Called only on a new instance, with the fixed legacy tuple or an already
+	# validated factory input. Do not reuse this to mutate an active map.
+	_generation = {"generator": value.generator, "generator_version": int(value.generator_version),
+		"seed": int(value.seed), "size": int(value.size)}
+	_map_seed = int(_generation.seed)
+	_map_size = int(_generation.size)
+	_flat = _generation.generator == FLAT_GENERATOR_ID
+	_terrain_noise.seed = _map_seed
+	_height_noise.seed = _map_seed + 1
 
 
 static func generation_descriptor() -> Dictionary:
@@ -49,25 +63,38 @@ static func legacy_descriptor() -> Dictionary:
 	return {"generator": "reol_noise", "generator_version": 1, "seed": 20261101, "size": 512}
 
 
+static func flat_descriptor(seed: int) -> Dictionary:
+	var value: Dictionary = {"generator": FLAT_GENERATOR_ID, "generator_version": FLAT_GENERATOR_VERSION,
+		"seed": seed, "size": 512}
+	return value if valid_descriptor(value) else {}
+
+
 static func valid_descriptor(value: Variant) -> bool:
 	if not value is Dictionary or value.size() != 4:
 		return false
 	for key: Variant in value:
 		if not key is String or key not in ["generator", "generator_version", "seed", "size"]:
 			return false
-	if not value.get("generator") is String or value.generator != "reol_noise":
+	if not value.get("generator") is String:
 		return false
-	var expected: Dictionary = legacy_descriptor()
 	for key: String in ["generator_version", "seed", "size"]:
-		if not SnapshotValues.valid_integer(value.get(key), 0) or value[key] != expected[key]:
+		if not SnapshotValues.valid_integer(value.get(key), 0):
 			return false
-	return true
+	if value.generator == "reol_noise":
+		var expected: Dictionary = legacy_descriptor()
+		return value.generator_version == expected.generator_version and value.seed == expected.seed and value.size == expected.size
+	if value.generator == FLAT_GENERATOR_ID:
+		return value.generator_version == FLAT_GENERATOR_VERSION and value.size == 512 and value.seed >= 1 and value.seed <= FLAT_MAX_SEED
+	return false
 
 
 static func from_descriptor(value: Variant) -> WorldMapData:
 	if not valid_descriptor(value):
 		return null
-	return WorldMapData.new()
+	var result := WorldMapData.new()
+	if value.generator == FLAT_GENERATOR_ID:
+		result._initialize_generation(value)
+	return result
 
 
 func descriptor() -> Dictionary:
@@ -134,6 +161,8 @@ func get_terrain(cell: Vector2i) -> int:
 func get_elevation(cell: Vector2i) -> int:
 	if not in_bounds(cell):
 		return -1
+	if _flat:
+		return 0
 	var terrain: int = get_terrain(cell)
 	if terrain == TERRAIN_WATER:
 		return 0

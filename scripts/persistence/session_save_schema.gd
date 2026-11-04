@@ -2,7 +2,7 @@ class_name SessionSaveSchema
 extends RefCounted
 ## Explicit migrations at the session boundary. No file I/O or live mutations.
 
-const VERSION: int = 44
+const VERSION: int = 45
 
 
 static func capture_world(fog: FogOfWar, focus: Vector2i, terrain: WorldMapData = null) -> Dictionary:
@@ -18,7 +18,7 @@ static func upgrade(source: Dictionary, _content: ReolContentDB = null) -> Dicti
 	# A pre-bundle archive cannot prove which external templates it originally
 	# used. All legacy migrations use the recorded v42 compatibility baseline.
 	# Modern archives must be complete; no missing-pack fallback is permitted.
-	if source.get("schema_version") == VERSION or source.get("schema_version") == 43:
+	if source.get("schema_version") == VERSION or source.get("schema_version") == 44 or source.get("schema_version") == 43:
 		return _upgrade(source, null)
 	if source.has("content_bundle") or source.has("assembly"):
 		return {}
@@ -38,6 +38,16 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 			if not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION:
 				return {}
 		return source if is_valid_world(source) else {}
+	if version == 44:
+		# Older envelopes only knew the exact original generator. A new flat map
+		# cannot masquerade as an older save by changing the root version tag.
+		if not _valid_world_fields(source, 44):
+			return {}
+		if source.has("continuity") and (not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION):
+			return {}
+		var updated: Dictionary = source.duplicate(true)
+		updated.schema_version = VERSION
+		return _upgrade(updated, null)
 	if version == 43:
 		# The saved bundle is already authoritative. Construct only from the
 		# configurations, settings and centers recorded in this archive.
@@ -56,7 +66,7 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 			return {}
 		var updated: Dictionary = source.duplicate(true)
 		updated["assembly"] = assembly
-		updated.schema_version = VERSION
+		updated.schema_version = 44
 		return _upgrade(updated, null)
 	if version == 42:
 		if not _valid_world_fields(source, 42) or source.has("content_bundle") or content == null:
@@ -936,7 +946,10 @@ static func _valid_world_fields(snapshot: Dictionary, expected_version: int) -> 
 		return false
 	var descriptor: Dictionary = world.duplicate()
 	descriptor.erase("exploration")
-	return WorldMapData.valid_descriptor(descriptor) and snapshot.get("world_seed") == descriptor.seed
+	if not WorldMapData.valid_descriptor(descriptor) or snapshot.get("world_seed") != descriptor.seed:
+		return false
+	# Freeze old envelopes independently from any future default map profile.
+	return expected_version >= 45 or SnapshotValues.normalized(descriptor) == SnapshotValues.normalized(WorldMapData.legacy_descriptor())
 
 
 static func _motion_rules() -> Dictionary:

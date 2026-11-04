@@ -19,7 +19,7 @@ main / 场景装配
 | 领域/代码入口 | 权威状态或行为 | 边界 |
 |---|---|---|
 | [GameClock](../scripts/autoload/game_clock.gd) | 共同整数毫秒、暂停/倍速/等待、相位与帧欠算 | 分钟通知是投影，不是第二时间轴 |
-| [WorldMapData](../scripts/sim/world_map_data.gd)、[NaturalEnvironment](../scripts/sim/natural_environment.gd) | 固定生成地形/原高度/静态通行；派生地表、植被覆盖、五行亲和与缓存 | 没有已验地表delta；亲和不是能量库存；覆盖不是完整独立植物 |
+| [WorldMapData](../scripts/sim/world_map_data.gd)、[NaturalEnvironment](../scripts/sim/natural_environment.gd) | 版本化底图/静态通行；新平面生成器按seed生成地形、旧v1保高度；派生地表/植被覆盖/五行亲和和缓存 | 均仍512，未接地表delta；亲和不是能量库存；覆盖不是完整独立植物 |
 | [VillageSimulation](../scripts/sim/village_simulation.gd) | 人类原身体、唯一位置/朝向、原生活状态和村落配置 | 所属区是保存所有者，不是人物当前所在空间 |
 | [RegionalSimulation](../scripts/sim/regional_simulation.gd) | 区域同步、域装配、共同边界/积压和跨域校验 | 现有固定域目录，非任意世界工厂/完整事件平台 |
 | [SimLocalMotion](../scripts/sim/local_motion.gd)、[SimRouteTravel](../scripts/sim/route_travel.gd) | 手动/闪身及自动路段推进，读写同一身体 | 不复制位置、体力或时钟；显示插值不推进规则 |
@@ -60,7 +60,9 @@ main / 场景装配
 
 ContentDB支持37份输入的独立内容包、旧v42兼容输入。根44另携`ReolWorldAssemblyInputs`的区域开局配置、区域设置和中心点；`WorldRestoreFactory`及`VillageSimulation.from_snapshot`沿原严格恢复/跨域校验构建候选，不运行新局物资、知识或机构记账。成功后再绑定原导航与呈现。覆盖/测试边界见BASELINE。
 
-候选的配置/人员/地点/底图都不借活世界。地图由存档描述与宿主`restore_map_factory`构造，普通游戏使用严格的`WorldMapData.from_descriptor`，合成测试地图显式注入独立工厂；工厂不是存档可执行内容。目前只支持冻结的旧v1 tuple，未知生成器/seed/尺寸拒绝，旧地形/高度不改。运行呈现仍限home/river；home视图在接受后按原人物名单增删并更新选择列表，不生成新身体。公开定义仍可写，时钟/动作/工作间/对练等部分规则仍直接读盘，任意开局/地图编辑尚未完成。存档装配描述不是带运行历史的新局模板。
+候选的配置/人员/地点/底图都不借活世界。地图由存档描述与宿主`restore_map_factory`构造，普通游戏使用严格的`WorldMapData.from_descriptor`，合成测试地图显式注入独立工厂；工厂不是存档可执行内容。旧`reol_noise` v1冻结原tuple，新`reol_flat_noise` v1按受限seed生成、有效格高度0，尺寸仍512。根45才允许新生成器，旧1–44不能靠改版本标签接受新地图。
+
+普通新局从`data/scenarios/world_generation.json`读取平面地图描述；`main.configure_opening_map`只允许未入树的新场景接受独立地图草稿，不能改运行世界。存档按自己的实例描述恢复，旧丘陵不追改。运行呈现仍限home/river；home视图在接受后按原人物名单增删并更新选择列表，不生成新身体。公开定义仍可写，时钟/动作/工作间/对练等部分规则仍直接读盘，任意开局/地图编辑尚未完成。存档装配描述不是带运行历史的新局模板。
 
 ## 仍需建立的通用接缝
 

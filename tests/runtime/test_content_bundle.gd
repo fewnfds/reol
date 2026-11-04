@@ -194,6 +194,14 @@ func _test_real_session_and_legacy(runner: Object) -> void:
 	var contaminated: Dictionary = legacy.duplicate(true)
 	contaminated["content_bundle"] = first.content_bundle.duplicate(true)
 	_reject(runtime, contaminated, path, runner, "a legacy root cannot smuggle a modern content bundle")
+	# A new flat opening and a historical map need not have the same ground at
+	# this coordinate. Price the old observation against its own frozen map and
+	# content, rather than the new opening's cached affinity.
+	var legacy_content: ReolContentDB = ReolContentDB.legacy_v42()
+	var legacy_map: WorldMapData = WorldMapData.from_descriptor(WorldMapData.legacy_descriptor())
+	runner.assert_true(legacy_map.configure_nature(legacy_content.natural_environment), "historical observation has its own independent map rules")
+	var legacy_label: String = str(legacy_map.natural_surface_definitions()[surface_id].label)
+	var legacy_metal: int = legacy_map.natural_affinity(sample_cell, "metal")
 	loaded = runtime.load_game(ProjectSettings.globalize_path(V42_PATH))
 	runner.assert_eq(loaded, OK, "ordinary loader migrates the actual v42 in-flight archive")
 	if loaded == OK:
@@ -204,7 +212,7 @@ func _test_real_session_and_legacy(runner: Object) -> void:
 		runner.assert_eq(current.continuity.world.artifacts.objects.stele_drawing_ring.container, "actor:river_shi_tou", "legacy migration preserves the unique object's actual custody")
 		runner.assert_eq(observations.size(), 3, "accepted legacy migration publishes one content-replaced event")
 		if observations.size() == 3:
-			_assert_observation(observations[2], current, base_label, base_metal, runner, "legacy publication")
+			_assert_observation(observations[2], current, legacy_label, legacy_metal, runner, "legacy publication")
 	runner.assert_eq(FileAccess.get_file_as_string(V42_PATH), legacy_text, "validation and migration never rewrite the real legacy archive")
 	_remove(path)
 	main.free()

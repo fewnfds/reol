@@ -18,6 +18,7 @@ const NPC_OFFSETS: Array[Vector2i] = [
 	Vector2i(2, 4),
 ]
 const SELECT_RADIUS: float = 34.0
+const WORLD_GENERATION_PATH: String = "res://data/scenarios/world_generation.json"
 
 @onready var world: ReolWorld = $World
 @onready var fog: FogOfWar = $Fog
@@ -32,10 +33,35 @@ var _selected: Pawn
 var _village: VillageRuntime
 var _continuity: WorldContinuityRuntime
 var _avatar: PlayerAvatarRuntime
+var _opening_map: WorldMapData
+var _opening_started: bool = false
+
+
+func configure_opening_map(description: Variant) -> bool:
+	# Creation/preview input only. This cannot replace a running world's map.
+	if _opening_started or is_inside_tree() or _opening_map != null:
+		return false
+	_opening_map = WorldMapData.from_descriptor(description)
+	return _opening_map != null
 
 
 func _ready() -> void:
+	_opening_started = true
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	# This scenario chooses only a new world's map. Loading an archive later
+	# reconstructs its own descriptor, including the unchanged historical hills.
+	var opening_map: WorldMapData = _opening_map
+	_opening_map = null
+	if opening_map == null:
+		var description: Variant = JSON.parse_string(FileAccess.get_file_as_string(WORLD_GENERATION_PATH))
+		opening_map = WorldMapData.from_descriptor(description)
+	if opening_map == null:
+		push_error("Invalid new-world map scenario: " + WORLD_GENERATION_PATH)
+		set_process(false)
+		set_process_input(false)
+		set_process_unhandled_input(false)
+		return
+	world.bind_map_data(opening_map)
 	if GameClock.elapsed_ms == 0:
 		GameClock.set_paused(true)
 	RenderingServer.set_default_clear_color(Color("#0b0f12"))

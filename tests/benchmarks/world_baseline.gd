@@ -87,7 +87,7 @@ func _run() -> void:
 		"scope": "actual generated 512x512 map; contiguous natural-cell queries; actual opening regions and actors; headless shared-clock minute advances; no rendering, dynamic terrain, population stress, save/load or large-map scaling",
 		"godot": Engine.get_version_info(),
 		"debug_build": OS.has_feature("debug"),
-		"generation": WorldMapData.generation_descriptor(),
+		"generation": map.descriptor(),
 		"workload": {"natural_cells": cells, "batch_size": BATCH_SIZE, "requested_minutes": minutes,
 			"actual_simulated_ms": clock.elapsed_ms - beginning_ms,
 			"regions": world.regions.size(), "village_actors": actor_count},
