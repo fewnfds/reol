@@ -188,10 +188,15 @@ func local_conditions(actor: String, at_ms: int = -1) -> Dictionary:
 	var cell: Vector2i = SimRouteTravel.cell(world.regions[home].actors[actor].cell)
 	var heat_tenths: int = _current_heat_tenths(cell)
 	var heat_supported: bool = true
+	var heat_reason: String = ""
 	var heat: RefCounted = _thermal()
 	if now > world.elapsed_ms and heat != null:
-		heat_tenths = int(heat.project_tenths(cell, now))
-		heat_supported = heat_tenths >= 0
+		var projected: Dictionary = heat.project_tenths(cell, now)
+		heat_supported = bool(projected.supported)
+		if heat_supported:
+			heat_tenths = int(projected.value)
+		else:
+			heat_reason = str(projected.reason)
 	# A longer preview can only offer a conservative initiative. Its outdoor
 	# temperature is a lower bound, not a claim that unknown future heat is 0.
 	var temperature: int = _temperature(region, now) + (heat_tenths if heat_supported else 0)
@@ -203,9 +208,14 @@ func local_conditions(actor: String, at_ms: int = -1) -> Dictionary:
 		feeling = "寒意侵身，现有衣物不足御寒"
 	elif int(burden.hot_tenths) > 0:
 		feeling = "暑气逼人，容易疲倦"
-	if heat_tenths > 0:
+	if heat_supported and heat_tenths > 0:
 		feeling += "，近旁留有暖意"
-	return {"region": region, "temperature_tenths": temperature, "heat_tenths": heat_tenths, "heat_supported": heat_supported, "feeling": feeling, "burden_rate": int(burden.energy_rate)}
+	var result: Dictionary = {"region": region, "temperature_tenths": temperature, "heat_supported": heat_supported, "feeling": feeling, "burden_rate": int(burden.energy_rate)}
+	if heat_supported:
+		result["heat_tenths"] = heat_tenths
+	else:
+		result["heat_reason"] = heat_reason
+	return result
 
 
 func energy_rate(actor: String) -> int:

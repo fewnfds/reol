@@ -130,13 +130,32 @@ func _neutral_background_and_preview(runner: Object) -> void:
 	var cell: Vector2i = world.artifacts.object_cell("hearth_stone")
 	var before: String = _state(world)
 	var heat_time: int = int(world.local_heat.last_ms)
+	var saw_supported: bool = false
+	var saw_unsupported: bool = false
 	for offset: int in [1, 7319, 60000, 86400000]:
 		var preview: Dictionary = world.environment.local_conditions("player", world.elapsed_ms + offset)
-		var projected: int = world.local_heat.project_tenths(cell, world.elapsed_ms + offset)
-		runner.assert_eq(preview.heat_tenths, projected, "a future initiative query uses the bounded pure thermal projection")
-		runner.assert_eq(preview.heat_supported, projected >= 0, "an unsupported future explicitly retains uncertainty rather than inventing zero heat")
+		var projected: Dictionary = world.local_heat.project_tenths(cell, world.elapsed_ms + offset)
+		runner.assert_true(projected.get("supported") is bool, "each thermal projection reports whether its value is known")
+		if projected.get("supported") == true:
+			saw_supported = true
+			runner.assert_true(projected.has("value") and preview.has("heat_tenths"), "supported future heat has a value in the projection and local conditions")
+			if projected.has("value") and preview.has("heat_tenths"):
+				runner.assert_eq(preview.heat_tenths, projected.value, "a future initiative query uses the bounded pure thermal projection")
+			runner.assert_eq(preview.get("heat_supported"), true, "a supported future exposes known heat")
+		else:
+			saw_unsupported = true
+			runner.assert_eq(preview.get("heat_supported"), false, "an unsupported future explicitly retains uncertainty")
+			runner.assert_true(not projected.has("value") and not preview.has("heat_tenths"), "unknown future heat has no numeric zero or cold sentinel")
+			runner.assert_true(projected.get("reason") is String and preview.get("heat_reason") is String, "the unknown future supplies its failure reason")
+			if projected.get("reason") is String and preview.get("heat_reason") is String:
+				runner.assert_eq(preview.heat_reason, projected.reason, "local conditions retain the projection failure reason")
+			runner.assert_eq(preview.temperature_tenths, 220, "an unsupported preview retains the existing outdoor decision bound")
 		runner.assert_eq(world.local_heat.last_ms, heat_time, "future conditions never advance the real thermal integrator")
-	runner.assert_true(world.environment.local_conditions("player", world.elapsed_ms + 1).heat_tenths <= current.heat_tenths, "supported cooling projection does not silently reuse the older warmer state")
+	runner.assert_true(saw_supported and saw_unsupported, "future previews exercise both known and unknown heat")
+	var next: Dictionary = world.environment.local_conditions("player", world.elapsed_ms + 1)
+	runner.assert_true(next.get("heat_supported") == true and next.has("heat_tenths"), "the near cooling preview is supported")
+	if next.get("heat_supported") == true and next.has("heat_tenths"):
+		runner.assert_true(next.heat_tenths <= current.heat_tenths, "supported cooling projection does not silently reuse the older warmer state")
 	runner.assert_eq(_state(world), before, "repeated future condition previews mutate no world, source or frozen flow state")
 
 
@@ -240,13 +259,20 @@ func _cooling_decision(runner: Object, probe: RegionalSimulation, actor: String)
 		if boundary == SimInventory.MAX_COUNT:
 			break
 		var before: int = probe.local_heat.local_tenths(cell)
-		var after: int = probe.local_heat.project_tenths(cell, boundary)
-		if before >= threshold and after >= 0 and after < threshold:
+		var after: Dictionary = probe.local_heat.project_tenths(cell, boundary)
+		runner.assert_true(after.get("supported") == true and after.has("value"), "the next cooling boundary has a supported projection")
+		if after.get("supported") != true or not after.has("value"):
+			return -1
+		if before >= threshold and int(after.value) < threshold:
 			var low: int = probe.elapsed_ms
 			var high: int = boundary
 			while high - low > 1:
 				var middle: int = low + floori(float(high - low) / 2.0)
-				if probe.local_heat.project_tenths(cell, middle) < threshold:
+				var projected: Dictionary = probe.local_heat.project_tenths(cell, middle)
+				runner.assert_true(projected.get("supported") == true and projected.has("value"), "a cooling threshold probe has a supported projection")
+				if projected.get("supported") != true or not projected.has("value"):
+					return -1
+				if int(projected.value) < threshold:
 					high = middle
 				else:
 					low = middle

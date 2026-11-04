@@ -779,7 +779,10 @@ func _sample_herb_conditions(opening: bool = false) -> bool:
 				continue
 			var place: String = str(sim.config.resource_sources[id].place)
 			var point: Vector2i = _cell(sim.places[place].cell)
-			var heat: int = local_heat.project_tenths(point, elapsed_ms)
+			var projected: Dictionary = local_heat.project_tenths(point, elapsed_ms)
+			if not bool(projected.supported):
+				return false
+			var heat: int = int(projected.value)
 			var conditions: Dictionary = herb_conditions_for(_content, weather.to_dict(), point, elapsed_ms, heat)
 			if conditions.is_empty() or not sim.land_resources.set_ecology_conditions(id, elapsed_ms,
 				int(conditions.temperature_tenths), bool(conditions.rain), int(conditions.heat_tenths)):
@@ -803,7 +806,8 @@ func _valid_herb_conditions() -> bool:
 				if local_heat.sample_tenths(point, at_ms) != heat:
 					return false
 			elif at_ms == elapsed_ms:
-				if local_heat.project_tenths(point, at_ms) != heat:
+				var projected: Dictionary = local_heat.project_tenths(point, at_ms)
+				if not bool(projected.supported) or int(projected.value) != heat:
 					return false
 			elif at_ms != int(ecology.activation_ms):
 				return false

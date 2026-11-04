@@ -160,6 +160,24 @@ func _impulse_timing(runner: Object) -> void:
 	runner.assert_eq(_json(fixture.heat), before, "duplicate source rejection leaves the entire heat state untouched")
 
 
+func _projection_supported(runner: Object, result: Dictionary, label: String) -> bool:
+	var valid: bool = result.size() == 2 and result.get("supported") is bool and result.supported and result.has("value") and result.value is int
+	runner.assert_true(valid, label + " returns a supported integer value without a failure reason")
+	return valid
+
+
+func _projection_matches(runner: Object, result: Dictionary, expected: int, label: String) -> void:
+	if _projection_supported(runner, result, label):
+		runner.assert_eq(result.value, expected, label)
+
+
+func _projection_unsupported(runner: Object, result: Dictionary, reason: String, label: String) -> void:
+	var valid: bool = result.size() == 2 and result.get("supported") is bool and not result.supported and result.get("reason") is String and not result.has("value")
+	runner.assert_true(valid, label + " returns a reason without a temperature value")
+	if valid:
+		runner.assert_eq(result.reason, reason, label + " identifies the failure")
+
+
 func _read_only_projections(runner: Object) -> void:
 	var fixture: Dictionary = _make()
 	_advance(fixture, 1370)
@@ -172,34 +190,48 @@ func _read_only_projections(runner: Object) -> void:
 	_advance(historical, 1370)
 	_deposit(historical, "warm:projection")
 	_advance(historical, 2000)
-	runner.assert_eq(fixture.heat.project_tenths(Vector2i(100, 100), 2000), historical.heat.local_tenths(Vector2i(100, 100)), "same-segment reverse projection reconstructs the actual former source-cell heat")
-	runner.assert_eq(fixture.heat.project_tenths(Vector2i(101, 100), 2000), historical.heat.local_tenths(Vector2i(101, 100)), "same-segment reverse projection also reverses actual paired incoming heat")
+	_projection_matches(runner, fixture.heat.project_tenths(Vector2i(100, 100), 2000), historical.heat.local_tenths(Vector2i(100, 100)), "same-segment reverse projection reconstructs the actual former source-cell heat")
+	_projection_matches(runner, fixture.heat.project_tenths(Vector2i(101, 100), 2000), historical.heat.local_tenths(Vector2i(101, 100)), "same-segment reverse projection also reverses actual paired incoming heat")
 	var continued: Dictionary = _make({}, 5000)
 	continued.world.artifacts.events = fixture.world.artifacts.events.duplicate(true)
 	runner.assert_true(continued.heat.restore(JSON.parse_string(before)), "prediction comparison uses an independently restored actual frozen segment")
 	for at_ms: int in [5000, 6666, 9999, 10000]:
 		_advance(continued, at_ms)
 		for cell: Vector2i in [Vector2i(100, 100), Vector2i(101, 100)]:
-			runner.assert_eq(fixture.heat.project_tenths(cell, at_ms), continued.heat.local_tenths(cell), "pure prediction matches actual integration through its inclusive next boundary at %dms/%s" % [at_ms, cell])
-	for unsupported: int in [-1, 1369, 10001, SimInventory.MAX_COUNT + 1]:
-		runner.assert_eq(fixture.heat.project_tenths(Vector2i(100, 100), unsupported), -1, "unsupported projection time is explicit rather than invented cold at %dms" % unsupported)
-	runner.assert_eq(fixture.heat.project_tenths(Vector2i(-1, 0), 6000), -1, "projection rejects an invalid spatial target explicitly")
-	runner.assert_eq(fixture.heat.project_tenths(Vector2i(400, 400), 6000), 0, "a valid unallocated cell has no source heat in the same supported segment")
+			_projection_matches(runner, fixture.heat.project_tenths(cell, at_ms), continued.heat.local_tenths(cell), "pure prediction matches actual integration through its inclusive next boundary at %dms/%s" % [at_ms, cell])
+	for time_and_reason: Array in [[-1, "invalid_time"], [1369, "history_unavailable"], [10001, "beyond_boundary"], [SimInventory.MAX_COUNT + 1, "invalid_time"]]:
+		_projection_unsupported(runner, fixture.heat.project_tenths(Vector2i(100, 100), int(time_and_reason[0])), str(time_and_reason[1]), "unsupported projection at %dms" % int(time_and_reason[0]))
+	_projection_unsupported(runner, fixture.heat.project_tenths(Vector2i(-1, 0), 6000), "invalid_cell", "projection rejects an invalid spatial target")
+	_projection_matches(runner, fixture.heat.project_tenths(Vector2i(400, 400), 6000), 0, "a valid unallocated cell has no source heat in the same supported segment")
 	runner.assert_eq(_json(fixture.heat), before, "all past and future projections leave complete authoritative heat state unchanged")
 	runner.assert_eq(fixture.world.roof_queries, roofs_before, "pure projection never samples roof geometry")
 	runner.assert_eq(fixture.world.barrier_queries, barriers_before, "pure projection never samples wall or door geometry")
 	_deposit(fixture, "warm:projection:2")
-	runner.assert_eq(fixture.heat.project_tenths(Vector2i(100, 100), 4999), -1, "a completed source establishes a new anchor instead of pretending to retain earlier heat history")
+	_projection_unsupported(runner, fixture.heat.project_tenths(Vector2i(100, 100), 4999), "history_unavailable", "a completed source establishes a new anchor instead of pretending to retain earlier heat history")
+	var uninitialized := Heat.new()
+	_projection_unsupported(runner, uninitialized.project_tenths(Vector2i(100, 100), 0), "uninitialized", "projection rejects an uninitialized heat authority")
+	var unresolved: Dictionary = _make()
+	_deposit(unresolved, "warm:unresolved")
+	_advance(unresolved, 5000)
+	unresolved.heat.before_topology_change(5000)
+	_projection_unsupported(runner, unresolved.heat.project_tenths(Vector2i(100, 100), 5001), "geometry_unresolved", "projection does not invent a slope while changed geometry is unresolved")
+	var inconsistent: Dictionary = _make()
+	_deposit(inconsistent, "warm:inconsistent")
+	# Forge a damaged in-memory state only in this isolated fixture: its frozen
+	# outgoing flow cannot be applied to the now-empty original source cell.
+	inconsistent.heat.cells["100,100"].energy = 0
+	_projection_unsupported(runner, inconsistent.heat.project_tenths(Vector2i(100, 100), 1), "inconsistent_projection", "projection rejects a slope that would overdraw its source")
 	# MAX_COUNT lies 991ms past its previous global ten-second boundary;
 	# start inside that actual final interval, not across two frozen segments.
 	var limit: Dictionary = _make({}, SimInventory.MAX_COUNT - 500)
 	_deposit(limit, "warm:limit")
 	var limit_before: String = _json(limit.heat)
-	var predicted: int = limit.heat.project_tenths(Vector2i(100, 100), SimInventory.MAX_COUNT)
-	runner.assert_true(predicted >= 0, "the supported time maximum is an inclusive bounded projection endpoint")
+	var predicted: Dictionary = limit.heat.project_tenths(Vector2i(100, 100), SimInventory.MAX_COUNT)
+	var limit_supported: bool = _projection_supported(runner, predicted, "the supported time maximum is an inclusive bounded projection endpoint")
 	runner.assert_eq(_json(limit.heat), limit_before, "a maximum-time prediction cannot advance the original source before its world commits")
 	_advance(limit, SimInventory.MAX_COUNT)
-	runner.assert_eq(limit.heat.local_tenths(Vector2i(100, 100)), predicted, "actual integration at the supported maximum agrees with the prior pure projection")
+	if limit_supported:
+		runner.assert_eq(limit.heat.local_tenths(Vector2i(100, 100)), predicted.value, "actual integration at the supported maximum agrees with the prior pure projection")
 	var resumed_limit: Dictionary = _make({}, SimInventory.MAX_COUNT)
 	resumed_limit.world.artifacts.events = limit.world.artifacts.events.duplicate(true)
 	runner.assert_true(resumed_limit.heat.restore(JSON.parse_string(_json(limit.heat))), "the saturated final segment and its exact source patch remain restorable")
@@ -278,7 +310,7 @@ func _stable_residual_long_future(runner: Object) -> void:
 	var barrier_before: int = fixture.world.barrier_queries
 	var future: int = sample_at + 360 * 86400000 + 1623
 	var before_prediction: String = _json(fixture.heat)
-	runner.assert_eq(fixture.heat.project_tenths(Vector2i(100, 100), future), 0, "a no-flow residual supports a constant read-only projection across a year")
+	_projection_matches(runner, fixture.heat.project_tenths(Vector2i(100, 100), future), 0, "a no-flow residual supports a constant read-only projection across a year")
 	runner.assert_eq(_json(fixture.heat), before_prediction, "long stable prediction neither commits time nor moves its historical segment anchor")
 	_advance(fixture, future)
 	for offset: int in [1, 39999, 86400000, 180 * 86400000 + 731]:

@@ -180,31 +180,37 @@ func local_tenths(cell: Vector2i, at_ms: int = -1) -> int:
 	return _tenths(int(cells.get(_key(cell), {}).get("energy", 0)))
 
 
-func project_tenths(cell: Vector2i, at_ms: int) -> int:
+func project_tenths(cell: Vector2i, at_ms: int) -> Dictionary:
 	# Initiative may inspect its next decision before the world commits that
 	# time. Project the already frozen law without committing a clock, sampling
-	# geometry or changing any cache. -1 explicitly means unsupported history
-	# or a future beyond the next real heat boundary, never zero heat.
-	if definitions.is_empty() or not _valid_cell(cell) or not Shape.count(at_ms, 0, SimInventory.MAX_COUNT):
-		return -1
+	# geometry or changing any cache. Unsupported results contain no numeric
+	# value: a future cold offset must never be confused with a failure sentinel.
+	if definitions.is_empty():
+		return {"supported": false, "reason": "uninitialized"}
+	if not _valid_cell(cell):
+		return {"supported": false, "reason": "invalid_cell"}
+	if not Shape.count(at_ms, 0, SimInventory.MAX_COUNT):
+		return {"supported": false, "reason": "invalid_time"}
 	var key: String = _key(cell)
 	var energy: int = int(cells.get(key, {}).get("energy", 0))
 	if at_ms == last_ms:
-		return _tenths(energy)
+		return {"supported": true, "value": _tenths(energy)}
 	if _geometry_dirty:
 		# Initial empty heat remains empty under every possible geometry.
-		return 0 if input_energy == loss_energy and at_ms >= last_ms else -1
-	if at_ms < segment_started_ms or not flows.is_empty() and at_ms > next_boundary_ms():
-		return -1
+		return {"supported": true, "value": 0} if input_energy == loss_energy and at_ms >= last_ms else {"supported": false, "reason": "geometry_unresolved"}
+	if at_ms < segment_started_ms:
+		return {"supported": false, "reason": "history_unavailable"}
+	if not flows.is_empty() and at_ms > next_boundary_ms():
+		return {"supported": false, "reason": "beyond_boundary"}
 	if flows.is_empty():
-		return _tenths(energy)
+		return {"supported": true, "value": _tenths(energy)}
 	var dt: int = at_ms - last_ms
 	for flow: Dictionary in flows:
 		if str(flow.from) == key:
 			energy -= int(flow.rate) * dt
 		elif str(flow.to) == key:
 			energy += int(flow.rate) * dt
-	return _tenths(energy) if energy >= 0 else -1
+	return {"supported": true, "value": _tenths(energy)} if energy >= 0 else {"supported": false, "reason": "inconsistent_projection"}
 
 
 func mark_sample(now: int) -> bool:
