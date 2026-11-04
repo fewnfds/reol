@@ -446,3 +446,5 @@ doctor通过。定向四组424项0失败（`logs/heat-geometry-reuse-focus-final
 CI仅把同ref的`cancel-in-progress`改false，保留原触发范围和权限。官方默认队列保留最新pending，已运行回归不再被每次推送中止；不新增等待/轮询/云端模型。此配置与代码原生审查、最终推送SHA完整回归均接续；配置存在本身不是GitHub已执行证明。
 
 本包实际提交准备时，主代理一次核`6dcdbce321e2c35fa13af51022a7bd87da7c8689` / run `41889340643`仍in_progress，按规则登记后继续，不等待、不轮询；新几何包完整回归仍待最终推送SHA。结构201份当前文档/371脚本0错误，改动文档链接及差异检查通过。
+
+C1a-4代码提交`fe2e6c71fd0dffa36db64ef7d3b168a232c5b295`的一次Sol/custom原生静态审查69.749秒、退出0，无可操作发现；本次进程显式`-c sandbox_mode='"read-only"'`，启动摘要核到model Sol、provider custom、sandbox read-only，未改全局模型/权限或公司路由。审查仅读代码/既有日志，未启动引擎/测试/CI或修改工作区。日志`logs/reviews/<SHA>.explicit-sol.log`及`.summary.json`；不重复整包审查，最终推送SHA完整回归仍待验。
