@@ -2,7 +2,7 @@
 
 > 目标：让 AI 能**看到** Godot、**运行**项目、**读到**错误、**验证**改动。
 > 更新：2026-11-02，开发客户端已从 OpenCode 迁移到 Codex。
-> 最新只读复核见[开发工具审计](DEVELOPMENT-TOOLS-AUDIT.md)；更多免费资源/插件候选见[搜集工作包](plans/resource_tooling_scout.md)。下文迁移记录是历史证据，不代表本轮又改配置或安装工具。
+> 2026-11-04最新版本、来源、升级/回退和上下文精简建议见[基础设施维护](TOOLING-MAINTENANCE.md)：Godot AI本机4.3.1、上游4.4.1；技能上游当前无增量。本轮没有升级或安装。此前只读复核见[开发工具审计](DEVELOPMENT-TOOLS-AUDIT.md)；更多免费资源/插件候选见[搜集工作包](plans/resource_tooling_scout.md)。下文迁移记录是历史证据。
 
 ---
 
