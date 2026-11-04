@@ -1,12 +1,23 @@
 # 提交、Codex审查与CI
 
-更新：2026-11-04。依据当日实际读取的[桌面审查](https://developers.openai.com/codex/app/review)、[GitHub集成](https://developers.openai.com/codex/integrations/github)、[官方Action](https://developers.openai.com/codex/github-action)及[计费说明](https://developers.openai.com/codex/pricing)。本机CLI为`0.166.0-alpha.6`，`codex review --help`已核对；未升级客户端或改变模型。
+更新：2026-11-04。依据当日实际读取的[桌面审查](https://developers.openai.com/codex/app/review)、[GitHub集成](https://developers.openai.com/codex/integrations/github)、[官方Action](https://developers.openai.com/codex/github-action)及[计费说明](https://developers.openai.com/codex/pricing)。本机CLI为`0.166.0-alpha.6`，`codex review --help`已核对；未升级客户端，审查模型的后续配置见下。
 
-**账户与路由约束**：用户使用公司路由API，GPT订阅只有免费额度。默认采用本地原生审查，沿用本机已配置的`custom` provider；不依赖GPT订阅，不启用GitHub云端审查或额外付费模型Action。本轮仅核查了非敏感配置，未读取/输出密钥，也未发起额外模型审查请求。官方[配置说明](https://developers.openai.com/codex/config-advanced)支持自定义路由，[配置参考](https://developers.openai.com/codex/config-reference)说明`review_model`默认沿用当前会话模型；本机未另设审查模型。宿主若有单独覆盖，仍需以实际审查请求记录核对，不能只凭模型名称保证计费线路。
+**账户与路由约束**：用户使用公司路由API，GPT订阅只有免费额度。采用本地原生审查，沿用本机的`custom` provider；不依赖GPT订阅，不启用GitHub云端审查或额外付费模型Action。当前明确选择`gpt-6.1-sol`作为项目审查模型，不改主模型、子代理模型、provider或权限。官方[配置说明](https://developers.openai.com/codex/config-advanced)支持自定义路由，[配置参考](https://developers.openai.com/codex/config-reference)说明`review_model`用于原生审查；实际请求仍需与非敏感配置/运行记录核对，不能只凭模型名称保证计费线路。
+
+项目配置在本机`.codex/config.toml`的根级设置，文件已被Git忽略；配置生成器保留它，并支持重建和只读核对：
+
+```powershell
+python tools/setup_codex.py --review-model gpt-6.1-sol
+python tools/setup_codex.py --check --review-model gpt-6.1-sol
+```
+
+两个命令不改变全局模型/路由。新启动的原生CLI审查读取该设置；已打开的桌面会话若仍显示旧审查模型，重新加载项目/启动新会话后再核对。用户授权的另一选项`gpt-6.1-terra`也可用同一参数明确切换，本轮不做未经实测的优劣排名。
 
 ## 采用的流程
 
 每个可解释的工作包：开发与定向验证 → Git提交 → 一次原生Codex审查 → 修复有效问题 → 推送与一次对应版本CI → 记录结果。以具体提交及代码差异为审查对象，不以聊天历史为唯一依据。文档小改仅检查结构、链接及差异，不启动模型审查或完整Godot回归。
+
+**触发方式**：由主代理在完成代码工作包后调用一次原生命令；原生`/review`和`review_model`设置都不是Git提交钩子。用户手工执行任意`git commit`不会自动弹出聊天。本轮未安装post-commit hook、后台常驻扫描器或自动修复循环。需要检查WIP或特定提交时可以手动触发；默认跳过纯文档和备份WIP。
 
 - 开发期间仍使用任务说明、AGENTS和按需技能。子代理用于可并行实现或明确专项调查，这也是Codex支持的工作方式。
 - 普通代码包默认用原生审查作为主要审查。需要独立的存档、时间、空间或性能审计时，才派一个有明确范围的专项代理；不让多个审查者重复读同一整包，不每次小修改重跑整轮审查。
@@ -28,9 +39,11 @@
 
 ```powershell
 codex review --uncommitted
-codex review --commit <完整提交SHA>
+codex -c model='"gpt-6.1-sol"' review --commit <完整提交SHA>
 codex review --base <明确基准分支>
 ```
+
+无人值守CLI命令同时显式选择`model`，避免客户端启动模型与`review_model`展示/适用入口不同造成误判；参数只对该进程生效，不改全局开发模型。
 
 `--uncommitted`包含已暂存、未暂存和未跟踪文件。工作区混有半成品时，优先审查已隔离提交，避免把全部草稿带入。`--base`审查分支自共同祖先起的差异，不是只看最后一包。审查期间停止修改其目标；修复另开步骤。
 
@@ -59,6 +72,14 @@ CI负责执行确定性的检查和测试；Codex负责理解差异、找行为�
 
 保留`tools/ci.py`的共享锁、缓存及同run至少300秒间隔。只由主代理登记目标run和完整SHA，必要时一个后台等待器处理；不派等待代理，不重复远程查询。
 
+等待器只有Python/`gh`网络查询与睡眠，不调用审查模型、子代理或LLM。模型审查进程产出结果后结束，不能把“等CI、每隔几十秒再问状态”作为审查任务。脚本输出和缓存不会自行插入Codex聊天；主代理在合理检查点读取一次结果。当前没有GitHub完成事件到Codex消息入口的回调，因此不宣称可以自动唤醒已结束的对话。
+
 PR流程启用后需记录head SHA、实际受检的合并SHA及审查版本。CI结束后读取一次真实失败或成功证据；队列中、旧版本成功、机器人点赞都不是当前代码通过。涉及画面、音效、手感和声明规模的性能仍需要本机实际观察/测量。
 
 这套流程不需要常驻的第二个Codex进程、自动修复循环或新增依赖。以后如果人工触发审查成为稳定瓶颈，再评估官方Action；届时固定Action/CLI版本，限制触发者和权限，审查输出与自动写回分开，不让公共PR内容取得密钥。
+
+## 本次配置验证
+
+项目已设置并核对`review_model = "gpt-6.1-sol"`；生成器20项Python测试通过，现有CI观察器9项离线测试通过。审查对象为独立工具提交`e19804e5f10caf3751ca5c780441b7d8d14f8654`，不含未提交游戏工作。首次CLI启动摘要仍展示继承的Terra，因此进一步用进程级`model`显式指定Sol；后者启动摘要已确认`model: gpt-6.1-sol`、`provider: custom`、`sandbox: read-only`。未安装Git hook、未调用GitHub云端模型审查、未更改全局配置。
+
+显式Sol审查约76秒后结束，无可操作缺陷，并做了8项内存检查；没有修改文件或查询CI。结果在`logs/reviews/e19804e5f10caf3751ca5c780441b7d8d14f8654.explicit-sol.log`。该证据证明本地原生审查可用，不代表游戏半成品或完整CI已通过。GitHub两次推送均返回服务器500，本机配置已生效、两个工具/文档提交保留待推，不继续循环重试或等待。
