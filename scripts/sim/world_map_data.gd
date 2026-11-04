@@ -16,6 +16,7 @@ const Nature = preload("res://scripts/sim/natural_environment.gd")
 var _terrain_noise: FastNoiseLite
 var _height_noise: FastNoiseLite
 var _nature: RefCounted
+var _nature_definitions: Dictionary = {}
 
 
 func _init() -> void:
@@ -39,7 +40,18 @@ static func generation_descriptor() -> Dictionary:
 func independent_copy() -> WorldMapData:
 	# No mutable surface exists in v1. Reconstruct, never retain live callbacks.
 	# Future delta restore belongs here before any candidate spatial validation.
-	return WorldMapData.new()
+	var result := WorldMapData.new()
+	if not _nature_definitions.is_empty():
+		result.configure_nature(_nature_definitions)
+	return result
+
+
+func configure_nature(rules: Dictionary) -> bool:
+	if not Nature.valid_definitions(rules):
+		return false
+	_nature_definitions = rules.duplicate(true)
+	_nature = Nature.new(WORLD_SEED, _nature_definitions)
+	return true
 
 
 func natural_cell(cell: Vector2i) -> Dictionary:
@@ -64,7 +76,7 @@ func natural_surface_definitions() -> Dictionary:
 
 func _nature_rules() -> RefCounted:
 	if _nature == null:
-		_nature = Nature.new(WORLD_SEED)
+		_nature = Nature.new(WORLD_SEED, _nature_definitions)
 	return _nature
 
 

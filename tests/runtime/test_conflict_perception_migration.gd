@@ -106,6 +106,7 @@ func _replay(runtime: WorldContinuityRuntime, source: Dictionary, path: String, 
 	_reject(runtime, bad_path, forged, runner, "current root cannot downgrade its regional state and erase saved sight through legacy migration")
 	forged = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/session_v34.json"))
 	forged.schema_version = SessionSaveSchema.VERSION
+	forged["content_bundle"] = runtime._home._content.content_bundle()
 	_reject(runtime, bad_path, forged, runner, "current root cannot smuggle genuine regional v30 state through standalone conflict compatibility")
 	forged = WorldSessionSnapshot.capture(runtime)
 	forged.continuity.world = []

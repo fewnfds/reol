@@ -136,6 +136,7 @@ func _legacy_sources(runner: Object) -> void:
 	# migration counterexample, never a replacement of a genuine archive.
 	var legacy: Dictionary = WorldSessionSnapshot.capture(runtime)
 	legacy.schema_version = 28
+	legacy.erase("content_bundle")
 	legacy.continuity.world.version = 25
 	legacy.continuity.world.erase("health")
 	# This temporary pre-health format also predates the later environment

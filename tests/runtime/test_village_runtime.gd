@@ -170,6 +170,7 @@ func _test_save_load(runner: Object) -> void:
 	runner.call("assert_eq", _clock_state(), expected_clock, "runtime restores clock state with simulation state")
 	var loaded: Dictionary = SimSaveStore.load_file(path)
 	if loaded.ok:
+		var original_snapshot: Dictionary = loaded.data.duplicate(true)
 		var invalid_snapshot: Dictionary = loaded.data
 		invalid_snapshot.clock.speed = 3.0
 		runner.call("assert_eq", SimSaveStore.save_file(path, invalid_snapshot), OK, "invalid-clock fixture is valid JSON")
@@ -180,6 +181,20 @@ func _test_save_load(runner: Object) -> void:
 		runner.call("assert_true", runtime.simulation == before_simulation, "failed load leaves the live simulation intact")
 		runner.call("assert_eq", player.global_position, before_position, "failed load leaves the current player position intact")
 		runner.call("assert_eq", _clock_state(), before_clock, "failed load leaves the current clock intact")
+		# The single-settlement path must also use the archived version, and
+		# update the existing visible PawnState only after an accepted restore.
+		var updated: Dictionary = original_snapshot.duplicate(true)
+		var documents: Dictionary = updated.content_bundle.documents.duplicate(true)
+		var previous_max: int = content.get_pawn(&"player").max_stamina
+		for definition: Dictionary in documents[ReolContentDB.PAWNS_PATH].pawns:
+			if definition.id == "player":
+				definition.max_stamina = previous_max + 35
+		updated.content_bundle = ReolContentBundle.from_documents(documents)
+		runner.call("assert_eq", SimSaveStore.save_file(path, updated), OK, "standalone fixture writes an independently versioned template")
+		runner.call("assert_eq", runtime.load_game(path), OK, "standalone loader accepts the saved definition version")
+		runner.call("assert_eq", runtime._content.get_pawn(&"player").max_stamina, previous_max + 35, "standalone simulation adopts the saved definition")
+		runner.call("assert_eq", player.state.max_stamina(), previous_max + 35, "standalone player view immediately adopts the saved definition")
+		runner.call("assert_eq", content.get_pawn(&"player").max_stamina, previous_max, "standalone restore does not modify the original database")
 	for suffix: String in ["", ".bak", ".tmp", ".bak.tmp"]:
 		var test_file: String = ProjectSettings.globalize_path(path + suffix)
 		if FileAccess.file_exists(test_file):
@@ -230,8 +245,11 @@ func _make_fixture() -> Dictionary:
 
 func _snapshot(runtime: VillageRuntime) -> Dictionary:
 	var exact_position: Vector2 = TileGrid.cell_to_world(Vector2i(10, 10)) + Vector2(7.25, -6.5)
+	var content := ReolContentDB.new()
+	content.load_all()
 	return {
 		"schema_version": VillageRuntime.SAVE_VERSION,
+		"content_bundle": content.content_bundle(),
 		"avatar_subject": "subject:player",
 		"world_seed": ReolWorld.WORLD_SEED,
 		"world": SessionSaveSchema.capture_world(null, Vector2i(10, 10)),

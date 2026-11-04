@@ -13,6 +13,7 @@ static func capture(adapter: Node) -> Dictionary:
 	var world_snapshot: Dictionary = adapter.world_sim.to_dict()
 	return SnapshotValues.for_save({
 		"schema_version": SessionSaveSchema.VERSION, "world_seed": ReolWorld.WORLD_SEED,
+		"content_bundle": context.content.content_bundle(),
 		"avatar_subject": adapter.avatar_subject,
 		"world": SessionSaveSchema.capture_world(context.fog, adapter.controlled_cell()),
 		"simulation": home.simulation.to_dict(), "clock": GameClock.to_dict(),
@@ -27,14 +28,18 @@ static func capture(adapter: Node) -> Dictionary:
 static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
 	var home_runtime: VillageRuntime = adapter.home_runtime()
 	var context: Dictionary = home_runtime.snapshot_context()
-	var content: ReolContentDB = context.content
 	var player: PlayerCharacter = context.player
-	snapshot = SessionSaveSchema.upgrade(snapshot, content)
+	snapshot = SessionSaveSchema.upgrade(snapshot)
 	if not SessionSaveSchema.is_valid_world(snapshot) or not snapshot.get("continuity") is Dictionary:
+		return {}
+	var content := ReolContentDB.new()
+	if not content.load_bundle(snapshot.content_bundle):
 		return {}
 	# Build the independent map before even the first saved-position check.
 	# The factory preserves explicit test maps; no query uses the live view.
 	var candidate_map: WorldMapData = adapter.world_sim.map_data.independent_copy()
+	if not candidate_map.configure_nature(content.natural_environment):
+		return {}
 	if not home_runtime.valid_snapshot(snapshot, candidate_map):
 		return {}
 	if int(snapshot.clock.total_minutes) - int(snapshot.clock.tick_index) != int(content.climate.calendar.start_minutes):
@@ -74,7 +79,7 @@ static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
 	if not restored.initialize(adapter.settings, candidates, content):
 		return {}
 	restored.bind_map_data(candidate_map)
-	if adapter.world_sim.services != null and not restored.configure_services(adapter.world_sim.services.definitions):
+	if adapter.world_sim.services != null and not restored.configure_services(content.settlement_services):
 		return {}
 	if not restored.restore(extra.world):
 		return {}
@@ -139,7 +144,7 @@ static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
 		return {}
 	if not extra.player_journey.is_empty() and not SimRouteTravel.valid_segment(extra.player_journey, home.actors.player, restored.elapsed_ms, float(player.motion.rules.motion.speed)):
 		return {}
-	return {"world": restored, "map": candidate_map, "snapshot": snapshot}
+	return {"world": restored, "map": candidate_map, "content": content, "snapshot": snapshot}
 
 
 static func _valid_workplace_routes(world: RegionalSimulation, snapshot: Dictionary, extra: Dictionary, terrain: WorldMapData) -> bool:

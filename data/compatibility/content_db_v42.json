@@ -1,0 +1,2497 @@
+{
+  "version": 1,
+  "documents": {
+    "res://data/definitions/artifacts.json": {
+      "version": 1,
+      "interaction_radius": 2,
+      "autonomy": {
+        "min_qi_reserve": 3
+      },
+      "backgrounds": {
+        "kiln_repair": {
+          "practice": "stonecraft",
+          "line": "曾随药铺修补药炉，辨过受热石材的接缝。"
+        },
+        "stone_handling": {
+          "practice": "warm_stone_control",
+          "line": "早年用过这一类温火石，知道细流循纹的手法。"
+        }
+      },
+      "verbs": {
+        "inspect": {
+          "label": "端详石头",
+          "minutes": 1,
+          "qi": 0
+        },
+        "take": {
+          "label": "取在手中",
+          "minutes": 1,
+          "qi": 0
+        },
+        "place": {
+          "label": "放回灶房",
+          "minutes": 1,
+          "qi": 0
+        },
+        "study": {
+          "label": "循纹探查",
+          "minutes": 4,
+          "qi": 1
+        },
+        "heat": {
+          "label": "试着催火",
+          "minutes": 3,
+          "qi": 2
+        },
+        "charge": {
+          "label": "注灵温养",
+          "minutes": 2,
+          "qi": 4
+        },
+        "dry": {
+          "label": "以石烘药",
+          "minutes": 6,
+          "qi": 2
+        },
+        "examine": {
+          "label": "辨看石材接缝",
+          "minutes": 2,
+          "qi": 0
+        },
+        "force": {
+          "label": "尝试强注灵气",
+          "minutes": 2,
+          "qi": 6
+        },
+        "warm": {
+          "label": "释热暖身",
+          "minutes": 1,
+          "qi": 0
+        }
+      },
+      "types": {
+        "wooden_sword": {
+          "name": "练习木剑",
+          "unknown_name": "木剑",
+          "appearance": "一柄无刃木剑，木质剑身与护手相接，握柄缠着粗绳。",
+          "method": "握柄便于持剑，护手隔开手指与剑身；熟悉收放不等于已经学会出招与制敌的方法。",
+          "material_cue": "木质剑身、护手与握柄连成一体；这是器形线索，不是已学会剑法的证明。",
+          "capabilities": [
+            "weapon"
+          ],
+          "storage_place": "dorm",
+          "actions": {
+            "inspect": {
+              "label": "端详木剑",
+              "minutes": 1,
+              "qi": 0
+            },
+            "take": {
+              "label": "取在手中",
+              "minutes": 1,
+              "qi": 0
+            },
+            "place": {
+              "label": "放回住处",
+              "minutes": 1,
+              "qi": 0
+            },
+            "study": {
+              "label": "熟悉握持与收放",
+              "minutes": 2,
+              "qi": 0
+            },
+            "examine": {
+              "label": "辨看器形与木质",
+              "minutes": 1,
+              "qi": 0
+            }
+          }
+        },
+        "drawing_ring": {
+          "name": "引物环",
+          "unknown_name": "灰纹铜环",
+          "appearance": "一枚细窄铜环，外缘磨得光滑，灰白纹路沿环身回折；它并非套在兵刃上的护手。",
+          "method": "你辨清了环身与回折外纹，记下它的器形。这还不是引动物件的手法，尚不能凭这些外纹遥取器物。",
+          "material_cue": "铜质环身嵌着灰白细纹，内缘有旧磨痕；外形不能说明它实际能做什么。",
+          "capabilities": [
+            "remote_draw"
+          ],
+          "storage_place": "site:broken_stele",
+          "actions": {
+            "inspect": {
+              "label": "端详纹环",
+              "minutes": 1,
+              "qi": 0
+            },
+            "take": {
+              "label": "取在手中",
+              "minutes": 1,
+              "qi": 0
+            },
+            "place": {
+              "label": "放回断碑台",
+              "minutes": 1,
+              "qi": 0
+            },
+            "study": {
+              "label": "辨认器形与外纹",
+              "minutes": 2,
+              "qi": 0
+            },
+            "examine": {
+              "label": "辨看环身材质",
+              "minutes": 1,
+              "qi": 0
+            },
+            "use_research": {
+              "label": "循纹研究引物手法",
+              "minutes": 2,
+              "qi": 2
+            }
+          },
+          "drawing": {
+            "duration_ms": 2000,
+            "qi": 2,
+            "range_cells": 6,
+            "target_definitions": [
+              "wooden_sword"
+            ]
+          }
+        },
+        "warm_stone": {
+          "name": "温火石",
+          "unknown_name": "暗红石头",
+          "damage_max": 4,
+          "opening_damage": 1,
+          "unsafe_damage": 1,
+          "force_damage": 1,
+          "force_charge_gain": 10,
+          "force_backlash_stamina": 14,
+          "appearance": "一枚暗红石头，表面有细密纹路，颜色像凝固的余烬。",
+          "method": "细流循纹而入，可把余热导入锅底，也可在药圃烘干原草药；注灵能温养石芯。它供给热，仍须准备真实材料。",
+          "max_charge": 12,
+          "opening_charge": 6,
+          "heat_cost": 2,
+          "warming_charge": 1,
+          "charge_gain": 6,
+          "backlash_stamina": 8,
+          "workplace": "kitchen",
+          "inputs": {
+            "grain": 2,
+            "water": 1
+          },
+          "outputs": {
+            "meal": 6
+          },
+          "credited_action": "cook",
+          "success_line": "以石代柴，锅中米水煮成了饭；成果已留在灶房。",
+          "failure_line": "锅中米水或腾放位置不足，这次没有做成饭；石中余热未耗掉。",
+          "uses": {
+            "dry": {
+              "workplace": "garden",
+              "heat_cost": 1,
+              "inputs": {
+                "herb": 2
+              },
+              "outputs": {
+                "dried_herb": 2
+              },
+              "credited_action": "",
+              "success_line": "原草药缓缓失去水气，两份干药已留在药圃；这份工艺记录不等于功德堂已经记功。",
+              "failure_line": "原草药不足或腾放位置不够，烘药没有做成；石中余热未耗掉。"
+            }
+          }
+        }
+      }
+    },
+    "res://data/definitions/autonomous_livelihood.json": {
+      "version": 1,
+      "actor_definitions": [
+        "shi_tou"
+      ],
+      "desired_item": "meal",
+      "desired_amount": 1,
+      "purchase_offer": "buy_meal",
+      "capability_claim": "pay_public",
+      "conversation_topic": "ways",
+      "backoff_ms": 3600000,
+      "search_actions": [
+        "seek_records",
+        "seek_garden"
+      ],
+      "visits": {
+        "seek_records": {
+          "label": "到功德堂询问办事门路",
+          "kind": "visit",
+          "target": "records",
+          "minutes": 1,
+          "contribution": 0
+        },
+        "seek_garden": {
+          "label": "到药圃询问办事门路",
+          "kind": "visit",
+          "target": "garden",
+          "minutes": 1,
+          "contribution": 0
+        }
+      }
+    },
+    "res://data/definitions/avian_life.json": {
+      "version": 1,
+      "species": {
+        "sparrow": {
+          "carry_grams": 30,
+          "flight_speed": 280,
+          "observation_cells": 6,
+          "interaction_cells": 3,
+          "hunger_per_minute": 1000000,
+          "energy_per_minute": 300000,
+          "flight_energy_per_minute": 4000000,
+          "rest_gain_per_minute": 15000000,
+          "eat_below": 60,
+          "rest_below": 35,
+          "help_min_fullness": 35,
+          "help_min_energy": 40,
+          "seed_nourishment": 25
+        }
+      },
+      "items_grams": {
+        "seed": 1,
+        "herb": 20,
+        "grain": 1000,
+        "wood": 1500,
+        "dried_herb": 10
+      },
+      "actions_ms": {
+        "forage": 12000,
+        "rest": 180000,
+        "pickup": 2000,
+        "drop": 2000,
+        "idle": 30000
+      },
+      "manual": {
+        "leg_distance_px": 140,
+        "min_flight_energy": 5,
+        "ground_rest_ms": 180000,
+        "ground_rest_gain_per_minute": 6000000
+      },
+      "gift": {
+        "grain": 1,
+        "seed": 12,
+        "foods": [
+          "grain",
+          "meal"
+        ]
+      },
+      "site_types": {
+        "roost": {
+          "label": "避风树巢",
+          "opening_mm": 150,
+          "altitude": 1,
+          "item": "",
+          "initial": 0,
+          "capacity": 0,
+          "regrow_ms": 0,
+          "regrow_amount": 0
+        },
+        "seeds": {
+          "label": "结籽草丛",
+          "opening_mm": 0,
+          "altitude": 0,
+          "item": "seed",
+          "initial": 8,
+          "capacity": 12,
+          "regrow_ms": 600000,
+          "regrow_amount": 2
+        },
+        "crevice": {
+          "label": "石隙药枝",
+          "opening_mm": 90,
+          "altitude": 1,
+          "item": "herb",
+          "initial": 2,
+          "capacity": 3,
+          "regrow_ms": 3600000,
+          "regrow_amount": 1
+        },
+        "garden": {
+          "label": "药圃落架",
+          "opening_mm": 0,
+          "altitude": 0,
+          "item": "",
+          "initial": 0,
+          "capacity": 0,
+          "regrow_ms": 0,
+          "regrow_amount": 0
+        }
+      }
+    },
+    "res://data/definitions/body_forms.json": {
+      "version": 1,
+      "forms": {
+        "human": {
+          "label": "人身",
+          "width_mm": 480,
+          "footprint": [
+            1,
+            1
+          ],
+          "channels": [
+            "motion",
+            "action",
+            "communication"
+          ],
+          "capabilities": [
+            "walk",
+            "grasp",
+            "spoken_voice",
+            "village_routine"
+          ]
+        },
+        "sparrow": {
+          "label": "雀身",
+          "width_mm": 75,
+          "footprint": [
+            1,
+            1
+          ],
+          "channels": [
+            "motion",
+            "action",
+            "communication"
+          ],
+          "capabilities": [
+            "hop",
+            "fly",
+            "perch",
+            "carry_in_beak",
+            "bird_voice"
+          ]
+        },
+        "ancient_beast": {
+          "label": "庞大兽身",
+          "width_mm": 3000,
+          "footprint": [
+            3,
+            3
+          ],
+          "channels": [
+            "motion",
+            "action",
+            "communication"
+          ],
+          "capabilities": [
+            "walk",
+            "push_heavy",
+            "beast_voice"
+          ]
+        },
+        "soul_ring": {
+          "label": "封魂戒指",
+          "width_mm": 30,
+          "footprint": [
+            1,
+            1
+          ],
+          "channels": [
+            "communication"
+          ],
+          "capabilities": [
+            "spiritual_voice"
+          ]
+        }
+      }
+    },
+    "res://data/definitions/budgeted_labor.json": {
+      "version": 1,
+      "max_contracts": 256,
+      "deadline_ms": 7200000,
+      "claim_minutes": 2,
+      "cash_container": "records",
+      "coin": "coin",
+      "permission": "pay",
+      "offers": {
+        "deliver_wood": {
+          "label": "送柴一趟 · 验收后2钱",
+          "action": "deliver_wood",
+          "coins": 2
+        },
+        "deliver_water": {
+          "label": "挑水一趟 · 验收后2钱",
+          "action": "deliver_water",
+          "coins": 2
+        }
+      }
+    },
+    "res://data/definitions/capability_conversation.json": {
+      "version": 1,
+      "minimum_energy": 15,
+      "topics": {
+        "ways": "你平日能帮些什么？"
+      },
+      "introduction": "平日这些事，我有些经验：",
+      "qualification": "这是我说的门路，眼下能不能办、愿不愿接，还得另谈。",
+      "statements": {
+        "manual_help": {
+          "rule": "native_haul",
+          "value": "haul",
+          "line": "柴水搬运能搭把手，得看我手头的安排。"
+        },
+        "kitchen_work": {
+          "rule": "own_duty",
+          "value": "cook",
+          "line": "我平日照看灶上，会把米水下锅做饭，柴米还得备齐。"
+        },
+        "material_check": {
+          "rule": "practice",
+          "value": "stonecraft",
+          "line": "我修补过受热药炉，能辨些石材接缝；不等于懂得催动。"
+        },
+        "herbal_meridian_care": {
+          "rule": "practice",
+          "value": "herbal_meridian_care",
+          "line": "我学过用鲜药处理温石回卷后的经脉灼涩；须当面查看，你自己备药，敷好后还得休养。"
+        },
+        "warm_stone": {
+          "rule": "learned_base",
+          "value": "warm_stone",
+          "line": "我练过温石引流，可以试着看这类器物的用法。"
+        },
+        "record_work": {
+          "rule": "permission",
+          "value": "record",
+          "line": "我现任的差使可核簿记工，得凭实际交付。"
+        },
+        "pay_public": {
+          "rule": "permission",
+          "value": "pay",
+          "line": "我目前能代表公库签付款办理；有没有钱还要另核。"
+        },
+        "issue_access": {
+          "rule": "permission",
+          "value": "authorize",
+          "line": "我目前可受理通行登记，资格仍要按账核验。"
+        }
+      },
+      "policy": {
+        "bias": 0.12,
+        "accept_threshold": 0.1,
+        "uncertainty_band": 0.03,
+        "context_step": 0.2,
+        "weights": {
+          "energy": 0.25,
+          "busy": -0.06,
+          "benevolence": 0.2,
+          "reliability": 0.1,
+          "affinity": 0.6
+        }
+      }
+    },
+    "res://data/definitions/capability_network.json": {
+      "version": 1,
+      "nodes": {
+        "sword": {
+          "label": "木剑横斩",
+          "kind": "combat",
+          "summary": "本人学过收放才会出招；实际木剑仍须取在手中。"
+        },
+        "qi_bolt": {
+          "label": "凝气弹",
+          "kind": "combat",
+          "summary": "起势、耗气与弹道各有真实过程；学会不等于此刻能施展。"
+        },
+        "qi_guard": {
+          "label": "护身气障",
+          "kind": "combat",
+          "summary": "本人起势形成有限护障；动作结束后原本即可带着余障走动。"
+        },
+        "stone_channeling": {
+          "label": "温石引流",
+          "kind": "foundation",
+          "summary": "循纹引流的亲身基础，与听人介绍、持有温石分别记录。"
+        },
+        "heat_methods": {
+          "label": "温养办法",
+          "kind": "versioned_method",
+          "summary": "只回顾本人拟过、读过或亲手验证的具体版本；草案不等于练成。"
+        },
+        "record_steps": {
+          "label": "木牍中的步骤",
+          "kind": "written_steps",
+          "summary": "拿到、亲自读完与实际练成分别成立；旧记录不会自动变成新版本。"
+        },
+        "mobile_guard": {
+          "label": "行气护身",
+          "kind": "practice",
+          "summary": "学会护障后完成真实行步练气，才可在原护障动作内有限缓步；不额外生成护盾。"
+        },
+        "drawing_ring": {
+          "label": "循纹引物",
+          "kind": "artifact_use",
+          "summary": "实物环、器形理解与本人练成的内纹手法共同成立，才可把短距可见的松置小器物引至手边。"
+        }
+      },
+      "edges": [
+        {
+          "from": "qi_guard",
+          "to": "mobile_guard",
+          "kind": "requirement",
+          "label": "先会原护障，再亲自练习"
+        },
+        {
+          "from": "stone_channeling",
+          "to": "heat_methods",
+          "kind": "requirement",
+          "label": "实际引流基础支撑温养试验"
+        },
+        {
+          "from": "record_steps",
+          "to": "heat_methods",
+          "kind": "records",
+          "label": "记录具体版本的步骤，阅读不代替实践"
+        },
+        {
+          "from": "sword",
+          "to": "qi_guard",
+          "kind": "combination",
+          "label": "可按原动作先后选择近身或自保"
+        },
+        {
+          "from": "qi_bolt",
+          "to": "mobile_guard",
+          "kind": "combination",
+          "label": "弹道与护持可形成不同脱身选择"
+        }
+      ]
+    },
+    "res://data/definitions/capability_practice.json": {
+      "version": 1,
+      "max_records": 128,
+      "nodes": {
+        "mobile_guard": {
+          "label": "行气护身",
+          "requires": "qi_guard",
+          "prepare_ms": 10000,
+          "step_ms": 10000,
+          "steps": 4,
+          "settle_ms": 10000,
+          "qi": 3,
+          "stamina": 2,
+          "speed_fraction": 0.45,
+          "directions": [
+            [
+              1,
+              0
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              -1,
+              0
+            ],
+            [
+              0,
+              -1
+            ]
+          ]
+        }
+      }
+    },
+    "res://data/definitions/climate.json": {
+      "version": 1,
+      "calendar": {
+        "version": 1,
+        "days_per_month": 30,
+        "months_per_year": 12,
+        "seasons": [
+          "春",
+          "夏",
+          "秋",
+          "冬"
+        ],
+        "start_minutes": 480
+      },
+      "fallback_region": "home",
+      "regions": {
+        "home": {
+          "label": "青岚山地",
+          "bounds": [
+            0,
+            0,
+            270,
+            512
+          ],
+          "base_tenths": 215,
+          "seasonal_curve": [
+            [
+              0,
+              0
+            ],
+            [
+              90,
+              90
+            ],
+            [
+              180,
+              -10
+            ],
+            [
+              270,
+              -180
+            ],
+            [
+              360,
+              0
+            ]
+          ],
+          "daily_curve": [
+            [
+              0,
+              -20
+            ],
+            [
+              300,
+              -25
+            ],
+            [
+              840,
+              30
+            ],
+            [
+              1440,
+              -20
+            ]
+          ],
+          "weather_offsets": {
+            "clear": 0,
+            "rain": -20
+          }
+        },
+        "river": {
+          "label": "河湾低地",
+          "bounds": [
+            270,
+            0,
+            242,
+            512
+          ],
+          "base_tenths": 240,
+          "seasonal_curve": [
+            [
+              0,
+              0
+            ],
+            [
+              90,
+              80
+            ],
+            [
+              180,
+              0
+            ],
+            [
+              270,
+              -150
+            ],
+            [
+              360,
+              0
+            ]
+          ],
+          "daily_curve": [
+            [
+              0,
+              -10
+            ],
+            [
+              300,
+              -15
+            ],
+            [
+              840,
+              20
+            ],
+            [
+              1440,
+              -10
+            ]
+          ],
+          "weather_offsets": {
+            "clear": 0,
+            "rain": -15
+          }
+        }
+      },
+      "human": {
+        "comfort_min_tenths": 180,
+        "comfort_max_tenths": 320,
+        "energy_scale": 1000000,
+        "energy_rate_per_degree": 10000,
+        "max_energy_rate": 200000,
+        "max_insulation_tenths": 120,
+        "insulation_heat_percent": 25
+      },
+      "garments": {
+        "plain_robe": {
+          "insulation_tenths": 60,
+          "wet_loss_percent": 50
+        },
+        "indigo_robe": {
+          "insulation_tenths": 60,
+          "wet_loss_percent": 50
+        },
+        "reed_cape": {
+          "insulation_tenths": 20,
+          "wet_loss_percent": 0
+        }
+      }
+    },
+    "res://data/definitions/clothing.json": {
+      "version": 1,
+      "change_ms": 5000,
+      "handling_ms": 3000,
+      "interaction_cells": 2,
+      "dry_per_pulse": 8,
+      "wet_threshold": 60,
+      "wet_energy_per_minute": 0.03,
+      "types": {
+        "plain_robe": {
+          "label": "粗布常服",
+          "slot": "body",
+          "shape": "robe",
+          "color": "#827861",
+          "rain_cover": false,
+          "absorb_per_pulse": 15,
+          "cue": "粗布交领，便于日常劳作；单凭衣着看不出身份。"
+        },
+        "indigo_robe": {
+          "label": "靛青常服",
+          "slot": "body",
+          "shape": "robe",
+          "color": "#345b79",
+          "rain_cover": false,
+          "absorb_per_pulse": 15,
+          "cue": "靛青交领，领缘齐整，像是为会客收拾过；这不能证明任职。"
+        },
+        "reed_cape": {
+          "label": "蓑衣",
+          "slot": "outer",
+          "shape": "cape",
+          "color": "#99834e",
+          "rain_cover": true,
+          "absorb_per_pulse": 0,
+          "cue": "草编披在肩背，能挡落雨，遮住了里面衣服的细节。"
+        }
+      },
+      "opening": {
+        "robe": "plain_robe",
+        "spares": [
+          {
+            "region": "home",
+            "actor": "player",
+            "type": "indigo_robe",
+            "container": "dorm"
+          },
+          {
+            "region": "home",
+            "actor": "player",
+            "type": "reed_cape",
+            "container": "dorm"
+          },
+          {
+            "region": "home",
+            "actor": "lao_zhou",
+            "type": "reed_cape",
+            "container": "actor:lao_zhou"
+          }
+        ]
+      }
+    },
+    "res://data/definitions/conflicts.json": {
+      "version": 1,
+      "step_ms": 50,
+      "max_duration_ms": 90000,
+      "engage_radius": 320.0,
+      "leash_radius": 960.0,
+      "reaction_ms": 600,
+      "stagger_ms": 250,
+      "stop_stamina": 16,
+      "lesson_ms": 60000,
+      "lesson_radius": 128.0,
+      "ai_speed_fraction": 0.55,
+      "ai_pause_ms": 450,
+      "ai_ranged_spacing": 190.0,
+      "ai_melee_spacing": 75.0,
+      "cover_sample_px": 8.0,
+      "sight_radius": 448.0,
+      "last_seen_ms": 4000,
+      "last_seen_arrival_px": 16.0,
+      "threat_margin_px": 24.0,
+      "projectile_radius": 15.0,
+      "retreat_distance": 128.0,
+      "backgrounds": {
+        "chen_shouzhuo": [
+          "sword",
+          "qi_bolt",
+          "qi_guard"
+        ],
+        "shi_tou": [
+          "sword",
+          "qi_bolt",
+          "qi_guard"
+        ],
+        "su_zhi": [
+          "qi_guard"
+        ]
+      },
+      "methods": {
+        "sword": {
+          "label": "木剑横斩",
+          "kind": "melee",
+          "prepare_ms": 300,
+          "contact_ms": 100,
+          "recover_ms": 350,
+          "qi": 0,
+          "stamina": 7,
+          "impact": 12,
+          "pressure": 14,
+          "reach": 104.0,
+          "half_angle_degrees": 60.0
+        },
+        "qi_bolt": {
+          "label": "凝气弹",
+          "kind": "projectile",
+          "prepare_ms": 500,
+          "contact_ms": 50,
+          "recover_ms": 450,
+          "qi": 3,
+          "stamina": 2,
+          "impact": 12,
+          "pressure": 10,
+          "reach": 576.0,
+          "speed": 440.0
+        },
+        "qi_guard": {
+          "label": "护身气障",
+          "kind": "barrier",
+          "prepare_ms": 150,
+          "contact_ms": 50,
+          "recover_ms": 300,
+          "qi": 3,
+          "stamina": 2,
+          "capacity": 12,
+          "duration_ms": 2400
+        }
+      }
+    },
+    "res://data/definitions/construction.json": {
+      "version": 1,
+      "site": {
+        "region": "home",
+        "source": "store",
+        "builders": [
+          "player",
+          "shi_tou"
+        ],
+        "workers": [
+          "shi_tou"
+        ],
+        "width": 7,
+        "height": 5,
+        "source_cells": 14,
+        "notice_cells": 18,
+        "observe_cells": 18
+      },
+      "check_ms": 60000,
+      "minimum_fullness": 35,
+      "minimum_energy": 30,
+      "operate_ms": 2000,
+      "pickup_ms": 1000,
+      "roof_span": 2,
+      "types": {
+        "wood_wall": {
+          "label": "木墙",
+          "kind": "wall",
+          "item": "wood",
+          "amount": 3,
+          "work_ms": 180000,
+          "demolish_ms": 60000,
+          "salvage": 2,
+          "door": false
+        },
+        "wood_door": {
+          "label": "木门",
+          "kind": "door",
+          "item": "wood",
+          "amount": 4,
+          "work_ms": 240000,
+          "demolish_ms": 60000,
+          "salvage": 2,
+          "door": true
+        },
+        "wood_bed": {
+          "label": "木床",
+          "kind": "bed",
+          "item": "wood",
+          "amount": 5,
+          "work_ms": 180000,
+          "demolish_ms": 60000,
+          "salvage": 2,
+          "door": false
+        },
+        "wood_roof": {
+          "label": "木屋面",
+          "kind": "roof",
+          "item": "wood",
+          "amount": 4,
+          "work_ms": 180000,
+          "demolish_ms": 60000,
+          "salvage": 2,
+          "door": false
+        }
+      }
+    },
+    "res://data/definitions/field_opportunities.json": {
+      "version": 1,
+      "site": {
+        "id": "broken_stele",
+        "label": "断碑台",
+        "region": "home",
+        "container": "site:broken_stele",
+        "object": "stele_drawing_ring",
+        "object_definition": "drawing_ring",
+        "minimum_separation": 18,
+        "offsets": [
+          [
+            0,
+            -28
+          ],
+          [
+            -24,
+            -20
+          ],
+          [
+            24,
+            -24
+          ],
+          [
+            0,
+            30
+          ],
+          [
+            -30,
+            0
+          ],
+          [
+            32,
+            -12
+          ]
+        ]
+      },
+      "purpose": {
+        "actor": "river_shi_tou",
+        "return_place": "dorm",
+        "delay_ms": 300000,
+        "retry_ms": 120000
+      },
+      "opening_knowers": [
+        "chen_shouzhuo",
+        "river_shi_tou"
+      ],
+      "navigation_radius": 64,
+      "navigation_budget": 16384,
+      "search_radius": 6,
+      "observation_cells": 5,
+      "observation_ms": 2000,
+      "interaction_px": 128,
+      "max_trips": 64,
+      "policy": {
+        "bias": 0.12,
+        "accept_threshold": 0.1,
+        "uncertainty_band": 0.03,
+        "context_step": 0.2,
+        "weights": {
+          "energy": 0.25,
+          "busy": -0.3,
+          "benevolence": 0.2,
+          "reliability": 0.1,
+          "affinity": 0.6
+        }
+      },
+      "labels": {
+        "clue": "山外断碑台有枚旧环的传闻；这是旧闻，是否还在须亲自去看。",
+        "depart": "循着自己记得的旧闻，往断碑台寻物",
+        "return": "离开断碑台，回原住处歇脚",
+        "present": "亲眼看见断碑台上松置着一枚旧环。",
+        "empty": "亲眼看见断碑台原来的置物处已经空了；尚不知道是谁取走。"
+      }
+    },
+    "res://data/definitions/health.json": {
+      "version": 1,
+      "interaction_cells": 3,
+      "diagnose_ms": 60000,
+      "treat_ms": 120000,
+      "material": "herb",
+      "material_amount": 1,
+      "practices": {
+        "su_zhi": [
+          "herbal_meridian_care"
+        ]
+      },
+      "recovery": {
+        "required": 180,
+        "normal": 1,
+        "resting": 3,
+        "treated": 4,
+        "treated_resting": 6
+      },
+      "contusion": {
+        "recovery_per_impact": 6,
+        "normal": 1,
+        "resting": 3,
+        "retreat_burden": 24,
+        "max_impact": 100
+      },
+      "policy": {
+        "bias": 0.0,
+        "accept_threshold": 0.35,
+        "uncertainty_band": 0.03,
+        "context_step": 0.05,
+        "weights": {
+          "energy": 0.2,
+          "busy": -1.0,
+          "distance": -0.1,
+          "risk": -0.3,
+          "duty": 0.2,
+          "offer": 0.0,
+          "benevolence": 0.3,
+          "reliability": 0.15,
+          "affinity": 0.3
+        }
+      }
+    },
+    "res://data/definitions/heat_methods.json": {
+      "version": 1,
+      "artifact_type": "warm_stone",
+      "title_length": 32,
+      "flows": {
+        "1": {
+          "label": "细流",
+          "qi": 1,
+          "charge": 1
+        },
+        "2": {
+          "label": "匀流",
+          "qi": 2,
+          "charge": 3
+        },
+        "3": {
+          "label": "急灌",
+          "qi": 3,
+          "charge": 5
+        }
+      },
+      "pulses": [
+        1,
+        2,
+        4
+      ],
+      "pulse_minutes": 1,
+      "safe_flow": 2,
+      "guide_qi": 1,
+      "lesson_risk": 0.05
+    },
+    "res://data/definitions/interaction_requests.json": {
+      "version": 1,
+      "communication_cells": 6,
+      "media": {
+        "spoken": "口头说明",
+        "gesture": "指物比划"
+      },
+      "human_media": [
+        "spoken",
+        "gesture"
+      ],
+      "bird_media": [
+        "gesture"
+      ],
+      "verbs": {
+        "private_exchange": {
+          "label": "商量当面购买这件器物",
+          "object_kind": "private_artifact",
+          "bird_understands": false
+        },
+        "explain_source": {
+          "label": "当面说明本次借源依据",
+          "object_kind": "care_basis",
+          "bird_understands": false
+        },
+        "ask_source_care": {
+          "label": "询问公源看护安排",
+          "object_kind": "care_arrangement",
+          "bird_understands": false
+        },
+        "withdraw_source_care": {
+          "label": "商量撤回公源看护",
+          "object_kind": "care_arrangement",
+          "bird_understands": false
+        },
+        "site_arrangement": {
+          "label": "询问公源借用安排",
+          "object_kind": "site_case",
+          "bird_understands": false
+        },
+        "borrow_source": {
+          "label": "申请一次具体借源",
+          "object_kind": "source_offer",
+          "bird_understands": false
+        },
+        "verify_return": {
+          "label": "声称已归还，请人核验",
+          "object_kind": "source_note",
+          "bird_understands": false
+        },
+        "converse": {
+          "label": "交流：询问能帮什么",
+          "object_kind": "conversation_topic",
+          "bird_understands": false
+        },
+        "diagnose": {
+          "label": "请看不适",
+          "object_kind": "body",
+          "bird_understands": false
+        },
+        "treat": {
+          "label": "请处理已查明的不适",
+          "object_kind": "body",
+          "bird_understands": false
+        },
+        "accept_labor": {
+          "label": "商量承接有薪差事",
+          "object_kind": "labor_offer",
+          "bird_understands": false
+        },
+        "claim_wage": {
+          "label": "请求验收并领取工钱",
+          "object_kind": "labor_contract",
+          "bird_understands": false
+        },
+        "offer_food": {
+          "label": "递出一份饭食",
+          "object_kind": "provisions",
+          "bird_understands": false
+        },
+        "examine": {
+          "label": "请对方辨看材料",
+          "object_kind": "artifact",
+          "bird_understands": false
+        },
+        "study": {
+          "label": "请对方探查用法",
+          "object_kind": "artifact",
+          "bird_understands": false
+        },
+        "fetch_herb": {
+          "label": "请对方从石隙取药",
+          "object_kind": "avian_site",
+          "bird_understands": true
+        },
+        "trade": {
+          "label": "商量本地钱货买卖",
+          "object_kind": "trade_offer",
+          "bird_understands": false
+        },
+        "watch_supply": {
+          "label": "商量一段照看供给的分工",
+          "object_kind": "work_plan",
+          "bird_understands": false
+        },
+        "withdraw_work": {
+          "label": "当面撤回照看安排",
+          "object_kind": "work_agreement",
+          "bird_understands": false
+        },
+        "field_clue": {
+          "label": "打听野外去处",
+          "object_kind": "field_question",
+          "bird_understands": false
+        }
+      },
+      "status_labels": {
+        "invalid": "事项不明",
+        "unheard": "尚未传达",
+        "not_understood": "未能理解",
+        "incapable": "无法这样做",
+        "unavailable": "眼下不便",
+        "refused": "没有答应",
+        "started": "开始办理",
+        "pending": "仍在办理",
+        "completed": "已听到结果",
+        "unconfirmed": "尚未确认",
+        "cancelled": "已经中断"
+      }
+    },
+    "res://data/definitions/land_resources.json": {
+      "version": 1,
+      "types": {
+        "woodland": {
+          "label": "林缘落枝",
+          "item": "wood",
+          "initial": 12,
+          "capacity": 18,
+          "regrow_ms": 3600000,
+          "regrow_amount": 2,
+          "description": "柴粮库后的林缘会积下落枝；捡拾、整理后才能带回。"
+        },
+        "wild_grain": {
+          "label": "野稗穗丛",
+          "item": "grain",
+          "initial": 12,
+          "capacity": 24,
+          "regrow_ms": 5400000,
+          "regrow_amount": 3,
+          "description": "药圃外沿的野稗分批结穗；采穗脱粒，才能作为粗粮。"
+        },
+        "spring": {
+          "label": "井下泉脉",
+          "item": "water",
+          "initial": 24,
+          "capacity": 36,
+          "regrow_ms": 1800000,
+          "regrow_amount": 6,
+          "description": "井下泉水缓慢回补，需汲取到井边水缸，再挑往灶房。"
+        },
+        "wild_herbs": {
+          "label": "坡边野药",
+          "item": "herb",
+          "initial": 4,
+          "capacity": 8,
+          "regrow_ms": 7200000,
+          "regrow_amount": 1,
+          "description": "药圃附近的多年生野药靠土水与适宜冷暖长出新叶，采回后才进入药圃的保管。",
+          "ecology": {
+            "version": 1,
+            "sample_ms": 60000,
+            "temperature_min_tenths": 50,
+            "temperature_max_tenths": 350,
+            "default_temperature_tenths": 200,
+            "soil_capacity": 180000000,
+            "initial_water": 36000000,
+            "resume_water": 6000000,
+            "water_per_item": 60000000,
+            "rain_per_ms": 20,
+            "evaporation_per_ms": 1,
+            "uptake_per_ms": 4,
+            "growth_ms": 7200000,
+            "counter_limit": 9007199254740991
+          }
+        }
+      }
+    },
+    "res://data/definitions/large_bodies.json": {
+      "version": 1,
+      "form": "ancient_beast",
+      "step_ms": 1600,
+      "rest_ms": 15000,
+      "retry_ms": 3000,
+      "feed_interval_ms": 900000,
+      "contact_px": 42,
+      "food": "meal",
+      "food_amount": 1,
+      "navigation_radius": 24,
+      "navigation_budget": 1800,
+      "max_bodies": 8
+    },
+    "res://data/definitions/local_heat.json": {
+      "version": 1,
+      "step_ms": 10000,
+      "sample_ms": 60000,
+      "world_size": 512,
+      "capacity_per_tenth": 1000000,
+      "pulse_energy": 180000000,
+      "coefficient_scale": 1000,
+      "conductance": {
+        "open": 100,
+        "open_door": 100,
+        "wall": 5,
+        "closed_door": 5
+      },
+      "bath_loss": {
+        "roofed": 5,
+        "unroofed": 200
+      },
+      "source_radius": 2,
+      "max_cells": 512,
+      "max_cell_energy": 1000000000000,
+      "max_total_input": 9000000000000000
+    },
+    "res://data/definitions/method_records.json": {
+      "version": 1,
+      "material": "wood",
+      "cost": 1,
+      "write_minutes": 2,
+      "read_minutes": 1,
+      "handling_minutes": 1,
+      "interaction_cells": 3,
+      "observation_cells": 8,
+      "policy": {
+        "bias": 0.0,
+        "accept_threshold": 0.35,
+        "uncertainty_band": 0.03,
+        "context_step": 0.05,
+        "weights": {
+          "energy": 0.2,
+          "busy": -1.0,
+          "distance": -0.1,
+          "risk": -0.3,
+          "duty": 0.2,
+          "offer": 0.0,
+          "benevolence": 0.3,
+          "reliability": 0.15,
+          "affinity": 0.3
+        }
+      }
+    },
+    "res://data/definitions/natural_environment.json": {
+      "version": 1,
+      "cache_cells": 4096,
+      "terrain_ids": {
+        "water": 0,
+        "rock": 2
+      },
+      "noise": {
+        "moisture": {
+          "seed_offset": 41,
+          "frequency": 0.027,
+          "octaves": 3
+        },
+        "canopy": {
+          "seed_offset": 43,
+          "frequency": 0.043,
+          "octaves": 2
+        },
+        "mineral": {
+          "seed_offset": 47,
+          "frequency": 0.031,
+          "octaves": 2
+        }
+      },
+      "land": {
+        "noise_center": 50,
+        "noise_scale": 80,
+        "water_probe_distances": [
+          1,
+          3
+        ],
+        "water_probe_bonus": [
+          32,
+          15
+        ],
+        "elevation_dryness": 5,
+        "fertility_center": 43,
+        "fertility_moisture": 45,
+        "fertility_canopy": 12,
+        "fertility_height_loss": 7,
+        "fertility_mineral_loss": 15,
+        "exposure_center": 57,
+        "exposure_height": 8,
+        "exposure_canopy_loss": 28,
+        "ore_threshold": 66,
+        "shore_water_threshold": 32,
+        "wetland_moisture": 73,
+        "wetland_max_height": 1,
+        "woodland_canopy": 62,
+        "gravel_moisture": 28,
+        "gravel_height": 3,
+        "gravel_fertility": 48,
+        "meadow_fertility": 64,
+        "growth_moisture_floor": 12,
+        "growth_moisture_optimal": 58,
+        "growth_mineral_loss": 25
+      },
+      "elements": {
+        "order": [
+          "metal",
+          "wood",
+          "water",
+          "fire",
+          "earth"
+        ],
+        "labels": {
+          "metal": "金",
+          "wood": "木",
+          "water": "水",
+          "fire": "火",
+          "earth": "土"
+        },
+        "engenders": {
+          "wood": "fire",
+          "fire": "earth",
+          "earth": "metal",
+          "metal": "water",
+          "water": "wood"
+        },
+        "controls": {
+          "wood": "earth",
+          "earth": "water",
+          "water": "fire",
+          "fire": "metal",
+          "metal": "wood"
+        },
+        "mineral_metal_bonus": 32,
+        "canopy_wood_bonus": 30,
+        "moisture_water_bonus": 32,
+        "dry_exposure_fire_bonus": 30,
+        "fertility_earth_bonus": 20
+      },
+      "surfaces": {
+        "water": {
+          "label": "山泽水面",
+          "color": "#294f61",
+          "density": 13,
+          "elements": [
+            10,
+            18,
+            72,
+            3,
+            14
+          ],
+          "flora": {
+            "lotus": 1
+          },
+          "habitat": [
+            "fish",
+            "waterfowl"
+          ]
+        },
+        "stone": {
+          "label": "山岩",
+          "color": "#777d78",
+          "density": 16,
+          "elements": [
+            34,
+            8,
+            12,
+            20,
+            61
+          ],
+          "flora": {
+            "lichen": 3,
+            "rock_moss": 1
+          },
+          "habitat": [
+            "mountain_beast"
+          ]
+        },
+        "ore_rock": {
+          "label": "含矿岩脊",
+          "color": "#7e8279",
+          "density": 10,
+          "elements": [
+            65,
+            5,
+            8,
+            18,
+            48
+          ],
+          "flora": {
+            "lichen": 1
+          },
+          "habitat": [
+            "mountain_beast"
+          ]
+        },
+        "shore": {
+          "label": "溪岸湿土",
+          "color": "#647965",
+          "density": 58,
+          "elements": [
+            9,
+            35,
+            55,
+            7,
+            42
+          ],
+          "flora": {
+            "reed": 4,
+            "fern": 1,
+            "wild_herb": 1
+          },
+          "habitat": [
+            "waterfowl",
+            "sparrow",
+            "deer"
+          ]
+        },
+        "wetland": {
+          "label": "湿地",
+          "color": "#526c60",
+          "density": 62,
+          "elements": [
+            7,
+            43,
+            63,
+            4,
+            32
+          ],
+          "flora": {
+            "reed": 3,
+            "fern": 2,
+            "bamboo": 1
+          },
+          "habitat": [
+            "waterfowl",
+            "insects"
+          ]
+        },
+        "woodland": {
+          "label": "山林腐殖土",
+          "color": "#536b51",
+          "density": 43,
+          "elements": [
+            9,
+            65,
+            24,
+            9,
+            41
+          ],
+          "flora": {
+            "pine": 4,
+            "bamboo": 2,
+            "fern": 1,
+            "spirit_shrub": 1
+          },
+          "habitat": [
+            "sparrow",
+            "deer",
+            "fox",
+            "mountain_beast"
+          ]
+        },
+        "gravel": {
+          "label": "砂砾薄土",
+          "color": "#858474",
+          "density": 21,
+          "elements": [
+            30,
+            12,
+            8,
+            32,
+            48
+          ],
+          "flora": {
+            "dry_grass": 3,
+            "pine": 1
+          },
+          "habitat": [
+            "sparrow",
+            "fox",
+            "mountain_beast"
+          ]
+        },
+        "meadow": {
+          "label": "肥沃草甸",
+          "color": "#70875a",
+          "density": 69,
+          "elements": [
+            8,
+            47,
+            28,
+            14,
+            58
+          ],
+          "flora": {
+            "wild_herb": 2,
+            "wildflower": 3,
+            "tall_grass": 4,
+            "spirit_shrub": 1
+          },
+          "habitat": [
+            "sparrow",
+            "deer",
+            "hare",
+            "insects"
+          ]
+        },
+        "grassland": {
+          "label": "山间草地",
+          "color": "#66775a",
+          "density": 46,
+          "elements": [
+            13,
+            35,
+            21,
+            20,
+            49
+          ],
+          "flora": {
+            "tall_grass": 4,
+            "wildflower": 1,
+            "pine": 1,
+            "wild_herb": 1
+          },
+          "habitat": [
+            "sparrow",
+            "hare",
+            "deer"
+          ]
+        }
+      },
+      "flora": {
+        "pine": {
+          "label": "山松",
+          "kind": "tree",
+          "element": "wood",
+          "color": "#365c48",
+          "height": 35
+        },
+        "bamboo": {
+          "label": "青竹",
+          "kind": "bamboo",
+          "element": "wood",
+          "color": "#569156",
+          "height": 32
+        },
+        "spirit_shrub": {
+          "label": "灵蕨灌丛",
+          "kind": "shrub",
+          "element": "wood",
+          "color": "#6e9b7d",
+          "height": 18
+        },
+        "fern": {
+          "label": "阴蕨",
+          "kind": "fern",
+          "element": "wood",
+          "color": "#527a58",
+          "height": 14
+        },
+        "wild_herb": {
+          "label": "野药植被",
+          "kind": "herb",
+          "element": "wood",
+          "color": "#83a27a",
+          "height": 10
+        },
+        "wildflower": {
+          "label": "山花",
+          "kind": "flower",
+          "element": "wood",
+          "color": "#d1b494",
+          "height": 10
+        },
+        "tall_grass": {
+          "label": "长草",
+          "kind": "grass",
+          "element": "wood",
+          "color": "#8c9b60",
+          "height": 11
+        },
+        "dry_grass": {
+          "label": "蒿草",
+          "kind": "grass",
+          "element": "wood",
+          "color": "#b09d6d",
+          "height": 10
+        },
+        "reed": {
+          "label": "芦苇",
+          "kind": "reed",
+          "element": "water",
+          "color": "#9eaf7a",
+          "height": 20
+        },
+        "lotus": {
+          "label": "浮萍荷叶",
+          "kind": "aquatic",
+          "element": "water",
+          "color": "#648f77",
+          "height": 5
+        },
+        "lichen": {
+          "label": "岩衣",
+          "kind": "lichen",
+          "element": "earth",
+          "color": "#a4ad86",
+          "height": 3
+        },
+        "rock_moss": {
+          "label": "石苔",
+          "kind": "moss",
+          "element": "water",
+          "color": "#5c7864",
+          "height": 3
+        }
+      },
+      "fauna": {
+        "sparrow": {
+          "label": "山雀",
+          "diet": "seed",
+          "body": "small_bird"
+        },
+        "hare": {
+          "label": "野兔",
+          "diet": "grazer",
+          "body": "small_beast"
+        },
+        "deer": {
+          "label": "山鹿",
+          "diet": "grazer",
+          "body": "medium_beast"
+        },
+        "fox": {
+          "label": "山狐",
+          "diet": "predator",
+          "body": "small_beast"
+        },
+        "waterfowl": {
+          "label": "水鸟",
+          "diet": "omnivore",
+          "body": "small_bird"
+        },
+        "fish": {
+          "label": "溪鱼",
+          "diet": "aquatic",
+          "body": "fish"
+        },
+        "insects": {
+          "label": "草虫",
+          "diet": "plant",
+          "body": "insect"
+        },
+        "mountain_beast": {
+          "label": "山兽",
+          "diet": "omnivore",
+          "body": "large_beast"
+        }
+      }
+    },
+    "res://data/definitions/origins.json": {
+      "origins": [
+        {
+          "id": "drifter",
+          "name": "流民",
+          "description": "战乱中逃到山门，只求一口饭吃。",
+          "starting_rank": "servant",
+          "starting_contribution": 0
+        },
+        {
+          "id": "sect_orphan",
+          "name": "宗门遗孤",
+          "description": "在宗门长大，熟悉规矩，也见过人情冷暖。",
+          "starting_rank": "servant",
+          "starting_contribution": 10
+        },
+        {
+          "id": "hunter",
+          "name": "猎户",
+          "description": "山下来投，脚力好，胆子大。",
+          "starting_rank": "servant",
+          "starting_contribution": 5
+        }
+      ]
+    },
+    "res://data/definitions/pawns.json": {
+      "pawns": [
+        {
+          "id": "player",
+          "name": "无名",
+          "origin": "drifter",
+          "rank": "servant",
+          "role": "杂役",
+          "realm": 0,
+          "max_qi": 20,
+          "max_stamina": 100,
+          "color": "#b23a2f",
+          "bio": "你。刚被分到杂役院，身上只有一套旧衣和一块木牌。"
+        },
+        {
+          "id": "chen_shouzhuo",
+          "name": "陈守拙",
+          "origin": "sect_orphan",
+          "rank": "steward",
+          "role": "管事",
+          "realm": 1,
+          "max_qi": 60,
+          "max_stamina": 120,
+          "color": "#8a744a",
+          "bio": "杂役管事，规矩比人情大。谁偷懒，他都记得。"
+        },
+        {
+          "id": "a_he",
+          "name": "阿禾",
+          "origin": "drifter",
+          "rank": "servant",
+          "role": "厨娘",
+          "realm": 0,
+          "max_qi": 15,
+          "max_stamina": 90,
+          "color": "#c98b4b",
+          "bio": "灶房掌勺，消息比饭菜传得还快。"
+        },
+        {
+          "id": "shi_tou",
+          "name": "石头",
+          "origin": "hunter",
+          "rank": "servant",
+          "role": "挑水",
+          "realm": 0,
+          "max_qi": 25,
+          "max_stamina": 140,
+          "color": "#7a7f86",
+          "bio": "话少，力气大。一个人能挑两担水。"
+        },
+        {
+          "id": "su_zhi",
+          "name": "苏芷",
+          "origin": "sect_orphan",
+          "rank": "outer_disciple",
+          "role": "药圃",
+          "realm": 1,
+          "max_qi": 80,
+          "max_stamina": 100,
+          "color": "#5f8f7a",
+          "bio": "外门弟子，被派来看药圃。识药，也识人。"
+        },
+        {
+          "id": "lao_zhou",
+          "name": "老周",
+          "origin": "drifter",
+          "rank": "servant",
+          "role": "柴房",
+          "realm": 0,
+          "max_qi": 10,
+          "max_stamina": 80,
+          "color": "#8a6a4f",
+          "bio": "在柴房干了十年，能坐着绝不站着。"
+        }
+      ]
+    },
+    "res://data/definitions/personal_foraging.json": {
+      "version": 1,
+      "actions": {
+        "keep_wood": {
+          "label": "自留拾柴",
+          "kind": "forage",
+          "resource": "woodlot",
+          "source": "store",
+          "item": "wood",
+          "amount": 3,
+          "minutes": 20,
+          "contribution": 0,
+          "public_action": "gather_wood"
+        },
+        "keep_grain": {
+          "label": "自留采粮",
+          "kind": "forage",
+          "resource": "meadow",
+          "source": "garden",
+          "item": "grain",
+          "amount": 4,
+          "minutes": 25,
+          "contribution": 0,
+          "public_action": "forage_grain"
+        },
+        "keep_water": {
+          "label": "自留汲泉",
+          "kind": "forage",
+          "resource": "spring",
+          "source": "well",
+          "item": "water",
+          "amount": 12,
+          "minutes": 10,
+          "contribution": 0,
+          "public_action": "draw_water"
+        },
+        "keep_herb": {
+          "label": "自留采药",
+          "kind": "forage",
+          "resource": "herb_slope",
+          "source": "garden",
+          "item": "herb",
+          "amount": 2,
+          "minutes": 25,
+          "contribution": 0,
+          "public_action": "gather_herb"
+        }
+      }
+    },
+    "res://data/definitions/personal_production.json": {
+      "version": 1,
+      "pickup_ms": 30000,
+      "max_batches": 256,
+      "recipes": {
+        "cook_rations": {
+          "label": "私料煮饭",
+          "place": "kitchen",
+          "fuel": {
+            "wood": 1
+          },
+          "inputs": {
+            "grain": 2,
+            "water": 1
+          },
+          "outputs": {
+            "meal": 6
+          },
+          "work_ms": 1200000
+        },
+        "dry_herbs": {
+          "label": "私料焙药",
+          "place": "garden",
+          "fuel": {
+            "wood": 1
+          },
+          "inputs": {
+            "herb": 2
+          },
+          "outputs": {
+            "dried_herb": 2
+          },
+          "work_ms": 360000
+        }
+      }
+    },
+    "res://data/definitions/private_exchange.json": {
+      "version": 1,
+      "object": "stele_drawing_ring",
+      "currency": "coin",
+      "price": 4,
+      "duration_ms": 5000,
+      "interaction_cells": 3,
+      "max_proposals": 128,
+      "max_jobs": 256,
+      "policy": {
+        "bias": 0.05,
+        "accept_threshold": 0.55,
+        "uncertainty_band": 0.05,
+        "context_step": 0.05,
+        "weights": {
+          "energy": 0.25,
+          "busy": -0.5,
+          "distance": 0.0,
+          "risk": -0.2,
+          "duty": -0.3,
+          "offer": 0.2,
+          "benevolence": 0.2,
+          "reliability": 0.2,
+          "affinity": 0.3
+        }
+      }
+    },
+    "res://data/definitions/ranks.json": {
+      "ranks": [
+        {
+          "id": "servant",
+          "name": "杂役",
+          "tier": 0,
+          "required_contribution": 0,
+          "description": "宗门最底层，负责挑水、砍柴、扫地等杂务。"
+        },
+        {
+          "id": "outer_disciple",
+          "name": "外门弟子",
+          "tier": 1,
+          "required_contribution": 100,
+          "description": "正式踏入山门，可领月例、听晨课、使用演武场。"
+        },
+        {
+          "id": "steward",
+          "name": "杂役管事",
+          "tier": 1,
+          "required_contribution": 0,
+          "description": "管理杂役的名额与差事，不算正式弟子。"
+        }
+      ]
+    },
+    "res://data/definitions/resting.json": {
+      "version": 1,
+      "region": "home",
+      "members": [
+        "player",
+        "chen_shouzhuo",
+        "a_he",
+        "shi_tou",
+        "su_zhi",
+        "lao_zhou"
+      ],
+      "notice_cells": 18,
+      "check_ms": 60000,
+      "rest_ms": 2700000,
+      "energy_per_minute": 2,
+      "wake_energy": 95
+    },
+    "res://data/definitions/settlement_services.json": {
+      "version": 1,
+      "move_minutes_per_cell": 3,
+      "work_energy_per_minute": 0.04,
+      "job_timeout": 1440,
+      "coin_item": "coin",
+      "returns": {
+        "label": "交回受托物资",
+        "minutes": 2
+      },
+      "visitor": {
+        "eat": {
+          "label": "在当地取食",
+          "place": "kitchen",
+          "minutes": 8,
+          "fee": 1,
+          "item": "meal",
+          "amount": 1,
+          "hunger_gain": 45
+        },
+        "rest": {
+          "label": "在当地借宿",
+          "place": "dorm",
+          "minutes": 60,
+          "fee": 1,
+          "energy_gain": 80
+        }
+      },
+      "hauling": {
+        "label": "领取运粮差事",
+        "route": "river_road",
+        "amount": 6,
+        "source_floor": 30,
+        "pickup_minutes": 4,
+        "unload_minutes": 4,
+        "credit": 3,
+        "credit_region": "home"
+      },
+      "report": {
+        "label": "向当地管事报工",
+        "place": "records",
+        "minutes": 4
+      },
+      "redemptions": {
+        "meal": {
+          "label": "用贡献领一份饭",
+          "place": "records",
+          "source": "kitchen",
+          "item": "meal",
+          "amount": 1,
+          "cost": 1,
+          "minutes": 4
+        }
+      },
+      "access": {
+        "gate": {
+          "label": "申请药圃通行",
+          "place": "records",
+          "required_contribution": 2,
+          "minutes": 4
+        }
+      },
+      "restricted_actions": {
+        "collect_herb": {
+          "label": "凭据入圃取药",
+          "scope": "gate",
+          "place": "garden",
+          "item": "herb",
+          "amount": 1,
+          "minutes": 5
+        }
+      },
+      "help": {
+        "minimum_fee": 2,
+        "rest_below": 35,
+        "talk_radius": 6,
+        "seed": 20261103,
+        "policy": {
+          "bias": 0.0,
+          "weights": {
+            "energy": 0.2,
+            "busy": -1.0,
+            "distance": -0.1,
+            "risk": -0.5,
+            "duty": 0.15,
+            "offer": 0.5,
+            "benevolence": 0.1,
+            "reliability": 0.1,
+            "affinity": 0.0
+          },
+          "accept_threshold": 0.5,
+          "uncertainty_band": 0.03,
+          "context_step": 0.05
+        }
+      },
+      "trade": {
+        "minutes": 2,
+        "max_lots": 5,
+        "cash_container": "records",
+        "permission": "pay",
+        "offers": {
+          "sell_dried_herb": {
+            "label": "卖干药（每份1干药/3钱）",
+            "direction": "sell",
+            "place": "garden",
+            "item": "dried_herb",
+            "amount": 1,
+            "coins": 3,
+            "stock_limit": 16
+          },
+          "buy_meal": {
+            "label": "买现饭（每份1饭/2钱）",
+            "direction": "buy",
+            "place": "kitchen",
+            "item": "meal",
+            "amount": 1,
+            "coins": 2,
+            "stock_limit": 2
+          },
+          "sell_herb": {
+            "label": "卖药草（每份1药/2钱）",
+            "direction": "sell",
+            "place": "garden",
+            "item": "herb",
+            "amount": 1,
+            "coins": 2,
+            "stock_limit": 24
+          },
+          "sell_wood": {
+            "label": "卖木料（每份3木/1钱）",
+            "direction": "sell",
+            "place": "store",
+            "item": "wood",
+            "amount": 3,
+            "coins": 1,
+            "stock_limit": 24
+          },
+          "sell_grain": {
+            "label": "卖粮食（每份4粮/1钱）",
+            "direction": "sell",
+            "place": "store",
+            "item": "grain",
+            "amount": 4,
+            "coins": 1,
+            "stock_limit": 48
+          }
+        }
+      }
+    },
+    "res://data/definitions/site_affairs.json": {
+      "version": 1,
+      "max_notes": 128,
+      "max_checks": 256,
+      "max_announcements": 128,
+      "deadline_ms": 3600000,
+      "loan_minutes": 1,
+      "inspect_minutes": 1,
+      "register_minutes": 1,
+      "interaction_px": 128.0,
+      "offers": {
+        "source_once_body": {
+          "label": "借地火隙引息归身一次",
+          "case": "hearth_loan",
+          "target": "body"
+        },
+        "source_once_stone": {
+          "label": "借地火隙温养原石一次",
+          "case": "hearth_loan",
+          "target": "stone"
+        }
+      },
+      "labels": {
+        "inquiry": "公用地火隙借用安排",
+        "loan": "核簿签下一次借源",
+        "inspect": "赴灶旁查验公器复位",
+        "register": "回值事房登记核验",
+        "claim": "我已交回这块公用温石，请核验。",
+        "registered": "已核公器复位；申请人声称归还。"
+      },
+      "policy": {
+        "bias": 0.2,
+        "accept_threshold": 0.1,
+        "uncertainty_band": 0.03,
+        "context_step": 0.2,
+        "weights": {
+          "energy": 0.35,
+          "busy": -0.6,
+          "duty": 0.2,
+          "reliability": 0.1,
+          "affinity": 0.15
+        }
+      }
+    },
+    "res://data/definitions/social_admission.json": {
+      "version": 1,
+      "seed": 20261103,
+      "talk_cells": 4,
+      "scope": "gate",
+      "action": "collect_herb",
+      "grant_ms": 900000,
+      "actions": {
+        "claim": 5000,
+        "show_pass": 5000,
+        "verify": 12000,
+        "receipt": 5000
+      },
+      "risk": 0.35,
+      "policy": {
+        "bias": 0.15,
+        "weights": {
+          "benevolence": 0.4,
+          "reliability": 0.35,
+          "affinity": 0.1,
+          "risk": -0.25
+        },
+        "accept_threshold": 0.5,
+        "uncertainty_band": 0.1,
+        "context_step": 0.05
+      }
+    },
+    "res://data/definitions/soul_vessels.json": {
+      "version": 1,
+      "interaction_cells": 2,
+      "observation_cells": 8,
+      "recovery_ms": 60000,
+      "verbs": {
+        "take": {
+          "label": "收起旧戒",
+          "ms": 1000,
+          "qi": 0,
+          "attention": 0
+        },
+        "place": {
+          "label": "放下旧戒",
+          "ms": 1000,
+          "qi": 0,
+          "attention": 0
+        },
+        "give": {
+          "label": "交接旧戒",
+          "ms": 5000,
+          "qi": 0,
+          "attention": 0
+        },
+        "wake": {
+          "label": "轻叩封纹传意",
+          "ms": 10000,
+          "qi": 1,
+          "attention": 2
+        },
+        "listen": {
+          "label": "听一段旧事",
+          "ms": 30000,
+          "qi": 0,
+          "attention": 2
+        },
+        "promise": {
+          "label": "答应带他看看药圃",
+          "ms": 5000,
+          "qi": 0,
+          "attention": 1
+        },
+        "fulfill": {
+          "label": "在药圃与他看草木",
+          "ms": 10000,
+          "qi": 0,
+          "attention": 1
+        },
+        "guide": {
+          "label": "请他指点并亲手试石",
+          "ms": 60000,
+          "qi": 1,
+          "attention": 8
+        },
+        "sleep": {
+          "label": "请他歇息",
+          "ms": 5000,
+          "qi": 0,
+          "attention": 0
+        },
+        "force": {
+          "label": "强行叩动封纹",
+          "ms": 5000,
+          "qi": 3,
+          "attention": 2
+        }
+      },
+      "vessel_types": {
+        "sealed_ring": {
+          "name": "封魂旧戒",
+          "unknown_name": "裂纹旧戒",
+          "appearance": "暗银指环上绕着断续的细纹，内圈有一道旧裂。",
+          "damage_max": 4,
+          "opening_damage": 1,
+          "force_damage": 1
+        }
+      },
+      "minds": {
+        "yan_heng": {
+          "name": "晏衡",
+          "energy_max": 24,
+          "opening_energy": 16,
+          "knowledge": [
+            "warm_stone_control",
+            "old_market"
+          ],
+          "goal_region": "home",
+          "goal_place": "garden",
+          "greeting": "我叫晏衡，只剩这点残识。先带我看看山门的药圃；我不愿一醒来便替人卖力。",
+          "old_memory": "三百年前，我在山脚旧集以温石烘药。那时的铺主姓柳；如今人事怎样，我没有消息。"
+        }
+      },
+      "lessons": {
+        "warm_stone_control": {
+          "artifact_definition": "warm_stone",
+          "line": "晏衡逐步指点，你亲手循纹试过细流，才掌握了温石导热与温养；强注仍可能伤石。"
+        }
+      },
+      "agency": {
+        "sense_cells": 3,
+        "actions": {
+          "wake": {
+            "ms": 1000,
+            "attention": 0
+          },
+          "observe": {
+            "ms": 10000,
+            "attention": 1
+          },
+          "call": {
+            "ms": 5000,
+            "attention": 2
+          },
+          "sleep": {
+            "ms": 5000,
+            "attention": 0
+          }
+        }
+      }
+    },
+    "res://data/definitions/source_care.json": {
+      "version": 1,
+      "watch_action": "check_kitchen",
+      "observation_ms": 1000,
+      "revisit_ms": 1000,
+      "grace_ms": 90000,
+      "max_arrangements": 4,
+      "max_warnings": 128,
+      "max_explanations": 128,
+      "interaction_px": 128.0,
+      "policy": {
+        "bias": 0.05,
+        "accept_threshold": 0.15,
+        "uncertainty_band": 0.02,
+        "context_step": 0.2,
+        "weights": {
+          "energy": 0.2,
+          "reliability": 0.15,
+          "affinity": 0.4,
+          "risk": -0.4
+        }
+      },
+      "labels": {
+        "arrangement": "照看灶旁公源与原温石",
+        "warning": "我还没核到这次的借用依据。请先停下引息，或当面说明；宽限后还这样，我会设法请你退开。",
+        "unauthenticated": "口头声称这次已获准（没有可转述的签发依据）",
+        "accepted": "对方采信了这次说明，暂不再阻拦；这不是重新签发许可。",
+        "refused": "对方听到了，但还没有采信这次借用依据；原宽限不会重新开始。"
+      }
+    },
+    "res://data/definitions/spirit_sources.json": {
+      "version": 1,
+      "interaction_cells": 2,
+      "duration_ms": 120000,
+      "source_cost": 6,
+      "qi_gain": 4,
+      "charge_gain": 6,
+      "artifact_type": "warm_stone",
+      "sources": {
+        "hearth_seam": {
+          "label": "地火隙",
+          "region": "home",
+          "place": "kitchen",
+          "phase": "fire",
+          "capacity": 24,
+          "initial": 12,
+          "deep_supply": 120,
+          "refill_ms": 600000,
+          "refill_amount": 1,
+          "description": "灶旁岩隙间偶有温息透出；须借完整温石循纹导引，源息也有枯竭之时。"
+        }
+      }
+    },
+    "res://data/definitions/standing_work.json": {
+      "version": 1,
+      "policy": {
+        "bias": 0.0,
+        "accept_threshold": 0.35,
+        "uncertainty_band": 0.03,
+        "context_step": 0.05,
+        "weights": {
+          "energy": 0.2,
+          "busy": -1.0,
+          "distance": -0.1,
+          "risk": -0.3,
+          "duty": 0.2,
+          "offer": 0.0,
+          "benevolence": 0.3,
+          "reliability": 0.15,
+          "affinity": 0.3
+        }
+      },
+      "plans": {
+        "kitchen_wood": {
+          "label": "照看灶房柴火（两时辰内）",
+          "duty": "deliver_wood",
+          "place": "kitchen",
+          "minutes": 240
+        },
+        "kitchen_water": {
+          "label": "照看灶房用水（两时辰内）",
+          "duty": "deliver_water",
+          "place": "kitchen",
+          "minutes": 240
+        }
+      }
+    },
+    "res://data/definitions/stock_information_policy.json": {
+      "version": 1,
+      "direct_protection_minutes": 20,
+      "memory_lifetime_minutes": 120,
+      "minimum_source_reliability": 0.35,
+      "repeat_statement_minutes": 30
+    },
+    "res://data/definitions/weather.json": {
+      "version": 1,
+      "phases": [
+        {
+          "kind": "clear",
+          "duration_ms": 1200000
+        },
+        {
+          "kind": "rain",
+          "duration_ms": 600000
+        },
+        {
+          "kind": "clear",
+          "duration_ms": 1800000
+        },
+        {
+          "kind": "rain",
+          "duration_ms": 900000
+        }
+      ],
+      "regions": {
+        "home": {
+          "offset_ms": 0
+        },
+        "river": {
+          "offset_ms": 300000
+        }
+      },
+      "wet_per_pulse": 12,
+      "dry_per_pulse": 5,
+      "wet_threshold": 30,
+      "wet_recovery": 1,
+      "rain_source_type": "spring",
+      "rain_source_per_pulse": 1
+    }
+  }
+}

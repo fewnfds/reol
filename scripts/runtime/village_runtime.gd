@@ -5,6 +5,7 @@ extends Node2D
 
 signal simulation_advanced
 signal body_state_changed
+signal content_replaced(content: ReolContentDB)
 
 const CONFIG_PATH: String = "res://data/scenarios/village.json"
 const SAVE_PATH: String = "user://village_save.json"
@@ -47,6 +48,8 @@ func setup(
 	_world = world
 	_player = player
 	_content = content
+	if not _world.map_data().configure_nature(content.natural_environment):
+		return false
 	if get_parent() != null:
 		_fog = get_parent().get_node_or_null("Fog") as FogOfWar
 	if _fog != null and not _fog.visibility_updated.is_connected(queue_redraw):
@@ -169,6 +172,12 @@ func snapshot_context() -> Dictionary:
 	return {"content": _content, "player": _player, "fog": _fog}
 
 
+func adopt_content(content: ReolContentDB) -> void:
+	# Called only at the successful session commit boundary. View state keeps its
+	# identity (HUD references it) and rebinds definitions in _sync_needs below.
+	_content = content
+
+
 func valid_snapshot(snapshot: Dictionary, candidate_map: WorldMapData = null) -> bool:
 	return _valid_snapshot(snapshot, candidate_map)
 
@@ -195,6 +204,7 @@ func save_game(path: String = SAVE_PATH) -> Error:
 	_sync_player_cell()
 	var snapshot: Dictionary = _snapshot_json_value({
 		"schema_version": SAVE_VERSION,
+		"content_bundle": _content.content_bundle(),
 		"avatar_subject": "subject:player",
 		"world_seed": ReolWorld.WORLD_SEED,
 		"world": SessionSaveSchema.capture_world(_fog, _player.cell),
@@ -224,13 +234,18 @@ func load_game(path: String = SAVE_PATH) -> Error:
 	var raw_snapshot: Variant = loaded.get("data")
 	if not raw_snapshot is Dictionary:
 		return _load_failed("近况文件格式不正确。")
-	var snapshot: Dictionary = SessionSaveSchema.upgrade(raw_snapshot, _content)
+	var snapshot: Dictionary = SessionSaveSchema.upgrade(raw_snapshot)
+	var content := ReolContentDB.new()
+	if not content.load_bundle(snapshot.get("content_bundle")):
+		return _load_failed("近况里的内容定义不完整。")
 	var candidate_map: WorldMapData = _world.map_data().independent_copy()
+	if not candidate_map.configure_nature(content.natural_environment):
+		return _load_failed("近况里的自然地表定义不正确。")
 	if not _valid_snapshot(snapshot, candidate_map):
 		return _load_failed("这份近况不适用于当前山门。")
 	# Validate into a separate simulation so failed loads leave the live state intact.
 	var restored := VillageSimulation.new()
-	if not restored.initialize(_content, _config, _actor_cells(), _places):
+	if not restored.initialize(content, _config, _actor_cells(), _places):
 		return _load_failed("无法准备读取近况。")
 	if not restored.restore(snapshot["simulation"]) or not _matches_world(restored, candidate_map):
 		return _load_failed("近况里的行动或账目不完整。")
@@ -241,6 +256,7 @@ func load_game(path: String = SAVE_PATH) -> Error:
 	if not GameClock.restore_state(snapshot["clock"]):
 		return _load_failed("近况里的时间记录不正确。")
 	simulation = restored
+	adopt_content(content)
 	_world.bind_map_data(candidate_map)
 	simulation.set_navigation(_find_path, _world.can_step)
 	_places = simulation.places.duplicate(true)
@@ -258,6 +274,7 @@ func load_game(path: String = SAVE_PATH) -> Error:
 	_notice = "已回到记下近况的那一刻。"
 	_refresh_panel()
 	queue_redraw()
+	content_replaced.emit(content)
 	simulation_advanced.emit()
 	return OK
 
@@ -397,6 +414,8 @@ func _sync_actor_views(snap: bool) -> void:
 func _sync_needs(state: PawnState, actor: Dictionary) -> void:
 	if state == null:
 		return
+	state.pawn_def = _content.get_pawn(StringName(actor.definition_id))
+	state.origin = _content.get_origin(state.pawn_def.origin_id)
 	state.hunger = float(actor["hunger"])
 	state.energy = float(actor["energy"])
 	state.qi = int(actor["qi"])

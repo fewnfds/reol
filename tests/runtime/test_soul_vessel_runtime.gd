@@ -94,6 +94,7 @@ func _test_legacy_world_has_no_invented_ring(runner: Object) -> void:
 	runner.assert_true(not staged.is_empty(), "same scene can return to its current opening after an old ringless world")
 	var changed_version: Dictionary = new_opening.duplicate(true)
 	changed_version.schema_version = 11
+	changed_version.erase("content_bundle")
 	changed_version.continuity.world.version = 8
 	runner.assert_true(WorldSessionSnapshot.stage(runtime, changed_version).is_empty(), "a modern soul world cannot masquerade as old by changing two version tags")
 	main.free()

@@ -23,6 +23,48 @@ const WEATHER_PATH: String = "res://data/definitions/weather.json"
 const SERVICES_PATH: String = "res://data/definitions/settlement_services.json"
 const PERSONAL_FORAGING_PATH: String = "res://data/definitions/personal_foraging.json"
 
+# Format-v1 manifest. Adding a future document requires a new bundle version and
+# an explicit migration; never silently enlarge the required v1 path set.
+const DOCUMENT_PATHS: Array[String] = [
+	"res://data/definitions/artifacts.json",
+	"res://data/definitions/autonomous_livelihood.json",
+	"res://data/definitions/avian_life.json",
+	"res://data/definitions/body_forms.json",
+	"res://data/definitions/budgeted_labor.json",
+	"res://data/definitions/capability_conversation.json",
+	"res://data/definitions/capability_network.json",
+	"res://data/definitions/capability_practice.json",
+	"res://data/definitions/climate.json",
+	"res://data/definitions/clothing.json",
+	"res://data/definitions/conflicts.json",
+	"res://data/definitions/construction.json",
+	"res://data/definitions/field_opportunities.json",
+	"res://data/definitions/health.json",
+	"res://data/definitions/heat_methods.json",
+	"res://data/definitions/interaction_requests.json",
+	"res://data/definitions/land_resources.json",
+	"res://data/definitions/large_bodies.json",
+	"res://data/definitions/local_heat.json",
+	"res://data/definitions/method_records.json",
+	"res://data/definitions/natural_environment.json",
+	"res://data/definitions/origins.json",
+	"res://data/definitions/pawns.json",
+	"res://data/definitions/personal_foraging.json",
+	"res://data/definitions/personal_production.json",
+	"res://data/definitions/private_exchange.json",
+	"res://data/definitions/ranks.json",
+	"res://data/definitions/resting.json",
+	"res://data/definitions/settlement_services.json",
+	"res://data/definitions/site_affairs.json",
+	"res://data/definitions/social_admission.json",
+	"res://data/definitions/soul_vessels.json",
+	"res://data/definitions/source_care.json",
+	"res://data/definitions/spirit_sources.json",
+	"res://data/definitions/standing_work.json",
+	"res://data/definitions/stock_information_policy.json",
+	"res://data/definitions/weather.json",
+]
+
 var origins: Dictionary[StringName, OriginDef] = {}
 var ranks: Dictionary[StringName, RankDef] = {}
 var pawns: Dictionary[StringName, PawnDef] = {}
@@ -40,6 +82,7 @@ var construction: Dictionary = {}
 var resting: Dictionary = {}
 var weather: Dictionary = {}
 var local_trade: Dictionary = {}
+var settlement_services: Dictionary = {}
 var personal_foraging: Dictionary = {}
 var entrusted_returns: Dictionary = {}
 var standing_work: Dictionary = {}
@@ -64,7 +107,59 @@ var field_opportunities: Dictionary = {}
 var private_exchange: Dictionary = {}
 
 
+var _documents: Dictionary = {}
+var _bundle: Dictionary = {}
+var _loaded: bool = false
+
+
 func load_all() -> bool:
+	# A live session must never be reloaded in place. Build a fresh candidate DB.
+	if _loaded:
+		errors.assign(["ContentDB is already loaded; create an independent candidate"])
+		return false
+	errors.clear()
+	var documents: Dictionary = {}
+	for path: String in DOCUMENT_PATHS:
+		var value: Variant = _read_file(path)
+		if value == null:
+			return false
+		documents[path] = value
+	return load_bundle(ReolContentBundle.from_documents(documents))
+
+
+func load_bundle(bundle: Variant) -> bool:
+	if _loaded:
+		errors.assign(["ContentDB is already loaded; create an independent candidate"])
+		return false
+	errors.clear()
+	if not ReolContentBundle.is_valid(bundle, DOCUMENT_PATHS):
+		errors.append("Invalid or incomplete content bundle")
+		return false
+	_documents = bundle.documents.duplicate(true)
+	_loaded = _load_definitions()
+	if not _loaded:
+		_documents.clear()
+	else:
+		_bundle = bundle.duplicate(true)
+	return _loaded
+
+
+func content_bundle() -> Dictionary:
+	return _bundle.duplicate(true)
+
+
+static func legacy_v42() -> ReolContentDB:
+	# Historical saves did not record their definitions. Bind them to the explicit
+	# last v42 repository baseline, never to templates edited after that baseline.
+	var path: String = "res://data/compatibility/content_db_v42.json"
+	var source: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if not source is Dictionary or source.get("version") != 1 or not source.get("documents") is Dictionary:
+		return null
+	var content := ReolContentDB.new()
+	return content if content.load_bundle(ReolContentBundle.from_documents(source.documents)) else null
+
+
+func _load_definitions() -> bool:
 	origins.clear()
 	ranks.clear()
 	pawns.clear()
@@ -82,6 +177,7 @@ func load_all() -> bool:
 	resting = {}
 	weather = {}
 	local_trade = {}
+	settlement_services = {}
 	personal_foraging = {}
 	entrusted_returns = {}
 	standing_work = {}
@@ -215,6 +311,7 @@ func load_all() -> bool:
 	else:
 		_error("standing_work.json: invalid cooperative work plans")
 	if service_rules is Dictionary and preload("res://scripts/sim/services/local_trade.gd").valid_definitions(service_rules.get("trade")):
+		settlement_services = service_rules.duplicate(true)
 		local_trade = service_rules.trade.duplicate(true)
 		if service_rules.get("returns") is Dictionary:
 			entrusted_returns = service_rules.returns.duplicate(true)
@@ -412,6 +509,11 @@ func _load_pawns() -> void:
 
 
 func _read_json(path: String) -> Variant:
+	# No filesystem fallback: injected packs must be complete and self contained.
+	return _documents.get(path)
+
+
+func _read_file(path: String) -> Variant:
 	if not FileAccess.file_exists(path):
 		_error("missing data file: %s" % path)
 		return null

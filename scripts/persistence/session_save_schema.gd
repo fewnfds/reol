@@ -2,7 +2,7 @@ class_name SessionSaveSchema
 extends RefCounted
 ## Explicit migrations at the session boundary. No file I/O or live mutations.
 
-const VERSION: int = 42
+const VERSION: int = 43
 
 
 static func capture_world(fog: FogOfWar, focus: Vector2i) -> Dictionary:
@@ -14,7 +14,19 @@ static func capture_world(fog: FogOfWar, focus: Vector2i) -> Dictionary:
 	return state
 
 
-static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictionary:
+static func upgrade(source: Dictionary, _content: ReolContentDB = null) -> Dictionary:
+	# A pre-bundle archive cannot prove which external templates it originally
+	# used. All legacy migrations use the recorded v42 compatibility baseline.
+	# Modern archives must be complete; no missing-pack fallback is permitted.
+	if source.get("schema_version") == VERSION:
+		return _upgrade(source, null)
+	if source.has("content_bundle"):
+		return {}
+	var content: ReolContentDB = ReolContentDB.legacy_v42()
+	return {} if content == null else _upgrade(source, content)
+
+
+static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 	var version: Variant = source.get("schema_version")
 	if not (version is int or version is float) or not is_finite(float(version)):
 		return {}
@@ -26,6 +38,15 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			if not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION:
 				return {}
 		return source if is_valid_world(source) else {}
+	if version == 42:
+		if not _valid_world_fields(source, 42) or source.has("content_bundle") or content == null:
+			return {}
+		if source.has("continuity") and (not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION):
+			return {}
+		var updated: Dictionary = source.duplicate(true)
+		updated["content_bundle"] = content.content_bundle()
+		updated.schema_version = VERSION
+		return _upgrade(updated, content)
 	if version == 41:
 		if not _valid_world_fields(source, 41):
 			return {}
@@ -37,7 +58,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			if updated.continuity.world.is_empty():
 				return {}
 		updated.schema_version = 42
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 40:
 		if not _valid_world_fields(source, 40):
 			return {}
@@ -49,7 +70,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			if updated.continuity.world.is_empty():
 				return {}
 		updated.schema_version = 41
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 39:
 		if not _valid_world_fields(source, 39):
 			return {}
@@ -61,7 +82,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			if updated.continuity.world.is_empty():
 				return {}
 		updated.schema_version = 40
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 38:
 		if not _valid_world_fields(source, 38):
 			return {}
@@ -73,7 +94,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			if updated.continuity.world.is_empty():
 				return {}
 		updated.schema_version = 39
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 37:
 		if not _valid_world_fields(source, 37):
 			return {}
@@ -85,7 +106,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			if updated.continuity.world.is_empty():
 				return {}
 		updated.schema_version = 38
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 36:
 		if not _valid_world_fields(source, 36):
 			return {}
@@ -97,7 +118,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			if updated.continuity.world.is_empty():
 				return {}
 		updated.schema_version = 37
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 35:
 		if not _valid_world_fields(source, 35):
 			return {}
@@ -109,7 +130,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			if updated.continuity.world.is_empty():
 				return {}
 		updated.schema_version = 36
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 34:
 		if not _valid_world_fields(source, 34):
 			return {}
@@ -121,7 +142,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			if updated.continuity.world.is_empty():
 				return {}
 		updated.schema_version = 35
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 33:
 		if not _valid_world_fields(source, 33) or content == null:
 			return {}
@@ -141,7 +162,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			regional["spirit_sources"] = legacy_sources
 			regional.version = 30
 		updated.schema_version = 34
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 32:
 		return _upgrade_herb_ecology(source, content)
 	if version == 31:
@@ -164,7 +185,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 				"activation_ms": int(regional.elapsed_ms), "last_pulse_ms": int(regional.elapsed_ms), "samples": {}}
 			regional.version = 27
 		updated.schema_version = 30
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 28:
 		if not _valid_world_fields(source, 28):
 			return {}
@@ -178,7 +199,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			regional["health"] = {"version": 1, "source_floor": int(regional.artifacts.next_id), "next_id": 1, "wounds": {}, "jobs": {}}
 			regional.version = 26
 		updated.schema_version = 29
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 27:
 		if not _valid_world_fields(source, 27):
 			return {}
@@ -189,7 +210,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			updated.continuity.world["clothing"] = SimClothing.empty_state()
 			updated.continuity.world.version = 25
 		updated.schema_version = 28
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 26:
 		if not _valid_world_fields(source, 26) or content == null:
 			return {}
@@ -208,7 +229,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			regional["autonomous_livelihood"] = SimAutonomousLivelihood.empty_state()
 			regional.version = 24
 		updated.schema_version = 27
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 25:
 		if not _valid_world_fields(source, 25):
 			return {}
@@ -224,7 +245,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 					return {}
 				regional.services.version = 5
 		updated.schema_version = 26
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 24:
 		if not _valid_world_fields(source, 24) or content == null:
 			return {}
@@ -247,7 +268,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 				service.definitions.trade.offers["sell_dried_herb"] = offer.duplicate(true)
 			regional.version = 22
 		updated.schema_version = 25
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 23:
 		if not _valid_world_fields(source, 23):
 			return {}
@@ -258,7 +279,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			updated.continuity.world["large_bodies"] = SimLargeBodies.empty_state(int(updated.continuity.world.elapsed_ms))
 			updated.continuity.world.version = 21
 		updated.schema_version = 24
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 22:
 		if not _valid_world_fields(source, 22):
 			return {}
@@ -269,7 +290,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			updated.continuity.world["method_records"] = SimMethodRecords.empty_state()
 			updated.continuity.world.version = 20
 		updated.schema_version = 23
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 21:
 		if not _valid_world_fields(source, 21):
 			return {}
@@ -280,7 +301,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			updated.continuity.world["standing_work"] = SimStandingWork.empty_state()
 			updated.continuity.world.version = 19
 		updated.schema_version = 22
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 20:
 		return _upgrade_entrusted_goods(source, content)
 	if version == 19:
@@ -299,7 +320,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			updated.continuity.world["resting"] = SimResting.empty_state()
 			updated.continuity.world["version"] = 14
 		updated["schema_version"] = 17
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 15:
 		if not _valid_world_fields(source, 15):
 			return {}
@@ -311,7 +332,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			updated.continuity.world.construction.version = 1
 			updated.continuity.world["version"] = 13
 		updated["schema_version"] = 16
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 14:
 		if not _valid_world_fields(source, 14):
 			return {}
@@ -323,7 +344,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			updated.continuity.world["version"] = 12
 			updated.continuity.world.artifacts["version"] = 4
 		updated["schema_version"] = 15
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 13:
 		if not _valid_world_fields(source, 13) or content == null:
 			return {}
@@ -334,7 +355,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			updated.continuity.world["version"] = 11
 			updated.continuity.world["admissions"] = SimSocialAdmission.empty_state(int(content.social_admission.seed))
 		updated["schema_version"] = 14
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 12:
 		if not _valid_world_fields(source, 12):
 			return {}
@@ -349,7 +370,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			souls["agency"] = SimSoulAgency.empty_state()
 			updated.continuity.world["version"] = 10
 		updated["schema_version"] = 13
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 11:
 		if not _valid_world_fields(source, 11):
 			return {}
@@ -362,7 +383,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			updated.continuity.world.soul_vessels.version = 1
 			updated.continuity.world.soul_vessels.erase("agency")
 		updated["schema_version"] = 12
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 10:
 		return _upgrade_resources(source, content)
 	if version == 9:
@@ -391,14 +412,14 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			artifacts["version"] = 3
 			updated.continuity.world["version"] = 7
 		updated["schema_version"] = 10
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 8:
 		if not _valid_world_fields(source, 8) or source.has("avatar_subject"):
 			return {}
 		var updated: Dictionary = source.duplicate(true)
 		updated["avatar_subject"] = "subject:player"
 		updated["schema_version"] = 9
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 7:
 		if not _valid_world_fields(source, 7):
 			return {}
@@ -409,7 +430,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			updated.continuity.world["version"] = 6
 			updated.continuity.world["avian_life"] = SimAvianLife.empty_state(int(updated.continuity.world.elapsed_ms))
 		updated["schema_version"] = 8
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version == 6:
 		if not _valid_world_fields(source, 6):
 			return {}
@@ -420,7 +441,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			updated.continuity.world["version"] = 5
 			updated.continuity.world["sparring"] = SimSparring.empty_state()
 		updated["schema_version"] = 7
-		return upgrade(updated, content)
+		return _upgrade(updated, content)
 	if version != 1 and version != 2 and version != 3 and version != 4 and version != 5:
 		return {}
 	var migrated: Dictionary = source.duplicate(true)
@@ -572,7 +593,7 @@ static func upgrade(source: Dictionary, content: ReolContentDB = null) -> Dictio
 			SimRouteTravel.begin_segment(journey, regional.regions.home.actors.player, now, float(rules.motion.speed))
 			journey.erase("remaining")
 	migrated["schema_version"] = 6
-	return upgrade(migrated, content)
+	return _upgrade(migrated, content)
 
 
 static func _upgrade_resources(source: Dictionary, content: ReolContentDB) -> Dictionary:
@@ -606,7 +627,7 @@ static func _upgrade_resources(source: Dictionary, content: ReolContentDB) -> Di
 		updated.simulation["version"] = 3
 		updated.simulation["land_resources"] = {"version": 1, "sources": {}}
 	updated["schema_version"] = 11
-	return upgrade(updated, content)
+	return _upgrade(updated, content)
 
 
 static func _upgrade_herb_ecology(source: Dictionary, content: ReolContentDB) -> Dictionary:
@@ -634,7 +655,7 @@ static func _upgrade_herb_ecology(source: Dictionary, content: ReolContentDB) ->
 		if not _activate_herb_ecology(updated.get("simulation"), content, {}, {}):
 			return {}
 	updated.schema_version = 33
-	return upgrade(updated, content)
+	return _upgrade(updated, content)
 
 
 static func _activate_herb_ecology(sim: Variant, content: ReolContentDB, weather: Dictionary, heat: Dictionary) -> bool:
@@ -698,7 +719,7 @@ static func _upgrade_local_heat(source: Dictionary, content: ReolContentDB) -> D
 		regional["local_heat"] = SimLocalHeat.empty_state(int(regional.elapsed_ms))
 		regional.version = 28
 	updated.schema_version = 32
-	return upgrade(updated, content)
+	return _upgrade(updated, content)
 
 
 static func _upgrade_body_facing(source: Dictionary, content: ReolContentDB) -> Dictionary:
@@ -733,7 +754,7 @@ static func _upgrade_body_facing(source: Dictionary, content: ReolContentDB) -> 
 			return {}
 		updated.simulation.actors.player.facing = raw.duplicate()
 	updated.schema_version = 31
-	return upgrade(updated, content)
+	return _upgrade(updated, content)
 
 
 static func _add_body_facing(sim: Variant) -> bool:
@@ -772,7 +793,7 @@ static func _upgrade_weather(source: Dictionary, content: ReolContentDB) -> Dict
 			if not _upgrade_rain_source(region):
 				return {}
 	updated.schema_version = 18
-	return upgrade(updated, content)
+	return _upgrade(updated, content)
 
 
 static func _upgrade_trade(source: Dictionary, content: ReolContentDB) -> Dictionary:
@@ -793,7 +814,7 @@ static func _upgrade_trade(source: Dictionary, content: ReolContentDB) -> Dictio
 			service.version = 3
 		regional.version = 16
 	updated.schema_version = 19
-	return upgrade(updated, content)
+	return _upgrade(updated, content)
 
 
 static func _upgrade_personal_foraging(source: Dictionary, content: ReolContentDB) -> Dictionary:
@@ -813,7 +834,7 @@ static func _upgrade_personal_foraging(source: Dictionary, content: ReolContentD
 				return {}
 		regional.version = 17
 	updated.schema_version = 20
-	return upgrade(updated, content)
+	return _upgrade(updated, content)
 
 
 static func _upgrade_entrusted_goods(source: Dictionary, content: ReolContentDB) -> Dictionary:
@@ -860,7 +881,7 @@ static func _upgrade_entrusted_goods(source: Dictionary, content: ReolContentDB)
 		updated.simulation.inventory = regional.regions.home.inventory.duplicate(true)
 		regional.version = 18
 	updated.schema_version = 21
-	return upgrade(updated, content)
+	return _upgrade(updated, content)
 
 
 static func _upgrade_rain_source(sim: Variant) -> bool:
@@ -879,6 +900,8 @@ static func _upgrade_rain_source(sim: Variant) -> bool:
 
 static func _valid_world_fields(snapshot: Dictionary, expected_version: int) -> bool:
 	if snapshot.get("schema_version") != expected_version or snapshot.get("world_seed") != ReolWorld.WORLD_SEED:
+		return false
+	if expected_version >= 43 and not ReolContentBundle.is_valid(snapshot.get("content_bundle"), ReolContentDB.DOCUMENT_PATHS):
 		return false
 	if expected_version >= 9 and not SimInventory._nonempty(snapshot.get("avatar_subject")):
 		return false

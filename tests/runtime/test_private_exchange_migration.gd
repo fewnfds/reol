@@ -39,11 +39,14 @@ func run(runner: Object) -> void:
 		runner.assert_eq(int(upgraded.continuity.world.artifacts.version), SimArtifacts.VERSION, "old artifact envelope advances explicitly")
 		runner.assert_eq(_json(upgraded.continuity.world.private_exchange), _json(SimPrivateExchange.empty_state()), "migration adds no proposal, consent, occupation, payment or transfer")
 		var projected: Dictionary = upgraded.duplicate(true)
+		# The root now explicitly records the frozen v42 definitions. Remove only
+		# that new envelope field when comparing all original v41 facts.
+		projected.erase("content_bundle")
 		projected.continuity.world.erase("private_exchange")
 		projected.schema_version = source.schema_version
 		projected.continuity.world.version = source.continuity.world.version
 		projected.continuity.world.artifacts.version = source.continuity.world.artifacts.version
-		runner.assert_eq(_json(projected), original, "after only the explicit new domain and envelopes, every original session field remains unchanged: " + name)
+		runner.assert_eq(_json(projected), original, "after projecting the explicit new content/domain envelopes, every original session field remains unchanged: " + name)
 		runner.assert_eq(_json(source), original, "pure migration never repairs or modifies its input")
 		var loaded: Error = runtime.load_game(ProjectSettings.globalize_path(source_path))
 		runner.assert_eq(loaded, OK, "ordinary loader accepts the actual in-flight v41 source: " + name)

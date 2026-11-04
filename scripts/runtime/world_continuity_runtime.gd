@@ -113,7 +113,7 @@ func setup(home: VillageRuntime, opening_source_loan: bool = false, opening_sour
 		return false
 	world_sim.bind_map_data(home._world.map_data())
 	home.continuity = self
-	var service_definitions: Variant = JSON.parse_string(FileAccess.get_file_as_string(SettlementServicesRuntime.DEFINITIONS_PATH))
+	var service_definitions: Dictionary = home._content.settlement_services
 	if not service_definitions is Dictionary or not world_sim.configure_services(service_definitions):
 		push_error("World continuity: service definitions rejected")
 		return false
@@ -1143,6 +1143,7 @@ func load_game(path: String) -> Error:
 	var extra: Dictionary = snapshot.continuity
 	# All validation is complete before changing any live world or clock state.
 	world_sim = staged.world
+	_home.adopt_content(staged.content)
 	avatar_subject = str(snapshot.avatar_subject)
 	_opening_selection_available = false
 	_bind_navigation()
@@ -1180,6 +1181,7 @@ func load_game(path: String) -> Error:
 	avatar_changed.emit()
 	if interaction_adapter != null:
 		interaction_adapter.receive_current_care_alerts()
+	_home.content_replaced.emit(_home._content)
 	return OK
 
 

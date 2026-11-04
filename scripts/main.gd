@@ -83,6 +83,7 @@ func _ready() -> void:
 	_continuity.resident_selected.connect(_select_pawn)
 	_village.simulation_advanced.connect(_refresh_interaction)
 	_village.body_state_changed.connect(hud.refresh_body)
+	_village.content_replaced.connect(_on_content_replaced)
 	player.cell_changed.connect(_refresh_interaction)
 	hud.help_requested.connect(_request_selected_help)
 	_select_player()
@@ -90,6 +91,10 @@ func _ready() -> void:
 	_avatar.name = "PlayerAvatarRuntime"
 	add_child(_avatar)
 	_avatar.setup(self, _continuity)
+
+
+func _on_content_replaced(content: ReolContentDB) -> void:
+	_content = content
 
 
 func _on_travel_advanced(position_value: Vector2) -> void:

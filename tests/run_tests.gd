@@ -97,6 +97,10 @@ func test_snapshot_values() -> void:
 	load("res://tests/runtime/test_snapshot_values.gd").new().run(self)
 
 
+func test_content_bundle() -> void:
+	load("res://tests/runtime/test_content_bundle.gd").new().run(self)
+
+
 func test_weapon_items() -> void:
 	load("res://tests/sim/test_weapon_items.gd").new().run(self)
 
