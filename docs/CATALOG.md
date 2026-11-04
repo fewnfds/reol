@@ -13,10 +13,10 @@
 | 领域概念与规则 | 18 |
 | 核心入口与工具 | 29 |
 | 历史全文：archive | 75 |
-| 实施规格与计划 | 65 |
+| 实施规格与计划 | 66 |
 | 历史验收与调查 | 49 |
 
-合计：363份Markdown。
+合计：364份Markdown。
 
 ## 技能与附带参考：按任务加载
 
@@ -341,6 +341,7 @@
 - [docs/plans/source_loan.md](plans/source_loan.md)
 - [docs/plans/sparring_sample.md](plans/sparring_sample.md)
 - [docs/plans/standing_work.md](plans/standing_work.md)
+- [docs/plans/thermal_field_upgrade.md](plans/thermal_field_upgrade.md)
 - [docs/plans/transcendent_conflict.md](plans/transcendent_conflict.md)
 - [docs/plans/transcendent_focus.md](plans/transcendent_focus.md)
 - [docs/plans/transcendent_stakes.md](plans/transcendent_stakes.md)

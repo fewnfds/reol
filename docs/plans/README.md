@@ -1,6 +1,6 @@
 # 开发计划索引
 
-本目录的文件是计划、领域规格、工作包和历史记录；目录中的旧时态、测试数或“下一包”不覆盖当前状态。2026-11-04用户已暂停世界引擎Goal；不自动恢复游戏实施。
+本目录的文件是计划、领域规格、工作包和历史记录；目录中的旧时态、测试数或“下一包”不覆盖当前状态。当前授权与暂停状态只查HANDOFF。
 
 读取顺序：先[HANDOFF](../HANDOFF.md)确认授权和停点，再按下表选唯一所需文档；[FEATURES](../FEATURES.md)描述当前可玩范围，[BASELINE](../BASELINE.md)管理构建与验证证据，[ARCHITECTURE](../ARCHITECTURE.md)管理当前状态所有者。实际代码/测试与计划不一致时，先辨别已提交基线和未验收工作。
 
@@ -8,11 +8,12 @@
 
 ## 当前执行与环境方案
 
-用户已暂停世界引擎Goal；恢复授权后按执行记录继续。规划是目标，未验收的A0a不算完成。
+按执行记录区分设计、实现和对应SHA验收；规划本身不代表完成。
 
 - [world_engine_execution](world_engine_execution.md)：当前工作包、暂停停点、Git与压力测试预算。
 - [world_engine_program](world_engine_program.md)：世界运行与创作工具总架构。
 - [world_engine_foundation](world_engine_foundation.md)：平面空间、地理与冷热/光/灵机传播分项。
+- [thermal_field_upgrade](thermal_field_upgrade.md)：原热场分包升级、能量与来源合同、有限兼容及回收误差候选，尚未实现。
 - [world_environment](world_environment.md)：天气、温度、五相、风水长期模型；其中高差为后续选项。
 
 ## 长期目标与未决/暂缓
