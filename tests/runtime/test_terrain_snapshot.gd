@@ -97,7 +97,7 @@ func _test_joint_session(runner: Object, path: String, bad_path: String) -> void
 		return
 	var blank: Dictionary = WorldSessionSnapshot.capture(runtime)
 	runner.assert_true(blank.world.terrain_overrides.is_empty(), "fresh unedited opening starts with no sparse terrain")
-	_assert_v45_boundary(runner, runtime, blank, bad_path)
+	_assert_v45_boundary(runner, runtime, bad_path)
 	loaded = runtime.load_game(path)
 	runner.assert_eq(loaded, OK, "fresh scene loads the edited session through the normal loader")
 	if loaded == OK:
@@ -118,31 +118,41 @@ func _assert_joint_state(runner: Object, main: Node, saved: Dictionary, expected
 	runner.assert_true(_json(WorldSessionSnapshot.capture(runtime)) == expected, label + " preserves the complete saved bodies, activity, ownership and world")
 
 
-func _assert_v45_boundary(runner: Object, runtime: WorldContinuityRuntime, blank: Dictionary, bad_path: String) -> void:
-	# Synthetic conversion retains the v45 -> v46 terrain boundary before the
-	# later artifact-version migration; it is not a genuine historical archive.
-	var source: Dictionary = blank.duplicate(true)
+func _assert_v45_boundary(runner: Object, runtime: WorldContinuityRuntime, bad_path: String) -> void:
+	# Construct the old envelope only from a genuine v1 thermal archive. Do not
+	# project a new fixed-Q world back into a fictitious historical field.
+	var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(LEGACY))
+	var content: ReolContentDB = ReolContentDB.legacy_v42()
+	if not raw is Dictionary or content == null:
+		runner.assert_true(false, "the historical terrain archive and compatibility bundle are available")
+		return
+	var old: Dictionary = SessionSaveSchema._upgrade(raw, content)
+	if old.is_empty():
+		runner.assert_true(false, "the historical terrain archive reaches the old v47 boundary")
+		return
+	var source: Dictionary = old.duplicate(true)
 	source.schema_version = 45
 	source.world.erase("terrain_overrides")
 	_project_regional_38(source)
 	var before: String = _json(source)
+	runner.assert_eq(_json(SessionSaveSchema._upgrade(source, null)), _json(old), "v45 restores the same old v47 envelope and original thermal history")
 	var upgraded: Dictionary = SessionSaveSchema.upgrade(source)
-	runner.assert_true(not upgraded.is_empty(), "synthetic v45 format without terrain delta upgrades")
+	runner.assert_true(not upgraded.is_empty(), "the genuine v1 state in a v45 format without terrain delta upgrades")
 	if not upgraded.is_empty():
-		runner.assert_true(_json(upgraded) == _json(blank), "v45 upgrade restores the current terrain and artifact envelopes without changing saved facts")
 		var write: Error = SimSaveStore.save_file(bad_path, source)
 		runner.assert_eq(write, OK, "synthetic v45 envelope is written through the ordinary store")
 		if write == OK:
 			var loaded: Error = runtime.load_game(bad_path)
 			runner.assert_eq(loaded, OK, "ordinary loader accepts the v45 empty-terrain format")
 			if loaded == OK:
-				runner.assert_true(_json(WorldSessionSnapshot.capture(runtime)) == _json(blank), "ordinary v45 load preserves the complete unchanged session")
+				runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), _json(upgraded), "ordinary v45 load publishes the same independently upgraded session")
 	runner.assert_true(_json(source) == before, "format migration does not mutate its input")
 	var v46: Dictionary = source.duplicate(true)
 	v46.schema_version = 46
 	v46.world["terrain_overrides"] = []
+	runner.assert_eq(_json(SessionSaveSchema._upgrade(v46, null)), _json(old), "the v46 terrain envelope retains the original v47 facts")
 	var v46_upgraded: Dictionary = SessionSaveSchema.upgrade(v46)
-	runner.assert_true(not v46_upgraded.is_empty() and _json(v46_upgraded) == _json(blank), "the explicit v46 terrain envelope also advances to the current session")
+	runner.assert_true(not v46_upgraded.is_empty() and _json(v46_upgraded) == _json(upgraded), "the explicit v46 terrain envelope also advances to the same current session")
 	var missing_v46_terrain: Dictionary = v46.duplicate(true)
 	missing_v46_terrain.world.erase("terrain_overrides")
 	runner.assert_true(SessionSaveSchema.upgrade(missing_v46_terrain).is_empty(), "v46 still requires its terrain field before later migrations")
@@ -152,7 +162,7 @@ func _assert_v45_boundary(runner: Object, runtime: WorldContinuityRuntime, blank
 
 
 func _project_regional_38(snapshot: Dictionary) -> void:
-	# Only a temporary current snapshot is projected; genuine archives are read-only.
+	# Only the v47 envelope around a genuine v1 field is projected.
 	var regional: Dictionary = snapshot.continuity.world
 	regional.version = 38
 	regional.artifacts.version = 6

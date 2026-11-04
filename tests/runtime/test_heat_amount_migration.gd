@@ -1,6 +1,6 @@
 extends RefCounted
-## Genuine unfinished source plus explicitly labelled synthetic v43-v46 envelopes.
-## No thermal law, body sample, frozen content or original fixture is rewritten.
+## Genuine unfinished v1 source carried through labelled v43-v47 envelopes.
+## Never project a new fixed-Q state back into a fictitious old thermal field.
 
 const ARCHIVE: String = "res://tests/fixtures/session_v32.json"
 const SHA: String = "a804cc0707f0e1be89372868bbdb58dc4544b4b1aa4e296a00dd999c185cd88a"
@@ -16,23 +16,60 @@ func run(runner: Object) -> void:
 	var loaded: Error = runtime.load_game(ProjectSettings.globalize_path(ARCHIVE))
 	runner.assert_eq(loaded, OK, "genuine v32 held-stone source enters the one current runtime")
 	if loaded == OK:
-		_exercise(runner, runtime)
+		_exercise(runner, runtime, bytes)
 	runner.assert_eq(FileAccess.get_sha256(ARCHIVE), SHA, "source amount migration retains independently recorded original fixture SHA")
 	runner.assert_eq(FileAccess.get_file_as_string(ARCHIVE), bytes, "conversion and rejection never rewrite original fixture bytes")
 	main.free()
 	GameClock.restore_state(prior)
-	print("SCENARIO heat amount migration: genuine in-flight archive, explicit v43-v46 envelopes, receipt-derived transfer amounts, frozen bundle and unchanged bodies/energy, strict current format and atomic failure")
+	print("SCENARIO heat amount migration: genuine in-flight v1 archive, explicit v43-v47 envelopes, actual resumed source and receipt, strict current format and atomic failure")
 
 
-func _exercise(runner: Object, runtime: WorldContinuityRuntime) -> void:
+func _exercise(runner: Object, runtime: WorldContinuityRuntime, bytes: String) -> void:
 	var pending: Dictionary = WorldSessionSnapshot.capture(runtime)
 	runner.assert_eq(int(pending.schema_version), SessionSaveSchema.VERSION, "in-flight archive writes only the current root")
 	runner.assert_eq(int(pending.continuity.world.artifacts.version), SimArtifacts.VERSION, "in-flight archive writes only the current artifact format")
-	var pending_legacy: Dictionary = _legacy(pending, 46)
-	var pending_candidate: Dictionary = WorldSessionSnapshot.stage(runtime, pending_legacy)
-	runner.assert_true(not pending_candidate.is_empty(), "a legacy unfinished operation stages before it has a heat amount")
+	var source: Variant = JSON.parse_string(bytes)
+	var content: ReolContentDB = ReolContentDB.legacy_v42()
+	if not source is Dictionary or content == null:
+		runner.assert_true(false, "the genuine v32 and recorded compatibility definitions are available")
+		return
+	var historical: Dictionary = SessionSaveSchema._upgrade(source, content)
+	if historical.is_empty():
+		runner.assert_true(false, "the genuine v32 reaches the old v47 envelope")
+		return
+	var old_heat: Dictionary = historical.continuity.world.local_heat
+	runner.assert_eq(int(old_heat.version), 1, "the historical boundary retains the original v1 heat state")
+	runner.assert_true(old_heat.receipts.is_empty() and old_heat.cells.is_empty(), "the archived warming action has not yet deposited a source")
+	var pending_candidate: Dictionary = {}
+	var converted: Dictionary = {}
+	for version: int in [43, 44, 45, 46, 47]:
+		var legacy: Dictionary = _legacy(historical, version)
+		var before: String = _json(legacy)
+		runner.assert_eq(_json(SessionSaveSchema._upgrade(legacy, null)), _json(historical), "v%d envelope returns to the identical old v47 state" % version)
+		var staged: Dictionary = WorldSessionSnapshot.stage(runtime, legacy)
+		runner.assert_true(not staged.is_empty(), "v%d unfinished source passes independent v1 and v2 candidate validation" % version)
+		runner.assert_eq(_json(legacy), before, "v%d conversion never mutates its input" % version)
+		if staged.is_empty():
+			continue
+		if pending_candidate.is_empty():
+			pending_candidate = staged
+			converted = staged.snapshot
+		else:
+			runner.assert_eq(_json(staged.snapshot), _json(converted), "v%d imports the same complete pending world" % version)
 	if pending_candidate.is_empty():
 		return
+	runner.assert_eq(_json(converted.continuity.world.artifacts.active), _json(historical.continuity.world.artifacts.active), "import retains the original unfinished action and its actual due time")
+	runner.assert_eq(_json(converted.continuity.world.environment.samples), _json(historical.continuity.world.environment.samples), "import preserves the sampled body temperatures and exposure history")
+	runner.assert_eq(_json(converted.simulation.actors), _json(historical.simulation.actors), "import preserves the original bodies")
+	runner.assert_eq(_json(converted.simulation.inventory), _json(historical.simulation.inventory), "import preserves the original inventory and ledger")
+	runner.assert_eq(converted.continuity.world.local_heat.last_sample_mode, "legacy_excess", "the old sampled heat keeps its explicit legacy interpretation")
+	runner.assert_eq(int(converted.continuity.world.local_heat.version), 2, "the accepted live field has the current version")
+	var heat_path: String = "res://data/definitions/local_heat.json"
+	for path: String in historical.content_bundle.documents:
+		if path != heat_path:
+			runner.assert_eq(_json(converted.content_bundle.documents[path]), _json(historical.content_bundle.documents[path]), "thermal import preserves the archived non-heat document " + path)
+	runner.assert_eq(int(historical.content_bundle.documents[heat_path].version), 1, "the archived heat definition remains v1")
+	runner.assert_eq(int(converted.content_bundle.documents[heat_path].version), 2, "the imported heat definition is explicitly v2")
 	GameClock.advance_msec(840050 - GameClock.elapsed_ms)
 	var current: Dictionary = WorldSessionSnapshot.capture(runtime)
 	var heat: Dictionary = current.continuity.world.local_heat
@@ -46,25 +83,12 @@ func _exercise(runner: Object, runtime: WorldContinuityRuntime) -> void:
 		return
 	var event: Dictionary = current.continuity.world.artifacts.events[event_index]
 	runner.assert_eq(event.heat_amount, heat.receipts[action].amount, "completed artifact event stores the actual accepted amount")
-	for version: int in [43, 44, 45, 46]:
-		var source: Dictionary = _legacy(current, version)
-		var before: String = _json(source)
-		var upgraded: Dictionary = SessionSaveSchema.upgrade(source)
-		runner.assert_true(not upgraded.is_empty(), "explicit synthetic v%d envelope converts through the historical boundary" % version)
-		if upgraded.is_empty():
-			continue
-		runner.assert_eq(_json(upgraded), _json(current), "v%d conversion changes only versions and receipt-derived event amount" % version)
-		runner.assert_eq(_json(upgraded.content_bundle), _json(source.content_bundle), "v%d conversion preserves the original content and digest" % version)
-		runner.assert_eq(_json(upgraded.simulation), _json(source.simulation), "v%d conversion leaves original bodies, inventories and exposure facts unchanged" % version)
-		runner.assert_eq(_json(upgraded.continuity.world.local_heat), _json(source.continuity.world.local_heat), "v%d conversion preserves exact thermal state, slope and history" % version)
-		var staged: Dictionary = WorldSessionSnapshot.stage(runtime, source)
-		runner.assert_true(not staged.is_empty(), "v%d receipt amount passes complete independent candidate validation" % version)
-		runner.assert_eq(_json(source), before, "v%d conversion does not repair source input in place" % version)
 	var resumed: RegionalSimulation = pending_candidate.world
 	runner.assert_true(resumed.advance_to_ms(840050), "independent pending candidate completes at the original common-time boundary")
 	runner.assert_eq(_json(resumed.to_dict()), _json(current.continuity.world), "resuming the old in-flight source neither repeats cost nor changes the complete world")
 	# Both current and imported owners must also retain the same later future.
-	var complete_candidate: Dictionary = WorldSessionSnapshot.stage(runtime, _legacy(current, 46))
+	var complete_candidate: Dictionary = WorldSessionSnapshot.stage(runtime, current)
+	runner.assert_true(not complete_candidate.is_empty(), "the completed current source stages without projecting Q backwards")
 	if not complete_candidate.is_empty():
 		var whole: RegionalSimulation = complete_candidate.world
 		var future: int = 853781
@@ -84,21 +108,27 @@ func _exercise(runner: Object, runtime: WorldContinuityRuntime) -> void:
 			"forged_flow": bad.continuity.world.local_heat.flows = [{"from": "254,255", "to": "", "rate": 1}]
 			"mixed_current": bad.continuity.world.version = 38
 			"legacy_future_field":
-				bad = _legacy(current, 46)
-				bad.continuity.world.artifacts.events[event_index]["heat_amount"] = event.heat_amount
+				bad = _legacy(historical, 46)
+				bad.continuity.world.artifacts.events[0]["heat_amount"] = event.heat_amount
 			"legacy_missing_receipt":
-				bad = _legacy(current, 46)
-				bad.continuity.world.local_heat.receipts.erase(action)
+				bad = _legacy(historical, 46)
+				# Deliberately claim the later real completion at the earlier time
+				# without its receipt; the old boundary must refuse this forgery.
+				var forged_event: Dictionary = event.duplicate(true)
+				forged_event.erase("heat_amount")
+				bad.continuity.world.artifacts.events.append(forged_event)
+				runner.assert_true(SessionSaveSchema._upgrade(bad, null).is_empty(), "a claimed legacy completion without its original receipt cannot acquire an amount")
 		_reject(runner, runtime, bad, kind)
 
 
-func _legacy(current: Dictionary, version: int) -> Dictionary:
-	var result: Dictionary = current.duplicate(true)
+func _legacy(historical: Dictionary, version: int) -> Dictionary:
+	var result: Dictionary = historical.duplicate(true)
 	result.schema_version = version
-	result.continuity.world.version = 38
-	result.continuity.world.artifacts.version = 6
-	for event: Dictionary in result.continuity.world.artifacts.events:
-		event.erase("heat_amount")
+	if version < 47:
+		result.continuity.world.version = 38
+		result.continuity.world.artifacts.version = 6
+		for event: Dictionary in result.continuity.world.artifacts.events:
+			event.erase("heat_amount")
 	if version <= 45:
 		result.world.erase("terrain_overrides")
 	if version == 43:

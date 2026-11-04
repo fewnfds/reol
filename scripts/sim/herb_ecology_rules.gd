@@ -29,7 +29,7 @@ static func valid_definitions(rules: Variant) -> bool:
 
 static func empty_state(rules: Dictionary, at_ms: int, base_produced: int = 0, conditions: Dictionary = {}) -> Dictionary:
 	var water: int = int(rules.initial_water)
-	return {"version": 1, "rules_version": int(rules.version), "activation_ms": at_ms,
+	return {"version": 2, "rules_version": int(rules.version), "activation_ms": at_ms,
 		"last_ms": at_ms, "sample_ms": at_ms,
 		"temperature_tenths": int(conditions.get("temperature_tenths", rules.default_temperature_tenths)),
 		"heat_tenths": int(conditions.get("heat_tenths", 0)), "rain": bool(conditions.get("rain", false)),
@@ -50,7 +50,9 @@ static func next_sample_ms(state: Dictionary, rules: Dictionary) -> int:
 
 
 static func temperature_valid(temperature: Variant, heat: Variant) -> bool:
-	return Shape.count(heat, 0, MAX_COUNT - 10000) and Shape.count(temperature, -10000, MAX_COUNT) and int(temperature) - int(heat) >= -10000 and int(temperature) - int(heat) <= 10000
+	# Both values must remain exact in JSON. Their difference is safe in int64
+	# because twice MAX_COUNT is still much smaller than the integer limit.
+	return Shape.count(heat, -MAX_COUNT, MAX_COUNT) and Shape.count(temperature, -MAX_COUNT, MAX_COUNT) and int(temperature) - int(heat) >= -10000 and int(temperature) - int(heat) <= 10000
 
 
 static func warm(state: Dictionary, rules: Dictionary) -> bool:
@@ -181,7 +183,7 @@ static func with_irrigation(previous: Dictionary, rules: Dictionary, action_id: 
 
 
 static func valid_state(state: Variant, rules: Dictionary, produced: int, at_ms: int) -> bool:
-	if not Shape.keys(state, STATE_KEYS) or state.version != 1 or state.rules_version != rules.version or not Shape.count(state.activation_ms, 0, at_ms) or not Shape.count(state.last_ms, int(state.activation_ms), at_ms) or int(state.last_ms) != at_ms:
+	if not Shape.keys(state, STATE_KEYS) or state.version != 2 or state.rules_version != rules.version or not Shape.count(state.activation_ms, 0, at_ms) or not Shape.count(state.last_ms, int(state.activation_ms), at_ms) or int(state.last_ms) != at_ms:
 		return false
 	if not Shape.count(state.sample_ms, int(state.activation_ms), at_ms) or state.sample_ms != state.activation_ms and posmod(int(state.sample_ms), int(rules.sample_ms)) != 0 or not temperature_valid(state.temperature_tenths, state.heat_tenths) or not state.rain is bool or not state.wet is bool:
 		return false

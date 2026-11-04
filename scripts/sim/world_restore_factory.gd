@@ -4,7 +4,7 @@ extends RefCounted
 ## Local motion/workplace/sparring code still has legacy disk-backed rules.
 
 
-static func restore(content: ReolContentDB, saved: Dictionary, assembly: Dictionary, terrain: WorldMapData) -> RegionalSimulation:
+static func restore(content: ReolContentDB, saved: Dictionary, assembly: Dictionary, terrain: WorldMapData, legacy_heat_v1: bool = false) -> RegionalSimulation:
 	if content == null or terrain == null or not ReolWorldAssemblyInputs.is_valid(assembly, true):
 		return null
 	var world := RegionalSimulation.new()
@@ -29,4 +29,4 @@ static func restore(content: ReolContentDB, saved: Dictionary, assembly: Diction
 		world.services = RegionalSimulation.Services.new()
 		world.services.definitions = content.settlement_services.duplicate(true)
 	world.map_data = terrain
-	return world if world.restore(saved) else null
+	return world if world.restore(saved, legacy_heat_v1) else null

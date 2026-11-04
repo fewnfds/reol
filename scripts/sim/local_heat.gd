@@ -1,64 +1,73 @@
 class_name SimLocalHeat
 extends RefCounted
-## Sparse positive heat above the original outdoor background, not an absolute
-## thermodynamic simulation. Fixed cells own energy; rooms own no second heat.
-## Integer energy/ms fluxes freeze at global boundaries and real mutations.
-## Calling settle at additional times never recomputes those fluxes or rounds
-## an extra fractional transfer. Internal transfers cancel exactly; only the
-## explicit outdoor bath may remove heat. sum(cells) + loss == input.
+## Fixed-reference nonnegative energy, frozen integer fluxes and explicit bath
+## accounting. One physical field; rooms, recipients and views own no heat.
 
 const Shape = preload("res://scripts/sim/avian_schema.gd")
+const Legacy = preload("res://scripts/persistence/legacy_heat_v1.gd")
+const VERSION: int = 2
 const SIDES: Array[Vector2i] = [Vector2i.LEFT, Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN]
 const MAX_INTEGER: int = 9007199254740991
 var definitions: Dictionary = {}
 var activation_ms: int = 0
+var model_started_ms: int = 0
 var last_ms: int = 0
 var segment_started_ms: int = 0
 var cells: Dictionary = {}
 var flows: Array[Dictionary] = []
 var input_energy: int = 0
+var ambient_in: int = 0
 var loss_energy: int = 0
 var receipts: Dictionary = {}
 var last_sample_ms: int = 0
 var last_sample_cells: Dictionary = {}
 var last_sample_input: int = 0
 var last_sample_loss: int = 0
+var last_sample_ambient_in: int = 0
+var last_sample_mode: String = "absolute"
+var legacy_limits: Dictionary = {}
 var _owner: WeakRef
 var _roofed: Callable
 var _barrier: Callable
 var _receipt_validator: Callable
 var _expected_actions: Callable
 var _geometry_dirty: bool = false
+var _background_query: Callable
+var _background_boundary: Callable
+var _frozen_boundary_ms: int = MAX_INTEGER
 var world: RefCounted:
 	get:
 		return null if _owner == null else _owner.get_ref()
 
 
+static func upgrade_definitions_v1(old: Variant) -> Dictionary:
+	if not Legacy.valid_definitions(old):
+		return {}
+	var next: Dictionary = old.duplicate(true)
+	next.version = VERSION
+	next["reference_tenths"] = -10000
+	next["max_exchange_energy"] = MAX_INTEGER
+	next.max_cell_energy = int(old.max_cell_energy) + 13000 * int(old.capacity_per_tenth)
+	return next if valid_definitions(next) else {}
+
+
 static func valid_definitions(data: Variant) -> bool:
-	if not Shape.keys(data, ["version", "step_ms", "sample_ms", "world_size", "capacity_per_tenth", "pulse_energy", "coefficient_scale", "conductance", "bath_loss", "source_radius", "max_cells", "max_cell_energy", "max_total_input"]) or data.version != 1:
+	if not data is Dictionary or data.get("version") != VERSION or data.get("reference_tenths") != -10000 or not Shape.count(data.get("max_exchange_energy"), 1, MAX_INTEGER):
 		return false
-	if not Shape.count(data.step_ms, 1, 60000) or not Shape.count(data.sample_ms, int(data.step_ms), 3600000) or int(data.sample_ms) % int(data.step_ms) != 0 or not Shape.count(data.world_size, 1, 100000):
+	var prior: Dictionary = data.duplicate(true)
+	prior.erase("reference_tenths")
+	prior.erase("max_exchange_energy")
+	prior.version = 1
+	if not Shape.count(data.get("capacity_per_tenth"), 1, 1000000000) or not Shape.count(data.get("max_cell_energy"), 13000 * int(data.capacity_per_tenth) + 1, 14000000000000):
 		return false
-	if not Shape.count(data.capacity_per_tenth, 1, 1000000000) or not Shape.count(data.coefficient_scale, 1, 1000000) or not Shape.count(data.source_radius, 0, 8) or not Shape.count(data.max_cells, 1, 8192):
+	if not Shape.count(data.get("pulse_energy"), 1, int(data.max_cell_energy)) or not Shape.count(data.get("max_total_input"), int(data.pulse_energy), MAX_INTEGER):
 		return false
-	if not Shape.count(data.max_cell_energy, int(data.capacity_per_tenth), 1000000000000) or not Shape.count(data.max_total_input, int(data.max_cell_energy), MAX_INTEGER):
-		return false
-	if not Shape.count(data.pulse_energy, 1, int(data.max_cell_energy)):
-		return false
-	if not Shape.keys(data.conductance, ["open", "open_door", "wall", "closed_door"]) or not Shape.keys(data.bath_loss, ["roofed", "unroofed"]):
-		return false
-	var greatest_edge: int = 0
-	var greatest_bath: int = 0
-	for value: Variant in data.conductance.values():
-		if not Shape.count(value, 0, int(data.coefficient_scale)):
-			return false
-		greatest_edge = maxi(greatest_edge, int(value))
-	for value: Variant in data.bath_loss.values():
-		if not Shape.count(value, 0, int(data.coefficient_scale)):
-			return false
-		greatest_bath = maxi(greatest_bath, int(value))
-	# A full frozen step cannot move more energy out of a cell than it owns.
-	return 4 * greatest_edge + greatest_bath <= int(data.coefficient_scale)
+	# Legacy validates the shared stable conductance/lattice and field list;
+	# v2 source budgets are independent of the larger absolute-Q ceiling.
+	prior.max_cell_energy = mini(int(data.max_cell_energy), 1000000000000)
+	prior.pulse_energy = mini(int(data.pulse_energy), int(prior.max_cell_energy))
+	prior.max_total_input = maxi(int(data.max_total_input), int(prior.max_cell_energy))
+	return Legacy.valid_definitions(prior)
 
 
 func bind_world(authority: RefCounted) -> void:
@@ -76,10 +85,44 @@ func initialize(authority: RefCounted, rules: Dictionary) -> bool:
 
 
 static func empty_state(at_ms: int) -> Dictionary:
-	return {"version": 1, "rules_version": 1, "activation_ms": at_ms, "last_ms": at_ms,
-		"segment_started_ms": at_ms, "cells": {}, "flows": [], "input_energy": 0,
-		"loss_energy": 0, "receipts": {}, "last_sample_ms": at_ms,
-		"last_sample_cells": {}, "last_sample_input": 0, "last_sample_loss": 0}
+	return {"version": VERSION, "rules_version": VERSION, "activation_ms": at_ms,
+		"model_started_ms": at_ms, "last_ms": at_ms, "segment_started_ms": at_ms,
+		"cells": {}, "flows": [], "input_energy": 0, "ambient_in": 0, "loss_energy": 0,
+		"receipts": {}, "last_sample_ms": at_ms, "last_sample_cells": {},
+		"last_sample_input": 0, "last_sample_loss": 0, "last_sample_ambient_in": 0,
+		"last_sample_mode": "absolute", "legacy_limits": {}}
+
+
+func set_background(query: Callable, boundary: Callable) -> void:
+	_background_query = query
+	_background_boundary = boundary
+	_geometry_dirty = true
+
+
+func _background(cell: Vector2i, at_ms: int) -> int:
+	if _background_query.is_valid():
+		return int(_background_query.call(cell, at_ms))
+	var content: ReolContentDB = world.get("_content")
+	var weather: RefCounted = world.get("weather")
+	var value: Dictionary = SimClimateRules.background_at(content.climate, weather.definitions, weather.epoch_ms, cell, at_ms)
+	return int(value.temperature_tenths)
+
+
+func _background_next(cell: Vector2i, at_ms: int) -> int:
+	if _background_boundary.is_valid():
+		return int(_background_boundary.call(cell, at_ms))
+	var content: ReolContentDB = world.get("_content")
+	var weather: RefCounted = world.get("weather")
+	return SimClimateRules.next_background_boundary_ms(content.climate, weather.definitions, weather.epoch_ms, SimClimateRules.region_at(content.climate, cell), at_ms)
+
+
+func _baseline(cell: Vector2i, at_ms: int) -> int:
+	return (_background(cell, at_ms) - int(definitions.reference_tenths)) * int(definitions.capacity_per_tenth)
+
+
+func _offset(energy: int, cell: Vector2i, at_ms: int) -> int:
+	# Divide nonnegative Q first; negative integer division truncates toward zero.
+	return int(definitions.reference_tenths) + _tenths(energy) - _background(cell, at_ms)
 
 
 func set_geometry(roofed: Callable, barrier: Callable) -> void:
@@ -112,60 +155,109 @@ func refresh_geometry() -> void:
 	_freeze()
 
 
+func _boundary_at(at_ms: int, state: Dictionary, active_flows: Array) -> int:
+	if state.is_empty() or at_ms == MAX_INTEGER:
+		return MAX_INTEGER
+	var next: int = MAX_INTEGER
+	if not active_flows.is_empty():
+		var distance: int = int(definitions.step_ms) - posmod(at_ms, int(definitions.step_ms))
+		next = at_ms + mini(distance, MAX_INTEGER - at_ms)
+	for row: Dictionary in state.values():
+		var point := Vector2i(int(row.cell[0]), int(row.cell[1]))
+		next = mini(next, _background_next(point, at_ms))
+		for side: Vector2i in SIDES:
+			if not state.has(_key(point + side)):
+				next = mini(next, _background_next(point + side, at_ms))
+	return next
+
+
 func next_boundary_ms() -> int:
-	# Integer quantization may leave nonzero energy below every transfer
-	# threshold. Its future is constant until an actual source/layout event.
-	if flows.is_empty():
-		return SimInventory.MAX_COUNT
-	return mini(SimInventory.MAX_COUNT, last_ms - posmod(last_ms, int(definitions.step_ms)) + int(definitions.step_ms))
+	return _frozen_boundary_ms
+
+
+func can_settle_at_ms(now: int) -> bool:
+	# Preflight one frozen segment before the regional executor advances bodies.
+	if definitions.is_empty() or not Shape.count(now, last_ms, MAX_INTEGER):
+		return false
+	if cells.is_empty():
+		return true
+	if _geometry_dirty or now > next_boundary_ms():
+		return false
+	var dt: int = now - last_ms
+	var incoming: int = 0
+	var outgoing: int = 0
+	var deltas: Dictionary = {}
+	for flow: Dictionary in flows:
+		var amount: int = int(flow.rate) * dt
+		if str(flow.from).is_empty():
+			incoming += amount
+		else:
+			deltas[flow.from] = int(deltas.get(flow.from, 0)) - amount
+		if str(flow.to).is_empty():
+			outgoing += amount
+		else:
+			deltas[flow.to] = int(deltas.get(flow.to, 0)) + amount
+	if incoming > int(definitions.max_exchange_energy) - ambient_in or incoming > MAX_INTEGER - input_energy - ambient_in or outgoing > int(definitions.max_exchange_energy) - loss_energy:
+		return false
+	for key: String in deltas:
+		var value: int = int(cells[key].energy) + int(deltas[key])
+		if value < 0 or value > int(definitions.max_cell_energy):
+			return false
+	return true
 
 
 func settle_at_ms(now: int) -> bool:
-	if definitions.is_empty() or not Shape.count(now, last_ms, SimInventory.MAX_COUNT):
+	if definitions.is_empty() or not Shape.count(now, last_ms, MAX_INTEGER):
 		return false
 	if _geometry_dirty:
 		_freeze()
 	while last_ms < now:
-		if flows.is_empty():
-			# No per-step geometry queries or artificial loss of residual heat.
-			# Keep the empty frozen segment anchored at the actual save time.
-			last_ms = now
-			segment_started_ms = now
-			return true
 		var boundary: int = next_boundary_ms()
 		var target: int = mini(now, boundary)
+		if target <= last_ms or not can_settle_at_ms(target):
+			return false
 		_integrate(target - last_ms)
 		last_ms = target
-		if target == boundary:
+		if target == boundary or cells.is_empty():
 			_freeze()
+		elif flows.is_empty():
+			# No slope to reconstruct: anchor at the accepted instant without
+			# sampling geometry or changing the next declared climate boundary.
+			segment_started_ms = last_ms
 	return true
 
 
 func can_deposit(cell: Vector2i, amount: int) -> bool:
-	if definitions.is_empty() or not _valid_cell(cell) or not Shape.count(amount, 1, int(definitions.max_cell_energy)) or input_energy > int(definitions.max_total_input) - amount:
+	if definitions.is_empty() or not _valid_cell(cell) or not Shape.count(amount, 1, int(definitions.pulse_energy)) or input_energy > int(definitions.max_total_input) - amount:
 		return false
-	var key: String = _key(cell)
-	if int(cells.get(key, {}).get("energy", 0)) > int(definitions.max_cell_energy) - amount:
+	var source_q: int = int(cells.get(_key(cell), {}).get("energy", _baseline(cell, last_ms)))
+	if source_q > int(definitions.max_cell_energy) - amount:
 		return false
 	var added: int = 0
+	var baseline_sum: int = 0
 	for point: Vector2i in _patch(cell):
-		if not cells.has(_key(point)):
-			added += 1
-	return cells.size() + added <= int(definitions.max_cells)
+		if cells.has(_key(point)):
+			continue
+		var energy: int = _baseline(point, last_ms)
+		if energy < 0 or energy > int(definitions.max_cell_energy) or baseline_sum > MAX_INTEGER - energy:
+			return false
+		baseline_sum += energy
+		added += 1
+	return cells.size() + added <= int(definitions.max_cells) and baseline_sum <= int(definitions.max_exchange_energy) - ambient_in and baseline_sum <= MAX_INTEGER - input_energy - ambient_in - amount
 
 
 func deposit(source_receipt: Dictionary) -> bool:
 	if not _valid_receipt(source_receipt, activation_ms) or receipts.has(source_receipt.action) or int(source_receipt.at_ms) != int(world.get("elapsed_ms")) or int(source_receipt.at_ms) < last_ms:
 		return false
 	var point := Vector2i(int(source_receipt.cell[0]), int(source_receipt.cell[1]))
-	# Reject source capacity before any resource transaction. Settling actual
-	# elapsed time is independent of whether a source transaction succeeds.
 	if not settle_at_ms(int(source_receipt.at_ms)) or not can_deposit(point, int(source_receipt.amount)):
 		return false
 	for cell: Vector2i in _patch(point):
 		var key: String = _key(cell)
 		if not cells.has(key):
-			cells[key] = {"cell": [cell.x, cell.y], "energy": 0}
+			var energy: int = _baseline(cell, last_ms)
+			cells[key] = {"cell": [cell.x, cell.y], "energy": energy, "allocated_ms": last_ms, "baseline_energy": energy}
+			ambient_in += energy
 	cells[_key(point)].energy = int(cells[_key(point)].energy) + int(source_receipt.amount)
 	input_energy += int(source_receipt.amount)
 	receipts[str(source_receipt.action)] = _normalized_receipt(source_receipt)
@@ -173,11 +265,15 @@ func deposit(source_receipt: Dictionary) -> bool:
 	return true
 
 
+func current_tenths(cell: Vector2i) -> int:
+	return _offset(int(cells[_key(cell)].energy), cell, last_ms) if _valid_cell(cell) and cells.has(_key(cell)) else 0
+
+
 func local_tenths(cell: Vector2i, at_ms: int = -1) -> int:
 	var now: int = int(world.get("elapsed_ms")) if at_ms < 0 else at_ms
 	if not _valid_cell(cell) or not settle_at_ms(now):
 		return 0
-	return _tenths(int(cells.get(_key(cell), {}).get("energy", 0)))
+	return current_tenths(cell)
 
 
 func project_tenths(cell: Vector2i, at_ms: int) -> Dictionary:
@@ -194,23 +290,23 @@ func project_tenths(cell: Vector2i, at_ms: int) -> Dictionary:
 	var key: String = _key(cell)
 	var energy: int = int(cells.get(key, {}).get("energy", 0))
 	if at_ms == last_ms:
-		return {"supported": true, "value": _tenths(energy)}
+		return {"supported": true, "value": current_tenths(cell)}
 	if _geometry_dirty:
 		# Initial empty heat remains empty under every possible geometry.
-		return {"supported": true, "value": 0} if input_energy == loss_energy and at_ms >= last_ms else {"supported": false, "reason": "geometry_unresolved"}
+		return {"supported": true, "value": 0} if cells.is_empty() and at_ms >= last_ms else {"supported": false, "reason": "geometry_unresolved"}
 	if at_ms < segment_started_ms:
 		return {"supported": false, "reason": "history_unavailable"}
-	if not flows.is_empty() and at_ms > next_boundary_ms():
+	if at_ms > next_boundary_ms():
 		return {"supported": false, "reason": "beyond_boundary"}
-	if flows.is_empty():
-		return {"supported": true, "value": _tenths(energy)}
+	if not cells.has(key):
+		return {"supported": true, "value": 0}
 	var dt: int = at_ms - last_ms
 	for flow: Dictionary in flows:
 		if str(flow.from) == key:
 			energy -= int(flow.rate) * dt
 		elif str(flow.to) == key:
 			energy += int(flow.rate) * dt
-	return {"supported": true, "value": _tenths(energy)} if energy >= 0 else {"supported": false, "reason": "inconsistent_projection"}
+	return {"supported": true, "value": _offset(energy, cell, at_ms)} if energy >= 0 and energy <= int(definitions.max_cell_energy) else {"supported": false, "reason": "inconsistent_projection"}
 
 
 func mark_sample(now: int) -> bool:
@@ -221,154 +317,112 @@ func mark_sample(now: int) -> bool:
 	if now == last_sample_ms:
 		return true
 	last_sample_ms = now
+	last_sample_mode = "absolute"
 	last_sample_cells = {}
 	for key: String in _sorted(cells):
-		if int(cells[key].energy) > 0:
-			last_sample_cells[key] = int(cells[key].energy)
+		last_sample_cells[key] = int(cells[key].energy)
 	last_sample_input = input_energy
 	last_sample_loss = loss_energy
+	last_sample_ambient_in = ambient_in
 	return true
 
 
 func sample_tenths(cell: Vector2i, at_ms: int) -> int:
-	if definitions.is_empty() or at_ms != last_sample_ms or not _valid_cell(cell):
+	if definitions.is_empty() or at_ms != last_sample_ms or not _valid_cell(cell) or not last_sample_cells.has(_key(cell)):
 		return 0
-	return _tenths(int(last_sample_cells.get(_key(cell), 0)))
+	var energy: int = int(last_sample_cells[_key(cell)])
+	return _tenths(energy) if last_sample_mode == "legacy_excess" else _offset(energy, cell, at_ms)
+
+
+func maximum_offset_tenths() -> int:
+	return int(definitions.reference_tenths) + _tenths(int(definitions.max_cell_energy)) + 10000
+
+
+func minimum_offset_tenths() -> int:
+	return int(definitions.reference_tenths) - 10000
+
+
+func has_visible_offsets(historical: bool = false) -> bool:
+	var state: Dictionary = last_sample_cells if historical else cells
+	for key: String in state:
+		var point := Vector2i(int(cells[key].cell[0]), int(cells[key].cell[1]))
+		if (sample_tenths(point, last_sample_ms) if historical else current_tenths(point)) != 0:
+			return true
+	return false
 
 
 func to_dict() -> Dictionary:
 	if _geometry_dirty:
 		_freeze()
-	return {"version": 1, "rules_version": int(definitions.version), "activation_ms": activation_ms,
-		"last_ms": last_ms, "segment_started_ms": segment_started_ms, "cells": cells.duplicate(true),
-		"flows": flows.duplicate(true), "input_energy": input_energy, "loss_energy": loss_energy,
-		"receipts": receipts.duplicate(true), "last_sample_ms": last_sample_ms,
-		"last_sample_cells": last_sample_cells.duplicate(true), "last_sample_input": last_sample_input,
-		"last_sample_loss": last_sample_loss}
+	return {"version": VERSION, "rules_version": VERSION, "activation_ms": activation_ms,
+		"model_started_ms": model_started_ms, "last_ms": last_ms, "segment_started_ms": segment_started_ms,
+		"cells": cells.duplicate(true), "flows": flows.duplicate(true), "input_energy": input_energy,
+		"ambient_in": ambient_in, "loss_energy": loss_energy, "receipts": receipts.duplicate(true),
+		"last_sample_ms": last_sample_ms, "last_sample_cells": last_sample_cells.duplicate(true),
+		"last_sample_input": last_sample_input, "last_sample_loss": last_sample_loss,
+		"last_sample_ambient_in": last_sample_ambient_in, "last_sample_mode": last_sample_mode,
+		"legacy_limits": legacy_limits.duplicate(true)}
+
+
+func _assign(data: Dictionary) -> void:
+	for field: String in ["activation_ms", "model_started_ms", "last_ms", "segment_started_ms", "input_energy", "ambient_in", "loss_energy", "last_sample_ms", "last_sample_input", "last_sample_loss", "last_sample_ambient_in"]:
+		set(field, int(data[field]))
+	last_sample_mode = str(data.last_sample_mode)
+	cells = data.cells.duplicate(true)
+	for row: Dictionary in cells.values():
+		for field: String in ["energy", "allocated_ms", "baseline_energy"]:
+			row[field] = int(row[field])
+		row.cell = [int(row.cell[0]), int(row.cell[1])]
+	flows.clear()
+	for flow: Dictionary in data.flows:
+		flows.append({"from": str(flow.from), "to": str(flow.to), "rate": int(flow.rate)})
+	receipts = {}
+	for key: String in data.receipts:
+		receipts[key] = _normalized_receipt(data.receipts[key])
+	last_sample_cells = {}
+	for key: String in data.last_sample_cells:
+		last_sample_cells[key] = int(data.last_sample_cells[key])
+	legacy_limits = data.legacy_limits.duplicate(true)
+	_geometry_dirty = false
+	_frozen_boundary_ms = _boundary_at(last_ms, cells, flows)
 
 
 func restore(data: Variant) -> bool:
-	if not _valid_state(data):
+	if not SimThermalSchema.validate(self, data):
 		return false
 	_assign(data)
 	return true
 
 
-func _assign(data: Dictionary) -> void:
-	activation_ms = int(data.activation_ms)
-	last_ms = int(data.last_ms)
-	segment_started_ms = int(data.segment_started_ms)
-	cells = data.cells.duplicate(true)
-	flows.clear()
-	for flow: Dictionary in data.flows:
-		flows.append({"from": str(flow.from), "to": str(flow.to), "rate": int(flow.rate)})
-	for key: String in cells:
-		cells[key].energy = int(cells[key].energy)
-		cells[key].cell = [int(cells[key].cell[0]), int(cells[key].cell[1])]
-	input_energy = int(data.input_energy)
-	loss_energy = int(data.loss_energy)
-	receipts = {}
-	for action: String in data.receipts:
-		receipts[action] = _normalized_receipt(data.receipts[action])
-	last_sample_ms = int(data.last_sample_ms)
-	last_sample_cells = {}
-	for key: String in data.last_sample_cells:
-		last_sample_cells[key] = int(data.last_sample_cells[key])
-	last_sample_input = int(data.last_sample_input)
-	last_sample_loss = int(data.last_sample_loss)
-	_geometry_dirty = false
-
-
-func _valid_state(data: Variant) -> bool:
-	if definitions.is_empty() or not Shape.keys(data, empty_state(0).keys()) or data.version != 1 or data.rules_version != definitions.version:
-		return false
-	var now: int = int(world.get("elapsed_ms"))
-	if not Shape.count(data.activation_ms, 0, now) or not Shape.count(data.last_ms, int(data.activation_ms), now) or int(data.last_ms) != now:
-		return false
-	if not Shape.count(data.segment_started_ms, int(data.activation_ms), now) or now - int(data.segment_started_ms) >= int(definitions.step_ms) or int(data.segment_started_ms) < now - posmod(now, int(definitions.step_ms)):
-		return false
-	if not data.cells is Dictionary or data.cells.size() > int(definitions.max_cells) or not data.flows is Array or not data.receipts is Dictionary or not data.last_sample_cells is Dictionary:
-		return false
-	if not Shape.count(data.input_energy, 0, int(definitions.max_total_input)) or not Shape.count(data.loss_energy, 0, int(data.input_energy)):
-		return false
-	var sum: int = 0
-	for key: Variant in data.cells:
-		var row: Variant = data.cells[key]
-		if not key is String or not Shape.keys(row, ["cell", "energy"]) or not _cell_array(row.cell) or key != _key(Vector2i(int(row.cell[0]), int(row.cell[1]))) or not Shape.count(row.energy, 0, int(definitions.max_cell_energy)):
-			return false
-		sum += int(row.energy)
-	if sum + int(data.loss_energy) != int(data.input_energy) or data.flows.size() > data.cells.size() * 5:
-		return false
-	var anchors: Dictionary = data.cells.duplicate(true)
-	var edges: Dictionary = {}
-	var outgoing: Dictionary = {}
-	var dt: int = now - int(data.segment_started_ms)
-	var bath_rate: int = 0
-	for raw: Variant in data.flows:
-		if not Shape.keys(raw, ["from", "to", "rate"]) or not raw.from is String or not raw.to is String or not data.cells.has(raw.from) or not Shape.count(raw.rate, 1, _maximum_rate()) or raw.from == raw.to:
-			return false
-		if not str(raw.to).is_empty() and not data.cells.has(raw.to):
-			return false
-		var edge: String = str(raw.from) + ">" + str(raw.to)
-		if edges.has(edge):
-			return false
-		edges[edge] = true
-		outgoing[raw.from] = int(outgoing.get(raw.from, 0)) + int(raw.rate)
-		anchors[raw.from].energy = int(anchors[raw.from].energy) + int(raw.rate) * dt
-		if str(raw.to).is_empty():
-			bath_rate += int(raw.rate)
-		else:
-			var from: Array = data.cells[raw.from].cell
-			var to: Array = data.cells[raw.to].cell
-			if absi(int(from[0]) - int(to[0])) + absi(int(from[1]) - int(to[1])) != 1:
-				return false
-			anchors[raw.to].energy = int(anchors[raw.to].energy) - int(raw.rate) * dt
-	if int(data.loss_energy) < bath_rate * dt:
-		return false
-	for key: String in anchors:
-		if int(anchors[key].energy) < 0 or int(anchors[key].energy) > int(definitions.max_cell_energy) or int(outgoing.get(key, 0)) * int(definitions.step_ms) > int(anchors[key].energy):
-			return false
-	# Validate the stored frozen slope against its reconstructed anchor and
-	# the actual restored geometry, rather than trusting a forged fast leak.
-	var expected_flows: Array[Dictionary] = _build_flows(anchors)
-	if expected_flows.size() != data.flows.size():
-		return false
-	for index: int in range(expected_flows.size()):
-		if not Shape.same_record(data.flows[index], expected_flows[index]):
-			return false
-	var receipt_sum: int = 0
-	var expected_cells: Dictionary = {}
-	for action: Variant in data.receipts:
-		var receipt: Variant = data.receipts[action]
-		if not action is String or not _valid_receipt(receipt, int(data.activation_ms)) or action != receipt.action or int(receipt.at_ms) > now or not data.cells.has(_key(Vector2i(int(receipt.cell[0]), int(receipt.cell[1])))) or not _source_matches(receipt):
-			return false
-		receipt_sum += int(receipt.amount)
-		# Successful sources are the only allocator and allocate their whole
-		# finite patch; existing cells are never reclaimed in this version.
-		# Reject ghost zero-energy cells and missing cold boundary cells alike.
-		for point: Vector2i in _patch(Vector2i(int(receipt.cell[0]), int(receipt.cell[1]))):
-			var key: String = _key(point)
-			if not data.cells.has(key):
-				return false
-			expected_cells[key] = true
-	if expected_cells.size() != data.cells.size():
-		return false
-	if receipt_sum != int(data.input_energy) or not _all_sources_present(data.receipts, int(data.activation_ms), now):
-		return false
-	if not Shape.count(data.last_sample_ms, int(data.activation_ms), now) or int(data.last_sample_ms) != int(data.activation_ms) and posmod(int(data.last_sample_ms), int(definitions.sample_ms)) != 0:
-		return false
-	if not Shape.count(data.last_sample_input, 0, int(data.input_energy)) or not Shape.count(data.last_sample_loss, 0, int(data.loss_energy)):
-		return false
-	var sample_sum: int = 0
-	for key: Variant in data.last_sample_cells:
-		if not key is String or not data.cells.has(key) or not Shape.count(data.last_sample_cells[key], 1, int(definitions.max_cell_energy)):
-			return false
-		sample_sum += int(data.last_sample_cells[key])
-	if sample_sum + int(data.last_sample_loss) != int(data.last_sample_input):
-		return false
-	if int(data.last_sample_ms) == int(data.activation_ms) and (not data.last_sample_cells.is_empty() or int(data.last_sample_input) != 0 or int(data.last_sample_loss) != 0):
-		return false
-	return true
+func import_v1(old: RefCounted, context: RefCounted) -> Dictionary:
+	var checker := Legacy.new()
+	if not checker.configure(context, old.definitions):
+		return {}
+	checker.set_geometry(context.construction.thermal_roofed, context.construction.thermal_barrier)
+	if not checker.restore(old.to_dict()):
+		return {}
+	var prior: Dictionary = checker.to_dict()
+	var result: Dictionary = empty_state(int(context.elapsed_ms))
+	result.activation_ms = int(prior.activation_ms)
+	result.input_energy = int(prior.input_energy)
+	result.loss_energy = int(prior.loss_energy)
+	result.receipts = prior.receipts.duplicate(true)
+	result.last_sample_ms = int(prior.last_sample_ms)
+	result.last_sample_mode = "legacy_excess"
+	result.last_sample_cells = prior.last_sample_cells.duplicate(true)
+	result.last_sample_input = int(prior.last_sample_input)
+	result.last_sample_loss = int(prior.last_sample_loss)
+	result.legacy_limits = {"at_ms": int(context.elapsed_ms), "input_energy": int(prior.input_energy), "cells": _sorted(prior.cells)}
+	for key: String in prior.cells:
+		var point := Vector2i(int(prior.cells[key].cell[0]), int(prior.cells[key].cell[1]))
+		var base: int = _baseline(point, int(context.elapsed_ms))
+		var energy: int = base + int(prior.cells[key].energy)
+		if base < 0 or energy > int(definitions.max_cell_energy) or base > MAX_INTEGER - int(result.ambient_in) - int(result.input_energy):
+			return {}
+		result.ambient_in = int(result.ambient_in) + base
+		result.cells[key] = {"cell": [point.x, point.y], "energy": energy, "allocated_ms": int(context.elapsed_ms), "baseline_energy": base}
+	result.flows = _build_flows(result.cells, int(context.elapsed_ms))
+	return result if SimThermalSchema.validate(self, result) else {}
 
 
 func _source_matches(receipt: Dictionary) -> bool:
@@ -423,33 +477,41 @@ static func _normalized_receipt(receipt: Dictionary) -> Dictionary:
 
 
 func _freeze() -> void:
-	flows = _build_flows(cells)
+	flows = _build_flows(cells, last_ms)
 	segment_started_ms = last_ms
+	_frozen_boundary_ms = _boundary_at(last_ms, cells, flows)
 	_geometry_dirty = false
 
 
-func _build_flows(state: Dictionary) -> Array[Dictionary]:
+func _build_flows(state: Dictionary, at_ms: int) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for key: String in _sorted(state):
 		var row: Dictionary = state[key]
 		var point := Vector2i(int(row.cell[0]), int(row.cell[1]))
-		var bath: int = _rate(int(row.energy), int(definitions.bath_loss.roofed) if _roofed.is_valid() and bool(_roofed.call(point)) else int(definitions.bath_loss.unroofed))
+		var exchange: Array[int] = [0, 0]
+		var roof: bool = _roofed.is_valid() and bool(_roofed.call(point))
+		_bath_rates(exchange, int(row.energy) - _baseline(point, at_ms), int(definitions.bath_loss.roofed if roof else definitions.bath_loss.unroofed))
 		for side: Vector2i in SIDES:
 			var neighbor: Vector2i = point + side
 			var adjacent: String = _key(neighbor)
 			var coefficient: int = mini(_conductance(point), _conductance(neighbor))
 			if not state.has(adjacent):
-				# A declared finite patch exchanges with the original outside
-				# background here. No hidden neighboring reservoir is invented.
-				bath += _rate(int(row.energy), coefficient)
+				_bath_rates(exchange, int(row.energy) - _baseline(neighbor, at_ms), coefficient)
 			elif key < adjacent:
 				var difference: int = int(row.energy) - int(state[adjacent].energy)
 				var rate: int = _rate(absi(difference), coefficient)
 				if rate > 0:
 					result.append({"from": key if difference > 0 else adjacent, "to": adjacent if difference > 0 else key, "rate": rate})
-		if bath > 0:
-			result.append({"from": key, "to": "", "rate": bath})
+		if exchange[0] > 0:
+			result.append({"from": "", "to": key, "rate": exchange[0]})
+		if exchange[1] > 0:
+			result.append({"from": key, "to": "", "rate": exchange[1]})
 	return result
+
+
+func _bath_rates(rates: Array[int], difference: int, coefficient: int) -> void:
+	if difference != 0:
+		rates[1 if difference > 0 else 0] += _rate(absi(difference), coefficient)
 
 
 func _conductance(point: Vector2i) -> int:
@@ -464,13 +526,17 @@ func _conductance(point: Vector2i) -> int:
 # the original cell rather than moving through a rounded-up transfer.
 func _rate(energy: int, coefficient: int) -> int:
 	@warning_ignore("integer_division")
-	return energy * coefficient / (int(definitions.coefficient_scale) * int(definitions.step_ms))
+	var divisor: int = int(definitions.coefficient_scale) * int(definitions.step_ms)
+	return (energy / divisor) * coefficient + (energy % divisor) * coefficient / divisor
 
 
 func _integrate(dt: int) -> void:
 	for flow: Dictionary in flows:
 		var amount: int = int(flow.rate) * dt
-		cells[flow.from].energy = int(cells[flow.from].energy) - amount
+		if str(flow.from).is_empty():
+			ambient_in += amount
+		else:
+			cells[flow.from].energy = int(cells[flow.from].energy) - amount
 		if str(flow.to).is_empty():
 			loss_energy += amount
 		else:

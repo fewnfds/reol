@@ -55,22 +55,33 @@ func run(runner: Object) -> void:
 			old_hills += 1 if runtime.world_sim.map_data.get_elevation(cell) > 0 else 0
 		runner.assert_true(old_hills > 0, "historical terrain still has its original height samples")
 		runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), _json(legacy_current), "legacy migration changes only the explicit envelopes, not old histories")
-	var v44: Dictionary = legacy_current.duplicate(true)
+	var legacy_content: ReolContentDB = ReolContentDB.legacy_v42()
+	var legacy_v47: Dictionary = SessionSaveSchema._upgrade(legacy_raw, legacy_content) if legacy_content != null else {}
+	runner.assert_true(not legacy_v47.is_empty(), "the real v1 thermal archive reaches the old v47 envelope")
+	if legacy_v47.is_empty():
+		_remove(path)
+		second.free()
+		GameClock.restore_state(previous_clock)
+		return
+	var v44: Dictionary = legacy_v47.duplicate(true)
 	v44.schema_version = 44
 	v44.world.erase("terrain_overrides")
 	_project_regional_38(v44)
+	runner.assert_eq(_json(SessionSaveSchema._upgrade(v44, null)), _json(legacy_v47), "v44 envelope preserves the old recorded map and physical state through v47")
 	var upgraded: Dictionary = SessionSaveSchema.upgrade(v44)
 	runner.assert_true(not upgraded.is_empty(), "a synthetic v44 envelope with the genuine legacy map explicitly upgrades")
 	if not upgraded.is_empty():
 		runner.assert_eq(_json(upgraded), _json(legacy_current), "v44 migration preserves its recorded map and all original facts")
 	for older: int in [43, 44]:
-		var forged: Dictionary = saved_a.duplicate(true)
+		var forged: Dictionary = legacy_v47.duplicate(true)
 		forged.schema_version = older
+		forged.world = saved_a.world.duplicate(true)
+		forged.world_seed = saved_a.world_seed
 		forged.world.erase("terrain_overrides")
 		_project_regional_38(forged)
 		if older == 43:
 			forged.erase("assembly")
-		runner.assert_true(SessionSaveSchema.upgrade(forged).is_empty(), "new flat generator cannot masquerade as an older v%d envelope" % older)
+		runner.assert_true(SessionSaveSchema._upgrade(forged, null).is_empty(), "new flat generator cannot masquerade as an older v%d envelope" % older)
 	var before: String = _json(WorldSessionSnapshot.capture(runtime))
 	var bad: Dictionary = saved_a.duplicate(true)
 	bad.world.generator_version = 99
@@ -79,16 +90,14 @@ func run(runner: Object) -> void:
 	if _load(runtime, path, saved_b, runner, "B after historical world"):
 		runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), stable_b, "flat B restores its real original world after an old hilly world")
 	runner.assert_eq(FileAccess.get_sha256(LEGACY), LEGACY_SHA, "genuine legacy fixture remains byte-identical")
-	for suffix: String in ["", ".tmp", ".bak", ".bak.tmp"]:
-		if FileAccess.file_exists(path + suffix):
-			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
+	_remove(path)
 	second.free()
 	GameClock.restore_state(previous_clock)
 	print("SCENARIO flat world: two actual seeded openings, A/B/historical cross-loads, zero new height, preserved old hills, guarded creation input")
 
 
 func _project_regional_38(snapshot: Dictionary) -> void:
-	# Project the temporary newer copy only; the real old archive is unchanged.
+	# Project only an old v47 envelope containing the genuine v1 field.
 	var regional: Dictionary = snapshot.continuity.world
 	regional.version = 38
 	regional.artifacts.version = 6
@@ -114,6 +123,12 @@ func _load(runtime: WorldContinuityRuntime, path: String, snapshot: Dictionary, 
 
 func _restart_clock() -> void:
 	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
+
+
+func _remove(path: String) -> void:
+	for suffix: String in ["", ".tmp", ".bak", ".bak.tmp"]:
+		if FileAccess.file_exists(path + suffix):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
 
 
 func _json(value: Variant) -> String:

@@ -169,5 +169,11 @@ static func burden(rules: Dictionary, temperature: int, insulation: int) -> Dict
 	var warmth: int = clampi(insulation, 0, int(human.max_insulation_tenths))
 	var cold: int = maxi(0, int(human.comfort_min_tenths) - temperature - warmth)
 	var hot: int = maxi(0, temperature - int(human.comfort_max_tenths) + warmth * int(human.insulation_heat_percent) / 100)
+	var total: int = cold + hot
+	var rate_per_degree: int = int(human.energy_rate_per_degree)
+	var cap: int = int(human.max_energy_rate)
+	# Compare before multiplication: very high legal artifact temperatures need
+	# not overflow int64 merely to discover that exposure is already capped.
+	var threshold: int = (cap * 10 + rate_per_degree - 1) / rate_per_degree
 	return {"cold_tenths": cold, "hot_tenths": hot,
-		"energy_rate": mini(int(human.max_energy_rate), (cold + hot) * int(human.energy_rate_per_degree) / 10)}
+		"energy_rate": cap if total >= threshold else total * rate_per_degree / 10}

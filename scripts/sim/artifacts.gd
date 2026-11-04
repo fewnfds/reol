@@ -775,10 +775,11 @@ func _warming_choice(actor: String, at_ms: int) -> String:
 	var conditions: Dictionary = world.environment.local_conditions(actor, at_ms)
 	if conditions.is_empty():
 		return ""
-	# An unsupported long preview supplies only the outdoor lower bound, so
-	# this may offer a decision but can never commit a speculative heat effect.
-	var burden: Dictionary = SimClimateRules.burden(world.environment.definitions, int(conditions.temperature_tenths), world.environment.insulation_for(actor))
-	if int(burden.cold_tenths) <= 0:
+	# The lowest admissible temperature can offer a future decision. The
+	# regional clock rechecks actual conditions before starting a warming job.
+	var human: Dictionary = world.environment.definitions.human
+	var warmth: int = clampi(world.environment.insulation_for(actor), 0, int(human.max_insulation_tenths))
+	if int(conditions.temperature_min_tenths) >= int(human.comfort_min_tenths) - warmth:
 		return ""
 	# Only the holder's own controlled object is considered. This never seeks
 	# another person's private store or creates an opening stone for a need.

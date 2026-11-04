@@ -4,7 +4,7 @@ extends RefCounted
 ## the original village owns energy and the original clothes own wetness.
 
 const Shape = preload("res://scripts/sim/avian_schema.gd")
-const VERSION: int = 2
+const VERSION: int = 3
 const MINUTE_MS: int = 60000
 var definitions: Dictionary = {}
 var activation_ms: int = 0
@@ -113,15 +113,10 @@ func _thermal() -> RefCounted:
 
 func _current_heat_tenths(cell: Vector2i) -> int:
 	var heat: RefCounted = _thermal()
-	if heat == null:
-		return 0
 	# Village initiative may preview a future decision before the regional
 	# clock commits it. Read the original already committed cell authority;
 	# neither a future preview nor UI observation advances its integrator.
-	var key: String = "%d,%d" % [cell.x, cell.y]
-	# Only complete tenths are observable; fractional energy stays in the field.
-	@warning_ignore("integer_division")
-	return int(heat.cells.get(key, {}).get("energy", 0)) / int(heat.definitions.capacity_per_tenth)
+	return 0 if heat == null else int(heat.current_tenths(cell))
 
 
 func _sample_heat_tenths(cell: Vector2i, at_ms: int) -> int:
@@ -129,25 +124,21 @@ func _sample_heat_tenths(cell: Vector2i, at_ms: int) -> int:
 	return 0 if heat == null else int(heat.sample_tenths(cell, at_ms))
 
 
+func _minimum_heat_tenths() -> int:
+	var heat: RefCounted = _thermal()
+	return 0 if heat == null else int(heat.minimum_offset_tenths())
+
+
 func _maximum_heat_tenths() -> int:
 	var heat: RefCounted = _thermal()
-	# Match the same complete-tenths observation used by the heat authority.
-	@warning_ignore("integer_division")
-	return 0 if heat == null else int(heat.definitions.max_cell_energy) / int(heat.definitions.capacity_per_tenth)
+	return 0 if heat == null else int(heat.maximum_offset_tenths())
 
 
 func _has_sampled_heat(at_ms: int, historical: bool) -> bool:
 	var heat: RefCounted = _thermal()
 	if heat == null or historical and at_ms != int(heat.last_sample_ms):
 		return false
-	var state: Dictionary = heat.last_sample_cells if historical else heat.cells
-	for value: Variant in state.values():
-		var energy: int = int(value) if historical else int(value.energy)
-		if energy >= int(heat.definitions.capacity_per_tenth):
-			return true
-	# The heat authority keeps conservative sub-degree residue. A field whose
-	# every cell projects to zero tenths has no exposure or location effect.
-	return false
+	return bool(heat.has_visible_offsets(historical))
 
 
 func _neutral_everywhere(at_ms: int, insulation: int, historical: bool = false) -> bool:
@@ -197,25 +188,27 @@ func local_conditions(actor: String, at_ms: int = -1) -> Dictionary:
 			heat_tenths = int(projected.value)
 		else:
 			heat_reason = str(projected.reason)
-	# A longer preview can only offer a conservative initiative. Its outdoor
-	# temperature is a lower bound, not a claim that unknown future heat is 0.
-	var temperature: int = _temperature(region, now) + (heat_tenths if heat_supported else 0)
+	var background: int = _temperature(region, now)
+	if not heat_supported:
+		# A long forecast has no single temperature or burden: future sources
+		# may make its local offset either positive or negative.
+		return {"region": region, "temperature_min_tenths": background + _minimum_heat_tenths(),
+			"temperature_max_tenths": background + _maximum_heat_tenths(),
+			"heat_supported": false, "heat_reason": heat_reason, "feeling": "此时冷暖仍需临近观察"}
+	var temperature: int = background + heat_tenths
 	var burden: Dictionary = SimClimateRules.burden(definitions, temperature, insulation_for(actor))
 	var feeling: String = "冷暖适宜"
-	if not heat_supported:
-		feeling = "此时冷暖仍需临近观察"
-	elif int(burden.cold_tenths) > 0:
+	if int(burden.cold_tenths) > 0:
 		feeling = "寒意侵身，现有衣物不足御寒"
 	elif int(burden.hot_tenths) > 0:
 		feeling = "暑气逼人，容易疲倦"
-	if heat_supported and heat_tenths > 0:
+	if heat_tenths > 0:
 		feeling += "，近旁留有暖意"
-	var result: Dictionary = {"region": region, "temperature_tenths": temperature, "heat_supported": heat_supported, "feeling": feeling, "burden_rate": int(burden.energy_rate)}
-	if heat_supported:
-		result["heat_tenths"] = heat_tenths
-	else:
-		result["heat_reason"] = heat_reason
-	return result
+	elif heat_tenths < 0:
+		feeling += "，近旁留有寒意"
+	return {"region": region, "temperature_tenths": temperature, "temperature_min_tenths": temperature,
+		"temperature_max_tenths": temperature, "heat_supported": true, "heat_tenths": heat_tenths,
+		"feeling": feeling, "burden_rate": int(burden.energy_rate)}
 
 
 func energy_rate(actor: String) -> int:
@@ -224,9 +217,18 @@ func energy_rate(actor: String) -> int:
 
 func warmer_outer(actor: String, type: String, wet: int, at_ms: int) -> bool:
 	var conditions: Dictionary = local_conditions(actor, at_ms)
-	if conditions.is_empty() or int(conditions.burden_rate) == 0:
+	if conditions.is_empty():
 		return false
-	var improved: int = insulation_for(actor) + SimClimateRules.insulation_at(definitions, type, wet)
+	var current: int = insulation_for(actor)
+	var improved: int = current + SimClimateRules.insulation_at(definitions, type, wet)
+	if not bool(conditions.heat_supported):
+		# If cold and more effective insulation are both possible, ask again at
+		# the actual time. Rate caps and rounding may still make it unnecessary.
+		var maximum: int = int(definitions.human.max_insulation_tenths)
+		var warmth: int = clampi(current, 0, maximum)
+		return clampi(improved, 0, maximum) > warmth and int(conditions.temperature_min_tenths) < int(definitions.human.comfort_min_tenths) - warmth
+	if int(conditions.burden_rate) == 0:
+		return false
 	return int(SimClimateRules.burden(definitions, int(conditions.temperature_tenths), improved).energy_rate) < int(conditions.burden_rate)
 
 
@@ -235,15 +237,19 @@ func cooler_without_outer(actor: String, type: String, wet: int, at_ms: int) -> 
 	if conditions.is_empty():
 		return false
 	var current: int = insulation_for(actor)
+	var reduced: int = maxi(0, current - SimClimateRules.insulation_at(definitions, type, wet))
+	if not bool(conditions.heat_supported):
+		# A possible hot burden can warrant a later recheck; endpoints alone
+		# cannot prove an energy-rate improvement under caps and rounding.
+		var maximum: int = int(definitions.human.max_insulation_tenths)
+		var warmth: int = clampi(current, 0, maximum)
+		@warning_ignore("integer_division")
+		var hot_threshold: int = int(definitions.human.comfort_max_tenths) - warmth * int(definitions.human.insulation_heat_percent) / 100
+		return clampi(reduced, 0, maximum) < warmth and int(conditions.temperature_max_tenths) > hot_threshold
 	var temperature: int = int(conditions.temperature_tenths)
-	if not bool(conditions.get("heat_supported", true)):
-		# Offer a removal decision only if some admissible positive heat could
-		# make it useful. The committed-time decision will inspect actual heat.
-		temperature = clampi(int(definitions.human.comfort_max_tenths), temperature, temperature + _maximum_heat_tenths())
 	var burden: Dictionary = SimClimateRules.burden(definitions, temperature, current)
 	if int(burden.hot_tenths) <= 0:
 		return false
-	var reduced: int = maxi(0, current - SimClimateRules.insulation_at(definitions, type, wet))
 	return int(SimClimateRules.burden(definitions, temperature, reduced).energy_rate) < int(burden.energy_rate)
 
 
@@ -319,8 +325,11 @@ func restore(data: Variant) -> bool:
 
 
 func _valid_sample(actor: String, sample: Variant, at_ms: int) -> bool:
+	var minimum_heat: int = _minimum_heat_tenths()
 	var maximum_heat: int = _maximum_heat_tenths()
-	if not Shape.keys(sample, ["at_ms", "cell", "region", "temperature_tenths", "heat_tenths", "garments", "insulation_tenths", "energy_rate"]) or not Shape.count(sample.at_ms, at_ms, at_ms) or not sample.garments is Array or sample.garments.size() > 2 or not sample.region is String or not Shape.count(sample.temperature_tenths, -10000, 10000 + maximum_heat) or not Shape.count(sample.heat_tenths, 0, maximum_heat) or not Shape.count(sample.insulation_tenths, 0, 2000) or not Shape.count(sample.energy_rate, 0, int(definitions.human.max_energy_rate)):
+	if not Shape.keys(sample, ["at_ms", "cell", "region", "temperature_tenths", "heat_tenths", "garments", "insulation_tenths", "energy_rate"]) or not Shape.count(sample.at_ms, at_ms, at_ms) or not sample.garments is Array or sample.garments.size() > 2 or not sample.region is String or not Shape.count(sample.temperature_tenths, -10000 + minimum_heat, 10000 + maximum_heat) or not Shape.count(sample.heat_tenths, minimum_heat, maximum_heat) or not Shape.count(sample.insulation_tenths, 0, 2000) or not Shape.count(sample.energy_rate, 0, int(definitions.human.max_energy_rate)):
+		return false
+	if not Shape.count(int(sample.temperature_tenths) - int(sample.heat_tenths), -10000, 10000):
 		return false
 	var heat: RefCounted = _thermal()
 	if heat != null and at_ms >= int(heat.activation_ms) and at_ms != int(heat.last_sample_ms):

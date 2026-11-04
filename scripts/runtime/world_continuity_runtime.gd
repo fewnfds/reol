@@ -591,8 +591,14 @@ func advance_to_ms(target_ms: int) -> void:
 		end = mini(end, world_sim.private_exchange.next_boundary_ms())
 		end = mini(end, world_sim.capability_practice.next_boundary_ms())
 		end = mini(end, world_sim.environment.next_boundary_ms())
+		end = mini(end, world_sim.local_heat.next_boundary_ms())
 		end = mini(end, world_sim.large_bodies.next_boundary_ms())
 		end = mini(end, world_sim.personal_production.next_boundary_ms())
+		if not world_sim.local_heat.can_settle_at_ms(end):
+			world_sim.target_ms = maxi(world_sim.target_ms, target_ms)
+			GameClock.set_paused(true)
+			_notice = "环境结算达到数值边界；待处理时间已保留。"
+			return
 		if not player_journey.is_empty():
 			if not _player_has_motion_control():
 				cancel_travel()

@@ -31,7 +31,12 @@ func _world(runner: Object, temperature: int = 100, maximum_pulse: bool = false,
 				point[1] = 0
 		region.weather_offsets.rain = 0
 	if maximum_pulse:
-		content.local_heat.pulse_energy = int(content.local_heat.max_cell_energy)
+		# Allocation already owns the background Q. Leave room even at the
+		# greatest supported background instead of overfilling the source cell.
+		content.local_heat.pulse_energy = int(content.local_heat.max_cell_energy) - 13000 * int(content.local_heat.capacity_per_tenth)
+		if not SimLocalHeat.valid_definitions(content.local_heat):
+			runner.assert_true(false, "the maximum pulse retains a valid fixed-Q definition")
+			return null
 	if not managed_herbs:
 		# Only the residual-field cost scenario excludes a different system's
 		# compulsory minute sampling, using explicit prior fixed-source rules.
@@ -149,7 +154,9 @@ func _neutral_background_and_preview(runner: Object) -> void:
 			runner.assert_true(projected.get("reason") is String and preview.get("heat_reason") is String, "the unknown future supplies its failure reason")
 			if projected.get("reason") is String and preview.get("heat_reason") is String:
 				runner.assert_eq(preview.heat_reason, projected.reason, "local conditions retain the projection failure reason")
-			runner.assert_eq(preview.temperature_tenths, 220, "an unsupported preview retains the existing outdoor decision bound")
+			runner.assert_true(not preview.has("temperature_tenths") and not preview.has("burden_rate"), "an unsupported forecast does not publish an exact temperature or burden")
+			runner.assert_eq(preview.get("temperature_min_tenths"), 220 + world.local_heat.minimum_offset_tenths(), "the lower bound includes an admissible cold offset")
+			runner.assert_eq(preview.get("temperature_max_tenths"), 220 + world.local_heat.maximum_offset_tenths(), "the upper bound includes an admissible warm offset")
 		runner.assert_eq(world.local_heat.last_ms, heat_time, "future conditions never advance the real thermal integrator")
 	runner.assert_true(saw_supported and saw_unsupported, "future previews exercise both known and unknown heat")
 	var next: Dictionary = world.environment.local_conditions("player", world.elapsed_ms + 1)

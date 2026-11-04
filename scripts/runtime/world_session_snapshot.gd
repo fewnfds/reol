@@ -30,7 +30,9 @@ static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
 	var home_runtime: VillageRuntime = adapter.home_runtime()
 	var context: Dictionary = home_runtime.snapshot_context()
 	var player: PlayerCharacter = context.player
-	snapshot = SessionSaveSchema.upgrade(snapshot)
+	# Import uses the same independent terrain factory as final staging; it must
+	# never validate saved geometry against the currently active map.
+	snapshot = SessionSaveSchema.upgrade(snapshot, null, Callable(home_runtime, "create_candidate_map"))
 	if not SessionSaveSchema.is_valid_world(snapshot) or not snapshot.get("continuity") is Dictionary:
 		return {}
 	var content := ReolContentDB.new()

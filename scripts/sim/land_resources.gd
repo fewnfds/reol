@@ -3,7 +3,7 @@ extends RefCounted
 ## Finite natural sources. Inventory owns the goods; this owns growth phase and
 ## source accounting. Neither growth nor opening the view delivers warehouse goods.
 
-const VERSION: int = 3
+const VERSION: int = 4
 const PREFIX: String = "resource:"
 const MAX_COUNT: int = SimInventory.MAX_COUNT
 const Ecology = preload("res://scripts/sim/herb_ecology_rules.gd")

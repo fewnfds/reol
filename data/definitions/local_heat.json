@@ -1,15 +1,25 @@
 {
-  "version": 1,
+  "version": 2,
   "step_ms": 10000,
   "sample_ms": 60000,
   "world_size": 512,
   "capacity_per_tenth": 1000000,
   "pulse_energy": 180000000,
   "coefficient_scale": 1000,
-  "conductance": {"open": 100, "open_door": 100, "wall": 5, "closed_door": 5},
-  "bath_loss": {"roofed": 5, "unroofed": 200},
+  "conductance": {
+    "open": 100,
+    "open_door": 100,
+    "wall": 5,
+    "closed_door": 5
+  },
+  "bath_loss": {
+    "roofed": 5,
+    "unroofed": 200
+  },
   "source_radius": 2,
   "max_cells": 512,
-  "max_cell_energy": 1000000000000,
-  "max_total_input": 9000000000000000
+  "max_cell_energy": 1013000000000,
+  "max_total_input": 9000000000000000,
+  "reference_tenths": -10000,
+  "max_exchange_energy": 9007199254740991
 }

@@ -108,6 +108,7 @@ var private_exchange: Dictionary = {}
 
 
 var _documents: Dictionary = {}
+var _legacy_heat_input: bool = false
 var _bundle: Dictionary = {}
 var _loaded: bool = false
 
@@ -127,7 +128,7 @@ func load_all() -> bool:
 	return load_bundle(ReolContentBundle.from_documents(documents))
 
 
-func load_bundle(bundle: Variant) -> bool:
+func load_bundle(bundle: Variant, legacy_heat_input: bool = false) -> bool:
 	if _loaded:
 		errors.assign(["ContentDB is already loaded; create an independent candidate"])
 		return false
@@ -136,6 +137,7 @@ func load_bundle(bundle: Variant) -> bool:
 		errors.append("Invalid or incomplete content bundle")
 		return false
 	_documents = bundle.documents.duplicate(true)
+	_legacy_heat_input = legacy_heat_input
 	_loaded = _load_definitions()
 	if not _loaded:
 		_documents.clear()
@@ -156,7 +158,7 @@ static func legacy_v42() -> ReolContentDB:
 	if not source is Dictionary or source.get("version") != 1 or not source.get("documents") is Dictionary:
 		return null
 	var content := ReolContentDB.new()
-	return content if content.load_bundle(ReolContentBundle.from_documents(source.documents)) else null
+	return content if content.load_bundle(ReolContentBundle.from_documents(source.documents), true) else null
 
 
 func _load_definitions() -> bool:
@@ -247,7 +249,7 @@ func _load_definitions() -> bool:
 		_error("spirit_sources.json: invalid finite spiritual source rules")
 
 	var heat_rules: Variant = _read_json("res://data/definitions/local_heat.json")
-	if SimLocalHeat.valid_definitions(heat_rules):
+	if (LegacyHeatV1.valid_definitions(heat_rules) if _legacy_heat_input else SimLocalHeat.valid_definitions(heat_rules)):
 		local_heat = heat_rules.duplicate(true)
 	else:
 		_error("local_heat.json: invalid finite local heat rules")

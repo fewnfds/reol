@@ -288,7 +288,7 @@ func load_game(path: String = SAVE_PATH) -> Error:
 	var raw_snapshot: Variant = loaded.get("data")
 	if not raw_snapshot is Dictionary:
 		return _load_failed("近况文件格式不正确。")
-	var snapshot: Dictionary = SessionSaveSchema.upgrade(raw_snapshot)
+	var snapshot: Dictionary = SessionSaveSchema.upgrade(raw_snapshot, null, Callable(self, "create_candidate_map"))
 	var content := ReolContentDB.new()
 	if not content.load_bundle(snapshot.get("content_bundle")):
 		return _load_failed("近况里的内容定义不完整。")

@@ -126,11 +126,13 @@ func _test_root_migration(runner: Object, source: Dictionary, current: Dictionar
 	historical.continuity.world.settings.event_budget = 8123
 	historical.continuity.centers.home = [7, 9]
 	var before: String = _json(historical)
-	var migrated: Dictionary = SessionSaveSchema.upgrade(historical)
-	runner.assert_true(not migrated.is_empty(), "a modern v43 with its own content bundle migrates")
+	# This test changes assembly inputs without reconstructing a physical world.
+	# Stop at the old envelope boundary, before full thermal candidate import.
+	var migrated: Dictionary = SessionSaveSchema._upgrade(historical, null)
+	runner.assert_true(not migrated.is_empty(), "a v43 with its own content bundle reaches the v47 envelope")
 	if migrated.is_empty():
 		return
-	runner.assert_eq(int(migrated.schema_version), SessionSaveSchema.VERSION, "v43 migrates through the assembly boundary to the current root")
+	runner.assert_eq(int(migrated.schema_version), 47, "v43 traverses the assembly and terrain boundaries to v47")
 	runner.assert_eq(int(migrated.assembly.region_configs.home.seed), int(historical.continuity.world.regions.home.config.seed), "migration uses the saved region configuration")
 	runner.assert_eq(int(migrated.assembly.settings.event_budget), 8123, "migration uses the saved regional settings")
 	runner.assert_eq(_json(migrated.assembly.centers), _json(historical.continuity.centers), "migration uses the saved centers")
@@ -148,25 +150,29 @@ func _test_root_migration(runner: Object, source: Dictionary, current: Dictionar
 	runner.assert_eq(_json(reconstructed), before, "migration adds no world history or resource state")
 	var bad: Dictionary = migrated.duplicate(true)
 	bad.erase("assembly")
-	runner.assert_true(not SessionSaveSchema.is_valid_world(bad) and SessionSaveSchema.upgrade(bad).is_empty(), "current root without assembly is rejected")
+	runner.assert_true(not SessionSaveSchema._valid_world_fields(bad, 47) and SessionSaveSchema._upgrade(bad, null).is_empty(), "v47 without assembly is rejected")
 	bad = historical.duplicate(true)
 	bad["assembly"] = migrated.assembly.duplicate(true)
-	runner.assert_true(SessionSaveSchema.upgrade(bad).is_empty(), "v43 cannot smuggle a v44 assembly")
+	runner.assert_true(SessionSaveSchema._upgrade(bad, null).is_empty(), "v43 cannot smuggle a v44 assembly")
 	bad = historical.duplicate(true)
 	bad.erase("content_bundle")
-	runner.assert_true(SessionSaveSchema.upgrade(bad).is_empty(), "v43 without its content bundle cannot use legacy fallback")
+	runner.assert_true(SessionSaveSchema._upgrade(bad, null).is_empty(), "v43 without its content bundle cannot use legacy fallback")
 	bad = source.duplicate(true)
 	bad["assembly"] = migrated.assembly.duplicate(true)
-	runner.assert_true(SessionSaveSchema.upgrade(bad).is_empty(), "v42 cannot smuggle a v44 assembly")
-	var from_42: Dictionary = SessionSaveSchema.upgrade(source)
+	var legacy_content: ReolContentDB = ReolContentDB.legacy_v42()
+	runner.assert_true(legacy_content != null, "v42 uses its recorded compatibility definitions")
+	if legacy_content == null:
+		return
+	runner.assert_true(SessionSaveSchema._upgrade(bad, legacy_content).is_empty(), "v42 cannot smuggle a v44 assembly")
+	var from_42: Dictionary = SessionSaveSchema._upgrade(source, legacy_content)
 	runner.assert_true(not from_42.is_empty(), "real v42 explicitly traverses v43 and v44")
 	if not from_42.is_empty():
-		runner.assert_eq(int(from_42.schema_version), SessionSaveSchema.VERSION, "v42 reaches current root version")
+		runner.assert_eq(int(from_42.schema_version), 47, "v42 reaches the historical root boundary")
 		runner.assert_eq(_json(from_42.assembly.region_configs.home), _json(source.continuity.world.regions.home.config), "v42 region input is not replaced with today's opening")
 	var standalone: Dictionary = current.duplicate(true)
 	standalone.erase("continuity")
-	var upgraded_single: Dictionary = SessionSaveSchema.upgrade(standalone)
-	runner.assert_true(not upgraded_single.is_empty(), "standalone v43 is migrated without creating a joint world")
+	var upgraded_single: Dictionary = SessionSaveSchema._upgrade(standalone, null)
+	runner.assert_true(not upgraded_single.is_empty(), "standalone v43 reaches the historical boundary without creating a joint world")
 	if not upgraded_single.is_empty():
 		runner.assert_true(ReolWorldAssemblyInputs.is_valid(upgraded_single.assembly, false), "standalone v44 contains only home configuration")
 		runner.assert_eq(_json(upgraded_single.assembly.region_configs.home), _json(standalone.simulation.config), "standalone migration uses its saved simulation config")

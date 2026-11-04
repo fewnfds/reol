@@ -121,6 +121,26 @@ func test_climate_background() -> void:
 	load("res://tests/sim/test_climate_background.gd").new().run(self)
 
 
+func test_absolute_heat() -> void:
+	load("res://tests/sim/test_absolute_heat.gd").new().run(self)
+
+
+func test_signed_environment() -> void:
+	load("res://tests/sim/test_signed_environment.gd").new().run(self)
+
+
+func test_legacy_heat_v1() -> void:
+	load("res://tests/sim/test_legacy_heat_v1.gd").new().run(self)
+
+
+func test_thermal_import() -> void:
+	load("res://tests/sim/test_thermal_import.gd").new().run(self)
+
+
+func test_thermal_budget() -> void:
+	load("res://tests/runtime/test_thermal_budget.gd").new().run(self)
+
+
 # ---------------------------------------------------------------------------
 # Test doubles
 # ---------------------------------------------------------------------------

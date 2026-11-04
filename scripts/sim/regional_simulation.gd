@@ -4,7 +4,7 @@ extends RefCounted
 ## Scene adapters may disappear; these instances and their pending work remain.
 
 const DEFINITIONS_VERSION: int = 1
-const SCHEMA_VERSION: int = 39
+const SCHEMA_VERSION: int = 40
 const MINUTE_MS: int = 60000
 const MAX_COUNT: int = SimInventory.MAX_COUNT
 const Services = preload("res://scripts/sim/services/settlement_services.gd")
@@ -103,7 +103,7 @@ var autonomous_livelihood: SimAutonomousLivelihood
 var clothing: SimClothing
 var health: SimHealth
 var environment: SimEnvironment
-var local_heat: SimLocalHeat
+var local_heat: RefCounted
 var spirit_sources: SimSpiritSources
 var conflicts: SimConflicts
 var site_affairs: RefCounted
@@ -651,6 +651,11 @@ func advance_to_ms(requested_ms: int, max_events: int = 4096) -> bool:
 			if region_id == active_region:
 				_region_boundaries[region_id] = regions[region_id].next_boundary_ms()
 			next_ms = mini(next_ms, int(_region_boundaries[region_id]))
+		# Numeric/ledger exhaustion must leave all original clocks and bodies at
+		# the last accepted boundary. Keep target_ms as explicit owed work.
+		if not local_heat.can_settle_at_ms(next_ms):
+			errors.append("Local heat transfer exceeds its declared numerical budget")
+			return false
 		var old_minute: int = current_time
 		if _manual_motion_executor.is_valid():
 			_manual_motion_executor.call(elapsed_ms, next_ms)
@@ -777,7 +782,7 @@ func _next_herb_sample_ms() -> int:
 static func herb_conditions_for(content: ReolContentDB, weather_state: Dictionary, point: Vector2i, at_ms: int, heat_tenths: int = 0) -> Dictionary:
 	# A pure projection shared by live sampling and the explicit old-save
 	# activation. Plant conditions never inherit human clothes or comfort.
-	if content == null or heat_tenths < 0 or not SimInventory._valid_count(at_ms) or not SimInventory._valid_count(weather_state.get("epoch_ms")):
+	if content == null or not SimInventory._valid_count(at_ms) or not SimInventory._valid_count(weather_state.get("epoch_ms")):
 		return {}
 	var background: Dictionary = SimClimateRules.background_at(content.climate, content.weather, int(weather_state.epoch_ms), point, at_ms)
 	if background.is_empty():
@@ -842,8 +847,16 @@ func _valid_herb_conditions() -> bool:
 				# without pretending to replay an unavailable thermal history.
 				var key: String = "%d,%d" % [point.x, point.y]
 				@warning_ignore("integer_division")
-				var maximum: int = mini(int(local_heat.definitions.max_cell_energy), int(local_heat.input_energy)) / int(local_heat.definitions.capacity_per_tenth)
-				if heat > maximum or heat > 0 and not local_heat.cells.has(key):
+				if local_heat is LegacyHeatV1:
+					var maximum: int = mini(int(local_heat.definitions.max_cell_energy), int(local_heat.input_energy)) / int(local_heat.definitions.capacity_per_tenth)
+					if heat < 0 or heat > maximum or heat > 0 and not local_heat.cells.has(key):
+						return false
+				elif at_ms < int(local_heat.model_started_ms):
+					var limits: Dictionary = local_heat.legacy_limits
+					var maximum: int = mini(int(local_heat.definitions.max_cell_energy) - 13000 * int(local_heat.definitions.capacity_per_tenth), int(limits.get("input_energy", 0))) / int(local_heat.definitions.capacity_per_tenth)
+					if limits.is_empty() or heat < 0 or heat > maximum or heat > 0 and not limits.cells.has(key):
+						return false
+				elif heat < local_heat.minimum_offset_tenths() or heat > local_heat.maximum_offset_tenths() or heat != 0 and not local_heat.cells.has(key):
 					return false
 			var expected: Dictionary = herb_conditions_for(_content, weather.to_dict(), point, at_ms, heat)
 			if expected.is_empty() or int(ecology.temperature_tenths) != int(expected.temperature_tenths) or bool(ecology.rain) != bool(expected.rain):
@@ -1010,9 +1023,44 @@ func to_dict() -> Dictionary:
 	return _json_keys(snapshot)
 
 
-func restore(data: Dictionary) -> bool:
+func restore(data: Dictionary, legacy_heat_v1: bool = false) -> bool:
 	# Validation constructs an entirely separate world. Failed loads preserve
 	# existing regional objects, inventory and pending deliveries.
+	if legacy_heat_v1:
+		# Only a fresh WorldRestoreFactory shell may receive this read-only
+		# legacy candidate; never replace an already initialized live domain.
+		if local_heat != null or _content == null:
+			return false
+		# This branch is used only by the session importer to validate the old
+		# complete candidate. Adapt nested labels on a private copy, after proving
+		# they actually have the old versions and nonnegative v1 heat semantics.
+		if data.get("version") != 39 or not data.get("regions") is Dictionary or not data.get("local_heat") is Dictionary or data.local_heat.get("version") != 1 or data.local_heat.get("rules_version") != 1 or not data.get("environment") is Dictionary or data.environment.get("version") != 2 or not data.environment.get("samples") is Dictionary:
+			return false
+		if not data.get("artifacts") is Dictionary or data.artifacts.get("version") != 7 or not LegacyHeatV1.valid_definitions(_content.local_heat):
+			return false
+		for sample: Variant in data.environment.samples.values():
+			if not sample is Dictionary or not LegacyHeatV1.Shape.count(sample.get("heat_tenths"), 0, SimInventory.MAX_COUNT - 10000):
+				return false
+		for saved: Variant in data.regions.values():
+			if not saved is Dictionary or saved.get("version") != 6 or not saved.get("land_resources") is Dictionary or saved.land_resources.get("version") != 3 or not saved.land_resources.get("sources") is Dictionary:
+				return false
+			for source: Variant in saved.land_resources.sources.values():
+				if not source is Dictionary or not source.get("ecology") is Dictionary:
+					return false
+				var ecology: Dictionary = source.ecology
+				if ecology.is_empty():
+					continue
+				if ecology.get("version") != 1 or not LegacyHeatV1.Shape.count(ecology.get("heat_tenths"), 0, SimInventory.MAX_COUNT - 10000) or not LegacyHeatV1.Shape.count(ecology.get("temperature_tenths"), -10000, SimInventory.MAX_COUNT) or int(ecology.temperature_tenths) - int(ecology.heat_tenths) < -10000 or int(ecology.temperature_tenths) - int(ecology.heat_tenths) > 10000:
+					return false
+		data = data.duplicate(true)
+		data.version = SCHEMA_VERSION
+		data.environment.version = SimEnvironment.VERSION
+		for saved: Dictionary in data.regions.values():
+			saved.version = VillageSimulation.SCHEMA_VERSION
+			saved.land_resources.version = SimLandResources.VERSION
+			for source: Dictionary in saved.land_resources.sources.values():
+				if not source.ecology.is_empty():
+					source.ecology.version = 2
 	if data.get("version") == 30:
 		data = upgrade_conflicts(data)
 	if data.get("version") == 31:
@@ -1029,8 +1077,8 @@ func restore(data: Dictionary) -> bool:
 		data = upgrade_ring_use(data)
 	if data.get("version") == 37:
 		data = upgrade_private_exchange(data)
-	if data.get("version") == 38:
-		data = upgrade_heat_amounts(data)
+	# v38 and v39 need the explicit root-level thermal import; accepting them
+	# here would let a modern envelope erase or reinterpret old heat evidence.
 	if _content == null or not _valid_world_shape(data):
 		return false
 	if (services != null) != data.has("services"):
@@ -1147,9 +1195,17 @@ func restore(data: Dictionary) -> bool:
 	# The artifact transfer validator needs this candidate's bound heat rules,
 	# never the live world's field. Restore the same owner later, once geometry
 	# and original source records have independently passed validation.
-	var next_heat := SimLocalHeat.new()
-	if not next_heat.initialize(candidate_world, _content.local_heat):
-		return false
+	var next_heat: RefCounted
+	if legacy_heat_v1:
+		var old_heat: RefCounted = load("res://scripts/persistence/legacy_heat_v1.gd").new()
+		if not old_heat.configure(candidate_world, _content.local_heat):
+			return false
+		next_heat = old_heat
+	else:
+		var current_heat := SimLocalHeat.new()
+		if not current_heat.initialize(candidate_world, _content.local_heat):
+			return false
+		next_heat = current_heat
 	candidate_world.local_heat = next_heat
 	var next_artifacts := SimArtifacts.new()
 	candidate_world.artifacts = next_artifacts

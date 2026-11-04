@@ -47,9 +47,14 @@ func _legacy_archives(runner: Object) -> void:
 		if migrated.has("continuity"):
 			var regional: Dictionary = migrated.continuity.world
 			var present: int = int(regional.elapsed_ms)
+			# These archives predate heat. The later absolute-energy conversion
+			# retains their empty excess sample and its saved-present bounds.
+			var expected_heat: Dictionary = SimLocalHeat.empty_state(present)
+			expected_heat.last_sample_mode = "legacy_excess"
+			expected_heat.legacy_limits = {"at_ms": present, "input_energy": 0, "cells": []}
 			runner.assert_eq(regional.version, RegionalSimulation.SCHEMA_VERSION, "the regional format advances with its new heat owner: v%d" % version)
-			runner.assert_eq(_canonical(regional.local_heat), _canonical(SimLocalHeat.empty_state(present)), "old worlds gain no previous heat, source receipts, loss or sampled thermal benefit: v%d" % version)
-			runner.assert_eq(regional.environment.version, 2, "the original environmental sample contract explicitly advances: v%d" % version)
+			runner.assert_eq(_canonical(regional.local_heat), _canonical(expected_heat), "old worlds retain empty excess-sample conversion bounds without previous heat, source receipts, loss or sampled thermal benefit: v%d" % version)
+			runner.assert_eq(regional.environment.version, 3, "the original environmental sample contract explicitly advances: v%d" % version)
 			for sample: Dictionary in regional.environment.samples.values():
 				runner.assert_eq(sample.heat_tenths, 0, "every actual pre-heat sample retains zero historical local heat: v%d" % version)
 		runner.assert_eq(_canonical(source), before, "the pure migration never edits its input dictionary: v%d" % version)

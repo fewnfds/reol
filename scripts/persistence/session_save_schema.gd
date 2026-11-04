@@ -2,7 +2,7 @@ class_name SessionSaveSchema
 extends RefCounted
 ## Explicit migrations at the session boundary. No file I/O or live mutations.
 
-const VERSION: int = 47
+const VERSION: int = 48
 
 
 static func capture_world(fog: FogOfWar, focus: Vector2i, terrain: WorldMapData = null) -> Dictionary:
@@ -15,19 +15,30 @@ static func capture_world(fog: FogOfWar, focus: Vector2i, terrain: WorldMapData 
 	return state
 
 
-static func upgrade(source: Dictionary, _content: ReolContentDB = null) -> Dictionary:
+static func upgrade(source: Dictionary, _content: ReolContentDB = null, restore_map_factory: Callable = Callable()) -> Dictionary:
 	# A pre-bundle archive cannot prove which external templates it originally
 	# used. All legacy migrations use the recorded v42 compatibility baseline.
 	# Modern archives must be complete; no missing-pack fallback is permitted.
 	var version: Variant = source.get("schema_version")
 	# Array membership distinguishes int/float in this engine; a JSON whole
 	# number must follow the same version path as its in-memory integer value.
-	if version == VERSION or version == 46 or version == 45 or version == 44 or version == 43:
-		return _upgrade(source, null)
-	if source.has("content_bundle") or source.has("assembly"):
+	if not ReolGameClock._integer(version) or int(version) < 1 or int(version) > VERSION:
 		return {}
-	var content: ReolContentDB = ReolContentDB.legacy_v42()
-	return {} if content == null else _upgrade(source, content)
+	if version == VERSION:
+		return _upgrade(source, null)
+	var old: Dictionary = {}
+	if version == 47 or version == 46 or version == 45 or version == 44 or version == 43:
+		old = _upgrade(source, null)
+	else:
+		if source.has("content_bundle") or source.has("assembly"):
+			return {}
+		var content: ReolContentDB = ReolContentDB.legacy_v42()
+		if content == null:
+			return {}
+		old = _upgrade(source, content)
+	# Load the importer only at the historical boundary: the importer builds
+	# independent candidates and calls back into current envelope validation.
+	return {} if old.is_empty() else load("res://scripts/persistence/thermal_import.gd").convert(old, restore_map_factory)
 
 
 static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
@@ -42,6 +53,13 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 			if not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION:
 				return {}
 		return source if is_valid_world(source) else {}
+	if version == 47:
+		# Historical migrations stop at their actual last regional version.
+		# The thermal importer validates the old candidate before conversion.
+		if source.has("continuity"):
+			if not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != 39:
+				return {}
+		return source if _valid_world_fields(source, 47) else {}
 	if version == 46:
 		if not _valid_world_fields(source, 46):
 			return {}
@@ -52,7 +70,7 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 			updated.continuity.world = RegionalSimulation.upgrade_heat_amounts(source.continuity.world)
 			if updated.continuity.world.is_empty():
 				return {}
-		updated.schema_version = VERSION
+		updated.schema_version = 47
 		return _upgrade(updated, null)
 	if version == 45:
 		# This format had no mutable substrate. Only a genuine old envelope may
@@ -742,6 +760,12 @@ static func _activate_herb_ecology(sim: Variant, content: ReolContentDB, weather
 	var land: Dictionary = SimLandResources.upgrade_state(sim.get("land_resources", {}), sim.config, content.land_resources, int(sim.elapsed_ms), conditions)
 	if land.is_empty():
 		return false
+	# This historical addition predates signed ecology v2. Current factories
+	# must not silently stamp future nested versions into a v33 candidate.
+	land.version = 3
+	for source: Dictionary in land.sources.values():
+		if not source.ecology.is_empty():
+			source.ecology.version = 1
 	if not conditions.is_empty():
 		# This is the historical v33 addition, not a replacement with today's
 		# whole scenario. All existing settings and work remain untouched.
@@ -763,17 +787,21 @@ static func _upgrade_local_heat(source: Dictionary, content: ReolContentDB) -> D
 		if regional.get("version") != 27 or regional.has("local_heat") or not ReolGameClock._integer(regional.get("elapsed_ms")):
 			return {}
 		var exposure: Variant = regional.get("environment")
-		if not SimLocalHeat.Shape.keys(exposure, ["version", "rules_version", "activation_ms", "last_pulse_ms", "samples"]) or exposure.version != 1 or not exposure.samples is Dictionary:
+		if not LegacyHeatV1.Shape.keys(exposure, ["version", "rules_version", "activation_ms", "last_pulse_ms", "samples"]) or exposure.version != 1 or not exposure.samples is Dictionary:
 			return {}
 		# Preserve all real prior exposure, including a sample followed by a
 		# partially completed dressing action. Only the new heat term is zero:
 		# no old source existed, and no past interval is sampled or repriced.
 		for sample: Variant in exposure.samples.values():
-			if not SimLocalHeat.Shape.keys(sample, ["at_ms", "cell", "region", "temperature_tenths", "garments", "insulation_tenths", "energy_rate"]):
+			if not LegacyHeatV1.Shape.keys(sample, ["at_ms", "cell", "region", "temperature_tenths", "garments", "insulation_tenths", "energy_rate"]):
 				return {}
 			sample["heat_tenths"] = 0
 		exposure.version = 2
-		regional["local_heat"] = SimLocalHeat.empty_state(int(regional.elapsed_ms))
+		var at_ms: int = int(regional.elapsed_ms)
+		regional["local_heat"] = {"version": 1, "rules_version": 1, "activation_ms": at_ms, "last_ms": at_ms,
+			"segment_started_ms": at_ms, "cells": {}, "flows": [], "input_energy": 0,
+			"loss_energy": 0, "receipts": {}, "last_sample_ms": at_ms,
+			"last_sample_cells": {}, "last_sample_input": 0, "last_sample_loss": 0}
 		regional.version = 28
 	updated.schema_version = 32
 	return _upgrade(updated, content)

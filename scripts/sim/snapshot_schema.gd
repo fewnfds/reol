@@ -10,7 +10,7 @@ const MAX_COUNT: int = 9007199254740991
 
 
 static func validate(data: Dictionary, content: ReolContentDB, allowed_subjects: Dictionary = {}, legacy: bool = false, pre_resources: bool = false, external_inventory: Dictionary = {}) -> bool:
-	if content == null or not _json_value(data) or not _count(data.get("version"), 1) or data["version"] != (1 if legacy else (2 if pre_resources else 6)):
+	if content == null or not _json_value(data) or not _count(data.get("version"), 1) or data["version"] != (1 if legacy else (2 if pre_resources else 7)):
 		return false
 	if not ConfigSchema.validate_config(data.get("config")) or not SimPersonalForaging.matches(data.config, content.personal_foraging):
 		return false

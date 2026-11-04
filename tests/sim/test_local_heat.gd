@@ -15,6 +15,10 @@ class Authority extends RefCounted:
 	var barriers: Dictionary = {}
 	var roof_queries: int = 0
 	var barrier_queries: int = 0
+	var climate_boundary_x: int = 256
+	var west_background: int = 0
+	var east_background: int = 0
+	var background_schedule: Array[Dictionary] = []
 
 
 	func roof(_cell: Vector2i) -> bool:
@@ -25,6 +29,24 @@ class Authority extends RefCounted:
 	func barrier(cell: Vector2i) -> Variant:
 		barrier_queries += 1
 		return barriers.get("%d,%d" % [cell.x, cell.y], "open")
+
+
+	func background(cell: Vector2i, at_ms: int) -> int:
+		var region: String = "west" if cell.x < climate_boundary_x else "east"
+		var value: int = west_background if region == "west" else east_background
+		for change: Dictionary in background_schedule:
+			if int(change.at_ms) <= at_ms and change.has(region):
+				value = int(change[region])
+		return value
+
+
+	func background_boundary(cell: Vector2i, at_ms: int) -> int:
+		var region: String = "west" if cell.x < climate_boundary_x else "east"
+		var next: int = SimInventory.MAX_COUNT
+		for change: Dictionary in background_schedule:
+			if change.has(region) and int(change.at_ms) > at_ms:
+				next = mini(next, int(change.at_ms))
+		return next
 
 
 func run(runner: Object) -> void:
@@ -38,7 +60,7 @@ func run(runner: Object) -> void:
 	_stable_residual_long_future(runner)
 	_exact_source_patches(runner)
 	_bad_candidates(runner)
-	print("SCENARIO local heat: sparse fixed cells, conservative integer flux, arbitrary split equivalence, old-layout settlement, immediate nonretroactive impulses, historical minute heat and atomic receipt validation")
+	print("SCENARIO local heat: fixed-reference cell energy with explicit ambient allocation, conservative integer flux, arbitrary split equivalence, old-layout settlement, historical samples and atomic receipt validation")
 
 
 func _rules() -> Dictionary:
@@ -50,6 +72,7 @@ func _make(rules: Dictionary = {}, at_ms: int = 0) -> Dictionary:
 	authority.elapsed_ms = at_ms
 	var heat := Heat.new()
 	var configured: bool = heat.initialize(authority, _rules() if rules.is_empty() else rules)
+	heat.set_background(Callable(authority, "background"), Callable(authority, "background_boundary"))
 	heat.set_geometry(Callable(authority, "roof"), Callable(authority, "barrier"))
 	return {"world": authority, "heat": heat, "configured": configured}
 
@@ -78,12 +101,24 @@ func _energy(heat: RefCounted) -> int:
 	return total
 
 
+func _zero_background_cell_energy(heat: RefCounted) -> int:
+	return -int(heat.definitions.reference_tenths) * int(heat.definitions.capacity_per_tenth)
+
+
+func _reference_baseline_energy(heat: RefCounted) -> int:
+	# These legacy-dynamics scenarios explicitly bind constant 0°C background.
+	# Their Q includes the fixed-reference baseline in every allocated cell.
+	return _zero_background_cell_energy(heat) * heat.cells.size()
+
+
 func _json(heat: RefCounted) -> String:
 	return JSON.stringify(heat.to_dict(), "", true, true)
 
 
 func _definitions(runner: Object) -> void:
 	runner.assert_true(Heat.valid_definitions(_rules()), "default local heat rules have safe integer outflow bounds")
+	runner.assert_eq(_rules().version, 2, "current heat definitions use the fixed-reference model")
+	runner.assert_eq(_rules().reference_tenths, -10000, "cell energy uses the declared fixed temperature reference")
 	var rules: Dictionary = _rules()
 	rules.conductance.open = 1000
 	runner.assert_true(not Heat.valid_definitions(rules), "unstable four-edge plus atmosphere coefficients are rejected")
@@ -97,17 +132,18 @@ func _conservation(runner: Object) -> void:
 	runner.assert_true(fixture.configured, "pure heat authority initializes independently of any map scene")
 	runner.assert_eq(fixture.heat.next_boundary_ms(), SimInventory.MAX_COUNT, "empty heat does not schedule a world-wide ten-second wakeup")
 	runner.assert_true(_deposit(fixture, "warm:1"), "a completed source impulse deposits exactly one real receipt")
-	runner.assert_eq(_energy(fixture.heat), int(fixture.heat.definitions.pulse_energy), "an impulse adds its full source energy without an earlier interval of leakage")
+	runner.assert_eq(_energy(fixture.heat), _reference_baseline_energy(fixture.heat) + int(fixture.heat.definitions.pulse_energy), "activation allocates background Q and adds the complete source without earlier leakage")
 	runner.assert_eq(fixture.heat.cells.size(), 25, "default source activates a bounded five-by-five fixed spatial patch")
+	runner.assert_eq(fixture.heat.ambient_in, _reference_baseline_energy(fixture.heat), "the allocated reference baseline enters through the exterior ledger")
 	for now: int in [1, 9999, 10000, 10001, 17343, 60000, 121623]:
 		_advance(fixture, now)
-		runner.assert_eq(_energy(fixture.heat) + fixture.heat.loss_energy, fixture.heat.input_energy, "internal edge transfers plus declared outdoor losses conserve at %dms" % now)
+		runner.assert_eq(_energy(fixture.heat) + fixture.heat.loss_energy, fixture.heat.input_energy + fixture.heat.ambient_in, "cell Q and declared exterior exchanges conserve at %dms" % now)
 		var nonnegative: bool = true
 		for row: Dictionary in fixture.heat.cells.values():
 			nonnegative = nonnegative and int(row.energy) >= 0
 		runner.assert_true(nonnegative, "frozen flux never overdraws a cell at %dms" % now)
 	runner.assert_true(fixture.heat.loss_energy > 0, "finite unroofed space loses energy to its explicit exterior bath")
-	runner.assert_true(fixture.heat.cells["101,100"].energy > 0, "the neighboring fixed space receives a paired physical transfer")
+	runner.assert_true(fixture.heat.cells["101,100"].energy > _zero_background_cell_energy(fixture.heat), "neighboring fixed space receives source energy above its allocated baseline")
 
 
 func _split_and_topology(runner: Object) -> void:
@@ -203,6 +239,7 @@ func _read_only_projections(runner: Object) -> void:
 		_projection_unsupported(runner, fixture.heat.project_tenths(Vector2i(100, 100), int(time_and_reason[0])), str(time_and_reason[1]), "unsupported projection at %dms" % int(time_and_reason[0]))
 	_projection_unsupported(runner, fixture.heat.project_tenths(Vector2i(-1, 0), 6000), "invalid_cell", "projection rejects an invalid spatial target")
 	_projection_matches(runner, fixture.heat.project_tenths(Vector2i(400, 400), 6000), 0, "a valid unallocated cell has no source heat in the same supported segment")
+	runner.assert_eq(fixture.heat.current_tenths(Vector2i(100, 100)), fixture.heat.local_tenths(Vector2i(100, 100)), "pure current query reports the same committed offset as the settled convenience accessor")
 	runner.assert_eq(_json(fixture.heat), before, "all past and future projections leave complete authoritative heat state unchanged")
 	runner.assert_eq(fixture.world.roof_queries, roofs_before, "pure projection never samples roof geometry")
 	runner.assert_eq(fixture.world.barrier_queries, barriers_before, "pure projection never samples wall or door geometry")
@@ -292,10 +329,10 @@ func _stable_residual_long_future(runner: Object) -> void:
 	if not fixture.heat.flows.is_empty():
 		return
 	var residual: int = _energy(fixture.heat)
-	runner.assert_true(residual > 0 and fixture.heat.input_energy > fixture.heat.loss_energy, "no-flow stability preserves the tiny real positive remainder")
+	runner.assert_true(residual > _reference_baseline_energy(fixture.heat) and fixture.heat.input_energy > fixture.heat.loss_energy, "no-flow stability preserves the tiny positive remainder above background Q")
 	var invisible: bool = true
 	for row: Dictionary in fixture.heat.cells.values():
-		invisible = invisible and int(row.energy) < int(fixture.heat.definitions.capacity_per_tenth)
+		invisible = invisible and int(row.energy) - _zero_background_cell_energy(fixture.heat) < int(fixture.heat.definitions.capacity_per_tenth)
 	runner.assert_true(invisible, "the actual default residual is below one tenth of a degree in every cell")
 	runner.assert_eq(fixture.heat.next_boundary_ms(), SimInventory.MAX_COUNT, "nonzero but no-flow heat schedules no endless ten-second wakeup")
 	var at_ms: int = fixture.world.elapsed_ms
@@ -318,7 +355,7 @@ func _stable_residual_long_future(runner: Object) -> void:
 	_advance(resumed, future)
 	runner.assert_eq(_json(resumed.heat), _json(fixture.heat), "year-long direct and unevenly split quiet futures have identical complete state")
 	runner.assert_eq(_energy(fixture.heat), residual, "fast-forward never erases the conserved residual to manufacture silence")
-	runner.assert_eq(_energy(fixture.heat) + fixture.heat.loss_energy, fixture.heat.input_energy, "input minus recorded loss still equals real heat after a year")
+	runner.assert_eq(_energy(fixture.heat) + fixture.heat.loss_energy, fixture.heat.input_energy + fixture.heat.ambient_in, "source and ambient input minus recorded outflow still equal real Q after a year")
 	runner.assert_eq(fixture.world.roof_queries, roof_before, "year-long stable settlement performs zero extra roof queries")
 	runner.assert_eq(fixture.world.barrier_queries, barrier_before, "year-long stable settlement performs zero extra barrier queries")
 	runner.assert_eq(fixture.heat.segment_started_ms, future, "quiet fast-forward anchors the empty segment at the actual save timestamp")
@@ -367,8 +404,11 @@ func _exact_source_patches(runner: Object) -> void:
 	runner.assert_true(not fixture.heat.restore(ghost), "a real source cannot authorize an unrelated zero-energy spatial allocation")
 	runner.assert_eq(_json(fixture.heat), before, "rejecting an extra patch cell leaves all heat and source receipts intact")
 	var missing: Dictionary = fixture.heat.to_dict()
-	runner.assert_eq(missing.cells["98,98"].energy, 0, "the counterexample removes a genuinely cold corner, without altering total energy or active flux")
+	var corner_energy: int = int(missing.cells["98,98"].energy)
+	runner.assert_eq(corner_energy, _zero_background_cell_energy(fixture.heat), "counterexample removes a corner at pure background, with no source excess or active flux")
+	missing.ambient_in = int(missing.ambient_in) - corner_energy
 	missing.cells.erase("98,98")
+	runner.assert_eq(_energy_from_state(missing) + int(missing.loss_energy), int(missing.input_energy) + int(missing.ambient_in), "missing-corner candidate preserves energy balance so source coverage must reject it")
 	runner.assert_true(not fixture.heat.restore(missing), "a source's unheated corner is still part of its actual complete allocated patch")
 	runner.assert_eq(_json(fixture.heat), before, "rejecting a missing patch cell never changes the existing finite spatial domain")
 	_deposit(fixture, "warm:overlap", Vector2i(101, 100))
@@ -406,9 +446,31 @@ func _bad_candidates(runner: Object) -> void:
 	bad = data.duplicate(true)
 	bad.activation_ms = 61234
 	candidates.append(bad)
+	bad = data.duplicate(true)
+	bad.ambient_in += 1
+	candidates.append(bad)
+	bad = data.duplicate(true)
+	bad.model_started_ms = 61235
+	candidates.append(bad)
+	bad = data.duplicate(true)
+	bad.last_sample_ambient_in += 1
+	candidates.append(bad)
+	bad = data.duplicate(true)
+	bad.last_sample_mode = "unsupported_mode"
+	candidates.append(bad)
+	bad = data.duplicate(true)
+	bad.ambient_in = SimInventory.MAX_COUNT
+	candidates.append(bad)
 	for index: int in range(candidates.size()):
 		runner.assert_true(not fixture.heat.restore(candidates[index]), "invalid energy, receipt, slope or historical sample candidate %d is refused" % index)
 		runner.assert_eq(_json(fixture.heat), before, "invalid candidate %d never partially mutates live heat" % index)
 	fixture.world.artifacts.events.append({"action": "unreceipted", "actor": "player", "object": "warm_stone", "at_ms": 60001, "cell": [100, 100], "kind": "warmed"})
 	runner.assert_true(not fixture.heat.restore(data), "every real warmed source must have a corresponding receipt, in both directions")
 	runner.assert_eq(_json(fixture.heat), before, "missing reverse source correspondence is atomically rejected")
+
+
+func _energy_from_state(state: Dictionary) -> int:
+	var sum: int = 0
+	for row: Dictionary in state.cells.values():
+		sum += int(row.energy)
+	return sum

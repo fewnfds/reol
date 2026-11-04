@@ -4,7 +4,7 @@ extends RefCounted
 
 signal changed
 
-const SCHEMA_VERSION: int = 6
+const SCHEMA_VERSION: int = 7
 const MINUTE_MS: int = 60000
 const NEED_SCALE: int = 1000000
 const SnapshotSchema = preload("res://scripts/sim/snapshot_schema.gd")
