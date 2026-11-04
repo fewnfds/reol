@@ -138,6 +138,14 @@ func _legacy_sources(runner: Object) -> void:
 	legacy.schema_version = 28
 	legacy.erase("content_bundle")
 	legacy.erase("assembly")
+	# Root 28 predates editable terrain. Project only this empty modern field
+	# away; retaining it would test a forged envelope before reaching health.
+	var empty_terrain: bool = legacy.world.terrain_overrides.is_empty()
+	runner.assert_true(empty_terrain, "temporary pre-health projection has no actual terrain edits to erase")
+	if not empty_terrain:
+		fixtures._dispose(fixture)
+		return
+	legacy.world.erase("terrain_overrides")
 	legacy.continuity.world.version = 25
 	legacy.continuity.world.erase("health")
 	# This temporary pre-health format also predates the later environment

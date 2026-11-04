@@ -7,6 +7,7 @@ func run(runner: Object) -> void:
 	var previous: Dictionary = GameClock.to_dict()
 	_test_real_session(runner)
 	_test_spatial_reservations(runner)
+	_test_artifact_contact(runner)
 	GameClock.restore_state(previous)
 	print("SCENARIO developer terrain: bounded atomic editing, complete routes/corners/footprints, paused synchronization and immediate in-flight save/reload continuity")
 
@@ -166,4 +167,47 @@ func _test_spatial_reservations(runner: Object) -> void:
 		runner.assert_eq(SimTerrainEdits.inspect(world, [[81, 81, WorldMapData.TERRAIN_WATER]]).code, "occupied", "off-center part of the real footprint is protected")
 		world.large_bodies.bodies.guard_beast.path = [[81, 80], [82, 80], [83, 80]]
 		runner.assert_eq(SimTerrainEdits.inspect(world, [[84, 81, WorldMapData.TERRAIN_ROCK]]).code, "reserved_route", "full footprint of a future large-body step is protected")
+	main.free()
+
+
+func _test_artifact_contact(runner: Object) -> void:
+	var main: Node = _main(runner)
+	var runtime: WorldContinuityRuntime = main._continuity
+	if runtime == null or runtime.world_sim == null:
+		main.free()
+		return
+	runner.assert_true(runtime.select_starting_avatar("subject:player"), "artifact-contact probe selects the original human")
+	var world: RegionalSimulation = runtime.world_sim
+	var ring: String = "stele_drawing_ring"
+	var source: Vector2i = world.artifacts.object_cell(ring)
+	var middle: Vector2i = source + Vector2i.RIGHT
+	var standing: Vector2i = source + Vector2i.RIGHT * 2
+	# Controlled setup preserves the real item/field slot/body and original
+	# begin/complete rules, rather than inventing an active artifact record.
+	runner.assert_true(world.map_data.apply_terrain_patch([[middle.x, middle.y, WorldMapData.TERRAIN_GRASS], [standing.x, standing.y, WorldMapData.TERRAIN_GRASS]]).ok, "real fixed ring has a clear two-cell contact in the fixture")
+	world.regions.home.set_actor_cell("player", standing)
+	main.player.spawn_at(standing)
+	var editor := TerrainEditorRuntime.new()
+	main.add_child(editor)
+	editor.setup(runtime)
+	for verb: String in ["take", "place"]:
+		var begun: Dictionary = world.artifacts.begin("player", verb, ring)
+		runner.assert_true(begun.ok, "original " + verb + " action starts with clear contact")
+		if not begun.ok:
+			break
+		runner.assert_true(editor.prepare().ok, "developer preparation retains the genuine " + verb + " action")
+		var before: String = _digest(runtime)
+		var safe_replacement: int = (world.map_data.get_terrain(Vector2i(50, 50)) + 1) % 3
+		var result: Dictionary = editor.apply_patch([[50, 50, safe_replacement], [middle.x, middle.y, WorldMapData.TERRAIN_ROCK]])
+		runner.assert_eq(result.code, "active_contact", "ordinary " + verb + " contact rejects an intervening rock before commit")
+		runner.assert_eq(_digest(runtime), before, "rejected " + verb + " obstruction changes no world state or safe cell")
+		var original_job: Dictionary = world.artifacts.active.player.duplicate(true)
+		editor.close()
+		GameClock.advance_msec(int(original_job.due_ms) - GameClock.elapsed_ms)
+		var expected: String = "actor:player" if verb == "take" else "site:broken_stele"
+		runner.assert_eq(world.artifacts.objects[ring].container, expected, "original " + verb + " then completes with the original object")
+		if verb == "take":
+			# Returning the held ring must reserve the destination contact, not
+			# only the holder's now-coincident body/object positions.
+			runner.assert_eq(world.artifacts.object_cell(ring), standing, "held original ring follows the one real body")
 	main.free()

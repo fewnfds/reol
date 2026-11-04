@@ -41,6 +41,7 @@
 - 用户授权阶段commit/push公共仓库，默认`codex/`分支；先status/diff并检查凭据/许可/生成物，分可解释包保留用户工作。子代理不提交，不强推/reset hard/改账号、可见性或许可证，不自动合并。
 - 普通代码包由主代理调用一次原生审查：`codex -c model='"gpt-6.1-sol"' review --commit <完整SHA>`；只读审查结束即退出，修复另步。项目review_model由`tools/setup_codex.py --check --review-model gpt-6.1-sol`核对，保留公司custom路由；无GitHub云端模型审查/订阅额度依赖。
 - 一个工作包一个主要审查者；专项代理需明确高风险范围，不重复整包。纯文档/WIP不启动模型审查，混有草稿不盲审全工作区。细节见`docs/CODE-REVIEW-WORKFLOW.md`。
+- 审查器默认只读静态核查及已有证据，不自行启动引擎、测试/导入/check、CI查询或被动等待；缺验证或需复现时给主代理具体命令/理由，由主代理统一执行，避免审查与开发重复整套回归。
 
 ### CI提交检查点
 

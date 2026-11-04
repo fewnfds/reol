@@ -43,6 +43,8 @@ func run(runner: Object) -> void:
 		# that new envelope field when comparing all original v41 facts.
 		projected.erase("content_bundle")
 		projected.erase("assembly")
+		runner.assert_eq(upgraded.world.terrain_overrides, [], "old v41 archive gains only the empty current terrain delta: " + name)
+		projected.world.erase("terrain_overrides")
 		projected.continuity.world.erase("private_exchange")
 		projected.schema_version = source.schema_version
 		projected.continuity.world.version = source.continuity.world.version

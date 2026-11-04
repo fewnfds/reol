@@ -184,6 +184,8 @@ static func _contact_reserved(world: RegionalSimulation, cell: Vector2i) -> bool
 				var draw: Dictionary = job.draw
 				if _between_cells(cell, TileGrid.world_to_cell(Vector2(float(draw.caster_position[0]), float(draw.caster_position[1]))), SimRouteTravel.cell(draw.from_cell)):
 					return true
+			if _artifact_contact_reserved(world, job, cell):
+				return true
 	if world.private_exchange != null:
 		for id: String in world.private_exchange.active_jobs:
 			var job: Dictionary = world.private_exchange.jobs[id]
@@ -191,6 +193,32 @@ static func _contact_reserved(world: RegionalSimulation, cell: Vector2i) -> bool
 			var to: Vector2i = TileGrid.world_to_cell(Vector2(float(job.seller_position[0]), float(job.seller_position[1])))
 			if _between_cells(cell, from, to):
 				return true
+	return false
+
+
+static func _artifact_contact_reserved(world: RegionalSimulation, job: Dictionary, cell: Vector2i) -> bool:
+	var domain: SimArtifacts = world.artifacts
+	var id: String = str(job.get("object", ""))
+	if not domain.objects.has(id):
+		return false
+	var item: Dictionary = domain.objects[id]
+	# _near() for remote-draw tools requires clear contact for ordinary take,
+	# examine/study and invited/guide operations too, not just the draw verb.
+	if domain.has_capability(id, "remote_draw"):
+		var target: Vector2i = domain.object_cell(id)
+		for actor: String in [str(job.actor), str(job.get("recipient", "")), str(job.get("method", {}).get("guide", ""))]:
+			var region: String = domain.actor_home(actor)
+			if not region.is_empty() and _between_cells(cell, SimRouteTravel.cell(world.regions[region].actors[actor].cell), target):
+				return true
+	# Placing a carried tool into a fixed field slot also checks clear reach;
+	# its current position is the holder, not that future storage destination.
+	var destination: String = str(domain.definitions.types[item.definition].get("storage_place", ""))
+	if job.get("verb") == "place" and destination.begins_with("site:"):
+		var region: String = domain.storage_region(str(item.region), destination)
+		var actor_region: String = domain.actor_home(str(job.actor))
+		if not region.is_empty() and not actor_region.is_empty():
+			var target: Vector2i = world.field_opportunities.slot_cell(region, destination)
+			return _between_cells(cell, SimRouteTravel.cell(world.regions[actor_region].actors[job.actor].cell), target)
 	return false
 
 

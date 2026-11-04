@@ -277,7 +277,10 @@ func _test_real_v2_identity_migration(runner: Object) -> void:
 	var staged: Dictionary = WorldSessionSnapshot.stage(runtime, legacy)
 	runner.assert_true(not staged.is_empty(), "real v2 scene migrates against actual terrain, actions and knowledge")
 	if not staged.is_empty():
-		runner.assert_eq(staged.snapshot.world, legacy.world, "identity migration does not alter exploration or generator memory")
+		runner.assert_eq(staged.snapshot.world.terrain_overrides, [], "pre-terrain identity archive gains only an empty terrain delta")
+		var projected_world: Dictionary = staged.snapshot.world.duplicate(true)
+		projected_world.erase("terrain_overrides")
+		runner.assert_eq(projected_world, legacy.world, "identity migration does not alter exploration or generator memory")
 		for domain: String in ["social", "inventory", "institutions"]:
 			var migrated_domain: Dictionary = staged.snapshot.simulation[domain].duplicate(true)
 			if domain == "inventory":
