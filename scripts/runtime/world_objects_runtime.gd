@@ -253,11 +253,14 @@ func _unhandled_input(event: InputEvent) -> void:
 				break
 
 
-func _visible(id: String) -> bool:
+func _visible(id: String, observed_world: RegionalSimulation = null) -> bool:
 	var adapter: WorldContinuityRuntime = runtime()
 	if adapter == null or not adapter.human_player_active():
 		return false
-	var domain: SimArtifacts = adapter.world_sim.artifacts
+	# A reload may replace the accepted session during a debugger callback.
+	# Keep the observed world alive for every weak-owned domain read in this view.
+	var authority: RegionalSimulation = observed_world if observed_world != null else adapter.world_sim
+	var domain: SimArtifacts = authority.artifacts
 	return domain.can_see("player", id) and (adapter._home._fog == null or adapter._home._fog.is_cell_visible(domain.object_cell(id)))
 
 
@@ -265,12 +268,13 @@ func _perception(id: String) -> Dictionary:
 	var adapter: WorldContinuityRuntime = runtime()
 	if adapter == null or not adapter.human_player_active():
 		return {"known": false}
-	var domain: SimArtifacts = adapter.world_sim.artifacts
+	var authority: RegionalSimulation = adapter.world_sim
+	var domain: SimArtifacts = authority.artifacts
 	if not domain.objects.has(id):
 		return {"known": false}
 	var item: Dictionary = domain.objects[id]
 	var held: bool = item.container == "actor:player" and item.region == domain.actor_home("player")
-	if _visible(id) or held:
+	if _visible(id, authority) or held:
 		var view: Dictionary = domain.describe("player", id)
 		view["region"] = item.region
 		return view
@@ -279,9 +283,10 @@ func _perception(id: String) -> Dictionary:
 	return SimArtifacts.Understanding.remembered(domain, "player", id)
 
 
-func _display_point(id: String) -> Vector2:
+func _display_point(id: String, observed_world: RegionalSimulation = null) -> Vector2:
 	var adapter: WorldContinuityRuntime = runtime()
-	var domain: SimArtifacts = adapter.world_sim.artifacts
+	var authority: RegionalSimulation = observed_world if observed_world != null else adapter.world_sim
+	var domain: SimArtifacts = authority.artifacts
 	var cell: Vector2i = domain.object_cell(id)
 	var point: Vector2 = TileGrid.cell_to_world(cell)
 	var item: Dictionary = domain.objects[id]
@@ -296,7 +301,7 @@ func _display_point(id: String) -> Vector2:
 			if is_instance_valid(pawn):
 				point = pawn.global_position + pawn.visual_offset
 			else:
-				point = SimRouteTravel.point(adapter.world_sim.regions[item.region].actors[holder])
+				point = SimRouteTravel.point(authority.regions[item.region].actors[holder])
 	return point + Vector2(20, -24 - adapter._home._world.get_elevation(cell) * ReolWorld.ELEVATION_PX - altitude * ReolWorld.ALTITUDE_PX)
 
 
@@ -304,21 +309,22 @@ func _draw() -> void:
 	var adapter: WorldContinuityRuntime = runtime()
 	if adapter == null or adapter.world_sim == null:
 		return
-	var current: Dictionary = adapter.world_sim.artifacts.active.get("player", {})
-	if current.has("draw") and _visible(str(current.draw.target)):
-		var from: Vector2 = _display_point(str(current.object))
-		var to: Vector2 = _display_point(str(current.draw.target))
-		var progress: float = clampf(float(adapter.world_sim.elapsed_ms - int(current.started_ms)) / float(int(current.due_ms) - int(current.started_ms)), 0.0, 1.0)
+	var authority: RegionalSimulation = adapter.world_sim
+	var current: Dictionary = authority.artifacts.active.get("player", {})
+	if current.has("draw") and _visible(str(current.draw.target), authority):
+		var from: Vector2 = _display_point(str(current.object), authority)
+		var to: Vector2 = _display_point(str(current.draw.target), authority)
+		var progress: float = clampf(float(authority.elapsed_ms - int(current.started_ms)) / float(int(current.due_ms) - int(current.started_ms)), 0.0, 1.0)
 		draw_line(from, to, Color(0.63, 0.81, 0.77, 0.28), 1.0)
 		draw_arc(to, 13.0 + 5.0 * (1.0 - progress), -PI * 0.5, TAU * progress - PI * 0.5, 24, Color("#c4ded5"), 2.0)
-	for id: String in adapter.world_sim.artifacts.objects:
-		if not _visible(id):
+	for id: String in authority.artifacts.objects:
+		if not _visible(id, authority):
 			continue
-		var point: Vector2 = _display_point(id)
-		if adapter.world_sim.artifacts.has_capability(id, "weapon"):
+		var point: Vector2 = _display_point(id, authority)
+		if authority.artifacts.has_capability(id, "weapon"):
 			_draw_wooden_sword(point)
 			continue
-		if adapter.world_sim.artifacts.has_capability(id, "remote_draw"):
+		if authority.artifacts.has_capability(id, "remote_draw"):
 			_draw_drawing_ring(point)
 			continue
 		var diamond := PackedVector2Array([point + Vector2(0, -9), point + Vector2(8, 0), point + Vector2(0, 9), point + Vector2(-8, 0)])

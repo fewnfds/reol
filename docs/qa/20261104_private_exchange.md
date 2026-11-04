@@ -1,6 +1,6 @@
 # U3-b2：私人旧环的当面交割
 
-2026-11-04。实现已接入开发分支，本机定向、普通路线、独立停开与互动面板截图已验，完整回归待本包具体提交的CI。最终版本/测试数字以[BASELINE](../BASELINE.md)为准；规格见[私人交换](../plans/private_artifact_exchange.md)。不等于完整市场、产权或U3冒险验收。
+2026-11-04。实现已接入开发分支，本机定向、普通路线、独立停开与互动面板截图已验；提交`a29314667f6a743fd3177b0a5190c810c2b6650b`对应完整CI [41762510648](https://github.com/fewnfds/reol/actions/runs/41762510648)已通过。CI为180组、17180断言、0失败、CHECK PASSED，Python工具33项通过；本地记录`logs/github-ci-41762510648.log`。该结果不覆盖之后未提交的世界首屏修复。最终版本/测试数字以[BASELINE](../BASELINE.md)为准；规格见[私人交换](../plans/private_artifact_exchange.md)。不等于完整市场、产权或U3冒险验收。
 
 ## 实际产品路径
 

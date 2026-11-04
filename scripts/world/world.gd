@@ -39,6 +39,12 @@ var _obstacles: Callable
 var _painting_chunk: Vector2i = Vector2i(-1, -1)
 var _painting_offset: int = 0
 const PAINT_CELLS_PER_FRAME: int = 256
+var _view_rect: Rect2i = Rect2i()
+var _priority_cells: Array[Vector2i] = []
+var _priority_index: int = 0
+# Previewed cells belong to an incomplete chunk until its normal scan finishes.
+# Keeping that ownership allows cancellation/unload to erase out-of-order cells.
+var _preview_chunks: Dictionary[Vector2i, Dictionary] = {}
 
 
 static func generation_descriptor() -> Dictionary:
@@ -64,6 +70,8 @@ func bind_map_data(data: WorldMapData) -> void:
 		layer.clear()
 	_painting_chunk = Vector2i(-1, -1)
 	_painting_offset = 0
+	_reset_view_priority()
+	_preview_chunks.clear()
 	for cliff: CliffChunk in _cliff_nodes.values():
 		cliff.queue_free()
 	_cliff_nodes.clear()
@@ -124,11 +132,101 @@ func _process(_delta: float) -> void:
 	if not _pending_unload.is_empty():
 		var unload_coord: Vector2i = _pending_unload.pop_front()
 		_unload_chunk(unload_coord)
+	var remaining: int = PAINT_CELLS_PER_FRAME - _paint_priority(PAINT_CELLS_PER_FRAME)
+	if remaining == 0:
+		return
 	if _painting_chunk.x < 0 and not _pending_load.is_empty():
 		_painting_chunk = _pending_load.pop_front()
 		_painting_offset = 0
 	if _painting_chunk.x >= 0:
-		_paint_batch(PAINT_CELLS_PER_FRAME)
+		_paint_batch(remaining)
+
+
+func prioritize_view(rect: Rect2i) -> void:
+	var bounds: Rect2i = _view_bounds(rect)
+	if bounds == _view_rect:
+		return
+	_view_rect = bounds
+	_priority_cells.clear()
+	_priority_index = 0
+	for y: int in range(bounds.position.y, bounds.end.y):
+		for x: int in range(bounds.position.x, bounds.end.x):
+			var cell := Vector2i(x, y)
+			if not _cell_is_drawn(cell):
+				_priority_cells.append(cell)
+			elif _painting_chunk.x >= 0 and not _preview_chunks.has(_painting_chunk):
+				var chunk := Vector2i(floori(float(cell.x) / CHUNK_SIZE), floori(float(cell.y) / CHUNK_SIZE))
+				if chunk == _painting_chunk:
+					_remember_preview_chunk(chunk)
+					_ensure_cliff_chunk(chunk)
+	var center: Vector2i = bounds.get_center()
+	_priority_cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		var a_distance: int = (a - center).length_squared()
+		var b_distance: int = (b - center).length_squared()
+		if a_distance != b_distance:
+			return a_distance < b_distance
+		return a.y < b.y or (a.y == b.y and a.x < b.x)
+	)
+
+
+func is_view_ready(rect: Rect2i) -> bool:
+	var bounds: Rect2i = _view_bounds(rect)
+	var in_world: Rect2i = rect.intersection(Rect2i(Vector2i.ZERO, Vector2i.ONE * WORLD_SIZE))
+	if not bounds.has_area() or bounds != in_world:
+		return false
+	for y: int in range(bounds.position.y, bounds.end.y):
+		for x: int in range(bounds.position.x, bounds.end.x):
+			if not _cell_is_drawn(Vector2i(x, y)):
+				return false
+	return true
+
+
+func _view_bounds(rect: Rect2i) -> Rect2i:
+	if not _initialized or _focus_chunk.x < 0 or not rect.has_area():
+		return Rect2i()
+	var loaded_area := Rect2i((_focus_chunk - Vector2i.ONE * LOAD_RADIUS) * CHUNK_SIZE,
+		Vector2i.ONE * (LOAD_RADIUS * 2 + 1) * CHUNK_SIZE)
+	return rect.intersection(Rect2i(Vector2i.ZERO, Vector2i.ONE * WORLD_SIZE)).intersection(loaded_area)
+
+
+func _reset_view_priority() -> void:
+	_view_rect = Rect2i()
+	_priority_cells.clear()
+	_priority_index = 0
+
+
+func _cell_is_drawn(cell: Vector2i) -> bool:
+	return _layers[get_elevation(cell)].get_cell_source_id(cell) >= 0
+
+
+func _paint_priority(budget: int) -> int:
+	var painted: int = 0
+	var touched: Dictionary[Vector2i, bool] = {}
+	while _priority_index < _priority_cells.size() and painted < budget:
+		var cell: Vector2i = _priority_cells[_priority_index]
+		_priority_index += 1
+		if _cell_is_drawn(cell):
+			continue
+		var chunk := Vector2i(floori(float(cell.x) / CHUNK_SIZE), floori(float(cell.y) / CHUNK_SIZE))
+		_remember_preview_chunk(chunk)
+		_preview_chunks[chunk][cell] = true
+		_paint_cell(cell)
+		touched[chunk] = true
+		painted += 1
+	for chunk: Vector2i in touched:
+		_ensure_cliff_chunk(chunk)
+	return painted
+
+
+func _remember_preview_chunk(chunk: Vector2i) -> void:
+	if _preview_chunks.has(chunk):
+		return
+	_preview_chunks[chunk] = {}
+	if chunk == _painting_chunk:
+		var base: Vector2i = chunk * CHUNK_SIZE
+		for index: int in _painting_offset:
+			var cell := base + Vector2i(index % CHUNK_SIZE, floori(float(index) / CHUNK_SIZE))
+			_preview_chunks[chunk][cell] = true
 
 
 func get_terrain(cell: Vector2i) -> int:
@@ -246,8 +344,12 @@ func pending_chunk_count() -> int:
 
 
 func _rebuild_queues() -> void:
+	_reset_view_priority()
 	if _painting_chunk.x >= 0 and (absi(_painting_chunk.x - _focus_chunk.x) > UNLOAD_RADIUS or absi(_painting_chunk.y - _focus_chunk.y) > UNLOAD_RADIUS):
 		_cancel_painting()
+	for chunk: Vector2i in _preview_chunks.keys():
+		if absi(chunk.x - _focus_chunk.x) > UNLOAD_RADIUS or absi(chunk.y - _focus_chunk.y) > UNLOAD_RADIUS:
+			_clear_preview_chunk(chunk)
 	_pending_load.clear()
 	for dy in range(-LOAD_RADIUS, LOAD_RADIUS + 1):
 		for dx in range(-LOAD_RADIUS, LOAD_RADIUS + 1):
@@ -283,6 +385,7 @@ func _load_chunk(chunk: Vector2i) -> void:
 
 @warning_ignore("integer_division")
 func _cancel_painting() -> void:
+	var abandoned: Vector2i = _painting_chunk
 	var base: Vector2i = _painting_chunk * CHUNK_SIZE
 	for index: int in _painting_offset:
 		var cell: Vector2i = base + Vector2i(index % CHUNK_SIZE, index / CHUNK_SIZE)
@@ -290,8 +393,12 @@ func _cancel_painting() -> void:
 			layer.erase_cell(cell)
 		for layer: TileMapLayer in _flora_layers:
 			layer.erase_cell(cell)
+	_clear_preview_chunk(_painting_chunk)
 	_painting_chunk = Vector2i(-1, -1)
 	_painting_offset = 0
+	_reset_view_priority()
+	if absi(abandoned.x - _focus_chunk.x) <= LOAD_RADIUS and absi(abandoned.y - _focus_chunk.y) <= LOAD_RADIUS and not _pending_load.has(abandoned):
+		_pending_load.append(abandoned)
 
 
 @warning_ignore("integer_division")
@@ -301,18 +408,51 @@ func _paint_batch(budget: int) -> void:
 	var stop: int = mini(CHUNK_SIZE * CHUNK_SIZE, _painting_offset + budget)
 	for index: int in range(_painting_offset, stop):
 		var cell: Vector2i = base + Vector2i(index % CHUNK_SIZE, index / CHUNK_SIZE)
-		var natural: Dictionary = map_data().natural_cell(cell)
-		var elevation: int = get_elevation(cell)
-		var surface: int = NaturalEnvironment.SURFACES.find(str(natural.get("surface_id", "grassland")))
-		_layers[elevation].set_cell(cell, 0, Vector2i(surface, Visuals.variant_for(cell)))
-		var flora: Dictionary = natural.get("flora", {})
-		if not flora.is_empty():
-			_flora_layers[elevation].set_cell(cell, 1, Vector2i(_flora_ids.find(flora.id), int(flora.variant)))
+		if not _cell_is_drawn(cell):
+			_paint_cell(cell)
+		if _preview_chunks.has(chunk):
+			_preview_chunks[chunk][cell] = true
 	_painting_offset = stop
 	if stop < CHUNK_SIZE * CHUNK_SIZE:
+		if _preview_chunks.has(chunk):
+			_ensure_cliff_chunk(chunk)
 		return
 	_painting_chunk = Vector2i(-1, -1)
 	_painting_offset = 0
+	_preview_chunks.erase(chunk)
+	_loaded[chunk] = true
+	_ensure_cliff_chunk(chunk)
+
+
+func _paint_cell(cell: Vector2i) -> void:
+	var natural: Dictionary = map_data().natural_cell(cell)
+	var elevation: int = get_elevation(cell)
+	var surface: int = NaturalEnvironment.SURFACES.find(str(natural.get("surface_id", "grassland")))
+	_layers[elevation].set_cell(cell, 0, Vector2i(surface, Visuals.variant_for(cell)))
+	var flora: Dictionary = natural.get("flora", {})
+	if not flora.is_empty():
+		_flora_layers[elevation].set_cell(cell, 1, Vector2i(_flora_ids.find(flora.id), int(flora.variant)))
+
+
+func _clear_preview_chunk(chunk: Vector2i) -> void:
+	for cell: Vector2i in _preview_chunks.get(chunk, {}):
+		for layer: TileMapLayer in _layers:
+			layer.erase_cell(cell)
+		for layer: TileMapLayer in _flora_layers:
+			layer.erase_cell(cell)
+	_preview_chunks.erase(chunk)
+	if _cliff_nodes.has(chunk):
+		_cliff_nodes[chunk].queue_free()
+		_cliff_nodes.erase(chunk)
+
+
+func _ensure_cliff_chunk(chunk: Vector2i) -> void:
+	if _cliff_nodes.has(chunk):
+		var existing: CliffChunk = _cliff_nodes[chunk]
+		existing.complete = _loaded.has(chunk)
+		existing.partial_cells = _preview_chunks.get(chunk, {})
+		existing.queue_redraw()
+		return
 
 	var cliff := CliffChunk.new()
 	cliff.world = self
@@ -320,11 +460,12 @@ func _paint_batch(budget: int) -> void:
 	cliff.chunk_size = CHUNK_SIZE
 	cliff.tile_size = TileGrid.TILE_SIZE
 	cliff.elevation_px = ELEVATION_PX
-	cliff.position = Vector2(base * TileGrid.TILE_SIZE)
+	cliff.complete = _loaded.has(chunk)
+	cliff.partial_cells = _preview_chunks.get(chunk, {})
+	cliff.position = Vector2(chunk * CHUNK_SIZE * TileGrid.TILE_SIZE)
 	cliff.z_index = 5
 	add_child(cliff)
 	_cliff_nodes[chunk] = cliff
-	_loaded[chunk] = true
 
 
 func _unload_chunk(chunk: Vector2i) -> void:

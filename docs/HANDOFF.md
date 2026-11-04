@@ -1,14 +1,16 @@
 # Reol 快速交接
 
-**当前授权（2026-11-04）**：用户已明确重新授权持续游戏实施，新完整游戏Goal已创建并核对active。已验AI套件作为开发基础，继续超凡者优先路线；[U3-b2私人器物交换](plans/private_artifact_exchange.md)主目录已实现并通过本机定向/普通路线/独立停开/面板图，完整CI待验，见[QA](qa/20261104_private_exchange.md)和BASELINE。隔离草稿逐文件审查采用，不整目录合回。此前清除/仅工具/暂停的记录是历史，不覆盖本段。
+**当前授权（2026-11-04）**：用户已明确重新授权持续游戏实施，新完整游戏Goal已创建并核对active。已验AI套件作为开发基础，继续超凡者优先路线；[U3-b2私人器物交换](plans/private_artifact_exchange.md)已提交并推送`a29314667f6a743fd3177b0a5190c810c2b6650b`，通过本机定向/普通路线/独立停开/面板图及对应完整CI [41762510648](https://github.com/fewnfds/reol/actions/runs/41762510648)，见[QA](qa/20261104_private_exchange.md)和BASELINE；该CI不覆盖之后未提交的画面修复。旧隔离草稿已逐文件审查接续，不整目录合回。此前清除/仅工具/暂停的记录是历史，不覆盖本段。
+
+**首屏包本机已验，完整CI待验**：[QA](qa/20261104_world_view_continuity.md)记录视口优先、预绘/崖面清理和器物视图读档重入修复；四套266断言/0失败、run11六图/新局/重复读档/行旅/完整快照不变已验。单一低频CI脚本取代被动代理轮询；下一包[现场争环规格](plans/field_contest.md)目前只有设计，尚未实施。
 
 **本轮基础设施已实装**：[实际配置与验收](AI-TOOLKIT-SETUP.md)记录单一Godot AI4.4.1、uv/uvx0.13.7、Context7、默认禁用备用Godot、37技能精简及来源/回退。原启动失败源于uv0.9.5不支持新版参数、进程提前退出，另有旧后端占用；已更新启动器、只清理确认归属的旧进程并正常重开。当前Reol插件/后端同为4.4.1、ready/stopped。Godot用户级设置排除csg/gridmap/testing；需重启Codex刷新旧attach，详情与作用范围见实装文档。未改全局模型/权限。
 
 **扩展选型与版本澄清**：[AI套件/风评/竞品](AI-TOOLKIT-REVIEW.md)保留研究时点；实际采用Codex+文件/CLI+单一Godot AI+Context7+原测试/CI，不叠重复桥或测试框架。Godot未来跟进最新稳定版，4.7.2仅当前安装/验证；每次记录实际引擎与CI，不自动采用dev/RC。
 
-**最新CI已通过**：旧U3-b1 run[41742281428](https://github.com/fewnfds/reol/actions/runs/41742281428)实际失败于三项历史迁移测试前提。本轮工具提交`0ecae3a`后，`0804c70`仅修这三项测试，不改游戏规则或历史fixture；对应完整回归[41755190941](https://github.com/fewnfds/reol/actions/runs/41755190941)已success，确切SHA、数字和日志见BASELINE。U3-b1局部样本的待收CI已补齐，不代表完整游戏通过。当前仍为`codex/drawing-ring-use`开发分支，未合main；不重复本地全检。
+**U3-b1 CI已通过**：旧run[41742281428](https://github.com/fewnfds/reol/actions/runs/41742281428)实际失败于三项历史迁移测试前提。本轮工具提交`0ecae3a`后，`0804c70`仅修这三项测试，不改游戏规则或历史fixture；对应完整回归[41755190941](https://github.com/fewnfds/reol/actions/runs/41755190941)已success，确切SHA、数字和日志见BASELINE。U3-b1局部样本的待收CI已补齐，不代表后续提交或完整游戏通过。当前开发分支未合main；不重复本地全检。
 
-**旧隔离半成品（已逐文件审查接续）**：[U3-b2私人交换规格](plans/private_artifact_exchange.md)已整理，`logs/private_exchange_work_20261104_0755`内仅有未完成草稿；代理已停止实施，尚未合主目录/未运行测试。独立过程引用原身体/钱包/环，只在当面有效同意后预约原4钱，5秒完成同时交钱交环；对方返程忙碌时拒绝打断。完整接缝笔记在`logs/private_artifact_trade_notes_20261104.md`，器物缺失函数与未验接缝见`logs/private_exchange_artifact_handoff_20261104.md`。不要整目录覆回，尤其主目录CI成功记录与本轮工具文档。
+**旧隔离半成品（历史，已逐文件审查接续）**：`logs/private_exchange_work_20261104_0755`是当时的未完成草稿，不是当前主目录状态。接续后的独立过程引用原身体/钱包/环，只在当面有效同意后预约原4钱，5秒完成同时交钱交环；对方返程忙碌时拒绝打断。历史接缝笔记在`logs/private_artifact_trade_notes_20261104.md`和`logs/private_exchange_artifact_handoff_20261104.md`；当前实现及验证以[规格](plans/private_artifact_exchange.md)、[QA](qa/20261104_private_exchange.md)和顶部为准，不整目录覆回。
 
 ## 暂停前记录
 
@@ -16,7 +18,7 @@
 
 > **本机资源插入任务已排查**：Agents Anywhere连接器出现约27GiB物理/55.5GiB提交历史峰值及当前内存快速波动；没有发现仍在跑的本地游戏测试。用户已自行退出该程序并要求继续，原异常PID已消失，可用物理内存约22.2GiB。开发恢复定向验证，完整回归仍交GitHub；不要停Goal或误杀Godot MCP。证据边界与处理见[排查记录](qa/20261104_python_resource_probe.md)。
 
-> **U3-b1主目录末版验收中**：研究/短距引物已合入；本人持环并先完成外形研究，另付两分钟/2 qi完成用法研究，才能花两秒/2 qi在六格内引取可见、同高、无遮挡的松置原木剑。原身体、环与目标共占，取消不退qi。主目录末版定向、同进程连续性与原生四图已复验，左栏已显示秒数；隔离阶段两真实源档和同源三分支两次独立进程完整停开一致。本包CI待完成。详细范围和证据见[引物QA](qa/20261104_drawing_ring.md)、[规格](plans/field_ring_use.md)，最新数字和格式以[BASELINE](BASELINE.md)为准。
+> **U3-b1主目录末版验收中（历史时点）**：研究/短距引物已合入；本人持环并先完成外形研究，另付两分钟/2 qi完成用法研究，才能花两秒/2 qi在六格内引取可见、同高、无遮挡的松置原木剑。原身体、环与目标共占，取消不退qi。主目录末版定向、同进程连续性与原生四图已复验，左栏已显示秒数；隔离阶段两真实源档和同源三分支两次独立进程完整停开一致。当时本包CI待完成，后续已通过，见顶部。详细范围和证据见[引物QA](qa/20261104_drawing_ring.md)、[规格](plans/field_ring_use.md)，最新数字和格式以[BASELINE](BASELINE.md)为准。
 
 > **U3-a前包最终验收通过**：产品/三真实v40档run231/232完整停开/原生四图已验，GitHub run **41739857610** 针对commit `943d16a`的完整回归成功；QA见[野外机缘](qa/20261104_field_opportunity.md)，数字只看BASELINE。本地完整check session28457曾因旧武器视图测试直接索引远方未显现人物而出现SCRIPT ERROR及清理泄漏，退出1；该失败保留，修正接近前提后定向和前包CI通过。该CI不能证明U3-b1通过。
 
@@ -38,7 +40,7 @@
 
 ## U3-b1功能与后续
 
-实际范围见本页顶部与[引物QA](qa/20261104_drawing_ring.md)。已补研究开始时保持连续位置、候选拒绝非零高度和精确非零速度；主目录末版同进程连续性、左侧活动栏秒数、原生画面与对应完整CI均已通过。私人交换、争夺后果、通用物性与完整U2/U3仍未完成，当前不自行继续玩法。
+实际范围见本页顶部与[引物QA](qa/20261104_drawing_ring.md)。已补研究开始时保持连续位置、候选拒绝非零高度和精确非零速度；主目录末版同进程连续性、左侧活动栏秒数、原生画面与对应完整CI均已通过。U3-b2私人交换也已通过本机验证与对应完整CI；争夺后果、通用物性与完整U2/U3仍待完成。
 
 ## U1-b2历史停点
 

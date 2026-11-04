@@ -125,6 +125,13 @@ func _spawn_named_pawns(spawn_cell: Vector2i) -> void:
 func _process(_delta: float) -> void:
 	var focus: Vector2i = _continuity.controlled_cell() if _continuity != null else player.cell
 	world.set_focus(focus)
+	# Rebinding a saved map clears its view. Paint the actual screen before the
+	# rest of a 64x64 chunk, including the adjacent chunk across a screen edge.
+	var half_view: Vector2 = get_viewport_rect().size * 0.5 / camera.zoom
+	var start := Vector2i(((camera.global_position - half_view) / TileGrid.TILE_SIZE).floor())
+	var end := Vector2i(((camera.global_position + half_view) / TileGrid.TILE_SIZE).ceil())
+	end.y += ceili(float(ReolWorld.ELEVATION_LEVELS * ReolWorld.ELEVATION_PX) / TileGrid.TILE_SIZE)
+	world.prioritize_view(Rect2i(start, end - start))
 	fog.set_focus(focus)
 	if _flying != null:
 		_flying.visible = hud.diagnostics_visible() and fog.is_cell_visible(_flying.cell)
