@@ -269,3 +269,5 @@ C1a-2窄修复最终已提交推送`e62dee5`，未重复原包静态审查；当
 C1a-3实际提交准备一次查得C1a-2修复SHA `e62dee50361c56654db6ecb4ef1986e6c71aa87c` 的CI `41869387451`仍in_progress，登记后留下一次真实提交，不启动等待/轮询。自定义512格模式另实测p95/p99 18.287/19.698ms，守恒与分片通过（`logs/thermal-custom-after-512.json`），该路径按设计不做地区合并。
 
 C1a-3默认/两个独立Callable及混合接入专项113项通过，1.596秒/峰值213270528B（`logs/thermal-reuse-query.json`），覆盖双气候边界、边界前后1ms、非零天气epoch、图外邻格fallback、历史冻流独立JSON恢复并续同未来、自定义同地区不同格底量与各格不同边界。测试不读取或构造缓存内部结构。
+
+C1a-3性能代码提交`9438291bddd0b7d8b676a9b90e1340a2f0cee51e`，一次原生Sol/custom静态审查84.539秒结束，无可操作发现（`logs/reviews/<SHA>.explicit-sol.log`）；审查未运行引擎/测试/CI。导入与结构检查通过（`logs/import-20261105-005042.log`）。最终SHA完整回归仍待CI，下次真实提交集中核对，不主动等待。
