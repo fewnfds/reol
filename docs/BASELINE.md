@@ -47,6 +47,8 @@ A0a的根43与隔离争环稿曾用的根43不是可互换格式。争环稿留�
 
 本包最终SHA完整回归待CI；此提交检查点准确4394dfb/run41922985281仅发现pending，不等待。首次手输非Git SHA的空结果不算目标查询证据，随后从Git取值纠正发现一次；后续沿登记run接续，不按时轮询。
 
+代码`ed5193e2dbda2c3e3a6bca17a05e89c625d1e58f`的一次Sol/custom显式read-only原生审查124.534秒/退出0，无可操作发现，涵盖库存幂等、整组塌顶、热同步及事务顺序；仅核已有证据，未启动引擎/测试/CI或改文件。日志`logs/reviews/<SHA>.explicit-sol.log`及`.explicit-sol.summary.json`，完整最终SHA回归仍待CI。
+
 ### C1c-1b 热场历史覆盖与样本解耦
 
 普通完整热schema现以`SimThermalHistory`从原receipt/设备启用推导覆盖和首次分配，保留旧转换仅由pulse证明的同毫秒上下界；`SimThermalSample`以独立历史Q/累计账与原气候底量核采样，不读取当前cells/flows。完整候选继续认证原事件/器物余额、严格覆盖全部当前Q及重建冻结段；删当前格或改分配/底量仍拒绝。`has_visible_offsets(true)`从已验历史键读取坐标。不新增格式、余额、回收或移动热，当前仍512活格。
