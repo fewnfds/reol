@@ -1,5 +1,11 @@
 # Reol 文档入口
 
+**当前实施（2026-11-04）**：用户授权世界模拟Goal active，先平面地块，高差暂缓。先读[执行记录](plans/world_engine_execution.md)，总设计见[运行与创作工具](plans/world_engine_program.md)；下方只文档/Goal清除是此前记录，新完成项只按FEATURES/BASELINE证据判断。
+
+俯视连续地图的山丘/高台、空间维度/成本与Godot候选见[高度方案](plans/world_elevation.md)和[扩展研究](../design/research/elevation_and_world_topology.md)。目前是待验证建议，未改游戏、安装插件或决定球面/大陆模型。
+
+**2026-11-04当前阅读入口**：[世界运行与创作工具总计划](plans/world_engine_program.md)说明先完善哪些基础、每层如何配编辑工具，再用其构建世界；[环境分项](plans/world_engine_foundation.md)与[理论引用](../design/research/world_engine_references.md)补具体合同和来源。本轮仅文档，新系统/工具未实现，Goal已清除；下方active和旧下一包为历史，实际停点以[HANDOFF](HANDOFF.md)顶部为准。
+
 当前AI基础设施已实际配置，见[套件实装与验收](AI-TOOLKIT-SETUP.md)：Godot AI4.4.1、uv/uvx0.13.7、Context7、精简技能路由和原CLI/CI。来源、升级回退及上下文机制见[基础设施维护](TOOLING-MAINTENANCE.md)。用户已重新授权持续游戏实施，新完整游戏Goal active，当前接U3-b2私人交换；下列已验功能与在制内容按BASELINE区分。
 
 此前[AI开发套件选型](AI-TOOLKIT-REVIEW.md)比较社区体验、竞品与技能/测试工具，实际采用单一Godot AI并保留默认关闭的备用桥，未叠重复工具。Godot未来跟进最新稳定版，4.7.2只代表当前安装/验证。

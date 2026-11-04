@@ -2,6 +2,8 @@
 
 更新：2026-11-04。用户最新指令优先于本文件及历史计划。
 
+**最新授权（2026-11-04）：用户已授权开始世界模拟/编辑工具实施，并要求创建新Goal，工具已核为active。本轮先做平面地块，高低差/坡道/多层/三维暂缓，不让旧高度研究成为前置；旧高度样本/存档历史保留。总入口`docs/plans/world_engine_program.md`，实际执行与压力预算见`docs/plans/world_engine_execution.md`，环境分项`world_engine_foundation.md`。先运行规则、同步最小编辑/观察工具、再装配内容；每包验证并阶段性Git提交。`codex/field-contest`未验收半成品先本地快照保全，再从已有代码基线开`codex/world-engine`，不计完成、不续争环。下方只文档/paused/旧事件顺序为历史；长期仍侧重超凡者，复杂农务不扩展。**
+
 ## 项目与授权
 
 Reol是GDScript / 2D正交俯视的修仙开放世界沙盒、宗门模拟与RPG，参考DF、RimWorld、Kenshi与Warcraft。单人游戏，脚本/效用AI保证无LLM也能玩。Godot跟进**最新稳定版**，当前安装/验证4.7.2；每次采用版本与插件、CI、模板对应，不永久锁版或自动用dev/RC。不引入C#、联机、账号、运行时模型，除非用户改变方向。
@@ -11,6 +13,8 @@ Reol是GDScript / 2D正交俯视的修仙开放世界沙盒、宗门模拟与RPG
 世界方向：单角色人生、有限认识、动态社会和持续世界；物品、身体、账本与共同时间有真实所有者，视图不拥有第二套状态。衣着有生活/社交价值，无固定职业，允许强弱悬殊及非人生命。有限转生世界不回滚；出生/成长/转生未实现。凡人生产先补基础，优先超凡者战斗、法器、学习、冒险、组织与事件化远区。用户拍板概念，开发处理常规架构、算法、参数和平衡。
 
 ## 按需阅读
+
+- 本轮平面地块优先，`docs/plans/world_elevation.md`和`design/research/elevation_and_world_topology.md`仅为后续研究，不实施坡道/高台或改成体素/3D。新引擎世界采用平面配置，旧档按原地图恢复，不能追改历史。
 
 - 新会话用`reol-project`。授权/停点看`docs/HANDOFF.md`顶部，构建/版本/最新证据看`docs/BASELINE.md`，实际功能看`docs/FEATURES.md`；不为每个小改动重读全部长文。
 - 概念看`docs/GAME-BRIEF.md`；新世界/交互按需读`design/systems/world_interaction_principles.md`、`self_consistent_world.md`及对应设计和相关ADR，不整读历史。

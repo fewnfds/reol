@@ -39,6 +39,7 @@ reol/
 |---|---|
 | 玩家体验/系统规则 | design/systems；写优先级、失败和可观察后果 |
 | 本轮开发步骤 | docs/plans；包含范围、文件、存档影响、验收和状态 |
+| 世界运行与创作工具 | [总计划](plans/world_engine_program.md)定义运行层/编辑/内容依赖；工具不能另存第二套世界真值，现有JSON定义/开局保持唯一持久来源 |
 | 当前玩家可用功能 | docs/FEATURES；列入口、后果、样本边界与实现/QA引用 |
 | 当前构建与验证 | docs/BASELINE；唯一维护最新测试数字、兼容版本和证据 |
 | 当前游戏理念 | docs/GAME-BRIEF汇总；design/systems负责详细规则，区分用户方向与开发建议 |
