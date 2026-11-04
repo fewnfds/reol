@@ -558,3 +558,5 @@ doctor正常；最终受限import 5.822秒/998862848B，无引擎错误（`logs/
 同一检查点一次发现`2364b0fa62aaa4596c7d2f6422a27ac44bc2ce20` / [41908579492](https://github.com/fewnfds/reol/actions/runs/41908579492)仍in_progress，登记后继续，不等待/轮询。本包原生审查和最终SHA完整CI接续；没有本机重复完整回归，Goal继续active。
 
 最终补核外世界owner拒绝、公开出流索引只读与真实旧档后，光传播/实际源/普通视图三组708项0失败，4.112秒/386416640B，无引擎错误（`logs/local_light_final_owner_tests.json`）。结构201当前文档/390脚本0错误、diff检查通过；本包普通原生审查接续。
+
+代码`4d8f23d713da5cc9f6de0fa35691701b6fc8c4b1`已完成一次Sol/custom显式read-only原生审查，250.493秒/退出0，无可操作发现；核传播/原热流索引/唯一状态/恢复/视野投影，未运行引擎/测试/CI或修改文件。日志`logs/reviews/<SHA>.explicit-sol.log`及`.summary.json`。29文件暂存检查无凭据模式、第三方/缓存/输出、原fixture及超大资源，结构/diff通过；代码与本登记文档阶段推送，不推后查询CI或重复审查。最终推送SHA完整回归仍待验，Goal继续active。
