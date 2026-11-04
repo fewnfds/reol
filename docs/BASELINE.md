@@ -311,3 +311,5 @@ A1b-0已提交`e5fd27e802137fb997ecc198fa8247e968397764`。主原生Sol/custom�
 实际提交准备核前序2102ce8的CI41872018227为completed/cancelled；一次按完整SHA发现已推送的审查证据补包`9753ed264d9c51a9793b880203bb82dfef39fc82`的CI `41875594099`仍in_progress，留下一真实提交检查，不轮询。该补包包含e5fd27e代码；完整回归仍待对应SHA。
 
 A1b-1原包`c977827627c23490038354d90492b77d7542e5da`一次Sol/custom静态审查204.415秒结束（`logs/reviews/<SHA>.explicit-sol.log`），未运行引擎/测试/CI。两项P2均已窄修：完成监听取消后续动作时逐项核active仍存在；signal载荷的顶层及entity/from/to均make_read_only，监听者需先duplicate再改，避免修改污染后续监听者。API依据Godot官方4.7 Dictionary文档经Context7核对。新增第二监听者及真实双温石同刻取物、首回调取消后动作的回归；既有4组重验58/31/25/22项，加取消18项，最终154项0失败，无引擎错误/泄漏，分别1.897/3.761/2.805/2.802/2.001秒，峰值工作集228454400–229441536B，每组30秒/1GiB（`logs/artifact-transfer-final-{stone,draw,buy,reject,cancel}.json`）。取消专项临时runner先误拼函数名，30秒守卫停止后已纠正并成功，不计产品失败或通过。原91项证据仍为此前版本，完整回归交最终SHA CI，不重复整包模型审查。修复提交准备再次一次核前序9753ed2同run仍in_progress，留下一真实检查点。
+
+窄修复代码已提交`4ef344ee7c3b9916beefbb6da206a0b7cd1211a0`，最终导入/结构检查通过（`logs/import-20261105-012815.log`，200当前文档/358脚本0错误）。C1b规格/证据补包提交检查点仅复用前序9753ed2的CI41875594099非终态缓存，未绕冷却或再查询远端；最终推送SHA完整回归仍待下一实际提交检查。
