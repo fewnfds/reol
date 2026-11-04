@@ -53,6 +53,9 @@ func run(runner: Object) -> void:
 	var before: String = _json(WorldSessionSnapshot.capture(adapter))
 	runner.assert_true(WorldSessionSnapshot.stage(adapter, bad).is_empty(), "archive assembly and saved scenario must agree")
 	bad = second.duplicate(true)
+	bad.continuity.world.erase("services")
+	runner.assert_true(WorldSessionSnapshot.stage(adapter, bad).is_empty(), "two-region runtime rejects a missing services owner before publication")
+	bad = second.duplicate(true)
 	bad.assembly.settings.routes.river_road.amount += 1
 	runner.assert_true(WorldSessionSnapshot.stage(adapter, bad).is_empty(), "archive assembly and saved world settings must agree")
 	bad = second.duplicate(true)

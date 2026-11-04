@@ -195,12 +195,56 @@ func _test_save_load(runner: Object) -> void:
 		runner.call("assert_eq", runtime._content.get_pawn(&"player").max_stamina, previous_max + 35, "standalone simulation adopts the saved definition")
 		runner.call("assert_eq", player.state.max_stamina(), previous_max + 35, "standalone player view immediately adopts the saved definition")
 		runner.call("assert_eq", content.get_pawn(&"player").max_stamina, previous_max, "standalone restore does not modify the original database")
+		_test_roster_round_trip(runner, runtime, original_snapshot, content, path)
 	for suffix: String in ["", ".bak", ".tmp", ".bak.tmp"]:
 		var test_file: String = ProjectSettings.globalize_path(path + suffix)
 		if FileAccess.file_exists(test_file):
 			DirAccess.remove_absolute(test_file)
 	_dispose_live_fixture(runtime, world, player, pawns)
 	GameClock.restore_state(previous_clock)
+
+
+func _test_roster_round_trip(runner: Object, runtime: VillageRuntime, original: Dictionary, content: ReolContentDB, path: String) -> void:
+	# A genuine independently initialized opening has one extra resident. Do not
+	# fabricate its inventory/social/body records separately to bypass validation.
+	var configuration: Dictionary = original.simulation.config.duplicate(true)
+	configuration.actor_profiles["guest"] = {"definition_id": "a_he", "autonomous": false}
+	var cells: Dictionary = {}
+	for id: String in original.simulation.actors:
+		cells[id] = original.simulation.actors[id].cell.duplicate()
+	cells["guest"] = [20, 30]
+	var different := VillageSimulation.new()
+	var initialized: bool = different.initialize(content, configuration, cells, original.simulation.places, int(original.clock.elapsed_ms))
+	runner.assert_true(initialized, "different opening creates its real extra body, bag and social owner")
+	if not initialized:
+		return
+	different.actors.player.position = original.player.position.duplicate()
+	different.actors.player.facing = original.player.motion.facing.duplicate()
+	var snapshot: Dictionary = original.duplicate(true)
+	snapshot.simulation = different.to_dict()
+	snapshot.assembly = ReolWorldAssemblyInputs.standalone(configuration)
+	runner.assert_eq(SimSaveStore.save_file(path, snapshot), OK, "different roster archive writes")
+	var loaded: Error = runtime.load_game(path)
+	runner.assert_eq(loaded, OK, "different archived roster passes ordinary standalone loading")
+	if loaded != OK:
+		return
+	runner.assert_true(runtime._pawns.has("guest"), "accepted extra body gets a home pawn view")
+	var guest: Pawn = runtime._pawns.get("guest")
+	if guest == null:
+		return
+	runner.assert_eq(String(guest.pawn_id), "guest", "view retains instance identity distinct from its definition")
+	runner.assert_eq(String(guest.state.pawn_def.id), "a_he", "view binds its archived definition")
+	runner.assert_eq(guest.cell, Vector2i(20, 30), "new view immediately has the original body's saved position")
+	runner.assert_eq(runtime.actor_views().size(), runtime.simulation.actors.size() - 1, "one view exists per nonplayer home body")
+	var body_facts: String = SnapshotValues.canonical_json(SnapshotValues.normalized(runtime.simulation.to_dict()))
+	runtime.reconcile_actor_views()
+	runner.assert_true(runtime._pawns.guest == guest, "repeated reconciliation preserves an existing projection")
+	runner.assert_eq(SnapshotValues.canonical_json(SnapshotValues.normalized(runtime.simulation.to_dict())), body_facts, "view reconciliation does not mint bodies, stock, knowledge or credit")
+	runner.assert_eq(SimSaveStore.save_file(path, original), OK, "original roster archive writes")
+	runner.assert_eq(runtime.load_game(path), OK, "original roster loads again")
+	runner.assert_true(not runtime._pawns.has("guest"), "removed resident is no longer in the view lookup")
+	runner.assert_true(not guest.visible and guest.is_queued_for_deletion(), "removed projection is hidden and scheduled for release immediately")
+	runner.assert_eq(runtime.actor_views().size(), original.simulation.actors.size() - 1, "original roster has no ghost or extra projection")
 
 
 func _clock_state() -> Dictionary:

@@ -1169,6 +1169,7 @@ func load_game(path: String) -> Error:
 	avatar_subject = str(snapshot.avatar_subject)
 	_opening_selection_available = false
 	_bind_navigation()
+	_home.reconcile_actor_views()
 	service_adapter.reset_observation()
 	player_journey = extra.player_journey.duplicate(true)
 	_known_lines.assign(extra.known_lines)

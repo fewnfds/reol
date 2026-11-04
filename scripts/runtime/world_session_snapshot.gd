@@ -53,6 +53,10 @@ static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
 	var extra: Dictionary = snapshot.continuity
 	if not extra.get("world") is Dictionary or not extra.get("centers") is Dictionary or not extra.get("player_journey") is Dictionary or not extra.get("known_lines") is Array:
 		return {}
+	# This adapter always exposes settlement services. A pure regional world may
+	# omit them, but publishing one here would leave UI callbacks with no owner.
+	if not extra.world.get("services") is Dictionary:
+		return {}
 	if SnapshotValues.normalized(extra.centers) != SnapshotValues.normalized(assembly.centers):
 		return {}
 	for line: Variant in extra.known_lines:

@@ -178,6 +178,42 @@ func adopt_content(content: ReolContentDB) -> void:
 	_content = content
 
 
+func actor_views() -> Array[Pawn]:
+	var result: Array[Pawn] = []
+	result.assign(_pawns.values())
+	return result
+
+
+func reconcile_actor_views() -> void:
+	# Scene nodes project the accepted roster; creating/removing a view never
+	# creates/removes a body, inventory or social entry in the simulation.
+	for id: String in _pawns.keys():
+		if simulation.actors.has(id):
+			continue
+		var removed: Pawn = _pawns[id]
+		removed.hide()
+		removed.set_selected(false)
+		removed.queue_free()
+		_pawns.erase(id)
+	for id: String in simulation.actors:
+		if id == "player" or _pawns.has(id):
+			continue
+		var body: Dictionary = simulation.actors[id]
+		var created := Pawn.new()
+		created.name = "Resident_" + id
+		created.setup(_content.get_pawn(StringName(body.definition_id)), _content, _world, _decode_cell(body.cell))
+		created.pawn_id = StringName(id)
+		# Existing views belong to Main. New views belong to this adapter but
+		# retain the same absolute draw order rather than inheriting its z-index.
+		created.z_as_relative = false
+		add_child(created)
+		_pawns[id] = created
+	_visual_starts.clear()
+	_visual_targets.clear()
+	if not simulation.actors.has(_selected_actor):
+		_selected_actor = "player"
+
+
 func valid_snapshot(snapshot: Dictionary, candidate_map: WorldMapData = null, opening: Variant = null) -> bool:
 	return _valid_snapshot(snapshot, candidate_map, opening)
 
@@ -257,6 +293,7 @@ func load_game(path: String = SAVE_PATH) -> Error:
 	simulation = restored
 	adopt_content(content)
 	_config = restored.config.duplicate(true)
+	reconcile_actor_views()
 	_world.bind_map_data(candidate_map)
 	simulation.set_navigation(_find_path, _world.can_step)
 	_places = simulation.places.duplicate(true)
@@ -376,6 +413,7 @@ func _sync_actor_views(snap: bool) -> void:
 	var layout: Dictionary = continuity.actor_view_layout() if is_instance_valid(continuity) else PawnViewLayout.build(simulation.actors, "player")
 	for id: String in _pawns:
 		if not simulation.actors.has(id):
+			_pawns[id].hide()
 			continue
 		var pawn: Pawn = _pawns[id]
 		var actor: Dictionary = simulation.actors[id]

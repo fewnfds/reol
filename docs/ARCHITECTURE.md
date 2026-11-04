@@ -24,6 +24,7 @@ main / 场景装配
 | [RegionalSimulation](../scripts/sim/regional_simulation.gd) | 区域同步、域装配、共同边界/积压和跨域校验 | 现有固定域目录，非任意世界工厂/完整事件平台 |
 | [SimLocalMotion](../scripts/sim/local_motion.gd)、[SimRouteTravel](../scripts/sim/route_travel.gd) | 手动/闪身及自动路段推进，读写同一身体 | 不复制位置、体力或时钟；显示插值不推进规则 |
 | [SimEmbodiment](../scripts/sim/embodiment.gd) | 主体、载体居留、移动/行动/通信控制 | 居留不等于控制，控制通道不等于行动占用 |
+| [SimEntityQuery](../scripts/sim/entity_query.gd) | 无状态、只读地解析人物/雀身/独特器物的原位置与记录所有者 | 不登记第二实体表、不推进时间；区域滞后和世界积压分别标明，不能直接作玩家所知 |
 | [SimInventory](../scripts/sim/inventory_ledger.gd) | 容器内堆叠数量、预约、操作与受托责任 | 责任引用实物，不再存一份数量；不等于完整产权 |
 | [SimArtifacts](../scripts/sim/artifacts.gd)、[SimClothing](../scripts/sim/clothing.gd)、实物方法记录 | 独特物件位置/来源、穿法/湿润、有限器物过程与阅读记录 | 不同时复制成普通数量库存，持有/看见/读过不等于学会 |
 | [SimSocialMemory](../scripts/sim/social_memory.gd)、[SimInstitutionBook](../scripts/sim/institution_book.gd) | 本人有来源的认识/决定；机构任职和贡献记录 | 关系/礼遇/权限/实际履约分开；未实现通用ClaimBook/司法/继任 |
@@ -59,7 +60,7 @@ main / 场景装配
 
 ContentDB支持37份输入的独立内容包、旧v42兼容输入。根44另携`ReolWorldAssemblyInputs`的区域开局配置、区域设置和中心点；`WorldRestoreFactory`及`VillageSimulation.from_snapshot`沿原严格恢复/跨域校验构建候选，不运行新局物资、知识或机构记账。成功后再绑定原导航与呈现。覆盖/测试边界见BASELINE。
 
-候选的配置/人员/地点不再借活区域；地图仍通过现有独立复制工厂取得固定生成器/显式测试地图，运行呈现仍限home/river。公开定义仍可写，时钟/动作/工作间/对练等部分规则仍直接读盘，任意开局/地图编辑和动态人物视图装配未完成。存档装配描述不是带运行历史的新局模板。
+候选的配置/人员/地点不再借活区域；地图仍通过现有独立复制工厂取得固定生成器/显式测试地图，运行呈现仍限home/river。home视图在接受后按原人物名单增删并更新选择列表，不生成新身体。公开定义仍可写，时钟/动作/工作间/对练等部分规则仍直接读盘，任意开局/地图编辑尚未完成。存档装配描述不是带运行历史的新局模板。
 
 ## 仍需建立的通用接缝
 

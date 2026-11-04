@@ -95,6 +95,14 @@ func _ready() -> void:
 
 func _on_content_replaced(content: ReolContentDB) -> void:
 	_content = content
+	_pawns.assign(_village.actor_views())
+	if is_instance_valid(_selected):
+		_selected.set_selected(false)
+	_selected = null
+	if _continuity == null or _continuity.human_player_active():
+		_select_player()
+	else:
+		player.set_selected(false)
 
 
 func _on_travel_advanced(position_value: Vector2) -> void:
