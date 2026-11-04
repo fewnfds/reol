@@ -49,9 +49,9 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 	if not (version is int or version is float) or not is_finite(float(version)):
 		return {}
 	if version == VERSION:
-		# A current envelope must already contain current regional state. The
-		# standalone regional loader also accepts legacy data, but invoking its
-		# compatibility path here would let a damaged modern save erase history.
+		# A current envelope must already contain current regional state.
+		# Historical regions require their original root migration and the
+		# explicit thermal importer before current candidate validation.
 		if source.has("continuity"):
 			if not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION:
 				return {}
@@ -77,7 +77,7 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 		if source.has("continuity"):
 			if not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary:
 				return {}
-			updated.continuity.world = RegionalSimulation.upgrade_heat_amounts(source.continuity.world)
+			updated.continuity.world = load("res://scripts/persistence/legacy_regional_upgrades.gd").upgrade_heat_amounts(source.continuity.world)
 			if updated.continuity.world.is_empty():
 				return {}
 		updated.schema_version = 47
@@ -139,7 +139,7 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 		if updated.has("continuity"):
 			if not updated.continuity is Dictionary or not updated.continuity.get("world") is Dictionary:
 				return {}
-			updated.continuity.world = RegionalSimulation.upgrade_private_exchange(updated.continuity.world)
+			updated.continuity.world = load("res://scripts/persistence/legacy_regional_upgrades.gd").upgrade_private_exchange(updated.continuity.world)
 			if updated.continuity.world.is_empty():
 				return {}
 		updated.schema_version = 42
@@ -151,7 +151,7 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 		if updated.has("continuity"):
 			if not updated.continuity is Dictionary or not updated.continuity.get("world") is Dictionary:
 				return {}
-			updated.continuity.world = RegionalSimulation.upgrade_ring_use(updated.continuity.world)
+			updated.continuity.world = load("res://scripts/persistence/legacy_regional_upgrades.gd").upgrade_ring_use(updated.continuity.world)
 			if updated.continuity.world.is_empty():
 				return {}
 		updated.schema_version = 41
@@ -163,7 +163,7 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 		if updated.has("continuity"):
 			if not updated.continuity is Dictionary or not updated.continuity.get("world") is Dictionary:
 				return {}
-			updated.continuity.world = RegionalSimulation.upgrade_field_opportunities(updated.continuity.world)
+			updated.continuity.world = load("res://scripts/persistence/legacy_regional_upgrades.gd").upgrade_field_opportunities(updated.continuity.world)
 			if updated.continuity.world.is_empty():
 				return {}
 		updated.schema_version = 40
@@ -175,7 +175,7 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 		if updated.has("continuity"):
 			if not updated.continuity is Dictionary or not updated.continuity.get("world") is Dictionary:
 				return {}
-			updated.continuity.world = RegionalSimulation.upgrade_capability_practice(updated.continuity.world)
+			updated.continuity.world = load("res://scripts/persistence/legacy_regional_upgrades.gd").upgrade_capability_practice(updated.continuity.world)
 			if updated.continuity.world.is_empty():
 				return {}
 		updated.schema_version = 39
@@ -187,7 +187,7 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 		if updated.has("continuity"):
 			if not updated.continuity is Dictionary or not updated.continuity.get("world") is Dictionary:
 				return {}
-			updated.continuity.world = RegionalSimulation.upgrade_source_care(updated.continuity.world)
+			updated.continuity.world = load("res://scripts/persistence/legacy_regional_upgrades.gd").upgrade_source_care(updated.continuity.world)
 			if updated.continuity.world.is_empty():
 				return {}
 		updated.schema_version = 38
@@ -199,7 +199,7 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 		if updated.has("continuity"):
 			if not updated.continuity is Dictionary or not updated.continuity.get("world") is Dictionary:
 				return {}
-			updated.continuity.world = RegionalSimulation.upgrade_site_affairs(updated.continuity.world)
+			updated.continuity.world = load("res://scripts/persistence/legacy_regional_upgrades.gd").upgrade_site_affairs(updated.continuity.world)
 			if updated.continuity.world.is_empty():
 				return {}
 		updated.schema_version = 37
@@ -211,7 +211,7 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 		if updated.has("continuity"):
 			if not updated.continuity is Dictionary or not updated.continuity.get("world") is Dictionary:
 				return {}
-			updated.continuity.world = RegionalSimulation.upgrade_conflict_perception(updated.continuity.world)
+			updated.continuity.world = load("res://scripts/persistence/legacy_regional_upgrades.gd").upgrade_conflict_perception(updated.continuity.world)
 			if updated.continuity.world.is_empty():
 				return {}
 		updated.schema_version = 36
@@ -223,7 +223,7 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 		if updated.has("continuity"):
 			if not updated.continuity is Dictionary or not updated.continuity.get("world") is Dictionary:
 				return {}
-			updated.continuity.world = RegionalSimulation.upgrade_conflicts(updated.continuity.world)
+			updated.continuity.world = load("res://scripts/persistence/legacy_regional_upgrades.gd").upgrade_conflicts(updated.continuity.world)
 			if updated.continuity.world.is_empty():
 				return {}
 		updated.schema_version = 35

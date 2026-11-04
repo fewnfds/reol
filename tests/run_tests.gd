@@ -209,6 +209,10 @@ func test_world_restore_factory() -> void:
 	load("res://tests/runtime/test_world_restore_factory.gd").new().run(self)
 
 
+func test_regional_restore_boundary() -> void:
+	load("res://tests/sim/test_regional_restore_boundary.gd").new().run(self)
+
+
 func test_entity_query() -> void:
 	load("res://tests/sim/test_entity_query.gd").new().run(self)
 
