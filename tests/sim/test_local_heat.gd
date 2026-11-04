@@ -363,7 +363,8 @@ func _read_only_projections(runner: Object) -> void:
 	_deposit(inconsistent, "warm:inconsistent")
 	# Forge a damaged in-memory state only in this isolated fixture: its frozen
 	# outgoing flow cannot be applied to the now-empty original source cell.
-	inconsistent.heat.cells["100,100"].energy = 0
+	runner.assert_eq(inconsistent.heat.storage_summary().q_slots, inconsistent.heat.cell_count(), "custom-background corruption fixture keeps original fine ownership")
+	inconsistent.heat._cell_store.fine["100,100"].energy = 0
 	_projection_unsupported(runner, inconsistent.heat.project_tenths(Vector2i(100, 100), 1), "inconsistent_projection", "projection rejects a slope that would overdraw its source")
 	# MAX_COUNT lies 991ms past its previous global ten-second boundary;
 	# start inside that actual final interval, not across two frozen segments.

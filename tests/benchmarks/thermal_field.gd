@@ -10,11 +10,21 @@ const RESTORES: int = 3
 const PULSE_MULTIPLIER: int = 100
 const SPLIT_OFFSETS: Array[int] = [1, 337, 3847, 9999, 10000, 17777, 29999, 30000, 37517, 40000]
 var _ungrouped_reference: bool = false
+var _trusted_geometry: bool = false
+var _fine_store_reference: bool = false
 
 
 class ReferenceHeat extends SimLocalHeat:
+	func _compile_cell_store(_state: Dictionary) -> void:
+		_cell_store.expand_all()
+
 	func _rebuild_frozen_groups() -> void:
 		_frozen_groups = null
+
+
+class FineStoreHeat extends SimLocalHeat:
+	func _compile_cell_store(_state: Dictionary) -> void:
+		_cell_store.expand_all()
 
 
 class BenchmarkWeather extends RefCounted:
@@ -85,10 +95,12 @@ func _run() -> void:
 			return
 		backend = str(args[1])
 	if args.size() == 3:
-		if args[2] != "ungrouped":
-			_fail("third argument must be ungrouped")
+		if args[2] not in ["ungrouped", "compressed", "trusted_fine"]:
+			_fail("third argument must be ungrouped, compressed or trusted_fine")
 			return
-		_ungrouped_reference = true
+		_ungrouped_reference = args[2] == "ungrouped"
+		_trusted_geometry = args[2] in ["compressed", "trusted_fine"]
+		_fine_store_reference = args[2] == "trusted_fine"
 	var default_backend: bool = backend == "default"
 	var whole_start: int = Time.get_ticks_usec()
 	var content := ReolContentDB.new()
@@ -208,6 +220,7 @@ func _run() -> void:
 		"backend": backend,
 		"integration_policy": "original_flows" if _ungrouped_reference else "frozen_equivalence",
 		"frozen_groups_at_end": 0 if heat._frozen_groups == null else int(heat._frozen_groups.group_count),
+		"storage": heat.storage_summary(), "trusted_geometry": _trusted_geometry,
 		"distinct_energy_values_at_end": energy_values.size(),
 		"state_sha256": SnapshotValues.canonical_json(SnapshotValues.normalized(end_state)).sha256_text(),
 		"scope": "isolated fixed-Q field; open unroofed geometry; synthetic receipt-owning component source; actual climate and weather rules; no actor, artifact, world, rendering or full-save benchmark",
@@ -264,12 +277,12 @@ func _configure_authority(authority: FieldAuthority, content: ReolContentDB) -> 
 
 
 func _new_heat(authority: FieldAuthority, rules: Dictionary, default_backend: bool = false) -> SimLocalHeat:
-	var heat: SimLocalHeat = ReferenceHeat.new() if _ungrouped_reference else SimLocalHeat.new()
+	var heat: SimLocalHeat = ReferenceHeat.new() if _ungrouped_reference else (FineStoreHeat.new() if _fine_store_reference else SimLocalHeat.new())
 	if not heat.initialize(authority, rules):
 		return null
 	if not default_backend:
 		heat.set_background(Callable(authority, "background"), Callable(authority, "background_boundary"))
-	heat.set_geometry(Callable(authority, "roof"), Callable(authority, "barrier"))
+	heat.set_geometry(Callable(authority, "roof"), Callable(authority, "barrier"), _trusted_geometry)
 	heat.set_source_validator(Callable(authority, "matches_receipt"), Callable(authority, "expected_actions"))
 	return heat
 

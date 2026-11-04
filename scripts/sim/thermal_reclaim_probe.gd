@@ -48,10 +48,14 @@ static func inspect(heat: SimLocalHeat, max_work: int = 4096) -> Dictionary:
 
 	var rows: Dictionary = {}
 	var region_cache: Dictionary = {}
-	for raw_key: Variant in heat.cells:
+	# Reserve all key visits before allocating the derived coordinate list;
+	# individual rows are projected only after their original budget is paid.
+	if heat.cell_count() > int(work.limit) - int(work.used):
+		return _unknown("work_budget_exhausted", work, heat.last_ms)
+	for raw_key: Variant in heat.cell_keys():
 		if not _spend(work):
 			return _unknown("work_budget_exhausted", work, heat.last_ms)
-		var row: Variant = heat.cells[raw_key]
+		var row: Variant = heat.cell_row(str(raw_key))
 		if not raw_key is String or not row is Dictionary or not heat._cell_array(row.get("cell")) or not row.get("energy") is int:
 			return _unknown("invalid_cell", work, heat.last_ms)
 		var point := Vector2i(int(row.cell[0]), int(row.cell[1]))

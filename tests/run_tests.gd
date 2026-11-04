@@ -149,6 +149,14 @@ func test_thermal_history() -> void:
 	load("res://tests/sim/test_thermal_history.gd").new().run(self)
 
 
+func test_thermal_cell_store() -> void:
+	load("res://tests/sim/test_thermal_cell_store.gd").new().run(self)
+
+
+func test_thermal_compressed_field() -> void:
+	load("res://tests/sim/test_thermal_compressed_field.gd").new().run(self)
+
+
 func test_heat_geometry_reuse() -> void:
 	load("res://tests/sim/test_heat_geometry_reuse.gd").new().run(self)
 

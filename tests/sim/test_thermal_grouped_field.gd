@@ -8,6 +8,9 @@ var _fixtures := Fixtures.new()
 
 
 class ReferenceHeat extends SimLocalHeat:
+	func _compile_cell_store(_state: Dictionary) -> void:
+		_cell_store.expand_all()
+
 	func _rebuild_frozen_groups() -> void:
 		_frozen_groups = null
 
@@ -82,7 +85,7 @@ func _real_sources(runner: Object) -> void:
 	runner.assert_eq(world.local_heat.cells.size(), 100, "four genuine charged artifact actions retain one hundred original physical cells")
 	runner.assert_eq(int(world.artifacts.objects.hearth_stone.charge), opening_charge - 4, "the original artifact pays every pulse exactly once")
 	runner.assert_eq(world.local_heat.input_energy, 4 * int(world.local_heat.definitions.pulse_energy), "original artifact amounts and the physical field still match")
-	runner.assert_true(world.local_heat._frozen_groups != null, "the genuine closed-source regional world selects derived groups")
+	runner.assert_eq(world.local_heat.storage_summary().q_slots, 24, "the genuine isolated regional sources use six unique Q slots each")
 	if not world.advance_to_ms(int(world.elapsed_ms) + 173):
 		runner.assert_true(false, "genuine regional source reaches a non-boundary snapshot")
 		return

@@ -16,6 +16,20 @@
 
 更早通过/失败、修复与日志原文见[整理前基线](archive/documentation_consolidation_20261104/docs/BASELINE.md)及[QA索引](qa/README.md)。只认具体SHA和验证范围；旧失败数量不作为当前失败，旧成功也不覆盖新代码。
 
+### C1c-1d：唯一Q压缩运行表示（提交前证据）
+
+2026-11-05，`SimThermalCellStore`成为原热域的唯一Q所有者：细行与孤立5×5块的六轨道互斥，成员数1/4/4/4/8/4。原真实pulse、空间/默认气候/结构准入和逐成员分别入出率一致后才压缩；重冻重验，不合条件无损展开。偏心源、设备启用和结构事务沿原时间边界展开；查询不持第二份可写Q，诊断先付枚举预算。不改变真实源/外界账、全场最早边界、人物/植物响应或有限认识。仍写完整展开热v3，根50/区域41/器物8不变；当前开局仍512逻辑格，不是扩容或永久压缩存档。
+
+doctor/最终导入通过，导入5.935秒/工作集1005301760B，无引擎错误（`logs/thermal-store-import-final.json`）。最终9组1368项0失败，7.093秒/235376640B（`logs/thermal-store-final.json`）；历史导入/设备旧档/普通场景归档3组199项0失败，14.894秒/431988736B（`logs/thermal-store-legacy.json`）。覆盖唯一Q/投影隔离/逐轨道整数预算、原地理气候与禁压缩细格完整参照、天气突变、不同分片/独立JSON、相邻源/启用设备展开、真实施工/塌顶拒绝边界和原fixture。原grouped/history等572项及独立真实地理141项另见`thermal-store-rules-final.json`、`thermal-store-world-final.json`，不累计重叠断言充当规模。
+
+同机i5-13600KF/20逻辑核/34104020992B内存、Godot4.7.2开发程序，组件基准40次×1秒、同一可信open几何、实际气候/天气、16笔组件pulse及400逻辑格：压缩96个Q槽，推进mean/p95/p99=1.21505/10.707/11.222ms；禁止压缩但同样复用几何的400槽参照为0.936225/8.880/9.077ms。两者完整状态SHA256同为`a2f82db539ab744aec344bc29a488354eae22f20bf62e459fd4315266ba8a340`，含4次冻结边界和分片未来一致。展开捕获mean1.807/1.065ms，完整恢复mean27.061/23.991ms，JSON96364字节；进程2.059/2.006秒、工作集210923520/211386368B。日志`thermal-store-400-compressed-retained.json`与`thermal-store-400-trusted_fine.json`。异质512格安全回退512槽，推进mean/p95/p99=5.219075/15.237/15.571ms、恢复mean31.484ms（`thermal-store-512-fallback.json`）。这是准确的存储表示，当前CPU成本更高，峰值内存未证明下降；不是FPS、多年、移动源或大世界容量验收。
+
+普通原生[停开脚本](../tools/qa/thermal_store_restart.gd)真实到场学习并付费释热，25格压到6槽；进行中时刻367133ms保存完全退出，由独立进程普通loader读回并继续62347ms。完整checkpoint摘要`a9c52a18a216d6941f0a2217f9f2cfa2794f9206c7b4e3182f50e20325c60ac9`，原/新进程完整未来均`61a85b20c016f2ab5a96c2b735b89d99aa392c6ad8a74c9ba491052ea22c511f`；保存文件SHA256 `fbee56c8d54365876ffd3913be727b82e96a1b223109516377bffdc540c0e0fc`。Compatibility/OpenGL/RTX5060Ti，write/read完整进程8.393/6.879秒、工作集446377984/432005120B、采样私有峰651550720/647921664B；30秒/1GiB外部guard且无引擎错误，`thermal-store-native-{write,read}.json`、`thermal_store_native_{write,read}.json`。1600×900的`logs/thermal_store_read.png`已观察，普通角色/环境暖意与重载场景成立，不声称画面逐像素一致。
+
+早期400格探针虽退出0，但含String/bool比较SCRIPT ERROR，已按真实bool/string几何分支修复；原失败`thermal-store-400-compressed.json`保留，不当作通过。后续保留合格块的原六Q，避免每次先展开再压回，但投影/重冻成本仍待处理。所有最终验证顺序运行并设30秒/1GiB上限，未重复完整回归。
+
+本次真实提交检查：`4394dfbffdf1215c7e435dfdfb8cb05a3612dd32`/41922985281缓存终态completed/cancelled，不算通过；从Git取得准确前推送`b6c6ccb6c5219c9b5c486657320b35d712fafaf0`仅一次发现41925101451为in_progress，留下一真实提交检查。一次错误SHA/缺run参数未发出有效查询，不计证据。最近已核完整绿仍99eb91c；本包一次原生审查及最终SHA完整回归待接续，不等待或轮询。
+
 ## 当前采用的环境
 
 - Godot当前安装/验证及CI采用 **4.7.2稳定版**，未来跟进最新稳定版，不自动采用dev/RC。

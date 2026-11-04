@@ -708,7 +708,7 @@ func _valid_herb_conditions() -> bool:
 					var maximum: int = mini(int(local_heat.definitions.max_cell_energy) - 13000 * int(local_heat.definitions.capacity_per_tenth), int(limits.get("input_energy", 0))) / int(local_heat.definitions.capacity_per_tenth)
 					if limits.is_empty() or heat < 0 or heat > maximum or heat > 0 and not limits.cells.has(key):
 						return false
-				elif heat < local_heat.minimum_offset_tenths() or heat > local_heat.maximum_offset_tenths() or heat != 0 and not local_heat.cells.has(key):
+				elif heat < local_heat.minimum_offset_tenths() or heat > local_heat.maximum_offset_tenths() or heat != 0 and not local_heat.has_cell(point):
 					return false
 			var expected: Dictionary = herb_conditions_for(_content, weather.to_dict(), point, at_ms, heat)
 			if expected.is_empty() or int(ecology.temperature_tenths) != int(expected.temperature_tenths) or bool(ecology.rain) != bool(expected.rain):
