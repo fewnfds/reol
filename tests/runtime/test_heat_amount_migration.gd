@@ -4,6 +4,8 @@ extends RefCounted
 
 const ARCHIVE: String = "res://tests/fixtures/session_v32.json"
 const SHA: String = "a804cc0707f0e1be89372868bbdb58dc4544b4b1aa4e296a00dd999c185cd88a"
+const SolarProjection = preload("res://tests/runtime/helpers/solar_legacy_projection.gd")
+const HerbMigration = preload("res://tests/runtime/test_herb_ecology_migration.gd")
 
 
 func run(runner: Object) -> void:
@@ -60,14 +62,18 @@ func _exercise(runner: Object, runtime: WorldContinuityRuntime, bytes: String) -
 		return
 	runner.assert_eq(_json(converted.continuity.world.artifacts.active), _json(historical.continuity.world.artifacts.active), "import retains the original unfinished action and its actual due time")
 	runner.assert_eq(_json(converted.continuity.world.environment.samples), _json(historical.continuity.world.environment.samples), "import preserves the sampled body temperatures and exposure history")
+	runner.assert_eq(_json(HerbMigration.prior_environment(converted.continuity.world.environment, historical.continuity.world.environment, converted)), _json(historical.continuity.world.environment), "import preserves the complete established exposure after the fixed solar rule-version addition")
 	runner.assert_eq(_json(converted.simulation.actors), _json(historical.simulation.actors), "import preserves the original bodies")
 	runner.assert_eq(_json(converted.simulation.inventory), _json(historical.simulation.inventory), "import preserves the original inventory and ledger")
 	runner.assert_eq(converted.continuity.world.local_heat.last_sample_mode, "legacy_excess", "the old sampled heat keeps its explicit legacy interpretation")
 	runner.assert_eq(int(converted.continuity.world.local_heat.version), 3, "the accepted live field has the current device-aware version")
 	var heat_path: String = "res://data/definitions/local_heat.json"
+	var projected_climate: Dictionary = SolarProjection.prior_climate(converted)
+	runner.assert_true(not projected_climate.is_empty(), "the historical content gains exactly the fixed solar migration defaults")
 	for path: String in historical.content_bundle.documents:
 		if path != heat_path:
-			runner.assert_eq(_json(converted.content_bundle.documents[path]), _json(historical.content_bundle.documents[path]), "thermal import preserves the archived non-heat document " + path)
+			var actual: Variant = projected_climate if path == SolarProjection.CLIMATE_PATH else converted.content_bundle.documents[path]
+			runner.assert_eq(_json(actual), _json(historical.content_bundle.documents[path]), "thermal and solar imports preserve the archived document after explicit projection: " + path)
 	runner.assert_eq(int(historical.content_bundle.documents[heat_path].version), 1, "the archived heat definition remains v1")
 	runner.assert_eq(int(converted.content_bundle.documents[heat_path].version), 3, "the imported heat definition reaches the current format")
 	GameClock.advance_msec(840050 - GameClock.elapsed_ms)

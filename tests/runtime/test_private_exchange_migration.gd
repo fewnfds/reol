@@ -40,7 +40,7 @@ func run(runner: Object) -> void:
 		runner.assert_eq(int(upgraded.continuity.world.artifacts.version), SimArtifacts.VERSION, "old artifact envelope advances explicitly")
 		runner.assert_eq(_json(upgraded.continuity.world.private_exchange), _json(SimPrivateExchange.empty_state()), "migration adds no proposal, consent, occupation, payment or transfer")
 		var projected: Dictionary = upgraded.duplicate(true)
-		var prior_world: Dictionary = HerbMigration.prior_thermal_world(upgraded.continuity.world, source.continuity.world)
+		var prior_world: Dictionary = HerbMigration.prior_thermal_world(upgraded.continuity.world, source.continuity.world, upgraded)
 		runner.assert_true(not prior_world.is_empty(), "private exchange archive retains the explicit empty-field conversion and established ecology: " + name)
 		if prior_world.is_empty():
 			continue

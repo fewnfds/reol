@@ -4,6 +4,7 @@ extends RefCounted
 
 const Fixtures = preload("res://tests/runtime/test_world_continuity_runtime.gd")
 const HerbMigration = preload("res://tests/runtime/test_herb_ecology_migration.gd")
+const SolarProjection = preload("res://tests/runtime/helpers/solar_legacy_projection.gd")
 const ARCHIVE_31: String = "res://tests/fixtures/session_v31.json"
 const SHA_31: String = "3753f178d701b26d2bd479f5acd06068037fcfa03bf2e5f7b58e5ebd6dacc991"
 var _fixtures := Fixtures.new()
@@ -75,7 +76,10 @@ func _existing_samples(runner: Object) -> void:
 		var old_world: Dictionary = source.continuity.world
 		var new_world: Dictionary = migrated.continuity.world
 		var old_exposure: Dictionary = old_world.environment
-		var restored_old_exposure: Dictionary = new_world.environment.duplicate(true)
+		var restored_old_exposure: Dictionary = SolarProjection.prior_environment(new_world.environment, old_exposure, migrated)
+		runner.assert_true(not restored_old_exposure.is_empty() and old_exposure.get("version") == 1, "the old exposure comparison requires the fixed solar migration and its original shape: v%d" % version)
+		if restored_old_exposure.is_empty() or old_exposure.get("version") != 1:
+			continue
 		runner.assert_eq(restored_old_exposure.activation_ms, old_exposure.activation_ms, "local heat does not restart the established exposure domain: v%d" % version)
 		runner.assert_eq(restored_old_exposure.last_pulse_ms, old_exposure.last_pulse_ms, "local heat does not move the prior minute pulse: v%d" % version)
 		for actor: String in restored_old_exposure.samples:

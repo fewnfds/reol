@@ -135,7 +135,7 @@ func _old_archives(runner: Object) -> void:
 				for field: String in ["device_input", "device_absorbed", "device_switches"]:
 					runner.assert_true(imported_heat[field] is Dictionary and imported_heat[field].is_empty(), "v33 adds no historical device ledger: " + field)
 				runner.assert_eq(Support.canonical(HerbMigration.prior_empty_heat(imported_heat, original_heat)), Support.canonical(original_heat), "v33 preserves the complete old thermal sample, field, flows and receipts")
-				var historical: Dictionary = HerbMigration.prior_thermal_world(projected, prior.continuity.world)
+				var historical: Dictionary = HerbMigration.prior_thermal_world(projected, prior.continuity.world, current)
 				runner.assert_true(not historical.is_empty(), "v33 fixed-Q import proves empty device ledgers and preserved ecology before projection")
 				projected = historical
 				runner.assert_eq(Support.canonical(projected), Support.canonical(prior.continuity.world), "v33 retains every original ecological, bodily, artifact, stock and in-flight fact after explicit schema projection")

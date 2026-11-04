@@ -10,6 +10,7 @@ const HEAT_PATH: String = "res://data/definitions/local_heat.json"
 const ARTIFACTS_PATH: String = "res://data/definitions/artifacts.json"
 const FUTURE_MS: int = 957520
 const DEVICE_FIELDS: Array[String] = ["continuous_input", "absorbed_energy", "device_input", "device_absorbed", "device_switches", "last_sample_continuous_input", "last_sample_absorbed", "segment_until_ms"]
+const SolarProjection = preload("res://tests/runtime/helpers/solar_legacy_projection.gd")
 
 
 func run(runner: Object) -> void:
@@ -78,15 +79,18 @@ func _original_fields(runner: Object, current: Dictionary, prior: Dictionary) ->
 	var new_docs: Dictionary = current.content_bundle.documents.duplicate(true)
 	old_docs.erase(HEAT_PATH)
 	new_docs.erase(HEAT_PATH)
-	runner.assert_eq(_json(new_docs), _json(old_docs), "all original nonthermal content documents retain their exact values")
+	new_docs[SolarProjection.CLIMATE_PATH] = SolarProjection.prior_climate(current)
+	runner.assert_true(not new_docs[SolarProjection.CLIMATE_PATH].is_empty(), "the bound climate gains exactly the fixed solar migration defaults")
+	runner.assert_eq(_json(new_docs), _json(old_docs), "all original nonthermal content values remain exact after projecting the fixed solar addition")
 	runner.assert_true(not current.content_bundle.documents[ARTIFACTS_PATH].types.has("fire_stone") and not current.content_bundle.documents[ARTIFACTS_PATH].types.has("cold_stone"), "old content gains neither of the new device types from disk")
-	runner.assert_true(ReolContentBundle.is_valid(current.content_bundle, ReolContentDB.DOCUMENT_PATHS), "only the explicitly converted heat definition receives a new valid digest")
+	runner.assert_true(ReolContentBundle.is_valid(current.content_bundle, ReolContentDB.DOCUMENT_PATHS), "the explicitly converted heat and climate definitions receive a valid digest")
 	var projected: Dictionary = current.duplicate(true)
 	projected.schema_version = prior.schema_version
 	projected.content_bundle = prior.content_bundle.duplicate(true)
 	projected.continuity.world.version = prior.continuity.world.version
 	projected.continuity.world.artifacts.version = prior.continuity.world.artifacts.version
 	projected.continuity.world.local_heat = projected_heat
+	projected.continuity.world.environment = SolarProjection.prior_environment(current.continuity.world.environment, prior.continuity.world.environment, current)
 	runner.assert_eq(_json(projected), _json(prior), "after the explicit new contract is projected away, every original session field is still present and equal")
 
 

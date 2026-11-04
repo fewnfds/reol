@@ -32,6 +32,9 @@ func setup(adapter: WorldContinuityRuntime) -> void:
 	screen.resized.connect(_resize_caption.bind(screen))
 	_resize_caption(screen)
 	adapter.avatar_changed.connect(refresh)
+	adapter.region_changed.connect(_on_region)
+	adapter.player_travel_advanced.connect(_on_travel)
+	adapter.home_runtime()._player.cell_changed.connect(refresh)
 	GameClock.time_advanced.connect(_on_time)
 	refresh()
 
@@ -39,7 +42,7 @@ func setup(adapter: WorldContinuityRuntime) -> void:
 func refresh() -> void:
 	var adapter: WorldContinuityRuntime = _owner.get_ref() as WorldContinuityRuntime
 	_caption.visible = not adapter.soul_player_active()
-	_weather_region = adapter.current_region if adapter.world_sim.regions.has(adapter.current_region) else "home"
+	_weather_region = SimClimateRules.region_at(adapter.world_sim.environment.definitions, adapter.controlled_cell())
 	var feeling: String = ""
 	if adapter.human_player_active():
 		var conditions: Dictionary = adapter.world_sim.environment.local_conditions("player")
@@ -47,13 +50,23 @@ func refresh() -> void:
 		if adapter.world_sim.weather.definitions.regions.has(str(conditions.get("region", ""))):
 			_weather_region = str(conditions.region)
 	var raining: bool = adapter.world_sim.weather.current_kind(_weather_region) == "rain"
-	_caption.text = "%s · %s" % [adapter.world_sim.environment.date_label(), "山间落雨" if raining else "天晴"]
+	var light: Dictionary = SimNaturalLight.at_cell(adapter.world_sim, adapter.controlled_cell())
+	var sky: String = SimNaturalLight.description(light).trim_suffix("。")
+	_caption.text = "%s · %s · %s" % [adapter.world_sim.environment.date_label(), "山间落雨" if raining else "天晴", sky]
 	if not feeling.is_empty():
 		_caption.text += " · " + feeling
 	_caption.tooltip_text = "露天床铺会受潮，雨水可回补泉源。" if raining else "雨后的床铺逐渐晾干。"
 	if adapter.human_player_active():
 		_caption.tooltip_text += "\n冷暖取决于当地时令、实际衣着和近旁余热；屋面与门墙会影响余热散失。"
 	queue_redraw()
+
+
+func _on_region(_id: String) -> void:
+	refresh()
+
+
+func _on_travel(_point: Vector2) -> void:
+	refresh()
 
 
 func _resize_caption(screen: Control) -> void:

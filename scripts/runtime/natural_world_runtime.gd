@@ -88,6 +88,7 @@ func describe(cell: Vector2i) -> String:
 			if SimWorkplaces.blocked(region.places, cell):
 				line += "\n墙与桌柜占据实际空间，需要绕行。"
 			line += "\n办事要由有权的人回到桌前，依据机构记录核验。"
+			line += "\n" + SimNaturalLight.description(SimNaturalLight.at_cell(adapter.world_sim, cell))
 			return line
 	var natural: Dictionary = adapter.world_sim.map_data.natural_cell(cell)
 	var line: String = str(natural.get("label", "地面"))
@@ -97,6 +98,7 @@ func describe(cell: Vector2i) -> String:
 	if not flora.is_empty():
 		line += "\n可见%s。" % ("青叶灌丛" if flora.id == "spirit_shrub" else str(flora.label))
 	line += "\n五行气机尚未辨明；地表草木不代表可用灵力。"
+	line += "\n" + SimNaturalLight.description(SimNaturalLight.at_cell(adapter.world_sim, cell))
 	for region: VillageSimulation in adapter.world_sim.regions.values():
 		for source: String in region.land_resources.sources:
 			var place: String = str(region.config.resource_sources[source].place)

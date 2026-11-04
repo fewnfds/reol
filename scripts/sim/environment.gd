@@ -22,7 +22,9 @@ func bind_world(authority: RefCounted) -> void:
 
 
 func initialize(authority: RefCounted, rules: Dictionary) -> bool:
-	if authority == null or not SimClimateRules.valid_definitions(rules) or int(rules.human.energy_scale) != VillageSimulation.NEED_SCALE:
+	# Importers build an isolated candidate with its validated historical v1
+	# content. Ordinary content loading only binds the current v2 definition.
+	if authority == null or not (SimClimateRules.valid_definitions(rules) or SimClimateRules.valid_legacy_definitions(rules)) or int(rules.human.energy_scale) != VillageSimulation.NEED_SCALE:
 		return false
 	for region: String in rules.regions:
 		if not authority.weather.definitions.regions.has(region):
@@ -37,8 +39,8 @@ func initialize(authority: RefCounted, rules: Dictionary) -> bool:
 	return true
 
 
-static func empty_state(at_ms: int) -> Dictionary:
-	return {"version": VERSION, "rules_version": 1, "activation_ms": at_ms, "last_pulse_ms": at_ms, "samples": {}}
+static func empty_state(at_ms: int, rules_version: int = 2) -> Dictionary:
+	return {"version": VERSION, "rules_version": rules_version, "activation_ms": at_ms, "last_pulse_ms": at_ms, "samples": {}}
 
 
 func date_label(at_ms: int = -1) -> String:

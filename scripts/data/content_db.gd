@@ -110,6 +110,7 @@ var private_exchange: Dictionary = {}
 var _documents: Dictionary = {}
 var _legacy_heat_input: bool = false
 var _legacy_heat_v2_input: bool = false
+var _legacy_climate_input: bool = false
 var _bundle: Dictionary = {}
 var _loaded: bool = false
 
@@ -129,7 +130,7 @@ func load_all() -> bool:
 	return load_bundle(ReolContentBundle.from_documents(documents))
 
 
-func load_bundle(bundle: Variant, legacy_heat_input: bool = false, legacy_heat_v2_input: bool = false) -> bool:
+func load_bundle(bundle: Variant, legacy_heat_input: bool = false, legacy_heat_v2_input: bool = false, legacy_climate_input: bool = false) -> bool:
 	if _loaded:
 		errors.assign(["ContentDB is already loaded; create an independent candidate"])
 		return false
@@ -143,6 +144,9 @@ func load_bundle(bundle: Variant, legacy_heat_input: bool = false, legacy_heat_v
 	_documents = bundle.documents.duplicate(true)
 	_legacy_heat_input = legacy_heat_input
 	_legacy_heat_v2_input = legacy_heat_v2_input
+	# Both historical thermal formats predate the solar climate contract.
+	# The v1 climate may otherwise be bound only by the explicit solar importer.
+	_legacy_climate_input = legacy_climate_input or legacy_heat_input or legacy_heat_v2_input
 	_loaded = _load_definitions()
 	if not _loaded:
 		_documents.clear()
@@ -264,7 +268,8 @@ func _load_definitions() -> bool:
 	else:
 		_error("local_heat.json: invalid finite local heat rules")
 	var environment_rules: Variant = _read_json("res://data/definitions/climate.json")
-	if SimClimateRules.valid_definitions(environment_rules):
+	var valid_climate: bool = SimClimateRules.valid_legacy_definitions(environment_rules) if _legacy_climate_input else SimClimateRules.valid_definitions(environment_rules)
+	if valid_climate:
 		climate = environment_rules.duplicate(true)
 	else:
 		_error("climate.json: invalid calendar/local temperature rules")

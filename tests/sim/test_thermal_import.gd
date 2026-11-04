@@ -4,6 +4,7 @@ extends RefCounted
 const LEGACY_PATH: String = "res://tests/fixtures/session_v42_exchange.json"
 const HEAT_PATH: String = "res://data/definitions/local_heat.json"
 const VillageFixtures = preload("res://tests/sim/test_village_simulation.gd")
+const SolarProjection = preload("res://tests/runtime/helpers/solar_legacy_projection.gd")
 var _village_fixtures := VillageFixtures.new()
 
 
@@ -38,7 +39,7 @@ func run(runner: Object) -> void:
 	if converted.is_empty():
 		return
 	runner.assert_true(factory.calls > 0, "old validation uses the supplied independent terrain factory")
-	runner.assert_eq(int(converted.schema_version), 49, "the converted root explicitly records its new semantics")
+	runner.assert_eq(int(converted.schema_version), SessionSaveSchema.VERSION, "the converted root explicitly records its new semantics")
 	runner.assert_eq(int(converted.continuity.world.version), 41, "the regional writer records the fixed-reference device field")
 	runner.assert_eq(int(converted.continuity.world.local_heat.version), 3, "the new heat state has its own version")
 	runner.assert_eq(int(converted.continuity.world.artifacts.version), 8, "the original artifacts adopt the current envelope without new objects")
@@ -62,10 +63,15 @@ func run(runner: Object) -> void:
 	var after_docs: Dictionary = converted.content_bundle.documents.duplicate(true)
 	before_docs.erase(HEAT_PATH)
 	after_docs.erase(HEAT_PATH)
-	runner.assert_eq(_json(after_docs), _json(before_docs), "all other archived content documents remain unchanged")
+	after_docs[SolarProjection.CLIMATE_PATH] = SolarProjection.prior_climate(converted)
+	runner.assert_true(not after_docs[SolarProjection.CLIMATE_PATH].is_empty(), "the later solar conversion uses exactly its fixed import defaults")
+	runner.assert_eq(_json(after_docs), _json(before_docs), "all other archived content values remain unchanged after the explicit solar addition is projected")
 	runner.assert_true(ReolContentBundle.is_valid(converted.content_bundle, ReolContentDB.DOCUMENT_PATHS), "the converted definition has a freshly verified digest")
 	runner.assert_eq(int(converted.content_bundle.documents[HEAT_PATH].version), 3, "the original bound heat definition is explicitly converted")
-	runner.assert_eq(_without_thermal_versions(converted), _without_thermal_versions(old), "all original nonthermal facts and sampled exposure remain unchanged")
+	var projected: Dictionary = converted.duplicate(true)
+	projected.continuity.world.environment = SolarProjection.prior_environment(converted.continuity.world.environment, old.continuity.world.environment, converted)
+	runner.assert_true(not projected.continuity.world.environment.is_empty(), "the solar projection retains the original environment and its bound rules")
+	runner.assert_eq(_without_thermal_versions(projected), _without_thermal_versions(old), "all original nonthermal facts and sampled exposure remain unchanged")
 	runner.assert_eq(_json(old), old_before, "successful migration leaves the old candidate untouched")
 	runner.assert_eq(_json(archived), archived_before, "successful migration never rewrites the original historical fixture")
 	_standalone(runner, old)
@@ -149,6 +155,7 @@ func _standalone(runner: Object, joint: Dictionary) -> void:
 	runner.assert_true(not converted.is_empty(), "an independently simulated old-format village imports without a regional weather or heat field")
 	if converted.is_empty():
 		return
+	runner.assert_eq(int(converted.schema_version), 49, "direct thermal import stops at the original pre-solar root49 boundary")
 	runner.assert_true(not converted.has("continuity"), "the imported standalone village remains standalone")
 	runner.assert_eq(int(converted.simulation.version), 7, "the standalone village adopts the signed nested schema")
 	runner.assert_eq(int(converted.simulation.land_resources.version), 4, "the original land state is relabeled only after validation")

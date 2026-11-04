@@ -1,11 +1,22 @@
 {
-  "version": 1,
+  "version": 2,
   "calendar": {
     "version": 1,
     "days_per_month": 30,
     "months_per_year": 12,
     "seasons": ["春", "夏", "秋", "冬"],
     "start_minutes": 480
+  },
+  "solar": {
+    "latitude_mdeg": 30000,
+    "longitude_mdeg": 0,
+    "meridian_mdeg": 0,
+    "axial_tilt_mdeg": 23500,
+    "vernal_day": 0,
+    "relative_scale": 10000,
+    "clear_transmission": 10000,
+    "rain_transmission": 4500,
+    "roof_transmission": 1000
   },
   "fallback_region": "home",
   "regions": {

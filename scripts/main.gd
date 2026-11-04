@@ -108,6 +108,7 @@ func _ready() -> void:
 		set_process_input(false)
 		set_process_unhandled_input(false)
 		return
+	($DayNight as DayNight).bind_world(_continuity)
 	# The first observation must use the complete world geometry, including the
 	# opening offices and the regional construction sight provider. Exploration
 	# is persistent, so recomputing after an early observation cannot undo it.

@@ -2,7 +2,7 @@ class_name SessionSaveSchema
 extends RefCounted
 ## Explicit migrations at the session boundary. No file I/O or live mutations.
 
-const VERSION: int = 49
+const VERSION: int = 50
 
 
 static func capture_world(fog: FogOfWar, focus: Vector2i, terrain: WorldMapData = null) -> Dictionary:
@@ -26,9 +26,14 @@ static func upgrade(source: Dictionary, _content: ReolContentDB = null, restore_
 		return {}
 	if version == VERSION:
 		return _upgrade(source, null)
+	if version == 49:
+		return load("res://scripts/persistence/solar_import.gd").convert(source, restore_map_factory)
 	if version == 48:
 		var fixed_reference: Dictionary = _upgrade(source, null)
-		return {} if fixed_reference.is_empty() else load("res://scripts/persistence/thermal_import.gd").convert_v2(fixed_reference, restore_map_factory)
+		if fixed_reference.is_empty():
+			return {}
+		var v2_before_solar: Dictionary = load("res://scripts/persistence/thermal_import.gd").convert_v2(fixed_reference, restore_map_factory)
+		return {} if v2_before_solar.is_empty() else load("res://scripts/persistence/solar_import.gd").convert(v2_before_solar, restore_map_factory)
 	var old: Dictionary = {}
 	if version == 47 or version == 46 or version == 45 or version == 44 or version == 43:
 		old = _upgrade(source, null)
@@ -41,7 +46,10 @@ static func upgrade(source: Dictionary, _content: ReolContentDB = null, restore_
 		old = _upgrade(source, content)
 	# Load the importer only at the historical boundary: the importer builds
 	# independent candidates and calls back into current envelope validation.
-	return {} if old.is_empty() else load("res://scripts/persistence/thermal_import.gd").convert(old, restore_map_factory)
+	if old.is_empty():
+		return {}
+	var before_solar: Dictionary = load("res://scripts/persistence/thermal_import.gd").convert(old, restore_map_factory)
+	return {} if before_solar.is_empty() else load("res://scripts/persistence/solar_import.gd").convert(before_solar, restore_map_factory)
 
 
 static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
@@ -56,6 +64,13 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 			if not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION:
 				return {}
 		return source if is_valid_world(source) else {}
+	if version == 49:
+		# The solar importer validates the complete old candidate and its
+		# original climate before changing any content or rules version.
+		if source.has("continuity"):
+			if not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != 41:
+				return {}
+		return source if _valid_world_fields(source, 49) else {}
 	if version == 48:
 		# The importer alone may validate the old complete candidate and add the
 		# explicitly empty device contract. Current roots cannot invoke this seam.
@@ -866,7 +881,19 @@ static func _add_body_facing(sim: Variant) -> bool:
 
 
 static func is_valid_world(snapshot: Dictionary) -> bool:
-	return _valid_world_fields(snapshot, VERSION)
+	if not _valid_world_fields(snapshot, VERSION):
+		return false
+	var climate: Variant = snapshot.content_bundle.documents.get("res://data/definitions/climate.json")
+	if not SimClimateRules.valid_definitions(climate):
+		return false
+	if snapshot.has("continuity"):
+		var continuity: Variant = snapshot.continuity
+		if not continuity is Dictionary or not continuity.get("world") is Dictionary:
+			return false
+		var environment: Variant = continuity.world.get("environment")
+		if not environment is Dictionary or environment.get("version") != SimEnvironment.VERSION or environment.get("rules_version") != 2:
+			return false
+	return true
 
 
 static func _upgrade_weather(source: Dictionary, content: ReolContentDB) -> Dictionary:

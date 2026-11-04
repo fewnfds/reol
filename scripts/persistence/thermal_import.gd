@@ -58,7 +58,7 @@ static func _convert(snapshot: Dictionary, input_heat_version: int, restore_map_
 		# No regional thermal or weather state exists in a standalone archive.
 		# Validate its original ecology and village without fabricating either.
 		old_standalone = _village_v2_copy(snapshot.simulation) if input_heat_version == 1 else snapshot.simulation.duplicate(true)
-		if old_standalone.is_empty() or not snapshot.assembly.region_configs.has("home") or not SimLandResources.opening_matches(RegionalSimulation._base_workplace_config(old_standalone.config), RegionalSimulation._base_workplace_config(snapshot.assembly.region_configs.home)) or old_standalone.get("elapsed_ms") != snapshot.clock.elapsed_ms or old_standalone.get("tick_index") != snapshot.clock.tick_index:
+		if old_standalone.is_empty() or not old_standalone.get("config") is Dictionary or not snapshot.assembly.region_configs.has("home") or not SimLandResources.opening_matches(RegionalSimulation._base_workplace_config(old_standalone.config), RegionalSimulation._base_workplace_config(snapshot.assembly.region_configs.home)) or old_standalone.get("elapsed_ms") != snapshot.clock.elapsed_ms or old_standalone.get("tick_index") != snapshot.clock.tick_index:
 			return {}
 		if VillageSimulation.from_snapshot(old_content, old_standalone) == null:
 			return {}
@@ -73,10 +73,12 @@ static func _convert(snapshot: Dictionary, input_heat_version: int, restore_map_
 	if bundle.is_empty() or not ReolContentBundle.is_valid(bundle, ReolContentDB.DOCUMENT_PATHS):
 		return {}
 	var new_content := ReolContentDB.new()
-	if not new_content.load_bundle(bundle):
+	if not new_content.load_bundle(bundle, false, false, true):
 		return {}
 	var result: Dictionary = snapshot.duplicate(true)
-	result.schema_version = SessionSaveSchema.VERSION
+	# Solar is a later root49 -> root50 conversion. Never stamp the newest
+	# root here before its old climate has been independently validated.
+	result.schema_version = 49
 	result.content_bundle = bundle
 	if joint:
 		var converted_heat: Dictionary = {}
@@ -93,9 +95,9 @@ static func _convert(snapshot: Dictionary, input_heat_version: int, restore_map_
 		if converted_heat.is_empty():
 			return {}
 		var regional: Dictionary = result.continuity.world
-		regional.version = RegionalSimulation.SCHEMA_VERSION
-		regional.artifacts.version = SimArtifacts.VERSION
-		regional.environment.version = SimEnvironment.VERSION
+		regional.version = 41
+		regional.artifacts.version = 8
+		regional.environment.version = 3
 		regional.local_heat = converted_heat
 		if input_heat_version == 1:
 			for id: String in regional.regions:
@@ -114,7 +116,7 @@ static func _convert(snapshot: Dictionary, input_heat_version: int, restore_map_
 		result.simulation = old_standalone
 		if VillageSimulation.from_snapshot(new_content, result.simulation) == null:
 			return {}
-	return result if SessionSaveSchema.is_valid_world(result) else {}
+	return result if SessionSaveSchema._valid_world_fields(result, 49) else {}
 
 
 static func _village_v2_copy(source: Variant) -> Dictionary:

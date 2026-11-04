@@ -6,6 +6,7 @@ const SOURCE_SHA256: String = "3753f178d701b26d2bd479f5acd06068037fcfa03bf2e5f7b
 const SOURCE_BYTES: int = 136019
 const SOURCE_MS: int = 1623
 const FUTURE_MS: int = 121623
+const SolarProjection = preload("res://tests/runtime/helpers/solar_legacy_projection.gd")
 
 
 func run(runner: Object) -> void:
@@ -18,11 +19,18 @@ func _canonical(value: Variant) -> String:
 	return JSON.stringify(JSON.parse_string(JSON.stringify(value, "", true, true)), "", true, true)
 
 
-func _legacy_environment(value: Dictionary) -> Dictionary:
-	# E2 adds a heat component without resampling any archived exposure.
-	var result: Dictionary = value.duplicate(true)
+func _legacy_environment(value: Dictionary, prior: Dictionary, snapshot: Dictionary) -> Dictionary:
+	# E2 adds zero heat without resampling; the later solar migration only
+	# changes the bound rules version when its fixed defaults are present.
+	if prior.get("version") != 1:
+		return {}
+	var result: Dictionary = SolarProjection.prior_environment(value, prior, snapshot)
+	if result.is_empty() or not result.get("samples") is Dictionary:
+		return {}
 	result.version = 1
 	for sample: Dictionary in result.samples.values():
+		if not SnapshotValues.valid_integer(sample.get("heat_tenths"), 0) or sample.heat_tenths != 0:
+			return {}
 		sample.erase("heat_tenths")
 	return result
 
@@ -54,7 +62,7 @@ func _real_travelling_archive(runner: Object) -> void:
 		runner.assert_eq(player.motion.facing, Vector2.RIGHT, "recorded real rightward movement preserves the body's last heading")
 		runner.assert_eq(_canonical(player.motion.to_dict().facing), _canonical(world.regions.home.actors.player.facing), "controller and original body have one shared facing after load")
 		runner.assert_eq(_canonical(world.clothing.to_dict()), _canonical(source.continuity.world.clothing), "appearance loading preserves all original garment ownership, wetness and pending actions")
-		runner.assert_eq(_canonical(_legacy_environment(world.environment.to_dict())), _canonical(source.continuity.world.environment), "appearance loading does not resample or restart the saved environment")
+		runner.assert_eq(_canonical(_legacy_environment(world.environment.to_dict(), source.continuity.world.environment, WorldSessionSnapshot.capture(runtime))), _canonical(source.continuity.world.environment), "appearance loading does not resample or restart the saved environment")
 		var identities: Dictionary = {}
 		for region: String in world.regions:
 			identities[region] = world.regions[region].actors.keys()
@@ -98,7 +106,7 @@ func _original_v30_boundary(runner: Object) -> void:
 		var world: RegionalSimulation = runtime.world_sim
 		runner.assert_eq(GameClock.elapsed_ms, int(source.clock.elapsed_ms), "new facing contract preserves the older world's actual time")
 		runner.assert_eq(_canonical(world.clothing.to_dict()), _canonical(source.continuity.world.clothing), "v30 migration does not replace clothing, reset wetness or finish the pending dressing early")
-		runner.assert_eq(_canonical(_legacy_environment(world.environment.to_dict())), _canonical(source.continuity.world.environment), "v30 migration preserves the real environmental exposure and activation boundary")
+		runner.assert_eq(_canonical(_legacy_environment(world.environment.to_dict(), source.continuity.world.environment, WorldSessionSnapshot.capture(runtime))), _canonical(source.continuity.world.environment), "v30 migration preserves the real environmental exposure and activation boundary")
 		runner.assert_eq(_canonical(world.weather.to_dict()), _canonical(source.continuity.world.weather), "v30 migration preserves the existing rainy phase and real wet beds")
 		runner.assert_eq(_canonical(world.regions.home.actors.player.facing), _canonical(source.player.motion.facing), "v30 player's original recorded facing becomes the single persistent body heading")
 	runner.assert_eq(FileAccess.get_file_as_string(path), original, "real v30 source remains byte-for-byte unchanged")

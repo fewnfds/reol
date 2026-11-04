@@ -30,7 +30,7 @@ func run(runner: Object) -> void:
 		runner.assert_eq(int(current.continuity.world.version), RegionalSimulation.SCHEMA_VERSION, "genuine old region explicitly migrates")
 		runner.assert_eq(_json(current.continuity.world.capability_practice), _json(SimCapabilityPractice.empty_state()), "old history gains no imagined training or mastery")
 		runner.assert_true(not runtime.world_sim.capability_practice.learned("player"), "knowing old qi guard never grants new mobile use")
-		var projected: Dictionary = HerbMigration.prior_thermal_world(current.continuity.world, source.continuity.world)
+		var projected: Dictionary = HerbMigration.prior_thermal_world(current.continuity.world, source.continuity.world, current)
 		runner.assert_true(not projected.is_empty(), "practice archive retains the explicit empty-field conversion and established ecology: " + name)
 		if projected.is_empty():
 			continue

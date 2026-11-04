@@ -32,7 +32,7 @@ func run(runner: Object) -> void:
 		runner.assert_eq(int(current.continuity.world.version), RegionalSimulation.SCHEMA_VERSION, "old regional owner migrates to the current version")
 		runner.assert_eq(int(current.continuity.world.artifacts.version), SimArtifacts.VERSION, "old artifact envelope migrates to the current version")
 		runner.assert_eq(_json(current.continuity.world.field_opportunities), _json(source.continuity.world.field_opportunities), "old field state and its real route or slot are untouched")
-		var projected: Dictionary = HerbMigration.prior_thermal_world(current.continuity.world, source.continuity.world)
+		var projected: Dictionary = HerbMigration.prior_thermal_world(current.continuity.world, source.continuity.world, current)
 		runner.assert_eq(SnapshotValues.normalized(projected.private_exchange), SnapshotValues.normalized(SimPrivateExchange.empty_state()), "old field history gains no invented private exchange, consent, or receipt")
 		projected.erase("private_exchange")
 		projected.version = source.continuity.world.version

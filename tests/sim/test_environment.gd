@@ -344,7 +344,7 @@ func _bad_candidates(runner: Object) -> void:
 		match kind:
 			"missing": broken.erase("environment")
 			"version": broken.environment.version = SimEnvironment.VERSION + 1
-			"rules": broken.environment.rules_version = 2
+			"rules": broken.environment.rules_version = int(world.environment.definitions.version) + 1
 			"activation": broken.environment.activation_ms = broken.elapsed_ms + 1
 			"pulse": broken.environment.last_pulse_ms -= 1
 			"coverage": broken.environment.samples.erase("player")

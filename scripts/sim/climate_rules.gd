@@ -7,7 +7,23 @@ const Calendar = preload("res://scripts/sim/world_calendar.gd")
 
 
 static func valid_definitions(data: Variant) -> bool:
-	if not Calendar._keys(data, ["version", "calendar", "fallback_region", "regions", "human", "garments"]) or not Calendar._integer(data.version, 1, 1) or not Calendar.valid_definitions(data.calendar):
+	return _valid_definitions(data, false)
+
+
+static func valid_legacy_definitions(data: Variant) -> bool:
+	# The original shape is accepted only while validating an explicit old
+	# candidate. Ordinary content loading uses the current v2 contract.
+	return _valid_definitions(data, true)
+
+
+static func _valid_definitions(data: Variant, legacy: bool) -> bool:
+	var fields: Array = ["version", "calendar", "fallback_region", "regions", "human", "garments"]
+	if not legacy:
+		fields.append("solar")
+	var version: int = 1 if legacy else 2
+	if not Calendar._keys(data, fields) or not Calendar._integer(data.version, version, version) or not Calendar.valid_definitions(data.calendar):
+		return false
+	if not legacy and (not SimSolarRules.valid_definitions(data.solar) or not Calendar._integer(data.solar.vernal_day, 0, Calendar.days_per_year(data.calendar) - 1)):
 		return false
 	if not data.regions is Dictionary or data.regions.is_empty() or not data.fallback_region is String or not data.regions.has(data.fallback_region):
 		return false

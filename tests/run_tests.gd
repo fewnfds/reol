@@ -429,6 +429,18 @@ func test_calendar_climate() -> void:
 	load("res://tests/sim/test_calendar_climate.gd").new().run(self)
 
 
+func test_solar_rules() -> void:
+	load("res://tests/sim/test_solar_rules.gd").new().run(self)
+
+
+func test_natural_light_runtime() -> void:
+	load("res://tests/runtime/test_natural_light_runtime.gd").new().run(self)
+
+
+func test_solar_migration() -> void:
+	load("res://tests/runtime/test_solar_migration.gd").new().run(self)
+
+
 func test_environment() -> void:
 	load("res://tests/sim/test_environment.gd").new().run(self)
 

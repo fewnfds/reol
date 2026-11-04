@@ -35,6 +35,7 @@ main / 场景装配
 | 原action executor、服务、劳动/生产、交换等域 | 各自过程、阶段/成本/证据与原资源引用 | 统一请求是薄门面，尚无通用动作生命周期/任意条件协商 |
 | [SimConflicts](../scripts/sim/conflicts.gd)、[SimSparring](../scripts/sim/sparring.gd)、[SimHealth](../scripts/sim/health.gd) | 招式/弹障/成本、有限对练、真实伤源与恢复 | 使用原身体/qi/体力，不另造战斗人物；非完整致死/医疗/战争 |
 | 日历/气候、weather、environment、local_heat、spirit_sources | 无状态历法曲线、晴雨相位、受体采样、固定参考局地热场、有限源与转换 | 热、五行亲和、qi、储热和灵源不合成万能数值；完整冷热/光/五相场仍待做 |
+| [SimSolarRules](../scripts/sim/solar_rules.gd)、[SimNaturalLight](../scripts/sim/natural_light.gd)、DayNight | 从已接受世界的climate2、原物理时刻/天气、屋顶事实派生太阳高度/昼长/自然光，普通界面与天色读取同源 | 无第二时钟/光量账/持久缓存；单地图宏观纬度；不是局部灯、完整感知或植物受光模型 |
 | construction / workplaces / resting | 真实材料与结构、固定办事布局、床位/休息 | 围合、覆盖与功能可用性分开；房间不发行贡献或资源 |
 | [SimStructureQuery](../scripts/sim/structure_query.gd)、[ReolWallVisuals](../scripts/world/wall_visuals.gd) | 无状态投影原结构引用/覆盖格/层与独立物理事实，按四邻绘墙 | 不复制实体或写档；真实木墙门的视线不等于桌柜碰撞，成功施工通知经runtime使本地视野失效 |
 | avian_life / soul_vessels / large_bodies | 雀身、残识与载体、3×3兽身的原持久状态 | 不是人类伪装副本；兽身不可选、无完整物种生成/繁衍 |
@@ -85,9 +86,13 @@ B1b将当前在途首段（含对角旁格）统一为原过程只读查询，�
 
 热场纯投影显式分成功数值与不支持原因，失败没有数值字段。人体未来预判用`heat_supported/heat_reason`标明不确定，仅提供有界温度范围与定性说明，不制造精确温度或负担；穿衣/暖身意图在真实执行时重验。药草实际采样/候选校验不接受失败投影，不按零继续。当前热场支持正负局部温差，固定冷热器物已接入；移动源与稀疏回收仍未实现。
 
+自然光不储存于格内。`SimSolarRules.sample`从绑定历法与整张地图宏观纬度/经度计算连续季相、当地太阳时、太阳高度与理想几何日长，角度千分度、透射万分比、照度为显式相对尺度；极昼/夜与极点退化明确处理。`SimNaturalLight.sky/at_cell`仅用原世界`elapsed_ms`与天气`epoch_ms`、原施工屋面，失败无数值，不读期望钟表或磁盘定义；总照度为直接与漫射之和，屋顶仅影响该格，不改变室外背景。DayNight不再持固定小时表，通过时间/移动/换区/读档信号投影同一规则；夜间画面保留可读基色，不把像素色值当规则照度。普通环境行和可见地块观察只给定性文字，不新增远区认识。当前不改变视野、NPC感知、植物生长或热供能，局部灯和透光边仍待接。
+
+[SolarImport](../scripts/persistence/solar_import.gd)仅接受历史49/climate1，先校原digest与完整独立原候选，再加入固定迁入solar默认、将environment.rules_version从1改2并复验当前候选。旧47/48热导入固定产物49，不随当前VERSION跳级；之后走同一日照转换，其他定义、原Q、样本和在途事实逐值保留。新局/普通内容入口仅接受climate2，旧定义只在明确导入的独立候选边界可绑；当前统一写根50，不补造过去光后果。
+
 C1a-0此前将根/区域/器物格式推进47/39/7：成功释热事件带实际`heat_amount`，与原热收据的行动、原物、本人、时刻、格坐标和金额互核；失败与取消事件不得带该字段。候选先初始化同一热域以提供存档绑定规则，再恢复器物，等结构和来源恢复后严格恢复热状态，不借活场。区域38/器物6的机械导入只从已有收据补金额，原热定义/账/冻结流/样本及内容digest都不变；无配对事件或夹带未来字段拒绝。原完成扣charge路径保持，未新增所有历史charge前后账，不能将金额互核等同完整历史资源审计。
 
-当前C1b-1写根49/区域41/器物8，热定义及状态3；村落7、人体环境3、土地资源4、药草生态状态2不变。`SimLocalHeat`持有固定参考 `-10000` 下的非负整数Q，先除容量再减背景以避免负温差取整错误。分配背景底量与后续外界流入计`ambient_in`，外界流出计`loss_energy`，旧脉冲来源独立计`input_energy`；持续放热计`continuous_input`，吸入原器物计`absorbed_energy`。守恒为 `sum(Q)+loss_energy+absorbed_energy=input_energy+continuous_input+ambient_in`。室外变化只改边界，不直接重设Q；当前最多保留512活跃格，满额明确拒绝新patch，无自动回收。
+当前写根50/区域41/器物8，热定义及状态3，climate定义2；村落7、人体环境3、土地资源4、药草生态状态2不变。`SimLocalHeat`持有固定参考 `-10000` 下的非负整数Q，先除容量再减背景以避免负温差取整错误。分配背景底量与后续外界流入计`ambient_in`，外界流出计`loss_energy`，旧脉冲来源独立计`input_energy`；持续放热计`continuous_input`，吸入原器物计`absorbed_energy`。守恒为 `sum(Q)+loss_energy+absorbed_energy=input_energy+continuous_input+ambient_in`。室外变化只改边界，不直接重设Q；当前最多保留512活跃格，满额明确拒绝新patch，无自动回收。
 
 [SimThermalReclaimProbe](../scripts/sim/thermal_reclaim_probe.gd)仅为显式开发检查：按逻辑记录/覆盖格访问预算读取同一原热场及来源、历史样本、在途动作，返回脱离原状态且排序的诊断。预算不足无部分结果；`complete`仅表示扫描完成，积压或待源位置未知仍是`status=unknown`，`can_reclaim`始终false。气候包络查询独立合并日/季曲线和可达天气偏移的保守极值，不是误差保证或未来天气预报；自定义背景Callable不执行。此接缝不保存另一份Q、不接玩家UI、不删除格或改变求解器，后续生命周期/聚合仍待实现。
 

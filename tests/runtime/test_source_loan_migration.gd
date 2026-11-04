@@ -38,7 +38,7 @@ func run(runner: Object) -> void:
 			runner.assert_eq(int(snapshot.schema_version), SessionSaveSchema.VERSION, "real v36 envelope explicitly migrates to the current root version")
 			runner.assert_eq(int(snapshot.continuity.world.version), RegionalSimulation.SCHEMA_VERSION, "real v36 regional envelope explicitly migrates to the current version")
 			runner.assert_eq(_canonical(runtime.world_sim.site_affairs.to_dict()), _canonical(SimSiteAffairs.empty_state()), "old load adds only empty affairs, without past announcements, permits, observations or returns")
-			var projected: Dictionary = HerbMigration.prior_thermal_world(snapshot.continuity.world, source.continuity.world)
+			var projected: Dictionary = HerbMigration.prior_thermal_world(snapshot.continuity.world, source.continuity.world, snapshot)
 			runner.assert_eq(SnapshotValues.normalized(projected.private_exchange), SnapshotValues.normalized(SimPrivateExchange.empty_state()), "historical world gains no invented private exchange, consent, or receipt")
 			projected.erase("private_exchange")
 			runner.assert_eq(SnapshotValues.normalized(projected.field_opportunities), SnapshotValues.normalized(SimFieldOpportunities.empty_state()), "historical world gains no invented field site, visitor or treasure")

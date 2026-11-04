@@ -2,6 +2,7 @@ extends RefCounted
 ## Archives are read-only. New soil begins now, without repricing any old work.
 
 const Fixtures = preload("res://tests/runtime/test_world_continuity_runtime.gd")
+const SolarProjection = preload("res://tests/runtime/helpers/solar_legacy_projection.gd")
 const ARCHIVE: String = "res://tests/fixtures/session_v32.json"
 const SOURCE_SHA: String = "a804cc0707f0e1be89372868bbdb58dc4544b4b1aa4e296a00dd999c185cd88a"
 var _fixtures: RefCounted = Fixtures.new()
@@ -104,22 +105,24 @@ static func prior_empty_heat(current: Dictionary, prior: Dictionary) -> Dictiona
 	return result
 
 
-static func prior_environment(current: Dictionary, prior: Dictionary) -> Dictionary:
+static func prior_environment(current: Dictionary, prior: Dictionary, snapshot: Dictionary) -> Dictionary:
 	if current.get("version") != 3 or prior.get("version") != 2:
 		return {}
-	var result: Dictionary = current.duplicate(true)
+	var result: Dictionary = SolarProjection.prior_environment(current, prior, snapshot)
+	if result.is_empty():
+		return {}
 	result.version = 2
 	return result
 
 
-static func prior_thermal_world(current: Dictionary, prior: Dictionary) -> Dictionary:
+static func prior_thermal_world(current: Dictionary, prior: Dictionary, snapshot: Dictionary) -> Dictionary:
 	# Shared narrow projection for v32-v41 archives with the proven empty v1
 	# field. Other domain additions stay intact for each caller to check.
 	if not current.get("regions") is Dictionary or not prior.get("regions") is Dictionary or current.regions.size() != prior.regions.size() or not current.get("local_heat") is Dictionary or not prior.get("local_heat") is Dictionary or not current.get("environment") is Dictionary or not prior.get("environment") is Dictionary:
 		return {}
 	var result: Dictionary = current.duplicate(true)
 	result.local_heat = prior_empty_heat(current.local_heat, prior.local_heat)
-	result.environment = prior_environment(current.environment, prior.environment)
+	result.environment = prior_environment(current.environment, prior.environment, snapshot)
 	if result.local_heat.is_empty() or result.environment.is_empty():
 		return {}
 	for id: String in result.regions:
@@ -169,7 +172,7 @@ func _archives(runner: Object) -> void:
 				if field == "local_heat":
 					actual = prior_empty_heat(actual, expected)
 				if field == "environment":
-					actual = prior_environment(actual, expected)
+					actual = prior_environment(actual, expected, migrated)
 				if field == "artifacts":
 					runner.assert_eq(int(expected.version), 4, "the real ecology archive has the original artifact v4 envelope")
 					# Subsequent migrations explicitly update the original envelope.
@@ -202,7 +205,7 @@ func _projection_contract(runner: Object, content: ReolContentDB) -> void:
 	var old_world: Dictionary = source.continuity.world
 	var new_world: Dictionary = migrated.continuity.world
 	var before: String = canonical(new_world)
-	var projected: Dictionary = prior_thermal_world(new_world, old_world)
+	var projected: Dictionary = prior_thermal_world(new_world, old_world, migrated)
 	runner.assert_true(not projected.is_empty(), "the shared projection accepts the actual empty historical thermal state")
 	if projected.is_empty():
 		return
@@ -210,6 +213,35 @@ func _projection_contract(runner: Object, content: ReolContentDB) -> void:
 		runner.assert_eq(canonical(projected.regions[region]), canonical(old_world.regions[region]), "signed village projection retains every existing body, inventory and soil fact: " + region)
 	runner.assert_eq(canonical(projected.local_heat), canonical(old_world.local_heat), "signed heat projection retains the actual old sample instant and ledger")
 	runner.assert_eq(canonical(projected.environment), canonical(old_world.environment), "signed environment projection retains all historical exposure samples")
+	var archived_content: ReolContentDB = ReolContentDB.legacy_v42()
+	runner.assert_true(archived_content != null, "the historical climate definitions are available for the projection contract")
+	if archived_content != null:
+		var climate_before: String = canonical(migrated.content_bundle.documents[SolarProjection.CLIMATE_PATH])
+		var projected_climate: Dictionary = SolarProjection.prior_climate(migrated)
+		runner.assert_eq(canonical(projected_climate), canonical(archived_content.climate), "projecting the fixed solar addition retains every archived climate value")
+		if not projected_climate.is_empty():
+			projected_climate.calendar.start_minutes = int(projected_climate.calendar.start_minutes) + 1
+			runner.assert_true(canonical(projected_climate) != canonical(archived_content.climate), "the projection still exposes changed historical non-solar climate values")
+			runner.assert_eq(canonical(migrated.content_bundle.documents[SolarProjection.CLIMATE_PATH]), climate_before, "editing the projected climate cannot mutate the migrated content")
+	for fault: String in ["changed_solar", "missing_solar_field", "extra_solar_field", "wrong_climate_version"]:
+		var bad_snapshot: Dictionary = migrated.duplicate(true)
+		var solar_climate: Dictionary = bad_snapshot.content_bundle.documents[SolarProjection.CLIMATE_PATH]
+		match fault:
+			"changed_solar": solar_climate.solar.latitude_mdeg = 30001
+			"missing_solar_field": solar_climate.solar.erase("roof_transmission")
+			"extra_solar_field": solar_climate.solar["invented"] = 0
+			"wrong_climate_version": solar_climate.version = 1
+		runner.assert_true(SolarProjection.prior_climate(bad_snapshot).is_empty(), "nondefault solar cannot be erased by the legacy climate projection: " + fault)
+		runner.assert_true(prior_thermal_world(new_world, old_world, bad_snapshot).is_empty(), "a world with nondefault solar cannot pass the legacy world projection: " + fault)
+	var wrong_environment: Dictionary = new_world.environment.duplicate(true)
+	wrong_environment.rules_version = 1
+	runner.assert_true(prior_environment(wrong_environment, old_world.environment, migrated).is_empty(), "a current environment with the wrong bound climate is not relabeled")
+	var wrong_old_environment: Dictionary = old_world.environment.duplicate(true)
+	wrong_old_environment.rules_version = 2
+	runner.assert_true(prior_environment(new_world.environment, wrong_old_environment, migrated).is_empty(), "a historical environment with the wrong bound climate is not relabeled")
+	var changed_exposure: Dictionary = new_world.environment.duplicate(true)
+	changed_exposure.samples.player.temperature_tenths = int(changed_exposure.samples.player.temperature_tenths) + 1
+	runner.assert_true(canonical(prior_environment(changed_exposure, old_world.environment, migrated)) != canonical(old_world.environment), "the rule-version projection cannot hide a changed historical exposure sample")
 	var mutated_village: Dictionary = new_world.regions.home.duplicate(true)
 	var ecology: Dictionary = mutated_village.land_resources.sources.herb_slope.ecology
 	ecology.water = int(ecology.water) + 1
@@ -218,7 +250,7 @@ func _projection_contract(runner: Object, content: ReolContentDB) -> void:
 	runner.assert_true(prior_village(mutated_village, old_world.regions.home).is_empty(), "a mislabeled current ecology is not projected as a valid conversion")
 	var mutated_world: Dictionary = new_world.duplicate(true)
 	mutated_world.local_heat.ambient_in = 1
-	runner.assert_true(prior_thermal_world(mutated_world, old_world).is_empty(), "an invented ambient input cannot be projected away")
+	runner.assert_true(prior_thermal_world(mutated_world, old_world, migrated).is_empty(), "an invented ambient input cannot be projected away")
 	for field: String in ["continuous_input", "absorbed_energy", "last_sample_continuous_input", "last_sample_absorbed"]:
 		var changed: Dictionary = new_world.local_heat.duplicate(true)
 		changed[field] = 1
