@@ -22,7 +22,15 @@ func run(runner: Object) -> void:
 
 
 func _prepared(runner: Object, fixtures: RefCounted, accept: bool) -> Dictionary:
-	var fixture: Dictionary = fixtures._fixture(runner)
+	# The acceptance policy belongs to the world's frozen input, including the
+	# independent restore path. Never edit only the running domain after boot.
+	var defaults := ReolContentDB.new()
+	if not defaults.load_all():
+		runner.assert_true(false, "private exchange fixture reads its content inputs")
+		return {}
+	var documents: Dictionary = defaults.content_bundle().documents
+	documents["res://data/definitions/private_exchange.json"].policy.accept_threshold = -10.0 if accept else 10.0
+	var fixture: Dictionary = fixtures._fixture(runner, ReolContentBundle.from_documents(documents))
 	if fixture.is_empty():
 		return {}
 	var runtime: WorldContinuityRuntime = fixture.continuity
@@ -51,9 +59,6 @@ func _prepared(runner: Object, fixtures: RefCounted, accept: bool) -> Dictionary
 	if world.artifacts.objects[RING].container != "actor:" + SELLER:
 		fixtures._dispose(fixture)
 		return {}
-	var threshold: float = -10.0 if accept else 10.0
-	world.private_exchange.definitions.policy.accept_threshold = threshold
-	runtime._home._content.private_exchange.policy.accept_threshold = threshold
 	world.regions.river.actors[SELLER].autonomous = true
 	world.invalidate_region("river")
 	fixture.player.spawn_at(cell)

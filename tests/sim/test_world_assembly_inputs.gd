@@ -130,7 +130,7 @@ func _test_root_migration(runner: Object, source: Dictionary, current: Dictionar
 	runner.assert_true(not migrated.is_empty(), "a modern v43 with its own content bundle migrates")
 	if migrated.is_empty():
 		return
-	runner.assert_eq(int(migrated.schema_version), 44, "v43 migrates explicitly to the v44 root")
+	runner.assert_eq(int(migrated.schema_version), SessionSaveSchema.VERSION, "v43 migrates through the assembly boundary to the current root")
 	runner.assert_eq(int(migrated.assembly.region_configs.home.seed), int(historical.continuity.world.regions.home.config.seed), "migration uses the saved region configuration")
 	runner.assert_eq(int(migrated.assembly.settings.event_budget), 8123, "migration uses the saved regional settings")
 	runner.assert_eq(_json(migrated.assembly.centers), _json(historical.continuity.centers), "migration uses the saved centers")
@@ -155,7 +155,7 @@ func _test_root_migration(runner: Object, source: Dictionary, current: Dictionar
 	var from_42: Dictionary = SessionSaveSchema.upgrade(source)
 	runner.assert_true(not from_42.is_empty(), "real v42 explicitly traverses v43 and v44")
 	if not from_42.is_empty():
-		runner.assert_eq(int(from_42.schema_version), 44, "v42 reaches current root version")
+		runner.assert_eq(int(from_42.schema_version), SessionSaveSchema.VERSION, "v42 reaches current root version")
 		runner.assert_eq(_json(from_42.assembly.region_configs.home), _json(source.continuity.world.regions.home.config), "v42 region input is not replaced with today's opening")
 	var standalone: Dictionary = current.duplicate(true)
 	standalone.erase("continuity")

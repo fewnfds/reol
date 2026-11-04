@@ -46,8 +46,14 @@ static func _lessons(data: Dictionary, domain: RefCounted) -> bool:
 		for method: String in domain.rules.methods:
 			if _known(str(row.teacher), method, int(row.started_ms), data, domain, number) and not _known(str(row.pupil), method, int(row.started_ms), data, domain, number):
 				expected.append(method)
-		if expected.is_empty() or row.methods != expected:
+		# Method definitions are dictionaries; loading a canonical content bundle
+		# can change their key iteration order. The lesson's recorded array is a
+		# set of teachings, while its historical order remains part of the record.
+		if expected.is_empty() or not SimEmbodiment._unique_texts(row.methods) or row.methods.size() != expected.size():
 			return false
+		for method: String in expected:
+			if not row.methods.has(method):
+				return false
 	return true
 
 

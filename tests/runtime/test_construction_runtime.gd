@@ -28,6 +28,13 @@ func run(runner: Object) -> void:
 	var old: Dictionary = WorldSessionSnapshot.capture(adapter)
 	fixture.player.spawn_at(SimRouteTravel.cell(world.regions.home.places.store.cell))
 	adapter.prepare_player_command()
+	# This scenario exercises a wall, not the first menu entry. Content bundle
+	# serialization may reorder definition keys (a bed is not a ground blocker).
+	for index: int in ui.type_choice.item_count:
+		if str(ui.type_choice.get_item_metadata(index)) == "wood_wall":
+			ui.type_choice.select(index)
+			break
+	runner.assert_eq(str(ui.type_choice.get_selected_metadata()), "wood_wall", "construction scenario explicitly selects its wall blueprint")
 	ui.select_cell(target)
 	ui.place_selected()
 	var id: String = ui.selected_project()

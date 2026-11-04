@@ -87,12 +87,23 @@ func _lazy_region_fixture(runner: Object) -> Dictionary:
 	# This regression exercises a region with no continuously sampled plants.
 	# E3's normal herb patches intentionally wake their region each minute;
 	# keep that behavior in every ordinary fixture and all other tests here.
-	var rules: Dictionary = fixture.home._content.land_resources.duplicate(true)
-	rules.types.wild_herbs.erase("ecology")
-	fixture.home._content.land_resources = rules
+	# The saved content bundle is authoritative during candidate restoration.
+	# Change the fixture's actual bundle as well as its initialized state, rather
+	# than mutating one projected definition after its digest was frozen.
+	var documents: Dictionary = fixture.home._content.content_bundle().documents
+	documents[ReolContentDB.LAND_RESOURCES_PATH].types.wild_herbs.erase("ecology")
+	var content := ReolContentDB.new()
+	if not content.load_bundle(ReolContentBundle.from_documents(documents)):
+		runner.assert_true(false, "lazy-region fixture owns a valid, self-contained content bundle")
+		_fixtures._dispose(fixture)
+		return {}
+	fixture.home._content = content
+	runtime.world_sim._content = content
+	var rules: Dictionary = content.land_resources
 	fixture.home._config.actions.erase("irrigate_herb")
 	for region: String in runtime.world_sim.regions:
 		var sim: VillageSimulation = runtime.world_sim.regions[region]
+		sim._content = content
 		sim.config.actions.erase("irrigate_herb")
 		runtime.world_sim.opening_config(region).actions.erase("irrigate_herb")
 		sim.land_resources.definitions = rules

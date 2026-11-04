@@ -19,6 +19,7 @@ func run(runner: Object) -> void:
 	runner.assert_true(world.advance_to_ms(world.elapsed_ms + int(domain.rules.lesson_ms)), "shared time completes the actual demonstration")
 	runner.assert_true(domain.knows("player", "qi_bolt"), "completed demonstration rather than a known flag supplies the real new technique")
 	runner.assert_true(Schema.validate(domain.to_dict(), domain), "completed real lesson validates before any hostile action")
+	_lesson_method_order(runner, domain)
 	var began: Dictionary = domain.begin("player", "chen_shouzhuo")
 	runner.assert_true(began.ok, "actual taught player and original person enter a bounded encounter")
 	if not began.ok:
@@ -62,6 +63,40 @@ func run(runner: Object) -> void:
 	_cross_owner_same_place(runner)
 	_struck_bystander_lesson(runner)
 	print("SCENARIO conflict candidate: actual teaching, costs/phases, emitted guard conservation, lingering effects and rejected forged causal history")
+
+
+func _lesson_method_order(runner: Object, domain: SimConflicts) -> void:
+	var recorded: Dictionary = domain.to_dict()
+	var methods: Array = recorded.lessons["conflict:lesson:1"].methods
+	if methods.size() < 2:
+		runner.assert_true(false, "real lesson teaches at least two methods for order and duplicate checks")
+		return
+	var canonical: Array = methods.duplicate()
+	canonical.sort()
+	runner.assert_eq(methods, canonical, "new real lesson uses deterministic method ordering")
+	# A canonical content bundle may reorder dictionary keys without changing
+	# what the teacher actually knew or what the pupil was taught.
+	var original: Dictionary = domain.rules.methods
+	var keys: Array = original.keys()
+	keys.reverse()
+	var reordered: Dictionary = {}
+	for key: String in keys:
+		reordered[key] = original[key]
+	domain.rules.methods = reordered
+	runner.assert_true(Schema.validate(recorded, domain), "real lesson remains valid when its identical definition keys are reordered")
+	domain.rules.methods = original
+	var historical: Dictionary = recorded.duplicate(true)
+	historical.lessons["conflict:lesson:1"].methods.reverse()
+	_check(runner, historical, domain, "original historical lesson with another recorded order")
+	for fault: String in ["missing", "extra", "duplicate", "replacement"]:
+		var bad: Dictionary = recorded.duplicate(true)
+		var changed: Array = bad.lessons["conflict:lesson:1"].methods
+		match fault:
+			"missing": changed.pop_back()
+			"extra": changed.append("invented")
+			"duplicate": changed[1] = changed[0]
+			"replacement": changed[0] = "invented"
+		_reject(runner, bad, domain, "lesson method " + fault)
 
 
 func _struck_bystander_lesson(runner: Object) -> void:

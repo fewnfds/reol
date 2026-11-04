@@ -180,6 +180,9 @@ func teach(teacher: String, pupil: String) -> Dictionary:
 	for method: String in rules.methods:
 		if knows(teacher, method) and not knows(pupil, method):
 			methods.append(method)
+	# The definition dictionary's insertion order is not gameplay state.
+	# Canonical order keeps future lesson records stable after save/restore.
+	methods.sort()
 	if methods.is_empty():
 		return _reply(false, "对方没有能在此刻示范给你的新手段。")
 	if world.services != null:

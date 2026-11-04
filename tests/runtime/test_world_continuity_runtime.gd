@@ -31,11 +31,12 @@ func run(runner: Object) -> void:
 	_test_two_region_save_resumes_player_and_cargo(runner)
 
 
-func _fixture(runner: Object) -> Dictionary:
+func _fixture(runner: Object, bundle: Dictionary = {}) -> Dictionary:
 	var saved_clock: Dictionary = GameClock.to_dict()
 	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": false})
 	var content := ReolContentDB.new()
-	if not content.load_all():
+	var loaded: bool = content.load_all() if bundle.is_empty() else content.load_bundle(bundle)
+	if not loaded:
 		runner.assert_true(false, "two-region runtime fixture loads definitions")
 		return {}
 	var world := FlatWorld.new()

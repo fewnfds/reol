@@ -36,6 +36,10 @@ func _fixture(runner: Object) -> Dictionary:
 		pawns.append(pawn)
 		index += 1
 	var home := VillageRuntime.new()
+	# The synthetic map has its own geometry despite using the legacy descriptor.
+	# Rebuild that same geometry for a staged test snapshot, independently of
+	# the live test world, as the shared continuity fixture does.
+	home.restore_map_factory = func(_descriptor: Dictionary) -> WorldMapData: return Fixtures.FlatMap.new()
 	var adapter := WorldContinuityRuntime.new()
 	var result: Dictionary = {"clock": saved_clock, "world": world, "player": player,
 		"pawns": pawns, "home": home, "continuity": adapter}
@@ -178,7 +182,7 @@ func _assert_fixed_room_route_rejection(adapter: WorldContinuityRuntime, snapsho
 		altered.append_array(original.slice(1))
 		broken.continuity.player_journey.path = altered
 		runner.assert_true(SessionSaveSchema.is_valid_world(broken), "fixed-room detour preserves all ordinary world/session envelope fields: " + kind)
-		runner.assert_true(WorldSessionSnapshot._valid_journey(adapter, broken.continuity.player_journey, SimRouteTravel.cell(broken.player.cell), int(broken.clock.elapsed_ms), adapter.world_sim.map_data), "detour still passes original static terrain and endpoint route validation: " + kind)
+		runner.assert_true(WorldSessionSnapshot._valid_journey(broken.assembly.centers, broken.continuity.player_journey, SimRouteTravel.cell(broken.player.cell), int(broken.clock.elapsed_ms), adapter.world_sim.map_data), "detour still passes original static terrain and endpoint route validation: " + kind)
 		runner.assert_true(SimRouteTravel.valid_segment(broken.continuity.player_journey, broken.continuity.world.regions.home.actors.player, int(broken.clock.elapsed_ms), float(adapter.home_runtime()._player.motion.rules.motion.speed)), "detour leaves the exact in-flight body segment valid: " + kind)
 		runner.assert_true(WorldSessionSnapshot.stage(adapter, broken).is_empty(), "candidate rejects the future route specifically crossing a fixed room obstacle: " + kind)
 		runner.assert_eq(_canonical(WorldSessionSnapshot.capture(adapter)), stable, "fixed-room future-route rejection does not alter the live journey or world: " + kind)
