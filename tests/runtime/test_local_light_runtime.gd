@@ -32,12 +32,15 @@ func run(runner: Object) -> void:
 	runner.assert_true(light.light.enabled, "a rule-backed current source enables the actual PointLight2D projection")
 	for cell: Vector2i in light.last_projection.get("values", {}):
 		runner.assert_true(fog.is_cell_visible(cell), "the light texture contains only this observer's current visible cells")
-	var texture: Image = light.light.texture.get_image()
+	# Inspect the submitted image in headless mode; the dummy renderer retains
+	# its initial readback copy across update(). Native QA checks the GPU image.
+	var texture: Image = light.last_image
+	var texture_center: Vector2i = TileGrid.world_to_cell(light.light.position)
 	for y: int in LocalLightRuntime.SIDE:
 		for x: int in LocalLightRuntime.SIDE:
-			var cell: Vector2i = at + Vector2i(x - LocalLightRuntime.RADIUS, y - LocalLightRuntime.RADIUS)
+			var cell: Vector2i = texture_center + Vector2i(x - LocalLightRuntime.RADIUS, y - LocalLightRuntime.RADIUS)
 			if not fog.is_cell_visible(cell):
-				runner.assert_eq(texture.get_pixel(x, y), Color.BLACK, "hidden texels cannot become a scene light or reveal hidden space")
+				runner.assert_eq(texture.get_pixel(x, y), Color.BLACK, "hidden texels cannot become a scene light or reveal hidden space: cell=%s texel=(%d,%d) center=%s projected=%s" % [cell, x, y, texture_center, light.last_projection.get("values", {}).has(cell)])
 	runner.assert_eq(light.light.texture_filter, CanvasItem.TEXTURE_FILTER_NEAREST, "the GPU does not interpolate light over a hidden cell boundary")
 	runner.assert_true(adapter.natural_adapter.describe(at).contains("暖光"), "ordinary visible observation uses the same local-light rule")
 	adapter.weather_adapter.refresh()
@@ -59,7 +62,11 @@ func run(runner: Object) -> void:
 	if action.ok:
 		GameClock.advance_msec(int(adapter.world_sim.artifacts.active.player.due_ms) - GameClock.elapsed_ms)
 		light.refresh()
-		runner.assert_true(not light.light.enabled, "the completed real switch removes the visible PointLight2D")
+		runner.assert_true(not adapter.world_sim.local_heat.device_emission_rates(GameClock.elapsed_ms).rates.has("fire_stone"), "the completed real switch removes the original fire stone's emission")
+		var has_light: bool = false
+		for value: int in light.last_projection.get("values", {}).values():
+			has_light = has_light or value > 0
+		runner.assert_eq(light.light.enabled, has_light, "switching one real source preserves independently present intrinsic light")
 	fixture.home._fog = null
 	fog.free()
 	fixtures._dispose(fixture)

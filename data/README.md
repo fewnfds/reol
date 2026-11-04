@@ -17,6 +17,8 @@ village.json 当前保留原需求、动作和开局库存的一体配置，字�
 
 `scenarios/world_geography.json`是新局创建草稿：整张地图的solar参数和逐气候地区的海陆性/局地温度偏移。Main创建前由SimGeographicClimate编译为原climate2曲线，ReolGeographicContent隔离重建完整包/digest后校验；保存的是实际生成定义，加载不再读这份草稿。直接load_all仍读取原定义模板，不隐式替读档或历史测试编译新局。
 
+`definitions/artifacts.json`可声明intrinsic_light及严格lighting v1，让独特物原地或随原持有人发出相对微光；可与weapon/remote_draw组成同物能力，不能与thermal_exchange共用同一照明来源。开局珠子/薄片由原artifacts场景发一次，旧档不补发；无第二余额/物品/位置。光几何与火石实际热流共用传播查询，不把光强当作热量、qi或NPC所知。
+
 规则：定义不持有运行状态；稳定小写 ID 与显示名分离；多个实例可复用一个 definition_id。定义变更按范围先做相关定向验证，并在代码工作包完成后执行或由对应SHA的CI提供完整check；配置变化会影响档兼容性，不假装旧档自动适配。存档放 user://，生成缓存与日志不放 data/。JSON 与 Resource 均按实际编辑需求选择，不混用两份权威值。当前内容版本包工作尚未验收，范围和限制见[交接](../docs/HANDOFF.md)。
 
 `heat_methods.json`规定有限试验可选的流量/时长、指导成本和材料类型；玩家运行中拟定的具体版本属于SimHeatMethods存档目录，不回写内容定义。实际耗费、储热、学习来源仍由原器物过程和事件承担。

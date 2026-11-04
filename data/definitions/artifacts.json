@@ -19,6 +19,40 @@
     "warm": {"label": "释热暖身", "minutes": 1, "qi": 0}
   },
   "types": {
+    "amber_pearl": {
+      "name": "琥珀明珠",
+      "unknown_name": "微光珠子",
+      "appearance": "一颗嵌着金色絮纹的珠子，柔和的浅金微光从珠面透出。",
+      "method": "珠体自身透出微光，握持和放置不会截断这种光；这不等于它能取暖或替代修炼灵源。",
+      "material_cue": "半透珠体内有细密絮纹；眼前的光可以观察，别的用途还没有证据。",
+      "capabilities": ["intrinsic_light"],
+      "storage_place": "dorm",
+      "lighting": {"version": 1, "peak_relative": 2000, "radius_cells": 3},
+      "actions": {
+        "inspect": {"label": "端详微光", "minutes": 1, "qi": 0},
+        "take": {"label": "收在手边", "minutes": 1, "qi": 0},
+        "place": {"label": "放回住处", "minutes": 1, "qi": 0},
+        "study": {"label": "熟悉珠体", "minutes": 1, "qi": 0},
+        "examine": {"label": "辨看珠质", "minutes": 1, "qi": 0}
+      }
+    },
+    "glow_shard": {
+      "name": "萤砂片",
+      "unknown_name": "微光薄片",
+      "appearance": "一片压成薄层的金黄砂晶，晶隙泛着不甚明亮的微光。",
+      "method": "砂晶本身透出微光，离开原处后光仍随原物移动；它没有因此多出一份可花的灵气。",
+      "material_cue": "细碎砂晶相连成片，微光均匀，没有可见的启闭机关。",
+      "capabilities": ["intrinsic_light"],
+      "storage_place": "dorm",
+      "lighting": {"version": 1, "peak_relative": 1000, "radius_cells": 2},
+      "actions": {
+        "inspect": {"label": "端详晶片", "minutes": 1, "qi": 0},
+        "take": {"label": "收在手边", "minutes": 1, "qi": 0},
+        "place": {"label": "放回住处", "minutes": 1, "qi": 0},
+        "study": {"label": "熟悉晶片", "minutes": 1, "qi": 0},
+        "examine": {"label": "辨看砂晶", "minutes": 1, "qi": 0}
+      }
+    },
     "wooden_sword": {
       "name": "练习木剑",
       "unknown_name": "木剑",

@@ -7,6 +7,7 @@ const RADIUS: int = 10
 const SIDE: int = RADIUS * 2 + 1
 var light: PointLight2D
 var last_projection: Dictionary = {}
+var last_image: Image
 var _owner: WeakRef
 var _dirty: bool = true
 var _texture: ImageTexture
@@ -52,6 +53,7 @@ func refresh() -> void:
 	_dirty = false
 	light.enabled = false
 	last_projection = {}
+	last_image = null
 	var adapter: WorldContinuityRuntime = _owner.get_ref() as WorldContinuityRuntime
 	if adapter == null or adapter.soul_player_active():
 		return
@@ -84,6 +86,10 @@ func refresh() -> void:
 		# Add-mode Light2D reads RGB, not alpha. Nearest sampling keeps zero
 		# texels outside current sight from bleeding across their cell boundary.
 		image.set_pixel(cell.x - center.x + RADIUS, cell.y - center.y + RADIUS, Color(strength, strength, strength))
+	# Keep the actual CPU upload for diagnostics. Headless dummy rendering does
+	# not update its readback copy on ImageTexture.update; native GPU QA waits
+	# for a rendered frame and inspects the real texture separately.
+	last_image = image
 	if _texture == null:
 		_texture = ImageTexture.create_from_image(image)
 		light.texture = _texture

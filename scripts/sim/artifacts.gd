@@ -20,6 +20,7 @@ var experiences: Dictionary = {}
 var next_id: int = 1
 var _owner: WeakRef
 var _warming_decisions: Dictionary = {}
+var _intrinsic_light_ids: Array[String] = []
 
 var world: RefCounted:
 	get:
@@ -55,9 +56,9 @@ static func valid_definitions(data: Variant) -> bool:
 		if item.has("capabilities"):
 			if not _valid_tool_definition(item):
 				return false
-			if item.capabilities[0] == "remote_draw":
+			if item.capabilities.has("remote_draw"):
 				for target_id: String in item.drawing.target_definitions:
-					if not data.types.has(target_id) or not data.types[target_id] is Dictionary or data.types[target_id].get("capabilities") != ["weapon"]:
+					if not data.types.has(target_id) or not data.types[target_id] is Dictionary or not data.types[target_id].get("capabilities") is Array or not data.types[target_id].capabilities.has("weapon"):
 						return false
 			continue
 		for field: String in ["name", "unknown_name", "appearance", "method", "workplace", "credited_action"]:
@@ -83,17 +84,32 @@ static func valid_definitions(data: Variant) -> bool:
 
 static func _valid_tool_definition(item: Dictionary) -> bool:
 	var keys: Array = ["name", "unknown_name", "appearance", "method", "material_cue", "capabilities", "storage_place", "actions"]
-	if not item.get("capabilities") is Array or item.capabilities.size() != 1 or item.capabilities[0] not in ["weapon", "remote_draw", "thermal_exchange"]:
+	if not item.get("capabilities") is Array or item.capabilities.is_empty() or item.capabilities.size() > 2:
 		return false
-	var remote: bool = item.capabilities[0] == "remote_draw"
-	var thermal: bool = item.capabilities[0] == "thermal_exchange"
+	var seen: Dictionary = {}
+	for capability: Variant in item.capabilities:
+		if capability not in ["weapon", "remote_draw", "thermal_exchange", "intrinsic_light"] or seen.has(capability):
+			return false
+		seen[capability] = true
+	var remote: bool = seen.has("remote_draw")
+	var thermal: bool = seen.has("thermal_exchange")
+	var intrinsic: bool = seen.has("intrinsic_light")
+	# Existing active tools may also have a passive optical trait. Two active
+	# protocols, or both thermal-driven and intrinsic meanings of lighting,
+	# require a separate explicit contract and are not silently combined.
+	if seen.size() == 2 and (not intrinsic or thermal):
+		return false
 	if remote:
 		keys.append("drawing")
 	if thermal:
 		keys.append("thermal")
 		if item.has("lighting"):
 			keys.append("lighting")
+	if intrinsic:
+		keys.append("lighting")
 	if not Schema._keys(item, keys):
+		return false
+	if intrinsic and not SimLightPropagation.valid_definition(item.lighting):
 		return false
 	for field: String in ["name", "unknown_name", "appearance", "method", "material_cue", "storage_place"]:
 		if not SimInventory._nonempty(item[field]):
@@ -135,6 +151,22 @@ static func type_has_capability(definition: Dictionary, capability: String) -> b
 
 func has_capability(id: String, capability: String) -> bool:
 	return objects.has(id) and type_has_capability(definitions.types[objects[id].definition], capability)
+
+
+func intrinsic_light_ids() -> Array[String]:
+	# Derived ID index only: no copied locations, intensity, object balance,
+	# or serialized state. A transfer/moving holder leaves the original ID intact.
+	return _intrinsic_light_ids
+
+
+func _rebuild_light_sources() -> void:
+	var ids: Array[String] = []
+	for id: String in objects:
+		if has_capability(id, "intrinsic_light"):
+			ids.append(id)
+	ids.sort()
+	ids.make_read_only()
+	_intrinsic_light_ids = ids
 
 
 func verbs_for(id: String) -> Dictionary:
@@ -302,6 +334,7 @@ func initialize(authority: RefCounted, content: Dictionary) -> bool:
 		return false
 	_owner = weakref(authority)
 	definitions = content.duplicate(true)
+	_rebuild_light_sources()
 	return true
 
 
@@ -336,6 +369,7 @@ func spawn_opening(scenario: Dictionary) -> bool:
 		return false
 	objects = candidates
 	experiences = snapshot.experiences
+	_rebuild_light_sources()
 	return true
 
 
@@ -356,6 +390,7 @@ func spawn_field_object(id: String, definition_id: String, region: String, conta
 	if not Schema.validate(snapshot, self):
 		return false
 	objects[id] = snapshot.objects[id]
+	_rebuild_light_sources()
 	world.invalidate_region(region)
 	return true
 
@@ -1103,6 +1138,7 @@ func restore(data: Dictionary) -> bool:
 		if event.has("draw"):
 			event.draw.from_cell = [int(event.draw.from_cell[0]), int(event.draw.from_cell[1])]
 	next_id = int(data.next_id)
+	_rebuild_light_sources()
 	return true
 
 

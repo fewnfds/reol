@@ -129,6 +129,10 @@ func test_geographic_world() -> void:
 	load("res://tests/sim/test_geographic_world.gd").new().run(self)
 
 
+func test_intrinsic_light() -> void:
+	load("res://tests/sim/test_intrinsic_light.gd").new().run(self)
+
+
 func test_climate_background() -> void:
 	load("res://tests/sim/test_climate_background.gd").new().run(self)
 
@@ -647,6 +651,10 @@ func test_local_light() -> void:
 
 func test_local_light_runtime() -> void:
 	load("res://tests/runtime/test_local_light_runtime.gd").new().run(self)
+
+
+func test_intrinsic_light_runtime() -> void:
+	load("res://tests/runtime/test_intrinsic_light_runtime.gd").new().run(self)
 
 
 func test_large_bodies_runtime() -> void:

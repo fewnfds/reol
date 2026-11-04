@@ -30,6 +30,7 @@ static func describe(domain: RefCounted, actor: String, id: String) -> Dictionar
 	var thermal: bool = SimArtifacts.type_has_capability(definition, "heat_storage")
 	var device: bool = SimArtifacts.type_has_capability(definition, "thermal_exchange")
 	var field_ring: bool = SimArtifacts.type_has_capability(definition, "remote_draw")
+	var intrinsic: bool = SimArtifacts.type_has_capability(definition, "intrinsic_light")
 	var shape_studied: bool = false
 	var last: Dictionary = {}
 	var material: Dictionary = {}
@@ -63,6 +64,8 @@ static func describe(domain: RefCounted, actor: String, id: String) -> Dictionar
 		instruction = "你已亲自学会循纹引取同高、无遮挡的短距松置木剑。" if method else str(definition.method) if shape_studied else "只能先辨看环身与外纹；真正引动物件的用法尚未掌握。"
 	elif device and not method:
 		instruction = "可以先循纹探查；亲自弄懂后才能启用它。"
+	elif intrinsic and not method:
+		instruction = "眼前可见的微光并不说明它还有哪些用处，可以先端详或辨材。"
 	elif not method:
 		instruction = "你还不懂它的纹路与用法。" if thermal else "它的握持与收放可以试着熟悉；能否使出剑招，仍取决于本人实际学过什么。"
 	line += "\n" + instruction

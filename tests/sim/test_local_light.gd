@@ -39,6 +39,8 @@ func _world(runner: Object, capacity: int = 180000000, lighting: bool = true, co
 		return null
 	world.bind_map_data(FlatMap.new())
 	var opening: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/scenarios/artifacts.json"))
+	# Isolate finite heat-driven light; intrinsic sources have separate scenarios.
+	opening.objects = opening.objects.filter(func(row: Dictionary) -> bool: return not content.artifacts.types[row.definition].get("capabilities", []).has("intrinsic_light"))
 	for index: int in range(1, count):
 		opening.objects.append({"id": "extra_fire_%d" % index, "definition": "fire_stone", "region": "home", "container": "kitchen"})
 	if not world.artifacts.spawn_opening(opening):

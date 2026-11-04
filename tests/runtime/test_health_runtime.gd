@@ -52,20 +52,25 @@ func _canonical(runtime: WorldContinuityRuntime) -> String:
 
 
 func _prepare_pre_health_opening(runner: Object, runtime: WorldContinuityRuntime) -> bool:
-	# The shared runtime fixture assembles today's opening, including devices
+	# The shared runtime fixture assembles today's opening, including objects
 	# that did not exist in v42. Build this one old-style test opening before
 	# advancing time or performing the actual injury, never by editing an archive.
 	var old_content: ReolContentDB = ReolContentDB.legacy_v42()
-	var device_ids: Array[String] = ["fire_stone", "cold_stone"]
+	var world: RegionalSimulation = runtime.world_sim
+	var later_ids: Array[String] = []
+	var scenario: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/scenarios/artifacts.json"))
+	var opening_rows: Dictionary = {}
+	for row: Dictionary in scenario.objects:
+		opening_rows[row.id] = row
 	var old_types_ok: bool = old_content != null
 	if old_types_ok:
-		for id: String in device_ids:
-			old_types_ok = old_types_ok and not old_content.artifacts.types.has(id)
-	runner.assert_true(old_types_ok, "pre-health opening excludes devices absent from the bound historical definitions")
+		for id: String in world.artifacts.objects:
+			if not old_content.artifacts.types.has(world.artifacts.objects[id].definition):
+				later_ids.append(id)
+	runner.assert_true(old_types_ok, "pre-health opening has its bound historical definitions")
 	if not old_types_ok:
 		return false
 	var opening: Dictionary = WorldSessionSnapshot.capture(runtime)
-	var world: RegionalSimulation = runtime.world_sim
 	var state: Dictionary = opening.continuity.world
 	var at_opening: bool = not state.is_empty() and GameClock.elapsed_ms == 0 and world.elapsed_ms == 0 and world.target_ms == 0
 	runner.assert_true(at_opening, "pre-health fixture is still at its initial common time")
@@ -76,15 +81,17 @@ func _prepare_pre_health_opening(runner: Object, runtime: WorldContinuityRuntime
 	if not empty_heat:
 		return false
 	var objects: Dictionary = state.artifacts.objects
-	for id: String in device_ids:
-		var definition: Dictionary = world.artifacts.definitions.types.get(id, {})
-		var thermal: Variant = definition.get("thermal")
-		var intact: bool = thermal is Dictionary and thermal.has("opening_q") and objects.has(id)
+	for id: String in later_ids:
+		var intact: bool = opening_rows.has(id) and objects.has(id)
 		if intact:
-			var expected: Dictionary = {"definition": id, "region": "home", "container": "kitchen",
-				"stored_q": int(thermal.opening_q), "enabled": false}
+			var row: Dictionary = opening_rows[id]
+			var definition: Dictionary = world.artifacts.definitions.types[row.definition]
+			var expected: Dictionary = {"definition": row.definition, "region": row.region, "container": row.container}
+			if definition.get("capabilities", []).has("thermal_exchange"):
+				expected["stored_q"] = int(definition.thermal.opening_q)
+				expected["enabled"] = false
 			intact = SnapshotValues.normalized(objects[id]) == SnapshotValues.normalized(expected)
-		runner.assert_true(intact, "later device is still in its unmodified disabled opening state: " + id)
+		runner.assert_true(intact, "later object is still in its exact unmodified scenario opening state: " + id)
 		if not intact:
 			return false
 		objects.erase(id)
@@ -94,17 +101,18 @@ func _prepare_pre_health_opening(runner: Object, runtime: WorldContinuityRuntime
 		if not old_object:
 			return false
 	# The content bundle describes available definitions, not world facts. With
-	# that bundle and the two checked opening rows omitted from this copy, search
+	# that bundle and only checked opening rows omitted from this copy, search
 	# all remaining saved facts, including active actions, transit and receipts.
 	opening.erase("content_bundle")
 	var other_facts: String = SnapshotValues.canonical_json(opening)
-	for id: String in device_ids:
+	for id: String in later_ids:
 		var unreferenced: bool = not other_facts.contains(id)
 		runner.assert_true(unreferenced, "no saved fact refers to the excluded opening device: " + id)
 		if not unreferenced:
 			return false
-	for id: String in device_ids:
+	for id: String in later_ids:
 		world.artifacts.objects.erase(id)
+	world.artifacts._rebuild_light_sources()
 	return true
 
 

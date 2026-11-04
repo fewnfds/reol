@@ -23,7 +23,8 @@ static func _sources(world: RegionalSimulation) -> Dictionary:
 	if not bool(output.supported):
 		return output
 	var rates: Dictionary = output.rates
-	if rates.size() > MAX_SOURCES:
+	var intrinsic_ids: Array[String] = world.artifacts.intrinsic_light_ids()
+	if rates.size() + intrinsic_ids.size() > MAX_SOURCES:
 		return _failure("source_budget")
 	var rows: Array[Dictionary] = []
 	for id: String in rates:
@@ -44,6 +45,21 @@ static func _sources(world: RegionalSimulation) -> Dictionary:
 		var peak: int = SimLightPropagation.emission_peak(int(rule.lighting.peak_relative), int(rates[id]), int(rule.thermal.rate_q_per_ms))
 		if peak > 0:
 			rows.append({"cell": location.cell, "radius": int(rule.lighting.radius_cells), "peak": peak})
+	for id: String in intrinsic_ids:
+		if not world.artifacts.has_capability(id, "intrinsic_light"):
+			return _failure("missing_source")
+		var item: Dictionary = world.artifacts.objects[id]
+		var location: Dictionary = SimEntityQuery.locate(world, {"kind": "artifact", "id": id})
+		# A fixed place stays fixed while its village is lazily settled. A held
+		# source must use the carrier's accepted present; never project old motion
+		# or wake a region from a read-only illumination query.
+		if not bool(location.ok) or not world.map_data.in_bounds(location.cell):
+			return _failure("unsettled_location")
+		var fixed: bool = world.regions[item.region].places.has(item.container) or str(item.container).begins_with("site:")
+		if bool(location.stale) and not fixed:
+			return _failure("unsettled_location")
+		var rule: Dictionary = world.artifacts.definitions.types[item.definition].lighting
+		rows.append({"cell": location.cell, "radius": int(rule.radius_cells), "peak": int(rule.peak_relative)})
 	return {"supported": true, "rows": rows}
 
 
@@ -64,10 +80,20 @@ static func local_patch(world: RegionalSimulation, cells: Array[Vector2i]) -> Di
 			blockers[cell] = not world.map_data.in_bounds(cell) or world.map_data.get_terrain(cell) == WorldMapData.TERRAIN_ROCK or world.construction.blocks_sight(cell)
 		return blockers[cell]
 	var values: Dictionary[Vector2i, int] = {}
+	# Identical instantaneous sources have the same *integer* contribution at
+	# every target. Reuse that result, then multiply its rounded value, never
+	# merge peaks before rounding. All original IDs/budgets were checked above.
+	var grouped: Dictionary[Vector4i, int] = {}
+	for source: Dictionary in sources.rows:
+		var key := Vector4i(source.cell.x, source.cell.y, int(source.radius), int(source.peak))
+		grouped[key] = grouped.get(key, 0) + 1
 	for cell: Vector2i in cells:
 		var relative: int = 0
-		for source: Dictionary in sources.rows:
-			relative = mini(MAX_RELATIVE, relative + SimLightPropagation.contribution(source.cell, cell, int(source.radius), int(source.peak), opaque))
+		for source: Vector4i in grouped:
+			var contribution: int = SimLightPropagation.contribution(Vector2i(source.x, source.y), cell, source.z, source.w, opaque)
+			relative = mini(MAX_RELATIVE, relative + contribution * grouped[source])
+			if relative == MAX_RELATIVE:
+				break
 		values[cell] = relative
 	return {"supported": true, "at_ms": world.elapsed_ms, "relative_scale": SimLightPropagation.SCALE, "values": values}
 

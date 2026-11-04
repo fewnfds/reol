@@ -344,6 +344,11 @@ func _draw() -> void:
 			var definition: Dictionary = authority.artifacts.definitions.types[authority.artifacts.objects[id].definition]
 			_draw_thermal_stone(point, definition.thermal.mode == "emit")
 			continue
+		if authority.artifacts.has_capability(id, "intrinsic_light"):
+			draw_circle(point, 11, Color("#302826"))
+			draw_circle(point, 7, Color("#b5a86d"))
+			draw_circle(point + Vector2(-2, -2), 3, Color("#f4e8ad"))
+			continue
 		var diamond := PackedVector2Array([point + Vector2(0, -9), point + Vector2(8, 0), point + Vector2(0, 9), point + Vector2(-8, 0)])
 		draw_circle(point, 13, Color("#251c20"))
 		draw_colored_polygon(diamond, Color("#a6553b"))

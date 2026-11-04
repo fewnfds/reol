@@ -36,6 +36,7 @@ main / 场景装配
 | [SimConflicts](../scripts/sim/conflicts.gd)、[SimSparring](../scripts/sim/sparring.gd)、[SimHealth](../scripts/sim/health.gd) | 招式/弹障/成本、有限对练、真实伤源与恢复 | 使用原身体/qi/体力，不另造战斗人物；非完整致死/医疗/战争 |
 | 日历/气候、weather、environment、local_heat、spirit_sources | 无状态历法曲线、晴雨相位、受体采样、固定参考局地热场、有限源与转换 | 热、五行亲和、qi、储热和灵源不合成万能数值；完整冷热/光/五相场仍待做 |
 | [SimGeographicClimate](../scripts/sim/geographic_climate.gd)、[ReolGeographicContent](../scripts/data/geographic_content.gd)、Main开局配置 | 新局地理草稿编译成原climate2曲线，隔离重建完整内容包/digest并校验后装配；默认草稿为world_geography.json | 只在创建时执行，无运行温度附加项或第二状态；普通Main只支持原时钟起点，恢复仅取档内曲线，不重编 |
+| [SimLocalLight](../scripts/sim/local_light.gd)、[LocalLightRuntime](../scripts/runtime/local_light_runtime.gd) | 即时相对光读原热出流或固有发光器物ID索引，位置沿原承载者/地点查询；共用遮挡、叠加、当前视野纹理 | 索引派生只读不落档，无第二物品/光量/位置；动锚点旧时刻或欠算返回unknown；当前128源/441格，非移动热或完整光能账 |
 | [SimSolarRules](../scripts/sim/solar_rules.gd)、[SimNaturalLight](../scripts/sim/natural_light.gd)、DayNight | 从已接受世界的climate2、原物理时刻/天气、屋顶事实派生太阳高度/昼长/自然光，普通界面与天色读取同源 | 无第二时钟/光量账/持久缓存；单地图宏观纬度；不是局部灯、完整感知或植物受光模型 |
 | construction / workplaces / resting | 真实材料与结构、固定办事布局、床位/休息 | 围合、覆盖与功能可用性分开；房间不发行贡献或资源 |
 | [SimStructureQuery](../scripts/sim/structure_query.gd)、[ReolWallVisuals](../scripts/world/wall_visuals.gd) | 无状态投影原结构引用/覆盖格/层与独立物理事实，按四邻绘墙 | 不复制实体或写档；真实木墙门的视线不等于桌柜碰撞，成功施工通知经runtime使本地视野失效 |
