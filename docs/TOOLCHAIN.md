@@ -3,6 +3,7 @@
 > 目标：让 AI 能**看到** Godot、**运行**项目、**读到**错误、**验证**改动。
 > 更新：2026-11-02，开发客户端已从 OpenCode 迁移到 Codex。
 > 2026-11-04最新版本、来源、升级/回退和上下文精简建议见[基础设施维护](TOOLING-MAINTENANCE.md)：Godot AI本机4.3.1、上游4.4.1；技能上游当前无增量。本轮没有升级或安装。此前只读复核见[开发工具审计](DEVELOPMENT-TOOLS-AUDIT.md)；更多免费资源/插件候选见[搜集工作包](plans/resource_tooling_scout.md)。下文迁移记录是历史证据。
+> 用户已澄清未来跟进Godot最新版，默认最新稳定版；4.7.2是当前安装和以下命令示例的版本。本轮[套件选型与风评研究](AI-TOOLKIT-REVIEW.md)未改引擎、MCP或技能。
 
 ---
 
@@ -428,7 +429,7 @@ tool_timeout_sec = 60
 
 | 组件 | 策略 |
 |---|---|
-| Godot | 固定 4.7.2；升级前跑全量测试 + 截图对比 |
+| Godot | 跟进最新稳定版，目前4.7.2；采用具体版本后核插件/CI/模板并跑相应回归与实际画面验证 |
 | Godot AI | 用 dock 的 Update；不要手动覆盖；pin 大版本 |
 | Coding-Solo MCP | 固定 `@0.1.1`；升级前跑 `doctor` + 手动启动 |
 | 技能库 | 固定 upstream commit（见 `THIRD_PARTY_NOTICES.md`）；升级时 diff |

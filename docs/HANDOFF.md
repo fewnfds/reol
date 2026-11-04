@@ -4,6 +4,8 @@
 
 **本轮基础设施**：[来源与维护文档](TOOLING-MAINTENANCE.md)已记录Godot AI本机4.3.1/上游4.4.1、其他MCP/技能来源、升级回退流程、上下文机制和精选候选。本轮未安装、升级或修改连接/技能；补齐现有技能上游同一固定提交的NOTICE。后续工具更新不应捎带恢复游戏Goal。
 
+**扩展选型研究与版本澄清**：[AI套件/风评/竞品](AI-TOOLKIT-REVIEW.md)已完成，推荐Codex+文件/CLI+单一Godot AI+Context7+现有测试/CI；NPGameDev、Swallowtail、FirLab按实际缺口择一对照，GodotPrompter仅选主题评测。用户表示今后继续用Godot最新版，默认按最新稳定版推进，4.7.2仅当前安装，不再永久锁版；每次仍记录具体引擎和CI验证。只改文档，工具/技能/配置均未改。
+
 **最新待收CI**：U3-b1提交`5d0afd9`已推`codex/drawing-ring-use`，run[41742281428](https://github.com/fewnfds/reol/actions/runs/41742281428)暂停前最后观测仍运行中，此后未继续监控；前包main的[41739857610](https://github.com/fewnfds/reol/actions/runs/41739857610)已成功，不能代替U3-b1自己的回归。末版定向、原生四图、两个独立OS停开三分支全联合未来字节一致均已验，不能用这些替代云端完整回归。工作区当前是开发分支，不是远端main；不重复开本地完整check。
 
 **隔离半成品**：[U3-b2私人交换规格](plans/private_artifact_exchange.md)已整理，`logs/private_exchange_work_20261104_0755`内仅有未完成草稿；代理已停止实施，尚未合主目录/未运行测试。独立过程引用原身体/钱包/环，只在当面有效同意后预约原4钱，5秒完成同时交钱交环；对方返程忙碌时拒绝打断。完整接缝笔记在`logs/private_artifact_trade_notes_20261104.md`，器物缺失函数与未验接缝见`logs/private_exchange_artifact_handoff_20261104.md`。不要整目录覆回，尤其主目录CI成功记录与本轮工具文档。

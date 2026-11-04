@@ -2,13 +2,15 @@
 
 核对日期：2026-11-04。本文记录实际安装和官方上游查询，供之后维护；版本结论会过期，更新前须重查。游戏开发Goal已由用户暂停，本轮只研究、读取状态和整理文档，没有升级插件、安装候选、修改本机连接配置或启动游戏。唯一第三方分发补充是保留已有技能库同一固定提交的NOTICE，不是升级技能。
 
+后续扩展的[套件选型/风评与竞品研究](AI-TOOLKIT-REVIEW.md)比较了实时MCP、CLI、GodotPrompter、语义/测试工具与独立反馈。用户已澄清未来跟进Godot最新版，建议以最新稳定版为目标，4.7.2只是当前验证点；此澄清覆盖此前永久锁版表述，未执行升级。
+
 **建议继续使用Codex + 一个Godot编辑器MCP + Context7 + 原命令行/CI。** 优先评估现有Godot AI从4.3.1配对升级至4.4.1，精简工具域和技能路由；现有技能上游没有新版本需要同步。候选工具先做同任务比较，不按工具数量、星数或演示视频换栈。
 
 ## 1. 当前安装、配置归属和更新来源
 
 | 组件 | 实际现状 | 本次查到的上游 | 配置/维护者与结论 |
 |---|---|---|---|
-| Godot Engine | 4.7.2，doctor及编辑器返回一致 | 本项目固定4.7.2 | 引擎在本机，项目版本见`project.godot`；此轮不改引擎或导出模板 |
+| Godot Engine | 4.7.2，doctor及编辑器返回一致 | 当前最新稳定版为4.7.2，未来跟进稳定发布 | 每次采用具体版本并验插件/CI/导出模板；此轮不改引擎或导出模板 |
 | Godot AI插件与后端 | `addons/godot_ai/plugin.cfg`、实际会话均4.3.1 | [稳定4.4.1](https://github.com/hi-godot/godot-ai/releases/tag/v4.4.1)，2026-11-03发布；[PyPI后端](https://pypi.org/project/godot-ai/4.4.1/)亦4.4.1 | 插件随项目Git；后端由dock生成的全局`~/.codex/config.toml`精确pin、uvx启动。MIT；值得做受控配对升级，尚未执行 |
 | Coding-Solo Godot MCP | 包装器固定`@coding-solo/godot-mcp@0.1.1` | [npm registry](https://registry.npmjs.org/%40coding-solo%2Fgodot-mcp) latest仍0.1.1，2026-02-03发布 | 项目`.codex/config.toml`→[包装器](../tools/mcp/godot_mcp.py)。[上游](https://github.com/Coding-Solo/godot-mcp)MIT，最近push为2026-04-16；当前无包升级，适合作备用 |
 | Context7 | 项目连接`https://mcp.context7.com/mcp` | [上游](https://github.com/upstash/context7)仍维护；可选本地npm包4.5.0 | 当前是远程服务，不是本地npm安装，无法据npm版本推断远端部署；没有需要执行的本地升级 |
@@ -109,7 +111,7 @@ Godot AI本身已有核心工具+领域合并工具和按需资源设计；“12
 
 另外查看过[原生Godot MCP](https://github.com/yurineko73/Godot-MCP-Native)和[Fennara](https://github.com/fennaraOfficial/fennara-godot-ai)：前者原生服务/可选CLI，后者重工作树/daemon；都与现有工具重叠，当前没有独有需求促使加入。无需为了收集工具把它们常驻。商业工具如GDAI也未因功能宣传而进入采购/安装清单。
 
-若要比较，固定同一份隔离检出、Godot4.7.2和任务：①找跨脚本调用，②改一个场景并保存/撤销，③启动→真实输入→日志→截图，④运行坏脚本读首错，⑤中断/重启后重连。记录结果正确性、失败恢复、总调用/输出量、时间和本机内存。一次只连一套写编辑器的MCP，不让两个代理抢写同一场景；原方案保留为回退。不用上游自己的bench直接宣称“更优质”。
+若要比较，固定同一份隔离检出、当次目标引擎具体版本（目前4.7.2）和任务：①找跨脚本调用，②改一个场景并保存/撤销，③启动→真实输入→日志→截图，④运行坏脚本读首错，⑤中断/重启后重连。记录结果正确性、失败恢复、总调用/输出量、时间和本机内存。一次只连一套写编辑器的MCP，不让两个代理抢写同一场景；原方案保留为回退。不用上游自己的bench直接宣称“更优质”。
 
 ## 7. 本轮证据与后续顺序
 

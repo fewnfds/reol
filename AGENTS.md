@@ -5,7 +5,7 @@
 
 ## 0. 一句话
 
-Reol 是一个 **Godot 4.7.2 / GDScript / 2D 正交俯视**的修仙开放世界沙盒 + 宗门模拟 + RPG。
+Reol 是一个 **Godot（跟进最新稳定版，当前4.7.2）/ GDScript / 2D 正交俯视**的修仙开放世界沙盒 + 宗门模拟 + RPG。
 参考坐标：Dwarf Fortress 的模拟深度、RimWorld 的 NPC 与殖民管理、Kenshi 的开放沙盒、
 传统 RPG 的成长与任务、Warcraft 的视角与战斗可读性。
 
@@ -34,7 +34,7 @@ Reol 是一个 **Godot 4.7.2 / GDScript / 2D 正交俯视**的修仙开放世界
 ## 3. 硬性规则
 
 ### 引擎与语言
-- 引擎固定 **Godot 4.7.2**，语言固定 **GDScript**。不引入 C#，除非用户明确要求。
+- 用户2026-11-04澄清引擎会持续跟进最新版，默认采用 **Godot最新稳定版**；4.7.2只是当前安装/验证版本。每次升级记录实际版本，核对插件、CI与导出模板并验证，不据旧技能/计划永久锁在4.7.2。本轮设施调研不执行升级。语言固定 **GDScript**，不引入 C#，除非用户明确要求。
 - 目标平台先 Windows，再考虑 Linux / Web。不要为未定的平台做过度适配。
 - 单人游戏优先。不要提前做联机、账号、服务器。
 
@@ -171,7 +171,7 @@ python tools/godot.py run
 python tools/godot.py run --headless --quit-after 120
 ```
 
-如果 `python tools/godot.py doctor` 报找不到 Godot：安装 Godot 4.7.2，设置 `GODOT_BIN`，
+如果 `python tools/godot.py doctor` 报找不到 Godot：安装项目当前采用的Godot稳定版（目前4.7.2），设置 `GODOT_BIN`，
 详见 `docs/TOOLCHAIN.md`。
 
 ## 9. MCP 使用约定
