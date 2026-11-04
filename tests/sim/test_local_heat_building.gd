@@ -114,11 +114,11 @@ func _total(world: RegionalSimulation) -> int:
 func _field(world: RegionalSimulation) -> String:
 	var state: Dictionary = world.local_heat.to_dict()
 	return JSON.stringify(VillageRuntime._json_normalized({"cells": state.cells, "input": state.input_energy,
-		"loss": state.loss_energy, "receipts": state.receipts}), "", true, true)
+		"ambient_in": state.ambient_in, "loss": state.loss_energy, "receipts": state.receipts}), "", true, true)
 
 
 func _conserved(runner: Object, world: RegionalSimulation, label: String) -> void:
-	runner.assert_eq(_total(world) + world.local_heat.loss_energy, world.local_heat.input_energy, label)
+	runner.assert_eq(_total(world) + world.local_heat.loss_energy, world.local_heat.input_energy + world.local_heat.ambient_in, label)
 
 
 func _commit_against_old_layout(runner: Object, world: RegionalSimulation, project: String, kind: String) -> RegionalSimulation:
@@ -148,7 +148,7 @@ func _commit_against_old_layout(runner: Object, world: RegionalSimulation, proje
 	var current_cells: Array = world.local_heat.cells.keys()
 	current_cells.sort()
 	runner.assert_eq(current_cells, previous_cells, "room reindexing after " + kind + " neither replaces nor duplicates fixed-space heat owners")
-	_conserved(runner, world, "actual " + kind + " commit preserves source-minus-loss conservation")
+	_conserved(runner, world, "actual " + kind + " commit preserves source and ambient thermal accounting")
 	return control
 
 

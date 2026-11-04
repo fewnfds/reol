@@ -1,4 +1,5 @@
 extends RefCounted
+const HerbMigration = preload("res://tests/runtime/test_herb_ecology_migration.gd")
 ## New arrangements are explicit content; actual old worlds never gain them.
 
 const ARCHIVE: String = "res://tests/fixtures/session_v36.json"
@@ -37,7 +38,7 @@ func run(runner: Object) -> void:
 			runner.assert_eq(int(snapshot.schema_version), SessionSaveSchema.VERSION, "real v36 envelope explicitly migrates to the current root version")
 			runner.assert_eq(int(snapshot.continuity.world.version), RegionalSimulation.SCHEMA_VERSION, "real v36 regional envelope explicitly migrates to the current version")
 			runner.assert_eq(_canonical(runtime.world_sim.site_affairs.to_dict()), _canonical(SimSiteAffairs.empty_state()), "old load adds only empty affairs, without past announcements, permits, observations or returns")
-			var projected: Dictionary = snapshot.continuity.world.duplicate(true)
+			var projected: Dictionary = HerbMigration.prior_thermal_world(snapshot.continuity.world, source.continuity.world)
 			runner.assert_eq(SnapshotValues.normalized(projected.private_exchange), SnapshotValues.normalized(SimPrivateExchange.empty_state()), "historical world gains no invented private exchange, consent, or receipt")
 			projected.erase("private_exchange")
 			runner.assert_eq(SnapshotValues.normalized(projected.field_opportunities), SnapshotValues.normalized(SimFieldOpportunities.empty_state()), "historical world gains no invented field site, visitor or treasure")
@@ -60,7 +61,7 @@ func run(runner: Object) -> void:
 				runner.assert_true(encounter.cause.is_empty(), "old perception encounter has no invented care cause")
 				encounter.erase("cause")
 			runner.assert_eq(_canonical(projected), _canonical(source.continuity.world), "affairs migration preserves every prior world fact including genuine old sight and paid actions")
-			runner.assert_eq(_canonical(snapshot.simulation), _canonical(source.simulation), "affairs migration adds no local bodies, original items, source energy or institutional credit")
+			runner.assert_eq(_canonical(HerbMigration.prior_village(snapshot.simulation, source.simulation)), _canonical(source.simulation), "affairs migration adds no local bodies, original items, source energy or institutional credit")
 			var forged: Dictionary = source.duplicate(true)
 			forged.continuity.world["site_affairs"] = SimSiteAffairs.empty_state()
 			_reject(runtime, bad_path, forged, runner, "historical v36 envelope cannot smuggle a modern empty affairs field")

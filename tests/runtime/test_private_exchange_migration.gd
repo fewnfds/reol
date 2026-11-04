@@ -1,6 +1,7 @@
 extends RefCounted
 ## Immutable in-flight v41 research and draw histories predate private exchange.
 
+const HerbMigration = preload("res://tests/runtime/test_herb_ecology_migration.gd")
 const ARCHIVES: Dictionary = {
 	"session_v41_research.json": {"sha256": "bb08013411cdf841521107aeb3941636d117369004d1f7d3a9ee8b63d46c6fbc", "verb": "use_research"},
 	"session_v41_draw.json": {"sha256": "a814606c6b8a9666267378ce7ad104fabbb3d1fbe7c2d340bec7ed3583e66143", "verb": "draw"},
@@ -39,6 +40,12 @@ func run(runner: Object) -> void:
 		runner.assert_eq(int(upgraded.continuity.world.artifacts.version), SimArtifacts.VERSION, "old artifact envelope advances explicitly")
 		runner.assert_eq(_json(upgraded.continuity.world.private_exchange), _json(SimPrivateExchange.empty_state()), "migration adds no proposal, consent, occupation, payment or transfer")
 		var projected: Dictionary = upgraded.duplicate(true)
+		var prior_world: Dictionary = HerbMigration.prior_thermal_world(upgraded.continuity.world, source.continuity.world)
+		runner.assert_true(not prior_world.is_empty(), "private exchange archive retains the explicit empty-field conversion and established ecology: " + name)
+		if prior_world.is_empty():
+			continue
+		projected.continuity.world = prior_world
+		projected.simulation = HerbMigration.prior_village(upgraded.simulation, source.simulation)
 		# The root now explicitly records the frozen v42 definitions. Remove only
 		# that new envelope field when comparing all original v41 facts.
 		projected.erase("content_bundle")
@@ -49,7 +56,7 @@ func run(runner: Object) -> void:
 		projected.schema_version = source.schema_version
 		projected.continuity.world.version = source.continuity.world.version
 		projected.continuity.world.artifacts.version = source.continuity.world.artifacts.version
-		runner.assert_eq(_json(projected), original, "after projecting the explicit new content/domain envelopes, every original session field remains unchanged: " + name)
+		runner.assert_eq(_json(projected), original, "after projecting the explicit new content/domain envelopes and thermal schema additions, every original session field remains unchanged: " + name)
 		runner.assert_eq(_json(source), original, "pure migration never repairs or modifies its input")
 		var loaded: Error = runtime.load_game(ProjectSettings.globalize_path(source_path))
 		runner.assert_eq(loaded, OK, "ordinary loader accepts the actual in-flight v41 source: " + name)
@@ -57,7 +64,7 @@ func run(runner: Object) -> void:
 			continue
 		var current: Dictionary = WorldSessionSnapshot.capture(runtime)
 		runner.assert_eq(_json(current.continuity.world), _json(upgraded.continuity.world), "ordinary load keeps the entire migrated regional world")
-		runner.assert_eq(_json(current.simulation), _json(source.simulation), "ordinary load preserves the original body and inventory")
+		runner.assert_eq(_json(HerbMigration.prior_village(current.simulation, source.simulation)), _json(source.simulation), "after explicit village and ecology version projection, ordinary load preserves the original body and inventory")
 		runner.assert_eq(_json(current.clock), _json(source.clock), "ordinary load preserves the common clock and in-flight instant")
 		var before: String = _json(current)
 		var live: RegionalSimulation = runtime.world_sim

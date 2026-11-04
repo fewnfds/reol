@@ -158,6 +158,14 @@ func _runtime_preflight_and_frame_debt(runner: Object) -> void:
 	if not travelling:
 		_fixtures._dispose(fixture)
 		return
+	var path: String = "user://tests/thermal_budget_save.json"
+	for suffix: String in ["", ".bak", ".tmp", ".bak.tmp"]:
+		if FileAccess.file_exists(path + suffix):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
+	runner.assert_eq(runtime.save_game(path), OK, "the accepted pre-budget boundary writes a real ordinary primary")
+	runner.assert_eq(runtime.save_game(path), OK, "a second valid save establishes the original backup")
+	var primary: String = FileAccess.get_file_as_string(path)
+	var backup: String = FileAccess.get_file_as_string(path + ".bak")
 	var before: Dictionary = _physical_state(runtime)
 	var old_clock: int = int(GameClock.elapsed_ms)
 	var old_charge: int = int(world.artifacts.objects[STONE].charge)
@@ -176,6 +184,17 @@ func _runtime_preflight_and_frame_debt(runner: Object) -> void:
 	GameClock._process(1.0)
 	runner.assert_eq(int(world.elapsed_ms), CHANGE_MS, "paused time does not silently process the pending thermal interval")
 	runner.assert_true(is_equal_approx(GameClock._accumulator, 150.0), "paused wall time leaves the original frame debt intact")
+	runner.assert_eq(runtime.save_game(path), ERR_BUSY, "pending desired time is explicitly refused instead of writing an unloadable save")
+	runner.assert_eq(FileAccess.get_file_as_string(path), primary, "failed pending-time save preserves the complete valid primary bytes")
+	runner.assert_eq(FileAccess.get_file_as_string(path + ".bak"), backup, "failed pending-time save preserves the complete valid backup bytes")
+	runner.assert_true(not FileAccess.file_exists(path + ".tmp") and not FileAccess.file_exists(path + ".bak.tmp"), "pending-time rejection happens before creating file intermediates")
+	runner.assert_eq(_physical_state(runtime), before, "rejected save does not change any physical state or journey")
+	runner.assert_eq(int(world.target_ms) + int(GameClock._accumulator), CHANGE_MS + 200, "rejected save preserves the full pending target and frame debt")
+	runner.assert_eq(runtime.load_game(path), OK, "the original ordinary primary loads immediately after rejected save")
+	runner.assert_eq(_physical_state(runtime), before, "ordinary recovery restores the last valid complete physical boundary")
+	runner.assert_eq(int(GameClock.elapsed_ms), CHANGE_MS, "ordinary load restores the accepted clock rather than inventing the unfunded interval")
+	for suffix: String in ["", ".bak"]:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
 	_fixtures._dispose(fixture)
 
 

@@ -1,4 +1,5 @@
 extends RefCounted
+const HerbMigration = preload("res://tests/runtime/test_herb_ecology_migration.gd")
 ## Genuine pre-conflict sessions pass through the ordinary main-scene loader.
 
 const SOURCE: String = "res://tests/fixtures/session_v34.json"
@@ -152,7 +153,7 @@ func _assert_activation(runtime: WorldContinuityRuntime, source: Dictionary, run
 	runner.assert_eq(int(world.health.conflict_source_floor), 1, label + " does not suppress future sourced combat wounds")
 	runner.assert_eq(_canonical(world.health.wounds), _canonical(source.continuity.world.health.wounds), label + " preserves old actual wounds without inventing contusions")
 	runner.assert_eq(_canonical(world.health.jobs), _canonical(source.continuity.world.health.jobs), label + " preserves old medical actions")
-	runner.assert_eq(_canonical(snapshot.simulation), _canonical(source.simulation), label + " changes no existing local bodies, stock, public claims, rooms or unfinished local work")
+	runner.assert_eq(_canonical(HerbMigration.prior_village(snapshot.simulation, source.simulation)), _canonical(source.simulation), label + " changes no existing local bodies, stock, public claims, rooms or unfinished local work")
 	runner.assert_true(not WorldSessionSnapshot.stage(runtime, snapshot).is_empty(), label + " migrated present can be independently staged without rewriting facts")
 
 

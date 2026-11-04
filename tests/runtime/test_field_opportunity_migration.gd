@@ -1,6 +1,7 @@
 extends RefCounted
 ## Real v39 training and conflict histories gain no imagined field adventures.
 
+const HerbMigration = preload("res://tests/runtime/test_herb_ecology_migration.gd")
 const ARCHIVES: Dictionary = {
 	"session_v39.json": "396fe171bc0384335bece4120fa7ac4e7aecfee0cd1f8c3629909d1cf0976bab",
 	"session_v39_guard.json": "fe8629a5aa8ea068adc2112720801bfaa9538562c566f57cabcd6acc8f382f2e",
@@ -27,14 +28,17 @@ func run(runner: Object) -> void:
 		runner.assert_eq(int(current.schema_version), SessionSaveSchema.VERSION, "genuine old root explicitly migrates")
 		runner.assert_eq(int(current.continuity.world.version), RegionalSimulation.SCHEMA_VERSION, "genuine old region explicitly migrates")
 		runner.assert_eq(_json(current.continuity.world.field_opportunities), _json(SimFieldOpportunities.empty_state()), "old history gains no invented site, traveler or treasure")
-		var projected: Dictionary = current.continuity.world.duplicate(true)
+		var projected: Dictionary = HerbMigration.prior_thermal_world(current.continuity.world, source.continuity.world)
+		runner.assert_true(not projected.is_empty(), "field archive retains the explicit empty-field conversion and established ecology: " + name)
+		if projected.is_empty():
+			continue
 		runner.assert_eq(SnapshotValues.normalized(projected.private_exchange), SnapshotValues.normalized(SimPrivateExchange.empty_state()), "historical world gains no invented private exchange, consent, or receipt")
 		projected.erase("private_exchange")
 		projected.erase("field_opportunities")
 		projected.version = 35
 		projected.artifacts.version = source.continuity.world.artifacts.version
-		runner.assert_eq(_json(projected), _json(source.continuity.world), "only explicit empty field domain differs; all existing bodies, abilities, costs and life remain")
-		runner.assert_eq(_json(current.simulation), _json(source.simulation), "migration changes no original body, inventory or personal memory")
+		runner.assert_eq(_json(projected), _json(source.continuity.world), "only explicit empty field domains and thermal schema additions differ; all existing bodies, abilities, costs and life remain")
+		runner.assert_eq(_json(HerbMigration.prior_village(current.simulation, source.simulation)), _json(source.simulation), "after explicit village and ecology version projection, migration changes no original body, inventory or personal memory")
 		runner.assert_eq(_json(current.clock), _json(source.clock), "migration changes no shared clock or pending wait")
 		var before: String = _json(current)
 		var forged: Dictionary = current.duplicate(true)

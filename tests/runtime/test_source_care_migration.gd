@@ -1,4 +1,5 @@
 extends RefCounted
+const HerbMigration = preload("res://tests/runtime/test_herb_ecology_migration.gd")
 ## Actual old borrowing and real inspection remain their own unchanged worlds.
 
 const LOAN: String = "res://tests/fixtures/session_v37.json"
@@ -71,7 +72,7 @@ func _assert_migration(runtime: WorldContinuityRuntime, source: Dictionary, bad_
 	runner.assert_eq(int(snapshot.continuity.world.version), RegionalSimulation.SCHEMA_VERSION, "genuine old world upgrades through the explicit care-region migration")
 	runner.assert_eq(_canonical(world.source_care.to_dict()), _canonical(SimSourceCare.empty_state()), "old world gains only empty care, with no imagined duties, sightings, warnings or explanations")
 	runner.assert_eq(_canonical(world.site_affairs.to_dict()), _canonical(source.continuity.world.site_affairs), "care migration preserves every real old signed promise, source association and inspection fact")
-	var projected: Dictionary = snapshot.continuity.world.duplicate(true)
+	var projected: Dictionary = HerbMigration.prior_thermal_world(snapshot.continuity.world, source.continuity.world)
 	runner.assert_eq(SnapshotValues.normalized(projected.private_exchange), SnapshotValues.normalized(SimPrivateExchange.empty_state()), "historical world gains no invented private exchange, consent, or receipt")
 	projected.erase("private_exchange")
 	runner.assert_eq(SnapshotValues.normalized(projected.field_opportunities), SnapshotValues.normalized(SimFieldOpportunities.empty_state()), "historical world gains no invented field site, visitor or treasure")
@@ -92,7 +93,7 @@ func _assert_migration(runtime: WorldContinuityRuntime, source: Dictionary, bad_
 		runner.assert_true(encounter.cause.is_empty(), "old actual encounter gains no invented care-warning cause")
 		encounter.erase("cause")
 	runner.assert_eq(_canonical(projected), _canonical(source.continuity.world), "care migration preserves all existing original world facts after explicit new-field projection")
-	runner.assert_eq(_canonical(snapshot.simulation), _canonical(source.simulation), "care migration adds no body, equipment, source energy, local social record or duty")
+	runner.assert_eq(_canonical(HerbMigration.prior_village(snapshot.simulation, source.simulation)), _canonical(source.simulation), "care migration adds no body, equipment, source energy, local social record or duty")
 	runner.assert_eq(GameClock.elapsed_ms, int(source.clock.elapsed_ms), "care migration does not advance either old in-progress clock")
 	var forged: Dictionary = source.duplicate(true)
 	forged.continuity.world["source_care"] = SimSourceCare.empty_state()

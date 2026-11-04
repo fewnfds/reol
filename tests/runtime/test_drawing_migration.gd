@@ -1,4 +1,5 @@
 extends RefCounted
+const HerbMigration = preload("res://tests/runtime/test_herb_ecology_migration.gd")
 ## The three immutable v40 saves are ordinary in-flight histories, not hand-built
 ## drawings. Migration may change only envelope versions, never invent mastery.
 
@@ -31,13 +32,13 @@ func run(runner: Object) -> void:
 		runner.assert_eq(int(current.continuity.world.version), RegionalSimulation.SCHEMA_VERSION, "old regional owner migrates to the current version")
 		runner.assert_eq(int(current.continuity.world.artifacts.version), SimArtifacts.VERSION, "old artifact envelope migrates to the current version")
 		runner.assert_eq(_json(current.continuity.world.field_opportunities), _json(source.continuity.world.field_opportunities), "old field state and its real route or slot are untouched")
-		var projected: Dictionary = current.continuity.world.duplicate(true)
+		var projected: Dictionary = HerbMigration.prior_thermal_world(current.continuity.world, source.continuity.world)
 		runner.assert_eq(SnapshotValues.normalized(projected.private_exchange), SnapshotValues.normalized(SimPrivateExchange.empty_state()), "old field history gains no invented private exchange, consent, or receipt")
 		projected.erase("private_exchange")
 		projected.version = source.continuity.world.version
 		projected.artifacts.version = source.continuity.world.artifacts.version
 		runner.assert_eq(_json(projected), _json(source.continuity.world), "migration preserves all existing objects, personal evidence, active work and original qi")
-		runner.assert_eq(_json(current.simulation), _json(source.simulation), "migration preserves the original body and inventory state")
+		runner.assert_eq(_json(HerbMigration.prior_village(current.simulation, source.simulation)), _json(source.simulation), "migration preserves the original body and inventory state")
 		runner.assert_eq(_json(current.clock), _json(source.clock), "migration preserves the shared clock and pending wait")
 		for event: Dictionary in current.continuity.world.artifacts.events:
 			runner.assert_true(event.kind != "use_learned", "old artifact history receives no invented ring use")

@@ -1149,6 +1149,16 @@ func _refresh_panel() -> void:
 
 
 func save_game(path: String) -> Error:
+	# A handled budget failure may leave desired clock time ahead of physical
+	# time. The current joint format requires one accepted commit point. Refuse
+	# before touching player state or any primary/backup file; never report an
+	# unloadable pending-time snapshot as a successful save.
+	if world_sim == null:
+		return ERR_UNCONFIGURED
+	if GameClock.elapsed_ms != world_sim.elapsed_ms:
+		_notice = "世界仍有未结算时间，暂不能保存；已有存档保持原样。"
+		_refresh_panel()
+		return ERR_BUSY
 	_home._sync_player_cell()
 	var result: Error = SimSaveStore.save_file(path, WorldSessionSnapshot.capture(self))
 	_notice = "两地近况和在途事务已记下。" if result == OK else "保存失败：%s" % error_string(result)

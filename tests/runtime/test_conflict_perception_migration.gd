@@ -1,4 +1,5 @@
 extends RefCounted
+const HerbMigration = preload("res://tests/runtime/test_herb_ecology_migration.gd")
 ## A genuine v35 preparation gains no imagined past sight on a modern load.
 
 const ARCHIVE: String = "res://tests/fixtures/session_v35.json"
@@ -58,7 +59,7 @@ func _replay(runtime: WorldContinuityRuntime, source: Dictionary, path: String, 
 	runner.assert_eq(int(domain.to_dict().version), SimConflicts.VERSION, "old real conflict reaches the current explicit conflict version")
 	runner.assert_eq(int(domain.to_dict().perception_since_ms), 125200, "perception starts at the saved actual instant, never the imagined beginning of the fight")
 	runner.assert_eq(GameClock.elapsed_ms, 125200, "migration neither advances nor rewinds the world")
-	runner.assert_eq(_canonical(snapshot.simulation), _canonical(source.simulation), "migration leaves every original local body, inventory, claim and unfinished occupation intact")
+	runner.assert_eq(_canonical(HerbMigration.prior_village(snapshot.simulation, source.simulation)), _canonical(source.simulation), "migration leaves every original local body, inventory, claim and unfinished occupation intact")
 	var projected: Dictionary = domain.to_dict()
 	projected.version = 1
 	projected.erase("perception_since_ms")
