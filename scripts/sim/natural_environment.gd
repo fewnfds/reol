@@ -89,15 +89,29 @@ func cache_size() -> int:
 	return _cache.size()
 
 
+func clear_cache() -> void:
+	# The cache is bounded, and its ring order must be reset together with the
+	# entries: deleting just a dictionary key can later evict its replacement.
+	_cache.clear()
+	_cache_order.clear()
+	_cache_cursor = 0
+
+
+func water_probe_distances() -> Array[int]:
+	var result: Array[int] = []
+	if is_valid():
+		for distance: Variant in _rules.land.water_probe_distances:
+			result.append(int(distance))
+	return result
+
+
 func _cell(map: RefCounted, cell: Vector2i) -> Dictionary:
 	if not is_valid() or map == null or not map.in_bounds(cell):
 		return {}
 	if _map == null or _map.get_ref() != map:
 		# Derived values belong to one spatial authority, including when a test
 		# or an independent candidate supplies a different map at the same cell.
-		_cache.clear()
-		_cache_order.clear()
-		_cache_cursor = 0
+		clear_cache()
 		_map = weakref(map)
 	if _cache.has(cell):
 		return _cache[cell]

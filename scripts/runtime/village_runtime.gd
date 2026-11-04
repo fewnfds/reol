@@ -289,8 +289,9 @@ func load_game(path: String = SAVE_PATH) -> Error:
 		return _load_failed("近况里的内容定义不完整。")
 	var descriptor: Dictionary = snapshot.world.duplicate(true)
 	descriptor.erase("exploration")
+	descriptor.erase("terrain_overrides")
 	var candidate_map: WorldMapData = create_candidate_map(descriptor)
-	if candidate_map == null or not candidate_map.configure_nature(content.natural_environment):
+	if candidate_map == null or not candidate_map.configure_nature(content.natural_environment) or not candidate_map.restore_terrain_overrides(snapshot.world.terrain_overrides):
 		return _load_failed("近况里的自然地表定义不正确。")
 	if not _valid_snapshot(snapshot, candidate_map, snapshot.assembly.region_configs.home):
 		return _load_failed("这份近况不适用于当前山门。")

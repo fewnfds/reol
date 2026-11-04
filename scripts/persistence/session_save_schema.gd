@@ -2,11 +2,12 @@ class_name SessionSaveSchema
 extends RefCounted
 ## Explicit migrations at the session boundary. No file I/O or live mutations.
 
-const VERSION: int = 45
+const VERSION: int = 46
 
 
 static func capture_world(fog: FogOfWar, focus: Vector2i, terrain: WorldMapData = null) -> Dictionary:
 	var state: Dictionary = terrain.descriptor() if terrain != null else WorldMapData.generation_descriptor()
+	state["terrain_overrides"] = terrain.terrain_overrides() if terrain != null else []
 	if fog != null:
 		fog.set_focus(focus)
 		fog.update_now()
@@ -18,7 +19,10 @@ static func upgrade(source: Dictionary, _content: ReolContentDB = null) -> Dicti
 	# A pre-bundle archive cannot prove which external templates it originally
 	# used. All legacy migrations use the recorded v42 compatibility baseline.
 	# Modern archives must be complete; no missing-pack fallback is permitted.
-	if source.get("schema_version") == VERSION or source.get("schema_version") == 44 or source.get("schema_version") == 43:
+	var version: Variant = source.get("schema_version")
+	# Array membership distinguishes int/float in this engine; a JSON whole
+	# number must follow the same version path as its in-memory integer value.
+	if version == VERSION or version == 45 or version == 44 or version == 43:
 		return _upgrade(source, null)
 	if source.has("content_bundle") or source.has("assembly"):
 		return {}
@@ -38,6 +42,17 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 			if not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION:
 				return {}
 		return source if is_valid_world(source) else {}
+	if version == 45:
+		# This format had no mutable substrate. Only a genuine old envelope may
+		# gain an empty overlay; current archives must already carry the field.
+		if not _valid_world_fields(source, 45):
+			return {}
+		if source.has("continuity") and (not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION):
+			return {}
+		var updated: Dictionary = source.duplicate(true)
+		updated.world["terrain_overrides"] = []
+		updated.schema_version = VERSION
+		return _upgrade(updated, null)
 	if version == 44:
 		# Older envelopes only knew the exact original generator. A new flat map
 		# cannot masquerade as an older save by changing the root version tag.
@@ -46,7 +61,7 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 		if source.has("continuity") and (not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION):
 			return {}
 		var updated: Dictionary = source.duplicate(true)
-		updated.schema_version = VERSION
+		updated.schema_version = 45
 		return _upgrade(updated, null)
 	if version == 43:
 		# The saved bundle is already authoritative. Construct only from the
@@ -946,8 +961,16 @@ static func _valid_world_fields(snapshot: Dictionary, expected_version: int) -> 
 		return false
 	var descriptor: Dictionary = world.duplicate()
 	descriptor.erase("exploration")
+	if expected_version >= 46:
+		if not world.get("terrain_overrides") is Array:
+			return false
+		descriptor.erase("terrain_overrides")
 	if not WorldMapData.valid_descriptor(descriptor) or snapshot.get("world_seed") != descriptor.seed:
 		return false
+	if expected_version >= 46:
+		var candidate: WorldMapData = WorldMapData.from_descriptor(descriptor)
+		if candidate == null or not candidate.valid_terrain_overrides(world.terrain_overrides):
+			return false
 	# Freeze old envelopes independently from any future default map profile.
 	return expected_version >= 45 or SnapshotValues.normalized(descriptor) == SnapshotValues.normalized(WorldMapData.legacy_descriptor())
 

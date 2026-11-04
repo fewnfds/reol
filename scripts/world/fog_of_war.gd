@@ -35,6 +35,8 @@ var _observer_radius: int = VISION_RADIUS
 
 func setup(world_ref: ReolWorld, start_cell: Vector2i) -> void:
 	world = world_ref
+	if not world.terrain_changed.is_connected(_on_terrain_changed):
+		world.terrain_changed.connect(_on_terrain_changed)
 	_focus_cell = start_cell
 	_visibility_dirty = true
 	_states.resize(ReolWorld.WORLD_SIZE * ReolWorld.WORLD_SIZE)
@@ -81,6 +83,10 @@ func set_observer(altitude: int, radius: int) -> void:
 func invalidate_visibility() -> void:
 	# Future terrain/occluder edits can invalidate a stationary observer explicitly.
 	_visibility_dirty = true
+
+
+func _on_terrain_changed(_cells: Array[Vector2i]) -> void:
+	invalidate_visibility()
 
 
 func _process(delta: float) -> void:

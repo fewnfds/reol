@@ -138,6 +138,7 @@ func _test_root_migration(runner: Object, source: Dictionary, current: Dictionar
 	runner.assert_eq(_json(historical), before, "v43 migration does not mutate its source")
 	var reconstructed: Dictionary = migrated.duplicate(true)
 	reconstructed.erase("assembly")
+	reconstructed.world.erase("terrain_overrides")
 	reconstructed.schema_version = 43
 	runner.assert_eq(_json(reconstructed), before, "migration adds no world history or resource state")
 	var bad: Dictionary = migrated.duplicate(true)

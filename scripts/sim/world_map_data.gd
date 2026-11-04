@@ -1,7 +1,9 @@
 class_name WorldMapData
 extends RefCounted
-## Authoritative static map queries, independent of loaded/rendered chunks.
-## Legacy v1 remains identical to the original; flat v1 has its own identity.
+## Authoritative map queries, independent of loaded/rendered chunks.
+## Legacy v1 stays immutable; flat v1 may carry sparse terrain overrides.
+
+signal terrain_changed(cells: Array[Vector2i])
 
 const WORLD_SIZE: int = 512
 const WORLD_SEED: int = 20261101
@@ -26,6 +28,7 @@ var _generation: Dictionary
 var _map_seed: int
 var _map_size: int
 var _flat: bool = false
+var _terrain_overrides: Dictionary = {}
 
 
 func _init() -> void:
@@ -102,15 +105,143 @@ func descriptor() -> Dictionary:
 
 
 func independent_copy() -> WorldMapData:
-	# No mutable surface exists in v1. Reconstruct, never retain live callbacks.
-	# Future delta restore belongs here before any candidate spatial validation.
+	# Reconstruct without retaining live callbacks or derived-cache references.
 	var result: WorldMapData = from_descriptor(_generation)
 	if result == null:
 		return null
+	result._terrain_overrides = _terrain_overrides.duplicate(true)
 	if not _nature_definitions.is_empty():
 		if not result.configure_nature(_nature_definitions):
 			return null
 	return result
+
+
+func terrain_overrides() -> Array:
+	# Return a canonical, independent JSON-compatible value, not the map's store.
+	var cells: Array[Vector2i] = []
+	cells.assign(_terrain_overrides.keys())
+	_sort_cells(cells)
+	var result: Array = []
+	for cell: Vector2i in cells:
+		result.append([cell.x, cell.y, int(_terrain_overrides[cell])])
+	return result
+
+
+func restore_terrain_overrides(raw: Variant) -> bool:
+	# This is a low-level map boundary, not permission to edit a live world.
+	# Validate the entire replacement before changing this authority or its cache.
+	if not raw is Array or raw.size() > _map_size * _map_size:
+		return false
+	if not _flat:
+		return raw.is_empty()
+	var parsed: Dictionary = _parse_terrain_rows(raw, true)
+	if not bool(parsed.ok):
+		return false
+	var replacement: Dictionary = parsed.rows
+	var updates: Dictionary = {}
+	for cell: Vector2i in _terrain_overrides:
+		if not replacement.has(cell):
+			updates[cell] = _base_terrain(cell)
+	for cell: Vector2i in replacement:
+		updates[cell] = int(replacement[cell])
+	_commit_terrain_updates(updates)
+	return true
+
+
+func valid_terrain_overrides(raw: Variant) -> bool:
+	# Envelope validation must not derive nature, emit changes or read today's
+	# default environment rules before the saved content bundle is restored.
+	if not raw is Array or raw.size() > _map_size * _map_size:
+		return false
+	if not _flat:
+		return raw.is_empty()
+	return bool(_parse_terrain_rows(raw, true).ok)
+
+
+func apply_terrain_patch(raw: Variant) -> Dictionary:
+	# A caller must validate ownership, occupancy, time and player permissions.
+	# Patches may contain a base value to remove an existing override.
+	if not _flat:
+		return _failed_terrain_patch()
+	var parsed: Dictionary = _parse_terrain_rows(raw, false)
+	if not bool(parsed.ok):
+		return _failed_terrain_patch()
+	return _commit_terrain_updates(parsed.rows)
+
+
+func _parse_terrain_rows(raw: Variant, reject_base: bool) -> Dictionary:
+	if not raw is Array or raw.size() > _map_size * _map_size:
+		return {"ok": false}
+	var rows: Dictionary = {}
+	for row: Variant in raw:
+		if not row is Array or row.size() != 3:
+			return {"ok": false}
+		if not SnapshotValues.valid_integer(row[0], 0) or not SnapshotValues.valid_integer(row[1], 0) or not SnapshotValues.valid_integer(row[2], 0):
+			return {"ok": false}
+		if float(row[0]) >= _map_size or float(row[1]) >= _map_size or float(row[2]) > TERRAIN_ROCK:
+			return {"ok": false}
+		var cell := Vector2i(int(row[0]), int(row[1]))
+		var terrain: int = int(row[2])
+		if rows.has(cell) or (reject_base and terrain == _base_terrain(cell)):
+			return {"ok": false}
+		rows[cell] = terrain
+	return {"ok": true, "rows": rows}
+
+
+func _commit_terrain_updates(updates: Dictionary) -> Dictionary:
+	var changed_cells: Array[Vector2i] = []
+	var water_changed: Array[Vector2i] = []
+	for cell: Vector2i in updates:
+		var previous: int = get_terrain(cell)
+		var next: int = int(updates[cell])
+		if previous == next:
+			continue
+		changed_cells.append(cell)
+		if (previous == TERRAIN_WATER) != (next == TERRAIN_WATER):
+			water_changed.append(cell)
+	_sort_cells(changed_cells)
+	if changed_cells.is_empty():
+		var empty_cells: Array[Vector2i] = []
+		return {"ok": true, "changed_cells": changed_cells, "affected_cells": empty_cells}
+	var affected: Dictionary = {}
+	for cell: Vector2i in changed_cells:
+		affected[cell] = true
+	if not water_changed.is_empty():
+		var distances: Array = _nature_rules().call("water_probe_distances")
+		for cell: Vector2i in water_changed:
+			for distance: int in distances:
+				for direction: Vector2i in Nature.DIRECTIONS:
+					var neighbor: Vector2i = cell + direction * distance
+					if in_bounds(neighbor):
+						affected[neighbor] = true
+	# All input has been validated. Apply the whole batch before invalidating
+	# the derived cache or publishing one sorted notification to observers.
+	for cell: Vector2i in changed_cells:
+		var terrain: int = int(updates[cell])
+		if terrain == _base_terrain(cell):
+			_terrain_overrides.erase(cell)
+		else:
+			_terrain_overrides[cell] = terrain
+	if _nature != null:
+		_nature.call("clear_cache")
+	var affected_cells: Array[Vector2i] = []
+	affected_cells.assign(affected.keys())
+	_sort_cells(affected_cells)
+	var notification: Array[Vector2i] = affected_cells.duplicate()
+	terrain_changed.emit(notification)
+	return {"ok": true, "changed_cells": changed_cells, "affected_cells": affected_cells}
+
+
+static func _failed_terrain_patch() -> Dictionary:
+	var empty_changed: Array[Vector2i] = []
+	var empty_affected: Array[Vector2i] = []
+	return {"ok": false, "changed_cells": empty_changed, "affected_cells": empty_affected}
+
+
+static func _sort_cells(cells: Array[Vector2i]) -> void:
+	cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		return a.y < b.y or (a.y == b.y and a.x < b.x)
+	)
 
 
 func configure_nature(rules: Dictionary) -> bool:
@@ -150,6 +281,12 @@ func _nature_rules() -> RefCounted:
 func get_terrain(cell: Vector2i) -> int:
 	if not in_bounds(cell):
 		return -1
+	if _terrain_overrides.has(cell):
+		return int(_terrain_overrides[cell])
+	return _base_terrain(cell)
+
+
+func _base_terrain(cell: Vector2i) -> int:
 	var n: float = _terrain_noise.get_noise_2d(float(cell.x), float(cell.y))
 	if n < -0.45:
 		return TERRAIN_WATER

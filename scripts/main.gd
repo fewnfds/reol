@@ -37,12 +37,15 @@ var _opening_map: WorldMapData
 var _opening_started: bool = false
 
 
-func configure_opening_map(description: Variant) -> bool:
+func configure_opening_map(description: Variant, terrain_overrides: Variant = []) -> bool:
 	# Creation/preview input only. This cannot replace a running world's map.
 	if _opening_started or is_inside_tree() or _opening_map != null:
 		return false
-	_opening_map = WorldMapData.from_descriptor(description)
-	return _opening_map != null
+	var candidate: WorldMapData = WorldMapData.from_descriptor(description)
+	if candidate == null or not candidate.restore_terrain_overrides(terrain_overrides):
+		return false
+	_opening_map = candidate
+	return true
 
 
 func _ready() -> void:

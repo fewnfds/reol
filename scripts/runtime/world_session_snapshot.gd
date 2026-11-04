@@ -45,8 +45,9 @@ static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
 	# simulation/map is required, even for the first saved-position check.
 	var descriptor: Dictionary = snapshot.world.duplicate(true)
 	descriptor.erase("exploration")
+	descriptor.erase("terrain_overrides")
 	var candidate_map: WorldMapData = home_runtime.create_candidate_map(descriptor)
-	if candidate_map == null or not candidate_map.configure_nature(content.natural_environment):
+	if candidate_map == null or not candidate_map.configure_nature(content.natural_environment) or not candidate_map.restore_terrain_overrides(snapshot.world.terrain_overrides):
 		return {}
 	if not home_runtime.valid_snapshot(snapshot, candidate_map, assembly.region_configs.home):
 		return {}

@@ -65,6 +65,18 @@ func assert_not_null(value: Variant, label: String) -> void:
 	printerr("FAIL %s: value is null" % label)
 
 
+func test_terrain_overrides() -> void:
+	load("res://tests/sim/test_terrain_overrides.gd").new().run(self)
+
+
+func test_terrain_view_updates() -> void:
+	load("res://tests/runtime/test_terrain_view_updates.gd").new().run(self)
+
+
+func test_terrain_snapshot() -> void:
+	load("res://tests/runtime/test_terrain_snapshot.gd").new().run(self)
+
+
 # ---------------------------------------------------------------------------
 # Test doubles
 # ---------------------------------------------------------------------------

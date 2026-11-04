@@ -57,6 +57,7 @@ func run(runner: Object) -> void:
 		runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), _json(legacy_current), "legacy migration changes only the explicit envelopes, not old histories")
 	var v44: Dictionary = legacy_current.duplicate(true)
 	v44.schema_version = 44
+	v44.world.erase("terrain_overrides")
 	var upgraded: Dictionary = SessionSaveSchema.upgrade(v44)
 	runner.assert_true(not upgraded.is_empty(), "a genuine legacy-map v44 envelope explicitly upgrades")
 	if not upgraded.is_empty():

@@ -1,5 +1,6 @@
 class_name ReolWorld
 extends Node2D
+signal terrain_changed(cells: Array[Vector2i])
 ## Chunked 2D orthographic top-down world with a simple elevation layer.
 ##
 ## v0.1 slice: one generated region (512x512), 64x64 chunks, 5x5 loaded.
@@ -45,6 +46,9 @@ var _priority_index: int = 0
 # Previewed cells belong to an incomplete chunk until its normal scan finishes.
 # Keeping that ownership allows cancellation/unload to erase out-of-order cells.
 var _preview_chunks: Dictionary[Vector2i, Dictionary] = {}
+var _dirty_cells: Dictionary[Vector2i, bool] = {}
+var _dirty_order: Array[Vector2i] = []
+var _dirty_cursor: int = 0
 
 
 static func generation_descriptor() -> Dictionary:
@@ -55,13 +59,20 @@ static func generation_descriptor() -> Dictionary:
 func map_data() -> WorldMapData:
 	if _map_data == null:
 		_map_data = WorldMapData.new()
+		_map_data.terrain_changed.connect(_on_terrain_changed)
 	return _map_data
 
 
 func bind_map_data(data: WorldMapData) -> void:
 	if data == null or data == _map_data:
 		return
+	if _map_data != null and _map_data.terrain_changed.is_connected(_on_terrain_changed):
+		_map_data.terrain_changed.disconnect(_on_terrain_changed)
 	_map_data = data
+	_map_data.terrain_changed.connect(_on_terrain_changed)
+	_dirty_cells.clear()
+	_dirty_order.clear()
+	_dirty_cursor = 0
 	# A new accepted session may eventually contain different surface deltas.
 	# Clear every elevation layer, rather than erasing by the new map's height.
 	for layer: TileMapLayer in _layers:
@@ -132,7 +143,8 @@ func _process(_delta: float) -> void:
 	if not _pending_unload.is_empty():
 		var unload_coord: Vector2i = _pending_unload.pop_front()
 		_unload_chunk(unload_coord)
-	var remaining: int = PAINT_CELLS_PER_FRAME - _paint_priority(PAINT_CELLS_PER_FRAME)
+	var remaining: int = PAINT_CELLS_PER_FRAME - _paint_dirty(PAINT_CELLS_PER_FRAME)
+	remaining -= _paint_priority(remaining)
 	if remaining == 0:
 		return
 	if _painting_chunk.x < 0 and not _pending_load.is_empty():
@@ -140,6 +152,33 @@ func _process(_delta: float) -> void:
 		_painting_offset = 0
 	if _painting_chunk.x >= 0:
 		_paint_batch(remaining)
+
+
+func _on_terrain_changed(cells: Array[Vector2i]) -> void:
+	# Rules change immediately. Only already drawn cells need repainting; other
+	# cells will read current facts when their streamed chunk is first painted.
+	if _initialized:
+		for cell: Vector2i in cells:
+			if not _dirty_cells.has(cell) and _cell_is_drawn(cell):
+				_dirty_cells[cell] = true
+				_dirty_order.append(cell)
+	terrain_changed.emit(cells.duplicate())
+
+
+func _paint_dirty(budget: int) -> int:
+	var used: int = 0
+	while _dirty_cursor < _dirty_order.size() and used < budget:
+		var cell: Vector2i = _dirty_order[_dirty_cursor]
+		_dirty_cursor += 1
+		_dirty_cells.erase(cell)
+		# A queued cell may have unloaded before this rendering budget runs.
+		if _cell_is_drawn(cell):
+			_paint_cell(cell)
+		used += 1
+	if _dirty_cursor == _dirty_order.size():
+		_dirty_order.clear()
+		_dirty_cursor = 0
+	return used
 
 
 func prioritize_view(rect: Rect2i) -> void:
@@ -429,6 +468,7 @@ func _paint_cell(cell: Vector2i) -> void:
 	var elevation: int = get_elevation(cell)
 	var surface: int = NaturalEnvironment.SURFACES.find(str(natural.get("surface_id", "grassland")))
 	_layers[elevation].set_cell(cell, 0, Vector2i(surface, Visuals.variant_for(cell)))
+	_flora_layers[elevation].erase_cell(cell)
 	var flora: Dictionary = natural.get("flora", {})
 	if not flora.is_empty():
 		_flora_layers[elevation].set_cell(cell, 1, Vector2i(_flora_ids.find(flora.id), int(flora.variant)))
