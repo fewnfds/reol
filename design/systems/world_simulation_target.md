@@ -4,7 +4,7 @@
 
 日期：2026-11-02。状态：**长期目标设计，待分工作包实现与验证**。本文不表示市场、战争、人口世代或完整大世界已完成，不替代[当前构建状态](../../docs/BASELINE.md)。
 
-本文细化[总体框架](living_world_framework.md)和[世界连续性契约](world_continuity.md)，说明如何让不同身份生活在同一个持续运转的世界。开发顺序由[路线图](../../docs/ROADMAP.md)统一安排；现行代码边界见[ARCHITECTURE](../../docs/ARCHITECTURE.md)。参考游戏能力与证据边界见[既有研究](../research/social_interaction_game_references.md)；下述算法均为 Reol 设计，不声称是参考游戏内部实现。
+本文细化[总体框架](living_world_framework.md)和[世界连续性契约](world_continuity.md)，说明如何让不同身份生活在同一个持续运转的世界。实际执行顺序见[世界引擎计划](../../docs/plans/world_engine_execution.md)，当前授权见[HANDOFF](../../docs/HANDOFF.md)，现行代码边界见[ARCHITECTURE](../../docs/ARCHITECTURE.md)。参考游戏能力与证据边界见[既有研究](../research/social_interaction_game_references.md)；下述算法均为 Reol 设计，不声称是参考游戏内部实现。
 
 ## 1. 需要产生的体验
 
@@ -16,7 +16,7 @@
 
 ## 2. 现有基座和必须补齐的边界
 
-以下由实际代码核对，不把已有骨架重写成待办，也不把局部机制外推成完整系统。
+下表是成文时的代码调查与当时预计的缺口；后续有更多有限样本，不能把表中“尚需增加”当作当前未实现清单。最新事实见[FEATURES](../../docs/FEATURES.md)和[ARCHITECTURE](../../docs/ARCHITECTURE.md)，仍不能将局部机制外推成完整系统。
 
 | 现有模块 | 可以承接什么 | 尚需增加什么 |
 |---|---|---|
@@ -233,7 +233,7 @@
 
 ### 11.1 先验证再扩大
 
-容量口径与总体方案统一，全部是待压测目标，不代表现有能力：
+下表是成文时建议的容量档位，供规划讨论，不是已验证能力、现行性能硬承诺或最终发行规格；现行压力预算和测试口径以[世界引擎执行计划](../../docs/plans/world_engine_execution.md)为准：
 
 | 测试档 | 模拟与人口目标 |
 |---|---|

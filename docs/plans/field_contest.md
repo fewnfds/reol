@@ -1,6 +1,6 @@
 # U3-c 建议：断碑台的一次现场争环
 
-2026-11-04。**状态：实施规格，尚未实现或验收。** 接续[断碑台与自主寻物](first_field_opportunity.md)、[引物环](field_ring_use.md)和[私人器物交换](private_artifact_exchange.md)。当前功能与构建分别以 [FEATURES](../FEATURES.md) 和 [BASELINE](../BASELINE.md) 为准；本文件不把后续设计写成现成玩法。
+2026-11-04。**暂缓的事件规格**：旧争环实验仅保存在本地`codex/field-contest`的未验收WIP，不属于当前`codex/world-engine`基线；用户已要求先建设通用世界引擎，不继续磨合此事件。当前功能与构建以[FEATURES](../FEATURES.md)/[BASELINE](../BASELINE.md)为准。
 
 ## 1. 可玩的结果
 

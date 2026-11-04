@@ -1,6 +1,6 @@
 # 项目文件架构
 
-日期：2026-11-02。已执行迁移，原则见[参考研究](../design/research/project_structure_references.md)。目录服务于当前开发规模，不预建几十个空模块。
+核对：2026-11-04。本文只负责文件放置；文档权威见[DOCUMENTATION](DOCUMENTATION.md)，代码所有者见[ARCHITECTURE](ARCHITECTURE.md)。目录服务于当前规模，不预建空模块。
 
 ```text
 reol/
@@ -56,14 +56,11 @@ village.json 暂仍同时定义生活规则和初始库存，是既有schema的�
 
 `.gd` 移动必须带 `.gd.uid`，更新文本引用并重新导入；资源 UID 只标识文件，定义 ID 和人物实例 ID 仍由游戏维护。场景、插件、技能和许可证没有为了整齐而移动。addons/ 不编辑，新增依赖继续按项目规则批准。
 
-## 本轮实际迁移
+## 文档与兼容输入
 
-- 两个 runtime 从 scripts/sim 移至 scripts/runtime；save_store 移至 scripts/persistence。
-- 三份人物内容移至 data/definitions，两个开局配置移至 data/scenarios；对应代码/测试/文档路径已更新。
-- 九个 GDScript 测试分别放 tests/sim 与 tests/runtime；入口不变。
-- 四份旧版进度/架构全文保存至 docs/archive，原入口重写为当前职责，历史未删除。
+文档按职责路由：HANDOFF管当前停点，FEATURES管可玩行为，BASELINE管版本/验证，design管概念/规则，plans管规格与执行，qa管历史证据，archive保留旧全文。根README/AGENTS不复制长进度。新目录和全路径见[CATALOG](CATALOG.md)。
 
-迁移后的验证和日志统一见[BASELINE](BASELINE.md)。后续新功能独立验收，不把重排文件当成功能完成。
+未提交A0a新增`data/compatibility/`保存明确历史内容输入，与当前definitions、开局scenarios和实例存档分开；它尚未验收，不因此扩大通用内容工厂能力。原目录迁移记录留在[历史原文](archive/documentation_consolidation_20261104/docs/PROJECT-STRUCTURE.md)。
 
 ## 结构验证
 

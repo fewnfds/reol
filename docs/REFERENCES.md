@@ -2,7 +2,7 @@
 
 2026-11-03最新玩法取舍见[修仙/战略/人生与远区研究](../design/research/transcendent_focus_sources.md)，对应[超凡者优先](plans/transcendent_focus.md)。一手页面区分商店设计陈述与特定版本实现，不把“动态世界”直接解释成纯事件引擎。
 
-> 截至 2026-11-01。链接会过期；以官方页面为准。
+> **历史参考索引：** 以下版本、星数、兼容声明和项目状态为2026-11-01时点，不是当前已安装清单；链接、许可和具体版本使用前重新核实。项目工具现状见[套件实装](AI-TOOLKIT-SETUP.md)。
 > 每条都标注“借什么”，避免无脑收藏。
 > 2026-11-02补充：本页保留既有学习索引，星数、费用、版本等不是最新选型证据。新一轮核查见[游戏/素材研究](../design/research/full_game_reference_map.md)、[Godot官方库/商店与候选](../design/research/godot_resource_candidates.md)、[本机工具审计](DEVELOPMENT-TOOLS-AUDIT.md)；引入前按具体版本/许可与Godot4.7.2实际验证，不从旧表直接安装。
 

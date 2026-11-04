@@ -1,6 +1,6 @@
 # W4-b：从旧戒里开始的人生
 
-2026-11-03。有限开局样本已实现并验收，见[实际证据](../qa/20261103_soul_player.md)；NPC寄魂底座见[soul_vessels](soul_vessels.md)。完整Goal仍active，不将一个开局等同完整非人冒险。
+2026-11-03。有限开局样本已实现并验收，见[QA](../qa/20261103_soul_player.md)；NPC寄魂底座见[soul_vessels](soul_vessels.md)。不将一个开局等同完整非人冒险；当前Goal状态见[HANDOFF](../HANDOFF.md)。
 
 目标：在原世界选择晏衡的同一段残识，从有限灵机感知、传意、请求他人帮忙和休眠等待开始。原杂役/雀妖仍自主，不复制戒指、记忆或一具可移动的幽灵身体。
 

@@ -1,6 +1,6 @@
 # U1-a：可读的驱离冲突与共同动作
 
-日期：2026-11-03。状态：实物木剑、两种术法、敌意动作、挫伤/退让与实际存读已接为有限样本，最终整包验收以[QA](../qa/20261103_transcendent_conflict.md)和BASELINE为准。完整游戏Goal保持active，顺序沿[超凡者优先](transcendent_focus.md)，长期[行动战斗](../../design/systems/combat_framework.md)仍是上位目标。以下“守护者阻止取用”的利害场景尚未实现，当前入口为对眼前真实人物明确表达驱离敌意，不能据此宣称U1完整出口已完成。
+日期：2026-11-03。实物木剑、两种术法、敌意动作、挫伤/退让与存读已接为有限样本，证据见[QA](../qa/20261103_transcendent_conflict.md)和BASELINE。后续[有限看护/借源/驱离](source_care.md)也已接入；不代表完整领地、产权、任务或战斗系统。当前世界引擎顺序见[执行记录](world_engine_execution.md)。
 
 ## 体验与有限出口
 

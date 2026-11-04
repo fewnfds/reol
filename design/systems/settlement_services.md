@@ -1,6 +1,6 @@
 # 跨聚落生活、办事与互助
 
-日期：2026-11-02。当前工作包见[开发计划](../../docs/plans/settlement_services.md)。
+日期：2026-11-02。本文记录跨聚落办事的首轮设计与有限样本，历史工作包见[开发计划](../../docs/plans/settlement_services.md)，当前功能与授权分别见[FEATURES](../../docs/FEATURES.md)和[HANDOFF](../../docs/HANDOFF.md)。
 
 访客进入聚落时仍是同一个人物，不获得第二套身体、背包或社会身份。当地生活和办事由具体设施、现存资源和有权办理者落实。
 

@@ -1,6 +1,6 @@
 # Reol 完整游戏长期开发方案
 
-方案成文：2026-11-02；状态校正：2026-11-03。**本页是长期目标与领域依赖，部分前置样本已交付，不是当前功能清单。** 实际功能见[FEATURES](../FEATURES.md)，构建/证据见[BASELINE](../BASELINE.md)。用户最新要求优先超凡者体验并恢复Goal active；当前实施顺序以[超凡者优先U0–U5](transcendent_focus.md)和[ROADMAP](../ROADMAP.md)为准，不再按P1农业→P2全建造→P3战斗的串行顺序扩展。
+方案成文：2026-11-02。**本页是长期目标与领域依赖，不是当前功能清单。** 实际功能见[FEATURES](../FEATURES.md)，构建/证据见[BASELINE](../BASELINE.md)。长期侧重超凡者，当前先平面世界引擎；执行顺序和Goal暂停状态以[执行记录](world_engine_execution.md)为准，不按P1农业→P2全建造→P3战斗串行扩展。
 
 [世界总纲](../../design/systems/self_consistent_world.md)与[世界先行W0–W7](world_first_sandbox.md)提前检验不同生命、作用、认识、寄魂、欺骗、创造和尺度。保留P0可靠基础，不以全建造/全战斗完成为世界验证前提。下列三出身、三境界、容量与人形装备只是当时推荐预算，未经逐项拍板或全部实现。
 
@@ -95,7 +95,7 @@
 - [首工作包](world_foundation.md)：下一次实际实施的起点。
 - [人物与战斗详细设计](combat_character_design.md)：动作规则、纸娃娃与社会外观、无职业修行网络及C0–C7主题拆包。
 - [最新世界总纲](../../design/systems/self_consistent_world.md)与[世界先行工作包](world_first_sandbox.md)：共同世界、多种生命、知识/法器/创造与W0–W7样本；修订完整铺建造/战斗内容之前的验证顺序。
-- [资源与工具搜集工作包](resource_tooling_scout.md)：本轮Goal的资源范围、候选决策和接续记录；[本机审计](../DEVELOPMENT-TOOLS-AUDIT.md)记录实际配置与连接证据。
+- [资源与工具搜集工作包](resource_tooling_scout.md)：原调研Goal的资源范围、候选决策和接续记录；[本机审计](../DEVELOPMENT-TOOLS-AUDIT.md)记录当时配置与连接证据，当前配置见[套件实装](../AI-TOOLKIT-SETUP.md)。
 
 现有 `living_world_framework`、`world_continuity`、`settlement_services` 继续负责已有规则；新目标文件只补长期方向。原继任权重保持提议状态，后续依据场景校准，不能靠沿用旧数字宣称政治设计已完成。
 
@@ -273,4 +273,4 @@ P编号保留为领域和长期验收索引，旧M0–M5保留为历史术语，
 
 真正改变工程或发行边界的事项再问：收费/付费依赖与素材采购、技术栈或联网方向改变、会丢失现有存档的不可逆迁移、正式对外发布及项目许可证。当前无须安装新依赖或采购素材。
 
-已交付与未完成出口按[ROADMAP](../ROADMAP.md)和[BASELINE](../BASELINE.md)接续，不重做P0已有样本。当前Goal为active；一次实施一个可验证工作包，让世界可靠、可测、可组合。
+已交付与未完成出口按[ROADMAP](../ROADMAP.md)和[BASELINE](../BASELINE.md)核对，不重做P0已有样本；当前停点和授权见[执行记录](world_engine_execution.md)。

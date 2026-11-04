@@ -1,6 +1,6 @@
 # U1-b1：一次公源借用与原温石的实际归还
 
-2026-11-04。**状态：规则、接缝与真实和平流程已接通；最终检查状态见BASELINE。** 实际实现/限制和实机证据见[本包QA](../qa/20261104_source_loan.md)。下文保留实施合同与当时建议，已落地的细节以代码及下方实施结果为准。沿[真实利害计划](transcendent_stakes.md)接看护、警告与驱离；当前功能和最终证据以[FEATURES](../FEATURES.md)、[BASELINE](../BASELINE.md)为准。
+2026-11-04。规则、接缝与真实和平流程已接通并验收；范围与证据见[QA](../qa/20261104_source_loan.md)/[BASELINE](../BASELINE.md)。后续有限看护、警告与驱离已另包接通，详见[source_care](source_care.md)；下文保留实施合同，不代表完整产权/任务系统。
 
 ## 实施结果入口
 

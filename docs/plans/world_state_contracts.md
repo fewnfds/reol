@@ -4,7 +4,7 @@
 
 日期：2026-11-03。状态：**静态调查已交付；部分接缝后来已实施，未来契约/反例仍需逐项验证**。按[整体评审](world_architecture_review.md)从真实脚本核对，承接[世界先行W0](world_first_sandbox.md)，不将目标表误写为现状架构。
 
-本页是W0-a的文档交付，不宣称多种身体/载体、通用作用或知识投影已经通过运行测试。当前进度唯一见[BASELINE](../BASELINE.md)。
+本页是W0-a的文档交付，不宣称多种身体/载体、通用作用或知识投影的完整目标已经通过运行测试。当前功能见[FEATURES](../FEATURES.md)，验证见[BASELINE](../BASELINE.md)，授权见[HANDOFF](../HANDOFF.md)。
 
 ## 1. 已核对的真实状态归属
 

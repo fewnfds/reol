@@ -1,6 +1,6 @@
 # Reol AI开发套件：实际配置与验收
 
-2026-11-04。用户已授权本轮测试和调整，并清除原完整游戏Goal；只配置开发设施，不恢复玩法实施。选型依据见[竞品研究](AI-TOOLKIT-REVIEW.md)，组件来源与常规更新见[维护文档](TOOLING-MAINTENANCE.md)。本页记录实际落地，覆盖此前“只调研/未升级”的时点结论。
+状态：工具实际配置与历史验收记录。2026-11-04设施调整已经落地；工作授权和当前停点由[HANDOFF](HANDOFF.md)及Goal状态决定，不由本页历史安装任务决定。选型依据见[竞品研究](AI-TOOLKIT-REVIEW.md)，组件来源与常规更新见[维护文档](TOOLING-MAINTENANCE.md)。本页记录实际落地，覆盖此前“只调研/未升级”的时点结论。
 
 ## 当前采用的组合
 
@@ -13,6 +13,7 @@
 | 文档 | Context7启用，官方文档为核验依据 | 项目级远程连接，当前实际查询Godot文档成功 |
 | 备用MCP | Coding-Solo0.1.1默认禁用 | 保留包装器/来源；需要时`python tools/setup_codex.py --enable-backup-godot`，不用时关闭 |
 | 无关文档MCP | LangChain仅Reol停用 | 用户级连接保留，项目只继承后设置`enabled=false`，其他项目不变 |
+| 本地代码审查 | 项目审查模型Sol；公司`custom`路由 | 由主代理按工作包调用原生review，GitHub云端模型审查未开启；使用方式及费用边界见[审查工作流](CODE-REVIEW-WORKFLOW.md) |
 | 技能 | 37项原能力文件保留 | 31项上游只缩简介，6项自有入口修正并分层；不再叠GodotPrompter或额外框架 |
 | 验证 | 原项目CLI/runner、Python工具测试、GitHub CI、实际运行/截图 | 不引入GUT/GdUnit4或全仓自动格式化，不改变游戏规则来迁就工具；提交审查采用[原生Codex工作流](CODE-REVIEW-WORKFLOW.md) |
 
@@ -30,6 +31,8 @@
 - 本地Godot AI服务器在本项目采用`default_tools_approval_mode="approve"`，对应用户明确授权的本轮/项目编辑器操作；不改变全局审批或系统沙盒。Codex的`auto`按工具注解判断，**不等于总是允许**。曾在只读验收中因注解默认要求审批与`never`冲突而拒绝，改成项目明确授权后新会话实测成功。
 
 生成器`tools/setup_codex.py`仅管理可移植的Context7和备用godot默认值，尊重已有自定义连接/开关，不擅自覆盖继承传输或写Godot AI端口。`--check`只验项目条目，不证明握手；再用`codex mcp list`、`codex mcp get godot-ai --json`及真实调用核对。后两命令可能包含本机路径，分享时脱敏。
+
+另外可以通过显式参数`--review-model gpt-6.1-sol`设置项目根级审查模型；不传参数时不会改已有审查模型。与`--check`结合只做核对，具体记录和CLI命令见[审查工作流](CODE-REVIEW-WORKFLOW.md)。它不修改主模型、全局provider或权限。
 
 为使过滤在客户端之间一致，最后通过Godot公共`EditorSettings` API设置`godot_ai/excluded_domains="csg,gridmap,testing"`，再由官方配置器重新配置Codex，正常退出并重开编辑器。**这项是Godot用户级编辑器设置，会影响使用该编辑器设置的其他项目，不只Reol**；插件源码未改。新的独立认证attach列出43工具，返回这三个排除域，Reol插件/后端4.4.1、ready/stopped。它们移除3D CSG、GridMap及插件自带测试工具，游戏测试继续用原CLI/CI。
 
@@ -91,6 +94,6 @@
 
 测试修正提交`0804c70`只改临时构造与迁移期望，仍全字典比较，增加混版拒绝/活世界不变检查，不改真实fixture或游戏逻辑。三项定向704断言/0失败；对应完整CI [run41755190941](https://github.com/fewnfds/reol/actions/runs/41755190941)已success，Godot输出CHECK PASSED，确切SHA、组数/断言及完整日志统一见BASELINE。工具/验证文档已在`4714e6f`提交推送，未合main。
 
-当前旧聊天/旧子代理的MCP句柄仍可能Transport closed；新Codex进程已验证成功。**完成后重启Codex一次**以刷新本聊天/后续子代理的启动命令和过滤目录；不需重装Godot。启动后先核Reol的session版本和状态，不能把旧句柄失败当新版后端已停止。
+安装后曾观察到旧聊天/旧子代理的MCP句柄可能Transport closed，新Codex进程则验证成功。如果当前会话仍出现旧attach或工具目录，重新加载项目/重启客户端以刷新连接，再核Reol的session版本和状态；不需据此重装Godot，也不能把旧句柄失败当新版后端已停止。
 
-回退：保留本机旧配置/uv压缩备份及官方addon旧树；只在确认版本、进程和目标路径后按官方恢复流程还原配套组件。回退插件与后端要成对，不能用裸HTTP绕过认证。本轮未演练故障回退，不保证所有失败能自动恢复。原完整游戏Goal已清除，不因工具配置成功自动恢复。
+回退：保留本机旧配置/uv压缩备份及官方addon旧树；只在确认版本、进程和目标路径后按官方恢复流程还原配套组件。回退插件与后端要成对，不能用裸HTTP绕过认证。2026-11-04设施实施时未演练故障回退，不保证所有失败能自动恢复；当时的Goal历史不表示当前授权状态。
