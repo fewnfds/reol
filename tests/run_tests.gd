@@ -413,6 +413,14 @@ func test_local_heat() -> void:
 	load("res://tests/sim/test_local_heat.gd").new().run(self)
 
 
+func test_thermal_devices() -> void:
+	load("res://tests/sim/test_thermal_devices.gd").new().run(self)
+
+
+func test_thermal_device_migration() -> void:
+	load("res://tests/runtime/test_thermal_device_migration.gd").new().run(self)
+
+
 func test_herb_ecology_rules() -> void:
 	load("res://tests/sim/test_herb_ecology_rules.gd").new().run(self)
 

@@ -4,11 +4,11 @@ extends RefCounted
 const Methods = preload("res://scripts/sim/heat_method_schema.gd")
 const Shape = preload("res://scripts/sim/avian_schema.gd")
 
-const KINDS: Array[String] = ["observed", "taken", "placed", "studied", "backlash", "charged", "heated", "depleted", "failed", "cancelled", "examined", "fractured", "overcharged", "warmed", "use_learned", "drawn", "exchanged"]
+const KINDS: Array[String] = ["observed", "taken", "placed", "studied", "backlash", "charged", "heated", "depleted", "failed", "cancelled", "examined", "fractured", "overcharged", "warmed", "use_learned", "drawn", "exchanged", "enabled", "disabled"]
 
 
 static func validate(data: Dictionary, domain: RefCounted) -> bool:
-	if not _keys(data, ["version", "objects", "active", "events", "experiences", "next_id"]) or data.version != 7 or not data.objects is Dictionary or not data.active is Dictionary or not data.events is Array or not data.experiences is Dictionary or not _count(data.next_id, 1):
+	if not _keys(data, ["version", "objects", "active", "events", "experiences", "next_id"]) or data.version != SimArtifacts.VERSION or not data.objects is Dictionary or not data.active is Dictionary or not data.events is Array or not data.experiences is Dictionary or not _count(data.next_id, 1):
 		return false
 	var world: RefCounted = domain.world
 	for subject: Variant in data.experiences:
@@ -22,6 +22,12 @@ static func validate(data: Dictionary, domain: RefCounted) -> bool:
 		if not SimInventory._nonempty(id) or not item is Dictionary or not domain.definitions.types.has(item.get("definition")) or not domain.valid_location(item.get("region"), item.get("container")):
 			return false
 		var definition: Dictionary = domain.definitions.types[item.definition]
+		if SimArtifacts.type_has_capability(definition, "thermal_exchange"):
+			if not _keys(item, ["definition", "region", "container", "stored_q", "enabled"]) or not _count(item.stored_q) or int(item.stored_q) > int(definition.thermal.capacity_q) or not item.enabled is bool:
+				return false
+			if domain.storage_region(str(item.region), str(definition.storage_place)).is_empty() or bool(item.enabled) and not domain.thermal_fixed_location(item):
+				return false
+			continue
 		if not SimArtifacts.type_has_capability(definition, "heat_storage"):
 			if not _keys(item, ["definition", "region", "container"]) or domain.storage_region(str(item.region), str(definition.storage_place)).is_empty():
 				return false
@@ -69,6 +75,11 @@ static func validate(data: Dictionary, domain: RefCounted) -> bool:
 			return false
 		var item: Dictionary = data.objects[job.object]
 		var definition: Dictionary = domain.definitions.types[item.definition]
+		if SimArtifacts.type_has_capability(definition, "thermal_exchange"):
+			if job.verb in ["take", "place"] and bool(item.enabled):
+				return false
+			if job.verb in ["enable", "disable"] and (not domain.thermal_fixed_location(item) or bool(item.enabled) != (job.verb == "disable")):
+				return false
 		if job.verb == "place" and not SimArtifacts.type_has_capability(definition, "heat_storage") and str(definition.storage_place).begins_with("site:") and not domain.storage_near(actor, str(item.region), str(definition.storage_place)):
 			return false
 		if job.verb == "warm" and (item.region != job.region or item.container != "actor:" + actor or int(item.charge) < int(domain.definitions.types[item.definition].warming_charge)):
@@ -106,6 +117,8 @@ static func validate(data: Dictionary, domain: RefCounted) -> bool:
 			event_keys.append("exchange")
 		if event.get("kind") == "warmed":
 			event_keys.append("heat_amount")
+		if event.get("kind") in ["enabled", "disabled"]:
+			event_keys.append("device_container")
 		if not _keys(event, event_keys):
 			return false
 		if not _allocated(event.id, "event", int(data.next_id), allocated) or not _allocated(event.action, "action", int(data.next_id), allocated) or actions.has(event.action):
@@ -143,7 +156,7 @@ static func validate(data: Dictionary, domain: RefCounted) -> bool:
 		var terms: Dictionary = domain.job_terms(event, data.objects)
 		if terms.is_empty() or event.qi_spent != terms.qi or int(event.at_ms) < int(event.started_ms) or int(event.at_ms) - int(event.started_ms) > _duration(terms) or (event.kind != "cancelled" and int(event.at_ms) - int(event.started_ms) != _duration(terms)):
 			return false
-		var expected: String = {"inspect": "observed", "take": "taken", "place": "placed", "study": "studied", "heat": "heated", "charge": "charged", "dry": "heated", "examine": "examined", "force": "overcharged", "warm": "warmed", "use_research": "use_learned", "draw": "drawn"}[event.verb]
+		var expected: String = {"inspect": "observed", "take": "taken", "place": "placed", "study": "studied", "heat": "heated", "charge": "charged", "dry": "heated", "examine": "examined", "force": "overcharged", "warm": "warmed", "use_research": "use_learned", "draw": "drawn", "enable": "enabled", "disable": "disabled"}[event.verb]
 		if not event.kind in [expected, "failed", "cancelled"] and not (event.kind == "backlash" and event.verb in ["heat", "charge", "dry", "force"]) and not (event.kind == "depleted" and event.verb in ["heat", "dry", "warm"]) and not (event.kind == "fractured" and event.verb == "force") and not (event.has("method") and event.kind in ["fractured", "overcharged"]):
 			return false
 		if not event.cell is Array or event.cell.size() != 2 or not _count(event.cell[0]) or not _count(event.cell[1]):
@@ -156,7 +169,7 @@ static func validate(data: Dictionary, domain: RefCounted) -> bool:
 			var operation: Variant = world.regions[event.effect_region].inventory.operations.get(str(event.action) + ":heat")
 			if not operation is Dictionary or operation.get("kind") != "transform" or operation.container != definition.workplace or not _same_items(operation.inputs, definition.inputs) or not _same_items(operation.outputs, definition.outputs):
 				return false
-	return true
+	return _thermal_lifecycle_valid(data, domain)
 
 
 static func _duration(terms: Dictionary) -> int:
@@ -166,6 +179,13 @@ static func _duration(terms: Dictionary) -> int:
 static func _new_action_valid(row: Dictionary, data: Dictionary, domain: RefCounted) -> bool:
 	if (row.verb == "draw") != row.has("draw"):
 		return false
+	if row.verb in ["enable", "disable"]:
+		if row.has("method") or row.recipient != "" or not _count(row.get("started_ms")) or not data.objects.has(row.object):
+			return false
+		var item: Dictionary = data.objects[row.object]
+		if not SimArtifacts.type_has_capability(domain.definitions.types[item.definition], "thermal_exchange"):
+			return false
+		return row.verb == "disable" or _thermal_study_before(row, data.events, domain)
 	if row.verb not in ["use_research", "draw"]:
 		return true
 	if row.has("method") or row.recipient != "" or not _count(row.get("started_ms")):
@@ -193,6 +213,64 @@ static func _new_action_valid(row: Dictionary, data: Dictionary, domain: RefCoun
 	if row.get("kind") == "drawn" and (row.get("effect_region") != row.region or not Shape.cell_valid(row.get("cell")) or SimRouteTravel.cell(row.cell) != TileGrid.world_to_cell(origin)):
 		return false
 	return origin.distance_to(destination) <= float(definition.drawing.range_cells) * TileGrid.TILE_SIZE
+
+
+static func _thermal_study_before(row: Dictionary, events: Array, domain: RefCounted) -> bool:
+	var subject: String = domain.world.embodiment.subject_for_actor(str(row.actor))
+	for event: Variant in events:
+		if not event is Dictionary or event.get("kind") != "studied" or event.get("subject") != subject or event.get("object") != row.object or not _count(event.get("at_ms")):
+			continue
+		if _before(event, row):
+			return true
+	return false
+
+
+static func _thermal_lifecycle_valid(data: Dictionary, domain: RefCounted) -> bool:
+	# Opening devices are disabled. Successful toggles and transfers must preserve
+	# that state; the heat candidate independently validates their exact receipts.
+	var states: Dictionary = {}
+	var last_times: Dictionary = {}
+	var anchors: Dictionary = {}
+	for id: String in data.objects:
+		var item: Dictionary = data.objects[id]
+		if SimArtifacts.type_has_capability(domain.definitions.types[item.definition], "thermal_exchange"):
+			states[id] = false
+			last_times[id] = 0
+	for event: Dictionary in data.events:
+		var id: String = str(event.object)
+		if not states.has(id):
+			continue
+		if int(event.at_ms) < int(last_times[id]):
+			return false
+		last_times[id] = int(event.at_ms)
+		if event.kind in ["taken", "placed", "exchanged"] and bool(states[id]):
+			return false
+		if event.kind not in ["enabled", "disabled"]:
+			continue
+		var next: bool = event.kind == "enabled"
+		if bool(states[id]) == next or _action_number(str(event.action)) >= _serial_number(str(event.id), "event") or int(event.at) != floori(float(event.at_ms) / 60000.0):
+			return false
+		if not event.device_container is String or not domain.thermal_fixed_location({"region": event.effect_region, "container": event.device_container}):
+			return false
+		var place: Dictionary = domain.world.regions[event.effect_region].places[event.device_container]
+		if SimRouteTravel.cell(place.cell) != SimRouteTravel.cell(event.cell):
+			return false
+		var anchor: Dictionary = {"region": str(event.effect_region), "container": str(event.device_container)}
+		if next:
+			anchors[id] = anchor
+		elif anchors.get(id, {}) != anchor:
+			return false
+		else:
+			anchors.erase(id)
+		states[id] = next
+	for id: String in states:
+		if bool(data.objects[id].enabled) != bool(states[id]):
+			return false
+		if bool(states[id]):
+			var item: Dictionary = data.objects[id]
+			if anchors.get(id, {}) != {"region": str(item.region), "container": str(item.container)}:
+				return false
+	return true
 
 
 static func _evidence_before(row: Dictionary, events: Array, kind: String) -> bool:

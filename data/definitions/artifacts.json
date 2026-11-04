@@ -53,6 +53,44 @@
       },
       "drawing": {"duration_ms": 2000, "qi": 2, "range_cells": 6, "target_definitions": ["wooden_sword"]}
     },
+    "fire_stone": {
+      "name": "火石",
+      "unknown_name": "赤纹石",
+      "appearance": "一块嵌有赤色细纹的石头，几道纹路在石面中央收拢。",
+      "method": "沿赤纹启用后，石中的有限热量会逐渐散向身边；关闭后仍留在原处的热不会随石头离开。",
+      "material_cue": "石体坚实，赤色纹路在中央相接；单凭外形还看不出它能作用多久。",
+      "capabilities": ["thermal_exchange"],
+      "storage_place": "kitchen",
+      "thermal": {"mode": "emit", "rate_q_per_ms": 1000, "capacity_q": 180000000, "opening_q": 180000000},
+      "actions": {
+        "inspect": {"label": "端详赤纹石", "minutes": 1, "qi": 0},
+        "take": {"label": "取在手中", "minutes": 1, "qi": 0},
+        "place": {"label": "放回灶房", "minutes": 1, "qi": 0},
+        "study": {"label": "循赤纹探查", "minutes": 1, "qi": 0},
+        "examine": {"label": "辨看石材", "minutes": 1, "qi": 0},
+        "enable": {"label": "启用赤纹石", "minutes": 1, "qi": 1},
+        "disable": {"label": "关闭赤纹石", "minutes": 1, "qi": 0}
+      }
+    },
+    "cold_stone": {
+      "name": "寒石",
+      "unknown_name": "青纹石",
+      "appearance": "一块嵌有青白细纹的石头，几道纹路在石面中央收拢。",
+      "method": "沿青纹启用后，石头会逐渐吸纳身边的热；石内可容纳的热有限，关闭后周围的变化仍留在原处。",
+      "material_cue": "石体坚实，青白纹路在中央相接；单凭外形还看不出它能作用多久。",
+      "capabilities": ["thermal_exchange"],
+      "storage_place": "kitchen",
+      "thermal": {"mode": "absorb", "rate_q_per_ms": 1000, "capacity_q": 180000000, "opening_q": 0},
+      "actions": {
+        "inspect": {"label": "端详青纹石", "minutes": 1, "qi": 0},
+        "take": {"label": "取在手中", "minutes": 1, "qi": 0},
+        "place": {"label": "放回灶房", "minutes": 1, "qi": 0},
+        "study": {"label": "循青纹探查", "minutes": 1, "qi": 0},
+        "examine": {"label": "辨看石材", "minutes": 1, "qi": 0},
+        "enable": {"label": "启用青纹石", "minutes": 1, "qi": 1},
+        "disable": {"label": "关闭青纹石", "minutes": 1, "qi": 0}
+      }
+    },
     "warm_stone": {
       "name": "温火石",
       "unknown_name": "暗红石头",

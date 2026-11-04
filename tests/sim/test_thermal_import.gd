@@ -38,9 +38,14 @@ func run(runner: Object) -> void:
 	if converted.is_empty():
 		return
 	runner.assert_true(factory.calls > 0, "old validation uses the supplied independent terrain factory")
-	runner.assert_eq(int(converted.schema_version), 48, "the converted root explicitly records its new semantics")
-	runner.assert_eq(int(converted.continuity.world.version), 40, "the regional writer records the fixed-reference field")
-	runner.assert_eq(int(converted.continuity.world.local_heat.version), 2, "the new heat state has its own version")
+	runner.assert_eq(int(converted.schema_version), 49, "the converted root explicitly records its new semantics")
+	runner.assert_eq(int(converted.continuity.world.version), 41, "the regional writer records the fixed-reference device field")
+	runner.assert_eq(int(converted.continuity.world.local_heat.version), 3, "the new heat state has its own version")
+	runner.assert_eq(int(converted.continuity.world.artifacts.version), 8, "the original artifacts adopt the current envelope without new objects")
+	for field: String in ["continuous_input", "absorbed_energy", "last_sample_continuous_input", "last_sample_absorbed"]:
+		runner.assert_eq(int(converted.continuity.world.local_heat[field]), 0, "the old field gains no device energy: " + field)
+	for field: String in ["device_input", "device_absorbed", "device_switches"]:
+		runner.assert_eq(_json(converted.continuity.world.local_heat[field]), "{}", "the old field gains no device history: " + field)
 	runner.assert_eq(int(converted.continuity.world.environment.version), 3, "human exposure retains its data under the signed format")
 	var old_heat: Dictionary = old.continuity.world.local_heat
 	var new_heat: Dictionary = converted.continuity.world.local_heat
@@ -59,7 +64,7 @@ func run(runner: Object) -> void:
 	after_docs.erase(HEAT_PATH)
 	runner.assert_eq(_json(after_docs), _json(before_docs), "all other archived content documents remain unchanged")
 	runner.assert_true(ReolContentBundle.is_valid(converted.content_bundle, ReolContentDB.DOCUMENT_PATHS), "the converted definition has a freshly verified digest")
-	runner.assert_eq(int(converted.content_bundle.documents[HEAT_PATH].version), 2, "the original bound heat definition is explicitly converted")
+	runner.assert_eq(int(converted.content_bundle.documents[HEAT_PATH].version), 3, "the original bound heat definition is explicitly converted")
 	runner.assert_eq(_without_thermal_versions(converted), _without_thermal_versions(old), "all original nonthermal facts and sampled exposure remain unchanged")
 	runner.assert_eq(_json(old), old_before, "successful migration leaves the old candidate untouched")
 	runner.assert_eq(_json(archived), archived_before, "successful migration never rewrites the original historical fixture")
@@ -203,7 +208,7 @@ func _rejections(runner: Object, old: Dictionary, before: String) -> void:
 	bad.schema_version = 48
 	_reject(runner, bad, "a current root sent through the old migration entrance")
 	bad = old.duplicate(true)
-	bad.schema_version = 49
+	bad.schema_version = SessionSaveSchema.VERSION + 1
 	runner.assert_true(SessionSaveSchema.upgrade(bad).is_empty(), "an unknown future root is rejected before consulting legacy templates")
 	var factory := MapFactory.new()
 	factory.reject = true
@@ -233,6 +238,7 @@ func _without_thermal_versions(snapshot: Dictionary) -> String:
 	world.erase("version")
 	world.erase("local_heat")
 	world.environment.erase("version")
+	world.artifacts.erase("version")
 	for village: Dictionary in world.regions.values():
 		_strip_village_versions(village)
 	_strip_village_versions(copy.simulation)

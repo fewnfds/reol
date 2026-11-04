@@ -3,6 +3,7 @@ extends RefCounted
 
 const Support = preload("res://tests/sim/spirit_source_test_support.gd")
 const Fixtures = preload("res://tests/runtime/test_world_continuity_runtime.gd")
+const HerbMigration = preload("res://tests/runtime/test_herb_ecology_migration.gd")
 const ARCHIVE: String = "res://tests/fixtures/session_v33.json"
 const SOURCE_SHA: String = "d1a4e0f5fbaa4b87728f34723fe75876647ccd114f3622ef830fd17f7822c9e2"
 
@@ -114,10 +115,32 @@ func _old_archives(runner: Object) -> void:
 				projected.erase("capability_practice")
 				projected.health.version = prior.continuity.world.health.version
 				projected.health.erase("conflict_source_floor")
+				runner.assert_eq(int(projected.version), RegionalSimulation.SCHEMA_VERSION, "v33 regional envelope reaches the current contract")
 				projected.version = prior.continuity.world.version
+				runner.assert_eq(int(projected.artifacts.version), 8, "v33 original artifacts reach the device-aware envelope without adding objects")
 				projected.artifacts.version = prior.continuity.world.artifacts.version
-				runner.assert_eq(Support.canonical(projected), Support.canonical(prior.continuity.world), "v33 retains every original ecological, bodily, artifact, stock and in-flight fact after explicit conflict schema projection")
-				runner.assert_eq(Support.canonical(current.simulation), Support.canonical(prior.simulation), "v33 migration leaves the original root/home body and inventory unchanged")
+				var original_heat: Dictionary = prior.continuity.world.local_heat
+				var imported_heat: Dictionary = projected.local_heat
+				var saved_at: int = int(regional.elapsed_ms)
+				runner.assert_eq(int(original_heat.version), 1, "v33 archived heat retains the original excess format")
+				runner.assert_eq(int(imported_heat.version), 3, "v33 heat reaches the current device-aware format")
+				runner.assert_eq(int(imported_heat.rules_version), 3, "v33 heat uses the current fixed-Q rules")
+				runner.assert_eq(int(imported_heat.model_started_ms), saved_at, "v33 fixed-Q conversion begins at the saved present")
+				runner.assert_eq(imported_heat.last_sample_mode, "legacy_excess", "v33 old heat sample keeps its legacy interpretation")
+				var limits: Dictionary = {"at_ms": saved_at, "input_energy": 0, "cells": []}
+				runner.assert_eq(Support.canonical(imported_heat.legacy_limits), Support.canonical(limits), "v33 empty legacy history is bounded at the saved present")
+				runner.assert_eq(int(imported_heat.segment_until_ms), SimLocalHeat.MAX_INTEGER, "empty v33 field has no invented frozen boundary")
+				for field: String in ["ambient_in", "last_sample_ambient_in", "continuous_input", "absorbed_energy", "last_sample_continuous_input", "last_sample_absorbed"]:
+					runner.assert_eq(int(imported_heat[field]), 0, "v33 adds no ambient or continuous device energy: " + field)
+				for field: String in ["device_input", "device_absorbed", "device_switches"]:
+					runner.assert_true(imported_heat[field] is Dictionary and imported_heat[field].is_empty(), "v33 adds no historical device ledger: " + field)
+				runner.assert_eq(Support.canonical(HerbMigration.prior_empty_heat(imported_heat, original_heat)), Support.canonical(original_heat), "v33 preserves the complete old thermal sample, field, flows and receipts")
+				var historical: Dictionary = HerbMigration.prior_thermal_world(projected, prior.continuity.world)
+				runner.assert_true(not historical.is_empty(), "v33 fixed-Q import proves empty device ledgers and preserved ecology before projection")
+				projected = historical
+				runner.assert_eq(Support.canonical(projected), Support.canonical(prior.continuity.world), "v33 retains every original ecological, bodily, artifact, stock and in-flight fact after explicit schema projection")
+				var projected_home: Dictionary = HerbMigration.prior_village(current.simulation, prior.simulation)
+				runner.assert_eq(Support.canonical(projected_home), Support.canonical(prior.simulation), "v33 migration leaves the original root/home body and inventory unchanged")
 		runner.assert_eq(Support.canonical(prior), before, "pure source migration leaves its caller's old dictionary unchanged: v%d" % version)
 		runner.assert_eq(FileAccess.get_file_as_string(path), original, "source migration never rewrites a historical fixture: v%d" % version)
 	var saved: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(ARCHIVE))

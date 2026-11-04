@@ -332,7 +332,7 @@ func _diagnose_restore(authority: FieldAuthority, copy: SimLocalHeat, rules: Dic
 	return {"stage": "restore", "repeat": repeat, "in_memory_restore_ok": memory_ok,
 		"json_first_difference": _first_difference(SnapshotValues.normalized(snapshot), decoded, "$"),
 		"receipt_mismatch": _receipt_mismatch(authority, decoded.receipts),
-		"frozen_segment_valid": SimThermalSchema._frozen_segment(copy, decoded, authority.elapsed_ms, baseline_sum),
+		"frozen_segment_valid": SimThermalSchema._frozen_segment(copy, decoded, authority.elapsed_ms, baseline_sum, {}, {}),
 		"historical_sample_valid": SimThermalSchema._sample(copy, decoded, authority.elapsed_ms)}
 
 

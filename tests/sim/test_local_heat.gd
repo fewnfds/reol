@@ -117,7 +117,7 @@ func _json(heat: RefCounted) -> String:
 
 func _definitions(runner: Object) -> void:
 	runner.assert_true(Heat.valid_definitions(_rules()), "default local heat rules have safe integer outflow bounds")
-	runner.assert_eq(_rules().version, 2, "current heat definitions use the fixed-reference model")
+	runner.assert_eq(_rules().version, 3, "current heat definitions include fixed-reference device exchange")
 	runner.assert_eq(_rules().reference_tenths, -10000, "cell energy uses the declared fixed temperature reference")
 	var rules: Dictionary = _rules()
 	rules.conductance.open = 1000

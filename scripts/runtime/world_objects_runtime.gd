@@ -247,10 +247,17 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var cursor: Vector2 = get_canvas_transform().affine_inverse() * event.position
+		var closest: String = ""
+		var closest_distance: float = 22.0
 		for id: String in adapter.world_sim.artifacts.objects:
-			if _visible(id) and cursor.distance_to(_display_point(id)) <= 22.0 and select_object(id):
-				get_viewport().set_input_as_handled()
-				break
+			if not _visible(id):
+				continue
+			var distance: float = cursor.distance_to(_display_point(id))
+			if distance <= 22.0 and (closest.is_empty() or distance < closest_distance or distance == closest_distance and id < closest):
+				closest = id
+				closest_distance = distance
+		if not closest.is_empty() and select_object(closest):
+			get_viewport().set_input_as_handled()
 
 
 func _visible(id: String, observed_world: RegionalSimulation = null) -> bool:
@@ -302,7 +309,13 @@ func _display_point(id: String, observed_world: RegionalSimulation = null) -> Ve
 				point = pawn.global_position + pawn.visual_offset
 			else:
 				point = SimRouteTravel.point(authority.regions[item.region].actors[holder])
-	return point + Vector2(20, -24 - adapter._home._world.get_elevation(cell) * ReolWorld.ELEVATION_PX - altitude * ReolWorld.ALTITUDE_PX)
+	var offset := Vector2(20, -24 - adapter._home._world.get_elevation(cell) * ReolWorld.ELEVATION_PX - altitude * ReolWorld.ALTITUDE_PX)
+	if domain.has_capability(id, "thermal_exchange"):
+		# A visual offset distinguishes objects at the same original place. It
+		# does not change their cell, heat source, custody or interaction range.
+		var definition: Dictionary = domain.definitions.types[item.definition]
+		offset.x += -32.0 if definition.thermal.mode == "emit" else 32.0
+	return point + offset
 
 
 func _draw() -> void:
@@ -327,11 +340,25 @@ func _draw() -> void:
 		if authority.artifacts.has_capability(id, "remote_draw"):
 			_draw_drawing_ring(point)
 			continue
+		if authority.artifacts.has_capability(id, "thermal_exchange"):
+			var definition: Dictionary = authority.artifacts.definitions.types[authority.artifacts.objects[id].definition]
+			_draw_thermal_stone(point, definition.thermal.mode == "emit")
+			continue
 		var diamond := PackedVector2Array([point + Vector2(0, -9), point + Vector2(8, 0), point + Vector2(0, 9), point + Vector2(-8, 0)])
 		draw_circle(point, 13, Color("#251c20"))
 		draw_colored_polygon(diamond, Color("#a6553b"))
 		draw_polyline(PackedVector2Array([diamond[0], diamond[1], diamond[2], diamond[3], diamond[0]]), Color("#f0c989"), 2)
 		draw_line(point + Vector2(-3, -3), point + Vector2(3, 3), Color("#e8b479"), 1.5)
+
+
+func _draw_thermal_stone(point: Vector2, warm: bool) -> void:
+	var rim: Color = Color("#f1bd8a") if warm else Color("#c3e8ed")
+	var body: Color = Color("#a64f36") if warm else Color("#588fa5")
+	var outline := PackedVector2Array([point + Vector2(-8, -6), point + Vector2(2, -10), point + Vector2(10, -3), point + Vector2(8, 7), point + Vector2(-4, 10), point + Vector2(-10, 3)])
+	draw_circle(point, 13, Color("#251c20"))
+	draw_colored_polygon(outline, body)
+	draw_polyline(PackedVector2Array([outline[0], outline[1], outline[2], outline[3], outline[4], outline[5], outline[0]]), rim, 2.0)
+	draw_line(point + Vector2(-5, -3), point + Vector2(4, 4), rim, 1.5)
 
 
 func _draw_wooden_sword(point: Vector2) -> void:

@@ -2,6 +2,8 @@
   "version": 1,
   "experiences": {"subject:su_zhi": ["kiln_repair"], "subject:chen_shouzhuo": ["stone_handling"]},
   "objects": [
-    {"id": "hearth_stone", "definition": "warm_stone", "region": "home", "container": "kitchen"}
+    {"id": "hearth_stone", "definition": "warm_stone", "region": "home", "container": "kitchen"},
+    {"id": "fire_stone", "definition": "fire_stone", "region": "home", "container": "kitchen"},
+    {"id": "cold_stone", "definition": "cold_stone", "region": "home", "container": "kitchen"}
   ]
 }

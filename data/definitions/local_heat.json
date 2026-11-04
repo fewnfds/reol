@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "step_ms": 10000,
   "sample_ms": 60000,
   "world_size": 512,

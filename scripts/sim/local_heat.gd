@@ -6,7 +6,8 @@ extends RefCounted
 const Shape = preload("res://scripts/sim/avian_schema.gd")
 const Legacy = preload("res://scripts/persistence/legacy_heat_v1.gd")
 const TransferBudget = preload("res://scripts/sim/thermal_transfer_budget.gd")
-const VERSION: int = 2
+const VERSION: int = 3
+const DEVICE_PREFIX: String = "@artifact/"
 const SIDES: Array[Vector2i] = [Vector2i.LEFT, Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN]
 const MAX_INTEGER: int = 9007199254740991
 var definitions: Dictionary = {}
@@ -17,6 +18,11 @@ var segment_started_ms: int = 0
 var cells: Dictionary = {}
 var flows: Array[Dictionary] = []
 var input_energy: int = 0
+var continuous_input: int = 0
+var absorbed_energy: int = 0
+var device_input: Dictionary = {}
+var device_absorbed: Dictionary = {}
+var device_switches: Dictionary = {}
 var ambient_in: int = 0
 var loss_energy: int = 0
 var receipts: Dictionary = {}
@@ -25,6 +31,8 @@ var last_sample_cells: Dictionary = {}
 var last_sample_input: int = 0
 var last_sample_loss: int = 0
 var last_sample_ambient_in: int = 0
+var last_sample_continuous_input: int = 0
+var last_sample_absorbed: int = 0
 var last_sample_mode: String = "absolute"
 var legacy_limits: Dictionary = {}
 var _owner: WeakRef
@@ -89,9 +97,12 @@ static func empty_state(at_ms: int) -> Dictionary:
 	return {"version": VERSION, "rules_version": VERSION, "activation_ms": at_ms,
 		"model_started_ms": at_ms, "last_ms": at_ms, "segment_started_ms": at_ms,
 		"cells": {}, "flows": [], "input_energy": 0, "ambient_in": 0, "loss_energy": 0,
+		"continuous_input": 0, "absorbed_energy": 0, "device_input": {}, "device_absorbed": {},
+		"device_switches": {}, "segment_until_ms": MAX_INTEGER,
 		"receipts": {}, "last_sample_ms": at_ms, "last_sample_cells": {},
 		"last_sample_input": 0, "last_sample_loss": 0, "last_sample_ambient_in": 0,
-		"last_sample_mode": "absolute", "legacy_limits": {}}
+		"last_sample_mode": "absolute", "legacy_limits": {},
+		"last_sample_continuous_input": 0, "last_sample_absorbed": 0}
 
 
 func set_background(query: Callable, boundary: Callable) -> void:
@@ -183,7 +194,7 @@ func refresh_geometry() -> void:
 	_freeze()
 
 
-func _boundary_at(at_ms: int, state: Dictionary, active_flows: Array) -> int:
+func _boundary_at(at_ms: int, state: Dictionary, active_flows: Array, object_state: Dictionary = {}) -> int:
 	if state.is_empty() or at_ms == MAX_INTEGER:
 		return MAX_INTEGER
 	var context: Dictionary = {} if _background_boundary.is_valid() else _default_background_context()
@@ -191,7 +202,13 @@ func _boundary_at(at_ms: int, state: Dictionary, active_flows: Array) -> int:
 	var next: int = MAX_INTEGER
 	if not active_flows.is_empty():
 		var distance: int = int(definitions.step_ms) - posmod(at_ms, int(definitions.step_ms))
-		var span: int = TransferBudget.field_span(active_flows, state, int(definitions.max_cell_energy), distance)
+		var span: int = 0
+		if _has_device_flows(active_flows):
+			var supplied: Dictionary = _device_objects() if object_state.is_empty() else object_state
+			var result: Dictionary = TransferBudget.span(active_flows, _transfer_capacities(state, supplied), distance)
+			span = int(result.duration_ms) if bool(result.ok) else 0
+		else:
+			span = TransferBudget.field_span(active_flows, state, int(definitions.max_cell_energy), distance)
 		if span == 0:
 			# A damaged/unsupported slope cannot borrow heat or free room from
 			# another flow in this same segment. Leave time pending explicitly.
@@ -210,6 +227,130 @@ func next_boundary_ms() -> int:
 	return _frozen_boundary_ms
 
 
+func _device_objects() -> Dictionary:
+	var result: Dictionary = {}
+	var artifacts: Variant = world.get("artifacts") if world != null else null
+	if artifacts == null or not artifacts.get("objects") is Dictionary or not artifacts.get("definitions") is Dictionary:
+		return result
+	for id: String in artifacts.objects:
+		var item: Dictionary = artifacts.objects[id]
+		var rule: Dictionary = artifacts.definitions.types.get(item.definition, {})
+		if rule.get("capabilities", []).has("thermal_exchange"):
+			result[id] = item
+	return result
+
+
+func _device_definition(id: String) -> Dictionary:
+	var artifacts: Variant = world.get("artifacts") if world != null else null
+	if artifacts == null or not artifacts.get("objects") is Dictionary or not artifacts.objects.has(id):
+		return {}
+	return artifacts.definitions.types.get(artifacts.objects[id].definition, {})
+
+
+static func _device_id(endpoint: String) -> String:
+	return endpoint.trim_prefix(DEVICE_PREFIX) if endpoint.begins_with(DEVICE_PREFIX) else ""
+
+
+static func _has_device_flows(active_flows: Array) -> bool:
+	for flow: Dictionary in active_flows:
+		if not _device_id(str(flow.from)).is_empty() or not _device_id(str(flow.to)).is_empty():
+			return true
+	return false
+
+
+func _transfer_capacities(state: Dictionary, objects: Dictionary) -> Dictionary:
+	var result: Dictionary = {}
+	for key: String in state:
+		var energy: int = int(state[key].energy)
+		result[key] = {"out": energy, "in": int(definitions.max_cell_energy) - energy}
+	for id: String in objects:
+		var item: Dictionary = objects[id]
+		if not bool(item.enabled):
+			continue
+		var thermal: Dictionary = _device_definition(id).thermal
+		result[DEVICE_PREFIX + id] = {"out": int(item.stored_q) if thermal.mode == "emit" else 0,
+			"in": int(thermal.capacity_q) - int(item.stored_q) if thermal.mode == "absorb" else 0}
+	return result
+
+
+func _device_cell(item: Dictionary) -> Vector2i:
+	var regions: Variant = world.get("regions") if world != null else null
+	if not regions is Dictionary or not regions.has(item.region):
+		return Vector2i(-1, -1)
+	var places: Dictionary = regions[item.region].places
+	if not places.has(item.container):
+		return Vector2i(-1, -1)
+	return Vector2i(int(places[item.container].cell[0]), int(places[item.container].cell[1]))
+
+
+func _logged_enabled(id: String) -> bool:
+	var latest: int = -1
+	var enabled: bool = false
+	for receipt: Dictionary in device_switches.values():
+		if receipt.object == id and int(receipt.at_ms) > latest:
+			latest = int(receipt.at_ms)
+			enabled = bool(receipt.enabled)
+	return enabled
+
+
+func _switch_plan(id: String, enabled: bool) -> Dictionary:
+	var now: int = int(world.get("elapsed_ms"))
+	var objects: Dictionary = _device_objects()
+	if definitions.is_empty() or last_ms != now or _geometry_dirty or not objects.has(id) or _logged_enabled(id) == enabled:
+		return {"ok": false}
+	var item: Dictionary = objects[id]
+	var point: Vector2i = _device_cell(item)
+	if not _valid_cell(point):
+		return {"ok": false}
+	var planned: Dictionary = cells.duplicate(true)
+	var baseline_sum: int = 0
+	if enabled:
+		for cell: Vector2i in _patch(point):
+			var key: String = _key(cell)
+			if planned.has(key):
+				continue
+			var energy: int = _baseline(cell, now)
+			if energy < 0 or energy > int(definitions.max_cell_energy) or baseline_sum > MAX_INTEGER - energy:
+				return {"ok": false}
+			baseline_sum += energy
+			planned[key] = {"cell": [cell.x, cell.y], "energy": energy, "allocated_ms": now, "baseline_energy": energy}
+	if planned.size() > int(definitions.max_cells) or baseline_sum > int(definitions.max_exchange_energy) - ambient_in or baseline_sum > MAX_INTEGER - input_energy - continuous_input - ambient_in:
+		return {"ok": false}
+	var proposed: Dictionary = objects.duplicate(true)
+	proposed[id].enabled = enabled
+	var flow_plan: Dictionary = _flow_plan(planned, now, proposed)
+	if not bool(flow_plan.ok):
+		return {"ok": false}
+	return {"ok": true, "cells": planned, "ambient": baseline_sum}
+
+
+func can_switch_device(id: String, enabled: bool) -> bool:
+	return world != null and bool(_switch_plan(id, enabled).ok)
+
+
+func switch_device(receipt: Dictionary) -> bool:
+	if not Shape.keys(receipt, ["action", "actor", "object", "at_ms", "region", "container", "cell", "enabled"]) or not receipt.enabled is bool or not SimInventory._nonempty(receipt.action) or not SimInventory._nonempty(receipt.actor) or not SimInventory._nonempty(receipt.object) or not receipt.region is String or not receipt.container is String or not _cell_array(receipt.cell) or receipt.at_ms != last_ms or device_switches.has(receipt.action):
+		return false
+	var objects: Dictionary = _device_objects()
+	if not objects.has(receipt.object):
+		return false
+	var item: Dictionary = objects[receipt.object]
+	if bool(item.enabled) != bool(receipt.enabled) or item.region != receipt.region or item.container != receipt.container or _device_cell(item) != Vector2i(int(receipt.cell[0]), int(receipt.cell[1])):
+		return false
+	var plan: Dictionary = _switch_plan(str(receipt.object), bool(receipt.enabled))
+	if not bool(plan.ok):
+		return false
+	# Artifact caller has set its proposed enabled flag and will immediately
+	# append the original action record; no callbacks occur in this commit.
+	cells = plan.cells
+	ambient_in += int(plan.ambient)
+	device_switches[str(receipt.action)] = {"action": str(receipt.action), "actor": str(receipt.actor),
+		"object": str(receipt.object), "at_ms": int(receipt.at_ms), "region": str(receipt.region), "container": str(receipt.container),
+		"cell": [int(receipt.cell[0]), int(receipt.cell[1])], "enabled": bool(receipt.enabled)}
+	_freeze()
+	return true
+
+
 func can_settle_at_ms(now: int) -> bool:
 	# Preflight one frozen segment before the regional executor advances bodies.
 	if definitions.is_empty() or not Shape.count(now, last_ms, MAX_INTEGER):
@@ -221,19 +362,49 @@ func can_settle_at_ms(now: int) -> bool:
 	var dt: int = now - last_ms
 	var incoming: int = 0
 	var outgoing: int = 0
+	var emitted: int = 0
+	var absorbed: int = 0
 	var deltas: Dictionary = {}
+	var device_deltas: Dictionary = {}
 	for flow: Dictionary in flows:
+		@warning_ignore("integer_division")
+		var maximum_rate: int = MAX_INTEGER if dt == 0 else MAX_INTEGER / dt
+		if int(flow.rate) > maximum_rate:
+			return false
 		var amount: int = int(flow.rate) * dt
 		if str(flow.from).is_empty():
+			if incoming > MAX_INTEGER - amount:
+				return false
 			incoming += amount
+		elif not _device_id(str(flow.from)).is_empty():
+			var id: String = _device_id(str(flow.from))
+			if emitted > MAX_INTEGER - amount:
+				return false
+			emitted += amount
+			device_deltas[id] = int(device_deltas.get(id, 0)) - amount
 		else:
 			deltas[flow.from] = int(deltas.get(flow.from, 0)) - amount
 		if str(flow.to).is_empty():
+			if outgoing > MAX_INTEGER - amount:
+				return false
 			outgoing += amount
+		elif not _device_id(str(flow.to)).is_empty():
+			var id: String = _device_id(str(flow.to))
+			if absorbed > MAX_INTEGER - amount:
+				return false
+			absorbed += amount
+			device_deltas[id] = int(device_deltas.get(id, 0)) + amount
 		else:
 			deltas[flow.to] = int(deltas.get(flow.to, 0)) + amount
-	if incoming > int(definitions.max_exchange_energy) - ambient_in or incoming > MAX_INTEGER - input_energy - ambient_in or outgoing > int(definitions.max_exchange_energy) - loss_energy:
+	if emitted > int(definitions.max_total_input) - input_energy - continuous_input or incoming > int(definitions.max_exchange_energy) - ambient_in or emitted > MAX_INTEGER - input_energy - continuous_input - ambient_in or incoming > MAX_INTEGER - input_energy - continuous_input - ambient_in - emitted or outgoing > int(definitions.max_exchange_energy) - loss_energy or absorbed > MAX_INTEGER - absorbed_energy:
 		return false
+	var objects: Dictionary = _device_objects() if not device_deltas.is_empty() else {}
+	for id: String in device_deltas:
+		if not objects.has(id) or not bool(objects[id].enabled):
+			return false
+		var value: int = int(objects[id].stored_q) + int(device_deltas[id])
+		if value < 0 or value > int(_device_definition(id).thermal.capacity_q):
+			return false
 	for key: String in deltas:
 		var value: int = int(cells[key].energy) + int(deltas[key])
 		if value < 0 or value > int(definitions.max_cell_energy):
@@ -263,7 +434,7 @@ func settle_at_ms(now: int) -> bool:
 
 
 func can_deposit(cell: Vector2i, amount: int) -> bool:
-	if definitions.is_empty() or not _valid_cell(cell) or not Shape.count(amount, 1, int(definitions.pulse_energy)) or input_energy > int(definitions.max_total_input) - amount:
+	if definitions.is_empty() or not _valid_cell(cell) or not Shape.count(amount, 1, int(definitions.pulse_energy)) or input_energy + continuous_input > int(definitions.max_total_input) - amount:
 		return false
 	var source_q: int = int(cells.get(_key(cell), {}).get("energy", _baseline(cell, last_ms)))
 	if source_q > int(definitions.max_cell_energy) - amount:
@@ -278,7 +449,7 @@ func can_deposit(cell: Vector2i, amount: int) -> bool:
 			return false
 		baseline_sum += energy
 		added += 1
-	return cells.size() + added <= int(definitions.max_cells) and baseline_sum <= int(definitions.max_exchange_energy) - ambient_in and baseline_sum <= MAX_INTEGER - input_energy - ambient_in - amount
+	return cells.size() + added <= int(definitions.max_cells) and baseline_sum <= int(definitions.max_exchange_energy) - ambient_in and baseline_sum <= MAX_INTEGER - input_energy - continuous_input - ambient_in - amount
 
 
 func deposit(source_receipt: Dictionary) -> bool:
@@ -359,6 +530,8 @@ func mark_sample(now: int) -> bool:
 	last_sample_input = input_energy
 	last_sample_loss = loss_energy
 	last_sample_ambient_in = ambient_in
+	last_sample_continuous_input = continuous_input
+	last_sample_absorbed = absorbed_energy
 	return true
 
 
@@ -393,14 +566,18 @@ func to_dict() -> Dictionary:
 		"model_started_ms": model_started_ms, "last_ms": last_ms, "segment_started_ms": segment_started_ms,
 		"cells": cells.duplicate(true), "flows": flows.duplicate(true), "input_energy": input_energy,
 		"ambient_in": ambient_in, "loss_energy": loss_energy, "receipts": receipts.duplicate(true),
+		"continuous_input": continuous_input, "absorbed_energy": absorbed_energy,
+		"device_input": device_input.duplicate(true), "device_absorbed": device_absorbed.duplicate(true),
+		"device_switches": device_switches.duplicate(true), "segment_until_ms": _frozen_boundary_ms,
 		"last_sample_ms": last_sample_ms, "last_sample_cells": last_sample_cells.duplicate(true),
 		"last_sample_input": last_sample_input, "last_sample_loss": last_sample_loss,
 		"last_sample_ambient_in": last_sample_ambient_in, "last_sample_mode": last_sample_mode,
-		"legacy_limits": legacy_limits.duplicate(true)}
+		"legacy_limits": legacy_limits.duplicate(true),
+		"last_sample_continuous_input": last_sample_continuous_input, "last_sample_absorbed": last_sample_absorbed}
 
 
 func _assign(data: Dictionary) -> void:
-	for field: String in ["activation_ms", "model_started_ms", "last_ms", "segment_started_ms", "input_energy", "ambient_in", "loss_energy", "last_sample_ms", "last_sample_input", "last_sample_loss", "last_sample_ambient_in"]:
+	for field: String in ["activation_ms", "model_started_ms", "last_ms", "segment_started_ms", "input_energy", "continuous_input", "absorbed_energy", "ambient_in", "loss_energy", "last_sample_ms", "last_sample_input", "last_sample_loss", "last_sample_ambient_in", "last_sample_continuous_input", "last_sample_absorbed"]:
 		set(field, int(data[field]))
 	last_sample_mode = str(data.last_sample_mode)
 	cells = data.cells.duplicate(true)
@@ -418,8 +595,15 @@ func _assign(data: Dictionary) -> void:
 	for key: String in data.last_sample_cells:
 		last_sample_cells[key] = int(data.last_sample_cells[key])
 	legacy_limits = data.legacy_limits.duplicate(true)
+	device_input = {}
+	device_absorbed = {}
+	for id: String in data.device_input:
+		device_input[id] = int(data.device_input[id])
+	for id: String in data.device_absorbed:
+		device_absorbed[id] = int(data.device_absorbed[id])
+	device_switches = data.device_switches.duplicate(true)
 	_geometry_dirty = false
-	_frozen_boundary_ms = _boundary_at(last_ms, cells, flows)
+	_frozen_boundary_ms = int(data.segment_until_ms)
 
 
 func restore(data: Variant) -> bool:
@@ -457,6 +641,7 @@ func import_v1(old: RefCounted, context: RefCounted) -> Dictionary:
 		result.ambient_in = int(result.ambient_in) + base
 		result.cells[key] = {"cell": [point.x, point.y], "energy": energy, "allocated_ms": int(context.elapsed_ms), "baseline_energy": base}
 	result.flows = _build_flows(result.cells, int(context.elapsed_ms))
+	result.segment_until_ms = _boundary_at(int(context.elapsed_ms), result.cells, result.flows)
 	return result if SimThermalSchema.validate(self, result) else {}
 
 
@@ -512,13 +697,44 @@ static func _normalized_receipt(receipt: Dictionary) -> Dictionary:
 
 
 func _freeze() -> void:
-	flows = _build_flows(cells, last_ms)
+	var plan: Dictionary = _flow_plan(cells, last_ms)
+	flows = plan.flows if bool(plan.ok) else []
 	segment_started_ms = last_ms
-	_frozen_boundary_ms = _boundary_at(last_ms, cells, flows)
+	_frozen_boundary_ms = _boundary_at(last_ms, cells, flows) if bool(plan.ok) else last_ms
 	_geometry_dirty = false
 
 
-func _build_flows(state: Dictionary, at_ms: int) -> Array[Dictionary]:
+func _build_flows(state: Dictionary, at_ms: int, object_state: Dictionary = {}) -> Array[Dictionary]:
+	var plan: Dictionary = _flow_plan(state, at_ms, object_state)
+	var result: Array[Dictionary] = []
+	if bool(plan.ok):
+		result.assign(plan.flows)
+	return result
+
+
+func _flow_plan(state: Dictionary, at_ms: int, object_state: Dictionary = {}) -> Dictionary:
+	var objects: Dictionary = _device_objects() if object_state.is_empty() else object_state
+	var raw: Array[Dictionary] = _candidate_flows(state, at_ms)
+	var any_device: bool = false
+	for id: String in _sorted(objects):
+		var item: Dictionary = objects[id]
+		if not bool(item.enabled):
+			continue
+		any_device = true
+		var point: Vector2i = _device_cell(item)
+		var key: String = _key(point)
+		if not _valid_cell(point) or not state.has(key):
+			return {"ok": false, "reason": "missing_device_cell"}
+		var thermal: Dictionary = _device_definition(id).thermal
+		var endpoint: String = DEVICE_PREFIX + id
+		raw.append({"from": endpoint if thermal.mode == "emit" else key,
+			"to": key if thermal.mode == "emit" else endpoint, "rate": int(thermal.rate_q_per_ms)})
+	if not any_device:
+		return {"ok": true, "flows": raw}
+	return TransferBudget.freeze(raw, _transfer_capacities(state, objects), int(definitions.step_ms))
+
+
+func _candidate_flows(state: Dictionary, at_ms: int) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	# Default region curves are spatially constant within a region. Providers
 	# injected for per-cell rules retain their original call sequence instead.
@@ -570,14 +786,25 @@ func _rate(energy: int, coefficient: int) -> int:
 
 
 func _integrate(dt: int) -> void:
+	var objects: Dictionary = _device_objects() if _has_device_flows(flows) else {}
 	for flow: Dictionary in flows:
 		var amount: int = int(flow.rate) * dt
 		if str(flow.from).is_empty():
 			ambient_in += amount
+		elif not _device_id(str(flow.from)).is_empty():
+			var id: String = _device_id(str(flow.from))
+			objects[id].stored_q = int(objects[id].stored_q) - amount
+			continuous_input += amount
+			device_input[id] = int(device_input.get(id, 0)) + amount
 		else:
 			cells[flow.from].energy = int(cells[flow.from].energy) - amount
 		if str(flow.to).is_empty():
 			loss_energy += amount
+		elif not _device_id(str(flow.to)).is_empty():
+			var id: String = _device_id(str(flow.to))
+			objects[id].stored_q = int(objects[id].stored_q) + amount
+			absorbed_energy += amount
+			device_absorbed[id] = int(device_absorbed.get(id, 0)) + amount
 		else:
 			cells[flow.to].energy = int(cells[flow.to].energy) + amount
 

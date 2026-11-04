@@ -63,7 +63,7 @@ static func prior_empty_heat(current: Dictionary, prior: Dictionary) -> Dictiona
 	# These archived worlds had no source, cell, flux or historical input.
 	# Validate the precise saved-present conversion before removing its fields;
 	# retain last_sample_ms and every original fact for the caller's comparison.
-	if current.get("version") != 2 or current.get("rules_version") != 2 or prior.get("version") != 1 or prior.get("rules_version") != 1:
+	if current.get("version") != 3 or current.get("rules_version") != 3 or prior.get("version") != 1 or prior.get("rules_version") != 1:
 		return {}
 	for field: String in ["cells", "receipts", "last_sample_cells"]:
 		if not prior.get(field) is Dictionary or not prior[field].is_empty():
@@ -71,13 +71,27 @@ static func prior_empty_heat(current: Dictionary, prior: Dictionary) -> Dictiona
 	if not prior.get("flows") is Array or not prior.flows.is_empty():
 		return {}
 	for field: String in ["input_energy", "loss_energy", "last_sample_input", "last_sample_loss"]:
-		if prior.get(field) != 0:
+		if not SnapshotValues.valid_integer(prior.get(field), 0) or prior[field] != 0:
 			return {}
-	if not prior.has("last_ms") or prior.get("segment_started_ms") != prior.last_ms:
+	if not SnapshotValues.valid_integer(prior.get("last_ms"), 0) or prior.get("segment_started_ms") != prior.last_ms:
 		return {}
+	for field: String in ["cells", "receipts", "last_sample_cells"]:
+		if not current.get(field) is Dictionary or not current[field].is_empty():
+			return {}
+	if not current.get("flows") is Array or not current.flows.is_empty():
+		return {}
+	for field: String in ["input_energy", "loss_energy", "last_sample_input", "last_sample_loss"]:
+		if not SnapshotValues.valid_integer(current.get(field), 0) or current[field] != 0:
+			return {}
 	if current.get("last_ms") != prior.last_ms or current.get("segment_started_ms") != prior.last_ms or current.get("model_started_ms") != prior.last_ms:
 		return {}
-	if current.get("ambient_in") != 0 or current.get("last_sample_ambient_in") != 0 or current.get("last_sample_mode") != "legacy_excess":
+	for field: String in ["ambient_in", "last_sample_ambient_in", "continuous_input", "absorbed_energy", "last_sample_continuous_input", "last_sample_absorbed"]:
+		if not SnapshotValues.valid_integer(current.get(field), 0) or current[field] != 0:
+			return {}
+	for field: String in ["device_input", "device_absorbed", "device_switches"]:
+		if not current.get(field) is Dictionary or not current[field].is_empty():
+			return {}
+	if not SnapshotValues.valid_integer(current.get("segment_until_ms"), 0) or current.segment_until_ms != SimLocalHeat.MAX_INTEGER or current.get("last_sample_mode") != "legacy_excess":
 		return {}
 	var expected_limits: Dictionary = {"at_ms": int(prior.last_ms), "input_energy": 0, "cells": []}
 	if canonical(current.get("legacy_limits")) != canonical(expected_limits):
@@ -85,7 +99,7 @@ static func prior_empty_heat(current: Dictionary, prior: Dictionary) -> Dictiona
 	var result: Dictionary = current.duplicate(true)
 	result.version = 1
 	result.rules_version = 1
-	for field: String in ["model_started_ms", "ambient_in", "last_sample_ambient_in", "last_sample_mode", "legacy_limits"]:
+	for field: String in ["model_started_ms", "ambient_in", "last_sample_ambient_in", "last_sample_mode", "legacy_limits", "segment_until_ms", "continuous_input", "absorbed_energy", "device_input", "device_absorbed", "device_switches", "last_sample_continuous_input", "last_sample_absorbed"]:
 		result.erase(field)
 	return result
 
@@ -205,6 +219,26 @@ func _projection_contract(runner: Object, content: ReolContentDB) -> void:
 	var mutated_world: Dictionary = new_world.duplicate(true)
 	mutated_world.local_heat.ambient_in = 1
 	runner.assert_true(prior_thermal_world(mutated_world, old_world).is_empty(), "an invented ambient input cannot be projected away")
+	for field: String in ["continuous_input", "absorbed_energy", "last_sample_continuous_input", "last_sample_absorbed"]:
+		var changed: Dictionary = new_world.local_heat.duplicate(true)
+		changed[field] = 1
+		runner.assert_true(prior_empty_heat(changed, old_world.local_heat).is_empty(), "an invented continuous device amount cannot be projected away: " + field)
+	for field: String in ["device_input", "device_absorbed", "device_switches"]:
+		var changed: Dictionary = new_world.local_heat.duplicate(true)
+		changed[field] = {"fire_stone": 1}
+		runner.assert_true(prior_empty_heat(changed, old_world.local_heat).is_empty(), "an invented device ledger cannot be projected away: " + field)
+	var changed_boundary: Dictionary = new_world.local_heat.duplicate(true)
+	changed_boundary.segment_until_ms = SimLocalHeat.MAX_INTEGER - 1
+	runner.assert_true(prior_empty_heat(changed_boundary, old_world.local_heat).is_empty(), "an invented boundary for an empty field cannot be projected away")
+	var changed_version: Dictionary = new_world.local_heat.duplicate(true)
+	changed_version.version = 2
+	runner.assert_true(prior_empty_heat(changed_version, old_world.local_heat).is_empty(), "the shared projection accepts only the current v3 thermal contract")
+	var changed_field: Dictionary = new_world.local_heat.duplicate(true)
+	changed_field.cells = {"254,255": {"cell": [254, 255], "energy": 1}}
+	runner.assert_true(prior_empty_heat(changed_field, old_world.local_heat).is_empty(), "a newly allocated cell cannot masquerade as the empty historical field")
+	var changed_sample: Dictionary = new_world.local_heat.duplicate(true)
+	changed_sample.last_sample_ms = int(changed_sample.last_sample_ms) + 1
+	runner.assert_true(canonical(prior_empty_heat(changed_sample, old_world.local_heat)) != canonical(old_world.local_heat), "the projection does not hide a changed historical sample instant")
 	projected.regions.home.actors.player.qi = -1
 	runner.assert_eq(canonical(new_world), before, "mutating a projected result cannot change the migrated source")
 	runner.assert_eq(FileAccess.get_file_as_string(PATH), original, "projection checks leave the genuine archive untouched")

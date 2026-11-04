@@ -32,6 +32,7 @@ func _state(world: RegionalSimulation) -> int:
 func _test_two_uses_one_supply(runner: Object) -> void:
 	var world: RegionalSimulation = _world(runner)
 	var sim: VillageSimulation = world.regions.home
+	var original_count: int = world.artifacts.objects.size()
 	_do(world, "player", "study", runner)
 	_do(world, "player", "heat", runner)
 	runner.assert_eq(world.artifacts.objects.hearth_stone.charge, 4, "cooking consumes the single stone's existing heat")
@@ -44,7 +45,7 @@ func _test_two_uses_one_supply(runner: Object) -> void:
 	runner.assert_eq(sim.inventory.quantity("garden", "dried_herb"), 2, "dry herbs remain as physical output in the same container")
 	runner.assert_eq(sim.inventory.quantity("kitchen", "meal"), food, "second heat use does not pretend to be another cooking result")
 	runner.assert_eq(world.artifacts.objects.hearth_stone.charge, 3, "second use draws down the same remaining finite supply")
-	runner.assert_eq(world.artifacts.objects.size(), 1, "cross-purpose use never duplicates its unique object")
+	runner.assert_eq(world.artifacts.objects.size(), original_count, "cross-purpose use never duplicates its unique object")
 	runner.assert_eq(sim.actors.player.receipts.size(), 1, "new craft does not mint an unapproved institutional work receipt")
 	var expected: int = _state(world)
 	world.advance_to_ms(world.elapsed_ms)

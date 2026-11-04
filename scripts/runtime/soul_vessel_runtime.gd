@@ -68,8 +68,9 @@ func submit(verb: String) -> Dictionary:
 			if verb == "guide":
 				var ids: Array = adapter.world_sim.artifacts.objects.keys()
 				ids.sort()
+				var soul: String = domain.resident_of(selected_vessel)
 				for id: String in ids:
-					if adapter.world_sim.artifacts.can_see("player", id):
+					if domain.residents.has(soul) and adapter.world_sim.artifacts.can_see("player", id) and not domain._lesson(soul, id).is_empty():
 						target = id
 						break
 			elif verb == "give":

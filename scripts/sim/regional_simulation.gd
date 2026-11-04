@@ -4,7 +4,7 @@ extends RefCounted
 ## Scene adapters may disappear; these instances and their pending work remain.
 
 const DEFINITIONS_VERSION: int = 1
-const SCHEMA_VERSION: int = 40
+const SCHEMA_VERSION: int = 41
 const MINUTE_MS: int = 60000
 const MAX_COUNT: int = SimInventory.MAX_COUNT
 const Services = preload("res://scripts/sim/services/settlement_services.gd")
@@ -1025,9 +1025,14 @@ func to_dict() -> Dictionary:
 	return _json_keys(snapshot)
 
 
-func restore(data: Dictionary, legacy_heat_v1: bool = false) -> bool:
+func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: bool = false) -> bool:
 	# Validation constructs an entirely separate world. Failed loads preserve
 	# existing regional objects, inventory and pending deliveries.
+	if legacy_heat_v1 or legacy_heat_v2:
+		# Both historical thermal readers are importer-only inputs. Neither may
+		# replace an initialized field or introduce a device unknown to v7.
+		if legacy_heat_v1 and legacy_heat_v2 or local_heat != null or _content == null or not _legacy_artifacts_v7(data.get("artifacts"), _content.artifacts):
+			return false
 	if legacy_heat_v1:
 		# Only a fresh WorldRestoreFactory shell may receive this read-only
 		# legacy candidate; never replace an already initialized live domain.
@@ -1056,6 +1061,7 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false) -> bool:
 					return false
 		data = data.duplicate(true)
 		data.version = SCHEMA_VERSION
+		data.artifacts.version = SimArtifacts.VERSION
 		data.environment.version = SimEnvironment.VERSION
 		for saved: Dictionary in data.regions.values():
 			saved.version = VillageSimulation.SCHEMA_VERSION
@@ -1063,6 +1069,14 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false) -> bool:
 			for source: Dictionary in saved.land_resources.sources.values():
 				if not source.ecology.is_empty():
 					source.ecology.version = 2
+	elif legacy_heat_v2:
+		if data.get("version") != 40 or not data.get("local_heat") is Dictionary or data.local_heat.get("version") != 2 or data.local_heat.get("rules_version") != 2 or not data.get("environment") is Dictionary or data.environment.get("version") != 3:
+			return false
+		if not load("res://scripts/persistence/legacy_heat_v2.gd").valid_definitions(_content.local_heat):
+			return false
+		data = data.duplicate(true)
+		data.version = SCHEMA_VERSION
+		data.artifacts.version = SimArtifacts.VERSION
 	if data.get("version") == 30:
 		data = upgrade_conflicts(data)
 	if data.get("version") == 31:
@@ -1079,7 +1093,7 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false) -> bool:
 		data = upgrade_ring_use(data)
 	if data.get("version") == 37:
 		data = upgrade_private_exchange(data)
-	# v38 and v39 need the explicit root-level thermal import; accepting them
+	# v38-v40 need the explicit root-level thermal import; accepting them
 	# here would let a modern envelope erase or reinterpret old heat evidence.
 	if _content == null or not _valid_world_shape(data):
 		return false
@@ -1203,6 +1217,11 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false) -> bool:
 		if not old_heat.configure(candidate_world, _content.local_heat):
 			return false
 		next_heat = old_heat
+	elif legacy_heat_v2:
+		var fixed_reference_heat: RefCounted = load("res://scripts/persistence/legacy_heat_v2.gd").new()
+		if not fixed_reference_heat.configure(candidate_world, _content.local_heat):
+			return false
+		next_heat = fixed_reference_heat
 	else:
 		var current_heat := SimLocalHeat.new()
 		if not current_heat.initialize(candidate_world, _content.local_heat):
@@ -1653,6 +1672,20 @@ func _valid_settings(definitions: Dictionary, instances: Dictionary) -> bool:
 			for point: Variant in route.path:
 				if not _valid_cell(point):
 					return false
+	return true
+
+
+static func _legacy_artifacts_v7(data: Variant, definitions: Dictionary) -> bool:
+	if not SimArtifacts.Schema._keys(data, ["version", "objects", "active", "events", "experiences", "next_id"]) or data.version != 7 or not data.objects is Dictionary:
+		return false
+	# Definitions remain the old bundle's facts. A downgraded current archive
+	# cannot use an old tag to launder a device or its stored heat/history.
+	for definition: Variant in definitions.get("types", {}).values():
+		if not definition is Dictionary or definition.get("capabilities", []).has("thermal_exchange"):
+			return false
+	for object: Variant in data.objects.values():
+		if not object is Dictionary or object.has("stored_q") or object.has("enabled"):
+			return false
 	return true
 
 

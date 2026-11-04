@@ -28,6 +28,7 @@ static func describe(domain: RefCounted, actor: String, id: String) -> Dictionar
 	var item: Dictionary = domain.objects[id]
 	var definition: Dictionary = domain.definitions.types[item.definition]
 	var thermal: bool = SimArtifacts.type_has_capability(definition, "heat_storage")
+	var device: bool = SimArtifacts.type_has_capability(definition, "thermal_exchange")
 	var field_ring: bool = SimArtifacts.type_has_capability(definition, "remote_draw")
 	var shape_studied: bool = false
 	var last: Dictionary = {}
@@ -60,9 +61,13 @@ static func describe(domain: RefCounted, actor: String, id: String) -> Dictionar
 	var instruction: String = str(definition.method)
 	if field_ring:
 		instruction = "你已亲自学会循纹引取同高、无遮挡的短距松置木剑。" if method else str(definition.method) if shape_studied else "只能先辨看环身与外纹；真正引动物件的用法尚未掌握。"
+	elif device and not method:
+		instruction = "可以先循纹探查；亲自弄懂后才能启用它。"
 	elif not method:
 		instruction = "你还不懂它的纹路与用法。" if thermal else "它的握持与收放可以试着熟悉；能否使出剑招，仍取决于本人实际学过什么。"
 	line += "\n" + instruction
+	if device and seeing:
+		line += "\n石上的纹路正舒展着；它已启用。" if bool(item.enabled) else "\n石上的纹路收敛着；它已关闭。"
 	if thermal and held and method:
 		line += "\n可将石中已有余热缓缓释在身边；这次释出的余热留在原处，石头剩余储热仍随携带者移动。"
 		if domain.world.environment != null:
@@ -81,9 +86,14 @@ static func describe(domain: RefCounted, actor: String, id: String) -> Dictionar
 			line += "\n" + lesson
 	if not last.is_empty() and last.subject == subject:
 		line += "\n你的经历：" + str(last.line)
-	return {"known": true, "label": str(definition.name) if method or field_ring and shape_studied else str(definition.unknown_name), "line": line,
+	var result: Dictionary = {"known": true, "label": str(definition.name) if method or field_ring and shape_studied else str(definition.unknown_name), "line": line,
 		"method": method, "held": held, "near": seeing and domain._near(actor, id),
 		"cell": [domain.object_cell(id).x, domain.object_cell(id).y] if seeing else last.cell.duplicate()}
+	if device and seeing:
+		# This qualitative switch state is only observed while seeing the object;
+		# no storage amount or hidden remote state is exposed to the view.
+		result["enabled"] = bool(item.enabled)
+	return result
 
 
 static func remembered(domain: RefCounted, actor: String, id: String) -> Dictionary:

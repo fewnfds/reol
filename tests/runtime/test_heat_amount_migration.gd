@@ -63,13 +63,13 @@ func _exercise(runner: Object, runtime: WorldContinuityRuntime, bytes: String) -
 	runner.assert_eq(_json(converted.simulation.actors), _json(historical.simulation.actors), "import preserves the original bodies")
 	runner.assert_eq(_json(converted.simulation.inventory), _json(historical.simulation.inventory), "import preserves the original inventory and ledger")
 	runner.assert_eq(converted.continuity.world.local_heat.last_sample_mode, "legacy_excess", "the old sampled heat keeps its explicit legacy interpretation")
-	runner.assert_eq(int(converted.continuity.world.local_heat.version), 2, "the accepted live field has the current version")
+	runner.assert_eq(int(converted.continuity.world.local_heat.version), 3, "the accepted live field has the current device-aware version")
 	var heat_path: String = "res://data/definitions/local_heat.json"
 	for path: String in historical.content_bundle.documents:
 		if path != heat_path:
 			runner.assert_eq(_json(converted.content_bundle.documents[path]), _json(historical.content_bundle.documents[path]), "thermal import preserves the archived non-heat document " + path)
 	runner.assert_eq(int(historical.content_bundle.documents[heat_path].version), 1, "the archived heat definition remains v1")
-	runner.assert_eq(int(converted.content_bundle.documents[heat_path].version), 2, "the imported heat definition is explicitly v2")
+	runner.assert_eq(int(converted.content_bundle.documents[heat_path].version), 3, "the imported heat definition reaches the current format")
 	GameClock.advance_msec(840050 - GameClock.elapsed_ms)
 	var current: Dictionary = WorldSessionSnapshot.capture(runtime)
 	var heat: Dictionary = current.continuity.world.local_heat

@@ -1,19 +1,28 @@
 class_name ThermalImport
 extends RefCounted
-## Finite import of a validated v47/v39 thermal archive. All objects below are
-## independent candidates; neither the file nor the active world is changed.
+## Finite import of v47/v39/v1 or v48/v40/v2 thermal archives. Both inputs
+## converge directly to the one current model after complete candidate proof.
 
 const HEAT_PATH: String = "res://data/definitions/local_heat.json"
 const Shape = preload("res://scripts/sim/avian_schema.gd")
 
 
 static func convert(snapshot: Dictionary, restore_map_factory: Callable = Callable()) -> Dictionary:
-	if not SessionSaveSchema._valid_world_fields(snapshot, 47) or not snapshot.get("clock") is Dictionary or not ReolGameClock.is_valid_state(snapshot.clock) or not snapshot.clock.has("elapsed_ms") or not snapshot.get("simulation") is Dictionary:
+	return _convert(snapshot, 1, restore_map_factory)
+
+
+static func convert_v2(snapshot: Dictionary, restore_map_factory: Callable = Callable()) -> Dictionary:
+	return _convert(snapshot, 2, restore_map_factory)
+
+
+static func _convert(snapshot: Dictionary, input_heat_version: int, restore_map_factory: Callable) -> Dictionary:
+	var root_version: int = 47 if input_heat_version == 1 else 48
+	if not SessionSaveSchema._valid_world_fields(snapshot, root_version) or not snapshot.get("clock") is Dictionary or not ReolGameClock.is_valid_state(snapshot.clock) or not snapshot.clock.has("elapsed_ms") or not snapshot.get("simulation") is Dictionary:
 		return {}
 	# The saved digest is checked before accessing any document. Old definitions
 	# are loaded from that bundle, never from current disk templates.
 	var old_content := ReolContentDB.new()
-	if not old_content.load_bundle(snapshot.content_bundle, true) or not LegacyHeatV1.valid_definitions(old_content.local_heat):
+	if not old_content.load_bundle(snapshot.content_bundle, input_heat_version == 1, input_heat_version == 2):
 		return {}
 	if int(snapshot.clock.total_minutes) - int(snapshot.clock.tick_index) != int(old_content.climate.calendar.start_minutes):
 		return {}
@@ -42,20 +51,20 @@ static func convert(snapshot: Dictionary, restore_map_factory: Callable = Callab
 			return {}
 		# The entire old candidate, including geometry, frozen slope, sources,
 		# clothing, ecology and cross-domain references, must pass before Q exists.
-		old_world = WorldRestoreFactory.restore(old_content, extra.world, snapshot.assembly, terrain, true)
+		old_world = WorldRestoreFactory.restore(old_content, extra.world, snapshot.assembly, terrain, input_heat_version == 1, input_heat_version == 2)
 		if old_world == null:
 			return {}
 	else:
 		# No regional thermal or weather state exists in a standalone archive.
 		# Validate its original ecology and village without fabricating either.
-		old_standalone = _village_v2_copy(snapshot.simulation)
+		old_standalone = _village_v2_copy(snapshot.simulation) if input_heat_version == 1 else snapshot.simulation.duplicate(true)
 		if old_standalone.is_empty() or not snapshot.assembly.region_configs.has("home") or not SimLandResources.opening_matches(RegionalSimulation._base_workplace_config(old_standalone.config), RegionalSimulation._base_workplace_config(snapshot.assembly.region_configs.home)) or old_standalone.get("elapsed_ms") != snapshot.clock.elapsed_ms or old_standalone.get("tick_index") != snapshot.clock.tick_index:
 			return {}
 		if VillageSimulation.from_snapshot(old_content, old_standalone) == null:
 			return {}
 	# Only now convert the bound heat definition; all other documents are copied
 	# byte-for-value and a new digest covers precisely the converted bundle.
-	var new_rules: Dictionary = SimLocalHeat.upgrade_definitions_v1(old_content.local_heat)
+	var new_rules: Dictionary = SimLocalHeat.upgrade_definitions_v1(old_content.local_heat) if input_heat_version == 1 else load("res://scripts/persistence/legacy_heat_v2.gd").current_definitions(old_content.local_heat)
 	if new_rules.is_empty():
 		return {}
 	var documents: Dictionary = snapshot.content_bundle.documents.duplicate(true)
@@ -67,28 +76,36 @@ static func convert(snapshot: Dictionary, restore_map_factory: Callable = Callab
 	if not new_content.load_bundle(bundle):
 		return {}
 	var result: Dictionary = snapshot.duplicate(true)
-	result.schema_version = 48
+	result.schema_version = SessionSaveSchema.VERSION
 	result.content_bundle = bundle
 	if joint:
-		var next_heat := SimLocalHeat.new()
-		if not next_heat.initialize(old_world, new_rules):
-			return {}
-		next_heat.set_geometry(old_world.construction.thermal_roofed, old_world.construction.thermal_barrier)
-		var converted_heat: Dictionary = next_heat.import_v1(old_world.local_heat, old_world)
+		var converted_heat: Dictionary = {}
+		if input_heat_version == 1:
+			var next_heat := SimLocalHeat.new()
+			if not next_heat.initialize(old_world, new_rules):
+				return {}
+			next_heat.set_geometry(old_world.construction.thermal_roofed, old_world.construction.thermal_barrier)
+			converted_heat = next_heat.import_v1(old_world.local_heat, old_world)
+		else:
+			# This current-format slice was already proved against the full old
+			# candidate. The read-only adapter retains v2 separately for evidence.
+			converted_heat = old_world.local_heat.current_state()
 		if converted_heat.is_empty():
 			return {}
 		var regional: Dictionary = result.continuity.world
-		regional.version = 40
-		regional.environment.version = 3
+		regional.version = RegionalSimulation.SCHEMA_VERSION
+		regional.artifacts.version = SimArtifacts.VERSION
+		regional.environment.version = SimEnvironment.VERSION
 		regional.local_heat = converted_heat
-		for id: String in regional.regions:
-			var village: Dictionary = _village_v2_copy(regional.regions[id])
-			if village.is_empty():
+		if input_heat_version == 1:
+			for id: String in regional.regions:
+				var village: Dictionary = _village_v2_copy(regional.regions[id])
+				if village.is_empty():
+					return {}
+				regional.regions[id] = village
+			result.simulation = _village_v2_copy(result.simulation)
+			if result.simulation.is_empty():
 				return {}
-			regional.regions[id] = village
-		result.simulation = _village_v2_copy(result.simulation)
-		if result.simulation.is_empty():
-			return {}
 		# Reconstruct and cross-check every domain a second time under the new
 		# definitions; the temporary legacy candidate is never published.
 		if WorldRestoreFactory.restore(new_content, regional, result.assembly, terrain) == null:

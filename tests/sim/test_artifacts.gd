@@ -18,7 +18,7 @@ func _world(runner: Object) -> RegionalSimulation:
 	if world == null:
 		return null
 	var opening: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/scenarios/artifacts.json"))
-	runner.assert_true(world.artifacts.spawn_opening(opening), "new scenario spawns one real object at the kitchen")
+	runner.assert_true(world.artifacts.spawn_opening(opening), "new scenario issues its real objects at declared locations")
 	world.regions.home.set_actor_cell("player", SimRouteTravel.cell(world.regions.home.places.kitchen.cell.duplicate()))
 	world.invalidate_region("home")
 	return world
@@ -69,9 +69,10 @@ func _test_unique_location_and_personal_understanding(runner: Object) -> void:
 	for _index in 10:
 		domain.describe("player", "hearth_stone")
 	runner.assert_eq(_state(world), before, "opening details neither teaches a method nor changes random state")
+	var original_count: int = domain.objects.size()
 	_do(runner, world, "take")
 	runner.assert_eq(domain.objects.hearth_stone.container, "actor:player", "taking changes the object's single canonical container")
-	runner.assert_eq(domain.objects.size(), 1, "taking never makes a second object")
+	runner.assert_eq(domain.objects.size(), original_count, "taking never makes a second object")
 	runner.assert_eq(world.regions.home.inventory.quantity("actor:player", "warm_stone"), 0, "unique object is not duplicated as a stack in the quantity ledger")
 	world.regions.home.set_actor_cell("player", SimRouteTravel.cell([102, 102]))
 	runner.assert_eq(domain.object_cell("hearth_stone"), Vector2i(102, 102), "carried object follows the actual body through its source reference")

@@ -83,7 +83,7 @@ func _completed_source(runner: Object) -> void:
 	if not _perform(runner, world, "warm"):
 		return
 	var event: Dictionary = world.artifacts.events.back()
-	runner.assert_eq(world.artifacts.to_dict().version, 7, "current artifact writer uses the explicit-source format")
+	runner.assert_eq(world.artifacts.to_dict().version, 8, "current artifact writer includes finite thermal devices")
 	runner.assert_eq(event.kind, "warmed", "real successful job records a warmed source")
 	runner.assert_eq(event.get("heat_amount"), PULSE, "completed event records the actual session-bound transfer amount")
 	runner.assert_eq(world.artifacts.objects[STONE].charge, charge - cost, "the same completion spends original warming_charge once")

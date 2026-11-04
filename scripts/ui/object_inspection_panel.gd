@@ -39,7 +39,7 @@ func _init() -> void:
 	var grid := GridContainer.new()
 	grid.columns = 2
 	column.add_child(grid)
-	for entry: Array in [["inspect", "端详"], ["take", "取在手中"], ["study", "循纹探查"], ["use_research", "循内纹试引"], ["heat", "试着催动"], ["charge", "注灵温养"], ["place", "放回灶房"], ["dry", "以石烘药"], ["examine", "辨看石材"], ["force", "尝试强注灵气"], ["warm", "释热暖身"], ["ask_examine", "请选中同门辨材"], ["ask_study", "请选中同门探查"]]:
+	for entry: Array in [["inspect", "端详"], ["take", "取在手中"], ["study", "循纹探查"], ["use_research", "循内纹试引"], ["heat", "试着催动"], ["charge", "注灵温养"], ["place", "放回灶房"], ["dry", "以石烘药"], ["examine", "辨看石材"], ["force", "尝试强注灵气"], ["warm", "释热暖身"], ["enable", "启用"], ["disable", "关闭"], ["ask_examine", "请选中同门辨材"], ["ask_study", "请选中同门探查"]]:
 		_buttons[str(entry[0])] = UI.button(grid, str(entry[1]), action_requested.emit.bind(str(entry[0])))
 	_draw_row = HBoxContainer.new()
 	column.add_child(_draw_row)
@@ -99,6 +99,8 @@ func update_view(view: Dictionary, status: Dictionary, notice: String) -> void:
 	_buttons.place.visible = _verbs.has("place") and held
 	_buttons.take.visible = _verbs.has("take") and not held
 	_buttons.use_research.visible = _verbs.has("use_research") and held and not method
+	_buttons.enable.visible = _verbs.has("enable") and method and near and view.has("enabled") and not bool(view.enabled)
+	_buttons.disable.visible = _verbs.has("disable") and near and view.has("enabled") and bool(view.enabled)
 	_draw_row.visible = _verbs.has("draw") and held and method
 	_draw_button.disabled = busy or _draw_targets.item_count == 0
 	_draw_targets.disabled = busy

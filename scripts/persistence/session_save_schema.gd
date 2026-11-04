@@ -2,7 +2,7 @@ class_name SessionSaveSchema
 extends RefCounted
 ## Explicit migrations at the session boundary. No file I/O or live mutations.
 
-const VERSION: int = 48
+const VERSION: int = 49
 
 
 static func capture_world(fog: FogOfWar, focus: Vector2i, terrain: WorldMapData = null) -> Dictionary:
@@ -26,6 +26,9 @@ static func upgrade(source: Dictionary, _content: ReolContentDB = null, restore_
 		return {}
 	if version == VERSION:
 		return _upgrade(source, null)
+	if version == 48:
+		var fixed_reference: Dictionary = _upgrade(source, null)
+		return {} if fixed_reference.is_empty() else load("res://scripts/persistence/thermal_import.gd").convert_v2(fixed_reference, restore_map_factory)
 	var old: Dictionary = {}
 	if version == 47 or version == 46 or version == 45 or version == 44 or version == 43:
 		old = _upgrade(source, null)
@@ -53,6 +56,13 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 			if not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION:
 				return {}
 		return source if is_valid_world(source) else {}
+	if version == 48:
+		# The importer alone may validate the old complete candidate and add the
+		# explicitly empty device contract. Current roots cannot invoke this seam.
+		if source.has("continuity"):
+			if not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != 40:
+				return {}
+		return source if _valid_world_fields(source, 48) else {}
 	if version == 47:
 		# Historical migrations stop at their actual last regional version.
 		# The thermal importer validates the old candidate before conversion.

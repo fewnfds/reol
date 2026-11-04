@@ -206,12 +206,12 @@ static func _baselines(data: Dictionary, domain: RefCounted, jobs: Array[Diction
 	var first_ring: Dictionary = {}
 	var expected_actors: Dictionary = first_actor.duplicate()
 	# Old warm-stone actions did not create a checkpoint. Only the new paid
-	# ring actions establish a first baseline; existing artifacts still enter
+	# ring and device actions establish a first baseline; existing artifacts still enter
 	# _spending from whatever original artifact_floor was actually captured.
 	var artifact_jobs: Array = domain.world.artifacts.events.duplicate()
 	artifact_jobs.append_array(domain.world.artifacts.active.values())
 	for job: Dictionary in artifact_jobs:
-		if job.verb not in ["use_research", "draw"] or int(job.qi_spent) <= 0:
+		if job.verb not in ["use_research", "draw", "enable"] or int(job.qi_spent) <= 0:
 			continue
 		var actor: String = str(job.actor)
 		var cost: Dictionary = {"domain": "artifact", "number": domain.number(str(job.get("action", job.id))), "at_ms": int(job.started_ms), "amount": int(job.qi_spent)}

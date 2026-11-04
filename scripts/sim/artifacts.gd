@@ -3,8 +3,9 @@ extends RefCounted
 ## Unique objects, personal experiments and committed material effects.
 ## Container references own location; observations never expose private charge.
 
-const VERSION: int = 7
+const VERSION: int = 8
 const DEFINITIONS_VERSION: int = 1
+const MAX_ACTION_MINUTES: int = 150119987579
 const VERBS: Array[String] = ["inspect", "take", "place", "study", "heat", "charge", "dry", "examine", "force", "warm"]
 const Schema = preload("res://scripts/sim/artifact_schema.gd")
 const Understanding = preload("res://scripts/sim/artifact_understanding.gd")
@@ -82,11 +83,14 @@ static func valid_definitions(data: Variant) -> bool:
 
 static func _valid_tool_definition(item: Dictionary) -> bool:
 	var keys: Array = ["name", "unknown_name", "appearance", "method", "material_cue", "capabilities", "storage_place", "actions"]
-	if not item.get("capabilities") is Array or item.capabilities.size() != 1 or item.capabilities[0] not in ["weapon", "remote_draw"]:
+	if not item.get("capabilities") is Array or item.capabilities.size() != 1 or item.capabilities[0] not in ["weapon", "remote_draw", "thermal_exchange"]:
 		return false
 	var remote: bool = item.capabilities[0] == "remote_draw"
+	var thermal: bool = item.capabilities[0] == "thermal_exchange"
 	if remote:
 		keys.append("drawing")
+	if thermal:
+		keys.append("thermal")
 	if not Schema._keys(item, keys):
 		return false
 	for field: String in ["name", "unknown_name", "appearance", "method", "material_cue", "storage_place"]:
@@ -95,15 +99,26 @@ static func _valid_tool_definition(item: Dictionary) -> bool:
 	var action_keys: Array = ["inspect", "take", "place", "study", "examine"]
 	if remote:
 		action_keys.append("use_research")
+	if thermal:
+		action_keys.append_array(["enable", "disable"])
 	if not item.actions is Dictionary or not Schema._keys(item.actions, action_keys):
 		return false
 	for verb: String in action_keys:
 		var action: Variant = item.actions[verb]
-		if not action is Dictionary or not Schema._keys(action, ["label", "minutes", "qi"]) or not SimInventory._nonempty(action.label) or not _count(action.minutes, 1) or not _count(action.qi, 1 if verb == "use_research" else 0) or (verb != "use_research" and action.qi != 0):
+		var costs_qi: bool = verb in ["use_research", "enable"]
+		if not action is Dictionary or not Schema._keys(action, ["label", "minutes", "qi"]) or not SimInventory._nonempty(action.label) or not _count(action.minutes, 1) or not _count(action.qi, 1 if costs_qi else 0) or (not costs_qi and action.qi != 0):
+			return false
+		if thermal and int(action.minutes) > MAX_ACTION_MINUTES:
 			return false
 	if remote:
 		var drawing: Variant = item.drawing
 		if not drawing is Dictionary or not Schema._keys(drawing, ["duration_ms", "qi", "range_cells", "target_definitions"]) or not _count(drawing.duration_ms, 1) or not _count(drawing.qi, 1) or not _count(drawing.range_cells, 1) or not drawing.target_definitions is Array or drawing.target_definitions != ["wooden_sword"]:
+			return false
+	if thermal:
+		var rule: Variant = item.thermal
+		if not rule is Dictionary or not Schema._keys(rule, ["mode", "rate_q_per_ms", "capacity_q", "opening_q"]) or rule.mode not in ["emit", "absorb"]:
+			return false
+		if not _count(rule.rate_q_per_ms, 1) or not _count(rule.capacity_q, 1) or not _count(rule.opening_q) or int(rule.opening_q) > int(rule.capacity_q):
 			return false
 	return true
 
@@ -204,6 +219,8 @@ func can_record_exchange(job: Dictionary) -> bool:
 		return false
 	if not SimInventory._nonempty(job.get("seller")) or not SimInventory._nonempty(job.get("buyer")) or job.seller == job.buyer or not SimInventory._nonempty(job.get("object")):
 		return false
+	if not objects.has(job.object) or (has_capability(str(job.object), "thermal_exchange") and bool(objects[job.object].enabled)):
+		return false
 	if not job.get("seller_region") is String or not job.get("buyer_region") is String or actor_home(str(job.seller)) != job.seller_region or actor_home(str(job.buyer)) != job.buyer_region or str(job.seller_region).is_empty() or str(job.buyer_region).is_empty():
 		return false
 	if not Schema._count(job.get("started_ms")) or not Schema._count(job.get("due_ms")) or int(job.due_ms) != int(world.elapsed_ms) or int(job.started_ms) >= int(job.due_ms):
@@ -303,6 +320,9 @@ func spawn_opening(scenario: Dictionary) -> bool:
 		if type_has_capability(definition, "heat_storage"):
 			candidates[row.id]["charge"] = int(definition.opening_charge)
 			candidates[row.id]["damage"] = int(definition.opening_damage)
+		elif type_has_capability(definition, "thermal_exchange"):
+			candidates[row.id]["stored_q"] = int(definition.thermal.opening_q)
+			candidates[row.id]["enabled"] = false
 	var snapshot: Dictionary = empty_state()
 	snapshot.objects = candidates
 	if not scenario.get("experiences", {}) is Dictionary:
@@ -322,7 +342,7 @@ func spawn_field_object(id: String, definition_id: String, region: String, conta
 	if world == null or not SimInventory._nonempty(id) or objects.has(id) or not definitions.types.has(definition_id) or not container.begins_with("site:") or not valid_location(region, container):
 		return false
 	var definition: Dictionary = definitions.types[definition_id]
-	if type_has_capability(definition, "heat_storage"):
+	if type_has_capability(definition, "heat_storage") or type_has_capability(definition, "thermal_exchange"):
 		return false
 	for item: Dictionary in objects.values():
 		if item.region == region and item.container == container:
@@ -369,6 +389,14 @@ func valid_location(region: Variant, container: Variant) -> bool:
 		return field != null and bool(field.valid_slot(region, container))
 	var sim: RefCounted = world.regions[region]
 	return sim.inventory.containers.has(container) and (sim.places.has(container) or (container.begins_with("actor:") and sim.actors.has(container.trim_prefix("actor:"))))
+
+
+func thermal_fixed_location(item: Dictionary) -> bool:
+	# An active device belongs to an existing fixed place, never an actor or the
+	# field opportunity's dedicated site slot. The original object owns location.
+	var region: Variant = item.get("region")
+	var container: Variant = item.get("container")
+	return valid_location(region, container) and not str(container).begins_with("actor:") and not str(container).begins_with("site:") and world.regions[region].places.has(container)
 
 
 func object_cell(id: String) -> Vector2i:
@@ -476,7 +504,7 @@ func _begin(actor: String, verb: String, id: String, during_commit: bool, recipi
 	if not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion"):
 		return _response(false, "眼下无法支配身体操作它。")
 	var person: Dictionary = world.regions[home].actors[actor]
-	if world.health != null and verb in ["heat", "charge", "dry", "force", "warm", "use_research"] and world.health.blocks_channeling(actor):
+	if world.health != null and verb in ["heat", "charge", "dry", "force", "warm", "use_research", "enable"] and world.health.blocks_channeling(actor):
 		return _response(false, "手臂仍灼涩，引流不顺；先停下催动，休养或求助。")
 	if not bool(person.alive) or not person.active.is_empty() or owns_actor(actor) or world.local_action_owns(actor) or (world.services != null and world.services.owns_actor(actor)):
 		return _response(false, "先完成或中断手头的事情。")
@@ -500,6 +528,18 @@ func _begin(actor: String, verb: String, id: String, during_commit: bool, recipi
 	if item.container.begins_with("actor:") and not invited_check and (item.container != "actor:" + actor or item.region != home):
 		return _response(false, "它还在别人手中，须先取得对方同意。")
 	var definition: Dictionary = definitions.types[item.definition]
+	if type_has_capability(definition, "thermal_exchange"):
+		if verb in ["take", "place"] and bool(item.enabled):
+			return _response(false, "先关闭这块石头，再改变它的归处。")
+		if verb == "enable":
+			if not shape_studied(actor, id):
+				return _response(false, "先亲自循纹探查，弄明白怎样启用它。")
+			if bool(item.enabled):
+				return _response(false, "这块石头已经启用。")
+			if not thermal_fixed_location(item):
+				return _response(false, "先把石头放在固定地点，再启用它。")
+		if verb == "disable" and not bool(item.enabled):
+			return _response(false, "这块石头已经关闭。")
 	if verb == "use_research":
 		var research_reason: String = Drawing.research_readiness(self, actor, id)
 		if not research_reason.is_empty():
@@ -525,7 +565,7 @@ func _begin(actor: String, verb: String, id: String, during_commit: bool, recipi
 		return _response(false, "当前时间无法安排这次操作。")
 	if not _can_start_action():
 		return _response(false, "当前无法安排这次操作。")
-	if verb == "use_research" and (world.spirit_sources == null or not world.spirit_sources.ensure_qi_baseline(actor)):
+	if verb in ["use_research", "enable"] and (world.spirit_sources == null or not world.spirit_sources.ensure_qi_baseline(actor)):
 		return _response(false, "当前无法核对本人已有的灵气。")
 	var action_id: String = _allocate("action")
 	person.qi = int(person.qi) - int(terms.qi)
@@ -681,6 +721,9 @@ func _complete(job: Dictionary) -> void:
 
 func _move_and_finish(job: Dictionary, id: String, region: String, container: String, kind: String, line: String) -> void:
 	var item: Dictionary = objects[id]
+	if has_capability(id, "thermal_exchange") and bool(item.enabled):
+		_finish_record(job, "failed", "石头仍在作用，先关闭后才能搬动；原物留在原处。")
+		return
 	var change: Dictionary = SimArtifactTransfers.describe(id, item, region, container, int(world.elapsed_ms), str(job.id), str(job.verb))
 	if not transfers.allows(change):
 		# The existing action paid its time/qi; only the proposed move is refused.
@@ -710,6 +753,35 @@ func _complete_tool(job: Dictionary, item: Dictionary, definition: Dictionary) -
 			_move_and_finish(job, str(job.object), destination, str(definition.storage_place), "placed", "已放在约定的存放处，随身不再保管它。")
 		"study": _finish_record(job, "studied", str(definition.method))
 		"use_research": _finish_record(job, "use_learned", "本人持环循纹试探后，学会将同高无遮挡、短距内的松置木剑引到手边。")
+		"enable", "disable": _finish_thermal_switch(job, item)
+
+
+func _finish_thermal_switch(job: Dictionary, item: Dictionary) -> void:
+	var enabled: bool = job.verb == "enable"
+	if bool(item.enabled) == enabled or not thermal_fixed_location(item):
+		_finish_record(job, "failed", "石头的状态或固定位置已经改变，这次没有切换。")
+		return
+	if enabled and not shape_studied(str(job.actor), str(job.object)):
+		_finish_record(job, "failed", "本人还不懂这块石头的用法，这次没有启用。")
+		return
+	var heat: Variant = world.get("local_heat")
+	if heat == null or not heat.has_method("can_switch_device") or not heat.has_method("switch_device") or not bool(heat.call("can_switch_device", str(job.object), enabled)):
+		_finish_record(job, "failed", "这块石头眼下无法切换；原来的状态没有改变。")
+		return
+	var point: Vector2i = object_cell(str(job.object))
+	var change: Dictionary = {"action": str(job.id), "actor": str(job.actor), "object": str(job.object),
+		"at_ms": int(world.elapsed_ms), "region": str(item.region), "container": str(item.container),
+		"cell": [point.x, point.y], "enabled": enabled}
+	var previous: bool = bool(item.enabled)
+	item.enabled = enabled
+	if not bool(heat.call("switch_device", change)):
+		item.enabled = previous
+		_finish_record(job, "failed", "切换未能提交；石头仍保持原来的状态。")
+		return
+	# No yield or observer runs between the thermal commit and the original
+	# artifact event. The thermal authority owns no copy of this device's stock.
+	_finish_record(job, "enabled" if enabled else "disabled", "石头已启用。" if enabled else "石头已关闭，周围的温度不会因此瞬间重设。")
+	world.invalidate_region(str(item.region))
 
 
 func _finish_heat(job: Dictionary, recipe: Dictionary) -> void:
@@ -920,6 +992,9 @@ func _finish_record(job: Dictionary, kind: String, line: String, heat_amount: in
 		# Publish the exact accepted transfer before any event observer sees it.
 		# Failed/cancelled actions never claim a thermal source amount.
 		record["heat_amount"] = heat_amount
+	if kind in ["enabled", "disabled"]:
+		# A cell alone cannot distinguish separate places occupying the same tile.
+		record["device_container"] = str(objects[job.object].container)
 	if job.has("method"):
 		record["method"] = job.method.duplicate(true)
 	if job.has("draw"):
@@ -1008,6 +1083,8 @@ func restore(data: Dictionary) -> bool:
 		if type_has_capability(definitions.types[item.definition], "heat_storage"):
 			item.charge = int(item.charge)
 			item.damage = int(item.damage)
+		elif type_has_capability(definitions.types[item.definition], "thermal_exchange"):
+			item.stored_q = int(item.stored_q)
 	for job: Dictionary in active.values():
 		for field: String in ["started_ms", "due_ms", "qi_spent"]:
 			job[field] = int(job[field])

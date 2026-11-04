@@ -42,7 +42,8 @@ func run(runner: Object) -> void:
 		return
 	var runtime: WorldContinuityRuntime = fixture.continuity
 	var adapter: WorldObjectsRuntime = runtime.object_adapter
-	runner.assert_eq(runtime.world_sim.artifacts.objects.size(), 1, "new actual runtime assembles its opening object")
+	var opening: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/scenarios/artifacts.json"))
+	runner.assert_eq(runtime.world_sim.artifacts.objects.size(), opening.objects.size(), "new actual runtime issues the declared opening objects")
 	runner.assert_true(adapter.select_object("hearth_stone") and adapter.panel.visible, "nearby visible object opens its dedicated inspector")
 	runner.assert_true(not adapter.panel._buttons.charge.visible, "unknown activation does not expose the learned recharge operation")
 	var before: Dictionary = runtime.world_sim.artifacts.to_dict()

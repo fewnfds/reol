@@ -71,6 +71,7 @@ func _real_custody_and_cancellation(runner: Object) -> void:
 	if world == null:
 		return
 	var domain: SimArtifacts = world.artifacts
+	var original_count: int = domain.objects.size()
 	runner.assert_eq(domain.held_weapon("player"), "", "an uncollected sword is not equipped by merely opening a panel")
 	runner.assert_true(domain.begin("player", "take", SWORD).ok, "actual handling begins against the original object")
 	world.advance_to_ms(1000)
@@ -81,7 +82,7 @@ func _real_custody_and_cancellation(runner: Object) -> void:
 	_finish(world, runner)
 	runner.assert_eq(domain.held_weapon("player"), SWORD, "the completed transfer exposes the real held weapon")
 	runner.assert_eq(domain.objects[SWORD].container, "actor:player", "custody is a single canonical container reference")
-	runner.assert_eq(domain.objects.size(), 2, "taking makes no duplicated object")
+	runner.assert_eq(domain.objects.size(), original_count, "taking makes no duplicated object")
 	runner.assert_eq(world.regions.home.inventory.quantity("actor:player", "wooden_sword"), 0, "the unique weapon is not also a counted stack")
 	world.regions.home.set_actor_cell("chen_shouzhuo", SimRouteTravel.cell(world.regions.home.places.dorm.cell))
 	world.invalidate_region("home")
