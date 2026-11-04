@@ -5,8 +5,8 @@ extends RefCounted
 const VERSION: int = 44
 
 
-static func capture_world(fog: FogOfWar, focus: Vector2i) -> Dictionary:
-	var state: Dictionary = ReolWorld.generation_descriptor()
+static func capture_world(fog: FogOfWar, focus: Vector2i, terrain: WorldMapData = null) -> Dictionary:
+	var state: Dictionary = terrain.descriptor() if terrain != null else WorldMapData.generation_descriptor()
 	if fog != null:
 		fog.set_focus(focus)
 		fog.update_now()
@@ -466,9 +466,9 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 		return {}
 	var migrated: Dictionary = source.duplicate(true)
 	if version == 1:
-		if source.has("world") or source.get("world_seed") != ReolWorld.WORLD_SEED:
+		if source.has("world") or source.get("world_seed") != WorldMapData.legacy_descriptor().seed:
 			return {}
-		var world: Dictionary = ReolWorld.generation_descriptor()
+		var world: Dictionary = WorldMapData.legacy_descriptor()
 		# Old saves never recorded footprints: do not infer a journey's exploration.
 		world["exploration"] = FogOfWar.empty_exploration()
 		migrated["world"] = world
@@ -919,7 +919,7 @@ static func _upgrade_rain_source(sim: Variant) -> bool:
 
 
 static func _valid_world_fields(snapshot: Dictionary, expected_version: int) -> bool:
-	if snapshot.get("schema_version") != expected_version or snapshot.get("world_seed") != ReolWorld.WORLD_SEED:
+	if snapshot.get("schema_version") != expected_version:
 		return false
 	if expected_version <= 43 and snapshot.has("assembly"):
 		return false
@@ -936,15 +936,7 @@ static func _valid_world_fields(snapshot: Dictionary, expected_version: int) -> 
 		return false
 	var descriptor: Dictionary = world.duplicate()
 	descriptor.erase("exploration")
-	var expected: Dictionary = ReolWorld.generation_descriptor()
-	if descriptor.size() != expected.size():
-		return false
-	# JSON stores whole numbers as floats. Compare fields by value instead of
-	# Dictionary's type-sensitive deep equality.
-	for key: String in expected:
-		if descriptor.get(key) != expected[key]:
-			return false
-	return true
+	return WorldMapData.valid_descriptor(descriptor) and snapshot.get("world_seed") == descriptor.seed
 
 
 static func _motion_rules() -> Dictionary:

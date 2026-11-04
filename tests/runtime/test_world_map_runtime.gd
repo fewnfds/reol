@@ -63,6 +63,10 @@ func run(runner: Object) -> void:
 	var bad: Dictionary = snapshot.duplicate(true)
 	bad.world.generator_version = 2
 	runner.assert_true(WorldSessionSnapshot.stage(adapter, bad).is_empty(), "unknown generation rejects before a session replacement")
+	var factory: Callable = adapter._home.restore_map_factory
+	adapter._home.restore_map_factory = func(_descriptor: Dictionary) -> Variant: return null
+	runner.assert_true(WorldSessionSnapshot.stage(adapter, snapshot).is_empty(), "failed explicit host factory rejects before publishing any candidate state")
+	adapter._home.restore_map_factory = factory
 	bad = snapshot.duplicate(true)
 	bad.player.cell = [-1, -1]
 	bad.player.position = [-32, -32]

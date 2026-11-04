@@ -142,6 +142,7 @@ func _test_save_load(runner: Object) -> void:
 		pawns.append(pawn)
 		index += 1
 	var runtime := VillageRuntime.new()
+	runtime.restore_map_factory = _fixed_map_factory(world)
 	var ready: bool = runtime.setup(world, player, pawns, content)
 	runner.call("assert_true", ready, "runtime initializes independently of the scene tree")
 	if not ready:
@@ -279,6 +280,7 @@ func _make_fixture() -> Dictionary:
 	pawn.pawn_id = &"a_he"
 	pawn.cell = Vector2i(12, 12)
 	var runtime := VillageRuntime.new()
+	runtime.restore_map_factory = _fixed_map_factory(world)
 	runtime._world = world
 	runtime._player = player
 	runtime._pawns["a_he"] = pawn
@@ -289,6 +291,16 @@ func _make_fixture() -> Dictionary:
 	runtime._config.navigation_budget = 4096
 	runtime._places = {"kitchen": {"label": "灶房", "cell": [13, 12]}}
 	return {"world": world, "player": player, "pawn": pawn, "runtime": runtime}
+
+
+func _fixed_map_factory(world: FixtureWorld) -> Callable:
+	# Explicit, frozen test geometry; no dependency on the map being displayed
+	# when a later archive is staged or loaded.
+	var cells: Dictionary[Vector2i, bool] = world.open_cells.duplicate()
+	return func(_descriptor: Dictionary) -> WorldMapData:
+		var result := FixtureMap.new()
+		result.open_cells = cells.duplicate()
+		return result
 
 
 func _snapshot(runtime: VillageRuntime) -> Dictionary:

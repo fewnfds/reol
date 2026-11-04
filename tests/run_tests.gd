@@ -117,6 +117,10 @@ func test_entity_query() -> void:
 	load("res://tests/sim/test_entity_query.gd").new().run(self)
 
 
+func test_map_descriptor_factory() -> void:
+	load("res://tests/sim/test_map_descriptor_factory.gd").new().run(self)
+
+
 func test_weapon_items() -> void:
 	load("res://tests/sim/test_weapon_items.gd").new().run(self)
 

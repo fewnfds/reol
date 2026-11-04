@@ -12,11 +12,11 @@ static func capture(adapter: Node) -> Dictionary:
 	# a quiet home region while the player is visiting elsewhere.
 	var world_snapshot: Dictionary = adapter.world_sim.to_dict()
 	return SnapshotValues.for_save({
-		"schema_version": SessionSaveSchema.VERSION, "world_seed": ReolWorld.WORLD_SEED,
+		"schema_version": SessionSaveSchema.VERSION, "world_seed": int(adapter.world_sim.map_data.descriptor().seed),
 		"content_bundle": context.content.content_bundle(),
 		"assembly": ReolWorldAssemblyInputs.from_world(adapter.world_sim, _encoded_centers(adapter.centers)),
 		"avatar_subject": adapter.avatar_subject,
-		"world": SessionSaveSchema.capture_world(context.fog, adapter.controlled_cell()),
+		"world": SessionSaveSchema.capture_world(context.fog, adapter.controlled_cell(), adapter.world_sim.map_data),
 		"simulation": home.simulation.to_dict(), "clock": GameClock.to_dict(),
 		"player": {"cell": [player.cell.x, player.cell.y],
 			"position": [player.motion.position.x, player.motion.position.y], "altitude": player.altitude,
@@ -41,10 +41,12 @@ static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
 	# explicit adapter boundary, rather than borrowing the active world's roster.
 	if not assembly.region_configs.has("home") or not assembly.region_configs.has("river") or assembly.region_configs.size() != 2 or not WorldContinuityRuntime.valid_runtime_settings(assembly.settings):
 		return {}
-	# Build the independent map before even the first saved-position check.
-	# The factory preserves explicit test maps; no query uses the live view.
-	var candidate_map: WorldMapData = adapter.world_sim.map_data.independent_copy()
-	if not candidate_map.configure_nature(content.natural_environment):
+	# The archived descriptor and host factory are the only map inputs. No live
+	# simulation/map is required, even for the first saved-position check.
+	var descriptor: Dictionary = snapshot.world.duplicate(true)
+	descriptor.erase("exploration")
+	var candidate_map: WorldMapData = home_runtime.create_candidate_map(descriptor)
+	if candidate_map == null or not candidate_map.configure_nature(content.natural_environment):
 		return {}
 	if not home_runtime.valid_snapshot(snapshot, candidate_map, assembly.region_configs.home):
 		return {}

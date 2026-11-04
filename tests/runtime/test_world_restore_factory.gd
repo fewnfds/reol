@@ -22,10 +22,9 @@ func run(runner: Object) -> void:
 	var original_settings: Dictionary = adapter.settings
 	var original_centers: Dictionary = adapter.centers
 	var original_config: Dictionary = adapter._home._config
-	# Leave only the explicit map-factory policy and presentation context. No
-	# active region, current scenario settings, centers or roster can help stage.
-	adapter.world_sim = RegionalSimulation.new()
-	adapter.world_sim.map_data = original_world.map_data
+	# Leave only the explicit host factory and presentation context. Neither an
+	# active simulation nor its map, settings, centers or roster can help stage.
+	adapter.world_sim = null
 	adapter.settings = {}
 	adapter.centers = {}
 	adapter._home._config = {}
@@ -34,7 +33,7 @@ func run(runner: Object) -> void:
 	adapter.settings = original_settings
 	adapter.centers = original_centers
 	adapter._home._config = original_config
-	runner.assert_true(not staged.is_empty(), "saved world assembles without active regions, settings, centers or home configuration")
+	runner.assert_true(not staged.is_empty(), "saved world assembles without any active world/map, settings, centers or home configuration")
 	if not staged.is_empty():
 		runner.assert_eq(_json(staged.world.to_dict()), _json(first.continuity.world), "restore-only factory reproduces every saved domain without issuing opening facts")
 		runner.assert_true(not staged.world.regions.home._navigation.is_valid(), "isolated restore owns no live navigation callback")

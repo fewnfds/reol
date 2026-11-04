@@ -17,16 +17,23 @@ var _terrain_noise: FastNoiseLite
 var _height_noise: FastNoiseLite
 var _nature: RefCounted
 var _nature_definitions: Dictionary = {}
+var _generation: Dictionary
+var _map_seed: int
+var _map_size: int
 
 
 func _init() -> void:
+	# Keep this v1 instance independent of future default-generator constants.
+	_generation = legacy_descriptor()
+	_map_seed = int(_generation.seed)
+	_map_size = int(_generation.size)
 	_terrain_noise = FastNoiseLite.new()
-	_terrain_noise.seed = WORLD_SEED
+	_terrain_noise.seed = _map_seed
 	_terrain_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	_terrain_noise.frequency = 0.018
 	_terrain_noise.fractal_octaves = 3
 	_height_noise = FastNoiseLite.new()
-	_height_noise.seed = WORLD_SEED + 1
+	_height_noise.seed = _map_seed + 1
 	_height_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	_height_noise.frequency = 0.012
 	_height_noise.fractal_octaves = 3
@@ -37,12 +44,45 @@ static func generation_descriptor() -> Dictionary:
 		"seed": WORLD_SEED, "size": WORLD_SIZE}
 
 
+static func legacy_descriptor() -> Dictionary:
+	# Historical tuple, deliberately independent of the current default.
+	return {"generator": "reol_noise", "generator_version": 1, "seed": 20261101, "size": 512}
+
+
+static func valid_descriptor(value: Variant) -> bool:
+	if not value is Dictionary or value.size() != 4:
+		return false
+	for key: Variant in value:
+		if not key is String or key not in ["generator", "generator_version", "seed", "size"]:
+			return false
+	if not value.get("generator") is String or value.generator != "reol_noise":
+		return false
+	var expected: Dictionary = legacy_descriptor()
+	for key: String in ["generator_version", "seed", "size"]:
+		if not SnapshotValues.valid_integer(value.get(key), 0) or value[key] != expected[key]:
+			return false
+	return true
+
+
+static func from_descriptor(value: Variant) -> WorldMapData:
+	if not valid_descriptor(value):
+		return null
+	return WorldMapData.new()
+
+
+func descriptor() -> Dictionary:
+	return _generation.duplicate(true)
+
+
 func independent_copy() -> WorldMapData:
 	# No mutable surface exists in v1. Reconstruct, never retain live callbacks.
 	# Future delta restore belongs here before any candidate spatial validation.
-	var result := WorldMapData.new()
+	var result: WorldMapData = from_descriptor(_generation)
+	if result == null:
+		return null
 	if not _nature_definitions.is_empty():
-		result.configure_nature(_nature_definitions)
+		if not result.configure_nature(_nature_definitions):
+			return null
 	return result
 
 
@@ -50,7 +90,7 @@ func configure_nature(rules: Dictionary) -> bool:
 	if not Nature.valid_definitions(rules):
 		return false
 	_nature_definitions = rules.duplicate(true)
-	_nature = Nature.new(WORLD_SEED, _nature_definitions)
+	_nature = Nature.new(_map_seed, _nature_definitions)
 	return true
 
 
@@ -76,7 +116,7 @@ func natural_surface_definitions() -> Dictionary:
 
 func _nature_rules() -> RefCounted:
 	if _nature == null:
-		_nature = Nature.new(WORLD_SEED, _nature_definitions)
+		_nature = Nature.new(_map_seed, _nature_definitions)
 	return _nature
 
 
@@ -137,4 +177,4 @@ static func elevation_step_allowed(from_elevation: int, to_elevation: int) -> bo
 
 
 func in_bounds(cell: Vector2i) -> bool:
-	return cell.x >= 0 and cell.y >= 0 and cell.x < WORLD_SIZE and cell.y < WORLD_SIZE
+	return cell.x >= 0 and cell.y >= 0 and cell.x < _map_size and cell.y < _map_size

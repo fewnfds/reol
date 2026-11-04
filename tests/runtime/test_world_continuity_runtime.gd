@@ -52,6 +52,7 @@ func _fixture(runner: Object) -> Dictionary:
 		pawns.append(pawn)
 		index += 1
 	var home := VillageRuntime.new()
+	home.restore_map_factory = func(_descriptor: Dictionary) -> WorldMapData: return FlatMap.new()
 	var continuity := Runtime.new()
 	var result: Dictionary = {
 		"clock": saved_clock, "world": world, "player": player,

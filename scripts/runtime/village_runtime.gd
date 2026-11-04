@@ -17,6 +17,9 @@ const DIRECTIONS: Array[Vector2i] = [
 
 var simulation: VillageSimulation
 var continuity: Node
+## Host policy, never saved game state. Tests may explicitly inject a synthetic
+## map factory; the normal game reconstructs only validated saved descriptors.
+var restore_map_factory: Callable = WorldMapData.from_descriptor
 
 var _world: ReolWorld
 var _player: PlayerCharacter
@@ -172,6 +175,15 @@ func snapshot_context() -> Dictionary:
 	return {"content": _content, "player": _player, "fog": _fog}
 
 
+func create_candidate_map(descriptor: Dictionary) -> WorldMapData:
+	if not WorldMapData.valid_descriptor(descriptor) or not restore_map_factory.is_valid():
+		return null
+	var candidate: Variant = restore_map_factory.call(descriptor.duplicate(true))
+	if not candidate is WorldMapData or SnapshotValues.normalized(candidate.descriptor()) != SnapshotValues.normalized(descriptor):
+		return null
+	return candidate
+
+
 func adopt_content(content: ReolContentDB) -> void:
 	# Called only at the successful session commit boundary. View state keeps its
 	# identity (HUD references it) and rebinds definitions in _sync_needs below.
@@ -243,8 +255,8 @@ func save_game(path: String = SAVE_PATH) -> Error:
 		"content_bundle": _content.content_bundle(),
 		"assembly": ReolWorldAssemblyInputs.standalone(_config),
 		"avatar_subject": "subject:player",
-		"world_seed": ReolWorld.WORLD_SEED,
-		"world": SessionSaveSchema.capture_world(_fog, _player.cell),
+		"world_seed": int(_world.map_data().descriptor().seed),
+		"world": SessionSaveSchema.capture_world(_fog, _player.cell, _world.map_data()),
 		"simulation": simulation.to_dict(),
 		"clock": GameClock.to_dict(),
 		"player": {
@@ -275,8 +287,10 @@ func load_game(path: String = SAVE_PATH) -> Error:
 	var content := ReolContentDB.new()
 	if not content.load_bundle(snapshot.get("content_bundle")):
 		return _load_failed("近况里的内容定义不完整。")
-	var candidate_map: WorldMapData = _world.map_data().independent_copy()
-	if not candidate_map.configure_nature(content.natural_environment):
+	var descriptor: Dictionary = snapshot.world.duplicate(true)
+	descriptor.erase("exploration")
+	var candidate_map: WorldMapData = create_candidate_map(descriptor)
+	if candidate_map == null or not candidate_map.configure_nature(content.natural_environment):
 		return _load_failed("近况里的自然地表定义不正确。")
 	if not _valid_snapshot(snapshot, candidate_map, snapshot.assembly.region_configs.home):
 		return _load_failed("这份近况不适用于当前山门。")
