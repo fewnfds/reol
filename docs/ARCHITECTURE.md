@@ -89,6 +89,8 @@ C1a-0此前将根/区域/器物格式推进47/39/7：成功释热事件带实际
 
 当前C1b-1写根49/区域41/器物8，热定义及状态3；村落7、人体环境3、土地资源4、药草生态状态2不变。`SimLocalHeat`持有固定参考 `-10000` 下的非负整数Q，先除容量再减背景以避免负温差取整错误。分配背景底量与后续外界流入计`ambient_in`，外界流出计`loss_energy`，旧脉冲来源独立计`input_energy`；持续放热计`continuous_input`，吸入原器物计`absorbed_energy`。守恒为 `sum(Q)+loss_energy+absorbed_energy=input_energy+continuous_input+ambient_in`。室外变化只改边界，不直接重设Q；当前最多保留512活跃格，满额明确拒绝新patch，无自动回收。
 
+[SimThermalReclaimProbe](../scripts/sim/thermal_reclaim_probe.gd)仅为显式开发检查：按逻辑记录/覆盖格访问预算读取同一原热场及来源、历史样本、在途动作，返回脱离原状态且排序的诊断。预算不足无部分结果；`complete`仅表示扫描完成，积压或待源位置未知仍是`status=unknown`，`can_reclaim`始终false。气候包络查询独立合并日/季曲线和可达天气偏移的保守极值，不是误差保证或未来天气预报；自定义背景Callable不执行。此接缝不保存另一份Q、不接玩家UI、不删除格或改变求解器，后续生命周期/聚合仍待实现。
+
 `SimThermalSchema`验证来源覆盖、分配底量、当前守恒、逆推原冻结段及绝对/旧偏量两种样本，并与原器物余额/启停事件互核。`ThermalImport`先用只读`LegacyHeatV1/V2`在独立旧候选核验原内容/结构/热账/受体，再构造完整当前候选；旧输入不会成为活运行域。v1在保存时刻转换Q，v2保留原Q/账/样本、只补空设备账和可证冻结终点；不从磁盘补新器物。原样本按`legacy_excess`保留，`legacy_limits`仅记录原档可证明的边界，不伪造过去绝对物理。具体支持范围见[兼容政策](COMPATIBILITY.md)。
 
 区域和runtime在身体/旅途前预检热场下一冻结段的数值预算。失败保留目标和未处理时间，不扣该段资源；GameClock可已记入期望时间及帧积压，不能声称全局所有时间都未变化。期望时钟与物理时刻不等时，普通save_game在任何文件写入前ERR_BUSY，保护原主档/备份；当前格式不承诺保存未结算时间。移动源仍未接通。

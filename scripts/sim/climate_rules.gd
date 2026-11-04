@@ -81,6 +81,44 @@ static func background_for_region(rules: Dictionary, weather_rules: Dictionary, 
 	return {"region": region, "kind": kind, "temperature_tenths": temperature_at(rules, region, at_ms, kind)}
 
 
+static func background_envelope(rules: Dictionary, weather_rules: Dictionary, region: String) -> Dictionary:
+	# Explicit inspection, not a hot-path temperature query. Independent extrema
+	# conservatively cover every day, season and weather phase of this bound
+	# content; their sums need not be jointly attainable. This is no forecast or
+	# certificate that discarding a cell's thermal inertia would be safe.
+	if not valid_definitions(rules) or not SimWeather.valid_definitions(weather_rules):
+		return {"supported": false, "reason": "invalid_definitions"}
+	if not rules.regions.has(region) or not weather_rules.regions.has(region):
+		return {"supported": false, "reason": "unknown_region"}
+	return bound_region_envelope(rules.regions[region], weather_rules.phases)
+
+
+static func bound_region_envelope(climate: Dictionary, phases: Array) -> Dictionary:
+	# The owning world already validated these definitions. Callers with a work
+	# budget can charge the two curve lengths and phase count before this scan,
+	# without revalidating unrelated regions, garments or spatial overlaps.
+	var lower: int = int(climate.base_tenths)
+	var upper: int = lower
+	for curve: Array in [climate.seasonal_curve, climate.daily_curve]:
+		var minimum: int = int(curve[0][1])
+		var maximum: int = minimum
+		for point: Array in curve:
+			minimum = mini(minimum, int(point[1]))
+			maximum = maxi(maximum, int(point[1]))
+		lower += minimum
+		upper += maximum
+	var weather_min: int = 0
+	var weather_max: int = 0
+	var first: bool = true
+	for phase: Dictionary in phases:
+		var offset: int = int(climate.weather_offsets[phase.kind])
+		weather_min = offset if first else mini(weather_min, offset)
+		weather_max = offset if first else maxi(weather_max, offset)
+		first = false
+	return {"supported": true, "min_tenths": lower + weather_min,
+		"max_tenths": upper + weather_max, "conservative": true}
+
+
 static func next_background_boundary_ms(rules: Dictionary, weather_rules: Dictionary, epoch: int, region: String, at_ms: int) -> int:
 	# Component changes and phase boundaries are deterministic candidate
 	# boundaries. Simultaneous components may cancel in the total temperature.
