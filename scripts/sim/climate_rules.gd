@@ -66,6 +66,73 @@ static func region_at(rules: Dictionary, cell: Vector2i) -> String:
 	return str(rules.fallback_region)
 
 
+static func background_at(rules: Dictionary, weather_rules: Dictionary, epoch: int, cell: Vector2i, at_ms: int) -> Dictionary:
+	# Definitions are already validated and bound by the owning world. Only the
+	# inexpensive lookup guards belong on this pure query's hot path.
+	if not rules.get("regions") is Dictionary or not rules.get("fallback_region") is String or not rules.regions.has(rules.fallback_region):
+		return {}
+	return background_for_region(rules, weather_rules, epoch, region_at(rules, cell), at_ms)
+
+
+static func background_for_region(rules: Dictionary, weather_rules: Dictionary, epoch: int, region: String, at_ms: int) -> Dictionary:
+	if not _time_valid(epoch) or not _time_valid(at_ms) or not rules.get("regions") is Dictionary or not rules.regions.has(region) or not weather_rules.get("regions") is Dictionary or not weather_rules.regions.has(region):
+		return {}
+	var kind: String = SimWeather.kind_at(weather_rules, region, epoch, at_ms)
+	return {"region": region, "kind": kind, "temperature_tenths": temperature_at(rules, region, at_ms, kind)}
+
+
+static func next_background_boundary_ms(rules: Dictionary, weather_rules: Dictionary, epoch: int, region: String, at_ms: int) -> int:
+	# Component changes and phase boundaries are deterministic candidate
+	# boundaries. Simultaneous components may cancel in the total temperature.
+	if not _time_valid(epoch) or not _time_valid(at_ms) or at_ms == Calendar.MAX_TIMESTAMP or not rules.get("regions") is Dictionary or not rules.regions.has(region) or not weather_rules.get("regions") is Dictionary or not weather_rules.regions.has(region):
+		return Calendar.MAX_TIMESTAMP
+	var climate: Dictionary = rules.regions[region]
+	var start_ms: int = int(rules.calendar.start_minutes) * Calendar.MINUTE_MS
+	var year_ms: int = Calendar.days_per_year(rules.calendar) * Calendar.DAY_MS
+	var daily_position: int = posmod(posmod(at_ms, Calendar.DAY_MS) + start_ms, Calendar.DAY_MS)
+	var seasonal_position: int = posmod(posmod(at_ms, year_ms) + start_ms, year_ms)
+	var daily_delay: int = _next_curve_change_delay(climate.daily_curve, daily_position, Calendar.MINUTE_MS)
+	var seasonal_delay: int = _next_curve_change_delay(climate.seasonal_curve, seasonal_position, Calendar.DAY_MS)
+	var delay: int = mini(daily_delay, seasonal_delay)
+	var curve_boundary: int = Calendar.MAX_TIMESTAMP
+	if delay != Calendar.MAX_TIMESTAMP and delay <= Calendar.MAX_TIMESTAMP - at_ms:
+		curve_boundary = at_ms + delay
+	return mini(curve_boundary, SimWeather.next_phase_boundary_ms(weather_rules, region, epoch, at_ms))
+
+
+static func _time_valid(at_ms: int) -> bool:
+	return at_ms >= 0 and at_ms <= Calendar.MAX_TIMESTAMP
+
+
+@warning_ignore("integer_division")
+static func _next_curve_change_delay(curve: Array, position_ms: int, unit_ms: int) -> int:
+	# A valid curve is closed and has increasing endpoints. Skip flat segments
+	# rather than iterating milliseconds; one traversal covers a whole period.
+	var segment_count: int = curve.size() - 1
+	var index: int = 0
+	while index < segment_count and position_ms >= int(curve[index + 1][0]) * unit_ms:
+		index += 1
+	if index == segment_count:
+		return Calendar.MAX_TIMESTAMP
+	var elapsed: int = position_ms - int(curve[index][0]) * unit_ms
+	var skipped: int = 0
+	for _segment: int in range(segment_count):
+		var left: Array = curve[index]
+		var right: Array = curve[index + 1]
+		var duration: int = (int(right[0]) - int(left[0])) * unit_ms
+		var magnitude: int = absi(int(right[1]) - int(left[1]))
+		if magnitude > 0:
+			# _sample truncates toward zero, so either slope changes at the same
+			# positive-magnitude threshold ceil(k * duration / magnitude).
+			var next_level: int = magnitude * elapsed / duration + 1
+			var threshold: int = (next_level * duration + magnitude - 1) / magnitude
+			return skipped + threshold - elapsed
+		skipped += duration - elapsed
+		index = (index + 1) % segment_count
+		elapsed = 0
+	return Calendar.MAX_TIMESTAMP
+
+
 static func temperature_at(rules: Dictionary, region: String, at_ms: int, kind: String) -> int:
 	var climate: Dictionary = rules.regions.get(region, rules.regions[rules.fallback_region])
 	# The offset is a projection of the same elapsed time, matching GameClock's

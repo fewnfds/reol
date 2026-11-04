@@ -61,6 +61,34 @@ static func kind_at(rules: Dictionary, region: String, epoch: int, at_ms: int) -
 	return "clear"
 
 
+static func next_phase_boundary_ms(rules: Dictionary, region: String, epoch: int, at_ms: int) -> int:
+	# Phase time is relative to epoch, including its millisecond remainder. This
+	# does not change the independent minute-based wetness pulse scheduler.
+	if epoch < 0 or epoch > SimInventory.MAX_COUNT or at_ms < 0 or at_ms >= SimInventory.MAX_COUNT or not rules.get("regions") is Dictionary or not rules.regions.has(region) or not rules.get("phases") is Array or rules.phases.is_empty():
+		return SimInventory.MAX_COUNT
+	var regional: Variant = rules.regions[region]
+	if not regional is Dictionary or not Shape.count(regional.get("offset_ms"), 0, SimInventory.MAX_COUNT):
+		return SimInventory.MAX_COUNT
+	var cycle: int = 0
+	for phase: Variant in rules.phases:
+		if not phase is Dictionary or not Shape.count(phase.get("duration_ms"), 1, SimInventory.MAX_COUNT):
+			return SimInventory.MAX_COUNT
+		var duration: int = int(phase.duration_ms)
+		if cycle > SimInventory.MAX_COUNT - duration:
+			return SimInventory.MAX_COUNT
+		cycle += duration
+	var elapsed: int = maxi(0, at_ms - epoch)
+	var cursor: int = posmod(posmod(elapsed, cycle) + posmod(int(regional.offset_ms), cycle), cycle)
+	var end: int = 0
+	for phase: Dictionary in rules.phases:
+		end += int(phase.duration_ms)
+		if cursor < end:
+			var delay: int = end - cursor
+			var anchor: int = maxi(at_ms, epoch)
+			return SimInventory.MAX_COUNT if delay > SimInventory.MAX_COUNT - anchor else anchor + delay
+	return SimInventory.MAX_COUNT
+
+
 func current_kind(region: String) -> String:
 	return kind_at(definitions, region, epoch_ms, world.elapsed_ms)
 

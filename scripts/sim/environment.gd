@@ -103,8 +103,8 @@ func insulation_for(actor: String) -> int:
 
 
 func _temperature(region: String, at_ms: int) -> int:
-	var kind: String = SimWeather.kind_at(world.weather.definitions, region, world.weather.epoch_ms, at_ms)
-	return SimClimateRules.temperature_at(definitions, region, at_ms, kind)
+	var background: Dictionary = SimClimateRules.background_for_region(definitions, world.weather.definitions, world.weather.epoch_ms, region, at_ms)
+	return int(background.temperature_tenths)
 
 
 func _thermal() -> RefCounted:

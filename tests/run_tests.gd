@@ -113,6 +113,14 @@ func test_heat_amount_migration() -> void:
 	load("res://tests/runtime/test_heat_amount_migration.gd").new().run(self)
 
 
+func test_climate_boundaries() -> void:
+	load("res://tests/sim/test_climate_boundaries.gd").new().run(self)
+
+
+func test_climate_background() -> void:
+	load("res://tests/sim/test_climate_background.gd").new().run(self)
+
+
 # ---------------------------------------------------------------------------
 # Test doubles
 # ---------------------------------------------------------------------------

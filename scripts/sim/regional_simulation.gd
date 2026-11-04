@@ -779,12 +779,11 @@ static func herb_conditions_for(content: ReolContentDB, weather_state: Dictionar
 	# activation. Plant conditions never inherit human clothes or comfort.
 	if content == null or heat_tenths < 0 or not SimInventory._valid_count(at_ms) or not SimInventory._valid_count(weather_state.get("epoch_ms")):
 		return {}
-	var climate_region: String = SimClimateRules.region_at(content.climate, point)
-	if not content.weather.regions.has(climate_region):
+	var background: Dictionary = SimClimateRules.background_at(content.climate, content.weather, int(weather_state.epoch_ms), point, at_ms)
+	if background.is_empty():
 		return {}
-	var kind: String = SimWeather.kind_at(content.weather, climate_region, int(weather_state.epoch_ms), at_ms)
-	return {"temperature_tenths": SimClimateRules.temperature_at(content.climate, climate_region, at_ms, kind) + heat_tenths,
-		"heat_tenths": heat_tenths, "rain": kind == "rain"}
+	return {"temperature_tenths": int(background.temperature_tenths) + heat_tenths,
+		"heat_tenths": heat_tenths, "rain": background.kind == "rain"}
 
 
 func _sample_herb_conditions(opening: bool = false) -> bool:
