@@ -38,6 +38,7 @@ var legacy_limits: Dictionary = {}
 var _owner: WeakRef
 var _roofed: Callable
 var _barrier: Callable
+var _reuse_conductance_within_pass: bool = false
 var _receipt_validator: Callable
 var _expected_actions: Callable
 var _geometry_dirty: bool = false
@@ -164,9 +165,11 @@ func _offset(energy: int, cell: Vector2i, at_ms: int) -> int:
 	return int(definitions.reference_tenths) + _tenths(energy) - _background(cell, at_ms)
 
 
-func set_geometry(roofed: Callable, barrier: Callable) -> void:
+func set_geometry(roofed: Callable, barrier: Callable, reuse_within_pass: bool = false) -> void:
+	# Opt-in promises that geometry stays stable during one synchronous pass.
 	_roofed = roofed
 	_barrier = barrier
+	_reuse_conductance_within_pass = reuse_within_pass
 	_geometry_dirty = true
 
 
@@ -740,6 +743,10 @@ func _candidate_flows(state: Dictionary, at_ms: int) -> Array[Dictionary]:
 	# injected for per-cell rules retain their original call sequence instead.
 	var context: Dictionary = {} if state.is_empty() or _background_query.is_valid() else _default_background_context()
 	var by_region: Dictionary = {}
+	# A custom background query can change geometry between side queries.
+	# Cache only for this pass; candidates, later freezes and rebindings share none.
+	var reuse_conductance: bool = _reuse_conductance_within_pass and not _background_query.is_valid()
+	var conductance_by_cell: Dictionary[Vector2i, int] = {}
 	for key: String in _sorted(state):
 		var row: Dictionary = state[key]
 		var point := Vector2i(int(row.cell[0]), int(row.cell[1]))
@@ -749,7 +756,15 @@ func _candidate_flows(state: Dictionary, at_ms: int) -> Array[Dictionary]:
 		for side: Vector2i in SIDES:
 			var neighbor: Vector2i = point + side
 			var adjacent: String = _key(neighbor)
-			var coefficient: int = mini(_conductance(point), _conductance(neighbor))
+			var coefficient: int
+			if reuse_conductance:
+				if not conductance_by_cell.has(point):
+					conductance_by_cell[point] = _conductance(point)
+				if not conductance_by_cell.has(neighbor):
+					conductance_by_cell[neighbor] = _conductance(neighbor)
+				coefficient = mini(conductance_by_cell[point], conductance_by_cell[neighbor])
+			else:
+				coefficient = mini(_conductance(point), _conductance(neighbor))
 			if not state.has(adjacent):
 				_bath_rates(exchange, int(row.energy) - _baseline_for_pass(neighbor, at_ms, context, by_region), coefficient)
 			elif key < adjacent:

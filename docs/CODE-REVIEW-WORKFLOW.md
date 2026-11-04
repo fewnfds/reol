@@ -74,6 +74,8 @@ CI负责执行确定性的检查和测试；Codex负责理解差异、找行为�
 
 ## CI检查和验收
 
+现行[workflow](../.github/workflows/ci.yml)保留按workflow/ref分组，将`cancel-in-progress`设为false：连续推送不再取消已经运行的全量回归。GitHub默认只保留同组最新一个pending run，旧pending会由GitHub替换；这不是主代理主动取消，也不保证每个中间SHA都执行。这样在开发继续提交时仍能形成完整受检基线，下一待跑版本接近最新提交，不累计全部历史包排队。不改变push/PR触发范围或为等待增设轮询。行为依据[GitHub官方并发说明](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)；实际完成仍须按具体SHA/run核验，配置本身不是通过证据。
+
 主代理维护已推送、与当前工作相关且尚待核验的完整SHA及已知run。在每次**准备提交**时集中检查一次这些目标：run已完成且失败，读取相关失败日志，定位首个真实错误并按影响修复；排队、运行中、尚未发现run或查询失败，记录待验，留待下一次准备提交。修复产生新SHA后仍须检查该新版本的证据。推送后不立即循环发现run或反复查状态；未成功推送的提交没有可归属的推送CI，按实际状态记录。
 
 不派子代理等待CI，不开后台`tools/ci.py wait`，也不让模型充当计时器。此前允许的五分钟主动查询/后台等待方式已废止：`tools/ci.py`现有的共享锁、缓存和同run至少300秒限频只是工具安全底线，不是检查日程；遇到限频或缓存中的非终态也不绕开，直接留待下一次提交检查。没有新的检查点时不为获取结果制造空提交或让模型持续等待。

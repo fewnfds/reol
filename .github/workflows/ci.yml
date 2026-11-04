@@ -19,7 +19,9 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Finish the running regression; GitHub keeps only the newest pending run.
+  # Frequent development pushes must not starve all complete SHA evidence.
+  cancel-in-progress: false
 
 permissions:
   contents: read

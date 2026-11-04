@@ -129,6 +129,10 @@ func test_thermal_reclaim_probe() -> void:
 	load("res://tests/sim/test_thermal_reclaim_probe.gd").new().run(self)
 
 
+func test_heat_geometry_reuse() -> void:
+	load("res://tests/sim/test_heat_geometry_reuse.gd").new().run(self)
+
+
 func test_absolute_heat() -> void:
 	load("res://tests/sim/test_absolute_heat.gd").new().run(self)
 

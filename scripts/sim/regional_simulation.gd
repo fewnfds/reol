@@ -241,7 +241,7 @@ func initialize(definitions: Dictionary, instances: Dictionary, content: ReolCon
 	if not local_heat.initialize(self, content.local_heat):
 		errors.append("Invalid finite local heat definitions")
 		return false
-	local_heat.set_geometry(construction.thermal_roofed, construction.thermal_barrier)
+	local_heat.set_geometry(construction.thermal_roofed, construction.thermal_barrier, true)
 	environment = SimEnvironment.new()
 	if not environment.initialize(self, content.climate):
 		errors.append("Invalid local environment definitions")
@@ -1144,7 +1144,10 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	if not next_health.initialize(candidate_world, _content.health) or not next_health.restore(data.health):
 		return false
 	candidate_world.health = next_health
-	next_heat.set_geometry(next_construction.thermal_roofed, next_construction.thermal_barrier)
+	if next_heat is SimLocalHeat:
+		next_heat.set_geometry(next_construction.thermal_roofed, next_construction.thermal_barrier, true)
+	else:
+		next_heat.set_geometry(next_construction.thermal_roofed, next_construction.thermal_barrier)
 	if not next_heat.restore(data.local_heat):
 		return false
 	# Artifact shape validation runs before health and personal understanding

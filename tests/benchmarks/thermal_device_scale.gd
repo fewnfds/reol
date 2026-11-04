@@ -1,6 +1,8 @@
 extends SceneTree
 ## Real-device scale probe. Run with -- 1, 4 or 16 under an external process
-## guard. Counts identify original artifacts, never a requested heat-cell count.
+## guard. Optional second argument "reference" disables production geometry
+## reuse for the measured worlds; independent restores keep production policy.
+## Counts identify original artifacts, never a requested heat-cell count.
 
 const SAMPLES: int = 40
 const STEP_MS: int = 1000
@@ -8,6 +10,7 @@ const FUTURE_MS: int = 7337
 const FUTURE_SLICES: Array = [[337, 5000, 7337], [1, 1199, 7336, 7337]]
 
 var _failed: int = 0
+var _reference_geometry: bool = false
 
 
 func _initialize() -> void:
@@ -23,10 +26,11 @@ func _check(condition: bool, label: String) -> bool:
 
 func _run() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
-	if args.size() != 1 or not args[0].is_valid_int() or int(args[0]) not in [1, 4, 16]:
-		_fail("expected one actual artifact-count argument: 1, 4 or 16")
+	if args.size() < 1 or args.size() > 2 or not args[0].is_valid_int() or int(args[0]) not in [1, 4, 16] or (args.size() == 2 and args[1] != "reference"):
+		_fail("expected actual artifact count 1, 4 or 16, optionally followed by reference")
 		return
 	var count: int = int(args[0])
+	_reference_geometry = args.size() == 2
 	var started: int = Time.get_ticks_usec()
 	var off: RegionalSimulation = _make_world(count)
 	var enabled: RegionalSimulation = _make_world(count)
@@ -67,6 +71,7 @@ func _run() -> void:
 		return
 	var report: Dictionary = {
 		"benchmark": "thermal_device_scale", "requested_artifacts": count,
+		"geometry_policy": "uncached_reference" if _reference_geometry else "production",
 		"engine": Engine.get_version_info(), "os": OS.get_name(),
 		"processor": OS.get_processor_name(), "logical_processors": OS.get_processor_count(),
 		"start_time_ms": start_ms, "sample_count": SAMPLES, "step_ms": STEP_MS,
@@ -108,6 +113,11 @@ func _make_world(count: int) -> RegionalSimulation:
 	var world := RegionalSimulation.new()
 	if not _check(world.initialize(settings, instances, content), "initialize ordinary regional owners: " + str(world.errors)):
 		return null
+	if _reference_geometry:
+		# Rebind only the callback policy before any object/action/thermal source
+		# exists. This changes no definition, clock, Q, stock or event history.
+		world.local_heat.set_geometry(world.construction.thermal_roofed, world.construction.thermal_barrier)
+		world.local_heat.refresh_geometry()
 	if not _check(world.artifacts.spawn_opening({"version": 1, "objects": opening, "experiences": {}}), "issue only the declared original devices"):
 		return null
 	world.set_active_region("")
@@ -251,6 +261,7 @@ func _measure(world: RegionalSimulation, count: int, label: String) -> Dictionar
 		"advance_ms": _distribution(timings), "advance_samples": samples,
 		"persistence_ms": {"capture": capture_ms, "json_encode": encode_ms, "json_decode": decode_ms, "independent_restores": restores},
 		"json_bytes": encoded.to_utf8_buffer().size(), "future_ms": FUTURE_MS,
+		"snapshot_sha256": canonical_snapshot.sha256_text(), "future_sha256": canonical_future.sha256_text(),
 		"whole_offsets_ms": [FUTURE_MS], "split_offsets_ms": FUTURE_SLICES,
 		"complete_restore_equal": true, "all_complete_futures_equal": true, "energy_and_stock_conserved": true}
 
