@@ -26,7 +26,7 @@ main / 场景装配
 | [SimLocalMotion](../scripts/sim/local_motion.gd)、[SimRouteTravel](../scripts/sim/route_travel.gd) | 手动/闪身及自动路段推进，读写同一身体 | 不复制位置、体力或时钟；显示插值不推进规则 |
 | [SimMotionClearance](../scripts/sim/motion_clearance.gd) | 只读解析原过程当前首段及对角扫掠；固定运粮道路保守清场 | 不保存第二套位置/路线；施工新增阻挡和兽身清场复用，后续路线重规划仍待接 |
 | [SimEmbodiment](../scripts/sim/embodiment.gd) | 主体、载体居留、移动/行动/通信控制 | 居留不等于控制，控制通道不等于行动占用 |
-| [SimEntityQuery](../scripts/sim/entity_query.gd) | 无状态、只读地解析人物/雀身/独特器物的原位置与记录所有者 | 不登记第二实体表、不推进时间；区域滞后和世界积压分别标明，不能直接作玩家所知 |
+| [SimEntityQuery](../scripts/sim/entity_query.gd) | 无状态、只读地解析人物/雀身/独特器物/大型身体的原位置与记录所有者 | 不登记第二实体表、不推进时间；区域滞后和世界积压分别标明，不能直接作玩家所知 |
 | [SimInventory](../scripts/sim/inventory_ledger.gd) | 容器内堆叠数量、预约、操作与受托责任 | 责任引用实物，不再存一份数量；不等于完整产权 |
 | [SimArtifacts](../scripts/sim/artifacts.gd)、[SimClothing](../scripts/sim/clothing.gd)、实物方法记录 | 独特物件位置/来源、穿法/湿润、有限器物过程与阅读记录 | 不同时复制成普通数量库存，持有/看见/读过不等于学会 |
 | [SimSocialMemory](../scripts/sim/social_memory.gd)、[SimInstitutionBook](../scripts/sim/institution_book.gd) | 本人有来源的认识/决定；机构任职和贡献记录 | 关系/礼遇/权限/实际履约分开；未实现通用ClaimBook/司法/继任 |
@@ -76,6 +76,8 @@ B1a继续沿原`SimConstruction`和`SimWorkplaces`读结构，不另建通用实
 主场景首次探索在全部开局结构来源装配后运行，已有探索在普通加载时保持。施工绘制/选项随visibility_updated刷新，即使暂停也更新；四邻墙形在读取邻格当前状态前过滤实际可见性，未见连接暂省略，不借全知查询泄露墙后变化。
 
 B1b将当前在途首段（含对角旁格）统一为原过程只读查询，玩家journey通过runtime补入。建墙/建关闭门/关门在原物理提交前保护这些段，保留工时/材料及行走，不调换共同毫秒结算顺序；低床/屋面不使用新增阻挡的运动守卫，真实占地仍检查。兽身占地也读同一查询，去掉终态服务全表扫描。固定运粮目前不依新墙重规划，所以建成阻挡保守避让其道路；这是待退役限制，非永久道路特权，也不是完整封路绕行。
+
+大型身体查询沿原large_bodies域，`footprint`表示格尺寸、`swept_bounds_cells`直接读原保守占用、`physical_bounds_px`只表示连续中心对应的像素呈现/接触范围。三者不混为第二导航状态；记录所属地区也不推断空间包含。查询不返回未来路线/目的地，不同步滞后或消耗欠算预算；不是通用受控生成/移除接口。
 
 ## 仍需建立的通用接缝
 

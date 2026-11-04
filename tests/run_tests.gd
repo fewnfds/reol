@@ -101,6 +101,10 @@ func test_motion_clearance_runtime() -> void:
 	load("res://tests/runtime/test_motion_clearance_runtime.gd").new().run(self)
 
 
+func test_large_body_query() -> void:
+	load("res://tests/sim/test_large_body_query.gd").new().run(self)
+
+
 # ---------------------------------------------------------------------------
 # Test doubles
 # ---------------------------------------------------------------------------
