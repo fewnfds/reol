@@ -51,6 +51,48 @@ var _initiative_provider: Callable
 var _exposure_rate: Callable
 
 
+static func from_snapshot(
+	content: ReolContentDB,
+	saved: Dictionary,
+	allowed_subjects: Dictionary = {},
+	external_inventory: Dictionary = {}
+) -> VillageSimulation:
+	# Build an independent candidate without creating opening stock, memories or
+	# institutional entries. Region/terrain and cross-domain validation remain
+	# the caller's responsibility before this candidate can become authoritative.
+	# Local motion and workplace validation still use the installed rules; this
+	# is not yet a fully versioned or disk-independent rule context.
+	if content == null or not _valid_config(saved.get("config")):
+		return null
+	if not SimStockInformation.valid_policy(content.stock_information_policy) or not SimPersonalForaging.valid_definitions(content.personal_foraging):
+		return null
+	if not SimPersonalForaging.matches(saved.config, content.personal_foraging) or not SimLandResources.valid_definitions(content.land_resources):
+		return null
+	if not SimCapabilityConversation.valid_definitions(content.capability_conversation):
+		return null
+	var candidate := VillageSimulation.new()
+	if not _valid_restore_motion_rules(candidate.motion_rules):
+		return null
+	candidate._content = content
+	if not candidate.restore(saved, allowed_subjects, external_inventory):
+		return null
+	return candidate
+
+
+static func _valid_restore_motion_rules(value: Dictionary) -> bool:
+	# These are the motion fields used by the restored local simulator. The
+	# complete, per-session rule bundle is a separate migration work package.
+	var clock: Variant = value.get("clock")
+	var motion: Variant = value.get("motion")
+	var recovery: Variant = value.get("recovery")
+	if not clock is Dictionary or not motion is Dictionary or not recovery is Dictionary:
+		return false
+	if not SimInventory._valid_count(clock.get("fixed_step_ms"), false) or not SimInventory._valid_count(recovery.get("stamina_per_second")):
+		return false
+	var speed: Variant = motion.get("speed")
+	return (speed is int or speed is float) and is_finite(float(speed)) and float(speed) > 0.0
+
+
 func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary, locations: Dictionary, opening_ms: int = 0) -> bool:
 	errors.clear()
 	if not _valid_config(settings) or content == null or not SimInventory._valid_count(opening_ms) or not SimStockInformation.valid_policy(content.stock_information_policy) or not SimPersonalForaging.matches(settings, content.personal_foraging):

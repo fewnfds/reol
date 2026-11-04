@@ -101,6 +101,18 @@ func test_content_bundle() -> void:
 	load("res://tests/runtime/test_content_bundle.gd").new().run(self)
 
 
+func test_world_assembly_inputs() -> void:
+	load("res://tests/sim/test_world_assembly_inputs.gd").new().run(self)
+
+
+func test_village_restore() -> void:
+	load("res://tests/sim/test_village_restore.gd").new().run(self)
+
+
+func test_world_restore_factory() -> void:
+	load("res://tests/runtime/test_world_restore_factory.gd").new().run(self)
+
+
 func test_weapon_items() -> void:
 	load("res://tests/sim/test_weapon_items.gd").new().run(self)
 

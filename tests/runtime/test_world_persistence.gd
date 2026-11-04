@@ -186,6 +186,7 @@ func _test_joint_exploration_and_atomic_rejection(runner: Object) -> void:
 	bad = snapshot.duplicate(true)
 	bad.schema_version = 1
 	bad.erase("content_bundle")
+	bad.erase("assembly")
 	invalids.append(bad)
 	bad = snapshot.duplicate(true)
 	bad.world.exploration = FogOfWar.empty_exploration()
@@ -200,6 +201,7 @@ func _test_joint_exploration_and_atomic_rejection(runner: Object) -> void:
 	bad = snapshot.duplicate(true)
 	bad.schema_version = 2
 	bad.erase("content_bundle")
+	bad.erase("assembly")
 	invalids.append(bad)
 	bad = snapshot.duplicate(true)
 	bad.continuity.world.erase("artifacts")
@@ -207,6 +209,7 @@ func _test_joint_exploration_and_atomic_rejection(runner: Object) -> void:
 	bad = snapshot.duplicate(true)
 	bad.schema_version = 3
 	bad.erase("content_bundle")
+	bad.erase("assembly")
 	invalids.append(bad)
 	for invalid: Dictionary in invalids:
 		var before: String = JSON.stringify(WorldSessionSnapshot.capture(runtime), "", true, true)

@@ -1017,16 +1017,10 @@ func restore(data: Dictionary) -> bool:
 	var subject_scope: Dictionary = allowed_subjects if services != null else {}
 	for region_id: String in _sorted_keys(regions):
 		var saved: Dictionary = data.regions[region_id]
-		var cells: Dictionary = {}
 		if not saved.get("actors") is Dictionary or not saved.get("places") is Dictionary or not saved.get("config") is Dictionary:
 			return false
 		if not SimLandResources.opening_matches(_base_workplace_config(saved.config), _base_workplace_config(opening_config(region_id))):
 			return false
-		for actor_id: Variant in saved.actors:
-			if not saved.actors[actor_id] is Dictionary or not saved.actors[actor_id].get("cell") is Array:
-				return false
-			cells[actor_id] = saved.actors[actor_id].cell
-		var simulation := VillageSimulation.new()
 		var inventory_scope: Dictionary = SimConstruction.Schema.inventory_scope(data.construction, region_id, _content.construction)
 		var production_scope: Dictionary = SimPersonalProduction.Schema.inventory_scope(data.personal_production, region_id, _content.personal_production)
 		var health_scope: Dictionary = SimHealth.Schema.inventory_scope(data.health, region_id, _content.health)
@@ -1040,13 +1034,18 @@ func restore(data: Dictionary) -> bool:
 		inventory_scope["operations"].merge(exchange_scope.operations)
 		inventory_scope["service_custody"] = services != null
 		inventory_scope["rainfall_limit"] = SimWeather.rain_budget(data.weather, _content.weather, region_id, int(data.elapsed_ms))
-		if not simulation.initialize(_content, saved.config, cells, saved.places) or not simulation.restore(saved, subject_scope, inventory_scope):
+		var simulation: VillageSimulation = VillageSimulation.from_snapshot(_content, saved, subject_scope, inventory_scope)
+		if simulation == null:
 			return false
 		if simulation.elapsed_ms != int(data.elapsed_ms):
 			return false
 		# Navigation is an adapter, never serialized. Keep the caller's provider.
 		simulation.set_navigation(regions[region_id]._navigation, regions[region_id]._step_validator)
 		next_regions[region_id] = simulation
+	# A restore-only factory has no initialized opening instances to validate.
+	# Check actual restored owners, route endpoints and clocks before any commit.
+	if not _valid_settings(settings, next_regions):
+		return false
 	var next_transit := SimInventory.new()
 	if not next_transit.restore(data.in_transit) or not _valid_cross_state(data, next_regions, next_transit):
 		return false
@@ -1251,9 +1250,12 @@ func restore(data: Dictionary) -> bool:
 	spirit_sources = next_sources
 	# Only after all candidate validation succeeds may runtime callbacks return.
 	if map_data != null:
-		next_large._incoming = large_bodies._incoming
-		next_construction.set_incoming_occupancy(construction._incoming)
-		next_avian.set_landing_check(avian_life._landing)
+		if large_bodies != null:
+			next_large._incoming = large_bodies._incoming
+		if construction != null:
+			next_construction.set_incoming_occupancy(construction._incoming)
+		if avian_life != null:
+			next_avian.set_landing_check(avian_life._landing)
 	spirit_sources.bind_world(self)
 	environment = next_environment
 	environment.bind_world(self)

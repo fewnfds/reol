@@ -137,6 +137,7 @@ func _legacy_sources(runner: Object) -> void:
 	var legacy: Dictionary = WorldSessionSnapshot.capture(runtime)
 	legacy.schema_version = 28
 	legacy.erase("content_bundle")
+	legacy.erase("assembly")
 	legacy.continuity.world.version = 25
 	legacy.continuity.world.erase("health")
 	# This temporary pre-health format also predates the later environment

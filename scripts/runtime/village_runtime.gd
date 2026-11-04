@@ -178,12 +178,12 @@ func adopt_content(content: ReolContentDB) -> void:
 	_content = content
 
 
-func valid_snapshot(snapshot: Dictionary, candidate_map: WorldMapData = null) -> bool:
-	return _valid_snapshot(snapshot, candidate_map)
+func valid_snapshot(snapshot: Dictionary, candidate_map: WorldMapData = null, opening: Variant = null) -> bool:
+	return _valid_snapshot(snapshot, candidate_map, opening)
 
 
-func matches_snapshot_world(candidate: VillageSimulation, candidate_map: WorldMapData = null) -> bool:
-	return _matches_world(candidate, candidate_map)
+func matches_snapshot_world(candidate: VillageSimulation, candidate_map: WorldMapData = null, opening: Variant = null) -> bool:
+	return _matches_world(candidate, candidate_map, opening)
 
 
 func cancel_player_action() -> void:
@@ -205,6 +205,7 @@ func save_game(path: String = SAVE_PATH) -> Error:
 	var snapshot: Dictionary = _snapshot_json_value({
 		"schema_version": SAVE_VERSION,
 		"content_bundle": _content.content_bundle(),
+		"assembly": ReolWorldAssemblyInputs.standalone(_config),
 		"avatar_subject": "subject:player",
 		"world_seed": ReolWorld.WORLD_SEED,
 		"world": SessionSaveSchema.capture_world(_fog, _player.cell),
@@ -241,13 +242,11 @@ func load_game(path: String = SAVE_PATH) -> Error:
 	var candidate_map: WorldMapData = _world.map_data().independent_copy()
 	if not candidate_map.configure_nature(content.natural_environment):
 		return _load_failed("近况里的自然地表定义不正确。")
-	if not _valid_snapshot(snapshot, candidate_map):
+	if not _valid_snapshot(snapshot, candidate_map, snapshot.assembly.region_configs.home):
 		return _load_failed("这份近况不适用于当前山门。")
 	# Validate into a separate simulation so failed loads leave the live state intact.
-	var restored := VillageSimulation.new()
-	if not restored.initialize(content, _config, _actor_cells(), _places):
-		return _load_failed("无法准备读取近况。")
-	if not restored.restore(snapshot["simulation"]) or not _matches_world(restored, candidate_map):
+	var restored: VillageSimulation = VillageSimulation.from_snapshot(content, snapshot["simulation"])
+	if restored == null or not _matches_world(restored, candidate_map, snapshot.assembly.region_configs.home):
 		return _load_failed("近况里的行动或账目不完整。")
 	var saved_player: Dictionary = snapshot["player"]
 	var player_cell: Vector2i = _decode_cell(saved_player["cell"])
@@ -257,6 +256,7 @@ func load_game(path: String = SAVE_PATH) -> Error:
 		return _load_failed("近况里的时间记录不正确。")
 	simulation = restored
 	adopt_content(content)
+	_config = restored.config.duplicate(true)
 	_world.bind_map_data(candidate_map)
 	simulation.set_navigation(_find_path, _world.can_step)
 	_places = simulation.places.duplicate(true)
@@ -684,7 +684,7 @@ func _load_failed(message: String) -> Error:
 	return ERR_INVALID_DATA
 
 
-func _valid_snapshot(snapshot: Dictionary, candidate_map: WorldMapData = null) -> bool:
+func _valid_snapshot(snapshot: Dictionary, candidate_map: WorldMapData = null, opening: Variant = null) -> bool:
 	if not SessionSaveSchema.is_valid_world(snapshot):
 		return false
 	if not snapshot.has("continuity") and snapshot.avatar_subject != "subject:player":
@@ -694,7 +694,8 @@ func _valid_snapshot(snapshot: Dictionary, candidate_map: WorldMapData = null) -
 	if not snapshot.get("simulation") is Dictionary or not snapshot.get("clock") is Dictionary:
 		return false
 	var saved_simulation: Dictionary = snapshot["simulation"]
-	if not saved_simulation.get("config") is Dictionary or not SimLandResources.opening_matches(RegionalSimulation._base_workplace_config(saved_simulation.config), RegionalSimulation._base_workplace_config(_config)):
+	var expected: Dictionary = _config if opening == null else opening
+	if not saved_simulation.get("config") is Dictionary or not SimLandResources.opening_matches(RegionalSimulation._base_workplace_config(saved_simulation.config), RegionalSimulation._base_workplace_config(expected)):
 		return false
 	if saved_simulation.get("controlled_actor") != "player":
 		return false
@@ -723,15 +724,27 @@ func _valid_snapshot(snapshot: Dictionary, candidate_map: WorldMapData = null) -
 	return terrain.terrain_is_walkable(cell) and TileGrid.world_to_cell(position_value) == cell
 
 
-func _matches_world(candidate: VillageSimulation, candidate_map: WorldMapData = null) -> bool:
+func _matches_world(candidate: VillageSimulation, candidate_map: WorldMapData = null, opening: Variant = null) -> bool:
 	var terrain: WorldMapData = candidate_map if candidate_map != null else _world.map_data()
-	var expected_actors: Dictionary = _actor_cells()
-	if candidate.actors.size() != expected_actors.size() or candidate.places.size() != _places.size():
+	var expected_actors: Dictionary = {}
+	var expected_places: Array = []
+	if opening == null:
+		# Legacy adapter query: compare against the currently bound scene. Saved
+		# candidates always pass an explicit archived opening below.
+		for id: String in _actor_cells():
+			expected_actors[id] = id
+		expected_places = _places.keys()
+	else:
+		for id: String in opening.actor_profiles:
+			expected_actors[id] = opening.actor_profiles[id].get("definition_id", id)
+		for definition: Dictionary in opening.place_defs:
+			expected_places.append(str(definition.id))
+	if candidate.actors.size() != expected_actors.size() or candidate.places.size() != expected_places.size():
 		return false
 	for id: String in expected_actors:
-		if not candidate.actors.has(id) or candidate.actors[id]["definition_id"] != id:
+		if not candidate.actors.has(id) or candidate.actors[id]["definition_id"] != expected_actors[id]:
 			return false
-	for id: String in _places:
+	for id: String in expected_places:
 		if not candidate.places.has(id) or not candidate.places[id].get("label") is String:
 			return false
 	for actor: Dictionary in candidate.actors.values():

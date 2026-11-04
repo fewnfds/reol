@@ -56,6 +56,23 @@ func home_runtime() -> VillageRuntime:
 	return _home
 
 
+static func valid_runtime_settings(value: Dictionary) -> bool:
+	# These are view/navigation policy inputs; RegionalSimulation separately
+	# validates the world's regions, routes, owners and common clocks.
+	if not SnapshotValues.valid_integer(value.get("event_budget"), 1) or not value.get("runtime") is Dictionary:
+		return false
+	var policy: Dictionary = value.runtime
+	for field: String in ["layout_radius", "layout_budget", "enter_radius", "exit_radius"]:
+		if not SnapshotValues.valid_integer(policy.get(field), 1):
+			return false
+	if int(policy.exit_radius) < int(policy.enter_radius) or not policy.get("remote_names") is Dictionary or not SnapshotValues.valid_integer(policy.get("help_offer_coins"), 0):
+		return false
+	for key: Variant in policy.remote_names:
+		if not key is String or not policy.remote_names[key] is String:
+			return false
+	return true
+
+
 func setup(home: VillageRuntime, opening_source_loan: bool = false, opening_source_care: bool = false, opening_field: bool = false) -> bool:
 	if home == null or home.simulation == null or world_sim != null:
 		return false
@@ -1144,6 +1161,11 @@ func load_game(path: String) -> Error:
 	# All validation is complete before changing any live world or clock state.
 	world_sim = staged.world
 	_home.adopt_content(staged.content)
+	settings = world_sim.settings.duplicate(true)
+	centers = {}
+	for id: String in snapshot.assembly.centers:
+		centers[id] = _cell(snapshot.assembly.centers[id])
+	_home._config = world_sim.regions.home.config.duplicate(true)
 	avatar_subject = str(snapshot.avatar_subject)
 	_opening_selection_available = false
 	_bind_navigation()

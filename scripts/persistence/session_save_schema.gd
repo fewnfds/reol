@@ -2,7 +2,7 @@ class_name SessionSaveSchema
 extends RefCounted
 ## Explicit migrations at the session boundary. No file I/O or live mutations.
 
-const VERSION: int = 43
+const VERSION: int = 44
 
 
 static func capture_world(fog: FogOfWar, focus: Vector2i) -> Dictionary:
@@ -18,9 +18,9 @@ static func upgrade(source: Dictionary, _content: ReolContentDB = null) -> Dicti
 	# A pre-bundle archive cannot prove which external templates it originally
 	# used. All legacy migrations use the recorded v42 compatibility baseline.
 	# Modern archives must be complete; no missing-pack fallback is permitted.
-	if source.get("schema_version") == VERSION:
+	if source.get("schema_version") == VERSION or source.get("schema_version") == 43:
 		return _upgrade(source, null)
-	if source.has("content_bundle"):
+	if source.has("content_bundle") or source.has("assembly"):
 		return {}
 	var content: ReolContentDB = ReolContentDB.legacy_v42()
 	return {} if content == null else _upgrade(source, content)
@@ -38,6 +38,26 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 			if not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION:
 				return {}
 		return source if is_valid_world(source) else {}
+	if version == 43:
+		# The saved bundle is already authoritative. Construct only from the
+		# configurations, settings and centers recorded in this archive.
+		if not _valid_world_fields(source, 43) or source.has("assembly"):
+			return {}
+		var assembly: Dictionary = {}
+		if source.has("continuity"):
+			if not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION:
+				return {}
+			assembly = ReolWorldAssemblyInputs.from_saved(source.continuity.world, source.continuity.get("centers"))
+		else:
+			if not source.get("simulation") is Dictionary:
+				return {}
+			assembly = ReolWorldAssemblyInputs.standalone(source.simulation.get("config"))
+		if assembly.is_empty():
+			return {}
+		var updated: Dictionary = source.duplicate(true)
+		updated["assembly"] = assembly
+		updated.schema_version = VERSION
+		return _upgrade(updated, null)
 	if version == 42:
 		if not _valid_world_fields(source, 42) or source.has("content_bundle") or content == null:
 			return {}
@@ -45,7 +65,7 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 			return {}
 		var updated: Dictionary = source.duplicate(true)
 		updated["content_bundle"] = content.content_bundle()
-		updated.schema_version = VERSION
+		updated.schema_version = 43
 		return _upgrade(updated, content)
 	if version == 41:
 		if not _valid_world_fields(source, 41):
@@ -900,6 +920,10 @@ static func _upgrade_rain_source(sim: Variant) -> bool:
 
 static func _valid_world_fields(snapshot: Dictionary, expected_version: int) -> bool:
 	if snapshot.get("schema_version") != expected_version or snapshot.get("world_seed") != ReolWorld.WORLD_SEED:
+		return false
+	if expected_version <= 43 and snapshot.has("assembly"):
+		return false
+	if expected_version >= 44 and not ReolWorldAssemblyInputs.is_valid(snapshot.get("assembly"), snapshot.has("continuity")):
 		return false
 	if expected_version >= 43 and not ReolContentBundle.is_valid(snapshot.get("content_bundle"), ReolContentDB.DOCUMENT_PATHS):
 		return false

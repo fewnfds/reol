@@ -1,8 +1,8 @@
 # Reol 世界运行与创作工具总计划
 
-状态：世界引擎开发已授权并启动，用户现已暂停Goal；[执行记录](world_engine_execution.md)是工作包与停点的权威入口。新地图先采用平面地块，高差/坡道/三维暂缓，原高度样本和旧档保留。
+世界引擎开发已授权并启动；当前授权只看[HANDOFF](../HANDOFF.md)，工作包与停点只看[执行记录](world_engine_execution.md)。新地图先采用平面地块，高差/坡道/三维暂缓，原高度样本和旧档保留。
 
-本文定义总架构与目标，A0a已有未验收工作，其余工作状态以[执行记录](world_engine_execution.md)为准；当前代码见[ARCHITECTURE](../ARCHITECTURE.md)，已验行为与限制见[FEATURES](../FEATURES.md)，构建证据见[BASELINE](../BASELINE.md)。
+本文定义总架构与目标，实施状态以[执行记录](world_engine_execution.md)为准；当前代码见[ARCHITECTURE](../ARCHITECTURE.md)，已验行为与限制见[FEATURES](../FEATURES.md)，构建证据见[BASELINE](../BASELINE.md)。
 
 本计划作为当前世界引擎工作的总入口；[环境与空间分项W0–W5](world_engine_foundation.md)继续约束具体传播、守恒、迁移与性能，不代表完整实体、背包或动作框架已完成。[研究与理论依据](../../design/research/world_engine_references.md)区分公开工程经验、数值方法与项目自行定义的仙侠规则。
 
@@ -100,9 +100,9 @@ A/B是阶段汇总，拆成独立工作包：A0先做版本化内容/开局与�
 
 ### A0必须先解除的两处现有耦合
 
-旧基线的人身体力恢复在`village_simulation.gd`按`definition_id`读取当前`_content`上限，旧档恢复也以当前内容校验；更改同ID定义可能影响旧世界。A0a未验收工作正在绑定版本化内容包，涉及37份ContentDB输入，但未涵盖全部直接读盘规则/开局，公开运行对象仍可修改。目标是会话绑定实际依赖的数据定义快照、开局基线与版本/摘要；预览或新世界可选新版，原会话继续原包。规则代码版本另行兼容/迁移，不假装有数据快照就能运行任意历史代码。无版本旧档只按已知历史基线迁移，并说明不能证明所有更老档的真实原始数据。
+旧基线的人身体力恢复在`village_simulation.gd`按`definition_id`读取当前`_content`上限，旧档恢复也以当前内容校验；更改同ID定义可能影响旧世界。A0a绑定37份ContentDB输入，A0b继续绑定区域装配并拆开新局发行与恢复；实际证据见BASELINE。仍须覆盖其余直接读盘规则、可编辑开局和地图输入，公开运行对象也仍可修改。目标是会话绑定实际依赖的数据定义快照、开局基线与版本/摘要；预览或新世界可选新版，原会话继续原包。规则代码版本另行兼容/迁移，不假装有数据快照就能运行任意历史代码。无版本旧档只按已知历史基线迁移，并说明不能证明所有更老档的真实原始数据。
 
-当前`WorldSessionSnapshot.stage`虽不先改活世界，但仍借当前adapter的区域、人员、地点和opening_config建候选，并限制home/river与centers。它是原双聚落恢复接缝，**尚非任意创作世界工厂**。A0需让候选根据自己的版本化内容/开局/地图基线构造和联合校验，活场景只在接受后绑定；新工厂逐步接回原正常读档，保留双地旧档迁移。
+原`WorldSessionSnapshot.stage`借活adapter的区域、人员、地点和opening_config建候选；A0b的恢复工厂改用存档装配输入，且不重跑开局库存/账目发行。当前运行呈现仍限home/river，底图仍是固定生成器，**尚非任意创作世界工厂**。A0还需提供可编辑开局、地图工厂与动态视图装配；新接缝逐步接回正常游戏，保留双地旧档迁移。
 
 A0验收包含：相同定义ID修改容量/材质前后的两个内容包，旧实例和旧档保持原行为，新世界使用新版；两份不同布局/人员的候选互不依赖，分别启动及来回存读，失败不更改活世界。相关现状依据见[人物运行代码](../../scripts/sim/village_simulation.gd)、[联合候选](../../scripts/runtime/world_session_snapshot.gd)。
 

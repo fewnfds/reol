@@ -42,6 +42,7 @@ func run(runner: Object) -> void:
 		# The root now explicitly records the frozen v42 definitions. Remove only
 		# that new envelope field when comparing all original v41 facts.
 		projected.erase("content_bundle")
+		projected.erase("assembly")
 		projected.continuity.world.erase("private_exchange")
 		projected.schema_version = source.schema_version
 		projected.continuity.world.version = source.continuity.world.version

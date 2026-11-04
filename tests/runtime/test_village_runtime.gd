@@ -238,7 +238,11 @@ func _make_fixture() -> Dictionary:
 	runtime._world = world
 	runtime._player = player
 	runtime._pawns["a_he"] = pawn
-	runtime._config = {"navigation_radius": 24, "navigation_budget": 4096}
+	# Root v44 records a real, semantically valid opening. The geometry below
+	# stays deliberately small to exercise adapter-only spatial checks.
+	runtime._config = JSON.parse_string(FileAccess.get_file_as_string(VillageRuntime.CONFIG_PATH))
+	runtime._config.navigation_radius = 24
+	runtime._config.navigation_budget = 4096
 	runtime._places = {"kitchen": {"label": "灶房", "cell": [13, 12]}}
 	return {"world": world, "player": player, "pawn": pawn, "runtime": runtime}
 
@@ -250,6 +254,7 @@ func _snapshot(runtime: VillageRuntime) -> Dictionary:
 	return {
 		"schema_version": VillageRuntime.SAVE_VERSION,
 		"content_bundle": content.content_bundle(),
+		"assembly": ReolWorldAssemblyInputs.standalone(runtime._config),
 		"avatar_subject": "subject:player",
 		"world_seed": ReolWorld.WORLD_SEED,
 		"world": SessionSaveSchema.capture_world(null, Vector2i(10, 10)),

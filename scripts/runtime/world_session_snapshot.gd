@@ -14,6 +14,7 @@ static func capture(adapter: Node) -> Dictionary:
 	return SnapshotValues.for_save({
 		"schema_version": SessionSaveSchema.VERSION, "world_seed": ReolWorld.WORLD_SEED,
 		"content_bundle": context.content.content_bundle(),
+		"assembly": ReolWorldAssemblyInputs.from_world(adapter.world_sim, _encoded_centers(adapter.centers)),
 		"avatar_subject": adapter.avatar_subject,
 		"world": SessionSaveSchema.capture_world(context.fog, adapter.controlled_cell()),
 		"simulation": home.simulation.to_dict(), "clock": GameClock.to_dict(),
@@ -35,57 +36,34 @@ static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
 	var content := ReolContentDB.new()
 	if not content.load_bundle(snapshot.content_bundle):
 		return {}
+	var assembly: Dictionary = snapshot.assembly
+	# The current view supports the historical two-region scenario. This is an
+	# explicit adapter boundary, rather than borrowing the active world's roster.
+	if not assembly.region_configs.has("home") or not assembly.region_configs.has("river") or assembly.region_configs.size() != 2 or not WorldContinuityRuntime.valid_runtime_settings(assembly.settings):
+		return {}
 	# Build the independent map before even the first saved-position check.
 	# The factory preserves explicit test maps; no query uses the live view.
 	var candidate_map: WorldMapData = adapter.world_sim.map_data.independent_copy()
 	if not candidate_map.configure_nature(content.natural_environment):
 		return {}
-	if not home_runtime.valid_snapshot(snapshot, candidate_map):
+	if not home_runtime.valid_snapshot(snapshot, candidate_map, assembly.region_configs.home):
 		return {}
 	if int(snapshot.clock.total_minutes) - int(snapshot.clock.tick_index) != int(content.climate.calendar.start_minutes):
 		return {}
 	var extra: Dictionary = snapshot.continuity
 	if not extra.get("world") is Dictionary or not extra.get("centers") is Dictionary or not extra.get("player_journey") is Dictionary or not extra.get("known_lines") is Array:
 		return {}
-	if SnapshotValues.normalized(extra.centers) != SnapshotValues.normalized(_encoded_centers(adapter.centers)):
+	if SnapshotValues.normalized(extra.centers) != SnapshotValues.normalized(assembly.centers):
 		return {}
 	for line: Variant in extra.known_lines:
 		if not line is String:
 			return {}
-	# Initialize the candidate using independent baseline instances, since live
-	# far regions may intentionally be behind the committed world clock.
-	var candidates: Dictionary = {}
-	for id: String in adapter.world_sim.regions:
-		var source: VillageSimulation = adapter.world_sim.regions[id]
-		var cells: Dictionary = {}
-		for actor_id: String in source.actors:
-			cells[actor_id] = source.actors[actor_id].cell.duplicate()
-		var candidate := VillageSimulation.new()
-		# Preserve the immutable content baseline even after loading a world
-		# from before natural sources existed. Only the optional room policy
-		# follows its matching live layout; restore supplies the saved facts.
-		var configuration: Dictionary = RegionalSimulation._base_workplace_config(adapter.world_sim.opening_config(id))
-		if source.config.has("workplaces_version"):
-			configuration["workplaces_version"] = source.config.workplaces_version
-			configuration.actions["workspace_return"] = source.config.actions.workspace_return.duplicate(true)
-		if not candidate.initialize(content, configuration, cells, source.places):
-			return {}
-		# Keep every baseline owner at its genuine opening time. Moving only
-		# the village clock would leave newly initialized source processes at
-		# zero, and could price their first cache against an invented history.
-		# The full independent restore below supplies all real saved clocks.
-		candidates[id] = candidate
-	var restored := RegionalSimulation.new()
-	if not restored.initialize(adapter.settings, candidates, content):
-		return {}
-	restored.bind_map_data(candidate_map)
-	if adapter.world_sim.services != null and not restored.configure_services(content.settlement_services):
-		return {}
-	if not restored.restore(extra.world):
+	var restored: RegionalSimulation = WorldRestoreFactory.restore(content, extra.world, assembly, candidate_map)
+	if restored == null:
 		return {}
 	# Site destinations belong to this candidate's own received/observed
 	# knowledge. The live session may have learnt a place after this archive.
-	if not _valid_journey(adapter, extra.player_journey, _cell(snapshot.player.cell), int(snapshot.clock.elapsed_ms), candidate_map, restored):
+	if not _valid_journey(assembly.centers, extra.player_journey, _cell(snapshot.player.cell), int(snapshot.clock.elapsed_ms), candidate_map, restored):
 		return {}
 	if not restored.construction.space_valid():
 		return {}
@@ -131,7 +109,7 @@ static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
 	var home: VillageSimulation = restored.regions.home
 	if restored.elapsed_ms != int(snapshot.clock.elapsed_ms) or SnapshotValues.normalized(home.to_dict()) != SnapshotValues.normalized(snapshot.simulation):
 		return {}
-	if not home_runtime.matches_snapshot_world(home, candidate_map) or not _valid_remote_terrain(adapter, restored.regions.river, candidate_map):
+	if not home_runtime.matches_snapshot_world(home, candidate_map, assembly.region_configs.home) or not _valid_remote_terrain(restored.regions.river, candidate_map, _cell(assembly.centers.river)):
 		return {}
 	for id: String in restored.avian_life.birds:
 		if int(restored.avian_life.birds[id].altitude) == 0 and not candidate_map.terrain_is_walkable(restored.avian_life.body_cell(id)):
@@ -206,7 +184,7 @@ static func _valid_avatar(subject: String, world: RegionalSimulation, snapshot: 
 	return extra.player_journey.is_empty() and snapshot.player.motion.action.is_empty() and Vector2(float(snapshot.player.motion.velocity[0]), float(snapshot.player.motion.velocity[1])).is_zero_approx()
 
 
-static func _valid_journey(adapter: Node, journey: Dictionary, start: Vector2i, now: int, terrain: WorldMapData, candidate: RegionalSimulation = null) -> bool:
+static func _valid_journey(centers: Dictionary, journey: Dictionary, start: Vector2i, now: int, terrain: WorldMapData, candidate: RegionalSimulation = null) -> bool:
 	if journey.is_empty():
 		return true
 	if not journey.get("destination") is String or not journey.get("path") is Array:
@@ -219,7 +197,7 @@ static func _valid_journey(adapter: Node, journey: Dictionary, start: Vector2i, 
 		site = candidate.field_opportunities.destination("player", destination.trim_prefix("site:"))
 		if site.is_empty():
 			return false
-	elif not adapter.centers.has(destination):
+	elif not centers.has(destination):
 		return false
 	if not SnapshotValues.valid_integer(journey.get("due_ms"), 1) or not SnapshotValues.valid_integer(journey.get("segment_started_ms"), 0) or not SnapshotValues.number_pair(journey.get("segment_from")) or int(journey.due_ms) <= now or int(journey.segment_started_ms) > now:
 		return false
@@ -236,21 +214,10 @@ static func _valid_journey(adapter: Node, journey: Dictionary, start: Vector2i, 
 		if not SnapshotValues.number_pair(journey.target, true):
 			return false
 		return current == _cell(journey.target) and terrain.terrain_is_walkable(current)
-	return current == _cell(site.cell) and terrain.terrain_is_walkable(current) if not site.is_empty() else current == adapter.centers[destination]
+	return current == _cell(site.cell) and terrain.terrain_is_walkable(current) if not site.is_empty() else current == _cell(centers[destination])
 
 
-static func _valid_remote_terrain(adapter: Node, sim: VillageSimulation, terrain: WorldMapData) -> bool:
-	var expected: VillageSimulation = adapter.world_sim.regions.river
-	if sim.actors.size() != expected.actors.size() or sim.places.size() != expected.places.size():
-		return false
-	for id: String in expected.actors:
-		if not sim.actors.has(id) or sim.actors[id].definition_id != expected.actors[id].definition_id:
-			return false
-	for id: String in expected.places:
-		# Saved places own their geometry. A new opening may choose a different
-		# office footprint; pricing an old archive against it rejects valid saves.
-		if not sim.places.has(id) or not sim.places[id].get("label") is String:
-			return false
+static func _valid_remote_terrain(sim: VillageSimulation, terrain: WorldMapData, center: Vector2i) -> bool:
 	for actor: Dictionary in sim.actors.values():
 		var current: Vector2i = _cell(actor.cell)
 		if not terrain.terrain_is_walkable(current):
@@ -265,7 +232,7 @@ static func _valid_remote_terrain(adapter: Node, sim: VillageSimulation, terrain
 		if not action.is_empty() and current != _cell(sim.places[action.destination].cell):
 			return false
 	for place: Dictionary in sim.places.values():
-		if not terrain.terrain_is_walkable(_cell(place.cell)) or _cell(place.cell).distance_to(adapter.centers.river) > float(sim.config.navigation_radius):
+		if not terrain.terrain_is_walkable(_cell(place.cell)) or _cell(place.cell).distance_to(center) > float(sim.config.navigation_radius):
 			return false
 	if not SimWorkplaces.valid_places(sim.places, sim.config, terrain):
 		return false
