@@ -14,7 +14,7 @@
 | 备用MCP | Coding-Solo0.1.1默认禁用 | 保留包装器/来源；需要时`python tools/setup_codex.py --enable-backup-godot`，不用时关闭 |
 | 无关文档MCP | LangChain仅Reol停用 | 用户级连接保留，项目只继承后设置`enabled=false`，其他项目不变 |
 | 技能 | 37项原能力文件保留 | 31项上游只缩简介，6项自有入口修正并分层；不再叠GodotPrompter或额外框架 |
-| 验证 | 原项目CLI/runner、Python工具测试、GitHub CI、实际运行/截图 | 不引入GUT/GdUnit4或全仓自动格式化，不改变游戏规则来迁就工具 |
+| 验证 | 原项目CLI/runner、Python工具测试、GitHub CI、实际运行/截图 | 不引入GUT/GdUnit4或全仓自动格式化，不改变游戏规则来迁就工具；提交审查采用[原生Codex工作流](CODE-REVIEW-WORKFLOW.md) |
 
 未加入NPGameDev、Swallowtail、FirLab、Serena或商业插件：当前桥恢复并通过所需工作流，不增加重复维护层。它们仍可在出现明确能力缺口时按选型报告对照。
 
