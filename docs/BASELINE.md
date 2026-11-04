@@ -289,3 +289,5 @@ C1a-3性能代码提交`9438291bddd0b7d8b676a9b90e1340a2f0cee51e`，一次原生
 覆盖实际native预约/取货/连续搬运/托管中断/独立JSON恢复后续送同一完整未来、双地同名仓库、陈旧远区/目标积压、不改原账本/输入与返回值隔离；原工程材料取料后仍归project容器、随原身体、中断落material_cell；真实鸟域投食求药/衔药飞行及独立恢复，原库存和高度保持。首次新增测试直接用Dictionary比较JSON托管数值int/float导致一条失败，已统一完整JSON规范值比较，产品账本未放宽。新runner原先引用未注册函数导致临时脚本解析失败，已改动态指定测试，正式runner同步注册。普通画面和玩家功能未改，纯规则定向不代替大世界或视觉性能。
 
 本包doctor/导入通过（最终导入控制台`logs/storage-query-final-import-console.log`）。提交准备时核前序e62dee5的CI41869387451为completed/cancelled，非通过；一次发现前序完整SHA `2102ce8a23aac2222911ecad9e0f8c0945d4ca56` 的CI `41872018227`仍in_progress，登记留到下一真实提交，不等待/轮询。
+
+A1b-0已提交`e5fd27e802137fb997ecc198fa8247e968397764`。主原生Sol/custom审查错误地递归启动另一审查后被主动中断，原日志`logs/reviews/<SHA>.explicit-sol.log`不算完成。恢复同一主审查会话`01a1a784-9f11-79e2-8bd1-93a71095e0c8`，显式固定Sol/custom，禁止再派审查或运行验证；114.306秒后正常退出、无可操作发现（`logs/reviews/<SHA>.resume-sol.log`及`.resume-final.txt`）。未修改代码或运行引擎/测试/CI。AGENTS及审查流程已补防递归职责；最终SHA完整回归待CI。证据补包提交检查点核前序2102ce8同run仍in_progress，不等待。
