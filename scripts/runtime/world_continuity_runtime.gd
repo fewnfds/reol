@@ -443,7 +443,7 @@ func _bind_navigation() -> void:
 
 
 func _incoming_occupancy(cell: Vector2i) -> bool:
-	return not player_journey.get("path", []).is_empty() and _cell(player_journey.path[0]) == cell
+	return world_sim != null and SimMotionClearance.segment_reserves(world_sim.regions.home.actors.player, player_journey, cell)
 
 
 func _physical_obstacle(cell: Vector2i) -> bool:

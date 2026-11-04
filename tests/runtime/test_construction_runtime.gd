@@ -22,7 +22,10 @@ func run(runner: Object) -> void:
 	if world.construction.sites.is_empty():
 		_fixtures._dispose(fixture)
 		return
-	var target: Vector2i = world.construction.site_bounds().position + Vector2i(1, 1)
+	# Keep this ordinary build/recovery scenario off the fixed courier road.
+	# Its former y=34 cell belongs to the actual encoded inter-region path.
+	var target: Vector2i = world.construction.site_bounds().position + Vector2i(1, 2)
+	runner.assert_true(not SimMotionClearance.fixed_road_reserves(world, target), "ordinary wall acceptance uses a real cell outside the protected courier road")
 	fixture.player.spawn_at(target)
 	adapter.prepare_player_command()
 	var old: Dictionary = WorldSessionSnapshot.capture(adapter)

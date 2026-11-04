@@ -242,7 +242,9 @@ func duty_for(actor: String) -> String:
 		var stock: Dictionary = sim.stock_understanding(actor, str(definitions.site.source), str(rule.item))
 		var near: bool = SimRouteTravel.point(body).distance_to(TileGrid.cell_to_world(SimRouteTravel.cell(project.cell))) <= float(definitions.site.notice_cells) * TileGrid.TILE_SIZE
 		if project.state == "blueprint" and not _project_busy(id) and near and (sim.inventory.quantity(id, str(rule.item)) > 0 or bool(stock.known) and float(stock.amount) >= int(rule.amount)):
-			if int(project.work_ms) < int(rule.work_ms) or not occupied(SimRouteTravel.cell(project.cell)):
+			var cell: Vector2i = SimRouteTravel.cell(project.cell)
+			var newly_solid: bool = rule.kind in ["wall", "door"]
+			if int(project.work_ms) < int(rule.work_ms) or not occupied(cell, newly_solid) and (not newly_solid or not SimMotionClearance.fixed_road_reserves(world, cell)):
 				return id
 	return ""
 
@@ -297,8 +299,14 @@ func _complete(job: Dictionary) -> void:
 	if job.kind == "build" and rule.kind == "roof" and not roof_supported(cell):
 		_release(job, "屋面缺少同高度近处墙柱支撑；工时与材料保留，补好支撑再续。")
 		return
-	if not terrain_open(cell) or (rule.kind != "roof" and (job.kind == "build" or job.kind == "close") and occupied(cell)):
+	var newly_solid: bool = job.kind == "close" or job.kind == "build" and rule.kind in ["wall", "door"]
+	if not terrain_open(cell) or (rule.kind != "roof" and (job.kind == "build" or job.kind == "close") and occupied(cell, newly_solid)):
 		_release(job, "占地尚有人、余料或地面不适用，清场后再续。")
+		return
+	if newly_solid and SimMotionClearance.fixed_road_reserves(world, cell):
+		# Fixed couriers do not yet replan against structures, so keep their road
+		# clear until that consumer is integrated. Work/materials stay in place.
+		_release(job, "此处属运粮通道；工时与材料保留，调整通道后再续。")
 		return
 	match str(job.kind):
 		"build":
@@ -415,10 +423,10 @@ func protected_cell(cell: Vector2i) -> bool:
 	return false
 
 
-func occupied(cell: Vector2i) -> bool:
+func occupied(cell: Vector2i, include_motion: bool = true) -> bool:
 	if world.large_bodies != null and world.large_bodies.blocked(cell):
 		return true
-	if _incoming.is_valid() and bool(_incoming.call(cell)):
+	if include_motion and _incoming.is_valid() and bool(_incoming.call(cell)):
 		return true
 	for id: String in projects:
 		var project: Dictionary = projects[id]
@@ -426,15 +434,16 @@ func occupied(cell: Vector2i) -> bool:
 			return true
 	for sim: RefCounted in world.regions.values():
 		for body: Dictionary in sim.actors.values():
-			if bool(body.alive) and (SimRouteTravel.cell(body.cell) == cell or not body.active.get("path", []).is_empty() and SimRouteTravel.cell(body.active.path[0]) == cell):
+			if bool(body.alive) and SimRouteTravel.cell(body.cell) == cell:
 				return true
 	if world.avian_life != null:
 		for id: String in world.avian_life.birds:
 			if int(world.avian_life.birds[id].altitude) == 0 and world.avian_life.body_cell(id) == cell:
 				return true
-	for job: Dictionary in active.values():
-		if not job.path.is_empty() and SimRouteTravel.cell(job.path[0]) == cell:
-			return true
+	# Every original owner must finish projecting the old interval before a
+	# new wall can take its current leg, including either diagonal side.
+	if include_motion and SimMotionClearance.active_segment_reserves(world, cell):
+		return true
 	return false
 
 

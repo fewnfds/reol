@@ -24,6 +24,7 @@ main / 场景装配
 | [VillageSimulation](../scripts/sim/village_simulation.gd) | 人类原身体、唯一位置/朝向、原生活状态和村落配置 | 所属区是保存所有者，不是人物当前所在空间 |
 | [RegionalSimulation](../scripts/sim/regional_simulation.gd) | 区域同步、域装配、共同边界/积压和跨域校验 | 现有固定域目录，非任意世界工厂/完整事件平台 |
 | [SimLocalMotion](../scripts/sim/local_motion.gd)、[SimRouteTravel](../scripts/sim/route_travel.gd) | 手动/闪身及自动路段推进，读写同一身体 | 不复制位置、体力或时钟；显示插值不推进规则 |
+| [SimMotionClearance](../scripts/sim/motion_clearance.gd) | 只读解析原过程当前首段及对角扫掠；固定运粮道路保守清场 | 不保存第二套位置/路线；施工新增阻挡和兽身清场复用，后续路线重规划仍待接 |
 | [SimEmbodiment](../scripts/sim/embodiment.gd) | 主体、载体居留、移动/行动/通信控制 | 居留不等于控制，控制通道不等于行动占用 |
 | [SimEntityQuery](../scripts/sim/entity_query.gd) | 无状态、只读地解析人物/雀身/独特器物的原位置与记录所有者 | 不登记第二实体表、不推进时间；区域滞后和世界积压分别标明，不能直接作玩家所知 |
 | [SimInventory](../scripts/sim/inventory_ledger.gd) | 容器内堆叠数量、预约、操作与受托责任 | 责任引用实物，不再存一份数量；不等于完整产权 |
@@ -73,6 +74,8 @@ B0a在原地图上增加`[x,y,terrain]`稀疏覆盖，flat支持草/水/岩及�
 B1a继续沿原`SimConstruction`和`SimWorkplaces`读结构，不另建通用实体表。`structures_changed(cells)`只在真实完工/门操作/拆除及连带塌顶结算、索引和人员释放后发布；候选恢复不造施工事件。`ReolWorld`的视线来源与通行来源独立，重绑来源触发全视野失效，有限改变格仅触及当前视域时更新。新查询路径读最新阻塞；既有过程仍在下一步检查，完整在途路线响应尚未统一，不能称任意世界导航已完成。单工地/单格工程和固定值事房模板限制仍保留。
 
 主场景首次探索在全部开局结构来源装配后运行，已有探索在普通加载时保持。施工绘制/选项随visibility_updated刷新，即使暂停也更新；四邻墙形在读取邻格当前状态前过滤实际可见性，未见连接暂省略，不借全知查询泄露墙后变化。
+
+B1b将当前在途首段（含对角旁格）统一为原过程只读查询，玩家journey通过runtime补入。建墙/建关闭门/关门在原物理提交前保护这些段，保留工时/材料及行走，不调换共同毫秒结算顺序；低床/屋面不使用新增阻挡的运动守卫，真实占地仍检查。兽身占地也读同一查询，去掉终态服务全表扫描。固定运粮目前不依新墙重规划，所以建成阻挡保守避让其道路；这是待退役限制，非永久道路特权，也不是完整封路绕行。
 
 ## 仍需建立的通用接缝
 

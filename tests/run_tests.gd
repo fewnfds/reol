@@ -93,6 +93,14 @@ func test_opening_structure_visibility() -> void:
 	load("res://tests/runtime/test_opening_structure_visibility.gd").new().run(self)
 
 
+func test_motion_clearance() -> void:
+	load("res://tests/sim/test_motion_clearance.gd").new().run(self)
+
+
+func test_motion_clearance_runtime() -> void:
+	load("res://tests/runtime/test_motion_clearance_runtime.gd").new().run(self)
+
+
 # ---------------------------------------------------------------------------
 # Test doubles
 # ---------------------------------------------------------------------------

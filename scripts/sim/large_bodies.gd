@@ -115,7 +115,7 @@ func occupied_by_other(cell: Vector2i, except_body: String = "") -> bool:
 			return true
 	for sim: VillageSimulation in world.regions.values():
 		for actor: Dictionary in sim.actors.values():
-			if bool(actor.alive) and (SimRouteTravel.cell(actor.cell) == cell or not actor.active.get("path", []).is_empty() and SimRouteTravel.cell(actor.active.path[0]) == cell):
+			if bool(actor.alive) and SimRouteTravel.cell(actor.cell) == cell:
 				return true
 		for place: Dictionary in sim.places.values():
 			if SimRouteTravel.cell(place.cell) == cell:
@@ -124,16 +124,8 @@ func occupied_by_other(cell: Vector2i, except_body: String = "") -> bool:
 		for id: String in world.avian_life.birds:
 			if int(world.avian_life.birds[id].altitude) == 0 and world.avian_life.body_cell(id) == cell:
 				return true
-	if world.services != null:
-		for job: Dictionary in world.services.jobs.values():
-			if job.status == "active" and not job.get("path", []).is_empty() and SimRouteTravel.cell(job.path[0]) == cell:
-				return true
-	for domain: RefCounted in [world.construction, world.resting, world.artifacts, world.soul_vessels, world.personal_production]:
-		if domain == null:
-			continue
-		for job: Dictionary in domain.active.values():
-			if not job.get("path", []).is_empty() and SimRouteTravel.cell(job.path[0]) == cell:
-				return true
+	if SimMotionClearance.active_segment_reserves(world, cell):
+		return true
 	return _incoming.is_valid() and bool(_incoming.call(cell))
 
 
