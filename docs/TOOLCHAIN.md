@@ -176,7 +176,15 @@ python tools/godot.py export --preset "Windows Desktop" --output build/windows/r
 
 工作流`.github/workflows/ci.yml`在代码/资源/测试/工具或CI变更推送及PR时运行，也支持手动触发。纯文档、设计、技能和素材收件说明不触发昂贵的游戏回归，仍须本地结构/链接检查。Ubuntu24.04、Python3.14、Godot4.7.2正式Linux无头程序；引擎从官方godot-builds release下载到runner临时目录并核SHA256，不提交二进制或`.godot`缓存。Actions固定commit，不依赖本机MCP服务或登录状态。
 
-CI先执行Python工具测试，再跑`python -u tools/godot.py check --test-timeout 1800`（结构、导入、全部GDScript测试），作业总上限50分钟。通过/失败均上传`godot-logs`保留14天；失败先读第一条真实错误。推送后以具体commit SHA对应run的完成状态为准，不把排队/执行中/旧提交绿色当通过。可用`gh run list`、`gh run view <run-id>`、`gh run view <run-id> --log-failed`读进度；无需持续阻塞长等待。首次配置的远端运行证据待实际完成后更新至BASELINE。
+CI先执行Python工具测试，再跑`python -u tools/godot.py check --test-timeout 1800`（结构、导入、全部GDScript测试），作业总上限50分钟。通过/失败均上传`godot-logs`保留14天；失败先读第一条真实错误。推送后以具体commit SHA对应run的完成状态为准，不把排队/执行中/旧提交绿色当通过。
+
+**统一观察流程**见[AGENTS](../AGENTS.md)的“CI等待与费用”。推送后只查找一次对应run，登记完整SHA；日常状态用`python tools/ci.py status --run <id> --sha <40位SHA>`。同run所有代理/进程共用`logs/ci/`缓存和独占锁，至少每300秒才远程查询一次，失败重试也不会绕过冷却；终态直接复用，不再查询。`cached`说明来源，`next_poll_in`表示还需等多久。工具只读Actions，不取消/重跑/修改工作流；不下载或输出凭据，不新增依赖。
+
+确需等待时只启动一次`python tools/ci.py wait --run <id> --sha <40位SHA> --timeout 3000`作为后台任务，继续其他工作。它用普通进程睡眠间隔五分钟，只输出状态变化和结束结果；不要创建被动轮询子代理，不用默认3秒的`gh run watch`，也不每几十秒检查后台session。返回0仅代表该SHA对应run成功，1表示完成但非success，2表示超时/查询或校验失败；被取消也不是通过。成功/失败后再一次读取相应日志记录证据。状态显示仍进行中时不要立即换用`gh`重复查；网络异常同样先等冷却，检查登录/连接后再试一次。
+
+锁文件含本地观察PID与创建时刻，真正排他由Windows/Unix内核文件锁提供；正常或硬退出均自动释放，保留锁文件不表示仍被占用。锁竞争立即退出，不做自旋等待；不能因为想刷新就清缓存/删除活锁。缓存仅是本机查询节流与证据索引，不提交、不代替完整日志或真实玩法验收。
+
+2026-11-04本机验收：新增9项离线测试覆盖295/300秒边界、跨实例共享、查询失败退避、终态、SHA/run校验、进程锁/硬退出和等待截止；全部Python工具回归42项通过，日志`logs/ci-workflow-python-tests.log`。一次真实状态查询核对原run41762510648与a293146，仍为运行中；数秒后的第二次调用返回`cached:true`、剩余约293秒，没有再发远程请求。这仅验证观察流程，不作为该游戏提交的完整CI通过证据。
 
 ### 2.3 格式化与 Lint（建议）
 
