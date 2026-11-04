@@ -89,7 +89,7 @@
 
 工具提交`0ecae3a`已推。核查旧U3-b1 run41742281428发现三项历史测试前提错误，均早于本轮设施升级：两项期待旧artifact v4但明确迁移为v5；另一项临时旧root夹带现代artifact版本而被正确拒绝。
 
-测试修正提交`0804c70`只改临时构造与迁移期望，仍全字典比较，增加混版拒绝/活世界不变检查，不改真实fixture或游戏逻辑。三项定向704断言/0失败；完整CI为[run41755190941](https://github.com/fewnfds/reol/actions/runs/41755190941)，结果以实际完成后BASELINE为准，运行中不算绿色。
+测试修正提交`0804c70`只改临时构造与迁移期望，仍全字典比较，增加混版拒绝/活世界不变检查，不改真实fixture或游戏逻辑。三项定向704断言/0失败；对应完整CI [run41755190941](https://github.com/fewnfds/reol/actions/runs/41755190941)已success，Godot输出CHECK PASSED，确切SHA、组数/断言及完整日志统一见BASELINE。工具/验证文档已在`4714e6f`提交推送，未合main。
 
 当前旧聊天/旧子代理的MCP句柄仍可能Transport closed；新Codex进程已验证成功。**完成后重启Codex一次**以刷新本聊天/后续子代理的启动命令和过滤目录；不需重装Godot。启动后先核Reol的session版本和状态，不能把旧句柄失败当新版后端已停止。
 

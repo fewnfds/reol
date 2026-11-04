@@ -6,7 +6,7 @@
 
 **扩展选型与版本澄清**：[AI套件/风评/竞品](AI-TOOLKIT-REVIEW.md)保留研究时点；实际采用Codex+文件/CLI+单一Godot AI+Context7+原测试/CI，不叠重复桥或测试框架。Godot未来跟进最新稳定版，4.7.2仅当前安装/验证；每次记录实际引擎与CI，不自动采用dev/RC。
 
-**最新CI**：旧U3-b1 run[41742281428](https://github.com/fewnfds/reol/actions/runs/41742281428)实际失败于三项历史迁移测试前提。本轮工具提交`0ecae3a`后，`0804c70`仅修这三项测试（定向704断言/0失败），不改游戏规则或历史fixture；完整回归为[41755190941](https://github.com/fewnfds/reol/actions/runs/41755190941)，最终结论见BASELINE。当前仍为`codex/drawing-ring-use`开发分支，未合main；不重复本地全检。
+**最新CI已通过**：旧U3-b1 run[41742281428](https://github.com/fewnfds/reol/actions/runs/41742281428)实际失败于三项历史迁移测试前提。本轮工具提交`0ecae3a`后，`0804c70`仅修这三项测试，不改游戏规则或历史fixture；对应完整回归[41755190941](https://github.com/fewnfds/reol/actions/runs/41755190941)已success，确切SHA、数字和日志见BASELINE。U3-b1局部样本的待收CI已补齐，不代表完整游戏通过。当前仍为`codex/drawing-ring-use`开发分支，未合main；不重复本地全检。
 
 **隔离半成品**：[U3-b2私人交换规格](plans/private_artifact_exchange.md)已整理，`logs/private_exchange_work_20261104_0755`内仅有未完成草稿；代理已停止实施，尚未合主目录/未运行测试。独立过程引用原身体/钱包/环，只在当面有效同意后预约原4钱，5秒完成同时交钱交环；对方返程忙碌时拒绝打断。完整接缝笔记在`logs/private_artifact_trade_notes_20261104.md`，器物缺失函数与未验接缝见`logs/private_exchange_artifact_handoff_20261104.md`。不要整目录覆回，尤其主目录CI成功记录与本轮工具文档。
 
@@ -36,9 +36,9 @@
 3. [FEATURES](FEATURES.md)：实际功能与入口；[BASELINE](BASELINE.md)：唯一最新构建、版本与验证数字。
 4. [ARCHITECTURE](ARCHITECTURE.md)、[ROADMAP](ROADMAP.md)与[Goal记录](plans/implementation_goal.md)：状态所有者、后续依赖和逐包历史。
 
-## U3-b1当前工作
+## U3-b1功能与后续
 
-实际范围见本页顶部与[引物QA](qa/20261104_drawing_ring.md)。已补研究开始时保持连续位置、候选拒绝非零高度和精确非零速度；主目录末版同进程连续性、左侧活动栏秒数和原生画面已复验。本包CI待完成，不把前包CI算作本包通过。私人交换、争夺后果、通用物性与完整U2/U3仍未完成。
+实际范围见本页顶部与[引物QA](qa/20261104_drawing_ring.md)。已补研究开始时保持连续位置、候选拒绝非零高度和精确非零速度；主目录末版同进程连续性、左侧活动栏秒数、原生画面与对应完整CI均已通过。私人交换、争夺后果、通用物性与完整U2/U3仍未完成，当前不自行继续玩法。
 
 ## U1-b2历史停点
 

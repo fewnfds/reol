@@ -4,7 +4,7 @@
 
 此前[AI开发套件选型](AI-TOOLKIT-REVIEW.md)比较社区体验、竞品与技能/测试工具，实际采用单一Godot AI并保留默认关闭的备用桥，未叠重复工具。Godot未来跟进最新稳定版，4.7.2只代表当前安装/验证。
 
-当前实施包：[U3-b1引物环](plans/field_ring_use.md)已合入主目录，本人持环并完成外形与独立用法研究后，可短距引取符合条件的松置木剑。末版定向、两次独立进程停开及原生画面已复验，本包CI仍待完成；证据见[QA](qa/20261104_drawing_ring.md)，最终状态看[BASELINE](BASELINE.md)。私人交换与明确争夺后果仍待后续实施。
+玩法停点：[U3-b1引物环](plans/field_ring_use.md)局部样本已验收，本人持环并完成外形与独立用法研究后，可短距引取符合条件的松置木剑。末版定向、两次独立进程停开、原生画面及对应完整CI已通过；证据见[QA](qa/20261104_drawing_ring.md)，最终状态看[BASELINE](BASELINE.md)。私人交换与明确争夺后果仍待后续授权实施。
 
 前包[U2-a本人来源目录与行气护身](qa/20261104_capability_network.md)、[U1-b2有限看护/警告/驱离](plans/source_care.md)、[公源借用/温石验还](qa/20261104_source_loan.md)和[有限感知](qa/20261104_conflict_perception.md)已验收，原U1-a与自然/场所保留。各包边界见FEATURES，构建证据统一见BASELINE，不以局部样本代替完整系统。
 
