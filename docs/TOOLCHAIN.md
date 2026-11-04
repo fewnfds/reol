@@ -1,15 +1,14 @@
 # Reol — 工具链与 MCP 配置
 
 > 目标：让 AI 能**看到** Godot、**运行**项目、**读到**错误、**验证**改动。
-> 更新：2026-11-02，开发客户端已从 OpenCode 迁移到 Codex。
-> 2026-11-04最新版本、来源、升级/回退和上下文精简建议见[基础设施维护](TOOLING-MAINTENANCE.md)：Godot AI本机4.3.1、上游4.4.1；技能上游当前无增量。本轮没有升级或安装。此前只读复核见[开发工具审计](DEVELOPMENT-TOOLS-AUDIT.md)；更多免费资源/插件候选见[搜集工作包](plans/resource_tooling_scout.md)。下文迁移记录是历史证据。
-> 用户已澄清未来跟进Godot最新版，默认最新稳定版；4.7.2是当前安装和以下命令示例的版本。本轮[套件选型与风评研究](AI-TOOLKIT-REVIEW.md)未改引擎、MCP或技能。
+> 更新：2026-11-04。开发客户端已迁移到 Codex；当前安装、配置及验收进度见[AI开发套件实装追踪](AI-TOOLKIT-SETUP.md)。来源与更新方法见[基础设施维护](TOOLING-MAINTENANCE.md)，选型依据见[套件研究](AI-TOOLKIT-REVIEW.md)；其中调研时点的旧状态保留作历史记录。
+> 引擎跟进最新稳定版，不自动追 dev/RC；4.7.2 是当前安装及以下命令示例版本。每次采用具体版本时核对插件、CI 和导出模板，并按改动范围验证。
 
 ---
 
 ## 0. 当前环境快照
 
-搭建时实际检测到的：
+本机环境快照；版本与路径在新机器或后续升级后须重新核对：
 
 | 工具 | 状态 |
 |---|---|
@@ -17,11 +16,11 @@
 | Node.js | v25.2.1 |
 | npm / npx | 11.14.1 |
 | Python | 3.14.3 |
-| uv | 0.11.28 |
+| uv / uvx | 0.13.7；Godot AI 启动器使用的版本及安装经过见[实装追踪](AI-TOOLKIT-SETUP.md) |
 | Git | 2.53.0 (Windows) |
 | 项目 | `D:\users\sunyu\Documents\reol`，Godot 4.7 工程 |
 
-> 当前游戏构建与测试以 [BASELINE](BASELINE.md) 为准。工具迁移时 Codex 已发现37个项目技能，三个 MCP 均经过协议握手与实际调用验证；下文有日期的验收表保留当时记录。
+> 当前游戏构建与测试以 [BASELINE](BASELINE.md) 为准。下方 2026-11-02 迁移验收表是当时的证据，不代表现在所有 MCP 都默认启用。
 > 换机器/重装时，按下面步骤安装，并确保 `python tools/godot.py doctor` 能找到它。
 
 ---
@@ -30,18 +29,19 @@
 
 Codex 自动读取根目录 `AGENTS.md`，按需发现 `.agents/skills/*/SKILL.md`。
 OpenCode 的 `opencode.json`、`~/.config/opencode/` 和 `.opencode/skills/` 不会自动迁移。
-本项目原有 37 个技能及 87 个文件已迁到 `.agents/skills/`，没有升级第三方技能，也没有额外的自定义 agent 或 OpenCode 插件需要转换。
+本项目原有 37 个技能已迁到 `.agents/skills/`；其后整理了触发简介和项目自有说明，第三方正文仍按原提交保留。具体范围见[实装追踪](AI-TOOLKIT-SETUP.md)。
 
 ```powershell
 python tools/setup_codex.py          # 生成本机项目级 MCP 配置
 python tools/setup_codex.py --check  # 只检查，不写入
+python tools/setup_codex.py --enable-backup-godot  # 按需启用可识别的备用条目
 codex mcp list                      # 检查实际加载的服务器配置
 ```
 
-- 生成的 `.codex/config.toml` 只设置 `godot` 和 `context7`；脚本用当前 Python 和检出目录生成绝对路径，不安装依赖、不修改全局模型或权限。
-- 本机配置和备份已被 `.codex/.gitignore` 排除。已有无关配置会保留；同名服务器冲突时退出并提示，不覆盖。
+- 生成器只管理 `godot` 和 `context7`：新建时前者默认禁用，后者默认启用；用当前 Python 和检出目录生成绝对路径，不安装依赖、不修改全局模型或权限。
+- 本机配置和备份已被 `.codex/.gitignore` 排除。已有连接、开关和无关配置会保留；显式启用备用时只修改能安全识别的生成条目，自定义或无法安全修改的条目会提示处理。`--check` 只读检查项目条目，不证明实际握手。
 - 项目级配置要求项目已受信任。本机 Reol 已是 trusted；新机器应通过 Codex 的项目信任流程加载。
-- Godot AI 使用 dock → **Configure → Codex**，由插件生成 `~/.codex/config.toml` 中的 `mcp_servers.godot-ai`。不要把 OpenCode JSON 整段粘进 TOML。
+- Godot AI 使用 dock → **Configure → Codex**，由插件生成 `~/.codex/config.toml` 中的 `mcp_servers.godot-ai`。不要把 OpenCode JSON 整段粘进 TOML。项目层覆盖与继承限制见[实装追踪](AI-TOOLKIT-SETUP.md)。
 - 配置或技能未在当前聊天出现时，重新打开项目或重启 Codex；用实际工具列表确认。`codex mcp list` 显示 enabled 只证明配置已加载，不能代替连接和调用验证。
 
 配置脚本的自动化验证：`python -X utf8 -m unittest discover -s tests -p test_codex_setup.py -v`。
@@ -71,7 +71,7 @@ Windows 备用 MCP 隐藏启动初次复测出现 `Request 'initialize' timed ou
 
 ---
 
-## 1. 安装 Godot 4.7.2（必须先做）
+## 1. 安装当前版本 Godot 4.7.2
 
 ### 1.1 下载
 
@@ -168,7 +168,7 @@ python tools/godot.py export --preset "Windows Desktop" --output build/windows/r
 - 递归 `load()` 所有 `scripts/`、`tests/` 下的 `.gd`，捕获解析错误。
 - 运行所有 `test_*` 方法，汇总 passed/failed，失败退出码 1。
 
-这是最小可用的无头测试框架；后续复杂了再换 GUT。
+目前继续使用这个无头测试框架；只有出现明确能力缺口并验证收益后，才考虑更换测试框架。
 
 ### 2.2 GitHub持续集成（2026-11-04）
 
@@ -203,11 +203,11 @@ MCP 让 AI 通过工具调用操作 Godot，而不是只“猜代码”。
 
 | 服务器 | 类型 | 用途 | 本项目状态 |
 |---|---|---|---|
-| **godot-ai** | 编辑器插件 + 本地 bridge | 看场景树、改节点、跑游戏、读日志、截图、输入模拟 | Codex 连接实测：47 个工具，Reol 编辑器 ready，插件/后端均为 4.3.1 |
-| **godot**（Coding-Solo） | 本地 stdio（npx） | 无头启动、运行项目、抓调试输出、建场景 | Codex 配置实测：14 个工具，版本/项目信息返回 Godot 4.7.2 |
+| **godot-ai** | 编辑器插件 + 本地 bridge | 看场景树、改节点、跑游戏、读日志、截图、输入模拟 | 最终独立 stdio 探针：排除 csg/gridmap/testing 后为 43 工具，Reol ready/stopped，插件/后端均为 4.4.1；范围和验收见[实装追踪](AI-TOOLKIT-SETUP.md) |
+| **godot**（Coding-Solo） | 本地 stdio（npx） | 无头启动、运行项目、抓调试输出、建场景 | 默认禁用的备用；2026-11-02 曾实测 14 个工具和版本/项目信息，按需启用后再核验 |
 | **context7** | 远程 | 查 Godot / 第三方库最新文档 | Codex 项目级 HTTP；2 个工具，已检索并读取 Godot 4.7 TileMapLayer 文档 |
 
-> 不要同时让两个 MCP 抢同一个编辑器/端口。日常优先 `godot-ai`；CI/无头用 `godot` 或 `tools/godot.py`。
+> 不要同时让两个 MCP 抢同一个编辑器/端口。日常实时编辑优先 `godot-ai`；CI/无头优先 `tools/godot.py`，确有需要再启用备用 `godot`。
 
 ---
 
@@ -215,8 +215,8 @@ MCP 让 AI 通过工具调用操作 Godot，而不是只“猜代码”。
 
 ### 4.1 它是什么
 
-- 当前 v4.3.1 实测 47 个 MCP 工具，连接**正在运行的 Godot 编辑器**。
-- 能：读场景树、创建/改节点、写脚本并校验、跑项目、读编辑器/游戏日志、截图、模拟输入、跑测试、改 TileMap/导航/材质/动画/UI。
+- 当前插件/后端为 v4.4.1；最终独立 stdio 探针在排除 csg/gridmap/testing 后列出43工具，并连接到**正在运行的 Godot 编辑器**。排除前的47项是历史目录；客户端可见工具仍以实际配置与调用为准。
+- 提供场景树、节点、脚本诊断、运行、日志、截图、输入及TileMap/导航/材质/动画/UI操作；本轮验收范围见实装文档，不代表每项均已实测。插件测试工具已排除，项目测试走原CLI/CI。
 - 对本项目最有用：**AI 能看见自己改了什么**，而不是盲写 `.tscn`。
 
 ### 4.2 安装状态
@@ -224,7 +224,7 @@ MCP 让 AI 通过工具调用操作 Godot，而不是只“猜代码”。
 本仓库已经包含：
 
 ```
-addons/godot_ai/           # v4.3.1，MIT
+addons/godot_ai/           # v4.4.1，MIT
 ```
 
 `project.godot` 已加入：
@@ -284,14 +284,14 @@ enabled=PackedStringArray("res://addons/godot_ai/plugin.cfg")
 
 ### 5.2 本项目配置
 
-运行 `python tools/setup_codex.py` 后，`.codex/config.toml` 包含以下条目（实际文件使用本机绝对路径）：
+对于原先缺失的条目，运行 `python tools/setup_codex.py` 后，`.codex/config.toml` 会生成以下默认条目（实际文件使用本机绝对路径；已有条目及状态保留）：
 
 ```toml
 [mcp_servers.godot]
 command = "<本机 Python 可执行文件>"
 args = ["<检出目录>/tools/mcp/godot_mcp.py"]
 cwd = "<检出目录>"
-enabled = true
+enabled = false
 startup_timeout_sec = 65
 tool_timeout_sec = 65
 ```
@@ -311,9 +311,9 @@ python tools/mcp/godot_mcp.py
 
 它会占住 stdio；看到 `[godot-mcp] GODOT_PATH=...` 就说明找到了。`Ctrl+C` 退出。
 
-### 5.3 如果不想用
+### 5.3 按需启用备用
 
-在本机 `.codex/config.toml` 的 `[mcp_servers.godot]` 中设置 `enabled = false`。
+默认保持禁用。需要时运行 `python tools/setup_codex.py --enable-backup-godot`，重新加载 Codex 后用 `codex mcp list` 和实际调用核对。对已有自定义条目，脚本不会擅自改写；确认其连接后自行设置 `enabled = true`。不再使用时可设回 `false`。
 
 ---
 
@@ -383,6 +383,7 @@ tool_timeout_sec = 60
 ### 8.3 MCP 连不上
 
 - `godot`（Coding-Solo）：
+  - 这是默认禁用的备用，先按 5.3 启用并重新加载 Codex。
   - `node --version` ≥ 18。
   - `npx -y @coding-solo/godot-mcp@0.1.1` 能跑。
   - `python tools/mcp/godot_mcp.py` 能看到 `GODOT_PATH`。
@@ -392,6 +393,7 @@ tool_timeout_sec = 60
   - dock 里显示 Connected，`session_manage` 返回 Reol，`editor_state.readiness` 为 ready。
   - 重新 Configure；不要手写端口。
   - 看 Godot Output 面板和 `%LOCALAPPDATA%\godot-ai\` 日志。
+  - 若提示启动进程身份捕获失败，查看原启动命令更早的错误；曾因 uv 0.9.5 不识别上游参数而提前退出，本机已换用 0.13.7，详见[实装追踪](AI-TOOLKIT-SETUP.md)。
 
 ### 8.4 端口被占用
 
@@ -413,7 +415,7 @@ tool_timeout_sec = 60
 
 ### 8.7 Godot AI 插件报版本不匹配
 
-- 插件 v4.3.1 需要 Godot 4.7+。
+- 当前插件 v4.4.1 需要 Godot 4.7+；核对编辑器中插件与后端的实际版本。
 - 不要用旧版 `addons/godot_ai` 覆盖新版；用 dock 的 Update。
 - 如果是从 v3 升级，按官方迁移指南操作。
 
@@ -430,7 +432,7 @@ tool_timeout_sec = 60
 | 组件 | 策略 |
 |---|---|
 | Godot | 跟进最新稳定版，目前4.7.2；采用具体版本后核插件/CI/模板并跑相应回归与实际画面验证 |
-| Godot AI | 用 dock 的 Update；不要手动覆盖；pin 大版本 |
+| Godot AI | 用 dock 的签名 Update 或官方安装流程；插件/后端配对固定具体版本，不手动混覆盖，更新后验证实际会话 |
 | Coding-Solo MCP | 固定 `@0.1.1`；升级前跑 `doctor` + 手动启动 |
 | 技能库 | 固定 upstream commit（见 `THIRD_PARTY_NOTICES.md`）；升级时 diff |
 | gdtoolkit | 固定版本；升级后全项目 lint |

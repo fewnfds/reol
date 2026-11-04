@@ -1,12 +1,12 @@
 # Reol 快速交接
 
-**当前授权（2026-11-04）**：用户已通过平台暂停完整游戏Goal，`get_goal`核对为paused。当前只处理基础设施研究与文档，不自行恢复开发。以下历史中的active或下一包不覆盖本段；只有用户恢复后再推进游戏。
+**当前授权（2026-11-04）**：原完整游戏Goal已清除，`get_goal`返回null。用户已授权实际测试、配置和调整AI开发套件；当前不恢复玩法实施、不重建Goal。以下历史中的active、paused或下一包不覆盖本段。
 
-**本轮基础设施**：[来源与维护文档](TOOLING-MAINTENANCE.md)已记录Godot AI本机4.3.1/上游4.4.1、其他MCP/技能来源、升级回退流程、上下文机制和精选候选。本轮未安装、升级或修改连接/技能；补齐现有技能上游同一固定提交的NOTICE。后续工具更新不应捎带恢复游戏Goal。
+**本轮基础设施已实装**：[实际配置与验收](AI-TOOLKIT-SETUP.md)记录单一Godot AI4.4.1、uv/uvx0.13.7、Context7、默认禁用备用Godot、37技能精简及来源/回退。原启动失败源于uv0.9.5不支持新版参数、进程提前退出，另有旧后端占用；已更新启动器、只清理确认归属的旧进程并正常重开。当前Reol插件/后端同为4.4.1、ready/stopped。Godot用户级设置排除csg/gridmap/testing；需重启Codex刷新旧attach，详情与作用范围见实装文档。未改全局模型/权限。
 
-**扩展选型研究与版本澄清**：[AI套件/风评/竞品](AI-TOOLKIT-REVIEW.md)已完成，推荐Codex+文件/CLI+单一Godot AI+Context7+现有测试/CI；NPGameDev、Swallowtail、FirLab按实际缺口择一对照，GodotPrompter仅选主题评测。用户表示今后继续用Godot最新版，默认按最新稳定版推进，4.7.2仅当前安装，不再永久锁版；每次仍记录具体引擎和CI验证。只改文档，工具/技能/配置均未改。
+**扩展选型与版本澄清**：[AI套件/风评/竞品](AI-TOOLKIT-REVIEW.md)保留研究时点；实际采用Codex+文件/CLI+单一Godot AI+Context7+原测试/CI，不叠重复桥或测试框架。Godot未来跟进最新稳定版，4.7.2仅当前安装/验证；每次记录实际引擎与CI，不自动采用dev/RC。
 
-**最新待收CI**：U3-b1提交`5d0afd9`已推`codex/drawing-ring-use`，run[41742281428](https://github.com/fewnfds/reol/actions/runs/41742281428)暂停前最后观测仍运行中，此后未继续监控；前包main的[41739857610](https://github.com/fewnfds/reol/actions/runs/41739857610)已成功，不能代替U3-b1自己的回归。末版定向、原生四图、两个独立OS停开三分支全联合未来字节一致均已验，不能用这些替代云端完整回归。工作区当前是开发分支，不是远端main；不重复开本地完整check。
+**最新CI**：旧U3-b1 run[41742281428](https://github.com/fewnfds/reol/actions/runs/41742281428)实际失败于三项历史迁移测试前提。本轮工具提交`0ecae3a`后，`0804c70`仅修这三项测试（定向704断言/0失败），不改游戏规则或历史fixture；完整回归为[41755190941](https://github.com/fewnfds/reol/actions/runs/41755190941)，最终结论见BASELINE。当前仍为`codex/drawing-ring-use`开发分支，未合main；不重复本地全检。
 
 **隔离半成品**：[U3-b2私人交换规格](plans/private_artifact_exchange.md)已整理，`logs/private_exchange_work_20261104_0755`内仅有未完成草稿；代理已停止实施，尚未合主目录/未运行测试。独立过程引用原身体/钱包/环，只在当面有效同意后预约原4钱，5秒完成同时交钱交环；对方返程忙碌时拒绝打断。完整接缝笔记在`logs/private_artifact_trade_notes_20261104.md`，器物缺失函数与未验接缝见`logs/private_exchange_artifact_handoff_20261104.md`。不要整目录覆回，尤其主目录CI成功记录与本轮工具文档。
 

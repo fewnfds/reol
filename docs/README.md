@@ -1,8 +1,8 @@
 # Reol 文档入口
 
-工具版本/更新来源、升级与回退、技能和MCP上下文开销见[基础设施维护](TOOLING-MAINTENANCE.md)（2026-11-04，本轮仅研究，未升级）。用户已通过平台暂停完整游戏Goal，当前不恢复游戏实施；下列是保留的开发停点。
+当前AI基础设施已实际配置，见[套件实装与验收](AI-TOOLKIT-SETUP.md)：Godot AI4.4.1、uv/uvx0.13.7、Context7、精简技能路由和原CLI/CI。来源、升级回退及上下文机制见[基础设施维护](TOOLING-MAINTENANCE.md)。原完整游戏Goal已清除；当前不恢复游戏实施、不重建Goal，下列保留玩法停点。
 
-最新[AI开发套件选型](AI-TOOLKIT-REVIEW.md)比较社区体验、竞品与技能/测试工具，推荐现有核心配合精简路由，未替换设施。Godot未来跟进最新稳定版，4.7.2只代表当前安装/验证。
+此前[AI开发套件选型](AI-TOOLKIT-REVIEW.md)比较社区体验、竞品与技能/测试工具，实际采用单一Godot AI并保留默认关闭的备用桥，未叠重复工具。Godot未来跟进最新稳定版，4.7.2只代表当前安装/验证。
 
 当前实施包：[U3-b1引物环](plans/field_ring_use.md)已合入主目录，本人持环并完成外形与独立用法研究后，可短距引取符合条件的松置木剑。末版定向、两次独立进程停开及原生画面已复验，本包CI仍待完成；证据见[QA](qa/20261104_drawing_ring.md)，最终状态看[BASELINE](BASELINE.md)。私人交换与明确争夺后果仍待后续实施。
 
@@ -18,7 +18,7 @@
 2. [当前功能清单](FEATURES.md)：现在能怎么玩、从哪里操作、后果与限制；设计中的功能另列。
 3. [当前构建状态](BASELINE.md)：最新完整检查、兼容版本、证据和未完成项。
 
-当前是M2系统原型，未达到完整45–60分钟切片。**完整游戏Goal保持active，长期重心仍为[超凡者优先U0–U5](plans/transcendent_focus.md)。** 农业/生活维持循环；U0与自然世界/场所基础已接，U1已有实物武器、有限冲突、借用/验还与具名看护。U2-a有来源本领目录与一项行气用法已验收，U3-a野外连续性及U3-b1有限引物已接，完整能力组合/冒险仍未交付；随后继续私人交换、组织和事件化远区。[国产修仙/战略/人生研究](../design/research/transcendent_focus_sources.md)说明取舍。此前进度复核和各局部样本保留为历史，不覆盖当前BASELINE。
+当前是M2系统原型，未达到完整45–60分钟切片。**游戏实施未恢复，长期重心保留[超凡者优先U0–U5](plans/transcendent_focus.md)。** 农业/生活维持循环；U0与自然世界/场所基础已接，U1已有实物武器、有限冲突、借用/验还与具名看护。U2-a有来源本领目录与一项行气用法已验收，U3-a野外连续性及U3-b1有限引物已接，完整能力组合/冒险仍未交付；后续私人交换、组织和事件化远区须用户另行授权后推进。[国产修仙/战略/人生研究](../design/research/transcendent_focus_sources.md)说明取舍。此前进度复核和各局部样本保留为历史，不覆盖当前BASELINE。
 
 本次插入[基础架构审查](ARCHITECTURE-REVIEW-20261103.md)，已明确[天地/四季/温度/五行/风水方案](plans/world_environment.md)与[真八方向外观方案](plans/eight_direction_appearance.md)、[免费资源/工具来源](../design/research/eight_direction_sources.md)。随后[E1历法/室外冷热](qa/20261103_calendar_temperature.md)、[E2屋舍/有限余热](qa/20261103_local_heat.md)与[A1代码像素八向](qa/20261103_eight_direction_sample.md)首包已接通。完整气候/绝对热力学、生态、五行/风水和正式全部动画仍待实施。[固定提示词包](art/character_generation/README.md)保留作后期资料，当前无需外部图像。
 
