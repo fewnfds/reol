@@ -4,6 +4,8 @@ extends RefCounted
 ## clock settlement or reconstruction of unrecorded pre-conversion heat history.
 
 const Shape = preload("res://scripts/sim/avian_schema.gd")
+const History = preload("res://scripts/sim/thermal_history.gd")
+const Sample = preload("res://scripts/sim/thermal_sample.gd")
 const MAX_INTEGER: int = 9007199254740991
 const V2_KEYS: Array[String] = ["version", "rules_version", "activation_ms", "model_started_ms", "last_ms", "segment_started_ms",
 	"cells", "flows", "input_energy", "ambient_in", "loss_energy", "receipts", "last_sample_ms", "last_sample_cells",
@@ -60,71 +62,50 @@ static func _validate(heat: SimLocalHeat, data: Variant, derived: Dictionary) ->
 	if not _can_add(int(data.input_energy), int(data.ambient_in)) or not _can_add(int(data.input_energy) + int(data.ambient_in), int(data.continuous_input)):
 		return false
 	var total_input: int = int(data.input_energy) + int(data.ambient_in) + int(data.continuous_input)
+	# Historical coverage is derived from sources, independently of the current
+	# Q representation. It does not authenticate those sources or authorize
+	# discarding cells: the complete candidate still proves both below.
+	for action: Variant in data.receipts:
+		var receipt: Variant = data.receipts[action]
+		if not action is String or not heat._valid_receipt(receipt, int(data.activation_ms)) or action != receipt.action or int(receipt.at_ms) > int(data.segment_started_ms) or not heat._source_matches(receipt):
+			return false
+	if not _devices(heat, data, devices):
+		return false
+	var coverage: Dictionary = History.source_coverage(heat, data)
+	if not bool(coverage.supported) or int(coverage.receipt_sum) != int(data.input_energy) or coverage.allocations.size() != data.cells.size() or not heat._all_sources_present(data.receipts, int(data.activation_ms), now):
+		return false
+	var allocations: Dictionary = coverage.allocations
 	var sum_q: int = 0
 	var baseline_sum: int = 0
+	var baselines: Dictionary = {}
 	for key: Variant in data.cells:
 		var row: Variant = data.cells[key]
 		if not key is String or not Shape.keys(row, ["cell", "energy", "allocated_ms", "baseline_energy"]) or not heat._cell_array(row.cell):
 			return false
 		var point := Vector2i(int(row.cell[0]), int(row.cell[1]))
-		if key != heat._key(point) or not Shape.count(row.energy, 0, int(heat.definitions.max_cell_energy)) or not Shape.count(row.allocated_ms, int(data.model_started_ms), int(data.segment_started_ms)) or not Shape.count(row.baseline_energy, 0, int(heat.definitions.max_cell_energy)):
+		if key != heat._key(point) or not allocations.has(key) or not Shape.count(row.energy, 0, int(heat.definitions.max_cell_energy)) or not Shape.count(row.allocated_ms, int(allocations[key]), int(allocations[key])) or not Shape.count(row.baseline_energy, 0, int(heat.definitions.max_cell_energy)):
 			return false
+		# Compute once from original climate and source evidence, never use row
+		# metadata as authority for historical sample validation.
+		var baseline: int = heat._baseline(point, int(allocations[key]))
+		if int(row.baseline_energy) != baseline:
+			return false
+		baselines[key] = baseline
 		if not _can_add(sum_q, int(row.energy)) or not _can_add(baseline_sum, int(row.baseline_energy)):
 			return false
 		sum_q += int(row.energy)
 		baseline_sum += int(row.baseline_energy)
-		if row.baseline_energy != heat._baseline(point, int(row.allocated_ms)):
-			return false
 	if not _can_add(sum_q, int(data.loss_energy)) or not _can_add(sum_q + int(data.loss_energy), int(data.absorbed_energy)) or sum_q + int(data.loss_energy) + int(data.absorbed_energy) != total_input or baseline_sum > int(data.ambient_in):
 		return false
 
-	var expected_cells: Dictionary = {}
-	var before_model_cells: Dictionary = {}
-	var through_model_cells: Dictionary = {}
-	var receipt_sum: int = 0
-	var before_model_input: int = 0
-	var through_model_input: int = 0
-	for action: Variant in data.receipts:
-		var receipt: Variant = data.receipts[action]
-		if not action is String or not heat._valid_receipt(receipt, int(data.activation_ms)) or action != receipt.action or int(receipt.at_ms) > int(data.segment_started_ms) or not heat._source_matches(receipt):
-			return false
-		var amount: int = int(receipt.amount)
-		if not _can_add(receipt_sum, amount):
-			return false
-		receipt_sum += amount
-		var at_ms: int = int(receipt.at_ms)
-		if at_ms < int(data.model_started_ms):
-			if not _can_add(before_model_input, amount):
-				return false
-			before_model_input += amount
-		if at_ms <= int(data.model_started_ms):
-			if not _can_add(through_model_input, amount):
-				return false
-			through_model_input += amount
-		var center := Vector2i(int(receipt.cell[0]), int(receipt.cell[1]))
-		for point: Vector2i in heat._patch(center):
-			var key: String = heat._key(point)
-			if not data.cells.has(key):
-				return false
-			expected_cells[key] = mini(int(expected_cells.get(key, MAX_INTEGER)), at_ms)
-			if at_ms < int(data.model_started_ms):
-				before_model_cells[key] = true
-			if at_ms <= int(data.model_started_ms):
-				through_model_cells[key] = true
-	if not _devices(heat, data, devices, expected_cells) or receipt_sum != int(data.input_energy) or expected_cells.size() != data.cells.size() or not heat._all_sources_present(data.receipts, int(data.activation_ms), now):
-		return false
-	for key: String in expected_cells:
-		var expected_allocation: int = maxi(int(data.model_started_ms), int(expected_cells[key]))
-		if int(data.cells[key].allocated_ms) != expected_allocation:
-			return false
-	if not _legacy_bounds(data, before_model_cells, through_model_cells, before_model_input, through_model_input, int(heat.definitions.pulse_energy)):
+	if not History.valid_legacy_limits(data, coverage, int(heat.definitions.pulse_energy)):
 		return false
 	if not _frozen_segment(heat, data, now, baseline_sum, devices, derived):
 		return false
-	return _sample(heat, data, now)
+	return Sample.validate(heat, data, coverage, baselines)
 
 
-static func _devices(heat: SimLocalHeat, data: Dictionary, devices: Dictionary, expected_cells: Dictionary) -> bool:
+static func _devices(heat: SimLocalHeat, data: Dictionary, devices: Dictionary) -> bool:
 	# These are references to the candidate's original artifacts, never a second
 	# set of balances. Artifact schema also validates each definition and event.
 	var definitions: Dictionary = {}
@@ -194,12 +175,6 @@ static func _devices(heat: SimLocalHeat, data: Dictionary, devices: Dictionary, 
 		if enabled:
 			if int(change.at_ms) < int(data.last_ms):
 				had_elapsed_enable[id] = true
-			var center := Vector2i(int(change.cell[0]), int(change.cell[1]))
-			for point: Vector2i in heat._patch(center):
-				var key: String = heat._key(point)
-				if not data.cells.has(key):
-					return false
-				expected_cells[key] = mini(int(expected_cells.get(key, MAX_INTEGER)), int(change.at_ms))
 		seen[action] = true
 		latest[id] = change
 		last_at[id] = int(change.at_ms)
@@ -344,100 +319,6 @@ static func _frozen_segment(heat: SimLocalHeat, data: Dictionary, now: int, base
 	elif int(data.segment_until_ms) != boundary:
 		return false
 	return now <= boundary
-
-
-static func _legacy_bounds(data: Dictionary, before_cells: Dictionary, through_cells: Dictionary, before_input: int, through_input: int, pulse: int) -> bool:
-	var limits: Dictionary = data.legacy_limits
-	if limits.is_empty():
-		# A fresh model cannot claim sources from an earlier model epoch.
-		return int(data.model_started_ms) == int(data.activation_ms) and before_input == 0
-	if not Shape.keys(limits, ["at_ms", "input_energy", "cells"]) or not Shape.count(limits.at_ms, int(data.model_started_ms), int(data.model_started_ms)) or not Shape.count(limits.input_energy, before_input, through_input) or not limits.cells is Array:
-		return false
-	if int(limits.input_energy) % pulse != 0 or limits.cells.size() > through_cells.size():
-		return false
-	var old_cells: Dictionary = {}
-	var previous: String = ""
-	for key: Variant in limits.cells:
-		if not key is String or key.is_empty() or (not previous.is_empty() and key <= previous) or not through_cells.has(key) or not data.cells.has(key) or int(data.cells[key].allocated_ms) != int(data.model_started_ms):
-			return false
-		old_cells[key] = true
-		previous = key
-	for key: String in before_cells:
-		if not old_cells.has(key):
-			return false
-	# The converter already verified the old field. Later saves cannot identify
-	# which same-ms sources preceded conversion; preserve only provable bounds.
-	# These bounds cannot authorize extra cells or more old input than receipts.
-	return (int(limits.input_energy) == 0) == old_cells.is_empty()
-
-
-static func _sample(heat: SimLocalHeat, data: Dictionary, now: int) -> bool:
-	if not Shape.count(data.last_sample_ms, int(data.activation_ms), now) or int(data.last_sample_ms) != int(data.activation_ms) and posmod(int(data.last_sample_ms), int(heat.definitions.sample_ms)) != 0:
-		return false
-	if not data.last_sample_mode is String or data.last_sample_mode not in ["absolute", "legacy_excess"]:
-		return false
-	if not Shape.count(data.last_sample_input, 0, int(data.input_energy)) or not Shape.count(data.last_sample_loss, 0, int(data.loss_energy)) or not Shape.count(data.last_sample_ambient_in, 0, int(data.ambient_in)) or not Shape.count(data.last_sample_continuous_input, 0, int(data.continuous_input)) or not Shape.count(data.last_sample_absorbed, 0, int(data.absorbed_energy)) or not _can_add(int(data.last_sample_input), int(data.last_sample_ambient_in)) or not _can_add(int(data.last_sample_input) + int(data.last_sample_ambient_in), int(data.last_sample_continuous_input)):
-		return false
-	var sample_at: int = int(data.last_sample_ms)
-	if sample_at == int(data.activation_ms) and (not data.last_sample_cells.is_empty() or int(data.last_sample_input) != 0 or int(data.last_sample_loss) != 0 or int(data.last_sample_ambient_in) != 0 or int(data.last_sample_continuous_input) != 0 or int(data.last_sample_absorbed) != 0):
-		return false
-	var legacy: bool = data.last_sample_mode == "legacy_excess"
-	var old_cells: Dictionary = {}
-	if legacy:
-		if data.legacy_limits.is_empty() or sample_at > int(data.model_started_ms) or int(data.last_sample_ambient_in) != 0 or int(data.last_sample_continuous_input) != 0 or int(data.last_sample_absorbed) != 0 or int(data.last_sample_input) > int(data.legacy_limits.input_energy):
-			return false
-		for key: String in data.legacy_limits.cells:
-			old_cells[key] = true
-	elif sample_at < int(data.model_started_ms):
-		return false
-	var old_maximum: int = int(heat.definitions.max_cell_energy) - 13000 * int(heat.definitions.capacity_per_tenth)
-	var sample_sum: int = 0
-	var sampled_baselines: int = 0
-	for key: Variant in data.last_sample_cells:
-		if not key is String or not data.cells.has(key) or not Shape.count(data.last_sample_cells[key], 1 if legacy else 0, old_maximum if legacy else int(heat.definitions.max_cell_energy)):
-			return false
-		if legacy:
-			if not old_cells.has(key):
-				return false
-		else:
-			if int(data.cells[key].allocated_ms) > sample_at or not _can_add(sampled_baselines, int(data.cells[key].baseline_energy)):
-				return false
-			sampled_baselines += int(data.cells[key].baseline_energy)
-		var energy: int = int(data.last_sample_cells[key])
-		if not _can_add(sample_sum, energy):
-			return false
-		sample_sum += energy
-	if not _can_add(sample_sum, int(data.last_sample_loss)) or not _can_add(sample_sum + int(data.last_sample_loss), int(data.last_sample_absorbed)) or sample_sum + int(data.last_sample_loss) + int(data.last_sample_absorbed) != int(data.last_sample_input) + int(data.last_sample_ambient_in) + int(data.last_sample_continuous_input):
-		return false
-	if not legacy:
-		if sampled_baselines > int(data.last_sample_ambient_in):
-			return false
-		for key: String in data.cells:
-			# Same-ms source completion can occur after the already committed
-			# sample. Earlier allocations must be represented even when Q is zero.
-			if int(data.cells[key].allocated_ms) < sample_at and not data.last_sample_cells.has(key):
-				return false
-	var before_input: int = 0
-	var through_input: int = 0
-	for receipt: Dictionary in data.receipts.values():
-		if int(receipt.at_ms) < sample_at:
-			if not _can_add(before_input, int(receipt.amount)):
-				return false
-			before_input += int(receipt.amount)
-		if int(receipt.at_ms) <= sample_at:
-			if not _can_add(through_input, int(receipt.amount)):
-				return false
-			through_input += int(receipt.amount)
-	if int(data.last_sample_input) < before_input or int(data.last_sample_input) > through_input or int(data.last_sample_input) % int(heat.definitions.pulse_energy) != 0:
-		return false
-	var source_before: bool = false
-	var sink_before: bool = false
-	for change: Dictionary in data.device_switches.values():
-		if bool(change.enabled) and int(change.at_ms) < sample_at:
-			var thermal: Dictionary = heat._device_definition(str(change.object)).thermal
-			source_before = source_before or thermal.mode == "emit"
-			sink_before = sink_before or thermal.mode == "absorb"
-	return (source_before or int(data.last_sample_continuous_input) == 0) and (sink_before or int(data.last_sample_absorbed) == 0)
 
 
 static func _can_add(total: int, amount: int) -> bool:

@@ -586,7 +586,9 @@ func minimum_offset_tenths() -> int:
 func has_visible_offsets(historical: bool = false) -> bool:
 	var state: Dictionary = last_sample_cells if historical else cells
 	for key: String in state:
-		var point := Vector2i(int(cells[key].cell[0]), int(cells[key].cell[1]))
+		# Historical keys were validated against canonical source coverage. A
+		# saved observation must not borrow current allocation metadata.
+		var point := Vector2i(key.get_slice(",", 0).to_int(), key.get_slice(",", 1).to_int()) if historical else Vector2i(int(cells[key].cell[0]), int(cells[key].cell[1]))
 		if (sample_tenths(point, last_sample_ms) if historical else current_tenths(point)) != 0:
 			return true
 	return false

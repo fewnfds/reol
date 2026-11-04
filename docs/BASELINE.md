@@ -6,6 +6,7 @@
 
 | 版本/工作包 | 证据 | 适用边界 |
 |---|---|---|
+| `99eb91ce311a7e0df798dda3795baf6d857464e6` W1b地理气温及前序 | [CI 41916383335](https://github.com/fewnfds/reol/actions/runs/41916383335) completed/success，230组/32690断言/0失败；C1c-1b实际提交准备核对完整SHA与artifact | 覆盖W1b及此前世界包；不覆盖后来W2b-1固有光和C1c-1b历史证据解耦 |
 | `12f4cf9b5d968e290c5e955601b0ea1ca1ff0388` W2b-0固定火石光与前序世界包 | [CI 41913715806](https://github.com/fewnfds/reol/actions/runs/41913715806) completed/success，227组/29794断言/0失败；W2b-1实际提交准备核对完整SHA与artifact | 覆盖C1热场/固定源、W1a日照、P1a寻路和W2b-0及其前序；不覆盖W1b地理气温或W2b-1固有光 |
 | `73b765cf533006ca4c90149b55b8f937554dc584` C1a-1共享背景及前序修复 | [CI 41859915825](https://github.com/fewnfds/reol/actions/runs/41859915825) completed/success，C1a-2审查修复实际提交准备核对完整SHA | 覆盖C1a-1与前序A/B/C0及金额包；不覆盖C1a-2固定参考 |
 | `62c1aa7589e272d1770a75e90aa3e29fc439d9d6` 地表编辑/活接触及历史投影修复 | [CI 41838689908](https://github.com/fewnfds/reol/actions/runs/41838689908) completed/success，B1a修复提交准备时核对完整SHA | 覆盖此前A0/B0代码；不覆盖后来的B1a及其修复 |
@@ -35,6 +36,16 @@
 A0a的根43与隔离争环稿曾用的根43不是可互换格式。争环稿留原分支，不能直接拿其存档喂新引擎；兼容方案须在未来整合前明确。
 
 ## 当前候选：待对应SHA完整回归
+
+### C1c-1b 热场历史覆盖与样本解耦
+
+普通完整热schema现以`SimThermalHistory`从原receipt/设备启用推导覆盖和首次分配，保留旧转换仅由pulse证明的同毫秒上下界；`SimThermalSample`以独立历史Q/累计账与原气候底量核采样，不读取当前cells/flows。完整候选继续认证原事件/器物余额、严格覆盖全部当前Q及重建冻结段；删当前格或改分配/底量仍拒绝。`has_visible_offsets(true)`从已验历史键读取坐标。不新增格式、余额、回收或移动热，当前仍512活格。
+
+最终新组167项/0失败，2.461秒、峰值工作集237035520B（`logs/thermal-history-focus-corrected.json`）；原热规则/设备/人体/结构/精确分组712项/0失败，6.641秒、227483648B（`logs/thermal-history-existing.json`）。旧导入组合在30秒预算于最后植物归档组被中止：前六组（absolute、thermal_import、device_migration、heat_archive、heat_migration、herb_environment）均完成且无FAIL/脚本错误，但未输出总断言，不能称组合整跑通过（`logs/thermal-history-legacy.json`）；只将未完成的植物归档单独验证，22项/0失败、20.219秒/430358528B（`logs/thermal-history-herb-archive.json`）。新增边界首跑167项有1条测试误把完整schema的几何查询计数当世界变更；已保留无副作用断言并对完整验证排除诊断计数，纠正后通过，未改产品校验。
+
+沿原普通Main/UI的真实学习启用，在120173ms保存进行中放热段；写进程完全退出，读进程恢复后再推进35000ms，原器物扣量/热流/人体等完整检查点与未来摘要均一致。检查点`0a5c50a7305a1135ae9a8404478a9bff10fcae22a4ed62a3155eb973598209d0`，未来`27818f070b589e11c5c053f450ed4b0eca47587465abc1f30139b04f1af4ae02`。复用原QA脚本的本地改名副本，未覆盖旧证据；`logs/thermal-history-native-{write,read}.json`及`logs/thermal_history_{write,read,expected}.json`，原生1600×900的`logs/thermal_history_read_future.png`已观察。两进程各6.98秒，峰值工作集499519488/447631360B；峰值采样私有646840320/669290496B。单进程仍30秒/1GiB预算。
+
+同机i5-13600KF/20逻辑核、34104020992B内存、Godot4.7.2 debug无头，512格组件/28笔合成有限来源、真实默认气候、40次×1秒推进及3次完整JSON恢复、不同分片未来一致。推进p95/p99为15.316/16.158ms，恢复p95为31.848ms（仅3样本），总进程2.452秒/209219584B；报告`logs/thermal-history-512.json`。这是既有上限的组件验证（来源脉冲100倍），不是真实器物/全世界/FPS、扩容或长期性能证明。完整CI仍待本包最终SHA，不本机双跑全套；原fixture未改。
 
 恢复世界引擎后集中修复旧CI缺陷：课程的方法集合不再依赖内容字典键顺序，仍严格拒绝缺项/多项/重复/替换，原课程历史顺序不改，新课程稳定排序。其余为测试接缝：显式选墙而非菜单首项、修改真实内容包而非只改运行policy、合成地图显式独立工厂、更新旅程校验参数及单/双域装配断言。原历史fixture未改写。
 
