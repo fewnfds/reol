@@ -403,6 +403,10 @@ func _legacy_activation(runner: Object) -> void:
 	runner.assert_true(after.environment.samples.is_empty(), "legacy migration grants neither historical burden nor historical protection")
 	for field: String in ["weather", "clothing", "health", "artifacts"]:
 		var expected: Dictionary = before[field].duplicate(true)
+		if field == "artifacts":
+			runner.assert_eq(int(expected.version), 4, "the real pre-environment archive has the original artifact v4 envelope")
+			# Root v40 -> v41 explicitly upgrades only this envelope to v5.
+			expected.version = 5
 		if field == "health":
 			expected.version = 2
 			expected["conflict_source_floor"] = 1

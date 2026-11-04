@@ -65,6 +65,10 @@ func _archives(runner: Object) -> void:
 				runner.assert_eq(canonical(prior_village(new_world.regions[region], old_world.regions[region])), canonical(old_world.regions[region]), "v32 keeps every original village fact: " + region)
 			for field: String in ["weather", "local_heat", "environment", "artifacts", "health", "clothing"]:
 				var expected: Dictionary = old_world[field].duplicate(true)
+				if field == "artifacts":
+					runner.assert_eq(int(expected.version), 4, "the real ecology archive has the original artifact v4 envelope")
+					# Root v40 -> v41 explicitly upgrades only this envelope to v5.
+					expected.version = 5
 				if field == "health":
 					expected.version = 2
 					expected["conflict_source_floor"] = 1

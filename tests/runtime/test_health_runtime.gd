@@ -149,6 +149,21 @@ func _legacy_sources(runner: Object) -> void:
 	legacy.continuity.world.erase("capability_practice")
 	runner.assert_eq(SnapshotValues.normalized(legacy.continuity.world.field_opportunities), SnapshotValues.normalized(SimFieldOpportunities.empty_state()), "temporary pre-health projection has no later field activity to erase")
 	legacy.continuity.world.erase("field_opportunities")
+	# The current capture uses the later artifact v5 envelope. Project only an
+	# actually v4-compatible history: never erase real research or draw work.
+	var old_artifacts: Dictionary = legacy.continuity.world.artifacts
+	runner.assert_eq(int(old_artifacts.version), 5, "temporary projection starts from the current artifact v5 envelope")
+	var can_project_artifacts: bool = int(old_artifacts.version) == 5
+	var artifact_history: Array = old_artifacts.active.values()
+	artifact_history.append_array(old_artifacts.events)
+	for row: Variant in artifact_history:
+		var v4_compatible: bool = row is Dictionary and not row.has("draw") and row.get("verb") not in ["use_research", "draw"] and row.get("kind") not in ["use_learned", "drawn"]
+		runner.assert_true(v4_compatible, "temporary pre-health artifact history contains no v5 research or drawing")
+		can_project_artifacts = can_project_artifacts and v4_compatible
+	if not can_project_artifacts:
+		fixtures._dispose(fixture)
+		return
+	old_artifacts.version = 4
 	# The explicit old-format counterexample also predates body-facing v5.
 	# Downgrade only this temporary test value; immutable real archives stay
 	# untouched and all original effect/action/resource fields remain present.
@@ -173,6 +188,12 @@ func _legacy_sources(runner: Object) -> void:
 	runner.assert_true(runtime.world_sim == live, "rejected old-format conflict domain keeps the original live owner")
 	runner.assert_eq(_canonical(runtime), stable, "rejected old-format conflict domain preserves every original consequence, item and clock fact")
 	legacy.continuity.world.erase("conflicts")
+	var mixed_artifacts: Dictionary = legacy.duplicate(true)
+	mixed_artifacts.continuity.world.artifacts.version = 5
+	runner.assert_eq(SimSaveStore.save_file(bad_path, mixed_artifacts), OK, "old-format fixture with modern artifact envelope is readable JSON")
+	runner.assert_eq(runtime.load_game(bad_path), ERR_INVALID_DATA, "pre-drawing root cannot carry a modern artifact envelope")
+	runner.assert_true(runtime.world_sim == live, "rejected mixed artifact envelope keeps the original live owner")
+	runner.assert_eq(_canonical(runtime), stable, "rejected mixed artifact envelope preserves every original consequence, item and clock fact")
 	runner.assert_eq(SimSaveStore.save_file(path, legacy), OK, "temporary old-format migration fixture contains an actual original backlash")
 	var loaded: Error = runtime.load_game(path)
 	runner.assert_eq(loaded, OK, "pre-health session migrates through the ordinary joint loader")
