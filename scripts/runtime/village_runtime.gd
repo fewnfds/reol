@@ -72,6 +72,7 @@ func setup(
 			push_error("VillageRuntime: no accessible footprint for the opening office")
 			return false
 		_world.set_obstacle_provider(_workspace_obstacle)
+		_world.set_sight_obstacle_provider(_workspace_wall)
 		_config = _snapshot_json_value(_config)
 		_places = _snapshot_json_value(_places)
 	var next_simulation := VillageSimulation.new()
@@ -117,6 +118,10 @@ func _assemble_workplace() -> bool:
 
 func _workspace_obstacle(cell: Vector2i) -> bool:
 	return SimWorkplaces.blocked(_places, cell)
+
+
+func _workspace_wall(cell: Vector2i) -> bool:
+	return SimWorkplaces.wall_at(_places, cell)
 
 
 func select_actor(id: String) -> void:

@@ -1,6 +1,7 @@
 class_name ReolWorld
 extends Node2D
 signal terrain_changed(cells: Array[Vector2i])
+signal sight_obstacles_changed(cells: Array[Vector2i])
 ## Chunked 2D orthographic top-down world with a simple elevation layer.
 ##
 ## v0.1 slice: one generated region (512x512), 64x64 chunks, 5x5 loaded.
@@ -37,6 +38,7 @@ var _pending_unload: Array[Vector2i] = []
 var _focus_chunk: Vector2i = Vector2i(-9999, -9999)
 var _initialized: bool = false
 var _obstacles: Callable
+var _sight_obstacles: Callable
 var _painting_chunk: Vector2i = Vector2i(-1, -1)
 var _painting_offset: int = 0
 const PAINT_CELLS_PER_FRAME: int = 256
@@ -287,6 +289,20 @@ func is_walkable(cell: Vector2i) -> bool:
 
 func set_obstacle_provider(provider: Callable) -> void:
 	_obstacles = provider
+
+
+func set_sight_obstacle_provider(provider: Callable) -> void:
+	_sight_obstacles = provider
+	var changed: Array[Vector2i] = []
+	sight_obstacles_changed.emit(changed)
+
+
+func is_sight_blocked(cell: Vector2i) -> bool:
+	return _sight_obstacles.is_valid() and bool(_sight_obstacles.call(cell))
+
+
+func notify_sight_obstacles_changed(cells: Array[Vector2i]) -> void:
+	sight_obstacles_changed.emit(cells.duplicate())
 
 
 func terrain_is_walkable(cell: Vector2i) -> bool:

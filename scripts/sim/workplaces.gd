@@ -126,6 +126,15 @@ static func roofed(places: Dictionary, cell: Vector2i) -> bool:
 	return false
 
 
+static func wall_at(places: Dictionary, cell: Vector2i) -> bool:
+	# A saved door coordinate is an opening, not a closed wall. Desk/archive
+	# collision is deliberately independent of this physical wall fact.
+	for raw: Array in places.get("records", {}).get("workspace", {}).get("walls", []):
+		if SimRouteTravel.cell(raw) == cell:
+			return true
+	return false
+
+
 static func has_desk_duty(sim: RefCounted, actor: String) -> bool:
 	if sim.config.get("workplaces_version", 0) != VERSION or not sim.actors.has(actor):
 		return false

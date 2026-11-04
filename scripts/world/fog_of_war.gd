@@ -34,9 +34,15 @@ var _observer_radius: int = VISION_RADIUS
 
 
 func setup(world_ref: ReolWorld, start_cell: Vector2i) -> void:
+	if world != null:
+		if world.terrain_changed.is_connected(_on_terrain_changed):
+			world.terrain_changed.disconnect(_on_terrain_changed)
+		if world.sight_obstacles_changed.is_connected(_on_sight_obstacles_changed):
+			world.sight_obstacles_changed.disconnect(_on_sight_obstacles_changed)
 	world = world_ref
 	if not world.terrain_changed.is_connected(_on_terrain_changed):
 		world.terrain_changed.connect(_on_terrain_changed)
+	world.sight_obstacles_changed.connect(_on_sight_obstacles_changed)
 	_focus_cell = start_cell
 	_visibility_dirty = true
 	_states.resize(ReolWorld.WORLD_SIZE * ReolWorld.WORLD_SIZE)
@@ -87,6 +93,16 @@ func invalidate_visibility() -> void:
 
 func _on_terrain_changed(_cells: Array[Vector2i]) -> void:
 	invalidate_visibility()
+
+
+func _on_sight_obstacles_changed(cells: Array[Vector2i]) -> void:
+	if cells.is_empty():
+		invalidate_visibility()
+		return
+	for cell: Vector2i in cells:
+		if (cell - _focus_cell).length_squared() <= _observer_radius * _observer_radius:
+			invalidate_visibility()
+			return
 
 
 func _process(delta: float) -> void:
@@ -241,6 +257,8 @@ func _has_line_of_sight(
 
 		var cell := Vector2i(x0, y0)
 		if world.get_terrain(cell) == ReolWorld.TERRAIN_ROCK:
+			return false
+		if world.is_sight_blocked(cell):
 			return false
 		if world.get_elevation(cell) > from_elevation:
 			return false

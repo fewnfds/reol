@@ -1,5 +1,6 @@
 class_name SimConstruction
 extends RefCounted
+signal structures_changed(cells: Array[Vector2i])
 ## Persistent projects; quantities stay in the settlement's original ledger.
 ## A material container is either carried by a real worker or lies on the ground.
 
@@ -314,11 +315,15 @@ func _complete(job: Dictionary) -> void:
 		"open", "close":
 			_before_thermal_change(str(rule.kind))
 			project.open = job.kind == "open"
+	var changed_cells: Array[Vector2i] = [cell]
 	if job.kind == "demolish":
-		_collapse_roofs()
+		changed_cells.append_array(_collapse_roofs())
 	_reindex()
 	_after_thermal_change(str(rule.kind))
 	_release(job, "结构已完工。" if job.kind == "build" else "拆除完成，余料还在工地。" if job.kind == "demolish" else "木门已打开。" if job.kind == "open" else "木门已关上。")
+	# Observers only see the completed transaction, including collateral roofs,
+	# derived rooms/heat geometry and released worker/material reservations.
+	structures_changed.emit(changed_cells)
 
 
 func _route(job: Dictionary, raw: Array, phase: String) -> bool:
@@ -482,12 +487,21 @@ func roofed(cell: Vector2i) -> bool:
 func thermal_barrier(cell: Vector2i) -> bool:
 	# Facts only: an open door conducts as an opening, while a blueprint is
 	# still paper. The heat domain owns conductance and fixed-space storage.
+	return _closed_wall_at(cell)
+
+
+func blocks_sight(cell: Vector2i) -> bool:
+	# Current built types are opaque wood. Keep sight separate from furniture
+	# collision and from heat coefficients so later materials can differ.
+	return _closed_wall_at(cell)
+
+
+func _closed_wall_at(cell: Vector2i) -> bool:
 	if _blocked.has(cell):
 		return true
 	for sim: RefCounted in world.regions.values():
-		for raw: Array in sim.places.get("records", {}).get("workspace", {}).get("walls", []):
-			if SimRouteTravel.cell(raw) == cell:
-				return true
+		if SimWorkplaces.wall_at(sim.places, cell):
+			return true
 	return false
 
 
@@ -543,7 +557,8 @@ func _set_material_cell(project: Dictionary, raw: Array) -> void:
 	_material_cells[cell] = int(_material_cells.get(cell, 0)) + 1
 
 
-func _collapse_roofs() -> void:
+func _collapse_roofs() -> Array[Vector2i]:
+	var changed: Array[Vector2i] = []
 	for id: String in projects:
 		var project: Dictionary = projects[id]
 		if project.state != "built" or definitions.types[project.type].kind != "roof" or roof_supported(SimRouteTravel.cell(project.cell)):
@@ -561,6 +576,8 @@ func _collapse_roofs() -> void:
 					break
 		if _remove(id, drop):
 			project.line = "支撑失去，木屋面塌回有限余料；下方床铺仍在。"
+			changed.append(cell)
+	return changed
 
 
 func blocked(cell: Vector2i) -> bool:

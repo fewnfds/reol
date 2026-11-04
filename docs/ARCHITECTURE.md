@@ -33,6 +33,7 @@ main / 场景装配
 | [SimConflicts](../scripts/sim/conflicts.gd)、[SimSparring](../scripts/sim/sparring.gd)、[SimHealth](../scripts/sim/health.gd) | 招式/弹障/成本、有限对练、真实伤源与恢复 | 使用原身体/qi/体力，不另造战斗人物；非完整致死/医疗/战争 |
 | 日历/气候、weather、environment、local_heat、spirit_sources | 无状态历法曲线、晴雨相位、受体采样、局地余热、有限源与转换 | 热、五行亲和、qi、储热和灵源不合成万能数值；完整冷热/光/五相场仍待做 |
 | construction / workplaces / resting | 真实材料与结构、固定办事布局、床位/休息 | 围合、覆盖与功能可用性分开；房间不发行贡献或资源 |
+| [SimStructureQuery](../scripts/sim/structure_query.gd)、[ReolWallVisuals](../scripts/world/wall_visuals.gd) | 无状态投影原结构引用/覆盖格/层与独立物理事实，按四邻绘墙 | 不复制实体或写档；真实木墙门的视线不等于桌柜碰撞，成功施工通知经runtime使本地视野失效 |
 | avian_life / soul_vessels / large_bodies | 雀身、残识与载体、3×3兽身的原持久状态 | 不是人类伪装副本；兽身不可选、无完整物种生成/繁衍 |
 | field_opportunities / site_affairs / source_care | 地点、许可/核验、具名职责/个人线索与原过程引用 | 有限样本，不能当成通用任务/产权/组织平台 |
 
@@ -68,6 +69,8 @@ ContentDB支持37份输入的独立内容包、旧v42兼容输入。根44另携`
 普通新局从`data/scenarios/world_generation.json`读取平面地图描述；`main.configure_opening_map`只允许未入树的新场景接受独立地图草稿，不能改运行世界。存档按自己的实例描述恢复，旧丘陵不追改。运行呈现仍限home/river；home视图在接受后按原人物名单增删并更新选择列表，不生成新身体。公开定义仍可写，时钟/动作/工作间/对练等部分规则仍直接读盘，任意开局/地图编辑尚未完成。存档装配描述不是带运行历史的新局模板。
 
 B0a在原地图上增加`[x,y,terrain]`稀疏覆盖，flat支持草/水/岩及还原基底，legacy拒非空覆盖。根46保存覆盖；45及更早按原格式迁入空覆盖，46缺字段拒绝。联合/单域均先在独立地图恢复覆盖，再验证身体/结构/剩余路径，失败不替换活世界。水变化按会话探测距离使邻近自然属性失效；原瓦片以256格帧预算重绘，先清旧植被，未加载格后续直接读真值；静止视线也置dirty。地图低层API不承担玩家权限/物资/在途冲突，不可直接暴露为玩家免费改地。当前范围与待验见BASELINE。
+
+B1a继续沿原`SimConstruction`和`SimWorkplaces`读结构，不另建通用实体表。`structures_changed(cells)`只在真实完工/门操作/拆除及连带塌顶结算、索引和人员释放后发布；候选恢复不造施工事件。`ReolWorld`的视线来源与通行来源独立，重绑来源触发全视野失效，有限改变格仅触及当前视域时更新。新查询路径读最新阻塞；既有过程仍在下一步检查，完整在途路线响应尚未统一，不能称任意世界导航已完成。单工地/单格工程和固定值事房模板限制仍保留。
 
 ## 仍需建立的通用接缝
 

@@ -3,6 +3,7 @@ extends Node2D
 ## Ground presentation and construction book. All mutations use SimConstruction.
 
 const UI = preload("res://scripts/ui/reol_ui_theme.gd")
+const Walls = preload("res://scripts/world/wall_visuals.gd")
 var panel: PanelContainer
 var type_choice: OptionButton
 var project_choice: OptionButton
@@ -16,6 +17,7 @@ var _bed_details: Label
 var _reply: Label
 var _owner: WeakRef
 var _cell_buttons: Dictionary = {}
+var _observed_domain: SimConstruction
 
 
 func runtime() -> WorldContinuityRuntime:
@@ -111,6 +113,19 @@ func setup(adapter: WorldContinuityRuntime) -> void:
 		other.visibility_changed.connect(_other_panel_changed.bind(other))
 	adapter.avatar_changed.connect(reset_observation)
 	GameClock.time_advanced.connect(_on_advanced)
+	_bind_structure_changes()
+
+
+func _bind_structure_changes() -> void:
+	if _observed_domain != null and _observed_domain.structures_changed.is_connected(_on_structures_changed):
+		_observed_domain.structures_changed.disconnect(_on_structures_changed)
+	_observed_domain = domain()
+	_observed_domain.structures_changed.connect(_on_structures_changed)
+
+
+func _on_structures_changed(cells: Array[Vector2i]) -> void:
+	runtime().home_runtime()._world.notify_sight_obstacles_changed(cells)
+	queue_redraw()
 
 
 func show_panel() -> void:
@@ -347,6 +362,7 @@ func refresh() -> void:
 
 
 func reset_observation() -> void:
+	_bind_structure_changes()
 	panel.hide()
 	project_choice.clear()
 	selection = Vector2i(-1, -1)
@@ -435,7 +451,11 @@ func _draw() -> void:
 					if runtime().world_sim.weather.bed_is_wet(id):
 						draw_circle(p + Vector2(0, 6), 5, Color("749faf"))
 				else:
-					_draw_structure(p, bool(domain().definitions.types[project.type].door), bool(project.open))
+					var mask: int = SimStructureQuery.wall_mask(runtime().world_sim, cell)
+					if bool(domain().definitions.types[project.type].door):
+						Walls.draw_door(self, p, mask, bool(project.open))
+					else:
+						Walls.draw_wall(self, p, mask)
 		var raw: Array = sim.actors[project.carrier].cell if not str(project.carrier).is_empty() else project.material_cell
 		var material_cell: Vector2i = SimRouteTravel.cell(raw)
 		if sim.inventory.quantity(id, "wood") > 0 and _visible(material_cell):
@@ -459,22 +479,6 @@ func _draw_bed(p: Vector2) -> void:
 	draw_rect(Rect2(p + Vector2(-13, -19), Vector2(26, 10)), Color("d6cdb1"))
 	draw_line(p + Vector2(-21, -26), p + Vector2(21, -26), Color("b49666"), 5)
 	draw_line(p + Vector2(-21, 23), p + Vector2(21, 23), Color("b49666"), 4)
-
-
-func _draw_structure(p: Vector2, door: bool, opened: bool) -> void:
-	_draw_shadow(p)
-	if door and opened:
-		draw_rect(Rect2(p + Vector2(-25, -32), Vector2(7, 43)), Color("8e6942"))
-		draw_line(p + Vector2(-24, -32), p + Vector2(25, -32), Color("bb9560"), 5)
-		draw_line(p + Vector2(25, -32), p + Vector2(25, 15), Color("8e6942"), 5)
-		return
-	draw_rect(Rect2(p + Vector2(-28, -24), Vector2(56, 44)), Color("6f4c34"))
-	draw_rect(Rect2(p + Vector2(-28, -30), Vector2(56, 8)), Color("b49666"))
-	for x: int in range(-24, 28, 8):
-		draw_line(p + Vector2(x, -22), p + Vector2(x, 18), Color("98764d"), 5)
-	draw_line(p + Vector2(-28, 5), p + Vector2(28, 5), Color("543d2e"), 4)
-	if door:
-		draw_circle(p + Vector2(14, 1), 3, UI.GOLD)
 
 
 func _draw_shadow(p: Vector2) -> void:

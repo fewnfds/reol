@@ -81,6 +81,14 @@ func test_terrain_edits() -> void:
 	load("res://tests/runtime/test_terrain_edits.gd").new().run(self)
 
 
+func test_structure_query() -> void:
+	load("res://tests/sim/test_structure_query.gd").new().run(self)
+
+
+func test_structure_updates() -> void:
+	load("res://tests/runtime/test_structure_updates.gd").new().run(self)
+
+
 # ---------------------------------------------------------------------------
 # Test doubles
 # ---------------------------------------------------------------------------
