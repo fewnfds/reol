@@ -16,6 +16,8 @@ var _owner: WeakRef
 var _terrain: Callable
 var _elevation: Callable
 var _incoming: Callable
+## Host policy, not saved state. Only synchronous static-map queries opt in.
+var _reuse_static_geometry: bool = false
 
 var world: RefCounted:
 	get:
@@ -45,10 +47,11 @@ func initialize(authority: RefCounted, content: Dictionary) -> bool:
 	return true
 
 
-func set_geometry(terrain: Callable, elevation: Callable, incoming: Callable = Callable()) -> void:
+func set_geometry(terrain: Callable, elevation: Callable, incoming: Callable = Callable(), reuse_static_geometry: bool = false) -> void:
 	_terrain = terrain
 	_elevation = elevation
 	_incoming = incoming
+	_reuse_static_geometry = reuse_static_geometry
 
 
 static func subject_id(id: String) -> String:
@@ -140,7 +143,8 @@ func _walkable(cell: Vector2i) -> bool:
 
 
 func _path(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
-	return SimBodyGeometry.find_path(a, b, size(), _walkable, _elevation, int(definitions.navigation_radius), int(definitions.navigation_budget))
+	# Actual occupancy and each step's clearance are still checked live below.
+	return SimBodyGeometry.find_path(a, b, size(), _walkable, _elevation, int(definitions.navigation_radius), int(definitions.navigation_budget), _reuse_static_geometry)
 
 
 func next_boundary_ms() -> int:

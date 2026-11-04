@@ -400,7 +400,7 @@ func _bind_navigation() -> void:
 	_home._world.bind_map_data(world_sim.map_data)
 	_home._world.set_obstacle_provider(_physical_obstacle)
 	_home._world.set_sight_obstacle_provider(world_sim.construction.blocks_sight)
-	world_sim.large_bodies.set_geometry(world_sim.map_data.terrain_is_walkable, world_sim.map_data.get_elevation, _incoming_occupancy)
+	world_sim.large_bodies.set_geometry(world_sim.map_data.terrain_is_walkable, world_sim.map_data.get_elevation, _incoming_occupancy, true)
 	world_sim.construction.set_terrain(world_sim.map_data.terrain_is_walkable, world_sim.map_data.get_elevation)
 	world_sim.construction.set_incoming_occupancy(_incoming_occupancy)
 	_home.simulation = world_sim.regions.home

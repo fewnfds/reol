@@ -621,6 +621,10 @@ func test_large_bodies() -> void:
 	load("res://tests/sim/test_large_bodies.gd").new().run(self)
 
 
+func test_body_geometry_reuse() -> void:
+	load("res://tests/sim/test_body_geometry_reuse.gd").new().run(self)
+
+
 func test_large_bodies_runtime() -> void:
 	load("res://tests/runtime/test_large_bodies_runtime.gd").new().run(self)
 

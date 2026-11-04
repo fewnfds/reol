@@ -11,7 +11,7 @@ static func assemble(adapter: WorldContinuityRuntime) -> bool:
 	if not scenario is Dictionary or scenario.get("version") != 1 or not scenario.get("bodies") is Dictionary:
 		return false
 	var domain: SimLargeBodies = adapter.world_sim.large_bodies
-	domain.set_geometry(adapter.world_sim.map_data.terrain_is_walkable, adapter.world_sim.map_data.get_elevation, adapter._incoming_occupancy)
+	domain.set_geometry(adapter.world_sim.map_data.terrain_is_walkable, adapter.world_sim.map_data.get_elevation, adapter._incoming_occupancy, true)
 	for id: String in scenario.bodies:
 		var row: Dictionary = scenario.bodies[id]
 		var preferred: Vector2i = adapter.centers[row.region] + SimRouteTravel.cell(row.offset)

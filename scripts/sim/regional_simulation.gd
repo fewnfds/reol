@@ -129,7 +129,7 @@ func bind_map_data(data: WorldMapData) -> void:
 	if construction != null:
 		construction.set_terrain(data.terrain_is_walkable, data.get_elevation)
 	if large_bodies != null:
-		large_bodies.set_geometry(data.terrain_is_walkable, data.get_elevation, large_bodies._incoming)
+		large_bodies.set_geometry(data.terrain_is_walkable, data.get_elevation, large_bodies._incoming, true)
 
 
 func initialize(definitions: Dictionary, instances: Dictionary, content: ReolContentDB = null) -> bool:
@@ -1074,7 +1074,7 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	if not next_large.initialize(candidate_world, _content.large_bodies) or not next_large.restore(data.large_bodies):
 		return false
 	if map_data != null:
-		next_large.set_geometry(map_data.terrain_is_walkable, map_data.get_elevation)
+		next_large.set_geometry(map_data.terrain_is_walkable, map_data.get_elevation, Callable(), true)
 	else:
 		next_large.set_geometry(large_bodies._terrain, large_bodies._elevation, large_bodies._incoming)
 	candidate_world.large_bodies = next_large
