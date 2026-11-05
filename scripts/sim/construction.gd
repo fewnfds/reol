@@ -442,8 +442,9 @@ func protected_cell(cell: Vector2i) -> bool:
 
 
 func occupied(cell: Vector2i, include_motion: bool = true) -> bool:
-	if world.object_lifecycle != null:
-		var placed: Dictionary = world.object_lifecycle.ground.query(Rect2i(cell, Vector2i.ONE), 512)
+	var lifecycle: Variant = world.get("object_lifecycle")
+	if lifecycle != null:
+		var placed: Dictionary = lifecycle.ground.query(Rect2i(cell, Vector2i.ONE), 512)
 		if not bool(placed.ok) or not placed.ids.is_empty():
 			return true
 	if world.large_bodies != null and world.large_bodies.blocked(cell):

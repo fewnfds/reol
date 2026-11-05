@@ -323,7 +323,12 @@ func _visible(id: String, observed_world: RegionalSimulation = null) -> bool:
 	# A reload may replace the accepted session during a debugger callback.
 	# Keep the observed world alive for every weak-owned domain read in this view.
 	var authority: RegionalSimulation = observed_world if observed_world != null else adapter.world_sim
+	if authority == null:
+		return false
 	var domain: SimArtifacts = authority.artifacts
+	var footprint: Rect2i = _physical_ground_rect(id, authority)
+	if footprint.size != Vector2i.ZERO:
+		return _visible_footprint_cell(footprint, authority) != Vector2i(-1, -1)
 	return domain.can_see("player", id) and (adapter._home._fog == null or adapter._home._fog.is_cell_visible(domain.object_cell(id)))
 
 
@@ -337,6 +342,18 @@ func _perception(id: String) -> Dictionary:
 		return {"known": false}
 	var item: Dictionary = domain.objects[id]
 	var held: bool = item.container == "actor:player" and item.region == domain.actor_home("player")
+	var footprint: Rect2i = _physical_ground_rect(id, authority)
+	if footprint.size != Vector2i.ZERO:
+		var visible_cell: Vector2i = _visible_footprint_cell(footprint, authority)
+		if adapter.world_sim != authority:
+			return {"known": false}
+		if visible_cell != Vector2i(-1, -1) and visible_cell != footprint.position:
+			# The anchor may be beyond sight or hidden by fog. Expose only the
+			# observed cell and ordinary appearance; do not authorize operations
+			# using the unseen anchor or reveal its current location.
+			var definition: Dictionary = domain.definitions.types[item.definition]
+			return {"known": true, "label": str(definition.unknown_name), "line": str(definition.appearance),
+				"method": false, "held": false, "near": false, "cell": [visible_cell.x, visible_cell.y], "region": item.region}
 	if _visible(id, authority) or held:
 		var view: Dictionary = domain.describe("player", id)
 		view["region"] = item.region
@@ -492,6 +509,30 @@ func _physical_ground_rect(id: String, authority: RegionalSimulation) -> Rect2i:
 	if not bool(slot.get("ok", false)) or not bool(slot.get("active", false)) or slot.reference.get("kind") != "artifact" or slot.reference.get("id") != id:
 		return Rect2i()
 	return Rect2i(slot.cell, slot.size)
+
+
+func _visible_footprint_cell(footprint: Rect2i, authority: RegionalSimulation) -> Vector2i:
+	var adapter: WorldContinuityRuntime = runtime()
+	if adapter == null or adapter.world_sim != authority or not adapter.human_player_active():
+		return Vector2i(-1, -1)
+	var home: String = authority.artifacts.actor_home("player")
+	if home.is_empty() or not bool(authority.regions[home].actors.player.alive):
+		return Vector2i(-1, -1)
+	var observer: Vector2i = adapter.controlled_cell()
+	var radius: int = int(authority.regions[home].config.observation_radius)
+	var first := Vector2i(maxi(footprint.position.x, observer.x - radius), maxi(footprint.position.y, observer.y - radius))
+	var end := Vector2i(mini(footprint.end.x, observer.x + radius + 1), mini(footprint.end.y, observer.y + radius + 1))
+	for y: int in range(first.y, end.y):
+		for x: int in range(first.x, end.x):
+			var cell := Vector2i(x, y)
+			var visible: bool = _cell_visible(cell, observer, radius)
+			# A visibility callback may synchronously replace the accepted world.
+			# Keep the old authority alive but never publish its stale projection.
+			if adapter.world_sim != authority:
+				return Vector2i(-1, -1)
+			if visible:
+				return cell
+	return Vector2i(-1, -1)
 
 
 static func _physical_tile_rect(cell: Vector2i) -> Rect2:

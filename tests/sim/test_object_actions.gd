@@ -13,6 +13,23 @@ class Observer extends RefCounted:
 		notices.append(change.duplicate(true))
 
 
+class CancelOtherObserver extends RefCounted:
+	var owner: WeakRef
+	var notices: Array[String] = []
+	var cancelled: bool = false
+
+	func _init(lifecycle: SimObjectLifecycle) -> void:
+		owner = weakref(lifecycle)
+
+	func on_committed(change: Dictionary) -> void:
+		var command: String = str(change.get("command", ""))
+		notices.append(command)
+		if command == "a_callback_move":
+			var lifecycle: Variant = owner.get_ref()
+			if lifecycle != null:
+				cancelled = lifecycle.cancel("shi_tou")
+
+
 func run(runner: Object) -> void:
 	_timing_conflicts_and_single_commit(runner)
 	_stock_reservation_and_cancel(runner)
@@ -21,6 +38,8 @@ func run(runner: Object) -> void:
 	_save_and_continue_inflight(runner)
 	_bounded_and_segmented_advancement(runner)
 	_multicell_reservation(runner)
+	_callback_cancellation_at_shared_deadline(runner)
+	_timed_merge_into_existing_pile(runner)
 	print("SCENARIO object actions: shared clock, reservations, interruption, revalidation, in-flight restore and bounded advancement")
 
 
@@ -281,3 +300,69 @@ func _bounded_and_segmented_advancement(runner: Object) -> void:
 		runner.assert_eq(candidate.artifacts.objects.first.container, "actor:player", "the same original object moves into the actor container")
 		runner.assert_true(not bool(candidate.object_lifecycle.ground.locate("home", "ground:create_first").get("active", true)), "no stale source placement survives the move")
 	runner.assert_eq(_fixture._state(bounded), _fixture._state(whole), "one long advance and a bounded continuation preserve the same world state")
+
+
+func _callback_cancellation_at_shared_deadline(runner: Object) -> void:
+	var world: RegionalSimulation = _fixture._world(runner)
+	if world == null or not _spawn_pair(runner, world):
+		return
+	var lifecycle: SimObjectLifecycle = world.object_lifecycle
+	var observer := CancelOtherObserver.new(lifecycle)
+	lifecycle.committed.connect(observer.on_committed)
+	var first: Dictionary = _fixture._move("a_callback_move", "first", _fixture._location("ground:create_first"), _fixture._location("actor:player"))
+	var second: Dictionary = _fixture._move("b_callback_cancelled", "second", _fixture._location("ground:create_second"), _fixture._location("actor:shi_tou"))
+	var a: Dictionary = lifecycle.schedule(first, "player", 3500)
+	var b: Dictionary = lifecycle.schedule(second, "shi_tou", 3500)
+	runner.assert_true(bool(a.get("ok", false)) and bool(b.get("ok", false)), "two actors can schedule distinct items for the same deadline")
+	if not bool(a.get("ok", false)) or not bool(b.get("ok", false)):
+		return
+	runner.assert_eq(int(a.action.due_ms), int(b.action.due_ms), "both commands really share one deadline")
+	runner.assert_true(world.advance_to_ms(int(a.action.due_ms)), "the shared clock reaches both scheduled deadlines")
+	runner.assert_true(observer.cancelled, "the first completion callback cancels the other actor's still-active work")
+	runner.assert_eq(observer.notices, ["a_callback_move"], "only the first actual commit emits a completion notification")
+	runner.assert_eq(lifecycle.actions.a_callback_move.status, "completed", "the first action commits exactly once")
+	runner.assert_eq(lifecycle.actions.b_callback_cancelled.status, "cancelled", "the second action stays cancelled after callback re-entry")
+	runner.assert_eq(lifecycle.actions.b_callback_cancelled.result.get("reason"), "cancelled", "the second action retains its cancellation result")
+	runner.assert_true(not lifecycle.receipts.has("b_callback_cancelled"), "cancelled work has no successful transaction receipt")
+	runner.assert_eq(world.artifacts.objects.first.container, "actor:player", "the first original reached its real destination")
+	runner.assert_eq(world.artifacts.objects.second.container, "ground:create_second", "the cancelled original remains at its source")
+	runner.assert_true(bool(lifecycle.ground.locate("home", "ground:create_second").get("active", false)), "cancelled work leaves the second ground footprint active")
+	runner.assert_true(world.advance_to_ms(world.elapsed_ms + 1), "the world continues after the shared deadline")
+	runner.assert_eq(lifecycle.actions.b_callback_cancelled.status, "cancelled", "later boundaries cannot resurrect the cancelled command")
+	runner.assert_eq(observer.notices, ["a_callback_move"], "later boundaries cannot publish a cancelled command")
+
+
+func _timed_merge_into_existing_pile(runner: Object) -> void:
+	var world: RegionalSimulation = _fixture._world(runner)
+	if world == null:
+		return
+	var lifecycle: SimObjectLifecycle = world.object_lifecycle
+	var inventory: SimInventory = world.regions.home.inventory
+	var available: int = inventory.available("store", "wood")
+	var store_before: int = inventory.quantity("store", "wood")
+	runner.assert_true(available >= 5, "the real store can fund the seed pile and later timed merge")
+	if available < 5:
+		return
+	var original_total: int = _fixture._total(inventory, "wood")
+	var pile: Dictionary = lifecycle.execute(_fixture._transfer("seed_merge_pile", _fixture._location("store"), _fixture._ground(130, 120), "wood", 3))
+	runner.assert_true(bool(pile.get("ok", false)), "an existing pile is created from the actual source ledger")
+	if not bool(pile.get("ok", false)):
+		return
+	var request: Dictionary = _fixture._transfer("timed_merge_pile", _fixture._location("store"), _fixture._ground(130, 120), "wood", 2)
+	var scheduled: Dictionary = lifecycle.schedule(request, "player", 3500)
+	runner.assert_true(bool(scheduled.get("ok", false)), "timed work can reserve wood to merge into the existing same-material pile")
+	if not bool(scheduled.get("ok", false)):
+		return
+	var reservation: String = str(scheduled.action.reservation)
+	runner.assert_true(inventory.reservations.has(reservation), "the timed merge reserves the original source quantity")
+	runner.assert_eq(inventory.quantity("ground:seed_merge_pile", "wood"), 3, "the existing pile is unchanged before completion")
+	runner.assert_eq(_fixture._total(inventory, "wood"), original_total, "a pending merge has not created or destroyed wood")
+	runner.assert_true(world.advance_to_ms(int(scheduled.action.due_ms)), "the world reaches the actual merge deadline")
+	runner.assert_eq(lifecycle.actions.timed_merge_pile.status, "completed", "the same-material timed transfer completes")
+	runner.assert_true(not inventory.reservations.has(reservation), "successful completion releases the source reservation")
+	runner.assert_eq(inventory.quantity("ground:seed_merge_pile", "wood"), 5, "the real destination ledger holds the merged quantity")
+	runner.assert_eq(inventory.quantity("store", "wood"), store_before - 5, "the actual source loses exactly the two transfers")
+	runner.assert_eq(_fixture._total(inventory, "wood"), original_total, "seeding and merging conserve the original total")
+	runner.assert_true(not lifecycle.ground.slots.has("ground:timed_merge_pile"), "merging does not fabricate a second ground slot")
+	var located: Dictionary = lifecycle.ground.query(Rect2i(130, 120, 1, 1))
+	runner.assert_eq(located.get("ids"), ["ground:seed_merge_pile"], "one original pile remains at the destination")

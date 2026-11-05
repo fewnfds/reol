@@ -236,6 +236,8 @@ func _stock_transfer(request: Dictionary, reservation: String) -> Dictionary:
 	if not world.synchronize_region(source.region):
 		return _fail("source_unavailable")
 	var inventory: SimInventory = world.regions[source.region].inventory
+	if not _stock_container_mutable(source.region, source.container, request.item):
+		return _fail("container_contract_unsupported")
 	if not inventory.containers.has(source.container) or not inventory.can_use(source.container, request.item, int(request.amount)) and reservation.is_empty():
 		return _fail("insufficient_available_stock")
 	var target: Dictionary = _destination(request.to, {}, Vector2i.ONE, request.command)
@@ -243,16 +245,14 @@ func _stock_transfer(request: Dictionary, reservation: String) -> Dictionary:
 		return target
 	var fresh: bool = bool(target.get("ground", false))
 	if fresh:
-		# Same plain material may merge. Different materials occupy different cells.
-		var hits: Dictionary = ground.query(Rect2i(target.cell, Vector2i.ONE), 512)
-		if not bool(hits.ok):
-			return hits
-		if not hits.ids.is_empty():
-			var slot: Dictionary = ground.slots[hits.ids[0]]
-			if slot.region != source.region or slot.reference.kind != "stock" or slot.reference.item != request.item or slot.reference.domain != "village":
-				return _fail("occupied")
-			target.container = hits.ids[0]
+		var compatible: Dictionary = stock_destination(source.region, target.cell, request.item)
+		if not bool(compatible.ok):
+			return compatible
+		if compatible.has("container"):
+			target.container = compatible.container
 			fresh = false
+	elif not _stock_container_mutable(target.region, target.container, request.item):
+		return _fail("container_contract_unsupported")
 	if target.container == source.container:
 		return _fail("same_location")
 	if inventory.quantity(target.container, request.item) > SimInventory.MAX_COUNT - int(request.amount):
@@ -296,10 +296,39 @@ func _destination(raw: Dictionary, _reference: Dictionary, _size_hint: Vector2i,
 		return {"ok": true, "ground": true, "region": raw.region, "container": id, "cell": cell}
 	if str(raw.container).begins_with("ground:"):
 		return _fail("use_ground_cell")
+	# A locatable construction/production/escrow container has its own mutation
+	# protocol. A query granting its position is not permission to mutate it.
+	if not world.artifacts.valid_location(raw.region, raw.container):
+		return _fail("container_contract_unsupported")
 	var anchor: Dictionary = SimStorageQuery.locate(world, {"domain": "village", "region": raw.region, "container": raw.container})
 	if not bool(anchor.ok):
 		return anchor
 	return {"ok": true, "ground": false, "region": raw.region, "container": raw.container}
+
+
+func _stock_container_mutable(region: String, container: String, item: String) -> bool:
+	var sim: VillageSimulation = world.regions[region]
+	if container.begins_with("ground:"):
+		var slot: Dictionary = ground.locate(region, container)
+		return bool(slot.ok) and bool(slot.active) and slot.reference.kind == "stock" and slot.reference.domain == "village" and slot.reference.item == item
+	return sim.places.has(container) or container.begins_with("actor:") and sim.actors.has(container.trim_prefix("actor:"))
+
+
+func stock_destination(region: String, cell: Vector2i, item: String) -> Dictionary:
+	# Shared immediate/timed preflight. Matching material can join a live stack;
+	# other ground occupancy is not flattened or silently replaced.
+	var hits: Dictionary = ground.query(Rect2i(cell, Vector2i.ONE), 512)
+	if not bool(hits.ok):
+		return hits
+	if hits.ids.is_empty():
+		return ground.can_place(region, cell)
+	var slot: Dictionary = ground.slots[hits.ids[0]]
+	if slot.region != region or slot.reference.kind != "stock" or slot.reference.item != item or slot.reference.domain != "village":
+		return _fail("occupied")
+	var clearance: Dictionary = ground.can_place(region, cell, Vector2i.ONE, hits.ids[0])
+	if not bool(clearance.ok):
+		return clearance
+	return {"ok": true, "container": hits.ids[0]}
 
 
 static func _location(target: Dictionary) -> Dictionary:
@@ -357,6 +386,8 @@ func restore(data: Dictionary) -> bool:
 			return false
 		var row: Dictionary = Receipt.decode(data.receipts[id], id)
 		if row.is_empty() or not row.request is Dictionary or not _request_valid(row.request) or row.request.command != id or not row.result is Dictionary or row.result.get("ok") != true or not Shape.count(row.at_ms, 0, world.elapsed_ms) or not Shape.count(row.sequence, 1, data.receipts.size()):
+			return false
+		if row.request.op == "stock_transfer" and not Shape.count(row.result.get("amount"), 1):
 			return false
 	for id: Variant in data.created:
 		if not id is String or not data.created[id] is String or not data.receipts.has(data.created[id]):
@@ -459,6 +490,10 @@ func cross_valid() -> bool:
 			var destination: Dictionary = request.to
 			if not destination.has("cell") and not _same(destination, row.result.get("to")):
 				return false
+			if destination.has("cell"):
+				var slot: Variant = ground.slots.get(row.result.get("to", {}).get("container"))
+				if not slot is Dictionary or slot.region != destination.region or not _same(slot.cell, destination.cell):
+					return false
 		if request.op == "spawn":
 			if locations.has(request.id) or created.get(request.id) != request.command or not _location_valid(row.result.get("to"), false):
 				return false

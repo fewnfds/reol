@@ -104,7 +104,14 @@ func _existing_samples(runner: Object) -> void:
 		runner.assert_eq(_canonical(new_world.capability_practice), _canonical(SimCapabilityPractice.empty_state()), "old heat archive gains no invented advanced practice or costs")
 		runner.assert_eq(new_world.local_heat.activation_ms, old_world.elapsed_ms, "new heat starts at the actual saved present, independent of older exposure time: v%d" % version)
 		if version == 31:
-			var previous_fields: Dictionary = new_world.duplicate(true)
+			var before_lifecycle: Dictionary = SolarProjection.prior_lifecycle(migrated)
+			runner.assert_true(not before_lifecycle.is_empty(), "old heat world gains only the exact empty lifecycle before history comparison")
+			if before_lifecycle.is_empty():
+				continue
+			var nonempty: Dictionary = migrated.duplicate(true)
+			nonempty.continuity.world.object_lifecycle.receipts["later"] = {}
+			runner.assert_true(SolarProjection.prior_lifecycle(nonempty).is_empty(), "historical heat projection refuses to hide later lifecycle records")
+			var previous_fields: Dictionary = before_lifecycle.continuity.world
 			runner.assert_eq(SnapshotValues.normalized(previous_fields.private_exchange), SnapshotValues.normalized(SimPrivateExchange.empty_state()), "historical world gains no invented private exchange, consent, or receipt")
 			previous_fields.erase("private_exchange")
 			runner.assert_eq(SnapshotValues.normalized(previous_fields.field_opportunities), SnapshotValues.normalized(SimFieldOpportunities.empty_state()), "historical world gains no invented field site, visitor or treasure")

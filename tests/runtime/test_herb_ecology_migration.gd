@@ -120,7 +120,13 @@ static func prior_thermal_world(current: Dictionary, prior: Dictionary, snapshot
 	# field. Other domain additions stay intact for each caller to check.
 	if not current.get("regions") is Dictionary or not prior.get("regions") is Dictionary or current.regions.size() != prior.regions.size() or not current.get("local_heat") is Dictionary or not prior.get("local_heat") is Dictionary or not current.get("environment") is Dictionary or not prior.get("environment") is Dictionary:
 		return {}
+	# Old formats did not contain this domain. Never hide later real ground,
+	# receipts, creations or actions when comparing with historical archives.
+	var empty_lifecycle: Dictionary = _empty_lifecycle_for_test()
+	if prior.has("object_lifecycle") or not current.get("object_lifecycle") is Dictionary or canonical(current.object_lifecycle) != canonical(empty_lifecycle):
+		return {}
 	var result: Dictionary = current.duplicate(true)
+	result.erase("object_lifecycle")
 	result.local_heat = prior_empty_heat(current.local_heat, prior.local_heat)
 	result.environment = prior_environment(current.environment, prior.environment, snapshot)
 	if result.local_heat.is_empty() or result.environment.is_empty():
@@ -251,6 +257,19 @@ func _projection_contract(runner: Object, content: ReolContentDB) -> void:
 	var mutated_world: Dictionary = new_world.duplicate(true)
 	mutated_world.local_heat.ambient_in = 1
 	runner.assert_true(prior_thermal_world(mutated_world, old_world, migrated).is_empty(), "an invented ambient input cannot be projected away")
+	for field: String in ["receipts", "created", "actions"]:
+		var changed_world: Dictionary = new_world.duplicate(true)
+		changed_world.object_lifecycle[field]["later"] = {}
+		runner.assert_true(prior_thermal_world(changed_world, old_world, migrated).is_empty(), "a nonempty lifecycle field cannot be projected away: " + field)
+	var changed_ground: Dictionary = new_world.duplicate(true)
+	changed_ground.object_lifecycle.ground.slots["ground:later"] = {}
+	runner.assert_true(prior_thermal_world(changed_ground, old_world, migrated).is_empty(), "a real or forged later ground slot cannot be projected away")
+	var missing_lifecycle: Dictionary = new_world.duplicate(true)
+	missing_lifecycle.erase("object_lifecycle")
+	runner.assert_true(prior_thermal_world(missing_lifecycle, old_world, migrated).is_empty(), "a current world must actually contain the empty lifecycle")
+	var forged_old: Dictionary = old_world.duplicate(true)
+	forged_old["object_lifecycle"] = _empty_lifecycle_for_test()
+	runner.assert_true(prior_thermal_world(new_world, forged_old, migrated).is_empty(), "an old archive cannot carry a future lifecycle field")
 	for field: String in ["continuous_input", "absorbed_energy", "last_sample_continuous_input", "last_sample_absorbed"]:
 		var changed: Dictionary = new_world.local_heat.duplicate(true)
 		changed[field] = 1
@@ -274,6 +293,10 @@ func _projection_contract(runner: Object, content: ReolContentDB) -> void:
 	projected.regions.home.actors.player.qi = -1
 	runner.assert_eq(canonical(new_world), before, "mutating a projected result cannot change the migrated source")
 	runner.assert_eq(FileAccess.get_file_as_string(PATH), original, "projection checks leave the genuine archive untouched")
+
+
+static func _empty_lifecycle_for_test() -> Dictionary:
+	return {"version": 1, "ground": {"version": 1, "slots": {}}, "receipts": {}, "created": {}, "actions": {}}
 
 
 func _bad_legacy(runner: Object) -> void:

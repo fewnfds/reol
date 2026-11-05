@@ -12,6 +12,7 @@ func run(runner: Object) -> void:
 	_unique_item_identity_and_geometry(runner)
 	_material_split_merge_and_conflicts(runner)
 	_independent_restore_and_rejection(runner)
+	_construction_inventory_boundaries(runner)
 	print("SCENARIO object lifecycle: unique identity, cross-block footprints, real stock conservation, idempotent commands and independent restore")
 
 
@@ -265,6 +266,8 @@ func _independent_restore_and_rejection(runner: Object) -> void:
 	var forged_stock: Dictionary = saved.duplicate(true)
 	forged_stock.object_lifecycle.receipts.saved_wood.result.amount = 400
 	runner.assert_true(not candidate.restore(forged_stock), "a replay result cannot claim more stock than its original ledger operation")
+	forged_stock.object_lifecycle.receipts.saved_wood.result.amount = 4.5
+	runner.assert_true(not candidate.restore(forged_stock), "fractional receipt quantities must be rejected before integer normalization")
 	var moved_slot: Dictionary = saved.duplicate(true)
 	moved_slot.object_lifecycle.ground.slots["ground:saved_slab"].cell = [140, 120]
 	runner.assert_true(not candidate.restore(moved_slot), "a slot cannot silently move without a committed request")
@@ -273,3 +276,49 @@ func _independent_restore_and_rejection(runner: Object) -> void:
 	runner.assert_true(not candidate.restore(missing_receipt), "new physical objects require their creation provenance even in a legal container")
 	runner.assert_eq(_state(candidate), after_restore, "all malformed object candidates preserve the accepted world")
 	runner.assert_eq(_state(world), saved_json, "independent load and bad-candidate rejection do not modify the source world")
+
+
+func _construction_inventory_boundaries(runner: Object) -> void:
+	var world: RegionalSimulation = _world(runner)
+	if world == null:
+		return
+	var projects: Array = world.construction.projects.keys()
+	runner.assert_true(not projects.is_empty(), "fixture provides an actual construction project and material container")
+	if projects.is_empty():
+		return
+	var project: String = str(projects[0])
+	var inventory: SimInventory = world.regions.home.inventory
+	runner.assert_true(inventory.containers.has(project), "construction owns the project's actual ledger container")
+	if not inventory.containers.has(project):
+		return
+	var anchor: Dictionary = SimStorageQuery.locate(world, {"domain": "village", "region": "home", "container": project})
+	runner.assert_true(bool(anchor.get("ok", false)), "read-only storage lookup can find the project without granting transfer rights")
+	var lifecycle: SimObjectLifecycle = world.object_lifecycle
+	var created: Dictionary = lifecycle.execute({"command": "create_project_guard_item", "op": "spawn", "id": "project_guard_item",
+		"definition": "plain_slate", "to": _location("dorm")})
+	runner.assert_true(bool(created.get("ok", false)), "a real independent item starts in an ordinary container")
+	if not bool(created.get("ok", false)):
+		return
+	var before_move: String = _state(world)
+	var moved: Dictionary = lifecycle.execute(_move("move_into_project", "project_guard_item", _location("dorm"), _location(project)))
+	runner.assert_true(not bool(moved.get("ok", true)), "a generic artifact move cannot bypass the construction material owner")
+	runner.assert_eq(_state(world), before_move, "refusing an artifact in the project preserves the complete original world")
+	runner.assert_eq(world.artifacts.objects.project_guard_item.container, "dorm", "the real artifact remains in its original container")
+	var available: int = inventory.available("store", "wood")
+	runner.assert_true(available > 0, "the fixture has ordinary source wood for the guarded transfer")
+	if available <= 0:
+		return
+	var before_transfer: String = _state(world)
+	var transferred: Dictionary = lifecycle.execute(_transfer("stock_into_project", _location("store"), _location(project), "wood", 1))
+	runner.assert_true(not bool(transferred.get("ok", true)), "a generic stock transfer cannot write construction's material container")
+	runner.assert_eq(_state(world), before_transfer, "a refused project transfer changes neither the ledger nor other world facts")
+	# If this real fixture contains project cargo, protect the source direction as
+	# well; do not fabricate inventory that bypasses construction provenance.
+	for item: String in inventory.containers[project]:
+		if inventory.quantity(project, item) <= 0:
+			continue
+		var before_source: String = _state(world)
+		var removed: Dictionary = lifecycle.execute(_transfer("stock_out_of_project", _location(project), _location("dorm"), item, 1))
+		runner.assert_true(not bool(removed.get("ok", true)), "a generic transfer cannot take existing construction cargo")
+		runner.assert_eq(_state(world), before_source, "refusing the project source preserves its original cargo and world state")
+		break

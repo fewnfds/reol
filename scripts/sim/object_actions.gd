@@ -40,11 +40,13 @@ static func schedule(owner: SimObjectLifecycle, request: Dictionary, actor: Stri
 		return target
 	if request.to.has("cell"):
 		var size: Vector2i = owner._size(world.artifacts.definitions.types[world.artifacts.objects[request.id].definition]) if request.op == "move" else Vector2i.ONE
-		var clearance: Dictionary = owner.ground.can_place(home, target.cell, size, request.from.container if request.op == "move" and str(request.from.container).begins_with("ground:") else "")
+		var clearance: Dictionary = owner.stock_destination(home, target.cell, request.item) if request.op == "stock_transfer" else owner.ground.can_place(home, target.cell, size, request.from.container if str(request.from.container).begins_with("ground:") else "")
 		if not bool(clearance.ok):
 			return clearance
 	var reservation: String = ""
 	if request.op == "stock_transfer":
+		if not owner._stock_container_mutable(home, request.from.container, request.item):
+			return owner._fail("container_contract_unsupported")
 		reservation = "object_lifecycle:" + id
 		if not world.regions[home].inventory.reserve(reservation, request.from.container, request.item, int(request.amount), actor):
 			return owner._fail("insufficient_available_stock")
@@ -97,6 +99,12 @@ static func settle(owner: SimObjectLifecycle, at_ms: int) -> void:
 	ids.sort_custom(func(a: String, b: String) -> bool:
 		return int(owner.actions[a].due_ms) < int(owner.actions[b].due_ms) or int(owner.actions[a].due_ms) == int(owner.actions[b].due_ms) and a < b)
 	for id: String in ids:
+		if owner.world == null or owner.world.object_lifecycle != owner:
+			return
+		# A preceding completion callback can cancel another action at this same
+		# deadline. Snapshot iteration is not authority to execute cancelled work.
+		if not owner._active_actions.has(id) or owner.actions[id].status != "active":
+			continue
 		var action: Dictionary = owner.actions[id]
 		if int(action.due_ms) > at_ms:
 			continue

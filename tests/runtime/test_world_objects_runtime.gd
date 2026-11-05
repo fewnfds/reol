@@ -151,6 +151,21 @@ func _test_local_view_and_footprints(runner: Object) -> void:
 			fog.hidden_cells[other] = true
 			runner.assert_true(view._visible_hits(TileGrid.cell_to_world(chosen), authority).has("view_slab"), "the visible part of the same footprint stays selectable")
 			runner.assert_true(not view._visible_hits(TileGrid.cell_to_world(other), authority).has("view_slab"), "the hidden footprint cell cannot be selected through fog")
+			fog.hidden_cells.erase(other)
+			fog.hidden_cells[chosen] = true
+			runner.assert_true(view._visible_display_points(authority).has("view_slab"), "a visible second cell keeps the slab visible when its anchor is fogged")
+			runner.assert_true(not view._visible_hits(TileGrid.cell_to_world(chosen), authority).has("view_slab") and view._visible_hits(TileGrid.cell_to_world(other), authority).has("view_slab"), "only the visible cell can be selected when the anchor is fogged")
+			var fog_view: Dictionary = view._perception("view_slab")
+			runner.assert_true(bool(fog_view.get("known", false)) and fog_view.get("cell") == [other.x, other.y] and not bool(fog_view.get("near", true)), "the fogged anchor is not exposed through the partial object view")
+			fog.hidden_cells.clear()
+			var radius: int = int(authority.regions.home.config.observation_radius)
+			fixture.player.spawn_at(other + Vector2i.RIGHT * radius)
+			adapter.prepare_player_command()
+			runner.assert_true(not authority.artifacts.can_see("player", "view_slab"), "the slab anchor is outside the actual observation radius")
+			runner.assert_true(view._visible_display_points(authority).has("view_slab"), "a second cell inside the radius keeps its slab visible")
+			runner.assert_true(not view._visible_hits(TileGrid.cell_to_world(chosen), authority).has("view_slab") and view._visible_hits(TileGrid.cell_to_world(other), authority).has("view_slab"), "a cell beyond the radius remains hidden and unselectable")
+			var edge_view: Dictionary = view._perception("view_slab")
+			runner.assert_true(bool(edge_view.get("known", false)) and edge_view.get("cell") == [other.x, other.y] and not bool(edge_view.get("near", true)), "the partial view references only the cell inside the observation radius")
 			fixture.home._fog = null
 			fog.free()
 			var carried: Dictionary = lifecycle.execute({"command": "view_carry", "op": "move", "id": "view_slab", "from": spawn.to, "to": {"region": "home", "container": "actor:player"}})

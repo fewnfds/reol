@@ -84,7 +84,13 @@ func _original_fields(runner: Object, current: Dictionary, prior: Dictionary) ->
 	runner.assert_eq(_json(new_docs), _json(old_docs), "all original nonthermal content values remain exact after projecting the fixed solar addition")
 	runner.assert_true(not current.content_bundle.documents[ARTIFACTS_PATH].types.has("fire_stone") and not current.content_bundle.documents[ARTIFACTS_PATH].types.has("cold_stone"), "old content gains neither of the new device types from disk")
 	runner.assert_true(ReolContentBundle.is_valid(current.content_bundle, ReolContentDB.DOCUMENT_PATHS), "the explicitly converted heat and climate definitions receive a valid digest")
-	var projected: Dictionary = current.duplicate(true)
+	var projected: Dictionary = SolarProjection.prior_lifecycle(current)
+	runner.assert_true(not projected.is_empty(), "historical device world gains only the exact empty lifecycle before comparison")
+	if projected.is_empty():
+		return
+	var nonempty: Dictionary = current.duplicate(true)
+	nonempty.continuity.world.object_lifecycle.receipts["later"] = {}
+	runner.assert_true(SolarProjection.prior_lifecycle(nonempty).is_empty(), "historical device projection refuses to hide later lifecycle records")
 	projected.schema_version = prior.schema_version
 	projected.content_bundle = prior.content_bundle.duplicate(true)
 	projected.continuity.world.version = prior.continuity.world.version

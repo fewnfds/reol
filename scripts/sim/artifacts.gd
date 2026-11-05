@@ -181,8 +181,9 @@ func legacy_object_ids() -> Array[String]:
 func _rebuild_light_sources() -> void:
 	var ids: Array[String] = []
 	var legacy: Array[String] = []
+	var lifecycle: Variant = world.get("object_lifecycle") if world != null else null
 	for id: String in objects:
-		if world.object_lifecycle == null or not world.object_lifecycle.manages(id):
+		if lifecycle == null or not lifecycle.manages(id):
 			legacy.append(id)
 		if has_capability(id, "intrinsic_light"):
 			ids.append(id)
@@ -943,7 +944,7 @@ func _warming_choice(actor: String, at_ms: int) -> String:
 		return ""
 	# Only the holder's own controlled object is considered. This never seeks
 	# another person's private store or creates an opening stone for a need.
-	for id: String in world._sorted_keys(objects):
+	for id: String in legacy_object_ids():
 		if objects[id].region == home and objects[id].container == "actor:" + actor and bool(_warming_readiness(actor, id).ok):
 			return id
 	return ""

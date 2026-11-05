@@ -42,7 +42,7 @@ func _run() -> void:
 		_fail("native_window_required")
 		return
 	var side: int = int(options.side)
-	var prefix: String = OUTPUT_DIR + "/presentation-%d" % side
+	var prefix: String = OUTPUT_DIR + "/presentation-%d" % side + str(options.get("tag", ""))
 	var png_path: String = prefix + ".png"
 	var json_path: String = prefix + ".json"
 	_report["side"] = side
@@ -259,11 +259,21 @@ func _run() -> void:
 
 func _arguments(args: PackedStringArray) -> Dictionary:
 	if args.is_empty():
-		return {"ok": true, "side": 64}
-	if args.size() != 2 or args[0] != "--side" or not args[1].is_valid_int():
-		return {"ok": false, "reason": "expected --side followed by 64, 128, 256 or 512"}
+		return {"ok": true, "side": 64, "tag": ""}
+	if args.size() not in [2, 4] or args[0] != "--side" or not args[1].is_valid_int():
+		return {"ok": false, "reason": "expected --side N [--tag unique_name]"}
 	var side: int = int(args[1])
-	return {"ok": true, "side": side} if side in SIDES else {"ok": false, "reason": "unsupported side", "side": side}
+	if side not in SIDES:
+		return {"ok": false, "reason": "unsupported side", "side": side}
+	var tag: String = ""
+	if args.size() == 4:
+		if args[2] != "--tag" or args[3].length() < 1 or args[3].length() > 32:
+			return {"ok": false, "reason": "invalid tag"}
+		for character: String in args[3]:
+			if not character in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-":
+				return {"ok": false, "reason": "invalid tag"}
+		tag = "-" + args[3]
+	return {"ok": true, "side": side, "tag": tag}
 
 
 func _clock_is_stable(world: Variant, expected: int) -> bool:

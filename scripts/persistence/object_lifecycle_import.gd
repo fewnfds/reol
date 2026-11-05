@@ -52,9 +52,10 @@ static func convert(snapshot: Dictionary, restore_map_factory: Callable = Callab
 	if joint:
 		result.continuity.world["object_lifecycle"] = {"version": 1, "ground": {"version": 1, "slots": {}}, "receipts": {}, "created": {}, "actions": {}}
 		result.continuity.world.version = 42
-		# The upgraded candidate must pass again; the importer never installs it.
-		if WorldRestoreFactory.restore(content, result.continuity.world, result.assembly, terrain) == null:
-			return {}
+		# The preceding independent region41 restore already converts exactly
+		# these two fields and validates the resulting empty lifecycle candidate.
+		# Do not restore that identical candidate a second time in every legacy
+		# import. No other world fact changed here, and nothing is installed.
 	return result if SessionSaveSchema.is_valid_world(result) else {}
 
 

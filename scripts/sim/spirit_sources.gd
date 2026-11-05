@@ -358,7 +358,7 @@ func describe(actor: String, source: String = "hearth_seam") -> Dictionary:
 	var close: bool = near(actor, source)
 	var objects_seen: Array[Dictionary] = []
 	if close:
-		for id: String in world._sorted_keys(world.artifacts.objects):
+		for id: String in world.artifacts.legacy_object_ids():
 			if medium_allowed(actor, source, id) and world.artifacts.can_see(actor, id):
 				objects_seen.append({"id": id, "label": str(world.artifacts.describe(actor, id).get("label", "温石"))})
 	var line: String = "记得灶旁有一道透出暖息的地隙；眼下看不清那里。"
@@ -400,7 +400,7 @@ func _choice(actor: String) -> Dictionary:
 	for id: String in world._sorted_keys(sources):
 		if not near(actor, id):
 			continue
-		for object_id: String in world._sorted_keys(world.artifacts.objects):
+		for object_id: String in world.artifacts.legacy_object_ids():
 			if readiness(actor, id, "body", object_id).is_empty():
 				return {"source": id, "object": object_id}
 	return {}

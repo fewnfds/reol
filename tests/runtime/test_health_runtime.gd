@@ -2,6 +2,7 @@ extends RefCounted
 ## The ordinary request page, body controller and joint file boundary agree.
 
 const Fixtures = preload("res://tests/runtime/test_world_continuity_runtime.gd")
+const SolarProjection = preload("res://tests/runtime/helpers/solar_legacy_projection.gd")
 var fixtures := Fixtures.new()
 
 
@@ -202,7 +203,15 @@ func _legacy_sources(runner: Object) -> void:
 	_injure(runner, runtime)
 	# Build an explicit pre-health format from real effects. This is a temporary
 	# migration counterexample, never a replacement of a genuine archive.
-	var legacy: Dictionary = WorldSessionSnapshot.capture(runtime)
+	var current: Dictionary = WorldSessionSnapshot.capture(runtime)
+	var legacy: Dictionary = SolarProjection.prior_lifecycle(current)
+	runner.assert_true(not legacy.is_empty(), "temporary pre-health projection removes only the exact empty lifecycle")
+	if legacy.is_empty():
+		fixtures._dispose(fixture)
+		return
+	var nonempty: Dictionary = current.duplicate(true)
+	nonempty.continuity.world.object_lifecycle.receipts["later"] = {}
+	runner.assert_true(SolarProjection.prior_lifecycle(nonempty).is_empty(), "pre-health projection cannot discard later lifecycle activity")
 	legacy.schema_version = 28
 	legacy.erase("content_bundle")
 	legacy.erase("assembly")
