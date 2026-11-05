@@ -1,6 +1,6 @@
 # 下一小包：真实静止来源的连续环境闭环
 
-本页是下一包建议与验收规格，尚未实施。当前授权/停点只看[接续](../../status/handoff.md)；本轮只写方案。沿[环境规则](../../../design/rules/environment.md)及[连续响应合同](continuity.md)，不另定一套世界法则。
+本页是本包验收规格；实施与验证状态只看[接续](../../status/handoff.md)，当前接口见[实现合同](../../engineering/environment-response-contract.md)。沿[环境规则](../../../design/rules/environment.md)及[连续响应合同](continuity.md)，不另定一套世界法则。
 
 ## 要得到什么
 

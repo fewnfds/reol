@@ -19,4 +19,6 @@
 
 另有[地面环境来源查询](../engineering/environment-source-query-contract.md)：真实地面实物/材料堆按显式定义投影五行和单项冷热等级，支持有界局部max基础目标查询；原物搬运、拆合、移除后的下次查询直接读取原owner。它是开发查询接口，未形成实际温度/五行残留、普通Main新环境玩法或房温。范围和测量见[来源QA](../qa/20261105_environment_source_bindings.md)。
 
-[真实来源分块缓存](../engineering/environment-ground-cache-contract.md)在同一原世界上提供预算装配、16×16基础目标块、热读、通知前局部失效及恢复重绑；不是某一具名物品专用脚本。独特物/材料堆和512²真实密度已做定向及离线测量，完整回归状态看[缓存QA](../qa/20261105_environment_ground_cache.md)。现在开发计算接口也接受真实缓存的CPU/GPU/auto，具备来源准备、过期拒绝及取消回收；接入验收看[计算QA](../qa/20261105_environment_ground_compute.md)。没有新玩家按钮或实际环境渐变，普通Main未接此服务；原四份WIP继续单列保护。
+[真实来源分块缓存](../engineering/environment-ground-cache-contract.md)在同一原世界上提供预算装配、16×16基础目标块、热读、通知前局部失效及恢复重绑；不是某一具名物品专用脚本。独特物/材料堆和512²真实密度已做定向及离线测量，完整回归状态看[缓存QA](../qa/20261105_environment_ground_cache.md)。开发计算接口也接受真实缓存的CPU/GPU/auto，具备来源准备、过期拒绝及取消回收；接入验收看[计算QA](../qa/20261105_environment_ground_compute.md)。普通Main未接此服务；原四份WIP继续单列保护。
+
+新增[静止来源实际响应接缝](../engineering/environment-response-contract.md)使用原世界、原物和原动作，在封闭开发验收会话里取放/移位已有独特实物，接实际温度、五行建立/消散、预算等待/取消及独立存读。它不是普通玩家功能；诊断工具`tools/verify_environment_response.gd`可观察真实目标/实际值。范围和吞吐限制见[响应QA](../qa/20261105_environment_response.md)，准确最终回归状态看BASELINE/HANDOFF；普通Main旧Q、人体/植物、材料拆合与携行辐射未改。

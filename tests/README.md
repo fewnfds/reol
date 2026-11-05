@@ -22,3 +22,5 @@ python tools/godot.py check --test-timeout 1800
 check包含结构检查、导入和完整GDScript回归；按改动先选相关定向验证，同一代码包的完整回归可由对应SHA的GitHub CI承担，无须每个文件重复全套。纯文档只查结构/链接和差异。存读改动还应覆盖迁移、进行中恢复、失败不污染活世界及适用的完整停开；涉及画面须实际运行、查看截图和日志，性能须记录实际规模与测量，均不能由无头绿灯代替。
 
 结构检查不核外部网页、历史archive、动态拼接路径或标题锚点；.tscn/资源UID及画面仍须按对应技能和引擎验证。生成日志/临时截图使用忽略目录，QA里程碑按实际证据记录，不把不存在的日志当通过。
+
+静止来源实际响应的开发验收：`tools/verify_environment_response.gd`用真实渲染器及第二次`-- --read`检验完整停开；`python tools/bench_environment_response.py --size 64 --events 32 --snapshot`测原物/材料背景、CPU候选/响应与存读。只在显式声明的封闭区域/会话内有效，不是普通Main新环境。性能基准与完整check按主代理统一顺序运行，不并发两套引擎回归。详见[响应QA](../docs/qa/20261105_environment_response.md)。

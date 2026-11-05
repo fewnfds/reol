@@ -1,68 +1,44 @@
 # 当前接续
 
-核对：2026-11-05。第一阶段A–E、第二阶段A1/A2a及真实来源GPU接入包均完成声明范围。当前停下报告讨论，不自动扩实际响应、移动携源或房间；无活动Goal、测试、压力基准或审查进程。
+核对：2026-11-05。[静止地面来源连续响应包](../plans/environment-object-loop/response-ground.md)功能接缝已实现并完成声明范围的因果/画面/小档验证，准确代码完整回归通过；**候选吞吐和512²存读出口未达标**，不能称全部规格完成。现在停止报告讨论，不自动进入Main、房间、携行或玩法。无活动Goal、测试、基准或审查进程。
 
-**已完成GPU包：** 首代码`3e91b28ed27a082fd341ff47c5fbc68d14718357`新增ground计算租约、快照/发布代次复验及preparing来源同步；运行层复用CPU/GPU/auto，取消/换世界等待回收，原物仍唯一。一次Sol/custom只读审查发现普通背包转账不断重启计算P2，已窄修到`9b3e724ce7e405d01b885e9b3e477b8afa09b226`并加真实转账回归。同修复SHA独立检出定向9513断言0失败，真实3060的10案例/6144格/43008通道通过；四份保护WIP原样保留。512²每格一源/半径16：CPU全图目标20652.613ms、GPU615.952ms，原物装配仍约7.4秒；GPU请求主线程约5.6ms、峰工作集2.534GiB，不能称普通游戏FPS或动态场已上线。全部基准结束后同SHA独立检出一次完整check **258组/107976断言/0失败**，1105.781秒，无ERROR/SCRIPT ERROR。详见[本包QA](../qa/20261105_environment_ground_compute.md)；日志/result与保全后的`validation-artifacts/`均在`logs/environment_ground_gpu/`，自建检出在保全后移除。本机精确SHA为本包完整验收，不在推送后另查/等CI。
+## 当前工作与检出
 
-**空间选型：** 采用方格地形/建造＋原人物权威子格位置＋按格缓存环境。人物无需停格心，移动途中位置继续参与规则；未来移动来源首版从权威位置派生所在格发源，跨格游戏时刻切换，按驻留时间接续环境建立/消散。这是可调整的工程选型，不恢复“全对象格位置权威”的固定结论。依据见[空间调研](../../design/research/spatial_models.md)，细节见[调度方案](../plans/environment-object-loop/scheduling.md)。当前不改身体空间模型，四份保护WIP原样保留。
+主工作区 `codex/world-engine`；起点 `333f6f50b628a4e45269f038affbb733f92fe42b`。代码已分阶段接回原分支：`98e713590f29348c94823674bc58618162ec53bf`及修复`0d8c03545d9e6f4b3094cb725b14eb14a1bb3f23`，文档另提交；最新HEAD/推送以Git为准。为保护四份原WIP，在忽略目录 `logs/environment_response/dev` 干净检出实施和验收；日志保全到`logs/environment_response/validation-artifacts/`后移除此自建检出，不维持第二套长期实现。
 
-**A2a完成与停点：** 新`environment_ground_cache.gd`提供真实原物投影、16×16基础目标块、有界装配/续算、快速读取、通知前局部失效及恢复重绑。一次Sol/custom审查的跨区域epoch漏查P2已修到`3636dc37ea498fa1f57c1d970fca6e50289aff93`；定向1685断言0失败，精确SHA独立检出完整check **257组/99000断言/0失败**、1291.078秒、无ERROR/SCRIPT ERROR。声明512²真实262144来源CPU负载已测，未接实际响应/GPU/Main；详细边界与数值见[缓存合同](../engineering/environment-ground-cache-contract.md)、[QA](../qa/20261105_environment_ground_cache.md)。
+本包代码已接上：五通道实际影响owner、温度/五行目标续接、单实物来源/原位置/响应联合候选、到期动作pending/取消、共同事件边界续算、封闭开发会话和独立验收快照。普通Main仍由旧Q负责冷热。合同见[接口](../engineering/environment-response-contract.md)，实际范围/性能与原错误见[QA](../qa/20261105_environment_response.md)。
 
-性能停点：满密度装配7.44秒、全域基础目标冷建19.26秒分片累计，advance p99约2.06ms；1024次热读p95约10ms，仍未达初始5ms目标。128²混合半径重建更慢，1%分散变动可覆盖全图；保留这些吞吐限制，不能称动态场已实时可用或GPU已接。16GB/3060的整机联合负载仍未验收。
+一次Sol/custom只读审查发现GroundCache.step_move错误预算失败未取消底层候选P2，已修到0d8c035；六组定向348断言0失败，工具Python57项通过。修复准确SHA独立检出一次完整check **264组/108331断言/0失败**，约1099s且无SCRIPT ERROR/ERROR，31份代码指纹前后不变。RTX3060真实渲染中观察到旧处消散、新处建立；两进程完整退出恢复到相同9000ms未来通过。首次跨进程失败是验收脚本默认JSON精度损失，已使用项目canonical_json保留完整精度；不是删除断言或改存档规则。
 
-日志已保存在`logs/environment_a2/`及`validation-artifacts/`。A2a独立验证检出为本包自建，日志保全后移除；主工作区四份保护WIP未混入代码提交或精确SHA验证，A2a结束时无活动测试/审查。CI仅按真实提交检查点核验：首包4c1a2e9的42025370605成功；修复SHA的42026400068在随后GPU包提交检查点核completed/success，完整SHA匹配3636dc3。主验收依据本机同SHA完整check，不重复本机/CI整套等待。
+64²/128²近满格半径16、32次单源事件及存读已验；CPU单来源候选约3.5–3.7s，不得包装成顺畅实时搬物。512²联合JSON解析超过10GiB自建进程预算，输出mem null后在约1009s由主代理核准路径/PID停止，保留失败记录。修复SHA的512²纯计算32次通过：262142真实材料堆+1实物、激活264.520s、变更p99 3.634s、峰工作集3.837GiB。现GPU只加速已验基础目标，不加速联合候选。采用16GB整机/单3060目标，模块几百MB守卫不是游戏预算。后续讨论应先解决候选重复搜索及紧凑分块存读，再谈普通接管，不自动沿旧计划扩玩法。
 
-**性能入口：** 用户确认仍沿PC、16GB整机RAM、单RTX3060目标；唯一规格入口为[全项目性能基线](../engineering/architecture.md#全项目性能基线)，AGENTS和docs索引已直接链接。游戏约10GB是可接受量级而非另立整机约束。256MiB是开发者在A2a页自行提出的模块警戒，非skill/用户规则，已撤销；不再据此扩优化任务。GPU已允许，端到端收益与实际接入分别验证。
+主代理统一启动测试/基准/审查。长运行保留同一session由工具层等终态；不轮询日志数PASS、不派等待代理。实际活handle仅属本聊天当前工具状态；接续前先核进程，不重复启动。
 
-**本地等待流程：** 用户指出短间隔扫描回归进度不合理，已把完成事件优先/工具层长等待/不定时读日志数PASS写入AGENTS和[工作流](../engineering/workflow/code-review.md)。原回归没有重启，终端session由代码编排等待器接续，退出后收到一次终态输出；之后不再扫描用户目录里的Godot日志。宿主未暴露process/exited，不声称hook能唤醒已结束聊天；不配置全局或新增插件/模型/automation。此项仅文档规则，不需重跑引擎或代码审查。
+## 已完成基线与边界
 
-第二阶段目标仍是环境与组合空间。[GPU方案](../plans/environment-object-loop/gpu-ground.md)已按声明出口完成并停止。下一供讨论的[静止来源连续响应小包](../plans/environment-object-loop/response-ground.md)只接单个已存在独特实物取/放/移、实际温度/五行、共同事件边界及联合提交/验收存读；背景材料堆仍静态参与，材料拆合、真实携行与Main接管暂缓。本轮只写方案，无新Goal、游戏改动或实施授权；四WIP继续原样保护。
+- 第一阶段A–E按声明范围完成：原身体/物品/库存/账本与整数毫秒唯一，统一对象/空间查询、受控生成/位置/数量、耗时动作、候选存读、普通Main离返/完全停开及有限规模出口。见[联合出口QA](../qa/20261105_world_foundation_exit.md)。大型动态体仅1/4/8，不外推全世界NPC。
+- A1真实地面来源投影 `8bf7aa2a012af393fbc1b96fea6220aa18825833` 完整check255组/98618断言0失败；后续CI42008084331准确SHA成功。
+- A2a来源缓存修复 `3636dc37ea498fa1f57c1d970fca6e50289aff93` 完整check257组/99000断言0失败；CI42026400068准确SHA成功。
+- GPU接入修复 `9b3e724ce7e405d01b885e9b3e477b8afa09b226` 独立检出完整check258组/107976断言0失败，1105.781s，无ERROR/SCRIPT ERROR；一次Sol/custom审查的无关背包转账重启计算问题已修。3060的10案例6144格43008通道通过。512²满密度/半径16基础目标CPU20.65s、GPU0.616s，来源装配仍7.4s，不是Main FPS或动态每50ms全图更新证据。见[计算QA](../qa/20261105_environment_ground_compute.md)。
 
-本轮真实方案提交检查点仅一次查找修复SHA9b3e724对应CI，返回无匹配run；不重查或等待。GPU包完整验收仍取本机同SHA258组/107976断言0失败，不能把缺run说成CI通过。
+原性能/失败/审查证据在各QA链接及 `logs/environment_a1/`、`logs/environment_a2/`、`logs/environment_ground_gpu/`；历史独立检出已保全日志后移除。GPU修复SHA最近一次真实方案提交检查点只查到无匹配run，不称CI通过；本机同SHA已完整验收。CI只在真实提交检查点查一次，未终态留待下次，不按时间轮询。
 
-## 讨论确认与实施缺口
+## 必须保护的原WIP
 
-- 方格地形、多格实体一份状态仍有效；全对象强制落格/停格心和格间位置纯视觉已撤回。环境读原模拟位置，不能从画面插值反推。见[空间规则](../../design/rules/objects-and-interaction.md)。
-- 场建立/消散沿共同整数游戏毫秒。移动场首版选整格发源近似，后续动态包验证跨格误差、驻留时长及密集移动性能，再决定是否需要子格采样。当前A2a不实施移动场，A1静物偶数多格发源向左上约定保留。
-- 真实搬运会因驻留时长形成不同沿途实际场状态，尾迹不复制来源。现耗时move要求人物原地等待、到期转移；A1不接携物，响应原型未接动态来源。携物整体中和/遮掩仍未定。见[连续性](../plans/environment-object-loop/continuity.md)。
-- 当前 `SimLocalMotion.position` / `SimRouteTravel.project` 的连续位置是原身体真值，参与碰撞/行动；不因未定候选把它当作应立即改正的错误。后续空间变更须核对导航、中断、在途存读与战斗消费者，本轮不重写。
-- 当前普通时钟50ms/步、80步/帧，区域事件预算4096不是硬毫秒预算。欠算保留，但持续过载缺实用背压上限，输入无时间戳历史。新场没有真实刷新率/低配尾迹验收；接管前须补有限追赶/受控降速与输入边界。见[调度候选](../plans/environment-object-loop/scheduling.md)。
-
-## 已完成包与停点
-
-A1代码已提交并推送 `8bf7aa2a012af393fbc1b96fea6220aa18825833`：显式schema/digest、真实ground实物和材料堆来源投影、有界局部五行max/冷热等级合成。原位置/数量仍唯一归原owner，查询不推进时间。接口见[来源查询合同](../engineering/environment-source-query-contract.md)，证据见[来源QA](../qa/20261105_environment_source_bindings.md)。定向147断言/0失败，真实64²至512²密度基准通过；原生Sol/custom只读审查无可行动问题；精确SHA独立检出完整check通过：255组、98618断言、0失败，1094.512秒，无ERROR/SCRIPT ERROR。
-
-独立验证检出已在保存完整日志后移除；主代理统一验证，没有混四份保护WIP。日志在 `logs/environment_a1/`，含 `isolated-check-result.json` 和 `isolated-logs/`。本包已完成声明范围，当前停下向用户报告；没有活动测试或审查进程。
-
-普通Main旧Q不变，未接实际温度/五行残留、来源缓存或原物联合prepare/commit事务；新定义未加入普通内容包/写档schema。配置绑定plain_slate/stone_slab及普通材料可复用profile，不为温石扩玩法。A1不是每帧全格查询方案；512²满格局部查询约10ms p99，持续批量场更新须后续单包验收。本包完成后只报告，A2/B依[候选方案](../plans/environment-object-loop/README.md)再讨论排定。
-
-冷热沿用户确认的单项signed thermal_grade（正热负冷），两侧max是合成临时极值。巨型通行/单格/AOE仅[调研](../../design/research/unit_footprint_and_clearance.md)，本包未重写导航或战斗。
-
-## 已完成与证据
-
-A多类对象/能力查询与显式集合空间快照，B受控实物与多格地面位置，C同账本材料堆拆及共同耗时搬运，D装配/候选存读与在途恢复，E开发诊断/普通呈现/声明规模测量均已接入。身体、器物和数量继续沿原所有者，接口是权威开发接缝，不授玩家距离/认知/社交权限。
-
-- [生命周期合同](../engineering/object-lifecycle-contract.md)说明请求、归属、占地、时间、取消和恢复边界。
-- [最终出口QA](../qa/20261105_world_foundation_exit.md)记录同一普通Main离返后完全退出、新进程恢复和相同未来；512²真实物品落盘、批量搬运与候选；满格呈现1800帧；1/4/8大型身体及保存候选。
-- [完整包QA](../qa/20261105_object_lifecycle.md)保留原失败、修复、审查与早期测量，不覆盖原日志。
-
-游戏主代码 `c529c96910a0ef07af5e6d720bd848f395c4fed8`，一次原生Sol/custom只读审查的五项问题已修复到 `b78f3af607c3b8c798411f4945de123d1d0ebf30`。后者精确SHA在独立检出完整check通过：254组、98467断言、0失败、无ERROR/SCRIPT ERROR，1127.369秒。后续只扩四个验收基准和文档，游戏逻辑/定义/场景未变。最终基准逐次记录HEAD、diff和脚本哈希；无额外整包审查或完整回归。
-
-## 工作区保护与版本
-
-分支 `codex/world-engine`；游戏、验收脚本与文档按可解释提交保存。最后推送和本地HEAD以Git为准。环境首轮纯文档提交检查点一次查到06067d300a6c0158a1f602458afca2ac80a68598对应CI41994818299 completed/success，SHA匹配；前次概念修正文档提交点31850b7f0a6883475c96259db651f637ae96d3a0无匹配run；本次真实代码提交前一次查afd5459ebd7f18a8e427fe0c96183ad5d0c125bb也无匹配run。A1末次文档提交时CI42008084331仍in_progress；本次方案的真实文档提交检查点，通过tools/ci.py核为completed/success，完整headSha匹配8bf7aa2a012af393fbc1b96fea6220aa18825833。本机同SHA完整check亦已通过。不轮询，新推送不立即查询或等待。主验收另有上述精确游戏SHA的本机完整check，不包含本机四份WIP。
-
-四份原环境WIP不属于本包、未混入提交或精确SHA回归；起始SHA256在 `logs/world_lifecycle/protected.json`，须继续原样保护：
+原始SHA256在主工作区 `logs/world_lifecycle/protected.json`。下列四份不属于本包，保持字节不变，不混入提交或准确SHA回归：
 
 - `scripts/sim/environment_field_cache.gd`
 - `scripts/sim/environment_temperature_state.gd`
 - `tests/sim/test_environment_field_cache.gd`
 - `tests/sim/test_environment_temperature_state.gd`
 
-原始性能/截图/审查/失败日志均在忽略目录 `logs/world_lifecycle/`。独立check原日志保留到 `isolated-check-logs/`；最终检出日志/存档另保存到 `final-validation-artifacts/` 后可移除自建验证worktree。不可删用户文件或四处WIP。
+本包只复用它们已提交的HEAD接口。若未来需要修改，先重述范围并明确保护/整合办法，不能偷偷纳入已有草稿。
 
-## 已知限制与后续依赖
+## 当前概念与后续边界
 
-普通Main冷热仍是旧Q，A1仅查询接缝；A2/B候选后续再排。普通Main接管、GPU、完整房温、生态及大量自主NPC属于[后续基础依赖](../plans/foundation-priorities.md)。用户要求每次1–2项后讨论，不自动连续扩阶段。动态只测原大型身体上限8；环境传播不由静态物品密度证明。
+- 方格地图/建造＋原人物权威子格位置＋按格环境缓存；不恢复全对象强制格心/移动纯动画结论。未来携源可按权威跨格时刻切换，实际驻留留下环境残留；当前只做到期瞬时转移，不假称走路尾迹。
+- 五行逐通道max；冷热单signed等级，两侧max相减映射当地背景；五行火不等于热。实际值按共同时间建立/消散，残留不是复制来源，同类数量不放大辐射。规则在[环境](../../design/rules/environment.md)。
+- 首包开发会话封闭访问原world；原公开对象不是通用隔离API。等待期间仅最后完整view可见，保存busy，已执行边界阶段不重跑。普通Main、完整过载治理、材料拆并、携物整体遮掩/中和、房间、生物后果仍未接。
+- 普通存档schema51/区域42保持；开发验收快照不等于正式普通存档迁入。失败候选不改活世界，历史版本按[兼容政策](../engineering/compatibility.md)有限退役。
 
-满密度候选恢复约32.7秒、工作集峰4.82GiB；大量JSON和恢复延迟、历史槽位/回执安全回收仍有优化空间。真实16GB主机、满密度Main跨进程存档、全AI与新场同时运行、正式切片和独立发布未验。不把第一阶段底座完成称为完整游戏完成。
+下一步由本包实际测量和讨论决定，不从旧Goal/历史QA自动连做。当前不宣称完整游戏、45–60分钟切片或Windows独立发行已完成。
