@@ -88,9 +88,6 @@ func before_object_change() -> void:
 func objects_changed(result: Dictionary) -> void:
 	if _state == "closed" or _state == "error":
 		return
-	# Invalidate detached jobs before projection synchronization changes the
-	# inner cache revision. A later CPU/GPU completion must see this boundary.
-	_generation += 1
 	if _state == "building":
 		_fail("initialization_changed")
 		return
@@ -98,6 +95,7 @@ func objects_changed(result: Dictionary) -> void:
 	if world == null:
 		_fail("world_unavailable")
 		return
+	var source_changed: bool = false
 	for location: Dictionary in [result.get("from", {}), result.get("to", {})]:
 		var container: String = str(location.get("container", ""))
 		var slot: Variant = world.object_lifecycle.ground.slots.get(container)
@@ -108,6 +106,12 @@ func objects_changed(result: Dictionary) -> void:
 		# Positive quantity changes do not alter an existing stack's field.
 		if reference.kind == "stock" and bool(slot.active) and _entries.has(key) and not _change_keys.has(key):
 			continue
+		# Unrelated inventory transfers and positive quantities of an existing
+		# pile must not continually restart a multi-tile calculation. Still
+		# capture/check every original-owner epoch below and before each write.
+		if not source_changed:
+			_generation += 1
+			source_changed = true
 		if _entries.has(key):
 			var old: Vector4i = _entries[key]
 			_invalidate(Vector2i(old.y, old.z), old.w)
@@ -369,7 +373,6 @@ func _sync_reference(reference: Dictionary) -> bool:
 	var key: String = JSON.stringify(reference, "", true)
 	var projected: Dictionary = _query.project(reference)
 	_projected += 1
-	_generation += 1
 	if not bool(projected.ok) and projected.reason not in ["not_found", "unsupported_location"]:
 		_fail(str(projected.reason))
 		return false
@@ -380,6 +383,7 @@ func _sync_reference(reference: Dictionary) -> bool:
 			_cache.remove_source(index)
 			_entries.erase(key)
 			_free.append(index)
+			_generation += 1
 		return true
 	var index: int
 	if _entries.has(key):
@@ -396,6 +400,8 @@ func _sync_reference(reference: Dictionary) -> bool:
 	if not bool(result.ok):
 		_fail(str(result.reason))
 		return false
+	if bool(result.get("changed", false)):
+		_generation += 1
 	_entries[key] = Vector4i(index, projected.cell.x, projected.cell.y, int(projected.radius_cells))
 	return true
 

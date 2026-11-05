@@ -127,9 +127,41 @@ func _cpu_real_sources(runner: Object) -> void:
 			if bool(fallback_done.get("ok", false)) and not bool(fallback_done.get("pending", true)):
 				_compare_area(runner, ground, oracle, Rect2i(0, 0, 16, 16), "CPU fallback without device")
 	runner.assert_eq(world.elapsed_ms, start_time, "cache work never advances the authoritative world clock")
+	_unrelated_transactions(runner, world, ground, service, area)
 	runner.assert_true(service.close(), "idle CPU service releases its binding")
 	_guarded_publication(runner, world, ground, oracle)
 	ground.close()
+
+
+func _unrelated_transactions(runner: Object, world: RegionalSimulation, ground: RefCounted, service: RefCounted, area: Rect2i) -> void:
+	if not _ok(runner, service.set_mode("cpu"), "unrelated transfers use the bounded CPU path"):
+		return
+	var generation: int = int(ground.diagnostics().revision)
+	var seeded: Dictionary = world.object_lifecycle.execute(fixture._transfer("compute_scan_seed", fixture._location("ground:compute_hot"), fixture._location("actor:player"), "wood", 1))
+	if not _ok(runner, bool(seeded.get("ok", false)), "a positive pile provides a real unit for ordinary transfers: " + str(seeded)):
+		return
+	runner.assert_eq(int(ground.diagnostics().revision), generation, "a still-positive pile preserves its source strength and generation")
+	var started: Dictionary = service.request(area)
+	if not _ok(runner, bool(started.get("ok", false)), "warm multi-block request begins"):
+		return
+	var completed: bool = false
+	for i: int in 8:
+		var from: String = "actor:player" if i % 2 == 0 else "store"
+		var to: String = "store" if i % 2 == 0 else "actor:player"
+		var moved: Dictionary = world.object_lifecycle.execute(fixture._transfer("compute_unrelated_%d" % i, fixture._location(from), fixture._location(to), "wood", 1))
+		if not _ok(runner, bool(moved.get("ok", false)), "ordinary container transfer succeeds during field scan: " + str(moved)):
+			break
+		runner.assert_eq(int(ground.diagnostics().revision), generation, "non-source transfer preserves compute generation")
+		var step: Dictionary = service.poll(1, 1)
+		if not _ok(runner, bool(step.get("ok", false)), "field scan remains valid during ordinary transfers"):
+			break
+		if not bool(step.get("pending", true)):
+			completed = true
+			break
+	runner.assert_true(completed, "unrelated activity cannot starve a warm multi-block calculation")
+	if not completed:
+		service.cancel(int(started.ticket))
+		service.poll()
 
 
 func _guarded_publication(runner: Object, world: RegionalSimulation, ground: RefCounted, oracle: RefCounted) -> void:
