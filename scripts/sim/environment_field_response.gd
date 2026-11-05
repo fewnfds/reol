@@ -7,6 +7,7 @@ const MAX_TIME: int = 9_000_000_000_000_000
 const MAX_TAU_MS: int = 86_400_000
 const MAX_ABS_VALUE: float = 1.0e12
 const MAX_ABS_RATE_PER_MS: float = 2.0e12
+const _FLOAT_SPLITTER: float = 134_217_729.0
 
 var _configured: bool = false
 var _start_ms: int = 0
@@ -57,14 +58,32 @@ func sample(at_ms: int) -> Dictionary:
 	var lag: float = factors[2]
 	var integral_lag: float = factors[3]
 	var end_weight: float = factors[4]
-	var target_end: float = _target_value + _target_per_ms * elapsed
+	var target_change: float = _target_per_ms * elapsed
+	var target_end: float = _target_value + target_change
 	# This endpoint form avoids cancelling two nearly equal large terms when a
 	# long linear target declines to zero. It is algebraically identical to
 	# g0+s*(t-tau)+(y0-g0+s*tau)*exp(-t/tau).
 	var value: float = _initial_value * decay + target_end * response - _target_per_ms * tau * end_weight
-	# Integrating the initial and target contributions separately avoids losing
-	# a finite transient when the horizon is vastly larger than tau.
-	var integral: float = _initial_value * tau * response + _target_value * tau * lag + _target_per_ms * tau * tau * integral_lag
+	var integral: float
+	if x < 1.0:
+		# Preserve the series form where subtracting target area and response
+		# would lose the small integral for a short interval.
+		integral = _initial_value * tau * response + _target_value * tau * lag + _target_per_ms * tau * tau * integral_lag
+	else:
+		# Integrating tau*y' = target-y gives the target's trapezoid area plus
+		# tau*(initial-value). Unlike separate large ramp terms, this retains
+		# the transient when the positive and negative target areas cancel.
+		# Recover roundoff from the endpoint product/sums before multiplying by
+		# elapsed; otherwise near-opposite endpoints can lose a finite area.
+		var target_sum: float = _target_value + target_end
+		var endpoint_error: float = _sum_error(_target_value, target_change, target_end) + _product_error(_target_per_ms, elapsed, target_change)
+		var target_sum_error: float = _sum_error(_target_value, target_end, target_sum) + endpoint_error
+		var half_elapsed: float = elapsed * 0.5
+		var area: float = target_sum * half_elapsed
+		var area_error: float = _product_error(target_sum, half_elapsed, area) + target_sum_error * half_elapsed
+		var transient: float = tau * (_initial_value - value)
+		var combined: float = area + transient
+		integral = combined + (_sum_error(area, transient, combined) + area_error)
 	if not is_finite(value) or not is_finite(integral):
 		return {"ok": false, "reason": "non_finite_result"}
 	# A convex first-order response cannot leave this envelope. Limit only
@@ -111,6 +130,24 @@ static func _integer(value: Variant, minimum: int, maximum: int) -> bool:
 		return false
 	var number: float = float(value)
 	return number >= float(minimum) and number <= float(maximum) and floor(number) == number
+
+
+static func _sum_error(a: float, b: float, sum: float) -> float:
+	# TwoSum residual: recover the part rounded out of a+b.
+	var b_virtual: float = sum - a
+	return (a - (sum - b_virtual)) + (b - b_virtual)
+
+
+static func _product_error(a: float, b: float, product: float) -> float:
+	# Dekker split for the low part of a double product. Configured endpoint
+	# and time bounds keep the split and every intermediate finite.
+	var a_split: float = _FLOAT_SPLITTER * a
+	var a_high: float = a_split - (a_split - a)
+	var a_low: float = a - a_high
+	var b_split: float = _FLOAT_SPLITTER * b
+	var b_high: float = b_split - (b_split - b)
+	var b_low: float = b - b_high
+	return ((a_high * b_high - product) + a_high * b_low + a_low * b_high) + a_low * b_low
 
 
 static func _factors(x: float) -> Array[float]:

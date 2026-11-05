@@ -12,6 +12,7 @@ func run(runner: Object) -> void:
 	_linear_target_and_integral(runner)
 	_read_order_split_and_json(runner)
 	_small_steps_and_large_time(runner)
+	_long_opposite_targets(runner)
 	_bounded_envelope(runner)
 	_atomic_rejection(runner)
 	print("SCENARIO environmental response: constant and linear targets, stable short-step and long-horizon integrals, ordered reads, exact JSON future and atomic rejection")
@@ -126,6 +127,31 @@ func _small_steps_and_large_time(runner: Object) -> void:
 	var declining := Response.new()
 	runner.assert_true(declining.configure(0, horizon, 0.0, 1.0e12, -0.001, 1), "a very long bounded ramp to zero configures")
 	_near(runner, float(declining.sample(horizon).value), 0.001, 1.0e-12, "long ramp retains its small endpoint lag without large-number cancellation")
+
+
+func _long_opposite_targets(runner: Object) -> void:
+	# duration = 3 * 2^51; the first slope is exactly -2^-51. Its target
+	# runs from 1.5 to -1.5, so the target area is zero and the response
+	# retains the roughly 1.5 value-ms transient at tau=1.
+	var duration: int = 6_755_399_441_055_744
+	var slope_magnitude: float = 4.440892098500626e-16
+	var adjustment: float = 9.860761315262648e-32 # 2^-103
+	for direction: int in [-1, 1]:
+		for slope_adjustment: float in [0.0, adjustment]:
+			var response := Response.new()
+			var target: float = float(direction) * 1.5
+			var slope: float = float(direction) * (-slope_magnitude + slope_adjustment)
+			runner.assert_true(response.configure(0, duration, 0.0, target, slope, 1), "long opposite-signed targets configure")
+			var result: Dictionary = response.sample(duration)
+			# The adjusted exact slope adds a target trapezoid area of 9/4;
+			# rounding its endpoint before the area calculation loses part of it.
+			var expected: float = float(direction) * (1.5 + (2.25 if slope_adjustment != 0.0 else 0.0))
+			_near(runner, float(result.get("integral", INF)), expected, 1.0e-12, "opposite targets retain the finite transient and near-cancelling target area")
+			_near(runner, float(result.get("value", INF)), -target, 1.0e-12, "long endpoint keeps its expected sign and magnitude")
+			var resumed := Response.new()
+			var saved: Variant = JSON.parse_string(JSON.stringify(response.to_dict(), "", true, true))
+			runner.assert_true(resumed.restore(saved), "long opposite-target segment survives full-precision JSON")
+			runner.assert_eq(resumed.sample(duration), result, "restoring either sign retains the same long-interval integral")
 
 
 func _bounded_envelope(runner: Object) -> void:
