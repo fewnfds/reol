@@ -16,7 +16,9 @@
 
 **本地等待流程：** 用户指出短间隔扫描回归进度不合理，已把完成事件优先/工具层长等待/不定时读日志数PASS写入AGENTS和[工作流](../engineering/workflow/code-review.md)。原回归没有重启，终端session由代码编排等待器接续，退出后收到一次终态输出；之后不再扫描用户目录里的Godot日志。宿主未暴露process/exited，不声称hook能唤醒已结束聊天；不配置全局或新增插件/模型/automation。此项仅文档规则，不需重跑引擎或代码审查。
 
-第二阶段目标仍是环境与组合空间。[GPU方案](../plans/environment-object-loop/gpu-ground.md)已按声明出口完成并停止。下一待讨论是实际温度/五行响应与原物变动在共同时间上的联合提交，再考虑移动携源及Main接管；没有自动连续实施授权。
+第二阶段目标仍是环境与组合空间。[GPU方案](../plans/environment-object-loop/gpu-ground.md)已按声明出口完成并停止。下一供讨论的[静止来源连续响应小包](../plans/environment-object-loop/response-ground.md)只接单个已存在独特实物取/放/移、实际温度/五行、共同事件边界及联合提交/验收存读；背景材料堆仍静态参与，材料拆合、真实携行与Main接管暂缓。本轮只写方案，无新Goal、游戏改动或实施授权；四WIP继续原样保护。
+
+本轮真实方案提交检查点仅一次查找修复SHA9b3e724对应CI，返回无匹配run；不重查或等待。GPU包完整验收仍取本机同SHA258组/107976断言0失败，不能把缺run说成CI通过。
 
 ## 讨论确认与实施缺口
 
