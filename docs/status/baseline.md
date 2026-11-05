@@ -26,6 +26,12 @@
 
 ## 最近有效证据
 
+### A2a真实来源缓存
+
+代码`4c1a2e9cd64ed89948f374008f6bcd9c35aa1b23`及一次Sol/custom审查窄修`3636dc37ea498fa1f57c1d970fca6e50289aff93`接通真实地面原物的预算装配、16×16基础目标缓存、通知前失效和epoch/所有者重绑。修复SHA独立检出完整check：**257组、99000断言、0失败**，1291.078秒，无ERROR/SCRIPT ERROR；原四份环境WIP未混入。定向1685断言0失败；512²真实262144来源全域冷建约19.26秒分片累计、advance p99约2.06ms，1024热读p95约10ms，未达初始5ms目标；离线进程峰工作集约2.2GiB，不是整款游戏容量或动态场FPS。证据见[缓存QA](../qa/20261105_environment_ground_cache.md)。
+
+首代码SHA的[CI42025370605](https://github.com/fewnfds/reol/actions/runs/42025370605)在收尾实际提交检查点核completed/success；修复SHA的[CI42026400068](https://github.com/fewnfds/reol/actions/runs/42026400068)最后观测in_progress，尚待下次提交核验。主验收使用上述本机精确SHA完整check，不能把首提交CI结果当修复SHA绿色。普通Main、实际环境响应、移动携源与GPU未由该服务接管。
+
 | SHA、范围或案例 | 已有证据 | 不覆盖 |
 |---|---|---|
 | `bbd4303eb2ae477015dd1d9a40b170562c40a4d8` 的共同时间修复 | 普通 Main 先结算世界再发布时间；定向回归含暂停、真实在途与完全停开接续，细节见[共同时间QA](../qa/20261105_clock_world_commit.md)。 | [CI 41968678863](https://github.com/fewnfds/reol/actions/runs/41968678863) 于本轮真实提交检查点核为 `completed/success`，精确 headSha 为左列完整 SHA；不表示新环境场已接入。 |

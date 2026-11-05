@@ -1,6 +1,6 @@
 # A2a：真实地面来源的分块基础目标缓存
 
-这是A1之后的下一小包候选，供用户讨论；不是实施授权或已实现合同。当前任务只看[HANDOFF](../../status/handoff.md)。依赖[A1来源接口](../../engineering/environment-source-query-contract.md)，本包只解决批量计算、重复读取和原物变更后的可靠失效。
+这是A1之后的A2a工作包规格，不单独维护当前任务或通过状态。实际接口见[缓存合同](../../engineering/environment-ground-cache-contract.md)，受检范围见[QA](../../qa/20261105_environment_ground_cache.md)，授权和停点只看[HANDOFF](../../status/handoff.md)。依赖[A1来源接口](../../engineering/environment-source-query-contract.md)，只解决批量计算、重复读取和原物变更后的可靠失效。
 
 用户在[空间模型调研](../../../design/research/spatial_models.md)后授权开发者自主选型。采用方格地形/建造、人物权威子格位置、按格缓存环境；未来移动场首版以所在格发源。本包只做A1地面静物缓存，不实施身体/战斗改写或移动场。
 

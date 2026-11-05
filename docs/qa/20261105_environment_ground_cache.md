@@ -1,6 +1,6 @@
 # A2a真实地面来源分块缓存验证
 
-2026-11-05。本页仍在填验收证据，完整回归与审查终态待补，不能据标题宣称包通过。范围为[缓存合同](../engineering/environment-ground-cache-contract.md)；普通Main、实际温度/五行响应、移动携源和GPU不属于本包。
+2026-11-05。A2a在本页声明的CPU缓存范围完成；准确代码SHA本机完整check和一次原生审查修复已有证据，修复SHA远端CI仍待验。范围为[缓存合同](../engineering/environment-ground-cache-contract.md)；普通Main、实际温度/五行响应、移动携源和GPU不属于本包。
 
 ## 起点与保护
 
@@ -20,7 +20,7 @@
 
 初测64²/128²/256²/512²均由外部守卫成功退出，原JSON保留在`logs/benchmarks/`。首版逐来源Dictionary使512²装配后static增量约282.88MiB，改为Vector4i后复测约133.88MiB；该增量含A1对照及存活分配，不能称精确纯缓存内存。用户随后重申整款PC游戏约10GB可接受，256MiB不再作为门槛；保留本次已完成的简单结构改进，不追加无依据省内存工程。
 
-最终提交`4c1a2e9cd64ed89948f374008f6bcd9c35aa1b23`在独立检出复测512²/max与128²/mixed，不含四份WIP；两份报告带HEAD/status/关键脚本SHA256。导入器仅为shader `.import`追加空行，不改变模拟/定义/场景。
+首代码提交`4c1a2e9cd64ed89948f374008f6bcd9c35aa1b23`在独立检出复测512²/max与128²/mixed，不含四份WIP；两份报告带HEAD/status/关键脚本SHA256。导入器仅为shader `.import`追加空行，不改变模拟/定义/场景。审查窄修后的最终代码另在下文记录。
 
 | 真实负载 | 512²/半径16 | 128²/混合半径 |
 |---|---:|---:|
@@ -51,6 +51,8 @@
 - `environment_ground_cache_512_max_1793880924503495900.json`：107.593秒、进程时间上限900秒/内存上限6GiB，守卫success；峰采样PrivateUsage约2253.07MiB。
 - `environment_ground_cache_128_mixed_1793880952652935500.json`：27.944秒，同守卫上限，success。
 
+审查窄修后的`3636dc37ea498fa1f57c1d970fca6e50289aff93`再次在**干净独立检出**复测512²，报告`environment_ground_cache_512_max_1793881380751274700.json`：success、107.734秒，源数/操作/参考抽检同上。装配7437.484ms、窗口19.417ms、全域19256.587ms，1024热读p95=9.997ms；全建advance p95/p99/max=1.834/2.060/2.356ms，装配p99/max=2.347/3.959ms。static增量仍约133.88MiB，峰工作集2317012992B、峰采样PrivateUsage2362552320B。局部1/16/64件重建112.548/177.078/171.823ms，1%分散重建19403.412ms。记录该修复版本实际数字，不沿用旧SHA作最终性能证明。
+
 混合半径更慢的假设：已有packed算法以全局最大半径给提前终止上界，对小半径来源保守，导致更多候选扫描；尚无同尺寸同强度只改半径的A/B剖析。此为后续性能输入，不在本包改四份保护WIP或直接引新引擎。GPU可对同负载测含装配/提交/回读的端到端收益，再决定普通接入；本次没有GPU加速成绩。
 
 ## 受检版本与待补
@@ -58,3 +60,7 @@
 代码包`4c1a2e9cd64ed89948f374008f6bcd9c35aa1b23`已提交推送。主代理一次原生Sol/custom审查（281.877秒）发现一项P2：首区域时间落后时提前返回，跳过后来库存epoch，后续正常操作可能接受未追踪变化。已改为先核完所有owner/epoch，再检查全部区域时刻，并补真实两区域旁路＋正常事务回归；修复后定向**1685断言、0失败**，日志`targeted-reviewed-fix.log`。
 
 旧SHA独立完整check在136.797秒时由主代理确认专属runner路径后主动终止，原因是改验修复版本；退出1不算产品失败或通过。日志/result保留在`logs/environment_a2/validation/logs/`，不删旧证据。下一完整回归只跑修复后的精确SHA，不同时跑基准；不重复整包模型审查，也不等待CI。
+
+最终代码`3636dc37ea498fa1f57c1d970fca6e50289aff93`独立检出运行`python tools/godot.py check --test-timeout 1800`：**257组、99000断言、0失败**，1291.078秒，CHECK PASSED，无ERROR/SCRIPT ERROR。最终基准先结束，再启动这一份完整回归，没有并发压测。日志及result为`a2-full-check-final.log`、`a2-full-check-final-result.json`，连同单独structure/import/test日志及全部基准保全到`logs/environment_a2/validation-artifacts/`后移除自建worktree。
+
+收尾实际提交检查点只查一次相关CI：4c1a2e9对应run42025370605为completed/success且headSha匹配；修复SHA对应run42026400068为in_progress，留待下次提交，不轮询。最终验收取本机精确SHA完整check，远端待验单列。后续收尾仅文档，不重跑模型审查或整套测试。
