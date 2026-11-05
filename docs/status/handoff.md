@@ -4,6 +4,8 @@
 
 最新一轮用户只要求下一小阶段计划。已写[A2a分块基础目标缓存候选](../plans/environment-object-loop/cache.md)：统一通道/舍入，复用packed缓存接真实原物及可靠失效，量测装配/冷建/热读/局部重算；仍不含实际响应、联合原物事务或Main接管。当前只交付方案，未改游戏代码、未启动引擎或创建Goal，等待讨论后再按明确授权实施。
 
+随后讨论补充：真实手持搬运须按原人物路径/共同时间处理沿途暴露，慢走/快跑/停留产生不同升温与尾迹。尾迹是地块实际状态，不复制静态来源。现耗时move要求人物原位等待、到期一次转移，尚无真实搬运路线；A1无携物来源/A2a无实际响应，均不能宣称已实现。已补[连续性候选](../plans/environment-object-loop/continuity.md#真实搬运与运动来源)及联合验收；仍在讨论，不扩大为本轮代码实施，携物整体遮掩未定。
+
 ## 已完成包与停点
 
 A1代码已提交并推送 `8bf7aa2a012af393fbc1b96fea6220aa18825833`：显式schema/digest、真实ground实物和材料堆来源投影、有界局部五行max/冷热等级合成。原位置/数量仍唯一归原owner，查询不推进时间。接口见[来源查询合同](../engineering/environment-source-query-contract.md)，证据见[来源QA](../qa/20261105_environment_source_bindings.md)。定向147断言/0失败，真实64²至512²密度基准通过；原生Sol/custom只读审查无可行动问题；精确SHA独立检出完整check通过：255组、98618断言、0失败，1094.512秒，无ERROR/SCRIPT ERROR。
