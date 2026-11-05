@@ -33,7 +33,7 @@
 
 `sample_base(cell, budget=16384)` 在原ground分桶上查询最大配置半径覆盖区，地图边界裁剪；按实物完整占地找候选并去重。账务region不是空间隔离，同一全局格会受邻近不同账本物品影响。
 
-距离核在configure时生成有限模板，查询只查表；使用整数欧氏距离的线性衰减，中心满值、半径边界及以外为零。所有值用整数定点截断；冷热分别先按绝对等级衰减，效果对称。
+距离核在configure时生成有限模板，查询只查表；使用整数欧氏距离的线性衰减，中心满值、半径边界及以外为零。当前计算规则v2采用最近整数，冷热先对绝对等级衰减再恢复符号，效果对称；v1截断仅保留在原SHA历史QA中，不提供运行开关。
 
 - 五行分别取最大有效值，不求和。
 - signed冷热派生正侧最大值H和负侧绝对最大值C，净值H−C。`hot_grade/cold_grade` 只是本次结果的派生极值，不是物品两项属性。
@@ -41,7 +41,7 @@
 
 工作预算计原ground桶访问、候选访问/匹配和逐候选投影。预算1–1000000，工作单位不是毫秒。失败返回 `ok=false/complete=false/reason/work_used`，不含貌似完整的五行或冷热值。预算可重试且不改世界；不是跨帧准备句柄。
 
-成功带 `complete=true/elements/thermal_grade/hot_grade/cold_grade/source_count/candidate_count/work_used`。共同元数据为 `visibility=authority_only`、`scope=active_ground_base_targets`、`world_time_ms/config_digest/live=false`。查询不授予交互权限，不写玩家认知。
+成功带 `complete=true/elements/thermal_grade/hot_grade/cold_grade/source_count/candidate_count/work_used`。共同元数据为 `visibility=authority_only`、`scope=active_ground_base_targets`、`world_time_ms/config_digest/rule_version/live=false`。定义digest与算术规则版本分别标识输入和算法，查询不授予交互权限，不写玩家认知。
 
 ## 时刻、变化与后续边界
 
@@ -49,4 +49,4 @@
 
 本接口每次直接读原owner，所以原生命周期生成、搬运、收起、落地、拆合和移除成功后的下一次查询立即一致。没有提交订阅者、持久场缓存或需要补写的来源副本，也不改变原命令失败和幂等规则。
 
-这不是原物—缓存—实际响应联合事务。未来接持续场缓存与响应时仍须变更前prepare、预算续算、复验和同步发布；不能依赖本包只读投影或提交后signal冒充原子提交。也不能在每个格每帧反复调用这个诊断接口来模拟全图刷新；批量场更新须复用局部失效/packed缓存等专门路径，并另做联合性能验收。
+这不是原物—缓存—实际响应联合事务。[A2a缓存](environment-ground-cache-contract.md)提供派生基础目标和可靠失效；未来接实际响应仍须变更前prepare、预算续算、复验和同步发布，不能依赖只读投影或提交后signal冒充原子提交。也不能在每个格每帧反复调用这个诊断接口来模拟全图刷新；批量计算和实际响应分别按其范围验证。

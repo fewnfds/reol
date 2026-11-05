@@ -18,6 +18,9 @@ var active: Dictionary = {}
 var events: Array[Dictionary] = []
 var experiences: Dictionary = {}
 var next_id: int = 1
+## Runtime generation of bulk definition/object replacement. It is not a
+## per-object change counter and is deliberately absent from save data.
+var state_generation: int = 0
 var _owner: WeakRef
 var _warming_decisions: Dictionary = {}
 var _intrinsic_light_ids: Array[String] = []
@@ -356,11 +359,12 @@ static func heat_recipe(definition: Dictionary, verb: String) -> Dictionary:
 
 
 func initialize(authority: RefCounted, content: Dictionary) -> bool:
-	if authority == null or not valid_definitions(content):
+	if state_generation >= SimInventory.MAX_COUNT or authority == null or not valid_definitions(content):
 		return false
 	_owner = weakref(authority)
 	definitions = content.duplicate(true)
 	_rebuild_light_sources()
+	state_generation += 1
 	return true
 
 
@@ -372,7 +376,7 @@ func bind_world(authority: RefCounted) -> void:
 func spawn_opening(scenario: Dictionary) -> bool:
 	# Scene bootstrap may occur at a nonzero clock before a saved candidate is
 	# committed. Only the explicit scenario assembler calls this operation.
-	if not objects.is_empty() or not active.is_empty() or not events.is_empty() or scenario.get("version") != DEFINITIONS_VERSION or not scenario.get("objects") is Array:
+	if state_generation >= SimInventory.MAX_COUNT or not objects.is_empty() or not active.is_empty() or not events.is_empty() or scenario.get("version") != DEFINITIONS_VERSION or not scenario.get("objects") is Array:
 		return false
 	var candidates: Dictionary = {}
 	for row: Variant in scenario.objects:
@@ -396,6 +400,7 @@ func spawn_opening(scenario: Dictionary) -> bool:
 	objects = candidates
 	experiences = snapshot.experiences
 	_rebuild_light_sources()
+	state_generation += 1
 	return true
 
 
@@ -1146,7 +1151,7 @@ static func empty_state() -> Dictionary:
 
 
 func restore(data: Dictionary) -> bool:
-	if not Schema.validate(data, self):
+	if state_generation >= SimInventory.MAX_COUNT or not Schema.validate(data, self):
 		return false
 	_warming_decisions.clear()
 	objects = data.objects.duplicate(true)
@@ -1174,6 +1179,7 @@ func restore(data: Dictionary) -> bool:
 			event.draw.from_cell = [int(event.draw.from_cell[0]), int(event.draw.from_cell[1])]
 	next_id = int(data.next_id)
 	_rebuild_light_sources()
+	state_generation += 1
 	return true
 
 

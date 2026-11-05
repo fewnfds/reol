@@ -1459,6 +1459,10 @@ func _move_goods(
 	}
 	if operations.has(operation_id):
 		return _valid_transfer_receipt(operations[operation_id], source_region, destination_region, source_container, destination_container, item, amount)
+	# Routes use configured workplaces and transit storage, never lifecycle
+	# ground piles. Reject direct ledger writes that would bypass their indexes.
+	if source_container.begins_with("ground:") or destination_container.begins_with("ground:"):
+		return false
 	if amount <= 0 or not source.containers.has(source_container) or not destination.containers.has(destination_container):
 		return false
 	if source.available(source_container, item) < amount or amount > MAX_COUNT - destination.quantity(destination_container, item):

@@ -9,6 +9,7 @@
 - [docs/engineering/architecture/03-time-space-presentation.md](../engineering/architecture/03-time-space-presentation.md)
 - [docs/engineering/architecture/04-persistence.md](../engineering/architecture/04-persistence.md)
 - [docs/engineering/compatibility.md](../engineering/compatibility.md)
+- [docs/engineering/environment-ground-cache-contract.md](../engineering/environment-ground-cache-contract.md)
 - [docs/engineering/environment-source-query-contract.md](../engineering/environment-source-query-contract.md)
 - [docs/engineering/godot-for-unity.md](../engineering/godot-for-unity.md)
 - [docs/engineering/object-lifecycle-contract.md](../engineering/object-lifecycle-contract.md)

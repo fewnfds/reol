@@ -8,12 +8,33 @@ const MIN_INTEGER: int = -9223372036854775807 - 1
 
 func run(runner: Object) -> void:
 	_circle(runner)
+	_source_channels_and_rounding(runner)
 	_temperature_anchors(runner)
 	_seasonal_and_monotonic(runner)
 	_extended_levels_with_bounded_values(runner)
 	_net_before_modulation(runner)
 	_rejection(runner)
 	print("SCENARIO environment field rules: circular Euclidean kernel, seasonal net-grade temperature, symmetric modulation, high grades and safe rejection")
+
+
+func _source_channels_and_rounding(runner: Object) -> void:
+	var source_elements: Array[int] = [11, 22, 33, 44, 55]
+	var cold: PackedInt32Array = Rules.source_to_packed_channels(source_elements, -9)
+	var hot: PackedInt32Array = Rules.source_to_packed_channels(source_elements, 9)
+	runner.assert_eq(cold, PackedInt32Array([44, 11, 55, 22, 33, 0, 9]), "source elements map to metal/wood/water/fire/earth and the cold magnitude")
+	runner.assert_eq(hot, PackedInt32Array([44, 11, 55, 22, 33, 9, 0]), "one positive thermal attribute becomes the separate packed hot maximum")
+	runner.assert_eq(Rules.packed_to_source_elements(cold), source_elements, "a completed packed field returns the public wood/fire/earth/metal/water order")
+	var round_trip: Array[int] = Rules.packed_to_source_elements(cold)
+	round_trip[0] = 1000
+	runner.assert_eq(int(cold[1]), 11, "mutating external elements cannot mutate the packed field")
+	runner.assert_eq(Rules.effective_grade(1, 500_000), 1, "a positive half unit rounds away from zero")
+	runner.assert_eq(Rules.effective_grade(-1, 500_000), -1, "a negative half unit rounds symmetrically away from zero")
+	runner.assert_eq(Rules.effective_grade(2, 750_000), 2, "a positive one-and-a-half rounds to nearest")
+	runner.assert_eq(Rules.effective_grade(-2, 750_000), -2, "a negative one-and-a-half has the same magnitude")
+	runner.assert_eq(Rules.effective_grade(1, 499_999), 0, "a value below the halfway point rounds to zero")
+	runner.assert_eq(Rules.effective_grade(-1, 499_999), 0, "negative values below the halfway point also round to zero")
+	runner.assert_eq(Rules.effective_grade(Rules.MAX_GRADE_MILLI, Rules.SCALE), Rules.MAX_GRADE_MILLI, "the maximum supported grade retains its full strength without overflow")
+	runner.assert_eq(Rules.effective_grade(-Rules.MAX_GRADE_MILLI, Rules.SCALE), -Rules.MAX_GRADE_MILLI, "the negative maximum remains symmetric")
 
 
 func _circle(runner: Object) -> void:

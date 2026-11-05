@@ -5,6 +5,14 @@ extends RefCounted
 
 const SCALE: int = 1_000_000
 const GRADE_SCALE: int = 1_000
+## Version 2 uses nearest-integer effective strengths, with symmetric signs.
+const BASE_TARGET_RULE_VERSION: int = 2
+## Validated source order is wood/fire/earth/metal/water. Packed cache order is
+## metal/wood/water/fire/earth/hot/cold; these maps keep that boundary explicit.
+const PACKED_FROM_SOURCE_ELEMENT_INDEX: Array[int] = [3, 0, 4, 1, 2]
+const SOURCE_FROM_PACKED_ELEMENT_INDEX: Array[int] = [1, 3, 4, 0, 2]
+const PACKED_HOT_INDEX: int = 5
+const PACKED_COLD_INDEX: int = 6
 const ABSOLUTE_ZERO_MILLI: int = -273_150
 const MAX_RADIUS: int = 256
 const MAX_NEUTRAL_MILLI: int = 1_000_000_000
@@ -20,6 +28,33 @@ const _COLD_REFERENCE_SPAN_MILLI: int = 293_150
 
 static func _failure(reason: String) -> Dictionary:
 	return {"ok": false, "reason": reason}
+
+
+static func effective_grade(strength: int, weight: int) -> int:
+	# Trusted values: strength within +/-MAX_GRADE_MILLI and weight in 0..SCALE.
+	# Apply the same nonnegative rounding used by the packed CPU/GPU field, then
+	# restore the sign so ice and fire have exactly symmetric effective grades.
+	var magnitude: int = _round_nonnegative(absi(strength) * weight, SCALE)
+	return -magnitude if strength < 0 else magnitude
+
+
+static func source_to_packed_channels(elements: Array, thermal_grade: int) -> PackedInt32Array:
+	# Trusted, already-validated profiles: five nonnegative elements and a single
+	# signed thermal grade. The final pair are temporary extrema, not attributes.
+	var result := PackedInt32Array()
+	for index: int in PACKED_FROM_SOURCE_ELEMENT_INDEX:
+		result.append(int(elements[index]))
+	result.append(maxi(thermal_grade, 0))
+	result.append(maxi(-thermal_grade, 0))
+	return result
+
+
+static func packed_to_source_elements(channels: PackedInt32Array) -> Array[int]:
+	# Trusted completed cache result; return a detached, externally ordered copy.
+	var result: Array[int] = []
+	for index: int in SOURCE_FROM_PACKED_ELEMENT_INDEX:
+		result.append(channels[index])
+	return result
 
 
 static func kernel(offset: Vector2i, radius: int) -> Dictionary:

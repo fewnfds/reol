@@ -77,6 +77,14 @@ func test_environment_source_bindings() -> void:
 	load("res://tests/sim/test_environment_source_bindings.gd").new().run(self)
 
 
+func test_environment_ground_cache() -> void:
+	load("res://tests/sim/test_environment_ground_cache.gd").new().run(self)
+
+
+func test_environment_inventory_epoch() -> void:
+	load("res://tests/sim/test_environment_inventory_epoch.gd").new().run(self)
+
+
 func test_environment_field_tide() -> void:
 	load("res://tests/sim/test_environment_field_tide.gd").new().run(self)
 

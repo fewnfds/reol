@@ -129,8 +129,8 @@ func sample_base(cell: Vector2i, budget: int = 16384) -> Dictionary:
 			continue
 		source_count += 1
 		for channel: int in 5:
-			elements[channel] = maxi(elements[channel], int(source.elements[channel]) * weight / Rules.SCALE)
-		var thermal: int = int(source.thermal_grade) * weight / Rules.SCALE
+			elements[channel] = maxi(elements[channel], Rules.effective_grade(int(source.elements[channel]), weight))
+		var thermal: int = Rules.effective_grade(int(source.thermal_grade), weight)
 		hot = maxi(hot, thermal)
 		cold = maxi(cold, -thermal)
 	var result: Dictionary = _metadata(world)
@@ -213,7 +213,7 @@ func _context() -> Dictionary:
 
 func _metadata(world: RegionalSimulation) -> Dictionary:
 	return {"visibility": "authority_only", "scope": SCOPE, "world_time_ms": world.elapsed_ms,
-		"config_digest": _definitions.digest(), "live": false}
+		"config_digest": _definitions.digest(), "rule_version": Rules.BASE_TARGET_RULE_VERSION, "live": false}
 
 
 func _failure(reason: String, work_used: int = 0) -> Dictionary:

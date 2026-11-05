@@ -18,6 +18,7 @@ var _committing: bool = false
 var _settling: bool = false
 var _active_actions: Dictionary = {}
 var _contained: Dictionary = {}
+var _environment_cache: WeakRef
 
 var world: RegionalSimulation:
 	get: return _owner.get_ref() if _owner != null else null
@@ -47,6 +48,8 @@ func manages(id: String) -> bool:
 func execute(request: Dictionary) -> Dictionary:
 	if _committing or world == null:
 		return _fail("transaction_busy")
+	if world.artifact_transfers != null and world.artifact_transfers.checking:
+		return _fail("transaction_busy")
 	if not _request_valid(request):
 		return _fail("invalid_request")
 	if receipts.has(request.command):
@@ -64,6 +67,9 @@ func execute(request: Dictionary) -> Dictionary:
 func _execute(request: Dictionary, reservation: String = "", notify: bool = true) -> Dictionary:
 	if receipts.size() >= MAX_RECEIPTS:
 		return _fail("receipt_limit")
+	var cache: RefCounted = _environment_cache.get_ref() if _environment_cache != null else null
+	if cache != null:
+		cache.before_object_change()
 	_committing = true
 	var result: Dictionary
 	match str(request.op):
@@ -74,10 +80,22 @@ func _execute(request: Dictionary, reservation: String = "", notify: bool = true
 		_: result = _fail("unsupported_operation")
 	if bool(result.ok):
 		receipts[request.command] = Receipt.encode(request, result, world.elapsed_ms, receipts.size() + 1)
+		if cache != null:
+			# Invalidate before any external notification, including timed actions.
+			# This is a disposable base cache, never physical environment history.
+			cache.objects_changed(result)
 	_committing = false
 	if bool(result.ok) and notify:
 		_publish(request, result)
 	return result
+
+
+func bind_environment_cache(cache: RefCounted) -> bool:
+	var previous: RefCounted = _environment_cache.get_ref() if _environment_cache != null else null
+	if cache != null and previous != null and previous != cache:
+		return false
+	_environment_cache = weakref(cache) if cache != null else null
+	return true
 
 
 func _publish(request: Dictionary, result: Dictionary) -> void:
@@ -107,6 +125,8 @@ func _receipt(command: String) -> Dictionary:
 
 
 func schedule(request: Dictionary, actor: String, duration_ms: int) -> Dictionary:
+	if world != null and world.artifact_transfers != null and world.artifact_transfers.checking:
+		return _fail("transaction_busy")
 	return ActionProcess.schedule(self, request, actor, duration_ms)
 
 
@@ -125,6 +145,8 @@ func previous_autonomy(actor: String) -> bool:
 
 
 func cancel(actor: String) -> bool:
+	if world != null and world.artifact_transfers != null and world.artifact_transfers.checking:
+		return false
 	return ActionProcess.cancel(self, actor)
 
 

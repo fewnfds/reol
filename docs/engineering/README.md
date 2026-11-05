@@ -5,6 +5,7 @@
 - [代码架构](architecture.md)：依赖方向、状态所有者、时间空间和存读边界。
 - [项目文件架构](project-structure.md)：代码、数据、设计和文档各放在哪里。
 - [兼容与历史退役](compatibility.md)：单一当前模型、有限迁入和独立候选原则。
+- [环境来源查询](environment-source-query-contract.md)、[地面来源缓存](environment-ground-cache-contract.md)：真实原物投影、基础目标及失效边界，不等同实际环境响应。
 - [Godot 给 Unity 开发者](godot-for-unity.md)：引擎和工具的基础对应。
 - [AI 开发流程](workflow/ai-development.md)、[提交审查与 CI](workflow/code-review.md)：开发和验证边界。
 - [工具用法](tooling/usage.md)、[实际配置](tooling/setup.md)、[维护](tooling/maintenance.md)、[选型方法](tooling/evaluation.md)：连接与工具维护。旧工具审计在[历史目录](../archive/engineering-context-20261105/)。

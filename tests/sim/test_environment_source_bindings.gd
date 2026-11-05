@@ -220,6 +220,7 @@ func _composition_and_boundaries(runner: Object, world: RegionalSimulation, defi
 	runner.assert_eq(sample.get("scope"), "active_ground_base_targets", "coverage is limited to explicitly supported ground targets")
 	runner.assert_eq(sample.get("world_time_ms"), world.elapsed_ms, "the projection names its committed world time")
 	runner.assert_eq(sample.get("config_digest"), definitions.digest(), "the projection identifies the exact explicit source configuration")
+	runner.assert_eq(sample.get("rule_version"), 2, "results identify nearest-integer base target calculation separately from configuration digest")
 	runner.assert_eq(_fixture._state(world), before, "source and field queries neither mutate nor advance the original world")
 	var altered: Dictionary = sample.duplicate(true)
 	if altered.get("elements") is Array:
@@ -229,6 +230,24 @@ func _composition_and_boundaries(runner: Object, world: RegionalSimulation, defi
 	runner.assert_true(not bool(bounded.get("ok", true)) and not bool(bounded.get("complete", true)), "exhausting the work budget rejects an incomplete result")
 	runner.assert_eq(bounded.get("reason"), "budget_exhausted", "budget exhaustion has an explicit reason")
 	runner.assert_true(not bounded.has("elements") and not bounded.has("thermal_grade"), "partial field values cannot be mistaken for a complete sample")
+	# Equal +/-2-strength sources at distance one with a radius-four kernel each
+	# attenuate to 1.5. Both round to magnitude 2; truncation would return 1.
+	var rounding_raw: Dictionary = _definitions()
+	rounding_raw.profiles.hot.thermal_grade = 2
+	rounding_raw.profiles.hot.elements.fire = 2
+	rounding_raw.profiles.cold.thermal_grade = -2
+	rounding_raw.profiles.cold.elements.fire = 0
+	rounding_raw.profiles.weak.thermal_grade = 0
+	rounding_raw.profiles.weak.elements.fire = 0
+	var rounding_definitions: RefCounted = Definitions.new()
+	var rounding_query: RefCounted = Bindings.new()
+	if _ok(runner, rounding_definitions.configure(rounding_raw) and rounding_query.configure(world, rounding_definitions), "fractional-strength source definitions bind the same actual world"):
+		var rounded: Dictionary = rounding_query.sample_base(Vector2i(200, 200))
+		runner.assert_true(bool(rounded.get("ok", false)), "real sources with half-unit effective values are sampled")
+		runner.assert_eq(rounded.get("hot_grade"), 2, "real positive source rounds a half unit up")
+		runner.assert_eq(rounded.get("cold_grade"), 2, "real negative source rounds the same magnitude up")
+		runner.assert_eq(rounded.get("thermal_grade"), 0, "symmetric rounded hot and cold still cancel")
+		runner.assert_eq(rounded.get("elements"), [0, 2, 0, 0, 0], "the real five-element field uses the same nearest rounding")
 
 	var remove_hot: Dictionary = lifecycle.execute(_fixture._transfer("env_hot_away", _fixture._location(hot_ref.container), _fixture._location("actor:player"), "wood", 1))
 	if not _ok(runner, bool(remove_hot.get("ok", false)), "the strongest ground heat source is picked up"):

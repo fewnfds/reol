@@ -266,6 +266,11 @@ func transfer(operation_id: String, from_region: String, from_container: String,
 	var signature: Dictionary = {"from": from_region, "source": from_container, "to": to_region, "target": to_container, "item": item, "amount": amount}
 	if operations.has(operation_id):
 		return Schema.same_value(operations[operation_id], signature)
+	# Ground piles are managed through the object lifecycle, which keeps their
+	# placement and environmental invalidation together. Existing historical
+	# receipts still replay above without another write.
+	if from_container.begins_with("ground:") or to_container.begins_with("ground:"):
+		return false
 	var source: RefCounted = escrow if from_region == "escrow" else world.regions[from_region].inventory
 	var target: RefCounted = escrow if to_region == "escrow" else world.regions[to_region].inventory
 	if not source.containers.has(from_container) or not target.containers.has(to_container) or amount <= 0:

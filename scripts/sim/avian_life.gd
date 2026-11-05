@@ -455,6 +455,10 @@ func _exchange(operation: String, source: SimInventory, from: String, target: Si
 	var signature: Dictionary = {"from": origin, "to": destination, "source": from, "target": to, "item": item, "amount": amount}
 	if exchanges.has(operation):
 		return Schema.same_record(exchanges[operation], signature)
+	# This exchange handles bird/site and village workplaces. Ground piles
+	# belong to the separate lifecycle and cannot be mutated through this path.
+	if from.begins_with("ground:") or to.begins_with("ground:"):
+		return false
 	if not source.containers.has(from) or not target.containers.has(to) or amount <= 0 or source.available(from, item) < amount or amount > SimInventory.MAX_COUNT - target.quantity(to, item):
 		return false
 	source.containers[from][item] = source.quantity(from, item) - amount

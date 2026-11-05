@@ -8,6 +8,10 @@ const MAX_COUNT: int = 9007199254740991  # Largest exact integer in JSON numbers
 var containers: Dictionary = {}
 var reservations: Dictionary = {}
 var operations: Dictionary = {}
+## Runtime-only epoch for readers of ground:* stock. Direct Dictionary writes
+## do not pass through this ledger API and are outside its mutation contract.
+## A successful restore always changes the epoch, even on the same instance.
+var ground_revision: int = 0
 ## Disposition limits on real goods in the original containers, not extra stock.
 var custody: Dictionary = {}
 
@@ -15,7 +19,12 @@ var custody: Dictionary = {}
 func create_container(id: String, initial: Dictionary) -> bool:
 	if not _nonempty(id) or containers.has(id) or not _valid_items(initial):
 		return false
+	var ground: bool = id.begins_with("ground:")
+	if ground and ground_revision >= MAX_COUNT:
+		return false
 	containers[id] = _copy_items(initial)
+	if ground:
+		ground_revision += 1
 	return true
 
 
@@ -140,6 +149,9 @@ func transfer(
 	var target_quantity: int = quantity(target, item)
 	if amount > MAX_COUNT - target_quantity:
 		return false
+	var ground: bool = source.begins_with("ground:") or target.begins_with("ground:")
+	if ground and ground_revision >= MAX_COUNT:
+		return false
 	var source_items: Dictionary = containers[source]
 	var target_items: Dictionary = containers[target]
 	source_items[item] = quantity(source, item) - amount
@@ -149,6 +161,8 @@ func transfer(
 	operations[operation_id] = request
 	if not custody_id.is_empty():
 		settle_custody(custody_id, "inventory", operation_id)
+	if ground:
+		ground_revision += 1
 	return true
 
 
@@ -160,6 +174,8 @@ func can_consume(operation_id: String, container: String, item: String, amount: 
 	}
 	if operations.has(operation_id):
 		return operations[operation_id] == request
+	if container.begins_with("ground:") and ground_revision >= MAX_COUNT:
+		return false
 	if not containers.has(container) or not _nonempty(item) or not _valid_count(amount, false):
 		return false
 	if not can_use(container, item, amount, custody_id):
@@ -177,6 +193,8 @@ func consume(operation_id: String, container: String, item: String, amount: int,
 	operations[operation_id] = {"kind": "consume", "container": container, "item": item, "amount": amount}
 	if not custody_id.is_empty():
 		settle_custody(custody_id, "inventory", operation_id)
+	if container.begins_with("ground:"):
+		ground_revision += 1
 	return true
 
 
@@ -193,12 +211,17 @@ func transform(operation_id: String, container: String, inputs: Dictionary, outp
 		var after_inputs: int = quantity(container, item) - int(inputs.get(item, 0))
 		if int(outputs[item]) > MAX_COUNT - after_inputs:
 			return false
+	var ground: bool = container.begins_with("ground:")
+	if ground and ground_revision >= MAX_COUNT:
+		return false
 	# Preflight everything, then commit the complete transformation once.
 	for item: String in inputs:
 		containers[container][item] = quantity(container, item) - int(inputs[item])
 	for item: String in outputs:
 		containers[container][item] = quantity(container, item) + int(outputs[item])
 	operations[operation_id] = request
+	if ground:
+		ground_revision += 1
 	return true
 
 
@@ -212,6 +235,8 @@ func to_dict() -> Dictionary:
 
 
 func restore(data: Dictionary) -> bool:
+	if ground_revision >= MAX_COUNT:
+		return false
 	var raw_containers: Variant = data.get("containers")
 	var raw_reservations: Variant = data.get("reservations")
 	var raw_operations: Variant = data.get("operations")
@@ -301,6 +326,7 @@ func restore(data: Dictionary) -> bool:
 	reservations = next_reservations
 	operations = next_operations
 	custody = raw_custody.duplicate(true)
+	ground_revision += 1
 	return true
 
 
