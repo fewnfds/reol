@@ -19,11 +19,12 @@ Godot4.7.2 stable / Windows / i5-13600KF，主代理顺序运行；各进程30�
 
 | 范围 | 结果 | 秒 | 工作集峰B | 日志 |
 |---|---:|---:|---:|---|
-| 时钟纯调度、真实世界提交、旧热真实耗尽、跨聚落与环境行 | 264断言0失败 | 20.696 | 408616960 | `logs/clock-commit-final.json` |
+| 时钟纯调度、真实世界提交、旧热真实耗尽、跨聚落与环境行 | 修复后270断言0失败 | 20.382 | 409780224 | `logs/clock-commit-review-fix.json` |
 | 战斗UI、冲突移动、行程/门清场、时钟时间算术、原短动作 | 287断言0失败 | 20.221 | 419201024 | `logs/clock-combat-first.json` |
 | 玩家雀身、寄魂主体、雀妖交互和联合接续 | 114断言0失败 | 20.322 | 455237632 | `logs/clock-identity-first.json` |
+| 暂停窄修后的战斗UI、玩家雀身、standalone村落验证与存读 | 223断言0失败 | 17.605 | 418377728 | `logs/clock-pause-regression.json` |
 
-第一组初次262断言0失败，21.036秒/409661440B，`logs/clock-commit-first.json`。之后补充有效会话加载在时间监听中重入必须先拒绝的回归，不放宽断言，最终264项如上；断言数量不累加成世界规模。导入`logs/import-20261105-121911.log`通过，新测试UID已由引擎生成，结构检查0错误。
+第一组初次262断言0失败，21.036秒/409661440B，`logs/clock-commit-first.json`。补加载重入防护后264项0失败，20.696秒/408616960B，`logs/clock-commit-final.json`；原生审查后补“初始暂停中的新暂停请求”回归，最终270项如上。没有放宽原断言，也不把重叠断言累加成规模。导入`logs/import-20261105-121911.log`通过，新测试UID已由引擎生成，结构检查0错误。
 
 真实预算场景用原开局两名居民的10/20ms retry边界、event_budget=1，使50ms帧确实只完成到更早时刻。部分与完整推进比较原世界、行程、身体、motion和时钟的规范结果；真实主档/备份逐字节保持。原热耗尽回归改为更强合同：clock不领先，原200ms帧债完整保留，不再断言旧缺陷为正确结果。
 
@@ -34,11 +35,13 @@ Godot4.7.2 stable / Windows / i5-13600KF，主代理顺序运行；各进程30�
 - 检查点1234ms完整规范快照：`f3974bc632bf15eb4c94d35f730eee5c67c8be8381be12dff8aa2966fff62bed`。
 - 保存文件字节：`4a9f7a73c05cf607fa78a9d3cad0a8c22c762acac85ae8c639aaa611a089dcd3`。
 - 两进程4451ms完整未来：`f4329be31bf88597748e1d0163525a6926ce15911e62eaf2c78e2e8a2fbec041`。
-- write 7.889秒，工作集613928960B/私有采样峰947892224B，`logs/clock-native-write-process.json`；最终read 6.731秒，工作集680808448B/私有采样峰1009922048B，`logs/clock-native-read-process.json`，在新增加载重入防护后使用原文件再验证。均为RTX3060 / D3D12 / Forward+原生渲染，不是稳定FPS、长时间模拟或完整密集世界容量。
+- write 7.889秒，工作集613928960B/私有采样峰947892224B，`logs/clock-native-write-process.json`；审查修复后最终read 6.635秒，工作集684466176B/私有采样峰1015574528B，`logs/clock-native-read-process.json`，使用原文件再验证。均为RTX3060 / D3D12 / Forward+原生渲染，不是稳定FPS、长时间模拟或完整密集世界容量。
 - `logs/clock_world_write_checkpoint_1280x900.png`与读回未来的`logs/clock_world_read_future_centered_1600x900.png`已实际观察：原在途角色与界面可见，时钟分别08:00:01和08:00:04。另有1280/1600宽截图。自由镜头不会因暂停单步自动跟随，QA使用既有`center_camera`操作回中后另存centered图，未改变游戏镜头策略或世界数据；最初未回中图保留。
 
 这次 Godot AI 无连接编辑器会话，沿项目原生QA入口完成，不改MCP/全局配置，不用headless证明画面。
 
 ## 提交检查
 
-准备本包时，`923a95b18c8f127819d48e6397896125f9942d01` / run41963564648已核completed/success，覆盖前序packed/bulk，不能覆盖本包。前推送`0920d28d50124cc561ad465d89f62360b84d2fd0`一次查找未登记run，留下一真实提交再按完整SHA登记；不轮询。当前包原生只读审查和准确最终SHA完整回归仍待。
+准备本包时，`923a95b18c8f127819d48e6397896125f9942d01` / run41963564648已核completed/success，覆盖前序packed/bulk，不能覆盖本包。后续真实修复提交准备按完整SHA一次登记前推送`0920d28d50124cc561ad465d89f62360b84d2fd0`的run41966563221为in_progress，留下一真实提交，不轮询。
+
+代码`31c77110c9a9cec44a41c1de799a1bbeca6b814f`一次Sol/custom原生只读审查255.412秒、退出0，未运行引擎/测试/CI。发现P2：初始已暂停的显式推进允许继续，途中另一监听器再发`set_paused(true)`却因值未变提前返回，可能忽略危险中断。窄修为每次明确暂停请求都撤回显式续算许可，保留原请求，用户恢复后仅继续剩余量；270项及原文件原生read均通过。日志`logs/reviews/31c77110c9a9cec44a41c1de799a1bbeca6b814f.explicit-sol.log`，不重复整包模型审查。准确最终SHA完整回归仍待。

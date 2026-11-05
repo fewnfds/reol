@@ -383,11 +383,12 @@ func restore_state(data: Dictionary) -> bool:
 
 
 func set_paused(value: bool) -> void:
+	# A fresh pause request interrupts an explicit single-step even if it began
+	# while already paused. Repeating true is still a real danger/user request.
+	_explicit_allow_paused = false
 	if paused == value:
 		return
 	paused = value
-	if not value:
-		_explicit_allow_paused = false
 	if is_inside_tree():
 		get_tree().paused = value
 	paused_changed.emit(value)

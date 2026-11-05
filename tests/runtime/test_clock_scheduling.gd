@@ -47,6 +47,7 @@ func run(runner: Object) -> void:
 	_test_pause_and_explicit_budget(runner)
 	_test_executor_guards_and_restore(runner)
 	_test_frame_crosses_minute(runner)
+	_test_initially_paused_interrupt(runner)
 
 
 func _test_minute_boundaries_and_wait(runner: Object) -> void:
@@ -311,6 +312,30 @@ func _test_frame_crosses_minute(runner: Object) -> void:
 	runner.assert_eq(executor.calls, [[59975, 60000], [60000, 60025]], "one frame step is split at the shared minute boundary")
 	runner.assert_eq(order, ["fine:60000", "minute:1", "fine:60025"], "the minute tick occurs before the remainder of the frame step")
 	runner.assert_true(clock.elapsed_ms == 60025 and is_zero_approx(clock._accumulator), "both frame segments consume exactly the original frame debt")
+	executor.free()
+	clock.free()
+
+
+func _test_initially_paused_interrupt(runner: Object) -> void:
+	var clock := ReolGameClock.new()
+	clock.set_paused(true)
+	var executor := TestExecutor.new()
+	executor.clock = clock
+	clock.bind_interval_executor(Callable(executor, "execute"))
+	clock.tick.connect(func(minute: int) -> void:
+		if minute == 1:
+			clock.set_paused(true)
+	)
+	clock.advance_ticks(3)
+	runner.assert_eq([clock.elapsed_ms, executor.world_ms], [60000, 60000], "a fresh pause interrupts an explicit command that began paused")
+	runner.assert_true(clock.paused and clock.has_pending_advance(), "the interrupted explicit endpoint is preserved without continuing")
+	clock._process(1.0)
+	runner.assert_eq(clock.elapsed_ms, 60000, "paused frames neither continue that command nor accumulate new wall time")
+	runner.assert_true(is_zero_approx(clock._accumulator), "the interrupted explicit command creates no extra frame debt")
+	clock.set_paused(false)
+	clock._process(0.0)
+	runner.assert_eq([clock.elapsed_ms, executor.world_ms], [180000, 180000], "resume completes only the original explicit target")
+	runner.assert_true(not clock.has_pending_advance(), "resumed explicit work is consumed exactly once")
 	executor.free()
 	clock.free()
 
