@@ -48,4 +48,4 @@ write/read检查点相同：`8789d42743e7de57b3d6751a63b3d15873666346f4cddd785fc
 
 ## 提交检查
 
-此真实提交准备核前推送`66be8833b2aea3d4a53a7758325a108ba925e0ed`/run41962215415为completed/success，覆盖F2a-1/2及前序；不覆盖后来的packed/bulk/本包。一次发现最新前推送`923a95b18c8f127819d48e6397896125f9942d01`/run41963564648仍in_progress，留下一真实提交，不轮询。当前包一次只读审查和准确最终SHA完整回归待登记。
+此真实提交准备核前推送`66be8833b2aea3d4a53a7758325a108ba925e0ed`/run41962215415为completed/success，覆盖F2a-1/2及前序；不覆盖后来的packed/bulk/本包。一次发现最新前推送`923a95b18c8f127819d48e6397896125f9942d01`/run41963564648仍in_progress，留下一真实提交，不轮询。代码提交`dd774c88835b90835571907b38bc3e2b4ad847a2`一次Sol/custom原生只读审查163.531秒、退出0、无可操作发现；未另启引擎或查询CI。证据在`logs/reviews/dd774c88835b90835571907b38bc3e2b4ad847a2.explicit-sol.log`。准确最终SHA完整回归仍待，不复用前包绿色。
