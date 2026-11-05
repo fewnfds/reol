@@ -9,3 +9,4 @@
 - [历史细节及当时待办](../archive/engineering-context-20261105/architecture.md)
 
 - [对象与空间查询合同](object-query-contract.md)：跨原所有者的只读接口、声明能力与有界显式集合空间快照。
+- [实物生命周期与动作](object-lifecycle-contract.md)：原器物/库存上的受控位置变更、数量堆拆、共同时间动作和候选恢复。

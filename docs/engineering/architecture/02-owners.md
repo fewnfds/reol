@@ -15,10 +15,11 @@
 | [SimEntityQuery](../../../scripts/sim/entity_query.gd) | 无状态、只读地解析人物/雀身/独特器物/大型身体的原位置与记录所有者 | 不登记第二实体表、不推进时间；区域滞后和世界积压分别标明，不能直接作玩家所知 |
 | [SimStorageQuery](../../../scripts/sim/storage_query.gd) | 无状态解析原区域/鸟域容器与数量条目；身体/地点/工程/鸟身提供原锚点 | 引用限定domain/region/container，数量多item；不生成实物、同步或赋予搬运权限 |
 | [SimArtifactTransfers](../../../scripts/sim/artifact_transfers.gd) | 原独特器物归处的同步可拒绝预检与完整事务后通知 | world持有会话钩子、器物域公开；无库存/位置副本或持久事件，不是通用搬运或玩家知识 |
+| [SimObjectLifecycle](../../../scripts/sim/object_lifecycle.gd)、[SimGroundPlacements](../../../scripts/sim/ground_placements.gd) | 原器物/数量账本的命令事务、共同耗时动作；地面仅持有引用和多格位置；派生桶/容器索引 | 权威接口不授玩家距离/社交权限；只接显式physical定义及同账本材料；旧实物/数量不复制；[合同](../object-lifecycle-contract.md) |
 | [SimInventory](../../../scripts/sim/inventory_ledger.gd) | 容器内堆叠数量、预约、操作与受托责任 | 责任引用实物，不再存一份数量；不等于完整产权 |
 | [SimArtifacts](../../../scripts/sim/artifacts.gd)、[SimClothing](../../../scripts/sim/clothing.gd)、实物方法记录 | 独特物件位置/来源、穿法/湿润、有限器物过程与阅读记录 | 不同时复制成普通数量库存，持有/看见/读过不等于学会 |
 | [SimSocialMemory](../../../scripts/sim/social_memory.gd)、[SimInstitutionBook](../../../scripts/sim/institution_book.gd) | 本人有来源的认识/决定；机构任职和贡献记录 | 关系/礼遇/权限/实际履约分开；未实现通用ClaimBook/司法/继任 |
-| 原action executor、服务、劳动/生产、交换等域 | 各自过程、阶段/成本/证据与原资源引用 | 统一请求是薄门面，尚无通用动作生命周期/任意条件协商 |
+| 原action executor、服务、劳动/生产、交换等域 | 各自过程、阶段/成本/证据与原资源引用 | 统一请求是薄门面；新增搬运动作合同没有替换这些领域过程，尚无覆盖全部动作的生命周期/任意条件协商 |
 | [SimConflicts](../../../scripts/sim/conflicts.gd)、[SimSparring](../../../scripts/sim/sparring.gd)、[SimHealth](../../../scripts/sim/health.gd) | 招式/弹障/成本、有限对练、真实伤源与恢复 | 使用原身体/qi/体力，不另造战斗人物；非完整致死/医疗/战争 |
 | 日历/气候、weather、environment、local_heat、spirit_sources | 无状态历法曲线、晴雨相位、受体采样、固定参考局地热场、有限源与转换 | 热、五行亲和、qi、储热和灵源不合成万能数值；完整冷热/光/五相场仍待做 |
 | [SimThermalHistory](../../../scripts/sim/thermal_history.gd)、[SimThermalSample](../../../scripts/sim/thermal_sample.gd)、[SimThermalSchema](../../../scripts/sim/thermal_schema.gd) | 来源派生覆盖、旧转换边界与历史采样分别校验；完整候选仍证明全部当前Q、原器物收支及冻结段 | 历史检查不读当前cells/flows，底量只由绑定气候与首次来源时刻推导；无新持久状态或回收，仍最多512活格 |

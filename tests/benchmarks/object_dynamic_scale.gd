@@ -6,8 +6,10 @@ extends SceneTree
 
 const Fixture = preload("res://tests/sim/test_regional_simulation.gd")
 const EntityQuery = preload("res://scripts/sim/entity_query.gd")
+const LargeBodies = preload("res://scripts/sim/large_bodies.gd")
 const SPAN_MS: int = 60_000
 const SLICE_MS: int = 500
+const RESTORED_SPAN_MS: int = 2_000
 const EVENT_BUDGET: int = 1
 const QUERY_SAMPLES: int = 128
 const SEED: int = 6162026
@@ -19,7 +21,7 @@ var _report: Dictionary = {
 	"benchmark": "object_dynamic_scale",
 	"ok": false,
 	"scope": "two-region real simulation fixture; flat test map; bounded roaming large bodies",
-	"limits": "No rendering, FPS, GPU, RSS, full NPC behavior, combat, ordinary game capacity, save/load or separate-process restart measured.",
+	"limits": "No rendering, FPS, GPU, RSS, full NPC behavior, combat, ordinary game capacity, disk I/O or separate-process restart measured.",
 	"first_failure": null,
 }
 
@@ -81,7 +83,7 @@ func _run() -> void:
 	_report["engine"] = Engine.get_version_info()
 	_report["processor"] = OS.get_processor_name()
 	_report["logical_processors"] = OS.get_processor_count()
-	_report["memory_scope"] = "Godot static allocation counters only; not process RSS or machine/GPU memory"
+	_report["memory_scope"] = "Godot static allocation counters only; peak includes snapshot and candidate checks, not process RSS or machine/GPU memory"
 	_report["memory_static_before_bytes"] = OS.get_static_memory_usage()
 	_report["guard"] = "external process guard required; script does not set a resource limit"
 	var setup_start: int = Time.get_ticks_usec()
@@ -150,6 +152,11 @@ func _run() -> void:
 		return
 	_report["queries"] = queries
 	_report["navigation_final"] = _navigation(domain)
+	var saved: Dictionary = _save_load(world, ids)
+	if not bool(saved.get("ok", false)):
+		_fail("save_load_failed", saved)
+		return
+	_report["save_load"] = saved
 	_report["memory_static_peak_bytes"] = OS.get_static_memory_peak_usage()
 	_report["memory_static_end_bytes"] = OS.get_static_memory_usage()
 	_report["ok"] = true
@@ -268,6 +275,132 @@ func _queries(world: RegionalSimulation, domain: MonitoredLargeBodies, ids: Arra
 	return {"ok": true, "samples": QUERY_SAMPLES, "sampling": "seeded with replacement",
 		"describe_ms": _percentiles(description_costs), "entity_query_ms": _percentiles(entity_costs),
 		"scope": "original body reference and 3x3 cell projection; conservative sweep is checked against real owner"}
+
+
+func _save_load(world: RegionalSimulation, ids: Array[String]) -> Dictionary:
+	var begin: int = Time.get_ticks_usec()
+	var snapshot: Dictionary = world.to_dict()
+	var snapshot_ms: float = _elapsed_ms(begin)
+	var body_state: Variant = snapshot.get("large_bodies")
+	# The monitoring subclass adds counters only; the saved owner has the normal
+	# five fields and no instrumentation state.
+	if not body_state is Dictionary or body_state.size() != 5 or not body_state.has_all(["version", "elapsed_ms", "bodies", "events", "next_id"]):
+		return {"ok": false, "stage": "snapshot_or_monitor_fields"}
+	begin = Time.get_ticks_usec()
+	var encoded: String = JSON.stringify(snapshot, "", true, true)
+	var json_ms: float = _elapsed_ms(begin)
+	var json_bytes: int = encoded.to_utf8_buffer().size()
+	snapshot.clear()
+	begin = Time.get_ticks_usec()
+	var parsed: Variant = JSON.parse_string(encoded)
+	var parse_ms: float = _elapsed_ms(begin)
+	encoded = ""
+	if not parsed is Dictionary:
+		return {"ok": false, "stage": "json_parse"}
+	var expected: String = SnapshotValues.canonical_json(parsed)
+	var content := ReolContentDB.new()
+	if not content.load_bundle(world._content.content_bundle()):
+		return {"ok": false, "stage": "content_bundle", "errors": content.errors}
+	var map := FlatMap.new()
+	if not map.configure_nature(content.natural_environment):
+		return {"ok": false, "stage": "candidate_map"}
+	var assembly: Dictionary = ReolWorldAssemblyInputs.from_world(world, {"home": [100, 100], "river": [150, 100]})
+	if assembly.is_empty():
+		return {"ok": false, "stage": "assembly"}
+	begin = Time.get_ticks_usec()
+	var candidate: RegionalSimulation = WorldRestoreFactory.restore(content, parsed, assembly, map)
+	var restore_ms: float = _elapsed_ms(begin)
+	if candidate == null:
+		return {"ok": false, "stage": "factory_restore", "factory_restore_ms": restore_ms}
+	if candidate == world or candidate._content == world._content or candidate.map_data == world.map_data or candidate.large_bodies == world.large_bodies or candidate.embodiment == world.embodiment or candidate.large_bodies.get_script() != LargeBodies:
+		return {"ok": false, "stage": "candidate_owners"}
+	var original_state: String = _canonical(world.to_dict())
+	var candidate_state: String = _canonical(candidate.to_dict())
+	if original_state != expected or candidate_state != expected:
+		return {"ok": false, "stage": "complete_snapshot", "expected_sha256": expected.sha256_text(),
+			"original_sha256": original_state.sha256_text(), "candidate_sha256": candidate_state.sha256_text()}
+	var integrity: Dictionary = _body_integrity(world, candidate, ids)
+	if not bool(integrity.get("ok", false)):
+		return {"ok": false, "stage": "body_integrity", "detail": integrity}
+	# Navigation is a runtime adapter, not saved state. Both worlds use the same
+	# existing fixture provider, while the restored body owner remains production.
+	for region: String in candidate.regions:
+		var source_region: VillageSimulation = world.regions[region]
+		var restored_region: VillageSimulation = candidate.regions[region]
+		restored_region.set_navigation(source_region._navigation, source_region._step_validator)
+	if candidate.services != null:
+		candidate.services.set_navigation(world.services._navigation, world.services._can_step)
+	var continued: Dictionary = _compare_future(world, candidate, ids)
+	if not bool(continued.get("ok", false)):
+		return {"ok": false, "stage": "continued_future", "detail": continued}
+	return {"ok": true, "measured": true, "snapshot_ms": snapshot_ms, "json_ms": json_ms,
+		"json_parse_ms": parse_ms, "factory_restore_ms": restore_ms, "json_bytes": json_bytes,
+		"original_snapshot_equal": true, "candidate_snapshot_equal": true, "instrumentation_persisted": false,
+		"candidate_large_body_owner": "SimLargeBodies", "integrity": integrity, "continuation": continued,
+		"scope": "in-memory UTF-8 JSON and independent content/map/assembly candidate in the same process; no disk or process restart",
+		"factory_restore_scope": "total WorldRestoreFactory.restore including index rebuild; excludes content, map and assembly setup"}
+
+
+func _body_integrity(world: RegionalSimulation, candidate: RegionalSimulation, ids: Array[String]) -> Dictionary:
+	if world.elapsed_ms != candidate.elapsed_ms or world.target_ms != candidate.target_ms or world.large_bodies.elapsed_ms != world.elapsed_ms or candidate.large_bodies.elapsed_ms != candidate.elapsed_ms:
+		return {"ok": false, "reason": "shared_time", "original_ms": world.elapsed_ms, "candidate_ms": candidate.elapsed_ms}
+	if world.large_bodies.bodies.size() != ids.size() or candidate.large_bodies.bodies.size() != ids.size():
+		return {"ok": false, "reason": "body_count", "original": world.large_bodies.bodies.size(), "candidate": candidate.large_bodies.bodies.size()}
+	for id: String in ids:
+		if not world.large_bodies.bodies.has(id) or not candidate.large_bodies.bodies.has(id):
+			return {"ok": false, "reason": "body_id", "id": id}
+		if world.large_bodies.point(id) != candidate.large_bodies.point(id) or _canonical(world.large_bodies.bodies[id]) != _canonical(candidate.large_bodies.bodies[id]):
+			return {"ok": false, "reason": "body_position_or_process", "id": id}
+		if not world.embodiment.controls(SimLargeBodies.subject_id(id), SimLargeBodies.carrier_id(id), "motion") or not candidate.embodiment.controls(SimLargeBodies.subject_id(id), SimLargeBodies.carrier_id(id), "motion"):
+			return {"ok": false, "reason": "body_motion_identity", "id": id}
+	if not world.large_bodies.space_valid() or not candidate.large_bodies.space_valid():
+		return {"ok": false, "reason": "body_space"}
+	return {"ok": true, "bodies": ids.size(), "elapsed_ms": world.elapsed_ms, "target_ms": world.target_ms,
+		"scope": "all original IDs, positions, complete body records, motion identities and shared time"}
+
+
+func _compare_future(world: RegionalSimulation, candidate: RegionalSimulation, ids: Array[String]) -> Dictionary:
+	var start_ms: int = world.elapsed_ms
+	var original_calls: int = 0
+	var candidate_calls: int = 0
+	for offset: int in range(SLICE_MS, RESTORED_SPAN_MS + 1, SLICE_MS):
+		var target: int = start_ms + offset
+		var original: Dictionary = _resume_to(world, target)
+		if not bool(original.get("ok", false)):
+			return {"ok": false, "world": "original", "detail": original}
+		var restored: Dictionary = _resume_to(candidate, target)
+		if not bool(restored.get("ok", false)):
+			return {"ok": false, "world": "candidate", "detail": restored}
+		original_calls += int(original.calls)
+		candidate_calls += int(restored.calls)
+	var integrity: Dictionary = _body_integrity(world, candidate, ids)
+	if not bool(integrity.get("ok", false)):
+		return {"ok": false, "reason": "body_integrity", "detail": integrity}
+	var original_state: String = _canonical(world.to_dict())
+	var candidate_state: String = _canonical(candidate.to_dict())
+	if original_state != candidate_state:
+		return {"ok": false, "reason": "complete_snapshot", "original_sha256": original_state.sha256_text(),
+			"candidate_sha256": candidate_state.sha256_text()}
+	return {"ok": true, "start_ms": start_ms, "end_ms": world.elapsed_ms, "span_ms": RESTORED_SPAN_MS,
+		"slice_ms": SLICE_MS, "event_budget_per_call": EVENT_BUDGET, "original_calls": original_calls,
+		"candidate_calls": candidate_calls, "complete_snapshot_equal": true, "integrity": integrity}
+
+
+func _resume_to(world: RegionalSimulation, target: int) -> Dictionary:
+	var calls: int = 0
+	while world.elapsed_ms < target:
+		var before: int = world.elapsed_ms
+		var errors_before: int = world.errors.size()
+		var reached: bool = world.advance_to_ms(target, EVENT_BUDGET)
+		calls += 1
+		if world.errors.size() != errors_before or world.target_ms != target or world.elapsed_ms <= before or world.elapsed_ms > target or reached != (world.elapsed_ms == target) or calls > 1000:
+			return {"ok": false, "before_ms": before, "elapsed_ms": world.elapsed_ms, "target_ms": world.target_ms,
+				"requested_ms": target, "errors": world.errors.duplicate(), "calls": calls}
+	return {"ok": true, "calls": calls}
+
+
+func _canonical(value: Variant) -> String:
+	return SnapshotValues.canonical_json(SnapshotValues.normalized(value))
 
 
 func _navigation(domain: MonitoredLargeBodies) -> Dictionary:

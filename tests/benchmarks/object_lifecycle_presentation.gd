@@ -47,6 +47,7 @@ func _run() -> void:
 	var json_path: String = prefix + ".json"
 	_report["side"] = side
 	_report["requested_cells"] = side * side
+	_report["dense_flat_scenario"] = bool(options.get("dense_flat", false))
 	_report["map_seed"] = MAP_SEED
 	_report["output_image"] = png_path
 	_report["output_json"] = json_path
@@ -81,7 +82,19 @@ func _run() -> void:
 		_fail("main_instantiation")
 		return
 	var descriptor: Dictionary = map_script.flat_descriptor(MAP_SEED)
-	if descriptor.is_empty() or int(descriptor.get("size", 0)) != MAP_SIZE or not bool(_main.call("configure_opening_map", descriptor)):
+	var terrain_overrides: Array = []
+	if bool(options.get("dense_flat", false)):
+		var terrain: WorldMapData = map_script.from_descriptor(descriptor)
+		if terrain == null:
+			_fail("stress_map_candidate")
+			return
+		for y: int in MAP_SIZE:
+			for x: int in MAP_SIZE:
+				if terrain.get_terrain(Vector2i(x, y)) != WorldMapData.TERRAIN_GRASS:
+					terrain_overrides.append([x, y, WorldMapData.TERRAIN_GRASS])
+	_report["opening_terrain_overrides"] = terrain_overrides.size()
+	_report["opening_terrain_scope"] = "Pre-opening validated all-grass stress scenario; original workplace structures remain and occupy their real cells." if bool(options.get("dense_flat", false)) else "Original seeded flat-elevation terrain; no terrain edits."
+	if descriptor.is_empty() or int(descriptor.get("size", 0)) != MAP_SIZE or not bool(_main.call("configure_opening_map", descriptor, terrain_overrides)):
 		_fail("flat_opening_configuration")
 		return
 	root.add_child(_main)
@@ -160,6 +173,11 @@ func _run() -> void:
 		return
 	if int(_report.generated) == 0:
 		_fail("no_real_objects_generated")
+		return
+	_report["physical_coverage_cells"] = int(_report.generated) + int(_report.blocked_built_structure_cells) + int(_report.blocked_workspace_cells)
+	_report["physical_coverage_scope"] = "Each generated artifact covers one cell; preserved real construction/workplace cells count as occupied structure cells, not additional artifact identities."
+	if bool(options.get("dense_flat", false)) and int(_report.physical_coverage_cells) != side * side:
+		_fail("incomplete_dense_physical_coverage")
 		return
 	print("PRESENTATION_WARMUP %d frames" % WARMUP_FRAMES)
 	for _frame: int in WARMUP_FRAMES:
@@ -258,22 +276,36 @@ func _run() -> void:
 
 
 func _arguments(args: PackedStringArray) -> Dictionary:
-	if args.is_empty():
-		return {"ok": true, "side": 64, "tag": ""}
-	if args.size() not in [2, 4] or args[0] != "--side" or not args[1].is_valid_int():
-		return {"ok": false, "reason": "expected --side N [--tag unique_name]"}
-	var side: int = int(args[1])
-	if side not in SIDES:
-		return {"ok": false, "reason": "unsupported side", "side": side}
+	var side: int = 64
 	var tag: String = ""
-	if args.size() == 4:
-		if args[2] != "--tag" or args[3].length() < 1 or args[3].length() > 32:
-			return {"ok": false, "reason": "invalid tag"}
-		for character: String in args[3]:
-			if not character in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-":
+	var dense_flat: bool = false
+	var seen: Dictionary = {}
+	var index: int = 0
+	while index < args.size():
+		var key: String = args[index]
+		if seen.has(key) or key not in ["--side", "--tag", "--dense-flat"]:
+			return {"ok": false, "reason": "unknown or repeated argument"}
+		seen[key] = true
+		if key == "--dense-flat":
+			dense_flat = true
+			index += 1
+			continue
+		if index + 1 >= args.size():
+			return {"ok": false, "reason": "missing argument value"}
+		var value: String = args[index + 1]
+		if key == "--side":
+			if not value.is_valid_int() or int(value) not in SIDES:
+				return {"ok": false, "reason": "unsupported side"}
+			side = int(value)
+		else:
+			if value.length() < 1 or value.length() > 32:
 				return {"ok": false, "reason": "invalid tag"}
-		tag = "-" + args[3]
-	return {"ok": true, "side": side, "tag": tag}
+			for character: String in value:
+				if not character in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-":
+					return {"ok": false, "reason": "invalid tag"}
+			tag = "-" + value
+		index += 2
+	return {"ok": true, "side": side, "tag": tag, "dense_flat": dense_flat}
 
 
 func _clock_is_stable(world: Variant, expected: int) -> bool:

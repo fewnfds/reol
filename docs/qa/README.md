@@ -10,6 +10,8 @@
 
 | 文件 | 原记录主题 |
 |---|---|
+| [20261105_world_foundation_exit.md](20261105_world_foundation_exit.md) | 第一阶段同一Main离返/完全重开联合链、带版本/系统内存记录的密度与呈现出口 |
+| [20261105_object_lifecycle.md](20261105_object_lifecycle.md) | 原物生命周期、堆拆、共同动作、候选/独立重启与真实静态/动态/渲染负载 |
 | [20261105_documentation_reorganization.md](20261105_documentation_reorganization.md) | 文档分类/拆分、分支审计与基础优先级收束；不运行引擎 |
 | [20261105_clock_world_commit.md](20261105_clock_world_commit.md) | 普通Main先结算世界再发布时钟、预算/行程接管/保存保护与原生两进程同未来 |
 | [20261105_source_temperature_transition.md](20261105_source_temperature_transition.md) | F2a来源候选/实际温度联合准备、独立重启及419万来源局部变更 |

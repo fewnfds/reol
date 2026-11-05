@@ -10,6 +10,7 @@
 - [docs/engineering/architecture/04-persistence.md](../engineering/architecture/04-persistence.md)
 - [docs/engineering/compatibility.md](../engineering/compatibility.md)
 - [docs/engineering/godot-for-unity.md](../engineering/godot-for-unity.md)
+- [docs/engineering/object-lifecycle-contract.md](../engineering/object-lifecycle-contract.md)
 - [docs/engineering/object-query-contract.md](../engineering/object-query-contract.md)
 - [docs/engineering/project-structure.md](../engineering/project-structure.md)
 - [docs/engineering/tooling/evaluation.md](../engineering/tooling/evaluation.md)
