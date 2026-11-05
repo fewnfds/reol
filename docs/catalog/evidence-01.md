@@ -2,6 +2,8 @@
 
 [分类总目录](../CATALOG.md)；路径存在不表示已实现或已验。
 
+- [docs/qa/20261105_environment_ground_compute.md](../qa/20261105_environment_ground_compute.md)
+
 - [docs/qa/20261105_environment_ground_cache.md](../qa/20261105_environment_ground_cache.md)
 
 - [docs/qa/20261105_environment_source_bindings.md](../qa/20261105_environment_source_bindings.md)

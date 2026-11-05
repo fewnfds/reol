@@ -26,11 +26,15 @@
 
 ## 最近有效证据
 
+### 真实来源CPU/GPU接入
+
+首代码`3e91b28ed27a082fd341ff47c5fbc68d14718357`和一次Sol/custom只读审查修复`9b3e724ce7e405d01b885e9b3e477b8afa09b226`接通真实ground缓存的计算租约、来源待同步准备、快照发布复验及取消/重绑回收。修复SHA独立检出定向9513断言0失败；真实RTX3060的10案例/6144格/43008通道通过。512²满密度半径16同负载CPU目标初建20652.613ms、GPU615.952ms；来源装配仍约7.4秒，GPU主线程请求5.585ms、进程峰工作集2.534GiB。同修复SHA独立检出一次完整check：**258组、107976断言、0失败**，1105.781秒，无ERROR/SCRIPT ERROR，不含四份保护WIP；本包在声明范围完成。详情和失败证据见[计算QA](../qa/20261105_environment_ground_compute.md)。未接普通Main/实际响应/移动携源，无新玩家开关或存档域；该代码远端CI未另等，主验收取本机准确SHA。
+
 ### A2a真实来源缓存
 
 代码`4c1a2e9cd64ed89948f374008f6bcd9c35aa1b23`及一次Sol/custom审查窄修`3636dc37ea498fa1f57c1d970fca6e50289aff93`接通真实地面原物的预算装配、16×16基础目标缓存、通知前失效和epoch/所有者重绑。修复SHA独立检出完整check：**257组、99000断言、0失败**，1291.078秒，无ERROR/SCRIPT ERROR；原四份环境WIP未混入。定向1685断言0失败；512²真实262144来源全域冷建约19.26秒分片累计、advance p99约2.06ms，1024热读p95约10ms，未达初始5ms目标；离线进程峰工作集约2.2GiB，不是整款游戏容量或动态场FPS。证据见[缓存QA](../qa/20261105_environment_ground_cache.md)。
 
-首代码SHA的[CI42025370605](https://github.com/fewnfds/reol/actions/runs/42025370605)在收尾实际提交检查点核completed/success；修复SHA的[CI42026400068](https://github.com/fewnfds/reol/actions/runs/42026400068)最后观测in_progress，尚待下次提交核验。主验收使用上述本机精确SHA完整check，不能把首提交CI结果当修复SHA绿色。普通Main、实际环境响应、移动携源与GPU未由该服务接管。
+首代码SHA的[CI42025370605](https://github.com/fewnfds/reol/actions/runs/42025370605)在收尾实际提交检查点核completed/success；修复SHA的[CI42026400068](https://github.com/fewnfds/reol/actions/runs/42026400068)在后续GPU包的真实提交检查点核为completed/success，完整headSha匹配3636dc3。本机同SHA完整check亦通过；该证据不覆盖后续GPU接入代码。普通Main、实际环境响应和移动携源未由该服务接管。
 
 | SHA、范围或案例 | 已有证据 | 不覆盖 |
 |---|---|---|

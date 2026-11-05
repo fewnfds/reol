@@ -14,7 +14,7 @@
 | 接口 | 行为 |
 |---|---|
 | `configure(world, definitions)` | 检查原所有者、定义、共同时间和区域同步；显式分配512²索引及最多262144来源slot，进入building |
-| `advance(max_work=4096, max_usec=2000)` | 按预算装配、同步待变更来源、重建已请求块；返回state/work_used/elapsed_usec/pending_sources/pending_tiles |
+| `advance(max_work=4096, max_usec=2000)` | 按预算装配、同步待变更来源；无计算租约时再重建已请求块；返回state/work_used/elapsed_usec/pending_sources/pending_tiles |
 | `request_area(rect)` | 裁剪到地图并向外对齐16×16块；只登记请求，不同步计算全图 |
 | `read_base(cell)` | building、相关来源未同步或块未完成时返回pending且不附部分值；ready才返回五行与净冷热 |
 | `diagnostics()` | 当前状态、实际来源数、装配进度、待处理/缓存块、slot高水位、复用及失效次数；不是玩家观察 |
@@ -53,7 +53,7 @@ building期间发生物件事务会中止装配并报initialization_changed，�
 `EnvironmentFieldComputeRuntime.configure(ground_cache, mode)`接受此服务以及原底层场缓存，mode为cpu/gpu/auto。模拟层不依赖渲染运行层；只新增受控的计算协议，GPU线程只收到脱离原物的只读投影。
 
 - 运行层通过`acquire_compute_backend(owner)`取得唯一弱引用租约；此时原`advance`只装配/同步来源，目标重建只由计算服务驱动，避免两处重复推进同一队列。空闲运行层`close()`释放租约；ground关闭或重绑作废原租约，旧服务不能操纵新绑定。
-- `export_compute_job(area, compact)`要求来源已同步，附带原绑定、单调来源代次及定义digest；不暴露底层cache写引用。物件变动在内层来源尚未更新时已递增代次，不能只查内层revision。
+- `export_compute_job(area, compact)`要求来源已同步，附带原绑定、单调来源代次及定义digest；不暴露底层cache写引用。潜在来源变动在内层投影尚未更新时已递增代次，不能只查内层revision；普通容器转账或保持正数量的既有同类堆不重启计算，所有事务仍核原owner/epoch。
 - `publish_compute_result(job, prepared)`在原owner线程核原世界、所有者、库存epoch、绑定、定义、来源队列和代次，再交原cache校验/发布；不在复验与发布间调用外部回调。过期结果不部分写入，后续预算CPU可继续同步并计算最新值。
 - GPU请求遇来源待同步进入preparing；poll按正常预算同步后再尝试一次GPU。已有运行中GPU作废后回CPU，设备/快照/显卡失败有明确原因；不无限重试显卡。取消和换世界后仍由原服务poll回收活线程，忙时close拒绝，不在主线程等待活GPU线程。
 - `rebuild(max_tiles,max_work)`供运行层CPU路径使用，来源同步与目标重建共享约2ms检查目标；`pending`表示来源仍待同步，块队列另看pending_tiles。快照打包、发布、分配并非天然满足此时间片，分别测量，不能宣称硬实时上限。
