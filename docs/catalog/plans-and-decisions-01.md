@@ -2,6 +2,11 @@
 
 [分类总目录](../CATALOG.md)；路径存在不表示已实现或已验。
 
+- [docs/plans/environment-object-loop/README.md](../plans/environment-object-loop/README.md)
+- [docs/plans/environment-object-loop/sources.md](../plans/environment-object-loop/sources.md)
+- [docs/plans/environment-object-loop/continuity.md](../plans/environment-object-loop/continuity.md)
+- [docs/plans/environment-object-loop/acceptance.md](../plans/environment-object-loop/acceptance.md)
+
 - [docs/decisions/README.md](../decisions/README.md)
 - [docs/decisions/README/00-introduction.md](../decisions/README/00-introduction.md)
 - [docs/decisions/README/01-topics.md](../decisions/README/01-topics.md)
