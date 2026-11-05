@@ -42,3 +42,5 @@
 精确SHA独立检出执行一次 `python tools/godot.py check --test-timeout 1800`，**255组、98618断言、0失败**，退出0，耗时1094.512秒；结构检查和导入通过，无ERROR/SCRIPT ERROR。完整输出及结果在 `logs/environment_a1/isolated-check.log`、`isolated-check-result.json`，原分项日志备份到 `isolated-logs/` 后移除自建验证检出；未包含四份旧环境WIP。
 
 代码已推送。真实文档提交检查点仅查询一次，发现 [CI42008084331](https://github.com/fewnfds/reol/actions/runs/42008084331) 对应完整headSha为8bf7aa2a012af393fbc1b96fea6220aa18825833，状态in_progress，远端待验。本机同SHA完整验证已提供本包出口，不轮询远端或等其完成。
+
+后续A2a方案的真实文档提交检查点，`tools/ci.py status --run 42008084331 --sha 8bf7aa2a012af393fbc1b96fea6220aa18825833` 一次核为completed/success，完整headSha匹配。仅补充远端终态，不改变上面原验收时刻和测量范围。

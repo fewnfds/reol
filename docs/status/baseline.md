@@ -22,7 +22,7 @@
 
 ## A1地面环境来源
 
-代码 `8bf7aa2a012af393fbc1b96fea6220aa18825833` 提供显式schema/digest、真实ground实物/材料堆投影和有界局部基础目标查询；不改变普通内容包和schema51/区域42。定向147断言/0失败，Sol/custom原生只读审查无可行动问题；真实512²地面物品复测局部查询p99 11.619ms、峰值进程工作集约1.39GiB。同一精确SHA独立检出完整check通过：**255组、98618断言、0失败**，1094.512秒，无ERROR/SCRIPT ERROR。[CI42008084331](https://github.com/fewnfds/reol/actions/runs/42008084331)在最终文档提交检查点为in_progress，远端待验，不等待或重复完整回归。支持范围、源码哈希和测量口径见[来源QA](../qa/20261105_environment_source_bindings.md)；不涵盖响应残留、每帧全图更新或Main接管。
+代码 `8bf7aa2a012af393fbc1b96fea6220aa18825833` 提供显式schema/digest、真实ground实物/材料堆投影和有界局部基础目标查询；不改变普通内容包和schema51/区域42。定向147断言/0失败，Sol/custom原生只读审查无可行动问题；真实512²地面物品复测局部查询p99 11.619ms、峰值进程工作集约1.39GiB。同一精确SHA独立检出完整check通过：**255组、98618断言、0失败**，1094.512秒，无ERROR/SCRIPT ERROR。[CI42008084331](https://github.com/fewnfds/reol/actions/runs/42008084331)在随后A2a方案的真实文档提交检查点核为completed/success，完整headSha匹配；没有轮询或重复本机完整回归。支持范围、源码哈希和测量口径见[来源QA](../qa/20261105_environment_source_bindings.md)；不涵盖响应残留、每帧全图更新或Main接管。
 
 ## 最近有效证据
 
