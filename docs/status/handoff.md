@@ -6,6 +6,8 @@
 
 **A2a进行中：** 新`environment_ground_cache.gd`已接原物投影、16×16块缓存、有界装配/续算及生命周期通知前失效；库存ground epoch和器物bulk generation用于拒绝旁路变化/同实例恢复。算术/epoch定向1404断言通过，真实64²/128²密度初测通过；综合缓存测试、更大密度、一次代码审查和精确版本完整回归尚待完成，不把初测当作包验收。日志位于`logs/environment_a2/`及`logs/benchmarks/environment_ground_cache_*`。
 
+**性能入口：** 用户确认仍沿PC、16GB整机RAM、单RTX3060目标；唯一规格入口为[全项目性能基线](../engineering/architecture.md#全项目性能基线)，AGENTS和docs索引已直接链接。游戏约10GB是可接受量级而非另立整机约束。256MiB是开发者在A2a页自行提出的模块警戒，非skill/用户规则，已撤销；不再据此扩优化任务。GPU已允许，端到端收益与实际接入分别验证。
+
 第二阶段目标是环境与组合空间。下一排定小包为[A2a分块基础目标缓存](../plans/environment-object-loop/cache.md)，只接A1地面静物：统一通道/舍入、真实来源装配、分块缓存及可靠局部失效，并测密度性能。完成一包后报告讨论；实际响应、原物联合事务、移动携源及Main接管另排，不因空间选型自动连做。
 
 ## 讨论确认与实施缺口

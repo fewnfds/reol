@@ -21,7 +21,45 @@ var _guard_results: Dictionary = {}
 
 func run(runner: Object) -> void:
 	_real_ground_sources(runner)
+	_stale_region_cannot_mask_untracked_inventory(runner)
 	print("SCENARIO environment ground cache: real source projection, bounded build, invalidation, timed action and detached restoration")
+
+
+func _stale_region_cannot_mask_untracked_inventory(runner: Object) -> void:
+	var world: RegionalSimulation = _fixture._world(runner)
+	if world == null:
+		return
+	var ids: Array = world.regions.keys()
+	var first: String = str(ids[0])
+	var last: String = str(ids.back())
+	var inventory: SimInventory = world.regions[last].inventory
+	inventory.containers.store.wood = 1
+	var transfer: Dictionary = {"command": "cache_epoch_remote", "op": "stock_transfer", "item": "wood", "amount": 1,
+		"from": {"region": last, "container": "store"}, "to": {"region": last, "cell": [40, 40]}}
+	if not _ok(runner, bool(world.object_lifecycle.execute(transfer).get("ok", false)), "the later region has a real original ground source"):
+		return
+	var definitions := Definitions.new()
+	var cache := GroundCache.new()
+	if not _ok(runner, definitions.configure(_source_fixture._definitions()) and cache.configure(world, definitions), "the multi-region epoch regression binds the real world"):
+		return
+	_read_ready(runner, cache, Vector2i(40, 40), "remote source before untracked mutation")
+	# Establish a transiently stale first region and a changed later inventory.
+	# The ordinary next operation may synchronize the first region, but cannot
+	# accept the unchecked epoch of the second as if it had invalidated the cache.
+	world.elapsed_ms = 1
+	world.target_ms = 1
+	for id: String in ids:
+		world.regions[id].elapsed_ms = 1
+	world.regions[first].elapsed_ms = 0
+	runner.assert_true(inventory.consume("cache_epoch_bypass", "ground:cache_epoch_remote", "wood", 1), "a later original inventory API changes its ground epoch")
+	var unrelated: Dictionary = world.object_lifecycle.execute({"command": "cache_epoch_unrelated", "op": "spawn", "id": "cache_epoch_other", "definition": "plain_slate", "to": {"region": first, "cell": [70, 70]}})
+	runner.assert_true(bool(unrelated.get("ok", false)), "a lawful unrelated object transaction remains permitted")
+	for id: String in ids:
+		world.regions[id].elapsed_ms = world.elapsed_ms
+	var stale: Dictionary = cache.read_base(Vector2i(40, 40))
+	runner.assert_eq(stale.get("reason"), "inventory_changed", "all inventory epochs are validated before any stale-region timestamp refusal")
+	runner.assert_true(not bool(stale.get("ok", true)) and not stale.has("elements"), "normal transactions cannot bless a bypass and publish its old source")
+	cache.close()
 
 
 func _real_ground_sources(runner: Object) -> void:

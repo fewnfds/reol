@@ -11,6 +11,7 @@
 | 版本及验证到什么程度 | [证据基线](status/baseline.md)、[QA](qa/README.md) |
 | 分支分别有什么用 | [分支审计](status/branches.md) |
 | 状态归谁，文件放哪里，工具怎样用 | [工程入口](engineering/README.md) |
+| 目标硬件、内存和GPU预算是什么 | [全项目性能基线](engineering/architecture.md#全项目性能基线) |
 | 基础架构接下来先做什么 | [基础优先级](plans/foundation-priorities.md) |
 | 更远的产品目标和技术候选 | [计划](plans/README.md)、[工程规格](specs/README.md) |
 | 为什么作这个决定，旧材料在哪 | [决策](decisions/README.md)、[历史](archive/README.md) |

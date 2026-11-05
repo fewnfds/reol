@@ -320,6 +320,10 @@ func _context() -> Dictionary:
 		var expected: Dictionary = _inventories[id]
 		if region == null or region.inventory != expected.owner.get_ref() or region.inventory.ground_revision != int(expected.revision):
 			return _fail("inventory_changed")
+	# Check every owner's epoch before any recoverable timestamp refusal. A
+	# later lifecycle transaction must not bless an unchecked later inventory.
+	for id: String in _inventories:
+		var region: VillageSimulation = world.regions[id]
 		if region.elapsed_ms != world.elapsed_ms:
 			return _failure("stale_source")
 	if world.elapsed_ms != world.target_ms:
