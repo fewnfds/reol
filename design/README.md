@@ -28,6 +28,7 @@
 | [战斗与人物](research/combat_and_character_references.md)、[完整参考与素材](research/full_game_reference_map.md) | 动作、能力、素材及代码生成参考 |
 | [Godot 资源候选](research/godot_resource_candidates.md)、[八方向与免费工具](research/eight_direction_sources.md) | 工具、版本、许可及资源生产的候选调查 |
 | [环境来源](research/environment_sources.md)、[自然地块和场所](research/natural_world_workplace_sources.md)、[世界引擎](research/world_engine_references.md)、[高低差和拓扑](research/elevation_and_world_topology.md) | 环境、空间、模拟方法与边界 |
+| [格子、体型与巨型单位](research/unit_footprint_and_clearance.md) | 定位锚点/占地/视觉的区分，成熟项目净空方案与破坏开路候选；不等于当前战斗已实现 |
 | [超凡者方向](research/transcendent_focus_sources.md)、[项目组织](research/project_structure_references.md)、[项目参考](research/project-references.md) | 内容侧重、目录职责与相关资料 |
 
 新领域可从[模板](systems/_TEMPLATE.md)开始，不预建空模块。

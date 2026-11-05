@@ -31,6 +31,7 @@
 - [design/research/social_interaction_game_references/implications.md](../../design/research/social_interaction_game_references/implications.md)
 - [design/research/social_interaction_game_references/mechanisms.md](../../design/research/social_interaction_game_references/mechanisms.md)
 - [design/research/transcendent_focus_sources.md](../../design/research/transcendent_focus_sources.md)
+- [design/research/unit_footprint_and_clearance.md](../../design/research/unit_footprint_and_clearance.md)
 - [design/research/world_engine_references.md](../../design/research/world_engine_references.md)
 - [design/rules/README.md](../../design/rules/README.md)
 - [design/rules/environment.md](../../design/rules/environment.md)
