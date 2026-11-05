@@ -20,6 +20,10 @@
 
 后续基准/文档提交 `06067d300a6c0158a1f602458afca2ac80a68598` 的 [CI41994818299](https://github.com/fewnfds/reol/actions/runs/41994818299) 在环境首轮方案的真实提交检查点一次核为completed/success，headSha完全匹配。该证据仍不包含四份本机环境WIP。
 
+## A1地面环境来源
+
+代码 `8bf7aa2a012af393fbc1b96fea6220aa18825833` 提供显式schema/digest、真实ground实物/材料堆投影和有界局部基础目标查询；不改变普通内容包和schema51/区域42。定向147断言/0失败，Sol/custom原生只读审查无可行动问题；真实512²地面物品复测局部查询p99 11.619ms、峰值进程工作集约1.39GiB。同一精确SHA独立检出完整check通过：**255组、98618断言、0失败**，1094.512秒，无ERROR/SCRIPT ERROR。[CI42008084331](https://github.com/fewnfds/reol/actions/runs/42008084331)在最终文档提交检查点为in_progress，远端待验，不等待或重复完整回归。支持范围、源码哈希和测量口径见[来源QA](../qa/20261105_environment_source_bindings.md)；不涵盖响应残留、每帧全图更新或Main接管。
+
 ## 最近有效证据
 
 | SHA、范围或案例 | 已有证据 | 不覆盖 |

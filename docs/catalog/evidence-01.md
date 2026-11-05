@@ -2,6 +2,8 @@
 
 [分类总目录](../CATALOG.md)；路径存在不表示已实现或已验。
 
+- [docs/qa/20261105_environment_source_bindings.md](../qa/20261105_environment_source_bindings.md)
+
 - [docs/qa/20261105_object_lifecycle.md](../qa/20261105_object_lifecycle.md)
 - [docs/qa/20261105_world_foundation_exit.md](../qa/20261105_world_foundation_exit.md)
 
