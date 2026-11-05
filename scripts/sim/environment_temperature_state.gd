@@ -15,6 +15,7 @@ const MAX_CAPACITY: int = 4_194_304
 const MAX_REVISION: int = 9_007_199_254_740_991
 const CHUNK_SIDE: int = 16
 const CHUNK_CELLS: int = CHUNK_SIDE * CHUNK_SIDE
+const MAX_BULK_CHUNKS: int = 64
 
 var _configured: bool = false
 var _size := Vector2i.ZERO
@@ -38,6 +39,10 @@ var _prepared_changed: int = 0
 var _prepared_at_ms: int = -1
 var _prepared_revision: int = -1
 var _prepared_rows: Array = []
+# A single isolated builder and an identity that changes on every successful
+# restore, even when the restored numeric revision equals the old one.
+var _bulk: BulkBuilder = null
+var _restore_identity := RefCounted.new()
 
 
 func configure(size: Vector2i, capacity: int, activation_ms: int) -> bool:
@@ -78,6 +83,8 @@ func prepare_targets(changes: Array[Dictionary], at_ms: int, budget: int) -> Dic
 	# Only affected chunks are copied; the candidate root and counts are private.
 	if not _configured:
 		return _failure("not_configured")
+	if _bulk != null:
+		return _failure("busy")
 	if at_ms < _last_change_ms or at_ms > MAX_TIME:
 		return _failure("time_out_of_range")
 	if budget < 0 or budget > _capacity:
@@ -201,6 +208,8 @@ func prepare_targets(changes: Array[Dictionary], at_ms: int, budget: int) -> Dic
 func commit(plan: Variant) -> Dictionary:
 	if not _configured:
 		return _failure("not_configured")
+	if _bulk != null:
+		return _failure("busy")
 	if not _keys(plan, ["ok", "version", "owner", "revision", "proof", "at_ms", "rows"]) or not plan.is_read_only() or not plan.ok is bool or not plan.ok or not plan.version is int or plan.version != PLAN_VERSION or not plan.owner is int or plan.owner != get_instance_id() or not plan.revision is int or plan.revision != _revision:
 		return _failure("invalid_or_stale_plan")
 	if not plan.at_ms is int or plan.at_ms < _last_change_ms or plan.at_ms > MAX_TIME or not plan.rows is Array or not plan.rows.is_read_only() or plan.rows.is_empty() or plan.rows.size() > _capacity or _revision >= MAX_REVISION:
@@ -219,6 +228,241 @@ func commit(plan: Variant) -> Dictionary:
 	_revision += 1
 	_clear_prepared()
 	return {"ok": true, "revision": _revision, "changed": changed, "at_ms": at_ms}
+
+
+func begin_bulk(at_ms: int, max_changed_chunks: int) -> Dictionary:
+	# Root/count copies are synchronous and scale with the existing distinct
+	# chunks/boundaries. Later input and cell validation are separately bounded.
+	if not _configured:
+		return _failure("not_configured")
+	if _bulk != null or _issued_plan.get_ref() != null:
+		return _failure("busy")
+	if at_ms < _last_change_ms or at_ms > MAX_TIME:
+		return _failure("time_out_of_range")
+	if max_changed_chunks < 1 or max_changed_chunks > MAX_BULK_CHUNKS:
+		return _failure("invalid_chunk_limit")
+	if _revision >= MAX_REVISION:
+		return _failure("revision_exhausted")
+	# A dropped small-batch proof cannot be committed and need not retain its
+	# private candidate while this builder is active.
+	_clear_prepared()
+	var builder := BulkBuilder.new()
+	builder.handle = BulkHandle.new()
+	builder.owner_id = get_instance_id()
+	builder.generation = _restore_identity
+	builder.revision = _revision
+	builder.at_ms = at_ms
+	builder.max_chunks = max_changed_chunks
+	builder.chunks = _chunks.duplicate(false)
+	builder.counts = _boundary_counts.duplicate(false)
+	builder.earliest = _earliest_boundary
+	builder.tracked_count = _tracked_count
+	_bulk = builder
+	return {"ok": true, "handle": builder.handle}
+
+
+func offer_bulk_chunk(handle: Variant, key: Variant, packed_fields: Variant) -> Dictionary:
+	if not _bulk_current(handle):
+		return _failure("invalid_handle")
+	if not _bulk.failure.is_empty():
+		return _failure(_bulk.failure)
+	if _bulk.sealed:
+		return _failure("already_finished")
+	if not _bulk.pending.is_empty():
+		return _failure("busy")
+	if not key is Vector2i:
+		return _bulk_fail("invalid_chunk")
+	var coord: Vector2i = key
+	if coord.x < 0 or coord.y < 0 or coord.x >= ((_size.x + 15) >> 4) or coord.y >= ((_size.y + 15) >> 4):
+		return _bulk_fail("invalid_chunk")
+	if not _after(coord, _bulk.previous_key):
+		return _bulk_fail("chunk_order")
+	if _bulk.offered >= _bulk.max_chunks:
+		return _bulk_fail("chunk_limit")
+	if not _bulk_columns_valid(packed_fields):
+		return _bulk_fail("chunk_shape")
+	# Never retain a caller's mutable packed arrays. The one-block copy and
+	# copy-on-write output block are fixed-size work per offer.
+	var pending: Dictionary = {
+		"mask": packed_fields.mask.duplicate(), "initial_mask": packed_fields.initial_mask.duplicate(),
+		"initial": packed_fields.initial.duplicate(), "target": packed_fields.target.duplicate(),
+		"slope": packed_fields.slope.duplicate(), "until_ms": packed_fields.until_ms.duplicate(),
+		"tau_ms": packed_fields.tau_ms.duplicate(),
+	}
+	var original: Chunk = _chunks.get(coord)
+	var next_chunk := Chunk.new(original)
+	_bulk.chunks[coord] = next_chunk
+	_bulk.original = original
+	_bulk.current = next_chunk
+	_bulk.pending = pending
+	_bulk.current_key = coord
+	_bulk.previous_key = coord
+	_bulk.cursor = 0
+	_bulk.current_changed = 0
+	_bulk.offered += 1
+	return {"ok": true, "status": "pending"}
+
+
+func resume_bulk(handle: Variant, max_cells: int) -> Dictionary:
+	if not _bulk_current(handle):
+		return _failure("invalid_handle")
+	if not _bulk.failure.is_empty():
+		return _failure(_bulk.failure)
+	if _bulk.sealed:
+		return _failure("already_finished")
+	if max_cells < 0 or max_cells > CHUNK_CELLS:
+		return _failure("invalid_budget")
+	if _bulk.pending.is_empty():
+		return _failure("no_pending_chunk")
+	var mask: PackedByteArray = _bulk.pending.mask
+	var initial_mask: PackedByteArray = _bulk.pending.initial_mask
+	var visited: int = 0
+	var processed: int = 0
+	# The budget charges every inspected slot, including empty mask positions,
+	# so sparse blocks and a budget of one cannot hide an unbounded scan.
+	while _bulk.cursor < CHUNK_CELLS and visited < max_cells:
+		var index: int = _bulk.cursor
+		_bulk.cursor += 1
+		visited += 1
+		if mask[index] > 1 or initial_mask[index] > 1 or (mask[index] == 0 and initial_mask[index] != 0):
+			return _bulk_fail("invalid_mask")
+		if mask[index] == 0:
+			continue
+		var reason: String = _apply_bulk_slot(index, initial_mask[index] == 1)
+		if not reason.is_empty():
+			return _bulk_fail(reason)
+		processed += 1
+	if _bulk.cursor == CHUNK_CELLS:
+		# Do not publish an allocated empty block just because an offered mask
+		# selected no cells; retain an existing block without an unnecessary copy.
+		if _bulk.current_changed == 0:
+			if _bulk.original == null:
+				_bulk.chunks.erase(_bulk.current_key)
+			else:
+				_bulk.chunks[_bulk.current_key] = _bulk.original
+		_bulk.pending = {}
+		_bulk.original = null
+		_bulk.current = null
+		return {"ok": true, "status": "chunk_done", "visited": visited, "processed": processed, "cursor": CHUNK_CELLS}
+	return {"ok": true, "status": "pending", "visited": visited, "processed": processed, "cursor": _bulk.cursor}
+
+
+func _apply_bulk_slot(index: int, has_initial: bool) -> String:
+	var cell := Vector2i((_bulk.current_key.x << 4) + (index & 15), (_bulk.current_key.y << 4) + (index >> 4))
+	if not _inside(cell, _size):
+		return "invalid_cell"
+	var original: Chunk = _bulk.original
+	var tracked: bool = original != null and original.present[index] != 0
+	if has_initial == tracked:
+		return "initial_mismatch"
+	var initial: float
+	if tracked:
+		if _bulk.at_ms < original.starts[index]:
+			return "history_unavailable"
+		if _bulk.at_ms > original.untils[index]:
+			return "target_boundary"
+		initial = Response._value_only_unchecked(original.starts[index], _bulk.at_ms, original.initials[index], original.targets[index], original.slopes[index], original.taus[index])
+		if not _temperature(initial):
+			return "response_unavailable"
+	else:
+		initial = _bulk.pending.initial[index]
+		if not _temperature(initial):
+			return "initial_out_of_range"
+		if _bulk.tracked_count >= _capacity:
+			return "capacity"
+	var target: float = _bulk.pending.target[index]
+	var slope: float = _bulk.pending.slope[index]
+	var until_ms: int = _bulk.pending.until_ms[index]
+	var tau_ms: int = _bulk.pending.tau_ms[index]
+	if not _temperature(target) or not is_finite(slope) or absf(slope) > Response.MAX_ABS_RATE_PER_MS or until_ms < _bulk.at_ms or until_ms > MAX_TIME or tau_ms < 1 or tau_ms > Response.MAX_TAU_MS:
+		return "target_invalid"
+	if not _temperature(target + slope * float(until_ms - _bulk.at_ms)):
+		return "target_invalid"
+	if not tracked:
+		_bulk.tracked_count += 1
+	_bulk.current.set_anchor(index, _bulk.at_ms, until_ms, initial, target, slope, tau_ms)
+	var old_boundary: int = original.untils[index] if tracked else -1
+	if old_boundary != until_ms:
+		if old_boundary >= 0:
+			var remaining: int = int(_bulk.counts[old_boundary]) - 1
+			if remaining == 0:
+				_bulk.counts.erase(old_boundary)
+			else:
+				_bulk.counts[old_boundary] = remaining
+		_bulk.counts[until_ms] = int(_bulk.counts.get(until_ms, 0)) + 1
+		if _bulk.earliest < 0 or until_ms < _bulk.earliest:
+			_bulk.earliest = until_ms
+	_bulk.changed += 1
+	_bulk.current_changed += 1
+	return ""
+
+
+func finish_bulk(handle: Variant) -> Dictionary:
+	if not _bulk_current(handle):
+		return _failure("invalid_handle")
+	if not _bulk.failure.is_empty():
+		return _failure(_bulk.failure)
+	if _bulk.sealed:
+		return _failure("already_finished")
+	if not _bulk.pending.is_empty():
+		return _failure("pending")
+	if _bulk.changed == 0:
+		return _failure("empty_change")
+	# This scan is synchronous if the old minimum disappeared, and scales with
+	# the number of distinct candidate boundaries, not just changed chunks.
+	if _bulk.earliest >= 0 and not _bulk.counts.has(_bulk.earliest):
+		_bulk.earliest = -1
+		for boundary: int in _bulk.counts:
+			if _bulk.earliest < 0 or boundary < _bulk.earliest:
+				_bulk.earliest = boundary
+	_bulk.sealed = true
+	_bulk.proof = BulkProof.new()
+	var result: Dictionary = {"ok": true, "proof": _bulk.proof, "changed": _bulk.changed, "chunks": _bulk.offered}
+	result.make_read_only()
+	return result
+
+
+func commit_bulk(proof: Variant) -> Dictionary:
+	if _bulk == null or not _bulk_current(_bulk.handle) or not _bulk.sealed or not proof is BulkProof or not is_same(_bulk.proof, proof):
+		return _failure("invalid_proof")
+	var changed: int = _bulk.changed
+	var at_ms: int = _bulk.at_ms
+	_chunks = _bulk.chunks
+	_boundary_counts = _bulk.counts
+	_earliest_boundary = _bulk.earliest
+	_tracked_count = _bulk.tracked_count
+	_last_change_ms = at_ms
+	_revision += 1
+	# Old roots/blocks can be freed synchronously here; publication does not
+	# imply that freeing a large replaced root is bounded by a cell budget.
+	_bulk = null
+	return {"ok": true, "revision": _revision, "changed": changed, "at_ms": at_ms}
+
+
+func cancel_bulk(handle: Variant) -> Dictionary:
+	if not _bulk_current(handle):
+		return _failure("invalid_handle")
+	# Releasing the candidate root and copied blocks is synchronous.
+	_bulk = null
+	return {"ok": true}
+
+
+func _bulk_current(handle: Variant) -> bool:
+	return _bulk != null and handle is BulkHandle and is_same(_bulk.handle, handle) and _bulk.owner_id == get_instance_id() and _bulk.revision == _revision and is_same(_bulk.generation, _restore_identity)
+
+
+func _bulk_fail(reason: String) -> Dictionary:
+	_bulk.failure = reason
+	_bulk.pending = {}
+	_bulk.original = null
+	_bulk.current = null
+	return _failure(reason)
+
+
+static func _bulk_columns_valid(data: Variant) -> bool:
+	if not _keys(data, ["mask", "initial_mask", "initial", "target", "slope", "until_ms", "tau_ms"]):
+		return false
+	return data.mask is PackedByteArray and data.mask.size() == CHUNK_CELLS and data.initial_mask is PackedByteArray and data.initial_mask.size() == CHUNK_CELLS and data.initial is PackedFloat64Array and data.initial.size() == CHUNK_CELLS and data.target is PackedFloat64Array and data.target.size() == CHUNK_CELLS and data.slope is PackedFloat64Array and data.slope.size() == CHUNK_CELLS and data.until_ms is PackedInt64Array and data.until_ms.size() == CHUNK_CELLS and data.tau_ms is PackedInt32Array and data.tau_ms.size() == CHUNK_CELLS
 
 
 func _clear_prepared() -> void:
@@ -315,6 +559,8 @@ func restore(data: Variant) -> bool:
 	_configured = true
 	# Even the same numeric revision cannot make an old candidate valid again.
 	_clear_prepared()
+	_bulk = null
+	_restore_identity = RefCounted.new()
 	return true
 
 
@@ -379,6 +625,40 @@ static func _row_before(a: Dictionary, b: Dictionary) -> bool:
 
 static func _failure(reason: String) -> Dictionary:
 	return {"ok": false, "reason": reason}
+
+
+class BulkHandle:
+	extends RefCounted
+
+
+class BulkProof:
+	extends RefCounted
+
+
+class BulkBuilder:
+	extends RefCounted
+	var handle: BulkHandle
+	var proof: BulkProof
+	var owner_id: int = 0
+	var generation: RefCounted
+	var revision: int = 0
+	var at_ms: int = 0
+	var max_chunks: int = 0
+	var chunks: Dictionary = {}
+	var counts: Dictionary = {}
+	var earliest: int = -1
+	var tracked_count: int = 0
+	var changed: int = 0
+	var offered: int = 0
+	var previous_key := Vector2i(-1, -1)
+	var current_key := Vector2i(-1, -1)
+	var cursor: int = 0
+	var current_changed: int = 0
+	var pending: Dictionary = {}
+	var original: Chunk
+	var current: Chunk
+	var failure: String = ""
+	var sealed: bool = false
 
 
 class Chunk:

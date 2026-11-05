@@ -8,6 +8,8 @@
 
 F2a-3同一owner已改packed块和封存候选，128²提交降至约0.02ms，512²独立组件也通过有限守卫；大批prepare/快照仍慢且近1GiB，见[QA](../qa/20261105_packed_temperature_state.md)。接续须减少大字典物化并实现真正保cursor的预算准备；不能把现有整批格数budget当自动续算。无论近远区都只提交完整候选，不清欠算、不用未知环境值冒充中性。
 
+F2a-4已接按块packed输入与槽预算续算，最多64块候选统一发布，三种预算/取消/恢复通过，见[证据](../qa/20261105_bounded_temperature_preparation.md)。剩余先接真实物件/场投影候选与共同时间/受体，不能继续扩无依赖的隔离功能。大世界root复制、结束/释放和高异质边界同步成本仍需按实际接入负载验证；快照仍为全量v1物化。
+
 ## 现有依赖与切换原则
 
 - 当前普通世界仍由 [`RegionalSimulation`](../../scripts/sim/regional_simulation.gd) 持有 `local_heat`；其 `advance_to_ms` 在推进人物/区域前调用 `can_settle_at_ms(next_ms)`，然后以既定同毫秒顺序结上一段、处理到达/器物/施工、人体环境分钟采样、草木采样与后续行动。新系统要替换这些入口，不能在 `_process` 上另跑一份物理时钟。

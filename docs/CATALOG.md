@@ -284,6 +284,7 @@
 - [docs/archive/documentation_consolidation_20261104/README.md](archive/documentation_consolidation_20261104/README.md)
 - [docs/archive/documentation_consolidation_20261104/scripts/README.md](archive/documentation_consolidation_20261104/scripts/README.md)
 - [docs/archive/documentation_consolidation_20261104/tests/README.md](archive/documentation_consolidation_20261104/tests/README.md)
+- [docs/archive/handoff_20261105_pre_temperature_bulk.md](archive/handoff_20261105_pre_temperature_bulk.md)
 - [docs/archive/handoff_before_structure_20261102.md](archive/handoff_before_structure_20261102.md)
 - [docs/archive/README.md](archive/README.md)
 - [docs/archive/roadmap_before_structure_20261102.md](archive/roadmap_before_structure_20261102.md)
