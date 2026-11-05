@@ -3,6 +3,7 @@
 [分类总目录](../CATALOG.md)；路径存在不表示已实现或已验。
 
 - [docs/plans/environment-object-loop/cache.md](../plans/environment-object-loop/cache.md)
+- [docs/plans/environment-object-loop/gpu-ground.md](../plans/environment-object-loop/gpu-ground.md)
 - [docs/plans/environment-object-loop/scheduling.md](../plans/environment-object-loop/scheduling.md)
 
 - [docs/plans/environment-object-loop/README.md](../plans/environment-object-loop/README.md)
