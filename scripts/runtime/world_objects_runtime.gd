@@ -7,6 +7,7 @@ var selected_object: String = ""
 var _owner: WeakRef
 var _notice: String = ""
 var _settled_event: String = ""
+var _selection_hit: Vector2 = Vector2.INF
 
 
 func runtime() -> WorldContinuityRuntime:
@@ -29,13 +30,14 @@ func setup(adapter: WorldContinuityRuntime) -> void:
 	panel.set_terms(adapter.world_sim.artifacts.definitions.verbs)
 	panel.action_requested.connect(submit)
 	panel.draw_requested.connect(submit_draw)
+	panel.cycle_requested.connect(_cycle_selection)
 	adapter.avatar_changed.connect(reset_observation)
 	if adapter._home._fog != null and not adapter._home._fog.visibility_updated.is_connected(refresh):
 		adapter._home._fog.visibility_updated.connect(refresh)
 	queue_redraw()
 
 
-func select_object(id: String) -> bool:
+func select_object(id: String, hit_point: Vector2 = Vector2.INF) -> bool:
 	var adapter: WorldContinuityRuntime = runtime()
 	var view: Dictionary = _perception(id)
 	if not bool(view.get("known", false)):
@@ -43,6 +45,7 @@ func select_object(id: String) -> bool:
 	if adapter.heat_method_adapter != null:
 		adapter.heat_method_adapter.panel.hide()
 	selected_object = id
+	_selection_hit = hit_point
 	_notice = ""
 	var spirit: Node = adapter.get("spirit_adapter") as Node
 	if spirit != null:
@@ -181,6 +184,7 @@ func submit_draw(target: String) -> Dictionary:
 
 func reset_observation() -> void:
 	selected_object = ""
+	_selection_hit = Vector2.INF
 	_notice = ""
 	_settled_event = ""
 	panel.hide()
@@ -206,6 +210,7 @@ func refresh() -> void:
 				_settled_event = str(status.event)
 				_notice = str(status.line)
 			panel.set_draw_targets(draw_targets())
+			panel.set_cycle_available(_selection_hit != Vector2.INF)
 			panel.update_view(view, status, _notice)
 			var spirit: Node = adapter.get("spirit_adapter") as Node
 			panel.set_source_entry(thermal and spirit != null and spirit.has_known_source())
@@ -248,21 +253,44 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var cursor: Vector2 = get_canvas_transform().affine_inverse() * event.position
 		var authority: RegionalSimulation = adapter.world_sim
-		var points: Dictionary = _visible_display_points(authority)
-		var hits: Array[String] = []
-		for id: String in points:
-			if cursor.distance_squared_to(points[id]) <= 22.0 * 22.0:
-				hits.append(id)
-		hits.sort_custom(func(left: String, right: String) -> bool:
-			var left_distance: float = cursor.distance_squared_to(points[left])
-			var right_distance: float = cursor.distance_squared_to(points[right])
-			return left < right if left_distance == right_distance else left_distance < right_distance)
+		var hits: Array[String] = _visible_hits(cursor, authority)
 		if not hits.is_empty():
 			# Independently moving holders can overlap a placed icon after layout.
-			# Repeated clicks cycle the actual visible hits without moving any item.
+			# Keep only the clicked position, not a potentially stale hit list.
 			var previous: int = hits.find(selected_object) if panel.visible else -1
-			if select_object(hits[(previous + 1) % hits.size()]):
+			if select_object(hits[(previous + 1) % hits.size()], cursor):
 				get_viewport().set_input_as_handled()
+
+
+func _cycle_selection() -> void:
+	var adapter: WorldContinuityRuntime = runtime()
+	if adapter == null or adapter.world_sim == null or not adapter.human_player_active() or not panel.visible or _selection_hit == Vector2.INF:
+		return
+	var authority: RegionalSimulation = adapter.world_sim
+	var hits: Array[String] = _visible_hits(_selection_hit, authority)
+	if hits.is_empty():
+		return
+	var previous: int = hits.find(selected_object)
+	if hits.size() == 1 and previous == 0:
+		return
+	var id: String = hits[(previous + 1) % hits.size()]
+	# Recheck the chosen instance: an old selection or an old perception is
+	# never authority for what may be selected at the clicked position now.
+	if _visible(id, authority):
+		select_object(id, _selection_hit)
+
+
+func _visible_hits(cursor: Vector2, authority: RegionalSimulation) -> Array[String]:
+	var points: Dictionary = _visible_display_points(authority)
+	var hits: Array[String] = []
+	for id: String in points:
+		if cursor.distance_squared_to(points[id]) <= 22.0 * 22.0:
+			hits.append(id)
+	hits.sort_custom(func(left: String, right: String) -> bool:
+		var left_distance: float = cursor.distance_squared_to(points[left])
+		var right_distance: float = cursor.distance_squared_to(points[right])
+		return left < right if left_distance == right_distance else left_distance < right_distance)
+	return hits
 
 
 func _visible(id: String, observed_world: RegionalSimulation = null) -> bool:

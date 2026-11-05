@@ -4,6 +4,7 @@ extends PanelContainer
 
 signal action_requested(verb: String)
 signal draw_requested(target: String)
+signal cycle_requested
 
 const UI = preload("res://scripts/ui/reol_ui_theme.gd")
 var _title: Label
@@ -18,6 +19,7 @@ var _source_known: bool = false
 var _draw_row: HBoxContainer
 var _draw_targets: OptionButton
 var _draw_button: Button
+var _cycle: Button
 
 
 func _init() -> void:
@@ -57,9 +59,12 @@ func _init() -> void:
 	_notice.custom_minimum_size.y = 40
 	var row := HBoxContainer.new()
 	column.add_child(row)
+	_cycle = UI.button(row, "切换重叠器物", cycle_requested.emit)
+	_cycle.tooltip_text = "切换最初点击位置目前看得见的器物。"
+	_cycle.hide()
 	UI.button(row, "停止操作", action_requested.emit.bind("cancel"))
 	UI.button(row, "收起 · I / Esc", hide)
-	UI.label(column, "WASD中断自己的操作；离开可能错过同门解释。\n重复点击重叠器物可切换选择。", UI.MUTED, 12)
+	UI.label(column, "WASD中断自己的操作；离开可能错过同门解释。", UI.MUTED, 12)
 	visible = false
 
 
@@ -130,6 +135,10 @@ func set_terms(verbs: Dictionary, thermal: bool = true) -> void:
 func set_source_entry(known: bool) -> void:
 	_source_known = known
 	_buttons.spirit_source.visible = _thermal and known
+
+
+func set_cycle_available(available: bool) -> void:
+	_cycle.visible = available
 
 
 func set_draw_targets(choices: Array[Dictionary]) -> void:

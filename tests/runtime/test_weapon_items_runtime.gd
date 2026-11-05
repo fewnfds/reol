@@ -237,6 +237,11 @@ func _hidden_peer_layout(runner: Object) -> void:
 	var sword_with_hidden: Vector2 = adapter._display_point(SWORD)
 	var pearl_with_hidden: Vector2 = adapter._display_point("amber_pearl")
 	runner.assert_eq(_canonical(runtime), before, "laying out visible and hidden objects changes no real world state")
+	var shared_hit: Vector2 = (sword_with_hidden + pearl_with_hidden) * 0.5
+	runner.assert_true(adapter.select_object(SWORD, shared_hit), "a visible object may retain its pointer location for the inspector")
+	adapter.panel._cycle.pressed.emit()
+	runner.assert_eq(adapter.selected_object, "amber_pearl", "cycle button signal uses visible hits and excludes the unseen ring")
+	runner.assert_eq(_canonical(runtime), before, "cycling past the unseen peer does not discover it or change world state")
 	domain.objects.erase(ring_id)
 	before = _canonical(runtime)
 	runner.assert_true(adapter._display_point(SWORD).is_equal_approx(sword_with_hidden), "removing an unseen co-located ring does not move the visible sword")
@@ -271,19 +276,66 @@ func _carried_stack_hits(runner: Object) -> void:
 	var stone: Vector2 = adapter._display_point("hearth_stone")
 	runner.assert_true(pearl.is_equal_approx(stone), "a real held stack marker can overlap a stationary object's final marker")
 	var before: String = _canonical(runtime)
-	var click := InputEventMouseButton.new()
-	click.button_index = MOUSE_BUTTON_LEFT
-	click.pressed = true
-	click.position = adapter.get_canvas_transform() * stone
+	var old_canvas: Transform2D = runner.root.canvas_transform
+	runner.root.canvas_transform = Transform2D(0.0, runner.root.get_visible_rect().get_center() - stone)
+	var object_point: Vector2 = adapter.get_canvas_transform() * stone
 	adapter.reset_observation()
-	for expected: String in ["amber_pearl", "hearth_stone", "amber_pearl"]:
-		adapter._unhandled_input(click)
-		runner.assert_eq(adapter.selected_object, expected, "repeated same-position clicks reach and cycle every overlapping visible object")
-		runner.assert_eq(_canonical(runtime), before, "overlapping hit selection cannot change bodies, custody, time, costs or knowledge")
+	_viewport_click(runner.root, object_point)
+	runner.assert_eq(adapter.selected_object, "amber_pearl", "viewport mouse dispatch selects the first overlapping marker")
+	runner.assert_true(adapter.panel.visible and adapter.panel._cycle.visible, "pointer selection opens the real inspector and its cycle control")
+	var button: Button = adapter.panel._cycle
+	# This runner is synchronous and cannot wait for deferred GUI layout. Test
+	# the connected component here; the asynchronous native QA dispatches real
+	# viewport clicks after layout and checks the obstruction regression.
+	runner.assert_true(button.is_visible_in_tree(), "pointer inspection exposes the cycle component")
+	if button.is_visible_in_tree():
+		for expected: String in ["hearth_stone", "amber_pearl"]:
+			button.pressed.emit()
+			runner.assert_eq(adapter.selected_object, expected, "cycle component reaches each overlapping visible object")
+			runner.assert_eq(_canonical(runtime), before, "cycle component changes no bodies, custody, time, costs or knowledge")
+		# A previously selected candidate may move away while the panel is open.
+		domain.objects.amber_pearl.container = "dorm"
+		runner.assert_true(not adapter._visible("amber_pearl") or adapter._display_point("amber_pearl").distance_to(stone) > 22.0, "the old selection has left the clicked hit area")
+		before = _canonical(runtime)
+		button.pressed.emit()
+		runner.assert_eq(adapter.selected_object, "hearth_stone", "cycle recomputes the current visible hit area after an object moves")
+		runner.assert_eq(_canonical(runtime), before, "recomputing after a move changes no world state")
+		var fog := ControlledFog.new()
+		fixture.home._fog = fog
+		fog.showing = false
+		button.pressed.emit()
+		runner.assert_eq(adapter.selected_object, "hearth_stone", "no currently visible hit leaves the current selection unchanged")
+		fog.showing = true
+		domain.objects.erase("hearth_stone")
+		button.pressed.emit()
+		runner.assert_eq(adapter.selected_object, SWORD, "a deleted selection safely cycles to the remaining visible hit")
+		fixture.home._fog = null
+		fog.free()
+	runner.root.canvas_transform = old_canvas
 	runner.root.remove_child(adapter)
 	if parent != null:
 		parent.add_child(adapter)
 	_fixtures._dispose(fixture)
+
+
+func _viewport_click(viewport: Viewport, at: Vector2) -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.position = at
+	motion.global_position = at
+	viewport.push_input(motion, true)
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.button_mask = MOUSE_BUTTON_MASK_LEFT
+	press.position = at
+	press.global_position = at
+	press.pressed = true
+	viewport.push_input(press, true)
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	release.position = at
+	release.global_position = at
+	release.pressed = false
+	viewport.push_input(release, true)
 
 
 func _pointer_input(runner: Object) -> void:
