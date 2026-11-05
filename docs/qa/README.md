@@ -10,6 +10,7 @@
 
 | 文件 | 原记录主题 |
 |---|---|
+| [20261105_actual_temperature_state.md](20261105_actual_temperature_state.md) | F2a已知目标段实际温度、原子计划与独立两进程存读，未接Main |
 | [20261105_field_compute_acceleration.md](20261105_field_compute_acceleration.md) | packed缓存、真实GPU/CPU一致性、密集规模及普通Main帧基线 |
 | [20261105_source_field_foundation.md](20261105_source_field_foundation.md) | F0源场纯核、密集字典查询基线与观察面板审查修复 |
 | [20261103_artifact_understanding.md](20261103_artifact_understanding.md) | 同物异观、请人检查与强注风险：实际验收 |

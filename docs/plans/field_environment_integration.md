@@ -2,6 +2,8 @@
 
 更新：2026-11-05。本页是待实施的具体接入合同，不代表新源场已成为游戏世界规则。现状与证据以 [HANDOFF](../HANDOFF.md)、[BASELINE](../BASELINE.md)、[FEATURES](../FEATURES.md) 为准；空间/冷热/五行概念以 [环境规范](world_environment.md) 和 [施工与空间](../../design/systems/construction_and_space.md) 为准。本合同不覆盖普通场同通道取最大值、欧氏圆形衰减、同类一堆一源、人物及随身物五行暂缓等已定规则。
 
+实施状态：F2a-1已完成少量显式格/已知目标段的实际温度owner及独立存读，见[证据](../qa/20261105_actual_temperature_state.md)；气候/tide段编译、源变更事务和完整调度仍未完成，不能把这一步标为整个F2a或Main替换完成。
+
 ## 现有依赖与切换原则
 
 - 当前普通世界仍由 [`RegionalSimulation`](../../scripts/sim/regional_simulation.gd) 持有 `local_heat`；其 `advance_to_ms` 在推进人物/区域前调用 `can_settle_at_ms(next_ms)`，然后以既定同毫秒顺序结上一段、处理到达/器物/施工、人体环境分钟采样、草木采样与后续行动。新系统要替换这些入口，不能在 `_process` 上另跑一份物理时钟。

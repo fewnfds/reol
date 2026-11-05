@@ -40,7 +40,7 @@ func configure(start_ms: int, until_ms: int, initial_value: float, target_value:
 	return true
 
 
-func sample(at_ms: int) -> Dictionary:
+func sample(at_ms: int, include_integral: bool = true) -> Dictionary:
 	if not _configured:
 		return {"ok": false, "reason": "not_configured"}
 	if at_ms < _start_ms or at_ms > _until_ms:
@@ -49,10 +49,13 @@ func sample(at_ms: int) -> Dictionary:
 	# a one-millisecond interval even near MAX_TIME.
 	var elapsed: float = float(at_ms - _start_ms)
 	if elapsed == 0.0:
-		return {"ok": true, "at_ms": at_ms, "value": _initial_value, "integral": 0.0}
+		var anchor: Dictionary = {"ok": true, "at_ms": at_ms, "value": _initial_value}
+		if include_integral:
+			anchor["integral"] = 0.0
+		return anchor
 	var tau: float = float(_tau_ms)
 	var x: float = elapsed / tau
-	var factors: Array[float] = _factors(x)
+	var factors: Array[float] = _factors(x, include_integral)
 	var decay: float = factors[0]
 	var response: float = factors[1]
 	var lag: float = factors[2]
@@ -64,6 +67,14 @@ func sample(at_ms: int) -> Dictionary:
 	# long linear target declines to zero. It is algebraically identical to
 	# g0+s*(t-tau)+(y0-g0+s*tau)*exp(-t/tau).
 	var value: float = _initial_value * decay + target_end * response - _target_per_ms * tau * end_weight
+	if not is_finite(value):
+		return {"ok": false, "reason": "non_finite_result"}
+	# A convex first-order response cannot leave this envelope. Limit only
+	# roundoff outside it; negative values and targets remain negative.
+	var lower: float = minf(_initial_value, minf(_target_value, target_end))
+	var upper: float = maxf(_initial_value, maxf(_target_value, target_end))
+	if not include_integral:
+		return {"ok": true, "at_ms": at_ms, "value": clampf(value, lower, upper)}
 	var integral: float
 	if x < 1.0:
 		# Preserve the series form where subtracting target area and response
@@ -84,12 +95,8 @@ func sample(at_ms: int) -> Dictionary:
 		var transient: float = tau * (_initial_value - value)
 		var combined: float = area + transient
 		integral = combined + (_sum_error(area, transient, combined) + area_error)
-	if not is_finite(value) or not is_finite(integral):
+	if not is_finite(integral):
 		return {"ok": false, "reason": "non_finite_result"}
-	# A convex first-order response cannot leave this envelope. Limit only
-	# roundoff outside it; negative values and targets remain negative.
-	var lower: float = minf(_initial_value, minf(_target_value, target_end))
-	var upper: float = maxf(_initial_value, maxf(_target_value, target_end))
 	value = clampf(value, lower, upper)
 	return {"ok": true, "at_ms": at_ms, "value": value, "integral": integral}
 
@@ -150,7 +157,7 @@ static func _product_error(a: float, b: float, product: float) -> float:
 	return ((a_high * b_high - product) + a_high * b_low + a_low * b_high) + a_low * b_low
 
 
-static func _factors(x: float) -> Array[float]:
+static func _factors(x: float, include_integral: bool) -> Array[float]:
 	# response = 1-exp(-x), lag = x-response, and integral_lag =
 	# x^2/2-lag. For small x, direct subtraction loses the small terms needed
 	# by both the response and its integral. Integrate the alternating series
@@ -159,17 +166,18 @@ static func _factors(x: float) -> Array[float]:
 	if x < 0.5:
 		var term: float = x * x * 0.5
 		var lag: float = term
-		var integral_lag: float = term * x / 3.0
+		var integral_lag: float = term * x / 3.0 if include_integral else 0.0
 		for order: int in range(3, 17):
 			term *= -x / float(order)
 			lag += term
-			integral_lag += term * x / float(order + 1)
+			if include_integral:
+				integral_lag += term * x / float(order + 1)
 		var response: float = x - lag
 		var end_weight: float = x * response - lag
 		return [1.0 - response, response, lag, integral_lag, end_weight]
 	var long_decay: float = exp(-x)
 	var long_response: float = 1.0 - long_decay
 	var long_lag: float = x - long_response
-	var long_integral_lag: float = x * x * 0.5 - long_lag
+	var long_integral_lag: float = x * x * 0.5 - long_lag if include_integral else 0.0
 	var long_end_weight: float = 1.0 - (1.0 + x) * long_decay
 	return [long_decay, long_response, long_lag, long_integral_lag, long_end_weight]

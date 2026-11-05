@@ -13,6 +13,7 @@ func run(runner: Object) -> void:
 	_read_order_split_and_json(runner)
 	_small_steps_and_large_time(runner)
 	_long_opposite_targets(runner)
+	_value_only(runner)
 	_bounded_envelope(runner)
 	_atomic_rejection(runner)
 	print("SCENARIO environmental response: constant and linear targets, stable short-step and long-horizon integrals, ordered reads, exact JSON future and atomic rejection")
@@ -152,6 +153,20 @@ func _long_opposite_targets(runner: Object) -> void:
 			var saved: Variant = JSON.parse_string(JSON.stringify(response.to_dict(), "", true, true))
 			runner.assert_true(resumed.restore(saved), "long opposite-target segment survives full-precision JSON")
 			runner.assert_eq(resumed.sample(duration), result, "restoring either sign retains the same long-interval integral")
+
+
+func _value_only(runner: Object) -> void:
+	var response := Response.new()
+	runner.assert_true(response.configure(10, 10_000, -50.0, 25.0, -0.001, 1_000), "value-only response configures")
+	var before: Dictionary = response.to_dict()
+	for at_ms: int in [10, 11, 509, 510, 1_010, 10_000]:
+		var full: Dictionary = response.sample(at_ms)
+		var value_only: Dictionary = response.sample(at_ms, false)
+		runner.assert_true(bool(value_only.get("ok", false)) and not value_only.has("integral"), "value-only response omits the unnecessary integral")
+		runner.assert_eq(value_only.get("value"), full.get("value"), "value-only and integral samples share the same response formula")
+		runner.assert_eq(value_only.get("at_ms"), at_ms, "value-only samples preserve the requested time")
+	runner.assert_eq(response.sample(9, false), response.sample(9), "value-only samples have the same time rejection")
+	runner.assert_eq(response.to_dict(), before, "value-only reads leave the anchor unchanged")
 
 
 func _bounded_envelope(runner: Object) -> void:
