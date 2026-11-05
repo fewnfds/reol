@@ -14,6 +14,8 @@ main / 场景装配
 
 纯模拟不依赖HUD或祖先节点路径。运行适配负责绑定/命令与投影，不另存身体、库存或社会余额。当前业务autoload为`GameClock`，第三方另有MCP helper；未创建全量EventBus/ECS/EntityRegistry/SaveManager。
 
+新环境场仍是隔离基础：`SimEnvironmentFieldCache`持可重建来源投影/脏块，`EnvironmentFieldComputeRuntime`选择CPU或RenderingDevice GPU。GPU线程只拿冻结快照，原子提交前核owner与revision；两后端没有第二时钟/原物/存档格式。当前未接入RegionalSimulation，普通热域仍按下表旧模型运行；接口/生命周期与验收见[F1证据](qa/20261105_field_compute_acceleration.md)。
+
 ## 状态所有权
 
 | 领域/代码入口 | 权威状态或行为 | 边界 |

@@ -89,6 +89,14 @@ func test_environment_field_contract() -> void:
 	load("res://tests/sim/test_environment_field_contract.gd").new().run(self)
 
 
+func test_environment_field_cache() -> void:
+	load("res://tests/sim/test_environment_field_cache.gd").new().run(self)
+
+
+func test_environment_field_compute_runtime() -> void:
+	load("res://tests/runtime/test_environment_field_compute_runtime.gd").new().run(self)
+
+
 func test_terrain_view_updates() -> void:
 	load("res://tests/runtime/test_terrain_view_updates.gd").new().run(self)
 

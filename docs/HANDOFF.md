@@ -5,6 +5,20 @@
 
 ## 当前授权与方向
 
+**最新恢复点（2026-11-05，覆盖本页后续暂停/active历史）**：用户已恢复Goal并授权综合评估性能、可选GPU计算，工具已核实active；忽略移动端/Web作为本轮前置约束。用Godot内置RenderingDevice，不新增插件/换引擎。用户允许预计算曲线查表：空间核已预计算，时间响应按精度/实测选择；当前累计积分不作地块场前置，不扩实时微积分系统。
+
+**F1当前提交点**：cache/可选GPU host/shader/service、两benchmark与原生QA已完成主代理验证，准备阶段提交及一次只读原生审查；详细[F1证据](qa/20261105_field_compute_acceleration.md)。最终注册cache+service定向35180项0失败，真实GPU原生12案例7636格全部一致；512²完整端到端（含setup）160/166ms初次/1%变后；2048²4194304来源＋128²窗口通过但整图失败不算过。原生Main12人基线另测，不冒称GPU已加速Main。当前仍旧热模型，F2接原时间/器物/身体植物/有限导入未开始。先完成本包审查及推送，再接F2；Goal active，无待用户概念问题。
+
+当前主代理验证GPU后端与缓存接缝，专项只处理独立文件，不并发引擎。首个SoA版本512²端到端82.176ms（pack4.276/compute含upload+sync+readback33.345/accept44.555），不含首次设备pipeline初始化121.012ms；全图七通道262144来源。32²高强度全格与F0一致，512²24个分布格一致。`logs/field-gpu-soa-{32,512}.json`，完整进程2.210秒/439418880B工作集/588877824B私有峰，30秒/1GiB限制。还不是普通Main替换：accept逐值检查/拆块正移到受信worker，主线程只原子提交；再测1024²/2048²、变更/失败/选项回退。数据缓存与存档仍一套。
+
+普通Main原生帧探针`tools/qa/world_performance_probe.gd`通过：1280×720/Forward+/RTX3060/i5-13600KF，12人/8器物/25加载块/0活热格；1x真实运行180帧间隔p50/p95/p99=8.332/13.473/24.764ms，最大31.491ms，共同时刻自然推进1550ms且无欠算。暂停180帧p95/p99=8.372/8.414ms；317–321 canvas draws。日志`logs/world-frame-probe-first.json`，不是稠密环境/战斗/大世界FPS；Performance过程监视器更新较慢，不把其75.594ms重复样本当逐帧耗时。
+
+最新本地提交`ccf5340e87e4104320b10fc463cb056626bb8317`为F0，之前`884fe85`修面板内切换且跟踪原生QA已通过；均尚未推送。ccf5340一次Sol/custom审查282.969秒退出0，发现P2：极长跨正负线性目标积分相消。现已窄修，原五组最终8130断言0失败、1.898秒/222052352B，`logs/field-response-reviewed-fix.json`；尚未提交，不重审整包。累计影响未接主局且不作GPU/地块场前置。
+
+未提交F1文件：`scripts/sim/environment_field_cache.gd`及UID、`tests/sim/test_environment_field_cache.gd`及UID、`tests/benchmarks/environment_field_cached.gd`（benchmark UID尚待导入）。紧凑槽/分块pending/预算发布、距离有序逐通道安全上界剪枝已实现但未接Main；17115断言0失败，2.052秒/222863360B，日志`logs/field-cache-pruned-focus.json`。512²实插262144源、半径4/8七通道，完整初建9686.711ms；1%分散grade变更使1024/1024块全脏，实际重建9690.211ms；1024缓存点2.828ms。初建调用p95/p99=3.622/4.391ms，变后3.598/4.760ms，每调用预算8192工作单元。进程20.975秒/工作集118706176B/私有峰102088704B、30秒/1GiB守卫，退出0无引擎错误，`logs/field-cache-pruned-512.json`。与baseline采样checksum完全一致。不是FPS或真实物品/存读/移动证据，1024²/2048²尚未测。首版source-centric构建20196.637ms且变后未完成就30秒超时，`field-cache-baseline-512.json`保留失败，不算验收。
+
+GPU讨论依据Godot官方4.7文档：Compute仅RenderingDevice系Forward+/Mobile，Compatibility不可用；大buffer读回与立即sync会阻塞CPU，须分dispatch并核驱动限时。项目当前原生实际为Forward+/RTX3060；Goal保持paused，尚无GPU原型或加速结论。参考：https://docs.godotengine.org/en/4.7/tutorials/shaders/compute_shaders.html 。
+
 - 用户2026-11-05清除旧Goal并明确要求创建新Goal继续基础运转系统；工具已创建 **active** 新Goal，无token预算。最新环境合同与完整基础联合出口已写入Goal；历史暂停段落只描述当时，现可实施/验证并按真实提交检查CI。
 - 最新环境概念已澄清并同步设计文档：万物持续辐射五行影响，强度/范围各异，向远处衰减消散；环境浓度像催化剂促进修炼，不因修炼、外物或物品积攒而扣减。可吸收灵气是原物品独立储量，物品可浸泡在场中积攒；容量/速率/条件/吸取后变化后置，先世界框架。旧“身体吸收扣环境五相存量”的建议不再采用，已有有限灵源样本和历史证据不追改。
 - 最新地面物品规则：异类不混堆，掉落时铺到不同合法落点；同类且状态相容可合堆，**一堆只算一件的对外强度，不乘数量**，数量/归属/独立状态保留。人物本体及携物的新五行来源暂缓，以后按整体对外映射；现有携物微光不自动改写。最新叠场已明确：**同位同类取最强，不求和或饱和相加**，五行逐通道max，冷热各取最强后与背景求温度。详见[环境合同](plans/world_environment.md#地面堆叠与本轮来源边界)。
