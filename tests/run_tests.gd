@@ -69,6 +69,26 @@ func test_terrain_overrides() -> void:
 	load("res://tests/sim/test_terrain_overrides.gd").new().run(self)
 
 
+func test_environment_field_rules() -> void:
+	load("res://tests/sim/test_environment_field_rules.gd").new().run(self)
+
+
+func test_environment_field_tide() -> void:
+	load("res://tests/sim/test_environment_field_tide.gd").new().run(self)
+
+
+func test_environment_field_index() -> void:
+	load("res://tests/sim/test_environment_field_index.gd").new().run(self)
+
+
+func test_environment_field_response() -> void:
+	load("res://tests/sim/test_environment_field_response.gd").new().run(self)
+
+
+func test_environment_field_contract() -> void:
+	load("res://tests/sim/test_environment_field_contract.gd").new().run(self)
+
+
 func test_terrain_view_updates() -> void:
 	load("res://tests/runtime/test_terrain_view_updates.gd").new().run(self)
 
