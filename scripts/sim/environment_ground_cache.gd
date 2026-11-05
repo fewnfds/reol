@@ -38,6 +38,9 @@ var _invalid_tiles: Dictionary[int, bool] = {}
 var _projected: int = 0
 var _invalidations: int = 0
 var _rebuilt: int = 0
+var _compute_owner: WeakRef
+var _binding_generation: int = 0
+var _generation: int = 0
 
 
 func configure(world: RegionalSimulation, definitions: EnvironmentSourceDefinitions) -> bool:
@@ -65,6 +68,8 @@ func configure(world: RegionalSimulation, definitions: EnvironmentSourceDefiniti
 	_definitions = definitions
 	_query = query
 	_cache = cache
+	_binding_generation += 1
+	_generation += 1
 	_state = "building"
 	_reason = ""
 	for id: String in world.regions:
@@ -83,6 +88,9 @@ func before_object_change() -> void:
 func objects_changed(result: Dictionary) -> void:
 	if _state == "closed" or _state == "error":
 		return
+	# Invalidate detached jobs before projection synchronization changes the
+	# inner cache revision. A later CPU/GPU completion must see this boundary.
+	_generation += 1
 	if _state == "building":
 		_fail("initialization_changed")
 		return
@@ -128,7 +136,9 @@ func request_area(area: Rect2i) -> Dictionary:
 		return _failure("outside_map")
 	var first := Vector2i(clipped.position.x / TILE, clipped.position.y / TILE) * TILE
 	var last := Vector2i((clipped.end.x + TILE - 1) / TILE, (clipped.end.y + TILE - 1) / TILE) * TILE
-	return _cache.request_area(Rect2i(first, last - first))
+	var result: Dictionary = _cache.request_area(Rect2i(first, last - first))
+	result["revision"] = _generation
+	return result
 
 
 func advance(max_work: int = 4096, max_usec: int = 2000) -> Dictionary:
@@ -157,6 +167,8 @@ func advance(max_work: int = 4096, max_usec: int = 2000) -> Dictionary:
 				_change_cursor = 0
 				_invalid_tiles.clear()
 		else:
+			if _has_compute_backend():
+				break
 			# A small fixed chunk bounds the interval between wall-time checks;
 			# kernel initialization and publication are measured separately too.
 			var result: Dictionary = _cache.rebuild(1, mini(128, max_work - used))
@@ -205,10 +217,101 @@ func diagnostics() -> Dictionary:
 		"pending_sources": _changes.size() - _change_cursor + (1 if _state == "building" else 0),
 		"pending_tiles": int(cache_stats.get("pending_tiles", 0)),
 		"cached_tiles": int(cache_stats.get("cached_tiles", 0)), "scan_tiles": _scan_tile,
-		"slot_high_water": _next_slot, "free_slots": _free.size(), "cache": cache_stats}
+		"slot_high_water": _next_slot, "free_slots": _free.size(), "cache": cache_stats,
+		"capacity": int(cache_stats.get("capacity", 0)), "revision": _generation,
+		"binding_generation": _binding_generation, "compute_attached": _has_compute_backend()}
+
+
+func acquire_compute_backend(owner: Object) -> bool:
+	if not is_instance_valid(owner) or _has_compute_backend() or not bool(_context().ok):
+		return false
+	_compute_owner = weakref(owner)
+	return true
+
+
+func owns_compute_backend(owner: Object) -> bool:
+	return is_instance_valid(owner) and _has_compute_backend() and _compute_owner.get_ref() == owner
+
+
+func release_compute_backend(owner: Object) -> bool:
+	if not owns_compute_backend(owner):
+		return false
+	_compute_owner = null
+	return true
+
+
+func export_compute_job(area: Rect2i, compact: bool = false) -> Dictionary:
+	var context: Dictionary = _context()
+	if not bool(context.ok):
+		return context
+	if not _has_compute_backend():
+		return _failure("compute_not_attached")
+	if _state != "ready" or _change_cursor < _changes.size() or not _invalid_tiles.is_empty():
+		return _failure("source_pending")
+	var job: Dictionary = _cache.export_compute_job(area, compact)
+	if not bool(job.get("ok", false)):
+		return job
+	job["ground_owner"] = get_instance_id()
+	job["ground_binding"] = _binding_generation
+	job["ground_generation"] = _generation
+	job["ground_digest"] = _definitions.digest()
+	return job
+
+
+func publish_compute_result(job: Dictionary, prepared: Dictionary) -> Dictionary:
+	# Same owner thread, no callbacks between all original-owner/epoch checks
+	# and the underlying cache's atomic publish. Never expose a raw cache writer.
+	var context: Dictionary = _context()
+	if not bool(context.ok):
+		return context
+	if not _has_compute_backend() or job.get("ground_owner") != get_instance_id() \
+		or job.get("ground_binding") != _binding_generation or job.get("ground_digest") != _definitions.digest():
+		return _failure("ground_compute_owner")
+	if job.get("ground_generation") != _generation or _state != "ready" \
+		or _change_cursor < _changes.size() or not _invalid_tiles.is_empty():
+		return _failure("ground_compute_stale")
+	var result: Dictionary = _cache.publish_compute_result(job, prepared)
+	if bool(result.get("ok", false)):
+		_rebuilt += int(result.published_tiles)
+		result["revision"] = _generation
+	return result
+
+
+func rebuild(max_tiles: int, max_work: int = 16384) -> Dictionary:
+	if max_tiles < 1 or max_work < 1 or max_work > Cache.MAX_WORK:
+		return _failure("work_budget")
+	if not _has_compute_backend():
+		return _failure("compute_not_attached")
+	var started: int = Time.get_ticks_usec()
+	# The attached scheduler is the only target builder. advance only projects
+	# sources while leased; both phases share this call's wall-time/work budget.
+	var synced: Dictionary = advance(max_work, 2000)
+	if not bool(synced.get("ok", false)):
+		return synced
+	var used: int = int(synced.work_used)
+	var source_pending: bool = _state != "ready" or _change_cursor < _changes.size()
+	var completed: int = 0
+	while not source_pending and used < max_work and completed < max_tiles and Time.get_ticks_usec() - started < 2000:
+		var built: Dictionary = _cache.rebuild(1, mini(128, max_work - used))
+		if not bool(built.get("ok", false)):
+			return _fail(str(built.reason))
+		used += int(built.work)
+		completed += int(built.completed)
+		if int(built.work) == 0:
+			break
+	_rebuilt += completed
+	return {"ok": true, "pending": source_pending, "work": used, "completed": completed,
+		"revision": _generation, "pending_tiles": int(_cache.diagnostics().pending_tiles)}
+
+
+func _has_compute_backend() -> bool:
+	return _compute_owner != null and _compute_owner.get_ref() != null
 
 
 func close() -> void:
+	_binding_generation += 1
+	_generation += 1
+	_compute_owner = null
 	var lifecycle: SimObjectLifecycle = _lifecycle.get_ref() if _lifecycle != null else null
 	if lifecycle != null:
 		lifecycle.bind_environment_cache(null)
@@ -266,6 +369,7 @@ func _sync_reference(reference: Dictionary) -> bool:
 	var key: String = JSON.stringify(reference, "", true)
 	var projected: Dictionary = _query.project(reference)
 	_projected += 1
+	_generation += 1
 	if not bool(projected.ok) and projected.reason not in ["not_found", "unsupported_location"]:
 		_fail(str(projected.reason))
 		return false

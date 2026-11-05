@@ -12,7 +12,7 @@
 
 **性能入口：** 用户确认仍沿PC、16GB整机RAM、单RTX3060目标；唯一规格入口为[全项目性能基线](../engineering/architecture.md#全项目性能基线)，AGENTS和docs索引已直接链接。游戏约10GB是可接受量级而非另立整机约束。256MiB是开发者在A2a页自行提出的模块警戒，非skill/用户规则，已撤销；不再据此扩优化任务。GPU已允许，端到端收益与实际接入分别验证。
 
-第二阶段目标仍是环境与组合空间。[A2a方案](../plans/environment-object-loop/cache.md)已完成声明范围；当前讨论候选是先做[真实地面来源的GPU加速及同负载比较](../plans/environment-object-loop/gpu-ground.md)，针对已测出的基础目标缓存吞吐瓶颈。该页仅是方案，当前没有下一包实施授权。实际温度/五行响应、原物联合事务、移动携源及Main接管仍需后续单独排定。
+第二阶段目标仍是环境与组合空间。[A2a方案](../plans/environment-object-loop/cache.md)已完成声明范围；用户现已授权[真实地面来源的GPU加速及同负载比较](../plans/environment-object-loop/gpu-ground.md)，当前实施仅这一小包，针对已测基础目标缓存吞吐。主代理负责ground受控接缝及统一验证，分工代理各负责运行层、定向/真实GPU验证脚本、真实负载基准，不并发启动引擎或整套测试；四份保护WIP原样保留。实际温度/五行响应、原物联合事务、移动携源及Main接管仍需后续单独排定。
 
 ## 讨论确认与实施缺口
 

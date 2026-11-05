@@ -1,6 +1,8 @@
 class_name EnvironmentFieldComputeRuntime
 extends RefCounted
-## Optional one-request scheduler for the existing disposable field cache.
+## Optional one-request scheduler for a disposable field cache or the guarded
+## projection of original ground objects. The ground cache remains the owner
+## of the projection and validates every snapshot and publication.
 ## All methods except GPUWorker.run are called on the cache's owner thread.
 ## The worker receives only an immutable snapshot; it never touches the cache,
 ## this service, an entity, a scene or the shared world clock.
@@ -10,12 +12,14 @@ extends RefCounted
 ## a live thread. Dropping the last reference without reaping is unsupported.
 
 const Cache = preload("res://scripts/sim/environment_field_cache.gd")
+const GroundCache = preload("res://scripts/sim/environment_ground_cache.gd")
 const AUTO_GPU_MIN_CELLS: int = 4096 # Candidate crossover; not a measured universal threshold.
 const MAX_GPU_AREA_AXIS: int = 512 # Larger requests remain on the bounded CPU path.
 const MAX_TICKET: int = 9007199254740991
 const MODES: Array[String] = ["auto", "cpu", "gpu"]
 
 var _cache: RefCounted
+var _ground: RefCounted
 var _mode: String = "auto"
 var _state: String = "idle"
 var _ticket_counter: int = 0
@@ -29,21 +33,35 @@ var _cancelled: bool = false
 var _fallback_reason: String = ""
 var _thread: Thread
 var _job: Dictionary = {}
+var _terminal_reason: String = ""
+var _request_main_usec: int = 0
+var _snapshot_main_usec: int = 0
+var _publish_main_usec: int = 0
+var _preparation_main_usec: int = 0
 
 
 func configure(cache: RefCounted, mode: String = "auto") -> bool:
-	if _cache != null or _state != "idle" or mode not in MODES or not is_instance_valid(cache) or not is_instance_of(cache, Cache):
+	if _cache != null or _state != "idle" or mode not in MODES or not is_instance_valid(cache):
+		return false
+	var is_ground: bool = is_instance_of(cache, GroundCache)
+	if not is_instance_of(cache, Cache) and not is_ground:
 		return false
 	var info: Dictionary = cache.diagnostics()
 	if int(info.get("capacity", 0)) <= 0:
 		return false
+	# Only one scheduler may own the ground projection's rebuild queue. Its
+	# ordinary advance() continues to sync sources but skips target rebuilding
+	# while this lease is held. No runtime dependency is added to the sim layer.
+	if is_ground and not bool(cache.acquire_compute_backend(self)):
+		return false
 	_cache = cache
+	_ground = cache if is_ground else null
 	_mode = mode
 	return true
 
 
 func set_mode(mode: String) -> bool:
-	if _cache == null or _state != "idle" or mode not in MODES:
+	if _cache == null or _state != "idle" or mode not in MODES or not _owns_ground():
 		return false
 	_mode = mode
 	return true
@@ -54,8 +72,16 @@ func request(area: Rect2i) -> Dictionary:
 		return _failure("not_configured")
 	if _state != "idle":
 		return _failure("busy")
+	if not _owns_ground():
+		return _failure("backend_detached")
 	if _ticket_counter >= MAX_TICKET:
 		return _failure("ticket_exhausted")
+	# Unlike the underlying field cache, the public ground query accepts and
+	# clips arbitrary rectangles. This scheduler uses whole tiles throughout;
+	# reject before calling it so the request, snapshot and scan agree exactly.
+	if _ground != null and not _valid_ground_area(area):
+		return _failure("compute_area")
+	var request_started: int = Time.get_ticks_usec()
 	# request_area validates the complete bounds and tile alignment before it
 	# queues any tile. It does not export or copy a full-map GPU snapshot.
 	var requested: Dictionary = _cache.request_area(area)
@@ -71,6 +97,11 @@ func request(area: Rect2i) -> Dictionary:
 	_scan_revision = int(requested.revision)
 	_cancelled = false
 	_fallback_reason = ""
+	_terminal_reason = ""
+	_request_main_usec = 0
+	_snapshot_main_usec = 0
+	_publish_main_usec = 0
+	_preparation_main_usec = 0
 	_state = "cpu"
 	var wants_gpu: bool = _mode == "gpu" or (_mode == "auto" and area.size.x * area.size.y >= AUTO_GPU_MIN_CELLS)
 	if wants_gpu:
@@ -79,25 +110,13 @@ func request(area: Rect2i) -> Dictionary:
 		elif RenderingServer.get_rendering_device() == null:
 			_fallback_reason = "rendering_device_unavailable"
 		else:
-			var job: Dictionary = _cache.export_compute_job(area, true)
-			if not bool(job.get("ok", false)):
-				_fallback_reason = "snapshot:" + str(job.get("reason", "unknown"))
-			else:
-				# The static nested-class Callable is bound only to the detached
-				# job, never to self. Exclusive input transfer is respected: the
-				# owner does not mutate the job while the worker is alive.
-				var worker: Callable = GPUWorker.run.bind(job)
-				var thread := Thread.new()
-				var error: Error = thread.start(worker)
-				if error != OK:
-					_fallback_reason = "thread_start:" + str(error)
-				else:
-					_job = job
-					_thread = thread
-					_state = "gpu"
+			_start_gpu(true)
+	_request_main_usec = Time.get_ticks_usec() - request_started
 	return {"ok": true, "pending": true, "ticket": _ticket, "backend": _state,
 		"status": _state + "_pending", "mode": _mode, "area": _area,
-		"requested_tiles": _tile_count, "revision": _scan_revision, "fallback_reason": _fallback_reason}
+		"requested_tiles": _tile_count, "revision": _scan_revision, "fallback_reason": _fallback_reason,
+		"request_main_usec": _request_main_usec, "snapshot_main_usec": _snapshot_main_usec,
+		"preparation_main_usec": _preparation_main_usec}
 
 
 func poll(max_tiles: int = 1, max_work: int = 4096) -> Dictionary:
@@ -107,20 +126,34 @@ func poll(max_tiles: int = 1, max_work: int = 4096) -> Dictionary:
 		return _failure("idle")
 	if max_tiles < 1 or max_work < 1 or max_work > Cache.MAX_WORK:
 		return _failure("work_budget")
+	# The same ground-cache object may be closed and rebound to a different
+	# world. Its old lease must not migrate with it. A live worker still owns
+	# its immutable snapshot and must be reaped before reporting terminal failure.
+	if not _owns_ground():
+		_terminal_reason = "backend_detached"
 	if _state == "gpu":
 		# Never call wait_to_finish while alive. Cancellation invalidates the
 		# ticket but still requires subsequent polling to reap the thread.
 		if _thread.is_alive():
-			return _pending("cancelling" if _cancelled else "gpu_pending", 0, 0, 0)
+			var status: String = "gpu_pending"
+			if not _terminal_reason.is_empty():
+				status = "discarding_detached_backend"
+			elif _cancelled:
+				status = "cancelling"
+			return _pending(status, 0, 0, 0)
 		var result: Variant = _thread.wait_to_finish()
 		_thread = null
+		if not _terminal_reason.is_empty():
+			return _finish_failed(_terminal_reason)
 		if _cancelled:
 			return _finish_cancelled()
 		if not result is Dictionary or not bool(result.get("ok", false)):
 			var reason: String = "worker_result" if not result is Dictionary else str(result.get("reason", "worker_error"))
 			return _fallback("gpu:" + reason)
 		var prepared: Dictionary = result.get("prepared", {})
+		var publish_started: int = Time.get_ticks_usec()
 		var published: Dictionary = _cache.publish_compute_result(_job, prepared)
+		_publish_main_usec = Time.get_ticks_usec() - publish_started
 		if not bool(published.get("ok", false)):
 			# In particular compute_stale/compute_owner never expose the worker
 			# buffer. Existing pending cache work is retained for later CPU polls.
@@ -129,22 +162,58 @@ func poll(max_tiles: int = 1, max_work: int = 4096) -> Dictionary:
 			"ticket": _ticket, "backend": "gpu", "status": "complete", "area": _area,
 			"revision": int(published.revision), "published_tiles": int(published.published_tiles),
 			"pending_tiles": int(published.pending_tiles), "work": 0, "completed": 0,
-			"fallback_reason": "", "gpu": result.get("metrics", {})}
+			"fallback_reason": "", "gpu": result.get("metrics", {}),
+			"request_main_usec": _request_main_usec, "snapshot_main_usec": _snapshot_main_usec,
+			"publish_main_usec": _publish_main_usec, "preparation_main_usec": _preparation_main_usec}
 		_reset_request()
 		return completed
+	if not _terminal_reason.is_empty():
+		return _finish_failed(_terminal_reason)
 	if _cancelled:
 		return _finish_cancelled()
+	if _state == "preparing":
+		# A previous attempt saw unsynchronized source projections. A leased
+		# ground advance updates only sources, within the normal work/time
+		# budget. Never fall through to CPU rebuilding in the same call.
+		var preparation_started: int = Time.get_ticks_usec()
+		var synced: Dictionary = _ground.advance(max_work, 2000)
+		_preparation_main_usec += Time.get_ticks_usec() - preparation_started
+		if not bool(synced.get("ok", false)):
+			var reason: String = str(synced.get("reason", "source_sync_failed"))
+			if reason in ["stale_source", "world_has_backlog"]:
+				return _pending("preparing_pending", 0, 0, 0)
+			return _finish_failed(reason)
+		var work: int = int(synced.get("work_used", 0))
+		_scan_revision = int(synced.get("revision", _scan_revision))
+		if str(synced.get("state", "")) != "ready" or int(synced.get("pending_sources", 0)) != 0:
+			return _pending("preparing_pending", 0, work, 0)
+		if not _owns_ground():
+			return _finish_failed("backend_detached")
+		# One final attempt checks the real owner/context inside export. A new
+		# source_pending or any other refusal falls back; it cannot loop here.
+		_start_gpu(false)
+		if _state == "gpu":
+			return _pending("gpu_pending", 0, work, 0)
+		return _pending("cpu_fallback_pending", 0, work, 0)
 	var prior_revision: int = int(_cache.diagnostics().revision)
 	if prior_revision != _scan_revision:
 		_scan_revision = prior_revision
 		_scan_index = 0
 	var built: Dictionary = _cache.rebuild(max_tiles, max_work)
 	if not bool(built.get("ok", false)):
-		return built
+		var reason: String = str(built.get("reason", "rebuild_failed"))
+		if _ground != null and reason in ["stale_source", "world_has_backlog"]:
+			return _pending("source_sync_pending", 0, 0, 0)
+		return _finish_failed(reason)
 	var revision: int = int(built.revision)
 	if revision != _scan_revision:
 		_scan_revision = revision
 		_scan_index = 0
+	# A ground rebuild may need multiple bounded calls to project all pending
+	# original changes. Do not scan even previously clean tiles until that
+	# queue is synchronized: a late change can invalidate an earlier tile.
+	if _ground != null and bool(built.get("pending", false)):
+		return _pending("source_sync_pending", int(built.get("completed", 0)), int(built.get("work", 0)), 0)
 	# Only inspect up to max_tiles area tiles per poll. If an earlier tile is
 	# still pending, keep its cursor until the real global queue catches up.
 	var checked: int = 0
@@ -153,7 +222,10 @@ func poll(max_tiles: int = 1, max_work: int = 4096) -> Dictionary:
 		var cell: Vector2i = _area.position + Vector2i((_scan_index % _tile_columns) * Cache.TILE_SIZE, (_scan_index / _tile_columns) * Cache.TILE_SIZE)
 		var value: Dictionary = _cache.read_base(cell)
 		if not bool(value.get("ok", false)):
-			return value
+			var reason: String = str(value.get("reason", "read_failed"))
+			if _ground != null and reason in ["stale_source", "world_has_backlog"]:
+				return _pending("source_sync_pending", int(built.completed), int(built.work), checked)
+			return _finish_failed(reason)
 		checked += 1
 		if bool(value.pending):
 			break
@@ -164,7 +236,9 @@ func poll(max_tiles: int = 1, max_work: int = 4096) -> Dictionary:
 		"ticket": _ticket, "backend": "cpu", "status": "complete", "area": _area,
 		"revision": revision, "completed": int(built.completed), "work": int(built.work),
 		"checked_tiles": checked, "requested_tiles": _tile_count,
-		"pending_tiles": int(built.pending_tiles), "fallback_reason": _fallback_reason}
+		"pending_tiles": int(built.pending_tiles), "fallback_reason": _fallback_reason,
+		"request_main_usec": _request_main_usec, "snapshot_main_usec": _snapshot_main_usec,
+		"publish_main_usec": _publish_main_usec, "preparation_main_usec": _preparation_main_usec}
 	_reset_request()
 	return completed
 
@@ -185,13 +259,22 @@ func cancel(ticket: int) -> Dictionary:
 func diagnostics() -> Dictionary:
 	return {"configured": _cache != null, "mode": _mode, "busy": _state != "idle",
 		"backend": _state, "ticket": _ticket, "cancelled": _cancelled,
-		"fallback_reason": _fallback_reason, "scan_index": _scan_index}
+		"fallback_reason": _fallback_reason, "scan_index": _scan_index,
+		"ground_bound": _ground != null, "ground_lease_valid": _owns_ground(),
+		"terminal_reason": _terminal_reason, "request_main_usec": _request_main_usec,
+		"snapshot_main_usec": _snapshot_main_usec, "publish_main_usec": _publish_main_usec,
+		"preparation_main_usec": _preparation_main_usec}
 
 
 func close() -> bool:
 	if _state != "idle":
 		return false
+	# A close/rebind may already have invalidated the old lease. In that case
+	# never release another scheduler's lease on the newly bound ground cache.
+	if _ground != null and _owns_ground() and not bool(_ground.release_compute_backend(self)):
+		return false
 	_cache = null
+	_ground = null
 	_mode = "auto"
 	return true
 
@@ -200,7 +283,37 @@ func _pending(status: String, completed: int, work: int, checked: int) -> Dictio
 	return {"ok": true, "pending": true, "cancelled": _cancelled, "ticket": _ticket,
 		"backend": _state, "status": status, "area": _area, "revision": _scan_revision,
 		"completed": completed, "work": work, "checked_tiles": checked,
-		"requested_tiles": _tile_count, "fallback_reason": _fallback_reason}
+		"requested_tiles": _tile_count, "fallback_reason": _fallback_reason,
+		"request_main_usec": _request_main_usec, "snapshot_main_usec": _snapshot_main_usec,
+		"publish_main_usec": _publish_main_usec, "preparation_main_usec": _preparation_main_usec}
+
+
+func _start_gpu(allow_preparing: bool) -> void:
+	# This runs only on the owner thread. A ground export checks the world,
+	# binding and source epochs before it hands out a detached projection.
+	var snapshot_started: int = Time.get_ticks_usec()
+	var job: Dictionary = _cache.export_compute_job(_area, true)
+	_snapshot_main_usec += Time.get_ticks_usec() - snapshot_started
+	if not bool(job.get("ok", false)):
+		var reason: String = str(job.get("reason", "unknown"))
+		if _ground != null and allow_preparing and reason == "source_pending":
+			_state = "preparing"
+			return
+		_fallback_reason = "snapshot:" + reason
+		_state = "cpu"
+		return
+	# The static nested-class Callable is bound only to the detached job,
+	# never to self. The owner does not mutate the job while the worker lives.
+	var worker: Callable = GPUWorker.run.bind(job)
+	var thread := Thread.new()
+	var error: Error = thread.start(worker)
+	if error != OK:
+		_fallback_reason = "thread_start:" + str(error)
+		_state = "cpu"
+		return
+	_job = job
+	_thread = thread
+	_state = "gpu"
 
 
 func _fallback(reason: String) -> Dictionary:
@@ -222,6 +335,18 @@ func _finish_cancelled() -> Dictionary:
 	return result
 
 
+func _finish_failed(reason: String) -> Dictionary:
+	# A failure is terminal only after any GPU worker has been reaped. The
+	# original cache's invalidation and pending work are not discarded here.
+	var result: Dictionary = {"ok": false, "pending": false, "cancelled": false,
+		"ticket": _ticket, "backend": _state, "status": "failed", "area": _area,
+		"reason": reason, "fallback_reason": _fallback_reason,
+		"request_main_usec": _request_main_usec, "snapshot_main_usec": _snapshot_main_usec,
+		"publish_main_usec": _publish_main_usec, "preparation_main_usec": _preparation_main_usec}
+	_reset_request()
+	return result
+
+
 func _reset_request() -> void:
 	_state = "idle"
 	_ticket = 0
@@ -233,6 +358,26 @@ func _reset_request() -> void:
 	_cancelled = false
 	_fallback_reason = ""
 	_job = {}
+	_terminal_reason = ""
+	_request_main_usec = 0
+	_snapshot_main_usec = 0
+	_publish_main_usec = 0
+	_preparation_main_usec = 0
+
+
+func _owns_ground() -> bool:
+	return _ground == null or (is_instance_valid(_ground) and bool(_ground.owns_compute_backend(self)))
+
+
+static func _valid_ground_area(area: Rect2i) -> bool:
+	if area.position.x < 0 or area.position.y < 0 or area.size.x <= 0 or area.size.y <= 0:
+		return false
+	if area.size.x > GroundCache.SIZE or area.size.y > GroundCache.SIZE:
+		return false
+	if area.position.x > GroundCache.SIZE - area.size.x or area.position.y > GroundCache.SIZE - area.size.y:
+		return false
+	return area.position.x % Cache.TILE_SIZE == 0 and area.position.y % Cache.TILE_SIZE == 0 \
+		and area.size.x % Cache.TILE_SIZE == 0 and area.size.y % Cache.TILE_SIZE == 0
 
 
 static func _failure(reason: String) -> Dictionary:

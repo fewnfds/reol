@@ -1,4 +1,4 @@
-# 真实地面来源的分块基础目标缓存（A2a）
+# 真实地面来源的分块基础目标缓存
 
 `SimEnvironmentGroundCache` 是权威开发接口，服务于普通世界接管之前的环境底座。它绑定原世界，不持有第二套实物、数量、位置或时钟。输出是当前来源合成的基础目标，**没有实际温度、五行残留或移动携物场**；普通Main仍沿原冷热模型。
 
@@ -48,10 +48,24 @@ building期间发生物件事务会中止装配并报initialization_changed，�
 
 工作预算衡量算法工作量，微秒目标用真实墙钟检查；小片中包含的不可细分操作仍可能越过目标，不能宣称硬实时上限。该服务不拥有新10Hz/20Hz环境调度、时间背压或输入队列，不能仅凭缓存完成就声称动态尾迹或严重过载已经解决。
 
+## CPU/GPU 计算接缝
+
+`EnvironmentFieldComputeRuntime.configure(ground_cache, mode)`接受此服务以及原底层场缓存，mode为cpu/gpu/auto。模拟层不依赖渲染运行层；只新增受控的计算协议，GPU线程只收到脱离原物的只读投影。
+
+- 运行层通过`acquire_compute_backend(owner)`取得唯一弱引用租约；此时原`advance`只装配/同步来源，目标重建只由计算服务驱动，避免两处重复推进同一队列。空闲运行层`close()`释放租约；ground关闭或重绑作废原租约，旧服务不能操纵新绑定。
+- `export_compute_job(area, compact)`要求来源已同步，附带原绑定、单调来源代次及定义digest；不暴露底层cache写引用。物件变动在内层来源尚未更新时已递增代次，不能只查内层revision。
+- `publish_compute_result(job, prepared)`在原owner线程核原世界、所有者、库存epoch、绑定、定义、来源队列和代次，再交原cache校验/发布；不在复验与发布间调用外部回调。过期结果不部分写入，后续预算CPU可继续同步并计算最新值。
+- GPU请求遇来源待同步进入preparing；poll按正常预算同步后再尝试一次GPU。已有运行中GPU作废后回CPU，设备/快照/显卡失败有明确原因；不无限重试显卡。取消和换世界后仍由原服务poll回收活线程，忙时close拒绝，不在主线程等待活GPU线程。
+- `rebuild(max_tiles,max_work)`供运行层CPU路径使用，来源同步与目标重建共享约2ms检查目标；`pending`表示来源仍待同步，块队列另看pending_tiles。快照打包、发布、分配并非天然满足此时间片，分别测量，不能宣称硬实时上限。
+
+开发请求严格使用地图内16×16整块；原`request_area`查询仍可裁剪扩块。自动阈值由本包真实CPU/GPU同负载测量决定，不能套用合成例子的阈值。该接缝不引入新时间、存档域、普通Main开关或实际温度/五行响应。
+
 ## 验证入口
 
 - `tests/sim/test_environment_ground_cache.gd`：真实对象、参考对照、预算/回调/变更/恢复。
 - `tests/sim/test_environment_inventory_epoch.gd`：epoch、失败/重放、同实例替换和直接写入旁路保护。
+- `tests/runtime/test_environment_ground_compute.gd`与`tools/qa/environment_ground_compute.gd`：真实CPU/无设备回退及硬件GPU、原物变更与未同步结果拒绝、取消回收和原世界替换。
+- `tools/benchmarks/environment_ground_compute_guard.py`：相同真实物品布置下的CPU/GPU/auto对比，整链路、分散变化和主线程耗时；GPU回退单列，不冒充硬件成绩。
 - `tools/benchmarks/environment_ground_cache_guard.py`：串行运行64²至512²真实混合地面物，外部限制时间和进程内存，测装配、局部/全图冷建、热读及变动重算。
 
 工程合同不代替受检SHA及数值证据；本包完成记录见[缓存QA](../qa/20261105_environment_ground_cache.md)。后续实际响应和普通接管仍须单独排包。

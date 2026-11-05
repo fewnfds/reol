@@ -109,6 +109,10 @@ func test_environment_field_compute_runtime() -> void:
 	load("res://tests/runtime/test_environment_field_compute_runtime.gd").new().run(self)
 
 
+func test_environment_ground_compute() -> void:
+	load("res://tests/runtime/test_environment_ground_compute.gd").new().run(self)
+
+
 func test_environment_temperature_state() -> void:
 	load("res://tests/sim/test_environment_temperature_state.gd").new().run(self)
 
