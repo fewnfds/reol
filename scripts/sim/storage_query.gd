@@ -57,6 +57,13 @@ static func _village(world: RegionalSimulation, reference: Dictionary) -> Dictio
 	var container: String = reference.container
 	if not sim.inventory.containers.has(container):
 		return _failure("not_found")
+	if container.begins_with("ground:"):
+		if world.object_lifecycle == null:
+			return _failure("domain_unavailable")
+		var slot: Dictionary = world.object_lifecycle.ground.locate(reference.region, container)
+		if not bool(slot.ok) or slot.reference.kind != "stock":
+			return _failure("invalid_location")
+		return _result(world, reference, TileGrid.cell_to_world(slot.cell), "village_inventory", sim.elapsed_ms, "ground_placements", world.elapsed_ms, {})
 	var actor: String = container.trim_prefix("actor:") if container.begins_with("actor:") else ""
 	var construction: SimConstruction = world.construction
 	var project_here: bool = construction != null and construction.world == world and construction.definitions.get("site", {}).get("region") == reference.region and construction.projects.has(container)

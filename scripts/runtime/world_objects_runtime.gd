@@ -142,20 +142,31 @@ func _refuse(line: String) -> Dictionary:
 func draw_targets() -> Array[Dictionary]:
 	var choices: Array[Dictionary] = []
 	var adapter: WorldContinuityRuntime = runtime()
-	if adapter == null or not adapter.human_player_active():
+	if adapter == null or adapter.world_sim == null or not adapter.human_player_active():
 		return choices
-	var domain: SimArtifacts = adapter.world_sim.artifacts
+	var authority: RegionalSimulation = adapter.world_sim
+	var domain: SimArtifacts = authority.artifacts
 	if not domain.has_capability(selected_object, "remote_draw"):
 		return choices
 	var definition: Dictionary = domain.definitions.types[domain.objects[selected_object].definition]
-	for id: String in adapter.world_sim._sorted_keys(domain.objects):
+	var candidates: Array[String] = _local_candidates(authority, int(definition.drawing.range_cells))
+	candidates.sort()
+	for id: String in candidates:
+		if not domain.objects.has(id):
+			continue
 		var item: Dictionary = domain.objects[id]
-		if id == selected_object or not definition.drawing.target_definitions.has(item.definition) or str(item.container).begins_with("actor:") or not _visible(id):
+		if id == selected_object or not definition.drawing.target_definitions.has(item.definition) or str(item.container).begins_with("actor:"):
+			continue
+		var visible: bool = _visible(id, authority)
+		if adapter.world_sim != authority:
+			choices.clear()
+			return choices
+		if not visible:
 			continue
 		var target: Vector2 = TileGrid.cell_to_world(domain.object_cell(id))
-		var origin: Vector2 = SimRouteTravel.point(adapter.world_sim.regions[domain.actor_home("player")].actors.player)
-		var level: int = SimConflictSpace.level(adapter.world_sim, origin)
-		if origin.distance_to(target) > float(definition.drawing.range_cells) * TileGrid.TILE_SIZE or level != SimConflictSpace.level(adapter.world_sim, target) or not SimConflictSpace.clear_segment(adapter.world_sim, origin, target, level):
+		var origin: Vector2 = SimRouteTravel.point(authority.regions[domain.actor_home("player")].actors.player)
+		var level: int = SimConflictSpace.level(authority, origin)
+		if origin.distance_to(target) > float(definition.drawing.range_cells) * TileGrid.TILE_SIZE or level != SimConflictSpace.level(authority, target) or not SimConflictSpace.clear_segment(authority, origin, target, level):
 			continue
 		choices.append({"id": id, "label": str(domain.describe("player", id).label)})
 	return choices
@@ -236,18 +247,24 @@ func _unhandled_input(event: InputEvent) -> void:
 			if panel.visible:
 				panel.hide()
 			else:
-				var candidates: Array = adapter.world_sim.artifacts.objects.keys()
+				var authority: RegionalSimulation = adapter.world_sim
+				var candidates: Array[String] = _local_candidates(authority)
 				candidates.sort()
-				var thermal: Array = []
-				var others: Array = []
+				var thermal: Array[String] = []
+				var others: Array[String] = []
 				for id: String in candidates:
-					if adapter.world_sim.artifacts.has_capability(id, "heat_storage"):
+					if authority.artifacts.has_capability(id, "heat_storage"):
 						thermal.append(id)
 					else:
 						others.append(id)
-				candidates = thermal + others
-				for id: String in candidates:
-					if select_object(id):
+				thermal.append_array(others)
+				for id: String in thermal:
+					# A remembered but unseen object must not become discoverable
+					# merely because its actual position is in the spatial query.
+					var visible: bool = _visible(id, authority)
+					if adapter.world_sim != authority:
+						break
+					if visible and select_object(id):
 						break
 			get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -284,7 +301,13 @@ func _visible_hits(cursor: Vector2, authority: RegionalSimulation) -> Array[Stri
 	var points: Dictionary = _visible_display_points(authority)
 	var hits: Array[String] = []
 	for id: String in points:
-		if cursor.distance_squared_to(points[id]) <= 22.0 * 22.0:
+		var footprint: Rect2i = _physical_ground_rect(id, authority)
+		if footprint.size != Vector2i.ZERO:
+			var cell: Vector2i = TileGrid.world_to_cell(cursor)
+			var adapter: WorldContinuityRuntime = runtime()
+			if adapter != null and footprint.has_point(cell) and _cell_visible(cell, adapter.controlled_cell(), _observation_radius(authority)) and _physical_tile_rect(cell).has_point(cursor):
+				hits.append(id)
+		elif cursor.distance_squared_to(points[id]) <= 22.0 * 22.0:
 			hits.append(id)
 	hits.sort_custom(func(left: String, right: String) -> bool:
 		var left_distance: float = cursor.distance_squared_to(points[left])
@@ -330,17 +353,48 @@ func _display_point(id: String, observed_world: RegionalSimulation = null) -> Ve
 	return points[id] if points.has(id) else _base_display_point(id, authority)
 
 
+func _observation_radius(authority: RegionalSimulation) -> int:
+	if authority == null:
+		return -1
+	var home: String = authority.artifacts.actor_home("player")
+	return int(authority.regions[home].config.observation_radius) if not home.is_empty() else -1
+
+
+func _local_candidates(authority: RegionalSimulation, radius: int = -1) -> Array[String]:
+	var ids: Array[String] = []
+	var adapter: WorldContinuityRuntime = runtime()
+	if adapter == null or authority == null or adapter.world_sim != authority or authority.object_lifecycle == null or not adapter.human_player_active():
+		return ids
+	if radius < 0:
+		radius = _observation_radius(authority)
+	if radius < 0:
+		return ids
+	# A failed or incomplete bounded query is never replaced with a global scan.
+	# The returned IDs are authority-only and must still pass visibility checks.
+	var found: Dictionary = authority.object_lifecycle.artifact_candidates(adapter.controlled_cell(), radius)
+	if not bool(found.get("ok", false)):
+		return ids
+	for id: String in found.ids:
+		ids.append(id)
+	return ids
+
+
 func _visible_display_points(authority: RegionalSimulation) -> Dictionary:
+	var adapter: WorldContinuityRuntime = runtime()
+	if adapter == null or authority == null:
+		return {}
 	var domain: SimArtifacts = authority.artifacts
 	# Separate only currently visible objects sharing this exact visual anchor.
 	# These offsets are presentation only: cell, custody and reach stay in the
 	# original domain. Singleton positions and holder interpolation stay intact.
-	# Build once per draw or pointer event so many objects do not trigger one
-	# full visibility scan per item. Nothing is cached across frames or saved.
+	# Only nearby candidates are inspected; nothing is cached across frames or saved.
 	var points: Dictionary = {}
 	var groups: Dictionary = {}
-	for id: String in domain.objects:
-		if not _visible(id, authority):
+	for id: String in _local_candidates(authority):
+		var visible: bool = _visible(id, authority)
+		if adapter.world_sim != authority:
+			return {}
+		if not visible:
 			continue
 		var cell: Vector2i = domain.object_cell(id)
 		var point: Vector2 = _base_display_point(id, authority)
@@ -402,6 +456,9 @@ func _draw() -> void:
 		draw_arc(to, 13.0 + 5.0 * (1.0 - progress), -PI * 0.5, TAU * progress - PI * 0.5, 24, Color("#c4ded5"), 2.0)
 	for id: String in points:
 		var point: Vector2 = points[id]
+		if authority.artifacts.has_capability(id, "physical"):
+			_draw_physical(id, point, authority)
+			continue
 		if authority.artifacts.has_capability(id, "weapon"):
 			_draw_wooden_sword(point)
 			continue
@@ -422,6 +479,51 @@ func _draw() -> void:
 		draw_colored_polygon(diamond, Color("#a6553b"))
 		draw_polyline(PackedVector2Array([diamond[0], diamond[1], diamond[2], diamond[3], diamond[0]]), Color("#f0c989"), 2)
 		draw_line(point + Vector2(-3, -3), point + Vector2(3, 3), Color("#e8b479"), 1.5)
+
+
+func _physical_ground_rect(id: String, authority: RegionalSimulation) -> Rect2i:
+	var domain: SimArtifacts = authority.artifacts
+	if not domain.has_capability(id, "physical") or authority.object_lifecycle == null:
+		return Rect2i()
+	var item: Dictionary = domain.objects[id]
+	if not str(item.container).begins_with("ground:"):
+		return Rect2i()
+	var slot: Dictionary = authority.object_lifecycle.ground.locate(str(item.region), str(item.container))
+	if not bool(slot.get("ok", false)) or not bool(slot.get("active", false)) or slot.reference.get("kind") != "artifact" or slot.reference.get("id") != id:
+		return Rect2i()
+	return Rect2i(slot.cell, slot.size)
+
+
+static func _physical_tile_rect(cell: Vector2i) -> Rect2:
+	return Rect2(TileGrid.cell_to_world(cell) - Vector2.ONE * (TileGrid.HALF_TILE - 4.0), Vector2.ONE * (TileGrid.TILE_SIZE - 8.0))
+
+
+func _cell_visible(cell: Vector2i, observer: Vector2i, radius: int) -> bool:
+	var adapter: WorldContinuityRuntime = runtime()
+	return adapter != null and radius >= 0 and observer.distance_to(cell) <= float(radius) and (adapter._home._fog == null or adapter._home._fog.is_cell_visible(cell))
+
+
+func _draw_physical(id: String, point: Vector2, authority: RegionalSimulation) -> void:
+	var footprint: Rect2i = _physical_ground_rect(id, authority)
+	if footprint.size == Vector2i.ZERO:
+		# Carried or stored objects remain a small marker, not a ground footprint.
+		draw_rect(Rect2(point - Vector2(9, 7), Vector2(18, 14)), Color("#777b7b"))
+		draw_rect(Rect2(point - Vector2(9, 7), Vector2(18, 14)), Color("#c0c4bf"), false, 1.5)
+		return
+	var adapter: WorldContinuityRuntime = runtime()
+	var observer: Vector2i = adapter.controlled_cell()
+	var radius: int = _observation_radius(authority)
+	# Large footprints are clipped to the observation window before iterating.
+	var first := Vector2i(maxi(footprint.position.x, observer.x - radius), maxi(footprint.position.y, observer.y - radius))
+	var end := Vector2i(mini(footprint.end.x, observer.x + radius + 1), mini(footprint.end.y, observer.y + radius + 1))
+	for y: int in range(first.y, end.y):
+		for x: int in range(first.x, end.x):
+			var cell := Vector2i(x, y)
+			if not _cell_visible(cell, observer, radius):
+				continue
+			var bounds: Rect2 = _physical_tile_rect(cell)
+			draw_rect(bounds, Color("#777b7b"))
+			draw_rect(bounds, Color("#c0c4bf"), false, 1.5)
 
 
 func _draw_thermal_stone(point: Vector2, warm: bool) -> void:

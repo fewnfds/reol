@@ -74,6 +74,10 @@ static func _fixed_space(world: RegionalSimulation, cell: Vector2i) -> bool:
 
 
 static func _occupied(world: RegionalSimulation, cell: Vector2i) -> bool:
+	if world.object_lifecycle != null:
+		var ground: Dictionary = world.object_lifecycle.ground.query(Rect2i(cell, Vector2i.ONE), 512)
+		if not bool(ground.ok) or not ground.ids.is_empty():
+			return true
 	for sim: VillageSimulation in world.regions.values():
 		for body: Dictionary in sim.actors.values():
 			# Dead bodies still have one spatial owner; terrain editing cannot

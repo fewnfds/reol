@@ -40,7 +40,7 @@ func run(runner: Object) -> void:
 		return
 	runner.assert_true(factory.calls > 0, "old validation uses the supplied independent terrain factory")
 	runner.assert_eq(int(converted.schema_version), SessionSaveSchema.VERSION, "the converted root explicitly records its new semantics")
-	runner.assert_eq(int(converted.continuity.world.version), 41, "the regional writer records the fixed-reference device field")
+	runner.assert_eq(int(converted.continuity.world.version), RegionalSimulation.SCHEMA_VERSION, "the regional writer reaches the current lifecycle-aware format")
 	runner.assert_eq(int(converted.continuity.world.local_heat.version), 3, "the new heat state has its own version")
 	runner.assert_eq(int(converted.continuity.world.artifacts.version), 8, "the original artifacts adopt the current envelope without new objects")
 	for field: String in ["continuous_input", "absorbed_energy", "last_sample_continuous_input", "last_sample_absorbed"]:
@@ -71,6 +71,7 @@ func run(runner: Object) -> void:
 	var projected: Dictionary = converted.duplicate(true)
 	projected.continuity.world.environment = SolarProjection.prior_environment(converted.continuity.world.environment, old.continuity.world.environment, converted)
 	runner.assert_true(not projected.continuity.world.environment.is_empty(), "the solar projection retains the original environment and its bound rules")
+	runner.assert_eq(_json(projected.continuity.world.object_lifecycle), _json(SimObjectLifecycle.empty_state()), "the historical archive gains only the explicit empty lifecycle")
 	runner.assert_eq(_without_thermal_versions(projected), _without_thermal_versions(old), "all original nonthermal facts and sampled exposure remain unchanged")
 	runner.assert_eq(_json(old), old_before, "successful migration leaves the old candidate untouched")
 	runner.assert_eq(_json(archived), archived_before, "successful migration never rewrites the original historical fixture")
@@ -242,6 +243,10 @@ func _without_thermal_versions(snapshot: Dictionary) -> String:
 	copy.erase("schema_version")
 	copy.erase("content_bundle")
 	var world: Dictionary = copy.continuity.world
+	if world.has("object_lifecycle"):
+		if not world.object_lifecycle is Dictionary or _json(world.object_lifecycle) != _json(SimObjectLifecycle.empty_state()):
+			return "invalid_nonempty_lifecycle"
+		world.erase("object_lifecycle")
 	world.erase("version")
 	world.erase("local_heat")
 	world.environment.erase("version")

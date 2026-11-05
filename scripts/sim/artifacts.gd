@@ -21,6 +21,7 @@ var next_id: int = 1
 var _owner: WeakRef
 var _warming_decisions: Dictionary = {}
 var _intrinsic_light_ids: Array[String] = []
+var _legacy_object_ids: Array[String] = []
 
 var world: RefCounted:
 	get:
@@ -84,13 +85,25 @@ static func valid_definitions(data: Variant) -> bool:
 
 static func _valid_tool_definition(item: Dictionary) -> bool:
 	var keys: Array = ["name", "unknown_name", "appearance", "method", "material_cue", "capabilities", "storage_place", "actions"]
+	if item.has("placement"):
+		keys.append("placement")
+		var placement: Variant = item.placement
+		if not placement is Dictionary or not Schema._keys(placement, ["footprint"]) or not placement.footprint is Array or placement.footprint.size() != 2:
+			return false
+		for extent: Variant in placement.footprint:
+			if not SimAvianLife.Schema.count(extent, 1, 64):
+				return false
+		if item.get("capabilities") != ["physical"]:
+			return false
 	if not item.get("capabilities") is Array or item.capabilities.is_empty() or item.capabilities.size() > 2:
 		return false
 	var seen: Dictionary = {}
 	for capability: Variant in item.capabilities:
-		if capability not in ["weapon", "remote_draw", "thermal_exchange", "intrinsic_light"] or seen.has(capability):
+		if capability not in ["physical", "weapon", "remote_draw", "thermal_exchange", "intrinsic_light"] or seen.has(capability):
 			return false
 		seen[capability] = true
+	if seen.has("physical") and (seen.size() != 1 or not item.has("placement")):
+		return false
 	var remote: bool = seen.has("remote_draw")
 	var thermal: bool = seen.has("thermal_exchange")
 	var intrinsic: bool = seen.has("intrinsic_light")
@@ -159,14 +172,26 @@ func intrinsic_light_ids() -> Array[String]:
 	return _intrinsic_light_ids
 
 
+func legacy_object_ids() -> Array[String]:
+	# Lifecycle-managed free objects have their own derived spatial/container
+	# index. The finite legacy scenario list is rebuilt only on owner changes.
+	return _legacy_object_ids
+
+
 func _rebuild_light_sources() -> void:
 	var ids: Array[String] = []
+	var legacy: Array[String] = []
 	for id: String in objects:
+		if world.object_lifecycle == null or not world.object_lifecycle.manages(id):
+			legacy.append(id)
 		if has_capability(id, "intrinsic_light"):
 			ids.append(id)
 	ids.sort()
 	ids.make_read_only()
 	_intrinsic_light_ids = ids
+	legacy.sort()
+	legacy.make_read_only()
+	_legacy_object_ids = legacy
 
 
 func verbs_for(id: String) -> Dictionary:
@@ -308,7 +333,7 @@ func held_weapon(actor: String) -> String:
 	var home: String = actor_home(actor)
 	if home.is_empty():
 		return ""
-	for id: String in world._sorted_keys(objects):
+	for id: String in legacy_object_ids():
 		if objects[id].region == home and objects[id].container == "actor:" + actor and has_capability(id, "weapon"):
 			return id
 	return ""
@@ -426,6 +451,12 @@ func valid_location(region: Variant, container: Variant) -> bool:
 	if container.begins_with("site:"):
 		var field: Variant = world.get("field_opportunities")
 		return field != null and bool(field.valid_slot(region, container))
+	if container.begins_with("ground:"):
+		var lifecycle: Variant = world.get("object_lifecycle")
+		if lifecycle == null:
+			return false
+		var slot: Dictionary = lifecycle.ground.locate(region, container)
+		return bool(slot.ok) and bool(slot.active) and slot.reference.kind == "artifact"
 	var sim: RefCounted = world.regions[region]
 	return sim.inventory.containers.has(container) and (sim.places.has(container) or (container.begins_with("actor:") and sim.actors.has(container.trim_prefix("actor:"))))
 
@@ -470,6 +501,8 @@ func _location_cell(region: String, container: String) -> Vector2i:
 		return Vector2i(-1, -1)
 	if container.begins_with("site:"):
 		return world.get("field_opportunities").slot_cell(region, container)
+	if container.begins_with("ground:"):
+		return world.get("object_lifecycle").ground.locate(region, container).cell
 	var sim: RefCounted = world.regions[region]
 	var raw: Array = sim.actors[container.trim_prefix("actor:")].cell if container.begins_with("actor:") else sim.places[container].cell
 	return _cell(raw)
@@ -488,6 +521,8 @@ func describe(actor: String, id: String) -> Dictionary:
 
 
 func begin(actor: String, verb: String, id: String) -> Dictionary:
+	if world.object_lifecycle != null and world.object_lifecycle.manages(id):
+		return _response(false, "这件实物使用共同物品动作接口。")
 	if transfers != null and transfers.checking:
 		return _response(false, "器物变更仍在校验，请稍后再动手。")
 	if verb == "draw":
@@ -973,8 +1008,7 @@ func consider_methods() -> void:
 			var stock: Dictionary = sim.stock_understanding(actor, "kitchen", "wood")
 			if not bool(stock.known) or float(stock.amount) > 0:
 				continue
-			var objects_seen: Array = objects.keys()
-			objects_seen.sort()
+			var objects_seen: Array[String] = legacy_object_ids()
 			for id: String in objects_seen:
 				var definition: Dictionary = definitions.types[objects[id].definition]
 				if not type_has_capability(definition, "heat_storage"):

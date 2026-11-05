@@ -46,6 +46,9 @@ func _fixture(runner: Object) -> Dictionary:
 		return fixture
 	var runtime: WorldContinuityRuntime = fixture.continuity
 	runtime.world_sim.artifacts.objects[SWORD] = {"definition": "wooden_sword", "region": "home", "container": "dorm"}
+	# This fixture directly injects a legacy test object; rebuild derived IDs as
+	# the real opening/restore paths do before asking the local view to find it.
+	runtime.world_sim.artifacts._rebuild_light_sources()
 	fixture.player.spawn_at(SimRouteTravel.cell(fixture.home.simulation.places.dorm.cell))
 	runtime.prepare_player_command()
 	return fixture
@@ -230,6 +233,7 @@ func _hidden_peer_layout(runner: Object) -> void:
 	runtime.prepare_player_command()
 	var ring_id: String = "tool:hidden_ring"
 	domain.objects[ring_id] = {"definition": "drawing_ring", "region": "home", "container": "dorm"}
+	domain._rebuild_light_sources()
 	runner.assert_true(domain.object_cell(ring_id) == target, "the hidden ring and visible sword occupy the same actual cell")
 	runner.assert_true(adapter._visible(SWORD) and adapter._visible("amber_pearl"), "ordinary co-located objects remain visible")
 	runner.assert_true(not adapter._visible(ring_id), "the ring's genuine sight requirement fails at the blocking cell")
@@ -243,6 +247,7 @@ func _hidden_peer_layout(runner: Object) -> void:
 	runner.assert_eq(adapter.selected_object, "amber_pearl", "cycle button signal uses visible hits and excludes the unseen ring")
 	runner.assert_eq(_canonical(runtime), before, "cycling past the unseen peer does not discover it or change world state")
 	domain.objects.erase(ring_id)
+	domain._rebuild_light_sources()
 	before = _canonical(runtime)
 	runner.assert_true(adapter._display_point(SWORD).is_equal_approx(sword_with_hidden), "removing an unseen co-located ring does not move the visible sword")
 	runner.assert_true(adapter._display_point("amber_pearl").is_equal_approx(pearl_with_hidden), "removing an unseen co-located ring does not move the visible pearl")
@@ -348,6 +353,7 @@ func _pointer_input(runner: Object) -> void:
 	var target_id: String = "training_sword" if runtime.world_sim.artifacts.objects.has("training_sword") else SWORD
 	if target_id == SWORD:
 		runtime.world_sim.artifacts.objects[SWORD] = {"definition": "wooden_sword", "region": "home", "container": "dorm"}
+		runtime.world_sim.artifacts._rebuild_light_sources()
 	var target: Vector2i = runtime.world_sim.artifacts.object_cell(target_id)
 	main.player.spawn_at(target)
 	runtime.prepare_player_command()

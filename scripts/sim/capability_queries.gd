@@ -278,7 +278,7 @@ static func _instance(id: String, label: String, kind: String, content_id: Strin
 
 static func _known_stones(world: RefCounted, actor: String) -> Array[String]:
 	var result: Array[String] = []
-	for id: String in _sorted(world.artifacts.objects):
+	for id: String in world.artifacts.legacy_object_ids():
 		if not _thermal(world.artifacts, id) or not world.artifacts.can_see(actor, id):
 			continue
 		var item: Dictionary = world.artifacts.objects[id]
@@ -304,7 +304,7 @@ static func _drawing(world: RefCounted, actor: String, node: Dictionary) -> void
 		elif event.kind == "studied":
 			studied = true
 			node.sources.append(_source("outer_form", "artifacts", str(event.id), int(event.at_ms), actor, actor, str(event.object)))
-	for id: String in _sorted(artifacts.objects):
+	for id: String in artifacts.legacy_object_ids():
 		if not artifacts.has_capability(id, "remote_draw"):
 			continue
 		var item: Dictionary = artifacts.objects[id]

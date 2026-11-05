@@ -152,6 +152,94 @@
       "uses": {
         "dry": {"workplace": "garden", "heat_cost": 1, "inputs": {"herb": 2}, "outputs": {"dried_herb": 2}, "credited_action": "", "success_line": "原草药缓缓失去水气，两份干药已留在药圃；这份工艺记录不等于功德堂已经记功。", "failure_line": "原草药不足或腾放位置不够，烘药没有做成；石中余热未耗掉。"}
       }
+    },
+    "plain_slate": {
+      "name": "素石片",
+      "unknown_name": "素石片",
+      "appearance": "未加工石料，形状和占地可直接观察。",
+      "method": "基础实物；搬运和放置不赋予它战斗或灵气功能。",
+      "material_cue": "石料的外形与纹理。",
+      "capabilities": [
+        "physical"
+      ],
+      "storage_place": "dorm",
+      "actions": {
+        "inspect": {
+          "label": "查看外形",
+          "minutes": 1,
+          "qi": 0
+        },
+        "take": {
+          "label": "收起实物",
+          "minutes": 1,
+          "qi": 0
+        },
+        "place": {
+          "label": "放下实物",
+          "minutes": 1,
+          "qi": 0
+        },
+        "study": {
+          "label": "熟悉材质",
+          "minutes": 1,
+          "qi": 0
+        },
+        "examine": {
+          "label": "辨看纹理",
+          "minutes": 1,
+          "qi": 0
+        }
+      },
+      "placement": {
+        "footprint": [
+          1,
+          1
+        ]
+      }
+    },
+    "stone_slab": {
+      "name": "长石板",
+      "unknown_name": "长石板",
+      "appearance": "未加工石料，形状和占地可直接观察。",
+      "method": "基础实物；搬运和放置不赋予它战斗或灵气功能。",
+      "material_cue": "石料的外形与纹理。",
+      "capabilities": [
+        "physical"
+      ],
+      "storage_place": "dorm",
+      "actions": {
+        "inspect": {
+          "label": "查看外形",
+          "minutes": 1,
+          "qi": 0
+        },
+        "take": {
+          "label": "收起实物",
+          "minutes": 1,
+          "qi": 0
+        },
+        "place": {
+          "label": "放下实物",
+          "minutes": 1,
+          "qi": 0
+        },
+        "study": {
+          "label": "熟悉材质",
+          "minutes": 1,
+          "qi": 0
+        },
+        "examine": {
+          "label": "辨看纹理",
+          "minutes": 1,
+          "qi": 0
+        }
+      },
+      "placement": {
+        "footprint": [
+          2,
+          1
+        ]
+      }
     }
   }
 }

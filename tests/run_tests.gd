@@ -317,6 +317,26 @@ func test_object_spatial_snapshot() -> void:
 	load("res://tests/sim/test_object_spatial_snapshot.gd").new().run(self)
 
 
+func test_ground_placements() -> void:
+	load("res://tests/sim/test_ground_placements.gd").new().run(self)
+
+
+func test_object_lifecycle() -> void:
+	load("res://tests/sim/test_object_lifecycle.gd").new().run(self)
+
+
+func test_object_actions() -> void:
+	load("res://tests/sim/test_object_actions.gd").new().run(self)
+
+
+func test_object_lifecycle_import() -> void:
+	load("res://tests/runtime/test_object_lifecycle_import.gd").new().run(self)
+
+
+func test_object_lifecycle_continuity() -> void:
+	load("res://tests/runtime/test_object_lifecycle_continuity.gd").new().run(self)
+
+
 func test_map_descriptor_factory() -> void:
 	load("res://tests/sim/test_map_descriptor_factory.gd").new().run(self)
 

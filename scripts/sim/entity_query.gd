@@ -151,7 +151,14 @@ static func _artifact(world: RegionalSimulation, id: String) -> Dictionary:
 	var point: Variant
 	var location_owner: String
 	var location_time: int
-	if container.begins_with("site:"):
+	if container.begins_with("ground:"):
+		var slot: Dictionary = world.object_lifecycle.ground.locate(region, container)
+		if not bool(slot.ok) or not bool(slot.active) or slot.reference != {"kind": "artifact", "id": id}:
+			return _failure("invalid_location")
+		point = TileGrid.cell_to_world(slot.cell)
+		location_owner = "ground_placements"
+		location_time = world.elapsed_ms
+	elif container.begins_with("site:"):
 		# A field slot owns this location, not a duplicate inventory container.
 		if world.field_opportunities == null:
 			return _failure("invalid_location")

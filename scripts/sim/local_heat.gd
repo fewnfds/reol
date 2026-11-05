@@ -294,7 +294,10 @@ func _device_objects() -> Dictionary:
 	var artifacts: Variant = world.get("artifacts") if world != null else null
 	if artifacts == null or not artifacts.get("objects") is Dictionary or not artifacts.get("definitions") is Dictionary:
 		return result
-	for id: String in artifacts.objects:
+	# New lifecycle physical props cannot have thermal_exchange. Do not scan
+	# every decorative/ground object for a bounded legacy device protocol.
+	var candidates: Array = artifacts.legacy_object_ids() if artifacts is SimArtifacts else artifacts.objects.keys()
+	for id: String in candidates:
 		var item: Dictionary = artifacts.objects[id]
 		var rule: Dictionary = artifacts.definitions.types.get(item.definition, {})
 		if rule.get("capabilities", []).has("thermal_exchange"):

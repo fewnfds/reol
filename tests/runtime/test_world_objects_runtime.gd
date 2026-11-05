@@ -35,6 +35,18 @@ class ReloadDuringVisibility extends SimArtifacts:
 		return super.object_cell(id)
 
 
+class MaskFog extends FogOfWar:
+	var hidden_cells: Dictionary = {}
+
+	func is_cell_visible(cell: Vector2i) -> bool:
+		return not hidden_cells.has(cell)
+
+
+class BudgetLimitedLifecycle extends SimObjectLifecycle:
+	func artifact_candidates(_center: Vector2i, _radius: int, _budget: int = 4096) -> Dictionary:
+		return {"ok": false, "reason": "budget_exhausted"}
+
+
 func run(runner: Object) -> void:
 	var fixtures := Fixtures.new()
 	var fixture: Dictionary = fixtures._fixture(runner)
@@ -97,7 +109,60 @@ func run(runner: Object) -> void:
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
 	fixtures._dispose(fixture)
 	_test_reentrant_load_during_visibility(runner)
+	_test_local_view_and_footprints(runner)
 	print("SCENARIO object UI: approach→take→investigate, no duplicate body owner, manual cancel and joint resume")
+
+
+func _test_local_view_and_footprints(runner: Object) -> void:
+	var fixtures := Fixtures.new()
+	var fixture: Dictionary = fixtures._fixture(runner)
+	if fixture.is_empty():
+		return
+	var adapter: WorldContinuityRuntime = fixture.continuity
+	var view: WorldObjectsRuntime = adapter.object_adapter
+	var authority: RegionalSimulation = adapter.world_sim
+	var lifecycle: SimObjectLifecycle = authority.object_lifecycle
+	adapter.prepare_player_command()
+	var center: Vector2i = adapter.controlled_cell()
+	var chosen := Vector2i(-1, -1)
+	for y: int in range(center.y - 2, center.y + 2):
+		for x: int in range(center.x - 2, center.x + 2):
+			if bool(lifecycle.ground.can_place("home", Vector2i(x, y), Vector2i(2, 1)).get("ok", false)):
+				chosen = Vector2i(x, y)
+				break
+		if chosen.x >= 0:
+			break
+	runner.assert_true(chosen.x >= 0, "local fixture has room for a real two-cell placement")
+	if chosen.x >= 0:
+		var spawn: Dictionary = lifecycle.execute({"command": "view_slab", "op": "spawn", "id": "view_slab", "definition": "stone_slab", "to": {"region": "home", "cell": [chosen.x, chosen.y]}})
+		runner.assert_true(bool(spawn.get("ok", false)), "local view starts with a real lifecycle-managed slab")
+		var distant: Vector2i = center + Vector2i(15, 15)
+		var far_spawn: Dictionary = lifecycle.execute({"command": "view_far", "op": "spawn", "id": "view_far", "definition": "plain_slate", "to": {"region": "home", "cell": [distant.x, distant.y]}})
+		runner.assert_true(bool(far_spawn.get("ok", false)), "local view fixture also has a distant managed object")
+		if bool(spawn.get("ok", false)) and bool(far_spawn.get("ok", false)):
+			var candidates: Array[String] = view._local_candidates(authority)
+			runner.assert_true(candidates.has("view_slab") and not candidates.has("view_far"), "nearby managed objects are queried without enumerating distant managed objects")
+			runner.assert_eq(view._physical_ground_rect("view_slab", authority), Rect2i(chosen, Vector2i(2, 1)), "one drawn object uses its original two-cell footprint")
+			var other: Vector2i = chosen + Vector2i.RIGHT
+			runner.assert_true(view._visible_hits(TileGrid.cell_to_world(chosen), authority).has("view_slab"), "the first visible footprint cell can be selected")
+			runner.assert_true(view._visible_hits(TileGrid.cell_to_world(other), authority).has("view_slab"), "the other visible footprint cell selects the same object")
+			var fog := MaskFog.new()
+			fixture.home._fog = fog
+			fog.hidden_cells[other] = true
+			runner.assert_true(view._visible_hits(TileGrid.cell_to_world(chosen), authority).has("view_slab"), "the visible part of the same footprint stays selectable")
+			runner.assert_true(not view._visible_hits(TileGrid.cell_to_world(other), authority).has("view_slab"), "the hidden footprint cell cannot be selected through fog")
+			fixture.home._fog = null
+			fog.free()
+			var carried: Dictionary = lifecycle.execute({"command": "view_carry", "op": "move", "id": "view_slab", "from": spawn.to, "to": {"region": "home", "container": "actor:player"}})
+			runner.assert_true(bool(carried.get("ok", false)), "the same original slab may move into the actor container")
+			if bool(carried.get("ok", false)):
+				runner.assert_eq(view._physical_ground_rect("view_slab", authority).size, Vector2i.ZERO, "a carried object no longer renders a ground footprint")
+				runner.assert_true(view._local_candidates(authority).has("view_slab"), "the carried original remains in the local candidate query")
+	var limited := BudgetLimitedLifecycle.new()
+	authority.object_lifecycle = limited
+	runner.assert_true(view._local_candidates(authority).is_empty() and view._visible_display_points(authority).is_empty(), "a budget-exhausted local query does not fall back to an unrestricted scan")
+	authority.object_lifecycle = lifecycle
+	fixtures._dispose(fixture)
 
 
 func _test_reentrant_load_during_visibility(runner: Object) -> void:

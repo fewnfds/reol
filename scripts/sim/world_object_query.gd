@@ -118,8 +118,11 @@ static func _entity(world: RegionalSimulation, reference: Dictionary) -> Diction
 		definition_id = item.definition
 		namespace_name = "artifact_definition"
 		# A container anchor is not a floor pile or navigation occupancy.
-		relation = "placed" if str(row.container).begins_with("site:") else "contained"
+		relation = "placed" if str(row.container).begins_with("site:") or str(row.container).begins_with("ground:") else "contained"
 		layer = "ground" if relation == "placed" else "container"
+		if str(row.container).begins_with("ground:"):
+			var slot: Dictionary = world.object_lifecycle.ground.locate(item.region, item.container)
+			cells = SimObjectLifecycle.ground_cells(world.object_lifecycle.ground.slots[item.container])
 	else:
 		if world.embodiment == null:
 			return _failure("domain_unavailable")
@@ -157,7 +160,10 @@ static func _stock(world: RegionalSimulation, reference: Dictionary) -> Dictiona
 	if not Shape.count(amount):
 		return _failure("invalid_source")
 	var cells: Array[Vector2i] = [row.cell]
-	return _finish(row, reference, "stock_entry", cells, "container", "contained", "inventory_entry",
+	var on_ground: bool = str(reference.container).begins_with("ground:")
+	if on_ground and int(amount) == 0:
+		return _failure("not_found")
+	return _finish(row, reference, "stock_entry", cells, "ground" if on_ground else "container", "placed" if on_ground else "contained", "inventory_entry",
 		["quantity_record"], {"item_type": reference.item, "quantity": int(amount), "independent_instance": false})
 
 

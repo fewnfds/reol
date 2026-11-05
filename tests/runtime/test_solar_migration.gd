@@ -191,9 +191,9 @@ func _rejections(runner: Object, runtime: WorldContinuityRuntime, prior: Diction
 
 func _prior_climate(current: Dictionary) -> Dictionary:
 	var climate: Dictionary = SolarProjection.prior_climate(current)
-	if current.get("schema_version") != 50 or climate.is_empty():
+	var prior: Dictionary = SolarProjection.prior_lifecycle(current)
+	if prior.is_empty() or climate.is_empty():
 		return {}
-	var prior: Dictionary = current.duplicate(true)
 	prior.schema_version = 49
 	prior.content_bundle.documents[CLIMATE_PATH] = climate
 	prior.content_bundle = ReolContentBundle.from_documents(prior.content_bundle.documents)
@@ -205,12 +205,17 @@ func _prior_climate(current: Dictionary) -> Dictionary:
 
 
 func _assert_converted(runner: Object, prior: Dictionary, current: Dictionary, label: String) -> void:
-	runner.assert_eq(int(current.schema_version), 50, label + " reaches root50")
+	runner.assert_eq(int(current.schema_version), SessionSaveSchema.VERSION, label + " reaches the current root")
 	runner.assert_eq(int(current.content_bundle.documents[CLIMATE_PATH].version), 2, label + " binds climate v2")
 	runner.assert_eq(_json(current.content_bundle.documents[CLIMATE_PATH].solar), _json(SolarProjection.IMPORT_SOLAR), label + " uses the independently fixed import defaults")
 	if current.has("continuity"):
+		runner.assert_eq(int(current.continuity.world.version), 42, label + " reaches regional v42")
+		runner.assert_eq(_json(current.continuity.world.object_lifecycle), _json(SimObjectLifecycle.empty_state()), label + " gains only the explicit empty lifecycle")
 		runner.assert_eq(int(current.continuity.world.environment.rules_version), 2, label + " binds the sampled environment to climate v2")
-	runner.assert_eq(_json(_prior_climate(current)), _json(prior), label + " retains every original session value after projecting only solar and its rule version")
+		var changed: Dictionary = current.duplicate(true)
+		changed.continuity.world.object_lifecycle.receipts["new_receipt"] = {}
+		runner.assert_true(_prior_climate(changed).is_empty(), label + " refuses to hide newer lifecycle data in a historical projection")
+	runner.assert_eq(_json(_prior_climate(current)), _json(prior), label + " retains every original session value after projecting the empty lifecycle and fixed solar addition")
 
 
 func _json(value: Variant) -> String:

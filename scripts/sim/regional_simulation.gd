@@ -4,7 +4,7 @@ extends RefCounted
 ## Scene adapters may disappear; these instances and their pending work remain.
 
 const DEFINITIONS_VERSION: int = 1
-const SCHEMA_VERSION: int = 41
+const SCHEMA_VERSION: int = 42
 const MINUTE_MS: int = 60000
 const MAX_COUNT: int = SimInventory.MAX_COUNT
 const Services = preload("res://scripts/sim/services/settlement_services.gd")
@@ -23,6 +23,7 @@ const ACTIVITY_PROFILES: Dictionary = {
 	&"stationary": ActivityScope.STATIONARY, &"wait": ActivityScope.WAIT,
 }
 const ACTIVITY_DOMAINS: Dictionary = {
+	&"object_lifecycle": ActivityScope.LOCAL | ActivityScope.BODY | ActivityScope.PLAYER_ACTION | ActivityScope.AUTOMATIC_MOTION | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION | ActivityScope.STATIONARY | ActivityScope.WAIT | ActivityScope.RETURN_AUTONOMY,
 	&"private_exchange": ActivityScope.LOCAL | ActivityScope.BODY | ActivityScope.PLAYER_ACTION | ActivityScope.AUTOMATIC_MOTION | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION | ActivityScope.STATIONARY | ActivityScope.RETURN_AUTONOMY,
 	&"field_opportunities": ActivityScope.LOCAL | ActivityScope.BODY | ActivityScope.PLAYER_ACTION | ActivityScope.AUTOMATIC_MOTION | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION | ActivityScope.STATIONARY | ActivityScope.RETURN_AUTONOMY,
 	&"capability_practice": ActivityScope.LOCAL | ActivityScope.BODY | ActivityScope.PLAYER_ACTION | ActivityScope.AUTOMATIC_MOTION | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION | ActivityScope.STATIONARY | ActivityScope.RETURN_AUTONOMY,
@@ -42,6 +43,7 @@ const ACTIVITY_DOMAINS: Dictionary = {
 }
 const SPARRING_PHASE_SCOPES: int = ActivityScope.PLAYER_ACTION | ActivityScope.AUTOMATIC_MOTION | ActivityScope.MANUAL_ACTION
 const SNAPSHOT_DOMAINS: Array[StringName] = [
+	&"object_lifecycle",
 	&"embodiment", &"artifacts", &"heat_methods", &"method_records", &"large_bodies",
 	&"personal_production", &"budgeted_labor", &"autonomous_livelihood", &"clothing",
 	&"health", &"environment", &"local_heat", &"spirit_sources", &"sparring", &"conflicts",
@@ -51,6 +53,7 @@ const SNAPSHOT_DOMAINS: Array[StringName] = [
 # Keep query order stable too: a future derived cache must not silently turn
 # next-boundary collection into an unordered set of domain callbacks.
 const BOUNDARY_DOMAINS: Array[StringName] = [
+	&"object_lifecycle",
 	&"artifacts", &"sparring", &"avian_life", &"soul_vessels", &"admissions",
 	&"construction", &"resting", &"weather", &"standing_work", &"large_bodies",
 	&"method_records", &"personal_production", &"budgeted_labor", &"clothing",
@@ -88,6 +91,7 @@ var embodiment: SimEmbodiment
 var artifacts: SimArtifacts
 ## Session hooks survive an in-place restore; candidates have separate hooks.
 var artifact_transfers := SimArtifactTransfers.new()
+var object_lifecycle: SimObjectLifecycle
 var heat_methods: SimHeatMethods
 var sparring: SimSparring
 var avian_life: SimAvianLife
@@ -158,6 +162,9 @@ func initialize(definitions: Dictionary, instances: Dictionary, content: ReolCon
 	embodiment = next_embodiment
 	settings = definitions.duplicate(true)
 	regions = instances.duplicate()
+	object_lifecycle = SimObjectLifecycle.new()
+	if not object_lifecycle.initialize(self):
+		return false
 	artifacts = SimArtifacts.new()
 	if not artifacts.initialize(self, content.artifacts):
 		errors.append("Invalid artifact definitions")
@@ -324,7 +331,7 @@ func interrupt_occupation(actor: String, reason: String) -> void:
 		field_opportunities.cancel(actor, reason)
 	if private_exchange != null:
 		private_exchange.cancel(actor, reason)
-	for domain: RefCounted in [artifacts, soul_vessels, admissions, construction, resting, clothing, health, spirit_sources, method_records, personal_production]:
+	for domain: RefCounted in [object_lifecycle, artifacts, soul_vessels, admissions, construction, resting, clothing, health, spirit_sources, method_records, personal_production]:
 		if domain != null:
 			domain.cancel(actor)
 	if sparring != null and sparring.owns_actor(actor):
@@ -570,6 +577,7 @@ func _settle_previous_interval() -> bool:
 
 
 func _settle_current_processes() -> void:
+	object_lifecycle.settle_at_ms(elapsed_ms)
 	# This is the original same-millisecond order, including reading/method
 	# consideration between sparring and animal life. Do not sort these calls.
 	if services != null:
@@ -891,6 +899,8 @@ func to_dict() -> Dictionary:
 
 
 func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: bool = false) -> bool:
+	if data.get("version") != SCHEMA_VERSION and data.has("object_lifecycle"):
+		return false
 	# Validation constructs an entirely separate world. Failed loads preserve
 	# existing regional objects, inventory and pending deliveries.
 	if legacy_heat_v1 or legacy_heat_v2:
@@ -926,6 +936,7 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 					return false
 		data = data.duplicate(true)
 		data.version = SCHEMA_VERSION
+		data["object_lifecycle"] = SimObjectLifecycle.empty_state()
 		data.artifacts.version = SimArtifacts.VERSION
 		data.environment.version = SimEnvironment.VERSION
 		for saved: Dictionary in data.regions.values():
@@ -941,7 +952,16 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 			return false
 		data = data.duplicate(true)
 		data.version = SCHEMA_VERSION
+		data["object_lifecycle"] = SimObjectLifecycle.empty_state()
 		data.artifacts.version = SimArtifacts.VERSION
+	elif data.get("version") == 41:
+		# Finite input conversion: genuine previous state only, never patch a
+		# malformed current archive or let an old label conceal new-domain data.
+		if data.has("object_lifecycle"):
+			return false
+		data = data.duplicate(true)
+		data.version = SCHEMA_VERSION
+		data["object_lifecycle"] = SimObjectLifecycle.empty_state()
 	# Ordinary regional restore accepts only the current schema. Earlier
 	# versions require their root migration and explicit thermal import.
 	if _content == null or not _valid_world_shape(data):
@@ -969,9 +989,14 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 		var health_scope: Dictionary = SimHealth.Schema.inventory_scope(data.health, region_id, _content.health)
 		var labor_scope: Dictionary = SimBudgetedLabor.Schema.inventory_scope(data.budgeted_labor, region_id)
 		var exchange_scope: Dictionary = SimPrivateExchange.Schema.inventory_scope(data.private_exchange, region_id)
+		var lifecycle_scope: Dictionary = SimObjectLifecycle.inventory_scope(data.object_lifecycle, region_id)
 		for field: String in ["containers", "operations", "reservations"]:
 			inventory_scope[field].merge(production_scope[field])
 			inventory_scope[field].merge(labor_scope[field])
+			for id: String in lifecycle_scope[field]:
+				if inventory_scope[field].has(id):
+					return false
+				inventory_scope[field][id] = true
 		inventory_scope["operations"].merge(health_scope.operations)
 		inventory_scope["reservations"].merge(exchange_scope.reservations)
 		inventory_scope["operations"].merge(exchange_scope.operations)
@@ -1013,6 +1038,11 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	candidate_world.in_transit = next_transit
 	candidate_world.embodiment = next_embodiment
 	candidate_world._content = _content
+	candidate_world.map_data = map_data
+	var next_lifecycle := SimObjectLifecycle.new()
+	if not next_lifecycle.initialize(candidate_world) or not next_lifecycle.restore(data.object_lifecycle):
+		return false
+	candidate_world.object_lifecycle = next_lifecycle
 	# Stage only the bounded record shape before services reconstruct their
 	# saved specifications; all causal references are checked after every owner.
 	var next_site := SimSiteAffairs.new()
@@ -1195,7 +1225,7 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 		return false
 	if not next_field.cross_valid():
 		return false
-	if not SimArtifacts.Schema.cross_valid(next_artifacts):
+	if not SimArtifacts.Schema.cross_valid(next_artifacts) or not next_lifecycle.cross_valid():
 		return false
 	private_exchange = next_exchange
 	private_exchange.bind_world(self)
@@ -1253,6 +1283,8 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	avian_life.bind_world(self)
 	artifacts = next_artifacts
 	artifacts.bind_world(self)
+	object_lifecycle = next_lifecycle
+	object_lifecycle.bind_world(self)
 	heat_methods = next_methods
 	heat_methods.bind_world(self)
 	method_records = next_records

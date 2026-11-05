@@ -72,4 +72,6 @@ static func convert(snapshot: Dictionary, restore_map_factory: Callable = Callab
 			return {}
 	elif VillageSimulation.from_snapshot(new_content, result.simulation) == null:
 		return {}
-	return result if SessionSaveSchema.is_valid_world(result) else {}
+	# Solar's historical output is root50; the session entry point applies the
+	# separate root50 -> root51 lifecycle import only after this proof succeeds.
+	return result if SessionSaveSchema._valid_solar_envelope(result, 50) else {}

@@ -1,5 +1,5 @@
 extends RefCounted
-## Test-only projection of the explicit root49-to-root50 solar addition.
+## Test-only projections of the root49 solar and root50 lifecycle additions.
 ## No historical samples or other climate values are discarded.
 
 const CLIMATE_PATH: String = "res://data/definitions/climate.json"
@@ -10,6 +10,26 @@ const IMPORT_SOLAR: Dictionary = {
 	"clear_transmission": 10000, "rain_transmission": 4500,
 	"roof_transmission": 1000
 }
+
+
+static func prior_lifecycle(snapshot: Dictionary) -> Dictionary:
+	# A comparison with an old archive may discard only the exact empty domain
+	# added by migration, never genuine newer ground positions or transactions.
+	if snapshot.get("schema_version") != 51:
+		return {}
+	if snapshot.has("continuity"):
+		var extra: Variant = snapshot.continuity
+		if not extra is Dictionary or not extra.get("world") is Dictionary or extra.world.get("version") != 42:
+			return {}
+		var empty: Dictionary = {"version": 1, "ground": {"version": 1, "slots": {}}, "receipts": {}, "created": {}, "actions": {}}
+		if SnapshotValues.normalized(extra.world.get("object_lifecycle")) != SnapshotValues.normalized(empty):
+			return {}
+	var result: Dictionary = snapshot.duplicate(true)
+	result.schema_version = 50
+	if result.has("continuity"):
+		result.continuity.world.erase("object_lifecycle")
+		result.continuity.world.version = 41
+	return result
 
 
 static func prior_climate(snapshot: Dictionary) -> Dictionary:

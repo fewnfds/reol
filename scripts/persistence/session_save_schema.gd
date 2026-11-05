@@ -2,7 +2,7 @@ class_name SessionSaveSchema
 extends RefCounted
 ## Explicit migrations at the session boundary. No file I/O or live mutations.
 
-const VERSION: int = 50
+const VERSION: int = 51
 
 
 static func capture_world(fog: FogOfWar, focus: Vector2i, terrain: WorldMapData = null) -> Dictionary:
@@ -26,14 +26,20 @@ static func upgrade(source: Dictionary, _content: ReolContentDB = null, restore_
 		return {}
 	if version == VERSION:
 		return _upgrade(source, null)
+	if version == 50:
+		return _import_object_lifecycle(source, restore_map_factory)
 	if version == 49:
-		return load("res://scripts/persistence/solar_import.gd").convert(source, restore_map_factory)
+		var solar: Dictionary = load("res://scripts/persistence/solar_import.gd").convert(source, restore_map_factory)
+		return _import_object_lifecycle(solar, restore_map_factory)
 	if version == 48:
 		var fixed_reference: Dictionary = _upgrade(source, null)
 		if fixed_reference.is_empty():
 			return {}
 		var v2_before_solar: Dictionary = load("res://scripts/persistence/thermal_import.gd").convert_v2(fixed_reference, restore_map_factory)
-		return {} if v2_before_solar.is_empty() else load("res://scripts/persistence/solar_import.gd").convert(v2_before_solar, restore_map_factory)
+		if v2_before_solar.is_empty():
+			return {}
+		var v2_solar: Dictionary = load("res://scripts/persistence/solar_import.gd").convert(v2_before_solar, restore_map_factory)
+		return _import_object_lifecycle(v2_solar, restore_map_factory)
 	var old: Dictionary = {}
 	if version == 47 or version == 46 or version == 45 or version == 44 or version == 43:
 		old = _upgrade(source, null)
@@ -49,7 +55,16 @@ static func upgrade(source: Dictionary, _content: ReolContentDB = null, restore_
 	if old.is_empty():
 		return {}
 	var before_solar: Dictionary = load("res://scripts/persistence/thermal_import.gd").convert(old, restore_map_factory)
-	return {} if before_solar.is_empty() else load("res://scripts/persistence/solar_import.gd").convert(before_solar, restore_map_factory)
+	if before_solar.is_empty():
+		return {}
+	var after_solar: Dictionary = load("res://scripts/persistence/solar_import.gd").convert(before_solar, restore_map_factory)
+	return _import_object_lifecycle(after_solar, restore_map_factory)
+
+
+static func _import_object_lifecycle(source: Dictionary, restore_map_factory: Callable) -> Dictionary:
+	if source.is_empty():
+		return {}
+	return load("res://scripts/persistence/object_lifecycle_import.gd").convert(source, restore_map_factory)
 
 
 static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
@@ -64,6 +79,10 @@ static func _upgrade(source: Dictionary, content: ReolContentDB) -> Dictionary:
 			if not source.continuity is Dictionary or not source.continuity.get("world") is Dictionary or source.continuity.world.get("version") != RegionalSimulation.SCHEMA_VERSION:
 				return {}
 		return source if is_valid_world(source) else {}
+	if version == 50:
+		# This is only an old-envelope boundary. Its regional version and the
+		# absence of the future lifecycle domain must be checked before import.
+		return source if _valid_solar_envelope(source, 50) else {}
 	if version == 49:
 		# The solar importer validates the complete old candidate and its
 		# original climate before changing any content or rules version.
@@ -881,7 +900,11 @@ static func _add_body_facing(sim: Variant) -> bool:
 
 
 static func is_valid_world(snapshot: Dictionary) -> bool:
-	if not _valid_world_fields(snapshot, VERSION):
+	return _valid_solar_envelope(snapshot, VERSION)
+
+
+static func _valid_solar_envelope(snapshot: Dictionary, expected_version: int) -> bool:
+	if not expected_version in [50, VERSION] or not _valid_world_fields(snapshot, expected_version):
 		return false
 	var climate: Variant = snapshot.content_bundle.documents.get("res://data/definitions/climate.json")
 	if not SimClimateRules.valid_definitions(climate):
@@ -889,6 +912,12 @@ static func is_valid_world(snapshot: Dictionary) -> bool:
 	if snapshot.has("continuity"):
 		var continuity: Variant = snapshot.continuity
 		if not continuity is Dictionary or not continuity.get("world") is Dictionary:
+			return false
+		var regional: Dictionary = continuity.world
+		if expected_version == 50:
+			if regional.get("version") != 41 or regional.has("object_lifecycle"):
+				return false
+		elif regional.get("version") != RegionalSimulation.SCHEMA_VERSION or not regional.get("object_lifecycle") is Dictionary:
 			return false
 		var environment: Variant = continuity.world.get("environment")
 		if not environment is Dictionary or environment.get("version") != SimEnvironment.VERSION or environment.get("rules_version") != 2:
