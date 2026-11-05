@@ -17,16 +17,20 @@ from urllib.parse import unquote, urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 ENTRY_FILES = (
     "project.godot", "README.md", "AGENTS.md", "docs/README.md",
-    "docs/BASELINE.md", "docs/PROJECT-STRUCTURE.md", "docs/ARCHITECTURE.md",
-    "docs/ROADMAP.md", "docs/plans/settlement_services.md",
+    "docs/status/handoff.md", "docs/status/baseline.md", "docs/status/features.md",
+    "docs/engineering/project-structure.md", "docs/engineering/architecture.md",
+    "docs/plans/roadmap.md", "docs/plans/foundation-priorities.md",
+    "docs/DOCUMENTATION.md", "design/vision.md", "design/rules/README.md",
     "design/README.md", "assets/README.md", "data/README.md",
     "scripts/README.md", "tests/README.md", "tests/run_tests.gd",
 )
 ROLE_DIRECTORIES = (
     "scripts/sim", "scripts/runtime", "scripts/persistence",
     "data/definitions", "data/scenarios", "tests/sim", "tests/runtime",
-    "design/systems", "design/research", "docs/plans", "docs/archive",
+    "design/rules", "design/systems", "design/research", "docs/plans",
+    "docs/status", "docs/engineering", "docs/specs", "docs/archive",
 )
+MAX_ACTIVE_DOCUMENT_BYTES = 16 * 1024
 MOVED_PATHS = {
     "scripts/sim/village_runtime.gd": "scripts/runtime/village_runtime.gd",
     "scripts/sim/world_continuity_runtime.gd": "scripts/runtime/world_continuity_runtime.gd",
@@ -140,6 +144,11 @@ def check_project(root: Path) -> tuple[list[str], int, int]:
             documents.add(root / name / "README.md")
     scripts = sorted(path for name in ("scripts", "tests") for path in (root / name).rglob("*.gd"))
     for path in sorted(documents):
+        relative = path.relative_to(root).as_posix()
+        # Evidence retains its original scope and wording; current guidance
+        # must instead be split into independently readable topic pages.
+        if not relative.startswith("docs/qa/") and path.stat().st_size > MAX_ACTIVE_DOCUMENT_BYTES:
+            issues.append(f"{relative}: active document exceeds {MAX_ACTIVE_DOCUMENT_BYTES} bytes; split by topic")
         issues.extend(check_markdown(path, root))
     for path in scripts:
         issues.extend(check_script(path, root))

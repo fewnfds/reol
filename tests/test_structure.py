@@ -109,11 +109,22 @@ class StructureTests(unittest.TestCase):
 
     def test_missing_responsibility_and_task_entry_is_rejected(self):
         self.project_entries()
-        (self.root / "docs/plans/settlement_services.md").unlink()
+        (self.root / "docs/plans/foundation-priorities.md").unlink()
         (self.root / "scripts/runtime").rmdir()
         issues = structure.check_project(self.root)[0]
-        self.assertTrue(any("settlement_services.md" in issue for issue in issues))
+        self.assertTrue(any("foundation-priorities.md" in issue for issue in issues))
         self.assertTrue(any("scripts/runtime" in issue for issue in issues))
+
+    def test_large_current_document_rejected_but_evidence_preserved(self):
+        self.project_entries()
+        text = "界" * (structure.MAX_ACTIVE_DOCUMENT_BYTES // 3 + 1)
+        self.write("design/systems/oversized.md", text)
+        evidence = self.write("docs/qa/old-measurement.md", text)
+        self.write("docs/archive/original.md", text)
+        issues = structure.check_project(self.root)[0]
+        self.assertEqual(len(issues), 1)
+        self.assertIn("design/systems/oversized.md: active document exceeds", issues[0])
+        self.assertEqual(evidence.read_text(encoding="utf-8"), text)
 
     def test_cli_returns_nonzero_without_mutating_broken_document(self):
         self.project_entries()

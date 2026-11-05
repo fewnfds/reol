@@ -259,7 +259,7 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
         print("Godot:    NOT FOUND")
         print("")
         print("Install Godot 4.7.2 (standard, not .NET) and set GODOT_BIN.")
-        print("See docs/TOOLCHAIN.md section 1.")
+        print("See docs/engineering/tooling/usage.md.")
         return 1
 
     version = godot_version(path)
