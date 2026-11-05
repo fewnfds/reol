@@ -113,6 +113,29 @@ func capable(carrier: String, capability: String) -> bool:
 	return _carriers.has(carrier) and _forms[_carriers[carrier].form].capabilities.has(capability)
 
 
+func carrier_traits(carrier: String) -> Dictionary:
+	# Authority-facing definition projection, never subject knowledge or control.
+	if not _carriers.has(carrier):
+		return {"ok": false, "reason": "not_found"}
+	var record: Dictionary = _carriers[carrier]
+	var form: Variant = _forms.get(record.get("form"))
+	if not form is Dictionary or not _unique_texts(form.get("capabilities")) or not form.get("footprint") is Array or form.footprint.size() != 2:
+		return {"ok": false, "reason": "invalid_source"}
+	for dimension: Variant in form.footprint:
+		if not SimInventory._valid_count(dimension, false):
+			return {"ok": false, "reason": "invalid_source"}
+	return {"ok": true, "form": record.form, "capabilities": form.capabilities.duplicate(), "footprint": footprint(carrier)}
+
+
+func recognizes_capability(capability: String) -> bool:
+	# Vocabulary comes from configured forms, including extensions, not names of
+	# particular people. A missing declaration is distinct from an unknown term.
+	for form: Dictionary in _forms.values():
+		if form.capabilities.has(capability):
+			return true
+	return false
+
+
 func footprint(carrier: String) -> Vector2i:
 	if not _carriers.has(carrier):
 		return Vector2i.ZERO

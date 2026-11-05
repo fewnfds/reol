@@ -309,6 +309,14 @@ func test_entity_query() -> void:
 	load("res://tests/sim/test_entity_query.gd").new().run(self)
 
 
+func test_world_object_query() -> void:
+	load("res://tests/sim/test_world_object_query.gd").new().run(self)
+
+
+func test_object_spatial_snapshot() -> void:
+	load("res://tests/sim/test_object_spatial_snapshot.gd").new().run(self)
+
+
 func test_map_descriptor_factory() -> void:
 	load("res://tests/sim/test_map_descriptor_factory.gd").new().run(self)
 

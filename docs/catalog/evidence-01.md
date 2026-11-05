@@ -59,6 +59,7 @@
 - [docs/qa/20261105_source_field_foundation.md](../qa/20261105_source_field_foundation.md)
 - [docs/qa/20261105_source_temperature_transition.md](../qa/20261105_source_temperature_transition.md)
 - [docs/qa/20261105_temperature_segments_and_budget.md](../qa/20261105_temperature_segments_and_budget.md)
+- [docs/qa/20261105_world_object_contract.md](../qa/20261105_world_object_contract.md)
 - [docs/qa/README.md](../qa/README.md)
 - [docs/qa/baseline-history/01-clock-and-source-field.md](../qa/baseline-history/01-clock-and-source-field.md)
 - [docs/qa/baseline-history/02-heat-storage-capacity.md](../qa/baseline-history/02-heat-storage-capacity.md)

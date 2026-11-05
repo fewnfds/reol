@@ -3,6 +3,7 @@
 本目录只放未来依赖和可验收的工作范围；实现范围看 [功能](../status/features.md)，当前任务看 [接续](../status/handoff.md)，证据看 [基线](../status/baseline.md)。
 
 - [基础优先级](foundation-priorities.md)：唯一的基础架构建议顺序。每次只排定一个小包，完成并报告后再讨论下一项。
+- [第一阶段详细实施](world-foundation/README.md)：通用世界骨架的分包步骤、验收和性能口径。
 - [路线图](roadmap.md)：从基础运行到游戏玩法、内容及发行的层次关系，不再维护第二套编号队列。
 - [长期产品目标](product/full-game.md)：完整世界与可玩切片的目标，尚不代表实现。
 - [产品验收](product/acceptance.md)：长期出口需要什么证据，不是当前待办列表。

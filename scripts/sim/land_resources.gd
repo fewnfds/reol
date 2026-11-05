@@ -38,6 +38,10 @@ static func container_id(id: String) -> String:
 	return PREFIX + id
 
 
+func bound_to(simulation: RefCounted) -> bool:
+	return _owner != null and _owner.get_ref() == simulation
+
+
 func terms_for(id: String) -> Dictionary:
 	var source: Dictionary = _sim.config.get("resource_sources", {}).get(id, {})
 	return definitions.types.get(str(source.get("definition", "")), {})

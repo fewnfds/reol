@@ -7,3 +7,5 @@
 - [时间、空间、行动与呈现](architecture/03-time-space-presentation.md)
 - [存读提交边界](architecture/04-persistence.md)
 - [历史细节及当时待办](../archive/engineering-context-20261105/architecture.md)
+
+- [对象与空间查询合同](object-query-contract.md)：跨原所有者的只读接口、声明能力与有界显式集合空间快照。

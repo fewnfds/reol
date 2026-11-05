@@ -122,6 +122,19 @@ var _local_action_owner: Callable
 var _manual_motion_executor: Callable
 
 
+func describe_object(reference: Variant) -> Dictionary:
+	# Authority/editor API. Observation and permission are separate contracts.
+	return SimWorldObjectQuery.describe(self, reference)
+
+
+func object_capability(reference: Variant, capability: String) -> Dictionary:
+	return SimWorldObjectQuery.capability(self, reference, capability)
+
+
+func capture_object_space(references: Array, budget: int = 4096) -> Dictionary:
+	return SimWorldObjectQuery.capture(self, references, budget)
+
+
 func bind_map_data(data: WorldMapData) -> void:
 	map_data = data
 	if data == null:
