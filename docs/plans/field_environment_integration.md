@@ -40,6 +40,7 @@ F2a-4已接按块packed输入与槽预算续算，最多64块候选统一发布�
 
 实施前同时处理下列调用点，不能只更换 `RegionalSimulation.local_heat` 构造：
 
+- 主时钟原先先发布时间再调用世界，无法承载pending；当前已单包接入唯一interval executor，按实际完成值发布、保留帧债/目标，并把自动路段投影移到真实子边界，证据见[共同时间QA](../qa/20261105_clock_world_commit.md)。这只完成必要时间接缝；新源动作同刻阶段、自动目标续段和Main新热替换仍需后续落实。
 - `WorldContinuityRuntime._new_world` 当前先初始化区域、后绑定地图并生成开局器物，而区域初始化已做首次草木采样；新场需要地图尺寸/seed和原物时，须把首次采样放到完整候选装配之后。该 runtime 的推进预检还直接读 `local_heat`，且先投影玩家旅途；欠算预检须早于旅途/手动移动/区域身体推进。
 - `TerrainEditorRuntime` 在改地前直接结算旧热域；施工 `can_change_topology/before_topology_change/after_topology_change`、连带塌顶与通行也需同刻接新域。没有真实房温时明确限制，不用空钩子冒称结构已参与完整室温。
 - `SimEnvironment` 的当前/未来/历史偏温、采样、上下界查询可以保留接口语义，数据必须读新唯一实际温度及保存的过去样本；`settle_at_ms` 的未就绪必须传到推进器，不能仍以void提前返回而继续时间。

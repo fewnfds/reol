@@ -495,10 +495,12 @@ func advance_to_ms(requested_ms: int, max_events: int = 4096) -> bool:
 		return false
 	target_ms = maxi(target_ms, requested_ms)
 	var processed: int = 0
-	while elapsed_ms < target_ms:
+	# A retained larger request is debt, not permission to overshoot this
+	# invocation's accepted interval (the shared clock may be resuming a slice).
+	while elapsed_ms < requested_ms:
 		if processed >= maxi(0, max_events):
 			return false
-		var next_ms: int = mini(target_ms, _next_boundary(target_ms))
+		var next_ms: int = mini(requested_ms, _next_boundary(requested_ms))
 		for region_id: String in regions:
 			if region_id == active_region:
 				_region_boundaries[region_id] = regions[region_id].next_boundary_ms()

@@ -15,9 +15,14 @@ const MINUTES_PER_DAY: int = 1440
 const MS_PER_MINUTE: int = 60000
 const STEP_EPSILON_RATIO: float = 1.0e-9
 const MAX_MINUTES_PER_FRAME: int = 8
+const MAX_EXPLICIT_INTERVALS: int = 4096
 const MAX_EXACT_INTEGER: int = 9007199254740991
 const SUPPORTED_SPEEDS: Array[float] = [1.0, 2.0, 4.0]
 const RULES_PATH: String = "res://data/definitions/local_actions.json"
+const PENDING_NONE: int = 0
+const PENDING_FRAME: int = 1
+const PENDING_EXPLICIT: int = 2
+const PENDING_WAIT: int = 3
 
 @export var start_minutes: int = 480
 var speed: float = 1.0
@@ -30,6 +35,15 @@ var _accumulator: float = 0.0
 var _rules: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(RULES_PATH))
 var _wait_guard: Callable
 var _has_wait_guard: bool = false
+var _interval_executor: Callable
+var _has_interval_executor: bool = false
+var _executor_required: bool = false
+var _advancing: bool = false
+var _pending_kind: int = PENDING_NONE
+var _pending_end_ms: int = 0
+var _frame_end_ms: int = 0
+var _explicit_target_ms: int = 0
+var _explicit_allow_paused: bool = false
 
 
 func _ready() -> void:
@@ -39,79 +53,233 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if paused or not is_finite(delta) or delta < 0.0:
+	if _advancing or not is_finite(delta) or delta < 0.0:
+		return
+	# An explicitly requested advance can start while paused. A new pause after
+	# it started, however, stops its continuation until the user resumes.
+	if paused and not (_explicit_target_ms > elapsed_ms and _explicit_allow_paused):
+		return
+	if not paused and wait_target_ms <= elapsed_ms:
+		# Debt uses world milliseconds and retains fractional frame conversion.
+		var incoming: float = delta * speed * 1000.0
+		var future: int = maxi(elapsed_ms, maxi(_explicit_target_ms, maxi(_pending_end_ms, _frame_end_ms)))
+		var reserved: int = future - elapsed_ms
+		if _frame_end_ms > elapsed_ms:
+			reserved = maxi(0, reserved - (_frame_end_ms - elapsed_ms))
+		if not is_finite(incoming) or incoming > float(MAX_EXACT_INTEGER - elapsed_ms - reserved) - _accumulator:
+			return
+		_accumulator += incoming
+	_advancing = true
+	_process_pending()
+	_advancing = false
+
+
+func _process_pending() -> void:
+	# Finish the exact interval previously offered to the executor before
+	# starting a different request, even if a wait was cancelled in the meantime.
+	if _pending_kind != PENDING_NONE:
+		if not _commit_pending() or _finish_wait_if_due():
+			return
+		if paused and not _explicit_allow_paused:
+			return
+	if _frame_end_ms > elapsed_ms and not _finish_frame_step(_explicit_allow_paused):
+		return
+	if _explicit_target_ms > elapsed_ms:
+		_drain_explicit(MAX_MINUTES_PER_FRAME)
+		if _explicit_target_ms > elapsed_ms or paused:
+			return
+	if paused:
 		return
 	if wait_target_ms > elapsed_ms:
 		var minute_budget: int = MAX_MINUTES_PER_FRAME
 		while wait_target_ms > elapsed_ms and minute_budget > 0 and not paused:
-			_commit_interval(mini(wait_target_ms, (tick_index + 1) * MS_PER_MINUTE))
+			_pending_kind = PENDING_WAIT
+			_pending_end_ms = mini(wait_target_ms, (tick_index + 1) * MS_PER_MINUTE)
 			minute_budget -= 1
-		if elapsed_ms == wait_target_ms:
-			cancel_wait()
-			set_paused(true)
+			if not _commit_pending() or _finish_wait_if_due():
+				return
 		return
-	# Debt uses world milliseconds and retains fractional frame conversion.
-	var incoming: float = delta * speed * 1000.0
-	if not is_finite(incoming) or incoming > MAX_EXACT_INTEGER - elapsed_ms - _accumulator:
-		return
-	_accumulator += incoming
 	var step: float = float(_rules.clock.fixed_step_ms)
 	var epsilon: float = step * STEP_EPSILON_RATIO
 	var budget: int = int(_rules.clock.steps_per_frame)
 	while _accumulator + epsilon >= step and budget > 0 and not paused:
-		_accumulator = maxf(0.0, _accumulator - step)
 		budget -= 1
-		advance_msec(int(step))
+		_frame_end_ms = elapsed_ms + int(step)
+		if not _finish_frame_step(false):
+			return
 	# Budgeting never discards debt, including a callback interruption.
+
+
+func _finish_frame_step(allow_paused: bool) -> bool:
+	while _frame_end_ms > elapsed_ms:
+		if paused and not allow_paused:
+			return false
+		_pending_kind = PENDING_FRAME
+		_pending_end_ms = mini(_frame_end_ms, (tick_index + 1) * MS_PER_MINUTE)
+		if not _commit_pending() or _finish_wait_if_due():
+			return false
+	_frame_end_ms = 0
+	return true
 
 
 func advance_ticks(count: int) -> void:
 	# Explicit synchronous simulation commands preserve the old minute API.
-	for _index in range(count):
-		advance_msec(MS_PER_MINUTE)
+	@warning_ignore("integer_division")
+	if count < 0 or count > MAX_EXACT_INTEGER / MS_PER_MINUTE:
+		return
+	advance_msec(count * MS_PER_MINUTE)
 
 
 func advance_msec(amount: int) -> void:
-	if amount < 0 or amount > MAX_EXACT_INTEGER - elapsed_ms:
+	if _advancing or amount <= 0:
 		return
-	var target: int = elapsed_ms + amount
-	while elapsed_ms < target:
-		_commit_interval(mini(target, (tick_index + 1) * MS_PER_MINUTE))
+	# Explicit commands add time after any already-requested interval. Its
+	# remaining frame debt is consumed by that interval, not by this command.
+	var base: int = maxi(elapsed_ms, maxi(_frame_end_ms, maxi(_pending_end_ms, _explicit_target_ms)))
+	if amount > MAX_EXACT_INTEGER - base:
+		return
+	var target: int = base + amount
+	var reserved_debt: float = _accumulator
+	if _frame_end_ms > elapsed_ms:
+		reserved_debt = maxf(0.0, reserved_debt - float(_frame_end_ms - elapsed_ms))
+	if reserved_debt > float(MAX_EXACT_INTEGER - target):
+		return
+	if _explicit_target_ms <= elapsed_ms:
+		_explicit_allow_paused = paused
+	_explicit_target_ms = target
+	_advancing = true
+	_drain_explicit(MAX_EXPLICIT_INTERVALS)
+	_advancing = false
 
 
-func _commit_interval(end: int) -> void:
+func _drain_explicit(budget: int) -> void:
+	if _pending_kind != PENDING_NONE:
+		if not _commit_pending() or _finish_wait_if_due():
+			return
+		budget -= 1
+	if _frame_end_ms > elapsed_ms and not _finish_frame_step(_explicit_allow_paused):
+		return
+	while _explicit_target_ms > elapsed_ms and budget > 0:
+		if paused and not _explicit_allow_paused:
+			return
+		_pending_kind = PENDING_EXPLICIT
+		_pending_end_ms = mini(_explicit_target_ms, (tick_index + 1) * MS_PER_MINUTE)
+		if wait_target_ms > elapsed_ms:
+			_pending_end_ms = mini(_pending_end_ms, wait_target_ms)
+		budget -= 1
+		if not _commit_pending() or _finish_wait_if_due():
+			return
+	if _explicit_target_ms <= elapsed_ms:
+		_explicit_target_ms = 0
+		_explicit_allow_paused = false
+
+
+func _commit_pending() -> bool:
+	var start: int = elapsed_ms
+	var end: int = _pending_end_ms
+	var committed: int = end
+	if _has_interval_executor:
+		if not _interval_executor.is_valid():
+			return false
+		var result: Variant = _interval_executor.call(start, end)
+		if not result is int or int(result) < start or int(result) > end:
+			return false
+		committed = int(result)
+	elif _executor_required:
+		return false
+	if committed == start:
+		return false
 	var previous_hour: int = get_hour()
 	var previous_day: int = get_day()
-	var start: int = elapsed_ms
-	elapsed_ms = end
-	time_advanced.emit(start, end)
+	if _pending_kind == PENDING_FRAME:
+		_accumulator = maxf(0.0, _accumulator - float(committed - start))
+	elapsed_ms = committed
+	var completed: bool = committed == end
+	if completed:
+		_pending_kind = PENDING_NONE
+		_pending_end_ms = 0
+		if _frame_end_ms == committed:
+			_frame_end_ms = 0
 	@warning_ignore("integer_division")
 	var minute: int = elapsed_ms / MS_PER_MINUTE
+	var advanced_minute: bool = minute > tick_index
 	if minute > tick_index:
 		total_minutes += minute - tick_index
 		tick_index = minute
+	time_advanced.emit(start, committed)
+	if advanced_minute:
 		tick.emit(tick_index)
 	if get_hour() != previous_hour:
 		hour_changed.emit(get_hour())
 	if get_day() != previous_day:
 		day_changed.emit(get_day())
+	return completed
+
+
+func _finish_wait_if_due() -> bool:
+	if wait_target_ms == 0 or elapsed_ms < wait_target_ms:
+		return false
+	cancel_wait()
+	_explicit_allow_paused = false
+	set_paused(true)
+	return true
+
+
+func bind_interval_executor(provider: Callable) -> bool:
+	if _advancing or not provider.is_valid():
+		return false
+	if _has_interval_executor:
+		return provider == _interval_executor
+	_interval_executor = provider
+	_has_interval_executor = true
+	_executor_required = false
+	return true
+
+
+func unbind_interval_executor(provider: Callable) -> bool:
+	if _advancing or not _has_interval_executor or provider != _interval_executor:
+		return false
+	_executor_required = has_pending_advance()
+	_interval_executor = Callable()
+	_has_interval_executor = false
+	return true
+
+
+func has_pending_advance() -> bool:
+	return _advancing or _pending_kind != PENDING_NONE or _frame_end_ms > elapsed_ms or _explicit_target_ms > elapsed_ms
+
+
+func is_advancing() -> bool:
+	# A session loader must refuse before replacing its world, not discover
+	# the reentry only when it eventually tries to restore this clock.
+	return _advancing
 
 
 func bind_wait_guard(provider: Callable) -> void:
+	if _advancing:
+		return
 	_wait_guard = provider
 	_has_wait_guard = true
 
 
 func request_wait(minutes: int = -1) -> bool:
+	if _advancing:
+		return false
 	if _has_wait_guard and (not _wait_guard.is_valid() or not bool(_wait_guard.call())):
 		return false
 	if minutes == -1:
 		minutes = int(_rules.clock.wait_minutes)
 	@warning_ignore("integer_division")
-	var maximum_minutes: int = (MAX_EXACT_INTEGER - elapsed_ms) / MS_PER_MINUTE
+	var base: int = maxi(elapsed_ms, maxi(_frame_end_ms, maxi(_pending_end_ms, _explicit_target_ms)))
+	var maximum_minutes: int = (MAX_EXACT_INTEGER - base) / MS_PER_MINUTE
 	if minutes < 1 or minutes > maximum_minutes:
 		return false
-	wait_target_ms = elapsed_ms + minutes * MS_PER_MINUTE
+	var reserved_debt: float = _accumulator
+	if _frame_end_ms > elapsed_ms:
+		reserved_debt = maxf(0.0, reserved_debt - float(_frame_end_ms - elapsed_ms))
+	if reserved_debt > float(MAX_EXACT_INTEGER - base - minutes * MS_PER_MINUTE):
+		return false
+	wait_target_ms = base + minutes * MS_PER_MINUTE
 	wait_changed.emit(true)
 	set_paused(false)
 	return true
@@ -183,12 +351,13 @@ static func _integer(value: Variant) -> bool:
 
 
 func restore_state(data: Dictionary) -> bool:
-	if not is_valid_state(data):
+	if _advancing or not is_valid_state(data):
 		return false
 	if data.size() == 4:
 		data = upgrade_legacy(data)
 		if data.is_empty():
 			return false
+	_advancing = true
 	tick_index = int(data.tick_index)
 	total_minutes = int(data.total_minutes)
 	speed = float(data.speed)
@@ -196,6 +365,12 @@ func restore_state(data: Dictionary) -> bool:
 	elapsed_ms = int(data.elapsed_ms)
 	_accumulator = float(data.frame_debt_ms)
 	wait_target_ms = int(data.wait_target_ms)
+	_pending_kind = PENDING_NONE
+	_pending_end_ms = 0
+	_frame_end_ms = 0
+	_explicit_target_ms = 0
+	_explicit_allow_paused = false
+	_executor_required = false
 	if is_inside_tree():
 		get_tree().paused = paused
 	speed_changed.emit(speed)
@@ -203,6 +378,7 @@ func restore_state(data: Dictionary) -> bool:
 	wait_changed.emit(wait_target_ms > elapsed_ms)
 	hour_changed.emit(get_hour())
 	day_changed.emit(get_day())
+	_advancing = false
 	return true
 
 
@@ -210,6 +386,8 @@ func set_paused(value: bool) -> void:
 	if paused == value:
 		return
 	paused = value
+	if not value:
+		_explicit_allow_paused = false
 	if is_inside_tree():
 		get_tree().paused = value
 	paused_changed.emit(value)

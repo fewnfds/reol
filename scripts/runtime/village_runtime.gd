@@ -35,6 +35,7 @@ var _visual_starts: Dictionary[String, Vector2] = {}
 var _visual_targets: Dictionary[String, Vector2] = {}
 var _visual_progress: float = 1.0
 var _shared_motion_world: WeakRef
+var _clock_interval_had_events: bool = false
 
 
 func setup(
@@ -81,7 +82,11 @@ func setup(
 		return false
 	simulation = next_simulation
 	simulation.set_navigation(_find_path, _world.can_step)
+	if not GameClock.bind_interval_executor(_execute_clock_interval):
+		push_error("VillageRuntime: the common clock already has an executor")
+		return false
 	_player.bind_locomotion(_world, GameClock, _player_actor, _player_can_act, _automatic_player_motion, _player_walking_projection, _player_can_continue_action)
+	_player.set_shared_motion_executor(true)
 	if not _player.manual_movement_started.is_connected(cancel_player_action):
 		_player.manual_movement_started.connect(cancel_player_action)
 	if not _player.cell_changed.is_connected(_sync_player_cell):
@@ -92,6 +97,13 @@ func setup(
 	_refresh_panel()
 	queue_redraw()
 	return true
+
+
+func _notification(what: int) -> void:
+	# Native test fixtures can be freed without ever entering the scene tree.
+	# Releasing only in _exit_tree would leave their dead clock binding behind.
+	if what == NOTIFICATION_PREDELETE and is_instance_valid(GameClock):
+		GameClock.unbind_interval_executor(_execute_clock_interval)
 
 
 func _assemble_workplace() -> bool:
@@ -163,7 +175,9 @@ func bind_shared_motion(authority: RegionalSimulation) -> void:
 		if previous != null:
 			previous.set_manual_motion_executor(Callable())
 	_shared_motion_world = weakref(authority) if authority != null else null
-	_player.set_shared_motion_executor(authority != null)
+	# The clock executor owns standalone movement too; its notification is now
+	# exclusively a projection, never a second body integrator.
+	_player.set_shared_motion_executor(true)
 	if authority != null:
 		authority.set_manual_motion_executor(_advance_player_motion)
 
@@ -171,7 +185,10 @@ func bind_shared_motion(authority: RegionalSimulation) -> void:
 func _advance_player_motion(from_ms: int, to_ms: int) -> void:
 	# Leave view/cell signals until the existing end-of-world projection; an
 	# intermediate body position must not make UI observers reenter settlement.
-	_player.advance_motion_interval(from_ms, to_ms, false)
+	_player.prepare_motion_interval()
+	if is_instance_valid(continuity):
+		continuity.project_player_journey(to_ms)
+	_player.advance_motion_interval(from_ms, to_ms, false, false)
 
 
 func snapshot_context() -> Dictionary:
@@ -254,6 +271,8 @@ func save_game(path: String = SAVE_PATH) -> Error:
 		return continuity.save_game(path)
 	if simulation == null:
 		return ERR_UNCONFIGURED
+	if GameClock.has_pending_advance() or GameClock.elapsed_ms != simulation.elapsed_ms:
+		return ERR_BUSY
 	_sync_player_cell()
 	var snapshot: Dictionary = _snapshot_json_value({
 		"schema_version": SAVE_VERSION,
@@ -278,6 +297,8 @@ func save_game(path: String = SAVE_PATH) -> Error:
 
 
 func load_game(path: String = SAVE_PATH) -> Error:
+	if GameClock.is_advancing():
+		return ERR_BUSY
 	if is_instance_valid(continuity):
 		return continuity.load_game(path)
 	if simulation == null:
@@ -376,18 +397,34 @@ static func find_grid_path(
 	return empty
 
 
-func _on_time_advanced(_from_ms: int, to_ms: int) -> void:
-	if simulation == null:
-		return
+func _execute_clock_interval(from_ms: int, to_ms: int) -> int:
+	if simulation == null or simulation.elapsed_ms > from_ms:
+		return from_ms
 	var old_events: int = int(simulation.simulation_work.boundary_count)
 	var previous_minute: int = simulation.tick_index
+	var completed_ms: int
 	if is_instance_valid(continuity):
-		continuity.advance_to_ms(to_ms)
+		if continuity.world_sim == null or continuity.world_sim.elapsed_ms != from_ms:
+			return from_ms
+		completed_ms = continuity.advance_to_ms(to_ms)
 	else:
+		if simulation.elapsed_ms != from_ms:
+			return from_ms
+		_player.advance_motion_interval(from_ms, to_ms, false)
 		simulation.advance_to_ms(to_ms)
+		completed_ms = simulation.elapsed_ms
+	_clock_interval_had_events = old_events != int(simulation.simulation_work.boundary_count) or previous_minute != simulation.tick_index
+	return completed_ms
+
+
+func _on_time_advanced(_from_ms: int, _to_ms: int) -> void:
+	if simulation == null:
+		return
+	# The executor has already completed this actual interval. In particular,
+	# another listener may now safely read the shared clock and original body.
 	_player._project_motion()
 	_sync_actor_views(true)
-	if old_events != int(simulation.simulation_work.boundary_count) or previous_minute != simulation.tick_index:
+	if _clock_interval_had_events:
 		_refresh_panel()
 		queue_redraw()
 		simulation_advanced.emit()

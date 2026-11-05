@@ -10,6 +10,7 @@
 
 | 文件 | 原记录主题 |
 |---|---|
+| [20261105_clock_world_commit.md](20261105_clock_world_commit.md) | 普通Main先结算世界再发布时钟、预算/行程接管/保存保护与原生两进程同未来 |
 | [20261105_source_temperature_transition.md](20261105_source_temperature_transition.md) | F2a来源候选/实际温度联合准备、独立重启及419万来源局部变更 |
 | [20261105_bounded_temperature_preparation.md](20261105_bounded_temperature_preparation.md) | F2a按块输入/预算续算/取消/统一发布与真实调用分布，未接Main |
 | [20261105_packed_temperature_state.md](20261105_packed_temperature_state.md) | F2a分块温度/封存候选、独立重启及密集/稀疏目标变化成本 |

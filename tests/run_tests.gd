@@ -1189,6 +1189,10 @@ func test_clock_scheduling() -> void:
 	load("res://tests/runtime/test_clock_scheduling.gd").new().run(self)
 
 
+func test_clock_world_commit() -> void:
+	load("res://tests/runtime/test_clock_world_commit.gd").new().run(self)
+
+
 func test_local_motion() -> void:
 	load("res://tests/sim/test_local_motion.gd").new().run(self)
 

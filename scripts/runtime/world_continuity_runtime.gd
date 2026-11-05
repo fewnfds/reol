@@ -565,9 +565,9 @@ func _find_path(from_cell: Vector2i, to_cell: Vector2i) -> Array[Vector2i]:
 		int(settings.runtime.layout_radius), int(settings.runtime.layout_budget))
 
 
-func advance_to_ms(target_ms: int) -> void:
+func advance_to_ms(target_ms: int) -> int:
 	if world_sim == null:
-		return
+		return GameClock.elapsed_ms
 	if avatar_adapter != null:
 		avatar_adapter.prepare_step()
 	var prior_artifact_events: int = world_sim.artifacts.events.size()
@@ -603,22 +603,20 @@ func advance_to_ms(target_ms: int) -> void:
 			world_sim.target_ms = maxi(world_sim.target_ms, target_ms)
 			GameClock.set_paused(true)
 			_notice = "环境结算达到数值边界；待处理时间已保留。"
-			return
+			_refresh_panel()
+			return world_sim.elapsed_ms
 		if not player_journey.is_empty():
 			if not _player_has_motion_control():
 				cancel_travel()
 				continue
 			end = mini(end, int(player_journey.due_ms))
-			if not player_journey.path.is_empty() and not _can_step(_home._player.cell, _cell(player_journey.path[0]) - _home._player.cell):
+			var body_cell: Vector2i = _cell(_home.simulation.actors.player.cell)
+			if not player_journey.path.is_empty() and not _can_step(body_cell, _cell(player_journey.path[0]) - body_cell):
 				cancel_travel()
 				continue
-			SimRouteTravel.project(player_journey, _home.simulation.actors.player, end)
-		if not world_sim.advance_to_ms(end, int(settings.event_budget)):
-			GameClock.set_paused(true)
-			_notice = "世界事务待处理，时间已暂停；待处理时间已保留。"
-			push_error("Regional simulation could not finish shared time %d" % end)
-			return
-		cursor = end
+		var old_errors: int = world_sim.errors.size()
+		var completed: bool = world_sim.advance_to_ms(end, int(settings.event_budget))
+		cursor = world_sim.elapsed_ms
 		# A blow at the final boundary can impose a new reaction lock after the
 		# body's last displacement. Commit its speed constraint at this same
 		# boundary, so a genuine immediate save is already a valid candidate.
@@ -627,6 +625,14 @@ func advance_to_ms(target_ms: int) -> void:
 		if _home._player.motion.velocity.is_zero_approx() and _home._player.motion.action.is_empty():
 			_home._player.manual_visual_moving = false
 		_advance_player_travel()
+		if not completed:
+			# Exhausting an event budget is normal pending work. The clock keeps
+			# the request and retries on a later frame without publishing its end.
+			if world_sim.errors.size() > old_errors:
+				GameClock.set_paused(true)
+			_notice = "世界事务待处理，未完成时间已保留。"
+			_refresh_panel()
+			return cursor
 	_home._player._project_motion()
 	if clothing_adapter != null:
 		clothing_adapter.refresh()
@@ -661,6 +667,15 @@ func advance_to_ms(target_ms: int) -> void:
 		_refresh_panel()
 	if not prior_labor_id.is_empty() and prior_labor_status != str(world_sim.budgeted_labor.contracts[prior_labor_id].status):
 		_refresh_panel()
+	return cursor
+
+
+func project_player_journey(to_ms: int) -> void:
+	# Called by the original regional motion executor only after preflight, at
+	# each accepted sub-boundary. Never project the whole requested interval
+	# before a limited event budget has actually reached it.
+	if not player_journey.is_empty():
+		SimRouteTravel.project(player_journey, _home.simulation.actors.player, to_ms)
 
 
 func travel_to(region_id: String, destination_cell: Variant = null) -> bool:
@@ -948,8 +963,9 @@ func _update_region() -> void:
 			nearest = current_region
 	if nearest == current_region:
 		return
+	if not world_sim.set_active_region(nearest):
+		return
 	current_region = nearest
-	world_sim.set_active_region(nearest)
 	_refresh_views(true)
 	region_changed.emit(nearest)
 
@@ -957,7 +973,7 @@ func _update_region() -> void:
 func _on_player_moved() -> void:
 	# Entering a settlement and nearby interaction affordances must not wait
 	# for a minute-product boundary after continuous movement.
-	if world_sim == null or world_sim.current_time != world_sim.target_time:
+	if world_sim == null or world_sim.elapsed_ms != world_sim.target_ms:
 		return
 	_update_region()
 	_refresh_panel()
@@ -1000,7 +1016,7 @@ func _refresh_views(snap: bool) -> void:
 				add_child(created_pawn)
 				_remote_views[id] = created_pawn
 			var pawn: Pawn = _remote_views[id]
-			pawn.appearance_pose = HumanoidPose.stabilized(HumanoidPose.in_world(world_sim, id, GameClock.elapsed_ms), pawn.appearance_pose)
+			pawn.appearance_pose = HumanoidPose.stabilized(HumanoidPose.in_world(world_sim, id, world_sim.elapsed_ms), pawn.appearance_pose)
 			pawn.clothing_appearance = world_sim.clothing.appearance(id)
 			pawn.set_view_layout(layout.get(id, {}))
 			pawn.cell = cell
@@ -1160,7 +1176,7 @@ func save_game(path: String) -> Error:
 	# unloadable pending-time snapshot as a successful save.
 	if world_sim == null:
 		return ERR_UNCONFIGURED
-	if GameClock.elapsed_ms != world_sim.elapsed_ms:
+	if GameClock.has_pending_advance() or GameClock.elapsed_ms != world_sim.elapsed_ms or world_sim.target_ms != world_sim.elapsed_ms:
 		_notice = "世界仍有未结算时间，暂不能保存；已有存档保持原样。"
 		_refresh_panel()
 		return ERR_BUSY
@@ -1172,6 +1188,8 @@ func save_game(path: String) -> Error:
 
 
 func load_game(path: String) -> Error:
+	if GameClock.is_advancing():
+		return ERR_BUSY
 	var loaded: Dictionary = SimSaveStore.load_file(path)
 	if not bool(loaded.get("ok", false)) or not loaded.get("data") is Dictionary:
 		return _session_load_failed("没有读到可用近况，请先保存一次。")

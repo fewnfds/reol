@@ -111,10 +111,7 @@ func _physics_process(_delta: float) -> void:
 
 func _on_time_advanced(from_ms: int, to_ms: int) -> void:
 	if _shared_motion_executor:
-		# Cancel an old automatic journey before the world adapter projects it
-		# over this interval. This is only an intent handoff, not displacement.
-		if has_motion_control() and motion.action.is_empty() and not _intent.is_zero_approx():
-			manual_movement_started.emit()
+		# The owning world has already handled intent and integrated motion.
 		return
 	advance_motion_interval(from_ms, to_ms)
 
@@ -125,14 +122,21 @@ func set_shared_motion_executor(enabled: bool) -> void:
 	_shared_motion_executor = enabled
 
 
-func advance_motion_interval(from_ms: int, to_ms: int, project: bool = true) -> void:
+func prepare_motion_interval() -> void:
+	# The world adapter invokes this before projecting any automatic journey.
+	# It hands off the sampled intent only; it does not integrate displacement.
+	if has_motion_control() and motion.action.is_empty() and not _intent.is_zero_approx():
+		manual_movement_started.emit()
+
+
+func advance_motion_interval(from_ms: int, to_ms: int, project: bool = true, prepare_intent: bool = true) -> void:
 	if _world == null:
 		return
 	var controlled: bool = has_motion_control()
 	if not motion.action.is_empty():
 		var guard: Callable = _action_continuation_guard if _action_continuation_guard.is_valid() else _action_guard
 		controlled = controlled and guard.is_valid() and bool(guard.call())
-	elif controlled and not _intent.is_zero_approx():
+	elif prepare_intent and controlled and not _intent.is_zero_approx():
 		manual_movement_started.emit()
 	var automatic: bool = _automatic_guard.is_valid() and bool(_automatic_guard.call())
 	var previous_position: Vector2 = motion.position
