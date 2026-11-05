@@ -16,6 +16,7 @@ const MAX_AXIS: int = 4096
 const MAX_CAPACITY: int = 4194304
 const MAX_WORK: int = 1000000
 const MAX_COMPUTE_SNAPSHOT_BYTES: int = 64 * 1024 * 1024
+const MAX_CANDIDATE_TILES: int = 64
 const UNSET: int = -2
 
 var _size: Vector2i = Vector2i.ZERO
@@ -47,6 +48,8 @@ var _queue_cursor: int = 0
 var _build_tile: int = -1
 var _build_rect: Rect2i = Rect2i()
 var _build_values := PackedInt32Array()
+var _build_offsets := PackedInt32Array()
+var _build_weights := PackedInt32Array()
 var _build_phase: int = 0 # 0 receiver search, 2 complete
 var _receiver_index: int = 0
 var _receiver_x: int = 0
@@ -57,6 +60,9 @@ var _neighbor_index: int = 0
 var _neighbor_slot: int = UNSET
 var _neighbor_dx: int = 0
 var _neighbor_dy: int = 0
+# At most one unpublished source projection; physical source ownership remains
+# with the caller. Candidate computation never changes live slots or tiles.
+var _source_candidate: SourceCandidate = null
 
 
 func configure(size: Vector2i, capacity: int) -> bool:
@@ -170,6 +176,327 @@ func remove_source(slot: int) -> Dictionary:
 	_abort_build()
 	_mark_dirty(old_area)
 	return {"ok": true, "revision": _revision, "old_area": old_area}
+
+
+func begin_source_change(slot: int, operation: String, change: Dictionary = {}) -> Dictionary:
+	# A failed or busy begin never displaces an existing candidate.
+	if _source_candidate != null:
+		return _failure("busy")
+	if _capacity == 0:
+		return _failure("not_configured")
+	if slot < 0 or slot >= _capacity:
+		return _failure("slot_out_of_range")
+	var old_radius: int = _slot_radius[slot]
+	var old_cell := Vector2i(_slot_x[slot], _slot_y[slot])
+	var new_cell := Vector2i.ZERO
+	var new_radius: int = 0
+	var normalized := PackedInt32Array()
+	if operation == "remove":
+		if not change.is_empty():
+			return _failure("source_shape")
+		if old_radius == 0:
+			return _failure("unknown_source")
+	elif operation == "set":
+		if change.size() != 3 or not change.has("cell") or not change.has("radius") or not change.has("channels") or not change.cell is Vector2i or not change.radius is int:
+			return _failure("source_shape")
+		new_cell = change.cell
+		new_radius = change.radius
+		if not _inside(new_cell):
+			return _failure("source_cell")
+		if new_radius < 1 or new_radius > Rules.MAX_RADIUS:
+			return _failure("source_radius")
+		if not (change.channels is Array or change.channels is PackedInt32Array or change.channels is PackedInt64Array) or change.channels.size() != CHANNELS:
+			return _failure("source_channels")
+		for value: Variant in change.channels:
+			if not value is int or value < 0 or value > Rules.MAX_GRADE_MILLI:
+				return _failure("source_channel_value")
+			normalized.append(value)
+		var unchanged: bool = old_radius == new_radius and old_cell == new_cell
+		if unchanged:
+			for channel: int in CHANNELS:
+				if _slot_channels[slot * CHANNELS + channel] != normalized[channel]:
+					unchanged = false
+					break
+		if unchanged:
+			return _failure("unchanged")
+	else:
+		return _failure("source_operation")
+	var old_area: Rect2i = _coverage(old_cell, old_radius)
+	var new_area: Rect2i = _coverage(new_cell, new_radius)
+	var tile_set: Dictionary[int, bool] = {}
+	if not _add_candidate_tiles(old_area, tile_set) or not _add_candidate_tiles(new_area, tile_set):
+		return _failure("candidate_tile_limit")
+	var ids: Array[int] = []
+	for tile_id: int in tile_set:
+		ids.append(tile_id)
+	ids.sort()
+	ids.make_read_only()
+	# New kernels and the existing ordered-offset table may require a
+	# synchronous first build; this setup is not covered by step's budget.
+	var new_kernel := PackedInt32Array()
+	if new_radius > 0:
+		new_kernel = _kernels[new_radius] if _kernels.has(new_radius) else _make_kernel(new_radius)
+	if _max_radius > 0:
+		_ensure_ordered_offsets()
+	var candidate := SourceCandidate.new()
+	candidate.handle = SourceChangeHandle.new()
+	candidate.revision = _revision
+	candidate.slot = slot
+	candidate.old_cell = old_cell
+	candidate.old_radius = old_radius
+	candidate.new_cell = new_cell
+	candidate.new_radius = new_radius
+	candidate.new_channels = normalized
+	candidate.new_kernel = new_kernel
+	candidate.old_area = old_area
+	candidate.new_area = new_area
+	candidate.tile_ids = ids
+	candidate.tile_set = tile_set
+	if _max_radius > 0:
+		candidate.offsets = _ordered_offsets
+		candidate.weights = _ordered_weights
+	_source_candidate = candidate
+	var public_ids: Array = ids.duplicate()
+	public_ids.make_read_only()
+	return {"ok": true, "handle": candidate.handle, "tile_ids": public_ids,
+		"old_area": old_area, "new_area": new_area}
+
+
+func step_source_change(handle: Variant, max_work: int) -> Dictionary:
+	if not _source_handle_matches(handle):
+		return _failure("invalid_handle")
+	if _source_candidate.revision != _revision:
+		return _failure("stale")
+	if _source_candidate.sealed:
+		return _failure("already_finished")
+	if max_work < 0 or max_work > MAX_WORK:
+		return _failure("work_budget")
+	var used: int = 0
+	while used < max_work and _source_candidate.tile_index < _source_candidate.tile_ids.size():
+		if not _source_candidate.building:
+			var tile_id: int = _source_candidate.tile_ids[_source_candidate.tile_index]
+			_source_candidate.rect = _rect_for_tile(tile_id)
+			_source_candidate.values = PackedInt32Array()
+			if _source_candidate.values.resize(_source_candidate.rect.size.x * _source_candidate.rect.size.y * CHANNELS) != OK:
+				return _failure("candidate_allocation")
+			_source_candidate.receiver_index = 0
+			_source_candidate.receiver_x = _source_candidate.rect.position.x
+			_source_candidate.receiver_y = _source_candidate.rect.position.y
+			_source_candidate.channel = 0
+			_source_candidate.phase = 0
+			_source_candidate.offset_index = 0
+			_source_candidate.neighbor_slot = UNSET
+			_source_candidate.building = true
+		else:
+			_step_source_candidate()
+		used += 1
+	return {"ok": true, "work": used, "done": _source_candidate.tile_index == _source_candidate.tile_ids.size(),
+		"completed_tiles": _source_candidate.tile_index, "total_tiles": _source_candidate.tile_ids.size()}
+
+
+func _step_source_candidate() -> void:
+	var candidate: SourceCandidate = _source_candidate
+	if candidate.phase == 0:
+		# Count the candidate source independently; it is absent from the live
+		# scan below, and never mutates the live heads/slots while pending.
+		candidate.best = 0
+		if candidate.new_radius > 0:
+			var dx: int = absi(candidate.receiver_x - candidate.new_cell.x)
+			var dy: int = absi(candidate.receiver_y - candidate.new_cell.y)
+			if dx < candidate.new_radius and dy < candidate.new_radius:
+				var strength: int = candidate.new_channels[candidate.channel]
+				var weight: int = candidate.new_kernel[dy * candidate.new_radius + dx]
+				@warning_ignore("integer_division")
+				candidate.best = (strength * weight + Rules.SCALE / 2) / Rules.SCALE
+		candidate.phase = 1
+		return
+	if candidate.neighbor_slot == UNSET:
+		if candidate.offset_index >= candidate.offsets.size():
+			_finish_source_candidate_channel()
+			return
+		@warning_ignore("integer_division")
+		var upper: int = (_max_source[candidate.channel] * candidate.weights[candidate.offset_index] + Rules.SCALE / 2) / Rules.SCALE
+		if upper <= candidate.best:
+			_finish_source_candidate_channel()
+			return
+		var code: int = candidate.offsets[candidate.offset_index]
+		candidate.dx = (code & 511) - 255
+		candidate.dy = (code >> 9) - 255
+		var x: int = candidate.receiver_x + candidate.dx
+		var y: int = candidate.receiver_y + candidate.dy
+		if x < 0 or y < 0 or x >= _size.x or y >= _size.y:
+			candidate.offset_index += 1
+			return
+		candidate.neighbor_slot = _heads[y * _size.x + x]
+		if candidate.neighbor_slot == -1:
+			candidate.neighbor_slot = UNSET
+			candidate.offset_index += 1
+		return # resolving an offset and consuming a source are separate work
+	var source_slot: int = candidate.neighbor_slot
+	if source_slot != candidate.slot:
+		var radius: int = _slot_radius[source_slot]
+		var dx: int = absi(candidate.dx)
+		var dy: int = absi(candidate.dy)
+		var strength: int = _slot_channels[source_slot * CHANNELS + candidate.channel]
+		if strength > candidate.best and dx < radius and dy < radius:
+			var kernel: PackedInt32Array = _kernels[radius]
+			@warning_ignore("integer_division")
+			var value: int = (strength * kernel[dy * radius + dx] + Rules.SCALE / 2) / Rules.SCALE
+			candidate.best = maxi(candidate.best, value)
+	candidate.neighbor_slot = _slot_next[source_slot]
+	if candidate.neighbor_slot == -1:
+		candidate.neighbor_slot = UNSET
+		candidate.offset_index += 1
+
+
+func _finish_source_candidate_channel() -> void:
+	var candidate: SourceCandidate = _source_candidate
+	candidate.values[candidate.receiver_index * CHANNELS + candidate.channel] = candidate.best
+	candidate.channel += 1
+	candidate.phase = 0
+	candidate.offset_index = 0
+	candidate.neighbor_slot = UNSET
+	if candidate.channel < CHANNELS:
+		return
+	candidate.channel = 0
+	candidate.receiver_index += 1
+	if candidate.receiver_index == candidate.rect.size.x * candidate.rect.size.y:
+		candidate.results[candidate.tile_ids[candidate.tile_index]] = candidate.values
+		candidate.values = PackedInt32Array()
+		candidate.tile_index += 1
+		candidate.building = false
+		return
+	candidate.receiver_x += 1
+	if candidate.receiver_x >= candidate.rect.end.x:
+		candidate.receiver_x = candidate.rect.position.x
+		candidate.receiver_y += 1
+
+
+func finish_source_change(handle: Variant) -> Dictionary:
+	if not _source_handle_matches(handle):
+		return _failure("invalid_handle")
+	if _source_candidate.revision != _revision:
+		return _failure("stale")
+	if _source_candidate.sealed:
+		return _failure("already_finished")
+	if _source_candidate.tile_index != _source_candidate.tile_ids.size():
+		return _failure("pending")
+	_source_candidate.sealed = true
+	_source_candidate.proof = SourceChangeProof.new()
+	var result: Dictionary = {"ok": true, "proof": _source_candidate.proof}
+	result.make_read_only()
+	return result
+
+
+func candidate_tile_copy(proof: Variant, tile_id: int) -> Dictionary:
+	var checked: Dictionary = can_commit_source_change(proof)
+	if not bool(checked.get("ok", false)):
+		return checked
+	if not _source_candidate.tile_set.has(tile_id):
+		return _failure("candidate_tile")
+	var values: PackedInt32Array = _source_candidate.results[tile_id]
+	return {"ok": true, "rect": _rect_for_tile(tile_id), "channels": values.duplicate()}
+
+
+func can_commit_source_change(proof: Variant) -> Dictionary:
+	if _source_candidate == null or not _source_candidate.sealed or not proof is SourceChangeProof or not is_same(_source_candidate.proof, proof):
+		return _failure("invalid_proof")
+	if _source_candidate.revision != _revision:
+		return _failure("stale")
+	return {"ok": true, "revision": _revision}
+
+
+func commit_source_change(proof: Variant) -> Dictionary:
+	var checked: Dictionary = can_commit_source_change(proof)
+	if not bool(checked.get("ok", false)):
+		return checked
+	var candidate: SourceCandidate = _source_candidate
+	# Preserve unrelated queue entries in order, including those enqueued while
+	# the candidate was computed. Only replaced tiles are removed from it.
+	var remaining: Array[int] = []
+	for index: int in range(_queue_cursor, _queue.size()):
+		if not candidate.tile_set.has(_queue[index]):
+			remaining.append(_queue[index])
+	if candidate.tile_set.has(_build_tile):
+		_build_values = PackedInt32Array()
+		_build_offsets = PackedInt32Array()
+		_build_weights = PackedInt32Array()
+		_build_tile = -1
+	elif _build_tile >= 0 and _neighbor_slot == candidate.slot and candidate.old_radius > 0:
+		# The build is outside both affected footprints, so this source has zero
+		# contribution there. Advance past its old link before relinking it.
+		_neighbor_slot = _slot_next[candidate.slot]
+		if _neighbor_slot == -1:
+			_neighbor_slot = UNSET
+			_neighbor_index += 1
+	_apply_source_candidate(candidate)
+	for tile_id: int in candidate.tile_ids:
+		var tile: Dictionary = _tiles.get(tile_id, {})
+		tile["values"] = candidate.results[tile_id]
+		tile["dirty"] = false
+		tile["queued"] = false
+		_tiles[tile_id] = tile
+	_queue = remaining
+	_queue_cursor = 0
+	_revision += 1
+	_source_candidate = null
+	return {"ok": true, "revision": _revision, "old_area": candidate.old_area,
+		"new_area": candidate.new_area, "published_tiles": candidate.tile_ids.size()}
+
+
+func cancel_source_change(handle: Variant) -> Dictionary:
+	# Cancellation remains available after an external source change made the
+	# candidate stale; it never changes live source or cache state.
+	if not _source_handle_matches(handle):
+		return _failure("invalid_handle")
+	_source_candidate = null
+	return {"ok": true}
+
+
+func _source_handle_matches(handle: Variant) -> bool:
+	return _source_candidate != null and handle is SourceChangeHandle and is_same(_source_candidate.handle, handle)
+
+
+func _add_candidate_tiles(area: Rect2i, result: Dictionary[int, bool]) -> bool:
+	if area.size.x == 0 or area.size.y == 0:
+		return true
+	for y: int in range(area.position.y >> 4, ((area.end.y - 1) >> 4) + 1):
+		for x: int in range(area.position.x >> 4, ((area.end.x - 1) >> 4) + 1):
+			result[y * _tile_columns + x] = true
+			if result.size() > MAX_CANDIDATE_TILES:
+				return false
+	return true
+
+
+func _apply_source_candidate(candidate: SourceCandidate) -> void:
+	var slot: int = candidate.slot
+	if candidate.old_radius > 0:
+		_unlink(slot, candidate.old_cell)
+		_radius_counts[candidate.old_radius] -= 1
+	if candidate.new_radius > 0:
+		if not _kernels.has(candidate.new_radius):
+			_kernels[candidate.new_radius] = candidate.new_kernel
+		if candidate.old_radius == 0:
+			_source_count += 1
+		_slot_x[slot] = candidate.new_cell.x
+		_slot_y[slot] = candidate.new_cell.y
+		_slot_radius[slot] = candidate.new_radius
+		for channel: int in CHANNELS:
+			var value: int = candidate.new_channels[channel]
+			_slot_channels[slot * CHANNELS + channel] = value
+			_max_source[channel] = maxi(_max_source[channel], value)
+		var head_index: int = _linear(candidate.new_cell)
+		_slot_next[slot] = _heads[head_index]
+		_heads[head_index] = slot
+		_cell_source_counts[head_index] += 1
+		_max_cell_sources = maxi(_max_cell_sources, _cell_source_counts[head_index])
+		_radius_counts[candidate.new_radius] += 1
+		_max_radius = maxi(_max_radius, candidate.new_radius)
+	else:
+		_slot_radius[slot] = 0
+		_slot_next[slot] = -1
+		_source_count -= 1
+	_trim_max_radius()
 
 
 func read_base(cell: Vector2i) -> Dictionary:
@@ -460,6 +787,8 @@ func publish_compute_result(job: Dictionary, prepared: Dictionary) -> Dictionary
 	# A draft for any other pending tile retains its exact cursor and values.
 	if target_set.has(_build_tile):
 		_build_values = PackedInt32Array()
+		_build_offsets = PackedInt32Array()
+		_build_weights = PackedInt32Array()
 		_build_tile = -1
 	for index: int in prepared_tiles.size():
 		var entry: Dictionary = prepared_tiles[index]
@@ -543,6 +872,10 @@ func _begin_next() -> void:
 	_build_phase = 0 if _max_radius > 0 else 2
 	if _max_radius > 0:
 		_ensure_ordered_offsets()
+		# Keep the active draft's original ordered geometry even if a candidate
+		# publication changes the global maximum radius before it completes.
+		_build_offsets = _ordered_offsets
+		_build_weights = _ordered_weights
 	_receiver_index = 0
 	_receiver_x = _build_rect.position.x
 	_receiver_y = _build_rect.position.y
@@ -554,20 +887,21 @@ func _begin_next() -> void:
 
 func _step_receiver() -> void:
 	if _neighbor_slot == UNSET:
-		if _neighbor_index >= _ordered_offsets.size():
+		if _neighbor_index >= _build_offsets.size():
 			_finish_channel()
 			return
 		# All subsequent offsets have at least this Euclidean distance. The
-		# largest active radius yields a kernel no smaller than any actual
-		# radius, and _max_source is an upper bound even after a removal.
+		# draft's original maximum radius bounds every original source, and
+		# _max_source stays conservative after a removal. A source published
+		# later has no influence on this preserved, unaffected tile.
 		# Rounding is monotone, so this is a safe *inclusive* upper bound.
 		# Equality may stop: this cache promises values, not winning IDs.
 		@warning_ignore("integer_division")
-		var upper: int = (_max_source[_receiver_channel] * _ordered_weights[_neighbor_index] + Rules.SCALE / 2) / Rules.SCALE
+		var upper: int = (_max_source[_receiver_channel] * _build_weights[_neighbor_index] + Rules.SCALE / 2) / Rules.SCALE
 		if upper <= _receiver_best:
 			_finish_channel()
 			return
-		var code: int = _ordered_offsets[_neighbor_index]
+		var code: int = _build_offsets[_neighbor_index]
 		_neighbor_dx = (code & 511) - 255
 		_neighbor_dy = (code >> 9) - 255
 		var x: int = _receiver_x + _neighbor_dx
@@ -622,6 +956,8 @@ func _publish() -> void:
 	tile.values = _build_values
 	tile.dirty = false
 	_build_values = PackedInt32Array()
+	_build_offsets = PackedInt32Array()
+	_build_weights = PackedInt32Array()
 	_build_tile = -1
 
 
@@ -633,6 +969,8 @@ func _abort_build() -> void:
 		tile.queued = true
 		_queue.append(_build_tile)
 	_build_values = PackedInt32Array()
+	_build_offsets = PackedInt32Array()
+	_build_weights = PackedInt32Array()
 	_build_tile = -1
 
 
@@ -694,12 +1032,16 @@ func _unlink(slot: int, cell: Vector2i) -> void:
 func _ensure_kernel(radius: int) -> void:
 	if _kernels.has(radius):
 		return
+	_kernels[radius] = _make_kernel(radius)
+
+
+static func _make_kernel(radius: int) -> PackedInt32Array:
 	var table := PackedInt32Array()
 	table.resize(radius * radius)
 	for y: int in radius:
 		for x: int in radius:
 			table[y * radius + x] = int(Rules.kernel(Vector2i(x, y), radius).weight)
-	_kernels[radius] = table
+	return table
 
 
 func _ensure_ordered_offsets() -> void:
@@ -772,3 +1114,47 @@ func _linear(cell: Vector2i) -> int:
 
 static func _failure(reason: String) -> Dictionary:
 	return {"ok": false, "reason": reason}
+
+
+class SourceChangeHandle:
+	extends RefCounted
+
+
+class SourceChangeProof:
+	extends RefCounted
+
+
+class SourceCandidate:
+	extends RefCounted
+	var handle: SourceChangeHandle
+	var proof: SourceChangeProof
+	var revision: int = 0
+	var slot: int = -1
+	var old_cell := Vector2i.ZERO
+	var old_radius: int = 0
+	var new_cell := Vector2i.ZERO
+	var new_radius: int = 0
+	var new_channels := PackedInt32Array()
+	var new_kernel := PackedInt32Array()
+	var old_area := Rect2i()
+	var new_area := Rect2i()
+	var tile_ids: Array[int] = []
+	var tile_set: Dictionary[int, bool] = {}
+	var results: Dictionary = {}
+	var offsets := PackedInt32Array()
+	var weights := PackedInt32Array()
+	var tile_index: int = 0
+	var building: bool = false
+	var sealed: bool = false
+	var rect := Rect2i()
+	var values := PackedInt32Array()
+	var receiver_index: int = 0
+	var receiver_x: int = 0
+	var receiver_y: int = 0
+	var channel: int = 0
+	var phase: int = 0
+	var best: int = 0
+	var offset_index: int = 0
+	var neighbor_slot: int = -2
+	var dx: int = 0
+	var dy: int = 0

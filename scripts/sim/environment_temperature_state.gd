@@ -422,8 +422,14 @@ func finish_bulk(handle: Variant) -> Dictionary:
 	return result
 
 
+func can_commit_bulk(proof: Variant) -> bool:
+	# A coordinator can preflight all participating domains before publishing
+	# in one synchronous stack. This does not reserve time or mutate the plan.
+	return _bulk != null and _bulk_current(_bulk.handle) and _bulk.sealed and proof is BulkProof and is_same(_bulk.proof, proof)
+
+
 func commit_bulk(proof: Variant) -> Dictionary:
-	if _bulk == null or not _bulk_current(_bulk.handle) or not _bulk.sealed or not proof is BulkProof or not is_same(_bulk.proof, proof):
+	if not can_commit_bulk(proof):
 		return _failure("invalid_proof")
 	var changed: int = _bulk.changed
 	var at_ms: int = _bulk.at_ms

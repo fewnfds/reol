@@ -18,6 +18,8 @@ func run(runner: Object) -> void:
 	_compute_worker_prepare_and_publish(runner)
 	_empty_compute_snapshot(runner)
 	_compact_compute_snapshot(runner)
+	_source_candidate_move_and_queue(runner)
+	_source_candidate_failures(runner)
 	print("SCENARIO environment field cache: exact F0 comparison, mixed sources, bounded pending, winner removal and distinct old/new invalidation")
 
 
@@ -474,6 +476,184 @@ func _assert_snapshot_sources(job: Dictionary, runner: Object) -> void:
 		runner.assert_eq(slots[capacity * 3 + slot], -1, "an isolated projected cell terminates its source chain")
 		for channel: int in CHANNELS:
 			runner.assert_eq(slots[capacity * 4 + slot * CHANNELS + channel], example.channels[channel], "the source retains each declared channel strength")
+
+
+func _finish_source_candidate(cache: RefCounted, handle: Variant, runner: Object) -> Dictionary:
+	var first: Dictionary = cache.step_source_change(handle, 1)
+	if not bool(first.get("ok", false)):
+		runner.assert_true(false, "one work unit advances the private candidate: " + str(first))
+		return {}
+	runner.assert_true(int(first.work) <= 1, "a one-unit budget never advances more than one unit")
+	if not bool(first.done):
+		runner.assert_eq(cache.finish_source_change(handle).get("reason"), "pending", "an unfinished candidate has no proof")
+	for _iteration: int in 2000:
+		var step: Dictionary = cache.step_source_change(handle, 5_000)
+		if not bool(step.get("ok", false)):
+			runner.assert_true(false, "bounded candidate rebuild succeeds: " + str(step))
+			return {}
+		runner.assert_true(int(step.work) <= 5_000, "a candidate rebuild respects its work budget")
+		if bool(step.done):
+			return cache.finish_source_change(handle)
+	runner.assert_true(false, "a finite small candidate completes")
+	return {}
+
+
+func _check_candidate_tiles(cache: RefCounted, reference: RefCounted, proof: Variant, ids: Array, runner: Object) -> void:
+	for tile_id: int in ids:
+		var tile: Dictionary = cache.candidate_tile_copy(proof, tile_id)
+		if not bool(tile.get("ok", false)):
+			runner.assert_true(false, "a completed candidate tile is available")
+			continue
+		var expected: PackedInt32Array = _reference_values(reference, tile.rect)
+		runner.assert_eq(tile.channels, expected, "every candidate receiver and all seven channels match the independent index")
+		var edited: PackedInt32Array = tile.channels
+		edited[0] = Rules.MAX_GRADE_MILLI
+		tile.channels = edited
+		runner.assert_eq(cache.candidate_tile_copy(proof, tile_id).channels, expected, "editing a tile copy cannot change the private candidate")
+
+
+func _source_candidate_move_and_queue(runner: Object) -> void:
+	var size := Vector2i(64, 32)
+	var cache := Cache.new()
+	var reference := Index.new()
+	var other := Cache.new()
+	runner.assert_true(cache.configure(size, 4) and reference.configure(size, 4) and other.configure(size, 4), "candidate, reference and other cache configure")
+	_set_both(cache, reference, 0, Vector2i(15, 0), 1, [9000, 8000, 7000, 6000, 5000, 4000, 3000], runner)
+	_set_both(cache, reference, 1, Vector2i(15, 0), 3, [100, 200, 300, 400, 500, 600, 700], runner)
+	_set_both(cache, reference, 2, Vector2i(63, 31), 2, [2000, 4000, 100, 8000, 1, 7000, 100], runner)
+	cache.read_base(Vector2i(15, 0))
+	cache.read_base(Vector2i(63, 31))
+	_drain(cache, runner)
+	var old_live: Dictionary = cache.read_base(Vector2i(15, 0))
+	var new_live: Dictionary = cache.read_base(Vector2i(63, 31))
+	# Begin a draft in an unaffected tile. Its search reaches a co-located
+	# chain with slot 1 immediately before the moving slot 0.
+	cache.read_base(Vector2i(16, 0))
+	cache.read_base(Vector2i(32, 0))
+	var attempts: int = 0
+	while cache._neighbor_slot != 0 and attempts < 5_000:
+		cache.rebuild(1, 1)
+		attempts += 1
+	runner.assert_true(cache._build_tile == 1 and cache._neighbor_slot == 0, "an unrelated tile pauses on the source's old chain link")
+	if cache._build_tile != 1 or cache._neighbor_slot != 0:
+		return
+	var initial_diagnostics: Dictionary = cache.diagnostics().duplicate(true)
+	var grades: Array[int] = [5000, 0, 7000, 2, 5000, 1000, 9000]
+	var future_grades: Array[int] = grades.duplicate()
+	var begun: Dictionary = cache.begin_source_change(0, "set", {"cell": Vector2i(63, 31), "radius": 4, "channels": grades})
+	if not bool(begun.get("ok", false)):
+		runner.assert_true(false, "a distant move candidate begins: " + str(begun))
+		return
+	runner.assert_eq(begun.tile_ids, [0, 7], "opposite footprints select only their two distinct tiles")
+	runner.assert_true(begun.tile_ids.is_read_only(), "candidate tile metadata is read-only")
+	runner.assert_eq(cache.begin_source_change(-1, "bad").get("reason"), "busy", "busy takes precedence without replacing the old candidate")
+	grades[0] = 0
+	runner.assert_eq(cache.diagnostics(), initial_diagnostics, "begin does not mutate live source, queue or kernel diagnostics")
+	runner.assert_eq(cache.read_base(Vector2i(15, 0)), old_live, "the old source stays visible during candidate preparation")
+	runner.assert_eq(cache.read_base(Vector2i(63, 31)), new_live, "the destination stays at its original live field")
+	var zero: Dictionary = cache.step_source_change(begun.handle, 0)
+	runner.assert_true(bool(zero.ok) and int(zero.work) == 0 and not bool(zero.done), "zero budget leaves the candidate pending")
+	var finished: Dictionary = _finish_source_candidate(cache, begun.handle, runner)
+	if not bool(finished.get("ok", false)):
+		return
+	runner.assert_true(finished.is_read_only(), "only an opaque read-only proof is exposed")
+	runner.assert_true(bool(reference.set_source({"id": "s_0", "cell": Vector2i(63, 31), "radius": 4, "channels": future_grades}).ok), "the independent source is moved for comparison")
+	_check_candidate_tiles(cache, reference, finished.proof, begun.tile_ids, runner)
+	runner.assert_true(not bool(other.can_commit_source_change(finished.proof).get("ok", true)), "another cache cannot preflight this proof")
+	runner.assert_true(not bool(other.commit_source_change(finished.proof).get("ok", true)), "another cache cannot commit this proof")
+	runner.assert_true(bool(cache.can_commit_source_change(finished.proof).get("ok", false)), "the complete current candidate preflights")
+	# Queue an additional unrelated tile after begin/finish, not in a copied
+	# begin-time queue; it must remain pending when the source is committed.
+	cache.read_base(Vector2i(48, 0))
+	var pending_before: int = int(cache.diagnostics().pending_tiles)
+	var applied: Dictionary = cache.commit_source_change(finished.proof)
+	runner.assert_true(bool(applied.get("ok", false)) and int(applied.published_tiles) == 2, "one commit applies the source and both complete tiles")
+	runner.assert_eq(int(cache.diagnostics().pending_tiles), pending_before, "unrelated running and queued tiles survive publication")
+	runner.assert_true(cache._build_tile == 1, "the unaffected in-progress tile keeps its draft")
+	runner.assert_true(not bool(cache.commit_source_change(finished.proof).get("ok", true)), "the committed proof cannot be replayed")
+	_compare_area(cache, reference, Rect2i(0, 0, 16, 16), runner, "old tile after candidate move")
+	_compare_area(cache, reference, Rect2i(48, 16, 16, 16), runner, "new tile after candidate move")
+	# Beginning another candidate rebuilds global ordered offsets at the new
+	# radius; the still-active unrelated draft must keep its old geometry.
+	var refresh: Dictionary = cache.begin_source_change(3, "set", {"cell": Vector2i(60, 1), "radius": 1, "channels": [1, 2, 3, 4, 5, 6, 7]})
+	if bool(refresh.get("ok", false)):
+		runner.assert_true(bool(cache.cancel_source_change(refresh.handle).get("ok", false)), "the second uncommitted candidate cancels")
+	else:
+		runner.assert_true(false, "a second candidate may prepare while the unrelated tile is running")
+	_drain(cache, runner)
+	_compare_area(cache, reference, Rect2i(16, 0, 48, 16), runner, "unrelated drafts and late queue after candidate commit")
+	cache.read_base(Vector2i(0, 16))
+	cache.read_base(Vector2i(16, 16))
+	cache.rebuild(1, 1)
+	runner.assert_eq(cache._build_tile, 4, "a second unrelated draft starts before the maximum radius decreases")
+	var before_remove: Dictionary = cache.read_base(Vector2i(63, 31))
+	var removing: Dictionary = cache.begin_source_change(0, "remove")
+	if not bool(removing.get("ok", false)):
+		runner.assert_true(false, "the moved winner can prepare removal")
+		return
+	var removed: Dictionary = _finish_source_candidate(cache, removing.handle, runner)
+	if not bool(removed.get("ok", false)):
+		return
+	runner.assert_true(bool(reference.remove_source("s_0").ok), "the independent winner is removed")
+	_check_candidate_tiles(cache, reference, removed.proof, removing.tile_ids, runner)
+	runner.assert_eq(cache.read_base(Vector2i(63, 31)), before_remove, "a pending removal cannot change the old live winner")
+	var pending_during_remove: int = int(cache.diagnostics().pending_tiles)
+	runner.assert_true(bool(cache.commit_source_change(removed.proof).get("ok", false)), "winner removal publishes its complete replacement")
+	runner.assert_eq(int(cache.diagnostics().pending_tiles), pending_during_remove, "a smaller maximum radius preserves unrelated pending work")
+	runner.assert_eq(cache._build_tile, 4, "a maximum-radius decrease preserves the unrelated draft")
+	_compare_area(cache, reference, Rect2i(48, 16, 16, 16), runner, "winner removal exposes the co-located next strongest channels")
+	refresh = cache.begin_source_change(3, "set", {"cell": Vector2i(32, 31), "radius": 1, "channels": [1, 2, 3, 4, 5, 6, 7]})
+	if bool(refresh.get("ok", false)):
+		cache.cancel_source_change(refresh.handle)
+	_drain(cache, runner)
+	_compare_area(cache, reference, Rect2i(0, 16, 32, 16), runner, "unrelated draft after maximum-radius decrease")
+
+
+func _source_candidate_failures(runner: Object) -> void:
+	var cache := Cache.new()
+	runner.assert_true(cache.configure(Vector2i(16, 16), 3), "candidate failure fixture configures")
+	runner.assert_eq(cache.begin_source_change(-1, "remove").get("reason"), "slot_out_of_range", "invalid slots fail before creating candidates")
+	runner.assert_eq(cache.begin_source_change(0, "set", {"cell": Vector2i.ZERO}).get("reason"), "source_shape", "incomplete source changes are rejected")
+	var first: Dictionary = cache.begin_source_change(0, "set", {"cell": Vector2i.ZERO, "radius": 1, "channels": [1, 2, 3, 4, 5, 6, 7]})
+	if not bool(first.get("ok", false)):
+		runner.assert_true(false, "the first source can be prepared from an empty field")
+		return
+	var ready: Dictionary = _finish_source_candidate(cache, first.handle, runner)
+	if not bool(ready.get("ok", false)):
+		return
+	var tile: Dictionary = cache.candidate_tile_copy(ready.proof, int(first.tile_ids[0]))
+	runner.assert_eq(tile.channels[0], 1, "an empty field accepts the candidate's first source")
+	runner.assert_true(bool(cache.commit_source_change(ready.proof).get("ok", false)), "the first source commits")
+	var removing: Dictionary = cache.begin_source_change(0, "remove")
+	ready = _finish_source_candidate(cache, removing.handle, runner)
+	if not bool(ready.get("ok", false)):
+		return
+	tile = cache.candidate_tile_copy(ready.proof, int(removing.tile_ids[0]))
+	for value: int in tile.channels:
+		runner.assert_eq(value, 0, "removing the last source yields an empty field")
+	runner.assert_true(bool(cache.commit_source_change(ready.proof).get("ok", false)), "the last source can be removed")
+	runner.assert_eq(int(cache.diagnostics().max_radius), 0, "the last removal resets the live maximum radius")
+	cache.set_source(0, Vector2i(3, 3), 2, [100, 0, 0, 0, 0, 0, 0])
+	var stale: Dictionary = cache.begin_source_change(0, "set", {"cell": Vector2i(4, 3), "radius": 2, "channels": [200, 0, 0, 0, 0, 0, 0]})
+	var stale_ready: Dictionary = _finish_source_candidate(cache, stale.handle, runner)
+	if not bool(stale_ready.get("ok", false)):
+		return
+	cache.set_source(1, Vector2i(5, 5), 1, [10, 0, 0, 0, 0, 0, 0])
+	var after_external: Dictionary = cache.diagnostics().duplicate(true)
+	runner.assert_eq(cache.can_commit_source_change(stale_ready.proof).get("reason"), "stale", "external source changes invalidate a sealed proof")
+	runner.assert_eq(cache.candidate_tile_copy(stale_ready.proof, int(stale.tile_ids[0])).get("reason"), "stale", "stale candidate tiles cannot be presented as current")
+	runner.assert_eq(cache.commit_source_change(stale_ready.proof).get("reason"), "stale", "stale source candidates cannot publish")
+	runner.assert_eq(cache.diagnostics(), after_external, "stale rejection does not alter newer live state or work")
+	runner.assert_true(bool(cache.cancel_source_change(stale.handle).get("ok", false)), "a stale handle can be cancelled")
+	var pending: Dictionary = cache.begin_source_change(0, "set", {"cell": Vector2i(4, 3), "radius": 2, "channels": [200, 0, 0, 0, 0, 0, 0]})
+	cache.step_source_change(pending.handle, 1)
+	cache.remove_source(1)
+	runner.assert_eq(cache.step_source_change(pending.handle, 1).get("reason"), "stale", "source mutation also invalidates a pending cursor")
+	runner.assert_true(bool(cache.cancel_source_change(pending.handle).get("ok", false)), "pending stale work can be discarded")
+	var large := Cache.new()
+	large.configure(Vector2i(512, 512), 1)
+	runner.assert_eq(large.begin_source_change(0, "set", {"cell": Vector2i(256, 256), "radius": 80, "channels": [1, 0, 0, 0, 0, 0, 0]}).get("reason"), "candidate_tile_limit", "a legal radius exceeding 64 affected tiles is rejected explicitly")
+	runner.assert_eq(int(large.diagnostics().revision), 0, "oversized coverage never changes the live source revision")
 
 
 func _reference_values(reference: RefCounted, area: Rect2i) -> PackedInt32Array:

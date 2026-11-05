@@ -10,6 +10,7 @@
 
 | 文件 | 原记录主题 |
 |---|---|
+| [20261105_source_temperature_transition.md](20261105_source_temperature_transition.md) | F2a来源候选/实际温度联合准备、独立重启及419万来源局部变更 |
 | [20261105_bounded_temperature_preparation.md](20261105_bounded_temperature_preparation.md) | F2a按块输入/预算续算/取消/统一发布与真实调用分布，未接Main |
 | [20261105_packed_temperature_state.md](20261105_packed_temperature_state.md) | F2a分块温度/封存候选、独立重启及密集/稀疏目标变化成本 |
 | [20261105_temperature_segments_and_budget.md](20261105_temperature_segments_and_budget.md) | 气候/tide目标段、下一边界索引与实际温度状态成本，未接Main |

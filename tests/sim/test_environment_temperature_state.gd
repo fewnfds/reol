@@ -478,7 +478,10 @@ func _bulk_equivalence(runner: Object) -> void:
 			runner.assert_true(false, "the completed candidate produces a proof")
 			return
 		runner.assert_true(finished.is_read_only(), "the completion result is opaque and read-only")
+		runner.assert_true(state.can_commit_bulk(finished.proof), "a complete temperature candidate can be preflighted without publication")
+		runner.assert_eq(state.snapshot(), baseline, "commit preflight does not publish temperature anchors")
 		runner.assert_true(bool(state.commit_bulk(finished.proof).get("ok", false)), "one proof publishes the complete candidate")
+		runner.assert_true(not state.can_commit_bulk(finished.proof), "a consumed temperature proof cannot pass preflight")
 		runner.assert_eq(state.snapshot(), expected, "each budget matches the small-batch snapshot exactly")
 		for change: Dictionary in changes:
 			for at_ms: int in [1_000, 1_001, 2_345, 6_000]:

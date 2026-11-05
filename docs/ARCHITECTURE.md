@@ -22,6 +22,8 @@ main / 场景装配
 
 新增bulk接口以逐块packed输入、槽预算和私有cursor准备同一owner的候选，完整结束才统一提交；不增加温度域/时钟/写档格式。小批与bulk互斥，恢复身份使旧事务失效；单笔64块，begin/finish/释放仍有同步成本。它尚非普通世界调度器，见[证据](qa/20261105_bounded_temperature_preparation.md)。
 
+`SimEnvironmentSourceChange`协调Cache单来源候选与唯一温度owner的bulk候选，先完整预验再同步发布，未知旧实际初值由原authority明确提供。它没有物品账/时钟/写档，不会自行移动原物；尚未接普通Main或真实动作事务。Cache候选仅CPU、保留无关队列与进行中扫描，实测范围见[证据](qa/20261105_source_temperature_transition.md)。
+
 ## 状态所有权
 
 | 领域/代码入口 | 权威状态或行为 | 边界 |

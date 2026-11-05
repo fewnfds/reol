@@ -4,6 +4,10 @@
 
 ## 已验代码基线
 
+### F2a-5：源场/实际温度联合候选
+
+2026-11-05，Cache来源变更候选与原温度bulk在同一同步栈联合提交，pending/cancel/过期不提前改活场；Cache/服务53551项、Response/温度1616项和协调器266项均0失败，真实GPU原服务12案例仍通过。独立两进程重建源投影与温度未来相同。2048²实插4194304来源、仅两端2块/512格变更，场工作1024时p99为0.828ms、目标输入17格p99为0.970ms；不是419万完整实物、整图变化或Main容量。具体范围、首个QA数字比较错误与原日志见[QA](qa/20261105_source_temperature_transition.md)。当前Main仍旧Q，真实物件/时间/受体切换未完成，完整回归待最终SHA。
+
 ### F2a-4：按块输入与预算续算
 
 2026-11-05，同一温度owner新增最多64块的packed批量准备，resume预算耗尽保cursor，完成后统一发布，取消/错误不改活状态；Response/State1607项与段编译138项0失败，原v1两进程未来不变。128²三种预算结果相同，256槽冷resume p95/p99为0.734/0.833ms，变后提交0.064ms；已有巨量root/高异质边界和Main/GPU/原物联合事务未验，不能当全世界帧预算。准确成本/同步残项见[QA](qa/20261105_bounded_temperature_preparation.md)，完整回归待最终SHA。
@@ -34,6 +38,7 @@
 
 | 版本/工作包 | 证据 | 适用边界 |
 |---|---|---|
+| `66be8833b2aea3d4a53a7758325a108ba925e0ed` F2a-1/2与前序 | [CI 41962215415](https://github.com/fewnfds/reol/actions/runs/41962215415) completed/success，源候选提交准备由主代理按完整SHA核对 | 覆盖已知段实际温度、气候/tide编译及边界索引、F1及前序；不覆盖后来的packed/bulk/源候选 |
 | `99eb91ce311a7e0df798dda3795baf6d857464e6` W1b地理气温及前序 | [CI 41916383335](https://github.com/fewnfds/reol/actions/runs/41916383335) completed/success，230组/32690断言/0失败；C1c-1b实际提交准备核对完整SHA与artifact | 覆盖W1b及此前世界包；不覆盖后来W2b-1固有光和C1c-1b历史证据解耦 |
 | `12f4cf9b5d968e290c5e955601b0ea1ca1ff0388` W2b-0固定火石光与前序世界包 | [CI 41913715806](https://github.com/fewnfds/reol/actions/runs/41913715806) completed/success，227组/29794断言/0失败；W2b-1实际提交准备核对完整SHA与artifact | 覆盖C1热场/固定源、W1a日照、P1a寻路和W2b-0及其前序；不覆盖W1b地理气温或W2b-1固有光 |
 | `73b765cf533006ca4c90149b55b8f937554dc584` C1a-1共享背景及前序修复 | [CI 41859915825](https://github.com/fewnfds/reol/actions/runs/41859915825) completed/success，C1a-2审查修复实际提交准备核对完整SHA | 覆盖C1a-1与前序A/B/C0及金额包；不覆盖C1a-2固定参考 |
