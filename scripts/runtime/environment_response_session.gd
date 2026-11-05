@@ -319,11 +319,11 @@ func _pump_targets() -> Dictionary:
 
 func _publish_boundary() -> void:
 	_published_ms = _world.elapsed_ms
-	_views.clear()
 	if _world.elapsed_ms < _requested_ms:
 		_boundary_ms = mini(_requested_ms, next_response_boundary_ms())
 		_state = "advance"
 	else:
+		_views.clear()
 		_state = "ready"
 
 

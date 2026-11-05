@@ -173,6 +173,9 @@ func _run() -> void:
 		"scope": "single source at a time, alternating two neighboring cells; final pump includes commit and possibly remaining preparation"}
 	_report["phase_owner_after_changes"] = session._phases.diagnostics()
 	_report["static_before_snapshot_bytes"] = OS.get_static_memory_usage()
+	# Preserve measured compute stages even if a later huge JSON archive hits
+	# the external process budget. This is partial evidence, never a passed run.
+	print("ENV_RESPONSE_GROUND_PROGRESS " + JSON.stringify(_report, "", true, true))
 	if bool(options.snapshot):
 		var persisted: Dictionary = _snapshot_roundtrip(session, definitions, settings, a, b)
 		_report["snapshot"] = persisted

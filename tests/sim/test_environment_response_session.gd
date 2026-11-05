@@ -108,7 +108,17 @@ func _closed_loop_and_restore(runner: Object) -> void:
 	runner.assert_true(session.cancel(), "the pending direct move can be cancelled")
 	runner.assert_true(not world.object_lifecycle.receipts.has("session_move"), "cancel writes no success receipt")
 	_near(runner, float(session.sample(A).actual_c), float(old.actual_c), "cancellation retains the old actual state")
+	# A rejected work budget must release the underlying field/response handle,
+	# so repairing caller settings can retry the same uncommitted command.
+	session.field_work = 0
 	pending = session.execute(move)
+	runner.assert_true(bool(pending.get("pending", false)), "invalid pump settings do not write during begin")
+	session.pump()
+	runner.assert_eq(session.status().result.get("reason"), "work_budget", "an invalid work budget rejects the pending attempt")
+	runner.assert_true(not world.object_lifecycle.receipts.has("session_move"), "rejected preparation writes no successful receipt")
+	session.field_work = 100_000
+	pending = session.execute(move)
+	runner.assert_true(bool(pending.get("pending", false)), "corrected budgets can retry after cleanup")
 	if not bool(pending.get("pending", false)) or not _finish(runner, session, "direct source move"):
 		return
 	runner.assert_true(bool(session.status().result.get("ok", false)), "the original object and new field commit together")

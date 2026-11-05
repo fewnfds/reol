@@ -211,11 +211,16 @@ func step_move(handle: Variant, work: int, cells: int, event_context: Variant = 
 		return context
 	var result: Dictionary = _response.step(handle, work, cells)
 	if not bool(result.get("ok", false)):
+		# Some failures (e.g. invalid caller budgets) retain the lower candidate.
+		# Release it before dropping this mapping; otherwise lifecycle cleanup
+		# cannot find the handle and the next lawful move stays permanently busy.
+		_response.cancel(handle)
 		_response_move = {}
 		return result
 	if not bool(result.get("pending", true)):
 		var finished: Dictionary = _response.finish(handle)
 		if not bool(finished.get("ok", false)):
+			_response.cancel(handle)
 			_response_move = {}
 			return finished
 		_response_move.proof = finished.proof
