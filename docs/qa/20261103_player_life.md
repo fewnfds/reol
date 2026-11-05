@@ -12,4 +12,4 @@
 
 证据：`logs/player-bird-inflight.json`、`logs/player-bird-future.json`、`logs/player-bird-restart.json`；画面`logs/player-life-opening-20261103.png`、`logs/player-bird-inflight-visible-20261103.png`、`logs/player-bird-cargo-visible-20261103.png`，1280×720。编辑器与游戏日志无新增错误/警告。实机发现人体面板复开、面板贴底与活动长行问题并修正；后续正式视听另做。
 
-最近完整构建数字仅维护在[BASELINE](../BASELINE.md)。约15分钟完整鸟妖体验、风险与更丰富交流仍待后续试玩，不以此短闭环冒充整款游戏完成。
+最近完整构建数字仅维护在[BASELINE](../status/baseline.md)。约15分钟完整鸟妖体验、风险与更丰富交流仍待后续试玩，不以此短闭环冒充整款游戏完成。

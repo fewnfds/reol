@@ -1,6 +1,6 @@
 # P2-a：实物施工、门墙与离场建造验收
 
-日期：2026-11-03。范围：[施工首包规格](../plans/construction_foundation.md)。这是有限宗门工地样本，不是完整P2/经营或完整游戏。Goal保持active，范围无需重写。
+日期：2026-11-03。范围：[施工首包规格](../archive/specifications/construction_foundation.md)。这是有限宗门工地样本，不是完整P2/经营或完整游戏。Goal保持active，范围无需重写。
 
 ## 规则与自动验证
 
@@ -10,7 +10,7 @@
 
 额外检查当前已建墙不污染旧候选存档的静态地形校验；候选须同时通过自己的结构/人物/鸟/材料空间检查。合法路线未来遇新墙可恢复，并在继续执行时按当前空间中断。
 
-最新完整检查数字、日志和格式只在[BASELINE](../BASELINE.md)维护，避免不同入口重复计数。
+最新完整检查数字、日志和格式只在[BASELINE](../status/baseline.md)维护，避免不同入口重复计数。
 
 收尾文档/引用检查：`python tools/check_structure.py`通过；技能的`check_godot_project.py . --strict`检查568个文件，0错误/0警告；`git -c core.safecrlf=false diff --check`通过。旧fixture未改写，新v16与原保存文件字节一致；三份跨进程未来JSON的SHA256均为`2b1a6da37399d55a94ffa67123d248518ac5d6b040f9636d9b6c81971c386062`。
 

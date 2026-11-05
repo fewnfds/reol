@@ -1,6 +1,6 @@
 # P1-g 自主生计验收
 
-2026-11-03。规则见[实施规格](../plans/autonomous_livelihood.md)，最新完整检查/格式数字仅维护在[BASELINE](../BASELINE.md)。本包为有限生活目的，完整游戏和45–60分钟切片仍未完成。
+2026-11-03。规则见[实施规格](../archive/specifications/autonomous_livelihood.md)，最新完整检查/格式数字仅维护在[BASELINE](../status/baseline.md)。本包为有限生活目的，完整游戏和45–60分钟切片仍未完成。
 
 ## 实际变化
 

@@ -1,6 +1,6 @@
 # P1-e 私料加工验收
 
-日期：2026-11-03。此包已接通，完整回归数字/日志统一见[BASELINE](../BASELINE.md)。规格见[personal_production](../plans/personal_production.md)。完整游戏Goal继续active，无需重写。
+日期：2026-11-03。此包已接通，完整回归数字/日志统一见[BASELINE](../status/baseline.md)。规格见[personal_production](../archive/specifications/personal_production.md)。完整游戏Goal继续active，无需重写。
 
 ## 实际变化
 

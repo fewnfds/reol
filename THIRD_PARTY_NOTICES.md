@@ -52,7 +52,7 @@ Unity/Unreal/其他引擎、C#/多人、平台跳跃、卡牌、视觉小说、�
 2. 比较旧pin、本地修订与新pin，逐项检查选中技能及附带资源。
 3. 按需合并 `.agents/skills/` 对应目录，保留本地项目修订、LICENSE和适用NOTICE；不整库覆盖。
 4. 更新本文件的 commit。
-5. 验证技能发现/路由、相对引用和文档结构；只有工具/游戏行为也变更时，执行相应产品验证。当前维护流程见[基础设施维护](docs/TOOLING-MAINTENANCE.md)。
+5. 验证技能发现/路由、相对引用和文档结构；只有工具/游戏行为也变更时，执行相应产品验证。当前维护流程见[基础设施维护](docs/engineering/tooling/maintenance.md)。
 
 ---
 

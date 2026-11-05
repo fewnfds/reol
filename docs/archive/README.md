@@ -7,4 +7,8 @@
 - [早期分向出图提示词](character_generation_prompts_20261103_early/README.md)：已被一文件一图提示词流程替代。
 - [2026-11-04整理快照](documentation_consolidation_20261104/INDEX.md)：本次大重写前原文，保留原路径层级。
 
+- [历史工作包规格](specifications/README.md)：完成、暂缓和被新顺序取代的旧包，供追溯，不能自动执行。
+- `design-context-20261105/`、`engineering-context-20261105/`：本轮从设计/工程页分离的旧实现快照及顺序。
+- `report-entries/`：旧根目录报告入口，保留原报告追溯。
+
 当前入口见[文档路由](../README.md)。归档中的相对链接可能反映原路径，不为通过当前链接检查而篡改原始内容；具体旧文件通过[CATALOG](../CATALOG.md)定位。

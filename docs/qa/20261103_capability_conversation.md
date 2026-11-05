@@ -1,6 +1,6 @@
 # 有限交谈与个人能力自述验收
 
-2026-11-03。范围见[规格](../plans/capability_conversation.md)，完整检查结果由[BASELINE](../BASELINE.md)维护，原完整游戏Goal继续active。
+2026-11-03。范围见[规格](../archive/specifications/capability_conversation.md)，完整检查结果由[BASELINE](../status/baseline.md)维护，原完整游戏Goal继续active。
 
 ## 已接行为与限制
 

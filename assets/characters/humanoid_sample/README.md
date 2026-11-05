@@ -53,7 +53,7 @@ python tools/build_humanoid_assets.py --check
 
 生成器检查单元边缘无裁切、八方向内容独立、二值透明度、每图集颜色数、全帧脚点及磁盘字节一致性。`--check` 只在内存重新生成发行资源，不改现有 PNG/JSON；默认会刷新忽略目录 `logs/` 的检查产物。`--no-previews` 可跳过这些日志。
 
-本轮像素替换后 `--check` 与 `--check --no-previews` 均通过，九张 PNG 与 manifest 共 10 文件逐字节可复现；每图集实际 4–17 色，manifest 与原帧/锚点合同未变。局部近邻过滤已接 Player、Pawn 和 V 页实际绘制子节点 `PreviewBody`；未修改全局 UI/字体或地图过滤。实际运行与完整回归的状态见[八向 QA](../../../docs/qa/20261103_eight_direction_sample.md)和[BASELINE](../../../docs/BASELINE.md)。
+本轮像素替换后 `--check` 与 `--check --no-previews` 均通过，九张 PNG 与 manifest 共 10 文件逐字节可复现；每图集实际 4–17 色，manifest 与原帧/锚点合同未变。局部近邻过滤已接 Player、Pawn 和 V 页实际绘制子节点 `PreviewBody`；未修改全局 UI/字体或地图过滤。实际运行与完整回归的状态见[八向 QA](../../../docs/qa/20261103_eight_direction_sample.md)和[BASELINE](../../../docs/status/baseline.md)。
 
 视觉检查产物（不作为发行资源）：
 

@@ -1,6 +1,6 @@
 # P2-b：围合空间与床铺验收
 
-2026-11-03，Godot 4.7.2 / Windows；原完整游戏Goal保持active。规格见[rooms_and_rest](../plans/rooms_and_rest.md)。当前完整检查数字/格式统一见[BASELINE](../BASELINE.md)。
+2026-11-03，Godot 4.7.2 / Windows；原完整游戏Goal保持active。规格见[rooms_and_rest](../archive/specifications/rooms_and_rest.md)。当前完整检查数字/格式统一见[BASELINE](../status/baseline.md)。
 
 ## 实际完成
 

@@ -5,7 +5,7 @@ description: 设计或修改 Reol 人物需求、工作、预约、库存、房�
 
 # Reol 生活、工作与场所
 
-以 `docs/FEATURES.md`、`docs/ARCHITECTURE.md` 和相关系统代码核对已实现范围；房间、设施、家具与容器的长期规则见 `design/systems/construction_and_space.md`。未接入的设计不是现成功能。
+以 `docs/status/features.md`、`docs/engineering/architecture.md` 和相关系统代码核对已实现范围；房间、设施、家具与容器的长期规则见 `design/systems/construction_and_space.md`。未接入的设计不是现成功能。
 
 ## 规则边界
 

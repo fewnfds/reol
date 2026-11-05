@@ -8,7 +8,7 @@ description: "Design game saves, versioned schemas, migrations, slots, autosave,
 A save file is a **serialized snapshot of game state** that survives restarts.
 The hard parts aren't writing bytes — they're choosing *what* to save, writing it
 so a crash mid-save can't corrupt it, and handling the explicitly supported save
-versions. Reol's support boundary is defined in [compatibility policy](../../../docs/COMPATIBILITY.md).
+versions. Reol's support boundary is defined in [compatibility policy](../../../docs/engineering/compatibility.md).
 
 ## When to use
 

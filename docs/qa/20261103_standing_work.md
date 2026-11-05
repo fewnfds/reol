@@ -1,6 +1,6 @@
 # P1-d：当面劳动约定验收
 
-日期：2026-11-03。规格见[standing_work](../plans/standing_work.md)，最新完整构建/格式只维护在[BASELINE](../BASELINE.md)。首包只有自愿照看灶房柴火/用水，不是完整组织、工资/雇佣或玩家脚本。
+日期：2026-11-03。规格见[standing_work](../archive/specifications/standing_work.md)，最新完整构建/格式只维护在[BASELINE](../status/baseline.md)。首包只有自愿照看灶房柴火/用水，不是完整组织、工资/雇佣或玩家脚本。
 
 ## 已接通
 

@@ -1,6 +1,6 @@
 # 修仙、战略与人生模拟：玩法重心和远区参照
 
-研究日期：2026-11-03；对应[超凡者优先方案](../../docs/plans/transcendent_focus.md)。实际打开一手页面，区分开发者功能说明、特定版本实现记录和对Reol的推论。未试玩这些作品来核验全部宣称，不据用户标签/评论推断内部架构。
+研究日期：2026-11-03；对应[超凡者优先方案](../../docs/archive/specifications/transcendent_focus.md)。实际打开一手页面，区分开发者功能说明、特定版本实现记录和对Reol的推论。未试玩这些作品来核验全部宣称，不据用户标签/评论推断内部架构。
 
 | 来源 | 核实到的侧重点 | 对Reol的取舍 |
 |---|---|---|
@@ -16,7 +16,7 @@
 | [X4·官方托管3.xx更新日志](https://wiki.egosoft.com/X4%20Foundations%20Wiki/Game%20Updates%20and%20Patch%20History/X4%20Foundations%203.xx%20Changelogs/?language=en) | 具体记录low-attention远战、远区弹药和舰队行为的改进 | 已发行作品也需要修正近远规则差异；可证明分精度，不能证明整个引擎只用事件 |
 | [Dwarf Fortress·持续世界说明](https://bay12games.com/dwarves/features.html) | 同一世界的文明、人物和历史持续存在，可在后续局面继续体验 | 保留人物来源与历史；离开区域不等于销毁事实 |
 
-前轮[成熟项目复核](../../docs/PROGRESS-AND-ARCHITECTURE-REVIEW-20261103.md)中的CDDA长动作、OpenTTD命令入口、Veloren近远共享意图仍有价值。Veloren接口明确可能有损，不能据此放松Reol对唯一法器、具名人物、旧债和已发伤势的持续性要求。
+前轮[成熟项目复核](../../docs/archive/report-entries/progress-and-architecture-review-20261103.md)中的CDDA长动作、OpenTTD命令入口、Veloren近远共享意图仍有价值。Veloren接口明确可能有损，不能据此放松Reol对唯一法器、具名人物、旧债和已发伤势的持续性要求。
 
 综合判断：不同成功作品把预算集中于自己的决策核心。Reol应优先构建“修行与冒险改变能力，能力改变处理冲突的办法，结果改变个人关系与组织局势”。生产和环境负责提供来源、约束、地点与争夺理由，暂不扩为另一款完整农场模拟。
 

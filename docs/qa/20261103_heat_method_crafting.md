@@ -1,6 +1,6 @@
 # 温养手记：试验、传授与个人采用验收
 
-2026-11-03，W6有限首包。[规格](../plans/heat_method_crafting.md)。不是任意创法、完整修行或通用学习网络；只组合已有温石注灵/储热/生活用途。
+2026-11-03，W6有限首包。[规格](../archive/specifications/heat_method_crafting.md)。不是任意创法、完整修行或通用学习网络；只组合已有温石注灵/储热/生活用途。
 
 ## 实机链与重启
 
@@ -16,7 +16,7 @@ run90，1280×720，实际选择杂役。为隔离同物竞争，取消阿禾原
 
 ## 自动验证
 
-最新全量数字和完整check日志仅维护在[BASELINE](../BASELINE.md)。定向规则证明草案不授予掌握、同参数改名不复制、不同参数有独立父版、旧学习不升级、查询无副作用；低流实际耗时/投入/储热，满载逸散不算验证，急灌沿真实裂隙崩石/散热。
+最新全量数字和完整check日志仅维护在[BASELINE](../status/baseline.md)。定向规则证明草案不授予掌握、同参数改名不复制、不同参数有独立父版、旧学习不升级、查询无副作用；低流实际耗时/投入/储热，满载逸散不算验证，急灌沿真实裂隙崩石/散热。
 
 `python -m unittest discover -s tests -p 'test_*.py'`通过15项工具测试；其中故意注入的Godot零退出/错误日志案例会打印ERROR以验证包装器拒绝，最终unittest为OK，不是游戏新增故障。`python tools/check_structure.py`与`git -c core.safecrlf=false diff --check`通过。
 

@@ -1,6 +1,6 @@
 # A1：真八方向外观技术样本验收
 
-2026-11-03。当前仍是M2系统原型，不是正式人物美术或完整动作/战斗；最新全量数字仅见[BASELINE](../BASELINE.md)。规格见[首包](../plans/eight_direction_sample.md)与[总合同](../plans/eight_direction_appearance.md)。未安装插件、下载第三方素材或改变全局设置。
+2026-11-03。当前仍是M2系统原型，不是正式人物美术或完整动作/战斗；最新全量数字仅见[BASELINE](../status/baseline.md)。规格见[首包](../archive/specifications/eight_direction_sample.md)与[总合同](../specs/presentation/eight-directions.md)。未安装插件、下载第三方素材或改变全局设置。
 
 ## 21:25 补充复核：沿用现有代码占位
 

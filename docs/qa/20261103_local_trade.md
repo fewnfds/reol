@@ -1,6 +1,6 @@
 # P1-b：有限公库交易验收
 
-2026-11-03，Godot 4.7.2 / Windows。规格见[local_trade](../plans/local_trade.md)，最新完整检查数字/格式统一维护在[BASELINE](../BASELINE.md)。原完整游戏Goal继续active。
+2026-11-03，Godot 4.7.2 / Windows。规格见[local_trade](../archive/specifications/local_trade.md)，最新完整检查数字/格式统一维护在[BASELINE](../status/baseline.md)。原完整游戏Goal继续active。
 
 ## 实际完成与范围
 

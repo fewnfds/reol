@@ -1,6 +1,6 @@
 # U3-b1：本人循纹研究与短距引物
 
-2026-11-04。U3-b1已合入主目录；后续补了研究开始保留连续位置、活跃研究/引物的联合候选拒绝非零高度和精确非零速度，以及左侧活动栏的秒数显示。主目录末版定向、同进程原loader连续性、两个独立进程停开与原生画面均已复验；原CI三项迁移测试前提修正后，`0804c70`的[完整CI](https://github.com/fewnfds/reol/actions/runs/41755190941)通过，局部样本验收完成，数字与最终日志见[BASELINE](../BASELINE.md)。下方隔离阶段两次独立进程停开和早期截图发生在上述窄改之前，不将其当成末版独立进程结果。
+2026-11-04。U3-b1已合入主目录；后续补了研究开始保留连续位置、活跃研究/引物的联合候选拒绝非零高度和精确非零速度，以及左侧活动栏的秒数显示。主目录末版定向、同进程原loader连续性、两个独立进程停开与原生画面均已复验；原CI三项迁移测试前提修正后，`0804c70`的[完整CI](https://github.com/fewnfds/reol/actions/runs/41755190941)通过，局部样本验收完成，数字与最终日志见[BASELINE](../status/baseline.md)。下方隔离阶段两次独立进程停开和早期截图发生在上述窄改之前，不将其当成末版独立进程结果。
 
 ## 产品范围
 
@@ -52,7 +52,7 @@
 
 `logs/drawing-final.log` 在后续速度/位置窄改之前记录仿真和真实 v40 迁移合计 365 断言、0 失败，覆盖研究前提、两段实际费用、1ms 边界、取消、NPC 同 API、双物锁、距离/遮挡/高差、目标变化、独立坏候选与保管链。`logs/drawing-legacy-migrations.log` 记录旧 field、capability、care 迁移 327 断言、0 失败。`logs/drawing-runtime-final.log` 记录改动前普通产品入口 17 断言、0 失败；不能用其证明之后新增的守卫和断言已运行。
 
-主目录末版 `logs/drawing-final-branch-20261104.log` 覆盖drawing、真实v40迁移与产品runtime，包含速度/位置守卫和秒数入口；`logs/drawing-continuity-branch-20261104.log` 使用原loader对两份真实v41源档的三个分支分别在同一进程内重复回放并逐字节比较，均通过。它与上文隔离阶段的两次独立操作系统进程停开是两种不同证据，不能把同进程回放写成末版独立停开。最新测试数字只看[BASELINE](../BASELINE.md)。
+主目录末版 `logs/drawing-final-branch-20261104.log` 覆盖drawing、真实v40迁移与产品runtime，包含速度/位置守卫和秒数入口；`logs/drawing-continuity-branch-20261104.log` 使用原loader对两份真实v41源档的三个分支分别在同一进程内重复回放并逐字节比较，均通过。它与上文隔离阶段的两次独立操作系统进程停开是两种不同证据，不能把同进程回放写成末版独立停开。最新测试数字只看[BASELINE](../status/baseline.md)。
 
 末版另经两个独立操作系统进程完整停开复验，入口为`tools/qa/drawing_restart.gd -- replay branch_first`及`branch_second`，直接读取仓库两份不可变v41源档。`logs/drawing-restart-branch-first-20261104.log`与`logs/drawing-restart-branch-second-20261104.log`均退出0，六个未来候选有效；`logs/drawing-restart-branch-manifest-20261104.json`逐字节比较三组结果全部相同，字节与SHA仍为上表数值。该证据覆盖研究保位、精确零速/高度守卫和秒数修正后的最终产品代码。
 

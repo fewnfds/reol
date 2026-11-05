@@ -1,6 +1,6 @@
 # 口头资格、有限采信与真实放行：实际验收
 
-2026-11-03。W5-a有限链样本；[实施范围](../plans/social_admission.md)。不是通用幻术、身份伪装、骗经或全社会执法。
+2026-11-03。W5-a有限链样本；[实施范围](../archive/specifications/social_admission.md)。不是通用幻术、身份伪装、骗经或全社会执法。
 
 ## 实机经过
 
@@ -18,7 +18,7 @@ run82实际选陈守拙，说同样的话；427100ms管事要求核验。再实�
 
 `logs/admission-collection-active.json`、`admission-collection-completed.json`、`admission-collection-restart.json`、`admission-private-audit-and-receipt.json`；1280×720截图`admission-believed-visible-20261103.png`、`admission-collection-active-visible-20261103.png`、`admission-collection-completed-visible-20261103.png`、`admission-private-audit-visible-20261103.png`、`admission-receipt-visible-20261103.png`。最后两张等待实际绘制完成再取图，文字/按钮在屏内。
 
-run82编辑器与游戏日志无新增项目错误/警告。完整check数字/日志统一在[BASELINE](../BASELINE.md)。定向规则/运行场景共89条断言通过，覆盖新旧档、NPC同API、粗细推进、取消、过期、重复缓存不续期、不生成额度、身体互斥、真实正面通行、虚构核验/伪造消费拒绝。NPC同API已验，不意味着NPC已自主策划欺骗。
+run82编辑器与游戏日志无新增项目错误/警告。完整check数字/日志统一在[BASELINE](../status/baseline.md)。定向规则/运行场景共89条断言通过，覆盖新旧档、NPC同API、粗细推进、取消、过期、重复缓存不续期、不生成额度、身体互斥、真实正面通行、虚构核验/伪造消费拒绝。NPC同API已验，不意味着NPC已自主策划欺骗。
 
 ## 实现中修正与边界
 

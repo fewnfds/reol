@@ -1,6 +1,6 @@
 # 动作、人物成长与衣着：参考取舍
 
-核查日期：2026-11-02。状态：**详细设计的来源与取舍，不是实现报告**。当次调研用户只要求设计，后续授权和停点见[HANDOFF](../../docs/HANDOFF.md)；当前实际能力见[FEATURES](../../docs/FEATURES.md)。
+核查日期：2026-11-02。状态：**详细设计的来源与取舍，不是实现报告**。当次调研用户只要求设计，后续授权和停点见[HANDOFF](../../docs/status/handoff.md)；当前实际能力见[FEATURES](../../docs/status/features.md)。
 
 本轮直接阅读12项开发商/发行商官方说明，涉及Hades、Dungeon Fighter Online、League of Legends、Warcraft III、Path of Exile与HITMAN。没有逐项试玩，没有逆向其代码，没有取得任何游戏资源的复用许可。下述“Reol采用”均为设计推导，不能当成对方内部架构或算法的描述。
 

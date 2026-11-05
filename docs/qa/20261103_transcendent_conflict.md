@@ -1,6 +1,6 @@
 # U1-a：实物武器与超凡冲突验收
 
-日期：2026-11-03。范围见[规格](../plans/transcendent_conflict.md)。这是地面人身的有限驱离冲突，完整战斗、学习网、组织战争和首小时冒险仍待实施；最终构建数字只在[BASELINE](../BASELINE.md)维护。
+日期：2026-11-03。范围见[规格](../archive/specifications/transcendent_conflict.md)。这是地面人身的有限驱离冲突，完整战斗、学习网、组织战争和首小时冒险仍待实施；最终构建数字只在[BASELINE](../status/baseline.md)维护。
 
 ## 实际变更
 

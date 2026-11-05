@@ -1,6 +1,6 @@
 # U3-a：断碑台、个人线索与自主寻物
 
-2026-11-04。U3-a产品和普通主局路线、真实三档两次完整停开、原生四图与前包完整CI已通过，**U3-a最终验收通过**。GitHub [run41739857610](https://github.com/fewnfds/reol/actions/runs/41739857610)对应前包commit `943d16a`；完整数字和日志见[BASELINE](../BASELINE.md)，不作为后续U3-b1通过证据。完整游戏与首小时切片未完成，原Goal保持active。
+2026-11-04。U3-a产品和普通主局路线、真实三档两次完整停开、原生四图与前包完整CI已通过，**U3-a最终验收通过**。GitHub [run41739857610](https://github.com/fewnfds/reol/actions/runs/41739857610)对应前包commit `943d16a`；完整数字和日志见[BASELINE](../status/baseline.md)，不作为后续U3-b1通过证据。完整游戏与首小时切片未完成，原Goal保持active。
 
 ## 实际交付
 

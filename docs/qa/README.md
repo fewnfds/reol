@@ -1,15 +1,16 @@
 # 验收与调查记录索引
 
-这里保留各工作包原日期、受检版本、场景和限制；不是当前授权或总进度。正文里的“下一包/active/尚未接入”只描述当时，之后是否实现查[FEATURES](../FEATURES.md)，最新具体SHA与CI查[BASELINE](../BASELINE.md)，当前停点查[HANDOFF](../HANDOFF.md)。不为整齐重写原测试结果、fixture或截图。
+这里保留各工作包原日期、受检版本、场景和限制；不是当前授权或总进度。正文里的“下一包/active/尚未接入”只描述当时，之后是否实现查[FEATURES](../status/features.md)，最新具体SHA与CI查[BASELINE](../status/baseline.md)，当前停点查[HANDOFF](../status/handoff.md)。不为整齐重写原测试结果、fixture或截图。
 
 - 原型通过不等于整个领域完成；同进程/完整停开、headless/画面/性能各自证明不同内容。
 - 2026-11-03早期雀身尚未接入的记录，不否定随后玩家雀身样本；旧分钟时间/旧根版本同理。
-- 本轮A0a不在已验包之列；追加自然环境/信号测试仍未跑，不能借旧CI绿色。
+- 每份记录仅覆盖当时列明的范围；没有对应SHA证据的工作保持待验。
 
 ## 记录目录
 
 | 文件 | 原记录主题 |
 |---|---|
+| [20261105_documentation_reorganization.md](20261105_documentation_reorganization.md) | 文档分类/拆分、分支审计与基础优先级收束；不运行引擎 |
 | [20261105_clock_world_commit.md](20261105_clock_world_commit.md) | 普通Main先结算世界再发布时钟、预算/行程接管/保存保护与原生两进程同未来 |
 | [20261105_source_temperature_transition.md](20261105_source_temperature_transition.md) | F2a来源候选/实际温度联合准备、独立重启及419万来源局部变更 |
 | [20261105_bounded_temperature_preparation.md](20261105_bounded_temperature_preparation.md) | F2a按块输入/预算续算/取消/统一发布与真实调用分布，未接Main |

@@ -1,6 +1,6 @@
 # 读档首屏：视口优先、暂停绘制与原事实连续
 
-2026-11-04；Godot 4.7.2，Windows / D3D12 Forward+，1280×720、相机缩放1。分支`codex/world-view-continuity`；规格见[首屏呈现](../plans/world_view_continuity.md)。本机定向和原生验收已进行，最终完整回归须对应本包提交，不能借前包绿色代替。
+2026-11-04；Godot 4.7.2，Windows / D3D12 Forward+，1280×720、相机缩放1。分支`codex/world-view-continuity`；规格见[首屏呈现](../archive/specifications/world_view_continuity.md)。本机定向和原生验收已进行，最终完整回归须对应本包提交，不能借前包绿色代替。
 
 ## 原问题与实际变更
 

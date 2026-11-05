@@ -1,7 +1,7 @@
 # 源场基础与密集基线
 
 日期：2026-11-05。F0为隔离规则；普通Main尚未替换旧Q模型，F1/F2未验收。
-合同见[环境规范](../plans/world_environment.md)，实施见[执行页](../plans/world_engine_execution.md#新源场首包实施与验收)。
+合同见[环境规范](../../design/proposals/environment.md)，实施见[执行页](../archive/specifications/world_engine_execution.md#新源场首包实施与验收)。
 
 ## 实现范围
 

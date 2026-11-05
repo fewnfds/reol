@@ -2,7 +2,7 @@
 
 Saves can outlive the code that wrote them. Reol keeps one current game model
 and write format; supported old inputs are explicitly bounded by the
-[compatibility policy](../../../../docs/COMPATIBILITY.md).
+[compatibility policy](../../../../docs/engineering/compatibility.md).
 
 ## The version field is non-negotiable
 

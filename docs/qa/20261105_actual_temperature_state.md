@@ -1,6 +1,6 @@
 # 已知目标段的实际温度状态（F2a-1）
 
-日期：2026-11-05。此包是隔离规则，不是普通 Main 的冷热替换；接入顺序见 [F2合同](../plans/field_environment_integration.md)。
+日期：2026-11-05。此包是隔离规则，不是普通 Main 的冷热替换；接入顺序见 [F2合同](../specs/environment/integration.md)。
 
 ## 实现与边界
 

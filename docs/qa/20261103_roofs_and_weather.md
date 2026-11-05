@@ -1,6 +1,6 @@
 # P2-c：有支撑屋面与局地晴雨验收
 
-2026-11-03，Godot 4.7.2 / Windows。规格见[roofs_and_weather](../plans/roofs_and_weather.md)，最新完整检查数字/格式仅由[BASELINE](../BASELINE.md)维护。原完整游戏Goal保持active。
+2026-11-03，Godot 4.7.2 / Windows。规格见[roofs_and_weather](../archive/specifications/roofs_and_weather.md)，最新完整检查数字/格式仅由[BASELINE](../status/baseline.md)维护。原完整游戏Goal保持active。
 
 ## 实际行为
 

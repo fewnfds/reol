@@ -2,7 +2,7 @@
 
 `definitions/conflicts.json`定义有限地面交锋的三种手段、时序/成本、学习背景、步长/距离与NPC判断参数。实际动作、命中与学成经历归SimConflicts，不回写定义；新局真实木剑由WorldContinuityRuntime显式加入原器物开局，旧档不补造。`artifacts.json`按能力类别提供实物动作，木剑不携温石热字段；`health.json`的挫伤恢复独立于经脉护理。灵源运行状态2记录历史检查点/施术成本floor，原灵源定义仍1。
 
-交锋感知的`sight_radius`、`last_seen_ms`、`last_seen_arrival_px`与`threat_margin_px`也在`conflicts.json`，分别约束本人视距、最后目击时限、抵达旧位置的容差与来弹威胁余量。它们不保存NPC所见，不授予听声或神识；真实最后目击和`perception_since_ms`只进入交锋运行状态2。旧档在原保存现在启用，不由参数反推历史；定义版本仍为1。范围与本轮验收入口见[有限感知规格](../docs/plans/conflict_perception.md)。
+交锋感知的`sight_radius`、`last_seen_ms`、`last_seen_arrival_px`与`threat_margin_px`也在`conflicts.json`，分别约束本人视距、最后目击时限、抵达旧位置的容差与来弹威胁余量。它们不保存NPC所见，不授予听声或神识；真实最后目击和`perception_since_ms`只进入交锋运行状态2。旧档在原保存现在启用，不由参数反推历史；定义版本仍为1。范围与本轮验收入口见[有限感知规格](../docs/archive/specifications/conflict_perception.md)。
 
 `definitions/local_heat.json`定义正余热近场的容量/源脉冲、整数步长、导通/室外散失与稀疏预算。实际存量和来源回执归SimLocalHeat，原温石储量归SimArtifacts，房间和天气都不复制这些值；规则改变需显式版本迁移。
 
@@ -11,7 +11,7 @@
 | definitions/ | 可复用定义和规则参数 | 人物/身份、服务/信息/放行、身体/短动作、器物/温养、雀妖/自然来源与寄魂等JSON |
 | scenarios/ | 开局装配、初始状态与验证场景 | village.json、world_continuity.json、artifacts.json、avian_life.json |
 
-当前内容：[人物](definitions/pawns.json)、[出身](definitions/origins.json)、[身份](definitions/ranks.json)、[跨聚落服务](definitions/settlement_services.json)；装配入口：[宗门生活](scenarios/village.json)、[双聚落](scenarios/world_continuity.json)。服务交付见[实现记录](../docs/SETTLEMENT-SERVICES-IMPLEMENTATION.md)。
+当前内容：[人物](definitions/pawns.json)、[出身](definitions/origins.json)、[身份](definitions/ranks.json)、[跨聚落服务](definitions/settlement_services.json)；装配入口：[宗门生活](scenarios/village.json)、[双聚落](scenarios/world_continuity.json)。服务交付见[实现记录](../docs/archive/report-entries/settlement-services-implementation.md)。
 
 village.json 当前保留原需求、动作和开局库存的一体配置，字段引用密切，暂不为了目录拆成碎片。它是已注明的过渡边界；以后多个开局需要复用时再抽公共动作定义。world_continuity.json 定义两地位置、库存差异、路线和消息时延。
 
@@ -19,7 +19,7 @@ village.json 当前保留原需求、动作和开局库存的一体配置，字�
 
 `definitions/artifacts.json`可声明intrinsic_light及严格lighting v1，让独特物原地或随原持有人发出相对微光；可与weapon/remote_draw组成同物能力，不能与thermal_exchange共用同一照明来源。开局珠子/薄片由原artifacts场景发一次，旧档不补发；无第二余额/物品/位置。光几何与火石实际热流共用传播查询，不把光强当作热量、qi或NPC所知。
 
-规则：定义不持有运行状态；稳定小写 ID 与显示名分离；多个实例可复用一个 definition_id。定义变更按范围先做相关定向验证，并在代码工作包完成后执行或由对应SHA的CI提供完整check；配置变化会影响档兼容性，不假装旧档自动适配。存档放 user://，生成缓存与日志不放 data/。JSON 与 Resource 均按实际编辑需求选择，不混用两份权威值。当前内容版本包工作尚未验收，范围和限制见[交接](../docs/HANDOFF.md)。
+规则：定义不持有运行状态；稳定小写 ID 与显示名分离；多个实例可复用一个 definition_id。定义变更按范围先做相关定向验证，并在代码工作包完成后执行或由对应SHA的CI提供完整check；配置变化会影响档兼容性，不假装旧档自动适配。存档放 user://，生成缓存与日志不放 data/。JSON 与 Resource 均按实际编辑需求选择，不混用两份权威值。当前内容版本包工作尚未验收，范围和限制见[交接](../docs/status/handoff.md)。
 
 `heat_methods.json`规定有限试验可选的流量/时长、指导成本和材料类型；玩家运行中拟定的具体版本属于SimHeatMethods存档目录，不回写内容定义。实际耗费、储热、学习来源仍由原器物过程和事件承担。
 

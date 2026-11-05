@@ -1,12 +1,12 @@
 # 验证入口
 
-本页只说明如何找到测试；验收结果及准确SHA见[BASELINE](../docs/BASELINE.md)，运行特性见[FEATURES](../docs/FEATURES.md)，真实旧档及只读要求见[fixtures记录](fixtures/README.md)。历史测试目录详述保存在[整理前快照](../docs/archive/documentation_consolidation_20261104/tests/README.md)。
+本页只说明如何找到测试；验收结果及准确SHA见[BASELINE](../docs/status/baseline.md)，运行特性见[FEATURES](../docs/status/features.md)，真实旧档及只读要求见[fixtures记录](fixtures/README.md)。历史测试目录详述保存在[整理前快照](../docs/archive/documentation_consolidation_20261104/tests/README.md)。
 
 - sim/：纯规则、对象/资源所有权、冲突、知识、环境、共同时间及批算。
 - runtime/：实际场景/行程、地形、输入、联合存读和迁移；runtime/helpers/为测试重放助手，不代替产品过程。
 - fixtures/：不可改写的真实历史档和来源记录；新格式不能靠覆盖旧档凑通过。
 
-真实历史来源不可改写，不等于永久支持全部旧版。当前测试覆盖与运行支持范围按[兼容及退役政策](../docs/COMPATIBILITY.md)调整；有价值的场景建立当前格式回归，退役后历史解释器及其主CI路径可移除。本轮文档整理未改测试/fixture。
+真实历史来源不可改写，不等于永久支持全部旧版。当前测试覆盖与运行支持范围按[兼容及退役政策](../docs/engineering/compatibility.md)调整；有价值的场景建立当前格式回归，退役后历史解释器及其主CI路径可移除。本轮文档整理未改测试/fixture。
 - 根目录test_*.py：工具链和CI观察器的Python测试。
 - tools/qa/：相关行为的定向探针；按具体系统和QA记录选择。
 

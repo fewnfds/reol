@@ -1,6 +1,6 @@
 # P1-f 有预算劳动与实际领薪验收
 
-2026-11-03。规格见[预算劳动](../plans/budgeted_labor.md)，当前总检查见[BASELINE](../BASELINE.md)。原完整游戏Goal保持active。
+2026-11-03。规格见[预算劳动](../archive/specifications/budgeted_labor.md)，当前总检查见[BASELINE](../status/baseline.md)。原完整游戏Goal保持active。
 
 ## 实际范围
 

@@ -1,0 +1,35 @@
+# AI开发基础设施：来源、更新与上下文预算：插件与其他组件维护
+
+## 2. Godot AI怎样升级
+
+1. **选定版本。** 重查稳定release、版本固定的迁移说明和已知问题，保存当前Git提交及本机连接条目的可恢复副本。备份含本机路径或凭据时只留本机，不上传。升级与新候选按[AGENTS](../../../../AGENTS.md)的依赖规则办理。
+2. **插件与后端成对更新。** 通过Godot AI dock支持的Update/官方安装流程更新，不手改`addons/`，不混覆盖文件，不只改uvx pin。发布的[迁移指南](https://github.com/hi-godot/godot-ai/blob/643c64f3edf984a9668b3043f4d20ebb2bbec6b6/docs/v4-migration.md)与[更新器说明](https://github.com/hi-godot/godot-ai/blob/v4.4.1/docs/self-update.md)是入口。
+3. **重新核对客户端。** 用dock的Configure → Codex生成匹配版本、端口、工具域和attach命令；先看它会改哪个范围。全局Godot AI条目可能影响其他仍用旧插件的项目。4.x使用`godot-ai attach`认证桥，不能擅改成裸HTTP地址。
+4. **重载后验连接。** 新版更新器支持若干热切换/复验，不能据此保证所有升级都无需重启。按实际提示刷新或重启编辑器/Codex，确认`session_manage`返回的插件与后端同为目标版本、项目路径正确、editor ready。
+5. **验实际工作流。** 先读场景树/脚本/日志，再在可丢弃场景试节点写入、保存与撤销；运行主局，检查helper live、日志和1280×720截图。原`python tools/godot.py check`仍走CI，不重复多开本地全套。升级工具不能代替产品回归。
+6. **记录与回退。** 记录release、实际版本、许可、配置范围及证据，提交官方更新产生的插件差异。失败先看更新日志与保留旧树；必要时关闭编辑器，按官方恢复流程还原整套插件及原连接pin，再验会话。签名/哈希通过不等于项目能解析；不假定每种失败都会自动回滚。
+
+## 3. 其他组件怎样维护
+
+| 对象 | 检查与更新方式 | 必须保留的东西 |
+|---|---|---|
+| Coding-Solo | 先只读查询npm latest、变更与许可；真有需要再改包装器`PACKAGE`固定版本并验证握手/版本/项目查询 | 旧pin、包装器Windows标准流处理、配置生成测试；不换成`@latest` |
+| Context7 | 保持远程URL，查官方服务/连接/认证说明；改用本地包是另一个方案，不是例行升级 | 原连接配置和最小查询；不把项目私密代码放进文档查询 |
+| 上游技能 | 对比旧pin、本地内容和新pin，按实际选用目录三方合并；更新第三方来源提交和修改说明 | LICENSE、适用NOTICE、附带references/scripts、自己的局部修订；不整库复制新增技能 |
+| 自有技能 | 对照当前AGENTS、代码所有者和验证流程做小改，测试任务能否正确触发 | 非显然项目约束和权威入口，不保留已过时“下一包”与旧Demo阶段 |
+| Codex系统/商店插件 | 从桌面应用/插件管理官方入口更新，核查其新增技能、MCP、权限和依赖；更新后重查实际可用能力 | 用户其他项目设置；不手改插件缓存、自动全开新工具或替换全局模型 |
+| Godot本体/运行环境 | 跟项目明确版本，分别更新；插件小升级不捎带升级引擎、Python或Node | 可复现版本、导出模板匹配、CI下载哈希；已有环境正常时不一起换栈 |
+
+只读检查示例，均不会执行安装：
+
+```powershell
+python tools/godot.py doctor
+python tools/setup_codex.py --check
+codex --version
+codex mcp list
+gh api repos/hi-godot/godot-ai/releases/latest --jq '{version:.tag_name,published:.published_at,url:.html_url}'
+npm view @coding-solo/godot-mcp version
+gh api repos/gamedev-skills/awesome-gamedev-agent-skills/commits/main --jq .sha
+```
+
+`enabled`、`Auth: Unsupported`、配置文件存在都不等于握手成功或失败。用当前工具实际调用验证；个别会话`Transport closed`须检查该连接与会话状态，不据此重装所有服务。

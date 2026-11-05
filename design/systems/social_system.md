@@ -1,8 +1,8 @@
 # 社会关系、机构记录与继任
 
-本文是社会领域的概念与设计入口：已确认的体验原则与待评审的实现候选分开。当前可玩功能见[FEATURES](../../docs/FEATURES.md)，实现负责人见[ARCHITECTURE](../../docs/ARCHITECTURE.md)，推进顺序见[世界引擎执行计划](../../docs/plans/world_engine_execution.md)。完整Claim、机构政治和继任均未因文档或隔离原型而实现。
+> 详细设计与候选：已确认体验原则见[社会与认识](../rules/society-and-knowledge.md)；具体记录、权重、机构政治和继任规则仍待评审。
 
-早期完整草案已原文保留在[历史档案](../../docs/archive/documentation_consolidation_20261104/design/systems/social_system.md)；其中数值、排序和发行/继承条件均是提案，不自动约束新实现。社会交互的决策因素与心理学/社会学引用见[社会互动评审](social_interaction_review.md)，世界共同原则见[世界总纲](self_consistent_world.md)。
+早期草案保留在[历史档案](../../docs/archive/documentation_consolidation_20261104/design/systems/social_system.md)；其中数值、排序和发行或继承条件都是提案。决策因素与来源见[社会互动评审](social_interaction_review.md)，共同原则见[世界总纲](self_consistent_world.md)。
 
 ## 已确定的体验与边界
 
