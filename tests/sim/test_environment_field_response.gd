@@ -167,6 +167,22 @@ func _value_only(runner: Object) -> void:
 		runner.assert_eq(value_only.get("at_ms"), at_ms, "value-only samples preserve the requested time")
 	runner.assert_eq(response.sample(9, false), response.sample(9), "value-only samples have the same time rejection")
 	runner.assert_eq(response.to_dict(), before, "value-only reads leave the anchor unchanged")
+	var high_start: int = Response.MAX_TIME - 10
+	var cases: Array = [
+		[0, 1_000, -273.15, 1.0e12, -1.0e9, 87, [0, 1, 87, 500, 1_000]],
+		[high_start, Response.MAX_TIME, 17.12345678912345, 20.0, -0.001, Response.MAX_TAU_MS, [high_start, high_start + 1, Response.MAX_TIME]],
+		[0, 6_755_399_441_055_744, 0.0, 1.5, -4.440892098500626e-16, 1, [0, 1, 10_000, 6_755_399_441_055_744]],
+	]
+	for example: Array in cases:
+		var extreme := Response.new()
+		if not extreme.configure(int(example[0]), int(example[1]), float(example[2]), float(example[3]), float(example[4]), int(example[5])):
+			runner.assert_true(false, "an exact value-only comparison case configures")
+			continue
+		for at_ms: int in example[6]:
+			var full: Dictionary = extreme.sample(at_ms)
+			var value_only: Dictionary = extreme.sample(at_ms, false)
+			runner.assert_true(bool(full.get("ok", false)) and bool(value_only.get("ok", false)), "both projections succeed for a bounded extreme")
+			runner.assert_eq(value_only.get("value"), full.get("value"), "the shared value-only path exactly preserves the full response at bounded extremes")
 
 
 func _bounded_envelope(runner: Object) -> void:

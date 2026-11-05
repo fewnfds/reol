@@ -6,6 +6,8 @@
 
 后续F2a-2已完成纯目标段编译与O(1)下一边界查询，见[证据和误差/成本界](../qa/20261105_temperature_segments_and_budget.md)。实际温度16384格整批prepare/commit约198/500ms，故当前逐格对象表示不作为密集世界的最终运行承诺；先解决紧凑/有界处理，再接Main。完整调度、源事务和房间仍未完成。
 
+F2a-3同一owner已改packed块和封存候选，128²提交降至约0.02ms，512²独立组件也通过有限守卫；大批prepare/快照仍慢且近1GiB，见[QA](../qa/20261105_packed_temperature_state.md)。接续须减少大字典物化并实现真正保cursor的预算准备；不能把现有整批格数budget当自动续算。无论近远区都只提交完整候选，不清欠算、不用未知环境值冒充中性。
+
 ## 现有依赖与切换原则
 
 - 当前普通世界仍由 [`RegionalSimulation`](../../scripts/sim/regional_simulation.gd) 持有 `local_heat`；其 `advance_to_ms` 在推进人物/区域前调用 `can_settle_at_ms(next_ms)`，然后以既定同毫秒顺序结上一段、处理到达/器物/施工、人体环境分钟采样、草木采样与后续行动。新系统要替换这些入口，不能在 `_process` 上另跑一份物理时钟。

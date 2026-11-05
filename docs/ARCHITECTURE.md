@@ -18,6 +18,8 @@ main / 场景装配
 
 `SimEnvironmentTemperatureState`是隔离候选中显式格的唯一实际温度owner；目标段/初值/时间锚点保存，边界计数索引恢复重建。`SimEnvironmentTemperatureSegments`只编译一个气候/天气/tide已知目标段，不持有温度或调度时钟。当前未替代Main，原物/来源/实际温度的联合变更和分块预算尚待接，规模限制见[F2a证据](qa/20261105_temperature_segments_and_budget.md)。
 
+同一温度owner内部已改16×16 packed锚点块，准备时只复制受影响块并封存候选，提交校验身份后安装；仍写原v1快照。大批字典输入/准备/快照尚未分片，不能直接每秒全图更新；成本与边界见[后续证据](qa/20261105_packed_temperature_state.md)。
+
 ## 状态所有权
 
 | 领域/代码入口 | 权威状态或行为 | 边界 |

@@ -13,6 +13,8 @@ const MAX_TIME: int = Response.MAX_TIME
 const MAX_AXIS: int = 4096
 const MAX_CAPACITY: int = 4_194_304
 const MAX_REVISION: int = 9_007_199_254_740_991
+const CHUNK_SIDE: int = 16
+const CHUNK_CELLS: int = CHUNK_SIDE * CHUNK_SIDE
 
 var _configured: bool = false
 var _size := Vector2i.ZERO
@@ -20,12 +22,22 @@ var _capacity: int = 0
 var _activation_ms: int = 0
 var _last_change_ms: int = 0
 var _revision: int = 0
-var _cells: Dictionary[Vector2i, RefCounted] = {}
-# Rebuildable index of response boundaries; the responses remain the owners of
-# the actual segments. No boundary index is serialized or used as a clock.
-var _boundary_counts: Dictionary[int, int] = {}
+var _chunks: Dictionary = {}
+var _tracked_count: int = 0
+# Rebuildable index of boundaries; packed anchors remain authoritative. The
+# boundary index is neither serialized nor used as a second clock.
+var _boundary_counts: Dictionary = {}
 var _earliest_boundary: int = -1
 var _issued_plan := WeakRef.new()
+# One private candidate at most. Its arrays are never included in a plan.
+var _prepared_chunks: Dictionary = {}
+var _prepared_counts: Dictionary = {}
+var _prepared_earliest: int = -1
+var _prepared_count: int = 0
+var _prepared_changed: int = 0
+var _prepared_at_ms: int = -1
+var _prepared_revision: int = -1
+var _prepared_rows: Array = []
 
 
 func configure(size: Vector2i, capacity: int, activation_ms: int) -> bool:
@@ -47,35 +59,23 @@ func actual_at(cell: Vector2i, at_ms: int) -> Dictionary:
 		return _failure("invalid_cell")
 	if at_ms < _activation_ms or at_ms > MAX_TIME:
 		return _failure("time_out_of_range")
-	if not _cells.has(cell):
+	var chunk: Chunk = _chunks.get(_chunk_key(cell))
+	var index: int = _chunk_index(cell)
+	if chunk == null or chunk.present[index] == 0:
 		return _failure("untracked")
-	var response: RefCounted = _cells[cell]
-	var anchor: Dictionary = response.to_dict()
-	if at_ms < int(anchor.start_ms):
+	if at_ms < chunk.starts[index]:
 		return _failure("history_unavailable")
-	if at_ms > int(anchor.until_ms):
+	if at_ms > chunk.untils[index]:
 		return _failure("target_boundary")
-	var result: Dictionary = response.sample(at_ms, false)
-	if not bool(result.get("ok", false)) or not _temperature(result.get("value")):
+	var value: float = Response._value_only_unchecked(chunk.starts[index], at_ms, chunk.initials[index], chunk.targets[index], chunk.slopes[index], chunk.taus[index])
+	if not _temperature(value):
 		return _failure("response_unavailable")
-	return {"ok": true, "cell": cell, "at_ms": at_ms, "value_c": float(result.value)}
+	return {"ok": true, "cell": cell, "at_ms": at_ms, "value_c": value}
 
 
 func prepare_targets(changes: Array[Dictionary], at_ms: int, budget: int) -> Dictionary:
-	var checked: Dictionary = _prepare_targets(changes, at_ms, budget)
-	if not bool(checked.get("ok", false)):
-		return checked
-	var proof := PreparedProof.new(checked.rows, at_ms)
-	_issued_plan = weakref(proof)
-	var plan: Dictionary = {"ok": true, "version": PLAN_VERSION, "owner": get_instance_id(),
-		"revision": _revision, "proof": proof, "at_ms": at_ms, "rows": checked.rows}
-	plan.make_read_only()
-	return plan
-
-
-func _prepare_targets(changes: Array[Dictionary], at_ms: int, budget: int) -> Dictionary:
-	# Complete, canonical transaction plan. An untracked cell requires its real
-	# climate initial_c; a tracked cell must not supply an initial override.
+	# Build a complete copy-on-write candidate before issuing a public proof.
+	# Only affected chunks are copied; the candidate root and counts are private.
 	if not _configured:
 		return _failure("not_configured")
 	if at_ms < _last_change_ms or at_ms > MAX_TIME:
@@ -88,9 +88,16 @@ func _prepare_targets(changes: Array[Dictionary], at_ms: int, budget: int) -> Di
 		return _failure("pending")
 	if _revision >= MAX_REVISION:
 		return _failure("revision_exhausted")
+
+	var candidate_chunks: Dictionary = _chunks.duplicate(false)
+	var candidate_counts: Dictionary = _boundary_counts.duplicate(false)
+	var candidate_earliest: int = _earliest_boundary
+	var candidate_count: int = _tracked_count
+	var copied: Dictionary[Vector2i, bool] = {}
 	var seen: Dictionary[Vector2i, bool] = {}
 	var rows: Array[Dictionary] = []
-	var new_count: int = 0
+	var previous_cell := Vector2i(-1, -1)
+	var ordered: bool = true
 	for change: Dictionary in changes:
 		var has_initial: bool = change.has("initial_c")
 		var fields: Array[String] = ["cell", "target_c", "target_per_ms", "until_ms", "tau_ms"]
@@ -102,35 +109,93 @@ func _prepare_targets(changes: Array[Dictionary], at_ms: int, budget: int) -> Di
 		if not _inside(cell, _size) or seen.has(cell):
 			return _failure("invalid_or_duplicate_cell")
 		seen[cell] = true
-		var tracked: bool = _cells.has(cell)
+		if not _after(cell, previous_cell):
+			ordered = false
+		previous_cell = cell
+
+		var key: Vector2i = _chunk_key(cell)
+		var index: int = _chunk_index(cell)
+		var original: Chunk = _chunks.get(key)
+		var tracked: bool = original != null and original.present[index] != 0
 		if has_initial == tracked:
 			return _failure("initial_mismatch")
 		var initial: float
 		if tracked:
-			var previous: Dictionary = actual_at(cell, at_ms)
-			if not bool(previous.get("ok", false)):
-				return _failure(str(previous.get("reason", "response_unavailable")))
-			initial = float(previous.value_c)
+			if at_ms < original.starts[index]:
+				return _failure("history_unavailable")
+			if at_ms > original.untils[index]:
+				return _failure("target_boundary")
+			initial = Response._value_only_unchecked(original.starts[index], at_ms, original.initials[index], original.targets[index], original.slopes[index], original.taus[index])
+			if not _temperature(initial):
+				return _failure("response_unavailable")
 		else:
 			if not _temperature(change.initial_c):
 				return _failure("initial_out_of_range")
 			initial = float(change.initial_c)
-			new_count += 1
-			if new_count > _capacity - _cells.size():
+			candidate_count += 1
+			if candidate_count > _capacity:
 				return _failure("capacity")
+
 		if not _temperature(change.target_c) or not _number(change.target_per_ms) or not _integer(change.until_ms, at_ms, MAX_TIME) or not _integer(change.tau_ms, 1, Response.MAX_TAU_MS):
 			return _failure("target_invalid")
-		var response := Response.new()
-		if not response.configure(at_ms, int(change.until_ms), initial, float(change.target_c), float(change.target_per_ms), int(change.tau_ms)) or not _physical_response(response.to_dict()):
+		var target: float = float(change.target_c)
+		var slope: float = float(change.target_per_ms)
+		var until_ms: int = int(change.until_ms)
+		var tau_ms: int = int(change.tau_ms)
+		# Response.configure permits this rate bound; physical temperature
+		# additionally requires both target endpoints to be in its domain.
+		if absf(slope) > Response.MAX_ABS_RATE_PER_MS or not _temperature(target + slope * float(until_ms - at_ms)):
 			return _failure("target_invalid")
-		var state: Dictionary = response.to_dict()
-		state.make_read_only()
-		var row: Dictionary = {"cell": cell, "response": state}
+
+		var next_chunk: Chunk = candidate_chunks.get(key)
+		if not copied.has(key):
+			next_chunk = Chunk.new(original)
+			candidate_chunks[key] = next_chunk
+			copied[key] = true
+		next_chunk.set_anchor(index, at_ms, until_ms, initial, target, slope, tau_ms)
+
+		var old_boundary: int = original.untils[index] if tracked else -1
+		if old_boundary != until_ms:
+			if old_boundary >= 0:
+				var remaining: int = int(candidate_counts[old_boundary]) - 1
+				if remaining == 0:
+					candidate_counts.erase(old_boundary)
+				else:
+					candidate_counts[old_boundary] = remaining
+			candidate_counts[until_ms] = int(candidate_counts.get(until_ms, 0)) + 1
+			if candidate_earliest < 0 or until_ms < candidate_earliest:
+				candidate_earliest = until_ms
+
+		var response_state: Dictionary = {"version": 1, "start_ms": at_ms, "until_ms": until_ms,
+			"initial_value": initial, "target_value": target, "target_per_ms": slope, "tau_ms": tau_ms}
+		response_state.make_read_only()
+		var row: Dictionary = {"cell": cell, "response": response_state}
 		row.make_read_only()
 		rows.append(row)
-	rows.sort_custom(_row_before)
+	if candidate_earliest >= 0 and not candidate_counts.has(candidate_earliest):
+		candidate_earliest = -1
+		for boundary: int in candidate_counts:
+			if candidate_earliest < 0 or boundary < candidate_earliest:
+				candidate_earliest = boundary
+	if not ordered:
+		rows.sort_custom(_row_before)
 	rows.make_read_only()
-	return {"ok": true, "rows": rows}
+	var proof := PreparedProof.new(rows, at_ms)
+	# A successful new preparation supersedes the previous candidate. A failed
+	# or pending preparation has not touched the live state or the old proof.
+	_prepared_chunks = candidate_chunks
+	_prepared_counts = candidate_counts
+	_prepared_earliest = candidate_earliest
+	_prepared_count = candidate_count
+	_prepared_changed = rows.size()
+	_prepared_at_ms = at_ms
+	_prepared_revision = _revision
+	_prepared_rows = rows
+	_issued_plan = weakref(proof)
+	var plan: Dictionary = {"ok": true, "version": PLAN_VERSION, "owner": get_instance_id(),
+		"revision": _revision, "proof": proof, "at_ms": at_ms, "rows": rows}
+	plan.make_read_only()
+	return plan
 
 
 func commit(plan: Variant) -> Dictionary:
@@ -140,67 +205,32 @@ func commit(plan: Variant) -> Dictionary:
 		return _failure("invalid_or_stale_plan")
 	if not plan.at_ms is int or plan.at_ms < _last_change_ms or plan.at_ms > MAX_TIME or not plan.rows is Array or not plan.rows.is_read_only() or plan.rows.is_empty() or plan.rows.size() > _capacity or _revision >= MAX_REVISION:
 		return _failure("invalid_or_stale_plan")
-	if not plan.proof is PreparedProof or not is_same(_issued_plan.get_ref(), plan.proof) or not plan.proof.matches(plan.rows, int(plan.at_ms)):
+	# The owner, not the externally visible proof object's mutable fields,
+	# retains both the sole candidate and the identity of its immutable rows.
+	if not plan.proof is PreparedProof or not is_same(_issued_plan.get_ref(), plan.proof) or not is_same(_prepared_rows, plan.rows) or int(plan.at_ms) != _prepared_at_ms or _prepared_revision != _revision:
 		return _failure("invalid_or_stale_plan")
-	# Rebuild a complete candidate, including normal preparation, rather than
-	# trusting caller-owned plan data or a claimed initial value. This verifies
-	# identity/revision, unique rows, time, capacity and old actual continuity.
-	var changes: Array[Dictionary] = []
-	var prior := Vector2i(-1, -1)
-	for row: Variant in plan.rows:
-		if not _keys(row, ["cell", "response"]) or not row.is_read_only() or not row.cell is Vector2i or not _inside(row.cell, _size) or not _after(row.cell, prior) or not row.response is Dictionary or not row.response.is_read_only():
-			return _failure("invalid_or_stale_plan")
-		var candidate := Response.new()
-		if not candidate.restore(row.response):
-			return _failure("invalid_or_stale_plan")
-		var state: Dictionary = candidate.to_dict()
-		if not _physical_response(state) or int(state.start_ms) != int(plan.at_ms):
-			return _failure("invalid_or_stale_plan")
-		var cell: Vector2i = row.cell
-		var change: Dictionary = {"cell": cell, "target_c": float(state.target_value),
-			"target_per_ms": float(state.target_per_ms), "until_ms": int(state.until_ms), "tau_ms": int(state.tau_ms)}
-		if not _cells.has(cell):
-			change["initial_c"] = float(state.initial_value)
-		changes.append(change)
-		prior = cell
-	var checked: Dictionary = _prepare_targets(changes, int(plan.at_ms), changes.size())
-	if not bool(checked.get("ok", false)) or not _same_rows(plan.rows, checked.rows):
-		return _failure("invalid_or_stale_plan")
-	var replacements: Dictionary[Vector2i, RefCounted] = {}
-	for row: Dictionary in checked.rows:
-		var candidate := Response.new()
-		if not candidate.restore(row.response):
-			return _failure("invalid_or_stale_plan")
-		replacements[row.cell] = candidate
-	# All parsing and validation has finished. Change the derived counts and
-	# responses together without yielding; do not rescan until the old minimum
-	# is actually absent after the entire batch (which may reintroduce it).
-	for row: Dictionary in checked.rows:
-		var cell: Vector2i = row.cell
-		var next_boundary: int = int(row.response.until_ms)
-		var old_boundary: int = -1
-		if _cells.has(cell):
-			old_boundary = int(_cells[cell].to_dict().until_ms)
-		if old_boundary != next_boundary:
-			if old_boundary >= 0:
-				var remaining: int = _boundary_counts[old_boundary] - 1
-				if remaining == 0:
-					_boundary_counts.erase(old_boundary)
-				else:
-					_boundary_counts[old_boundary] = remaining
-			_boundary_counts[next_boundary] = int(_boundary_counts.get(next_boundary, 0)) + 1
-			if _earliest_boundary < 0 or next_boundary < _earliest_boundary:
-				_earliest_boundary = next_boundary
-		_cells[cell] = replacements[cell]
-	if _earliest_boundary >= 0 and not _boundary_counts.has(_earliest_boundary):
-		_earliest_boundary = -1
-		for boundary: int in _boundary_counts:
-			if _earliest_boundary < 0 or boundary < _earliest_boundary:
-				_earliest_boundary = boundary
-	_last_change_ms = int(plan.at_ms)
+	var changed: int = _prepared_changed
+	var at_ms: int = _prepared_at_ms
+	_chunks = _prepared_chunks
+	_boundary_counts = _prepared_counts
+	_earliest_boundary = _prepared_earliest
+	_tracked_count = _prepared_count
+	_last_change_ms = at_ms
 	_revision += 1
+	_clear_prepared()
+	return {"ok": true, "revision": _revision, "changed": changed, "at_ms": at_ms}
+
+
+func _clear_prepared() -> void:
 	_issued_plan = WeakRef.new()
-	return {"ok": true, "revision": _revision, "changed": replacements.size(), "at_ms": _last_change_ms}
+	_prepared_chunks = {}
+	_prepared_counts = {}
+	_prepared_earliest = -1
+	_prepared_count = 0
+	_prepared_changed = 0
+	_prepared_at_ms = -1
+	_prepared_revision = -1
+	_prepared_rows = []
 
 
 func next_boundary_ms() -> int:
@@ -211,20 +241,24 @@ func snapshot() -> Dictionary:
 	if not _configured:
 		return {}
 	var cells: Array[Vector2i] = []
-	for cell: Vector2i in _cells:
-		cells.append(cell)
+	for key: Vector2i in _chunks:
+		var chunk: Chunk = _chunks[key]
+		for index: int in CHUNK_CELLS:
+			if chunk.present[index] != 0:
+				cells.append(Vector2i((key.x << 4) + (index & 15), (key.y << 4) + (index >> 4)))
 	cells.sort_custom(_cell_before)
 	var rows: Array[Dictionary] = []
 	for cell: Vector2i in cells:
-		rows.append({"cell": [cell.x, cell.y], "response": _cells[cell].to_dict()})
+		var chunk: Chunk = _chunks[_chunk_key(cell)]
+		rows.append({"cell": [cell.x, cell.y], "response": chunk.response_at(_chunk_index(cell))})
 	return {"version": VERSION, "size": [_size.x, _size.y], "capacity": _capacity,
 		"activation_ms": _activation_ms, "last_change_ms": _last_change_ms,
 		"revision": _revision, "cells": rows}
 
 
 func restore(data: Variant) -> bool:
-	# Construct every response in isolation; no field is assigned until all
-	# structure, coordinates, response bounds, and shared times are validated.
+	# Construct every chunk and boundary count in isolation; no live field is
+	# assigned until the complete candidate has passed the existing v1 checks.
 	if not _keys(data, ["version", "size", "capacity", "activation_ms", "last_change_ms", "revision", "cells"]) or not _integer(data.version, VERSION, VERSION) or not data["size"] is Array or data["size"].size() != 2:
 		return false
 	if not _integer(data["size"][0], 1, MAX_AXIS) or not _integer(data["size"][1], 1, MAX_AXIS) or not _integer(data.capacity, 1, MAX_CAPACITY) or not _integer(data.activation_ms, 0, MAX_TIME) or not _integer(data.last_change_ms, int(data.activation_ms), MAX_TIME) or not _integer(data.revision, 0, MAX_REVISION):
@@ -238,19 +272,19 @@ func restore(data: Variant) -> bool:
 	var last_change: int = int(data.last_change_ms)
 	if revision == 0 and (not data.cells.is_empty() or last_change != activation) or revision > 0 and data.cells.is_empty():
 		return false
-	var candidate: Dictionary[Vector2i, RefCounted] = {}
-	var candidate_counts: Dictionary[int, int] = {}
+	var candidate_chunks: Dictionary = {}
+	var candidate_counts: Dictionary = {}
 	var candidate_boundary: int = -1
 	var prior := Vector2i(-1, -1)
 	var newest: int = activation
+	# A single reusable validator preserves Response.restore's exact schema and
+	# bounds without retaining a RefCounted response for every tracked cell.
+	var response := Response.new()
 	for row: Variant in data.cells:
 		if not _keys(row, ["cell", "response"]) or not row.cell is Array or row.cell.size() != 2 or not _integer(row.cell[0], 0, next_size.x - 1) or not _integer(row.cell[1], 0, next_size.y - 1):
 			return false
 		var cell := Vector2i(int(row.cell[0]), int(row.cell[1]))
-		if not _after(cell, prior):
-			return false
-		var response := Response.new()
-		if not response.restore(row.response):
+		if not _after(cell, prior) or not response.restore(row.response):
 			return false
 		var state: Dictionary = response.to_dict()
 		if not _physical_response(state) or int(state.start_ms) < activation or int(state.start_ms) > last_change:
@@ -260,7 +294,12 @@ func restore(data: Variant) -> bool:
 		candidate_counts[boundary] = int(candidate_counts.get(boundary, 0)) + 1
 		if candidate_boundary < 0 or boundary < candidate_boundary:
 			candidate_boundary = boundary
-		candidate[cell] = response
+		var key: Vector2i = _chunk_key(cell)
+		var chunk: Chunk = candidate_chunks.get(key)
+		if chunk == null:
+			chunk = Chunk.new()
+			candidate_chunks[key] = chunk
+		chunk.set_anchor(_chunk_index(cell), int(state.start_ms), boundary, float(state.initial_value), float(state.target_value), float(state.target_per_ms), int(state.tau_ms))
 		prior = cell
 	if newest != last_change:
 		return false
@@ -269,14 +308,22 @@ func restore(data: Variant) -> bool:
 	_activation_ms = activation
 	_last_change_ms = last_change
 	_revision = revision
-	_cells = candidate
+	_chunks = candidate_chunks
+	_tracked_count = data.cells.size()
 	_boundary_counts = candidate_counts
 	_earliest_boundary = candidate_boundary
 	_configured = true
-	# A plan prepared before restore cannot become valid merely because a
-	# snapshot restored the same numeric revision and coordinates.
-	_issued_plan = WeakRef.new()
+	# Even the same numeric revision cannot make an old candidate valid again.
+	_clear_prepared()
 	return true
+
+
+static func _chunk_key(cell: Vector2i) -> Vector2i:
+	return Vector2i(cell.x >> 4, cell.y >> 4)
+
+
+static func _chunk_index(cell: Vector2i) -> int:
+	return ((cell.y & 15) << 4) + (cell.x & 15)
 
 
 static func _valid_configuration(size: Vector2i, capacity: int, activation_ms: int) -> bool:
@@ -330,17 +377,53 @@ static func _row_before(a: Dictionary, b: Dictionary) -> bool:
 	return _cell_before(a.cell, b.cell)
 
 
-static func _same_rows(first: Array, second: Array) -> bool:
-	if first.size() != second.size():
-		return false
-	for index: int in first.size():
-		if first[index].cell != second[index].cell or first[index].response != second[index].response:
-			return false
-	return true
-
-
 static func _failure(reason: String) -> Dictionary:
 	return {"ok": false, "reason": reason}
+
+
+class Chunk:
+	extends RefCounted
+	## Only the owner and its unpublished candidate hold these arrays. Cloning a
+	## touched block makes every packed column independent of the live block.
+	var present := PackedByteArray()
+	var starts := PackedInt64Array()
+	var untils := PackedInt64Array()
+	var initials := PackedFloat64Array()
+	var targets := PackedFloat64Array()
+	var slopes := PackedFloat64Array()
+	var taus := PackedInt32Array()
+
+	func _init(source: Variant = null) -> void:
+		if source == null:
+			present.resize(256)
+			starts.resize(256)
+			untils.resize(256)
+			initials.resize(256)
+			targets.resize(256)
+			slopes.resize(256)
+			taus.resize(256)
+		else:
+			present = source.present.duplicate()
+			starts = source.starts.duplicate()
+			untils = source.untils.duplicate()
+			initials = source.initials.duplicate()
+			targets = source.targets.duplicate()
+			slopes = source.slopes.duplicate()
+			taus = source.taus.duplicate()
+
+	func set_anchor(index: int, start_ms: int, until_ms: int, initial: float, target: float, slope: float, tau_ms: int) -> void:
+		present[index] = 1
+		starts[index] = start_ms
+		untils[index] = until_ms
+		initials[index] = initial
+		targets[index] = target
+		slopes[index] = slope
+		taus[index] = tau_ms
+
+	func response_at(index: int) -> Dictionary:
+		return {"version": 1, "start_ms": starts[index], "until_ms": untils[index],
+			"initial_value": initials[index], "target_value": targets[index],
+			"target_per_ms": slopes[index], "tau_ms": taus[index]}
 
 
 class PreparedProof:

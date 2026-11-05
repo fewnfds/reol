@@ -4,6 +4,7 @@ extends RefCounted
 const State = preload("res://scripts/sim/environment_temperature_state.gd")
 const Index = preload("res://scripts/sim/environment_field_index.gd")
 const Rules = preload("res://scripts/sim/environment_field_rules.gd")
+const Response = preload("res://scripts/sim/environment_field_response.gd")
 
 
 func run(runner: Object) -> void:
@@ -11,6 +12,7 @@ func run(runner: Object) -> void:
 	_field_move_and_cancel(runner)
 	_transaction_rejection(runner)
 	_boundary_index(runner)
+	_packed_chunks_and_proofs(runner)
 	_read_order_and_restore(runner)
 	_snapshot_rejection(runner)
 	print("SCENARIO environment temperature state: known segments, source-field targets, continuous moves, atomic plans, read-only projection and isolated JSON recovery")
@@ -282,6 +284,88 @@ func _boundary_index(runner: Object) -> void:
 	_check_boundary(runner, immediate, 0, "time zero is not confused with an empty index")
 	runner.assert_true(bool(_apply(immediate, [_change(Vector2i.ZERO, 20.0, 1)], 0, 1).get("ok", false)), "an immediate boundary can be settled at its own time")
 	_check_boundary(runner, immediate, 1, "settling time zero advances the indexed boundary")
+
+
+func _packed_chunks_and_proofs(runner: Object) -> void:
+	var state := State.new()
+	runner.assert_true(state.configure(Vector2i(40, 34), 9, 0), "a sparse multi-chunk owner configures")
+	var cells: Array[Vector2i] = [Vector2i(16, 16), Vector2i(39, 33), Vector2i(15, 15), Vector2i(32, 0), Vector2i.ZERO, Vector2i(16, 15), Vector2i(15, 16)]
+	var opening: Array[Dictionary] = []
+	for cell: Vector2i in cells:
+		opening.append(_new_change(cell, 17.12345678912345, 49.87654321098765, 10_000, 1_234, -0.001234567890123))
+	var opening_plan: Dictionary = state.prepare_targets(opening, 0, opening.size())
+	if not bool(opening_plan.get("ok", false)):
+		runner.assert_true(false, "an unsorted sparse multi-chunk plan prepares")
+		return
+	runner.assert_eq(state.snapshot().cells.size(), 0, "preparing new chunks does not publish them")
+	runner.assert_true(opening_plan.is_read_only() and opening_plan.rows.is_read_only(), "the public sparse plan and row array are read-only")
+	for row: Dictionary in opening_plan.rows:
+		runner.assert_true(row.is_read_only() and row.response.is_read_only(), "the public sparse plan exposes only immutable row dictionaries")
+	if not bool(state.commit(opening_plan).get("ok", false)):
+		runner.assert_true(false, "the sparse multi-chunk plan commits")
+		return
+	var before: Dictionary = state.snapshot()
+	var ordered: Array = []
+	for row: Dictionary in before.cells:
+		ordered.append(row.cell)
+	runner.assert_eq(ordered, [[0, 0], [32, 0], [15, 15], [16, 15], [15, 16], [16, 16], [39, 33]], "v1 snapshots remain globally ordered by y then x across block edges")
+	runner.assert_eq(state.actual_at(Vector2i(14, 15), 100), {"ok": false, "reason": "untracked"}, "an unoccupied slot within a live block stays untracked")
+	runner.assert_eq(state.actual_at(Vector2i(0, 32), 100), {"ok": false, "reason": "untracked"}, "an unallocated block stays untracked")
+	var old_a: Dictionary = state.actual_at(Vector2i(15, 15), 100)
+	var old_b: Dictionary = state.actual_at(Vector2i(16, 16), 100)
+	var changes: Array[Dictionary] = [_change(Vector2i(15, 15), -10.0, 9_000, 2_000, 0.001), _change(Vector2i(16, 16), 80.0, 8_000, 3_000, -0.002)]
+	var plan: Dictionary = state.prepare_targets(changes, 100, 2)
+	if not bool(plan.get("ok", false)):
+		runner.assert_true(false, "a replacement across two real chunks prepares")
+		return
+	runner.assert_eq(state.snapshot(), before, "copy-on-write preparation leaves all original chunks unchanged")
+	runner.assert_eq(state.actual_at(Vector2i(15, 15), 100), old_a, "preparing does not change the first original anchor")
+	runner.assert_eq(state.actual_at(Vector2i(16, 16), 100), old_b, "preparing does not change the other original anchor")
+	runner.assert_eq(state.prepare_targets(changes, 100, 1), {"ok": false, "reason": "pending"}, "a later pending preparation leaves the issued candidate alone")
+	var late_bad: Array[Dictionary] = [_change(Vector2i(15, 15), 30.0, 9_000), _change(Vector2i(16, 16), -274.0, 8_000)]
+	runner.assert_true(not bool(state.prepare_targets(late_bad, 100, 2).get("ok", true)), "a late invalid row discards its copied blocks")
+	runner.assert_eq(state.snapshot(), before, "failed preparation does not modify live blocks or their boundary")
+	runner.assert_eq(state.next_boundary_ms(), 10_000, "failed and pending preparations preserve the live boundary")
+	var malformed_save: Dictionary = before.duplicate(true)
+	malformed_save.cells[-1].response.target_value = NAN
+	runner.assert_true(not state.restore(malformed_save), "a failed restore cannot publish partially rebuilt chunks")
+	runner.assert_eq(state.snapshot(), before, "failed restore leaves all original chunks intact")
+	# A caller can replace fields of the exposed proof object. Identity of the
+	# immutable rows retained separately by the owner must still reject a forged
+	# fully read-only copy, without invalidating the actual issued candidate.
+	var forged: Dictionary = plan.duplicate(true)
+	forged.rows[0].response.initial_value = 123.0
+	for row: Dictionary in forged.rows:
+		row.response.make_read_only()
+		row.make_read_only()
+	forged.rows.make_read_only()
+	forged.proof._rows = forged.rows
+	forged.make_read_only()
+	runner.assert_true(not bool(state.commit(forged).get("ok", true)), "a forged row identity cannot authorize the private candidate")
+	runner.assert_eq(state.snapshot(), before, "rejecting a forged proof leaves every old anchor intact")
+	runner.assert_true(bool(state.commit(plan).get("ok", false)), "the original plan remains usable after pending, failure and forgery")
+	runner.assert_eq(state.actual_at(Vector2i(15, 15), 100), old_a, "the first packed replacement retains its exact old value")
+	runner.assert_eq(state.actual_at(Vector2i(16, 16), 100), old_b, "the other packed replacement retains its exact old value")
+	runner.assert_eq(state.next_boundary_ms(), 8_000, "the candidate's boundary counts publish with its blocks")
+	var after: Dictionary = state.snapshot()
+	var saved: Variant = JSON.parse_string(JSON.stringify(after, "", true, true))
+	var restored := State.new()
+	if not restored.restore(saved):
+		runner.assert_true(false, "full-precision v1 data restores independent packed chunks")
+		return
+	runner.assert_eq(restored.snapshot(), after, "the packed representation preserves the complete v1 snapshot")
+	var response := Response.new()
+	for row: Dictionary in after.cells:
+		var cell := Vector2i(int(row.cell[0]), int(row.cell[1]))
+		if not response.restore(row.response):
+			runner.assert_true(false, "each saved anchor remains a valid original response")
+			return
+		for at_ms: int in [100, 101, 777, 2_000]:
+			var packed: Dictionary = state.actual_at(cell, at_ms)
+			var direct: Dictionary = response.sample(at_ms, false)
+			runner.assert_true(bool(packed.get("ok", false)) and bool(direct.get("ok", false)), "packed and original response queries are both available")
+			runner.assert_eq(packed.get("value_c"), direct.get("value"), "packed queries preserve the original response arithmetic exactly")
+			runner.assert_eq(restored.actual_at(cell, at_ms), packed, "JSON restoration preserves each sparse cell's exact future")
 
 
 func _read_order_and_restore(runner: Object) -> void:

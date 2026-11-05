@@ -45,6 +45,11 @@ func sample(at_ms: int, include_integral: bool = true) -> Dictionary:
 		return {"ok": false, "reason": "not_configured"}
 	if at_ms < _start_ms or at_ms > _until_ms:
 		return {"ok": false, "reason": "time_out_of_range"}
+	if not include_integral:
+		var value_only: float = _value_only_unchecked(_start_ms, at_ms, _initial_value, _target_value, _target_per_ms, _tau_ms)
+		if not is_finite(value_only):
+			return {"ok": false, "reason": "non_finite_result"}
+		return {"ok": true, "at_ms": at_ms, "value": value_only}
 	# Subtract the integer timestamps before converting to float; this retains
 	# a one-millisecond interval even near MAX_TIME.
 	var elapsed: float = float(at_ms - _start_ms)
@@ -73,8 +78,6 @@ func sample(at_ms: int, include_integral: bool = true) -> Dictionary:
 	# roundoff outside it; negative values and targets remain negative.
 	var lower: float = minf(_initial_value, minf(_target_value, target_end))
 	var upper: float = maxf(_initial_value, maxf(_target_value, target_end))
-	if not include_integral:
-		return {"ok": true, "at_ms": at_ms, "value": clampf(value, lower, upper)}
 	var integral: float
 	if x < 1.0:
 		# Preserve the series form where subtracting target area and response
@@ -99,6 +102,28 @@ func sample(at_ms: int, include_integral: bool = true) -> Dictionary:
 		return {"ok": false, "reason": "non_finite_result"}
 	value = clampf(value, lower, upper)
 	return {"ok": true, "at_ms": at_ms, "value": value, "integral": integral}
+
+
+static func _value_only_unchecked(start_ms: int, at_ms: int, initial_value: float, target_value: float, target_per_ms: float, tau_ms: int) -> float:
+	# Internal projection for an already validated, in-range segment. Preserve
+	# the sample() value calculation's operation order and integer subtraction.
+	var elapsed: float = float(at_ms - start_ms)
+	if elapsed == 0.0:
+		return initial_value
+	var tau: float = float(tau_ms)
+	var x: float = elapsed / tau
+	var factors: Array[float] = _factors(x, false)
+	var decay: float = factors[0]
+	var response: float = factors[1]
+	var end_weight: float = factors[4]
+	var target_change: float = target_per_ms * elapsed
+	var target_end: float = target_value + target_change
+	var value: float = initial_value * decay + target_end * response - target_per_ms * tau * end_weight
+	if not is_finite(value):
+		return NAN
+	var lower: float = minf(initial_value, minf(target_value, target_end))
+	var upper: float = maxf(initial_value, maxf(target_value, target_end))
+	return clampf(value, lower, upper)
 
 
 func to_dict() -> Dictionary:
