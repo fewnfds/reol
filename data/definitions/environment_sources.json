@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "profiles": {
+    "none": {
+      "elements": {"wood": 0, "fire": 0, "earth": 0, "metal": 0, "water": 0},
+      "thermal_grade": 0, "radius_cells": 2, "activation": "intrinsic", "origin": "footprint_anchor"
+    },
+    "ordinary_earth": {
+      "elements": {"wood": 0, "fire": 0, "earth": 1000, "metal": 100, "water": 0},
+      "thermal_grade": 0, "radius_cells": 4, "activation": "intrinsic", "origin": "footprint_anchor"
+    },
+    "ordinary_plant": {
+      "elements": {"wood": 1000, "fire": 0, "earth": 100, "metal": 0, "water": 100},
+      "thermal_grade": 0, "radius_cells": 4, "activation": "intrinsic", "origin": "footprint_anchor"
+    },
+    "ordinary_water": {
+      "elements": {"wood": 0, "fire": 0, "earth": 0, "metal": 0, "water": 1000},
+      "thermal_grade": 0, "radius_cells": 4, "activation": "intrinsic", "origin": "footprint_anchor"
+    }
+  },
+  "bindings": {
+    "artifacts": {"plain_slate": "ordinary_earth", "stone_slab": "ordinary_earth"},
+    "materials": {
+      "wood": "ordinary_plant", "grain": "ordinary_plant", "herb": "ordinary_plant",
+      "seed": "ordinary_plant", "dried_herb": "ordinary_plant", "meal": "ordinary_plant",
+      "water": "ordinary_water"
+    }
+  }
+}
