@@ -7,6 +7,7 @@ extends RefCounted
 const Cache = preload("res://scripts/sim/environment_field_cache.gd")
 const Bindings = preload("res://scripts/sim/environment_source_bindings.gd")
 const Rules = preload("res://scripts/sim/environment_field_rules.gd")
+const SourceChange = preload("res://scripts/sim/environment_source_change.gd")
 const SIZE: int = SimGroundPlacements.MAP_SIZE
 const TILE: int = 16
 const COLUMNS: int = SIZE / TILE
@@ -41,6 +42,9 @@ var _rebuilt: int = 0
 var _compute_owner: WeakRef
 var _binding_generation: int = 0
 var _generation: int = 0
+var _response: RefCounted
+var _response_move: Dictionary = {}
+var _last_response_commit: Dictionary = {}
 
 
 func configure(world: RegionalSimulation, definitions: EnvironmentSourceDefinitions) -> bool:
@@ -145,6 +149,145 @@ func request_area(area: Rect2i) -> Dictionary:
 	return result
 
 
+func bind_response(temperature: RefCounted, phases: RefCounted, settings: Dictionary, initial_at: Callable, phase_initial: Callable) -> bool:
+	if _response != null or _state != "ready" or not bool(_context().ok):
+		return false
+	var response := SourceChange.new()
+	if not response.configure(_cache, temperature, settings, initial_at, phases, phase_initial):
+		return false
+	_response = response
+	return true
+
+
+func begin_move(plan: Dictionary, event_context: Variant = null) -> Dictionary:
+	if _response == null or not _response_move.is_empty():
+		return _failure("response_busy")
+	var context: Dictionary = _context(event_context)
+	if not bool(context.ok):
+		return context
+	if _state != "ready" or _change_cursor < _changes.size() or not _invalid_tiles.is_empty():
+		return _failure("source_pending")
+	var projected: Dictionary = _query.project_move(plan, event_context)
+	if not bool(projected.get("ok", false)):
+		return projected
+	var key: String = JSON.stringify(projected.reference, "", true)
+	var operation: String = str(projected.operation)
+	if _entries.has(key) != (projected.before.get("status") == "source"):
+		return _failure("source_mapping_mismatch")
+	if operation == "none":
+		var handle := RefCounted.new()
+		_response_move = {"plan": plan.duplicate(true), "key": key, "operation": operation,
+			"handle": handle, "proof": handle, "generation": _generation, "binding": _binding_generation}
+		return {"ok": true, "pending": false, "handle": handle, "proof": handle}
+	var slot: int
+	var allocation: String = "existing"
+	if _entries.has(key):
+		slot = _entries[key].x
+	elif operation == "remove":
+		return _failure("source_mapping_missing")
+	elif not _free.is_empty():
+		slot = _free.back()
+		allocation = "free"
+	else:
+		if _next_slot >= SIZE * SIZE:
+			return _failure("source_capacity")
+		slot = _next_slot
+		allocation = "new"
+	var opened: Dictionary = _response.begin(slot, operation, projected.field_change, int(plan.at_ms), SourceChange.Temperature.MAX_TIME)
+	if not bool(opened.get("ok", false)):
+		return opened
+	_response_move = {"plan": plan.duplicate(true), "key": key, "slot": slot, "allocation": allocation,
+		"operation": operation, "source": projected.source.duplicate(true), "handle": opened.handle,
+		"generation": _generation, "binding": _binding_generation, "proof": null}
+	return {"ok": true, "pending": true, "handle": opened.handle}
+
+
+func step_move(handle: Variant, work: int, cells: int, event_context: Variant = null) -> Dictionary:
+	if _response_move.is_empty() or not is_same(handle, _response_move.handle):
+		return _failure("invalid_handle")
+	var context: Dictionary = _context(event_context)
+	if not bool(context.ok):
+		cancel_move(handle)
+		return context
+	var result: Dictionary = _response.step(handle, work, cells)
+	if not bool(result.get("ok", false)):
+		_response_move = {}
+		return result
+	if not bool(result.get("pending", true)):
+		var finished: Dictionary = _response.finish(handle)
+		if not bool(finished.get("ok", false)):
+			_response_move = {}
+			return finished
+		_response_move.proof = finished.proof
+		result["proof"] = finished.proof
+	return result
+
+
+func can_commit_move(proof: Variant, plan: Dictionary, event_context: Variant = null) -> Dictionary:
+	if _response_move.is_empty() or not is_same(proof, _response_move.proof) or plan != _response_move.plan:
+		return _failure("invalid_proof")
+	var context: Dictionary = _context(event_context)
+	if not bool(context.ok):
+		return context
+	if _generation != int(_response_move.generation) or _binding_generation != int(_response_move.binding):
+		return _failure("ground_candidate_stale")
+	if _response_move.operation == "none":
+		return {"ok": true}
+	return _response.can_commit(proof)
+
+
+func commit_move(proof: Variant, plan: Dictionary) -> Dictionary:
+	# The lifecycle has revalidated both domains immediately before its original
+	# item publication. Its synchronous commit now changed original epochs; do
+	# not rerun the old-world epoch check or reproject after that first write.
+	if _response_move.is_empty() or not is_same(proof, _response_move.proof) or plan != _response_move.plan:
+		return _failure("invalid_proof")
+	if _response_move.operation == "none":
+		_capture_revisions(_owner.get_ref())
+		_response_move = {}
+		return {"ok": true}
+	var result: Dictionary = _response.commit(proof)
+	if not bool(result.get("ok", false)):
+		return result
+	var slot: int = int(_response_move.slot)
+	var key: String = str(_response_move.key)
+	if _response_move.operation == "remove":
+		_entries.erase(key)
+		_free.append(slot)
+	else:
+		if _response_move.allocation == "free":
+			_free.pop_back()
+		elif _response_move.allocation == "new":
+			_next_slot += 1
+		var source: Dictionary = _response_move.source
+		_entries[key] = Vector4i(slot, source.cell.x, source.cell.y, int(source.radius_cells))
+	_generation += 1
+	_capture_revisions(_owner.get_ref())
+	_last_response_commit = result.get("publish_us", {}).duplicate(true)
+	_response_move = {}
+	return result
+
+
+func cancel_move(handle: Variant) -> Dictionary:
+	if _response_move.is_empty() or not is_same(handle, _response_move.handle):
+		return _failure("invalid_handle")
+	var result: Dictionary = {"ok": true} if _response_move.operation == "none" else _response.cancel(handle)
+	_response_move = {}
+	return result
+
+
+func read_response_channels(cell: Vector2i, event_context: Variant = null) -> Dictionary:
+	var context: Dictionary = _context(event_context)
+	if not bool(context.ok):
+		return context
+	if _state != "ready" or _change_cursor < _changes.size() or _invalid_tiles.has(_tile_id(cell)):
+		return _failure("source_pending")
+	var result: Dictionary = _cache.read_base(cell)
+	if bool(result.get("pending", false)):
+		return _failure("target_pending")
+	return result
+
+
 func advance(max_work: int = 4096, max_usec: int = 2000) -> Dictionary:
 	if max_work < 1 or max_work > Cache.MAX_WORK or max_usec < 1 or max_usec > 100000:
 		return _failure("invalid_budget")
@@ -223,7 +366,8 @@ func diagnostics() -> Dictionary:
 		"cached_tiles": int(cache_stats.get("cached_tiles", 0)), "scan_tiles": _scan_tile,
 		"slot_high_water": _next_slot, "free_slots": _free.size(), "cache": cache_stats,
 		"capacity": int(cache_stats.get("capacity", 0)), "revision": _generation,
-		"binding_generation": _binding_generation, "compute_attached": _has_compute_backend()}
+		"binding_generation": _binding_generation, "compute_attached": _has_compute_backend(),
+		"response_commit_us": _last_response_commit.duplicate(true)}
 
 
 func acquire_compute_backend(owner: Object) -> bool:
@@ -313,6 +457,10 @@ func _has_compute_backend() -> bool:
 
 
 func close() -> void:
+	if not _response_move.is_empty():
+		cancel_move(_response_move.handle)
+	_response_move = {}
+	_response = null
 	_binding_generation += 1
 	_generation += 1
 	_compute_owner = null
@@ -415,7 +563,7 @@ func _invalidate(cell: Vector2i, radius: int) -> void:
 	_invalidations += 1
 
 
-func _context() -> Dictionary:
+func _context(event_context: Variant = null) -> Dictionary:
 	if _state == "closed" or _state == "error":
 		return _failure(_reason)
 	var world: RegionalSimulation = _owner.get_ref()
@@ -436,7 +584,7 @@ func _context() -> Dictionary:
 		var region: VillageSimulation = world.regions[id]
 		if region.elapsed_ms != world.elapsed_ms:
 			return _failure("stale_source")
-	if world.elapsed_ms != world.target_ms:
+	if world.elapsed_ms != world.target_ms and not world.environment_event_valid(event_context):
 		return _failure("world_has_backlog")
 	return {"ok": true, "world": world}
 

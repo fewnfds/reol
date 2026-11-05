@@ -124,6 +124,12 @@ var _next_id: int = 1
 var _region_boundaries: Dictionary = {}
 var _local_action_owner: Callable
 var _manual_motion_executor: Callable
+## Opt-in exclusive acceptance-session guard. These credentials do not make
+## arbitrary raw access to this public simulation an isolated transaction.
+var _environment_guard: WeakRef
+var _environment_boundary_waiting: bool = false
+var _environment_event: EnvironmentEventContext
+var _environment_response: EnvironmentEventContext
 
 
 func describe_object(reference: Variant) -> Dictionary:
@@ -137,6 +143,56 @@ func object_capability(reference: Variant, capability: String) -> Dictionary:
 
 func capture_object_space(references: Array, budget: int = 4096) -> Dictionary:
 	return SimWorldObjectQuery.capture(self, references, budget)
+
+
+func bind_environment_boundary_guard(guard: RefCounted) -> bool:
+	if object_lifecycle == null or _environment_boundary_waiting or _environment_event != null or object_lifecycle.environment_change_pending():
+		return false
+	var previous: RefCounted = _environment_guard.get_ref() if _environment_guard != null else null
+	if guard != null and previous != null and previous != guard:
+		return false
+	if not object_lifecycle.bind_environment_boundary_guard(guard):
+		return false
+	_environment_guard = weakref(guard) if guard != null else null
+	_environment_response = null
+	return true
+
+
+func environment_boundary_active() -> bool:
+	return _environment_event != null or _environment_boundary_waiting
+
+
+func environment_event_context() -> Variant:
+	return _environment_event if environment_event_valid(_environment_event) else null
+
+
+func environment_response_context(guard: RefCounted) -> Variant:
+	var bound: RefCounted = _environment_guard.get_ref() if _environment_guard != null else null
+	if guard == null or guard != bound or object_lifecycle == null or environment_boundary_active() or object_lifecycle.environment_change_pending() or not _environment_regions_synchronized():
+		return null
+	_environment_response = EnvironmentEventContext.new(self, guard, elapsed_ms, false)
+	return _environment_response
+
+
+func environment_event_valid(context: Variant) -> bool:
+	if not context is EnvironmentEventContext:
+		return false
+	var bound: RefCounted = _environment_guard.get_ref() if _environment_guard != null else null
+	if bound == null or context.owner.get_ref() != self or context.guard.get_ref() != bound or context.at_ms != elapsed_ms:
+		return false
+	if context.event:
+		if not is_same(context, _environment_event):
+			return false
+	elif not is_same(context, _environment_response) or object_lifecycle == null or environment_boundary_active() or object_lifecycle.environment_change_pending():
+		return false
+	return _environment_regions_synchronized()
+
+
+func _environment_regions_synchronized() -> bool:
+	for region: VillageSimulation in regions.values():
+		if region.elapsed_ms != elapsed_ms:
+			return false
+	return true
 
 
 func bind_map_data(data: WorldMapData) -> void:
@@ -513,8 +569,15 @@ func advance_to(requested_time: int, max_events: int = 4096) -> bool:
 func advance_to_ms(requested_ms: int, max_events: int = 4096) -> bool:
 	if requested_ms < elapsed_ms or requested_ms > MAX_COUNT or regions.is_empty():
 		return false
+	if object_lifecycle.environment_change_pending() and not _environment_boundary_waiting:
+		return false
+	_environment_response = null
 	target_ms = maxi(target_ms, requested_ms)
 	var processed: int = 0
+	if _environment_boundary_waiting:
+		if processed >= maxi(0, max_events) or not _complete_boundary():
+			return false
+		processed += 1
 	# A retained larger request is debt, not permission to overshoot this
 	# invocation's accepted interval (the shared clock may be resuming a slice).
 	while elapsed_ms < requested_ms:
@@ -545,20 +608,38 @@ func advance_to_ms(requested_ms: int, max_events: int = 4096) -> bool:
 			return false
 		_advance_journeys(current_time - old_minute)
 		_process_arrivals()
-		_settle_current_processes()
-		if not _sample_herb_conditions():
-			errors.append("Plant environment could not settle its previous interval")
+		var guard: RefCounted = _environment_guard.get_ref() if _environment_guard != null else null
+		if guard != null and object_lifecycle.next_boundary_ms() <= elapsed_ms:
+			# Event projection may read any static background source. Synchronize
+			# once at this actual boundary, never inside its read-only preflight.
+			if not synchronize_regions():
+				errors.append("Environment event region synchronization failed")
+				return false
+			_environment_event = EnvironmentEventContext.new(self, guard, elapsed_ms, true)
+		if not _complete_boundary():
 			return false
-		_consider_future_actions()
-		_process_messages()
-		for route_id: String in _sorted_keys(routes):
-			if int(routes[route_id].next_assessment) <= current_time:
-				request_delivery(route_id)
-				routes[route_id].next_assessment = current_time + int(settings.routes[route_id].assessment_minutes)
-		for route_id: String in _sorted_keys(routes):
-			_try_dispatch(route_id)
 		processed += 1
-		simulation_work.boundaries = int(simulation_work.boundaries) + 1
+	return true
+
+
+func _complete_boundary() -> bool:
+	if not _settle_current_processes():
+		_environment_boundary_waiting = true
+		return false
+	_environment_boundary_waiting = false
+	_environment_event = null
+	if not _sample_herb_conditions():
+		errors.append("Plant environment could not settle its previous interval")
+		return false
+	_consider_future_actions()
+	_process_messages()
+	for route_id: String in _sorted_keys(routes):
+		if int(routes[route_id].next_assessment) <= current_time:
+			request_delivery(route_id)
+			routes[route_id].next_assessment = current_time + int(settings.routes[route_id].assessment_minutes)
+	for route_id: String in _sorted_keys(routes):
+		_try_dispatch(route_id)
+	simulation_work.boundaries = int(simulation_work.boundaries) + 1
 	return true
 
 
@@ -576,8 +657,11 @@ func _settle_previous_interval() -> bool:
 	return true
 
 
-func _settle_current_processes() -> void:
-	object_lifecycle.settle_at_ms(elapsed_ms)
+func _settle_current_processes() -> bool:
+	if not object_lifecycle.settle_at_ms(elapsed_ms):
+		return false
+	# Object event credentials cannot be reused from later domain callbacks.
+	_environment_event = null
 	# This is the original same-millisecond order, including reading/method
 	# consideration between sparring and animal life. Do not sort these calls.
 	if services != null:
@@ -606,6 +690,7 @@ func _settle_current_processes() -> void:
 	private_exchange.settle_at_ms(elapsed_ms)
 	if field_opportunities != null:
 		field_opportunities.settle_at_ms(elapsed_ms)
+	return true
 
 
 func _consider_future_actions() -> void:
@@ -876,6 +961,8 @@ func known_event_lines(region_id: String, limit: int = 3) -> Array[String]:
 
 
 func to_dict() -> Dictionary:
+	if environment_boundary_active() or (object_lifecycle != null and object_lifecycle.environment_change_pending()):
+		return {}
 	if not local_heat.settle_at_ms(elapsed_ms) or not synchronize_regions():
 		return {}
 	var regional_states: Dictionary = {}
@@ -899,6 +986,8 @@ func to_dict() -> Dictionary:
 
 
 func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: bool = false) -> bool:
+	if environment_boundary_active() or (object_lifecycle != null and object_lifecycle.environment_change_pending()) or (_environment_guard != null and _environment_guard.get_ref() != null):
+		return false
 	if data.get("version") != SCHEMA_VERSION and data.has("object_lifecycle"):
 		return false
 	# Validation constructs an entirely separate world. Failed loads preserve
@@ -1743,3 +1832,17 @@ static func _json_keys(value: Variant) -> Variant:
 			record[String(key) if key is StringName else key] = _json_keys(value[key])
 		return record
 	return value
+
+
+class EnvironmentEventContext:
+	extends RefCounted
+	var owner: WeakRef
+	var guard: WeakRef
+	var at_ms: int
+	var event: bool
+
+	func _init(bound_owner: RefCounted, bound_guard: RefCounted, time_ms: int, is_event: bool) -> void:
+		owner = weakref(bound_owner)
+		guard = weakref(bound_guard)
+		at_ms = time_ms
+		event = is_event

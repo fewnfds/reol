@@ -125,6 +125,30 @@ func test_environment_source_change() -> void:
 	load("res://tests/sim/test_environment_source_change.gd").new().run(self)
 
 
+func test_environment_phase_state() -> void:
+	load("res://tests/sim/test_environment_phase_state.gd").new().run(self)
+
+
+func test_environment_response_targets() -> void:
+	load("res://tests/sim/test_environment_response_targets.gd").new().run(self)
+
+
+func test_environment_source_move_projection() -> void:
+	load("res://tests/sim/test_environment_source_move_projection.gd").new().run(self)
+
+
+func test_environment_source_response() -> void:
+	load("res://tests/sim/test_environment_source_response.gd").new().run(self)
+
+
+func test_environment_event_boundary() -> void:
+	load("res://tests/sim/test_environment_event_boundary.gd").new().run(self)
+
+
+func test_environment_response_session() -> void:
+	load("res://tests/sim/test_environment_response_session.gd").new().run(self)
+
+
 func test_terrain_view_updates() -> void:
 	load("res://tests/runtime/test_terrain_view_updates.gd").new().run(self)
 

@@ -8,7 +8,7 @@ const MAX_ACTIVE: int = 256
 
 static func schedule(owner: SimObjectLifecycle, request: Dictionary, actor: String, duration_ms: int) -> Dictionary:
 	var world: RegionalSimulation = owner.world
-	if world == null or owner._committing or owner._settling or not owner._request_valid(request) or request.op not in ["move", "stock_transfer"] or duration_ms < 1 or duration_ms > 86400000:
+	if world == null or owner._committing or owner._settling or owner.environment_change_pending() or world.environment_boundary_active() or not owner._request_valid(request) or request.op not in ["move", "stock_transfer"] or duration_ms < 1 or duration_ms > 86400000:
 		return owner._fail("invalid_action")
 	var id: String = request.command
 	if owner.actions.has(id):
@@ -93,14 +93,14 @@ static func _keys(owner: SimObjectLifecycle, request: Dictionary) -> Array[Strin
 	return keys
 
 
-static func settle(owner: SimObjectLifecycle, at_ms: int) -> void:
+static func settle(owner: SimObjectLifecycle, at_ms: int) -> bool:
 	# Active set is bounded, ordered for same-millisecond deterministic commits.
 	var ids: Array = owner._active_actions.keys()
 	ids.sort_custom(func(a: String, b: String) -> bool:
 		return int(owner.actions[a].due_ms) < int(owner.actions[b].due_ms) or int(owner.actions[a].due_ms) == int(owner.actions[b].due_ms) and a < b)
 	for id: String in ids:
 		if owner.world == null or owner.world.object_lifecycle != owner:
-			return
+			return true
 		# A preceding completion callback can cancel another action at this same
 		# deadline. Snapshot iteration is not authority to execute cancelled work.
 		if not owner._active_actions.has(id) or owner.actions[id].status != "active":
@@ -113,10 +113,18 @@ static func settle(owner: SimObjectLifecycle, at_ms: int) -> void:
 		var result: Dictionary = owner._fail("actor_changed")
 		if bool(person.alive) and owner._same(person.position, action.position) and owner.world.actor_controls(action.actor, "action") and owner.world.actor_controls(action.actor, "motion"):
 			result = owner._execute(action.request, action.reservation, false)
+		if bool(result.get("pending", false)):
+			# Keep the original action, deadline, reservation and actor ownership.
+			# The same sorted active set resumes at this boundary on the next call.
+			owner._settling = false
+			return false
+		if not bool(result.ok) and owner.environment_change_pending() and owner._environment_pending.request.command == id:
+			owner._cancel_environment_change(owner._environment_pending.public_handle)
 		_finish(owner, id, "completed" if bool(result.ok) else "failed", result)
 		owner._settling = false
 		if bool(result.ok):
 			owner._publish(action.request, result)
+	return true
 
 
 static func cancel(owner: SimObjectLifecycle, actor: String) -> bool:
@@ -124,6 +132,8 @@ static func cancel(owner: SimObjectLifecycle, actor: String) -> bool:
 		return false
 	for id: String in owner._active_actions.keys():
 		if owner.actions[id].actor == actor:
+			if owner.environment_change_pending() and owner._environment_pending.request.command == id:
+				owner._cancel_environment_change(owner._environment_pending.public_handle)
 			_finish(owner, id, "cancelled", owner._fail("cancelled"))
 			return true
 	return false
