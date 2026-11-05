@@ -10,6 +10,7 @@ func run(runner: Object) -> void:
 	_lifecycle(runner)
 	_field_move_and_cancel(runner)
 	_transaction_rejection(runner)
+	_boundary_index(runner)
 	_read_order_and_restore(runner)
 	_snapshot_rejection(runner)
 	print("SCENARIO environment temperature state: known segments, source-field targets, continuous moves, atomic plans, read-only projection and isolated JSON recovery")
@@ -32,6 +33,17 @@ func _apply(state: RefCounted, changes: Array[Dictionary], at_ms: int, budget: i
 
 func _near(runner: Object, actual: float, expected: float, tolerance: float, message: String) -> void:
 	runner.assert_true(is_finite(actual) and absf(actual - expected) <= tolerance, "%s: expected %s ± %s, got %s" % [message, str(expected), str(tolerance), str(actual)])
+
+
+func _check_boundary(runner: Object, state: RefCounted, expected: int, message: String) -> void:
+	var snapshot: Dictionary = state.snapshot()
+	var scanned: int = -1
+	for row: Dictionary in snapshot.get("cells", []):
+		var boundary: int = int(row.response.until_ms)
+		if scanned < 0 or boundary < scanned:
+			scanned = boundary
+	runner.assert_eq(state.next_boundary_ms(), expected, message)
+	runner.assert_eq(state.next_boundary_ms(), scanned, "the exposed boundary agrees with the saved response segments")
 
 
 func _lifecycle(runner: Object) -> void:
@@ -169,6 +181,107 @@ func _transaction_rejection(runner: Object) -> void:
 	var later_plan: Dictionary = state.prepare_targets([_change(a, 40.0, 900)], 300, 1)
 	runner.assert_true(not bool(state.commit(prior_plan).get("ok", true)), "a newer prepared plan supersedes the earlier uncommitted plan")
 	runner.assert_true(bool(state.commit(later_plan).get("ok", false)), "the latest plan can be committed")
+
+
+func _boundary_index(runner: Object) -> void:
+	var state := State.new()
+	runner.assert_true(state.configure(Vector2i(6, 1), 6, 0), "boundary-index owner configures")
+	_check_boundary(runner, state, -1, "a configured owner with no cells has no boundary")
+	var a := Vector2i(0, 0)
+	var b := Vector2i(1, 0)
+	var c := Vector2i(2, 0)
+	var d := Vector2i(3, 0)
+	var e := Vector2i(4, 0)
+	var f := Vector2i(5, 0)
+	var opening: Array[Dictionary] = [
+		_new_change(a, 20.0, 30.0, 100), _new_change(b, 20.0, 30.0, 100),
+		_new_change(c, 20.0, 30.0, 200), _new_change(d, 20.0, 30.0, 300),
+		_new_change(e, 20.0, 30.0, 300),
+	]
+	if not bool(_apply(state, opening, 0, 5).get("ok", false)):
+		runner.assert_true(false, "the boundary-index fixture commits")
+		return
+	_check_boundary(runner, state, 100, "two cells share the earliest boundary")
+	var baseline: Dictionary = state.snapshot()
+	var pending: Array[Dictionary] = [_change(a, 40.0, 250), _change(b, 40.0, 250)]
+	runner.assert_eq(state.prepare_targets(pending, 50, 1), {"ok": false, "reason": "pending"}, "pending preparation cannot publish an index update")
+	runner.assert_eq(state.snapshot(), baseline, "pending preparation leaves all response segments untouched")
+	_check_boundary(runner, state, 100, "pending preparation leaves the earliest boundary intact")
+	var plan: Dictionary = state.prepare_targets([_change(a, 40.0, 250)], 50, 1)
+	if not bool(plan.get("ok", false)):
+		runner.assert_true(false, "a partial earliest-boundary replacement prepares")
+		return
+	var forged: Dictionary = plan.duplicate(true)
+	forged.rows[0].response.until_ms = 50
+	runner.assert_true(not bool(state.commit(forged).get("ok", true)), "a modified plan is rejected before index publication")
+	runner.assert_eq(state.snapshot(), baseline, "failed commit preserves the original response segments")
+	_check_boundary(runner, state, 100, "failed commit preserves the earliest boundary")
+	runner.assert_true(bool(state.commit(plan).get("ok", false)), "the original partial replacement still commits")
+	_check_boundary(runner, state, 100, "replacing one of two earliest cells leaves the other visible")
+
+	# Reconstruct into an already populated owner, proving restore discards its
+	# former index and correctly counts several cells at the same boundary.
+	var restored := State.new()
+	restored.configure(Vector2i(6, 1), 6, 0)
+	_apply(restored, [_new_change(f, 20.0, 20.0, 50)], 0, 1)
+	_check_boundary(runner, restored, 50, "the destination initially has a different boundary")
+	var saved: Variant = JSON.parse_string(JSON.stringify(baseline, "", true, true))
+	if not restored.restore(saved):
+		runner.assert_true(false, "full-precision restore rebuilds the boundary index")
+		return
+	runner.assert_eq(restored.snapshot(), baseline, "the index does not change the saved format")
+	_check_boundary(runner, restored, 100, "restore replaces the former earliest boundary")
+	runner.assert_true(bool(_apply(restored, [_change(a, 40.0, 250)], 50, 1).get("ok", false)), "one restored earliest cell can change")
+	_check_boundary(runner, restored, 100, "restore reconstructs the shared boundary count")
+	runner.assert_true(bool(_apply(restored, [_change(b, 40.0, 250)], 50, 1).get("ok", false)), "the last restored earliest cell can change")
+	_check_boundary(runner, restored, 200, "the next distinct boundary is selected after the last copy disappears")
+	runner.assert_true(bool(_apply(state, [_change(b, 40.0, 250)], 50, 1).get("ok", false)), "the original owner changes its last earliest cell")
+	_check_boundary(runner, state, 200, "the original owner also selects the next distinct boundary")
+	runner.assert_eq(restored.snapshot(), state.snapshot(), "restored and uninterrupted states remain identical")
+
+	var swap: Array[Dictionary] = [_change(c, 40.0, 300), _change(d, 40.0, 200)]
+	runner.assert_true(bool(_apply(state, swap, 50, 2).get("ok", false)), "a batch replaces and reintroduces the earliest boundary")
+	_check_boundary(runner, state, 200, "a same-batch replacement retains the reintroduced boundary")
+	runner.assert_true(bool(_apply(state, [_change(d, 40.0, 250)], 50, 1).get("ok", false)), "the reintroduced earliest cell can change")
+	_check_boundary(runner, state, 250, "three cells now share the earliest boundary")
+	runner.assert_true(bool(_apply(state, [_new_change(f, 20.0, 20.0, 120)], 50, 1).get("ok", false)), "a new cell can introduce an earlier boundary")
+	_check_boundary(runner, state, 120, "a newly inserted earlier boundary is visible immediately")
+	runner.assert_true(bool(_apply(state, [_change(f, 20.0, 350)], 50, 1).get("ok", false)), "the newly inserted earliest cell can be replaced")
+	_check_boundary(runner, state, 250, "removing the inserted minimum reveals the previously shared boundary")
+	runner.assert_true(bool(_apply(state, [_change(a, 40.0, 300), _change(b, 40.0, 300)], 50, 2).get("ok", false)), "a batch replaces only part of a shared boundary")
+	_check_boundary(runner, state, 250, "an unchanged earliest cell remains visible after a partial batch")
+	runner.assert_true(bool(_apply(state, [_change(d, 40.0, 300)], 50, 1).get("ok", false)), "the last copy of the shared boundary changes")
+	_check_boundary(runner, state, 300, "the shared later boundary becomes earliest")
+	runner.assert_true(bool(_apply(state, [_change(a, 41.0, 300)], 50, 1).get("ok", false)), "a replacement may retain the same boundary")
+	_check_boundary(runner, state, 300, "replacing a segment at the same boundary does not alter its count")
+	var four: Array[Dictionary] = [_change(a, 40.0, 350), _change(b, 40.0, 350), _change(c, 40.0, 350), _change(d, 40.0, 350)]
+	runner.assert_true(bool(_apply(state, four, 50, 4).get("ok", false)), "four of five coincident boundaries move together")
+	_check_boundary(runner, state, 300, "the single remaining coincident boundary is retained")
+	runner.assert_true(bool(_apply(state, [_change(e, 40.0, 350)], 50, 1).get("ok", false)), "the last coincident boundary moves")
+	_check_boundary(runner, state, 350, "all six responses now share their next boundary")
+
+	var before_bad: Dictionary = state.snapshot()
+	var malformed: Dictionary = before_bad.duplicate(true)
+	malformed.cells[-1].response.target_value = NAN
+	runner.assert_true(not state.restore(malformed), "a bad final response rejects a partially built candidate index")
+	runner.assert_eq(state.snapshot(), before_bad, "failed restore leaves live segments unchanged")
+	_check_boundary(runner, state, 350, "failed restore leaves the live boundary index unchanged")
+	var stale: Dictionary = state.prepare_targets([_change(a, 40.0, 400)], 50, 1)
+	runner.assert_true(state.restore(before_bad), "restoring the complete snapshot rebuilds the same index")
+	runner.assert_true(not bool(state.commit(stale).get("ok", true)), "restore still invalidates the old prepared proof")
+	_check_boundary(runner, state, 350, "a stale proof cannot alter the rebuilt boundary index")
+	var empty := State.new()
+	empty.configure(Vector2i(1, 1), 1, 0)
+	runner.assert_true(state.restore(empty.snapshot()), "a valid empty snapshot replaces a populated owner")
+	_check_boundary(runner, state, -1, "empty restore clears the previous boundary index")
+	runner.assert_true(bool(_apply(state, [_new_change(Vector2i.ZERO, 20.0, 20.0, State.MAX_TIME)], 0, 1).get("ok", false)), "the maximum supported boundary commits after an empty restore")
+	_check_boundary(runner, state, State.MAX_TIME, "the maximum supported boundary is not confused with an empty index")
+	var immediate := State.new()
+	immediate.configure(Vector2i(1, 1), 1, 0)
+	runner.assert_true(bool(_apply(immediate, [_new_change(Vector2i.ZERO, 20.0, 20.0, 0)], 0, 1).get("ok", false)), "a boundary at time zero is valid")
+	_check_boundary(runner, immediate, 0, "time zero is not confused with an empty index")
+	runner.assert_true(bool(_apply(immediate, [_change(Vector2i.ZERO, 20.0, 1)], 0, 1).get("ok", false)), "an immediate boundary can be settled at its own time")
+	_check_boundary(runner, immediate, 1, "settling time zero advances the indexed boundary")
 
 
 func _read_order_and_restore(runner: Object) -> void:

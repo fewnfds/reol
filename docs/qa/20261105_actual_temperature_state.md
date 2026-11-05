@@ -20,3 +20,5 @@
 - 检查点SHA256：`8d7c17afe6f0723279d7100eb8df182e66ec138a7d24f744663d947c4e1c6a40`；未来SHA256：`d7f16afe1f22d31590ec264ebb59787ac7ece8a56ad99e2fb8b0e95bdfaa98c2`，跨进程相同。这里只保存独立温度域，**不是普通Main完整停开**。
 
 尚无本包画面变更。完整回归留推送SHA CI；不能借前SHA绿色或在跑的CI代替。提交准备仅发现前推送 `08c8b1dbaf8ab47c8cf98452943bd495c43dbcaf` 的 run `41958840430` 为 in_progress，不等待/轮询。
+
+代码 `2e995b83b12bebbd9d7bb070adfe48168cbcc393` 完成一次Sol/custom只读原生审查，125.729秒、退出0，无可操作发现；没有运行引擎/测试/CI或修改文件。记录为 `logs/reviews/<SHA>.explicit-sol.log` 与 `.explicit-sol.summary.json`，不重复整包审查。

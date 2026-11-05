@@ -2,7 +2,9 @@
 
 更新：2026-11-05。本页是待实施的具体接入合同，不代表新源场已成为游戏世界规则。现状与证据以 [HANDOFF](../HANDOFF.md)、[BASELINE](../BASELINE.md)、[FEATURES](../FEATURES.md) 为准；空间/冷热/五行概念以 [环境规范](world_environment.md) 和 [施工与空间](../../design/systems/construction_and_space.md) 为准。本合同不覆盖普通场同通道取最大值、欧氏圆形衰减、同类一堆一源、人物及随身物五行暂缓等已定规则。
 
-实施状态：F2a-1已完成少量显式格/已知目标段的实际温度owner及独立存读，见[证据](../qa/20261105_actual_temperature_state.md)；气候/tide段编译、源变更事务和完整调度仍未完成，不能把这一步标为整个F2a或Main替换完成。
+实施状态：F2a-1已完成少量显式格/已知目标段的实际温度owner及独立存读，见[证据](../qa/20261105_actual_temperature_state.md)；源变更事务和完整调度仍未完成，不能把这一步标为整个F2a或Main替换完成。
+
+后续F2a-2已完成纯目标段编译与O(1)下一边界查询，见[证据和误差/成本界](../qa/20261105_temperature_segments_and_budget.md)。实际温度16384格整批prepare/commit约198/500ms，故当前逐格对象表示不作为密集世界的最终运行承诺；先解决紧凑/有界处理，再接Main。完整调度、源事务和房间仍未完成。
 
 ## 现有依赖与切换原则
 

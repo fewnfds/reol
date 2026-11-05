@@ -10,6 +10,7 @@
 
 | 文件 | 原记录主题 |
 |---|---|
+| [20261105_temperature_segments_and_budget.md](20261105_temperature_segments_and_budget.md) | 气候/tide目标段、下一边界索引与实际温度状态成本，未接Main |
 | [20261105_actual_temperature_state.md](20261105_actual_temperature_state.md) | F2a已知目标段实际温度、原子计划与独立两进程存读，未接Main |
 | [20261105_field_compute_acceleration.md](20261105_field_compute_acceleration.md) | packed缓存、真实GPU/CPU一致性、密集规模及普通Main帧基线 |
 | [20261105_source_field_foundation.md](20261105_source_field_foundation.md) | F0源场纯核、密集字典查询基线与观察面板审查修复 |

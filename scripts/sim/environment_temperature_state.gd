@@ -21,6 +21,10 @@ var _activation_ms: int = 0
 var _last_change_ms: int = 0
 var _revision: int = 0
 var _cells: Dictionary[Vector2i, RefCounted] = {}
+# Rebuildable index of response boundaries; the responses remain the owners of
+# the actual segments. No boundary index is serialized or used as a clock.
+var _boundary_counts: Dictionary[int, int] = {}
+var _earliest_boundary: int = -1
 var _issued_plan := WeakRef.new()
 
 
@@ -168,9 +172,31 @@ func commit(plan: Variant) -> Dictionary:
 		if not candidate.restore(row.response):
 			return _failure("invalid_or_stale_plan")
 		replacements[row.cell] = candidate
-	# All parsing and validation has finished; publication cannot partially fail.
-	for cell: Vector2i in replacements:
+	# All parsing and validation has finished. Change the derived counts and
+	# responses together without yielding; do not rescan until the old minimum
+	# is actually absent after the entire batch (which may reintroduce it).
+	for row: Dictionary in checked.rows:
+		var cell: Vector2i = row.cell
+		var next_boundary: int = int(row.response.until_ms)
+		var old_boundary: int = -1
+		if _cells.has(cell):
+			old_boundary = int(_cells[cell].to_dict().until_ms)
+		if old_boundary != next_boundary:
+			if old_boundary >= 0:
+				var remaining: int = _boundary_counts[old_boundary] - 1
+				if remaining == 0:
+					_boundary_counts.erase(old_boundary)
+				else:
+					_boundary_counts[old_boundary] = remaining
+			_boundary_counts[next_boundary] = int(_boundary_counts.get(next_boundary, 0)) + 1
+			if _earliest_boundary < 0 or next_boundary < _earliest_boundary:
+				_earliest_boundary = next_boundary
 		_cells[cell] = replacements[cell]
+	if _earliest_boundary >= 0 and not _boundary_counts.has(_earliest_boundary):
+		_earliest_boundary = -1
+		for boundary: int in _boundary_counts:
+			if _earliest_boundary < 0 or boundary < _earliest_boundary:
+				_earliest_boundary = boundary
 	_last_change_ms = int(plan.at_ms)
 	_revision += 1
 	_issued_plan = WeakRef.new()
@@ -178,12 +204,7 @@ func commit(plan: Variant) -> Dictionary:
 
 
 func next_boundary_ms() -> int:
-	if not _configured or _cells.is_empty():
-		return -1
-	var boundary: int = MAX_TIME
-	for response: RefCounted in _cells.values():
-		boundary = mini(boundary, int(response.to_dict().until_ms))
-	return boundary
+	return _earliest_boundary if _configured else -1
 
 
 func snapshot() -> Dictionary:
@@ -218,6 +239,8 @@ func restore(data: Variant) -> bool:
 	if revision == 0 and (not data.cells.is_empty() or last_change != activation) or revision > 0 and data.cells.is_empty():
 		return false
 	var candidate: Dictionary[Vector2i, RefCounted] = {}
+	var candidate_counts: Dictionary[int, int] = {}
+	var candidate_boundary: int = -1
 	var prior := Vector2i(-1, -1)
 	var newest: int = activation
 	for row: Variant in data.cells:
@@ -233,6 +256,10 @@ func restore(data: Variant) -> bool:
 		if not _physical_response(state) or int(state.start_ms) < activation or int(state.start_ms) > last_change:
 			return false
 		newest = maxi(newest, int(state.start_ms))
+		var boundary: int = int(state.until_ms)
+		candidate_counts[boundary] = int(candidate_counts.get(boundary, 0)) + 1
+		if candidate_boundary < 0 or boundary < candidate_boundary:
+			candidate_boundary = boundary
 		candidate[cell] = response
 		prior = cell
 	if newest != last_change:
@@ -243,6 +270,8 @@ func restore(data: Variant) -> bool:
 	_last_change_ms = last_change
 	_revision = revision
 	_cells = candidate
+	_boundary_counts = candidate_counts
+	_earliest_boundary = candidate_boundary
 	_configured = true
 	# A plan prepared before restore cannot become valid merely because a
 	# snapshot restored the same numeric revision and coordinates.

@@ -101,6 +101,10 @@ func test_environment_temperature_state() -> void:
 	load("res://tests/sim/test_environment_temperature_state.gd").new().run(self)
 
 
+func test_environment_temperature_segments() -> void:
+	load("res://tests/sim/test_environment_temperature_segments.gd").new().run(self)
+
+
 func test_terrain_view_updates() -> void:
 	load("res://tests/runtime/test_terrain_view_updates.gd").new().run(self)
 
