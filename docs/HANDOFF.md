@@ -9,6 +9,8 @@
 
 **F1当前提交点**：cache/可选GPU host/shader/service、两benchmark与原生QA已完成主代理验证，准备阶段提交及一次只读原生审查；详细[F1证据](qa/20261105_field_compute_acceleration.md)。最终注册cache+service定向35180项0失败，真实GPU原生12案例7636格全部一致；512²完整端到端（含setup）160/166ms初次/1%变后；2048²4194304来源＋128²窗口通过但整图失败不算过。原生Main12人基线另测，不冒称GPU已加速Main。当前仍旧热模型，F2接原时间/器物/身体植物/有限导入未开始。先完成本包审查及推送，再接F2；Goal active，无待用户概念问题。
 
+F1已提交`9df958024bb39d3a74dcaa903fbb039fb06e6884`，一次Sol/custom只读原生审查205.939秒退出0、无可操作发现；不重复审查。源场F0已审P2在`9673e6b`修复并定向通过。GPU/快照/缓存/CPUfallback的最后定向与原生证据均通过，完整回归留推送head的CI，不本机双跑/推后等待。接续按[F2三包合同](plans/field_environment_integration.md)，先实际温度响应/独立存读，再普通Main唯一切换与有限旧档迁入，最后房间/拓扑收束，不新增全局ECS或再磨孤立事件。
+
 当前主代理验证GPU后端与缓存接缝，专项只处理独立文件，不并发引擎。首个SoA版本512²端到端82.176ms（pack4.276/compute含upload+sync+readback33.345/accept44.555），不含首次设备pipeline初始化121.012ms；全图七通道262144来源。32²高强度全格与F0一致，512²24个分布格一致。`logs/field-gpu-soa-{32,512}.json`，完整进程2.210秒/439418880B工作集/588877824B私有峰，30秒/1GiB限制。还不是普通Main替换：accept逐值检查/拆块正移到受信worker，主线程只原子提交；再测1024²/2048²、变更/失败/选项回退。数据缓存与存档仍一套。
 
 普通Main原生帧探针`tools/qa/world_performance_probe.gd`通过：1280×720/Forward+/RTX3060/i5-13600KF，12人/8器物/25加载块/0活热格；1x真实运行180帧间隔p50/p95/p99=8.332/13.473/24.764ms，最大31.491ms，共同时刻自然推进1550ms且无欠算。暂停180帧p95/p99=8.372/8.414ms；317–321 canvas draws。日志`logs/world-frame-probe-first.json`，不是稠密环境/战斗/大世界FPS；Performance过程监视器更新较慢，不把其75.594ms重复样本当逐帧耗时。

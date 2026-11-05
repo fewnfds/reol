@@ -13,6 +13,7 @@
 - [world_engine_execution](world_engine_execution.md)：当前工作包、暂停停点、Git与压力测试预算。
 - [world_engine_program](world_engine_program.md)：世界运行与创作工具总架构。
 - [world_engine_foundation](world_engine_foundation.md)：平面空间、地理与冷热/光/灵机传播分项。
+- [field_environment_integration](field_environment_integration.md)：F2实际温度状态、普通Main唯一切换/有限旧档迁入、房间及旧Q退役的三包合同；待实施，不作已成功能。
 - [thermal_field_upgrade](thermal_field_upgrade.md)：原热场分包升级、能量与来源合同、有限兼容及回收误差；固定冷热器物已接，移动源与回收待做，验证见BASELINE。
 - [compatibility_retirement](compatibility_retirement.md)：有限兼容依赖及首个死入口清理，后续收缩先保留真实当前回归。
 - [world_environment](world_environment.md)：天气、温度、五相、风水长期模型；其中高差为后续选项。
