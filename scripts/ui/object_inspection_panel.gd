@@ -59,7 +59,7 @@ func _init() -> void:
 	column.add_child(row)
 	UI.button(row, "停止操作", action_requested.emit.bind("cancel"))
 	UI.button(row, "收起 · I / Esc", hide)
-	UI.label(column, "WASD中断自己的操作；离开可能错过同门解释。", UI.MUTED, 12)
+	UI.label(column, "WASD中断自己的操作；离开可能错过同门解释。\n重复点击重叠器物可切换选择。", UI.MUTED, 12)
 	visible = false
 
 

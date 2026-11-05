@@ -35,6 +35,7 @@ func run(runner: Object) -> void:
 	_regional_approach(runner)
 	_limited_observation(runner)
 	_hidden_peer_layout(runner)
+	_carried_stack_hits(runner)
 	_pointer_input(runner)
 	print("SCENARIO weapon UI: configured nonthermal verbs, actual take/place and joint resume, interpolated holders, limited memory and transformed pointer selection")
 
@@ -241,6 +242,47 @@ func _hidden_peer_layout(runner: Object) -> void:
 	runner.assert_true(adapter._display_point(SWORD).is_equal_approx(sword_with_hidden), "removing an unseen co-located ring does not move the visible sword")
 	runner.assert_true(adapter._display_point("amber_pearl").is_equal_approx(pearl_with_hidden), "removing an unseen co-located ring does not move the visible pearl")
 	runner.assert_eq(_canonical(runtime), before, "recomputing the layout without the unseen ring changes no real world state")
+	_fixtures._dispose(fixture)
+
+
+func _carried_stack_hits(runner: Object) -> void:
+	var fixture: Dictionary = _fixture(runner)
+	if fixture.is_empty():
+		return
+	var runtime: WorldContinuityRuntime = fixture.continuity
+	var adapter: WorldObjectsRuntime = runtime.object_adapter
+	var domain: SimArtifacts = runtime.world_sim.artifacts
+	# Arrange the original carrier at a continuous subcell position. The two
+	# held markers share a base anchor; the lower rank then overlaps the real
+	# stationary warm stone at the kitchen without sharing its container.
+	# The ordinary fixture is intentionally detached; input needs an actual
+	# viewport and canvas transform, so attach just this adapter for its clicks.
+	var parent: Node = adapter.get_parent()
+	if parent != null:
+		parent.remove_child(adapter)
+	runner.root.add_child(adapter)
+	domain.objects[SWORD].container = "actor:player"
+	domain.objects.amber_pearl.container = "actor:player"
+	var kitchen: Vector2i = domain.object_cell("hearth_stone")
+	fixture.player.spawn_at(kitchen)
+	fixture.player.global_position += Vector2(0, 16)
+	runtime.prepare_player_command()
+	var pearl: Vector2 = adapter._display_point("amber_pearl")
+	var stone: Vector2 = adapter._display_point("hearth_stone")
+	runner.assert_true(pearl.is_equal_approx(stone), "a real held stack marker can overlap a stationary object's final marker")
+	var before: String = _canonical(runtime)
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.position = adapter.get_canvas_transform() * stone
+	adapter.reset_observation()
+	for expected: String in ["amber_pearl", "hearth_stone", "amber_pearl"]:
+		adapter._unhandled_input(click)
+		runner.assert_eq(adapter.selected_object, expected, "repeated same-position clicks reach and cycle every overlapping visible object")
+		runner.assert_eq(_canonical(runtime), before, "overlapping hit selection cannot change bodies, custody, time, costs or knowledge")
+	runner.root.remove_child(adapter)
+	if parent != null:
+		parent.add_child(adapter)
 	_fixtures._dispose(fixture)
 
 

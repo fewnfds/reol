@@ -247,17 +247,22 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var cursor: Vector2 = get_canvas_transform().affine_inverse() * event.position
-		var closest: String = ""
-		var closest_distance: float = 22.0
 		var authority: RegionalSimulation = adapter.world_sim
 		var points: Dictionary = _visible_display_points(authority)
+		var hits: Array[String] = []
 		for id: String in points:
-			var distance: float = cursor.distance_to(points[id])
-			if distance <= 22.0 and (closest.is_empty() or distance < closest_distance or distance == closest_distance and id < closest):
-				closest = id
-				closest_distance = distance
-		if not closest.is_empty() and select_object(closest):
-			get_viewport().set_input_as_handled()
+			if cursor.distance_squared_to(points[id]) <= 22.0 * 22.0:
+				hits.append(id)
+		hits.sort_custom(func(left: String, right: String) -> bool:
+			var left_distance: float = cursor.distance_squared_to(points[left])
+			var right_distance: float = cursor.distance_squared_to(points[right])
+			return left < right if left_distance == right_distance else left_distance < right_distance)
+		if not hits.is_empty():
+			# Independently moving holders can overlap a placed icon after layout.
+			# Repeated clicks cycle the actual visible hits without moving any item.
+			var previous: int = hits.find(selected_object) if panel.visible else -1
+			if select_object(hits[(previous + 1) % hits.size()]):
+				get_viewport().set_input_as_handled()
 
 
 func _visible(id: String, observed_world: RegionalSimulation = null) -> bool:

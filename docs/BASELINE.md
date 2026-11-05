@@ -4,6 +4,10 @@
 
 ## 已验代码基线
 
+### 恢复实施：器物选择窄修复验
+
+2026-11-05，新Goal准备实际提交时核对`c40c5573457f06d65b11bade434f7e05de72065a`/run41929130480缓存终态failure，并取得完整artifact。234组通过/1组失败/33748断言，唯一失败仍为相机变换后的剑/珠重叠点击，未发现其他引擎错误；不将旧SHA失败当作新源场结果。当前可见命中循环选择的3文件窄修已在新工作区复验：首次组合在30秒限额时中止，规则/潮汐及weapon_items_runtime已完成且无失败，intrinsic组未完成不计通过（`logs/source-field-initial-focus.json`）。只接续未完成的intrinsic_light_runtime/local_light_runtime/weapon_items三组，564断言0失败、25.058秒/417034240B，未见引擎错误（`logs/object-stack-remaining-focus.json`）。合计器物4组660断言，未重跑已经完成的组；此前原生图标/点击证据仍见暂停包记录，窄修不改世界模型。准确修复SHA和原生审查随后登记，最终完整回归交对应SHA CI。
+
 | 版本/工作包 | 证据 | 适用边界 |
 |---|---|---|
 | `99eb91ce311a7e0df798dda3795baf6d857464e6` W1b地理气温及前序 | [CI 41916383335](https://github.com/fewnfds/reol/actions/runs/41916383335) completed/success，230组/32690断言/0失败；C1c-1b实际提交准备核对完整SHA与artifact | 覆盖W1b及此前世界包；不覆盖后来W2b-1固有光和C1c-1b历史证据解耦 |
