@@ -124,6 +124,10 @@ func carrier_traits(carrier: String) -> Dictionary:
 	for dimension: Variant in form.footprint:
 		if not SimInventory._valid_count(dimension, false):
 			return {"ok": false, "reason": "invalid_source"}
+		# Check the raw definition before Vector2i's signed 32-bit narrowing.
+		# Large valid JSON integers can otherwise wrap back to a supported size.
+		if dimension > 9 or int(dimension) % 2 == 0:
+			return {"ok": false, "reason": "unsupported_geometry"}
 	return {"ok": true, "form": record.form, "capabilities": form.capabilities.duplicate(), "footprint": footprint(carrier)}
 
 

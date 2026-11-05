@@ -38,7 +38,26 @@ func run(runner: Object) -> void:
 	_nonrectangular_workplace(runner)
 	_stock_does_not_scan_custody(runner)
 	_stale_backlog_and_rejections(runner)
+	_reject_oversized_body_geometry(runner)
 	print("SCENARIO world object query: original body, stock, resource, structure and item owners; scoped geometry, source clocks and JSON restoration")
+
+
+func _reject_oversized_body_geometry(runner: Object) -> void:
+	var fixture: Dictionary = _world(runner)
+	if fixture.is_empty():
+		return
+	var world: RegionalSimulation = fixture.world
+	var forms: Dictionary = world._content.body_forms.duplicate(true)
+	forms.forms.human.footprint = [4294967297, 1]
+	var bodies := SimEmbodiment.new()
+	runner.assert_true(bodies.configure(forms), "existing content protocol accepts exact positive JSON footprint integers")
+	runner.assert_true(bodies.restore(world.embodiment.to_dict()), "original subject/body references restore under those forms")
+	world.embodiment = bodies
+	var reference: Dictionary = {"kind": "actor", "id": "player"}
+	var before: String = _entity._facts(world)
+	runner.assert_eq(world.describe_object(reference), {"ok": false, "reason": "unsupported_geometry"}, "raw out-of-range width cannot wrap to one cell")
+	runner.assert_eq(world.capture_object_space([reference]), {"ok": false, "reason": "unsupported_geometry"}, "spatial capture cannot publish wrapped geometry")
+	runner.assert_eq(_entity._facts(world), before, "unsupported geometry rejection leaves the original world unchanged")
 
 
 func _world(runner: Object) -> Dictionary:
