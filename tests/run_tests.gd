@@ -149,6 +149,22 @@ func test_environment_response_session() -> void:
 	load("res://tests/sim/test_environment_response_session.gd").new().run(self)
 
 
+func test_environment_ground_field() -> void:
+	load("res://tests/sim/test_environment_ground_field.gd").new().run(self)
+
+
+func test_environment_target_compiler() -> void:
+	load("res://tests/sim/test_environment_target_compiler.gd").new().run(self)
+
+
+func test_environment_response_columns() -> void:
+	load("res://tests/sim/test_environment_response_columns.gd").new().run(self)
+
+
+func test_environment_response_file() -> void:
+	load("res://tests/sim/test_environment_response_file.gd").new().run(self)
+
+
 func test_terrain_view_updates() -> void:
 	load("res://tests/runtime/test_terrain_view_updates.gd").new().run(self)
 

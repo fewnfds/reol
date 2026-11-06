@@ -5,6 +5,7 @@ extends RefCounted
 ## Lifecycle invalidation is synchronous; projection/rebuild is budgeted.
 
 const Cache = preload("res://scripts/sim/environment_field_cache.gd")
+const GroundField = preload("res://scripts/sim/environment_ground_field.gd")
 const Bindings = preload("res://scripts/sim/environment_source_bindings.gd")
 const Rules = preload("res://scripts/sim/environment_field_rules.gd")
 const SourceChange = preload("res://scripts/sim/environment_source_change.gd")
@@ -58,7 +59,7 @@ func configure(world: RegionalSimulation, definitions: EnvironmentSourceDefiniti
 	for region: VillageSimulation in world.regions.values():
 		if region.elapsed_ms != world.elapsed_ms:
 			return false
-	var cache := Cache.new()
+	var cache := GroundField.new()
 	# Exclusive ground footprints bound active sources by map cells. This
 	# allocation and kernel warmup are explicit configure costs, not read costs.
 	if not cache.configure(Vector2i(SIZE, SIZE), SIZE * SIZE):

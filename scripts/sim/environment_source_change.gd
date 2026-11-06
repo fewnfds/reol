@@ -13,6 +13,7 @@ const Climate = preload("res://scripts/sim/climate_rules.gd")
 const Weather = preload("res://scripts/sim/weather.gd")
 const Tide = preload("res://scripts/sim/environment_field_tide.gd")
 const Rules = preload("res://scripts/sim/environment_field_rules.gd")
+const Compiler = preload("res://scripts/sim/environment_target_compiler.gd")
 const SIDE: int = 16
 const SLOTS: int = SIDE * SIDE
 
@@ -22,6 +23,7 @@ var _settings: Dictionary = {}
 var _initial_at: Callable
 var _phases: RefCounted
 var _phase_initial: Callable
+var _compiler := Compiler.new()
 var _active: Change
 
 
@@ -35,6 +37,8 @@ func configure(field: RefCounted, temperature: RefCounted, settings: Dictionary,
 	if int(field.diagnostics().get("capacity", 0)) <= 0:
 		return false
 	if phases != null and (not phase_initial.is_valid() or not phases.has_method("begin_bulk")):
+		return false
+	if not _compiler.configure(settings):
 		return false
 	# Bound content is immutable for this coordinator. A different world/content
 	# instance constructs another coordinator, never mutates an active context.
@@ -168,13 +172,11 @@ func _prepare_tile_input(budget: int) -> Dictionary:
 		if not rect.has_point(cell):
 			continue
 		var offset: int = ((cell.y - rect.position.y) * rect.size.x + cell.x - rect.position.x) * 7
-		var target: Dictionary = Segments.compile_segment(cell, _active.at_ms,
-			_settings.climate, _settings.weather, int(_settings.weather_epoch_ms), int(_settings.seed),
-			channels[offset + 5], channels[offset + 6], int(_settings.tau_ms), int(_settings.tide_grid_ms), _active.horizon_ms)
+		var target: Dictionary = _compiler.compile(cell, _active.at_ms, channels[offset + 5], channels[offset + 6], _active.horizon_ms)
 		if not bool(target.get("ok", false)):
 			return _abort(str(target.get("reason", "target_unavailable")))
 		if _phases != null:
-			var phase_result: Dictionary = _prepare_phase_cell(index, cell, channels, offset, int(target.until_ms))
+			var phase_result: Dictionary = _prepare_phase_cell(index, cell, channels, offset, int(target.until_ms), int(target.multiplier))
 			if not bool(phase_result.get("ok", false)):
 				return _abort(str(phase_result.get("reason", "phase_unavailable")))
 		var actual: Dictionary = _temperature.actual_at(cell, _active.at_ms)
@@ -209,7 +211,7 @@ func _prepare_tile_input(budget: int) -> Dictionary:
 	return _progress(0, used)
 
 
-func _prepare_phase_cell(index: int, cell: Vector2i, channels: PackedInt32Array, offset: int, until_ms: int) -> Dictionary:
+func _prepare_phase_cell(index: int, cell: Vector2i, channels: PackedInt32Array, offset: int, until_ms: int, multiplier: int) -> Dictionary:
 	var actual: Dictionary = _phases.actual_at(cell, _active.at_ms)
 	if not bool(actual.get("ok", false)):
 		if actual.get("reason") != "untracked":
@@ -222,14 +224,11 @@ func _prepare_phase_cell(index: int, cell: Vector2i, channels: PackedInt32Array,
 			_active.phase_columns.initial[index * 5 + channel] = initial.values[channel]
 	var grid: int = int(_settings.tide_grid_ms)
 	var at_ms: int = _active.at_ms
-	var tide: Dictionary = Tide.sample(int(_settings.seed), cell, at_ms - posmod(at_ms, grid))
-	if not bool(tide.get("ok", false)):
-		return tide
 	_active.phase_columns.mask[index] = 1
 	_active.phase_columns.until_ms[index] = mini(until_ms, at_ms + mini(grid - posmod(at_ms, grid), Temperature.MAX_TIME - at_ms))
 	_active.phase_columns.tau_ms[index] = int(_settings.tau_ms)
 	for channel: int in 5:
-		_active.phase_columns.target[index * 5 + channel] = Rules.effective_grade(channels[offset + channel], int(tide.multiplier))
+		_active.phase_columns.target[index * 5 + channel] = Rules.effective_grade(channels[offset + channel], multiplier)
 	return {"ok": true}
 
 

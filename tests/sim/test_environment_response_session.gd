@@ -8,6 +8,7 @@ const Definitions = preload("res://scripts/data/environment_source_definitions.g
 const Session = preload("res://scripts/runtime/environment_response_session.gd")
 const Snapshot = preload("res://scripts/persistence/environment_response_snapshot.gd")
 const Values = preload("res://scripts/persistence/snapshot_values.gd")
+const Transport = preload("res://scripts/persistence/environment_response_file.gd")
 
 const AREA := Rect2i(96, 96, 64, 64)
 const A := Vector2i(112, 112)
@@ -148,7 +149,15 @@ func _closed_loop_and_restore(runner: Object) -> void:
 	runner.assert_true(bool(captured.get("ok", false)), "completed world and in-flight action can be captured")
 	if not bool(captured.get("ok", false)):
 		return
-	var serialized: Variant = JSON.parse_string(Values.canonical_json(captured.snapshot))
+	var path: String = "user://environment_session_%d_%d.bin" % [OS.get_process_id(), Time.get_ticks_usec()]
+	var written: Dictionary = Transport.write(path, captured.snapshot)
+	runner.assert_true(bool(written.get("ok", false)), "packed response archive writes without full JSON")
+	var loaded: Dictionary = Transport.read(path)
+	runner.assert_true(bool(loaded.get("ok", false)), "packed response archive reads with checksum")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	if not bool(loaded.get("ok", false)):
+		return
+	var serialized: Variant = loaded.data
 	var staged: Dictionary = Snapshot.stage(serialized, Callable(self, "_new_world"), definitions, settings)
 	runner.assert_true(bool(staged.get("ok", false)), "the JSON snapshot stages an independent world")
 	if not bool(staged.get("ok", false)):
@@ -205,8 +214,10 @@ func _closed_loop_and_restore(runner: Object) -> void:
 	var wrong_settings: Dictionary = settings.duplicate(true)
 	wrong_settings.seed = 43
 	runner.assert_eq(Snapshot.stage(serialized, Callable(self, "_new_world"), definitions, wrong_settings).get("reason"), "settings_digest", "different response rules are rejected before loading")
-	var damaged: Dictionary = JSON.parse_string(Values.canonical_json(captured.snapshot))
-	damaged.phases.cells[0].target[0] = float(damaged.phases.cells[0].target[0]) + 1.0
+	var damaged: Dictionary = captured.snapshot.duplicate(true)
+	var targets: PackedFloat64Array = damaged.response.chunks[0].phases.targets.duplicate()
+	targets[0] += 1.0
+	damaged.response.chunks[0].phases.targets = targets
 	var rejected: Dictionary = Snapshot.stage(damaged, Callable(self, "_new_world"), definitions, settings)
 	runner.assert_true(bool(rejected.get("ok", false)), "a structurally valid modified target is staged only as a private candidate")
 	if bool(rejected.get("ok", false)):

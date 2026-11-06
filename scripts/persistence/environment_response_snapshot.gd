@@ -12,7 +12,9 @@ const Segments = preload("res://scripts/sim/environment_temperature_segments.gd"
 const Tide = preload("res://scripts/sim/environment_field_tide.gd")
 const Rules = preload("res://scripts/sim/environment_field_rules.gd")
 const Values = preload("res://scripts/persistence/snapshot_values.gd")
-const VERSION: int = 1
+const Columns = preload("res://scripts/persistence/environment_response_columns.gd")
+const Compiler = preload("res://scripts/sim/environment_target_compiler.gd")
+const VERSION: int = 2
 
 
 static func capture(session: RefCounted) -> Dictionary:
@@ -28,18 +30,21 @@ static func capture(session: RefCounted) -> Dictionary:
 	if not settings is Dictionary:
 		return _failure("settings_snapshot")
 	var area: Rect2i = session._area
+	var response: Dictionary = Columns.capture(session._temperature, session._phases, area)
+	if not bool(response.get("ok", false)):
+		return response
 	var snapshot: Dictionary = {"version": VERSION, "at_ms": world.elapsed_ms,
 		"area": [area.position.x, area.position.y, area.size.x, area.size.y],
 		"source_digest": session._definitions.digest(), "settings": settings,
 		"settings_digest": _digest(settings), "world": physical,
-		"temperature": session._temperature.snapshot(), "phases": session._phases.snapshot()}
+		"response": response.data}
 	return {"ok": true, "snapshot": snapshot}
 
 
 static func stage(data: Variant, world_factory: Callable, definitions: EnvironmentSourceDefinitions, settings: Dictionary) -> Dictionary:
 	# The caller supplies a fresh initialized world, never a live world. Regional
 	# restore validates original identities and in-flight actions in isolation.
-	if not _keys(data, ["version", "at_ms", "area", "source_digest", "settings", "settings_digest", "world", "temperature", "phases"]):
+	if not _keys(data, ["version", "at_ms", "area", "source_digest", "settings", "settings_digest", "world", "response"]):
 		return _failure("snapshot_shape")
 	if not _integer(data.version, VERSION, VERSION) or not _integer(data.at_ms, 0, Temperature.MAX_TIME) or not data.world is Dictionary:
 		return _failure("snapshot_shape")
@@ -63,7 +68,7 @@ static func stage(data: Variant, world_factory: Callable, definitions: Environme
 	if not world_factory.is_valid():
 		return _failure("world_factory")
 	var world: Variant = world_factory.call()
-	if not world is RegionalSimulation or not world.restore(data.world.duplicate(true)):
+	if not world is RegionalSimulation or not world.restore(data.world):
 		return _failure("world_restore")
 	var candidate := Session.new()
 	# JSON comparison normalizes integral numbers to floats. Bind the validated
@@ -73,8 +78,15 @@ static func stage(data: Variant, world_factory: Callable, definitions: Environme
 	# Keep the validator alive with the private payload until the session has
 	# rebuilt its real source cache and validated both restored response owners.
 	var validator := CandidateValidator.new()
-	var payload: Dictionary = {"temperature": data.temperature.duplicate(true) if data.temperature is Dictionary else {},
-		"phases": data.phases.duplicate(true) if data.phases is Dictionary else {}, "validator_owner": validator}
+	if not validator.configure(candidate._settings):
+		candidate.close()
+		return _failure("response_rule_configuration")
+	if not data.response is Dictionary or data.response.get("area") != data.area or data.response.get("size") != [Ground.SIZE, Ground.SIZE]:
+		candidate.close()
+		return _failure("response_shape")
+	# Packed arrays are detached on capture/read and copy-on-write thereafter;
+	# staging takes one ownership copy, never expands per-cell dictionaries.
+	var payload: Dictionary = {"response": data.response, "validator_owner": validator}
 	if not candidate.stage_restore_payload(payload, Callable(validator, "validate")):
 		candidate.close()
 		return _failure("session_restore")
@@ -104,53 +116,33 @@ static func _failure(reason: String) -> Dictionary:
 
 class CandidateValidator:
 	extends RefCounted
-	## Runs only on a detached candidate after the original source cache rebuild.
-	## It cannot recover source changes that happened before an anchor; it checks
-	## the currently effective target for each saved known segment.
-	func validate(session: RefCounted) -> bool:
+	var cursor: int = 0
+	var revision: int = -1
+	var _compiler := Compiler.new()
+
+	func configure(settings: Dictionary) -> bool:
+		return _compiler.configure(settings)
+
+	## At most one budget of cells per call; candidates remain private until ALL
+	## cells agree with the rebuilt original field. No full snapshot expansion.
+	func validate(session: RefCounted) -> Dictionary:
 		var world: RegionalSimulation = session._world
 		var area: Rect2i = session._area
-		var temperature: Dictionary = session._temperature.snapshot()
-		var phases: Dictionary = session._phases.snapshot()
-		if temperature.get("size") != [Ground.SIZE, Ground.SIZE] or phases.get("size") != [Ground.SIZE, Ground.SIZE] or int(temperature.get("capacity", 0)) != Ground.SIZE * Ground.SIZE or int(phases.get("capacity", 0)) != Ground.SIZE * Ground.SIZE:
-			return false
-		if int(temperature.get("activation_ms", -1)) != int(phases.get("activation_ms", -2)) or int(temperature.get("last_change_ms", -1)) != int(phases.get("last_change_ms", -2)) or int(temperature.get("last_change_ms", -1)) > world.elapsed_ms:
-			return false
-		var temp_rows: Variant = temperature.get("cells")
-		var phase_rows: Variant = phases.get("cells")
-		if not temp_rows is Array or not phase_rows is Array or temp_rows.size() != area.size.x * area.size.y or phase_rows.size() != temp_rows.size():
-			return false
-		for index: int in temp_rows.size():
+		if session._temperature._size != Vector2i(Ground.SIZE, Ground.SIZE) or session._temperature._capacity != Ground.SIZE * Ground.SIZE or session._temperature._last_change_ms > world.elapsed_ms:
+			return {"ok": false}
+		var remaining: int = mini(session.cell_budget, area.size.x * area.size.y - cursor)
+		for _slot: int in remaining:
 			@warning_ignore("integer_division")
-			var cell := Vector2i(area.position.x + index % area.size.x, area.position.y + index / area.size.x)
-			var thermal: Dictionary = temp_rows[index]
-			var phase: Dictionary = phase_rows[index]
-			if thermal.cell != [cell.x, cell.y] or phase.cell != thermal.cell:
-				return false
-			var response: Dictionary = thermal.response
-			var start_ms: int = int(response.start_ms)
-			if start_ms != int(phase.start_ms) or int(response.tau_ms) != int(phase.tau_ms) or int(response.tau_ms) != int(session._settings.tau_ms):
-				return false
-			if start_ms > world.elapsed_ms or world.elapsed_ms > int(response.until_ms) or world.elapsed_ms > int(phase.until_ms):
-				return false
+			var cell := Vector2i(area.position.x + cursor % area.size.x, area.position.y + cursor / area.size.x)
+			cursor += 1
 			var read: Dictionary = session._ground.read_response_channels(cell)
 			if not bool(read.get("ok", false)) or not read.get("channels") is PackedInt32Array or read.channels.size() != 7:
-				return false
-			var channels: PackedInt32Array = read.channels
-			var settings: Dictionary = session._settings
-			var compiled: Dictionary = Segments.compile_segment(cell, start_ms, settings.climate, settings.weather, int(settings.weather_epoch_ms), int(settings.seed), channels[5], channels[6], int(settings.tau_ms), int(settings.tide_grid_ms), Temperature.MAX_TIME)
-			if not bool(compiled.get("ok", false)) or int(response.until_ms) != int(compiled.until_ms) or float(response.target_value) != float(compiled.target_c) or float(response.target_per_ms) != float(compiled.target_per_ms):
-				return false
-			var grid: int = int(settings.tide_grid_ms)
-			var sampled: Dictionary = Tide.sample(int(settings.seed), cell, start_ms - posmod(start_ms, grid))
-			if not bool(sampled.get("ok", false)):
-				return false
-			var next_grid: int = start_ms + mini(grid - posmod(start_ms, grid), Temperature.MAX_TIME - start_ms)
-			if int(phase.until_ms) != mini(int(compiled.until_ms), next_grid):
-				return false
-			for channel: int in Phases.CHANNELS:
-				if float(phase.target[channel]) != float(Rules.effective_grade(channels[channel], int(sampled.multiplier))) or float(phase.slope[channel]) != 0.0:
-					return false
-			if not bool(session._temperature.actual_at(cell, world.elapsed_ms).get("ok", false)) or not bool(session._phases.actual_at(cell, world.elapsed_ms).get("ok", false)):
-				return false
-		return true
+				return {"ok": false}
+			if revision < 0:
+				revision = int(read.revision)
+			if revision != int(read.revision):
+				return {"ok": false}
+			var key := Vector2i(cell.x >> 4, cell.y >> 4)
+			if not Columns.validate_cell(session._temperature._chunks.get(key), session._phases._chunks.get(key), ((cell.y & 15) << 4) + (cell.x & 15), cell, session._settings, world.elapsed_ms, read.channels, _compiler):
+				return {"ok": false}
+		return {"ok": true, "pending": cursor < area.size.x * area.size.y, "visited": remaining}

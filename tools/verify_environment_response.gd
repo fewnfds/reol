@@ -4,6 +4,7 @@ extends SceneTree
 
 const Session = preload("res://scripts/runtime/environment_response_session.gd")
 const Archive = preload("res://scripts/persistence/environment_response_snapshot.gd")
+const Transport = preload("res://scripts/persistence/environment_response_file.gd")
 var fixture: RefCounted
 var failed: int = 0
 var session: RefCounted
@@ -51,7 +52,9 @@ func _run() -> void:
 	_settings = {"climate": world.environment.definitions, "weather": world.weather.definitions,
 		"weather_epoch_ms": world.weather.epoch_ms, "seed": 42, "tau_ms": 2000, "tide_grid_ms": 1000}
 	if "--read" in OS.get_cmdline_user_args():
-		var saved: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://logs/response-visual/checkpoint.json"))
+		var loaded: Dictionary = Transport.read(ProjectSettings.globalize_path("res://logs/response-visual/checkpoint.bin"))
+		assert_true(bool(loaded.get("ok", false)), "read streamed checkpoint")
+		var saved: Variant = loaded.get("data")
 		var expected: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://logs/response-visual/expected.json"))
 		var staged: Dictionary = Archive.stage(saved, Callable(self, "_factory"), _definitions, _settings)
 		assert_true(bool(staged.get("ok", false)), "fresh process stages independent archive " + str(staged))
@@ -82,7 +85,7 @@ func _run() -> void:
 		var captured: Dictionary = Archive.capture(session)
 		assert_true(bool(captured.get("ok", false)), "capture residual checkpoint")
 		if bool(captured.get("ok", false)):
-			_write("checkpoint.json", SnapshotValues.normalized(captured.snapshot))
+			assert_true(bool(Transport.write(ProjectSettings.globalize_path("res://logs/response-visual/checkpoint.bin"), captured.snapshot).get("ok", false)), "write streamed checkpoint")
 		session.advance_to_ms(9000)
 		await _ready()
 		_write("expected.json", SnapshotValues.normalized(_projection()))

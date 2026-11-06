@@ -6,11 +6,14 @@
 
 - `RegionalSimulation`及其原领域仍持有物品、身体、容器、动作、回执与整数游戏毫秒。
 - `SimEnvironmentGroundCache`仍只有一套来源槽位与基础 max 场；联合变更在它的原 `_cache` 内准备，不建立第二份长期来源。
+- 地面构造使用`SimEnvironmentGroundField`继承同一缓存。七通道非零等级计数与索引最大堆仅提供可下降的搜索上界；候选排除被替换slot，仍按原距离核、整数舍入与空间索引求精确max。相同最高等级的其他源不能被错误排除。
 - `SimEnvironmentTemperatureState`是本接缝实际温度 owner；新`SimEnvironmentPhaseState`持有五通道实际影响，内部按金/木/水/火/土、既有 milli-grade 单位排列。来源配置的木/火/土/金/水顺序由原 Rules 显式换序。
 - `SimEnvironmentSourceChange`联合单来源场、温度和可选五行候选；`SimEnvironmentResponseTargets`在气候/天气/潮汐段边界重订目标。
 - `EnvironmentResponseSession`是**封闭开发验收适配器**，不向普通 Main 安装新环境，也不拥有另一套玩家世界。调用者绑定后不得直接读写所交付的原 world；原公开领域对象本身不提供全局事务隔离。
 
 实际响应沿既有端点公式，不新增邻格传热、守恒、积分账本或逐源 tick。读取不改时间锚点；越过未接续目标边界、早于保留锚点或未初始化时明确拒绝。
+
+`SimEnvironmentTargetCompiler`只缓存一个时刻/期限下各区域的气候与下一边界，配置一次完整验证并隔离复制。每格仍按原整数规则计算潮汐和目标，冷热与五行复用该格同一潮汐倍率；缓存不持另一份世界或历史。不等同于GPU联合候选加速。
 
 ## 初始化与受控区域
 
@@ -43,8 +46,10 @@ prepare_move → pending/resume_move → 最终复验
 
 ## 开发验收存读
 
-`EnvironmentResponseSnapshot.capture(session)`只在完整ready、无欠时/候选时捕获原世界、配置digest、受控区域及温度/五行锚点。保存使用项目`SnapshotValues.canonical_json`保留浮点精度。
+`EnvironmentResponseSnapshot.capture(session)`只在完整ready、无欠时/候选时捕获原世界、配置digest、受控区域及温度/五行锚点。开发快照当前版本2：原世界保留原`to_dict/restore`，响应以16²块的packed时间、状态和float64数值列保存，避免每格字典及浮点文本。
 
-`stage(data, world_factory, definitions, settings)`调用独立世界工厂，验证并恢复原物、动作和时间，再重建派生缓存。两种响应owner完整校验后，逐格核对区域覆盖、时刻、tau、目标与真实来源，再发布候选；失败不替换活会话。残留无需仍有来源，正常进行中动作可保存；准备中保存busy。当前恢复末尾逐格联合校验是同步尖峰，按实测披露。
+`stage(data, world_factory, definitions, settings)`调用独立世界工厂，验证并恢复原物、动作和时间，再重建派生缓存。`EnvironmentResponseColumns`校验完整覆盖、块顺序和两种owner的锚点后才一起赋值；后续按`cell_budget`逐格核对时刻、tau、目标与真实来源，期间状态为`validate_restore`。全部通过才ready；失败不替换活会话。残留无需仍有来源，正常进行中动作可保存；准备中保存busy。原世界恢复及列结构校验仍是同步加载步骤，不能把分片目标校验宣传成全程无尖峰。
+
+`EnvironmentResponseFile.write/read`传输当前快照：固定magic/文件版本、白名单数据树及全流SHA256，64KiB缓冲；只允许普通值和数值packed数组，不启用Object反序列化。限制深度、节点、单值及2GiB文件大小，拒绝损坏、重复key和尾部。写临时文件完成校验后再提升，已有主档保留唯一备份；损坏主档拒绝覆盖。该文件层仍同步执行，尚非后台自动保存。捕获/解析结果应在下阶段接管后及时释放，避免同时保留不必要的完整世界副本。
 
 该格式仅是开发验收快照，不改变普通schema51，不自动支持旧环境档。普通Main接管、材料事务、携物整体发源、房间、生物后果仍需后续单包。

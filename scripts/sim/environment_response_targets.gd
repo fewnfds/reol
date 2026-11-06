@@ -17,6 +17,8 @@ const Rules = preload("res://scripts/sim/environment_field_rules.gd")
 const SIDE: int = 16
 const SLOTS: int = 256
 const MAX_CHUNKS: int = 64
+const Compiler = preload("res://scripts/sim/environment_target_compiler.gd")
+var _compiler := Compiler.new()
 
 var _temperature: RefCounted
 var _phases: RefCounted
@@ -33,6 +35,8 @@ func configure(temperature: RefCounted, phases: RefCounted, settings: Dictionary
 	if not _integer(settings.weather_epoch_ms, 0, Temperature.MAX_TIME) or not settings.seed is int or not _integer(settings.tau_ms, 1, Temperature.Response.MAX_TAU_MS) or not _integer(settings.tide_grid_ms, 1, Temperature.MAX_TIME):
 		return false
 	if not bool(phases.diagnostics().get("configured", false)):
+		return false
+	if not _compiler.configure(settings):
 		return false
 	_temperature = temperature
 	_phases = phases
@@ -139,26 +143,17 @@ func _compile_input(budget: int) -> Dictionary:
 
 func _compile_cell(index: int, cell: Vector2i, channels: PackedInt32Array) -> Dictionary:
 	var at_ms: int = _active.at_ms
-	var segment: Dictionary = Segments.compile_segment(cell, at_ms,
-		_settings.climate, _settings.weather, int(_settings.weather_epoch_ms), int(_settings.seed),
-		channels[5], channels[6], int(_settings.tau_ms), int(_settings.tide_grid_ms), Temperature.MAX_TIME)
+	var segment: Dictionary = _compiler.compile(cell, at_ms, channels[5], channels[6])
 	if not bool(segment.get("ok", false)):
 		return segment
 	if _active.activation:
-		var background: Dictionary = Climate.background_at(_settings.climate, _settings.weather, int(_settings.weather_epoch_ms), cell, at_ms)
-		if not background.get("temperature_tenths") is int:
-			return _failure("background_unavailable")
 		_active.temperature_columns.initial_mask[index] = 1
-		_active.temperature_columns.initial[index] = float(background.temperature_tenths) / 10.0
+		_active.temperature_columns.initial[index] = float(segment.neutral_c)
 		_active.phase_columns.initial_mask[index] = 1
 	# Bulk preparation validates tracked/untracked, cell bounds and the old
 	# known segment in both owners. Do not project the same six actual values a
 	# second time during input compilation before those checked preparations.
 	var grid: int = int(_settings.tide_grid_ms)
-	var grid_start: int = at_ms - posmod(at_ms, grid)
-	var tide: Dictionary = Tide.sample(int(_settings.seed), cell, grid_start)
-	if not bool(tide.get("ok", false)):
-		return tide
 	var next_grid: int = at_ms + mini(grid - posmod(at_ms, grid), Temperature.MAX_TIME - at_ms)
 	_active.temperature_columns.mask[index] = 1
 	_active.temperature_columns.target[index] = float(segment.target_c)
@@ -170,7 +165,7 @@ func _compile_cell(index: int, cell: Vector2i, channels: PackedInt32Array) -> Di
 	_active.phase_columns.tau_ms[index] = int(_settings.tau_ms)
 	for channel: int in Phase.CHANNELS:
 		var offset: int = index * Phase.CHANNELS + channel
-		var target: int = Rules.effective_grade(channels[channel], int(tide.multiplier))
+		var target: int = Rules.effective_grade(channels[channel], int(segment.multiplier))
 		_active.phase_columns.target[offset] = target
 		if _active.activation:
 			_active.phase_columns.initial[offset] = target

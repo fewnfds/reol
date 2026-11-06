@@ -6,6 +6,7 @@ const Definitions = preload("res://scripts/data/environment_source_definitions.g
 const Session = preload("res://scripts/runtime/environment_response_session.gd")
 const Snapshot = preload("res://scripts/persistence/environment_response_snapshot.gd")
 const Values = preload("res://scripts/persistence/snapshot_values.gd")
+const Transport = preload("res://scripts/persistence/environment_response_file.gd")
 const MAX_PUMPS: int = 5_000_000
 var _fixture: RefCounted
 var _fixture_failures: Array[String] = []
@@ -173,7 +174,7 @@ func _run() -> void:
 		"scope": "single source at a time, alternating two neighboring cells; final pump includes commit and possibly remaining preparation"}
 	_report["phase_owner_after_changes"] = session._phases.diagnostics()
 	_report["static_before_snapshot_bytes"] = OS.get_static_memory_usage()
-	# Preserve measured compute stages even if a later huge JSON archive hits
+	# Preserve measured compute stages even if a later archive hits
 	# the external process budget. This is partial evidence, never a passed run.
 	print("ENV_RESPONSE_GROUND_PROGRESS " + JSON.stringify(_report, "", true, true))
 	if bool(options.snapshot):
@@ -249,26 +250,24 @@ func _snapshot_roundtrip(session: RefCounted, definitions: EnvironmentSourceDefi
 	var capture_ms: float = _ms(started)
 	if not bool(captured.get("ok", false)):
 		return {"ok": false, "reason": "capture", "result": captured}
-	var path: String = "user://response_bench_%d_%d.json" % [OS.get_process_id(), Time.get_ticks_usec()]
+	var path: String = "user://response_bench_%d_%d.bin" % [OS.get_process_id(), Time.get_ticks_usec()]
 	started = Time.get_ticks_usec()
-	var file := FileAccess.open(path, FileAccess.WRITE)
-	if file == null:
-		return {"ok": false, "reason": "file_open"}
-	file.store_string(JSON.stringify(captured.snapshot, "", true, true))
-	file.flush()
-	var bytes: int = file.get_position()
-	file = null
+	var written: Dictionary = Transport.write(path, captured.snapshot)
+	if not bool(written.get("ok", false)):
+		return {"ok": false, "reason": "file_write", "result": written}
+	var bytes: int = int(written.bytes)
 	var write_ms: float = _ms(started)
+	captured = {} # release captured world BEFORE parsing a second original world
 	started = Time.get_ticks_usec()
-	var content: String = FileAccess.get_file_as_string(path)
-	var data: Variant = JSON.parse_string(content)
+	var loaded: Dictionary = Transport.read(path)
 	var read_parse_ms: float = _ms(started)
 	var remove_error: Error = DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
-	if not data is Dictionary or remove_error != OK:
+	if not bool(loaded.get("ok", false)) or remove_error != OK:
 		return {"ok": false, "reason": "read_or_cleanup", "remove_error": remove_error}
 	started = Time.get_ticks_usec()
-	var staged: Dictionary = Snapshot.stage(data, Callable(self, "_new_world"), definitions, settings)
+	var staged: Dictionary = Snapshot.stage(loaded.data, Callable(self, "_new_world"), definitions, settings)
 	var stage_ms: float = _ms(started)
+	loaded = {} # candidate owns its originals and detached packed response only
 	if not bool(staged.get("ok", false)):
 		return {"ok": false, "reason": "stage", "result": staged}
 	var candidate: RefCounted = staged.candidate
@@ -290,7 +289,7 @@ func _snapshot_roundtrip(session: RefCounted, definitions: EnvironmentSourceDefi
 
 
 func _arguments(args: PackedStringArray) -> Dictionary:
-	var options: Dictionary = {"ok": true, "size": 64, "events": 1, "snapshot": false, "field_work": 4096, "cell_budget": 256}
+	var options: Dictionary = {"ok": true, "size": 64, "events": 1, "snapshot": false, "field_work": 128, "cell_budget": 32}
 	for arg: String in args:
 		if arg == "--snapshot":
 			options.snapshot = true

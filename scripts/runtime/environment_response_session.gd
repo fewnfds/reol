@@ -12,6 +12,7 @@ const Targets = preload("res://scripts/sim/environment_response_targets.gd")
 const Rules = preload("res://scripts/sim/environment_field_rules.gd")
 const Segments = preload("res://scripts/sim/environment_temperature_segments.gd")
 const Tide = preload("res://scripts/sim/environment_field_tide.gd")
+const Columns = preload("res://scripts/persistence/environment_response_columns.gd")
 
 var field_work: int = 128
 var cell_budget: int = 32
@@ -77,8 +78,9 @@ func pump() -> Dictionary:
 		_phases = Phases.new()
 		_targets = Targets.new()
 		if not _restore_state.is_empty():
-			if not _temperature.restore(_restore_state.temperature) or not _phases.restore(_restore_state.phases):
+			if not Columns.restore(_temperature, _phases, _restore_state.response):
 				return _fail("response_restore")
+			_restore_state.erase("response")
 		else:
 			if not _temperature.configure(Vector2i(Ground.SIZE, Ground.SIZE), Ground.SIZE * Ground.SIZE, _world.elapsed_ms) or not _phases.configure(Vector2i(Ground.SIZE, Ground.SIZE), Ground.SIZE * Ground.SIZE, _world.elapsed_ms):
 				return _fail("response_configuration")
@@ -93,12 +95,17 @@ func pump() -> Dictionary:
 			return _fail("artifact_transfers_already_guarded")
 		_transfer_guard_bound = true
 		if not _restore_state.is_empty():
-			if not bool(_restore_state.validator.call(self)):
-				return _fail("response_restore_contract")
+			_state = "validate_restore"
+		else:
+			_start_refresh(true)
+	if _state == "validate_restore":
+		var validation: Dictionary = _restore_state.validator.call(self)
+		if not bool(validation.get("ok", false)):
+			return _fail("response_restore_contract")
+		if not bool(validation.get("pending", false)):
 			_restore_state = {}
 			_state = "ready"
-			return status()
-		_start_refresh(true)
+		return status()
 	if _state in ["activation", "refresh"]:
 		return _pump_targets()
 	if _state == "direct":

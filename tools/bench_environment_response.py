@@ -46,8 +46,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--size", type=int, choices=(64, 128, 512), default=64)
     parser.add_argument("--events", type=int, choices=(1, 8, 32), default=1)
-    parser.add_argument("--field-work", type=int, default=4096)
-    parser.add_argument("--cell-budget", type=int, default=256)
+    parser.add_argument("--field-work", type=int, default=128)
+    parser.add_argument("--cell-budget", type=int, default=32)
     parser.add_argument("--snapshot", action="store_true")
     parser.add_argument("--seconds", type=float, default=900.0)
     parser.add_argument("--memory-mib", type=int, default=10240)
@@ -82,9 +82,11 @@ def main() -> int:
         "scripts/sim/environment_ground_cache.gd", "scripts/sim/environment_source_change.gd",
         "scripts/sim/environment_source_bindings.gd", "scripts/sim/environment_temperature_state.gd",
         "scripts/sim/environment_phase_state.gd", "scripts/sim/environment_response_targets.gd",
+        "scripts/sim/environment_ground_field.gd", "scripts/sim/environment_target_compiler.gd",
         "scripts/sim/object_lifecycle.gd", "scripts/sim/object_actions.gd",
         "scripts/sim/regional_simulation.gd", "scripts/runtime/environment_response_session.gd",
         "scripts/persistence/environment_response_snapshot.gd", "tools/bench_environment_response.gd",
+        "scripts/persistence/environment_response_columns.gd", "scripts/persistence/environment_response_file.gd",
     )
     report = {
         "format_version": 1,
