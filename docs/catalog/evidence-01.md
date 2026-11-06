@@ -67,6 +67,7 @@
 - [docs/qa/20261105_world_foundation_exit.md](../qa/20261105_world_foundation_exit.md)
 - [docs/qa/20261105_world_object_contract.md](../qa/20261105_world_object_contract.md)
 - [docs/qa/20261106_environment_optimization.md](../qa/20261106_environment_optimization.md)
+- [docs/qa/20261106_environment_cold_build.md](../qa/20261106_environment_cold_build.md)
 - [docs/qa/README.md](../qa/README.md)
 - [docs/qa/baseline-history/01-clock-and-source-field.md](../qa/baseline-history/01-clock-and-source-field.md)
 - [docs/qa/baseline-history/02-heat-storage-capacity.md](../qa/baseline-history/02-heat-storage-capacity.md)

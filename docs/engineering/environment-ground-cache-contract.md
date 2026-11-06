@@ -69,5 +69,6 @@ building期间发生物件事务会中止装配并报initialization_changed，�
 - `tests/runtime/test_environment_ground_compute.gd`与`tools/qa/environment_ground_compute.gd`：真实CPU/无设备回退及硬件GPU、原物变更与未同步结果拒绝、取消回收和原世界替换。
 - `tools/benchmarks/environment_ground_compute_guard.py`：相同真实物品布置下的CPU/GPU/auto对比，整链路、分散变化和主线程耗时；GPU回退单列，不冒充硬件成绩。
 - `tools/benchmarks/environment_ground_cache_guard.py`：串行运行64²至512²真实混合地面物，外部限制时间和进程内存，测装配、局部/全图冷建、热读及变动重算。
+- `tools/bench_environment_cold_build.py`：真实密集来源，分开装配与CPU冷建，输出work、分片分位、外部进程内存和独立原物参考；同参数对照口径见[初建QA](../qa/20261106_environment_cold_build.md)。
 
 工程合同不代替受检SHA及数值证据；本包完成记录见[缓存QA](../qa/20261105_environment_ground_cache.md)。后续实际响应和普通接管仍须单独排包。
