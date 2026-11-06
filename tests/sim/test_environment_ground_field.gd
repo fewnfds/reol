@@ -17,6 +17,7 @@ func run(runner: Object) -> void:
 	_preserved_unrelated_draft(runner)
 	_cold_rebuild_local_source_bounds(runner)
 	_cold_rebuild_spatial_changes(runner)
+	_uniform_cold_rebuild_work(runner)
 	print("SCENARIO ground field bounds: exact seven-channel candidate comparison, ties, removal and cancellation")
 
 
@@ -338,6 +339,26 @@ func _cold_rebuild_spatial_changes(runner: Object) -> void:
 	if not bool(_compare_rebuild(runner, base, fast, size, "ordinary rebuild after candidate commit").get("ok", false)):
 		return
 	runner.assert_eq(fast.read_base(Vector2i(16, 15)).channels[5], 12_000, "committed moved source is visible to a subsequent cold rebuild")
+
+
+func _uniform_cold_rebuild_work(runner: Object) -> void:
+	# With no stronger outlier, a local upper bound cannot prune more receiver
+	# work than the global one. Only the small per-tile bound gathering is extra;
+	# an extra occupied-head visit per channel would be a real regression.
+	var size := Vector2i(32, 16)
+	var base := Baseline.new()
+	var fast := GroundField.new()
+	if not _ok(runner, base.configure(size, size.x * size.y) and fast.configure(size, size.x * size.y), "uniform no-outlier fields configure"):
+		return
+	for y: int in size.y:
+		for x: int in size.x:
+			if not _set_pair(runner, base, fast, y * size.x + x, Vector2i(x, y), 16, [0, 1000, 100, 0, 100, 0, 0]):
+				return
+	var result: Dictionary = _compare_rebuild(runner, base, fast, size, "uniform no-outlier field")
+	if not bool(result.get("ok", false)):
+		return
+	runner.assert_true(int(result.optimized_work) <= int(result.reference_work) + 18, "uniform receiver work only adds bounded block gathering, never a source visit per channel")
+	print("GROUND_UNIFORM_WORK reference=%d indexed=%d" % [int(result.reference_work), int(result.optimized_work)])
 
 
 func _compare_rebuild(runner: Object, base: RefCounted, fast: RefCounted, size: Vector2i, label: String) -> Dictionary:

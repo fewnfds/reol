@@ -144,7 +144,7 @@ func _step_receiver() -> void:
 		if _neighbor_slot == -1:
 			_neighbor_slot = UNSET
 			_neighbor_index += 1
-		return
+			return
 	var radius: int = _slot_radius[_neighbor_slot]
 	var dx: int = absi(_neighbor_dx)
 	var dy: int = absi(_neighbor_dy)
