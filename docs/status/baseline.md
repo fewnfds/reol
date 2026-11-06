@@ -26,6 +26,12 @@
 
 ## 最近有效证据
 
+### 性能有限接续与停止点
+
+A代码`9467cb9790229284ee24edd61cc48a45d809d1f0`复用原占用格索引，128²真实材料落地创建4.178→2.695秒；512²创建44.027秒、装配10.980秒、场2.930秒，峰工作集约2.015GiB，同10GiB守卫。4组定向9666断言0失败，Sol/custom审查无发现。B代码`603cdff7a65672e486b831453ec9114a71ea1ade`只保留显式存读分项工具与编码测试；两条无明显收益的运行改动撤回。4组定向298断言0失败，Python守卫8项通过，审查无发现，64²候选完整存读通过；不称大档优化成功。范围见[接续QA](../qa/20261107_world_performance_followup.md)。
+
+A的[CI42269548713](https://github.com/fewnfds/reol/actions/runs/42269548713)收尾检查为in_progress，B的[CI42270554012](https://github.com/fewnfds/reol/actions/runs/42270554012)为pending，完整headSha一致，**本轮完整CI待验**；前包760cf7e的CI42223048834本轮已核completed/success。C多移动源未实施，Goal按用户条件暂停讨论；16GB整机、普通Main接管和完整游戏仍未验收。
+
 ### 基础场初建的局部上界优化
 
 首代码2291ab9、审查修复`760cf7ed5c613ed2643b4dae1b6fb5c96277746e`增加来源块逐通道等级计数和有界局部上界，原场规则/候选/普通存档不变。最终6组定向10541断言0失败，Python守卫8项通过；一次Sol/custom静态审查的均匀场work回退已修，均匀场5124→5128 work，仅增加块汇总。最终[CI42223048834](https://github.com/fewnfds/reol/actions/runs/42223048834)在收尾实际提交检查点核为pending、完整headSha一致，**完整CI待验**，不继承前包绿色。

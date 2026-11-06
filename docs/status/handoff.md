@@ -1,6 +1,10 @@
 # 当前接续
 
-核对：2026-11-07。用户授权主代理已创建[性能有限接续Goal](../plans/environment-object-loop/performance-followup.md)，依次处理A原物创建/装配、B大档存读、C移动来源吞吐，每项最多两条有依据路线，触及需简化规则/规模的边界就停下讨论，不强行探索。干净检出`logs/world_perf_followup/dev`，四WIP保持。A新增原地面逐格占用只读点查，材料目的地复用它；不绕过原生命周期/成本/回执。128²创建4178.175→2694.914ms，4组定向9666断言0失败。512²创建44027.021ms、场2929.918ms、装配10979.623ms；主代理继续包级审查与准确SHA验收，未称Goal完成。
+核对：2026-11-07。[性能有限接续Goal](../plans/environment-object-loop/performance-followup.md)按用户“解决不了停下讨论”条件暂停收尾，**未complete**。A代码`9467cb9790229284ee24edd61cc48a45d809d1f0`用原逐格占用只读点查替代材料目的地桶扫描；128²创建4178.175→2694.914ms，512²真实创建44027.021ms、场2929.918ms、装配10979.623ms。4组定向9666断言0失败，Sol/custom静态审查无发现，原成本/数量/回执不变。
+
+B两条轻量存读尝试没有显著端到端收益，全部撤回运行代码，`environment_response_file.gd`保持原字节/格式/校验。工具/测试代码`603cdff7a65672e486b831453ec9114a71ea1ade`仅增加显式`--snapshot --transport-profile`分项测量及字符串原格式字节/坏编码测试，默认不多读写。4组定向298断言0失败，Python守卫8项通过，一次Sol/custom静态审查无发现；64²独立候选完整存读通过。C多移动源吞吐未实施，不把静态建议或单源瞬时样本当通过。
+
+本轮[QA与停止理由](../qa/20261107_world_performance_followup.md)记录数据及可讨论简化：区分开局初始事实/生成批次与游玩后真实操作历史，当前尚未改变规则。已向用户询问该概念，等待答复，不静默删开局或真实历史。A的[CI42269548713](https://github.com/fewnfds/reol/actions/runs/42269548713)在最终文档提交检查点为in_progress，B的[CI42270554012](https://github.com/fewnfds/reol/actions/runs/42270554012)为pending，完整headSha均一致，**本轮完整CI待验**；不轮询，不本机再跑整套。干净检出日志保全到`logs/world_perf_followup/validation-artifacts/`后移除临时检出，四WIP哈希保持不纳入验收。没有证据证明必须换引擎或缩小整个世界。
 
 此前[环境初建有限优化](../plans/environment-object-loop/cold-build.md)首代码2291ab9，最终`760cf7ed5c613ed2643b4dae1b6fb5c96277746e`已整合推送。最终[CI42223048834](https://github.com/fewnfds/reol/actions/runs/42223048834)在本轮真实提交检查点核为completed/success、完整headSha一致，前包完整CI不再待验；首代码CI42222372361未继续查询。前包6组定向10541断言0失败，Sol/custom均匀场work回退已修。以下保留前包范围和证据，不能代证当前修改。
 
