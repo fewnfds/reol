@@ -49,9 +49,12 @@ def main() -> int:
     parser.add_argument("--field-work", type=int, default=128)
     parser.add_argument("--cell-budget", type=int, default=32)
     parser.add_argument("--snapshot", action="store_true")
+    parser.add_argument("--transport-profile", action="store_true", help="run extra transport profiling; requires --snapshot")
     parser.add_argument("--seconds", type=float, default=900.0)
     parser.add_argument("--memory-mib", type=int, default=10240)
     args = parser.parse_args()
+    if args.transport_profile and not args.snapshot:
+        parser.error("--transport-profile requires --snapshot")
     if not 0 < args.seconds <= MAX_SECONDS:
         parser.error(f"--seconds must be positive and <= {MAX_SECONDS:g}")
     if not 1 <= args.memory_mib <= MAX_MEMORY_MIB:
@@ -67,6 +70,8 @@ def main() -> int:
                f"--field-work={args.field_work}", f"--cell-budget={args.cell_budget}"]
     if args.snapshot:
         command.append("--snapshot")
+    if args.transport_profile:
+        command.append("--transport-profile")
     guard.MAX_SECONDS = MAX_SECONDS
     guard.MAX_BYTES = MAX_MEMORY_MIB * 1024**2
     try:

@@ -178,7 +178,7 @@ func _run() -> void:
 	# the external process budget. This is partial evidence, never a passed run.
 	print("ENV_RESPONSE_GROUND_PROGRESS " + JSON.stringify(_report, "", true, true))
 	if bool(options.snapshot):
-		var persisted: Dictionary = _snapshot_roundtrip(session, definitions, settings, a, b)
+		var persisted: Dictionary = _snapshot_roundtrip(session, definitions, settings, a, b, bool(options.transport_profile))
 		_report["snapshot"] = persisted
 		if not bool(persisted.get("ok", false)):
 			_fail("snapshot", persisted)
@@ -247,12 +247,41 @@ func _drive(session: RefCounted, durations: Array[int] = []) -> Dictionary:
 	return {"ok": false, "reason": "pump_limit", "calls": count}
 
 
-func _snapshot_roundtrip(session: RefCounted, definitions: EnvironmentSourceDefinitions, settings: Dictionary, a: Vector2i, b: Vector2i) -> Dictionary:
+func _snapshot_roundtrip(session: RefCounted, definitions: EnvironmentSourceDefinitions, settings: Dictionary, a: Vector2i, b: Vector2i, with_profile: bool) -> Dictionary:
 	var started: int = Time.get_ticks_usec()
 	var captured: Dictionary = Snapshot.capture(session)
 	var capture_ms: float = _ms(started)
 	if not bool(captured.get("ok", false)):
 		return {"ok": false, "reason": "capture", "result": captured}
+	var profile_path: String = ""
+	var profile: Dictionary = {"status": "not_requested"}
+	if with_profile:
+		# Profile the same snapshot on a separate, uniquely named scratch file.
+		# Never promote it or overwrite an existing artifact. The normal transport
+		# path below remains the only one used for the candidate stage/roundtrip.
+		var profile_dir: String = ProjectSettings.globalize_path("res://logs").simplify_path()
+		var directory_error: Error = DirAccess.make_dir_recursive_absolute(profile_dir)
+		if directory_error != OK:
+			return {"ok": false, "reason": "profile_directory", "error": directory_error}
+		profile_path = Transport._unused_path(profile_dir.path_join("response_transport_profile"))
+		if profile_path.is_empty():
+			return {"ok": false, "reason": "profile_path"}
+		var writer := Transport.Writer.new()
+		started = Time.get_ticks_usec()
+		var profile_write: Dictionary = writer.write_to(profile_path, captured.snapshot)
+		profile = {"write_ms": _ms(started), "nodes": writer.nodes,
+			"scope": "separate scratch file: direct writer, verify-only reader, then materializing reader; includes actual I/O and hash; repeated reads can be cache-warm"}
+		writer = null
+		if not bool(profile_write.get("ok", false)):
+			Transport._remove_owned(profile_path)
+			return {"ok": false, "reason": "profile_write", "result": profile_write, "transport_profile": profile}
+		profile["bytes"] = int(profile_write.bytes)
+		started = Time.get_ticks_usec()
+		var profile_verified: Dictionary = Transport._read_file(profile_path, false)
+		profile["verify_ms"] = _ms(started)
+		if not bool(profile_verified.get("ok", false)) or int(profile_verified.get("bytes", -1)) != int(profile.bytes):
+			Transport._remove_owned(profile_path)
+			return {"ok": false, "reason": "profile_verify", "result": profile_verified, "transport_profile": profile}
 	var path: String = "user://response_bench_%d_%d.bin" % [OS.get_process_id(), Time.get_ticks_usec()]
 	# Preserve a failed large archive for a targeted recovery diagnosis; remove
 	# this owned temporary only after the complete candidate passes.
@@ -261,10 +290,30 @@ func _snapshot_roundtrip(session: RefCounted, definitions: EnvironmentSourceDefi
 	started = Time.get_ticks_usec()
 	var written: Dictionary = Transport.write(path, captured.snapshot)
 	if not bool(written.get("ok", false)):
+		if not profile_path.is_empty():
+			Transport._remove_owned(profile_path)
 		return {"ok": false, "reason": "file_write", "result": written}
 	var bytes: int = int(written.bytes)
 	var write_ms: float = _ms(started)
 	captured = {} # release captured world BEFORE parsing a second original world
+	if with_profile:
+		started = Time.get_ticks_usec()
+		var profile_read: Dictionary = Transport.read(profile_path)
+		profile["read_ms"] = _ms(started)
+		if not bool(profile_read.get("ok", false)) or int(profile_read.get("bytes", -1)) != int(profile.bytes):
+			# Never embed a full materialized world in an error report.
+			var failure_result: Dictionary = {"ok": false, "reason": "profile_read", "result": {"ok": profile_read.get("ok", false),
+				"bytes": profile_read.get("bytes", -1), "reason": profile_read.get("reason", "size_mismatch")}, "transport_profile": profile}
+			profile_read = {}
+			Transport._remove_owned(profile_path)
+			return failure_result
+		profile_read = {} # release its materialized tree before the normal read/stage
+		var profile_remove_error: Error = DirAccess.remove_absolute(profile_path)
+		if profile_remove_error != OK:
+			return {"ok": false, "reason": "profile_cleanup", "error": profile_remove_error, "transport_profile": profile}
+		# Preserve completed profile evidence if a later, unrelated stage reaches
+		# the external time/memory guard. A progress line is not a passed roundtrip.
+		print("ENV_RESPONSE_TRANSPORT_PROFILE " + JSON.stringify(profile, "", true, true))
 	print("ENV_RESPONSE_ARCHIVE_PROGRESS " + JSON.stringify({"stage": "written", "write_ms": write_ms, "bytes": bytes, "static_bytes": OS.get_static_memory_usage()}))
 	started = Time.get_ticks_usec()
 	var loaded: Dictionary = Transport.read(path)
@@ -292,17 +341,19 @@ func _snapshot_roundtrip(session: RefCounted, definitions: EnvironmentSourceDefi
 	var closed: bool = candidate.close()
 	var candidate_close_us: int = Time.get_ticks_usec() - started
 	var remove_error: Error = DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
-	return {"ok": matches and closed and remove_error == OK, "capture_ms": capture_ms, "file_write_ms": write_ms, "file_read_parse_ms": read_parse_ms,
+	return {"ok": matches and closed and remove_error == OK, "capture_ms": capture_ms, "file_write_ms": write_ms, "file_read_parse_ms": read_parse_ms, "transport_profile": profile,
 		"bytes": bytes, "candidate_stage_ms": stage_ms, "candidate_rebuild": restored,
 		"candidate_close_us": candidate_close_us, "samples_match": matches,
 		"scope": "development snapshot to a uniquely named temporary file, read, detached world stage and real-session rebuild"}
 
 
 func _arguments(args: PackedStringArray) -> Dictionary:
-	var options: Dictionary = {"ok": true, "size": 64, "events": 1, "snapshot": false, "field_work": 128, "cell_budget": 32}
+	var options: Dictionary = {"ok": true, "size": 64, "events": 1, "snapshot": false, "transport_profile": false, "field_work": 128, "cell_budget": 32}
 	for arg: String in args:
 		if arg == "--snapshot":
 			options.snapshot = true
+		elif arg == "--transport-profile":
+			options.transport_profile = true
 		elif arg.begins_with("--size=") and arg.trim_prefix("--size=").is_valid_int():
 			options.size = int(arg.trim_prefix("--size="))
 		elif arg.begins_with("--events=") and arg.trim_prefix("--events=").is_valid_int():
@@ -313,7 +364,7 @@ func _arguments(args: PackedStringArray) -> Dictionary:
 			options.cell_budget = int(arg.trim_prefix("--cell-budget="))
 		else:
 			return {"ok": false, "reason": "unknown_argument", "argument": arg}
-	if options.size not in [64, 128, 512] or options.events not in [1, 8, 32] or options.field_work < 1 or options.field_work > 100_000 or options.cell_budget < 1 or options.cell_budget > 256:
+	if options.size not in [64, 128, 512] or options.events not in [1, 8, 32] or options.field_work < 1 or options.field_work > 100_000 or options.cell_budget < 1 or options.cell_budget > 256 or (options.transport_profile and not options.snapshot):
 		return {"ok": false, "reason": "invalid_options", "options": options}
 	return options
 

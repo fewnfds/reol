@@ -7,6 +7,8 @@ const Transport = preload("res://scripts/persistence/environment_response_file.g
 
 func run(runner: Object) -> void:
 	_round_trip_and_backups(runner)
+	_string_roundtrip_and_encoding(runner)
+	_invalid_string_after_valid_prefix(runner)
 	_recovery_checkpoints(runner)
 	_recovery_collisions(runner)
 	_corruption_and_plain_data(runner)
@@ -60,6 +62,101 @@ func _round_trip_and_backups(runner: Object) -> void:
 	_cleanup(backup)
 	_cleanup(base + ".recovery")
 	_cleanup(base)
+
+
+func _string_roundtrip_and_encoding(runner: Object) -> void:
+	var first: String = _path("text_a")
+	var second: String = _path("text_b")
+	var long_ascii: String = "abcdef0123456789".repeat(20)
+	var repeat_values: Array = ["repeated", "repeated", "灵机", "灵机", "", "", &"repeated", long_ascii, long_ascii]
+	var simple: Dictionary = {"strings": repeat_values}
+	var initial: Dictionary = Transport.write(first, simple)
+	var duplicate: Dictionary = Transport.write(second, simple)
+	runner.assert_true(bool(initial.get("ok", false)) and bool(duplicate.get("ok", false)), "repeated ASCII, UTF-8, empty and long strings write")
+	if not bool(initial.get("ok", false)) or not bool(duplicate.get("ok", false)):
+		_cleanup(first)
+		_cleanup(second)
+		return
+	runner.assert_eq(Transport.read(first).get("data"), simple, "repeated mixed strings and StringName retain their values")
+	var reference: PackedByteArray = Transport.MAGIC.to_utf8_buffer()
+	_append_u32(reference, Transport.VERSION)
+	reference.append(Transport.TAG_DICTIONARY)
+	_append_u32(reference, 1)
+	_append_encoded_string(reference, "strings".to_utf8_buffer(), Transport.TAG_STRING)
+	reference.append(Transport.TAG_ARRAY)
+	_append_u32(reference, repeat_values.size())
+	for value: Variant in repeat_values:
+		_append_encoded_string(reference, str(value).to_utf8_buffer(), Transport.TAG_STRING_NAME if value is StringName else Transport.TAG_STRING)
+	_append_hash(reference)
+	var first_bytes: PackedByteArray = FileAccess.get_file_as_bytes(first)
+	runner.assert_eq(first_bytes, reference, "writer output matches the original documented tags, lengths, bytes and checksum")
+	runner.assert_eq(FileAccess.get_file_as_bytes(second), first_bytes, "separate writes of the same text have identical file bytes")
+	_cleanup(first)
+	_cleanup(second)
+
+	# 3000 distinct values and a large byte array cross several input and output
+	# buffers. The same strings occur both before and after the large block.
+	var stress: String = _path("text_stress")
+	var filler := PackedByteArray()
+	filler.resize(Transport.BLOCK_BYTES + 37)
+	filler.fill(65)
+	var entries: Array = ["repeated", "灵机", "", long_ascii, filler]
+	for index: int in 3000:
+		entries.append("entry_%04d" % index)
+		if index % 100 == 0:
+			entries.append("灵机")
+			entries.append("repeated")
+	entries.append_array([long_ascii, "", "repeated", "灵机", "🌙"])
+	var large: Dictionary = {"strings": entries, "end": "repeated"}
+	var saved: Dictionary = Transport.write(stress, large)
+	runner.assert_true(bool(saved.get("ok", false)), "unique and repeated strings across buffer boundaries write")
+	if bool(saved.get("ok", false)):
+		var loaded: Dictionary = Transport.read(stress)
+		runner.assert_true(bool(loaded.get("ok", false)) and loaded.get("data") == large, "all mixed strings survive a multi-buffer round trip")
+		runner.assert_true(bool(Transport._read_file(Transport._resolve(stress), false).get("ok", false)), "non-materializing verification also accepts the same file")
+	_cleanup(stress)
+
+
+func _invalid_string_after_valid_prefix(runner: Object) -> void:
+	var path: String = _path("bad_string")
+	var prefix: PackedByteArray = "same-prefix".to_utf8_buffer()
+	var malformed: Array[PackedByteArray] = []
+	var overlong: PackedByteArray = prefix.duplicate()
+	overlong.append_array(PackedByteArray([0xC0, 0x80]))
+	malformed.append(overlong)
+	var truncated: PackedByteArray = prefix.duplicate()
+	truncated.append_array(PackedByteArray([0xE4, 0xB8]))
+	malformed.append(truncated)
+	var surrogate: PackedByteArray = prefix.duplicate()
+	surrogate.append_array(PackedByteArray([0xED, 0xA0, 0x80]))
+	malformed.append(surrogate)
+	# Although zero is a valid UTF-8 code unit, the existing Godot string
+	# decoder cannot round-trip an embedded NUL; the transport rejects it.
+	var embedded_nul: PackedByteArray = prefix.duplicate()
+	embedded_nul.append(0)
+	embedded_nul.append_array("tail".to_utf8_buffer())
+	malformed.append(embedded_nul)
+	for invalid: PackedByteArray in malformed:
+		var bytes: PackedByteArray = Transport.MAGIC.to_utf8_buffer()
+		_append_u32(bytes, Transport.VERSION)
+		bytes.append(Transport.TAG_DICTIONARY)
+		_append_u32(bytes, 1)
+		_append_encoded_string(bytes, "strings".to_utf8_buffer(), Transport.TAG_STRING)
+		bytes.append(Transport.TAG_ARRAY)
+		_append_u32(bytes, 2)
+		_append_encoded_string(bytes, prefix, Transport.TAG_STRING)
+		_append_encoded_string(bytes, invalid, Transport.TAG_STRING)
+		_append_hash(bytes)
+		_write_bytes(path, bytes)
+		runner.assert_eq(Transport.read(path).get("reason"), "invalid_utf8", "a valid earlier prefix cannot authorize malformed or unrepresentable later bytes")
+		runner.assert_eq(Transport._read_file(Transport._resolve(path), false).get("reason"), "invalid_utf8", "verification rejects malformed bytes after a valid prefix")
+	_cleanup(path)
+
+
+func _append_encoded_string(target: PackedByteArray, bytes: PackedByteArray, tag: int) -> void:
+	target.append(tag)
+	_append_u32(target, bytes.size())
+	target.append_array(bytes)
 
 
 func _recovery_checkpoints(runner: Object) -> void:
