@@ -1,18 +1,16 @@
 # 当前接续
 
-核对：2026-11-05。[静止地面来源连续响应包](../plans/environment-object-loop/response-ground.md)功能接缝已实现并完成声明范围的因果/画面/小档验证，准确代码完整回归通过；**候选吞吐和512²存读出口未达标**，不能称全部规格完成。现在停止报告讨论，不自动进入Main、房间、携行或玩法。无活动Goal、测试、基准或审查进程。
+核对：2026-11-06。本轮[来源候选与大档内存优化](../plans/environment-object-loop/optimization.md)已按限定范围完成并停下讨论，无活动Goal。最终代码`8ce9e031e03d706285a5bce2b5657ec4bf30d22e`（首代码992acf0）已整合/推送到`codex/world-engine`，四份原WIP字节不变、不纳入验收。14组定向25944断言0失败；一次Sol/custom原生静态审查P2已修。收尾提交检查点一次核得对应[CI42181067921](https://github.com/fewnfds/reol/actions/runs/42181067921)为completed/success、完整headSha一致：268组/134155断言/0失败，Python57项通过；本机不再重复整套。
 
-## 当前工作与检出
+最终512²、262142真实材料堆+1实物、半径16、32次单源变更与独立候选完整存读通过，同10GiB守卫内峰工作集5.734GiB（采样private5.884GiB）。单变更p50 0.244s/p99 0.350s，比旧p99 3.634s明显下降；累计CPU成本仍不足以代表20Hz大量携源。文件217.8MB，写137.3s、读85.1s、stage103.5s、重建599.4s；环境初建576.9s，来源/基础缓存占550.9s，仍很慢。首轮新文件在原物恢复OOM的失败保留，随后原账本材料紧凑回执才使同守卫复测通过，不提高预算凑绿。目标编译、packed列、流式文件及中断恢复合同见[接口](../engineering/environment-response-contract.md)，完整证据看[优化QA](../qa/20261106_environment_optimization.md)。
 
-主工作区 `codex/world-engine`；起点 `333f6f50b628a4e45269f038affbb733f92fe42b`。代码已分阶段接回原分支：`98e713590f29348c94823674bc58618162ec53bf`及修复`0d8c03545d9e6f4b3094cb725b14eb14a1bb3f23`，文档另提交；最新HEAD/推送以Git为准。为保护四份原WIP，在忽略目录 `logs/environment_response/dev` 干净检出实施和验收；日志保全到`logs/environment_response/validation-artifacts/`后移除此自建检出，不维持第二套长期实现。
+最终代码RTX3060真实渲染、两进程完整停开到同一9000ms未来，以及64²基础目标GPU全格参考/局部变化均通过。30份代码指纹一致。所有引擎/审查/基准已结束；隔离检出`logs/environment_optimization/dev`日志保全到`logs/environment_optimization/validation-artifacts/`后移除，不维持第二套运行模型。普通Main仍用旧Q；携行、材料环境事务、房间、生物后果未扩。
 
-本包代码已接上：五通道实际影响owner、温度/五行目标续接、单实物来源/原位置/响应联合候选、到期动作pending/取消、共同事件边界续算、封闭开发会话和独立验收快照。普通Main仍由旧Q负责冷热。合同见[接口](../engineering/environment-response-contract.md)，实际范围/性能与原错误见[QA](../qa/20261105_environment_response.md)。
+本包后停点：后续先讨论来源/基础缓存全域初建和大档加载速度，而非直接扩玩法或宣布普通接管。多件同强源持续移动的吞吐、16GB整机全系统负载仍未验；不自动沿旧Goal/旧QA连做。
 
-一次Sol/custom只读审查发现GroundCache.step_move错误预算失败未取消底层候选P2，已修到0d8c035；六组定向348断言0失败，工具Python57项通过。修复准确SHA独立检出一次完整check **264组/108331断言/0失败**，约1099s且无SCRIPT ERROR/ERROR，31份代码指纹前后不变。RTX3060真实渲染中观察到旧处消散、新处建立；两进程完整退出恢复到相同9000ms未来通过。首次跨进程失败是验收脚本默认JSON精度损失，已使用项目canonical_json保留完整精度；不是删除断言或改存档规则。
+## 前包与证据入口
 
-64²/128²近满格半径16、32次单源事件及存读已验；CPU单来源候选约3.5–3.7s，不得包装成顺畅实时搬物。512²联合JSON解析超过10GiB自建进程预算，输出mem null后在约1009s由主代理核准路径/PID停止，保留失败记录。修复SHA的512²纯计算32次通过：262142真实材料堆+1实物、激活264.520s、变更p99 3.634s、峰工作集3.837GiB。现GPU只加速已验基础目标，不加速联合候选。采用16GB整机/单3060目标，模块几百MB守卫不是游戏预算。后续讨论应先解决候选重复搜索及紧凑分块存读，再谈普通接管，不自动沿旧计划扩玩法。
-
-主代理统一启动测试/基准/审查。长运行保留同一session由工具层等终态；不轮询日志数PASS、不派等待代理。实际活handle仅属本聊天当前工具状态；接续前先核进程，不重复启动。
+本轮起点为d4ea4df；此前连续响应功能代码98e7135/0d8c035已验，失败和限制保留在[前包QA](../qa/20261105_environment_response.md)，不将其中“下一步/未优化”理解为本轮仍未实施。普通Main与开发会话的区别仍适用；新优化实际范围按本页首段、BASELINE及本轮QA解读。
 
 ## 已完成基线与边界
 

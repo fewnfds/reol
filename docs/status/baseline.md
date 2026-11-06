@@ -1,6 +1,6 @@
 # 构建、兼容与验证基线
 
-核对：2026-11-05。这里记录采用版本与对应范围的证据；实际可操作内容见[功能入口](features.md)，任务状态和未提交工作见[接续](handoff.md)。旧的逐包原文已完整拆入[历史分卷](../qa/baseline-history/README.md)，具体测试和画面见[QA索引](../qa/README.md)。
+核对：2026-11-06。这里记录采用版本与对应范围的证据；实际可操作内容见[功能入口](features.md)，任务状态和未提交工作见[接续](handoff.md)。旧的逐包原文已完整拆入[历史分卷](../qa/baseline-history/README.md)，具体测试和画面见[QA索引](../qa/README.md)。
 
 ## 采用版本与存档
 
@@ -25,6 +25,14 @@
 代码 `8bf7aa2a012af393fbc1b96fea6220aa18825833` 提供显式schema/digest、真实ground实物/材料堆投影和有界局部基础目标查询；不改变普通内容包和schema51/区域42。定向147断言/0失败，Sol/custom原生只读审查无可行动问题；真实512²地面物品复测局部查询p99 11.619ms、峰值进程工作集约1.39GiB。同一精确SHA独立检出完整check通过：**255组、98618断言、0失败**，1094.512秒，无ERROR/SCRIPT ERROR。[CI42008084331](https://github.com/fewnfds/reol/actions/runs/42008084331)在随后A2a方案的真实文档提交检查点核为completed/success，完整headSha匹配；没有轮询或重复本机完整回归。支持范围、源码哈希和测量口径见[来源QA](../qa/20261105_environment_source_bindings.md)；不涵盖响应残留、每帧全图更新或Main接管。
 
 ## 最近有效证据
+
+### 来源候选与紧凑存读优化
+
+首代码`992acf06f7ef19e7a379d5ed01585e1165b300f9`及最终代码`8ce9e031e03d706285a5bce2b5657ec4bf30d22e`增加可下降来源上界、复用气候/潮汐编译、packed响应/流式文件、可发现中断恢复点和原账本材料紧凑回执。14组定向25944断言0失败；一次Sol/custom静态审查P2已修。[CI42181067921](https://github.com/fewnfds/reol/actions/runs/42181067921)在收尾实际提交检查点核为completed/success、完整headSha一致：**268组、134155断言、0失败**，Python57项通过，Import+test无SCRIPT ERROR/ERROR；未本机重复整套。30份代码指纹前后一致，不含四WIP。
+
+最终512²真实262142材料堆+1实物、32次变更及完整独立存读通过，同10GiB守卫内峰工作集5.734GiB。单变更p99 0.350s（旧3.634s），但环境初建576.936s、文件写137.336s/读85.143s/原世界stage103.481s/重建599.413s仍慢，不是常时可玩吞吐。首轮新文件恢复OOM保留，最终靠紧凑原回执降低峰值。两进程完全停开至相同9000ms未来、RTX3060实际图像及64²GPU基础场复核通过，见[优化QA](../qa/20261106_environment_optimization.md)。本包限定优化出口完成；普通schema51及Main旧Q未改，完整接管/动态规模仍未完成。
+
+该包真实代码提交检查点一次核得前HEAD `d4ea4df9b7a4da2773df3a863ef6bc35cc2fb290` 的[CI42054570393](https://github.com/fewnfds/reol/actions/runs/42054570393)为completed/success、headSha完全一致。这是前包代码和文档的证据，不代表新优化提交通过；无轮询。
 
 ### 静止来源连续响应
 

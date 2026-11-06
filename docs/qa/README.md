@@ -10,6 +10,7 @@
 
 | 文件 | 原记录主题 |
 |---|---|
+| [20261106_environment_optimization.md](20261106_environment_optimization.md) | 来源候选精确上界、复用目标编译、packed响应与流式存读的性能和一致性 |
 | [20261105_environment_response.md](20261105_environment_response.md) | 原物/场/温度/五行联合候选、事件待算/取消、封闭开发会话、完整停开与密集来源性能 |
 | [20261105_environment_ground_compute.md](20261105_environment_ground_compute.md) | 真实来源CPU/GPU统一接口、发布校验/线程回收和同负载比较 |
 | [20261105_environment_ground_cache.md](20261105_environment_ground_cache.md) | A2a真实来源装配/分块缓存、局部失效/重入/恢复、密度性能及精确SHA验收 |

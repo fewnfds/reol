@@ -2,6 +2,8 @@
 
 本目录是第二阶段首轮的详细候选方案。当前授权、执行和停点只写 [HANDOFF](../../status/handoff.md)，本目录不建立第二条任务队列。依赖顺序见[基础优先级](../foundation-priorities.md)，固定概念遵循[环境规则](../../../design/rules/environment.md)。
 
+针对连续响应首包实测热点的[来源候选与大档内存优化](optimization.md)独立列为基础性能小包；是否完成以[优化QA](../../qa/20261106_environment_optimization.md)和HANDOFF为准，不自动接管普通Main。
+
 动态场接合前须遵守[时间、刷新与过载合同](scheduling.md)：区分游戏时间/渲染帧/计算耗时，移动区间不漏途经格，预算不足不跳历史，并补长期积压与输入边界策略。该合同仍是候选，不能当作现有20Hz普通时钟已经具备的新场能力。
 
 ## 本轮选定两个方向

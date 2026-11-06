@@ -22,3 +22,5 @@
 [真实来源分块缓存](../engineering/environment-ground-cache-contract.md)在同一原世界上提供预算装配、16×16基础目标块、热读、通知前局部失效及恢复重绑；不是某一具名物品专用脚本。独特物/材料堆和512²真实密度已做定向及离线测量，完整回归状态看[缓存QA](../qa/20261105_environment_ground_cache.md)。开发计算接口也接受真实缓存的CPU/GPU/auto，具备来源准备、过期拒绝及取消回收；接入验收看[计算QA](../qa/20261105_environment_ground_compute.md)。普通Main未接此服务；原四份WIP继续单列保护。
 
 新增[静止来源实际响应接缝](../engineering/environment-response-contract.md)使用原世界、原物和原动作，在封闭开发验收会话里取放/移位已有独特实物，接实际温度、五行建立/消散、预算等待/取消及独立存读。它不是普通玩家功能；诊断工具`tools/verify_environment_response.gd`可观察真实目标/实际值。范围和吞吐限制见[响应QA](../qa/20261105_environment_response.md)，准确最终回归状态看BASELINE/HANDOFF；普通Main旧Q、人体/植物、材料拆合与携行辐射未改。
+
+该接缝的[性能优化](../qa/20261106_environment_optimization.md)增加可下降来源搜索上界、复用目标编译和紧凑分块文件存读。它改进通用环境准备及开发验收入口，不添加玩家菜单或某个具名道具的专用效果；实际规模、等待成本和验收状态按QA解读。

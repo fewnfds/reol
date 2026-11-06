@@ -2,15 +2,6 @@
 
 [分类总目录](../CATALOG.md)；路径存在不表示已实现或已验。
 
-- [docs/qa/20261105_environment_ground_compute.md](../qa/20261105_environment_ground_compute.md)
-
-- [docs/qa/20261105_environment_ground_cache.md](../qa/20261105_environment_ground_cache.md)
-
-- [docs/qa/20261105_environment_source_bindings.md](../qa/20261105_environment_source_bindings.md)
-
-- [docs/qa/20261105_object_lifecycle.md](../qa/20261105_object_lifecycle.md)
-- [docs/qa/20261105_world_foundation_exit.md](../qa/20261105_world_foundation_exit.md)
-
 - [docs/qa/20261103_artifact_understanding.md](../qa/20261103_artifact_understanding.md)
 - [docs/qa/20261103_autonomous_livelihood.md](../qa/20261103_autonomous_livelihood.md)
 - [docs/qa/20261103_avian_life.md](../qa/20261103_avian_life.md)
@@ -63,12 +54,19 @@
 - [docs/qa/20261105_bounded_temperature_preparation.md](../qa/20261105_bounded_temperature_preparation.md)
 - [docs/qa/20261105_clock_world_commit.md](../qa/20261105_clock_world_commit.md)
 - [docs/qa/20261105_documentation_reorganization.md](../qa/20261105_documentation_reorganization.md)
+- [docs/qa/20261105_environment_ground_cache.md](../qa/20261105_environment_ground_cache.md)
+- [docs/qa/20261105_environment_ground_compute.md](../qa/20261105_environment_ground_compute.md)
+- [docs/qa/20261105_environment_response.md](../qa/20261105_environment_response.md)
+- [docs/qa/20261105_environment_source_bindings.md](../qa/20261105_environment_source_bindings.md)
 - [docs/qa/20261105_field_compute_acceleration.md](../qa/20261105_field_compute_acceleration.md)
+- [docs/qa/20261105_object_lifecycle.md](../qa/20261105_object_lifecycle.md)
 - [docs/qa/20261105_packed_temperature_state.md](../qa/20261105_packed_temperature_state.md)
 - [docs/qa/20261105_source_field_foundation.md](../qa/20261105_source_field_foundation.md)
 - [docs/qa/20261105_source_temperature_transition.md](../qa/20261105_source_temperature_transition.md)
 - [docs/qa/20261105_temperature_segments_and_budget.md](../qa/20261105_temperature_segments_and_budget.md)
+- [docs/qa/20261105_world_foundation_exit.md](../qa/20261105_world_foundation_exit.md)
 - [docs/qa/20261105_world_object_contract.md](../qa/20261105_world_object_contract.md)
+- [docs/qa/20261106_environment_optimization.md](../qa/20261106_environment_optimization.md)
 - [docs/qa/README.md](../qa/README.md)
 - [docs/qa/baseline-history/01-clock-and-source-field.md](../qa/baseline-history/01-clock-and-source-field.md)
 - [docs/qa/baseline-history/02-heat-storage-capacity.md](../qa/baseline-history/02-heat-storage-capacity.md)
