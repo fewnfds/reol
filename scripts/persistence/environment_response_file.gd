@@ -53,46 +53,145 @@ static func write(path: String, snapshot: Dictionary) -> Dictionary:
 	if not bool(created.get("ok", false)):
 		_remove_owned(temporary)
 		return created
-	# Re-read and validate the completed file without materializing a second
-	# world. This catches write/flush faults as well as malformed tree records.
+	# Re-read the complete plain-data archive before changing any prior file.
 	var verified: Dictionary = _read_file(temporary, false)
 	if not bool(verified.get("ok", false)):
 		_remove_owned(temporary)
 		return _failure("temporary_verification_failed")
-	var backup: String = ""
-	if FileAccess.file_exists(target):
-		# Preserve an invalid old primary and every pre-existing backup verbatim.
-		var previous: Dictionary = _read_file(target, false)
-		if not bool(previous.get("ok", false)):
-			_remove_owned(temporary)
-			return _failure("existing_file_invalid")
+	var prepared: Dictionary = _prepare_recovery(target)
+	if not bool(prepared.get("ok", false)):
+		_remove_owned(temporary)
+		return prepared
+	var backup: String = str(prepared.get("backup", ""))
+	if bool(prepared.get("had_primary", false)):
 		backup = _unused_path(target + ".bak")
 		if backup.is_empty():
 			_remove_owned(temporary)
-			return _failure("backup_name_exhausted")
+			var failed: Dictionary = _failure("backup_name_exhausted")
+			failed["rotated_recovery"] = str(prepared.get("rotated_recovery", ""))
+			return failed
 		var renamed: Error = DirAccess.rename_absolute(target, backup)
 		if renamed != OK:
 			_remove_owned(temporary)
-			return _failure("backup_failed", renamed)
+			var failed: Dictionary = _failure("backup_failed", renamed)
+			failed["rotated_recovery"] = str(prepared.get("rotated_recovery", ""))
+			return failed
 	var promoted: Error = DirAccess.rename_absolute(temporary, target)
 	if promoted != OK:
-		# Same-volume rename can fail on Windows. Keep the backup regardless,
-		# and try to restore the previous primary if the destination vanished.
-		if not backup.is_empty() and not FileAccess.file_exists(target):
-			var recovered: Error = DirAccess.copy_absolute(backup, target)
-			if recovered != OK:
-				_remove_owned(temporary)
-				return _failure("promotion_and_recovery_failed", recovered)
+		# A restoration is first copied and validated at a distinct path. A
+		# partial direct copy to target would hide the usable recovery file.
+		var restored: Error = OK
+		if not backup.is_empty() and not _path_exists(target):
+			restored = _restore_primary(target)
 		_remove_owned(temporary)
-		return _failure("promotion_failed", promoted)
-	return {"ok": true, "bytes": int(created.bytes), "backup": backup}
+		var failed: Dictionary = _failure("promotion_failed", promoted)
+		if restored != OK:
+			failed = _failure("promotion_and_recovery_failed", restored)
+			failed["promotion_error"] = promoted
+		failed["backup"] = backup
+		failed["recovery"] = target + ".recovery"
+		failed["rotated_recovery"] = str(prepared.get("rotated_recovery", ""))
+		return failed
+	return {"ok": true, "bytes": int(created.bytes), "backup": backup,
+		"rotated_recovery": str(prepared.get("rotated_recovery", ""))}
 
 
 static func read(path: String) -> Dictionary:
 	var target: String = _resolve(path)
 	if target.is_empty():
 		return _failure("invalid_path")
-	return _read_file(target, true)
+	# Never turn a corrupt, unsupported, unreadable, directory or dangling-link
+	# primary into an apparently successful load from an older history.
+	if _path_exists(target):
+		var primary: Dictionary = _read_file(target, true)
+		if bool(primary.get("ok", false)):
+			primary["recovered"] = false
+		return primary
+	var recovery: String = target + ".recovery"
+	if not _path_exists(recovery):
+		return _read_file(target, true)
+	if not FileAccess.file_exists(recovery) or _is_link(recovery):
+		return _failure("recovery_path_occupied")
+	var recovered: Dictionary = _read_file(recovery, true)
+	if bool(recovered.get("ok", false)):
+		recovered["recovered"] = true
+		recovered["recovery_path"] = recovery
+	return recovered
+
+
+# Call only after the new temporary archive is complete and validated. The
+# fixed recovery path is readable if a process stops between the two renames.
+# Operations on the same target require a single writer and no external edits.
+static func _prepare_recovery(target: String) -> Dictionary:
+	var recovery: String = target + ".recovery"
+	var rotated: String = ""
+	if _path_exists(target):
+		if not FileAccess.file_exists(target) or _is_link(target):
+			return _failure("existing_file_invalid")
+		var previous: Dictionary = _read_file(target, false)
+		if not bool(previous.get("ok", false)):
+			return _failure("existing_file_invalid")
+		if _path_exists(recovery):
+			# Preserve even an incomplete copy from a stopped process or an
+			# unrelated pre-existing file. Never overwrite a directory/link.
+			if not FileAccess.file_exists(recovery) or _is_link(recovery):
+				return _failure("recovery_path_occupied")
+			rotated = _unused_path(recovery + ".bak")
+			if rotated.is_empty():
+				return _failure("recovery_backup_name_exhausted")
+			var rotated_error: Error = DirAccess.rename_absolute(recovery, rotated)
+			if rotated_error != OK:
+				return _failure("recovery_backup_failed", rotated_error)
+		var copied: Error = DirAccess.copy_absolute(target, recovery)
+		if copied != OK:
+			var failed: Dictionary = _failure("recovery_copy_failed", copied)
+			failed["rotated_recovery"] = rotated
+			return failed
+		if not bool(_read_file(recovery, false).get("ok", false)):
+			var failed: Dictionary = _failure("recovery_verification_failed")
+			failed["rotated_recovery"] = rotated
+			return failed
+		return {"ok": true, "had_primary": true, "backup": "", "rotated_recovery": rotated}
+	# If a former promotion stopped, the fixed recovery is the only known good
+	# copy. Do not rotate or overwrite it before the new primary is installed.
+	if _path_exists(recovery):
+		if not FileAccess.file_exists(recovery) or _is_link(recovery):
+			return _failure("recovery_path_occupied")
+		if not bool(_read_file(recovery, false).get("ok", false)):
+			return _failure("recovery_file_invalid")
+		var backup: String = _unused_path(target + ".bak")
+		if backup.is_empty():
+			return _failure("backup_name_exhausted")
+		var copied: Error = DirAccess.copy_absolute(recovery, backup)
+		if copied != OK:
+			_remove_owned(backup)
+			return _failure("backup_failed", copied)
+		if not bool(_read_file(backup, false).get("ok", false)):
+			_remove_owned(backup)
+			return _failure("backup_verification_failed")
+		return {"ok": true, "had_primary": false, "backup": backup, "rotated_recovery": ""}
+	return {"ok": true, "had_primary": false, "backup": "", "rotated_recovery": ""}
+
+
+# Keep target absent until a complete recovery copy has been verified.
+static func _restore_primary(target: String) -> Error:
+	var restoration: String = _unused_path(target + ".restore")
+	if restoration.is_empty():
+		return ERR_CANT_CREATE
+	var copied: Error = DirAccess.copy_absolute(target + ".recovery", restoration)
+	if copied != OK:
+		_remove_owned(restoration)
+		return copied
+	if not bool(_read_file(restoration, false).get("ok", false)):
+		_remove_owned(restoration)
+		return ERR_INVALID_DATA
+	if _path_exists(target):
+		_remove_owned(restoration)
+		return ERR_ALREADY_IN_USE
+	var renamed: Error = DirAccess.rename_absolute(restoration, target)
+	if renamed != OK:
+		_remove_owned(restoration)
+	return renamed
 
 
 static func _read_file(path: String, materialize: bool) -> Dictionary:
@@ -110,11 +209,23 @@ static func _resolve(path: String) -> String:
 	return ""
 
 
+# Include directories and links (including dangling links) when checking a
+# destination. A parent directory that cannot be inspected fails closed.
+static func _path_exists(path: String) -> bool:
+	var parent: DirAccess = DirAccess.open(path.get_base_dir())
+	return parent == null or parent.is_link(path) or parent.file_exists(path) or DirAccess.dir_exists_absolute(path)
+
+
+static func _is_link(path: String) -> bool:
+	var parent: DirAccess = DirAccess.open(path.get_base_dir())
+	return parent == null or parent.is_link(path)
+
+
 static func _unused_path(prefix: String) -> String:
 	var stem: String = prefix + ".%d.%d" % [OS.get_process_id(), Time.get_ticks_usec()]
 	for attempt: int in 32:
 		var candidate: String = stem + "." + str(attempt)
-		if not FileAccess.file_exists(candidate) and not DirAccess.dir_exists_absolute(candidate):
+		if not _path_exists(candidate):
 			return candidate
 	return ""
 

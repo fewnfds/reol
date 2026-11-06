@@ -7,8 +7,10 @@ const Transport = preload("res://scripts/persistence/environment_response_file.g
 
 func run(runner: Object) -> void:
 	_round_trip_and_backups(runner)
+	_recovery_checkpoints(runner)
+	_recovery_collisions(runner)
 	_corruption_and_plain_data(runner)
-	print("SCENARIO environment response file: streaming plain-data format, checksum, limits and protected backups")
+	print("SCENARIO environment response file: streaming plain-data format, checksum, limits, protected backups and process recovery")
 
 
 func _round_trip_and_backups(runner: Object) -> void:
@@ -33,6 +35,9 @@ func _round_trip_and_backups(runner: Object) -> void:
 	var saved: Dictionary = Transport.write(base, second)
 	runner.assert_true(bool(saved.get("ok", false)) and not str(saved.get("backup", "")).is_empty(), "replacing a verified archive retains a backup")
 	if not bool(saved.get("ok", false)):
+		_cleanup(str(saved.get("backup", "")))
+		_cleanup(str(saved.get("rotated_recovery", "")))
+		_cleanup(base + ".recovery")
 		_cleanup(base)
 		return
 	var backup: String = str(saved.backup)
@@ -43,11 +48,137 @@ func _round_trip_and_backups(runner: Object) -> void:
 	var next: Dictionary = Transport.write(base, third)
 	runner.assert_true(bool(next.get("ok", false)) and next.get("backup") != backup, "a later replacement gets a distinct backup")
 	runner.assert_eq(FileAccess.get_file_as_bytes(backup), first_backup_bytes, "an older backup is never overwritten")
+	var rotated: String = str(next.get("rotated_recovery", ""))
 	if bool(next.get("ok", false)):
 		runner.assert_eq(Transport.read(str(next.backup)).get("data"), second, "new backup contains the previous complete archive")
-		_cleanup(str(next.backup))
+		runner.assert_true(not rotated.is_empty(), "an existing recovery is retained at a distinct path")
+		if not rotated.is_empty():
+			runner.assert_eq(FileAccess.get_file_as_bytes(rotated), first_backup_bytes, "rotated recovery preserves its prior bytes")
+		runner.assert_eq(Transport.read(base + ".recovery").get("data"), second, "fixed recovery contains the previous complete archive")
+	_cleanup(str(next.get("backup", "")))
+	_cleanup(rotated)
 	_cleanup(backup)
+	_cleanup(base + ".recovery")
 	_cleanup(base)
+
+
+func _recovery_checkpoints(runner: Object) -> void:
+	var base: String = _path("checkpoint")
+	var absolute: String = Transport._resolve(base)
+	var recovery: String = absolute + ".recovery"
+	var first: Dictionary = {"version": 1, "world": [1, 2, 3]}
+	var initial: Dictionary = Transport.write(base, first)
+	runner.assert_true(bool(initial.get("ok", false)), "checkpoint fixture writes")
+	if not bool(initial.get("ok", false)):
+		return
+	var original: PackedByteArray = FileAccess.get_file_as_bytes(base)
+	var prepared: Dictionary = Transport._prepare_recovery(absolute)
+	runner.assert_true(bool(prepared.get("ok", false)), "recovery checkpoint is prepared before moving the primary")
+	if not bool(prepared.get("ok", false)):
+		_cleanup(recovery)
+		_cleanup(base)
+		return
+	runner.assert_eq(FileAccess.get_file_as_bytes(base), original, "preparing recovery leaves primary bytes intact")
+	runner.assert_eq(FileAccess.get_file_as_bytes(recovery), original, "prepared recovery is the complete previous archive")
+	var still_primary: Dictionary = Transport.read(base)
+	runner.assert_true(bool(still_primary.get("ok", false)) and not bool(still_primary.get("recovered", true)), "prepared checkpoint continues reading the primary")
+	runner.assert_true(not bool(Transport.write(base, {"bad": INF}).get("ok", true)), "invalid snapshot is rejected before changing the checkpoint")
+	runner.assert_eq(FileAccess.get_file_as_bytes(base), original, "failed snapshot leaves primary bytes intact")
+	runner.assert_eq(FileAccess.get_file_as_bytes(recovery), original, "failed snapshot leaves prepared recovery intact")
+
+	# Reproduce the same on-disk checkpoint as an interruption between the
+	# primary-to-backup and temporary-to-primary renames.
+	var parked: String = Transport._unused_path(absolute + ".bak")
+	var moved: Error = DirAccess.rename_absolute(absolute, parked)
+	runner.assert_eq(moved, OK, "test parks the primary at a unique backup")
+	if moved != OK:
+		_cleanup(recovery)
+		_cleanup(base)
+		return
+	var loaded: Dictionary = Transport.read(base)
+	runner.assert_true(bool(loaded.get("ok", false)) and bool(loaded.get("recovered", false)), "missing primary recovers the prepared archive")
+	runner.assert_eq(loaded.get("data"), first, "recovery returns the complete previous snapshot")
+	runner.assert_true(not FileAccess.file_exists(base), "reading recovery never writes a partial primary")
+
+	var restored: Error = Transport._restore_primary(absolute)
+	runner.assert_eq(restored, OK, "restoration uses a validated separate copy")
+	runner.assert_eq(FileAccess.get_file_as_bytes(base), original, "restoration recreates the original primary exactly")
+	runner.assert_eq(FileAccess.get_file_as_bytes(recovery), original, "restoration retains the recovery checkpoint")
+	_cleanup(base)
+
+	# A later save after a restart must keep recovery intact throughout its
+	# write and retain a distinct backup of that recovered history.
+	var second: Dictionary = {"version": 2, "world": [4, 5]}
+	var saved: Dictionary = Transport.write(base, second)
+	runner.assert_true(bool(saved.get("ok", false)), "a new save succeeds while only recovery exists")
+	var recovered_backup: String = str(saved.get("backup", ""))
+	if bool(saved.get("ok", false)):
+		runner.assert_true(not recovered_backup.is_empty(), "recovered history gets its own retained backup")
+		runner.assert_eq(Transport.read(recovered_backup).get("data"), first, "the retained backup contains recovered history")
+		var latest: Dictionary = Transport.read(base)
+		runner.assert_true(bool(latest.get("ok", false)) and not bool(latest.get("recovered", true)), "new primary is preferred after successful promotion")
+		runner.assert_eq(latest.get("data"), second, "new primary holds the newly saved snapshot")
+		runner.assert_eq(FileAccess.get_file_as_bytes(recovery), original, "the original recovery remains intact after promotion")
+		var corrupt: PackedByteArray = FileAccess.get_file_as_bytes(base)
+		corrupt[corrupt.size() - 1] = corrupt[corrupt.size() - 1] ^ 1
+		_write_bytes(base, corrupt)
+		runner.assert_true(not bool(Transport.read(base).get("ok", true)), "an invalid existing primary is never hidden by recovery")
+		runner.assert_eq(Transport.write(base, {"replacement": true}).get("reason"), "existing_file_invalid", "an invalid existing primary is not overwritten")
+		runner.assert_eq(FileAccess.get_file_as_bytes(base), corrupt, "invalid primary remains intact for inspection")
+		runner.assert_eq(FileAccess.get_file_as_bytes(recovery), original, "invalid primary cannot replace recovery")
+	_cleanup(recovered_backup)
+	_cleanup(parked)
+	_cleanup(recovery)
+	_cleanup(base)
+
+
+func _recovery_collisions(runner: Object) -> void:
+	var base: String = _path("partial")
+	var recovery: String = base + ".recovery"
+	var first: Dictionary = {"stable": 1}
+	var initial: Dictionary = Transport.write(base, first)
+	runner.assert_true(bool(initial.get("ok", false)), "partial recovery fixture writes")
+	if not bool(initial.get("ok", false)):
+		return
+	var partial := PackedByteArray([82, 69, 79, 76, 0, 17])
+	_write_bytes(recovery, partial)
+	var saved: Dictionary = Transport.write(base, {"stable": 2})
+	runner.assert_true(bool(saved.get("ok", false)), "an interrupted partial recovery does not prevent a later save")
+	var rotated: String = str(saved.get("rotated_recovery", ""))
+	var backup: String = str(saved.get("backup", ""))
+	if bool(saved.get("ok", false)):
+		runner.assert_true(not rotated.is_empty(), "pre-existing recovery bytes are retained under a unique name")
+		runner.assert_eq(FileAccess.get_file_as_bytes(rotated), partial, "partial or unrelated recovery bytes are never overwritten")
+		runner.assert_eq(Transport.read(backup).get("data"), first, "the previous complete primary gets its own backup")
+		runner.assert_eq(Transport.read(recovery).get("data"), first, "replacement checkpoint contains the previous primary")
+	_cleanup(rotated)
+	_cleanup(backup)
+	_cleanup(recovery)
+	_cleanup(base)
+
+	var missing: String = _path("missing_partial")
+	var incomplete: String = missing + ".recovery"
+	_write_bytes(incomplete, partial)
+	runner.assert_true(not bool(Transport.read(missing).get("ok", true)), "an incomplete recovery is never loaded")
+	runner.assert_eq(Transport.write(missing, {"new": true}).get("reason"), "recovery_file_invalid", "a lone incomplete recovery is retained for inspection")
+	runner.assert_true(not FileAccess.file_exists(missing), "failed save with incomplete recovery does not create a primary")
+	runner.assert_eq(FileAccess.get_file_as_bytes(incomplete), partial, "lone incomplete recovery remains byte-for-byte intact")
+	_cleanup(incomplete)
+
+	var blocked: String = _path("recovery_directory")
+	var occupied: String = Transport._resolve(blocked) + ".recovery"
+	var fixture: Dictionary = Transport.write(blocked, first)
+	runner.assert_true(bool(fixture.get("ok", false)), "occupied recovery fixture writes")
+	if bool(fixture.get("ok", false)):
+		var before: PackedByteArray = FileAccess.get_file_as_bytes(blocked)
+		var made: Error = DirAccess.make_dir_absolute(occupied)
+		runner.assert_eq(made, OK, "test creates a pre-existing recovery directory")
+		if made == OK:
+			runner.assert_eq(Transport.write(blocked, {"stable": 2}).get("reason"), "recovery_path_occupied", "a recovery directory is never replaced")
+			runner.assert_eq(FileAccess.get_file_as_bytes(blocked), before, "occupied recovery leaves primary intact")
+			runner.assert_true(DirAccess.dir_exists_absolute(occupied), "the pre-existing directory is preserved")
+			DirAccess.remove_absolute(occupied)
+	_cleanup(blocked)
 
 
 func _corruption_and_plain_data(runner: Object) -> void:
@@ -161,6 +292,8 @@ func _append_hash(bytes: PackedByteArray) -> void:
 
 
 func _cleanup(path: String) -> void:
+	if path.is_empty():
+		return
 	var absolute: String = ProjectSettings.globalize_path(path) if path.begins_with("user://") else path
 	if FileAccess.file_exists(absolute):
 		DirAccess.remove_absolute(absolute)

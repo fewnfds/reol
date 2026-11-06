@@ -228,15 +228,18 @@ func _drive(session: RefCounted, durations: Array[int] = []) -> Dictionary:
 	var before: int = Time.get_ticks_usec()
 	var count: int = 0
 	var last: int = 0
+	var phases: Dictionary = {}
 	while count < MAX_PUMPS:
 		var state: Dictionary = session.status()
 		if state.get("state") == "ready":
-			return {"ok": true, "calls": count, "total_ms": _ms(before), "last_us": last}
+			return {"ok": true, "calls": count, "total_ms": _ms(before), "last_us": last, "state_us": phases}
 		if state.get("state") in ["closed", "error"]:
 			return {"ok": false, "reason": "bad_state", "state": state, "calls": count}
 		var call_started: int = Time.get_ticks_usec()
 		var result: Dictionary = session.pump()
 		last = Time.get_ticks_usec() - call_started
+		var stage: String = str(state.state)
+		phases[stage] = int(phases.get(stage, 0)) + last
 		durations.append(last)
 		count += 1
 		if not bool(result.get("ok", false)):
@@ -251,6 +254,10 @@ func _snapshot_roundtrip(session: RefCounted, definitions: EnvironmentSourceDefi
 	if not bool(captured.get("ok", false)):
 		return {"ok": false, "reason": "capture", "result": captured}
 	var path: String = "user://response_bench_%d_%d.bin" % [OS.get_process_id(), Time.get_ticks_usec()]
+	# Preserve a failed large archive for a targeted recovery diagnosis; remove
+	# this owned temporary only after the complete candidate passes.
+	_report["archive_path"] = ProjectSettings.globalize_path(path)
+	print("ENV_RESPONSE_ARCHIVE_PROGRESS " + JSON.stringify({"stage": "captured", "capture_ms": capture_ms, "static_bytes": OS.get_static_memory_usage(), "path": _report.archive_path}))
 	started = Time.get_ticks_usec()
 	var written: Dictionary = Transport.write(path, captured.snapshot)
 	if not bool(written.get("ok", false)):
@@ -258,16 +265,18 @@ func _snapshot_roundtrip(session: RefCounted, definitions: EnvironmentSourceDefi
 	var bytes: int = int(written.bytes)
 	var write_ms: float = _ms(started)
 	captured = {} # release captured world BEFORE parsing a second original world
+	print("ENV_RESPONSE_ARCHIVE_PROGRESS " + JSON.stringify({"stage": "written", "write_ms": write_ms, "bytes": bytes, "static_bytes": OS.get_static_memory_usage()}))
 	started = Time.get_ticks_usec()
 	var loaded: Dictionary = Transport.read(path)
 	var read_parse_ms: float = _ms(started)
-	var remove_error: Error = DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
-	if not bool(loaded.get("ok", false)) or remove_error != OK:
-		return {"ok": false, "reason": "read_or_cleanup", "remove_error": remove_error}
+	if not bool(loaded.get("ok", false)):
+		return {"ok": false, "reason": "read", "result": loaded}
+	print("ENV_RESPONSE_ARCHIVE_PROGRESS " + JSON.stringify({"stage": "read", "read_ms": read_parse_ms, "static_bytes": OS.get_static_memory_usage()}))
 	started = Time.get_ticks_usec()
 	var staged: Dictionary = Snapshot.stage(loaded.data, Callable(self, "_new_world"), definitions, settings)
 	var stage_ms: float = _ms(started)
 	loaded = {} # candidate owns its originals and detached packed response only
+	print("ENV_RESPONSE_ARCHIVE_PROGRESS " + JSON.stringify({"stage": "staged", "stage_ms": stage_ms, "static_bytes": OS.get_static_memory_usage()}))
 	if not bool(staged.get("ok", false)):
 		return {"ok": false, "reason": "stage", "result": staged}
 	var candidate: RefCounted = staged.candidate
@@ -282,7 +291,8 @@ func _snapshot_roundtrip(session: RefCounted, definitions: EnvironmentSourceDefi
 	started = Time.get_ticks_usec()
 	var closed: bool = candidate.close()
 	var candidate_close_us: int = Time.get_ticks_usec() - started
-	return {"ok": matches and closed, "capture_ms": capture_ms, "file_write_ms": write_ms, "file_read_parse_ms": read_parse_ms,
+	var remove_error: Error = DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	return {"ok": matches and closed and remove_error == OK, "capture_ms": capture_ms, "file_write_ms": write_ms, "file_read_parse_ms": read_parse_ms,
 		"bytes": bytes, "candidate_stage_ms": stage_ms, "candidate_rebuild": restored,
 		"candidate_close_us": candidate_close_us, "samples_match": matches,
 		"scope": "development snapshot to a uniquely named temporary file, read, detached world stage and real-session rebuild"}

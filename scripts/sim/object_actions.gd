@@ -184,7 +184,10 @@ static func cross_valid(owner: SimObjectLifecycle) -> bool:
 			if not Shape.count(action.finished_ms, int(action.started_ms), mini(int(action.due_ms), world.elapsed_ms)) or inventory.reservations.has(expected):
 				return false
 			if action.status == "completed":
-				if int(action.finished_ms) != int(action.due_ms) or not owner.receipts.has(id) or not owner._same(owner.receipts[id].request, action.request) or not owner._same(owner.receipts[id].result, action.result):
+				if int(action.finished_ms) != int(action.due_ms) or not owner.receipts.has(id):
+					return false
+				var receipt: Dictionary = owner._receipt(id)
+				if receipt.is_empty() or not owner._same(receipt.request, action.request) or not owner._same(receipt.result, action.result):
 					return false
 			elif owner.receipts.has(id) or action.result.get("ok") != false or not action.result.get("reason") is String:
 				return false

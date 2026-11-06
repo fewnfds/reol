@@ -640,8 +640,10 @@ static func inventory_scope(data: Variant, region: String) -> Dictionary:
 		if slot is Dictionary and slot.get("region") == region and slot.get("reference") is Dictionary and slot.reference.get("kind") == "stock" and slot.reference.get("domain") == "village":
 			result.containers[id] = true
 	for id: Variant in data.receipts:
-		var row: Variant = data.receipts[id]
-		if row is Dictionary and row.get("request") is Dictionary and row.request.get("op") == "stock_transfer" and row.request.get("from") is Dictionary and row.request.from.get("region") == region:
+		if not id is String:
+			continue
+		var row: Dictionary = Receipt.decode(data.receipts[id], id)
+		if row.get("request") is Dictionary and row.request.get("op") == "stock_transfer" and row.request.get("from") is Dictionary and row.request.from.get("region") == region:
 			result.operations["object_lifecycle:" + str(id)] = true
 	if data.get("actions") is Dictionary:
 		for id: Variant in data.actions:
