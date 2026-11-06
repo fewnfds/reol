@@ -1,6 +1,8 @@
 # 当前接续
 
-核对：2026-11-06。本轮[来源候选与大档内存优化](../plans/environment-object-loop/optimization.md)已按限定范围完成并停下讨论，无活动Goal。最终代码`8ce9e031e03d706285a5bce2b5657ec4bf30d22e`（首代码992acf0）已整合/推送到`codex/world-engine`，四份原WIP字节不变、不纳入验收。14组定向25944断言0失败；一次Sol/custom原生静态审查P2已修。收尾提交检查点一次核得对应[CI42181067921](https://github.com/fewnfds/reol/actions/runs/42181067921)为completed/success、完整headSha一致：268组/134155断言/0失败，Python57项通过；本机不再重复整套。
+核对：2026-11-06。本轮用户插入的[成熟模拟游戏优化调研](../../design/research/large_simulation_optimization.md)已完成，仅研究/静态对照和文档；未改游戏代码、未启动Godot/游戏测试/模型审查/CI查询，无活动Goal。文档结构/链接检查0错误，四份原WIP的SHA256与保护清单一致。建议下包先拆测环境初建，再比较局部空间上界/稀疏通道与已有GPU；大档按编码/校验/I/O分测后再选批处理，未自动开始实施。
+
+此前[来源候选与大档内存优化](../plans/environment-object-loop/optimization.md)已按限定范围完成并停下讨论。最终代码`8ce9e031e03d706285a5bce2b5657ec4bf30d22e`（首代码992acf0）已整合/推送到`codex/world-engine`，四份原WIP字节不变、不纳入验收。14组定向25944断言0失败；一次Sol/custom原生静态审查P2已修。收尾提交检查点一次核得对应[CI42181067921](https://github.com/fewnfds/reol/actions/runs/42181067921)为completed/success、完整headSha一致：268组/134155断言/0失败，Python57项通过；本机不再重复整套。
 
 最终512²、262142真实材料堆+1实物、半径16、32次单源变更与独立候选完整存读通过，同10GiB守卫内峰工作集5.734GiB（采样private5.884GiB）。单变更p50 0.244s/p99 0.350s，比旧p99 3.634s明显下降；累计CPU成本仍不足以代表20Hz大量携源。文件217.8MB，写137.3s、读85.1s、stage103.5s、重建599.4s；环境初建576.9s，来源/基础缓存占550.9s，仍很慢。首轮新文件在原物恢复OOM的失败保留，随后原账本材料紧凑回执才使同守卫复测通过，不提高预算凑绿。目标编译、packed列、流式文件及中断恢复合同见[接口](../engineering/environment-response-contract.md)，完整证据看[优化QA](../qa/20261106_environment_optimization.md)。
 

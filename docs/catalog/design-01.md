@@ -24,6 +24,7 @@
 - [design/research/godot_resource_candidates.md](../../design/research/godot_resource_candidates.md)
 - [design/research/godot_resource_candidates/sources.md](../../design/research/godot_resource_candidates/sources.md)
 - [design/research/godot_resource_candidates/use.md](../../design/research/godot_resource_candidates/use.md)
+- [design/research/large_simulation_optimization.md](../../design/research/large_simulation_optimization.md)
 - [design/research/natural_world_workplace_sources.md](../../design/research/natural_world_workplace_sources.md)
 - [design/research/project-references.md](../../design/research/project-references.md)
 - [design/research/project_structure_references.md](../../design/research/project_structure_references.md)
