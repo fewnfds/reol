@@ -543,7 +543,7 @@ func _stock_container_mutable(region: String, container: String, item: String) -
 func stock_destination(region: String, cell: Vector2i, item: String) -> Dictionary:
 	# Shared immediate/timed preflight. Matching material can join a live stack;
 	# other ground occupancy is not flattened or silently replaced.
-	var hits: Dictionary = ground.query(Rect2i(cell, Vector2i.ONE), 512)
+	var hits: Dictionary = ground.query_cell(cell)
 	if not bool(hits.ok):
 		return hits
 	if hits.ids.is_empty():

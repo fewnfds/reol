@@ -12,6 +12,7 @@ var _fixture := Fixture.new()
 func run(runner: Object) -> void:
 	_unique_item_identity_and_geometry(runner)
 	_material_split_merge_and_conflicts(runner)
+	_ground_point_query(runner)
 	_independent_restore_and_rejection(runner)
 	_compact_timed_stock_restore(runner)
 	_construction_inventory_boundaries(runner)
@@ -173,6 +174,11 @@ func _material_split_merge_and_conflicts(runner: Object) -> void:
 		return
 	var pile: Dictionary = _location("ground:drop_wood")
 	runner.assert_eq(dropped.to, pile, "the first drop resolves to one ground container")
+	_point_matches_rectangle(runner, lifecycle.ground, Vector2i(130, 120), [pile.container], "stock pile cell")
+	var same_destination: Dictionary = lifecycle.stock_destination("home", Vector2i(130, 120), "wood")
+	var other_destination: Dictionary = lifecycle.stock_destination("home", Vector2i(130, 120), "grain")
+	runner.assert_true(bool(same_destination.get("ok", false)) and same_destination.get("container") == pile.container, "point preflight selects the existing pile for the same material")
+	runner.assert_eq(other_destination.get("reason"), "occupied", "point preflight refuses a different material without checking its inventory")
 	runner.assert_true(lifecycle.receipts.drop_wood is Array, "a new stock receipt is kept in compact form")
 	var drop_receipt: Dictionary = lifecycle._receipt("drop_wood")
 	runner.assert_eq(drop_receipt.request, drop, "a compact receipt reconstructs the original stock request")
@@ -245,8 +251,83 @@ func _material_split_merge_and_conflicts(runner: Object) -> void:
 		return
 	runner.assert_eq(inventory.quantity(pile.container, "wood"), 0, "collecting the pile removes all original ground stock")
 	runner.assert_true(not bool(lifecycle.ground.locate("home", pile.container).get("active", true)), "an emptied pile no longer occupies its cell")
+	_point_matches_rectangle(runner, lifecycle.ground, Vector2i(130, 120), [], "collected stock releases the point index")
 	runner.assert_eq(_total(inventory, "wood"), original_wood, "split, merge, carry and collect conserve all real wood")
 	runner.assert_eq(_total(inventory, "grain"), original_grain, "a rejected different material leaves its original stock unchanged")
+
+
+func _ground_point_query(runner: Object) -> void:
+	var world: RegionalSimulation = _world(runner)
+	if world == null:
+		return
+	var lifecycle: SimObjectLifecycle = world.object_lifecycle
+	var ground: SimGroundPlacements = lifecycle.ground
+	var initial: Dictionary = lifecycle.execute(_spawn("point_slab", "point_slab_item", "stone_slab", [127, 120]))
+	var map_edge: int = SimGroundPlacements.MAP_SIZE - 1
+	var edge: Dictionary = lifecycle.execute(_spawn("point_edge", "point_edge_item", "plain_slate", [map_edge, map_edge]))
+	runner.assert_true(bool(initial.get("ok", false)) and bool(edge.get("ok", false)), "point-query setup places original objects")
+	if not bool(initial.get("ok", false)) or not bool(edge.get("ok", false)):
+		return
+	# The slab straddles a bucket boundary. Both occupied cells must resolve
+	# to its one authoritative slot, including the non-anchor footprint cell.
+	_point_matches_rectangle(runner, ground, Vector2i(127, 120), ["ground:point_slab"], "slab anchor")
+	_point_matches_rectangle(runner, ground, Vector2i(128, 120), ["ground:point_slab"], "slab second cell across bucket boundary")
+	_point_matches_rectangle(runner, ground, Vector2i(129, 120), [], "empty adjacent cell")
+	_point_matches_rectangle(runner, ground, Vector2i.ZERO, [], "lowest legal cell")
+	_point_matches_rectangle(runner, ground, Vector2i(map_edge, map_edge), ["ground:point_edge"], "highest legal cell")
+	var blocked: Dictionary = lifecycle.stock_destination("home", Vector2i(128, 120), "wood")
+	runner.assert_true(not bool(blocked.get("ok", true)), "a material cannot replace the second cell of a wide item")
+
+	# Exercise a crowded bucket: point queries must not iterate every nearby
+	# object, while the existing rectangle query is still the result oracle.
+	for index: int in 32:
+		var cell := Vector2i(224 + index % 16, 224 + (index >> 4))
+		var created: Dictionary = lifecycle.execute(_spawn("point_dense_%d" % index, "point_dense_item_%d" % index, "plain_slate", [cell.x, cell.y]))
+		if not bool(created.get("ok", false)):
+			runner.assert_true(false, "crowded point-query setup places item %d" % index)
+			return
+	_point_matches_rectangle(runner, ground, Vector2i(224, 224), ["ground:point_dense_0"], "crowded occupied cell")
+	_point_matches_rectangle(runner, ground, Vector2i(230, 226), [], "crowded bucket empty cell")
+
+	var moved: Dictionary = lifecycle.execute(_move("point_slab_move", "point_slab_item", initial.to, _ground(160, 160)))
+	runner.assert_true(bool(moved.get("ok", false)), "wide item moves to a new pair of cells")
+	if not bool(moved.get("ok", false)):
+		return
+	_point_matches_rectangle(runner, ground, Vector2i(127, 120), [], "moved item releases old anchor")
+	_point_matches_rectangle(runner, ground, Vector2i(128, 120), [], "moved item releases old second cell")
+	_point_matches_rectangle(runner, ground, Vector2i(160, 160), ["ground:point_slab_move"], "moved item new anchor")
+	_point_matches_rectangle(runner, ground, Vector2i(161, 160), ["ground:point_slab_move"], "moved item new second cell")
+	var removed: Dictionary = lifecycle.execute({"command": "point_slab_remove", "op": "remove", "id": "point_slab_item", "from": moved.to.duplicate(true)})
+	runner.assert_true(bool(removed.get("ok", false)) and bool(removed.get("removed", false)), "the original wide item can be removed")
+	if not bool(removed.get("ok", false)):
+		return
+	_point_matches_rectangle(runner, ground, Vector2i(160, 160), [], "removed item releases new anchor")
+	_point_matches_rectangle(runner, ground, Vector2i(161, 160), [], "removed item releases new second cell")
+
+	var before_revision: int = ground.revision
+	for cell: Vector2i in [Vector2i(-1, 0), Vector2i(0, -1), Vector2i(map_edge + 1, 0), Vector2i(0, map_edge + 1)]:
+		var point: Dictionary = ground.query_cell(cell)
+		var rectangle: Dictionary = ground.query(Rect2i(cell, Vector2i.ONE), 512)
+		runner.assert_true(not bool(point.get("ok", true)) and not bool(point.get("complete", true)), "out-of-bounds point is rejected")
+		runner.assert_eq(point.get("reason"), rectangle.get("reason"), "point and rectangle report the same invalid-area reason")
+		runner.assert_eq(point.get("scope"), rectangle.get("scope"), "invalid point has the same query scope")
+		runner.assert_eq(point.get("revision"), before_revision, "invalid point reports the unchanged revision")
+		runner.assert_eq(ground.revision, before_revision, "invalid point cannot mutate the ground index")
+
+
+func _point_matches_rectangle(runner: Object, ground: SimGroundPlacements, cell: Vector2i, expected: Array, label: String) -> void:
+	var point: Dictionary = ground.query_cell(cell)
+	var rectangle: Dictionary = ground.query(Rect2i(cell, Vector2i.ONE), 512)
+	var completed: bool = bool(point.get("ok", false)) and bool(point.get("complete", false)) and bool(rectangle.get("ok", false)) and bool(rectangle.get("complete", false))
+	runner.assert_true(completed, label + ": both point and rectangle queries complete")
+	if not completed:
+		return
+	runner.assert_eq(point.get("ids"), rectangle.get("ids"), label + ": point and rectangle report the same slot IDs")
+	runner.assert_eq(point.get("ids"), expected, label + ": expected original slot is present")
+	runner.assert_eq(point.get("scope"), rectangle.get("scope"), label + ": query scope matches")
+	runner.assert_eq(point.get("revision"), rectangle.get("revision"), label + ": query revision matches")
+	var point_work: int = int(point.get("work_used", -1))
+	runner.assert_true(point_work >= 0 and point_work <= 2, label + ": point lookup has bounded work even in a crowded bucket")
 
 
 func _independent_restore_and_rejection(runner: Object) -> void:

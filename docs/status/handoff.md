@@ -1,6 +1,8 @@
 # 当前接续
 
-核对：2026-11-06。[环境初建有限优化](../plans/environment-object-loop/cold-build.md)已实现并结束本轮尝试，无活动Goal。首代码2291ab9，最终`760cf7ed5c613ed2643b4dae1b6fb5c96277746e`已整合并推送`codex/world-engine`。只新增来源块逐通道局部上界，不改原整数场规则、物品/时间所有者或存档。一次Sol/custom静态审查的均匀场work回退P2已修；最终6组定向10541断言0失败，Python守卫8项通过。最终[CI42223048834](https://github.com/fewnfds/reol/actions/runs/42223048834)在收尾提交检查点一次核为pending、完整headSha一致，**完整CI待验**；首代码CI42222372361上次为in_progress。不按时间查询，不本机再跑整套。
+核对：2026-11-07。用户授权主代理已创建[性能有限接续Goal](../plans/environment-object-loop/performance-followup.md)，依次处理A原物创建/装配、B大档存读、C移动来源吞吐，每项最多两条有依据路线，触及需简化规则/规模的边界就停下讨论，不强行探索。干净检出`logs/world_perf_followup/dev`，四WIP保持。A新增原地面逐格占用只读点查，材料目的地复用它；不绕过原生命周期/成本/回执。128²创建4178.175→2694.914ms，4组定向9666断言0失败。512²创建44027.021ms、场2929.918ms、装配10979.623ms；主代理继续包级审查与准确SHA验收，未称Goal完成。
+
+此前[环境初建有限优化](../plans/environment-object-loop/cold-build.md)首代码2291ab9，最终`760cf7ed5c613ed2643b4dae1b6fb5c96277746e`已整合推送。最终[CI42223048834](https://github.com/fewnfds/reol/actions/runs/42223048834)在本轮真实提交检查点核为completed/success、完整headSha一致，前包完整CI不再待验；首代码CI42222372361未继续查询。前包6组定向10541断言0失败，Sol/custom均匀场work回退已修。以下保留前包范围和证据，不能代证当前修改。
 
 同环境128²基础场14.041→1.927秒（约7.29倍），含来源装配14.658→2.606秒。最终512²真实262142材料堆+1实物：来源装配10.823秒，场2.916秒，逐件原生命周期创建69.385秒，全部基准83.652秒；峰工作集约2.062GiB/private采样峰2.102GiB，同10GiB守卫。完整测量与限制见[初建QA](../qa/20261106_environment_cold_build.md)。不是完整游戏加载/FPS或20Hz移动源证据，不把旧550.9秒与新分项直接计算倍数。
 

@@ -14,6 +14,7 @@
 - [docs/plans/environment-object-loop/continuity.md](../plans/environment-object-loop/continuity.md)
 - [docs/plans/environment-object-loop/gpu-ground.md](../plans/environment-object-loop/gpu-ground.md)
 - [docs/plans/environment-object-loop/optimization.md](../plans/environment-object-loop/optimization.md)
+- [docs/plans/environment-object-loop/performance-followup.md](../plans/environment-object-loop/performance-followup.md)
 - [docs/plans/environment-object-loop/response-ground.md](../plans/environment-object-loop/response-ground.md)
 - [docs/plans/environment-object-loop/scheduling.md](../plans/environment-object-loop/scheduling.md)
 - [docs/plans/environment-object-loop/sources.md](../plans/environment-object-loop/sources.md)

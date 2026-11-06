@@ -176,6 +176,20 @@ func locate(region: String, id: String) -> Dictionary:
 		"active": bool(value.active), "revision": revision}
 
 
+func query_cell(cell: Vector2i) -> Dictionary:
+	# Every covered cell is already indexed, including the non-anchor cells of
+	# large objects. Use that index for point queries rather than walking every
+	# object in the 16x16 broadphase bucket. Never expose the mutable index.
+	if not _geometry_valid(cell, Vector2i.ONE, false):
+		return _query_failure("invalid_area", 0)
+	var ids: Array[String] = []
+	var id: String = _cells.get(cell, "")
+	if not id.is_empty():
+		ids.append(id)
+	return {"ok": true, "complete": true, "ids": ids, "work_used": 1,
+		"scope": "active_ground_placements", "revision": revision}
+
+
 func query(area: Rect2i, budget: int = 4096) -> Dictionary:
 	if not _geometry_valid(area.position, area.size, false):
 		return _query_failure("invalid_area", 0)
