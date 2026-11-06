@@ -10,6 +10,7 @@
 - [docs/plans/environment-object-loop/README.md](../plans/environment-object-loop/README.md)
 - [docs/plans/environment-object-loop/acceptance.md](../plans/environment-object-loop/acceptance.md)
 - [docs/plans/environment-object-loop/cache.md](../plans/environment-object-loop/cache.md)
+- [docs/plans/environment-object-loop/cold-build.md](../plans/environment-object-loop/cold-build.md)
 - [docs/plans/environment-object-loop/continuity.md](../plans/environment-object-loop/continuity.md)
 - [docs/plans/environment-object-loop/gpu-ground.md](../plans/environment-object-loop/gpu-ground.md)
 - [docs/plans/environment-object-loop/optimization.md](../plans/environment-object-loop/optimization.md)

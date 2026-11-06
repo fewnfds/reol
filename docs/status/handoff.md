@@ -1,6 +1,8 @@
 # 当前接续
 
-核对：2026-11-06。本轮用户插入的[成熟模拟游戏优化调研](../../design/research/large_simulation_optimization.md)已完成，仅研究/静态对照和文档；未改游戏代码、未启动Godot/游戏测试/模型审查/CI查询，无活动Goal。文档结构/链接检查0错误，四份原WIP的SHA256与保护清单一致。建议下包先拆测环境初建，再比较局部空间上界/稀疏通道与已有GPU；大档按编码/校验/I/O分测后再选批处理，未自动开始实施。
+核对：2026-11-06。用户已授权[环境初建有限优化](../plans/environment-object-loop/cold-build.md)，在`logs/environment_cold_build/dev`干净检出实施，无活动Goal。采用来源块逐通道局部上界，保留原整数场规则和候选；四份原WIP未纳入。6组定向10039断言0失败；同参数128²来源装配616.837→680.920ms、CPU基础场14040.694→2750.896ms，工作量36053348→8856520。512²递增规模正在验收，最终完整回归与一次原生审查尚待完成；不提前宣称全包通过。
+
+此前[成熟模拟游戏调研](../../design/research/large_simulation_optimization.md)已完成；本包只落实CPU基础场初建，不扩存档格式、普通Main、携行/房间或玩法。大档编码/校验/I/O优化仍为后续独立候选，不自动连做。
 
 此前[来源候选与大档内存优化](../plans/environment-object-loop/optimization.md)已按限定范围完成并停下讨论。最终代码`8ce9e031e03d706285a5bce2b5657ec4bf30d22e`（首代码992acf0）已整合/推送到`codex/world-engine`，四份原WIP字节不变、不纳入验收。14组定向25944断言0失败；一次Sol/custom原生静态审查P2已修。收尾提交检查点一次核得对应[CI42181067921](https://github.com/fewnfds/reol/actions/runs/42181067921)为completed/success、完整headSha一致：268组/134155断言/0失败，Python57项通过；本机不再重复整套。
 

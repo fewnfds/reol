@@ -15,6 +15,8 @@ func run(runner: Object) -> void:
 	_index_churn(runner)
 	_live_rebuild_after_maximum_removal(runner)
 	_preserved_unrelated_draft(runner)
+	_cold_rebuild_local_source_bounds(runner)
+	_cold_rebuild_spatial_changes(runner)
 	print("SCENARIO ground field bounds: exact seven-channel candidate comparison, ties, removal and cancellation")
 
 
@@ -258,6 +260,104 @@ func _preserved_unrelated_draft(runner: Object) -> void:
 				runner.assert_true(false, "unrelated draft changed at " + str(cell))
 				return
 	runner.assert_true(true, "preserved draft yields the same seven-channel field with the lower exact bound")
+
+
+func _cold_rebuild_local_source_bounds(runner: Object) -> void:
+	# One unique extreme would otherwise keep the global upper bound high for
+	# receivers on the far side of the map, even though it cannot reach them.
+	var size := Vector2i(64, 48)
+	var base := Baseline.new()
+	var fast := GroundField.new()
+	if not _ok(runner, base.configure(size, 8) and fast.configure(size, 8), "spatial cold build fields configure"):
+		return
+	if not _set_pair(runner, base, fast, 0, Vector2i(1, 1), 8, [100_000, 0, 0, 0, 0, 90_000, 0]):
+		return
+	if not _set_pair(runner, base, fast, 1, Vector2i(31, 15), 4, [100, 200, 0, 0, 0, 0, 300]):
+		return
+	if not _set_pair(runner, base, fast, 2, Vector2i(63, 47), 2, [0, 0, 100, 0, 500, 0, 0]):
+		return
+	var result: Dictionary = _compare_rebuild(runner, base, fast, size, "distant extreme")
+	if not bool(result.get("ok", false)):
+		return
+	runner.assert_true(int(result.optimized_work) < int(result.reference_work), "distant extreme does not force a full global-bound cold search")
+	print("GROUND_COLD_REBUILD_WORK reference=%d indexed=%d" % [int(result.reference_work), int(result.optimized_work)])
+
+
+func _cold_rebuild_spatial_changes(runner: Object) -> void:
+	var size := Vector2i(32, 24)
+	var base := Baseline.new()
+	var fast := GroundField.new()
+	if not _ok(runner, base.configure(size, 10) and fast.configure(size, 10), "spatial mutation fields configure"):
+		return
+	# Tied and weaker co-located sources, adjacent block boundaries, both map
+	# edges, a zero source, and differing radii exercise conservative coverage.
+	var sources: Array[Dictionary] = [
+		{"slot": 0, "cell": Vector2i(15, 15), "radius": 2, "grades": [50, 0, 0, 0, 0, 12_000, 0]},
+		{"slot": 1, "cell": Vector2i(15, 15), "radius": 4, "grades": [0, 0, 0, 0, 0, 12_000, 0]},
+		{"slot": 2, "cell": Vector2i(15, 15), "radius": 8, "grades": [0, 0, 0, 0, 0, 7_000, 0]},
+		{"slot": 3, "cell": Vector2i(16, 15), "radius": 8, "grades": [100, 200, 300, 400, 500, 0, 0]},
+		{"slot": 4, "cell": Vector2i(15, 16), "radius": 4, "grades": [0, 0, 0, 0, 0, 0, 900]},
+		{"slot": 5, "cell": Vector2i(0, 0), "radius": 8, "grades": [3000, 0, 0, 0, 0, 0, 0]},
+		{"slot": 6, "cell": Vector2i(31, 23), "radius": 2, "grades": [0, 0, 0, 1000, 0, 0, 0]},
+		{"slot": 7, "cell": Vector2i(16, 16), "radius": 2, "grades": [0, 0, 0, 0, 0, 0, 0]},
+	]
+	for source: Dictionary in sources:
+		if not _set_pair(runner, base, fast, source.slot, source.cell, source.radius, source.grades):
+			return
+	if not bool(_compare_rebuild(runner, base, fast, size, "mixed radii and block boundaries").get("ok", false)):
+		return
+	runner.assert_eq(fast.read_base(Vector2i(15, 15)).channels[5], 12_000, "tied hot maxima remain equal at the source cell")
+
+	if not _set_pair(runner, base, fast, 0, Vector2i(25, 15), 4, [50, 0, 0, 0, 0, 12_000, 0]):
+		return
+	if not bool(_compare_rebuild(runner, base, fast, size, "move across source blocks").get("ok", false)):
+		return
+	runner.assert_eq(fast.read_base(Vector2i(15, 15)).channels[5], 12_000, "the other tied source survives a move")
+	if not _ok(runner, bool(base.remove_source(1).get("ok", false)) and bool(fast.remove_source(1).get("ok", false)), "last tied maximum can be removed"):
+		return
+	if not bool(_compare_rebuild(runner, base, fast, size, "remove tied maximum").get("ok", false)):
+		return
+	runner.assert_eq(fast.read_base(Vector2i(15, 15)).channels[5], 7_000, "weaker co-located source takes over after the final tie disappears")
+
+	var replacement := {"cell": Vector2i(16, 15), "radius": 8, "channels": [50, 0, 0, 0, 0, 12_000, 0]}
+	var first: Dictionary = base.begin_source_change(0, "set", replacement)
+	var second: Dictionary = fast.begin_source_change(0, "set", replacement)
+	if not _ok(runner, bool(first.get("ok", false)) and bool(second.get("ok", false)), "cross-block candidate changes begin"):
+		return
+	var a: Dictionary = _finish(base, first.handle, runner)
+	var b: Dictionary = _finish(fast, second.handle, runner)
+	if not bool(a.get("ok", false)) or not bool(b.get("ok", false)):
+		return
+	if not _ok(runner, bool(base.commit_source_change(a.proof).get("ok", false)) and bool(fast.commit_source_change(b.proof).get("ok", false)), "cross-block candidate changes commit"):
+		return
+	# Candidate publication already computes affected tiles. Moving a zero
+	# source dirties them again so the *ordinary* rebuild must use the newly
+	# committed source index, not merely the candidate's published values.
+	if not _set_pair(runner, base, fast, 7, Vector2i(17, 15), 8, [0, 0, 0, 0, 0, 0, 0]):
+		return
+	if not bool(_compare_rebuild(runner, base, fast, size, "ordinary rebuild after candidate commit").get("ok", false)):
+		return
+	runner.assert_eq(fast.read_base(Vector2i(16, 15)).channels[5], 12_000, "committed moved source is visible to a subsequent cold rebuild")
+
+
+func _compare_rebuild(runner: Object, base: RefCounted, fast: RefCounted, size: Vector2i, label: String) -> Dictionary:
+	var area := Rect2i(Vector2i.ZERO, size)
+	if not _ok(runner, bool(base.request_area(area).get("ok", false)) and bool(fast.request_area(area).get("ok", false)), label + ": request area"):
+		return {}
+	var a: Dictionary = _rebuild(base, runner)
+	var b: Dictionary = _rebuild(fast, runner)
+	if not bool(a.get("ok", false)) or not bool(b.get("ok", false)):
+		return {}
+	for y: int in size.y:
+		for x: int in size.x:
+			var cell := Vector2i(x, y)
+			var first: Dictionary = base.read_base(cell)
+			var second: Dictionary = fast.read_base(cell)
+			if not bool(first.get("ok", false)) or bool(first.get("pending", true)) or not bool(second.get("ok", false)) or bool(second.get("pending", true)) or first.get("channels") != second.get("channels"):
+				runner.assert_true(false, label + ": seven-channel mismatch or incomplete tile at " + str(cell))
+				return {}
+	runner.assert_true(true, label + ": every cell has the same seven channels")
+	return {"ok": true, "reference_work": int(a.total_work), "optimized_work": int(b.total_work)}
 
 
 func _set_pair(runner: Object, base: RefCounted, fast: RefCounted, slot: int, cell: Vector2i, radius: int, grades: Array) -> bool:

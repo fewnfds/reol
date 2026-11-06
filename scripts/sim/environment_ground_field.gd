@@ -12,6 +12,14 @@ extends "res://scripts/sim/environment_field_cache.gd"
 
 var _grade_bounds: Array[GradeBounds] = []
 var _candidate_bounds := PackedInt32Array()
+# Exact grade counts for source-anchor blocks, derived from the SAME slots.
+# A receiver tile needs only blocks in its maximum-radius neighborhood. A
+# distant extreme then cannot inflate that tile's search stopping bound.
+var _block_bounds: Dictionary[int, BlockBounds] = {}
+var _build_bounds := PackedInt32Array()
+var _bounds_rect := Rect2i()
+var _bounds_x: int = 0
+var _bounds_y: int = 0
 
 
 func _init() -> void:
@@ -22,17 +30,22 @@ func _init() -> void:
 
 func set_source(slot: int, cell: Vector2i, radius: int, channels: Variant) -> Dictionary:
 	var old := _slot_grades(slot)
+	var old_cell := Vector2i(_slot_x[slot], _slot_y[slot]) if not old.is_empty() else cell
 	var result: Dictionary = super.set_source(slot, cell, radius, channels)
 	if bool(result.get("ok", false)) and bool(result.get("changed", false)):
-		_replace_grades(old, _slot_grades(slot))
+		var current := _slot_grades(slot)
+		_replace_grades(old, current)
+		_replace_block_grades(old_cell, old, cell, current)
 	return result
 
 
 func remove_source(slot: int) -> Dictionary:
 	var old := _slot_grades(slot)
+	var old_cell := Vector2i(_slot_x[slot], _slot_y[slot]) if not old.is_empty() else Vector2i.ZERO
 	var result: Dictionary = super.remove_source(slot)
 	if bool(result.get("ok", false)):
 		_replace_grades(old, PackedInt32Array())
+		_replace_block_grades(old_cell, old, Vector2i.ZERO, PackedInt32Array())
 	return result
 
 
@@ -48,7 +61,113 @@ func begin_source_change(slot: int, operation: String, change: Dictionary = {}) 
 func _apply_source_candidate(candidate: SourceCandidate) -> void:
 	var old := _slot_grades(candidate.slot)
 	super._apply_source_candidate(candidate)
-	_replace_grades(old, _slot_grades(candidate.slot))
+	var current := _slot_grades(candidate.slot)
+	_replace_grades(old, current)
+	_replace_block_grades(candidate.old_cell, old, candidate.new_cell, current)
+
+
+func _replace_block_grades(old_cell: Vector2i, old: PackedInt32Array, cell: Vector2i, current: PackedInt32Array) -> void:
+	var old_id: int = _tile_for_cell(old_cell)
+	var id: int = _tile_for_cell(cell)
+	if not current.is_empty() and not _block_bounds.has(id):
+		_block_bounds[id] = BlockBounds.new()
+	if not old.is_empty():
+		_block_bounds[old_id].sources -= 1
+	if not current.is_empty():
+		_block_bounds[id].sources += 1
+	for channel: int in CHANNELS:
+		var before: int = old[channel] if not old.is_empty() else 0
+		var after: int = current[channel] if not current.is_empty() else 0
+		if old_id == id and before == after:
+			continue
+		if before > 0:
+			_block_bounds[old_id].channels[channel].remove(before)
+		if after > 0:
+			_block_bounds[id].channels[channel].add(after)
+	if not old.is_empty() and _block_bounds[old_id].sources == 0:
+		_block_bounds.erase(old_id)
+
+
+func _begin_next() -> void:
+	super._begin_next()
+	if _build_phase == 2:
+		return
+	var area: Rect2i = _build_rect.grow(_max_radius - 1).intersection(Rect2i(Vector2i.ZERO, _size))
+	var first := Vector2i(area.position.x >> 4, area.position.y >> 4)
+	var last := Vector2i((area.end.x - 1) >> 4, (area.end.y - 1) >> 4)
+	_bounds_rect = Rect2i(first, last - first + Vector2i.ONE)
+	_bounds_x = first.x
+	_bounds_y = first.y
+	_build_bounds = PackedInt32Array()
+	_build_bounds.resize(CHANNELS)
+	# One source block per work unit, even at the largest supported radius.
+	# The ordinary receiver loop starts only after the conservative bound is
+	# complete. No partial tile values or bound become externally visible.
+	_build_phase = 3
+
+
+func _step_receiver() -> void:
+	if _build_phase == 3:
+		var block: BlockBounds = _block_bounds.get(_bounds_y * _tile_columns + _bounds_x)
+		if block != null:
+			for channel: int in CHANNELS:
+				_build_bounds[channel] = maxi(_build_bounds[channel], block.channels[channel].maximum_without(0))
+		_bounds_x += 1
+		if _bounds_x >= _bounds_rect.end.x:
+			_bounds_x = _bounds_rect.position.x
+			_bounds_y += 1
+			if _bounds_y >= _bounds_rect.end.y:
+				_build_phase = 0
+		return
+	# Same ordered offsets, source chain, rounding and work accounting as the
+	# base cache. Only the conservative strength bound is now spatially local.
+	# Candidate commits preserve a draft only outside old/new source coverage;
+	# a previously gathered bound remains safe there, including during phase 3.
+	if _neighbor_slot == UNSET:
+		if _neighbor_index >= _build_offsets.size():
+			_finish_channel()
+			return
+		@warning_ignore("integer_division")
+		var upper: int = (_build_bounds[_receiver_channel] * _build_weights[_neighbor_index] + Rules.SCALE / 2) / Rules.SCALE
+		if upper <= _receiver_best:
+			_finish_channel()
+			return
+		var code: int = _build_offsets[_neighbor_index]
+		_neighbor_dx = (code & 511) - 255
+		_neighbor_dy = (code >> 9) - 255
+		var x: int = _receiver_x + _neighbor_dx
+		var y: int = _receiver_y + _neighbor_dy
+		if x < 0 or y < 0 or x >= _size.x or y >= _size.y:
+			_neighbor_index += 1
+			return
+		_neighbor_slot = _heads[y * _size.x + x]
+		if _neighbor_slot == -1:
+			_neighbor_slot = UNSET
+			_neighbor_index += 1
+		return
+	var radius: int = _slot_radius[_neighbor_slot]
+	var dx: int = absi(_neighbor_dx)
+	var dy: int = absi(_neighbor_dy)
+	var strength: int = _slot_channels[_neighbor_slot * CHANNELS + _receiver_channel]
+	if strength > _receiver_best and dx < radius and dy < radius:
+		var table: PackedInt32Array = _kernels[radius]
+		@warning_ignore("integer_division")
+		var value: int = (strength * table[dy * radius + dx] + Rules.SCALE / 2) / Rules.SCALE
+		_receiver_best = maxi(_receiver_best, value)
+	_neighbor_slot = _slot_next[_neighbor_slot]
+	if _neighbor_slot == -1:
+		_neighbor_slot = UNSET
+		_neighbor_index += 1
+
+
+class BlockBounds:
+	extends RefCounted
+	var sources: int = 0
+	var channels: Array[GradeBounds] = []
+
+	func _init() -> void:
+		for _channel: int in CHANNELS:
+			channels.append(GradeBounds.new())
 
 
 func _slot_grades(slot: int) -> PackedInt32Array:
