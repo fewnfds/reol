@@ -20,3 +20,5 @@
 普通世界的[环境合同](../engineering/world-environment-contract.md)以地面真实来源、固定器物和共同时间驱动室外温度/五行目标及残留响应。相同材料同堆数量不放大源强；人物随身物整体辐射、房间隔热与完整五行修行尚未接入。历史[来源QA](../qa/20261105_environment_source_bindings.md)、[缓存QA](../qa/20261105_environment_ground_cache.md)和[响应QA](../qa/20261105_environment_response.md)是各自版本的局部证据，不能代替当前整包验收。
 
 普通来源变更与目标刷新目前同步运行于CPU。独立的CPU/GPU/auto计算服务和旧版本性能数据见[计算QA](../qa/20261105_environment_ground_compute.md)与[优化QA](../qa/20261106_environment_optimization.md)；普通游戏尚无GPU开关，也未完成端到端大规模性能验收。
+
+`codex/sparse-world-execution`已接入[通用执行索引](../engineering/sparse-execution.md)：环境选择实际变化效果及到期响应，健康选择未愈伤口和活动诊疗；世界阶段/规则不变，没有新增玩法。完整回归、存读和短测范围见[本包QA](../qa/20261107_sparse_execution.md)，其他旧域仍按原路径，分支尚未自动合入main。

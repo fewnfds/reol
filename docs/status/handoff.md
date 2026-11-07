@@ -1,6 +1,6 @@
 # 当前接续
 
-2026-11-07：**用户已授权实施顶层稀疏执行框架，Goal active。** 本包按[实施规格](../plans/runtime-efficiency/implementation.md)建立通用能力参与/活跃/到期/变脏索引，并以普通环境和健康两域接入验证；不扩demo或自动迁完全部旧系统。
+2026-11-07：**顶层稀疏执行框架及普通环境/健康两域接入已完成本机验收和一次审查。** Goal收口；不扩demo、自动迁完全部旧系统或合并main。范围见[实施规格](../plans/runtime-efficiency/implementation.md)与[QA](../qa/20261107_sparse_execution.md)。
 
 ## 当前主线与可用范围
 
@@ -40,4 +40,4 @@
 
 最新授权覆盖上述方案的“只写文档”停点：Goal active，doctor核Godot4.7.2，通用索引、普通环境和健康接入首版已写完。定向1198断言0失败；普通Main相同来源操作224/221ms→8.081/7.173ms（各一次headless CPU短样本）。证据与限制见[本包QA](../qa/20261107_sparse_execution.md)。
 
-当前唯一整包验证是`python tools/godot.py check --test-timeout 1800`，terminal session **96715**，输出仅结束后取`logs/sparse-execution/full-check-console.log`摘要；不读过程中日志、不重启验证。结束后先修真实失败，否则做一次原生Sol/custom提交审查；尚未启动审查、未推送本包代码。不自动展开全部A–D迁移或新玩法。
+受检代码`ee3504d3c313aa07ac4e87caec3bd39488c725e3`的唯一完整check已终态通过：248组、124980断言、0失败；一次Sol/custom静态审查已终态无发现。原sessions96715/66478均已结束，不再恢复或重复运行；日志`logs/sparse-execution/full-check-console.log`、`logs/check-test-20261107-133850.log`及`logs/sparse-execution/review-ee3504d.log`。后续仅收口文档，代码差异为空。本包新推送CI未核，不立即查询/等待，下一真实提交检查点再核；没有本地验证正在运行。不自动展开全部A–D迁移或新玩法。

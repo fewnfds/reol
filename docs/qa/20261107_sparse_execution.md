@@ -2,7 +2,7 @@
 
 ## 范围与版本
 
-起点`eff27a7dcf77031a4084258cc688bbb3616b64e4`，工作分支`codex/sparse-world-execution`。本包最终受检提交与验证结论在收口后补齐；当前不能沿用主线旧代码绿灯。规格见[本包边界](../plans/runtime-efficiency/implementation.md)，实际接口见[接入指南](../engineering/sparse-execution.md)。
+起点`eff27a7dcf77031a4084258cc688bbb3616b64e4`，工作分支`codex/sparse-world-execution`。受检代码`ee3504d3c313aa07ac4e87caec3bd39488c725e3`；后续收口仅改文档，生产代码/测试差异为空。规格见[本包边界](../plans/runtime-efficiency/implementation.md)，实际接口见[接入指南](../engineering/sparse-execution.md)。
 
 框架核心是原领域持有的`SimParticipationIndex`：能力/状态成员、当前参与、带修订的依赖失效和可更新到期队列；不包含五行、冷热、伤口等内建字段，不调用领域回调、不推进时间、不保存实物或数值。普通环境与健康是两种真实接入，未增加演示玩法。其他旧域未因此自动迁入。
 
@@ -35,9 +35,12 @@
 
 复测首次遗漏`-- --world-editor`，临时驱动取得空editor而超时退出，证据`logs/sparse-execution-profile-20261107-133532.log`；补齐与原试验相同的启动参数后成功，日志`logs/sparse-execution-profile-20261107-133808.log`。未修改生产入口来满足试验。
 
-## 仍须收口的验证
+## 整包验收与审查
 
-完整check、一次主要静态审查和最终提交证据待补齐。长验证仅等待原进程终态，未定时读日志、数PASS或派等待代理；CI按真实提交检查点执行，不在push后查询/等待。
+- 上述代码执行一次`python tools/godot.py check --test-timeout 1800`：**248组、124980断言、0失败，CHECK PASSED**。日志`logs/check-test-20261107-133850.log`及`logs/sparse-execution/full-check-console.log`；标准门禁未发现SCRIPT ERROR/ERROR。
+- 同一提交一次原生`gpt-6.1-sol`、`custom`路由静态审查完成，最终结论为无可执行发现；日志`logs/sparse-execution/review-ee3504d.log`。审查未启动引擎、测试、CI查询或额外代理，不另开第二主要审查。
+- 文档结构/链接检查通过；没有新增视觉表现，因此本包未把headless结果冒充画面验收，也未为算法改动重复截图。
+- 长验证仅由工具等待原进程终态，未定时读日志、数PASS或派等待代理；本包没有已推送相关待验run，旧代码已核终态缓存复用。推送后的新CI如有则待下次真实提交检查点核实，不声称本包新CI已经通过。
 
 ## 边界
 
