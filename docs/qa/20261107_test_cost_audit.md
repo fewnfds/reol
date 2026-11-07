@@ -2,7 +2,7 @@
 
 ## 范围与来源
 
-2026-11-07；起点`d4e5f716aa1cd9fb84b47727160506c2b63addc9`，分支`codex/sparse-world-execution`。本包只改工程工作流、测试工具与运行器、CI计时artifact；生产scripts/data/scenes/addons及全部现有测试组/断言不变。具体受检提交在本报告收尾时登记。
+2026-11-07；起点`d4e5f716aa1cd9fb84b47727160506c2b63addc9`，分支`codex/sparse-world-execution`，受检代码`b60adadfcab73a17e101b62538da62ddc5bccf9f`。本包只改工程工作流、测试工具与运行器、CI计时artifact；生产scripts/data/scenes/addons及全部现有测试组/断言不变。收尾提交只更新文档证据。
 
 只读参考本机`agent-shell`的AGENTS、文档策略、测试策略及外部工作台；未修改参考项目。可复用的是现行契约与阶段过程分离、完成时同步说明、按主要owner与成本选测试。其`.docs`未纳入Git、索引仍有漂移，故没有机械迁移Reol目录或建立仓外唯一权威。现行规则落在[文档合同](../DOCUMENTATION.md)、[开发流程](../engineering/workflow/ai-development.md)、[测试策略](../engineering/workflow/testing.md)。
 
@@ -34,6 +34,7 @@ doctor核Godot4.7.2。硬件沿本机i5-13600KF/32GB环境；五组为debug/head
 - Python全套60项通过，约1.84秒：`logs/workflow-audit-python.log`。输出中的脚本错误/1秒超时是已有故意失败样例。
 - 实机runner列举248组；重复选择规则组只执行一次，1171断言与JSONL相符；未知/空名称非零，无法打开报告在执行组前失败。证据在`logs/test-cost-audit/`及`logs/workflow-audit-list.log`。
 - 结构/链接与差异检查通过。没有游戏表现变化，未开实时场景或为工具改动重跑几十分钟全游戏回归。
+- 受检提交一次原生`gpt-6.1-sol`/custom静态审查终态无可执行发现，日志`logs/test-cost-audit/review-b60adad.log`；审查没有启动引擎、测试、CI或额外审查。推送触发的完整CI留待下一真实提交检查点核查，不把本机五组结果冒充全套。
 
 JSONL中的失败数只覆盖断言；仍须核包装器脚本错误及退出码。flush不保证检测所有磁盘刷新故障，本报告不是崩溃一致性存储承诺。
 
