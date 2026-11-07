@@ -25,6 +25,7 @@
 - 地块承载实体，实体可跨多格且只有一份状态；药田/禁地是区域指定，植物/墙/家具是实物，房间是围合等结构推导，功能来自人、器具和过程。空间合同见`design/systems/construction_and_space.md`。
 - 只维护一套当前运行模型和写档格式；旧入口仅在明确支持范围内转换到当前模型，按包淘汰历史分支，不无限叠加迁移链。版本识别、候选校验和失败不改活世界仍保留；详见`docs/engineering/compatibility.md`。
 - 纯规则/适配/文件/UI分别归sim/runtime/persistence/ui。通信优先signal或明确接口，少祖先路径耦合；热路径不全组扫描/频繁load/大量分配。不预建全量autoload/ECS/规划器。
+- 新增/重构热路径按实际能力、当前参与及到期/变脏集合执行，避免全体实体×全部可选系统轮询；派生索引归原所有者维护，接齐生命周期与恢复失效。连续需求和远区因果不能因休眠被丢弃；既有域按实际收益逐包迁入，不为套框架全面重写。候选方案见`docs/plans/runtime-efficiency/README.md`。
 - snake_case文件/函数/变量，PascalCase类/节点，SCREAMING_SNAKE_CASE常量，私有前导下划线，signal用已发生事件名。
 - assert只用于开发不变量，不校验业务失败；运行节点用queue_free，跨帧检查is_instance_valid。纯测试释放按runner生命周期。
 
