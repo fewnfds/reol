@@ -4,6 +4,8 @@
 
 运行层与编辑工具的总序见[世界运行与创作工具总计划](../../docs/specs/world-engine/program.md)。以下是方法依据；五行环境影响、灵气、气韵及灵物补给是Reol的虚构世界法则，不声称得到现实科学证明。
 
+RimWorld、修仙模拟器、Project Porcupine及Godot从零教程的对象/空间/行动架构对照见[模拟游戏基础架构研究](colony_sim_architecture.md)，其中区分公开接口、教学实现与Reol迁入建议。
+
 俯视山丘/高台、地表高度与局部多层、Factorio/OpenTTD及Godot 2.5D/3D候选的扩展研究见[高度与大世界拓扑](elevation_and_world_topology.md)，对应[空间方案](../proposals/elevation.md)。不能从2D/3D画面直接推断模拟维度或性能。
 
 ## 1. 可借鉴的模拟经验

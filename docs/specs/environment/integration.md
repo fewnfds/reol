@@ -1,8 +1,7 @@
-# 源场接管实际环境的实施合同（F2）
+# 环境接入与房间接缝参考
 
-候选合同索引；具体实现与证据见状态文档。旧 F/W 编号和阶段不是当前队列，优先级见[基础优先级](../../plans/foundation-priorities.md)。
+本目录区分普通接管的制定时方案与仍待实现的房间候选。框架顺序、改造范围与出口只查[基础建设计划](../../plans/foundation-priorities.md)，当前运行与存读只查[普通环境合同](../../engineering/world-environment-contract.md)、[兼容政策](../../engineering/compatibility.md)和[基线](../../status/baseline.md)。
 
-- [引言](integration/00-introduction.md)
-- [现有依赖与切换原则 / F2a：实际温度所有者、边界与独立存读](integration/01-topics.md)
-- [F2b：普通 Main 一次切换、有限旧档导入](integration/02-topics.md)
-- [F2c：房间一温、拓扑与旧核退役收束 / 执行顺序与退出](integration/03-topics.md)
+- [范围与来源](integration/00-introduction.md)：旧方案与现行合同的关系。
+- [温度所有者与独立存读的原方案](integration/01-topics.md)、[普通Main切换的原方案](integration/02-topics.md)：历史候选，不能再次启动F2a/F2b或旧档导入队列。
+- [房温与拓扑接缝候选](integration/03-topics.md)：服务于主计划的环境框架，具体参数/近似在该范围实现时验证。

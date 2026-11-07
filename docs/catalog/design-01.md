@@ -13,6 +13,7 @@
 - [design/proposals/environment/landscape.md](../../design/proposals/environment/landscape.md)
 - [design/proposals/environment/temperature.md](../../design/proposals/environment/temperature.md)
 - [design/proposals/environment/validation.md](../../design/proposals/environment/validation.md)
+- [design/research/colony_sim_architecture.md](../../design/research/colony_sim_architecture.md)
 - [design/research/combat_and_character_references.md](../../design/research/combat_and_character_references.md)
 - [design/research/eight_direction_sources.md](../../design/research/eight_direction_sources.md)
 - [design/research/elevation_and_world_topology.md](../../design/research/elevation_and_world_topology.md)
