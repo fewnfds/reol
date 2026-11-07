@@ -1,6 +1,6 @@
 # 世界引擎普通接管与主线收尾
 
-日期：2026-11-07。首代码 `d3b67a59ea11a87c4482da239649f87944cee609`。当前最终完整回归、审查和主线合并尚在进行；不能据本页先称完成。
+日期：2026-11-07。首代码 `d3b67a59ea11a87c4482da239649f87944cee609`。主要审查与修复已完成，最终代码`6137481a07ec98b372e32ca857e546f1e1b07ee1`完整回归通过。主线合并结果另见末节；本包不是完整游戏完成。
 
 ## 实际范围
 
@@ -44,7 +44,7 @@
 
 ## Git与保护
 
-在隔离工作树 `logs/world_engine_finish/dev` 实施；原工作区四份WIP与 `logs/world_engine_finish/protected-wip/original-sha256.json` 逐字核对不变。它们不在本包提交或回归中；温度组件的已提交版本仅加入显式、模型版本约束的锚点规范化，未采用原草稿。
+在隔离工作树 `logs/world_engine_finish/dev` 实施；原工作区四份WIP与 `logs/world_engine_finish/protected-wip/original-sha256.json` 逐字核对后，保存在命名stash `424f956d280fb390d17e1f6dd879f3614b51a430`和原字节备份。stash四文件已再核与清单/备份完全相同，不自动应用。它们不在本包提交或回归中；温度组件的已提交版本仅加入显式、模型版本约束的锚点规范化，未采用原草稿。
 
 真实提交检查点核前包最终修复 f641ddd 未发现匹配CI run，未轮询；本包已推隔离分支，完整验收/最终合并证据待下节登记。旧争环分支不合入。
 
@@ -75,3 +75,26 @@
 修复定向02中私交及共享连续性通过，武器纯展示另有两剑同锚点合法分排、测试雾接受越界两个旧夹具假设导致3项失败；按原行为修夹具，未改呈现或释放规则。定向03另记终态。
 
 `finish-current-fixes-03.log`武器与原物运行时2组267断言0失败，无SCRIPT ERROR/ERROR；私交和共用连续性在02中各自通过。当前测试夹具修复收口，最终完整回归将在此修复提交上运行。真实提交检查点一次登记修复50af9b6的[CI42335595169](https://github.com/fewnfds/reol/actions/runs/42335595169)，完整headSha一致、in_progress，不视为通过、不等待或轮询。
+
+
+## 最终准确版本验收
+
+受检代码`6137481a07ec98b372e32ca857e546f1e1b07ee1`，其后仅更新记录，不再修改生产、数据、测试或工具。`logs/finish-6137481-source-sha256.json`的1174份源文件在完整回归和下述验证后逐份相同。
+
+- `python tools/godot.py check --test-timeout 1800`完整通过：**244组、124778断言、0失败**，Import+test无SCRIPT ERROR/ERROR。日志`finish-full-check-04.log`及`check-test-20261107-121847.log`。check-03的失败证据保留，没有放宽产品校验或更改原fixture。
+- 同SHA再用普通Main的`object_lifecycle_restart.gd`两个独立进程：writer45916在181000ms保存未完动作，完全退出后reader50364恢复并到达相同184001ms未来；环境完整摘要、原物、材料、离返及时间一致。文件`finish-restart-final-6137481.json`，SHA256 `5377c850e2260bcee9f50c7d107d0071808e2e8f278b189f01d38a47385c0155`；日志`finish-restart-final-write.log`、`finish-restart-final-read.log`及汇总`finish-final-verification.json`。
+- 同SHA普通原生画面及600帧联合负载：`world_fields_presentation.gd -- --tag field_final_6137481 --world-editor`，RTX3060/D3D12、1280×720、原相同稀疏人数/来源，每帧100游戏ms且共同时间无积压。已实际查看after截图，真实F8石板、木料及五行变化可见；调试全知标注仅在该测量脚本。
+
+| 最终6137481稀疏负载 | 结果 |
+|---|---:|
+| 开局装配 | 5057.293ms |
+| 单实物生成 / 单材料转移 | 223.053 / 219.663ms |
+| 推进调用p50 / p95 / p99 / max | 3.524 / 4.776 / 6.056 / 70.402ms |
+| 帧间隔p50 / p95 / p99 / max | 15.566 / 19.054 / 31.300 / 83.976ms |
+| Godot静态分配峰 | 348679769 bytes |
+
+最终图/报告：`logs/world_fields_presentation/field_final_6137481-{before,editing,after}.png`和同名JSON；外部报告`finish-native-final-6137481.json`。此次调用console启动器，外部采样命中启动器而非实际窗口进程，其6.9MB工作集/1.4MB私有值**不作为Godot内存证据**；仅采用实际游戏报告的静态分配，前述field_load_01的直接进程内存测量保留其原范围。没有为补采样继续扩大验证。普通生成/材料同步提交仍约0.22秒卡顿，未宣称消除；未证明满密度动态大世界或16GB整机所有系统联合通过。
+
+真实收尾提交检查点仅一次查到最终代码的[CI42337874837](https://github.com/fewnfds/reol/actions/runs/42337874837)，完整headSha匹配、in_progress。它仍待验；主验收采用上述准确SHA本机完整结果，不轮询、不把旧CI绿色代用。一次Sol/custom主要审查的修复映射与定向见前文，不重复整包模型审查。
+
+所有本包日志、JSON、截图与指纹在工作树清理前保全到根目录`logs/world_engine_finish/validation-artifacts/`；旧失败同样保留。最终主线快进/推送结果由下一次实际操作后登记。
