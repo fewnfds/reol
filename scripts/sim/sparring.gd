@@ -229,7 +229,7 @@ func _ai_motion(id: String, duration_ms: int) -> void:
 			break
 		point = next
 		travel -= step
-	SimRouteTravel.put(person, point)
+	world.regions[_home(id)].set_actor_position(id, point)
 
 
 func stop(reason: String = "yielded") -> void:

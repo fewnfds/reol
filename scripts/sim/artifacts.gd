@@ -1,5 +1,6 @@
 class_name SimArtifacts
 extends RefCounted
+signal space_reset
 ## Unique objects, personal experiments and committed material effects.
 ## Container references own location; observations never expose private charge.
 
@@ -401,6 +402,7 @@ func spawn_opening(scenario: Dictionary) -> bool:
 	experiences = snapshot.experiences
 	_rebuild_light_sources()
 	state_generation += 1
+	space_reset.emit()
 	return true
 
 
@@ -423,6 +425,7 @@ func spawn_field_object(id: String, definition_id: String, region: String, conta
 	objects[id] = snapshot.objects[id]
 	_rebuild_light_sources()
 	world.invalidate_region(region)
+	space_reset.emit()
 	return true
 
 
@@ -1246,6 +1249,7 @@ func restore(data: Dictionary) -> bool:
 	next_id = int(data.next_id)
 	_rebuild_light_sources()
 	state_generation += 1
+	space_reset.emit()
 	return true
 
 

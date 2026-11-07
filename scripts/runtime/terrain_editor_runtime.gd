@@ -175,20 +175,22 @@ func remove_object(cell: Vector2i) -> Dictionary:
 		return _failed("not_prepared")
 	var world: RegionalSimulation = _prepared_world
 	var lifecycle: SimObjectLifecycle = world.object_lifecycle
-	var hits: Dictionary = lifecycle.ground.query_cell(cell)
+	var hits: Dictionary = world.query_space(Rect2i(cell, Vector2i.ONE), ["artifact"], "ground")
 	if not bool(hits.get("ok", false)):
 		_report_object_result(hits, "")
 		return hits
-	if hits.ids.is_empty():
+	var object_id: String = ""
+	for reference: Dictionary in hits.references:
+		if lifecycle.manages(reference.id):
+			object_id = reference.id
+			break
+	if object_id.is_empty() or not world.artifacts.objects.has(object_id):
 		return _failed("not_managed")
-	var slot_id: String = hits.ids[0]
+	var item: Dictionary = world.artifacts.objects[object_id]
+	var slot_id: String = str(item.container)
 	var slot: Dictionary = lifecycle.ground.slots.get(slot_id, {})
-	var reference: Variant = slot.get("reference")
-	if not bool(slot.get("active", false)) or not reference is Dictionary or reference.get("kind") != "artifact":
-		return _failed("not_managed")
-	var object_id: String = str(reference.get("id", ""))
-	if not lifecycle.manages(object_id) or not world.artifacts.objects.has(object_id):
-		return _failed("not_managed")
+	if not bool(slot.get("active", false)) or not SimObjectLifecycle.ground_cells(slot).has(cell):
+		return _failed("source_changed")
 	var command: String = _next_object_command(world)
 	if command.is_empty():
 		return _failed("id_exhausted")

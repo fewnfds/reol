@@ -412,7 +412,7 @@ func _bind_navigation() -> void:
 	world_sim.construction.set_terrain(world_sim.map_data.terrain_is_walkable, world_sim.map_data.get_elevation)
 	world_sim.construction.set_incoming_occupancy(_incoming_occupancy)
 	_home.simulation = world_sim.regions.home
-	_home._player.motion.bind_body(_home.simulation.actors.player)
+	_home._player.motion.bind_body(_home.simulation.actors.player, _home.simulation.notify_body_space_changed.bind("player"))
 	_home._player.set_motion_guard(_player_has_motion_control)
 	if not _home._player.cell_changed.is_connected(_on_player_moved):
 		_home._player.cell_changed.connect(_on_player_moved)
@@ -666,7 +666,7 @@ func project_player_journey(to_ms: int) -> void:
 	# each accepted sub-boundary. Never project the whole requested interval
 	# before a limited event budget has actually reached it.
 	if not player_journey.is_empty():
-		SimRouteTravel.project(player_journey, _home.simulation.actors.player, to_ms)
+		_home.simulation.project_actor_route("player", player_journey, to_ms)
 
 
 func travel_to(region_id: String, destination_cell: Variant = null) -> bool:
@@ -1202,7 +1202,9 @@ func load_game(path: String) -> Error:
 	var snapshot: Dictionary = staged.snapshot
 	var extra: Dictionary = snapshot.continuity
 	# All validation is complete before changing any live world or clock state.
+	var previous_world: RegionalSimulation = world_sim
 	world_sim = staged.world
+	previous_world.retire_space()
 	_home.adopt_content(staged.content)
 	settings = world_sim.settings.duplicate(true)
 	centers = {}

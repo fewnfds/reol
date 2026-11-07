@@ -158,11 +158,11 @@ func settle_at_ms(now: int) -> void:
 			if not job.path.is_empty() and not _step_open(SimRouteTravel.cell(body.cell), SimRouteTravel.cell(job.path[0])):
 				_release(actor, "通往床铺的道路被挡住，床位已释放。")
 				continue
-			SimRouteTravel.project(job, body, now)
+			world.regions[definitions.region].project_actor_route(actor, job, now)
 			if now < int(job.due_ms):
 				continue
 			if not job.path.is_empty():
-				SimRouteTravel.put(body, TileGrid.cell_to_world(SimRouteTravel.cell(job.path.pop_front())))
+				world.regions[definitions.region].set_actor_position(actor, TileGrid.cell_to_world(SimRouteTravel.cell(job.path.pop_front())))
 			if not job.path.is_empty():
 				SimRouteTravel.begin_segment(job, body, now, _speed())
 				continue

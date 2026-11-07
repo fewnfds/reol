@@ -1,5 +1,7 @@
 class_name SimLargeBodies
 extends RefCounted
+signal body_space_changed(id: String)
+signal space_reset
 ## One physical source per large body. Views and Embodiment only reference it.
 ## A bounded roaming sample, not a complete species/needs/combat simulation.
 
@@ -87,6 +89,7 @@ func add_body(id: String, label: String, region: String, a: Vector2i, b: Vector2
 		"waypoints": [[a.x, a.y], [b.x, b.y]], "destination": 1, "facing": 1,
 		"step": {}, "path": [], "retry_ms": elapsed_ms + int(definitions.rest_ms), "last_fed_ms": -1}
 	world.embodiment = registry
+	body_space_changed.emit(id)
 	return true
 
 
@@ -158,6 +161,7 @@ func settle_at_ms(now: int) -> void:
 	if now < elapsed_ms:
 		return
 	elapsed_ms = now
+	var moved: Array[String] = []
 	for id: String in SimAvianLife.sorted_keys(bodies):
 		var body: Dictionary = bodies[id]
 		if not body.step.is_empty():
@@ -166,7 +170,10 @@ func settle_at_ms(now: int) -> void:
 			var to: Vector2 = TileGrid.cell_to_world(SimRouteTravel.cell(step.to))
 			var ratio: float = clampf(float(now - int(step.started_ms)) / float(int(definitions.step_ms)), 0.0, 1.0)
 			var projected: Vector2 = from.lerp(to, ratio)
+			var before: Vector2i = body_cell(id)
 			body.position = [projected.x, projected.y]
+			if before != body_cell(id):
+				moved.append(id)
 			if now < int(step.due_ms):
 				continue
 			body.step = {}
@@ -178,6 +185,8 @@ func settle_at_ms(now: int) -> void:
 			body.retry_ms = now
 		if int(body.retry_ms) <= now:
 			_start_step(id)
+	for id: String in moved:
+		body_space_changed.emit(id)
 
 
 func _start_step(id: String) -> void:
@@ -276,4 +285,5 @@ func restore(data: Variant) -> bool:
 	events.assign(data.events.duplicate(true))
 	elapsed_ms = int(data.elapsed_ms)
 	next_id = int(data.next_id)
+	space_reset.emit()
 	return true

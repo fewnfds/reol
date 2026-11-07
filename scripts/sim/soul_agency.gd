@@ -171,7 +171,7 @@ func settle_at_ms(now: int) -> void:
 			if not job.path.is_empty() and sim._step_validator.is_valid() and not bool(sim._step_validator.call(SimRouteTravel.cell(sim.actors[actor].cell), SimRouteTravel.cell(job.path[0]) - SimRouteTravel.cell(sim.actors[actor].cell))):
 				_finish_errand(job, false, "路已不通，对方停止赶路；旧戒没有退回原处。")
 				continue
-			SimRouteTravel.project(job, sim.actors[actor], now)
+			sim.project_actor_route(actor, job, now)
 			world.invalidate_region(job.region)
 		if now < int(job.due_ms):
 			continue

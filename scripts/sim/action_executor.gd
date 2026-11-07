@@ -73,7 +73,7 @@ func project(actor_id: String, at_ms: int) -> void:
 	if _sim._step_validator.is_valid() and not bool(_sim._step_validator.call(_cell(actor.cell), direction)):
 		cancel(actor_id, "route_blocked")
 		return
-	SimRouteTravel.project(action, actor, at_ms)
+	_sim.project_actor_route(actor_id, action, at_ms)
 
 
 func settle(actor_id: String) -> void:

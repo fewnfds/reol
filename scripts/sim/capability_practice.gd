@@ -180,7 +180,7 @@ func settle_at_ms(now: int) -> void:
 				if not _leg_open(row):
 					_finish(row, "cancelled", "blocked", now)
 					break
-				SimRouteTravel.project(row, body(actor), int(row.due_ms))
+				world.regions[home(actor)].project_actor_route(actor, row, int(row.due_ms))
 				row.last_ms = int(row.due_ms)
 				row.path.pop_front()
 				row.step_index = int(row.step_index) + 1
@@ -201,7 +201,7 @@ func settle_at_ms(now: int) -> void:
 			if not _leg_open(row):
 				_finish(row, "cancelled", "blocked", now)
 				continue
-			SimRouteTravel.project(row, body(actor), now)
+			world.regions[home(actor)].project_actor_route(actor, row, now)
 		row.last_ms = now
 		world.invalidate_region(str(row.region))
 

@@ -1,5 +1,6 @@
 class_name RegionalSimulation
 extends RefCounted
+signal action_finished(outcome: Dictionary)
 ## One timeline owns regional execution, transport and delayed institutional news.
 ## Scene adapters may disappear; these instances and their pending work remain.
 
@@ -137,6 +138,8 @@ var capability_practice: RefCounted
 var field_opportunities: RefCounted
 var private_exchange: RefCounted
 var map_data: WorldMapData
+## Rebuildable spatial links only; never serialized as another world state.
+var space: SimWorldSpace
 
 var _content: ReolContentDB
 var _next_id: int = 1
@@ -174,6 +177,35 @@ func object_capability(reference: Variant, capability: String) -> Dictionary:
 
 func capture_object_space(references: Array, budget: int = 4096) -> Dictionary:
 	return SimWorldObjectQuery.capture(self, references, budget)
+
+
+func query_space(area: Rect2i, kinds: Array = [], layer: String = "", budget: int = 4096) -> Dictionary:
+	if space == null:
+		return {"ok": false, "complete": false, "reason": "world_unavailable", "references": []}
+	return space.query(area, kinds, layer, budget)
+
+
+func describe_actor_action(actor: String) -> Dictionary:
+	return SimActionContract.describe(self, actor)
+
+
+func _replace_space() -> void:
+	var previous: SimWorldSpace = space
+	space = SimWorldSpace.new(self)
+	if previous != null:
+		previous.reset("world_replaced")
+		previous.detach()
+
+
+func retire_space() -> void:
+	# A runtime adopts a fully validated independent world. Retained handles to
+	# the previous live projection must fail even if another diagnostic keeps
+	# that original simulation alive.
+	var previous: SimWorldSpace = space
+	space = null
+	if previous != null:
+		previous.reset("world_replaced")
+		previous.detach()
 
 
 func bind_environment_boundary_guard(guard: RefCounted) -> bool:
@@ -395,6 +427,7 @@ func initialize(definitions: Dictionary, instances: Dictionary, content: ReolCon
 	for id: String in regions:
 		_opening_configs[id] = regions[id].config.duplicate(true)
 	_bind_service_guards()
+	_replace_space()
 	return true
 
 
@@ -1379,6 +1412,7 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	_region_boundaries = {}
 	for region_id: String in regions:
 		_region_boundaries[region_id] = regions[region_id].next_boundary_ms()
+	_replace_space()
 	return true
 
 

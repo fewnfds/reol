@@ -340,7 +340,7 @@ func load_game(path: String = SAVE_PATH) -> Error:
 	_places = simulation.places.duplicate(true)
 	_player.spawn_at(player_cell)
 	var saved_position: Array = saved_player["position"]
-	_player.motion.bind_body(simulation.actors.player)
+	_player.motion.bind_body(simulation.actors.player, simulation.notify_body_space_changed.bind("player"))
 	_player.restore_motion(saved_player.motion, Vector2(float(saved_position[0]), float(saved_position[1])), int(snapshot.clock.elapsed_ms))
 	_player.set_altitude(int(saved_player["altitude"]))
 	_world.set_focus(player_cell)
@@ -460,7 +460,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _sync_player_cell() -> void:
 	# SimLocalMotion writes this very body. Keep legacy standalone probes explicit.
 	if _player.motion._body != simulation.actors.player:
-		_player.motion.bind_body(simulation.actors.player)
+		_player.motion.bind_body(simulation.actors.player, simulation.notify_body_space_changed.bind("player"))
 	if is_instance_valid(continuity):
 		continuity.world_sim.invalidate_region("home")
 

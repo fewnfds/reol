@@ -13,6 +13,15 @@ class Observer extends RefCounted:
 		notices.append(change.duplicate(true))
 
 
+class ActionObserver extends RefCounted:
+	var notices: Array[Dictionary] = []
+	var immutable: bool = true
+
+	func on_finished(outcome: Dictionary) -> void:
+		immutable = immutable and outcome.is_read_only()
+		notices.append(outcome.duplicate(true))
+
+
 class CancelOtherObserver extends RefCounted:
 	var owner: WeakRef
 	var notices: Array[String] = []
@@ -40,7 +49,56 @@ func run(runner: Object) -> void:
 	_multicell_reservation(runner)
 	_callback_cancellation_at_shared_deadline(runner)
 	_timed_merge_into_existing_pile(runner)
+	_shared_construction_contract(runner)
 	print("SCENARIO object actions: shared clock, reservations, interruption, revalidation, in-flight restore and bounded advancement")
+
+
+func _shared_construction_contract(runner: Object) -> void:
+	# Two real consumers of the common execution seams; no mock action owner.
+	var world: RegionalSimulation = _fixture._world(runner)
+	if world == null:
+		return
+	var sim: VillageSimulation = world.regions.home
+	var domain: SimConstruction = world.construction
+	var project: String = domain.projects.keys()[0]
+	var observer := ActionObserver.new()
+	world.action_finished.connect(observer.on_finished)
+	var spawned: Dictionary = world.object_lifecycle.execute(_fixture._spawn("shared_item", "shared_item", "plain_slate", [123, 120]))
+	var request: Dictionary = _fixture._move("shared_take", "shared_item", spawned.to, _fixture._location("actor:player"))
+	sim.actors.player.autonomous = true
+	runner.assert_true(world.object_lifecycle.schedule(request, "player", 1000).ok, "handling occupies the original body through the shared contract")
+	var handling: Dictionary = world.describe_actor_action("player")
+	runner.assert_true(handling.ok and handling.domain == "object_lifecycle" and handling.phase == "work" and handling.remaining_ms == 1000, "common action projection reads the original handling deadline")
+	runner.assert_true(not domain.begin("player", project).ok, "construction cannot bypass a handling body occupation")
+	runner.assert_true(world.object_lifecycle.cancel("player"), "original handling owner cancels its process")
+	runner.assert_true(sim.actors.player.autonomous and not world.owns_for_scope("player", &"body"), "shared release restores the previous autonomy and body availability")
+	runner.assert_eq(observer.notices.back().status, "cancelled", "handling reports the common terminal status")
+	runner.assert_eq(observer.notices.back().domain, "object_lifecycle", "handling retains its original terminal owner")
+	sim.actors.player.autonomous = false
+	var stock: int = sim.inventory.quantity("store", "wood")
+	runner.assert_true(domain.begin("player", project).ok, "construction uses the same free body after cancellation")
+	var building: Dictionary = world.describe_actor_action("player")
+	runner.assert_true(building.ok and building.domain == "construction" and building.target == project and building.status == "active", "construction preserves its own route phases behind the common action projection")
+	request.command = "shared_busy_take"
+	runner.assert_true(not world.object_lifecycle.schedule(request, "player", 1000).ok, "handling cannot bypass a construction occupation")
+	for _step: int in 120:
+		if not domain.active.has("player") or domain.active.player.phase == "work":
+			break
+		world.advance_to_ms(domain.next_boundary_ms())
+	runner.assert_true(domain.active.has("player") and domain.active.player.phase == "work", "worker reaches the site with original real materials")
+	if not domain.active.has("player"):
+		return
+	world.advance_to_ms(world.elapsed_ms + 100)
+	sim.set_actor_cell("player", Vector2i(125, 123))
+	runner.assert_eq(domain.next_boundary_ms(), world.elapsed_ms + 1, "lost work position schedules prompt revalidation")
+	world.advance_to_ms(world.elapsed_ms + 1)
+	runner.assert_true(not domain.active.has("player") and domain.projects[project].state == "blueprint", "a displaced worker cannot remotely complete the structure")
+	runner.assert_eq(sim.inventory.quantity("store", "wood"), stock - 3, "interruption never refunds already moved materials")
+	runner.assert_eq(sim.inventory.quantity(project, "wood"), 3, "the unique original delivered batch remains at the site")
+	runner.assert_true(sim.inventory.reservations.is_empty() and not world.owns_for_scope("player", &"body"), "shared cleanup releases reservations and occupation")
+	runner.assert_eq(observer.notices.back().domain, "construction", "construction emits the same terminal contract from its original owner")
+	runner.assert_true(observer.immutable, "terminal action observations are immutable")
+	runner.assert_eq(world.describe_actor_action("player").reason, "no_supported_action", "there is no fabricated universal idle action or second action history")
 
 
 func _multicell_reservation(runner: Object) -> void:

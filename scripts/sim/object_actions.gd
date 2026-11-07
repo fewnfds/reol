@@ -22,7 +22,7 @@ static func schedule(owner: SimObjectLifecycle, request: Dictionary, actor: Stri
 	if home.is_empty() or not world.synchronize_region(home):
 		return owner._fail("actor_unavailable")
 	var person: Dictionary = world.regions[home].actors[actor]
-	if not bool(person.alive) or not person.active.is_empty() or not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion") or world.owns_for_scope(actor, &"body"):
+	if not SimActionContract.can_begin(world, home, actor):
 		return owner._fail("actor_busy")
 	if blocked(owner, request):
 		return owner._fail("target_reserved")
@@ -58,8 +58,7 @@ static func schedule(owner: SimObjectLifecycle, request: Dictionary, actor: Stri
 		action["contact"] = true
 	owner.actions[id] = action
 	owner._active_actions[id] = true
-	person.autonomous = false
-	world.invalidate_region(home)
+	SimActionContract.occupy(world, home, actor)
 	return {"ok": true, "action": action.duplicate(true)}
 
 
@@ -139,9 +138,8 @@ static func settle(owner: SimObjectLifecycle, at_ms: int) -> bool:
 		if int(action.due_ms) > at_ms:
 			continue
 		owner._settling = true
-		var person: Dictionary = owner.world.regions[action.region].actors[action.actor]
 		var result: Dictionary = owner._fail("actor_changed")
-		if bool(person.alive) and owner._same(person.position, action.position) and owner.world.actor_controls(action.actor, "action") and owner.world.actor_controls(action.actor, "motion"):
+		if SimActionContract.can_continue(owner.world, action.region, action.actor, &"object_lifecycle", action.position):
 			result = owner._execute(action.request, action.reservation, false) if not bool(action.get("contact", false)) or contact_valid(owner, action.request, action.actor) else owner._fail("contact_changed")
 		if bool(result.get("pending", false)):
 			# Keep the original action, deadline, reservation and actor ownership.
@@ -152,6 +150,8 @@ static func settle(owner: SimObjectLifecycle, at_ms: int) -> bool:
 			owner._cancel_environment_change(owner._environment_pending.public_handle)
 		_finish(owner, id, "completed" if bool(result.ok) else "failed", result)
 		owner._settling = false
+		if owner.world == null or owner.world.object_lifecycle != owner:
+			return true
 		if bool(result.ok):
 			owner._publish(action.request, result)
 	return true
@@ -171,13 +171,12 @@ static func cancel(owner: SimObjectLifecycle, actor: String) -> bool:
 
 static func _finish(owner: SimObjectLifecycle, id: String, status: String, result: Dictionary) -> void:
 	var action: Dictionary = owner.actions[id]
-	owner.world.regions[action.region].inventory.release(action.reservation)
-	owner.world.regions[action.region].actors[action.actor].autonomous = action.previous_autonomous
 	action.status = status
 	action.finished_ms = owner.world.elapsed_ms
 	action.result = result.duplicate(true)
 	owner._active_actions.erase(id)
-	owner.world.invalidate_region(action.region)
+	SimActionContract.release(owner.world, action.region, action.actor, action.previous_autonomous, action.reservation)
+	SimActionContract.publish_finished(owner.world, SimActionContract.view(owner.world, "object_lifecycle", id, action.actor, action.request.op, "work", int(action.started_ms), int(action.due_ms), status, action.request.get("id", "")), result.get("reason", "completed"))
 
 
 static func cross_valid(owner: SimObjectLifecycle) -> bool:

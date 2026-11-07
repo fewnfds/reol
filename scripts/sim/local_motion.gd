@@ -11,6 +11,7 @@ static var _shared_rules: Dictionary = {}
 var _position: Vector2 = Vector2.ZERO
 var _facing: Vector2 = Vector2.DOWN
 var _body: Dictionary = {}
+var _space_changed: Callable
 var position: Vector2:
 	get:
 		return SimRouteTravel.point(_body) if not _body.is_empty() else _position
@@ -18,7 +19,10 @@ var position: Vector2:
 		if _body.is_empty():
 			_position = value
 		else:
+			var before: Vector2i = SimRouteTravel.cell(_body.cell)
 			SimRouteTravel.put(_body, value)
+			if before != SimRouteTravel.cell(_body.cell) and _space_changed.is_valid():
+				_space_changed.call()
 var velocity: Vector2 = Vector2.ZERO
 var facing: Vector2:
 	get:
@@ -40,10 +44,11 @@ func _init() -> void:
 	rules = _shared_rules
 
 
-func bind_body(body: Dictionary) -> void:
+func bind_body(body: Dictionary, space_changed: Callable = Callable()) -> void:
 	# Facing, like position, is a projection of the one original body. Preserve
 	# its last heading across route/manual control changes and view recreation.
 	_body = body
+	_space_changed = space_changed
 
 
 func cell() -> Vector2i:

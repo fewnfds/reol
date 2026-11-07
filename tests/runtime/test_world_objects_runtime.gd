@@ -355,6 +355,7 @@ func _test_editor_physical_action_and_resume(runner: Object) -> void:
 		main.free()
 		GameClock.restore_state(saved_clock)
 		return
+	var previous_space: SimWorldSpace = runtime.world_sim.space
 	var loaded: Error = runtime.load_game(path)
 	runner.assert_eq(loaded, OK, "ordinary load restores the independent original-world candidate")
 	if loaded != OK:
@@ -362,12 +363,14 @@ func _test_editor_physical_action_and_resume(runner: Object) -> void:
 		main.free()
 		GameClock.restore_state(saved_clock)
 		return
+	runner.assert_eq(previous_space.query(Rect2i(area, Vector2i.ONE)).get("reason"), "world_replaced", "ordinary independent-world load retires retained spatial handles")
 	life = runtime.world_sim.object_lifecycle
 	ground = life.ground
 	runner.assert_true(life.actions.has(action_id) and life.owns_actor("player"), "the restored original action still owns the player body")
 	if life.actions.has(action_id):
 		runner.assert_eq(life.actions[action_id].status, "active", "the action remains in progress after loading")
 		runner.assert_eq(int(life.actions[action_id].due_ms), due, "load preserves the original completion time")
+		runner.assert_eq(runtime.world_sim.describe_actor_action("player").due_ms, due, "the common action projection reads the same restored deadline")
 	var remaining: int = due - GameClock.elapsed_ms
 	if remaining > 1:
 		GameClock.advance_msec(remaining - 1)

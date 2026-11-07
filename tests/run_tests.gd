@@ -448,6 +448,10 @@ func test_world_object_query() -> void:
 	load("res://tests/sim/test_world_object_query.gd").new().run(self)
 
 
+func test_world_space() -> void:
+	load("res://tests/sim/test_world_space.gd").new().run(self)
+
+
 func test_object_spatial_snapshot() -> void:
 	load("res://tests/sim/test_object_spatial_snapshot.gd").new().run(self)
 

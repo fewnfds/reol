@@ -17,7 +17,7 @@
 
 状态用语：**已接入/有限样本**指实际入口和特定路径已有证据，不代表通用完整功能；**专用工具**需显式启动且不等于玩家能力；**隔离原型**未接普通游戏；**待验**缺对应范围或最终 SHA 的验收。每个领域页面保留原始范围与对应 QA，版本证据以基线为准。45–60 分钟完整切片、正式美术和独立发布均未验收。
 
-开发侧有[对象与空间查询接口](../engineering/object-query-contract.md)与[生命周期和动作接口](../engineering/object-lifecycle-contract.md)：受管实物有唯一原物与位置，提供受控生成/移除、转移、拆合和最小耗时搬运。F8开发编辑可放置/移除受管实物，普通物品面板有耗时取放接缝；这不等于材料通用背包或任意NPC指挥。既有[查询QA](../qa/20261105_world_object_contract.md)与[生命周期QA](../qa/20261105_object_lifecycle.md)记录当时的受检范围。
+开发侧有[对象与空间查询接口](../engineering/object-query-contract.md)与[生命周期和动作接口](../engineering/object-lifecycle-contract.md)：受管实物有唯一原物与位置，提供受控生成/移除、转移、拆合和最小耗时搬运。F8开发编辑的移除使用共同实时空间查询，普通物品面板和施工共用最小行动条件/占用/释放；原物位置和材料成本仍归原系统。在途取放、施工可保存并完全停开接续；这不等于材料通用背包或任意NPC指挥。既有[查询QA](../qa/20261105_world_object_contract.md)与[生命周期QA](../qa/20261105_object_lifecycle.md)记录当时的受检范围。
 
 普通世界的[环境合同](../engineering/world-environment-contract.md)以地面真实来源、固定器物和共同时间驱动室外温度/五行目标及残留响应。相同材料同堆数量不放大源强；人物随身物整体辐射、房间隔热与完整五行修行尚未接入。历史[来源QA](../qa/20261105_environment_source_bindings.md)、[缓存QA](../qa/20261105_environment_ground_cache.md)和[响应QA](../qa/20261105_environment_response.md)是各自版本的局部证据，不能代替当前整包验收。
 

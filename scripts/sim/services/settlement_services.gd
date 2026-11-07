@@ -222,7 +222,7 @@ func settle_at_ms(at_ms: int) -> void:
 					if not job.path.is_empty() and _can_step.is_valid() and not bool(_can_step.call(from, SimRouteTravel.cell(job.path[0]) - from)):
 						_jobs.finish(job, false, "道路受阻，已停在原处；随身物资没有消失。")
 						continue
-					SimRouteTravel.project(job, actor, at_ms)
+					sim.project_actor_route(actor_id, job, at_ms)
 			if int(job.due_ms) <= at_ms:
 				_jobs.settle(job)
 	_help.settle()

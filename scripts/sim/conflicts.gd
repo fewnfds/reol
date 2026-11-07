@@ -594,7 +594,7 @@ func _settle_withdrawals(now: int) -> void:
 			if not Space.can_step(world, TileGrid.world_to_cell(point), TileGrid.world_to_cell(next)):
 				reason = "blocked"
 			else:
-				SimRouteTravel.put(body(actor), next)
+				world.regions[home(actor)].set_actor_position(actor, next)
 				body(actor).facing = withdrawal.direction.duplicate()
 				withdrawal.distance = float(withdrawal.distance) + distance
 				if float(withdrawal.distance) >= float(rules.retreat_distance):
@@ -640,7 +640,7 @@ func _ai_motion(row: Dictionary, actor: String, elapsed: int, cues: Dictionary) 
 			break
 		point = next
 		budget -= step
-	SimRouteTravel.put(body(actor), point)
+	world.regions[home(actor)].set_actor_position(actor, point)
 	var direction: Vector2 = target - point
 	if not direction.is_zero_approx():
 		body(actor).facing = _point(direction.normalized())

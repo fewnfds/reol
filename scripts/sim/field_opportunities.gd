@@ -214,7 +214,7 @@ func settle_at_ms(now: int) -> void:
 			if not reason.is_empty():
 				_finish_trip(trip, "cancelled", reason, now)
 				continue
-			SimRouteTravel.project(trip, body(actor), now)
+			world.regions[home(actor)].project_actor_route(actor, trip, now)
 			trip.last_ms = now
 			world.invalidate_region(str(purpose.region))
 			if now >= int(trip.due_ms):

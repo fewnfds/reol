@@ -3,6 +3,8 @@ extends RefCounted
 ## Shared-millisecond world state; minute social timestamps are projections. Scene adapters provide navigation and presentation.
 
 signal changed
+signal body_space_changed(id: String)
+signal space_reset
 
 const SCHEMA_VERSION: int = 7
 const MINUTE_MS: int = 60000
@@ -176,6 +178,7 @@ func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary,
 			institutions.issue("opening:" + id, institution.id, registrar, id, origin.starting_contribution, "origin:" + String(origin.id))
 		_observe_stock(id)
 	_executor = SimActionExecutor.new(self)
+	space_reset.emit()
 	return true
 
 
@@ -394,7 +397,22 @@ func actor_position(actor: Dictionary) -> Vector2:
 
 
 func set_actor_position(id: String, point: Vector2) -> void:
+	var before: Vector2i = SimRouteTravel.cell(actors[id].cell)
 	SimRouteTravel.put(actors[id], point)
+	if before != SimRouteTravel.cell(actors[id].cell):
+		body_space_changed.emit(id)
+
+
+func project_actor_route(id: String, route: Dictionary, at_ms: int) -> void:
+	var before: Vector2i = SimRouteTravel.cell(actors[id].cell)
+	SimRouteTravel.project(route, actors[id], at_ms)
+	if before != SimRouteTravel.cell(actors[id].cell):
+		body_space_changed.emit(id)
+
+
+func notify_body_space_changed(id: String) -> void:
+	# Manual motion writes the same original body, notifying on cell crossings.
+	body_space_changed.emit(id)
 
 
 func set_actor_cell(id: String, grid: Vector2i) -> void:
@@ -717,6 +735,7 @@ func restore(data: Dictionary, allowed_subjects: Dictionary = {}, external_inven
 	land_resources.bind_restored(self, _content.land_resources, data.land_resources)
 	_executor = SimActionExecutor.new(self)
 	simulation_work = {"step_count": 0, "boundary_count": 0, "batched_minutes": 0, "quiet_batch_calls": 0}
+	space_reset.emit()
 	return true
 
 

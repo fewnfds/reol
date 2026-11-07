@@ -1,6 +1,7 @@
 class_name SimConstruction
 extends RefCounted
 signal structures_changed(cells: Array[Vector2i])
+signal space_changed(cells: Array[Vector2i])
 ## Persistent projects; quantities stay in the settlement's original ledger.
 ## A material container is either carried by a real worker or lies on the ground.
 
@@ -108,6 +109,7 @@ func place(actor: String, type: String, cell: Vector2i) -> Dictionary:
 	projects[id] = {"site": "sect_yard", "type": type, "cell": [cell.x, cell.y], "state": "blueprint", "open": false, "created_by": actor, "created_ms": world.elapsed_ms, "completed_ms": 0, "removed_ms": 0, "work_ms": 0, "material_cell": [cell.x, cell.y], "carrier": "", "delivered": false, "line": "蓝图已画好，等待取料施工。"}
 	_reindex()
 	_schedule_check()
+	space_changed.emit([cell])
 	return {"ok": true, "line": "蓝图不挡路；材料到场并完成施工后才成为实物。", "project": id}
 
 
@@ -121,6 +123,7 @@ func cancel_project(actor: String, id: String) -> Dictionary:
 	projects[id].line = "蓝图撤下；在地材料仍须搬回。"
 	_reindex()
 	_schedule_check()
+	space_changed.emit([SimRouteTravel.cell(projects[id].cell)])
 	return reply(true, projects[id].line)
 
 
@@ -161,7 +164,7 @@ func _begin(actor: String, id: String, kind: String, during_commit: bool) -> Dic
 		return reply(false, "眼下走不到材料或工地。")
 	next_job += 1
 	active[actor] = job
-	sim.actors[actor].autonomous = false
+	SimActionContract.occupy(world, str(definitions.site.region), actor)
 	sim.actors[actor].goal = "处理工地：" + str(rule.label)
 	project.line = "有人接手，正在实际搬料或动工。"
 	world.invalidate_region(str(definitions.site.region))
@@ -179,14 +182,14 @@ func cancel(actor: String) -> bool:
 	var project: Dictionary = projects[job.project]
 	if job.kind == "build" and job.phase == "work":
 		project.work_ms = mini(int(definitions.types[project.type].work_ms), int(project.work_ms) + maxi(0, world.elapsed_ms - int(job.work_started_ms)))
-	_release(job, "施工中断；已做工时和已取出的材料留在世界中。")
+	_release(job, "施工中断；已做工时和已取出的材料留在世界中。", "cancelled")
 	return true
 
 
 func next_boundary_ms() -> int:
 	var boundary: int = next_check_ms
 	for job: Dictionary in active.values():
-		if not world.actor_controls(job.actor, "action") or not world.actor_controls(job.actor, "motion"):
+		if not _can_continue(job):
 			return world.elapsed_ms + 1
 		var body: Dictionary = world.regions[definitions.site.region].actors[job.actor]
 		boundary = mini(boundary, SimRouteTravel.crossing_ms(job, body, world.elapsed_ms) if str(job.phase).begins_with("to_") else int(job.due_ms))
@@ -199,19 +202,19 @@ func settle_at_ms(now: int) -> void:
 		world.synchronize_region(str(definitions.site.region))
 		var sim: RefCounted = world.regions[definitions.site.region]
 		var body: Dictionary = sim.actors[actor]
-		if not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion"):
+		if not _can_continue(job):
 			cancel(actor)
 			continue
 		if str(job.phase).begins_with("to_"):
 			if not job.path.is_empty() and not _step_open(sim, SimRouteTravel.cell(body.cell), SimRouteTravel.cell(job.path[0])):
 				cancel(actor)
 				continue
-			SimRouteTravel.project(job, body, now)
+			sim.project_actor_route(actor, job, now)
 		if now < int(job.due_ms):
 			continue
 		if str(job.phase).begins_with("to_"):
 			if not job.path.is_empty():
-				SimRouteTravel.put(body, TileGrid.cell_to_world(SimRouteTravel.cell(job.path.pop_front())))
+				sim.set_actor_position(actor, TileGrid.cell_to_world(SimRouteTravel.cell(job.path.pop_front())))
 			if not job.path.is_empty():
 				SimRouteTravel.begin_segment(job, body, now, _speed())
 				continue
@@ -227,6 +230,14 @@ func settle_at_ms(now: int) -> void:
 			if not id.is_empty():
 				_begin(actor, id, "build", true)
 		_schedule_check()
+
+
+func _can_continue(job: Dictionary) -> bool:
+	var expected: Array = []
+	if not str(job.phase).begins_with("to_"):
+		var point: Vector2 = TileGrid.cell_to_world(SimRouteTravel.cell(job.destination))
+		expected = [point.x, point.y]
+	return SimActionContract.can_continue(world, str(definitions.site.region), job.actor, &"construction", expected)
 
 
 func duty_for(actor: String) -> String:
@@ -261,7 +272,7 @@ func _arrived(job: Dictionary) -> void:
 			_release(job, "库房无法接收余料，材料留在脚边。")
 			return
 		project.delivered = false
-		_release(job, "余料已实际搬回宗门库房。")
+		_release(job, "余料已实际搬回宗门库房。", "completed")
 	else:
 		var project: Dictionary = projects[job.project]
 		project.carrier = ""
@@ -346,10 +357,11 @@ func _complete(job: Dictionary) -> void:
 		_collapse_roofs(removals.slice(1))
 	_reindex()
 	_after_thermal_change(str(rule.kind))
-	_release(job, "结构已完工。" if job.kind == "build" else "拆除完成，余料还在工地。" if job.kind == "demolish" else "木门已打开。" if job.kind == "open" else "木门已关上。")
+	_release(job, "结构已完工。" if job.kind == "build" else "拆除完成，余料还在工地。" if job.kind == "demolish" else "木门已打开。" if job.kind == "open" else "木门已关上。", "completed")
 	# Observers only see the completed transaction, including collateral roofs,
 	# derived rooms/heat geometry and released worker/material reservations.
 	structures_changed.emit(changed_cells)
+	space_changed.emit(changed_cells)
 
 
 func _route(job: Dictionary, raw: Array, phase: String) -> bool:
@@ -378,21 +390,20 @@ func _work(job: Dictionary, phase: String, duration: int) -> void:
 	job.due_ms = world.elapsed_ms + duration
 
 
-func _release(job: Dictionary, line: String) -> void:
+func _release(job: Dictionary, line: String, status: String = "failed") -> void:
 	var sim: RefCounted = world.regions[definitions.site.region]
 	var project: Dictionary = projects[job.project]
 	if project.carrier == job.actor:
 		_set_material_cell(project, sim.actors[job.actor].cell)
 		project.carrier = ""
 		sim.actors[job.actor].goal = "在脚边留下木料"
-	sim.inventory.release(str(job.id))
 	project.line = line
 	sim.actors[job.actor].goal = line
-	sim.actors[job.actor].autonomous = bool(job.previous_autonomous)
 	sim.actors[job.actor].retry_ms = world.elapsed_ms + int(definitions.check_ms)
 	active.erase(job.actor)
-	world.invalidate_region(str(definitions.site.region))
+	SimActionContract.release(world, str(definitions.site.region), job.actor, bool(job.previous_autonomous), job.id)
 	_schedule_check()
+	SimActionContract.publish_finished(world, SimActionContract.view(world, "construction", job.id, job.actor, job.kind, job.phase, int(job.started_ms), int(job.due_ms), status, job.project), line)
 
 
 func _work_cell(actor: String, target: Vector2i) -> Array:
@@ -414,10 +425,10 @@ func _work_cell(actor: String, target: Vector2i) -> Array:
 
 
 func _ready_actor(actor: String, require_idle: bool, during_commit: bool = false) -> bool:
-	if not authorized(actor) or not during_commit and world.elapsed_ms != world.target_ms or not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion"):
+	if not authorized(actor) or not during_commit and world.elapsed_ms != world.target_ms or not SimActionContract.can_act(world, str(definitions.site.region), actor):
 		return false
 	world.synchronize_region(str(definitions.site.region))
-	return not require_idle or (world.regions[definitions.site.region].actors[actor].active.is_empty() and not world.local_action_owns(actor) and not world.artifacts.owns_actor(actor) and (world.services == null or not world.services.owns_actor(actor)))
+	return not require_idle or SimActionContract.can_begin(world, str(definitions.site.region), actor)
 
 
 func can_observe(actor: String, cell: Vector2i) -> bool:

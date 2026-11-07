@@ -1,5 +1,7 @@
 class_name SimAvianLife
 extends RefCounted
+signal body_space_changed(id: String)
+signal space_reset
 ## Nonhuman bodies, finite habitat stock and personal routines on the world clock.
 ## Embodiment references these bodies; no Village actor or human inventory is made.
 
@@ -93,6 +95,8 @@ func spawn_opening(scenario: Dictionary, centers: Dictionary) -> bool:
 	# All references and physical containers are staged before either is replaced.
 	world.embodiment = registry
 	_assign(candidate.to_dict())
+	for id: String in birds:
+		body_space_changed.emit(id)
 	return true
 
 
@@ -177,6 +181,7 @@ func settle_at_ms(now: int) -> void:
 	var delta: int = now - elapsed_ms
 	if delta < 0:
 		return
+	var moved: Array[String] = []
 	for id: String in sorted_keys(birds):
 		var body: Dictionary = birds[id]
 		if (not controls(id, "motion") or not controls(id, "action")) and not body.active.is_empty():
@@ -189,7 +194,10 @@ func settle_at_ms(now: int) -> void:
 			rate = int(definitions.manual.ground_rest_gain_per_minute) if body.active.get("purpose") == "recover" else int(rules().rest_gain_per_minute)
 		_change_need(body, "energy", rate, delta)
 		if body.active.get("verb") == "fly":
+			var before: Vector2i = body_cell(id)
 			project(body, now)
+			if before != body_cell(id):
+				moved.append(id)
 	elapsed_ms = now
 	for site_id: String in sorted_keys(sites):
 		var site: Dictionary = sites[site_id]
@@ -211,6 +219,8 @@ func settle_at_ms(now: int) -> void:
 			_finish(id)
 		if body.active.is_empty() and bool(body.autonomous) and int(body.retry_ms) <= now:
 			_decide(id)
+	for id: String in moved:
+		body_space_changed.emit(id)
 
 
 static func _change_need(body: Dictionary, key: String, rate: int, delta: int) -> void:
@@ -277,6 +287,7 @@ func _decide(id: String) -> void:
 
 func _go(id: String, site_id: String, purpose: String) -> bool:
 	var body: Dictionary = birds[id]
+	var old_altitude: int = int(body.altitude)
 	if not sites.has(site_id) or not can_enter(carrier_id(id), site_id):
 		_wait(id, "身形钻不过去，只能另找落脚处。")
 		return false
@@ -293,17 +304,21 @@ func _go(id: String, site_id: String, purpose: String) -> bool:
 			"due_ms": elapsed_ms + flight_duration, "from": body.position.duplicate(), "to": [target.x, target.y]}
 		body.altitude = 1
 		body.goal = "振翅飞向" + str(type.label)
+		if old_altitude != int(body.altitude):
+			body_space_changed.emit(id)
 		return true
 	if int(type.altitude) == 0 and _landing.is_valid() and not bool(_landing.call(SimRouteTravel.cell(sites[site_id].cell))):
 		_wait(id, "地面无法落脚，先回避风处。")
 		return false
-	body.altitude = int(type.altitude)
 	var duration: int = int(definitions.actions_ms[purpose])
 	if duration > SimInventory.MAX_COUNT - elapsed_ms:
 		return false
+	body.altitude = int(type.altitude)
 	body.active = {"id": _allocate(), "verb": purpose, "site": site_id, "purpose": purpose, "started_ms": elapsed_ms,
 		"due_ms": elapsed_ms + duration, "from": body.position.duplicate(), "to": body.position.duplicate()}
 	body.goal = {"forage": "低头啄食草籽", "rest": "在树巢避风歇翅", "pickup": "从狭口衔起药枝", "drop": "在药圃放下药枝"}.get(purpose, "听风")
+	if old_altitude != int(body.altitude):
+		body_space_changed.emit(id)
 	return true
 
 
@@ -392,8 +407,11 @@ func command_flight(id: String, direction: Vector2) -> bool:
 		return false
 	body.active = {"id": _allocate(), "verb": "fly", "site": "", "purpose": "explore", "started_ms": elapsed_ms,
 		"due_ms": elapsed_ms + duration, "from": body.position.duplicate(), "to": [target.x, target.y]}
+	var old_altitude: int = int(body.altitude)
 	body.altitude = 1
 	body.goal = "随风振翅"
+	if old_altitude != 1:
+		body_space_changed.emit(id)
 	return true
 
 
@@ -404,9 +422,12 @@ func command_land(id: String) -> Dictionary:
 		return response(false, "脚下没有能落足的地面；找一处空地或树巢。")
 	if not birds[id].active.is_empty():
 		cancel(id)
+	var old_altitude: int = int(birds[id].altitude)
 	birds[id].altitude = 0
 	birds[id].goal = "落在近处听风"
 	_observe(id)
+	if old_altitude != 0:
+		body_space_changed.emit(id)
 	return response(true, "已经落地；振翅移动可再次起飞。")
 
 
@@ -599,6 +620,7 @@ func restore(data: Variant) -> bool:
 	if not Schema.validate(data, self):
 		return false
 	_assign(data)
+	space_reset.emit()
 	return true
 
 

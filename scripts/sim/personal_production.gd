@@ -197,12 +197,12 @@ func settle_at_ms(now: int) -> void:
 			if not job.path.is_empty() and sim._step_validator.is_valid() and not bool(sim._step_validator.call(SimRouteTravel.cell(body.cell), SimRouteTravel.cell(job.path[0]) - SimRouteTravel.cell(body.cell))):
 				cancel(actor)
 				continue
-			SimRouteTravel.project(job, body, now)
+			sim.project_actor_route(actor, job, now)
 		if now < int(job.due_ms):
 			continue
 		if job.phase == "travel":
 			if not job.path.is_empty():
-				SimRouteTravel.put(body, TileGrid.cell_to_world(SimRouteTravel.cell(job.path.pop_front())))
+				sim.set_actor_position(actor, TileGrid.cell_to_world(SimRouteTravel.cell(job.path.pop_front())))
 			if not job.path.is_empty():
 				SimRouteTravel.begin_segment(job, body, now, float(sim.motion_rules.motion.speed))
 			else:

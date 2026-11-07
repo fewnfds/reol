@@ -233,14 +233,14 @@ func _physical_command(lifecycle: SimObjectLifecycle) -> String:
 
 func _physical_status(authority: RegionalSimulation, id: String) -> Dictionary:
 	var lifecycle: SimObjectLifecycle = authority.object_lifecycle
-	for command: String in lifecycle._active_actions:
-		var action: Dictionary = lifecycle.actions[command]
-		if str(action.actor) == "player" and action.request.get("id") == id:
-			_physical_action = command
-			var taking: bool = str(action.request.to.get("container", "")) == "actor:player"
-			var remaining: int = maxi(0, int(action.due_ms) - authority.elapsed_ms)
-			return {"busy": true, "line": "正在取起实物" if taking else "正在放下实物",
-				"remaining": ceili(float(remaining) / 60000.0), "remaining_ms": remaining}
+	var current: Dictionary = authority.describe_actor_action("player")
+	if bool(current.ok) and current.domain == "object_lifecycle" and current.target == id:
+		_physical_action = current.id
+		var action: Dictionary = lifecycle.actions[current.id]
+		var taking: bool = str(action.request.to.get("container", "")) == "actor:player"
+		var remaining: int = int(current.remaining_ms)
+		return {"busy": true, "line": "正在取起实物" if taking else "正在放下实物",
+			"remaining": ceili(float(remaining) / 60000.0), "remaining_ms": remaining}
 	# A loaded, still-active action is discovered above; its terminal result is
 	# then read from the same original lifecycle record rather than copied.
 	var completed: Variant = lifecycle.actions.get(_physical_action)
