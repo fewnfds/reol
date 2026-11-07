@@ -1,13 +1,31 @@
 # 当前接续
 
-2026-11-07：本包必须范围已接通并验收，**正在最后合并main，不自动扩下一玩法包**。用户要求合并后停下讨论开发流程；现有同范围Goal尚未complete。
+2026-11-07：**本包世界引擎必须收尾已验收、并入main并推送；停止开发，等待与用户讨论项目开发流程。** 不从旧Goal、旧性能队列或路线图自动开下一包。
 
-受检代码`6137481a07ec98b372e32ca857e546f1e1b07ee1`，实施在`codex/world-engine-finish`/`logs/world_engine_finish/dev`。普通Main唯一冷热/五行场、共同时间、真实原物/材料/设备来源、人体/野药消费者和联合存档已接通；无第二环境模型。根52/区域43/bundle2，旧根1–51明确拒绝并保留原档。完整范围见[QA](../qa/20261107_world_engine_finish.md)、[环境合同](../engineering/world-environment-contract.md)。房温/隔热、携物场/尾迹、GPU玩家开关不在本包。
+## 当前主线与可用范围
 
-本机准确SHA完整check **244组/124778断言/0失败**，无SCRIPT ERROR/ERROR，1174份源文件指纹不变。同SHA两个独立普通Main进程181000ms存→完全退出→恢复至相同184001ms未来；同SHA3060/D3D12真实F8截图与600帧普通联合负载通过。生成/材料操作仍约0.22秒卡顿；不是满密度/16GB整机承诺。一次Sol/custom主要静态审查及3项修复已完成，不重复审查/整套回归。
+根项目在`main`。受检代码`6137481a07ec98b372e32ca857e546f1e1b07ee1`，收尾集成点`ffe7e8c705d2d7259dfb77dcfba3dd0a64c9c61c`已快进到本地/远端main；此后仅更新收尾记录。旧争环分支未合入。当前功能与采用版本查[FEATURES](features.md)、[BASELINE](baseline.md)，本包证据与限制查[QA](../qa/20261107_world_engine_finish.md)。
 
-最终代码CI仅在真实收尾提交检查点查询一次，run42337874837、完整headSha匹配、in_progress，仍待验；以本机最终准确SHA通过为本包主验收，不轮询。中间失败及修复均保留QA。不要恢复testlog读数/PASS播报循环：AGENTS.md早已禁止，之前是执行违反规则。只在进程结束取终态，失败/超时或用户要求才诊断中间输出；没有宿主自动唤醒已结束聊天的回调。
+普通Main已用唯一室外冷热/五行场，原身体/器物/库存/账本和共同时间仍由原所有者持有；真实生成/移除/位置/材料、设备启停和有限容量经来源事务提交。人体/野药读取同一温度，背景与实际残留、进行中动作进入普通联合存档。当前根52/区域43/bundle2；旧根1–51明确拒绝并保留原档，不同时运行两套环境。
 
-四原WIP已逐字核对后保存在命名stash`424f956d280fb390d17e1f6dd879f3614b51a430`（`preserved-env-drafts-before-world-engine-merge-20261107`），原字节备份/清单在`logs/world_engine_finish/protected-wip/`；stash再次与清单和备份比对相同，不自动应用。根工作树干净，仍在`codex/world-engine`起点2483a37；main待快进，旧field-contest不合。合并前保全dev/logs到根`logs/world_engine_finish/validation-artifacts/`，恢复引擎自动import空行后提交文档，再安全快进并推送main。
+## 验证与局限
 
-用户存档疑问已澄清：[当前状态快照](../engineering/architecture/04-persistence.md)，不是事件重放。已调研Godot内置和两个插件，不安装插件或重写格式。用户接受暂停保存；当前仍是同步save_game并在未结算时拒绝，尚未自动编排暂停/结步/恢复，不把此后续操作改良扩作合并前置。
+- 准确代码SHA本机完整check：**244组、124778断言、0失败**，无SCRIPT ERROR/ERROR；1174源文件指纹前后不变。
+- 同SHA普通Main两个独立进程181000ms在途存档→完全退出→恢复至相同184001ms未来；原物、材料、两地离返和环境摘要一致。
+- 同SHA单RTX3060/D3D12的普通F8画面和600帧稀疏联合负载通过。推进p95/p99为4.776/6.056ms，帧间隔p95/p99为19.054/31.300ms；单生成/材料变更仍约0.22秒同步卡顿。不是满密度或16GB整机所有系统通过证明。
+- 一次Sol/custom主要静态审查已完成，3项发现均修复；无需重复审查或完整回归。
+- 最终代码CI42337874837在真实收尾提交检查点仍in_progress、SHA一致，**远端CI仍待验**；本包主验收使用准确SHA本机完整结果。不轮询、不派等待代理；后续真实提交检查点再核。
+
+完整房温/隔热、携物整体辐射/尾迹/遮掩、GPU玩家开关、大规模人口和后续战斗/修炼/组织玩法未在本包实现。墙门顶已有围合/通行/遮挡/遮雨，不阻隔当前冷热/五行；不宣称完整游戏或45–60分钟切片完成。
+
+## 原草稿与证据
+
+四原WIP已核字节后保存命名stash`424f956d280fb390d17e1f6dd879f3614b51a430`（`preserved-env-drafts-before-world-engine-merge-20261107`），原字节备份/清单在`logs/world_engine_finish/protected-wip/`；stash再核与清单及备份相同，**不自动应用到新主线**。采用前按当前接口人工比对，不能覆盖已验实现。
+
+本包95份日志/JSON/截图/指纹已保全到`logs/world_engine_finish/validation-artifacts/`，含失败证据与evidence-sha256.json。快进/远端核验见`logs/world_engine_finish/merge-result.json`。临时工作树的保留/移除状态查[分支快照](branches.md)，不要在临时检出继续玩法开发。
+
+## 用户最新工作流约束
+
+禁止为了播报进度定时读testlog、数PASS或让模型充当计时器；AGENTS.md早已明确，之前反复扫描是执行错误。只在进程结束取终态，失败/超时或用户要求才读中间输出；没有宿主自动唤醒已结束聊天的回调。
+
+存档是[当前世界快照](../engineering/architecture/04-persistence.md)，不是操作历史重放。已调研Godot内置与两个插件，未安装插件或重写格式。用户接受暂停保存；当前是同步save_game并在未结算时拒绝，尚未自动编排暂停/结步/恢复，留待后续有界任务，不扩作本包前置。

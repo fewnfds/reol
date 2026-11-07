@@ -97,4 +97,4 @@
 
 真实收尾提交检查点仅一次查到最终代码的[CI42337874837](https://github.com/fewnfds/reol/actions/runs/42337874837)，完整headSha匹配、in_progress。它仍待验；主验收采用上述准确SHA本机完整结果，不轮询、不把旧CI绿色代用。一次Sol/custom主要审查的修复映射与定向见前文，不重复整包模型审查。
 
-所有本包日志、JSON、截图与指纹在工作树清理前保全到根目录`logs/world_engine_finish/validation-artifacts/`；旧失败同样保留。最终主线快进/推送结果由下一次实际操作后登记。
+所有本包日志、JSON、截图与指纹在工作树清理前保全到根目录`logs/world_engine_finish/validation-artifacts/`；旧失败同样保留。主线操作已实际完成：本地main由`b5e1f3e0f3a0974b0ca771b66372b2aae4143355`以祖先检查＋旧值CAS安全快进到集成点`ffe7e8c705d2d7259dfb77dcfba3dd0a64c9c61c`，普通push成功后ls-remote核得完整SHA相同；根工作树已切main。集成点相对受检6137481只改文档，生产/测试/数据/工具/资源/场景/第三方/CI文件树相同，后续同样仅记录文档。实际记录`logs/world_engine_finish/merge-result.json`；原stash与备份保留，旧争环未合入。
