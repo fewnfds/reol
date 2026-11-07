@@ -1,7 +1,7 @@
-# Reol 世界运行与创作工具总计划
+# 世界装配与创作工具规格
 
-候选合同索引；具体实现与证据见状态文档。旧 F/W 编号和阶段不是当前队列，优先级见[基础优先级](../../plans/foundation-priorities.md)。
+这里维护内容装配、领域接入与创作工具的详细合同；未实现部分保留为候选。顶层职责统一查[领域归属](../../engineering/architecture/05-framework-domains.md)，框架建设依赖与完成标准统一查[基础建设计划](../../plans/foundation-priorities.md)，实际接入与证据查状态文档。本目录不再维护另一套八项基础、阶段编号或施工队列。
 
-- [引言](program/00-introduction.md)
-- [1. 三层交付及推进方式 / 2. 优先完善的八项基础 / 3. 实施依赖与阶段出口](program/01-topics.md)
-- [4. 创作工具：先提供哪些编辑能力 / 5. 内容如何建立在架构之上 / 6. 文件职责与验收 / 7. 近期实际出口](program/02-topics.md)
+- [范围与权威入口](program/00-introduction.md)
+- [世界装配与领域接入合同](program/01-topics.md)
+- [创作、预览与工具验收合同](program/02-topics.md)

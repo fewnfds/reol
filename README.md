@@ -4,6 +4,8 @@ GDScript / 2D正交俯视的修仙开放世界沙盒。玩家是持续世界中�
 
 项目正在收束世界基础架构，已有功能、样本限制和验证范围分别见[功能](docs/status/features.md)与[证据基线](docs/status/baseline.md)。Godot 跟进最新稳定版，采用版本单独登记。
 
+基础建设按七个顶层框架组织：[领域职责与跨域接口](docs/engineering/architecture/05-framework-domains.md)说明各框架负责什么，[建设计划](docs/plans/foundation-priorities.md)说明依赖与完成标准，[技术总表](docs/status/technical-status.md)按同一领域登记现有能力和缺口。算法与局部优化归入框架内部模块。
+
 ## 开发入口
 
 - [AGENTS.md](AGENTS.md)：短工程规则，按任务取技能和文档。

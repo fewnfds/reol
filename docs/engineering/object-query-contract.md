@@ -4,7 +4,7 @@
 
 ## 入口与归属
 
-[RegionalSimulation](../../scripts/sim/regional_simulation.gd) 提供 `describe_object(reference)`、`object_capability(reference, capability)`、`capture_object_space(references, budget)`；由 [SimWorldObjectQuery](../../scripts/sim/world_object_query.gd) 适配原领域。没有新单例、对象状态库、位置所有者、时钟或存档格式。
+[RegionalSimulation](../../scripts/sim/regional_simulation.gd) 提供 `describe_object(reference)`、`object_capability(reference, capability)`、`capture_object_space(references, budget)`；由 [SimWorldObjectQuery](../../scripts/sim/world_object_query.gd) 适配原领域。没有新增 Singleton、对象状态库、位置所有者、时钟或存档格式。
 
 | reference | 实际原所有者与含义 |
 |---|---|

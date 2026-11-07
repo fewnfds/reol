@@ -9,12 +9,12 @@
 | 作品 | 直接核实的机制与依据 | 对Reol的设计推导 | 不搬用的前提 |
 |---|---|---|---|
 | **Hades** | 官方FAQ说明快节奏动作、不同神力组合、重复尝试和永久成长并存；2019官方日志记录基础动作输入缓冲、冲刺接攻击/特攻、冲刺取消与效果生命周期修复。[FAQ](https://www.supergiantgames.com/blog/hades-faq/)、[High Speed日志](https://www.supergiantgames.com/blog/hades-the-high-speed-update-patch-notes/) | 把移动、出招、避险与有限主动本领组成顺手的基础操作；专门设计可取消阶段和缓冲，效果需要清楚的开始/结束 | 不把死亡返家、随机祝福和单次冒险重置移植到持久社会；永久本领、临时加持、装备状态分别归属。本文未获得官方精确无敌帧/后摇数值，不填“原作同款帧表” |
-| **DNF／DFO** | 官方Skill Chain说明可将已学技能按顺序编排，当前有解锁与角色限制；官方VP说明对已学技能选择功能变体，且同招变体有互斥选择。[技能链](https://www.dfoneople.com/news/updates/4890/Character-and-Systems/Character)、[技能演变](https://www.dfoneople.com/gameinfo/guide/Advanced-Game-Information/Advanced-Game-System/Skill-Evolution-%28VP%29) | 招式之间要有可理解的接续：起手、位移、控制、收招；招式改造优先改变功能、角度或风险，不只提高伤害 | 不照搬横版轴向、觉醒职业门槛、全部快捷栏和长时间浮空连锁；技能链是有限编排的参考，不证明每招都能随时取消，也不要求Reol做一键全自动最优连招 |
-| **英雄联盟** | 官方入门将技能放在少量固定输入位上；官方Clarity文章明确要求效果与判定一致、重要控制/大招具有视觉优先级、减少噪声、保持轮廓和朝向可辨。[入门](https://www.leagueoflegends.com/en-us/how-to-play/)、[可读性设计](https://www.leagueoflegends.com/en-us/news/dev/clarity-in-league/) | 技能表现要让人读懂方向、范围、前兆、落点、控制和退路；有限出手窗口与资源使选择有意义；可更换衣着也要保留必要战斗提示 | 不采用固定英雄职业、对局内杀敌升阶、出装即通用实力增长和重开地图。官方入门当前提到的物品携带数也不能拿来当Reol装备栏数量 |
-| **魔兽争霸III** | 官方单位指令区分移动、停止、保持、攻击和巡逻；法术基础区分施法时间、持续、冷却、资源和自动施法。[单位指令](https://classic.battle.net/war3/basics/unitcommands.shtml)、[法术基础](https://classic.battle.net/war3/basics/spellbasics.shtml) | 主角亲自行动，同伴接受少量战术意图；治疗/保护可有限托管，危险技能由明确意图触发；分清“想用”“开始施展”“效果提交”“恢复” | 不把社会NPC当任意可拖选的RTS单位，不让所有友方共享全知，也不复制RTS无限征兵/即时补员；同伴职责、约定与自保仍存在 |
-| **流放之路／PoE 1** | 官方说明所有职业共享大被动树，但职业决定起点；小节点、重要节点与改变规则的关键节点不同；技能宝石插入装备授予主动能力，辅助宝石改变行为。[被动树](https://www.pathofexile.com/passive-skill-tree)、[系统总览](https://www.pathofexile.com/game) | 借“共享网络＋跨领域连接＋少量改变规则的选择”，让人物能够形成不同本领组合；用图表达可探索的修行道路 | PoE仍有职业，不能把其共享树称为完全无职业。Reol学会本领须有师承、材料、实践等过程；衣服或装备孔不自动授予完整修为，不用大量属性过路点和随机词条填满图 |
+| **Dungeon Fighter Online** | 官方 Skill Chain 说明可将已学技能按顺序编排，当前有解锁与角色限制；官方 VP 说明对已学技能选择功能变体，且同招变体有互斥选择。[Skill Chain](https://www.dfoneople.com/news/updates/4890/Character-and-Systems/Character)、[Skill Evolution](https://www.dfoneople.com/gameinfo/guide/Advanced-Game-Information/Advanced-Game-System/Skill-Evolution-%28VP%29) | 招式之间要有可理解的接续：起手、位移、控制、收招；招式改造优先改变功能、角度或风险，不只提高伤害 | 不照搬横版轴向、觉醒职业门槛、全部快捷栏和长时间浮空连锁；Skill Chain 是有限编排的参考，不证明每招都能随时取消，也不要求 Reol 做一键全自动最优连招 |
+| **League of Legends** | 官方入门将技能放在少量固定输入位上；官方 Clarity 文章明确要求效果与判定一致、重要控制/大招具有视觉优先级、减少噪声、保持轮廓和朝向可辨。[入门](https://www.leagueoflegends.com/en-us/how-to-play/)、[Clarity in League](https://www.leagueoflegends.com/en-us/news/dev/clarity-in-league/) | 技能表现要让人读懂方向、范围、前兆、落点、控制和退路；有限出手窗口与资源使选择有意义；可更换衣着也要保留必要战斗提示 | 不采用固定英雄职业、对局内杀敌升阶、出装即通用实力增长和重开地图。官方入门当前提到的物品携带数也不能拿来当 Reol 装备栏数量 |
+| **Warcraft III** | 官方单位指令区分移动、停止、保持、攻击和巡逻；法术基础区分施法时间、持续、冷却、资源和自动施法。[Unit Commands](https://classic.battle.net/war3/basics/unitcommands.shtml)、[Spell Basics](https://classic.battle.net/war3/basics/spellbasics.shtml) | 主角亲自行动，同伴接受少量战术意图；治疗/保护可有限托管，危险技能由明确意图触发；分清“想用”“开始施展”“效果提交”“恢复” | 不把社会 NPC 当任意可拖选的 RTS 单位，不让所有友方共享全知，也不复制 RTS 无限征兵/即时补员；同伴职责、约定与自保仍存在 |
+| **Path of Exile** | 官方说明所有职业共享大被动树，但职业决定起点；小节点、重要节点与改变规则的关键节点不同；技能宝石插入装备授予主动能力，辅助宝石改变行为。[Passive Skill Tree](https://www.pathofexile.com/passive-skill-tree)、[系统总览](https://www.pathofexile.com/game) | 借“共享网络＋跨领域连接＋少量改变规则的选择”，让人物能够形成不同本领组合；用图表达可探索的修行道路 | Path of Exile 仍有职业，不能把其共享树称为完全无职业。Reol 学会本领须有师承、材料、实践等过程；衣服或装备孔不自动授予完整修为，不用大量属性过路点和随机词条填满图 |
 
-以上各取一层：Hades帮助动作衔接，DNF帮助招式组织，LoL帮助信息表达，WC3帮助同伴意图，PoE帮助长期组合。它们不是五套完整战斗系统同时运行。
+以上各取一层：Hades 帮助动作衔接，Dungeon Fighter Online 帮助招式组织，League of Legends 帮助信息表达，Warcraft III 帮助同伴意图，Path of Exile 帮助长期组合。它们不是五套完整战斗系统同时运行。
 
 ## 2. 外观的额外参考：HITMAN只证明一个窄机制
 
@@ -60,10 +60,10 @@ Reol据此做自己的选择：
 
 ## 5. 研究边界
 
-- 已打开阅读上述12项官方页面；两个DNF条目属于DFO国际服当前页面，不推断为所有地区/所有历史版本相同。
+- 已打开阅读上述12项官方页面；Dungeon & Fighter 的两个条目属于 Dungeon Fighter Online 国际服当前页面，不推断为所有地区/所有历史版本相同。
 - Hades动作细节引用2019抢先体验日志，只用于说明开发者明确处理过的输入/取消/效果生命周期问题；不是2026年最终帧表或平衡保证。FAQ页面显示最后更新2025-07-16。
-- LoL可读性文章为2021设计说明，WC3为经典官方指南；它们适合解释设计意图，不提供本项目的Godot实现或性能证据。
-- 本文引用的是PoE 1官方系统，不混用PoE 2；官网树节点数量随版本变化，因此不把当前页面数字列成Reol规模要求。`/skills`直接入口未成功读取，技能宝石说明取自已打开的`/game`总览。
+- League of Legends 可读性文章为2021设计说明，Warcraft III 为经典官方指南；它们适合解释设计意图，不提供本项目的 Godot 实现或性能证据。
+- 本文引用的是 Path of Exile 官方系统，不混用 Path of Exile 2；官网树节点数量随版本变化，因此不把当前页面数字列成 Reol 规模要求。`/skills`直接入口未成功读取，技能宝石说明取自已打开的`/game`总览。
 - HITMAN补丁只核实具体场景修正，不从个例推断任意社会模拟能力。没有找到且直接阅读的其他服饰参考未纳入结论。
 - 没有复制图片、动画、角色、技能命名、界面布局、代码或整套数值。文献可用于机制讨论，其网页公开不意味着资产可商用。
 

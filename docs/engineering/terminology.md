@@ -9,6 +9,28 @@
 - 代码引用用真实class/字段/路径。局部`const Rules = preload(...)`等别名在其文件内成立，跨文档引用使用真实class名或文件路径。没有实现的候选职责用中文描述，不虚构看似现有class的English名称。
 - 改名同步更新调用方、调度注册、反射访问、测试、工具及现行说明。持久化键由格式合同决定，通过明确codec映射连接代码；不要为了文档措辞改变存档格式。历史引用、原始fixture与第三方名称保留原文。
 
+## English原生名称
+
+描述下列对象或方法时直接使用原名；具体实现用实际class/API，不以中文译名或泛称替代。普通说明中的树、资源、房间等词按自身语境使用。
+
+| 原名 | 定位与使用边界 |
+|---|---|
+| `Node`、`SceneTree` | Godot对象及运行树；游戏里的树木、天赋网络节点不是`Node` |
+| `Resource`、`PackedScene` | Godot资源类型；世界中的木料/灵气等资源不叫`Resource` |
+| `TileMapLayer`、`TileSet` | Godot地图与Tile定义；模拟地图仍定位实际`WorldMapData`，不混同呈现类型 |
+| `RenderingDevice`、`RenderingServer` | Godot计算/渲染API，使用对应class及其方法名 |
+| `MultiMesh`、`MultiMeshInstance2D` | Godot批量绘制资源与2D呈现`Node`，不是每个实体的模拟状态 |
+| `Shader`、`ShaderMaterial` | Godot类型；讨论`.gdshader`/`.glsl`文件时引用实际路径 |
+| `Sprite2D`、`AnimatedSprite2D` | Godot呈现`Node`；素材称Sprite，动作/方向排在同一图片时称Sprite sheet |
+| Inspector、Autoload | Godot编辑器功能；代码或ProjectSettings中沿用真实`autoload`键 |
+| `signal`、`await` | GDScript语法；使用具体声明和调用，不把任何通知都宣称为Godot `signal` |
+| Behavior Tree、Blackboard、Utility AI、FSM、HSM | AI方法或配套数据；是否实现以及采用哪个插件按实际系统判断 |
+| GitHub Actions、workflow、run、PR | GitHub CI相关对象，具体证据使用完整SHA与run ID；普通开发步骤可以用中文描述 |
+| RimWorld、Dwarf Fortress、Don't Starve、Oxygen Not Included、Factorio | English原生作品名，参考文档直接使用原名及来源链接 |
+| Hades、Path of Exile、League of Legends、Warcraft III、World of Warcraft | English原生作品名；不同作品及系列不能混写为一个简称 |
+
+中文原生作品如《了不起的修仙模拟器》《鬼谷八荒》保留中文名称；外部原始引文和历史证据保持原文。
+
 ## 环境与修行资源
 
 | 固定概念 | 实际代码入口 | 含义/边界 |

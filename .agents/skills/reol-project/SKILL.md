@@ -15,8 +15,8 @@ Godot 跟进最新稳定版；当前已安装和已验证版本以 `docs/status/
 
 - 当前授权与构建：`docs/status/handoff.md`、`docs/status/baseline.md`；玩法是否接入看 `docs/status/features.md`。不要从旧计划、数字或样本推断完成度。
 - 世界方向：`design/vision.md`与`design/rules/README.md`是已确认层；`design/systems/`、`design/proposals/`是详细候选，不能用其中的旧实现快照判断进度。
-- 基础优先级只查`docs/plans/foundation-priorities.md`；一次排定一个可验证小包，执行项只由HANDOFF登记，不自动恢复旧Goal或样本队列。
-- 系统状态所有者：`docs/engineering/architecture.md`；文件职责：`docs/engineering/project-structure.md`。按任务读相关设计与 `docs/decisions/README.md`，不要把所有历史每次全读。
+- 基础建设依赖与框架出口只查`docs/plans/foundation-priorities.md`；主计划按顶层框架组织，内部算法/优化明确归入模块和原owner。授权范围内持续推进到约定出口，内部小步不自动成为停止或再次确认边界；执行项只由HANDOFF登记，不自动恢复旧Goal或样本队列。
+- 领域职责：`docs/engineering/architecture/05-framework-domains.md`；实际状态所有者：`docs/engineering/architecture.md`；文件职责：`docs/engineering/project-structure.md`。按任务读相关设计与 `docs/decisions/README.md`，不要把所有历史每次全读。
 
 ## 按任务选技能
 

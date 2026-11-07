@@ -3,13 +3,13 @@
 > 你不需要“重新学编程”，只需要换一套**心智模型**。
 > 本文只讲和 Unity 不一样、且做本项目会用到的部分。
 
-本文是Godot 4.7通用入门示例，并非Reol现有场景树或已实现功能；运行所有者、共同时间、数据目录和实际版本以[项目架构](architecture.md)、[当前构建](../status/baseline.md)和真实代码为准。游戏引擎持续跟进最新稳定版，API随采用版本核查。
+本文是Godot 4.7通用入门示例，并非Reol现有 `Node` 层级或已实现功能；运行所有者、共同时间、数据目录和实际版本以[项目架构](architecture.md)、[当前构建](../status/baseline.md)和真实代码为准。游戏引擎持续跟进最新稳定版，API随采用版本核查。
 
 ---
 
 ## 1. 最重要的三个心智转变
 
-### 1.1 场景使用 Node，组合优于深继承
+### 1.1 Godot Scene 使用 Node，组合优于深继承
 
 Unity：`GameObject` + 一堆 `Component`。
 Godot：场景用`Node`树，每个`Node`可以挂脚本，子`Node`是常见的组合方式。非场景规则和数据也可以是`RefCounted`或`Resource`；本项目按已有模拟/运行/持久化边界选择。
@@ -23,16 +23,17 @@ Player (CharacterBody2D)
 └── Camera2D
 ```
 
-- 没有“预制体组件”概念；一个 `.tscn` 就是一个可实例化的场景。
+- Godot Scene 可保存为 `.tscn`，加载为 `PackedScene` 后实例化；不需要把 Unity `Prefab` 与 `Component` 当成 Godot 的内置类型。
 - 脚本 `extends Node2D` / `CharacterBody2D`，直接成为该 `Node` 的行为。
 - 组合：把能力做成子 `Node` 或 `Resource`，不要写 10 层继承。
 
-### 1.2 场景就是 Prefab，也是 Scene
+### 1.2 Godot Scene 的用途对应 Unity Scene 或 Prefab
 
 - `.tscn` 可以是整个关卡，也可以是一个敌人、一个 UI 面板、一个子弹。
-- `PackedScene` ≈ Prefab 资源。
+- `PackedScene` 是可实例化的 `Resource`，可用于整个场景或可复用的 `Node` 组合。
 - `PackedScene.instantiate()` + `add_child()` ≈ `Instantiate()`。
-- 场景可以嵌套；用“继承场景”做变体（类似 Prefab Variant）。
+- Scene 可以嵌套；Godot Inherited Scene 可用于制作场景变体，Unity 的对应用途是 Prefab Variant。
+- 运行中的 `Node.get_tree()` 返回 `SceneTree`；查看编辑器中打开的 Scene 层级时，以实际 `Node` 层级为准。
 
 ### 1.3 signal 是内置的事件系统
 
@@ -78,10 +79,10 @@ health_changed.connect(_on_health_changed.bind(self))
 | `Destroy(obj)` | `queue_free()` | 延迟释放 |
 | `UnityEvent` | `signal` | 类型化 |
 | `ScriptableObject` | `Resource` | `.tres` |
-| 单例 | autoload | Project Settings → Autoload |
+| Singleton 模式 | autoload | Project Settings → Autoload；按需选择实例和状态所有者 |
 | `SceneManager.LoadScene` | `get_tree().change_scene_to_file()` | 或 `change_scene_to_packed` |
 | `DontDestroyOnLoad` | autoload | 全局 `Node` |
-| 协程 | `await` | `await get_tree().create_timer(1.0).timeout` |
+| `Coroutine` | `await` | `await get_tree().create_timer(1.0).timeout` |
 | `Time.deltaTime` | `delta` 参数 | 不要自己算 |
 | `Time.timeScale` | `Engine.time_scale` | 慎用；模拟用自定义 speed |
 | `Input.GetAxis` | `Input.get_axis()` | 需要 InputMap |
@@ -92,7 +93,7 @@ health_changed.connect(_on_health_changed.bind(self))
 | `CharacterController` | `CharacterBody2D` | 推荐玩家/NPC |
 | `BoxCollider` | `CollisionShape2D` + `RectangleShape2D` | 形状是资源 |
 | `Tilemap` | `TileMapLayer` | 4.3+ 新 `Node` |
-| `Animator` | `AnimationPlayer` / `AnimationTree` | 状态机用 Tree |
+| `Animator` | `AnimationPlayer` / `AnimationTree` | 状态过渡可用 `AnimationTree` |
 | `Canvas` | `Control` | UI |
 | `RectTransform` | anchors + containers | 不要绝对定位 |
 | `Image` | `TextureRect` | |
@@ -120,7 +121,7 @@ health_changed.connect(_on_health_changed.bind(self))
 | `AssetBundle` | `.pck` / 导出预设 | |
 | `Tags` | groups | |
 | `Layers` | collision layers/masks | 项目设置里命名 |
-| `Prefab Variant` | 继承场景 | |
+| `Prefab Variant` | Inherited Scene | |
 
 ---
 
@@ -164,7 +165,7 @@ func _on_died() -> void:
 - `@onready` 在 `_ready` 前解析；不要在 `_init` 里 `$Node`。
 - `%Name` 是场景唯一名，比长路径稳。
 - `class_name` 会进全局缓存；新增后需要导入一次。
-- `await` 可以等待 signal/协程；不要无限等，加超时。
+- `await` 可以等待 signal 或另一个异步函数；不要无限等，加超时。
 - `@tool` 让脚本在编辑器里运行；慎用。
 
 ---
@@ -187,7 +188,7 @@ Unity 2D 的世界坐标通常 Y 向上，Godot 2D 默认 Y 向下；从 Unity �
 - 纹理导入：Filter = Nearest，Mipmaps = Off。
 - 项目设置：`rendering/textures/canvas_textures/default_texture_filter = Nearest`。
 - Camera2D：`position_smoothing_enabled` 慎用（像素抖动）；需要时开 `pixel_snap`。
-- 不要把精灵放在半像素位置。
+- 不要把 `Sprite2D` 放在半像素位置。
 
 ### 4.4 Y-sort（俯视遮挡）
 
@@ -209,7 +210,7 @@ y_sort_enabled = true
 
 ---
 
-## 5. 场景与资源
+## 5. PackedScene 与 Resource
 
 ### 5.1 实例化
 

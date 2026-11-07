@@ -1,26 +1,30 @@
 # Git分支状态
 
-核对：2026-11-07。本页是快照，不替代实时Git；分支指针保留历史，不代表运行多套世界。
+核对：2026-11-07。本页记录集成代码和分支用途；完整实时指针以Git为准，历史分支引用不代表运行多套世界。
 
 ## 当前工作区与主线
 
-- 根项目当前在`codex/sparse-world-execution`，从main的`eff27a7`起步；受检代码`ee3504d3c313aa07ac4e87caec3bd39488c725e3`已完成本机check及一次审查，不自动合并。主线普通环境代码仍为`6137481a07ec98b372e32ca857e546f1e1b07ee1`；集成点`ffe7e8c705d2d7259dfb77dcfba3dd0a64c9c61c`已从原main安全快进并推送。当前停点只查HANDOFF。
-- `codex/world-engine-finish`保留上述集成点，已进入main历史，不作为另一套引擎继续开发。临时检出`logs/world_engine_finish/dev`已在证据保全后安全移除；当前登记工作树只有根目录，检出分支为上列`codex/sparse-world-execution`。
-- 根四份原环境草稿已保存命名stash `424f956d280fb390d17e1f6dd879f3614b51a430`，不自动应用。stash内容与原SHA256及逐字备份再次相同，备份和元数据在`logs/world_engine_finish/protected-wip/`。
+根项目检出`main`，已集成`codex/sparse-world-execution`的通用参与索引、环境/健康稀疏执行、术语入口与测试工具。最新代码提交为`f166cdb4360e91055a3f942cedf66ae446f2301e`，随后只有顶层架构、术语、验证及状态文档整理；main/origin/main同步后以实际Git记录为准。集成从原main `eff27a7dcf77031a4084258cc688bbb3616b64e4`快进，保留完整开发历史。
 
-实际快进记录在本机`logs/world_engine_finish/merge-result.json`，本包95份日志/图像等证据保全在`logs/world_engine_finish/validation-artifacts/`；它们不入Git。
+本机完整覆盖与代码审查范围见[BASELINE](baseline.md)，来源和保护工作审计见[集成QA](../qa/20261107_mainline_cleanup.md)。新main的4片远端CI仍待真实提交检查点核验，不在推送后主动轮询。当前任务和未提交状态只看[HANDOFF](handoff.md)。
+
+当前登记工作树只有根目录；没有额外引擎或等待进程。临时证据和任务前89份文件备份位于忽略目录`logs/mainline_cleanup_20261107_184537/`，不作为公共运行依赖。
 
 ## 保留分支用途
 
-| 分支 | 核对提交/关系 | 用途 |
+| 分支 | 已知来源提交 | 用途 |
 |---|---|---|
-| `main` | `eff27a7dcf77031a4084258cc688bbb3616b64e4` | Git唯一集成主线；当前根目录检出开发分支，不把普通Main场景接入等同已合入本分支。 |
-| `codex/sparse-world-execution` | `ee3504d3c313aa07ac4e87caec3bd39488c725e3`及收口/审计文档 | 通用稀疏执行框架与环境/健康接入，本机通过；`2f305de`的CI42345202281测试超时，尚未合并main，证据见BASELINE。 |
-| `codex/world-engine-finish` | `ffe7e8c705d2d7259dfb77dcfba3dd0a64c9c61c` | 本次集成留档，已合入main。 |
-| `codex/world-engine` | `2483a3771bc9f469509293a514fb0a059eefe095` | 本轮起点与旧开发指针，历史已在main，不继续并行旧模型。 |
-| `codex/drawing-ring-use` | `8b8457ee3fe70c19e2c23ccda1ce7ff500a6830f` | 旧器物工作，已在main历史。 |
-| `codex/private-artifact-exchange` | `a29314667f6a743fd3177b0a5190c810c2b6650b` | 旧私人交换工作，已在main历史。 |
-| `codex/world-view-continuity` | `945891cc977a60ecb9a499574b33784da9f5cca1` | 旧视图连续性工作，已在main历史。 |
-| `codex/field-contest` | `4e17c5c165cf8fca9ef884a111aa1c3ca35f445f` | 仅本地的旧争环WIP，有独有提交，未合入、不删除。 |
+| `main` | `f166cdb4360e91055a3f942cedf66ae446f2301e`及后续纯文档提交 | 唯一集成主线，根工作区检出；已完成开发内容在此维护 |
+| `codex/sparse-world-execution` | 原远端`3f694262ecc1086a5de3554683f63cb156d4029f`，本地另含已整理提交 | 已合入main的历史开发引用，不形成另一条待开发队列；本轮只推送main |
+| `codex/world-engine-finish` | `ffe7e8c705d2d7259dfb77dcfba3dd0a64c9c61c` | 旧环境主线集成记录，已在main历史 |
+| `codex/world-engine` | `2483a3771bc9f469509293a514fb0a059eefe095` | 旧开发起点，已在main历史 |
+| `codex/drawing-ring-use` | `8b8457ee3fe70c19e2c23ccda1ce7ff500a6830f` | 已完成功能历史，已在main |
+| `codex/private-artifact-exchange` | `a29314667f6a743fd3177b0a5190c810c2b6650b` | 已完成功能历史，已在main |
+| `codex/world-view-continuity` | `945891cc977a60ecb9a499574b33784da9f5cca1` | 已完成视图连续性历史，已在main |
+| `codex/field-contest` | `4e17c5c165cf8fca9ef884a111aa1c3ca35f445f` | 仅本地旧争环WIP；仍使用根43/旧迁移链，不是当前根52的待发布成果，隔离保留 |
 
-同名本地和origin引用不是两条开发路线，origin/HEAD不是额外分支。本包不强推、删除历史分支或改GitHub默认分支设置。后续若清理已合分支，只清指针，先核外部协作和引用；不要把旧实验再整枝合回当前架构。
+同名本地和origin引用不是两条开发路线，origin/HEAD不是额外分支。本轮不删除历史引用、强推或改GitHub默认分支/保护设置。
+
+## 隔离草稿
+
+命名stash `424f956d280fb390d17e1f6dd879f3614b51a430`保留4份原环境缓存/温度及测试草稿，不应用、不删除，不纳入当前运行或公共提交。逐字备份与原元数据仍在`logs/world_engine_finish/protected-wip/`；原95份验收证据在`logs/world_engine_finish/validation-artifacts/`。旧实验移植是独立的新开发范围，不因本轮整理自动启动。

@@ -23,4 +23,4 @@
 
 普通来源变更与目标刷新目前同步运行于CPU。独立的CPU/GPU/auto计算服务和旧版本性能数据见[计算QA](../qa/20261105_environment_ground_compute.md)与[优化QA](../qa/20261106_environment_optimization.md)；普通游戏尚无GPU开关，也未完成端到端大规模性能验收。
 
-`codex/sparse-world-execution`已接入[通用执行索引](../engineering/sparse-execution.md)：环境选择实际变化效果及到期响应，健康选择未愈伤口和活动诊疗；世界阶段/规则不变，没有新增玩法。完整回归、存读和短测范围见[本包QA](../qa/20261107_sparse_execution.md)，其他旧域仍按原路径，分支尚未自动合入main。
+main已接入[通用执行索引](../engineering/sparse-execution.md)：环境选择实际变化效果及到期响应，健康选择未愈伤口和活动诊疗；世界阶段/规则不变，没有新增玩法。完整回归、存读和短测范围见[稀疏执行QA](../qa/20261107_sparse_execution.md)与[集成记录](../qa/20261107_mainline_cleanup.md)，其他旧域仍按原路径。

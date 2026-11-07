@@ -2,15 +2,21 @@
 
 核对：2026-11-07。这里记录采用版本与对应范围的证据；实际可操作内容见[功能入口](features.md)，任务状态和未提交工作见[接续](handoff.md)。旧的逐包原文已完整拆入[历史分卷](../qa/baseline-history/README.md)，具体测试和画面见[QA索引](../qa/README.md)。
 
+## 当前集成代码
+
+main已包含`f166cdb4360e91055a3f942cedf66ae446f2301e`的代码与后续纯文档整理，稀疏执行、术语入口及测试分片共用当前运行模型。该提交与下述已验/已审查快照的完整tree相同；没有因整理再次修改游戏代码或重复完整测试。当前main远端CI待后续真实提交检查点核验，不沿用旧SHA绿色结论；[集成记录](../qa/20261107_mainline_cleanup.md)说明验证对应关系和隔离工作。
+
 ## 术语与运行入口
 
 受检代码`771a587d20a38998845331fb214cd886d361d876`：普通环境成员和调度domain统一为`RegionalSimulation.environment_fields`；区域存档键`local_heat`通过codec映射，现行schema不变。术语/真实代码映射见[唯一入口](../engineering/terminology.md)。本包import与定向10组1203断言通过，RTX3060真实HUD确认灵气文案，一次Sol/custom静态审查无发现；完整CI尚待准确SHA，证据见[QA](../qa/20261107_terminology.md)。该整理不新增游戏机制或改变main集成范围。
 
 ## 测试工作流与成本
 
-受检代码`b60adadfcab73a17e101b62538da62ddc5bccf9f`：运行器保留248组，支持精确选组及逐组计时JSONL，CI上传计时artifact。工具Python60项、有界Godot五组54894断言及错误退出smoke通过，一次Sol/custom静态审查无发现；未重复本地完整回归，完整CI仍待后续准确SHA证据。五组实测与限制见[成本调查](../qa/20261107_test_cost_audit.md)；这不表示整套耗时或既有超时已修复。生产游戏代码及main接入范围不变。
+测试提交`f166cdb4360e91055a3f942cedf66ae446f2301e`与受检快照`2b9828040343e53a469ec8cdce5f12df16656e31`的完整tree一致：4片完整覆盖本机**248组/124981断言/0失败**，各worker日志/退出码与汇总校验通过，Python72项及错误退出smoke通过，一次Sol/custom静态审查无可执行发现。组内合计1495.275→1325.163秒；受改两组重复装配合计减少40.751秒，其余波动不全归因代码。4片最慢组内466.318秒，本机顺序验证不等于GitHub并行实测；一个未改组的预算循环断言次数波动已定位，固定检查/结果出口没有减少。范围、完整证据与远端待验见[优化QA](../qa/20261107_test_optimization.md)。生产代码及存档格式未改。
 
-## 顶层稀疏执行框架（分支验收）
+前序受检代码`b60adadfcab73a17e101b62538da62ddc5bccf9f`建立248组精确选组和逐组计时；当时Python60项及有界五组54894断言通过。其后纯文档提交`d27337d67c0148132dfaef2d802d72a860b62d38`的[CI42356120868](https://github.com/fewnfds/reol/actions/runs/42356120868)已在本轮真实提交检查点核completed/success，完整SHA相符；不替代后续术语和分片版本的远端结果。五组实测与限制见[成本调查](../qa/20261107_test_cost_audit.md)。
+
+## 顶层稀疏执行框架（已集成）
 
 代码`ee3504d3c313aa07ac4e87caec3bd39488c725e3`在`codex/sparse-world-execution`建立通用owner-local能力参与/活跃/到期/变脏索引，普通环境与健康接入。准确代码本机完整check **248组/124980断言/0失败**，一次Sol/custom静态审查无有效发现；普通两次来源操作短样本224/221ms→8.081/7.173ms，无GPU。存档字段/版本不变、恢复重建派生索引；未把其他旧域自动迁入，不代表满密度或16GB整机验收。
 
@@ -22,7 +28,7 @@
 
 ## 采用版本与存档
 
-- Godot **4.7.2 stable** 是这次采用和验证的版本；长期跟进最新稳定版，每次升级需核插件、CI与导出模板。当前是 GDScript、Windows 本机开发，CI 为 Linux 无头；Windows 正式独立包未验收。
+- Godot **4.7.2 stable** 是这次采用和验证的版本；长期跟进最新稳定版，每次升级需核插件、CI与导出模板。当前是 GDScript、Windows 本机开发，CI 为 Linux headless；Windows 正式独立包未验收。
 - 当前普通联合根存档 schema **52**，区域 **43**、村落 **7**、场状态 **4**（`outdoor_fields_v1`）、环境受体状态 **3**（climate **2**）、器物状态 **8**。内容包 **v2** 固定包含38份定义及来源digest；部分动作等规则仍直接读取项目文件。当前只接受根52，旧根明确拒绝；[兼容政策](../engineering/compatibility.md)不承诺永久迁入链，真实fixture保持只读。
 - 本轮起点 `2483a3771bc9f469509293a514fb0a059eefe095`。原环境缓存、温度及两测试的四WIP已备份并与原工作区字节核对，不混入隔离实现/验收。分支快照见[分支状态](branches.md)，当前操作以HANDOFF为准。
 

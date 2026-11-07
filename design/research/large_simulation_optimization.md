@@ -52,9 +52,9 @@ Reol已有分块、局部失效、packed响应列、分段二进制及基础场G
 
 ### 4. GPU适合大批基础场，CPU保留小范围更新
 
-[Godot官方compute教程](https://docs.godotengine.org/en/4.7/tutorials/shaders/compute_shaders.html)提供RenderingDevice计算路径。Reol已有基础目标GPU及真实3060验证，后续应复用其接口，测来源装配、上传、dispatch、同步/回读和复验的总成本，而非只报着色器执行时间。
+[Godot官方compute shader教程](https://docs.godotengine.org/en/4.7/tutorials/shaders/compute_shaders.html)提供RenderingDevice计算路径。Reol已有基础目标GPU及真实3060验证，后续应复用其接口，测来源装配、上传、dispatch、同步/回读和复验的总成本，而非只报compute shader执行时间。
 
-当前CPU块索引与GPU是可分别比较的路线：现有着色器不会自动读取新CPU块上界。小范围变化可能CPU更划算，大批冷建可能GPU更划算，阈值由实测决定。GPU调度还需明确请求/完成、来源版本、失败回退与取消；不能让缓存一直pending，不能发布过期结果。
+当前CPU块索引与GPU是可分别比较的路线：现有compute shader不会自动读取新CPU块上界。小范围变化可能CPU更划算，大批冷建可能GPU更划算，阈值由实测决定。GPU调度还需明确请求/完成、来源版本、失败回退与取消；不能让缓存一直pending，不能发布过期结果。
 
 CPU/GPU都只产出候选基础场。实际响应、原物变化、共同时间仍由原所有者按同一事件边界联合提交；计算期间呈现最后完整状态。用降低刷新频率掩盖未结算时间、丢弃路径驻留或跳过候选校验都不是等价优化。
 

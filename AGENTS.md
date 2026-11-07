@@ -5,7 +5,7 @@
 ## 按需读取
 
 - 新会话用`reol-project`；先HANDOFF，按任务查BASELINE（证据）、FEATURES（可玩范围）、ARCHITECTURE（代码所有者）。完整路由见`docs/README.md`。
-- 已确认概念见`design/vision.md`与`design/rules/`；详细机制候选在systems/proposals，不能冒充已定规则。基础优先级只看`docs/plans/foundation-priorities.md`；每次只排定一个可验证小包，不因旧Goal或旧计划自动连做。历史QA/ADR/归档的active、下一包、版本只描述当时。
+- 已确认概念见`design/vision.md`与`design/rules/`；详细机制候选在systems/proposals，不能冒充已定规则。领域职责只看`docs/engineering/architecture/05-framework-domains.md`，基础建设依赖与出口只看`docs/plans/foundation-priorities.md`；主计划按顶层框架组织，每项算法/优化归入明确模块与原owner。授权框架范围内持续推进，内部小步不自动成为停止或重新确认边界；不因旧Goal或旧计划扩展授权。历史QA/ADR/归档的active、下一包、版本只描述当时。
 - 文档分设计/工程/计划规格/当前状态/证据/历史，按`docs/DOCUMENTATION.md`维护；活跃单页不超过16KiB，过大按主题拆分，不在设计页追加进度流水。
 - 中/英专有术语保留原名，不互译、不另造同义名；中文概念与实际English代码标识符按[唯一映射](docs/engineering/terminology.md)定位，各层职责不混同。代码命名沿用已定映射，引用真实class/字段；更名同步调用、反射/调度、工具、存档边界及文档。解释用自然中文；详见[术语规则](docs/DOCUMENTATION.md#术语原名与唯一标记)。
 - 完成代码包时核对受影响的功能说明、工程契约、验证证据和HANDOFF；直接改写现行行为，研究/TODO/历史只留任务或证据位置。日常搜索先查当前领域目录，除迁移/追溯任务外不默认加载archive、旧QA或旧计划。
@@ -45,7 +45,7 @@
 - 文档查结构/链接/差异，工具跑Python定向；runner改动再做选组、错误退出和计时落盘smoke。游戏行为改动先定向，最终验收一次完整check或对应SHA CI，不默认本机/CI双跑。纯工具包不强制本地全游戏回归；选组通过不能冒称完整通过。范围见[测试策略](docs/engineering/workflow/testing.md)。
 - 永久测试须保护明确现行契约、实际失败后果和主要owner；优先最小合法fixture，不逐层重复完整Main/全库装配。一次性研究/穷举/性能验收不自动进入每次回归；保留、合并或退役依据契约及计时，不按断言数量凑门禁。
 - 存读验证声明支持的迁移、进行中与完整停开；原fixture不改写，历史退役后不必永久留在主CI。现有runner同步调用，异步需真实等待/超时/退出；headless不能证明画面/音效/手感/性能。
-- 本地长验证优先使用工具/宿主的进程完成通知；只有会话等待接口时，由工具层保留同一handle等待终态，使用合理的长等待窗口，不让模型按短间隔读日志/数PASS/报百分比或充当计时器，不派等待代理。仅失败、超时、异常停滞或用户要求时诊断进度；未实际接通宿主事件不能声称测试可唤醒已结束的聊天。细节见下述工作流。
+- 本地长验证期间，有独立工作就继续做；只剩测试时直接等待终态，优先工具/宿主的进程完成通知。只有会话等待接口时，在一次工具编排内部保留同一handle持续等待；接口需要短窗口续等也由工具内部处理，禁止模型每60秒或其他固定间隔重新发起查询/续等，禁止delay/sleep后反复tool call、读日志数PASS或报百分比，不派等待代理。只在完成、失败、超时、真实异常或用户主动询问时报告；未实际接通宿主事件不能声称测试可唤醒已结束的聊天。细节见下述工作流。
 - 用户授权阶段commit/push公共仓库，默认`codex/`分支；先status/diff并检查凭据/许可/生成物，分可解释包保留用户工作。子代理不提交，不强推/reset hard/改账号、可见性或许可证，不自动合并。
 - 普通代码包由主代理调用一次原生审查：`codex -c model='"gpt-6.1-sol"' review --commit <完整SHA>`；只读审查结束即退出，修复另步。项目review_model由`tools/setup_codex.py --check --review-model gpt-6.1-sol`核对，保留公司custom路由；无GitHub云端模型审查/订阅额度依赖。
 - 一个工作包一个主要审查者；专项代理需明确高风险范围，不重复整包。纯文档/WIP不启动模型审查，混有草稿不盲审全工作区。细节见`docs/engineering/workflow/code-review.md`。

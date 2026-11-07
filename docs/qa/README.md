@@ -10,6 +10,8 @@
 
 | 文件 | 原记录主题 |
 |---|---|
+| [20261107_mainline_cleanup.md](20261107_mainline_cleanup.md) | 已完成功能、测试分片与架构文档合入main，旧实验和隔离草稿边界 |
+| [20261107_test_optimization.md](20261107_test_optimization.md) | 1800秒超时诊断、测试成本优化与CI完整分片覆盖验证 |
 | [20261107_terminology.md](20261107_terminology.md) | 中/英术语与实际代码映射、environment_fields改名及存档键稳定性 |
 | [20261107_test_cost_audit.md](20261107_test_cost_audit.md) | 工作流职责分离、测试计时/选组、五组成本实测及CPU/GPU边界 |
 | [20261107_source_change_review.md](20261107_source_change_review.md) | 单次来源变更短时分项计时、成熟项目对照及冗余计算候选；未改运行算法 |

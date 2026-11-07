@@ -71,4 +71,4 @@ village.json 暂仍同时定义生活规则和初始库存，是既有schema的�
 
 运行 `python tools/check_structure.py` 检查现行文档入口、本地 Markdown 链接和 scripts/、tests/ 中的字面量 `res://` 路径，包括移走后仍可能存在的旧路径。检查只读，失败返回非零；不验证网页可达性、标题锚点、代码示例和 archive/ 历史引用，也不推断动态拼接路径。
 
-场景树、资源 UID 和场景引用复用现有 `check_godot_project.py`；完整命令见[测试入口](../../tests/README.md)。结构检查不能替代 Godot 导入、行为测试或实际运行。
+`Node` 层级、Resource UID 和 Scene 引用的正确性仍需按[测试入口](../../tests/README.md)执行实际 Godot 导入及运行验证。结构检查不能替代 Godot 导入、行为测试或实际运行。

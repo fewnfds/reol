@@ -32,7 +32,7 @@
 
 | 项目 | 链接 | 星 | 许可证 | 借什么 |
 |---|---|---:|---|---|
-| **Godot AI** | https://github.com/hi-godot/godot-ai | 3.3k | MIT | **本项目首选**：实时编辑器、场景树、脚本校验、运行/日志/截图、输入模拟 |
+| **Godot AI** | https://github.com/hi-godot/godot-ai | 3.3k | MIT | **本项目首选**：实时编辑器、scene tree、脚本校验、运行/日志/截图、输入模拟 |
 | **Coding-Solo godot-mcp** | https://github.com/Coding-Solo/godot-mcp | 6.4k | MIT | 轻量启动/运行/抓调试输出；本项目备用 |
 | Godot-MCP-Native | https://github.com/yurineko73/Godot-MCP-Native | 865 | MIT | 原生插件、无依赖、中文；轻量替代 |
 | godot-mcp-pro | https://github.com/youichi-uda/godot-mcp-pro | 641 | 付费 $15 | 162 工具；功能多，先不需要 |
@@ -149,8 +149,8 @@
 
 | 需求 | 插件 | 链接 | 许可证 | 备注 |
 |---|---|---|---|---|
-| 行为树/状态机 | **LimboAI** | https://github.com/limbonaut/limboai | MIT | 功能全，含可视化调试 |
-| 行为树 | Beehave | https://github.com/bitbrain/beehave | MIT | 更轻 |
+| Behavior Tree/State Machine | **LimboAI** | https://github.com/limbonaut/limboai | MIT | 功能全，含可视化调试 |
+| Behavior Tree | Beehave | https://github.com/bitbrain/beehave | MIT | 更轻 |
 | 对话 | Dialogue Manager | https://github.com/nathanhoad/godot_dialogue_manager | MIT | 成熟，适合 RPG |
 | 相机 | Phantom Camera | https://github.com/ramokz/phantom-camera | MIT | 2D/3D 跟随/震屏/限制 |
 | 测试 | GUT | https://github.com/bitwes/Gut | MIT | 复杂后替换自带 runner |

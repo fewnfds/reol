@@ -38,7 +38,7 @@ Reol 来自 reroll，取意于 Dota Allstars 的重选英雄；世界感与“�
 
 ## 6. 参考坐标
 
-RimWorld、Dwarf Fortress 与 Kenshi 提供自主生活和玩家之外世界的参考；饥荒、缺氧、异星工场提供环境与组合过程参考；修仙作品提供师承、时间、人际和地方文化的灵感；Hades、DNF、LoL、Warcraft III 和 PoE 提供动作、组织和能力组合的参考。参考用于提取适合本项目的机制，不等于照搬作品。
+RimWorld、Dwarf Fortress 与 Kenshi 提供自主生活和玩家之外世界的参考；Don't Starve、Oxygen Not Included、Factorio 提供环境与组合过程参考；修仙作品提供师承、时间、人际和地方文化的灵感；Hades、Dungeon & Fighter、League of Legends、Warcraft III 和 Path of Exile 提供动作、组织和能力组合的参考。参考用于提取适合本项目的机制，不等于照搬作品。
 
 ## 7. 制作分工与侧重点
 

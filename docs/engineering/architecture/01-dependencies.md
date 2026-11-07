@@ -2,6 +2,8 @@
 
 ## 依赖方向
 
+顶层领域和跨域交接统一见[领域归属](05-framework-domains.md)。本页描述代码层依赖；`sim/runtime/persistence/ui`是技术分层，七个框架是领域分工，两者不互相替代。现有class可以承担某个领域的状态所有权或向其他领域提供适配，不能因文档重分领域复制原状态。
+
 ```text
 main / 场景装配
   输入与UI → runtime命令适配 → sim规则/过程/状态

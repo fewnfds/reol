@@ -2,14 +2,14 @@
 
 状态：当前工作规范；具体执行服从用户最新授权和根目录[AGENTS](../../../AGENTS.md)。工作停点/未提交工作看[HANDOFF](../../status/handoff.md)，已有能力看[FEATURES](../../status/features.md)，最新有效测试证据看[BASELINE](../../status/baseline.md)；不要从旧计划或测试数量推断功能已完成。
 
-## 一次工作包
+## 按框架交付组织工作
 
-1. 按任务读取相关架构、设计和1–3个技能，结合代码确认现状；大改动先说明边界、失败/存读语义和可观察验收，小改动不强制完整设计流程。
+1. 按任务读取相关架构、设计和1–3个技能，结合代码确认现状。先按[顶层框架](../architecture/05-framework-domains.md)定位领域、主要owner与交付能力，再明确模块接口和内部实现；大改动写清失败/存读语义和框架出口，小改动不强制完整设计流程。
 2. 在授权范围内直接推进；用户负责游戏概念、方向和明确拍板，技术实现与常规取舍由开发者决定。只有无法由既有信息判断且会影响概念的重要选择才询问。已有用户批准不反复问。
-3. 做可验证的小包，保留他人未提交工作，避免重复主体、库存和世界时间。领域规则、运行适配、持久化与表现遵守[架构](../architecture.md)；历史事件样本不是通用系统已完成的证明。
+3. 主计划以框架目标、支持范围和完成标准组织；开发者在已授权范围内安排可验证的小步、提交和测试并持续推进，内部算法完成不自动成为停止或再次确认边界。实现和优化归回所属框架及模块，保留他人未提交工作，避免重复主体、库存和世界时间。代码分层遵守[架构](../architecture.md)；历史事件样本不能证明框架完成。
 4. 按[测试策略](testing.md)选必要验证：工具先Python，规则先定向；存读覆盖声明支持的迁移、失败原子性和在途恢复，支持/退役按[兼容政策](../compatibility.md)；可见变化需实际运行/日志/截图；性能须测量而非估算。纯文档检查结构、链接和差异，不运行Godot全套。
 5. 每个完成的代码工作包由主代理使用项目的本地Sol审查一次，并按[审查与CI](code-review.md)处理。代码及其完整回归对应具体提交；画面、音效、手感与性能不能由无头CI代替。无需每改一个文件跑全套，也不盲目重复本机和CI同一全套。
-6. 提交前按[文档合同](../../DOCUMENTATION.md)核对受影响入口：功能→FEATURES，接口/操作→engineering，验证→BASELINE或一处QA，停点→HANDOFF；直接写当前事实，历史理由留证据或Git。不需要变动的入口不凑更新，未完成文档同步的包不算收尾。如仍待验或受阻则写明边界，不把计划或测试数量冒充产品完成。Goal和接续授权以HANDOFF与Goal工具状态为准。
+6. 提交前按[文档合同](../../DOCUMENTATION.md)核对受影响入口：功能→FEATURES，接口/操作→engineering，验证→BASELINE或一处QA，停点→HANDOFF；直接写当前事实，历史理由留证据或Git。进度按所属框架报告已支持能力、模块进展、未接接口和证据，区分算法完成、模块可用与框架交付。不需要变动的入口不凑更新；仍待验或受阻写清边界。Goal和接续授权以HANDOFF与Goal工具状态为准。
 
 ## 上下文与工具
 
@@ -25,10 +25,10 @@
 | 来源 | 实际作用 |
 |---|---|
 | 用户已定方向 | 自洽持续世界、通用顶层能力、唯一实物/知识边界、先基础再玩法、16GB/3060、不轮询测试/CI等；最新指令优先 |
-| 根AGENTS及文档合同 | 原所有者/共同时间、sim/runtime/persistence/ui边界、按需技能、分类与大小、分包/验证/Git和审查；是项目稳定规则 |
+| 根AGENTS及文档合同 | 领域归属/框架交付、原所有者/共同时间、sim/runtime/persistence/ui边界、按需技能、分类与大小、内部实现/验证/Git和审查；是项目稳定规则 |
 | [reol-project](../../../.agents/skills/reol-project/SKILL.md) | 找真实状态与架构入口，按任务选技能，防止旧计划恢复施工 |
 | [godot-sim-architecture](../../../.agents/skills/godot-sim-architecture/SKILL.md) | 时间因果、状态所有权、近远区/存读及性能边界；不要求另造第二世界或全量ECS |
-| [spec-driven-game-dev](../../../.agents/skills/spec-driven-game-dev/SKILL.md) | 复杂/不清楚的任务先明确范围、状态和验收，再小包实现；明确说模板可选，不要求每次创建一整套文档 |
+| [spec-driven-game-dev](../../../.agents/skills/spec-driven-game-dev/SKILL.md) | 复杂任务先明确框架出口、模块归属、状态和验收，在授权范围内安排内部实现；模板可选，不要求每次创建一整套文档 |
 | [godot-verify](../../../.agents/skills/godot-verify/SKILL.md) | 按改动范围验证、看首个真实错误、区分无头/画面/性能；不逐文件全量回归 |
 | [performance-optimization](../../../.agents/skills/performance-optimization/SKILL.md) | 先量测真实热点、改算法再前后比较，不能以猜测证明收益 |
 | [open-world-2d](../../../.agents/skills/open-world-2d/SKILL.md)、[colony-sim-systems](../../../.agents/skills/colony-sim-systems/SKILL.md) | 地图/区块/远区与人物需求/预约/库存/空间等专项方法，相关任务才读 |

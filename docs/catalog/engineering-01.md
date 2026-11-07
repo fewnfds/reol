@@ -13,6 +13,7 @@
 - [docs/engineering/architecture/02-owners.md](../engineering/architecture/02-owners.md)
 - [docs/engineering/architecture/03-time-space-presentation.md](../engineering/architecture/03-time-space-presentation.md)
 - [docs/engineering/architecture/04-persistence.md](../engineering/architecture/04-persistence.md)
+- [docs/engineering/architecture/05-framework-domains.md](../engineering/architecture/05-framework-domains.md)
 - [docs/engineering/compatibility.md](../engineering/compatibility.md)
 - [docs/engineering/environment-ground-cache-contract.md](../engineering/environment-ground-cache-contract.md)
 - [docs/engineering/environment-response-contract.md](../engineering/environment-response-contract.md)

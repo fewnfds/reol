@@ -33,8 +33,8 @@ assets/
 
 | 类型 | 前缀 | 示例 |
 |---|---|---|
-| 精灵 | `spr_` | `spr_pawn_cook.png` |
-| 图块 | `tile_` | `tile_grass_01.png` |
+| Sprite | `spr_` | `spr_pawn_cook.png` |
+| Tile | `tile_` | `tile_grass_01.png` |
 | UI | `ui_` | `ui_panel_wood.png` |
 | 图标 | `icon_` | `icon_wood.png` |
 | 特效 | `fx_` | `fx_hit_spark.png` |
@@ -61,7 +61,7 @@ assets/
 ### 手绘/高清（如果后续选择该方向）
 - Filter：Linear
 - Mipmaps：On（缩小显示时）
-- 压缩：VRAM Compressed（注意色带）
+- Compression：VRAM Compressed（注意色带）
 
 ### 音频
 - SFX：`.ogg` 或 `.wav`（短音效用 wav 也可）

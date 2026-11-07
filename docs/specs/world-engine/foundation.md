@@ -1,7 +1,7 @@
-# 世界引擎基础：缺口、结构与实施验收
+# 环境与组合空间技术规格
 
-候选合同索引；具体实现与证据见状态文档。旧 F/W 编号和阶段不是当前队列，优先级见[基础优先级](../../plans/foundation-priorities.md)。
+这里维护环境规则、结构反馈和联合验收的详细技术参考，未接部分保留为候选。领域职责只见[顶层框架](../../engineering/architecture/05-framework-domains.md)，建设依赖与框架出口只见[基础建设计划](../../plans/foundation-priorities.md)，实际接入与证据归状态文档；旧W/F编号不作为排期。
 
-- [引言](foundation/00-introduction.md)
-- [1. 交付目标与代码起点 / 2. 状态与接口 / 3. 三类传播 / 4. 地理、季节与天气 / 5. 改造、共同时间与近远区](foundation/01-topics.md)
-- [6. 自动围墙与功能空间 / 7. 实施顺序与验收 / 8. 本轮交付边界 / 9. W1a：自然日照的第一个普通运行出口](foundation/02-topics.md)
+- [范围与权威入口](foundation/00-introduction.md)
+- [来源、响应、地理和持续性合同](foundation/01-topics.md)
+- [结构组合与联合验收参考](foundation/02-topics.md)

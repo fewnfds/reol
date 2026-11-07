@@ -12,11 +12,12 @@
 | 版本及验证到什么程度 | [证据基线](status/baseline.md)、[QA](qa/README.md) |
 | 分支分别有什么用 | [分支审计](status/branches.md) |
 | 状态归谁，文件放哪里，工具怎样用 | [工程入口](engineering/README.md) |
+| 顶层框架怎样划分，算法属于哪里 | [领域归属与跨域合同](engineering/architecture/05-framework-domains.md) |
 | 中文游戏概念对应哪个class/字段 | [术语与代码映射](engineering/terminology.md) |
 | 开发规则来自哪里、哪些skill在约束 | [开发范式与来源](engineering/workflow/ai-development.md#规则来源与技能职责) |
 | 如何选测试、计时和划分GPU/CI验证 | [测试策略](engineering/workflow/testing.md) |
 | 目标硬件、内存和GPU预算是什么 | [全项目性能基线](engineering/architecture.md#全项目性能基线) |
-| 基础架构接下来先做什么 | [基础优先级](plans/foundation-priorities.md) |
+| 基础框架的建设依赖与完成标准 | [基础建设计划](plans/foundation-priorities.md) |
 | 更远的产品目标和技术候选 | [计划](plans/README.md)、[工程规格](specs/README.md) |
 | 为什么作这个决定，旧材料在哪 | [决策](decisions/README.md)、[历史](archive/README.md) |
 | 文档怎样维护，全部文件在哪 | [文档合同](DOCUMENTATION.md)、[分类目录](CATALOG.md) |

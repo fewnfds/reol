@@ -2,6 +2,8 @@
 
 ## 状态所有权
 
+本表定位现有原owner；[顶层框架](05-framework-domains.md)说明其领域职责与共同接口。一个class提供跨域适配不代表多个框架可以各持一份状态；职责划分也不表示相关目标已经完成。实际接入与缺口按同一框架在[技术总表](../../status/technical-status.md)登记。
+
 | 领域/代码入口 | 权威状态或行为 | 边界 |
 |---|---|---|
 | [GameClock](../../../scripts/autoload/game_clock.gd) autoload（`ReolGameClock` 类型） | 共同整数毫秒、暂停/倍速/等待、相位与帧欠算；唯一executor先完成原世界才发布 | Village绑定真实推进；部分/零提交留原请求，通知不二次推进；pending存档拒绝，分钟是投影 |

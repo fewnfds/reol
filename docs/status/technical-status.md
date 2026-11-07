@@ -2,34 +2,39 @@
 
 核对日期：2026-11-07。依据Git分支差异、实际装配/调用和对应版本证据；名称按[术语与代码映射](../engineering/terminology.md)定位。当前普通环境成员为`environment_fields`，存档键由codec映射保持；此次改名未扩大游戏能力。玩法操作查[FEATURES](features.md)，验证数字查[BASELINE](baseline.md)，当前停点查[HANDOFF](handoff.md)。已确认规则是目标约束，不等于所有机制已实现。
 
-## 两个“主线”必须区分
+## 当前主线与普通入口
 
 | 名称 | 实际情况 |
 |---|---|
-| Git `main` / `origin/main` | 均为`eff27a7dcf77031a4084258cc688bbb3616b64e4`；普通世界代码与已验`6137481a07ec98b372e32ca857e546f1e1b07ee1`相同，之后仅文档变化 |
-| 当前根目录检出 | `codex/sparse-world-execution`；本次审计起点本地/远端均`2f305de8efcbd8e51c290bbeae73cc5531fc2996`，后续仅本轮文档整理 |
-| 普通 `Main` 游戏入口 | 指`scenes/main.tscn`及其运行接线；在开发分支运行普通Main，不表示该分支已合入Git main |
+| Git `main` / `origin/main` | 包含稀疏执行`ee3504d`、术语入口`771a587`、测试分片`f166cdb4360e91055a3f942cedf66ae446f2301e`及已完成文档整理；完整指针见实时Git与[分支页](branches.md) |
+| 当前根目录检出 | `main`；本轮完成已有工作收尾，实际停点与待验项见HANDOFF |
+| 普通 `Main` 游戏入口 | `scenes/main.tscn`及其运行接线；有限游戏能力和Git集成状态分别按功能及版本证据核验 |
 
-上一轮通用参与索引、环境局部/到期执行与健康活跃集合**已接普通Main，但尚未合入Git main**。其他五个旧功能分支已经在main历史；`codex/field-contest`是未合入的旧实验，不算待集成正式功能。详见[分支](branches.md)。本次只审计和整理，不自动合并或删除分支。
+通用参与索引、环境局部/到期执行与健康活跃集合已接普通Main并合入Git main。五个旧正式功能分支均已在main历史；`codex/field-contest`与命名stash保留为隔离旧实验，不是待发布功能或自动恢复任务。[集成记录](../qa/20261107_mainline_cleanup.md)保留来源和验证对应关系。
 
-## 世界运行基础
+## 按顶层框架的实际接入
 
-下表“main已接”都指已存在的有限运行基础，不表示整个领域完成。除稀疏执行一行外，本轮开发分支复用相同入口。
+领域职责和交接以[顶层框架](../engineering/architecture/05-framework-domains.md)为准，框架出口以[基础建设计划](../plans/foundation-priorities.md)为准。下表有限运行基础已在Git main；各框架均已有部分接缝，尚不能整体声明完成。
 
-| 技术 | Git main的实际接入 | 未覆盖/后续边界 |
+| 顶层框架 | 已有运行能力与主要入口 | 距框架出口的缺口 |
 |---|---|---|
-| 地图与区块 | [WorldMapData](../../scripts/sim/world_map_data.gd)、[ReolWorld](../../scripts/world/world.gd)；默认512²平面、64²显示区块、草/水/岩、稀疏地表改造、迷雾/探索 | 不是任意规模世界生成；高差样本保留但新局不启用，高差/多层后置 |
-| 共同时间与远区 | autoload `GameClock`（[ReolGameClock](../../scripts/autoload/game_clock.gd)）、[RegionalSimulation](../../scripts/sim/regional_simulation.gd)；整数毫秒、固定阶段、预算欠算、双聚落离场接续、行旅/货运/消息 | 不是所有领域都已事件化；大人口、多年与完整战争/历史未验 |
-| 身体、引用与空间 | [SimEntityQuery](../../scripts/sim/entity_query.gd)、[SimBodyGeometry](../../scripts/sim/body_geometry.gd)、原区域身体；唯一连续位置，声明能力/包含、多格占地与扫掠 | 覆盖既有类型，不是任意新物种工厂；连续位置不等于纯格子动画；巨兽不可选 |
-| 实物、材料与容器 | [SimObjectLifecycle](../../scripts/sim/object_lifecycle.gd)、[SimInventory](../../scripts/sim/inventory_ledger.gd)、[SimGroundPlacements](../../scripts/sim/ground_placements.gd)；受控生成/移除/取放、同账本转移、堆拆、预约和唯一原物 | 独特器物、衣物、数量条目仍有不同原所有者；通用负重、箱中箱、自由背包及完整产权未完成 |
-| 动作与统一交互 | [SimInteractionRequests](../../scripts/sim/interaction_requests.gd)、原动作执行器及各领域过程；表达/理解/意愿/耗时/中断/结果分开，新增搬运共用合同 | 请求门面仍显式列举约20种事项；不是可任意注册工具、通用条件协商或全领域统一动作平台 |
-| 室外冷热与五行 | [SimWorldEnvironmentFields](../../scripts/sim/world_environment_fields.gd)；真实地面/固定来源、衰减/max、冷热等级抵消、响应建立/消散、背景与残留存读，人体/野药读同温度 | 随身物整体发源/尾迹/遮掩、树兽墙材普遍发源、定向能量、完整五行后果未做；五行火通道不等于发热 |
-| 历法、气候、天气、光 | 日季节曲线、地理新局编译、有限晴雨、自然日照、固定灯及随身固有微光、遮挡/视野 | 不是完整雨雪/风/空气/气象或全地图生物群系；灯光不等于冷热/五行辐射；风水只有规则设计 |
-| 结构、围合与导航 | [SimConstruction](../../scripts/sim/construction.gd)、[SimStructureQuery](../../scripts/sim/structure_query.gd)、运行层寻路；真实木墙/门/床/支撑屋顶，围合、挡路/挡光/遮雨，自动墙邻接 | 无一房一温/隔热/换气；单工地和有限单格工程，通用家具/用途区域/自由功能房间未完成；固定运粮仍保护原路，非全局动态绕路 |
-| 当前世界快照 | [SessionSaveSchema](../../scripts/persistence/session_save_schema.gd)、[SimSaveStore](../../scripts/persistence/save_store.gd)、独立世界恢复工厂；JSON联合快照、备份/替换、在途恢复及失败不改活世界 | 当前普通只接根52，旧根1–51拒绝；未自动编排暂停→结步→保存→恢复；不是事件历史重放 |
-| 编辑与诊断 | `--world-editor`启用F8地表/真实物编辑，F3诊断；与原规则接缝和保存关联 | 是开发权限，不是玩家免费造物；无完整内容/世界创作编辑器 |
-| 稀疏执行框架 | **main尚无**；开发分支[SimParticipationIndex](../../scripts/sim/execution/participation_index.gd)已接环境与健康，成员/active/due/dirty和生命周期重建均可运行 | 其他自主、衣物、空间候选、光/UI、历史查询未普遍迁入；定义编译/能力登记也未统一成全内容平台 |
-| GPU计算 | 基础场有独立CPU/GPU/auto计算服务与旧版对照证据；代码已在main历史 | 普通场响应/原物事务仍为CPU，未接玩家GPU开关，不能把独立加速倍数当全游戏收益 |
+| **世界地块与空间框架** | [WorldMapData](../../scripts/sim/world_map_data.gd)、[ReolWorld](../../scripts/world/world.gd)；512²平面、64²显示区块、草/水/岩、稀疏地表改造；[SimWorldObjectQuery](../../scripts/sim/world_object_query.gd)与显式引用空间快照、地面/结构局部索引 | 普通地图规格固定，非任意规模生成；跨领域实时空间候选尚未全面接齐，快照不枚举全世界；高差/多层后置 |
+| **实体、物品与容器框架** | [SimEntityQuery](../../scripts/sim/entity_query.gd)、[SimEmbodiment](../../scripts/sim/embodiment.gd)、原身体；声明能力、连续位置与多格几何；[SimObjectLifecycle](../../scripts/sim/object_lifecycle.gd)、[SimInventory](../../scripts/sim/inventory_ledger.gd)、[SimGroundPlacements](../../scripts/sim/ground_placements.gd)支持受控实物生命周期、同账本转移、堆拆、预约和唯一原物 | 通用身体/植物/家具生命周期未覆盖；独特器物、衣物与数量保留不同原owner，跨账本搬运、负重/容量、箱中箱、自由背包及完整处分权限未完成；普通装配仍限两区 |
+| **建筑与组合空间框架** | [SimConstruction](../../scripts/sim/construction.gd)、[SimStructureQuery](../../scripts/sim/structure_query.gd)；真实木墙/门/床/支撑屋顶、围合、挡路/挡光/遮雨、自动墙邻接及原材料成本 | 单工地、有限单格工程；通用多格结构/家具、用途区域、自由组合设施未完成；向环境和行动提供全部变化接缝仍需整合。房温归环境域，路径执行归行动域 |
+| **植被与自然生命框架** | [SimLandResources](../../scripts/sim/land_resources.gd)有限自然资源和两处野药环境响应；[SimAvianLife](../../scripts/sim/avian_life.gd)雀生活/雀身；[SimLargeBodies](../../scripts/sim/large_bodies.gd)3×3山兽；残识/载体保持原状态 | 地表覆盖和资源记录尚非完整植物实例；通用植物生命周期、自然过程及普遍环境来源/受体未接；非人生命仍是有限类型，完整繁衍/成长/寿命与生态规则后续实现，巨兽不可选 |
+| **环境框架** | [SimWorldEnvironmentFields](../../scripts/sim/world_environment_fields.gd)作为唯一室外冷热/五行实际响应；真实地面/固定来源、衰减/max、等级抵消、响应建立/消散和残留存读，人体/野药同温度；历法、地理新局编译、有限晴雨、自然日照、固定灯/随身固有微光与遮挡 | 随身物整体发源/尾迹/遮掩、容器透过及树兽墙材普遍发源未接；一房一温、隔热/开敞/拆合连续性未实现；完整雨雪/风/空气与五行后果后续实现，风水仅有规则；五行火不等于发热，光不等于冷热辐射 |
+| **单位行动与交互框架** | [SimLocalMotion](../../scripts/sim/local_motion.gd)、[SimRouteTravel](../../scripts/sim/route_travel.gd)、多格扫掠及运行层寻路读原身体/空间；[SimInteractionRequests](../../scripts/sim/interaction_requests.gd)与原执行器区分表达/理解/意愿/耗时/中断/结果，耗时搬运已接普通面板 | 动作仍由各领域过程执行，门面列举20种事项；全领域共同生命周期、可复用条件/效果接缝和策略入口未齐。动态路径失效/重规划属于本框架内部缺口；固定运粮仍保护原路，非全局动态绕路 |
+| **认识与自主决策框架** | [SimSocialMemory](../../scripts/sim/social_memory.gd)私人认识/有向关系/来源、当面自述；[SimInstitutionBook](../../scripts/sim/institution_book.gd)任职公账和贡献；双聚落需求/职责/吃住/采集生产、预约、少量自主目的和互助；迷雾/探索提供有限观察接缝 | 新对象/属性未全面接共同观察与认识；通用目标/策略编排、工作依赖及授权依据仍有限；关系判断仍用有限因素加权/边界骰与逐人值。通用Claim为候选，现有贡献不等于Claim；制度与长程社会玩法后续实现 |
+
+## 贯穿框架的运行与工具合同
+
+| 公共能力 | 已有接入 | 未覆盖与验收边界 |
+|---|---|---|
+| 共同时间与远区 | autoload `GameClock`（`ReolGameClock`）、[RegionalSimulation](../../scripts/sim/regional_simulation.gd)；整数毫秒、固定阶段、预算欠算、双聚落离场接续、行旅/货运/消息 | 非所有领域事件化；大人口、多年与密集动态组合未验 |
+| 定义、装配与当前快照 | 内容包v2绑定38份定义及digest；[WorldRestoreFactory](../../scripts/sim/world_restore_factory.gd)、[SessionSaveSchema](../../scripts/persistence/session_save_schema.gd)、[SimSaveStore](../../scripts/persistence/save_store.gd)提供联合候选恢复、JSON快照、在途恢复、文件备份/替换和失败不改活世界 | 移动/工作场所/对练等仍有直接读盘规则，普通呈现/恢复限定home、river两区；当前根52，根1–51拒绝；尚未自动暂停→结步→保存→恢复。历史位置/回执尚无长期安全回收，不是事件重放系统 |
+| 稀疏执行与规模 | main的[SimParticipationIndex](../../scripts/sim/execution/participation_index.gd)已接环境和健康，member/active/due/dirty及生命周期重建可运行 | 自主、衣物、空间候选、光/UI及历史查询未普遍迁入；定义编译/能力登记未统一覆盖内容。按所属框架的实测收益补接，不能把算法或静态压测视为整机验收 |
+| 创作、呈现与诊断 | `--world-editor`的F8地表/真实物编辑，F3诊断、普通面板和代码示意外观，沿原规则与存档 | 完整内容/开局/组合模板编辑和独立预览未齐；开发生成是权限，不是玩家免费造物；正式多体型/全装备和全动作仍未完成 |
+| GPU计算 | main历史中有独立CPU/GPU/auto基础场计算服务及旧版对照证据 | 普通响应/原物事务仍为CPU，无玩家GPU开关；隔离加速倍数不等于全游戏收益，联合性能以实际版本/负载为准 |
 
 ## 世界内容与玩家能力
 
@@ -44,10 +49,10 @@
 | 人生接续 | 三种开局身份可选，原身体/知识仍分开 | 死亡→消耗机会→新生候选→继续原世界、次数难度与耗尽终局，均未接成玩法 |
 | 产品 | 能运行/存读的小世界与多条短体验链、代码示意资源 | 45–60分钟完整切片、正式资源/音效、平衡与试玩、Windows独立包及发布验收 |
 
-上述缺口是既定方向的实现边界，**不是本页生成的新施工队列**。后续选包仍查[基础优先级](../plans/foundation-priorities.md)和用户最新授权。
+上述缺口是既定方向的实现边界，**不是本页生成的新施工队列**。后续框架建设仍查[基础优先级](../plans/foundation-priorities.md)和用户最新授权。
 
 ## “运行良好”的证据限度
 
-现有main有准确代码完整回归、普通Main完全停开与RTX3060稀疏负载/画面证据；开发分支有其准确代码本机完整回归、两域定向存读及普通入口短测，但本轮核得其远端CI在1800秒超时，根因未定位，**不能说所有验证均通过**，具体SHA/run见BASELINE。
+集成代码有完整本机分片覆盖、各worker错误/退出门禁和一次既有代码包静态审查；前序版本另有普通Main完全停开、RTX3060稀疏负载/画面及两域存读/短测证据。既有CI42356120868的准确SHA已核success，当前main的新分片远端结果仍待验，具体范围见BASELINE。
 
-不能用main的截图/帧时替代分支验收，也不能拿此前26万静态物品的旧版压力结果担保当前密集动态世界。当前没有证据要求换引擎，也没有证据宣称全游戏规模已达标。
+不能用前序截图/帧时替代当前版本的规模验收，也不能拿此前26万静态物品的旧版压力结果担保当前密集动态世界。当前没有证据要求换引擎，也没有证据宣称全游戏规模已达标。

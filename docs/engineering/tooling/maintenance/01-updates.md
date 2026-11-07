@@ -6,7 +6,7 @@
 2. **插件与后端成对更新。** 通过Godot AI dock支持的Update/官方安装流程更新，不手改`addons/`，不混覆盖文件，不只改uvx pin。发布的[迁移指南](https://github.com/hi-godot/godot-ai/blob/643c64f3edf984a9668b3043f4d20ebb2bbec6b6/docs/v4-migration.md)与[更新器说明](https://github.com/hi-godot/godot-ai/blob/v4.4.1/docs/self-update.md)是入口。
 3. **重新核对客户端。** 用dock的Configure → Codex生成匹配版本、端口、工具域和attach命令；先看它会改哪个范围。全局Godot AI条目可能影响其他仍用旧插件的项目。4.x使用`godot-ai attach`认证桥，不能擅改成裸HTTP地址。
 4. **重载后验连接。** 新版更新器支持若干热切换/复验，不能据此保证所有升级都无需重启。按实际提示刷新或重启编辑器/Codex，确认`session_manage`返回的插件与后端同为目标版本、项目路径正确、editor ready。
-5. **验实际工作流。** 先读场景树/脚本/日志，再在可丢弃场景试 `Node` 写入、保存与撤销；运行主局，检查helper live、日志和1280×720截图。原`python tools/godot.py check`仍走CI，不重复多开本地全套。升级工具不能代替产品回归。
+5. **验实际工作流。** 先用 `scene_get_hierarchy` 读取 `Node` 层级，并读取脚本/日志，再在可丢弃场景试 `Node` 写入、保存与撤销；运行主局，检查helper live、日志和1280×720截图。原`python tools/godot.py check`仍走CI，不重复多开本地全套。升级工具不能代替产品回归。
 6. **记录与回退。** 记录release、实际版本、许可、配置范围及证据，提交官方更新产生的插件差异。失败先看更新日志与保留旧树；必要时关闭编辑器，按官方恢复流程还原整套插件及原连接pin，再验会话。签名/哈希通过不等于项目能解析；不假定每种失败都会自动回滚。
 
 ## 3. 其他组件怎样维护
