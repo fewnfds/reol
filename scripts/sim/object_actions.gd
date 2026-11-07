@@ -6,14 +6,14 @@ const Shape = preload("res://scripts/sim/avian_schema.gd")
 const MAX_ACTIVE: int = 256
 
 
-static func schedule(owner: SimObjectLifecycle, request: Dictionary, actor: String, duration_ms: int) -> Dictionary:
+static func schedule(owner: SimObjectLifecycle, request: Dictionary, actor: String, duration_ms: int, require_contact: bool = false) -> Dictionary:
 	var world: RegionalSimulation = owner.world
 	if world == null or owner._committing or owner._settling or owner.environment_change_pending() or world.environment_boundary_active() or not owner._request_valid(request) or request.op not in ["move", "stock_transfer"] or duration_ms < 1 or duration_ms > 86400000:
 		return owner._fail("invalid_action")
 	var id: String = request.command
 	if owner.actions.has(id):
 		var previous: Dictionary = owner.actions[id]
-		return {"ok": true, "action": previous.duplicate(true)} if previous.actor == actor and int(previous.due_ms) - int(previous.started_ms) == duration_ms and owner._same(previous.request, request) else owner._fail("command_conflict")
+		return {"ok": true, "action": previous.duplicate(true)} if previous.actor == actor and int(previous.due_ms) - int(previous.started_ms) == duration_ms and owner._same(previous.request, request) and bool(previous.get("contact", false)) == require_contact else owner._fail("command_conflict")
 	if owner.receipts.has(id):
 		return owner._fail("command_conflict")
 	if owner._active_actions.size() >= MAX_ACTIVE or owner.actions.size() >= owner.MAX_RECEIPTS or world.elapsed_ms != world.target_ms or world.elapsed_ms > SimInventory.MAX_COUNT - duration_ms:
@@ -35,6 +35,8 @@ static func schedule(owner: SimObjectLifecycle, request: Dictionary, actor: Stri
 		var item: Dictionary = world.artifacts.objects[request.id]
 		if not owner._same(request.from, {"region": item.region, "container": item.container}):
 			return owner._fail("source_changed")
+	if require_contact and not contact_valid(owner, request, actor):
+		return owner._fail("contact_changed")
 	var target: Dictionary = owner._destination(request.to, {}, Vector2i.ONE, id)
 	if not bool(target.ok):
 		return target
@@ -52,11 +54,39 @@ static func schedule(owner: SimObjectLifecycle, request: Dictionary, actor: Stri
 			return owner._fail("insufficient_available_stock")
 	var action: Dictionary = {"actor": actor, "region": home, "request": request.duplicate(true), "started_ms": world.elapsed_ms, "due_ms": world.elapsed_ms + duration_ms,
 		"finished_ms": -1, "status": "active", "reservation": reservation, "previous_autonomous": bool(person.autonomous), "position": person.position.duplicate(), "result": {}}
+	if require_contact:
+		action["contact"] = true
 	owner.actions[id] = action
 	owner._active_actions[id] = true
 	person.autonomous = false
 	world.invalidate_region(home)
 	return {"ok": true, "action": action.duplicate(true)}
+
+
+static func contact_valid(owner: SimObjectLifecycle, request: Dictionary, actor: String) -> bool:
+	# Optional physical handling constraint, persisted on the original action.
+	# Recheck at its deadline: a wall built during the work can break contact.
+	if request.op != "move":
+		return false
+	var world: RegionalSimulation = owner.world
+	var home: String = world.artifacts.actor_home(actor)
+	if home.is_empty() or request.from.region != home or request.to.region != home:
+		return false
+	var hand: String = "actor:" + actor
+	var cell: Vector2i
+	if str(request.from.container).begins_with("ground:") and request.to.get("container") == hand:
+		var slot: Dictionary = owner.ground.locate(home, request.from.container)
+		if not bool(slot.get("ok", false)) or not bool(slot.get("active", false)) or slot.reference != {"kind": "artifact", "id": request.id}:
+			return false
+		cell = slot.cell
+	elif request.from.container == hand and request.to.has("cell"):
+		cell = SimRouteTravel.cell(request.to.cell)
+	else:
+		return false
+	var origin: Vector2 = SimRouteTravel.point(world.regions[home].actors[actor])
+	var target: Vector2 = TileGrid.cell_to_world(cell)
+	var level: int = SimConflictSpace.level(world, origin)
+	return origin.distance_to(target) <= float(world.artifacts.definitions.interaction_radius) * TileGrid.TILE_SIZE and level == SimConflictSpace.level(world, target) and SimConflictSpace.clear_segment(world, origin, target, level)
 
 
 static func blocked(owner: SimObjectLifecycle, request: Dictionary, except_id: String = "") -> bool:
@@ -112,7 +142,7 @@ static func settle(owner: SimObjectLifecycle, at_ms: int) -> bool:
 		var person: Dictionary = owner.world.regions[action.region].actors[action.actor]
 		var result: Dictionary = owner._fail("actor_changed")
 		if bool(person.alive) and owner._same(person.position, action.position) and owner.world.actor_controls(action.actor, "action") and owner.world.actor_controls(action.actor, "motion"):
-			result = owner._execute(action.request, action.reservation, false)
+			result = owner._execute(action.request, action.reservation, false) if not bool(action.get("contact", false)) or contact_valid(owner, action.request, action.actor) else owner._fail("contact_changed")
 		if bool(result.get("pending", false)):
 			# Keep the original action, deadline, reservation and actor ownership.
 			# The same sorted active set resumes at this boundary on the next call.
@@ -156,7 +186,14 @@ static func cross_valid(owner: SimObjectLifecycle) -> bool:
 	var world: RegionalSimulation = owner.world
 	for id: Variant in owner.actions:
 		var action: Variant = owner.actions[id]
-		if not id is String or not action is Dictionary or not Shape.keys(action, ["actor", "region", "request", "started_ms", "due_ms", "finished_ms", "status", "reservation", "previous_autonomous", "position", "result"]) or not action.request is Dictionary or not owner._request_valid(action.request) or action.request.command != id or action.request.op not in ["move", "stock_transfer"] or not action.previous_autonomous is bool or not action.result is Dictionary or not action.reservation is String or not SimLocalMotion._vector(action.position):
+		var fields: Array = ["actor", "region", "request", "started_ms", "due_ms", "finished_ms", "status", "reservation", "previous_autonomous", "position", "result"]
+		if action is Dictionary and action.has("contact"):
+			if not action.contact is bool or not action.contact:
+				return false
+			fields.append("contact")
+		if not id is String or not action is Dictionary or not Shape.keys(action, fields) or not action.request is Dictionary or not owner._request_valid(action.request) or action.request.command != id or action.request.op not in ["move", "stock_transfer"] or not action.previous_autonomous is bool or not action.result is Dictionary or not action.reservation is String or not SimLocalMotion._vector(action.position):
+			return false
+		if action.has("contact") and action.request.op != "move":
 			return false
 		if not world.regions.has(action.region) or not world.regions[action.region].actors.has(action.actor) or action.request.from.region != action.region or action.request.to.region != action.region:
 			return false

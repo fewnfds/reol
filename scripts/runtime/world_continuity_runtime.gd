@@ -572,6 +572,7 @@ func advance_to_ms(target_ms: int) -> int:
 		avatar_adapter.prepare_step()
 	var prior_artifact_events: int = world_sim.artifacts.events.size()
 	var prior_artifact_users: int = world_sim.artifacts.active.size()
+	var prior_object_busy: bool = world_sim.object_lifecycle.owns_actor("player")
 	var prior_soul_events: int = world_sim.soul_vessels.events.size()
 	var prior_soul_users: int = world_sim.soul_vessels.active.size()
 	var prior_admission_entries: int = world_sim.admissions.entries.size()
@@ -647,6 +648,8 @@ func advance_to_ms(target_ms: int) -> int:
 		construction_adapter.queue_redraw()
 	_update_region()
 	_refresh_views(true)
+	if object_adapter != null and (object_adapter.panel.visible or prior_object_busy != world_sim.object_lifecycle.owns_actor("player")):
+		object_adapter.refresh()
 	if soul_adapter != null:
 		if soul_adapter.panel.visible:
 			soul_adapter.refresh()
@@ -680,6 +683,10 @@ func project_player_journey(to_ms: int) -> void:
 
 func travel_to(region_id: String, destination_cell: Variant = null) -> bool:
 	if not human_player_active() or world_sim == null:
+		return false
+	if world_sim.object_lifecycle.owns_actor("player"):
+		_notice = "先完成或停止手中的实物取放，再安排远行。"
+		_refresh_panel()
 		return false
 	if world_sim != null and world_sim.private_exchange.owns_actor("player"):
 		_notice = "先完成或停止当面交割，再安排远行。"
@@ -783,6 +790,7 @@ func cancel_travel() -> void:
 	if service_adapter != null:
 		service_adapter.cancel_manual()
 	if world_sim != null:
+		world_sim.object_lifecycle.cancel("player")
 		world_sim.artifacts.cancel("player")
 		world_sim.soul_vessels.cancel("player")
 		world_sim.admissions.cancel("player")

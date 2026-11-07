@@ -262,10 +262,10 @@ func _receipt(command: String) -> Dictionary:
 	return Receipt.decode(receipts.get(command), command)
 
 
-func schedule(request: Dictionary, actor: String, duration_ms: int) -> Dictionary:
+func schedule(request: Dictionary, actor: String, duration_ms: int, require_contact: bool = false) -> Dictionary:
 	if world != null and world.artifact_transfers != null and world.artifact_transfers.checking:
 		return _fail("transaction_busy")
-	return ActionProcess.schedule(self, request, actor, duration_ms)
+	return ActionProcess.schedule(self, request, actor, duration_ms, require_contact)
 
 
 func owns_actor(actor: String) -> bool:

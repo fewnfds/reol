@@ -8,6 +8,8 @@ var _owner: WeakRef
 var _notice: String = ""
 var _settled_event: String = ""
 var _selection_hit: Vector2 = Vector2.INF
+## Presentation pointer only; the action and its result remain in lifecycle.
+var _physical_action: String = ""
 
 
 func runtime() -> WorldContinuityRuntime:
@@ -73,6 +75,14 @@ func submit(verb: String) -> Dictionary:
 	var view: Dictionary = _perception(selected_object)
 	if not bool(view.get("known", false)):
 		return {"ok": false, "line": "你还没有看清这件器物。"}
+	if adapter.world_sim.object_lifecycle != null and adapter.world_sim.object_lifecycle.manages(selected_object):
+		if verb == "approach":
+			var observed: Array = view.cell
+			var accepted: bool = adapter.travel_to(str(view.region), Vector2i(int(observed[0]), int(observed[1])))
+			_notice = "正在走向你见到器物的位置。" if accepted else "眼下无法走过去，请先停止其他行动。"
+			refresh()
+			return {"ok": accepted, "line": _notice}
+		return _submit_physical(verb, view)
 	var thermal: bool = domain.has_capability(selected_object, "heat_storage")
 	if verb in ["methods", "spirit_source", "to_garden"] and not thermal:
 		return _refuse("这件器物没有储热用法，不能借它温养、引息或烘药。")
@@ -139,6 +149,109 @@ func _refuse(line: String) -> Dictionary:
 	return {"ok": false, "line": line}
 
 
+func _submit_physical(verb: String, view: Dictionary) -> Dictionary:
+	var adapter: WorldContinuityRuntime = runtime()
+	var authority: RegionalSimulation = adapter.world_sim
+	var domain: SimArtifacts = authority.artifacts
+	var lifecycle: SimObjectLifecycle = authority.object_lifecycle
+	var id: String = selected_object
+	if verb not in ["take", "place"] or not domain.has_capability(id, "physical") or not domain.verbs_for(id).has(verb):
+		return _refuse("这件实物眼下不能这样操作。")
+	if not bool(view.get("near", false)):
+		return _refuse("先走近并看清实物，再动手操作。")
+	if not adapter.player_journey.is_empty() or adapter.home_runtime()._player.altitude != 0 or not adapter.home_runtime()._player.motion.action.is_empty():
+		return _refuse("先落地停稳，结束远行或闪身，再动手操作。")
+	if authority.elapsed_ms != authority.target_ms:
+		return _refuse("世界事务仍在接续，请稍后再动手。")
+	var home: String = domain.actor_home("player")
+	if home.is_empty() or not domain.objects.has(id):
+		return _refuse("找不到本人或这件实物。")
+	var item: Dictionary = domain.objects[id]
+	if str(item.region) != home:
+		return _refuse("这件实物不在本人当前的区域账本内。")
+	var from_container: String = str(item.container)
+	var destination: Dictionary
+	if verb == "take":
+		if not from_container.begins_with("ground:"):
+			return _refuse("只能从地面取起这件实物；其他人或场所保管的东西需另行处理。")
+		var footprint: Rect2i = _physical_ground_rect(id, authority)
+		if footprint.size == Vector2i.ZERO or not _visible(id, authority):
+			return _refuse("地面上的实物已经移走或看不清了。")
+		if adapter.world_sim != authority:
+			return _refuse("世界状态已经改变，请重新选择实物。")
+		destination = {"region": home, "container": "actor:player"}
+	else:
+		if from_container != "actor:player":
+			return _refuse("先把实物拿在自己手中。")
+		var cell: Vector2i = adapter.controlled_cell()
+		var raw_size: Array = domain.definitions.types[item.definition].placement.footprint
+		var clearance: Dictionary = lifecycle.ground.can_place(home, cell, Vector2i(int(raw_size[0]), int(raw_size[1])))
+		if not bool(clearance.get("ok", false)):
+			return _refuse("脚边没有足够的可用地面放下这件实物。")
+		destination = {"region": home, "cell": [cell.x, cell.y]}
+	# Do not stop an existing activity just because the player clicked an
+	# invalid command. The lifecycle also checks body ownership on schedule.
+	if not authority.actor_controls("player", "action") or not authority.actor_controls("player", "motion") or authority.owns_for_scope("player", &"body"):
+		return _refuse("先完成或中断手头的事情。")
+	var actor: Dictionary = authority.regions[home].actors.player
+	var origin: Vector2 = SimRouteTravel.point(actor)
+	var target: Vector2 = TileGrid.cell_to_world(domain.object_cell(id)) if verb == "take" else origin
+	var level: int = SimConflictSpace.level(authority, origin)
+	var radius: float = float(domain.definitions.interaction_radius) * TileGrid.TILE_SIZE
+	if origin.distance_to(target) > radius or level != SimConflictSpace.level(authority, target) or not SimConflictSpace.clear_segment(authority, origin, target, level):
+		return _refuse("实物不在同高且无遮挡的触及范围内。")
+	var command: String = _physical_command(lifecycle)
+	if command.is_empty():
+		return _refuse("当前无法安排更多实物动作。")
+	var request: Dictionary = {"command": command, "op": "move", "id": id,
+		"from": {"region": home, "container": from_container}, "to": destination}
+	var terms: Dictionary = domain.verbs_for(id)[verb]
+	var response: Dictionary = lifecycle.schedule(request, "player", int(terms.minutes) * 60000, true)
+	if not bool(response.get("ok", false)):
+		return _refuse("无法开始这次实物操作，请检查占地和当前状态。")
+	_physical_action = command
+	# Preserve the exact simulated position recorded by the timed action.
+	adapter.hold_player_motion(true)
+	_notice = "正在取起实物，完成前它仍在原处。" if verb == "take" else "正在把实物放到脚边，完成前它仍由本人保管。"
+	adapter._refresh_panel()
+	refresh()
+	return {"ok": true, "line": _notice, "action": response.action}
+
+
+func _physical_command(lifecycle: SimObjectLifecycle) -> String:
+	# Existing receipts/actions persist through save/load and include cancelled
+	# actions. No separate counter or per-frame scan is needed.
+	var prefix: String = "player_physical:"
+	var first: int = lifecycle.actions.size() + lifecycle.receipts.size() + 1
+	for offset: int in range(1024):
+		var command: String = prefix + str(first + offset)
+		if not lifecycle.actions.has(command) and not lifecycle.receipts.has(command) and not lifecycle.ground.slots.has("ground:" + command):
+			return command
+	return ""
+
+
+func _physical_status(authority: RegionalSimulation, id: String) -> Dictionary:
+	var lifecycle: SimObjectLifecycle = authority.object_lifecycle
+	for command: String in lifecycle._active_actions:
+		var action: Dictionary = lifecycle.actions[command]
+		if str(action.actor) == "player" and action.request.get("id") == id:
+			_physical_action = command
+			var taking: bool = str(action.request.to.get("container", "")) == "actor:player"
+			var remaining: int = maxi(0, int(action.due_ms) - authority.elapsed_ms)
+			return {"busy": true, "line": "正在取起实物" if taking else "正在放下实物",
+				"remaining": ceili(float(remaining) / 60000.0), "remaining_ms": remaining}
+	# A loaded, still-active action is discovered above; its terminal result is
+	# then read from the same original lifecycle record rather than copied.
+	var completed: Variant = lifecycle.actions.get(_physical_action)
+	if completed is Dictionary and completed.get("actor") == "player" and completed.get("request", {}).get("id") == id:
+		var action_state: String = str(completed.get("status", ""))
+		if action_state in ["completed", "failed", "cancelled"]:
+			var taking: bool = str(completed.request.to.get("container", "")) == "actor:player"
+			var line: String = ("已取起实物。" if taking else "已把实物放在脚边。") if action_state == "completed" else ("操作已中断，实物留在原处。" if action_state == "cancelled" else "操作未能完成，实物留在原处。")
+			return {"busy": false, "line": line, "remaining": 0, "event": "physical:%s:%s" % [_physical_action, action_state]}
+	return {"busy": false, "line": "", "remaining": 0, "event": ""}
+
+
 func draw_targets() -> Array[Dictionary]:
 	var choices: Array[Dictionary] = []
 	var adapter: WorldContinuityRuntime = runtime()
@@ -198,6 +311,7 @@ func reset_observation() -> void:
 	_selection_hit = Vector2.INF
 	_notice = ""
 	_settled_event = ""
+	_physical_action = ""
 	panel.hide()
 	queue_redraw()
 
@@ -212,8 +326,17 @@ func refresh() -> void:
 			reset_observation()
 		else:
 			var thermal: bool = adapter.world_sim.artifacts.has_capability(selected_object, "heat_storage")
-			panel.set_terms(adapter.world_sim.artifacts.verbs_for(selected_object), thermal)
-			var status: Dictionary = adapter.world_sim.artifacts.status("player", selected_object)
+			var lifecycle: SimObjectLifecycle = adapter.world_sim.object_lifecycle
+			var managed: bool = lifecycle != null and lifecycle.manages(selected_object)
+			var terms: Dictionary = adapter.world_sim.artifacts.verbs_for(selected_object)
+			if managed:
+				var physical_terms: Dictionary = {}
+				for verb: String in ["take", "place"]:
+					if terms.has(verb):
+						physical_terms[verb] = terms[verb]
+				terms = physical_terms
+			panel.set_terms(terms, thermal if not managed else false)
+			var status: Dictionary = _physical_status(adapter.world_sim, selected_object) if managed else adapter.world_sim.artifacts.status("player", selected_object)
 			var active_job: Dictionary = adapter.world_sim.artifacts.active.get("player", {})
 			if active_job.get("verb") == "draw":
 				status["remaining_ms"] = maxi(0, int(active_job.due_ms) - int(adapter.world_sim.elapsed_ms))
