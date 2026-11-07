@@ -87,7 +87,9 @@ func _json(value: Variant) -> String:
 
 func _restore(runner: Object, world: RegionalSimulation, label: String) -> RegionalSimulation:
 	var saved: String = _json(world.to_dict())
-	var candidate: RegionalSimulation = _world(runner)
+	# Restore reconstructs the saved site and objects. A new game's field-site
+	# search is unrelated to this candidate and must not run before each load.
+	var candidate: RegionalSimulation = _fixtures._make_world(runner)
 	if candidate == null:
 		return null
 	candidate.bind_map_data(world.map_data.independent_copy())
@@ -100,7 +102,7 @@ func _restore(runner: Object, world: RegionalSimulation, label: String) -> Regio
 
 
 func _reject(runner: Object, world: RegionalSimulation, bad: Dictionary, label: String) -> void:
-	var candidate: RegionalSimulation = _world(runner)
+	var candidate: RegionalSimulation = _fixtures._make_world(runner)
 	if candidate == null:
 		return
 	candidate.bind_map_data(world.map_data.independent_copy())

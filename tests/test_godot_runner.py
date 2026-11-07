@@ -114,6 +114,30 @@ class GodotTestTimeoutTests(unittest.TestCase):
 
 
 class GodotSuiteSelectionTests(unittest.TestCase):
+    def test_shards_forward_to_test_and_check_without_claiming_full_coverage(self):
+        for command in ("test", "check"):
+            with self.subTest(command=command):
+                args = godot_runner.build_parser().parse_args([command, "--shard", "2/4"])
+                output = io.StringIO()
+                with patch.object(godot_runner, "_require_godot", return_value=Path("godot")):
+                    with patch.object(godot_runner, "_run", return_value=0) as run:
+                        with contextlib.redirect_stdout(output):
+                            self.assertEqual(args.func(args), 0)
+                line = run.call_args.args[0]
+                self.assertEqual(line[line.index("--shard") + 1], "2/4")
+                if command == "check":
+                    self.assertIn("partial registry", output.getvalue())
+                    self.assertNotIn("CHECK PASSED", output.getvalue())
+
+    def test_invalid_shards_and_mixed_selection_reject_before_engine_launch(self):
+        for command in ("test", "check"):
+            for shard in ("0/4", "5/4", "1/0", "-1/4", "1", "1.5/4", "01/4"):
+                with self.subTest(command=command, shard=shard):
+                    with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                        godot_runner.build_parser().parse_args([command, "--shard", shard])
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            godot_runner.build_parser().parse_args(["test", "--shard", "1/4", "--suite", "test_world_map_data"])
+
     def test_exact_suites_and_report_are_forwarded_as_user_arguments(self):
         with tempfile.TemporaryDirectory() as directory:
             report = Path(directory) / "timings" / "selected.jsonl"

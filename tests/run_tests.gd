@@ -5,6 +5,7 @@ extends SceneTree
 ##   godot --headless --path . --script res://tests/run_tests.gd
 ##   godot --headless --path . --script res://tests/run_tests.gd -- --list-suites
 ##   godot --headless --path . --script res://tests/run_tests.gd -- --suite test_terrain_edits --timing-report user://timings.jsonl
+##   godot --headless --path . --script res://tests/run_tests.gd -- --shard 1/4
 ##
 ## Convention: every method named `test_*` with no arguments is a test.
 ## Do not use bare `assert()`: a failed assert can stop before quit() and hang CI.
@@ -31,12 +32,13 @@ func _run_tests() -> void:
 	var arguments: PackedStringArray = OS.get_cmdline_user_args()
 	var requested: Dictionary = {}
 	var report_path: String = ""
+	var shard_spec: String = ""
 	var list_only: bool = false
 	var arg_index: int = 0
 	while arg_index < arguments.size():
 		var argument: String = arguments[arg_index]
 		match argument:
-			"--suite", "--timing-report":
+			"--suite", "--timing-report", "--shard":
 				arg_index += 1
 				if arg_index >= arguments.size() or arguments[arg_index].strip_edges().is_empty() or arguments[arg_index].begins_with("--"):
 					printerr("Missing value for %s" % argument)
@@ -44,6 +46,12 @@ func _run_tests() -> void:
 					return
 				if argument == "--suite":
 					requested[arguments[arg_index]] = true
+				elif argument == "--shard":
+					if not shard_spec.is_empty():
+						printerr("--shard may be specified only once")
+						quit(1)
+						return
+					shard_spec = arguments[arg_index]
 				else:
 					if not report_path.is_empty():
 						printerr("--timing-report may be specified only once")
@@ -64,9 +72,24 @@ func _run_tests() -> void:
 			quit(1)
 			return
 
+	var shard_index: int = 1
+	var shard_count: int = 1
+	if not shard_spec.is_empty():
+		var parts: PackedStringArray = shard_spec.split("/", true)
+		if parts.size() != 2 or not parts[0].is_valid_int() or not parts[1].is_valid_int():
+			printerr("Invalid test shard; use INDEX/TOTAL with 1 <= INDEX <= TOTAL")
+			quit(1)
+			return
+		shard_index = parts[0].to_int()
+		shard_count = parts[1].to_int()
+		if shard_index < 1 or shard_index > shard_count or shard_count > names.size() or str(shard_index) != parts[0] or str(shard_count) != parts[1] or not requested.is_empty():
+			printerr("Invalid test shard or mixed --suite/--shard selection")
+			quit(1)
+			return
 	var selected: Array[String] = []
-	for test_name in names:
-		if requested.is_empty() or requested.has(test_name):
+	for index: int in names.size():
+		var test_name: String = names[index]
+		if (requested.is_empty() or requested.has(test_name)) and index % shard_count == shard_index - 1:
 			selected.append(test_name)
 	if list_only:
 		for test_name in selected:
@@ -83,7 +106,9 @@ func _run_tests() -> void:
 			return
 
 	print("Reol tests - Godot %s" % Engine.get_version_info()["string"])
-	if not _write_timing_event(report, {"event": "run_started", "registered_count": names.size(), "suites": selected}):
+	if not shard_spec.is_empty():
+		print("Shard %s: %d of %d suites; this process is partial coverage" % [shard_spec, selected.size(), names.size()])
+	if not _write_timing_event(report, {"event": "run_started", "registered_count": names.size(), "registered_suites": names, "shard_index": shard_index, "shard_count": shard_count, "suites": selected}):
 		quit(1)
 		return
 

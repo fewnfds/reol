@@ -80,7 +80,9 @@ func _start(runner: Object, world: RegionalSimulation) -> bool:
 
 func _restored(runner: Object, world: RegionalSimulation, autonomous: bool = true) -> RegionalSimulation:
 	var saved: String = _canonical(world)
-	var candidate: RegionalSimulation = _world(runner, autonomous)
+	# Saved sites and original objects come from restore, not a second opening
+	# search. Opening placement remains covered by the new-game cases below.
+	var candidate: RegionalSimulation = _world(runner, autonomous, false)
 	if candidate == null: return null
 	candidate.bind_map_data(world.map_data.independent_copy())
 	var accepted: bool = candidate.restore(JSON.parse_string(saved))
@@ -260,7 +262,7 @@ func _reject_bad_candidates(runner: Object) -> void:
 			"native_overlap": bad.regions.river.actors[ACTOR].autonomous = true
 			"double_ring": bad.artifacts.objects["untraced_second_ring"] = {"definition": "drawing_ring", "region": "home", "container": "actor:player"}
 			"missing_field_origin": bad.field_opportunities = SimFieldOpportunities.empty_state()
-		var candidate: RegionalSimulation = _world(runner, true)
+		var candidate: RegionalSimulation = _world(runner, true, false)
 		if candidate == null: return
 		var before: String = _canonical(candidate)
 		var input: String = SnapshotValues.canonical_json(SnapshotValues.normalized(bad))

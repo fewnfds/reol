@@ -30,6 +30,10 @@ jobs:
   test:
     runs-on: ubuntu-24.04
     timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
 
     steps:
       - name: Checkout
@@ -56,18 +60,38 @@ jobs:
           echo "GODOT_BIN=$godot_bin" >> "$GITHUB_ENV"
 
       - name: Python tool tests
+        if: matrix.shard == 1
         run: python -m unittest discover -s tests -p 'test_*.py'
 
       - name: Import + test
-        run: python -u tools/godot.py check --test-timeout 1800
+        run: python -u tools/godot.py check --shard ${{ matrix.shard }}/4 --test-timeout 1800
 
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: godot-logs
+          name: godot-logs-${{ matrix.shard }}
           path: |
             logs/*.log
             logs/*-timings-*.jsonl
           if-no-files-found: ignore
           retention-days: 14
+
+  test-coverage:
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.14'
+      - name: Download shard reports
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: godot-logs-*
+          path: logs/ci-shards
+      - name: Verify complete registry coverage
+        run: python tools/check_test_reports.py logs/ci-shards --shards 4

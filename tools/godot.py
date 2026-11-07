@@ -327,6 +327,8 @@ def cmd_test(args: argparse.Namespace) -> int:
 def _test_command(godot: Path, args: argparse.Namespace, name: str) -> list[str]:
     command = [str(godot), "--headless", "--path", str(ROOT),
                "--script", "res://tests/run_tests.gd", "--"]
+    if getattr(args, "shard", None):
+        command.extend(["--shard", args.shard])
     for suite in getattr(args, "suite", []):
         command.extend(["--suite", suite])
     if getattr(args, "list_suites", False):
@@ -373,7 +375,10 @@ def cmd_check(args: argparse.Namespace) -> int:
     if import_code != 0 or test_code != 0:
         print(f"CHECK FAILED (import={import_code}, test={test_code})", file=sys.stderr)
         return 1
-    print("CHECK PASSED")
+    if args.shard:
+        print(f"CHECK SHARD {args.shard} PASSED (partial registry; all shards are required)")
+    else:
+        print("CHECK PASSED")
     return 0
 
 
@@ -430,6 +435,13 @@ def _positive_seconds(value: str) -> int:
     return seconds
 
 
+def _test_shard(value: str) -> str:
+    match = re.fullmatch(r"([1-9][0-9]*)/([1-9][0-9]*)", value)
+    if match is None or int(match[1]) > int(match[2]):
+        raise argparse.ArgumentTypeError("use INDEX/TOTAL with 1 <= INDEX <= TOTAL")
+    return value
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Reol Godot CLI helper.",
@@ -454,8 +466,13 @@ def build_parser() -> argparse.ArgumentParser:
             "--timing-report", type=Path, metavar="PATH",
             help="suite timings JSONL (default: unique file under logs/)",
         )
+        selection = command.add_mutually_exclusive_group()
+        selection.add_argument(
+            "--shard", type=_test_shard, metavar="INDEX/TOTAL",
+            help="run a disjoint slice of the complete registry; all shards verify full coverage",
+        )
         if name == "test":
-            command.add_argument(
+            selection.add_argument(
                 "--suite", action="append", default=[], metavar="TEST_NAME",
                 help="run an exact registered test_* suite; repeat for several",
             )
