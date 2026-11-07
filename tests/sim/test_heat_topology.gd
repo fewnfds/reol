@@ -44,24 +44,24 @@ class HeatObserver extends RefCounted:
 		events.append({"kind": kind, "at_ms": now, "barriers": barriers, "roofs": roofs})
 
 
-class Authority extends RefCounted:
-	var elapsed_ms: int = 123456
-	var regions: Dictionary = {"home": VillageSimulation.new()}
-	# The original motion/road guard reads this explicit empty activity world.
-	# Regions still use the real owner type even though no travel is scheduled.
-	var settings: Dictionary = {"routes": {}}
-	var construction := SimConstruction.new()
-	var environment_fields := HeatObserver.new()
-	var services: RefCounted
-	var personal_production: RefCounted
-	var capability_practice: RefCounted
-	var field_opportunities: RefCounted
-	var soul_vessels: RefCounted
-	var large_bodies: RefCounted
-	var avian_life: RefCounted
-	var resting: RefCounted
-	var weather: RefCounted
+class Authority extends RegionalSimulation:
+	# Use the real authority type required by the shared execution contract,
+	# with only this transaction's original region/ledger and thermal observer.
+	# No full world, opening content or unrelated process is assembled here.
 	var structure_notifications: Array = []
+	var outcomes: Array[Dictionary] = []
+
+	func _init() -> void:
+		elapsed_ms = 123456
+		regions = {"home": VillageSimulation.new()}
+		settings = {"routes": {}}
+		construction = SimConstruction.new()
+		environment_fields = HeatObserver.new()
+		action_finished.connect(on_action_finished)
+
+
+	func on_action_finished(outcome: Dictionary) -> void:
+		outcomes.append(outcome.duplicate(true))
 
 
 	func invalidate_region(_region: String) -> void:
@@ -117,7 +117,7 @@ func _commit(authority: Authority, id: String, kind: String, previous_autonomous
 	# suite tests geometry/cost commit ordering, not path travel or labor time.
 	var job: Dictionary = {"id": id + ":job:" + kind, "project": id,
 		"actor": "builder", "kind": kind, "stand": [cell.x, cell.y + 1],
-		"phase": "work", "work_started_ms": authority.elapsed_ms,
+		"phase": "work", "work_started_ms": authority.elapsed_ms, "started_ms": authority.elapsed_ms - 1, "due_ms": authority.elapsed_ms,
 		"previous_autonomous": previous_autonomous}
 	authority.construction.active.builder = job
 	authority.regions.home.actors.builder.autonomous = false
@@ -127,11 +127,12 @@ func _commit(authority: Authority, id: String, kind: String, previous_autonomous
 func _door_commit(runner: Object) -> void:
 	var authority: Authority = _world(runner)
 	var cell := Vector2i(101, 101)
-	authority.environment_fields.cells = [cell]
+	authority.environment_fields.cells.assign([cell])
 	var id: String = _project(runner, authority, "wood_door", cell)
 	runner.assert_true(not authority.construction.thermal_barrier(cell), "an unbuilt door is not a physical thermal barrier")
 	_commit(authority, id, "build")
 	runner.assert_eq(authority.regions.home.inventory.quantity(id, "wood"), 0, "the original stock is consumed before the real door becomes geometry")
+	runner.assert_true(authority.outcomes.back().domain == "construction" and authority.outcomes.back().status == "completed" and not authority.construction.active.has("builder"), "completed topology commits report the common outcome after original worker release")
 	runner.assert_eq(authority.environment_fields.events.size(), 2, "a successful door completion brackets one geometry change")
 	runner.assert_eq(authority.environment_fields.events[0].barriers, [false], "before sees the former open cell")
 	runner.assert_eq(authority.environment_fields.events[1].barriers, [true], "after sees the newly finished closed door")
@@ -151,7 +152,7 @@ func _door_commit(runner: Object) -> void:
 func _rejected_changes(runner: Object) -> void:
 	var authority: Authority = _world(runner)
 	var cell := Vector2i(101, 101)
-	authority.environment_fields.cells = [cell]
+	authority.environment_fields.cells.assign([cell])
 	var id: String = _project(runner, authority, "wood_wall", cell, false)
 	var original_stock: Dictionary = authority.regions.home.inventory.to_dict()
 	_commit(authority, id, "build", true)
@@ -184,7 +185,7 @@ func _collapsing_roofs(runner: Object) -> void:
 	var authority: Authority = _world(runner)
 	var wall_cell := Vector2i(101, 101)
 	var roof_cell := Vector2i(102, 101)
-	authority.environment_fields.cells = [wall_cell, roof_cell]
+	authority.environment_fields.cells.assign([wall_cell, roof_cell])
 	var wall: String = _project(runner, authority, "wood_wall", wall_cell)
 	_commit(authority, wall, "build")
 	var roof: String = _project(runner, authority, "wood_roof", roof_cell)
@@ -222,7 +223,7 @@ func _rejected_build_and_retry(runner: Object) -> void:
 	for type: String in ["wood_wall", "wood_roof"]:
 		var authority: Authority = _world(runner)
 		var cell := Vector2i(101, 101)
-		authority.environment_fields.cells = [cell]
+		authority.environment_fields.cells.assign([cell])
 		if type == "wood_roof":
 			var support: String = _project(runner, authority, "wood_wall", Vector2i(100, 101))
 			_commit(authority, support, "build")
@@ -259,7 +260,7 @@ func _rejected_build_and_retry(runner: Object) -> void:
 	# safe to commit. The observer records this attempt separately from after.
 	var blocked: Authority = _world(runner)
 	var blocked_cell := Vector2i(101, 101)
-	blocked.environment_fields.cells = [blocked_cell]
+	blocked.environment_fields.cells.assign([blocked_cell])
 	var blocked_id: String = _project(runner, blocked, "wood_wall", blocked_cell)
 	var blocked_inventory: Dictionary = blocked.regions.home.inventory.to_dict()
 	var blocked_geometry: Dictionary = _physical_projects(blocked, [blocked_id])
@@ -279,7 +280,7 @@ func _rejected_build_and_retry(runner: Object) -> void:
 func _rejected_door_and_retry(runner: Object) -> void:
 	var authority: Authority = _world(runner)
 	var cell := Vector2i(101, 101)
-	authority.environment_fields.cells = [cell]
+	authority.environment_fields.cells.assign([cell])
 	var door: String = _project(runner, authority, "wood_door", cell)
 	_commit(authority, door, "build")
 	for verb: String in ["open", "close"]:
@@ -309,7 +310,7 @@ func _two_roof_fixture(runner: Object) -> Dictionary:
 	var wall_cell := Vector2i(101, 101)
 	var first_cell := Vector2i(102, 101)
 	var second_cell := Vector2i(101, 102)
-	authority.environment_fields.cells = [wall_cell, first_cell, second_cell]
+	authority.environment_fields.cells.assign([wall_cell, first_cell, second_cell])
 	var wall: String = _project(runner, authority, "wood_wall", wall_cell)
 	_commit(authority, wall, "build")
 	var first: String = _project(runner, authority, "wood_roof", first_cell)
@@ -420,6 +421,7 @@ func _clear_observers(authority: Authority) -> void:
 	authority.environment_fields.events.clear()
 	authority.environment_fields.preflights.clear()
 	authority.structure_notifications.clear()
+	authority.outcomes.clear()
 
 
 func _assert_rejected_transaction(runner: Object, authority: Authority, ids: Array, geometry_before: Dictionary, inventory_before: Dictionary, label: String, expected_before: bool) -> void:
@@ -431,3 +433,4 @@ func _assert_rejected_transaction(runner: Object, authority: Authority, ids: Arr
 	else:
 		runner.assert_true(authority.environment_fields.events.is_empty(), label + " has no before/after heat commit")
 	runner.assert_true(not authority.construction.active.has("builder") and bool(authority.regions.home.actors.builder.autonomous), label + " releases the worker with its original autonomy")
+	runner.assert_true(not authority.outcomes.is_empty() and authority.outcomes.back().status == "failed", label + " reports failure through the shared terminal contract")

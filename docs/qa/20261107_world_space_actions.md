@@ -35,3 +35,5 @@ Godot AI核对Reol工程、Godot4.7.2 stable和官方插件4.4.1后启动普通`
 代码`fa45228b35fd42c090e1e297f47b211fcb6b8fb7`已执行一次原生`gpt-6.1-sol`/custom只读静态审查（`logs/stage1-native-review.log`），审查未运行引擎/测试/CI。3项P2均有效并修复：多鸟/大兽同批跨格的通知期间明确拒绝查询，全部链接完成后才允许完整查询；来源时钟领先世界的正常区域移动仅更新原几何，不再触发全量重建；候选逐个计费，低预算不先复制密集格全集。
 
 `logs/stage1-review-regressions.log`复现并保护这些反例，连同原对象查询/取放/大兽/玩家身体共5组635断言通过，包装器0退出。最终代码提交、一次全量check及分支推送待收尾登记；有效修复不另启动第二个主要审查。起点main的CI42365643089已在真实提交检查点核success；分支尚未推送，没有可归属本阶段的远端CI。不得把旧SHA绿色当作新代码通过。
+
+首轮完整check（`5fd6e3152464fd30320ac858d28c19caaea46559`，`logs/stage1-full-check.log`）用时约1287秒，249组全部执行，248组通过；唯一失败组`test_heat_topology`有9条自主权释放断言和同源脚本类型错误。原因是旧夹具用简化RefCounted Authority调用新的强类型共用合同；实际原世界相关组通过。夹具改为最小RegionalSimulation派生、保留原热观察者/账本和全部断言，补真实起止时刻与终态断言；没有修改产品代码或放宽门禁。`logs/stage1-topology-final.log`该组205断言通过，修正后需要重新取得完整check成功终态。
