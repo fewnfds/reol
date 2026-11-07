@@ -165,8 +165,8 @@ func _assert_rejections(runner: Object, runtime: WorldContinuityRuntime, saved: 
 	if legacy_map != null:
 		bad = saved.duplicate(true)
 		bad.world = descriptor.duplicate(true)
-		bad.world.exploration = saved.world.exploration.duplicate(true)
-		bad.world.terrain_overrides = [[EDIT_CELL.x, EDIT_CELL.y, WorldMapData.TERRAIN_WATER]]
+		bad.world["exploration"] = saved.world.exploration.duplicate(true)
+		bad.world["terrain_overrides"] = [[EDIT_CELL.x, EDIT_CELL.y, WorldMapData.TERRAIN_WATER]]
 		bad.world_seed = descriptor.seed
 		runner.assert_true(not legacy_map.valid_terrain_overrides(bad.world.terrain_overrides), "historical map refuses a nonempty delta before any spatial validation")
 		_reject(runner, runtime, bad, path, "a nonempty delta on the immutable legacy generator")

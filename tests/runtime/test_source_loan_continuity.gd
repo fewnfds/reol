@@ -1,7 +1,7 @@
 extends RefCounted
 ## Current ordinary borrowing, saved in flight and resumed under one world clock.
 
-const Replay = preload("res://tests/runtime/helpers/source_loan_replay.gd")
+const Replay = preload("res://tests/runtime/helpers/source_care_replay.gd")
 const ARCHIVE: String = "res://tests/fixtures/session_v37.json"
 const SOURCE_SHA: String = "64c9ee3cf0bfa3cd8bf012a1461f8c2b0992740d4907cd1d8de7b66886bd030a"
 
@@ -54,6 +54,19 @@ func run(runner: Object) -> void:
 	var selected: bool = arrived and runtime.spirit_adapter.select_source("hearth_seam")
 	runner.assert_true(selected, "the original player reaches and sees the actual source")
 	if not selected:
+		_cleanup(main, source_path, check_path, saved_clock)
+		return
+	# The issuer's signed note is not automatically known to the actual keeper.
+	# Use the same real face-to-face explanation as the ordinary peaceful path.
+	var guard: String = helper._wait_keeper(runtime)
+	runner.assert_true(not guard.is_empty(), "the actual keeper arrives before signed source use")
+	if guard.is_empty():
+		_cleanup(main, source_path, check_path, saved_clock)
+		return
+	var explained: Dictionary = runtime.interaction_adapter.submit(world.embodiment.subject_for_actor(guard), "explain_source", {"kind": "care_basis", "id": note_id})
+	var accepted: bool = explained.get("status") == "completed"
+	runner.assert_true(accepted, "the actual keeper receives and accepts the signed note: " + str(explained))
+	if not accepted:
 		_cleanup(main, source_path, check_path, saved_clock)
 		return
 	var reply: Dictionary = runtime.spirit_adapter.submit("begin")

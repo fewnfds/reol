@@ -31,7 +31,7 @@ func run(runner: Object) -> void:
 	_test_two_region_save_resumes_player_and_cargo(runner)
 
 
-func _fixture(runner: Object, bundle: Dictionary = {}) -> Dictionary:
+func _fixture(runner: Object, bundle: Dictionary = {}, initial_workplaces: bool = false, opening_field: bool = false) -> Dictionary:
 	var saved_clock: Dictionary = GameClock.to_dict()
 	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": false})
 	var content := ReolContentDB.new()
@@ -59,7 +59,7 @@ func _fixture(runner: Object, bundle: Dictionary = {}) -> Dictionary:
 		"clock": saved_clock, "world": world, "player": player,
 		"pawns": pawns, "home": home, "continuity": continuity,
 	}
-	if not home.setup(world, player, pawns, content) or not continuity.setup(home):
+	if not home.setup(world, player, pawns, content, initial_workplaces) or not continuity.setup(home, false, false, opening_field):
 		runner.assert_true(false, "two connected settlements initialize through the runtime")
 		_dispose(result)
 		return {}

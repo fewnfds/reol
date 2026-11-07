@@ -2,7 +2,7 @@ extends RefCounted
 ## Real custody UI, authorized senses and continuous holder presentation.
 
 const Fixtures = preload("res://tests/runtime/test_world_continuity_runtime.gd")
-const SWORD: String = "tool:runtime_sword"
+const SWORD: String = "training_sword"
 var _fixtures := Fixtures.new()
 
 
@@ -40,15 +40,17 @@ func run(runner: Object) -> void:
 	print("SCENARIO weapon UI: configured nonthermal verbs, actual take/place and joint resume, interpolated holders, limited memory and transformed pointer selection")
 
 
-func _fixture(runner: Object) -> Dictionary:
-	var fixture: Dictionary = _fixtures._fixture(runner)
+func _fixture(runner: Object, opening_field: bool = false) -> Dictionary:
+	var fixture: Dictionary = _fixtures._fixture(runner, {}, true, opening_field)
 	if fixture.is_empty():
 		return fixture
 	var runtime: WorldContinuityRuntime = fixture.continuity
-	runtime.world_sim.artifacts.objects[SWORD] = {"definition": "wooden_sword", "region": "home", "container": "dorm"}
-	# This fixture directly injects a legacy test object; rebuild derived IDs as
-	# the real opening/restore paths do before asking the local view to find it.
-	runtime.world_sim.artifacts._rebuild_light_sources()
+	# Workplaces enable the same training sword assembled by the ordinary Main
+	# before activation of the environment field and its original source index.
+	if not runtime.world_sim.artifacts.objects.has(SWORD):
+		runner.assert_true(false, "ordinary opening assembles its training sword")
+		_fixtures._dispose(fixture)
+		return {}
 	fixture.player.spawn_at(SimRouteTravel.cell(fixture.home.simulation.places.dorm.cell))
 	runtime.prepare_player_command()
 	return fixture
@@ -63,8 +65,18 @@ func _thermal_hidden(runner: Object, panel: ObjectInspectionPanel, context: Stri
 		runner.assert_true(not panel._buttons[verb].visible, context + " hides unsupported thermal action: " + verb)
 
 
-func _finish(runtime: WorldContinuityRuntime) -> void:
+func _finish(runner: Object, runtime: WorldContinuityRuntime) -> bool:
+	if not runtime.world_sim.artifacts.active.has("player"):
+		runner.assert_true(false, "the expected player artifact action is active before completion")
+		return false
 	GameClock.advance_msec(int(runtime.world_sim.artifacts.active.player.due_ms) - GameClock.elapsed_ms)
+	return true
+
+
+func _discard_save(path: String) -> void:
+	for suffix: String in ["", ".tmp", ".bak", ".bak.tmp"]:
+		if FileAccess.file_exists(path + suffix):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
 
 
 func _handling_and_joint_resume(runner: Object) -> void:
@@ -87,29 +99,48 @@ func _handling_and_joint_resume(runner: Object) -> void:
 	for verb: String in ["methods", "spirit_source", "to_garden", "charge", "warm", "force"]:
 		runner.assert_true(not adapter.submit(verb).ok, "raw thermal request cannot bypass the selected tool's affordance: " + verb)
 	runner.assert_eq(_canonical(runtime), before, "unsupported raw requests neither spend qi nor interrupt the in-progress take")
-	_finish(runtime)
+	if not _finish(runner, runtime):
+		_fixtures._dispose(fixture)
+		return
 	runner.assert_eq(runtime.world_sim.artifacts.held_weapon("player"), SWORD, "finished take transfers the same actual instance to the player's custody")
 	runner.assert_true(adapter.panel._buttons.place.visible and not adapter.panel._buttons.take.visible, "custody changes the actual available take/place controls")
 	runner.assert_true(adapter.submit("study").ok, "inspector can commit deliberate nonthermal tool familiarization")
 	GameClock.advance_msec(617)
 	var path: String = "user://tests/weapon_runtime_%d.json" % Time.get_ticks_usec()
-	runner.assert_eq(runtime.save_game(path), OK, "unfinished sword handling saves through the ordinary joint world snapshot")
+	var saved: Error = runtime.save_game(path)
+	runner.assert_eq(saved, OK, "unfinished sword handling saves through the ordinary joint world snapshot")
+	if saved != OK:
+		_discard_save(path)
+		_fixtures._dispose(fixture)
+		return
 	before = _canonical(runtime)
-	_finish(runtime)
+	if not _finish(runner, runtime):
+		_discard_save(path)
+		_fixtures._dispose(fixture)
+		return
 	var future: String = _canonical(runtime)
-	runner.assert_eq(runtime.load_game(path), OK, "ordinary load restores the pending tool action and original custody")
+	var loaded: Error = runtime.load_game(path)
+	runner.assert_eq(loaded, OK, "ordinary load restores the pending tool action and original custody")
+	if loaded != OK:
+		_discard_save(path)
+		_fixtures._dispose(fixture)
+		return
 	runner.assert_eq(_canonical(runtime), before, "tool UI does not lose the actual pending action during restore")
-	_finish(runtime)
+	if not _finish(runner, runtime):
+		_discard_save(path)
+		_fixtures._dispose(fixture)
+		return
 	runner.assert_eq(_canonical(runtime), future, "loaded joint world reaches the identical real tool future")
 	runner.assert_true(adapter.select_object(SWORD), "restored familiar sword can reopen in the same inspector")
 	runner.assert_true(runtime.world_sim.artifacts.describe("player", SWORD).method, "actual completed familiarization is known to its operator")
 	_thermal_hidden(runner, adapter.panel, "familiar sword")
 	runner.assert_true(adapter.submit("place").ok, "ordinary place control commits actual placement at the sword's storage place")
-	_finish(runtime)
+	if not _finish(runner, runtime):
+		_discard_save(path)
+		_fixtures._dispose(fixture)
+		return
 	runner.assert_eq(runtime.world_sim.artifacts.objects[SWORD].container, "dorm", "sword returns to its configured room rather than a hard-coded kitchen")
-	for suffix: String in ["", ".tmp", ".bak", ".bak.tmp"]:
-		if FileAccess.file_exists(path + suffix):
-			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
+	_discard_save(path)
 	_fixtures._dispose(fixture)
 
 
@@ -147,6 +178,11 @@ func _holder_views(runner: Object) -> void:
 	if not runtime._remote_views.has("river_chen_shouzhuo"):
 		_fixtures._dispose(fixture)
 		return
+	# The ordinary workplace opening also gives this resident a sword. Keep
+	# that existing carried object with another resident in this controlled
+	# presentation fixture so the tested holder has a single display marker.
+	if domain.objects.has("river_training_sword"):
+		domain.objects.river_training_sword.container = "actor:river_shi_tou"
 	domain.objects[SWORD].region = "river"
 	domain.objects[SWORD].container = "actor:river_chen_shouzhuo"
 	var remote: Pawn = runtime._remote_views.river_chen_shouzhuo
@@ -176,7 +212,11 @@ func _limited_observation(runner: Object) -> void:
 	runner.assert_eq(_canonical(runtime), before, "rejected hidden selection grants no personal record")
 	fog.showing = true
 	runner.assert_true(adapter.select_object(SWORD) and adapter.submit("inspect").ok, "physical observation can create a genuine paid record")
-	_finish(runtime)
+	if not _finish(runner, runtime):
+		fixture.home._fog = null
+		fog.free()
+		_fixtures._dispose(fixture)
+		return
 	var remembered: Array = domain.events.back().cell.duplicate()
 	domain.objects[SWORD].container = "garden"
 	fog.showing = false
@@ -217,13 +257,45 @@ func _regional_approach(runner: Object) -> void:
 
 
 func _hidden_peer_layout(runner: Object) -> void:
-	var fixture: Dictionary = _fixture(runner)
+	var fixture: Dictionary = _fixture(runner, true)
 	if fixture.is_empty():
 		return
 	var runtime: WorldContinuityRuntime = fixture.continuity
 	var adapter: WorldObjectsRuntime = runtime.object_adapter
 	var domain: SimArtifacts = runtime.world_sim.artifacts
+	var world: RegionalSimulation = runtime.world_sim
+	var ring_id: String = "stele_drawing_ring"
+	var carrier: String = "chen_shouzhuo"
+	if not domain.objects.has(ring_id):
+		runner.assert_true(false, "ordinary field opening assembles its original ring")
+		_fixtures._dispose(fixture)
+		return
+	# Bring the original opening ring to the shared cell through its real timed
+	# take. Carrying it keeps its environment source correctly absent while the
+	# controlled holder is positioned for this presentation-only layout test.
+	for sim: VillageSimulation in world.regions.values():
+		for actor: String in sim.actors:
+			sim.cancel_action(actor, "fixture_setup")
+			sim.actors[actor].autonomous = false
+	world.regions.home.set_actor_cell(carrier, domain.object_cell(ring_id))
+	world.invalidate_region("home")
+	world.invalidate_region("river")
+	var take: Dictionary = domain.begin(carrier, "take", ring_id)
+	runner.assert_true(take.ok, "the original ring can be taken for the hidden peer fixture")
+	if not take.ok:
+		_fixtures._dispose(fixture)
+		return
+	GameClock.advance_msec(int(domain.active[carrier].due_ms) - GameClock.elapsed_ms)
+	runner.assert_eq(domain.objects[ring_id].container, "actor:" + carrier, "the hidden peer remains the original ring in real custody")
+	if domain.objects[ring_id].container != "actor:" + carrier:
+		_fixtures._dispose(fixture)
+		return
 	var target: Vector2i = domain.object_cell(SWORD)
+	world.regions.home.set_actor_cell(carrier, target)
+	world.invalidate_region("home")
+	var holder: Pawn = fixture.home._pawns[carrier]
+	holder.global_position = TileGrid.cell_to_world(target)
+	holder.visual_offset = Vector2.ZERO
 	var standing: Vector2i = target + Vector2i.RIGHT * 2
 	var map := OneCellSightBarrier.new()
 	map.blocked_cell = target + Vector2i.RIGHT
@@ -231,10 +303,8 @@ func _hidden_peer_layout(runner: Object) -> void:
 	runtime.world_sim.map_data = map
 	fixture.player.spawn_at(standing)
 	runtime.prepare_player_command()
-	var ring_id: String = "tool:hidden_ring"
-	domain.objects[ring_id] = {"definition": "drawing_ring", "region": "home", "container": "dorm"}
-	domain._rebuild_light_sources()
 	runner.assert_true(domain.object_cell(ring_id) == target, "the hidden ring and visible sword occupy the same actual cell")
+	runner.assert_true(adapter._base_display_point(ring_id, world).is_equal_approx(adapter._base_display_point(SWORD, world)), "the hidden ring and visible sword share the same visual anchor")
 	runner.assert_true(adapter._visible(SWORD) and adapter._visible("amber_pearl"), "ordinary co-located objects remain visible")
 	runner.assert_true(not adapter._visible(ring_id), "the ring's genuine sight requirement fails at the blocking cell")
 	var before: String = _canonical(runtime)
@@ -246,11 +316,12 @@ func _hidden_peer_layout(runner: Object) -> void:
 	adapter.panel._cycle.pressed.emit()
 	runner.assert_eq(adapter.selected_object, "amber_pearl", "cycle button signal uses visible hits and excludes the unseen ring")
 	runner.assert_eq(_canonical(runtime), before, "cycling past the unseen peer does not discover it or change world state")
-	domain.objects.erase(ring_id)
-	domain._rebuild_light_sources()
+	world.regions.home.set_actor_cell(carrier, target + Vector2i(10, 10))
+	world.invalidate_region("home")
+	holder.global_position = TileGrid.cell_to_world(target + Vector2i(10, 10))
 	before = _canonical(runtime)
-	runner.assert_true(adapter._display_point(SWORD).is_equal_approx(sword_with_hidden), "removing an unseen co-located ring does not move the visible sword")
-	runner.assert_true(adapter._display_point("amber_pearl").is_equal_approx(pearl_with_hidden), "removing an unseen co-located ring does not move the visible pearl")
+	runner.assert_true(adapter._display_point(SWORD).is_equal_approx(sword_with_hidden), "moving an unseen co-located ring away does not move the visible sword")
+	runner.assert_true(adapter._display_point("amber_pearl").is_equal_approx(pearl_with_hidden), "moving an unseen co-located ring away does not move the visible pearl")
 	runner.assert_eq(_canonical(runtime), before, "recomputing the layout without the unseen ring changes no real world state")
 	_fixtures._dispose(fixture)
 
@@ -350,10 +421,12 @@ func _pointer_input(runner: Object) -> void:
 	runner.root.add_child(main)
 	var runtime: WorldContinuityRuntime = main._continuity
 	var adapter: WorldObjectsRuntime = runtime.object_adapter
-	var target_id: String = "training_sword" if runtime.world_sim.artifacts.objects.has("training_sword") else SWORD
-	if target_id == SWORD:
-		runtime.world_sim.artifacts.objects[SWORD] = {"definition": "wooden_sword", "region": "home", "container": "dorm"}
-		runtime.world_sim.artifacts._rebuild_light_sources()
+	var target_id: String = SWORD
+	if not runtime.world_sim.artifacts.objects.has(target_id):
+		runner.assert_true(false, "ordinary Main opens with its original training sword")
+		main.free()
+		GameClock.restore_state(saved_clock)
+		return
 	var target: Vector2i = runtime.world_sim.artifacts.object_cell(target_id)
 	main.player.spawn_at(target)
 	runtime.prepare_player_command()

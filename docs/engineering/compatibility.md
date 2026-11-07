@@ -24,7 +24,7 @@
 
 ## 当前实现的有限边界
 
-2026-11-07隔离收尾工作树中，[SessionSaveSchema](../../scripts/persistence/session_save_schema.gd)普通入口只接受根`52`；任何有效整数旧根`1–51`返回`legacy_environment`，未来或非法版本返回`unsupported_version`。旧Q历史无法可靠推导新场的实际残留，因此不从当前物品位置伪造迁移。用户原档保留；失败不替换活世界。代码仍待最终验证与合并，证据和当前状态见[HANDOFF](../status/handoff.md)与[BASELINE](../status/baseline.md)。
+当前实现中，[SessionSaveSchema](../../scripts/persistence/session_save_schema.gd)普通入口只接受根`52`；任何有效整数旧根`1–51`返回`legacy_environment`，未来或非法版本返回`unsupported_version`。旧Q历史无法可靠推导新场的实际残留，因此不从当前物品位置伪造迁移。用户原档保留；失败不替换活世界。验证证据和当前状态见[HANDOFF](../status/handoff.md)与[BASELINE](../status/baseline.md)。
 
 普通联合区域为`43`，`RegionalSimulation.restore`明确拒绝其他区域版本与旧热导入标志。当前内容包为`2`，将`environment_sources.json`连同其他定义及digest写入；旧`1`版内容包可在低层做形状验证，但缺来源定义，不足以装配新普通环境，也不会从当前磁盘补出历史能力。不要把低层旧版校验器或历史导入源码误写成旧存档已支持。
 

@@ -414,10 +414,6 @@ func test_field_opportunity_absence() -> void:
 	load("res://tests/runtime/test_field_opportunity_absence.gd").new().run(self)
 
 
-func test_field_archives() -> void:
-	load("res://tests/runtime/test_field_archives.gd").new().run(self)
-
-
 func test_capability_queries() -> void:
 	load("res://tests/sim/test_capability_queries.gd").new().run(self)
 

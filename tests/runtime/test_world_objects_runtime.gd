@@ -39,7 +39,7 @@ class MaskFog extends FogOfWar:
 	var hidden_cells: Dictionary = {}
 
 	func is_cell_visible(cell: Vector2i) -> bool:
-		return not hidden_cells.has(cell)
+		return _in_bounds(cell) and not hidden_cells.has(cell)
 
 
 class BudgetLimitedLifecycle extends SimObjectLifecycle:

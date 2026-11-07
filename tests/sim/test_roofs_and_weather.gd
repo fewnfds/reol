@@ -65,16 +65,18 @@ func _test_weather_phase_and_water(runner: Object) -> void:
 
 
 func _test_roof_material_layer_support(runner: Object) -> void:
-	var fixture: Dictionary = _fixtures._bed_world(runner)
-	var world: RegionalSimulation = fixture.world
 	# This pure construction fixture previously used implicit all-open terrain.
-	# Bind that same flat geometry as a real map for spatial light queries.
-	world.map_data = OpenMap.new()
-	world.construction.set_terrain(world.map_data.terrain_is_walkable, world.map_data.get_elevation)
+	# Bind that same flat geometry before building advances the field clock.
+	var world: RegionalSimulation = _world(runner)
+	world.bind_map_data(OpenMap.new())
+	var stock: int = world.regions.home.inventory.quantity("store", "wood")
+	var bed: String = _fixtures._build(runner, world, "wood_bed", Vector2i(110, 108))
+	runner.assert_eq(world.regions.home.inventory.quantity("store", "wood"), stock - 5, "a bed consumes original real lumber, not a free resting marker")
+	runner.assert_true(not world.construction.blocked(Vector2i(110, 108)), "low furniture is traversable, not a solid wall")
 	var construction: SimConstruction = world.construction
 	var cell := Vector2i(110, 108)
 	var roof: String = _fixtures._fixtures._place(runner, world, "wood_roof", cell)
-	runner.assert_eq(construction.project_at(cell), fixture.bed, "upper blueprint does not replace the actual ground bed")
+	runner.assert_eq(construction.project_at(cell), bed, "upper blueprint does not replace the actual ground bed")
 	runner.assert_eq(construction.project_at(cell, "roof"), roof, "roof and ground have independent occupancy indexes")
 	runner.assert_true(not construction.roofed(cell), "an overhead blueprint is not actual shelter")
 	_assert_natural_light(runner, world, cell, false)
@@ -87,19 +89,18 @@ func _test_roof_material_layer_support(runner: Object) -> void:
 	var support: String = _fixtures._build(runner, world, "wood_wall", Vector2i(111, 108))
 	runner.assert_true(construction.begin("player", roof).ok, "adding real support allows the existing work to resume")
 	_fixtures._fixtures._finish(runner, world)
-	runner.assert_true(construction.roofed(cell) and construction.is_bed(fixture.bed) and not construction.blocked(cell), "supported roof covers the actual bed without becoming a ground obstacle")
+	runner.assert_true(construction.roofed(cell) and construction.is_bed(bed) and not construction.blocked(cell), "supported roof covers the actual bed without becoming a ground obstacle")
 	_assert_natural_light(runner, world, cell, true)
 	runner.assert_eq(world.regions.home.inventory.quantity(roof, "wood"), 0, "overhead material is consumed exactly once")
 	var state: Dictionary = JSON.parse_string(_canonical(world))
 	var restored: RegionalSimulation = _world(runner)
-	restored.map_data = OpenMap.new()
-	restored.construction.set_terrain(restored.map_data.terrain_is_walkable, restored.map_data.get_elevation)
+	restored.bind_map_data(OpenMap.new())
 	runner.assert_true(restored.restore(state), "same-cell bed and supported roof survive a complete independent world candidate")
 	_assert_natural_light(runner, restored, cell, true)
 	runner.assert_true(construction.begin("player", support, "demolish").ok, "physical support can be dismantled through the original work")
 	_fixtures._fixtures._finish(runner, world)
 	runner.assert_eq(construction.projects[roof].state, "removed", "removing the last nearby support collapses the roof rather than preserving imaginary cover")
-	runner.assert_true(not construction.roofed(cell) and construction.is_bed(fixture.bed), "roof collapse leaves the original bed and ground route intact")
+	runner.assert_true(not construction.roofed(cell) and construction.is_bed(bed), "roof collapse leaves the original bed and ground route intact")
 	_assert_natural_light(runner, world, cell, false)
 	runner.assert_eq(world.regions.home.inventory.quantity(roof, "wood"), 2, "collapsed roof leaves finite original salvage")
 	runner.assert_true(restored.restore(JSON.parse_string(_canonical(world))), "collapse receipts and source materials remain a valid save")

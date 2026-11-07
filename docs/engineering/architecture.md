@@ -25,5 +25,5 @@
 - [实物生命周期与动作](object-lifecycle-contract.md)：原器物/库存上的受控位置变更、数量堆拆、共同时间动作和候选恢复。
 - [地面环境来源查询](environment-source-query-contract.md)：显式版本化配置、原物只读投影及有界局部基础目标；不持持续场、温度或第二套物品状态。
 - [真实来源分块缓存](environment-ground-cache-contract.md)：原物派生基础目标、有界构建、局部失效及恢复重绑；不持实际温度/五行历史。
-- [普通世界环境合同](world-environment-contract.md)：唯一室外温度/五行响应所有者、来源变更事务、受体与存读边界。该工作树代码仍待最终审查、完整回归与合并；性能以实际证据为准。
+- [普通世界环境合同](world-environment-contract.md)：唯一室外温度/五行响应所有者、来源变更事务、受体与存读边界。实际采用版本及验证状态见[基线](../status/baseline.md)，性能以实际证据为准。
 - [静止来源实际响应](environment-response-contract.md)：封闭开发会话的单实物联合事务、可续事件边界与专用验收快照；不能把该适配器当普通Main实现。

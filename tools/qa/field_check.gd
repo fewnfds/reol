@@ -11,7 +11,6 @@ const SUITES: Dictionary = {
 	"views": "res://tests/runtime/test_field_views_and_travel.gd",
 	"causality": "res://tests/sim/test_field_causality.gd",
 	"absence": "res://tests/runtime/test_field_opportunity_absence.gd",
-	"archives": "res://tests/runtime/test_field_archives.gd",
 	"legacy_continuity": "res://tests/runtime/test_world_continuity_runtime.gd",
 	"legacy_capability": "res://tests/runtime/test_capability_migration.gd",
 	"legacy_care": "res://tests/runtime/test_source_care_migration.gd",

@@ -30,7 +30,7 @@ func _prepared(runner: Object, fixtures: RefCounted, accept: bool) -> Dictionary
 		return {}
 	var documents: Dictionary = defaults.content_bundle().documents
 	documents["res://data/definitions/private_exchange.json"].policy.accept_threshold = -10.0 if accept else 10.0
-	var fixture: Dictionary = fixtures._fixture(runner, ReolContentBundle.from_documents(documents))
+	var fixture: Dictionary = fixtures._fixture(runner, ReolContentBundle.from_documents(documents), false, true)
 	if fixture.is_empty():
 		return {}
 	var runtime: WorldContinuityRuntime = fixture.continuity
@@ -41,9 +41,12 @@ func _prepared(runner: Object, fixtures: RefCounted, accept: bool) -> Dictionary
 		for actor: String in sim.actors:
 			sim.cancel_action(actor, "fixture_setup")
 			sim.actors[actor].autonomous = false
-	var spawned: bool = world.field_opportunities.spawn_opening(runtime.centers)
-	runner.assert_true(spawned, "controlled fixture opens the original unique field ring")
-	if not spawned:
+	# The ordinary field opening is assembled before the environment sources
+	# activate, so the ring and its field source describe the same original.
+	var opened: bool = world.field_opportunities.sites.has("broken_stele") and world.artifacts.objects.has(RING)
+	opened = opened and world.artifacts.objects[RING].container == "site:broken_stele"
+	runner.assert_true(opened, "controlled fixture opens the original unique field ring")
+	if not opened:
 		fixtures._dispose(fixture)
 		return {}
 	var cell: Vector2i = world.artifacts.object_cell(RING)
