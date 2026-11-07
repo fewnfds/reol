@@ -1,6 +1,6 @@
 # 术语与运行入口整改
 
-2026-11-07；分支`codex/sparse-world-execution`，起点`d27337d67c0148132dfaef2d802d72a860b62d38`。包含上轮待提交的AGENTS、DOCUMENTATION、HANDOFF修改；没有覆盖其他工作。准确受检提交在本包审查收尾时登记。
+2026-11-07；分支`codex/sparse-world-execution`，起点`d27337d67c0148132dfaef2d802d72a860b62d38`，受检代码`771a587d20a38998845331fb214cd886d361d876`。包含上轮待提交的AGENTS、DOCUMENTATION、HANDOFF修改；没有覆盖其他工作。收尾提交仅登记文档证据，代码不变。
 
 ## 整改范围
 
@@ -27,4 +27,4 @@
 
 本轮真实提交检查点一次查到[run42356120868](https://github.com/fewnfds/reol/actions/runs/42356120868)，完整headSha`d27337d67c0148132dfaef2d802d72a860b62d38`，当时in_progress，conclusion为空。按规则留待下个真实提交点，不轮询或等待。该run也不能证明本包改名通过。
 
-本包提交后由主代理一次Sol/custom原生静态审查；收尾登记终态。推送不自动合并main，不把定向10组或旧SHA结果写成完整回归成功。
+受检代码由主代理一次`gpt-6.1-sol`/custom原生静态审查，终态无可执行发现；日志`logs/terminology/review-771a587.log`。审查核对当前调用、反射/调度和存档键，没有重复测试、启动引擎、CI或嵌套审查。推送不自动合并main，不把定向10组或旧SHA结果写成完整回归成功。
