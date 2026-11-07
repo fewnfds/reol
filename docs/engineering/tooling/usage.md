@@ -10,6 +10,8 @@ Godot跟进最新稳定版；当前已核对的是**4.7.2**，不是永久锁定
 python tools/godot.py doctor
 python tools/godot.py version
 python tools/godot.py import
+python tools/godot.py test --list-suites
+python tools/godot.py test --suite test_environment_field_rules --test-timeout 120
 python tools/godot.py test --test-timeout 1800
 python tools/godot.py check --test-timeout 1800
 python tools/godot.py run
@@ -20,6 +22,8 @@ python tools/setup_codex.py --check --review-model gpt-6.1-sol
 ~~~
 
 check包括结构、导入和统一同步测试runner；test不替代导入，测试超时或任何首个真实脚本错误均非通过。命令及作用域、画面/存读验收见[测试入口](../../../tests/README.md)。导出到Windows还需匹配引擎的模板、实际导出预设及独立运行验证，不能凭命令存在就认定已可发布。
+
+定向`test --suite`按完整名称选择，可重复；`check`保持全套。逐组耗时和断言增量默认写到唯一`logs/*-timings-*.jsonl`，可用`--timing-report PATH`指定。报告逐组flush，失败/超时后读一次即可，不需要扫描testlog；验证分层与GPU边界见[测试策略](../workflow/testing.md)。
 
 ## 配置和观察
 

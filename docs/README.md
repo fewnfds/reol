@@ -13,6 +13,7 @@
 | 分支分别有什么用 | [分支审计](status/branches.md) |
 | 状态归谁，文件放哪里，工具怎样用 | [工程入口](engineering/README.md) |
 | 开发规则来自哪里、哪些skill在约束 | [开发范式与来源](engineering/workflow/ai-development.md#规则来源与技能职责) |
+| 如何选测试、计时和划分GPU/CI验证 | [测试策略](engineering/workflow/testing.md) |
 | 目标硬件、内存和GPU预算是什么 | [全项目性能基线](engineering/architecture.md#全项目性能基线) |
 | 基础架构接下来先做什么 | [基础优先级](plans/foundation-priorities.md) |
 | 更远的产品目标和技术候选 | [计划](plans/README.md)、[工程规格](specs/README.md) |

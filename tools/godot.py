@@ -318,17 +318,34 @@ def cmd_test(args: argparse.Namespace) -> int:
     if godot is None:
         return 1
     return _run(
-        [
-            str(godot),
-            "--headless",
-            "--path",
-            str(ROOT),
-            "--script",
-            "res://tests/run_tests.gd",
-        ],
+        _test_command(godot, args, "test"),
         "test",
         timeout=args.test_timeout,
     )
+
+
+def _test_command(godot: Path, args: argparse.Namespace, name: str) -> list[str]:
+    command = [str(godot), "--headless", "--path", str(ROOT),
+               "--script", "res://tests/run_tests.gd", "--"]
+    for suite in getattr(args, "suite", []):
+        command.extend(["--suite", suite])
+    if getattr(args, "list_suites", False):
+        return command + ["--list-suites"]
+    # The runner flushes one record per suite. A timeout preserves completed
+    # timings without live log readers or repeated process/CI queries.
+    report = args.timing_report
+    if report is None:
+        report = LOG_DIR / f"{name}-timings-{time.time_ns()}.jsonl"
+    elif not report.is_absolute():
+        report = ROOT / report
+    report = report.resolve()
+    report.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        shown = report.relative_to(ROOT)
+    except ValueError:
+        shown = report
+    print(f"[timings] {shown}")
+    return command + ["--timing-report", str(report)]
 
 
 def cmd_check(args: argparse.Namespace) -> int:
@@ -349,14 +366,7 @@ def cmd_check(args: argparse.Namespace) -> int:
         timeout=600,
     )
     test_code = _run(
-        [
-            str(godot),
-            "--headless",
-            "--path",
-            str(ROOT),
-            "--script",
-            "res://tests/run_tests.gd",
-        ],
+        _test_command(godot, args, "check-test"),
         "check-test",
         timeout=args.test_timeout,
     )
@@ -440,6 +450,19 @@ def build_parser() -> argparse.ArgumentParser:
             "--test-timeout", type=_positive_seconds, default=900, metavar="SECONDS",
             help="headless test timeout in positive whole seconds (default: 900)",
         )
+        command.add_argument(
+            "--timing-report", type=Path, metavar="PATH",
+            help="suite timings JSONL (default: unique file under logs/)",
+        )
+        if name == "test":
+            command.add_argument(
+                "--suite", action="append", default=[], metavar="TEST_NAME",
+                help="run an exact registered test_* suite; repeat for several",
+            )
+            command.add_argument(
+                "--list-suites", action="store_true",
+                help="list registered suites without executing tests",
+            )
         command.set_defaults(func=handler)
 
     run = sub.add_parser("run", help="run the project")

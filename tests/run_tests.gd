@@ -3,6 +3,8 @@ extends SceneTree
 ##
 ## Run with:
 ##   godot --headless --path . --script res://tests/run_tests.gd
+##   godot --headless --path . --script res://tests/run_tests.gd -- --list-suites
+##   godot --headless --path . --script res://tests/run_tests.gd -- --suite test_terrain_edits --timing-report user://timings.jsonl
 ##
 ## Convention: every method named `test_*` with no arguments is a test.
 ## Do not use bare `assert()`: a failed assert can stop before quit() and hang CI.
@@ -19,8 +21,6 @@ func _initialize() -> void:
 
 
 func _run_tests() -> void:
-	print("Reol tests - Godot %s" % Engine.get_version_info()["string"])
-
 	var names: Array[String] = []
 	for method in get_method_list():
 		var method_name: String = method["name"]
@@ -28,18 +28,115 @@ func _run_tests() -> void:
 			names.append(method_name)
 	names.sort()
 
+	var arguments: PackedStringArray = OS.get_cmdline_user_args()
+	var requested: Dictionary = {}
+	var report_path: String = ""
+	var list_only: bool = false
+	var arg_index: int = 0
+	while arg_index < arguments.size():
+		var argument: String = arguments[arg_index]
+		match argument:
+			"--suite", "--timing-report":
+				arg_index += 1
+				if arg_index >= arguments.size() or arguments[arg_index].strip_edges().is_empty() or arguments[arg_index].begins_with("--"):
+					printerr("Missing value for %s" % argument)
+					quit(1)
+					return
+				if argument == "--suite":
+					requested[arguments[arg_index]] = true
+				else:
+					if not report_path.is_empty():
+						printerr("--timing-report may be specified only once")
+						quit(1)
+						return
+					report_path = arguments[arg_index]
+			"--list-suites":
+				list_only = true
+			_:
+				printerr("Unknown test argument: %s" % argument)
+				quit(1)
+				return
+		arg_index += 1
+
+	for requested_name in requested:
+		if not names.has(requested_name):
+			printerr("Unknown test suite: %s" % requested_name)
+			quit(1)
+			return
+
+	var selected: Array[String] = []
 	for test_name in names:
-		var before := failed
+		if requested.is_empty() or requested.has(test_name):
+			selected.append(test_name)
+	if list_only:
+		for test_name in selected:
+			print(test_name)
+		quit(0)
+		return
+
+	var report: FileAccess = null
+	if not report_path.is_empty():
+		report = FileAccess.open(report_path, FileAccess.WRITE)
+		if report == null:
+			printerr("Cannot open timing report %s (error %d)" % [report_path, FileAccess.get_open_error()])
+			quit(1)
+			return
+
+	print("Reol tests - Godot %s" % Engine.get_version_info()["string"])
+	if not _write_timing_event(report, {"event": "run_started", "registered_count": names.size(), "suites": selected}):
+		quit(1)
+		return
+
+	var timings: Array[Dictionary] = []
+	for test_name in selected:
+		var before: int = failed
+		var checks_before: int = checks
 		print("RUN  %s" % test_name)
+		if not _write_timing_event(report, {"event": "suite_started", "suite": test_name}):
+			quit(1)
+			return
+		var started: int = Time.get_ticks_usec()
 		call(test_name)
+		var elapsed_ms: float = float(Time.get_ticks_usec() - started) / 1000.0
+		var suite_checks: int = checks - checks_before
+		var suite_failures: int = failed - before
 		if failed == before:
 			passed += 1
 			print("PASS %s" % test_name)
+		print("TIME %s %.3f ms, %d checks, %d assertion failures" % [test_name, elapsed_ms, suite_checks, suite_failures])
+		var timing: Dictionary = {"event": "suite_finished", "suite": test_name, "elapsed_ms": elapsed_ms, "checks": suite_checks, "assertion_failures": suite_failures}
+		timings.append(timing)
+		if not _write_timing_event(report, timing):
+			quit(1)
+			return
 
 	print("")
 	print("Results: %d passed, %d failed" % [passed, failed])
 	print("Assertions: %d" % checks)
+	timings.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if float(a["elapsed_ms"]) == float(b["elapsed_ms"]):
+			return str(a["suite"]) < str(b["suite"])
+		return float(a["elapsed_ms"]) > float(b["elapsed_ms"])
+	)
+	print("Slowest suites:")
+	for index in range(mini(10, timings.size())):
+		var timing: Dictionary = timings[index]
+		print("  %s: %.3f ms, %d checks" % [timing["suite"], timing["elapsed_ms"], timing["checks"]])
+	if not _write_timing_event(report, {"event": "run_finished", "passed": passed, "failed": failed, "checks": checks}):
+		quit(1)
+		return
 	quit(1 if failed > 0 else 0)
+
+
+func _write_timing_event(report: FileAccess, event: Dictionary) -> bool:
+	if report == null:
+		return true
+	var line: String = JSON.stringify(event)
+	if not report.store_line(line):
+		printerr("Cannot write timing report (error %d)" % report.get_error())
+		return false
+	report.flush()
+	return true
 
 
 func assert_true(condition: bool, label: String) -> void:

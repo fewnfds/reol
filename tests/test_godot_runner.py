@@ -96,7 +96,9 @@ class GodotTestTimeoutTests(unittest.TestCase):
                     limits = [call.kwargs["timeout"] for call in run.call_args_list]
                     self.assertEqual(names, ["test"] if command == "test" else ["check-structure", "check-import", "check-test"])
                     self.assertEqual(limits, [timeout] if command == "test" else [60, 600, timeout])
-                    self.assertEqual(run.call_args.args[0][-1], "res://tests/run_tests.gd")
+                    command_line = run.call_args.args[0]
+                    self.assertEqual(command_line[command_line.index("--script") + 1], "res://tests/run_tests.gd")
+                    self.assertIn("--timing-report", command_line[command_line.index("--") + 1:])
 
     def test_custom_timeout_still_fails_test_and_check(self):
         for command in ("test", "check"):
@@ -109,6 +111,43 @@ class GodotTestTimeoutTests(unittest.TestCase):
                     with patch.object(godot_runner, "_run", side_effect=results):
                         with contextlib.redirect_stderr(io.StringIO()):
                             self.assertEqual(args.func(args), 124 if command == "test" else 1)
+
+
+class GodotSuiteSelectionTests(unittest.TestCase):
+    def test_exact_suites_and_report_are_forwarded_as_user_arguments(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / "timings" / "selected.jsonl"
+            args = godot_runner.build_parser().parse_args([
+                "test", "--suite", "test_world_map_data", "--suite", "test_terrain_edits",
+                "--timing-report", str(report),
+            ])
+            command = godot_runner._test_command(Path("godot"), args, "test")
+            self.assertEqual(command[command.index("--") + 1:], [
+                "--suite", "test_world_map_data", "--suite", "test_terrain_edits",
+                "--timing-report", str(report.resolve()),
+            ])
+            self.assertTrue(report.parent.is_dir())
+
+    def test_listing_does_not_create_a_timing_report(self):
+        args = godot_runner.build_parser().parse_args(["test", "--list-suites"])
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(godot_runner, "LOG_DIR", Path(directory) / "unused"):
+                command = godot_runner._test_command(Path("godot"), args, "test")
+            self.assertEqual(command[command.index("--") + 1:], ["--list-suites"])
+            self.assertEqual(list(Path(directory).iterdir()), [])
+
+    def test_default_report_is_unique_and_partial_selection_is_not_a_full_check(self):
+        args = godot_runner.build_parser().parse_args(["check"])
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(godot_runner, "LOG_DIR", Path(directory)):
+                first = godot_runner._test_command(Path("godot"), args, "check-test")
+                second = godot_runner._test_command(Path("godot"), args, "check-test")
+            self.assertNotEqual(first[-1], second[-1])
+            self.assertEqual(Path(first[-1]).parent, Path(directory).resolve())
+        with contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as raised:
+                godot_runner.build_parser().parse_args(["check", "--suite", "test_world_map_data"])
+        self.assertEqual(raised.exception.code, 2)
 
 
 if __name__ == "__main__":

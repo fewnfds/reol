@@ -2,6 +2,8 @@
 
 [分类总目录](../CATALOG.md)；路径存在不表示已实现或已验。
 
+- [docs/qa/20261107_test_cost_audit.md](../qa/20261107_test_cost_audit.md)
+
 - [docs/qa/20261107_framework_runtime_integration.md](../qa/20261107_framework_runtime_integration.md)
 - [docs/qa/20261107_source_change_review.md](../qa/20261107_source_change_review.md)
 - [docs/qa/20261107_sparse_execution.md](../qa/20261107_sparse_execution.md)
