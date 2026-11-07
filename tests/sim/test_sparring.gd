@@ -97,7 +97,7 @@ func _test_sparse_restore(runner: Object) -> void:
 	fine.advance_to_ms(123)
 	sparse.advance_to_ms(123)
 	var restored: RegionalSimulation = _make(runner)
-	runner.assert_true(restored.restore(JSON.parse_string(JSON.stringify(sparse.to_dict()))), "in-flight practice survives the full regional candidate validator")
+	runner.assert_true(restored.restore(JSON.parse_string(JSON.stringify(sparse.to_dict(), "", true, true))), "in-flight practice survives the full regional candidate validator")
 	restored.set_active_region("home")
 	for target: int in [299, 300, 777, 2345, 8000]:
 		while fine.elapsed_ms < target:

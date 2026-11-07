@@ -32,7 +32,7 @@ func _do(runner: Object, world: RegionalSimulation, verb: String) -> void:
 
 
 func _state(world: RegionalSimulation) -> String:
-	return JSON.stringify(JSON.parse_string(JSON.stringify(world.to_dict())), "", true, true)
+	return JSON.stringify(JSON.parse_string(JSON.stringify(world.to_dict(), "", true, true)), "", true, true)
 
 
 func _test_material_transform(runner: Object) -> void:
@@ -129,7 +129,7 @@ func _test_mid_action_json_and_cancellation(runner: Object) -> void:
 	world.artifacts.begin("player", "study", "hearth_stone")
 	world.advance_to(world.current_time + 1)
 	runner.assert_true(not world.regions.home.submit_action("player", "rest"), "native executor cannot also own a body studying an artifact")
-	var snapshot: Dictionary = JSON.parse_string(JSON.stringify(world.to_dict()))
+	var snapshot: Dictionary = JSON.parse_string(JSON.stringify(world.to_dict(), "", true, true))
 	var resumed: RegionalSimulation = _world(runner)
 	runner.assert_true(resumed.restore(snapshot), "unfinished investigation restores into an independent candidate world")
 	var finish: int = int(world.artifacts.active.player.due_ms)
@@ -156,7 +156,7 @@ func _test_invalid_artifacts_are_atomic(runner: Object) -> void:
 		return
 	_do(runner, world, "study")
 	_do(runner, world, "heat")
-	var good: Dictionary = JSON.parse_string(JSON.stringify(world.to_dict()))
+	var good: Dictionary = JSON.parse_string(JSON.stringify(world.to_dict(), "", true, true))
 	var successful_restore: RegionalSimulation = _world(runner)
 	runner.assert_true(successful_restore.restore(good), "completed heat and its normalized integer material ledger restore successfully")
 	runner.assert_eq(_state(successful_restore), _state(world), "completed food, evidence and personal learning survive JSON together")

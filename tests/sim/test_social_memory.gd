@@ -208,7 +208,7 @@ func _test_snapshot_roundtrip(runner: Object) -> void:
 	var restored := Memory.new()
 	runner.assert_true(restored.restore(encoded), "snapshot survives a JSON roundtrip")
 	# JSON normalizes integer Variants to floats; compare the serialized meaning.
-	var restored_json: Dictionary = JSON.parse_string(JSON.stringify(restored.to_dict()))
+	var restored_json: Dictionary = JSON.parse_string(JSON.stringify(restored.to_dict(), "", true, true))
 	runner.assert_eq(restored_json, encoded, "all knowledge, policy, histories, counters and requests survive")
 	runner.assert_eq(restored.known_events("d")[0]["source"], "c", "multi-hop source remains attributed after restore")
 	runner.assert_true(not restored.remember_outcome("c", "a", "helped", event_id), "restored evidence remains deduplicated")

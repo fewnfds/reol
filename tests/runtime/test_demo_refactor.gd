@@ -30,7 +30,7 @@ func _arrive_river(fixture: Dictionary, runner: Object) -> bool:
 
 
 func _test_snapshot_boundary(runner: Object, location: String) -> void:
-	var fixture: Dictionary = _lazy_region_fixture(runner)
+	var fixture: Dictionary = _fixtures._fixture(runner)
 	if fixture.is_empty():
 		return
 	var runtime: WorldContinuityRuntime = fixture.continuity
@@ -38,84 +38,80 @@ func _test_snapshot_boundary(runner: Object, location: String) -> void:
 		_fixtures._dispose(fixture)
 		return
 	var far: String = "home" if location == "river" else "river"
-	var quiet: VillageSimulation = runtime.world_sim.regions[far]
-	# A quiet far region may legally lag the committed global time. Capture must
-	# settle it before serializing the duplicate home/session representations.
-	for actor_id: String in quiet.actors:
-		quiet.cancel_action(actor_id, "fixture_quiet_interval")
-		# The remote settlement's controlled resident is an autonomous NPC, unlike
-		# the visitor player. Preserve that persisted controller invariant.
-		if actor_id != quiet.controlled_actor:
-			quiet.actors[actor_id].autonomous = false
-		quiet.actors[actor_id].retry_ms = GameClock.elapsed_ms + 120 * 60000
-	runtime.world_sim.invalidate_region(far)
-	var limit: int = GameClock.tick_index + 20
-	while quiet.tick_index == runtime.world_sim.current_time and GameClock.tick_index < limit:
-		GameClock.advance_ticks(1)
-	runner.assert_true(quiet.tick_index < runtime.world_sim.current_time, "%s snapshot fixture actually contains a lazy far region" % location)
+	var live_world: RegionalSimulation = runtime.world_sim
+	var quiet: VillageSimulation = live_world.regions[far]
+	var start_ms: int = GameClock.elapsed_ms
+	# A far region may have already been synchronized by a normal environmental
+	# or object boundary. Capture must serialize both regions at the committed
+	# instant regardless, without advancing the shared clock to do so.
+	GameClock.advance_msec(1234)
+	var committed_ms: int = GameClock.elapsed_ms
+	var clock_before: Dictionary = GameClock.to_dict()
+	runner.assert_eq(committed_ms, start_ms + 1234, "%s fixture advances a real subminute interval" % location)
+	runner.assert_true(not GameClock.has_pending_advance(), "%s fixture reaches a completed clock boundary" % location)
+	runner.assert_eq(live_world.elapsed_ms, committed_ms, "%s world and clock share the committed millisecond" % location)
+	runner.assert_eq(live_world.target_ms, committed_ms, "%s world has no uncommitted time at capture" % location)
+	runner.assert_true(quiet.elapsed_ms <= committed_ms, "%s far region never leads the shared clock" % location)
+	runner.assert_eq(runtime.current_region, location, "%s remains the active runtime region" % location)
+	runner.assert_eq(live_world.active_region, location, "%s remains the active simulation region" % location)
 	var snapshot: Dictionary = SessionSnapshot.capture(runtime)
+	runner.assert_true(not snapshot.is_empty(), "%s session capture succeeds" % location)
+	if snapshot.is_empty():
+		_fixtures._dispose(fixture)
+		return
+	runner.assert_eq(GameClock.to_dict(), clock_before, "%s capture does not advance or alter the shared clock" % location)
+	runner.assert_eq(live_world.elapsed_ms, committed_ms, "%s capture does not advance world time" % location)
+	runner.assert_eq(live_world.target_ms, committed_ms, "%s capture does not add world time debt" % location)
+	runner.assert_eq(quiet.elapsed_ms, committed_ms, "%s capture synchronizes the live far region" % location)
+	runner.assert_eq(_normal(snapshot.clock), _normal(clock_before), "%s serialized clock is the original commit point" % location)
+	runner.assert_eq(int(snapshot.continuity.world.elapsed_ms), committed_ms, "%s serialized world keeps the original commit point" % location)
+	runner.assert_eq(int(snapshot.continuity.world.target_ms), committed_ms, "%s serialized world has no added time debt" % location)
+	runner.assert_eq(snapshot.continuity.world.active_region, location, "%s serialized world preserves the active region" % location)
 	runner.assert_eq(int(snapshot.clock.tick_index), int(snapshot.continuity.world.current_time), "captured clock and regional commit time agree")
-	for region: Dictionary in snapshot.continuity.world.regions.values():
-		runner.assert_eq(int(region.tick_index), int(snapshot.clock.tick_index), "every serialized region reaches the same session boundary")
+	for region_id: String in snapshot.continuity.world.regions:
+		var region: Dictionary = snapshot.continuity.world.regions[region_id]
+		runner.assert_eq(int(region.elapsed_ms), committed_ms, "%s serialized %s reaches the exact session boundary" % [location, region_id])
+		runner.assert_eq(int(region.tick_index), int(snapshot.clock.tick_index), "every serialized region reaches the same session minute")
+		runner.assert_eq(_normal(region), _normal(live_world.regions[region_id].to_dict()), "%s serialized %s preserves its live body and books" % [location, region_id])
 	runner.assert_eq(_normal(snapshot.simulation), _normal(snapshot.continuity.world.regions.home), "home snapshot and regional home are the same committed body and books")
 	var before: String = _state(runtime)
+	var before_position: Vector2 = fixture.player.global_position
+	var live_map: WorldMapData = live_world.map_data
 	var staged: Dictionary = SessionSnapshot.stage(runtime, _normal(snapshot))
 	runner.assert_true(not staged.is_empty(), "extracted session validator accepts a coherent %s snapshot" % location)
 	runner.assert_true(_state(runtime) == before, "candidate validation does not mutate the live causal world")
+	runner.assert_eq(GameClock.to_dict(), clock_before, "candidate validation does not alter the shared clock")
+	runner.assert_true(runtime.world_sim == live_world and runtime.world_sim.map_data == live_map and runtime.world_sim.regions[far] == quiet, "candidate validation keeps the live world, map and far-region owners")
 	if not staged.is_empty():
-		runner.assert_true(staged.world != runtime.world_sim and staged.world.regions.home != runtime.world_sim.regions.home, "staged restore owns independent world and actor containers")
+		runner.assert_true(staged.world != live_world and staged.world.regions.home != live_world.regions.home and staged.world.regions[far] != quiet and staged.map != live_map, "staged restore owns an independent world, map and region containers")
 	var path: String = "user://tests/demo_refactor_%s_%d.json" % [location, Time.get_ticks_usec()]
-	runner.assert_eq(SimSaveStore.save_file(path, snapshot), OK, "captured session writes as an ordinary JSON snapshot")
+	var saved: Error = runtime.save_game(path)
+	runner.assert_eq(saved, OK, "ordinary save writes the captured %s session" % location)
+	if saved != OK:
+		_remove_test_save(path)
+		_fixtures._dispose(fixture)
+		return
+	runner.assert_eq(GameClock.to_dict(), clock_before, "ordinary save does not advance the shared clock")
+	runner.assert_true(_state(runtime) == before, "ordinary save keeps the committed world state")
 	GameClock.advance_ticks(73)
+	runner.assert_eq(GameClock.elapsed_ms, committed_ms + 73 * 60000, "original continuation commits all 73 requested minutes")
+	runner.assert_true(not GameClock.has_pending_advance(), "original continuation leaves no uncommitted time")
 	var expected: String = _state(runtime)
+	var expected_clock: Dictionary = GameClock.to_dict()
 	var expected_position: Vector2 = fixture.player.global_position
 	runner.assert_eq(runtime.load_game(path), OK, "extracted snapshot loads at %s" % location)
 	runner.assert_true(_state(runtime) == before, "load restores the exact pre-continuation regional state")
+	runner.assert_eq(GameClock.to_dict(), clock_before, "load restores the original shared clock")
+	runner.assert_eq(runtime.current_region, location, "load restores the active runtime region")
+	runner.assert_eq(runtime.world_sim.active_region, location, "load restores the active simulation region")
+	runner.assert_eq(fixture.player.global_position, before_position, "load restores the saved player position")
 	GameClock.advance_ticks(73)
+	runner.assert_true(not GameClock.has_pending_advance(), "restored continuation leaves no uncommitted time")
 	runner.assert_true(_state(runtime) == expected, "snapshot extraction preserves the same future facts, resources and RNG at %s" % location)
+	runner.assert_eq(GameClock.to_dict(), expected_clock, "snapshot extraction preserves the same future shared clock")
 	runner.assert_eq(fixture.player.global_position, expected_position, "snapshot refactor preserves the same player position")
 	_remove_test_save(path)
 	_fixtures._dispose(fixture)
-
-
-func _lazy_region_fixture(runner: Object) -> Dictionary:
-	var fixture: Dictionary = _fixtures._fixture(runner)
-	if fixture.is_empty():
-		return fixture
-	var runtime: WorldContinuityRuntime = fixture.continuity
-	runner.assert_eq(runtime.world_sim.elapsed_ms, 0, "lazy-region performance fixture changes only its explicit opening rules")
-	# This regression exercises a region with no continuously sampled plants.
-	# E3's normal herb patches intentionally wake their region each minute;
-	# keep that behavior in every ordinary fixture and all other tests here.
-	# The saved content bundle is authoritative during candidate restoration.
-	# Change the fixture's actual bundle as well as its initialized state, rather
-	# than mutating one projected definition after its digest was frozen.
-	var documents: Dictionary = fixture.home._content.content_bundle().documents
-	documents[ReolContentDB.LAND_RESOURCES_PATH].types.wild_herbs.erase("ecology")
-	var content := ReolContentDB.new()
-	if not content.load_bundle(ReolContentBundle.from_documents(documents)):
-		runner.assert_true(false, "lazy-region fixture owns a valid, self-contained content bundle")
-		_fixtures._dispose(fixture)
-		return {}
-	fixture.home._content = content
-	runtime.world_sim._content = content
-	var rules: Dictionary = content.land_resources
-	fixture.home._config.actions.erase("irrigate_herb")
-	for region: String in runtime.world_sim.regions:
-		var sim: VillageSimulation = runtime.world_sim.regions[region]
-		sim._content = content
-		sim.config.actions.erase("irrigate_herb")
-		runtime.world_sim.opening_config(region).actions.erase("irrigate_herb")
-		sim.land_resources.definitions = rules
-		for id: String in sim.land_resources.sources:
-			var state: Dictionary = sim.land_resources.sources[id]
-			var terms: Dictionary = sim.land_resources.terms_for(id)
-			state.ecology = {}
-			state.next_growth_ms = int(terms.regrow_ms)
-		runner.assert_true(SimLandResources.valid_state(sim.land_resources.to_dict(), sim.config, sim.places, sim.inventory, 0, rules), "explicit unsampled-source fixture remains a valid opening: " + region)
-		runner.assert_eq(sim.land_resources.next_ecology_sample_ms(), SimInventory.MAX_COUNT, "no managed plant schedules environmental wakeups in the lazy-region fixture: " + region)
-		runtime.world_sim.invalidate_region(region)
-	return fixture
 
 
 func _test_selected_resident_help(runner: Object) -> void:

@@ -10,6 +10,7 @@
 
 | 文件 | 原记录主题 |
 |---|---|
+| [20261107_world_engine_finish.md](20261107_world_engine_finish.md) | 普通唯一环境接管、来源事务、当前联合存读、历史边界及主线收尾验收 |
 | [20261107_world_performance_followup.md](20261107_world_performance_followup.md) | 原物点查创建优化、存读分项与两条无明显收益路线的停止点 |
 | [20261106_environment_cold_build.md](20261106_environment_cold_build.md) | 来源块局部上界的同负载初建对照、真实512²规模与有限尝试边界 |
 | [20261106_environment_optimization.md](20261106_environment_optimization.md) | 来源候选精确上界、复用目标编译、packed响应与流式存读的性能和一致性 |

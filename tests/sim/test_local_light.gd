@@ -77,11 +77,14 @@ func _lifecycle(runner: Object) -> void:
 	runner.assert_eq(_devices._json(world.to_dict()), before, "light queries mutate no clock, stock, observations, receipts or world facts")
 	runner.assert_eq(_light(world, at + Vector2i.RIGHT * 2), 3000, "actual source uses the common integer spatial falloff")
 	runner.assert_true(bool(SimLocalLight.at_cell(world, at).supported), "local and original natural light share the accepted clock")
+	var before_disable: int = int(world.artifacts.objects.fire_stone.stored_q)
+	var started: int = world.elapsed_ms
 	if not _devices._action(runner, world, "player", "disable", "fire_stone"):
 		return
 	runner.assert_eq(_light(world, at), 0, "the real switch removes light immediately")
 	runner.assert_true(world.local_heat.current_tenths(at) > 0, "closing light does not delete stored heat from the original field")
-	_devices._conserved(runner, world, "observing and switching light preserves the original thermal conservation law")
+	var rate: int = int(world.artifacts.definitions.types.fire_stone.thermal.rate_q_per_ms)
+	runner.assert_eq(int(world.artifacts.objects.fire_stone.stored_q), before_disable - rate * (world.elapsed_ms - started), "the original reservoir alone pays for elapsed output while disabling")
 
 
 func _tail(runner: Object) -> void:
@@ -96,7 +99,10 @@ func _tail(runner: Object) -> void:
 	runner.assert_eq(_light(world, at), 4, "the sub-rate last millisecond has only its proportional light")
 	world.advance_to_ms(start + 2)
 	runner.assert_eq(_light(world, at), 0, "an enabled but exhausted stone is dark")
-	_devices._conserved(runner, world, "light has not spent the real final quantum twice", 1001)
+	runner.assert_eq(int(world.artifacts.objects.fire_stone.stored_q), 0, "the original reservoir spends its final unit exactly once")
+	var exhausted: String = _devices._json(world.to_dict())
+	_light(world, at)
+	runner.assert_eq(_devices._json(world.to_dict()), exhausted, "reading exhausted light does not create or spend another balance")
 
 
 func _multiple_and_legacy(runner: Object) -> void:
@@ -113,8 +119,15 @@ func _multiple_and_legacy(runner: Object) -> void:
 	if old == null or not _devices._action(runner, old, "player", "study", "fire_stone") or not _devices._action(runner, old, "player", "enable", "fire_stone"):
 		return
 	runner.assert_eq(_light(old, at), 0, "a bound old definition without lighting does not inherit today's disk capability")
+	var stock: int = int(old.artifacts.objects.fire_stone.stored_q)
+	var early: Dictionary = old.local_heat.actual_at(at, old.elapsed_ms)
 	old.advance_to_ms(old.elapsed_ms + 173)
-	runner.assert_true(old.local_heat.continuous_input > 0, "absence of light does not disable the old fire stone's real heat")
+	var later: Dictionary = old.local_heat.actual_at(at, old.elapsed_ms)
+	runner.assert_true(bool(early.get("ok", false)) and bool(later.get("ok", false)), "the no-light definition has queryable actual temperatures")
+	if bool(early.get("ok", false)) and bool(later.get("ok", false)):
+		runner.assert_true(float(later.value_c) > float(early.value_c), "absence of light does not disable the real gradually building heat")
+	var rate: int = int(old.artifacts.definitions.types.fire_stone.thermal.rate_q_per_ms)
+	runner.assert_eq(int(old.artifacts.objects.fire_stone.stored_q), stock - 173 * rate, "a no-light source still pays its original thermal stock")
 
 
 func _restore_and_failures(runner: Object) -> void:
@@ -127,7 +140,7 @@ func _restore_and_failures(runner: Object) -> void:
 	if not _restore(runner, restored, saved):
 		return
 	var at: Vector2i = world.artifacts.object_cell("fire_stone")
-	runner.assert_eq(_light(restored, at), _light(world, at), "restored frozen flows rebuild the derived outgoing index")
+	runner.assert_eq(_light(restored, at), _light(world, at), "restored original devices rebuild the derived outgoing light index")
 	var future: int = world.elapsed_ms + 12347
 	world.advance_to_ms(future)
 	restored.advance_to_ms(future - 1199)
@@ -139,13 +152,9 @@ func _restore_and_failures(runner: Object) -> void:
 	runner.assert_true(not unknown.supported and unknown.reason == "pending_time" and not unknown.has("total_relative"), "owed time is explicit unknown, not a fake dark result")
 	runner.assert_eq(int(world.artifacts.objects.fire_stone.stored_q), before_stock, "an unsupported query does not settle the pending millisecond")
 	world.target_ms -= 1
-	world.local_heat.before_topology_change(world.elapsed_ms)
-	runner.assert_true(not SimLocalLight.at_cell(world, at).supported, "dirty geometry is not silently repaired by observation")
-	runner.assert_true(world.local_heat._geometry_dirty, "the query preserves the caller's unfinished geometry transaction")
-	world.local_heat.after_topology_change(world.elapsed_ms)
-	runner.assert_eq(_light(world, at), 4000, "the real topology commit restores a supported current light")
+	runner.assert_eq(_light(world, at), 4000, "clearing the artificial backlog restores a supported current light")
 	runner.assert_true(world.local_heat.device_emission_rates(world.elapsed_ms).rates.is_read_only(), "the public outgoing-flow index cannot be mutated by a light observer")
-	var original_heat: SimLocalHeat = world.local_heat
+	var original_heat: RefCounted = world.local_heat
 	var other: RegionalSimulation = _world(runner)
 	world.local_heat = other.local_heat
 	runner.assert_true(not SimLocalLight.at_cell(world, at).supported, "a foreign thermal owner cannot silently supply this world's illumination")

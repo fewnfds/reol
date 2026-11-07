@@ -266,6 +266,12 @@ func _inflight_disable_restore(runner: Object) -> void:
 	var receipt: Dictionary = world.local_heat.device_switches[job.id]
 	runner.assert_true(not bool(receipt.enabled) and int(receipt.at_ms) == due and receipt.object == FIRE, "the thermal switch matches the actual completed disable")
 	var stopped_stock: int = int(world.artifacts.objects[FIRE].stored_q)
+	var disabled_state: Dictionary = JSON.parse_string(_json(world.to_dict()))
+	var before_rejection: String = _json(disabled_state)
+	var refilled: Dictionary = disabled_state.duplicate(true)
+	refilled.artifacts.objects[FIRE].stored_q = stopped_stock + 1
+	runner.assert_true(not world.restore(refilled), "a disabled original device cannot gain one unrecorded unit within capacity")
+	runner.assert_eq(_json(world.to_dict()), before_rejection, "rejecting a disabled-device refill preserves the complete live world")
 	if not _advance(runner, world, due + 1001) or not _advance(runner, resumed, due + 337) or not _advance(runner, resumed, due + 1001):
 		return
 	runner.assert_eq(int(world.artifacts.objects[FIRE].stored_q), stopped_stock, "later time cannot debit the disabled original stone")
@@ -340,10 +346,12 @@ func _reject_mutations(runner: Object, world: RegionalSimulation, saved: Diction
 	if saved.local_heat.device_switches.is_empty():
 		runner.assert_true(false, "running devices retain their original switch events")
 		return
-	for kind: String in ["stored_q", "switch_container", "missing_switch", "wrong_model", "wrong_source_digest", "future_field", "forged_receipt"]:
+	for kind: String in ["stored_q", "unexplained_refill", "unexplained_loss", "switch_container", "missing_switch", "wrong_model", "wrong_source_digest", "future_field", "forged_receipt"]:
 		var bad: Dictionary = saved.duplicate(true)
 		match kind:
 			"stored_q": bad.artifacts.objects[FIRE].stored_q = CAPACITY + 1
+			"unexplained_refill": bad.artifacts.objects[FIRE].stored_q = int(bad.artifacts.objects[FIRE].stored_q) + 1
+			"unexplained_loss": bad.artifacts.objects[COLD].stored_q = int(bad.artifacts.objects[COLD].stored_q) - 1
 			"switch_container":
 				var action: String = str(bad.local_heat.device_switches.keys()[0])
 				bad.local_heat.device_switches[action].container = "dorm"

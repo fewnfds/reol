@@ -187,6 +187,7 @@ static func _validate_receipts(domain: RefCounted, data: Dictionary) -> bool:
 static func _validate_switches(domain: RefCounted, data: Dictionary) -> bool:
 	var seen: Dictionary = {}
 	var latest: Dictionary = {}
+	var balances: Dictionary = {}
 	for event: Dictionary in domain.world.artifacts.events:
 		if event.get("kind") not in ["enabled", "disabled"] or int(event.get("at_ms", -1)) < int(data.activation_ms):
 			continue
@@ -204,6 +205,11 @@ static func _validate_switches(domain: RefCounted, data: Dictionary) -> bool:
 			return false
 		if not enabled and (previous.get("region") != change.region or previous.get("container") != change.container or previous.get("cell") != change.cell):
 			return false
+		var rule: Dictionary = domain.world.artifacts.definitions.types[domain.world.artifacts.objects[change.object].definition].thermal
+		var balance: int = int(balances.get(change.object, int(rule.opening_q)))
+		if bool(previous.get("enabled", false)):
+			balance = _device_balance(balance, rule, int(change.at_ms) - int(previous.at_ms))
+		balances[change.object] = balance
 		seen[action] = true
 		latest[change.object] = change
 	if seen.size() != data.device_switches.size():
@@ -213,6 +219,12 @@ static func _validate_switches(domain: RefCounted, data: Dictionary) -> bool:
 			continue
 		var item: Dictionary = domain.world.artifacts.objects[id]
 		var last: Dictionary = latest.get(id, {})
+		var rule: Dictionary = domain.world.artifacts.definitions.types[item.definition].thermal
+		var balance: int = int(balances.get(id, int(rule.opening_q)))
+		if bool(last.get("enabled", false)):
+			balance = _device_balance(balance, rule, int(data.last_ms) - int(last.at_ms))
+		if int(item.stored_q) != balance:
+			return false
 		if bool(item.enabled) != bool(last.get("enabled", false)):
 			return false
 		if bool(item.enabled):
@@ -222,6 +234,17 @@ static func _validate_switches(domain: RefCounted, data: Dictionary) -> bool:
 			if not _same_cell(last.get("cell"), [point.x, point.y]):
 				return false
 	return true
+
+
+static func _device_balance(balance: int, rule: Dictionary, duration_ms: int) -> int:
+	# A finite device spends its own reserve, not heat conserved by the outdoor
+	# field. Bound before multiplying so a long saved interval cannot overflow.
+	var available: int = balance if rule.mode == "emit" else int(rule.capacity_q) - balance
+	var rate: int = int(rule.rate_q_per_ms)
+	@warning_ignore("integer_division")
+	var until_empty: int = available / rate + (1 if available % rate else 0)
+	var spent: int = available if duration_ms >= until_empty else duration_ms * rate
+	return balance + (-spent if rule.mode == "emit" else spent)
 
 
 static func _validate_samples(domain: RefCounted, data: Dictionary) -> bool:

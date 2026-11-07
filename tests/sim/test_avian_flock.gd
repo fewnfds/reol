@@ -84,7 +84,7 @@ func _understanding(runner: Object) -> void:
 	domain.birds.chestnut_sparrow.autonomous = false
 	runner.assert_true(domain.command_activity("chestnut_sparrow", "pickup").ok, "direct control of one's own beak does not require understanding another person's request")
 	var resumed: RegionalSimulation = _world(runner, false)
-	runner.assert_true(resumed.restore(JSON.parse_string(JSON.stringify(world.to_dict()))), "direct bodily action remains a valid saved process for an ordinary bird")
+	runner.assert_true(resumed.restore(JSON.parse_string(JSON.stringify(world.to_dict(), "", true, true))), "direct bodily action remains a valid saved process for an ordinary bird")
 
 
 func _resume_and_rejection(runner: Object) -> void:
@@ -96,11 +96,11 @@ func _resume_and_rejection(runner: Object) -> void:
 	fine.advance_to_ms(2447)
 	runner.assert_eq(_canonical(fine), _canonical(coarse), "ordinary flock shares deterministic fractional flight and common time")
 	var resumed: RegionalSimulation = _world(runner, false)
-	runner.assert_true(resumed.restore(JSON.parse_string(JSON.stringify(coarse.to_dict()))), "joint candidate restores new birds even when opening scenario contains only old birds")
+	runner.assert_true(resumed.restore(JSON.parse_string(JSON.stringify(coarse.to_dict(), "", true, true))), "joint candidate restores new birds even when opening scenario contains only old birds")
 	coarse.advance_to_ms(600123)
 	resumed.advance_to_ms(600123)
 	runner.assert_eq(_canonical(resumed), _canonical(coarse), "loaded flock continues to the same future without respawning or refilling food")
-	var bad: Dictionary = JSON.parse_string(JSON.stringify(coarse.to_dict()))
+	var bad: Dictionary = JSON.parse_string(JSON.stringify(coarse.to_dict(), "", true, true))
 	bad.avian_life.birds.chestnut_sparrow.understands_gestures = 0
 	var before: String = _canonical(coarse)
 	runner.assert_true(not coarse.restore(bad), "numeric false cannot masquerade as a saved understanding flag")

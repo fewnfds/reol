@@ -100,7 +100,7 @@ func _test_real_delivery(runner: Object) -> void:
 	runner.assert_eq(world.regions.home.inventory.quantity("garden", "herb"), herbs - domain.inventory.quantity("home:crevice", "herb") - domain.inventory.quantity("home:second_crevice", "herb"), "herb moves from ledge stock to the original garden without creation")
 	runner.assert_eq(domain.inventory.quantity("bird:moss_sparrow", "herb"), 0, "delivery clears the one physical carried sprig")
 	var resumed: RegionalSimulation = _make(runner)
-	runner.assert_true(resumed.restore(JSON.parse_string(JSON.stringify(world.to_dict()))), "food gift and cross-domain delivery validate with real human inventory")
+	runner.assert_true(resumed.restore(JSON.parse_string(JSON.stringify(world.to_dict(), "", true, true))), "food gift and cross-domain delivery validate with real human inventory")
 	runner.assert_eq(_canonical(resumed), _canonical(world), "loaded world retains gifts and delivery exactly once")
 
 
@@ -113,7 +113,7 @@ func _test_precision_and_candidates(runner: Object) -> void:
 	coarse.advance_to_ms(2447)
 	runner.assert_eq(_canonical(fine), _canonical(coarse), "50ms flight and needs match a sparse fractional target")
 	var resumed: RegionalSimulation = _make(runner)
-	runner.assert_true(resumed.restore(JSON.parse_string(JSON.stringify(coarse.to_dict()))), "in-flight body and pending action survive JSON")
+	runner.assert_true(resumed.restore(JSON.parse_string(JSON.stringify(coarse.to_dict(), "", true, true))), "in-flight body and pending action survive JSON")
 	coarse.advance_to_ms(600123)
 	resumed.advance_to_ms(600123)
 	for at: int in range(3000, 600123, 533):
@@ -121,7 +121,7 @@ func _test_precision_and_candidates(runner: Object) -> void:
 	fine.advance_to_ms(600123)
 	runner.assert_eq(_canonical(resumed), _canonical(coarse), "restored future equals uninterrupted execution")
 	runner.assert_eq(_canonical(fine), _canonical(coarse), "phase changes, fixed-point needs and regrowth do not depend on near/far step size")
-	var base: Dictionary = JSON.parse_string(JSON.stringify(coarse.to_dict()))
+	var base: Dictionary = JSON.parse_string(JSON.stringify(coarse.to_dict(), "", true, true))
 	var bads: Array[Dictionary] = []
 	var bad: Dictionary = base.duplicate(true)
 	bad.avian_life.birds.moss_sparrow.position = [-1, 0]

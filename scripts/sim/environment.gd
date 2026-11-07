@@ -179,17 +179,25 @@ func local_conditions(actor: String, at_ms: int = -1) -> Dictionary:
 	var now: int = world.elapsed_ms if at_ms < 0 else at_ms
 	var home: String = world.clothing.home(actor)
 	var cell: Vector2i = SimRouteTravel.cell(world.regions[home].actors[actor].cell)
-	var heat_tenths: int = _current_heat_tenths(cell)
+	var heat_tenths: int = 0
 	var heat_supported: bool = true
 	var heat_reason: String = ""
 	var heat: RefCounted = _thermal()
-	if now > world.elapsed_ms and heat != null:
+	if heat is SimWorldEnvironmentFields and now < world.elapsed_ms:
+		# We retain exposure samples, not complete historical actor positions
+		# and every old field segment. Never combine today's offset with an old
+		# climate timestamp and present that mixture as a historical fact.
+		heat_supported = false
+		heat_reason = "history_unavailable"
+	elif heat is SimWorldEnvironmentFields or now > world.elapsed_ms and heat != null:
 		var projected: Dictionary = heat.project_tenths(cell, now)
 		heat_supported = bool(projected.supported)
 		if heat_supported:
 			heat_tenths = int(projected.value)
 		else:
 			heat_reason = str(projected.reason)
+	else:
+		heat_tenths = _current_heat_tenths(cell)
 	var background: int = _temperature(region, now)
 	if not heat_supported:
 		# A long forecast has no single temperature or burden: future sources

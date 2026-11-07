@@ -71,6 +71,11 @@ func _content(runner: Object) -> ReolContentDB:
 	shard["lighting"] = {"version": 1, "peak_relative": 3000, "radius_cells": 2}
 	definitions.types["fixture_amber_pearl"] = pearl
 	definitions.types["fixture_glow_shard"] = shard
+	# Bind both actual objects to the ordinary, nonthermal crystal material in
+	# the same archived bundle before the current source participant is built.
+	var bindings: Dictionary = documents[ReolContentDB.ENVIRONMENT_SOURCES_PATH].bindings.artifacts
+	bindings["fixture_amber_pearl"] = "ordinary_crystal"
+	bindings["fixture_glow_shard"] = "ordinary_crystal"
 	var bundle: Dictionary = ReolContentBundle.from_documents(documents)
 	var candidate := ReolContentDB.new()
 	var accepted: bool = candidate.load_bundle(bundle)
@@ -122,6 +127,9 @@ func _world(runner: Object, content: ReolContentDB, count: int = 2, remote: Stri
 		return null
 	world.regions.home.set_actor_cell("player", SimRouteTravel.cell(world.regions.home.places.kitchen.cell))
 	world.invalidate_region("home")
+	if not world.local_heat.activate_sources():
+		runner.assert_true(false, "intrinsic-light fixture activates the actual environmental sources")
+		return null
 	return world
 
 
@@ -241,7 +249,14 @@ func _custody_and_queries(runner: Object, content: ReolContentDB) -> void:
 		SimLocalLight.at_cell(world, at)
 		domain.intrinsic_light_ids()
 	runner.assert_eq(_facts(world), before, "light and source-index observations do not change world, body, stock, heat, time or knowledge")
-	runner.assert_true(world.local_heat.cells.is_empty() and int(world.local_heat.continuous_input) == 0, "self-light alone does not create physical heat or an energy debit")
+	for id: String in [PEARL, SHARD]:
+		var source: Dictionary = world.local_heat._sources.get_source("artifact:" + id)
+		runner.assert_true(not source.is_empty(), "the actual luminous object has its authored crystal material source")
+		if not source.is_empty():
+			runner.assert_true(int(source.channels[5]) == 0 and int(source.channels[6]) == 0, "intrinsic light adds neither heating nor cooling to its material source")
+	var projection: Dictionary = world.local_heat.project_tenths(at, world.elapsed_ms)
+	runner.assert_true(bool(projection.get("supported", false)) and int(projection.get("value", 0)) == 0, "self-light alone produces no local thermal offset")
+	runner.assert_true(world.local_heat.receipts.is_empty() and world.local_heat.device_switches.is_empty(), "self-light creates neither a paid heat receipt nor a device switch")
 	runner.assert_true(not bool(domain.begin("player", "enable", PEARL).ok), "a generic self-light cannot be switched through a thermal verb")
 	runner.assert_eq(_facts(world), before, "a rejected fabricated enable changes no world state")
 	var count: int = domain.objects.size()
@@ -451,15 +466,24 @@ func _json(value: Variant) -> String:
 
 
 func _facts(world: RegionalSimulation) -> String:
-	# RegionalSimulation.to_dict() synchronizes lagging regions and therefore
-	# cannot be used to prove that a read-only query did not wake a far carrier.
-	var heat: SimLocalHeat = world.local_heat
+	# Read the actual response anchors directly. RegionalSimulation.to_dict()
+	# would synchronize a stale far carrier and invalidate the query check.
+	var heat: SimWorldEnvironmentFields = world.local_heat
+	var field: Dictionary = {"diagnostics": heat.diagnostics(), "activation_ms": heat.activation_ms,
+		"last_ms": heat.last_ms, "last_sample_ms": heat.last_sample_ms,
+		"receipts": heat.receipts, "device_switches": heat.device_switches,
+		"samples": heat._samples, "transient": heat._transient}
+	if heat._active:
+		var sources: Dictionary = {}
+		for key: String in heat._sources._records:
+			var source: Dictionary = heat._sources.get_source(key)
+			var cell: Vector2i = source.cell
+			sources[key] = {"cell": [cell.x, cell.y], "radius": source.radius,
+				"channels": Array(source.channels)}
+		field["sources"] = sources
+		field["index"] = heat._field.diagnostics()
+		field["background"] = heat._background.snapshot()
+		field["temperature"] = heat._temperature.snapshot()
+		field["phases"] = heat._phases.snapshot()
 	return _json({"regional": _entity._facts(world), "construction": world.construction.to_dict(),
-		"weather": world.weather.to_dict(), "environment": world.environment.to_dict(),
-		"heat": {"last_ms": heat.last_ms, "segment_started_ms": heat.segment_started_ms,
-			"boundary_ms": heat.next_boundary_ms(), "dirty": heat._geometry_dirty,
-			"cells": heat.cells, "flows": heat.flows, "input": heat.input_energy,
-			"continuous": heat.continuous_input, "absorbed": heat.absorbed_energy,
-			"ambient": heat.ambient_in, "loss": heat.loss_energy,
-			"device_input": heat.device_input, "device_absorbed": heat.device_absorbed,
-			"receipts": heat.receipts}})
+		"weather": world.weather.to_dict(), "environment": world.environment.to_dict(), "field": field})

@@ -116,10 +116,12 @@ func build_sources() -> Dictionary:
 	var fixed: Dictionary = {}
 	for id: String in _world.artifacts.legacy_object_ids():
 		fixed[id] = true
-	for group: Dictionary in _world.object_lifecycle._contained.values():
-		if str(group.container).begins_with("actor:"):
-			continue
-		for id: String in group.ids:
+	# The independent candidate has restored original identities before its
+	# final cross-validation rebuilds the disposable _contained lookup. Build
+	# from those originals once, not from an as-yet-empty derived index.
+	for id: String in _world.object_lifecycle.created:
+		var item: Variant = _world.artifacts.objects.get(id)
+		if item is Dictionary and not str(item.container).begins_with("actor:") and not str(item.container).begins_with("ground:"):
 			fixed[id] = true
 	var fixed_ids: Array = fixed.keys()
 	fixed_ids.sort()

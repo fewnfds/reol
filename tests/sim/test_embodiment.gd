@@ -107,7 +107,7 @@ func _test_real_actions_and_carried_goods(runner: Object) -> void:
 	runner.assert_true(village.actors.player.active.is_empty(), "in-progress native work stops when control is lost")
 	runner.assert_eq(village.inventory.quantity("actor:player", "wood"), carried, "lost control does not destroy or duplicate already carried goods")
 	runner.assert_true(not village.submit_action("player", "rest"), "new work cannot bypass lost action control")
-	var snapshot: Dictionary = JSON.parse_string(JSON.stringify(world.to_dict()))
+	var snapshot: Dictionary = JSON.parse_string(JSON.stringify(world.to_dict(), "", true, true))
 	var restored: RegionalSimulation = fixtures._make_world(runner)
 	runner.assert_true(restored.restore(snapshot), "settled loss of control persists through normal regional save")
 	runner.assert_true(not restored.actor_controls("player", "action"), "loading does not silently regenerate self control")

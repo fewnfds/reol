@@ -92,7 +92,7 @@ func _test_kept_word_and_actual_practice(runner: Object) -> void:
 	runner.assert_true(str(world.artifacts.describe("player", "hearth_stone").line).contains("受教记录"), "the learner can trace this hand technique to actual instruction")
 	world.regions.home.set_actor_cell("shi_tou", domain.vessel_cell("old_ring"))
 	runner.assert_true(not bool(world.artifacts.describe("shi_tou", "hearth_stone").method), "nearby people do not silently learn the private completed lesson")
-	runner.assert_true(world.restore(JSON.parse_string(JSON.stringify(world.to_dict()))), "completed personal lesson and pact validate together")
+	runner.assert_true(world.restore(JSON.parse_string(JSON.stringify(world.to_dict(), "", true, true))), "completed personal lesson and pact validate together")
 
 
 func _test_cancel_control_and_exclusive_body(runner: Object) -> void:
@@ -137,7 +137,7 @@ func _test_custody_and_personal_promises(runner: Object) -> void:
 	runner.assert_true(not bool(domain.describe("su_zhi", "old_ring").met), "receiving custody does not copy private conversations")
 	_do(world, "listen", runner, "", "", "", "su_zhi")
 	runner.assert_true(str(domain.describe("su_zhi", "old_ring").line).contains("三百年前"), "new holder can make their own actual contact")
-	runner.assert_true(world.restore(JSON.parse_string(JSON.stringify(world.to_dict()))), "handover, independent identity and broken promise remain a valid world")
+	runner.assert_true(world.restore(JSON.parse_string(JSON.stringify(world.to_dict(), "", true, true))), "handover, independent identity and broken promise remain a valid world")
 
 
 func _test_sleep_damage_and_saved_future(runner: Object) -> void:
@@ -146,7 +146,7 @@ func _test_sleep_damage_and_saved_future(runner: Object) -> void:
 	_do(world, "wake", runner)
 	_do(world, "sleep", runner)
 	world.advance_to_ms(world.elapsed_ms + 17617)
-	var saved: Dictionary = JSON.parse_string(JSON.stringify(world.to_dict()))
+	var saved: Dictionary = JSON.parse_string(JSON.stringify(world.to_dict(), "", true, true))
 	var until: int = world.elapsed_ms + 1000000
 	world.advance_to_ms(until)
 	var expected: String = _canonical(world)
@@ -161,7 +161,7 @@ func _test_sleep_damage_and_saved_future(runner: Object) -> void:
 			_do(world, "sleep", runner)
 	runner.assert_eq(world.soul_vessels.vessels.old_ring.damage, 4, "forcing transmission actually breaks the same vessel's seal")
 	runner.assert_true(not bool(world.soul_vessels.begin("player", "wake", "old_ring").ok), "broken seal is not repaired by clicking a gentle wake command")
-	runner.assert_true(world.restore(JSON.parse_string(JSON.stringify(world.to_dict()))), "damaged carrier restores without repairing it or resetting old knowledge")
+	runner.assert_true(world.restore(JSON.parse_string(JSON.stringify(world.to_dict(), "", true, true))), "damaged carrier restores without repairing it or resetting old knowledge")
 
 
 func _test_force_breaks_cooperation(runner: Object) -> void:
@@ -172,7 +172,7 @@ func _test_force_breaks_cooperation(runner: Object) -> void:
 	var domain: SimSoulVessels = world.soul_vessels
 	runner.assert_eq(domain.pacts.yan_heng.player.state, "broken", "damaging a person's carrier breaks this holder's cooperation even after an earlier kept word")
 	runner.assert_true(not bool(domain.begin("player", "guide", "old_ring", "hearth_stone").ok), "old goodwill does not compel a damaged resident to keep teaching")
-	runner.assert_true(world.restore(JSON.parse_string(JSON.stringify(world.to_dict()))), "force-caused loss of cooperation and the same old mind persist together")
+	runner.assert_true(world.restore(JSON.parse_string(JSON.stringify(world.to_dict(), "", true, true))), "force-caused loss of cooperation and the same old mind persist together")
 	_do(world, "promise", runner)
 	_do(world, "fulfill", runner)
 	runner.assert_eq(world.soul_vessels.pacts.yan_heng.player.state, "fulfilled", "actual renewed fulfillment can restore cooperation without repairing material damage")

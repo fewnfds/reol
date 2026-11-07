@@ -1,11 +1,11 @@
 # 游戏功能与操作入口
 
-核对：2026-11-07。当前是可操作的有限世界原型，具体行为与限制按下列领域页查阅；证据、采用版本和完整回归状态见[基线](baseline.md)。共同时间已接原世界，普通 Main 仍使用旧 Q 冷热；源场与温度候选尚未接管普通游戏。四处新环境相关工作区改动未提交、未验，不能当作已交付功能。
+核对：2026-11-07。当前是可操作的有限世界原型；本收尾工作树已把普通世界接入共同时间上的室外冷热与五行场，整包回归和规模性能验收仍待核对。当前普通存档根格式为52，根1–51暂不自动迁入；具体行为与限制按下列领域页查阅，最终验证状态见[基线](baseline.md)和[接续](handoff.md)。
 
 | 领域 | 入口及现状 |
 |---|---|
 | [开局与操作](features/controls.md) | 人身、雀身和残识各有不同入口，键位与面板按身体能力分开。 |
-| [环境与隔离候选](features/environment-and-prototypes.md) | 地表编辑、旧冷热、天气/日照等为有限样本；新源场和 GPU 服务为隔离原型，没有玩家开关。 |
+| [环境与计算原型](features/environment-and-prototypes.md) | 普通世界已接室外冷热与五行响应；墙门屋面不隔场，GPU计算仍为独立服务，没有玩家开关。 |
 | [世界连续性与生活](features/world-and-livelihood.md) | 双聚落共同时间、行旅、有限采集、生产和NPC生活；不是完整大世界或经济。 |
 | [交互、社交与组织办事](features/interaction-and-organizations.md) | 有限请求、钱货、受托劳动、公源及野外样本；不是任意谈判或自由组织治理。 |
 | [认识、器物、修行与衣着](features/knowledge-items-cultivation.md) | 原温石、有限引息、研究/记录、衣着和八向占位；不是通用创法、全装备或完整修炼。 |
@@ -15,12 +15,8 @@
 
 状态用语：**已接入/有限样本**指实际入口和特定路径已有证据，不代表通用完整功能；**专用工具**需显式启动且不等于玩家能力；**隔离原型**未接普通游戏；**待验**缺对应范围或最终 SHA 的验收。每个领域页面保留原始范围与对应 QA，版本证据以基线为准。45–60 分钟完整切片、正式美术和独立发布均未验收。
 
-开发侧有[对象与空间查询接口](../engineering/object-query-contract.md)，覆盖多类真实来源和显式集合空间快照；[生命周期与动作接口](../engineering/object-lifecycle-contract.md)提供受控生成/移除、同账本位置转移、材料拆合及最小耗时搬运。受管physical实物已增加F8开发放置/移除与现有普通物品面板耗时取放接缝，复用原身体、时间和普通存档；材料操作菜单、通用NPC指挥与新环境接管仍未提供。本包验证状态见HANDOFF；此前受检范围见[查询QA](../qa/20261105_world_object_contract.md)和[生命周期QA](../qa/20261105_object_lifecycle.md)。
+开发侧有[对象与空间查询接口](../engineering/object-query-contract.md)与[生命周期和动作接口](../engineering/object-lifecycle-contract.md)：受管实物有唯一原物与位置，提供受控生成/移除、转移、拆合和最小耗时搬运。F8开发编辑可放置/移除受管实物，普通物品面板有耗时取放接缝；这不等于材料通用背包或任意NPC指挥。既有[查询QA](../qa/20261105_world_object_contract.md)与[生命周期QA](../qa/20261105_object_lifecycle.md)记录当时的受检范围。
 
-另有[地面环境来源查询](../engineering/environment-source-query-contract.md)：真实地面实物/材料堆按显式定义投影五行和单项冷热等级，支持有界局部max基础目标查询；原物搬运、拆合、移除后的下次查询直接读取原owner。它是开发查询接口，未形成实际温度/五行残留、普通Main新环境玩法或房温。范围和测量见[来源QA](../qa/20261105_environment_source_bindings.md)。
+普通世界的[环境合同](../engineering/world-environment-contract.md)以地面真实来源、固定器物和共同时间驱动室外温度/五行目标及残留响应。相同材料同堆数量不放大源强；人物随身物整体辐射、房间隔热与完整五行修行尚未接入。历史[来源QA](../qa/20261105_environment_source_bindings.md)、[缓存QA](../qa/20261105_environment_ground_cache.md)和[响应QA](../qa/20261105_environment_response.md)是各自版本的局部证据，不能代替当前整包验收。
 
-[真实来源分块缓存](../engineering/environment-ground-cache-contract.md)在同一原世界上提供预算装配、16×16基础目标块、热读、通知前局部失效及恢复重绑；不是某一具名物品专用脚本。独特物/材料堆和512²真实密度已做定向及离线测量，完整回归状态看[缓存QA](../qa/20261105_environment_ground_cache.md)。开发计算接口也接受真实缓存的CPU/GPU/auto，具备来源准备、过期拒绝及取消回收；接入验收看[计算QA](../qa/20261105_environment_ground_compute.md)。普通Main未接此服务；原四份WIP继续单列保护。
-
-新增[静止来源实际响应接缝](../engineering/environment-response-contract.md)使用原世界、原物和原动作，在封闭开发验收会话里取放/移位已有独特实物，接实际温度、五行建立/消散、预算等待/取消及独立存读。它不是普通玩家功能；诊断工具`tools/verify_environment_response.gd`可观察真实目标/实际值。范围和吞吐限制见[响应QA](../qa/20261105_environment_response.md)，准确最终回归状态看BASELINE/HANDOFF；普通Main旧Q、人体/植物、材料拆合与携行辐射未改。
-
-该接缝的[性能优化](../qa/20261106_environment_optimization.md)增加可下降来源搜索上界、复用目标编译和紧凑分块文件存读。它改进通用环境准备及开发验收入口，不添加玩家菜单或某个具名道具的专用效果；实际规模、等待成本和验收状态按QA解读。
+普通来源变更与目标刷新目前同步运行于CPU。独立的CPU/GPU/auto计算服务和旧版本性能数据见[计算QA](../qa/20261105_environment_ground_compute.md)与[优化QA](../qa/20261106_environment_optimization.md)；普通游戏尚无GPU开关，也未完成端到端大规模性能验收。

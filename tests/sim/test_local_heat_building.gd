@@ -17,7 +17,7 @@ func run(runner: Object) -> void:
 		_carried_source_leaves_released_heat(runner, room)
 	_support_collapse(runner)
 	_two_uses_one_charge(runner)
-	print("SCENARIO heat/building: actual paid walls, doors and roofs, same-instant conservative topology changes, roof collapse, original finite source competition and physically carried stone leaving released heat behind")
+	print("SCENARIO field/building: paid walls, doors and roofs, continuous actual temperature without room insulation, roof collapse, original finite charge and physical source receipts")
 
 
 func _stone(runner: Object, world: RegionalSimulation, verb: String) -> bool:
@@ -86,7 +86,7 @@ func _roofed_room(runner: Object) -> Dictionary:
 	runner.assert_true(space.enclosed and space.roofed and int(space.area) == 2, "actual walls and paid upper-layer roofs form a two-cell covered room")
 	runner.assert_eq(world.regions.home.inventory.quantity("store", "wood"), stock - 39, "nine walls, one door and two roofs consumed exactly their original lumber")
 	runner.assert_eq(world.artifacts.object_cell("hearth_stone"), Vector2i(110, 108), "actual roof and door work carried the one held stone into the room")
-	runner.assert_true(world.local_heat.receipts.is_empty(), "building and carrying a charged stone alone do not release free room heat")
+	runner.assert_true(world.local_heat.receipts.is_empty(), "building and carrying a charged stone alone do not create a paid warming receipt")
 	return {"world": world, "door": door, "wall": wall, "roofs": [first, second]}
 
 
@@ -100,25 +100,21 @@ func _clone(runner: Object, world: RegionalSimulation) -> RegionalSimulation:
 	if copy == null:
 		return null
 	var restored: bool = copy.restore(snapshot)
-	runner.assert_true(restored, "independent real-world candidate restores the built room, carried object and thermal receipts together")
+	runner.assert_true(restored, "independent real-world candidate restores the built room, carried object and field receipts together")
 	return copy if restored else null
 
 
-func _total(world: RegionalSimulation) -> int:
-	var result: int = 0
-	for row: Dictionary in world.local_heat.cells.values():
-		result += int(row.energy)
-	return result
-
-
-func _field(world: RegionalSimulation) -> String:
-	var state: Dictionary = world.local_heat.to_dict()
-	return JSON.stringify(VillageRuntime._json_normalized({"cells": state.cells, "input": state.input_energy,
-		"ambient_in": state.ambient_in, "loss": state.loss_energy, "receipts": state.receipts}), "", true, true)
-
-
-func _conserved(runner: Object, world: RegionalSimulation, label: String) -> void:
-	runner.assert_eq(_total(world) + world.local_heat.loss_energy, world.local_heat.input_energy + world.local_heat.ambient_in, label)
+func _assert_same_actual(runner: Object, world: RegionalSimulation, control: RegionalSimulation, label: String) -> void:
+	if world.elapsed_ms != control.elapsed_ms:
+		runner.assert_true(false, label + " compares the same shared instant")
+		return
+	for cell: Vector2i in [Vector2i(108, 108), Vector2i(109, 108), Vector2i(110, 107), Vector2i(110, 108), Vector2i(111, 108)]:
+		var changed: Dictionary = world.local_heat.actual_at(cell, world.elapsed_ms)
+		var unchanged: Dictionary = control.local_heat.actual_at(cell, control.elapsed_ms)
+		var available: bool = bool(changed.get("ok", false)) and bool(unchanged.get("ok", false))
+		runner.assert_true(available, label + " exposes actual field values at " + str(cell))
+		if available:
+			runner.assert_true(absf(float(changed.value_c) - float(unchanged.value_c)) < 0.00001, label + " preserves actual temperature at " + str(cell))
 
 
 func _commit_against_old_layout(runner: Object, world: RegionalSimulation, project: String, kind: String) -> RegionalSimulation:
@@ -137,18 +133,12 @@ func _commit_against_old_layout(runner: Object, world: RegionalSimulation, proje
 		return null
 	var due: int = int(world.construction.active.player.due_ms)
 	runner.assert_true(world.advance_to_ms(due - 1), "old physical layout remains in effect until the final work millisecond")
-	var previous_cells: Array = world.local_heat.cells.keys()
-	previous_cells.sort()
 	var control: RegionalSimulation = _clone(runner, world)
 	if control == null:
 		return null
 	runner.assert_true(control.construction.cancel("player"), "the comparison world legitimately cancels unfinished work and retains its old structure")
 	runner.assert_true(control.advance_to_ms(due) and world.advance_to_ms(due), "both original worlds reach the exact same topology commit timestamp")
-	runner.assert_eq(_field(world), _field(control), "committing " + kind + " preserves the complete old-layout heat field at that same millisecond")
-	var current_cells: Array = world.local_heat.cells.keys()
-	current_cells.sort()
-	runner.assert_eq(current_cells, previous_cells, "room reindexing after " + kind + " neither replaces nor duplicates fixed-space heat owners")
-	_conserved(runner, world, "actual " + kind + " commit preserves source and ambient thermal accounting")
+	_assert_same_actual(runner, world, control, "committing " + kind + " at its actual deadline")
 	return control
 
 
@@ -159,11 +149,10 @@ func _door_exchange(runner: Object, fixture: Dictionary) -> void:
 	var closed: RegionalSimulation = _commit_against_old_layout(runner, world, fixture.door, "open")
 	if closed == null:
 		return
-	runner.assert_true(not world.construction.blocked(Vector2i(109, 108)) and closed.construction.blocked(Vector2i(109, 108)), "only completed original door handling changes the actual thermal opening")
+	runner.assert_true(not world.construction.blocked(Vector2i(109, 108)) and closed.construction.blocked(Vector2i(109, 108)), "only completed original door handling changes the physical opening")
 	var at_ms: int = world.elapsed_ms + 60000
 	runner.assert_true(world.advance_to_ms(at_ms) and closed.advance_to_ms(at_ms), "open and closed layouts evolve from their identical actual commit-time heat")
-	runner.assert_true(world.local_heat.loss_energy > closed.local_heat.loss_energy, "an actual open door subsequently loses more heat than the same closed door")
-	_conserved(runner, world, "open-door future still conserves all real heat and explicit losses")
+	_assert_same_actual(runner, world, closed, "the current outdoor field does not apply door insulation")
 	if not _stone(runner, world, "warm"):
 		return
 	var opened: RegionalSimulation = _commit_against_old_layout(runner, world, fixture.door, "close")
@@ -172,8 +161,7 @@ func _door_exchange(runner: Object, fixture: Dictionary) -> void:
 	runner.assert_true(world.construction.blocked(Vector2i(109, 108)) and not opened.construction.blocked(Vector2i(109, 108)), "a second timed physical action closes only the chosen world's door")
 	at_ms = world.elapsed_ms + 60000
 	runner.assert_true(world.advance_to_ms(at_ms) and opened.advance_to_ms(at_ms), "closed and still-open doors use the same future time interval")
-	runner.assert_true(world.local_heat.loss_energy < opened.local_heat.loss_energy, "closing the actual door reduces subsequent loss without adding source energy")
-	_conserved(runner, world, "closed-door future preserves the original finite source balance")
+	_assert_same_actual(runner, world, opened, "the current outdoor field also ignores the closed door")
 
 
 func _wall_breach(runner: Object, fixture: Dictionary) -> void:
@@ -188,8 +176,7 @@ func _wall_breach(runner: Object, fixture: Dictionary) -> void:
 		runner.assert_eq(world.construction.projects[id].state, "built", "remaining original walls keep this roof physically supported after a breach")
 	var end: int = world.elapsed_ms + 60000
 	runner.assert_true(world.advance_to_ms(end) and enclosed.advance_to_ms(end), "breached and intact rooms advance an identical further minute")
-	runner.assert_true(world.local_heat.loss_energy > enclosed.local_heat.loss_energy, "an actual wall gap subsequently dissipates more of the existing source")
-	_conserved(runner, world, "wall breach and enclosure reindex retain exact thermal accounting")
+	_assert_same_actual(runner, world, enclosed, "the current outdoor field does not apply wall insulation")
 
 
 func _support_collapse(runner: Object) -> void:
@@ -211,9 +198,8 @@ func _support_collapse(runner: Object) -> void:
 		runner.assert_eq(world.regions.home.inventory.quantity(id, "wood"), 2, "a collapsed roof leaves its finite original salvage instead of refunding heat or material twice")
 	runner.assert_true(not world.construction.roofed(Vector2i(110, 108)) and covered.construction.roofed(Vector2i(110, 108)), "physical collapse removes only the changed world's actual overhead cover")
 	var end: int = world.elapsed_ms + 60000
-	runner.assert_true(world.advance_to_ms(end) and covered.advance_to_ms(end), "collapsed and still-supported roof layouts evolve from the same pre-collapse energy")
-	runner.assert_true(world.local_heat.loss_energy > covered.local_heat.loss_energy, "losing real overhead cover increases future dissipation rather than instantly deleting retained energy")
-	_conserved(runner, world, "wall plus multi-roof collapse keeps one exact source and loss ledger")
+	runner.assert_true(world.advance_to_ms(end) and covered.advance_to_ms(end), "collapsed and still-supported roof layouts evolve from the same pre-collapse field")
+	_assert_same_actual(runner, world, covered, "the current outdoor field does not apply roof insulation")
 	var restarted: RegionalSimulation = _clone(runner, world)
 	if restarted != null:
 		runner.assert_eq(_state(restarted), _state(world), "actual support collapse, salvage and fixed-cell heat survive one joint JSON candidate")
@@ -221,26 +207,71 @@ func _support_collapse(runner: Object) -> void:
 
 func _carried_source_leaves_released_heat(runner: Object, fixture: Dictionary) -> void:
 	var world: RegionalSimulation = _clone(runner, fixture.world)
-	if world == null or not _operate(runner, world, fixture.door, "open") or not _stone(runner, world, "warm"):
+	if world == null or not _operate(runner, world, fixture.door, "open"):
+		return
+	var control: RegionalSimulation = _clone(runner, world)
+	if control == null or not _stone(runner, world, "warm"):
 		return
 	var origin: Vector2i = world.artifacts.object_cell("hearth_stone")
 	var source: Dictionary = world.artifacts.events.back().duplicate(true)
-	var input: int = world.local_heat.input_energy
-	var coordinates: Array = world.local_heat.cells.keys()
-	coordinates.sort()
+	var charge: int = int(world.artifacts.objects.hearth_stone.charge)
+	var warm_at: int = world.elapsed_ms
+	if not world.advance_to_ms(warm_at + 1000) or not control.advance_to_ms(warm_at + 1000):
+		runner.assert_true(false, "warming and control worlds reach the same field-response instant")
+		return
+	var warm: Dictionary = world.local_heat.actual_at(origin, world.elapsed_ms)
+	var cold: Dictionary = control.local_heat.actual_at(origin, control.elapsed_ms)
+	var available: bool = bool(warm.get("ok", false)) and bool(cold.get("ok", false))
+	runner.assert_true(available, "released and control temperatures are both available at the original location")
+	if available:
+		runner.assert_true(float(warm.value_c) > float(cold.value_c), "the completed pulse gradually heats its original location")
+	if not world.advance_to_ms(warm_at + 59999) or not control.advance_to_ms(warm_at + 60000):
+		runner.assert_true(false, "pulse and baseline reach the true source-expiry boundary")
+		return
+	var before_expiry: Dictionary = world.local_heat.actual_at(origin, world.elapsed_ms)
+	if not world.advance_to_ms(warm_at + 60000):
+		runner.assert_true(false, "the temporary source expires at its real deadline")
+		return
+	var at_expiry: Dictionary = world.local_heat.actual_at(origin, world.elapsed_ms)
+	var baseline_expiry: Dictionary = control.local_heat.actual_at(origin, control.elapsed_ms)
+	available = bool(before_expiry.get("ok", false)) and bool(at_expiry.get("ok", false)) and bool(baseline_expiry.get("ok", false))
+	runner.assert_true(available, "temperature remains queryable immediately before and after source expiry")
+	if available:
+		runner.assert_true(absf(float(at_expiry.value_c) - float(before_expiry.value_c)) < 0.01, "source expiry does not instantly reset the actual temperature")
+		var residual: float = float(at_expiry.value_c) - float(baseline_expiry.value_c)
+		runner.assert_true(residual > 0.0, "expired source leaves an actual temperature residual")
+		if not world.advance_to_ms(warm_at + 61000) or not control.advance_to_ms(warm_at + 61000):
+			runner.assert_true(false, "both worlds reach the same post-expiry instant")
+			return
+		var after_expiry: Dictionary = world.local_heat.actual_at(origin, world.elapsed_ms)
+		var baseline_after: Dictionary = control.local_heat.actual_at(origin, control.elapsed_ms)
+		var after_available: bool = bool(after_expiry.get("ok", false)) and bool(baseline_after.get("ok", false))
+		runner.assert_true(after_available, "post-expiry residual and baseline remain queryable")
+		if after_available:
+			var later_residual: float = float(after_expiry.value_c) - float(baseline_after.value_c)
+			runner.assert_true(later_residual > 0.0 and later_residual < residual, "the residual gradually decays rather than following the item")
 	var bed: String = _build(runner, world, "wood_bed", Vector2i(114, 110))
+	if bed.is_empty() or not world.construction.projects.has(bed):
+		runner.assert_true(false, "the actual bed exists before checking its carrier")
+		return
 	var arrived: Vector2i = world.artifacts.object_cell("hearth_stone")
 	runner.assert_true(arrived.distance_to(origin) > 2.0 and world.construction.projects[bed].state == "built", "real hauling and labor physically carry the same stone out of its earlier release patch")
 	runner.assert_eq(world.artifacts.objects.hearth_stone.container, "actor:player", "carried source still references the original body's single hand-held location")
-	var after_coordinates: Array = world.local_heat.cells.keys()
-	after_coordinates.sort()
-	runner.assert_eq(after_coordinates, coordinates, "carrying the item and building a bed allocate no replacement heat patch at its destination")
-	runner.assert_eq(world.local_heat.input_energy, input, "body movement creates no extra thermal source or replayed output")
 	runner.assert_eq(world.local_heat.receipts.size(), 1, "the only released heat remains tied to its one actual completed warming action")
 	runner.assert_eq(world.local_heat.receipts[source.action].cell, [origin.x, origin.y], "the original source receipt stays at the actual historical release cell")
-	runner.assert_true(world.local_heat.cells.has("%d,%d" % [origin.x, origin.y]) and int(world.local_heat.cells["%d,%d" % [origin.x, origin.y]].energy) > 0, "remaining released heat stays in the original physical space after its source is carried away")
-	runner.assert_eq(world.local_heat.local_tenths(arrived), 0, "a still-charged item in hand provides no automatic local heat at the new location")
-	_conserved(runner, world, "carrying the remaining source leaves the earlier field and explicit losses fully conserved")
+	runner.assert_eq(int(world.artifacts.objects.hearth_stone.charge), charge, "carrying the original item and building do not debit its stored charge again")
+	if not control.advance_to_ms(world.elapsed_ms):
+		runner.assert_true(false, "control reaches the same later shared time")
+		return
+	warm = world.local_heat.actual_at(origin, world.elapsed_ms)
+	cold = control.local_heat.actual_at(origin, control.elapsed_ms)
+	available = bool(warm.get("ok", false)) and bool(cold.get("ok", false))
+	runner.assert_true(available, "original location and baseline remain queryable after the carrier leaves")
+	if available:
+		runner.assert_true(float(warm.value_c) > float(cold.value_c), "released heat persists locally after the temporary source expires and the carrier leaves")
+	var restored: RegionalSimulation = _clone(runner, world)
+	if restored != null:
+		runner.assert_eq(_state(restored), _state(world), "the carried object, paid receipt and residual field jointly restore")
 
 
 func _two_uses_one_charge(runner: Object) -> void:
@@ -249,17 +280,20 @@ func _two_uses_one_charge(runner: Object) -> void:
 		return
 	var sim: VillageSimulation = world.regions.home
 	var meal: int = sim.inventory.quantity("kitchen", "meal")
+	var receipts: int = world.local_heat.receipts.size()
 	for verb: String in ["warm", "heat", "warm", "heat"]:
 		if not _stone(runner, world, verb):
 			return
+		if verb == "warm":
+			receipts += 1
+			runner.assert_true(world.local_heat.receipts.has(world.artifacts.events.back().action), "each actual warming action owns its one receipt")
+		runner.assert_eq(world.local_heat.receipts.size(), receipts, "cooking never creates a second free warming receipt")
 	runner.assert_eq(world.artifacts.objects.hearth_stone.charge, 0, "two actual room releases and two cooking batches compete for the same six opening charges")
 	runner.assert_eq(sim.inventory.quantity("kitchen", "meal"), meal + 12, "cooking still creates exactly its two original real recipe outputs")
 	runner.assert_eq(world.local_heat.receipts.size(), 2, "only actual warmed operations produce local heat receipts, not cooking events")
-	runner.assert_eq(world.local_heat.input_energy, 2 * int(world.local_heat.definitions.pulse_energy), "cooking cannot also mint a second free copy of released room heat")
 	runner.assert_true(not world.artifacts.begin("player", "warm", "hearth_stone").ok, "spent original storage cannot grant another warming effect")
 	var before: String = _state(world)
 	runner.assert_true(world.advance_to_ms(world.elapsed_ms), "repeated same-time settlement is accepted without replaying completed work")
 	runner.assert_eq(_state(world), before, "repeated settlement duplicates neither meals, charge consumption nor thermal receipts")
-	_conserved(runner, world, "cross-purpose finite storage preserves one original thermal input balance")
 	var restored: RegionalSimulation = _artifacts._world(runner)
 	runner.assert_true(restored.restore(JSON.parse_string(_state(world))), "cooking, warming and depleted original charge jointly restore against their actual events")

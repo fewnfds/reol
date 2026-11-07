@@ -51,7 +51,7 @@ func _test_self_sense_and_actual_cooperation(runner: Object) -> void:
 	runner.assert_true(agency.command("yan_heng", "observe").ok, "resident can personally observe after actual arrival")
 	world.advance_to_ms(world.elapsed_ms + 10000)
 	runner.assert_true(str(agency.perceive("yan_heng").latest).contains("药木"), "arrival permits an actual new personal experience rather than a remote omniscient fact")
-	runner.assert_true(world.restore(JSON.parse_string(JSON.stringify(world.to_dict()))), "manual soul, consent, human body and current observation persist together")
+	runner.assert_true(world.restore(JSON.parse_string(JSON.stringify(world.to_dict(), "", true, true))), "manual soul, consent, human body and current observation persist together")
 
 
 func _test_body_refusal_and_cancel_keeps_custody(runner: Object) -> void:

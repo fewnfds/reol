@@ -1,5 +1,5 @@
 extends RefCounted
-## Independent authored openings, original shared clock and original heat Q.
+## Independent authored openings, original shared clock and finite device stocks.
 
 const ClimateFixture = preload("res://tests/sim/test_climate_background.gd")
 const Devices = preload("res://tests/sim/test_thermal_devices.gd")
@@ -64,7 +64,7 @@ func run(runner: Object) -> void:
 	var hot_facts: String = _state(hot)
 	_run_devices_and_restore(runner, cold)
 	runner.assert_eq(_state(hot), hot_facts, "operating and restoring the cold world cannot change the independent hot world")
-	print("SCENARIO geographic world: compiled extreme climates affect actual bodies and plants; real opposing thermal devices conserve Q across a generated curve boundary and independent JSON continuation")
+	print("SCENARIO geographic world: compiled extreme climates affect actual bodies and plants; real opposing thermal devices retain their own stocks across a generated curve boundary and independent JSON continuation")
 
 
 func _profile(source: Dictionary, latitude_mdeg: int, offset_tenths: int) -> Dictionary:
@@ -126,13 +126,20 @@ func _run_devices_and_restore(runner: Object, world: RegionalSimulation) -> void
 		return
 	_assert_sample(runner, world, "cold")
 	var activated: int = world.elapsed_ms
+	var fire_start: int = int(world.artifacts.objects.fire_stone.stored_q)
+	var cold_start: int = int(world.artifacts.objects.cold_stone.stored_q)
+	var fire_rules: Dictionary = world.artifacts.definitions.types.fire_stone.thermal
+	var cold_rules: Dictionary = world.artifacts.definitions.types.cold_stone.thermal
+	var fire_rate: int = int(fire_rules.rate_q_per_ms)
+	var cold_rate: int = int(cold_rules.rate_q_per_ms)
 	if not world.advance_to_ms(activated + 173):
 		runner.assert_true(false, "the genuine source and sink reach a fractional instant")
 		return
-	var actual_input: int = int(world.local_heat.continuous_input)
-	var actual_absorbed: int = int(world.local_heat.absorbed_energy)
-	runner.assert_true(actual_input > 0 and actual_absorbed > 0, "the real fire and cold devices both transfer original energy")
-	_devices._conserved(runner, world, "generated geographic background preserves original heat and both device balances")
+	var fire_checkpoint: int = int(world.artifacts.objects.fire_stone.stored_q)
+	var cold_checkpoint: int = int(world.artifacts.objects.cold_stone.stored_q)
+	runner.assert_true(fire_checkpoint < fire_start and cold_checkpoint > cold_start, "the real fire and cold devices both change their original finite stocks")
+	runner.assert_eq(fire_checkpoint, fire_start - mini(fire_start, 173 * fire_rate), "the fire stone spends only its actual 173 ms of stock")
+	runner.assert_eq(cold_checkpoint, cold_start + mini(int(cold_rules.capacity_q) - cold_start, 173 * cold_rate), "the cold stone gains only its actual 173 ms of stock")
 	var climate: Dictionary = world._content.climate
 	var generated_knot: bool = false
 	for point: Array in climate.regions.home.daily_curve:
@@ -175,9 +182,14 @@ func _run_devices_and_restore(runner: Object, world: RegionalSimulation) -> void
 			runner.assert_true(false, "restored world crosses the generated boundary in explicit slices")
 			return
 	runner.assert_eq(_state(candidate), _state(world), "whole and independently restored sliced advancement produce the same complete future")
-	runner.assert_true(int(world.local_heat.continuous_input) > actual_input and int(world.local_heat.absorbed_energy) > actual_absorbed, "both real devices continue across the geographic boundary")
-	_devices._conserved(runner, world, "whole-path future retains its single original thermal balances")
-	_devices._conserved(runner, candidate, "independent sliced future retains its single original thermal balances")
+	var fire_future: int = int(world.artifacts.objects.fire_stone.stored_q)
+	var cold_future: int = int(world.artifacts.objects.cold_stone.stored_q)
+	var duration: int = FUTURE_MS - activated
+	runner.assert_true(fire_future < fire_checkpoint and cold_future > cold_checkpoint, "both real devices continue across the geographic boundary")
+	runner.assert_eq(fire_future, fire_start - mini(fire_start, duration * fire_rate), "the original fire stone spends its declared finite stock once")
+	runner.assert_eq(cold_future, cold_start + mini(int(cold_rules.capacity_q) - cold_start, duration * cold_rate), "the original cold stone gains its declared finite stock once")
+	runner.assert_eq(int(candidate.artifacts.objects.fire_stone.stored_q), fire_future, "sliced restoration keeps the same original fire stock")
+	runner.assert_eq(int(candidate.artifacts.objects.cold_stone.stored_q), cold_future, "sliced restoration keeps the same original cold stock")
 
 
 func _json(value: Variant) -> String:

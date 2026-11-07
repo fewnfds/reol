@@ -51,7 +51,7 @@ func _test_two_uses_one_supply(runner: Object) -> void:
 	world.advance_to_ms(world.elapsed_ms)
 	runner.assert_eq(_state(world), expected, "repeating a settled target cannot dry a second batch")
 	var restored: RegionalSimulation = _world(runner)
-	runner.assert_true(restored.restore(JSON.parse_string(JSON.stringify(world.to_dict()))), "both cooking and drying histories validate against their original transformations")
+	runner.assert_true(restored.restore(JSON.parse_string(JSON.stringify(world.to_dict(), "", true, true))), "both cooking and drying histories validate against their original transformations")
 	runner.assert_eq(_state(restored), expected, "two real uses and their unique supply survive JSON exactly")
 	print("SCENARIO shared heat: same finite stone cooks real food and dries real herbs, with separate social recognition")
 
@@ -87,7 +87,7 @@ func _test_drying_resume_and_cancel(runner: Object) -> void:
 	var world: RegionalSimulation = _prepare_drying(runner)
 	runner.assert_true(bool(world.artifacts.begin("player", "dry", "hearth_stone").ok), "drying has a persistent in-progress action")
 	world.advance_to_ms(world.elapsed_ms + 12345)
-	var saved: Dictionary = JSON.parse_string(JSON.stringify(world.to_dict()))
+	var saved: Dictionary = JSON.parse_string(JSON.stringify(world.to_dict(), "", true, true))
 	var restored: RegionalSimulation = _world(runner)
 	runner.assert_true(restored.restore(saved), "unfinished drying restores with original investments and full remaining time")
 	var end: int = world.elapsed_ms + 400000

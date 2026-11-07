@@ -420,7 +420,8 @@ func device_emission_rates(at_ms: int) -> Dictionary:
 		if _device_active(id):
 			var rule: Dictionary = world.artifacts.definitions.types[world.artifacts.objects[id].definition].thermal
 			if rule.mode == "emit":
-				rates[id] = int(rule.rate_q_per_ms)
+				rates[id] = mini(int(rule.rate_q_per_ms), int(world.artifacts.objects[id].stored_q))
+	rates.make_read_only()
 	return {"supported": true, "rates": rates}
 
 
