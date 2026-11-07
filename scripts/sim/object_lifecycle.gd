@@ -84,9 +84,30 @@ func _execute(request: Dictionary, reservation: String = "", notify: bool = true
 		if _changes_ground_artifact(request):
 			return _begin_environment_move(request, reservation, notify, guard)
 	var cache: RefCounted = _environment_cache.get_ref() if _environment_cache != null else null
+	var fields: SimWorldEnvironmentFields = world.local_heat as SimWorldEnvironmentFields
+	var proof: Variant
+	_committing = true
+	if fields != null:
+		# Queries used by the field candidate require every region at the already
+		# committed world time. This must precede its observer-free commit span.
+		var at_ms: int = world.elapsed_ms
+		var target_ms: int = world.target_ms
+		if not world.synchronize_regions() or world.object_lifecycle != self or world.local_heat != fields \
+				or world.elapsed_ms != at_ms or world.target_ms != target_ms:
+			_committing = false
+			return _fail("source_unavailable")
+		var prepared: Dictionary = fields.prepare_object_change(request)
+		if not bool(prepared.get("ok", false)):
+			_committing = false
+			return prepared
+		proof = prepared.get("proof")
+		if world.object_lifecycle != self or world.local_heat != fields or world.elapsed_ms != at_ms \
+				or world.target_ms != target_ms or not fields.can_commit_object_change(proof):
+			fields.cancel_object_change(proof)
+			_committing = false
+			return _fail("environment_change_stale")
 	if cache != null:
 		cache.before_object_change()
-	_committing = true
 	var result: Dictionary
 	match str(request.op):
 		"spawn": result = _spawn(request)
@@ -94,6 +115,12 @@ func _execute(request: Dictionary, reservation: String = "", notify: bool = true
 		"remove": result = _remove(request)
 		"stock_transfer": result = _stock_transfer(request, reservation)
 		_: result = _fail("unsupported_operation")
+	if fields != null:
+		if bool(result.get("ok", false)):
+			var published: Dictionary = fields.finish_object_change(result, proof)
+			assert(bool(published.get("ok", false)), "preflighted environment commit failed")
+		else:
+			fields.cancel_object_change(proof)
 	if bool(result.ok):
 		receipts[request.command] = Receipt.encode(request, result, world.elapsed_ms, receipts.size() + 1)
 		if cache != null:
@@ -115,6 +142,8 @@ func bind_environment_cache(cache: RefCounted) -> bool:
 
 
 func bind_environment_boundary_guard(guard: RefCounted) -> bool:
+	if guard != null and world != null and world.local_heat is SimWorldEnvironmentFields:
+		return false
 	if _committing or _settling or environment_change_pending():
 		return false
 	var previous: RefCounted = _environment_guard.get_ref() if _environment_guard != null else null
@@ -428,7 +457,7 @@ func _movable(id: String) -> Dictionary:
 	# explicitly enrolled in this lifecycle may be created, moved or terminated.
 	if not created.has(id) or not world.artifacts.objects.has(id):
 		return _fail("not_managed")
-	if not world.synchronize_region(world.artifacts.objects[id].region):
+	if not _synchronize_operation_region(world.artifacts.objects[id].region):
 		return _fail("source_unavailable")
 	return _movable_synchronized(id)
 
@@ -453,7 +482,7 @@ func _stock_transfer(request: Dictionary, reservation: String) -> Dictionary:
 		return _fail("not_found")
 	if source.region != request.to.region:
 		return _fail("cross_ledger_unsupported")
-	if not world.synchronize_region(source.region):
+	if not _synchronize_operation_region(source.region):
 		return _fail("source_unavailable")
 	var inventory: SimInventory = world.regions[source.region].inventory
 	if not _stock_container_mutable(source.region, source.container, request.item):
@@ -505,9 +534,17 @@ func _stock_transfer(request: Dictionary, reservation: String) -> Dictionary:
 func _destination(raw: Dictionary, _reference: Dictionary, _size_hint: Vector2i, command: String) -> Dictionary:
 	if not world.regions.has(raw.region):
 		return _fail("not_found")
-	if not world.synchronize_region(raw.region):
+	if not _synchronize_operation_region(raw.region):
 		return _fail("source_unavailable")
 	return _destination_synchronized(raw, command)
+
+
+func _synchronize_operation_region(region: String) -> bool:
+	if _committing and world.local_heat is SimWorldEnvironmentFields:
+		# A second synchronize_region emits changed even at the same time. The
+		# field proof may not have an observer between preparation and publish.
+		return world.regions.has(region) and int(world.regions[region].elapsed_ms) == world.elapsed_ms
+	return world.synchronize_region(region)
 
 
 func _destination_synchronized(raw: Dictionary, command: String) -> Dictionary:

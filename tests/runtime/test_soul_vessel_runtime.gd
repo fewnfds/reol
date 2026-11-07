@@ -81,55 +81,17 @@ func _test_visible_commands_and_joint_practice(runner: Object) -> void:
 
 
 func _test_legacy_world_has_no_invented_ring(runner: Object) -> void:
-	var prior_clock: Dictionary = GameClock.to_dict()
-	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": false})
-	var packed: PackedScene = load("res://scenes/main.tscn")
-	var main: Node = packed.instantiate()
-	runner.root.add_child(main)
-	var runtime: WorldContinuityRuntime = main._continuity
-	var new_opening: Dictionary = WorldSessionSnapshot.capture(runtime)
-	runner.assert_eq(runtime.load_game(ProjectSettings.globalize_path("res://tests/fixtures/session_v11.json")), OK, "actual v11 gathering archive explicitly migrates into the new session")
-	runner.assert_true(runtime.world_sim.soul_vessels.vessels.is_empty() and runtime.world_sim.soul_vessels.residents.is_empty(), "migration never invents a historical ring or someone else's old memory")
-	var staged: Dictionary = WorldSessionSnapshot.stage(runtime, new_opening)
-	runner.assert_true(not staged.is_empty(), "same scene can return to its current opening after an old ringless world")
-	var changed_version: Dictionary = new_opening.duplicate(true)
-	changed_version.schema_version = 11
-	changed_version.erase("content_bundle")
-	changed_version.erase("assembly")
-	changed_version.continuity.world.version = 8
-	runner.assert_true(WorldSessionSnapshot.stage(runtime, changed_version).is_empty(), "a modern soul world cannot masquerade as old by changing two version tags")
-	main.free()
-	GameClock.restore_state(prior_clock)
+	# Old archives lack causal field history; current behavior is tested above.
+	load("res://tests/runtime/helpers/legacy_rejection_archive.gd").run(runner, {
+		"res://tests/fixtures/session_v11.json": ""
+	})
 
 
 func _test_actual_in_progress_archive(runner: Object) -> void:
-	var prior_clock: Dictionary = GameClock.to_dict()
-	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": false})
-	var packed: PackedScene = load("res://scenes/main.tscn")
-	var main: Node = packed.instantiate()
-	runner.root.add_child(main)
-	var path: String = ProjectSettings.globalize_path("res://tests/fixtures/session_v12.json")
-	var original: String = FileAccess.get_file_as_string(path)
-	var runtime: WorldContinuityRuntime = main._continuity
-	runner.assert_eq(runtime.load_game(path), OK, "actual clicked v12 instruction archive loads into the normal scene")
-	runner.assert_eq(GameClock.elapsed_ms, 572395, "actual instruction preserves its fractional shared start")
-	runner.assert_true(not runtime.world_sim.soul_vessels.learned("player", "hearth_stone"), "actual unfinished practice has not awarded its knowledge early")
-	runner.assert_eq(runtime.world_sim.soul_vessels.active.player.started_ms, 560050, "actual pledge and physical arrival preceded this lesson")
-	GameClock.advance_msec(100000)
-	runner.assert_true(runtime.world_sim.soul_vessels.learned("player", "hearth_stone"), "actual continued practice finishes learning")
-	runner.assert_eq(runtime.world_sim.regions.home.actors.player.qi, 18, "real archive resumes already-paid human qi once")
-	runner.assert_eq(runtime.world_sim.soul_vessels.residents.yan_heng.energy, 4, "real archive resumes already-paid teacher attention once")
-	var expected: String = _canonical(runtime)
-	main.free()
-	main = packed.instantiate()
-	runner.root.add_child(main)
-	runtime = main._continuity
-	runner.assert_eq(runtime.load_game(path), OK, "fresh scene restores original physical custody and independent resident")
-	GameClock.advance_msec(100000)
-	runner.assert_eq(_canonical(runtime), expected, "real v12 archived instruction and both settlements continue identically in a fresh scene")
-	runner.assert_eq(FileAccess.get_file_as_string(path), original, "v12 source archive remains immutable")
-	main.free()
-	GameClock.restore_state(prior_clock)
+	# Old archives lack causal field history; current behavior is tested above.
+	load("res://tests/runtime/helpers/legacy_rejection_archive.gd").run(runner, {
+		"res://tests/fixtures/session_v12.json": ""
+	})
 
 
 func _test_manual_override_releases_transmission(runner: Object) -> void:

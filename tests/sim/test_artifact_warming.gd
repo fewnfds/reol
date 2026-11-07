@@ -120,7 +120,16 @@ func _finite_original_charge(runner: Object) -> void:
 		runner.assert_eq(event.cell, [cell.x, cell.y], "the source remains fixed at the holder's actual completion cell")
 		runner.assert_eq(event.at_ms, world.elapsed_ms, "thermal source time is the actual original completion millisecond")
 		runner.assert_eq(domain.objects.hearth_stone.charge, opening - (index + 1) * cost, "each local pulse debits exactly the original artifact charge once")
-		runner.assert_true(world.local_heat.local_tenths(cell) > 0, "the successful source creates actual local warmth")
+		runner.assert_true(world.local_heat.receipts.has(event.action), "the completed original action owns exactly its real field receipt")
+		var instant: Dictionary = world.local_heat.actual_at(cell, world.elapsed_ms)
+		runner.assert_true(bool(instant.get("ok", false)), "the source cell has an actual continuous temperature at completion")
+		if not bool(instant.get("ok", false)) or not _advance_to(runner, world, world.elapsed_ms + 1000):
+			return
+		var later: Dictionary = world.local_heat.actual_at(cell, world.elapsed_ms)
+		runner.assert_true(bool(later.get("ok", false)), "the source cell remains available after one game second")
+		if not bool(later.get("ok", false)):
+			return
+		runner.assert_true(float(later.value_c) > float(instant.value_c) + 0.01, "the temporary field raises actual local temperature gradually after completion")
 		runner.assert_eq(world.regions.home.actors.player.qi, qi, "repeated warming does not secretly charge another resource")
 	runner.assert_eq(domain.objects.hearth_stone.charge, 0, "the finite opening storage is truly exhausted")
 	runner.assert_true(not domain.begin("player", "warm", "hearth_stone").ok, "a depleted stone cannot provide another free pulse")

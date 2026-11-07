@@ -12,6 +12,6 @@ main / 场景装配
 
 纯模拟不依赖HUD或祖先节点路径。运行适配负责绑定/命令与投影，不另存身体、库存或社会余额。当前业务autoload为`GameClock`，第三方另有MCP helper；未创建全量EventBus/ECS/EntityRegistry/SaveManager。
 
-新环境场仍是隔离基础：`SimEnvironmentFieldCache`持可重建来源投影/脏块，`EnvironmentFieldComputeRuntime`选择CPU或RenderingDevice GPU。GPU线程只拿冻结快照，原子提交前核owner与revision；两后端没有第二时钟/原物/存档格式。当前未接入RegionalSimulation，普通热域仍按下表旧模型运行；接口/生命周期与验收见[F1证据](../../qa/20261105_field_compute_acceleration.md)。
+当前收尾工作树的普通`RegionalSimulation.local_heat`指向`SimWorldEnvironmentFields`，由它作为室外实际温度及五行响应的唯一环境域；`local_heat`是保留的调用名称，不是并行运行的旧Q求解器。来源来自原实物，缓存只保存可重建投影；[普通世界环境合同](../world-environment-contract.md)说明边界。代码尚未最终验收/合并，状态见[HANDOFF](../../status/handoff.md)。
 
-`SimEnvironmentTemperatureState`是隔离候选中显式格的唯一实际温度owner；目标段/初值/时间锚点保存，边界计数索引恢复重建。`SimEnvironmentTemperatureSegments`只编译一个气候/天气/tide已知目标段，不持有温度或调度时钟。当前未替代Main，原物/来源/实际温度的联合变更和分块预算尚待接，规模限制见[F2a证据](../../qa/20261105_temperature_segments_and_budget.md)。
+普通环境域组合温度、五行响应、气候背景及目标编译组件，并复用同一共同时间；它不持有第二份实物。独立GPU/开发会话仍是不同范围的计算或测试接口，不代表普通主局已有GPU开关或后台加速。

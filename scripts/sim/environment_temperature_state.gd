@@ -18,6 +18,9 @@ const CHUNK_CELLS: int = CHUNK_SIDE * CHUNK_SIDE
 const MAX_BULK_CHUNKS: int = 64
 
 var _configured: bool = false
+## Optional production anchor quantization. Zero preserves the numerical
+## reference component. The owning model must version a nonzero quantum.
+var anchor_quantum: float = 0.0
 var _size := Vector2i.ZERO
 var _capacity: int = 0
 var _activation_ms: int = 0
@@ -159,6 +162,8 @@ func prepare_targets(changes: Array[Dictionary], at_ms: int, budget: int) -> Dic
 			next_chunk = Chunk.new(original)
 			candidate_chunks[key] = next_chunk
 			copied[key] = true
+		if anchor_quantum > 0.0:
+			initial = clampf(snappedf(initial, anchor_quantum), MIN_C, MAX_C)
 		next_chunk.set_anchor(index, at_ms, until_ms, initial, target, slope, tau_ms)
 
 		var old_boundary: int = original.untils[index] if tracked else -1
@@ -380,6 +385,8 @@ func _apply_bulk_slot(index: int, has_initial: bool) -> String:
 		return "target_invalid"
 	if not tracked:
 		_bulk.tracked_count += 1
+	if anchor_quantum > 0.0:
+		initial = clampf(snappedf(initial, anchor_quantum), MIN_C, MAX_C)
 	_bulk.current.set_anchor(index, _bulk.at_ms, until_ms, initial, target, slope, tau_ms)
 	var old_boundary: int = original.untils[index] if tracked else -1
 	if old_boundary != until_ms:

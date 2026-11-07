@@ -1,6 +1,7 @@
 extends RefCounted
 
 const Fixtures = preload("res://tests/runtime/test_world_continuity_runtime.gd")
+const LegacyRejection = preload("res://tests/runtime/helpers/legacy_rejection_archive.gd")
 var _fixtures := Fixtures.new()
 
 
@@ -63,8 +64,9 @@ func run(runner: Object) -> void:
 		if FileAccess.file_exists(path + suffix):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
 	_fixtures._dispose(fixture)
-	_test_actual_archive(runner)
-	_test_v17_migration(runner)
+	# Current roof, wet-bed and gradual drying behavior also has independent
+	# regional coverage in tests/sim/test_roofs_and_weather.gd.
+	LegacyRejection.run(runner, {"res://tests/fixtures/session_v17.json": "", "res://tests/fixtures/session_v18.json": ""})
 	print("SCENARIO weather book: independent upper selection, original real labor, cover/rain/dampness and joint continuation")
 
 
@@ -76,60 +78,3 @@ func _select_type(ui: ConstructionRuntime, type: String) -> void:
 
 func _canonical(adapter: WorldContinuityRuntime) -> String:
 	return JSON.stringify(VillageRuntime._json_normalized(WorldSessionSnapshot.capture(adapter)), "", true, true)
-
-
-func _test_actual_archive(runner: Object) -> void:
-	var prior: Dictionary = GameClock.to_dict()
-	var path: String = "res://tests/fixtures/session_v18.json"
-	var original: String = FileAccess.get_file_as_string(path)
-	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-	var main: Node = load("res://scenes/main.tscn").instantiate()
-	runner.root.add_child(main)
-	var adapter: WorldContinuityRuntime = main._continuity
-	var loaded: Error = adapter.load_game(ProjectSettings.globalize_path(path))
-	runner.assert_eq(loaded, OK, "genuine rainy roof-pickup archive loads with its real external material reservation")
-	if loaded == OK:
-		runner.assert_eq(GameClock.elapsed_ms, 5001311, "archive preserves fractional pickup and environmental phase")
-		runner.assert_eq(adapter.world_sim.construction.active.player.phase, "pickup", "archive retains actual reserved wood before delivery")
-		runner.assert_true(not adapter.world_sim.construction.roofed(Vector2i(264, 262)), "inflight roof still provides no shelter after restore")
-		runner.assert_eq(adapter.world_sim.weather.bed_wetness("construction:1"), 48, "original exposed bed retains its actual accumulated rain")
-		GameClock.advance_msec(600000)
-		runner.assert_true(adapter.world_sim.construction.roofed(Vector2i(264, 262)), "archived real roof completes under the original supporting walls")
-		runner.assert_eq(adapter.world_sim.weather.bed_wetness("construction:1"), 49, "completion shelters but does not instantly dry the previously soaked bed")
-		GameClock.advance_msec(1200000)
-		runner.assert_eq(adapter.world_sim.weather.bed_wetness("construction:1"), 0, "genuine bed gradually dries in the continued world")
-		runner.assert_eq(adapter.world_sim.regions.home.inventory.quantity("store", "wood"), 34, "archived material is consumed only once")
-		var future: String = _canonical(adapter)
-		main.free()
-		GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-		main = load("res://scenes/main.tscn").instantiate()
-		runner.root.add_child(main)
-		adapter = main._continuity
-		runner.assert_eq(adapter.load_game(ProjectSettings.globalize_path(path)), OK, "fresh scene reconstructs the same genuine roof/weather archive")
-		GameClock.advance_msec(1800000)
-		runner.assert_eq(_canonical(adapter), future, "fresh scene yields identical complete roof/weather/autonomous-world continuation")
-	runner.assert_eq(FileAccess.get_file_as_string(path), original, "genuine v18 weather fixture is never rewritten")
-	main.free()
-	GameClock.restore_state(prior)
-
-
-func _test_v17_migration(runner: Object) -> void:
-	var prior: Dictionary = GameClock.to_dict()
-	var path: String = "res://tests/fixtures/session_v17.json"
-	var original: String = FileAccess.get_file_as_string(path)
-	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-	var main: Node = load("res://scenes/main.tscn").instantiate()
-	runner.root.add_child(main)
-	var adapter: WorldContinuityRuntime = main._continuity
-	var loaded: Error = adapter.load_game(ProjectSettings.globalize_path(path))
-	runner.assert_eq(loaded, OK, "genuine previous bed archive migrates through the normal loader")
-	if loaded == OK:
-		runner.assert_eq(adapter.world_sim.weather.epoch_ms, 2998843, "old archive begins new climate at its own existing time")
-		runner.assert_true(adapter.world_sim.weather.damp_beds.is_empty(), "migration invents no historical wet bed")
-		for sim: VillageSimulation in adapter.world_sim.regions.values():
-			for source: Dictionary in sim.land_resources.sources.values():
-				runner.assert_eq(source.rainfall, 0, "old natural sources gain no invented historical rainfall")
-		runner.assert_true(adapter.world_sim.resting.active.player.phase == "sleep", "migration preserves the actual body still sleeping")
-	runner.assert_eq(FileAccess.get_file_as_string(path), original, "genuine v17 source remains byte-for-byte unchanged")
-	main.free()
-	GameClock.restore_state(prior)

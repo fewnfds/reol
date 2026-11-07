@@ -549,65 +549,113 @@ func _test_local_view_and_footprints(runner: Object) -> void:
 
 
 func _test_reentrant_load_during_visibility(runner: Object) -> void:
-	var saved_clock: Dictionary = GameClock.to_dict()
-	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-	var main: Node = load("res://scenes/main.tscn").instantiate()
-	runner.root.add_child(main)
-	var runtime: WorldContinuityRuntime = main._continuity
-	var path: String = "user://tests/objects_reentrant_%d.json" % Time.get_ticks_usec()
-	var loaded: Error = runtime.load_game(ProjectSettings.globalize_path(EXCHANGE_ARCHIVE))
-	runner.assert_eq(loaded, OK, "reentrant view regression loads the original pending handover")
-	if loaded == OK:
-		GameClock.set_paused(true)
-		var adapter: WorldObjectsRuntime = runtime.object_adapter
-		runner.assert_true(runtime._home._fog != null, "the real view has fog, so visibility includes the following cell read")
-		var visible_before: bool = adapter._visible(RING)
-		runner.assert_true(visible_before, "the original holder and ring are actually visible before the interruption")
-		var saved: Error = runtime.save_game(path)
-		runner.assert_eq(saved, OK, "the current original handover is saved for a real reentrant reload")
-		if saved == OK and visible_before and runtime._home._fog != null:
-			var expected: String = SnapshotValues.canonical_json(SnapshotValues.normalized(WorldSessionSnapshot.capture(runtime)))
-			var old_id: int = runtime.world_sim.get_instance_id()
-			var old_ref: WeakRef = weakref(runtime.world_sim)
-			var probe := ReloadDuringVisibility.new()
-			var initialized: bool = probe.initialize(runtime.world_sim, runtime._home._content.artifacts)
-			var copied: bool = initialized and probe.restore(runtime.world_sim.artifacts.to_dict())
-			runner.assert_true(copied, "the view probe preserves the original artifact state and owner")
-			if copied:
-				runtime.world_sim.artifacts = probe
-				probe.reload = Callable(runtime, "load_game").bind(path)
-				var visible_after: bool = adapter._visible(RING)
-				runner.assert_true(probe.fired and probe.load_result == OK, "visibility synchronously commits the independent saved replacement")
-				runner.assert_true(runtime.world_sim.get_instance_id() != old_id, "the actual runtime world was replaced during the view call")
-				runner.assert_true(probe.post_load_cell_read and probe.owner_at_cell == old_id, "the old artifact owner survives through the subsequent cell lookup")
-				runner.assert_true(visible_after, "the interrupted view finishes with the genuinely visible ring")
-				runner.assert_true(old_ref.get_ref() == null, "the old world is released after the completed view call")
-				runner.assert_eq(runtime.world_sim.regions.home.inventory.quantity("actor:player", "coin"), 6, "the replacement retains the original unspent money")
-				runner.assert_eq(runtime.world_sim.regions.home.inventory.available("actor:player", "coin"), 2, "the replacement retains the original four-coin reservation")
-				runner.assert_eq(runtime.world_sim.artifacts.objects[RING].container, "actor:river_shi_tou", "the replacement retains the seller's original ring")
-				var after: String = SnapshotValues.canonical_json(SnapshotValues.normalized(WorldSessionSnapshot.capture(runtime)))
-				runner.assert_true(after == expected, "reentrant presentation and loading preserve the entire saved session")
-				# The old view's equivalent expression holds only the artifact domain.
-				# Repeating the same real reload demonstrates that the failure is due
-				# to its missing world reference, not an ineffective test callback.
-				var control_ref: WeakRef = weakref(runtime.world_sim)
-				var control := ReloadDuringVisibility.new()
-				var control_ready: bool = control.initialize(runtime.world_sim, runtime._home._content.artifacts) and control.restore(runtime.world_sim.artifacts.to_dict())
-				runner.assert_true(control_ready, "the control starts from the same original artifact state")
-				if control_ready:
-					runtime.world_sim.artifacts = control
-					control.reload = Callable(runtime, "load_game").bind(path)
-					var loose_result: bool = _visibility_without_world_reference(runtime, RING)
-					runner.assert_true(control.fired and control.load_result == OK, "the control performs the same synchronous successful reload")
-					runner.assert_true(control.post_load_cell_read and control.owner_at_cell == 0, "a loose domain loses its old world before the next cell read")
-					runner.assert_true(not loose_result and control_ref.get_ref() == null, "the control cannot safely finish after its old owner is released")
-					var control_after: String = SnapshotValues.canonical_json(SnapshotValues.normalized(WorldSessionSnapshot.capture(runtime)))
-					runner.assert_true(control_after == expected, "both interleavings leave the actual replacement snapshot intact")
+	# The controlled current fixture still performs an actual timed take and
+	# consenting handover; no historical snapshot is needed for this regression.
+	var fixtures := Fixtures.new()
+	var exchange: RefCounted = load("res://tests/runtime/test_private_exchange_runtime.gd").new()
+	var fixture: Dictionary = exchange._prepared(runner, fixtures, true)
+	if fixture.is_empty():
+		return
+	var runtime: WorldContinuityRuntime = fixture.continuity
+	var fog := MaskFog.new()
+	fog.setup(fixture.world, fixture.player.cell)
+	fixture.home._fog = fog
+	var path: String = _unused_reentrant_path()
+	if path.is_empty():
+		runner.assert_true(false, "reentrant visibility has an unused save path")
+	else:
+		_reentrant_current_handover(runner, fixture, path)
+	_remove_reentrant(path)
+	fixture.home._fog = null
+	fog.free()
+	fixtures._dispose(fixture)
+	load("res://tests/runtime/helpers/legacy_rejection_archive.gd").run(runner, {
+		EXCHANGE_ARCHIVE: "e13c2616a25f482db2397b585417d027c2759172393c6929eb98a4713b676ebf",
+	})
+
+
+func _reentrant_current_handover(runner: Object, fixture: Dictionary, path: String) -> void:
+	var runtime: WorldContinuityRuntime = fixture.continuity
+	var world: RegionalSimulation = runtime.world_sim
+	var subject: String = world.embodiment.subject_for_actor("river_shi_tou")
+	var accepted: Dictionary = runtime.interaction_adapter.submit(subject, "private_exchange", {"kind": "private_artifact", "id": RING})
+	runner.assert_true(bool(accepted.get("ok", false)) and accepted.get("status") == "started", "current holder accepts a genuine in-flight handover")
+	if not bool(accepted.get("ok", false)):
+		return
+	var buyer: int = world.regions.home.inventory.quantity("actor:player", "coin")
+	var available: int = world.regions.home.inventory.available("actor:player", "coin")
+	var owner: String = str(world.artifacts.objects[RING].container)
+	runner.assert_eq(available, buyer - 4, "the real pending handover reserves the quoted four coins")
+	runner.assert_eq(owner, "actor:river_shi_tou", "the genuine pending ring remains with its current holder")
+	world = null
+	GameClock.set_paused(true)
+	var adapter: WorldObjectsRuntime = runtime.object_adapter
+	runner.assert_true(runtime._home._fog != null, "visibility includes the following fog cell read")
+	var visible_before: bool = adapter._visible(RING)
+	runner.assert_true(visible_before, "the original holder and ring are actually visible before interruption")
+	var saved: Error = runtime.save_game(path)
+	runner.assert_eq(saved, OK, "the current handover is saved for a real reentrant reload")
+	if saved != OK or not visible_before or runtime._home._fog == null:
+		return
+	var expected: String = SnapshotValues.canonical_json(SnapshotValues.normalized(WorldSessionSnapshot.capture(runtime)))
+	var old_id: int = runtime.world_sim.get_instance_id()
+	var old_ref: WeakRef = weakref(runtime.world_sim)
+	var probe := ReloadDuringVisibility.new()
+	var initialized: bool = probe.initialize(runtime.world_sim, runtime._home._content.artifacts)
+	var copied: bool = initialized and probe.restore(runtime.world_sim.artifacts.to_dict())
+	runner.assert_true(copied, "view probe preserves original artifact state and owner")
+	if not copied:
+		return
+	runtime.world_sim.artifacts = probe
+	probe.reload = Callable(runtime, "load_game").bind(path)
+	var visible_after: bool = adapter._visible(RING)
+	runner.assert_true(probe.fired and probe.load_result == OK, "visibility synchronously commits the independent saved replacement")
+	runner.assert_true(runtime.world_sim.get_instance_id() != old_id, "the actual runtime world was replaced during the view call")
+	runner.assert_true(probe.post_load_cell_read and probe.owner_at_cell == old_id, "the old artifact owner survives through the subsequent cell lookup")
+	runner.assert_true(visible_after, "the interrupted view finishes with the genuinely visible ring")
+	runner.assert_true(old_ref.get_ref() == null, "the old world is released after the completed view call")
+	runner.assert_eq(runtime.world_sim.regions.home.inventory.quantity("actor:player", "coin"), buyer, "replacement retains original unspent money")
+	runner.assert_eq(runtime.world_sim.regions.home.inventory.available("actor:player", "coin"), available, "replacement retains the original reservation")
+	runner.assert_eq(runtime.world_sim.artifacts.objects[RING].container, owner, "replacement retains the seller's original ring")
+	var after: String = SnapshotValues.canonical_json(SnapshotValues.normalized(WorldSessionSnapshot.capture(runtime)))
+	runner.assert_eq(after, expected, "reentrant presentation and loading preserve the entire saved session")
+	# The control deliberately omits the strong world reference and demonstrates
+	# the original lifetime bug at exactly the same synchronous reload boundary.
+	var control_ref: WeakRef = weakref(runtime.world_sim)
+	var control := ReloadDuringVisibility.new()
+	var control_ready: bool = control.initialize(runtime.world_sim, runtime._home._content.artifacts) and control.restore(runtime.world_sim.artifacts.to_dict())
+	runner.assert_true(control_ready, "control starts from the same original artifact state")
+	if not control_ready:
+		return
+	runtime.world_sim.artifacts = control
+	control.reload = Callable(runtime, "load_game").bind(path)
+	var loose_result: bool = _visibility_without_world_reference(runtime, RING)
+	runner.assert_true(control.fired and control.load_result == OK, "control performs the same synchronous successful reload")
+	runner.assert_true(control.post_load_cell_read and control.owner_at_cell == 0, "a loose domain loses its old world before the next cell read")
+	runner.assert_true(not loose_result and control_ref.get_ref() == null, "control cannot safely finish after its old owner is released")
+	var control_after: String = SnapshotValues.canonical_json(SnapshotValues.normalized(WorldSessionSnapshot.capture(runtime)))
+	runner.assert_eq(control_after, expected, "both interleavings leave the actual replacement snapshot intact")
+
+
+func _unused_reentrant_path() -> String:
+	for attempt: int in 100:
+		var path: String = "user://tests/objects_reentrant_%d_%d.json" % [Time.get_ticks_usec(), attempt]
+		var occupied: bool = false
+		for suffix: String in ["", ".tmp", ".bak", ".bak.tmp"]:
+			if FileAccess.file_exists(path + suffix):
+				occupied = true
+				break
+		if not occupied:
+			return path
+	return ""
+
+
+func _remove_reentrant(path: String) -> void:
+	if path.is_empty():
+		return
 	for suffix: String in ["", ".tmp", ".bak", ".bak.tmp"]:
 		if FileAccess.file_exists(path + suffix):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
-	main.free()
-	GameClock.restore_state(saved_clock)
 
 
 func _visibility_without_world_reference(runtime: WorldContinuityRuntime, id: String) -> bool:

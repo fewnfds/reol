@@ -1,5 +1,5 @@
 extends RefCounted
-## Pure assembly records and root migration. No saved facts are regenerated.
+## Pure assembly records and retired-root rejection. No facts are regenerated.
 
 const SOURCE: String = "res://tests/fixtures/session_v42_exchange.json"
 
@@ -10,17 +10,10 @@ func run(runner: Object) -> void:
 		runner.assert_true(false, "real v42 fixture is readable")
 		return
 	var source: Dictionary = raw
-	var legacy_content: ReolContentDB = ReolContentDB.legacy_v42()
-	if legacy_content == null:
-		runner.assert_true(false, "v42 compatibility content is available")
-		return
-	var current: Dictionary = source.duplicate(true)
-	current.schema_version = 43
-	current["content_bundle"] = legacy_content.content_bundle()
-	_test_record(runner, current)
-	_test_world_capture(runner, current)
-	_test_root_migration(runner, source, current)
-	print("SCENARIO assembly inputs: exact JSON format, saved opening ownership, immutable v42/v43 migration")
+	_test_record(runner, source)
+	_test_world_capture(runner, source)
+	_test_retired_roots(runner, source)
+	print("SCENARIO assembly inputs: exact JSON format, saved opening ownership and immutable retired-root rejection")
 
 
 func _test_record(runner: Object, current: Dictionary) -> void:
@@ -118,64 +111,47 @@ func _test_world_capture(runner: Object, current: Dictionary) -> void:
 	runner.assert_eq(int(captured.centers.home[0]), original_center, "capture owns a deep copy of JSON centers")
 
 
-func _test_root_migration(runner: Object, source: Dictionary, current: Dictionary) -> void:
-	var historical: Dictionary = current.duplicate(true)
-	# These valid values differ from today's opening and must be taken from the
-	# archive itself. None of them are world events or resource transactions.
+func _test_retired_roots(runner: Object, source: Dictionary) -> void:
+	var original: String = _json(source)
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(SOURCE)
+	runner.assert_eq(int(source.get("schema_version", -1)), 42, "fixture is an actual root42 archive")
+	runner.assert_eq(SessionSaveSchema.rejection_reason(source.get("schema_version")), SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT, "actual root42 identifies the retired environment")
+	runner.assert_true(SessionSaveSchema.upgrade(source).is_empty(), "actual root42 cannot enter the current schema")
+	runner.assert_true(WorldSessionSnapshot.stage(null, source).is_empty(), "actual root42 is refused before any runtime is consulted")
+	var historical: Dictionary = source.duplicate(true)
+	# Extract an independent record from saved inputs without treating it as a
+	# migrated world. These changes are only a synthetic assembly-record probe.
 	historical.continuity.world.regions.home.config.seed = int(historical.continuity.world.regions.home.config.seed) + 7
 	historical.continuity.world.settings.event_budget = 8123
 	historical.continuity.centers.home = [7, 9]
 	var before: String = _json(historical)
-	# This test changes assembly inputs without reconstructing a physical world.
-	# Stop at the old envelope boundary, before full thermal candidate import.
-	var migrated: Dictionary = SessionSaveSchema._upgrade(historical, null)
-	runner.assert_true(not migrated.is_empty(), "a v43 with its own content bundle reaches the v47 envelope")
-	if migrated.is_empty():
+	var assembly: Dictionary = ReolWorldAssemblyInputs.from_saved(historical.continuity.world, historical.continuity.centers)
+	runner.assert_true(not assembly.is_empty(), "saved inputs can form an independent assembly record")
+	if assembly.is_empty():
 		return
-	runner.assert_eq(int(migrated.schema_version), 47, "v43 traverses the assembly and terrain boundaries to v47")
-	runner.assert_eq(int(migrated.assembly.region_configs.home.seed), int(historical.continuity.world.regions.home.config.seed), "migration uses the saved region configuration")
-	runner.assert_eq(int(migrated.assembly.settings.event_budget), 8123, "migration uses the saved regional settings")
-	runner.assert_eq(_json(migrated.assembly.centers), _json(historical.continuity.centers), "migration uses the saved centers")
-	runner.assert_eq(_json(migrated.content_bundle), _json(historical.content_bundle), "migration keeps the exact archived content bundle")
-	runner.assert_eq(_json(historical), before, "v43 migration does not mutate its source")
-	var reconstructed: Dictionary = migrated.duplicate(true)
-	reconstructed.erase("assembly")
-	reconstructed.world.erase("terrain_overrides")
-	reconstructed.schema_version = 43
-	reconstructed.continuity.world.version = 38
-	reconstructed.continuity.world.artifacts.version = 6
-	for event: Dictionary in reconstructed.continuity.world.artifacts.events:
-		if event.get("kind") == "warmed":
-			event.erase("heat_amount")
-	runner.assert_eq(_json(reconstructed), before, "migration adds no world history or resource state")
-	var bad: Dictionary = migrated.duplicate(true)
-	bad.erase("assembly")
-	runner.assert_true(not SessionSaveSchema._valid_world_fields(bad, 47) and SessionSaveSchema._upgrade(bad, null).is_empty(), "v47 without assembly is rejected")
-	bad = historical.duplicate(true)
-	bad["assembly"] = migrated.assembly.duplicate(true)
-	runner.assert_true(SessionSaveSchema._upgrade(bad, null).is_empty(), "v43 cannot smuggle a v44 assembly")
-	bad = historical.duplicate(true)
-	bad.erase("content_bundle")
-	runner.assert_true(SessionSaveSchema._upgrade(bad, null).is_empty(), "v43 without its content bundle cannot use legacy fallback")
-	bad = source.duplicate(true)
-	bad["assembly"] = migrated.assembly.duplicate(true)
-	var legacy_content: ReolContentDB = ReolContentDB.legacy_v42()
-	runner.assert_true(legacy_content != null, "v42 uses its recorded compatibility definitions")
-	if legacy_content == null:
-		return
-	runner.assert_true(SessionSaveSchema._upgrade(bad, legacy_content).is_empty(), "v42 cannot smuggle a v44 assembly")
-	var from_42: Dictionary = SessionSaveSchema._upgrade(source, legacy_content)
-	runner.assert_true(not from_42.is_empty(), "real v42 explicitly traverses v43 and v44")
-	if not from_42.is_empty():
-		runner.assert_eq(int(from_42.schema_version), 47, "v42 reaches the historical root boundary")
-		runner.assert_eq(_json(from_42.assembly.region_configs.home), _json(source.continuity.world.regions.home.config), "v42 region input is not replaced with today's opening")
-	var standalone: Dictionary = current.duplicate(true)
+	runner.assert_eq(int(assembly.region_configs.home.seed), int(historical.continuity.world.regions.home.config.seed), "assembly uses the saved region configuration")
+	runner.assert_eq(int(assembly.settings.event_budget), 8123, "assembly uses the saved regional settings")
+	runner.assert_eq(_json(assembly.centers), _json(historical.continuity.centers), "assembly uses the saved centers")
+	runner.assert_eq(_json(historical), before, "building assembly does not mutate its source")
+	# The real v42 and synthetic mixed envelopes all stop at the root boundary;
+	# a separately valid assembly must not make their missing field history valid.
+	for version: int in [42, 43, 47]:
+		var candidate: Dictionary = historical.duplicate(true)
+		candidate.schema_version = version
+		candidate["assembly"] = assembly.duplicate(true)
+		var input: String = _json(candidate)
+		runner.assert_eq(SessionSaveSchema.rejection_reason(version), SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT, "retired root %d identifies its old environment" % version)
+		runner.assert_true(SessionSaveSchema.upgrade(candidate).is_empty(), "retired root %d cannot import even with assembly" % version)
+		runner.assert_true(WorldSessionSnapshot.stage(null, candidate).is_empty(), "retired root %d is refused before an active runtime is consulted" % version)
+		runner.assert_eq(_json(candidate), input, "retired root %d candidate is not mutated" % version)
+	var standalone: Dictionary = historical.duplicate(true)
 	standalone.erase("continuity")
-	var upgraded_single: Dictionary = SessionSaveSchema._upgrade(standalone, null)
-	runner.assert_true(not upgraded_single.is_empty(), "standalone v43 reaches the historical boundary without creating a joint world")
-	if not upgraded_single.is_empty():
-		runner.assert_true(ReolWorldAssemblyInputs.is_valid(upgraded_single.assembly, false), "standalone v44 contains only home configuration")
-		runner.assert_eq(_json(upgraded_single.assembly.region_configs.home), _json(standalone.simulation.config), "standalone migration uses its saved simulation config")
+	var standalone_before: String = _json(standalone)
+	runner.assert_true(SessionSaveSchema.upgrade(standalone).is_empty(), "retired standalone input cannot create a current world")
+	runner.assert_true(WorldSessionSnapshot.stage(null, standalone).is_empty(), "retired standalone input is rejected before runtime access")
+	runner.assert_eq(_json(standalone), standalone_before, "retired standalone input remains unchanged")
+	runner.assert_eq(_json(source), original, "assembly probes preserve the genuine input dictionary")
+	runner.assert_eq(FileAccess.get_file_as_bytes(SOURCE), bytes, "assembly probes preserve the actual fixture bytes")
 
 
 func _reject(runner: Object, value: Dictionary, reason: String) -> void:

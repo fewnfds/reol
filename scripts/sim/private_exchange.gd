@@ -316,6 +316,8 @@ func _money_candidates(job: Dictionary) -> Dictionary:
 
 
 func _complete(job: Dictionary) -> bool:
+	if not world.artifacts.synchronize_environment_transfer() or world.private_exchange != self:
+		return false
 	var payment_id: String = str(job.id) + ":payment"
 	if job.status != "active" or transfers.has(payment_id) or not _connected(job) or not world.artifacts.can_record_exchange(job):
 		return false
@@ -325,11 +327,16 @@ func _complete(job: Dictionary) -> bool:
 	var change: Dictionary = SimArtifactTransfers.describe(str(job.object), world.artifacts.objects[job.object], str(job.buyer_region), "actor:" + str(job.buyer), int(world.elapsed_ms), str(job.artifact_action), "private_exchange")
 	if not world.artifact_transfers.allows(change):
 		return false
+	var environment: Dictionary = world.artifacts.prepare_environment_transfer(change)
+	if not bool(environment.get("ok", false)):
+		return false
 	# No await, callback, save or other rule runs in this commit section. The
 	# artifact preflight and cloned ledgers have already checked every failure.
 	var event_id: String = world.artifacts.record_exchange(job)
 	if event_id.is_empty():
+		world.artifacts.cancel_environment_transfer(environment)
 		return false
+	world.artifacts.finish_environment_transfer(environment)
 	var source: SimInventory = world.regions[job.buyer_region].inventory
 	var target: SimInventory = world.regions[job.seller_region].inventory
 	var first: SimInventory = prepared.source

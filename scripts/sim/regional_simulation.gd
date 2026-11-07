@@ -4,7 +4,7 @@ extends RefCounted
 ## Scene adapters may disappear; these instances and their pending work remain.
 
 const DEFINITIONS_VERSION: int = 1
-const SCHEMA_VERSION: int = 42
+const SCHEMA_VERSION: int = 43
 const MINUTE_MS: int = 60000
 const MAX_COUNT: int = SimInventory.MAX_COUNT
 const Services = preload("res://scripts/sim/services/settlement_services.gd")
@@ -58,6 +58,23 @@ const BOUNDARY_DOMAINS: Array[StringName] = [
 	&"construction", &"resting", &"weather", &"standing_work", &"large_bodies",
 	&"method_records", &"personal_production", &"budgeted_labor", &"clothing",
 	&"health", &"environment", &"local_heat", &"spirit_sources", &"conflicts", &"source_care", &"capability_practice", &"field_opportunities", &"private_exchange",
+]
+# The runtime adapter historically used this ordered subset to choose an outer
+# interval before its heat preflight and player-journey checks. Other world,
+# regional, route and message boundaries are still handled inside advance_to_ms.
+const RUNTIME_BOUNDARY_DOMAINS: Array[StringName] = [
+	&"construction", &"resting", &"weather", &"clothing", &"health",
+	&"spirit_sources", &"conflicts", &"source_care", &"field_opportunities",
+	&"private_exchange", &"capability_practice", &"environment", &"local_heat",
+	&"large_bodies", &"personal_production",
+]
+# Describes the existing world-level order; it is not an automatic callback
+# registry. In particular, interrupted object settlement resumes at that phase.
+const ADVANCE_PHASES: Array[StringName] = [
+	&"manual_motion_and_regional_advance", &"settle_previous_interval",
+	&"advance_journeys_and_arrivals", &"prepare_environment_event",
+	&"settle_current_processes", &"sample_herb_conditions", &"consider_future_actions",
+	&"process_messages", &"assess_and_dispatch_routes",
 ]
 
 var regions: Dictionary = {}
@@ -132,6 +149,18 @@ var _environment_event: EnvironmentEventContext
 var _environment_response: EnvironmentEventContext
 
 
+static func schedule_contract() -> Dictionary:
+	# Return copies: callers may inspect the existing schedule, not mutate it.
+	# Services are optional; regions, routes, messages and ecology sampling also
+	# provide boundaries outside the fixed domain list.
+	return {
+		"snapshot_domains": SNAPSHOT_DOMAINS.duplicate(),
+		"boundary_domains": BOUNDARY_DOMAINS.duplicate(),
+		"runtime_boundary_domains": RUNTIME_BOUNDARY_DOMAINS.duplicate(),
+		"advance_phases": ADVANCE_PHASES.duplicate(),
+	}
+
+
 func describe_object(reference: Variant) -> Dictionary:
 	# Authority/editor API. Observation and permission are separate contracts.
 	return SimWorldObjectQuery.describe(self, reference)
@@ -146,6 +175,8 @@ func capture_object_space(references: Array, budget: int = 4096) -> Dictionary:
 
 
 func bind_environment_boundary_guard(guard: RefCounted) -> bool:
+	if guard != null and local_heat is SimWorldEnvironmentFields:
+		return false # Ordinary fields are the sole transaction participant.
 	if object_lifecycle == null or _environment_boundary_waiting or _environment_event != null or object_lifecycle.environment_change_pending():
 		return false
 	var previous: RefCounted = _environment_guard.get_ref() if _environment_guard != null else null
@@ -313,11 +344,10 @@ func initialize(definitions: Dictionary, instances: Dictionary, content: ReolCon
 	if not spirit_sources.initialize(self, content.spirit_sources):
 		errors.append("Invalid finite spiritual source definitions")
 		return false
-	local_heat = SimLocalHeat.new()
+	local_heat = SimWorldEnvironmentFields.new()
 	if not local_heat.initialize(self, content.local_heat):
-		errors.append("Invalid finite local heat definitions")
+		errors.append("Invalid current environmental field definitions")
 		return false
-	local_heat.set_geometry(construction.thermal_roofed, construction.thermal_barrier, true)
 	environment = SimEnvironment.new()
 	if not environment.initialize(self, content.climate):
 		errors.append("Invalid local environment definitions")
@@ -558,6 +588,16 @@ static func _actor_ids(instances: Dictionary) -> Array[String]:
 	return result
 
 
+func next_runtime_boundary_ms(limit_ms: int) -> int:
+	# This read-only outer boundary intentionally preserves the adapter's former
+	# subset and has no elapsed_ms clamp. advance_to_ms handles all other world
+	# boundaries; the adapter separately handles its player journey.
+	var boundary: int = limit_ms
+	for name: StringName in RUNTIME_BOUNDARY_DOMAINS:
+		boundary = mini(boundary, int(get(name).next_boundary_ms()))
+	return boundary
+
+
 func advance_to(requested_time: int, max_events: int = 4096) -> bool:
 	@warning_ignore("integer_division")
 	var maximum_minute: int = MAX_COUNT / MINUTE_MS
@@ -567,6 +607,11 @@ func advance_to(requested_time: int, max_events: int = 4096) -> bool:
 
 
 func advance_to_ms(requested_ms: int, max_events: int = 4096) -> bool:
+	if object_lifecycle != null and object_lifecycle._committing:
+		return false
+	if local_heat is SimWorldEnvironmentFields and not local_heat.activate_sources():
+		errors.append("Environmental sources could not activate before advancing")
+		return false
 	if requested_ms < elapsed_ms or requested_ms > MAX_COUNT or regions.is_empty():
 		return false
 	if object_lifecycle.environment_change_pending() and not _environment_boundary_waiting:
@@ -792,6 +837,8 @@ func _valid_herb_conditions() -> bool:
 			var at_ms: int = int(ecology.sample_ms)
 			var heat: int = int(ecology.heat_tenths)
 			if at_ms == local_heat.last_sample_ms:
+				if local_heat is SimWorldEnvironmentFields and not bool(local_heat.sample_result(point, at_ms).get("supported", false)):
+					return false
 				if local_heat.sample_tenths(point, at_ms) != heat:
 					return false
 			elif at_ms == elapsed_ms:
@@ -800,6 +847,12 @@ func _valid_herb_conditions() -> bool:
 					return false
 			elif at_ms != int(ecology.activation_ms):
 				return false
+			elif local_heat is SimWorldEnvironmentFields:
+				# The response field begins at the committed climate background.
+				# Only that actual activation sample is known to be neutral; an
+				# older sample cannot be reconstructed from today's field.
+				if at_ms != int(local_heat.activation_ms) or heat != 0:
+					return false
 			else:
 				# A migrated source can retain its activation sample across the
 				# first partial minute. That older heat slice is no longer stored
@@ -961,7 +1014,7 @@ func known_event_lines(region_id: String, limit: int = 3) -> Array[String]:
 
 
 func to_dict() -> Dictionary:
-	if environment_boundary_active() or (object_lifecycle != null and object_lifecycle.environment_change_pending()):
+	if environment_boundary_active() or (object_lifecycle != null and (object_lifecycle._committing or object_lifecycle.environment_change_pending())):
 		return {}
 	if not local_heat.settle_at_ms(elapsed_ms) or not synchronize_regions():
 		return {}
@@ -986,73 +1039,17 @@ func to_dict() -> Dictionary:
 
 
 func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: bool = false) -> bool:
-	if environment_boundary_active() or (object_lifecycle != null and object_lifecycle.environment_change_pending()) or (_environment_guard != null and _environment_guard.get_ref() != null):
+	if object_lifecycle != null and object_lifecycle._committing:
 		return false
-	if data.get("version") != SCHEMA_VERSION and data.has("object_lifecycle"):
+	# The current model cannot reconstruct causal field residuals from a Q
+	# archive. Historical importers remain evidence, not a second running engine.
+	if legacy_heat_v1 or legacy_heat_v2 or data.get("version") != SCHEMA_VERSION:
+		return false
+	if environment_boundary_active() or (object_lifecycle != null and object_lifecycle.environment_change_pending()) or (_environment_guard != null and _environment_guard.get_ref() != null):
 		return false
 	# Validation constructs an entirely separate world. Failed loads preserve
 	# existing regional objects, inventory and pending deliveries.
-	if legacy_heat_v1 or legacy_heat_v2:
-		# Both historical thermal readers are importer-only inputs. Neither may
-		# replace an initialized field or introduce a device unknown to v7.
-		if legacy_heat_v1 and legacy_heat_v2 or local_heat != null or _content == null or not _legacy_artifacts_v7(data.get("artifacts"), _content.artifacts):
-			return false
-	if legacy_heat_v1:
-		# Only a fresh WorldRestoreFactory shell may receive this read-only
-		# legacy candidate; never replace an already initialized live domain.
-		if local_heat != null or _content == null:
-			return false
-		# This branch is used only by the session importer to validate the old
-		# complete candidate. Adapt nested labels on a private copy, after proving
-		# they actually have the old versions and nonnegative v1 heat semantics.
-		if data.get("version") != 39 or not data.get("regions") is Dictionary or not data.get("local_heat") is Dictionary or data.local_heat.get("version") != 1 or data.local_heat.get("rules_version") != 1 or not data.get("environment") is Dictionary or data.environment.get("version") != 2 or not data.environment.get("samples") is Dictionary:
-			return false
-		if not data.get("artifacts") is Dictionary or data.artifacts.get("version") != 7 or not LegacyHeatV1.valid_definitions(_content.local_heat):
-			return false
-		for sample: Variant in data.environment.samples.values():
-			if not sample is Dictionary or not LegacyHeatV1.Shape.count(sample.get("heat_tenths"), 0, SimInventory.MAX_COUNT - 10000):
-				return false
-		for saved: Variant in data.regions.values():
-			if not saved is Dictionary or saved.get("version") != 6 or not saved.get("land_resources") is Dictionary or saved.land_resources.get("version") != 3 or not saved.land_resources.get("sources") is Dictionary:
-				return false
-			for source: Variant in saved.land_resources.sources.values():
-				if not source is Dictionary or not source.get("ecology") is Dictionary:
-					return false
-				var ecology: Dictionary = source.ecology
-				if ecology.is_empty():
-					continue
-				if ecology.get("version") != 1 or not LegacyHeatV1.Shape.count(ecology.get("heat_tenths"), 0, SimInventory.MAX_COUNT - 10000) or not LegacyHeatV1.Shape.count(ecology.get("temperature_tenths"), -10000, SimInventory.MAX_COUNT) or int(ecology.temperature_tenths) - int(ecology.heat_tenths) < -10000 or int(ecology.temperature_tenths) - int(ecology.heat_tenths) > 10000:
-					return false
-		data = data.duplicate(true)
-		data.version = SCHEMA_VERSION
-		data["object_lifecycle"] = SimObjectLifecycle.empty_state()
-		data.artifacts.version = SimArtifacts.VERSION
-		data.environment.version = SimEnvironment.VERSION
-		for saved: Dictionary in data.regions.values():
-			saved.version = VillageSimulation.SCHEMA_VERSION
-			saved.land_resources.version = SimLandResources.VERSION
-			for source: Dictionary in saved.land_resources.sources.values():
-				if not source.ecology.is_empty():
-					source.ecology.version = 2
-	elif legacy_heat_v2:
-		if data.get("version") != 40 or not data.get("local_heat") is Dictionary or data.local_heat.get("version") != 2 or data.local_heat.get("rules_version") != 2 or not data.get("environment") is Dictionary or data.environment.get("version") != 3:
-			return false
-		if not load("res://scripts/persistence/legacy_heat_v2.gd").valid_definitions(_content.local_heat):
-			return false
-		data = data.duplicate(true)
-		data.version = SCHEMA_VERSION
-		data["object_lifecycle"] = SimObjectLifecycle.empty_state()
-		data.artifacts.version = SimArtifacts.VERSION
-	elif data.get("version") == 41:
-		# Finite input conversion: genuine previous state only, never patch a
-		# malformed current archive or let an old label conceal new-domain data.
-		if data.has("object_lifecycle"):
-			return false
-		data = data.duplicate(true)
-		data.version = SCHEMA_VERSION
-		data["object_lifecycle"] = SimObjectLifecycle.empty_state()
-	# Ordinary regional restore accepts only the current schema. Earlier
-	# versions require their root migration and explicit thermal import.
+	# Earlier regional and thermal versions are rejected before validation.
 	if _content == null or not _valid_world_shape(data):
 		return false
 	if (services != null) != data.has("services"):
@@ -1176,25 +1173,10 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	if not data.artifacts is Dictionary or not data.artifacts.get("events") is Array or not next_records.initialize(candidate_world, _content.method_records) or not next_records.restore(data.method_records, data.artifacts.events):
 		return false
 	candidate_world.method_records = next_records
-	# The artifact transfer validator needs this candidate's bound heat rules,
-	# never the live world's field. Restore the same owner later, once geometry
-	# and original source records have independently passed validation.
-	var next_heat: RefCounted
-	if legacy_heat_v1:
-		var old_heat: RefCounted = load("res://scripts/persistence/legacy_heat_v1.gd").new()
-		if not old_heat.configure(candidate_world, _content.local_heat):
-			return false
-		next_heat = old_heat
-	elif legacy_heat_v2:
-		var fixed_reference_heat: RefCounted = load("res://scripts/persistence/legacy_heat_v2.gd").new()
-		if not fixed_reference_heat.configure(candidate_world, _content.local_heat):
-			return false
-		next_heat = fixed_reference_heat
-	else:
-		var current_heat := SimLocalHeat.new()
-		if not current_heat.initialize(candidate_world, _content.local_heat):
-			return false
-		next_heat = current_heat
+	# Validate against the candidate's field, never the live world's owner.
+	var next_heat := SimWorldEnvironmentFields.new()
+	if not next_heat.initialize(candidate_world, _content.local_heat):
+		return false
 	candidate_world.local_heat = next_heat
 	var next_artifacts := SimArtifacts.new()
 	candidate_world.artifacts = next_artifacts
@@ -1278,10 +1260,6 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	if not next_health.initialize(candidate_world, _content.health) or not next_health.restore(data.health):
 		return false
 	candidate_world.health = next_health
-	if next_heat is SimLocalHeat:
-		next_heat.set_geometry(next_construction.thermal_roofed, next_construction.thermal_barrier, true)
-	else:
-		next_heat.set_geometry(next_construction.thermal_roofed, next_construction.thermal_barrier)
 	if not next_heat.restore(data.local_heat):
 		return false
 	# Artifact shape validation runs before health and personal understanding
@@ -1341,7 +1319,6 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	environment = next_environment
 	environment.bind_world(self)
 	local_heat = next_heat
-	local_heat.bind_world(self)
 	health = next_health
 	health.bind_world(self)
 	clothing = next_clothing
@@ -1392,6 +1369,7 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	operations = data.operations.duplicate(true)
 	in_transit = next_transit
 	_next_id = int(data.next_id)
+	local_heat.bind_world(self)
 	if next_services != null:
 		services = next_services
 		services.bind_world(self)
@@ -1649,20 +1627,6 @@ func _valid_settings(definitions: Dictionary, instances: Dictionary) -> bool:
 			for point: Variant in route.path:
 				if not _valid_cell(point):
 					return false
-	return true
-
-
-static func _legacy_artifacts_v7(data: Variant, definitions: Dictionary) -> bool:
-	if not SimArtifacts.Schema._keys(data, ["version", "objects", "active", "events", "experiences", "next_id"]) or data.version != 7 or not data.objects is Dictionary:
-		return false
-	# Definitions remain the old bundle's facts. A downgraded current archive
-	# cannot use an old tag to launder a device or its stored heat/history.
-	for definition: Variant in definitions.get("types", {}).values():
-		if not definition is Dictionary or definition.get("capabilities", []).has("thermal_exchange"):
-			return false
-	for object: Variant in data.objects.values():
-		if not object is Dictionary or object.has("stored_q") or object.has("enabled"):
-			return false
 	return true
 
 

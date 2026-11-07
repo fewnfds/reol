@@ -1,6 +1,7 @@
 extends RefCounted
 
 const Fixtures = preload("res://tests/runtime/test_world_continuity_runtime.gd")
+const LegacyRejection = preload("res://tests/runtime/helpers/legacy_rejection_archive.gd")
 var _fixtures := Fixtures.new()
 
 
@@ -77,36 +78,10 @@ func run(runner: Object) -> void:
 		if FileAccess.file_exists(path + suffix):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
 	_fixtures._dispose(fixture)
-	_test_actual_archive(runner)
+	# The current real build, material reservation and mid-action save are above.
+	LegacyRejection.run(runner, {"res://tests/fixtures/session_v16.json": ""}, ["construction"])
 	print("SCENARIO construction book: real terrain/ledger/motion, independent candidate obstacles and identical joint-session continuation")
 
 
 func _canonical(adapter: WorldContinuityRuntime) -> String:
 	return JSON.stringify(VillageRuntime._json_normalized(WorldSessionSnapshot.capture(adapter)), "", true, true)
-
-
-func _test_actual_archive(runner: Object) -> void:
-	var prior: Dictionary = GameClock.to_dict()
-	var path: String = "res://tests/fixtures/session_v16.json"
-	var original: String = FileAccess.get_file_as_string(path)
-	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-	var main: Node = load("res://scenes/main.tscn").instantiate()
-	runner.root.add_child(main)
-	var adapter: WorldContinuityRuntime = main._continuity
-	runner.assert_eq(adapter.load_game(ProjectSettings.globalize_path(path)), OK, "real N-book construction archive loads through the normal session path")
-	runner.assert_eq(GameClock.elapsed_ms, 451445, "archive restores its original fractional work time")
-	runner.assert_true(adapter.world_sim.construction.owns_actor("player") and adapter.world_sim.construction.projects["construction:1"].state == "blueprint", "archive contains unfinished paid construction, not invented finished scenery")
-	GameClock.advance_msec(240000)
-	var future: String = _canonical(adapter)
-	runner.assert_true(adapter.world_sim.construction.blocked(Vector2i(263, 260)), "actual archived original material batch finishes as a real wall")
-	main.free()
-	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-	main = load("res://scenes/main.tscn").instantiate()
-	runner.root.add_child(main)
-	adapter = main._continuity
-	runner.assert_eq(adapter.load_game(ProjectSettings.globalize_path(path)), OK, "fresh main scene restores the genuine original construction file")
-	GameClock.advance_msec(240000)
-	runner.assert_eq(_canonical(adapter), future, "fresh-scene restart preserves all autonomous NPCs, physical costs and construction future")
-	runner.assert_eq(FileAccess.get_file_as_string(path), original, "genuine archive is never rewritten to fit later code")
-	main.free()
-	GameClock.restore_state(prior)

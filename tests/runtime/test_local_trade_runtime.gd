@@ -63,53 +63,14 @@ func _canonical(adapter: WorldContinuityRuntime) -> String:
 
 
 func _test_v18_migration(runner: Object) -> void:
-	var prior: Dictionary = GameClock.to_dict()
-	var path: String = "res://tests/fixtures/session_v18.json"
-	var original: String = FileAccess.get_file_as_string(path)
-	var old: Dictionary = JSON.parse_string(original)
-	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-	var main: Node = load("res://scenes/main.tscn").instantiate()
-	runner.root.add_child(main)
-	var adapter: WorldContinuityRuntime = main._continuity
-	var loaded: Error = adapter.load_game(ProjectSettings.globalize_path(path))
-	runner.assert_eq(loaded, OK, "genuine previous weather/pickup archive migrates through the ordinary loader")
-	if loaded == OK:
-		runner.assert_eq(adapter.world_sim.services.jobs.size(), old.continuity.world.services.jobs.size(), "migration invents no historical trade")
-		runner.assert_eq(adapter.world_sim.regions.home.inventory.quantity("records", "coin"), old.continuity.world.regions.home.inventory.containers.records.get("coin", 0), "migration adds no public startup money")
-		runner.assert_eq(adapter.world_sim.weather.bed_wetness("construction:1"), 48, "prior real environment and inflight roof remain intact")
-		runner.assert_eq(adapter.world_sim.construction.active.player.phase, "pickup", "new trade rules do not steal a prior body's action")
-	runner.assert_eq(FileAccess.get_file_as_string(path), original, "genuine v18 is never reserialized as a fake older source")
-	main.free()
-	GameClock.restore_state(prior)
+	# Old archives lack causal field history; current behavior is tested above.
+	load("res://tests/runtime/helpers/legacy_rejection_archive.gd").run(runner, {
+		"res://tests/fixtures/session_v18.json": ""
+	})
 
 
 func _test_actual_archive(runner: Object) -> void:
-	var prior: Dictionary = GameClock.to_dict()
-	var path: String = "res://tests/fixtures/session_v19.json"
-	var original: String = FileAccess.get_file_as_string(path)
-	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-	var main: Node = load("res://scenes/main.tscn").instantiate()
-	runner.root.add_child(main)
-	var adapter: WorldContinuityRuntime = main._continuity
-	var loaded: Error = adapter.load_game(ProjectSettings.globalize_path(path))
-	runner.assert_eq(loaded, OK, "genuine clicked trade archive restores through the ordinary file boundary")
-	if loaded == OK:
-		runner.assert_eq(GameClock.elapsed_ms, 455334, "archive retains fractional original handling time")
-		runner.assert_true(adapter.world_sim.services.jobs["service:job:4"].phase == "work", "archive retains physical counting before exchange")
-		runner.assert_eq(adapter.player_inventory().quantity("actor:player", "coin"), 6, "genuine quote has not prematurely charged the bag")
-		runner.assert_eq(adapter.player_inventory().quantity("actor:player", "meal"), 0, "genuine unfinished purchase has no free food")
-		GameClock.advance_msec(180000)
-		var future: String = _canonical(adapter)
-		runner.assert_eq(adapter.player_inventory().quantity("actor:player", "coin"), 4, "actual archive pays only once when original handling finishes")
-		runner.assert_eq(adapter.player_inventory().quantity("actor:player", "meal"), 1, "actual archive obtains exactly one carried meal")
-		main.free()
-		GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-		main = load("res://scenes/main.tscn").instantiate()
-		runner.root.add_child(main)
-		adapter = main._continuity
-		runner.assert_eq(adapter.load_game(ProjectSettings.globalize_path(path)), OK, "new scene reconstructs the genuine same trade and autonomous world")
-		GameClock.advance_msec(180000)
-		runner.assert_eq(_canonical(adapter), future, "genuine trade archive continues the identical complete world in a fresh scene")
-	runner.assert_eq(FileAccess.get_file_as_string(path), original, "genuine v19 source is never rewritten")
-	main.free()
-	GameClock.restore_state(prior)
+	# Old archives lack causal field history; current behavior is tested above.
+	load("res://tests/runtime/helpers/legacy_rejection_archive.gd").run(runner, {
+		"res://tests/fixtures/session_v19.json": ""
+	})

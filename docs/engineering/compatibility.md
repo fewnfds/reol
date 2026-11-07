@@ -24,4 +24,8 @@
 
 ## 当前实现的有限边界
 
-[SessionSaveSchema](../../scripts/persistence/session_save_schema.gd)负责声明支持范围内的迁入，[WorldSessionSnapshot](../../scripts/runtime/world_session_snapshot.gd)在独立候选通过校验后才替换活世界；地图按档内生成描述重建。具体格式、适用版本与验证证据以[BASELINE](../status/baseline.md)和实际代码为准。历史各阶段的导入边界保留在[归档](../archive/engineering-context-20261105/compatibility.md)，不能作为永久兼容承诺。
+2026-11-07隔离收尾工作树中，[SessionSaveSchema](../../scripts/persistence/session_save_schema.gd)普通入口只接受根`52`；任何有效整数旧根`1–51`返回`legacy_environment`，未来或非法版本返回`unsupported_version`。旧Q历史无法可靠推导新场的实际残留，因此不从当前物品位置伪造迁移。用户原档保留；失败不替换活世界。代码仍待最终验证与合并，证据和当前状态见[HANDOFF](../status/handoff.md)与[BASELINE](../status/baseline.md)。
+
+普通联合区域为`43`，`RegionalSimulation.restore`明确拒绝其他区域版本与旧热导入标志。当前内容包为`2`，将`environment_sources.json`连同其他定义及digest写入；旧`1`版内容包可在低层做形状验证，但缺来源定义，不足以装配新普通环境，也不会从当前磁盘补出历史能力。不要把低层旧版校验器或历史导入源码误写成旧存档已支持。
+
+[WorldSessionSnapshot](../../scripts/runtime/world_session_snapshot.gd)在独立候选通过校验后才替换活世界；地图按档内生成描述重建。当前环境保存版本`4`、模型`outdoor_fields_v1`，保存背景及已受影响格的响应锚点、必要来源与采样；派生来源/块缓存从已验证原物重建，细节见[环境合同](world-environment-contract.md)。存在未完成共同时间/环境事务时不能当成已完成快照。历史各阶段的导入边界保留在[归档](../archive/engineering-context-20261105/compatibility.md)，不能作为永久兼容承诺。

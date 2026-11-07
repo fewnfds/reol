@@ -11,6 +11,8 @@ static func capture(adapter: Node) -> Dictionary:
 	# Regional capture first settles all regions at one commit point, including
 	# a quiet home region while the player is visiting elsewhere.
 	var world_snapshot: Dictionary = adapter.world_sim.to_dict()
+	if world_snapshot.is_empty() or not world_snapshot.get("local_heat") is Dictionary or world_snapshot.local_heat.is_empty():
+		return {}
 	return SnapshotValues.for_save({
 		"schema_version": SessionSaveSchema.VERSION, "world_seed": int(adapter.world_sim.map_data.descriptor().seed),
 		"content_bundle": context.content.content_bundle(),
@@ -27,12 +29,14 @@ static func capture(adapter: Node) -> Dictionary:
 
 
 static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
+	# Reject older formats before consulting the active runtime or a map factory.
+	if not SessionSaveSchema.supports_version(snapshot.get("schema_version")):
+		return {}
 	var home_runtime: VillageRuntime = adapter.home_runtime()
 	var context: Dictionary = home_runtime.snapshot_context()
 	var player: PlayerCharacter = context.player
-	# Import uses the same independent terrain factory as final staging; it must
-	# never validate saved geometry against the currently active map.
-	snapshot = SessionSaveSchema.upgrade(snapshot, null, Callable(home_runtime, "create_candidate_map"))
+	# Validate the envelope before constructing its independent saved terrain.
+	snapshot = SessionSaveSchema.upgrade(snapshot)
 	if not SessionSaveSchema.is_valid_world(snapshot) or not snapshot.get("continuity") is Dictionary:
 		return {}
 	var content := ReolContentDB.new()

@@ -22,9 +22,10 @@ const RESTING_PATH: String = "res://data/definitions/resting.json"
 const WEATHER_PATH: String = "res://data/definitions/weather.json"
 const SERVICES_PATH: String = "res://data/definitions/settlement_services.json"
 const PERSONAL_FORAGING_PATH: String = "res://data/definitions/personal_foraging.json"
+const ENVIRONMENT_SOURCES_PATH: String = "res://data/definitions/environment_sources.json"
 
-# Format-v1 manifest. Adding a future document requires a new bundle version and
-# an explicit migration; never silently enlarge the required v1 path set.
+# Format-v2 manifest. V1 remains precisely this set without environment_sources;
+# older content is never silently supplemented from files on the local machine.
 const DOCUMENT_PATHS: Array[String] = [
 	"res://data/definitions/artifacts.json",
 	"res://data/definitions/autonomous_livelihood.json",
@@ -38,6 +39,7 @@ const DOCUMENT_PATHS: Array[String] = [
 	"res://data/definitions/clothing.json",
 	"res://data/definitions/conflicts.json",
 	"res://data/definitions/construction.json",
+	"res://data/definitions/environment_sources.json",
 	"res://data/definitions/field_opportunities.json",
 	"res://data/definitions/health.json",
 	"res://data/definitions/heat_methods.json",
@@ -72,6 +74,9 @@ var errors: Array[String] = []
 var stock_information_policy: Dictionary = {}
 var body_forms: Dictionary = {}
 var artifacts: Dictionary = {}
+## Null for a valid historical v1 bundle. A new environment owner must reject it
+## or apply an explicit migration; it must not read replacement definitions.
+var environment_sources: EnvironmentSourceDefinitions
 var avian_life: Dictionary = {}
 var land_resources: Dictionary = {}
 var soul_vessels: Dictionary = {}
@@ -167,7 +172,7 @@ static func legacy_v42() -> ReolContentDB:
 	if not source is Dictionary or source.get("version") != 1 or not source.get("documents") is Dictionary:
 		return null
 	var content := ReolContentDB.new()
-	return content if content.load_bundle(ReolContentBundle.from_documents(source.documents), true) else null
+	return content if content.load_bundle(ReolContentBundle.from_documents(source.documents, ReolContentBundle.LEGACY_VERSION), true) else null
 
 
 func _load_definitions() -> bool:
@@ -178,6 +183,7 @@ func _load_definitions() -> bool:
 	stock_information_policy = {}
 	body_forms = {}
 	artifacts = {}
+	environment_sources = null
 	avian_life = {}
 	land_resources = {}
 	soul_vessels = {}
@@ -355,6 +361,13 @@ func _load_definitions() -> bool:
 		artifacts = objects.duplicate(true)
 	else:
 		_error("%s: invalid artifacts" % ARTIFACTS_PATH)
+	if _documents.has(ENVIRONMENT_SOURCES_PATH):
+		var environment_document: Variant = _read_json(ENVIRONMENT_SOURCES_PATH)
+		var candidate := EnvironmentSourceDefinitions.new()
+		if environment_document is Dictionary and candidate.configure(environment_document) and valid_objects and candidate.validate_artifacts(objects.types):
+			environment_sources = candidate
+		else:
+			_error("%s: invalid profiles or artifact bindings" % ENVIRONMENT_SOURCES_PATH)
 	var avians: Variant = _read_json(AVIAN_LIFE_PATH)
 	if SimAvianLife.valid_definitions(avians):
 		avian_life = avians.duplicate(true)

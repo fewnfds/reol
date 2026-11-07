@@ -11,7 +11,7 @@ var _fixtures: RefCounted = Fixtures.new()
 func run(runner: Object) -> void:
 	_new_room_runtime(runner)
 	_original_archive(runner)
-	print("SCENARIO workplace runtime: actual setup, staffed report/reward, doorway navigation, joint in-flight continuation, atomic failures and genuine v34 in the new main scene")
+	print("SCENARIO workplace runtime: actual setup, staffed report/reward, doorway navigation, joint in-flight continuation, atomic failures and rejection of the genuine retired v34 archive")
 
 
 func _fixture(runner: Object) -> Dictionary:
@@ -128,31 +128,36 @@ func _new_room_runtime(runner: Object) -> void:
 func _original_archive(runner: Object) -> void:
 	var saved_clock: Dictionary = GameClock.to_dict()
 	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-	var source: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(ARCHIVE))
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(ARCHIVE)
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(ARCHIVE))
+	runner.assert_eq(FileAccess.get_sha256(ARCHIVE), ARCHIVE_SHA, "genuine v34 source retains its recorded digest")
+	if bytes.is_empty() or not parsed is Dictionary:
+		runner.assert_true(false, "the genuine v34 source is a readable archive")
+		GameClock.restore_state(saved_clock)
+		return
+	var source: Dictionary = parsed
+	var input: String = _canonical(source)
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	runner.root.add_child(main)
 	var adapter: WorldContinuityRuntime = main._continuity
-	runner.assert_true(main.fog.visibility_updated.is_connected(main._village.queue_redraw) and main.fog.visibility_updated.is_connected(adapter.queue_redraw), "both room views follow actual visibility updates after paused load")
-	if adapter == null:
-		runner.assert_true(false, "ordinary enhanced main scene initializes before genuine archive loading")
+	if adapter == null or adapter.world_sim == null:
+		runner.assert_true(false, "ordinary workplace scene initializes before rejecting the archive")
 		main.free()
 		GameClock.restore_state(saved_clock)
 		return
-	runner.assert_true(adapter.world_sim.regions.home.config.has("workplaces_version"), "ordinary new main scene really enables modern rooms")
-	var error: Error = adapter.load_game(ProjectSettings.globalize_path(ARCHIVE))
-	runner.assert_eq(error, OK, "enhanced ordinary scene loads the unchanged genuine v34 through the normal absolute-path loader")
-	if error == OK:
-		for id: String in ["home", "river"]:
-			var local: VillageSimulation = adapter.world_sim.regions[id]
-			runner.assert_true(not local.config.has("workplaces_version") and not local.places.records.has("workspace"), "old archive gains no invented office or public record carrier: " + id)
-			runner.assert_eq(_canonical(local.places.records.cell), _canonical(source.continuity.world.regions[id].places.records.cell), "genuine old destination survives modern opening relocation: " + id)
-		runner.assert_eq(adapter.world_sim.avian_life.birds.size(), source.continuity.world.avian_life.birds.size(), "old archive does not gain the new opening wild flocks")
-		runner.assert_true(not adapter.world_sim.clothing.region_roofed("river", SimRouteTravel.cell(adapter.world_sim.regions.river.places.records.cell)), "old river counter does not gain shelter from the new opening's room")
-		runner.assert_eq(_canonical(adapter.world_sim.spirit_sources.active), _canonical(source.continuity.world.spirit_sources.active), "real unfinished source work survives the old load")
-		var before: String = _canonical(WorldSessionSnapshot.capture(adapter))
-		runner.assert_true(not WorldSessionSnapshot.stage(adapter, WorldSessionSnapshot.capture(adapter)).is_empty(), "old world can be saved and staged again after replacement of modern opening state")
-		runner.assert_eq(_canonical(WorldSessionSnapshot.capture(adapter)), before, "restaging the restored old world changes no historical or current fact")
-	runner.assert_eq(FileAccess.get_sha256(ARCHIVE), ARCHIVE_SHA, "genuine source archive remains byte-for-byte unchanged")
+	runner.assert_true(main.fog.visibility_updated.is_connected(main._village.queue_redraw) and main.fog.visibility_updated.is_connected(adapter.queue_redraw), "both room views follow actual visibility updates")
+	runner.assert_true(adapter.world_sim.regions.home.config.has("workplaces_version"), "ordinary new main scene enables current rooms")
+	var live: RegionalSimulation = adapter.world_sim
+	var terrain: WorldMapData = live.map_data
+	var before: String = _canonical(WorldSessionSnapshot.capture(adapter))
+	runner.assert_eq(SessionSaveSchema.rejection_reason(source.get("schema_version")), SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT, "v34 is identified as a retired environment archive")
+	runner.assert_true(SessionSaveSchema.upgrade(source).is_empty() and WorldSessionSnapshot.stage(adapter, source).is_empty(), "v34 cannot be staged into the current workplace world")
+	runner.assert_eq(adapter.load_game(ProjectSettings.globalize_path(ARCHIVE)), ERR_INVALID_DATA, "ordinary loader explicitly rejects the genuine old v34 archive")
+	runner.assert_true(adapter.world_sim == live and live.map_data == terrain, "rejection retains the current live world and map owners")
+	runner.assert_eq(_canonical(WorldSessionSnapshot.capture(adapter)), before, "rejection preserves the complete current room, player and clock state")
+	runner.assert_eq(_canonical(source), input, "validation does not rewrite the supplied archive")
+	runner.assert_eq(FileAccess.get_file_as_bytes(ARCHIVE), bytes, "rejection preserves the genuine archive bytes")
+	runner.assert_eq(FileAccess.get_sha256(ARCHIVE), ARCHIVE_SHA, "rejection preserves the recorded digest")
 	main.free()
 	GameClock.restore_state(saved_clock)
 

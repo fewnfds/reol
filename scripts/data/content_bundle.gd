@@ -3,28 +3,41 @@ extends RefCounted
 ## Portable JSON definition input. The digest detects corruption, not authenticity.
 ## This format covers ReolContentDB documents, not all game code or scenario rules.
 
-const VERSION: int = 1
+const VERSION: int = 2
+const LEGACY_VERSION: int = 1
+# Version 1 predates this document. Its manifest is the current manifest with
+# exactly this path removed; it must never be supplemented from local files.
+const V2_ADDED_DOCUMENT: String = "res://data/definitions/environment_sources.json"
 
 
-static func from_documents(documents: Dictionary) -> Dictionary:
-	if not _json_value(documents):
+static func from_documents(documents: Dictionary, version: int = VERSION) -> Dictionary:
+	if version not in [LEGACY_VERSION, VERSION] or not _json_value(documents):
 		return {}
 	var copy: Dictionary = SnapshotValues.normalized(documents)
-	return {"version": VERSION, "documents": copy, "digest": _digest(copy)}
+	return {"version": version, "documents": copy, "digest": _digest(copy)}
 
 
 static func is_valid(value: Variant, paths: Array[String]) -> bool:
-	if not value is Dictionary or value.size() != 3 or value.get("version") != VERSION:
+	if not value is Dictionary or value.size() != 3 or not _version(value.get("version")):
 		return false
 	if not value.get("documents") is Dictionary or not value.get("digest") is String:
 		return false
 	var documents: Dictionary = value.documents
-	if documents.size() != paths.size():
+	var expected: Array[String] = paths.duplicate()
+	if value.version == LEGACY_VERSION:
+		expected.erase(V2_ADDED_DOCUMENT)
+	elif not expected.has(V2_ADDED_DOCUMENT):
 		return false
-	for path: String in paths:
+	if documents.size() != expected.size():
+		return false
+	for path: String in expected:
 		if not documents.has(path):
 			return false
 	return _json_value(documents) and str(value.digest) == _digest(documents)
+
+
+static func _version(value: Variant) -> bool:
+	return (value is int or value is float) and is_finite(float(value)) and (value == LEGACY_VERSION or value == VERSION)
 
 
 static func _digest(documents: Dictionary) -> String:

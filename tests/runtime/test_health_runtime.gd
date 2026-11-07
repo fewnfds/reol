@@ -2,16 +2,13 @@ extends RefCounted
 ## The ordinary request page, body controller and joint file boundary agree.
 
 const Fixtures = preload("res://tests/runtime/test_world_continuity_runtime.gd")
-const SolarProjection = preload("res://tests/runtime/helpers/solar_legacy_projection.gd")
 var fixtures := Fixtures.new()
 
 
 func run(runner: Object) -> void:
 	_actual_body_care(runner)
-	_legacy_sources(runner)
-	_real_legacy(runner)
-	_real_archive(runner)
-	print("SCENARIO health runtime: private body sense, continuous-position care, both-body exclusion and cancellation, same joint-file future, explicit old-source migration")
+	_legacy_rejection(runner)
+	print("SCENARIO health runtime: private body sense, continuous-position care, both-body exclusion and cancellation, same joint-file future, explicit old-archive rejection")
 
 
 func _fixture(runner: Object) -> Dictionary:
@@ -50,71 +47,6 @@ func _prepare_doctor(runtime: WorldContinuityRuntime) -> void:
 
 func _canonical(runtime: WorldContinuityRuntime) -> String:
 	return JSON.stringify(VillageRuntime._json_normalized(WorldSessionSnapshot.capture(runtime)), "", true, true)
-
-
-func _prepare_pre_health_opening(runner: Object, runtime: WorldContinuityRuntime) -> bool:
-	# The shared runtime fixture assembles today's opening, including objects
-	# that did not exist in v42. Build this one old-style test opening before
-	# advancing time or performing the actual injury, never by editing an archive.
-	var old_content: ReolContentDB = ReolContentDB.legacy_v42()
-	var world: RegionalSimulation = runtime.world_sim
-	var later_ids: Array[String] = []
-	var scenario: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/scenarios/artifacts.json"))
-	var opening_rows: Dictionary = {}
-	for row: Dictionary in scenario.objects:
-		opening_rows[row.id] = row
-	var old_types_ok: bool = old_content != null
-	if old_types_ok:
-		for id: String in world.artifacts.objects:
-			if not old_content.artifacts.types.has(world.artifacts.objects[id].definition):
-				later_ids.append(id)
-	runner.assert_true(old_types_ok, "pre-health opening has its bound historical definitions")
-	if not old_types_ok:
-		return false
-	var opening: Dictionary = WorldSessionSnapshot.capture(runtime)
-	var state: Dictionary = opening.continuity.world
-	var at_opening: bool = not state.is_empty() and GameClock.elapsed_ms == 0 and world.elapsed_ms == 0 and world.target_ms == 0
-	runner.assert_true(at_opening, "pre-health fixture is still at its initial common time")
-	if not at_opening:
-		return false
-	var empty_heat: bool = SnapshotValues.normalized(state.local_heat) == SnapshotValues.normalized(SimLocalHeat.empty_state(0))
-	runner.assert_true(empty_heat, "pre-health opening has no field, device flow, receipt or heat ledger to erase")
-	if not empty_heat:
-		return false
-	var objects: Dictionary = state.artifacts.objects
-	for id: String in later_ids:
-		var intact: bool = opening_rows.has(id) and objects.has(id)
-		if intact:
-			var row: Dictionary = opening_rows[id]
-			var definition: Dictionary = world.artifacts.definitions.types[row.definition]
-			var expected: Dictionary = {"definition": row.definition, "region": row.region, "container": row.container}
-			if definition.get("capabilities", []).has("thermal_exchange"):
-				expected["stored_q"] = int(definition.thermal.opening_q)
-				expected["enabled"] = false
-			intact = SnapshotValues.normalized(objects[id]) == SnapshotValues.normalized(expected)
-		runner.assert_true(intact, "later object is still in its exact unmodified scenario opening state: " + id)
-		if not intact:
-			return false
-		objects.erase(id)
-	for item: Dictionary in objects.values():
-		var old_object: bool = old_content.artifacts.types.has(item.get("definition")) and not item.has("stored_q") and not item.has("enabled")
-		runner.assert_true(old_object, "remaining opening artifact is representable by the historical definitions")
-		if not old_object:
-			return false
-	# The content bundle describes available definitions, not world facts. With
-	# that bundle and only checked opening rows omitted from this copy, search
-	# all remaining saved facts, including active actions, transit and receipts.
-	opening.erase("content_bundle")
-	var other_facts: String = SnapshotValues.canonical_json(opening)
-	for id: String in later_ids:
-		var unreferenced: bool = not other_facts.contains(id)
-		runner.assert_true(unreferenced, "no saved fact refers to the excluded opening device: " + id)
-		if not unreferenced:
-			return false
-	for id: String in later_ids:
-		world.artifacts.objects.erase(id)
-	world.artifacts._rebuild_light_sources()
-	return true
 
 
 func _actual_body_care(runner: Object) -> void:
@@ -192,233 +124,54 @@ func _actual_body_care(runner: Object) -> void:
 	fixtures._dispose(fixture)
 
 
-func _legacy_sources(runner: Object) -> void:
-	var fixture: Dictionary = _fixture(runner)
-	if fixture.is_empty():
-		return
-	var runtime: WorldContinuityRuntime = fixture.continuity
-	if not _prepare_pre_health_opening(runner, runtime):
-		fixtures._dispose(fixture)
-		return
-	_injure(runner, runtime)
-	# Build an explicit pre-health format from real effects. This is a temporary
-	# migration counterexample, never a replacement of a genuine archive.
-	var current: Dictionary = WorldSessionSnapshot.capture(runtime)
-	var legacy: Dictionary = SolarProjection.prior_lifecycle(current)
-	runner.assert_true(not legacy.is_empty(), "temporary pre-health projection removes only the exact empty lifecycle")
-	if legacy.is_empty():
-		fixtures._dispose(fixture)
-		return
-	var nonempty: Dictionary = current.duplicate(true)
-	nonempty.continuity.world.object_lifecycle.receipts["later"] = {}
-	runner.assert_true(SolarProjection.prior_lifecycle(nonempty).is_empty(), "pre-health projection cannot discard later lifecycle activity")
-	legacy.schema_version = 28
-	legacy.erase("content_bundle")
-	legacy.erase("assembly")
-	# Root 28 predates editable terrain. Project only this empty modern field
-	# away; retaining it would test a forged envelope before reaching health.
-	var empty_terrain: bool = legacy.world.terrain_overrides.is_empty()
-	runner.assert_true(empty_terrain, "temporary pre-health projection has no actual terrain edits to erase")
-	if not empty_terrain:
-		fixtures._dispose(fixture)
-		return
-	legacy.world.erase("terrain_overrides")
-	legacy.continuity.world.version = 25
-	legacy.continuity.world.erase("health")
-	# This temporary pre-health format also predates the later environment
-	# authority; retaining a modern field is correctly refused by migration.
-	legacy.continuity.world.erase("environment")
-	legacy.continuity.world.erase("local_heat")
-	legacy.continuity.world.erase("spirit_sources")
-	legacy.continuity.world.erase("site_affairs")
-	legacy.continuity.world.erase("source_care")
-	runner.assert_eq(SnapshotValues.normalized(legacy.continuity.world.capability_practice), SnapshotValues.normalized(SimCapabilityPractice.empty_state()), "temporary pre-health projection contains no actual later practice to erase")
-	legacy.continuity.world.erase("capability_practice")
-	runner.assert_eq(SnapshotValues.normalized(legacy.continuity.world.field_opportunities), SnapshotValues.normalized(SimFieldOpportunities.empty_state()), "temporary pre-health projection has no later field activity to erase")
-	legacy.continuity.world.erase("field_opportunities")
-	var exchange_state: Variant = SnapshotValues.normalized(legacy.continuity.world.private_exchange)
-	var empty_exchange: Variant = SnapshotValues.normalized(SimPrivateExchange.empty_state())
-	runner.assert_eq(exchange_state, empty_exchange, "temporary pre-health projection has no exchange, consent, or receipt to erase")
-	if exchange_state != empty_exchange:
-		fixtures._dispose(fixture)
-		return
-	legacy.continuity.world.erase("private_exchange")
-	# Project the current artifact envelope only when the original history is
-	# actually v4-compatible; do not discard research, draw or exchange evidence.
-	var old_artifacts: Dictionary = legacy.continuity.world.artifacts
-	runner.assert_eq(int(old_artifacts.version), SimArtifacts.VERSION, "temporary projection starts from the current artifact envelope")
-	var can_project_artifacts: bool = int(old_artifacts.version) == SimArtifacts.VERSION
-	for item: Dictionary in old_artifacts.objects.values():
-		var v4_object: bool = not item.has("stored_q") and not item.has("enabled")
-		runner.assert_true(v4_object, "temporary pre-health artifacts contain no later thermal device fields")
-		can_project_artifacts = can_project_artifacts and v4_object
-	var artifact_history: Array = old_artifacts.active.values()
-	artifact_history.append_array(old_artifacts.events)
-	for row: Variant in artifact_history:
-		var no_exchange: bool = row is Dictionary and not row.has("exchange") and row.get("verb") != "private_exchange" and row.get("kind") != "exchanged"
-		runner.assert_true(no_exchange, "temporary pre-health artifact history contains no private exchange evidence")
-		var v4_compatible: bool = no_exchange and not row.has("draw") and row.get("verb") not in ["use_research", "draw"] and row.get("kind") not in ["use_learned", "drawn"]
-		runner.assert_true(v4_compatible, "temporary pre-health artifact history contains no later research or drawing")
-		can_project_artifacts = can_project_artifacts and v4_compatible
-	if not can_project_artifacts:
-		fixtures._dispose(fixture)
-		return
-	old_artifacts.version = 4
-	# The explicit old-format counterexample also predates body-facing v5.
-	# Downgrade only this temporary test value; immutable real archives stay
-	# untouched and all original effect/action/resource fields remain present.
-	# It also predates source-v3 ecology and its irrigation action. Project
-	# those additions away explicitly rather than asking the migration to
-	# accept a modern source hidden under an old root version.
-	var resource_rules: Dictionary = runtime.world_sim._content.land_resources
-	_pre_health_village(runner, legacy.simulation, resource_rules)
-	for sim: Dictionary in legacy.continuity.world.regions.values():
-		_pre_health_village(runner, sim, resource_rules)
-	var floor_value: int = int(legacy.continuity.world.artifacts.next_id)
-	var original_effects: Variant = legacy.continuity.world.artifacts.events.duplicate(true)
-	var path: String = "user://tests/health_legacy_source_%d.json" % Time.get_ticks_usec()
-	var bad_path: String = path + ".modern_domain.json"
-	# An allegedly old format must not retain today's conflict authority.
-	# Keep the malformed candidate as a negative case before projecting only
-	# this temporary value; the ordinary migration must continue to reject it.
-	var stable: String = _canonical(runtime)
-	var live: RegionalSimulation = runtime.world_sim
-	runner.assert_eq(SimSaveStore.save_file(bad_path, legacy), OK, "mismatched old envelope remains ordinary readable JSON")
-	runner.assert_eq(runtime.load_game(bad_path), ERR_INVALID_DATA, "pre-conflict root cannot carry a modern conflict domain through migration")
-	runner.assert_true(runtime.world_sim == live, "rejected old-format conflict domain keeps the original live owner")
-	runner.assert_eq(_canonical(runtime), stable, "rejected old-format conflict domain preserves every original consequence, item and clock fact")
-	legacy.continuity.world.erase("conflicts")
-	var mixed_artifacts: Dictionary = legacy.duplicate(true)
-	mixed_artifacts.continuity.world.artifacts.version = 5
-	runner.assert_eq(SimSaveStore.save_file(bad_path, mixed_artifacts), OK, "old-format fixture with modern artifact envelope is readable JSON")
-	runner.assert_eq(runtime.load_game(bad_path), ERR_INVALID_DATA, "pre-drawing root cannot carry a modern artifact envelope")
-	runner.assert_true(runtime.world_sim == live, "rejected mixed artifact envelope keeps the original live owner")
-	runner.assert_eq(_canonical(runtime), stable, "rejected mixed artifact envelope preserves every original consequence, item and clock fact")
-	runner.assert_eq(SimSaveStore.save_file(path, legacy), OK, "temporary old-format migration fixture contains an actual original backlash")
-	var loaded: Error = runtime.load_game(path)
-	runner.assert_eq(loaded, OK, "pre-health session migrates through the ordinary joint loader")
-	if loaded != OK:
-		_clean(path)
-		_clean(bad_path)
-		fixtures._dispose(fixture)
-		return
-	runner.assert_eq(runtime.world_sim.health.to_dict().version, 2, "pre-health session explicitly reaches the current sourced-injury schema")
-	runner.assert_eq(runtime.world_sim.health.conflict_source_floor, 1, "new conflict consequences start with the actual empty hit history")
-	var expected_conflicts: Dictionary = SimConflicts.empty_state()
-	expected_conflicts.perception_since_ms = int(legacy.continuity.world.elapsed_ms)
-	runner.assert_eq(SnapshotValues.normalized(runtime.world_sim.conflicts.to_dict()), SnapshotValues.normalized(expected_conflicts), "pre-conflict history gains only saved-present perception activation and no imagined hits, encounters or teaching")
-	runner.assert_eq(runtime.world_sim.health.source_floor, floor_value, "new consequences begin at the old artifact allocator boundary")
-	runner.assert_true(runtime.world_sim.health.wounds.is_empty() and runtime.world_sim.health.jobs.is_empty(), "old actual backlash is preserved without inventing a historical new injury or treatment")
-	runner.assert_eq(runtime.world_sim.regions.home.actors.player.facing, legacy.player.motion.facing, "temporary pre-health format gains only its player's explicitly recorded original heading")
-	runner.assert_eq(VillageRuntime._json_normalized(runtime.world_sim.artifacts.events), VillageRuntime._json_normalized(original_effects), "migration does not rewrite original effects to hide the past")
-	_injure(runner, runtime)
-	runner.assert_eq(runtime.world_sim.health.wounds.size(), 1, "a genuinely new effect after migration still creates its own consequence exactly once")
-	_clean(path)
-	_clean(bad_path)
-	fixtures._dispose(fixture)
-
-
-func _pre_health_village(runner: Object, sim: Dictionary, rules: Dictionary) -> void:
-	sim.version = 4
-	for body: Dictionary in sim.actors.values():
-		body.erase("facing")
-	sim.config.actions.erase("irrigate_herb")
-	sim.land_resources.version = 2
-	for id: String in sim.land_resources.sources:
-		var source: Dictionary = sim.land_resources.sources[id]
-		var definition: String = str(sim.config.resource_sources[id].definition)
-		var terms: Dictionary = rules.types[definition]
-		var interval: int = int(terms.regrow_ms)
-		@warning_ignore("integer_division")
-		var old_periods: int = int(sim.elapsed_ms) / interval
-		# The staged backlash occurs before any herb maturity. Do not erase or
-		# rewrite actual goods to force an unrepresentable modern future into
-		# this earlier format; the old production bound must already hold.
-		runner.assert_true(int(source.produced) <= old_periods * int(terms.regrow_amount), "temporary pre-health source has legal original production before removing later ecology: " + id)
-		source.erase("ecology")
-		source.next_growth_ms = mini(SimInventory.MAX_COUNT, int(sim.elapsed_ms) - posmod(int(sim.elapsed_ms), interval) + interval)
-
-
-func _real_legacy(runner: Object) -> void:
-	var prior: Dictionary = GameClock.to_dict()
+func _legacy_rejection(runner: Object) -> void:
+	# The current in-flight medical care and independent continuation stay in
+	# _actual_body_care. Near/far and natural recovery remain covered by the
+	# current source-backed test_health.gd; old archives are immutable inputs.
+	var saved_clock: Dictionary = GameClock.to_dict()
 	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	runner.root.add_child(main)
-	var path: String = "res://tests/fixtures/session_v28.json"
-	var original: String = FileAccess.get_file_as_string(path)
-	var source: Dictionary = JSON.parse_string(original)
 	var runtime: WorldContinuityRuntime = main._continuity
-	runner.assert_eq(runtime.load_game(ProjectSettings.globalize_path(path)), OK, "genuine v28 clothing archive remains readable through the new health migration")
-	runner.assert_eq(runtime.world_sim.health.source_floor, int(source.continuity.world.artifacts.next_id), "real archive uses its original allocator boundary, not the current new-game value")
-	runner.assert_true(runtime.world_sim.health.wounds.is_empty(), "the real pre-health archive gains no invented historical injuries")
-	runner.assert_eq(GameClock.elapsed_ms, int(source.clock.elapsed_ms), "health migration preserves the archive's exact ongoing common time")
-	runner.assert_eq(FileAccess.get_file_as_string(path), original, "genuine v28 archive stays byte-for-byte unchanged")
+	if runtime == null or runtime.world_sim == null:
+		runner.assert_true(false, "ordinary scene initializes for historical health rejection")
+		main.free()
+		GameClock.restore_state(saved_clock)
+		return
+	var world: RegionalSimulation = runtime.world_sim
+	var content: ReolContentDB = runtime._home._content
+	var terrain: WorldMapData = world.map_data
+	var stable: String = _canonical(runtime)
+	var clock: String = SnapshotValues.canonical_json(SnapshotValues.normalized(GameClock.to_dict()))
+	var archives: Array[Dictionary] = [
+		{"path": "res://tests/fixtures/session_v28.json", "version": 28, "sha": "72b76bfaafdf0b8ea740cacdeffe0332f1326e1b12919bbe7bf6d9f790626f23"},
+		{"path": "res://tests/fixtures/session_v29.json", "version": 29, "sha": "78252157f410869b94ff9ffcb98fe898a02d3525b1815cf52bab8df3db59e1c1"},
+	]
+	for entry: Dictionary in archives:
+		var path: String = str(entry.path)
+		var original: PackedByteArray = FileAccess.get_file_as_bytes(path)
+		var raw: Variant = JSON.parse_string(original.get_string_from_utf8())
+		runner.assert_eq(FileAccess.get_sha256(path), str(entry.sha), "the real health archive retains its recorded digest: " + path)
+		runner.assert_true(raw is Dictionary, "the historical health archive is readable: " + path)
+		if not raw is Dictionary:
+			continue
+		var candidate: Dictionary = raw
+		var source: String = SnapshotValues.canonical_json(SnapshotValues.normalized(candidate))
+		runner.assert_eq(int(candidate.get("schema_version", -1)), int(entry.version), "the health archive retains its original version: " + path)
+		runner.assert_eq(SessionSaveSchema.rejection_reason(candidate.schema_version), SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT, "the old archive has the explicit environment rejection: " + path)
+		runner.assert_true(WorldSessionSnapshot.stage(runtime, candidate).is_empty(), "the historical care candidate cannot invent field history: " + path)
+		runner.assert_eq(runtime.load_game(ProjectSettings.globalize_path(path)), ERR_INVALID_DATA, "ordinary loading refuses the historical health archive: " + path)
+		runner.assert_eq(runtime._notice, "旧环境格式不再支持，存档未改；请新开局。", "the historical archive explains its refusal: " + path)
+		runner.assert_true(runtime.world_sim == world and runtime._home._content == content and runtime.world_sim.map_data == terrain, "health archive rejection leaves all live owners unchanged: " + path)
+		runner.assert_eq(SnapshotValues.canonical_json(SnapshotValues.normalized(GameClock.to_dict())), clock, "health archive rejection preserves the shared clock: " + path)
+		runner.assert_eq(_canonical(runtime), stable, "health archive rejection preserves the full current body and world: " + path)
+		runner.assert_eq(SnapshotValues.canonical_json(SnapshotValues.normalized(candidate)), source, "staging leaves the supplied old archive unchanged: " + path)
+		runner.assert_eq(FileAccess.get_file_as_bytes(path), original, "health archive rejection never rewrites the file: " + path)
 	main.free()
-	GameClock.restore_state(prior)
+	GameClock.restore_state(saved_clock)
 
 
 func _clean(path: String) -> void:
 	for suffix: String in ["", ".tmp", ".bak", ".bak.tmp"]:
 		if FileAccess.file_exists(path + suffix):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
-
-
-func _real_archive(runner: Object) -> void:
-	var prior: Dictionary = GameClock.to_dict()
-	var path: String = "res://tests/fixtures/session_v29.json"
-	var original: String = FileAccess.get_file_as_string(path)
-	runner.assert_eq(FileAccess.get_sha256(path), "78252157f410869b94ff9ffcb98fe898a02d3525b1815cf52bab8df3db59e1c1", "real v29 care archive keeps its independently recorded source bytes")
-	var expected: String = ""
-	for attempt: int in 2:
-		GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-		var main: Node = load("res://scenes/main.tscn").instantiate()
-		runner.root.add_child(main)
-		var runtime: WorldContinuityRuntime = main._continuity
-		var loaded: Error = runtime.load_game(ProjectSettings.globalize_path(path))
-		runner.assert_eq(loaded, OK, "genuine clicked v29 treatment archive loads through a fresh ordinary scene")
-		if loaded != OK:
-			main.free()
-			continue
-		var world: RegionalSimulation = runtime.world_sim
-		var job: Dictionary = world.health.jobs.get("health:action:2", {})
-		runner.assert_true(not job.is_empty(), "actual archived preparation retains its original stable task ID")
-		if job.is_empty():
-			main.free()
-			continue
-		var source: String = str(job.source)
-		var identities: Dictionary = {}
-		for region: String in world.regions:
-			identities[region] = world.regions[region].actors.keys()
-		runner.assert_eq(GameClock.elapsed_ms, 2261073, "real archive preserves the precise unfinished-care common time")
-		runner.assert_eq(job.verb, "treat", "real archive captures actual treatment rather than examination")
-		runner.assert_eq(job.status, "active", "real treatment is still pending at the saved time")
-		runner.assert_eq(job.started_ms, 2231073, "original treatment start is never rebased on load")
-		runner.assert_eq(job.due_ms, 2351073, "original treatment deadline is never restarted on load")
-		runner.assert_eq(world.regions.home.inventory.quantity("actor:player", "herb"), 1, "archive has already invested one herb and still carries its other real herb")
-		runner.assert_eq(world.health.wounds[source].treated_ms, -1, "pending archived treatment grants no premature condition")
-		runner.assert_true(world.health.owns_actor("player") and world.health.owns_actor("su_zhi"), "both original participants remain occupied after independent loading")
-		GameClock.advance_msec(90000)
-		runner.assert_eq(GameClock.elapsed_ms, 2351073, "remaining preparation time reaches the original deadline")
-		runner.assert_eq(world.health.jobs["health:action:2"].status, "completed", "archived treatment completes once through the ordinary scene clock")
-		runner.assert_eq(world.health.wounds[source].treated_ms, 2351073, "care condition begins at its original real completion")
-		runner.assert_true(not world.health.current_source("player").is_empty(), "finishing preparation does not instantly heal the archived injury")
-		runner.assert_true(world.regions.home.actors.su_zhi.autonomous and not world.health.owns_actor("su_zhi"), "doctor resumes her own ordinary life after the actual preparation")
-		runner.assert_true(runtime.travel_to("river"), "recovered control can undertake an actual departure while bodily healing continues")
-		runner.assert_true(not runtime.player_journey.is_empty(), "departing requests a real journey rather than switching a region label")
-		GameClock.advance_msec(3510000)
-		runner.assert_eq(GameClock.elapsed_ms, 5861073, "absent care and world life reach the common one-hour archive horizon")
-		runner.assert_eq(runtime.current_region, "river", "real travel arrives at the distant settlement")
-		runner.assert_true(runtime.player_journey.is_empty(), "actual journey finishes through common elapsed time")
-		runner.assert_eq(world.regions.home.inventory.quantity("actor:player", "herb"), 1, "offscreen recovery and fresh loading never duplicate or refund the invested medicine")
-		runner.assert_eq(world.health.wounds[source].recovered_ms, 4680000, "same original injury resolves at the independently observed world pulse")
-		runner.assert_true(world.health.current_source("player").is_empty(), "the actual archived patient eventually recovers offscreen")
-		for region: String in world.regions:
-			runner.assert_eq(world.regions[region].actors.keys(), identities[region], "medical continuation and departure never clone, replace or lose original people in " + region)
-		var future: String = _canonical(runtime)
-		if attempt == 0:
-			expected = future
-		else:
-			runner.assert_eq(future, expected, "two independent ordinary scenes resume the real pending-care archive to the identical complete world future")
-		main.free()
-	runner.assert_eq(FileAccess.get_file_as_string(path), original, "genuine clicked v29 treatment archive stays byte-for-byte unchanged")
-	GameClock.restore_state(prior)

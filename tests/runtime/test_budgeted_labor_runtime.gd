@@ -1,6 +1,7 @@
 extends RefCounted
 
 const Fixtures = preload("res://tests/runtime/test_world_continuity_runtime.gd")
+const LegacyRejection = preload("res://tests/runtime/helpers/legacy_rejection_archive.gd")
 var fixtures := Fixtures.new()
 
 
@@ -74,8 +75,12 @@ func run(runner: Object) -> void:
 			if FileAccess.file_exists(saved + suffix):
 				DirAccess.remove_absolute(ProjectSettings.globalize_path(saved + suffix))
 	fixtures._dispose(fixture)
-	_old_archive(runner)
-	_actual_archives(runner)
+	# Current run() saves both the real labor and the in-progress wage claim.
+	LegacyRejection.run(runner, {
+		"res://tests/fixtures/session_v25.json": "f6cc8c84441c321b76154781a069ea7f999ef3f32fd8d8c7a56d7af3bfa5004e",
+		"res://tests/fixtures/session_v26.json": "fb4e849222f1e738a5c9140012db5392ad74991c7986617cd2287fd1a167d360",
+		"res://tests/fixtures/wage_claim_v26.json": "1ebf265690d16bea20290261292abbe20232b74d8f7a266e79a83fa731350c19",
+	}, ["budgeted_labor"])
 	print("SCENARIO wage UI: actual public sales fund original labor, C promise and timed acceptance share body/time, both mid-action saves reproduce identical future")
 
 
@@ -87,70 +92,3 @@ func _position(fixture: Dictionary) -> void:
 
 func _canonical(runtime: WorldContinuityRuntime) -> String:
 	return JSON.stringify(VillageRuntime._json_normalized(WorldSessionSnapshot.capture(runtime)), "", true, true)
-
-
-func _old_archive(runner: Object) -> void:
-	var prior: Dictionary = GameClock.to_dict()
-	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-	var main: Node = load("res://scenes/main.tscn").instantiate()
-	runner.root.add_child(main)
-	var runtime: WorldContinuityRuntime = main._continuity
-	var path: String = "res://tests/fixtures/session_v25.json"
-	var original: String = FileAccess.get_file_as_string(path)
-	var old: Dictionary = JSON.parse_string(original)
-	runner.assert_eq(runtime.load_game(ProjectSettings.globalize_path(path)), OK, "genuine private-production v25 migrates through ordinary loader")
-	runner.assert_true(runtime.world_sim.budgeted_labor.contracts.is_empty(), "migration invents no historical wage promise")
-	runner.assert_eq(runtime.player_inventory().quantity("records", "coin"), old.simulation.inventory.containers.records.get("coin", 0), "migration does not invent capital for the employer")
-	runner.assert_eq(runtime.world_sim.personal_production.active.player.id, "production_job:2", "existing production keeps original body and unfinished effort")
-	runner.assert_eq(FileAccess.get_file_as_string(path), original, "genuine v25 archive remains byte-for-byte unchanged")
-	main.free()
-	GameClock.restore_state(prior)
-
-
-func _actual_archives(runner: Object) -> void:
-	var prior: Dictionary = GameClock.to_dict()
-	for file: String in ["session_v26.json", "wage_claim_v26.json"]:
-		var path: String = "res://tests/fixtures/" + file
-		var original: String = FileAccess.get_file_as_string(path)
-		var expected: String = ""
-		for attempt: int in 2:
-			GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-			var main: Node = load("res://scenes/main.tscn").instantiate()
-			runner.root.add_child(main)
-			var runtime: WorldContinuityRuntime = main._continuity
-			var loaded: Error = runtime.load_game(ProjectSettings.globalize_path(path))
-			runner.assert_eq(loaded, OK, "genuine clicked wage scene loads normally: " + file)
-			if loaded != OK:
-				main.free()
-				continue
-			var note: Dictionary = runtime.world_sim.budgeted_labor.contracts["labor:1"]
-			var cook: Dictionary = runtime._home.simulation.actors.a_he
-			var own_study: Dictionary = runtime.world_sim.artifacts.active.get("a_he", {})
-			runner.assert_true(bool(cook.autonomous) or bool(own_study.get("previous_autonomous", false)), "genuine wage archive retains autonomous life including the cook's own underway investigation")
-			runner.assert_eq(runtime.player_inventory().quantity("actor:player", "coin"), 4, "actual sale funded two public coins without injecting capital")
-			runner.assert_eq(runtime.player_inventory().quantity("labor:1", "coin"), 2, "archive contains the same actual dedicated fund")
-			if file == "session_v26.json":
-				runner.assert_eq(GameClock.elapsed_ms, 183551, "real archive preserves fractional resumed delivery time")
-				runner.assert_eq(runtime._home.simulation.actors.player.active.id, "action:8", "same original body resumes the second delivery attempt")
-				runner.assert_eq(note.attempts.size(), 2, "normal stop and resumption retain their separate attempts")
-				runner.assert_eq(runtime.player_inventory().entrusted("actor:player", "wood"), 3, "real in-flight public wood stays entrusted")
-				GameClock.advance_msec(500000)
-				runner.assert_eq(note.status, "payable", "genuine restarted delivery earns only a pending wage")
-				runner.assert_eq(note.attempts.back().ended_ms, 485050, "original interrupted trip needs the same actual remaining labor")
-			else:
-				runner.assert_eq(GameClock.elapsed_ms, 684552, "genuine claim preserves fractional original shared time")
-				runner.assert_eq(runtime.world_sim.services.active_jobs.player, "service:job:4", "genuine acceptance resumes the original timed service")
-				GameClock.advance_msec(180000)
-				runner.assert_eq(note.status, "paid", "genuine claim transfers real held money once")
-				runner.assert_eq(note.terminal_ms, 804841, "accepted original appointment pays at the same millisecond")
-				runner.assert_eq(runtime.player_inventory().quantity("actor:player", "coin"), 6, "earned coins enter the original human bag")
-				runner.assert_eq(runtime.player_inventory().quantity("labor:1", "coin"), 0, "actual escrow is empty after payment")
-			runner.assert_true(runtime._home.simulation.actors.player.receipts.is_empty(), "real paid delivery never produces duplicate public credit")
-			runner.assert_eq(runtime._home.simulation.institutions.balance("sect", "player"), 0, "actual official contribution remains zero")
-			if attempt == 0:
-				expected = _canonical(runtime)
-			else:
-				runner.assert_eq(_canonical(runtime), expected, "genuine archive gives identical entire future after scene replacement: " + file)
-			main.free()
-		runner.assert_eq(FileAccess.get_file_as_string(path), original, "tests never generate or rewrite the genuine clicked archive: " + file)
-	GameClock.restore_state(prior)

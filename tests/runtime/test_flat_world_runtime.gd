@@ -1,6 +1,6 @@
 extends RefCounted
-## Different seeded flat openings and unchanged historical terrain share one
-## ordinary load path. Configuring a draft cannot alter a running world.
+## Different seeded flat openings share one ordinary load path. Retired old
+## archives are rejected without replacing the current world or their bytes.
 
 const LEGACY: String = "res://tests/fixtures/session_v42_exchange.json"
 const LEGACY_SHA: String = "e13c2616a25f482db2397b585417d027c2759172393c6929eb98a4713b676ebf"
@@ -46,64 +46,42 @@ func run(runner: Object) -> void:
 	if _load(runtime, path, saved_a, runner, "A after B"):
 		runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), _json(saved_a), "different map A returns with all of its own facts")
 		_assert_flat(runner, runtime.world_sim.map_data, "restored A")
-	var legacy_raw: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(LEGACY))
-	var legacy_current: Dictionary = SessionSaveSchema.upgrade(legacy_raw)
-	if _load(runtime, path, legacy_raw, runner, "genuine old v42 after flat A"):
-		runner.assert_eq(runtime.world_sim.map_data.descriptor(), WorldMapData.legacy_descriptor(), "old save restores the exact old generator instead of today's default")
-		var old_hills: int = 0
-		for cell: Vector2i in [Vector2i(0, 0), Vector2i(128, 128), Vector2i(256, 256), Vector2i(384, 384), Vector2i(511, 511)]:
-			old_hills += 1 if runtime.world_sim.map_data.get_elevation(cell) > 0 else 0
-		runner.assert_true(old_hills > 0, "historical terrain still has its original height samples")
-		runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), _json(legacy_current), "legacy migration changes only the explicit envelopes, not old histories")
-	var legacy_content: ReolContentDB = ReolContentDB.legacy_v42()
-	var legacy_v47: Dictionary = SessionSaveSchema._upgrade(legacy_raw, legacy_content) if legacy_content != null else {}
-	runner.assert_true(not legacy_v47.is_empty(), "the real v1 thermal archive reaches the old v47 envelope")
-	if legacy_v47.is_empty():
-		_remove(path)
-		second.free()
-		GameClock.restore_state(previous_clock)
-		return
-	var v44: Dictionary = legacy_v47.duplicate(true)
-	v44.schema_version = 44
-	v44.world.erase("terrain_overrides")
-	_project_regional_38(v44)
-	runner.assert_eq(_json(SessionSaveSchema._upgrade(v44, null)), _json(legacy_v47), "v44 envelope preserves the old recorded map and physical state through v47")
-	var upgraded: Dictionary = SessionSaveSchema.upgrade(v44)
-	runner.assert_true(not upgraded.is_empty(), "a synthetic v44 envelope with the genuine legacy map explicitly upgrades")
-	if not upgraded.is_empty():
-		runner.assert_eq(_json(upgraded), _json(legacy_current), "v44 migration preserves its recorded map and all original facts")
-	for older: int in [43, 44]:
-		var forged: Dictionary = legacy_v47.duplicate(true)
-		forged.schema_version = older
-		forged.world = saved_a.world.duplicate(true)
-		forged.world_seed = saved_a.world_seed
-		forged.world.erase("terrain_overrides")
-		_project_regional_38(forged)
-		if older == 43:
-			forged.erase("assembly")
-		runner.assert_true(SessionSaveSchema._upgrade(forged, null).is_empty(), "new flat generator cannot masquerade as an older v%d envelope" % older)
+	_assert_retired_archive(runner, runtime)
 	var before: String = _json(WorldSessionSnapshot.capture(runtime))
 	var bad: Dictionary = saved_a.duplicate(true)
 	bad.world.generator_version = 99
 	runner.assert_true(WorldSessionSnapshot.stage(runtime, bad).is_empty(), "unknown map code version is rejected")
-	runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), before, "bad map descriptor leaves the current old world untouched")
-	if _load(runtime, path, saved_b, runner, "B after historical world"):
-		runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), stable_b, "flat B restores its real original world after an old hilly world")
+	runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), before, "bad map descriptor leaves the current world untouched")
+	if _load(runtime, path, saved_b, runner, "B after rejected historical archive"):
+		runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), stable_b, "flat B restores its real original world after a rejected old archive")
 	runner.assert_eq(FileAccess.get_sha256(LEGACY), LEGACY_SHA, "genuine legacy fixture remains byte-identical")
 	_remove(path)
 	second.free()
 	GameClock.restore_state(previous_clock)
-	print("SCENARIO flat world: two actual seeded openings, A/B/historical cross-loads, zero new height, preserved old hills, guarded creation input")
+	print("SCENARIO flat world: two actual seeded openings, A/B cross-loads, old archive rejection, zero new height and guarded creation input")
 
 
-func _project_regional_38(snapshot: Dictionary) -> void:
-	# Project only an old v47 envelope containing the genuine v1 field.
-	var regional: Dictionary = snapshot.continuity.world
-	regional.version = 38
-	regional.artifacts.version = 6
-	for event: Dictionary in regional.artifacts.events:
-		if event.get("kind") == "warmed":
-			event.erase("heat_amount")
+func _assert_retired_archive(runner: Object, runtime: WorldContinuityRuntime) -> void:
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(LEGACY)
+	var parsed: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+	runner.assert_eq(FileAccess.get_sha256(LEGACY), LEGACY_SHA, "genuine legacy fixture retains its recorded hash")
+	if bytes.is_empty() or not parsed is Dictionary:
+		runner.assert_true(false, "genuine legacy archive is readable")
+		return
+	var source: Dictionary = parsed
+	var source_before: String = _json(source)
+	var world: RegionalSimulation = runtime.world_sim
+	var map: WorldMapData = world.map_data
+	var before: String = _json(WorldSessionSnapshot.capture(runtime))
+	runner.assert_eq(SessionSaveSchema.rejection_reason(source.get("schema_version")), SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT, "the genuine old archive reports its retired environment")
+	runner.assert_true(SessionSaveSchema.upgrade(source).is_empty(), "genuine old archive does not enter the current schema")
+	runner.assert_true(WorldSessionSnapshot.stage(runtime, source).is_empty(), "genuine old archive cannot stage a current world")
+	runner.assert_eq(runtime.load_game(ProjectSettings.globalize_path(LEGACY)), ERR_INVALID_DATA, "ordinary loading refuses the genuine old archive")
+	runner.assert_true(runtime.world_sim == world and world.map_data == map, "old archive rejection retains the current world and map")
+	runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), before, "old archive rejection preserves the complete live session")
+	runner.assert_eq(_json(source), source_before, "old archive rejection leaves its input unchanged")
+	runner.assert_eq(FileAccess.get_file_as_bytes(LEGACY), bytes, "old archive rejection preserves the actual fixture bytes")
+	runner.assert_eq(FileAccess.get_sha256(LEGACY), LEGACY_SHA, "old archive retains its original hash after rejection")
 
 
 func _assert_flat(runner: Object, terrain: WorldMapData, label: String) -> void:

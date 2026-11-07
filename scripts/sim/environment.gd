@@ -334,7 +334,13 @@ func _valid_sample(actor: String, sample: Variant, at_ms: int) -> bool:
 	if not Shape.count(int(sample.temperature_tenths) - int(sample.heat_tenths), -10000, 10000):
 		return false
 	var heat: RefCounted = _thermal()
-	if heat != null and at_ms >= int(heat.activation_ms) and at_ms != int(heat.last_sample_ms):
+	if heat is SimWorldEnvironmentFields:
+		# Current field archives cannot borrow or invent an exposure sampled
+		# before their own activation. The latest observation must match the
+		# field's preserved sample, even if its current target has since changed.
+		if at_ms < int(heat.activation_ms) or at_ms != int(heat.last_sample_ms):
+			return false
+	elif heat != null and at_ms >= int(heat.activation_ms) and at_ms != int(heat.last_sample_ms):
 		return false
 	var slots: Dictionary = {}
 	for garment: Variant in sample.garments:
@@ -359,6 +365,8 @@ func _valid_sample(actor: String, sample: Variant, at_ms: int) -> bool:
 	if sample.region.is_empty():
 		return sample.cell is Array and sample.cell.is_empty() and int(sample.temperature_tenths) == 0 and int(sample.heat_tenths) == 0 and int(sample.energy_rate) == 0 and _neutral_everywhere(at_ms, insulation, true)
 	if not Shape.cell_valid(sample.cell) or SimClimateRules.region_at(definitions, SimRouteTravel.cell(sample.cell)) != sample.region:
+		return false
+	if heat is SimWorldEnvironmentFields and not bool(heat.sample_result(SimRouteTravel.cell(sample.cell), at_ms).get("supported", false)):
 		return false
 	var heat_tenths: int = _sample_heat_tenths(SimRouteTravel.cell(sample.cell), at_ms)
 	var temperature: int = _temperature(str(sample.region), at_ms) + heat_tenths

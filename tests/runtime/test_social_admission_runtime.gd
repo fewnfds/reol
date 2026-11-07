@@ -41,27 +41,8 @@ func _test_short_conversation_and_identity(runner: Object) -> void:
 
 
 func _test_actual_collection_archive(runner: Object) -> void:
-	var prior: Dictionary = GameClock.to_dict()
-	var main: Node = _scene(runner)
-	var runtime: WorldContinuityRuntime = main._continuity
-	var path: String = ProjectSettings.globalize_path("res://tests/fixtures/session_v14.json")
-	var source: String = FileAccess.get_file_as_string(path)
-	runner.assert_eq(runtime.load_game(path), OK, "actual UI-created one-use collection archive loads through normal storage")
-	runner.assert_eq(GameClock.elapsed_ms, 22100, "real archive resumes before any medicine is handed over")
-	runner.assert_eq(runtime.world_sim.services.jobs["service:job:1"].options.admission, "admission:2", "ongoing collection refers to the actual colleague's consent")
-	GameClock.advance_msec(400000)
-	var expected: String = _canonical(runtime)
-	runner.assert_eq(runtime.player_inventory().quantity("actor:player", "herb"), 1, "real branch arrives only after the original collection process")
-	runner.assert_true(not runtime.world_sim.services.has_access("player", "home", "gate"), "completion preserves the difference between discretionary access and formal registration")
-	main.free()
-	main = _scene(runner)
-	runtime = main._continuity
-	runner.assert_eq(runtime.load_game(path), OK, "fresh main scene restores the same original consent and goods")
-	GameClock.advance_msec(400000)
-	runner.assert_eq(_canonical(runtime), expected, "actual in-progress admission and all other world domains reach the same future after restart")
-	runner.assert_eq(FileAccess.get_file_as_string(path), source, "real v14 source remains unchanged")
-	runner.assert_eq(runtime.load_game(ProjectSettings.globalize_path("res://tests/fixtures/session_v13.json")), OK, "same scene still migrates the actual previous-format soul carry")
-	runner.assert_true(runtime.soul_player_active() and runtime.world_sim.admissions.entries.is_empty(), "old timeline retains its soul identity without inventing statements or permits")
-	main.free()
-	GameClock.restore_state(prior)
-	print("SCENARIO actual admission UI: timed private speech and one-use collection persist; previous soul identity migrates without invented evidence")
+	# Old archives lack causal field history; current behavior is tested above.
+	load("res://tests/runtime/helpers/legacy_rejection_archive.gd").run(runner, {
+		"res://tests/fixtures/session_v14.json": "",
+		"res://tests/fixtures/session_v13.json": ""
+	})

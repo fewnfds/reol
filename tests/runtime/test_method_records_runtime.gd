@@ -125,44 +125,14 @@ func _canonical(runtime: WorldContinuityRuntime) -> String:
 
 
 func _test_previous_archive(runner: Object) -> void:
-	var prior: Dictionary = GameClock.to_dict()
-	var path: String = "res://tests/fixtures/session_v22.json"
-	var original: String = FileAccess.get_file_as_string(path)
-	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-	var main: Node = load("res://scenes/main.tscn").instantiate()
-	runner.root.add_child(main)
-	var runtime: WorldContinuityRuntime = main._continuity
-	runner.assert_eq(runtime.load_game(ProjectSettings.globalize_path(path)), OK, "genuine prior v22 migrates through the normal complete session loader")
-	runner.assert_true(runtime.world_sim.method_records.objects.is_empty() and runtime.world_sim.method_records.events.is_empty(), "old characters acquire no invented historical documents or reading")
-	runner.assert_true(runtime.world_sim.standing_work.entries.has("standing:home:request_4"), "new record domain preserves old actual cooperative work")
-	runner.assert_eq(FileAccess.get_file_as_string(path), original, "genuine historical fixture is never rewritten")
-	main.free()
-	GameClock.restore_state(prior)
+	# Old archives lack causal field history; current behavior is tested above.
+	load("res://tests/runtime/helpers/legacy_rejection_archive.gd").run(runner, {
+		"res://tests/fixtures/session_v22.json": ""
+	})
 
 
 func _test_actual_archive(runner: Object) -> void:
-	var prior: Dictionary = GameClock.to_dict()
-	var path: String = "res://tests/fixtures/session_v23.json"
-	var original: String = FileAccess.get_file_as_string(path)
-	var future: String = ""
-	for attempt: int in 2:
-		GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-		var main: Node = load("res://scenes/main.tscn").instantiate()
-		runner.root.add_child(main)
-		var runtime: WorldContinuityRuntime = main._continuity
-		runner.assert_eq(runtime.load_game(ProjectSettings.globalize_path(path)), OK, "genuine v23 restores original physical cross-settlement handover")
-		runner.assert_eq(GameClock.elapsed_ms, 2450050, "real archive is during paid handling, not after a fabricated completion")
-		runner.assert_true(runtime.world_sim.method_records.held("player", "method_record:1") and not runtime.world_sim.method_records.has_read("river_a_he", "heat_method:1"), "genuine receiver has neither carrier nor steps early")
-		GameClock.advance_msec(45000)
-		runner.assert_true(runtime.travel_to("home"), "genuine donor can leave only after completing actual handover")
-		GameClock.advance_msec(300000)
-		runner.assert_eq(runtime.current_region, "home", "normal physical journey returns the donor home")
-		runner.assert_true(runtime.world_sim.method_records.held("river_a_he", "method_record:1") and runtime.world_sim.method_records.has_read("river_a_he", "heat_method:1") and not runtime.world_sim.heat_methods.knows("river_a_he", "heat_method:1"), "absent real recipient autonomously reads original carrier without free practical mastery")
-		runner.assert_true(runtime.world_sim.method_records.visible("player").is_empty() and not str(runtime.world_sim.method_records.status("player").line).contains("已读"), "distant donor sees no remote reading conclusion")
-		if attempt == 0:
-			future = _canonical(runtime)
-		else:
-			runner.assert_eq(_canonical(runtime), future, "fresh full scene and genuine joint archive produce identical absent future")
-		main.free()
-	runner.assert_eq(FileAccess.get_file_as_string(path), original, "genuine v23 fixture is never rewritten")
-	GameClock.restore_state(prior)
+	# Old archives lack causal field history; current behavior is tested above.
+	load("res://tests/runtime/helpers/legacy_rejection_archive.gd").run(runner, {
+		"res://tests/fixtures/session_v23.json": ""
+	})

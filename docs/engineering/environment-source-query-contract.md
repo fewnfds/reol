@@ -1,10 +1,10 @@
 # 地面环境来源查询合同（A1）
 
-这是权威开发接口，不是玩家鉴定、可见属性或新的运行环境。普通 Main 仍由原冷热模型负责实际后果；来源查询没有温度、五行残留或时间推进。验收见[来源QA](../qa/20261105_environment_source_bindings.md)。
+这是权威开发只读接口，不是玩家鉴定、可见属性或实际温度所有者；查询本身没有温度、五行残留或时间推进。普通Main的来源参与者与唯一环境域见[世界环境合同](world-environment-contract.md)；其固定地点支持范围不等同本页的地面查询。历史验证见[来源QA](../qa/20261105_environment_source_bindings.md)。
 
 ## 入口和定义
 
-`EnvironmentSourceDefinitions.configure(raw)` 严格验证一次配置；失败不发布，成功后不可替换。输入是 `data/definitions/environment_sources.json` 的候选 schema v1，未加入普通内容包路径和存档。需要调用者显式加载，不能读取旧档时自动补能力。
+`EnvironmentSourceDefinitions.configure(raw)` 严格验证一次配置；失败不发布，成功后不可替换。输入是 `data/definitions/environment_sources.json` 的 schema v1；当前普通内容包2将该定义纳入快照和digest。旧包缺少该文件时不得从磁盘补造历史能力。
 
 - 根：`version/profiles/bindings`；绑定分 `artifacts/materials`。
 - profile：木火土金水五个非负整数、单项有符号 `thermal_grade`、`radius_cells`、`activation/origin`。冷热正热负冷，1000表示1级；本接口两端限制10000，五行0–10000。范围只是当前支持合同，不限制未来世界设定。
@@ -49,4 +49,4 @@
 
 本接口每次直接读原owner，所以原生命周期生成、搬运、收起、落地、拆合和移除成功后的下一次查询立即一致。没有提交订阅者、持久场缓存或需要补写的来源副本，也不改变原命令失败和幂等规则。
 
-这不是原物—缓存—实际响应联合事务。[A2a缓存](environment-ground-cache-contract.md)提供派生基础目标和可靠失效；未来接实际响应仍须变更前prepare、预算续算、复验和同步发布，不能依赖只读投影或提交后signal冒充原子提交。也不能在每个格每帧反复调用这个诊断接口来模拟全图刷新；批量计算和实际响应分别按其范围验证。
+此只读接口本身不是原物—缓存—实际响应联合事务；普通世界由[来源参与者](world-environment-contract.md)在写入前准备并在同一提交段发布。不能依赖提交后signal冒充原子提交，也不能每格每帧反复调用此诊断接口模拟全图刷新。

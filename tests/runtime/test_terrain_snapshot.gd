@@ -1,7 +1,6 @@
 extends RefCounted
 ## Real session and standalone loads retain sparse terrain without changing
-## bodies, ledgers or the common clock. The v45 example is a format-boundary
-## construction, not a claim about an independently recorded old save.
+## bodies, ledgers or the common clock. Retired roots are rejected atomically.
 
 const LEGACY: String = "res://tests/fixtures/session_v42_exchange.json"
 const LEGACY_SHA: String = "e13c2616a25f482db2397b585417d027c2759172393c6929eb98a4713b676ebf"
@@ -97,7 +96,7 @@ func _test_joint_session(runner: Object, path: String, bad_path: String) -> void
 		return
 	var blank: Dictionary = WorldSessionSnapshot.capture(runtime)
 	runner.assert_true(blank.world.terrain_overrides.is_empty(), "fresh unedited opening starts with no sparse terrain")
-	_assert_v45_boundary(runner, runtime, bad_path)
+	_assert_retired_terrain_roots(runner, runtime, bad_path)
 	loaded = runtime.load_game(path)
 	runner.assert_eq(loaded, OK, "fresh scene loads the edited session through the normal loader")
 	if loaded == OK:
@@ -118,57 +117,20 @@ func _assert_joint_state(runner: Object, main: Node, saved: Dictionary, expected
 	runner.assert_true(_json(WorldSessionSnapshot.capture(runtime)) == expected, label + " preserves the complete saved bodies, activity, ownership and world")
 
 
-func _assert_v45_boundary(runner: Object, runtime: WorldContinuityRuntime, bad_path: String) -> void:
-	# Construct the old envelope only from a genuine v1 thermal archive. Do not
-	# project a new fixed-Q world back into a fictitious historical field.
-	var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(LEGACY))
-	var content: ReolContentDB = ReolContentDB.legacy_v42()
-	if not raw is Dictionary or content == null:
-		runner.assert_true(false, "the historical terrain archive and compatibility bundle are available")
-		return
-	var old: Dictionary = SessionSaveSchema._upgrade(raw, content)
-	if old.is_empty():
-		runner.assert_true(false, "the historical terrain archive reaches the old v47 boundary")
-		return
-	var source: Dictionary = old.duplicate(true)
-	source.schema_version = 45
-	source.world.erase("terrain_overrides")
-	_project_regional_38(source)
-	var before: String = _json(source)
-	runner.assert_eq(_json(SessionSaveSchema._upgrade(source, null)), _json(old), "v45 restores the same old v47 envelope and original thermal history")
-	var upgraded: Dictionary = SessionSaveSchema.upgrade(source)
-	runner.assert_true(not upgraded.is_empty(), "the genuine v1 state in a v45 format without terrain delta upgrades")
-	if not upgraded.is_empty():
-		var write: Error = SimSaveStore.save_file(bad_path, source)
-		runner.assert_eq(write, OK, "synthetic v45 envelope is written through the ordinary store")
-		if write == OK:
-			var loaded: Error = runtime.load_game(bad_path)
-			runner.assert_eq(loaded, OK, "ordinary loader accepts the v45 empty-terrain format")
-			if loaded == OK:
-				runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), _json(upgraded), "ordinary v45 load publishes the same independently upgraded session")
-	runner.assert_true(_json(source) == before, "format migration does not mutate its input")
-	var v46: Dictionary = source.duplicate(true)
-	v46.schema_version = 46
-	v46.world["terrain_overrides"] = []
-	runner.assert_eq(_json(SessionSaveSchema._upgrade(v46, null)), _json(old), "the v46 terrain envelope retains the original v47 facts")
-	var v46_upgraded: Dictionary = SessionSaveSchema.upgrade(v46)
-	runner.assert_true(not v46_upgraded.is_empty() and _json(v46_upgraded) == _json(upgraded), "the explicit v46 terrain envelope also advances to the same current session")
-	var missing_v46_terrain: Dictionary = v46.duplicate(true)
-	missing_v46_terrain.world.erase("terrain_overrides")
-	runner.assert_true(SessionSaveSchema.upgrade(missing_v46_terrain).is_empty(), "v46 still requires its terrain field before later migrations")
-	var forged: Dictionary = source.duplicate(true)
-	forged.world["terrain_overrides"] = []
-	_reject(runner, runtime, forged, bad_path, "v45 claiming even an empty future terrain field")
-
-
-func _project_regional_38(snapshot: Dictionary) -> void:
-	# Only the v47 envelope around a genuine v1 field is projected.
-	var regional: Dictionary = snapshot.continuity.world
-	regional.version = 38
-	regional.artifacts.version = 6
-	for event: Dictionary in regional.artifacts.events:
-		if event.get("kind") == "warmed":
-			event.erase("heat_amount")
+func _assert_retired_terrain_roots(runner: Object, runtime: WorldContinuityRuntime, bad_path: String) -> void:
+	# These are deliberately synthetic root probes, not claims that the current
+	# world can be converted into a historically valid v45/v46 snapshot.
+	var current: Dictionary = WorldSessionSnapshot.capture(runtime)
+	for version: int in [45, 46]:
+		var source: Dictionary = current.duplicate(true)
+		source.schema_version = version
+		if version == 45:
+			source.world.erase("terrain_overrides")
+		var before: String = _json(source)
+		runner.assert_eq(SessionSaveSchema.rejection_reason(version), SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT, "retired root %d reports the old environment" % version)
+		runner.assert_true(SessionSaveSchema.upgrade(source).is_empty(), "retired root %d cannot be upgraded" % version)
+		_reject(runner, runtime, source, bad_path, "synthetic retired root %d" % version)
+		runner.assert_eq(_json(source), before, "retired root %d input remains unchanged" % version)
 
 
 func _assert_rejections(runner: Object, runtime: WorldContinuityRuntime, saved: Dictionary, path: String, rows: Array) -> void:
@@ -195,19 +157,20 @@ func _assert_rejections(runner: Object, runtime: WorldContinuityRuntime, saved: 
 	bad.world.terrain_overrides.append([int(player[0]), int(player[1]), WorldMapData.TERRAIN_WATER])
 	runner.assert_true(SessionSaveSchema.is_valid_world(bad), "player-on-water case has a valid terrain envelope before spatial checks")
 	_reject(runner, runtime, bad, path, "a valid delta that places the original player in water")
-	var original: String = FileAccess.get_file_as_string(LEGACY)
-	var raw: Variant = JSON.parse_string(original)
-	if not raw is Dictionary:
-		runner.assert_true(false, "genuine historical terrain fixture is readable")
-		return
-	var legacy: Dictionary = SessionSaveSchema.upgrade(raw)
-	if legacy.is_empty():
-		runner.assert_true(false, "genuine historical terrain fixture upgrades before corruption")
-		return
-	legacy.world.terrain_overrides = [[EDIT_CELL.x, EDIT_CELL.y, WorldMapData.TERRAIN_WATER]]
-	_reject(runner, runtime, legacy, path, "a nonempty delta on the immutable legacy generator")
+	# Test the legacy map descriptor boundary with a current-format candidate,
+	# independently of the already-retired historical session archive.
+	var descriptor: Dictionary = WorldMapData.legacy_descriptor()
+	var legacy_map: WorldMapData = WorldMapData.from_descriptor(descriptor)
+	runner.assert_true(legacy_map != null, "historical map descriptor still constructs independently")
+	if legacy_map != null:
+		bad = saved.duplicate(true)
+		bad.world = descriptor.duplicate(true)
+		bad.world.exploration = saved.world.exploration.duplicate(true)
+		bad.world.terrain_overrides = [[EDIT_CELL.x, EDIT_CELL.y, WorldMapData.TERRAIN_WATER]]
+		bad.world_seed = descriptor.seed
+		runner.assert_true(not legacy_map.valid_terrain_overrides(bad.world.terrain_overrides), "historical map refuses a nonempty delta before any spatial validation")
+		_reject(runner, runtime, bad, path, "a nonempty delta on the immutable legacy generator")
 	runner.assert_eq(FileAccess.get_sha256(LEGACY), LEGACY_SHA, "historical source archive is never rewritten")
-	runner.assert_true(FileAccess.get_file_as_string(LEGACY) == original, "all malformed candidates leave historical source bytes unchanged")
 
 
 func _reject(runner: Object, runtime: WorldContinuityRuntime, bad: Dictionary, path: String, label: String) -> void:

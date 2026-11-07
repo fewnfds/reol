@@ -23,6 +23,18 @@ func _test_bundle_ownership(runner: Object) -> void:
 	var old_max: int = old.get_pawn(&"player").max_stamina
 	var original: Dictionary = old.content_bundle()
 	var saved: String = _json(original)
+	runner.assert_eq(int(original.version), ReolContentBundle.VERSION, "the ordinary frozen bundle records the current content format")
+	runner.assert_true(original.documents.has(ReolContentDB.ENVIRONMENT_SOURCES_PATH), "the current bundle contains its environment source definitions")
+	runner.assert_true(old.environment_sources != null and old.environment_sources.is_configured(), "the loaded content owns configured environment source definitions")
+	if old.environment_sources != null and original.documents.has(ReolContentDB.ENVIRONMENT_SOURCES_PATH):
+		runner.assert_eq(_json(old.environment_sources.to_dict()), _json(original.documents[ReolContentDB.ENVIRONMENT_SOURCES_PATH]), "the source definitions come from this bundle")
+		runner.assert_eq(old.environment_sources.digest(), JSON.stringify(old.environment_sources.to_dict(), "", true).sha256_text(), "the loaded source profile records its own canonical digest")
+	var legacy_documents: Dictionary = original.documents.duplicate(true)
+	legacy_documents.erase(ReolContentDB.ENVIRONMENT_SOURCES_PATH)
+	var legacy_bundle: Dictionary = ReolContentBundle.from_documents(legacy_documents, ReolContentBundle.LEGACY_VERSION)
+	var legacy_content := ReolContentDB.new()
+	runner.assert_true(legacy_content.load_bundle(legacy_bundle), "an isolated v1 definition bundle remains parseable under its original manifest")
+	runner.assert_true(legacy_content.environment_sources == null, "a v1 definition bundle does not silently borrow field profiles from disk")
 	var documents: Dictionary = original.documents.duplicate(true)
 	runner.assert_true(_set_player_max(documents, old_max + 35), "test changes the existing player definition without adding an identity")
 	var newer: Dictionary = ReolContentBundle.from_documents(documents)
@@ -58,6 +70,16 @@ func _test_bundle_ownership(runner: Object) -> void:
 	_set_player_max(bad_documents, 0)
 	bad = ReolContentDB.new()
 	runner.assert_true(not bad.load_bundle(ReolContentBundle.from_documents(bad_documents)), "a valid digest cannot make invalid pawn definitions acceptable")
+	bad_documents = original.documents.duplicate(true)
+	bad_documents.erase(ReolContentDB.ENVIRONMENT_SOURCES_PATH)
+	bad = ReolContentDB.new()
+	runner.assert_true(not bad.load_bundle(ReolContentBundle.from_documents(bad_documents)), "a current bundle cannot omit its environment source definitions")
+	bad_documents = original.documents.duplicate(true)
+	bad_documents[ReolContentDB.ENVIRONMENT_SOURCES_PATH].profiles.none.thermal_grade = 1
+	var bad_source_bundle: Dictionary = ReolContentBundle.from_documents(bad_documents)
+	runner.assert_true(ReolContentBundle.is_valid(bad_source_bundle, ReolContentDB.DOCUMENT_PATHS), "the malformed source example has a complete manifest and correctly recomputed digest")
+	bad = ReolContentDB.new()
+	runner.assert_true(not bad.load_bundle(bad_source_bundle), "a valid digest cannot make an invalid source profile acceptable")
 
 
 func _test_real_session_and_legacy(runner: Object) -> void:
@@ -186,38 +208,44 @@ func _test_real_session_and_legacy(runner: Object) -> void:
 		_set_player_max(bad.content_bundle.documents, 0)
 		bad.content_bundle = ReolContentBundle.from_documents(bad.content_bundle.documents)
 		_reject(runtime, bad, path, runner, "invalid definition with a recomputed digest")
+		bad = before.duplicate(true)
+		var v1_documents: Dictionary = bad.content_bundle.documents.duplicate(true)
+		v1_documents.erase(ReolContentDB.ENVIRONMENT_SOURCES_PATH)
+		bad.content_bundle = ReolContentBundle.from_documents(v1_documents, ReolContentBundle.LEGACY_VERSION)
+		_reject(runtime, bad, path, runner, "current session paired with a v1 bundle lacking field definitions")
 		runner.assert_eq(observations.size(), 2, "rejected content candidates publish no replacement event")
 	var legacy_text: String = FileAccess.get_file_as_string(V42_PATH)
+	var legacy_bytes: PackedByteArray = FileAccess.get_file_as_bytes(V42_PATH)
 	var legacy: Dictionary = JSON.parse_string(legacy_text)
-	runner.assert_eq(FileAccess.get_sha256(V42_PATH), V42_SHA, "legacy migration starts from the independently recorded real v42 archive")
+	runner.assert_eq(FileAccess.get_sha256(V42_PATH), V42_SHA, "the independently recorded real v42 archive retains its original bytes")
 	runner.assert_eq(int(legacy.schema_version), 42, "legacy archive retains its original root version")
+	runner.assert_eq(SessionSaveSchema.rejection_reason(legacy.schema_version), SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT, "v42 reports the explicit old-environment rejection")
 	var contaminated: Dictionary = legacy.duplicate(true)
 	contaminated["content_bundle"] = first.content_bundle.duplicate(true)
-	_reject(runtime, contaminated, path, runner, "a legacy root cannot smuggle a modern content bundle")
-	# A new flat opening and a historical map need not have the same ground at
-	# this coordinate. Price the old observation against its own frozen map and
-	# content, rather than the new opening's cached affinity.
-	var legacy_content: ReolContentDB = ReolContentDB.legacy_v42()
-	var legacy_map: WorldMapData = WorldMapData.from_descriptor(WorldMapData.legacy_descriptor())
-	runner.assert_true(legacy_map.configure_nature(legacy_content.natural_environment), "historical observation has its own independent map rules")
-	var legacy_label: String = str(legacy_map.natural_surface_definitions()[surface_id].label)
-	var legacy_metal: int = legacy_map.natural_affinity(sample_cell, "metal")
+	_reject(runtime, contaminated, path, runner, "a legacy root remains unsupported when given a modern content bundle")
+	var old_world: RegionalSimulation = runtime.world_sim
+	var old_content: ReolContentDB = runtime._home._content
+	var old_map: WorldMapData = old_world.map_data
+	var old_clock: String = _json(GameClock.to_dict())
+	var before_legacy: String = _json(WorldSessionSnapshot.capture(runtime))
+	var original_legacy: String = _json(legacy)
+	var observation_count: int = observations.size()
+	runner.assert_true(SessionSaveSchema.upgrade(legacy).is_empty(), "the v42 field history is not invented by an upgrade")
+	runner.assert_true(WorldSessionSnapshot.stage(runtime, legacy).is_empty(), "the actual v42 archive is rejected before publication")
 	loaded = runtime.load_game(ProjectSettings.globalize_path(V42_PATH))
-	runner.assert_eq(loaded, OK, "ordinary loader migrates the actual v42 in-flight archive")
-	if loaded == OK:
-		var current: Dictionary = WorldSessionSnapshot.capture(runtime)
-		runner.assert_eq(int(current.schema_version), SessionSaveSchema.VERSION, "legacy root advances explicitly to the current version")
-		runner.assert_true(not current.content_bundle.is_empty(), "the migrated session carries its explicit fixed legacy content")
-		runner.assert_eq(GameClock.elapsed_ms, 551887, "legacy in-flight action keeps its exact saved instant")
-		runner.assert_eq(current.continuity.world.artifacts.objects.stele_drawing_ring.container, "actor:river_shi_tou", "legacy migration preserves the unique object's actual custody")
-		runner.assert_eq(observations.size(), 3, "accepted legacy migration publishes one content-replaced event")
-		if observations.size() == 3:
-			_assert_observation(observations[2], current, legacy_label, legacy_metal, runner, "legacy publication")
-	runner.assert_eq(FileAccess.get_file_as_string(V42_PATH), legacy_text, "validation and migration never rewrite the real legacy archive")
+	runner.assert_eq(loaded, ERR_INVALID_DATA, "ordinary loader rejects the actual v42 in-flight archive")
+	runner.assert_eq(runtime._notice, "旧环境格式不再支持，存档未改；请新开局。", "ordinary loading explains why the old archive cannot be opened")
+	runner.assert_true(runtime.world_sim == old_world and runtime._home._content == old_content and runtime.world_sim.map_data == old_map, "rejecting v42 leaves the world, content and map owners untouched")
+	runner.assert_eq(_json(GameClock.to_dict()), old_clock, "rejecting v42 leaves the shared clock unchanged")
+	runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), before_legacy, "rejecting v42 preserves the complete current session")
+	runner.assert_eq(_json(legacy), original_legacy, "rejection does not repair or mutate the v42 candidate")
+	runner.assert_eq(observations.size(), observation_count, "rejecting v42 publishes no content-replaced signal")
+	runner.assert_eq(FileAccess.get_file_as_bytes(V42_PATH), legacy_bytes, "validation and rejection never rewrite the real legacy archive")
+	runner.assert_eq(FileAccess.get_sha256(V42_PATH), V42_SHA, "the v42 archive still has its independently recorded digest")
 	_remove(path)
 	main.free()
 	GameClock.restore_state(saved_clock)
-	print("SCENARIO content versions: isolated same-ID templates, real load and recovery, atomic malformed-bundle rejection, immutable real v42 migration")
+	print("SCENARIO content versions: isolated same-ID templates, real load and recovery, atomic malformed-bundle rejection, immutable real v42 rejection")
 
 
 func _assert_observation(observation: Dictionary, expected: Dictionary, expected_label: String, expected_metal: int, runner: Object, label: String) -> void:

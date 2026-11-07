@@ -7,6 +7,7 @@ extends SceneTree
 ## Convention: every method named `test_*` with no arguments is a test.
 ## Do not use bare `assert()`: a failed assert can stop before quit() and hang CI.
 ## Use the helpers below, which record failures and keep going.
+## Historical Q-specific groups: docs/qa/legacy-environment-regressions.md.
 
 var passed: int = 0
 var failed: int = 0
@@ -77,6 +78,14 @@ func test_environment_source_bindings() -> void:
 	load("res://tests/sim/test_environment_source_bindings.gd").new().run(self)
 
 
+func test_world_environment_fields() -> void:
+	load("res://tests/sim/test_world_environment_fields.gd").new().run(self)
+
+
+func test_world_field_save_boundary() -> void:
+	load("res://tests/runtime/test_world_field_save_boundary.gd").new().run(self)
+
+
 func test_environment_ground_cache() -> void:
 	load("res://tests/sim/test_environment_ground_cache.gd").new().run(self)
 
@@ -141,14 +150,6 @@ func test_environment_source_response() -> void:
 	load("res://tests/sim/test_environment_source_response.gd").new().run(self)
 
 
-func test_environment_event_boundary() -> void:
-	load("res://tests/sim/test_environment_event_boundary.gd").new().run(self)
-
-
-func test_environment_response_session() -> void:
-	load("res://tests/sim/test_environment_response_session.gd").new().run(self)
-
-
 func test_environment_ground_field() -> void:
 	load("res://tests/sim/test_environment_ground_field.gd").new().run(self)
 
@@ -205,10 +206,6 @@ func test_heat_source_amounts() -> void:
 	load("res://tests/sim/test_heat_source_amounts.gd").new().run(self)
 
 
-func test_heat_amount_migration() -> void:
-	load("res://tests/runtime/test_heat_amount_migration.gd").new().run(self)
-
-
 func test_climate_boundaries() -> void:
 	load("res://tests/sim/test_climate_boundaries.gd").new().run(self)
 
@@ -237,60 +234,8 @@ func test_climate_envelope() -> void:
 	load("res://tests/sim/test_climate_envelope.gd").new().run(self)
 
 
-func test_thermal_reclaim_probe() -> void:
-	load("res://tests/sim/test_thermal_reclaim_probe.gd").new().run(self)
-
-
-func test_thermal_history() -> void:
-	load("res://tests/sim/test_thermal_history.gd").new().run(self)
-
-
-func test_thermal_cell_store() -> void:
-	load("res://tests/sim/test_thermal_cell_store.gd").new().run(self)
-
-
-func test_thermal_compressed_field() -> void:
-	load("res://tests/sim/test_thermal_compressed_field.gd").new().run(self)
-
-
-func test_thermal_allocation() -> void:
-	load("res://tests/sim/test_thermal_allocation.gd").new().run(self)
-
-
-func test_heat_geometry_reuse() -> void:
-	load("res://tests/sim/test_heat_geometry_reuse.gd").new().run(self)
-
-
-func test_thermal_frozen_groups() -> void:
-	load("res://tests/sim/test_thermal_frozen_groups.gd").new().run(self)
-
-
-func test_thermal_grouped_field() -> void:
-	load("res://tests/sim/test_thermal_grouped_field.gd").new().run(self)
-
-
-func test_absolute_heat() -> void:
-	load("res://tests/sim/test_absolute_heat.gd").new().run(self)
-
-
 func test_signed_environment() -> void:
 	load("res://tests/sim/test_signed_environment.gd").new().run(self)
-
-
-func test_legacy_heat_v1() -> void:
-	load("res://tests/sim/test_legacy_heat_v1.gd").new().run(self)
-
-
-func test_thermal_import() -> void:
-	load("res://tests/sim/test_thermal_import.gd").new().run(self)
-
-
-func test_thermal_budget() -> void:
-	load("res://tests/runtime/test_thermal_budget.gd").new().run(self)
-
-
-func test_heat_query_reuse() -> void:
-	load("res://tests/sim/test_heat_query_reuse.gd").new().run(self)
 
 
 func test_storage_query() -> void:
@@ -303,10 +248,6 @@ func test_storage_special_anchors() -> void:
 
 func test_artifact_transfers() -> void:
 	load("res://tests/sim/test_artifact_transfers.gd").new().run(self)
-
-
-func test_thermal_transfer_budget() -> void:
-	load("res://tests/sim/test_thermal_transfer_budget.gd").new().run(self)
 
 
 # ---------------------------------------------------------------------------
@@ -433,10 +374,6 @@ func test_conflict_perception_migration() -> void:
 	load("res://tests/runtime/test_conflict_perception_migration.gd").new().run(self)
 
 
-func test_conflict_perception_archive() -> void:
-	load("res://tests/runtime/test_conflict_perception_archive.gd").new().run(self)
-
-
 func test_source_loan() -> void:
 	load("res://tests/sim/test_source_loan.gd").new().run(self)
 
@@ -545,10 +482,6 @@ func test_conflict_mobility() -> void:
 	load("res://tests/runtime/test_conflict_mobility.gd").new().run(self)
 
 
-func test_conflict_archive() -> void:
-	load("res://tests/runtime/test_conflict_archive.gd").new().run(self)
-
-
 func test_natural_environment() -> void:
 	load("res://tests/sim/test_natural_environment.gd").new().run(self)
 
@@ -593,24 +526,12 @@ func test_natural_light_runtime() -> void:
 	load("res://tests/runtime/test_natural_light_runtime.gd").new().run(self)
 
 
-func test_solar_migration() -> void:
-	load("res://tests/runtime/test_solar_migration.gd").new().run(self)
-
-
 func test_environment() -> void:
 	load("res://tests/sim/test_environment.gd").new().run(self)
 
 
-func test_local_heat() -> void:
-	load("res://tests/sim/test_local_heat.gd").new().run(self)
-
-
 func test_thermal_devices() -> void:
 	load("res://tests/sim/test_thermal_devices.gd").new().run(self)
-
-
-func test_thermal_device_migration() -> void:
-	load("res://tests/runtime/test_thermal_device_migration.gd").new().run(self)
 
 
 func test_herb_ecology_rules() -> void:
@@ -633,10 +554,6 @@ func test_spirit_source_continuity() -> void:
 	load("res://tests/runtime/test_spirit_source_continuity.gd").new().run(self)
 
 
-func test_spirit_source_archive() -> void:
-	load("res://tests/runtime/test_spirit_source_archive.gd").new().run(self)
-
-
 func test_herb_irrigation() -> void:
 	load("res://tests/sim/test_herb_irrigation.gd").new().run(self)
 
@@ -657,10 +574,6 @@ func test_herb_ecology_limits() -> void:
 	load("res://tests/sim/test_herb_ecology_limits.gd").new().run(self)
 
 
-func test_herb_ecology_archive() -> void:
-	load("res://tests/runtime/test_herb_ecology_archive.gd").new().run(self)
-
-
 func test_heat_topology() -> void:
 	load("res://tests/sim/test_heat_topology.gd").new().run(self)
 
@@ -675,10 +588,6 @@ func test_local_heat_environment() -> void:
 
 func test_local_heat_migration() -> void:
 	load("res://tests/runtime/test_local_heat_migration.gd").new().run(self)
-
-
-func test_local_heat_archive() -> void:
-	load("res://tests/runtime/test_local_heat_archive.gd").new().run(self)
 
 
 func test_local_heat_building() -> void:

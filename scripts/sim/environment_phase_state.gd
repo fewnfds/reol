@@ -23,6 +23,8 @@ const MAX_REVISION: int = 9_007_199_254_740_991
 const MAX_VALUE: float = Response.MAX_ABS_VALUE
 
 var _configured: bool = false
+## Optional model-versioned canonical anchors; numerical reference uses zero.
+var anchor_quantum: float = 0.0
 var _size := Vector2i.ZERO
 var _capacity: int = 0
 var _activation_ms: int = 0
@@ -220,6 +222,9 @@ func _apply_bulk_slot(index: int, has_initial: bool) -> String:
 			return "target_invalid"
 	if not tracked:
 		_bulk.tracked_count += 1
+	if anchor_quantum > 0.0:
+		for channel: int in CHANNELS:
+			_bulk.initial[channel] = clampf(snappedf(_bulk.initial[channel], anchor_quantum), 0.0, MAX_VALUE)
 	_bulk.current.set_anchor(index, _bulk.at_ms, until_ms, _bulk.initial, _bulk.target, _bulk.slope, tau_ms)
 	var old_boundary: int = original.untils[index] if tracked else -1
 	if old_boundary != until_ms:

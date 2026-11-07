@@ -45,56 +45,16 @@ func _canonical(adapter: WorldContinuityRuntime) -> String:
 
 
 func _test_old_worlds(runner: Object) -> void:
-	var prior: Dictionary = GameClock.to_dict()
-	for version: int in [10, 11, 19]:
-		var path: String = "res://tests/fixtures/session_v%d.json" % version
-		var original: String = FileAccess.get_file_as_string(path)
-		var raw: Dictionary = JSON.parse_string(original)
-		GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-		var main: Node = load("res://scenes/main.tscn").instantiate()
-		runner.root.add_child(main)
-		var adapter: WorldContinuityRuntime = main._continuity
-		var loaded: Error = adapter.load_game(ProjectSettings.globalize_path(path))
-		runner.assert_eq(loaded, OK, "genuine historical world loads with explicit personal-work migration: v%d" % version)
-		if loaded == OK:
-			runner.assert_eq(adapter.world_sim.regions.home.config.actions.has("keep_herb"), version >= 11, "only worlds with prior natural sources receive future personal work: v%d" % version)
-			runner.assert_eq(adapter.player_inventory().quantity("actor:player", "herb"), raw.simulation.inventory.containers["actor:player"].get("herb", 0), "migration adds no imaginary personal materials: v%d" % version)
-			if version == 11:
-				runner.assert_eq(adapter.world_sim.regions.home.actors.player.active.action, "forage_grain", "genuine old public gathering is not converted into a personal harvest")
-			if version == 19:
-				runner.assert_eq(adapter.world_sim.services.jobs["service:job:4"].phase, "work", "genuine old trade retains its original unfinished handling")
-		runner.assert_eq(FileAccess.get_file_as_string(path), original, "genuine historical source remains unchanged: v%d" % version)
-		main.free()
-	GameClock.restore_state(prior)
+	# Old archives lack causal field history; current behavior is tested above.
+	load("res://tests/runtime/helpers/legacy_rejection_archive.gd").run(runner, {
+		"res://tests/fixtures/session_v10.json": "",
+		"res://tests/fixtures/session_v11.json": "",
+		"res://tests/fixtures/session_v19.json": ""
+	})
 
 
 func _test_actual_archive(runner: Object) -> void:
-	var prior: Dictionary = GameClock.to_dict()
-	var path: String = "res://tests/fixtures/session_v20.json"
-	var original: String = FileAccess.get_file_as_string(path)
-	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-	var main: Node = load("res://scenes/main.tscn").instantiate()
-	runner.root.add_child(main)
-	var adapter: WorldContinuityRuntime = main._continuity
-	var loaded: Error = adapter.load_game(ProjectSettings.globalize_path(path))
-	runner.assert_eq(loaded, OK, "genuine personal-mode UI archive restores through the original file loader")
-	if loaded == OK:
-		runner.assert_eq(GameClock.elapsed_ms, 456445, "genuine personal harvest retains fractional ongoing labor")
-		runner.assert_eq(adapter.world_sim.regions.home.actors.player.active.action, "keep_herb", "genuine archive preserves its originally chosen self-kept purpose")
-		runner.assert_eq(adapter.player_inventory().quantity("actor:player", "herb"), 1, "genuine archive has only the previous herb before actual harvesting")
-		GameClock.advance_msec(1800000)
-		var future: String = _canonical(adapter)
-		runner.assert_eq(adapter.player_inventory().quantity("actor:player", "herb"), 3, "original finite source adds exactly two personally harvested herbs")
-		runner.assert_eq(adapter.world_sim.regions.home.inventory.quantity("garden", "herb"), 11, "actual personal harvest does not also add goods to the public garden")
-		runner.assert_true(adapter.world_sim.regions.home.actors.player.receipts.is_empty(), "actual personal harvest produces no public work credit")
-		main.free()
-		GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-		main = load("res://scenes/main.tscn").instantiate()
-		runner.root.add_child(main)
-		adapter = main._continuity
-		runner.assert_eq(adapter.load_game(ProjectSettings.globalize_path(path)), OK, "fresh scene loads the genuine same personal work")
-		GameClock.advance_msec(1800000)
-		runner.assert_eq(_canonical(adapter), future, "genuine personal harvest preserves the complete autonomous-world future across fresh scenes")
-	runner.assert_eq(FileAccess.get_file_as_string(path), original, "genuine v20 source remains unchanged")
-	main.free()
-	GameClock.restore_state(prior)
+	# Old archives lack causal field history; current behavior is tested above.
+	load("res://tests/runtime/helpers/legacy_rejection_archive.gd").run(runner, {
+		"res://tests/fixtures/session_v20.json": ""
+	})

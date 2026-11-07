@@ -800,6 +800,13 @@ func _complete(job: Dictionary) -> void:
 
 
 func _move_and_finish(job: Dictionary, id: String, region: String, container: String, kind: String, line: String) -> void:
+	var synchronized: bool = synchronize_environment_transfer()
+	# Synchronizing regions can notify observers before the transfer starts.
+	if world.artifacts != self or not active.has(str(job.actor)) or not is_same(active[str(job.actor)], job):
+		return
+	if not synchronized:
+		_finish_record(job, "failed", "环境尚未接续到此刻，原物仍留在原处。")
+		return
 	var item: Dictionary = objects[id]
 	if has_capability(id, "thermal_exchange") and bool(item.enabled):
 		_finish_record(job, "failed", "石头仍在作用，先关闭后才能搬动；原物留在原处。")
@@ -809,11 +816,61 @@ func _move_and_finish(job: Dictionary, id: String, region: String, container: St
 		# The existing action paid its time/qi; only the proposed move is refused.
 		_finish_record(job, "failed", "器物归处变更未获准，原物仍留在原处。")
 		return
+	var environment: Dictionary = prepare_environment_transfer(change)
+	if not bool(environment.get("ok", false)):
+		_finish_record(job, "failed", "环境无法接纳这次变更，原物仍留在原处。")
+		return
 	item.region = region
 	item.container = container
+	finish_environment_transfer(environment)
 	world.invalidate_region(str(change.from.region))
 	_finish_record(job, kind, line)
 	transfers.publish(change)
+
+
+func synchronize_environment_transfer() -> bool:
+	var fields: SimWorldEnvironmentFields = world.local_heat as SimWorldEnvironmentFields
+	if fields == null:
+		return true
+	var at_ms: int = world.elapsed_ms
+	var target_ms: int = world.target_ms
+	# Activation may itself synchronize and notify. Do it before the original
+	# transfer preflight and before preparing any field candidate.
+	if not world.synchronize_regions() or world.artifacts != self or world.local_heat != fields:
+		return false
+	return fields.activate_sources() and world.artifacts == self and world.local_heat == fields \
+		and world.elapsed_ms == at_ms and world.target_ms == target_ms
+
+
+func prepare_environment_transfer(change: Dictionary) -> Dictionary:
+	var fields: SimWorldEnvironmentFields = world.local_heat as SimWorldEnvironmentFields
+	if fields == null:
+		return {"ok": true}
+	var target_ms: int = world.target_ms
+	var request: Dictionary = {"op": "artifact_transfer", "id": str(change.entity.id),
+		"from": change.from, "to": change.to, "at_ms": int(change.at_ms)}
+	var prepared: Dictionary = fields.prepare_object_change(request)
+	if not bool(prepared.get("ok", false)):
+		return prepared
+	var proof: Variant = prepared.get("proof")
+	if world.artifacts != self or world.local_heat != fields or world.elapsed_ms != int(change.at_ms) \
+			or world.target_ms != target_ms or not fields.can_commit_object_change(proof):
+		fields.cancel_object_change(proof)
+		return {"ok": false, "reason": "environment_change_stale"}
+	return {"ok": true, "fields": fields, "proof": proof}
+
+
+func finish_environment_transfer(prepared: Dictionary) -> void:
+	var fields: SimWorldEnvironmentFields = prepared.get("fields") as SimWorldEnvironmentFields
+	if fields != null:
+		var published: Dictionary = fields.finish_object_change({"ok": true}, prepared.get("proof"))
+		assert(bool(published.get("ok", false)), "preflighted environment commit failed")
+
+
+func cancel_environment_transfer(prepared: Dictionary) -> void:
+	var fields: SimWorldEnvironmentFields = prepared.get("fields") as SimWorldEnvironmentFields
+	if fields != null:
+		fields.cancel_object_change(prepared.get("proof"))
 
 
 func _complete_tool(job: Dictionary, item: Dictionary, definition: Dictionary) -> void:
@@ -845,7 +902,7 @@ func _finish_thermal_switch(job: Dictionary, item: Dictionary) -> void:
 		_finish_record(job, "failed", "本人还不懂这块石头的用法，这次没有启用。")
 		return
 	var heat: Variant = world.get("local_heat")
-	if heat == null or not heat.has_method("can_switch_device") or not heat.has_method("switch_device") or not bool(heat.call("can_switch_device", str(job.object), enabled)):
+	if heat == null or not heat.has_method("can_switch_device") or not bool(heat.call("can_switch_device", str(job.object), enabled)):
 		_finish_record(job, "failed", "这块石头眼下无法切换；原来的状态没有改变。")
 		return
 	var point: Vector2i = object_cell(str(job.object))
@@ -853,11 +910,20 @@ func _finish_thermal_switch(job: Dictionary, item: Dictionary) -> void:
 		"at_ms": int(world.elapsed_ms), "region": str(item.region), "container": str(item.container),
 		"cell": [point.x, point.y], "enabled": enabled}
 	var previous: bool = bool(item.enabled)
-	item.enabled = enabled
-	if not bool(heat.call("switch_device", change)):
-		item.enabled = previous
-		_finish_record(job, "failed", "切换未能提交；石头仍保持原来的状态。")
-		return
+	if heat is SimWorldEnvironmentFields:
+		var prepared: Dictionary = heat.prepare_device_switch(str(job.object), enabled)
+		if not bool(prepared.get("ok", false)):
+			_finish_record(job, "failed", "环境无法接纳切换，器物状态保持原样。")
+			return
+		item.enabled = enabled
+		var committed: bool = heat.commit_device_switch(change, prepared.proof)
+		assert(committed, "preflighted device switch could not publish")
+	else:
+		item.enabled = enabled
+		if not bool(heat.call("switch_device", change)):
+			item.enabled = previous
+			_finish_record(job, "failed", "切换未能提交；石头仍保持原来的状态。")
+			return
 	# No yield or observer runs between the thermal commit and the original
 	# artifact event. The thermal authority owns no copy of this device's stock.
 	_finish_record(job, "enabled" if enabled else "disabled", "石头已启用。" if enabled else "石头已关闭，周围的温度不会因此瞬间重设。")

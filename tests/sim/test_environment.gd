@@ -3,7 +3,6 @@ extends RefCounted
 
 const Fixtures = preload("res://tests/sim/test_regional_simulation.gd")
 const ServicesFixture = preload("res://tests/sim/test_settlement_services.gd")
-const HerbMigration = preload("res://tests/runtime/test_herb_ecology_migration.gd")
 var fixtures := Fixtures.new()
 var service_fixtures := ServicesFixture.new()
 
@@ -20,7 +19,7 @@ func run(runner: Object) -> void:
 	_bad_candidates(runner)
 	_legacy_activation(runner)
 	_partial_at_time_limit(runner)
-	print("SCENARIO environment: shared calendar, geographical cold, actual dry/wet clothing, future-only original needs, ordinary NPC preparation, sparse/fine/bounded continuation and explicit legacy activation")
+	print("SCENARIO environment: shared calendar, geographical cold, actual dry/wet clothing, future-only original needs, ordinary NPC preparation, sparse/fine/bounded continuation and explicit legacy rejection")
 
 
 func _world(runner: Object, cold: bool = true, river_warm: bool = false, clothes: bool = true, temperature_tenths: int = 100, managed_herbs: bool = true) -> RegionalSimulation:
@@ -382,55 +381,39 @@ func _reprice_sample(sample: Dictionary, rules: Dictionary) -> void:
 
 
 func _legacy_activation(runner: Object) -> void:
-	var content := ReolContentDB.new()
-	if not content.load_all():
-		runner.assert_true(false, "legacy environment migration reads current rules")
-		return
 	var path: String = "res://tests/fixtures/session_v29.json"
-	var original: String = FileAccess.get_file_as_string(path)
+	var original: PackedByteArray = FileAccess.get_file_as_bytes(path)
 	runner.assert_eq(FileAccess.get_sha256(path), "78252157f410869b94ff9ffcb98fe898a02d3525b1815cf52bab8df3db59e1c1", "the independently recorded pre-environment archive retains its original bytes")
-	var prior: Dictionary = JSON.parse_string(original)
-	var upgraded: Dictionary = SessionSaveSchema.upgrade(prior, content)
-	runner.assert_true(not upgraded.is_empty(), "the real pre-environment archive has an explicit ordinary migration")
-	if upgraded.is_empty():
+	var prior: Dictionary = JSON.parse_string(original.get_string_from_utf8())
+	runner.assert_eq(int(prior.schema_version), 29, "the original pre-environment archive retains its root version")
+	runner.assert_eq(SessionSaveSchema.rejection_reason(prior.schema_version), SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT, "v29 reports the explicit old-environment rejection")
+	runner.assert_true(SessionSaveSchema.upgrade(prior).is_empty(), "the missing field history is not invented for the pre-environment archive")
+	var saved_clock: Dictionary = GameClock.to_dict()
+	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
+	var main: Node = load("res://scenes/main.tscn").instantiate()
+	runner.root.add_child(main)
+	var runtime: WorldContinuityRuntime = main._continuity
+	if runtime == null or runtime.world_sim == null:
+		runner.assert_true(false, "ordinary scene initializes for pre-environment archive rejection")
+		main.free()
+		GameClock.restore_state(saved_clock)
 		return
-	var before: Dictionary = prior.continuity.world
-	var after: Dictionary = upgraded.continuity.world
-	runner.assert_eq(upgraded.schema_version, SessionSaveSchema.VERSION, "the old root advances to the current session format")
-	runner.assert_eq(after.version, RegionalSimulation.SCHEMA_VERSION, "the old regional authority advances jointly")
-	runner.assert_eq(after.environment.activation_ms, before.elapsed_ms, "new environmental consequences begin at the original save time")
-	runner.assert_eq(after.environment.last_pulse_ms, before.elapsed_ms, "the old world is not given imaginary preceding thermal samples")
-	runner.assert_true(after.environment.samples.is_empty(), "legacy migration grants neither historical burden nor historical protection")
-	for field: String in ["weather", "clothing", "health", "artifacts"]:
-		var expected: Dictionary = before[field].duplicate(true)
-		if field == "artifacts":
-			runner.assert_eq(int(expected.version), 4, "the real pre-environment archive has the original artifact v4 envelope")
-			# Subsequent migrations explicitly update the original envelope.
-			expected.version = SimArtifacts.VERSION
-		if field == "health":
-			expected.version = 2
-			expected["conflict_source_floor"] = 1
-		runner.assert_eq(VillageRuntime._json_normalized(after[field]), VillageRuntime._json_normalized(expected), "migration preserves original physical history and stock with only explicit schema activation: " + field)
-	var expected_conflicts: Dictionary = SimConflicts.empty_state()
-	expected_conflicts.perception_since_ms = int(before.elapsed_ms)
-	runner.assert_eq(VillageRuntime._json_normalized(after.conflicts), VillageRuntime._json_normalized(expected_conflicts), "pre-conflict climate archive gains only saved-present perception activation and no invented combat or teaching history")
-	runner.assert_eq(after.spirit_sources.version, SimSpiritSources.VERSION, "later source activation explicitly reaches the current cost schema")
-	runner.assert_eq(VillageRuntime._json_normalized(after.capability_practice), VillageRuntime._json_normalized(SimCapabilityPractice.empty_state()), "legacy climate history gains no invented practice, expenditure or learned node")
-	# Later heading and ecology contracts add body/source/config fields and
-	# bump the village format. Project only those explicit additions away,
-	# retaining the complete comparison of all pre-existing village facts.
-	var original_fields: Dictionary = after.regions.duplicate(true)
-	for region: String in original_fields:
-		runner.assert_eq(original_fields[region].version, VillageSimulation.SCHEMA_VERSION, "migration explicitly records the current original-body format in " + region)
-		original_fields[region] = HerbMigration.prior_village(original_fields[region], before.regions[region])
-		for id: String in original_fields[region].actors:
-			var body: Dictionary = original_fields[region].actors[id]
-			var expected_facing: Array = prior.player.motion.facing if id == "player" else [0.0, 1.0]
-			runner.assert_eq(VillageRuntime._json_normalized(body.facing), VillageRuntime._json_normalized(expected_facing), "later heading initialization is explicit without inventing a past walk: " + id)
-			body.erase("facing")
-		original_fields[region].version = before.regions[region].version
-	runner.assert_eq(VillageRuntime._json_normalized(original_fields), VillageRuntime._json_normalized(before.regions), "migration preserves every pre-existing regional physical history, action and stock field")
-	runner.assert_eq(FileAccess.get_file_as_string(path), original, "legacy activation never rewrites the immutable real archive")
+	var live_world: RegionalSimulation = runtime.world_sim
+	var live_content: ReolContentDB = runtime._home._content
+	var live_map: WorldMapData = live_world.map_data
+	var before: Variant = VillageRuntime._json_normalized(WorldSessionSnapshot.capture(runtime))
+	var before_clock: Variant = VillageRuntime._json_normalized(GameClock.to_dict())
+	var prior_copy: Variant = VillageRuntime._json_normalized(prior)
+	runner.assert_true(WorldSessionSnapshot.stage(runtime, prior).is_empty(), "the real pre-environment candidate is rejected before publishing a world")
+	runner.assert_eq(runtime.load_game(ProjectSettings.globalize_path(path)), ERR_INVALID_DATA, "ordinary loading refuses the real pre-environment archive")
+	runner.assert_eq(runtime._notice, "旧环境格式不再支持，存档未改；请新开局。", "ordinary loading explains why the old archive cannot be opened")
+	runner.assert_true(runtime.world_sim == live_world and runtime._home._content == live_content and runtime.world_sim.map_data == live_map, "old archive rejection leaves the world, content and map owners untouched")
+	runner.assert_eq(VillageRuntime._json_normalized(GameClock.to_dict()), before_clock, "old archive rejection leaves the shared clock unchanged")
+	runner.assert_eq(VillageRuntime._json_normalized(WorldSessionSnapshot.capture(runtime)), before, "old archive rejection preserves the entire current session")
+	runner.assert_eq(VillageRuntime._json_normalized(prior), prior_copy, "rejection does not repair or mutate the candidate")
+	runner.assert_eq(FileAccess.get_file_as_bytes(path), original, "old archive rejection never rewrites the immutable real file")
+	main.free()
+	GameClock.restore_state(saved_clock)
 
 
 func _partial_at_time_limit(runner: Object) -> void:

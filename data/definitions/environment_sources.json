@@ -16,10 +16,40 @@
     "ordinary_water": {
       "elements": {"wood": 0, "fire": 0, "earth": 0, "metal": 0, "water": 1000},
       "thermal_grade": 0, "radius_cells": 4, "activation": "intrinsic", "origin": "footprint_anchor"
+    },
+    "ordinary_metal": {
+      "elements": {"wood": 0, "fire": 0, "earth": 100, "metal": 1000, "water": 0},
+      "thermal_grade": 0, "radius_cells": 4, "activation": "intrinsic", "origin": "footprint_anchor"
+    },
+    "ordinary_crystal": {
+      "elements": {"wood": 0, "fire": 0, "earth": 1000, "metal": 200, "water": 0},
+      "thermal_grade": 0, "radius_cells": 4, "activation": "intrinsic", "origin": "footprint_anchor"
+    },
+    "fire_affinity_stone": {
+      "elements": {"wood": 0, "fire": 2000, "earth": 1000, "metal": 0, "water": 0},
+      "thermal_grade": 0, "radius_cells": 4, "activation": "intrinsic", "origin": "footprint_anchor"
+    },
+    "water_affinity_stone": {
+      "elements": {"wood": 0, "fire": 0, "earth": 1000, "metal": 0, "water": 2000},
+      "thermal_grade": 0, "radius_cells": 4, "activation": "intrinsic", "origin": "footprint_anchor"
+    },
+    "intrinsic_hot": {
+      "elements": {"wood": 0, "fire": 2000, "earth": 1000, "metal": 0, "water": 0},
+      "thermal_grade": 4000, "radius_cells": 4, "activation": "intrinsic", "origin": "footprint_anchor"
+    },
+    "intrinsic_cold": {
+      "elements": {"wood": 0, "fire": 0, "earth": 1000, "metal": 0, "water": 2000},
+      "thermal_grade": -4000, "radius_cells": 4, "activation": "intrinsic", "origin": "footprint_anchor"
     }
   },
   "bindings": {
-    "artifacts": {"plain_slate": "ordinary_earth", "stone_slab": "ordinary_earth"},
+    "artifacts": {
+      "plain_slate": "ordinary_earth", "stone_slab": "ordinary_earth",
+      "amber_pearl": "ordinary_crystal", "glow_shard": "ordinary_crystal",
+      "wooden_sword": "ordinary_plant", "drawing_ring": "ordinary_metal",
+      "fire_stone": "fire_affinity_stone", "cold_stone": "water_affinity_stone",
+      "warm_stone": "fire_affinity_stone"
+    },
     "materials": {
       "wood": "ordinary_plant", "grain": "ordinary_plant", "herb": "ordinary_plant",
       "seed": "ordinary_plant", "dried_herb": "ordinary_plant", "meal": "ordinary_plant",

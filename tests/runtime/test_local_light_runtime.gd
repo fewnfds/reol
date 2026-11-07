@@ -79,24 +79,7 @@ func _canonical(adapter: WorldContinuityRuntime) -> String:
 
 
 func _genuine_archive(runner: Object) -> void:
-	const ARCHIVE: String = "res://tests/fixtures/session_v49_thermal.json"
-	var original: PackedByteArray = FileAccess.get_file_as_bytes(ARCHIVE)
-	var fixtures := Fixtures.new()
-	var fixture: Dictionary = fixtures._fixture(runner)
-	if fixture.is_empty():
-		return
-	var adapter: WorldContinuityRuntime = fixture.continuity
-	fixture.home.restore_map_factory = WorldMapData.from_descriptor
-	var result: Error = adapter.load_game(ProjectSettings.globalize_path(ARCHIVE))
-	runner.assert_eq(result, OK, "the genuine archived active fire stone loads through ordinary independent migration")
-	if result == OK:
-		var world: RegionalSimulation = adapter.world_sim
-		var at: Vector2i = world.artifacts.object_cell("fire_stone")
-		runner.assert_true(world.artifacts.objects.fire_stone.enabled and world.local_heat.continuous_input > 0, "the real historical source retains its enabled state and already paid heat")
-		runner.assert_true(not world.artifacts.definitions.types.fire_stone.has("lighting"), "the archived content is not enriched from current installed fire-stone data")
-		var before: String = _canonical(adapter)
-		var light: Dictionary = SimLocalLight.at_cell(world, at)
-		runner.assert_true(light.supported and int(light.artificial_relative) == 0, "an actual old active source remains optically unchanged")
-		runner.assert_eq(_canonical(adapter), before, "reading the historical source leaves its complete migrated state untouched")
-	runner.assert_eq(FileAccess.get_file_as_bytes(ARCHIVE), original, "the original historical fixture remains byte-for-byte unchanged")
-	fixtures._dispose(fixture)
+	# Old archives lack causal field history; current behavior is tested above.
+	load("res://tests/runtime/helpers/legacy_rejection_archive.gd").run(runner, {
+		"res://tests/fixtures/session_v49_thermal.json": ""
+	})

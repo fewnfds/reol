@@ -1,7 +1,8 @@
 class_name EnvironmentSourceDefinitions
 extends RefCounted
-## Immutable candidate definitions for the developer-only ground-source query.
-## These are deliberately not part of the current ordinary content/save bundle.
+## Immutable intrinsic profiles for the ground-source query. Current content
+## bundles carry this document; a v1 bundle has no such definitions and cannot
+## supply a new environment owner without an explicit migration.
 ## The owning session must keep the digest with any persisted candidate result.
 
 const VERSION: int = 1

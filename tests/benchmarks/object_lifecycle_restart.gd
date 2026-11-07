@@ -4,7 +4,7 @@ extends SceneTree
 ## godot --headless --path . --script res://tests/benchmarks/object_lifecycle_restart.gd -- --phase write --file logs/restart_sample.json
 ## godot --headless --path . --script res://tests/benchmarks/object_lifecycle_restart.gd -- --phase read --file logs/restart_sample.json
 ## Write refuses existing outputs. The companion .expected.json records the
-## exact checkpoint, river observation, and independently continued writer state.
+## exact checkpoint, field samples, river observation and independent future.
 ## This is one item and one small pile, not a large-item save or rendering test.
 
 var _clock: ReolGameClock
@@ -22,6 +22,7 @@ const GROUND_CONTAINER: String = "ground:restart_drop"
 const RESERVATION: String = "object_lifecycle:restart_pickup"
 const DURATION_MS: int = 4000
 const CHECKPOINT_STEP_MS: int = 1000
+const FIELD_ESTABLISH_MS: int = 60000
 const MATERIAL: String = "wood"
 const MAX_TRIP_MINUTES: int = 250
 const MINUTE_MS: int = 60000
@@ -104,10 +105,26 @@ func _write(runtime: Node, path: String) -> Dictionary:
 		return _failure("drop", dropped)
 	if inventory.quantity("store", MATERIAL) != original_store - 3 or _total(inventory, MATERIAL) != total:
 		return _failure("drop_conservation")
+	var initial_field: Dictionary = _field_observation(world, second)
+	if not bool(initial_field.get("ok", false)):
+		return initial_field
+	var pile_key: String = SimWorldEnvironmentSourceParticipant.stock_key("home", GROUND_CONTAINER, MATERIAL)
+	var pile_source: Dictionary = world.local_heat._sources.get_source(pile_key)
+	if pile_source.is_empty() or int(pile_source.channels[1]) <= 0:
+		return _failure("material_field_source_missing")
 	var locations: Dictionary = {"item_cell": [first.x, first.y], "material_cell": [second.x, second.y], "item_container": ITEM_CONTAINER}
 	var before_trip: Dictionary = _observe_trip(runtime, world, home, "home", locations)
 	if not bool(before_trip.get("ok", false)):
 		return before_trip
+	if not _advance(world, FIELD_ESTABLISH_MS):
+		return _failure("field_establish_clock")
+	var established_field: Dictionary = _field_observation(world, second)
+	if not bool(established_field.get("ok", false)):
+		return established_field
+	# The source contributes to the wood channel; it need not be the only
+	# influence on this cell, so do not assume an arbitrary starting value.
+	if float(established_field.elements[0]) <= 0.0 or int(established_field.at_ms) != int(initial_field.at_ms) + FIELD_ESTABLISH_MS:
+		return _failure("material_field_not_established", {"initial": initial_field, "established": established_field})
 	var outward: Dictionary = _travel(runtime, world, "river")
 	if not bool(outward.get("ok", false)):
 		return outward
@@ -131,12 +148,13 @@ func _write(runtime: Node, path: String) -> Dictionary:
 		return _failure("checkpoint_clock")
 	# The rest of the world may have legitimately changed during travel. Use
 	# quantities at the actual in-flight checkpoint as the continuation baseline.
-	var expected: Dictionary = {"version": 2, "writer_pid": OS.get_process_id(), "due_ms": due,
+	var expected: Dictionary = {"version": 3, "writer_pid": OS.get_process_id(), "due_ms": due,
 		"checkpoint_ms": world.elapsed_ms, "item_cell": [first.x, first.y], "material_cell": [second.x, second.y],
 		"item_container": ITEM_CONTAINER, "wood_total": _total(inventory, MATERIAL),
 		"checkpoint_store": inventory.quantity("store", MATERIAL), "checkpoint_actor": inventory.quantity("actor:player", MATERIAL),
 		"trip": {"before": before_trip, "river": river, "home": after_trip, "river_snapshot_hash": _hash(river_snapshot)},
-		"river_snapshot": river_snapshot}
+		"river_snapshot": river_snapshot,
+		"field": {"initial": initial_field, "established": established_field}}
 	var evidence: Dictionary = _check_trip(runtime, expected)
 	if not bool(evidence.ok):
 		return evidence
@@ -144,6 +162,10 @@ func _write(runtime: Node, path: String) -> Dictionary:
 	if not bool(preflight.ok):
 		return preflight
 	var checkpoint: Dictionary = _snapshots.capture(runtime)
+	var checkpoint_field: Dictionary = _field_observation(world, second)
+	if not bool(checkpoint_field.get("ok", false)):
+		return checkpoint_field
+	expected.field["checkpoint"] = checkpoint_field
 	var saved: Error = runtime.save_game(path)
 	if saved != OK:
 		return _failure("write_save", {"error": int(saved)})
@@ -155,13 +177,18 @@ func _write(runtime: Node, path: String) -> Dictionary:
 	var finished: Dictionary = _continue(runtime, expected)
 	if not bool(finished.ok):
 		return finished
+	var continued_field: Dictionary = _field_observation(world, second)
+	if not bool(continued_field.get("ok", false)):
+		return continued_field
+	expected.field["continued"] = continued_field
 	expected["continued_hash"] = _hash(_snapshots.capture(runtime))
 	var meta_error: Error = SimSaveStore.save_file(path + ".expected.json", expected)
 	if meta_error != OK:
 		return _failure("write_expectation", {"error": int(meta_error)})
 	return {"ok": true, "checkpoint_ms": expected.checkpoint_ms, "due_ms": due,
 		"checkpoint_hash": expected.checkpoint_hash, "continued_hash": expected.continued_hash,
-		"save_sha256": expected.save_sha256, "trip": expected.trip, "material_total": expected.wood_total, "material_ground_after": 1, "material_delivered": 2}
+		"save_sha256": expected.save_sha256, "trip": expected.trip, "field": expected.field,
+		"material_total": expected.wood_total, "material_ground_after": 1, "material_delivered": 2}
 
 
 func _read(runtime: Node, path: String) -> Dictionary:
@@ -169,10 +196,12 @@ func _read(runtime: Node, path: String) -> Dictionary:
 	if not bool(metadata.get("ok", false)):
 		return _failure("read_expectation", metadata)
 	var expected: Dictionary = metadata.data
-	if expected.get("version") != 2 or not ReolGameClock._integer(expected.get("writer_pid")) or int(expected.writer_pid) == OS.get_process_id() or not expected.get("save_sha256") is String or not expected.get("checkpoint_hash") is String or not expected.get("continued_hash") is String:
+	if expected.get("version") != 3 or not ReolGameClock._integer(expected.get("writer_pid")) or int(expected.writer_pid) == OS.get_process_id() or not expected.get("save_sha256") is String or not expected.get("checkpoint_hash") is String or not expected.get("continued_hash") is String:
 		return _failure("invalid_expectation_or_same_process")
 	if not _valid_expectation(expected):
 		return _failure("invalid_trip_expectation")
+	if not expected.get("field") is Dictionary or not expected.field.get("checkpoint") is Dictionary or not expected.field.get("continued") is Dictionary:
+		return _failure("invalid_field_expectation")
 	if FileAccess.get_sha256(path) != expected.save_sha256:
 		return _failure("save_digest_mismatch")
 	var loaded: Dictionary = SimSaveStore.load_file(path)
@@ -187,6 +216,10 @@ func _read(runtime: Node, path: String) -> Dictionary:
 	var world: RegionalSimulation = runtime.world_sim
 	if _hash(_snapshots.capture(runtime)) != expected.checkpoint_hash:
 		return _failure("restored_checkpoint_mismatch")
+	var field_cell: Vector2i = SimRouteTravel.cell(expected.material_cell)
+	var checkpoint_field: Dictionary = _field_observation(world, field_cell)
+	if not bool(checkpoint_field.get("ok", false)) or _hash(checkpoint_field) != _hash(expected.field.checkpoint):
+		return _failure("restored_checkpoint_field_mismatch", {"actual": checkpoint_field, "expected": expected.field.checkpoint})
 	var evidence: Dictionary = _check_trip(runtime, expected)
 	if not bool(evidence.ok):
 		return evidence
@@ -199,12 +232,16 @@ func _read(runtime: Node, path: String) -> Dictionary:
 	var finished: Dictionary = _continue(runtime, expected)
 	if not bool(finished.ok):
 		return finished
+	var continued_field: Dictionary = _field_observation(world, field_cell)
+	if not bool(continued_field.get("ok", false)) or _hash(continued_field) != _hash(expected.field.continued):
+		return _failure("continued_field_mismatch", {"actual": continued_field, "expected": expected.field.continued})
 	var continued_hash: String = _hash(_snapshots.capture(runtime))
 	if continued_hash != expected.continued_hash:
 		return _failure("continued_world_mismatch", {"actual": continued_hash, "expected": expected.continued_hash})
 	return {"ok": true, "writer_pid": int(expected.writer_pid), "checkpoint_ms": expected.checkpoint_ms,
 		"due_ms": expected.due_ms, "checkpoint_hash": expected.checkpoint_hash, "continued_hash": continued_hash,
-		"save_sha256": expected.save_sha256, "trip": expected.trip, "material_total": expected.wood_total, "material_ground_after": 1, "material_delivered": 2}
+		"save_sha256": expected.save_sha256, "trip": expected.trip, "field": expected.field,
+		"material_total": expected.wood_total, "material_ground_after": 1, "material_delivered": 2}
 
 
 func _checkpoint(world: RegionalSimulation, expected: Dictionary) -> Dictionary:
@@ -296,11 +333,14 @@ func _observe_trip(runtime: Node, world: RegionalSimulation, home: VillageSimula
 	var item_cell: Vector2i = world.artifacts.object_cell(ITEM_ID)
 	var material_slot: Dictionary = world.object_lifecycle.ground.locate("home", GROUND_CONTAINER)
 	var material_cell: Vector2i = material_slot.cell
+	var field: Dictionary = _field_observation(world, material_cell)
+	if not bool(field.get("ok", false)):
+		return field
 	return {"ok": true, "region": runtime.current_region, "active_region": world.active_region,
 		"clock_ms": _clock.elapsed_ms, "world_ms": world.elapsed_ms, "target_ms": world.target_ms,
 		"player_cell": [player_cell.x, player_cell.y], "item_id": ITEM_ID,
 		"item_container": world.artifacts.objects[ITEM_ID].container, "item_cell": [item_cell.x, item_cell.y],
-		"material_container": GROUND_CONTAINER, "material_cell": [material_cell.x, material_cell.y], "material_quantity": inventory.quantity(GROUND_CONTAINER, MATERIAL)}
+		"material_container": GROUND_CONTAINER, "material_cell": [material_cell.x, material_cell.y], "material_quantity": inventory.quantity(GROUND_CONTAINER, MATERIAL), "field": field}
 
 
 func _valid_expectation(expected: Dictionary) -> bool:
@@ -397,9 +437,33 @@ func _check_river_snapshot(runtime: Node, expected: Dictionary) -> Dictionary:
 	var receipts: Dictionary = _check_receipts(candidate, expected, int(expected.trip.before.clock_ms))
 	if not bool(receipts.ok):
 		return receipts
+	var candidate_field: Dictionary = _field_observation(candidate, SimRouteTravel.cell(expected.material_cell))
+	if not bool(candidate_field.get("ok", false)) or _hash(candidate_field) != _hash(record.get("field", {})):
+		return _failure("river_candidate_field_mismatch", {"actual": candidate_field, "expected": record.get("field", {})})
 	if _hash(_snapshots.capture(runtime)) != expected.checkpoint_hash:
 		return _failure("river_stage_mutated_live_checkpoint")
 	return {"ok": true}
+
+
+func _field_observation(world: RegionalSimulation, cell: Vector2i) -> Dictionary:
+	if not world.local_heat is SimWorldEnvironmentFields or world._content.environment_sources == null:
+		return _failure("ordinary_field_unavailable")
+	var field: SimWorldEnvironmentFields = world.local_heat
+	var actual: Dictionary = field.actual_at(cell, world.elapsed_ms)
+	var phases: Dictionary = field.elements_at(cell)
+	if not bool(actual.get("ok", false)) or not SnapshotValues.finite_number(actual.get("value_c")) or not bool(phases.get("ok", false)) or not phases.get("values") is PackedFloat64Array or phases.values.size() != 5:
+		return _failure("field_sample_unavailable", {"temperature": actual, "phases": phases})
+	var elements: Array = Array(phases.values)
+	for value: Variant in elements:
+		if not SnapshotValues.finite_number(value):
+			return _failure("field_sample_nonfinite")
+	var state: Dictionary = field.to_dict()
+	if state.get("version") != SimWorldEnvironmentFields.VERSION or state.get("model") != SimWorldEnvironmentFields.MODEL or state.get("source_digest") != world._content.environment_sources.digest() or int(state.get("last_ms", -1)) != world.elapsed_ms:
+		return _failure("field_snapshot_unavailable")
+	return {"ok": true, "cell": [cell.x, cell.y], "at_ms": world.elapsed_ms,
+		"actual_c": float(actual.value_c), "elements": elements,
+		"schema_version": int(state.version), "model": str(state.model),
+		"source_digest": str(state.source_digest), "field_state_hash": _hash(state)}
 
 
 func _advance(world: RegionalSimulation, amount: int) -> bool:

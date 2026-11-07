@@ -1,53 +1,51 @@
 extends RefCounted
-## This immutable source is a real ordinary-play handover, not a staged wallet.
+## Historical handovers are immutable; current exchange coverage lives in the
+## ordinary controlled UI and joint-save suite, not a retired old environment.
 
 const ARCHIVE: String = "res://tests/fixtures/session_v42_exchange.json"
 const SHA256: String = "e13c2616a25f482db2397b585417d027c2759172393c6929eb98a4713b676ebf"
-const RING: String = "stele_drawing_ring"
 
 
 func run(runner: Object) -> void:
-	var clock: Dictionary = GameClock.to_dict()
+	# test_private_exchange_runtime._accept_and_restore exercises a real current
+	# handover through the ordinary interface, including reservation, one
+	# delivery, cancellation and the same complete post-load world future.
+	var saved_clock: Dictionary = GameClock.to_dict()
 	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	runner.root.add_child(main)
 	var runtime: WorldContinuityRuntime = main._continuity
-	var helper: RefCounted = load("res://tests/runtime/helpers/private_exchange_replay.gd").new()
-	for cancel: bool in [false, true]:
-		var first: String = ""
-		for attempt: int in 2:
-			runner.assert_eq(FileAccess.get_sha256(ARCHIVE), SHA256, "continuation starts from the immutable actual v42 handover")
-			var loaded: Error = runtime.load_game(ProjectSettings.globalize_path(ARCHIVE))
-			runner.assert_eq(loaded, OK, "ordinary joint loader restores the real midpoint")
-			if loaded != OK:
-				continue
-			var world: RegionalSimulation = runtime.world_sim
-			runner.assert_eq(GameClock.elapsed_ms, 551887, "actual midpoint keeps its exact common instant")
-			runner.assert_eq(world.regions.home.inventory.quantity("actor:player", "coin"), 6, "midpoint has not paid the original six coins")
-			runner.assert_eq(world.regions.home.inventory.available("actor:player", "coin"), 2, "midpoint reserves exactly the original four-coin quote")
-			runner.assert_eq(world.artifacts.objects[RING].container, "actor:river_shi_tou", "midpoint keeps the one original ring with the seller")
-			var branch: String = "cancel" if cancel else "complete"
-			var suffix: String = "ci_%s_%d" % [branch, attempt]
-			var reply: Dictionary = helper.replay_exchange(runtime, suffix, cancel, ARCHIVE)
-			runner.assert_true(bool(reply.get("ok", false)), "actual handover continues through ordinary commands: " + str(reply.get("error", "")))
-			if not bool(reply.get("ok", false)):
-				continue
-			world = runtime.world_sim
-			var snapshot: Dictionary = WorldSessionSnapshot.capture(runtime)
-			var future: String = SnapshotValues.canonical_json(SnapshotValues.normalized(snapshot))
-			runner.assert_true(not WorldSessionSnapshot.stage(runtime, snapshot).is_empty(), "actual complete future remains a valid independent candidate")
-			if attempt == 0:
-				first = future
-			else:
-				runner.assert_eq(future, first, "independent ordinary loads produce identical complete future for " + branch)
-			runner.assert_eq(world.regions.home.inventory.quantity("actor:player", "coin"), 6 if cancel else 2, "only delivered handover charges the original quote")
-			runner.assert_eq(world.artifacts.objects[RING].container, "actor:river_shi_tou" if cancel else "actor:player", "cancel/completion preserves the same unique ring's real custody")
-			runner.assert_eq(world.artifacts.objects.training_sword.container, "dorm" if cancel else "actor:player", "only the actual buyer's later research and draw acquire the original sword")
-			for path: String in [str(reply.full_snapshot), "res://logs/private_exchange_restart_%s.json" % suffix]:
-				for ending: String in ["", ".bak", ".tmp", ".bak.tmp"]:
-					if FileAccess.file_exists(path + ending):
-						DirAccess.remove_absolute(ProjectSettings.globalize_path(path + ending))
-			runner.assert_eq(FileAccess.get_sha256(ARCHIVE), SHA256, "no replay or failed candidate rewrites the genuine archive")
+	if runtime == null or runtime.world_sim == null:
+		runner.assert_true(false, "ordinary scene initializes for historical handover rejection")
+		main.free()
+		GameClock.restore_state(saved_clock)
+		return
+	var original: PackedByteArray = FileAccess.get_file_as_bytes(ARCHIVE)
+	var raw: Variant = JSON.parse_string(original.get_string_from_utf8())
+	runner.assert_eq(FileAccess.get_sha256(ARCHIVE), SHA256, "the real handover archive retains its recorded digest")
+	runner.assert_true(raw is Dictionary, "the historical handover archive remains readable")
+	if raw is Dictionary:
+		var source: Dictionary = raw
+		var source_before: String = _json(source)
+		var world: RegionalSimulation = runtime.world_sim
+		var content: ReolContentDB = runtime._home._content
+		var terrain: WorldMapData = world.map_data
+		var before: String = _json(WorldSessionSnapshot.capture(runtime))
+		var clock: String = _json(GameClock.to_dict())
+		runner.assert_eq(int(source.schema_version), 42, "the handover archive retains its original root format")
+		runner.assert_eq(SessionSaveSchema.rejection_reason(source.schema_version), SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT, "the original handover has the explicit old-environment reason")
+		runner.assert_true(WorldSessionSnapshot.stage(runtime, source).is_empty(), "old handover cannot invent field history in a new session")
+		runner.assert_eq(runtime.load_game(ProjectSettings.globalize_path(ARCHIVE)), ERR_INVALID_DATA, "ordinary loading refuses the real historical handover")
+		runner.assert_eq(runtime._notice, "旧环境格式不再支持，存档未改；请新开局。", "the historical handover reports the reason")
+		runner.assert_true(runtime.world_sim == world and runtime._home._content == content and runtime.world_sim.map_data == terrain, "rejection leaves the original live owners intact")
+		runner.assert_eq(_json(GameClock.to_dict()), clock, "rejection leaves the shared clock intact")
+		runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), before, "rejection leaves the whole live world, stock and body intact")
+		runner.assert_eq(_json(source), source_before, "staging does not mutate the supplied historical input")
+		runner.assert_eq(FileAccess.get_file_as_bytes(ARCHIVE), original, "the historical handover file is not rewritten")
 	main.free()
-	GameClock.restore_state(clock)
-	print("SCENARIO private exchange continuity: immutable ordinary handover, original-loader completion/cancellation, personal research and original sword, identical joint futures")
+	GameClock.restore_state(saved_clock)
+	print("SCENARIO private exchange continuity: immutable historical handover refused; current real handover and cancellation covered by runtime suite")
+
+
+func _json(value: Variant) -> String:
+	return SnapshotValues.canonical_json(SnapshotValues.normalized(value))

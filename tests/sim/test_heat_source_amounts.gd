@@ -1,5 +1,5 @@
 extends RefCounted
-## Real warm jobs publish one explicit transfer amount without changing heat law.
+## Real warm jobs publish one metadata receipt and a finite field source.
 
 const RegionalFixtures = preload("res://tests/sim/test_regional_simulation.gd")
 const HEAT_PATH: String = "res://data/definitions/local_heat.json"
@@ -16,19 +16,16 @@ func run(runner: Object) -> void:
 	print("SCENARIO explicit heat source amounts: real warm completion and original charge, cancelled/capacity failures, strict event fields, session-bound pulse value and independent in-flight/completed restoration")
 
 
-func _world(runner: Object, max_cells: int = 0, pulse_energy: int = 0) -> RegionalSimulation:
+func _world(runner: Object, pulse_energy: int = 0) -> RegionalSimulation:
 	var content := ReolContentDB.new()
 	if not content.load_all():
 		runner.assert_true(false, "source amount fixture loads original content")
 		return null
-	if max_cells > 0 or pulse_energy > 0:
+	if pulse_energy > 0:
 		# Explicit new-world content, before any state or time exists. Its bundle
-		# records the same amount/capacity the domains will actually consume.
+		# records the same metadata amount that the domains actually consume.
 		var documents: Dictionary = content.content_bundle().documents
-		if max_cells > 0:
-			documents[HEAT_PATH].max_cells = max_cells
-		if pulse_energy > 0:
-			documents[HEAT_PATH].pulse_energy = pulse_energy
+		documents[HEAT_PATH].pulse_energy = pulse_energy
 		content = ReolContentDB.new()
 		if not content.load_bundle(ReolContentBundle.from_documents(documents)):
 			runner.assert_true(false, "source amount opening has a valid independent content bundle")
@@ -74,7 +71,7 @@ func _completed_source(runner: Object) -> void:
 	# Deliberately differs from the file default: the source must use the bound
 	# session's heat authority, not a literal amount or today's disk value.
 	const PULSE: int = 360000000
-	var world: RegionalSimulation = _world(runner, 0, PULSE)
+	var world: RegionalSimulation = _world(runner, PULSE)
 	if world == null or not _learn_and_hold(runner, world):
 		return
 	var charge: int = int(world.artifacts.objects[STONE].charge)
@@ -88,17 +85,27 @@ func _completed_source(runner: Object) -> void:
 	runner.assert_eq(event.get("heat_amount"), PULSE, "completed event records the actual session-bound transfer amount")
 	runner.assert_eq(world.artifacts.objects[STONE].charge, charge - cost, "the same completion spends original warming_charge once")
 	runner.assert_eq(world.regions.home.actors.player.qi, qi, "explicit source metadata adds no second resource cost")
-	runner.assert_eq(world.local_heat.input_energy, PULSE, "thermal input equals the real accepted source amount")
 	runner.assert_eq(world.local_heat.receipts.size(), 1, "one real action creates one thermal receipt")
+	if not world.local_heat.receipts.has(event.action):
+		runner.assert_true(false, "the action owns its thermal receipt")
+		return
 	var receipt: Dictionary = world.local_heat.receipts[event.action]
 	runner.assert_eq(receipt, {"action": event.action, "actor": event.actor, "object": event.object, "at_ms": event.at_ms, "cell": event.cell, "amount": event.heat_amount}, "event and original receipt name the same action, source, time, location and amount")
+	var key: String = "pulse:" + str(event.action)
+	var source: Dictionary = world.local_heat._sources.get_source(key)
+	runner.assert_true(not source.is_empty(), "the accepted action owns one active temporary source")
+	if not source.is_empty():
+		runner.assert_eq(source.cell, Vector2i(int(event.cell[0]), int(event.cell[1])), "the field source uses the original completion cell")
+		runner.assert_eq(source.channels[5], 1000, "session receipt amount is metadata; this prototype's source grade remains one")
+		runner.assert_eq(source.channels[6], 0, "the warm source does not create a cold field")
+	runner.assert_eq(world.local_heat._transient.get(key), {"cell": event.cell, "until_ms": event.at_ms + 60000}, "the source remains active for its bounded real duration")
 	for row: Dictionary in world.artifacts.events:
 		if row.kind != "warmed":
 			runner.assert_true(not row.has("heat_amount"), "ordinary study/take events do not claim thermal input")
 	var before: String = _world_digest(world)
 	runner.assert_true(not world.local_heat.deposit(receipt), "replaying the original action cannot add another input")
 	runner.assert_eq(_world_digest(world), before, "duplicate source leaves original charge and complete world unchanged")
-	var other: RegionalSimulation = _world(runner, 0, PULSE)
+	var other: RegionalSimulation = _world(runner, PULSE)
 	if other == null:
 		return
 	var restored: bool = other.restore(_round_trip(world.to_dict()))
@@ -123,26 +130,44 @@ func _cancel_and_capacity(runner: Object) -> void:
 	runner.assert_eq(cancelled.kind, "cancelled", "cancelled job records its actual unfinished outcome")
 	runner.assert_true(not cancelled.has("heat_amount"), "cancelled job has no successful source amount")
 	runner.assert_eq(world.artifacts.objects[STONE].charge, charge, "cancellation preserves the original finite charge")
-	runner.assert_true(world.local_heat.receipts.is_empty() and world.local_heat.input_energy == 0, "cancellation emits no thermal receipt or energy")
+	runner.assert_true(world.local_heat.receipts.is_empty() and world.local_heat._transient.is_empty(), "cancellation emits no thermal receipt or active source")
 	runner.assert_true(world.advance_to_ms(due + 1), "world genuinely passes the cancelled job's former completion instant")
 	runner.assert_true(world.local_heat.receipts.is_empty() and world.artifacts.events.back().kind == "cancelled", "cancelled completion cannot reappear later as a source")
 
-	# A valid new-world capacity of one cell cannot hold the source's real 5x5
-	# patch. Refusal is exercised through warm completion, not a fake receipt.
-	var full: RegionalSimulation = _world(runner, 1)
+	# Fault-inject a full disposable source index without inventing an object,
+	# action, receipt or world fact. A real warm job must refuse atomically.
+	var full: RegionalSimulation = _world(runner)
 	if full == null or not _learn_and_hold(runner, full):
 		return
-	var original_charge: int = int(full.artifacts.objects[STONE].charge)
-	if not _perform(runner, full, "warm"):
+	if not full.local_heat.activate_sources():
+		runner.assert_true(false, "capacity fixture activates its original source participant")
 		return
+	var participant: SimWorldEnvironmentSourceParticipant = full.local_heat._sources
+	var original_records: Dictionary = participant._records.duplicate(true)
+	var original_capacity: int = participant._capacity
+	var original_free: Array = participant._free.duplicate()
+	participant._capacity = participant._next_slot
+	participant._free.clear()
+	var original_charge: int = int(full.artifacts.objects[STONE].charge)
+	_perform(runner, full, "warm")
 	var failure: Dictionary = full.artifacts.events.back()
-	runner.assert_eq(failure.kind, "failed", "actual thermal capacity refusal completes as a failed warm job")
+	runner.assert_eq(failure.kind, "failed", "a real warm job reports the source-index capacity refusal")
 	runner.assert_true(not failure.has("heat_amount"), "capacity failure has no claimed heat amount")
 	runner.assert_eq(full.artifacts.objects[STONE].charge, original_charge, "rejected deposit spends none of the original charge")
-	runner.assert_true(full.local_heat.cells.is_empty() and full.local_heat.receipts.is_empty() and full.local_heat.input_energy == 0, "capacity refusal does not allocate a partial source patch or receipt")
-	var failed_copy: RegionalSimulation = _world(runner, 1)
-	if failed_copy != null:
-		runner.assert_true(failed_copy.restore(_round_trip(full.to_dict())), "failed warm event with no amount remains a valid independent candidate")
+	runner.assert_true(full.local_heat.receipts.is_empty() and full.local_heat._transient.is_empty(), "capacity refusal creates neither transient source nor receipt")
+	runner.assert_eq(participant._records, original_records, "capacity refusal publishes no partial source-index entry")
+	if failure.kind == "failed" and participant._records == original_records:
+		participant._capacity = original_capacity
+		participant._free.assign(original_free)
+	var error: String = str(full.local_heat.diagnostics().error)
+	runner.assert_eq(error, "", "a recoverable capacity refusal does not poison the world's environmental authority")
+	if error.is_empty() and failure.kind == "failed":
+		var failed_copy: RegionalSimulation = _world(runner)
+		if failed_copy != null:
+			var restored: bool = failed_copy.restore(_round_trip(full.to_dict()))
+			runner.assert_true(restored, "a failed warm event with no receipt remains a valid independent candidate")
+			if restored:
+				runner.assert_eq(_world_digest(failed_copy), _world_digest(full), "rejected capacity operation restores the same original world")
 
 
 func _event_shape_rejections(runner: Object) -> void:
@@ -166,7 +191,7 @@ func _event_shape_rejections(runner: Object) -> void:
 	old.version = 6
 	old.events.back().erase("heat_amount")
 	_reject_artifacts(runner, world, old, before, "current artifact restore does not silently upgrade version 6")
-	var heat: SimLocalHeat = world.local_heat
+	var heat: SimWorldEnvironmentFields = world.local_heat
 	world.local_heat = null
 	_reject_artifacts(runner, world, current, before, "warmed validation requires the candidate's bound heat authority")
 	world.local_heat = heat

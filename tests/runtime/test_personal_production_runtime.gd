@@ -81,53 +81,14 @@ func _canonical(runtime: WorldContinuityRuntime) -> String:
 
 
 func _old_archive(runner: Object) -> void:
-	var prior: Dictionary = GameClock.to_dict()
-	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-	var main: Node = load("res://scenes/main.tscn").instantiate()
-	runner.root.add_child(main)
-	var runtime: WorldContinuityRuntime = main._continuity
-	var path: String = "res://tests/fixtures/session_v24.json"
-	var original: String = FileAccess.get_file_as_string(path)
-	var raw: Dictionary = JSON.parse_string(original)
-	runner.assert_eq(runtime.load_game(ProjectSettings.globalize_path(path)), OK, "genuine large-body v24 migrates through the ordinary loader")
-	runner.assert_true(runtime.world_sim.personal_production.batches.is_empty(), "old world receives no invented private production history")
-	runner.assert_eq(runtime.player_inventory().quantity("actor:player", "grain"), raw.simulation.inventory.containers["actor:player"].get("grain", 0), "new domain adds no materials or money")
-	runner.assert_true(runtime.world_sim.services.definitions.trade.offers.has("sell_dried_herb"), "old world acquires only the future finite procurement rule")
-	runner.assert_eq(FileAccess.get_file_as_string(path), original, "genuine v24 fixture stays byte-for-byte intact")
-	main.free()
-	GameClock.restore_state(prior)
+	# Old archives lack causal field history; current behavior is tested above.
+	load("res://tests/runtime/helpers/legacy_rejection_archive.gd").run(runner, {
+		"res://tests/fixtures/session_v24.json": ""
+	})
 
 
 func _actual_archive(runner: Object) -> void:
-	var prior: Dictionary = GameClock.to_dict()
-	var path: String = "res://tests/fixtures/session_v25.json"
-	var original: String = FileAccess.get_file_as_string(path)
-	var future: String = ""
-	for attempt: int in 2:
-		GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-		var main: Node = load("res://scenes/main.tscn").instantiate()
-		runner.root.add_child(main)
-		var runtime: WorldContinuityRuntime = main._continuity
-		var loaded: Error = runtime.load_game(ProjectSettings.globalize_path(path))
-		runner.assert_eq(loaded, OK, "genuine v25 resumes normally gathered private materials and interrupted cooking")
-		if loaded != OK:
-			main.free()
-			continue
-		var domain: SimPersonalProduction = runtime.world_sim.personal_production
-		runner.assert_eq(GameClock.elapsed_ms, 3600000, "archive keeps the original common hour")
-		runner.assert_eq(domain.active.player.id, "production_job:2", "archive records the real second attempt on the same batch")
-		runner.assert_eq(domain.batches["production_batch:1"].work_ms, 97909, "interrupted fractional labor is not reset")
-		runner.assert_eq(domain.active.player.due_ms, 4682092, "resumed process owes only its original remaining work")
-		runner.assert_eq(runtime.player_inventory().quantity("actor:player", "wood"), 2, "real gathered fuel was charged once")
-		runner.assert_true(runtime.world_sim.regions.home.actors.a_he.autonomous, "genuine scene keeps autonomous NPC life enabled")
-		GameClock.advance_msec(1500000)
-		runner.assert_eq(domain.batches["production_batch:1"].state, "ready", "same original batch finishes after restart")
-		runner.assert_eq(runtime.player_inventory().quantity("production_batch:1", "meal"), 6, "six real meals remain on site")
-		runner.assert_eq(runtime.player_inventory().quantity("actor:player", "meal"), 0, "archive continuation does not remotely collect its goods")
-		if attempt == 0:
-			future = _canonical(runtime)
-		else:
-			runner.assert_eq(_canonical(runtime), future, "genuine current archive resumes the identical full world across scene replacement")
-		main.free()
-	runner.assert_eq(FileAccess.get_file_as_string(path), original, "genuine v25 archive is never generated or rewritten by tests")
-	GameClock.restore_state(prior)
+	# Old archives lack causal field history; current behavior is tested above.
+	load("res://tests/runtime/helpers/legacy_rejection_archive.gd").run(runner, {
+		"res://tests/fixtures/session_v25.json": ""
+	})

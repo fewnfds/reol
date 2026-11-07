@@ -1,9 +1,8 @@
 extends RefCounted
-## Whole-world continuations, saved-present migration and ordinary UI intent.
+## Whole-world continuations, explicit old-format rejection and ordinary UI intent.
 
 const Support = preload("res://tests/sim/spirit_source_test_support.gd")
 const Fixtures = preload("res://tests/runtime/test_world_continuity_runtime.gd")
-const HerbMigration = preload("res://tests/runtime/test_herb_ecology_migration.gd")
 const ARCHIVE: String = "res://tests/fixtures/session_v33.json"
 const SOURCE_SHA: String = "d1a4e0f5fbaa4b87728f34723fe75876647ccd114f3622ef830fd17f7822c9e2"
 
@@ -68,91 +67,45 @@ func _coarse_fine_and_budget(runner: Object) -> void:
 
 
 func _old_archives(runner: Object) -> void:
-	var content := ReolContentDB.new()
-	if not content.load_all():
-		runner.assert_true(false, "source migration loads current original content")
+	# Current in-flight source actions and fine/sparse continuation remain in
+	# this suite. Historical roots cannot supply authoritative field history.
+	var saved_clock: Dictionary = GameClock.to_dict()
+	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
+	var main: Node = load("res://scenes/main.tscn").instantiate()
+	runner.root.add_child(main)
+	var runtime: WorldContinuityRuntime = main._continuity
+	if runtime == null or runtime.world_sim == null:
+		runner.assert_true(false, "ordinary scene initializes for source archive rejection")
+		main.free()
+		GameClock.restore_state(saved_clock)
 		return
-	runner.assert_eq(FileAccess.get_sha256(ARCHIVE), SOURCE_SHA, "actual unfinished v33 irrigation archive retains its independent source hash")
+	var live_world: RegionalSimulation = runtime.world_sim
+	var live_content: ReolContentDB = runtime._home._content
+	var live_map: WorldMapData = live_world.map_data
+	var stable: String = Support.canonical(WorldSessionSnapshot.capture(runtime))
+	var clock: String = Support.canonical(GameClock.to_dict())
+	runner.assert_eq(FileAccess.get_sha256(ARCHIVE), SOURCE_SHA, "the real v33 source archive retains its independent recorded digest")
 	for version: int in range(1, 34):
 		var path: String = "res://tests/fixtures/session_v%d.json" % version
-		var original: String = FileAccess.get_file_as_string(path)
-		var prior: Dictionary = JSON.parse_string(original)
-		var before: String = Support.canonical(prior)
-		var current: Dictionary = SessionSaveSchema.upgrade(prior, content)
-		runner.assert_true(not current.is_empty(), "real historical archive reaches finite-source migration: v%d" % version)
-		if current.is_empty():
+		var original: PackedByteArray = FileAccess.get_file_as_bytes(path)
+		var raw: Variant = JSON.parse_string(original.get_string_from_utf8())
+		runner.assert_true(raw is Dictionary, "the old archive remains readable: v%d" % version)
+		if not raw is Dictionary:
 			continue
-		runner.assert_eq(current.schema_version, SessionSaveSchema.VERSION, "finite-source migration reaches the current root contract: v%d" % version)
-		if current.has("continuity"):
-			var regional: Dictionary = current.continuity.world
-			var source: Dictionary = regional.spirit_sources
-			runner.assert_eq(source.version, SimSpiritSources.VERSION, "old source activation explicitly reaches current cost provenance: v%d" % version)
-			runner.assert_eq(Support.canonical(regional.capability_practice), Support.canonical(SimCapabilityPractice.empty_state()), "old source activation adds no invented capability practice or spending: v%d" % version)
-			runner.assert_eq(regional.health.version, 2, "old bodily history explicitly reaches current health schema: v%d" % version)
-			runner.assert_eq(regional.health.conflict_source_floor, 1, "old body does not skip new committed combat sources: v%d" % version)
-			var expected_conflicts: Dictionary = SimConflicts.empty_state()
-			expected_conflicts.perception_since_ms = int(regional.elapsed_ms)
-			runner.assert_eq(Support.canonical(regional.conflicts), Support.canonical(expected_conflicts), "old world gains only saved-present perception activation and no invented combat, spending or learning history: v%d" % version)
-			runner.assert_eq(source.activation_ms, regional.elapsed_ms, "old-world spiritual supply starts at its actual saved present: v%d" % version)
-			runner.assert_eq(source.last_ms, regional.elapsed_ms, "migration does not invent a prior unsettled source interval: v%d" % version)
-			runner.assert_true(source.active.is_empty() and source.records.is_empty() and source.qi_baselines.is_empty() and source.charge_baselines.is_empty(), "migration grants no past restoration, work or ownership: v%d" % version)
-			for row: Dictionary in source.sources.values():
-				runner.assert_eq(row.released, 0, "migration never grants historical deep refills")
-				runner.assert_eq(row.spent, 0, "migration never invents historical source consumption")
-				runner.assert_eq(row.lost, 0, "migration never reconstructs fictitious old overflow")
-			if version == 33:
-				var projected: Dictionary = regional.duplicate(true)
-				runner.assert_eq(SnapshotValues.normalized(projected.private_exchange), SnapshotValues.normalized(SimPrivateExchange.empty_state()), "historical world gains no invented private exchange, consent, or receipt")
-				projected.erase("private_exchange")
-				runner.assert_eq(SnapshotValues.normalized(projected.field_opportunities), SnapshotValues.normalized(SimFieldOpportunities.empty_state()), "historical world gains no invented field site, visitor or treasure")
-				projected.erase("field_opportunities")
-				projected.erase("spirit_sources")
-				projected.erase("conflicts")
-				runner.assert_eq(Support.canonical(projected.site_affairs), Support.canonical(SimSiteAffairs.empty_state()), "old source archive gains no retrospective borrowing arrangement")
-				projected.erase("site_affairs")
-				runner.assert_eq(Support.canonical(projected.source_care), Support.canonical(SimSourceCare.empty_state()), "old source archive gains no retrospective care")
-				projected.erase("source_care")
-				projected.erase("capability_practice")
-				projected.health.version = prior.continuity.world.health.version
-				projected.health.erase("conflict_source_floor")
-				runner.assert_eq(int(projected.version), RegionalSimulation.SCHEMA_VERSION, "v33 regional envelope reaches the current contract")
-				projected.version = prior.continuity.world.version
-				runner.assert_eq(int(projected.artifacts.version), 8, "v33 original artifacts reach the device-aware envelope without adding objects")
-				projected.artifacts.version = prior.continuity.world.artifacts.version
-				var original_heat: Dictionary = prior.continuity.world.local_heat
-				var imported_heat: Dictionary = projected.local_heat
-				var saved_at: int = int(regional.elapsed_ms)
-				runner.assert_eq(int(original_heat.version), 1, "v33 archived heat retains the original excess format")
-				runner.assert_eq(int(imported_heat.version), 3, "v33 heat reaches the current device-aware format")
-				runner.assert_eq(int(imported_heat.rules_version), 3, "v33 heat uses the current fixed-Q rules")
-				runner.assert_eq(int(imported_heat.model_started_ms), saved_at, "v33 fixed-Q conversion begins at the saved present")
-				runner.assert_eq(imported_heat.last_sample_mode, "legacy_excess", "v33 old heat sample keeps its legacy interpretation")
-				var limits: Dictionary = {"at_ms": saved_at, "input_energy": 0, "cells": []}
-				runner.assert_eq(Support.canonical(imported_heat.legacy_limits), Support.canonical(limits), "v33 empty legacy history is bounded at the saved present")
-				runner.assert_eq(int(imported_heat.segment_until_ms), SimLocalHeat.MAX_INTEGER, "empty v33 field has no invented frozen boundary")
-				for field: String in ["ambient_in", "last_sample_ambient_in", "continuous_input", "absorbed_energy", "last_sample_continuous_input", "last_sample_absorbed"]:
-					runner.assert_eq(int(imported_heat[field]), 0, "v33 adds no ambient or continuous device energy: " + field)
-				for field: String in ["device_input", "device_absorbed", "device_switches"]:
-					runner.assert_true(imported_heat[field] is Dictionary and imported_heat[field].is_empty(), "v33 adds no historical device ledger: " + field)
-				runner.assert_eq(Support.canonical(HerbMigration.prior_empty_heat(imported_heat, original_heat)), Support.canonical(original_heat), "v33 preserves the complete old thermal sample, field, flows and receipts")
-				var historical: Dictionary = HerbMigration.prior_thermal_world(projected, prior.continuity.world, current)
-				runner.assert_true(not historical.is_empty(), "v33 fixed-Q import proves empty device ledgers and preserved ecology before projection")
-				projected = historical
-				runner.assert_eq(Support.canonical(projected), Support.canonical(prior.continuity.world), "v33 retains every original ecological, bodily, artifact, stock and in-flight fact after explicit schema projection")
-				var projected_home: Dictionary = HerbMigration.prior_village(current.simulation, prior.simulation)
-				runner.assert_eq(Support.canonical(projected_home), Support.canonical(prior.simulation), "v33 migration leaves the original root/home body and inventory unchanged")
-		runner.assert_eq(Support.canonical(prior), before, "pure source migration leaves its caller's old dictionary unchanged: v%d" % version)
-		runner.assert_eq(FileAccess.get_file_as_string(path), original, "source migration never rewrites a historical fixture: v%d" % version)
-	var saved: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(ARCHIVE))
-	for fault: String in ["already_domain", "already_regional", "future_version"]:
-		var bad: Dictionary = saved.duplicate(true)
-		match fault:
-			"already_domain": bad.continuity.world["spirit_sources"] = {}
-			"already_regional": bad.continuity.world.version = 30
-			"future_version": bad.schema_version = SessionSaveSchema.VERSION + 1
-		var before: String = Support.canonical(bad)
-		runner.assert_true(SessionSaveSchema.upgrade(bad, content).is_empty(), "legacy source migration refuses inconsistent version ownership: " + fault)
-		runner.assert_eq(Support.canonical(bad), before, "failed legacy source migration does not repair its input: " + fault)
+		var source: Dictionary = raw
+		var before: String = Support.canonical(source)
+		runner.assert_eq(int(source.get("schema_version", -1)), version, "the historical root retains its version: v%d" % version)
+		runner.assert_eq(SessionSaveSchema.rejection_reason(source.schema_version), SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT, "the old root is explicitly rejected for missing field history: v%d" % version)
+		runner.assert_true(SessionSaveSchema.upgrade(source).is_empty() and WorldSessionSnapshot.stage(runtime, source).is_empty(), "no historical source action is silently imported: v%d" % version)
+		runner.assert_eq(runtime.load_game(ProjectSettings.globalize_path(path)), ERR_INVALID_DATA, "ordinary loading refuses the historical source archive: v%d" % version)
+		runner.assert_eq(runtime._notice, "旧环境格式不再支持，存档未改；请新开局。", "the historical source rejection has a clear reason: v%d" % version)
+		runner.assert_true(runtime.world_sim == live_world and runtime._home._content == live_content and runtime.world_sim.map_data == live_map, "the historical source leaves live owners unchanged: v%d" % version)
+		runner.assert_eq(Support.canonical(GameClock.to_dict()), clock, "the historical source leaves the shared clock unchanged: v%d" % version)
+		runner.assert_eq(Support.canonical(WorldSessionSnapshot.capture(runtime)), stable, "the historical source leaves the full current session unchanged: v%d" % version)
+		runner.assert_eq(Support.canonical(source), before, "rejection leaves the source input unchanged: v%d" % version)
+		runner.assert_eq(FileAccess.get_file_as_bytes(path), original, "rejection never rewrites historical bytes: v%d" % version)
+	main.free()
+	GameClock.restore_state(saved_clock)
 
 
 func _quiet_fixture(runner: Object) -> Dictionary:

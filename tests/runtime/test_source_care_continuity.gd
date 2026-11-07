@@ -1,5 +1,5 @@
 extends RefCounted
-## Genuine received warning, public UI responses and independent joint futures.
+## Current received warnings preserve their real source and shared future.
 
 const Replay = preload("res://tests/runtime/helpers/source_care_replay.gd")
 const ARCHIVE: String = "res://tests/fixtures/session_v38.json"
@@ -8,31 +8,157 @@ const SHA: String = "79c390a681a1c711b6dc3044bc5d79718b539e5916899187e3132c051a9
 
 func run(runner: Object) -> void:
 	var clock: Dictionary = GameClock.to_dict()
-	var original: String = FileAccess.get_file_as_string(ARCHIVE)
-	runner.assert_eq(FileAccess.get_sha256(ARCHIVE), SHA, "actual received-warning archive retains its frozen original SHA")
-	runner.assert_eq(original.to_utf8_buffer().size(), 229976, "actual warning archive retains all original UTF-8 bytes")
+	var main: Node = _main(runner)
+	var runtime: WorldContinuityRuntime = main._continuity
+	var path: String = "user://tests/source_care_current_%d.json" % Time.get_ticks_usec()
+	if runtime == null or runtime.world_sim == null:
+		runner.assert_true(false, "ordinary scene initializes for source-care continuity")
+		_cleanup(main, path, clock)
+		return
+	_reject_archive(runner, runtime)
+	var helper := Replay.new()
+	var selected: bool = runtime.avatar_adapter.choose("subject:player")
+	runner.assert_true(selected, "the current ordinary opening chooses the original human")
+	if not selected:
+		_cleanup(main, path, clock)
+		return
+	GameClock.cancel_wait()
+	GameClock.set_speed(1.0)
+	GameClock.set_paused(true)
+	var world: RegionalSimulation = runtime.world_sim
+	var arrived: bool = helper._travel(runtime, "home", world.artifacts.object_cell("hearth_stone"))
+	runner.assert_true(arrived, "the original player physically reaches the source medium")
+	if not arrived:
+		_cleanup(main, path, clock)
+		return
+	for verb: String in ["take", "study"]:
+		var completed: bool = helper._object_action(runtime, verb)
+		runner.assert_true(completed, "the actual medium action completes without cancelling other people: " + verb)
+		if not completed:
+			_cleanup(main, path, clock)
+			return
+	var guard: String = helper._wait_keeper(runtime)
+	runner.assert_true(not guard.is_empty(), "a real keeper visits through an autonomous duty with a finite grace interval")
+	if guard.is_empty():
+		_cleanup(main, path, clock)
+		return
+	var seen: bool = runtime.spirit_adapter.select_source("hearth_seam")
+	runner.assert_true(seen, "the original player can see the source from the actual position")
+	if not seen:
+		_cleanup(main, path, clock)
+		return
+	var begun: Dictionary = runtime.spirit_adapter.submit("begin")
+	var advanced: bool = bool(begun.get("ok", false)) and helper._advance(runtime, 1500)
+	runner.assert_true(advanced, "the actual unpermitted source operation advances: " + str(begun))
+	if not advanced:
+		_cleanup(main, path, clock)
+		return
+	var alerts: Array[Dictionary] = world.source_care.alerts_for("player")
+	runner.assert_eq(alerts.size(), 1, "a real observed action produces one personally received warning")
+	if alerts.size() != 1:
+		_cleanup(main, path, clock)
+		return
+	var warning_id: String = str(alerts[0].id)
+	var warning: Dictionary = world.source_care.warnings[warning_id]
+	runner.assert_true(world.spirit_sources.owns_actor("player") and str(warning.source_job) == str(world.spirit_sources.active.player.id), "warning names the same actual in-flight source work")
+	var saved: Error = runtime.save_game(path)
+	runner.assert_eq(saved, OK, "the current real warning and original source save together")
+	if saved != OK:
+		_cleanup(main, path, clock)
+		return
 	for mode: String in ["stop", "drive"]:
 		var expected: String = ""
 		for attempt: int in 2:
-			var main: Node = _main(runner)
-			var runtime: WorldContinuityRuntime = main._continuity
-			var helper := Replay.new()
-			var report: Dictionary = helper.replay_warning(runtime, "test_%s_%d" % [mode, attempt], mode)
-			runner.assert_true(bool(report.get("ok", false)), "actual saved-warning normal response completes: " + mode + ": " + str(report.get("error", "")))
-			if bool(report.get("ok", false)):
-				runner.assert_eq(runtime.current_region, "river", "original person actually departs to the other settlement after " + mode)
-				runner.assert_eq(runtime.world_sim.source_care.warnings.size(), 1, "one actual source process never becomes repeated warnings or repeated attacks")
-				runner.assert_eq(runtime.world_sim.conflicts.conflicts.size(), 1 if mode == "drive" else 0, "ordinary response has the exact actual conflict count: " + mode)
-				var canonical: String = SnapshotValues.canonical_json(SnapshotValues.normalized(WorldSessionSnapshot.capture(runtime)))
-				if attempt == 0:
-					expected = canonical
-				else:
-					runner.assert_eq(canonical, expected, "independent full main loaders produce byte-identical joint futures after " + mode)
-			main.free()
-	_warning_delivery_before_saved_clock(runner)
-	runner.assert_eq(FileAccess.get_file_as_string(ARCHIVE), original, "normal warning continuations and UI checks never rewrite the immutable source fixture")
+			var future: String = _continue_warning(runner, runtime, helper, path, warning_id, mode)
+			if attempt == 0:
+				expected = future
+			elif not expected.is_empty() and not future.is_empty():
+				runner.assert_eq(future, expected, "independent ordinary loads reach the same full future: " + mode)
+	main.free()
+	_warning_delivery_before_saved_clock(runner, path)
+	_cleanup(null, path, clock)
+	print("SCENARIO source care: actual current warning, voluntary stop or guard response, saved future and UI delivery; old archive rejected")
+
+
+func _continue_warning(runner: Object, runtime: WorldContinuityRuntime, helper: RefCounted, path: String, warning_id: String, mode: String) -> String:
+	var loaded: Error = runtime.load_game(path)
+	runner.assert_eq(loaded, OK, "ordinary loading restores the current warning: " + mode)
+	if loaded != OK:
+		return ""
+	GameClock.set_paused(true)
+	var world: RegionalSimulation = runtime.world_sim
+	if not world.source_care.warnings.has(warning_id):
+		runner.assert_true(false, "the original warning identity survives loading: " + mode)
+		return ""
+	var warning: Dictionary = world.source_care.warnings[warning_id]
+	var source_id: String = str(warning.source_job)
+	var spent: int = int(world.spirit_sources.sources.hearth_seam.spent)
+	var qi: int = int(world.conflicts.body("player").qi)
+	var due: int = int(warning.due_ms)
+	var done: bool
+	if mode == "stop":
+		var reply: Dictionary = runtime.spirit_adapter.submit("cancel")
+		done = bool(reply.get("ok", false)) and helper._advance(runtime, due - GameClock.elapsed_ms + 1000)
+	else:
+		done = helper._advance(runtime, due - GameClock.elapsed_ms + 700)
+		if done:
+			var encounter: Dictionary = world.conflicts.conflicts.get(warning.conflict, {})
+			var engaged: bool = warning.status == "escalated" and encounter.get("initiator") == "shi_tou" and encounter.get("defender") == "player" and not world.conflicts.actions.is_empty()
+			runner.assert_true(engaged, "the actual guard independently begins and pays for its response")
+			if engaged:
+				runtime.conflict_adapter.yield_player()
+			else:
+				done = false
+	runner.assert_true(done, "the actual warning response can complete: " + mode)
+	if not done or not helper._advance(runtime, 5000):
+		return ""
+	var record: Dictionary = world.spirit_sources.records.get(source_id, {})
+	runner.assert_eq(record.get("result"), "cancelled", "the interrupted original source ends once: " + mode)
+	runner.assert_eq(int(record.get("output", -1)), 0, "cancelled work grants no early source output: " + mode)
+	runner.assert_eq(int(world.spirit_sources.sources.hearth_seam.spent), spent, "cancelled work does not spend the original reserve: " + mode)
+	runner.assert_eq(int(world.conflicts.body("player").qi), qi, "cancelled source grants no personal qi: " + mode)
+	var departed: bool = world.conflicts.conflict_for("player").is_empty() and helper._travel(runtime, "river") and helper._advance(runtime, 60000)
+	runner.assert_true(departed, "the original body physically departs and the rest of the world continues: " + mode)
+	if not departed:
+		return ""
+	var snapshot: Dictionary = WorldSessionSnapshot.capture(runtime)
+	runner.assert_true(not WorldSessionSnapshot.stage(runtime, snapshot).is_empty(), "the complete warning future independently stages: " + mode)
+	return SnapshotValues.canonical_json(SnapshotValues.normalized(snapshot))
+
+
+func _reject_archive(runner: Object, runtime: WorldContinuityRuntime) -> void:
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(ARCHIVE)
+	var raw: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+	runner.assert_eq(FileAccess.get_sha256(ARCHIVE), SHA, "actual received-warning archive retains its frozen original digest")
+	runner.assert_true(raw is Dictionary, "the historical warning archive remains readable")
+	if not raw is Dictionary:
+		return
+	var source: Dictionary = raw
+	var input: String = SnapshotValues.canonical_json(SnapshotValues.normalized(source))
+	var world: RegionalSimulation = runtime.world_sim
+	var content: ReolContentDB = runtime._home._content
+	var terrain: WorldMapData = world.map_data
+	var before: String = SnapshotValues.canonical_json(SnapshotValues.normalized(WorldSessionSnapshot.capture(runtime)))
+	var clock: String = SnapshotValues.canonical_json(SnapshotValues.normalized(GameClock.to_dict()))
+	runner.assert_eq(int(source.schema_version), 38, "the warning archive retains its actual old version")
+	runner.assert_eq(SessionSaveSchema.rejection_reason(source.schema_version), SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT, "the old warning has the environment rejection")
+	runner.assert_true(WorldSessionSnapshot.stage(runtime, source).is_empty(), "the old warning cannot invent its missing field history")
+	runner.assert_eq(runtime.load_game(ProjectSettings.globalize_path(ARCHIVE)), ERR_INVALID_DATA, "ordinary loading refuses the historical warning")
+	runner.assert_eq(runtime._notice, "旧环境格式不再支持，存档未改；请新开局。", "historical warning rejection gives the reason")
+	runner.assert_true(runtime.world_sim == world and runtime._home._content == content and runtime.world_sim.map_data == terrain, "historical refusal keeps live owners intact")
+	runner.assert_eq(SnapshotValues.canonical_json(SnapshotValues.normalized(GameClock.to_dict())), clock, "historical refusal keeps common time")
+	runner.assert_eq(SnapshotValues.canonical_json(SnapshotValues.normalized(WorldSessionSnapshot.capture(runtime))), before, "historical refusal keeps the complete world")
+	runner.assert_eq(SnapshotValues.canonical_json(SnapshotValues.normalized(source)), input, "staging never mutates the supplied archive")
+	runner.assert_eq(FileAccess.get_file_as_bytes(ARCHIVE), bytes, "historical refusal leaves original file bytes intact")
+
+
+func _cleanup(main: Node, path: String, clock: Dictionary) -> void:
+	if is_instance_valid(main):
+		main.free()
+	for suffix: String in ["", ".tmp", ".bak", ".bak.tmp"]:
+		if FileAccess.file_exists(path + suffix):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
 	GameClock.restore_state(clock)
-	print("SCENARIO actual source care: ordinary voluntary stop or paid NPC drive-off, genuine immutable warning, independent full-world futures, loading delivers before next clock step and nonhuman view isolation")
 
 
 func _main(runner: Object) -> Node:
@@ -42,10 +168,10 @@ func _main(runner: Object) -> Node:
 	return main
 
 
-func _warning_delivery_before_saved_clock(runner: Object) -> void:
+func _warning_delivery_before_saved_clock(runner: Object, archive: String) -> void:
 	var main: Node = _main(runner)
 	var runtime: WorldContinuityRuntime = main._continuity
-	if runtime.load_game(ProjectSettings.globalize_path(ARCHIVE)) != OK:
+	if runtime.load_game(ProjectSettings.globalize_path(archive)) != OK:
 		runner.assert_true(false, "UI warning fixture loads through the actual loader")
 		main.free()
 		return

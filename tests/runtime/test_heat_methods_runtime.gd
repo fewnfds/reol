@@ -6,7 +6,7 @@ const Fixtures = preload("res://tests/runtime/test_world_continuity_runtime.gd")
 func run(runner: Object) -> void:
 	_test_panel_practice(runner)
 	_test_other_life_practice(runner)
-	print("SCENARIO method UI: real foundation→draft→trial→consenting practice→joint restart; old version has no invented techniques")
+	print("SCENARIO method UI: real foundation→draft→trial→consenting practice→joint restart; historical archives are refused")
 
 
 func _test_panel_practice(runner: Object) -> void:
@@ -154,27 +154,11 @@ func _test_other_life_practice(runner: Object) -> void:
 	runner.assert_true(not WorldSessionSnapshot.stage(runtime, saved).is_empty(), "temporary practice occupancy preserves autonomous-human provenance under bird identity")
 	world.artifacts.cancel("player")
 	runner.assert_true(bool(world.regions.home.actors.player.autonomous) and runtime.bird_player_active(), "cancelling human study restores its own agency without changing the player's life")
-	var path: String = ProjectSettings.globalize_path("res://tests/fixtures/session_v14.json")
-	var raw: String = FileAccess.get_file_as_string(path)
-	runner.assert_eq(runtime.load_game(path), OK, "genuine v14 archive migrates in its real terrain/setup through normal file loading")
-	runner.assert_true(runtime.world_sim.heat_methods.methods.is_empty(), "old archive receives no invented draft or knowledge")
-	runner.assert_eq(FileAccess.get_file_as_string(path), raw, "historic v14 fixture remains unchanged")
-	var current_path: String = ProjectSettings.globalize_path("res://tests/fixtures/session_v15.json")
-	var current_source: String = FileAccess.get_file_as_string(current_path)
-	runner.assert_eq(runtime.load_game(current_path), OK, "real M-panel-created two-person lesson archive loads")
-	runner.assert_eq(GameClock.elapsed_ms, 315445, "actual archive resumes during its original paid practice")
-	runner.assert_true(not runtime.world_sim.heat_methods.knows("su_zhi", "heat_method:1"), "actual unfinished archive has no future student mastery")
-	GameClock.advance_msec(70000)
-	var future: String = _canonical(runtime)
-	runner.assert_true(runtime.world_sim.heat_methods.knows("su_zhi", "heat_method:1"), "actual archived practice really completes")
-	main.free()
-	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-	main = load("res://scenes/main.tscn").instantiate()
-	runner.root.add_child(main)
-	runtime = main._continuity
-	runner.assert_eq(runtime.load_game(current_path), OK, "new main scene restores the original v15 practice")
-	GameClock.advance_msec(70000)
-	runner.assert_eq(_canonical(runtime), future, "actual authored lesson and the whole world preserve their future across fresh main scenes")
-	runner.assert_eq(FileAccess.get_file_as_string(current_path), current_source, "actual v15 source is never rewritten to fit a later implementation")
 	main.free()
 	GameClock.restore_state(prior)
+	# The current UI case above already saves and resumes a genuine in-flight
+	# two-person lesson. The actual earlier sessions cannot enter this world.
+	load("res://tests/runtime/helpers/legacy_rejection_archive.gd").run(runner, {
+		"res://tests/fixtures/session_v14.json": "",
+		"res://tests/fixtures/session_v15.json": "",
+	})

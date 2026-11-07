@@ -191,19 +191,25 @@ func _soul_and_genuine_old_archive(runner: Object, main: Node) -> void:
 	adapter.light_adapter.refresh()
 	runner.assert_true(not adapter.light_adapter.light.enabled and adapter.light_adapter.last_projection.is_empty(), "a soul cannot borrow the human's physical light view")
 	runner.assert_true(not adapter.object_adapter._visible(PEARL), "a soul cannot borrow the human's object selection sight")
-	runner.assert_eq(FileAccess.get_sha256(LEGACY_PATH), LEGACY_SHA, "the genuine pre-light root49 fixture has its recorded original bytes")
-	var loaded: Error = adapter.load_game(ProjectSettings.globalize_path(LEGACY_PATH))
-	runner.assert_eq(loaded, OK, "ordinary loading accepts the genuine old world through its existing migration")
-	if loaded != OK:
+	var bytes: PackedByteArray = FileAccess.get_file_as_bytes(LEGACY_PATH)
+	var parsed: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+	runner.assert_eq(FileAccess.get_sha256(LEGACY_PATH), LEGACY_SHA, "the genuine pre-light fixture retains its recorded hash")
+	if bytes.is_empty() or not parsed is Dictionary:
+		runner.assert_true(false, "the real old light archive is readable")
 		return
-	var world: RegionalSimulation = adapter.world_sim
-	runner.assert_true(not world.artifacts.objects.has(PEARL) and not world.artifacts.objects.has(SHARD), "old history gains neither newly issued luminous object")
-	runner.assert_true(not world.artifacts.definitions.types.has(PEARL) and not world.artifacts.definitions.types.has(SHARD), "the old content bundle is not enriched from installed definitions")
-	runner.assert_true(world.artifacts.intrinsic_light_ids().is_empty(), "the derived source index is rebuilt empty from the old object's own definitions")
-	var cell: Vector2i = world.artifacts.object_cell("fire_stone")
-	var light: Dictionary = SimLocalLight.at_cell(world, cell)
-	runner.assert_true(bool(light.get("supported", false)) and int(light.get("artificial_relative", -1)) == 0, "the actual historical enabled source gains no invented local light")
-	runner.assert_eq(FileAccess.get_sha256(LEGACY_PATH), LEGACY_SHA, "ordinary old-world loading leaves the original fixture unchanged")
+	var source: Dictionary = parsed
+	var input: String = _json(source)
+	var live: RegionalSimulation = adapter.world_sim
+	var terrain: WorldMapData = live.map_data
+	var before: String = _canonical(adapter)
+	runner.assert_eq(SessionSaveSchema.rejection_reason(source.get("schema_version")), SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT, "old light archive identifies the retired environment")
+	runner.assert_true(SessionSaveSchema.upgrade(source).is_empty() and WorldSessionSnapshot.stage(adapter, source).is_empty(), "old light archive cannot stage into the current world")
+	runner.assert_eq(adapter.load_game(ProjectSettings.globalize_path(LEGACY_PATH)), ERR_INVALID_DATA, "ordinary loading refuses the genuine old world")
+	runner.assert_true(adapter.world_sim == live and live.map_data == terrain, "old loading refusal preserves original world and terrain owners")
+	runner.assert_eq(_canonical(adapter), before, "old loading refusal preserves the complete current soul session")
+	runner.assert_eq(_json(source), input, "refusal never edits the old input dictionary")
+	runner.assert_eq(FileAccess.get_file_as_bytes(LEGACY_PATH), bytes, "refusal leaves the genuine archive byte-for-byte unchanged")
+	runner.assert_eq(FileAccess.get_sha256(LEGACY_PATH), LEGACY_SHA, "the genuine archive retains its recorded hash")
 
 
 func _canonical(adapter: WorldContinuityRuntime) -> String:

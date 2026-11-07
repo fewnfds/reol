@@ -3,19 +3,17 @@ extends RefCounted
 ## worlds retain their own actual climate curves and never consult a profile.
 
 const Geographic = preload("res://scripts/data/geographic_content.gd")
-const SolarMigrationTest = preload("res://tests/runtime/test_solar_migration.gd")
 const CLIMATE_PATH: String = "res://data/definitions/climate.json"
 const GEOGRAPHY_PATH: String = "res://data/scenarios/world_geography.json"
 const V49_PATH: String = "res://tests/fixtures/session_v49_thermal.json"
 const V49_SHA: String = "a6ae26fad7fff13394ec1a7c9831d5a1fdd85c191222b31213c7f9de138bf8bd"
-const V49_FUTURE_SHA: String = "e49076030565daf86dc5764769b0710dd627bcc8a7d4a3cc0a28ce2069410e95"
 const FUTURE_STEP_MS: int = 62347
 
 
 func run(runner: Object) -> void:
 	_test_isolated_content(runner)
 	_test_ordinary_openings_and_archives(runner)
-	print("SCENARIO geographic content: isolated creation, two real openings, archived curves, current restart and genuine pre-geography migration")
+	print("SCENARIO geographic content: isolated creation, two real openings, archived curves, current restart and genuine pre-geography archive rejection")
 
 
 func _test_isolated_content(runner: Object) -> void:
@@ -86,7 +84,6 @@ func _test_ordinary_openings_and_archives(runner: Object) -> void:
 		runner.assert_true(false, "the default geographic profile compiles for the real opening")
 		return
 	var path: String = "user://tests/geographic_content_%d.json" % Time.get_ticks_usec()
-	var archive_path: String = path + ".legacy50"
 	_reset_clock()
 	var preflight: Node = load("res://scenes/main.tscn").instantiate()
 	runner.assert_true(preflight.configure_opening_content(expected_default.content_bundle()), "an independently compiled bundle can configure a new Main")
@@ -162,45 +159,32 @@ func _test_ordinary_openings_and_archives(runner: Object) -> void:
 			runner.assert_eq(_json(second._content.content_bundle()), _json(default_content), "Main is rebound to the restored content version")
 			GameClock.advance_msec(FUTURE_STEP_MS)
 			runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), expected_future, "loading into a differently configured Main produces the same complete future")
-	_test_legacy_archive(runner, runtime, archive_path)
+	_test_legacy_archive(runner, runtime)
 	second.free()
 	GameClock.restore_state(saved_clock)
 	_remove(path)
-	_remove(archive_path)
 
 
-func _test_legacy_archive(runner: Object, runtime: WorldContinuityRuntime, path: String) -> void:
+func _test_legacy_archive(runner: Object, runtime: WorldContinuityRuntime) -> void:
 	var original: PackedByteArray = FileAccess.get_file_as_bytes(V49_PATH)
-	var hash: String = FileAccess.get_sha256(V49_PATH)
-	runner.assert_eq(hash, V49_SHA, "the existing native root49 fixture has its recorded original bytes")
 	var parsed: Variant = JSON.parse_string(original.get_string_from_utf8())
-	if hash != V49_SHA or not parsed is Dictionary:
-		runner.assert_true(false, "native legacy geography fixture is available and intact")
+	runner.assert_eq(FileAccess.get_sha256(V49_PATH), V49_SHA, "the genuine pre-geography archive retains its recorded hash")
+	if original.is_empty() or not parsed is Dictionary:
+		runner.assert_true(false, "the genuine pre-geography archive is readable")
 		return
-	var prior: Dictionary = parsed
-	var migrated: Error = runtime.load_game(ProjectSettings.globalize_path(V49_PATH))
-	runner.assert_eq(migrated, OK, "ordinary load accepts the genuine active-device root49 archive")
-	if migrated != OK:
-		return
-	var current: Dictionary = WorldSessionSnapshot.capture(runtime)
-	var solar_test := SolarMigrationTest.new()
-	runner.assert_eq(_json(solar_test._prior_climate(current)), _json(prior), "migration preserves every old fact after projecting only the fixed solar addition")
-	runner.assert_eq(_json(current.content_bundle.documents[CLIMATE_PATH].regions), _json(prior.content_bundle.documents[CLIMATE_PATH].regions), "historical region temperature curves are not recompiled")
-	runner.assert_true(bool(current.continuity.world.artifacts.objects.fire_stone.enabled), "the historical original device remains active")
-	var saved: Error = runtime.save_game(path)
-	runner.assert_eq(saved, OK, "the migrated native world can be saved with the current root50 format")
-	if saved == OK:
-		GameClock.advance_msec(35000)
-		var future: Dictionary = WorldSessionSnapshot.capture(runtime)
-		runner.assert_eq(int(future.continuity.world.artifacts.objects.fire_stone.stored_q), 144827000, "the old device consumes the recorded original energy after migration")
-		runner.assert_eq(_json(solar_test._prior_climate(future)).sha256_text(), V49_FUTURE_SHA, "old-code future retains its independently recorded complete-state hash")
-		var restored: Error = runtime.load_game(path)
-		runner.assert_eq(restored, OK, "the ordinary loader accepts the newly saved old-climate root50 checkpoint")
-		if restored == OK:
-			runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), _json(current), "root50 load retains its saved old curves and all checkpoint facts")
-			GameClock.advance_msec(35000)
-			runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), _json(future), "old-climate root50 restart reaches the same complete future")
-	runner.assert_eq(FileAccess.get_file_as_bytes(V49_PATH), original, "migration and restart never rewrite the historical fixture")
+	var source: Dictionary = parsed
+	var input: String = _json(source)
+	var live: RegionalSimulation = runtime.world_sim
+	var terrain: WorldMapData = live.map_data
+	var before: String = _json(WorldSessionSnapshot.capture(runtime))
+	runner.assert_eq(SessionSaveSchema.rejection_reason(source.get("schema_version")), SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT, "the old climate archive reports the retired environment")
+	runner.assert_true(SessionSaveSchema.upgrade(source).is_empty() and WorldSessionSnapshot.stage(runtime, source).is_empty(), "old geography cannot be staged into a current world")
+	runner.assert_eq(runtime.load_game(ProjectSettings.globalize_path(V49_PATH)), ERR_INVALID_DATA, "the ordinary loader rejects the genuine old climate archive")
+	runner.assert_true(runtime.world_sim == live and live.map_data == terrain, "rejection retains the current world and map")
+	runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), before, "rejection preserves the entire current climate session")
+	runner.assert_eq(_json(source), input, "the old input dictionary remains unchanged")
+	runner.assert_eq(FileAccess.get_file_as_bytes(V49_PATH), original, "the historical fixture bytes remain unchanged")
+	runner.assert_eq(FileAccess.get_sha256(V49_PATH), V49_SHA, "the historical fixture hash remains unchanged")
 
 
 func _reset_clock() -> void:

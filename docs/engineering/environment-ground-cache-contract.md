@@ -1,10 +1,10 @@
 # 真实地面来源的分块基础目标缓存
 
-`SimEnvironmentGroundCache` 是权威开发接口，服务于普通世界接管之前的环境底座。它绑定原世界，不持有第二套实物、数量、位置或时钟。输出是当前来源合成的基础目标，**没有实际温度、五行残留或移动携物场**；普通Main仍沿原冷热模型。
+`SimEnvironmentGroundCache` 是独立的权威开发查询/计算接口；它绑定原世界，不持有第二套实物、数量、位置或时钟。输出只是当前地面来源合成的基础目标，**没有实际温度、五行残留或移动携物场**。普通Main使用同一类场核及独立的[世界环境所有者](world-environment-contract.md)，不要将本开发服务与普通环境域混为一份状态。
 
 ## 定义与计算
 
-- 输入为已配置的`EnvironmentSourceDefinitions`；profiles与内容digest沿[A1来源合同](environment-source-query-contract.md)，不自动从磁盘补定义，不加入普通存档。
+- 输入为已配置的`EnvironmentSourceDefinitions`；profiles与内容digest沿[A1来源合同](environment-source-query-contract.md)；普通内容包2保存来源定义，缓存本身不落普通存档。
 - `SimEnvironmentFieldRules.BASE_TARGET_RULE_VERSION=2`统一最近整数舍入；冷热先对绝对强度舍入再恢复符号，避免冷源向零截断的不对称。旧A1 QA继续描述旧SHA。
 - 对外五行顺序木/火/土/金/水；packed内部金/木/水/火/土/热侧极值/冷侧极值。纯转换函数明确映射，净冷热为两侧max之差。热冷极值不是物品新增属性。
 - A1地面静物发源仍为锚格加`floor((size-1)/2)`，偶数向左上；多格实物只贡献一源，同类堆不按数量放大。
@@ -24,7 +24,7 @@
 
 第一次装配按16×16空间桶扫描完整占地，只有锚点所在桶登记该物，避免跨桶重复。每步处理一个有限桶查询或一条来源投影；一桶最多256件排他地面物，桶查询自身不能任意细分，耗时单独计入。来源和索引从原owner派生，不调用全世界`to_dict()`，不把历史inactive槽复制到来源库。
 
-ready不表示所有地图块都已构建，须同时看pending_sources和pending_tiles。未请求块可以一直不建；首次读会登记该块。基础目标可丢弃重建，不可丢弃未来接入的实际环境历史。
+ready不表示所有地图块都已构建，须同时看pending_sources和pending_tiles。未请求块可以一直不建；首次读会登记该块。基础目标可丢弃重建，普通世界的实际环境历史仍由[环境所有者](world-environment-contract.md)保存。
 
 普通CPU初建使用原`SimEnvironmentGroundField`的16²来源块逐通道等级计数/最大堆：每个目标块只汇总最大半径覆盖到的来源块，所得保守强度上界用于原距离有序搜索。汇总每个来源块占一个work，完成后才开始接收格计算；原整数核/舍入/max和完整块发布不变。直接增删/移动和候选提交均维护派生计数，同强/次强和空块回收保留；不复制实物或保存第二份场。候选搜索仍用原排除旧slot的全局上界，GPU仍用已有独立基础场管线，不因这个索引自动提速。
 
@@ -44,7 +44,7 @@ ready不表示所有地图块都已构建，须同时看pending_sources和pendin
 
 ## 恢复、失败与时间
 
-world恢复替换原所有者后旧服务立即拒绝使用，即便新实例有相同时间和数字revision。同实例inventory/artifacts恢复也改变epoch。缓存不写普通存档，恢复后从验证过的原世界重新装配；不扩schema51/区域42。
+world恢复替换原所有者后旧服务立即拒绝使用，即便新实例有相同时间和数字revision。同实例inventory/artifacts恢复也改变epoch。缓存不写普通存档，恢复后从验证过的原世界重新装配；普通存档当前版本见[兼容性](compatibility.md)。
 
 building期间发生物件事务会中止装配并报initialization_changed，不能把前后时刻拼成新场；关闭后重新绑定即可重做。缺profile、owner替换、未追踪变更和工作异常不发布半结果，也不改原物、账本或时间。重复command只返回原回执，不制造第二次失效。
 
@@ -71,4 +71,4 @@ building期间发生物件事务会中止装配并报initialization_changed，�
 - `tools/benchmarks/environment_ground_cache_guard.py`：串行运行64²至512²真实混合地面物，外部限制时间和进程内存，测装配、局部/全图冷建、热读及变动重算。
 - `tools/bench_environment_cold_build.py`：真实密集来源，分开装配与CPU冷建，输出work、分片分位、外部进程内存和独立原物参考；同参数对照口径见[初建QA](../qa/20261106_environment_cold_build.md)。
 
-工程合同不代替受检SHA及数值证据；本包完成记录见[缓存QA](../qa/20261105_environment_ground_cache.md)。后续实际响应和普通接管仍须单独排包。
+工程合同不代替受检SHA及数值证据；历史开发缓存记录见[缓存QA](../qa/20261105_environment_ground_cache.md)。普通运行范围及尚未完成的最终验收见[世界环境合同](world-environment-contract.md)和[接续](../status/handoff.md)。

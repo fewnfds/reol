@@ -48,36 +48,8 @@ func _canonical(runtime: WorldContinuityRuntime) -> String:
 
 
 func _actual_archives(runner: Object) -> void:
-	var prior: Dictionary = GameClock.to_dict()
-	var old_path: String = "res://tests/fixtures/wage_claim_v26.json"
-	var old_bytes: String = FileAccess.get_file_as_string(old_path)
-	var path: String = "res://tests/fixtures/conversation_v26.json"
-	var bytes: String = FileAccess.get_file_as_string(path)
-	var expected: String = ""
-	for attempt: int in 2:
-		GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
-		var main: Node = load("res://scenes/main.tscn").instantiate()
-		runner.root.add_child(main)
-		var runtime: WorldContinuityRuntime = main._continuity
-		if attempt == 0:
-			runner.assert_eq(runtime.load_game(ProjectSettings.globalize_path(old_path)), OK, "genuine wage v26 still loads without a new format or fabricated speech")
-			runner.assert_true(SimCapabilityConversation.latest(runtime.world_sim, "player").is_empty(), "old wage archive invents no new social introduction")
-		var err: Error = runtime.load_game(ProjectSettings.globalize_path(path))
-		runner.assert_eq(err, OK, "genuine clicked conversation archive loads normally")
-		if err != OK:
-			main.free()
-			continue
-		runtime.interaction_adapter.show_panel()
-		runner.assert_true(runtime.interaction_adapter._progress.text.contains("陈守拙") and runtime.interaction_adapter._progress.text.contains("代表公库"), "reopening reconstructs the participant's actual official introduction")
-		runner.assert_eq(GameClock.elapsed_ms, 1001, "real conversation archive retains original fractional world time")
-		var cook: Dictionary = runtime._home.simulation.actors.a_he
-		runner.assert_true(cook.autonomous or runtime.world_sim.artifacts.active.get("a_he", {}).get("previous_autonomous", false), "genuine scene keeps autonomous life including original ongoing study")
-		GameClock.advance_msec(180000)
-		if attempt == 0:
-			expected = _canonical(runtime)
-		else:
-			runner.assert_eq(_canonical(runtime), expected, "genuine private conversation yields identical entire future in new scenes")
-		main.free()
-	runner.assert_eq(FileAccess.get_file_as_string(path), bytes, "test never generates or rewrites clicked conversation fixture")
-	runner.assert_eq(FileAccess.get_file_as_string(old_path), old_bytes, "previous wage fixture stays byte-for-byte original")
-	GameClock.restore_state(prior)
+	# Current real speech, authorized UI recall and the joint future remain in run().
+	load("res://tests/runtime/helpers/legacy_rejection_archive.gd").run(runner, {
+		"res://tests/fixtures/wage_claim_v26.json": "1ebf265690d16bea20290261292abbe20232b74d8f7a266e79a83fa731350c19",
+		"res://tests/fixtures/conversation_v26.json": "d493d2c58815eaf289ebd5a91399a86cd0ab07514dedcc0eb9e59f73d77d342a",
+	})

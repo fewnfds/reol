@@ -129,18 +129,17 @@ func _test_visitor_duration(runner: Object) -> void:
 
 
 func _test_legacy_single_fraction(runner: Object) -> void:
-	var content := ReolContentDB.new()
-	runner.assert_true(content.load_all(), "legacy standalone migration loads the actual content")
-	var source: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/session_v5.json"))
-	source.erase("continuity")
-	var upgraded: Dictionary = SessionSaveSchema.upgrade(source, content)
-	runner.assert_true(not upgraded.is_empty(), "a standalone v5 fractional clock can follow the explicit migration chain")
-	if upgraded.is_empty():
+	# Current fractional routes and recovery, including real save/load and
+	# sparse/fine continuation, remain covered by the cases above.
+	var source: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/session_v5.json"))
+	if not source is Dictionary:
+		runner.assert_true(false, "the real old fractional archive is readable")
 		return
-	runner.assert_eq(upgraded.simulation.elapsed_ms, 2800, "standalone migration anchors native life to the same captured milliseconds")
-	runner.assert_eq(upgraded.simulation.tick_index, source.simulation.tick_index, "standalone migration does not replay an unknown partial minute")
-	var restored := VillageSimulation.new()
-	var cells: Dictionary = {}
-	for id: String in upgraded.simulation.actors:
-		cells[id] = upgraded.simulation.actors[id].cell
-	runner.assert_true(restored.initialize(content, upgraded.simulation.config, cells, upgraded.simulation.places) and restored.restore(upgraded.simulation), "standalone native candidates retain valid routes after phase anchoring")
+	var standalone: Dictionary = source.duplicate(true)
+	standalone.erase("continuity")
+	var before: String = SnapshotValues.canonical_json(SnapshotValues.normalized(standalone))
+	runner.assert_true(SessionSaveSchema.upgrade(standalone).is_empty() and WorldSessionSnapshot.stage(null, standalone).is_empty(), "old standalone input is rejected before any active runtime is consulted")
+	runner.assert_eq(SnapshotValues.canonical_json(SnapshotValues.normalized(standalone)), before, "standalone rejection preserves the supplied candidate")
+	load("res://tests/runtime/helpers/legacy_rejection_archive.gd").run(runner, {
+		"res://tests/fixtures/session_v5.json": "",
+	})

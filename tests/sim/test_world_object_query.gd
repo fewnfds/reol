@@ -81,6 +81,15 @@ func _world(runner: Object) -> Dictionary:
 	variant.name = "第二种练习器"
 	world._content.artifacts.types["test_other_weapon"] = variant.duplicate(true)
 	world.artifacts.definitions.types["test_other_weapon"] = variant.duplicate(true)
+	# This fixture introduces real content, so enroll its ordinary material
+	# projection as well instead of relying on an unbound implicit zero.
+	var source_rules: Dictionary = world._content.environment_sources.to_dict()
+	source_rules.bindings.artifacts["test_other_weapon"] = source_rules.bindings.artifacts.wooden_sword
+	var source_definitions := EnvironmentSourceDefinitions.new()
+	if not source_definitions.configure(source_rules):
+		runner.assert_true(false, "the additional real content has an explicit source profile")
+		return {}
+	world._content.environment_sources = source_definitions
 	var opening: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/scenarios/artifacts.json"))
 	if not opening is Dictionary:
 		runner.assert_true(false, "artifact opening fixture is valid")

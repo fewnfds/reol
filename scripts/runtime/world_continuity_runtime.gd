@@ -192,6 +192,9 @@ func setup(home: VillageRuntime, opening_source_loan: bool = false, opening_sour
 	if opening_field and world_sim.elapsed_ms == 0 and not world_sim.field_opportunities.spawn_opening(centers):
 		push_error("World continuity: no reachable field opportunity opening")
 		return false
+	if not world_sim.local_heat.activate_sources():
+		push_error("World continuity: environmental sources could not activate")
+		return false
 	_bind_navigation()
 	_build_panel()
 	object_adapter = WorldObjectsRuntime.new()
@@ -584,22 +587,7 @@ func advance_to_ms(target_ms: int) -> int:
 	var prior_labor_status: String = str(world_sim.budgeted_labor.contracts[prior_labor_id].status) if not prior_labor_id.is_empty() else ""
 	var cursor: int = world_sim.elapsed_ms
 	while cursor < target_ms:
-		var end: int = target_ms
-		end = mini(end, world_sim.construction.next_boundary_ms())
-		end = mini(end, world_sim.resting.next_boundary_ms())
-		end = mini(end, world_sim.weather.next_boundary_ms())
-		end = mini(end, world_sim.clothing.next_boundary_ms())
-		end = mini(end, world_sim.health.next_boundary_ms())
-		end = mini(end, world_sim.spirit_sources.next_boundary_ms())
-		end = mini(end, world_sim.conflicts.next_boundary_ms())
-		end = mini(end, world_sim.source_care.next_boundary_ms())
-		end = mini(end, world_sim.field_opportunities.next_boundary_ms())
-		end = mini(end, world_sim.private_exchange.next_boundary_ms())
-		end = mini(end, world_sim.capability_practice.next_boundary_ms())
-		end = mini(end, world_sim.environment.next_boundary_ms())
-		end = mini(end, world_sim.local_heat.next_boundary_ms())
-		end = mini(end, world_sim.large_bodies.next_boundary_ms())
-		end = mini(end, world_sim.personal_production.next_boundary_ms())
+		var end: int = world_sim.next_runtime_boundary_ms(target_ms)
 		if not world_sim.local_heat.can_settle_at_ms(end):
 			world_sim.target_ms = maxi(world_sim.target_ms, target_ms)
 			GameClock.set_paused(true)
@@ -1189,7 +1177,12 @@ func save_game(path: String) -> Error:
 		_refresh_panel()
 		return ERR_BUSY
 	_home._sync_player_cell()
-	var result: Error = SimSaveStore.save_file(path, WorldSessionSnapshot.capture(self))
+	var snapshot: Dictionary = WorldSessionSnapshot.capture(self)
+	if snapshot.is_empty():
+		_notice = "世界事务尚未完成，暂不能保存；已有存档保持原样。"
+		_refresh_panel()
+		return ERR_BUSY
+	var result: Error = SimSaveStore.save_file(path, snapshot)
 	_notice = "两地近况和在途事务已记下。" if result == OK else "保存失败：%s" % error_string(result)
 	_refresh_panel()
 	return result
@@ -1201,6 +1194,8 @@ func load_game(path: String) -> Error:
 	var loaded: Dictionary = SimSaveStore.load_file(path)
 	if not bool(loaded.get("ok", false)) or not loaded.get("data") is Dictionary:
 		return _session_load_failed("没有读到可用近况，请先保存一次。")
+	if SessionSaveSchema.rejection_reason(loaded.data.get("schema_version")) == SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT:
+		return _session_load_failed("旧环境格式不再支持，存档未改；请新开局。")
 	var staged: Dictionary = WorldSessionSnapshot.stage(self, loaded.data)
 	if staged.is_empty():
 		return _session_load_failed("近况里的时间、行动或账目不适用于当前世界。")

@@ -59,34 +59,105 @@ func _test_third_life_and_finite_perspective(runner: Object) -> void:
 func _test_actual_carry_archive_and_identity(runner: Object) -> void:
 	var prior: Dictionary = GameClock.to_dict()
 	var main: Node = _new_scene(runner)
-	var runtime: WorldContinuityRuntime = main._continuity
-	var path: String = ProjectSettings.globalize_path("res://tests/fixtures/session_v13.json")
-	var original: String = FileAccess.get_file_as_string(path)
-	runner.assert_eq(runtime.load_game(path), OK, "actual clicked third-life carry archive loads in the normal opening scene")
-	runner.assert_eq(GameClock.elapsed_ms, 12000, "actual soul archive keeps its shared fractional travel time")
-	runner.assert_eq(runtime.avatar_subject, "subject:soul:yan_heng", "actual archive resumes the same independent resident")
-	runner.assert_eq(runtime.world_sim.soul_vessels.vessels.old_ring.container, "actor:player", "actual original human is carrying the actual unique ring")
-	runner.assert_true(runtime.world_sim.soul_vessels.agency.errands.player.picked and not runtime.world_sim.regions.home.actors.player.autonomous, "accepted helper temporarily owns a physical carry job rather than becoming player-controlled")
-	runner.assert_true(not main._avatar.opening.visible and main._avatar.soul._sense.visible, "loading a soul archive locks the opening and immediately restores its limited screen")
-	runner.assert_eq(main._avatar.global_position, runtime.world_sim.soul_vessels.agency.point("yan_heng"), "loaded camera source comes from actual carried position")
-	var saved: Dictionary = WorldSessionSnapshot.capture(runtime)
-	main.player._intent = Vector2.RIGHT
-	GameClock.advance_msec(100000)
-	var expected: String = _canonical(runtime)
-	runner.assert_true(runtime.world_sim.soul_vessels.agency.errands.is_empty() and runtime.world_sim.regions.home.actors.player.autonomous, "helper fulfills the carry and returns to his own life")
-	runner.assert_eq(runtime.world_sim.soul_vessels.agency.events.back().at_ms, 12718, "actual approach and carrying finish only after physical travel time")
+	var path: String = _unused_path()
+	if path.is_empty():
+		runner.assert_true(false, "soul carry has an unused temporary save path")
+	else:
+		_current_carry_and_identity(runner, main, path)
+	_remove(path)
 	main.free()
-	main = _new_scene(runner)
-	runtime = main._continuity
-	runner.assert_eq(runtime.load_game(path), OK, "fresh scene restores the same real in-progress soul world")
-	GameClock.advance_msec(100000)
-	runner.assert_eq(_canonical(runtime), expected, "inputless fresh scene and human input during soul life have the same continued whole world")
+	GameClock.restore_state(prior)
+	# Current carry, consent and whole-world sparse/fine restoration also have
+	# independent regional coverage in tests/sim/test_soul_agency.gd.
+	load("res://tests/runtime/helpers/legacy_rejection_archive.gd").run(runner, {
+		"res://tests/fixtures/session_v12.json": "",
+		"res://tests/fixtures/session_v13.json": "",
+	})
+	print("SCENARIO soul player: finite senses, actual cooperation, original carry and current joint restart")
+
+
+func _current_carry_and_identity(runner: Object, main: Node, path: String) -> void:
+	var runtime: WorldContinuityRuntime = main._continuity
+	var chosen: bool = main._avatar.choose("subject:soul:yan_heng")
+	runner.assert_true(chosen, "current opening chooses the original independent soul")
+	if not chosen:
+		return
+	GameClock.set_paused(true)
+	var world: RegionalSimulation = runtime.world_sim
+	var agency: SimSoulAgency = world.soul_vessels.agency
+	# Controlled initial placement keeps the real former human within hearing;
+	# the request, consent, actual pickup, carrying and cost remain real actions.
+	var ring_cell: Vector2i = world.soul_vessels.vessel_cell("old_ring")
+	world.regions.home.cancel_action("player", "fixture_setup")
+	world.regions.home.actors.player.retry_ms = GameClock.elapsed_ms + 10000
+	main.player.spawn_at(ring_cell)
+	runtime._home._sync_player_cell()
+	world.invalidate_region("home")
+	main._avatar.soul._selected = "player"
+	main._avatar.soul.project()
+	var response: Dictionary = main._avatar.soul.submit("call")
+	runner.assert_true(bool(response.get("ok", false)), "the soul sends an actual request to the nearby former human")
+	if not bool(response.get("ok", false)):
+		return
+	GameClock.advance_msec(int(world.soul_vessels.definitions.agency.actions["call"].ms))
+	var accepted: bool = agency.errands.has("player")
+	runner.assert_true(accepted, "the original human independently accepts the request")
+	if not accepted:
+		return
+	var deadline: int = GameClock.elapsed_ms + 120000
+	while agency.errands.has("player") and not bool(agency.errands.player.picked) and GameClock.elapsed_ms < deadline:
+		var next: int = agency.next_boundary_ms()
+		if next <= GameClock.elapsed_ms:
+			break
+		GameClock.advance_msec(next - GameClock.elapsed_ms)
+	var carrying: bool = agency.errands.has("player") and bool(agency.errands.player.picked)
+	runner.assert_true(carrying, "the same original human physically picks up the unique ring before the checkpoint")
+	if not carrying:
+		return
+	runner.assert_eq(world.soul_vessels.vessels.old_ring.container, "actor:player", "the real original ring is in the real helper's custody")
+	runner.assert_true(not world.regions.home.actors.player.autonomous, "accepted carry temporarily occupies the original autonomous body")
+	var saved: Dictionary = WorldSessionSnapshot.capture(runtime)
+	var before: String = _canonical(runtime)
 	var corrupt: Dictionary = saved.duplicate(true)
 	corrupt.continuity.world.soul_vessels.agency.social.requests = {}
 	runner.assert_true(WorldSessionSnapshot.stage(runtime, corrupt).is_empty(), "joint carry without the actual helper's consent is rejected")
-	runner.assert_eq(FileAccess.get_file_as_string(path), original, "actual v13 source archive remains immutable")
-	runner.assert_eq(runtime.load_game(ProjectSettings.globalize_path("res://tests/fixtures/session_v12.json")), OK, "same scene can still return to the actual older human lesson")
-	runner.assert_true(runtime.human_player_active() and runtime.world_sim.soul_vessels.agency.manual.is_empty() and not main._avatar.soul._sense.visible, "old migration never steals player identity or invents a past manual soul")
-	main.free()
-	GameClock.restore_state(prior)
-	print("SCENARIO soul player: finite anonymous senses, actual cooperation and original human carry; same identity and world survive restart")
+	runner.assert_eq(_canonical(runtime), before, "bad carry candidate leaves the real process untouched")
+	var error: Error = runtime.save_game(path)
+	runner.assert_eq(error, OK, "ordinary saver records the current in-flight soul carry")
+	if error != OK:
+		return
+	main.player._intent = Vector2.RIGHT
+	GameClock.advance_msec(100000)
+	var future: String = _canonical(runtime)
+	runner.assert_true(runtime.world_sim.soul_vessels.agency.errands.is_empty() and runtime.world_sim.regions.home.actors.player.autonomous, "actual carry completes and the helper returns to independent life")
+	var loaded: Error = runtime.load_game(path)
+	runner.assert_eq(loaded, OK, "ordinary loader restores the same current in-progress carry")
+	if loaded != OK:
+		return
+	runner.assert_eq(runtime.avatar_subject, "subject:soul:yan_heng", "load restores the same independent soul identity")
+	runner.assert_true(not main._avatar.opening.visible and main._avatar.soul._sense.visible, "load restores the soul's limited screen")
+	runner.assert_eq(main._avatar.global_position, runtime.world_sim.soul_vessels.agency.point("yan_heng"), "camera follows the actual carried vessel")
+	main.player._intent = Vector2.ZERO
+	GameClock.advance_msec(100000)
+	runner.assert_eq(_canonical(runtime), future, "restored carry and inputless continuation yield the same complete world")
+
+
+func _unused_path() -> String:
+	for attempt: int in 100:
+		var path: String = "user://tests/soul_carry_%d_%d.json" % [Time.get_ticks_usec(), attempt]
+		var occupied: bool = false
+		for suffix: String in ["", ".tmp", ".bak", ".bak.tmp"]:
+			if FileAccess.file_exists(path + suffix):
+				occupied = true
+				break
+		if not occupied:
+			return path
+	return ""
+
+
+func _remove(path: String) -> void:
+	if path.is_empty():
+		return
+	for suffix: String in ["", ".tmp", ".bak", ".bak.tmp"]:
+		if FileAccess.file_exists(path + suffix):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))

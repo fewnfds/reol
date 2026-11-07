@@ -13,7 +13,7 @@ func run(runner: Object) -> void:
 	_village_fine_batch(runner)
 	_near_far_views(runner)
 	_legacy_and_invalid_snapshots(runner)
-	print("SCENARIO body facing: one original heading, stable route direction, relocation/wall boundaries, fine/batched/restarted continuation and explicit legacy migration")
+	print("SCENARIO body facing: one original heading, stable route direction, relocation/wall boundaries, fine/batched/restarted continuation and explicit legacy rejection")
 
 
 func _body() -> Dictionary:
@@ -152,29 +152,65 @@ func _regional_state(world: RegionalSimulation) -> String:
 
 
 func _legacy_and_invalid_snapshots(runner: Object) -> void:
-	var content := ReolContentDB.new()
-	runner.assert_true(content.load_all(), "body migration uses the actual current definitions")
 	var path: String = "res://tests/fixtures/session_v30.json"
-	var original: String = FileAccess.get_file_as_string(path)
-	var legacy: Dictionary = JSON.parse_string(original)
-	var upgraded: Dictionary = SessionSaveSchema.upgrade(legacy, content)
-	runner.assert_true(not upgraded.is_empty(), "genuine v30 world explicitly migrates its original bodies")
-	if upgraded.is_empty():
+	var original: PackedByteArray = FileAccess.get_file_as_bytes(path)
+	var legacy: Dictionary = JSON.parse_string(original.get_string_from_utf8())
+	runner.assert_eq(FileAccess.get_sha256(path), "3c977831104d238ec0fb02c28a74fc0dd8abed07faf313b7c3cec3e945b57588", "the real v30 body archive retains its recorded bytes")
+	runner.assert_eq(int(legacy.schema_version), 30, "the body archive retains its original root version")
+	runner.assert_eq(SessionSaveSchema.rejection_reason(legacy.schema_version), SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT, "v30 reports the explicit old-environment rejection")
+	runner.assert_true(SessionSaveSchema.upgrade(legacy).is_empty(), "v30 cannot be silently upgraded into a world without its actual field history")
+	var saved_clock: Dictionary = GameClock.to_dict()
+	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
+	var main: Node = load("res://scenes/main.tscn").instantiate()
+	runner.root.add_child(main)
+	var runtime: WorldContinuityRuntime = main._continuity
+	if runtime == null or runtime.world_sim == null:
+		runner.assert_true(false, "ordinary scene initializes for body archive rejection")
+		main.free()
+		GameClock.restore_state(saved_clock)
 		return
-	runner.assert_eq(upgraded.schema_version, SessionSaveSchema.VERSION, "session records the body-facing migration before reaching the current format")
-	runner.assert_eq(upgraded.continuity.world.version, RegionalSimulation.SCHEMA_VERSION, "regional ownership reaches the current format without a duplicate animation domain")
-	runner.assert_eq(upgraded.simulation.version, VillageSimulation.SCHEMA_VERSION, "the original village owns the new persistent field")
-	runner.assert_eq(_canonical(upgraded.simulation.actors.player.facing), _canonical(legacy.player.motion.facing), "legacy player's recorded exact motion direction becomes its original body direction")
-	runner.assert_eq(_canonical(upgraded.simulation), _canonical(upgraded.continuity.world.regions.home), "root and regional home copies migrate identically")
-	for region: Dictionary in upgraded.continuity.world.regions.values():
-		for id: String in region.actors:
-			if id != "player":
-				runner.assert_eq(region.actors[id].facing, [0.0, 1.0], "unknown historical NPC heading gets an explicit deterministic default")
-	var damaged: Dictionary = legacy.duplicate(true)
+	var live_world: RegionalSimulation = runtime.world_sim
+	var live_content: ReolContentDB = runtime._home._content
+	var live_map: WorldMapData = live_world.map_data
+	var current: Dictionary = WorldSessionSnapshot.capture(runtime)
+	var stable: String = _canonical(current)
+	var stable_clock: String = _canonical(GameClock.to_dict())
+	runner.assert_true(WorldSessionSnapshot.stage(runtime, legacy).is_empty(), "the original v30 candidate is rejected before publishing a world")
+	runner.assert_eq(runtime.load_game(ProjectSettings.globalize_path(path)), ERR_INVALID_DATA, "ordinary loading refuses the real v30 body archive")
+	runner.assert_eq(runtime._notice, "旧环境格式不再支持，存档未改；请新开局。", "ordinary loading explains why the old archive cannot be opened")
+	runner.assert_true(runtime.world_sim == live_world and runtime._home._content == live_content and runtime.world_sim.map_data == live_map, "rejecting v30 leaves the world, content and map owners untouched")
+	runner.assert_eq(_canonical(GameClock.to_dict()), stable_clock, "rejecting v30 does not alter the shared clock")
+	runner.assert_eq(_canonical(WorldSessionSnapshot.capture(runtime)), stable, "rejecting v30 preserves the complete current session and body")
+	runner.assert_eq(FileAccess.get_file_as_bytes(path), original, "rejecting v30 never rewrites the real archive")
+	# Current-format cases must exercise real validation, rather than passing
+	# merely because the original source was an unsupported old version.
+	runner.assert_true(not WorldSessionSnapshot.stage(runtime, current).is_empty(), "the undamaged current body candidate is independently loadable")
+	var temp_path: String = "user://tests/body_facing_%d.json" % Time.get_ticks_usec()
+	var damaged: Dictionary = current.duplicate(true)
 	damaged.continuity.world.regions.home.actors.player.energy = float(damaged.continuity.world.regions.home.actors.player.energy) - 1.0
-	runner.assert_true(SessionSaveSchema.upgrade(damaged, content).is_empty(), "body migration cannot conceal a mismatch between original home copies")
-	damaged = legacy.duplicate(true)
-	damaged.simulation.actors.player["facing"] = [0.0, 1.0]
-	damaged.continuity.world.regions.home.actors.player["facing"] = [0.0, 1.0]
-	runner.assert_true(SessionSaveSchema.upgrade(damaged, content).is_empty(), "modern facing cannot bypass validation by relabeling itself as an old body")
-	runner.assert_eq(FileAccess.get_file_as_string(path), original, "genuine v30 history is never regenerated or overwritten")
+	_reject_current_body(runtime, damaged, temp_path, runner, "mismatched original home bodies")
+	damaged = current.duplicate(true)
+	var facing: Array = damaged.player.motion.facing
+	damaged.player.motion.facing = [0.0, 1.0] if absf(float(facing[0])) > 0.1 else [1.0, 0.0]
+	_reject_current_body(runtime, damaged, temp_path, runner, "a motion heading that disagrees with the original body")
+	for suffix: String in ["", ".tmp", ".bak", ".bak.tmp"]:
+		if FileAccess.file_exists(temp_path + suffix):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(temp_path + suffix))
+	main.free()
+	GameClock.restore_state(saved_clock)
+
+
+func _reject_current_body(runtime: WorldContinuityRuntime, candidate: Dictionary, path: String, runner: Object, label: String) -> void:
+	var old_world: RegionalSimulation = runtime.world_sim
+	var old_content: ReolContentDB = runtime._home._content
+	var old_map: WorldMapData = old_world.map_data
+	var before: String = _canonical(WorldSessionSnapshot.capture(runtime))
+	var old_clock: String = _canonical(GameClock.to_dict())
+	var original: String = _canonical(candidate)
+	runner.assert_true(WorldSessionSnapshot.stage(runtime, candidate).is_empty(), label + " is rejected during staging")
+	runner.assert_eq(SimSaveStore.save_file(path, candidate), OK, label + " can be represented as an untrusted current-format save")
+	runner.assert_eq(runtime.load_game(path), ERR_INVALID_DATA, label + " is rejected by ordinary loading")
+	runner.assert_true(runtime.world_sim == old_world and runtime._home._content == old_content and runtime.world_sim.map_data == old_map, label + " leaves the live owners unchanged")
+	runner.assert_eq(_canonical(GameClock.to_dict()), old_clock, label + " leaves the shared clock unchanged")
+	runner.assert_eq(_canonical(WorldSessionSnapshot.capture(runtime)), before, label + " leaves the full current session unchanged")
+	runner.assert_eq(_canonical(candidate), original, label + " does not mutate the rejected input")
