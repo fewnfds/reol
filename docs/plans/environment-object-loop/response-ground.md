@@ -1,5 +1,7 @@
 # 下一小包：真实静止来源的连续环境闭环
 
+> 制定时方案快照；正文的旧版本、待验与“下一包”只描述当时，不能作当前施工依据。现有接入见[技术总表](../../status/technical-status.md)，适用性见[本目录说明](README.md)。
+
 本页是本包验收规格；实施与验证状态只看[接续](../../status/handoff.md)，当前接口见[实现合同](../../engineering/environment-response-contract.md)。沿[环境规则](../../../design/rules/environment.md)及[连续响应合同](continuity.md)，不另定一套世界法则。
 
 ## 要得到什么

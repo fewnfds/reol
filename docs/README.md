@@ -8,9 +8,11 @@
 | 某个系统怎样设计，参考了什么 | [设计与研究](../design/README.md) |
 | 现在在做什么，未提交内容是什么 | [当前接续](status/handoff.md) |
 | 游戏现在实际有什么功能 | [功能与边界](status/features.md) |
+| 已定技术是否进main、哪些仍是原型 | [技术落地总表](status/technical-status.md) |
 | 版本及验证到什么程度 | [证据基线](status/baseline.md)、[QA](qa/README.md) |
 | 分支分别有什么用 | [分支审计](status/branches.md) |
 | 状态归谁，文件放哪里，工具怎样用 | [工程入口](engineering/README.md) |
+| 开发规则来自哪里、哪些skill在约束 | [开发范式与来源](engineering/workflow/ai-development.md#规则来源与技能职责) |
 | 目标硬件、内存和GPU预算是什么 | [全项目性能基线](engineering/architecture.md#全项目性能基线) |
 | 基础架构接下来先做什么 | [基础优先级](plans/foundation-priorities.md) |
 | 更远的产品目标和技术候选 | [计划](plans/README.md)、[工程规格](specs/README.md) |

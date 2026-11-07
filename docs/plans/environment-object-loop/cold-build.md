@@ -1,5 +1,7 @@
 # 基础场初建的有限优化
 
+> 制定时方案快照；正文的旧版本、待验与“下一包”只描述当时，不能作当前施工依据。现有接入见[技术总表](../../status/technical-status.md)，适用性见[本目录说明](README.md)。
+
 2026-11-06用户授权尝试优化；实际进度只看[接续](../../status/handoff.md)。依据[成熟项目调研](../../../design/research/large_simulation_optimization.md)，本包只改善全域基础场初建，不扩普通Main、携行、房间、玩法或存档格式。
 
 ## 预算与停止点

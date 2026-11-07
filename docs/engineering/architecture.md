@@ -19,6 +19,7 @@
 - [状态所有权](architecture/02-owners.md)
 - [时间、空间、行动与呈现](architecture/03-time-space-presentation.md)
 - [存读提交边界](architecture/04-persistence.md)
+- [稀疏执行接口](sparse-execution.md)：通用参与索引与新能力接入；哪些域/分支已用它以[技术总表](../status/technical-status.md)为准。
 - [历史细节及当时待办](../archive/engineering-context-20261105/architecture.md)
 
 - [对象与空间查询合同](object-query-contract.md)：跨原所有者的只读接口、声明能力与有界显式集合空间快照。

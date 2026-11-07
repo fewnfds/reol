@@ -1,5 +1,7 @@
 # 世界底座性能的有限接续
 
+> 制定时方案快照；正文的旧版本、待验与“下一包”只描述当时，不能作当前施工依据。现有接入见[技术总表](../../status/technical-status.md)，适用性见[本目录说明](README.md)。
+
 2026-11-07用户明确授权并要求主代理创建Goal。当前任务与接续仍只看[HANDOFF](../../status/handoff.md)；本页限定范围和停止条件，不成为第二条自动队列。依据[成熟项目研究](../../../design/research/large_simulation_optimization.md)，延续[初建QA](../../qa/20261106_environment_cold_build.md)的剩余热点。
 
 ## 顺序与停止条件

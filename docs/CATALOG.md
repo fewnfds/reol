@@ -2,7 +2,7 @@
 
 本目录只列路径，不维护状态。按问题查 [文档入口](README.md)，分类合同见 [DOCUMENTATION](DOCUMENTATION.md)。
 
-项目自有 Markdown 共 560 份（不含本索引与其分类页；不收录第三方 addons 和原始 art_inbox）。每个文件恰在一个分类中。
+项目自有 Markdown 共 561 份（不含本索引与其分类页；不收录第三方 addons 和原始 art_inbox）。每个文件恰在一个分类中。
 
 - [design / 1](catalog/design-01.md)：85 份。
 
@@ -22,4 +22,4 @@
 
 - [skills / 1](catalog/skills-01.md)：85 份。
 
-- [status / 1](catalog/status-01.md)：13 份。
+- [status / 1](catalog/status-01.md)：14 份。
