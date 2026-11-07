@@ -17,6 +17,8 @@ const Rules = preload("res://scripts/sim/environment_field_rules.gd")
 const SIDE: int = 16
 const SLOTS: int = 256
 const MAX_CHUNKS: int = 64
+const THERMAL: int = 1
+const ELEMENTAL: int = 2
 const Compiler = preload("res://scripts/sim/environment_target_compiler.gd")
 var _compiler := Compiler.new()
 
@@ -45,13 +47,15 @@ func configure(temperature: RefCounted, phases: RefCounted, settings: Dictionary
 	return true
 
 
-func begin(area: Rect2i, at_ms: int, activation: bool = false, event_context: Variant = null) -> Dictionary:
+func begin(area: Rect2i, at_ms: int, activation: bool = false, event_context: Variant = null, domains: int = THERMAL | ELEMENTAL, due_only: bool = false) -> Dictionary:
 	if _temperature == null:
 		return _failure("not_configured")
 	if _active != null:
 		return _failure("busy")
 	if at_ms < 0 or at_ms >= Temperature.MAX_TIME:
 		return _failure("time_out_of_range")
+	if domains < 1 or domains > (THERMAL | ELEMENTAL) or activation and due_only:
+		return _failure("invalid_domains")
 	var size: Vector2i = _phases.diagnostics().get("size", Vector2i.ZERO)
 	if area.position.x < 0 or area.position.y < 0 or area.size.x < SIDE or area.size.y < SIDE or area.position.x % SIDE != 0 or area.position.y % SIDE != 0 or area.size.x % SIDE != 0 or area.size.y % SIDE != 0 or area.end.x > size.x or area.end.y > size.y:
 		return _failure("invalid_area")
@@ -59,20 +63,25 @@ func begin(area: Rect2i, at_ms: int, activation: bool = false, event_context: Va
 	var chunk_count: int = (area.size.x / SIDE) * (area.size.y / SIDE)
 	if chunk_count > MAX_CHUNKS:
 		return _failure("chunk_limit")
-	var thermal: Dictionary = _temperature.begin_bulk(at_ms, chunk_count)
-	if not bool(thermal.get("ok", false)):
-		return thermal
-	var elemental: Dictionary = _phases.begin_bulk(at_ms, chunk_count)
-	if not bool(elemental.get("ok", false)):
-		_temperature.cancel_bulk(thermal.handle)
-		return elemental
 	var batch := Batch.new()
 	batch.handle = Handle.new()
-	batch.temperature_handle = thermal.handle
-	batch.phase_handle = elemental.handle
+	if domains & THERMAL:
+		var thermal: Dictionary = _temperature.begin_bulk(at_ms, chunk_count)
+		if not bool(thermal.get("ok", false)):
+			return thermal
+		batch.temperature_handle = thermal.handle
+	if domains & ELEMENTAL:
+		var elemental: Dictionary = _phases.begin_bulk(at_ms, chunk_count)
+		if not bool(elemental.get("ok", false)):
+			if batch.temperature_handle != null:
+				_temperature.cancel_bulk(batch.temperature_handle)
+			return elemental
+		batch.phase_handle = elemental.handle
 	batch.area = area
 	batch.at_ms = at_ms
 	batch.activation = activation
+	batch.domains = domains
+	batch.due_only = due_only
 	batch.context = event_context
 	batch.chunk_count = chunk_count
 	batch.chunk_x = area.position.x
@@ -95,7 +104,10 @@ func step(handle: Variant, cell_budget: int) -> Dictionary:
 		if not bool(result.get("ok", false)):
 			return _abort(str(result.get("reason", "temperature_unavailable")))
 		if result.get("status") == "chunk_done":
-			_active.stage = "phases"
+			if _active.domains & ELEMENTAL:
+				_active.stage = "phases"
+			else:
+				return _next_chunk(int(result.get("visited", 0)))
 		return _progress(int(result.get("visited", 0)))
 	if _active.stage == "phases":
 		var result: Dictionary = _phases.resume_bulk(_active.phase_handle, cell_budget)
@@ -110,9 +122,11 @@ func step(handle: Variant, cell_budget: int) -> Dictionary:
 func _compile_input(budget: int) -> Dictionary:
 	if budget == 0:
 		return _progress(0)
-	if _active.temperature_columns.is_empty():
-		_active.temperature_columns = SourceChange._empty_columns()
-		_active.phase_columns = SourceChange._empty_columns(5)
+	if _active.cursor == 0:
+		if _active.domains & THERMAL:
+			_active.temperature_columns = SourceChange._empty_columns()
+		if _active.domains & ELEMENTAL:
+			_active.phase_columns = SourceChange._empty_columns(5)
 		_active.cursor = 0
 	var used: int = 0
 	while _active.cursor < SLOTS and used < budget:
@@ -120,69 +134,95 @@ func _compile_input(budget: int) -> Dictionary:
 		_active.cursor += 1
 		used += 1
 		var cell := Vector2i(_active.chunk_x + (index & 15), _active.chunk_y + (index >> 4))
+		var domains: int = _selected_domains(cell)
+		if domains == 0:
+			continue
 		var read: Dictionary = _read_checked(cell)
 		if not bool(read.get("ok", false)):
 			return _abort(str(read.get("reason", "field_unavailable")))
 		var channels: PackedInt32Array = read.channels
-		var compiled: Dictionary = _compile_cell(index, cell, channels)
+		var compiled: Dictionary = _compile_cell(index, cell, channels, domains)
 		if not bool(compiled.get("ok", false)):
 			return _abort(str(compiled.get("reason", "target_unavailable")))
 	if _active.cursor == SLOTS:
 		var key := Vector2i(_active.chunk_x >> 4, _active.chunk_y >> 4)
-		var offered: Dictionary = _temperature.offer_bulk_chunk(_active.temperature_handle, key, _active.temperature_columns)
-		if not bool(offered.get("ok", false)):
-			return _abort(str(offered.get("reason", "temperature_unavailable")))
-		offered = _phases.offer_bulk_chunk(_active.phase_handle, key, _active.phase_columns)
-		if not bool(offered.get("ok", false)):
-			return _abort(str(offered.get("reason", "phase_unavailable")))
+		if _active.domains & THERMAL:
+			var offered: Dictionary = _temperature.offer_bulk_chunk(_active.temperature_handle, key, _active.temperature_columns)
+			if not bool(offered.get("ok", false)):
+				return _abort(str(offered.get("reason", "temperature_unavailable")))
+		if _active.domains & ELEMENTAL:
+			var offered: Dictionary = _phases.offer_bulk_chunk(_active.phase_handle, key, _active.phase_columns)
+			if not bool(offered.get("ok", false)):
+				return _abort(str(offered.get("reason", "phase_unavailable")))
 		_active.temperature_columns = {}
 		_active.phase_columns = {}
-		_active.stage = "temperature"
+		_active.stage = "temperature" if _active.domains & THERMAL else "phases"
 	return _progress(used)
 
 
-func _compile_cell(index: int, cell: Vector2i, channels: PackedInt32Array) -> Dictionary:
+func _selected_domains(cell: Vector2i) -> int:
+	if not _active.due_only:
+		return _active.domains
+	var result: int = 0
+	if _active.domains & THERMAL:
+		var boundary: int = _temperature.cell_boundary_ms(cell)
+		if boundary >= 0 and boundary <= _active.at_ms:
+			result |= THERMAL
+	if _active.domains & ELEMENTAL:
+		var boundary: int = _phases.cell_boundary_ms(cell)
+		if boundary >= 0 and boundary <= _active.at_ms:
+			result |= ELEMENTAL
+	return result
+
+
+func _compile_cell(index: int, cell: Vector2i, channels: PackedInt32Array, domains: int) -> Dictionary:
 	var at_ms: int = _active.at_ms
 	var segment: Dictionary = _compiler.compile(cell, at_ms, channels[5], channels[6])
 	if not bool(segment.get("ok", false)):
 		return segment
 	if _active.activation:
-		_active.temperature_columns.initial_mask[index] = 1
-		_active.temperature_columns.initial[index] = float(segment.neutral_c)
-		_active.phase_columns.initial_mask[index] = 1
+		if domains & THERMAL:
+			_active.temperature_columns.initial_mask[index] = 1
+			_active.temperature_columns.initial[index] = float(segment.neutral_c)
+		if domains & ELEMENTAL:
+			_active.phase_columns.initial_mask[index] = 1
 	# Bulk preparation validates tracked/untracked, cell bounds and the old
 	# known segment in both owners. Do not project the same six actual values a
 	# second time during input compilation before those checked preparations.
 	var grid: int = int(_settings.tide_grid_ms)
 	var next_grid: int = at_ms + mini(grid - posmod(at_ms, grid), Temperature.MAX_TIME - at_ms)
-	_active.temperature_columns.mask[index] = 1
-	_active.temperature_columns.target[index] = float(segment.target_c)
-	_active.temperature_columns.slope[index] = float(segment.target_per_ms)
-	_active.temperature_columns.until_ms[index] = int(segment.until_ms)
-	_active.temperature_columns.tau_ms[index] = int(segment.tau_ms)
-	_active.phase_columns.mask[index] = 1
-	_active.phase_columns.until_ms[index] = mini(int(segment.until_ms), next_grid)
-	_active.phase_columns.tau_ms[index] = int(_settings.tau_ms)
-	for channel: int in Phase.CHANNELS:
-		var offset: int = index * Phase.CHANNELS + channel
-		var target: int = Rules.effective_grade(channels[channel], int(segment.multiplier))
-		_active.phase_columns.target[offset] = target
-		if _active.activation:
-			_active.phase_columns.initial[offset] = target
+	if domains & THERMAL:
+		_active.temperature_columns.mask[index] = 1
+		_active.temperature_columns.target[index] = float(segment.target_c)
+		_active.temperature_columns.slope[index] = float(segment.target_per_ms)
+		_active.temperature_columns.until_ms[index] = int(segment.until_ms)
+		_active.temperature_columns.tau_ms[index] = int(segment.tau_ms)
+	if domains & ELEMENTAL:
+		_active.phase_columns.mask[index] = 1
+		_active.phase_columns.until_ms[index] = mini(int(segment.until_ms), next_grid)
+		_active.phase_columns.tau_ms[index] = int(_settings.tau_ms)
+		for channel: int in Phase.CHANNELS:
+			var offset: int = index * Phase.CHANNELS + channel
+			var target: int = Rules.effective_grade(channels[channel], int(segment.multiplier))
+			_active.phase_columns.target[offset] = target
+			if _active.activation:
+				_active.phase_columns.initial[offset] = target
 	return {"ok": true}
 
 
 func _next_chunk(visited: int) -> Dictionary:
 	_active.completed_chunks += 1
 	if _active.completed_chunks == _active.chunk_count:
-		var thermal: Dictionary = _temperature.finish_bulk(_active.temperature_handle)
-		if not bool(thermal.get("ok", false)):
-			return _abort(str(thermal.get("reason", "temperature_unavailable")))
-		_active.temperature_proof = thermal.proof
-		var phases: Dictionary = _phases.finish_bulk(_active.phase_handle)
-		if not bool(phases.get("ok", false)):
-			return _abort(str(phases.get("reason", "phase_unavailable")))
-		_active.phase_proof = phases.proof
+		if _active.domains & THERMAL:
+			var thermal: Dictionary = _temperature.finish_bulk(_active.temperature_handle)
+			if not bool(thermal.get("ok", false)):
+				return _abort(str(thermal.get("reason", "temperature_unavailable")))
+			_active.temperature_proof = thermal.proof
+		if _active.domains & ELEMENTAL:
+			var phases: Dictionary = _phases.finish_bulk(_active.phase_handle)
+			if not bool(phases.get("ok", false)):
+				return _abort(str(phases.get("reason", "phase_unavailable")))
+			_active.phase_proof = phases.proof
 		_active.proof = Proof.new()
 		_active.stage = "ready"
 		return _progress(visited)
@@ -191,6 +231,7 @@ func _next_chunk(visited: int) -> Dictionary:
 		_active.chunk_x = _active.area.position.x
 		_active.chunk_y += SIDE
 	_active.stage = "input"
+	_active.cursor = 0
 	return _progress(visited)
 
 
@@ -215,9 +256,9 @@ func can_commit(proof: Variant) -> Dictionary:
 	var checked: Dictionary = _read_checked(_active.area.position)
 	if not bool(checked.get("ok", false)):
 		return checked
-	if not _temperature.can_commit_bulk(_active.temperature_proof):
+	if _active.domains & THERMAL and not _temperature.can_commit_bulk(_active.temperature_proof):
 		return _failure("temperature_stale")
-	if not _phases.can_commit_bulk(_active.phase_proof):
+	if _active.domains & ELEMENTAL and not _phases.can_commit_bulk(_active.phase_proof):
 		return _failure("phase_stale")
 	return {"ok": true, "at_ms": _active.at_ms}
 
@@ -228,10 +269,14 @@ func commit(proof: Variant) -> Dictionary:
 		return valid
 	# The checked publications contain no external callback or yield. Both
 	# preflighted domain commits must be infallible internal operations here.
-	var thermal: Dictionary = _temperature.commit_bulk(_active.temperature_proof)
-	assert(bool(thermal.get("ok", false)), "preflighted thermal commit failed")
-	var elemental: Dictionary = _phases.commit_bulk(_active.phase_proof)
-	assert(bool(elemental.get("ok", false)), "preflighted phase commit failed")
+	var thermal: Dictionary = {"revision": int(_temperature._revision)}
+	var elemental: Dictionary = {"revision": int(_phases.diagnostics().revision)}
+	if _active.domains & THERMAL:
+		thermal = _temperature.commit_bulk(_active.temperature_proof)
+		assert(bool(thermal.get("ok", false)), "preflighted thermal commit failed")
+	if _active.domains & ELEMENTAL:
+		elemental = _phases.commit_bulk(_active.phase_proof)
+		assert(bool(elemental.get("ok", false)), "preflighted phase commit failed")
 	var at_ms: int = _active.at_ms
 	var chunks: int = _active.completed_chunks
 	_active = null
@@ -242,8 +287,10 @@ func commit(proof: Variant) -> Dictionary:
 func cancel(handle: Variant) -> Dictionary:
 	if not _current(handle):
 		return _failure("invalid_handle")
-	_temperature.cancel_bulk(_active.temperature_handle)
-	_phases.cancel_bulk(_active.phase_handle)
+	if _active.temperature_handle != null:
+		_temperature.cancel_bulk(_active.temperature_handle)
+	if _active.phase_handle != null:
+		_phases.cancel_bulk(_active.phase_handle)
 	_active = null
 	return {"ok": true}
 
@@ -321,6 +368,8 @@ class Batch:
 	var area := Rect2i()
 	var at_ms: int = 0
 	var activation: bool = false
+	var domains: int = 3
+	var due_only: bool = false
 	var context: Variant
 	var field_revision: int = -1
 	var chunk_count: int = 0

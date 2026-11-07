@@ -2,6 +2,8 @@
 
 [分类总目录](../CATALOG.md)；路径存在不表示已实现或已验。
 
+- [docs/archive/status-20261107-before-field-finish.md](../archive/status-20261107-before-field-finish.md)
+
 - [docs/archive/specifications/resource_tooling_scout.md](../archive/specifications/resource_tooling_scout.md)
 - [docs/archive/specifications/roofs_and_weather.md](../archive/specifications/roofs_and_weather.md)
 - [docs/archive/specifications/rooms_and_rest.md](../archive/specifications/rooms_and_rest.md)

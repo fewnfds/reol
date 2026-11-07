@@ -2,6 +2,12 @@
 
 [分类总目录](../CATALOG.md)；路径存在不表示已实现或已验。
 
+- [docs/qa/20261107_framework_runtime_integration.md](../qa/20261107_framework_runtime_integration.md)
+- [docs/qa/20261107_source_change_review.md](../qa/20261107_source_change_review.md)
+- [docs/qa/20261107_sparse_execution.md](../qa/20261107_sparse_execution.md)
+- [docs/qa/20261107_world_engine_finish.md](../qa/20261107_world_engine_finish.md)
+- [docs/qa/legacy-environment-regressions.md](../qa/legacy-environment-regressions.md)
+
 - [docs/qa/20261103_artifact_understanding.md](../qa/20261103_artifact_understanding.md)
 - [docs/qa/20261103_autonomous_livelihood.md](../qa/20261103_autonomous_livelihood.md)
 - [docs/qa/20261103_avian_life.md](../qa/20261103_avian_life.md)

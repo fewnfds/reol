@@ -73,15 +73,18 @@ static func restore_into(domain: RefCounted, data: Variant) -> bool:
 		var source: Dictionary = {"cell": point, "radius": 4, "channels": PackedInt32Array([0, 0, 0, 0, 0, 1000, 0])}
 		if not domain._sources.add_transient_initial(key, source):
 			return false
-	# The serialized actual owners determine every ever-affected chunk; the
-	# current source index may cover fewer chunks after earlier sources left.
+	# Actual residuals and current sources are independent participants. A phase-
+	# only source need not create a temperature row, and a removed source can
+	# leave saved residuals after its current coverage has disappeared.
 	var chunks: Dictionary[Vector2i, bool] = {}
 	for row: Dictionary in data.temperature.cells:
 		var cell := Vector2i(int(row.cell[0]), int(row.cell[1]))
 		chunks[Vector2i(cell.x >> 4, cell.y >> 4)] = true
+	for row: Dictionary in data.phases.cells:
+		var cell := Vector2i(int(row.cell[0]), int(row.cell[1]))
+		chunks[Vector2i(cell.x >> 4, cell.y >> 4)] = true
 	for key: Vector2i in domain._sources.affected_chunks():
-		if not chunks.has(key):
-			return false
+		chunks[key] = true
 	domain._chunks = chunks
 	if not domain._rebuild_base() or not _validate_current_targets(domain, data):
 		return false
@@ -93,6 +96,8 @@ static func restore_into(domain: RefCounted, data: Variant) -> bool:
 	domain.device_switches = data.device_switches.duplicate(true)
 	domain._samples = data.samples.duplicate(true)
 	domain._active = true
+	# Derived work and boundary indices never become another saved authority.
+	domain._rebuild_participation()
 	return true
 
 
@@ -103,33 +108,31 @@ static func _owner_shapes(domain: RefCounted, data: Dictionary) -> bool:
 		return false
 	if thermal.get("activation_ms") != data.activation_ms or elemental.get("activation_ms") != data.activation_ms:
 		return false
-	if not thermal.get("cells") is Array or not elemental.get("cells") is Array or thermal.cells.size() != elemental.cells.size():
+	if not thermal.get("cells") is Array or not elemental.get("cells") is Array:
 		return false
-	var counts: Dictionary = {}
-	for index: int in thermal.cells.size():
-		var t: Dictionary = thermal.cells[index]
-		var p: Dictionary = elemental.cells[index]
-		if t.cell != p.cell:
-			return false
+	for t: Dictionary in thermal.cells:
 		var cell := Vector2i(int(t.cell[0]), int(t.cell[1]))
-		var key := Vector2i(cell.x >> 4, cell.y >> 4)
-		counts[key] = int(counts.get(key, 0)) + 1
-		if int(t.response.start_ms) != int(p.start_ms) or int(t.response.tau_ms) != int(p.tau_ms) or int(p.tau_ms) != SimWorldEnvironmentFields.TAU_MS:
+		if int(t.response.tau_ms) != SimWorldEnvironmentFields.TAU_MS:
 			return false
-		if int(t.response.start_ms) > int(data.last_ms) or int(t.response.until_ms) < int(data.last_ms) or int(p.until_ms) < int(data.last_ms):
+		if int(t.response.start_ms) > int(data.last_ms) or int(t.response.until_ms) < int(data.last_ms):
 			return false
-		if not bool(domain._temperature.actual_at(cell, int(data.last_ms)).get("ok", false)) or not bool(domain._phases.actual_at(cell, int(data.last_ms)).get("ok", false)):
+		if not bool(domain._temperature.actual_at(cell, int(data.last_ms)).get("ok", false)):
 			return false
-	for count: int in counts.values():
-		if count != 256:
+	for p: Dictionary in elemental.cells:
+		var cell := Vector2i(int(p.cell[0]), int(p.cell[1]))
+		if int(p.tau_ms) != SimWorldEnvironmentFields.TAU_MS:
+			return false
+		if int(p.start_ms) > int(data.last_ms) or int(p.until_ms) < int(data.last_ms):
+			return false
+		if not bool(domain._phases.actual_at(cell, int(data.last_ms)).get("ok", false)):
 			return false
 	return true
 
 
 static func _validate_current_targets(domain: RefCounted, data: Dictionary) -> bool:
-	for index: int in data.temperature.cells.size():
-		var t: Dictionary = data.temperature.cells[index]
-		var p: Dictionary = data.phases.cells[index]
+	# Each response compiles at its own causal anchor, not the anchor of a
+	# different domain which may have changed at another world millisecond.
+	for t: Dictionary in data.temperature.cells:
 		var point := Vector2i(int(t.cell[0]), int(t.cell[1]))
 		var base: Dictionary = domain._field.read_base(point)
 		if not bool(base.get("ok", false)) or bool(base.get("pending", true)):
@@ -141,12 +144,42 @@ static func _validate_current_targets(domain: RefCounted, data: Dictionary) -> b
 			return false
 		if float(t.response.target_value) != float(expected.target_c) or float(t.response.target_per_ms) != float(expected.target_per_ms) or int(t.response.until_ms) != int(expected.until_ms):
 			return false
+	for p: Dictionary in data.phases.cells:
+		var point := Vector2i(int(p.cell[0]), int(p.cell[1]))
+		var base: Dictionary = domain._field.read_base(point)
+		if not bool(base.get("ok", false)) or bool(base.get("pending", true)):
+			return false
+		var channels: PackedInt32Array = base.channels
+		var start: int = int(p.start_ms)
+		var expected: Dictionary = domain._compiler.compile(point, start, channels[5], channels[6])
+		if not bool(expected.get("ok", false)):
+			return false
 		var next_grid: int = start + mini(SimWorldEnvironmentFields.TIDE_GRID_MS - posmod(start, SimWorldEnvironmentFields.TIDE_GRID_MS), Response.MAX_TIME - start)
 		if int(p.until_ms) != mini(int(expected.until_ms), next_grid):
 			return false
 		for channel: int in 5:
 			if float(p.target[channel]) != float(Rules.effective_grade(channels[channel], int(expected.multiplier))) or float(p.slope[channel]) != 0.0:
 				return false
+	# Saved anchors can be sparse, but a current, nonzero source cannot be made
+	# to disappear by deleting its actual response from an otherwise valid save.
+	# The bounds are source-covered chunks only; full validation is a low-frequency
+	# restore operation, not a per-frame simulation query.
+	for key: Vector2i in domain._sources.affected_chunks():
+		var origin: Vector2i = key * 16
+		for y: int in range(origin.y, mini(origin.y + 16, SIZE)):
+			for x: int in range(origin.x, mini(origin.x + 16, SIZE)):
+				var point := Vector2i(x, y)
+				var base: Dictionary = domain._field.read_base(point)
+				if not bool(base.get("ok", false)) or bool(base.get("pending", true)):
+					return false
+				var channels: PackedInt32Array = base.channels
+				if (channels[5] != 0 or channels[6] != 0) and not bool(domain._temperature.actual_at(point, int(data.last_ms)).get("ok", false)):
+					return false
+				var has_elements: bool = false
+				for channel: int in 5:
+					has_elements = has_elements or channels[channel] != 0
+				if has_elements and not bool(domain._phases.actual_at(point, int(data.last_ms)).get("ok", false)):
+					return false
 	return true
 
 

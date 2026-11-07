@@ -20,6 +20,23 @@ var _build_bounds := PackedInt32Array()
 var _bounds_rect := Rect2i()
 var _bounds_x: int = 0
 var _bounds_y: int = 0
+# Disposable per-candidate participation metadata. A bit denotes an effect
+# channel that can differ because of this source, not another copy of a source
+# or world state. Clean old tiles permit exact per-cell change masks; a missing
+# or dirty old tile continues through the full reconstruction path.
+var _candidate_channel_mask: int = 0
+var _candidate_fast_tile: int = -1
+var _candidate_fast: bool = false
+var _candidate_old_values := PackedInt32Array()
+var _candidate_change_masks: Dictionary[int, PackedByteArray] = {}
+var _candidate_weight_index: int = -1
+var _candidate_old_weight: int = 0
+var _candidate_new_weight: int = 0
+var _candidate_cold_pending: bool = false
+var _candidate_cold_only: bool = false
+var _candidate_cold_blocks := Rect2i()
+var _candidate_cold_x: int = 0
+var _candidate_cold_y: int = 0
 
 
 func _init() -> void:
@@ -53,9 +70,33 @@ func begin_source_change(slot: int, operation: String, change: Dictionary = {}) 
 	var result: Dictionary = super.begin_source_change(slot, operation, change)
 	if bool(result.get("ok", false)):
 		var old := _slot_grades(slot)
+		_candidate_channel_mask = 0
+		_candidate_fast_tile = -1
+		_candidate_fast = false
+		_candidate_old_values = PackedInt32Array()
+		_candidate_change_masks.clear()
+		_candidate_weight_index = -1
+		_candidate_cold_pending = false
+		_candidate_cold_only = false
 		for channel: int in CHANNELS:
 			_candidate_bounds[channel] = _grade_bounds[channel].maximum_without(old[channel] if not old.is_empty() else 0)
+			var before: int = old[channel] if not old.is_empty() else 0
+			var after: int = _source_candidate.new_channels[channel] if _source_candidate.new_radius > 0 else 0
+			if before != 0 or after != 0:
+				_candidate_channel_mask |= 1 << channel
 	return result
+
+
+func candidate_tile_copy(proof: Variant, tile_id: int) -> Dictionary:
+	var result: Dictionary = super.candidate_tile_copy(proof, tile_id)
+	if bool(result.get("ok", false)) and _candidate_change_masks.has(tile_id):
+		# The returned mask is detached: callers cannot alter the candidate.
+		result["change_mask"] = _candidate_change_masks[tile_id].duplicate()
+	return result
+
+
+func has_candidate_change_masks() -> bool:
+	return true
 
 
 func _apply_source_candidate(candidate: SourceCandidate) -> void:
@@ -202,6 +243,15 @@ func _step_source_candidate() -> void:
 	# the base cache. Only the safe upper bound differs: it excludes exactly the
 	# live slot that the candidate scan below deliberately skips.
 	var candidate: SourceCandidate = _source_candidate
+	var tile_id: int = candidate.tile_ids[candidate.tile_index]
+	if tile_id != _candidate_fast_tile:
+		_prepare_incremental_tile(tile_id, candidate)
+	if _candidate_cold_pending:
+		_step_cold_proof(tile_id, candidate)
+		return
+	if _candidate_fast and candidate.phase == 0:
+		_step_incremental_candidate(candidate)
+		return
 	if candidate.phase == 0:
 		candidate.best = 0
 		if candidate.new_radius > 0:
@@ -251,6 +301,151 @@ func _step_source_candidate() -> void:
 	if candidate.neighbor_slot == -1:
 		candidate.neighbor_slot = UNSET
 		candidate.offset_index += 1
+
+
+func _prepare_incremental_tile(tile_id: int, candidate: SourceCandidate) -> void:
+	_candidate_fast_tile = tile_id
+	_candidate_fast = false
+	_candidate_weight_index = -1
+	_candidate_cold_pending = false
+	_candidate_cold_only = false
+	_candidate_old_values = PackedInt32Array()
+	var tile: Dictionary = _tiles.get(tile_id, {})
+	if tile.is_empty() or bool(tile.get("dirty", true)):
+		_begin_cold_proof(tile_id, candidate)
+		return
+	var previous: Variant = tile.get("values")
+	if not previous is PackedInt32Array or previous.size() != candidate.values.size():
+		return
+	_candidate_old_values = previous
+	candidate.values = _candidate_old_values.duplicate()
+	var mask := PackedByteArray()
+	mask.resize(candidate.rect.size.x * candidate.rect.size.y)
+	_candidate_change_masks[tile_id] = mask
+	_candidate_fast = true
+
+
+func _begin_cold_proof(tile_id: int, candidate: SourceCandidate) -> void:
+	# An anchor farther than the largest live radius cannot affect this block.
+	# The existing block index only counts sources, so the test is deliberately
+	# conservative: any other anchor in the covering blocks triggers the full
+	# reconstruction rather than assuming that its influence is zero.
+	if _source_count == 0:
+		_initialize_cold_tile(tile_id, candidate)
+		return
+	var area: Rect2i = candidate.rect.grow(maxi(0, _max_radius - 1)).intersection(Rect2i(Vector2i.ZERO, _size))
+	var first := Vector2i(area.position.x >> 4, area.position.y >> 4)
+	var last := Vector2i((area.end.x - 1) >> 4, (area.end.y - 1) >> 4)
+	_candidate_cold_blocks = Rect2i(first, last - first + Vector2i.ONE)
+	_candidate_cold_x = first.x
+	_candidate_cold_y = first.y
+	_candidate_cold_pending = true
+
+
+func _step_cold_proof(tile_id: int, candidate: SourceCandidate) -> void:
+	# One block per work unit preserves the existing resumable budget. The
+	# replaced slot may be present, but no other nearby source is assumed away.
+	var block_id: int = _candidate_cold_y * _tile_columns + _candidate_cold_x
+	var block: BlockBounds = _block_bounds.get(block_id)
+	var excluded: int = 1 if candidate.old_radius > 0 and _tile_for_cell(candidate.old_cell) == block_id else 0
+	if block != null and block.sources > excluded:
+		_candidate_cold_pending = false
+		return
+	_candidate_cold_x += 1
+	if _candidate_cold_x >= _candidate_cold_blocks.end.x:
+		_candidate_cold_x = _candidate_cold_blocks.position.x
+		_candidate_cold_y += 1
+		if _candidate_cold_y >= _candidate_cold_blocks.end.y:
+			_candidate_cold_pending = false
+			_initialize_cold_tile(tile_id, candidate)
+
+
+func _initialize_cold_tile(tile_id: int, candidate: SourceCandidate) -> void:
+	# The proof means the old field is exactly the old slot's own contribution,
+	# or zero when it is a new slot. Fill that old contribution per receiver in
+	# the regular bounded step, rather than scanning the whole tile up front.
+	_candidate_old_values = PackedInt32Array()
+	_candidate_old_values.resize(candidate.values.size())
+	candidate.values.fill(0)
+	var mask := PackedByteArray()
+	mask.resize(candidate.rect.size.x * candidate.rect.size.y)
+	_candidate_change_masks[tile_id] = mask
+	_candidate_cold_only = true
+	_candidate_fast = true
+
+
+func _step_incremental_candidate(candidate: SourceCandidate) -> void:
+	# A clean tile is a complete, revision-checked snapshot of the old max.
+	# Only the changed source's old/new weighted contributions can alter it.
+	if _candidate_weight_index != candidate.receiver_index:
+		_candidate_weight_index = candidate.receiver_index
+		_candidate_old_weight = _candidate_weight(candidate.receiver_x, candidate.receiver_y, candidate.old_cell, candidate.old_radius, _kernels.get(candidate.old_radius, PackedInt32Array()))
+		_candidate_new_weight = _candidate_weight(candidate.receiver_x, candidate.receiver_y, candidate.new_cell, candidate.new_radius, candidate.new_kernel)
+		if _candidate_cold_only and _candidate_old_weight > 0 and candidate.old_radius > 0:
+			for channel: int in CHANNELS:
+				var strength: int = _slot_channels[candidate.slot * CHANNELS + channel]
+				if strength == 0:
+					continue
+				@warning_ignore("integer_division")
+				var value: int = (strength * _candidate_old_weight + Rules.SCALE / 2) / Rules.SCALE
+				var offset: int = candidate.receiver_index * CHANNELS + channel
+				_candidate_old_values[offset] = value
+				candidate.values[offset] = value
+	var before: int = 0
+	var after: int = 0
+	while candidate.channel < CHANNELS:
+		if (_candidate_channel_mask & (1 << candidate.channel)) != 0:
+			var old_grade: int = _slot_channels[candidate.slot * CHANNELS + candidate.channel] if candidate.old_radius > 0 else 0
+			var new_grade: int = candidate.new_channels[candidate.channel] if candidate.new_radius > 0 else 0
+			@warning_ignore("integer_division")
+			before = (old_grade * _candidate_old_weight + Rules.SCALE / 2) / Rules.SCALE
+			@warning_ignore("integer_division")
+			after = (new_grade * _candidate_new_weight + Rules.SCALE / 2) / Rules.SCALE
+			if before != after:
+				break
+		candidate.channel += 1
+	if candidate.channel >= CHANNELS:
+		# One bounded operation advances one receiver even when none of the
+		# source's optional channels contribute at that receiver.
+		candidate.channel = CHANNELS - 1
+		candidate.best = _candidate_old_values[candidate.receiver_index * CHANNELS + candidate.channel]
+		_finish_source_candidate_channel()
+		return
+	var previous: int = _candidate_old_values[candidate.receiver_index * CHANNELS + candidate.channel]
+	if _candidate_cold_only:
+		candidate.best = after
+		_finish_source_candidate_channel()
+		return
+	# If another source already wins, the old contribution may be discarded.
+	# When the removed contribution was a winner and the replacement is lower,
+	# resume the normal exclusion scan so ties and the next winner are exact.
+	if before < previous or after >= previous:
+		candidate.best = maxi(previous, after)
+		_finish_source_candidate_channel()
+		return
+	candidate.best = after
+	candidate.phase = 1
+
+
+func _finish_source_candidate_channel() -> void:
+	if _candidate_fast:
+		var candidate: SourceCandidate = _source_candidate
+		var offset: int = candidate.receiver_index * CHANNELS + candidate.channel
+		if candidate.best != _candidate_old_values[offset]:
+			var mask: PackedByteArray = _candidate_change_masks[_candidate_fast_tile]
+			mask[candidate.receiver_index] |= 1 << candidate.channel
+			_candidate_change_masks[_candidate_fast_tile] = mask
+	super._finish_source_candidate_channel()
+
+
+static func _candidate_weight(x: int, y: int, cell: Vector2i, radius: int, kernel: PackedInt32Array) -> int:
+	if radius <= 0:
+		return 0
+	var dx: int = absi(x - cell.x)
+	var dy: int = absi(y - cell.y)
+	if dx >= radius or dy >= radius:
+		return 0
+	return kernel[dy * radius + dx]
 
 
 class GradeBounds:

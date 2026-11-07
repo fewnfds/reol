@@ -25,6 +25,7 @@ var _phases: RefCounted
 var _phase_initial: Callable
 var _compiler := Compiler.new()
 var _active: Change
+var _selective: bool = false
 
 
 func configure(field: RefCounted, temperature: RefCounted, settings: Dictionary, initial_at: Callable, phases: RefCounted = null, phase_initial: Callable = Callable()) -> bool:
@@ -48,6 +49,7 @@ func configure(field: RefCounted, temperature: RefCounted, settings: Dictionary,
 	_initial_at = initial_at
 	_phases = phases
 	_phase_initial = phase_initial
+	_selective = field.has_candidate_change_masks()
 	return true
 
 
@@ -62,21 +64,26 @@ func begin(slot: int, operation: String, source: Dictionary, at_ms: int, horizon
 	if not bool(opened.get("ok", false)):
 		return opened
 	var tiles: Array[int] = opened.tile_ids
-	var actual: Dictionary = _temperature.begin_bulk(at_ms, tiles.size())
-	if not bool(actual.get("ok", false)):
-		_field.cancel_source_change(opened.handle)
-		return actual
 	var candidate := Change.new()
 	candidate.handle = Handle.new()
 	candidate.field_handle = opened.handle
-	candidate.temperature_handle = actual.handle
-	if _phases != null:
-		var phase_opened: Dictionary = _phases.begin_bulk(at_ms, tiles.size())
-		if not bool(phase_opened.get("ok", false)):
+	# The original full-tile contract reserves both owners at begin. A field
+	# that supplies optional exact masks opens each response owner only if a
+	# changed channel actually needs it. A missing mask still selects the full
+	# tile, preserving complete initialization for a cold or dirty cache.
+	if not _selective:
+		var actual: Dictionary = _temperature.begin_bulk(at_ms, tiles.size())
+		if not bool(actual.get("ok", false)):
 			_field.cancel_source_change(opened.handle)
-			_temperature.cancel_bulk(actual.handle)
-			return phase_opened
-		candidate.phase_handle = phase_opened.handle
+			return actual
+		candidate.temperature_handle = actual.handle
+		if _phases != null:
+			var phase_opened: Dictionary = _phases.begin_bulk(at_ms, tiles.size())
+			if not bool(phase_opened.get("ok", false)):
+				_field.cancel_source_change(opened.handle)
+				_temperature.cancel_bulk(actual.handle)
+				return phase_opened
+			candidate.phase_handle = phase_opened.handle
 	candidate.tile_ids = tiles.duplicate()
 	candidate.at_ms = at_ms
 	candidate.horizon_ms = horizon_ms
@@ -113,7 +120,7 @@ func step(handle: Variant, field_work: int, cell_budget: int) -> Dictionary:
 		if not bool(result.get("ok", false)):
 			return _abort(str(result.get("reason", "temperature_unavailable")))
 		if result.get("status") == "chunk_done":
-			if _phases != null:
+			if _active.chunk_has_phase:
 				_active.phase = "phases"
 			else:
 				return _next_tile(int(result.get("visited", 0)))
@@ -133,13 +140,15 @@ func _next_tile(visited: int) -> Dictionary:
 	_active.tile = {}
 	_active.columns = {}
 	_active.phase_columns = {}
+	_active.chunk_has_phase = false
 	_active.phase = "input"
 	if _active.tile_index == _active.tile_ids.size():
-		var finished: Dictionary = _temperature.finish_bulk(_active.temperature_handle)
-		if not bool(finished.get("ok", false)):
-			return _abort(str(finished.get("reason", "temperature_unavailable")))
-		_active.temperature_proof = finished.proof
-		if _phases != null:
+		if _active.temperature_handle != null:
+			var finished: Dictionary = _temperature.finish_bulk(_active.temperature_handle)
+			if not bool(finished.get("ok", false)):
+				return _abort(str(finished.get("reason", "temperature_unavailable")))
+			_active.temperature_proof = finished.proof
+		if _active.phase_handle != null:
 			var done: Dictionary = _phases.finish_bulk(_active.phase_handle)
 			if not bool(done.get("ok", false)):
 				return _abort(str(done.get("reason", "phase_unavailable")))
@@ -157,9 +166,8 @@ func _prepare_tile_input(budget: int) -> Dictionary:
 		if not bool(tile.get("ok", false)):
 			return _abort(str(tile.get("reason", "source_tile_unavailable")))
 		_active.tile = tile
-		_active.columns = _empty_columns()
-		if _phases != null:
-			_active.phase_columns = _empty_columns(5)
+		_active.columns = {}
+		_active.phase_columns = {}
 		_active.cursor = 0
 	var rect: Rect2i = _active.tile.rect
 	var channels: PackedInt32Array = _active.tile.channels
@@ -171,14 +179,26 @@ func _prepare_tile_input(budget: int) -> Dictionary:
 		var cell: Vector2i = rect.position + Vector2i(index & 15, index >> 4)
 		if not rect.has_point(cell):
 			continue
-		var offset: int = ((cell.y - rect.position.y) * rect.size.x + cell.x - rect.position.x) * 7
+		var receiver: int = (cell.y - rect.position.y) * rect.size.x + cell.x - rect.position.x
+		var changed: int = int(_active.tile.change_mask[receiver]) if _active.tile.has("change_mask") else 127
+		var thermal_changed: bool = (changed & 96) != 0
+		var phases_changed: bool = _phases != null and (changed & 31) != 0
+		if not thermal_changed and not phases_changed:
+			continue
+		var offset: int = receiver * 7
 		var target: Dictionary = _compiler.compile(cell, _active.at_ms, channels[offset + 5], channels[offset + 6], _active.horizon_ms)
 		if not bool(target.get("ok", false)):
 			return _abort(str(target.get("reason", "target_unavailable")))
-		if _phases != null:
+		if phases_changed:
+			if _active.phase_columns.is_empty():
+				_active.phase_columns = _empty_columns(5)
 			var phase_result: Dictionary = _prepare_phase_cell(index, cell, channels, offset, int(target.until_ms), int(target.multiplier))
 			if not bool(phase_result.get("ok", false)):
 				return _abort(str(phase_result.get("reason", "phase_unavailable")))
+		if not thermal_changed:
+			continue
+		if _active.columns.is_empty():
+			_active.columns = _empty_columns()
 		var actual: Dictionary = _temperature.actual_at(cell, _active.at_ms)
 		if not bool(actual.get("ok", false)):
 			if actual.get("reason") != "untracked":
@@ -199,15 +219,37 @@ func _prepare_tile_input(budget: int) -> Dictionary:
 	if _active.cursor == SLOTS:
 		@warning_ignore("integer_division")
 		var key := Vector2i(rect.position.x / SIDE, rect.position.y / SIDE)
-		var offered: Dictionary = _temperature.offer_bulk_chunk(_active.temperature_handle, key, _active.columns)
-		if not bool(offered.get("ok", false)):
-			return _abort(str(offered.get("reason", "temperature_unavailable")))
-		if _phases != null:
+		_active.touched_chunks.append(key)
+		var has_temperature: bool = not _active.columns.is_empty()
+		_active.chunk_has_phase = not _active.phase_columns.is_empty()
+		if has_temperature:
+			if _active.temperature_handle == null:
+				var opened: Dictionary = _temperature.begin_bulk(_active.at_ms, _active.tile_ids.size())
+				if not bool(opened.get("ok", false)):
+					return _abort(str(opened.get("reason", "temperature_unavailable")))
+				_active.temperature_handle = opened.handle
+			var offered: Dictionary = _temperature.offer_bulk_chunk(_active.temperature_handle, key, _active.columns)
+			if not bool(offered.get("ok", false)):
+				return _abort(str(offered.get("reason", "temperature_unavailable")))
+			_active.temperature_chunks.append(key)
+		if _active.chunk_has_phase:
+			if _active.phase_handle == null:
+				var phase_opened: Dictionary = _phases.begin_bulk(_active.at_ms, _active.tile_ids.size())
+				if not bool(phase_opened.get("ok", false)):
+					return _abort(str(phase_opened.get("reason", "phase_unavailable")))
+				_active.phase_handle = phase_opened.handle
 			var phase_offer: Dictionary = _phases.offer_bulk_chunk(_active.phase_handle, key, _active.phase_columns)
 			if not bool(phase_offer.get("ok", false)):
 				return _abort(str(phase_offer.get("reason", "phase_unavailable")))
+			_active.phase_chunks.append(key)
 		_active.columns = {}
-		_active.phase = "temperature"
+		_active.phase_columns = {}
+		if has_temperature:
+			_active.phase = "temperature"
+		elif _active.chunk_has_phase:
+			_active.phase = "phases"
+		else:
+			return _next_tile(used)
 	return _progress(0, used)
 
 
@@ -240,7 +282,9 @@ func finish(handle: Variant) -> Dictionary:
 	var valid: Dictionary = _can_publish(_active.proof)
 	if not bool(valid.get("ok", false)):
 		return _abort(str(valid.get("reason", "candidate_stale")))
-	var result: Dictionary = {"ok": true, "proof": _active.proof, "at_ms": _active.at_ms}
+	var result: Dictionary = {"ok": true, "proof": _active.proof, "at_ms": _active.at_ms,
+		"touched_chunks": _active.touched_chunks.duplicate(), "temperature_chunks": _active.temperature_chunks.duplicate(),
+		"phase_chunks": _active.phase_chunks.duplicate()}
 	result.make_read_only()
 	return result
 
@@ -263,19 +307,25 @@ func commit(proof: Variant) -> Dictionary:
 	assert(bool(field.get("ok", false)), "preflighted field commit failed")
 	var field_us: int = Time.get_ticks_usec() - started
 	started = Time.get_ticks_usec()
-	var temperature: Dictionary = _temperature.commit_bulk(_active.temperature_proof)
-	assert(bool(temperature.get("ok", false)), "preflighted temperature commit failed")
+	var temperature: Dictionary = {"revision": -1}
+	if _active.temperature_handle != null:
+		temperature = _temperature.commit_bulk(_active.temperature_proof)
+		assert(bool(temperature.get("ok", false)), "preflighted temperature commit failed")
 	var temperature_us: int = Time.get_ticks_usec() - started
 	started = Time.get_ticks_usec()
-	if _phases != null:
+	if _active.phase_handle != null:
 		var phases: Dictionary = _phases.commit_bulk(_active.phase_proof)
 		assert(bool(phases.get("ok", false)), "preflighted phase commit failed")
 	var at_ms: int = _active.at_ms
+	var touched_chunks: Array[Vector2i] = _active.touched_chunks.duplicate()
+	var temperature_chunks: Array[Vector2i] = _active.temperature_chunks.duplicate()
+	var phase_chunks: Array[Vector2i] = _active.phase_chunks.duplicate()
 	var phase_us: int = Time.get_ticks_usec() - started
 	started = Time.get_ticks_usec()
 	_active = null
 	return {"ok": true, "at_ms": at_ms, "field_revision": int(field.revision),
 		"temperature_revision": int(temperature.revision), "published_tiles": int(field.published_tiles),
+		"touched_chunks": touched_chunks, "temperature_chunks": temperature_chunks, "phase_chunks": phase_chunks,
 		"publish_us": {"field": field_us, "temperature": temperature_us, "phases": phase_us, "candidate_release": Time.get_ticks_usec() - started}}
 
 
@@ -283,8 +333,9 @@ func cancel(handle: Variant) -> Dictionary:
 	if not _current(handle):
 		return _failure("invalid_handle")
 	_field.cancel_source_change(_active.field_handle)
-	_temperature.cancel_bulk(_active.temperature_handle)
-	if _phases != null:
+	if _active.temperature_handle != null:
+		_temperature.cancel_bulk(_active.temperature_handle)
+	if _active.phase_handle != null:
 		_phases.cancel_bulk(_active.phase_handle)
 	_active = null
 	return {"ok": true}
@@ -296,9 +347,9 @@ func _can_publish(proof: Variant) -> Dictionary:
 	var field: Dictionary = _field.can_commit_source_change(_active.field_proof)
 	if not bool(field.get("ok", false)):
 		return field
-	if not _temperature.can_commit_bulk(_active.temperature_proof):
+	if _active.temperature_handle != null and not _temperature.can_commit_bulk(_active.temperature_proof):
 		return _failure("temperature_stale")
-	if _phases != null and not _phases.can_commit_bulk(_active.phase_proof):
+	if _active.phase_handle != null and not _phases.can_commit_bulk(_active.phase_proof):
 		return _failure("phase_stale")
 	return {"ok": true, "at_ms": _active.at_ms}
 
@@ -385,3 +436,7 @@ class Change:
 	var columns: Dictionary = {}
 	var phase_columns: Dictionary = {}
 	var cursor: int = 0
+	var chunk_has_phase: bool = false
+	var touched_chunks: Array[Vector2i] = []
+	var temperature_chunks: Array[Vector2i] = []
+	var phase_chunks: Array[Vector2i] = []

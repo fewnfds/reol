@@ -34,6 +34,7 @@ var _affected_chunks: Dictionary = {}
 var _pending: Dictionary = {}
 var _built: bool = false
 var _failed: bool = false
+var _last_change_chunks: Array[Vector2i] = []
 
 
 static func artifact_key(id: String) -> String:
@@ -150,6 +151,12 @@ func affected_chunks() -> Array[Vector2i]:
 	return result
 
 
+func last_change_chunks() -> Array[Vector2i]:
+	# The last successful publication only. Historical residual coverage stays
+	# in affected_chunks(), but must not be copied/sorted after every operation.
+	return _last_change_chunks.duplicate()
+
+
 func get_source(key: String) -> Dictionary:
 	if not _records.has(key):
 		return {}
@@ -229,9 +236,11 @@ func can_commit(proof: Variant) -> bool:
 func finish_source_change(proof: Variant) -> bool:
 	if not can_commit(proof):
 		return false
+	_last_change_chunks.clear()
 	if _pending.kind == "change":
 		var committed: Dictionary = _changes.commit(_pending.field_proof)
 		assert(bool(committed.get("ok", false)), "preflighted environment source commit failed")
+		_last_change_chunks.assign(committed.get("touched_chunks", []))
 		var old_key: String = _pending.old_key
 		var new_key: String = _pending.new_key
 		var slot: int = _pending.slot

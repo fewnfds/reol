@@ -6,6 +6,10 @@ const VERSION: int = 2
 const MINUTE_MS: int = 60000
 const Shape = preload("res://scripts/sim/avian_schema.gd")
 const Schema = preload("res://scripts/sim/health_schema.gd")
+const ParticipationIndex = preload("res://scripts/sim/execution/participation_index.gd")
+const WOUND_WORK: StringName = &"health:wounds"
+const CARE_WORK: StringName = &"health:care"
+const CARE_PATIENTS: StringName = &"health:care_patients"
 var _owner: WeakRef
 var world: RefCounted:
 	get: return _owner.get_ref() if _owner != null else null
@@ -15,6 +19,112 @@ var conflict_source_floor: int = 1
 var next_id: int = 1
 var wounds: Dictionary = {}
 var jobs: Dictionary = {}
+# Disposable participant references only. Original wounds and jobs above remain
+# the authority and are the only values saved. Recovery deliberately preserves
+# the original wounds dictionary's insertion order at equal times.
+var _participants: SimParticipationIndex = ParticipationIndex.new()
+var _wound_order: Dictionary = {}
+var _next_wound_order: int = 0
+
+
+static func _actor_wounds(actor: String) -> StringName:
+	return StringName("health:wounds:actor:" + actor)
+
+
+static func _actor_care(actor: String) -> StringName:
+	return StringName("health:care:actor:" + actor)
+
+
+static func _next_wound_boundary(now: int) -> int:
+	@warning_ignore("integer_division")
+	return (now / MINUTE_MS + 1) * MINUTE_MS
+
+
+func _add_wound_participant(id: String) -> void:
+	var wound: Dictionary = wounds[id]
+	var actor: String = str(wound.actor)
+	var actor_kind: StringName = _actor_wounds(actor)
+	_participants.set_member(WOUND_WORK, id)
+	_participants.set_active(WOUND_WORK, id, true)
+	_participants.set_due(WOUND_WORK, id, _next_wound_boundary(int(world.elapsed_ms)))
+	_participants.set_member(actor_kind, id)
+	_participants.set_active(actor_kind, id, true)
+	_wound_order[id] = _next_wound_order
+	_next_wound_order += 1
+	if wound.type == "meridian_irritation":
+		_sync_care_candidate(actor)
+
+
+func _remove_wound_participant(id: String) -> void:
+	var wound: Dictionary = wounds[id]
+	var actor: String = str(wound.actor)
+	var actor_kind: StringName = _actor_wounds(actor)
+	_participants.cancel_due(WOUND_WORK, id)
+	_participants.set_active(WOUND_WORK, id, false)
+	_participants.set_member(WOUND_WORK, id, false)
+	_participants.set_active(actor_kind, id, false)
+	_participants.set_member(actor_kind, id, false)
+	_wound_order.erase(id)
+	if wound.type == "meridian_irritation":
+		_sync_care_candidate(actor)
+
+
+func _sync_care_candidate(actor: String) -> void:
+	# Follow the original first-source rule, including an earlier treated wound
+	# taking precedence over a later untreated wound until it recovers.
+	var source: String = source_of_type(actor, "meridian_irritation")
+	var eligible: bool = not source.is_empty() and int(wounds[source].treated_ms) < 0
+	if eligible:
+		_participants.set_member(CARE_PATIENTS, actor)
+		_participants.set_active(CARE_PATIENTS, actor, true)
+	elif _participants.has_member(CARE_PATIENTS, actor):
+		_participants.set_active(CARE_PATIENTS, actor, false)
+		_participants.set_member(CARE_PATIENTS, actor, false)
+
+
+func _add_care_participant(id: String) -> void:
+	var job: Dictionary = jobs[id]
+	_participants.set_member(CARE_WORK, id)
+	_participants.set_active(CARE_WORK, id, true)
+	_participants.set_due(CARE_WORK, id, int(job.due_ms))
+	for actor: String in [str(job.patient), str(job.doctor)]:
+		var actor_kind: StringName = _actor_care(actor)
+		_participants.set_member(actor_kind, id)
+		_participants.set_active(actor_kind, id, true)
+
+
+func _remove_care_participant(id: String) -> void:
+	var job: Dictionary = jobs[id]
+	_participants.cancel_due(CARE_WORK, id)
+	_participants.set_active(CARE_WORK, id, false)
+	_participants.set_member(CARE_WORK, id, false)
+	for actor: String in [str(job.patient), str(job.doctor)]:
+		var actor_kind: StringName = _actor_care(actor)
+		_participants.set_active(actor_kind, id, false)
+		_participants.set_member(actor_kind, id, false)
+
+
+func _rebuild_participants() -> void:
+	# Only called after a validated restore. Iterate the original dictionary to
+	# preserve its recovery order; completed history is not real-time work.
+	_participants.clear()
+	_wound_order.clear()
+	_next_wound_order = 0
+	for id: String in wounds:
+		if int(wounds[id].remaining) > 0:
+			_add_wound_participant(id)
+	for id: String in jobs:
+		if jobs[id].status == "active":
+			_add_care_participant(id)
+
+
+func participation_summary() -> Dictionary:
+	# Diagnostics for the simulation owner and tests; never a player's knowledge.
+	return {
+		"active_wounds": _participants.active_ids(WOUND_WORK).size(),
+		"active_care": _participants.active_ids(CARE_WORK).size(),
+		"care_candidates": _participants.active_ids(CARE_PATIENTS).size(),
+	}
 
 
 static func valid_definitions(data: Variant) -> bool:
@@ -74,6 +184,7 @@ func record_effect(event: Dictionary) -> void:
 		return
 	# Called only by the original artifact commit. No textual/visual inference.
 	wounds[event.id] = {"actor": event.actor, "region": home(str(event.actor)), "type": "meridian_irritation", "at_ms": int(event.at_ms), "remaining": int(definitions.recovery.required), "treated_ms": -1, "recovered_ms": -1, "recovery": []}
+	_add_wound_participant(str(event.id))
 	world.invalidate_region(home(str(event.actor)))
 
 
@@ -83,7 +194,7 @@ func current_source(actor: String) -> String:
 
 
 func source_of_type(actor: String, type: String) -> String:
-	for id: String in world._sorted_keys(wounds):
+	for id: String in _participants.active_ids(_actor_wounds(actor)):
 		if wounds[id].actor == actor and wounds[id].type == type and int(wounds[id].remaining) > 0:
 			return id
 	return ""
@@ -103,6 +214,7 @@ func record_conflict_effect(source_id: String) -> bool:
 		return false
 	# Only a committed hit in the conflict authority can create this consequence.
 	wounds[source_id] = {"actor": source.actor, "region": source.region, "type": "contusion", "impact": int(source.impact), "at_ms": int(source.at_ms), "remaining": int(source.impact) * int(definitions.contusion.recovery_per_impact), "treated_ms": -1, "recovered_ms": -1, "recovery": []}
+	_add_wound_participant(source_id)
 	world.invalidate_region(str(source.region))
 	return true
 
@@ -110,7 +222,8 @@ func record_conflict_effect(source_id: String) -> bool:
 func combat_burden(actor: String) -> int:
 	var burden: int = 0
 	var unit: int = int(definitions.contusion.recovery_per_impact)
-	for wound: Dictionary in wounds.values():
+	for id: String in _participants.active_ids(_actor_wounds(actor)):
+		var wound: Dictionary = wounds[id]
 		if wound.actor == actor and wound.type == "contusion" and int(wound.remaining) > 0:
 			@warning_ignore("integer_division")
 			var remaining_impact: int = (int(wound.remaining) + unit - 1) / unit
@@ -138,14 +251,16 @@ func blocks_channeling(actor: String) -> bool:
 
 
 func owns_actor(actor: String) -> bool:
-	for job: Dictionary in jobs.values():
+	for id: String in _participants.active_ids(_actor_care(actor)):
+		var job: Dictionary = jobs[id]
 		if job.status == "active" and actor in [job.patient, job.doctor]:
 			return true
 	return false
 
 
 func previous_autonomy(actor: String) -> bool:
-	for job: Dictionary in jobs.values():
+	for id: String in _participants.active_ids(_actor_care(actor)):
+		var job: Dictionary = jobs[id]
 		if job.status == "active" and actor in [job.patient, job.doctor]:
 			return bool(job.patient_autonomous if actor == job.patient else job.doctor_autonomous)
 	return false
@@ -222,6 +337,7 @@ func request(patient: String, doctor: String, verb: String, autonomous: bool = f
 	var person: Dictionary = sim.actors[patient]
 	jobs[id] = {"id": id, "patient": patient, "doctor": doctor, "patient_region": home(patient), "doctor_region": home(doctor), "source": source, "verb": verb,
 		"consent": str(decision.id), "started_ms": world.elapsed_ms, "due_ms": world.elapsed_ms + duration(verb), "finished_ms": -1, "status": "active", "patient_autonomous": bool(person.autonomous), "doctor_autonomous": bool(body.autonomous), "patient_position": person.position.duplicate(), "doctor_position": body.position.duplicate(), "diagnosis": prior if verb == "treat" else ""}
+	_add_care_participant(id)
 	next_id += 1
 	person.autonomous = false
 	body.autonomous = false
@@ -252,8 +368,10 @@ func _connected(job: Dictionary) -> bool:
 func _finish(job: Dictionary, outcome: String) -> void:
 	job.status = outcome
 	job.finished_ms = world.elapsed_ms
+	_remove_care_participant(str(job.id))
 	if outcome == "completed" and job.verb == "treat":
 		wounds[job.source].treated_ms = world.elapsed_ms
+		_sync_care_candidate(str(job.patient))
 	for actor: String in [str(job.patient), str(job.doctor)]:
 		var body: Dictionary = world.regions[home(actor)].actors[actor]
 		body.autonomous = job.patient_autonomous if actor == job.patient else job.doctor_autonomous
@@ -263,7 +381,8 @@ func _finish(job: Dictionary, outcome: String) -> void:
 
 
 func cancel(actor: String) -> bool:
-	for job: Dictionary in jobs.values():
+	for id: String in _participants.active_ids(_actor_care(actor)):
+		var job: Dictionary = jobs[id]
 		if job.status == "active" and actor in [job.patient, job.doctor]:
 			_finish(job, "cancelled")
 			return true
@@ -271,20 +390,19 @@ func cancel(actor: String) -> bool:
 
 
 func next_boundary_ms() -> int:
-	var next: int = SimInventory.MAX_COUNT
-	for wound: Dictionary in wounds.values():
-		if int(wound.remaining) > 0:
-			next = mini(next, (floori(float(world.elapsed_ms) / MINUTE_MS) + 1) * MINUTE_MS)
-	for job: Dictionary in jobs.values():
-		if job.status == "active":
-			if not _connected(job):
-				return world.elapsed_ms + 1
-			next = mini(next, int(job.due_ms))
-	return next
+	var next: int = _participants.next_due_ms(WOUND_WORK, SimInventory.MAX_COUNT)
+	# A caller may query after directly advancing a test world. Preserve the
+	# original next-global-minute rule even if it skipped a prior boundary.
+	if next != SimInventory.MAX_COUNT and next <= int(world.elapsed_ms):
+		next = _next_wound_boundary(int(world.elapsed_ms))
+	for id: String in _participants.active_ids(CARE_WORK):
+		if not _connected(jobs[id]):
+			return world.elapsed_ms + 1
+	return mini(next, _participants.next_due_ms(CARE_WORK, SimInventory.MAX_COUNT))
 
 
 func settle_at_ms(now: int) -> void:
-	for id: String in world._sorted_keys(jobs):
+	for id: String in _participants.active_ids(CARE_WORK):
 		var job: Dictionary = jobs[id]
 		if job.status != "active":
 			continue
@@ -296,8 +414,13 @@ func settle_at_ms(now: int) -> void:
 			_finish(job, "completed" if int(wounds[job.source].remaining) > 0 else "failed")
 	if now % MINUTE_MS != 0:
 		return
-	for wound: Dictionary in wounds.values():
+	var wound_ids: Array[String] = _participants.active_ids(WOUND_WORK)
+	wound_ids.sort_custom(func(left: String, right: String) -> bool:
+		return int(_wound_order[left]) < int(_wound_order[right]))
+	for id: String in wound_ids:
+		var wound: Dictionary = wounds[id]
 		if int(wound.remaining) <= 0 or now < int(wound.at_ms) + MINUTE_MS or not wound.recovery.is_empty() and int(wound.recovery.back().at_ms) >= now:
+			_participants.set_due(WOUND_WORK, id, _next_wound_boundary(now))
 			continue
 		world.synchronize_region(str(wound.region))
 		var actor: String = str(wound.actor)
@@ -312,6 +435,9 @@ func settle_at_ms(now: int) -> void:
 		wound.recovery.append({"at_ms": now, "resting": rested, "treated": treated, "amount": amount})
 		if int(wound.remaining) == 0:
 			wound.recovered_ms = now
+			_remove_wound_participant(id)
+		else:
+			_participants.set_due(WOUND_WORK, id, _next_wound_boundary(now))
 		world.invalidate_region(str(wound.region))
 
 
@@ -352,7 +478,9 @@ func wants_decision(actor: String, _at_ms: int) -> bool:
 
 
 func consider() -> void:
-	for actor: String in world._actor_ids(world.regions):
+	for actor: String in _participants.active_ids(CARE_PATIENTS):
+		if home(actor).is_empty():
+			continue
 		if not wants_decision(actor, world.elapsed_ms) or not world.autonomous_decision(actor):
 			continue
 		var started: bool = false
@@ -395,6 +523,7 @@ func restore(data: Variant) -> bool:
 	next_id = int(data.next_id)
 	wounds = data.wounds.duplicate(true)
 	jobs = data.jobs.duplicate(true)
+	_rebuild_participants()
 	return true
 
 

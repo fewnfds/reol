@@ -74,6 +74,22 @@ func test_environment_field_rules() -> void:
 	load("res://tests/sim/test_environment_field_rules.gd").new().run(self)
 
 
+func test_participation_index() -> void:
+	load("res://tests/sim/test_participation_index.gd").new().run(self)
+
+
+func test_health_participation() -> void:
+	load("res://tests/sim/test_health_participation.gd").new().run(self)
+
+
+func test_sparse_effect_change() -> void:
+	load("res://tests/sim/test_sparse_effect_change.gd").new().run(self)
+
+
+func test_sparse_field_restore() -> void:
+	load("res://tests/sim/test_sparse_field_restore.gd").new().run(self)
+
+
 func test_environment_source_bindings() -> void:
 	load("res://tests/sim/test_environment_source_bindings.gd").new().run(self)
 

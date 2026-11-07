@@ -2,6 +2,9 @@
 
 [分类总目录](../CATALOG.md)；路径存在不表示已实现或已验。
 
+- [docs/engineering/sparse-execution.md](../engineering/sparse-execution.md)
+- [docs/engineering/world-environment-contract.md](../engineering/world-environment-contract.md)
+
 - [docs/engineering/README.md](../engineering/README.md)
 - [docs/engineering/architecture.md](../engineering/architecture.md)
 - [docs/engineering/architecture/01-dependencies.md](../engineering/architecture/01-dependencies.md)

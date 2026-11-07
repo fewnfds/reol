@@ -398,6 +398,12 @@ func candidate_tile_copy(proof: Variant, tile_id: int) -> Dictionary:
 	return {"ok": true, "rect": _rect_for_tile(tile_id), "channels": values.duplicate()}
 
 
+func has_candidate_change_masks() -> bool:
+	# A field implementation may expose exact per-cell channel masks on clean
+	# candidate tiles; absent masks mean the caller must use the complete tile.
+	return false
+
+
 func can_commit_source_change(proof: Variant) -> Dictionary:
 	if _source_candidate == null or not _source_candidate.sealed or not proof is SourceChangeProof or not is_same(_source_candidate.proof, proof):
 		return _failure("invalid_proof")

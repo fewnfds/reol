@@ -295,6 +295,23 @@ func next_boundary_ms() -> int:
 	return _earliest_boundary if _configured else -1
 
 
+func cell_boundary_ms(cell: Vector2i) -> int:
+	var chunk: Chunk = _chunks.get(_chunk_key(cell))
+	var index: int = (cell.y & 15) * CHUNK_SIDE + (cell.x & 15)
+	return chunk.untils[index] if _inside(cell, _size) and chunk != null and chunk.present[index] != 0 else -1
+
+
+func chunk_boundary_ms(key: Vector2i) -> int:
+	var chunk: Chunk = _chunks.get(key)
+	if chunk == null:
+		return -1
+	var earliest: int = -1
+	for index: int in CHUNK_CELLS:
+		if chunk.present[index] != 0 and (earliest < 0 or chunk.untils[index] < earliest):
+			earliest = chunk.untils[index]
+	return earliest
+
+
 func diagnostics() -> Dictionary:
 	return {"configured": _configured, "size": _size, "capacity": _capacity,
 		"activation_ms": _activation_ms, "last_change_ms": _last_change_ms,

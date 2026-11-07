@@ -20,6 +20,7 @@ const Rules = preload("res://scripts/sim/environment_field_rules.gd")
 const Compiler = preload("res://scripts/sim/environment_target_compiler.gd")
 const Participant = preload("res://scripts/sim/world_environment_source_participant.gd")
 const Background = preload("res://scripts/sim/world_environment_background.gd")
+const Participation = preload("res://scripts/sim/execution/participation_index.gd")
 
 var definitions: Dictionary = {}
 var activation_ms: int = 0
@@ -42,6 +43,8 @@ var _transient: Dictionary = {}
 var _active: bool = false
 var _busy: bool = false
 var _error: String = ""
+var _participation := Participation.new()
+var _last_refresh_chunks: int = 0
 
 var world: RegionalSimulation:
 	get: return _owner.get_ref() if _owner != null else null
@@ -82,6 +85,7 @@ func activate_sources() -> bool:
 	if not _rebuild_base() or not _refresh_targets(activation_ms, true):
 		return false
 	_active = true
+	_rebuild_participation()
 	return mark_sample(activation_ms)
 
 
@@ -127,19 +131,8 @@ func next_boundary_ms() -> int:
 		# Activating is an assembly operation, not a zero-time boundary.
 		return MAX_TIME
 	var next: int = _background.next_boundary_ms()
-	for value: int in [_temperature.next_boundary_ms(), _phases.next_boundary_ms()]:
-		if value >= 0:
-			next = mini(next, value)
-	for source: Dictionary in _transient.values():
-		next = mini(next, int(source.until_ms))
-	for id: String in world.artifacts.legacy_object_ids():
-		var item: Dictionary = world.artifacts.objects[id]
-		if not _device_active(id):
-			continue
-		var rule: Dictionary = world.artifacts.definitions.types[item.definition].thermal
-		var remaining: int = int(item.stored_q) if rule.mode == "emit" else int(rule.capacity_q) - int(item.stored_q)
-		var rate: int = int(rule.rate_q_per_ms)
-		next = mini(next, last_ms + (remaining / rate) + (1 if remaining % rate else 0))
+	for kind: StringName in [&"temperature", &"phases", &"devices", &"transient"]:
+		next = mini(next, _participation.next_due_ms(kind, MAX_TIME))
 	return next
 
 
@@ -158,9 +151,7 @@ func settle_at_ms(now: int) -> bool:
 		# Original device stock remains in the artifact owner. The field does
 		# not implement or claim energy conservation between fantasy sources.
 		var depleted: Array[String] = []
-		for id: String in world.artifacts.legacy_object_ids():
-			if not _device_active(id):
-				continue
+		for id: String in _participation.active_ids(&"devices"):
 			var item: Dictionary = world.artifacts.objects[id]
 			var rule: Dictionary = world.artifacts.definitions.types[item.definition].thermal
 			var available: int = int(item.stored_q) if rule.mode == "emit" else int(rule.capacity_q) - int(item.stored_q)
@@ -177,17 +168,18 @@ func settle_at_ms(now: int) -> bool:
 				return false
 		last_ms = end
 		for id: String in depleted:
+			_sync_device(id)
 			var key: String = Participant.artifact_key(id)
 			var source: Dictionary = _sources.get_source(key)
 			if not source.is_empty():
 				source = _transform_source(key, source)
 				if not _change_source(key, source, end):
 					return false
-		for key: String in _transient.keys():
-			if int(_transient[key].until_ms) <= end:
-				if not _change_source(key, {}, end):
-					return false
-				_transient.erase(key)
+		for key: String in _participation.due_ids(&"transient", end):
+			if not _change_source(key, {}, end):
+				return false
+			_transient.erase(key)
+			_participation.set_member(&"transient", key, false)
 	return true
 
 
@@ -203,8 +195,12 @@ func prepare_object_change(request: Dictionary) -> Dictionary:
 func finish_object_change(result: Dictionary, proof: Variant) -> Dictionary:
 	var committed: Dictionary = _sources.finish_object_change(result, proof)
 	if bool(committed.get("ok", false)):
-		for key: Vector2i in _sources.affected_chunks():
+		for key: Vector2i in _sources.last_change_chunks():
 			_chunks[key] = true
+		_sync_response_deadlines(_sources.last_change_chunks())
+		var reference: Dictionary = result.get("reference", {})
+		if reference.get("kind") == "artifact":
+			_sync_device(str(reference.id))
 	_busy = false
 	return committed
 
@@ -276,6 +272,8 @@ func commit_device_switch(receipt: Dictionary, proof: Variant) -> bool:
 	var committed: bool = _sources.finish_source_change(proof)
 	assert(committed, "preflighted device field commit failed")
 	device_switches[receipt.action] = receipt.duplicate(true)
+	_sync_device(str(receipt.object))
+	_sync_response_deadlines(_sources.last_change_chunks())
 	_busy = false
 	return true
 
@@ -295,6 +293,8 @@ func deposit(receipt: Dictionary) -> bool:
 	if not _change_source(key, source, world.elapsed_ms):
 		return false
 	_transient[key] = {"cell": [cell.x, cell.y], "until_ms": world.elapsed_ms + 60000}
+	_participation.set_member(&"transient", key)
+	_participation.set_due(&"transient", key, world.elapsed_ms + 60000)
 	receipts[receipt.action] = receipt.duplicate(true)
 	return true
 
@@ -305,8 +305,9 @@ func _change_source(key: String, source: Dictionary, at_ms: int) -> bool:
 		return false # Rejected candidates have not changed either domain.
 	if not _sources.finish_source_change(prepared.proof):
 		return _fail("source_publication")
-	for chunk: Vector2i in _sources.affected_chunks():
+	for chunk: Vector2i in _sources.last_change_chunks():
 		_chunks[chunk] = true
+	_sync_response_deadlines(_sources.last_change_chunks())
 	return true
 
 
@@ -416,7 +417,7 @@ func device_emission_rates(at_ms: int) -> Dictionary:
 	if at_ms != last_ms or _busy:
 		return {"supported": false, "reason": "unsettled_environment"}
 	var rates: Dictionary = {}
-	for id: String in world.artifacts.legacy_object_ids():
+	for id: String in _participation.active_ids(&"devices"):
 		if _device_active(id):
 			var rule: Dictionary = world.artifacts.definitions.types[world.artifacts.objects[id].definition].thermal
 			if rule.mode == "emit":
@@ -426,8 +427,22 @@ func device_emission_rates(at_ms: int) -> Dictionary:
 
 
 func _refresh_targets(at_ms: int, activation: bool) -> bool:
-	for key: Vector2i in _sorted_chunks():
-		var opened: Dictionary = _targets.begin(Rect2i(key * 16, Vector2i(16, 16)), at_ms, activation)
+	var selected: Dictionary[Vector2i, int] = {}
+	if activation:
+		for key: Vector2i in _sorted_chunks():
+			selected[key] = Targets.THERMAL | Targets.ELEMENTAL
+	else:
+		for id: String in _participation.due_ids(&"temperature", at_ms):
+			selected[_chunk_from_id(id)] = Targets.THERMAL
+		for id: String in _participation.due_ids(&"phases", at_ms):
+			var key: Vector2i = _chunk_from_id(id)
+			selected[key] = int(selected.get(key, 0)) | Targets.ELEMENTAL
+	var keys: Array[Vector2i] = []
+	keys.assign(selected.keys())
+	keys.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
+	_last_refresh_chunks = keys.size()
+	for key: Vector2i in keys:
+		var opened: Dictionary = _targets.begin(Rect2i(key * 16, Vector2i(16, 16)), at_ms, activation, null, selected[key], not activation)
 		if not bool(opened.get("ok", false)):
 			return _fail(str(opened.get("reason", "target_begin")))
 		var handle: Variant = opened.handle
@@ -440,7 +455,61 @@ func _refresh_targets(at_ms: int, activation: bool) -> bool:
 		var finished: Dictionary = _targets.finish(handle)
 		if not bool(finished.get("ok", false)) or not bool(_targets.commit(finished.proof).get("ok", false)):
 			return _fail("target_publication")
+	_sync_response_deadlines(keys)
 	return true
+
+
+func _sync_response_deadlines(keys: Array[Vector2i]) -> void:
+	for key: Vector2i in keys:
+		var id: String = str(key.y * (SIZE / 16) + key.x)
+		_participation.set_member(&"response_summary", id)
+		_participation.mark_dirty(&"response_summary", id, &"anchors_changed")
+	# Coalesce dependencies before reading summaries. This is derived work,
+	# acknowledged only after both original response owners have been queried.
+	for row: Dictionary in _participation.pending_dirty(&"response_summary"):
+		var id: String = row.id
+		var key: Vector2i = _chunk_from_id(id)
+		for kind: StringName in [&"temperature", &"phases"]:
+			var state: RefCounted = _temperature if kind == &"temperature" else _phases
+			var boundary: int = state.chunk_boundary_ms(key)
+			_participation.set_member(kind, id, boundary >= 0)
+			if boundary >= 0:
+				_participation.set_due(kind, id, boundary)
+		_participation.ack_dirty(&"response_summary", id, int(row.revision))
+
+
+static func _chunk_from_id(id: String) -> Vector2i:
+	var index: int = int(id)
+	return Vector2i(index % (SIZE / 16), index / (SIZE / 16))
+
+
+func _sync_device(id: String) -> void:
+	var exists: bool = world.artifacts.has_capability(id, "thermal_exchange")
+	_participation.set_member(&"devices", id, exists)
+	if not exists:
+		return
+	var active: bool = _device_active(id)
+	_participation.set_active(&"devices", id, active)
+	if not active:
+		_participation.cancel_due(&"devices", id)
+		return
+	var item: Dictionary = world.artifacts.objects[id]
+	var rule: Dictionary = world.artifacts.definitions.types[item.definition].thermal
+	var remaining: int = int(item.stored_q) if rule.mode == "emit" else int(rule.capacity_q) - int(item.stored_q)
+	var rate: int = int(rule.rate_q_per_ms)
+	_participation.set_due(&"devices", id, last_ms + (remaining / rate) + (1 if remaining % rate else 0))
+
+
+func _rebuild_participation() -> void:
+	# Assembly/restore only. Subsequent changes update their own IDs/chunks;
+	# the index holds no original object, actual value or alternate clock.
+	_participation.clear()
+	_sync_response_deadlines(_sorted_chunks())
+	for id: String in world.artifacts.legacy_object_ids():
+		_sync_device(id)
+	for key: String in _transient:
+		_participation.set_member(&"transient", key)
+		_participation.set_due(&"transient", key, int(_transient[key].until_ms))
 
 
 func _rebuild_base() -> bool:
@@ -505,4 +574,7 @@ func restore(data: Variant) -> bool:
 func diagnostics() -> Dictionary:
 	return {"model": MODEL, "active": _active, "error": _error, "at_ms": last_ms,
 		"tracked_chunks": _chunks.size(), "transient_sources": _transient.size(),
+		"last_refresh_chunks": _last_refresh_chunks,
+		"execution": {"temperature": _participation.diagnostics(&"temperature"),
+			"phases": _participation.diagnostics(&"phases"), "devices": _participation.diagnostics(&"devices")},
 		"geometry": "outdoor_no_room_attenuation", "source": _sources.diagnostics() if _active else {}}
