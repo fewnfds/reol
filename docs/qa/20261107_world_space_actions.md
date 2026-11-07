@@ -1,6 +1,6 @@
 # 共同空间与最小行动阶段验收
 
-范围：基础建设主计划第一阶段，开发分支`codex/world-space-actions`，起点`b3ae3399d24e01975d231cd000c0af342740070b`。代码提交、完整回归和原生审查的最终状态在本页收尾记录；不合并main，不恢复隔离实验。
+范围：基础建设主计划第一阶段，开发分支`codex/world-space-actions`，起点`b3ae3399d24e01975d231cd000c0af342740070b`。最终受检`f50f0a84085294faf72e6315e99aa5343e7dbf15`，代码/测试之后仅整理Markdown证据；不合并main，不恢复隔离实验。
 
 ## 框架出口与实现
 
@@ -34,6 +34,10 @@ Godot AI核对Reol工程、Godot4.7.2 stable和官方插件4.4.1后启动普通`
 
 代码`fa45228b35fd42c090e1e297f47b211fcb6b8fb7`已执行一次原生`gpt-6.1-sol`/custom只读静态审查（`logs/stage1-native-review.log`），审查未运行引擎/测试/CI。3项P2均有效并修复：多鸟/大兽同批跨格的通知期间明确拒绝查询，全部链接完成后才允许完整查询；来源时钟领先世界的正常区域移动仅更新原几何，不再触发全量重建；候选逐个计费，低预算不先复制密集格全集。
 
-`logs/stage1-review-regressions.log`复现并保护这些反例，连同原对象查询/取放/大兽/玩家身体共5组635断言通过，包装器0退出。最终代码提交、一次全量check及分支推送待收尾登记；有效修复不另启动第二个主要审查。起点main的CI42365643089已在真实提交检查点核success；分支尚未推送，没有可归属本阶段的远端CI。不得把旧SHA绿色当作新代码通过。
+`logs/stage1-review-regressions.log`复现并保护这些反例，连同原对象查询/取放/大兽/玩家身体共5组635断言通过，包装器0退出。有效修复在`5fd6e3152464fd30320ac858d28c19caaea46559`，不另启动第二个主要审查；起点main的CI42365643089在真实提交检查点复用终态success。阶段分支只在最终证据提交后一并推送，远端结果待后续真实提交检查点核验。不得把旧SHA绿色当作新代码通过。
 
-首轮完整check（`5fd6e3152464fd30320ac858d28c19caaea46559`，`logs/stage1-full-check.log`）用时约1287秒，249组全部执行，248组通过；唯一失败组`test_heat_topology`有9条自主权释放断言和同源脚本类型错误。原因是旧夹具用简化RefCounted Authority调用新的强类型共用合同；实际原世界相关组通过。夹具改为最小RegionalSimulation派生、保留原热观察者/账本和全部断言，补真实起止时刻与终态断言；没有修改产品代码或放宽门禁。`logs/stage1-topology-final.log`该组205断言通过，修正后需要重新取得完整check成功终态。
+首轮完整check（`5fd6e3152464fd30320ac858d28c19caaea46559`，`logs/stage1-full-check.log`）用时约1287秒，249组全部执行，248组通过；唯一失败组`test_heat_topology`有9条自主权释放断言和同源脚本类型错误。原因是旧夹具用简化RefCounted Authority调用新的强类型共用合同；实际原世界相关组通过。夹具改为最小RegionalSimulation派生、保留原热观察者/账本和全部断言，补真实起止时刻与终态断言；没有修改产品代码或放宽门禁。`logs/stage1-topology-final.log`该组205断言通过，夹具修正在`f50f0a84085294faf72e6315e99aa5343e7dbf15`。
+
+最终`python tools/godot.py check --test-timeout 1800`在该准确SHA完成：**249组/125102断言/0失败**，结构317份当前文档/491脚本0错误，import=0、test=0及包装器脚本错误门禁通过，约1286秒。日志`logs/stage1-full-check-final.log`、`logs/check-test-20261107-204221.log`及对应逐组timings保留本机。未并发引擎；两次长check和原生审查均由一次工具内部持同一handle等终态，模型未固定间隔查询、数PASS或轮询CI。
+
+本阶段plan/coding/review/验证已交付，后续Markdown记录随分支推送，不自动合并main或启动下一阶段。源码/测试与准确受检提交相同；本阶段没有新增外部依赖或复制第三方代码，日志/凭据/存档/截图均不入库。

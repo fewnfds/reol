@@ -1,35 +1,29 @@
 # 当前接续
 
-2026-11-07当前任务：用户明确授权主计划第一阶段的plan→coding→review→push，并要求主代理创建Goal。Goal已active，分支`codex/world-space-actions`，起点`b3ae3399d24e01975d231cd000c0af342740070b`。目标及边界沿[唯一主计划](../plans/foundation-priorities.md)，现有18份研究/计划文档先独立提交，代码包继续到阶段出口。
+2026-11-07：用户授权的基础建设第一阶段plan→coding→review→push已达到交付出口，保留在`codex/world-space-actions`，不自动合并main。Goal按实际推送终态关闭；当前Git指针与未提交状态以Git为准。起点`b3ae3399d24e01975d231cd000c0af342740070b`，唯一施工顺序仍是[基础建设计划](../plans/foundation-priorities.md)，没有新增第二份计划。
 
-## 本阶段执行与验收
+## 本阶段交付
 
-1. 复用原地面/结构局部索引，接身体的原位置变化与恢复；组合有预算、明确范围/共同时间的实时空间查询，保留历史快照合同。原owner提交变化后维护相关候选并通知消费者，未知/欠算不伪装空集。
-2. 从已有耗时取放与施工提炼实际共用的条件/占用、时序、终态和清理接缝，效果仍由原生命周期/建筑/库存提交。普通Main使用这些接口，保留能力、观察和权限边界。
-3. 以不同布局、跨格/多格、创建/取放/建拆、途中条件改变、取消与在途保存/完全停开恢复验证同一事实；先定向，最终一次完整check，实际普通入口观察和有界成本证据。一次原生Sol/custom静态审查后修复、提交并推送，不自动合并main。
+- 世界地块与空间、实体/物品接入：`SimWorldSpace`组合当前身体、地面器物/数量堆、蓝图/结构与固定组件，有界实时查询、冻结变化、恢复重建和旧handle失效；原地面/结构索引、身体位置、器物与账本继续由原owner持有。
+- 单位行动与交互：`SimActionContract`让耗时取放/施工共用原身体条件/占用、执行复核、自主权与原预约释放、终态投影。原阶段/截止时间/成本及效果未迁到第二套执行器；普通实物面板与F8移除已使用共同接口。
+- 实现`fa45228`，审查修复`5fd6e3152464fd30320ac858d28c19caaea46559`，最终受检代码/测试`f50f0a84085294faf72e6315e99aa5343e7dbf15`。随后仅整理本阶段Markdown证据；完整提交记录在Git。
 
-本阶段不提前实现通用植物、多工地/任意家具、全局动态绕路、房温或自由背包。新接口不复制原物/位置、不新增世界时钟或历史重放模型。Godot4.7.2 doctor与review_model检查通过；起点18份文档备份于`logs/framework_stage1_20261107_113554/`，受保护旧分支/stash保持不动。当前进程状态沿本阶段收尾记录，不复用前序handle。
+## 验证与审查
 
-实现已接原位置writer、`SimWorldSpace`实时局部查询/冻结变化和恢复重建、`SimActionContract`取放/施工共用条件/占用/复核/释放/终态；普通F8移除和实物面板已用共同接口。新增`test_world_space`，原过程和运行层定向已通过；普通Main两份在途档已用独立进程验证同checkpoint/完整未来。最后补齐首次准备前及失败重建后的通知订阅，最终定向3组443断言通过，最终代码普通Main再次独立write/read通过且完整快照SHA保持一致。代码`fa45228`已完成一次Sol/custom原生审查，3项P2已修复并由5组635断言验证；修复后普通Main两份在途档再次独立write/read通过且完整快照SHA不变。修复代码`5fd6e31`的首轮完整check执行249组：248组通过，唯一热拓扑组因旧夹具Authority类型/缺deadline产生9断言失败；产品代码不变，已将夹具接当前真实authority和最小动作字段并保留断言，定向205断言通过。正在提交夹具/证据修正，随后重新完整check及分支推送。详见[本阶段QA](../qa/20261107_world_space_actions.md)；准确未提交状态以Git为准。
+- Godot4.7.2 stable doctor、导入和review_model核对通过。一次原生`gpt-6.1-sol`/custom静态审查发现3项P2，均已修复并用对应反例验证；未递归审查或运行重复审查者。
+- 最终准确代码本机完整check **249组/125102断言/0失败**，约1286秒，结构/导入/脚本错误门禁及退出码均通过。前轮唯一热拓扑夹具类型不适配已接当前authority，原断言保留并补终态，不修改产品代码凑绿。
+- 普通Main原物取放及施工两份在途档已完全停止游戏进程后独立恢复，checkpoint及完整未来SHA相同，原截止时刻与成本保留；实际取放/施工界面已查看。两格实时查询1000次约59.8ms，仅局部CPU样本。
+- 完整范围、首轮失败、审查修复及日志见[本阶段QA](../qa/20261107_world_space_actions.md)。本机验证/编辑器/审查/等待进程均已结束，不复用旧handle。
+- 起点main的[CI42365643089](https://github.com/fewnfds/reol/actions/runs/42365643089)已核完整SHA一致且success。本阶段分支推送将触发现有CI，远端结果未核验；留到下次真实提交检查点，不立即查询、轮询或声称回调能唤醒聊天。
 
-2026-11-07：用户授权的已有工作收尾与主线集成已完成，根工作区回到main。通用参与索引、环境/健康稀疏执行、普通环境入口命名、测试4片CI及顶层框架/术语/等待策略文档均进入主线；本轮没有新增游戏功能或移植旧实验。完整实时提交和未提交状态以Git为准。
+## 后续入口与边界
 
-## 集成与验证
+下一交付仍是主计划第二阶段“通用建筑与组合空间”：多定义、多格结构/家具、多处施工及围合/屋面/用途区域复用。此处记录依赖关系，不自动启动新范围。通用植物、完整动作整合/绕路、跨账本搬运、房温及自由背包继续按原领域和主计划推进。
 
-- 最新代码提交为`f166cdb4360e91055a3f942cedf66ae446f2301e`，后续只整理Markdown/项目技能；main从`eff27a7dcf77031a4084258cc688bbb3616b64e4`快进，保留开发历史。本轮仅推送main，其他已合分支保留历史引用。
-- 代码提交与已审查对象`2b9828040343e53a469ec8cdce5f12df16656e31`的parent、完整tree及8份文件哈希相同。复用一次Sol/custom静态审查、本机4片完整248组/124981断言/0失败、Python72项和错误退出smoke；没有重复长回归或模型审查。一个未改组的墙钟预算循环计数波动已有单独证据，未删断言或放宽门禁。
-- 第一阶段文档提交检查点一次发现并登记[CI42365643089](https://github.com/fewnfds/reol/actions/runs/42365643089)，headSha `b3ae3399d24e01975d231cd000c0af342740070b`相符，工具核completed/success；这是起点main的证据，不代替本阶段新代码。未额外轮询或取消run。
-- 完整来源、审查复用、备份与隔离边界见[集成QA](../qa/20261107_mainline_cleanup.md)；本轮之前的测试成本、每片耗时与计数差异见[优化QA](../qa/20261107_test_optimization.md)。全部验证/审查进程已终态，不复用旧handle。
+领域职责查[顶层框架](../engineering/architecture/05-framework-domains.md)，已接范围/缺口查[技术总表](technical-status.md)，操作查[FEATURES](features.md)，版本证据查[BASELINE](baseline.md)，真实代码名查[唯一映射](../engineering/terminology.md)。当前根52/区域43/村落7不变；只维护一套运行模型和写档格式。
 
-## 开发入口与边界
+## 保护工作与环境
 
-- 领域职责只看[顶层框架](../engineering/architecture/05-framework-domains.md)，建设依赖/出口只看[基础建设计划](../plans/foundation-priorities.md)，实际能力/缺口看[技术总表](technical-status.md)，操作看[FEATURES](features.md)，准确证据看[BASELINE](baseline.md)。本轮收尾不自动启动下一框架。
-- 术语和真实代码定位见[唯一映射](../engineering/terminology.md)。当前普通环境成员为`RegionalSimulation.environment_fields`，区域存档schema43/根52仍通过codec使用JSON键`local_heat`；只有一套当前运行模型。
-- 长验证有独立工作就继续做，只剩测试时由一次工具编排持有同一handle等待终态；模型不每60秒续等、不读日志数PASS、不重复报告无变化。规则已写入AGENTS与测试/审查工作流。
-- Context7认证已通过真实4.7文档查询；key保存在Windows用户环境变量，本机Git忽略配置只引用变量名。共享仓库不包含认证值。
+`codex/field-contest`的`4e17c5c165cf8fca9ef884a111aa1c3ca35f445f`旧根43争环WIP及命名stash `424f956d280fb390d17e1f6dd879f3614b51a430`的四份环境草稿均保持隔离，不应用、不删除。来源见[分支页](branches.md)与[主线集成QA](../qa/20261107_mainline_cleanup.md)。阶段前18份文档备份在`logs/framework_stage1_20261107_113554/`；既有89份收尾备份在`logs/mainline_cleanup_20261107_184537/`。日志、截图、存档与本机配置不入库。
 
-## 保护工作
-
-`codex/field-contest`的`4e17c5c165cf8fca9ef884a111aa1c3ca35f445f`是旧根43的未完成争环实验；4份环境草稿在命名stash `424f956d280fb390d17e1f6dd879f3614b51a430`，两者保持隔离、不应用、不删除，不算待发布正式功能。用途见[分支页](branches.md)，原备份在`logs/world_engine_finish/protected-wip/`。
-
-主线收尾开始前89份文件及差异保存在`logs/mainline_cleanup_20261107_184537/`；前序架构文档重构/English名称整理均已纳入已完成文档提交，原文件内容可从本机备份与Git追溯。运行代码无待收尾修改；当前研究文档的未提交状态以Git为准，不留测试、审查或等待进程。
+Context7认证使用用户环境变量及Git忽略配置，仓库不含key。长验证只剩等待时以一次工具编排持有同一handle到终态，未按时间查询CI或让模型定期读PASS。
