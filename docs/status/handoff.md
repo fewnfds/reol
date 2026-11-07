@@ -1,10 +1,22 @@
 # 当前接续
 
-核对：2026-11-07。[性能有限接续Goal](../plans/environment-object-loop/performance-followup.md)按用户“解决不了停下讨论”条件暂停收尾，**未complete**。A代码`9467cb9790229284ee24edd61cc48a45d809d1f0`用原逐格占用只读点查替代材料目的地桶扫描；128²创建4178.175→2694.914ms，512²真实创建44027.021ms、场2929.918ms、装配10979.623ms。4组定向9666断言0失败，Sol/custom静态审查无发现，原成本/数量/回执不变。
+核对：2026-11-07。用户本轮要求核对历史世界框架，能接入就接入，缺口明确报告，停止无限隔离打磨；[普通接入小包](../plans/world-foundation/runtime-integration.md)代码`f7baba0279fccb8d4592dc30194ddaa50dbf7f12`已提交，尚未推送。按定义生成/移除受管实物已进原F8世界编辑；普通面板取放走同一生命周期耗时动作，移动/停止取消、截止触及/遮挡复验，多格、原身体、时间与普通存档不分叉。
+
+本包干净隔离检出最终4组469断言0失败，真实Main/D3D12/3060双进程普通存读通过：实际F8/鼠标放置2×1物、普通取起517ms保存、完全退出后摘要一致、原动作完成后再普通放下；已观察编辑/进行中/恢复截图。一次原生Sol/custom静态审查P1“暂停wait后取放导致可写不可读”已修：成功启动清原wait、取放中拒新wait，失败点击不清wait。新增两种操作顺序回归通过，不再开第二整包模型审查。
+
+首轮完整check因修真实P1主动中止，不算通过；在干净隔离检出对最终修复SHA运行完整check，终态随后登记，不重开同一验证。主工作区结构295文档/475脚本0错误，四WIP未混入。QA见[普通接入](../qa/20261107_framework_runtime_integration.md)。
+
+新冷热/五行/GPU尚不能接管普通Main：旧设备、人物/植物、墙门屋面仍依赖旧热；新会话未接普通唯一时间/全部相关写入，守卫还拒绝生成/移除/材料，实际残留未进入普通存档。本包未强绑开发会话、未叠两份温度，未扩新压测、存档优化或玩法。材料拆合仍是权威接口，未做通用选堆菜单/NPC指挥。后续应补普通接缝并退役旧模型，不继续另起独立验收设施。
+
+旧性能Goal继续paused/未complete，本轮是用户另行授权的小包，不恢复旧性能队列。上轮“当前快照/操作历史”提问已澄清：存档保存当前世界及在途状态，不靠重演全部历史；技术回执保留/归并属于工程取舍，不需用户改变世界法则，不能继续以等待概念拍板作为阻塞。当前没有改历史/去重合同。四份原WIP哈希保持。
+
+## 前次性能工作与核验
+
+[性能有限接续Goal](../plans/environment-object-loop/performance-followup.md)按用户“解决不了停下讨论”条件暂停收尾，**未complete**。A代码`9467cb9790229284ee24edd61cc48a45d809d1f0`用原逐格占用只读点查替代材料目的地桶扫描；128²创建4178.175→2694.914ms，512²真实创建44027.021ms、场2929.918ms、装配10979.623ms。4组定向9666断言0失败，Sol/custom静态审查无发现，原成本/数量/回执不变。
 
 B两条轻量存读尝试没有显著端到端收益，全部撤回运行代码，`environment_response_file.gd`保持原字节/格式/校验。工具/测试代码`603cdff7a65672e486b831453ec9114a71ea1ade`仅增加显式`--snapshot --transport-profile`分项测量及字符串原格式字节/坏编码测试，默认不多读写。4组定向298断言0失败，Python守卫8项通过，一次Sol/custom静态审查无发现；64²独立候选完整存读通过。C多移动源吞吐未实施，不把静态建议或单源瞬时样本当通过。
 
-本轮[QA与停止理由](../qa/20261107_world_performance_followup.md)记录数据及可讨论简化：区分开局初始事实/生成批次与游玩后真实操作历史，当前尚未改变规则。已向用户询问该概念，等待答复，不静默删开局或真实历史。A的[CI42269548713](https://github.com/fewnfds/reol/actions/runs/42269548713)在最终文档提交检查点为in_progress，B的[CI42270554012](https://github.com/fewnfds/reol/actions/runs/42270554012)为pending，完整headSha均一致，**本轮完整CI待验**；不轮询，不本机再跑整套。干净检出日志保全到`logs/world_perf_followup/validation-artifacts/`后移除临时检出，四WIP哈希保持不纳入验收。没有证据证明必须换引擎或缩小整个世界。
+前次[QA与停止理由](../qa/20261107_world_performance_followup.md)记录数据及当时的历史简化提问，未改变规则。最新真实提交检查点一次核对：A的[CI42269548713](https://github.com/fewnfds/reol/actions/runs/42269548713)completed/success；B的[CI42270554012](https://github.com/fewnfds/reol/actions/runs/42270554012)completed/failure，完整回归1800s超时，停在world_persistence且无最终汇总，不能当通过；准确SHA均匹配。未重复轮询或放宽门禁。干净检出日志保全到`logs/world_perf_followup/validation-artifacts/`后移除临时检出，四WIP哈希保持不纳入验收。没有证据证明必须换引擎或缩小整个世界。
 
 此前[环境初建有限优化](../plans/environment-object-loop/cold-build.md)首代码2291ab9，最终`760cf7ed5c613ed2643b4dae1b6fb5c96277746e`已整合推送。最终[CI42223048834](https://github.com/fewnfds/reol/actions/runs/42223048834)在本轮真实提交检查点核为completed/success、完整headSha一致，前包完整CI不再待验；首代码CI42222372361未继续查询。前包6组定向10541断言0失败，Sol/custom均匀场work回退已修。以下保留前包范围和证据，不能代证当前修改。
 

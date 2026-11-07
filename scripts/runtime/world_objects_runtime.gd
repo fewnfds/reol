@@ -210,6 +210,7 @@ func _submit_physical(verb: String, view: Dictionary) -> Dictionary:
 	if not bool(response.get("ok", false)):
 		return _refuse("无法开始这次实物操作，请检查占地和当前状态。")
 	_physical_action = command
+	GameClock.cancel_wait()
 	# Preserve the exact simulated position recorded by the timed action.
 	adapter.hold_player_motion(true)
 	_notice = "正在取起实物，完成前它仍在原处。" if verb == "take" else "正在把实物放到脚边，完成前它仍由本人保管。"

@@ -537,7 +537,7 @@ func _can_wait() -> bool:
 		return world_sim.avian_life.birds[bird_avatar_id()].active.get("purpose") != "explore" and Input.get_vector("move_left", "move_right", "move_up", "move_down").is_zero_approx()
 	var player: PlayerCharacter = _home._player
 	var intent: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	return not world_sim.conflicts.owns_actor("player") and not world_sim.sparring.owns_actor("player") and player.motion.action.is_empty() and player.motion.velocity.is_zero_approx() and player._intent.is_zero_approx() and intent.is_zero_approx()
+	return not world_sim.object_lifecycle.owns_actor("player") and not world_sim.conflicts.owns_actor("player") and not world_sim.sparring.owns_actor("player") and player.motion.action.is_empty() and player.motion.velocity.is_zero_approx() and player._intent.is_zero_approx() and intent.is_zero_approx()
 
 
 func _practice_contact_allowed(from: Vector2, to: Vector2) -> bool:

@@ -261,9 +261,15 @@ func _test_editor_physical_action_and_resume(runner: Object) -> void:
 	runner.assert_true(not bool(overlap.get("ok", true)), "developer placement rejects the slab's occupied second cell")
 	editor.close()
 
+	var wait_started: bool = GameClock.request_wait(5)
+	runner.assert_true(wait_started, "the ordinary human can begin waiting before physical handling")
+	GameClock.set_paused(true)
+	var waiting_until: int = GameClock.wait_target_ms
+	runner.assert_true(wait_started and waiting_until > GameClock.elapsed_ms, "pausing leaves the scheduled wait in progress")
 	runner.assert_true(view.select_object(far_id), "an observed but distant item can be selected")
 	runner.assert_true(not bool(view.submit("take").get("ok", true)), "the ordinary panel cannot take an observed distant item")
 	runner.assert_eq(runtime.world_sim.artifacts.objects[far_id].container, distant.to.container, "distance refusal leaves the original item on the ground")
+	runner.assert_eq(GameClock.wait_target_ms, waiting_until, "a refused distant take does not cancel the existing wait")
 
 	# Authority setup models a visible item already held by another person. The
 	# player must request consent instead of silently moving that original.
@@ -299,12 +305,16 @@ func _test_editor_physical_action_and_resume(runner: Object) -> void:
 	runner.assert_true(view.panel._buttons.take.visible and not view.panel._buttons.place.visible, "the unheld slab offers take")
 	for verb: String in ["inspect", "study", "examine", "ask_study", "ask_examine"]:
 		runner.assert_true(not view.panel._buttons[verb].visible, "managed physical UI excludes unsupported " + verb)
+	runner.assert_eq(GameClock.wait_target_ms, waiting_until, "the original paused wait remains until an action is accepted")
 	var take: Dictionary = view.submit("take")
 	runner.assert_true(bool(take.get("ok", false)) and life.owns_actor("player"), "the panel schedules original timed lifecycle take")
 	if not bool(take.get("ok", false)):
 		main.free()
 		GameClock.restore_state(saved_clock)
 		return
+	runner.assert_eq(GameClock.wait_target_ms, 0, "a successful take cancels the previously paused wait")
+	runner.assert_true(not GameClock.request_wait(5), "waiting cannot start while the physical take owns the player")
+	runner.assert_eq(GameClock.wait_target_ms, 0, "refusing a new wait during the take leaves no wait target")
 	var first_id: String = str(take.get("action", {}).get("request", {}).get("command", ""))
 	runner.assert_true(not first_id.is_empty() and life.actions.has(first_id), "the active take has one lifecycle command")
 	runner.assert_true(view.panel._buttons.take.disabled, "the panel displays the original in-flight take as busy")
@@ -317,12 +327,19 @@ func _test_editor_physical_action_and_resume(runner: Object) -> void:
 	runner.assert_eq(runtime.world_sim.artifacts.objects[slab].container, original_slot, "a cancelled take cannot later move or copy the slab")
 	runner.assert_eq(ground.query_cell(near_cell + Vector2i.RIGHT).get("ids"), [original_slot], "cancellation keeps the complete two-cell footprint")
 	view.select_object(slab)
+	var retry_wait: bool = GameClock.request_wait(5)
+	runner.assert_true(retry_wait, "the player can start a new wait after cancelling the first take")
+	GameClock.set_paused(true)
+	runner.assert_true(retry_wait and GameClock.wait_target_ms > GameClock.elapsed_ms, "the new paused wait has a real future target")
 	var retry: Dictionary = view.submit("take")
 	runner.assert_true(bool(retry.get("ok", false)), "the same actual item can be taken again after cancellation")
 	if not bool(retry.get("ok", false)):
 		main.free()
 		GameClock.restore_state(saved_clock)
 		return
+	runner.assert_eq(GameClock.wait_target_ms, 0, "the retried take clears its pre-existing wait before the ordinary save")
+	runner.assert_true(not GameClock.request_wait(5), "the retried take also rejects a new wait")
+	runner.assert_eq(GameClock.wait_target_ms, 0, "the retried action remains compatible with ordinary save and load")
 	var action_id: String = str(retry.get("action", {}).get("request", {}).get("command", ""))
 	if action_id.is_empty() or not life.actions.has(action_id):
 		runner.assert_true(false, "retry identifies the real pending lifecycle action")
