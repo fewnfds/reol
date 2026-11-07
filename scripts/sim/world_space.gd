@@ -35,6 +35,8 @@ func _bind_sources() -> void:
 		_connect(sim.space_reset, reset)
 	_connect(world.avian_life.body_space_changed, _body_changed.bind("avian"))
 	_connect(world.large_bodies.body_space_changed, _body_changed.bind("large_body"))
+	_connect(world.avian_life.bodies_space_changed, _bodies_changed.bind("avian"))
+	_connect(world.large_bodies.bodies_space_changed, _bodies_changed.bind("large_body"))
 	_connect(world.artifacts.space_reset, reset)
 	_connect(world.avian_life.space_reset, reset)
 	_connect(world.large_bodies.space_reset, reset)
@@ -133,6 +135,8 @@ func query(area: Rect2i, kinds: Array = [], layer: String = "", budget: int = 40
 			return _failure("unsupported_kind", 0)
 	if world.elapsed_ms != world.target_ms or world.environment_boundary_active() or world.object_lifecycle.environment_change_pending() or world.object_lifecycle._committing:
 		return _failure("pending_time", 0)
+	if world.avian_life.space_updating or world.large_bodies.space_updating:
+		return _failure("pending_projection", 0)
 	var prepared: Dictionary = prepare(budget)
 	if not bool(prepared.ok):
 		return prepared
@@ -146,53 +150,62 @@ func query(area: Rect2i, kinds: Array = [], layer: String = "", budget: int = 40
 		return _failure("stale_source", 0)
 	if (kinds.is_empty() or "large_body" in kinds) and world.large_bodies.elapsed_ms != world.elapsed_ms:
 		return _failure("stale_source", 0)
-	var found: Dictionary = {}
-	var work: int = int(prepared.work_used)
+	var state: Dictionary = {"found": {}, "work": int(prepared.work_used)}
 	for y: int in range(area.position.y, area.end.y):
 		for x: int in range(area.position.x, area.end.x):
-			work += 1
-			if work > budget:
+			state.work += 1
+			if state.work > budget:
 				return _failure("budget_exhausted", budget)
 			var cell := Vector2i(x, y)
-			var candidates: Array = []
 			for key: String in _cells.get(cell, {}):
-				candidates.append(_entries[key].reference)
+				var reason: String = _visit(_entries[key].reference, kinds, layer, cell, budget, state)
+				if not reason.is_empty():
+					return _failure(reason, mini(state.work, budget))
 			var ground: Dictionary = world.object_lifecycle.ground.query_cell(cell)
+			if not bool(ground.get("ok", false)):
+				return _failure("invalid_source", mini(state.work, budget))
 			for id: String in ground.get("ids", []):
-				candidates.append(world.object_lifecycle.ground.slots[id].reference)
+				var reason: String = _visit(world.object_lifecycle.ground.slots[id].reference, kinds, layer, cell, budget, state)
+				if not reason.is_empty():
+					return _failure(reason, mini(state.work, budget))
 			for current: String in ["ground", "roof"]:
 				var id: String = world.construction.project_at(cell, current)
 				if not id.is_empty():
-					candidates.append({"kind": "construction", "id": id})
-			for reference: Dictionary in candidates:
-				work += 1
-				if work > budget:
-					return _failure("budget_exhausted", budget)
-				if not kinds.is_empty() and reference.kind not in kinds:
-					continue
-				var key: String = JSON.stringify(reference, "", true)
-				if found.has(key):
-					continue
-				var row: Dictionary = world.describe_object(reference)
-				if not bool(row.get("ok", false)) or bool(row.get("stale", true)):
-					return _failure("stale_source", work)
-				work += row.spatial.cells.size()
-				if work > budget:
-					return _failure("budget_exhausted", budget)
-				if row.spatial.layer not in LAYERS or not layer.is_empty() and row.spatial.layer != layer:
-					continue
-				if row.spatial.cells.has(cell):
-					found[key] = reference.duplicate(true)
+					var reason: String = _visit({"kind": "construction", "id": id}, kinds, layer, cell, budget, state)
+					if not reason.is_empty():
+						return _failure(reason, mini(state.work, budget))
 	var references: Array = []
-	var keys: Array = found.keys()
+	var keys: Array = state.found.keys()
 	keys.sort()
 	for key: String in keys:
-		references.append(found[key])
+		references.append(state.found[key])
 	return {"ok": true, "complete": true, "scope": "world_space", "live": true,
 		"visibility": "authority_only", "geometry": "cell_projection", "references": references,
 		"world_time_ms": world.elapsed_ms, "world_id": world.get_instance_id(),
-		"space_id": get_instance_id(), "revision": revision, "work_used": work,
+		"space_id": get_instance_id(), "revision": revision, "work_used": int(state.work),
 		"supported_kinds": KINDS.duplicate()}
+
+
+func _visit(reference: Dictionary, kinds: Array, layer: String, cell: Vector2i, budget: int, state: Dictionary) -> String:
+	# Charge before decoding/allocating one candidate. Never materialize a dense
+	# cell's whole candidate set before the caller's budget can stop the walk.
+	state.work += 1
+	if state.work > budget:
+		return "budget_exhausted"
+	if not kinds.is_empty() and reference.kind not in kinds:
+		return ""
+	var key: String = JSON.stringify(reference, "", true)
+	if state.found.has(key):
+		return ""
+	var row: Dictionary = world.describe_object(reference)
+	if not bool(row.get("ok", false)) or bool(row.get("stale", true)):
+		return "stale_source"
+	state.work += row.spatial.cells.size()
+	if state.work > budget:
+		return "budget_exhausted"
+	if row.spatial.layer in LAYERS and (layer.is_empty() or row.spatial.layer == layer) and row.spatial.cells.has(cell):
+		state.found[key] = reference.duplicate(true)
+	return ""
 
 
 func _refresh(reference: Dictionary) -> bool:
@@ -205,7 +218,7 @@ func _refresh(reference: Dictionary) -> bool:
 			if _cells[cell].is_empty():
 				_cells.erase(cell)
 		_entries.erase(key)
-	var row: Dictionary = world.describe_object(reference)
+	var row: Dictionary = _body_projection(reference) if reference.kind in ["actor", "avian", "large_body"] else world.describe_object(reference)
 	var after: Array = []
 	if not bool(row.get("ok", false)):
 		if row.get("reason") != "not_found":
@@ -223,6 +236,36 @@ func _refresh(reference: Dictionary) -> bool:
 	if not _building:
 		_announce([reference], before, after, "projection_changed")
 	return true
+
+
+func _body_projection(reference: Dictionary) -> Dictionary:
+	# The source owner just wrote this original location. Maintain links even
+	# while its clock leads the world during regional advance. This is not a
+	# successful live query; query() still refuses pending/stale source clocks.
+	var point: Variant = null
+	var layer: String = "ground"
+	if reference.kind == "actor":
+		for sim: VillageSimulation in world.regions.values():
+			if sim.actors.has(reference.id):
+				point = SimStorageQuery.actor_position(sim.actors[reference.id])
+	elif reference.kind == "avian" and world.avian_life.birds.has(reference.id):
+		point = SimAvianLife.point(world.avian_life.birds[reference.id])
+		layer = "air" if int(world.avian_life.birds[reference.id].altitude) > 0 else "ground"
+	elif reference.kind == "large_body" and world.large_bodies.bodies.has(reference.id):
+		point = world.large_bodies.point(reference.id)
+	if not point is Vector2 or not point.is_finite():
+		return {"ok": false, "reason": "invalid_source"}
+	var geometry: Dictionary = SimWorldObjectQuery.body_geometry(world, reference, TileGrid.world_to_cell(point))
+	if not bool(geometry.ok):
+		return geometry
+	return {"ok": true, "spatial": {"cells": geometry.cells, "layer": layer}}
+
+
+func _bodies_changed(ids: Array[String], kind: String) -> void:
+	# The owner holds space_updating through this entire batch. Reentrant
+	# consumers get pending_projection until every changed link is current.
+	for id: String in ids:
+		_body_changed(id, kind)
 
 
 func _body_changed(id: String, kind: String) -> void:

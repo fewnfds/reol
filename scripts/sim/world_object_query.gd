@@ -124,21 +124,30 @@ static func _entity(world: RegionalSimulation, reference: Dictionary) -> Diction
 			var slot: Dictionary = world.object_lifecycle.ground.locate(item.region, item.container)
 			cells = SimObjectLifecycle.ground_cells(world.object_lifecycle.ground.slots[item.container])
 	else:
-		if world.embodiment == null:
-			return _failure("domain_unavailable")
-		var source_kind: String = {"actor": "village_actor", "avian": "avian_body", "large_body": "large_body"}[reference.kind]
-		var carrier: String = world.embodiment.carrier_for_source(source_kind, reference.id)
-		var traits: Dictionary = world.embodiment.carrier_traits(carrier)
-		if not bool(traits.ok):
-			return traits
-		if not _texts(traits.capabilities) or not SimBodyGeometry.valid_size(traits.footprint):
-			return _failure("unsupported_geometry")
-		values = traits.capabilities
-		definition_id = traits.form
-		# A cell-anchored broad projection, not continuous collision/swept space.
-		cells = SimBodyGeometry.cells(row.cell, traits.footprint)
+		var geometry: Dictionary = body_geometry(world, reference, row.cell)
+		if not bool(geometry.ok):
+			return geometry
+		values = geometry.traits.capabilities
+		definition_id = geometry.traits.form
+		cells = geometry.cells
 	return _finish(row, reference, "unique_item" if reference.kind == "artifact" else "body",
 		cells, layer, relation, namespace_name, values, {"definition_id": definition_id})
+
+
+static func body_geometry(world: RegionalSimulation, reference: Dictionary, cell: Vector2i) -> Dictionary:
+	# Geometry alone has no clock assertion. Owner write notifications can
+	# update derived links before the world clock commits that same boundary;
+	# live queries still validate all source clocks through the normal facade.
+	if world.embodiment == null:
+		return _failure("domain_unavailable")
+	var source_kind: String = {"actor": "village_actor", "avian": "avian_body", "large_body": "large_body"}[reference.kind]
+	var carrier: String = world.embodiment.carrier_for_source(source_kind, reference.id)
+	var traits: Dictionary = world.embodiment.carrier_traits(carrier)
+	if not bool(traits.ok):
+		return traits
+	if not _texts(traits.capabilities) or not SimBodyGeometry.valid_size(traits.footprint):
+		return _failure("unsupported_geometry")
+	return {"ok": true, "traits": traits, "cells": SimBodyGeometry.cells(cell, traits.footprint)}
 
 
 static func _stock(world: RegionalSimulation, reference: Dictionary) -> Dictionary:

@@ -1,7 +1,9 @@
 class_name SimLargeBodies
 extends RefCounted
 signal body_space_changed(id: String)
+signal bodies_space_changed(ids: Array[String])
 signal space_reset
+var space_updating: bool = false
 ## One physical source per large body. Views and Embodiment only reference it.
 ## A bounded roaming sample, not a complete species/needs/combat simulation.
 
@@ -160,6 +162,7 @@ func next_boundary_ms() -> int:
 func settle_at_ms(now: int) -> void:
 	if now < elapsed_ms:
 		return
+	space_updating = true
 	elapsed_ms = now
 	var moved: Array[String] = []
 	for id: String in SimAvianLife.sorted_keys(bodies):
@@ -185,8 +188,9 @@ func settle_at_ms(now: int) -> void:
 			body.retry_ms = now
 		if int(body.retry_ms) <= now:
 			_start_step(id)
-	for id: String in moved:
-		body_space_changed.emit(id)
+	if not moved.is_empty():
+		bodies_space_changed.emit(moved)
+	space_updating = false
 
 
 func _start_step(id: String) -> void:

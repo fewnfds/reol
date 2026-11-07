@@ -18,10 +18,87 @@ class Observer extends RefCounted:
 		notices.append(change.duplicate(true))
 
 
+class ReentrantObserver extends RefCounted:
+	var owner: WeakRef
+	var results: Array[Dictionary] = []
+
+	func on_changed(change: Dictionary) -> void:
+		if change.reason != "projection_changed" or change.references.is_empty():
+			return
+		var world: RegionalSimulation = owner.get_ref()
+		var kind: String = change.references[0].kind
+		if kind == "avian":
+			results.append(world.query_space(Rect2i(world.avian_life.body_cell("reed_sparrow"), Vector2i.ONE), [kind]))
+		elif kind == "large_body":
+			results.append(world.query_space(Rect2i(world.large_bodies.body_cell("later_beast"), Vector2i.ONE), [kind]))
+
+
 func run(runner: Object) -> void:
 	_live_originals(runner)
 	_failure_and_restore(runner)
+	_committed_movement_and_budget(runner)
 	print("SCENARIO world space: live bounded authority queries, original movement/layers/transactions, immutable changes and rebuilt restore")
+
+
+func _committed_movement_and_budget(runner: Object) -> void:
+	var world: RegionalSimulation = _fixture._world(runner)
+	if world == null:
+		return
+	var sim: VillageSimulation = world.regions.home
+	runner.assert_true(world.space.prepare().ok, "movement regression starts with a prepared projection")
+	var observer := Observer.new()
+	world.space.changed.connect(observer.on_changed)
+	var body: Dictionary = sim.actors.player
+	var destination: Vector2i = SimRouteTravel.cell(body.cell) + Vector2i(3, 0)
+	var route: Dictionary = {"path": [[destination.x, destination.y]], "segment_from": body.position.duplicate(), "segment_started_ms": world.elapsed_ms, "due_ms": world.elapsed_ms + 1000}
+	# This is the real regional advancement ordering: source time advances
+	# before the world commits the same boundary, while its target is pending.
+	world.target_ms += 1000
+	sim.elapsed_ms += 1000
+	sim.project_actor_route("player", route, sim.elapsed_ms)
+	runner.assert_true(world.space._ready, "a source clock leading during normal advance does not discard the prepared spatial index")
+	runner.assert_eq(observer.notices.back().reason, "projection_changed", "normal movement emits a local delta instead of full restored invalidation")
+	world.elapsed_ms += 1000
+	world.synchronize_regions()
+	world.avian_life.settle_at_ms(world.elapsed_ms)
+	world.large_bodies.settle_at_ms(world.elapsed_ms)
+	var result: Dictionary = world.query_space(Rect2i(destination, Vector2i.ONE), ["actor"], "ground", 4)
+	runner.assert_true(result.ok and result.references == [{"kind": "actor", "id": "player"}], "small local budget still works after a regional movement boundary without rebuilding every source")
+
+	for id: String in world.avian_life.birds:
+		world.avian_life.birds[id].autonomous = false
+		world.avian_life.cancel(id)
+		runner.assert_true(world.avian_life.command_flight(id, Vector2.RIGHT), "two original birds start concurrent flight")
+	var reentrant := ReentrantObserver.new()
+	reentrant.owner = weakref(world)
+	world.space.changed.connect(reentrant.on_changed)
+	world.advance_to_ms(world.elapsed_ms + 500)
+	runner.assert_true(reentrant.results.size() >= 2, "both changed birds publish within the same original owner batch")
+	for queried: Dictionary in reentrant.results:
+		runner.assert_true(not queried.ok and queried.reason == "pending_projection", "reentrant batch observation cannot claim a complete result before every moved body link is current")
+	var bird_cell: Vector2i = world.avian_life.body_cell("reed_sparrow")
+	runner.assert_true(_at(world, bird_cell, ["avian"]).references.has({"kind": "avian", "id": "reed_sparrow"}), "the complete post-batch query finds the second moved bird")
+
+	runner.assert_true(world.large_bodies.add_body("later_beast", "同批山兽", "river", Vector2i(170, 140), Vector2i(175, 140)), "second large body joins the original population")
+	world.large_bodies.bodies.test_beast.retry_ms = world.elapsed_ms + 1
+	world.large_bodies.bodies.later_beast.retry_ms = world.elapsed_ms + 1
+	world.advance_to_ms(world.elapsed_ms + 1)
+	reentrant.results.clear()
+	world.advance_to_ms(world.elapsed_ms + ((int(world.large_bodies.definitions.step_ms) * 3) >> 2))
+	runner.assert_true(reentrant.results.size() >= 2, "large-body batch also exercises reentrant observation")
+	for queried: Dictionary in reentrant.results:
+		runner.assert_true(not queried.ok and queried.reason == "pending_projection", "large-body partial batches explicitly reject reentrant queries")
+	runner.assert_true(_at(world, world.large_bodies.body_cell("later_beast"), ["large_body"]).references.has({"kind": "large_body", "id": "later_beast"}), "second large body is present after all links commit")
+	world.space.changed.disconnect(reentrant.on_changed)
+
+	# A legitimate crowded body cell, with budget below one decoded candidate.
+	world.synchronize_regions()
+	for id: String in sim.actors:
+		sim.set_actor_cell(id, Vector2i(125, 123))
+	var limited: Dictionary = world.query_space(Rect2i(Vector2i(125, 123), Vector2i.ONE), ["actor"], "ground", 1)
+	runner.assert_true(not limited.ok and limited.reason == "budget_exhausted" and limited.work_used == 1 and limited.references.is_empty(), "dense local collection stops at the candidate budget without publishing a partial set")
+	var dense: Dictionary = _at(world, Vector2i(125, 123), ["actor"])
+	runner.assert_true(dense.ok and dense.references.size() == sim.actors.size(), "the same dense cell returns all original bodies when budget is sufficient")
 
 
 func _at(world: RegionalSimulation, cell: Vector2i, kinds: Array = [], layer: String = "") -> Dictionary:

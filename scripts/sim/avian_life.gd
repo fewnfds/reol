@@ -1,7 +1,10 @@
 class_name SimAvianLife
 extends RefCounted
 signal body_space_changed(id: String)
+signal bodies_space_changed(ids: Array[String])
 signal space_reset
+var space_updating: bool = false
+var _space_changes: Dictionary[String, bool] = {}
 ## Nonhuman bodies, finite habitat stock and personal routines on the world clock.
 ## Embodiment references these bodies; no Village actor or human inventory is made.
 
@@ -181,7 +184,8 @@ func settle_at_ms(now: int) -> void:
 	var delta: int = now - elapsed_ms
 	if delta < 0:
 		return
-	var moved: Array[String] = []
+	space_updating = true
+	_space_changes.clear()
 	for id: String in sorted_keys(birds):
 		var body: Dictionary = birds[id]
 		if (not controls(id, "motion") or not controls(id, "action")) and not body.active.is_empty():
@@ -197,7 +201,7 @@ func settle_at_ms(now: int) -> void:
 			var before: Vector2i = body_cell(id)
 			project(body, now)
 			if before != body_cell(id):
-				moved.append(id)
+				_space_changes[id] = true
 	elapsed_ms = now
 	for site_id: String in sorted_keys(sites):
 		var site: Dictionary = sites[site_id]
@@ -219,7 +223,18 @@ func settle_at_ms(now: int) -> void:
 			_finish(id)
 		if body.active.is_empty() and bool(body.autonomous) and int(body.retry_ms) <= now:
 			_decide(id)
-	for id: String in moved:
+	if not _space_changes.is_empty():
+		var moved: Array[String] = []
+		moved.assign(_space_changes.keys())
+		_space_changes.clear()
+		bodies_space_changed.emit(moved)
+	space_updating = false
+
+
+func _notify_space(id: String) -> void:
+	if space_updating:
+		_space_changes[id] = true
+	else:
 		body_space_changed.emit(id)
 
 
@@ -305,7 +320,7 @@ func _go(id: String, site_id: String, purpose: String) -> bool:
 		body.altitude = 1
 		body.goal = "振翅飞向" + str(type.label)
 		if old_altitude != int(body.altitude):
-			body_space_changed.emit(id)
+			_notify_space(id)
 		return true
 	if int(type.altitude) == 0 and _landing.is_valid() and not bool(_landing.call(SimRouteTravel.cell(sites[site_id].cell))):
 		_wait(id, "地面无法落脚，先回避风处。")
@@ -318,7 +333,7 @@ func _go(id: String, site_id: String, purpose: String) -> bool:
 		"due_ms": elapsed_ms + duration, "from": body.position.duplicate(), "to": body.position.duplicate()}
 	body.goal = {"forage": "低头啄食草籽", "rest": "在树巢避风歇翅", "pickup": "从狭口衔起药枝", "drop": "在药圃放下药枝"}.get(purpose, "听风")
 	if old_altitude != int(body.altitude):
-		body_space_changed.emit(id)
+		_notify_space(id)
 	return true
 
 
@@ -411,7 +426,7 @@ func command_flight(id: String, direction: Vector2) -> bool:
 	body.altitude = 1
 	body.goal = "随风振翅"
 	if old_altitude != 1:
-		body_space_changed.emit(id)
+		_notify_space(id)
 	return true
 
 
@@ -427,7 +442,7 @@ func command_land(id: String) -> Dictionary:
 	birds[id].goal = "落在近处听风"
 	_observe(id)
 	if old_altitude != 0:
-		body_space_changed.emit(id)
+		_notify_space(id)
 	return response(true, "已经落地；振翅移动可再次起飞。")
 
 
