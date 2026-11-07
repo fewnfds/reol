@@ -10,6 +10,7 @@
 
 | 文件 | 原记录主题 |
 |---|---|
+| [20261107_terminology.md](20261107_terminology.md) | 中/英术语与实际代码映射、environment_fields改名及存档键稳定性 |
 | [20261107_test_cost_audit.md](20261107_test_cost_audit.md) | 工作流职责分离、测试计时/选组、五组成本实测及CPU/GPU边界 |
 | [20261107_source_change_review.md](20261107_source_change_review.md) | 单次来源变更短时分项计时、成熟项目对照及冗余计算候选；未改运行算法 |
 | [20261107_world_engine_finish.md](20261107_world_engine_finish.md) | 普通唯一环境接管、来源事务、当前联合存读、历史边界及主线收尾验收 |

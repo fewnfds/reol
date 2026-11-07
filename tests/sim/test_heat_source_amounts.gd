@@ -85,25 +85,25 @@ func _completed_source(runner: Object) -> void:
 	runner.assert_eq(event.get("heat_amount"), PULSE, "completed event records the actual session-bound transfer amount")
 	runner.assert_eq(world.artifacts.objects[STONE].charge, charge - cost, "the same completion spends original warming_charge once")
 	runner.assert_eq(world.regions.home.actors.player.qi, qi, "explicit source metadata adds no second resource cost")
-	runner.assert_eq(world.local_heat.receipts.size(), 1, "one real action creates one thermal receipt")
-	if not world.local_heat.receipts.has(event.action):
+	runner.assert_eq(world.environment_fields.receipts.size(), 1, "one real action creates one thermal receipt")
+	if not world.environment_fields.receipts.has(event.action):
 		runner.assert_true(false, "the action owns its thermal receipt")
 		return
-	var receipt: Dictionary = world.local_heat.receipts[event.action]
+	var receipt: Dictionary = world.environment_fields.receipts[event.action]
 	runner.assert_eq(receipt, {"action": event.action, "actor": event.actor, "object": event.object, "at_ms": event.at_ms, "cell": event.cell, "amount": event.heat_amount}, "event and original receipt name the same action, source, time, location and amount")
 	var key: String = "pulse:" + str(event.action)
-	var source: Dictionary = world.local_heat._sources.get_source(key)
+	var source: Dictionary = world.environment_fields._sources.get_source(key)
 	runner.assert_true(not source.is_empty(), "the accepted action owns one active temporary source")
 	if not source.is_empty():
 		runner.assert_eq(source.cell, Vector2i(int(event.cell[0]), int(event.cell[1])), "the field source uses the original completion cell")
 		runner.assert_eq(source.channels[5], 1000, "session receipt amount is metadata; this prototype's source grade remains one")
 		runner.assert_eq(source.channels[6], 0, "the warm source does not create a cold field")
-	runner.assert_eq(world.local_heat._transient.get(key), {"cell": event.cell, "until_ms": event.at_ms + 60000}, "the source remains active for its bounded real duration")
+	runner.assert_eq(world.environment_fields._transient.get(key), {"cell": event.cell, "until_ms": event.at_ms + 60000}, "the source remains active for its bounded real duration")
 	for row: Dictionary in world.artifacts.events:
 		if row.kind != "warmed":
 			runner.assert_true(not row.has("heat_amount"), "ordinary study/take events do not claim thermal input")
 	var before: String = _world_digest(world)
-	runner.assert_true(not world.local_heat.deposit(receipt), "replaying the original action cannot add another input")
+	runner.assert_true(not world.environment_fields.deposit(receipt), "replaying the original action cannot add another input")
 	runner.assert_eq(_world_digest(world), before, "duplicate source leaves original charge and complete world unchanged")
 	var other: RegionalSimulation = _world(runner, PULSE)
 	if other == null:
@@ -130,19 +130,19 @@ func _cancel_and_capacity(runner: Object) -> void:
 	runner.assert_eq(cancelled.kind, "cancelled", "cancelled job records its actual unfinished outcome")
 	runner.assert_true(not cancelled.has("heat_amount"), "cancelled job has no successful source amount")
 	runner.assert_eq(world.artifacts.objects[STONE].charge, charge, "cancellation preserves the original finite charge")
-	runner.assert_true(world.local_heat.receipts.is_empty() and world.local_heat._transient.is_empty(), "cancellation emits no thermal receipt or active source")
+	runner.assert_true(world.environment_fields.receipts.is_empty() and world.environment_fields._transient.is_empty(), "cancellation emits no thermal receipt or active source")
 	runner.assert_true(world.advance_to_ms(due + 1), "world genuinely passes the cancelled job's former completion instant")
-	runner.assert_true(world.local_heat.receipts.is_empty() and world.artifacts.events.back().kind == "cancelled", "cancelled completion cannot reappear later as a source")
+	runner.assert_true(world.environment_fields.receipts.is_empty() and world.artifacts.events.back().kind == "cancelled", "cancelled completion cannot reappear later as a source")
 
 	# Fault-inject a full disposable source index without inventing an object,
 	# action, receipt or world fact. A real warm job must refuse atomically.
 	var full: RegionalSimulation = _world(runner)
 	if full == null or not _learn_and_hold(runner, full):
 		return
-	if not full.local_heat.activate_sources():
+	if not full.environment_fields.activate_sources():
 		runner.assert_true(false, "capacity fixture activates its original source participant")
 		return
-	var participant: SimWorldEnvironmentSourceParticipant = full.local_heat._sources
+	var participant: SimWorldEnvironmentSourceParticipant = full.environment_fields._sources
 	var original_records: Dictionary = participant._records.duplicate(true)
 	var original_capacity: int = participant._capacity
 	var original_free: Array = participant._free.duplicate()
@@ -154,12 +154,12 @@ func _cancel_and_capacity(runner: Object) -> void:
 	runner.assert_eq(failure.kind, "failed", "a real warm job reports the source-index capacity refusal")
 	runner.assert_true(not failure.has("heat_amount"), "capacity failure has no claimed heat amount")
 	runner.assert_eq(full.artifacts.objects[STONE].charge, original_charge, "rejected deposit spends none of the original charge")
-	runner.assert_true(full.local_heat.receipts.is_empty() and full.local_heat._transient.is_empty(), "capacity refusal creates neither transient source nor receipt")
+	runner.assert_true(full.environment_fields.receipts.is_empty() and full.environment_fields._transient.is_empty(), "capacity refusal creates neither transient source nor receipt")
 	runner.assert_eq(participant._records, original_records, "capacity refusal publishes no partial source-index entry")
 	if failure.kind == "failed" and participant._records == original_records:
 		participant._capacity = original_capacity
 		participant._free.assign(original_free)
-	var error: String = str(full.local_heat.diagnostics().error)
+	var error: String = str(full.environment_fields.diagnostics().error)
 	runner.assert_eq(error, "", "a recoverable capacity refusal does not poison the world's environmental authority")
 	if error.is_empty() and failure.kind == "failed":
 		var failed_copy: RegionalSimulation = _world(runner)
@@ -179,7 +179,7 @@ func _event_shape_rejections(runner: Object) -> void:
 	var missing: Dictionary = current.duplicate(true)
 	missing.events.back().erase("heat_amount")
 	_reject_artifacts(runner, world, missing, before, "current warmed event must carry an explicit amount")
-	var pulse: int = int(world.local_heat.definitions.pulse_energy)
+	var pulse: int = int(world.environment_fields.definitions.pulse_energy)
 	for amount: Variant in [null, true, 0, -1, 1.5, pulse - 1, pulse + 1, INF]:
 		var bad: Dictionary = current.duplicate(true)
 		bad.events.back().heat_amount = amount
@@ -191,10 +191,10 @@ func _event_shape_rejections(runner: Object) -> void:
 	old.version = 6
 	old.events.back().erase("heat_amount")
 	_reject_artifacts(runner, world, old, before, "current artifact restore does not silently upgrade version 6")
-	var heat: SimWorldEnvironmentFields = world.local_heat
-	world.local_heat = null
+	var heat: SimWorldEnvironmentFields = world.environment_fields
+	world.environment_fields = null
 	_reject_artifacts(runner, world, current, before, "warmed validation requires the candidate's bound heat authority")
-	world.local_heat = heat
+	world.environment_fields = heat
 	var whole_json: Dictionary = current.duplicate(true)
 	whole_json.events.back().heat_amount = float(pulse)
 	runner.assert_true(world.artifacts.restore(whole_json), "whole JSON numeric amount is accepted by the explicit format")
@@ -226,7 +226,7 @@ func _independent_resume(runner: Object) -> void:
 		return
 	var due: int = int(world.artifacts.active.player.due_ms)
 	runner.assert_true(world.advance_to_ms(world.elapsed_ms + 17431), "save is taken during the original in-flight duration")
-	runner.assert_true(world.local_heat.receipts.is_empty() and int(world.artifacts.objects[STONE].charge) == charge, "in-flight save has no premature amount, receipt or debit")
+	runner.assert_true(world.environment_fields.receipts.is_empty() and int(world.artifacts.objects[STONE].charge) == charge, "in-flight save has no premature amount, receipt or debit")
 	var saved: Dictionary = _round_trip(world.to_dict())
 	var other: RegionalSimulation = _world(runner)
 	if other == null:
@@ -238,8 +238,8 @@ func _independent_resume(runner: Object) -> void:
 	runner.assert_true(world.advance_to_ms(due) and other.advance_to_ms(due), "both real shared clocks finish their restored source")
 	runner.assert_eq(_world_digest(other), _world_digest(world), "in-flight restart produces the same original charge, event amount and receipt")
 	var event: Dictionary = other.artifacts.events.back()
-	runner.assert_eq(event.get("heat_amount"), other.local_heat.receipts[event.action].amount, "resumed completion records its actual accepted amount")
-	runner.assert_eq(other.local_heat.receipts.size(), 1, "resumed completion deposits exactly one source")
+	runner.assert_eq(event.get("heat_amount"), other.environment_fields.receipts[event.action].amount, "resumed completion records its actual accepted amount")
+	runner.assert_eq(other.environment_fields.receipts.size(), 1, "resumed completion deposits exactly one source")
 	var completed: Dictionary = _round_trip(other.to_dict())
 	var restarted: RegionalSimulation = _world(runner)
 	if restarted == null:
@@ -251,7 +251,7 @@ func _independent_resume(runner: Object) -> void:
 	var event_count: int = restarted.artifacts.events.size()
 	var spent_charge: int = int(restarted.artifacts.objects[STONE].charge)
 	runner.assert_true(restarted.advance_to_ms(due + 1234), "restarted world genuinely passes the completed source time")
-	runner.assert_true(restarted.artifacts.events.size() == event_count and restarted.local_heat.receipts.size() == 1 and int(restarted.artifacts.objects[STONE].charge) == spent_charge, "completed source is neither replayed nor charged a second time")
+	runner.assert_true(restarted.artifacts.events.size() == event_count and restarted.environment_fields.receipts.size() == 1 and int(restarted.artifacts.objects[STONE].charge) == spent_charge, "completed source is neither replayed nor charged a second time")
 
 
 func _reject_artifacts(runner: Object, world: RegionalSimulation, candidate: Dictionary, before: String, label: String) -> void:

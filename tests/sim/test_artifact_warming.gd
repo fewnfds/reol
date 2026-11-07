@@ -77,10 +77,10 @@ func _permissions_and_cancel(runner: Object) -> void:
 	runner.assert_eq(world.regions.home.actors.player.qi, qi, "warming spends existing stored heat, with no extra qi payment")
 	runner.assert_true(not domain.begin("player", "charge", "hearth_stone").ok and not world.native_action_allowed("player"), "the real warming job excludes a second artifact or native task")
 	runner.assert_true(world.advance_to_ms(now + 237), "a partial interval has genuinely elapsed before cancellation")
-	runner.assert_eq(world.local_heat.local_tenths(cell), 0, "a pending operation produces no early local warmth")
+	runner.assert_eq(world.environment_fields.local_tenths(cell), 0, "a pending operation produces no early local warmth")
 	runner.assert_true(domain.cancel("player"), "the ordinary cancellation path interrupts warming")
 	runner.assert_eq(domain.objects.hearth_stone.charge, charge, "cancellation never debits the original storage")
-	runner.assert_eq(world.local_heat.local_tenths(cell), 0, "cancellation leaves no invisible thermal effect")
+	runner.assert_eq(world.environment_fields.local_tenths(cell), 0, "cancellation leaves no invisible thermal effect")
 	runner.assert_eq(domain.events.back().kind, "cancelled", "interruption records an unfinished operation rather than a warmed source")
 	var view: Dictionary = domain.describe("player", "hearth_stone")
 	runner.assert_true(not view.has("charge") and not view.has("amount") and not view.has("pulse_energy"), "the holder receives limited descriptions instead of the thermal ledger")
@@ -120,12 +120,12 @@ func _finite_original_charge(runner: Object) -> void:
 		runner.assert_eq(event.cell, [cell.x, cell.y], "the source remains fixed at the holder's actual completion cell")
 		runner.assert_eq(event.at_ms, world.elapsed_ms, "thermal source time is the actual original completion millisecond")
 		runner.assert_eq(domain.objects.hearth_stone.charge, opening - (index + 1) * cost, "each local pulse debits exactly the original artifact charge once")
-		runner.assert_true(world.local_heat.receipts.has(event.action), "the completed original action owns exactly its real field receipt")
-		var instant: Dictionary = world.local_heat.actual_at(cell, world.elapsed_ms)
+		runner.assert_true(world.environment_fields.receipts.has(event.action), "the completed original action owns exactly its real field receipt")
+		var instant: Dictionary = world.environment_fields.actual_at(cell, world.elapsed_ms)
 		runner.assert_true(bool(instant.get("ok", false)), "the source cell has an actual continuous temperature at completion")
 		if not bool(instant.get("ok", false)) or not _advance_to(runner, world, world.elapsed_ms + 1000):
 			return
-		var later: Dictionary = world.local_heat.actual_at(cell, world.elapsed_ms)
+		var later: Dictionary = world.environment_fields.actual_at(cell, world.elapsed_ms)
 		runner.assert_true(bool(later.get("ok", false)), "the source cell remains available after one game second")
 		if not bool(later.get("ok", false)):
 			return
@@ -134,15 +134,15 @@ func _finite_original_charge(runner: Object) -> void:
 	runner.assert_eq(domain.objects.hearth_stone.charge, 0, "the finite opening storage is truly exhausted")
 	runner.assert_true(not domain.begin("player", "warm", "hearth_stone").ok, "a depleted stone cannot provide another free pulse")
 	var finished: Dictionary = domain.events.back()
-	var heat_before: Dictionary = world.local_heat.to_dict()
+	var heat_before: Dictionary = world.environment_fields.to_dict()
 	var duplicate: Dictionary = {"action": finished.action, "actor": finished.actor, "object": finished.object,
-		"at_ms": finished.at_ms, "cell": finished.cell.duplicate(), "amount": int(world.local_heat.definitions.pulse_energy)}
-	runner.assert_true(not world.local_heat.deposit(duplicate), "replaying the same artifact action cannot supply a second pulse")
-	runner.assert_eq(world.local_heat.to_dict(), heat_before, "a repeated source leaves the original thermal authority unchanged")
+		"at_ms": finished.at_ms, "cell": finished.cell.duplicate(), "amount": int(world.environment_fields.definitions.pulse_energy)}
+	runner.assert_true(not world.environment_fields.deposit(duplicate), "replaying the same artifact action cannot supply a second pulse")
+	runner.assert_eq(world.environment_fields.to_dict(), heat_before, "a repeated source leaves the original thermal authority unchanged")
 	var moved: Vector2i = origin + Vector2i(25, 0)
 	world.regions.home.set_actor_cell("player", moved)
 	world.invalidate_region("home")
-	runner.assert_eq(world.local_heat.local_tenths(moved), 0, "leaving a spent source does not carry its local warmth with the body")
+	runner.assert_eq(world.environment_fields.local_tenths(moved), 0, "leaving a spent source does not carry its local warmth with the body")
 
 
 func _mid_action_resume(runner: Object) -> void:

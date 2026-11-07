@@ -13,13 +13,13 @@ static func _failure(reason: String) -> Dictionary:
 
 
 static func _sources(world: RegionalSimulation) -> Dictionary:
-	if world == null or world.map_data == null or world.construction == null or world.artifacts == null or world.local_heat == null:
+	if world == null or world.map_data == null or world.construction == null or world.artifacts == null or world.environment_fields == null:
 		return _failure("missing_world")
-	if world.local_heat.world != world or world.artifacts.world != world or world.construction.world != world:
+	if world.environment_fields.world != world or world.artifacts.world != world or world.construction.world != world:
 		return _failure("invalid_world")
 	if world.elapsed_ms != world.target_ms:
 		return _failure("pending_time")
-	var output: Dictionary = world.local_heat.device_emission_rates(world.elapsed_ms)
+	var output: Dictionary = world.environment_fields.device_emission_rates(world.elapsed_ms)
 	if not bool(output.supported):
 		return output
 	var rates: Dictionary = output.rates

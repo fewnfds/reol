@@ -37,7 +37,7 @@ class ReceiverWorld extends RefCounted:
 	var elapsed_ms: int = 0
 	var clothing: SimClothing
 	var weather: SimWeather
-	var local_heat: RefCounted
+	var environment_fields: RefCounted
 	var regions: Dictionary = {}
 
 	func _sorted_keys(value: Dictionary) -> Array:
@@ -73,7 +73,7 @@ func _receivers(runner: Object) -> void:
 	view.clothing = world.clothing
 	view.weather = world.weather
 	view.regions = world.regions
-	view.local_heat = heat
+	view.environment_fields = heat
 	var environment := SimEnvironment.new()
 	var initialized: bool = environment.initialize(view, world.environment.definitions)
 	runner.assert_true(initialized, "actual environmental rules bind to the controlled source")

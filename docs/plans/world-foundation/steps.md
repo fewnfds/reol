@@ -4,7 +4,7 @@
 
 ## 包 A：对象、能力与空间查询合同
 
-**输入与所有者**：现有区域、身体、器物、数量库存、自然资源与结构分别保有原状态。先核对 [EntityQuery](../../../scripts/sim/entity_query.gd)、[StorageQuery](../../../scripts/sim/storage_query.gd)、[StructureQuery](../../../scripts/sim/structure_query.gd)、[Embodiment](../../../scripts/sim/embodiment.gd) 的真实入口，不新建第二个对象库或时钟。
+**输入与所有者**：现有区域、身体、器物、数量库存、自然资源与结构分别保有原状态。先核对 [SimEntityQuery](../../../scripts/sim/entity_query.gd)、[SimStorageQuery](../../../scripts/sim/storage_query.gd)、[SimStructureQuery](../../../scripts/sim/structure_query.gd)、[SimEmbodiment](../../../scripts/sim/embodiment.gd) 的真实入口，不新建第二个对象库或时钟。
 
 **首包接口及覆盖**：`SimWorldObjectQuery.describe(world, reference)` 和 `capability(world, reference, name)` 提供只读描述与能力查询，接入既有人身、鸟身、器物、大型身体、数量条目、有限自然来源及施工/固定场所结构。`SimObjectSpatialSnapshot` 根据调用者显式提供的引用集合捕获派生空间快照，为这些引用提供有预算的范围查询；这不是全世界对象目录或实时权威索引。接口具体字段和支持能力以该包代码与验收为准。
 

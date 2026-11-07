@@ -192,7 +192,7 @@ func setup(home: VillageRuntime, opening_source_loan: bool = false, opening_sour
 	if opening_field and world_sim.elapsed_ms == 0 and not world_sim.field_opportunities.spawn_opening(centers):
 		push_error("World continuity: no reachable field opportunity opening")
 		return false
-	if not world_sim.local_heat.activate_sources():
+	if not world_sim.environment_fields.activate_sources():
 		push_error("World continuity: environmental sources could not activate")
 		return false
 	_bind_navigation()
@@ -588,7 +588,7 @@ func advance_to_ms(target_ms: int) -> int:
 	var cursor: int = world_sim.elapsed_ms
 	while cursor < target_ms:
 		var end: int = world_sim.next_runtime_boundary_ms(target_ms)
-		if not world_sim.local_heat.can_settle_at_ms(end):
+		if not world_sim.environment_fields.can_settle_at_ms(end):
 			world_sim.target_ms = maxi(world_sim.target_ms, target_ms)
 			GameClock.set_paused(true)
 			_notice = "环境结算达到数值边界；待处理时间已保留。"

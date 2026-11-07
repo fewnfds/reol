@@ -49,8 +49,8 @@ func _fixture(runner: Object, at_ms: int, alternating: bool = false) -> Regional
 		return null
 	world.regions = {"home": sim}
 	world.weather = SimWeather.new()
-	world.local_heat = SimLocalHeat.new()
-	if not world.weather.initialize(world, content.weather) or not world.local_heat.initialize(world, content.local_heat):
+	world.environment_fields = SimLocalHeat.new()
+	if not world.weather.initialize(world, content.weather) or not world.environment_fields.initialize(world, content.local_heat):
 		runner.assert_true(false, "limit fixture binds the original independent weather and heat authorities")
 		return null
 	if not world._sample_herb_conditions(true):
@@ -65,9 +65,9 @@ func _advance(runner: Object, world: RegionalSimulation, at_ms: int, heat_sample
 	runner.assert_true(world.regions.home.advance_to_ms(at_ms), "limit source settles its old cache to the requested actual time")
 	world.elapsed_ms = at_ms
 	world.target_ms = at_ms
-	runner.assert_true(world.local_heat.settle_at_ms(at_ms), "limit heat settles at the same actual regional time")
+	runner.assert_true(world.environment_fields.settle_at_ms(at_ms), "limit heat settles at the same actual regional time")
 	if heat_sample:
-		runner.assert_true(world.local_heat.mark_sample(at_ms), "a real global minute can sample the original heat field")
+		runner.assert_true(world.environment_fields.mark_sample(at_ms), "a real global minute can sample the original heat field")
 	runner.assert_true(world._sample_herb_conditions(), "parent sampling accepts valid time or skips a non-minute sentinel")
 
 

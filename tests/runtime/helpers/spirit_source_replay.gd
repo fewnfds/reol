@@ -31,7 +31,7 @@ func run(runtime: WorldContinuityRuntime, suffix: String) -> Dictionary:
 	for verb: String in ["charge", "warm"]:
 		if not _artifact(runtime, verb, object):
 			return {"error": "ordinary artifact use failed", "verb": verb, "report": report}
-	report["after_body_use"] = {"qi": int(actor.qi), "charge": int(world.artifacts.objects[object].charge), "heat": world.local_heat.input_energy}
+	report["after_body_use"] = {"qi": int(actor.qi), "charge": int(world.artifacts.objects[object].charge), "heat": world.environment_fields.input_energy}
 	var stored: Dictionary = source.begin("player", str(original.source), "stone", object)
 	if not bool(stored.ok):
 		return {"error": "ordinary source storage failed", "reply": stored, "report": report}
@@ -39,7 +39,7 @@ func run(runtime: WorldContinuityRuntime, suffix: String) -> Dictionary:
 	GameClock.advance_msec(int(source.active.player.due_ms) - GameClock.elapsed_ms)
 	if source.owns_actor("player") or not _artifact(runtime, "warm", object):
 		return {"error": "stored source did not feed original warmth", "report": report}
-	report["after_stone_use"] = {"qi": int(actor.qi), "charge": int(world.artifacts.objects[object].charge), "heat": world.local_heat.input_energy, "sources": source.sources.duplicate(true)}
+	report["after_stone_use"] = {"qi": int(actor.qi), "charge": int(world.artifacts.objects[object].charge), "heat": world.environment_fields.input_energy, "sources": source.sources.duplicate(true)}
 	report["journey_accepted"] = runtime.travel_to("river")
 	if not report.journey_accepted or GameClock.elapsed_ms > FUTURE_MS:
 		return {"error": "ordinary departure failed", "report": report}

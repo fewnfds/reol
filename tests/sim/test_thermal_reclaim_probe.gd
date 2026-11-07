@@ -30,7 +30,7 @@ func _device_and_weather(runner: Object) -> void:
 	if world == null or not _devices._action(runner, world, "player", "study", Devices.FIRE) or not _devices._action(runner, world, "player", "enable", Devices.FIRE):
 		return
 	var before: String = _json(world.to_dict())
-	var report: Dictionary = Probe.inspect(world.local_heat)
+	var report: Dictionary = Probe.inspect(world.environment_fields)
 	runner.assert_true(bool(report.complete) and report.status == "complete", "synchronized world has a complete bounded dependency scan")
 	runner.assert_true(not bool(report.can_reclaim), "the development scan never authorizes physical reclamation")
 	if not bool(report.complete):
@@ -46,8 +46,8 @@ func _device_and_weather(runner: Object) -> void:
 	runner.assert_true(not row.frozen_flows.is_empty(), "the original frozen source flow is reported")
 	runner.assert_true(row.blockers.has("enabled_device") and row.blockers.has("future_climate_unproved"), "current source and missing future proof both block retirement")
 	runner.assert_true(not bool(row.can_reclaim), "individual cells cannot be reclaimed by this inspection")
-	runner.assert_eq(int(row.q), int(world.local_heat.cells[row.key].energy), "reported Q is the original owner's Q")
-	runner.assert_eq(int(row.background_q), world.local_heat._baseline(point, world.elapsed_ms), "reported baseline is computed from bound current climate")
+	runner.assert_eq(int(row.q), int(world.environment_fields.cells[row.key].energy), "reported Q is the original owner's Q")
+	runner.assert_eq(int(row.background_q), world.environment_fields._baseline(point, world.elapsed_ms), "reported baseline is computed from bound current climate")
 	runner.assert_eq(int(row.residual_q), int(row.q) - int(row.background_q), "reported residual is signed Q minus background Q")
 	runner.assert_true(bool(row.background_envelope.supported), "bound climate provides a conservative annual envelope")
 	# The device has just allocated this cell; no interval has elapsed to move
@@ -62,9 +62,9 @@ func _device_and_weather(runner: Object) -> void:
 		runner.assert_true(absi(int(after_phase.temperature_tenths) - int(before_phase.temperature_tenths)) > 5, "the actual phase changes background by more than the 0.5 C future-error limit")
 		runner.assert_true(not bool(row.can_reclaim), "an instant zero residual cannot authorize forgetting thermal inertia")
 
-	var exact: Dictionary = Probe.inspect(world.local_heat, int(report.work_used))
+	var exact: Dictionary = Probe.inspect(world.environment_fields, int(report.work_used))
 	runner.assert_eq(_json(exact), _json(report), "the exact work limit yields the same deterministically sorted complete report")
-	var limited: Dictionary = Probe.inspect(world.local_heat, maxi(0, int(report.work_used) - 1))
+	var limited: Dictionary = Probe.inspect(world.environment_fields, maxi(0, int(report.work_used) - 1))
 	runner.assert_true(not bool(limited.complete) and limited.status == "unknown" and limited.reason == "work_budget_exhausted", "one unit below the full scan returns unknown")
 	runner.assert_true(limited.cells.is_empty() and limited.pending.is_empty() and not bool(limited.can_reclaim), "budget exhaustion never presents partial rows as complete or safe")
 	runner.assert_eq(_json(world.to_dict()), before, "repeated and budget-limited queries never change the owner")
@@ -74,9 +74,9 @@ func _device_and_weather(runner: Object) -> void:
 	if resumed == null:
 		return
 	runner.assert_true(resumed.restore(archive), "a fresh regional candidate restores the actual current JSON world")
-	if resumed.local_heat == null or resumed.elapsed_ms != world.elapsed_ms:
+	if resumed.environment_fields == null or resumed.elapsed_ms != world.elapsed_ms:
 		return
-	var restored: Dictionary = Probe.inspect(resumed.local_heat)
+	var restored: Dictionary = Probe.inspect(resumed.environment_fields)
 	runner.assert_eq(_json(restored), _json(report), "independent current restore gives the same complete diagnostic")
 	runner.assert_eq(_json(resumed.to_dict()), before, "diagnosing the restored candidate does not modify it")
 
@@ -92,7 +92,7 @@ func _source_and_pending(runner: Object) -> void:
 	var action: String = str(world.artifacts.active.player.id)
 	var due: int = int(world.artifacts.active.player.due_ms)
 	var before: String = _json(world.to_dict())
-	var pending: Dictionary = Probe.inspect(world.local_heat)
+	var pending: Dictionary = Probe.inspect(world.environment_fields)
 	runner.assert_true(bool(pending.complete) and pending.status == "unknown" and pending.reason == "pending_target_unknown", "a complete scan marks the future source location unknown")
 	var found: bool = false
 	for entry: Dictionary in pending.pending:
@@ -102,7 +102,7 @@ func _source_and_pending(runner: Object) -> void:
 	runner.assert_eq(_json(world.to_dict()), before, "inspecting the pending original action does not change time or charge")
 	runner.assert_true(world.advance_to_ms(due), "the original regional scheduler completes the source")
 	var after_completion: String = _json(world.to_dict())
-	var report: Dictionary = Probe.inspect(world.local_heat)
+	var report: Dictionary = Probe.inspect(world.environment_fields)
 	runner.assert_true(bool(report.complete), "the completed source and its historical evidence fit within the inspection budget")
 	var point: Vector2i = world.artifacts.object_cell("hearth_stone")
 	var row: Dictionary = _cell(report, point)
@@ -113,14 +113,14 @@ func _source_and_pending(runner: Object) -> void:
 	runner.assert_eq(_json(world.to_dict()), after_completion, "completed source inspection neither replays nor spends its receipt")
 	# An allocation at the same millisecond as a prior sample may occur after
 	# that sample. Wait for the next actual sample instead of inventing order.
-	var sample_ms: int = int(world.local_heat.definitions.sample_ms)
+	var sample_ms: int = int(world.environment_fields.definitions.sample_ms)
 	@warning_ignore("integer_division")
 	var next_sample: int = (int(world.elapsed_ms) / sample_ms + 1) * sample_ms
 	if not world.advance_to_ms(next_sample):
 		runner.assert_true(false, "the original regional scheduler reaches the next thermal sample")
 		return
 	var sampled_before: String = _json(world.to_dict())
-	var sampled: Dictionary = Probe.inspect(world.local_heat)
+	var sampled: Dictionary = Probe.inspect(world.environment_fields)
 	var sampled_row: Dictionary = _cell(sampled, point)
 	runner.assert_true(bool(sampled.complete) and not sampled_row.is_empty(), "the original source remains present at the next real sample")
 	if not sampled_row.is_empty():

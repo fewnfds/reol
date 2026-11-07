@@ -150,7 +150,7 @@ func _measure(fixture: Fixtures, world: RegionalSimulation, label: String) -> Di
 	assert_true(restored, label + " restores the actual complete world")
 	if not restored:
 		return {}
-	assert_true(candidate != world and candidate.local_heat != world.local_heat and candidate.artifacts != world.artifacts, label + " restore uses independent original owners")
+	assert_true(candidate != world and candidate.environment_fields != world.environment_fields and candidate.artifacts != world.artifacts, label + " restore uses independent original owners")
 	var expected_snapshot: String = fixture._json(snapshot)
 	assert_eq(fixture._json(candidate.to_dict()), expected_snapshot, label + " JSON restore preserves the complete measured state")
 	if _failed > 0:
@@ -177,13 +177,13 @@ func _metrics(world: RegionalSimulation) -> Dictionary:
 	# Values are measured directly from the owning field and original objects;
 	# the report is a point-in-time observation, never an alternative ledger.
 	var cell_energy: int = 0
-	for row: Dictionary in world.local_heat.cells.values():
+	for row: Dictionary in world.environment_fields.cells.values():
 		cell_energy += int(row.energy)
-	return {"at_ms": int(world.elapsed_ms), "cells": world.local_heat.cells.size(), "flows": world.local_heat.flows.size(),
-		"cell_energy": cell_energy, "input_energy": int(world.local_heat.input_energy),
-		"ambient_in": int(world.local_heat.ambient_in), "loss_energy": int(world.local_heat.loss_energy),
-		"continuous_input": int(world.local_heat.continuous_input), "absorbed_energy": int(world.local_heat.absorbed_energy),
-		"fire_emitted": int(world.local_heat.device_input.get(FIRE, 0)), "cold_absorbed": int(world.local_heat.device_absorbed.get(COLD, 0)),
+	return {"at_ms": int(world.elapsed_ms), "cells": world.environment_fields.cells.size(), "flows": world.environment_fields.flows.size(),
+		"cell_energy": cell_energy, "input_energy": int(world.environment_fields.input_energy),
+		"ambient_in": int(world.environment_fields.ambient_in), "loss_energy": int(world.environment_fields.loss_energy),
+		"continuous_input": int(world.environment_fields.continuous_input), "absorbed_energy": int(world.environment_fields.absorbed_energy),
+		"fire_emitted": int(world.environment_fields.device_input.get(FIRE, 0)), "cold_absorbed": int(world.environment_fields.device_absorbed.get(COLD, 0)),
 		"fire_stored_q": int(world.artifacts.objects[FIRE].stored_q), "cold_stored_q": int(world.artifacts.objects[COLD].stored_q)}
 
 

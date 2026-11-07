@@ -46,7 +46,7 @@ func _run() -> void:
 			return
 		_observe("unfinished")
 		_clock.advance_msec(COMPLETION_MS - _clock.elapsed_ms)
-		if _runtime.world_sim.local_heat.receipts.size() != 1 or int(_runtime.world_sim.artifacts.objects.hearth_stone.charge) != 3:
+		if _runtime.world_sim.environment_fields.receipts.size() != 1 or int(_runtime.world_sim.artifacts.objects.hearth_stone.charge) != 3:
 			_fail("original finite source did not commit once")
 			return
 		_observe("source_completed")
@@ -90,7 +90,7 @@ func _run() -> void:
 
 func _observe(label: String) -> void:
 	var world: RefCounted = _runtime.world_sim
-	var heat: RefCounted = world.local_heat
+	var heat: RefCounted = world.environment_fields
 	var energy: int = 0
 	for row: Dictionary in heat.cells.values():
 		energy += int(row.energy)

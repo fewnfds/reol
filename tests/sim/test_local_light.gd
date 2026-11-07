@@ -82,7 +82,7 @@ func _lifecycle(runner: Object) -> void:
 	if not _devices._action(runner, world, "player", "disable", "fire_stone"):
 		return
 	runner.assert_eq(_light(world, at), 0, "the real switch removes light immediately")
-	runner.assert_true(world.local_heat.current_tenths(at) > 0, "closing light does not delete stored heat from the original field")
+	runner.assert_true(world.environment_fields.current_tenths(at) > 0, "closing light does not delete stored heat from the original field")
 	var rate: int = int(world.artifacts.definitions.types.fire_stone.thermal.rate_q_per_ms)
 	runner.assert_eq(int(world.artifacts.objects.fire_stone.stored_q), before_disable - rate * (world.elapsed_ms - started), "the original reservoir alone pays for elapsed output while disabling")
 
@@ -120,9 +120,9 @@ func _multiple_and_legacy(runner: Object) -> void:
 		return
 	runner.assert_eq(_light(old, at), 0, "a bound old definition without lighting does not inherit today's disk capability")
 	var stock: int = int(old.artifacts.objects.fire_stone.stored_q)
-	var early: Dictionary = old.local_heat.actual_at(at, old.elapsed_ms)
+	var early: Dictionary = old.environment_fields.actual_at(at, old.elapsed_ms)
 	old.advance_to_ms(old.elapsed_ms + 173)
-	var later: Dictionary = old.local_heat.actual_at(at, old.elapsed_ms)
+	var later: Dictionary = old.environment_fields.actual_at(at, old.elapsed_ms)
 	runner.assert_true(bool(early.get("ok", false)) and bool(later.get("ok", false)), "the no-light definition has queryable actual temperatures")
 	if bool(early.get("ok", false)) and bool(later.get("ok", false)):
 		runner.assert_true(float(later.value_c) > float(early.value_c), "absence of light does not disable the real gradually building heat")
@@ -153,12 +153,12 @@ func _restore_and_failures(runner: Object) -> void:
 	runner.assert_eq(int(world.artifacts.objects.fire_stone.stored_q), before_stock, "an unsupported query does not settle the pending millisecond")
 	world.target_ms -= 1
 	runner.assert_eq(_light(world, at), 4000, "clearing the artificial backlog restores a supported current light")
-	runner.assert_true(world.local_heat.device_emission_rates(world.elapsed_ms).rates.is_read_only(), "the public outgoing-flow index cannot be mutated by a light observer")
-	var original_heat: RefCounted = world.local_heat
+	runner.assert_true(world.environment_fields.device_emission_rates(world.elapsed_ms).rates.is_read_only(), "the public outgoing-flow index cannot be mutated by a light observer")
+	var original_heat: RefCounted = world.environment_fields
 	var other: RegionalSimulation = _world(runner)
-	world.local_heat = other.local_heat
+	world.environment_fields = other.environment_fields
 	runner.assert_true(not SimLocalLight.at_cell(world, at).supported, "a foreign thermal owner cannot silently supply this world's illumination")
-	world.local_heat = original_heat
+	world.environment_fields = original_heat
 	runner.assert_true(not SimLocalLight.at_cell(world, Vector2i(-1, 0)).supported, "outside-map query fails explicitly")
 	var too_many: Array[Vector2i] = []
 	too_many.resize(SimLocalLight.MAX_CELLS + 1)

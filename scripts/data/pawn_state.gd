@@ -1,6 +1,7 @@
 class_name PawnState
 extends RefCounted
-## Runtime state for one pawn. The static definition stays in PawnDef.
+## Pawn presentation values; VillageRuntime projects the authoritative actor
+## record into this state. Static content stays in PawnDef.
 
 const MAX_NEED: float = 100.0
 

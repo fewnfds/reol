@@ -1,12 +1,12 @@
 # 游戏内容与开局数据
 
-`definitions/environment_sources.json` 是A1地面来源查询的显式候选配置，不在当前普通37文件内容包中。由开发调用者加载到 `EnvironmentSourceDefinitions` 并保留digest，再绑定原世界查询；普通load_all/读档不自动增添辐射属性。接口与边界见[来源合同](../docs/engineering/environment-source-query-contract.md)。
+`definitions/environment_sources.json` 是当前v2内容包的环境来源定义。`ReolContentDB` 将其加载为 `EnvironmentSourceDefinitions`，`SimWorldEnvironmentFields` 按定义和真实原物构造来源查询；读档使用存档中的内容定义。接口与边界见[来源合同](../docs/engineering/environment-source-query-contract.md)。
 
 `definitions/conflicts.json`定义有限地面交锋的三种手段、时序/成本、学习背景、步长/距离与NPC判断参数。实际动作、命中与学成经历归SimConflicts，不回写定义；新局真实木剑由WorldContinuityRuntime显式加入原器物开局，旧档不补造。`artifacts.json`按能力类别提供实物动作，木剑不携温石热字段；`health.json`的挫伤恢复独立于经脉护理。灵源运行状态2记录历史检查点/施术成本floor，原灵源定义仍1。
 
 交锋感知的`sight_radius`、`last_seen_ms`、`last_seen_arrival_px`与`threat_margin_px`也在`conflicts.json`，分别约束本人视距、最后目击时限、抵达旧位置的容差与来弹威胁余量。它们不保存NPC所见，不授予听声或神识；真实最后目击和`perception_since_ms`只进入交锋运行状态2。旧档在原保存现在启用，不由参数反推历史；定义版本仍为1。范围与本轮验收入口见[有限感知规格](../docs/archive/specifications/conflict_perception.md)。
 
-`definitions/local_heat.json`定义正余热近场的容量/源脉冲、整数步长、导通/室外散失与稀疏预算。实际存量和来源回执归SimLocalHeat，原温石储量归SimArtifacts，房间和天气都不复制这些值；规则改变需显式版本迁移。
+`definitions/local_heat.json` 保留既有的定义路径和校验格式；普通世界的 `SimWorldEnvironmentFields` 使用其中的原动作脉冲单位，实际温度与五行环境影响归该类，原温石储量归 `SimArtifacts`。房间和天气不拥有这些状态，规则改变按当前内容和存档版本处理。
 
 | 目录 | 放什么 | 当前文件 |
 |---|---|---|

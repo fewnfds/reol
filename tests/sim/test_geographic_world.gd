@@ -165,7 +165,7 @@ func _run_devices_and_restore(runner: Object, world: RegionalSimulation) -> void
 	runner.assert_eq(_state(world), before, "candidate staging leaves the original world unchanged")
 	if candidate == null:
 		return
-	runner.assert_true(candidate._content != world._content and candidate.map_data != world.map_data and candidate.local_heat != world.local_heat, "restored content, terrain and heat have independent owners")
+	runner.assert_true(candidate._content != world._content and candidate.map_data != world.map_data and candidate.environment_fields != world.environment_fields, "restored content, terrain and heat have independent owners")
 	runner.assert_eq(str(candidate._content.content_bundle().digest), str(world._content.content_bundle().digest), "candidate keeps the original generated content digest")
 	runner.assert_eq(_state(candidate), before, "independent JSON restore preserves every world fact at the actual checkpoint")
 	for sim: VillageSimulation in candidate.regions.values():

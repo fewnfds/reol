@@ -1,7 +1,7 @@
 class_name Pawn
 extends Node2D
-## A named NPC placed in the world. Static data comes from PawnDef; runtime
-## values live in PawnState so needs/jobs can mutate them later.
+## Named NPC view. PawnDef provides static content; PawnState contains values
+## projected from the authoritative VillageSimulation actor by VillageRuntime.
 
 const Visuals = preload("res://scripts/entities/pawn_visuals.gd")
 

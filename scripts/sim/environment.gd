@@ -110,7 +110,7 @@ func _temperature(region: String, at_ms: int) -> int:
 
 
 func _thermal() -> RefCounted:
-	return world.get("local_heat") as RefCounted
+	return world.get("environment_fields") as RefCounted
 
 
 func _current_heat_tenths(cell: Vector2i) -> int:

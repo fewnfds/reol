@@ -78,14 +78,14 @@ func _lifecycle(runner: Object) -> void:
 	runner.assert_eq(due - int(domain.active.player.started_ms), 60000, "enable takes its declared real minute")
 	if not _advance(runner, world, due - 1):
 		return
-	runner.assert_true(not bool(domain.objects[FIRE].enabled) and world.local_heat.device_switches.is_empty(), "an unfinished enable publishes no earlier source switch")
+	runner.assert_true(not bool(domain.objects[FIRE].enabled) and world.environment_fields.device_switches.is_empty(), "an unfinished enable publishes no earlier source switch")
 	if not _advance(runner, world, due):
 		return
 	runner.assert_true(bool(domain.objects[FIRE].enabled), "the successful action enables the original stone at its deadline")
 	runner.assert_eq(int(domain.objects[FIRE].stored_q), CAPACITY, "enable itself does not prepay an invented elapsed interval")
 	var enabled_event: Dictionary = domain.events[-1]
 	runner.assert_eq(str(enabled_event.kind), "enabled", "successful activation records its real artifact outcome")
-	var change: Dictionary = world.local_heat.device_switches[enabled_event.action]
+	var change: Dictionary = world.environment_fields.device_switches[enabled_event.action]
 	runner.assert_eq(change.container, "kitchen", "activation receipt preserves the actual original container")
 	runner.assert_eq(change.at_ms, enabled_event.at_ms, "artifact and thermal activation share one committed instant")
 	runner.assert_eq(enabled_event.device_container, change.container, "the original event and thermal receipt agree on location")
@@ -103,7 +103,7 @@ func _lifecycle(runner: Object) -> void:
 	runner.assert_true(not bool(domain.objects[FIRE].enabled), "the real disable finishes at its own deadline")
 	runner.assert_eq(stored - int(domain.objects[FIRE].stored_q), 1000, "that final old interval debits the same original stone")
 	stored = int(domain.objects[FIRE].stored_q)
-	var switch_count: int = world.local_heat.device_switches.size()
+	var switch_count: int = world.environment_fields.device_switches.size()
 	if not _action(runner, world, "player", "take", FIRE):
 		return
 	runner.assert_eq(domain.objects[FIRE].container, "actor:player", "taking moves the same disabled object into original custody")
@@ -112,13 +112,13 @@ func _lifecycle(runner: Object) -> void:
 		return
 	runner.assert_eq(domain.objects[FIRE].container, "kitchen", "placing returns the same object to its declared real location")
 	runner.assert_eq(int(domain.objects[FIRE].stored_q), stored, "carrying and placing do not refill the original reservoir")
-	runner.assert_eq(world.local_heat.device_switches.size(), switch_count, "disabled carrying creates no extra source switch")
+	runner.assert_eq(world.environment_fields.device_switches.size(), switch_count, "disabled carrying creates no extra source switch")
 	runner.assert_eq(world.regions.home.inventory.quantity("actor:player", FIRE), 0, "the unique device is not duplicated in a stack inventory")
 	if not _action(runner, world, "player", "enable", FIRE):
 		return
 	var restarted: int = world.elapsed_ms
 	runner.assert_eq(int(domain.objects[FIRE].stored_q), stored, "re-enabling after custody changes keeps the original remaining reservoir")
-	runner.assert_eq(world.local_heat.device_switches.size(), switch_count + 1, "re-enabling records exactly one new source switch")
+	runner.assert_eq(world.environment_fields.device_switches.size(), switch_count + 1, "re-enabling records exactly one new source switch")
 	@warning_ignore("integer_division")
 	var exhausted_at: int = restarted + stored / 1000
 	if not _advance(runner, world, exhausted_at - 1):
@@ -165,7 +165,7 @@ func _inflight_enable_cancel(runner: Object) -> void:
 	if not _advance(runner, world, midpoint):
 		return
 	runner.assert_true(midpoint > started_ms and midpoint < due and world.artifacts.active.has("player"), "the saved enable is really in flight")
-	runner.assert_true(not bool(world.artifacts.objects[FIRE].enabled) and world.local_heat.device_switches.is_empty() and world.local_heat.receipts.is_empty(), "an unfinished enable publishes neither a switch nor a heat source")
+	runner.assert_true(not bool(world.artifacts.objects[FIRE].enabled) and world.environment_fields.device_switches.is_empty() and world.environment_fields.receipts.is_empty(), "an unfinished enable publishes neither a switch nor a heat source")
 	var saved: Dictionary = JSON.parse_string(_json(world.to_dict()))
 	var resumed: RegionalSimulation = _world(runner)
 	if resumed == null:
@@ -174,7 +174,7 @@ func _inflight_enable_cancel(runner: Object) -> void:
 	runner.assert_true(loaded, "an independent candidate restores a paid unfinished enable and its qi provenance")
 	if not loaded:
 		return
-	runner.assert_true(resumed.artifacts != world.artifacts and resumed.local_heat != world.local_heat and resumed.spirit_sources != world.spirit_sources and resumed.regions.home != world.regions.home, "unfinished enable restore uses independent original owners")
+	runner.assert_true(resumed.artifacts != world.artifacts and resumed.environment_fields != world.environment_fields and resumed.spirit_sources != world.spirit_sources and resumed.regions.home != world.regions.home, "unfinished enable restore uses independent original owners")
 	runner.assert_eq(_json(resumed.to_dict()), _json(saved), "the unfinished enable, body, qi checkpoint and full world survive JSON exactly")
 	runner.assert_eq(_json(resumed.spirit_sources.qi_baselines.player), _json(baseline), "independent restore retains the pre-debit qi baseline")
 	var cancelled: bool = world.artifacts.cancel("player")
@@ -188,7 +188,7 @@ func _inflight_enable_cancel(runner: Object) -> void:
 	runner.assert_true(event.kind == "cancelled" and event.action == job.id and int(event.qi_spent) == cost, "the cancelled action retains its actual paid evidence")
 	runner.assert_true(not event.has("device_container") and not event.has("heat_amount"), "a cancelled enable does not claim a thermal completion")
 	runner.assert_true(not world.artifacts.active.has("player") and not bool(world.artifacts.objects[FIRE].enabled), "cancellation releases the action without enabling the original object")
-	runner.assert_true(world.local_heat.device_switches.is_empty() and world.local_heat.receipts.is_empty(), "cancellation creates neither device switches nor warming receipts")
+	runner.assert_true(world.environment_fields.device_switches.is_empty() and world.environment_fields.receipts.is_empty(), "cancellation creates neither device switches nor warming receipts")
 	runner.assert_eq(_json(resumed.to_dict()), _json(world.to_dict()), "original and restored cancellation commit the same complete world")
 	var cancelled_save: Dictionary = JSON.parse_string(_json(resumed.to_dict()))
 	var reloaded: bool = resumed.restore(cancelled_save)
@@ -197,7 +197,7 @@ func _inflight_enable_cancel(runner: Object) -> void:
 		return
 	if not _advance(runner, world, due + 1001) or not _advance(runner, resumed, due - 1) or not _advance(runner, resumed, due + 1001):
 		return
-	runner.assert_true(not bool(world.artifacts.objects[FIRE].enabled) and world.local_heat.device_switches.is_empty() and world.local_heat.receipts.is_empty(), "passing the cancelled deadline never starts the device or fabricates thermal evidence")
+	runner.assert_true(not bool(world.artifacts.objects[FIRE].enabled) and world.environment_fields.device_switches.is_empty() and world.environment_fields.receipts.is_empty(), "passing the cancelled deadline never starts the device or fabricates thermal evidence")
 	runner.assert_eq(int(world.artifacts.objects[FIRE].stored_q), CAPACITY, "the cancelled source never spends the original reservoir")
 	runner.assert_eq(int(world.regions.home.actors.player.qi), qi_after, "passing the cancelled deadline never refunds the original qi debit")
 	runner.assert_eq(_json(resumed.to_dict()), _json(world.to_dict()), "a cancelled and reloaded enable has the same future across its old deadline")
@@ -228,10 +228,10 @@ func _inflight_disable_restore(runner: Object) -> void:
 	runner.assert_true(loaded, "an independent candidate restores an unfinished disable and its frozen active source")
 	if not loaded:
 		return
-	runner.assert_true(resumed.artifacts != world.artifacts and resumed.local_heat != world.local_heat and resumed.regions.home != world.regions.home, "unfinished disable restore owns an independent body, stone and thermal field")
+	runner.assert_true(resumed.artifacts != world.artifacts and resumed.environment_fields != world.environment_fields and resumed.regions.home != world.regions.home, "unfinished disable restore owns an independent body, stone and thermal field")
 	runner.assert_eq(_json(resumed.to_dict()), _json(saved), "the unfinished disable and complete original energy ledger survive JSON")
 	var before_switch: String = _json(world.to_dict())
-	var heat_owner: RefCounted = world.local_heat
+	var heat_owner: RefCounted = world.environment_fields
 	var stone_owner: SimArtifacts = world.artifacts
 	var body_owner: VillageSimulation = world.regions.home
 	var near: bool = world.set_active_region("home")
@@ -239,7 +239,7 @@ func _inflight_disable_restore(runner: Object) -> void:
 	runner.assert_true(near and far, "the same pending disable can be scheduled in near and distant regions")
 	if not near or not far:
 		return
-	runner.assert_true(world.local_heat == heat_owner and world.artifacts == stone_owner and world.regions.home == body_owner and int(world.elapsed_ms) == midpoint, "changing the active region preserves original owners and the shared time")
+	runner.assert_true(world.environment_fields == heat_owner and world.artifacts == stone_owner and world.regions.home == body_owner and int(world.elapsed_ms) == midpoint, "changing the active region preserves original owners and the shared time")
 	var near_snapshot: Dictionary = world.to_dict()
 	var far_snapshot: Dictionary = resumed.to_dict()
 	near_snapshot.active_region = ""
@@ -252,18 +252,18 @@ func _inflight_disable_restore(runner: Object) -> void:
 	var before_final_stock: int = int(world.artifacts.objects[FIRE].stored_q)
 	var spent_before_due: int = (due - 1 - started_ms) * rate
 	runner.assert_eq(stored_at_start - before_final_stock, spent_before_due, "the penultimate emission is charged to the same original reservoir")
-	runner.assert_eq(_json(resumed.local_heat.to_dict()), _json(world.local_heat.to_dict()), "near and far schedules preserve the same old thermal interval")
+	runner.assert_eq(_json(resumed.environment_fields.to_dict()), _json(world.environment_fields.to_dict()), "near and far schedules preserve the same old thermal interval")
 	if not _advance(runner, world, due) or not _advance(runner, resumed, due):
 		return
 	runner.assert_true(not bool(world.artifacts.objects[FIRE].enabled) and not bool(resumed.artifacts.objects[FIRE].enabled), "the original disable actually completes at its common deadline")
 	runner.assert_eq(before_final_stock - int(world.artifacts.objects[FIRE].stored_q), rate, "the final interval debits the original stock exactly once")
 	var event: Dictionary = world.artifacts.events.back()
 	runner.assert_true(event.kind == "disabled" and event.action == job.id and int(event.at_ms) == due, "the completed disable records its real action and deadline")
-	runner.assert_true(world.local_heat.device_switches.has(job.id), "the completed disable has exactly its own thermal switch evidence")
-	runner.assert_eq(world.local_heat.device_switches.size(), 2, "one enable and one disable produce exactly two device switch receipts")
-	if not world.local_heat.device_switches.has(job.id):
+	runner.assert_true(world.environment_fields.device_switches.has(job.id), "the completed disable has exactly its own thermal switch evidence")
+	runner.assert_eq(world.environment_fields.device_switches.size(), 2, "one enable and one disable produce exactly two device switch receipts")
+	if not world.environment_fields.device_switches.has(job.id):
 		return
-	var receipt: Dictionary = world.local_heat.device_switches[job.id]
+	var receipt: Dictionary = world.environment_fields.device_switches[job.id]
 	runner.assert_true(not bool(receipt.enabled) and int(receipt.at_ms) == due and receipt.object == FIRE, "the thermal switch matches the actual completed disable")
 	var stopped_stock: int = int(world.artifacts.objects[FIRE].stored_q)
 	var disabled_state: Dictionary = JSON.parse_string(_json(world.to_dict()))
@@ -310,8 +310,8 @@ func _finite_and_restore(runner: Object) -> void:
 	var rate: int = int(world.artifacts.definitions.types.fire_stone.thermal.rate_q_per_ms)
 	runner.assert_eq(int(world.artifacts.objects[FIRE].stored_q), CAPACITY - 173 * rate, "the original emitter spends its fixed-rate stock once")
 	runner.assert_eq(int(world.artifacts.objects[COLD].stored_q), 173 * rate, "the original absorber gains its fixed-rate stock once")
-	var both: Dictionary = world.local_heat.actual_at(point, world.elapsed_ms)
-	var neither: Dictionary = control.local_heat.actual_at(point, control.elapsed_ms)
+	var both: Dictionary = world.environment_fields.actual_at(point, world.elapsed_ms)
+	var neither: Dictionary = control.environment_fields.actual_at(point, control.elapsed_ms)
 	runner.assert_true(bool(both.get("ok", false)) and bool(neither.get("ok", false)), "actual temperatures are available for equal opposing devices")
 	if bool(both.get("ok", false)) and bool(neither.get("ok", false)):
 		runner.assert_true(absf(float(both.value_c) - float(neither.value_c)) < 0.00001, "equal same-cell hot and cold grades cancel in actual temperature while both stocks change")
@@ -324,7 +324,7 @@ func _finite_and_restore(runner: Object) -> void:
 	runner.assert_true(loaded, "independent regional JSON restore accepts the running devices")
 	if not loaded:
 		return
-	runner.assert_true(resumed.local_heat != world.local_heat and resumed.artifacts != world.artifacts, "restoration constructs independent field and artifact owners")
+	runner.assert_true(resumed.environment_fields != world.environment_fields and resumed.artifacts != world.artifacts, "restoration constructs independent field and artifact owners")
 	runner.assert_eq(_json(resumed.to_dict()), _json(saved), "restoration preserves the complete original world")
 	_reject_mutations(runner, world, saved)
 	var horizon: int = activated + 199999
@@ -340,7 +340,7 @@ func _finite_and_restore(runner: Object) -> void:
 
 func _reject_mutations(runner: Object, world: RegionalSimulation, saved: Dictionary) -> void:
 	var before: String = _json(world.to_dict())
-	var live_heat: RefCounted = world.local_heat
+	var live_heat: RefCounted = world.environment_fields
 	var live_artifacts: SimArtifacts = world.artifacts
 	var live_body: VillageSimulation = world.regions.home
 	if saved.local_heat.device_switches.is_empty():
@@ -362,7 +362,7 @@ func _reject_mutations(runner: Object, world: RegionalSimulation, saved: Diction
 			"forged_receipt": bad.local_heat.receipts["forged"] = {}
 		var input: String = _json(bad)
 		runner.assert_true(not world.restore(bad), "independent candidate rejects a one-field device forgery: " + kind)
-		runner.assert_true(world.local_heat == live_heat and world.artifacts == live_artifacts and world.regions.home == live_body, "rejected device candidate retains the original live owners: " + kind)
+		runner.assert_true(world.environment_fields == live_heat and world.artifacts == live_artifacts and world.regions.home == live_body, "rejected device candidate retains the original live owners: " + kind)
 		runner.assert_eq(_json(world.to_dict()), before, "rejected device candidate leaves the complete live world unchanged: " + kind)
 		runner.assert_eq(_json(bad), input, "device validation never repairs the supplied malformed input: " + kind)
 
@@ -372,7 +372,7 @@ func _quiet_devices(runner: Object) -> void:
 	if world == null or not _advance(runner, world, 20037):
 		return
 	runner.assert_true(not bool(world.artifacts.objects[FIRE].enabled) and not bool(world.artifacts.objects[COLD].enabled), "scenario devices remain disabled")
-	runner.assert_true(world.local_heat.device_switches.is_empty() and world.local_heat.receipts.is_empty(), "quiet devices invent neither switches nor warming receipts")
+	runner.assert_true(world.environment_fields.device_switches.is_empty() and world.environment_fields.receipts.is_empty(), "quiet devices invent neither switches nor warming receipts")
 	runner.assert_eq(int(world.artifacts.objects[FIRE].stored_q), CAPACITY, "a disabled emitter spends no original stock")
 	runner.assert_eq(int(world.artifacts.objects[COLD].stored_q), 0, "a disabled absorber gains no original stock")
 
@@ -386,20 +386,20 @@ func _sink_only(runner: Object) -> void:
 	if not _advance(runner, control, enabled_at):
 		return
 	var point: Vector2i = world.artifacts.object_cell(COLD)
-	var switched: Dictionary = world.local_heat.actual_at(point, enabled_at)
-	var baseline: Dictionary = control.local_heat.actual_at(point, enabled_at)
+	var switched: Dictionary = world.environment_fields.actual_at(point, enabled_at)
+	var baseline: Dictionary = control.environment_fields.actual_at(point, enabled_at)
 	runner.assert_true(bool(switched.get("ok", false)) and bool(baseline.get("ok", false)), "both real field temperatures are available at the switch")
 	if not bool(switched.get("ok", false)) or not bool(baseline.get("ok", false)):
 		return
 	runner.assert_true(absf(float(switched.value_c) - float(baseline.value_c)) < 0.00001, "enabling a cold source does not make temperature jump")
 	if not _advance(runner, world, enabled_at + 1000) or not _advance(runner, control, enabled_at + 1000):
 		return
-	var early: Dictionary = world.local_heat.actual_at(point, world.elapsed_ms)
-	var early_control: Dictionary = control.local_heat.actual_at(point, control.elapsed_ms)
+	var early: Dictionary = world.environment_fields.actual_at(point, world.elapsed_ms)
+	var early_control: Dictionary = control.environment_fields.actual_at(point, control.elapsed_ms)
 	if not _advance(runner, world, enabled_at + 30000) or not _advance(runner, control, enabled_at + 30000):
 		return
-	var later: Dictionary = world.local_heat.actual_at(point, world.elapsed_ms)
-	var later_control: Dictionary = control.local_heat.actual_at(point, control.elapsed_ms)
+	var later: Dictionary = world.environment_fields.actual_at(point, world.elapsed_ms)
+	var later_control: Dictionary = control.environment_fields.actual_at(point, control.elapsed_ms)
 	var valid: bool = bool(early.get("ok", false)) and bool(early_control.get("ok", false)) and bool(later.get("ok", false)) and bool(later_control.get("ok", false))
 	runner.assert_true(valid, "actual cold-source temperatures remain available over time")
 	if valid:
@@ -449,4 +449,4 @@ func _sub_rate_tail(runner: Object) -> void:
 	if not _advance(runner, world, activated + 1003):
 		return
 	runner.assert_eq(int(world.artifacts.objects[FIRE].stored_q), 0, "later time cannot spend the exhausted sub-rate tail again")
-	runner.assert_eq(world.local_heat.device_switches.size(), 1, "the finite-tail device retains exactly its one completed enable")
+	runner.assert_eq(world.environment_fields.device_switches.size(), 1, "the finite-tail device retains exactly its one completed enable")

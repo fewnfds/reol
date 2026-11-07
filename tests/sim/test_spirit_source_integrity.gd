@@ -140,7 +140,7 @@ func _original_charge_changes(runner: Object) -> void:
 	Support.artifact(runner, world, "player", "take")
 	Support.artifact(runner, world, "player", "warm")
 	runner.assert_eq(world.artifacts.objects.hearth_stone.charge, 9, "real original warming spends the same stored heat")
-	runner.assert_true(not world.local_heat.receipts.is_empty() and world.local_heat.diagnostics().transient_sources > 0, "spent original heat registers one time-bounded source at the real location")
+	runner.assert_true(not world.environment_fields.receipts.is_empty() and world.environment_fields.diagnostics().transient_sources > 0, "spent original heat registers one time-bounded source at the real location")
 	runner.assert_true(_restore(runner, world, options), "charge baseline agrees with original warming receipt and heat authority")
 	Support.artifact(runner, world, "player", "force")
 	runner.assert_eq(world.artifacts.objects.hearth_stone.charge, 0, "original real fracture discards stored heat rather than preserving source credit as a second pool")

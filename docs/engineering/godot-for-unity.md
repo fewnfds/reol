@@ -12,7 +12,7 @@
 ### 1.1 场景使用 Node，组合优于深继承
 
 Unity：`GameObject` + 一堆 `Component`。
-Godot：场景用`Node`树，每个Node可以挂脚本，子节点是常见的组合方式。非场景规则和数据也可以是`RefCounted`或`Resource`；本项目按已有模拟/运行/持久化边界选择。
+Godot：场景用`Node`树，每个`Node`可以挂脚本，子`Node`是常见的组合方式。非场景规则和数据也可以是`RefCounted`或`Resource`；本项目按已有模拟/运行/持久化边界选择。
 
 ```
 Player (CharacterBody2D)
@@ -24,8 +24,8 @@ Player (CharacterBody2D)
 ```
 
 - 没有“预制体组件”概念；一个 `.tscn` 就是一个可实例化的场景。
-- 脚本 `extends Node2D` / `CharacterBody2D`，直接成为该节点的行为。
-- 组合：把能力做成子节点或 `Resource`，不要写 10 层继承。
+- 脚本 `extends Node2D` / `CharacterBody2D`，直接成为该 `Node` 的行为。
+- 组合：把能力做成子 `Node` 或 `Resource`，不要写 10 层继承。
 
 ### 1.2 场景就是 Prefab，也是 Scene
 
@@ -34,7 +34,7 @@ Player (CharacterBody2D)
 - `PackedScene.instantiate()` + `add_child()` ≈ `Instantiate()`。
 - 场景可以嵌套；用“继承场景”做变体（类似 Prefab Variant）。
 
-### 1.3 Signal 是内置的事件系统
+### 1.3 signal 是内置的事件系统
 
 ```gdscript
 signal health_changed(current: int, maximum: int)
@@ -51,7 +51,7 @@ health_changed.connect(_on_health_changed.bind(self))
 ```
 
 - 比 UnityEvent 更轻、类型更安全。
-- 节点释放时连接自动断开。
+- `Node` 释放时连接自动断开。
 - 跨系统解耦优先用 signal，不要到处 `GetComponent`。
 
 ---
@@ -67,7 +67,7 @@ health_changed.connect(_on_health_changed.bind(self))
 | `Scene` | `.tscn` | 同一个概念 |
 | `Transform` | `Node2D` / `Node3D` | 2D 用 Node2D |
 | `Vector3` | `Vector2` / `Vector3` | 2D 用 Vector2 |
-| `Start()` | `_ready()` | 子节点已就绪 |
+| `Start()` | `_ready()` | 子 `Node` 已就绪 |
 | `Awake()` | `_init()` / `_enter_tree()` | `_init` 最早 |
 | `Update()` | `_process(delta)` | 每渲染帧 |
 | `FixedUpdate()` | `_physics_process(delta)` | 固定物理 tick |
@@ -80,7 +80,7 @@ health_changed.connect(_on_health_changed.bind(self))
 | `ScriptableObject` | `Resource` | `.tres` |
 | 单例 | autoload | Project Settings → Autoload |
 | `SceneManager.LoadScene` | `get_tree().change_scene_to_file()` | 或 `change_scene_to_packed` |
-| `DontDestroyOnLoad` | autoload | 全局节点 |
+| `DontDestroyOnLoad` | autoload | 全局 `Node` |
 | 协程 | `await` | `await get_tree().create_timer(1.0).timeout` |
 | `Time.deltaTime` | `delta` 参数 | 不要自己算 |
 | `Time.timeScale` | `Engine.time_scale` | 慎用；模拟用自定义 speed |
@@ -91,7 +91,7 @@ health_changed.connect(_on_health_changed.bind(self))
 | `Rigidbody` | `RigidBody2D` | 物理驱动 |
 | `CharacterController` | `CharacterBody2D` | 推荐玩家/NPC |
 | `BoxCollider` | `CollisionShape2D` + `RectangleShape2D` | 形状是资源 |
-| `Tilemap` | `TileMapLayer` | 4.3+ 新节点 |
+| `Tilemap` | `TileMapLayer` | 4.3+ 新 `Node` |
 | `Animator` | `AnimationPlayer` / `AnimationTree` | 状态机用 Tree |
 | `Canvas` | `Control` | UI |
 | `RectTransform` | anchors + containers | 不要绝对定位 |
@@ -142,7 +142,7 @@ signal died
 var _velocity: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
-    # 子节点已就绪；连接信号
+    # 子 Node 已就绪；连接 signal
     died.connect(_on_died)
 
 func _physics_process(delta: float) -> void:
@@ -164,7 +164,7 @@ func _on_died() -> void:
 - `@onready` 在 `_ready` 前解析；不要在 `_init` 里 `$Node`。
 - `%Name` 是场景唯一名，比长路径稳。
 - `class_name` 会进全局缓存；新增后需要导入一次。
-- `await` 可以等信号/协程；不要无限等，加超时。
+- `await` 可以等待 signal/协程；不要无限等，加超时。
 - `@tool` 让脚本在编辑器里运行；慎用。
 
 ---
@@ -173,7 +173,7 @@ func _on_died() -> void:
 
 ### 4.1 Y 轴向下
 
-Unity 2D 和 Godot 2D 都是 Y 向下；但从 3D 转过来容易忘。
+Unity 2D 的世界坐标通常 Y 向上，Godot 2D 默认 Y 向下；从 Unity 移植坐标或动画时须核对。
 `Vector2(0, -1)` 是向上。
 
 ### 4.2 角度
@@ -192,17 +192,17 @@ Unity 2D 和 Godot 2D 都是 Y 向下；但从 3D 转过来容易忘。
 ### 4.4 Y-sort（俯视遮挡）
 
 ```gdscript
-# 父节点（例如 World/Entities）
+# 父 Node（例如 World/Entities）
 y_sort_enabled = true
 ```
 
-子节点按 `global_position.y` 排序；脚在下方的前景会盖住上方。
+子 `Node` 按 `global_position.y` 排序；脚在下方的前景会盖住上方。
 不要再用 Unity 的 Sorting Layer 思路；`z_index` 只做全局层级（UI、地面、特效）。
 
 ### 4.5 TileMapLayer
 
 - Godot 4.3+ 用 `TileMapLayer`，不是旧 `TileMap`。
-- 每个 layer 一个节点：ground / walls / props。
+- 每个 layer 一个 `Node`：ground / walls / props。
 - TileSet 里配置碰撞层、导航层、terrain。
 - `set_cell(coords, source_id, atlas_coords)`。
 - 大地图不要几千个 Sprite；用 TileMapLayer。
@@ -258,7 +258,7 @@ extends Resource
 - 尺寸：`size_flags_horizontal = Control.SIZE_EXPAND_FILL`。
 - 主题：`Theme` 资源统一样式；不要在每個 Label 上改颜色。
 - 本地化：`tr("KEY")`；不要拼接句子。
-- 暂停菜单：`process_mode = Node.PROCESS_MODE_ALWAYS`；世界节点暂停。
+- 暂停菜单：`process_mode = Node.PROCESS_MODE_ALWAYS`；世界的 `Node` 暂停。
 
 ```gdscript
 # 暂停
@@ -287,7 +287,7 @@ var attack := Input.is_action_just_pressed("attack")
 
 ## 8. 物理与碰撞
 
-| 需求 | 节点 |
+| 需求 | `Node` |
 |---|---|
 | 玩家/NPC 移动 | `CharacterBody2D` + `move_and_slide()` |
 | 受重力/推挤的物体 | `RigidBody2D` |
@@ -320,7 +320,7 @@ var attack := Input.is_action_just_pressed("attack")
 - `FileAccess` 读写文件；`DirAccess` 目录操作。
 - `JSON.stringify` / `JSON.parse_string`。
 - 原子写：写 `.tmp` → flush → rename。
-- 存档要版本号 + 迁移；不要直接存节点路径。
+- 存档要版本号 + 迁移；不要直接存 `Node` 路径。
 
 ```gdscript
 var file := FileAccess.open("user://save.json", FileAccess.WRITE)
@@ -349,8 +349,8 @@ if file:
 | 现象 | 原因 | 解决 |
 |---|---|---|
 | `Identifier "X" not declared` | 新 `class_name` 没导入 / 循环引用 | 运行 `--import`；拆分循环 |
-| `Invalid get index 'x'` | 节点路径错 / 还没进树 | 用 `@onready`、`get_node_or_null` |
-| 信号连了没反应 | 连接在 `_ready` 前 / 对象已释放 | 检查生命周期；`is_instance_valid` |
+| `Invalid get index 'x'` | `Node` 路径错 / 还没进树 | 用 `@onready`、`get_node_or_null` |
+| signal 连了没反应 | 连接在 `_ready` 前 / 对象已释放 | 检查生命周期；`is_instance_valid` |
 | `queue_free()` 后还用 | 延迟释放 | 先置空引用；用 `is_instance_valid` |
 | 场景实例化后不显示 | 忘了 `add_child` | 加进树 |
 | UI 不缩放 | 锚点/容器没设 | 用 anchors + size flags |
@@ -358,7 +358,7 @@ if file:
 | 角色抖动 | 相机平滑 + 半像素 | 关平滑 / pixel snap |
 | 暂停后 UI 不响应 | `process_mode` | 设 `PROCESS_MODE_ALWAYS` |
 | 导出后存档失败 | 写了 `res://` | 改 `user://` |
-| 读档后引用失效 | 存了节点路径 | 存实体 ID |
+| 读档后引用失效 | 存了 `Node` 路径 | 存实体 ID |
 | 性能差 | 每帧 `get_nodes_in_group` / `load` | 缓存、signal、对象池 |
 
 ---
@@ -369,7 +369,7 @@ if file:
 2. **GDScript 风格指南**：https://docs.godotengine.org/en/4.7/tutorials/scripting/gdscript/gdscript_styleguide.html
 3. **2D 移动**：`CharacterBody2D` + `move_and_slide`
 4. **TileMapLayer**：做一张可走的地图
-5. **Signal**：把 UI 和游戏逻辑分开
+5. **signal**：把 UI 和游戏逻辑分开
 6. **Resource**：做 ItemDef/BuildingDef
 7. **Save/Load**：JSON + `user://`
 8. **Navigation**：AStarGrid2D / NavigationAgent2D
@@ -384,4 +384,4 @@ if file:
 
 Unity 你是在**搭 GameObject + 写 Component**；
 Godot 你是在**种一棵 Node 树 + 用 signal 连接**。
-把“节点树”当成你的架构图，事情就顺了。
+把 `Node` 树当成你的架构图，事情就顺了。

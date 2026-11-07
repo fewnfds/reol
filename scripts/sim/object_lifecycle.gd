@@ -84,7 +84,7 @@ func _execute(request: Dictionary, reservation: String = "", notify: bool = true
 		if _changes_ground_artifact(request):
 			return _begin_environment_move(request, reservation, notify, guard)
 	var cache: RefCounted = _environment_cache.get_ref() if _environment_cache != null else null
-	var fields: SimWorldEnvironmentFields = world.local_heat as SimWorldEnvironmentFields
+	var fields: SimWorldEnvironmentFields = world.environment_fields as SimWorldEnvironmentFields
 	var proof: Variant
 	_committing = true
 	if fields != null:
@@ -92,7 +92,7 @@ func _execute(request: Dictionary, reservation: String = "", notify: bool = true
 		# committed world time. This must precede its observer-free commit span.
 		var at_ms: int = world.elapsed_ms
 		var target_ms: int = world.target_ms
-		if not world.synchronize_regions() or world.object_lifecycle != self or world.local_heat != fields \
+		if not world.synchronize_regions() or world.object_lifecycle != self or world.environment_fields != fields \
 				or world.elapsed_ms != at_ms or world.target_ms != target_ms:
 			_committing = false
 			return _fail("source_unavailable")
@@ -101,7 +101,7 @@ func _execute(request: Dictionary, reservation: String = "", notify: bool = true
 			_committing = false
 			return prepared
 		proof = prepared.get("proof")
-		if world.object_lifecycle != self or world.local_heat != fields or world.elapsed_ms != at_ms \
+		if world.object_lifecycle != self or world.environment_fields != fields or world.elapsed_ms != at_ms \
 				or world.target_ms != target_ms or not fields.can_commit_object_change(proof):
 			fields.cancel_object_change(proof)
 			_committing = false
@@ -142,7 +142,7 @@ func bind_environment_cache(cache: RefCounted) -> bool:
 
 
 func bind_environment_boundary_guard(guard: RefCounted) -> bool:
-	if guard != null and world != null and world.local_heat is SimWorldEnvironmentFields:
+	if guard != null and world != null and world.environment_fields is SimWorldEnvironmentFields:
 		return false
 	if _committing or _settling or environment_change_pending():
 		return false
@@ -540,7 +540,7 @@ func _destination(raw: Dictionary, _reference: Dictionary, _size_hint: Vector2i,
 
 
 func _synchronize_operation_region(region: String) -> bool:
-	if _committing and world.local_heat is SimWorldEnvironmentFields:
+	if _committing and world.environment_fields is SimWorldEnvironmentFields:
 		# A second synchronize_region emits changed even at the same time. The
 		# field proof may not have an observer between preparation and publish.
 		return world.regions.has(region) and int(world.regions[region].elapsed_ms) == world.elapsed_ms

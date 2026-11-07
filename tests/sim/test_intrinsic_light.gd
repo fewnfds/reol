@@ -127,7 +127,7 @@ func _world(runner: Object, content: ReolContentDB, count: int = 2, remote: Stri
 		return null
 	world.regions.home.set_actor_cell("player", SimRouteTravel.cell(world.regions.home.places.kitchen.cell))
 	world.invalidate_region("home")
-	if not world.local_heat.activate_sources():
+	if not world.environment_fields.activate_sources():
 		runner.assert_true(false, "intrinsic-light fixture activates the actual environmental sources")
 		return null
 	return world
@@ -250,13 +250,13 @@ func _custody_and_queries(runner: Object, content: ReolContentDB) -> void:
 		domain.intrinsic_light_ids()
 	runner.assert_eq(_facts(world), before, "light and source-index observations do not change world, body, stock, heat, time or knowledge")
 	for id: String in [PEARL, SHARD]:
-		var source: Dictionary = world.local_heat._sources.get_source("artifact:" + id)
+		var source: Dictionary = world.environment_fields._sources.get_source("artifact:" + id)
 		runner.assert_true(not source.is_empty(), "the actual luminous object has its authored crystal material source")
 		if not source.is_empty():
 			runner.assert_true(int(source.channels[5]) == 0 and int(source.channels[6]) == 0, "intrinsic light adds neither heating nor cooling to its material source")
-	var projection: Dictionary = world.local_heat.project_tenths(at, world.elapsed_ms)
+	var projection: Dictionary = world.environment_fields.project_tenths(at, world.elapsed_ms)
 	runner.assert_true(bool(projection.get("supported", false)) and int(projection.get("value", 0)) == 0, "self-light alone produces no local thermal offset")
-	runner.assert_true(world.local_heat.receipts.is_empty() and world.local_heat.device_switches.is_empty(), "self-light creates neither a paid heat receipt nor a device switch")
+	runner.assert_true(world.environment_fields.receipts.is_empty() and world.environment_fields.device_switches.is_empty(), "self-light creates neither a paid heat receipt nor a device switch")
 	runner.assert_true(not bool(domain.begin("player", "enable", PEARL).ok), "a generic self-light cannot be switched through a thermal verb")
 	runner.assert_eq(_facts(world), before, "a rejected fabricated enable changes no world state")
 	var count: int = domain.objects.size()
@@ -329,7 +329,7 @@ func _source_budget(runner: Object, content: ReolContentDB) -> void:
 		runner.assert_eq(world.artifacts.intrinsic_light_ids().size(), count, "each unique issued luminous object occupies one derived source slot")
 		if not _devices._action(runner, world, "player", "study", FIRE) or not _devices._action(runner, world, "player", "enable", FIRE):
 			return
-		var rates: Dictionary = world.local_heat.device_emission_rates(world.elapsed_ms)
+		var rates: Dictionary = world.environment_fields.device_emission_rates(world.elapsed_ms)
 		runner.assert_true(bool(rates.get("supported", false)) and rates.rates.has(FIRE), "the additional thermal source is an actual active original flow")
 		var before: String = _facts(world)
 		var result: Dictionary = SimLocalLight.local_patch(world, [at])
@@ -468,7 +468,7 @@ func _json(value: Variant) -> String:
 func _facts(world: RegionalSimulation) -> String:
 	# Read the actual response anchors directly. RegionalSimulation.to_dict()
 	# would synchronize a stale far carrier and invalidate the query check.
-	var heat: SimWorldEnvironmentFields = world.local_heat
+	var heat: SimWorldEnvironmentFields = world.environment_fields
 	var field: Dictionary = {"diagnostics": heat.diagnostics(), "activation_ms": heat.activation_ms,
 		"last_ms": heat.last_ms, "last_sample_ms": heat.last_sample_ms,
 		"receipts": heat.receipts, "device_switches": heat.device_switches,

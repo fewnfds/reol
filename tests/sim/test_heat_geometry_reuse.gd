@@ -37,7 +37,7 @@ func run(runner: Object) -> void:
 	if not reached:
 		return
 	var before: Dictionary = world.to_dict()
-	var heat: SimLocalHeat = world.local_heat
+	var heat: SimLocalHeat = world.environment_fields
 	var spy := GeometrySpy.new()
 	spy.construction = world.construction
 	heat.set_geometry(spy.roof, spy.barrier)

@@ -545,24 +545,24 @@ func thermal_roofed(cell: Vector2i) -> bool:
 
 
 func _before_thermal_change(kind: String, changed_cells: Array[Vector2i]) -> bool:
-	if kind in ["wall", "door", "roof"] and world.local_heat != null:
-		if world.local_heat is SimWorldEnvironmentFields:
+	if kind in ["wall", "door", "roof"] and world.environment_fields != null:
+		if world.environment_fields is SimWorldEnvironmentFields:
 			# The outdoor field has no wall, door or roof insulation model. Its
 			# existing state must already be settled at the shared event time.
-			return world.local_heat.last_ms == world.elapsed_ms and world.local_heat.can_settle_at_ms(world.elapsed_ms)
-		if not world.local_heat.can_change_topology(world.elapsed_ms, changed_cells):
+			return world.environment_fields.last_ms == world.elapsed_ms and world.environment_fields.can_settle_at_ms(world.elapsed_ms)
+		if not world.environment_fields.can_change_topology(world.elapsed_ms, changed_cells):
 			return false
-		return world.local_heat.before_topology_change(world.elapsed_ms)
+		return world.environment_fields.before_topology_change(world.elapsed_ms)
 	return true
 
 
 func _after_thermal_change(kind: String) -> void:
-	if kind in ["wall", "door", "roof"] and world.local_heat != null:
-		if world.local_heat is SimWorldEnvironmentFields:
+	if kind in ["wall", "door", "roof"] and world.environment_fields != null:
+		if world.environment_fields is SimWorldEnvironmentFields:
 			return
 		# Called only after a successful operation and all resulting collapses
 		# have been reindexed. Generic reindex/restore never advances heat.
-		world.local_heat.after_topology_change(world.elapsed_ms)
+		world.environment_fields.after_topology_change(world.elapsed_ms)
 
 
 func _remove(id: String, material_cell: Array) -> bool:

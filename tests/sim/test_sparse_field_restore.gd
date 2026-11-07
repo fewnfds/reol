@@ -57,7 +57,7 @@ func _world(runner: Object) -> RegionalSimulation:
 		return null
 	world.bind_map_data(terrain)
 	var opening: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/scenarios/artifacts.json"))
-	if not opening is Dictionary or not world.artifacts.spawn_opening(opening) or not world.local_heat.activate_sources():
+	if not opening is Dictionary or not world.artifacts.spawn_opening(opening) or not world.environment_fields.activate_sources():
 		runner.assert_true(false, "original authored sources and environment activate")
 		return null
 	return world
@@ -121,13 +121,13 @@ func _sparse_sources_and_restore(runner: Object) -> void:
 	if not _advance(runner, world, 40000) or not _advance(runner, restored, 30000) or not _advance(runner, restored, 40000):
 		return
 	for cell: Vector2i in [HOT_OLD, HOT_NEW, COLD, WOOD]:
-		var original: Dictionary = world.local_heat.actual_at(cell, world.elapsed_ms)
-		var continued: Dictionary = restored.local_heat.actual_at(cell, restored.elapsed_ms)
+		var original: Dictionary = world.environment_fields.actual_at(cell, world.elapsed_ms)
+		var continued: Dictionary = restored.environment_fields.actual_at(cell, restored.elapsed_ms)
 		runner.assert_true(bool(original.get("ok", false)) and bool(continued.get("ok", false)), "both worlds can read actual temperature")
 		if bool(original.get("ok", false)) and bool(continued.get("ok", false)):
 			runner.assert_true(absf(float(original.value_c) - float(continued.value_c)) < 0.000001, "saved temperature and residual have the same future")
-		var a: Dictionary = world.local_heat.elements_at(cell)
-		var b: Dictionary = restored.local_heat.elements_at(cell)
+		var a: Dictionary = world.environment_fields.elements_at(cell)
+		var b: Dictionary = restored.environment_fields.elements_at(cell)
 		runner.assert_true(bool(a.get("ok", false)) and bool(b.get("ok", false)), "both worlds can read actual elemental response")
 		if bool(a.get("ok", false)) and bool(b.get("ok", false)):
 			for channel: int in 5:

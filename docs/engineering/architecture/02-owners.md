@@ -4,7 +4,7 @@
 
 | 领域/代码入口 | 权威状态或行为 | 边界 |
 |---|---|---|
-| [GameClock](../../../scripts/autoload/game_clock.gd) | 共同整数毫秒、暂停/倍速/等待、相位与帧欠算；唯一executor先完成原世界才发布 | Village绑定真实推进；部分/零提交留原请求，通知不二次推进；pending存档拒绝，分钟是投影 |
+| [GameClock](../../../scripts/autoload/game_clock.gd) autoload（`ReolGameClock` 类型） | 共同整数毫秒、暂停/倍速/等待、相位与帧欠算；唯一executor先完成原世界才发布 | Village绑定真实推进；部分/零提交留原请求，通知不二次推进；pending存档拒绝，分钟是投影 |
 | [WorldMapData](../../../scripts/sim/world_map_data.gd)、[NaturalEnvironment](../../../scripts/sim/natural_environment.gd) | 版本化底图加稀疏地表覆盖，通行读同一真值；派生地表/植被覆盖/五行亲和和缓存 | 均仍512；草稿/存读及暂停开发画笔已接，玩家合法改造待接；亲和不是能量库存，覆盖不是独立植物 |
 | [SimTerrainEdits](../../../scripts/sim/terrain_edits.gd)、[TerrainEditorRuntime](../../../scripts/runtime/terrain_editor_runtime.gd) | 原地图上的小批量事务、空间预检；开发工具负责暂停准备和输入投影 | 显式启动才开放；沿原active/位置/施工材料引用，单笔最多256格，不发放玩家权限或平行状态 |
 | [VillageSimulation](../../../scripts/sim/village_simulation.gd) | 人类原身体、唯一位置/朝向、原生活状态和村落配置 | 所属区是保存所有者，不是人物当前所在空间 |
@@ -21,9 +21,9 @@
 | [SimArtifacts](../../../scripts/sim/artifacts.gd)、[SimClothing](../../../scripts/sim/clothing.gd)、实物方法记录 | 独特物件位置/来源、穿法/湿润、有限器物过程与阅读记录 | 不同时复制成普通数量库存，持有/看见/读过不等于学会 |
 | [SimSocialMemory](../../../scripts/sim/social_memory.gd)、[SimInstitutionBook](../../../scripts/sim/institution_book.gd) | 本人有来源的认识/决定；机构任职和贡献记录 | 关系/礼遇/权限/实际履约分开；未实现通用ClaimBook/司法/继任 |
 | 原action executor、服务、劳动/生产、交换等域 | 各自过程、阶段/成本/证据与原资源引用 | 统一请求是薄门面；新增搬运动作合同没有替换这些领域过程，尚无覆盖全部动作的生命周期/任意条件协商 |
-| [SimConflicts](../../../scripts/sim/conflicts.gd)、[SimSparring](../../../scripts/sim/sparring.gd)、[SimHealth](../../../scripts/sim/health.gd) | 招式/弹障/成本、有限对练、真实伤源与恢复 | 使用原身体/qi/体力，不另造战斗人物；非完整致死/医疗/战争 |
+| [SimConflicts](../../../scripts/sim/conflicts.gd)、[SimSparring](../../../scripts/sim/sparring.gd)、[SimHealth](../../../scripts/sim/health.gd) | 招式/弹障/成本、有限对练、真实伤源与恢复 | 使用原身体、灵气（`qi`）与体力，不另造战斗人物；非完整致死/医疗/战争 |
 | 日历/气候、weather、environment、spirit_sources | 历法与天气、人体采样及有限灵源/转换，各自持有相应状态 | 热、五行亲和、物品可用灵气及有限灵源不合成万能数值；人体与植物采样读取同一普通环境域 |
-| [SimWorldEnvironmentFields](../../../scripts/sim/world_environment_fields.gd) | 普通世界室外实际温度、五行响应与相关来源/样本的唯一环境域；字段名称仍为`local_heat` | 缓存与来源索引可重建，不另持实物；室内一房一温及墙门顶隔热未实现；详见[合同](../world-environment-contract.md) |
+| [SimWorldEnvironmentFields](../../../scripts/sim/world_environment_fields.gd) | 普通世界室外实际温度、五行响应与相关来源/样本的唯一环境域；运行字段为`environment_fields` | 缓存与来源索引可重建，不另持实物；室内一房一温及墙门顶隔热未实现；详见[合同](../world-environment-contract.md) |
 | [SimWorldEnvironmentSourceParticipant](../../../scripts/sim/world_environment_source_participant.gd)、[SimWorldEnvironmentBackground](../../../scripts/sim/world_environment_background.gd) | 前者预检并发布原物来源变更；后者为未受源影响格提供气候区共享背景响应 | 不拥有原物或独立世界时钟；来源变化目前同步准备，有性能边界；详见[合同](../world-environment-contract.md) |
 | 旧`SimLocalHeat`及相关热历史/校验模块 | 历史 Q 算法与受限历史资料 | 非普通世界环境所有者；旧环境档不由当前入口迁入，详见[兼容性](../compatibility.md) |
 | [SimGeographicClimate](../../../scripts/sim/geographic_climate.gd)、[ReolGeographicContent](../../../scripts/data/geographic_content.gd)、Main开局配置 | 新局地理草稿编译成原climate2曲线，隔离重建完整内容包/digest并校验后装配；默认草稿为world_geography.json | 只在创建时执行，无运行温度附加项或第二状态；普通Main只支持原时钟起点，恢复仅取档内曲线，不重编 |

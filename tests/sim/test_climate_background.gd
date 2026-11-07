@@ -224,9 +224,9 @@ func _assert_projection(runner: Object, world: RegionalSimulation, region: Strin
 	runner.assert_eq(SimClimateRules.region_at(climate, body_cell), region, "the actual body occupies the intended climate region: " + actor)
 	runner.assert_eq(SimClimateRules.region_at(climate, herb_cell), region, "the actual herb source occupies the same climate region: " + region)
 	_assert_climate_oracle(runner, world, region, at_ms)
-	var body_field: Dictionary = world.local_heat.actual_at(body_cell, at_ms)
-	var herb_field: Dictionary = world.local_heat.actual_at(herb_cell, at_ms)
-	var herb_offset: Dictionary = world.local_heat.project_tenths(herb_cell, at_ms)
+	var body_field: Dictionary = world.environment_fields.actual_at(body_cell, at_ms)
+	var herb_field: Dictionary = world.environment_fields.actual_at(herb_cell, at_ms)
+	var herb_offset: Dictionary = world.environment_fields.project_tenths(herb_cell, at_ms)
 	if not bool(body_field.get("ok", false)) or not bool(herb_field.get("ok", false)) or not bool(herb_offset.get("supported", false)):
 		runner.assert_true(false, "current field is available to actual recipients: " + region)
 		return

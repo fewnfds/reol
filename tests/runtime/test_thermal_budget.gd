@@ -72,11 +72,11 @@ func _prepare(runner: Object) -> Dictionary:
 		_fixtures._dispose(fixture)
 		return {}
 	var event: Dictionary = world.artifacts.events.back()
-	var activated: bool = event.get("kind") == "warmed" and event.get("heat_amount") == 1 and world.local_heat.receipts.size() == 1 and world.local_heat.cells.size() == 1
+	var activated: bool = event.get("kind") == "warmed" and event.get("heat_amount") == 1 and world.environment_fields.receipts.size() == 1 and world.environment_fields.cells.size() == 1
 	runner.assert_true(activated, "one ordinary completed warm action creates a real one-unit thermal receipt and cell")
 	runner.assert_eq(int(world.artifacts.objects[STONE].charge), initial_charge - 1, "the real successful source consumes exactly its own stone charge")
-	runner.assert_eq(int(world.local_heat.ambient_in), BATH_BUDGET, "the actual rainy cell allocation fills the declared exterior input budget")
-	if not activated or int(world.local_heat.ambient_in) != BATH_BUDGET:
+	runner.assert_eq(int(world.environment_fields.ambient_in), BATH_BUDGET, "the actual rainy cell allocation fills the declared exterior input budget")
+	if not activated or int(world.environment_fields.ambient_in) != BATH_BUDGET:
 		_fixtures._dispose(fixture)
 		return {}
 	runner.assert_true(GameClock.elapsed_ms < CHANGE_MS, "the original source finishes before the declared weather transition")
@@ -90,20 +90,20 @@ func _prepare(runner: Object) -> Dictionary:
 		_fixtures._dispose(fixture)
 		return {}
 	var incoming: bool = false
-	for flow: Dictionary in world.local_heat.flows:
+	for flow: Dictionary in world.environment_fields.flows:
 		incoming = incoming or str(flow.from).is_empty() and int(flow.rate) > 0
 	runner.assert_true(incoming, "the actual warmer clear-weather boundary produces a positive inward frozen transfer")
-	var frozen: bool = not world.local_heat._geometry_dirty
+	var frozen: bool = not world.environment_fields._geometry_dirty
 	runner.assert_true(frozen, "the weather boundary has already frozen its real transfer before the snapshot")
-	runner.assert_true(not world.local_heat.can_settle_at_ms(CHANGE_MS + 1), "the exhausted saved budget refuses even one millisecond of that real transfer")
+	runner.assert_true(not world.environment_fields.can_settle_at_ms(CHANGE_MS + 1), "the exhausted saved budget refuses even one millisecond of that real transfer")
 	if not incoming or not frozen:
 		_fixtures._dispose(fixture)
 		return {}
 	var validation := SimLocalHeat.new()
-	var valid: bool = validation.initialize(world, world.local_heat.definitions)
+	var valid: bool = validation.initialize(world, world.environment_fields.definitions)
 	if valid:
 		validation.set_geometry(world.construction.thermal_roofed, world.construction.thermal_barrier)
-		valid = validation.restore(world.local_heat.to_dict())
+		valid = validation.restore(world.environment_fields.to_dict())
 	runner.assert_true(valid, "the exhausted state is a fully valid v2 heat candidate with real source and ledger evidence")
 	if not valid:
 		_fixtures._dispose(fixture)
@@ -139,7 +139,7 @@ func _regional_preflight(runner: Object) -> void:
 	var advanced: bool = world.advance_to_ms(CHANGE_MS + 50)
 	runner.assert_true(not advanced, "the regional executor rejects the numerically unfunded interval")
 	runner.assert_eq(int(world.elapsed_ms), CHANGE_MS, "the accepted regional clock does not advance on failed preflight")
-	runner.assert_eq(int(world.local_heat.last_ms), CHANGE_MS, "the physical heat clock remains at the accepted boundary")
+	runner.assert_eq(int(world.environment_fields.last_ms), CHANGE_MS, "the physical heat clock remains at the accepted boundary")
 	runner.assert_eq(int(world.target_ms), CHANGE_MS + 50, "the requested regional target remains as explicit owed work")
 	runner.assert_eq(int(world.simulation_work.boundaries), before_calls, "the failed interval does not consume a regional simulation boundary")
 	runner.assert_true(not world.errors.is_empty() and str(world.errors.back()).contains("numerical budget"), "the real numerical-budget failure is reported")
@@ -211,7 +211,7 @@ func _physical_state(runtime: WorldContinuityRuntime) -> Dictionary:
 		"operations": _canonical(world.operations),
 		"large_bodies": _canonical(world.large_bodies.to_dict()),
 		"avian_life": _canonical(world.avian_life.to_dict()),
-		"heat": _canonical(world.local_heat.to_dict()),
+		"heat": _canonical(world.environment_fields.to_dict()),
 		"artifacts": _canonical(world.artifacts.to_dict()),
 		"weather": _canonical(world.weather.to_dict()),
 		"environment": _canonical(world.environment.to_dict()),

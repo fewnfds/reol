@@ -2,7 +2,7 @@
 
 日期：2026-11-04。第一方文档、公开源码及本地只读审计；未安装插件、未测试候选插件兼容性，不是实现验收。执行方案见[世界引擎基础](../../docs/specs/world-engine/foundation.md)。
 
-运行层与编辑工具的总序见[世界运行与创作工具总计划](../../docs/specs/world-engine/program.md)。以下是方法依据；五行、灵机、气韵及灵物补给是Reol的虚构世界法则，不声称得到现实科学证明。
+运行层与编辑工具的总序见[世界运行与创作工具总计划](../../docs/specs/world-engine/program.md)。以下是方法依据；五行环境影响、灵气、气韵及灵物补给是Reol的虚构世界法则，不声称得到现实科学证明。
 
 俯视山丘/高台、地表高度与局部多层、Factorio/OpenTTD及Godot 2.5D/3D候选的扩展研究见[高度与大世界拓扑](elevation_and_world_topology.md)，对应[空间方案](../proposals/elevation.md)。不能从2D/3D画面直接推断模拟维度或性能。
 
@@ -66,4 +66,4 @@ Better Terrain、Gaea 均只做源码/文档研究，未宣称载入、运行或
 | Godot：[Resources](https://docs.godotengine.org/en/4.7/tutorials/scripting/resources.html) | 资源承担数据，可共享加载，和场景节点职责分开 | 定义和运行实例分开；不改共享Resource当作改某个人物。既有JSON继续做唯一持久定义，Inspector适配不得另造第二份权威数据。 |
 | Godot：[EditorPlugin](https://docs.godotengine.org/en/4.7/tutorials/plugins/editor/making_plugins.html)、[InspectorPlugin](https://docs.godotengine.org/en/4.7/tutorials/plugins/editor/inspector_plugins.html)、[EditorUndoRedoManager](https://docs.godotengine.org/en/4.7/classes/class_editorundoredomanager.html) | 可在Godot内扩展属性编辑、工具面板和编辑历史 | 按实际需要补小工具；撤销只管草稿，模拟进度用隔离快照重置。当前未创建插件；官方插件示例不代表任意既有模拟脚本无需适配便能在@tool环境运行。 |
 
-热传导采用物理类比和可测离散方法；灵机扩散只借其计算结构，反应、补给和五相作用由游戏定义。风水先依据可解释空间与灵流格局表现，不给传统设定添加虚假的科学背书。实现需另记录单位、简化假设、极值和误差，引用理论不等于本项目已实现或通过验收。
+热传导采用物理类比和可测离散方法；五行环境影响传播只借其计算结构，反应、补给和五行作用由游戏定义。风水先依据可解释空间与灵流格局表现，不给传统设定添加虚假的科学背书。实现需另记录单位、简化假设、极值和误差，引用理论不等于本项目已实现或通过验收。

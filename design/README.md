@@ -8,6 +8,8 @@
 2. 从领域设计和提案查机制、条件、失败后果和场景；其中的参数、样本与算法是候选，不因引用而成为用户决定。
 3. 研究记录来源、可借鉴之处及其限制；外部作品、资源与插件不自动成为项目承诺或依赖。
 
+中文游戏概念与实际代码标识符的对应见[术语与代码映射](../docs/engineering/terminology.md)。
+
 当前可玩范围与证据见[功能](../docs/status/features.md)和[基线](../docs/status/baseline.md)，当前任务见[接续](../docs/status/handoff.md)，工程归属见[架构](../docs/engineering/architecture.md)，未来工作建议见[计划](../docs/plans/README.md)。重构前原文与旧队列可在[历史快照](../docs/archive/design-context-20261105/README.md)查阅。
 
 ## 共同理念与领域规则

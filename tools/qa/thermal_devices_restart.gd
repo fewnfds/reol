@@ -111,7 +111,7 @@ func _write_phase() -> bool:
 		return false
 	if not _command("enable", "enabled") or not _verify_device():
 		return false
-	var heat: SimLocalHeat = _runtime.world_sim.local_heat
+	var heat: SimLocalHeat = _runtime.world_sim.environment_fields
 	var boundary_attempts: int = 0
 	while heat.next_boundary_ms() - _clock.elapsed_ms <= CHECKPOINT_STEP_MS:
 		var boundary: int = heat.next_boundary_ms()
@@ -256,7 +256,7 @@ func _verify_device() -> bool:
 	if not _require(not study.is_empty() and not enabled.is_empty() and domain.shape_studied("player", DEVICE) and item.get("definition") == DEVICE and item.get("region") == "home" and item.get("container") == "kitchen" and bool(item.get("enabled", false)), "original personal study, enable event or device state is missing"):
 		return false
 	var cell: Vector2i = domain.object_cell(DEVICE)
-	var receipt: Dictionary = _runtime.world_sim.local_heat.device_switches.get(str(enabled.action), {})
+	var receipt: Dictionary = _runtime.world_sim.environment_fields.device_switches.get(str(enabled.action), {})
 	var expected: Dictionary = {"action": str(enabled.action), "actor": "player", "object": DEVICE,
 		"at_ms": int(enabled.at_ms), "region": "home", "container": "kitchen",
 		"cell": [cell.x, cell.y], "enabled": true}
@@ -283,7 +283,7 @@ func _device_rate(flows: Array) -> int:
 
 
 func _observation() -> Dictionary:
-	var heat: SimLocalHeat = _runtime.world_sim.local_heat
+	var heat: SimLocalHeat = _runtime.world_sim.environment_fields
 	var item: Dictionary = _runtime.world_sim.artifacts.objects[DEVICE]
 	var energy: int = 0
 	for row: Dictionary in heat.cells.values():

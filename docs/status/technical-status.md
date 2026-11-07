@@ -1,6 +1,6 @@
 # 技术落地总表
 
-核对日期：2026-11-07。依据Git分支差异、实际装配/调用和对应版本既有证据；本次没有改游戏代码或重跑引擎。玩法操作查[FEATURES](features.md)，验证数字只查[BASELINE](baseline.md)，当前停点只查[HANDOFF](handoff.md)。已确认规则是目标约束，不等于所有机制已实现。
+核对日期：2026-11-07。依据Git分支差异、实际装配/调用和对应版本证据；名称按[术语与代码映射](../engineering/terminology.md)定位。当前普通环境成员为`environment_fields`，存档键由codec映射保持；此次改名未扩大游戏能力。玩法操作查[FEATURES](features.md)，验证数字查[BASELINE](baseline.md)，当前停点查[HANDOFF](handoff.md)。已确认规则是目标约束，不等于所有机制已实现。
 
 ## 两个“主线”必须区分
 
@@ -18,17 +18,17 @@
 
 | 技术 | Git main的实际接入 | 未覆盖/后续边界 |
 |---|---|---|
-| 地图与区块 | [WorldMapData](../../scripts/sim/world_map_data.gd)、[World](../../scripts/world/world.gd)；默认512²平面、64²显示区块、草/水/岩、稀疏地表改造、迷雾/探索 | 不是任意规模世界生成；高差样本保留但新局不启用，高差/多层后置 |
-| 共同时间与远区 | [GameClock](../../scripts/autoload/game_clock.gd)、[RegionalSimulation](../../scripts/sim/regional_simulation.gd)；整数毫秒、固定阶段、预算欠算、双聚落离场接续、行旅/货运/消息 | 不是所有领域都已事件化；大人口、多年与完整战争/历史未验 |
-| 身体、引用与空间 | [EntityQuery](../../scripts/sim/entity_query.gd)、[BodyGeometry](../../scripts/sim/body_geometry.gd)、原区域身体；唯一连续位置，声明能力/包含、多格占地与扫掠 | 覆盖既有类型，不是任意新物种工厂；连续位置不等于纯格子动画；巨兽不可选 |
-| 实物、材料与容器 | [ObjectLifecycle](../../scripts/sim/object_lifecycle.gd)、[Inventory](../../scripts/sim/inventory_ledger.gd)、[GroundPlacements](../../scripts/sim/ground_placements.gd)；受控生成/移除/取放、同账本转移、堆拆、预约和唯一原物 | 独特器物、衣物、数量条目仍有不同原所有者；通用负重、箱中箱、自由背包及完整产权未完成 |
-| 动作与统一交互 | [InteractionRequests](../../scripts/sim/interaction_requests.gd)、原动作执行器及各领域过程；表达/理解/意愿/耗时/中断/结果分开，新增搬运共用合同 | 请求门面仍显式列举约20种事项；不是可任意注册工具、通用条件协商或全领域统一动作平台 |
-| 室外冷热与五行 | [WorldEnvironmentFields](../../scripts/sim/world_environment_fields.gd)；真实地面/固定来源、衰减/max、冷热等级抵消、响应建立/消散、背景与残留存读，人体/野药读同温度 | 随身物整体发源/尾迹/遮掩、树兽墙材普遍发源、定向能量、完整五行后果未做；火相不等于发热 |
+| 地图与区块 | [WorldMapData](../../scripts/sim/world_map_data.gd)、[ReolWorld](../../scripts/world/world.gd)；默认512²平面、64²显示区块、草/水/岩、稀疏地表改造、迷雾/探索 | 不是任意规模世界生成；高差样本保留但新局不启用，高差/多层后置 |
+| 共同时间与远区 | autoload `GameClock`（[ReolGameClock](../../scripts/autoload/game_clock.gd)）、[RegionalSimulation](../../scripts/sim/regional_simulation.gd)；整数毫秒、固定阶段、预算欠算、双聚落离场接续、行旅/货运/消息 | 不是所有领域都已事件化；大人口、多年与完整战争/历史未验 |
+| 身体、引用与空间 | [SimEntityQuery](../../scripts/sim/entity_query.gd)、[SimBodyGeometry](../../scripts/sim/body_geometry.gd)、原区域身体；唯一连续位置，声明能力/包含、多格占地与扫掠 | 覆盖既有类型，不是任意新物种工厂；连续位置不等于纯格子动画；巨兽不可选 |
+| 实物、材料与容器 | [SimObjectLifecycle](../../scripts/sim/object_lifecycle.gd)、[SimInventory](../../scripts/sim/inventory_ledger.gd)、[SimGroundPlacements](../../scripts/sim/ground_placements.gd)；受控生成/移除/取放、同账本转移、堆拆、预约和唯一原物 | 独特器物、衣物、数量条目仍有不同原所有者；通用负重、箱中箱、自由背包及完整产权未完成 |
+| 动作与统一交互 | [SimInteractionRequests](../../scripts/sim/interaction_requests.gd)、原动作执行器及各领域过程；表达/理解/意愿/耗时/中断/结果分开，新增搬运共用合同 | 请求门面仍显式列举约20种事项；不是可任意注册工具、通用条件协商或全领域统一动作平台 |
+| 室外冷热与五行 | [SimWorldEnvironmentFields](../../scripts/sim/world_environment_fields.gd)；真实地面/固定来源、衰减/max、冷热等级抵消、响应建立/消散、背景与残留存读，人体/野药读同温度 | 随身物整体发源/尾迹/遮掩、树兽墙材普遍发源、定向能量、完整五行后果未做；五行火通道不等于发热 |
 | 历法、气候、天气、光 | 日季节曲线、地理新局编译、有限晴雨、自然日照、固定灯及随身固有微光、遮挡/视野 | 不是完整雨雪/风/空气/气象或全地图生物群系；灯光不等于冷热/五行辐射；风水只有规则设计 |
-| 结构、围合与导航 | [Construction](../../scripts/sim/construction.gd)、[StructureQuery](../../scripts/sim/structure_query.gd)、运行层寻路；真实木墙/门/床/支撑屋顶，围合、挡路/挡光/遮雨，自动墙邻接 | 无一房一温/隔热/换气；单工地和有限单格工程，通用家具/用途区域/自由功能房间未完成；固定运粮仍保护原路，非全局动态绕路 |
-| 当前世界快照 | [SessionSaveSchema](../../scripts/persistence/session_save_schema.gd)、[SaveStore](../../scripts/persistence/save_store.gd)、独立世界恢复工厂；JSON联合快照、备份/替换、在途恢复及失败不改活世界 | 当前普通只接根52，旧根1–51拒绝；未自动编排暂停→结步→保存→恢复；不是事件历史重放 |
+| 结构、围合与导航 | [SimConstruction](../../scripts/sim/construction.gd)、[SimStructureQuery](../../scripts/sim/structure_query.gd)、运行层寻路；真实木墙/门/床/支撑屋顶，围合、挡路/挡光/遮雨，自动墙邻接 | 无一房一温/隔热/换气；单工地和有限单格工程，通用家具/用途区域/自由功能房间未完成；固定运粮仍保护原路，非全局动态绕路 |
+| 当前世界快照 | [SessionSaveSchema](../../scripts/persistence/session_save_schema.gd)、[SimSaveStore](../../scripts/persistence/save_store.gd)、独立世界恢复工厂；JSON联合快照、备份/替换、在途恢复及失败不改活世界 | 当前普通只接根52，旧根1–51拒绝；未自动编排暂停→结步→保存→恢复；不是事件历史重放 |
 | 编辑与诊断 | `--world-editor`启用F8地表/真实物编辑，F3诊断；与原规则接缝和保存关联 | 是开发权限，不是玩家免费造物；无完整内容/世界创作编辑器 |
-| 稀疏执行框架 | **main尚无**；开发分支[ParticipationIndex](../../scripts/sim/execution/participation_index.gd)已接环境与健康，成员/active/due/dirty和生命周期重建均可运行 | 其他自主、衣物、空间候选、光/UI、历史查询未普遍迁入；定义编译/能力登记也未统一成全内容平台 |
+| 稀疏执行框架 | **main尚无**；开发分支[SimParticipationIndex](../../scripts/sim/execution/participation_index.gd)已接环境与健康，成员/active/due/dirty和生命周期重建均可运行 | 其他自主、衣物、空间候选、光/UI、历史查询未普遍迁入；定义编译/能力登记也未统一成全内容平台 |
 | GPU计算 | 基础场有独立CPU/GPU/auto计算服务与旧版对照证据；代码已在main历史 | 普通场响应/原物事务仍为CPU，未接玩家GPU开关，不能把独立加速倍数当全游戏收益 |
 
 ## 世界内容与玩家能力
@@ -36,7 +36,7 @@
 | 领域 | main已有的有限组合 | 已定方向中仍未实现 |
 |---|---|---|
 | NPC与生活 | 双聚落需求、职责、采集/生产/吃住、预约、少数真实目的和当面互助 | 通用人格/长程计划、迁居、多组织经济与海量群像 |
-| 社会与认识 | 私人记忆/有向关系/来源、当面自述、任职公账/贡献、有限凭据/钱货/通行；关系判断仍用有限因素加权/边界骰与逐人关系值 | 通用Claim、传闻/礼数/司法政治、自由组织治理；继任纯函数仍隔离，没有掌门去世继任链，不等于真实社会模型全部落地 |
+| 社会与认识 | 私人记忆/有向关系/来源、当面自述；[SimInstitutionBook](../../scripts/sim/institution_book.gd)保存任职公账与贡献，另有有限凭据/钱货/通行；关系判断仍用有限因素加权/边界骰与逐人关系值 | 通用Claim是候选，当前贡献记录不等于已实现通用Claim；传闻/礼数/司法政治、自由组织治理和掌门去世继任链未完成，继任纯函数仍隔离 |
 | 战斗与身体 | 对练、有限木剑/气弹/护障/闪身、真实体力与灵气、挫伤和经脉不适/救护/恢复 | 完整动作战斗、致死伤亡/尸体/遗物、群战/战争、玩家战斗脚本 |
 | 修行与物品认识 | 少数源引息、探查/用法学习、有限试验/手记/传授、本人本领来源目录 | 大型可成长天赋网络、境界突破、自由创法、普遍鉴定/反噬/传承 |
 | 衣着与外观 | 实际取放/穿脱、湿润与保暖；代码像素八向分层、解剖左右与附着样例 | 正式多体型/全装备与全动作；奔跑/冲刺/倒地等完整动画；衣饰社交后果 |

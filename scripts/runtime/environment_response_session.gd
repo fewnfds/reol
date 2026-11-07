@@ -43,7 +43,7 @@ var _transfer_guard_bound: bool = false
 func configure(world: RegionalSimulation, definitions: EnvironmentSourceDefinitions, settings: Dictionary, area: Rect2i) -> bool:
 	# The ordinary world now owns actual fields. The former acceptance adapter
 	# cannot install a second response owner or bypass its source transaction.
-	if world != null and world.local_heat is SimWorldEnvironmentFields:
+	if world != null and world.environment_fields is SimWorldEnvironmentFields:
 		_reason = "retired_use_ordinary_world_fields"
 		return false
 	if _state != "closed" or world == null or world.elapsed_ms != world.target_ms or definitions == null or not definitions.is_configured():

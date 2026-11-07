@@ -70,7 +70,7 @@ func _world(runner: Object, reference: bool) -> RegionalSimulation:
 			runner.assert_true(false, "fine reference binds at the same original opening time")
 			return null
 		heat.set_geometry(world.construction.thermal_roofed, world.construction.thermal_barrier, true)
-		world.local_heat = heat
+		world.environment_fields = heat
 	var services: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SERVICES))
 	var opening: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(ARTIFACTS))
 	if not world.configure_services(services) or not world.set_active_region("") or not world.clothing.spawn_opening() or not world.artifacts.spawn_opening(opening):
@@ -100,8 +100,8 @@ func _prepare_and_warm(runner: Object, compressed: RegionalSimulation, reference
 				runner.assert_true(false, "each original artifact action actually releases heat")
 				return false
 		var logical: int = (index + 1) * 25
-		runner.assert_eq(compressed.local_heat.storage_summary(), {"logical_cells": logical, "q_slots": (index + 1) * 6}, "each isolated genuine source retains twenty-five cells in six exact Q slots")
-		runner.assert_eq(reference.local_heat.storage_summary(), {"logical_cells": logical, "q_slots": logical}, "reference keeps one physical Q slot per fine cell")
+		runner.assert_eq(compressed.environment_fields.storage_summary(), {"logical_cells": logical, "q_slots": (index + 1) * 6}, "each isolated genuine source retains twenty-five cells in six exact Q slots")
+		runner.assert_eq(reference.environment_fields.storage_summary(), {"logical_cells": logical, "q_slots": logical}, "reference keeps one physical Q slot per fine cell")
 		runner.assert_eq(int(compressed.artifacts.objects[STONE].charge), initial_charge - index - 1, "the original source pays exactly one finite charge per warm")
 		if not _same(runner, compressed, reference, "complete worlds match after source %d" % (index + 1)):
 			return false
@@ -109,7 +109,7 @@ func _prepare_and_warm(runner: Object, compressed: RegionalSimulation, reference
 
 
 func _queries_and_probe(runner: Object, compressed: RegionalSimulation, reference: RegionalSimulation) -> bool:
-	var heat: SimLocalHeat = compressed.local_heat
+	var heat: SimLocalHeat = compressed.environment_fields
 	var before: String = _state(compressed)
 	var key: String = "116,116"
 	var actual: Dictionary = heat.cell_row(key)
@@ -142,7 +142,7 @@ func _queries_and_probe(runner: Object, compressed: RegionalSimulation, referenc
 	var limited: Dictionary = Probe.inspect(heat, int(report.work_used) - 1)
 	runner.assert_true(_json(exact) == _json(report), "the exact work budget reproduces the complete deterministic report")
 	runner.assert_true(not bool(limited.complete) and limited.reason == "work_budget_exhausted" and limited.cells.is_empty() and limited.pending.is_empty(), "one unit below the complete budget returns unknown without partial results")
-	runner.assert_true(_json(Probe.inspect(reference.local_heat)) == _json(report), "the same physical world reports identical dependencies from original fine cells")
+	runner.assert_true(_json(Probe.inspect(reference.environment_fields)) == _json(report), "the same physical world reports identical dependencies from original fine cells")
 	runner.assert_true(_state(compressed) == before, "successful and budget-limited inspection cannot change the world")
 	return _same(runner, compressed, reference, "queries preserve the same complete fine and compressed world")
 
@@ -165,8 +165,8 @@ func _restore_and_continue(runner: Object, compressed: RegionalSimulation, refer
 	runner.assert_true(restored, "independent ordinary world restores the complete v3 JSON checkpoint")
 	if not restored:
 		return null
-	runner.assert_true(resumed.local_heat != compressed.local_heat and resumed.artifacts != compressed.artifacts, "restoration constructs independent physical owners")
-	runner.assert_eq(resumed.local_heat.storage_summary(), {"logical_cells": 100, "q_slots": 24}, "ordinary restore derives the compact representation from accepted original rows")
+	runner.assert_true(resumed.environment_fields != compressed.environment_fields and resumed.artifacts != compressed.artifacts, "restoration constructs independent physical owners")
+	runner.assert_eq(resumed.environment_fields.storage_summary(), {"logical_cells": 100, "q_slots": 24}, "ordinary restore derives the compact representation from accepted original rows")
 	if not _same(runner, resumed, compressed, "JSON restoration preserves all original world facts"):
 		return null
 	var boundary: int = SimWeather.next_phase_boundary_ms(compressed.weather.definitions, "home", compressed.weather.epoch_ms, midpoint)
@@ -203,8 +203,8 @@ func _overlap_and_device(runner: Object, compressed: RegionalSimulation, referen
 			runner.assert_true(false, "the overlapping source is a genuinely completed action")
 			return
 	runner.assert_eq(int(compressed.artifacts.objects[STONE].charge), before_charge - 1, "the overlapping source spends its original remaining charge")
-	runner.assert_eq(compressed.local_heat.storage_summary(), {"logical_cells": 105, "q_slots": 48}, "an offset overlap expands the thirty-cell union while three isolated patches remain compressed")
-	runner.assert_eq(reference.local_heat.storage_summary(), {"logical_cells": 105, "q_slots": 105}, "the overlapping reference still retains one Q per physical cell")
+	runner.assert_eq(compressed.environment_fields.storage_summary(), {"logical_cells": 105, "q_slots": 48}, "an offset overlap expands the thirty-cell union while three isolated patches remain compressed")
+	runner.assert_eq(reference.environment_fields.storage_summary(), {"logical_cells": 105, "q_slots": 105}, "the overlapping reference still retains one Q per physical cell")
 	if not _same(runner, compressed, reference, "overlapping original sources match the fine world") or not _same(runner, compressed, resumed, "overlapping original sources match the independent resumed world"):
 		return
 	for world: RegionalSimulation in worlds:
@@ -213,7 +213,7 @@ func _overlap_and_device(runner: Object, compressed: RegionalSimulation, referen
 		if not _environment._do_actor(runner, world, "player", "study", FIRE) or not _environment._do_actor(runner, world, "player", "enable", FIRE):
 			return
 		runner.assert_true(bool(world.artifacts.objects[FIRE].enabled), "the actual stationary fire stone is enabled by its learned action")
-		var summary: Dictionary = world.local_heat.storage_summary()
+		var summary: Dictionary = world.environment_fields.storage_summary()
 		runner.assert_eq(int(summary.q_slots), int(summary.logical_cells), "an enabled device forces every original heat cell to fine storage")
 	if not _same(runner, compressed, reference, "the enabled device preserves the fine world's exact physical state") or not _same(runner, compressed, resumed, "the enabled device preserves the resumed world's exact physical state"):
 		return
@@ -222,7 +222,7 @@ func _overlap_and_device(runner: Object, compressed: RegionalSimulation, referen
 	for world: RegionalSimulation in worlds:
 		if not _advance(runner, world, future):
 			return
-	runner.assert_true(int(compressed.artifacts.objects[FIRE].stored_q) < stored and int(compressed.local_heat.continuous_input) > 0, "the enabled artifact spends its real finite stock through elapsed time")
+	runner.assert_true(int(compressed.artifacts.objects[FIRE].stored_q) < stored and int(compressed.environment_fields.continuous_input) > 0, "the enabled artifact spends its real finite stock through elapsed time")
 	_same(runner, compressed, reference, "the finite device and expanded world follow the original fine future")
 	_same(runner, compressed, resumed, "the finite device and resumed world follow the same future")
 

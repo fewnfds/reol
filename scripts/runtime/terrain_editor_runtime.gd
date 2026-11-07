@@ -114,7 +114,7 @@ func prepare() -> Dictionary:
 	GameClock.set_paused(true)
 	# No time is dropped and no action is cancelled. Lazy original regions
 	# settle their OLD interval before a later stroke can change terrain truth.
-	if not world.synchronize_regions() or not world.local_heat.settle_at_ms(world.elapsed_ms):
+	if not world.synchronize_regions() or not world.environment_fields.settle_at_ms(world.elapsed_ms):
 		return _failed("unsynchronized_region")
 	if adapter.world_sim != world or GameClock.has_pending_advance() or world.elapsed_ms != GameClock.elapsed_ms or world.elapsed_ms != world.target_ms:
 		return _failed("pending_time")

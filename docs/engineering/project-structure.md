@@ -51,9 +51,9 @@ reol/
 | 决策理由 | docs/decisions；日期、状态、后果，旧提案仍标提案 |
 | 参数定义 | data/definitions；代码读取，不写到人物真值里 |
 | 初始条件 | data/scenarios；运行中不能修改它当存档 |
-| 可无头执行规则 | scripts/sim；不能引用HUD或场景节点 |
+| 可无头执行规则 | scripts/sim；不能引用HUD或场景 `Node` |
 | 地图权威与显示 | sim/world_map_data.gd保存原生成查询，RegionalSimulation持有联合地图；world/world.gd借用并负责区块/动态阻挡适配，候选不能反查活视图 |
-| 游戏节点与规则接缝 | scripts/runtime；规则改变时调用明确API |
+| 游戏 `Node` 与规则接缝 | scripts/runtime；规则改变时调用明确API |
 | 共用素材 | assets/；独占某场景的小资源可与场景放近，不机械拆散 |
 | 存档/缓存 | user:// 与 .godot/，不进运行定义或Git |
 

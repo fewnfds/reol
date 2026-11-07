@@ -37,13 +37,13 @@ func _run() -> void:
 	if off.is_empty() or on.is_empty():
 		_fail("query failed or changed authoritative world state")
 		return
-	var active: int = world.local_heat.device_emission_rates(world.elapsed_ms).rates.size()
+	var active: int = world.environment_fields.device_emission_rates(world.elapsed_ms).rates.size()
 	if _failed > 0 or active != count or int(on.peak) <= 0 or int(off.peak) != 0:
 		_fail("requested counts are not actual emitting devices")
 		return
 	print("BENCHMARK_JSON ", JSON.stringify({"benchmark": "local_light", "engine": Engine.get_version_info(),
 		"processor": OS.get_processor_name(), "logical_processors": OS.get_processor_count(),
-		"actual_emitters": active, "actual_thermal_cells": world.local_heat.cells.size(),
+		"actual_emitters": active, "actual_thermal_cells": world.environment_fields.cells.size(),
 		"sample_count": SAMPLES, "query_cells": points.size(), "off": off, "on": on,
 		"scope": "Headless development executable, original nonautonomous fixture bodies and actual personal study/enable. Before activation vs after paid setup, not a same-time speedup claim. Sixty bounded synchronous queries, not rendering/FPS, 128-source capacity or long-time stress evidence."}))
 	quit(0)

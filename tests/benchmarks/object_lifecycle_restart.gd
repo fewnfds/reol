@@ -109,7 +109,7 @@ func _write(runtime: Node, path: String) -> Dictionary:
 	if not bool(initial_field.get("ok", false)):
 		return initial_field
 	var pile_key: String = SimWorldEnvironmentSourceParticipant.stock_key("home", GROUND_CONTAINER, MATERIAL)
-	var pile_source: Dictionary = world.local_heat._sources.get_source(pile_key)
+	var pile_source: Dictionary = world.environment_fields._sources.get_source(pile_key)
 	if pile_source.is_empty() or int(pile_source.channels[1]) <= 0:
 		return _failure("material_field_source_missing")
 	var locations: Dictionary = {"item_cell": [first.x, first.y], "material_cell": [second.x, second.y], "item_container": ITEM_CONTAINER}
@@ -446,9 +446,9 @@ func _check_river_snapshot(runtime: Node, expected: Dictionary) -> Dictionary:
 
 
 func _field_observation(world: RegionalSimulation, cell: Vector2i) -> Dictionary:
-	if not world.local_heat is SimWorldEnvironmentFields or world._content.environment_sources == null:
+	if not world.environment_fields is SimWorldEnvironmentFields or world._content.environment_sources == null:
 		return _failure("ordinary_field_unavailable")
-	var field: SimWorldEnvironmentFields = world.local_heat
+	var field: SimWorldEnvironmentFields = world.environment_fields
 	var actual: Dictionary = field.actual_at(cell, world.elapsed_ms)
 	var phases: Dictionary = field.elements_at(cell)
 	if not bool(actual.get("ok", false)) or not SnapshotValues.finite_number(actual.get("value_c")) or not bool(phases.get("ok", false)) or not phases.get("values") is PackedFloat64Array or phases.values.size() != 5:

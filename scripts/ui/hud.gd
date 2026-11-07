@@ -284,7 +284,7 @@ func _refresh_pawn_panel() -> void:
 	if not state.role_name().is_empty() and state.role_name() != role:
 		role += " · " + state.role_name()
 	_pawn_role.text = "%s  /  %s" % [role, state.realm_name()]
-	_pawn_resources.text = "灵力 %d/%d  ·  体力 %d/%d" % [state.qi, state.max_qi(), state.stamina, state.max_stamina()]
+	_pawn_resources.text = "灵气 %d/%d  ·  体力 %d/%d" % [state.qi, state.max_qi(), state.stamina, state.max_stamina()]
 	_hunger.value = state.hunger
 	_energy.value = state.energy
 	_hunger_value.text = str(int(state.hunger))

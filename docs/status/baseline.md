@@ -2,6 +2,10 @@
 
 核对：2026-11-07。这里记录采用版本与对应范围的证据；实际可操作内容见[功能入口](features.md)，任务状态和未提交工作见[接续](handoff.md)。旧的逐包原文已完整拆入[历史分卷](../qa/baseline-history/README.md)，具体测试和画面见[QA索引](../qa/README.md)。
 
+## 术语与运行入口
+
+当前普通环境成员和调度domain统一为`RegionalSimulation.environment_fields`；区域存档键`local_heat`通过codec映射，现行schema不变。术语/真实代码映射见[唯一入口](../engineering/terminology.md)。本包import与定向10组1203断言通过，RTX3060真实HUD确认灵气文案；完整CI尚待准确SHA，证据见[QA](../qa/20261107_terminology.md)。该整理不新增游戏机制或改变main集成范围。
+
 ## 测试工作流与成本
 
 受检代码`b60adadfcab73a17e101b62538da62ddc5bccf9f`：运行器保留248组，支持精确选组及逐组计时JSONL，CI上传计时artifact。工具Python60项、有界Godot五组54894断言及错误退出smoke通过，一次Sol/custom静态审查无发现；未重复本地完整回归，完整CI仍待后续准确SHA证据。五组实测与限制见[成本调查](../qa/20261107_test_cost_audit.md)；这不表示整套耗时或既有超时已修复。生产游戏代码及main接入范围不变。

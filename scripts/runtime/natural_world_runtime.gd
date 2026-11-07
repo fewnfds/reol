@@ -98,7 +98,7 @@ func describe(cell: Vector2i) -> String:
 	var flora: Dictionary = natural.get("flora", {})
 	if not flora.is_empty():
 		line += "\n可见%s。" % ("青叶灌丛" if flora.id == "spirit_shrub" else str(flora.label))
-	line += "\n五行气机尚未辨明；地表草木不代表可用灵力。"
+	line += "\n五行影响尚未辨明；地表草木不代表可用灵气。"
 	line += "\n" + SimNaturalLight.description(SimNaturalLight.at_cell(adapter.world_sim, cell))
 	line += _local_light_line(cell)
 	for region: VillageSimulation in adapter.world_sim.regions.values():

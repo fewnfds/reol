@@ -66,10 +66,10 @@ func _world(runner: Object) -> RegionalSimulation:
 func _ready(runner: Object, world: RegionalSimulation) -> bool:
 	if world == null:
 		return false
-	runner.assert_true(world.local_heat is FIELDS, "the ordinary regional world owns the new field authority")
-	if not (world.local_heat is FIELDS):
+	runner.assert_true(world.environment_fields is FIELDS, "the ordinary regional world owns the new field authority")
+	if not (world.environment_fields is FIELDS):
 		return false
-	var active: bool = world.local_heat.activate_sources()
+	var active: bool = world.environment_fields.activate_sources()
 	runner.assert_true(active, "the ordinary field activates against actual original sources")
 	return active
 
@@ -81,13 +81,13 @@ func _advance(runner: Object, world: RegionalSimulation, at_ms: int, label: Stri
 
 
 func _actual(runner: Object, world: RegionalSimulation, cell: Vector2i) -> Dictionary:
-	var result: Dictionary = world.local_heat.actual_at(cell, world.elapsed_ms)
+	var result: Dictionary = world.environment_fields.actual_at(cell, world.elapsed_ms)
 	runner.assert_true(bool(result.get("ok", false)), "the current actual temperature exists at " + str(cell) + ": " + str(result))
 	return result
 
 
 func _phase(runner: Object, world: RegionalSimulation, cell: Vector2i) -> Dictionary:
-	var result: Dictionary = world.local_heat.elements_at(cell)
+	var result: Dictionary = world.environment_fields.elements_at(cell)
 	runner.assert_true(bool(result.get("ok", false)), "the current actual five-element field exists at " + str(cell) + ": " + str(result))
 	return result
 
@@ -187,6 +187,7 @@ func _restore_and_continue(runner: Object, world: RegionalSimulation, first: Vec
 	runner.assert_true(not saved.is_empty(), "the ordinary world captures actual field history")
 	if saved.is_empty():
 		return
+	runner.assert_true(saved.has("local_heat") and not saved.has("environment_fields"), "runtime naming preserves the existing world snapshot key")
 	var stable: String = _json(saved)
 	var assembly: Dictionary = ReolWorldAssemblyInputs.from_world(world, {"home": [100, 100], "river": [150, 100]})
 	var content := ReolContentDB.new()
@@ -202,7 +203,8 @@ func _restore_and_continue(runner: Object, world: RegionalSimulation, first: Vec
 	runner.assert_eq(_json(saved), stable, "staging a restore does not rewrite the saved source")
 	if restored == null:
 		return
-	runner.assert_true(restored != world and restored.local_heat != world.local_heat and restored.map_data != world.map_data, "restored field, world and map use separate owners")
+	runner.assert_true(restored != world and restored.map_data != world.map_data, "restored world and map use separate owners")
+	runner.assert_true(restored.environment_fields != null and restored.environment_fields != world.environment_fields, "restored environment fields have their own live authority")
 	for cell: Vector2i in [first, second]:
 		var a: Dictionary = _actual(runner, world, cell)
 		var b: Dictionary = _actual(runner, restored, cell)
@@ -242,22 +244,22 @@ func _stock_split_and_merge(runner: Object) -> void:
 		return
 	var inventory: SimInventory = world.regions.home.inventory
 	var total: int = _lifecycle._total(inventory, "wood")
-	var sources_before: int = int(world.local_heat.diagnostics().source.source_count)
+	var sources_before: int = int(world.environment_fields.diagnostics().source.source_count)
 	var dropped: Dictionary = world.object_lifecycle.execute(_lifecycle._transfer("field_drop", _lifecycle._location("store"), _lifecycle._ground(FIRST.x, FIRST.y), "wood", 4))
 	runner.assert_true(bool(dropped.get("ok", false)), "a real stock pile becomes one source: " + str(dropped))
 	if not bool(dropped.get("ok", false)):
 		return
-	runner.assert_eq(int(world.local_heat.diagnostics().source.source_count), sources_before + 1, "one pile adds one source regardless of count")
+	runner.assert_eq(int(world.environment_fields.diagnostics().source.source_count), sources_before + 1, "one pile adds one source regardless of count")
 	var merged: Dictionary = world.object_lifecycle.execute(_lifecycle._transfer("field_merge", _lifecycle._location("store"), _lifecycle._ground(FIRST.x, FIRST.y), "wood", 3))
 	runner.assert_true(bool(merged.get("ok", false)), "same material merges into the existing pile")
 	if not bool(merged.get("ok", false)):
 		return
-	runner.assert_eq(int(world.local_heat.diagnostics().source.source_count), sources_before + 1, "merging seven items still counts as one source")
+	runner.assert_eq(int(world.environment_fields.diagnostics().source.source_count), sources_before + 1, "merging seven items still counts as one source")
 	var split: Dictionary = world.object_lifecycle.execute(_lifecycle._transfer("field_split", dropped.to, _lifecycle._ground(SECOND.x, SECOND.y), "wood", 2))
 	runner.assert_true(bool(split.get("ok", false)), "part of the real pile can form a separate pile")
 	if not bool(split.get("ok", false)):
 		return
-	runner.assert_eq(int(world.local_heat.diagnostics().source.source_count), sources_before + 2, "two separate piles are two sources")
+	runner.assert_eq(int(world.environment_fields.diagnostics().source.source_count), sources_before + 2, "two separate piles are two sources")
 	runner.assert_eq(_lifecycle._total(inventory, "wood"), total, "the original inventory conserves stock through split and merge")
 	var first: Dictionary = _phase(runner, world, FIRST)
 	var second: Dictionary = _phase(runner, world, SECOND)
@@ -277,7 +279,7 @@ func _stock_split_and_merge(runner: Object) -> void:
 	runner.assert_true(bool(reunited.get("ok", false)), "one ground pile can merge back into the other")
 	if not bool(reunited.get("ok", false)):
 		return
-	runner.assert_eq(int(world.local_heat.diagnostics().source.source_count), sources_before + 1, "reuniting piles removes exactly one source")
+	runner.assert_eq(int(world.environment_fields.diagnostics().source.source_count), sources_before + 1, "reuniting piles removes exactly one source")
 	first = _phase(runner, world, FIRST)
 	second = _phase(runner, world, SECOND)
 	if bool(first.get("ok", false)) and bool(second.get("ok", false)) and bool(first_now.get("ok", false)) and bool(second_now.get("ok", false)):

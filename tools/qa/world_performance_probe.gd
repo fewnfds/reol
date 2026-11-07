@@ -252,7 +252,7 @@ func _snapshot() -> Dictionary:
 		var actors: Dictionary = region.get("actors")
 		per_region[str(region_id)] = actors.size()
 		actor_count += actors.size()
-	var heat: Object = simulation.get("local_heat")
+	var heat: Object = simulation.get("environment_fields")
 	var artifacts: Object = simulation.get("artifacts")
 	var map: Object = simulation.get("map_data")
 	if not is_instance_valid(heat) or not heat.has_method("cell_count") or not heat.has_method("storage_summary") or not is_instance_valid(artifacts) or not is_instance_valid(map) or not map.has_method("descriptor"):

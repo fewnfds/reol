@@ -829,21 +829,21 @@ func _move_and_finish(job: Dictionary, id: String, region: String, container: St
 
 
 func synchronize_environment_transfer() -> bool:
-	var fields: SimWorldEnvironmentFields = world.local_heat as SimWorldEnvironmentFields
+	var fields: SimWorldEnvironmentFields = world.environment_fields as SimWorldEnvironmentFields
 	if fields == null:
 		return true
 	var at_ms: int = world.elapsed_ms
 	var target_ms: int = world.target_ms
 	# Activation may itself synchronize and notify. Do it before the original
 	# transfer preflight and before preparing any field candidate.
-	if not world.synchronize_regions() or world.artifacts != self or world.local_heat != fields:
+	if not world.synchronize_regions() or world.artifacts != self or world.environment_fields != fields:
 		return false
-	return fields.activate_sources() and world.artifacts == self and world.local_heat == fields \
+	return fields.activate_sources() and world.artifacts == self and world.environment_fields == fields \
 		and world.elapsed_ms == at_ms and world.target_ms == target_ms
 
 
 func prepare_environment_transfer(change: Dictionary) -> Dictionary:
-	var fields: SimWorldEnvironmentFields = world.local_heat as SimWorldEnvironmentFields
+	var fields: SimWorldEnvironmentFields = world.environment_fields as SimWorldEnvironmentFields
 	if fields == null:
 		return {"ok": true}
 	var target_ms: int = world.target_ms
@@ -853,7 +853,7 @@ func prepare_environment_transfer(change: Dictionary) -> Dictionary:
 	if not bool(prepared.get("ok", false)):
 		return prepared
 	var proof: Variant = prepared.get("proof")
-	if world.artifacts != self or world.local_heat != fields or world.elapsed_ms != int(change.at_ms) \
+	if world.artifacts != self or world.environment_fields != fields or world.elapsed_ms != int(change.at_ms) \
 			or world.target_ms != target_ms or not fields.can_commit_object_change(proof):
 		fields.cancel_object_change(proof)
 		return {"ok": false, "reason": "environment_change_stale"}
@@ -901,7 +901,7 @@ func _finish_thermal_switch(job: Dictionary, item: Dictionary) -> void:
 	if enabled and not shape_studied(str(job.actor), str(job.object)):
 		_finish_record(job, "failed", "本人还不懂这块石头的用法，这次没有启用。")
 		return
-	var heat: Variant = world.get("local_heat")
+	var heat: Variant = world.get("environment_fields")
 	if heat == null or not heat.has_method("can_switch_device") or not bool(heat.call("can_switch_device", str(job.object), enabled)):
 		_finish_record(job, "failed", "这块石头眼下无法切换；原来的状态没有改变。")
 		return
@@ -960,7 +960,7 @@ func _finish_heat(job: Dictionary, recipe: Dictionary) -> void:
 
 func _warming_readiness(actor: String, id: String) -> Dictionary:
 	var home: String = actor_home(actor)
-	if home.is_empty() or not objects.has(id) or not has_capability(id, "heat_storage") or world.local_heat == null:
+	if home.is_empty() or not objects.has(id) or not has_capability(id, "heat_storage") or world.environment_fields == null:
 		return _response(false, "眼下没有可以在手边释热的器物。")
 	var item: Dictionary = objects[id]
 	if item.region != home or item.container != "actor:" + actor:
@@ -984,8 +984,8 @@ func _finish_warming(job: Dictionary) -> void:
 		return
 	var item: Dictionary = objects[job.object]
 	var cell: Vector2i = object_cell(str(job.object))
-	var amount: int = int(world.local_heat.definitions.pulse_energy)
-	if not world.local_heat.can_deposit(cell, amount):
+	var amount: int = int(world.environment_fields.definitions.pulse_energy)
+	if not world.environment_fields.can_deposit(cell, amount):
 		_finish_record(job, "failed", "此处暂时无法再接纳暖流，石中余热没有耗去。")
 		return
 	var source: Dictionary = {"action": job.id, "actor": job.actor, "object": job.object,
@@ -993,7 +993,7 @@ func _finish_warming(job: Dictionary) -> void:
 	# The thermal authority settles the previous interval before this call.
 	# There is no yield or callback between the accepted deposit and the debit
 	# plus source event. A rejected deposit never spends the original charge.
-	if not world.local_heat.deposit(source):
+	if not world.environment_fields.deposit(source):
 		_finish_record(job, "failed", "暖流没有接续，石中余热仍保留着。")
 		return
 	item.charge = int(item.charge) - int(definitions.types[item.definition].warming_charge)

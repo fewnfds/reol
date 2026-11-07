@@ -14,10 +14,10 @@ func run(runtime: WorldContinuityRuntime, suffix: String) -> Dictionary:
 		"source_job": world.artifacts.active.get("player", {}).duplicate(true)}
 	GameClock.advance_msec(840050 - GameClock.elapsed_ms)
 	report["completed"] = {"ms": GameClock.elapsed_ms, "charge": world.artifacts.objects.hearth_stone.charge,
-		"input": world.local_heat.input_energy, "heat": world.local_heat.local_tenths(Vector2i(254, 255)),
+		"input": world.environment_fields.input_energy, "heat": world.environment_fields.local_tenths(Vector2i(254, 255)),
 		"old_sample_heat": world.environment.samples.player.heat_tenths}
 	GameClock.advance_msec(10000)
-	report["after_exchange"] = {"loss": world.local_heat.loss_energy, "heat": world.local_heat.local_tenths(Vector2i(254, 255))}
+	report["after_exchange"] = {"loss": world.environment_fields.loss_energy, "heat": world.environment_fields.local_tenths(Vector2i(254, 255))}
 	report["journey_accepted"] = runtime.travel_to("river")
 	GameClock.advance_msec(977431 - GameClock.elapsed_ms)
 	var snapshot: Dictionary = WorldSessionSnapshot.capture(runtime)
@@ -31,8 +31,8 @@ func run(runtime: WorldContinuityRuntime, suffix: String) -> Dictionary:
 	report.merge({"ms": GameClock.elapsed_ms, "region": runtime.current_region,
 		"cell": [runtime._home._player.cell.x, runtime._home._player.cell.y],
 		"charge": world.artifacts.objects.hearth_stone.charge,
-		"input": world.local_heat.input_energy, "loss": world.local_heat.loss_energy,
-		"receipts": world.local_heat.receipts.size(), "characters": canonical.length(),
+		"input": world.environment_fields.input_energy, "loss": world.environment_fields.loss_energy,
+		"receipts": world.environment_fields.receipts.size(), "characters": canonical.length(),
 		"bytes": canonical.to_utf8_buffer().size(), "hash": canonical.hash(),
 		"sha256": FileAccess.get_sha256(path)})
 	var evidence := FileAccess.open("res://logs/local_heat_restart_%s.json" % suffix, FileAccess.WRITE)

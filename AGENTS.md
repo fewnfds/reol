@@ -7,6 +7,7 @@
 - 新会话用`reol-project`；先HANDOFF，按任务查BASELINE（证据）、FEATURES（可玩范围）、ARCHITECTURE（代码所有者）。完整路由见`docs/README.md`。
 - 已确认概念见`design/vision.md`与`design/rules/`；详细机制候选在systems/proposals，不能冒充已定规则。基础优先级只看`docs/plans/foundation-priorities.md`；每次只排定一个可验证小包，不因旧Goal或旧计划自动连做。历史QA/ADR/归档的active、下一包、版本只描述当时。
 - 文档分设计/工程/计划规格/当前状态/证据/历史，按`docs/DOCUMENTATION.md`维护；活跃单页不超过16KiB，过大按主题拆分，不在设计页追加进度流水。
+- 中/英专有术语保留原名，不互译、不另造同义名；中文概念与实际English代码标识符按[唯一映射](docs/engineering/terminology.md)定位，各层职责不混同。代码命名沿用已定映射，引用真实class/字段；更名同步调用、反射/调度、工具、存档边界及文档。解释用自然中文；详见[术语规则](docs/DOCUMENTATION.md#术语原名与唯一标记)。
 - 完成代码包时核对受影响的功能说明、工程契约、验证证据和HANDOFF；直接改写现行行为，研究/TODO/历史只留任务或证据位置。日常搜索先查当前领域目录，除迁移/追溯任务外不默认加载archive、旧QA或旧计划。
 - 每次取1–3技能，不全读。GDScript、场景、模拟/存档、地图、房间、NPC、UI/动画各取对应技能；API不确定查目标版本官方文档/Context7。
 - 开始前简述目的、范围和验收。游戏/引擎/插件改动跑doctor；文档整理不启动引擎。

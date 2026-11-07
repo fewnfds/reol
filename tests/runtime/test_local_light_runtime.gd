@@ -62,7 +62,7 @@ func run(runner: Object) -> void:
 	if action.ok:
 		GameClock.advance_msec(int(adapter.world_sim.artifacts.active.player.due_ms) - GameClock.elapsed_ms)
 		light.refresh()
-		runner.assert_true(not adapter.world_sim.local_heat.device_emission_rates(GameClock.elapsed_ms).rates.has("fire_stone"), "the completed real switch removes the original fire stone's emission")
+		runner.assert_true(not adapter.world_sim.environment_fields.device_emission_rates(GameClock.elapsed_ms).rates.has("fire_stone"), "the completed real switch removes the original fire stone's emission")
 		var has_light: bool = false
 		for value: int in light.last_projection.get("values", {}).values():
 			has_light = has_light or value > 0

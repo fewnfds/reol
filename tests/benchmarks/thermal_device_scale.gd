@@ -131,13 +131,13 @@ func _make_world(count: int) -> RegionalSimulation:
 	var world := RegionalSimulation.new()
 	if not _check(world.initialize(settings, instances, content), "initialize ordinary regional owners: " + str(world.errors)):
 		return null
-	if not _check(world._content == content and world.local_heat.definitions == content.local_heat, "the world binds the same benchmark thermal content used to assemble it"):
+	if not _check(world._content == content and world.environment_fields.definitions == content.local_heat, "the world binds the same benchmark thermal content used to assemble it"):
 		return null
 	if _reference_geometry:
 		# Rebind only the callback policy before any object/action/thermal source
 		# exists. This changes no definition, clock, Q, stock or event history.
-		world.local_heat.set_geometry(world.construction.thermal_roofed, world.construction.thermal_barrier)
-		world.local_heat.refresh_geometry()
+		world.environment_fields.set_geometry(world.construction.thermal_roofed, world.construction.thermal_barrier)
+		world.environment_fields.refresh_geometry()
 	if not _check(world.artifacts.spawn_opening({"version": 1, "objects": opening, "experiences": {}}), "issue only the declared original devices"):
 		return null
 	world.set_active_region("")
@@ -246,16 +246,16 @@ func _measure(world: RegionalSimulation, count: int, label: String) -> Dictionar
 		var candidate_setup_ms: float = _ms_since(started)
 		if candidate == null:
 			return {}
-		if not _check(candidate._content != world._content and candidate._content.local_heat == world._content.local_heat and candidate.local_heat.definitions == world.local_heat.definitions, label + " independent restore candidate binds identical benchmark heat content"):
+		if not _check(candidate._content != world._content and candidate._content.local_heat == world._content.local_heat and candidate.environment_fields.definitions == world.environment_fields.definitions, label + " independent restore candidate binds identical benchmark heat content"):
 			return {}
 		started = Time.get_ticks_usec()
 		var restored: bool = candidate.restore(decoded)
 		var restore_ms: float = _ms_since(started)
 		if not _check(restored, label + " independently restores complete JSON state"):
 			return {}
-		if not _check(candidate.local_heat.definitions == world.local_heat.definitions and candidate._content.local_heat == world._content.local_heat, label + " restored candidate retains the same benchmark heat rules"):
+		if not _check(candidate.environment_fields.definitions == world.environment_fields.definitions and candidate._content.local_heat == world._content.local_heat, label + " restored candidate retains the same benchmark heat rules"):
 			return {}
-		_check(candidate != world and candidate.local_heat != world.local_heat and candidate.artifacts != world.artifacts, label + " restore retains independent original owners")
+		_check(candidate != world and candidate.environment_fields != world.environment_fields and candidate.artifacts != world.artifacts, label + " restore retains independent original owners")
 		if not _check(_json(candidate.to_dict()) == canonical_snapshot, label + " JSON restore preserves every saved domain"):
 			return {}
 		candidates.append(candidate)
@@ -291,7 +291,7 @@ func _measure(world: RegionalSimulation, count: int, label: String) -> Dictionar
 
 
 func _metrics(world: RegionalSimulation) -> Dictionary:
-	var heat: RefCounted = world.local_heat
+	var heat: RefCounted = world.environment_fields
 	var energy: int = 0
 	for row: Dictionary in heat.cells.values():
 		energy += int(row.energy)

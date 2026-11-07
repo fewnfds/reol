@@ -1,21 +1,20 @@
 # 当前接续
 
-2026-11-07：参考工作流与测试成本调查已完成，受检代码`b60adadfcab73a17e101b62538da62ddc5bccf9f`，一次Sol/custom静态审查无发现。**没有运行中的Goal、测试或审查。** 不恢复旧Goal或自动推进游戏玩法。
+2026-11-07：当前包是中/英术语与代码入口整改。实现、import、定向10组和真实HUD核对已完成，准备提交及一次Sol/custom静态审查。没有运行中的Goal或测试；不恢复旧Goal或自动推进玩法。
 
-## 当前代码与已验范围
+## 当前工作
 
-- 根工作树在`codex/sparse-world-execution`；本轮起点本地/远端`d4e5f716aa1cd9fb84b47727160506c2b63addc9`。本包改工程工作流、测试运行器/工具和CI计时artifact；未切分支、改生产游戏代码或自动合并。
-- Git main/origin/main均`eff27a7dcf77031a4084258cc688bbb3616b64e4`。其游戏代码与已验`6137481a07ec98b372e32ca857e546f1e1b07ee1`相同。
-- 开发分支的通用参与索引及环境/健康稀疏执行，受检代码`ee3504d3c313aa07ac4e87caec3bd39488c725e3`，本机完整check及一次Sol/custom审查已终态通过；普通Main已经使用，但**尚未合入Git main**。旧session96715/66478均已结束，不接续或重跑。
-- 相关`2f305de`的CI42345202281已知终态failure，完整SHA一致；Godot test在1800秒上限退出124。本轮复用已存终态与日志，没有重查。末条RUN地形编辑不等于根因；当前五组有界计时不能解释全部超时。
-- 本包Python60项、Godot五组54894断言及列举/去重/非法参数/报告失败smoke已通过。默认仍248组，完整CI待后续准确SHA结果；有逐组计时后在下一真实提交检查点集中诊断，不轮询。数据及日志见[调查QA](../qa/20261107_test_cost_audit.md)。收尾仅改文档，不重复审查/回归。
-- 技术接入/缺口统一查[总表](technical-status.md)，数字与CI查[BASELINE](baseline.md)，操作查[FEATURES](features.md)，分支与保护草稿查[分支页](branches.md)。后续顺序仍只由用户授权和[基础优先级](../plans/foundation-priorities.md)决定。
+- 分支`codex/sparse-world-execution`，本包起点`d27337d67c0148132dfaef2d802d72a860b62d38`，包含上轮待提交的术语规则。未切分支或自动合并main。
+- 唯一术语入口是[术语与代码映射](../engineering/terminology.md)；现行设计、工程、计划与状态使用真实名称。历史QA/archive、fixture、第三方及历史ADR原文保留。
+- 当前运行成员和调度domain是`RegionalSimulation.environment_fields`；存档schema43/根52仍使用JSON键`local_heat`，由`SNAPSHOT_KEYS`显式映射。无运行时兼容getter/第二环境owner。`ReolContentDB.local_heat`仍是热设备定义参数。
+- 本包Godot4.7.2 import、定向10组1203断言与RTX3060真实HUD核对通过。Godot AI当前无session，截图经同版CLI生成；没有改桥或依赖。日志及具体边界见[本包QA](../qa/20261107_terminology.md)。
+- 在真实提交检查点一次查得[CI42356120868](https://github.com/fewnfds/reol/actions/runs/42356120868)仍in_progress，完整headSha是起点d27337d。留待下次真实提交点，不轮询、不等待；本包完整CI尚无准确SHA通过证据。
 
-## 当前包边界
+## 游戏接入状态
 
-参考项目按职责借鉴，不整体搬迁目录；稳定契约仍进Git，阶段研究/历史不默认作为当前依据。已补代码包收尾的文档更新闭环、永久测试准入、最小fixture及CPU/GPU验证边界，现行方法见[测试策略](../engineering/workflow/testing.md)。原有测试组/断言、CI覆盖和超时上限均保留，未宣称整套测试已提速。
+Git main/origin/main仍`eff27a7dcf77031a4084258cc688bbb3616b64e4`，游戏代码与已验`6137481a07ec98b372e32ca857e546f1e1b07ee1`相同。开发分支的通用参与索引及环境/健康稀疏执行普通Main已用，尚未合入main；旧`ee3504d`本机完整check和一次Sol/custom审查通过，但`2f305de`的CI42345202281在1800秒超时，不能算远端通过。计时工具已经落地，后续按真实CI计时定位，不恢复旧session或重扫日志。
 
-本包未运行全量Godot回归或实时画面；生产功能范围仍查技术总表，不把计时工具算新玩法。提交检查点复用已登记终态；push后不另开查找/等待，不扫testlog、不派等待代理。下一实现包须重新确定单一范围。
+技术接入/缺口查[总表](technical-status.md)，准确证据查[BASELINE](baseline.md)，操作查[FEATURES](features.md)，分支和保护草稿查[分支页](branches.md)。命名包不新增游戏机制；下一实现包须重新明确单一范围，顺序以用户授权及[基础优先级](../plans/foundation-priorities.md)为准。
 
 ## 保护工作
 

@@ -82,10 +82,10 @@ func _real_sources(runner: Object) -> void:
 		world.invalidate_region("home")
 		if not environment._do(runner, world, "warm"):
 			return
-	runner.assert_eq(world.local_heat.cells.size(), 100, "four genuine charged artifact actions retain one hundred original physical cells")
+	runner.assert_eq(world.environment_fields.cells.size(), 100, "four genuine charged artifact actions retain one hundred original physical cells")
 	runner.assert_eq(int(world.artifacts.objects.hearth_stone.charge), opening_charge - 4, "the original artifact pays every pulse exactly once")
-	runner.assert_eq(world.local_heat.input_energy, 4 * int(world.local_heat.definitions.pulse_energy), "original artifact amounts and the physical field still match")
-	runner.assert_eq(world.local_heat.storage_summary().q_slots, 24, "the genuine isolated regional sources use six unique Q slots each")
+	runner.assert_eq(world.environment_fields.input_energy, 4 * int(world.environment_fields.definitions.pulse_energy), "original artifact amounts and the physical field still match")
+	runner.assert_eq(world.environment_fields.storage_summary().q_slots, 24, "the genuine isolated regional sources use six unique Q slots each")
 	if not world.advance_to_ms(int(world.elapsed_ms) + 173):
 		runner.assert_true(false, "genuine regional source reaches a non-boundary snapshot")
 		return
@@ -94,7 +94,7 @@ func _real_sources(runner: Object) -> void:
 	if copy == null or not copy.restore(archive):
 		runner.assert_true(false, "complete real regional JSON with grouped sources restores independently")
 		return
-	runner.assert_true(copy.local_heat != world.local_heat and copy.artifacts != world.artifacts, "restoration keeps independent original field and artifact owners")
+	runner.assert_true(copy.environment_fields != world.environment_fields and copy.artifacts != world.artifacts, "restoration keeps independent original field and artifact owners")
 	runner.assert_eq(_json(copy.to_dict()), _json(world.to_dict()), "the full real artifact world roundtrips without saving a second group balance")
 	var target: int = int(world.elapsed_ms) + 27337
 	runner.assert_true(world.advance_to_ms(target), "original regional source world reaches its future")

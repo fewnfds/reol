@@ -29,7 +29,7 @@
 | 工具/项目 | 可确认功能与状态 | 适用边界/取舍 |
 |---|---|---|
 | [Godot官方GDScript 2.5D示例](https://github.com/godotengine/godot-demo-projects/blob/master/misc/2.5d/README.md) | 混合2D/3D节点及投影编辑视口，官方演示项目 | 可参考坐标投影；演示不等于持续世界、建造或环境求解器，不直接迁入项目。 |
-| [Daicon](https://github.com/arukurei/Daicon)、[1.6](https://github.com/arukurei/Daicon/releases/tag/v1.6)、[设置文档](https://daicon-docs.readthedocs.io/en/latest/getting-started/setup/) | MIT；文档面向Godot4.5+、Forward+，2D外观背后有3D身体/碰撞和GridMap、深度排序及导航接口 | 值得另建隔离原型比较；未查得足够已发布规模案例、4.7.2兼容或Reol性能证据。不是热/灵机或远区框架。 |
+| [Daicon](https://github.com/arukurei/Daicon)、[1.6](https://github.com/arukurei/Daicon/releases/tag/v1.6)、[设置文档](https://daicon-docs.readthedocs.io/en/latest/getting-started/setup/) | MIT；文档面向Godot4.5+、Forward+，2D外观背后有3D身体/碰撞和GridMap、深度排序及导航接口 | 值得另建隔离原型比较；未查得足够已发布规模案例、4.7.2兼容或Reol性能证据。不是冷热/五行环境影响或远区框架。 |
 | [SmartShape2D](https://github.com/SirRamEsq/SmartShape2D) | MIT，Godot4二维贴图多边形/轮廓编辑 | 可帮助不规则崖边外观，不自动生成可走高台、桥下层或环境规则；格子架构暂不需替换。 |
 | [Terrain3D](https://github.com/TokisanGames/Terrain3D) | MIT、Godot4可编辑3D高度图地形，GDExtension路线 | 假如未来选择3D场景，可减少地形表现/编辑工作；高度图本身不等于任意山洞和多楼层，也不自带社会/场模拟。 |
 | [Voxel Tools](https://voxel-tools.readthedocs.io/en/latest/)、[导航说明](https://voxel-tools.readthedocs.io/en/latest/navigation/) | 立体程序生成、开挖/洞穴；官方提醒其技术要求，动态/流式地形的导航需专门处理 | 适用于真正需要可开挖体积的项目。当前不为局部台地引入模块、C++构建和体积世界范围。 |

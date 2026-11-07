@@ -53,7 +53,7 @@ func _world(runner: Object, max_cells: int, reference: bool = false) -> Regional
 			runner.assert_true(false, "fine reference binds the same opening heat rules")
 			return null
 		heat.set_geometry(world.construction.thermal_roofed, world.construction.thermal_barrier, true)
-		world.local_heat = heat
+		world.environment_fields = heat
 	var opening: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(Compressed.ARTIFACTS))
 	if not world.configure_services(content.settlement_services) or not world.set_active_region("") or not world.clothing.spawn_opening() or not world.artifacts.spawn_opening(opening):
 		runner.assert_true(false, "bounded world issues the original services, garments and finite objects")
@@ -76,9 +76,9 @@ func _logical_union_and_refusals(runner: Object) -> void:
 	var charge: int = int(world.artifacts.objects[STONE].charge)
 	var before: String = _state(world)
 	var distant := Vector2i(124, 116)
-	var amount: int = int(world.local_heat.definitions.pulse_energy)
-	runner.assert_true(not world.local_heat.can_deposit(distant, amount), "a second isolated 25-cell patch is refused despite only six Q slots being occupied")
-	runner.assert_true(world.local_heat.can_deposit(CENTER + Vector2i.RIGHT, amount), "an overlapping patch fits by counting only its five new logical coordinates")
+	var amount: int = int(world.environment_fields.definitions.pulse_energy)
+	runner.assert_true(not world.environment_fields.can_deposit(distant, amount), "a second isolated 25-cell patch is refused despite only six Q slots being occupied")
+	runner.assert_true(world.environment_fields.can_deposit(CENTER + Vector2i.RIGHT, amount), "an overlapping patch fits by counting only its five new logical coordinates")
 	runner.assert_eq(_state(world), before, "pure allocation checks do not change time, Q, costs or the world")
 	_place_holder(world, distant)
 	if not _failed_action(runner, world, "warm", STONE):
@@ -91,7 +91,7 @@ func _logical_union_and_refusals(runner: Object) -> void:
 	runner.assert_eq(int(world.artifacts.objects[STONE].charge), charge - 1, "the successful overlapping action spends exactly one original charge")
 	_capacity(runner, world, 30, 30, 30, "overlap reaches the exact logical maximum")
 	var before_device: String = _state(world)
-	runner.assert_true(not world.local_heat.can_switch_device(FIRE, true), "a distant device patch is refused when the real logical union is full")
+	runner.assert_true(not world.environment_fields.can_switch_device(FIRE, true), "a distant device patch is refused when the real logical union is full")
 	runner.assert_eq(_state(world), before_device, "refused device preflight is a pure query")
 	_place_holder(world, world.artifacts.object_cell(FIRE))
 	if not _fixture._environment._do_actor(runner, world, "player", "study", FIRE):
@@ -122,7 +122,7 @@ func _refinement_and_weather(runner: Object) -> void:
 	var resumed: RegionalSimulation = _clone(runner, compact, 50)
 	if resumed == null:
 		return
-	runner.assert_true(resumed.local_heat != compact.local_heat and resumed.artifacts != compact.artifacts, "JSON continuation has independent thermal and artifact owners")
+	runner.assert_true(resumed.environment_fields != compact.environment_fields and resumed.artifacts != compact.artifacts, "JSON continuation has independent thermal and artifact owners")
 	_capacity(runner, resumed, 50, 25, 6, "independent restored compressed field")
 	if not _same(runner, resumed, compact, "v3 JSON continuation preserves all world facts"):
 		return
@@ -154,7 +154,7 @@ func _refinement_and_weather(runner: Object) -> void:
 	for world: RegionalSimulation in [compact, fine, resumed]:
 		if not _advance(runner, world, future):
 			return
-	runner.assert_true(int(compact.artifacts.objects[FIRE].stored_q) < stored and int(compact.local_heat.continuous_input) > 0, "the enabled source pays from its one finite original stock")
+	runner.assert_true(int(compact.artifacts.objects[FIRE].stored_q) < stored and int(compact.environment_fields.continuous_input) > 0, "the enabled source pays from its one finite original stock")
 	_same(runner, compact, fine, "fully refined and fine worlds retain the same physical future")
 	_same(runner, compact, resumed, "fully refined and restarted worlds retain the same physical future")
 
@@ -183,7 +183,7 @@ func _failed_action(runner: Object, world: RegionalSimulation, verb: String, obj
 	var fire_q: int = int(world.artifacts.objects[FIRE].stored_q)
 	# A same-time cancelled control lets both worlds settle the real old heat
 	# interval; it does not assert that elapsed time should be rolled back.
-	var control: RegionalSimulation = _clone(runner, world, int(world.local_heat.definitions.max_cells))
+	var control: RegionalSimulation = _clone(runner, world, int(world.environment_fields.definitions.max_cells))
 	if control == null:
 		return false
 	if not control.artifacts.cancel("player"):
@@ -196,12 +196,12 @@ func _failed_action(runner: Object, world: RegionalSimulation, verb: String, obj
 	runner.assert_true(not event.has("heat_amount"), "the failed action claims no emitted thermal amount")
 	runner.assert_eq(int(world.artifacts.objects[STONE].charge), charge, "capacity refusal leaves the original warm-stone charge")
 	runner.assert_eq(int(world.artifacts.objects[FIRE].stored_q), fire_q, "capacity refusal leaves the original device reservoir")
-	runner.assert_eq(_json(world.local_heat.to_dict()), _json(control.local_heat.to_dict()), "refusal preserves the old Q, complete ledger, receipts and frozen segment after the legitimately elapsed interval")
+	runner.assert_eq(_json(world.environment_fields.to_dict()), _json(control.environment_fields.to_dict()), "refusal preserves the old Q, complete ledger, receipts and frozen segment after the legitimately elapsed interval")
 	return str(event.kind) == "failed"
 
 
 func _capacity(runner: Object, world: RegionalSimulation, maximum: int, logical: int, slots: int, label: String) -> void:
-	var heat: SimLocalHeat = world.local_heat
+	var heat: SimLocalHeat = world.environment_fields
 	var before: String = _state(world)
 	var row: Dictionary = heat.allocation_capacity()
 	runner.assert_eq(int(row.get("max_logical_cells", -1)), maximum, label + ": bound is the bound content's logical limit")

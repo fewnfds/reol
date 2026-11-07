@@ -35,8 +35,8 @@ func _modern_candidates(runner: Object) -> void:
 	var staged: Dictionary = WorldSessionSnapshot.stage(adapter, source)
 	runner.assert_true(not staged.is_empty(), "an ordinary current snapshot stages with its actual world-field owner")
 	if not staged.is_empty():
-		runner.assert_true(staged.world != live and staged.world.local_heat != live.local_heat, "field validation constructs independent authorities")
-		runner.assert_eq(_canonical(staged.world.local_heat.to_dict()), _canonical(source.continuity.world.local_heat), "successful staging preserves the actual saved field")
+		runner.assert_true(staged.world != live and staged.world.environment_fields != live.environment_fields, "field validation constructs independent authorities")
+		runner.assert_eq(_canonical(staged.world.environment_fields.to_dict()), _canonical(source.continuity.world.local_heat), "successful staging preserves the actual saved field")
 	runner.assert_true(source.continuity.world.environment.samples.has("player"), "current candidate checks use a real body exposure sample")
 	if not source.continuity.world.environment.samples.has("player"):
 		_fixtures._dispose(fixture)

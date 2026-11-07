@@ -59,13 +59,13 @@ func _test_ordinary_rejections(runner: Object) -> void:
 	var backup: String = FileAccess.get_file_as_string(busy_path + ".bak")
 	for kind: String in ["object_commit", "field_candidate"]:
 		live.object_lifecycle._committing = kind == "object_commit"
-		live.local_heat._busy = kind == "field_candidate"
+		live.environment_fields._busy = kind == "field_candidate"
 		runner.assert_true(WorldSessionSnapshot.capture(runtime).is_empty(), "unpublished world cannot become an envelope: " + kind)
 		runner.assert_eq(runtime.save_game(busy_path), ERR_BUSY, "ordinary saver refuses unpublished world: " + kind)
 		runner.assert_eq(FileAccess.get_file_as_string(busy_path), primary, "busy capture preserves primary: " + kind)
 		runner.assert_eq(FileAccess.get_file_as_string(busy_path + ".bak"), backup, "busy capture preserves backup: " + kind)
 		live.object_lifecycle._committing = false
-		live.local_heat._busy = false
+		live.environment_fields._busy = false
 	_remove_test_save(busy_path)
 	var original_fixture: String = FileAccess.get_file_as_string(LEGACY_FIXTURE)
 	runner.assert_true(not original_fixture.is_empty(), "a real legacy archive is available")

@@ -46,10 +46,12 @@ const SNAPSHOT_DOMAINS: Array[StringName] = [
 	&"object_lifecycle",
 	&"embodiment", &"artifacts", &"heat_methods", &"method_records", &"large_bodies",
 	&"personal_production", &"budgeted_labor", &"autonomous_livelihood", &"clothing",
-	&"health", &"environment", &"local_heat", &"spirit_sources", &"sparring", &"conflicts",
+	&"health", &"environment", &"environment_fields", &"spirit_sources", &"sparring", &"conflicts",
 	&"avian_life", &"soul_vessels", &"admissions", &"construction", &"resting",
 	&"weather", &"standing_work", &"site_affairs", &"source_care", &"capability_practice", &"field_opportunities", &"private_exchange",
 ]
+## Wire keys belong to schema 43; runtime domains use their current names.
+const SNAPSHOT_KEYS: Dictionary = {&"environment_fields": &"local_heat"}
 # Keep query order stable too: a future derived cache must not silently turn
 # next-boundary collection into an unordered set of domain callbacks.
 const BOUNDARY_DOMAINS: Array[StringName] = [
@@ -57,7 +59,7 @@ const BOUNDARY_DOMAINS: Array[StringName] = [
 	&"artifacts", &"sparring", &"avian_life", &"soul_vessels", &"admissions",
 	&"construction", &"resting", &"weather", &"standing_work", &"large_bodies",
 	&"method_records", &"personal_production", &"budgeted_labor", &"clothing",
-	&"health", &"environment", &"local_heat", &"spirit_sources", &"conflicts", &"source_care", &"capability_practice", &"field_opportunities", &"private_exchange",
+	&"health", &"environment", &"environment_fields", &"spirit_sources", &"conflicts", &"source_care", &"capability_practice", &"field_opportunities", &"private_exchange",
 ]
 # The runtime adapter historically used this ordered subset to choose an outer
 # interval before its heat preflight and player-journey checks. Other world,
@@ -65,7 +67,7 @@ const BOUNDARY_DOMAINS: Array[StringName] = [
 const RUNTIME_BOUNDARY_DOMAINS: Array[StringName] = [
 	&"construction", &"resting", &"weather", &"clothing", &"health",
 	&"spirit_sources", &"conflicts", &"source_care", &"field_opportunities",
-	&"private_exchange", &"capability_practice", &"environment", &"local_heat",
+	&"private_exchange", &"capability_practice", &"environment", &"environment_fields",
 	&"large_bodies", &"personal_production",
 ]
 # Describes the existing world-level order; it is not an automatic callback
@@ -126,7 +128,7 @@ var autonomous_livelihood: SimAutonomousLivelihood
 var clothing: SimClothing
 var health: SimHealth
 var environment: SimEnvironment
-var local_heat: RefCounted
+var environment_fields: RefCounted
 var spirit_sources: SimSpiritSources
 var conflicts: SimConflicts
 var site_affairs: RefCounted
@@ -175,7 +177,7 @@ func capture_object_space(references: Array, budget: int = 4096) -> Dictionary:
 
 
 func bind_environment_boundary_guard(guard: RefCounted) -> bool:
-	if guard != null and local_heat is SimWorldEnvironmentFields:
+	if guard != null and environment_fields is SimWorldEnvironmentFields:
 		return false # Ordinary fields are the sole transaction participant.
 	if object_lifecycle == null or _environment_boundary_waiting or _environment_event != null or object_lifecycle.environment_change_pending():
 		return false
@@ -344,8 +346,8 @@ func initialize(definitions: Dictionary, instances: Dictionary, content: ReolCon
 	if not spirit_sources.initialize(self, content.spirit_sources):
 		errors.append("Invalid finite spiritual source definitions")
 		return false
-	local_heat = SimWorldEnvironmentFields.new()
-	if not local_heat.initialize(self, content.local_heat):
+	environment_fields = SimWorldEnvironmentFields.new()
+	if not environment_fields.initialize(self, content.local_heat):
 		errors.append("Invalid current environmental field definitions")
 		return false
 	environment = SimEnvironment.new()
@@ -609,7 +611,7 @@ func advance_to(requested_time: int, max_events: int = 4096) -> bool:
 func advance_to_ms(requested_ms: int, max_events: int = 4096) -> bool:
 	if object_lifecycle != null and object_lifecycle._committing:
 		return false
-	if local_heat is SimWorldEnvironmentFields and not local_heat.activate_sources():
+	if environment_fields is SimWorldEnvironmentFields and not environment_fields.activate_sources():
 		errors.append("Environmental sources could not activate before advancing")
 		return false
 	if requested_ms < elapsed_ms or requested_ms > MAX_COUNT or regions.is_empty():
@@ -635,8 +637,8 @@ func advance_to_ms(requested_ms: int, max_events: int = 4096) -> bool:
 			next_ms = mini(next_ms, int(_region_boundaries[region_id]))
 		# Numeric/ledger exhaustion must leave all original clocks and bodies at
 		# the last accepted boundary. Keep target_ms as explicit owed work.
-		if not local_heat.can_settle_at_ms(next_ms):
-			errors.append("Local heat transfer exceeds its declared numerical budget")
+		if not environment_fields.can_settle_at_ms(next_ms):
+			errors.append("Environment fields exceed their declared numerical budget")
 			return false
 		var old_minute: int = current_time
 		if _manual_motion_executor.is_valid():
@@ -691,8 +693,8 @@ func _complete_boundary() -> bool:
 func _settle_previous_interval() -> bool:
 	# These existing processes price the interval that just elapsed before
 	# arrivals, new effects, or environment sampling can change their inputs.
-	if not local_heat.settle_at_ms(elapsed_ms):
-		errors.append("Local heat could not settle the previous interval")
+	if not environment_fields.settle_at_ms(elapsed_ms):
+		errors.append("Environment fields could not settle the previous interval")
 		return false
 	health.settle_at_ms(elapsed_ms)
 	weather.settle_at_ms(elapsed_ms)
@@ -813,7 +815,7 @@ func _sample_herb_conditions(opening: bool = false) -> bool:
 				continue
 			var place: String = str(sim.config.resource_sources[id].place)
 			var point: Vector2i = _cell(sim.places[place].cell)
-			var projected: Dictionary = local_heat.project_tenths(point, elapsed_ms)
+			var projected: Dictionary = environment_fields.project_tenths(point, elapsed_ms)
 			if not bool(projected.supported):
 				return false
 			var heat: int = int(projected.value)
@@ -836,22 +838,22 @@ func _valid_herb_conditions() -> bool:
 			var point: Vector2i = _cell(sim.places[sim.config.resource_sources[id].place].cell)
 			var at_ms: int = int(ecology.sample_ms)
 			var heat: int = int(ecology.heat_tenths)
-			if at_ms == local_heat.last_sample_ms:
-				if local_heat is SimWorldEnvironmentFields and not bool(local_heat.sample_result(point, at_ms).get("supported", false)):
+			if at_ms == environment_fields.last_sample_ms:
+				if environment_fields is SimWorldEnvironmentFields and not bool(environment_fields.sample_result(point, at_ms).get("supported", false)):
 					return false
-				if local_heat.sample_tenths(point, at_ms) != heat:
+				if environment_fields.sample_tenths(point, at_ms) != heat:
 					return false
 			elif at_ms == elapsed_ms:
-				var projected: Dictionary = local_heat.project_tenths(point, at_ms)
+				var projected: Dictionary = environment_fields.project_tenths(point, at_ms)
 				if not bool(projected.supported) or int(projected.value) != heat:
 					return false
 			elif at_ms != int(ecology.activation_ms):
 				return false
-			elif local_heat is SimWorldEnvironmentFields:
+			elif environment_fields is SimWorldEnvironmentFields:
 				# The response field begins at the committed climate background.
 				# Only that actual activation sample is known to be neutral; an
 				# older sample cannot be reconstructed from today's field.
-				if at_ms != int(local_heat.activation_ms) or heat != 0:
+				if at_ms != int(environment_fields.activation_ms) or heat != 0:
 					return false
 			else:
 				# A migrated source can retain its activation sample across the
@@ -860,16 +862,16 @@ func _valid_herb_conditions() -> bool:
 				# without pretending to replay an unavailable thermal history.
 				var key: String = "%d,%d" % [point.x, point.y]
 				@warning_ignore("integer_division")
-				if local_heat is LegacyHeatV1:
-					var maximum: int = mini(int(local_heat.definitions.max_cell_energy), int(local_heat.input_energy)) / int(local_heat.definitions.capacity_per_tenth)
-					if heat < 0 or heat > maximum or heat > 0 and not local_heat.cells.has(key):
+				if environment_fields is LegacyHeatV1:
+					var maximum: int = mini(int(environment_fields.definitions.max_cell_energy), int(environment_fields.input_energy)) / int(environment_fields.definitions.capacity_per_tenth)
+					if heat < 0 or heat > maximum or heat > 0 and not environment_fields.cells.has(key):
 						return false
-				elif at_ms < int(local_heat.model_started_ms):
-					var limits: Dictionary = local_heat.legacy_limits
-					var maximum: int = mini(int(local_heat.definitions.max_cell_energy) - 13000 * int(local_heat.definitions.capacity_per_tenth), int(limits.get("input_energy", 0))) / int(local_heat.definitions.capacity_per_tenth)
+				elif at_ms < int(environment_fields.model_started_ms):
+					var limits: Dictionary = environment_fields.legacy_limits
+					var maximum: int = mini(int(environment_fields.definitions.max_cell_energy) - 13000 * int(environment_fields.definitions.capacity_per_tenth), int(limits.get("input_energy", 0))) / int(environment_fields.definitions.capacity_per_tenth)
 					if limits.is_empty() or heat < 0 or heat > maximum or heat > 0 and not limits.cells.has(key):
 						return false
-				elif heat < local_heat.minimum_offset_tenths() or heat > local_heat.maximum_offset_tenths() or heat != 0 and not local_heat.has_cell(point):
+				elif heat < environment_fields.minimum_offset_tenths() or heat > environment_fields.maximum_offset_tenths() or heat != 0 and not environment_fields.has_cell(point):
 					return false
 			var expected: Dictionary = herb_conditions_for(_content, weather.to_dict(), point, at_ms, heat)
 			if expected.is_empty() or int(ecology.temperature_tenths) != int(expected.temperature_tenths) or bool(ecology.rain) != bool(expected.rain):
@@ -1016,7 +1018,7 @@ func known_event_lines(region_id: String, limit: int = 3) -> Array[String]:
 func to_dict() -> Dictionary:
 	if environment_boundary_active() or (object_lifecycle != null and (object_lifecycle._committing or object_lifecycle.environment_change_pending())):
 		return {}
-	if not local_heat.settle_at_ms(elapsed_ms) or not synchronize_regions():
+	if not environment_fields.settle_at_ms(elapsed_ms) or not synchronize_regions():
 		return {}
 	var regional_states: Dictionary = {}
 	for region_id: String in _sorted_keys(regions):
@@ -1032,7 +1034,7 @@ func to_dict() -> Dictionary:
 		"next_id": _next_id,
 	}
 	for name: StringName in SNAPSHOT_DOMAINS:
-		snapshot[String(name)] = get(name).to_dict()
+		snapshot[String(SNAPSHOT_KEYS.get(name, name))] = get(name).to_dict()
 	if services != null:
 		snapshot["services"] = services.to_dict()
 	return _json_keys(snapshot)
@@ -1174,10 +1176,10 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 		return false
 	candidate_world.method_records = next_records
 	# Validate against the candidate's field, never the live world's owner.
-	var next_heat := SimWorldEnvironmentFields.new()
-	if not next_heat.initialize(candidate_world, _content.local_heat):
+	var next_fields := SimWorldEnvironmentFields.new()
+	if not next_fields.initialize(candidate_world, _content.local_heat):
 		return false
-	candidate_world.local_heat = next_heat
+	candidate_world.environment_fields = next_fields
 	var next_artifacts := SimArtifacts.new()
 	candidate_world.artifacts = next_artifacts
 	if not next_artifacts.initialize(candidate_world, _content.artifacts) or not next_artifacts.restore(data.artifacts):
@@ -1260,7 +1262,7 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	if not next_health.initialize(candidate_world, _content.health) or not next_health.restore(data.health):
 		return false
 	candidate_world.health = next_health
-	if not next_heat.restore(data.local_heat):
+	if not next_fields.restore(data.local_heat):
 		return false
 	# Artifact shape validation runs before health and personal understanding
 	# are restored. Only now can an in-flight warming action be cross-checked.
@@ -1318,7 +1320,7 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	spirit_sources.bind_world(self)
 	environment = next_environment
 	environment.bind_world(self)
-	local_heat = next_heat
+	environment_fields = next_fields
 	health = next_health
 	health.bind_world(self)
 	clothing = next_clothing
@@ -1369,7 +1371,7 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	operations = data.operations.duplicate(true)
 	in_transit = next_transit
 	_next_id = int(data.next_id)
-	local_heat.bind_world(self)
+	environment_fields.bind_world(self)
 	if next_services != null:
 		services = next_services
 		services.bind_world(self)
@@ -1637,7 +1639,7 @@ func _valid_world_shape(data: Dictionary) -> bool:
 		if not data.get(field) is Dictionary:
 			return false
 	for field: StringName in SNAPSHOT_DOMAINS:
-		if not data.get(field) is Dictionary:
+		if not data.get(SNAPSHOT_KEYS.get(field, field)) is Dictionary:
 			return false
 	if data.spirit_sources.get("version") != SimSpiritSources.VERSION:
 		return false

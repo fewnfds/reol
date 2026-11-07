@@ -71,7 +71,7 @@ func _run() -> void:
 	# top-level runtime class annotations can compile their autoload references
 	# before Godot has registered GameClock when launched with --script.
 	var field_script: Variant = load("res://scripts/sim/world_environment_fields.gd")
-	var field: RefCounted = world.get("local_heat")
+	var field: RefCounted = world.get("environment_fields")
 	var field_matches: bool = field != null and field_script != null and is_instance_of(field, field_script)
 	if editor == null or not field_matches or not _clock_stable(world, 0):
 		_fail("field_editor_or_clock_unavailable", {
@@ -315,7 +315,7 @@ func _elapsed_ms(start: int) -> float:
 
 
 func _sample(world: RefCounted, cell: Vector2i) -> Dictionary:
-	var field: RefCounted = world.get("local_heat")
+	var field: RefCounted = world.get("environment_fields")
 	if field == null or not bool(field.call("activate_sources")):
 		return {"ok": false, "reason": "field_activation"}
 	var at_ms: int = int(world.get("elapsed_ms"))

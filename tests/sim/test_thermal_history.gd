@@ -31,19 +31,19 @@ func _real_sources_and_restore(runner: Object) -> void:
 	var world: RegionalSimulation = _environment._world(runner)
 	if world == null or not _environment._prepare(runner, world) or not _environment._do(runner, world, "warm"):
 		return
-	var warm: Dictionary = world.local_heat.to_dict()
+	var warm: Dictionary = world.environment_fields.to_dict()
 	runner.assert_true(not warm.receipts.is_empty(), "a real completed warm-stone action creates the original source receipt")
-	_check_detached(runner, world.local_heat, warm, "actual warm pulse")
+	_check_detached(runner, world.environment_fields, warm, "actual warm pulse")
 	if not _devices._action(runner, world, "player", "study", DeviceFixtures.FIRE) or not _devices._action(runner, world, "player", "enable", DeviceFixtures.FIRE):
 		return
-	var enabled: Dictionary = world.local_heat.to_dict()
+	var enabled: Dictionary = world.environment_fields.to_dict()
 	runner.assert_true(bool(world.artifacts.objects[DeviceFixtures.FIRE].enabled), "the original finite fire stone is actually enabled")
 	runner.assert_eq(enabled.device_switches.size(), 1, "the actual enable has one original thermal switch")
-	_check_detached(runner, world.local_heat, enabled, "actual same-cell fire enable")
-	_check_same_ms_enable(runner, world.local_heat, enabled)
+	_check_detached(runner, world.environment_fields, enabled, "actual same-cell fire enable")
+	_check_same_ms_enable(runner, world.environment_fields, enabled)
 	if not _devices._action(runner, world, "player", "disable", DeviceFixtures.FIRE):
 		return
-	var heat: SimLocalHeat = world.local_heat
+	var heat: SimLocalHeat = world.environment_fields
 	var saved: Dictionary = JSON.parse_string(_json(world.to_dict()))
 	var data: Dictionary = saved.local_heat
 	runner.assert_true(not bool(world.artifacts.objects[DeviceFixtures.FIRE].enabled), "the original device actually finishes its disable action")

@@ -117,7 +117,7 @@ func _future_only(runner: Object) -> void:
 		return
 	runner.assert_eq(before - _energy(world), base_rate + old_rate, "warm completion does not refund or remove the preceding cold minute")
 	var event: Dictionary = world.artifacts.events.back()
-	runner.assert_true(event.kind == "warmed" and world.local_heat.receipts.has(event.action), "only the real completed warm job installs its original temporary source")
+	runner.assert_true(event.kind == "warmed" and world.environment_fields.receipts.has(event.action), "only the real completed warm job installs its original temporary source")
 	var sample: Dictionary = world.environment.samples.player
 	runner.assert_eq(int(sample.heat_tenths), 0, "the actual temperature does not jump at the source's completion instant")
 	runner.assert_eq(world.environment.energy_rate("player"), old_rate, "the completion instant leaves the already-sampled cold rate unchanged")
@@ -153,12 +153,12 @@ func _neutral_background_and_preview(runner: Object) -> void:
 	var current: Dictionary = world.environment.local_conditions("player")
 	var cell: Vector2i = world.artifacts.object_cell("hearth_stone")
 	var before: String = _state(world)
-	var heat_time: int = int(world.local_heat.last_ms)
-	var actual: Dictionary = world.local_heat.project_tenths(cell, world.elapsed_ms)
+	var heat_time: int = int(world.environment_fields.last_ms)
+	var actual: Dictionary = world.environment_fields.project_tenths(cell, world.elapsed_ms)
 	runner.assert_true(bool(actual.get("supported", false)) and actual.get("value") == current.get("heat_tenths"), "the actual committed temperature is supported and agrees with local conditions")
 	for offset: int in [1, 7319, 60000, 86400000]:
 		var preview: Dictionary = world.environment.local_conditions("player", world.elapsed_ms + offset)
-		var projected: Dictionary = world.local_heat.project_tenths(cell, world.elapsed_ms + offset)
+		var projected: Dictionary = world.environment_fields.project_tenths(cell, world.elapsed_ms + offset)
 		runner.assert_eq(projected.get("supported"), false, "uncommitted future field values remain explicitly unknown")
 		runner.assert_eq(preview.get("heat_supported"), false, "future local conditions preserve that uncertainty")
 		runner.assert_true(not projected.has("value") and not preview.has("heat_tenths"), "unknown future heat has no numeric zero or cold sentinel")
@@ -166,9 +166,9 @@ func _neutral_background_and_preview(runner: Object) -> void:
 		if projected.get("reason") is String and preview.get("heat_reason") is String:
 			runner.assert_eq(preview.heat_reason, projected.reason, "local conditions retain the projection failure reason")
 		runner.assert_true(not preview.has("temperature_tenths") and not preview.has("burden_rate"), "an unsupported forecast does not publish an exact temperature or burden")
-		runner.assert_eq(preview.get("temperature_min_tenths"), 220 + world.local_heat.minimum_offset_tenths(), "the lower bound includes an admissible cold offset")
-		runner.assert_eq(preview.get("temperature_max_tenths"), 220 + world.local_heat.maximum_offset_tenths(), "the upper bound includes an admissible warm offset")
-		runner.assert_eq(world.local_heat.last_ms, heat_time, "future conditions never advance the real thermal integrator")
+		runner.assert_eq(preview.get("temperature_min_tenths"), 220 + world.environment_fields.minimum_offset_tenths(), "the lower bound includes an admissible cold offset")
+		runner.assert_eq(preview.get("temperature_max_tenths"), 220 + world.environment_fields.maximum_offset_tenths(), "the upper bound includes an admissible warm offset")
+		runner.assert_eq(world.environment_fields.last_ms, heat_time, "future conditions never advance the real thermal integrator")
 	runner.assert_eq(_state(world), before, "repeated future condition previews mutate no world, source or committed field state")
 
 
@@ -186,7 +186,7 @@ func _historical_sample(runner: Object) -> void:
 	world.invalidate_region("home")
 	runner.assert_true(world.advance_to_ms(world.elapsed_ms + 1737), "the world moves past the sampled boundary")
 	runner.assert_eq(world.environment.local_conditions("player").heat_tenths, 0, "moving away leaves the real heat at its fixed original location")
-	runner.assert_true(world.local_heat.local_tenths(source_cell) != int(sampled.heat_tenths), "current dissipation differs from the previously sampled thermal history")
+	runner.assert_true(world.environment_fields.local_tenths(source_cell) != int(sampled.heat_tenths), "current dissipation differs from the previously sampled thermal history")
 	var saved: Dictionary = JSON.parse_string(_state(world))
 	var copied: RegionalSimulation = _world(runner)
 	if copied == null:
@@ -224,7 +224,7 @@ func _large_valid_temperature(runner: Object) -> void:
 		return
 	var sample: Dictionary = world.environment.samples.player
 	runner.assert_true(sample.temperature_tenths > 10000, "a valid intrinsically hot object raises actual sampled temperature beyond the ordinary climate range")
-	var actual: Dictionary = world.local_heat.actual_at(world.artifacts.object_cell("intrinsic_hot_fixture"), world.elapsed_ms)
+	var actual: Dictionary = world.environment_fields.actual_at(world.artifacts.object_cell("intrinsic_hot_fixture"), world.elapsed_ms)
 	runner.assert_true(bool(actual.get("ok", false)), "the strong source has an accessible actual temperature")
 	if bool(actual.get("ok", false)):
 		runner.assert_eq(int(sample.temperature_tenths), roundi(float(actual.value_c) * 10.0), "the original player's sample uses the same actual field")

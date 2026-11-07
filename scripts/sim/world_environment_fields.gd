@@ -1,7 +1,7 @@
 class_name SimWorldEnvironmentFields
 extends RefCounted
-## The ordinary world's only actual temperature/element authority. local_heat
-## is retained as a consumer-facing name, never as a second Q diffusion model.
+## The ordinary world's temperature/five-element authority, installed as
+## RegionalSimulation.environment_fields. Serialized by the world's codec.
 ## Source indexes are disposable projections over original object owners.
 
 const VERSION: int = 4

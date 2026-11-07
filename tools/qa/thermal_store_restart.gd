@@ -47,7 +47,7 @@ func _run() -> void:
 			await process_frame
 		if not _require(_runtime.controlled_cell() == field, "original body did not arrive at field") or not _stone_action("warm") or not _advance(173):
 			return
-		if not _require(_runtime.world_sim.local_heat.storage_summary() == {"logical_cells": 25, "q_slots": 6}, "ordinary paid pulse did not select unique orbit Q"):
+		if not _require(_runtime.world_sim.environment_fields.storage_summary() == {"logical_cells": 25, "q_slots": 6}, "ordinary paid pulse did not select unique orbit Q"):
 			return
 		if not _require(_runtime.save_game(ProjectSettings.globalize_path(STORE_SAVE)) == OK, "ordinary compressed checkpoint save failed"):
 			return
@@ -66,7 +66,7 @@ func _run() -> void:
 			return
 		if not _require(_digest() == expected.saved_digest and _clock.elapsed_ms == int(expected.at_ms), "complete loaded world differs"):
 			return
-		if not _require(_runtime.world_sim.local_heat.storage_summary() == {"logical_cells": 25, "q_slots": 6}, "fresh load did not rebuild compressed ownership") or not _advance(FUTURE_MS):
+		if not _require(_runtime.world_sim.environment_fields.storage_summary() == {"logical_cells": 25, "q_slots": 6}, "fresh load did not rebuild compressed ownership") or not _advance(FUTURE_MS):
 			return
 		if not _require(_digest() == expected.future_digest, "independent native future differs"):
 			return
@@ -81,7 +81,7 @@ func _run() -> void:
 		_report.screenshots.append(path)
 	if not _clock_consistent() or not _within_budget():
 		return
-	_report["storage"] = _runtime.world_sim.local_heat.storage_summary()
+	_report["storage"] = _runtime.world_sim.environment_fields.storage_summary()
 	_report["elapsed_real_ms"] = Time.get_ticks_msec() - _started_ms
 	_report["result"] = "passed"
 	_write_json(_report_path(), _report)
@@ -111,7 +111,7 @@ func _find_field(kitchen: Vector2i) -> Vector2i:
 			for dy: int in range(-3, 4):
 				for dx: int in range(-3, 4):
 					var cell: Vector2i = point + Vector2i(dx, dy)
-					available = available and world.local_heat._valid_cell(cell) and not world.construction.thermal_roofed(cell) and not world.construction.thermal_barrier(cell)
+					available = available and world.environment_fields._valid_cell(cell) and not world.construction.thermal_roofed(cell) and not world.construction.thermal_barrier(cell)
 			if available:
 				return point
 	return Vector2i(-1, -1)

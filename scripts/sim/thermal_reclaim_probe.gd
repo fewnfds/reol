@@ -23,7 +23,7 @@ static func inspect(heat: SimLocalHeat, max_work: int = 4096) -> Dictionary:
 	var world: RegionalSimulation = owner
 	if world._content == null or world.weather == null or world.artifacts == null or heat.definitions.is_empty():
 		return _unknown("missing_bound_domains", work, heat.last_ms)
-	if world.local_heat != heat:
+	if world.environment_fields != heat:
 		return _unknown("detached_field", work, heat.last_ms)
 	var climate: Dictionary = world._content.climate
 	var weather: Dictionary = world.weather.definitions

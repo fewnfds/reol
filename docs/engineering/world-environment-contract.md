@@ -1,10 +1,12 @@
 # 普通世界环境与调度合同
 
-本文记录 2026-11-07 隔离收尾工作树中的实际接线，不代表最终回归、性能验收或合并已完成。当前工作状态和证据以[接续](../status/handoff.md)为准；已定玩法规则见[环境规则](../../design/rules/environment.md)。
+本文记录普通世界的环境接线。当前工作状态和验证证据以[接续](../status/handoff.md)为准；已定玩法规则见[环境规则](../../design/rules/environment.md)。
 
 ## 所有权与范围
 
-[RegionalSimulation](../../scripts/sim/regional_simulation.gd) 装配一个 [SimWorldEnvironmentFields](../../scripts/sim/world_environment_fields.gd)，通过既有字段 `local_heat` 提供给普通世界消费者。它是当前普通世界室外实际温度和五行环境响应的唯一环境域；`local_heat` 是兼容调用名称，不表示旧Q扩散域也在普通局运行。气候、天气、身体、植物、器物、库存和共同时间继续由原领域持有。
+[RegionalSimulation](../../scripts/sim/regional_simulation.gd) 装配一个 [SimWorldEnvironmentFields](../../scripts/sim/world_environment_fields.gd)，通过运行字段 `environment_fields` 提供给普通世界消费者。它是当前普通世界室外实际温度和五行环境响应的唯一环境域；气候、天气、身体、植物、器物、库存和共同时间继续由原领域持有。
+
+当前存档的 `local_heat` 是保存数据键，由 snapshot codec 映射到运行时 `environment_fields`。`ReolContentDB.local_heat` 和 `data/definitions/local_heat.json` 则保存热设备参数定义，不能把它们当成运行环境域或自动重命名存档数据。
 
 - `SimEnvironmentTemperatureState` 保存已受来源影响格的实际温度及响应锚点；`SimEnvironmentPhaseState`保存这些格的五行响应。来源离开后，已产生的残留属于环境状态，不能根据当前物品倒算历史。
 - [SimWorldEnvironmentBackground](../../scripts/sim/world_environment_background.gd) 保存气候区共享背景的响应段，供尚未受来源影响的格查询；它随世界环境共同时间推进，不拥有另一套独立时钟。
@@ -17,7 +19,7 @@
 
 每个已定义来源按圆形欧氏距离衰减；五行逐通道取最大，热侧与冷侧各取最大再按等级相抵，转换为相对当地气候的温度目标。实际温度/五行沿共同时间从保存的锚点逐渐趋向目标；移动、移除或关闭后旧处残留继续响应，不会立即清零。共享的接收端潮汐来自世界种子、位置及时间，不逐件创建独立计时器。具体曲线和量化参数是可调实现，不是严格热力学或总能量守恒模型。
 
-`next_boundary_ms()`收集背景、响应段、临时来源到期及固定热设备剩余容量边界。已存在的固定设备仍由原器物持有`stored_q/enabled`等状态，实际出入与开关在原世界时间结算；旧有暖身动作的临时来源有明确时限和回执，不将携带物整个登记为持续源。
+`next_boundary_ms()`收集背景、响应段、临时来源到期及固定热设备剩余容量边界。已存在的固定设备仍由原器物持有储热量 `stored_q` 和开关 `enabled`，实际出入与开关在原世界时间结算；旧有暖身动作的临时来源有明确时限和回执，不将携带物整个登记为持续源。
 
 开发分支`codex/sparse-world-execution`的领域持有[通用参与索引](sparse-execution.md)：设备只处理当前参与者，响应只刷新到期的块与域，来源提交只使本次触及范围的截止摘要失效。干净基础场按实际变化格/通道准备响应，冷块先用局部索引证明旧值，无法证明则完整回退。索引可从原响应锚点和器物重建，不进入存档；该优化尚未合入Git main，具体关系见[技术总表](../status/technical-status.md)。
 
