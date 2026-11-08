@@ -568,10 +568,14 @@ func _find_path(from_cell: Vector2i, to_cell: Vector2i) -> Array[Vector2i]:
 		int(settings.runtime.layout_radius), int(settings.runtime.layout_budget))
 
 
+## Callback work allowance, independent of game rules or saved world time.
+var settlement_work_budget: int = 4096
+
+
 func advance_to_ms(target_ms: int) -> int:
 	if world_sim == null:
 		return GameClock.elapsed_ms
-	if avatar_adapter != null:
+	if avatar_adapter != null and not world_sim.settlement.is_pending():
 		avatar_adapter.prepare_step()
 	var prior_artifact_events: int = world_sim.artifacts.events.size()
 	var prior_artifact_users: int = world_sim.artifacts.active.size()
@@ -585,16 +589,21 @@ func advance_to_ms(target_ms: int) -> int:
 	var prior_production_phase: String = str(world_sim.personal_production.active.get("player", {}).get("phase", ""))
 	var prior_labor_id: String = world_sim.budgeted_labor.latest_for("player")
 	var prior_labor_status: String = str(world_sim.budgeted_labor.contracts[prior_labor_id].status) if not prior_labor_id.is_empty() else ""
-	var cursor: int = world_sim.elapsed_ms
-	while cursor < target_ms:
-		var end: int = world_sim.next_runtime_boundary_ms(target_ms)
+	var cursor: int = world_sim.settled_ms()
+	var work_left: int = maxi(1, settlement_work_budget)
+	while cursor < target_ms or world_sim.settlement.is_pending():
+		if work_left <= 0:
+			_home._player._project_motion()
+			return cursor
+		var resuming: bool = world_sim.settlement.is_pending()
+		var end: int = world_sim.elapsed_ms if resuming else world_sim.next_runtime_boundary_ms(target_ms)
 		if not world_sim.environment_fields.can_settle_at_ms(end):
 			world_sim.target_ms = maxi(world_sim.target_ms, target_ms)
 			GameClock.set_paused(true)
 			_notice = "环境结算达到数值边界；待处理时间已保留。"
 			_refresh_panel()
-			return world_sim.elapsed_ms
-		if not player_journey.is_empty():
+			return GameClock.elapsed_ms if resuming else world_sim.settled_ms()
+		if not resuming and not player_journey.is_empty():
 			if not _player_has_motion_control():
 				cancel_travel()
 				continue
@@ -604,8 +613,16 @@ func advance_to_ms(target_ms: int) -> int:
 				cancel_travel()
 				continue
 		var old_errors: int = world_sim.errors.size()
-		var completed: bool = world_sim.advance_to_ms(end, int(settings.event_budget))
-		cursor = world_sim.elapsed_ms
+		var completed: bool = world_sim.advance_to_ms(end, int(settings.event_budget), work_left)
+		work_left -= world_sim.settlement_work
+		cursor = world_sim.settled_ms()
+		if world_sim.settlement.is_pending():
+			if world_sim.errors.size() > old_errors:
+				GameClock.set_paused(true)
+			_notice = "世界事务待处理，未完成时间已保留。"
+			# No notification may publish a partially completed boundary, even
+			# if this invocation completed earlier boundaries before yielding.
+			return GameClock.elapsed_ms
 		# A blow at the final boundary can impose a new reaction lock after the
 		# body's last displacement. Commit its speed constraint at this same
 		# boundary, so a genuine immediate save is already a valid candidate.
@@ -772,6 +789,8 @@ func _journey_label(destination: String) -> String:
 
 
 func cancel_travel() -> void:
+	if world_sim != null and not world_sim.accepts_commands():
+		return
 	if not player_journey.is_empty():
 		player_journey = {}
 		_notice = "行程已中断，世界仍继续运转。"

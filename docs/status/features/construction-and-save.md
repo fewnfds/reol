@@ -22,6 +22,8 @@
 
 **已实现基础。** 联合快照包括当前身份、共同时间、探索、原身体/库存/机构记录、在途货物与各已接领域。先构造独立候选并完整检查，再替换活世界；文件写入有备份/原子替换。当前普通根格式为53；根52使用旧建筑模型，根1–51缺少新场所需的历史，当前入口明确拒绝，不自动迁入，也不改原档或活会话。环境与原物的联合候选通过校验后才替换活世界；已集成代码有进行中操作和完整停开接续证据，具体范围见[BASELINE](../baseline.md)。
 
+共同结算工作分支中，一个时间边界因预算不足尚未结清时，保存与加载会拒绝；续算完成后可以保存已经处于进行中的一般动作。原生Main已验证完全停开后相同checkpoint和未来，本包当前版本与最终验证状态见[BASELINE](../baseline.md)。
+
 已统一部分UI、人物/设施/地形风格和拥挤点击布局，魂体使用独立感知视图；人物当前采用代码生成像素占位。历史fixtures和进行中源档保留为只读证据，不表示当前入口能迁入旧根格式；兼容边界见[兼容政策](../../engineering/compatibility.md)，最新回归结果见BASELINE。当前小世界有1280×720运行截图与同机呈现对照；不等于正式美术、全部比例布局、目标人口性能或独立发布包通过。
 
 证据：[BASELINE](../baseline.md)、[Demo重构](../../archive/report-entries/demo-refactor-report.md)、[呈现测量](../../qa/20261103_presentation_timing.md)。代码：[world_session_snapshot.gd](../../../scripts/runtime/world_session_snapshot.gd)、[session_save_schema.gd](../../../scripts/persistence/session_save_schema.gd)、[save_store.gd](../../../scripts/persistence/save_store.gd)。

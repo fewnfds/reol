@@ -10,6 +10,8 @@
 
 [WorldSessionSnapshot](../../../scripts/runtime/world_session_snapshot.gd)在共同时刻捕获联合快照，独立候选先恢复各域，再核跨域来源/成本/位置/占用；成功后才替换活世界与呈现引用。[SessionSaveSchema](../../../scripts/persistence/session_save_schema.gd)校验根版本并明确拒绝旧环境档，[SnapshotValues](../../../scripts/persistence/snapshot_values.gd)处理JSON值，[SimSaveStore](../../../scripts/persistence/save_store.gd)负责文件备份/原子替换。
 
+共同结算工作分支的边界续算中，未结清或失败的阶段不能捕获快照或替换活世界；已结清边界可以保存原本允许进行中的动作。结算调用图和游标是派生执行状态，不额外保存第二个时钟；成功恢复后重绑原owner并重新装配。详见[共同结算合同](../settlement-contract.md)，版本与证据见[BASELINE](../../status/baseline.md)。
+
 当前代码写根53、区域44和含来源定义的内容包2；旧根不伪造Q到场响应的迁移。具体边界见[兼容性](../compatibility.md)与[环境合同](../world-environment-contract.md)。历史没有的知识、交易、物件和经历不能由新开局补造；当前墙门/人物位置不能证明过去的见证。同毫秒次序只能用已有序号/半开区间证明，不声称完整历史重演。围合、占地索引、缓存和纹理可重建，不作为另一份存档真值。
 
 ## 保存操作与成熟能力

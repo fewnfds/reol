@@ -31,9 +31,9 @@
 
 `test --list-suites`只列已注册组；`test --suite test_<完整名称>`可重复，按注册表排序执行并去重。未知名称/参数和报告打开失败必须非零退出。默认`check`运行完整注册表，不接受`--suite`。
 
-`test`和`check`可用`--shard INDEX/TOTAL`按排序后的完整注册表取互不重叠的分片（从1计数，注册表下标对TOTAL取模）。它不能和`--suite`混用；单片通过只证明该片。`--list-suites --shard INDEX/TOTAL`可核选中范围。CI在4个独立runner执行各片，避免共享可变fixture、`user://`和时钟；本机不要为模拟CI同时启动多套引擎。
+`test`和`check`可用`--shard INDEX/TOTAL`按排序后的完整注册表取互不重叠的分片（从1计数，注册表下标对TOTAL取模）。它不能和`--suite`混用；单片通过只证明该片。`--list-suites --shard INDEX/TOTAL`可核选中范围。CI使用12个独立runner执行各片，避免共享可变fixture、`user://`和时钟；实际同时运行数受仓库配额及排队影响。本机不要为模拟CI同时启动多套引擎。
 
-CI只有各worker的导入、日志错误、超时及退出码门禁均通过后，才由`tools/check_test_reports.py DIRECTORY --shards 4`核对各片相同的完整注册表、确定分片、逐组开始/完成、断言总数与完整终态。缺片、重复组、遗漏或失败均不能通过。覆盖报告不能代替worker退出码；手动本机分片验证也须同时保留每片包装器的成功结果。
+CI只有各worker的导入、日志错误、超时及退出码门禁均通过后，才由`tools/check_test_reports.py DIRECTORY --shards 12`核对各片相同的完整注册表、确定分片、逐组开始/完成、断言总数与完整终态。缺片、重复组、遗漏或失败均不能通过。覆盖报告不能代替worker退出码；手动本机分片验证也须同时保留每片包装器的成功结果。workflow的`GODOT_TEST_SHARDS`同时传给执行器和覆盖检查，改变分片数时须同步matrix中的片号。
 
 每组输出耗时与断言增量，终态列最慢十组。Python入口默认生成唯一的`logs/*-timings-*.jsonl`，也可用`--timing-report PATH`指定。JSONL逐组开始/完成即flush；超时后一次读取已完成记录及最后开始的组，不轮询文件。计时是墙钟时间，包含fixture与断言，不是函数级性能分析。
 
@@ -43,7 +43,7 @@ CI只有各worker的导入、日志错误、超时及退出码门禁均通过后
 
 ## GitHub与本机边界
 
-当前workflow使用标准`ubuntu-24.04`托管runner，4片运行Godot导入与headless CPU回归，Python工具测试在第1片运行，上传独立输出及计时文件，最后聚合完整覆盖。GPU测试无RenderingDevice时验证CPU回退。自动测试适合确定性规则、所有权、存读和错误退出；总工作量与各片耗时均由逐组证据定位。
+当前workflow使用标准`ubuntu-24.04`托管runner，12片运行Godot导入与headless CPU回归，Python工具测试在第1片运行，上传独立输出及计时文件，最后聚合完整覆盖。GPU测试无RenderingDevice时验证CPU回退。自动测试适合确定性规则、所有权、存读和错误退出；总工作量与各片耗时均由逐组证据定位。
 
 普通runner不提供本项目所需显卡保证，无法验收真实GPU加速、画面、输入手感或目标PC帧时。GPU证据在本机真实显卡取得；需要时可单独记录Windows独立包和硬件性能。软件渲染不是目标显卡替代品。GitHub另有GPU larger runner，但不是当前配置；不为普通回归新增付费或自托管基础设施。
 

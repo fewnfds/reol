@@ -6,7 +6,7 @@
 
 main已从`2e6b6a61caf11b5560c15a97f1a58cb156a7300b`快进并推送到`eb330ee9c38fa3a5cc72004372ddeefd70409b1e`，完整包含通用建筑与组合空间。合并前核CI42457788038的完整headSha为d00bac且success；该受检代码至集成点只有Markdown差异。本轮阶段整合沿`codex/framework-consolidation`整理文档并归入同一主线，实际指针以Git为准。
 
-分支祖先核对显示全部已完成本地/远端开发分支均在main历史，唯一未合入本地分支是下述旧争环WIP，没有其他待合并正式成果。具体证据见[BASELINE](baseline.md)。
+此前已完成本地/远端开发分支均在main历史。当前`codex/settlement-kernel`基于main的`a4fb83a6c29e3203bf71fc1c1f950afe4906830b`，共同结算内核和CI分片调整尚未提交、审查及合入；下述旧争环WIP单独隔离。具体证据见[BASELINE](baseline.md)。
 
 只操作根工作树；保护分支和命名stash不应用/删除。工具进程以HANDOFF为准，临时日志、截图和存档不作为公共运行依赖。
 
@@ -14,6 +14,7 @@ main已从`2e6b6a61caf11b5560c15a97f1a58cb156a7300b`快进并推送到`eb330ee9c
 
 | 分支 | 已知来源提交 | 用途 |
 |---|---|---|
+| `codex/settlement-kernel` | 基于`a4fb83a6c29e3203bf71fc1c1f950afe4906830b` | 共同结算内核与CI分片优化的当前工作分支，尚未提交/合入 |
 | `codex/framework-consolidation` | 基于`eb330ee`，仅Markdown | 主线合并后的阶段盘点及现有主计划整理，不含新阶段代码 |
 | `codex/general-buildings` | 最终代码`d00bac9`、证据`eb330ee` | 通用建筑与组合空间已完整快进合入并推送main |
 | `codex/world-space-actions` | `fa45228`实现、`5fd6e31`审查修复、`f50f0a8`最终受检代码/测试及后续证据文档 | 基础建设第一阶段，已快进合入并推送main |

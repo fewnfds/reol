@@ -26,6 +26,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  GODOT_TEST_SHARDS: 12
+
 jobs:
   test:
     runs-on: ubuntu-24.04
@@ -33,7 +36,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
     steps:
       - name: Checkout
@@ -64,7 +67,7 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_*.py'
 
       - name: Import + test
-        run: python -u tools/godot.py check --shard ${{ matrix.shard }}/4 --test-timeout 1800
+        run: python -u tools/godot.py check --shard "${{ matrix.shard }}/$GODOT_TEST_SHARDS" --test-timeout 1800
 
       - name: Upload logs
         if: always()
@@ -94,4 +97,4 @@ jobs:
           pattern: godot-logs-*
           path: logs/ci-shards
       - name: Verify complete registry coverage
-        run: python tools/check_test_reports.py logs/ci-shards --shards 4
+        run: python tools/check_test_reports.py logs/ci-shards --shards "$GODOT_TEST_SHARDS"

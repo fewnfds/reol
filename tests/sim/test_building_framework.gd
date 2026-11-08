@@ -16,6 +16,32 @@ func run(runner: Object) -> void:
 	_test_definitions(runner)
 	_test_composition_and_storage(runner)
 	_test_workbench(runner)
+	_test_budgeted_facilities(runner)
+
+
+func _test_budgeted_facilities(runner: Object) -> void:
+	var world: RegionalSimulation = _world(runner)
+	fixture._site(runner, world)
+	var chairs: Array[String] = [_build(runner, world, "wood_chair", Vector2i(109, 107)), _build(runner, world, "wood_chair", Vector2i(111, 107))]
+	for index: int in 2:
+		var actor: String = "player" if index == 0 else "shi_tou"
+		var slot: Dictionary = world.construction.operation_slots(chairs[index], "seat")[0]
+		world.regions.home.set_actor_position(actor, TileGrid.cell_to_world(slot.cell))
+		runner.assert_true(world.facility_use.begin(actor, chairs[index], slot.id, "sit", "", 0, 1000).ok, "two original actors reserve independent real seats")
+	var original: Dictionary = JSON.parse_string(fixture._canonical(world))
+	var reference: RegionalSimulation = _world(runner)
+	runner.assert_true(reference.restore(original), "both in-flight seat jobs have a valid ordinary save boundary")
+	var target: int = world.elapsed_ms + 2000
+	runner.assert_true(reference.advance_to_ms(target), "unlimited facilities provide the reference joint future")
+	var split_inside_owner: bool = false
+	for _attempt: int in 2000:
+		if world.advance_to_ms(target, 4096, 1):
+			break
+		if world.settlement.progress().step == "facility_use" and world.facility_use._settlement_cursor == 1:
+			split_inside_owner = true
+	runner.assert_true(split_inside_owner, "the shared kernel can yield between two real facility jobs at the same instant")
+	runner.assert_true(not world.settlement.is_pending() and world.elapsed_ms == target, "the exact original stage and remaining jobs eventually finish")
+	runner.assert_true(fixture._canonical(world) == fixture._canonical(reference), "splitting a real owner preserves all world state, materials, bodies and time")
 
 
 func _build(runner: Object, world: RegionalSimulation, type: String, cell: Vector2i, rotation: int = 0) -> String:

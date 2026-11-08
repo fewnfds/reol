@@ -398,13 +398,20 @@ static func find_grid_path(
 
 
 func _execute_clock_interval(from_ms: int, to_ms: int) -> int:
-	if simulation == null or simulation.elapsed_ms > from_ms:
+	if simulation == null:
 		return from_ms
 	var old_events: int = int(simulation.simulation_work.boundary_count)
 	var previous_minute: int = simulation.tick_index
 	var completed_ms: int
 	if is_instance_valid(continuity):
-		if continuity.world_sim == null or continuity.world_sim.elapsed_ms != from_ms:
+		if continuity.world_sim == null:
+			return from_ms
+		var world: RegionalSimulation = continuity.world_sim
+		var pending: bool = world.settlement.is_pending()
+		if pending:
+			if world.settlement.from_ms < from_ms or world.elapsed_ms > to_ms:
+				return from_ms
+		elif world.elapsed_ms != from_ms:
 			return from_ms
 		completed_ms = continuity.advance_to_ms(to_ms)
 	else:

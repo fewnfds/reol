@@ -1757,3 +1757,7 @@ func test_private_exchange_continuity() -> void:
 
 func test_building_framework() -> void:
 	load("res://tests/sim/test_building_framework.gd").new().run(self)
+
+
+func test_settlement_kernel() -> void:
+	load("res://tests/sim/test_settlement_kernel.gd").new().run(self)

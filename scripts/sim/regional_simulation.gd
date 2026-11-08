@@ -154,6 +154,12 @@ var _environment_guard: WeakRef
 var _environment_boundary_waiting: bool = false
 var _environment_event: EnvironmentEventContext
 var _environment_response: EnvironmentEventContext
+## Derived execution links/cursor; partial boundaries cannot be saved. Domain
+## state and accepted target time remain in their original owners.
+var settlement: SimSettlementKernel
+var _settlement_adapter: SimWorldSettlement
+var settlement_work: int = 0
+var _settled_ms: int = 0
 
 
 static func schedule_contract() -> Dictionary:
@@ -226,7 +232,7 @@ func bind_environment_boundary_guard(guard: RefCounted) -> bool:
 
 
 func environment_boundary_active() -> bool:
-	return _environment_event != null or _environment_boundary_waiting
+	return _environment_event != null or _environment_boundary_waiting or not accepts_commands()
 
 
 func environment_event_context() -> Variant:
@@ -432,7 +438,27 @@ func initialize(definitions: Dictionary, instances: Dictionary, content: ReolCon
 		_opening_configs[id] = regions[id].config.duplicate(true)
 	_bind_service_guards()
 	_replace_space()
+	return _bind_settlement()
+
+
+func _bind_settlement() -> bool:
+	var adapter := SimWorldSettlement.new()
+	if not adapter.initialize(self):
+		errors.append("Invalid settlement dependencies")
+		return false
+	_settlement_adapter = adapter
+	settlement = adapter.kernel
+	_settled_ms = elapsed_ms
+	_environment_boundary_waiting = false
 	return true
+
+
+func settled_ms() -> int:
+	return _settled_ms if settlement != null and settlement.is_pending() else elapsed_ms
+
+
+func accepts_commands() -> bool:
+	return settlement == null or not settlement.is_pending() or settlement.is_executing()
 
 
 func opening_config(region_id: String) -> Dictionary:
@@ -610,6 +636,8 @@ func activity_previous_autonomy(actor_id: String) -> bool:
 
 
 func actor_controls(actor_id: String, channel: String) -> bool:
+	if not accepts_commands():
+		return false
 	if embodiment == null or not embodiment.self_controls_actor(actor_id, channel):
 		return false
 	for simulation: VillageSimulation in regions.values():
@@ -631,10 +659,7 @@ func next_runtime_boundary_ms(limit_ms: int) -> int:
 	# This read-only outer boundary intentionally preserves the adapter's former
 	# subset and has no elapsed_ms clamp. advance_to_ms handles all other world
 	# boundaries; the adapter separately handles its player journey.
-	var boundary: int = limit_ms
-	for name: StringName in RUNTIME_BOUNDARY_DOMAINS:
-		boundary = mini(boundary, int(get(name).next_boundary_ms()))
-	return boundary
+	return settlement.next_boundary_ms(limit_ms, true)
 
 
 func advance_to(requested_time: int, max_events: int = 4096) -> bool:
@@ -645,7 +670,10 @@ func advance_to(requested_time: int, max_events: int = 4096) -> bool:
 	return advance_to_ms(requested_time * MINUTE_MS, max_events)
 
 
-func advance_to_ms(requested_ms: int, max_events: int = 4096) -> bool:
+func advance_to_ms(requested_ms: int, max_events: int = 4096, work_budget: int = MAX_COUNT) -> bool:
+	if settlement == null or settlement.is_executing():
+		return false
+	settlement_work = 0
 	if construction != null and construction._changing:
 		return false
 	if object_lifecycle != null and object_lifecycle._committing:
@@ -655,19 +683,19 @@ func advance_to_ms(requested_ms: int, max_events: int = 4096) -> bool:
 		return false
 	if requested_ms < elapsed_ms or requested_ms > MAX_COUNT or regions.is_empty():
 		return false
-	if object_lifecycle.environment_change_pending() and not _environment_boundary_waiting:
+	if object_lifecycle.environment_change_pending() and not settlement.is_pending():
 		return false
 	_environment_response = null
 	target_ms = maxi(target_ms, requested_ms)
 	var processed: int = 0
-	if _environment_boundary_waiting:
-		if processed >= maxi(0, max_events) or not _complete_boundary():
+	if settlement.is_pending():
+		if processed >= maxi(0, max_events) or not _complete_boundary(work_budget):
 			return false
 		processed += 1
 	# A retained larger request is debt, not permission to overshoot this
 	# invocation's accepted interval (the shared clock may be resuming a slice).
 	while elapsed_ms < requested_ms:
-		if processed >= maxi(0, max_events):
+		if processed >= maxi(0, max_events) or settlement_work >= maxi(0, work_budget):
 			return false
 		var next_ms: int = mini(requested_ms, _next_boundary(requested_ms))
 		for region_id: String in regions:
@@ -679,7 +707,7 @@ func advance_to_ms(requested_ms: int, max_events: int = 4096) -> bool:
 		if not environment_fields.can_settle_at_ms(next_ms):
 			errors.append("Environment fields exceed their declared numerical budget")
 			return false
-		var old_minute: int = current_time
+		var old_ms: int = elapsed_ms
 		if _manual_motion_executor.is_valid():
 			_manual_motion_executor.call(elapsed_ms, next_ms)
 		for region_id: String in _sorted_keys(regions):
@@ -690,110 +718,31 @@ func advance_to_ms(requested_ms: int, max_events: int = 4096) -> bool:
 					return false
 				_region_boundaries[region_id] = simulation.next_boundary_ms()
 		elapsed_ms = next_ms
-		if not _settle_previous_interval():
+		if not settlement.begin(old_ms, next_ms):
+			errors.append("Settlement boundary could not begin")
 			return false
-		_advance_journeys(current_time - old_minute)
-		_process_arrivals()
-		var guard: RefCounted = _environment_guard.get_ref() if _environment_guard != null else null
-		if guard != null and object_lifecycle.next_boundary_ms() <= elapsed_ms:
-			# Event projection may read any static background source. Synchronize
-			# once at this actual boundary, never inside its read-only preflight.
-			if not synchronize_regions():
-				errors.append("Environment event region synchronization failed")
-				return false
-			_environment_event = EnvironmentEventContext.new(self, guard, elapsed_ms, true)
-		if not _complete_boundary():
+		if not _complete_boundary(work_budget - settlement_work):
 			return false
 		processed += 1
 	return true
 
 
-func _complete_boundary() -> bool:
-	if not _settle_current_processes():
-		_environment_boundary_waiting = true
+func _complete_boundary(work_budget: int) -> bool:
+	var status: int = settlement.resume(work_budget)
+	settlement_work += settlement.last_work
+	_environment_boundary_waiting = settlement.is_pending() and settlement.progress().step == "object_lifecycle"
+	if status != SimSettlementKernel.Status.COMPLETE:
+		if status == SimSettlementKernel.Status.FAILED and (errors.is_empty() or errors[-1] != settlement.error):
+			errors.append(settlement.error)
 		return false
-	_environment_boundary_waiting = false
 	_environment_event = null
-	if not _sample_herb_conditions():
-		errors.append("Plant environment could not settle its previous interval")
-		return false
-	_consider_future_actions()
-	_process_messages()
-	for route_id: String in _sorted_keys(routes):
-		if int(routes[route_id].next_assessment) <= current_time:
-			request_delivery(route_id)
-			routes[route_id].next_assessment = current_time + int(settings.routes[route_id].assessment_minutes)
-	for route_id: String in _sorted_keys(routes):
-		_try_dispatch(route_id)
+	_settled_ms = elapsed_ms
 	simulation_work.boundaries = int(simulation_work.boundaries) + 1
 	return true
 
 
-func _settle_previous_interval() -> bool:
-	# These existing processes price the interval that just elapsed before
-	# arrivals, new effects, or environment sampling can change their inputs.
-	if not environment_fields.settle_at_ms(elapsed_ms):
-		errors.append("Environment fields could not settle the previous interval")
-		return false
-	health.settle_at_ms(elapsed_ms)
-	weather.settle_at_ms(elapsed_ms)
-	clothing.settle_at_ms(elapsed_ms)
-	standing_work.settle_at_ms(elapsed_ms)
-	budgeted_labor.settle_at_ms(elapsed_ms)
-	return true
-
-
-func _settle_current_processes() -> bool:
-	if not object_lifecycle.settle_at_ms(elapsed_ms):
-		return false
-	# Object event credentials cannot be reused from later domain callbacks.
-	_environment_event = null
-	# This is the original same-millisecond order, including reading/method
-	# consideration between sparring and animal life. Do not sort these calls.
-	if services != null:
-		services.settle_at_ms(elapsed_ms)
-	artifacts.settle_at_ms(elapsed_ms)
-	spirit_sources.settle_at_ms(elapsed_ms)
-	capability_practice.settle_at_ms(elapsed_ms)
-	method_records.settle_at_ms(elapsed_ms)
-	sparring.settle_at_ms(elapsed_ms)
-	conflicts.settle_at_ms(elapsed_ms)
-	method_records.consider_reading()
-	artifacts.consider_methods()
-	avian_life.settle_at_ms(elapsed_ms)
-	soul_vessels.settle_at_ms(elapsed_ms)
-	admissions.settle_at_ms(elapsed_ms)
-	construction.settle_at_ms(elapsed_ms)
-	facility_use.settle_at_ms(elapsed_ms)
-	personal_production.settle_at_ms(elapsed_ms)
-	resting.settle_at_ms(elapsed_ms)
-	large_bodies.settle_at_ms(elapsed_ms)
-	environment.settle_at_ms(elapsed_ms)
-	# Source completion, existing blows and needs settle before a new warning
-	# can escalate. Care owns intentions/evidence, never another body executor.
-	if source_care != null:
-		source_care.settle_at_ms(elapsed_ms)
-	# Handovers settle before the site observes its current original custody.
-	private_exchange.settle_at_ms(elapsed_ms)
-	if field_opportunities != null:
-		field_opportunities.settle_at_ms(elapsed_ms)
-	return true
-
-
-func _consider_future_actions() -> void:
-	health.consider()
-	clothing.consider_weather()
-	artifacts.consider_warming()
-	spirit_sources.consider()
-	autonomous_livelihood.consider()
-	if source_care != null:
-		source_care.consider()
-	if field_opportunities != null:
-		field_opportunities.consider()
-
-
 func set_active_region(region_id: String) -> bool:
-	if (not region_id.is_empty() and not regions.has(region_id)) or elapsed_ms != target_ms:
+	if not accepts_commands() or (not region_id.is_empty() and not regions.has(region_id)) or elapsed_ms != target_ms:
 		return false
 	if not region_id.is_empty() and not synchronize_region(region_id):
 		return false
@@ -1056,7 +1005,7 @@ func known_event_lines(region_id: String, limit: int = 3) -> Array[String]:
 
 
 func to_dict() -> Dictionary:
-	if construction != null and construction._changing or environment_boundary_active() or (object_lifecycle != null and (object_lifecycle._committing or object_lifecycle.environment_change_pending())):
+	if settlement != null and settlement.is_pending() or construction != null and construction._changing or environment_boundary_active() or (object_lifecycle != null and (object_lifecycle._committing or object_lifecycle.environment_change_pending())):
 		return {}
 	if not environment_fields.settle_at_ms(elapsed_ms) or not synchronize_regions():
 		return {}
@@ -1081,7 +1030,7 @@ func to_dict() -> Dictionary:
 
 
 func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: bool = false) -> bool:
-	if object_lifecycle != null and object_lifecycle._committing:
+	if settlement != null and settlement.is_pending() or object_lifecycle != null and object_lifecycle._committing:
 		return false
 	# The current model cannot reconstruct causal field residuals from a Q
 	# archive. Historical importers remain evidence, not a second running engine.
@@ -1429,13 +1378,11 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	for region_id: String in regions:
 		_region_boundaries[region_id] = regions[region_id].next_boundary_ms()
 	_replace_space()
-	return true
+	return _bind_settlement()
 
 
 func _next_boundary(limit_ms: int) -> int:
-	var boundary: int = limit_ms
-	for name: StringName in BOUNDARY_DOMAINS:
-		boundary = mini(boundary, int(get(name).next_boundary_ms()))
+	var boundary: int = settlement.next_boundary_ms(limit_ms)
 	boundary = mini(boundary, _next_herb_sample_ms())
 	if services != null:
 		boundary = mini(boundary, services.next_boundary_ms())

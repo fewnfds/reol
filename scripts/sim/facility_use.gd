@@ -8,6 +8,10 @@ var active: Dictionary = {}
 var transfers: Dictionary = {}
 var next_job: int = 1
 var _owner: WeakRef
+var _settlement_at: int = -1
+var _settlement_actors: Array[String] = []
+var _settlement_jobs: Dictionary = {}
+var _settlement_cursor: int = 0
 var world: RegionalSimulation:
 	get: return _owner.get_ref() as RegionalSimulation
 
@@ -181,48 +185,78 @@ func next_boundary_ms() -> int:
 
 
 func settle_at_ms(now: int) -> void:
+	settle_budgeted(now, 2147483647)
+
+
+func settle_budgeted(now: int, work_budget: int) -> Vector2i:
+	if work_budget < 1 or not world.accepts_commands():
+		return Vector2i(0, SimSettlementKernel.Status.FAILED)
+	if _settlement_at != now:
+		if _settlement_at >= 0:
+			return Vector2i(1, SimSettlementKernel.Status.FAILED)
+		_settlement_at = now
+		_settlement_actors.assign(SimAvianLife.sorted_keys(active))
+		_settlement_jobs = {}
+		for actor: String in _settlement_actors:
+			_settlement_jobs[actor] = active[actor].id
+		_settlement_cursor = 0
+	var work: int = 0
+	while _settlement_cursor < _settlement_actors.size() and work < work_budget:
+		var actor: String = _settlement_actors[_settlement_cursor]
+		_settlement_cursor += 1
+		work += 1
+		if active.has(actor) and active[actor].id == _settlement_jobs[actor]:
+			_settle_actor(actor, now)
+	if _settlement_cursor < _settlement_actors.size():
+		return Vector2i(work, SimSettlementKernel.Status.PENDING)
+	_settlement_at = -1
+	_settlement_actors.clear()
+	_settlement_jobs.clear()
+	return Vector2i(maxi(1, work), SimSettlementKernel.Status.COMPLETE)
+
+
+func _settle_actor(actor: String, now: int) -> void:
 	var region: String = str(world.construction.definitions.site.region)
-	for actor: String in SimAvianLife.sorted_keys(active):
-		world.synchronize_region(region)
-		var job: Dictionary = active[actor]
-		var sim: VillageSimulation = world.regions[region]
-		var body: Dictionary = sim.actors[actor]
-		if not _can_continue(job):
+	world.synchronize_region(region)
+	var job: Dictionary = active[actor]
+	var sim: VillageSimulation = world.regions[region]
+	var body: Dictionary = sim.actors[actor]
+	if not _can_continue(job):
+		cancel(actor)
+		return
+	if job.phase == "travel":
+		if not job.path.is_empty() and not world.construction._step_open(sim, SimRouteTravel.cell(body.cell), SimRouteTravel.cell(job.path[0])):
 			cancel(actor)
-			continue
-		if job.phase == "travel":
-			if not job.path.is_empty() and not world.construction._step_open(sim, SimRouteTravel.cell(body.cell), SimRouteTravel.cell(job.path[0])):
+			return
+		sim.project_actor_route(actor, job, now)
+	if now < int(job.due_ms):
+		return
+	if job.phase == "travel":
+		if not job.path.is_empty():
+			sim.set_actor_position(actor, TileGrid.cell_to_world(SimRouteTravel.cell(job.path.pop_front())))
+		if not job.path.is_empty():
+			SimRouteTravel.begin_segment(job, body, now, float(sim.motion_rules.motion.speed))
+			return
+		if not position_clear(actor, SimRouteTravel.cell(job.stand)):
+			cancel(actor)
+			return
+		job.phase = "use"
+		job.work_started_ms = now
+		job.due_ms = now + (int(job.duration_ms) if job.kind == "sit" else int(world.construction.definitions.operate_ms))
+		var row: Dictionary = slot(job.project, job.slot)
+		body.facing = [row.facing.x, row.facing.y]
+		body.goal = "坐在座位上" if job.kind == "sit" else "正在取放容器中的物品"
+	else:
+		if not position_clear(actor, SimRouteTravel.cell(job.stand)):
+			cancel(actor)
+			return
+		if job.kind != "sit":
+			if not _storage_ready(job) or not sim.inventory.transfer(str(job.id) + ":transfer", _source(job), _target(job), str(job.item), int(job.amount), str(job.id)):
 				cancel(actor)
-				continue
-			sim.project_actor_route(actor, job, now)
-		if now < int(job.due_ms):
-			continue
-		if job.phase == "travel":
-			if not job.path.is_empty():
-				sim.set_actor_position(actor, TileGrid.cell_to_world(SimRouteTravel.cell(job.path.pop_front())))
-			if not job.path.is_empty():
-				SimRouteTravel.begin_segment(job, body, now, float(sim.motion_rules.motion.speed))
-				continue
-			if not position_clear(actor, SimRouteTravel.cell(job.stand)):
-				cancel(actor)
-				continue
-			job.phase = "use"
-			job.work_started_ms = now
-			job.due_ms = now + (int(job.duration_ms) if job.kind == "sit" else int(world.construction.definitions.operate_ms))
-			var row: Dictionary = slot(job.project, job.slot)
-			body.facing = [row.facing.x, row.facing.y]
-			body.goal = "坐在座位上" if job.kind == "sit" else "正在取放容器中的物品"
-		else:
-			if not position_clear(actor, SimRouteTravel.cell(job.stand)):
-				cancel(actor)
-				continue
-			if job.kind != "sit":
-				if not _storage_ready(job) or not sim.inventory.transfer(str(job.id) + ":transfer", _source(job), _target(job), str(job.item), int(job.amount), str(job.id)):
-					cancel(actor)
-					continue
-				transfers[job.id] = {"actor": actor, "project": str(job.project), "kind": str(job.kind), "item": str(job.item), "amount": int(job.amount), "at_ms": now}
-				job.reserved = false
-			_release(job, "completed", "使用完成，操作位已释放。")
+				return
+			transfers[job.id] = {"actor": actor, "project": str(job.project), "kind": str(job.kind), "item": str(job.item), "amount": int(job.amount), "at_ms": now}
+			job.reserved = false
+		_release(job, "completed", "使用完成，操作位已释放。")
 
 
 func _release(job: Dictionary, status: String, line: String) -> void:

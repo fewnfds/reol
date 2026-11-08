@@ -6,6 +6,7 @@
 - [领域归属与跨域合同](architecture/05-framework-domains.md)：七个顶层框架、原代码定位及建筑/空间/环境/行动等领域的交接；算法在框架内定位。
 - [术语与代码映射](terminology.md)：固定中文概念、真实class/字段、不同领域及存档键的对应。
 - [稀疏执行框架](sparse-execution.md)：能力成员、当前参与、到期与依赖失效的通用接口和新能力接入方式；普通接入范围按状态/证据核对。
+- [共同模拟与结算内核](settlement-contract.md)：阶段依赖、同刻效果、预算续算、原owner接入及完整保存边界。
 - [项目文件架构](project-structure.md)：代码、数据、设计和文档各放在哪里。
 - [兼容与历史退役](compatibility.md)：单一当前模型、有限迁入和独立候选原则。
 - [建筑、家具与组合空间](construction-contract.md)：定义/实例/能力、多格与操作位、真实储藏/生产、耐久和损毁的原owner合同。

@@ -14,6 +14,8 @@ const MAX_CAPTURE_CELLS: int = 65536
 static func describe(world: RegionalSimulation, reference: Variant) -> Dictionary:
 	if world == null:
 		return _failure("world_unavailable")
+	if not world.accepts_commands():
+		return _failure("settlement_pending")
 	if not reference is Dictionary or not _text(reference.get("kind")):
 		return _failure("invalid_reference")
 	var kind: String = reference.kind

@@ -17,14 +17,14 @@ python tools/check_structure.py
 python -X utf8 -m unittest discover -s tests -p "test_*.py" -v
 python tools/godot.py test --list-suites
 python tools/godot.py test --suite test_environment_field_cache --test-timeout 120
-python tools/godot.py test --list-suites --shard 1/4
+python tools/godot.py test --list-suites --shard 1/12
 python tools/godot.py test --test-timeout 1800
 python tools/godot.py check --test-timeout 1800
 ~~~
 
 check包含结构检查、导入和完整GDScript回归；按改动先选相关定向验证，同一代码包的完整回归可由对应SHA的GitHub CI承担，无须每个文件重复全套。纯文档只查结构/链接和差异。存读改动还应覆盖迁移、进行中恢复、失败不污染活世界及适用的完整停开；涉及画面须实际运行、查看截图和日志，性能须记录实际规模与测量，均不能由无头绿灯代替。
 
-`test --suite`接受重复的完整注册名称；未知名称失败，选组通过只证明这些组。`check`不接受`--suite`。`test`/`check --shard INDEX/TOTAL`仅执行完整注册表的一片，不能和`--suite`混用；单片成功明确标为部分覆盖。CI用4个独立worker并行，各worker门禁成功后再用`python tools/check_test_reports.py logs/ci-shards --shards 4`确认相同注册表的每组恰好执行一次。本机分片运行保持引擎串行，聚合报告之外仍须检查每片退出码。
+`test --suite`接受重复的完整注册名称；未知名称失败，选组通过只证明这些组。`check`不接受`--suite`。`test`/`check --shard INDEX/TOTAL`仅执行完整注册表的一片，不能和`--suite`混用；单片成功明确标为部分覆盖。CI用12个独立worker执行，各worker门禁成功后再用`python tools/check_test_reports.py logs/ci-shards --shards 12`确认相同注册表的每组恰好执行一次。本机分片运行保持引擎串行，聚合报告之外仍须检查每片退出码。
 
 测试默认输出逐组耗时/断言增量及最慢十组，并把开始/完成记录逐组flush到`logs/*-timings-*.jsonl`；可指定`--timing-report PATH`。超时后一次读报告定位，不轮询。永久测试准入、最小fixture及CPU/GPU分工见[测试策略](../docs/engineering/workflow/testing.md)。
 

@@ -65,6 +65,7 @@
 | 实体定位查询 | [SimEntityQuery](../../scripts/sim/entity_query.gd) | `actor`/`avian`/`artifact`/`large_body`的只读解析，非全量状态注册表 |
 | 实时空间查询 | [SimWorldSpace](../../scripts/sim/world_space.gd) | 原身体/地面物/结构的局部格投影、变化通知及恢复失效；与历史快照分开 |
 | 最小行动合同 | [SimActionContract](../../scripts/sim/action_contract.gd) | 取放/施工/家具使用共用条件、占用、执行复核和释放，过程与效果仍归原owner |
+| 共同结算内核 | [SimSettlementKernel](../../scripts/sim/execution/settlement_kernel.gd)、[SimWorldSettlement](../../scripts/sim/execution/world_settlement.gd) | 编译依赖/阶段、预算游标及现有域装配；数值与共同时间仍归原owner |
 | 世界对象查询 | [SimWorldObjectQuery](../../scripts/sim/world_object_query.gd) | 复用定位并扩展数量条目/资源/结构等参照；与`SimEntityQuery`接口不同 |
 | 独特器物 | `SimArtifacts.objects[id]` | 独特实例；`artifact`在该接口不代表所有物品 |
 | 数量物品/容器 | [SimInventory](../../scripts/sim/inventory_ledger.gd)、[SimStorageQuery](../../scripts/sim/storage_query.gd) | 数量账本及原容器查询，不与独特器物重复计数 |

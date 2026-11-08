@@ -2,6 +2,12 @@
 
 核对：2026-11-08。采用版本与准确代码证据记录在此，操作范围见[FEATURES](features.md)，当前停点见[HANDOFF](handoff.md)，详细日志和限制见[QA](../qa/README.md)。历史分卷只描述当时版本。
 
+## 共同结算内核（工作分支，待完整验收）
+
+`codex/settlement-kernel`基于main `a4fb83a6c29e3203bf71fc1c1f950afe4906830b`。当前工作区将共同时间、结算阶段/依赖与预算续算接入普通Main，原身体、库存、伤势、环境及动作继续归各领域；部分边界不能保存或替换活世界，根53/区域44未变。已运行5组定向测试，**730检查/0失败**，包装器错误门禁及退出码通过。普通Main预算1与不限预算同未来，完整停开后checkpoint及随后5000毫秒未来一致；RTX3060普通开局600帧P95 17.348ms、P99 21.257ms，仅证明该样本。[QA](../qa/20261108_settlement_kernel.md)记录范围与证据。
+
+本包尚未完成代码提交、原生审查及最终完整回归，不能沿用建筑阶段的结果或旧main绿色；GitHub CI的12片调整待本包运行实测。具体停点以HANDOFF和Git为准。
+
 ## 通用建筑与组合空间（已合入main）
 
 main包含建筑阶段最终受检代码`d00bac954b69cab096d580db002fb04013fa2543`：定义/实例/能力分开，多格/朝向、多工地/用途，独立空间事实、操作位/桌椅、原库存储藏、工作台接原生产、耐久/防护/损毁已接普通Main。13类定义、两种材料，框架出口和实际限制见[本阶段QA](../qa/20261108_building_framework.md)及[建筑合同](../engineering/construction-contract.md)。
@@ -12,9 +18,9 @@ main包含建筑阶段最终受检代码`d00bac954b69cab096d580db002fb04013fa254
 
 ## 当前集成代码
 
-用户授权后，main从`2e6b6a61caf11b5560c15a97f1a58cb156a7300b`快进并推送到建筑阶段证据提交`eb330ee9c38fa3a5cc72004372ddeefd70409b1e`，其后仅阶段整合Markdown；实时指针以Git为准。全部已完成开发分支都在main历史，本地唯一未合入分支为受保护的旧争环WIP，原命名stash未改。
+用户授权后，main从`2e6b6a61caf11b5560c15a97f1a58cb156a7300b`快进并推送到建筑阶段证据提交`eb330ee9c38fa3a5cc72004372ddeefd70409b1e`，其后有阶段整合Markdown；本包工作分支基于main `a4fb83a6c29e3203bf71fc1c1f950afe4906830b`，尚未合入。实时指针以Git为准。已完成的前期开发分支均在main历史，旧争环WIP及原命名stash仍受保护。
 
-阶段整合文档提交检查点仅一次发现主线[CI42473540525](https://github.com/fewnfds/reol/actions/runs/42473540525)，headBranch为main、完整headSha为eb330ee9c38fa3a5cc72004372ddeefd70409b1e，状态in_progress，终态待验。后续只改Markdown，不立即复查或等待；不能沿用d00bac的run冒称本run通过。文档结构/链接/大小检查覆盖319份现行文档、495脚本入口，0错误；这不是新的游戏回归。
+主线[CI42473540525](https://github.com/fewnfds/reol/actions/runs/42473540525)的headBranch为main、完整headSha为`eb330ee9c38fa3a5cc72004372ddeefd70409b1e`，已在本轮真实提交准备检查点一次核得completed/success；本包不是该SHA，需独立证据。阶段整合文档结构/链接/大小检查覆盖319份现行文档、495脚本入口，0错误；这不是新的游戏回归。
 
 前阶段共同空间集成点`2e6b6a61caf11b5560c15a97f1a58cb156a7300b`的[CI42375335176](https://github.com/fewnfds/reol/actions/runs/42375335176)已核同SHA completed/success；该次合并在建筑开发之前完成。
 

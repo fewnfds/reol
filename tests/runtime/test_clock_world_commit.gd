@@ -12,6 +12,7 @@ func run(runner: Object) -> void:
 	_budgeted_explicit(runner)
 	_manual_override_before_projection(runner)
 	_regional_requested_limit(runner)
+	_settlement_continuation(runner)
 	print("SCENARIO real clock/world commit: published boundary, budget debt, route override and retained regional target")
 
 
@@ -285,6 +286,49 @@ func _regional_requested_limit(runner: Object) -> void:
 	runner.assert_eq(world.target_ms, 200, "settling a smaller slice does not discard the larger target")
 	runner.assert_true(world.advance_to_ms(200, 4096), "the retained target can subsequently complete")
 	runner.assert_eq([world.elapsed_ms, world.target_ms], [200, 200], "the original target and actual world reunite")
+	fixtures._dispose(fixture)
+
+
+func _settlement_continuation(runner: Object) -> void:
+	var original: Dictionary = _setup(runner)
+	if original.is_empty():
+		return
+	var original_runtime: WorldContinuityRuntime = original.continuity
+	if not _start_journey(runner, original):
+		fixtures._dispose(original)
+		return
+	GameClock.advance_msec(25)
+	var expected: Variant = _capture_future(original_runtime, original.player)
+	fixtures._dispose(original)
+	var fixture: Dictionary = _setup(runner)
+	if fixture.is_empty():
+		return
+	var runtime: WorldContinuityRuntime = fixture.continuity
+	if not _start_journey(runner, fixture):
+		fixtures._dispose(fixture)
+		return
+	var world: RegionalSimulation = runtime.world_sim
+	var initial: Dictionary = world.to_dict()
+	var notifications: Array = []
+	var listener: Callable = func(_from_ms: int, to_ms: int) -> void:
+		notifications.append(to_ms == world.elapsed_ms and not world.settlement.is_pending() and fixture.player.global_position == _point(world.regions.home.actors.player))
+	GameClock.time_advanced.connect(listener)
+	runtime.settlement_work_budget = 1
+	GameClock.advance_msec(25)
+	runner.assert_true(world.settlement.is_pending() and GameClock.has_pending_advance(), "a one-work allowance retains the original domain-stage continuation")
+	runner.assert_eq(GameClock.elapsed_ms, 0, "the public clock does not publish a half-settled first boundary")
+	runner.assert_true(world.to_dict().is_empty() and not world.restore(initial), "partial phase state cannot be saved or replaced by a load")
+	runner.assert_true(not world.actor_controls("player", "action") and world.describe_object({"kind": "actor", "id": "player"}).reason == "settlement_pending", "new commands and common object queries cannot consume a partial boundary")
+	for _attempt: int in 1000:
+		if not GameClock.has_pending_advance():
+			break
+		GameClock._process(0.0)
+	GameClock.time_advanced.disconnect(listener)
+	if GameClock.has_pending_advance():
+		print("SETTLEMENT continuation diagnostic ", world.settlement.progress(), " clock=", GameClock.elapsed_ms, " world=", world.elapsed_ms, " settled=", world.settled_ms(), " errors=", world.errors, " paused=", GameClock.paused)
+	runner.assert_true(not GameClock.has_pending_advance() and not world.settlement.is_pending(), "bounded work drains the existing handle to its original target")
+	runner.assert_true(not notifications.is_empty() and not notifications.has(false), "all time listeners observe complete world boundaries and the same body projection")
+	runner.assert_true(_capture_future(runtime, fixture.player) == expected, "per-stage continuation preserves the full original clock/body/route/world future")
 	fixtures._dispose(fixture)
 
 
