@@ -1,6 +1,6 @@
 # 技术落地总表
 
-核对日期：2026-11-08。依据Git分支差异、实际装配/调用和对应版本证据；名称按[术语与代码映射](../engineering/terminology.md)定位。当前普通环境成员为`environment_fields`，存档键由codec映射保持；此次改名未扩大游戏能力。玩法操作查[FEATURES](features.md)，验证数字查[BASELINE](baseline.md)，当前停点查[HANDOFF](handoff.md)。已确认规则是目标约束，不等于所有机制已实现。
+核对日期：2026-11-08。依据Git分支差异、实际装配/调用和对应版本证据；名称按[术语与代码映射](../engineering/terminology.md)定位。当前普通环境成员为`environment_fields`，存档键由codec映射保持；建筑包接入范围与main集成状态分别记录。玩法操作查[FEATURES](features.md)，验证数字查[BASELINE](baseline.md)，当前停点查[HANDOFF](handoff.md)。已确认规则是目标约束，不等于所有机制已实现。
 
 ## 当前主线与普通入口
 
@@ -31,7 +31,7 @@
 | 公共能力 | 已有接入 | 未覆盖与验收边界 |
 |---|---|---|
 | 共同时间与远区 | autoload `GameClock`（`ReolGameClock`）、[RegionalSimulation](../../scripts/sim/regional_simulation.gd)；整数毫秒、固定阶段、预算欠算、双聚落离场接续、行旅/货运/消息 | 非所有领域事件化；大人口、多年与密集动态组合未验 |
-| 定义、装配与当前快照 | 内容包v2绑定39份定义及digest；[WorldRestoreFactory](../../scripts/sim/world_restore_factory.gd)、[SessionSaveSchema](../../scripts/persistence/session_save_schema.gd)、[SimSaveStore](../../scripts/persistence/save_store.gd)提供联合候选恢复、JSON快照、在途恢复、文件备份/替换和失败不改活世界 | 移动/工作场所/对练等仍有直接读盘规则，普通呈现/恢复限定home、river两区；当前根53，根1–52拒绝；尚未自动暂停→结步→保存→恢复。历史位置/回执尚无长期安全回收，不是事件重放系统 |
+| 定义、装配与当前快照 | 内容包v2绑定39份定义/开局及digest；[WorldRestoreFactory](../../scripts/sim/world_restore_factory.gd)、[SessionSaveSchema](../../scripts/persistence/session_save_schema.gd)、[SimSaveStore](../../scripts/persistence/save_store.gd)提供联合候选恢复、JSON快照、在途恢复、文件备份/替换和失败不改活世界 | 移动/工作场所/对练等仍有直接读盘规则，普通呈现/恢复限定home、river两区；当前根53，根1–52拒绝；尚未自动暂停→结步→保存→恢复。历史位置/回执尚无长期安全回收，不是事件重放系统 |
 | 稀疏执行与规模 | main的[SimParticipationIndex](../../scripts/sim/execution/participation_index.gd)已接环境和健康，member/active/due/dirty及生命周期重建可运行 | 自主、衣物、空间候选、光/UI及历史查询未普遍迁入；定义编译/能力登记未统一覆盖内容。按所属框架的实测收益补接，不能把算法或静态压测视为整机验收 |
 | 创作、呈现与诊断 | `--world-editor`的F8地表/真实物编辑，F3诊断、普通面板和代码示意外观，沿原规则与存档 | 完整内容/开局/组合模板编辑和独立预览未齐；开发生成是权限，不是玩家免费造物；正式多体型/全装备和全动作仍未完成 |
 | GPU计算 | main历史中有独立CPU/GPU/auto基础场计算服务及旧版对照证据 | 普通响应/原物事务仍为CPU，无玩家GPU开关；隔离加速倍数不等于全游戏收益，联合性能以实际版本/负载为准 |
@@ -53,6 +53,6 @@
 
 ## “运行良好”的证据限度
 
-集成代码有完整本机分片覆盖、各worker错误/退出门禁和一次既有代码包静态审查；前序版本另有普通Main完全停开、RTX3060稀疏负载/画面及两域存读/短测证据。既有CI42356120868的准确SHA已核success，main起点`b3ae3399`的CI42365643089已核success；本阶段分支另按BASELINE验收。
+集成代码有完整本机分片覆盖、各worker错误/退出门禁和一次既有代码包静态审查；前序版本另有普通Main完全停开、RTX3060稀疏负载/画面及两域存读/短测证据。既有CI42356120868的准确SHA已核success，main起点`b3ae3399`的CI42365643089已核success；本阶段建筑分支d00bac本机4片完整覆盖250组/126290检查通过，3份普通在途档完全停开后同未来，一次原生审查4项发现已修复；远端CI另按准确SHA待验，详情见BASELINE。
 
 不能用前序截图/帧时替代当前版本的规模验收，也不能拿此前26万静态物品的旧版压力结果担保当前密集动态世界。当前没有证据要求换引擎，也没有证据宣称全游戏规模已达标。

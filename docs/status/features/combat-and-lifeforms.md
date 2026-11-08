@@ -1,6 +1,6 @@
 # 交锋、身体与非人生命
 
-> 2026-11-07按代码复核有限功能范围；Git main/开发分支区别见[技术总表](../technical-status.md)，准确版本和验证见[基线](../baseline.md)。 旧QA中的迁档描述仅为当时记录；当前普通入口接受根52、拒绝1–51，见[兼容政策](../../engineering/compatibility.md)。
+> 2026-11-07按代码复核有限功能范围；Git main/开发分支区别见[技术总表](../technical-status.md)，准确版本和验证见[基线](../baseline.md)。 旧QA中的迁档描述仅为当时记录；当前普通入口接受根53、拒绝1–52，见[兼容政策](../../engineering/compatibility.md)。
 
 ## 8. 自愿对练与短动作
 
