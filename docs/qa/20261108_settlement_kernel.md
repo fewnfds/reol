@@ -1,10 +1,10 @@
 # 共同结算内核验收
 
-范围：用户授权的共同结算框架，横跨现有顶层领域；现行接口和算法见[共同结算合同](../engineering/settlement-contract.md)，建设依赖仍归[唯一主计划](../plans/foundation-priorities.md)。工作分支`codex/settlement-kernel`基于main `a4fb83a6c29e3203bf71fc1c1f950afe4906830b`。实现与受审提交为`79d4543c532b5fc1e0a99dbd8b804b71ea6f6d38`，审查后最终修复代码为`b29385c30dc72e8942eef803d781e526e4093986`；完整回归正在运行，推送CI尚待完成，不能用前序建筑代码的通过冒充。
+范围：用户授权的共同结算框架，横跨现有顶层领域；接口见[共同结算合同](../engineering/settlement-contract.md)，出口归[唯一主计划](../plans/foundation-priorities.md)。分支`codex/settlement-kernel`基于main `a4fb83a6c29e3203bf71fc1c1f950afe4906830b`；原受审提交`79d4543c532b5fc1e0a99dbd8b804b71ea6f6d38`，现有生产代码`b29385c30dc72e8942eef803d781e526e4093986`。完整回归暂停在3/12片完成，尚未推送。2026-11-08用户另行要求架构专项核查，发现下述未修复接缝；既有通过证据不代表这些路径已覆盖。
 
 ## 范围与来源
 
-`SimSettlementKernel`装配阶段、声明依赖并编译稳定顺序，拒绝未知依赖、倒置和环；调用实际到期边界，预算不足时保留同一阶段/步骤。`SimWorldSettlement`沿既有同刻规则组织40个步骤、8个阶段；原领域负责同刻资源争用和规则结果。`RegionalSimulation`和普通runtime保留共同整数毫秒及原请求，不把部分结算时刻发布给`GameClock`监听者。部分状态拒绝保存、加载、受管行动和共同对象查询。
+`SimSettlementKernel`编译阶段/依赖的稳定顺序并拒绝非法图；读取到期边界，预算不足保留同一步骤。`SimWorldSettlement`沿原规则组织40步/8阶段，原领域仲裁同刻资源和结果。runtime保留共同整数毫秒及原请求，`GameClock`不发布部分结算时刻。部分状态拒绝保存、原地恢复、已受保护行动及共同查询；帧间合法完整会话加载仍可独立候选替换，不能概括成所有加载均被禁止。
 
 `SimFacilityUse`在真实活动工作之间按预算续算，游标和调用图是派生执行状态；原身体、实物、库存、环境响应和行动仍归原owner。当前普通写档根53、区域44不变；完整动作在途档仍可保存。其他领域的单个原子回调或内部大循环不因接入内核而自动可中断，区域内部过程仍沿原执行器；内核也不会自动实现五行、温度或伤势之间的业务规则。
 
@@ -48,3 +48,19 @@ CI已从4片增加到12片以缩短并行等待，各片仍执行结构检查、
 ## 用户暂停检查点
 
 测试fixture最终提交`68fa8d38c5dbafdb13974d42f4dcbb527dc4ede6`；相对`b29385c`只改测试hostpolicy/同请求续算与Markdown，生产代码一致。12片顺序check的1/12和2/12包装器退出均0，墙钟分别356.842秒、557.753秒。用户在第3片运行时明确要求暂停，主代理停止只负责后续分片的协调进程，保留当前worker自然结束；未启动4–12片。证据目录`logs/settlement-kernel-shards-final-20261108/`，第3片随后自然完成21组/1577检查/0失败，包装器退出0；`pause-boundary.json`保留原进程终态。三个报告均有完整run_finished，尚缺4–12片。具体恢复入口在HANDOFF登记。当前不是完整回归通过，也尚未推送本分支。
+
+## 架构专项核查与未修复项
+
+2026-11-08晚，用户另行授权限时架构/流程审视和文档整理。静态基准为`12f93f5`（生产代码仍为`b29385c`，测试仍为`68fa8d3`）；没有运行新引擎、测试或第二次整包模型审查。下表是已核对的调用路径和条件性后果，**尚未执行反例复现或修复**，不能写成新增测试失败或已解决。三项同归本包命令、发布及失败恢复合同。
+
+| 问题与后果 | 具体路径 | 修复出口与最小反例 |
+|---|---|---|
+| **外部取消屏障遗漏旧地区动作**：PENDING/FAILED期间普通UI仍可释放预约、清行动；其他被拒绝的取消也可能显示成功 | `construction_runtime.gd:312`→`WorldContinuityRuntime.stop_player_action():833`→`VillageSimulation.cancel_action():430`→`SimActionExecutor.cancel():114`；最后一步直接改`actor.active/retry_ms`。`world_objects_runtime.gd`、服务/衣着等也有停止入口 | 公共命令明确返回受理/拒绝，UI据回执显示；内部合法中断另保留。让有预约的地区动作处于部分边界，经真实停止入口调用，核状态/预约/通知未变；结清后再取消一次，结果与反馈相符 |
+| **局部signal早于世界完整发布**：时钟仍旧，界面却可展示新结构/终态 | `SimConstruction`完成时`_release()`→`SimActionContract.publish_finished():64`同步emit；`ConstructionRuntime._on_action_finished():661`即时刷新。`structures_changed`→`_on_structures_changed():188`失效视线/重绘，`_draw():508`直接读活`projects` | 区分域内索引/依赖失效与对外结果；只在完整边界发布视图可消费结果。预算恰在施工完成后、家具/生产前用尽，观察面板/图像/通知仍属上一个完整投影，结清后恰好发布一次；不能仅断言GameClock没变 |
+| **FAILED被宿主当可续算**：首次暂停后再恢复，会逐帧返回同一失败，错误原因不明确 | 内核`_failure()`保留pending并置failed；`RegionalSimulation._complete_boundary()`去重错误；runtime仅在错误数量增加时暂停，pending分支写泛化_notice后直接返回 | FAILED作为终态阻止自动推进，显示原因及合法恢复入口。注入确定失败，反复帧推进/解除暂停不重放效果、不继续无意义续算；帧间加载合法旧档可恢复，坏档原子拒绝 |
+
+合法旧档恢复路径已静态核对：`WorldContinuityRuntime.load_game()`只在`GameClock.is_advancing()`时拒绝；`WorldSessionSnapshot.stage()`独立构造完整候选，成功后替换world，`GameClock.restore_state()`清欠算。因此原文“部分状态一律不能替换活世界”已修正，不能误加一个让失败世界永远无法加载的guard。
+
+**流程缺口**：`tools/godot.py:363–375`在import失败后仍启动check-test，最后才联合报错；应在工具原owner快速失败，并以Python反例保护。计时聚合只核注册表与覆盖，没有代码身份验证；本机续跑须外部记录受检代码/内容及各worker退出，生产或fixture变化后不能直接混合旧片。详见[测试策略](../engineering/workflow/testing.md)。本轮没有修改这些工具或削弱门禁。
+
+**规模风险而非已测瓶颈**：预算只计工作项，地区前置推进及多数原子回调未受内部预算；库存`operations`、认识`events`长期保存。联合验收应同时看边界延迟、积压、命令/保存等待与历史/存档增长；保留幂等和认识来源，不能为了缩档直接截断。改进归公共持续世界合同，原主计划不增加独立算法队列。

@@ -1,6 +1,6 @@
 # 类RimWorld模拟游戏：基础架构对照
 
-核查：2026-11-07。Reol代码基于`b3ae3399d24e01975d231cd000c0af342740070b`只读核对；外部资料为公开Mod教程、作者视频说明/章节和Project Porcupine源码。本文记录来源与推论，不代表商业游戏内部源码审计、教学项目的生产成熟度或Reol实现验收。领域职责见[顶层框架](../../docs/engineering/architecture/05-framework-domains.md)，建设依赖和出口只在[基础建设计划](../../docs/plans/foundation-priorities.md)维护。
+研究更新：2026-11-08。本轮实读Factorio开发者日志、Cataclysm:DDA官方开发文档及Tarn Adams的模拟原则；2026-11-07的Mod教程、视频页面和代码核查保留为原证据。下方历史代码表基于`b3ae3399d24e01975d231cd000c0af342740070b`，不代表当前缺口。本文记录来源与推论，不代表商业游戏内部源码审计、教学项目的生产成熟度或Reol实现验收。领域职责见[顶层框架](../../docs/engineering/architecture/05-framework-domains.md)，建设依赖和出口只在[基础建设计划](../../docs/plans/foundation-priorities.md)维护。
 
 ## 可核实的参考
 
@@ -15,6 +15,22 @@
 
 Project Porcupine社区代码默认GPLv3，非代码资产默认CC BY-NC-SA；原作者另行提供的无社区贡献教程工程声明MIT。本研究仅分析接口和组织，不复制代码/资产或引入Unity、C#、Lua运行依赖。RimWorld与修仙模拟器的公开Mod能力也不构成可直接移植的通用引擎。
 
+## 成熟项目的一手经验与适用边界
+
+以下原文于2026-11-08实际阅读。来源说明其项目的经验；右栏是对Reol的工程推论，不新增游戏规则或完成声明。
+
+| 一手来源 | 可以证实的经验 | Reol的采用与限制 |
+|---|---|---|
+| Tarn Adams：[Simulation Principles from Dwarf Fortress](https://www.gameaipro.com/GameAIPro2/GameAIPro2_Chapter41_Simulation_Principles_from_Dwarf_Fortress.pdf) | 作者主张尽早运行并迭代，把系统拆成基本元素及相互作用；只为玩家可感知或其下一层的结果增加复杂度。温度、降水等分别建模后组合出生境 | 保留顶层领域和共同合同，每阶段交付可操作的组合世界；避免先写包办所有未来规则的万能内核。此文是模拟设计原则，不能据此推断DF调度器、精度或容量 |
+| Factorio：[FFF324](https://www.factorio.com/blog/post/fff-324) | 开发者通过可存读、能感知目标消失的Targeter，在目标变化时通知依赖者，减少每tick重复复核；再复用到多类设施 | 沿原引用与生命周期维护受影响者，墙门、植物变化后通知实际空间/行动依赖；恢复重建订阅。借鉴依赖关系，不移植其C++指针或新增全世界广播 |
+| Factorio：[FFF421](https://www.factorio.com/blog/post/fff-421) | 空闲设施可休眠，实际需求到来再激活；重叠覆盖用共享登记减少重复工作。只读、互不干扰的控制计算适合并行，其他并行尝试仍可能无收益 | 新植物和设施从接入时就使用活动/到期/变脏集合，连续生长等因果仍须累计。并行只处理边界清楚且实测有益的工作，不把“七个领域”解释成“七条线程” |
+| Factorio：[FFF415](https://www.factorio.com/blog/post/fff-415) | 不同CPU核数曾改变区块生成结果；定位依赖稳定复现。建设任务受预算限制，优化候选查询后才提高每次处理量 | 分片、并行完成次序和机器配置不应决定业务结果。保留同未来对照；测积压来源和原owner内部成本，不能只提高预算或增加线程。该文不证明Reol当前已跨平台确定 |
+| Cataclysm:DDA：[Activities](https://docs.cataclysmdda.org/PLAYER_ACTIVITY.html) | 玩家与NPC使用可中断长动作；`activity_actor`分开`start`、`do_turn`、`finish`、`canceled`及序列化。取消不执行完成效果，可恢复状态另行保存；文档明确警告完成后错误再入可重复结果 | 将取放、施工和植物采集接到相同过程语义，效果仍由各自owner提交；验收取消、目标消失、完成只结算一次及停开继续。CDDA是回合制，不能直接照搬其moves或每turn轮询 |
+
+这些来源支持“共同运行合同＋领域规则＋可组合内容”的方向，未提供要求Reol改用完整ECS、统一万能对象或一条全局事件队列的依据。CDDA的[地图开发FAQ](https://docs.cataclysmdda.org/DEVELOPER_FAQ.html)还区分持久子地图与玩家周围的活动地图；可借鉴存储和活动集合分离，不能用其活动区机制替代Reol已经要求的远区连续因果。
+
+这些经验用于核对共同结算、真实植物对象及环境组合的交付出口：可见普通入口、可解释失败和可接续过程应随框架成立。当前代码缺口归[技术总表](../../docs/status/technical-status.md)，具体先后只维护在[主计划](../../docs/plans/foundation-priorities.md)，本研究不另立任务队列。
+
 ## 从参考中得到的架构判断
 
 以下是对Reol的工程推论，不声称几款游戏采用完全相同的实现。
@@ -25,9 +41,9 @@ Project Porcupine社区代码默认GPLv3，非代码资产默认CC BY-NC-SA；�
 4. **行动基础从早期就参与建设。** 建造、采集等过程需要接近、预约、耗时、复核和清理。先以已有取放/施工形成可复用合同，再让新领域接入；完整运动、特殊穿行和复杂策略可继续扩展。
 5. **环境按游戏语义选择模型。** 可借鉴房间聚合和拓扑通知，同时保留Reol已确认的室外局部来源、残留及五行语义。成熟作品的简化不是必须照搬的约束；风水利用真实布局/材料/环境，具体规则由本项目决定。
 
-## Reol现有代码对照
+## 历史代码核查：2026-11-07
 
-下表只表示受检版本的边界，不把有限样本直接判成错误实现。当前可用范围仍以[技术总表](../../docs/status/technical-status.md)为准。
+下表只描述`b3ae3399`当时的边界，保留改造依据。后续建筑与结算工作已改变部分结论，尤其“四种wood、单工地”和“尚无共同过程合同”不能再次登记为当前缺口。当前范围及待验能力只查[技术总表](../../docs/status/technical-status.md)与[HANDOFF](../../docs/status/handoff.md)。
 
 | 位置 | 实际核对 | 架构含义 |
 |---|---|---|

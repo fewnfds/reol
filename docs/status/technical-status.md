@@ -30,7 +30,9 @@
 
 现有方向继续采用成熟作品公开接口体现的定义/实例/能力分工，以及领域过程保留原状态的做法。[研究依据](../../design/research/colony_sim_architecture.md)支持这种组织方式，不构成商业游戏内部源码审计。共同空间与建筑已经提供可复用基础；当前进度应描述为“主计划前两阶段在声明范围内已交付”，不使用七个领域全部完成或按脚本/断言数计算的百分比。
 
-共同结算内核跨上述领域协调时间边界、顺序和续算；新增概念仍由所属领域确定规则和原状态。植物实例与自然过程仍是后续领域缺口：`NaturalEnvironment._flora_at`只派生覆盖及placement_id；`SimLandResources`仍按固定resource_sources及原库存增长/采出，生态定义限定wild_herbs；`SimWorldObjectQuery._resource`明确返回`independent_plant=false`，`SimWorldSpace.KINDS`没有植物。单纯扩充草木定义或图片无法补齐这些接缝。
+共同结算内核跨领域协调时间、顺序和续算，新概念仍由原领域实现。2026-11-08专项静态核查发现工作分支尚有命令、发布及失败反馈缺口：普通停止入口可直达未保护地区动作，施工signal可提前刷新视图，FAILED解除暂停后仍尝试续算；具体证据和反例归[本包QA](../qa/20261108_settlement_kernel.md#架构专项核查与未修复项)。尚未修复/复现，不应只补完原回归就宣布结算框架交付。
+
+植物仍是后续完整领域：`NaturalEnvironment._flora_at`只派生覆盖及placement_id；`SimLandResources`按固定来源及原库存增长/采出，生态定义限定wild_herbs；`SimWorldObjectQuery._resource`返回`independent_plant=false`，`SimWorldSpace.KINDS`没有植物。只扩充草木定义或图片无法补齐接缝。
 
 交付植物原实例后，环境可读取真实草木、建筑和容器条件，行动也有一致的自然目标。后续顺序保持主计划的环境组合→完整行动→共同认识与自主选择。房温、搬运、动态重规划分别回到相应领域；本轮没有发现需要重写引擎或增加一套平行顶层框架的证据。详细范围和验收只改原主计划，本页不生成第二条施工队列。
 
