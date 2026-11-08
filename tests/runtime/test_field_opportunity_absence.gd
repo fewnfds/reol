@@ -8,6 +8,9 @@ func run(runner: Object) -> void:
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	runner.root.add_child(main)
 	var runtime: WorldContinuityRuntime = main._continuity
+	# Compare completed absent-NPC futures; frame-budget continuation is tested
+	# by the shared clock owner. Apply the same host policy after scene restart.
+	runtime.settlement_work_budget = 2147483647
 	var helper: RefCounted = load("res://tests/runtime/helpers/field_replay.gd").new()
 	var path: String = "user://tests/field_absence_%d.json" % Time.get_ticks_usec()
 	var prepared: Dictionary = helper.prepare_npc(runtime, path)
@@ -24,6 +27,7 @@ func run(runner: Object) -> void:
 			main = load("res://scenes/main.tscn").instantiate()
 			runner.root.add_child(main)
 			runtime = main._continuity
+			runtime.settlement_work_budget = 2147483647
 			var second: Dictionary = helper.replay_npc(runtime, "test_absence_b", path)
 			runner.assert_true(bool(second.get("ok", false)), "fresh main restores actual NPC route and same later visit")
 			runner.assert_eq(_canonical(runtime), expected, "NPC absence, later learned clue and current empty site have identical complete futures after independent loaders")
