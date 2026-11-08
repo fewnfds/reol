@@ -44,3 +44,7 @@ CI已从4片增加到12片以缩短并行等待，各片仍执行结构检查、
 地理案例改为沿同一GameClock请求有界续算，保留原完整时刻与整世界未来断言并加欠算完成门禁，96检查/0失败。原长跨度领域/存读fixture明确设置无界host工作预算，专项共同时间测试仍显式预算1；能力测试不再直接调用runtime跳过GameClock。产品默认4096、业务规则和存档不因测试调整改变；最终仍须全部注册表验收。
 
 受影响长跨度fixture定向9组先8组通过、存读组因重建Main后未重新设测试预算失败；补齐替换场景hostpolicy后`test_world_persistence`224检查/0失败，包装器退出0，日志`logs/settlement-persistence-fixture.txt`。不更改生产预算或用空快照比较代替完整未来。
+
+## 用户暂停检查点
+
+测试fixture最终提交`68fa8d38c5dbafdb13974d42f4dcbb527dc4ede6`；相对`b29385c`只改测试hostpolicy/同请求续算与Markdown，生产代码一致。12片顺序check的1/12和2/12包装器退出均0，墙钟分别356.842秒、557.753秒。用户在第3片运行时明确要求暂停，主代理停止只负责后续分片的协调进程，保留当前worker自然结束；未启动4–12片。证据目录`logs/settlement-kernel-shards-final-20261108/`，第3片随后自然完成21组/1577检查/0失败，包装器退出0；`pause-boundary.json`保留原进程终态。三个报告均有完整run_finished，尚缺4–12片。具体恢复入口在HANDOFF登记。当前不是完整回归通过，也尚未推送本分支。
