@@ -1,6 +1,6 @@
 # 通用建筑与组合空间验收
 
-范围：用户授权的基础建设第二阶段。唯一计划为[foundation-priorities](../plans/foundation-priorities.md)，原owner与接口见[建筑合同](../engineering/construction-contract.md)。起点`2e6b6a61caf11b5560c15a97f1a58cb156a7300b`，分支`codex/general-buildings`；实现/审查修复及最终受检SHA在收尾时登记，本页当前不是完整通过声明。
+范围：用户授权的基础建设第二阶段。唯一计划为[foundation-priorities](../plans/foundation-priorities.md)，原owner与接口见[建筑合同](../engineering/construction-contract.md)。起点`2e6b6a61caf11b5560c15a97f1a58cb156a7300b`，分支`codex/general-buildings`；实现`806aea3f6be9c021b53063e8a4afd869a6cd6b5f`，审查修复及当前受检代码`392538904f34ddf505ca7a9ee3428ef9c7504965`；本页当前不是完整通过声明。
 
 ## 上一阶段集成
 
@@ -19,11 +19,11 @@
 
 原施工、围合/床、屋面/天气、结构查询/变化、活动所有权、原生产及普通施工运行层按影响定向验证。首轮暴露了新面板的空工地列数、已过期的最小结构夹具，以及共同查询对未结远区的拒绝边界：分别修正有效UI状态、补齐合法新夹具，并将占位复核留在实际到场/完成边界，保留原owner与共同查询的时间合同，没有放宽门禁或退化旧断言。
 
-实现提交`806aea3f6be9c021b53063e8a4afd869a6cd6b5f`经一次原生`gpt-6.1-sol`/custom只读静态审查，3项P2及1项P3均核实并修复：成品收取复核操作位预约并允许残骸回收；等候沿统一scope互斥且开始家具使用清理已有wait；工作台到场/结算前复核真实身体/地面占位；无效床位先做合法性检查。主owner测试增加对应反例，`test_building_framework`与普通施工运行层共162项通过；审查日志`logs/building-framework-review.txt`，未递归审查或重复启动审查者。最终完整check待准确代码版本登记。日志均在忽略的`logs/`；局部选组不等于全游戏回归。
+实现提交`806aea3f6be9c021b53063e8a4afd869a6cd6b5f`经一次原生`gpt-6.1-sol`/custom只读静态审查，3项P2及1项P3均核实并修复：成品收取复核操作位预约并允许残骸回收；等候沿统一scope互斥且开始家具使用清理已有wait；工作台到场/结算前复核真实身体/地面占位；无效床位先做合法性检查。主owner测试增加对应反例，`test_building_framework`与普通施工运行层共162项通过；审查日志`logs/building-framework-review.txt`，未递归审查或重复启动审查者。首轮3925389完整check在1800秒超时，完成161组、最后开始`test_private_exchange`，没有完整终态，不能算通过。首个真实错误为`test_heat_topology`仍未装配新开局配置及多格字段；修正合法夹具后，原断言又指出非热家具误发环境拓扑通知。产品代码改为按定义的roof/thermal_barrier/enclosure_boundary/roof_support决定环境通知，床不触发。三组370项定向通过；完整验收改用现有4片顺序check和覆盖聚合，不提高每片超时、不删断言、不并发本机引擎。原失败日志`logs/building-framework-full-check.txt`和计时`logs/check-test-timings-1794116564133759500.jsonl`保留。最终准确SHA与结果待终态登记。日志均在忽略的`logs/`；局部选组不等于全游戏回归。
 
 ## 普通Main与完整停开
 
-按需脚本`tools/qa/building_framework_acceptance.gd`通过Godot AI在实际Main执行普通营造面板命令。使用原随身钱币存箱，没有发放测试库存；停掉游戏进程后，在新Main进程独立加载施工、座位使用和存箱三个在途档。每案核对完整会话checkpoint、原due_ms与完整未来SHA，全部一致；本地证据在`logs/building_framework/expected.json`、`read.json`和PNG。最终代码的这一证据在收尾复核后登记。
+按需脚本`tools/qa/building_framework_acceptance.gd`通过Godot AI在实际Main执行普通营造面板命令。使用原随身钱币存箱，没有发放测试库存；停掉游戏进程后，在新Main进程独立加载施工、座位使用和存箱三个在途档。每案核对完整会话checkpoint、原due_ms与完整未来SHA，全部一致；本地证据在`logs/building_framework/expected.json`、`read.json`和PNG。修复后的准确代码3925389已再次完成上述三个独立进程案例，均通过。
 
 Godot4.7.2 stable、实际NVIDIA GeForce RTX3060。已观察1280×720原生画面；发现并修正营造面板被其他入口遮挡、储藏完成后随身数量/活动显示未刷新的问题。只有声明的功能与局部画面证据，不是满密度/16GB整机性能或正式美术验收。
 

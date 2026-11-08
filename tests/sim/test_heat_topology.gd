@@ -90,10 +90,11 @@ func _world(runner: Object) -> Authority:
 		"active": {}, "autonomous": false, "goal": "", "retry_ms": 0}}
 	village.set_actor_cell("builder", Vector2i(90, 90))
 	var rules: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/construction.json"))
+	rules["site"] = JSON.parse_string(FileAccess.get_file_as_string("res://data/scenarios/construction.json")).site
 	runner.assert_true(result.construction.initialize(result, rules), "topology fixture uses the real construction rules")
 	result.environment_fields.construction = weakref(result.construction)
 	result.construction.structures_changed.connect(result.on_structures_changed)
-	result.construction.sites.sect_yard = {"origin": [100, 100]}
+	result.construction.sites.sect_yard = {"origin": [100, 100], "size": [7, 5]}
 	return result
 
 
@@ -104,7 +105,7 @@ func _project(runner: Object, authority: Authority, type: String, cell: Vector2i
 	var stock: Dictionary = {"wood": int(domain.definitions.types[type].amount)} if funded else {}
 	runner.assert_true(authority.regions.home.inventory.create_container(id, stock), "a real delivered material container exists for the construction transaction")
 	domain.projects[id] = {"site": "sect_yard", "type": type, "cell": [cell.x, cell.y],
-		"state": "blueprint", "open": false, "created_by": "builder", "created_ms": 0,
+		"rotation": 0, "hp": 0, "state": "blueprint", "open": false, "created_by": "builder", "created_ms": 0,
 		"completed_ms": 0, "removed_ms": 0, "work_ms": 0,
 		"material_cell": [cell.x, cell.y + 1], "carrier": "", "delivered": true, "line": ""}
 	domain._reindex()

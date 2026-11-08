@@ -199,7 +199,7 @@ func damage(id: String, amount: int) -> Dictionary:
 		for cell: Vector2i in project_cells(removed):
 			if cell not in changed:
 				changed.append(cell)
-	if not _can_remove_all(removals, true) or not _before_thermal_change(str(rule.kind), changed):
+	if not _can_remove_all(removals, true) or not _before_thermal_change(str(project.type), changed):
 		return reply(false, "结构事务尚未就绪，原耐久与内容物保留。")
 	var drop: Array = _drop_cell(id, removals)
 	if drop.is_empty():
@@ -219,7 +219,7 @@ func damage(id: String, amount: int) -> Dictionary:
 	project.line = "结构损毁，残骸与原内容物留在现场；清空后可清理。"
 	_collapse_roofs(removals.slice(1))
 	_reindex()
-	_after_thermal_change(str(rule.kind))
+	_after_thermal_change(str(project.type))
 	_changing = false
 	structures_changed.emit(changed)
 	space_changed.emit(changed)
@@ -449,13 +449,13 @@ func _complete(job: Dictionary) -> void:
 	if job.kind == "demolish" and not _can_remove_all(removals):
 		_release(job, "拆除余料记录不一致；结构与材料保留。")
 		return
-	if not _before_thermal_change(str(rule.kind), changed_cells):
+	if not _before_thermal_change(str(project.type), changed_cells):
 		_release(job, "环境尚未就绪；工时、材料与原结构保留，稍后再续。")
 		return
 	match str(job.kind):
 		"build":
 			if not sim.inventory.consume(str(job.project) + ":build", job.project, str(rule.item), int(rule.amount)):
-				_after_thermal_change(str(rule.kind))
+				_after_thermal_change(str(project.type))
 				_release(job, "到场工料不足，无法完成结构。")
 				return
 			project.state = "built"
@@ -465,7 +465,7 @@ func _complete(job: Dictionary) -> void:
 			project.completed_ms = world.elapsed_ms
 		"demolish":
 			if not _remove(str(job.project), job.stand):
-				_after_thermal_change(str(rule.kind))
+				_after_thermal_change(str(project.type))
 				_release(job, "拆除余料记录不一致。")
 				return
 		"open", "close":
@@ -473,7 +473,7 @@ func _complete(job: Dictionary) -> void:
 	if job.kind == "demolish":
 		_collapse_roofs(removals.slice(1))
 	_reindex()
-	_after_thermal_change(str(rule.kind))
+	_after_thermal_change(str(project.type))
 	_release(job, "结构已完工。" if job.kind == "build" else "拆除完成，余料还在工地。" if job.kind == "demolish" else "木门已打开。" if job.kind == "open" else "木门已关上。", "completed")
 	# Observers only see the completed transaction, including collateral roofs,
 	# derived rooms/heat geometry and released worker/material reservations.
@@ -672,8 +672,13 @@ func thermal_roofed(cell: Vector2i) -> bool:
 	return roofed(cell)
 
 
-func _before_thermal_change(kind: String, changed_cells: Array[Vector2i]) -> bool:
-	if world.environment_fields != null:
+func _changes_thermal(type: String) -> bool:
+	var rule: Dictionary = definitions.types[type]
+	return rule.layer == "roof" or bool(rule.facts.thermal_barrier) or bool(rule.facts.enclosure_boundary) or bool(rule.facts.roof_support)
+
+
+func _before_thermal_change(type: String, changed_cells: Array[Vector2i]) -> bool:
+	if _changes_thermal(type) and world.environment_fields != null:
 		if world.environment_fields is SimWorldEnvironmentFields:
 			# The outdoor field has no wall, door or roof insulation model. Its
 			# existing state must already be settled at the shared event time.
@@ -684,8 +689,8 @@ func _before_thermal_change(kind: String, changed_cells: Array[Vector2i]) -> boo
 	return true
 
 
-func _after_thermal_change(kind: String) -> void:
-	if world.environment_fields != null:
+func _after_thermal_change(type: String) -> void:
+	if _changes_thermal(type) and world.environment_fields != null:
 		if world.environment_fields is SimWorldEnvironmentFields:
 			return
 		# Called only after a successful operation and all resulting collapses
