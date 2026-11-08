@@ -21,6 +21,8 @@ func _scene(runner: Object) -> Dictionary:
 		main.free()
 		GameClock.restore_state(saved_clock)
 		return {}
+	# Domain and save deadlines here are not a per-frame work-budget test.
+	runtime.settlement_work_budget = 2147483647
 	for region: String in runtime.world_sim.regions:
 		var sim: VillageSimulation = runtime.world_sim.regions[region]
 		for actor: String in sim.actors:

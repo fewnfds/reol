@@ -55,6 +55,9 @@ func _fixture(runner: Object, bundle: Dictionary = {}, initial_workplaces: bool 
 	var home := VillageRuntime.new()
 	home.restore_map_factory = func(_descriptor: Dictionary) -> WorldMapData: return FlatMap.new()
 	var continuity := Runtime.new()
+	# Domain/restore fixtures use long explicit advances and inspect their
+	# synchronous future. Work-budget behavior has its own clock-owner tests.
+	continuity.settlement_work_budget = 2147483647
 	var result: Dictionary = {
 		"clock": saved_clock, "world": world, "player": player,
 		"pawns": pawns, "home": home, "continuity": continuity,

@@ -19,6 +19,8 @@ func run(runner: Object) -> void:
 		runner.assert_true(false, "ordinary main initializes for source-loan continuation")
 		_cleanup(main, source_path, check_path, saved_clock)
 		return
+	# Both independent scenes compare complete loan futures, not frame budgets.
+	runtime.settlement_work_budget = 2147483647
 	_reject_archive(runner, runtime)
 	var helper := Replay.new()
 	var report: Dictionary = {"steps": []}
@@ -108,6 +110,7 @@ func run(runner: Object) -> void:
 		runner.assert_true(false, "replacement main initializes before source-loan loading")
 		_cleanup(main, source_path, check_path, saved_clock)
 		return
+	runtime.settlement_work_budget = 2147483647
 	var loaded: Error = runtime.load_game(source_path)
 	runner.assert_eq(loaded, OK, "a new ordinary scene restores the current in-flight source")
 	if loaded != OK:

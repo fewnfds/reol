@@ -42,6 +42,8 @@ func _new_main(runner: Object) -> Node:
 		runner.assert_true(false, "the ordinary game Main assembles its real world and avatar")
 		main.free()
 		return null
+	# Compare complete light/custody/save futures, not per-frame work limits.
+	main._continuity.settlement_work_budget = 2147483647
 	return main
 
 

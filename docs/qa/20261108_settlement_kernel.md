@@ -1,6 +1,6 @@
 # 共同结算内核验收
 
-范围：用户授权的共同结算框架，横跨现有顶层领域；现行接口和算法见[共同结算合同](../engineering/settlement-contract.md)，建设依赖仍归[唯一主计划](../plans/foundation-priorities.md)。工作分支`codex/settlement-kernel`基于main `a4fb83a6c29e3203bf71fc1c1f950afe4906830b`。实现与受审提交为`79d4543c532b5fc1e0a99dbd8b804b71ea6f6d38`；审查后修复的最终代码SHA、完整回归和推送CI尚待完成，不能用前序建筑代码的通过冒充。
+范围：用户授权的共同结算框架，横跨现有顶层领域；现行接口和算法见[共同结算合同](../engineering/settlement-contract.md)，建设依赖仍归[唯一主计划](../plans/foundation-priorities.md)。工作分支`codex/settlement-kernel`基于main `a4fb83a6c29e3203bf71fc1c1f950afe4906830b`。实现与受审提交为`79d4543c532b5fc1e0a99dbd8b804b71ea6f6d38`，审查后最终修复代码为`b29385c30dc72e8942eef803d781e526e4093986`；完整回归正在运行，推送CI尚待完成，不能用前序建筑代码的通过冒充。
 
 ## 范围与来源
 
@@ -27,12 +27,20 @@
 
 ## 原生Main、完整停开及性能样本
 
-审查修复前的工作区使用Godot **4.7.2 stable**、Godot AI **4.4.1**，实际NVIDIA GeForce RTX 3060。通过`tools/qa/settlement_kernel_acceptance.gd`在普通Main使用原世界及原身体，预算1暂停于`previous:health`，部分状态拒绝快照；跨实际帧续算后的完整世界SHA与从相同起点不限预算结果一致。结清后保存checkpoint，再推进5000毫秒得到未来SHA；完整停止游戏进程、重新启动Main并独立载入后，checkpoint与完整未来均一致，读档后时间为5200毫秒。证据在忽略目录`logs/settlement_kernel/expected.json`与`read.json`，普通1280×720画面已观察，游戏日志无运行错误。
+最终修复代码`b29385c30dc72e8942eef803d781e526e4093986`使用Godot **4.7.2 stable**、Godot AI **4.4.1**，实际NVIDIA GeForce RTX 3060。通过`tools/qa/settlement_kernel_acceptance.gd`在普通Main使用原世界及原身体，预算1暂停于`previous:health`，部分状态拒绝快照；跨实际帧续算后的完整世界SHA与从相同起点不限预算结果一致。结清后保存checkpoint，再推进5000毫秒得到未来SHA；完整停止游戏进程、重新启动Main并独立载入后，checkpoint与完整未来均一致，读档后时间为5200毫秒，也与修复前的未来SHA一致。证据在忽略目录`logs/settlement_kernel/expected.json`、`read.json`及`tested_version.json`，普通1280×720画面已观察；游戏与编辑器运行错误为0，原有编译器警告不计作运行错误，编辑器日志为`logs/settlement-final-editor.log`。
 
-同机重新启动后的普通开局，先预热120帧，再使用`RenderingServer.frame_post_draw`之间的真实时间间隔测600帧：P95 **17.348ms**、P99 **21.257ms**、最小1.586ms、最大35.38ms；该样本推进模拟5800毫秒、完成145个边界，结束时没有待结算阶段。结果见`logs/settlement_kernel/performance.json`。这是含渲染与帧节奏的短样本，并非内核的CPU耗时、密集世界或全项目16GB/目标规模验收。先前使用缓存型`Performance.TIME_PROCESS`重复值的结果无效，不作为性能证据。
+同一修复代码重新启动后的普通开局，先预热120帧，再使用`RenderingServer.frame_post_draw`之间的真实时间间隔测600帧：P95 **15.126ms**、P99 **15.529ms**、最小1.269ms、最大16.11ms；该样本推进模拟5000毫秒、完成100个边界，结束时没有待结算阶段。结果见`logs/settlement_kernel/performance.json`。这是含渲染与帧节奏的短样本，并非内核的CPU耗时、密集世界或全项目16GB/目标规模验收。旧的修复前P95 17.348ms样本保留在`logs/settlement_kernel/before_review_fixes/`作为历史记录，两个短样本不能据此宣称性能提升。先前使用缓存型`Performance.TIME_PROCESS`重复值的结果无效，不作为性能证据。
 
 ## CI分片与待验
 
 CI已从4片增加到12片以缩短并行等待，各片仍执行结构检查、导入、现有测试及错误/超时/退出码门禁，完成后聚合整个相同注册表。Python完整工具测试72项通过，覆盖聚合完整与漏片反例通过；测试中故意制造的错误和超时输出不代表产品失败。按上次本机250组完整报告加本轮新组重新按现行注册顺序取模估算，本次4片最慢约1026秒、12片最慢约479秒，均是组内模拟耗时，不包括GitHub排队、checkout、安装和导入；新增组也会改变分配。新配置的GitHub真实墙钟、并发可用性及最终SHA均待验证；本机验收仍串行执行，避免本机并发引擎。
 
-本包尚需固定修复代码SHA、在该代码上重验原生Main完整停开及12片顺序完整回归/覆盖聚合；相应证据和准确SHA完成后由主代理更新本页与[BASELINE](../status/baseline.md)。旧主线[CI42473540525](https://github.com/fewnfds/reol/actions/runs/42473540525)对应`eb330ee9c38fa3a5cc72004372ddeefd70409b1e`，已核completed/success，仅证明该主线SHA。
+最终生产代码`b29385c30dc72e8942eef803d781e526e4093986`的首次check未通过；测试fixture适配后将固定受检SHA，核每片包装器退出/日志门禁并聚合覆盖，结果由主代理更新本页与[BASELINE](../status/baseline.md)。旧主线[CI42473540525](https://github.com/fewnfds/reol/actions/runs/42473540525)对应`eb330ee9c38fa3a5cc72004372ddeefd70409b1e`，已核completed/success，仅证明该主线SHA。
+
+## 完整回归首错与测试调用合同
+
+`b29385c`首轮12片顺序check在第1片完成21组、其中20通过/1失败、2175检查，包装器退出1，269.198秒；失败为`test_geographic_content`假定`GameClock.advance_msec(62347)`一次调用完成，实际预算正确保留请求而已结算28000毫秒。未运行后续片；报告与日志在`logs/settlement-kernel-shards-20261108/`。一次性编排脚本读取失败日志时遇到编码错误，但worker原退出与首个断言失败均保留。
+
+地理案例改为沿同一GameClock请求有界续算，保留原完整时刻与整世界未来断言并加欠算完成门禁，96检查/0失败。原长跨度领域/存读fixture明确设置无界host工作预算，专项共同时间测试仍显式预算1；能力测试不再直接调用runtime跳过GameClock。产品默认4096、业务规则和存档不因测试调整改变；最终仍须全部注册表验收。
+
+受影响长跨度fixture定向9组先8组通过、存读组因重建Main后未重新设测试预算失败；补齐替换场景hostpolicy后`test_world_persistence`224检查/0失败，包装器退出0，日志`logs/settlement-persistence-fixture.txt`。不更改生产预算或用空快照比较代替完整未来。

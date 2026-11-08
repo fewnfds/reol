@@ -127,6 +127,8 @@ func _test_editor_physical_action_and_resume(runner: Object) -> void:
 		main.free()
 		GameClock.restore_state(saved_clock)
 		return
+	# This fixture compares complete physical-action futures, not frame budgets.
+	runtime.settlement_work_budget = 2147483647
 	var selected: bool = runtime.select_starting_avatar("subject:player")
 	runner.assert_true(selected, "physical action fixture selects the actual human")
 	if not selected:
@@ -416,6 +418,8 @@ func _test_contact_change_at_deadline(runner: Object) -> void:
 		main.free()
 		GameClock.restore_state(saved_clock)
 		return
+	# The deadline case isolates contact rules from per-frame work limits.
+	runtime.settlement_work_budget = 2147483647
 	runner.assert_true(runtime.select_starting_avatar("subject:player"), "contact deadline fixture selects the actual human")
 	var world: RegionalSimulation = runtime.world_sim
 	var origin: Vector2i = runtime.controlled_cell()

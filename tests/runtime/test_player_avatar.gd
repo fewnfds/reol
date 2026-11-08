@@ -98,6 +98,8 @@ func _test_opening_and_persistence(runner: Object) -> void:
 	var main: Node = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	runner.root.add_child(main)
 	var runtime: WorldContinuityRuntime = main._continuity
+	# Compare complete identity/save futures without imposing a work budget.
+	runtime.settlement_work_budget = 2147483647
 	runner.assert_true(main._avatar.opening.visible and GameClock.paused, "new game offers its opening before time starts")
 	runner.assert_true(main._avatar.choose("subject:avian:moss_sparrow"), "opening UI binds the real sparrow life")
 	runner.assert_true(not main.player.avatar_active and not main._avatar.opening.visible, "former human no longer samples player intent")

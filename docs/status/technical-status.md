@@ -7,7 +7,7 @@
 | 名称 | 实际情况 |
 |---|---|
 | Git `main` / `origin/main` | 建筑阶段已完整快进并推送，包含集成点`eb330ee9c38fa3a5cc72004372ddeefd70409b1e`及此前全部已完成代码；阶段整合只改Markdown。准确代码d00bac的CI已核success；主线独立CI与实时指针见BASELINE和Git |
-| 当前工作分支 | `codex/settlement-kernel`基于main `a4fb83a6c29e3203bf71fc1c1f950afe4906830b`，接入共同结算内核和受预算续算；本包尚未提交/合入，完整验证及审查状态见BASELINE与HANDOFF |
+| 当前工作分支 | `codex/settlement-kernel`基于main `a4fb83a6c29e3203bf71fc1c1f950afe4906830b`，接入共同结算内核和受预算续算；修复代码`b29385c30dc72e8942eef803d781e526e4093986`尚未推送/合入，完整验证及审查状态见BASELINE与HANDOFF |
 | 普通 `Main` 游戏入口 | `scenes/main.tscn`及其运行接线；有限游戏能力和Git集成状态分别按功能及版本证据核验 |
 
 通用参与索引、环境局部/到期执行、健康活跃集合、共同空间/最小行动和通用建筑均已接普通Main并合入Git main；结算内核目前在工作分支。隔离旧实验`codex/field-contest`与命名stash不是待发布功能或自动恢复任务。来源见[分支页](branches.md)及[建筑验收](../qa/20261108_building_framework.md)。

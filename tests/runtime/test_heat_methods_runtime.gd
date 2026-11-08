@@ -136,6 +136,8 @@ func _test_other_life_practice(runner: Object) -> void:
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	runner.root.add_child(main)
 	var runtime: WorldContinuityRuntime = main._continuity
+	# This long-advance domain fixture is not a work-budget performance test.
+	runtime.settlement_work_budget = 2147483647
 	main._avatar.choose("subject:avian:moss_sparrow")
 	GameClock.set_paused(true)
 	var world: RegionalSimulation = runtime.world_sim

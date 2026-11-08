@@ -8,6 +8,8 @@ func run(runner: Object) -> void:
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	runner.root.add_child(main)
 	var runtime: WorldContinuityRuntime = main._continuity
+	# Both scenes compare completed field-trip futures, not frame budgets.
+	runtime.settlement_work_budget = 2147483647
 	var helper: RefCounted = load("res://tests/runtime/helpers/field_replay.gd").new()
 	var path: String = "user://tests/field_trip_%d.json" % Time.get_ticks_usec()
 	var domain: RefCounted = runtime.world_sim.field_opportunities
@@ -35,6 +37,7 @@ func run(runner: Object) -> void:
 			main = load("res://scenes/main.tscn").instantiate()
 			runner.root.add_child(main)
 			runtime = main._continuity
+			runtime.settlement_work_budget = 2147483647
 			future = helper.replay_trip(runtime, "test_early_b", path)
 			runner.assert_true(bool(future.get("ok", false)), "fresh scene restores the same earned trip and physical take")
 			runner.assert_eq(_canonical(runtime), expected, "independent full-session loaders reach byte-equivalent bodies, objects, memories, costs and continuing life")

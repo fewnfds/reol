@@ -14,6 +14,8 @@ func run(runner: Object) -> void:
 	if runtime == null or runtime.world_sim == null or research_path.is_empty() or draw_path.is_empty():
 		runner.assert_true(false, "current drawing scene and unused save paths are available")
 	else:
+		# This case checks complete drawing futures, not per-frame budgets.
+		runtime.settlement_work_budget = 2147483647
 		_exercise_current(runner, runtime, helper, research_path, draw_path)
 	_remove(research_path)
 	_remove(draw_path)

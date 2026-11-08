@@ -41,6 +41,8 @@ func _fixture(runner: Object) -> Dictionary:
 	# the live test world, as the shared continuity fixture does.
 	home.restore_map_factory = func(_descriptor: Dictionary) -> WorldMapData: return Fixtures.FlatMap.new()
 	var adapter := WorldContinuityRuntime.new()
+	# This fixture exercises long workplace futures, not per-frame budgets.
+	adapter.settlement_work_budget = 2147483647
 	var result: Dictionary = {"clock": saved_clock, "world": world, "player": player,
 		"pawns": pawns, "home": home, "continuity": adapter}
 	if not home.setup(world, player, pawns, content, true) or not adapter.setup(home):

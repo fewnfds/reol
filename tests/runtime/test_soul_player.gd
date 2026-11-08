@@ -10,6 +10,9 @@ func _new_scene(runner: Object) -> Node:
 	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
 	var main: Node = load("res://scenes/main.tscn").instantiate()
 	runner.root.add_child(main)
+	# This fixture tests domain and save futures, not per-frame work limits.
+	if main._continuity != null:
+		main._continuity.settlement_work_budget = 2147483647
 	return main
 
 

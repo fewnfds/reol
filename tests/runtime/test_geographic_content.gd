@@ -116,7 +116,7 @@ func _test_ordinary_openings_and_archives(runner: Object) -> void:
 	runner.assert_eq(saved, OK, "the real default opening saves its compiled climate")
 	var expected_future: String = ""
 	if saved == OK:
-		GameClock.advance_msec(FUTURE_STEP_MS)
+		_advance_future(runner)
 		runner.assert_eq(first_runtime.world_sim.elapsed_ms, FUTURE_STEP_MS, "the first world advances its original physical clock")
 		expected_future = _json(WorldSessionSnapshot.capture(first_runtime))
 	first.free()
@@ -157,7 +157,7 @@ func _test_ordinary_openings_and_archives(runner: Object) -> void:
 			runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), checkpoint, "load restores the complete original checkpoint without recompiling it")
 			runner.assert_eq(_json(runtime.world_sim.environment.definitions), _json(default_content.documents[CLIMATE_PATH]), "the archive curves, not the second opening profile, own temperature")
 			runner.assert_eq(_json(second._content.content_bundle()), _json(default_content), "Main is rebound to the restored content version")
-			GameClock.advance_msec(FUTURE_STEP_MS)
+			_advance_future(runner)
 			runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), expected_future, "loading into a differently configured Main produces the same complete future")
 	_test_legacy_archive(runner, runtime)
 	second.free()
@@ -189,6 +189,16 @@ func _test_legacy_archive(runner: Object, runtime: WorldContinuityRuntime) -> vo
 
 func _reset_clock() -> void:
 	GameClock.restore_state({"tick_index": 0, "total_minutes": 480, "speed": 1.0, "paused": true})
+
+
+func _advance_future(runner: Object) -> void:
+	var target: int = GameClock.elapsed_ms + FUTURE_STEP_MS
+	GameClock.advance_msec(FUTURE_STEP_MS)
+	for _attempt: int in 4096:
+		if not GameClock.has_pending_advance():
+			break
+		GameClock._process(0.0)
+	runner.assert_true(not GameClock.has_pending_advance() and GameClock.elapsed_ms == target, "the retained original clock request reaches the complete geographic future before snapshot comparison")
 
 
 func _remove(path: String) -> void:

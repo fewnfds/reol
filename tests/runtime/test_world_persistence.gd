@@ -179,6 +179,10 @@ func _test_current_fresh_scene_roundtrip(runner: Object) -> void:
 	var main: Node = packed.instantiate()
 	runner.root.add_child(main)
 	var runtime: WorldContinuityRuntime = main._continuity
+	# This case owns complete archived futures; budget continuation is tested
+	# with the real clock separately, rather than constraining this host call.
+	if runtime != null:
+		runtime.settlement_work_budget = 2147483647
 	var path: String = "user://tests/world_current_%d.json" % Time.get_ticks_usec()
 	if runtime == null or runtime.world_sim == null:
 		runner.assert_true(false, "ordinary scene initializes for current world persistence")
@@ -216,6 +220,8 @@ func _test_current_fresh_scene_roundtrip(runner: Object) -> void:
 	main = packed.instantiate()
 	runner.root.add_child(main)
 	runtime = main._continuity
+	if runtime != null:
+		runtime.settlement_work_budget = 2147483647
 	if runtime == null or runtime.world_sim == null:
 		runner.assert_true(false, "the replacement scene initializes before journey restore")
 		_cleanup(main, path, saved_clock)
@@ -294,6 +300,8 @@ func _test_current_fresh_scene_roundtrip(runner: Object) -> void:
 	main = packed.instantiate()
 	runner.root.add_child(main)
 	runtime = main._continuity
+	if runtime != null:
+		runtime.settlement_work_budget = 2147483647
 	if runtime == null or runtime.world_sim == null:
 		runner.assert_true(false, "the replacement scene initializes before overload restore")
 		_cleanup(main, path, saved_clock)

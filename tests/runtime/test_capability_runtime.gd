@@ -15,6 +15,8 @@ func run(runner: Object) -> void:
 	if runtime == null or runtime.world_sim == null or path.is_empty():
 		runner.assert_true(false, "current capability scene and an unused save path are available")
 	else:
+		# This fixture compares complete practice/save futures, not frame budgets.
+		runtime.settlement_work_budget = 2147483647
 		_exercise_current(runner, runtime, path)
 	_remove(path)
 	main.free()
@@ -85,10 +87,12 @@ func _exercise_current(runner: Object, runtime: WorldContinuityRuntime, path: St
 	runner.assert_eq(_json(WorldSessionSnapshot.capture(runtime)), future, "failed independent candidate preserves the complete live future")
 
 
-func _advance(runtime: WorldContinuityRuntime, target: int) -> void:
+func _advance(_runtime: WorldContinuityRuntime, target: int) -> void:
 	GameClock.advance_msec(target - GameClock.elapsed_ms)
-	if runtime.world_sim.elapsed_ms < target:
-		runtime.advance_to_ms(target)
+	for _attempt: int in 4096:
+		if not GameClock.has_pending_advance():
+			break
+		GameClock._process(0.0)
 
 
 func _unused_path() -> String:

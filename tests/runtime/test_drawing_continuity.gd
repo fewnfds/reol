@@ -18,6 +18,8 @@ func run(runner: Object) -> void:
 		runner.assert_true(false, "ordinary scene initializes for drawing continuation")
 		_cleanup(main, research_path, draw_path, saved_clock)
 		return
+	# This fixture checks completed research/draw futures, not frame budgets.
+	runtime.settlement_work_budget = 2147483647
 	_reject_historical_archives(runner, runtime)
 	var helper := Replay.new()
 	var report: Dictionary = {"steps": []}
