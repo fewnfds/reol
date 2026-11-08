@@ -200,7 +200,7 @@ func refresh() -> void:
 	if not adapter.human_player_active():
 		panel.hide()
 	if not panel.visible:
-		queue_redraw()
+		redraw_committed_canvas()
 		return
 	var old: String = selected_site()
 	site_choice.clear()
@@ -214,7 +214,7 @@ func refresh() -> void:
 	_observe.disabled = id.is_empty()
 	_object.disabled = _visible_object().is_empty()
 	_details.text = ("本人记得这处去路。到达后亲眼查看，才能知道那里现在是什么情形。\n\n" if not id.is_empty() else "尚未听到明确的野外去处；可向实际在眼前的人询问，或者亲自行走探查。\n\n") + _scene_line()
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func _on_advanced(_from: int, _to: int) -> void:

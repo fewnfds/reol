@@ -196,11 +196,14 @@ func reset_observation() -> void:
 
 
 func refresh() -> void:
-	if runtime() != null and runtime().world_sim.settlement.is_pending():
-		return
 	var adapter: WorldContinuityRuntime = runtime()
+	if panel == null or adapter == null or adapter.world_sim == null:
+		return
+	panel.update_notice(_notice)
+	if adapter.world_sim.settlement != null and adapter.world_sim.settlement.is_pending():
+		return
 	var source: RefCounted = domain()
-	if panel == null or adapter == null or source == null:
+	if source == null:
 		return
 	if not adapter.human_player_active():
 		panel.hide()

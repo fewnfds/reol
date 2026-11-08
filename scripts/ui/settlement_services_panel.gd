@@ -137,10 +137,14 @@ func update_view(place: String, activity: String, details: String, notice: Strin
 	_title.text = "生活与办事 · %s" % place
 	_activity.text = activity
 	_details.text = details
-	_notice.text = notice
-	_notice.tooltip_text = notice
+	update_notice(notice)
 	for button: Button in _local_buttons:
 		button.disabled = not local
+
+
+func update_notice(notice: String) -> void:
+	_notice.text = notice
+	_notice.tooltip_text = notice
 
 
 func update_activity(phase: String, remaining: int, busy: bool, seconds: bool = false) -> void:

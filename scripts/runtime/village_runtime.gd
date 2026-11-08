@@ -56,8 +56,8 @@ func setup(
 		return false
 	if get_parent() != null:
 		_fog = get_parent().get_node_or_null("Fog") as FogOfWar
-	if _fog != null and not _fog.visibility_updated.is_connected(queue_redraw):
-		_fog.visibility_updated.connect(queue_redraw)
+	if _fog != null and not _fog.visibility_updated.is_connected(redraw_committed_canvas):
+		_fog.visibility_updated.connect(redraw_committed_canvas)
 	for pawn: Pawn in pawns:
 		_pawns[String(pawn.pawn_id)] = pawn
 	if not _load_config():
@@ -95,7 +95,7 @@ func setup(
 	_sync_actor_views(true)
 	GameClock.time_advanced.connect(_on_time_advanced)
 	_refresh_panel()
-	queue_redraw()
+	redraw_committed_canvas()
 	return true
 
 
@@ -355,7 +355,7 @@ func load_game(path: String = SAVE_PATH) -> Error:
 		_selected_actor = "player"
 	_notice = "已回到记下近况的那一刻。"
 	_refresh_panel()
-	queue_redraw()
+	redraw_committed_canvas()
 	content_replaced.emit(content)
 	simulation_advanced.emit()
 	return OK
@@ -441,8 +441,12 @@ func _on_time_advanced(_from_ms: int, _to_ms: int) -> void:
 	_sync_actor_views(true)
 	if had_events:
 		_refresh_panel()
-		queue_redraw()
+		redraw_committed_canvas()
 		simulation_advanced.emit()
+	if not is_instance_valid(continuity):
+		# Standalone runtime has no world adapter to capture its publication.
+		refresh_committed_canvas()
+		queue_redraw()
 
 
 func _process(delta: float) -> void:
@@ -781,7 +785,7 @@ func _current_canvas_world() -> RefCounted:
 
 func _world_is_complete(world: RefCounted) -> bool:
 	if world is VillageSimulation:
-		return not GameClock.is_advancing() and int(world.elapsed_ms) == GameClock.elapsed_ms
+		return int(world.elapsed_ms) == GameClock.elapsed_ms
 	return super._world_is_complete(world)
 
 

@@ -6,6 +6,7 @@ extends Node2D
 var _canvas_commands: Array[Callable] = []
 var _canvas_candidate: Array[Callable] = []
 var _canvas_world: WeakRef
+var _canvas_at_ms: int = -1
 
 
 func _canvas_adapter() -> Node:
@@ -33,6 +34,14 @@ func clear_committed_canvas() -> void:
 		return
 	_canvas_commands.clear()
 	_canvas_world = null
+	_canvas_at_ms = -1
+	redraw_committed_canvas()
+
+
+func redraw_committed_canvas() -> void:
+	# Capture synchronously. A deferred _draw may run only after another
+	# boundary has already suspended, so it must never be the capture owner.
+	refresh_committed_canvas()
 	queue_redraw()
 
 
@@ -41,6 +50,7 @@ func refresh_committed_canvas() -> void:
 	if world == null or (_canvas_world != null and _canvas_world.get_ref() != world):
 		_canvas_commands.clear()
 		_canvas_world = null
+		_canvas_at_ms = -1
 	if not _world_is_complete(world):
 		return
 	_canvas_candidate = []
@@ -49,9 +59,11 @@ func refresh_committed_canvas() -> void:
 	if current == world and _world_is_complete(world):
 		_canvas_commands = _canvas_candidate
 		_canvas_world = weakref(world)
+		_canvas_at_ms = int(world.get("elapsed_ms"))
 	elif current != world:
 		_canvas_commands.clear()
 		_canvas_world = null
+		_canvas_at_ms = -1
 	_canvas_candidate = []
 
 
@@ -60,7 +72,6 @@ func _build_canvas() -> void:
 
 
 func _draw() -> void:
-	refresh_committed_canvas()
 	# Even an earlier queue_redraw may arrive during a suspended boundary.
 	# Only these captured parameters are read while replaying that old view.
 	draw_set_transform(Vector2.ZERO)

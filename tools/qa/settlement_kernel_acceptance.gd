@@ -1,7 +1,7 @@
 extends RefCounted
 ## On-demand native Main acceptance, with a real process stop between write
 ## and read. Logs and saves are local artifacts, never content dependencies.
-const DIRECTORY: String = "res://logs/settlement_kernel_close_20261109"
+const DIRECTORY: String = "res://logs/settlement_kernel_review_20261109"
 var main: Node
 var runtime: WorldContinuityRuntime
 var clock: Node
@@ -15,6 +15,8 @@ func run(scene: Node, mode: String) -> Dictionary:
 	if DisplayServer.get_name() == "headless":
 		return {"ok": false, "reason": "native process required"}
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIRECTORY))
+	if mode == "continuous_publication":
+		return await _continuous_publication()
 	if mode == "write":
 		return await _write_case()
 	if mode == "read":
@@ -26,6 +28,31 @@ func run(scene: Node, mode: String) -> Dictionary:
 	if mode == "publication_finish":
 		return await _publication_finish()
 	return {"ok": false, "reason": "unknown mode"}
+
+
+func _continuous_publication() -> Dictionary:
+	if runtime._opening_selection_available:
+		runtime.select_starting_avatar("subject:player")
+	runtime.settlement_work_budget = 1
+	clock.set_paused(false)
+	var commits: int = 0
+	var last_clock: int = clock.elapsed_ms
+	var coherent: bool = true
+	var pending_seen: bool = false
+	for _frame: int in 240:
+		await RenderingServer.frame_post_draw
+		if clock.elapsed_ms != last_clock:
+			commits += 1
+			last_clock = clock.elapsed_ms
+		coherent = coherent and runtime.construction_adapter._canvas_at_ms == clock.elapsed_ms and runtime.avian_adapter._canvas_at_ms == clock.elapsed_ms
+		if runtime.world_sim.settlement.is_pending():
+			pending_seen = true
+			var answer: Dictionary = runtime.service_adapter.submit("cancel")
+			coherent = coherent and not answer.ok and runtime.service_adapter.panel._notice.text == answer.line
+	clock.set_paused(true)
+	var result: Dictionary = {"ok": coherent and commits >= 2 and pending_seen, "coherent": coherent, "commits": commits, "pending_seen": pending_seen, "at_ms": clock.elapsed_ms, "canvas_at_ms": runtime.construction_adapter._canvas_at_ms}
+	_store("continuous_publication", result)
+	return result
 
 
 func _publication() -> Dictionary:

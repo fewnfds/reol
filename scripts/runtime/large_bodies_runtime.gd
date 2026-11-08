@@ -58,7 +58,7 @@ func reset_observation() -> void:
 
 func _on_time_advanced(_from: int, _to: int) -> void:
 	if can_refresh_canvas():
-		queue_redraw()
+		redraw_committed_canvas()
 
 
 func is_visible_body(id: String) -> bool:

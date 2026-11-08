@@ -204,7 +204,7 @@ func refresh() -> void:
 	if active:
 		var phase: String = domain.phase("player", adapter.world_sim.elapsed_ms)
 		_badge_label.text = "交锋 · %s · %s\nQ木剑 / E气弹 / R护障 · X退让 · 空格暂停" % [{"": "可走位", "prepare": "起势", "contact": "发力", "recover": "收势"}[phase], injury]
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func _result(ok: bool, line: String) -> Dictionary:

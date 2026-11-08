@@ -40,7 +40,7 @@ func setup(adapter: WorldContinuityRuntime) -> void:
 	adapter.avatar_changed.connect(reset_observation)
 	if adapter._home._fog != null and not adapter._home._fog.visibility_updated.is_connected(refresh):
 		adapter._home._fog.visibility_updated.connect(refresh)
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func select_object(id: String, hit_point: Vector2 = Vector2.INF) -> bool:
@@ -326,7 +326,7 @@ func reset_observation() -> void:
 	_physical_action = ""
 	clear_committed_canvas()
 	panel.hide()
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func refresh() -> void:
@@ -361,12 +361,12 @@ func refresh() -> void:
 			panel.update_view(view, status, _notice)
 			var spirit: Node = adapter.get("spirit_adapter") as Node
 			panel.set_source_entry(thermal and spirit != null and spirit.has_known_source())
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func _process(_delta: float) -> void:
 	# Only presentation: carried items follow the holder's interpolated view.
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func _unhandled_input(event: InputEvent) -> void:

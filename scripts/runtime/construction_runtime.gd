@@ -195,7 +195,7 @@ func _on_structures_changed(cells: Array[Vector2i]) -> void:
 			_pending_sight_cells[cell] = true
 		return
 	runtime().home_runtime()._world.notify_sight_obstacles_changed(cells)
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func _on_boundary_settled(_at_ms: int) -> void:
@@ -212,7 +212,7 @@ func _flush_sight_changes() -> void:
 		runtime().home_runtime()._world.notify_sight_obstacles_changed(cells)
 	refresh_choices()
 	refresh()
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func _on_visibility_updated() -> void:
@@ -221,7 +221,7 @@ func _on_visibility_updated() -> void:
 	if panel.visible:
 		refresh_choices()
 		refresh()
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func show_panel() -> void:
@@ -236,13 +236,13 @@ func show_panel() -> void:
 	refresh()
 	if is_inside_tree():
 		type_choice.grab_focus()
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func _other_panel_changed(other: Control) -> void:
 	if other.visible and panel.visible:
 		panel.hide()
-		queue_redraw()
+		redraw_committed_canvas()
 
 
 func approach_store() -> void:
@@ -283,7 +283,7 @@ func register_yard() -> void:
 		_refresh_sites(str(result.site))
 	refresh_choices()
 	refresh()
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func _available() -> bool:
@@ -305,7 +305,7 @@ func place_selected() -> void:
 	_reply.text = str(result.line)
 	refresh_choices(str(result.get("project", "")))
 	refresh()
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func act(kind: String) -> void:
@@ -330,7 +330,7 @@ func revoke() -> void:
 	_reply.text = str(domain().cancel_project("player", selected_project()).line)
 	refresh_choices()
 	refresh()
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func stop() -> void:
@@ -405,7 +405,7 @@ func select_cell(cell: Vector2i) -> void:
 				break
 	refresh_choices(id)
 	refresh()
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func _project_selected(_index: int) -> void:
@@ -413,7 +413,7 @@ func _project_selected(_index: int) -> void:
 	if domain().projects.has(id):
 		selection = SimRouteTravel.cell(domain().projects[id].cell)
 	refresh()
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func _selection_layer() -> String:
@@ -485,7 +485,7 @@ func reset_observation() -> void:
 		button.queue_free()
 	_cell_buttons.clear()
 	_reply.text = "在场查看工地，才能知道正在发生的事。"
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func _describe_space(space: Dictionary) -> String:
@@ -502,7 +502,7 @@ func _describe_space(space: Dictionary) -> String:
 func _on_advanced(_from: int, _to: int) -> void:
 	_flush_sight_changes()
 	refresh()
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -514,11 +514,11 @@ func _unhandled_input(event: InputEvent) -> void:
 				panel.hide()
 			else:
 				show_panel()
-			queue_redraw()
+			redraw_committed_canvas()
 			get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_ESCAPE and panel.visible:
 			panel.hide()
-			queue_redraw()
+			redraw_committed_canvas()
 			get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and panel.visible:
 		var point: Vector2 = get_global_mouse_position()
@@ -624,7 +624,7 @@ func _site_selected(_index: int) -> void:
 	selection = domain().site_bounds(selected_site()).position
 	refresh_choices()
 	refresh()
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func designate_site() -> void:

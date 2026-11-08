@@ -28,7 +28,7 @@ func setup(adapter: WorldContinuityRuntime) -> void:
 	screen.add_child(panel)
 	panel.set_terms(adapter.world_sim.soul_vessels.definitions.verbs)
 	panel.action_requested.connect(submit)
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func select_vessel(id: String) -> bool:
@@ -102,7 +102,7 @@ func reset_observation() -> void:
 	_notice = ""
 	_last_event = ""
 	panel.hide()
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func refresh() -> void:
@@ -122,7 +122,7 @@ func refresh() -> void:
 				_last_event = str(status.event)
 				_notice = str(status.line)
 			panel.update_view(view, status, _notice)
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func _unhandled_input(event: InputEvent) -> void:

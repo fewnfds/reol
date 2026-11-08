@@ -130,10 +130,13 @@ func reset_observation() -> void:
 
 
 func refresh() -> void:
-	if runtime() != null and runtime().world_sim.settlement.is_pending():
-		return
 	var adapter: WorldContinuityRuntime = runtime()
 	if panel == null or adapter == null or adapter.world_sim == null:
+		return
+	# Command acknowledgements are presentation state. Publish them even while
+	# the last complete activity/inventory projection must remain unchanged.
+	panel.update_notice(_last_line)
+	if adapter.world_sim.settlement != null and adapter.world_sim.settlement.is_pending():
 		return
 	var world: RegionalSimulation = adapter.world_sim
 	_refresh_care_outcome(adapter._home.simulation)

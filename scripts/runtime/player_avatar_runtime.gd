@@ -195,6 +195,8 @@ func _project() -> void:
 	var adapter: WorldContinuityRuntime = runtime()
 	if adapter == null or adapter.human_player_active():
 		return
+	if adapter.world_sim.settlement != null and adapter.world_sim.settlement.is_pending():
+		return
 	if adapter.soul_player_active():
 		global_position = adapter.world_sim.soul_vessels.agency.point(adapter.soul_avatar_id())
 		soul.project()

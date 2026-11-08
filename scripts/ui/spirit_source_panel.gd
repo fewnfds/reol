@@ -114,8 +114,7 @@ func update_view(view: Dictionary, status: Dictionary, notice: String, preferred
 	var busy: bool = bool(status.get("busy", false))
 	var near: bool = bool(view.get("near", false))
 	_activity.text = "%s · 尚需%d秒" % [str(status.get("line", "正在引息")), int(status.get("seconds", status.get("remaining", 0)))] if busy else "引息要亲自在场，温石与身体也须空闲。"
-	_notice.text = notice
-	_notice.tooltip_text = notice
+	update_notice(notice)
 	object_choice.disabled = busy or objects.is_empty()
 	target_choice.disabled = busy
 	_begin.disabled = busy or not near or selected_object().is_empty()
@@ -124,3 +123,8 @@ func update_view(view: Dictionary, status: Dictionary, notice: String, preferred
 	_approach.disabled = busy or not bool(view.get("known", false))
 	_stop.disabled = not busy
 	_back.disabled = selected_object().is_empty() and preferred_object.is_empty()
+
+
+func update_notice(notice: String) -> void:
+	_notice.text = notice
+	_notice.tooltip_text = notice

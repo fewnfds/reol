@@ -107,14 +107,14 @@ func reset_observation() -> void:
 	selected_bird = ""
 	_last_notice = ""
 	panel.hide()
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func refresh() -> void:
 	_notice.text = _last_notice
 	if not can_refresh_canvas():
 		return
-	queue_redraw()
+	redraw_committed_canvas()
 	if not panel.visible:
 		return
 	var adapter: WorldContinuityRuntime = runtime()

@@ -78,8 +78,8 @@ func setup(home: VillageRuntime, opening_source_loan: bool = false, opening_sour
 	if home == null or home.simulation == null or world_sim != null:
 		return false
 	_home = home
-	if home._fog != null and not home._fog.visibility_updated.is_connected(queue_redraw):
-		home._fog.visibility_updated.connect(queue_redraw)
+	if home._fog != null and not home._fog.visibility_updated.is_connected(redraw_committed_canvas):
+		home._fog.visibility_updated.connect(redraw_committed_canvas)
 	if home._fog != null and not home._fog.visibility_updated.is_connected(_on_visibility_updated):
 		home._fog.visibility_updated.connect(_on_visibility_updated)
 	if GameClock.start_minutes != int(home._content.climate.calendar.start_minutes):
@@ -264,7 +264,20 @@ func setup(home: VillageRuntime, opening_source_loan: bool = false, opening_sour
 	home.simulation_advanced.connect(_on_advanced)
 	_refresh_views(true)
 	_refresh_panel()
+	GameClock.time_advanced.connect(_capture_committed_canvases)
+	_capture_committed_canvases()
 	return true
+
+
+func _capture_committed_canvases(_from_ms: int = 0, _to_ms: int = 0) -> void:
+	# Connected after the ordinary clock observers: body/fog invalidation and
+	# panels are committed, and the clock cannot start another interval yet.
+	var views: Array[CommittedWorldCanvas] = [self, _home, object_adapter,
+		sparring_adapter, conflict_adapter, avian_adapter, soul_adapter,
+		large_body_adapter, construction_adapter, field_adapter]
+	for view: CommittedWorldCanvas in views:
+		if is_instance_valid(view):
+			view.redraw_committed_canvas()
 
 
 func _create_remote(origin: Vector2i, reachable: Array[Vector2i]) -> VillageSimulation:
@@ -401,7 +414,7 @@ func _on_visibility_updated() -> void:
 	_refresh_views(true)
 	if field_adapter != null:
 		field_adapter.refresh()
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func _bind_navigation() -> void:
@@ -664,7 +677,7 @@ func advance_to_ms(target_ms: int) -> int:
 		field_adapter.refresh()
 	if construction_adapter != null:
 		construction_adapter.refresh()
-		construction_adapter.queue_redraw()
+		construction_adapter.redraw_committed_canvas()
 	_update_region()
 	_refresh_views(true)
 	if object_adapter != null and (object_adapter.panel.visible or prior.object_busy != world_sim.object_lifecycle.owns_actor("player")):
@@ -673,7 +686,7 @@ func advance_to_ms(target_ms: int) -> int:
 		if soul_adapter.panel.visible:
 			soul_adapter.refresh()
 		else:
-			soul_adapter.queue_redraw()
+			soul_adapter.redraw_committed_canvas()
 	if prior.artifact_events != world_sim.artifacts.events.size() or prior.artifact_users != world_sim.artifacts.active.size() or prior.soul_events != world_sim.soul_vessels.events.size() or prior.soul_users != world_sim.soul_vessels.active.size():
 		# A completed fractional-minute experiment need not coincide with a
 		# native-life event or minute notification. Refresh its shared activity.
@@ -1012,15 +1025,15 @@ func _on_player_moved() -> void:
 		return
 	_update_region()
 	_refresh_panel()
-	_home.queue_redraw()
-	queue_redraw()
+	_home.redraw_committed_canvas()
+	redraw_committed_canvas()
 
 
 func _on_advanced() -> void:
 	_update_region()
 	_refresh_views(false)
 	_refresh_panel()
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func _refresh_views(snap: bool) -> void:
@@ -1304,11 +1317,12 @@ func load_game(path: String) -> Error:
 	_refresh_panel()
 	if sparring_adapter != null:
 		sparring_adapter.reset_observation()
-	queue_redraw()
+	redraw_committed_canvas()
 	avatar_changed.emit()
 	if interaction_adapter != null:
 		interaction_adapter.receive_current_care_alerts()
 	_home.content_replaced.emit(_home._content)
+	_capture_committed_canvases()
 	return OK
 
 

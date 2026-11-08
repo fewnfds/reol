@@ -96,6 +96,8 @@ func project() -> void:
 	var adapter: WorldContinuityRuntime = runtime()
 	if not adapter.soul_player_active():
 		return
+	if adapter.world_sim.settlement != null and adapter.world_sim.settlement.is_pending():
+		return
 	var agency: SimSoulAgency = adapter.world_sim.soul_vessels.agency
 	var id: String = adapter.soul_avatar_id()
 	var view: Dictionary = agency.perceive(id)

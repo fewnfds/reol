@@ -148,7 +148,7 @@ func refresh() -> void:
 		_status.text = "已经收手。短时体力会在调息后恢复。"
 	else:
 		_status.text = "对方有自己的活计和处境，可以拒绝。"
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func _on_time_advanced(_from: int, _to: int) -> void:

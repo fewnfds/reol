@@ -13,6 +13,7 @@ func run(runner: Object) -> void:
 	_manual_override_before_projection(runner)
 	_regional_requested_limit(runner)
 	_settlement_continuation(runner)
+	_continuous_canvas_publication(runner)
 	_test_cancel_during_settlement(runner)
 	_settlement_failure_recovery(runner)
 	_construction_publication(runner)
@@ -361,8 +362,16 @@ func _test_cancel_during_settlement(runner: Object) -> void:
 	runner.assert_true(not held_action.is_empty() and not held_action.reservations.is_empty(), "pending hauling still owns its original reservations")
 	runner.assert_true(not runtime.stop_player_action(), "ordinary stop reports rejection while settlement is pending")
 	fixture.home.cancel_player_action()
+	var service_panel: SettlementServicesPanel = runtime.service_adapter.panel
+	var held_details: Array[String] = [service_panel._activity.text, service_panel._details.text, service_panel._phase.text]
 	var response: Dictionary = runtime.service_adapter.submit("cancel")
 	runner.assert_true(not response.ok and "未受理" in str(response.line), "service UI reports the refused stop instead of claiming success")
+	runner.assert_eq(service_panel._notice.text, response.line, "pending stop refusal is immediately visible in the actual service panel")
+	runner.assert_eq([service_panel._activity.text, service_panel._details.text, service_panel._phase.text], held_details, "command feedback does not refresh partial activity or inventory facts")
+	var spirit_details: String = runtime.spirit_adapter.panel._description.text
+	var spirit_response: Dictionary = runtime.spirit_adapter._reply(false, "pending feedback probe")
+	runner.assert_eq(runtime.spirit_adapter.panel._notice.text, spirit_response.line, "spirit-source feedback also crosses the projection guard immediately")
+	runner.assert_eq(runtime.spirit_adapter.panel._description.text, spirit_details, "spirit-source command feedback leaves partial world facts alone")
 	runner.assert_eq(home.actors.player.active, held_action, "ordinary and manual cancellation cannot change a partially settled native action")
 	runner.assert_eq(home.inventory.to_dict(), held_inventory, "rejected cancellation cannot release or spend original material reservations")
 	runtime.settlement_work_budget = 2147483647
@@ -392,8 +401,36 @@ func _test_cancel_during_settlement(runner: Object) -> void:
 		fixture.home.cancel_player_action()
 		response = runtime.service_adapter.submit("cancel")
 		runner.assert_true(not response.ok, "failed-boundary UI cannot claim the stop succeeded")
+		runner.assert_eq(service_panel._notice.text, response.line, "terminal failure cannot hide the actual stop refusal indefinitely")
 		runner.assert_eq(home.actors.player.active, held_action, "failed-boundary stop preserves original action state")
 		runner.assert_eq(home.inventory.to_dict(), held_inventory, "failed-boundary stop preserves original material reservations")
+	fixtures._dispose(fixture)
+
+
+func _continuous_canvas_publication(runner: Object) -> void:
+	var fixture: Dictionary = _setup(runner)
+	if fixture.is_empty():
+		return
+	var runtime: WorldContinuityRuntime = fixture.continuity
+	if not _start_journey(runner, fixture):
+		fixtures._dispose(fixture)
+		return
+	var world: RegionalSimulation = runtime.world_sim
+	runtime.settlement_work_budget = 1
+	var observed: Array[bool] = []
+	var listener: Callable = func(_from: int, at: int) -> void:
+		observed.append(runtime._canvas_at_ms == at and runtime.construction_adapter._canvas_at_ms == at and runtime.avian_adapter._canvas_at_ms == at and fixture.home._canvas_at_ms == at)
+	GameClock.time_advanced.connect(listener)
+	# Keep adding real wall time. Each completed old interval can immediately
+	# start another suspended interval before a deferred _draw ever occurs.
+	for _attempt: int in 500:
+		GameClock._process(0.05)
+		if observed.size() >= 2 and world.settlement.is_pending():
+			break
+	GameClock.time_advanced.disconnect(listener)
+	runner.assert_true(observed.size() >= 2 and world.settlement.is_pending(), "continuous one-work frames publish multiple old intervals while the next interval is already pending")
+	runner.assert_true(not observed.has(false), "every public clock boundary synchronously captures all representative canvases before the next interval")
+	runner.assert_eq(runtime.construction_adapter._canvas_at_ms, GameClock.elapsed_ms, "pending draw playback uses the latest published boundary, never an arbitrarily old picture")
 	fixtures._dispose(fixture)
 
 
@@ -523,7 +560,6 @@ func _construction_publication(runner: Object) -> void:
 	runner.assert_true(not GameClock.has_pending_advance(), "default work policy finishes the original request")
 	runner.assert_eq(notices.size(), 1, "the completed world publishes the real action result once")
 	runner.assert_true(view._pending_sight_cells.is_empty(), "completed clock publication flushes sight invalidation")
-	view.refresh_committed_canvas()
 	runner.assert_true(view._details.text != prior_details and view._canvas_commands != prior_commands, "complete publication updates both details and cached drawing")
 	fixtures._dispose(fixture)
 
