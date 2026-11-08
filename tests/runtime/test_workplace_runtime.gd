@@ -147,7 +147,12 @@ func _original_archive(runner: Object) -> void:
 		main.free()
 		GameClock.restore_state(saved_clock)
 		return
-	runner.assert_true(main.fog.visibility_updated.is_connected(main._village.queue_redraw) and main.fog.visibility_updated.is_connected(adapter.queue_redraw), "both room views follow actual visibility updates")
+	# A visibility update must capture the committed projection immediately;
+	# the deferred draw may happen after the next world boundary suspends.
+	main._village._canvas_at_ms = -1
+	adapter._canvas_at_ms = -1
+	main.fog.visibility_updated.emit()
+	runner.assert_true(main._village._canvas_at_ms == GameClock.elapsed_ms and adapter._canvas_at_ms == GameClock.elapsed_ms, "both room views synchronously capture actual visibility updates at the complete public clock")
 	runner.assert_true(adapter.world_sim.regions.home.config.has("workplaces_version"), "ordinary new main scene enables current rooms")
 	var live: RegionalSimulation = adapter.world_sim
 	var terrain: WorldMapData = live.map_data
