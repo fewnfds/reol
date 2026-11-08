@@ -233,6 +233,8 @@ func _ai_motion(id: String, duration_ms: int) -> void:
 
 
 func stop(reason: String = "yielded") -> void:
+	if _owner != null and world != null and world.has_method("accepts_commands") and not world.accepts_commands():
+		return
 	if bout.is_empty():
 		return
 	last_result = {"reason": reason, "at_ms": world.elapsed_ms, "initiator": bout.initiator, "partner": bout.partner}

@@ -90,6 +90,8 @@ func start(actor: String, receiver: String, method: String) -> Dictionary:
 
 
 func cancel(actor: String) -> bool:
+	if _owner != null and world != null and world.has_method("accepts_commands") and not world.accepts_commands():
+		return false
 	if not active.has(actor):
 		return false
 	var job: Dictionary = active[actor]

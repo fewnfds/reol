@@ -420,18 +420,22 @@ func _execute_clock_interval(from_ms: int, to_ms: int) -> int:
 		_player.advance_motion_interval(from_ms, to_ms, false)
 		simulation.advance_to_ms(to_ms)
 		completed_ms = simulation.elapsed_ms
-	_clock_interval_had_events = old_events != int(simulation.simulation_work.boundary_count) or previous_minute != simulation.tick_index
+	# A suspended kernel may already have advanced the original region. Keep
+	# its notification debt until a completed public interval is emitted.
+	_clock_interval_had_events = _clock_interval_had_events or old_events != int(simulation.simulation_work.boundary_count) or previous_minute != simulation.tick_index
 	return completed_ms
 
 
 func _on_time_advanced(_from_ms: int, _to_ms: int) -> void:
 	if simulation == null:
 		return
+	var had_events: bool = _clock_interval_had_events
+	_clock_interval_had_events = false
 	# The executor has already completed this actual interval. In particular,
 	# another listener may now safely read the shared clock and original body.
 	_player._project_motion()
 	_sync_actor_views(true)
-	if _clock_interval_had_events:
+	if had_events:
 		_refresh_panel()
 		queue_redraw()
 		simulation_advanced.emit()

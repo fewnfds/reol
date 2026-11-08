@@ -101,6 +101,8 @@ func bed_reserved(bed: String) -> bool:
 
 
 func cancel(actor: String) -> bool:
+	if _owner != null and world != null and world.has_method("accepts_commands") and not world.accepts_commands():
+		return false
 	if not active.has(actor):
 		return false
 	_release(actor, "已结束床上休息；已恢复的精神保留，床位已释放。")

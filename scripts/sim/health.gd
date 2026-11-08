@@ -381,6 +381,8 @@ func _finish(job: Dictionary, outcome: String) -> void:
 
 
 func cancel(actor: String) -> bool:
+	if _owner != null and world != null and world.has_method("accepts_commands") and not world.accepts_commands():
+		return false
 	for id: String in _participants.active_ids(_actor_care(actor)):
 		var job: Dictionary = jobs[id]
 		if job.status == "active" and actor in [job.patient, job.doctor]:

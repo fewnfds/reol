@@ -380,6 +380,8 @@ func _wait(id: String, line: String) -> void:
 
 
 func cancel(id: String) -> bool:
+	if _owner != null and world != null and world.has_method("accepts_commands") and not world.accepts_commands():
+		return false
 	if not birds.has(id) or birds[id].active.is_empty():
 		return false
 	var action: Dictionary = birds[id].active

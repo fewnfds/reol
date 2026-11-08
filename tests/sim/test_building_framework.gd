@@ -34,14 +34,29 @@ func _test_budgeted_facilities(runner: Object) -> void:
 	var target: int = world.elapsed_ms + 2000
 	runner.assert_true(reference.advance_to_ms(target), "unlimited facilities provide the reference joint future")
 	var split_inside_owner: bool = false
+	var finished: Array[Dictionary] = []
+	var listener: Callable = func(outcome: Dictionary) -> void: finished.append(outcome.duplicate(true))
+	world.action_finished.connect(listener)
 	for _attempt: int in 2000:
 		if world.advance_to_ms(target, 4096, 1):
 			break
-		if world.settlement.progress().step == "facility_use" and world.facility_use._settlement_cursor == 1:
+		if not split_inside_owner and world.settlement.progress().step == "facility_use" and world.facility_use._settlement_cursor == 1:
 			split_inside_owner = true
+			var job: Dictionary = world.facility_use.active.get("shi_tou", {}).duplicate(true)
+			var finished_before: int = finished.size()
+			var seat_cell: Vector2i = world.construction.operation_slots(chairs[1], "seat")[0].cell
+			runner.assert_true(not job.is_empty() and world.facility_use.cell_reserved(seat_cell) and world.facility_use.project_reserved(chairs[1]), "the second original job still owns its operation position at the partial boundary")
+			runner.assert_true(not world.facility_use.cancel("shi_tou"), "external cancellation cannot modify a partially settled facility stage")
+			world.interrupt_occupation("shi_tou", "external_interrupt")
+			runner.assert_true(world.facility_use.active.get("shi_tou", {}) == job and world.facility_use.cell_reserved(seat_cell) and world.facility_use.project_reserved(chairs[1]) and finished.size() == finished_before, "refused cancellation leaves the active job, both reservations and finish notifications unchanged")
+	world.action_finished.disconnect(listener)
 	runner.assert_true(split_inside_owner, "the shared kernel can yield between two real facility jobs at the same instant")
 	runner.assert_true(not world.settlement.is_pending() and world.elapsed_ms == target, "the exact original stage and remaining jobs eventually finish")
 	runner.assert_true(fixture._canonical(world) == fixture._canonical(reference), "splitting a real owner preserves all world state, materials, bodies and time")
+	var seat: Dictionary = world.construction.operation_slots(chairs[0], "seat")[0]
+	world.regions.home.set_actor_position("player", TileGrid.cell_to_world(seat.cell))
+	runner.assert_true(world.facility_use.begin("player", chairs[0], seat.id).ok, "a completed boundary accepts a new ordinary facility job")
+	runner.assert_true(world.facility_use.cancel("player") and not world.facility_use.owns_actor("player") and not world.facility_use.project_reserved(chairs[0]), "normal cancellation still releases the new job and its seat after completion")
 
 
 func _build(runner: Object, world: RegionalSimulation, type: String, cell: Vector2i, rotation: int = 0) -> String:

@@ -570,6 +570,18 @@ func _find_path(from_cell: Vector2i, to_cell: Vector2i) -> Array[Vector2i]:
 
 ## Callback work allowance, independent of game rules or saved world time.
 var settlement_work_budget: int = 4096
+var _advance_view_baseline: Dictionary = {}
+
+
+func _capture_advance_view_state() -> Dictionary:
+	var labor: String = world_sim.budgeted_labor.latest_for("player")
+	return {"artifact_events": world_sim.artifacts.events.size(), "artifact_users": world_sim.artifacts.active.size(),
+		"object_busy": world_sim.object_lifecycle.owns_actor("player"),
+		"soul_events": world_sim.soul_vessels.events.size(), "soul_users": world_sim.soul_vessels.active.size(),
+		"admission_entries": world_sim.admissions.entries.size(), "admission_users": world_sim.admissions.active.size(),
+		"record_events": world_sim.method_records.events.size(), "record_users": world_sim.method_records.active.size(),
+		"production_phase": str(world_sim.personal_production.active.get("player", {}).get("phase", "")),
+		"labor_id": labor, "labor_status": str(world_sim.budgeted_labor.contracts[labor].status) if not labor.is_empty() else ""}
 
 
 func advance_to_ms(target_ms: int) -> int:
@@ -577,24 +589,16 @@ func advance_to_ms(target_ms: int) -> int:
 		return GameClock.elapsed_ms
 	if avatar_adapter != null and not world_sim.settlement.is_pending():
 		avatar_adapter.prepare_step()
-	var prior_artifact_events: int = world_sim.artifacts.events.size()
-	var prior_artifact_users: int = world_sim.artifacts.active.size()
-	var prior_object_busy: bool = world_sim.object_lifecycle.owns_actor("player")
-	var prior_soul_events: int = world_sim.soul_vessels.events.size()
-	var prior_soul_users: int = world_sim.soul_vessels.active.size()
-	var prior_admission_entries: int = world_sim.admissions.entries.size()
-	var prior_admission_users: int = world_sim.admissions.active.size()
-	var prior_record_events: int = world_sim.method_records.events.size()
-	var prior_record_users: int = world_sim.method_records.active.size()
-	var prior_production_phase: String = str(world_sim.personal_production.active.get("player", {}).get("phase", ""))
-	var prior_labor_id: String = world_sim.budgeted_labor.latest_for("player")
-	var prior_labor_status: String = str(world_sim.budgeted_labor.contracts[prior_labor_id].status) if not prior_labor_id.is_empty() else ""
+	# Earlier continuations may have changed a domain before the public clock
+	# can advance. Compare against the first observation until views commit.
+	if _advance_view_baseline.is_empty():
+		_advance_view_baseline = _capture_advance_view_state()
+	var prior: Dictionary = _advance_view_baseline
 	var cursor: int = world_sim.settled_ms()
 	var work_left: int = maxi(1, settlement_work_budget)
 	while cursor < target_ms or world_sim.settlement.is_pending():
 		if work_left <= 0:
-			_home._player._project_motion()
-			return cursor
+			break
 		var resuming: bool = world_sim.settlement.is_pending()
 		var end: int = world_sim.elapsed_ms if resuming else world_sim.next_runtime_boundary_ms(target_ms)
 		if not world_sim.environment_fields.can_settle_at_ms(end):
@@ -638,7 +642,7 @@ func advance_to_ms(target_ms: int) -> int:
 				GameClock.set_paused(true)
 			_notice = "世界事务待处理，未完成时间已保留。"
 			_refresh_panel()
-			return cursor
+			break
 	_home._player._project_motion()
 	if clothing_adapter != null:
 		clothing_adapter.refresh()
@@ -653,28 +657,29 @@ func advance_to_ms(target_ms: int) -> int:
 		construction_adapter.queue_redraw()
 	_update_region()
 	_refresh_views(true)
-	if object_adapter != null and (object_adapter.panel.visible or prior_object_busy != world_sim.object_lifecycle.owns_actor("player")):
+	if object_adapter != null and (object_adapter.panel.visible or prior.object_busy != world_sim.object_lifecycle.owns_actor("player")):
 		object_adapter.refresh()
 	if soul_adapter != null:
 		if soul_adapter.panel.visible:
 			soul_adapter.refresh()
 		else:
 			soul_adapter.queue_redraw()
-	if prior_artifact_events != world_sim.artifacts.events.size() or prior_artifact_users != world_sim.artifacts.active.size() or prior_soul_events != world_sim.soul_vessels.events.size() or prior_soul_users != world_sim.soul_vessels.active.size():
+	if prior.artifact_events != world_sim.artifacts.events.size() or prior.artifact_users != world_sim.artifacts.active.size() or prior.soul_events != world_sim.soul_vessels.events.size() or prior.soul_users != world_sim.soul_vessels.active.size():
 		# A completed fractional-minute experiment need not coincide with a
 		# native-life event or minute notification. Refresh its shared activity.
 		_refresh_panel()
-	if prior_admission_entries != world_sim.admissions.entries.size() or prior_admission_users != world_sim.admissions.active.size():
+	if prior.admission_entries != world_sim.admissions.entries.size() or prior.admission_users != world_sim.admissions.active.size():
 		_refresh_panel()
-	if prior_record_events != world_sim.method_records.events.size() or prior_record_users != world_sim.method_records.active.size():
+	if prior.record_events != world_sim.method_records.events.size() or prior.record_users != world_sim.method_records.active.size():
 		_refresh_panel()
 		heat_method_adapter.refresh_choices()
-	if prior_production_phase != str(world_sim.personal_production.active.get("player", {}).get("phase", "")):
+	if prior.production_phase != str(world_sim.personal_production.active.get("player", {}).get("phase", "")):
 		# Arrival/completion can fall between minute notifications. The body
 		# and batch already changed, so collection must become available now.
 		_refresh_panel()
-	if not prior_labor_id.is_empty() and prior_labor_status != str(world_sim.budgeted_labor.contracts[prior_labor_id].status):
+	if not str(prior.labor_id).is_empty() and prior.labor_status != str(world_sim.budgeted_labor.contracts[prior.labor_id].status):
 		_refresh_panel()
+	_advance_view_baseline = {}
 	return cursor
 
 
@@ -1226,6 +1231,8 @@ func load_game(path: String) -> Error:
 	# All validation is complete before changing any live world or clock state.
 	var previous_world: RegionalSimulation = world_sim
 	world_sim = staged.world
+	_advance_view_baseline = {}
+	_home._clock_interval_had_events = false
 	previous_world.retire_space()
 	_home.adopt_content(staged.content)
 	settings = world_sim.settings.duplicate(true)

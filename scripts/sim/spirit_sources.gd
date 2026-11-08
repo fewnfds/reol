@@ -233,6 +233,8 @@ func near(actor: String, source: String) -> bool:
 
 
 func cancel(actor: String) -> bool:
+	if _owner != null and world != null and world.has_method("accepts_commands") and not world.accepts_commands():
+		return false
 	if not active.has(actor):
 		return false
 	_finish(active[actor], "cancelled", "引息中断；预约已释放，未耗源息，也未提前恢复。", 0, 0, 0, int(world.elapsed_ms))

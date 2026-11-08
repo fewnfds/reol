@@ -260,6 +260,8 @@ func _wake_idle_intentions(now: int) -> void:
 
 
 func cancel(actor: String, reason: String = "cancelled") -> bool:
+	if _owner != null and world != null and world.has_method("accepts_commands") and not world.accepts_commands():
+		return false
 	if not owns_actor(actor): return false
 	var row: Dictionary = trips[purposes[actor].trip]
 	# Interruptions preserve the current authoritative point. The caller may

@@ -312,6 +312,8 @@ func previous_autonomy(actor: String) -> bool:
 
 
 func cancel(actor: String) -> bool:
+	if _owner != null and world != null and world.has_method("accepts_commands") and not world.accepts_commands():
+		return false
 	if world != null and world.artifact_transfers != null and world.artifact_transfers.checking:
 		return false
 	if environment_change_pending() and not world.environment_boundary_active():

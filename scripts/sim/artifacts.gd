@@ -702,6 +702,8 @@ func request_check(requester: String, responder: String, verb: String, id: Strin
 
 
 func cancel(actor: String) -> bool:
+	if _owner != null and world != null and world.has_method("accepts_commands") and not world.accepts_commands():
+		return false
 	if transfers != null and transfers.checking:
 		return false
 	if not active.has(actor):

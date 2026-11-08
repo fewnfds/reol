@@ -149,7 +149,7 @@ func owns_actor(actor: String) -> bool:
 
 
 func cancel(actor: String) -> bool:
-	if not active.has(actor):
+	if not world.accepts_commands() or not active.has(actor):
 		return false
 	_release(active[actor], "cancelled", "使用已中断，操作位与未用物资已释放。")
 	return true

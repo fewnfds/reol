@@ -535,6 +535,8 @@ func opponent(actor: String) -> String:
 
 
 func cancel(actor: String, reason: String = "yielded") -> void:
+	if _owner != null and world != null and world.has_method("accepts_commands") and not world.accepts_commands():
+		return
 	interrupt_lesson(actor)
 	var id: String = conflict_for(actor)
 	if not id.is_empty():

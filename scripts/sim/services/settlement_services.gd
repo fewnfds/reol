@@ -77,6 +77,8 @@ func begin(actor_id: String, region_id: String, action_id: String, options: Dict
 
 
 func cancel(actor_id: String, reason: String = "cancelled") -> bool:
+	if _owner != null and world != null and world.has_method("accepts_commands") and not world.accepts_commands():
+		return false
 	return _jobs.cancel(actor_id, reason)
 
 

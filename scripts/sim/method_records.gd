@@ -236,6 +236,8 @@ func settle_at_ms(at_ms: int) -> void:
 
 
 func cancel(actor: String) -> bool:
+	if _owner != null and world != null and world.has_method("accepts_commands") and not world.accepts_commands():
+		return false
 	if not active.has(actor):
 		return false
 	_finish(active[actor], "cancelled")

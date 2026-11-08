@@ -147,6 +147,8 @@ func begin(actor: String, node: String = "mobile_guard") -> Dictionary:
 
 
 func cancel(actor: String, reason: String = "cancelled") -> bool:
+	if _owner != null and world != null and world.has_method("accepts_commands") and not world.accepts_commands():
+		return false
 	if not active.has(actor): return false
 	var cause: String = "struck" if reason == "struck_by_conflict" else reason
 	_finish(active[actor], "cancelled", cause if cause in Schema.REASONS and cause != "completed" else "cancelled", int(world.elapsed_ms))

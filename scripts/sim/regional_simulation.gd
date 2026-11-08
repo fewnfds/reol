@@ -470,6 +470,8 @@ func set_manual_motion_executor(executor: Callable) -> void:
 
 
 func interrupt_occupation(actor: String, reason: String) -> void:
+	if not accepts_commands():
+		return
 	# Hostile contact interrupts actual jobs, retaining already paid costs and
 	# entrusted goods. A command never erases an unrelated promise or contract.
 	if conflicts != null:

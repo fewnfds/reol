@@ -384,6 +384,8 @@ func _finish(job: Dictionary, outcome: String, cancelled_by: String = "", reason
 
 
 func cancel(actor: String, reason: String = "cancelled") -> bool:
+	if _owner != null and world != null and world.has_method("accepts_commands") and not world.accepts_commands():
+		return false
 	if world != null and world.artifact_transfers.checking:
 		return false
 	for id: String in active_jobs.keys():

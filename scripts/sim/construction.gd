@@ -227,6 +227,8 @@ func damage(id: String, amount: int) -> Dictionary:
 
 
 func cancel_project(actor: String, id: String) -> Dictionary:
+	if _owner != null and world != null and world.has_method("accepts_commands") and not world.accepts_commands():
+		return reply(false, "世界事务尚未结清，请稍后再撤销蓝图。")
 	if _changing or not authorized(actor) or not projects.has(id) or projects[id].state != "blueprint" or not can_observe(actor, SimRouteTravel.cell(projects[id].cell)):
 		return reply(false, "只能在场撤销本工地尚未建成的蓝图。")
 	for worker: String in active.keys():
@@ -289,6 +291,8 @@ func owns_actor(actor: String) -> bool:
 
 
 func cancel(actor: String) -> bool:
+	if _owner != null and world != null and world.has_method("accepts_commands") and not world.accepts_commands():
+		return false
 	return false if _changing else _cancel(actor)
 
 
