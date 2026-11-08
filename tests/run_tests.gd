@@ -1753,3 +1753,7 @@ func test_private_exchange_order() -> void:
 
 func test_private_exchange_continuity() -> void:
 	load("res://tests/runtime/test_private_exchange_continuity.gd").new().run(self)
+
+
+func test_building_framework() -> void:
+	load("res://tests/sim/test_building_framework.gd").new().run(self)

@@ -8,9 +8,11 @@ const SIDES: Array[Vector2i] = [Vector2i.LEFT, Vector2i.UP, Vector2i.RIGHT, Vect
 
 static func detect(bounds: Rect2i, projects: Dictionary, types: Dictionary, elevation: Callable = Callable()) -> Dictionary:
 	var edges: Dictionary = {}
-	for project: Dictionary in projects.values():
-		if project.state == "built" and types[project.type].kind in ["wall", "door"]:
-			edges[SimRouteTravel.cell(project.cell)] = project
+	for id: String in projects:
+		var project: Dictionary = projects[id]
+		if project.state == "built" and types[project.type].facts.enclosure_boundary:
+			for cell: Vector2i in SimConstructionGeometry.cells(project, types[project.type]):
+				edges[cell] = {"id": id, "project": project}
 	var result: Dictionary = {}
 	for start: Vector2i in SimConstruction.cells_in(bounds):
 		if edges.has(start) or result.has(start):
@@ -33,8 +35,8 @@ static func detect(bounds: Rect2i, projects: Dictionary, types: Dictionary, elev
 					enclosed = false
 				elif edges.has(neighbor):
 					var edge: Dictionary = edges[neighbor]
-					if types[edge.type].kind == "door":
-						doors[neighbor] = bool(edge.open)
+					if types[edge.project.type].door:
+						doors[edge.id] = bool(edge.project.open)
 				elif not found.has(neighbor):
 					found[neighbor] = true
 					queue.append(neighbor)

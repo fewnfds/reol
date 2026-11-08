@@ -49,3 +49,12 @@ Project Porcupine社区代码默认GPLv3，非代码资产默认CC BY-NC-SA；�
 | Real Robots — How to make Rimworld in Godot 4 | [完整播放列表](https://www.youtube.com/playlist?list=PLOb5IPYDOceDIeNvojEYIUeHbHTZShtc-)；上表三集页面已核实，2024年发布 | 与现有Godot技术栈更近，重点看地形→单位→物品→任务组合；本次读取不到播放列表完整正文，以单集页面为证据 |
 
 对后续修改的建议是：保留领域划分，将最小行动合同纳入基础承载建设；让建筑和植被通过实际操作检验对象、空间、环境与存读接缝；环境和行动继续随领域加深。准确交付目标、顺序及验收统一回到[基础建设计划](../../docs/plans/foundation-priorities.md)，本页不另设执行队列。
+
+
+## 建筑与家具的补充对照
+
+[RimWorld社区ThingDef文档](https://rimworldwiki.com/wiki/Modding_Tutorials/ThingDef)与[ThingComp文档](https://rimworldwiki.com/wiki/Modding_Tutorials/ThingComp)支持定义/实例/附加能力分工；人物、植物、装备、建筑可以共享基础合同，各自保留专属状态。这是公开Mod接口的结构证据，不是商业引擎内部源码审计。
+
+[Project Porcupine的Furniture源码](https://github.com/TeamPorcupine/ProjectPorcupine/blob/master/Assets/Scripts/Models/Buildable/Furniture.cs)把墙、门、沙发等已安装对象放在共同可建造模型中，具有多格尺寸、朝向、能力组件和HealthSystem。[Cataclysm:DDA的家具数据文档](https://github.com/CleverRaven/Cataclysm-DDA/blob/master/doc/JSON/JSON_INFO.md)分别表达储液、工作台、照明、收起、破坏等条件；它的terrain/furniture和creatures不是同一个对象模型，说明共同接口不要求全部继承人物。
+
+对Reol的采用是共同引用、原owner及按需能力：墙和家具可受击，主动攻击另由实际攻击能力实现；操作位和设施关系支持桌椅/工作台，容器引用原库存。围合、覆盖、通行、视线、环境阻隔分别提供事实。房间和用途不自动生产物品或授予知识，静态家具没有无用的人物AI或持续更新。这里只分析结构，不复制GPL源码或第三方资产；具体工程行为见[建筑合同](../../docs/engineering/construction-contract.md)。

@@ -95,3 +95,5 @@
 - [docs/qa/baseline-history/11-light-and-geography.md](../qa/baseline-history/11-light-and-geography.md)
 - [docs/qa/baseline-history/12-intrinsic-light.md](../qa/baseline-history/12-intrinsic-light.md)
 - [docs/qa/baseline-history/README.md](../qa/baseline-history/README.md)
+
+- [docs/qa/20261108_building_framework.md](../qa/20261108_building_framework.md)

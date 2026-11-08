@@ -783,6 +783,7 @@ func cancel_travel() -> void:
 		world_sim.soul_vessels.cancel("player")
 		world_sim.admissions.cancel("player")
 		world_sim.construction.cancel("player")
+		world_sim.facility_use.cancel("player")
 		world_sim.resting.cancel("player")
 		world_sim.clothing.cancel("player")
 		world_sim.health.cancel("player")
@@ -1194,6 +1195,8 @@ func load_game(path: String) -> Error:
 	var loaded: Dictionary = SimSaveStore.load_file(path)
 	if not bool(loaded.get("ok", false)) or not loaded.get("data") is Dictionary:
 		return _session_load_failed("没有读到可用近况，请先保存一次。")
+	if SessionSaveSchema.rejection_reason(loaded.data.get("schema_version")) == SessionSaveSchema.REJECTION_LEGACY_BUILDINGS:
+		return _session_load_failed("这份存档采用旧建筑模型；当前版本需要新建世界，原档未改动。")
 	if SessionSaveSchema.rejection_reason(loaded.data.get("schema_version")) == SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT:
 		return _session_load_failed("旧环境格式不再支持，存档未改；请新开局。")
 	var staged: Dictionary = WorldSessionSnapshot.stage(self, loaded.data)

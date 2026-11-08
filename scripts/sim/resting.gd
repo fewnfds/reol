@@ -73,7 +73,7 @@ func _begin(actor: String, bed: String, during_commit: bool) -> Dictionary:
 	var body: Dictionary = _body(actor)
 	if not body.active.is_empty() or world.local_action_owns(actor) or world.artifacts.owns_actor(actor) or world.services != null and world.services.owns_actor(actor):
 		return SimConstruction.reply(false, "先停下手头的事情，再去床上休息。")
-	if not allowed(actor, bed) or not can_observe(actor, bed) or bed_reserved(bed) or world.construction._project_busy(bed) or _occupied_by_other(actor, bed):
+	if world.facility_use != null and world.facility_use.cell_reserved(_cell(bed), actor) or not allowed(actor, bed) or not can_observe(actor, bed) or bed_reserved(bed) or world.construction._project_busy(bed) or _occupied_by_other(actor, bed):
 		return SimConstruction.reply(false, "床位不适用：可能已分配给他人、被占用、正在拆改或离得太远。")
 	var path: Array = _route(actor, bed)
 	if path.is_empty() and not SimRouteTravel.point(body).is_equal_approx(TileGrid.cell_to_world(_cell(bed))):
@@ -122,8 +122,8 @@ func duty_for(actor: String) -> String:
 		return ""
 	var best: String = ""
 	var distance: int = SimInventory.MAX_COUNT
-	for id: String in world.construction.projects:
-		if not allowed(actor, id) or not can_observe(actor, id) or bed_reserved(id) or world.construction._project_busy(id) or _occupied_by_other(actor, id):
+	for id: String in world.construction.bed_ids():
+		if world.facility_use != null and world.facility_use.cell_reserved(_cell(id), actor) or not allowed(actor, id) or not can_observe(actor, id) or bed_reserved(id) or world.construction._project_busy(id) or _occupied_by_other(actor, id):
 			continue
 		var path: Array = _route(actor, id)
 		var wet: int = 1 if world.weather != null and world.weather.bed_is_wet(id) else 0
@@ -197,7 +197,7 @@ func structures_changed() -> void:
 
 
 func _schedule_check() -> void:
-	for bed: String in world.construction.projects:
+	for bed: String in world.construction.bed_ids():
 		if world.construction.is_bed(bed):
 			next_check_ms = mini(next_check_ms, world.elapsed_ms + int(definitions.check_ms))
 			return

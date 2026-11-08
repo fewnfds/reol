@@ -39,6 +39,7 @@ const DOCUMENT_PATHS: Array[String] = [
 	"res://data/definitions/clothing.json",
 	"res://data/definitions/conflicts.json",
 	"res://data/definitions/construction.json",
+	"res://data/scenarios/construction.json",
 	"res://data/definitions/environment_sources.json",
 	"res://data/definitions/field_opportunities.json",
 	"res://data/definitions/health.json",
@@ -399,8 +400,16 @@ func _load_definitions() -> bool:
 	else:
 		_error("%s: invalid heat method rules" % HEAT_METHODS_PATH)
 	var building: Variant = _read_json(CONSTRUCTION_PATH)
+	var construction_opening: Variant = _read_json("res://data/scenarios/construction.json")
+	if building is Dictionary and SimConstruction.Shape.keys(construction_opening, ["version", "site"]) and construction_opening.version == 1 and not building.has("site"):
+		building = building.duplicate(true)
+		building["site"] = construction_opening.site.duplicate(true) if construction_opening.site is Dictionary else null
 	if SimConstruction.valid_definitions(building):
 		construction = building.duplicate(true)
+		for definition: Dictionary in construction.types.values():
+			for recipe: String in definition.capabilities.get("workbench", {}).get("recipes", []):
+				if not personal_production.get("recipes", {}).has(recipe):
+					_error("construction.json: unknown workbench recipe " + recipe)
 	else:
 		_error("%s: invalid construction rules" % CONSTRUCTION_PATH)
 	var beds: Variant = _read_json(RESTING_PATH)

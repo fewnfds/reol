@@ -64,6 +64,12 @@ static func _village(world: RegionalSimulation, reference: Dictionary) -> Dictio
 		if not bool(slot.ok) or slot.reference.kind != "stock":
 			return _failure("invalid_location")
 		return _result(world, reference, TileGrid.cell_to_world(slot.cell), "village_inventory", sim.elapsed_ms, "ground_placements", world.elapsed_ms, {})
+	var building_id: String = container.trim_suffix(":contents") if container.ends_with(":contents") else ""
+	if not building_id.is_empty() and world.construction != null and world.construction.world == world and world.construction.projects.has(building_id) and reference.region == world.construction.definitions.site.region:
+		var project: Dictionary = world.construction.projects[building_id]
+		if project.state not in ["built", "ruined", "removed"] or not world.construction.definitions.types[project.type].capabilities.has("storage"):
+			return _failure("invalid_location")
+		return _result(world, reference, TileGrid.cell_to_world(SimRouteTravel.cell(project.cell)), "village_inventory", sim.elapsed_ms, "construction", world.elapsed_ms, {})
 	var actor: String = container.trim_prefix("actor:") if container.begins_with("actor:") else ""
 	var construction: SimConstruction = world.construction
 	var project_here: bool = construction != null and construction.world == world and construction.definitions.get("site", {}).get("region") == reference.region and construction.projects.has(container)

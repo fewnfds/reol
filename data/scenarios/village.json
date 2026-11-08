@@ -79,6 +79,7 @@
   "initial_stock": {
     "store": {
       "wood": 80,
+      "stone": 24,
       "grain": 100
     },
     "kitchen": {

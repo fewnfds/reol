@@ -1,5 +1,8 @@
 # 验收与调查记录索引
 
+- [通用建筑与组合空间](20261108_building_framework.md)：定义/能力、多格/朝向、工地、操作位、真实储藏/生产及损毁与停开恢复。
+
+
 这里保留各工作包原日期、受检版本、场景和限制；不是当前授权或总进度。正文里的“下一包/active/尚未接入”只描述当时，之后是否实现查[FEATURES](../status/features.md)，最新具体SHA与CI查[BASELINE](../status/baseline.md)，当前停点查[HANDOFF](../status/handoff.md)。不为整齐重写原测试结果、fixture或截图。
 
 - 原型通过不等于整个领域完成；同进程/完整停开、headless/画面/性能各自证明不同内容。

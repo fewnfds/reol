@@ -112,7 +112,7 @@ static func _wall_connection(world: RegionalSimulation, cell: Vector2i) -> bool:
 		var id: String = domain.project_at(cell, "ground")
 		if not id.is_empty():
 			var project: Dictionary = domain.projects[id]
-			if project.state == "built" and domain.definitions.types[project.type].kind in ["wall", "door"]:
+			if project.state == "built" and domain.fact(id, "wall_connection"):
 				return true
 	for sim: VillageSimulation in world.regions.values():
 		if SimWorkplaces.wall_at(sim.places, cell):
@@ -136,22 +136,32 @@ static func _construction(world: RegionalSimulation, reference: Dictionary) -> D
 		return _failure("invalid_source")
 	if project.state in ["removed", "cancelled"]:
 		return _failure("not_found")
-	if not project.state in ["blueprint", "built"] or not Shape.cell_valid(project.get("cell")) or not project.get("open") is bool or not project.get("type") is String or not domain.definitions.get("types") is Dictionary:
+	if not project.state in ["blueprint", "built", "ruined"] or not Shape.cell_valid(project.get("cell")) or not project.get("open") is bool or not project.get("type") is String or not domain.definitions.get("types") is Dictionary:
 		return _failure("invalid_source")
 	var rule: Variant = domain.definitions.types.get(project.type)
-	if not rule is Dictionary or not rule.get("kind") in ["wall", "door", "bed", "roof"]:
+	if not rule is Dictionary or not rule.get("kind") is String:
 		return _failure("invalid_source")
 	if not project.get("site") is String or not domain.sites.get(project.site) is Dictionary:
 		return _failure("invalid_source")
 	var site: Dictionary = domain.sites[project.site]
 	if not site.get("region") is String or not world.regions.has(site.region):
 		return _failure("invalid_source")
-	var cell: Vector2i = SimRouteTravel.cell(project.cell)
-	var cells: Array[Vector2i] = [cell]
-	var layer: String = "roof" if rule.kind == "roof" else "ground"
-	# Support and shelter remain the original owner's rule, not a second solver.
-	var covered: bool = project.state == "built" and layer == "roof" and domain.roofed(cell)
-	return _projection(reference, str(rule.kind), layer, str(project.state), cells, str(site.region), bool(project.open), covered)
+	var cells: Array[Vector2i] = domain.project_cells(str(reference.id))
+	var layer: String = str(rule.layer)
+	var covered: bool = project.state == "built" and layer == "roof" and cells.all(func(cell: Vector2i) -> bool: return domain.roofed(cell))
+	var result: Dictionary = _projection(reference, str(rule.kind), layer, str(project.state), cells, str(site.region), bool(project.open), covered)
+	for fact: String in FACTS:
+		if fact != "roofed":
+			result[fact] = domain.fact(str(reference.id), fact)
+	result["definition"] = str(project.type)
+	result["rotation"] = int(project.rotation)
+	result["hp"] = int(project.hp)
+	result["max_hp"] = int(rule.max_hp)
+	result["armor"] = int(rule.armor)
+	result["material"] = str(rule.item)
+	result["capabilities"] = rule.capabilities.duplicate(true) if project.state == "built" else {}
+	result["operation_slots"] = domain.operation_slots(str(reference.id)) if project.state in ["built", "ruined"] else []
+	return result
 
 
 static func _workplace(world: RegionalSimulation, reference: Dictionary) -> Dictionary:

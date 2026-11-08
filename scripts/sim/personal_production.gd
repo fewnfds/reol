@@ -49,16 +49,16 @@ func initialize(authority: RefCounted, rules: Dictionary) -> bool:
 	return true
 
 
-func create(actor: String, region: String, recipe: String) -> Dictionary:
+func create(actor: String, region: String, recipe: String, facility: String = "") -> Dictionary:
 	if not definitions.recipes.has(recipe) or not world.regions.has(region) or batches.size() >= int(definitions.max_batches) or not _ready(actor):
 		return reply(false, "先停稳并腾出双手，再准备一批自己的原料。")
 	var home: String = world.artifacts.actor_home(actor)
 	var sim: VillageSimulation = world.regions[home]
 	var terms: Dictionary = definitions.recipes[recipe]
-	if not world.regions[region].places.has(terms.place):
+	if facility.is_empty() and not world.regions[region].places.has(terms.place) or not facility.is_empty() and not _facility_ready(facility, recipe, actor):
 		return reply(false, "当地没有合适的作业场所。")
 	var id: String = "production_batch:%d" % next_batch
-	var batch: Dictionary = {"owner": actor, "home": home, "region": region, "recipe": recipe, "created_ms": world.elapsed_ms,
+	var batch: Dictionary = {"owner": actor, "home": home, "region": region, "recipe": recipe, "facility": facility, "created_ms": world.elapsed_ms,
 		"supplied_ms": -1, "completed_ms": -1, "collected_ms": -1, "work_ms": 0, "state": "open"}
 	var job: Dictionary = _job(actor, id, "make")
 	if not _reserve(job, batch) or not _route(job, batch):
@@ -82,6 +82,9 @@ func begin(actor: String, id: String, kind: String) -> Dictionary:
 	var job: Dictionary = _job(actor, id, kind)
 	if kind == "make" and int(batch.supplied_ms) < 0 and not _reserve(job, batch):
 		return reply(false, "原料尚未投入，先备齐可处分的私料。")
+	if not str(batch.facility).is_empty() and kind == "make" and not _facility_ready(str(batch.facility), str(batch.recipe), actor):
+		_release_reservations(job, batch)
+		return reply(false, "原工作台已不适用，原批次与物料仍留在现场。")
 	if not _route(job, batch):
 		_release_reservations(job, batch)
 		return reply(false, "眼下到不了这一批东西所在的场所。")
@@ -135,11 +138,26 @@ func _release_reservations(job: Dictionary, batch: Dictionary) -> void:
 	job.reservations = []
 
 
+func _facility_ready(id: String, recipe: String, actor: String) -> bool:
+	if not world.construction.has_capability(id, "workbench") or world.construction.definitions.site.region != world.artifacts.actor_home(actor):
+		return false
+	var terms: Dictionary = world.construction.definitions.types[world.construction.projects[id].type].capabilities.workbench
+	var slots: Array[Dictionary] = world.construction.operation_slots(id, "workbench")
+	return recipe in terms.recipes and not slots.is_empty() and world.facility_use != null and world.facility_use.slot_available(id, str(slots[0].id), "work", actor)
+
+
+func work_cell(batch: Dictionary) -> Vector2i:
+	if str(batch.facility).is_empty():
+		return SimRouteTravel.cell(world.regions[batch.region].places[definitions.recipes[batch.recipe].place].cell)
+	var slots: Array[Dictionary] = world.construction.operation_slots(str(batch.facility), "workbench")
+	return slots[0].cell if not slots.is_empty() else Vector2i(-1, -1)
+
+
 func _route(job: Dictionary, batch: Dictionary) -> bool:
 	var sim: VillageSimulation = world.regions[batch.home]
 	var body: Dictionary = sim.actors[job.actor]
 	var from: Vector2i = SimRouteTravel.cell(body.cell)
-	var target: Vector2i = SimRouteTravel.cell(world.regions[batch.region].places[definitions.recipes[batch.recipe].place].cell)
+	var target: Vector2i = work_cell(batch)
 	var route: Array[Vector2i] = sim.find_path(from, target)
 	if route.is_empty() and from != target:
 		return false
@@ -166,7 +184,7 @@ func _route(job: Dictionary, batch: Dictionary) -> bool:
 
 func at_workplace(job: Dictionary, batch: Dictionary) -> bool:
 	var body: Dictionary = world.regions[batch.home].actors[job.actor]
-	var cell: Vector2i = SimRouteTravel.cell(world.regions[batch.region].places[definitions.recipes[batch.recipe].place].cell)
+	var cell: Vector2i = work_cell(batch)
 	return SimRouteTravel.point(body).is_equal_approx(TileGrid.cell_to_world(cell))
 
 
@@ -187,7 +205,7 @@ func settle_at_ms(now: int) -> void:
 		world.synchronize_region(str(batch.home))
 		var sim: VillageSimulation = world.regions[batch.home]
 		var body: Dictionary = sim.actors[actor]
-		if not world.actor_controls(actor, "motion") or not world.actor_controls(actor, "action"):
+		if not world.actor_controls(actor, "motion") or not world.actor_controls(actor, "action") or not str(batch.facility).is_empty() and job.kind == "make" and not _facility_ready(str(batch.facility), str(batch.recipe), actor):
 			cancel(actor)
 			continue
 		if job.phase == "work" and not at_workplace(job, batch):
@@ -329,11 +347,11 @@ static func reply(ok: bool, line: String, id: String = "") -> Dictionary:
 
 
 func to_dict() -> Dictionary:
-	return {"version": 1, "batches": batches.duplicate(true), "active": active.duplicate(true), "next_batch": next_batch, "next_job": next_job}
+	return {"version": 2, "batches": batches.duplicate(true), "active": active.duplicate(true), "next_batch": next_batch, "next_job": next_job}
 
 
 static func empty_state() -> Dictionary:
-	return {"version": 1, "batches": {}, "active": {}, "next_batch": 1, "next_job": 1}
+	return {"version": 2, "batches": {}, "active": {}, "next_batch": 1, "next_job": 1}
 
 
 func restore(data: Variant) -> bool:

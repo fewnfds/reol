@@ -29,7 +29,7 @@ static func inventory_scope(data: Variant, region: String, rules: Dictionary) ->
 
 
 static func validate(data: Variant, domain: RefCounted) -> bool:
-	if not Shape.keys(data, ["version", "batches", "active", "next_batch", "next_job"]) or data.version != 1 or not data.batches is Dictionary or not data.active is Dictionary or not Shape.count(data.next_batch, 1, int(domain.definitions.max_batches) + 1) or not Shape.count(data.next_job, int(data.next_batch)) or data.batches.size() != int(data.next_batch) - 1:
+	if not Shape.keys(data, ["version", "batches", "active", "next_batch", "next_job"]) or data.version != 2 or not data.batches is Dictionary or not data.active is Dictionary or not Shape.count(data.next_batch, 1, int(domain.definitions.max_batches) + 1) or not Shape.count(data.next_job, int(data.next_batch)) or data.batches.size() != int(data.next_batch) - 1:
 		return false
 	var expected: Dictionary = {}
 	var reservations: Dictionary = {}
@@ -65,11 +65,20 @@ static func validate(data: Variant, domain: RefCounted) -> bool:
 
 static func _batch(batch: Variant, id: String, data: Dictionary, domain: RefCounted, expected: Dictionary, jobs: Dictionary) -> bool:
 	var world: RefCounted = domain.world
-	if not Shape.keys(batch, ["owner", "home", "region", "recipe", "created_ms", "supplied_ms", "completed_ms", "collected_ms", "work_ms", "state"]) or not batch.owner is String or not world.regions.has(batch.home) or not world.regions.has(batch.region) or not domain.definitions.recipes.has(batch.recipe) or not world.regions[batch.home].actors.has(batch.owner) or not batch.state in ["open", "ready", "collected"]:
+	if not Shape.keys(batch, ["owner", "home", "region", "recipe", "facility", "created_ms", "supplied_ms", "completed_ms", "collected_ms", "work_ms", "state"]) or not batch.owner is String or not world.regions.has(batch.home) or not world.regions.has(batch.region) or not domain.definitions.recipes.has(batch.recipe) or not world.regions[batch.home].actors.has(batch.owner) or not batch.state in ["open", "ready", "collected"]:
 		return false
 	var terms: Dictionary = domain.definitions.recipes[batch.recipe]
 	var inventory: SimInventory = world.regions[batch.home].inventory
-	if not world.regions[batch.region].places.has(terms.place) or not inventory.containers.has(id) or not Shape.count(batch.work_ms, 0, int(terms.work_ms)) or not Shape.count(batch.created_ms, 0, world.elapsed_ms):
+	if not batch.facility is String:
+		return false
+	if not str(batch.facility).is_empty():
+		if not world.construction.projects.has(batch.facility) or batch.region != world.construction.definitions.site.region or batch.home != batch.region:
+			return false
+		var building: Dictionary = world.construction.projects[batch.facility]
+		var capability: Dictionary = world.construction.definitions.types[building.type].capabilities.get("workbench", {})
+		if building.state not in ["built", "ruined", "removed"] or batch.recipe not in capability.get("recipes", []) or not Shape.count(batch.created_ms, int(building.completed_ms), world.elapsed_ms):
+			return false
+	if batch.facility.is_empty() and not world.regions[batch.region].places.has(terms.place) or not inventory.containers.has(id) or not Shape.count(batch.work_ms, 0, int(terms.work_ms)) or not Shape.count(batch.created_ms, 0, world.elapsed_ms):
 		return false
 	for field: String in ["supplied_ms", "completed_ms", "collected_ms"]:
 		if not Shape.count(batch[field], -1, world.elapsed_ms):
@@ -157,7 +166,8 @@ static func _job(actor: String, job: Variant, data: Dictionary, domain: RefCount
 		if not Shape.same_record(sim.inventory.reservations.get(id), note):
 			return false
 		reservations[id] = {"region": batch.home, "record": note}
-	var target: Array = world.regions[batch.region].places[terms.place].cell
+	var point: Vector2i = domain.work_cell(batch)
+	var target: Array = [point.x, point.y]
 	if job.phase == "travel":
 		var current: Vector2i = SimRouteTravel.cell(body.cell)
 		for raw: Variant in job.path:

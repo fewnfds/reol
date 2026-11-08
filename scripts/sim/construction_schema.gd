@@ -11,7 +11,10 @@ static func inventory_scope(data: Variant, region: String, rules: Dictionary) ->
 		if not id is String or not data.projects[id] is Dictionary:
 			continue
 		scope.containers[id] = true
-		if data.projects[id].get("state") == "removed":
+		var type: Variant = data.projects[id].get("type")
+		if type is String and rules.types.has(type) and rules.types[type].capabilities.has("storage") and data.projects[id].get("state") in ["built", "removed", "ruined"]:
+			scope.containers[id + ":contents"] = true
+		if data.projects[id].get("state") in ["removed", "ruined"]:
 			scope.containers[id + ":salvage"] = true
 		for suffix: String in [":supply", ":build", ":salvage", ":return"]:
 			scope.operations[id + suffix] = true
@@ -22,20 +25,39 @@ static func inventory_scope(data: Variant, region: String, rules: Dictionary) ->
 
 
 static func valid(data: Variant, domain: RefCounted) -> bool:
-	if not Shape.keys(data, ["version", "sites", "projects", "active", "next_project", "next_job", "next_check_ms"]) or data.version != 2 or not data.sites is Dictionary or not data.projects is Dictionary or not data.active is Dictionary or not Shape.count(data.next_project, 1) or not Shape.count(data.next_job, 1) or not Shape.count(data.next_check_ms, domain.world.elapsed_ms + 1):
+	if not Shape.keys(data, ["version", "sites", "projects", "active", "zones", "next_zone", "next_project", "next_job", "next_check_ms"]) or data.version != 3 or not data.sites is Dictionary or not data.projects is Dictionary or not data.active is Dictionary or not data.zones is Dictionary or not Shape.count(data.next_zone, 1) or not Shape.count(data.next_project, 1) or not Shape.count(data.next_job, 1) or not Shape.count(data.next_check_ms, domain.world.elapsed_ms + 1):
 		return false
-	if data.projects.size() != int(data.next_project) - 1 or data.sites.size() > 1:
+	if data.projects.size() != int(data.next_project) - 1 or data.sites.size() > 16 or data.zones.size() > 64:
 		return false
 	var rules: Dictionary = domain.definitions
-	if not data.sites.is_empty():
-		var site: Variant = data.sites.get("sect_yard")
-		if not Shape.keys(site, ["region", "owner", "origin", "created_by", "created_ms"]) or site.region != rules.site.region or not domain.world.regions.has(site.region) or not domain.authorized(str(site.created_by)) or not Shape.cell_valid(site.origin) or not Shape.count(site.created_ms, 0, domain.world.elapsed_ms) or site.owner != domain.world.regions[site.region].config.institution.id:
+	for index: int in data.sites.size():
+		if not data.sites.has("sect_yard" if index == 0 else "construction_site:%d" % (index + 1)):
+			return false
+	var bounds_list: Array[Rect2i] = []
+	for site_id: Variant in data.sites:
+		var site: Variant = data.sites[site_id]
+		if not site_id is String or not SimInventory._nonempty(site_id) or not Shape.keys(site, ["region", "owner", "origin", "size", "created_by", "created_ms"]) or site.region != rules.site.region or not domain.world.regions.has(site.region) or not domain.authorized(str(site.created_by)) or not Shape.cell_valid(site.origin) or not SimConstructionGeometry._pair(site.size, 1, 32) or not Shape.count(site.created_ms, 0, domain.world.elapsed_ms) or site.owner != domain.world.regions[site.region].config.institution.id:
 			return false
 		var source: Vector2i = SimRouteTravel.cell(domain.world.regions[site.region].places[rules.site.source].cell)
 		if source.distance_to(SimRouteTravel.cell(site.origin)) > float(rules.site.source_cells):
 			return false
-	elif not data.projects.is_empty():
+		var bounds := Rect2i(SimRouteTravel.cell(site.origin), SimRouteTravel.cell(site.size))
+		for other: Rect2i in bounds_list:
+			if bounds.intersects(other):
+				return false
+		bounds_list.append(bounds)
+	if data.sites.is_empty() and not data.projects.is_empty():
 		return false
+	for zone_id: Variant in data.zones:
+		var zone: Variant = data.zones[zone_id]
+		if not zone_id is String or not SimInventory._nonempty(zone_id) or not Shape.keys(zone, ["site", "origin", "size", "purpose"]) or not zone.site is String or not data.sites.has(zone.site) or not Shape.cell_valid(zone.origin) or not SimConstructionGeometry._pair(zone.size, 1, 32) or not SimInventory._nonempty(zone.purpose) or str(zone.purpose).length() > 64:
+			return false
+		var raw_id: String = zone_id.trim_prefix("zone:")
+		if not zone_id.begins_with("zone:") or not raw_id.is_valid_int() or str(int(raw_id)) != raw_id or not Shape.count(int(raw_id), 1, int(data.next_zone) - 1):
+			return false
+		var site: Dictionary = data.sites[zone.site]
+		if not Rect2i(SimRouteTravel.cell(site.origin), SimRouteTravel.cell(site.size)).encloses(Rect2i(SimRouteTravel.cell(zone.origin), SimRouteTravel.cell(zone.size))):
+			return false
 	var used_cells: Dictionary = {}
 	var pending: bool = false
 	for index: int in range(1, int(data.next_project)):
@@ -43,11 +65,12 @@ static func valid(data: Variant, domain: RefCounted) -> bool:
 		var project: Variant = data.projects.get(id)
 		if not _project(project, id, data, domain):
 			return false
-		if project.state in ["blueprint", "built"]:
-			var key: String = str(project.cell) + (":roof" if rules.types[project.type].kind == "roof" else ":ground")
-			if used_cells.has(key):
-				return false
-			used_cells[key] = true
+		if project.state in ["blueprint", "built", "ruined"]:
+			for cell: Vector2i in SimConstructionGeometry.cells(project, rules.types[project.type]):
+				var key: String = str(cell) + ":" + str(rules.types[project.type].layer)
+				if used_cells.has(key):
+					return false
+				used_cells[key] = true
 		pending = pending or project.state == "blueprint"
 	if (int(data.next_check_ms) == SimInventory.MAX_COUNT) == pending or pending and int(data.next_check_ms) > domain.world.elapsed_ms + int(rules.check_ms):
 		return false
@@ -67,26 +90,29 @@ static func valid(data: Variant, domain: RefCounted) -> bool:
 
 
 static func _project(project: Variant, id: String, data: Dictionary, domain: RefCounted) -> bool:
-	if not Shape.keys(project, ["site", "type", "cell", "state", "open", "created_by", "created_ms", "completed_ms", "removed_ms", "work_ms", "material_cell", "carrier", "delivered", "line"]) or project.site != "sect_yard" or not domain.definitions.types.has(project.type) or not project.state in ["blueprint", "built", "removed", "cancelled"] or not project.open is bool or not project.delivered is bool or not project.carrier is String or not project.line is String or not domain.authorized(str(project.created_by)) or not Shape.cell_valid(project.cell) or not Shape.cell_valid(project.material_cell):
+	if not Shape.keys(project, ["site", "type", "cell", "rotation", "hp", "state", "open", "created_by", "created_ms", "completed_ms", "removed_ms", "work_ms", "material_cell", "carrier", "delivered", "line"]) or not project.site is String or not data.sites.has(project.site) or not domain.definitions.types.has(project.type) or not project.state in ["blueprint", "built", "removed", "cancelled", "ruined"] or not project.open is bool or not project.delivered is bool or not project.carrier is String or not project.line is String or not domain.authorized(str(project.created_by)) or not Shape.cell_valid(project.cell) or not Shape.cell_valid(project.material_cell):
 		return false
 	var rule: Dictionary = domain.definitions.types[project.type]
 	for value: Variant in [project.created_ms, project.completed_ms, project.removed_ms]:
 		if not Shape.count(value, 0, domain.world.elapsed_ms):
 			return false
-	if project.created_ms < data.sites.sect_yard.created_ms or not Shape.count(project.work_ms, 0, int(rule.work_ms)):
+	var site: Dictionary = data.sites[project.site]
+	if project.created_ms < site.created_ms or not Shape.count(project.work_ms, 0, int(rule.work_ms)) or not Shape.count(project.rotation, 0, 3) or not Shape.count(project.hp, 1 if project.state == "built" else 0, int(rule.max_hp) if project.state == "built" else 0):
 		return false
-	var origin: Vector2i = SimRouteTravel.cell(data.sites.sect_yard.origin)
-	var bounds := Rect2i(origin, Vector2i(int(domain.definitions.site.width), int(domain.definitions.site.height)))
-	if not bounds.has_point(SimRouteTravel.cell(project.cell)) or domain.protected_cell(SimRouteTravel.cell(project.cell)) or project.open and (not rule.door or project.state != "built"):
+	var bounds := Rect2i(SimRouteTravel.cell(site.origin), SimRouteTravel.cell(site.size))
+	for cell: Vector2i in SimConstructionGeometry.cells(project, rule):
+		if not bounds.has_point(cell) or domain.protected_cell(cell):
+			return false
+	if project.open and (not rule.door or project.state != "built"):
 		return false
 	var inventory: SimInventory = domain.world.regions[domain.definitions.site.region].inventory
 	if not inventory.containers.has(id) or not _only_item(inventory.containers[id], str(rule.item)):
 		return false
 	var supplied: bool = inventory.operations.has(id + ":supply")
 	var returned: bool = inventory.operations.has(id + ":return")
-	var amount: int = int(rule.amount) if supplied and project.state in ["blueprint", "cancelled"] else int(rule.salvage) if project.state == "removed" else 0
+	var amount: int = int(rule.amount) if supplied and project.state in ["blueprint", "cancelled"] else int(rule.salvage) if project.state in ["removed", "ruined"] else 0
 	if returned:
-		if not project.state in ["cancelled", "removed"] or amount == 0 or not _transfer(inventory.operations[id + ":return"], id, str(domain.definitions.site.source), str(rule.item), amount, ""):
+		if not project.state in ["cancelled", "removed", "ruined"] or amount == 0 or not _transfer(inventory.operations[id + ":return"], id, str(domain.definitions.site.source), str(rule.item), amount, ""):
 			return false
 		amount = 0
 	if inventory.quantity(id, str(rule.item)) != amount or not supplied and (project.delivered or not project.carrier.is_empty() or project.work_ms != 0):
@@ -95,7 +121,7 @@ static func _project(project: Variant, id: String, data: Dictionary, domain: Ref
 		var receipt: Variant = inventory.operations[id + ":supply"]
 		if not receipt is Dictionary or not receipt.get("reservation_id") is String or not _job_id(str(receipt.reservation_id), int(data.next_job)) or not _transfer(receipt, str(domain.definitions.site.source), id, str(rule.item), int(rule.amount), str(receipt.reservation_id)):
 			return false
-	var built: bool = project.state in ["built", "removed"]
+	var built: bool = project.state in ["built", "removed", "ruined"]
 	if inventory.operations.has(id + ":build") != built:
 		return false
 	if built:
@@ -103,14 +129,22 @@ static func _project(project: Variant, id: String, data: Dictionary, domain: Ref
 			return false
 	elif project.completed_ms != 0:
 		return false
-	if inventory.operations.has(id + ":salvage") != (project.state == "removed"):
+	if inventory.operations.has(id + ":salvage") != (project.state in ["removed", "ruined"]):
 		return false
-	if project.state == "removed":
+	if project.state in ["removed", "ruined"]:
 		if project.removed_ms < project.completed_ms or not inventory.containers.has(id + ":salvage") or inventory.quantity(id + ":salvage", str(rule.item)) != 0 or not _only_item(inventory.containers[id + ":salvage"], str(rule.item)) or not _transfer(inventory.operations[id + ":salvage"], id + ":salvage", id, str(rule.item), int(rule.salvage), ""):
 			return false
 	elif project.removed_ms != 0:
 		return false
 	if amount == 0 and not project.carrier.is_empty():
+		return false
+	var contents: String = id + ":contents"
+	if rule.capabilities.has("storage") and built:
+		if not inventory.containers.has(contents) or not domain.contents_valid(project, inventory.containers[contents]):
+			return false
+		if project.state == "removed" and inventory.containers[contents].values().any(func(value: int) -> bool: return value > 0):
+			return false
+	elif inventory.containers.has(contents):
 		return false
 	return true
 
@@ -125,11 +159,15 @@ static func _job(actor: String, job: Variant, data: Dictionary, domain: RefCount
 		return false
 	var project: Dictionary = data.projects[job.project]
 	var rule: Dictionary = domain.definitions.types[project.type]
-	if job.kind == "build" and project.state != "blueprint" or job.kind == "recover" and not project.state in ["cancelled", "removed"] or job.kind in ["demolish", "open", "close"] and project.state != "built":
+	if job.kind == "build" and project.state != "blueprint" or job.kind == "recover" and not project.state in ["cancelled", "removed", "ruined"] or job.kind == "demolish" and project.state not in ["built", "ruined"] or job.kind in ["open", "close"] and project.state != "built":
+		return false
+	if job.kind == "demolish" and not domain._contents_empty(str(job.project)):
 		return false
 	if job.kind in ["open", "close"] and (not rule.door or project.open == (job.kind == "open")):
 		return false
-	if SimRouteTravel.cell(job.stand).distance_to(SimRouteTravel.cell(project.cell)) != 1.0:
+	var footprint: Array[Vector2i] = SimConstructionGeometry.cells(project, rule)
+	var stand: Vector2i = SimRouteTravel.cell(job.stand)
+	if stand in footprint or not footprint.any(func(cell: Vector2i) -> bool: return absi(cell.x - stand.x) + absi(cell.y - stand.y) == 1):
 		return false
 	for value: Variant in [job.started_ms, job.work_started_ms, job.segment_started_ms]:
 		if not Shape.count(value, int(project.created_ms), world.elapsed_ms):

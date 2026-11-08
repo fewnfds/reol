@@ -31,7 +31,7 @@
 | [SimGeographicClimate](../../../scripts/sim/geographic_climate.gd)、[ReolGeographicContent](../../../scripts/data/geographic_content.gd)、Main开局配置 | 新局地理草稿编译成原climate2曲线，隔离重建完整内容包/digest并校验后装配；默认草稿为world_geography.json | 只在创建时执行，无运行温度附加项或第二状态；普通Main只支持原时钟起点，恢复仅取档内曲线，不重编 |
 | [SimLocalLight](../../../scripts/sim/local_light.gd)、[LocalLightRuntime](../../../scripts/runtime/local_light_runtime.gd) | 即时相对光读原热出流或固有发光器物ID索引，位置沿原承载者/地点查询；共用遮挡、叠加、当前视野纹理 | 索引派生只读不落档，无第二物品/光量/位置；动锚点旧时刻或欠算返回unknown；当前128源/441格，非移动热或完整光能账 |
 | [SimSolarRules](../../../scripts/sim/solar_rules.gd)、[SimNaturalLight](../../../scripts/sim/natural_light.gd)、DayNight | 从已接受世界的climate2、原物理时刻/天气、屋顶事实派生太阳高度/昼长/自然光，普通界面与天色读取同源 | 无第二时钟/光量账/持久缓存；单地图宏观纬度；不是局部灯、完整感知或植物受光模型 |
-| construction / workplaces / resting | 真实材料与结构、固定办事布局、床位/休息；施工仍核原成本和有关状态 | 围合、覆盖与功能分开；普通室外场当前不按墙、门或屋顶隔热，房间也不自行发行贡献或资源 |
+| construction / facility_use / workplaces / resting | 多格结构/家具身份、耐久与施工，操作位/储藏过程、固定办事布局和床位；库存/生产仍归原owner，详见[建筑合同](../construction-contract.md) | 围合、覆盖与功能分开；普通室外场当前不按墙、门或屋顶隔热，房间也不自行发行贡献或资源 |
 | [SimStructureQuery](../../../scripts/sim/structure_query.gd)、[ReolWallVisuals](../../../scripts/world/wall_visuals.gd) | 无状态投影原结构引用/覆盖格/层与独立物理事实，按四邻绘墙 | 不复制实体或写档；真实木墙门的视线不等于桌柜碰撞，成功施工通知经runtime使本地视野失效 |
 | avian_life / soul_vessels / large_bodies | 雀身、残识与载体、3×3兽身的原持久状态 | 不是人类伪装副本；兽身不可选、无完整物种生成/繁衍 |
 | field_opportunities / site_affairs / source_care | 地点、许可/核验、具名职责/个人线索与原过程引用 | 有限样本，不能当成通用任务/产权/组织平台 |

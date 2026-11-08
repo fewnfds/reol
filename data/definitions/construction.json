@@ -1,6 +1,5 @@
 {
-  "version": 1,
-  "site": {"region": "home", "source": "store", "builders": ["player", "shi_tou"], "workers": ["shi_tou"], "width": 7, "height": 5, "source_cells": 14, "notice_cells": 18, "observe_cells": 18},
+  "version": 2,
   "check_ms": 60000,
   "minimum_fullness": 35,
   "minimum_energy": 30,
@@ -8,9 +7,433 @@
   "pickup_ms": 1000,
   "roof_span": 2,
   "types": {
-    "wood_wall": {"label": "木墙", "kind": "wall", "item": "wood", "amount": 3, "work_ms": 180000, "demolish_ms": 60000, "salvage": 2, "door": false},
-    "wood_door": {"label": "木门", "kind": "door", "item": "wood", "amount": 4, "work_ms": 240000, "demolish_ms": 60000, "salvage": 2, "door": true},
-    "wood_bed": {"label": "木床", "kind": "bed", "item": "wood", "amount": 5, "work_ms": 180000, "demolish_ms": 60000, "salvage": 2, "door": false},
-    "wood_roof": {"label": "木屋面", "kind": "roof", "item": "wood", "amount": 4, "work_ms": 180000, "demolish_ms": 60000, "salvage": 2, "door": false}
+    "wood_wall": {
+      "label": "木墙",
+      "kind": "wall",
+      "item": "wood",
+      "amount": 3,
+      "work_ms": 180000,
+      "demolish_ms": 60000,
+      "salvage": 2,
+      "door": false,
+      "layer": "ground",
+      "size": [
+        1,
+        1
+      ],
+      "facts": {
+        "movement_blocked": true,
+        "enclosure_boundary": true,
+        "thermal_barrier": true,
+        "sight_blocked": true,
+        "wall_connection": true,
+        "roof_support": true
+      },
+      "max_hp": 120,
+      "armor": 2,
+      "capabilities": {},
+      "slots": []
+    },
+    "wood_door": {
+      "label": "木门",
+      "kind": "door",
+      "item": "wood",
+      "amount": 4,
+      "work_ms": 240000,
+      "demolish_ms": 60000,
+      "salvage": 2,
+      "door": true,
+      "layer": "ground",
+      "size": [
+        1,
+        1
+      ],
+      "facts": {
+        "movement_blocked": true,
+        "enclosure_boundary": true,
+        "thermal_barrier": true,
+        "sight_blocked": true,
+        "wall_connection": true,
+        "roof_support": true
+      },
+      "max_hp": 120,
+      "armor": 2,
+      "capabilities": {},
+      "slots": []
+    },
+    "wood_bed": {
+      "label": "木床",
+      "kind": "bed",
+      "item": "wood",
+      "amount": 5,
+      "work_ms": 180000,
+      "demolish_ms": 60000,
+      "salvage": 2,
+      "door": false,
+      "layer": "ground",
+      "size": [
+        1,
+        1
+      ],
+      "facts": {
+        "movement_blocked": false,
+        "enclosure_boundary": false,
+        "thermal_barrier": false,
+        "sight_blocked": false,
+        "wall_connection": false,
+        "roof_support": false
+      },
+      "max_hp": 80,
+      "armor": 2,
+      "capabilities": {
+        "rest": {}
+      },
+      "slots": []
+    },
+    "wood_roof": {
+      "label": "木屋面",
+      "kind": "roof",
+      "item": "wood",
+      "amount": 4,
+      "work_ms": 180000,
+      "demolish_ms": 60000,
+      "salvage": 2,
+      "door": false,
+      "layer": "roof",
+      "size": [
+        1,
+        1
+      ],
+      "facts": {
+        "movement_blocked": false,
+        "enclosure_boundary": false,
+        "thermal_barrier": false,
+        "sight_blocked": false,
+        "wall_connection": false,
+        "roof_support": false
+      },
+      "max_hp": 80,
+      "armor": 2,
+      "capabilities": {},
+      "slots": []
+    },
+    "wood_table": {
+      "label": "木桌",
+      "kind": "table",
+      "item": "wood",
+      "amount": 6,
+      "work_ms": 180000,
+      "demolish_ms": 60000,
+      "salvage": 3,
+      "door": false,
+      "layer": "ground",
+      "size": [
+        2,
+        1
+      ],
+      "facts": {
+        "movement_blocked": true,
+        "enclosure_boundary": false,
+        "thermal_barrier": false,
+        "sight_blocked": false,
+        "wall_connection": false,
+        "roof_support": false
+      },
+      "max_hp": 100,
+      "armor": 2,
+      "capabilities": {
+        "surface": {}
+      },
+      "slots": []
+    },
+    "wood_chair": {
+      "label": "木椅",
+      "kind": "chair",
+      "item": "wood",
+      "amount": 4,
+      "work_ms": 180000,
+      "demolish_ms": 60000,
+      "salvage": 2,
+      "door": false,
+      "layer": "ground",
+      "size": [
+        1,
+        1
+      ],
+      "facts": {
+        "movement_blocked": false,
+        "enclosure_boundary": false,
+        "thermal_barrier": false,
+        "sight_blocked": false,
+        "wall_connection": false,
+        "roof_support": false
+      },
+      "max_hp": 100,
+      "armor": 2,
+      "capabilities": {
+        "seat": {}
+      },
+      "slots": [
+        {
+          "id": "seat",
+          "capability": "seat",
+          "cell": [
+            0,
+            0
+          ],
+          "facing": [
+            0,
+            -1
+          ],
+          "requires": ""
+        }
+      ]
+    },
+    "desk_chair": {
+      "label": "书案座椅",
+      "kind": "chair",
+      "item": "wood",
+      "amount": 4,
+      "work_ms": 180000,
+      "demolish_ms": 60000,
+      "salvage": 2,
+      "door": false,
+      "layer": "ground",
+      "size": [
+        1,
+        1
+      ],
+      "facts": {
+        "movement_blocked": false,
+        "enclosure_boundary": false,
+        "thermal_barrier": false,
+        "sight_blocked": false,
+        "wall_connection": false,
+        "roof_support": false
+      },
+      "max_hp": 100,
+      "armor": 2,
+      "capabilities": {
+        "seat": {}
+      },
+      "slots": [
+        {
+          "id": "seat",
+          "capability": "seat",
+          "cell": [
+            0,
+            0
+          ],
+          "facing": [
+            0,
+            -1
+          ],
+          "requires": "surface"
+        }
+      ]
+    },
+    "wood_chest": {
+      "label": "储藏箱",
+      "kind": "chest",
+      "item": "wood",
+      "amount": 4,
+      "work_ms": 180000,
+      "demolish_ms": 60000,
+      "salvage": 2,
+      "door": false,
+      "layer": "ground",
+      "size": [
+        1,
+        1
+      ],
+      "facts": {
+        "movement_blocked": true,
+        "enclosure_boundary": false,
+        "thermal_barrier": false,
+        "sight_blocked": false,
+        "wall_connection": false,
+        "roof_support": false
+      },
+      "max_hp": 100,
+      "armor": 2,
+      "capabilities": {
+        "storage": {
+          "capacity": 24,
+          "items": []
+        }
+      },
+      "slots": [
+        {
+          "id": "front",
+          "capability": "storage",
+          "cell": [
+            0,
+            1
+          ],
+          "facing": [
+            0,
+            -1
+          ],
+          "requires": ""
+        }
+      ]
+    },
+    "cook_stove": {
+      "label": "灶台",
+      "kind": "workbench",
+      "item": "wood",
+      "amount": 8,
+      "work_ms": 180000,
+      "demolish_ms": 60000,
+      "salvage": 4,
+      "door": false,
+      "layer": "ground",
+      "size": [
+        2,
+        1
+      ],
+      "facts": {
+        "movement_blocked": true,
+        "enclosure_boundary": false,
+        "thermal_barrier": false,
+        "sight_blocked": false,
+        "wall_connection": false,
+        "roof_support": false
+      },
+      "max_hp": 100,
+      "armor": 2,
+      "capabilities": {
+        "workbench": {
+          "recipes": [
+            "cook_rations"
+          ]
+        }
+      },
+      "slots": [
+        {
+          "id": "front",
+          "capability": "workbench",
+          "cell": [
+            0,
+            1
+          ],
+          "facing": [
+            0,
+            -1
+          ],
+          "requires": ""
+        }
+      ]
+    },
+    "wood_window": {
+      "label": "木窗",
+      "kind": "window",
+      "item": "wood",
+      "amount": 4,
+      "work_ms": 180000,
+      "demolish_ms": 60000,
+      "salvage": 2,
+      "door": false,
+      "layer": "ground",
+      "size": [
+        1,
+        1
+      ],
+      "facts": {
+        "movement_blocked": true,
+        "enclosure_boundary": true,
+        "thermal_barrier": true,
+        "sight_blocked": false,
+        "wall_connection": true,
+        "roof_support": true
+      },
+      "max_hp": 100,
+      "armor": 2,
+      "capabilities": {},
+      "slots": []
+    },
+    "wood_screen": {
+      "label": "屏风",
+      "kind": "screen",
+      "item": "wood",
+      "amount": 4,
+      "work_ms": 180000,
+      "demolish_ms": 60000,
+      "salvage": 2,
+      "door": false,
+      "layer": "ground",
+      "size": [
+        2,
+        1
+      ],
+      "facts": {
+        "movement_blocked": true,
+        "enclosure_boundary": false,
+        "thermal_barrier": false,
+        "sight_blocked": true,
+        "wall_connection": false,
+        "roof_support": false
+      },
+      "max_hp": 100,
+      "armor": 2,
+      "capabilities": {},
+      "slots": []
+    },
+    "long_bed": {
+      "label": "长木床",
+      "kind": "bed",
+      "item": "wood",
+      "amount": 8,
+      "work_ms": 180000,
+      "demolish_ms": 60000,
+      "salvage": 4,
+      "door": false,
+      "layer": "ground",
+      "size": [
+        1,
+        2
+      ],
+      "facts": {
+        "movement_blocked": false,
+        "enclosure_boundary": false,
+        "thermal_barrier": false,
+        "sight_blocked": false,
+        "wall_connection": false,
+        "roof_support": false
+      },
+      "max_hp": 100,
+      "armor": 2,
+      "capabilities": {
+        "rest": {}
+      },
+      "slots": []
+    },
+    "stone_wall": {
+      "label": "石墙",
+      "kind": "wall",
+      "item": "stone",
+      "amount": 4,
+      "work_ms": 180000,
+      "demolish_ms": 60000,
+      "salvage": 2,
+      "door": false,
+      "layer": "ground",
+      "size": [
+        1,
+        1
+      ],
+      "facts": {
+        "movement_blocked": true,
+        "enclosure_boundary": true,
+        "thermal_barrier": true,
+        "sight_blocked": true,
+        "wall_connection": true,
+        "roof_support": true
+      },
+      "max_hp": 200,
+      "armor": 5,
+      "capabilities": {},
+      "slots": []
+    }
   }
 }

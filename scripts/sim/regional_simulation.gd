@@ -5,7 +5,7 @@ signal action_finished(outcome: Dictionary)
 ## Scene adapters may disappear; these instances and their pending work remain.
 
 const DEFINITIONS_VERSION: int = 1
-const SCHEMA_VERSION: int = 43
+const SCHEMA_VERSION: int = 44
 const MINUTE_MS: int = 60000
 const MAX_COUNT: int = SimInventory.MAX_COUNT
 const Services = preload("res://scripts/sim/services/settlement_services.gd")
@@ -35,6 +35,7 @@ const ACTIVITY_DOMAINS: Dictionary = {
 	&"personal_production": ActivityScope.LOCAL | ActivityScope.BODY | ActivityScope.PLAYER_ACTION | ActivityScope.AUTOMATIC_MOTION | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION | ActivityScope.STATIONARY | ActivityScope.RETURN_AUTONOMY,
 	&"method_records": ActivityScope.LOCAL | ActivityScope.BODY | ActivityScope.PLAYER_ACTION | ActivityScope.AUTOMATIC_MOTION | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION | ActivityScope.STATIONARY | ActivityScope.RETURN_AUTONOMY,
 	&"resting": ActivityScope.LOCAL | ActivityScope.BODY | ActivityScope.PLAYER_ACTION | ActivityScope.AUTOMATIC_MOTION | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION | ActivityScope.STATIONARY | ActivityScope.RETURN_AUTONOMY,
+	&"facility_use": ActivityScope.LOCAL | ActivityScope.BODY | ActivityScope.PLAYER_ACTION | ActivityScope.AUTOMATIC_MOTION | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION | ActivityScope.STATIONARY | ActivityScope.WAIT | ActivityScope.RETURN_AUTONOMY,
 	&"construction": ActivityScope.LOCAL | ActivityScope.BODY | ActivityScope.PLAYER_ACTION | ActivityScope.AUTOMATIC_MOTION | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION | ActivityScope.RETURN_AUTONOMY,
 	&"admissions": ActivityScope.LOCAL | ActivityScope.BODY | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION | ActivityScope.RETURN_AUTONOMY,
 	&"soul_vessels": ActivityScope.LOCAL | ActivityScope.BODY | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION,
@@ -48,17 +49,17 @@ const SNAPSHOT_DOMAINS: Array[StringName] = [
 	&"embodiment", &"artifacts", &"heat_methods", &"method_records", &"large_bodies",
 	&"personal_production", &"budgeted_labor", &"autonomous_livelihood", &"clothing",
 	&"health", &"environment", &"environment_fields", &"spirit_sources", &"sparring", &"conflicts",
-	&"avian_life", &"soul_vessels", &"admissions", &"construction", &"resting",
+	&"avian_life", &"soul_vessels", &"admissions", &"construction", &"facility_use", &"resting",
 	&"weather", &"standing_work", &"site_affairs", &"source_care", &"capability_practice", &"field_opportunities", &"private_exchange",
 ]
-## Wire keys belong to schema 43; runtime domains use their current names.
+## Wire keys belong to schema 44; runtime domains use their current names.
 const SNAPSHOT_KEYS: Dictionary = {&"environment_fields": &"local_heat"}
 # Keep query order stable too: a future derived cache must not silently turn
 # next-boundary collection into an unordered set of domain callbacks.
 const BOUNDARY_DOMAINS: Array[StringName] = [
 	&"object_lifecycle",
 	&"artifacts", &"sparring", &"avian_life", &"soul_vessels", &"admissions",
-	&"construction", &"resting", &"weather", &"standing_work", &"large_bodies",
+	&"construction", &"facility_use", &"resting", &"weather", &"standing_work", &"large_bodies",
 	&"method_records", &"personal_production", &"budgeted_labor", &"clothing",
 	&"health", &"environment", &"environment_fields", &"spirit_sources", &"conflicts", &"source_care", &"capability_practice", &"field_opportunities", &"private_exchange",
 ]
@@ -66,7 +67,7 @@ const BOUNDARY_DOMAINS: Array[StringName] = [
 # interval before its heat preflight and player-journey checks. Other world,
 # regional, route and message boundaries are still handled inside advance_to_ms.
 const RUNTIME_BOUNDARY_DOMAINS: Array[StringName] = [
-	&"construction", &"resting", &"weather", &"clothing", &"health",
+	&"construction", &"facility_use", &"resting", &"weather", &"clothing", &"health",
 	&"spirit_sources", &"conflicts", &"source_care", &"field_opportunities",
 	&"private_exchange", &"capability_practice", &"environment", &"environment_fields",
 	&"large_bodies", &"personal_production",
@@ -118,6 +119,7 @@ var avian_life: SimAvianLife
 var soul_vessels: SimSoulVessels
 var admissions: SimSocialAdmission
 var construction: SimConstruction
+var facility_use: SimFacilityUse
 var resting: SimResting
 var weather: SimWeather
 var standing_work: SimStandingWork
@@ -324,6 +326,8 @@ func initialize(definitions: Dictionary, instances: Dictionary, content: ReolCon
 	if not construction.initialize(self, content.construction):
 		errors.append("Invalid construction definitions")
 		return false
+	facility_use = SimFacilityUse.new()
+	facility_use.bind_world(self)
 	resting = SimResting.new()
 	if not resting.initialize(self, content.resting):
 		errors.append("Invalid resting definitions")
@@ -452,7 +456,7 @@ func interrupt_occupation(actor: String, reason: String) -> void:
 		field_opportunities.cancel(actor, reason)
 	if private_exchange != null:
 		private_exchange.cancel(actor, reason)
-	for domain: RefCounted in [object_lifecycle, artifacts, soul_vessels, admissions, construction, resting, clothing, health, spirit_sources, method_records, personal_production]:
+	for domain: RefCounted in [object_lifecycle, artifacts, soul_vessels, admissions, construction, facility_use, resting, clothing, health, spirit_sources, method_records, personal_production]:
 		if domain != null:
 			domain.cancel(actor)
 	if sparring != null and sparring.owns_actor(actor):
@@ -642,6 +646,8 @@ func advance_to(requested_time: int, max_events: int = 4096) -> bool:
 
 
 func advance_to_ms(requested_ms: int, max_events: int = 4096) -> bool:
+	if construction != null and construction._changing:
+		return false
 	if object_lifecycle != null and object_lifecycle._committing:
 		return false
 	if environment_fields is SimWorldEnvironmentFields and not environment_fields.activate_sources():
@@ -758,6 +764,7 @@ func _settle_current_processes() -> bool:
 	soul_vessels.settle_at_ms(elapsed_ms)
 	admissions.settle_at_ms(elapsed_ms)
 	construction.settle_at_ms(elapsed_ms)
+	facility_use.settle_at_ms(elapsed_ms)
 	personal_production.settle_at_ms(elapsed_ms)
 	resting.settle_at_ms(elapsed_ms)
 	large_bodies.settle_at_ms(elapsed_ms)
@@ -1049,7 +1056,7 @@ func known_event_lines(region_id: String, limit: int = 3) -> Array[String]:
 
 
 func to_dict() -> Dictionary:
-	if environment_boundary_active() or (object_lifecycle != null and (object_lifecycle._committing or object_lifecycle.environment_change_pending())):
+	if construction != null and construction._changing or environment_boundary_active() or (object_lifecycle != null and (object_lifecycle._committing or object_lifecycle.environment_change_pending())):
 		return {}
 	if not environment_fields.settle_at_ms(elapsed_ms) or not synchronize_regions():
 		return {}
@@ -1080,7 +1087,7 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	# archive. Historical importers remain evidence, not a second running engine.
 	if legacy_heat_v1 or legacy_heat_v2 or data.get("version") != SCHEMA_VERSION:
 		return false
-	if environment_boundary_active() or (object_lifecycle != null and object_lifecycle.environment_change_pending()) or (_environment_guard != null and _environment_guard.get_ref() != null):
+	if construction != null and construction._changing or environment_boundary_active() or (object_lifecycle != null and object_lifecycle.environment_change_pending()) or (_environment_guard != null and _environment_guard.get_ref() != null):
 		return false
 	# Validation constructs an entirely separate world. Failed loads preserve
 	# existing regional objects, inventory and pending deliveries.
@@ -1106,6 +1113,7 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 		if not SimLandResources.opening_matches(_base_workplace_config(saved.config), _base_workplace_config(opening_config(region_id))):
 			return false
 		var inventory_scope: Dictionary = SimConstruction.Schema.inventory_scope(data.construction, region_id, _content.construction)
+		var facility_scope: Dictionary = SimFacilityUse.inventory_scope(data.facility_use, region_id, _content.construction)
 		var production_scope: Dictionary = SimPersonalProduction.Schema.inventory_scope(data.personal_production, region_id, _content.personal_production)
 		var health_scope: Dictionary = SimHealth.Schema.inventory_scope(data.health, region_id, _content.health)
 		var labor_scope: Dictionary = SimBudgetedLabor.Schema.inventory_scope(data.budgeted_labor, region_id)
@@ -1113,6 +1121,7 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 		var lifecycle_scope: Dictionary = SimObjectLifecycle.inventory_scope(data.object_lifecycle, region_id)
 		for field: String in ["containers", "operations", "reservations"]:
 			inventory_scope[field].merge(production_scope[field])
+			inventory_scope[field].merge(facility_scope[field])
 			inventory_scope[field].merge(labor_scope[field])
 			for id: String in lifecycle_scope[field]:
 				if inventory_scope[field].has(id):
@@ -1315,6 +1324,11 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	# existing process owners; bind it only after those candidates exist.
 	if not next_sources.initialize(candidate_world, _content.spirit_sources) or not next_sources.restore(data.spirit_sources):
 		return false
+	var next_facility := SimFacilityUse.new()
+	next_facility.bind_world(candidate_world)
+	candidate_world.facility_use = next_facility
+	if not next_facility.restore(data.facility_use):
+		return false
 	if not SimConflicts.Schema.cross_valid(next_conflicts):
 		return false
 	if not next_site.cross_valid():
@@ -1373,6 +1387,8 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	standing_work.bind_world(self)
 	resting = next_resting
 	resting.bind_world(self)
+	facility_use = next_facility
+	facility_use.bind_world(self)
 	construction = next_construction
 	construction.bind_world(self)
 	admissions = next_admissions

@@ -64,13 +64,15 @@
 | 雀身/大型身体 | [SimAvianLife](../../scripts/sim/avian_life.gd)、[SimLargeBodies](../../scripts/sim/large_bodies.gd) | 各域的真实非人身体，不能按人类`actor`直接强制转换 |
 | 实体定位查询 | [SimEntityQuery](../../scripts/sim/entity_query.gd) | `actor`/`avian`/`artifact`/`large_body`的只读解析，非全量状态注册表 |
 | 实时空间查询 | [SimWorldSpace](../../scripts/sim/world_space.gd) | 原身体/地面物/结构的局部格投影、变化通知及恢复失效；与历史快照分开 |
-| 最小行动合同 | [SimActionContract](../../scripts/sim/action_contract.gd) | 取放/施工共用条件、占用、执行复核和释放，过程与效果仍归原owner |
+| 最小行动合同 | [SimActionContract](../../scripts/sim/action_contract.gd) | 取放/施工/家具使用共用条件、占用、执行复核和释放，过程与效果仍归原owner |
 | 世界对象查询 | [SimWorldObjectQuery](../../scripts/sim/world_object_query.gd) | 复用定位并扩展数量条目/资源/结构等参照；与`SimEntityQuery`接口不同 |
 | 独特器物 | `SimArtifacts.objects[id]` | 独特实例；`artifact`在该接口不代表所有物品 |
 | 数量物品/容器 | [SimInventory](../../scripts/sim/inventory_ledger.gd)、[SimStorageQuery](../../scripts/sim/storage_query.gd) | 数量账本及原容器查询，不与独特器物重复计数 |
 | 地面放置 | [SimGroundPlacements](../../scripts/sim/ground_placements.gd) | 原物/数量条目的引用与覆盖格，不复制原物状态 |
 | 实物生命周期 | [SimObjectLifecycle](../../scripts/sim/object_lifecycle.gd) | 受控生成/移动/堆拆及共同动作，位置与成本仍归原owner |
 | 建筑结构 | [SimConstruction](../../scripts/sim/construction.gd)、[SimStructureQuery](../../scripts/sim/structure_query.gd) | 墙、门、屋顶、家具等实体及只读投影 |
+| 建筑定义与占地 | [SimConstructionGeometry](../../scripts/sim/construction_geometry.gd) | 定义校验、多格/朝向、操作位与独立物理事实，只投影不持实例 |
+| 家具使用 | [SimFacilityUse](../../scripts/sim/facility_use.gd) | 座位/储藏的原进行中动作及操作位，库存仍归SimInventory，工作台生产仍归SimPersonalProduction |
 | 区域/房间/工作场所 | [空间设计](../../design/systems/construction_and_space.md)；`SimWorkplaces` | 指定区域、推导围合空间、人/器具办事条件分别成立，不合称一个建筑单位 |
 
 ## 社会、能力与时间
@@ -88,7 +90,7 @@
 
 ## 持久化边界
 
-当前运行成员和调度domain使用`environment_fields`。区域存档schema 43仍使用JSON键`local_heat`；`RegionalSimulation.SNAPSHOT_KEYS`在capture和shape validation处做明确映射，restore读取该既有键。当前根存档仍为schema 52，没有运行时`local_heat`兼容getter或第二环境owner。
+当前运行成员和调度domain使用`environment_fields`。区域存档schema 44仍使用JSON键`local_heat`；`RegionalSimulation.SNAPSHOT_KEYS`在capture和shape validation处做明确映射，restore读取该既有键。当前根存档仍为schema 53，没有运行时`local_heat`兼容getter或第二环境owner。
 
 `ReolContentDB.local_heat`和`data/definitions/local_heat.json`保留为热设备参数定义入口；历史`SimLocalHeat`不因此成为当前环境owner。使用时写出限定路径/所属对象，不能只写`local_heat`猜它指运行域、存档还是定义。
 

@@ -32,7 +32,7 @@ static func release(world: RegionalSimulation, region: String, actor: String, pr
 
 
 static func describe(world: RegionalSimulation, actor: String) -> Dictionary:
-	# Project two concrete owners. A new domain must actually implement these
+	# Project the supported concrete owners. A new domain must actually implement these
 	# execution seams before being advertised here; no universal registry.
 	for id: String in world.object_lifecycle._active_actions:
 		var action: Dictionary = world.object_lifecycle.actions[id]
@@ -41,6 +41,9 @@ static func describe(world: RegionalSimulation, actor: String) -> Dictionary:
 	if world.construction.active.has(actor):
 		var job: Dictionary = world.construction.active[actor]
 		return view(world, "construction", job.id, actor, job.kind, job.phase, int(job.started_ms), int(job.due_ms), "active", job.project)
+	if world.facility_use != null and world.facility_use.active.has(actor):
+		var job: Dictionary = world.facility_use.active[actor]
+		return view(world, "facility_use", job.id, actor, job.kind, job.phase, int(job.started_ms), int(job.due_ms), "active", job.project)
 	return {"ok": false, "reason": "no_supported_action", "scope": "minimal_action", "visibility": "authority_only"}
 
 

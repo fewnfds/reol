@@ -50,7 +50,7 @@ static func capability(world: RegionalSimulation, reference: Variant, name: Stri
 		"resource_record":
 			known = name in ["finite_source", "ecology_response"]
 		"structure_geometry":
-			known = name == "structure_geometry"
+			known = name in ["structure_geometry", "damageable"] or name in SimConstructionGeometry.CAPABILITIES
 	if not known:
 		return _failure("unsupported_capability")
 	return {"ok": true, "reference": row.reference, "capability": name,
@@ -233,10 +233,17 @@ static func _structure(world: RegionalSimulation, reference: Dictionary) -> Dict
 	var facts: Dictionary = {"state": source.state, "component": source.kind}
 	for fact: String in SimStructureQuery.FACTS:
 		facts[fact] = source[fact]
+	var capabilities: Array = ["structure_geometry"]
+	if reference.kind == "construction":
+		for field: String in ["definition", "rotation", "hp", "max_hp", "armor", "material", "operation_slots"]:
+			facts[field] = source[field]
+		if source.state == "built":
+			capabilities.append("damageable")
+			capabilities.append_array(source.capabilities.keys())
 	# Keep an aggregated wall/roof as one component with nonrectangular cells.
 	return _finish(row, reference, "structure", source.cells,
 		"planned" if source.state == "blueprint" else source.layer,
-		"blueprint" if source.state == "blueprint" else "placed", "structure_geometry", ["structure_geometry"], facts)
+		"blueprint" if source.state == "blueprint" else "placed", "structure_geometry", capabilities, facts)
 
 
 static func _finish(row: Dictionary, reference: Dictionary, classification: String, cells: Array[Vector2i], layer: String, relation: String, namespace_name: String, values: Array, attributes: Dictionary) -> Dictionary:

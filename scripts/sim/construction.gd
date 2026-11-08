@@ -12,9 +12,15 @@ var definitions: Dictionary = {}
 var sites: Dictionary = {}
 var projects: Dictionary = {}
 var active: Dictionary = {}
+var zones: Dictionary = {}
+var _pending: Array[String] = []
+var _supports: Dictionary[Vector2i, String] = {}
+var _bed_ids: Array[String] = []
+var next_zone: int = 1
 var next_project: int = 1
 var next_job: int = 1
 var next_check_ms: int = SimInventory.MAX_COUNT
+var _changing: bool = false
 var _owner: WeakRef
 var _terrain: Callable
 var _elevation: Callable
@@ -30,7 +36,7 @@ var world: RefCounted:
 
 
 static func valid_definitions(data: Variant) -> bool:
-	if not Shape.keys(data, ["version", "site", "check_ms", "minimum_fullness", "minimum_energy", "operate_ms", "pickup_ms", "roof_span", "types"]) or data.version != 1 or not Shape.count(data.roof_span, 1, 4) or not Shape.keys(data.site, ["region", "source", "builders", "workers", "width", "height", "source_cells", "notice_cells", "observe_cells"]):
+	if not Shape.keys(data, ["version", "site", "check_ms", "minimum_fullness", "minimum_energy", "operate_ms", "pickup_ms", "roof_span", "types"]) or data.version != 2 or not Shape.count(data.roof_span, 1, 4) or not Shape.keys(data.site, ["region", "source", "builders", "workers", "width", "height", "source_cells", "notice_cells", "observe_cells"]):
 		return false
 	if not SimInventory._nonempty(data.site.region) or not SimInventory._nonempty(data.site.source) or not SimEmbodiment._unique_texts(data.site.builders) or data.site.builders.is_empty() or not SimEmbodiment._unique_texts(data.site.workers):
 		return false
@@ -43,16 +49,12 @@ static func valid_definitions(data: Variant) -> bool:
 	for value: Variant in [data.check_ms, data.operate_ms, data.pickup_ms]:
 		if not Shape.count(value, 1, 600000):
 			return false
-	if not Shape.count(data.minimum_fullness, 1, 100) or not Shape.count(data.minimum_energy, 1, 100) or not Shape.keys(data.types, ["wood_wall", "wood_door", "wood_bed", "wood_roof"]):
+	if not Shape.count(data.minimum_fullness, 1, 100) or not Shape.count(data.minimum_energy, 1, 100) or not data.types is Dictionary or data.types.is_empty() or data.types.size() > 256:
 		return false
-	for type: String in data.types:
-		var row: Variant = data.types[type]
-		if not Shape.keys(row, ["label", "kind", "item", "amount", "work_ms", "demolish_ms", "salvage", "door"]) or not SimInventory._nonempty(row.label) or row.kind != str(type).trim_prefix("wood_") or row.item != "wood" or not row.door is bool or row.door != (type == "wood_door") or not Shape.count(row.amount, 1, 20) or not Shape.count(row.salvage, 1, int(row.amount) - 1):
-			return false
-		if not Shape.count(row.work_ms, 1, 3600000) or not Shape.count(row.demolish_ms, 1, 3600000):
+	for type: Variant in data.types:
+		if not SimInventory._nonempty(type) or not SimConstructionGeometry.valid_type(data.types[type]):
 			return false
 	return true
-
 
 func bind_world(authority: RefCounted) -> void:
 	# Rebind a validated candidate without resetting its saved process.
@@ -82,39 +84,150 @@ func authorized(actor: String) -> bool:
 	return rule.builders.has(actor) and world.regions.has(rule.region) and world.regions[rule.region].actors.has(actor)
 
 
-func register_site(actor: String, origin: Vector2i) -> Dictionary:
-	if not authorized(actor) or not sites.is_empty() or not _ready_actor(actor, false):
-		return reply(false, "须由获准同门在库房附近划定工地；现有工地继续沿用。")
+func register_site(actor: String, origin: Vector2i, size: Vector2i = Vector2i.ZERO) -> Dictionary:
+	if not authorized(actor) or sites.size() >= 16 or not _ready_actor(actor, false):
+		return reply(false, "须由获准同门在库房附近划定工地；工地数量已达上限。")
 	var sim: RefCounted = world.regions[definitions.site.region]
 	var source: Vector2i = SimRouteTravel.cell(sim.places[definitions.site.source].cell)
 	if source.distance_to(origin) > float(definitions.site.source_cells) or SimRouteTravel.point(sim.actors[actor]).distance_to(TileGrid.cell_to_world(origin)) > float(definitions.site.observe_cells) * TileGrid.TILE_SIZE:
 		return reply(false, "这片地离库房或你太远，不能在这里登记宗门工地。")
-	var bounds := Rect2i(origin, Vector2i(int(definitions.site.width), int(definitions.site.height)))
+	if size == Vector2i.ZERO:
+		size = Vector2i(int(definitions.site.width), int(definitions.site.height))
+	if size.x < 1 or size.y < 1 or size.x > 32 or size.y > 32:
+		return reply(false, "工地边长须在1至32格内。")
+	var bounds := Rect2i(origin, size)
+	for site: String in sites:
+		if bounds.intersects(site_bounds(site)):
+			return reply(false, "工地不能重叠；请另选一片空地。")
 	for cell: Vector2i in cells_in(bounds):
 		if not terrain_open(cell) or protected_cell(cell):
 			return reply(false, "工地需是一片连续草地，并避开已有生活设施。")
-	sites["sect_yard"] = {"region": str(definitions.site.region), "owner": str(sim.config.institution.id), "origin": [origin.x, origin.y], "created_by": actor, "created_ms": world.elapsed_ms}
+	var site_id: String = "sect_yard" if sites.is_empty() else "construction_site:%d" % (sites.size() + 1)
+	sites[site_id] = {"size": [size.x, size.y],"region": str(definitions.site.region), "owner": str(sim.config.institution.id), "origin": [origin.x, origin.y], "created_by": actor, "created_ms": world.elapsed_ms}
 	_reindex()
-	return reply(true, "已登记宗门工地：此处公料仅供获准工程使用。")
+	return {"ok": true, "line": "已登记宗门工地：此处公料仅供获准工程使用。", "site": site_id}
 
 
-func place(actor: String, type: String, cell: Vector2i) -> Dictionary:
-	if not _ready_actor(actor, false) or not definitions.types.has(type) or not site_contains(cell) or not can_observe(actor, cell) or not terrain_open(cell) or protected_cell(cell) or not project_at(cell, "roof" if type == "wood_roof" else "ground").is_empty():
-		return reply(false, "此处不能落蓝图：请当面选择获准工地中的空草地。")
+func place(actor: String, type: String, cell: Vector2i, rotation: int = 0) -> Dictionary:
+	if not _ready_actor(actor, false) or not definitions.types.has(type) or rotation < 0 or rotation > 3:
+		return reply(false, "此定义或朝向不适用。")
+	var site: String = site_at(cell)
+	if site.is_empty():
+		return reply(false, "请在已登记的工地内落蓝图。")
+	var rule: Dictionary = definitions.types[type]
+	var footprint: Array[Vector2i] = SimConstructionGeometry.cells({"cell": [cell.x, cell.y], "rotation": rotation}, rule)
+	for covered: Vector2i in footprint:
+		if site_at(covered) != site or not can_observe(actor, covered) or not terrain_open(covered) or protected_cell(covered) or not project_at(covered, str(rule.layer)).is_empty():
+			return reply(false, "整个占地须位于同一工地的可见空地内。")
 	var id: String = "construction:%d" % next_project
 	var sim: RefCounted = world.regions[definitions.site.region]
 	if not sim.inventory.create_container(id, {}):
 		return reply(false, "无法登记这批材料的容器。")
 	next_project += 1
-	projects[id] = {"site": "sect_yard", "type": type, "cell": [cell.x, cell.y], "state": "blueprint", "open": false, "created_by": actor, "created_ms": world.elapsed_ms, "completed_ms": 0, "removed_ms": 0, "work_ms": 0, "material_cell": [cell.x, cell.y], "carrier": "", "delivered": false, "line": "蓝图已画好，等待取料施工。"}
+	projects[id] = {"site": site, "type": type, "cell": [cell.x, cell.y], "rotation": rotation, "hp": 0, "state": "blueprint", "open": false, "created_by": actor, "created_ms": world.elapsed_ms, "completed_ms": 0, "removed_ms": 0, "work_ms": 0, "material_cell": [cell.x, cell.y], "carrier": "", "delivered": false, "line": "蓝图已画好，等待取料施工。"}
 	_reindex()
 	_schedule_check()
-	space_changed.emit([cell])
+	space_changed.emit(footprint)
 	return {"ok": true, "line": "蓝图不挡路；材料到场并完成施工后才成为实物。", "project": id}
 
 
+func project_cells(id: String) -> Array[Vector2i]:
+	return SimConstructionGeometry.cells(projects[id], definitions.types[projects[id].type]) if projects.has(id) else []
+
+
+func fact(id: String, name: String) -> bool:
+	return projects.has(id) and SimConstructionGeometry.fact(projects[id], definitions.types[projects[id].type], name)
+
+
+func has_capability(id: String, capability: String) -> bool:
+	return projects.has(id) and projects[id].state == "built" and definitions.types[projects[id].type].capabilities.has(capability)
+
+
+func operation_slots(id: String, capability: String = "") -> Array[Dictionary]:
+	return SimConstructionGeometry.slots(projects[id], definitions.types[projects[id].type], capability) if projects.has(id) else []
+
+
+func _completion_clear(id: String, newly_solid: bool) -> bool:
+	var roof: bool = definitions.types[projects[id].type].layer == "roof"
+	for cell: Vector2i in project_cells(id):
+		if not terrain_open(cell) or not roof and occupied(cell, newly_solid):
+			return false
+		if newly_solid and SimMotionClearance.fixed_road_reserves(world, cell):
+			return false
+	return true
+
+
+func _facility_reserved(id: String) -> bool:
+	return world.resting != null and world.resting.bed_reserved(id) or world.facility_use != null and world.facility_use.project_reserved(id)
+
+
+func contents_valid(project: Dictionary, items: Dictionary) -> bool:
+	var rule: Dictionary = definitions.types[project.type]
+	if not rule.capabilities.has("storage"):
+		return false
+	var terms: Dictionary = rule.capabilities.storage
+	var total: int = 0
+	for item: Variant in items:
+		if not SimInventory._nonempty(item) or not Shape.count(items[item], 0, int(terms.capacity)) or not terms.items.is_empty() and item not in terms.items:
+			return false
+		total += int(items[item])
+		if total > int(terms.capacity):
+			return false
+	return true
+
+
+func _contents_empty(id: String) -> bool:
+	var inventory: SimInventory = world.regions[definitions.site.region].inventory
+	return not inventory.containers.get(id + ":contents", {}).values().any(func(value: int) -> bool: return value > 0)
+
+
+func damage(id: String, amount: int) -> Dictionary:
+	# Authority effect: callers own attack legality, reach, accuracy and cost.
+	# The building owner alone settles armor, durability and structural loss.
+	if _changing or world.elapsed_ms != world.target_ms or world.environment_boundary_active() or not projects.has(id) or projects[id].state != "built" or amount < 1 or amount > 1000000:
+		return reply(false, "当前对象不能结算结构伤害。")
+	var project: Dictionary = projects[id]
+	var rule: Dictionary = definitions.types[project.type]
+	var dealt: int = mini(int(project.hp), maxi(0, amount - int(rule.armor)))
+	if dealt < int(project.hp):
+		project.hp = int(project.hp) - dealt
+		structures_changed.emit(project_cells(id))
+		return {"ok": true, "damage": dealt, "destroyed": false, "line": "结构承受了伤害。"}
+	var removals: Array[String] = _removal_projects(id)
+	var changed: Array[Vector2i] = []
+	for removed: String in removals:
+		for cell: Vector2i in project_cells(removed):
+			if cell not in changed:
+				changed.append(cell)
+	if not _can_remove_all(removals, true) or not _before_thermal_change(str(rule.kind), changed):
+		return reply(false, "结构事务尚未就绪，原耐久与内容物保留。")
+	var drop: Array = _drop_cell(id, removals)
+	if drop.is_empty():
+		return reply(false, "现场没有安全的残料落点，原结构保留。")
+	_changing = true
+	for actor: String in SimAvianLife.sorted_keys(active):
+		if active[actor].project in removals:
+			_cancel(actor)
+	if world.facility_use != null:
+		world.facility_use.cancel_projects(removals)
+	if world.resting != null:
+		for actor: String in world.resting.active.keys():
+			if world.resting.active[actor].bed in removals:
+				world.resting.cancel(actor)
+	_remove(id, drop)
+	project.state = "ruined"
+	project.line = "结构损毁，残骸与原内容物留在现场；清空后可清理。"
+	_collapse_roofs(removals.slice(1))
+	_reindex()
+	_after_thermal_change(str(rule.kind))
+	_changing = false
+	structures_changed.emit(changed)
+	space_changed.emit(changed)
+	return {"ok": true, "damage": dealt, "destroyed": true, "line": str(project.line)}
+
+
 func cancel_project(actor: String, id: String) -> Dictionary:
-	if not authorized(actor) or not projects.has(id) or projects[id].state != "blueprint" or not can_observe(actor, SimRouteTravel.cell(projects[id].cell)):
+	if _changing or not authorized(actor) or not projects.has(id) or projects[id].state != "blueprint" or not can_observe(actor, SimRouteTravel.cell(projects[id].cell)):
 		return reply(false, "只能在场撤销本工地尚未建成的蓝图。")
 	for worker: String in active.keys():
 		if active[worker].project == id:
@@ -123,7 +236,7 @@ func cancel_project(actor: String, id: String) -> Dictionary:
 	projects[id].line = "蓝图撤下；在地材料仍须搬回。"
 	_reindex()
 	_schedule_check()
-	space_changed.emit([SimRouteTravel.cell(projects[id].cell)])
+	space_changed.emit(project_cells(id))
 	return reply(true, projects[id].line)
 
 
@@ -140,13 +253,13 @@ func _begin(actor: String, id: String, kind: String, during_commit: bool) -> Dic
 	if not can_observe(actor, SimRouteTravel.cell(project.cell)) or _project_busy(id):
 		return reply(false, "先走到工地附近；同一处工程只由一人接手。")
 	var material: int = sim.inventory.quantity(id, str(rule.item))
-	if kind == "build" and project.state != "blueprint" or kind in ["demolish", "open", "close"] and project.state != "built" or kind == "recover" and (not project.state in ["cancelled", "removed"] or material == 0):
+	if kind == "build" and project.state != "blueprint" or kind == "demolish" and project.state not in ["built", "ruined"] or kind in ["open", "close"] and project.state != "built" or kind == "recover" and (not project.state in ["cancelled", "removed", "ruined"] or material == 0):
 		return reply(false, "这项工程当前不适用此操作。")
 	if kind in ["open", "close"] and (not rule.door or bool(project.open) == (kind == "open")):
 		return reply(false, "此处没有需要这样操作的木门。")
-	if kind == "demolish" and world.resting != null and world.resting.bed_reserved(id):
+	if kind == "demolish" and (_facility_reserved(id) or not _contents_empty(id)):
 		return reply(false, "这张床已有人在用或正前来，先让对方结束休息。")
-	var stand: Array = _work_cell(actor, SimRouteTravel.cell(project.cell))
+	var stand: Array = _work_cell(actor, id)
 	if stand.is_empty():
 		return reply(false, "工地旁没有可达的站脚处。")
 	var job: Dictionary = {"id": "construction_job:%d" % next_job, "actor": actor, "project": id, "kind": kind, "phase": "", "path": [], "segment_from": sim.actors[actor].position.duplicate(), "segment_started_ms": world.elapsed_ms, "due_ms": world.elapsed_ms + 1, "destination": [], "stand": stand, "started_ms": world.elapsed_ms, "work_started_ms": world.elapsed_ms, "previous_autonomous": bool(sim.actors[actor].autonomous), "reserved": false}
@@ -176,6 +289,10 @@ func owns_actor(actor: String) -> bool:
 
 
 func cancel(actor: String) -> bool:
+	return false if _changing else _cancel(actor)
+
+
+func _cancel(actor: String) -> bool:
 	if not active.has(actor):
 		return false
 	var job: Dictionary = active[actor]
@@ -197,7 +314,7 @@ func next_boundary_ms() -> int:
 
 
 func settle_at_ms(now: int) -> void:
-	for actor: String in active.keys():
+	for actor: String in SimAvianLife.sorted_keys(active):
 		var job: Dictionary = active[actor]
 		world.synchronize_region(str(definitions.site.region))
 		var sim: RefCounted = world.regions[definitions.site.region]
@@ -247,15 +364,15 @@ func duty_for(actor: String) -> String:
 	var body: Dictionary = sim.actors[actor]
 	if not bool(body.autonomous) or not body.active.is_empty() or not world.actor_controls(actor, "action") or float(body.hunger) <= maxf(float(definitions.minimum_fullness), float(sim.config.needs.eat_below)) or float(body.energy) <= maxf(float(definitions.minimum_energy), float(sim.config.needs.rest_below)):
 		return ""
-	for id: String in projects:
+	for id: String in _pending:
 		var project: Dictionary = projects[id]
 		var rule: Dictionary = definitions.types[project.type]
 		var stock: Dictionary = sim.stock_understanding(actor, str(definitions.site.source), str(rule.item))
 		var near: bool = SimRouteTravel.point(body).distance_to(TileGrid.cell_to_world(SimRouteTravel.cell(project.cell))) <= float(definitions.site.notice_cells) * TileGrid.TILE_SIZE
 		if project.state == "blueprint" and not _project_busy(id) and near and (sim.inventory.quantity(id, str(rule.item)) > 0 or bool(stock.known) and float(stock.amount) >= int(rule.amount)):
 			var cell: Vector2i = SimRouteTravel.cell(project.cell)
-			var newly_solid: bool = rule.kind in ["wall", "door"]
-			if int(project.work_ms) < int(rule.work_ms) or not occupied(cell, newly_solid) and (not newly_solid or not SimMotionClearance.fixed_road_reserves(world, cell)):
+			var newly_solid: bool = bool(rule.facts.movement_blocked)
+			if int(project.work_ms) < int(rule.work_ms) or _completion_clear(id, newly_solid):
 				return id
 	return ""
 
@@ -307,28 +424,25 @@ func _complete(job: Dictionary) -> void:
 	var cell: Vector2i = SimRouteTravel.cell(project.cell)
 	if job.kind == "build":
 		project.work_ms = int(rule.work_ms)
-	if job.kind == "build" and rule.kind == "roof" and not roof_supported(cell):
-		_release(job, "屋面缺少同高度近处墙柱支撑；工时与材料保留，补好支撑再续。")
-		return
-	var newly_solid: bool = job.kind == "close" or job.kind == "build" and rule.kind in ["wall", "door"]
-	if not terrain_open(cell) or (rule.kind != "roof" and (job.kind == "build" or job.kind == "close") and occupied(cell, newly_solid)):
-		_release(job, "占地尚有人、余料或地面不适用，清场后再续。")
-		return
-	if newly_solid and SimMotionClearance.fixed_road_reserves(world, cell):
-		# Fixed couriers do not yet replan against structures, so keep their road
-		# clear until that consumer is integrated. Work/materials stay in place.
-		_release(job, "此处属运粮通道；工时与材料保留，调整通道后再续。")
+	if job.kind == "build" and rule.layer == "roof":
+		for covered: Vector2i in project_cells(str(job.project)):
+			if not roof_supported(covered):
+				_release(job, "屋面缺少近处支撑；工时与材料保留。")
+				return
+	var newly_solid: bool = job.kind == "close" or job.kind == "build" and bool(rule.facts.movement_blocked)
+	if (job.kind == "build" or job.kind == "close") and not _completion_clear(str(job.project), newly_solid):
+		_release(job, "占地有人、余料或通道尚未清空，工时与材料保留。")
 		return
 	# Preflight the whole transaction before spending completion materials,
 	# issuing salvage, dirtying heat geometry or removing a supporting wall.
 	var removals: Array[String] = []
 	if job.kind == "demolish":
 		removals = _removal_projects(str(job.project))
-	var changed_cells: Array[Vector2i] = [cell]
+	var changed_cells: Array[Vector2i] = project_cells(str(job.project))
 	for id: String in removals:
-		var removed_cell: Vector2i = SimRouteTravel.cell(projects[id].cell)
-		if removed_cell not in changed_cells:
-			changed_cells.append(removed_cell)
+		for removed_cell: Vector2i in project_cells(id):
+			if removed_cell not in changed_cells:
+				changed_cells.append(removed_cell)
 	if job.kind == "build" and not sim.inventory.can_consume(str(job.project) + ":build", job.project, str(rule.item), int(rule.amount)):
 		_release(job, "到场工料不足，无法完成结构。")
 		return
@@ -345,6 +459,9 @@ func _complete(job: Dictionary) -> void:
 				_release(job, "到场工料不足，无法完成结构。")
 				return
 			project.state = "built"
+			project.hp = int(rule.max_hp)
+			if rule.capabilities.has("storage"):
+				sim.inventory.create_container(str(job.project) + ":contents", {})
 			project.completed_ms = world.elapsed_ms
 		"demolish":
 			if not _remove(str(job.project), job.stand):
@@ -406,26 +523,30 @@ func _release(job: Dictionary, line: String, status: String = "failed") -> void:
 	SimActionContract.publish_finished(world, SimActionContract.view(world, "construction", job.id, job.actor, job.kind, job.phase, int(job.started_ms), int(job.due_ms), status, job.project), line)
 
 
-func _work_cell(actor: String, target: Vector2i) -> Array:
+func _work_cell(actor: String, id: String) -> Array:
 	var sim: RefCounted = world.regions[definitions.site.region]
 	var from: Vector2i = SimRouteTravel.cell(sim.actors[actor].cell)
 	var result: Array = []
 	var best: int = SimInventory.MAX_COUNT
-	for direction: Vector2i in SIDES:
-		var cell: Vector2i = target + direction
-		if not terrain_open(cell) or blocked(cell):
-			continue
-		var path: Array[Vector2i] = sim.find_path(from, cell)
-		if from != cell and path.is_empty():
-			continue
-		if path.size() < best:
-			best = path.size()
-			result = [cell.x, cell.y]
+	var footprint: Array[Vector2i] = project_cells(id)
+	var candidates: Dictionary = {}
+	for target: Vector2i in footprint:
+		for direction: Vector2i in SIDES:
+			var cell: Vector2i = target + direction
+			if cell in footprint or candidates.has(cell) or not terrain_open(cell) or blocked(cell) or world.facility_use != null and world.facility_use.cell_reserved(cell, actor):
+				continue
+			candidates[cell] = true
+			var path: Array[Vector2i] = sim.find_path(from, cell)
+			if from != cell and path.is_empty():
+				continue
+			if path.size() < best:
+				best = path.size()
+				result = [cell.x, cell.y]
 	return result
 
 
 func _ready_actor(actor: String, require_idle: bool, during_commit: bool = false) -> bool:
-	if not authorized(actor) or not during_commit and world.elapsed_ms != world.target_ms or not SimActionContract.can_act(world, str(definitions.site.region), actor):
+	if _changing or not authorized(actor) or not during_commit and world.elapsed_ms != world.target_ms or not SimActionContract.can_act(world, str(definitions.site.region), actor):
 		return false
 	world.synchronize_region(str(definitions.site.region))
 	return not require_idle or SimActionContract.can_begin(world, str(definitions.site.region), actor)
@@ -462,7 +583,7 @@ func occupied(cell: Vector2i, include_motion: bool = true) -> bool:
 		return true
 	if include_motion and _incoming.is_valid() and bool(_incoming.call(cell)):
 		return true
-	for id: String in projects:
+	for id: String in _project_ids():
 		var project: Dictionary = projects[id]
 		if str(project.carrier).is_empty() and SimRouteTravel.cell(project.material_cell) == cell and world.regions[definitions.site.region].inventory.quantity(id, str(definitions.types[project.type].item)) > 0:
 			return true
@@ -497,11 +618,7 @@ func _speed() -> float:
 
 
 func _schedule_check() -> void:
-	for project: Dictionary in projects.values():
-		if project.state == "blueprint":
-			next_check_ms = mini(next_check_ms, world.elapsed_ms + int(definitions.check_ms))
-			return
-	next_check_ms = SimInventory.MAX_COUNT
+	next_check_ms = mini(next_check_ms, world.elapsed_ms + int(definitions.check_ms)) if not _pending.is_empty() else SimInventory.MAX_COUNT
 
 
 func project_at(cell: Vector2i, layer: String = "ground") -> String:
@@ -510,17 +627,16 @@ func project_at(cell: Vector2i, layer: String = "ground") -> String:
 
 func roof_supported(cell: Vector2i, except_project: String = "") -> bool:
 	var level: int = int(_elevation.call(cell)) if _elevation.is_valid() else 0
-	for id: String in projects:
-		if id == except_project:
-			continue
-		var project: Dictionary = projects[id]
-		if project.state != "built" or definitions.types[project.type].kind not in ["wall", "door"]:
-			continue
-		var other: Vector2i = SimRouteTravel.cell(project.cell)
-		if absi(other.x - cell.x) + absi(other.y - cell.y) <= int(definitions.roof_span) and (not _elevation.is_valid() or int(_elevation.call(other)) == level):
-			return true
+	var span: int = int(definitions.roof_span)
+	for y: int in range(-span, span + 1):
+		for x: int in range(-span, span + 1):
+			if absi(x) + absi(y) > span:
+				continue
+			var other: Vector2i = cell + Vector2i(x, y)
+			var id: String = str(_supports.get(other, ""))
+			if not id.is_empty() and id != except_project and projects[id].state == "built" and (not _elevation.is_valid() or int(_elevation.call(other)) == level):
+				return true
 	return false
-
 
 func roofed(cell: Vector2i) -> bool:
 	for sim: RefCounted in world.regions.values():
@@ -533,17 +649,18 @@ func roofed(cell: Vector2i) -> bool:
 func thermal_barrier(cell: Vector2i) -> bool:
 	# Facts only: an open door conducts as an opening, while a blueprint is
 	# still paper. The heat domain owns conductance and fixed-space storage.
-	return _closed_wall_at(cell)
+	return _physical_fact(cell, "thermal_barrier")
 
 
 func blocks_sight(cell: Vector2i) -> bool:
 	# Current built types are opaque wood. Keep sight separate from furniture
 	# collision and from heat coefficients so later materials can differ.
-	return _closed_wall_at(cell)
+	return _physical_fact(cell, "sight_blocked")
 
 
-func _closed_wall_at(cell: Vector2i) -> bool:
-	if _blocked.has(cell):
+func _physical_fact(cell: Vector2i, name: String) -> bool:
+	var id: String = project_at(cell)
+	if not id.is_empty() and fact(id, name):
 		return true
 	for sim: RefCounted in world.regions.values():
 		if SimWorkplaces.wall_at(sim.places, cell):
@@ -556,7 +673,7 @@ func thermal_roofed(cell: Vector2i) -> bool:
 
 
 func _before_thermal_change(kind: String, changed_cells: Array[Vector2i]) -> bool:
-	if kind in ["wall", "door", "roof"] and world.environment_fields != null:
+	if world.environment_fields != null:
 		if world.environment_fields is SimWorldEnvironmentFields:
 			# The outdoor field has no wall, door or roof insulation model. Its
 			# existing state must already be settled at the shared event time.
@@ -568,7 +685,7 @@ func _before_thermal_change(kind: String, changed_cells: Array[Vector2i]) -> boo
 
 
 func _after_thermal_change(kind: String) -> void:
-	if kind in ["wall", "door", "roof"] and world.environment_fields != null:
+	if world.environment_fields != null:
 		if world.environment_fields is SimWorldEnvironmentFields:
 			return
 		# Called only after a successful operation and all resulting collapses
@@ -581,9 +698,11 @@ func _remove(id: String, material_cell: Array) -> bool:
 	var rule: Dictionary = definitions.types[project.type]
 	var inventory: SimInventory = world.regions[definitions.site.region].inventory
 	var salvage: String = id + ":salvage"
-	if not inventory.create_container(salvage, {str(rule.item): int(rule.salvage)}) or not inventory.transfer(salvage, salvage, id, str(rule.item), int(rule.salvage)):
-		return false
+	if project.state != "ruined":
+		if not inventory.create_container(salvage, {str(rule.item): int(rule.salvage)}) or not inventory.transfer(salvage, salvage, id, str(rule.item), int(rule.salvage)):
+			return false
 	project.state = "removed"
+	project.hp = 0
 	project.removed_ms = world.elapsed_ms
 	project.open = false
 	project.carrier = ""
@@ -611,23 +730,37 @@ func _set_material_cell(project: Dictionary, raw: Array) -> void:
 
 func _removal_projects(id: String) -> Array[String]:
 	var result: Array[String] = [id]
-	if definitions.types[projects[id].type].kind not in ["wall", "door"]:
+	if not bool(definitions.types[projects[id].type].facts.roof_support):
 		return result
-	for other: String in projects:
-		var project: Dictionary = projects[other]
-		if project.state == "built" and definitions.types[project.type].kind == "roof" and not roof_supported(SimRouteTravel.cell(project.cell), id):
+	var candidates: Dictionary = {}
+	var span: int = int(definitions.roof_span)
+	for support: Vector2i in project_cells(id):
+		for y: int in range(-span, span + 1):
+			for x: int in range(-span, span + 1):
+				if absi(x) + absi(y) <= span:
+					var roof: String = project_at(support + Vector2i(x, y), "roof")
+					if not roof.is_empty(): candidates[roof] = true
+	for other: String in SimAvianLife.sorted_keys(candidates):
+		if projects[other].state == "built" and project_cells(other).any(func(cell: Vector2i) -> bool: return not roof_supported(cell, id)):
 			result.append(other)
 	return result
 
-
-func _can_remove_all(ids: Array[String]) -> bool:
+func _can_remove_all(ids: Array[String], preserve_contents: bool = false) -> bool:
 	var inventory: SimInventory = world.regions[definitions.site.region].inventory
 	for id: String in ids:
+		if not preserve_contents and not _contents_empty(id):
+			return false
 		var rule: Dictionary = definitions.types[projects[id].type]
 		var salvage: String = id + ":salvage"
+		if _drop_cell(id, ids).is_empty():
+			return false
 		# _remove performs no external calls between creating this source and
 		# transferring into the original project container. Check the entire set
 		# now, so a dependent roof cannot fail after its support was removed.
+		if projects[id].state == "ruined":
+			if not _contents_empty(id):
+				return false
+			continue
 		if projects[id].state != "built" or not inventory.containers.has(id) or inventory.containers.has(salvage) or inventory.operations.has(salvage) or inventory.quantity(id, str(rule.item)) > SimInventory.MAX_COUNT - int(rule.salvage):
 			return false
 	return true
@@ -636,17 +769,12 @@ func _can_remove_all(ids: Array[String]) -> bool:
 func _collapse_roofs(ids: Array[String]) -> void:
 	for id: String in ids:
 		var project: Dictionary = projects[id]
-		for actor: String in active.keys():
+		for actor: String in SimAvianLife.sorted_keys(active):
 			if active[actor].project == id:
-				cancel(actor)
-		var cell: Vector2i = SimRouteTravel.cell(project.cell)
-		var drop: Array = project.cell.duplicate()
-		var below: String = project_at(cell)
-		if not below.is_empty() and projects[below].state == "built" and definitions.types[projects[below].type].kind in ["wall", "door"]:
-			for side: Vector2i in SIDES:
-				if terrain_open(cell + side) and not blocked(cell + side):
-					drop = [cell.x + side.x, cell.y + side.y]
-					break
+				_cancel(actor)
+		var drop: Array = _drop_cell(id, ids)
+		if drop.is_empty():
+			drop = project.cell.duplicate()
 		if _remove(id, drop):
 			project.line = "支撑失去，木屋面塌回有限余料；下方床铺仍在。"
 
@@ -661,7 +789,7 @@ func blocked(cell: Vector2i) -> bool:
 
 
 func is_bed(id: String) -> bool:
-	return projects.has(id) and projects[id].state == "built" and definitions.types[projects[id].type].kind == "bed"
+	return has_capability(id, "rest")
 
 
 func space_at(cell: Vector2i) -> Dictionary:
@@ -672,12 +800,46 @@ func space_at(cell: Vector2i) -> Dictionary:
 
 
 func site_contains(cell: Vector2i) -> bool:
-	return sites.has("sect_yard") and site_bounds().has_point(cell)
+	return not site_at(cell).is_empty()
 
 
-func site_bounds() -> Rect2i:
-	return Rect2i(SimRouteTravel.cell(sites.sect_yard.origin), Vector2i(int(definitions.site.width), int(definitions.site.height))) if sites.has("sect_yard") else Rect2i()
+func site_at(cell: Vector2i) -> String:
+	for id: String in sites:
+		if site_bounds(id).has_point(cell):
+			return id
+	return ""
 
+
+func site_bounds(id: String = "sect_yard") -> Rect2i:
+	return Rect2i(SimRouteTravel.cell(sites[id].origin), SimRouteTravel.cell(sites[id].size)) if sites.has(id) else Rect2i()
+
+
+func designate(actor: String, bounds: Rect2i, purpose: String) -> Dictionary:
+	if not _ready_actor(actor, false) or purpose.is_empty() or purpose.length() > 64 or bounds.size.x < 1 or bounds.size.y < 1 or bounds.get_area() > 1024:
+		return reply(false, "此用途区域不适用。")
+	var site: String = site_at(bounds.position)
+	for cell: Vector2i in cells_in(bounds):
+		if site.is_empty() or site_at(cell) != site or not can_observe(actor, cell):
+			return reply(false, "用途区域须在同一可见工地内。")
+	for existing: String in zones:
+		if zones[existing].origin == [bounds.position.x, bounds.position.y] and zones[existing].size == [bounds.size.x, bounds.size.y]:
+			zones[existing].purpose = purpose
+			return {"ok": true, "line": "已更新这片区域的用途。", "zone": existing}
+	if zones.size() >= 64 or next_zone >= SimInventory.MAX_COUNT:
+		return reply(false, "用途区域数量已达上限。")
+	var id: String = "zone:%d" % next_zone
+	next_zone += 1
+	zones[id] = {"site": site, "origin": [bounds.position.x, bounds.position.y], "size": [bounds.size.x, bounds.size.y], "purpose": purpose}
+	return {"ok": true, "line": "已指定用途；区域不会自动变成设施或产生物品。", "zone": id}
+
+
+func zones_at(cell: Vector2i) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for id: String in SimAvianLife.sorted_keys(zones):
+		var zone: Dictionary = zones[id]
+		if Rect2i(SimRouteTravel.cell(zone.origin), SimRouteTravel.cell(zone.size)).has_point(cell):
+			result.append(zone.duplicate(true))
+	return result
 
 static func cells_in(bounds: Rect2i) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
@@ -692,36 +854,46 @@ func _reindex() -> void:
 	_roofs.clear()
 	_blocked.clear()
 	_material_cells.clear()
-	for id: String in projects:
+	_pending.clear()
+	_supports.clear()
+	_bed_ids.clear()
+	for id: String in _project_ids():
 		var project: Dictionary = projects[id]
 		var material: Vector2i = SimRouteTravel.cell(project.material_cell)
 		_material_cells[material] = int(_material_cells.get(material, 0)) + 1
-		var cell: Vector2i = SimRouteTravel.cell(project.cell)
-		if project.state in ["blueprint", "built"]:
-			if definitions.types[project.type].kind == "roof":
-				_roofs[cell] = id
-			else:
-				_cells[cell] = id
-		if project.state == "built" and definitions.types[project.type].kind in ["wall", "door"] and not bool(project.open):
-			_blocked[cell] = true
-	_spaces = SimEnclosedSpace.detect(site_bounds(), projects, definitions.types, _elevation)
+		if project.state == "blueprint":
+			_pending.append(id)
+		if has_capability(id, "rest"):
+			_bed_ids.append(id)
+		if project.state in ["blueprint", "built", "ruined"]:
+			for cell: Vector2i in project_cells(id):
+				(_roofs if definitions.types[project.type].layer == "roof" else _cells)[cell] = id
+				if fact(id, "movement_blocked"):
+					_blocked[cell] = true
+				if fact(id, "roof_support"):
+					_supports[cell] = id
+	var topology_bounds := Rect2i()
+	for id: String in sites:
+		topology_bounds = site_bounds(id) if topology_bounds.size == Vector2i.ZERO else topology_bounds.merge(site_bounds(id))
+	_spaces = SimEnclosedSpace.detect(topology_bounds, projects, definitions.types, _elevation)
 	if world.resting != null:
 		world.resting.structures_changed()
 	if world.weather != null:
 		world.weather.structures_changed()
 
-
 static func empty_state() -> Dictionary:
-	return {"version": 2, "sites": {}, "projects": {}, "active": {}, "next_project": 1, "next_job": 1, "next_check_ms": SimInventory.MAX_COUNT}
+	return {"version": 3, "sites": {}, "projects": {}, "active": {}, "zones": {}, "next_zone": 1, "next_project": 1, "next_job": 1, "next_check_ms": SimInventory.MAX_COUNT}
 
 
 func to_dict() -> Dictionary:
-	return {"version": 2, "sites": sites.duplicate(true), "projects": projects.duplicate(true), "active": active.duplicate(true), "next_project": next_project, "next_job": next_job, "next_check_ms": next_check_ms}
+	return {"version": 3, "sites": sites.duplicate(true), "projects": projects.duplicate(true), "active": active.duplicate(true), "zones": zones.duplicate(true), "next_zone": next_zone, "next_project": next_project, "next_job": next_job, "next_check_ms": next_check_ms}
 
 
 func restore(data: Dictionary) -> bool:
 	if not Schema.valid(data, self):
 		return false
+	next_zone = int(data.next_zone)
+	zones = data.zones.duplicate(true)
 	sites = data.sites.duplicate(true)
 	projects = data.projects.duplicate(true)
 	active = data.active.duplicate(true)
@@ -733,16 +905,17 @@ func restore(data: Dictionary) -> bool:
 
 
 func space_valid() -> bool:
-	if not sites.is_empty():
-		for cell: Vector2i in cells_in(site_bounds()):
+	for id: String in sites:
+		for cell: Vector2i in cells_in(site_bounds(id)):
 			if not terrain_open(cell) or protected_cell(cell):
 				return false
 	for project: Dictionary in projects.values():
-		if not terrain_open(SimRouteTravel.cell(project.cell)) or not terrain_open(SimRouteTravel.cell(project.material_cell)):
+		if not terrain_open(SimRouteTravel.cell(project.material_cell)):
 			return false
-		if project.state == "built" and definitions.types[project.type].kind == "roof" and not roof_supported(SimRouteTravel.cell(project.cell)):
-			return false
-	for id: String in projects:
+		for cell: Vector2i in SimConstructionGeometry.cells(project, definitions.types[project.type]):
+			if not terrain_open(cell) or project.state == "built" and definitions.types[project.type].layer == "roof" and not roof_supported(cell):
+				return false
+	for id: String in _project_ids():
 		var project: Dictionary = projects[id]
 		if str(project.carrier).is_empty() and blocked(SimRouteTravel.cell(project.material_cell)) and world.regions[definitions.site.region].inventory.quantity(id, str(definitions.types[project.type].item)) > 0:
 			return false
@@ -762,3 +935,36 @@ func space_valid() -> bool:
 
 static func reply(ok: bool, line: String) -> Dictionary:
 	return {"ok": ok, "line": line}
+
+
+func _project_ids() -> Array:
+	var ids: Array = projects.keys()
+	ids.sort_custom(func(a: String, b: String) -> bool: return int(a.trim_prefix("construction:")) < int(b.trim_prefix("construction:")))
+	return ids
+
+
+func bed_ids() -> Array[String]:
+	return _bed_ids.duplicate()
+
+
+func _drop_cell(id: String, removals: Array[String]) -> Array:
+	var footprint: Array[Vector2i] = project_cells(id)
+	var candidates: Array[Vector2i] = footprint.duplicate()
+	for cell: Vector2i in footprint:
+		for direction: Vector2i in SIDES:
+			if cell + direction not in candidates: candidates.append(cell + direction)
+	for cell: Vector2i in candidates:
+		var ground: String = project_at(cell)
+		if terrain_open(cell) and not SimWorkplaces.blocked(world.regions[definitions.site.region].places, cell) and (ground.is_empty() or ground in removals or not fact(ground, "movement_blocked")):
+			return [cell.x, cell.y]
+	return []
+
+
+func clear_zone(actor: String, id: String) -> Dictionary:
+	if not _ready_actor(actor, false) or not zones.has(id):
+		return reply(false, "当前不能取消这片用途区域。")
+	var zone: Dictionary = zones[id]
+	for cell: Vector2i in cells_in(Rect2i(SimRouteTravel.cell(zone.origin), SimRouteTravel.cell(zone.size))):
+		if not can_observe(actor, cell): return reply(false, "先到场查看这片用途区域。")
+	zones.erase(id)
+	return reply(true, "用途指定已取消，原地实物保持原状。")

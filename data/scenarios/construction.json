@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "site": {
+    "region": "home",
+    "source": "store",
+    "builders": [
+      "player",
+      "shi_tou"
+    ],
+    "workers": [
+      "shi_tou"
+    ],
+    "width": 7,
+    "height": 5,
+    "source_cells": 14,
+    "notice_cells": 18,
+    "observe_cells": 18
+  }
+}

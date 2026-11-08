@@ -113,7 +113,7 @@ static func _routes_open(world: RegionalSimulation, changes: Dictionary, journey
 			var job: Dictionary = world.services.jobs[world.services.active_jobs[id]]
 			if not _path_open(world, changes, actors[id], job.get("path", [])):
 				return false
-	for domain: RefCounted in [world.construction, world.resting, world.personal_production, world.capability_practice]:
+	for domain: RefCounted in [world.construction, world.facility_use, world.resting, world.personal_production, world.capability_practice]:
 		if domain == null:
 			continue
 		for id: String in domain.active:

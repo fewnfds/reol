@@ -26,7 +26,7 @@
 |---|---|---|---|
 | **世界地块与空间框架** | 地图生成描述、地表与材质、空间键和层；组合原对象的占地/位置投影与派生查询 | 地形/材质、覆盖/邻近、净空/接触几何及相关变更范围 | `WorldMapData`、`SimWorldSpace`、`SimObjectSpatialSnapshot`、`SimGroundPlacements`、`SimStructureQuery`；`ReolWorld`负责区块呈现适配 |
 | **实体、物品与容器框架** | 共同引用、定义与实例边界、能力声明、受控生命周期；原物与数量、保管、容器和转移 | 对象解析、原所有者、位置/包含链、能力与合法物资事务 | `SimWorldObjectQuery`、`SimEntityQuery`、`SimStorageQuery`、`SimObjectLifecycle`、`SimInventory`、`SimArtifacts`、`SimClothing`、`SimEmbodiment` |
-| **建筑与组合空间框架** | 结构/家具实例、施工和拆除、门状态、围合与屋面；用途区域及工作空间组合 | 真实几何、材质、开口、覆盖、结构连接及推导房间；设施所需的器具/空间条件 | `SimConstruction`、`SimStructureQuery`、`SimEnclosedSpace`、`SimWorkplaces`、`SimResting` |
+| **建筑与组合空间框架** | 结构/家具实例、施工/拆除、耐久与损毁、门状态、围合与屋面；用途区域及工作空间组合 | 真实几何、材质、开口、覆盖、结构连接及推导房间；设施所需的器具/空间条件 | `SimConstruction`、`SimConstructionGeometry`、`SimStructureQuery`、`SimEnclosedSpace`、`SimFacilityUse`、`SimWorkplaces`、`SimResting` |
 | **植被与自然生命框架** | 植物与非人生命的专属状态、自然过程、环境响应及产物条件 | 可作用的自然对象、实际占地、来源/受体能力，以及采集等领域作用接口 | `SimLandResources`是有限资源/草木接缝，`SimAvianLife`、`SimLargeBodies`是非人生命入口；地表植被覆盖由`NaturalEnvironment`派生，完整植物实例框架待接 |
 | **环境框架** | 历法/气候/天气条件；温度、光照、五行等各自规则与必要实际响应；风水所需环境组合 | 有时刻与来源的环境查询、响应变化和受体输入 | `SimWorldCalendar`、`SimGeographicClimate`、`SimWeather`、`SimWorldEnvironmentFields`、`SimNaturalLight`、`SimLocalLight`；`SimEnvironment`适配人体暴露 |
 | **单位行动与交互框架** | 按身体能力执行移动、通行、寻路与接近；意图受理、表达/理解、权限/意愿复核、过程占用、资源预约、耗时、中断和结果 | 同一套可由玩家/NPC使用的行动入口、过程状态、失败原因和领域结果引用 | `SimLocalMotion`、`SimRouteTravel`、`SimMotionClearance`、`SimActionContract`、`SimActionExecutor`、[object_actions.gd](../../../scripts/sim/object_actions.gd)、`SimInteractionRequests`及现有各领域执行器 |

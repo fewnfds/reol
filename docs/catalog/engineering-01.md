@@ -33,3 +33,5 @@
 - [docs/engineering/workflow/ai-development.md](../engineering/workflow/ai-development.md)
 - [docs/engineering/workflow/code-review.md](../engineering/workflow/code-review.md)
 - [docs/engineering/workflow/testing.md](../engineering/workflow/testing.md)
+
+- [docs/engineering/construction-contract.md](../engineering/construction-contract.md)

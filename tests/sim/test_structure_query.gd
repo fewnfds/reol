@@ -186,12 +186,13 @@ func _mask_world() -> RegionalSimulation:
 	var domain := SimConstruction.new()
 	world.construction = domain
 	domain.bind_world(world)
-	domain.definitions = {"site": {"width": 7, "height": 5}, "roof_span": 2, "types": {"wood_wall": {"kind": "wall"}, "wood_door": {"kind": "door"}}}
-	domain.sites = {"sect_yard": {"region": "home", "origin": [29, 29]}}
+	domain.definitions = JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/construction.json"))
+	domain.definitions["site"] = JSON.parse_string(FileAccess.get_file_as_string("res://data/scenarios/construction.json")).site
+	domain.sites = {"sect_yard": {"region": "home", "origin": [29, 29], "size": [7, 5]}}
 	var cells: Array[Vector2i] = [Vector2i(31, 31), Vector2i(31, 30), Vector2i(32, 31), Vector2i(31, 32), Vector2i(30, 31)]
 	for index: int in cells.size():
 		var cell: Vector2i = cells[index]
-		domain.projects["construction:%d" % (index + 1)] = {"site": "sect_yard", "type": "wood_door" if index == 2 else "wood_wall", "cell": [cell.x, cell.y], "state": "built", "open": false, "material_cell": [cell.x, cell.y]}
+		domain.projects["construction:%d" % (index + 1)] = {"site": "sect_yard", "type": "wood_door" if index == 2 else "wood_wall", "cell": [cell.x, cell.y], "state": "built", "rotation": 0, "hp": 100, "open": false, "material_cell": [cell.x, cell.y]}
 	domain._reindex()
 	return world
 
