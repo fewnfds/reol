@@ -1,12 +1,12 @@
 # Git分支状态
 
-核对：2026-11-08。本页记录集成代码和分支用途；完整实时指针以Git为准，历史分支引用不代表运行多套世界。
+核对：2026-11-09。本页记录集成代码和分支用途；完整实时指针以Git为准，历史分支引用不代表运行多套世界。
 
 ## 当前工作区与主线
 
-main已从`2e6b6a61caf11b5560c15a97f1a58cb156a7300b`快进并推送到`eb330ee9c38fa3a5cc72004372ddeefd70409b1e`，完整包含通用建筑与组合空间。合并前核CI42457788038的完整headSha为d00bac且success；该受检代码至集成点只有Markdown差异。本轮阶段整合沿`codex/framework-consolidation`整理文档并归入同一主线，实际指针以Git为准。
+main基线为`a4fb83a6c29e3203bf71fc1c1f950afe4906830b`，包含通用建筑与组合空间及其后的阶段整合文档。建筑受检代码`d00bac9`及CI42457788038 success与主线`eb330ee9`的CI42473540525 success均只证明各自范围，不能代替当前结算工作分支验证。
 
-此前已完成本地/远端开发分支均在main历史。当前`codex/settlement-kernel`基于main的`a4fb83a6c29e3203bf71fc1c1f950afe4906830b`，共同结算内核和CI分片调整的最终修复代码为`b29385c30dc72e8942eef803d781e526e4093986`，尚未推送及合入；下述旧争环WIP单独隔离。具体证据见[BASELINE](baseline.md)。
+当前`codex/settlement-kernel`基于该main，最终产品代码`d99ac6492ad5dbe5ba1af5bcc00171b5753c28e4`包含共同结算内核、12片CI，以及停止/发布/失败边界和导入失败短路修复；最终测试提交为`38606ea342f09e5aadcb50112df6620ddafbe10f`。审查修复、定向及原生运行验证已完成，完整12片251组/125351检查/0失败、各包装器及覆盖聚合均退出0。代码已推送，证据文档同步收尾；分支尚未合入main，远端CI待验。具体证据归属见[QA](../qa/20261108_settlement_kernel.md)，接续见[HANDOFF](handoff.md)。此前已完成的开发分支属于main历史，下述旧争环WIP单独隔离。
 
 只操作根工作树；保护分支和命名stash不应用/删除。工具进程以HANDOFF为准，临时日志、截图和存档不作为公共运行依赖。
 
@@ -14,12 +14,12 @@ main已从`2e6b6a61caf11b5560c15a97f1a58cb156a7300b`快进并推送到`eb330ee9c
 
 | 分支 | 已知来源提交 | 用途 |
 |---|---|---|
-| `codex/settlement-kernel` | 基于`a4fb83a6c29e3203bf71fc1c1f950afe4906830b`；修复代码`b29385c30dc72e8942eef803d781e526e4093986` | 共同结算内核与CI分片优化的当前工作分支，尚未推送/合入 |
+| `codex/settlement-kernel` | 基于`a4fb83a6c29e3203bf71fc1c1f950afe4906830b`；产品`d99ac6492ad5dbe5ba1af5bcc00171b5753c28e4`，测试`38606ea342f09e5aadcb50112df6620ddafbe10f` | 本机完整验收及审查修复完成，代码已推送；尚未合入，远端CI待验 |
 | `codex/framework-consolidation` | 基于`eb330ee`，仅Markdown | 主线合并后的阶段盘点及现有主计划整理，不含新阶段代码 |
 | `codex/general-buildings` | 最终代码`d00bac9`、证据`eb330ee` | 通用建筑与组合空间已完整快进合入并推送main |
 | `codex/world-space-actions` | `fa45228`实现、`5fd6e31`审查修复、`f50f0a8`最终受检代码/测试及后续证据文档 | 基础建设第一阶段，已快进合入并推送main |
-| `main` | 包含`eb330ee9c38fa3a5cc72004372ddeefd70409b1e`及阶段整合文档 | 唯一集成主线；共同空间、通用建筑与此前已完成框架均在其中 |
-| `codex/sparse-world-execution` | 原远端`3f694262ecc1086a5de3554683f63cb156d4029f`，本地另含已整理提交 | 已合入main的历史开发引用，不形成另一条待开发队列；本轮只推送main |
+| `main` | `a4fb83a6c29e3203bf71fc1c1f950afe4906830b` | 唯一集成主线；共同空间、通用建筑与此前已完成框架均在其中，当前结算包尚未合入 |
+| `codex/sparse-world-execution` | 原远端`3f694262ecc1086a5de3554683f63cb156d4029f`，本地另含已整理提交 | 已合入main的历史开发引用，不形成另一条待开发队列 |
 | `codex/world-engine-finish` | `ffe7e8c705d2d7259dfb77dcfba3dd0a64c9c61c` | 旧环境主线集成记录，已在main历史 |
 | `codex/world-engine` | `2483a3771bc9f469509293a514fb0a059eefe095` | 旧开发起点，已在main历史 |
 | `codex/drawing-ring-use` | `8b8457ee3fe70c19e2c23ccda1ce7ff500a6830f` | 已完成功能历史，已在main |

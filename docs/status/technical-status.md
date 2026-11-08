@@ -1,13 +1,13 @@
 # 技术落地总表
 
-核对日期：2026-11-08。依据Git分支祖先、实际装配/调用和准确代码证据；七个领域的当前能力与缺口统一维护于此。名称按[术语与代码映射](../engineering/terminology.md)定位，普通环境成员为`environment_fields`。玩法操作查[FEATURES](features.md)，验证查[BASELINE](baseline.md)，授权与停点查[HANDOFF](handoff.md)。已确认规则是目标约束，不等于所有机制已实现。
+核对日期：2026-11-09。依据Git分支祖先、实际装配/调用和准确代码证据；七个领域的当前能力与缺口统一维护于此。名称按[术语与代码映射](../engineering/terminology.md)定位，普通环境成员为`environment_fields`。玩法操作查[FEATURES](features.md)，验证查[BASELINE](baseline.md)，授权与停点查[HANDOFF](handoff.md)。已确认规则是目标约束，不等于所有机制已实现。
 
 ## 当前主线与普通入口
 
 | 名称 | 实际情况 |
 |---|---|
 | Git `main` / `origin/main` | 建筑阶段已完整快进并推送，包含集成点`eb330ee9c38fa3a5cc72004372ddeefd70409b1e`及此前全部已完成代码；阶段整合只改Markdown。准确代码d00bac的CI已核success；主线独立CI与实时指针见BASELINE和Git |
-| 当前工作分支 | `codex/settlement-kernel`基于main `a4fb83a6c29e3203bf71fc1c1f950afe4906830b`，接入共同结算内核和受预算续算；修复代码`b29385c30dc72e8942eef803d781e526e4093986`尚未推送/合入，完整验证及审查状态见BASELINE与HANDOFF |
+| 当前工作分支 | `codex/settlement-kernel`基于main `a4fb83a6c29e3203bf71fc1c1f950afe4906830b`，接入共同结算内核和受预算续算；最终生产代码`d99ac6492ad5dbe5ba1af5bcc00171b5753c28e4`、测试提交`38606ea342f09e5aadcb50112df6620ddafbe10f`已完成本机验收并推送，尚未合入，具体证据见BASELINE与HANDOFF |
 | 普通 `Main` 游戏入口 | `scenes/main.tscn`及其运行接线；有限游戏能力和Git集成状态分别按功能及版本证据核验 |
 
 通用参与索引、环境局部/到期执行、健康活跃集合、共同空间/最小行动和通用建筑均已接普通Main并合入Git main；结算内核目前在工作分支。隔离旧实验`codex/field-contest`与命名stash不是待发布功能或自动恢复任务。来源见[分支页](branches.md)及[建筑验收](../qa/20261108_building_framework.md)。
@@ -30,7 +30,7 @@
 
 现有方向继续采用成熟作品公开接口体现的定义/实例/能力分工，以及领域过程保留原状态的做法。[研究依据](../../design/research/colony_sim_architecture.md)支持这种组织方式，不构成商业游戏内部源码审计。共同空间与建筑已经提供可复用基础；当前进度应描述为“主计划前两阶段在声明范围内已交付”，不使用七个领域全部完成或按脚本/断言数计算的百分比。
 
-共同结算内核跨领域协调时间、顺序和续算，新概念仍由原领域实现。2026-11-08专项静态核查发现工作分支尚有命令、发布及失败反馈缺口：普通停止入口可直达未保护地区动作，施工signal可提前刷新视图，FAILED解除暂停后仍尝试续算；具体证据和反例归[本包QA](../qa/20261108_settlement_kernel.md#架构专项核查与未修复项)。尚未修复/复现，不应只补完原回归就宣布结算框架交付。
+共同结算内核跨领域协调时间、顺序和续算，新概念仍由原领域实现。工作分支的普通停止入口按受理结果返回bool并驱动UI回执；领域内部索引通知同步，`action_finished`等对外结果在完整边界发布，`CommittedWorldCanvas`在完整clock发布时同步捕获有限可见绘图参数，`_draw`只回放。PENDING/FAILED时命令提示立即更新，世界事实保留最后完整投影；FAILED暂停并显示原因，可通过合法完整会话加载恢复。原内核与收尾各完成一次主要审查，有效问题已修；最终本机完整251组/125351检查/0失败、12片包装器及覆盖聚合均退出0，原生停开、施工发布及预算1连续clock/canvas发布通过，见[本包QA](../qa/20261108_settlement_kernel.md)。本机验收完成不等于已合入main；GitHub新12片的实际并行墙钟与密集规模仍未验证。
 
 植物仍是后续完整领域：`NaturalEnvironment._flora_at`只派生覆盖及placement_id；`SimLandResources`按固定来源及原库存增长/采出，生态定义限定wild_herbs；`SimWorldObjectQuery._resource`返回`independent_plant=false`，`SimWorldSpace.KINDS`没有植物。只扩充草木定义或图片无法补齐接缝。
 
