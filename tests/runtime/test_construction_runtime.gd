@@ -74,6 +74,25 @@ func run(runner: Object) -> void:
 	ui.act("recover")
 	GameClock.advance_msec(30000)
 	runner.assert_eq(adapter.world_sim.regions.home.inventory.quantity(id, "wood"), 0, "book recovery physically returns ground salvage")
+	# A live facility action and an explicit wait must never create an archive
+	# that the session boundary later refuses as mutually exclusive.
+	world = adapter.world_sim
+	var seat: Vector2i = world.construction.site_bounds().position + Vector2i(2, 3)
+	var placed: Dictionary = world.construction.place("player", "wood_chair", seat)
+	runner.assert_true(placed.ok, "ordinary fixture can construct a seat through the common domain")
+	if placed.ok:
+		world.construction.begin("player", placed.project)
+		GameClock.advance_msec(300000)
+		ui.refresh_choices(placed.project)
+		ui.refresh()
+		fixture.player.motion.velocity = Vector2.ZERO
+		fixture.player._intent = Vector2.ZERO
+		runner.assert_true(GameClock.request_wait(1), "idle player can request ordinary waiting before facility use")
+		ui.use_facility("sit")
+		runner.assert_true(world.facility_use.owns_actor("player") and GameClock.wait_target_ms == 0, "successful ordinary facility use clears pre-existing wait state")
+		runner.assert_true(not GameClock.request_wait(1), "unified wait scope rejects waiting while the seat is reserved")
+		runner.assert_true(not WorldSessionSnapshot.stage(adapter, WorldSessionSnapshot.capture(adapter)).is_empty(), "ordinary facility save has a loadable mutually exclusive clock/body state")
+		world.facility_use.cancel("player")
 	for suffix: String in ["", ".tmp", ".bak", ".bak.tmp"]:
 		if FileAccess.file_exists(path + suffix):
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))

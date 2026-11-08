@@ -29,7 +29,12 @@ func slot_available(project: String, name: String, kind: String, actor: String =
 		return false
 	var row: Dictionary = slot(project, name)
 	var capability: String = "seat" if kind == "sit" else "storage" if kind in ["deposit", "withdraw"] else "workbench"
-	if row.is_empty() or row.capability != capability or not domain.has_capability(project, capability) and not (kind == "withdraw" and domain.projects[project].state == "ruined" and domain.definitions.types[domain.projects[project].type].capabilities.has("storage")):
+	if row.is_empty() or row.capability != capability:
+		return false
+	var project_state: String = str(domain.projects[project].state)
+	var definition: Dictionary = domain.definitions.types[domain.projects[project].type]
+	var recovering: bool = kind == "withdraw" and project_state == "ruined" or kind == "collect" and project_state in ["ruined", "removed"]
+	if not domain.has_capability(project, capability) and not (recovering and definition.capabilities.has(capability)):
 		return false
 	if not domain.terrain_open(row.cell) or domain.blocked(row.cell):
 		return false

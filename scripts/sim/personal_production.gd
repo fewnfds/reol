@@ -82,7 +82,7 @@ func begin(actor: String, id: String, kind: String) -> Dictionary:
 	var job: Dictionary = _job(actor, id, kind)
 	if kind == "make" and int(batch.supplied_ms) < 0 and not _reserve(job, batch):
 		return reply(false, "原料尚未投入，先备齐可处分的私料。")
-	if not str(batch.facility).is_empty() and kind == "make" and not _facility_ready(str(batch.facility), str(batch.recipe), actor):
+	if not str(batch.facility).is_empty() and not _facility_accessible(batch, actor, kind):
 		_release_reservations(job, batch)
 		return reply(false, "原工作台已不适用，原批次与物料仍留在现场。")
 	if not _route(job, batch):
@@ -185,7 +185,7 @@ func _route(job: Dictionary, batch: Dictionary) -> bool:
 func at_workplace(job: Dictionary, batch: Dictionary) -> bool:
 	var body: Dictionary = world.regions[batch.home].actors[job.actor]
 	var cell: Vector2i = work_cell(batch)
-	return SimRouteTravel.point(body).is_equal_approx(TileGrid.cell_to_world(cell))
+	return SimRouteTravel.point(body).is_equal_approx(TileGrid.cell_to_world(cell)) and (str(batch.facility).is_empty() or world.facility_use.position_clear(str(job.actor), cell))
 
 
 func next_boundary_ms() -> int:
@@ -205,7 +205,7 @@ func settle_at_ms(now: int) -> void:
 		world.synchronize_region(str(batch.home))
 		var sim: VillageSimulation = world.regions[batch.home]
 		var body: Dictionary = sim.actors[actor]
-		if not world.actor_controls(actor, "motion") or not world.actor_controls(actor, "action") or not str(batch.facility).is_empty() and job.kind == "make" and not _facility_ready(str(batch.facility), str(batch.recipe), actor):
+		if not world.actor_controls(actor, "motion") or not world.actor_controls(actor, "action") or not str(batch.facility).is_empty() and not _facility_accessible(batch, actor, str(job.kind)):
 			cancel(actor)
 			continue
 		if job.phase == "work" and not at_workplace(job, batch):
@@ -362,3 +362,9 @@ func restore(data: Variant) -> bool:
 	next_batch = int(data.next_batch)
 	next_job = int(data.next_job)
 	return true
+
+
+func _facility_accessible(batch: Dictionary, actor: String, kind: String) -> bool:
+	if kind == "make": return _facility_ready(str(batch.facility), str(batch.recipe), actor)
+	var slots: Array[Dictionary] = world.construction.operation_slots(str(batch.facility), "workbench")
+	return not slots.is_empty() and world.facility_use.slot_available(str(batch.facility), str(slots[0].id), "collect", actor)

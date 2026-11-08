@@ -82,7 +82,7 @@ static func valid(domain: SimFacilityUse) -> bool:
 			elif process == world.personal_production:
 				var batch: Dictionary = world.personal_production.batches[job.batch]
 				if str(batch.facility).is_empty(): continue
-				if job.kind == "make" and not world.personal_production._facility_ready(str(batch.facility), str(batch.recipe), actor): return false
+				if not world.personal_production._facility_accessible(batch, actor, str(job.kind)): return false
 				cell = world.personal_production.work_cell(batch)
 			else:
 				cell = SimRouteTravel.cell(job.stand)

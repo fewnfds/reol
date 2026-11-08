@@ -629,7 +629,9 @@ func use_facility(kind: String) -> void:
 	if not _available() or slot_choice.item_count == 0: return
 	var item: String = "" if kind == "sit" else str(item_choice.get_selected_metadata())
 	var amount: int = 0 if kind == "sit" else int(amount_choice.value)
-	_reply.text = str(runtime().world_sim.facility_use.begin("player", selected_project(), str(slot_choice.get_selected_metadata()), kind, item, amount).line)
+	var result: Dictionary = runtime().world_sim.facility_use.begin("player", selected_project(), str(slot_choice.get_selected_metadata()), kind, item, amount)
+	if result.ok: GameClock.cancel_wait()
+	_reply.text = str(result.line)
 	runtime()._refresh_panel()
 	refresh()
 

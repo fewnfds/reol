@@ -62,6 +62,7 @@ func _test_definitions(runner: Object) -> void:
 func _test_composition_and_storage(runner: Object) -> void:
 	var world: RegionalSimulation = _world(runner)
 	fixture._site(runner, world)
+	runner.assert_true(not world.resting.begin("player", "missing_bed").ok, "unknown bed remains a business refusal without indexing missing state")
 	var domain: SimConstruction = world.construction
 	var second: Dictionary = domain.register_site("player", Vector2i(108, 111), Vector2i(5, 3))
 	runner.assert_true(second.ok and domain.sites.size() == 2, "independent non-overlapping yards share one construction owner")
@@ -147,6 +148,16 @@ func _test_workbench(runner: Object) -> void:
 	var stove: String = _build(runner, world, "cook_stove", Vector2i(110, 107))
 	if stove.is_empty(): return
 	world.regions.home.inventory.containers["actor:player"].merge({"wood": 1, "grain": 2, "water": 1}, true)
+	var stand: Vector2i = world.construction.operation_slots(stove, "workbench")[0].cell
+	world.regions.home.set_actor_cell("shi_tou", stand)
+	var blocked: Dictionary = world.personal_production.create("player", "home", "cook_rations", stove)
+	runner.assert_true(blocked.ok, "a claim alone does not teleport the actual occupant out of the work position")
+	for _index: int in 120:
+		if not world.personal_production.owns_actor("player"): break
+		world.advance_to_ms(world.personal_production.next_boundary_ms())
+	runner.assert_true(not world.personal_production.owns_actor("player") and world.personal_production.batches[blocked.batch].supplied_ms == -1, "actual occupied arrival is refused before ignition or ingredient investment")
+	runner.assert_eq(world.regions.home.inventory.quantity("actor:player", "wood"), 1, "failed occupied arrival does not consume fuel")
+	world.regions.home.set_actor_cell("shi_tou", Vector2i(107, 104))
 	var result: Dictionary = world.personal_production.create("player", "home", "cook_rations", stove)
 	runner.assert_true(result.ok, "a constructed workbench supplies the original production recipe conditions")
 	if not result.ok: return
@@ -162,10 +173,18 @@ func _test_workbench(runner: Object) -> void:
 	runner.assert_true(world.advance_to_ms(deadline) and restored.advance_to_ms(deadline), "workbench production uses its original deadline")
 	runner.assert_eq(fixture._canonical(restored), fixture._canonical(world), "restored workbench production has the same complete future")
 	runner.assert_eq(world.regions.home.inventory.quantity(batch, "meal"), 6, "workbench creates only the original recipe output")
-	runner.assert_true(world.personal_production.begin("player", batch, "collect").ok, "finished output still requires actual collection")
+	var chair: String = _build(runner, world, "wood_chair", stand)
+	runner.assert_true(world.facility_use.begin("shi_tou", chair, "seat").ok, "another supported process can reserve the shared physical position")
+	runner.assert_true(not world.personal_production.begin("player", batch, "collect").ok, "collecting output respects an existing operation-position claim")
+	world.facility_use.cancel("shi_tou")
+	runner.assert_true(world.construction.damage(stove, 100000).destroyed, "completed stock stays in the original batch when its workbench is destroyed")
+	runner.assert_true(world.personal_production.begin("player", batch, "collect").ok, "finished output can still be physically recovered from a destroyed workbench")
 	while world.personal_production.owns_actor("player"):
 		world.advance_to_ms(world.personal_production.next_boundary_ms())
 	runner.assert_eq(world.regions.home.inventory.quantity(batch, "meal"), 0, "collection removes the original output rather than copying it")
+	runner.assert_true(world.construction.begin("player", stove, "demolish").ok, "clear the first workbench wreck without issuing salvage again")
+	fixture._finish(runner, world)
+	stove = _build(runner, world, "cook_stove", Vector2i(110, 107))
 	world.regions.home.inventory.containers["actor:player"].merge({"wood": 1, "grain": 2, "water": 1}, true)
 	var interrupted: Dictionary = world.personal_production.create("player", "home", "cook_rations", stove)
 	runner.assert_true(interrupted.ok, "a new batch reserves the same actual workbench after collection")

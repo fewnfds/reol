@@ -73,7 +73,7 @@ func _begin(actor: String, bed: String, during_commit: bool) -> Dictionary:
 	var body: Dictionary = _body(actor)
 	if not body.active.is_empty() or world.local_action_owns(actor) or world.artifacts.owns_actor(actor) or world.services != null and world.services.owns_actor(actor):
 		return SimConstruction.reply(false, "先停下手头的事情，再去床上休息。")
-	if world.facility_use != null and world.facility_use.cell_reserved(_cell(bed), actor) or not allowed(actor, bed) or not can_observe(actor, bed) or bed_reserved(bed) or world.construction._project_busy(bed) or _occupied_by_other(actor, bed):
+	if not allowed(actor, bed) or world.facility_use != null and world.facility_use.cell_reserved(_cell(bed), actor) or not can_observe(actor, bed) or bed_reserved(bed) or world.construction._project_busy(bed) or _occupied_by_other(actor, bed):
 		return SimConstruction.reply(false, "床位不适用：可能已分配给他人、被占用、正在拆改或离得太远。")
 	var path: Array = _route(actor, bed)
 	if path.is_empty() and not SimRouteTravel.point(body).is_equal_approx(TileGrid.cell_to_world(_cell(bed))):
