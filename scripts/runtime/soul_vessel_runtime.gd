@@ -1,5 +1,5 @@
 class_name SoulVesselRuntime
-extends Node2D
+extends CommittedWorldCanvas
 ## Selection, visible custody and player intents; no soul truth enters the panel.
 
 var panel: SoulVesselPanel
@@ -51,8 +51,8 @@ func submit(verb: String) -> Dictionary:
 	var view: Dictionary = domain.describe("player", selected_vessel)
 	var result: Dictionary = {"ok": false, "line": "先到近处看清旧戒。"}
 	if verb == "cancel":
-		adapter.stop_player_action()
-		result = {"ok": true, "line": "已经中断接触；已付投入不退。"}
+		var accepted: bool = adapter.stop_player_action()
+		result = {"ok": accepted, "line": "已经中断接触；已付投入不退。" if accepted else "当前结算尚未完成，本次停止未受理。"}
 	elif bool(view.get("known", false)):
 		if verb in ["approach", "to_garden"]:
 			var cell: Vector2i = SimRouteTravel.cell(view.cell) if verb == "approach" else SimRouteTravel.cell(adapter.world_sim.regions.home.places.garden.cell)
@@ -95,6 +95,9 @@ func submit(verb: String) -> Dictionary:
 
 
 func reset_observation() -> void:
+	if not can_refresh_canvas():
+		return
+	clear_committed_canvas()
 	selected_vessel = ""
 	_notice = ""
 	_last_event = ""
@@ -104,7 +107,10 @@ func reset_observation() -> void:
 
 func refresh() -> void:
 	var adapter: WorldContinuityRuntime = runtime()
-	if adapter == null:
+	if adapter == null or panel == null:
+		return
+	panel._notice.text = _notice
+	if not can_refresh_canvas():
 		return
 	if not selected_vessel.is_empty():
 		var view: Dictionary = adapter.world_sim.soul_vessels.describe("player", selected_vessel)
@@ -162,13 +168,13 @@ func _display_point(id: String) -> Vector2:
 	return point + Vector2(-22, -25 - adapter._home._world.get_elevation(cell) * ReolWorld.ELEVATION_PX)
 
 
-func _draw() -> void:
+func _build_canvas() -> void:
 	var adapter: WorldContinuityRuntime = runtime()
 	if adapter == null or not adapter.human_player_active():
 		return
 	for id: String in adapter.world_sim.soul_vessels.vessels:
 		if _visible(id):
 			var point: Vector2 = _display_point(id)
-			draw_circle(point, 12, Color("#132b2e"))
-			draw_arc(point, 7, 0.3, TAU - 0.3, 20, Color("#b5c8bd"), 3)
-			draw_line(point + Vector2(5, -5), point + Vector2(8, -9), Color("#deb56d"), 2)
+			capture_circle(point, 12, Color("#132b2e"))
+			capture_arc(point, 7, 0.3, TAU - 0.3, 20, Color("#b5c8bd"), 3)
+			capture_line(point + Vector2(5, -5), point + Vector2(8, -9), Color("#deb56d"), 2)

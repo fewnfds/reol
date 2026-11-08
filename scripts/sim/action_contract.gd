@@ -61,4 +61,4 @@ static func publish_finished(world: RegionalSimulation, outcome: Dictionary, rea
 	notice["reason"] = reason
 	notice["finished_ms"] = world.elapsed_ms
 	notice.make_read_only()
-	world.action_finished.emit(notice)
+	world.publish_action_finished(notice)

@@ -1,5 +1,5 @@
 class_name WorldContinuityRuntime
-extends Node2D
+extends CommittedWorldCanvas
 ## Two settlements own persistent data; views follow actual visible bodies.
 ## This adapter owns presentation and player travel, never regional social rules.
 
@@ -394,7 +394,7 @@ func visible_actor_status(actor: String) -> String:
 
 
 func _on_visibility_updated() -> void:
-	if world_sim == null:
+	if world_sim == null or world_sim.settlement.is_pending():
 		return
 	# Fog updates while paused too. Refresh only scene projections, not clocks,
 	# learning, route progress or the hidden world's event outcome.
@@ -408,6 +408,8 @@ func _bind_navigation() -> void:
 	_home._world.bind_map_data(world_sim.map_data)
 	_home._world.set_obstacle_provider(_physical_obstacle)
 	_home._world.set_sight_obstacle_provider(world_sim.construction.blocks_sight)
+	if _home._fog != null:
+		_home._fog.set_projection_guard(_presentation_ready)
 	world_sim.large_bodies.set_geometry(world_sim.map_data.terrain_is_walkable, world_sim.map_data.get_elevation, _incoming_occupancy, true)
 	world_sim.construction.set_terrain(world_sim.map_data.terrain_is_walkable, world_sim.map_data.get_elevation)
 	world_sim.construction.set_incoming_occupancy(_incoming_occupancy)
@@ -587,6 +589,9 @@ func _capture_advance_view_state() -> Dictionary:
 func advance_to_ms(target_ms: int) -> int:
 	if world_sim == null:
 		return GameClock.elapsed_ms
+	if world_sim.settlement.has_failed():
+		_report_settlement_failure()
+		return GameClock.elapsed_ms
 	if avatar_adapter != null and not world_sim.settlement.is_pending():
 		avatar_adapter.prepare_step()
 	# Earlier continuations may have changed a domain before the public clock
@@ -621,9 +626,14 @@ func advance_to_ms(target_ms: int) -> int:
 		work_left -= world_sim.settlement_work
 		cursor = world_sim.settled_ms()
 		if world_sim.settlement.is_pending():
+			if world_sim.settlement.has_failed():
+				_report_settlement_failure()
+				return GameClock.elapsed_ms
 			if world_sim.errors.size() > old_errors:
 				GameClock.set_paused(true)
 			_notice = "世界事务待处理，未完成时间已保留。"
+			if _panel != null:
+				_panel.update_notice(_notice)
 			# No notification may publish a partially completed boundary, even
 			# if this invocation completed earlier boundaries before yielding.
 			return GameClock.elapsed_ms
@@ -830,13 +840,16 @@ func prepare_player_command() -> void:
 	_home._sync_player_cell()
 
 
-func stop_player_action(reason: String = "player_cancelled") -> void:
+func stop_player_action(reason: String = "player_cancelled") -> bool:
+	# This is an external command, including when called by a synchronous UI
+	# observer. Domain-internal interruption keeps its own authorized entry.
+	if world_sim == null or not world_sim.accepts_commands() or world_sim.settlement != null and world_sim.settlement.is_pending():
+		return false
 	if soul_player_active():
-		world_sim.soul_vessels.agency.command(soul_avatar_id(), "cancel")
-		return
+		return bool(world_sim.soul_vessels.agency.command(soul_avatar_id(), "cancel").ok)
 	if bird_player_active():
 		world_sim.avian_life.cancel(bird_avatar_id())
-		return
+		return true
 	if world_sim.sparring.owns_actor("player"):
 		world_sim.sparring.stop()
 	world_sim.conflicts.cancel("player")
@@ -849,6 +862,7 @@ func stop_player_action(reason: String = "player_cancelled") -> void:
 	_refresh_panel()
 	if interaction_adapter != null:
 		interaction_adapter.refresh_progress()
+	return true
 
 
 func hold_player_motion(preserve_position: bool = false) -> void:
@@ -1010,6 +1024,8 @@ func _on_advanced() -> void:
 
 
 func _refresh_views(snap: bool) -> void:
+	if not _presentation_ready():
+		return
 	# A body keeps its original ledger owner while travelling. Only actual
 	# visibility decides whether its nonhome scene projection is materialized.
 	var visible_bodies: Dictionary = {}
@@ -1149,8 +1165,22 @@ func _toggle_route() -> void:
 	_refresh_panel()
 
 
+func _report_settlement_failure() -> void:
+	GameClock.set_paused(true)
+	_notice = "世界结算失败，已停止推进；可读取已有近况恢复。原因：" + world_sim.settlement.error
+	if _panel != null:
+		_panel.update_notice(_notice)
+
+
+func _presentation_ready() -> bool:
+	return world_sim != null and not world_sim.settlement.is_pending()
+
+
 func _refresh_panel() -> void:
 	if _panel == null or world_sim == null:
+		return
+	if world_sim.settlement.is_pending():
+		_panel.update_notice(_notice)
 		return
 	var here: String = str(settings.regions.get(current_region, {}).get("label", "山野"))
 	if current_region.is_empty() and human_player_active():
@@ -1292,7 +1322,11 @@ func known_lines() -> Array[String]:
 	return _known_lines.duplicate()
 
 
-func _draw() -> void:
+func runtime() -> Node:
+	return self
+
+
+func _build_canvas() -> void:
 	if world_sim == null:
 		return
 	var sim: VillageSimulation = world_sim.regions.river
@@ -1304,13 +1338,14 @@ func _draw() -> void:
 			continue
 		var point: Vector2 = TileGrid.cell_to_world(cell)
 		point.y -= float(_home._world.get_elevation(cell) * ReolWorld.ELEVATION_PX)
-		FacilityVisuals.draw_facility(self, id, point, "河湾·" + str(place.label), Color("#81b4a4"), _home.herb_phase_for(sim, id), place.get("workspace", {}), _home._place_is_explored)
+		var workspace: Dictionary = place.get("workspace", {}).duplicate(true)
+		capture_custom(Callable(FacilityVisuals, "draw_facility").bind(self, id, point, "河湾·" + str(place.label), Color("#81b4a4"), _home.herb_phase_for(sim, id), workspace, _home._place_is_explored))
 	if _courier_visible:
 		var point: Vector2 = TileGrid.cell_to_world(_courier_cell)
 		point.y -= float(_home._world.get_elevation(_courier_cell) * ReolWorld.ELEVATION_PX)
-		draw_circle(point + Vector2(0, -12), 10, Color("#e2a44c"))
-		draw_string_outline(font, point + Vector2(-64, -32), "陆行舟·运粮", HORIZONTAL_ALIGNMENT_CENTER, 128, 14, 4, Color("#0b0f12"))
-		draw_string(font, point + Vector2(-64, -32), "陆行舟·运粮", HORIZONTAL_ALIGNMENT_CENTER, 128, 14, Color("#f6deae"))
+		capture_circle(point + Vector2(0, -12), 10, Color("#e2a44c"))
+		capture_text_outline(font, point + Vector2(-64, -32), "陆行舟·运粮", HORIZONTAL_ALIGNMENT_CENTER, 128, 14, 4, Color("#0b0f12"))
+		capture_text(font, point + Vector2(-64, -32), "陆行舟·运粮", HORIZONTAL_ALIGNMENT_CENTER, 128, 14, Color("#f6deae"))
 
 
 static func _cell(raw: Array) -> Vector2i:

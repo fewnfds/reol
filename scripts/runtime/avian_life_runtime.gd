@@ -1,5 +1,5 @@
 class_name AvianLifeRuntime
-extends Node2D
+extends CommittedWorldCanvas
 ## Local sight, intent routing and nonhuman views; persistent life stays in sim.
 
 const UI = preload("res://scripts/ui/reol_ui_theme.gd")
@@ -101,6 +101,9 @@ func submit(verb: String) -> Dictionary:
 
 
 func reset_observation() -> void:
+	if not can_refresh_canvas():
+		return
+	clear_committed_canvas()
 	selected_bird = ""
 	_last_notice = ""
 	panel.hide()
@@ -108,6 +111,9 @@ func reset_observation() -> void:
 
 
 func refresh() -> void:
+	_notice.text = _last_notice
+	if not can_refresh_canvas():
+		return
 	queue_redraw()
 	if not panel.visible:
 		return
@@ -116,7 +122,6 @@ func refresh() -> void:
 	var seeing: bool = bool(view.get("known", false)) and _visible(selected_bird)
 	_title.text = str(view.get("label", "草木间的邻居")) if seeing else "身影已远"
 	_line.text = str(view.line) if seeing else "它已离开视线；你不知道它此刻在做什么。"
-	_notice.text = _last_notice
 	var near: bool = seeing and bool(view.get("near", false))
 	_approach.visible = seeing and not near
 	_feed.disabled = not near
@@ -166,7 +171,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				break
 
 
-func _draw() -> void:
+func _build_canvas() -> void:
 	var adapter: WorldContinuityRuntime = runtime()
 	if adapter == null or adapter.world_sim == null:
 		return
@@ -181,38 +186,38 @@ func _draw() -> void:
 		if site.type == "seeds":
 			for x: int in 5:
 				var tip: Vector2 = point + Vector2(x * 4 - 8, -7 - (x % 2) * 5)
-				draw_line(point + Vector2(x * 3 - 6, 4), tip, Color("#b5bd75"), 1.5)
-				draw_circle(tip, 2, Color("#d4bc6d"))
+				capture_line(point + Vector2(x * 3 - 6, 4), tip, Color("#b5bd75"), 1.5)
+				capture_circle(tip, 2, Color("#d4bc6d"))
 		elif site.type == "roost":
-			draw_line(point + Vector2(0, 5), point + Vector2(0, -32), Color("#6b5944"), 6)
-			draw_circle(point + Vector2(0, -32), 17, Color("#537b55"))
-			draw_arc(point + Vector2(9, -24), 9, 0, PI, 12, Color("#bb9a62"), 3)
+			capture_line(point + Vector2(0, 5), point + Vector2(0, -32), Color("#6b5944"), 6)
+			capture_circle(point + Vector2(0, -32), 17, Color("#537b55"))
+			capture_arc(point + Vector2(9, -24), 9, 0, PI, 12, Color("#bb9a62"), 3)
 		elif site.type == "crevice":
-			draw_colored_polygon(PackedVector2Array([point + Vector2(-17, 3), point + Vector2(-12, -17), point + Vector2(13, -14), point + Vector2(18, 3)]), Color("#7c847d"))
-			draw_line(point + Vector2(-4, -7), point + Vector2(5, -9), Color("#253432"), 5)
-			draw_line(point + Vector2(2, -9), point + Vector2(4, -17), UI.JADE, 2)
+			capture_polygon(PackedVector2Array([point + Vector2(-17, 3), point + Vector2(-12, -17), point + Vector2(13, -14), point + Vector2(18, 3)]), Color("#7c847d"))
+			capture_line(point + Vector2(-4, -7), point + Vector2(5, -9), Color("#253432"), 5)
+			capture_line(point + Vector2(2, -9), point + Vector2(4, -17), UI.JADE, 2)
 		else:
 			continue
-		draw_string(font, point + Vector2(-27, 18), str(domain.definitions.site_types[site.type].label), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UI.PAPER)
+		capture_text(font, point + Vector2(-27, 18), str(domain.definitions.site_types[site.type].label), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UI.PAPER)
 	for id: String in domain.birds:
 		if not _visible(id):
 			continue
 		var body: Dictionary = domain.birds[id]
 		var point: Vector2 = _bird_point(id)
 		var ground: Vector2 = SimAvianLife.point(body) - Vector2(0, adapter._home._world.get_elevation(domain.body_cell(id)) * ReolWorld.ELEVATION_PX)
-		draw_set_transform(ground, 0, Vector2(1, 0.4))
-		draw_circle(Vector2.ZERO, 7, Color(0.08, 0.12, 0.12, 0.4))
-		draw_set_transform(Vector2.ZERO)
+		capture_transform(ground, 0, Vector2(1, 0.4))
+		capture_circle(Vector2.ZERO, 7, Color(0.08, 0.12, 0.12, 0.4))
+		capture_transform(Vector2.ZERO)
 		var flying: bool = body.active.get("verb") == "fly"
 		var wing: float = 9.0 + 4.0 * sin(float(GameClock.elapsed_ms % 600) / 600.0 * TAU) if flying else 5.0
-		draw_line(point + Vector2(-wing, -3), point + Vector2(0, 2), Color("#d0bc8c"), 3)
-		draw_line(point + Vector2(0, 2), point + Vector2(wing, -3), Color("#d0bc8c"), 3)
-		draw_circle(point, 4.5, Color("#7b7151"))
-		draw_circle(point + Vector2(3, -3), 3, Color("#d9cfab"))
-		draw_circle(point + Vector2(4, -4), 0.8, Color("#202b2b"))
+		capture_line(point + Vector2(-wing, -3), point + Vector2(0, 2), Color("#d0bc8c"), 3)
+		capture_line(point + Vector2(0, 2), point + Vector2(wing, -3), Color("#d0bc8c"), 3)
+		capture_circle(point, 4.5, Color("#7b7151"))
+		capture_circle(point + Vector2(3, -3), 3, Color("#d9cfab"))
+		capture_circle(point + Vector2(4, -4), 0.8, Color("#202b2b"))
 		if domain.inventory.quantity("bird:" + id, "herb") > 0:
-			draw_line(point + Vector2(5, -1), point + Vector2(15, -6), UI.JADE, 1.5)
-			draw_circle(point + Vector2(12, -6), 2, Color("#aac57f"))
+			capture_line(point + Vector2(5, -1), point + Vector2(15, -6), UI.JADE, 1.5)
+			capture_circle(point + Vector2(12, -6), 2, Color("#aac57f"))
 		if id == selected_bird and panel.visible:
-			draw_arc(point, 13, 0, TAU, 24, UI.GOLD, 1.5)
-		draw_string(font, point + Vector2(-10, -14), str(body.label), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UI.PAPER)
+			capture_arc(point, 13, 0, TAU, 24, UI.GOLD, 1.5)
+		capture_text(font, point + Vector2(-10, -14), str(body.label), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UI.PAPER)

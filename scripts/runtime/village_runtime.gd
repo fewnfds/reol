@@ -1,5 +1,5 @@
 class_name VillageRuntime
-extends Node2D
+extends CommittedWorldCanvas
 ## Connects the fixed-tick simulation to world navigation, actors, and UI.
 ## _process only interpolates NPC visuals; rules advance on GameClock.tick.
 
@@ -258,6 +258,10 @@ func matches_snapshot_world(candidate: VillageSimulation, candidate_map: WorldMa
 
 func cancel_player_action() -> void:
 	if is_instance_valid(continuity):
+		# Manual input cannot change the region while the world is between
+		# settlement stages. A held movement intent is sampled again later.
+		if continuity.world_sim != null and continuity.world_sim.settlement != null and continuity.world_sim.settlement.is_pending():
+			return
 		continuity.prepare_home_command()
 		continuity.cancel_travel()
 	if simulation != null:
@@ -767,7 +771,21 @@ func herb_phase_for(sim: VillageSimulation, place_id: String) -> String:
 	return ""
 
 
-func _draw() -> void:
+func runtime() -> Node:
+	return continuity if is_instance_valid(continuity) else null
+
+
+func _current_canvas_world() -> RefCounted:
+	return super._current_canvas_world() if is_instance_valid(continuity) else simulation
+
+
+func _world_is_complete(world: RefCounted) -> bool:
+	if world is VillageSimulation:
+		return not GameClock.is_advancing() and int(world.elapsed_ms) == GameClock.elapsed_ms
+	return super._world_is_complete(world)
+
+
+func _build_canvas() -> void:
 	if _world == null:
 		return
 	for id: String in _places:
@@ -777,7 +795,8 @@ func _draw() -> void:
 			continue
 		var center: Vector2 = TileGrid.cell_to_world(cell)
 		center.y -= float(_world.get_elevation(cell) * ReolWorld.ELEVATION_PX)
-		FacilityVisuals.draw_facility(self, id, center, str(place.label), Color("#cfbc80"), herb_phase_for(simulation, id), place.get("workspace", {}), _place_is_explored)
+		var workspace: Dictionary = place.get("workspace", {}).duplicate(true)
+		capture_custom(Callable(FacilityVisuals, "draw_facility").bind(self, id, center, str(place.label), Color("#cfbc80"), herb_phase_for(simulation, id), workspace, _place_is_explored))
 
 
 func _place_is_explored(cell: Vector2i) -> bool:

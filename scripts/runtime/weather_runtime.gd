@@ -6,6 +6,7 @@ extends Node2D
 var _owner: WeakRef
 var _caption: Label
 var _weather_region: String = "home"
+var _rain_points := PackedVector2Array()
 
 
 func setup(adapter: WorldContinuityRuntime) -> void:
@@ -41,6 +42,11 @@ func setup(adapter: WorldContinuityRuntime) -> void:
 
 func refresh() -> void:
 	var adapter: WorldContinuityRuntime = _owner.get_ref() as WorldContinuityRuntime
+	if adapter == null or adapter.world_sim == null:
+		return
+	if adapter.world_sim.settlement != null and adapter.world_sim.settlement.is_pending():
+		# Retain caption and rain until the next complete clock notification.
+		return
 	_caption.visible = not adapter.soul_player_active()
 	_weather_region = SimClimateRules.region_at(adapter.world_sim.environment.definitions, adapter.controlled_cell())
 	var feeling: String = ""
@@ -61,6 +67,7 @@ func refresh() -> void:
 	_caption.tooltip_text = "露天床铺会受潮，雨水可回补泉源。" if raining else "雨后的床铺逐渐晾干。"
 	if adapter.human_player_active():
 		_caption.tooltip_text += "\n冷暖取决于当地时令、实际衣着和近旁余热；屋面与门墙会影响余热散失。"
+	_project_rain(adapter)
 	queue_redraw()
 
 
@@ -81,11 +88,9 @@ func _on_time(_from: int, _to: int) -> void:
 	refresh()
 
 
-func _draw() -> void:
-	if _owner == null:
-		return
-	var adapter: WorldContinuityRuntime = _owner.get_ref() as WorldContinuityRuntime
-	if adapter == null or adapter.soul_player_active():
+func _project_rain(adapter: WorldContinuityRuntime) -> void:
+	_rain_points.clear()
+	if adapter.soul_player_active():
 		return
 	if adapter.world_sim.weather.current_kind(_weather_region) != "rain":
 		return
@@ -101,4 +106,10 @@ func _draw() -> void:
 			continue
 		if adapter.world_sim.construction.roofed(cell):
 			continue
+		_rain_points.append(point)
+
+
+func _draw() -> void:
+	# At most 88 cosmetic marks; no world state is copied or read on redraw.
+	for point: Vector2 in _rain_points:
 		draw_line(point, point + Vector2(-5, 13), Color(0.66, 0.81, 0.87, 0.38), 1.2)

@@ -1,5 +1,5 @@
 class_name LargeBodiesRuntime
-extends Node2D
+extends CommittedWorldCanvas
 ## Projection and pointing only; no body state or separate update clock.
 
 const UI = preload("res://scripts/ui/reol_ui_theme.gd")
@@ -49,11 +49,16 @@ func setup(adapter: WorldContinuityRuntime) -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	z_index = 10
 	GameClock.time_advanced.connect(_on_time_advanced)
-	adapter.avatar_changed.connect(queue_redraw)
+	adapter.avatar_changed.connect(reset_observation)
+
+
+func reset_observation() -> void:
+	clear_committed_canvas()
 
 
 func _on_time_advanced(_from: int, _to: int) -> void:
-	queue_redraw()
+	if can_refresh_canvas():
+		queue_redraw()
 
 
 func is_visible_body(id: String) -> bool:
@@ -111,7 +116,7 @@ func select_at(point: Vector2) -> bool:
 	return false
 
 
-func _draw() -> void:
+func _build_canvas() -> void:
 	var adapter: WorldContinuityRuntime = runtime()
 	if adapter == null:
 		return
@@ -122,21 +127,21 @@ func _draw() -> void:
 			continue
 		var point: Vector2 = display_point(id)
 		var direction: Vector2 = Vector2(SimBodyGeometry.DIRECTIONS[int(domain.bodies[id].facing)])
-		draw_set_transform(point + Vector2(0, tile * 0.45), 0, Vector2(1.2, 0.65))
-		draw_circle(Vector2.ZERO, tile, Color(0.06, 0.12, 0.11, 0.45))
-		draw_set_transform(point, direction.angle(), Vector2.ONE)
+		capture_transform(point + Vector2(0, tile * 0.45), 0, Vector2(1.2, 0.65))
+		capture_circle(Vector2.ZERO, tile, Color(0.06, 0.12, 0.11, 0.45))
+		capture_transform(point, direction.angle(), Vector2.ONE)
 		for offset: Vector2 in [Vector2(-0.6, -0.65), Vector2(0.5, -0.65), Vector2(-0.6, 0.65), Vector2(0.5, 0.65)]:
-			draw_circle(offset * tile, tile * 0.25, Color("#4d564e"))
-		draw_set_transform(point, direction.angle(), Vector2(1.2, 0.9))
-		draw_circle(Vector2.ZERO, tile * 0.9, Color("#7a806c"))
-		draw_circle(Vector2(-tile * 0.15, -tile * 0.1), tile * 0.57, Color("#98977c"))
-		draw_set_transform(point, direction.angle(), Vector2.ONE)
-		draw_colored_polygon(PackedVector2Array([Vector2(-0.55, -0.25) * tile, Vector2(-0.35, -0.7) * tile, Vector2(0.25, -0.65) * tile, Vector2(0.45, -0.15) * tile, Vector2(0.15, 0.5) * tile, Vector2(-0.5, 0.45) * tile]), Color("#b0ac8e"))
-		draw_circle(Vector2(tile * 0.95, 0), tile * 0.38, Color("#666d5b"))
-		draw_line(Vector2(tile * 0.9, -tile * 0.27), Vector2(tile * 1.15, -tile * 0.57), Color("#d9cdab"), 5)
-		draw_line(Vector2(tile * 0.9, tile * 0.27), Vector2(tile * 1.15, tile * 0.57), Color("#d9cdab"), 5)
-		draw_circle(Vector2(tile * 1.07, -tile * 0.16), tile * 0.045, Color("#e2c878"))
-		draw_circle(Vector2(tile * 1.07, tile * 0.16), tile * 0.045, Color("#e2c878"))
-		draw_set_transform(Vector2.ZERO)
+			capture_circle(offset * tile, tile * 0.25, Color("#4d564e"))
+		capture_transform(point, direction.angle(), Vector2(1.2, 0.9))
+		capture_circle(Vector2.ZERO, tile * 0.9, Color("#7a806c"))
+		capture_circle(Vector2(-tile * 0.15, -tile * 0.1), tile * 0.57, Color("#98977c"))
+		capture_transform(point, direction.angle(), Vector2.ONE)
+		capture_polygon(PackedVector2Array([Vector2(-0.55, -0.25) * tile, Vector2(-0.35, -0.7) * tile, Vector2(0.25, -0.65) * tile, Vector2(0.45, -0.15) * tile, Vector2(0.15, 0.5) * tile, Vector2(-0.5, 0.45) * tile]), Color("#b0ac8e"))
+		capture_circle(Vector2(tile * 0.95, 0), tile * 0.38, Color("#666d5b"))
+		capture_line(Vector2(tile * 0.9, -tile * 0.27), Vector2(tile * 1.15, -tile * 0.57), Color("#d9cdab"), 5)
+		capture_line(Vector2(tile * 0.9, tile * 0.27), Vector2(tile * 1.15, tile * 0.57), Color("#d9cdab"), 5)
+		capture_circle(Vector2(tile * 1.07, -tile * 0.16), tile * 0.045, Color("#e2c878"))
+		capture_circle(Vector2(tile * 1.07, tile * 0.16), tile * 0.045, Color("#e2c878"))
+		capture_transform(Vector2.ZERO)
 		var caption: String = str(domain.bodies[id].label) + (" · 迈步" if not domain.bodies[id].step.is_empty() else " · 伏地休憩")
-		draw_string(ThemeDB.fallback_font, point + Vector2(-tile * 1.2, -tile * 1.35), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UI.PAPER)
+		capture_text(ThemeDB.fallback_font, point + Vector2(-tile * 1.2, -tile * 1.35), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UI.PAPER)

@@ -50,11 +50,16 @@ func _process(_delta: float) -> void:
 
 
 func refresh() -> void:
+	var adapter: WorldContinuityRuntime = _owner.get_ref() as WorldContinuityRuntime if _owner != null else null
+	if adapter != null and adapter.world_sim != null and adapter.world_sim.settlement != null and adapter.world_sim.settlement.is_pending():
+		# Keep the last complete texture and retry after the boundary commits.
+		# A refused query is not evidence that the existing lights went out.
+		_dirty = true
+		return
 	_dirty = false
 	light.enabled = false
 	last_projection = {}
 	last_image = null
-	var adapter: WorldContinuityRuntime = _owner.get_ref() as WorldContinuityRuntime
 	if adapter == null or adapter.soul_player_active():
 		return
 	var center: Vector2i = adapter.controlled_cell()

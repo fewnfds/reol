@@ -340,6 +340,8 @@ func submit(receiver: String, verb: String, object: Dictionary, medium: String =
 
 
 func refresh_progress() -> void:
+	if runtime() != null and runtime().world_sim.settlement.is_pending():
+		return
 	if not panel.visible:
 		return
 	if not runtime().human_player_active():

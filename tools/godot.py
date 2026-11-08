@@ -367,12 +367,15 @@ def cmd_check(args: argparse.Namespace) -> int:
         "check-import",
         timeout=600,
     )
+    if import_code != 0:
+        print(f"CHECK FAILED (import={import_code}, test=not-run)", file=sys.stderr)
+        return 1
     test_code = _run(
         _test_command(godot, args, "check-test"),
         "check-test",
         timeout=args.test_timeout,
     )
-    if import_code != 0 or test_code != 0:
+    if test_code != 0:
         print(f"CHECK FAILED (import={import_code}, test={test_code})", file=sys.stderr)
         return 1
     if args.shard:

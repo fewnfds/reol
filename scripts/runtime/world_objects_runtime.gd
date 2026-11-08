@@ -1,5 +1,5 @@
 class_name WorldObjectsRuntime
-extends Node2D
+extends CommittedWorldCanvas
 ## Local rendering/selection and intent routing for the pure object domain.
 
 var panel: ObjectInspectionPanel
@@ -14,6 +14,10 @@ var _physical_action: String = ""
 
 func runtime() -> WorldContinuityRuntime:
 	return _owner.get_ref() as WorldContinuityRuntime if _owner != null else null
+
+
+func _can_observe(adapter: WorldContinuityRuntime) -> bool:
+	return adapter != null and adapter.world_sim != null and (adapter.world_sim.settlement == null or not adapter.world_sim.settlement.is_pending())
 
 
 func setup(adapter: WorldContinuityRuntime) -> void:
@@ -41,6 +45,8 @@ func setup(adapter: WorldContinuityRuntime) -> void:
 
 func select_object(id: String, hit_point: Vector2 = Vector2.INF) -> bool:
 	var adapter: WorldContinuityRuntime = runtime()
+	if not _can_observe(adapter):
+		return false
 	var view: Dictionary = _perception(id)
 	if not bool(view.get("known", false)):
 		return false
@@ -67,7 +73,10 @@ func submit(verb: String) -> Dictionary:
 		return {"ok": false, "line": "当前形态还不能借人的双手操作器物。"}
 	if verb == "cancel":
 		var warming: bool = adapter.world_sim.artifacts.active.get("player", {}).get("verb") == "warm"
-		adapter.stop_player_action()
+		if not adapter.stop_player_action():
+			_notice = "当前结算尚未完成，本次停止未受理。"
+			refresh()
+			return {"ok": false, "line": _notice}
 		_notice = "释热已停止，石中余热没有耗去，身边也没有留下暖流。" if warming else "操作已停止，已投入的灵气不会退回。"
 		refresh()
 		return {"ok": true, "line": _notice}
@@ -256,7 +265,7 @@ func _physical_status(authority: RegionalSimulation, id: String) -> Dictionary:
 func draw_targets() -> Array[Dictionary]:
 	var choices: Array[Dictionary] = []
 	var adapter: WorldContinuityRuntime = runtime()
-	if adapter == null or adapter.world_sim == null or not adapter.human_player_active():
+	if not _can_observe(adapter) or not adapter.human_player_active():
 		return choices
 	var authority: RegionalSimulation = adapter.world_sim
 	var domain: SimArtifacts = authority.artifacts
@@ -308,18 +317,21 @@ func submit_draw(target: String) -> Dictionary:
 
 
 func reset_observation() -> void:
+	if not _can_observe(runtime()):
+		return
 	selected_object = ""
 	_selection_hit = Vector2.INF
 	_notice = ""
 	_settled_event = ""
 	_physical_action = ""
+	clear_committed_canvas()
 	panel.hide()
 	queue_redraw()
 
 
 func refresh() -> void:
 	var adapter: WorldContinuityRuntime = runtime()
-	if adapter == null:
+	if not _can_observe(adapter):
 		return
 	if not selected_object.is_empty():
 		var view: Dictionary = _perception(selected_object)
@@ -359,9 +371,7 @@ func _process(_delta: float) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	var adapter: WorldContinuityRuntime = runtime()
-	if adapter != null and not adapter.human_player_active():
-		return
-	if adapter == null:
+	if not _can_observe(adapter) or not adapter.human_player_active():
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_ESCAPE and panel.visible:
@@ -405,7 +415,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _cycle_selection() -> void:
 	var adapter: WorldContinuityRuntime = runtime()
-	if adapter == null or adapter.world_sim == null or not adapter.human_player_active() or not panel.visible or _selection_hit == Vector2.INF:
+	if not _can_observe(adapter) or not adapter.human_player_active() or not panel.visible or _selection_hit == Vector2.INF:
 		return
 	var authority: RegionalSimulation = adapter.world_sim
 	var hits: Array[String] = _visible_hits(_selection_hit, authority)
@@ -422,6 +432,8 @@ func _cycle_selection() -> void:
 
 
 func _visible_hits(cursor: Vector2, authority: RegionalSimulation) -> Array[String]:
+	if not _can_observe(runtime()):
+		return []
 	var points: Dictionary = _visible_display_points(authority)
 	var hits: Array[String] = []
 	for id: String in points:
@@ -442,7 +454,7 @@ func _visible_hits(cursor: Vector2, authority: RegionalSimulation) -> Array[Stri
 
 func _visible(id: String, observed_world: RegionalSimulation = null) -> bool:
 	var adapter: WorldContinuityRuntime = runtime()
-	if adapter == null or not adapter.human_player_active():
+	if not _can_observe(adapter) or not adapter.human_player_active():
 		return false
 	# A reload may replace the accepted session during a debugger callback.
 	# Keep the observed world alive for every weak-owned domain read in this view.
@@ -458,7 +470,7 @@ func _visible(id: String, observed_world: RegionalSimulation = null) -> bool:
 
 func _perception(id: String) -> Dictionary:
 	var adapter: WorldContinuityRuntime = runtime()
-	if adapter == null or not adapter.human_player_active():
+	if not _can_observe(adapter) or not adapter.human_player_active():
 		return {"known": false}
 	var authority: RegionalSimulation = adapter.world_sim
 	var domain: SimArtifacts = authority.artifacts
@@ -489,6 +501,8 @@ func _perception(id: String) -> Dictionary:
 
 func _display_point(id: String, observed_world: RegionalSimulation = null) -> Vector2:
 	var adapter: WorldContinuityRuntime = runtime()
+	if not _can_observe(adapter):
+		return Vector2.INF
 	var authority: RegionalSimulation = observed_world if observed_world != null else adapter.world_sim
 	var points: Dictionary = _visible_display_points(authority)
 	return points[id] if points.has(id) else _base_display_point(id, authority)
@@ -504,7 +518,7 @@ func _observation_radius(authority: RegionalSimulation) -> int:
 func _local_candidates(authority: RegionalSimulation, radius: int = -1) -> Array[String]:
 	var ids: Array[String] = []
 	var adapter: WorldContinuityRuntime = runtime()
-	if adapter == null or authority == null or adapter.world_sim != authority or authority.object_lifecycle == null or not adapter.human_player_active():
+	if not _can_observe(adapter) or authority == null or adapter.world_sim != authority or authority.object_lifecycle == null or not adapter.human_player_active():
 		return ids
 	if radius < 0:
 		radius = _observation_radius(authority)
@@ -522,13 +536,14 @@ func _local_candidates(authority: RegionalSimulation, radius: int = -1) -> Array
 
 func _visible_display_points(authority: RegionalSimulation) -> Dictionary:
 	var adapter: WorldContinuityRuntime = runtime()
-	if adapter == null or authority == null:
+	if not _can_observe(adapter) or authority == null:
 		return {}
 	var domain: SimArtifacts = authority.artifacts
 	# Separate only currently visible objects sharing this exact visual anchor.
 	# These offsets are presentation only: cell, custody and reach stay in the
 	# original domain. Singleton positions and holder interpolation stay intact.
-	# Only nearby candidates are inspected; nothing is cached across frames or saved.
+	# Only nearby candidates are inspected; these live queries are never used
+	# during partial settlement. Drawing retains the last complete projection.
 	var points: Dictionary = {}
 	var groups: Dictionary = {}
 	for id: String in _local_candidates(authority):
@@ -582,19 +597,21 @@ func _base_display_point(id: String, authority: RegionalSimulation) -> Vector2:
 	return point + offset
 
 
-func _draw() -> void:
+func _build_canvas() -> void:
 	var adapter: WorldContinuityRuntime = runtime()
-	if adapter == null or adapter.world_sim == null:
+	if not _can_observe(adapter):
 		return
 	var authority: RegionalSimulation = adapter.world_sim
 	var points: Dictionary = _visible_display_points(authority)
+	if not _can_observe(adapter) or adapter.world_sim != authority:
+		return
 	var current: Dictionary = authority.artifacts.active.get("player", {})
 	if current.has("draw") and points.has(str(current.draw.target)):
 		var from: Vector2 = points[str(current.object)] if points.has(str(current.object)) else _base_display_point(str(current.object), authority)
 		var to: Vector2 = points[str(current.draw.target)]
 		var progress: float = clampf(float(authority.elapsed_ms - int(current.started_ms)) / float(int(current.due_ms) - int(current.started_ms)), 0.0, 1.0)
-		draw_line(from, to, Color(0.63, 0.81, 0.77, 0.28), 1.0)
-		draw_arc(to, 13.0 + 5.0 * (1.0 - progress), -PI * 0.5, TAU * progress - PI * 0.5, 24, Color("#c4ded5"), 2.0)
+		capture_line(from, to, Color(0.63, 0.81, 0.77, 0.28), 1.0)
+		capture_arc(to, 13.0 + 5.0 * (1.0 - progress), -PI * 0.5, TAU * progress - PI * 0.5, 24, Color("#c4ded5"), 2.0)
 	for id: String in points:
 		var point: Vector2 = points[id]
 		if authority.artifacts.has_capability(id, "physical"):
@@ -611,15 +628,15 @@ func _draw() -> void:
 			_draw_thermal_stone(point, definition.thermal.mode == "emit")
 			continue
 		if authority.artifacts.has_capability(id, "intrinsic_light"):
-			draw_circle(point, 11, Color("#302826"))
-			draw_circle(point, 7, Color("#b5a86d"))
-			draw_circle(point + Vector2(-2, -2), 3, Color("#f4e8ad"))
+			capture_circle(point, 11, Color("#302826"))
+			capture_circle(point, 7, Color("#b5a86d"))
+			capture_circle(point + Vector2(-2, -2), 3, Color("#f4e8ad"))
 			continue
 		var diamond := PackedVector2Array([point + Vector2(0, -9), point + Vector2(8, 0), point + Vector2(0, 9), point + Vector2(-8, 0)])
-		draw_circle(point, 13, Color("#251c20"))
-		draw_colored_polygon(diamond, Color("#a6553b"))
-		draw_polyline(PackedVector2Array([diamond[0], diamond[1], diamond[2], diamond[3], diamond[0]]), Color("#f0c989"), 2)
-		draw_line(point + Vector2(-3, -3), point + Vector2(3, 3), Color("#e8b479"), 1.5)
+		capture_circle(point, 13, Color("#251c20"))
+		capture_polygon(diamond, Color("#a6553b"))
+		capture_polyline(PackedVector2Array([diamond[0], diamond[1], diamond[2], diamond[3], diamond[0]]), Color("#f0c989"), 2)
+		capture_line(point + Vector2(-3, -3), point + Vector2(3, 3), Color("#e8b479"), 1.5)
 
 
 func _physical_ground_rect(id: String, authority: RegionalSimulation) -> Rect2i:
@@ -672,8 +689,8 @@ func _draw_physical(id: String, point: Vector2, authority: RegionalSimulation) -
 	var footprint: Rect2i = _physical_ground_rect(id, authority)
 	if footprint.size == Vector2i.ZERO:
 		# Carried or stored objects remain a small marker, not a ground footprint.
-		draw_rect(Rect2(point - Vector2(9, 7), Vector2(18, 14)), Color("#777b7b"))
-		draw_rect(Rect2(point - Vector2(9, 7), Vector2(18, 14)), Color("#c0c4bf"), false, 1.5)
+		capture_rect(Rect2(point - Vector2(9, 7), Vector2(18, 14)), Color("#777b7b"))
+		capture_rect(Rect2(point - Vector2(9, 7), Vector2(18, 14)), Color("#c0c4bf"), false, 1.5)
 		return
 	var adapter: WorldContinuityRuntime = runtime()
 	var observer: Vector2i = adapter.controlled_cell()
@@ -687,34 +704,34 @@ func _draw_physical(id: String, point: Vector2, authority: RegionalSimulation) -
 			if not _cell_visible(cell, observer, radius):
 				continue
 			var bounds: Rect2 = _physical_tile_rect(cell)
-			draw_rect(bounds, Color("#777b7b"))
-			draw_rect(bounds, Color("#c0c4bf"), false, 1.5)
+			capture_rect(bounds, Color("#777b7b"))
+			capture_rect(bounds, Color("#c0c4bf"), false, 1.5)
 
 
 func _draw_thermal_stone(point: Vector2, warm: bool) -> void:
 	var rim: Color = Color("#f1bd8a") if warm else Color("#c3e8ed")
 	var body: Color = Color("#a64f36") if warm else Color("#588fa5")
 	var outline := PackedVector2Array([point + Vector2(-8, -6), point + Vector2(2, -10), point + Vector2(10, -3), point + Vector2(8, 7), point + Vector2(-4, 10), point + Vector2(-10, 3)])
-	draw_circle(point, 13, Color("#251c20"))
-	draw_colored_polygon(outline, body)
-	draw_polyline(PackedVector2Array([outline[0], outline[1], outline[2], outline[3], outline[4], outline[5], outline[0]]), rim, 2.0)
-	draw_line(point + Vector2(-5, -3), point + Vector2(4, 4), rim, 1.5)
+	capture_circle(point, 13, Color("#251c20"))
+	capture_polygon(outline, body)
+	capture_polyline(PackedVector2Array([outline[0], outline[1], outline[2], outline[3], outline[4], outline[5], outline[0]]), rim, 2.0)
+	capture_line(point + Vector2(-5, -3), point + Vector2(4, 4), rim, 1.5)
 
 
 func _draw_wooden_sword(point: Vector2) -> void:
 	var tip: Vector2 = point + Vector2(8, -15)
 	var pommel: Vector2 = point + Vector2(-8, 14)
-	draw_line(pommel, tip, Color("#251c20"), 8)
-	draw_line(point + Vector2(-2, 4), tip, Color("#d6ad71"), 5)
-	draw_line(pommel, point + Vector2(-2, 4), Color("#6b513b"), 5)
-	draw_line(point + Vector2(-8, 0), point + Vector2(5, 7), Color("#251c20"), 6)
-	draw_line(point + Vector2(-8, 0), point + Vector2(5, 7), Color("#b8804b"), 3)
+	capture_line(pommel, tip, Color("#251c20"), 8)
+	capture_line(point + Vector2(-2, 4), tip, Color("#d6ad71"), 5)
+	capture_line(pommel, point + Vector2(-2, 4), Color("#6b513b"), 5)
+	capture_line(point + Vector2(-8, 0), point + Vector2(5, 7), Color("#251c20"), 6)
+	capture_line(point + Vector2(-8, 0), point + Vector2(5, 7), Color("#b8804b"), 3)
 
 
 func _draw_drawing_ring(point: Vector2) -> void:
 	# A hollow copper ring, without the warm stone's glow or solid centre.
-	draw_arc(point, 9.0, 0.0, TAU, 24, Color("#251c20"), 6.0)
-	draw_arc(point, 9.0, 0.0, TAU, 24, Color("#a8926a"), 3.0)
-	draw_arc(point, 8.0, PI * 1.1, PI * 1.8, 8, Color("#ded8b9"), 1.0)
-	draw_line(point + Vector2(7, -6), point + Vector2(11, -5), Color("#e6e4d2"), 2.0)
-	draw_line(point + Vector2(-8, 3), point + Vector2(-11, 5), Color("#c2c8bf"), 2.0)
+	capture_arc(point, 9.0, 0.0, TAU, 24, Color("#251c20"), 6.0)
+	capture_arc(point, 9.0, 0.0, TAU, 24, Color("#a8926a"), 3.0)
+	capture_arc(point, 8.0, PI * 1.1, PI * 1.8, 8, Color("#ded8b9"), 1.0)
+	capture_line(point + Vector2(7, -6), point + Vector2(11, -5), Color("#e6e4d2"), 2.0)
+	capture_line(point + Vector2(-8, 3), point + Vector2(-11, 5), Color("#c2c8bf"), 2.0)

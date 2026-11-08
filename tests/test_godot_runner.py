@@ -112,6 +112,23 @@ class GodotTestTimeoutTests(unittest.TestCase):
                         with contextlib.redirect_stderr(io.StringIO()):
                             self.assertEqual(args.func(args), 124 if command == "test" else 1)
 
+    def test_failed_import_stops_check_before_preparing_or_starting_tests(self):
+        for import_code in (1, 124):
+            with self.subTest(import_code=import_code):
+                args = godot_runner.build_parser().parse_args(["check"])
+                errors = io.StringIO()
+                with patch.object(godot_runner, "_require_godot", return_value=Path("godot")):
+                    with patch.object(godot_runner, "_run", side_effect=[0, import_code]) as run:
+                        with patch.object(godot_runner, "_test_command") as prepare_tests:
+                            with contextlib.redirect_stderr(errors):
+                                self.assertEqual(args.func(args), 1)
+                self.assertEqual(
+                    [call.args[1] for call in run.call_args_list],
+                    ["check-structure", "check-import"],
+                )
+                prepare_tests.assert_not_called()
+                self.assertIn(f"import={import_code}, test=not-run", errors.getvalue())
+
 
 class GodotSuiteSelectionTests(unittest.TestCase):
     def test_shards_forward_to_test_and_check_without_claiming_full_coverage(self):

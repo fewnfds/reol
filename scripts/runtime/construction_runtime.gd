@@ -1,5 +1,5 @@
 class_name ConstructionRuntime
-extends Node2D
+extends CommittedWorldCanvas
 ## Ground presentation and construction book. All mutations use SimConstruction.
 
 const UI = preload("res://scripts/ui/reol_ui_theme.gd")
@@ -31,6 +31,7 @@ var _bed_widgets: Array[Control] = []
 var _seat_button: Button
 var _storage_widgets: Array[Control] = []
 var _work_widgets: Array[Control] = []
+var _pending_sight_cells: Dictionary[Vector2i, bool] = {}
 
 
 func runtime() -> WorldContinuityRuntime:
@@ -179,14 +180,38 @@ func _bind_structure_changes() -> void:
 		_observed_domain.structures_changed.disconnect(_on_structures_changed)
 	if _observed_world != null and _observed_world.action_finished.is_connected(_on_action_finished):
 		_observed_world.action_finished.disconnect(_on_action_finished)
+	if _observed_world != null and _observed_world.boundary_settled.is_connected(_on_boundary_settled):
+		_observed_world.boundary_settled.disconnect(_on_boundary_settled)
 	_observed_world = runtime().world_sim
 	_observed_world.action_finished.connect(_on_action_finished)
+	_observed_world.boundary_settled.connect(_on_boundary_settled)
 	_observed_domain = domain()
 	_observed_domain.structures_changed.connect(_on_structures_changed)
 
 
 func _on_structures_changed(cells: Array[Vector2i]) -> void:
+	if runtime().world_sim.settlement.is_pending():
+		for cell: Vector2i in cells:
+			_pending_sight_cells[cell] = true
+		return
 	runtime().home_runtime()._world.notify_sight_obstacles_changed(cells)
+	queue_redraw()
+
+
+func _on_boundary_settled(_at_ms: int) -> void:
+	if GameClock.is_advancing():
+		return # Several world boundaries can belong to one public clock slice.
+	_flush_sight_changes()
+
+
+func _flush_sight_changes() -> void:
+	if not _pending_sight_cells.is_empty():
+		var cells: Array[Vector2i] = []
+		cells.assign(_pending_sight_cells.keys())
+		_pending_sight_cells.clear()
+		runtime().home_runtime()._world.notify_sight_obstacles_changed(cells)
+	refresh_choices()
+	refresh()
 	queue_redraw()
 
 
@@ -309,8 +334,8 @@ func revoke() -> void:
 
 
 func stop() -> void:
-	runtime().stop_player_action()
-	_reply.text = "已停下；工料、工时与已恢复的精神继续保留。"
+	var accepted: bool = runtime().stop_player_action()
+	_reply.text = "已停下；工料、工时与已恢复的精神继续保留。" if accepted else "当前结算尚未完成，本次停止未受理。"
 	refresh()
 
 
@@ -337,6 +362,8 @@ func _actor_name(actor: String) -> String:
 
 
 func refresh_choices(preferred: String = "") -> void:
+	if runtime().world_sim.settlement.is_pending():
+		return
 	var previous: String = selected_project()
 	project_choice.clear()
 	for id: String in domain().projects:
@@ -396,6 +423,8 @@ func _selection_layer() -> String:
 func refresh() -> void:
 	if panel == null or not panel.visible:
 		return
+	if runtime().world_sim.settlement.is_pending():
+		return
 	if not runtime().human_player_active():
 		panel.hide()
 		return
@@ -444,6 +473,8 @@ func refresh() -> void:
 
 
 func reset_observation() -> void:
+	clear_committed_canvas()
+	_pending_sight_cells.clear()
 	_bind_structure_changes()
 	panel.hide()
 	project_choice.clear()
@@ -469,6 +500,7 @@ func _describe_space(space: Dictionary) -> String:
 
 
 func _on_advanced(_from: int, _to: int) -> void:
+	_flush_sight_changes()
 	refresh()
 	queue_redraw()
 
@@ -505,7 +537,7 @@ func _visible(cell: Vector2i) -> bool:
 	return runtime()._home._fog == null or runtime()._home._fog.is_cell_visible(cell)
 
 
-func _draw() -> void:
+func _build_canvas() -> void:
 	if _owner == null or runtime() == null:
 		return
 	if panel.visible and not domain().sites.is_empty():
@@ -513,10 +545,10 @@ func _draw() -> void:
 			if _visible(cell):
 				var space: Dictionary = domain().space_at(cell)
 				if bool(space.get("enclosed", false)):
-					draw_rect(Rect2(_point(cell) - Vector2(30, 30), Vector2(60, 60)), Color(UI.JADE, 0.13))
-				draw_rect(Rect2(_point(cell) - Vector2(29, 29), Vector2(58, 58)), Color(UI.GOLD, 0.18), false, 1)
+					capture_rect(Rect2(_point(cell) - Vector2(30, 30), Vector2(60, 60)), Color(UI.JADE, 0.13))
+				capture_rect(Rect2(_point(cell) - Vector2(29, 29), Vector2(58, 58)), Color(UI.GOLD, 0.18), false, 1)
 		if domain().site_contains(selection) and _visible(selection):
-			draw_rect(Rect2(_point(selection) - Vector2(29, 29), Vector2(58, 58)), UI.GOLD, false, 2)
+			capture_rect(Rect2(_point(selection) - Vector2(29, 29), Vector2(58, 58)), UI.GOLD, false, 2)
 	var sim: RefCounted = runtime().world_sim.regions[domain().definitions.site.region]
 	for id: String in domain().projects:
 		var project: Dictionary = domain().projects[id]
@@ -526,10 +558,10 @@ func _draw() -> void:
 				continue
 			var p: Vector2 = _point(cell)
 			if project.state == "blueprint":
-				draw_rect(Rect2(p - Vector2(24, 18), Vector2(48, 36)), Color(UI.JADE, 0.25))
-				draw_rect(Rect2(p - Vector2(24, 18), Vector2(48, 36)), UI.JADE, false, 2)
+				capture_rect(Rect2(p - Vector2(24, 18), Vector2(48, 36)), Color(UI.JADE, 0.25))
+				capture_rect(Rect2(p - Vector2(24, 18), Vector2(48, 36)), UI.JADE, false, 2)
 			elif project.state == "ruined":
-				draw_rect(Rect2(p - Vector2(20, 12), Vector2(40, 24)), Color("635e56"))
+				capture_rect(Rect2(p - Vector2(20, 12), Vector2(40, 24)), Color("635e56"))
 			elif project.state == "built":
 				if definition.layer == "roof":
 					_draw_roof(p)
@@ -538,11 +570,11 @@ func _draw() -> void:
 				elif definition.facts.wall_connection:
 					var mask: int = SimStructureQuery.wall_mask(runtime().world_sim, cell, _visible)
 					if bool(definition.door):
-						Walls.draw_door(self, p, mask, bool(project.open))
+						capture_custom(Callable(Walls, "draw_door").bind(self, p, mask, bool(project.open)))
 					else:
-						Walls.draw_wall(self, p, mask)
+						capture_custom(Callable(Walls, "draw_wall").bind(self, p, mask))
 						if not definition.facts.sight_blocked:
-							draw_rect(Rect2(p + Vector2(-12, -14), Vector2(24, 18)), Color("8ca7a4"))
+							capture_rect(Rect2(p + Vector2(-12, -14), Vector2(24, 18)), Color("8ca7a4"))
 				else:
 					_draw_furniture(p, definition, int(project.rotation))
 		var raw: Array = sim.actors[project.carrier].cell if not str(project.carrier).is_empty() else project.material_cell
@@ -550,28 +582,28 @@ func _draw() -> void:
 		if sim.inventory.quantity(id, str(definition.item)) > 0 and _visible(material_cell):
 			var p: Vector2 = _point(material_cell) + Vector2(12, 16)
 			for i: int in 3:
-				draw_line(p + Vector2(-8, i * 4), p + Vector2(8, i * 4 - 3), Color("ae8553"), 4)
+				capture_line(p + Vector2(-8, i * 4), p + Vector2(8, i * 4 - 3), Color("ae8553"), 4)
 
 
 func _draw_roof(p: Vector2) -> void:
 	var bounds := Rect2(p + Vector2(-31, -48), Vector2(62, 62))
-	draw_rect(bounds, Color(0.54, 0.53, 0.38, 0.22))
-	draw_rect(bounds, Color("b7ad7d"), false, 2)
+	capture_rect(bounds, Color(0.54, 0.53, 0.38, 0.22))
+	capture_rect(bounds, Color("b7ad7d"), false, 2)
 	for x: int in range(-22, 28, 10):
-		draw_line(p + Vector2(x, -47), p + Vector2(x, 13), Color(0.74, 0.72, 0.5, 0.30), 2)
+		capture_line(p + Vector2(x, -47), p + Vector2(x, 13), Color(0.74, 0.72, 0.5, 0.30), 2)
 
 
 func _draw_bed(p: Vector2) -> void:
 	_draw_shadow(p)
-	draw_rect(Rect2(p + Vector2(-20, -25), Vector2(40, 49)), Color("68492f"))
-	draw_rect(Rect2(p + Vector2(-16, -21), Vector2(32, 41)), Color("80928b"))
-	draw_rect(Rect2(p + Vector2(-13, -19), Vector2(26, 10)), Color("d6cdb1"))
-	draw_line(p + Vector2(-21, -26), p + Vector2(21, -26), Color("b49666"), 5)
-	draw_line(p + Vector2(-21, 23), p + Vector2(21, 23), Color("b49666"), 4)
+	capture_rect(Rect2(p + Vector2(-20, -25), Vector2(40, 49)), Color("68492f"))
+	capture_rect(Rect2(p + Vector2(-16, -21), Vector2(32, 41)), Color("80928b"))
+	capture_rect(Rect2(p + Vector2(-13, -19), Vector2(26, 10)), Color("d6cdb1"))
+	capture_line(p + Vector2(-21, -26), p + Vector2(21, -26), Color("b49666"), 5)
+	capture_line(p + Vector2(-21, 23), p + Vector2(21, 23), Color("b49666"), 4)
 
 
 func _draw_shadow(p: Vector2) -> void:
-	draw_rect(Rect2(p + Vector2(-29, 14), Vector2(61, 10)), Color(0, 0, 0, 0.23))
+	capture_rect(Rect2(p + Vector2(-29, 14), Vector2(61, 10)), Color(0, 0, 0, 0.23))
 
 
 func selected_site() -> String:
@@ -648,10 +680,10 @@ func _draw_furniture(p: Vector2, definition: Dictionary, rotation: int) -> void:
 	if definition.capabilities.has("storage"): color = Color("a48754")
 	elif definition.capabilities.has("workbench"): color = Color("69777a")
 	elif definition.capabilities.has("seat"): color = Color("aa916b")
-	draw_rect(Rect2(p - Vector2(22, 19), Vector2(44, 38)), color)
-	draw_rect(Rect2(p - Vector2(22, 19), Vector2(44, 38)), Color("3e352d"), false, 2)
+	capture_rect(Rect2(p - Vector2(22, 19), Vector2(44, 38)), color)
+	capture_rect(Rect2(p - Vector2(22, 19), Vector2(44, 38)), Color("3e352d"), false, 2)
 	var facing: Vector2i = SimConstructionGeometry.direction(Vector2i.UP, rotation)
-	draw_line(p, p + Vector2(facing) * 15.0, UI.PAPER, 2)
+	capture_line(p, p + Vector2(facing) * 15.0, UI.PAPER, 2)
 
 
 func _item_label(item: String) -> String:
@@ -659,6 +691,8 @@ func _item_label(item: String) -> String:
 
 
 func _on_action_finished(outcome: Dictionary) -> void:
+	if GameClock.is_advancing():
+		return # The clock's completed projection refreshes the same fact once.
 	if outcome.actor == "player" and outcome.domain in ["construction", "facility_use"]:
 		runtime()._refresh_panel()
 		refresh()

@@ -31,6 +31,11 @@ var _active: bool = false
 var _visibility_dirty: bool = true
 var _observer_altitude: int = 0
 var _observer_radius: int = VISION_RADIUS
+var _projection_guard: Callable
+
+
+func set_projection_guard(guard: Callable) -> void:
+	_projection_guard = guard
 
 
 func setup(world_ref: ReolWorld, start_cell: Vector2i) -> void:
@@ -118,6 +123,8 @@ func _process(delta: float) -> void:
 func update_now() -> void:
 	if world == null or _image == null:
 		return
+	if _projection_guard.is_valid() and not bool(_projection_guard.call()):
+		return # Keep both the last image and the dirty request until commit.
 	_visibility_dirty = false
 
 	_clear_visible()

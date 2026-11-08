@@ -193,6 +193,10 @@ func is_executing() -> bool:
 	return _executing
 
 
+func has_failed() -> bool:
+	return _failed
+
+
 func contract() -> Dictionary:
 	var steps: Array[Dictionary] = []
 	for step: Step in _plan:

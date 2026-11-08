@@ -13,6 +13,9 @@ func run(runner: Object) -> void:
 	_manual_override_before_projection(runner)
 	_regional_requested_limit(runner)
 	_settlement_continuation(runner)
+	_test_cancel_during_settlement(runner)
+	_settlement_failure_recovery(runner)
+	_construction_publication(runner)
 	print("SCENARIO real clock/world commit: published boundary, budget debt, route override and retained regional target")
 
 
@@ -334,6 +337,194 @@ func _settlement_continuation(runner: Object) -> void:
 	runner.assert_true(not notifications.is_empty() and not notifications.has(false), "all time listeners observe complete world boundaries and the same body projection")
 	runner.assert_true(not region_notifications.is_empty() and not fixture.home._clock_interval_had_events, "regional changes during an earlier continuation notify once the public interval commits and clear their debt")
 	runner.assert_true(_capture_future(runtime, fixture.player) == expected, "per-stage continuation preserves the full original clock/body/route/world future")
+	fixtures._dispose(fixture)
+
+
+func _test_cancel_during_settlement(runner: Object) -> void:
+	var fixture: Dictionary = _setup(runner)
+	if fixture.is_empty():
+		return
+	var runtime: WorldContinuityRuntime = fixture.continuity
+	var world: RegionalSimulation = runtime.world_sim
+	var home: VillageSimulation = world.regions.home
+	var started: bool = home.submit_action("player", "deliver_wood")
+	runner.assert_true(started, "cancel barrier fixture starts original hauling with real material reservations")
+	if not started:
+		fixtures._dispose(fixture)
+		return
+	world.invalidate_region("home")
+	runtime.settlement_work_budget = 1
+	GameClock.advance_msec(25)
+	runner.assert_true(world.settlement.is_pending(), "original hauling reaches a suspended world boundary")
+	var held_action: Dictionary = home.actors.player.active.duplicate(true)
+	var held_inventory: Dictionary = home.inventory.to_dict()
+	runner.assert_true(not held_action.is_empty() and not held_action.reservations.is_empty(), "pending hauling still owns its original reservations")
+	runner.assert_true(not runtime.stop_player_action(), "ordinary stop reports rejection while settlement is pending")
+	fixture.home.cancel_player_action()
+	var response: Dictionary = runtime.service_adapter.submit("cancel")
+	runner.assert_true(not response.ok and "未受理" in str(response.line), "service UI reports the refused stop instead of claiming success")
+	runner.assert_eq(home.actors.player.active, held_action, "ordinary and manual cancellation cannot change a partially settled native action")
+	runner.assert_eq(home.inventory.to_dict(), held_inventory, "rejected cancellation cannot release or spend original material reservations")
+	runtime.settlement_work_budget = 2147483647
+	for _attempt: int in 100:
+		if not GameClock.has_pending_advance():
+			break
+		GameClock._process(0.0)
+	runner.assert_true(not GameClock.has_pending_advance(), "the same hauling boundary finishes before accepting a new stop")
+	runner.assert_true(runtime.stop_player_action(), "a stop is accepted after the world boundary completes")
+	runner.assert_true(home.actors.player.active.is_empty(), "accepted stop ends the original native action")
+	for reservation: String in held_action.reservations:
+		runner.assert_true(not home.inventory.reservations.has(reservation), "accepted stop releases its actual material reservation")
+	# A checked owner failure is terminal, not another opportunity for UI
+	# cancellation to mutate the incomplete world. No callback is retried.
+	started = home.submit_action("player", "deliver_wood")
+	runner.assert_true(started, "failed-boundary probe starts another real reserved action")
+	if started:
+		var kernel := SimSettlementKernel.new([&"failure"])
+		kernel.add_step(&"rejected_owner", &"failure", func(_at_ms: int) -> bool: return false, SimSettlementKernel.CallMode.CHECKED)
+		kernel.compile()
+		world.settlement = kernel
+		kernel.begin(world.elapsed_ms, world.elapsed_ms + 1)
+		runner.assert_eq(kernel.resume(1), SimSettlementKernel.Status.FAILED, "failure probe reaches the actual terminal kernel state")
+		held_action = home.actors.player.active.duplicate(true)
+		held_inventory = home.inventory.to_dict()
+		runner.assert_true(not runtime.stop_player_action(), "ordinary stop also rejects a failed incomplete boundary")
+		fixture.home.cancel_player_action()
+		response = runtime.service_adapter.submit("cancel")
+		runner.assert_true(not response.ok, "failed-boundary UI cannot claim the stop succeeded")
+		runner.assert_eq(home.actors.player.active, held_action, "failed-boundary stop preserves original action state")
+		runner.assert_eq(home.inventory.to_dict(), held_inventory, "failed-boundary stop preserves original material reservations")
+	fixtures._dispose(fixture)
+
+
+func _settlement_failure_recovery(runner: Object) -> void:
+	var fixture: Dictionary = _setup(runner)
+	if fixture.is_empty():
+		return
+	var runtime: WorldContinuityRuntime = fixture.continuity
+	var path: String = "user://tests/clock_failure_%d.json" % Time.get_ticks_usec()
+	runner.assert_eq(runtime.save_game(path), OK, "failure recovery starts with a coherent complete session")
+	var expected: Variant = _capture_future(runtime, fixture.player)
+	var calls: Array[int] = [0]
+	var kernel := SimSettlementKernel.new([&"test"])
+	kernel.add_step(&"fails_once", &"test", func(_ms: int) -> bool:
+		calls[0] += 1
+		return false, SimSettlementKernel.CallMode.CHECKED)
+	kernel.compile()
+	runtime.world_sim.settlement = kernel
+	GameClock.advance_msec(25)
+	runner.assert_true(kernel.has_failed() and GameClock.paused, "a real checked callback failure becomes a paused terminal state")
+	runner.assert_eq(calls[0], 1, "the failing owner was invoked only once")
+	runner.assert_true("fails_once" in runtime._panel._notice.text and "读取" in runtime._panel._notice.text, "ordinary UI displays the failed step and a usable recovery route")
+	for _attempt: int in 3:
+		GameClock.set_paused(false)
+		GameClock._process(0.0)
+		runner.assert_true(GameClock.paused, "unpausing cannot restart terminal failed work")
+	runner.assert_eq(calls[0], 1, "terminal state neither replays effects nor retries the owner")
+	runner.assert_eq(GameClock.elapsed_ms, 0, "failure never publishes the unfinished clock")
+	runner.assert_eq(runtime.save_game(path), ERR_BUSY, "failed partial state cannot overwrite the complete archive")
+	runner.assert_eq(runtime.load_game(path), OK, "a valid complete session replaces the failed world between frames")
+	runner.assert_eq(_capture_future(runtime, fixture.player), expected, "recovery restores original owners, clock and complete world")
+	GameClock.advance_msec(25)
+	runner.assert_eq(GameClock.elapsed_ms, 25, "the restored session can advance normally")
+	_remove_owned_save(path)
+	fixtures._dispose(fixture)
+
+
+func _construction_publication(runner: Object) -> void:
+	var fixture: Dictionary = _setup(runner)
+	if fixture.is_empty():
+		return
+	var runtime: WorldContinuityRuntime = fixture.continuity
+	var world: RegionalSimulation = runtime.world_sim
+	for region: VillageSimulation in world.regions.values():
+		for actor: String in region.actors:
+			region.actors[actor].autonomous = false
+			region.cancel_action(actor, "publication_fixture")
+	var view: ConstructionRuntime = runtime.construction_adapter
+	var source: Vector2i = SimRouteTravel.cell(world.regions.home.places[world.construction.definitions.site.source].cell)
+	world.regions.home.set_actor_cell("player", source)
+	var origin: Vector2i = view.find_yard_origin()
+	var registered: Dictionary = world.construction.register_site("player", origin)
+	runner.assert_true(registered.ok, "publication probe registers a yard near the actual runtime store")
+	var placed: Dictionary = {"ok": false}
+	if registered.ok:
+		for cell: Vector2i in SimConstruction.cells_in(world.construction.site_bounds(str(registered.site))):
+			if SimMotionClearance.fixed_road_reserves(world, cell) or world.construction.occupied(cell):
+				continue
+			placed = world.construction.place("player", "wood_wall", cell)
+			if placed.ok:
+				break
+	var project: String = str(placed.get("project", ""))
+	var started: bool = bool(placed.ok) and bool(world.construction.begin("player", project).ok)
+	runner.assert_true(started, "publication probe begins a real material-backed wall")
+	if not started:
+		fixtures._dispose(fixture)
+		return
+	# Reach a genuine work phase without changing the product work duration.
+	for _attempt: int in 100:
+		if world.construction.active.get("player", {}).get("phase") == "work":
+			break
+		var next: int = world.construction.next_boundary_ms()
+		GameClock.advance_msec(next - GameClock.elapsed_ms)
+	if world.construction.active.get("player", {}).get("phase") != "work":
+		runner.assert_true(false, "publication probe reaches the original work phase")
+		fixtures._dispose(fixture)
+		return
+	view.show_panel()
+	view.refresh_choices(project)
+	view.refresh()
+	view.refresh_committed_canvas()
+	var prior_details: String = view._details.text
+	var prior_commands: Array[Callable] = view._canvas_commands.duplicate()
+	var notices: Array[Dictionary] = []
+	var listener: Callable = func(result: Dictionary) -> void: notices.append(result)
+	world.action_finished.connect(listener)
+	var due: int = int(world.construction.active.player.due_ms)
+	# Only the completion boundary needs a one-work policy; do not spend a
+	# permanent regression on thousands of unrelated three-minute continuations.
+	GameClock.advance_msec(due - GameClock.elapsed_ms - 1)
+	for _attempt: int in 1000:
+		if not GameClock.has_pending_advance():
+			break
+		GameClock._process(0.0)
+	runner.assert_eq(GameClock.elapsed_ms, due - 1, "publication probe reaches the last complete millisecond before real construction completion")
+	prior_details = view._details.text
+	view.refresh_committed_canvas()
+	prior_commands = view._canvas_commands.duplicate()
+	runtime.settlement_work_budget = 1
+	GameClock.advance_msec(1)
+	var held: bool = false
+	for _attempt: int in 1000:
+		if world.construction.projects[project].state == "built" and world.settlement.is_pending():
+			held = true
+			break
+		if not GameClock.has_pending_advance():
+			break
+		prior_details = view._details.text
+		prior_commands = view._canvas_commands.duplicate()
+		GameClock._process(0.0)
+	runner.assert_true(held, "the real wall commits inside its domain before the later world stages finish")
+	if not held:
+		print("PUBLICATION diagnostic ", world.construction.projects[project], " active=", world.construction.active, " stage=", world.settlement.progress(), " clock=", GameClock.elapsed_ms, " due=", due)
+	if held:
+		view.refresh()
+		view.refresh_committed_canvas()
+		runner.assert_eq(notices.size(), 0, "domain completion does not publish a partial world action result")
+		runner.assert_eq(view._details.text, prior_details, "the open construction book retains its complete-state details")
+		runner.assert_eq(view._canvas_commands, prior_commands, "a pending redraw retains the last complete construction drawing")
+		runner.assert_true(not view._pending_sight_cells.is_empty(), "sight changes remain owed to the public projection")
+	runtime.settlement_work_budget = 4096
+	for _attempt: int in 1000:
+		if not GameClock.has_pending_advance():
+			break
+		GameClock._process(0.0)
+	world.action_finished.disconnect(listener)
+	runner.assert_true(not GameClock.has_pending_advance(), "default work policy finishes the original request")
+	runner.assert_eq(notices.size(), 1, "the completed world publishes the real action result once")
+	runner.assert_true(view._pending_sight_cells.is_empty(), "completed clock publication flushes sight invalidation")
+	view.refresh_committed_canvas()
+	runner.assert_true(view._details.text != prior_details and view._canvas_commands != prior_commands, "complete publication updates both details and cached drawing")
 	fixtures._dispose(fixture)
 
 

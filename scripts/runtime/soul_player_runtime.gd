@@ -145,7 +145,12 @@ func submit(verb: String) -> Dictionary:
 			_selected = str(signals[(index + 1) % signals.size()].id)
 		project()
 		return {"ok": not signals.is_empty(), "line": "已改向你感到的另一道气息。"}
-	var result: Dictionary = agency.command(adapter.soul_avatar_id(), verb, _selected if verb == "call" else "")
+	var result: Dictionary
+	if verb == "cancel":
+		var accepted: bool = adapter.stop_player_action()
+		result = {"ok": accepted, "line": "请求已撤回，世界与实际保管位置继续。" if accepted else "本次撤回未受理；请待当前结算完成后重试。"}
+	else:
+		result = agency.command(adapter.soul_avatar_id(), verb, _selected if verb == "call" else "")
 	_notice.text = str(result.line)
 	project()
 	return result

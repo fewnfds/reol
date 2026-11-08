@@ -1,7 +1,7 @@
 extends RefCounted
 ## On-demand native Main acceptance, with a real process stop between write
 ## and read. Logs and saves are local artifacts, never content dependencies.
-const DIRECTORY: String = "res://logs/settlement_kernel"
+const DIRECTORY: String = "res://logs/settlement_kernel_close_20261109"
 var main: Node
 var runtime: WorldContinuityRuntime
 var clock: Node
@@ -21,7 +21,76 @@ func run(scene: Node, mode: String) -> Dictionary:
 		return await _read_case()
 	if mode == "performance":
 		return await _performance()
+	if mode == "publication":
+		return _publication()
+	if mode == "publication_finish":
+		return await _publication_finish()
 	return {"ok": false, "reason": "unknown mode"}
+
+
+func _publication() -> Dictionary:
+	if runtime._opening_selection_available:
+		runtime.select_starting_avatar("subject:player")
+	runtime.settlement_work_budget = 2147483647
+	for region: VillageSimulation in runtime.world_sim.regions.values():
+		for actor: String in region.actors:
+			region.actors[actor].autonomous = false
+			region.cancel_action(actor, "publication_qa")
+	var domain: SimConstruction = runtime.world_sim.construction
+	var source: Vector2i = SimRouteTravel.cell(runtime.world_sim.regions.home.places[domain.definitions.site.source].cell)
+	runtime.home_runtime()._player.spawn_at(source)
+	var view: ConstructionRuntime = runtime.construction_adapter
+	var registered: Dictionary = domain.register_site("player", view.find_yard_origin())
+	if not registered.ok:
+		return registered
+	var placed: Dictionary = {"ok": false}
+	for cell: Vector2i in SimConstruction.cells_in(domain.site_bounds(registered.site)):
+		if SimMotionClearance.fixed_road_reserves(runtime.world_sim, cell) or domain.occupied(cell):
+			continue
+		placed = domain.place("player", "wood_wall", cell)
+		if placed.ok:
+			break
+	if not placed.ok or not domain.begin("player", str(placed.project)).ok:
+		return {"ok": false, "reason": "real construction start"}
+	var id: String = placed.project
+	for _attempt: int in 100:
+		if domain.active.get("player", {}).get("phase") == "work":
+			break
+		clock.advance_msec(domain.next_boundary_ms() - clock.elapsed_ms)
+	if domain.active.get("player", {}).get("phase") != "work":
+		return {"ok": false, "reason": "real construction work phase"}
+	clock.advance_msec(int(domain.active.player.due_ms) - clock.elapsed_ms - 1)
+	view.show_panel()
+	view.refresh_choices(id)
+	view.refresh()
+	view.refresh_committed_canvas()
+	runtime.set_meta("qa_details", view._details.text)
+	runtime.set_meta("qa_commands", view._canvas_commands.duplicate())
+	runtime.set_meta("qa_project", id)
+	runtime.settlement_work_budget = 1
+	clock.advance_msec(1)
+	for _attempt: int in 1000:
+		if domain.projects[id].state == "built" and runtime.world_sim.settlement.is_pending():
+			break
+		clock._process(0.0)
+	clock.set_paused(true)
+	var result: Dictionary = {"ok": domain.projects[id].state == "built" and runtime.world_sim.settlement.is_pending(), "clock": clock.elapsed_ms, "world": runtime.world_sim.elapsed_ms, "held": runtime.world_sim.settlement.progress(), "details_held": view._details.text == runtime.get_meta("qa_details"), "canvas_held": view._canvas_commands == runtime.get_meta("qa_commands"), "project": id}
+	_store("publication_partial", result)
+	return result
+
+
+func _publication_finish() -> Dictionary:
+	var view: ConstructionRuntime = runtime.construction_adapter
+	runtime.settlement_work_budget = 4096
+	# This request was deliberately stopped by a fresh user-style pause.
+	clock.set_paused(false)
+	if not await _drain():
+		return {"ok": false, "reason": "publication continuation"}
+	clock.set_paused(true)
+	await RenderingServer.frame_post_draw
+	var result: Dictionary = {"ok": not runtime.world_sim.settlement.is_pending(), "at_ms": clock.elapsed_ms, "details_updated": view._details.text != runtime.get_meta("qa_details"), "canvas_updated": view._canvas_commands != runtime.get_meta("qa_commands"), "sight_flushed": view._pending_sight_cells.is_empty()}
+	_store("publication_complete", result)
+	return result
 
 
 func _write_case() -> Dictionary:

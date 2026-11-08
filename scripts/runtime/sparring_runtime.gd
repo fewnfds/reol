@@ -1,5 +1,5 @@
 class_name SparringRuntime
-extends Node2D
+extends CommittedWorldCanvas
 ## Input and visible practice cues. Persistent stages belong to SimSparring.
 
 const UI = preload("res://scripts/ui/reol_ui_theme.gd")
@@ -107,12 +107,19 @@ func strike() -> bool:
 
 
 func stop() -> void:
+	if runtime().world_sim.settlement != null and runtime().world_sim.settlement.is_pending():
+		_notice = "当前结算尚未完成，本次停手未受理。"
+		refresh()
+		return
 	runtime().world_sim.sparring.stop()
 	_notice = "双方收手，各自调息；身上物资和已发生的事情都保留下来。"
 	refresh()
 
 
 func reset_observation() -> void:
+	if not can_refresh_canvas():
+		return
+	clear_committed_canvas()
 	_notice = "已接续保存时的约练与动作。" if runtime().world_sim.sparring.owns_actor("player") else "选中山门同门，再开口约练。"
 	panel.hide()
 	refresh()
@@ -122,9 +129,11 @@ func refresh() -> void:
 	var adapter: WorldContinuityRuntime = runtime()
 	if adapter == null or panel == null:
 		return
+	_line.text = _notice
+	if not can_refresh_canvas():
+		return
 	var domain: SimSparring = adapter.world_sim.sparring
 	var active: bool = domain.owns_actor("player")
-	_line.text = _notice
 	_invite.disabled = active
 	_strike.disabled = not active or domain.action_blocks("player") or not adapter._home._player.motion.action.is_empty()
 	_stop.disabled = not active
@@ -167,7 +176,7 @@ func _visible(id: String) -> bool:
 	return adapter._home._fog == null or adapter._home._fog.is_cell_visible(SimRouteTravel.cell(person.cell))
 
 
-func _draw() -> void:
+func _build_canvas() -> void:
 	var adapter: WorldContinuityRuntime = runtime()
 	if adapter == null or adapter.world_sim.sparring.bout.is_empty():
 		return
@@ -178,7 +187,7 @@ func _draw() -> void:
 		var point: Vector2 = SimRouteTravel.point(domain.body(id))
 		point.y -= adapter._home._world.get_elevation(TileGrid.world_to_cell(point)) * ReolWorld.ELEVATION_PX
 		var action: Dictionary = domain.bout.people[id].action
-		draw_arc(point, 26, 0, TAU, 24, UI.GOLD, 2, true)
+		capture_arc(point, 26, 0, TAU, 24, UI.GOLD, 2, true)
 		if action.is_empty():
 			continue
 		var raw: Array = action.direction
@@ -188,9 +197,9 @@ func _draw() -> void:
 		if domain.phase(id, adapter.world_sim.elapsed_ms) == "recover":
 			color.a = 0.25
 		var reach: float = float(domain.rules.strike.reach)
-		draw_arc(point, reach, angle - half, angle + half, 20, color, 3, true)
-		draw_line(point, point + Vector2.from_angle(angle - half) * reach, color, 1.5, true)
-		draw_line(point, point + Vector2.from_angle(angle + half) * reach, color, 1.5, true)
+		capture_arc(point, reach, angle - half, angle + half, 20, color, 3, true)
+		capture_line(point, point + Vector2.from_angle(angle - half) * reach, color, 1.5, true)
+		capture_line(point, point + Vector2.from_angle(angle + half) * reach, color, 1.5, true)
 
 
 static func _phase_line(phase: String) -> String:

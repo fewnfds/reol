@@ -42,7 +42,8 @@ func submit(action_id: String) -> Dictionary:
 	if world.services == null:
 		return _result(false, "尚未准备好当地服务。")
 	if action_id == "cancel":
-		adapter.stop_player_action()
+		if not adapter.stop_player_action():
+			return _result(false, "当前结算尚未完成，本次停止未受理。")
 		return _result(true, "已停止当前行动，随身物品保留；受托公物可续做或交回。")
 	if not adapter.player_journey.is_empty():
 		return _result(false, "先完成或停止当前行程。")
@@ -129,6 +130,8 @@ func reset_observation() -> void:
 
 
 func refresh() -> void:
+	if runtime() != null and runtime().world_sim.settlement.is_pending():
+		return
 	var adapter: WorldContinuityRuntime = runtime()
 	if panel == null or adapter == null or adapter.world_sim == null:
 		return

@@ -7,6 +7,8 @@ var panel: PanelContainer
 var selected_cell: Vector2i = Vector2i(-1, -1)
 var _description: Label
 var _owner: WeakRef
+var _selection_bounds: Rect2
+var _selection_visible: bool = false
 
 
 func setup(adapter: WorldContinuityRuntime) -> void:
@@ -52,13 +54,14 @@ func runtime() -> WorldContinuityRuntime:
 
 func reset_observation() -> void:
 	selected_cell = Vector2i(-1, -1)
+	_selection_visible = false
 	panel.hide()
 	queue_redraw()
 
 
 func observe(cell: Vector2i) -> bool:
 	var adapter: WorldContinuityRuntime = runtime()
-	if adapter == null or adapter.soul_player_active() or not visible_cell(cell):
+	if adapter == null or _presentation_pending() or adapter.soul_player_active() or not visible_cell(cell):
 		return false
 	selected_cell = cell
 	panel.show()
@@ -68,13 +71,15 @@ func observe(cell: Vector2i) -> bool:
 
 func visible_cell(cell: Vector2i) -> bool:
 	var adapter: WorldContinuityRuntime = runtime()
-	if adapter == null or adapter.soul_player_active() or not adapter.world_sim.map_data.in_bounds(cell):
+	if adapter == null or _presentation_pending() or adapter.soul_player_active() or not adapter.world_sim.map_data.in_bounds(cell):
 		return false
 	var fog: FogOfWar = adapter.home_runtime()._fog
 	return fog.is_cell_visible(cell) if fog != null else cell.distance_to(adapter.controlled_cell()) <= 5.0
 
 
 func describe(cell: Vector2i) -> String:
+	if _presentation_pending():
+		return _description.text if cell == selected_cell and _description != null else "世界事务仍在接续，请稍后观察。"
 	if not visible_cell(cell):
 		return "此处已离开视野，眼下的情形无法确认。"
 	var adapter: WorldContinuityRuntime = runtime()
@@ -118,10 +123,20 @@ func _local_light_line(cell: Vector2i) -> String:
 
 
 func refresh() -> void:
-	if panel == null or not panel.visible:
+	if panel == null or not panel.visible or _presentation_pending():
 		return
 	_description.text = describe(selected_cell)
+	_selection_visible = visible_cell(selected_cell)
+	if _selection_visible:
+		var point: Vector2 = TileGrid.cell_to_world(selected_cell)
+		point.y -= runtime().world_sim.map_data.get_elevation(selected_cell) * ReolWorld.ELEVATION_PX
+		_selection_bounds = Rect2(point - Vector2.ONE * TileGrid.TILE_SIZE * 0.5, Vector2.ONE * TileGrid.TILE_SIZE)
 	queue_redraw()
+
+
+func _presentation_pending() -> bool:
+	var adapter: WorldContinuityRuntime = runtime()
+	return adapter != null and adapter.world_sim != null and adapter.world_sim.settlement != null and adapter.world_sim.settlement.is_pending()
 
 
 func cell_at_point(point: Vector2) -> Vector2i:
@@ -144,8 +159,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _draw() -> void:
-	if panel == null or not panel.visible or not visible_cell(selected_cell):
+	if panel == null or not panel.visible or not _selection_visible:
 		return
-	var point: Vector2 = TileGrid.cell_to_world(selected_cell)
-	point.y -= runtime().world_sim.map_data.get_elevation(selected_cell) * ReolWorld.ELEVATION_PX
-	draw_rect(Rect2(point - Vector2.ONE * TileGrid.TILE_SIZE * 0.5, Vector2.ONE * TileGrid.TILE_SIZE), Color("#c3bf91"), false, 2.0)
+	# Redraw may already be queued when a later boundary suspends. Draw the
+	# last accepted local projection instead of reading that partial world.
+	draw_rect(_selection_bounds, Color("#c3bf91"), false, 2.0)

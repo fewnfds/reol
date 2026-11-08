@@ -114,8 +114,11 @@ func begin_practice() -> Dictionary:
 
 
 func cancel_practice() -> void:
-	runtime().world_sim.capability_practice.cancel("player", "player_cancelled")
-	_notice.text = "已中止；已付时间与气力保留，未完成便没有练成本领。"
+	if runtime().world_sim.settlement != null and runtime().world_sim.settlement.is_pending():
+		_notice.text = "当前结算尚未完成，本次停止未受理。"
+	else:
+		var accepted: bool = runtime().world_sim.capability_practice.cancel("player", "player_cancelled")
+		_notice.text = "已中止；已付时间与气力保留，未完成便没有练成本领。" if accepted else "眼下没有正在进行的练习。"
 	refresh()
 
 
@@ -132,6 +135,8 @@ func _on_advanced(_from: int, to: int) -> void:
 
 
 func refresh() -> void:
+	if runtime() != null and runtime().world_sim.settlement.is_pending():
+		return
 	var adapter: WorldContinuityRuntime = runtime()
 	if adapter == null or panel == null:
 		return

@@ -1,5 +1,5 @@
 class_name ConflictRuntime
-extends Node2D
+extends CommittedWorldCanvas
 ## Visible intentions and cues; bodies, techniques and costs stay in the sim.
 
 const UI = preload("res://scripts/ui/reol_ui_theme.gd")
@@ -128,6 +128,10 @@ func request_cast(method: String) -> bool:
 
 
 func yield_player() -> void:
+	if runtime().world_sim.settlement != null and runtime().world_sim.settlement.is_pending():
+		_notice = "当前结算尚未完成，本次停手未受理。"
+		refresh()
+		return
 	_pending = ""
 	runtime().world_sim.conflicts.cancel("player")
 	_notice = "已经退让停手。可自行离开调息；挫伤和已付代价不会重置。"
@@ -167,6 +171,9 @@ func has_visible_danger() -> bool:
 
 
 func reset_observation() -> void:
+	if not can_refresh_canvas():
+		return
+	clear_committed_canvas()
 	_pending = ""
 	if panel != null:
 		panel.hide()
@@ -178,13 +185,15 @@ func refresh() -> void:
 	var adapter: WorldContinuityRuntime = runtime()
 	if adapter == null or panel == null:
 		return
+	_line.text = _notice
+	if not can_refresh_canvas():
+		return
 	var domain: SimConflicts = adapter.world_sim.conflicts
 	var active: bool = not domain.conflict_for("player").is_empty()
 	# Keep the world readable during actual fighting, including after a load.
 	adapter.service_adapter.panel.visible = adapter.human_player_active() and not active
 	adapter._panel.visible = adapter.human_player_active() and not active
 	badge.visible = active and adapter.human_player_active()
-	_line.text = _notice
 	var known: Array[String] = []
 	for method: String in domain.rules.methods:
 		if domain.knows("player", method):
@@ -214,7 +223,7 @@ func _visual(point: Vector2) -> Vector2:
 	return point - Vector2(0, runtime().world_sim.map_data.get_elevation(TileGrid.world_to_cell(point)) * ReolWorld.ELEVATION_PX)
 
 
-func _draw() -> void:
+func _build_canvas() -> void:
 	var adapter: WorldContinuityRuntime = runtime()
 	if adapter == null or not adapter.human_player_active():
 		return
@@ -227,7 +236,7 @@ func _draw() -> void:
 			if not _visible(actor):
 				continue
 			var point: Vector2 = _visual(SimRouteTravel.point(domain.body(actor)))
-			draw_arc(point, 26, 0, TAU, 24, UI.WARNING, 2)
+			capture_arc(point, 26, 0, TAU, 24, UI.WARNING, 2)
 			var aid: String = str(row.people[actor].action)
 			if aid.is_empty():
 				continue
@@ -236,19 +245,19 @@ func _draw() -> void:
 			var color: Color = UI.GOLD if domain.phase(actor, adapter.world_sim.elapsed_ms) == "prepare" else UI.WARNING
 			if action.method == "sword":
 				var half: float = deg_to_rad(float(domain.rules.methods.sword.half_angle_degrees))
-				draw_arc(point, float(domain.rules.methods.sword.reach), direction.angle() - half, direction.angle() + half, 24, color, 3)
+				capture_arc(point, float(domain.rules.methods.sword.reach), direction.angle() - half, direction.angle() + half, 24, color, 3)
 			elif action.method == "qi_bolt":
-				draw_line(point, point + direction * 100, color, 2)
+				capture_line(point, point + direction * 100, color, 2)
 	for actor: String in domain.barriers:
 		if _visible(actor):
-			draw_arc(_visual(SimRouteTravel.point(domain.body(actor))), 34, 0, TAU, 28, UI.JADE, 4)
+			capture_arc(_visual(SimRouteTravel.point(domain.body(actor))), 34, 0, TAU, 28, UI.JADE, 4)
 	for shot: Dictionary in domain.projectiles.values():
 		var point: Vector2 = SimConflicts._vector(shot.position)
 		var cell: Vector2i = TileGrid.world_to_cell(point)
 		if adapter.home_runtime()._fog == null or adapter.home_runtime()._fog.is_cell_visible(cell):
 			var display: Vector2 = point - Vector2(0, int(shot.level) * ReolWorld.ELEVATION_PX)
-			draw_line(display - SimConflicts._vector(shot.direction) * 18, display, UI.JADE, 5)
-			draw_circle(display, 5, UI.PAPER)
+			capture_line(display - SimConflicts._vector(shot.direction) * 18, display, UI.JADE, 5)
+			capture_circle(display, 5, UI.PAPER)
 
 
 func _unhandled_input(event: InputEvent) -> void:

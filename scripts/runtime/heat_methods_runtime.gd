@@ -201,6 +201,8 @@ func show_panel() -> void:
 
 
 func refresh_choices(selected: String = "") -> void:
+	if runtime() != null and runtime().world_sim.settlement.is_pending():
+		return
 	var previous: String = str(method_choice.get_selected_metadata()) if method_choice.item_count > 0 else ""
 	method_choice.clear()
 	for row: Dictionary in runtime().world_sim.heat_methods.visible_methods("player"):
@@ -283,12 +285,14 @@ func teach_selected() -> void:
 
 
 func stop() -> void:
-	runtime().stop_player_action()
-	_reply.text = "操作已中止；已付出的灵气和木料不退，未完成的阅读或练习不会授予本领。"
+	var accepted: bool = runtime().stop_player_action()
+	_reply.text = "操作已中止；已付出的灵气和木料不退，未完成的阅读或练习不会授予本领。" if accepted else "当前结算尚未完成，本次停止未受理。"
 	refresh()
 
 
 func refresh() -> void:
+	if runtime() != null and runtime().world_sim.settlement.is_pending():
+		return
 	if not panel.visible:
 		return
 	if not runtime().human_player_active():

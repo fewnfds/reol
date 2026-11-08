@@ -39,6 +39,9 @@ func refresh() -> void:
 	var adapter: WorldContinuityRuntime = _owner.get_ref() as WorldContinuityRuntime if _owner != null else null
 	if adapter == null:
 		return
+	if adapter.world_sim.settlement != null and adapter.world_sim.settlement.is_pending():
+		# The next complete clock notification refreshes this retained tint.
+		return
 	var light: Dictionary = SimNaturalLight.sky(adapter.world_sim, adapter.controlled_cell())
 	if bool(light.supported):
 		color = color_for_sky(light)

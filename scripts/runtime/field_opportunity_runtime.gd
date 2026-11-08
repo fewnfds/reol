@@ -1,5 +1,5 @@
 class_name FieldOpportunityRuntime
-extends Node2D
+extends CommittedWorldCanvas
 ## Personal field notes and actual scenery. Destinations, bodies and objects
 ## remain with their original authorities; this view never generates a reward.
 
@@ -182,6 +182,9 @@ func _scene_line() -> String:
 
 
 func reset_observation() -> void:
+	if not can_refresh_canvas():
+		return
+	clear_committed_canvas()
 	panel.hide()
 	_notice.text = ""
 	refresh()
@@ -190,6 +193,8 @@ func reset_observation() -> void:
 func refresh() -> void:
 	var adapter: WorldContinuityRuntime = runtime()
 	if adapter == null or panel == null:
+		return
+	if not can_refresh_canvas():
 		return
 	entry.visible = adapter.human_player_active() and adapter.home_runtime()._player.avatar_active
 	if not adapter.human_player_active():
@@ -237,7 +242,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-func _draw() -> void:
+func _build_canvas() -> void:
 	var adapter: WorldContinuityRuntime = runtime()
 	if adapter == null or not adapter.human_player_active():
 		return
@@ -257,13 +262,13 @@ func _draw() -> void:
 		var currently_visible: bool = visible_sites.has(str(site.id)) and (fog == null or fog.is_cell_visible(cell))
 		var color: Color = UI.GOLD if currently_visible else UI.MUTED.darkened(0.35)
 		_draw_stele(point, color)
-		draw_string_outline(ThemeDB.fallback_font, point + Vector2(-72, -44), str(site.label), HORIZONTAL_ALIGNMENT_CENTER, 144, 14, 4, UI.INK)
-		draw_string(ThemeDB.fallback_font, point + Vector2(-72, -44), str(site.label), HORIZONTAL_ALIGNMENT_CENTER, 144, 14, color)
+		capture_text_outline(ThemeDB.fallback_font, point + Vector2(-72, -44), str(site.label), HORIZONTAL_ALIGNMENT_CENTER, 144, 14, 4, UI.INK)
+		capture_text(ThemeDB.fallback_font, point + Vector2(-72, -44), str(site.label), HORIZONTAL_ALIGNMENT_CENTER, 144, 14, color)
 
 
 func _draw_stele(point: Vector2, color: Color) -> void:
-	draw_rect(Rect2(point + Vector2(-22, -7), Vector2(44, 14)), UI.INK)
-	draw_colored_polygon(PackedVector2Array([point + Vector2(-13, 0), point + Vector2(-13, -31), point + Vector2(-1, -37), point + Vector2(4, -22), point + Vector2(13, -28), point + Vector2(13, 0)]), color.darkened(0.6))
-	draw_line(point + Vector2(-7, -26), point + Vector2(-2, -20), color, 2)
-	draw_line(point + Vector2(-2, -17), point + Vector2(5, -13), color, 2)
-	draw_line(point + Vector2(-6, -10), point + Vector2(4, -7), color, 2)
+	capture_rect(Rect2(point + Vector2(-22, -7), Vector2(44, 14)), UI.INK)
+	capture_polygon(PackedVector2Array([point + Vector2(-13, 0), point + Vector2(-13, -31), point + Vector2(-1, -37), point + Vector2(4, -22), point + Vector2(13, -28), point + Vector2(13, 0)]), color.darkened(0.6))
+	capture_line(point + Vector2(-7, -26), point + Vector2(-2, -20), color, 2)
+	capture_line(point + Vector2(-2, -17), point + Vector2(5, -13), color, 2)
+	capture_line(point + Vector2(-6, -10), point + Vector2(4, -7), color, 2)

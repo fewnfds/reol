@@ -66,6 +66,10 @@ func _ready() -> void:
 func update_view(here: String, observations: String, notice: String) -> void:
 	_heading.text = here.replace(" · 点击居民查看活动", "")
 	_observations.text = observations
+	update_notice(notice)
+
+
+func update_notice(notice: String) -> void:
 	_notice.text = notice
 	_notice.tooltip_text = notice
 

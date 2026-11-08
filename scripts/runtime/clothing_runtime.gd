@@ -176,6 +176,8 @@ func visible_objects() -> Array[String]:
 
 
 func refresh() -> void:
+	if runtime() != null and runtime().world_sim.settlement.is_pending():
+		return
 	if not panel.visible:
 		return
 	if not runtime().human_player_active():
@@ -238,6 +240,9 @@ func approach() -> void:
 
 func cancel() -> void:
 	if runtime().human_player_active():
-		runtime().world_sim.clothing.cancel("player")
-		response.text = "已停手，未完成的衣物动作不会改变物品位置或穿法。"
+		if runtime().world_sim.settlement != null and runtime().world_sim.settlement.is_pending():
+			response.text = "当前结算尚未完成，本次停止未受理。"
+		else:
+			var accepted: bool = runtime().world_sim.clothing.cancel("player")
+			response.text = "已停手，未完成的衣物动作不会改变物品位置或穿法。" if accepted else "眼下没有正在进行的衣物动作。"
 		refresh()

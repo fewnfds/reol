@@ -1,6 +1,7 @@
 class_name RegionalSimulation
 extends RefCounted
 signal action_finished(outcome: Dictionary)
+signal boundary_settled(at_ms: int)
 ## One timeline owns regional execution, transport and delayed institutional news.
 ## Scene adapters may disappear; these instances and their pending work remain.
 
@@ -82,6 +83,8 @@ const ADVANCE_PHASES: Array[StringName] = [
 ]
 
 var regions: Dictionary = {}
+var _finished_notices: Array[Dictionary] = []
+var _publishing_boundary: bool = false
 var _opening_configs: Dictionary = {}
 var elapsed_ms: int = 0
 var target_ms: int = 0
@@ -450,6 +453,7 @@ func _bind_settlement() -> bool:
 	settlement = adapter.kernel
 	_settled_ms = elapsed_ms
 	_environment_boundary_waiting = false
+	_finished_notices.clear()
 	return true
 
 
@@ -458,7 +462,14 @@ func settled_ms() -> int:
 
 
 func accepts_commands() -> bool:
-	return settlement == null or not settlement.is_pending() or settlement.is_executing()
+	return not _publishing_boundary and (settlement == null or not settlement.is_pending() or settlement.is_executing())
+
+
+func publish_action_finished(outcome: Dictionary) -> void:
+	if settlement != null and settlement.is_pending():
+		_finished_notices.append(outcome)
+	else:
+		action_finished.emit(outcome)
 
 
 func opening_config(region_id: String) -> Dictionary:
@@ -673,7 +684,7 @@ func advance_to(requested_time: int, max_events: int = 4096) -> bool:
 
 
 func advance_to_ms(requested_ms: int, max_events: int = 4096, work_budget: int = MAX_COUNT) -> bool:
-	if settlement == null or settlement.is_executing():
+	if settlement == null or settlement.is_executing() or _publishing_boundary:
 		return false
 	settlement_work = 0
 	if construction != null and construction._changing:
@@ -740,6 +751,15 @@ func _complete_boundary(work_budget: int) -> bool:
 	_environment_event = null
 	_settled_ms = elapsed_ms
 	simulation_work.boundaries = int(simulation_work.boundaries) + 1
+	# Internal indexes were updated synchronously by their owners. Public
+	# results wait for all domains; observers cannot reenter this publication.
+	_publishing_boundary = true
+	var notices: Array[Dictionary] = _finished_notices
+	_finished_notices = []
+	for notice: Dictionary in notices:
+		action_finished.emit(notice)
+	boundary_settled.emit(elapsed_ms)
+	_publishing_boundary = false
 	return true
 
 
@@ -1007,7 +1027,7 @@ func known_event_lines(region_id: String, limit: int = 3) -> Array[String]:
 
 
 func to_dict() -> Dictionary:
-	if settlement != null and settlement.is_pending() or construction != null and construction._changing or environment_boundary_active() or (object_lifecycle != null and (object_lifecycle._committing or object_lifecycle.environment_change_pending())):
+	if _publishing_boundary or settlement != null and settlement.is_pending() or construction != null and construction._changing or environment_boundary_active() or (object_lifecycle != null and (object_lifecycle._committing or object_lifecycle.environment_change_pending())):
 		return {}
 	if not environment_fields.settle_at_ms(elapsed_ms) or not synchronize_regions():
 		return {}
@@ -1032,7 +1052,7 @@ func to_dict() -> Dictionary:
 
 
 func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: bool = false) -> bool:
-	if settlement != null and settlement.is_pending() or object_lifecycle != null and object_lifecycle._committing:
+	if _publishing_boundary or settlement != null and settlement.is_pending() or object_lifecycle != null and object_lifecycle._committing:
 		return false
 	# The current model cannot reconstruct causal field residuals from a Q
 	# archive. Historical importers remain evidence, not a second running engine.

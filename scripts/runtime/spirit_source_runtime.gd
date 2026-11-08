@@ -139,7 +139,8 @@ func submit(verb: String) -> Dictionary:
 	if verb == "cancel":
 		if not source.owns_actor("player"):
 			return _reply(false, "眼下没有正在进行的引息。")
-		adapter.stop_player_action()
+		if not adapter.stop_player_action():
+			return _reply(false, "当前结算尚未完成，本次停止未受理。")
 		return _reply(true, "已停止自己的引息；未完成的源息没有收入身体或温石。")
 	if verb == "object":
 		if adapter.object_adapter.select_object(_selected_object):
@@ -195,6 +196,8 @@ func reset_observation() -> void:
 
 
 func refresh() -> void:
+	if runtime() != null and runtime().world_sim.settlement.is_pending():
+		return
 	var adapter: WorldContinuityRuntime = runtime()
 	var source: RefCounted = domain()
 	if panel == null or adapter == null or source == null:
