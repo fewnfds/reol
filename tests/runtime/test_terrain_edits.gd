@@ -176,6 +176,9 @@ func _test_artifact_contact(runner: Object) -> void:
 	if runtime == null or runtime.world_sim == null:
 		main.free()
 		return
+	# This contact case compares completed minute-long take/place actions.
+	# Other terrain cases retain their normal budget and pending-state probes.
+	runtime.settlement_work_budget = 2147483647
 	runner.assert_true(runtime.select_starting_avatar("subject:player"), "artifact-contact probe selects the original human")
 	var world: RegionalSimulation = runtime.world_sim
 	var ring: String = "stele_drawing_ring"
