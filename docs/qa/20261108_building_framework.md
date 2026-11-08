@@ -46,4 +46,10 @@ Godot4.7.2 stable、实际NVIDIA GeForce RTX3060。已观察1280×720原生画�
 
 当前仍是原home账本和开局授权内的有界建设；完整攻击/修理、灯火燃料及室温、跨账本/嵌套/独特器物容纳、所有工艺和在制物换台未覆盖。伤害接口不等于普通攻击玩法。用途区域不是功能建筑或访问权，窗的屏障事实不意味着室外场已经隔热。
 
-代码d00bac已推送`origin/codex/general-buildings`，新包尚未合并main。真实证据提交检查点仅一次发现[CI42457788038](https://github.com/fewnfds/reol/actions/runs/42457788038)，完整headSha与d00bac一致、in_progress，终态待验；不启动轮询或等待代理。最后Markdown证据提交不改变已受检代码/数据/测试。
+初次证据提交时，代码d00bac已推送`origin/codex/general-buildings`，同SHA的[CI42457788038](https://github.com/fewnfds/reol/actions/runs/42457788038)尚为in_progress，因此当时未合并。该记录不表示当前待验。
+
+## 阶段整合与主线合并
+
+2026-11-08，用户明确要求完整合并主线并盘点框架缺口。在真实整合检查点执行`python tools/ci.py status --run 42457788038 --sha d00bac954b69cab096d580db002fb04013fa2543`，返回非缓存completed/success，完整headSha相符。fetch后工作区干净、远端main无分叉，`git merge --ff-only codex/general-buildings`及`git push origin main`成功，main由2e6b6a6到`eb330ee9c38fa3a5cc72004372ddeefd70409b1e`。
+
+d00bac到eb330ee仅10份Markdown，代码、数据、测试及工具未变；本轮阶段整合也只改Markdown，沿已有准确代码验证，不重复启动引擎、回归或模型审查。分支祖先核对中，全部已完成本地/远端开发分支均已在main历史，仅旧争环WIP未合入；该分支和命名stash完整保留。当前缺口收敛到技术总表，下一阶段范围只改原主计划，不新增平行计划。主线push的独立CI状态以BASELINE为准，不能把本run写作其精确SHA通过。

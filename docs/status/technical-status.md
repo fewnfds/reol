@@ -1,30 +1,38 @@
 # 技术落地总表
 
-核对日期：2026-11-08。依据Git分支差异、实际装配/调用和对应版本证据；名称按[术语与代码映射](../engineering/terminology.md)定位。当前普通环境成员为`environment_fields`，存档键由codec映射保持；建筑包接入范围与main集成状态分别记录。玩法操作查[FEATURES](features.md)，验证数字查[BASELINE](baseline.md)，当前停点查[HANDOFF](handoff.md)。已确认规则是目标约束，不等于所有机制已实现。
+核对日期：2026-11-08。依据Git分支祖先、实际装配/调用和准确代码证据；七个领域的当前能力与缺口统一维护于此。名称按[术语与代码映射](../engineering/terminology.md)定位，普通环境成员为`environment_fields`。玩法操作查[FEATURES](features.md)，验证查[BASELINE](baseline.md)，授权与停点查[HANDOFF](handoff.md)。已确认规则是目标约束，不等于所有机制已实现。
 
 ## 当前主线与普通入口
 
 | 名称 | 实际情况 |
 |---|---|
-| Git `main` / `origin/main` | 用户授权后已快进到`2e6b6a61caf11b5560c15a97f1a58cb156a7300b`，包含共同空间/最小行动及此前基础；该SHA CI已核success。新建筑包在独立分支，完整指针见Git与[分支页](branches.md) |
-| 当前根目录检出 | `codex/general-buildings`；通用建筑与组合空间阶段，实际停点与待验项见HANDOFF |
+| Git `main` / `origin/main` | 建筑阶段已完整快进并推送，包含集成点`eb330ee9c38fa3a5cc72004372ddeefd70409b1e`及此前全部已完成代码；阶段整合只改Markdown。准确代码d00bac的CI已核success；主线独立CI与实时指针见BASELINE和Git |
+| 当前交付范围 | 已完成代码合并与阶段盘点；下一阶段建议为植物实例与自然过程，尚未开始其实现。实际检出以Git为准 |
 | 普通 `Main` 游戏入口 | `scenes/main.tscn`及其运行接线；有限游戏能力和Git集成状态分别按功能及版本证据核验 |
 
-通用参与索引、环境局部/到期执行与健康活跃集合已接普通Main并合入Git main。五个旧正式功能分支均已在main历史；`codex/field-contest`与命名stash保留为隔离旧实验，不是待发布功能或自动恢复任务。[集成记录](../qa/20261107_mainline_cleanup.md)保留来源和验证对应关系。
+通用参与索引、环境局部/到期执行、健康活跃集合、共同空间/最小行动和通用建筑均已接普通Main并合入Git main。分支祖先核对显示全部已完成开发分支均在main历史；唯一未合入本地分支`codex/field-contest`与命名stash是隔离旧实验，不是待发布功能或自动恢复任务。来源见[分支页](branches.md)及[建筑验收](../qa/20261108_building_framework.md)。
 
 ## 按顶层框架的实际接入
 
-领域职责和交接以[顶层框架](../engineering/architecture/05-framework-domains.md)为准，框架出口以[基础建设计划](../plans/foundation-priorities.md)为准。下表包含main基础及当前建筑阶段分支的接入；版本与待验项见BASELINE，各顶层领域仍不能整体声明完成。
+领域职责以[顶层框架](../engineering/architecture/05-framework-domains.md)为准，依赖与出口以[基础建设计划](../plans/foundation-priorities.md)为准。下表均为当前main能力；前两阶段达到声明范围出口，各顶层领域仍有后续扩展边界。
 
 | 顶层框架 | 已有运行能力与主要入口 | 距框架出口的缺口 |
 |---|---|---|
 | **世界地块与空间框架** | [WorldMapData](../../scripts/sim/world_map_data.gd)、[ReolWorld](../../scripts/world/world.gd)；512²平面、64²显示区块、草/水/岩、稀疏地表改造；[SimWorldObjectQuery](../../scripts/sim/world_object_query.gd)与显式引用空间快照；`SimWorldSpace`组合身体/地面物/结构实时局部查询、冻结变更与恢复重建 | 普通地图规格固定，非任意规模生成；实时查询已覆盖现有身体/地面物/结构，未包含植物/衣物/全部容器；快照仍不枚举全世界；高差/多层后置 |
-| **实体、物品与容器框架** | [SimEntityQuery](../../scripts/sim/entity_query.gd)、[SimEmbodiment](../../scripts/sim/embodiment.gd)、原身体；声明能力、连续位置与多格几何；[SimObjectLifecycle](../../scripts/sim/object_lifecycle.gd)、[SimInventory](../../scripts/sim/inventory_ledger.gd)、[SimGroundPlacements](../../scripts/sim/ground_placements.gd)支持受控实物生命周期、同账本转移、堆拆、预约和唯一原物 | 通用身体/植物/家具生命周期未覆盖；独特器物、衣物与数量保留不同原owner，跨账本搬运、负重/容量、箱中箱、自由背包及完整处分权限未完成；普通装配仍限两区 |
-| **建筑与组合空间框架** | `SimConstruction`持原多格/朝向、材料施工、工地/用途与耐久；`SimConstructionGeometry`校验定义；`SimStructureQuery`/`SimEnclosedSpace`推导空间；`SimFacilityUse`接操作位、桌椅和真实储藏，`SimPersonalProduction`复用建成工作台；普通营造面板可使用 | 当前home账本/授权、有界工地和已实现能力；完整工艺、灯火/容纳环境、私人地产及跨区政策未接。房温归环境域，路径与主动攻击归行动域，最终证据见BASELINE |
-| **植被与自然生命框架** | [SimLandResources](../../scripts/sim/land_resources.gd)有限自然资源和两处野药环境响应；[SimAvianLife](../../scripts/sim/avian_life.gd)雀生活/雀身；[SimLargeBodies](../../scripts/sim/large_bodies.gd)3×3山兽；残识/载体保持原状态 | 地表覆盖和资源记录尚非完整植物实例；通用植物生命周期、自然过程及普遍环境来源/受体未接；非人生命仍是有限类型，完整繁衍/成长/寿命与生态规则后续实现，巨兽不可选 |
+| **实体、物品与容器框架** | [SimEntityQuery](../../scripts/sim/entity_query.gd)、[SimEmbodiment](../../scripts/sim/embodiment.gd)提供原身体/能力/几何；[SimObjectLifecycle](../../scripts/sim/object_lifecycle.gd)、[SimInventory](../../scripts/sim/inventory_ledger.gd)、[SimGroundPlacements](../../scripts/sim/ground_placements.gd)支持原物生命周期、同账本转移/堆拆/预约；建筑箱已接原库存、数量总容量和过滤 | 植物尚未接共同引用/生命周期；跨账本搬运、普遍体积/负重规则、嵌套容器、独特器物入箱、自由背包与完整处分权限未齐。各原owner分工继续保留，不需要合并成一个对象库 |
+| **建筑与组合空间框架** | 第2阶段声明范围已交付；`SimConstruction`持多格/朝向、工地/用途、施工及耐久/损毁；`SimConstructionGeometry`校验定义；`SimStructureQuery`/`SimEnclosedSpace`推导空间；`SimFacilityUse`接操作位/桌椅/真实储藏，原生产接工作台，普通营造入口可用 | 当前限home账本/授权和有界工地；通用维修、更多设施能力、私人地产及跨区政策尚未接。完整工艺归生产，房温/灯火归环境，路径/主动攻击归行动；这些边界不计作已实现建筑能力 |
+| **植被与自然生命框架** | [NaturalEnvironment](../../scripts/sim/natural_environment.gd)派生地表覆盖；[SimLandResources](../../scripts/sim/land_resources.gd)持有限资源账和两处野药响应；[SimAvianLife](../../scripts/sim/avian_life.gd)与[SimLargeBodies](../../scripts/sim/large_bodies.gd)提供有限非人生命 | 核心缺口是独立植物身份、位置/占地、可变生命周期及采集/损毁接口，尚未进入共同实时空间和普遍环境接缝；现有覆盖不是植物群体。完整动物繁衍/食物网另属后续，巨兽不可选 |
 | **环境框架** | [SimWorldEnvironmentFields](../../scripts/sim/world_environment_fields.gd)作为唯一室外冷热/五行实际响应；真实地面/固定来源、衰减/max、等级抵消、响应建立/消散和残留存读，人体/野药同温度；历法、地理新局编译、有限晴雨、自然日照、固定灯/随身固有微光与遮挡 | 随身物整体发源/尾迹/遮掩、容器透过及树兽墙材普遍发源未接；一房一温、隔热/开敞/拆合连续性未实现；完整雨雪/风/空气与五行后果后续实现，风水仅有规则；五行火不等于发热，光不等于冷热辐射 |
 | **单位行动与交互框架** | [SimLocalMotion](../../scripts/sim/local_motion.gd)、[SimRouteTravel](../../scripts/sim/route_travel.gd)、多格扫掠及运行层寻路读原身体/空间；[SimInteractionRequests](../../scripts/sim/interaction_requests.gd)与原执行器区分表达/理解/意愿/耗时/中断/结果，耗时搬运已接普通面板；`SimActionContract`使取放/施工/家具使用共用条件、占用、复核、终态与释放 | 动作仍由各领域过程执行，门面列举20种事项；最小合同已接取放/施工/家具使用，全领域共同生命周期、接近/效果组合和策略入口未齐。动态路径失效/重规划属于本框架内部缺口；固定运粮仍保护原路，非全局动态绕路 |
 | **认识与自主决策框架** | [SimSocialMemory](../../scripts/sim/social_memory.gd)私人认识/有向关系/来源、当面自述；[SimInstitutionBook](../../scripts/sim/institution_book.gd)任职公账和贡献；双聚落需求/职责/吃住/采集生产、预约、少量自主目的和互助；迷雾/探索提供有限观察接缝 | 新对象/属性未全面接共同观察与认识；通用目标/策略编排、工作依赖及授权依据仍有限；关系判断仍用有限因素加权/边界骰与逐人值。通用Claim为候选，现有贡献不等于Claim；制度与长程社会玩法后续实现 |
+
+## 阶段整合判断
+
+现有方向继续采用成熟作品公开接口体现的定义/实例/能力分工，以及领域过程保留原状态的做法。[研究依据](../../design/research/colony_sim_architecture.md)支持这种组织方式，不构成商业游戏内部源码审计。共同空间与建筑已经提供可复用基础；当前进度应描述为“主计划前两阶段在声明范围内已交付”，不使用七个领域全部完成或按脚本/断言数计算的百分比。
+
+下一阶段建议集中补齐**植物实例与自然过程**。代码依据是：`NaturalEnvironment._flora_at`只派生覆盖及placement_id；`SimLandResources`仍按固定resource_sources及原库存增长/采出，生态定义限定wild_herbs；`SimWorldObjectQuery._resource`明确返回`independent_plant=false`，`SimWorldSpace.KINDS`没有植物。单纯扩充草木定义或图片无法补齐这些接缝。
+
+交付植物原实例后，环境可读取真实草木、建筑和容器条件，行动也有一致的自然目标。后续顺序保持主计划的环境组合→完整行动→共同认识与自主选择。房温、搬运、动态重规划分别回到相应领域；本轮没有发现需要重写引擎或增加一套平行顶层框架的证据。详细范围和验收只改原主计划，本页不生成第二条施工队列。
 
 ## 贯穿框架的运行与工具合同
 
@@ -53,6 +61,6 @@
 
 ## “运行良好”的证据限度
 
-集成代码有完整本机分片覆盖、各worker错误/退出门禁和一次既有代码包静态审查；前序版本另有普通Main完全停开、RTX3060稀疏负载/画面及两域存读/短测证据。既有CI42356120868的准确SHA已核success，main起点`b3ae3399`的CI42365643089已核success；本阶段建筑分支d00bac本机4片完整覆盖250组/126290检查通过，3份普通在途档完全停开后同未来，一次原生审查4项发现已修复；远端CI另按准确SHA待验，详情见BASELINE。
+当前集成的建筑代码d00bac有本机4片完整覆盖250组/126290检查/0失败、3份普通在途档完全停开同未来、一次原生审查发现并修复4项问题，以及同SHA CI42457788038 completed/success。集成点至阶段盘点仅Markdown，不重复引擎/整套回归/模型审查；主线push的新run独立记证据，详情见BASELINE。
 
 不能用前序截图/帧时替代当前版本的规模验收，也不能拿此前26万静态物品的旧版压力结果担保当前密集动态世界。当前没有证据要求换引擎，也没有证据宣称全游戏规模已达标。

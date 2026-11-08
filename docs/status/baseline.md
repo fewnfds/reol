@@ -2,17 +2,21 @@
 
 核对：2026-11-08。采用版本与准确代码证据记录在此，操作范围见[FEATURES](features.md)，当前停点见[HANDOFF](handoff.md)，详细日志和限制见[QA](../qa/README.md)。历史分卷只描述当时版本。
 
-## 通用建筑与组合空间（已推送分支）
+## 通用建筑与组合空间（已合入main）
 
-`codex/general-buildings`最终受检代码`d00bac954b69cab096d580db002fb04013fa2543`：定义/实例/能力分开，多格/朝向、多工地/用途，独立空间事实、操作位/桌椅、原库存储藏、工作台接原生产、耐久/防护/损毁已接普通Main。13类定义、两种材料，框架出口和实际限制见[本阶段QA](../qa/20261108_building_framework.md)及[建筑合同](../engineering/construction-contract.md)。
+main包含建筑阶段最终受检代码`d00bac954b69cab096d580db002fb04013fa2543`：定义/实例/能力分开，多格/朝向、多工地/用途，独立空间事实、操作位/桌椅、原库存储藏、工作台接原生产、耐久/防护/损毁已接普通Main。13类定义、两种材料，框架出口和实际限制见[本阶段QA](../qa/20261108_building_framework.md)及[建筑合同](../engineering/construction-contract.md)。
 
 准确代码本机4片顺序完整check **250组/126290断言/0失败**，各worker结构、导入、脚本错误/超时及退出码均通过，独立覆盖汇总核250组无遗漏；总墙钟约3282秒，最慢片约1185秒，没有放宽单片1800秒门禁。首次单进程全量因夹具/非热通知错误及1800秒超时未通过，修复与证据保留在QA。一次Sol/custom原生静态审查的3项P2/1项P3均已修复并用反例验证。
 
-最终d00bac普通Main多格施工、座位使用、存箱三案均在完全停止游戏进程后独立恢复，checkpoint、原截止时间与整个联合未来SHA相同；RTX3060原生1280×720界面已查看。代码已推送开发分支，尚未合并main；[CI42457788038](https://github.com/fewnfds/reol/actions/runs/42457788038)完整headSha与d00bac一致，证据提交检查点为in_progress，终态待验；未以旧绿色代替。后续只整理Markdown，受检代码/数据/测试保持不变。
+最终d00bac普通Main多格施工、座位使用、存箱三案均在完全停止游戏进程后独立恢复，checkpoint、原截止时间与整个联合未来SHA相同；RTX3060原生1280×720界面已查看。[CI42457788038](https://github.com/fewnfds/reol/actions/runs/42457788038)已在本轮整合检查点核completed/success，完整headSha与d00bac一致。此后至主线集成点只有Markdown差异，受检代码/数据/测试保持不变；本轮未重复游戏验证。
 
 ## 当前集成代码
 
-用户授权后，main已从`b3ae3399d24e01975d231cd000c0af342740070b`快进并推送到`2e6b6a61caf11b5560c15a97f1a58cb156a7300b`，包含前阶段共同空间与最小行动，以及此前稀疏执行和测试工具。[CI42375335176](https://github.com/fewnfds/reol/actions/runs/42375335176)已核完整headSha2e6b6a6一致、completed/success。主线合并在新建筑开发之前完成，保护WIP/stash未改。
+用户授权后，main从`2e6b6a61caf11b5560c15a97f1a58cb156a7300b`快进并推送到建筑阶段证据提交`eb330ee9c38fa3a5cc72004372ddeefd70409b1e`，其后仅阶段整合Markdown；实时指针以Git为准。全部已完成开发分支都在main历史，本地唯一未合入分支为受保护的旧争环WIP，原命名stash未改。
+
+阶段整合文档提交检查点仅一次发现主线[CI42473540525](https://github.com/fewnfds/reol/actions/runs/42473540525)，headBranch为main、完整headSha为eb330ee9c38fa3a5cc72004372ddeefd70409b1e，状态in_progress，终态待验。后续只改Markdown，不立即复查或等待；不能沿用d00bac的run冒称本run通过。文档结构/链接/大小检查覆盖319份现行文档、495脚本入口，0错误；这不是新的游戏回归。
+
+前阶段共同空间集成点`2e6b6a61caf11b5560c15a97f1a58cb156a7300b`的[CI42375335176](https://github.com/fewnfds/reol/actions/runs/42375335176)已核同SHA completed/success；该次合并在建筑开发之前完成。
 
 前阶段共同空间最终代码`f50f0a84085294faf72e6315e99aa5343e7dbf15`的249组/125102断言/0失败、一次Sol/custom审查及两案完全停开证据见[阶段QA](../qa/20261107_world_space_actions.md)。该能力现已在main；旧QA的“未合并/远端待验”只记录当时状态，不能覆盖本页。
 
