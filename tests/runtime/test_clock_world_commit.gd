@@ -115,7 +115,7 @@ func _frame_reference(runner: Object) -> Variant:
 	if not _start_journey(runner, fixture):
 		fixtures._dispose(fixture)
 		return null
-	GameClock._process(0.2)
+	GameClock.advance_frame(0.2)
 	runner.assert_eq(GameClock.elapsed_ms, 200, "unlimited real frame reaches the comparison instant")
 	var result: Variant = _capture_future(fixture.continuity, fixture.player)
 	fixtures._dispose(fixture)
@@ -164,7 +164,7 @@ func _budgeted_frame_and_save(runner: Object) -> void:
 			reentry_results.append(runtime.save_game(path))
 	GameClock.time_advanced.connect(listener)
 	runtime.settings.event_budget = 1
-	GameClock._process(0.2)
+	GameClock.advance_frame(0.2)
 	var actual: int = int(world.elapsed_ms)
 	runner.assert_true(actual > 0 and actual < 50, "one actual regional event leaves the first fixed frame step partially complete")
 	runner.assert_eq(GameClock.elapsed_ms, actual, "the clock publishes only the partial time actually settled")
@@ -184,7 +184,7 @@ func _budgeted_frame_and_save(runner: Object) -> void:
 	runner.assert_eq(FileAccess.get_file_as_string(path + ".bak"), backup, "a refused save preserves the original backup bytes")
 	runner.assert_true(not FileAccess.file_exists(path + ".tmp") and not FileAccess.file_exists(path + ".bak.tmp"), "a refused save creates no intermediate file")
 	runtime.settings.event_budget = 4096
-	GameClock._process(0.0)
+	GameClock.advance_frame(0.0)
 	GameClock.time_advanced.disconnect(listener)
 	runner.assert_eq(GameClock.elapsed_ms, 200, "restored event budget drains the exact original frame request")
 	runner.assert_eq(world.elapsed_ms, 200, "the actual regional world reaches that same final instant")
@@ -226,7 +226,7 @@ func _budgeted_explicit(runner: Object) -> void:
 	runner.assert_eq(GameClock.elapsed_ms, world.elapsed_ms, "an explicit partial result also keeps one committed time")
 	runner.assert_true(GameClock.has_pending_advance(), "the original explicit endpoint remains pending")
 	runtime.settings.event_budget = 4096
-	GameClock._process(0.0)
+	GameClock.advance_frame(0.0)
 	runner.assert_eq(GameClock.elapsed_ms, 200, "zero new wall time resumes the original explicit endpoint")
 	runner.assert_eq(world.elapsed_ms, 200, "the resumed actual world reaches the same endpoint")
 	runner.assert_true(not GameClock.has_pending_advance(), "completed explicit work is not replayed")
@@ -326,10 +326,17 @@ func _settlement_continuation(runner: Object) -> void:
 	runner.assert_eq(GameClock.elapsed_ms, 0, "the public clock does not publish a half-settled first boundary")
 	runner.assert_true(world.to_dict().is_empty() and not world.restore(initial), "partial phase state cannot be saved or replaced by a load")
 	runner.assert_true(not world.actor_controls("player", "action") and world.describe_object({"kind": "actor", "id": "player"}).reason == "settlement_pending", "new commands and common object queries cannot consume a partial boundary")
+	var held_position: Vector2 = fixture.player.global_position
+	var held_progress: Dictionary = world.settlement.progress()
+	GameClock._frame_deadline_usec = 1
+	runner.assert_eq(runtime.advance_to_ms(25), 0, "an already exhausted host deadline cannot publish a pending world")
+	runner.assert_eq(fixture.player.global_position, held_position, "deadline refusal keeps the last complete body projection")
+	runner.assert_eq(world.settlement.progress(), held_progress, "deadline refusal does not restart or skip the held causal step")
+	GameClock._frame_deadline_usec = 0
 	for _attempt: int in 1000:
 		if not GameClock.has_pending_advance():
 			break
-		GameClock._process(0.0)
+		GameClock.advance_frame(0.0)
 	GameClock.time_advanced.disconnect(listener)
 	fixture.home.simulation_advanced.disconnect(region_listener)
 	if GameClock.has_pending_advance():
@@ -378,7 +385,7 @@ func _test_cancel_during_settlement(runner: Object) -> void:
 	for _attempt: int in 100:
 		if not GameClock.has_pending_advance():
 			break
-		GameClock._process(0.0)
+		GameClock.advance_frame(0.0)
 	runner.assert_true(not GameClock.has_pending_advance(), "the same hauling boundary finishes before accepting a new stop")
 	runner.assert_true(runtime.stop_player_action(), "a stop is accepted after the world boundary completes")
 	runner.assert_true(home.actors.player.active.is_empty(), "accepted stop ends the original native action")
@@ -424,7 +431,7 @@ func _continuous_canvas_publication(runner: Object) -> void:
 	# Keep adding real wall time. Each completed old interval can immediately
 	# start another suspended interval before a deferred _draw ever occurs.
 	for _attempt: int in 500:
-		GameClock._process(0.05)
+		GameClock.advance_frame(0.05)
 		if observed.size() >= 2 and world.settlement.is_pending():
 			break
 	GameClock.time_advanced.disconnect(listener)
@@ -455,7 +462,7 @@ func _settlement_failure_recovery(runner: Object) -> void:
 	runner.assert_true("fails_once" in runtime._panel._notice.text and "读取" in runtime._panel._notice.text, "ordinary UI displays the failed step and a usable recovery route")
 	for _attempt: int in 3:
 		GameClock.set_paused(false)
-		GameClock._process(0.0)
+		GameClock.advance_frame(0.0)
 		runner.assert_true(GameClock.paused, "unpausing cannot restart terminal failed work")
 	runner.assert_eq(calls[0], 1, "terminal state neither replays effects nor retries the owner")
 	runner.assert_eq(GameClock.elapsed_ms, 0, "failure never publishes the unfinished clock")
@@ -524,7 +531,7 @@ func _construction_publication(runner: Object) -> void:
 	for _attempt: int in 1000:
 		if not GameClock.has_pending_advance():
 			break
-		GameClock._process(0.0)
+		GameClock.advance_frame(0.0)
 	runner.assert_eq(GameClock.elapsed_ms, due - 1, "publication probe reaches the last complete millisecond before real construction completion")
 	prior_details = view._details.text
 	view.refresh_committed_canvas()
@@ -540,7 +547,7 @@ func _construction_publication(runner: Object) -> void:
 			break
 		prior_details = view._details.text
 		prior_commands = view._canvas_commands.duplicate()
-		GameClock._process(0.0)
+		GameClock.advance_frame(0.0)
 	runner.assert_true(held, "the real wall commits inside its domain before the later world stages finish")
 	if not held:
 		print("PUBLICATION diagnostic ", world.construction.projects[project], " active=", world.construction.active, " stage=", world.settlement.progress(), " clock=", GameClock.elapsed_ms, " due=", due)
@@ -555,7 +562,7 @@ func _construction_publication(runner: Object) -> void:
 	for _attempt: int in 1000:
 		if not GameClock.has_pending_advance():
 			break
-		GameClock._process(0.0)
+		GameClock.advance_frame(0.0)
 	world.action_finished.disconnect(listener)
 	runner.assert_true(not GameClock.has_pending_advance(), "default work policy finishes the original request")
 	runner.assert_eq(notices.size(), 1, "the completed world publishes the real action result once")

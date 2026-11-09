@@ -129,7 +129,7 @@ func begin(previous_ms: int, next_ms: int) -> bool:
 	return true
 
 
-func resume(work_budget: int) -> int:
+func resume(work_budget: int, should_yield: Callable = Callable()) -> int:
 	last_work = 0
 	if _executing:
 		return Status.FAILED
@@ -139,6 +139,9 @@ func resume(work_budget: int) -> int:
 		return Status.COMPLETE
 	_executing = true
 	while _cursor < _plan.size() and last_work < maxi(0, work_budget):
+		if should_yield.is_valid() and bool(should_yield.call()):
+			_executing = false
+			return Status.PENDING
 		var step: Step = _plan[_cursor]
 		if not step.callback.is_valid():
 			return _failure("owner_unavailable:" + String(step.id))

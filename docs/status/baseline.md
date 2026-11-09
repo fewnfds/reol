@@ -2,6 +2,10 @@
 
 核对：2026-11-09。采用版本与准确代码证据记录在此，操作范围见[FEATURES](features.md)，当前停点见[HANDOFF](handoff.md)，详细日志和限制见[QA](../qa/README.md)。历史分卷只描述当时版本。
 
+## 共同时间过载降速（工作分支）
+
+`codex/adaptive-world-time`基于main `2c4ea10723d8140c5ae4b5f4c599f156d2ea6e5b`，共同时间已接有限准入、负载倍率和6ms合作式宿主预算；普通显示/HUD沿同一流速。根53/区域44及原状态owner不变，宿主负载估计不入档。最终定向8组796检查/0失败、包装器退出0；原生人工负载实际速度0.162×、帧间隔P95 17.600ms，移除后准入倍率恢复1×；同进程及完全停开250ms未来hash相同。准确版本、完整回归、审查与集成仍待本包终态；细节和限制见[QA](../qa/20261109_simulation_pacing.md)。
+
 ## 共同结算内核（已合入main）
 
 `codex/settlement-kernel`基于main `a4fb83a6c29e3203bf71fc1c1f950afe4906830b`，最终生产代码为`d99ac6492ad5dbe5ba1af5bcc00171b5753c28e4`，最终测试提交为`38606ea342f09e5aadcb50112df6620ddafbe10f`；最终测试SHA的[CI42508829722](https://github.com/fewnfds/reol/actions/runs/42508829722)已核completed/success，251组/125351检查/0失败；其后至`8cc40919599680d57e1f333f1482ebab38df7e3b`只有Markdown差异，已快进合入并推送main。共同时间、结算阶段/依赖与预算续算已接普通Main，原身体、库存、伤势、环境及动作继续归各领域；部分边界不能捕获新存档或原地恢复，帧间完整会话加载仍可由独立候选替换，根53/区域44未变。[QA](../qa/20261108_settlement_kernel.md)记录准确版本、日志和限制。
@@ -20,7 +24,7 @@ CI已改为12片，完整覆盖及漏片反例工具验证通过，CI42508829722
 
 ## 官方Actions Node24升级
 
-代码`dc2558b219cb2fbdf164c2d63371e01b0cff8226`已合入并推送main，只修改workflow。四个官方稳定release精确提交的签名、`action.yml`均核通过；六处调用使用`node24`且输入合法，原触发/权限/引擎/Python/12片/ZIP报告语义保持。一次Sol/custom原生静态差异审查无可执行发现，日志和YAML/输入比对在`logs/actions-node24-upgrade-20261109/`。本轮未重复本机Godot全套；文档提交准备点核得同SHA的[CI42539000023](https://github.com/fewnfds/reol/actions/runs/42539000023)为in_progress，尚待终态，不能沿用旧workflow绿色结果。[维护规则](../engineering/tooling/maintenance/01-updates.md)解释运行时与升级边界。
+代码`dc2558b219cb2fbdf164c2d63371e01b0cff8226`已合入并推送main，只修改workflow。四个官方稳定release精确提交的签名、`action.yml`均核通过；六处调用使用`node24`且输入合法，原触发/权限/引擎/Python/12片/ZIP报告语义保持。一次Sol/custom原生静态差异审查无可执行发现，日志和YAML/输入比对在`logs/actions-node24-upgrade-20261109/`。本轮未重复本机Godot全套；本包真实提交准备点已核同SHA的[CI42539000023](https://github.com/fewnfds/reol/actions/runs/42539000023)为completed/success；终态缓存复用。[维护规则](../engineering/tooling/maintenance/01-updates.md)解释运行时与升级边界。
 
 ## 通用建筑与组合空间（已合入main）
 

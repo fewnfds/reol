@@ -683,7 +683,7 @@ func advance_to(requested_time: int, max_events: int = 4096) -> bool:
 	return advance_to_ms(requested_time * MINUTE_MS, max_events)
 
 
-func advance_to_ms(requested_ms: int, max_events: int = 4096, work_budget: int = MAX_COUNT) -> bool:
+func advance_to_ms(requested_ms: int, max_events: int = 4096, work_budget: int = MAX_COUNT, should_yield: Callable = Callable()) -> bool:
 	if settlement == null or settlement.is_executing() or _publishing_boundary:
 		return false
 	settlement_work = 0
@@ -702,13 +702,13 @@ func advance_to_ms(requested_ms: int, max_events: int = 4096, work_budget: int =
 	target_ms = maxi(target_ms, requested_ms)
 	var processed: int = 0
 	if settlement.is_pending():
-		if processed >= maxi(0, max_events) or not _complete_boundary(work_budget):
+		if processed >= maxi(0, max_events) or not _complete_boundary(work_budget, should_yield):
 			return false
 		processed += 1
 	# A retained larger request is debt, not permission to overshoot this
 	# invocation's accepted interval (the shared clock may be resuming a slice).
 	while elapsed_ms < requested_ms:
-		if processed >= maxi(0, max_events) or settlement_work >= maxi(0, work_budget):
+		if processed >= maxi(0, max_events) or settlement_work >= maxi(0, work_budget) or should_yield.is_valid() and bool(should_yield.call()):
 			return false
 		var next_ms: int = mini(requested_ms, _next_boundary(requested_ms))
 		for region_id: String in regions:
@@ -734,14 +734,14 @@ func advance_to_ms(requested_ms: int, max_events: int = 4096, work_budget: int =
 		if not settlement.begin(old_ms, next_ms):
 			errors.append("Settlement boundary could not begin")
 			return false
-		if not _complete_boundary(work_budget - settlement_work):
+		if not _complete_boundary(work_budget - settlement_work, should_yield):
 			return false
 		processed += 1
 	return true
 
 
-func _complete_boundary(work_budget: int) -> bool:
-	var status: int = settlement.resume(work_budget)
+func _complete_boundary(work_budget: int, should_yield: Callable = Callable()) -> bool:
+	var status: int = settlement.resume(work_budget, should_yield)
 	settlement_work += settlement.last_work
 	_environment_boundary_waiting = settlement.is_pending() and settlement.progress().step == "object_lifecycle"
 	if status != SimSettlementKernel.Status.COMPLETE:

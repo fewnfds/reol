@@ -449,11 +449,10 @@ func _on_time_advanced(_from_ms: int, _to_ms: int) -> void:
 		queue_redraw()
 
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	if simulation == null or GameClock.paused or _visual_progress >= 1.0:
 		return
-	var rate: float = GameClock.view_transition_rate() * GameClock.speed
-	_visual_progress = minf(1.0, _visual_progress + delta * rate)
+	_visual_progress = minf(1.0, _visual_progress + GameClock.view_delta_seconds() * GameClock.view_transition_rate())
 	for id: String in _visual_targets:
 		var pawn: Pawn = _pawns.get(id)
 		if is_instance_valid(pawn):

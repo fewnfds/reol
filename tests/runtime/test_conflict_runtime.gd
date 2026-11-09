@@ -200,13 +200,13 @@ func _panel_learning_and_keys(runner: Object) -> void:
 		# Supply a controlled cursor-equivalent aim into empty space; method and
 		# timing still pass through the actual input adapter and common clock.
 		ui._pending_direction = -(fixture.arena.axis as Vector2)
-		GameClock._process(1.0)
+		GameClock.advance_frame(1.0)
 		GameClock.advance_msec(0)
 		runner.assert_eq(GameClock.elapsed_ms, now, "paused frame processing does not advance common time")
 		runner.assert_eq(_player_actions(runtime.world_sim).size(), count, "paused or zero-time processing cannot commit the queued attack")
 		var step: int = int(GameClock._rules.clock.fixed_step_ms)
 		GameClock.set_paused(false)
-		GameClock._process(float(step) / 1000.0)
+		GameClock.advance_frame(float(step) / 1000.0)
 		GameClock.set_paused(true)
 		runner.assert_eq(GameClock.elapsed_ms, now + step, "resuming commits one actual common fixed step")
 		runner.assert_eq(_player_actions(runtime.world_sim).size(), count + 1, "next positive common time commits the queued method once")

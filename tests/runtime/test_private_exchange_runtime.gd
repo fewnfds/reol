@@ -121,7 +121,7 @@ func _accept_and_restore(runner: Object, fixture: Dictionary) -> void:
 	runner.assert_true(str(ui._progress.text).contains("仍在原处"), "the panel explains that neither money nor ring has transferred")
 	var start_ms: int = GameClock.elapsed_ms
 	GameClock.set_paused(true)
-	GameClock._process(1.0)
+	GameClock.advance_frame(1.0)
 	runner.assert_eq(GameClock.elapsed_ms, start_ms, "a paused frame cannot advance the handover")
 	GameClock.set_paused(false)
 	GameClock.advance_msec(2000)

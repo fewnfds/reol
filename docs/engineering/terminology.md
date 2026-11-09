@@ -86,6 +86,7 @@
 | Claim | [社会系统提案](../../design/systems/social_system.md) | 原生English候选模型；现有`entries`、交互verb `claim`及局部归还主张不自动等于此模型 |
 | 功法/技法/本领 | [能力设计](../../design/systems/combat_framework.md)；`SimHeatMethods`、`SimCapabilityPractice`、`SimMethodRecords` | 分别沿实际方法、练习和记录入口定位，不虚构单一`Skill`万能对象；读过记录不等于学会 |
 | 共同时间 | autoload `GameClock`，类型[ReolGameClock](../../scripts/autoload/game_clock.gd) | 访问实例用`GameClock.elapsed_ms`；类型名不是可直接访问实例字段的singleton |
+| 负载调速 | [ReolSimulationPacing](../../scripts/runtime/simulation_pacing.gd)；`GameClock.pacing` | 宿主成本反馈与未来时间准入，`speed`仍为玩家所选倍率；不持业务时间或世界状态 |
 | 行动阶段 | 具体过程的`phase` | 执行过程状态，区别于五行类名中的`Phase` |
 | 地块/区块 | `WorldMapData`；`cell`/`chunk` | 单格坐标与分块存储/流式单位分开；物品可跨多格 |
 

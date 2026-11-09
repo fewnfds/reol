@@ -261,9 +261,9 @@ func _test_clock_speed_does_not_change_tick_outcome(runner: Object) -> void:
 	fast_clock.tick.connect(func(_tick: int) -> void: fast.step())
 	fast_clock.set_speed(4.0)
 	for frame: int in range(120):
-		slow_clock._process(0.125)
+		slow_clock.advance_frame(0.125)
 	for frame: int in range(30):
-		fast_clock._process(0.125)
+		fast_clock.advance_frame(0.125)
 	runner.assert_eq(fast_clock.tick_index, slow_clock.tick_index, "4x needs one quarter real duration")
 	runner.assert_eq(_json_state(fast), _json_state(slow), "equal tick input yields equal simulation state")
 	slow_clock.free()

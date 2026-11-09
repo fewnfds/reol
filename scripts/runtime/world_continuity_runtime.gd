@@ -615,7 +615,9 @@ func advance_to_ms(target_ms: int) -> int:
 	var cursor: int = world_sim.settled_ms()
 	var work_left: int = maxi(1, settlement_work_budget)
 	while cursor < target_ms or world_sim.settlement.is_pending():
-		if work_left <= 0:
+		if work_left <= 0 or GameClock.frame_budget_exhausted():
+			if world_sim.settlement.is_pending():
+				return GameClock.elapsed_ms
 			break
 		var resuming: bool = world_sim.settlement.is_pending()
 		var end: int = world_sim.elapsed_ms if resuming else world_sim.next_runtime_boundary_ms(target_ms)
@@ -635,7 +637,7 @@ func advance_to_ms(target_ms: int) -> int:
 				cancel_travel()
 				continue
 		var old_errors: int = world_sim.errors.size()
-		var completed: bool = world_sim.advance_to_ms(end, int(settings.event_budget), work_left)
+		var completed: bool = world_sim.advance_to_ms(end, int(settings.event_budget), work_left, GameClock.frame_budget_exhausted)
 		work_left -= world_sim.settlement_work
 		cursor = world_sim.settled_ms()
 		if world_sim.settlement.is_pending():
@@ -1091,10 +1093,10 @@ func _refresh_views(snap: bool) -> void:
 	_update_courier_view()
 
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	if GameClock.paused or _visual_progress >= 1.0:
 		return
-	_visual_progress = minf(1.0, _visual_progress + delta * GameClock.view_transition_rate() * GameClock.speed)
+	_visual_progress = minf(1.0, _visual_progress + GameClock.view_delta_seconds() * GameClock.view_transition_rate())
 	for id: String in _remote_views:
 		var pawn: Pawn = _remote_views[id]
 		pawn.global_position = (_visual_starts[id] as Vector2).lerp(_visual_targets[id], _visual_progress)

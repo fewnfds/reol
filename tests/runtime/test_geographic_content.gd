@@ -197,7 +197,7 @@ func _advance_future(runner: Object) -> void:
 	for _attempt: int in 4096:
 		if not GameClock.has_pending_advance():
 			break
-		GameClock._process(0.0)
+		GameClock.advance_frame(0.0)
 	runner.assert_true(not GameClock.has_pending_advance() and GameClock.elapsed_ms == target, "the retained original clock request reaches the complete geographic future before snapshot comparison")
 
 

@@ -9,6 +9,7 @@ signal hour_changed(hour: int)
 signal day_changed(day: int)
 signal speed_changed(speed: float)
 signal paused_changed(paused_state: bool)
+signal pacing_changed(effective_speed: float)
 
 const MINUTES_PER_HOUR: int = 60
 const MINUTES_PER_DAY: int = 1440
@@ -44,24 +45,54 @@ var _pending_end_ms: int = 0
 var _frame_end_ms: int = 0
 var _explicit_target_ms: int = 0
 var _explicit_allow_paused: bool = false
+var pacing := ReolSimulationPacing.new()
+var _last_host_usec: int = -1
+var _frame_deadline_usec: int = 0
+var _view_delta_seconds: float = 0.0
+var _pace_display_bucket: int = 20
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_last_host_usec = Time.get_ticks_usec()
 	if total_minutes == 0:
 		total_minutes = start_minutes
 
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
+	# Engine delta may be scaled/clamped. Monotonic host time is measured here;
+	# bounded admission deliberately slows the world after a long host stall.
+	var now: int = Time.get_ticks_usec()
+	var seconds: float = float(now - _last_host_usec) / 1000000.0 if _last_host_usec >= 0 else 0.0
+	_last_host_usec = now
+	var before: int = elapsed_ms
+	var running: bool = not paused or _explicit_allow_paused
+	_frame_deadline_usec = now + ReolSimulationPacing.FRAME_BUDGET_USEC
+	advance_frame(seconds)
+	_frame_deadline_usec = 0
+	if running:
+		pacing.observe(seconds, Time.get_ticks_usec() - now, elapsed_ms - before, has_pending_advance(), speed)
+		_publish_pacing()
+
+
+func advance_frame(delta: float) -> void:
+	# Explicit host-frame input for deterministic drivers/tests. Only _process
+	# measures CPU time and supplies a wall deadline; no wall time enters rules.
+	_view_delta_seconds = 0.0
 	if _advancing or not is_finite(delta) or delta < 0.0:
 		return
 	# An explicitly requested advance can start while paused. A new pause after
 	# it started, however, stops its continuation until the user resumes.
 	if paused and not (_explicit_target_ms > elapsed_ms and _explicit_allow_paused):
 		return
+	# Interpolate only previously committed projections, even while a newer
+	# boundary waits. This clock never extrapolates unfinished world facts.
+	_view_delta_seconds = minf(delta, ReolSimulationPacing.MAX_LEAD_SECONDS) * effective_speed()
 	if not paused and wait_target_ms <= elapsed_ms:
-		# Debt uses world milliseconds and retains fractional frame conversion.
-		var incoming: float = delta * speed * 1000.0
+		# Unadmitted wall time is slowdown, not an ever-growing catch-up target.
+		# Previously admitted debt (including an old save) is never truncated.
+		var explicit_work: bool = _explicit_target_ms > elapsed_ms or _pending_kind in [PENDING_EXPLICIT, PENDING_WAIT]
+		var incoming: float = pacing.admit_ms(delta, speed, _accumulator, explicit_work)
 		var future: int = maxi(elapsed_ms, maxi(_explicit_target_ms, maxi(_pending_end_ms, _frame_end_ms)))
 		var reserved: int = future - elapsed_ms
 		if _frame_end_ms > elapsed_ms:
@@ -72,6 +103,31 @@ func _process(delta: float) -> void:
 	_advancing = true
 	_process_pending()
 	_advancing = false
+
+
+func frame_budget_exhausted() -> bool:
+	return _frame_deadline_usec > 0 and Time.get_ticks_usec() >= _frame_deadline_usec
+
+
+func effective_speed() -> float:
+	return 0.0 if paused else speed * pacing.rate
+
+
+func view_delta_seconds() -> float:
+	return 0.0 if paused else _view_delta_seconds
+
+
+func pacing_status() -> Dictionary:
+	return {"requested_speed": speed, "effective_speed": effective_speed(), "load_rate": pacing.rate,
+		"admitted_debt_ms": _accumulator, "pending": has_pending_advance(),
+		"last_work_usec": pacing.last_work_usec, "longest_work_usec": pacing.longest_work_usec}
+
+
+func _publish_pacing() -> void:
+	var bucket: int = floori(pacing.rate * 20.0)
+	if bucket != _pace_display_bucket:
+		_pace_display_bucket = bucket
+		pacing_changed.emit(effective_speed())
 
 
 func _process_pending() -> void:
@@ -102,7 +158,7 @@ func _process_pending() -> void:
 	var step: float = float(_rules.clock.fixed_step_ms)
 	var epsilon: float = step * STEP_EPSILON_RATIO
 	var budget: int = int(_rules.clock.steps_per_frame)
-	while _accumulator + epsilon >= step and budget > 0 and not paused:
+	while _accumulator + epsilon >= step and budget > 0 and not paused and not frame_budget_exhausted():
 		budget -= 1
 		_frame_end_ms = elapsed_ms + int(step)
 		if not _finish_frame_step(false):
@@ -112,7 +168,7 @@ func _process_pending() -> void:
 
 func _finish_frame_step(allow_paused: bool) -> bool:
 	while _frame_end_ms > elapsed_ms:
-		if paused and not allow_paused:
+		if paused and not allow_paused or frame_budget_exhausted():
 			return false
 		_pending_kind = PENDING_FRAME
 		_pending_end_ms = mini(_frame_end_ms, (tick_index + 1) * MS_PER_MINUTE)
@@ -159,7 +215,7 @@ func _drain_explicit(budget: int) -> void:
 		budget -= 1
 	if _frame_end_ms > elapsed_ms and not _finish_frame_step(_explicit_allow_paused):
 		return
-	while _explicit_target_ms > elapsed_ms and budget > 0:
+	while _explicit_target_ms > elapsed_ms and budget > 0 and not frame_budget_exhausted():
 		if paused and not _explicit_allow_paused:
 			return
 		_pending_kind = PENDING_EXPLICIT
@@ -175,6 +231,8 @@ func _drain_explicit(budget: int) -> void:
 
 
 func _commit_pending() -> bool:
+	if frame_budget_exhausted():
+		return false
 	var start: int = elapsed_ms
 	var end: int = _pending_end_ms
 	var committed: int = end
@@ -371,6 +429,10 @@ func restore_state(data: Dictionary) -> bool:
 	_explicit_target_ms = 0
 	_explicit_allow_paused = false
 	_executor_required = false
+	pacing.reset()
+	_last_host_usec = Time.get_ticks_usec()
+	_view_delta_seconds = 0.0
+	_publish_pacing()
 	if is_inside_tree():
 		get_tree().paused = paused
 	speed_changed.emit(speed)
@@ -386,6 +448,8 @@ func set_paused(value: bool) -> void:
 	# A fresh pause request interrupts an explicit single-step even if it began
 	# while already paused. Repeating true is still a real danger/user request.
 	_explicit_allow_paused = false
+	_last_host_usec = Time.get_ticks_usec()
+	_view_delta_seconds = 0.0
 	if paused == value:
 		return
 	paused = value

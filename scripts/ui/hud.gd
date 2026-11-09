@@ -12,6 +12,7 @@ var _camera: CameraController
 var _fog: FogOfWar
 var _screen: Control
 var _time_label: Label
+var _pace_label: Label
 var _pause: Button
 var _wait: Button
 var _input_hint: Label
@@ -52,6 +53,7 @@ func _ready() -> void:
 	GameClock.tick.connect(_on_clock_tick)
 	GameClock.paused_changed.connect(_on_clock_state_changed)
 	GameClock.speed_changed.connect(_on_clock_speed_changed)
+	GameClock.pacing_changed.connect(_on_clock_speed_changed)
 	GameClock.wait_changed.connect(_on_wait_changed)
 	GameClock.time_advanced.connect(_on_fine_time)
 	_refresh_clock()
@@ -120,6 +122,8 @@ func _build_time_bar() -> void:
 	_time_label = UI.label(row, "", UI.PAPER)
 	_time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_time_label.custom_minimum_size.x = 164
+	_pace_label = UI.label(row, "", UI.WARNING, 13)
+	_pace_label.tooltip_text = "世界随处理能力放慢，所有行动仍按原顺序发生。所选倍率保留。"
 	var controls := HBoxContainer.new()
 	column.add_child(controls)
 	_pause = UI.button(controls, "暂停", GameClock.toggle_pause)
@@ -197,8 +201,8 @@ func _build_diagnostics() -> void:
 	_diagnostics.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	_diagnostics.offset_left = 16
 	_diagnostics.offset_right = 500
-	_diagnostics.offset_top = 106
-	_diagnostics.offset_bottom = 178
+	_diagnostics.offset_top = 142
+	_diagnostics.offset_bottom = 254
 	_diagnostic_text = UI.label(_diagnostics, "", UI.MUTED, 12)
 	_diagnostics.visible = false
 	var timer := Timer.new()
@@ -261,6 +265,7 @@ func _refresh_clock() -> void:
 	@warning_ignore("integer_division")
 	var second: int = (GameClock.elapsed_ms / 1000) % 60
 	_time_label.text = GameClock.format_time() + ":%02d" % second
+	_pace_label.text = "缓行 %.2f×" % GameClock.effective_speed() if GameClock.pacing.rate < 0.97 and not GameClock.paused and GameClock.wait_target_ms == 0 else ""
 	_pause.text = "继续" if GameClock.paused else "暂停"
 	if _wait != null:
 		_wait.text = "等候中" if GameClock.wait_target_ms > 0 else "等候一刻"
@@ -317,3 +322,5 @@ func _refresh_diagnostics() -> void:
 	if _fog != null:
 		fog_text = ["未见", "曾见", "可见"][_fog.get_state(_player.cell)]
 	_diagnostic_text.text = "开发诊断 · F3收起\nFPS %d  |  格 (%d,%d)  %s  |  高度 %d / 飞行 %d\n迷雾 %s  |  区块 %d  |  缩放 %.2f" % [int(Engine.get_frames_per_second()), _player.cell.x, _player.cell.y, _world.terrain_name(_player.cell), _world.get_elevation(_player.cell), _player.altitude, fog_text, _world.loaded_chunk_count(), _camera.zoom.x]
+	var pace: Dictionary = GameClock.pacing_status()
+	_diagnostic_text.text += "\n流速 %.2f× / 所选 %.0f×  |  已接纳欠算 %.1fms\n时钟调用 %.2fms / 峰值 %.2fms" % [pace.effective_speed, pace.requested_speed, pace.admitted_debt_ms, float(pace.last_work_usec) / 1000.0, float(pace.longest_work_usec) / 1000.0]

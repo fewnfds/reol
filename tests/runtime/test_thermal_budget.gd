@@ -172,7 +172,7 @@ func _runtime_preflight_and_frame_debt(runner: Object) -> void:
 	runner.assert_true(not GameClock.paused and is_zero_approx(GameClock._accumulator), "the frame begins without prior pause or frame debt")
 	# 200ms owes four fixed steps. The first is rejected before displacement
 	# and before publication, so the whole original frame remains debt.
-	GameClock._process(0.2)
+	GameClock.advance_frame(0.2)
 	runner.assert_true(GameClock.paused, "runtime pauses when the actual thermal preflight rejects the next interval")
 	runner.assert_eq(int(world.elapsed_ms), CHANGE_MS, "runtime leaves the last simulated time at the accepted boundary")
 	runner.assert_eq(int(world.target_ms), CHANGE_MS + 50, "the first requested fixed step remains owed to the world")
@@ -182,7 +182,7 @@ func _runtime_preflight_and_frame_debt(runner: Object) -> void:
 	runner.assert_eq(int(GameClock.elapsed_ms) + int(GameClock._accumulator), CHANGE_MS + 200, "committed time plus debt preserves the whole frame without double-counting the pending target")
 	runner.assert_eq(int(world.artifacts.objects[STONE].charge), old_charge, "the rejected interval spends no additional original stone charge")
 	runner.assert_eq(_physical_state(runtime), before, "runtime preflight leaves both bodies, inventories, source, field and travelling segment unchanged")
-	GameClock._process(1.0)
+	GameClock.advance_frame(1.0)
 	runner.assert_eq(int(world.elapsed_ms), CHANGE_MS, "paused time does not silently process the pending thermal interval")
 	runner.assert_true(is_equal_approx(GameClock._accumulator, 200.0), "paused wall time leaves the original frame debt intact")
 	runner.assert_eq(runtime.save_game(path), ERR_BUSY, "pending desired time is explicitly refused instead of writing an unloadable save")

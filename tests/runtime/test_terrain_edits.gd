@@ -44,7 +44,7 @@ func _test_real_session(runner: Object) -> void:
 	# A real fractional frame contribution below the next fixed step must remain
 	# owed when developer editing suspends normal time.
 	GameClock.set_paused(false)
-	GameClock._process(0.001)
+	GameClock.advance_frame(0.001)
 	var old_time: int = GameClock.elapsed_ms
 	var debt: float = GameClock._accumulator
 	var previous_target: int = runtime.world_sim.target_ms

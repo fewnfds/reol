@@ -6,6 +6,8 @@
 
 Godot提供渲染、输入、SceneTree、固定物理步及碰撞服务。`_process`/`_physics_process`安排回调，不推导温度、五行、库存和伤势之间的业务关系。Reol的`GameClock`把宿主时间转为共同整数毫秒请求，`RegionalSimulation`持有目标、内部推进时间与已结算边界；渲染帧、物理帧和模拟时刻分别成立。普通50毫秒步可再按实际事件切分，不每毫秒扫描世界。
 
+过载时统一降速与有限新时间准入由`GameClock`及`ReolSimulationPacing`负责，完整政策、宿主预算和显示合同见[运行流速](simulation-pacing.md)。它不改变本页的阶段、事件时刻或原所有者；主动放慢期间未接纳的现实时间不是模拟欠算。
+
 内核只持编译后的调用、依赖和未完成步骤。身体、器物、库存、伤势、环境响应、动作与随机状态仍归原owner；新概念须实际实现自己的规则。温度趋向目标、五行组合、材料预约或同时命中各有算法，不能用通用数值相加代替。
 
 ## 装配与依赖
@@ -42,7 +44,7 @@ Godot提供渲染、输入、SceneTree、固定物理步及碰撞服务。`_proc
 
 ## 工作预算与未完成边界
 
-`begin(from_ms, at_ms)`接受严格向前的有限区间；`resume(work_budget)`返回COMPLETE/PENDING/FAILED，游标只在步骤完成后前进。预算耗尽或YIELDING回调未完成会保留同一时刻/步骤；已完成领域不重算。失败与普通欠算区分，失败步骤不自动重试或继续依赖者。拓扑环在装配时拒绝，未完成步骤也不会在一次调用里无预算自旋。
+`begin(from_ms, at_ms)`接受严格向前的有限区间；`resume(work_budget, should_yield)`返回COMPLETE/PENDING/FAILED，游标只在步骤完成后前进。预算耗尽或YIELDING回调未完成会保留同一时刻/步骤；已完成领域不重算。失败与普通欠算区分，失败步骤不自动重试或继续依赖者。拓扑环在装配时拒绝，未完成步骤也不会在一次调用里无预算自旋。
 
 普通回调可按时刻/无参数执行，CHECKED回调须返回bool；YIELDING的false表示保留当前步骤。BUDGETED回调接收`(at_ms, allowance)`并返回`Vector2i(实际工作量, Status)`，工作量须在1至allowance内。域持有自身活动项游标；每个实体不需要一条全局回调。`SimFacilityUse`已经按真实active工作逐项接入，过程中取消/替换的旧工作不借同一actor引用再次执行。
 

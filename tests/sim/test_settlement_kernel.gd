@@ -7,6 +7,12 @@ class Owner extends RefCounted:
 	var effects: Array[String] = []
 	var count: int = 0
 	var due: int = 17
+	var allowance: int = 0
+	func exhausted() -> bool:
+		if allowance <= 0:
+			return true
+		allowance -= 1
+		return false
 	func effect(_at_ms: int, id: String) -> void:
 		effects.append(id)
 	func boundary() -> int:
@@ -25,6 +31,7 @@ func run(runner: Object) -> void:
 	_order_and_continuation(runner)
 	_rejected_plans(runner)
 	_budgeted_owner(runner)
+	_host_yield(runner)
 	_failure_stops_dependents(runner)
 	print("SCENARIO settlement kernel: compiled dependencies, stable ties, exact continuation, bounded work and failure barrier")
 
@@ -120,3 +127,16 @@ func _failure_stops_dependents(runner: Object) -> void:
 	runner.assert_eq(kernel.resume(10), Kernel.Status.FAILED, "a real owner failure is distinct from ordinary budget debt")
 	runner.assert_true(owner.effects.is_empty() and kernel.is_pending(), "failed boundaries cannot publish dependent effects or completion")
 	runner.assert_eq(kernel.resume(10), Kernel.Status.FAILED, "failed work is not retried with duplicated side effects")
+
+
+func _host_yield(runner: Object) -> void:
+	var owner := Owner.new()
+	var kernel: SimSettlementKernel = _plan(owner, false)
+	kernel.begin(0, 20)
+	runner.assert_eq(kernel.resume(100, owner.exhausted), Kernel.Status.PENDING, "an exhausted host deadline changes no logical step")
+	runner.assert_true(owner.effects.is_empty() and kernel.last_work == 0, "a deadline can yield before the first effect without publishing")
+	for _index in 4:
+		owner.allowance = 1
+		kernel.resume(100, owner.exhausted)
+	runner.assert_eq(owner.effects, ["weather", "heat", "wound", "choice"], "host deadline yields preserve the same complete causal order")
+	runner.assert_true(not kernel.is_pending(), "fresh host budgets eventually complete the retained boundary")
