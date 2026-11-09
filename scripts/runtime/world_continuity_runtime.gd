@@ -1317,8 +1317,10 @@ func load_game(path: String) -> Error:
 		_notice = "这份存档采用旧建筑模型；当前版本需要新建世界，原档未改动。"
 	elif _saves.reason == SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT:
 		_notice = "旧环境格式不再支持，存档未改；请新开局。"
+	elif _saves.reason == "unreadable":
+		_notice = "没有读到可用近况，请先保存一次。"
 	else:
-		_notice = "没有读到适用的近况，当前世界保持原样。"
+		_notice = "近况里的时间、行动或账目不适用于当前世界。"
 	_refresh_panel()
 	return result
 
