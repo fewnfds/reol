@@ -1,0 +1,258 @@
+{
+  "version": 1,
+  "sample_ms": 60000,
+  "action_ms": 1500,
+  "types": {
+    "annual_grass": {
+      "label": "野稗",
+      "life": "annual",
+      "mature_ms": 7200000,
+      "flower_ms": 9000000,
+      "fruit_ms": 10800000,
+      "lifespan_ms": 7776000000,
+      "regrow": false,
+      "substrates": [
+        "soil",
+        "sand"
+      ],
+      "temperature": [
+        50,
+        350,
+        -150,
+        550
+      ],
+      "seasons": [
+        "春",
+        "夏",
+        "秋"
+      ],
+      "water_min": 5,
+      "water_max": 90,
+      "light_min": 100,
+      "max_hp": 30,
+      "injury_ms": 3600000,
+      "product": {
+        "item": "grain",
+        "capacity": 24,
+        "period_ms": 5400000
+      },
+      "body_product": {
+        "item": "grain",
+        "amount": 2
+      },
+      "source": "ordinary_plant",
+      "blocks": false,
+      "canopy": 1000,
+      "sapient": false
+    },
+    "perennial_herb": {
+      "label": "野药",
+      "life": "perennial",
+      "mature_ms": 7200000,
+      "flower_ms": 9000000,
+      "fruit_ms": 10800000,
+      "lifespan_ms": 31536000000,
+      "regrow": true,
+      "substrates": [
+        "soil",
+        "sand"
+      ],
+      "temperature": [
+        50,
+        350,
+        -150,
+        550
+      ],
+      "seasons": [
+        "春",
+        "夏",
+        "秋"
+      ],
+      "water_min": 10,
+      "water_max": 90,
+      "light_min": 100,
+      "max_hp": 30,
+      "injury_ms": 3600000,
+      "product": {
+        "item": "herb",
+        "capacity": 8,
+        "period_ms": 7200000
+      },
+      "body_product": {
+        "item": "herb",
+        "amount": 2
+      },
+      "source": "ordinary_plant",
+      "blocks": false,
+      "canopy": 1000,
+      "sapient": false
+    },
+    "old_tree": {
+      "label": "古树",
+      "life": "perennial",
+      "mature_ms": 86400000,
+      "flower_ms": 172800000,
+      "fruit_ms": 259200000,
+      "lifespan_ms": 31536000000,
+      "regrow": true,
+      "substrates": [
+        "soil",
+        "sand"
+      ],
+      "temperature": [
+        50,
+        350,
+        -150,
+        550
+      ],
+      "seasons": [
+        "春",
+        "夏",
+        "秋"
+      ],
+      "water_min": 10,
+      "water_max": 90,
+      "light_min": 100,
+      "max_hp": 300,
+      "injury_ms": 86400000,
+      "product": {
+        "item": "fruit",
+        "capacity": 6,
+        "period_ms": 86400000
+      },
+      "body_product": {
+        "item": "wood",
+        "amount": 8
+      },
+      "source": "ordinary_plant",
+      "blocks": true,
+      "canopy": 6500,
+      "sapient": true
+    },
+    "lotus": {
+      "label": "荷花",
+      "life": "perennial",
+      "mature_ms": 7200000,
+      "flower_ms": 9000000,
+      "fruit_ms": 10800000,
+      "lifespan_ms": 31536000000,
+      "regrow": true,
+      "substrates": [
+        "water"
+      ],
+      "temperature": [
+        50,
+        350,
+        -150,
+        550
+      ],
+      "seasons": [
+        "春",
+        "夏"
+      ],
+      "water_min": 80,
+      "water_max": 100,
+      "light_min": 100,
+      "max_hp": 30,
+      "injury_ms": 3600000,
+      "product": {
+        "item": "lotus_seed",
+        "capacity": 6,
+        "period_ms": 7200000
+      },
+      "body_product": {
+        "item": "lotus_root",
+        "amount": 2
+      },
+      "source": "aquatic_plant",
+      "blocks": false,
+      "canopy": 1000,
+      "sapient": false
+    },
+    "desert_thorn": {
+      "label": "骆驼刺",
+      "life": "perennial",
+      "mature_ms": 7200000,
+      "flower_ms": 9000000,
+      "fruit_ms": 10800000,
+      "lifespan_ms": 31536000000,
+      "regrow": true,
+      "substrates": [
+        "sand",
+        "soil"
+      ],
+      "temperature": [
+        100,
+        500,
+        -100,
+        650
+      ],
+      "seasons": [
+        "春",
+        "夏",
+        "秋"
+      ],
+      "water_min": 0,
+      "water_max": 35,
+      "light_min": 100,
+      "max_hp": 30,
+      "injury_ms": 3600000,
+      "product": {
+        "item": "fiber",
+        "capacity": 6,
+        "period_ms": 7200000
+      },
+      "body_product": {
+        "item": "wood",
+        "amount": 2
+      },
+      "source": "ordinary_plant",
+      "blocks": false,
+      "canopy": 1000,
+      "sapient": false
+    },
+    "fire_herb": {
+      "label": "赤焰草",
+      "life": "perennial",
+      "mature_ms": 7200000,
+      "flower_ms": 9000000,
+      "fruit_ms": 10800000,
+      "lifespan_ms": 31536000000,
+      "regrow": true,
+      "substrates": [
+        "soil",
+        "sand"
+      ],
+      "temperature": [
+        100,
+        600,
+        -100,
+        900
+      ],
+      "seasons": [
+        "春",
+        "夏",
+        "秋",
+        "冬"
+      ],
+      "water_min": 10,
+      "water_max": 90,
+      "light_min": 100,
+      "max_hp": 30,
+      "injury_ms": 3600000,
+      "product": {
+        "item": "herb",
+        "capacity": 8,
+        "period_ms": 7200000
+      },
+      "body_product": {
+        "item": "herb",
+        "amount": 2
+      },
+      "source": "fire_plant",
+      "blocks": false,
+      "canopy": 1000,
+      "sapient": false
+    }
+  }
+}

@@ -30,7 +30,7 @@ var tick_index: int:
 		return minute
 	set(value):
 		elapsed_ms = value * MINUTE_MS
-var motion_rules: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SimLocalMotion.RULES_PATH))
+var motion_rules: Dictionary = {}
 var controlled_actor: String = "player"
 var errors: Array[String] = []
 ## Diagnostics only. These counters do not affect decisions or persisted state.
@@ -62,8 +62,6 @@ static func from_snapshot(
 	# Build an independent candidate without creating opening stock, memories or
 	# institutional entries. Region/terrain and cross-domain validation remain
 	# the caller's responsibility before this candidate can become authoritative.
-	# Local motion and workplace validation still use the installed rules; this
-	# is not yet a fully versioned or disk-independent rule context.
 	if content == null or not _valid_config(saved.get("config")):
 		return null
 	if not SimStockInformation.valid_policy(content.stock_information_policy) or not SimPersonalForaging.valid_definitions(content.personal_foraging):
@@ -73,6 +71,7 @@ static func from_snapshot(
 	if not SimCapabilityConversation.valid_definitions(content.capability_conversation):
 		return null
 	var candidate := VillageSimulation.new()
+	candidate.motion_rules = content.local_actions
 	if not _valid_restore_motion_rules(candidate.motion_rules):
 		return null
 	candidate._content = content
@@ -82,17 +81,7 @@ static func from_snapshot(
 
 
 static func _valid_restore_motion_rules(value: Dictionary) -> bool:
-	# These are the motion fields used by the restored local simulator. The
-	# complete, per-session rule bundle is a separate migration work package.
-	var clock: Variant = value.get("clock")
-	var motion: Variant = value.get("motion")
-	var recovery: Variant = value.get("recovery")
-	if not clock is Dictionary or not motion is Dictionary or not recovery is Dictionary:
-		return false
-	if not SimInventory._valid_count(clock.get("fixed_step_ms"), false) or not SimInventory._valid_count(recovery.get("stamina_per_second")):
-		return false
-	var speed: Variant = motion.get("speed")
-	return (speed is int or speed is float) and is_finite(float(speed)) and float(speed) > 0.0
+	return SimLocalMotion.valid_rules(value)
 
 
 func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary, locations: Dictionary, opening_ms: int = 0) -> bool:
@@ -100,10 +89,11 @@ func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary,
 	if not _valid_config(settings) or content == null or not SimInventory._valid_count(opening_ms) or not SimStockInformation.valid_policy(content.stock_information_policy) or not SimPersonalForaging.matches(settings, content.personal_foraging):
 		errors.append("Invalid simulation definition")
 		return false
-	if not Workplaces.valid_places(locations, settings) or not Workplaces.actors_clear(locations, cells):
+	if not SimLocalMotion.valid_rules(content.local_actions) or not Workplaces.valid_places(locations, settings, null, content.workplaces) or not Workplaces.actors_clear(locations, cells):
 		errors.append("Invalid workplace layout or occupied opening structure")
 		return false
 	_content = content
+	motion_rules = content.local_actions
 	config = settings.duplicate(true)
 	controlled_actor = str(config.get("controlled_actor", "player"))
 	places = locations.duplicate(true)
@@ -667,7 +657,7 @@ func restore(data: Dictionary, allowed_subjects: Dictionary = {}, external_inven
 		return false
 	if int(data.get("version", -1)) != SCHEMA_VERSION or not _valid_config(data.get("config", {})):
 		return false
-	if not Workplaces.valid_places(data.places, data.config) or not Workplaces.actors_clear(data.places, data.actors):
+	if not Workplaces.valid_places(data.places, data.config, null, _content.workplaces) or not Workplaces.actors_clear(data.places, data.actors):
 		return false
 	for field: String in ["actors", "places", "situations", "authorizations", "interaction_results", "inventory", "social", "institutions"]:
 		if not data.get(field) is Dictionary:

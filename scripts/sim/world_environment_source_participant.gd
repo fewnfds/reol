@@ -138,6 +138,13 @@ func build_sources() -> Dictionary:
 			return _build_failure(str(projected.get("reason", "artifact_projection")))
 		if not projected.source.is_empty() and not _add_initial(artifact_key(id), projected.source):
 			return _build_failure("source_index")
+	if _world.plants != null:
+		var plants: Array = _world.plants.bodies.keys()
+		plants.sort()
+		for id: String in plants:
+			var source: Dictionary = _world.plants.source_for(id)
+			if not source.is_empty() and not _add_initial("plant:" + id, source):
+				return _build_failure("plant_source")
 	_built = true
 	return {"ok": true, "source_count": _records.size(), "affected_chunks": affected_chunks()}
 

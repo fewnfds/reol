@@ -4,7 +4,7 @@ extends RefCounted
 ## simultaneous-effect/resource arbitration rules. No saved domain data here.
 
 const Kernel = preload("res://scripts/sim/execution/settlement_kernel.gd")
-const PHASES: Array[StringName] = [&"previous_interval", &"arrivals", &"environment_event", &"current_processes", &"sampling", &"decisions", &"messages", &"transport"]
+const PHASES: Array[StringName] = [&"previous_interval", &"arrivals", &"environment_event", &"current_processes", &"sampling", &"decisions", &"messages", &"events", &"transport"]
 var _owner: WeakRef
 var kernel: SimSettlementKernel
 var world: RegionalSimulation:
@@ -22,11 +22,15 @@ func initialize(authority: RegionalSimulation) -> bool:
 		if not kernel.add_step(id, &"previous_interval", _timed.bind(domain, &"settle_at_ms"), Kernel.CallMode.CHECKED, [] if previous == &"" else [previous]):
 			return false
 		previous = id
+	if not kernel.add_step(&"previous:plants", &"previous_interval", authority.plants.settle_budgeted, Kernel.CallMode.BUDGETED, [previous]):
+		return false
+	if not kernel.add_step(&"plant_actions", &"current_processes", authority.plants.jobs.settle_at_ms):
+		return false
 	if not kernel.add_step(&"arrivals", &"arrivals", _arrivals):
 		return false
 	if not kernel.add_step(&"prepare_environment_event", &"environment_event", _prepare_environment_event, Kernel.CallMode.CHECKED):
 		return false
-	previous = &""
+	previous = &"plant_actions"
 	for domain: StringName in [&"object_lifecycle", &"services", &"artifacts", &"spirit_sources", &"capability_practice", &"method_records", &"sparring", &"conflicts", &"consider_reading", &"consider_methods", &"avian_life", &"soul_vessels", &"admissions", &"construction", &"facility_use", &"personal_production", &"resting", &"large_bodies", &"environment", &"source_care", &"private_exchange", &"field_opportunities"]:
 		var mode: int = Kernel.CallMode.YIELDING if domain == &"object_lifecycle" else Kernel.CallMode.CHECKED
 		var callback: Callable = _current.bind(domain)
@@ -45,6 +49,8 @@ func initialize(authority: RegionalSimulation) -> bool:
 			return false
 		previous = step
 	if not kernel.add_step(&"messages", &"messages", authority._process_messages, Kernel.CallMode.UNTIMED) or not kernel.add_step(&"routes", &"transport", _routes):
+		return false
+	if not kernel.add_step(&"world_events", &"events", authority.world_events.settle_budgeted, Kernel.CallMode.BUDGETED):
 		return false
 	for domain: StringName in RegionalSimulation.BOUNDARY_DOMAINS:
 		if not kernel.add_boundary(domain, _boundary.bind(domain), RegionalSimulation.RUNTIME_BOUNDARY_DOMAINS.has(domain)):
@@ -106,10 +112,6 @@ func _prepare_environment_event(at_ms: int) -> bool:
 
 
 func _routes(_at_ms: int) -> void:
-	for route_id: String in world._sorted_keys(world.routes):
-		if int(world.routes[route_id].next_assessment) <= world.current_time:
-			world.request_delivery(route_id)
-			world.routes[route_id].next_assessment = world.current_time + int(world.settings.routes[route_id].assessment_minutes)
 	for route_id: String in world._sorted_keys(world.routes):
 		world._try_dispatch(route_id)
 

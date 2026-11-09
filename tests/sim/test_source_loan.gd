@@ -36,7 +36,7 @@ func _make(runner: Object, options: Dictionary = {}) -> RegionalSimulation:
 	world.bind_map_data(Rooms.FlatMap.new())
 	var areas: Array = []
 	for sim: VillageSimulation in world.regions.values():
-		if not SimWorkplaces.enable_opening(sim.config, sim.places, sim.actors, world.map_data, str(sim.config.institution.id)):
+		if not SimWorkplaces.enable_opening(sim.config, sim.places, sim.actors, world.map_data, str(sim.config.institution.id), sim._content.workplaces):
 			runner.assert_true(false, "source-loan fixture installs actual existing public desks and rooms")
 			return null
 		areas.append(sim.places)

@@ -578,3 +578,9 @@ func diagnostics() -> Dictionary:
 		"execution": {"temperature": _participation.diagnostics(&"temperature"),
 			"phases": _participation.diagnostics(&"phases"), "devices": _participation.diagnostics(&"devices")},
 		"geometry": "outdoor_no_room_attenuation", "source": _sources.diagnostics() if _active else {}}
+
+
+func replace_domain_source(key: String, source: Dictionary, at_ms: int) -> bool:
+	if not key.begins_with("plant:") or not _active or _busy or last_ms != at_ms or at_ms != world.elapsed_ms:
+		return false
+	return _change_source(key, source, at_ms)

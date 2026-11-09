@@ -93,7 +93,7 @@ func spawn_opening(scenario: Dictionary, centers: Dictionary) -> bool:
 		for bird: Variant in opening_birds:
 			if not bird is Dictionary or not candidate._stage_opening_bird(registry, region, bird, nest):
 				return false
-	if not registry.matches_legacy_actors(world._actor_ids(world.regions), candidate.birds.keys(), world.soul_vessels.bindings(), world.large_bodies.bodies.keys()):
+	if not registry.matches_legacy_actors(world._actor_ids(world.regions), candidate.birds.keys(), world.soul_vessels.bindings(), world.large_bodies.bodies.keys(), world.plants.subject_ids() if world.plants != null else []):
 		return false
 	# All references and physical containers are staged before either is replaced.
 	world.embodiment = registry

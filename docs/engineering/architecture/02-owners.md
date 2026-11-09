@@ -11,10 +11,12 @@
 | [SimTerrainEdits](../../../scripts/sim/terrain_edits.gd)、[TerrainEditorRuntime](../../../scripts/runtime/terrain_editor_runtime.gd) | 原地图上的小批量事务、空间预检；开发工具负责暂停准备和输入投影 | 显式启动才开放；沿原active/位置/施工材料引用，单笔最多256格，不发放玩家权限或平行状态 |
 | [VillageSimulation](../../../scripts/sim/village_simulation.gd) | 人类原身体、唯一位置/朝向、原生活状态和村落配置 | 所属区是保存所有者，不是人物当前所在空间 |
 | [RegionalSimulation](../../../scripts/sim/regional_simulation.gd) | 区域同步、域装配、共同边界/积压和跨域校验；`schedule_contract()`返回有序目录及阶段副本 | 领域状态仍归原owner；阶段目录描述既有调用顺序，不是自动事件总线或任意世界工厂 |
+| [SimEventQueue](../../../scripts/sim/execution/event_queue.gd)、[SimWorldEvents](../../../scripts/sim/world_events.gd) | 离散请求、到期/等待、重复/取消/期限与回执；可信规则接原域效果 | 不是第二个时钟或世界事实仓库；[事件合同](../event-contract.md) |
+| [SimPlants](../../../scripts/sim/plants.gd) | 原植物身体、年龄/生长/残根、环境条件、行动与觉醒后关系 | 产物归原库存，花盆水/支撑归建筑，主体归Embodiment；[植物合同](../plants-contract.md) |
 | [SimLocalMotion](../../../scripts/sim/local_motion.gd)、[SimRouteTravel](../../../scripts/sim/route_travel.gd) | 手动/闪身及自动路段推进，读写同一身体 | 不复制位置、体力或时钟；显示插值不推进规则 |
 | [SimMotionClearance](../../../scripts/sim/motion_clearance.gd) | 只读解析原过程当前首段及对角扫掠；固定运粮道路保守清场 | 不保存第二套位置/路线；施工新增阻挡和兽身清场复用，后续路线重规划仍待接 |
 | [SimEmbodiment](../../../scripts/sim/embodiment.gd) | 主体、载体居留、移动/行动/通信控制 | 居留不等于控制，控制通道不等于行动占用 |
-| [SimEntityQuery](../../../scripts/sim/entity_query.gd) | 无状态、只读地解析人物/雀身/独特器物/大型身体的原位置与记录所有者 | 不登记第二实体表、不推进时间；区域滞后和世界积压分别标明，不能直接作玩家所知 |
+| [SimEntityQuery](../../../scripts/sim/entity_query.gd) | 无状态、只读地解析人物/雀身/独特器物/大型身体/植物的原位置与记录所有者 | 不登记第二实体表、不推进时间；区域滞后和世界积压分别标明，不能直接作玩家所知 |
 | [SimStorageQuery](../../../scripts/sim/storage_query.gd) | 无状态解析原区域/鸟域容器与数量条目；身体/地点/工程/鸟身提供原锚点 | 引用限定domain/region/container，数量多item；不生成实物、同步或赋予搬运权限 |
 | [SimArtifactTransfers](../../../scripts/sim/artifact_transfers.gd) | 原独特器物归处的同步可拒绝预检与完整事务后通知 | world持有会话钩子、器物域公开；无库存/位置副本或持久事件，不是通用搬运或玩家知识 |
 | [SimObjectLifecycle](../../../scripts/sim/object_lifecycle.gd)、[SimGroundPlacements](../../../scripts/sim/ground_placements.gd) | 原器物/数量账本的命令事务、共同耗时动作；地面仅持有引用和多格位置；派生桶/容器索引 | 权威接口不授玩家距离/社交权限；只接显式physical定义及同账本材料；旧实物/数量不复制；[合同](../object-lifecycle-contract.md) |

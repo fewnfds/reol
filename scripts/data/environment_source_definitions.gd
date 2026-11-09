@@ -97,6 +97,10 @@ func is_configured() -> bool:
 	return not _digest.is_empty()
 
 
+func intrinsic_profile(id: String) -> Dictionary:
+	return _profiles.get(id, {}).duplicate(true)
+
+
 func profile(kind: String, definition: String) -> Dictionary:
 	if not is_configured():
 		return {"ok": false, "reason": "not_configured"}

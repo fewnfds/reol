@@ -6,7 +6,6 @@ extends RefCounted
 const RULES_PATH: String = "res://data/definitions/local_actions.json"
 const MAX_TIME: int = 9007199254740991
 const INTEGRATION_STEP_MS: int = 1
-static var _shared_rules: Dictionary = {}
 
 var _position: Vector2 = Vector2.ZERO
 var _facing: Vector2 = Vector2.DOWN
@@ -38,10 +37,27 @@ var last_outcome: String = ""
 var rules: Dictionary
 
 
-func _init() -> void:
-	if _shared_rules.is_empty():
-		_shared_rules = JSON.parse_string(FileAccess.get_file_as_string(RULES_PATH))
-	rules = _shared_rules
+func _init(definitions: Dictionary = {}) -> void:
+	rules = definitions
+
+
+static func valid_rules(value: Variant) -> bool:
+	if not value is Dictionary or value.get("version") != 1:
+		return false
+	for section: String in ["clock", "motion", "sidestep", "recovery"]:
+		if not value.get(section) is Dictionary:
+			return false
+	for field: String in ["fixed_step_ms", "steps_per_frame", "wait_minutes", "view_transition_ms"]:
+		if not SimInventory._valid_count(value.clock.get(field), false):
+			return false
+	for field: String in ["speed", "acceleration", "friction", "sweep_px"]:
+		var number: Variant = value.motion.get(field)
+		if not (number is int or number is float) or not is_finite(float(number)) or float(number) <= 0.0:
+			return false
+	for field: String in ["prepare_ms", "travel_ms", "recover_ms", "speed", "stamina"]:
+		if not SimInventory._valid_count(value.sidestep.get(field), false):
+			return false
+	return SimInventory._valid_count(value.recovery.get("delay_ms")) and SimInventory._valid_count(value.recovery.get("stamina_per_second"))
 
 
 func bind_body(body: Dictionary, space_changed: Callable = Callable()) -> void:

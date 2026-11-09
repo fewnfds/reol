@@ -1773,3 +1773,11 @@ func test_building_framework() -> void:
 
 func test_settlement_kernel() -> void:
 	load("res://tests/sim/test_settlement_kernel.gd").new().run(self)
+
+
+func test_event_queue() -> void:
+	load("res://tests/sim/test_event_queue.gd").new().run(self)
+
+
+func test_plants() -> void:
+	load("res://tests/sim/test_plants.gd").new().run(self)

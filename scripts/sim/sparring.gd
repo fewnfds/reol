@@ -24,7 +24,7 @@ func bind_world(authority: RefCounted) -> void:
 
 func initialize(authority: RefCounted) -> bool:
 	_owner = weakref(authority)
-	var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(RULES_PATH))
+	var raw: Variant = authority._content.sparring
 	if not valid_rules(raw):
 		return false
 	rules = raw

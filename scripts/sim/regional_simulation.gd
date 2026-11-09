@@ -6,7 +6,7 @@ signal boundary_settled(at_ms: int)
 ## Scene adapters may disappear; these instances and their pending work remain.
 
 const DEFINITIONS_VERSION: int = 1
-const SCHEMA_VERSION: int = 44
+const SCHEMA_VERSION: int = 45
 const MINUTE_MS: int = 60000
 const MAX_COUNT: int = SimInventory.MAX_COUNT
 const Services = preload("res://scripts/sim/services/settlement_services.gd")
@@ -25,6 +25,7 @@ const ACTIVITY_PROFILES: Dictionary = {
 	&"stationary": ActivityScope.STATIONARY, &"wait": ActivityScope.WAIT,
 }
 const ACTIVITY_DOMAINS: Dictionary = {
+	&"plants": ActivityScope.LOCAL | ActivityScope.BODY | ActivityScope.PLAYER_ACTION | ActivityScope.AUTOMATIC_MOTION | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION | ActivityScope.STATIONARY | ActivityScope.WAIT | ActivityScope.RETURN_AUTONOMY,
 	&"object_lifecycle": ActivityScope.LOCAL | ActivityScope.BODY | ActivityScope.PLAYER_ACTION | ActivityScope.AUTOMATIC_MOTION | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION | ActivityScope.STATIONARY | ActivityScope.WAIT | ActivityScope.RETURN_AUTONOMY,
 	&"private_exchange": ActivityScope.LOCAL | ActivityScope.BODY | ActivityScope.PLAYER_ACTION | ActivityScope.AUTOMATIC_MOTION | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION | ActivityScope.STATIONARY | ActivityScope.RETURN_AUTONOMY,
 	&"field_opportunities": ActivityScope.LOCAL | ActivityScope.BODY | ActivityScope.PLAYER_ACTION | ActivityScope.AUTOMATIC_MOTION | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION | ActivityScope.STATIONARY | ActivityScope.RETURN_AUTONOMY,
@@ -49,6 +50,7 @@ const SaveDomains = preload("res://scripts/sim/world_save_domains.gd")
 # Keep query order stable too: a future derived cache must not silently turn
 # next-boundary collection into an unordered set of domain callbacks.
 const BOUNDARY_DOMAINS: Array[StringName] = [
+	&"world_events", &"plants",
 	&"object_lifecycle",
 	&"artifacts", &"sparring", &"avian_life", &"soul_vessels", &"admissions",
 	&"construction", &"facility_use", &"resting", &"weather", &"standing_work", &"large_bodies",
@@ -59,6 +61,7 @@ const BOUNDARY_DOMAINS: Array[StringName] = [
 # interval before its heat preflight and player-journey checks. Other world,
 # regional, route and message boundaries are still handled inside advance_to_ms.
 const RUNTIME_BOUNDARY_DOMAINS: Array[StringName] = [
+	&"world_events", &"plants",
 	&"construction", &"facility_use", &"resting", &"weather", &"clothing", &"health",
 	&"spirit_sources", &"conflicts", &"source_care", &"field_opportunities",
 	&"private_exchange", &"capability_practice", &"environment", &"environment_fields",
@@ -70,7 +73,7 @@ const ADVANCE_PHASES: Array[StringName] = [
 	&"manual_motion_and_regional_advance", &"settle_previous_interval",
 	&"advance_journeys_and_arrivals", &"prepare_environment_event",
 	&"settle_current_processes", &"sample_herb_conditions", &"consider_future_actions",
-	&"process_messages", &"assess_and_dispatch_routes",
+	&"process_messages", &"discrete_events", &"dispatch_routes",
 ]
 
 var regions: Dictionary = {}
@@ -133,6 +136,8 @@ var source_care: RefCounted
 var capability_practice: RefCounted
 var field_opportunities: RefCounted
 var private_exchange: RefCounted
+var plants: SimPlants
+var world_events: SimWorldEvents
 var map_data: WorldMapData
 ## Rebuildable spatial links only; never serialized as another world state.
 var space: SimWorldSpace
@@ -266,6 +271,8 @@ func bind_map_data(data: WorldMapData) -> void:
 	map_data = data
 	if data == null:
 		return
+	if plants != null:
+		plants.bind_world(self)
 	if construction != null:
 		construction.set_terrain(data.terrain_is_walkable, data.get_elevation)
 	if large_bodies != null:
@@ -418,7 +425,7 @@ func initialize(definitions: Dictionary, instances: Dictionary, content: ReolCon
 	for route_id: String in settings.routes:
 		var definition: Dictionary = settings.routes[route_id]
 		routes[route_id] = {
-			"blocked": false, "next_assessment": current_time + 1,
+			"blocked": false,
 			"demand": 0, "request_time": -1,
 		}
 		var courier_id: String = definition.courier
@@ -427,6 +434,13 @@ func initialize(definitions: Dictionary, instances: Dictionary, content: ReolCon
 			"phase": "idle", "shipment": "", "progress": 0,
 			"energy": 100.0, "rest_remaining": 0,
 		}
+	plants = SimPlants.new()
+	if not plants.initialize(self, content.plants):
+		return false
+	plants.bind_world(self)
+	world_events = SimWorldEvents.new()
+	if not world_events.initialize(self) or not world_events.seed_routes():
+		return false
 	_opening_configs = {}
 	for id: String in regions:
 		_opening_configs[id] = regions[id].config.duplicate(true)
@@ -486,7 +500,7 @@ func interrupt_occupation(actor: String, reason: String) -> void:
 		field_opportunities.cancel(actor, reason)
 	if private_exchange != null:
 		private_exchange.cancel(actor, reason)
-	for domain: RefCounted in [object_lifecycle, artifacts, soul_vessels, admissions, construction, facility_use, resting, clothing, health, spirit_sources, method_records, personal_production]:
+	for domain: RefCounted in [plants, object_lifecycle, artifacts, soul_vessels, admissions, construction, facility_use, resting, clothing, health, spirit_sources, method_records, personal_production]:
 		if domain != null:
 			domain.cancel(actor)
 	if sparring != null and sparring.owns_actor(actor):
@@ -1133,6 +1147,8 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	operations = data.operations.duplicate(true)
 	in_transit = next_transit
 	_next_id = int(data.next_id)
+	if plants != null:
+		plants.retire_bindings()
 	var installed: bool = domains.install(self, context)
 	assert(installed, "validated saved-world participants must install")
 	_bind_service_guards()
@@ -1149,7 +1165,6 @@ func _next_boundary(limit_ms: int) -> int:
 	if services != null:
 		boundary = mini(boundary, services.next_boundary_ms())
 	for route_id: String in routes:
-		boundary = mini(boundary, int(routes[route_id].next_assessment) * MINUTE_MS)
 		var courier: Dictionary = couriers[settings.routes[route_id].courier]
 		if courier.phase in ["outbound", "returning"] and not bool(routes[route_id].blocked):
 			boundary = mini(boundary, (current_time + int(settings.routes[route_id].travel_minutes) - int(courier.progress)) * MINUTE_MS)
@@ -1420,7 +1435,7 @@ func _valid_cross_state(data: Dictionary, candidates: Dictionary, cargo: SimInve
 	var ids: Dictionary = {}
 	for route_id: String in data.routes:
 		var route: Variant = data.routes[route_id]
-		if not route is Dictionary or not route.get("blocked") is bool or not _integer(route.get("next_assessment"), time + 1) or not _integer(route.get("demand"), 0) or not _integer(route.get("request_time"), -1, time):
+		if not route is Dictionary or route.has("next_assessment") or not route.get("blocked") is bool or not _integer(route.get("demand"), 0) or not _integer(route.get("request_time"), -1, time):
 			return false
 	for shipment_id: Variant in data.shipments:
 		var shipment: Variant = data.shipments[shipment_id]

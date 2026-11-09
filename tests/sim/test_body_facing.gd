@@ -27,14 +27,14 @@ func _canonical(value: Variant) -> String:
 
 func _one_body_heading(runner: Object) -> void:
 	var body: Dictionary = _body()
-	var motion := SimLocalMotion.new()
+	var motion := SimLocalMotion.new(JSON.parse_string(FileAccess.get_file_as_string(SimLocalMotion.RULES_PATH)))
 	motion.bind_body(body)
 	motion.facing = Vector2.LEFT
 	runner.assert_eq(body.facing, [-1.0, 0.0], "manual heading writes the one original body")
 	SimRouteTravel.face(body, Vector2(1, -1))
 	runner.assert_true(motion.facing.is_equal_approx(Vector2(1, -1).normalized()), "route turn is immediately visible through the bound local controller")
 	runner.assert_eq(_canonical(motion.to_dict().facing), _canonical(body.facing), "legacy motion snapshot projects the same heading instead of keeping a competing value")
-	var second_view := SimLocalMotion.new()
+	var second_view := SimLocalMotion.new(JSON.parse_string(FileAccess.get_file_as_string(SimLocalMotion.RULES_PATH)))
 	second_view.bind_body(body)
 	runner.assert_eq(second_view.facing, motion.facing, "a rebuilt controller reads the current original heading")
 	second_view.facing = Vector2.UP
@@ -72,7 +72,7 @@ func _route_sampling_and_resume(runner: Object) -> void:
 
 func _relocation_and_wall(runner: Object) -> void:
 	var body: Dictionary = _body()
-	var motion := SimLocalMotion.new()
+	var motion := SimLocalMotion.new(JSON.parse_string(FileAccess.get_file_as_string(SimLocalMotion.RULES_PATH)))
 	motion.bind_body(body)
 	motion.facing = Vector2.LEFT
 	motion.relocate(TileGrid.cell_to_world(Vector2i(40, 30)))

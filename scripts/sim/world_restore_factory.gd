@@ -1,7 +1,7 @@
 class_name WorldRestoreFactory
 extends RefCounted
 ## Builds a saved world without new-game issuance or a live scene baseline.
-## Local motion/workplace/sparring code still has legacy disk-backed rules.
+## Local motion, workplace and sparring rules come from this candidate's bundle.
 
 
 static func restore(content: ReolContentDB, saved: Dictionary, assembly: Dictionary, terrain: WorldMapData, legacy_heat_v1: bool = false, legacy_heat_v2: bool = false) -> RegionalSimulation:

@@ -2,7 +2,7 @@ extends RefCounted
 
 
 func run(runner: Object) -> void:
-	var motion := SimLocalMotion.new()
+	var motion := SimLocalMotion.new(JSON.parse_string(FileAccess.get_file_as_string(SimLocalMotion.RULES_PATH)))
 	var actor: Dictionary = {"alive": true, "active": {}, "stamina": 20}
 	var start: Vector2 = TileGrid.cell_to_world(Vector2i(10, 10))
 	motion.relocate(start)
@@ -15,7 +15,7 @@ func run(runner: Object) -> void:
 	motion.advance(237, 337, Vector2.ZERO, open)
 	runner.assert_true(motion.position.is_equal_approx(start + Vector2(60, 0)), "first half of travel moves exactly sixty pixels")
 	var halfway: Dictionary = JSON.parse_string(JSON.stringify(motion.to_dict()))
-	var restored := SimLocalMotion.new()
+	var restored := SimLocalMotion.new(JSON.parse_string(FileAccess.get_file_as_string(SimLocalMotion.RULES_PATH)))
 	runner.assert_true(restored.restore(halfway, motion.position, 337), "real in-flight phase/position restores through JSON")
 	motion.advance(337, 687, Vector2.ZERO, open)
 	restored.advance(337, 687, Vector2.ZERO, open)
@@ -24,14 +24,14 @@ func run(runner: Object) -> void:
 	runner.assert_true(motion.position.is_equal_approx(start + Vector2(120, 0)), "full trajectory has finite distance")
 	runner.assert_true(motion.action.is_empty() and motion.last_outcome == "finished", "recovery finishes only at its world deadline")
 	runner.assert_eq(actor.stamina, 12, "advancing or restoring cannot spend stamina again")
-	var coarse := SimLocalMotion.new()
+	var coarse := SimLocalMotion.new(JSON.parse_string(FileAccess.get_file_as_string(SimLocalMotion.RULES_PATH)))
 	coarse.relocate(start)
 	actor.stamina = 20
 	coarse.begin_sidestep(137, Vector2.RIGHT, actor)
 	coarse.advance(137, 687, Vector2.ZERO, open)
 	runner.assert_eq(coarse.position, motion.position, "one coarse interval and fine phases have the same displacement")
 	var wall: Callable = func(cell: Vector2i, direction: Vector2i) -> bool: return cell.x + direction.x <= 10
-	var stopped := SimLocalMotion.new()
+	var stopped := SimLocalMotion.new(JSON.parse_string(FileAccess.get_file_as_string(SimLocalMotion.RULES_PATH)))
 	stopped.relocate(start)
 	actor.stamina = 20
 	stopped.begin_sidestep(0, Vector2.RIGHT, actor)

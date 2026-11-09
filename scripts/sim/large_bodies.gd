@@ -138,7 +138,7 @@ func occupied_by_other(cell: Vector2i, except_body: String = "") -> bool:
 
 
 func _walkable(cell: Vector2i) -> bool:
-	if not _terrain.is_valid() or not bool(_terrain.call(cell)) or world.construction != null and world.construction.blocked(cell):
+	if not _terrain.is_valid() or not bool(_terrain.call(cell)) or world.construction != null and world.construction.blocked(cell) or world.plants != null and world.plants.blocked(cell):
 		return false
 	for sim: VillageSimulation in world.regions.values():
 		for place: Dictionary in sim.places.values():

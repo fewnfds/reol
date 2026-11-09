@@ -57,6 +57,11 @@ static func _village(world: RegionalSimulation, reference: Dictionary) -> Dictio
 	var container: String = reference.container
 	if not sim.inventory.containers.has(container):
 		return _failure("not_found")
+	if container.begins_with("plant:") and world.plants != null:
+		var id: String = container.trim_prefix("plant:")
+		if not world.plants.bodies.has(id) or world.plants.bodies[id].region != reference.region or not str(world.plants.bodies[id].legacy_source).is_empty():
+			return _failure("invalid_location")
+		return _result(world, reference, TileGrid.cell_to_world(world.plants.cell_of(id)), "village_inventory", sim.elapsed_ms, "plants", world.plants.elapsed_ms, {"kind": "plant", "id": id})
 	if container.begins_with("ground:"):
 		if world.object_lifecycle == null:
 			return _failure("domain_unavailable")

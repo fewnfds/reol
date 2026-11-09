@@ -194,6 +194,9 @@ func setup(home: VillageRuntime, opening_source_loan: bool = false, opening_sour
 	if opening_field and world_sim.elapsed_ms == 0 and not world_sim.field_opportunities.spawn_opening(centers):
 		push_error("World continuity: no reachable field opportunity opening")
 		return false
+	if not world_sim.plants.spawn_opening(origin):
+		push_error("World continuity: plant scenario rejected: " + world_sim.plants.last_error)
+		return false
 	if not world_sim.environment_fields.activate_sources():
 		push_error("World continuity: environmental sources could not activate")
 		return false
@@ -274,7 +277,7 @@ func setup(home: VillageRuntime, opening_source_loan: bool = false, opening_sour
 func _capture_committed_canvases(_from_ms: int = 0, _to_ms: int = 0) -> void:
 	# Connected after the ordinary clock observers: body/fog invalidation and
 	# panels are committed, and the clock cannot start another interval yet.
-	var views: Array[CommittedWorldCanvas] = [self, _home, object_adapter,
+	var views: Array[CommittedWorldCanvas] = [self, _home, natural_adapter, object_adapter,
 		sparring_adapter, conflict_adapter, avian_adapter, soul_adapter,
 		large_body_adapter, construction_adapter, field_adapter]
 	for view: CommittedWorldCanvas in views:
@@ -327,7 +330,7 @@ func _create_remote(origin: Vector2i, reachable: Array[Vector2i]) -> VillageSimu
 		used[placed] = true
 		places[definition.id] = {"cell": [placed.x, placed.y], "label": str(definition.label)}
 	if config.has("workplaces_version"):
-		if not SimWorkplaces.attach_opening_layout(places, cells, _home._world.map_data(), str(config.institution.id)):
+		if not SimWorkplaces.attach_opening_layout(places, cells, _home._world.map_data(), str(config.institution.id), _home._content.workplaces):
 			# The remote opening has its own terrain; find a real room footprint.
 			var initial: Array = places.records.cell.duplicate()
 			var desired: Vector2i = _cell(initial)
@@ -340,7 +343,7 @@ func _create_remote(origin: Vector2i, reachable: Array[Vector2i]) -> VillageSimu
 				if used.has(cell):
 					continue
 				places.records.cell = [cell.x, cell.y]
-				if SimWorkplaces.attach_opening_layout(places, cells, _home._world.map_data(), str(config.institution.id)):
+				if SimWorkplaces.attach_opening_layout(places, cells, _home._world.map_data(), str(config.institution.id), _home._content.workplaces):
 					assembled = true
 					break
 			if not assembled:
@@ -472,7 +475,7 @@ func _incoming_occupancy(cell: Vector2i) -> bool:
 
 
 func _physical_obstacle(cell: Vector2i) -> bool:
-	return world_sim.construction.blocked(cell) or world_sim.large_bodies.blocked(cell) or _workplace_obstacle(cell)
+	return world_sim.plants.blocked(cell) or world_sim.construction.blocked(cell) or world_sim.large_bodies.blocked(cell) or _workplace_obstacle(cell)
 
 
 func _workplace_obstacle(cell: Vector2i) -> bool:
@@ -843,6 +846,7 @@ func cancel_travel() -> void:
 		world_sim.personal_production.cancel("player")
 		world_sim.capability_practice.cancel("player", "manual_override")
 		world_sim.private_exchange.cancel("player", "manual_override")
+		world_sim.plants.cancel("player")
 		if world_sim.conflicts.conflict_for("player").is_empty():
 			world_sim.conflicts.cancel("player")
 
@@ -869,6 +873,7 @@ func stop_player_action(reason: String = "player_cancelled") -> bool:
 		return true
 	if world_sim.sparring.owns_actor("player"):
 		world_sim.sparring.stop()
+	world_sim.plants.cancel("player")
 	world_sim.conflicts.cancel("player")
 	world_sim.capability_practice.cancel("player", reason)
 	world_sim.private_exchange.cancel("player", reason)
@@ -1317,6 +1322,8 @@ func load_game(path: String) -> Error:
 		_notice = "这份存档采用旧建筑模型；当前版本需要新建世界，原档未改动。"
 	elif _saves.reason == SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT:
 		_notice = "旧环境格式不再支持，存档未改；请新开局。"
+	elif _saves.reason == SessionSaveSchema.REJECTION_LEGACY_EVENTS:
+		_notice = "这份旧档没有完整事件、植物与会话规则；请新开局，原档未改动。"
 	elif _saves.reason == "unreadable":
 		_notice = "没有读到可用近况，请先保存一次。"
 	else:
@@ -1334,6 +1341,7 @@ func _adopt_session(staged: Dictionary) -> void:
 	_advance_view_baseline = {}
 	_home._clock_interval_had_events = false
 	previous_world.retire_space()
+	previous_world.plants.retire_bindings()
 	_home.adopt_content(staged.content)
 	settings = world_sim.settings.duplicate(true)
 	centers = {}

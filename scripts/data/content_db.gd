@@ -24,9 +24,14 @@ const SERVICES_PATH: String = "res://data/definitions/settlement_services.json"
 const PERSONAL_FORAGING_PATH: String = "res://data/definitions/personal_foraging.json"
 const ENVIRONMENT_SOURCES_PATH: String = "res://data/definitions/environment_sources.json"
 
-# Format-v2 manifest. V1 remains precisely this set without environment_sources;
-# older content is never silently supplemented from files on the local machine.
+# Format-v3 manifest. Historical manifests are derived in ReolContentBundle;
+# missing historical rules are never supplemented from current local files.
 const DOCUMENT_PATHS: Array[String] = [
+	"res://data/definitions/plants.json",
+	"res://data/scenarios/plants.json",
+	"res://data/definitions/sparring.json",
+	"res://data/definitions/workplaces.json",
+	"res://data/definitions/local_actions.json",
 	"res://data/definitions/artifacts.json",
 	"res://data/definitions/autonomous_livelihood.json",
 	"res://data/definitions/avian_life.json",
@@ -68,6 +73,11 @@ const DOCUMENT_PATHS: Array[String] = [
 	"res://data/definitions/weather.json",
 ]
 
+var plants: Dictionary = {}
+var plant_scenario: Dictionary = {}
+var local_actions: Dictionary = {}
+var workplaces: Dictionary = {}
+var sparring: Dictionary = {}
 var origins: Dictionary[StringName, OriginDef] = {}
 var ranks: Dictionary[StringName, RankDef] = {}
 var pawns: Dictionary[StringName, PawnDef] = {}
@@ -177,6 +187,30 @@ static func legacy_v42() -> ReolContentDB:
 
 
 func _load_definitions() -> bool:
+	if _documents.has("res://data/definitions/plants.json"):
+		var raw: Variant = _read_json("res://data/definitions/plants.json")
+		if not SimPlantRules.valid_definitions(raw):
+			return false
+		plants = raw.duplicate(true)
+		var opening: Variant = _read_json("res://data/scenarios/plants.json")
+		if not SimPlantRules.valid_opening(opening, plants):
+			return false
+		plant_scenario = opening.duplicate(true)
+	if _documents.has("res://data/definitions/sparring.json"):
+		var raw: Variant = _read_json("res://data/definitions/sparring.json")
+		if not SimSparring.valid_rules(raw):
+			return false
+		sparring = raw.duplicate(true)
+	if _documents.has("res://data/definitions/workplaces.json"):
+		var raw: Variant = _read_json("res://data/definitions/workplaces.json")
+		if not SimWorkplaces.valid_rules(raw):
+			return false
+		workplaces = raw.duplicate(true)
+	if _documents.has("res://data/definitions/local_actions.json"):
+		var raw: Variant = _read_json("res://data/definitions/local_actions.json")
+		if not SimLocalMotion.valid_rules(raw):
+			return false
+		local_actions = raw.duplicate(true)
 	origins.clear()
 	ranks.clear()
 	pawns.clear()

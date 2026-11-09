@@ -4,7 +4,7 @@ extends RefCounted
 
 const Shape = preload("res://scripts/sim/avian_schema.gd")
 const FACTS: Array[String] = ["movement_blocked", "enclosure_boundary", "thermal_barrier", "sight_blocked", "wall_connection", "roof_support"]
-const CAPABILITIES: Array[String] = ["rest", "seat", "surface", "storage", "workbench"]
+const CAPABILITIES: Array[String] = ["rest", "seat", "surface", "storage", "workbench", "cultivation"]
 
 
 static func valid_type(row: Variant) -> bool:
@@ -28,6 +28,9 @@ static func valid_type(row: Variant) -> bool:
 			return false
 		var terms: Variant = row.capabilities[capability]
 		match capability:
+			"cultivation":
+				if not Shape.keys(terms, ["substrate", "water_capacity", "initial_water", "root_capacity"]) or terms.substrate not in ["soil", "sand", "water"] or not Shape.count(terms.water_capacity, 1, 6000000) or not Shape.count(terms.initial_water, 0, int(terms.water_capacity)) or terms.root_capacity != 1:
+					return false
 			"storage":
 				if not Shape.keys(terms, ["capacity", "items"]) or not Shape.count(terms.capacity, 1, 100000) or not SimEmbodiment._unique_texts(terms.items):
 					return false

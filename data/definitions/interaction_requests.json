@@ -112,6 +112,11 @@
       "label": "打听野外去处",
       "object_kind": "field_question",
       "bird_understands": false
+    },
+    "ask_harvest": {
+      "label": "商量采摘熟果",
+      "object_kind": "plant",
+      "bird_understands": false
     }
   },
   "status_labels": {

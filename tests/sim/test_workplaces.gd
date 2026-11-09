@@ -33,7 +33,7 @@ func _make(runner: Object) -> VillageSimulation:
 	var sim: VillageSimulation = VillageFixture.new()._make_simulation(runner)
 	if sim == null:
 		return null
-	if not Workplaces.enable_opening(sim.config, sim.places, sim.actors, FlatMap.new(), str(sim.config.institution.id)):
+	if not Workplaces.enable_opening(sim.config, sim.places, sim.actors, FlatMap.new(), str(sim.config.institution.id), sim._content.workplaces):
 		runner.assert_true(false, "fixed opening room fits original places and bodies")
 		return null
 	_bind_path(sim, [sim.places])
@@ -53,15 +53,15 @@ func _opening_and_geometry(runner: Object) -> void:
 	var original_config: String = _canonical(sim.config)
 	var original_book: String = _canonical(sim.institutions.to_dict())
 	var original_inventory: String = _canonical(sim.inventory.to_dict())
-	runner.assert_true(not Workplaces.enable_opening(sim.config, sim.places, sim.actors, ClosedMap.new(), "sect"), "no room is generated on impassable terrain")
+	runner.assert_true(not Workplaces.enable_opening(sim.config, sim.places, sim.actors, ClosedMap.new(), "sect", sim._content.workplaces), "no room is generated on impassable terrain")
 	runner.assert_eq(_canonical(sim.places), original_places, "failed room assembly preserves every original destination")
 	runner.assert_eq(_canonical(sim.config), original_config, "failed room assembly does not enable a half-configured policy")
-	runner.assert_true(Workplaces.enable_opening(sim.config, sim.places, sim.actors, FlatMap.new(), "sect"), "a physical room attaches to original records target")
+	runner.assert_true(Workplaces.enable_opening(sim.config, sim.places, sim.actors, FlatMap.new(), "sect", sim._content.workplaces), "a physical room attaches to original records target")
 	_bind_path(sim, [sim.places])
 	runner.assert_eq(_canonical(sim.places.records.cell), _canonical(JSON.parse_string(original_places).records.cell), "records travel anchor is preserved")
 	runner.assert_eq(_canonical(sim.institutions.to_dict()), original_book, "walls and furniture mint no authority or contribution")
 	runner.assert_eq(_canonical(sim.inventory.to_dict()), original_inventory, "opening furniture does not manufacture redeemable goods")
-	runner.assert_true(Workplaces.valid_places(sim.places, sim.config, FlatMap.new()), "complete versioned room validates on its original flat terrain")
+	runner.assert_true(Workplaces.valid_places(sim.places, sim.config, FlatMap.new(), sim._content.workplaces), "complete versioned room validates on its original flat terrain")
 	var cells: Dictionary = {}
 	for id: String in sim.actors:
 		cells[id] = sim.actors[id].cell.duplicate()
@@ -120,7 +120,7 @@ func _strict_restore_and_legacy(runner: Object) -> void:
 	runner.assert_eq(_canonical(sim.to_dict()), before, "loaded room retains exact original layout and official reference")
 	var wrong_policy: Dictionary = sim.config.duplicate(true)
 	wrong_policy.erase("workplaces_version")
-	runner.assert_true(not Workplaces.valid_places(sim.places, wrong_policy), "modern metadata without its policy cannot silently become legacy")
+	runner.assert_true(not Workplaces.valid_places(sim.places, wrong_policy, null, sim._content.workplaces), "modern metadata without its policy cannot silently become legacy")
 
 
 func _native_registration(runner: Object) -> void:
@@ -186,7 +186,7 @@ func _visitor_redemption(runner: Object) -> void:
 		return
 	var areas: Array = []
 	for local: VillageSimulation in world.regions.values():
-		runner.assert_true(Workplaces.enable_opening(local.config, local.places, local.actors, FlatMap.new(), str(local.config.institution.id)), "each original settlement receives its own room and institutional carrier")
+		runner.assert_true(Workplaces.enable_opening(local.config, local.places, local.actors, FlatMap.new(), str(local.config.institution.id), local._content.workplaces), "each original settlement receives its own room and institutional carrier")
 		areas.append(local.places)
 	for local: VillageSimulation in world.regions.values():
 		_bind_path(local, areas)

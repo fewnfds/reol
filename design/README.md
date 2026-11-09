@@ -31,6 +31,7 @@
 | [Godot 资源候选](research/godot_resource_candidates.md)、[八方向与免费工具](research/eight_direction_sources.md) | 工具、版本、许可及资源生产的候选调查 |
 | [环境来源](research/environment_sources.md)、[自然地块和场所](research/natural_world_workplace_sources.md)、[世界引擎](research/world_engine_references.md)、[高低差和拓扑](research/elevation_and_world_topology.md) | 环境、空间、模拟方法与边界 |
 | [类RimWorld基础架构与教程](research/colony_sim_architecture.md) | 商业游戏公开Mod接口、Project Porcupine源码和Godot教程对照；现有代码的扩展接缝与证据限度 |
+| [模拟结算与事件](research/simulation_events.md) | RimWorld公开分工、CDDA条件效果及Factorio事件/延迟触发的采用范围 |
 | [格子、体型与巨型单位](research/unit_footprint_and_clearance.md) | 定位锚点/占地/视觉的区分，成熟项目净空方案与破坏开路候选；不等于当前战斗已实现 |
 | [方格世界的空间模型](research/spatial_models.md) | Factorio、OpenRA等的逻辑位置、占地、插值及证据边界；单位运动与环境采样分别选型 |
 | [大型建造与模拟优化](research/large_simulation_optimization.md) | Factorio、CDDA、Mindustry、OpenTTD的缓存/数据/存读方法；对环境初建与大档热点的适用边界 |

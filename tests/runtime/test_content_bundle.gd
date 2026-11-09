@@ -7,6 +7,8 @@ const V42_SHA: String = "e13c2616a25f482db2397b585417d027c2759172393c6929eb98a47
 const PAWNS_PATH: String = "res://data/definitions/pawns.json"
 const SERVICES_PATH: String = "res://data/definitions/settlement_services.json"
 const NATURE_PATH: String = "res://data/definitions/natural_environment.json"
+const WORKPLACES_PATH: String = "res://data/definitions/workplaces.json"
+const SPARRING_PATH: String = "res://data/definitions/sparring.json"
 
 
 func run(runner: Object) -> void:
@@ -31,6 +33,9 @@ func _test_bundle_ownership(runner: Object) -> void:
 		runner.assert_eq(old.environment_sources.digest(), JSON.stringify(old.environment_sources.to_dict(), "", true).sha256_text(), "the loaded source profile records its own canonical digest")
 	var legacy_documents: Dictionary = original.documents.duplicate(true)
 	legacy_documents.erase(ReolContentDB.ENVIRONMENT_SOURCES_PATH)
+	for name: String in ["local_actions", "workplaces", "sparring", "plants"]:
+		legacy_documents.erase("res://data/definitions/" + name + ".json")
+	legacy_documents.erase("res://data/scenarios/plants.json")
 	var legacy_bundle: Dictionary = ReolContentBundle.from_documents(legacy_documents, ReolContentBundle.LEGACY_VERSION)
 	var legacy_content := ReolContentDB.new()
 	runner.assert_true(legacy_content.load_bundle(legacy_bundle), "an isolated v1 definition bundle remains parseable under its original manifest")
@@ -107,6 +112,14 @@ func _test_real_session_and_legacy(runner: Object) -> void:
 	var changed_element: int = 0 if base_metal > 50 else 100
 	var documents: Dictionary = first.content_bundle.documents.duplicate(true)
 	runner.assert_true(_set_player_max(documents, base_max + 35), "a second template changes the same player ID")
+	var base_speed: float = float(documents[SimLocalMotion.RULES_PATH].motion.speed)
+	var base_wait: int = int(documents[SimLocalMotion.RULES_PATH].clock.wait_minutes)
+	var base_reach: int = int(documents[WORKPLACES_PATH].desk_reach_px)
+	var base_duration: int = int(documents[SPARRING_PATH].duration_ms)
+	documents[SimLocalMotion.RULES_PATH].motion.speed = base_speed + 30.0
+	documents[SimLocalMotion.RULES_PATH].clock.wait_minutes = base_wait + 1
+	documents[WORKPLACES_PATH].desk_reach_px = base_reach + 5
+	documents[SPARRING_PATH].duration_ms = base_duration + 1000
 	var base_travel: int = int(runtime.world_sim.services.definitions.move_minutes_per_cell)
 	documents[SERVICES_PATH].move_minutes_per_cell = base_travel + 1
 	documents[NATURE_PATH].surfaces[surface_id].label = changed_label
@@ -145,6 +158,9 @@ func _test_real_session_and_legacy(runner: Object) -> void:
 	if not staged.is_empty():
 		runner.assert_true(staged.content != live_content, "staging owns a separate content database")
 		runner.assert_eq(staged.content.get_pawn(&"player").max_stamina, base_max + 35, "candidate simulation uses the requested content version")
+		runner.assert_eq(float(staged.world.regions.home.motion_rules.motion.speed), base_speed + 30.0, "candidate motion uses its archived session rules")
+		runner.assert_eq(int(staged.content.workplaces.desk_reach_px), base_reach + 5, "candidate workplace rules do not read the live disk")
+		runner.assert_eq(int(staged.world.sparring.rules.duration_ms), base_duration + 1000, "candidate sparring uses the archived session rules")
 		runner.assert_eq(int(staged.world.services.definitions.move_minutes_per_cell), base_travel + 1, "candidate services use their archived definition, not the live world's definition")
 		var candidate_map: WorldMapData = staged.map
 		runner.assert_eq(str(candidate_map.natural_surface_definitions()[surface_id].label), changed_label, "candidate map uses the archived surface label")
@@ -171,6 +187,8 @@ func _test_real_session_and_legacy(runner: Object) -> void:
 		runner.assert_true(runtime.world_sim._content == runtime._home._content, "simulation and home reference the same committed content")
 		runner.assert_true(main._content == runtime._home._content, "main and simulation reference the same committed content")
 		runner.assert_eq(main.player.state.max_stamina(), base_max + 35, "player's visible state immediately uses the saved definition")
+		runner.assert_eq(main.player.motion.velocity_limit(), base_speed + 30.0, "player projection binds the same loaded motion rules")
+		runner.assert_eq(int(GameClock._rules.clock.wait_minutes), base_wait + 1, "the shared clock binds the loaded session rules")
 		GameClock.advance_msec(5000)
 		runner.assert_eq(int(runtime._home.simulation.actors.player.stamina), base_max + 35, "actual recovery observes the new maximum after time advances")
 		runner.assert_eq(main.player.state.max_stamina(), base_max + 35, "view continues to use the committed maximum")
@@ -187,6 +205,10 @@ func _test_real_session_and_legacy(runner: Object) -> void:
 		if observations.size() == 2:
 			_assert_observation(observations[1], first, base_label, base_metal, runner, "original version publication")
 		runner.assert_eq(main.player.state.max_stamina(), base_max, "visible state returns to the original maximum")
+		runner.assert_eq(main.player.motion.velocity_limit(), base_speed, "restoring A replaces the player's B motion rules")
+		runner.assert_eq(int(GameClock._rules.clock.wait_minutes), base_wait, "restoring A also restores the shared clock rules")
+		runner.assert_eq(int(runtime._home._content.workplaces.desk_reach_px), base_reach, "restoring A restores the workplace rules")
+		runner.assert_eq(int(runtime.world_sim.sparring.rules.duration_ms), base_duration, "restoring A restores the sparring rules")
 		GameClock.advance_msec(5000)
 		runner.assert_eq(int(runtime._home.simulation.actors.player.stamina), base_max, "actual recovery still respects the original maximum")
 		var before: Dictionary = WorldSessionSnapshot.capture(runtime)

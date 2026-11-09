@@ -5,7 +5,7 @@ extends RefCounted
 ##
 ## References are domain-qualified. Nothing here creates an entity, owns a
 ## position, synchronizes a region, or predicts an uncommitted future.
-## Supported kinds are actor, avian, artifact and large_body. An unsupported kind does
+## Supported kinds are actor, avian, artifact, large_body and plant. An unsupported kind does
 ## not imply an entity is absent from another domain. `stale` compares the
 ## source clocks with the committed world time; `world_has_backlog` separately
 ## indicates that the requested target time has not yet been committed.
@@ -21,6 +21,8 @@ static func locate(world: RegionalSimulation, reference: Variant) -> Dictionary:
 	var kind: String = reference.kind
 	var id: String = reference.id
 	match kind:
+		"plant":
+			return _plant(world, id)
 		"actor":
 			return _actor(world, id)
 		"avian":
@@ -207,3 +209,11 @@ static func _position_result(world: RegionalSimulation, kind: String, id: String
 
 static func _failure(reason: String) -> Dictionary:
 	return {"ok": false, "reason": reason}
+
+
+static func _plant(world: RegionalSimulation, id: String) -> Dictionary:
+	if world.plants == null or not world.plants.bodies.has(id) or world.plants.bodies[id].stage == "removed":
+		return _failure("not_found")
+	var row: Dictionary = world.plants.bodies[id]
+	var point: Vector2 = TileGrid.cell_to_world(world.plants.cell_of(id))
+	return _position_result(world, "plant", id, point, "plants", row.region, world.plants.elapsed_ms, "plants" if str(row.location.support).is_empty() else "construction", world.elapsed_ms)

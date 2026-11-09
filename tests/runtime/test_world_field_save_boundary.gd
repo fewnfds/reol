@@ -12,20 +12,21 @@ func run(runner: Object) -> void:
 
 
 func _test_version_gate(runner: Object) -> void:
-	runner.assert_eq(SessionSaveSchema.VERSION, 53, "new ordinary sessions declare root53")
+	runner.assert_eq(SessionSaveSchema.VERSION, 54, "new ordinary sessions declare root54")
 	for version: int in range(1, SessionSaveSchema.VERSION):
 		var source: Dictionary = {"schema_version": version, "sentinel": {"kept": true}}
 		var original: String = _json(source)
-		runner.assert_eq(SessionSaveSchema.rejection_reason(version), SessionSaveSchema.REJECTION_LEGACY_BUILDINGS if version == 52 else SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT, "older root is identified as legacy: %d" % version)
+		var expected: String = SessionSaveSchema.REJECTION_LEGACY_BUILDINGS if version == 52 else SessionSaveSchema.REJECTION_LEGACY_EVENTS if version == 53 else SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT
+		runner.assert_eq(SessionSaveSchema.rejection_reason(version), expected, "older root is identified as legacy: %d" % version)
 		runner.assert_true(not SessionSaveSchema.supports_version(version), "older root is not supported: %d" % version)
 		runner.assert_true(SessionSaveSchema.upgrade(source, null, Callable(self, "_forbidden_factory")).is_empty(), "older root is not imported: %d" % version)
 		runner.assert_true(WorldSessionSnapshot.stage(null, source).is_empty(), "older root is refused before consulting any active runtime: %d" % version)
 		runner.assert_eq(_json(source), original, "refusing an old root leaves its input untouched: %d" % version)
 	runner.assert_eq(_factory_calls, 0, "old-root refusal never calls a map factory")
 	runner.assert_eq(SessionSaveSchema.rejection_reason(51.0), SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT, "JSON whole-number old version has the same reason")
-	runner.assert_true(SessionSaveSchema.supports_version(53), "the current integer version is supported")
-	runner.assert_true(SessionSaveSchema.supports_version(53.0), "the current JSON whole-number version is supported")
-	for invalid: Variant in [null, false, "51", -1, 0, 1.5, 53.5, 54]:
+	runner.assert_true(SessionSaveSchema.supports_version(54), "the current integer version is supported")
+	runner.assert_true(SessionSaveSchema.supports_version(54.0), "the current JSON whole-number version is supported")
+	for invalid: Variant in [null, false, "51", -1, 0, 1.5, 54.5, 55]:
 		runner.assert_eq(SessionSaveSchema.rejection_reason(invalid), SessionSaveSchema.REJECTION_UNSUPPORTED_VERSION, "malformed or future version is not reported as a legacy environment: %s" % str(invalid))
 		runner.assert_true(not SessionSaveSchema.supports_version(invalid), "malformed or future version is refused: %s" % str(invalid))
 	var incomplete: Dictionary = {"schema_version": SessionSaveSchema.VERSION}

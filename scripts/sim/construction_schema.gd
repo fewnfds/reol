@@ -25,10 +25,24 @@ static func inventory_scope(data: Variant, region: String, rules: Dictionary) ->
 
 
 static func valid(data: Variant, domain: RefCounted) -> bool:
-	if not Shape.keys(data, ["version", "sites", "projects", "active", "zones", "next_zone", "next_project", "next_job", "next_check_ms"]) or data.version != 3 or not data.sites is Dictionary or not data.projects is Dictionary or not data.active is Dictionary or not data.zones is Dictionary or not Shape.count(data.next_zone, 1) or not Shape.count(data.next_project, 1) or not Shape.count(data.next_job, 1) or not Shape.count(data.next_check_ms, domain.world.elapsed_ms + 1):
+	if not Shape.keys(data, ["version", "cultivation", "sites", "projects", "active", "zones", "next_zone", "next_project", "next_job", "next_check_ms"]) or data.version != 4 or not data.sites is Dictionary or not data.projects is Dictionary or not data.active is Dictionary or not data.zones is Dictionary or not Shape.count(data.next_zone, 1) or not Shape.count(data.next_project, 1) or not Shape.count(data.next_job, 1) or not Shape.count(data.next_check_ms, domain.world.elapsed_ms + 1):
 		return false
 	if data.projects.size() != int(data.next_project) - 1 or data.sites.size() > 16 or data.zones.size() > 64:
 		return false
+	if not data.cultivation is Dictionary:
+		return false
+	for id: Variant in data.cultivation:
+		var pot: Variant = data.cultivation[id]
+		var project: Variant = data.projects.get(id)
+		if not id is String or not project is Dictionary or not domain.definitions.types.has(project.get("type")) or not domain.definitions.types[project.type].capabilities.has("cultivation") or project.get("state") not in ["built", "removed", "ruined"]:
+			return false
+		var terms: Dictionary = domain.definitions.types[project.type].capabilities.cultivation
+		if not Shape.keys(pot, ["substrate", "water", "plant"]) or pot.substrate != terms.substrate or not Shape.count(pot.water, 0, int(terms.water_capacity)) or not pot.plant is String:
+			return false
+	for id: String in data.projects:
+		var project: Variant = data.projects[id]
+		if project is Dictionary and domain.definitions.types.has(project.get("type")) and domain.definitions.types[project.type].capabilities.has("cultivation") and project.get("state") in ["built", "removed", "ruined"] and not data.cultivation.has(id):
+			return false
 	var rules: Dictionary = domain.definitions
 	for index: int in data.sites.size():
 		if not data.sites.has("sect_yard" if index == 0 else "construction_site:%d" % (index + 1)):

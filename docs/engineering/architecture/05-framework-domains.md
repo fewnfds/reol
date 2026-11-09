@@ -27,12 +27,12 @@
 | **世界地块与空间框架** | 地图生成描述、地表与材质、空间键和层；组合原对象的占地/位置投影与派生查询 | 地形/材质、覆盖/邻近、净空/接触几何及相关变更范围 | `WorldMapData`、`SimWorldSpace`、`SimObjectSpatialSnapshot`、`SimGroundPlacements`、`SimStructureQuery`；`ReolWorld`负责区块呈现适配 |
 | **实体、物品与容器框架** | 共同引用、定义与实例边界、能力声明、受控生命周期；原物与数量、保管、容器和转移 | 对象解析、原所有者、位置/包含链、能力与合法物资事务 | `SimWorldObjectQuery`、`SimEntityQuery`、`SimStorageQuery`、`SimObjectLifecycle`、`SimInventory`、`SimArtifacts`、`SimClothing`、`SimEmbodiment` |
 | **建筑与组合空间框架** | 结构/家具实例、施工/拆除、耐久与损毁、门状态、围合与屋面；用途区域及工作空间组合 | 真实几何、材质、开口、覆盖、结构连接及推导房间；设施所需的器具/空间条件 | `SimConstruction`、`SimConstructionGeometry`、`SimStructureQuery`、`SimEnclosedSpace`、`SimFacilityUse`、`SimWorkplaces`、`SimResting` |
-| **植被与自然生命框架** | 植物与非人生命的专属状态、自然过程、环境响应及产物条件 | 可作用的自然对象、实际占地、来源/受体能力，以及采集等领域作用接口 | `SimLandResources`是有限资源/草木接缝，`SimAvianLife`、`SimLargeBodies`是非人生命入口；地表植被覆盖由`NaturalEnvironment`派生，完整植物实例框架待接 |
+| **植被与自然生命框架** | 植物与非人生命的专属状态、自然过程、环境响应及产物条件 | 可作用的自然对象、实际占地、来源/受体能力，以及采集等领域作用接口 | `SimPlants`持植物身体/过程，`SimLandResources`保留原资源账；`SimAvianLife`、`SimLargeBodies`持其他非人身体；`NaturalEnvironment`派生背景覆盖 |
 | **环境框架** | 历法/气候/天气条件；温度、光照、五行等各自规则与必要实际响应；风水所需环境组合 | 有时刻与来源的环境查询、响应变化和受体输入 | `SimWorldCalendar`、`SimGeographicClimate`、`SimWeather`、`SimWorldEnvironmentFields`、`SimNaturalLight`、`SimLocalLight`；`SimEnvironment`适配人体暴露 |
 | **单位行动与交互框架** | 按身体能力执行移动、通行、寻路与接近；意图受理、表达/理解、权限/意愿复核、过程占用、资源预约、耗时、中断和结果 | 同一套可由玩家/NPC使用的行动入口、过程状态、失败原因和领域结果引用 | `SimLocalMotion`、`SimRouteTravel`、`SimMotionClearance`、`SimActionContract`、`SimActionExecutor`、[object_actions.gd](../../../scripts/sim/object_actions.gd)、`SimInteractionRequests`及现有各领域执行器 |
 | **认识与自主决策框架** | 感知、个人所知与来源、目标/职责/策略和选择；组织任职/授权依据的有限记录 | 观察者可知的投影、基于自身认识的意图、请求接受与否所需依据 | `SimSocialMemory`、`SimStockInformation`、`SimInstitutionBook`、`SimAutonomousLivelihood`、`SimStandingWork`及原需求决策；Fog与runtime负责观察适配 |
 
-这些名称用于统一文档归属；实际class/字段按[术语映射](../terminology.md)引用。完整植物、通用风水、任意策略编排等尚未接入的能力不据此获得虚构的class或完成状态。
+这些名称用于统一文档归属；实际class/字段按[术语映射](../terminology.md)引用。通用风水、任意策略编排等尚未接入的能力不据此获得虚构的class或完成状态。植物的已接范围见[合同](../plants-contract.md)。
 
 ## 原状态与组合接口
 
@@ -82,6 +82,7 @@
 | 公共合同 | 原职责与接入要求 |
 |---|---|
 | 共同时间、跨区和因果阶段 | `GameClock`与`RegionalSimulation`保留共同时间；`ReolSimulationPacing`管理宿主成本反馈及未来准入，见[运行流速](../simulation-pacing.md)。`SimSettlementKernel`按`SimWorldSettlement`装配依赖/边界，预算不足保留时间及步骤；效果仍由原owner提交，见[结算合同](../settlement-contract.md) |
+| 离散事件触发与执行 | `SimEventQueue`持请求/期限/周期/幂等回执，`SimWorldEvents`登记可信规则；原owner提交效果，精确topic唤醒，见[事件合同](../event-contract.md) |
 | 定义、装配和生命周期 | 定义/开局与实例分离，绑定会话的实际依赖；生成/移除由原领域验证，派生索引沿真实提交维护 |
 | 物资与提交 | 原库存、器物和身体各有唯一所有者；跨领域通过预检与明确提交接缝协调，失败语义与已发生成本由原过程定义 |
 | 存读与长期持续性 | 保存不可重建事实、必要在途状态和版本；完整候选通过后替换活世界，恢复重建派生索引；历史增长按实际规模验证 |

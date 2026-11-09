@@ -113,7 +113,7 @@ static func _routes_open(world: RegionalSimulation, changes: Dictionary, journey
 			var job: Dictionary = world.services.jobs[world.services.active_jobs[id]]
 			if not _path_open(world, changes, actors[id], job.get("path", [])):
 				return false
-	for domain: RefCounted in [world.construction, world.facility_use, world.resting, world.personal_production, world.capability_practice]:
+	for domain: RefCounted in [world.construction, world.facility_use, world.resting, world.plants, world.personal_production, world.capability_practice]:
 		if domain == null:
 			continue
 		for id: String in domain.active:
@@ -169,6 +169,8 @@ static func _path_open(world: RegionalSimulation, changes: Dictionary, start: Ve
 
 
 static func _solid(world: RegionalSimulation, changes: Dictionary, cell: Vector2i) -> bool:
+	if world.plants != null and world.plants.blocked(cell):
+		return true
 	if world.large_bodies != null and world.large_bodies.blocked(cell):
 		return true
 	return SimConflictSpace.solid(world, cell, 0) if not changes.has(cell) else int(changes[cell]) == WorldMapData.TERRAIN_ROCK or world.construction.blocked(cell)

@@ -100,7 +100,7 @@ func _fixed_workplace(runner: Object) -> void:
 		return
 	for region: String in ["home", "river"]:
 		var sim: VillageSimulation = world.regions[region]
-		var attached: bool = SimWorkplaces.enable_opening(sim.config, sim.places, sim.actors, FlatMap.new(), str(sim.config.institution.id))
+		var attached: bool = SimWorkplaces.enable_opening(sim.config, sim.places, sim.actors, FlatMap.new(), str(sim.config.institution.id), sim._content.workplaces)
 		runner.assert_true(attached, "the original " + region + " office receives its saved physical layout")
 		if not attached:
 			return

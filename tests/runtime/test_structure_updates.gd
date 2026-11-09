@@ -88,7 +88,7 @@ func _stationary_sight(runner: Object) -> void:
 	# The fixed opening's furniture is solid for movement, but not an opaque
 	# wall. Test this fact on an actual attached layout, not collision aliases.
 	var sim: VillageSimulation = simulation.regions.home
-	runner.assert_true(SimWorkplaces.enable_opening(sim.config, sim.places, sim.actors, FlatMap.new(), str(sim.config.institution.id)), "fixed workplace geometry assembles for separate furniture facts")
+	runner.assert_true(SimWorkplaces.enable_opening(sim.config, sim.places, sim.actors, FlatMap.new(), str(sim.config.institution.id), sim._content.workplaces), "fixed workplace geometry assembles for separate furniture facts")
 	var desk: Vector2i = SimRouteTravel.cell(sim.places.records.workspace.fixtures.desk.cell)
 	runner.assert_true(domain.blocked(desk) and not domain.blocks_sight(desk), "physical desk collision does not become opaque-wall geometry")
 	fog.free()

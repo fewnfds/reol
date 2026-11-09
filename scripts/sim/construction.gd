@@ -11,6 +11,7 @@ const SIDES: Array[Vector2i] = [Vector2i.LEFT, Vector2i.UP, Vector2i.RIGHT, Vect
 var definitions: Dictionary = {}
 var sites: Dictionary = {}
 var projects: Dictionary = {}
+var cultivation: Dictionary = {}
 var active: Dictionary = {}
 var zones: Dictionary = {}
 var _pending: Array[String] = []
@@ -466,6 +467,9 @@ func _complete(job: Dictionary) -> void:
 			project.hp = int(rule.max_hp)
 			if rule.capabilities.has("storage"):
 				sim.inventory.create_container(str(job.project) + ":contents", {})
+			if rule.capabilities.has("cultivation"):
+				var terms: Dictionary = rule.capabilities.cultivation
+				cultivation[job.project] = {"substrate": terms.substrate, "water": int(terms.initial_water), "plant": ""}
 			project.completed_ms = world.elapsed_ms
 		"demolish":
 			if not _remove(str(job.project), job.stand):
@@ -583,6 +587,8 @@ func occupied(cell: Vector2i, include_motion: bool = true) -> bool:
 		var placed: Dictionary = lifecycle.ground.query(Rect2i(cell, Vector2i.ONE), 512)
 		if not bool(placed.ok) or not placed.ids.is_empty():
 			return true
+	if world.plants != null and world.plants.blocked(cell):
+		return true
 	if world.large_bodies != null and world.large_bodies.blocked(cell):
 		return true
 	if include_motion and _incoming.is_valid() and bool(_incoming.call(cell)):
@@ -891,16 +897,17 @@ func _reindex() -> void:
 		world.weather.structures_changed()
 
 static func empty_state() -> Dictionary:
-	return {"version": 3, "sites": {}, "projects": {}, "active": {}, "zones": {}, "next_zone": 1, "next_project": 1, "next_job": 1, "next_check_ms": SimInventory.MAX_COUNT}
+	return {"version": 4, "cultivation": {}, "sites": {}, "projects": {}, "active": {}, "zones": {}, "next_zone": 1, "next_project": 1, "next_job": 1, "next_check_ms": SimInventory.MAX_COUNT}
 
 
 func to_dict() -> Dictionary:
-	return {"version": 3, "sites": sites.duplicate(true), "projects": projects.duplicate(true), "active": active.duplicate(true), "zones": zones.duplicate(true), "next_zone": next_zone, "next_project": next_project, "next_job": next_job, "next_check_ms": next_check_ms}
+	return {"version": 4, "cultivation": cultivation.duplicate(true), "sites": sites.duplicate(true), "projects": projects.duplicate(true), "active": active.duplicate(true), "zones": zones.duplicate(true), "next_zone": next_zone, "next_project": next_project, "next_job": next_job, "next_check_ms": next_check_ms}
 
 
 func restore(data: Dictionary) -> bool:
 	if not Schema.valid(data, self):
 		return false
+	cultivation = SnapshotValues.normalized(data.cultivation)
 	next_zone = int(data.next_zone)
 	zones = data.zones.duplicate(true)
 	sites = data.sites.duplicate(true)

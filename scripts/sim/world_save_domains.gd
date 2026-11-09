@@ -9,6 +9,9 @@ const KEYS: Dictionary = {&"environment_fields": &"local_heat"}
 
 static func registry(with_services: bool = false) -> SimSaveRegistry:
 	var result := Registry.new()
+	result.add(&"plants", &"plants", preload("res://scripts/sim/plants.gd"),
+		func(owner: RefCounted, data: Dictionary, _context: Dictionary) -> bool: return owner.restore(data), _domain_check, _prepare_plants, Callable(), SimPlants.Codec.inventory_scope)
+	_standard(result, &"world_events", preload("res://scripts/sim/world_events.gd"), &"", _domain_check)
 	result.add(&"embodiment", &"embodiment", preload("res://scripts/sim/embodiment.gd"), _embodiment)
 	_standard(result, &"object_lifecycle", preload("res://scripts/sim/object_lifecycle.gd"), &"", _domain_check,
 		func(data: Variant, region: String, _content: RefCounted) -> Dictionary: return SimObjectLifecycle.inventory_scope(data, region), true)
@@ -185,3 +188,10 @@ static func _bind_avian(owner: RefCounted, host: RefCounted, context: Dictionary
 	if context.has("avian_landing"):
 		owner.set_landing_check(context.avian_landing)
 	owner.bind_world(host)
+
+
+static func _prepare_plants(owner: RefCounted, context: Dictionary) -> bool:
+	if not owner.initialize(context.world, context.content.plants):
+		return false
+	context.world.plants = owner
+	return true

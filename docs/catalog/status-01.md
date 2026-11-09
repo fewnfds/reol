@@ -2,6 +2,7 @@
 
 [分类总目录](../CATALOG.md)；路径存在不表示已实现或已验。
 
+- [docs/status/features/plants.md](../status/features/plants.md)
 - [docs/status/technical-status.md](../status/technical-status.md)
 
 - [docs/status/README.md](../status/README.md)

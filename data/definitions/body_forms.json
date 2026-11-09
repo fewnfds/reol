@@ -28,6 +28,21 @@
       "footprint": [1, 1],
       "channels": ["communication"],
       "capabilities": ["spiritual_voice"]
+    },
+    "rooted_plant": {
+      "label": "植根之身",
+      "width_mm": 800,
+      "footprint": [
+        1,
+        1
+      ],
+      "channels": [
+        "communication"
+      ],
+      "capabilities": [
+        "rooted",
+        "plant_voice"
+      ]
     }
   }
 }

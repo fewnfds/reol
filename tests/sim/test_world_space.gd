@@ -110,7 +110,7 @@ func _live_originals(runner: Object) -> void:
 	if world == null:
 		return
 	var sim: VillageSimulation = world.regions.home
-	runner.assert_true(SimWorkplaces.enable_opening(sim.config, sim.places, sim.actors, world.map_data, str(sim.config.institution.id)), "the original workplace owner assembles its opening geometry")
+	runner.assert_true(SimWorkplaces.enable_opening(sim.config, sim.places, sim.actors, world.map_data, str(sim.config.institution.id), sim._content.workplaces), "the original workplace owner assembles its opening geometry")
 	var before: String = _fixture._state(world)
 	var prepared: Dictionary = world.space.prepare()
 	runner.assert_true(bool(prepared.ok), "derived membership is assembled from the existing owners")
@@ -130,7 +130,7 @@ func _live_originals(runner: Object) -> void:
 	runner.assert_true(_at(world, destination, ["actor"]).references.has(player), "relocation enrolls the original body at its new cell")
 	runner.assert_eq(observer.notices.back().old_cells, [origin], "change notice reports the actual old cells")
 	runner.assert_eq(observer.notices.back().new_cells, [destination], "change notice reports the actual new cells")
-	var motion := SimLocalMotion.new()
+	var motion := SimLocalMotion.new(JSON.parse_string(FileAccess.get_file_as_string(SimLocalMotion.RULES_PATH)))
 	motion.bind_body(sim.actors.player, sim.notify_body_space_changed.bind("player"))
 	motion.relocate(TileGrid.cell_to_world(destination + Vector2i.RIGHT))
 	runner.assert_true(not _at(world, destination, ["actor"]).references.has(player) and _at(world, destination + Vector2i.RIGHT, ["actor"]).references.has(player), "manual motion updates the same live body projection")
@@ -228,7 +228,7 @@ func _failure_and_restore(runner: Object) -> void:
 	world.regions.home.set_actor_cell("player", area.position)
 	runner.assert_true(world.space.prepare().ok, "an adequate budget can rebuild after an incomplete attempt")
 	var before: String = _fixture._state(world)
-	for args: Array in [[area, ["plant"], "", 4096], [area, [], "container", 4096], [area, [], "", 0], [Rect2i(-1, 0, 1, 1), [], "", 4096]]:
+	for args: Array in [[area, ["unknown_kind"], "", 4096], [area, [], "container", 4096], [area, [], "", 0], [Rect2i(-1, 0, 1, 1), [], "", 4096]]:
 		var failed: Dictionary = world.query_space.callv(args)
 		runner.assert_true(not failed.ok and not failed.complete and failed.references.is_empty(), "invalid/unsupported queries never claim a successful empty result")
 	world.target_ms += 1

@@ -17,10 +17,10 @@ Godot提供渲染、输入、SceneTree、固定物理步及碰撞服务。`_proc
 `SimWorldSettlement`把当前原领域接入以下次序，保留原同毫秒行为：
 
 1. `RegionalSimulation`先投影手动移动并推进有关地区；地区原生活决策仍在地区执行器内部。
-2. `previous_interval`：环境场、健康、天气、衣着、常设劳动和计量劳动结清刚过去的区间。
+2. `previous_interval`：环境场、健康、天气、衣着、常设劳动、计量劳动和到期植物结清刚过去的区间。
 3. `arrivals`及`environment_event`：行旅抵达与必要的原环境事务上下文。
-4. `current_processes`：物品、服务、器物、修行、战斗、非人生命、建筑、家具、生产、休息及其余已接过程，按装配依赖提交。
-5. `sampling`→`decisions`→`messages`→`transport`：野药条件、世界级未来选择、消息、运输评估/派遣。
+4. `current_processes`：植物动作、物品、服务、器物、修行、战斗、非人生命、建筑、家具、生产、休息及其余已接过程，按装配依赖提交。
+5. `sampling`→`decisions`→`messages`→`events` → `transport`：野药条件、世界级未来选择、消息、运输评估/派遣。
 
 `settlement.contract()`返回脱离内部引用的实际调用图；旧`schedule_contract()`保留公共分类目录，不能代替实际图。到期查询通过已注册原owner读取，地区、运输、消息和生态仍贡献相应边界；`SimParticipationIndex`负责域内活跃/到期/变脏候选。当前是边界驱动与固定步组合，不宣称全部旧领域已变成单一事件堆。
 
@@ -46,7 +46,7 @@ Godot提供渲染、输入、SceneTree、固定物理步及碰撞服务。`_proc
 
 `begin(from_ms, at_ms)`接受严格向前的有限区间；`resume(work_budget, should_yield)`返回COMPLETE/PENDING/FAILED，游标只在步骤完成后前进。预算耗尽或YIELDING回调未完成会保留同一时刻/步骤；已完成领域不重算。失败与普通欠算区分，失败步骤不自动重试或继续依赖者。拓扑环在装配时拒绝，未完成步骤也不会在一次调用里无预算自旋。
 
-普通回调可按时刻/无参数执行，CHECKED回调须返回bool；YIELDING的false表示保留当前步骤。BUDGETED回调接收`(at_ms, allowance)`并返回`Vector2i(实际工作量, Status)`，工作量须在1至allowance内。域持有自身活动项游标；每个实体不需要一条全局回调。`SimFacilityUse`已经按真实active工作逐项接入，过程中取消/替换的旧工作不借同一actor引用再次执行。
+普通回调可按时刻/无参数执行，CHECKED回调须返回bool；YIELDING的false表示保留当前步骤。BUDGETED回调接收`(at_ms, allowance)`并返回`Vector2i(实际工作量, Status)`，工作量须在1至allowance内。域持有自身活动项游标；每个实体不需要一条全局回调。`SimFacilityUse`、植物due项和离散事件已按实际工作逐项接入，过程中取消/替换的旧工作不借同一actor引用再次执行。
 
 `advance_to_ms`保留原事件数预算，另接受工作预算。普通runtime每次执行器调用的默认工作预算为4096，快进预算不足继续原请求。一次原子回调本身不能被内核抢占；其他旧域的内部大循环及同步来源事务没有因此自动变成可续算，此边界须按实际热点逐域接入。
 
@@ -58,10 +58,12 @@ Godot提供渲染、输入、SceneTree、固定物理步及碰撞服务。`_proc
 
 ## 保存、恢复与验收
 
-游标和调用图是可重建的执行状态。部分阶段及失败边界不能捕获新存档，`RegionalSimulation.restore()`也拒绝原地恢复；结清后按根53/区域44保存原进行中动作和共同时间。完整会话`WorldContinuityRuntime.load_game()`是不同入口：拒绝同步推进回调中加载，帧间可独立校验合法旧档并替换整个世界、重绑owner和重置时钟欠算；不要求失败的旧世界先结清。坏候选不改活世界，不能留下指向旧身体/库存的调用。当前格式不新增游标存储库。
+游标和调用图是可重建的执行状态。部分阶段及失败边界不能捕获新存档，`RegionalSimulation.restore()`也拒绝原地恢复；结清后按根54/区域45保存原进行中动作和共同时间。完整会话`WorldContinuityRuntime.load_game()`是不同入口：拒绝同步推进回调中加载，帧间可独立校验合法旧档并替换整个世界、重绑owner和重置时钟欠算；不要求失败的旧世界先结清。坏候选不改活世界，不能留下指向旧身体/库存的调用。当前格式不新增游标存储库。
 
 主要反例由`test_settlement_kernel`保护：依赖/平局、非法图、预算回执、失败停住及大量工作不丢不重。真实时钟/身体/存档边界由`test_clock_world_commit`保护，家具多工作项由`test_building_framework`保护；既有战斗、环境、库存测试仍是其业务规则owner。普通Main完整停开和声明负载按QA记录，不以局部调用计时保证整机规模。
 
 ## 采用的来源
 
 [Godot 4.7处理入口](https://docs.godotengine.org/en/4.7/tutorials/scripting/idle_and_physics_processing.html)和[线程安全边界](https://docs.godotengine.org/en/4.7/tutorials/performance/thread_safe_apis.html)说明宿主/物理步与活SceneTree的约束。[SimPy时间调度](https://simpy.readthedocs.io/en/stable/topical_guides/time_and_scheduling.html)提供到期及稳定同刻序的算法参考；[Factorio存读要求](https://www.factorio.com/blog/post/fff-270)说明停开不能改变后续结果，其[并行化经验](https://www.factorio.com/blog/post/fff-215)说明并行写入不自动提高性能。[RimWorld Multiplayer源码](https://github.com/rwmt/Multiplayer/blob/master/Source/Client/AsyncTime/AsyncTimeComp.cs)展示社区实现的固定调用与随机上下文，不是官方内部审计。这里只采用原理，未引入外部运行依赖或复制源码。
+
+全局离散工作在 messages 后、transport 前由 `SimEventQueue` 有界派发；可信规则目录为 `SimWorldEvents`。连续区间过程仍归原域，详见[事件合同](event-contract.md)。

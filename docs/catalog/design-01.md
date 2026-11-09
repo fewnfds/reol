@@ -2,6 +2,7 @@
 
 [分类总目录](../CATALOG.md)；路径存在不表示已实现或已验。
 
+- [design/research/simulation_events.md](../../design/research/simulation_events.md)
 - [design/README.md](../../design/README.md)
 - [design/proposals/combat-and-characters.md](../../design/proposals/combat-and-characters.md)
 - [design/proposals/combat-and-characters/coordination.md](../../design/proposals/combat-and-characters/coordination.md)

@@ -21,7 +21,7 @@ static func active_segment_reserves(world: RefCounted, cell: Vector2i) -> bool:
 			var job: Dictionary = world.services.jobs[world.services.active_jobs[actor]]
 			if job.get("phase") == "travel" and not bool(job.get("road_paused", false)) and segment_reserves(bodies.get(actor, {}), job, cell):
 				return true
-	for domain: RefCounted in [world.construction, world.facility_use, world.resting, world.personal_production, world.capability_practice]:
+	for domain: RefCounted in [world.construction, world.facility_use, world.resting, world.plants, world.personal_production, world.capability_practice]:
 		if domain == null:
 			continue
 		for actor: String in domain.active:

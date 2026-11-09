@@ -155,10 +155,15 @@ func self_controls_actor(actor: String, channel: String) -> bool:
 	return controls(subject_for_actor(actor), carrier_for_source("village_actor", actor), channel)
 
 
-func matches_legacy_actors(actor_ids: Array[String], avian_ids: Array = [], soul_bindings: Dictionary = {}, large_ids: Array = []) -> bool:
+func matches_legacy_actors(actor_ids: Array[String], avian_ids: Array = [], soul_bindings: Dictionary = {}, large_ids: Array = [], plant_ids: Array = []) -> bool:
 	# Every extra carrier must resolve to an actual body in its owning domain.
-	if _subjects.size() != actor_ids.size() + avian_ids.size() + soul_bindings.size() + large_ids.size() or _carriers.size() != _subjects.size() or _actor_subjects.size() != actor_ids.size():
+	if _subjects.size() != actor_ids.size() + avian_ids.size() + soul_bindings.size() + large_ids.size() + plant_ids.size() or _carriers.size() != _subjects.size() or _actor_subjects.size() != actor_ids.size():
 		return false
+	for id: String in plant_ids:
+		var carrier: String = carrier_for_source("plant", id)
+		var subject: String = "subject:plant:" + id
+		if carrier != "body:plant:" + id or not _subjects.has(subject) or _subjects[subject].legacy_actor != "" or residence_of(subject) != carrier or _carriers[carrier].form != "rooted_plant":
+			return false
 	for actor: String in actor_ids:
 		var subject: String = subject_for_actor(actor)
 		var carrier: String = carrier_for_source("village_actor", actor)

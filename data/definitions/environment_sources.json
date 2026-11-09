@@ -40,6 +40,32 @@
     "intrinsic_cold": {
       "elements": {"wood": 0, "fire": 0, "earth": 1000, "metal": 0, "water": 2000},
       "thermal_grade": -4000, "radius_cells": 4, "activation": "intrinsic", "origin": "footprint_anchor"
+    },
+    "fire_plant": {
+      "elements": {
+        "wood": 1000,
+        "fire": 2000,
+        "earth": 100,
+        "metal": 0,
+        "water": 100
+      },
+      "thermal_grade": 250,
+      "radius_cells": 4,
+      "activation": "intrinsic",
+      "origin": "footprint_anchor"
+    },
+    "aquatic_plant": {
+      "elements": {
+        "wood": 1000,
+        "fire": 0,
+        "earth": 100,
+        "metal": 0,
+        "water": 2000
+      },
+      "thermal_grade": 0,
+      "radius_cells": 4,
+      "activation": "intrinsic",
+      "origin": "footprint_anchor"
     }
   },
   "bindings": {

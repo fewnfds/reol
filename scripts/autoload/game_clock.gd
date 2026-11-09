@@ -53,6 +53,13 @@ var _pace_display_bucket: int = 20
 var _save_boundary_owner: WeakRef
 
 
+func bind_rules(definitions: Dictionary) -> bool:
+	if _advancing or not SimLocalMotion.valid_rules(definitions):
+		return false
+	_rules = definitions
+	return true
+
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_last_host_usec = Time.get_ticks_usec()

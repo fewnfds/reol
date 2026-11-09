@@ -2,9 +2,10 @@ class_name SessionSaveSchema
 extends RefCounted
 ## Version and shape validation at the session boundary. No live mutations.
 
-const VERSION: int = 53
+const VERSION: int = 54
 const REJECTION_LEGACY_BUILDINGS: String = "legacy_buildings"
 const REJECTION_LEGACY_ENVIRONMENT: String = "legacy_environment"
+const REJECTION_LEGACY_EVENTS: String = "legacy_events"
 const REJECTION_UNSUPPORTED_VERSION: String = "unsupported_version"
 
 
@@ -25,6 +26,8 @@ static func rejection_reason(version: Variant) -> String:
 		return REJECTION_UNSUPPORTED_VERSION
 	if int(version) == 52:
 		return REJECTION_LEGACY_BUILDINGS
+	if int(version) == 53:
+		return REJECTION_LEGACY_EVENTS
 	if int(version) < VERSION:
 		return REJECTION_LEGACY_ENVIRONMENT
 	if int(version) > VERSION:

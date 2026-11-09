@@ -51,8 +51,6 @@
 
 ## 格式与支持范围
 
-本次模块重构保持根53、区域44及现有领域wire记录，`local_heat`仍映射唯一`environment_fields`。目录变更不代表新格式；不强制把现有Dictionary改成Resource或转储所有对象。当前联合封套中的既有兼容投影也保持，不能借接口改造静默删字段。
+当前事件/植物包采用根54、区域45、内容包3，环境wire key仍为 `local_heat`。SL框架本身仍是同一 registry/session 管线；新增植物和事件只登记其原owner，没有重写文件或中央恢复循环。
 
-当前内容包v2绑定39份定义；`local_actions.json`、`workplaces.json`、`sparring.json`仍有直接读盘路径，尚未完成全部会话规则闭包。这个缺口继续归[唯一主计划](../../plans/foundation-priorities.md)的规则绑定前置，不由新存档模块推测补造旧规则。当前只接受根53，详细版本边界见[兼容政策](../compatibility.md)。
-
-必要验证包含最小参与者扩字段/扩域、坏候选原子拒绝、原领域roundtrip、预算续算与回执，以及普通Main完整退出重启后同checkpoint/同未来。具体版本、结果和限制查[BASELINE](../../status/baseline.md)。
+内容包3绑定44份定义/开局；移动、值事房和约练均使用会话规则，候选玩家运动也按档内规则验证，加载失败不改活规则。旧内容清单可独立解析，不可从当前磁盘补造缺失规则；当前只接受根54，详见[兼容政策](../compatibility.md)。

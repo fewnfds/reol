@@ -5,6 +5,10 @@ const Runtime = preload("res://scripts/runtime/world_continuity_runtime.gd")
 
 
 class FlatMap extends WorldMapData:
+	func get_terrain(cell: Vector2i) -> int:
+		return TERRAIN_GRASS if terrain_is_walkable(cell) else TERRAIN_ROCK
+
+
 	func terrain_is_walkable(cell: Vector2i) -> bool:
 		return cell.x >= 0 and cell.x <= 90 and cell.y >= 0 and cell.y <= 90
 

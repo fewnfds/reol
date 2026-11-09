@@ -99,3 +99,13 @@
 `ReolContentDB.local_heat`和`data/definitions/local_heat.json`保留为热设备参数定义入口；历史`SimLocalHeat`不因此成为当前环境owner。使用时写出限定路径/所属对象，不能只写`local_heat`猜它指运行域、存档还是定义。
 
 本页不重命名第三方API、官方作品名、原fixture或历史证据。新增/更名概念同时维护本页及其领域owner文档，不另建一套翻译词表。
+
+## 事件与植物新增映射
+
+| 中文概念 | 唯一代码标识 | 所属与边界 |
+|---|---|---|
+| 离散事件队列 | `SimEventQueue` | 共同执行；请求/回执与派发，效果归原域 |
+| 世界事件规则目录 | `SimWorldEvents` / `world_events` | 可信装配；运输评估、植物觉醒 |
+| 植物身体与过程 | `SimPlants` / `plants` | 植被与自然生命；不复制库存或主体 |
+| 植物定义/区间规则 | `SimPlantRules` | 物种组合与纯运算 |
+| 栽培承载 | `SimConstruction.cultivation` / `cultivation` capability | 建筑持基质、水、根容量与支撑关系 |

@@ -116,7 +116,7 @@ static func validate(data: Variant, domain: RefCounted) -> bool:
 		if not _bird(id, data.birds[id], data, domain, inv, ids):
 			return false
 		containers.append("bird:" + str(id))
-	if not keys(inv.containers, containers) or not domain.world.embodiment.matches_legacy_actors(domain.world._actor_ids(domain.world.regions), data.birds.keys(), domain.world.soul_vessels.bindings(), domain.world.large_bodies.bodies.keys()):
+	if not keys(inv.containers, containers) or not domain.world.embodiment.matches_legacy_actors(domain.world._actor_ids(domain.world.regions), data.birds.keys(), domain.world.soul_vessels.bindings(), domain.world.large_bodies.bodies.keys(), domain.world.plants.subject_ids() if domain.world.plants != null else []):
 		return false
 	var expected_ops: Dictionary = {}
 	var expected_exchanges: Dictionary = {}

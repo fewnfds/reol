@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "samples": [
+    {
+      "id": "opening:fire_herb",
+      "definition": "fire_herb"
+    },
+    {
+      "id": "opening:old_tree",
+      "definition": "old_tree",
+      "age_ms": 315360000000,
+      "growth_ms": 259200000
+    }
+  ],
+  "adopt_sources": {
+    "wild_herbs": "perennial_herb",
+    "wild_grain": "annual_grass"
+  }
+}

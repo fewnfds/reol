@@ -105,7 +105,7 @@ func _test_reservation_labor_and_completion(runner: Object) -> void:
 	runner.assert_eq(sim.inventory.available(BAG, "water"), 1, "only the reserved personal unit is protected from other uses")
 	runner.assert_true(not sim.inventory.consume(str(action.id) + ":competing", BAG, "water", 2), "another use cannot consume the reserved unit")
 	runner.assert_true(not sim.submit_action("player", "rest"), "the same original body cannot simultaneously take another native job")
-	var motion := SimLocalMotion.new()
+	var motion := SimLocalMotion.new(JSON.parse_string(FileAccess.get_file_as_string(SimLocalMotion.RULES_PATH)))
 	motion.bind_body(sim.actors.player)
 	runner.assert_true(not motion.begin_sidestep(sim.elapsed_ms, Vector2.UP, sim.actors.player), "the original local action cannot overlap irrigation's bodily work")
 	runner.assert_true(SimSnapshotSchema.validate(sim.to_dict(), sim._content), "travel with a personal-pocket reservation is save-valid")

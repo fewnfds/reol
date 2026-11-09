@@ -52,6 +52,8 @@ func setup(
 	_world = world
 	_player = player
 	_content = content
+	_player.motion.rules = content.local_actions
+	GameClock.bind_rules(content.local_actions)
 	if not _world.map_data().configure_nature(content.natural_environment):
 		return false
 	if get_parent() != null:
@@ -108,7 +110,7 @@ func _notification(what: int) -> void:
 
 func _assemble_workplace() -> bool:
 	var institution: String = str(_config.institution.id)
-	if SimWorkplaces.enable_opening(_config, _places, _actor_cells(), _world.map_data(), institution):
+	if SimWorkplaces.enable_opening(_config, _places, _actor_cells(), _world.map_data(), institution, _content.workplaces):
 		return true
 	var original: Array = _places.records.cell.duplicate()
 	var desired: Vector2i = _decode_cell(original)
@@ -122,7 +124,7 @@ func _assemble_workplace() -> bool:
 		if occupied or cell.distance_to(desired) > 12.0:
 			continue
 		_places.records.cell = [cell.x, cell.y]
-		if SimWorkplaces.enable_opening(_config, _places, _actor_cells(), _world.map_data(), institution):
+		if SimWorkplaces.enable_opening(_config, _places, _actor_cells(), _world.map_data(), institution, _content.workplaces):
 			return true
 	_places.records.cell = original
 	return false
@@ -210,6 +212,8 @@ func adopt_content(content: ReolContentDB) -> void:
 	# Called only at the successful session commit boundary. View state keeps its
 	# identity (HUD references it) and rebinds definitions in _sync_needs below.
 	_content = content
+	_player.motion.rules = content.local_actions
+	GameClock.bind_rules(content.local_actions)
 
 
 func actor_views() -> Array[Pawn]:
@@ -848,7 +852,8 @@ func _valid_snapshot(snapshot: Dictionary, candidate_map: WorldMapData = null, o
 	var cell: Vector2i = _decode_cell(saved_player["cell"])
 	var position_data: Array = saved_player["position"]
 	var position_value := Vector2(float(position_data[0]), float(position_data[1]))
-	if not _player.motion.valid_state(saved_player.get("motion"), int(clock.elapsed_ms)):
+	var archived_rules: Variant = snapshot.content_bundle.documents.get(SimLocalMotion.RULES_PATH)
+	if not SimLocalMotion.valid_rules(archived_rules) or not SimLocalMotion.new(archived_rules).valid_state(saved_player.get("motion"), int(clock.elapsed_ms)):
 		return false
 	if not saved_simulation.get("actors") is Dictionary or not saved_simulation.actors.get("player") is Dictionary or not SimLocalMotion._vector(saved_simulation.actors.player.get("facing")) or not Vector2(float(saved_player.motion.facing[0]), float(saved_player.motion.facing[1])).is_equal_approx(SimRouteTravel.facing(saved_simulation.actors.player)):
 		return false
@@ -901,7 +906,7 @@ func _matches_world(candidate: VillageSimulation, candidate_map: WorldMapData = 
 	for place: Dictionary in candidate.places.values():
 		if not terrain.terrain_is_walkable(_decode_cell(place["cell"])):
 			return false
-	if not SimWorkplaces.valid_places(candidate.places, candidate.config, terrain):
+	if not SimWorkplaces.valid_places(candidate.places, candidate.config, terrain, candidate._content.workplaces):
 		return false
 	return true
 

@@ -22,6 +22,8 @@ static func describe(world: RegionalSimulation, reference: Variant) -> Dictionar
 	if kind in ENTITY_KINDS:
 		return _entity(world, reference)
 	match kind:
+		"plant":
+			return _plant(world, reference)
 		"stock":
 			return _stock(world, reference)
 		"resource":
@@ -51,6 +53,8 @@ static func capability(world: RegionalSimulation, reference: Variant, name: Stri
 			known = name == "quantity_record"
 		"resource_record":
 			known = name in ["finite_source", "ecology_response"]
+		"plant_definition":
+			known = name in ["plant_body", "growth", "damageable", "harvest", "rooted", "communication"]
 		"structure_geometry":
 			known = name in ["structure_geometry", "damageable"] or name in SimConstructionGeometry.CAPABILITIES
 	if not known:
@@ -295,3 +299,15 @@ static func _text(value: Variant) -> bool:
 
 static func _failure(reason: String) -> Dictionary:
 	return {"ok": false, "reason": reason}
+
+
+static func _plant(world: RegionalSimulation, reference: Dictionary) -> Dictionary:
+	var located: Dictionary = SimEntityQuery.locate(world, reference)
+	if not bool(located.ok):
+		return located
+	var row: Dictionary = world.plants.bodies[reference.id]
+	var capabilities: Array = ["plant_body", "growth", "damageable", "harvest", "rooted"]
+	if not str(row.subject).is_empty():
+		capabilities.append("communication")
+	var cells: Array[Vector2i] = [located.cell]
+	return _finish(located, reference, "plant_body", cells, "ground", "rooted" if str(row.location.support).is_empty() else "supported", "plant_definition", capabilities, {"definition_id": row.definition, "stage": row.stage, "movement_blocked": world.plants.blocked(located.cell)})

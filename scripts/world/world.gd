@@ -29,6 +29,7 @@ const TERRAIN_ROCK: int = WorldMapData.TERRAIN_ROCK
 var _layers: Array[TileMapLayer] = []
 var _flora_layers: Array[TileMapLayer] = []
 var _flora_ids: Array = []
+var flora_override: Callable
 var _tile_set: TileSet
 var _map_data: WorldMapData
 var _loaded: Dictionary[Vector2i, bool] = {}
@@ -491,7 +492,7 @@ func _paint_cell(cell: Vector2i) -> void:
 	_layers[elevation].set_cell(cell, 0, Vector2i(surface, Visuals.variant_for(cell)))
 	_flora_layers[elevation].erase_cell(cell)
 	var flora: Dictionary = natural.get("flora", {})
-	if not flora.is_empty():
+	if not flora.is_empty() and (not flora_override.is_valid() or not bool(flora_override.call(cell))):
 		_flora_layers[elevation].set_cell(cell, 1, Vector2i(_flora_ids.find(flora.id), int(flora.variant)))
 
 
@@ -582,3 +583,8 @@ func _build_tile_set() -> TileSet:
 
 func _build_atlas_texture() -> ImageTexture:
 	return ImageTexture.create_from_image(Visuals.build_natural_image(TileGrid.TILE_SIZE, map_data().natural_surface_definitions()))
+
+
+func refresh_flora(cell: Vector2i) -> void:
+	if _initialized and not _layers.is_empty() and _cell_is_drawn(cell):
+		_paint_cell(cell)

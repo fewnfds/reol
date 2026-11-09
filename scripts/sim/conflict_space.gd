@@ -12,6 +12,8 @@ static func solid(world: RefCounted, cell: Vector2i, at_level: int) -> bool:
 			return true
 	if world.construction != null and world.construction.blocked(cell):
 		return true
+	if world.plants != null and world.plants.blocked(cell):
+		return true
 	for sim: VillageSimulation in world.regions.values():
 		if SimWorkplaces.blocked(sim.places, cell):
 			return true

@@ -61,7 +61,7 @@ func _new_room_runtime(runner: Object) -> void:
 	for region: String in adapter.world_sim.regions:
 		var local: VillageSimulation = adapter.world_sim.regions[region]
 		runner.assert_eq(local.config.get("workplaces_version", 0), 1, "both opening settlements opt into physical room policy")
-		runner.assert_true(Workplaces.valid_places(local.places, local.config, adapter.world_sim.map_data), "saved room fits the runtime's actual terrain")
+		runner.assert_true(Workplaces.valid_places(local.places, local.config, adapter.world_sim.map_data, local._content.workplaces), "saved room fits the runtime's actual terrain")
 		var room: Dictionary = local.places.records.workspace
 		runner.assert_true(not fixture.world.is_walkable(SimRouteTravel.cell(room.walls[0])), "view and player world reject the original room wall")
 		runner.assert_true(not fixture.world.is_walkable(SimRouteTravel.cell(room.fixtures.archive.cell)), "actual cabinet tile blocks runtime movement")

@@ -79,7 +79,7 @@ func spawn_opening(scenario: Dictionary) -> bool:
 		if not registry.add_subject(subject) or not registry.add_carrier(carrier, "soul_ring", {"kind": "soul_vessel", "id": row.vessel}) or not registry.reside(subject, carrier) or not registry.grant_control(subject, carrier, "communication"):
 			return false
 	# Stage both sources and references; validation cannot mutate live ownership.
-	var valid: bool = Schema.validate(state, self, registry) and registry.matches_legacy_actors(world._actor_ids(world.regions), world.avian_life.birds.keys(), _bindings_from(state.residents), world.large_bodies.bodies.keys())
+	var valid: bool = Schema.validate(state, self, registry) and registry.matches_legacy_actors(world._actor_ids(world.regions), world.avian_life.birds.keys(), _bindings_from(state.residents), world.large_bodies.bodies.keys(), world.plants.subject_ids() if world.plants != null else [])
 	if not valid:
 		return false
 	_assign(state)

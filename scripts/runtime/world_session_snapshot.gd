@@ -108,7 +108,7 @@ static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
 		return {}
 	var walking: Dictionary = restored.conflicts.walking_projection("player")
 	var speed: float = velocity.length()
-	if moving and speed > float(player.motion.rules.motion.speed) * float(walking.speed_fraction) + 0.001:
+	if moving and speed > float(content.local_actions.motion.speed) * float(walking.speed_fraction) + 0.001:
 		return {}
 	if int(snapshot.clock.wait_target_ms) != 0 and restored.owns_for_scope("player", &"wait"):
 		return {}
@@ -133,7 +133,7 @@ static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
 		return {}
 	if not SimRouteTravel.facing(home.actors.player).is_equal_approx(Vector2(float(snapshot.player.motion.facing[0]), float(snapshot.player.motion.facing[1]))):
 		return {}
-	if not extra.player_journey.is_empty() and not SimRouteTravel.valid_segment(extra.player_journey, home.actors.player, restored.elapsed_ms, float(player.motion.rules.motion.speed)):
+	if not extra.player_journey.is_empty() and not SimRouteTravel.valid_segment(extra.player_journey, home.actors.player, restored.elapsed_ms, float(content.local_actions.motion.speed)):
 		return {}
 	return {"world": restored, "map": candidate_map, "content": content, "snapshot": snapshot}
 
@@ -141,7 +141,7 @@ static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
 static func _valid_workplace_routes(world: RegionalSimulation, snapshot: Dictionary, extra: Dictionary, terrain: WorldMapData) -> bool:
 	var rooms: Array[Dictionary] = []
 	for sim: VillageSimulation in world.regions.values():
-		if not SimWorkplaces.valid_places(sim.places, sim.config, terrain):
+		if not SimWorkplaces.valid_places(sim.places, sim.config, terrain, sim._content.workplaces):
 			return false
 		if sim.config.has("workplaces_version"):
 			rooms.append(sim.places)
@@ -247,7 +247,7 @@ static func _valid_remote_terrain(sim: VillageSimulation, terrain: WorldMapData,
 	for place: Dictionary in sim.places.values():
 		if not terrain.terrain_is_walkable(_cell(place.cell)) or _cell(place.cell).distance_to(center) > float(sim.config.navigation_radius):
 			return false
-	if not SimWorkplaces.valid_places(sim.places, sim.config, terrain):
+	if not SimWorkplaces.valid_places(sim.places, sim.config, terrain, sim._content.workplaces):
 		return false
 	return true
 

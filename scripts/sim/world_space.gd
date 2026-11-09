@@ -6,7 +6,7 @@ extends RefCounted
 
 signal changed(change: Dictionary)
 
-const KINDS: Array[String] = ["actor", "avian", "large_body", "artifact", "stock", "construction", "workplace"]
+const KINDS: Array[String] = ["actor", "avian", "large_body", "artifact", "stock", "construction", "workplace", "plant"]
 const LAYERS: Array[String] = ["ground", "air", "roof", "planned"]
 const MAX_WORK: int = 65536
 const MAX_AREA: int = 4096
@@ -43,6 +43,7 @@ func _bind_sources() -> void:
 	_connect(world.object_lifecycle.committed, _objects_changed)
 	_connect(world.artifact_transfers.committed, _artifact_changed)
 	_connect(world.construction.space_changed, _structures_changed)
+	_connect(world.plants.plant_changed, _plant_changed)
 
 
 func detach() -> void:
@@ -82,6 +83,9 @@ func prepare(budget: int = MAX_WORK) -> Dictionary:
 			var reference: Dictionary = {"kind": "workplace", "region": region, "part": part}
 			if not _prepare_reference(reference, budget):
 				return _build_failed(budget)
+	for id: String in world.plants.bodies:
+		if world.plants.bodies[id].stage != "removed" and not _prepare_reference({"kind": "plant", "id": id}, budget):
+			return _build_failed(budget)
 	for id: String in world.avian_life.birds:
 		if not _prepare_reference({"kind": "avian", "id": id}, budget):
 			return _build_failed(budget)
@@ -218,7 +222,7 @@ func _refresh(reference: Dictionary) -> bool:
 			if _cells[cell].is_empty():
 				_cells.erase(cell)
 		_entries.erase(key)
-	var row: Dictionary = _body_projection(reference) if reference.kind in ["actor", "avian", "large_body"] else world.describe_object(reference)
+	var row: Dictionary = _body_projection(reference) if reference.kind in ["actor", "avian", "large_body"] else SimWorldObjectQuery._plant(world, reference) if reference.kind == "plant" else world.describe_object(reference)
 	var after: Array = []
 	if not bool(row.get("ok", false)):
 		if row.get("reason") != "not_found":
@@ -319,3 +323,10 @@ static func _freeze(value: Variant) -> void:
 func _failure(reason: String, work: int) -> Dictionary:
 	return {"ok": false, "complete": false, "reason": reason, "references": [],
 		"scope": "world_space", "live": true, "work_used": work}
+
+
+func _plant_changed(id: String) -> void:
+	if not _ready:
+		_announce([{"kind": "plant", "id": id}], [], [], "projection_invalidated")
+	elif not _refresh({"kind": "plant", "id": id}):
+		reset()

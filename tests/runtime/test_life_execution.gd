@@ -60,7 +60,7 @@ func _test_sparse_matches_fine(runner: Object) -> void:
 func _test_recovery_remainder(runner: Object) -> void:
 	var sim: VillageSimulation = _village_fixtures._make_simulation(runner)
 	sim.advance_to_ms(137)
-	var motion := SimLocalMotion.new()
+	var motion := SimLocalMotion.new(JSON.parse_string(FileAccess.get_file_as_string(SimLocalMotion.RULES_PATH)))
 	motion.bind_body(sim.actors.player)
 	runner.assert_true(motion.begin_sidestep(sim.elapsed_ms, Vector2.RIGHT, sim.actors.player), "short action spends the persistent body's stamina")
 	var recovery_at: int = int(sim.actors.player.exertion_until_ms)

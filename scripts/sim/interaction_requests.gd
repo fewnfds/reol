@@ -2,7 +2,7 @@ class_name SimInteractionRequests
 extends RefCounted
 ## Stateless intent boundary. Jobs, consent, evidence and costs stay in domains.
 
-const VERBS: Array[String] = ["examine", "study", "fetch_herb", "trade", "watch_supply", "withdraw_work", "offer_food", "accept_labor", "claim_wage", "converse", "diagnose", "treat", "site_arrangement", "borrow_source", "verify_return", "explain_source", "ask_source_care", "withdraw_source_care", "field_clue", "private_exchange"]
+const VERBS: Array[String] = ["ask_harvest","examine", "study", "fetch_herb", "trade", "watch_supply", "withdraw_work", "offer_food", "accept_labor", "claim_wage", "converse", "diagnose", "treat", "site_arrangement", "borrow_source", "verify_return", "explain_source", "ask_source_care", "withdraw_source_care", "field_clue", "private_exchange"]
 const STATUSES: Array[String] = ["invalid", "unheard", "not_understood", "incapable", "unavailable", "refused", "started", "pending", "completed", "unconfirmed", "cancelled"]
 
 
@@ -26,7 +26,7 @@ static func valid_definitions(data: Variant) -> bool:
 		var entry: Variant = data.verbs[verb]
 		if not entry is Dictionary or not SimEmbodiment._keys(entry, ["label", "object_kind", "bird_understands"]) or not SimInventory._nonempty(entry.label) or not entry.bird_understands is bool:
 			return false
-		var kind: String = {"private_exchange": "private_artifact", "field_clue": "field_question", "trade": "trade_offer", "fetch_herb": "avian_site", "watch_supply": "work_plan", "withdraw_work": "work_agreement", "offer_food": "provisions", "accept_labor": "labor_offer", "claim_wage": "labor_contract", "converse": "conversation_topic", "diagnose": "body", "treat": "body", "site_arrangement": "site_case", "borrow_source": "source_offer", "verify_return": "source_note", "explain_source": "care_basis", "ask_source_care": "care_arrangement", "withdraw_source_care": "care_arrangement"}.get(verb, "artifact")
+		var kind: String = {"ask_harvest": "plant", "private_exchange": "private_artifact", "field_clue": "field_question", "trade": "trade_offer", "fetch_herb": "avian_site", "watch_supply": "work_plan", "withdraw_work": "work_agreement", "offer_food": "provisions", "accept_labor": "labor_offer", "claim_wage": "labor_contract", "converse": "conversation_topic", "diagnose": "body", "treat": "body", "site_arrangement": "site_case", "borrow_source": "source_offer", "verify_return": "source_note", "explain_source": "care_basis", "ask_source_care": "care_arrangement", "withdraw_source_care": "care_arrangement"}.get(verb, "artifact")
 		if entry.object_kind != kind:
 			return false
 	for value: Variant in data.status_labels.values():
@@ -61,6 +61,11 @@ static func submit(world: RefCounted, intent: Dictionary) -> Dictionary:
 	if not bool(person.alive) or distance > float(world._content.interaction_requests.communication_cells):
 		return result("unheard", "离得太远，没能把请求传到对方那里。")
 	var rules: Dictionary = world._content.interaction_requests
+	if receiver.kind == "plant":
+		if intent.medium != "spoken" or intent.verb != "ask_harvest" or intent.object.id != receiver.id:
+			return result("not_understood", "枝叶收拢，未应允此事。")
+		var answer: Dictionary = world.plants.communicate(actor, str(receiver.id), "ask_harvest")
+		return result("completed" if answer.ok else "unheard", str(answer.get("line", "草木没有回应。")))
 	if receiver.kind == "large":
 		if not world.embodiment.controls(str(intent.receiver), SimLargeBodies.carrier_id(str(receiver.id)), "communication"):
 			return result("unheard", "山兽没有回应。")
@@ -324,6 +329,11 @@ static func _valid_intent(world: RefCounted, intent: Dictionary) -> bool:
 
 
 static func _known_object(world: RefCounted, actor: String, object: Dictionary, receiver: String = "") -> bool:
+	if object.kind == "plant":
+		if world.plants == null or not world.plants.bodies.has(object.id):
+			return false
+		var region: String = str(world.plants.bodies[object.id].region)
+		return world.regions[region].actors.has(actor) and SimRouteTravel.cell(world.regions[region].actors[actor].cell).distance_to(world.plants.cell_of(object.id)) <= float(world.regions[region].config.observation_radius)
 	if object.kind == "private_artifact":
 		var exchange: RefCounted = world.get("private_exchange")
 		if exchange == null or receiver.is_empty():
@@ -391,6 +401,10 @@ static func _known_object(world: RefCounted, actor: String, object: Dictionary, 
 
 
 static func _resolve(world: RefCounted, subject: String) -> Dictionary:
+	if world.plants != null and subject.begins_with("subject:plant:"):
+		var id: String = subject.trim_prefix("subject:plant:")
+		if world.plants.bodies.has(id) and world.plants.bodies[id].subject == subject:
+			return {"kind": "plant", "id": id, "region": str(world.plants.bodies[id].region)}
 	if world.embodiment.residence_of(subject).is_empty():
 		return {}
 	for region: String in world.regions:
@@ -407,6 +421,8 @@ static func _resolve(world: RefCounted, subject: String) -> Dictionary:
 
 
 static func _receiver_cell(world: RefCounted, receiver: Dictionary) -> Vector2i:
+	if receiver.kind == "plant":
+		return world.plants.cell_of(str(receiver.id))
 	if receiver.kind == "large":
 		return world.large_bodies.body_cell(str(receiver.id))
 	return world.avian_life.body_cell(str(receiver.id)) if receiver.kind == "bird" else SimRouteTravel.cell(world.regions[receiver.region].actors[receiver.id].cell)

@@ -2,6 +2,8 @@
 
 [分类总目录](../CATALOG.md)；路径存在不表示已实现或已验。
 
+- [docs/engineering/event-contract.md](../engineering/event-contract.md)
+- [docs/engineering/plants-contract.md](../engineering/plants-contract.md)
 - [docs/engineering/settlement-contract.md](../engineering/settlement-contract.md)
 - [docs/engineering/terminology.md](../engineering/terminology.md)
 

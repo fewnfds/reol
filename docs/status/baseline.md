@@ -2,9 +2,13 @@
 
 核对：2026-11-09。采用版本与准确代码证据记录在此，操作范围见[FEATURES](features.md)，当前停点见[HANDOFF](handoff.md)，详细日志和限制见[QA](../qa/README.md)。历史分卷只描述当时版本。
 
+## 全局事件与植物（工作分支）
+
+`codex/world-events-plants`承接通用存读，根54/区域45/内容包3。可信规则队列先接运输评估与植物觉醒；移动、值事房、约练规则绑定会话。植物接原身体、产物、花盆、空间、环境和最小交互。定向及原生收尾正在进行，最终完整回归、主审和提交尚待完成；准确证据与限制汇总于[本包QA](../qa/20261109_world_events_plants.md)，当前停点见HANDOFF，不沿用前包CI宣称本包通过。
+
 ## 通用存读模块（工作分支）
 
-主体`96a6fe0ed891dd386cf455b4f389449d74f5b878`、拒绝提示收尾`d682e030a5e28dfd04a5101bb5f826e37958422b`已推送`codex/save-load-framework`，尚未合main。统一领域capture/stage/check/install与安全保存请求/回执，根53/区域44保持；原状态仍归原owner。保存定向3组188检查、补充坏档边界311检查均退出0；同一次Sol/custom静态主审完成，无可确认发现。原生Main预算1保存、同进程及独立停开checkpoint/250ms未来一致。同代码SHA的[CI42553338071](https://github.com/fewnfds/reol/actions/runs/42553338071)本次提交准备点已核completed/success，完整回归通过；[QA](../qa/20261109_save_framework.md)记录分组证据、宿主审查恢复及限制。部分规则直接读盘仍未封闭，不作为本包已完成项。
+主体`96a6fe0ed891dd386cf455b4f389449d74f5b878`、拒绝提示收尾`d682e030a5e28dfd04a5101bb5f826e37958422b`已推送`codex/save-load-framework`，尚未合main。统一领域capture/stage/check/install与安全保存请求/回执，根53/区域44保持；原状态仍归原owner。保存定向3组188检查、补充坏档边界311检查均退出0；同一次Sol/custom静态主审完成，无可确认发现。原生Main预算1保存、同进程及独立停开checkpoint/250ms未来一致。同代码SHA的[CI42553338071](https://github.com/fewnfds/reol/actions/runs/42553338071)本次提交准备点已核completed/success，完整回归通过；[QA](../qa/20261109_save_framework.md)记录分组证据、宿主审查恢复及限制。该包当时未封闭的移动/值事房/约练规则已由事件植物包处理，证据分别归属各包。
 
 ## 共同时间过载降速（已合入main）
 
@@ -12,19 +16,9 @@
 
 ## 共同结算内核（已合入main）
 
-`codex/settlement-kernel`基于main `a4fb83a6c29e3203bf71fc1c1f950afe4906830b`，最终生产代码为`d99ac6492ad5dbe5ba1af5bcc00171b5753c28e4`，最终测试提交为`38606ea342f09e5aadcb50112df6620ddafbe10f`；最终测试SHA的[CI42508829722](https://github.com/fewnfds/reol/actions/runs/42508829722)已核completed/success，251组/125351检查/0失败；其后至`8cc40919599680d57e1f333f1482ebab38df7e3b`只有Markdown差异，已快进合入并推送main。共同时间、结算阶段/依赖与预算续算已接普通Main，原身体、库存、伤势、环境及动作继续归各领域；部分边界不能捕获新存档或原地恢复，帧间完整会话加载仍可由独立候选替换，根53/区域44未变。[QA](../qa/20261108_settlement_kernel.md)记录准确版本、日志和限制。
+最终生产代码`d99ac6492ad5dbe5ba1af5bcc00171b5753c28e4`、测试提交`38606ea342f09e5aadcb50112df6620ddafbe10f`；[CI42508829722](https://github.com/fewnfds/reol/actions/runs/42508829722)为completed/success，251组/125351检查/0失败。本机12片及覆盖聚合也通过。后续仅Markdown至集成点`8cc40919599680d57e1f333f1482ebab38df7e3b`，其[CI42538304156](https://github.com/fewnfds/reol/actions/runs/42538304156)已核success。
 
-当前代码已修普通停止入口绕过屏障、施工通知与画面提前发布、FAILED后宿主无效续算三项跨层边界，并补齐收尾审查的两项P2：`CommittedWorldCanvas`在完整clock发布时同步捕获，`_draw`只回放；PENDING/FAILED期间命令提示立即显示，世界事实保持最后完整投影。内部索引通知仍同步，外部完成通知沿完整边界发布；失败终态暂停并显示原因，合法会话加载可恢复。`tools/godot.py check`导入失败立即退出，不再启动后续测试。最终定向6组**782检查/0失败**、包装器退出0，Python完整**73项通过**。
-
-最终完整回归**251组/125351检查/0失败**，12片包装器退出均0，完整覆盖聚合退出0；1554项输入前后digest一致，证据目录`logs/settlement-close-delivery-full-20261109/`。生产代码保持d99ac；后续仅调整3个独立测试suite，原前1–8片中未受影响的证据经逐路径及选组核对后复用，涉及失败owner的4/7/9片均在相应suite最终内容下完整重跑。未混用旧`68fa8d3`或`0062ac5`生产代码报告。
-
-同一代码普通Main预算1与不限预算的完整未来一致；完全停止游戏进程后独立载入，checkpoint `ac5955affae9a0f9b436ecb27db9c51d2bcc516546a9a7b898126fea2d1e4105`及随后5000毫秒未来`6dca1aa17d52f7cc22c955b885ecf1e1496a1b3ce8af4c24d3a4de5066226d7a`均一致。真实施工部分/完整发布验证通过；另以预算1运行240帧，连续6次clock与canvas发布一致。RTX3060普通600帧样本间隔P95 **17.943ms**、P99 **18.883ms**、最小1.197ms、最大22.241ms；模拟6100毫秒、126个边界，结束无pending。只证明该短样本，不代表密集世界、长期历史增长或16GB整机目标验收，也不与旧短样本作性能提升结论。
-
-原内核实现和收尾差异各完成一次Sol/custom主要审查，有效问题均已修复；收尾两项P2由d99ac修复并有定向和原生反例证据。审查及原生验证已完成，不重复整包审查。
-
-CI已改为12片，完整覆盖及漏片反例工具验证通过，CI42508829722实测12个worker同时运行，worker墙钟108–202秒、覆盖聚合5秒，run创建至更新213秒（3分33秒）；不是所有未来运行的保证。原始job元数据和下载的12份完整报告在`logs/actions-node24-upgrade-20261109/`，覆盖汇总再次核通过。旧暂停分片及因审查问题中止的`0062ac5`回归只保留历史证据，不算最终通过。推送及集成状态以HANDOFF和Git为准。
-
-主线结算集成点`8cc40919599680d57e1f333f1482ebab38df7e3b`的[CI42538304156](https://github.com/fewnfds/reol/actions/runs/42538304156)也已在本轮真实提交准备点核completed/success；与上述分支最终测试SHA的CI分别记录。
+共同时间、依赖/阶段、预算续算、完整画面与完成通知、FAILED暂停和合法会话恢复已接Main。两包各一次Sol/custom静态主审的有效问题已修复；原生预算1与完整未来、独立停开、连续欠算发布通过。RTX3060普通600帧P95 17.943ms，只证明该样本。12片CI曾实测并行，run墙钟213秒；准确日志、修复、版本与限制见[QA](../qa/20261108_settlement_kernel.md)。
 
 ## 官方Actions Node24升级
 
@@ -71,7 +65,7 @@ main包含建筑阶段最终受检代码`d00bac954b69cab096d580db002fb04013fa254
 ## 采用版本与存档
 
 - Godot **4.7.2 stable** 是这次采用和验证的版本；长期跟进最新稳定版，每次升级需核插件、CI与导出模板。当前是 GDScript、Windows 本机开发，CI 为 Linux headless；Windows 正式独立包未验收。
-- 当前普通联合根存档 schema **53**，区域 **44**、村落 **7**、场状态 **4**（`outdoor_fields_v1`）、环境受体状态 **3**（climate **2**）、器物状态 **8**。内容包 **v2** 固定包含39份定义/开局及来源digest；部分动作等规则仍直接读取项目文件。当前只接受根53；旧根52因建筑模型、1–51因环境模型明确拒绝；[兼容政策](../engineering/compatibility.md)不承诺永久迁入链，真实fixture保持只读。
+- 当前工作分支普通联合根存档 schema **54**，区域 **45**、村落 **7**、场状态 **4**（`outdoor_fields_v1`）、环境受体状态 **3**（climate **2**）、器物状态 **8**。内容包 **v3** 固定包含44份定义/开局及来源digest，移动/值事房/约练规则绑定会话。当前只接受根54；旧根53缺事件/植物因果、52因建筑模型、1–51因环境模型明确拒绝；[兼容政策](../engineering/compatibility.md)不承诺永久迁入链，真实fixture保持只读。
 - 本轮起点 `2483a3771bc9f469509293a514fb0a059eefe095`。原环境缓存、温度及两测试的四WIP已备份并与原工作区字节核对，不混入隔离实现/验收。分支快照见[分支状态](branches.md)，当前操作以HANDOFF为准。
 
 ## 历史里程碑入口

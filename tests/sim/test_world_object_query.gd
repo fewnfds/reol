@@ -258,7 +258,7 @@ func _nonrectangular_workplace(runner: Object) -> void:
 	if world == null:
 		return
 	var home: VillageSimulation = world.regions.home
-	if not SimWorkplaces.enable_opening(home.config, home.places, home.actors, FlatMap.new(), str(home.config.institution.id)):
+	if not SimWorkplaces.enable_opening(home.config, home.places, home.actors, FlatMap.new(), str(home.config.institution.id), home._content.workplaces):
 		runner.assert_true(false, "opening workplace assembles from its original owner")
 		return
 	var wall_ref: Dictionary = {"kind": "workplace", "region": "home", "part": "walls"}

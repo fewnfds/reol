@@ -38,6 +38,9 @@ static func describe(world: RegionalSimulation, actor: String) -> Dictionary:
 		var action: Dictionary = world.object_lifecycle.actions[id]
 		if action.actor == actor:
 			return view(world, "object_lifecycle", id, actor, action.request.op, "work", int(action.started_ms), int(action.due_ms), "active", action.request.get("id", ""))
+	if world.plants != null and world.plants.active.has(actor):
+		var job: Dictionary = world.plants.active[actor]
+		return view(world, "plants", job.id, actor, job.kind, job.phase, int(job.started_ms), int(job.due_ms), "active", job.plant)
 	if world.construction.active.has(actor):
 		var job: Dictionary = world.construction.active[actor]
 		return view(world, "construction", job.id, actor, job.kind, job.phase, int(job.started_ms), int(job.due_ms), "active", job.project)

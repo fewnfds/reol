@@ -69,7 +69,9 @@ static func _player_shape(snapshot: Dictionary, terrain: WorldMapData) -> bool:
 	var body: Dictionary = simulation.actors.player
 	if not SimLocalMotion._vector(body.get("facing")) or not body.get("active") is Dictionary:
 		return false
-	var motion := SimLocalMotion.new()
+	var motion := SimLocalMotion.new(snapshot.content_bundle.documents.get(SimLocalMotion.RULES_PATH, {}))
+	if not SimLocalMotion.valid_rules(motion.rules):
+		return false
 	if not motion.valid_state(player.get("motion"), int(snapshot.clock.elapsed_ms)):
 		return false
 	var facing := Vector2(float(player.motion.facing[0]), float(player.motion.facing[1]))

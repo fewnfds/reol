@@ -434,6 +434,40 @@
       "armor": 5,
       "capabilities": {},
       "slots": []
+    },
+    "planter": {
+      "label": "花盆",
+      "kind": "furniture",
+      "item": "wood",
+      "amount": 6,
+      "work_ms": 180000,
+      "demolish_ms": 60000,
+      "salvage": 3,
+      "door": false,
+      "layer": "ground",
+      "size": [
+        1,
+        1
+      ],
+      "facts": {
+        "movement_blocked": true,
+        "enclosure_boundary": false,
+        "thermal_barrier": false,
+        "sight_blocked": false,
+        "wall_connection": false,
+        "roof_support": false
+      },
+      "max_hp": 100,
+      "armor": 2,
+      "capabilities": {
+        "cultivation": {
+          "substrate": "soil",
+          "water_capacity": 6000000,
+          "initial_water": 4800000,
+          "root_capacity": 1
+        }
+      },
+      "slots": []
     }
   }
 }

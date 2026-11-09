@@ -3,7 +3,7 @@ extends RefCounted
 ## Finite natural sources. Inventory owns the goods; this owns growth phase and
 ## source accounting. Neither growth nor opening the view delivers warehouse goods.
 
-const VERSION: int = 4
+const VERSION: int = 5
 const PREFIX: String = "resource:"
 const MAX_COUNT: int = SimInventory.MAX_COUNT
 const Ecology = preload("res://scripts/sim/herb_ecology_rules.gd")
@@ -30,7 +30,7 @@ func initialize(simulation: RefCounted, rules: Dictionary) -> bool:
 		var ecology: Dictionary = Ecology.empty_state(terms.ecology, simulation.elapsed_ms) if terms.has("ecology") else {}
 		var interval: int = int(terms.regrow_ms)
 		var next_growth: int = mini(MAX_COUNT, simulation.elapsed_ms - posmod(simulation.elapsed_ms, interval) + interval)
-		sources[id] = {"next_growth_ms": MAX_COUNT if not ecology.is_empty() else next_growth, "produced": 0, "extracted": 0, "rainfall": 0, "ecology": ecology}
+		sources[id] = {"plant_id": "", "next_growth_ms": MAX_COUNT if not ecology.is_empty() else next_growth, "produced": 0, "extracted": 0, "rainfall": 0, "ecology": ecology}
 	return true
 
 
@@ -50,6 +50,8 @@ func terms_for(id: String) -> Dictionary:
 func next_boundary_ms() -> int:
 	var next: int = 0x3fffffffffffffff
 	for id: String in sources:
+		if not str(sources[id].plant_id).is_empty():
+			continue
 		var terms: Dictionary = terms_for(id)
 		if not sources[id].ecology.is_empty():
 			next = mini(next, Ecology.next_boundary_ms(sources[id].ecology, terms.ecology, _sim.inventory.quantity(container_id(id), str(terms.item)), int(terms.capacity)))
@@ -61,6 +63,8 @@ func next_boundary_ms() -> int:
 
 func advance_to_ms(at_ms: int) -> void:
 	for id: String in sources:
+		if not str(sources[id].plant_id).is_empty():
+			continue
 		var state: Dictionary = sources[id]
 		var terms: Dictionary = terms_for(id)
 		if not state.ecology.is_empty():
@@ -91,6 +95,8 @@ func advance_to_ms(at_ms: int) -> void:
 func next_ecology_sample_ms() -> int:
 	var result: int = MAX_COUNT
 	for id: String in sources:
+		if not str(sources[id].plant_id).is_empty():
+			continue
 		if not sources[id].ecology.is_empty():
 			result = mini(result, Ecology.next_sample_ms(sources[id].ecology, terms_for(id).ecology))
 	return result
@@ -307,6 +313,7 @@ static func upgrade_state(previous: Dictionary, config: Dictionary, rules: Dicti
 		var periods: int = at_ms / interval
 		if int(source.next_growth_ms) != mini(MAX_COUNT, at_ms - posmod(at_ms, interval) + interval) or int(source.produced) > periods * int(terms.regrow_amount):
 			return {}
+		source["plant_id"] = ""
 		source.ecology = Ecology.empty_state(terms.ecology, at_ms, int(source.produced), conditions.get(id, {})) if terms.has("ecology") else {}
 		if not source.ecology.is_empty():
 			source.next_growth_ms = MAX_COUNT
@@ -350,16 +357,21 @@ static func valid_state(value: Variant, config: Dictionary, places: Dictionary, 
 		var terms: Dictionary = rules.types[entries[id].definition]
 		var state: Variant = value.sources.get(id)
 		var container: String = container_id(id)
-		if not Shape.keys(state, ["next_growth_ms", "produced", "extracted", "rainfall", "ecology"]) or not inventory.containers.has(container) or inventory.containers[container].size() != 1:
+		if not Shape.keys(state, ["plant_id", "next_growth_ms", "produced", "extracted", "rainfall", "ecology"]) or not inventory.containers.has(container) or inventory.containers[container].size() != 1:
 			return false
 		for field: String in ["next_growth_ms", "produced", "extracted", "rainfall"]:
 			if not _count(state.get(field)):
 				return false
 		var interval: int = int(terms.regrow_ms)
-		var managed: bool = terms.has("ecology")
+		if not state.plant_id is String:
+			return false
+		var delegated: bool = not state.plant_id.is_empty()
+		if delegated and (state.next_growth_ms != MAX_COUNT or state.ecology != {}):
+			return false
+		var managed: bool = terms.has("ecology") and not delegated
 		if managed and (state.next_growth_ms != MAX_COUNT or not Ecology.valid_state(state.ecology, terms.ecology, int(state.produced), at_ms)) or not managed and (not state.ecology is Dictionary or not state.ecology.is_empty()):
 			return false
-		if not managed and int(state.next_growth_ms) != mini(MAX_COUNT, at_ms - posmod(at_ms, interval) + interval):
+		if not managed and not delegated and int(state.next_growth_ms) != mini(MAX_COUNT, at_ms - posmod(at_ms, interval) + interval):
 			return false
 		var amount: int = inventory.quantity(container, terms.item)
 		if int(state.rainfall) > rainfall_limit or int(state.rainfall) > 0 and entries[id].definition != "spring":
@@ -369,7 +381,7 @@ static func valid_state(value: Variant, config: Dictionary, places: Dictionary, 
 		@warning_ignore("integer_division")
 		var periods: int = (int(state.ecology.activation_ms) if managed else at_ms) / interval
 		var historical_produced: int = int(state.ecology.base_produced) if managed else int(state.produced)
-		if historical_produced > periods * int(terms.regrow_amount):
+		if not delegated and historical_produced > periods * int(terms.regrow_amount):
 			return false
 		var extracted: int = 0
 		for operation_id: String in inventory.operations:

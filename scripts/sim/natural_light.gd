@@ -33,6 +33,8 @@ static func at_cell(world: RegionalSimulation, cell: Vector2i) -> Dictionary:
 	var roofed: bool = world.construction.roofed(cell)
 	@warning_ignore("integer_division")
 	var relative: int = int(result.total_relative) * (int(result.roof_transmission) if roofed else 10000) / 10000
+	if world.plants != null:
+		relative = relative * (10000 - world.plants.canopy_at(cell)) / 10000
 	result["cell"] = [cell.x, cell.y]
 	result["roofed"] = roofed
 	result["local_relative"] = relative
