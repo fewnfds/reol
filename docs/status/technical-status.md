@@ -32,7 +32,7 @@
 
 按本轮静态核查，优先补的是现有共同合同的覆盖范围：
 
-- **会话规则来源尚未封闭。** `ReolContentDB.DOCUMENT_PATHS`有39份定义，但不含`local_actions.json`、`workplaces.json`和`sparring.json`；`SimLocalMotion`/`GameClock`/`SimWorkplaces`/`SimSparring`仍读本地规则。更换这些文件后，载入旧世界有混用规则或拒绝在途状态的风险；本轮确认代码路径，未据此声称已运行版本变更复现。`save_game`还只在pending时返回`ERR_BUSY`，尚无自动协调到安全边界再保存的普通入口。下一领域开发先补会话绑定与安全存读合同。
+- **会话规则来源尚未封闭。** `ReolContentDB.DOCUMENT_PATHS`有39份定义，但不含`local_actions.json`、`workplaces.json`和`sparring.json`；`SimLocalMotion`/`GameClock`/`SimWorkplaces`/`SimSparring`仍读本地规则。更换这些文件后，载入旧世界有混用规则或拒绝在途状态的风险；本轮确认代码路径，未据此声称已运行版本变更复现。普通保存现经`SimSaveSession`协调到安全边界，领域capture/stage/install由`SimSaveRegistry`及统一目录驱动；下一领域开发仍先补会话规则绑定。
 - **对象变化与行动仍是有限共同接入。** `SimWorldSpace`已组合原身体/物品/结构，尚无植物kind；`SimActionContract.describe`只投影取放、施工、家具三个过程owner。植物阶段必须接唯一身份、阶段变化/移除、空间及环境失效、行动预约释放与最小观察；不为此另造万能对象库，也不先迁移全部旧动作。
 - **运行预算和长期状态尚无整机出口。** 共同时间已补有限准入、宿主成本反馈与6ms合作式步骤预算，详见[合同](../engineering/simulation-pacing.md)；多数原子回调及地区前置推进仍不能抢占；库存`operations`、认识`events`等仍可增长。已有阶段/失败诊断，但无声明密集规模的原子耗时、积压、命令/保存等待与多年存档增长证据。沿原owner补有界诊断、联合样本及引用安全保留策略，不能删除幂等/认识依据凑性能。
 
@@ -43,7 +43,7 @@
 | 公共能力 | 已有接入 | 未覆盖与验收边界 |
 |---|---|---|
 | 共同时间、结算与远区 | 已集成的[SimSettlementKernel](../../scripts/sim/execution/settlement_kernel.gd)与[SimWorldSettlement](../../scripts/sim/execution/world_settlement.gd)提供编译依赖、8个阶段、到期边界和预算续算；`GameClock`与[RegionalSimulation](../../scripts/sim/regional_simulation.gd)仍持共同整数毫秒、双聚落离场接续、行旅/货运/消息 | `SimFacilityUse`已按活动项接预算，其余原子回调及领域内部大循环未自动可抢占；非所有领域事件化，大人口、多年与密集动态组合未验。具体受检版本与限制见[QA](../qa/20261108_settlement_kernel.md) |
-| 定义、装配与当前快照 | 内容包v2绑定39份定义/开局及digest；[WorldRestoreFactory](../../scripts/sim/world_restore_factory.gd)、[SessionSaveSchema](../../scripts/persistence/session_save_schema.gd)、[SimSaveStore](../../scripts/persistence/save_store.gd)提供联合候选恢复、JSON快照、在途恢复、文件备份/替换和失败不改活世界 | 移动/工作场所/对练等仍有直接读盘规则，普通呈现/恢复限定home、river两区；当前根53，根1–52拒绝；尚未自动暂停→结步→保存→恢复。历史位置/回执尚无长期安全回收，不是事件重放系统 |
+| 定义、装配与当前快照 | 内容包v2绑定39份定义/开局及digest；[WorldRestoreFactory](../../scripts/sim/world_restore_factory.gd)、[SessionSaveSchema](../../scripts/persistence/session_save_schema.gd)、[SimSaveStore](../../scripts/persistence/save_store.gd)与`SimSaveRegistry`/`SimWorldSaveDomains`/`SimSaveSession`提供统一领域管线、安全保存请求与回执、联合候选恢复及文件备份/替换 | 移动/工作场所/对练等仍有直接读盘规则，普通呈现/恢复限定home、river两区；当前根53，根1–52拒绝；保存屏障停止新时间、结清受理工作并保留暂停状态。历史位置/回执尚无长期安全回收，不是事件重放系统 |
 | 稀疏执行与规模 | main的[SimParticipationIndex](../../scripts/sim/execution/participation_index.gd)已接环境和健康，member/active/due/dirty及生命周期重建可运行 | 自主、衣物、空间候选、光/UI及历史查询未普遍迁入；定义编译/能力登记未统一覆盖内容。按所属框架的实测收益补接，不能把算法或静态压测视为整机验收 |
 | 创作、呈现与诊断 | `--world-editor`的F8地表/真实物编辑，F3诊断、普通面板和代码示意外观，沿原规则与存档 | 完整内容/开局/组合模板编辑和独立预览未齐；开发生成是权限，不是玩家免费造物；正式多体型/全装备和全动作仍未完成 |
 | GPU计算 | main历史中有独立CPU/GPU/auto基础场计算服务及旧版对照证据 | 普通响应/原物事务仍为CPU，无玩家GPU开关；隔离加速倍数不等于全游戏收益，联合性能以实际版本/负载为准 |

@@ -270,6 +270,12 @@ func cancel_player_action() -> void:
 			continuity.world_sim.invalidate_region("home")
 
 
+func request_save(path: String = SAVE_PATH) -> Error:
+	if is_instance_valid(continuity):
+		return continuity.request_save(path)
+	return save_game(path)
+
+
 func save_game(path: String = SAVE_PATH) -> Error:
 	if is_instance_valid(continuity):
 		return continuity.save_game(path)
@@ -468,7 +474,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if not key.pressed or key.echo:
 		return
 	if key.keycode == KEY_F5:
-		save_game()
+		request_save()
 		get_viewport().set_input_as_handled()
 	elif key.keycode == KEY_F9:
 		load_game()
@@ -651,7 +657,7 @@ func _build_panel() -> void:
 	screen.add_child(_panel)
 	_panel.action_requested.connect(_on_action_requested)
 	_panel.help_requested.connect(_on_help_requested)
-	_panel.save_requested.connect(save_game)
+	_panel.save_requested.connect(request_save)
 	_panel.load_requested.connect(load_game)
 
 

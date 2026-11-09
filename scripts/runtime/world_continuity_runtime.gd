@@ -7,6 +7,7 @@ signal region_changed(region_id: String)
 signal player_travel_advanced(position_value: Vector2)
 signal resident_selected(pawn: Pawn)
 signal avatar_changed
+signal save_finished(path: String, result: Error)
 
 const SETTINGS_PATH: String = "res://data/scenarios/world_continuity.json"
 const REMOTE_PREFIX: String = "river_"
@@ -51,6 +52,7 @@ var _visual_targets: Dictionary = {}
 var _known_lines: Array[String] = []
 var _courier_cell: Vector2i = Vector2i.ZERO
 var _courier_visible: bool = false
+var _saves: SimSaveSession
 
 
 func home_runtime() -> VillageRuntime:
@@ -1094,6 +1096,8 @@ func _refresh_views(snap: bool) -> void:
 
 
 func _process(_delta: float) -> void:
+	if _saves != null:
+		_saves.process_save()
 	if GameClock.paused or _visual_progress >= 1.0:
 		return
 	_visual_progress = minf(1.0, _visual_progress + GameClock.view_delta_seconds() * GameClock.view_transition_rate())
@@ -1162,7 +1166,7 @@ func _build_panel() -> void:
 	screen.add_child(_panel)
 	_panel.travel_requested.connect(travel_to)
 	_panel.route_toggle_requested.connect(_toggle_route)
-	_panel.save_requested.connect(_home.save_game)
+	_panel.save_requested.connect(_home.request_save)
 	_panel.load_requested.connect(_home.load_game)
 	service_adapter = SettlementServicesRuntime.new()
 	service_adapter.setup(self, screen)
@@ -1235,42 +1239,91 @@ func _refresh_panel() -> void:
 		soul_adapter.refresh()
 
 
+func _save_service() -> SimSaveSession:
+	if _saves == null:
+		_saves = SimSaveSession.new()
+		_saves.configure(_capture_session, _stage_session, _adopt_session,
+			_save_ready, GameClock, _save_failed)
+		_saves.save_finished.connect(_on_save_finished)
+	return _saves
+
+
+func _save_ready() -> bool:
+	return world_sim != null and not GameClock.has_pending_advance() and GameClock.elapsed_ms == world_sim.elapsed_ms and world_sim.target_ms == world_sim.elapsed_ms and not world_sim.settlement.is_pending() and not world_sim.settlement.has_failed()
+
+
+func _save_failed() -> bool:
+	return world_sim == null or world_sim.settlement.has_failed()
+
+
+func _capture_session() -> Dictionary:
+	_home._sync_player_cell()
+	return WorldSessionSnapshot.capture(self)
+
+
+func _stage_session(snapshot: Dictionary) -> Dictionary:
+	var rejection: String = SessionSaveSchema.rejection_reason(snapshot.get("schema_version"))
+	if not rejection.is_empty():
+		return {"rejection": rejection}
+	return WorldSessionSnapshot.stage(self, snapshot)
+
+
 func save_game(path: String) -> Error:
-	# A handled budget failure may leave desired clock time ahead of physical
-	# time. The current joint format requires one accepted commit point. Refuse
-	# before touching player state or any primary/backup file; never report an
-	# unloadable pending-time snapshot as a successful save.
+	# Strict synchronous API for tools/callers already at a complete boundary.
 	if world_sim == null:
 		return ERR_UNCONFIGURED
-	if GameClock.has_pending_advance() or GameClock.elapsed_ms != world_sim.elapsed_ms or world_sim.target_ms != world_sim.elapsed_ms:
-		_notice = "世界仍有未结算时间，暂不能保存；已有存档保持原样。"
-		_refresh_panel()
-		return ERR_BUSY
-	_home._sync_player_cell()
-	var snapshot: Dictionary = WorldSessionSnapshot.capture(self)
-	if snapshot.is_empty():
-		_notice = "世界事务尚未完成，暂不能保存；已有存档保持原样。"
-		_refresh_panel()
-		return ERR_BUSY
-	var result: Error = SimSaveStore.save_file(path, snapshot)
-	_notice = "两地近况和在途事务已记下。" if result == OK else "保存失败：%s" % error_string(result)
+	var result: Error = _save_service().save_now(path)
+	_show_save_result(result)
+	return result
+
+
+func request_save(path: String) -> Error:
+	if world_sim == null:
+		return ERR_UNCONFIGURED
+	var result: Error = _save_service().request_save(path)
+	_notice = "正在完成当前结算，随后保存……" if result == OK else "未能受理保存：" + error_string(result)
 	_refresh_panel()
 	return result
 
 
+func _on_save_finished(path: String, result: Error) -> void:
+	_show_save_result(result)
+	save_finished.emit(path, result)
+
+
+func _show_save_result(result: Error) -> void:
+	if result == OK:
+		_notice = "两地近况和在途事务已记下。"
+	elif result == ERR_BUSY:
+		_notice = "世界事务尚未完成，暂不能保存；已有存档保持原样。"
+	else:
+		_notice = "保存失败：%s" % error_string(result)
+	_refresh_panel()
+
+
+func _exit_tree() -> void:
+	if _saves != null:
+		_saves.save_finished.disconnect(_on_save_finished)
+		_saves.cancel_save()
+
+
 func load_game(path: String) -> Error:
-	if GameClock.is_advancing():
-		return ERR_BUSY
-	var loaded: Dictionary = SimSaveStore.load_file(path)
-	if not bool(loaded.get("ok", false)) or not loaded.get("data") is Dictionary:
-		return _session_load_failed("没有读到可用近况，请先保存一次。")
-	if SessionSaveSchema.rejection_reason(loaded.data.get("schema_version")) == SessionSaveSchema.REJECTION_LEGACY_BUILDINGS:
-		return _session_load_failed("这份存档采用旧建筑模型；当前版本需要新建世界，原档未改动。")
-	if SessionSaveSchema.rejection_reason(loaded.data.get("schema_version")) == SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT:
-		return _session_load_failed("旧环境格式不再支持，存档未改；请新开局。")
-	var staged: Dictionary = WorldSessionSnapshot.stage(self, loaded.data)
-	if staged.is_empty():
-		return _session_load_failed("近况里的时间、行动或账目不适用于当前世界。")
+	var result: Error = _save_service().load_now(path)
+	if result == OK:
+		_notice = "两地已接续到保存时刻，途中事务保持原样。"
+	elif result == ERR_BUSY:
+		_notice = "当前事务仍在处理，暂不能读取。"
+	elif _saves.reason == SessionSaveSchema.REJECTION_LEGACY_BUILDINGS:
+		_notice = "这份存档采用旧建筑模型；当前版本需要新建世界，原档未改动。"
+	elif _saves.reason == SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT:
+		_notice = "旧环境格式不再支持，存档未改；请新开局。"
+	else:
+		_notice = "没有读到适用的近况，当前世界保持原样。"
+	_refresh_panel()
+	return result
+
+
+func _adopt_session(staged: Dictionary) -> void:
 	var snapshot: Dictionary = staged.snapshot
 	var extra: Dictionary = snapshot.continuity
 	# All validation is complete before changing any live world or clock state.
@@ -1315,8 +1368,6 @@ func load_game(path: String) -> Error:
 	player_travel_advanced.emit(_home._player.global_position)
 	_home._sync_actor_views(true)
 	_refresh_views(true)
-	_notice = "两地已接续到保存时刻，途中事务保持原样。"
-	_refresh_panel()
 	if sparring_adapter != null:
 		sparring_adapter.reset_observation()
 	redraw_committed_canvas()
@@ -1325,13 +1376,6 @@ func load_game(path: String) -> Error:
 		interaction_adapter.receive_current_care_alerts()
 	_home.content_replaced.emit(_home._content)
 	_capture_committed_canvases()
-	return OK
-
-
-func _session_load_failed(line: String) -> Error:
-	_notice = line
-	_refresh_panel()
-	return ERR_INVALID_DATA
 
 
 func known_lines() -> Array[String]:

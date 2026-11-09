@@ -20,6 +20,7 @@ var _buttons: Dictionary = {}
 
 func setup(main: Node2D, adapter: WorldContinuityRuntime) -> void:
 	_owner = weakref(adapter)
+	adapter.save_finished.connect(_on_save_finished)
 	_main = weakref(main)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	var perception_layer := CanvasLayer.new()
@@ -159,8 +160,13 @@ func submit(verb: String) -> Dictionary:
 
 
 func save_game() -> void:
-	var result: Error = runtime().save_game(VillageRuntime.SAVE_PATH)
-	_notice.text = "已记下这段残识与同一个世界。" if result == OK else "保存失败：" + error_string(result)
+	var result: Error = runtime().request_save(VillageRuntime.SAVE_PATH)
+	_notice.text = "正在完成当前结算，随后保存……" if result == OK else "未能受理保存：" + error_string(result)
+
+
+func _on_save_finished(path: String, result: Error) -> void:
+	if path == VillageRuntime.SAVE_PATH:
+		_notice.text = "已记下这段残识与同一个世界。" if result == OK else "保存失败：" + error_string(result)
 
 
 func load_game() -> void:

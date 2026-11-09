@@ -45,16 +45,7 @@ const ACTIVITY_DOMAINS: Dictionary = {
 	&"services": ActivityScope.BODY | ActivityScope.AUTOMATIC_MOTION | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION,
 }
 const SPARRING_PHASE_SCOPES: int = ActivityScope.PLAYER_ACTION | ActivityScope.AUTOMATIC_MOTION | ActivityScope.MANUAL_ACTION
-const SNAPSHOT_DOMAINS: Array[StringName] = [
-	&"object_lifecycle",
-	&"embodiment", &"artifacts", &"heat_methods", &"method_records", &"large_bodies",
-	&"personal_production", &"budgeted_labor", &"autonomous_livelihood", &"clothing",
-	&"health", &"environment", &"environment_fields", &"spirit_sources", &"sparring", &"conflicts",
-	&"avian_life", &"soul_vessels", &"admissions", &"construction", &"facility_use", &"resting",
-	&"weather", &"standing_work", &"site_affairs", &"source_care", &"capability_practice", &"field_opportunities", &"private_exchange",
-]
-## Wire keys belong to schema 44; runtime domains use their current names.
-const SNAPSHOT_KEYS: Dictionary = {&"environment_fields": &"local_heat"}
+const SaveDomains = preload("res://scripts/sim/world_save_domains.gd")
 # Keep query order stable too: a future derived cache must not silently turn
 # next-boundary collection into an unordered set of domain callbacks.
 const BOUNDARY_DOMAINS: Array[StringName] = [
@@ -170,7 +161,7 @@ static func schedule_contract() -> Dictionary:
 	# Services are optional; regions, routes, messages and ecology sampling also
 	# provide boundaries outside the fixed domain list.
 	return {
-		"snapshot_domains": SNAPSHOT_DOMAINS.duplicate(),
+		"snapshot_domains": SaveDomains.ids(),
 		"boundary_domains": BOUNDARY_DOMAINS.duplicate(),
 		"runtime_boundary_domains": RUNTIME_BOUNDARY_DOMAINS.duplicate(),
 		"advance_phases": ADVANCE_PHASES.duplicate(),
@@ -1044,10 +1035,11 @@ func to_dict() -> Dictionary:
 		"operations": operations.duplicate(true), "in_transit": in_transit.to_dict(),
 		"next_id": _next_id,
 	}
-	for name: StringName in SNAPSHOT_DOMAINS:
-		snapshot[String(SNAPSHOT_KEYS.get(name, name))] = get(name).to_dict()
-	if services != null:
-		snapshot["services"] = services.to_dict()
+	var domains := SaveDomains.registry(services != null)
+	var captured: Dictionary = domains.capture(self)
+	if captured.is_empty():
+		return {}
+	snapshot.merge(captured)
 	return _json_keys(snapshot)
 
 
@@ -1075,6 +1067,7 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 			if not actor_id is String or allowed_subjects.has(actor_id):
 				return false
 			allowed_subjects[actor_id] = true
+	var domains := SaveDomains.registry(services != null)
 	var next_regions: Dictionary = {}
 	var subject_scope: Dictionary = allowed_subjects if services != null else {}
 	for region_id: String in _sorted_keys(regions):
@@ -1083,24 +1076,9 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 			return false
 		if not SimLandResources.opening_matches(_base_workplace_config(saved.config), _base_workplace_config(opening_config(region_id))):
 			return false
-		var inventory_scope: Dictionary = SimConstruction.Schema.inventory_scope(data.construction, region_id, _content.construction)
-		var facility_scope: Dictionary = SimFacilityUse.inventory_scope(data.facility_use, region_id, _content.construction)
-		var production_scope: Dictionary = SimPersonalProduction.Schema.inventory_scope(data.personal_production, region_id, _content.personal_production)
-		var health_scope: Dictionary = SimHealth.Schema.inventory_scope(data.health, region_id, _content.health)
-		var labor_scope: Dictionary = SimBudgetedLabor.Schema.inventory_scope(data.budgeted_labor, region_id)
-		var exchange_scope: Dictionary = SimPrivateExchange.Schema.inventory_scope(data.private_exchange, region_id)
-		var lifecycle_scope: Dictionary = SimObjectLifecycle.inventory_scope(data.object_lifecycle, region_id)
-		for field: String in ["containers", "operations", "reservations"]:
-			inventory_scope[field].merge(production_scope[field])
-			inventory_scope[field].merge(facility_scope[field])
-			inventory_scope[field].merge(labor_scope[field])
-			for id: String in lifecycle_scope[field]:
-				if inventory_scope[field].has(id):
-					return false
-				inventory_scope[field][id] = true
-		inventory_scope["operations"].merge(health_scope.operations)
-		inventory_scope["reservations"].merge(exchange_scope.reservations)
-		inventory_scope["operations"].merge(exchange_scope.operations)
+		var inventory_scope: Dictionary = domains.inventory_scope(data, region_id, _content)
+		if inventory_scope.is_empty():
+			return false
 		inventory_scope["service_custody"] = services != null
 		inventory_scope["rainfall_limit"] = SimWeather.rain_budget(data.weather, _content.weather, region_id, int(data.elapsed_ms))
 		var simulation: VillageSimulation = VillageSimulation.from_snapshot(_content, saved, subject_scope, inventory_scope)
@@ -1118,14 +1096,6 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	var next_transit := SimInventory.new()
 	if not next_transit.restore(data.in_transit) or not _valid_cross_state(data, next_regions, next_transit):
 		return false
-	var next_embodiment := SimEmbodiment.new()
-	if not next_embodiment.configure(_content.body_forms) or not next_embodiment.restore(data.embodiment):
-		return false
-	for simulation: VillageSimulation in next_regions.values():
-		for actor_id: String in simulation.actors:
-			if not simulation.actors[actor_id].active.is_empty() and (not next_embodiment.self_controls_actor(actor_id, "action") or not next_embodiment.self_controls_actor(actor_id, "motion")):
-				return false
-	var next_services: RefCounted
 	var candidate_world := RegionalSimulation.new()
 	candidate_world.map_data = map_data
 	candidate_world.regions = next_regions
@@ -1137,248 +1107,20 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	candidate_world.couriers = data.couriers.duplicate(true)
 	candidate_world.operations = data.operations.duplicate(true)
 	candidate_world.in_transit = next_transit
-	candidate_world.embodiment = next_embodiment
 	candidate_world._content = _content
-	candidate_world.map_data = map_data
-	var next_lifecycle := SimObjectLifecycle.new()
-	if not next_lifecycle.initialize(candidate_world) or not next_lifecycle.restore(data.object_lifecycle):
+	var context: Dictionary = {"world": candidate_world, "source": self, "content": _content, "data": data}
+	if not domains.stage(data, context):
 		return false
-	candidate_world.object_lifecycle = next_lifecycle
-	# Stage only the bounded record shape before services reconstruct their
-	# saved specifications; all causal references are checked after every owner.
-	var next_site := SimSiteAffairs.new()
-	if not next_site.initialize(candidate_world, _content.site_affairs) or not next_site.restore(data.site_affairs):
-		return false
-	candidate_world.site_affairs = next_site
-	var next_care := SimSourceCare.new()
-	if not next_care.initialize(candidate_world, _content.source_care) or not next_care.restore(data.source_care):
-		return false
-	candidate_world.source_care = next_care
-	var next_practice := SimCapabilityPractice.new()
-	if not next_practice.initialize(candidate_world, _content.capability_practice) or not next_practice.restore(data.capability_practice):
-		return false
-	candidate_world.capability_practice = next_practice
-	# Site slots must exist before artifact location references are checked.
-	var next_field := SimFieldOpportunities.new()
-	if not next_field.initialize(candidate_world, _content.field_opportunities) or not next_field.restore(data.field_opportunities):
-		return false
-	candidate_world.field_opportunities = next_field
-	var next_exchange := SimPrivateExchange.new()
-	if not next_exchange.initialize(candidate_world, _content.private_exchange) or not next_exchange.restore(data.private_exchange):
-		return false
-	candidate_world.private_exchange = next_exchange
-	if services != null:
-		# Build a candidate authority for cross-validation. Live regions and
-		# services remain untouched until every resource and receipt is valid.
-		next_services = Services.new()
-		if not data.services is Dictionary or not next_services.initialize(candidate_world, services.definitions):
-			return false
-		candidate_world.services = next_services
-		next_services.set_navigation(services._navigation, services._can_step)
-		if not next_services.restore(data.services):
-			return false
-		for actor_id: String in next_services.active_jobs:
-			if not candidate_world.actor_controls(actor_id, "action") or not candidate_world.actor_controls(actor_id, "motion"):
-				return false
-	var next_methods := SimHeatMethods.new()
-	if not next_methods.initialize(candidate_world, _content.heat_methods) or not next_methods.restore(data.heat_methods):
-		return false
-	candidate_world.heat_methods = next_methods
-	var next_records := SimMethodRecords.new()
-	if not data.artifacts is Dictionary or not data.artifacts.get("events") is Array or not next_records.initialize(candidate_world, _content.method_records) or not next_records.restore(data.method_records, data.artifacts.events):
-		return false
-	candidate_world.method_records = next_records
-	# Validate against the candidate's field, never the live world's owner.
-	var next_fields := SimWorldEnvironmentFields.new()
-	if not next_fields.initialize(candidate_world, _content.local_heat):
-		return false
-	candidate_world.environment_fields = next_fields
-	var next_artifacts := SimArtifacts.new()
-	candidate_world.artifacts = next_artifacts
-	if not next_artifacts.initialize(candidate_world, _content.artifacts) or not next_artifacts.restore(data.artifacts):
-		return false
-	var next_souls := SimSoulVessels.new()
-	if not next_souls.initialize(candidate_world, _content.soul_vessels) or not next_souls.restore(data.soul_vessels):
-		return false
-	candidate_world.soul_vessels = next_souls
-	var next_large := SimLargeBodies.new()
-	if not next_large.initialize(candidate_world, _content.large_bodies) or not next_large.restore(data.large_bodies):
-		return false
-	if map_data != null:
-		next_large.set_geometry(map_data.terrain_is_walkable, map_data.get_elevation, Callable(), true)
-	else:
-		next_large.set_geometry(large_bodies._terrain, large_bodies._elevation, large_bodies._incoming)
-	candidate_world.large_bodies = next_large
-	var next_avian := SimAvianLife.new()
-	if not next_avian.initialize(candidate_world, _content.avian_life) or not next_avian.restore(data.avian_life):
-		return false
-	# Static map validation must not query the live scene's dynamic obstacles.
-	next_avian.set_landing_check(map_data.terrain_is_walkable if map_data != null else avian_life._landing)
-	candidate_world.avian_life = next_avian
-	var next_sparring := SimSparring.new()
-	if not next_sparring.initialize(candidate_world) or not next_sparring.restore(data.get("sparring")):
-		return false
-	candidate_world.sparring = next_sparring
-	var next_admissions := SimSocialAdmission.new()
-	if not next_admissions.initialize(candidate_world, _content.social_admission) or not next_admissions.restore(data.admissions):
-		return false
-	candidate_world.admissions = next_admissions
-	var next_construction := SimConstruction.new()
-	if not next_construction.initialize(candidate_world, _content.construction) or not next_construction.restore(data.construction):
-		return false
-	candidate_world.construction = next_construction
-	if map_data != null:
-		next_construction.set_terrain(map_data.terrain_is_walkable, map_data.get_elevation)
-	else:
-		next_construction.set_terrain(construction._terrain, construction._elevation)
-	if not next_construction.space_valid():
-		return false
-	if next_large._terrain.is_valid() and not next_large.space_valid():
-		return false
-	if map_data == null:
-		next_construction.set_incoming_occupancy(construction._incoming)
-	var next_resting := SimResting.new()
-	if not next_resting.initialize(candidate_world, _content.resting) or not next_resting.restore(data.resting):
-		return false
-	candidate_world.resting = next_resting
-	var next_weather := SimWeather.new()
-	if not next_weather.initialize(candidate_world, _content.weather) or not next_weather.restore(data.weather):
-		return false
-	candidate_world.weather = next_weather
-	var next_standing := SimStandingWork.new()
-	if not next_standing.initialize(candidate_world, _content.standing_work) or not next_standing.restore(data.standing_work):
-		return false
-	candidate_world.standing_work = next_standing
-	if not SimMethodRecords.Schema.cross_valid(next_records):
-		return false
-	var next_production := SimPersonalProduction.new()
-	if not next_production.initialize(candidate_world, _content.personal_production) or not next_production.restore(data.personal_production):
-		return false
-	candidate_world.personal_production = next_production
-	var next_labor := SimBudgetedLabor.new()
-	if not next_labor.initialize(candidate_world, _content.budgeted_labor) or not next_labor.restore(data.budgeted_labor):
-		return false
-	candidate_world.budgeted_labor = next_labor
-	var next_livelihood := SimAutonomousLivelihood.new()
-	if not next_livelihood.initialize(candidate_world, _content.autonomous_livelihood) or not next_livelihood.restore(data.autonomous_livelihood):
-		return false
-	candidate_world.autonomous_livelihood = next_livelihood
-	var next_clothing := SimClothing.new()
-	if not next_clothing.initialize(candidate_world, _content.clothing) or not next_clothing.restore(data.clothing):
-		return false
-	candidate_world.clothing = next_clothing
-	var next_conflicts := SimConflicts.new()
-	candidate_world.conflicts = next_conflicts
-	if not next_conflicts.initialize(candidate_world, _content.conflicts) or not next_conflicts.restore(data.conflicts):
-		return false
-	var next_health := SimHealth.new()
-	if not next_health.initialize(candidate_world, _content.health) or not next_health.restore(data.health):
-		return false
-	candidate_world.health = next_health
-	if not next_fields.restore(data.local_heat):
-		return false
-	# Artifact shape validation runs before health and personal understanding
-	# are restored. Only now can an in-flight warming action be cross-checked.
-	for actor: String in next_artifacts.active:
-		var job: Dictionary = next_artifacts.active[actor]
-		if job.verb == "warm" and not bool(next_artifacts._warming_readiness(actor, str(job.object)).ok):
-			return false
-	var next_environment := SimEnvironment.new()
-	if not next_environment.initialize(candidate_world, _content.climate) or not next_environment.restore(data.environment):
-		return false
-	candidate_world.environment = next_environment
-	if not candidate_world._valid_herb_conditions():
-		return false
-	var next_sources := SimSpiritSources.new()
-	candidate_world.spirit_sources = next_sources
-	# This domain cross-checks original bodies, artifacts, methods and all
-	# existing process owners; bind it only after those candidates exist.
-	if not next_sources.initialize(candidate_world, _content.spirit_sources) or not next_sources.restore(data.spirit_sources):
-		return false
-	var next_facility := SimFacilityUse.new()
-	next_facility.bind_world(candidate_world)
-	candidate_world.facility_use = next_facility
-	if not next_facility.restore(data.facility_use):
-		return false
-	if not SimConflicts.Schema.cross_valid(next_conflicts):
-		return false
-	if not next_site.cross_valid():
-		return false
-	if not next_care.cross_valid():
-		return false
-	if not next_practice.cross_valid():
-		return false
-	if not SimPrivateExchange.Schema.cross_valid(next_exchange):
-		return false
-	if not next_field.cross_valid():
-		return false
-	if not SimArtifacts.Schema.cross_valid(next_artifacts) or not next_lifecycle.cross_valid():
-		return false
-	private_exchange = next_exchange
-	private_exchange.bind_world(self)
-	field_opportunities = next_field
-	field_opportunities.bind_world(self)
-	capability_practice = next_practice
-	capability_practice.bind_world(self)
-	source_care = next_care
-	source_care.bind_world(self)
-	site_affairs = next_site
-	site_affairs.bind_world(self)
-	conflicts = next_conflicts
-	conflicts.bind_world(self)
-	spirit_sources = next_sources
-	# Only after all candidate validation succeeds may runtime callbacks return.
+	# Candidate checks use only candidate geometry. Reattach live adapter
+	# callbacks after every domain has passed validation, before old owners go.
 	if map_data != null:
 		if large_bodies != null:
-			next_large._incoming = large_bodies._incoming
+			context["large_incoming"] = large_bodies._incoming
 		if construction != null:
-			next_construction.set_incoming_occupancy(construction._incoming)
+			context["construction_incoming"] = construction._incoming
 		if avian_life != null:
-			next_avian.set_landing_check(avian_life._landing)
-	spirit_sources.bind_world(self)
-	environment = next_environment
-	environment.bind_world(self)
-	environment_fields = next_fields
-	health = next_health
-	health.bind_world(self)
-	clothing = next_clothing
-	clothing.bind_world(self)
-	autonomous_livelihood = next_livelihood
-	autonomous_livelihood.bind_world(self)
-	budgeted_labor = next_labor
-	budgeted_labor.bind_world(self)
-	personal_production = next_production
-	personal_production.bind_world(self)
+			context["avian_landing"] = avian_life._landing
 	regions = next_regions
-	large_bodies = next_large
-	large_bodies.bind_world(self)
-	weather = next_weather
-	weather.bind_world(self)
-	standing_work = next_standing
-	standing_work.bind_world(self)
-	resting = next_resting
-	resting.bind_world(self)
-	facility_use = next_facility
-	facility_use.bind_world(self)
-	construction = next_construction
-	construction.bind_world(self)
-	admissions = next_admissions
-	admissions.bind_world(self)
-	embodiment = next_embodiment
-	soul_vessels = next_souls
-	soul_vessels.bind_world(self)
-	avian_life = next_avian
-	avian_life.bind_world(self)
-	artifacts = next_artifacts
-	artifacts.bind_world(self)
-	object_lifecycle = next_lifecycle
-	object_lifecycle.bind_world(self)
-	heat_methods = next_methods
-	heat_methods.bind_world(self)
-	method_records = next_records
-	method_records.bind_world(self)
-	sparring = next_sparring
-	sparring.bind_world(self)
 	elapsed_ms = int(data.elapsed_ms)
 	target_ms = int(data.target_ms)
 	active_region = data.active_region
@@ -1391,10 +1133,8 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	operations = data.operations.duplicate(true)
 	in_transit = next_transit
 	_next_id = int(data.next_id)
-	environment_fields.bind_world(self)
-	if next_services != null:
-		services = next_services
-		services.bind_world(self)
+	var installed: bool = domains.install(self, context)
+	assert(installed, "validated saved-world participants must install")
 	_bind_service_guards()
 	_region_boundaries = {}
 	for region_id: String in regions:
@@ -1657,9 +1397,8 @@ func _valid_world_shape(data: Dictionary) -> bool:
 	for field: String in ["regions", "routes", "shipments", "couriers", "local_news", "operations", "in_transit"]:
 		if not data.get(field) is Dictionary:
 			return false
-	for field: StringName in SNAPSHOT_DOMAINS:
-		if not data.get(SNAPSHOT_KEYS.get(field, field)) is Dictionary:
-			return false
+	if not SaveDomains.registry(services != null).valid_shape(data):
+		return false
 	if data.spirit_sources.get("version") != SimSpiritSources.VERSION:
 		return false
 	for field: String in ["events", "messages"]:

@@ -41,6 +41,7 @@ var _cursor := Vector2i(-1, -1)
 
 func setup(adapter: WorldContinuityRuntime) -> void:
 	_adapter = weakref(adapter)
+	adapter.save_finished.connect(_on_save_finished)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	z_index = 30
 	var layer := CanvasLayer.new()
@@ -291,8 +292,13 @@ func save_world() -> void:
 	if adapter == null or adapter.world_sim != _prepared_world or not GameClock.paused:
 		_failed("not_prepared")
 		return
-	var result: Error = adapter.save_game(SAVE_PATH)
-	_reply.text = "已保存；下次可由存档接口恢复完整世界。\n" + SAVE_PATH if result == OK else "保存失败：" + error_string(result)
+	var result: Error = adapter.request_save(SAVE_PATH)
+	_reply.text = "正在完成当前结算，随后保存……" if result == OK else "未能受理保存：" + error_string(result)
+
+
+func _on_save_finished(path: String, result: Error) -> void:
+	if path == SAVE_PATH:
+		_reply.text = "已保存，可接续完整世界。" if result == OK else "保存失败：" + error_string(result)
 
 
 func load_world() -> void:

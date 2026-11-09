@@ -32,6 +32,7 @@ func setup(main: Node2D, adapter: WorldContinuityRuntime) -> void:
 	add_child(soul)
 	soul.setup(main, adapter)
 	adapter.avatar_changed.connect(_on_avatar_changed)
+	adapter.save_finished.connect(_on_save_finished)
 	GameClock.time_advanced.connect(_on_time_advanced)
 	adapter._opening_selection_available = GameClock.elapsed_ms == 0
 	opening.visible = adapter._opening_selection_available
@@ -223,8 +224,13 @@ func _project() -> void:
 
 
 func _save() -> void:
-	var result: Error = runtime().save_game(VillageRuntime.SAVE_PATH)
-	_notice.text = "近况已记下。" if result == OK else "保存失败：" + error_string(result)
+	var result: Error = runtime().request_save(VillageRuntime.SAVE_PATH)
+	_notice.text = "正在完成当前结算，随后保存……" if result == OK else "未能受理保存：" + error_string(result)
+
+
+func _on_save_finished(path: String, result: Error) -> void:
+	if path == VillageRuntime.SAVE_PATH:
+		_notice.text = "近况已记下。" if result == OK else "保存失败：" + error_string(result)
 
 
 func _load() -> void:

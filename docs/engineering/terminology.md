@@ -92,7 +92,9 @@
 
 ## 持久化边界
 
-当前运行成员和调度domain使用`environment_fields`。区域存档schema 44仍使用JSON键`local_heat`；`RegionalSimulation.SNAPSHOT_KEYS`在capture和shape validation处做明确映射，restore读取该既有键。当前根存档仍为schema 53，没有运行时`local_heat`兼容getter或第二环境owner。
+`SimSaveRegistry`是通用数据参与者管线，`SimWorldSaveDomains`是当前世界领域目录，`SimSaveSession`是会话操作协调；三个模块均不持有第二份世界事实。接口见[存读合同](architecture/04-persistence.md)。
+
+当前运行成员和调度domain使用`environment_fields`。区域存档schema 44仍使用JSON键`local_heat`；`SimWorldSaveDomains`的参与者登记在capture、shape validation和restore处共用该映射。当前根存档仍为schema 53，没有运行时`local_heat`兼容getter或第二环境owner。
 
 `ReolContentDB.local_heat`和`data/definitions/local_heat.json`保留为热设备参数定义入口；历史`SimLocalHeat`不因此成为当前环境owner。使用时写出限定路径/所属对象，不能只写`local_heat`猜它指运行域、存档还是定义。
 

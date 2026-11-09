@@ -50,6 +50,7 @@ var _last_host_usec: int = -1
 var _frame_deadline_usec: int = 0
 var _view_delta_seconds: float = 0.0
 var _pace_display_bucket: int = 20
+var _save_boundary_owner: WeakRef
 
 
 func _ready() -> void:
@@ -65,6 +66,9 @@ func _process(_delta: float) -> void:
 	var now: int = Time.get_ticks_usec()
 	var seconds: float = float(now - _last_host_usec) / 1000000.0 if _last_host_usec >= 0 else 0.0
 	_last_host_usec = now
+	if _save_boundary_held():
+		_view_delta_seconds = 0.0
+		return
 	var before: int = elapsed_ms
 	var running: bool = not paused or _explicit_allow_paused
 	_frame_deadline_usec = now + ReolSimulationPacing.FRAME_BUDGET_USEC
@@ -79,7 +83,7 @@ func advance_frame(delta: float) -> void:
 	# Explicit host-frame input for deterministic drivers/tests. Only _process
 	# measures CPU time and supplies a wall deadline; no wall time enters rules.
 	_view_delta_seconds = 0.0
-	if _advancing or not is_finite(delta) or delta < 0.0:
+	if _advancing or _save_boundary_held() or not is_finite(delta) or delta < 0.0:
 		return
 	# An explicitly requested advance can start while paused. A new pause after
 	# it started, however, stops its continuation until the user resumes.
@@ -187,7 +191,7 @@ func advance_ticks(count: int) -> void:
 
 
 func advance_msec(amount: int) -> void:
-	if _advancing or amount <= 0:
+	if _advancing or _save_boundary_held() or amount <= 0:
 		return
 	# Explicit commands add time after any already-requested interval. Its
 	# remaining frame debt is consumed by that interval, not by this command.
@@ -313,6 +317,65 @@ func is_advancing() -> bool:
 	return _advancing
 
 
+func begin_save_boundary(owner: RefCounted) -> bool:
+	if owner == null or _advancing or _save_boundary_held():
+		return false
+	_save_boundary_owner = weakref(owner)
+	_view_delta_seconds = 0.0
+	return true
+
+
+func drain_save_boundary(owner: RefCounted) -> void:
+	if not _owns_save_boundary(owner) or _advancing:
+		return
+	# Complete accepted work even if paused; do not start another realtime
+	# step or wait interval. Unstarted debt and the future wait target are
+	# already persistent. Explicit commands must finish: they are not saved.
+	var previous_deadline: int = _frame_deadline_usec
+	_frame_deadline_usec = Time.get_ticks_usec() + ReolSimulationPacing.FRAME_BUDGET_USEC
+	_advancing = true
+	_drain_save_work()
+	_advancing = false
+	_frame_deadline_usec = previous_deadline
+
+
+func _drain_save_work() -> void:
+	if _pending_kind != PENDING_NONE:
+		if not _commit_pending():
+			return
+		_finish_wait_if_due()
+	if _frame_end_ms > elapsed_ms and not _finish_frame_step(true):
+		return
+	var budget: int = MAX_MINUTES_PER_FRAME
+	while _explicit_target_ms > elapsed_ms and budget > 0 and not frame_budget_exhausted():
+		budget -= 1
+		_pending_kind = PENDING_EXPLICIT
+		_pending_end_ms = mini(_explicit_target_ms, (tick_index + 1) * MS_PER_MINUTE)
+		if wait_target_ms > elapsed_ms:
+			_pending_end_ms = mini(_pending_end_ms, wait_target_ms)
+		if not _commit_pending():
+			return
+		_finish_wait_if_due()
+	if _explicit_target_ms <= elapsed_ms:
+		_explicit_target_ms = 0
+		_explicit_allow_paused = false
+
+
+func end_save_boundary(owner: RefCounted) -> void:
+	if _owns_save_boundary(owner):
+		_save_boundary_owner = null
+		_last_host_usec = Time.get_ticks_usec()
+		_view_delta_seconds = 0.0
+
+
+func _owns_save_boundary(owner: RefCounted) -> bool:
+	return _save_boundary_held() and _save_boundary_owner.get_ref() == owner
+
+
+func _save_boundary_held() -> bool:
+	return _save_boundary_owner != null and _save_boundary_owner.get_ref() != null
+
+
 func bind_wait_guard(provider: Callable) -> void:
 	if _advancing:
 		return
@@ -321,7 +384,7 @@ func bind_wait_guard(provider: Callable) -> void:
 
 
 func request_wait(minutes: int = -1) -> bool:
-	if _advancing:
+	if _advancing or _save_boundary_held():
 		return false
 	if _has_wait_guard and (not _wait_guard.is_valid() or not bool(_wait_guard.call())):
 		return false

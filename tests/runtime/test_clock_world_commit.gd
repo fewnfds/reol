@@ -17,6 +17,7 @@ func run(runner: Object) -> void:
 	_test_cancel_during_settlement(runner)
 	_settlement_failure_recovery(runner)
 	_construction_publication(runner)
+	_queued_save(runner)
 	print("SCENARIO real clock/world commit: published boundary, budget debt, route override and retained regional target")
 
 
@@ -467,6 +468,13 @@ func _settlement_failure_recovery(runner: Object) -> void:
 	runner.assert_eq(calls[0], 1, "terminal state neither replays effects nor retries the owner")
 	runner.assert_eq(GameClock.elapsed_ms, 0, "failure never publishes the unfinished clock")
 	runner.assert_eq(runtime.save_game(path), ERR_BUSY, "failed partial state cannot overwrite the complete archive")
+	var primary: String = FileAccess.get_file_as_string(path)
+	var receipts: Array = []
+	runtime.save_finished.connect(func(_path: String, result: Error) -> void: receipts.append(result))
+	runner.assert_eq(runtime.request_save(path), OK, "ordinary saving returns a request receipt even in a failed world")
+	runtime._process(0.0)
+	runner.assert_eq(receipts, [ERR_INVALID_DATA], "failed settlement terminates the queued request without retrying the owner")
+	runner.assert_eq(FileAccess.get_file_as_string(path), primary, "failed queued saving preserves the last complete archive")
 	runner.assert_eq(runtime.load_game(path), OK, "a valid complete session replaces the failed world between frames")
 	runner.assert_eq(_capture_future(runtime, fixture.player), expected, "recovery restores original owners, clock and complete world")
 	GameClock.advance_msec(25)
@@ -568,6 +576,47 @@ func _construction_publication(runner: Object) -> void:
 	runner.assert_eq(notices.size(), 1, "the completed world publishes the real action result once")
 	runner.assert_true(view._pending_sight_cells.is_empty(), "completed clock publication flushes sight invalidation")
 	runner.assert_true(view._details.text != prior_details and view._canvas_commands != prior_commands, "complete publication updates both details and cached drawing")
+	fixtures._dispose(fixture)
+
+
+func _queued_save(runner: Object) -> void:
+	var fixture: Dictionary = _setup(runner)
+	if fixture.is_empty():
+		return
+	var runtime: WorldContinuityRuntime = fixture.continuity
+	runner.assert_true(runtime._panel.save_requested.is_connected(runtime._home.request_save), "ordinary save button shares the queued boundary coordinator")
+	if not _start_journey(runner, fixture):
+		fixtures._dispose(fixture)
+		return
+	var path: String = "user://tests/queued_world_%d.json" % Time.get_ticks_usec()
+	runtime.settings.event_budget = 1
+	runtime.settlement_work_budget = 1
+	GameClock.advance_msec(25)
+	runner.assert_true(GameClock.has_pending_advance() and runtime.world_sim.settlement.is_pending(), "a real multi-domain boundary is split before the save request")
+	var receipts: Array = []
+	runtime.save_finished.connect(func(_path: String, result: Error) -> void: receipts.append(result))
+	runner.assert_eq(runtime.request_save(path), OK, "the ordinary runtime accepts saving without a complete boundary yet")
+	runner.assert_true(receipts.is_empty() and not FileAccess.file_exists(path), "acceptance never reports a file as already written")
+	GameClock.set_paused(true)
+	for _frame: int in 4096:
+		if not runtime._saves.pending():
+			break
+		GameClock.advance_frame(1.0)
+		runtime._process(0.0)
+	runner.assert_eq(receipts, [OK], "budget-one work completes with exactly one successful file receipt")
+	runner.assert_true(not GameClock.has_pending_advance() and GameClock.elapsed_ms == 25 and GameClock.paused, "saving finishes accepted time without new frame admission or unpausing")
+	if receipts == [OK]:
+		var saved: Dictionary = SimSaveStore.load_file(path).data
+		runner.assert_eq(saved.clock.elapsed_ms, 25.0, "the file has the complete original endpoint")
+		runtime.settings.event_budget = 4096
+		runtime.settlement_work_budget = 4096
+		GameClock.advance_msec(250)
+		var future: Variant = _capture_future(runtime, fixture.player)
+		runner.assert_eq(runtime.load_game(path), OK, "the queued complete session passes the ordinary candidate loader")
+		runtime.settings.event_budget = 4096
+		GameClock.advance_msec(250)
+		runner.assert_eq(_capture_future(runtime, fixture.player), future, "queued saving preserves the same original bodies, journey, owners and future")
+	_remove_owned_save(path)
 	fixtures._dispose(fixture)
 
 

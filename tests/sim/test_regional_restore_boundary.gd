@@ -17,7 +17,7 @@ func run(runner: Object) -> void:
 	runner.assert_true(not world.regions.home.actors.player.active.is_empty(), "the rejected old candidate cannot erase an already running haul")
 	var before: String = _json(world.to_dict())
 	var owners: Dictionary = {}
-	for name: StringName in RegionalSimulation.SNAPSHOT_DOMAINS:
+	for name: StringName in RegionalSimulation.SaveDomains.ids():
 		owners[name] = world.get(name)
 	owners[&"home"] = world.regions.home
 	owners[&"river"] = world.regions.river
@@ -32,7 +32,7 @@ func run(runner: Object) -> void:
 		runner.assert_true(not world.restore(regional), "direct restoration rejects the retired raw regional entrance: " + ARCHIVES[index])
 		runner.assert_eq(_json(world.to_dict()), before, "rejected old region preserves all bodies, custody, time and unfinished work: " + ARCHIVES[index])
 		var same_owners: bool = world.regions.home == owners[&"home"] and world.regions.river == owners[&"river"] and world.in_transit == owners[&"in_transit"]
-		for name: StringName in RegionalSimulation.SNAPSHOT_DOMAINS:
+		for name: StringName in RegionalSimulation.SaveDomains.ids():
 			same_owners = same_owners and world.get(name) == owners[name]
 		runner.assert_true(same_owners, "rejected old region preserves every live authority: " + ARCHIVES[index])
 		runner.assert_eq(_json(regional), input, "direct rejection never converts the caller's old value in place: " + ARCHIVES[index])

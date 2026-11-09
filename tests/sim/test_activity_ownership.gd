@@ -57,7 +57,7 @@ func _independent_restore(runner: Object) -> void:
 		return
 	runner.assert_true(restored.spirit_sources != world.spirit_sources, "restored process has an independent owner")
 	runner.assert_true(restored.spirit_sources.world == restored, "restored source is bound to the committed world")
-	for name: StringName in RegionalSimulation.SNAPSHOT_DOMAINS:
+	for name: StringName in RegionalSimulation.SaveDomains.ids():
 		if name == &"embodiment":
 			continue
 		runner.assert_true(restored.get(name).get("world") == restored, "restored domain binds publicly to committed authority: " + String(name))

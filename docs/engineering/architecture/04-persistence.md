@@ -1,30 +1,58 @@
 # 当前代码架构与边界：存读提交边界
 
-## 存读提交边界
+## 状态与职责
 
-存档是**当前世界的数据快照**，不是从开局重演所有操作。统一时刻的时间、人物与物品、库存/账本、地图改造、环境实际状态及尚未完成的过程一起保存；进行中动作保存当前阶段与必要余量，读档后继续。日志/回执可能是领域当前数据的一部分，但恢复世界不依赖重放全部操作。
+存档是**当前世界的数据快照**。共同时间、身体与实物、库存/账本、地图改造、环境响应及在途过程一起保存；原状态继续归各领域，不创建第二个对象库。底图按档内种子和生成描述重建，派生空间索引、显示Node及缓存重建；恢复不重放全部历史，也不从新开局补发物资或知识。
 
-逻辑上保存整个世界进度，不等于转储全部内存：不可变底图按档内种子、版本和生成描述重建，地形改造另存；显示用 `Node`、围合/占地索引和可重建缓存不重复保存。未来加入的新事实必须由所属领域纳入快照，不能因屏幕上没有显示而漏存。
+| 模块 | 职责 |
+|---|---|
+| [SimSaveStore](../../../scripts/persistence/save_store.gd) | FileAccess/JSON、临时文件验证、备份和替换；不认识人物、建筑或领域规则 |
+| [SimSaveRegistry](../../../scripts/persistence/save_registry.gd) | 通用数据参与者登记，统一capture、候选stage、校验及install；纯数据，不扫描SceneTree |
+| [SimWorldSaveDomains](../../../scripts/sim/world_save_domains.gd) | 当前世界的唯一存档领域目录；声明wire key、可信工厂、恢复适配、跨域校验、重绑及库存引用范围 |
+| [SimSaveSession](../../../scripts/runtime/save_session.gd) | 通用会话操作：严格同步保存、普通保存请求/回执、独立候选加载与提交；通过明确回调适配宿主 |
+| [WorldSessionSnapshot](../../../scripts/runtime/world_session_snapshot.gd) / [WorldRestoreFactory](../../../scripts/sim/world_restore_factory.gd) | 联合封套、内容/地图/区域候选及玩家投影的校验；[WorldContinuityRuntime](../../../scripts/runtime/world_continuity_runtime.gd)负责成功后的场景接续 |
+| [SessionSaveSchema](../../../scripts/persistence/session_save_schema.gd) / [SnapshotValues](../../../scripts/persistence/snapshot_values.gd) | 当前根版本、形状及JSON值合同 |
 
-兼容方向见[当前版本与历史退役](../compatibility.md)：只维护一套当前运行模型/写档格式，历史输入仅在明确范围内转换后进入当前模型。本节记录代码实际存在的入口，不为多代迁移或旧生成器提供永久保留承诺。
+区域共同状态（时间、路线、区域、运输等）由`RegionalSimulation`校验；各领域适配器检查其原实例、引用、成本和因果。纯登记不自动赋予新领域空间、行动或认识能力；这些仍沿[领域接入检查](05-framework-domains.md#新领域的接入检查)处理。
 
-[WorldSessionSnapshot](../../../scripts/runtime/world_session_snapshot.gd)在共同时刻捕获联合快照，独立候选先恢复各域，再核跨域来源/成本/位置/占用；成功后才替换活世界与呈现引用。[SessionSaveSchema](../../../scripts/persistence/session_save_schema.gd)校验根版本并明确拒绝旧环境档，[SnapshotValues](../../../scripts/persistence/snapshot_values.gd)处理JSON值，[SimSaveStore](../../../scripts/persistence/save_store.gd)负责文件备份/原子替换。
+## 新字段与新领域如何接入
 
-共同结算边界未结清或失败时，不能捕获新快照或原地恢复。帧间完整会话加载可经独立候选校验后替换整个世界，失败候选不改活世界；已结清边界可以保存原本允许进行中的动作。结算调用图和游标是派生执行状态，不额外保存第二个时钟；成功恢复后重绑原owner并重新装配。详见[共同结算合同](../settlement-contract.md)，版本与证据见[BASELINE](../../status/baseline.md)。
+**已有领域增加字段：** 在原owner的`to_dict`、`restore`及其schema校验中维护该字段。通用管线、文件层和中央逐域循环均不改。无法由旧事实重建的新状态需要明确版本/拒绝边界；通用模块不猜业务迁移。
 
-当前代码写根53、区域44和含来源定义的内容包2；旧根不伪造Q到场响应的迁移。具体边界见[兼容性](../compatibility.md)与[环境合同](../world-environment-contract.md)。历史没有的知识、交易、物件和经历不能由新开局补造；当前墙门/人物位置不能证明过去的见证。同毫秒次序只能用已有序号/半开区间证明，不声称完整历史重演。围合、占地索引、缓存和纹理可重建，不作为另一份存档真值。
+**新增领域：** 在`SimWorldSaveDomains.registry()`登记一次适配器。简单领域复用`_standard`，声明运行成员、原脚本和内容规则键；特殊初始化或校验提供Callable。持久记录由owner的非空`to_dict()`提供，wire key允许与运行成员不同，例如`environment_fields`保存为`local_heat`。可信Script来自项目目录，存档不能指定任意脚本执行。
 
-## 保存操作与成熟能力
+登记顺序是明确的恢复依赖顺序。通用管线先构造所有候选owner，再执行可选`prepare`、按序恢复、最后执行全部跨域`check`。`prepare`用于环境等需要先提供候选接口、后恢复数据的情况；不能借它查询活世界。各适配器只修改独立候选，失败不能调用install。完整世界校验后，install先替换全部owner，再统一重绑，防止绑定看见新旧混合状态。库存引用贡献沿同一目录汇总；受保护的原物ID冲突拒绝，不能被其他贡献覆盖。
 
-用户接受“暂停→保存→继续”。正式操作可先停止接受新的模拟时间，结清当前已接受步，再同步捕获/写档，结束后恢复原暂停状态；不要求实现无停顿后台快照，也不必等人物完成整段旅行。目前`save_game()`是同步调用，检查共同时间/领域事务已完成后才捕获，繁忙则返回`ERR_BUSY`；**尚未自动实现上述暂停与恢复编排**。失败保留主档/备份，不把空快照当成功。
+当前`RegionalSimulation.to_dict/restore`与shape检查均消费该目录，不另维护一份存档domain清单或逐域new/restore/bind链。普通新增领域仍须在世界装配处创建其新局实例，这是新局的职责；存档恢复不调用开局发行逻辑。新业务规则及跨域引用需要自己的验证，自动序列化不能替代它。
 
-底层已用Godot自带`FileAccess + JSON`，临时文件验证、保留上一份备份后替换主档。文件层只处理编码/读写，领域定义自己的状态，独立候选通过后才替换活世界。JSON便于当前调试；若实际大档测量证明瓶颈，优先评估内置`store_var/get_var`与压缩，而不是自创序列化器。更换编码不会自动减少领域数据或恢复校验成本，本包不为此重写格式。
+## 保存请求与安全边界
 
-2026-11-07有界调研（静态资料，不是插件安装或性能验收）：
+普通UI/F5使用`request_save(path)`：返回`OK`只表示受理，真正完成由`save_finished(path, result)`回执。`SimSaveSession`取得`GameClock`的宿主准入屏障，停止新增实时步、显式推进和等待请求；原暂停状态和玩家后续暂停操作保持。每次续算仍受6ms合作式预算及原领域工作预算约束。
 
-- [Godot官方Saving games](https://docs.godotengine.org/en/stable/tutorials/io/saving_games.html)与[FileAccess](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html)：项目确定需保存的数据，再用内置JSON或二进制序列化写入；这已是当前采用路线。
-- [ResourceSaver](https://docs.godotengine.org/en/stable/classes/class_resourcesaver.html)提供Resource文本/二进制保存，适用于Resource数据组织；不自动识别未加载远区、领域唯一所有者和进行中过程。不为换工具把现有纯数据强制改成Resource树。
-- [Save Made Easy 1.3](https://godotengine.org/asset-library/asset/2056)（MIT，库条目标注Godot4.1）：便捷嵌套键值/Resource转换，底层仍是FileAccess/JSON。[所读源码](https://github.com/AdamKormos/SaveMadeEasy/blob/0cd7aae70fda98487f0eef8370e23c63217f141f/addons/save_system/save_system.gd)直接写目标文件，没有提供当前项目所需的完整世界候选恢复合同。
-- [SaveSystem 1.0.1](https://godotengine.org/asset-library/asset/4832)（MIT，标注Godot4.5+）：轻量键值及Variant文本读写。[所读源码](https://github.com/TommyKooij/SaveSystem/blob/47178f120d8d35f7f0430b52dc94f27b52c96352/addons/SaveSystem/save_system.gd)不能替代项目状态装配；采用前仍需目标引擎兼容验证。
+只结清已经受理的当前区间和显式请求。未开始的`frame_debt_ms`及未来`wait_target_ms`已经可保存，不为存档跑完整段等待或旅行；显式目标尚无存档字段，必须完成。结清后同步捕获/写档，再释放屏障，从新的宿主采样点继续，保存耗时不变成追赶时间。30秒内未结清、结算FAILED或取消均给失败回执并释放屏障；这些写入前的失败不改主档/备份，也不删除在途请求。
 
-本次决定保留内置能力上的薄文件层，不安装这两个插件、不扩多代迁移或历史重放。必要验收是当前世界保存、完整退出、重启恢复以及关键进行中过程接续；新领域接入时补其缺失状态，不围绕单件样品无限扩展。
+`save_game(path)`保留严格同步合同：未到完整共同时间或正在发布时返回`ERR_BUSY`。加载经`SimSaveSession.load_now`读档、stage独立候选、完整校验后才调用采用回调；失败不改活世界，时钟回调内或保存等待期间拒绝重入。帧间合法加载可替换FAILED或部分世界，提供恢复途径。场景退出取消未完成请求并释放屏障。
+
+文件阶段同步完成，不宣称后台无停顿。`SimSaveStore`核验临时文件，保留可用上一份后替换主档；编码/磁盘失败沿其Error返回，不把空快照当成功。若实际大档测量证明JSON是瓶颈，再评估Godot内置二进制/压缩；更换编码不减少领域恢复校验。
+
+## 采用方案与成熟参考
+
+采用Godot自带`FileAccess + JSON`和项目内薄通用模块，**不引入存读插件**。现有难点是领域装配与安全提交，文件编码层本身很小。这里借鉴声明式数据块/参与者模式，不复制外部项目实现。
+
+| 一手来源 | 可借鉴及取舍 |
+|---|---|
+| [Godot Saving games](https://docs.godotengine.org/en/4.7/tutorials/io/saving_games.html)、[ResourceSaver](https://docs.godotengine.org/en/4.7/classes/class_resourcesaver.html) | 游戏声明需保存状态，内置能力编码。Resource适用于Resource数据组织，现有纯数据owner无需整体迁树 |
+| [OpenTTD savegame format](https://github.com/OpenTTD/OpenTTD/blob/cd211f63489e386425bae282bb31384780099e68/docs/savegame_format.md) | 稳定文件流程、分块与各域handler/descriptor；借鉴职责分工，不复制GPL代码 |
+| [SaveKit](https://github.com/fernforestgames/godot-savekit/tree/9ca2dabdfd24712a2ad60b76d0a04e5a981b6e4a)（MIT） | exported/storable属性及自定义codec可简化对象图；默认load修改活SceneTree并清理缺失Node。仍需适配独立候选、原owner和远区 |
+| [I, Voyager Save](https://github.com/ivoyager/ivoyager_save/tree/06fe11f86dfab3a99669eae9fd52bf476b22742a)（Apache-2.0） | `PERSIST_PROPERTIES`声明Node/RefCounted属性；默认先销毁程序化活对象，独立候选builder在所读版本仍标experimental/untested，共享Array/Dictionary别名不保留，不直接适合当前模型 |
+| [Save Made Easy](https://godotengine.org/asset-library/asset/2056)、[SaveSystem](https://godotengine.org/asset-library/asset/4832)（MIT） | 轻量键值读写，可简化小型场景；未提供本项目完整联合候选与跨域业务校验 |
+
+上述源码在2026-11-09静态核查；没有安装或宣称完成插件4.7.2兼容验收。研究快照在本地`logs/save-architecture-audit-20261109/`，采用理由和公共接口以本页维护。
+
+## 格式与支持范围
+
+本次模块重构保持根53、区域44及现有领域wire记录，`local_heat`仍映射唯一`environment_fields`。目录变更不代表新格式；不强制把现有Dictionary改成Resource或转储所有对象。当前联合封套中的既有兼容投影也保持，不能借接口改造静默删字段。
+
+当前内容包v2绑定39份定义；`local_actions.json`、`workplaces.json`、`sparring.json`仍有直接读盘路径，尚未完成全部会话规则闭包。这个缺口继续归[唯一主计划](../../plans/foundation-priorities.md)的规则绑定前置，不由新存档模块推测补造旧规则。当前只接受根53，详细版本边界见[兼容政策](../compatibility.md)。
+
+必要验证包含最小参与者扩字段/扩域、坏候选原子拒绝、原领域roundtrip、预算续算与回执，以及普通Main完整退出重启后同checkpoint/同未来。具体版本、结果和限制查[BASELINE](../../status/baseline.md)。
