@@ -6,11 +6,11 @@
 
 | 名称 | 实际情况 |
 |---|---|
-| Git `main` / `origin/main` | 建筑阶段已完整快进并推送，包含集成点`eb330ee9c38fa3a5cc72004372ddeefd70409b1e`及此前全部已完成代码；阶段整合只改Markdown。准确代码d00bac的CI已核success；主线独立CI与实时指针见BASELINE和Git |
-| 当前工作分支 | `codex/settlement-kernel`基于main `a4fb83a6c29e3203bf71fc1c1f950afe4906830b`，接入共同结算内核和受预算续算；最终生产代码`d99ac6492ad5dbe5ba1af5bcc00171b5753c28e4`、测试提交`38606ea342f09e5aadcb50112df6620ddafbe10f`已完成本机验收并推送，尚未合入，具体证据见BASELINE与HANDOFF |
+| Git `main` / `origin/main` | 已快进并推送共同结算集成点`8cc40919599680d57e1f333f1482ebab38df7e3b`，包含共同空间、建筑及此前完整框架；结算最终测试SHA的CI42508829722已核success，精确证据见BASELINE |
+| 本轮工具与文档整合 | 官方Actions Node24升级代码`dc2558b`已合入main；架构缺口写回原主计划，不改游戏规则、不启动植物实现，准确验证状态见HANDOFF |
 | 普通 `Main` 游戏入口 | `scenes/main.tscn`及其运行接线；有限游戏能力和Git集成状态分别按功能及版本证据核验 |
 
-通用参与索引、环境局部/到期执行、健康活跃集合、共同空间/最小行动和通用建筑均已接普通Main并合入Git main；结算内核目前在工作分支。隔离旧实验`codex/field-contest`与命名stash不是待发布功能或自动恢复任务。来源见[分支页](branches.md)及[建筑验收](../qa/20261108_building_framework.md)。
+通用参与索引、环境局部/到期执行、健康活跃集合、共同空间/最小行动和通用建筑均已接普通Main并合入Git main；共同结算内核也已合入main。隔离旧实验`codex/field-contest`与命名stash不是待发布功能或自动恢复任务。来源见[分支页](branches.md)及[建筑验收](../qa/20261108_building_framework.md)。
 
 ## 按顶层框架的实际接入
 
@@ -26,21 +26,23 @@
 | **单位行动与交互框架** | [SimLocalMotion](../../scripts/sim/local_motion.gd)、[SimRouteTravel](../../scripts/sim/route_travel.gd)、多格扫掠及运行层寻路读原身体/空间；[SimInteractionRequests](../../scripts/sim/interaction_requests.gd)与原执行器区分表达/理解/意愿/耗时/中断/结果，耗时搬运已接普通面板；`SimActionContract`使取放/施工/家具使用共用条件、占用、复核、终态与释放 | 动作仍由各领域过程执行，门面列举20种事项；最小合同已接取放/施工/家具使用，全领域共同生命周期、接近/效果组合和策略入口未齐。动态路径失效/重规划属于本框架内部缺口；固定运粮仍保护原路，非全局动态绕路 |
 | **认识与自主决策框架** | [SimSocialMemory](../../scripts/sim/social_memory.gd)私人认识/有向关系/来源、当面自述；[SimInstitutionBook](../../scripts/sim/institution_book.gd)任职公账和贡献；双聚落需求/职责/吃住/采集生产、预约、少量自主目的和互助；迷雾/探索提供有限观察接缝 | 新对象/属性未全面接共同观察与认识；通用目标/策略编排、工作依赖及授权依据仍有限；关系判断仍用有限因素加权/边界骰与逐人值。通用Claim为候选，现有贡献不等于Claim；制度与长程社会玩法后续实现 |
 
-## 阶段整合判断
+## 阶段整合与基础缺口
 
-现有方向继续采用成熟作品公开接口体现的定义/实例/能力分工，以及领域过程保留原状态的做法。[研究依据](../../design/research/colony_sim_architecture.md)支持这种组织方式，不构成商业游戏内部源码审计。共同空间与建筑已经提供可复用基础；当前进度应描述为“主计划前两阶段在声明范围内已交付”，不使用七个领域全部完成或按脚本/断言数计算的百分比。
+共同空间、通用建筑及共同结算在声明范围内已交付。`SimSettlementKernel`/`SimWorldSettlement`提供依赖、同刻顺序和预算游标；普通停止、完整结果/画面发布、FAILED暂停与合法旧档恢复已接普通Main。最终251组/125351检查/0失败及同测试SHA CI通过，原生停开同未来和持续欠算画面已验，详见[QA](../qa/20261108_settlement_kernel.md)。这不表示七领域、全部原子回调或密集长期世界已经完成。
 
-共同结算内核跨领域协调时间、顺序和续算，新概念仍由原领域实现。工作分支的普通停止入口按受理结果返回bool并驱动UI回执；领域内部索引通知同步，`action_finished`等对外结果在完整边界发布，`CommittedWorldCanvas`在完整clock发布时同步捕获有限可见绘图参数，`_draw`只回放。PENDING/FAILED时命令提示立即更新，世界事实保留最后完整投影；FAILED暂停并显示原因，可通过合法完整会话加载恢复。原内核与收尾各完成一次主要审查，有效问题已修；最终本机完整251组/125351检查/0失败、12片包装器及覆盖聚合均退出0，原生停开、施工发布及预算1连续clock/canvas发布通过，见[本包QA](../qa/20261108_settlement_kernel.md)。本机验收完成不等于已合入main；GitHub新12片的实际并行墙钟与密集规模仍未验证。
+按本轮静态核查，优先补的是现有共同合同的覆盖范围：
 
-植物仍是后续完整领域：`NaturalEnvironment._flora_at`只派生覆盖及placement_id；`SimLandResources`按固定来源及原库存增长/采出，生态定义限定wild_herbs；`SimWorldObjectQuery._resource`返回`independent_plant=false`，`SimWorldSpace.KINDS`没有植物。只扩充草木定义或图片无法补齐接缝。
+- **会话规则来源尚未封闭。** `ReolContentDB.DOCUMENT_PATHS`有39份定义，但不含`local_actions.json`、`workplaces.json`和`sparring.json`；`SimLocalMotion`/`GameClock`/`SimWorkplaces`/`SimSparring`仍读本地规则。更换这些文件后，载入旧世界有混用规则或拒绝在途状态的风险；本轮确认代码路径，未据此声称已运行版本变更复现。`save_game`还只在pending时返回`ERR_BUSY`，尚无自动协调到安全边界再保存的普通入口。下一领域开发先补会话绑定与安全存读合同。
+- **对象变化与行动仍是有限共同接入。** `SimWorldSpace`已组合原身体/物品/结构，尚无植物kind；`SimActionContract.describe`只投影取放、施工、家具三个过程owner。植物阶段必须接唯一身份、阶段变化/移除、空间及环境失效、行动预约释放与最小观察；不为此另造万能对象库，也不先迁移全部旧动作。
+- **运行预算和长期状态尚无整机出口。** 内核按工作项计数，多数原子回调及地区前置推进不能抢占；库存`operations`、认识`events`等仍可增长。已有阶段/失败诊断，但无声明密集规模的原子耗时、积压、命令/保存等待与多年存档增长证据。沿原owner补有界诊断、联合样本及引用安全保留策略，不能删除幂等/认识依据凑性能。
 
-交付植物原实例后，环境可读取真实草木、建筑和容器条件，行动也有一致的自然目标。后续顺序保持主计划的环境组合→完整行动→共同认识与自主选择。房温、搬运、动态重规划分别回到相应领域；本轮没有发现需要重写引擎或增加一套平行顶层框架的证据。详细范围和验收只改原主计划，本页不生成第二条施工队列。
+`NaturalEnvironment`只是地表覆盖，原野药账不是独立植物群体。下一领域仍为植物，先收敛会话规则来源，再以草本/木本检验上述共同合同；后续环境组合→完整行动→共同认识的领域顺序保持。权威查询与个人所知继续隔离，必要观察从植物首次可作用时参与。具体依赖与出口只改[唯一主计划](../plans/foundation-priorities.md)，本轮不启动这些新功能。
 
 ## 贯穿框架的运行与工具合同
 
 | 公共能力 | 已有接入 | 未覆盖与验收边界 |
 |---|---|---|
-| 共同时间、结算与远区 | 工作分支的[SimSettlementKernel](../../scripts/sim/execution/settlement_kernel.gd)与[SimWorldSettlement](../../scripts/sim/execution/world_settlement.gd)提供编译依赖、8个阶段、到期边界和预算续算；`GameClock`与[RegionalSimulation](../../scripts/sim/regional_simulation.gd)仍持共同整数毫秒、双聚落离场接续、行旅/货运/消息 | `SimFacilityUse`已按活动项接预算，其余原子回调及领域内部大循环未自动可抢占；非所有领域事件化，大人口、多年与密集动态组合未验。工作分支证据与当前主线区分，见[QA](../qa/20261108_settlement_kernel.md) |
+| 共同时间、结算与远区 | 已集成的[SimSettlementKernel](../../scripts/sim/execution/settlement_kernel.gd)与[SimWorldSettlement](../../scripts/sim/execution/world_settlement.gd)提供编译依赖、8个阶段、到期边界和预算续算；`GameClock`与[RegionalSimulation](../../scripts/sim/regional_simulation.gd)仍持共同整数毫秒、双聚落离场接续、行旅/货运/消息 | `SimFacilityUse`已按活动项接预算，其余原子回调及领域内部大循环未自动可抢占；非所有领域事件化，大人口、多年与密集动态组合未验。具体受检版本与限制见[QA](../qa/20261108_settlement_kernel.md) |
 | 定义、装配与当前快照 | 内容包v2绑定39份定义/开局及digest；[WorldRestoreFactory](../../scripts/sim/world_restore_factory.gd)、[SessionSaveSchema](../../scripts/persistence/session_save_schema.gd)、[SimSaveStore](../../scripts/persistence/save_store.gd)提供联合候选恢复、JSON快照、在途恢复、文件备份/替换和失败不改活世界 | 移动/工作场所/对练等仍有直接读盘规则，普通呈现/恢复限定home、river两区；当前根53，根1–52拒绝；尚未自动暂停→结步→保存→恢复。历史位置/回执尚无长期安全回收，不是事件重放系统 |
 | 稀疏执行与规模 | main的[SimParticipationIndex](../../scripts/sim/execution/participation_index.gd)已接环境和健康，member/active/due/dirty及生命周期重建可运行 | 自主、衣物、空间候选、光/UI及历史查询未普遍迁入；定义编译/能力登记未统一覆盖内容。按所属框架的实测收益补接，不能把算法或静态压测视为整机验收 |
 | 创作、呈现与诊断 | `--world-editor`的F8地表/真实物编辑，F3诊断、普通面板和代码示意外观，沿原规则与存档 | 完整内容/开局/组合模板编辑和独立预览未齐；开发生成是权限，不是玩家免费造物；正式多体型/全装备和全动作仍未完成 |

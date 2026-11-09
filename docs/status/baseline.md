@@ -2,9 +2,9 @@
 
 核对：2026-11-09。采用版本与准确代码证据记录在此，操作范围见[FEATURES](features.md)，当前停点见[HANDOFF](handoff.md)，详细日志和限制见[QA](../qa/README.md)。历史分卷只描述当时版本。
 
-## 共同结算内核（已完成本机验收，待集成）
+## 共同结算内核（已合入main）
 
-`codex/settlement-kernel`基于main `a4fb83a6c29e3203bf71fc1c1f950afe4906830b`，最终生产代码为`d99ac6492ad5dbe5ba1af5bcc00171b5753c28e4`，最终测试提交为`38606ea342f09e5aadcb50112df6620ddafbe10f`；本机验收完成，代码已推送，尚未合入main。共同时间、结算阶段/依赖与预算续算已接普通Main，原身体、库存、伤势、环境及动作继续归各领域；部分边界不能捕获新存档或原地恢复，帧间完整会话加载仍可由独立候选替换，根53/区域44未变。[QA](../qa/20261108_settlement_kernel.md)记录准确版本、日志和限制。
+`codex/settlement-kernel`基于main `a4fb83a6c29e3203bf71fc1c1f950afe4906830b`，最终生产代码为`d99ac6492ad5dbe5ba1af5bcc00171b5753c28e4`，最终测试提交为`38606ea342f09e5aadcb50112df6620ddafbe10f`；最终测试SHA的[CI42508829722](https://github.com/fewnfds/reol/actions/runs/42508829722)已核completed/success，251组/125351检查/0失败；其后至`8cc40919599680d57e1f333f1482ebab38df7e3b`只有Markdown差异，已快进合入并推送main。共同时间、结算阶段/依赖与预算续算已接普通Main，原身体、库存、伤势、环境及动作继续归各领域；部分边界不能捕获新存档或原地恢复，帧间完整会话加载仍可由独立候选替换，根53/区域44未变。[QA](../qa/20261108_settlement_kernel.md)记录准确版本、日志和限制。
 
 当前代码已修普通停止入口绕过屏障、施工通知与画面提前发布、FAILED后宿主无效续算三项跨层边界，并补齐收尾审查的两项P2：`CommittedWorldCanvas`在完整clock发布时同步捕获，`_draw`只回放；PENDING/FAILED期间命令提示立即显示，世界事实保持最后完整投影。内部索引通知仍同步，外部完成通知沿完整边界发布；失败终态暂停并显示原因，合法会话加载可恢复。`tools/godot.py check`导入失败立即退出，不再启动后续测试。最终定向6组**782检查/0失败**、包装器退出0，Python完整**73项通过**。
 
@@ -14,7 +14,13 @@
 
 原内核实现和收尾差异各完成一次Sol/custom主要审查，有效问题均已修复；收尾两项P2由d99ac修复并有定向和原生反例证据。审查及原生验证已完成，不重复整包审查。
 
-CI已改为12片，完整覆盖及漏片反例工具验证通过，GitHub新配置的实际并行墙钟仍待验。旧暂停分片及因审查问题中止的`0062ac5`回归只保留历史证据，不算最终通过。推送及集成状态以HANDOFF和Git为准。
+CI已改为12片，完整覆盖及漏片反例工具验证通过，CI42508829722实测12个worker同时运行，worker墙钟108–202秒、覆盖聚合5秒，run创建至更新213秒（3分33秒）；不是所有未来运行的保证。原始job元数据和下载的12份完整报告在`logs/actions-node24-upgrade-20261109/`，覆盖汇总再次核通过。旧暂停分片及因审查问题中止的`0062ac5`回归只保留历史证据，不算最终通过。推送及集成状态以HANDOFF和Git为准。
+
+主线结算集成点`8cc40919599680d57e1f333f1482ebab38df7e3b`的[CI42538304156](https://github.com/fewnfds/reol/actions/runs/42538304156)也已在本轮真实提交准备点核completed/success；与上述分支最终测试SHA的CI分别记录。
+
+## 官方Actions Node24升级
+
+代码`dc2558b219cb2fbdf164c2d63371e01b0cff8226`已合入并推送main，只修改workflow。四个官方稳定release精确提交的签名、`action.yml`均核通过；六处调用使用`node24`且输入合法，原触发/权限/引擎/Python/12片/ZIP报告语义保持。一次Sol/custom原生静态差异审查无可执行发现，日志和YAML/输入比对在`logs/actions-node24-upgrade-20261109/`。本轮未重复本机Godot全套；文档提交准备点核得同SHA的[CI42539000023](https://github.com/fewnfds/reol/actions/runs/42539000023)为in_progress，尚待终态，不能沿用旧workflow绿色结果。[维护规则](../engineering/tooling/maintenance/01-updates.md)解释运行时与升级边界。
 
 ## 通用建筑与组合空间（已合入main）
 
@@ -26,7 +32,7 @@ main包含建筑阶段最终受检代码`d00bac954b69cab096d580db002fb04013fa254
 
 ## 当前集成代码
 
-用户授权后，main从`2e6b6a61caf11b5560c15a97f1a58cb156a7300b`快进并推送到建筑阶段证据提交`eb330ee9c38fa3a5cc72004372ddeefd70409b1e`，其后有阶段整合Markdown；本包工作分支基于main `a4fb83a6c29e3203bf71fc1c1f950afe4906830b`，尚未合入。实时指针以Git为准。已完成的前期开发分支均在main历史，旧争环WIP及原命名stash仍受保护。
+当前结算集成点为`8cc40919599680d57e1f333f1482ebab38df7e3b`，已推送；以下建筑与空间记录保留各自来源。用户授权后，main从`2e6b6a61caf11b5560c15a97f1a58cb156a7300b`快进并推送到建筑阶段证据提交`eb330ee9c38fa3a5cc72004372ddeefd70409b1e`，其后有阶段整合Markdown；结算分支基于main `a4fb83a6c29e3203bf71fc1c1f950afe4906830b`，已在上述集成点合入。实时指针以Git为准。已完成的前期开发分支均在main历史，旧争环WIP及原命名stash仍受保护。
 
 主线[CI42473540525](https://github.com/fewnfds/reol/actions/runs/42473540525)的headBranch为main、完整headSha为`eb330ee9c38fa3a5cc72004372ddeefd70409b1e`，已在本轮真实提交准备检查点一次核得completed/success；本包不是该SHA，需独立证据。阶段整合文档结构/链接/大小检查覆盖319份现行文档、495脚本入口，0错误；这不是新的游戏回归。
 

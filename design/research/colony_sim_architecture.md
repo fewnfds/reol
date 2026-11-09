@@ -1,6 +1,6 @@
 # 类RimWorld模拟游戏：基础架构对照
 
-研究更新：2026-11-08。本轮实读Factorio开发者日志、Cataclysm:DDA官方开发文档及Tarn Adams的模拟原则；2026-11-07的Mod教程、视频页面和代码核查保留为原证据。下方历史代码表基于`b3ae3399d24e01975d231cd000c0af342740070b`，不代表当前缺口。本文记录来源与推论，不代表商业游戏内部源码审计、教学项目的生产成熟度或Reol实现验收。领域职责见[顶层框架](../../docs/engineering/architecture/05-framework-domains.md)，建设依赖和出口只在[基础建设计划](../../docs/plans/foundation-priorities.md)维护。
+研究更新：2026-11-09。本轮实读Factorio开发者日志、Cataclysm:DDA官方开发文档及Tarn Adams的模拟原则；2026-11-07的Mod教程、视频页面和代码核查保留为原证据。下方历史代码表基于`b3ae3399d24e01975d231cd000c0af342740070b`，不代表当前缺口。本文记录来源与推论，不代表商业游戏内部源码审计、教学项目的生产成熟度或Reol实现验收。领域职责见[顶层框架](../../docs/engineering/architecture/05-framework-domains.md)，建设依赖和出口只在[基础建设计划](../../docs/plans/foundation-priorities.md)维护。
 
 ## 可核实的参考
 
@@ -17,11 +17,12 @@ Project Porcupine社区代码默认GPLv3，非代码资产默认CC BY-NC-SA；�
 
 ## 成熟项目的一手经验与适用边界
 
-以下原文于2026-11-08实际阅读。来源说明其项目的经验；右栏是对Reol的工程推论，不新增游戏规则或完成声明。
+以下原文于2026-11-08至09实际阅读。来源说明其项目的经验；右栏是对Reol的工程推论，不新增游戏规则或完成声明。
 
 | 一手来源 | 可以证实的经验 | Reol的采用与限制 |
 |---|---|---|
 | Tarn Adams：[Simulation Principles from Dwarf Fortress](https://www.gameaipro.com/GameAIPro2/GameAIPro2_Chapter41_Simulation_Principles_from_Dwarf_Fortress.pdf) | 作者主张尽早运行并迭代，把系统拆成基本元素及相互作用；只为玩家可感知或其下一层的结果增加复杂度。温度、降水等分别建模后组合出生境 | 保留顶层领域和共同合同，每阶段交付可操作的组合世界；避免先写包办所有未来规则的万能内核。此文是模拟设计原则，不能据此推断DF调度器、精度或容量 |
+| Factorio：[FFF270](https://www.factorio.com/blog/post/fff-270) | 存读在外部条件不变时应保持可观察行为；定义变更会改变几何、引用和移除次序，不能只序列化实例便忽略装配规则 | Reol据此优先收敛会话内规则来源与内容标识，沿当前候选恢复明确接受/拒绝范围。这是本项目的工程推论，不要求保存旧引擎或承诺所有版本自动迁移 |
 | Factorio：[FFF324](https://www.factorio.com/blog/post/fff-324) | 开发者通过可存读、能感知目标消失的Targeter，在目标变化时通知依赖者，减少每tick重复复核；再复用到多类设施 | 沿原引用与生命周期维护受影响者，墙门、植物变化后通知实际空间/行动依赖；恢复重建订阅。借鉴依赖关系，不移植其C++指针或新增全世界广播 |
 | Factorio：[FFF421](https://www.factorio.com/blog/post/fff-421) | 空闲设施可休眠，实际需求到来再激活；重叠覆盖用共享登记减少重复工作。只读、互不干扰的控制计算适合并行，其他并行尝试仍可能无收益 | 新植物和设施从接入时就使用活动/到期/变脏集合，连续生长等因果仍须累计。并行只处理边界清楚且实测有益的工作，不把“七个领域”解释成“七条线程” |
 | Factorio：[FFF415](https://www.factorio.com/blog/post/fff-415) | 不同CPU核数曾改变区块生成结果；定位依赖稳定复现。建设任务受预算限制，优化候选查询后才提高每次处理量 | 分片、并行完成次序和机器配置不应决定业务结果。保留同未来对照；测积压来源和原owner内部成本，不能只提高预算或增加线程。该文不证明Reol当前已跨平台确定 |

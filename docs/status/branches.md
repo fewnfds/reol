@@ -4,9 +4,9 @@
 
 ## 当前工作区与主线
 
-main基线为`a4fb83a6c29e3203bf71fc1c1f950afe4906830b`，包含通用建筑与组合空间及其后的阶段整合文档。建筑受检代码`d00bac9`及CI42457788038 success与主线`eb330ee9`的CI42473540525 success均只证明各自范围，不能代替当前结算工作分支验证。
+main已从`a4fb83a6c29e3203bf71fc1c1f950afe4906830b`快进并推送到共同结算证据提交`8cc40919599680d57e1f333f1482ebab38df7e3b`。最终产品d99ac6、测试38606ea的本机完整251组/125351检查/0失败与同测试SHA CI42508829722 success已核；至集成点仅Markdown差异，结算、建筑、共同空间均在main。
 
-当前`codex/settlement-kernel`基于该main，最终产品代码`d99ac6492ad5dbe5ba1af5bcc00171b5753c28e4`包含共同结算内核、12片CI，以及停止/发布/失败边界和导入失败短路修复；最终测试提交为`38606ea342f09e5aadcb50112df6620ddafbe10f`。审查修复、定向及原生运行验证已完成，完整12片251组/125351检查/0失败、各包装器及覆盖聚合均退出0。代码已推送，证据文档同步收尾；分支尚未合入main，远端CI待验。具体证据归属见[QA](../qa/20261108_settlement_kernel.md)，接续见[HANDOFF](handoff.md)。此前已完成的开发分支属于main历史，下述旧争环WIP单独隔离。
+官方Actions Node24升级提交`dc2558b219cb2fbdf164c2d63371e01b0cff8226`亦已快进合入并推送main，`codex/actions-node24-integration`保留其开发引用；游戏内容和规则保持不变，接续查[HANDOFF](handoff.md)。原结算分支成为已集成历史引用，不形成待合并代码队列。
 
 只操作根工作树；保护分支和命名stash不应用/删除。工具进程以HANDOFF为准，临时日志、截图和存档不作为公共运行依赖。
 
@@ -14,11 +14,12 @@ main基线为`a4fb83a6c29e3203bf71fc1c1f950afe4906830b`，包含通用建筑与�
 
 | 分支 | 已知来源提交 | 用途 |
 |---|---|---|
-| `codex/settlement-kernel` | 基于`a4fb83a6c29e3203bf71fc1c1f950afe4906830b`；产品`d99ac6492ad5dbe5ba1af5bcc00171b5753c28e4`，测试`38606ea342f09e5aadcb50112df6620ddafbe10f` | 本机完整验收及审查修复完成，代码已推送；尚未合入，远端CI待验 |
+| `codex/actions-node24-integration` | 基于`8cc4091`；Actions代码`dc2558b` | 官方Actions升级已合入main；架构与状态文档同步整理，准确指针以Git为准 |
+| `codex/settlement-kernel` | 产品`d99ac6`、测试`38606ea`、证据`8cc4091` | 已完整快进合入并推送main，本机及同测试SHA CI均通过 |
 | `codex/framework-consolidation` | 基于`eb330ee`，仅Markdown | 主线合并后的阶段盘点及现有主计划整理，不含新阶段代码 |
 | `codex/general-buildings` | 最终代码`d00bac9`、证据`eb330ee` | 通用建筑与组合空间已完整快进合入并推送main |
 | `codex/world-space-actions` | `fa45228`实现、`5fd6e31`审查修复、`f50f0a8`最终受检代码/测试及后续证据文档 | 基础建设第一阶段，已快进合入并推送main |
-| `main` | `a4fb83a6c29e3203bf71fc1c1f950afe4906830b` | 唯一集成主线；共同空间、通用建筑与此前已完成框架均在其中，当前结算包尚未合入 |
+| `main` | 包含结算`8cc4091`及Actions升级`dc2558b219cb2fbdf164c2d63371e01b0cff8226` | 唯一集成主线；共同空间、通用建筑和共同结算均已集成 |
 | `codex/sparse-world-execution` | 原远端`3f694262ecc1086a5de3554683f63cb156d4029f`，本地另含已整理提交 | 已合入main的历史开发引用，不形成另一条待开发队列 |
 | `codex/world-engine-finish` | `ffe7e8c705d2d7259dfb77dcfba3dd0a64c9c61c` | 旧环境主线集成记录，已在main历史 |
 | `codex/world-engine` | `2483a3771bc9f469509293a514fb0a059eefe095` | 旧开发起点，已在main历史 |

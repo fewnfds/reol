@@ -33,3 +33,11 @@ gh api repos/gamedev-skills/awesome-gamedev-agent-skills/commits/main --jq .sha
 ```
 
 `enabled`、`Auth: Unsupported`、配置文件存在都不等于握手成功或失败。用当前工具实际调用验证；个别会话`Transport closed`须检查该连接与会话状态，不据此重装所有服务。
+
+## GitHub Actions的Node运行时
+
+工作流里的JavaScript action由其`action.yml`的`runs.using`选择runner内置Node；`setup-node`或本机Node版本不决定这个值。GitHub已将旧Node20 actions强制迁到Node24，旧声明因此报警，即使job仍成功。[官方迁移说明](https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/)要求更新action版本，不应用不安全回退开关压掉警告。
+
+2026-11-09核对并采用官方稳定版`checkout v7.0.1`、`setup-python v7.1.0`、`upload-artifact v7.0.2`、`download-artifact v8.0.2`，完整SHA固定在[CI](../../../../.github/workflows/ci.yml)。四份精确提交的metadata均为`node24`，发布提交签名已核；标准ubuntu-24.04 runner满足Node24所需runner版本。新上传选项显式`archive: true`保留多文件ZIP，下载按原pattern分目录，覆盖聚合继续读12份JSONL；采用v8默认digest错误门禁。触发器、权限、引擎/Python版本和分片策略沿原配置。
+
+每次升级核稳定release、精确提交、metadata与使用中的输入/输出语义；不要只改注释或设强制运行环境变量。回退沿Git恢复先前workflow固定SHA，不改全局Node或第三方源码。本轮精确版本说明、metadata和静态YAML/输入核对保存在`logs/actions-node24-upgrade-20261109/`；实际远端结果须按准确SHA在BASELINE登记。
