@@ -8,7 +8,9 @@
 
 唯一主计划仍为 [foundation-priorities](../plans/foundation-priorities.md)。成熟参考与边界见 [研究](../../design/research/simulation_events.md)、[事件合同](../engineering/event-contract.md)、[植物合同](../engineering/plants-contract.md)。根54/区域45/内容包3；不把旧根因果历史从当前磁盘补造。
 
-事件/植物、原空间、运输、内容闭包和坏档已有定向证据；原生观察面板及独立停开同未来通过。最终还需一次主审、完整回归与提交推送，证据集中于[本包QA](../qa/20261109_world_events_plants.md)。长测试等待保留同一 handle，不做模型定时轮询；CI仅在实际提交检查点查询。
+主体`801d71e971136e52eab594f4049d2d4f6cef0856`已完成一次Sol/custom原生静态主审，同一会话恢复宿主读源码故障；四项P2由`e2512a18e3fcafad04fbf38ed44c2d1b2d9e010a`修复。新反例先复现，再以2组114检查通过。
+
+最终原生两进程与本机12片顺序完整check正由同一terminal session **26402**执行，驱动`logs/run_world_events_plants_full.py`，输出`logs/world-events-plants-full-20261109/`；没有第二套引擎或CI等待器。最终还需完整终态、文档证据和推送，见[本包QA](../qa/20261109_world_events_plants.md)。长测试等待保留同一handle，不做模型定时轮询；CI仅在实际提交检查点查询。
 
 ## 承接与保留
 

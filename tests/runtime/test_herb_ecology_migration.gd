@@ -1,5 +1,5 @@
 extends RefCounted
-## Retired archives are read-only; current soil candidates remain strict.
+## Retired archives are read-only; current plant/source delegation is strict.
 
 const Fixtures = preload("res://tests/runtime/test_world_continuity_runtime.gd")
 const LegacyRejection = preload("res://tests/runtime/helpers/legacy_rejection_archive.gd")
@@ -13,7 +13,7 @@ func run(runner: Object) -> void:
 	LegacyRejection.run(runner, {ARCHIVE: SOURCE_SHA}, [], [28], [4])
 	_bad_legacy(runner)
 	_modern(runner)
-	print("SCENARIO retired herb archive: genuine v32 rejection and strict current soil, weather and water validation")
+	print("SCENARIO retired herb archive: genuine v32 rejection and atomic current plant/source handoff validation")
 
 
 static func canonical(value: Variant) -> String:
@@ -174,27 +174,27 @@ func _modern(runner: Object) -> void:
 	var source: Dictionary = WorldSessionSnapshot.capture(runtime)
 	var before: String = canonical(source)
 	var live: RegionalSimulation = runtime.world_sim
-	runner.assert_true(not WorldSessionSnapshot.stage(runtime, source).is_empty(), "actual new ecology stages as an independent full candidate")
-	for kind: String in ["missing_ecology", "old_source", "unknown_field", "free_water", "fake_temperature", "fake_rain", "stale_sample", "future_activation", "unbacked_irrigation", "orphan_consume", "dry_rain"]:
+	runner.assert_true(not WorldSessionSnapshot.stage(runtime, source).is_empty(), "the actual delegated source stages as an independent full candidate")
+	for kind: String in ["missing_ecology", "old_source", "unknown_field", "dual_growth", "wrong_delegate", "orphan_delegate", "missing_body", "future_activation", "unbacked_irrigation", "orphan_consume", "dry_rain"]:
 		var bad: Dictionary = source.duplicate(true)
 		var sim: Dictionary = bad.continuity.world.regions.river
-		var ecology: Dictionary = sim.land_resources.sources.herb_slope.ecology
+		var land: Dictionary = sim.land_resources.sources.herb_slope
+		var plant_id: String = str(land.plant_id)
 		match kind:
 			"missing_ecology": sim.land_resources.sources.herb_slope.erase("ecology")
 			"old_source": sim.land_resources.version = 2
-			"unknown_field": ecology["growth_bonus"] = 3
-			"free_water": ecology.water = int(ecology.water) + 1
-			"fake_temperature": ecology.temperature_tenths = int(ecology.temperature_tenths) + 1
-			"fake_rain": ecology.rain = not ecology.rain
-			"stale_sample": ecology.sample_ms = ecology.activation_ms
-			"future_activation": ecology.activation_ms = int(sim.elapsed_ms) + 1
-			"unbacked_irrigation": ecology.irrigation_receipts["fake"] = {"actor": "river_player", "at_ms": sim.elapsed_ms, "amount": 1, "water_units": 60000000}
+			"unknown_field": land.ecology["growth_bonus"] = 3
+			"dual_growth": land.next_growth_ms = int(sim.elapsed_ms) + 1
+			"wrong_delegate": land.plant_id = "missing_plant"
+			"orphan_delegate": land.plant_id = ""
+			"missing_body": bad.continuity.world.plants.bodies.erase(plant_id)
+			"future_activation": bad.continuity.world.plants.bodies[plant_id].born_ms = int(sim.elapsed_ms) + 1
+			"unbacked_irrigation": land.ecology["irrigation_receipts"] = {"fake": {"actor": "river_player", "at_ms": sim.elapsed_ms, "amount": 1, "water_units": 60000000}}
 			"orphan_consume": sim.inventory.operations["fake:irrigate"] = {"kind": "consume", "container": "actor:river_player", "item": "water", "amount": 1}
 			"dry_rain":
-				# Keep the water conservation equation balanced. It must still
-				# fail because no sampled rainfall occurred in this dry interval.
-				ecology.rain_input = int(ecology.rain_input) + 1
-				ecology.overflow = int(ecology.overflow) + 1
+				# Delegation cannot revive the retired per-source water balance.
+				land.ecology["rain_input"] = 1
+				land.ecology["overflow"] = 1
 		var bad_before: String = canonical(bad)
 		runner.assert_true(WorldSessionSnapshot.stage(runtime, bad).is_empty(), "modern ecology rejects malformed source: " + kind)
 		runner.assert_true(runtime.world_sim == live, "bad source never swaps live authority: " + kind)
