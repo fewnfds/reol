@@ -20,7 +20,7 @@
 
 补充 construction/content bundle/field save boundary 验证中，前两组235检查通过；第三组检出坏档提示被简化，已按原合同恢复具体说明，定向重跑311检查/0失败、包装器退出0。日志分别为`logs/test-20261109-104556.log`和`logs/test-20261109-105215.log`；没有放宽断言。
 
-完整回归交由最终代码SHA的12片CI。[CI42553338071](https://github.com/fewnfds/reol/actions/runs/42553338071)的完整headSha已核为`d682e030a5e28dfd04a5101bb5f826e37958422b`，文档收尾提交准备点状态为in_progress，尚无终态；按规则留待下一次真实提交检查点核验。不是以定向通过代替完整验收；不在本机默认重复全游戏check。
+完整回归交由最终代码SHA的12片CI。[CI42553338071](https://github.com/fewnfds/reol/actions/runs/42553338071)的完整headSha已核为`d682e030a5e28dfd04a5101bb5f826e37958422b`，植物计划文档的真实提交准备点经`tools/ci.py status`核completed/success；前一次文档收尾时的in_progress已成为历史状态。后续仅Markdown，产品/测试仍对应该受检代码，不重复本机全套。不是以定向通过代替完整验收；不在本机默认重复全游戏check。
 
 ## 原生Main与完整停开
 

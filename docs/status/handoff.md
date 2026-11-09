@@ -2,13 +2,20 @@
 
 2026-11-09：通用SL实现已推送`codex/save-load-framework`，基于main `f63844b3cd18f92624f58de3749b1fbbcdd32fdd`。主体`96a6fe0ed891dd386cf455b4f389449d74f5b878`，最终代码`d682e030a5e28dfd04a5101bb5f826e37958422b`仅恢复具体坏档拒绝说明。尚未合main；没有新Goal，不启动植物等新领域。
 
+## 本轮植物计划
+
+用户本轮只要求补充计划，不启动植物代码。已重构[唯一主计划的植物阶段](../plans/foundation-priorities.md#植被与自然生命)，覆盖生境/栽培承载、物候与一年生/多年生、采集原株/产物/残株、环境双向作用及最小原地觉醒交互。主体、植物身体与能力组合，避免植物/怪物深继承；完整成精规则和树身人生保留为内容候选。相关方向同步生命规则、众生及设施设计；未另建执行计划。
+
+进入植物实现前，仍先完成存读底座集成与原有会话规则闭包。当前停在计划文档收尾，游戏能力未新增；本轮只做文档结构/链接/差异检查，不启动引擎或模型审查。
+
 ## 交付与验证
 
 保留Godot FileAccess/JSON及原`SimSaveStore`，不安装SL插件。`SimSaveRegistry`统一capture/stage/check/install与库存范围，`SimWorldSaveDomains`是唯一领域目录，`SimSaveSession`统一保存/候选加载操作。普通UI/F5以预算结清已受理工作后写档并回执，保留暂停、欠算及未来等待；失败、超时、取消释放屏障。根53/区域44保持，不补发开局事实。[存读合同](../engineering/architecture/04-persistence.md)是接入与成熟方案取舍入口。
 
 最终保存定向3组188检查、补充坏档边界311检查均包装器退出0；其他定向结果和准确受检范围见[QA](../qa/20261109_save_framework.md)。原生Main预算1保存121帧完成，同进程/完全停开checkpoint及250ms未来一致；截图已查看，实际5060Ti只作画面证据。一次Sol/custom主审在同一会话恢复宿主故障后完成，无可确认发现；后续仅拒绝提示反例修复，不重复整包审查。
 
-文档收尾提交准备点仅一次找到[CI42553338071](https://github.com/fewnfds/reol/actions/runs/42553338071)，完整headSha为d682e030a5e28dfd04a5101bb5f826e37958422b，状态in_progress；12片完整终态仍待验，不能称全量通过。下一次真实提交检查点使用`python tools/ci.py status --run 42553338071 --sha d682e030a5e28dfd04a5101bb5f826e37958422b`，不按时间续查。没有运行中的本地验证/审查或CI等待器。QA、基线、接续及目录补全已收尾，未启动下一领域。
+植物计划文档的真实提交准备点按既定命令核[CI42553338071](https://github.com/fewnfds/reol/actions/runs/42553338071)，完整headSha为d682e030a5e28dfd04a5101bb5f826e37958422b，终态completed/success；SL产品完整回归通过，尚未合main。后续仅Markdown，受检产品/测试保持；无本地验证/审查或CI等待器，不继续查终态。当前停在植物计划交付，未启动实现。
+
 
 ## 保留边界
 
