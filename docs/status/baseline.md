@@ -2,9 +2,13 @@
 
 核对：2026-11-09。采用版本与准确代码证据记录在此，操作范围见[FEATURES](features.md)，当前停点见[HANDOFF](handoff.md)，详细日志和限制见[QA](../qa/README.md)。历史分卷只描述当时版本。
 
-## 全局事件与植物（工作分支）
+## 全局事件与植物（工作分支已验收）
 
-`codex/world-events-plants`承接通用存读，主体`801d71e971136e52eab594f4049d2d4f6cef0856`，审查修复`e2512a18e3fcafad04fbf38ed44c2d1b2d9e010a`、最终生产`45f140b90aa1fb6d4adbf3d028efac12ae25aa9c`。根54/区域45/内容包3。可信规则队列先接运输评估与植物觉醒；移动、值事房、约练绑定会话。植物接原身体、产物、花盆、空间、环境与最小交互。一次Sol/custom静态主审的四项P2已修复；原生观察/完全停开后同一检查点及250ms未来通过。6株180帧样本P95 16.751ms，1024株到期有界/无界同未来，仍有原子长帧风险。[CI42595092906](https://github.com/fewnfds/reol/actions/runs/42595092906)已核completed/failure：10片通过、7/10片的三处测试fixture缺会话规则/内容，尚无完整通过。修复fixture并补移栽/待觉醒/跨年反例后，4组207检查/0失败、包装器退出0；生产代码保持45f140b，最终完整覆盖待验。证据与限制见[本包QA](../qa/20261109_world_events_plants.md)，停点见HANDOFF。
+`codex/world-events-plants`主体`801d71e971136e52eab594f4049d2d4f6cef0856`，审查修复`e2512a18e3fcafad04fbf38ed44c2d1b2d9e010a`，最终生产`45f140b90aa1fb6d4adbf3d028efac12ae25aa9c`、最终测试`13d675e6f49be9ebe42a3bd958d9d8ff3be6266b`已推送；后续仅Markdown，尚未合main。根54/区域45/内容包3。全局事件接运输/植物，移动/值事房/约练规则绑定会话；植物接原株/物候/残根/产物/花盆、空间/环境与最小灵智。
+
+最终测试SHA的[CI42596694569](https://github.com/fewnfds/reol/actions/runs/42596694569)已核completed/success，**12片完整256组/126555检查/0失败**，下载报告独立覆盖校验通过。run墙钟287秒；受影响5/7/10片本机check也通过，不与旧失败run拼接。旧CI42595092906的三处fixture遗漏已修，生产代码保持45f140b。
+
+一次Sol/custom原生静态主审的四项P2有先失败再修复反例。定向6组523检查，补移栽/待觉醒/真实年界后植物101检查、相关4组207检查均通过；原生观察及完全停开后的整个世界/clock/motion检查点和250ms未来一致。6株180帧P95 16.751ms，1024株due预算/无界同未来；单次原子工作仍可能长帧，不代表16GB/RTX3060密集世界。准确日志与限制见[QA](../qa/20261109_world_events_plants.md)，停点见HANDOFF。
 
 ## 通用存读模块（工作分支）
 

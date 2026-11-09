@@ -1,25 +1,19 @@
 # 当前接续
 
-2026-11-09：用户已授权扩大全局事件/结算能力并完成植物阶段；当前 active Goal 由主代理持续执行，工作分支 `codex/world-events-plants`，基于 `66f56b94a259db9a72e707ba0c09362bf808ed6e`，承接已推送的通用SL底座。main 仍是 `f63844b3cd18f92624f58de3749b1fbbcdd32fdd`，本阶段未合 main。
+2026-11-09：本轮授权的**全局事件与植物阶段已完成验收并推送**，工作分支`codex/world-events-plants`。最终生产`45f140b90aa1fb6d4adbf3d028efac12ae25aa9c`、最终测试`13d675e6f49be9ebe42a3bd958d9d8ff3be6266b`；其后仅Markdown。main仍为`f63844b3cd18f92624f58de3749b1fbbcdd32fdd`，本阶段及继承的通用SL尚未合main，无自动合并授权。
 
-## 当前工作
+## 已交付与证据
 
-已实现通用离散事件队列与可信规则目录，先迁入运输评估，再接植物觉醒；补移动/值事房/约练的会话规则。植物主体、生命周期、原库存产物、花盆承载、最小行动、环境来源及共同空间已接代码。主审及四项修复、定向与最终原生跨域存读/独立停开已通过，正在做最终完整回归；最终版本以本包QA为准。
+通用`SimEventQueue`持离散请求/到期/等待/周期/取消/期限/幂等与恢复，`SimWorldEvents`先接运输和植物；效果仍归原owner。移动/值事房/约练绑定会话内容，根54/区域45/内容包3。植物接原株、生境/物候/寿命/残根、原库存产物、花盆/有限移栽、环境双向作用、共同空间/行动/观察和最小植灵。职责及边界见[事件合同](../engineering/event-contract.md)、[植物合同](../engineering/plants-contract.md)。
 
-唯一主计划仍为 [foundation-priorities](../plans/foundation-priorities.md)。成熟参考与边界见 [研究](../../design/research/simulation_events.md)、[事件合同](../engineering/event-contract.md)、[植物合同](../engineering/plants-contract.md)。根54/区域45/内容包3；不把旧根因果历史从当前磁盘补造。
+一次Sol/custom主审完成，四项P2均有反例修复；普通Main真实观察/保存、独立停开后同一检查点及未来通过。最终测试SHA对应[CI42596694569](https://github.com/fewnfds/reol/actions/runs/42596694569)已核completed/success，12片256组/126555检查/0失败，下载报告独立覆盖校验通过。定向、密度/帧时与历史失败分别见[本包QA](../qa/20261109_world_events_plants.md)，不能用有限样本担保全域生态或整机规模。
 
-主体`801d71e971136e52eab594f4049d2d4f6cef0856`已完成一次Sol/custom原生静态主审，同一会话恢复宿主读源码故障；四项P2由`e2512a18e3fcafad04fbf38ed44c2d1b2d9e010a`修复。新反例先复现，再以2组114检查通过。
+## 接续边界
 
-首次完整回归第2片暴露旧野药测试仍读已退役的生态水账，夹具报错又污染后续clock；`424d906238925e5d5f1f49756420cb7d30b05984`只修当前交接反例/UID与文档，定向95检查通过。生产代码仍是e2512a1。
+当前无活本机测试、原生、审查进程或CI等待器。本阶段无未完代码与验收项；Goal在最终文档推送后收口。没有新阶段或main合并授权。
 
-本机完整check的旧野药测试访问退役生态，已更新当前交接反例；同时补回原私水按钮→共同植物作业的入口。原2/3片通过不作为最终版本完整结论。最终产品/测试`45f140b90aa1fb6d4adbf3d028efac12ae25aa9c`已推送；Godot最终定向6组523检查/0失败，外围打印器GBK错误不算进程成功，原日志完整。独立原生观察、保存和完全停开后同未来已退出0；1024株due预算/无界同未来样本通过，限制见[本包QA](../qa/20261109_world_events_plants.md)。
-
-对应[CI42595092906](https://github.com/fewnfds/reol/actions/runs/42595092906)在实际测试提交检查点核completed/failure，10片success，7/10片fixture缺会话规则/内容。三处fixture已修，生产代码不变；补移栽在途、待觉醒/砍伐同时恢复及真实年界的反例。最终4组207检查/0失败、包装器退出0；新测试准备提交推送，完整覆盖待重验，Goal保留active。
-
-当前无活本机测试、原生或审查进程；后续文档差异不启动引擎/重复审查。没有新阶段开发或main合并授权。
+唯一建设计划仍为[foundation-priorities](../plans/foundation-priorities.md)，后续推荐是**环境跨领域组合**：包含/遮掩、室内外冷热、房间分合及真实布局依赖；完整搬运/动态行动与共同认识仍按该主计划衔接。这里是后续方向，不是自动启动的任务队列。
 
 ## 承接与保留
 
-前包通用SL最终代码 `d682e030a5e28dfd04a5101bb5f826e37958422b` 的 CI42553338071 已核 completed/success；该证据不代替新阶段。原生存读与审查证据见[前包QA](../qa/20261109_save_framework.md)。
-
-旧 `codex/field-contest` = `4e17c5c165cf8fca9ef884a111aa1c3ca35f445f` 与命名 stash `424f956d280fb390d17e1f6dd879f3614b51a430` 保持隔离；不改用户配置/凭据，不恢复旧队列，不自动合 main。
+通用SL最终生产`d682e030a5e28dfd04a5101bb5f826e37958422b`在本分支历史，CI42553338071 success；不重写存读底座。旧`codex/field-contest`=`4e17c5c165cf8fca9ef884a111aa1c3ca35f445f`和stash`424f956d280fb390d17e1f6dd879f3614b51a430`保持隔离，不改用户配置/凭据，不恢复旧队列。

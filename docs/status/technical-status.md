@@ -9,14 +9,14 @@
 | Git `main` / `origin/main` | 当前起点`f63844b3cd18f92624f58de3749b1fbbcdd32fdd`包含共同空间、建筑、结算与负载调速，CI42544116843已核success；精确证据见BASELINE |
 | 共同时间流速整合 | 产品/永久测试`f4257e38a1665c08c8596028fe71c0cea0dbeab9`已合入main，CI42542611182完整通过；有限准入、自动降速、宿主步骤预算和HUD/F3已接普通Main，后续仅QA驱动与文档，准确证据见BASELINE |
 | 通用存读工作分支 | `codex/save-load-framework`主体96a6fe0、最终代码d682e03已推送，尚未合main；下文新存读能力指该分支，完整CI状态见[QA](../qa/20261109_save_framework.md) |
-| 事件与植物工作分支 | `codex/world-events-plants` 承接SL；全局事件/规则闭包、植物实例、环境/空间/行动和花盆已接普通Main并推送；原生主审/修复及停开已完成，准确SHA完整CI待验 |
+| 事件与植物工作分支 | `codex/world-events-plants` 承接SL；全局事件/规则闭包、植物实例、环境/空间/行动和花盆已接普通Main并推送；原生主审/修复及停开完成；13d675e对应12片CI完整256组通过，尚未合main |
 | 普通 `Main` 游戏入口 | `scenes/main.tscn`及其运行接线；有限游戏能力和Git集成状态分别按功能及版本证据核验 |
 
 通用参与索引、环境局部/到期执行、健康活跃集合、共同空间/最小行动和通用建筑均已接普通Main并合入Git main；共同结算内核及共同时间负载调速均已合入main。隔离旧实验`codex/field-contest`与命名stash不是待发布功能或自动恢复任务。来源见[分支页](branches.md)及[建筑验收](../qa/20261108_building_framework.md)。
 
 ## 按顶层框架的实际接入
 
-领域职责以[顶层框架](../engineering/architecture/05-framework-domains.md)为准，依赖与出口以[基础建设计划](../plans/foundation-priorities.md)为准。下表含当前工作分支事件/植物代码；主线集成与准确验证以HANDOFF/BASELINE为准。前两阶段达到声明范围出口，各顶层领域仍有后续扩展边界。
+领域职责以[顶层框架](../engineering/architecture/05-framework-domains.md)为准，依赖与出口以[基础建设计划](../plans/foundation-priorities.md)为准。下表含当前工作分支事件/植物代码；主线集成与准确验证以HANDOFF/BASELINE为准。前三阶段达到声明范围出口，各顶层领域仍有后续扩展边界。
 
 | 顶层框架 | 已有运行能力与主要入口 | 距框架出口的缺口 |
 |---|---|---|
@@ -32,7 +32,7 @@
 
 共同空间、通用建筑及共同结算在声明范围内已交付。`SimSettlementKernel`/`SimWorldSettlement`提供依赖、同刻顺序和预算游标；普通停止、完整结果/画面发布、FAILED暂停与合法旧档恢复已接普通Main。最终251组/125351检查/0失败及同测试SHA CI通过，原生停开同未来和持续欠算画面已验，详见[QA](../qa/20261108_settlement_kernel.md)。这不表示七领域、全部原子回调或密集长期世界已经完成。
 
-当前事件/植物包已补共同合同的以下覆盖，最终验证见BASELINE：
+事件/植物阶段已在声明范围内完成，最终CI与证据见BASELINE：
 
 - **规则闭包与全局事件已在工作分支补齐。** 内容包3有44份定义/开局，移动、值事房、约练按会话绑定；`SimEventQueue`接定时/周期/条件唤醒和幂等回执，`SimWorldEvents`首先服务运输与植物。最终准确证据仍看BASELINE；这不等于全部玩法触发已迁入。
 - **对象变化与行动保持原owner。** `SimWorldSpace`组合原身体/物品/结构/植物，`SimActionContract.describe`投影取放、施工、家具和植物过程。植物变化更新空间/来源、复核行动和释放预约；普通观察守可见范围。完整搬运、全体旧动作与共同认识仍后置。
