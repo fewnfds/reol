@@ -6,8 +6,9 @@
 
 | 名称 | 实际情况 |
 |---|---|
-| Git `main` / `origin/main` | 已快进并推送共同结算集成点`8cc40919599680d57e1f333f1482ebab38df7e3b`，包含共同空间、建筑及此前完整框架；结算最终测试SHA的CI42508829722已核success，精确证据见BASELINE |
+| Git `main` / `origin/main` | 当前起点`f63844b3cd18f92624f58de3749b1fbbcdd32fdd`包含共同空间、建筑、结算与负载调速，CI42544116843已核success；精确证据见BASELINE |
 | 共同时间流速整合 | 产品/永久测试`f4257e38a1665c08c8596028fe71c0cea0dbeab9`已合入main，CI42542611182完整通过；有限准入、自动降速、宿主步骤预算和HUD/F3已接普通Main，后续仅QA驱动与文档，准确证据见BASELINE |
+| 通用存读工作分支 | `codex/save-load-framework`主体96a6fe0、最终代码d682e03已推送，尚未合main；下文新存读能力指该分支，完整CI状态见[QA](../qa/20261109_save_framework.md) |
 | 普通 `Main` 游戏入口 | `scenes/main.tscn`及其运行接线；有限游戏能力和Git集成状态分别按功能及版本证据核验 |
 
 通用参与索引、环境局部/到期执行、健康活跃集合、共同空间/最小行动和通用建筑均已接普通Main并合入Git main；共同结算内核及共同时间负载调速均已合入main。隔离旧实验`codex/field-contest`与命名stash不是待发布功能或自动恢复任务。来源见[分支页](branches.md)及[建筑验收](../qa/20261108_building_framework.md)。

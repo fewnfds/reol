@@ -12,7 +12,7 @@ main / 场景装配
                 ↘ persistence快照/迁移/文件边界
 ```
 
-纯模拟不依赖HUD或祖先 `Node` 路径。运行适配负责绑定/命令与投影，不另存身体、库存或社会余额。当前业务autoload为`GameClock`，第三方另有MCP helper；未创建全量EventBus/ECS/EntityRegistry/SaveManager。
+纯模拟不依赖HUD或祖先 `Node` 路径。运行适配负责绑定/命令与投影，不另存身体、库存或社会余额。当前业务autoload为`GameClock`，第三方另有MCP helper；通用存读由`SimSaveSession`及纯数据参与者管线组成，未新增业务autoload或全量ECS。
 
 开发分支中的领域可持有同一[稀疏执行索引](../sparse-execution.md)，登记实际能力成员、当前参与和到期/变脏工作。它只选择候选，原领域仍按共同时间原阶段执行、复核并提交；不复制实体或数值，也不构成另一世界调度器。新能力沿此接缝填入，未接入的旧域不能据此宣称已完成稀疏执行；Git main关系查[技术总表](../../status/technical-status.md)。
 

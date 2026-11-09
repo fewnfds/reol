@@ -16,6 +16,7 @@ main已从`a4fb83a6c29e3203bf71fc1c1f950afe4906830b`快进并推送到共同结�
 
 | 分支 | 已知来源提交 | 用途 |
 |---|---|---|
+| `codex/save-load-framework` | 基于main `f63844b`；主体`96a6fe0`、最终代码`d682e03` | 通用参与者/领域目录、安全保存与候选加载已推送，尚未合main；验证及收尾见HANDOFF/BASELINE |
 | `codex/adaptive-world-time` | 基于`2c4ea10`；产品/永久测试`f4257e3` | 共同时间过载降速、宿主预算、呈现和验证已交付并合入main |
 | `codex/actions-node24-integration` | 基于`8cc4091`；Actions代码`dc2558b` | 官方Actions升级已合入main；架构与状态文档同步整理，准确指针以Git为准 |
 | `codex/settlement-kernel` | 产品`d99ac6`、测试`38606ea`、证据`8cc4091` | 已完整快进合入并推送main，本机及同测试SHA CI均通过 |

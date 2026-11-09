@@ -36,3 +36,5 @@
 - [docs/engineering/workflow/testing.md](../engineering/workflow/testing.md)
 
 - [docs/engineering/construction-contract.md](../engineering/construction-contract.md)
+
+- [docs/engineering/simulation-pacing.md](../engineering/simulation-pacing.md)

@@ -2,6 +2,10 @@
 
 核对：2026-11-09。采用版本与准确代码证据记录在此，操作范围见[FEATURES](features.md)，当前停点见[HANDOFF](handoff.md)，详细日志和限制见[QA](../qa/README.md)。历史分卷只描述当时版本。
 
+## 通用存读模块（工作分支）
+
+主体`96a6fe0ed891dd386cf455b4f389449d74f5b878`、拒绝提示收尾`d682e030a5e28dfd04a5101bb5f826e37958422b`已推送`codex/save-load-framework`，尚未合main。统一领域capture/stage/check/install与安全保存请求/回执，根53/区域44保持；原状态仍归原owner。保存定向3组188检查、补充坏档边界311检查均退出0；同一次Sol/custom静态主审完成，无可确认发现。原生Main预算1保存、同进程及独立停开checkpoint/250ms未来一致。同代码SHA的[CI42553338071](https://github.com/fewnfds/reol/actions/runs/42553338071)已核in_progress，完整12片终态待验；[QA](../qa/20261109_save_framework.md)记录分组证据、宿主审查恢复及限制。部分规则直接读盘仍未封闭，不作为本包已完成项。
+
 ## 共同时间过载降速（已合入main）
 
 `codex/adaptive-world-time`基于main `2c4ea10723d8140c5ae4b5f4c599f156d2ea6e5b`，共同时间已接有限准入、负载倍率和6ms合作式宿主预算；普通显示/HUD沿同一流速。根53/区域44及原状态owner不变，宿主负载估计不入档。最终定向8组796检查/0失败、包装器退出0；原生人工负载实际速度0.162×、帧间隔P95 17.600ms，移除后准入倍率恢复1×；同进程及完全停开250ms未来hash相同。产品/永久测试`f4257e38a1665c08c8596028fe71c0cea0dbeab9`的[CI42542611182](https://github.com/fewnfds/reol/actions/runs/42542611182)已核completed/success，完整12片通过；一次Sol/custom原生静态审查退出0，无可确认修复问题；已按用户授权快进整合main。产品/永久测试保持该SHA，后续仅QA帧驱动与文档，后续推送SHA的CI另行登记，不继承为已通过。细节和限制见[QA](../qa/20261109_simulation_pacing.md)。
