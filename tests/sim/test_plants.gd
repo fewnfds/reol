@@ -78,6 +78,7 @@ func run(runner: Object) -> void:
 	_actions_and_stumps(runner)
 	_support_and_transplant(runner)
 	_event_identity_and_restore(runner)
+	_action_settlement_death(runner)
 	print("SCENARIO plants: real habitats/annual life, reservations/interruptions, stumps, supported original identity, global awakening and same saved future")
 
 
@@ -92,9 +93,13 @@ func _habitats_and_life(runner: Object) -> void:
 	runner.assert_true(not world.plants.spawn("thorn", "desert_thorn", "home", Vector2i(112, 110)), "a desert species cannot root in open water")
 	runner.assert_true(world.plants.spawn("annual", "annual_grass", "home", Vector2i(114, 110)), "annual and perennial bodies share one framework")
 	runner.assert_true(world.plants.spawn("winter", "winter_herb", "home", Vector2i(115, 110)), "a seasonal species uses the same data-driven owner")
+	runner.assert_true(world.plants.spawn("wet_thorn", "desert_thorn", "home", Vector2i(121, 110)), "an explicitly planted dryland species can survive temporarily wet roots")
+	world.plants.bodies.wet_thorn.water = 35 * SimPlantRules.WATER_UNIT + 5
+	world.plants.bodies.wet_thorn.conditions.rain = false
 	var subjects: int = world.embodiment._subjects.size()
 	runner.assert_true(world.advance_to_ms(2000), "continuous life advances on the common clock")
 	runner.assert_eq(world.plants.bodies.herb.stage, "flowering", "maturity and flowering have separate thresholds")
+	runner.assert_true(world.plants.bodies.wet_thorn.growth_ms > 0, "evaporation continues during wet dormancy and growth can resume")
 	runner.assert_true(world.plants.bodies.winter.dormant and world.plants.bodies.winter.hp > 0 and world.plants.bodies.winter.growth_ms == 0, "an unsuitable season pauses growth without killing a tolerant perennial")
 	runner.assert_eq(world.embodiment._subjects.size(), subjects, "ordinary plants allocate no mind or identity carrier")
 	runner.assert_true(world.advance_to_ms(4000), "growth continues into reproduction")
@@ -103,6 +108,9 @@ func _habitats_and_life(runner: Object) -> void:
 	runner.assert_true(storage.ok and storage.quantity == 1 and storage.carrier == {"kind": "plant", "id": "herb"}, "plant stock resolves the original body's storage anchor")
 	runner.assert_true(world.advance_to_ms(6000), "lifespan boundary continues while offscreen")
 	runner.assert_eq(world.plants.bodies.annual.stage, "dead", "annual death follows lifetime, not year rollover")
+	runner.assert_eq(world.plants.bodies.annual.fruit_ms, 0, "natural death discards unfinished reproductive potential")
+	var after_death: RegionalSimulation = world_for(runner)
+	runner.assert_true(after_death.restore(JSON.parse_string(JSON.stringify(world.to_dict(), "", true, true))), "lifespan coinciding with a product period remains a loadable complete boundary")
 	runner.assert_true(world.plants.bodies.herb.hp > 0, "a perennial does not share the annual terminal rule")
 	runner.assert_true(world.describe_object({"kind": "plant", "id": "lotus"}).ok, "plants join the common authority object query")
 	var query: Dictionary = world.query_space(Rect2i(112, 110, 1, 1), ["plant"])
@@ -212,10 +220,14 @@ func _event_identity_and_restore(runner: Object) -> void:
 	runner.assert_true(world.world_events.enqueue("test_awakening", "plant_awakening", 500, {"plant": "spirit_tree"}, {"topics": ["plant:spirit_tree"]}), "a plant uses the same global queue as route assessments")
 	world.advance_to_ms(500)
 	runner.assert_eq(world.world_events.receipt("test_awakening").status, "waiting", "an unmet event condition sleeps until a relevant change")
+	world.advance_to_ms(950)
+	world.regions.home.set_actor_cell("player", Vector2i(108, 106))
+	runner.assert_true(world.plants.jobs.begin("player", "spirit_tree", "cut", {}, "awakening_cut").ok, "a cut can be underway before its target gains a mind")
 	world.advance_to_ms(1000)
 	runner.assert_eq(world.world_events.receipt("test_awakening").status, "completed", "maturity wakes the exact pending trigger")
 	runner.assert_eq(world.plants.bodies.spirit_tree.subject, "subject:plant:spirit_tree", "awakening attaches one subject to the same body")
 	runner.assert_eq(world.plants.bodies.spirit_tree.contacts, {}, "awakening does not invent earlier observations or relationships")
+	runner.assert_true(not world.plants.active.has("player") and world.plants.jobs.receipts.get("awakening_cut", {}).get("result", {}).get("status") == "cancelled", "awakening reconciles the forbidden action before the complete boundary can be saved")
 	var identity: int = world.embodiment._subjects.size()
 	var answer: Dictionary = SimInteractionRequests.submit(world, {"sender": "subject:player", "receiver": "subject:plant:spirit_tree", "verb": "ask_harvest", "object": {"kind": "plant", "id": "spirit_tree"}, "medium": "spoken", "conditions": {}})
 	runner.assert_true(answer.ok, "a stationary awakened tree participates in the common interaction boundary")
@@ -235,6 +247,28 @@ func _event_identity_and_restore(runner: Object) -> void:
 	bad.plants.bodies.spirit_tree.location.cell = []
 	runner.assert_true(not restored.restore(bad), "a broken original support reference rejects the complete candidate")
 	runner.assert_eq(_canonical(restored.to_dict()), before, "bad plant data cannot partially replace the live world")
+
+
+func _action_settlement_death(runner: Object) -> void:
+	var world: RegionalSimulation = world_for(runner)
+	if world == null:
+		return
+	runner.assert_true(world.plants.spawn("fragile", "perennial_herb", "home", Vector2i(108, 105)), "a fragile plant starts with one original ground location")
+	world.advance_to_ms(1000)
+	# Legal sampled exposure with one millisecond left until the next injury;
+	# the action ends before the next periodic plant sample at 2000ms.
+	world.plants.bodies.fragile.hp = 1
+	world.plants.bodies.fragile.injury_carry = 999
+	world.plants.bodies.fragile.conditions.temperature = 3000
+	runner.assert_true(world.plants.jobs.begin("player", "fragile", "transplant", {"cell": [109, 105], "support": ""}, "fragile_transplant").ok, "a currently living plant can start a valid nearby transplant")
+	_finish_plants(runner, world)
+	runner.assert_true(world.plants.bodies.fragile.hp == 0 and world.plants.bodies.fragile.stage == "dead" and world.plants.cell_of("fragile") == Vector2i(108, 105), "death during the old interval cancels transplantation without resurrection or movement")
+	var restored: RegionalSimulation = world_for(runner)
+	runner.assert_true(restored.restore(JSON.parse_string(JSON.stringify(world.to_dict(), "", true, true))), "an action cancelled by settlement-time death leaves a valid saved boundary")
+	runner.assert_true(world.plants.spawn("struck", "perennial_herb", "home", Vector2i(109, 104)), "another plant can receive an original action")
+	runner.assert_true(world.plants.jobs.begin("player", "struck", "cut", {}, "struck_cut").ok, "a cut begins before an external injury")
+	world.plants.damage("struck", 100000, "external_damage")
+	runner.assert_true(not world.plants.active.has("player"), "external target death immediately releases its invalid action")
 
 
 func _canonical(value: Dictionary) -> String:

@@ -255,9 +255,11 @@ func _settle_body(id: String, now: int, refresh_conditions: bool = true) -> bool
 		var periods: int = int(row.fruit_ms) / int(rule.product.period_ms)
 		gain = mini(periods, int(rule.product.capacity) - inventory.quantity(container_id(id), str(rule.product.item)))
 		row.fruit_ms = int(row.fruit_ms) % int(rule.product.period_ms)
+	if row.stage in ["dead", "removed"]:
+		row.fruit_ms = 0
 	# Water is a finite local reserve, independent of habitat potential. Rain
 	# refills only exposed roots; aquatic substrate stays supplied by its water.
-	var depletion: int = int(row.water_carry) + (dt if growing else 0)
+	var depletion: int = int(row.water_carry) + dt
 	@warning_ignore("integer_division")
 	var next_water: int = clampi(water + (dt * 2 if bool(row.conditions.rain) and not world.construction.roofed(cell_of(id)) else -depletion / 100), 0, 100 * Rules.WATER_UNIT)
 	row.water_carry = depletion % 100
@@ -357,6 +359,8 @@ func _structures_changed(cells: Array[Vector2i]) -> void:
 			if support.is_empty() or world.construction.has_capability(support, "cultivation"):
 				if not _settle_body(id, world.elapsed_ms):
 					world.errors.append("Plant structure response failed")
+				else:
+					jobs.reconcile_target(id)
 				continue
 			# The old interval has settled. Keep the original body and give it an
 			# explicit damaged ground result when its physical support is lost.
@@ -375,6 +379,7 @@ func _structures_changed(cells: Array[Vector2i]) -> void:
 				world.errors.append("Plant support source response failed")
 			_track(id)
 			_notify(id)
+			jobs.reconcile_target(id)
 
 
 func _terrain_changed(cells: Array[Vector2i]) -> void:
@@ -382,6 +387,8 @@ func _terrain_changed(cells: Array[Vector2i]) -> void:
 		for id: String in ids_at(cell):
 			if not _settle_body(id, world.elapsed_ms):
 				world.errors.append("Plant terrain response failed")
+			else:
+				jobs.reconcile_target(id)
 
 
 func subject_ids() -> Array:
@@ -410,6 +417,7 @@ func awaken(id: String, operation: String) -> bool:
 	bodies[id].awakening_operation = operation
 	bodies[id].contacts = {} # No pre-awakening memories are invented.
 	_notify(id)
+	jobs.reconcile_target(id)
 	return true
 
 
@@ -449,6 +457,7 @@ func damage(id: String, amount: int, operation: String) -> bool:
 	damage_receipts[operation] = request
 	_track(id)
 	_notify(id)
+	jobs.reconcile_target(id)
 	return true
 
 

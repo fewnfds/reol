@@ -181,6 +181,9 @@ func _complete(job: Dictionary) -> void:
 	if not plants._settle_body(id, world.elapsed_ms):
 		_finish(job, "failed", "environment_unavailable")
 		return
+	if not _eligible(job.actor, id, job.kind, job.destination) or plants.bodies[id].location != job.target_location:
+		_finish(job, "cancelled", "target_changed_during_settlement")
+		return
 	var row: Dictionary = plants.bodies[id].duplicate(true)
 	var rule: Dictionary = plants.definitions.types[row.definition]
 	var sim: VillageSimulation = world.regions[job.region]
@@ -260,6 +263,17 @@ func _complete(job: Dictionary) -> void:
 	plants._track(id)
 	plants._notify(id)
 	_finish(job, "completed", "applied")
+
+
+func reconcile_target(id: String) -> void:
+	# Target changes after the action phase must still leave a loadable complete
+	# boundary. Preserve spent time, release ownership and never apply effects.
+	for actor: String in active.keys():
+		if not active.has(actor):
+			continue
+		var job: Dictionary = active[actor]
+		if job.plant == id and (not _eligible(actor, id, job.kind, job.destination) or plants.bodies[id].location != job.target_location):
+			_finish(job, "cancelled", "target_changed")
 
 
 func cancel(actor: String) -> bool:
