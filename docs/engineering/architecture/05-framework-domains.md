@@ -81,7 +81,7 @@
 
 | 公共合同 | 原职责与接入要求 |
 |---|---|
-| 共同时间、跨区和因果阶段 | `GameClock`与`RegionalSimulation`保留原推进合同；`SimSettlementKernel`按`SimWorldSettlement`装配依赖和边界，预算不足时保留待处理时间及步骤。规则和效果由各领域owner提交；实际接入与限制见[共同结算合同](../settlement-contract.md) |
+| 共同时间、跨区和因果阶段 | `GameClock`与`RegionalSimulation`保留共同时间；`ReolSimulationPacing`管理宿主成本反馈及未来准入，见[运行流速](../simulation-pacing.md)。`SimSettlementKernel`按`SimWorldSettlement`装配依赖/边界，预算不足保留时间及步骤；效果仍由原owner提交，见[结算合同](../settlement-contract.md) |
 | 定义、装配和生命周期 | 定义/开局与实例分离，绑定会话的实际依赖；生成/移除由原领域验证，派生索引沿真实提交维护 |
 | 物资与提交 | 原库存、器物和身体各有唯一所有者；跨领域通过预检与明确提交接缝协调，失败语义与已发生成本由原过程定义 |
 | 存读与长期持续性 | 保存不可重建事实、必要在途状态和版本；完整候选通过后替换活世界，恢复重建派生索引；历史增长按实际规模验证 |

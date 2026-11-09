@@ -8,12 +8,15 @@ main已从`a4fb83a6c29e3203bf71fc1c1f950afe4906830b`快进并推送到共同结�
 
 官方Actions Node24升级提交`dc2558b219cb2fbdf164c2d63371e01b0cff8226`亦已快进合入并推送main，`codex/actions-node24-integration`保留其开发引用；游戏内容和规则保持不变，接续查[HANDOFF](handoff.md)。原结算分支成为已集成历史引用，不形成待合并代码队列。
 
+共同时间调速产品/永久测试`f4257e38a1665c08c8596028fe71c0cea0dbeab9`及QA帧驱动收尾已按用户授权快进合入main；对应产品CI42542611182完整通过，一次Sol/custom原生主审无可确认修复问题。
+
 只操作根工作树；保护分支和命名stash不应用/删除。工具进程以HANDOFF为准，临时日志、截图和存档不作为公共运行依赖。
 
 ## 保留分支用途
 
 | 分支 | 已知来源提交 | 用途 |
 |---|---|---|
+| `codex/adaptive-world-time` | 基于`2c4ea10`；产品/永久测试`f4257e3` | 共同时间过载降速、宿主预算、呈现和验证已交付并合入main |
 | `codex/actions-node24-integration` | 基于`8cc4091`；Actions代码`dc2558b` | 官方Actions升级已合入main；架构与状态文档同步整理，准确指针以Git为准 |
 | `codex/settlement-kernel` | 产品`d99ac6`、测试`38606ea`、证据`8cc4091` | 已完整快进合入并推送main，本机及同测试SHA CI均通过 |
 | `codex/framework-consolidation` | 基于`eb330ee`，仅Markdown | 主线合并后的阶段盘点及现有主计划整理，不含新阶段代码 |

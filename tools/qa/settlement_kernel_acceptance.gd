@@ -99,7 +99,7 @@ func _publication() -> Dictionary:
 	for _attempt: int in 1000:
 		if domain.projects[id].state == "built" and runtime.world_sim.settlement.is_pending():
 			break
-		clock._process(0.0)
+		clock.advance_frame(0.0)
 	clock.set_paused(true)
 	var result: Dictionary = {"ok": domain.projects[id].state == "built" and runtime.world_sim.settlement.is_pending(), "clock": clock.elapsed_ms, "world": runtime.world_sim.elapsed_ms, "held": runtime.world_sim.settlement.progress(), "details_held": view._details.text == runtime.get_meta("qa_details"), "canvas_held": view._canvas_commands == runtime.get_meta("qa_commands"), "project": id}
 	_store("publication_partial", result)
@@ -191,7 +191,7 @@ func _drain() -> bool:
 	for _frame: int in 2000:
 		if not clock.has_pending_advance():
 			return true
-		clock._process(0.0)
+		clock.advance_frame(0.0)
 		await main.get_tree().process_frame
 	return false
 
