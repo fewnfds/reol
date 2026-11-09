@@ -2,11 +2,15 @@
 
 核对：2026-11-10。采用版本与准确代码证据记录在此，操作范围见[FEATURES](features.md)，当前停点见[HANDOFF](handoff.md)，详细日志和限制见[QA](../qa/README.md)。历史分卷只描述当时版本。
 
+## 完整单位行动与交互（工作分支在验）
+
+`codex/unit-actions-integration`承接环境最终337ea13，根56/区域47/内容包3/环境5。原生AStar2D、原连续路线重评、共同动作投影/终态/停止及原services库存搬运已接，效果与资源仍归原owner。当前本机定向、普通Main和独立停开证据见[行动QA](../qa/20261110_unit_actions.md)；整包审查/最终SHA完整结果待补，不能把前阶段绿色算到本包。
+
 ## 环境跨领域组合（工作分支在验）
 
 `codex/environment-composition`承接事件/植物历史，主体`2ec88b7efec3724b065224443fbbbaa820d8f0c6`、最终生产/测试`89f47163d30e172d0b858fdf8167b84ae8c208bd`；后续仅本包Markdown，分支推送，未合main。原环境接材质传播、一房一温、容器/携物及植物照明，根55/区域46/环境5。原结算、事件、空间和通用SL继续持原职责；没有新增中央世界或物理引擎。
 
-主体完整check3600秒超时且有失败，不能算完整回归；一次Sol/custom主审的跨格时刻/空间复制两项P2已修。修复后22组3761检查通过；普通Main及独立停开整个未来相同，6株180帧P95 16.753ms，不代表密集整机验收。详见[环境组合QA](../qa/20261109_environment_composition.md)。最终推送HEAD的12片完整CI待核，未登记run；不轮询或以旧SHA绿色代替。
+主体完整check3600秒超时且有失败，不能算完整回归；一次Sol/custom主审的跨格时刻/空间复制两项P2已修。修复后22组3761检查通过；普通Main及独立停开整个未来相同，6株180帧P95 16.753ms，不代表密集整机验收。详见[环境组合QA](../qa/20261109_environment_composition.md)。最终HEAD337ea13的CI42659346260为completed/failure：11片通过，test(1)的`test_world_persistence`因两个phase initial末位漂移失败，coverage跳过。诊断发现Godot decimal解析不保持这些double，行动包沿原模型量化恢复修复并补反例；本结果不能算完整通过。
 
 ## 全局事件与植物（工作分支已验收）
 
@@ -42,15 +46,9 @@ main包含建筑阶段最终受检代码`d00bac954b69cab096d580db002fb04013fa254
 
 最终d00bac普通Main多格施工、座位使用、存箱三案均在完全停止游戏进程后独立恢复，checkpoint、原截止时间与整个联合未来SHA相同；RTX3060原生1280×720界面已查看。[CI42457788038](https://github.com/fewnfds/reol/actions/runs/42457788038)已在本轮整合检查点核completed/success，完整headSha与d00bac一致。此后至主线集成点只有Markdown差异，受检代码/数据/测试保持不变；本轮未重复游戏验证。
 
-## 当前集成代码
+## 已合入main的前序基线
 
-当前结算集成点为`8cc40919599680d57e1f333f1482ebab38df7e3b`，已推送；以下建筑与空间记录保留各自来源。用户授权后，main从`2e6b6a61caf11b5560c15a97f1a58cb156a7300b`快进并推送到建筑阶段证据提交`eb330ee9c38fa3a5cc72004372ddeefd70409b1e`，其后有阶段整合Markdown；结算分支基于main `a4fb83a6c29e3203bf71fc1c1f950afe4906830b`，已在上述集成点合入。实时指针以Git为准。已完成的前期开发分支均在main历史，旧争环WIP及原命名stash仍受保护。
-
-主线[CI42473540525](https://github.com/fewnfds/reol/actions/runs/42473540525)的headBranch为main、完整headSha为`eb330ee9c38fa3a5cc72004372ddeefd70409b1e`，已在本轮真实提交准备检查点一次核得completed/success；本包不是该SHA，需独立证据。阶段整合文档结构/链接/大小检查覆盖319份现行文档、495脚本入口，0错误；这不是新的游戏回归。
-
-前阶段共同空间集成点`2e6b6a61caf11b5560c15a97f1a58cb156a7300b`的[CI42375335176](https://github.com/fewnfds/reol/actions/runs/42375335176)已核同SHA completed/success；该次合并在建筑开发之前完成。
-
-前阶段共同空间最终代码`f50f0a84085294faf72e6315e99aa5343e7dbf15`的249组/125102断言/0失败、一次Sol/custom审查及两案完全停开证据见[阶段QA](../qa/20261107_world_space_actions.md)。该能力现已在main；旧QA的“未合并/远端待验”只记录当时状态，不能覆盖本页。
+共同空间、建筑及结算的准确提交、完整CI和集成记录分别见[空间QA](../qa/20261107_world_space_actions.md)、[建筑QA](../qa/20261108_building_framework.md)、[结算QA](../qa/20261108_settlement_kernel.md)。当前main与开发分支指针只看[分支状态](branches.md)；旧争环WIP和命名stash保持隔离。
 
 ## 术语与运行入口
 
@@ -75,7 +73,7 @@ main包含建筑阶段最终受检代码`d00bac954b69cab096d580db002fb04013fa254
 ## 采用版本与存档
 
 - Godot **4.7.2 stable** 是这次采用和验证的版本；长期跟进最新稳定版，每次升级需核插件、CI与导出模板。当前是 GDScript、Windows 本机开发，CI 为 Linux headless；Windows 正式独立包未验收。
-- 当前环境工作分支普通联合根存档 schema **55**，区域 **46**、村落 **7**、场状态 **5**（`composed_fields_v1`）、环境受体状态 **3**（climate **2**）、器物状态 **8**。内容包 **v3** 固定包含44份定义/开局及来源digest，移动/值事房/约练规则绑定会话。当前只接受根55；旧根1–54按[兼容政策](../engineering/compatibility.md)明确拒绝，真实fixture保持只读；本包最终验收状态见上文。
+- 当前行动工作分支普通联合根存档 schema **56**，区域 **47**、村落 **7**、场状态 **5**（`composed_fields_v1`）、环境受体状态 **3**（climate **2**）、器物状态 **8**。内容包 **v3** 固定44份定义/开局，含会话搬运规则与digest。当前只接受根56；旧根1–55按[兼容政策](../engineering/compatibility.md)明确拒绝，原fixture只读；最终验收状态见上文。
 - 本轮起点 `2483a3771bc9f469509293a514fb0a059eefe095`。原环境缓存、温度及两测试的四WIP已备份并与原工作区字节核对，不混入隔离实现/验收。分支快照见[分支状态](branches.md)，当前操作以HANDOFF为准。
 
 ## 历史里程碑入口

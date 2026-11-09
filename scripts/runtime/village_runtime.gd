@@ -381,34 +381,7 @@ static func find_grid_path(
 	var empty: Array[Vector2i] = []
 	if world == null or radius < 0 or budget < 1:
 		return empty
-	if not world.is_walkable(from_cell) or not world.is_walkable(to_cell):
-		return empty
-	if not _within_radius(from_cell, to_cell, radius):
-		return empty
-	var queue: Array[Vector2i] = [from_cell]
-	var previous: Dictionary[Vector2i, Vector2i] = {from_cell: from_cell}
-	var head: int = 0
-	while head < queue.size():
-		var current: Vector2i = queue[head]
-		head += 1
-		if current == to_cell:
-			var path: Array[Vector2i] = [current]
-			while current != from_cell:
-				current = previous[current]
-				path.append(current)
-			path.reverse()
-			return path
-		for direction: Vector2i in DIRECTIONS:
-			var next_cell: Vector2i = current + direction
-			if previous.has(next_cell) or not _within_radius(from_cell, next_cell, radius):
-				continue
-			if previous.size() >= budget:
-				continue
-			if not world.can_step(current, direction):
-				continue
-			previous[next_cell] = current
-			queue.append(next_cell)
-	return empty
+	return SimGridNavigation.find_path(from_cell, to_cell, world.is_walkable, world.can_step, radius, budget)
 
 
 func _execute_clock_interval(from_ms: int, to_ms: int) -> int:

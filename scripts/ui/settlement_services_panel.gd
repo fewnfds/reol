@@ -5,6 +5,8 @@ extends PanelContainer
 signal service_requested(action_id: String)
 signal gather_mode_changed
 signal batch_selected
+signal haul_page_opened
+signal haul_requested(source: Dictionary, target: Dictionary, item: String, amount: int)
 
 const UI = preload("res://scripts/ui/reol_ui_theme.gd")
 
@@ -26,6 +28,11 @@ var _labor_note: Label
 var _resume_labor: Button
 var _abandon_labor: Button
 var _resource_note: Label
+var _haul_source: OptionButton
+var _haul_target: OptionButton
+var _haul_item: OptionButton
+var _haul_amount: SpinBox
+var _haul_grid: GridContainer
 
 
 func _init() -> void:
@@ -49,7 +56,7 @@ func _init() -> void:
 	var tab_row := GridContainer.new()
 	tab_row.columns = 4
 	column.add_child(tab_row)
-	for tab_name: String in ["生活", "差事与凭据", "互助", "劳作", "交谈", "采集", "制作", "工钱"]:
+	for tab_name: String in ["生活", "差事与凭据", "互助", "劳作", "交谈", "采集", "制作", "工钱", "搬运"]:
 		var index: int = _tabs.size()
 		var tab: Button = UI.button(tab_row, tab_name, _select_page.bind(index))
 		tab.toggle_mode = true
@@ -58,8 +65,20 @@ func _init() -> void:
 		var page := GridContainer.new()
 		page.columns = 2
 		page.custom_minimum_size.y = 66
-		column.add_child(page)
-		_pages.append(page)
+		if _index == 8:
+			# Keep time controls and the always-visible stop button accessible at
+			# the ordinary 1280x720 viewport; the long form scrolls inside its page.
+			var scroll := ScrollContainer.new()
+			scroll.custom_minimum_size.y = 140
+			scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+			column.add_child(scroll)
+			scroll.add_child(page)
+			page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			_haul_grid = page
+			_pages.append(scroll)
+		else:
+			column.add_child(page)
+			_pages.append(page)
 	_action(_pages[0], "取食", "eat")
 	_action(_pages[0], "歇息", "rest")
 	_action(_pages[0], "贡献换饭", "redeem")
@@ -109,6 +128,31 @@ func _init() -> void:
 	_labor_note = UI.label(_pages[7], "尚未签下现金差事。", UI.PAPER, 13)
 	_resume_labor = UI.button(_pages[7], "续做原差事", _submit.bind("labor:resume"))
 	_abandon_labor = UI.button(_pages[7], "放弃未交付差事", _submit.bind("labor:abandon"))
+	var haul: GridContainer = _haul_grid
+	UI.label(haul, "从容器取出", UI.MUTED, 12)
+	_haul_source = OptionButton.new()
+	haul.add_child(_haul_source)
+	UI.label(haul, "送到容器", UI.MUTED, 12)
+	_haul_target = OptionButton.new()
+	haul.add_child(_haul_target)
+	UI.label(haul, "物品", UI.MUTED, 12)
+	_haul_item = OptionButton.new()
+	haul.add_child(_haul_item)
+	for pair: Array in [["wood", "柴"], ["water", "水"], ["grain", "粮"], ["herb", "药草"], ["meal", "饭食"], ["dried_herb", "干药"], ["coin", "钱"]]:
+		_haul_item.add_item(str(pair[1]))
+		_haul_item.set_item_metadata(_haul_item.item_count - 1, str(pair[0]))
+	UI.label(haul, "单次数量", UI.MUTED, 12)
+	_haul_amount = SpinBox.new()
+	_haul_amount.min_value = 1
+	_haul_amount.max_value = 24
+	_haul_amount.value = 3
+	haul.add_child(_haul_amount)
+	UI.button(haul, "前往取货并搬运", _submit_haul)
+	UI.button(haul, "刷新可用容器", func() -> void: haul_page_opened.emit())
+	for choice: OptionButton in [_haul_source, _haul_target]:
+		choice.custom_minimum_size.x = 200
+		choice.clip_text = true
+	UI.label(haul, "公物途中保管，中断后可续送或交回。\n受阻会尝试绕路，容器和权限在到场时复核。", UI.MUTED, 12)
 	_notice = UI.label(column, "", UI.MUTED, 13)
 	_notice.mouse_filter = Control.MOUSE_FILTER_PASS
 	_notice.custom_minimum_size.y = 40
@@ -271,6 +315,25 @@ func _select_page(index: int) -> void:
 		_pages[page_index].visible = page_index == index
 	for tab_index in range(_tabs.size()):
 		_tabs[tab_index].set_pressed_no_signal(tab_index == index)
+	if index == 8:
+		haul_page_opened.emit()
+
+
+func set_haul_endpoints(rows: Array[Dictionary], max_units: int) -> void:
+	_haul_amount.max_value = max_units
+	for choice: OptionButton in [_haul_source, _haul_target]:
+		var previous: Dictionary = choice.get_item_metadata(choice.selected) if choice.selected >= 0 else {}
+		choice.clear()
+		for row: Dictionary in rows:
+			choice.add_item(row.label)
+			choice.set_item_metadata(choice.item_count - 1, row.reference.duplicate(true))
+			if row.reference == previous or previous.is_empty() and row.reference == {"region": "home", "container": "store" if choice == _haul_source else "kitchen"}:
+				choice.select(choice.item_count - 1)
+
+
+func _submit_haul() -> void:
+	if _haul_source.selected >= 0 and _haul_target.selected >= 0:
+		haul_requested.emit(_haul_source.get_item_metadata(_haul_source.selected).duplicate(true), _haul_target.get_item_metadata(_haul_target.selected).duplicate(true), str(_haul_item.get_item_metadata(_haul_item.selected)), int(_haul_amount.value))
 
 
 func _submit(action_id: String) -> void:

@@ -88,25 +88,8 @@ static func find_path(start: Vector2i, goal: Vector2i, size: Vector2i, walkable:
 		elevation = geometry.elevation_at
 	if radius < 1 or budget < 1 or not can_stand(start, size, walkable, elevation) or not can_stand(goal, size, walkable, elevation) or absi(goal.x - start.x) > radius or absi(goal.y - start.y) > radius:
 		return empty
-	var queue: Array[Vector2i] = [start]
-	var previous: Dictionary = {start: start}
-	var index: int = 0
-	while index < queue.size() and index < budget:
-		var at: Vector2i = queue[index]
-		index += 1
-		if at == goal:
-			var route: Array[Vector2i] = [goal]
-			while route.back() != start:
-				route.append(previous[route.back()])
-			route.reverse()
-			return route
-		for step: Vector2i in DIRECTIONS:
-			var next: Vector2i = at + step
-			if previous.has(next) or absi(next.x - start.x) > radius or absi(next.y - start.y) > radius or not can_step(at, step, size, walkable, elevation):
-				continue
-			previous[next] = at
-			queue.append(next)
-	return empty
+	return SimGridNavigation.find_path(start, goal, can_stand.bind(size, walkable, elevation),
+		can_step.bind(size, walkable, elevation), radius, budget, false)
 
 
 static func contact_distance(point: Vector2, center: Vector2, size: Vector2i) -> float:

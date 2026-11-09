@@ -389,6 +389,7 @@ func _finish(job: Dictionary, kind: String, line: String) -> void:
 	person.goal = "回味方才交流" if kind != "cancelled" else "接触已中断"
 	active.erase(job.actor)
 	world.invalidate_region(job.region)
+	SimActionContract.job_finished(world, "soul_vessels", job, job.actor, "cancelled" if kind == "cancelled" else "completed", kind)
 
 
 func learned(actor: String, object_id: String) -> bool:

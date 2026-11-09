@@ -144,10 +144,12 @@ static func _valid_job(job: Dictionary, _data: Dictionary, service: RefCounted) 
 	if not world.regions.has(job.get("home")) or not world.regions.has(job.get("region")) or not _text(job.get("actor")):
 		return false
 	var home: RefCounted = world.regions[job.home]
-	if not home.actors.has(job.actor) or not job.get("kind") in ["eat", "rest", "haul_grain", "report", "redeem", "access", "collect_herb", "trade", "return_goods", "claim_wage", "site_loan", "site_return"] or not job.get("status") in ["active", "completed", "failed", "cancelled"] or not job.get("phase") in ["travel", "work"]:
+	if not home.actors.has(job.actor) or not job.get("kind") in ["carry_stock", "eat", "rest", "haul_grain", "report", "redeem", "access", "collect_herb", "trade", "return_goods", "claim_wage", "site_loan", "site_return"] or not job.get("status") in ["active", "completed", "failed", "cancelled"] or not job.get("phase") in ["travel", "work"]:
 		return false
 	if not job.get("path") is Array or not job.get("options") is Dictionary or not job.get("spec") is Dictionary or not _count(job.get("started"), 0, world.current_time) or not job.get("previous_autonomous") is bool or not job.get("carrying") is bool or not job.get("outcome") is String:
 		return false
+	if job.kind == "carry_stock":
+		return service._hauling.valid_job(job, _data)
 	var expected: Dictionary = _expected_spec(job, service)
 	if expected.is_empty() or not same_value(job.spec, expected) or job.get("label") != expected.label:
 		return false
@@ -212,6 +214,9 @@ static func _owned_operation(id: String, operation: Dictionary, data: Dictionary
 	if data.jobs.has(owner):
 		var job: Dictionary = data.jobs[owner]
 		var bag: String = "actor:" + str(job.actor)
+		if job.kind == "carry_stock":
+			var options: Dictionary = job.options
+			return _transfer_matches(operation, options.source.region, options.source.container, job.home, bag, options.item, int(options.amount)) if suffix == "pickup" else suffix == "delivery" and job.status == "completed" and _transfer_matches(operation, job.home, bag, options.target.region, options.target.container, options.item, int(options.amount))
 		match suffix:
 			"trade_goods", "trade_money":
 				return job.kind == "trade" and job.status == "completed" and same_value(operation, service._trade.legs(job)[suffix.trim_prefix("trade_")])

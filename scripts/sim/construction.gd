@@ -314,7 +314,7 @@ func next_boundary_ms() -> int:
 		if not _can_continue(job):
 			return world.elapsed_ms + 1
 		var body: Dictionary = world.regions[definitions.site.region].actors[job.actor]
-		boundary = mini(boundary, SimRouteTravel.crossing_ms(job, body, world.elapsed_ms) if str(job.phase).begins_with("to_") else int(job.due_ms))
+		boundary = mini(boundary, SimRouteTravel.next_boundary(job, body, world.elapsed_ms, route_step) if str(job.phase).begins_with("to_") else int(job.due_ms))
 	return boundary
 
 
@@ -328,7 +328,7 @@ func settle_at_ms(now: int) -> void:
 			cancel(actor)
 			continue
 		if str(job.phase).begins_with("to_"):
-			if not job.path.is_empty() and not _step_open(sim, SimRouteTravel.cell(body.cell), SimRouteTravel.cell(job.path[0])):
+			if not SimRouteTravel.repair(sim, actor, job, now, job.destination, -1.0, route_step):
 				cancel(actor)
 				continue
 			sim.project_actor_route(actor, job, now)
@@ -621,6 +621,10 @@ func _project_busy(id: String) -> bool:
 
 func _step_open(sim: RefCounted, from: Vector2i, to: Vector2i) -> bool:
 	return not blocked(to) and (not sim._step_validator.is_valid() or bool(sim._step_validator.call(from, to - from)))
+
+
+func route_step(from: Vector2i, step: Vector2i) -> bool:
+	return _step_open(world.regions[definitions.site.region], from, from + step)
 
 
 func _speed() -> float:

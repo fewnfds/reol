@@ -45,7 +45,7 @@
 | **建筑与组合空间框架** | 结构/家具实例、施工/拆除、耐久与损毁、门状态、围合与屋面；用途区域及工作空间组合 | 真实几何、材质、开口、覆盖、结构连接及推导房间；设施所需的器具/空间条件 | `SimConstruction`、`SimConstructionGeometry`、`SimStructureQuery`、`SimEnclosedSpace`、`SimFacilityUse`、`SimWorkplaces`、`SimResting` |
 | **植被与自然生命框架** | 植物与非人生命的专属状态、自然过程、环境响应及产物条件 | 可作用的自然对象、实际占地、来源/受体能力，以及采集等领域作用接口 | `SimPlants`持植物身体/过程，`SimLandResources`保留原资源账；`SimAvianLife`、`SimLargeBodies`持其他非人身体；`NaturalEnvironment`派生背景覆盖 |
 | **环境框架** | 历法/气候/天气条件；温度、光照、五行等各自规则与必要实际响应；风水所需环境组合 | 有时刻与来源的环境查询、响应变化和受体输入 | `SimWorldCalendar`、`SimGeographicClimate`、`SimWeather`、`SimWorldEnvironmentFields`、`SimNaturalLight`、`SimLocalLight`；`SimEnvironment`适配人体暴露 |
-| **单位行动与交互框架** | 按身体能力执行移动、通行、寻路与接近；意图受理、表达/理解、权限/意愿复核、过程占用、资源预约、耗时、中断和结果 | 同一套可由玩家/NPC使用的行动入口、过程状态、失败原因和领域结果引用 | `SimLocalMotion`、`SimRouteTravel`、`SimMotionClearance`、`SimActionContract`、`SimActionExecutor`、[object_actions.gd](../../../scripts/sim/object_actions.gd)、`SimInteractionRequests`及现有各领域执行器 |
+| **单位行动与交互框架** | 按身体能力执行移动、通行、寻路与接近；意图受理、表达/理解、权限/意愿复核、过程占用、资源预约、耗时、中断和结果 | 同一套可由玩家/NPC使用的行动入口、过程状态、失败原因和领域结果引用 | `SimLocalMotion`、`SimRouteTravel`、`SimGridNavigation`、`SimMotionClearance`、`SimActionContract`、`SimActionExecutor`、[object_actions.gd](../../../scripts/sim/object_actions.gd)、`SimInteractionRequests`及现有各领域执行器 |
 | **认识与自主决策框架** | 感知、个人所知与来源、目标/职责/策略和选择；组织任职/授权依据的有限记录 | 观察者可知的投影、基于自身认识的意图、请求接受与否所需依据 | `SimSocialMemory`、`SimStockInformation`、`SimInstitutionBook`、`SimAutonomousLivelihood`、`SimStandingWork`及原需求决策；Fog与runtime负责观察适配 |
 
 这些名称用于统一文档归属；实际class/字段按[术语映射](../terminology.md)引用。通用风水、任意策略编排等尚未接入的能力不据此获得虚构的class或完成状态。植物的已接范围见[合同](../plants-contract.md)。

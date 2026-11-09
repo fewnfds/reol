@@ -144,7 +144,7 @@ func next_boundary_ms() -> int:
 			return world.elapsed_ms + 1
 		boundary = mini(boundary, int(job.due_ms))
 		if job.phase != "pickup":
-			boundary = mini(boundary, SimRouteTravel.crossing_ms(job, world.regions[job.region].actors[actor], world.elapsed_ms))
+			boundary = mini(boundary, SimRouteTravel.next_boundary(job, world.regions[job.region].actors[actor], world.elapsed_ms, world.regions[job.region]._step_validator))
 	return boundary
 
 
@@ -168,7 +168,7 @@ func settle_at_ms(now: int) -> void:
 			_finish_errand(job, false, "对方没能继续携戒，实际物品留在当前保管处。")
 			continue
 		if job.phase != "pickup":
-			if not job.path.is_empty() and sim._step_validator.is_valid() and not bool(sim._step_validator.call(SimRouteTravel.cell(sim.actors[actor].cell), SimRouteTravel.cell(job.path[0]) - SimRouteTravel.cell(sim.actors[actor].cell))):
+			if not SimRouteTravel.repair(sim, actor, job, now):
 				_finish_errand(job, false, "路已不通，对方停止赶路；旧戒没有退回原处。")
 				continue
 			sim.project_actor_route(actor, job, now)
@@ -285,6 +285,7 @@ func _finish_errand(job: Dictionary, success: bool, line: String) -> void:
 	_record(str(job.soul), str(job.actor), "arrived" if success else "interrupted", line, str(job.request))
 	errands.erase(job.actor)
 	world.invalidate_region(job.region)
+	SimActionContract.job_finished(world, "soul_vessels", job, str(job.actor), "completed" if success else "cancelled", line)
 
 
 func _record(id: String, actor: String, kind: String, line: String, request: String = "") -> void:

@@ -347,6 +347,7 @@ func _finish_trip(row: Dictionary, status: String, reason: String, at_ms: int) -
 	person.retry_ms = mini(int(person.retry_ms), at_ms + 1)
 	person.goal = "寻物途中暂歇，先顾眼前处境" if status == "cancelled" else "刚抵达野外寻物的去处"
 	world.invalidate_region(str(row.region))
+	SimActionContract.job_finished(world, "field_opportunities", row, row.actor, status, reason)
 
 
 func _arrive(purpose: Dictionary) -> void:

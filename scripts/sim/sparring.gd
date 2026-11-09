@@ -244,7 +244,10 @@ func stop(reason: String = "yielded") -> void:
 		body(id).retry_ms = world.elapsed_ms + int(world.regions[bout.region].config.decision_interval) * 60000
 	world.regions[bout.region].observe("sparring_ended", str(bout.initiator), str(bout.partner), {"reason": reason})
 	world.invalidate_region(str(bout.region))
+	var finished: Dictionary = bout
 	bout = {}
+	for actor: String in finished.people:
+		SimActionContract.job_finished(world, "sparring", finished, actor, "completed" if reason == "finished" else "cancelled", reason)
 
 
 func _duration() -> int:

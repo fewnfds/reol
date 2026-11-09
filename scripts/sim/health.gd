@@ -378,6 +378,8 @@ func _finish(job: Dictionary, outcome: String) -> void:
 		body.goal = "刚结束查看" if job.verb == "diagnose" else "刚结束处理，仍需休养"
 		body.retry_ms = world.elapsed_ms + int(world.regions[home(actor)].config.decision_interval) * MINUTE_MS
 		world.invalidate_region(home(actor))
+	for actor: String in [str(job.patient), str(job.doctor)]:
+		SimActionContract.job_finished(world, "health", job, actor, outcome)
 
 
 func cancel(actor: String) -> bool:

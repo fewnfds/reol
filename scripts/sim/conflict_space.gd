@@ -6,11 +6,11 @@ static func level(world: RefCounted, point: Vector2) -> int:
 	return world.map_data.get_elevation(TileGrid.world_to_cell(point)) if world.map_data != null else 0
 
 
-static func solid(world: RefCounted, cell: Vector2i, at_level: int) -> bool:
+static func solid(world: RefCounted, cell: Vector2i, at_level: int, observed_structure: String = "") -> bool:
 	if world.map_data != null:
 		if not world.map_data.in_bounds(cell) or world.map_data.get_elevation(cell) > at_level or world.map_data.get_terrain(cell) == WorldMapData.TERRAIN_ROCK:
 			return true
-	if world.construction != null and world.construction.blocked(cell):
+	if world.construction != null and world.construction.blocked(cell) and (observed_structure.is_empty() or world.construction.project_at(cell, "ground") != observed_structure):
 		return true
 	if world.plants != null and world.plants.blocked(cell):
 		return true
@@ -20,10 +20,10 @@ static func solid(world: RefCounted, cell: Vector2i, at_level: int) -> bool:
 	return false
 
 
-static func clear_segment(world: RefCounted, from: Vector2, to: Vector2, at_level: int) -> bool:
+static func clear_segment(world: RefCounted, from: Vector2, to: Vector2, at_level: int, observed_structure: String = "") -> bool:
 	var steps: int = maxi(1, ceili(from.distance_to(to) / float(world.conflicts.rules.cover_sample_px)))
 	for index: int in range(steps + 1):
-		if solid(world, TileGrid.world_to_cell(from.lerp(to, float(index) / steps)), at_level):
+		if solid(world, TileGrid.world_to_cell(from.lerp(to, float(index) / steps)), at_level, observed_structure):
 			return false
 	return true
 
@@ -46,6 +46,18 @@ static func can_step(world: RefCounted, from: Vector2i, to: Vector2i) -> bool:
 
 static func _blocked_step_cell(world: RefCounted, cell: Vector2i) -> bool:
 	return solid(world, cell, world.map_data.get_elevation(cell) if world.map_data != null else 0) or (world.large_bodies != null and world.large_bodies.blocked(cell))
+
+
+static func walking_path(world: RefCounted, from: Vector2i, to: Vector2i, radius: int = 24, budget: int = 4096) -> Array[Vector2i]:
+	return SimGridNavigation.find_path(from, to, _stand.bind(world), _step.bind(world), radius, budget)
+
+
+static func _stand(cell: Vector2i, world: RefCounted) -> bool:
+	return not _blocked_step_cell(world, cell) and (world.map_data == null or world.map_data.terrain_is_walkable(cell))
+
+
+static func _step(from: Vector2i, direction: Vector2i, world: RefCounted) -> bool:
+	return can_step(world, from, from + direction)
 
 
 static func in_fan(origin: Vector2, target: Vector2, facing: Vector2, reach: float, half_angle: float) -> bool:

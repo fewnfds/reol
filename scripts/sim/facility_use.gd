@@ -50,6 +50,8 @@ func slot_available(project: String, name: String, kind: String, actor: String =
 
 
 func cell_reserved(cell: Vector2i, except_actor: String = "") -> bool:
+	if world.services != null and world.services._hauling.cell_reserved(cell, except_actor):
+		return true
 	for actor: String in active:
 		if actor != except_actor and SimRouteTravel.cell(active[actor].stand) == cell:
 			return true
@@ -141,6 +143,11 @@ func _storage_ready(job: Dictionary) -> bool:
 	for other: Dictionary in active.values():
 		if other.id != job.id and other.project == job.project and other.kind == "deposit":
 			items[other.item] = int(items.get(other.item, 0)) + int(other.amount)
+	if world.services != null:
+		for id: String in world.services.active_jobs.values():
+			var other: Dictionary = world.services.jobs[id]
+			if other.kind == "carry_stock" and other.options.target.region == world.construction.definitions.site.region and other.options.target.container == contents:
+				items[other.options.item] = int(items.get(other.options.item, 0)) + int(other.options.amount)
 	return world.construction.contents_valid(world.construction.projects[job.project], items)
 
 
@@ -156,6 +163,11 @@ func cancel(actor: String) -> bool:
 
 
 func cancel_projects(ids: Array[String]) -> void:
+	if world.services != null:
+		for actor: String in world.services.active_jobs.keys():
+			var job: Dictionary = world.services.jobs[world.services.active_jobs[actor]]
+			if job.kind == "carry_stock" and (str(job.options.source.container).trim_suffix(":contents") in ids or str(job.options.target.container).trim_suffix(":contents") in ids):
+				world.services.cancel(actor, "facility_changed")
 	for actor: String in SimAvianLife.sorted_keys(active):
 		if active[actor].project in ids or active[actor].support in ids:
 			cancel(actor)
@@ -180,7 +192,7 @@ func next_boundary_ms() -> int:
 		if not _can_continue(job):
 			return world.elapsed_ms + 1
 		var body: Dictionary = world.regions[world.construction.definitions.site.region].actors[job.actor]
-		boundary = mini(boundary, SimRouteTravel.crossing_ms(job, body, world.elapsed_ms) if job.phase == "travel" else int(job.due_ms))
+		boundary = mini(boundary, SimRouteTravel.next_boundary(job, body, world.elapsed_ms, world.construction.route_step) if job.phase == "travel" else int(job.due_ms))
 	return boundary
 
 
@@ -225,7 +237,7 @@ func _settle_actor(actor: String, now: int) -> void:
 		cancel(actor)
 		return
 	if job.phase == "travel":
-		if not job.path.is_empty() and not world.construction._step_open(sim, SimRouteTravel.cell(body.cell), SimRouteTravel.cell(job.path[0])):
+		if not SimRouteTravel.repair(sim, actor, job, now, job.stand, -1.0, world.construction.route_step):
 			cancel(actor)
 			return
 		sim.project_actor_route(actor, job, now)

@@ -95,3 +95,47 @@ static func valid_segment(route: Dictionary, body: Dictionary, now: int, speed: 
 		return false
 	var fraction: float = float(now - int(route.segment_started_ms)) / duration
 	return point(body).is_equal_approx(origin.lerp(target, fraction))
+
+
+static func next_boundary(route: Dictionary, body: Dictionary, now: int, step: Callable) -> int:
+	# A blocked leg wakes at a canonical world boundary, never at whichever
+	# arbitrary host slice next happens to project this body.
+	if not leg_open(route, body, step):
+		return now + 1
+	return crossing_ms(route, body, now)
+
+
+static func leg_open(route: Dictionary, body: Dictionary, step: Callable) -> bool:
+	if route.path.is_empty() or not step.is_valid():
+		return true
+	var from: Vector2i = cell(body.cell)
+	var to: Vector2i = cell(route.path[0])
+	return bool(step.call(from, to - from))
+
+
+static func repair(sim: VillageSimulation, actor: String, route: Dictionary, now: int, destination: Array = [], speed: float = -1.0, clearance: Callable = Callable()) -> bool:
+	# Domains keep target validity, reservations, phase and effects. Repair only
+	# replaces an invalid geometric remainder, from the real continuous point.
+	var body: Dictionary = sim.actors[actor]
+	var step: Callable = clearance if clearance.is_valid() else sim._step_validator
+	if leg_open(route, body, step):
+		return true
+	var goal: Array = destination if not destination.is_empty() else route.path.back()
+	var from: Vector2i = cell(body.cell)
+	var target: Vector2i = cell(goal)
+	var path: Array[Vector2i] = sim.find_path(from, target)
+	if path.is_empty() and from != target:
+		return false
+	var encoded: Array = []
+	var previous: Vector2i = from
+	for next: Vector2i in path:
+		if next != from:
+			if step.is_valid() and not bool(step.call(previous, next - previous)):
+				return false
+			encoded.append([next.x, next.y])
+			previous = next
+	if not point(body).is_equal_approx(TileGrid.cell_to_world(from)):
+		encoded.push_front([from.x, from.y])
+	route.path = encoded
+	begin_segment(route, body, now, float(sim.motion_rules.motion.speed) if speed < 0.0 else speed)
+	return true

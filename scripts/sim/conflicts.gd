@@ -525,6 +525,7 @@ func _finish_action(id: String, status: String) -> void:
 	if str(encounter.people[action.actor].action) == id:
 		encounter.people[action.actor].action = ""
 		encounter.people[action.actor].ready_ms = maxi(int(encounter.people[action.actor].ready_ms), world.elapsed_ms + (int(rules.ai_pause_ms) if _automatic(encounter, str(action.actor)) else 0))
+	SimActionContract.job_finished(world, "conflicts", action, action.actor, "completed" if status == "completed" else "cancelled", status)
 
 
 func opponent(actor: String) -> String:
@@ -635,9 +636,24 @@ func _ai_motion(row: Dictionary, actor: String, elapsed: int, cues: Dictionary) 
 		return
 	var budget: float = minf(distance - spacing, float(world.regions[home(actor)].motion_rules.motion.speed) * float(rules.ai_speed_fraction) * float(walking.speed_fraction) * elapsed / 1000.0)
 	var step_size: float = float(world.regions[home(actor)].motion_rules.motion.sweep_px)
+	var waypoints: Array[Vector2] = []
+	if not Space.clear_segment(world, point, target, Space.level(world, point)):
+		# Seek the observed/last-seen position through the same native geometry
+		# search as work. Recompute from current facts at this canonical combat
+		# boundary; no unsaved route choice can diverge after restoration.
+		var path: Array[Vector2i] = Space.walking_path(world, TileGrid.world_to_cell(point), TileGrid.world_to_cell(target))
+		if path.is_empty():
+			return
+		for cell: Vector2i in path.slice(1):
+			waypoints.append(TileGrid.cell_to_world(cell))
+	waypoints.append(target)
 	while budget > 0.001:
-		var step: float = minf(step_size, budget)
-		var next: Vector2 = point.move_toward(target, step)
+		while waypoints.size() > 1 and point.is_equal_approx(waypoints[0]):
+			waypoints.pop_front()
+		var step: float = minf(minf(step_size, budget), point.distance_to(waypoints[0]))
+		if step <= 0.001:
+			break
+		var next: Vector2 = point.move_toward(waypoints[0], step)
 		if not Space.can_step(world, TileGrid.world_to_cell(point), TileGrid.world_to_cell(next)):
 			break
 		point = next
@@ -688,6 +704,8 @@ func _finish_lesson(lesson: Dictionary, status: String) -> void:
 		body(actor).retry_ms = world.elapsed_ms + int(world.regions[home(actor)].config.decision_interval) * 60000
 		body(actor).goal = "示范练习结束" if status == "completed" else "示范中断，尚未掌握"
 		world.invalidate_region(home(actor))
+	for actor: String in [lesson.teacher, lesson.pupil]:
+		SimActionContract.job_finished(world, "conflicts", lesson, actor, "completed" if status == "completed" else "cancelled", status)
 
 
 func qi_spending(actor: String) -> Array[Dictionary]:

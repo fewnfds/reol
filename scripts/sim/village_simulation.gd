@@ -706,7 +706,10 @@ func restore(data: Dictionary, allowed_subjects: Dictionary = {}, external_inven
 				return false
 			active_reservations[reservation_id] = true
 	for reservation_id: String in external_inventory.get("reservations", {}):
-		if active_reservations.has(reservation_id) or not next_inventory.reservations.has(reservation_id) or not data.actors.has(next_inventory.reservations[reservation_id].owner_id):
+		if active_reservations.has(reservation_id) or not next_inventory.reservations.has(reservation_id):
+			return false
+		var holder: String = str(next_inventory.reservations[reservation_id].owner_id)
+		if not data.actors.has(holder) and (not allowed_subjects.has(holder) or external_inventory.get("external_reservation_owners", {}).get(reservation_id) != holder):
 			return false
 		active_reservations[reservation_id] = true
 	if active_reservations.size() != next_inventory.reservations.size():

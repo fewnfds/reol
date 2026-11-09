@@ -254,4 +254,7 @@ func _test_invalid_candidates(runner: Object) -> void:
 	var next: Vector2i = SimRouteTravel.cell(remaining[0])
 	world.construction._blocked[next] = true
 	world.advance_to_ms(world.elapsed_ms + 40)
-	runner.assert_true(not world.resting.owns_actor("player") and not world.resting.bed_reserved(fixture.bed), "a later blocked step cancels the route and releases its bed, rather than walking through")
+	runner.assert_true(world.resting.owns_actor("player") and world.resting.bed_reserved(fixture.bed), "an available detour retains the same rest action and bed reservation")
+	if world.resting.owns_actor("player"):
+		runner.assert_eq(world.resting.active.player.id, base.resting.active.player.id, "a blocked edge does not create a new rest action")
+		runner.assert_true(not world.resting.active.player.path.has([next.x, next.y]) and SimRouteTravel.cell(world.regions.home.actors.player.cell) != next, "the repaired route avoids the actual blocked cell")

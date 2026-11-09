@@ -6,7 +6,7 @@ signal boundary_settled(at_ms: int)
 ## Scene adapters may disappear; these instances and their pending work remain.
 
 const DEFINITIONS_VERSION: int = 1
-const SCHEMA_VERSION: int = 46
+const SCHEMA_VERSION: int = 47
 const MINUTE_MS: int = 60000
 const MAX_COUNT: int = SimInventory.MAX_COUNT
 const Services = preload("res://scripts/sim/services/settlement_services.gd")
@@ -467,7 +467,7 @@ func settled_ms() -> int:
 
 
 func accepts_commands() -> bool:
-	return not _publishing_boundary and (settlement == null or not settlement.is_pending() or settlement.is_executing())
+	return not _publishing_boundary and (services == null or not services._handling_stock) and (settlement == null or not settlement.is_pending() or settlement.is_executing())
 
 
 func publish_action_finished(outcome: Dictionary) -> void:
@@ -558,7 +558,12 @@ func _bind_service_guards() -> void:
 			return "" if authority == null else authority.standing_work.duty_for(actor_id, at_ms))
 		simulation.set_labor_observer(func(stage: String, actor_id: String, action: Dictionary, event: String) -> String:
 			var authority: RefCounted = owner.get_ref()
-			return "" if authority == null else authority.budgeted_labor.native_event(stage, actor_id, action, event))
+			if authority == null:
+				return ""
+			var result: String = authority.budgeted_labor.native_event(stage, actor_id, action, event)
+			if stage in ["finish", "fail"]:
+				SimActionContract.job_finished(authority, "native", action, actor_id, "completed" if stage == "finish" else "cancelled", stage)
+			return result)
 		simulation.set_initiative_provider(func(actor_id: String, at_ms: int) -> bool:
 			var authority: RefCounted = owner.get_ref()
 			return authority != null and authority._wants_initiative(actor_id, at_ms))
@@ -1037,6 +1042,8 @@ func known_event_lines(region_id: String, limit: int = 3) -> Array[String]:
 
 
 func to_dict() -> Dictionary:
+	if services != null and services._handling_stock:
+		return {}
 	if _publishing_boundary or settlement != null and settlement.is_pending() or construction != null and construction._changing or environment_boundary_active() or (object_lifecycle != null and (object_lifecycle._committing or object_lifecycle.environment_change_pending())):
 		return {}
 	if not synchronize_regions() or not environment_fields.settle_at_ms(elapsed_ms):

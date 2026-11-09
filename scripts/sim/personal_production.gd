@@ -194,7 +194,7 @@ func next_boundary_ms() -> int:
 		if not world.actor_controls(str(job.actor), "action") or not world.actor_controls(str(job.actor), "motion"):
 			return world.elapsed_ms + 1
 		var body: Dictionary = world.regions[batches[job.batch].home].actors[job.actor]
-		boundary = mini(boundary, SimRouteTravel.crossing_ms(job, body, world.elapsed_ms) if job.phase == "travel" else int(job.due_ms))
+		boundary = mini(boundary, SimRouteTravel.next_boundary(job, body, world.elapsed_ms, world.regions[batches[job.batch].home]._step_validator) if job.phase == "travel" else int(job.due_ms))
 	return boundary
 
 
@@ -212,7 +212,7 @@ func settle_at_ms(now: int) -> void:
 			cancel(actor)
 			continue
 		if job.phase == "travel":
-			if not job.path.is_empty() and sim._step_validator.is_valid() and not bool(sim._step_validator.call(SimRouteTravel.cell(body.cell), SimRouteTravel.cell(job.path[0]) - SimRouteTravel.cell(body.cell))):
+			if not SimRouteTravel.repair(sim, actor, job, now):
 				cancel(actor)
 				continue
 			sim.project_actor_route(actor, job, now)
@@ -282,7 +282,7 @@ func _finish(job: Dictionary, batch: Dictionary) -> void:
 		return
 	batch.state = "ready"
 	batch.completed_ms = world.elapsed_ms
-	_release(job, batch, "这一批已做成，成品仍在作业场所，尚未装进你的行囊。")
+	_release(job, batch, "这一批已做成，成品仍在作业场所，尚未装进你的行囊。", "completed")
 
 
 func _collect(job: Dictionary, batch: Dictionary) -> void:
@@ -302,7 +302,7 @@ func _collect(job: Dictionary, batch: Dictionary) -> void:
 	_commit(inventory, candidate, ["actor:" + str(job.actor), str(job.batch)])
 	batch.state = "collected"
 	batch.collected_ms = world.elapsed_ms
-	_release(job, batch, "这一批成品已实际装入原行囊，可以自用或按当地条件交易。")
+	_release(job, batch, "这一批成品已实际装入原行囊，可以自用或按当地条件交易。", "completed")
 
 
 static func _commit(inventory: SimInventory, candidate: SimInventory, changed: Array[String]) -> void:
@@ -328,7 +328,7 @@ func cancel(actor: String) -> bool:
 	return true
 
 
-func _release(job: Dictionary, batch: Dictionary, line: String) -> void:
+func _release(job: Dictionary, batch: Dictionary, line: String, status: String = "cancelled") -> void:
 	_release_reservations(job, batch)
 	var sim: VillageSimulation = world.regions[batch.home]
 	sim.actors[job.actor].autonomous = bool(job.previous_autonomous)
@@ -336,6 +336,7 @@ func _release(job: Dictionary, batch: Dictionary, line: String) -> void:
 	sim.actors[job.actor].retry_ms = mini(SimInventory.MAX_COUNT, world.elapsed_ms + int(sim.config.decision_interval) * 60000)
 	active.erase(job.actor)
 	world.invalidate_region(str(batch.home))
+	SimActionContract.job_finished(world, "personal_production", job, str(job.actor), status, line)
 
 
 func progress(id: String) -> int:

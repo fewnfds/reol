@@ -640,7 +640,9 @@ func advance_to_ms(target_ms: int) -> int:
 			end = mini(end, SimRouteTravel.crossing_ms(player_journey, _home.simulation.actors.player, world_sim.elapsed_ms))
 			var body_cell: Vector2i = _cell(_home.simulation.actors.player.cell)
 			if not player_journey.path.is_empty() and not _can_step(body_cell, _cell(player_journey.path[0]) - body_cell):
-				cancel_travel()
+				if not SimRouteTravel.repair(_home.simulation, "player", player_journey, world_sim.elapsed_ms):
+					cancel_travel()
+					_notice = "道路已改变，暂时无法到达目的地。"
 				continue
 		var old_errors: int = world_sim.errors.size()
 		var completed: bool = world_sim.advance_to_ms(end, int(settings.event_budget), work_left, GameClock.frame_budget_exhausted)
@@ -833,21 +835,7 @@ func cancel_travel() -> void:
 	if service_adapter != null:
 		service_adapter.cancel_manual()
 	if world_sim != null:
-		world_sim.object_lifecycle.cancel("player")
-		world_sim.artifacts.cancel("player")
-		world_sim.soul_vessels.cancel("player")
-		world_sim.admissions.cancel("player")
-		world_sim.construction.cancel("player")
-		world_sim.facility_use.cancel("player")
-		world_sim.resting.cancel("player")
-		world_sim.clothing.cancel("player")
-		world_sim.health.cancel("player")
-		world_sim.spirit_sources.cancel("player")
-		world_sim.method_records.cancel("player")
-		world_sim.personal_production.cancel("player")
-		world_sim.capability_practice.cancel("player", "manual_override")
-		world_sim.private_exchange.cancel("player", "manual_override")
-		world_sim.plants.cancel("player")
+		world_sim.interrupt_occupation("player", "manual_override")
 		if world_sim.conflicts.conflict_for("player").is_empty():
 			world_sim.conflicts.cancel("player")
 
@@ -1332,6 +1320,8 @@ func load_game(path: String) -> Error:
 		_notice = "这份存档采用旧建筑模型；当前版本需要新建世界，原档未改动。"
 	elif _saves.reason == SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT:
 		_notice = "旧环境格式不再支持，存档未改；请新开局。"
+	elif _saves.reason == SessionSaveSchema.REJECTION_LEGACY_ACTIONS:
+		_notice = "旧行动格式不再支持，存档未改；请新开局。"
 	elif _saves.reason == SessionSaveSchema.REJECTION_LEGACY_EVENTS:
 		_notice = "这份旧档没有完整事件、植物与会话规则；请新开局，原档未改动。"
 	elif _saves.reason == "unreadable":

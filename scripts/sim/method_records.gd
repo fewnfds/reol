@@ -268,6 +268,7 @@ func _finish(job: Dictionary, outcome: String) -> void:
 	person.retry_ms = world.elapsed_ms + int(world.regions[job.region].config.decision_interval) * 60000
 	active.erase(job.actor)
 	world.invalidate_region(str(job.region))
+	SimActionContract.job_finished(world, "method_records", job, job.actor, outcome)
 
 
 func consider_reading() -> void:

@@ -237,16 +237,17 @@ func _finish(job: Dictionary, status: String, line: String, evidence: String = "
 	var event: String = sim.social.record("admission_statement", job.actor, job.receiver, {"participants": {"text": line, "status": status, "action": job.method, "terms": {"scope": definitions.scope, "evidence": evidence}}}, witnesses, world.current_time)
 	var row: Dictionary = {"id": str(job.id), "actor": job.actor, "receiver": job.receiver, "region": job.region, "method": job.method, "status": status, "line": line, "at_ms": world.elapsed_ms, "evidence": evidence, "request": request, "social_event": event}
 	entries.append(row)
-	_release(job, line)
+	_release(job, line, "completed")
 	return row
 
 
-func _release(job: Dictionary, line: String) -> void:
+func _release(job: Dictionary, line: String, status: String = "cancelled") -> void:
 	var body: Dictionary = world.regions[job.region].actors[job.actor]
 	body.autonomous = bool(job.previous_autonomous)
 	body.goal = line
 	active.erase(job.actor)
 	world.invalidate_region(job.region)
+	SimActionContract.job_finished(world, "admissions", job, job.actor, status, line)
 
 
 func _allocate() -> String:

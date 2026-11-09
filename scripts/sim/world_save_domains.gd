@@ -23,7 +23,8 @@ static func registry(with_services: bool = false) -> SimSaveRegistry:
 		_schema_check.bind(SimPrivateExchange.Schema),
 		func(data: Variant, region: String, _content: RefCounted) -> Dictionary: return SimPrivateExchange.Schema.inventory_scope(data, region))
 	if with_services:
-		result.add(&"services", &"services", preload("res://scripts/sim/services/settlement_services.gd"), _services)
+		result.add(&"services", &"services", preload("res://scripts/sim/services/settlement_services.gd"), _services, Callable(), Callable(), Callable(),
+			preload("res://scripts/sim/services/stock_hauling.gd").inventory_scope)
 	_standard(result, &"heat_methods", preload("res://scripts/sim/heat_methods.gd"), &"heat_methods")
 	result.add(&"method_records", &"method_records", preload("res://scripts/sim/method_records.gd"), _records, _schema_check.bind(SimMethodRecords.Schema))
 	_standard(result, &"artifacts", preload("res://scripts/sim/artifacts.gd"), &"artifacts", _artifacts_check)

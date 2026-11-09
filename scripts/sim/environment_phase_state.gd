@@ -374,7 +374,11 @@ func restore(data: Variant) -> bool:
 				return false
 			if not _valid_value(float(row.target[channel]) + float(row.slope[channel]) * float(int(row.until_ms) - int(row.start_ms))):
 				return false
-			initial.append(float(row.initial[channel]))
+			# The composed model already quantizes causal anchors on commit. Godot's
+			# JSON decimal parser can move a double by an ulp; reconstitute that same
+			# model anchor before it drives any future response. Reference mode (0)
+			# retains the unquantized numerical contract.
+			initial.append(clampf(snappedf(float(row.initial[channel]), anchor_quantum), 0.0, MAX_VALUE) if anchor_quantum > 0.0 else float(row.initial[channel]))
 			target.append(float(row.target[channel]))
 			slope.append(float(row.slope[channel]))
 		var boundary: int = int(row.until_ms)

@@ -42,7 +42,7 @@ Godot负责Node/场景/脚本组合、signal、资源和呈现，也提供Physic
 
 ## 存读、失败与性能
 
-保留存档键`local_heat`和`SimWorldSaveDomains`通用管线，仅由`WorldEnvironmentFieldsState`适配当前环境模型5/`composed_fields_v1`。当前根55/区域46；旧版边界见[兼容政策](compatibility.md)。布局/来源/缓存从档内原对象重建，房间实际响应/目标/tau和覆盖必须一致；坏候选丢弃，不部分替换活世界。进行中合法动作与完整停开仍须同未来，不以重新触发开局恢复世界。
+保留存档键`local_heat`和`SimWorldSaveDomains`通用管线，仅由`WorldEnvironmentFieldsState`适配环境模型5/`composed_fields_v1`。根/区域版本见[兼容政策](compatibility.md)。布局/来源/缓存从档内原对象重建，房间实际响应/目标/tau和覆盖必须一致；坏候选丢弃，不部分替换活世界。模型在因果提交时按1e-9量化锚点，JSON恢复按同一精度重建原锚点，避免decimal解析末位漂移改变未来；纯数值参考模式保持不量化。进行中及完整停开须同未来，不重新触发开局。
 
 普通来源候选、布局与目标刷新仍在CPU同步完成；参与索引限制到实际变化/到期范围，并不能抢占回调内部全部工作。布局重建是低频拓扑操作，按原工地及相邻局部范围处理，最多地图512²格；变化后响应覆盖保留历史残留。几何回调不支持独立GPU导出时明确返回geometry_requires_cpu，不静默忽略阻隔。旧CPU/GPU隔离服务不等于普通游戏已GPU加速。
 

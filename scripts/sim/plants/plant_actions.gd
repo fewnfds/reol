@@ -141,7 +141,7 @@ func next_boundary_ms() -> int:
 	var result: int = SimInventory.MAX_COUNT
 	for job: Dictionary in active.values():
 		var sim: VillageSimulation = world.regions[job.region]
-		result = mini(result, SimRouteTravel.crossing_ms(job, sim.actors[job.actor], world.elapsed_ms) if job.phase == "travel" else int(job.due_ms))
+		result = mini(result, SimRouteTravel.next_boundary(job, sim.actors[job.actor], world.elapsed_ms, _route_step.bind(job.region)) if job.phase == "travel" else int(job.due_ms))
 	return result
 
 
@@ -158,9 +158,7 @@ func settle_at_ms(now: int) -> void:
 			continue
 		if job.phase == "travel":
 			if not job.path.is_empty():
-				var to: Vector2i = SimRouteTravel.cell(job.path[0])
-				var from: Vector2i = SimRouteTravel.cell(sim.actors[actor].cell)
-				if plants.blocked(to) or world.construction.blocked(to) or sim._step_validator.is_valid() and not sim._step_validator.call(from, to - from):
+				if not SimRouteTravel.repair(sim, actor, job, now, job.stand, -1.0, _route_step.bind(job.region)):
 					_finish(job, "cancelled", "route_changed")
 					continue
 				sim.project_actor_route(actor, job, now)
@@ -176,6 +174,11 @@ func settle_at_ms(now: int) -> void:
 			job.due_ms = now + int(plants.definitions.action_ms)
 		elif now >= int(job.due_ms):
 			_complete(job)
+
+
+func _route_step(from: Vector2i, step: Vector2i, region: String) -> bool:
+	var sim: VillageSimulation = world.regions[region]
+	return not plants.blocked(from + step) and not world.construction.blocked(from + step) and (not sim._step_validator.is_valid() or bool(sim._step_validator.call(from, step)))
 
 
 func _complete(job: Dictionary) -> void:

@@ -25,12 +25,46 @@ func setup(adapter: WorldContinuityRuntime, screen: Control) -> bool:
 	panel.batch_selected.connect(refresh)
 	panel.set_help_offer(int(adapter.settings.runtime.help_offer_coins))
 	panel.service_requested.connect(submit)
+	panel.haul_requested.connect(submit_haul)
+	panel.haul_page_opened.connect(refresh_hauling)
 	refresh()
 	return true
 
 
 func runtime() -> WorldContinuityRuntime:
 	return _owner.get_ref() as WorldContinuityRuntime if _owner != null else null
+
+
+func submit_haul(source: Dictionary, target: Dictionary, item: String, amount: int) -> Dictionary:
+	var adapter: WorldContinuityRuntime = runtime()
+	if adapter == null or not adapter.human_player_active() or not adapter.player_journey.is_empty():
+		return _result(false, "先以人身停下行程，再安排搬运。")
+	adapter.prepare_player_command()
+	var result: Dictionary = adapter.world_sim.services.begin_haul("player", source, target, item, amount)
+	if bool(result.ok):
+		adapter.hold_player_motion(true)
+	return _result(bool(result.ok), str(result.line))
+
+
+func refresh_hauling() -> void:
+	var adapter: WorldContinuityRuntime = runtime()
+	if adapter == null or adapter.world_sim == null or not adapter.world_sim.accepts_commands() or adapter.world_sim.settlement.is_pending():
+		return
+	var world: RegionalSimulation = adapter.world_sim
+	var rows: Array[Dictionary] = [{"label": "本人行囊", "reference": {"region": "home", "container": "actor:player"}}]
+	for region: String in SimAvianLife.sorted_keys(world.regions):
+		for place: String in SimAvianLife.sorted_keys(world.regions[region].places):
+			rows.append({"label": "%s · %s" % [str(adapter.settings.regions[region].label), str(world.regions[region].places[place].label)], "reference": {"region": region, "container": place}})
+	var fog: FogOfWar = adapter.home_runtime()._fog
+	for id: String in SimAvianLife.sorted_keys(world.construction.projects):
+		if not world.construction.has_capability(id, "storage"):
+			continue
+		var project: Dictionary = world.construction.projects[id]
+		var cell: Vector2i = SimRouteTravel.cell(project.cell)
+		if not world.construction.can_observe("player", cell) or fog != null and not fog.is_cell_visible(cell):
+			continue
+		rows.append({"label": "%s · %d,%d" % [str(world.construction.definitions.types[project.type].label), cell.x, cell.y], "reference": {"region": world.construction.definitions.site.region, "container": id + ":contents"}})
+	panel.set_haul_endpoints(rows, int(world._content.local_actions.hauling.max_units))
 
 
 func submit(action_id: String) -> Dictionary:
@@ -194,65 +228,12 @@ func refresh() -> void:
 		_admission_waiting = false
 	if bool(conversation.busy):
 		_admission_waiting = true
-		activity = str(conversation.line)
-		phase = "交谈"
-		remaining = int(conversation.seconds)
-		seconds = true
-		busy = true
-	var native_action: Dictionary = adapter._home.simulation.actors.player.active
-	if world.personal_production.owns_actor("player"):
-		var production_job: Dictionary = world.personal_production.active.player
-		var batch: Dictionary = world.personal_production.batches[production_job.batch]
-		activity = ("取回成品：" if production_job.kind == "collect" else "私人加工：") + str(world.personal_production.definitions.recipes[batch.recipe].label)
-		phase = str(production_job.phase)
-		remaining = ceili(float(int(production_job.due_ms) - world.elapsed_ms) / 60000.0)
-		seconds = false
-		busy = true
-	if world.construction.owns_actor("player"):
-		var construction_job: Dictionary = world.construction.active.player
-		activity = "处理工地：" + str(world.construction.definitions.types[world.construction.projects[construction_job.project].type].label)
-		phase = str(construction_job.phase)
-		remaining = ceili(float(int(construction_job.due_ms) - world.elapsed_ms) / 60000.0)
-		seconds = false
-		busy = true
-	var object_status: Dictionary = world.artifacts.status("player")
-	if world.method_records.owns_actor("player"):
-		activity = str(world.method_records.status("player").line)
-		phase = "work"
-		remaining = ceili(float(int(world.method_records.active.player.due_ms) - world.elapsed_ms) / 60000.0)
-		seconds = false
-		busy = true
-	if world.resting.owns_actor("player"):
-		var resting_job: Dictionary = world.resting.active.player
-		activity = "在木床上休息" if resting_job.phase == "sleep" else "起身让出床位" if resting_job.phase == "leave" else "前往已预约的木床"
-		phase = "rest" if resting_job.phase == "sleep" else "travel"
-		remaining = ceili(float(int(resting_job.due_ms) - world.elapsed_ms) / 60000.0)
-		seconds = false
-		busy = true
-	var soul_status: Dictionary = world.soul_vessels.status("player")
-	if bool(soul_status.busy):
-		activity = str(soul_status.line)
-		phase = "work"
-		remaining = int(soul_status.remaining)
-		seconds = false
-		busy = true
-	if bool(object_status.busy):
-		activity = str(object_status.line)
-		phase = "work"
-		seconds = object_status.has("seconds")
-		remaining = int(object_status.seconds) if seconds else int(object_status.remaining)
-		busy = true
-	if not native_action.is_empty():
-		activity = adapter._home.simulation.actor_status("player")
-		phase = str(native_action.phase)
-		remaining = ceili(float(int(native_action.due_ms) - int(world.elapsed_ms)) / 60000.0)
-		seconds = false
-		busy = true
-	if world.plants.owns_actor("player"):
-		var plant_job: Dictionary = world.plants.active.player
-		activity = "照料草木" if plant_job.kind == "water" else "处理草木"
-		phase = str(plant_job.phase)
-		remaining = ceili(float(int(plant_job.due_ms) - world.elapsed_ms) / 1000.0)
+	var execution: Dictionary = world.describe_actor_action("player")
+	if bool(execution.ok):
+		var labels: Dictionary = {"plants": "处理草木", "construction": "营造", "facility_use": "使用家具", "clothing": "整理衣物", "health": "查看与处理伤势", "private_exchange": "交接器物", "conflicts": "交锋", "sparring": "切磋", "capability_practice": "亲身练习"}
+		activity = str(conversation.line) if bool(conversation.busy) else str(labels.get(execution.domain, adapter.player_goal()))
+		phase = str(execution.phase)
+		remaining = ceili(float(execution.remaining_ms) / 1000.0)
 		seconds = true
 		busy = true
 	if not adapter.player_journey.is_empty():

@@ -1154,6 +1154,7 @@ func _finish_record(job: Dictionary, kind: String, line: String, heat_amount: in
 		world.health.record_effect(record)
 	active.erase(job.actor)
 	world.invalidate_region(job.region)
+	SimActionContract.job_finished(world, "artifacts", job, job.actor, kind if kind in ["cancelled", "failed"] else "completed", kind)
 	return record
 
 

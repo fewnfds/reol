@@ -7,6 +7,7 @@ const Help = preload("res://scripts/sim/services/service_help.gd")
 const Schema = preload("res://scripts/sim/services/service_schema.gd")
 const Institutions = preload("res://scripts/sim/services/service_institutions.gd")
 const Trade = preload("res://scripts/sim/services/local_trade.gd")
+const Hauling = preload("res://scripts/sim/services/stock_hauling.gd")
 const Inventory = preload("res://scripts/sim/inventory_ledger.gd")
 const Social = preload("res://scripts/sim/social_memory.gd")
 const Workplaces = preload("res://scripts/sim/workplaces.gd")
@@ -33,6 +34,8 @@ var _jobs: RefCounted
 var _help: RefCounted
 var _institutions: RefCounted
 var _trade: RefCounted
+var _hauling: RefCounted
+var _handling_stock: bool = false
 var _rng := RandomNumberGenerator.new()
 # Derived lookup only; rebuilding it on load keeps historical jobs out of the
 # display hot path without adding another authoritative save field.
@@ -54,6 +57,7 @@ func initialize(simulation: RefCounted, settings: Dictionary) -> bool:
 	_help = Help.new(self)
 	_institutions = Institutions.new(self)
 	_trade = Trade.new(self)
+	_hauling = Hauling.new(self)
 	social.configure({})
 	for region: RefCounted in world.regions.values():
 		for actor_id: String in region.actors:
@@ -73,7 +77,13 @@ func set_navigation(provider: Callable, step_validator: Callable = Callable()) -
 
 
 func begin(actor_id: String, region_id: String, action_id: String, options: Dictionary = {}) -> Dictionary:
+	if world == null or not world.accepts_commands():
+		return response(false, "pending_time", "先等当前世界结算完成。")
 	return _jobs.begin(actor_id, region_id, action_id, options)
+
+
+func begin_haul(actor: String, source: Dictionary, target: Dictionary, item: String, amount: int) -> Dictionary:
+	return begin(actor, str(target.get("region", "")), "carry_stock", {"source": source, "target": target, "item": item, "amount": amount})
 
 
 func cancel(actor_id: String, reason: String = "cancelled") -> bool:
@@ -188,7 +198,7 @@ func next_boundary_ms() -> int:
 		boundary = mini(boundary, int(job.due_ms))
 		boundary = mini(boundary, int(job.started_ms) + int(definitions.job_timeout) * 60000)
 		if job.phase == "travel":
-			boundary = mini(boundary, SimRouteTravel.crossing_ms(job, world.regions[job.home].actors[actor_id], world.elapsed_ms))
+			boundary = mini(boundary, SimRouteTravel.next_boundary(job, world.regions[job.home].actors[actor_id], world.elapsed_ms, route_step.bind(job.home))) if not bool(job.get("road_paused", false)) else boundary
 	return maxi(world.elapsed_ms + 1, boundary)
 
 
@@ -207,6 +217,9 @@ func settle_at_ms(at_ms: int) -> void:
 		if not world.actor_controls(actor_id, "action") or not world.actor_controls(actor_id, "motion") or at_ms >= int(job.started_ms) + int(definitions.job_timeout) * 60000:
 			_jobs.finish(job, false, "差事中止，已取出的物资仍随身保存。")
 		else:
+			if job.kind == "carry_stock":
+				_hauling.settle(job, at_ms)
+				continue
 			if job.phase == "travel":
 				if job.kind == "haul_grain" and job.stage == "delivery" and bool(world.routes[job.route].blocked):
 					job["road_paused"] = true
@@ -220,8 +233,7 @@ func settle_at_ms(at_ms: int) -> void:
 					job.outcome = ""
 					SimRouteTravel.begin_segment(job, actor, at_ms, float(sim.motion_rules.motion.speed))
 				else:
-					var from: Vector2i = SimRouteTravel.cell(actor.cell)
-					if not job.path.is_empty() and _can_step.is_valid() and not bool(_can_step.call(from, SimRouteTravel.cell(job.path[0]) - from)):
+					if not SimRouteTravel.repair(sim, actor_id, job, at_ms, [], -1.0, route_step.bind(job.home)):
 						_jobs.finish(job, false, "道路受阻，已停在原处；随身物资没有消失。")
 						continue
 					sim.project_actor_route(actor_id, job, at_ms)
@@ -229,6 +241,11 @@ func settle_at_ms(at_ms: int) -> void:
 				_jobs.settle(job)
 	_help.settle()
 	last_ms = at_ms
+
+
+func route_step(from: Vector2i, direction: Vector2i, home: String) -> bool:
+	var sim: VillageSimulation = world.regions[home]
+	return (not _can_step.is_valid() or bool(_can_step.call(from, direction))) and (not sim._step_validator.is_valid() or bool(sim._step_validator.call(from, direction)))
 
 
 func actor_home(actor_id: String) -> String:
@@ -260,7 +277,7 @@ func path_between(home: String, from_cell: Array, to_cell: Array) -> Array:
 	return path if previous == target else []
 
 
-func transfer(operation_id: String, from_region: String, from_container: String, to_region: String, to_container: String, item: String, amount: int, custody_id: String = "") -> bool:
+func transfer(operation_id: String, from_region: String, from_container: String, to_region: String, to_container: String, item: String, amount: int, custody_id: String = "", reservation_id: String = "") -> bool:
 	if operation_id.is_empty() or item.is_empty() or amount <= 0 or amount > Inventory.MAX_COUNT:
 		return false
 	if (from_region != "escrow" and not world.regions.has(from_region)) or (to_region != "escrow" and not world.regions.has(to_region)):
@@ -279,11 +296,18 @@ func transfer(operation_id: String, from_region: String, from_container: String,
 		return false
 	if source == target and from_container == to_container:
 		return false
-	if not source.can_use(from_container, item, amount, custody_id) or amount > Inventory.MAX_COUNT - target.quantity(to_container, item):
+	if amount > Inventory.MAX_COUNT - target.quantity(to_container, item):
+		return false
+	if reservation_id.is_empty():
+		if not source.can_use(from_container, item, amount, custody_id):
+			return false
+	elif not custody_id.is_empty() or not source.reservations.has(reservation_id) or source.reservations[reservation_id].container != from_container or source.reservations[reservation_id].item != item or int(source.reservations[reservation_id].amount) != amount or source.quantity(from_container, item) < amount:
 		return false
 	source.containers[from_container][item] = source.quantity(from_container, item) - amount
 	target.containers[to_container][item] = target.quantity(to_container, item) + amount
 	operations[operation_id] = signature
+	if not reservation_id.is_empty():
+		source.release(reservation_id)
 	if not custody_id.is_empty():
 		source.settle_custody(custody_id, "service", operation_id)
 	source.contents_changed.emit(from_container)

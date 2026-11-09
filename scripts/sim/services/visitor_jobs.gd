@@ -25,6 +25,8 @@ func begin(actor_id: String, region_id: String, kind: String, options: Dictionar
 		return service.response(false, "busy", "先完成或中断手头的事情。")
 	var spec: Dictionary = {}
 	match kind:
+		"carry_stock":
+			return service._hauling.begin(actor_id, options)
 		"eat", "rest":
 			spec = service.definitions.visitor[kind].duplicate(true)
 			var bag: String = "actor:" + actor_id
@@ -333,6 +335,8 @@ func finish(job: Dictionary, succeeded: bool, line: String, status: String = "")
 	job.status = status if not status.is_empty() else ("completed" if succeeded else "failed")
 	job.finished_at = world.current_time
 	job.outcome = line
+	if job.kind == "carry_stock":
+		service._hauling.release(job)
 	service.active_jobs.erase(job.actor)
 	# Releasing a claimed delivery sends a fresh correction through the normal
 	# delayed channel. A supplier does not silently learn today's stock.
@@ -344,6 +348,7 @@ func finish(job: Dictionary, succeeded: bool, line: String, status: String = "")
 	service.record("service_completed" if succeeded else "service_interrupted", job.actor, {"job": job.id, "line": line})
 	if job.kind in ["site_loan", "site_return"] and world.get("site_affairs") != null:
 		world.site_affairs.service_finished(job)
+	SimActionContract.publish_finished(world, SimActionContract.view(world, "services", job.id, job.actor, job.kind, job.phase, int(job.started_ms), int(job.due_ms), job.status, str(job.region)), line)
 
 
 static func sim_stock(world: RefCounted, region_id: String, container: String, item: String) -> int:

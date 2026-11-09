@@ -42,16 +42,30 @@
 
 该入口不授予他人/场所物品的处分权，也不提供材料选堆、任意NPC命令或所有对象的共同探查。当前法律产权尚未实现，地面可取不代表已证明“无主”。新建实物可由 `--world-editor` 的F8开发编辑按定义放置/移除，经同一生命周期和普通存档进入游戏；生成不扣材料，只是开发权限，不是玩家制造技能。
 
-## 与施工共用的最小行动合同
+## 共同执行合同与领域过程
 
-[SimActionContract](../../scripts/sim/action_contract.gd)属于单位行动与交互框架，由耗时取放和`SimConstruction`两处实际调用。共同部分是原身体存活与action/motion控制、原活动占用冲突、启动后暂停原自主权、执行时复核以及释放原预约/恢复原自主权。没有新增任务状态库、计划器、时间或保存结构。
+[SimActionContract](../../scripts/sim/action_contract.gd)属于单位行动与交互框架。原身体存活、action/motion控制、占用、暂停自主权、执行复核及释放由原owner接入；取放、施工、设施、植物、旧生活/交互与战斗均可投影当前过程。没有第二份动作状态库、计划器或世界时间。
 
 - `can_begin/can_act/can_continue`核对原状态；两者均不能绕过另一个过程占用。取放按原动作位置和可选contact复核，施工行路沿原路线检查，取料/作业阶段要求仍处于原目的位置；条件改变在下一有效边界中断。
 - `occupy/release`操作原身体与原库存，领域在预约和路线预检成功后才登记。中断施工仍保留原工时、已取材料及真实落点，未完成取放仍保留原物源位置。
-- `RegionalSimulation.describe_actor_action(actor)`提供取放、施工和家具使用的共同只读投影：原domain/id/意图、领域phase、起止时刻、remaining_ms、status和目标id。普通实物面板读此deadline；领域仍自行解释施工/取放阶段，未接领域返回`no_supported_action`，不生成假的通用空闲任务。
+- `RegionalSimulation.describe_actor_action(actor)`读原活动集合，提供domain/id/意图、领域phase、起止时刻、remaining_ms、status和目标id；scope为`unit_action`、visibility为`authority_only`。普通面板仅查询当前受控人身；给他人使用仍须观察过滤。当前覆盖native/services、施工/设施/植物、休息/制作、器物/衣着、救护/交换、示范/交锋、约练与原魂器请求等实际owner；不生成通用空闲任务。
 - 原owner完成效果、移除活跃成员并释放占用后，`RegionalSimulation.action_finished`发出冻结的终态投影，status为`completed/failed/cancelled`。这是当前世界瞬时通知，不是持久事件账；取放完整状态仍在原actions，施工结果仍在原项目/库存与line中。
 
-启动、接近、材料预约、阶段推进、领域效果和恢复校验继续沿原执行器；本阶段未把所有旧动作、观察权限、跨账本搬运或全局绕路迁入此合同。原过程分别序列化，恢复后重建占用和投影；当前版本见下文。
+原过程仍各自序列化，恢复后重建占用和投影。`interrupt_occupation`集中结束原工作；正在交锋时手动走位沿原战斗规则，不抹掉已发射的飞行物。`SimConflicts`持招式/命中/收势及后果，施工/植物/库存继续提交各自效果；无需把全部动作塞入同一个字段或重写为战斗任务。
+
+### 路线与原生搜索
+
+`SimGridNavigation`使用Godot AStar2D，只缓存相对网格拓扑；每次边过滤读当前净空，结束清空Callables，不保留旧世界。普通身体八向搜索，大身体四向覆盖/扫掠规则仍归`SimBodyGeometry`。搜索受半径/访问预算限制，未完成不当作已找到路径；不是任意距离的全局规划器。
+
+`SimRouteTravel.next_boundary`在下一路段被挡时于共同时间+1ms唤醒；`repair`从原连续位置重建剩余路段，保留action ID、预约、阶段与成本。native、施工、家具/休息、植物、制作、服务、携戒请求与普通行旅接此接缝；不可达则按原过程结束。证据行旅及规定步法的路径本身参与规则，仍遇阻中断。战斗AI向已观察/最后目击位置搜索，不读对手后台位置追踪。
+
+### 库存搬运与容纳
+
+`SettlementServices.begin_haul(actor, source, target, item, amount)`复用原jobs和operations；端点为`{region,container}`。`stock_hauling.gd`只适配接近→耗时取货→随身携带→接近→耗时交付。原行囊、获准公共地点及可观察建筑箱可组合，账务region不分割地图；跨账本转移仍由原services事务完成。
+
+公物取出登记原`SimEntrustedGoods`，中断后保留保管责任；相同起终点/物品/数量可续送原批，不能重复取货或消费。私物和建筑箱取出沿原处分语义，仍在原行囊预约。容量/过滤/操作位与`SimFacilityUse`互相复核，设施毁坏中断相关工作；跨账本扣加/保管登记期间拒绝外部命令及快照重入。foreign取货仅原运粮政策授权，地点可定位不等于有提款权限。
+
+单次搬运按会话`local_actions.hauling`限制数量和取放耗时；箱体按原数量容量。地面堆、独特器物、任意嵌套和普遍质量/体积负重不由此入口实现。地面实物继续走原生命周期；跨域状态在`SimWorldSaveDomains`登记库存预约scope，不修改中央加载管线。
 
 ## 存读与容量
 
@@ -61,6 +75,6 @@
 
 历史位置上限 524288，成功回执/动作历史各有有限上限；到限明确拒绝，不丢历史来继续写。它们是可观测容量边界，尚无长期历史压缩或安全回收。附近候选结合地面索引、有限旧物列表和按容器分组的派生 ID；容器组仍有预算遍历，不能据静态密度宣称大量动态 NPC 已获支持。
 
-`diagnostics()` 只供开发，显示原身份数、位置活跃/历史数量、动作与回执量、共同时间和积压。玩家视图继续走观察和迷雾过滤。自然资源记录仍不是完整植物实体；普通来源变更与新冷热/五行响应的接线及限制见[世界环境合同](world-environment-contract.md)。
+`diagnostics()` 只供开发，显示原身份数、位置活跃/历史数量、动作与回执量、共同时间和积压。玩家视图继续走观察和迷雾过滤。植物型自然来源已交接`SimPlants`，数量仍归原库存；环境接线及限制见[世界环境合同](world-environment-contract.md)。
 
 建筑家具的操作位、储藏回执、工作台与损毁沿[建筑合同](construction-contract.md)接入；内容仍在原库存，领域效果不迁到第二套执行器。

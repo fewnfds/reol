@@ -363,6 +363,7 @@ func _finish(row: Dictionary, status_value: String, reason: String, at_ms: int) 
 	person.goal = "亲身完成行气护身练习，保留原支出与经历" if status_value == "completed" else "练习中断，先处理眼下身体和事务"
 	person.retry_ms = at_ms + mini(SimInventory.MAX_COUNT - at_ms, int(world.regions[row.region].config.decision_interval) * 60000)
 	world.invalidate_region(str(row.region))
+	SimActionContract.job_finished(world, "capability_practice", row, row.actor, status_value, reason)
 
 
 func _movement_stopped_ms(row: Dictionary) -> int:

@@ -16,7 +16,8 @@ main已从`a4fb83a6c29e3203bf71fc1c1f950afe4906830b`快进并推送到共同结�
 
 | 分支 | 已知来源提交 | 用途 |
 |---|---|---|
-| `codex/environment-composition` | 基于`3880802`；主体`2ec88b7`、最终代码/测试`89f4716` | 环境组合及主审修复推送；22组定向/原生停开通过，最终HEAD完整CI待核；未合main，证据见BASELINE/HANDOFF |
+| `codex/unit-actions-integration` | 基于环境最终`337ea13` | 第5阶段完整单位行动整合；当前实现/受检范围只看HANDOFF及BASELINE，未合main |
+| `codex/environment-composition` | 基于`3880802`；主体`2ec88b7`、最终代码/测试`89f4716` | 环境组合及主审修复推送；22组定向/原生停开通过，最终HEAD337ea13 / CI42659346260失败，checkpoint末位漂移由行动包修复；未合main，证据见BASELINE/HANDOFF |
 | `codex/world-events-plants` | 基于`66f56b9`；主体`801d71e`、最终生产`45f140b`、最终测试`13d675e` | 承接SL；全局事件、会话规则与植物已接普通Main并推送，13d675e完整CI通过；未合main，证据见BASELINE |
 | `codex/save-load-framework` | 基于main `f63844b`；主体`96a6fe0`、最终代码`d682e03` | 通用参与者/领域目录、安全保存与候选加载已推送，尚未合main；验证及收尾见HANDOFF/BASELINE |
 | `codex/adaptive-world-time` | 基于`2c4ea10`；产品/永久测试`f4257e3` | 共同时间过载降速、宿主预算、呈现和验证已交付并合入main |

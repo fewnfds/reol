@@ -64,7 +64,8 @@
 | 雀身/大型身体 | [SimAvianLife](../../scripts/sim/avian_life.gd)、[SimLargeBodies](../../scripts/sim/large_bodies.gd) | 各域的真实非人身体，不能按人类`actor`直接强制转换 |
 | 实体定位查询 | [SimEntityQuery](../../scripts/sim/entity_query.gd) | `actor`/`avian`/`artifact`/`large_body`的只读解析，非全量状态注册表 |
 | 实时空间查询 | [SimWorldSpace](../../scripts/sim/world_space.gd) | 原身体/地面物/结构的局部格投影、变化通知及恢复失效；与历史快照分开 |
-| 最小行动合同 | [SimActionContract](../../scripts/sim/action_contract.gd) | 取放/施工/家具使用共用条件、占用、执行复核和释放，过程与效果仍归原owner |
+| 共同执行合同 | [SimActionContract](../../scripts/sim/action_contract.gd) | 原动作的条件、占用、复核、投影和终态通知；过程与效果归原owner，见[合同](object-lifecycle-contract.md) |
+| 格路搜索 | [SimGridNavigation](../../scripts/sim/grid_navigation.gd) | Godot AStar2D与当前净空适配；不保存身体或世界状态 |
 | 共同结算内核 | [SimSettlementKernel](../../scripts/sim/execution/settlement_kernel.gd)、[SimWorldSettlement](../../scripts/sim/execution/world_settlement.gd) | 编译依赖/阶段、预算游标及现有域装配；数值与共同时间仍归原owner |
 | 世界对象查询 | [SimWorldObjectQuery](../../scripts/sim/world_object_query.gd) | 复用定位并扩展数量条目/资源/结构等参照；与`SimEntityQuery`接口不同 |
 | 独特器物 | `SimArtifacts.objects[id]` | 独特实例；`artifact`在该接口不代表所有物品 |
@@ -94,7 +95,7 @@
 
 `SimSaveRegistry`是通用数据参与者管线，`SimWorldSaveDomains`是当前世界领域目录，`SimSaveSession`是会话操作协调；三个模块均不持有第二份世界事实。接口见[存读合同](architecture/04-persistence.md)。
 
-当前运行成员和调度domain使用`environment_fields`。区域存档schema 44仍使用JSON键`local_heat`；`SimWorldSaveDomains`的参与者登记在capture、shape validation和restore处共用该映射。当前根存档仍为schema 53，没有运行时`local_heat`兼容getter或第二环境owner。
+当前运行成员和调度domain使用`environment_fields`，区域存档键仍为`local_heat`；`SimWorldSaveDomains`在capture、shape validation和restore共用该映射。根/区域版本只看[兼容政策](compatibility.md)，没有运行时`local_heat`兼容getter或第二环境owner。
 
 `ReolContentDB.local_heat`和`data/definitions/local_heat.json`保留为热设备参数定义入口；历史`SimLocalHeat`不因此成为当前环境owner。使用时写出限定路径/所属对象，不能只写`local_heat`猜它指运行域、存档还是定义。
 

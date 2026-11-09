@@ -15,6 +15,13 @@ static func native_basis(config: Dictionary, purpose: String, origin: String, le
 
 
 static func service_basis(world: RefCounted, job: Dictionary, legacy: bool = false) -> Dictionary:
+	if job.kind == "carry_stock":
+		var source: Dictionary = job.options.source
+		var target: Dictionary = job.options.target
+		return {"domain": "service", "purpose": "carry_stock", "origin": job.id,
+			"institution": world.regions[source.region].config.institution.id,
+			"source_region": source.region, "source": source.container, "return_region": source.region, "return_place": source.container,
+			"target_region": target.region, "target": target.container, "legacy": false}
 	var route: Dictionary = world.settings.routes[job.route]
 	return {"domain": "service", "purpose": "haul_grain", "origin": job.id,
 		"institution": world.regions[route.from].config.institution.id,
@@ -111,13 +118,17 @@ static func valid_services(data: Dictionary, service: RefCounted) -> bool:
 			var actor: String = str(note.container).trim_prefix("actor:")
 			if basis.domain == "service":
 				var origin: Dictionary = data.jobs.get(basis.origin, {})
-				if origin.get("kind") != "haul_grain" or origin.get("home") != home or origin.get("actor") != actor or origin.get("options", {}).get("custody") != id or not bool(origin.get("custody_required", false)) or not Shape.same_record(basis, service_basis(world, origin, basis.legacy)) or int(note.amount) != int(origin.amount):
+				if basis.purpose == "carry_stock":
+					if origin.get("kind") != "carry_stock" or origin.get("home") != home or origin.get("actor") != actor or origin.options.get("custody") != id or id != str(origin.id) + ":pickup" or basis.legacy or not Shape.same_record(basis, service_basis(world, origin)) or note.item != origin.options.item or note.amount != origin.options.amount or not service.Schema._transfer_matches(data.operations.get(id), basis.source_region, basis.source, home, note.container, note.item, int(note.amount)):
+						return false
+				elif origin.get("kind") != "haul_grain" or origin.get("home") != home or origin.get("actor") != actor or origin.get("options", {}).get("custody") != id or not bool(origin.get("custody_required", false)) or not Shape.same_record(basis, service_basis(world, origin, basis.legacy)) or int(note.amount) != int(origin.amount):
 					return false
-				var route: Dictionary = world.settings.routes[origin.route]
-				if note.item != route.item or id != ("legacy:" + str(origin.id) if basis.legacy else str(origin.id) + ":pickup"):
-					return false
-				if not basis.legacy and not service.Schema._transfer_matches(data.operations.get(id), str(route.from), str(route.source), home, str(note.container), str(route.item), int(note.amount)):
-					return false
+				else:
+					var route: Dictionary = world.settings.routes[origin.route]
+					if note.item != route.item or id != ("legacy:" + str(origin.id) if basis.legacy else str(origin.id) + ":pickup"):
+						return false
+					if not basis.legacy and not service.Schema._transfer_matches(data.operations.get(id), str(route.from), str(route.source), home, str(note.container), str(route.item), int(note.amount)):
+						return false
 				if not note.settled_by.is_empty() and note.settled_by.domain != "service":
 					return false
 			if note.settled_by.is_empty() or note.settled_by.domain != "service":
@@ -131,7 +142,7 @@ static func valid_services(data: Dictionary, service: RefCounted) -> bool:
 			if closer.kind == "return_goods" and op == str(closer.id) + ":return":
 				region = return_region(home, note)
 				place = str(basis.return_place)
-			elif closer.kind == "haul_grain" and basis.domain == "service" and op == str(closer.id) + ":delivery":
+			elif closer.kind in ["haul_grain", "carry_stock"] and basis.domain == "service" and op == str(closer.id) + ":delivery":
 				region = str(basis.target_region)
 				place = str(basis.target)
 			else:

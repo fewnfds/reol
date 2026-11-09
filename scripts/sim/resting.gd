@@ -142,7 +142,7 @@ func next_boundary_ms() -> int:
 		var job: Dictionary = active[actor]
 		if not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion"):
 			return world.elapsed_ms + 1
-		boundary = mini(boundary, SimRouteTravel.crossing_ms(job, _body(actor), world.elapsed_ms) if job.phase != "sleep" else int(job.due_ms))
+		boundary = mini(boundary, SimRouteTravel.next_boundary(job, _body(actor), world.elapsed_ms, _route_step) if job.phase != "sleep" else int(job.due_ms))
 	return boundary
 
 
@@ -157,7 +157,7 @@ func settle_at_ms(now: int) -> void:
 			_release(actor, "床铺或身体已不适用，休息中断。")
 			continue
 		if job.phase != "sleep":
-			if not job.path.is_empty() and not _step_open(SimRouteTravel.cell(body.cell), SimRouteTravel.cell(job.path[0])):
+			if not SimRouteTravel.repair(world.regions[definitions.region], actor, job, now, [], -1.0, _route_step):
 				_release(actor, "通往床铺的道路被挡住，床位已释放。")
 				continue
 			world.regions[definitions.region].project_actor_route(actor, job, now)
@@ -169,7 +169,7 @@ func settle_at_ms(now: int) -> void:
 				SimRouteTravel.begin_segment(job, body, now, _speed())
 				continue
 			if job.phase == "leave":
-				_release(actor, str(body.goal))
+				_release(actor, str(body.goal), "completed")
 				continue
 			if _occupied_by_other(actor, str(job.bed)):
 				_release(actor, "床边有人占着，暂不能躺下。")
@@ -206,7 +206,8 @@ func _schedule_check() -> void:
 	next_check_ms = SimInventory.MAX_COUNT
 
 
-func _release(actor: String, line: String) -> void:
+func _release(actor: String, line: String, status: String = "cancelled") -> void:
+	var job: Dictionary = active[actor]
 	var body: Dictionary = _body(actor)
 	body.autonomous = bool(active[actor].previous_autonomous)
 	body.retry_ms = world.elapsed_ms + int(definitions.check_ms)
@@ -214,6 +215,7 @@ func _release(actor: String, line: String) -> void:
 	active.erase(actor)
 	world.invalidate_region(str(definitions.region))
 	_schedule_check()
+	SimActionContract.job_finished(world, "resting", job, actor, status, line)
 
 
 func _wake(actor: String, line: String) -> void:
@@ -228,7 +230,7 @@ func _wake(actor: String, line: String) -> void:
 			body.goal = line
 			SimRouteTravel.begin_segment(job, body, world.elapsed_ms, _speed())
 			return
-	_release(actor, line + "床边拥堵，暂时站在原处。")
+	_release(actor, line + "床边拥堵，暂时站在原处。", "completed")
 
 
 func _route(actor: String, bed: String) -> Array:
@@ -266,6 +268,10 @@ func _cell_occupied(actor: String, cell: Vector2i) -> bool:
 func _step_open(from: Vector2i, to: Vector2i) -> bool:
 	var sim: RefCounted = world.regions[definitions.region]
 	return not world.construction.blocked(to) and (not sim._step_validator.is_valid() or bool(sim._step_validator.call(from, to - from)))
+
+
+func _route_step(from: Vector2i, step: Vector2i) -> bool:
+	return _step_open(from, from + step)
 
 
 func _body(actor: String) -> Dictionary:

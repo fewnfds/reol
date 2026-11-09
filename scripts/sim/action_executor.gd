@@ -69,8 +69,7 @@ func project(actor_id: String, at_ms: int) -> void:
 	var action: Dictionary = actor.active
 	if action.is_empty() or action.phase != "travel" or action.path.is_empty():
 		return
-	var direction: Vector2i = _cell(action.path[0]) - _cell(actor.cell)
-	if _sim._step_validator.is_valid() and not bool(_sim._step_validator.call(_cell(actor.cell), direction)):
+	if not SimRouteTravel.repair(_sim, actor_id, action, at_ms, _sim.places[action.destination].cell):
 		cancel(actor_id, "route_blocked")
 		return
 	_sim.project_actor_route(actor_id, action, at_ms)
@@ -107,7 +106,7 @@ func next_boundary_ms(actor: Dictionary) -> int:
 		return 0x3fffffffffffffff
 	var deadline: int = mini(int(action.due_ms), int(action.started_ms) + int(_sim.config.action_timeout) * MINUTE_MS + 1)
 	if action.phase == "travel":
-		deadline = mini(deadline, SimRouteTravel.crossing_ms(action, actor, _sim.elapsed_ms))
+		deadline = mini(deadline, SimRouteTravel.next_boundary(action, actor, _sim.elapsed_ms, _sim._step_validator))
 	return maxi(_sim.elapsed_ms + 1, deadline)
 
 

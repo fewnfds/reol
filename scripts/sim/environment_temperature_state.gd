@@ -571,6 +571,10 @@ func restore(data: Variant) -> bool:
 		var state: Dictionary = response.to_dict()
 		if not _physical_response(state) or int(state.start_ms) < activation or int(state.start_ms) > last_change:
 			return false
+		# Restore the composed model's existing canonical anchor after decimal
+		# parsing, just as prepare_targets/_apply_bulk_slot do on causal writes.
+		if anchor_quantum > 0.0:
+			state.initial_value = clampf(snappedf(float(state.initial_value), anchor_quantum), MIN_C, MAX_C)
 		newest = maxi(newest, int(state.start_ms))
 		var boundary: int = int(state.until_ms)
 		candidate_counts[boundary] = int(candidate_counts.get(boundary, 0)) + 1

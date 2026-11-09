@@ -9,7 +9,24 @@ func run(runner: Object) -> void:
 	_split_invariance(runner)
 	_isolation_and_failures(runner)
 	_restore_and_stale_proof(runner)
+	_canonical_anchor_recovery(runner)
 	print("SCENARIO environment phase state: five independent channels, continuous retargeting, cancellable bulk and isolated recovery")
+
+
+func _canonical_anchor_recovery(runner: Object) -> void:
+	var state := State.new()
+	state.anchor_quantum = SimWorldEnvironmentFields.ANCHOR_QUANTUM
+	state.configure(Vector2i.ONE, 1, 0)
+	var fields: Dictionary = _columns()
+	_set_target(fields, Vector2i.ZERO, true, [0.025276326, 0.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0, 0.0], 10_000, 1_000)
+	state.commit_bulk(_prepare(state, 0, Vector2i.ZERO, fields, 256).proof)
+	var checkpoint: Dictionary = state.snapshot()
+	var future: Dictionary = state.actual_at(Vector2i.ZERO, 1_447)
+	for _stop: int in 3:
+		var decoded: Variant = JSON.parse_string(JSON.stringify(state.snapshot(), "", true, true))
+		runner.assert_true(state.restore(decoded), "composed anchors restore after decimal transport")
+		runner.assert_eq(state.snapshot(), checkpoint, "repeated stops retain the exact committed phase anchors")
+		runner.assert_eq(state.actual_at(Vector2i.ZERO, 1_447), future, "decimal transport never changes the phase future")
 
 
 func _lifecycle_and_move(runner: Object) -> void:

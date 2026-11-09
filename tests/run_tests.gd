@@ -21,6 +21,14 @@ func _initialize() -> void:
 	call_deferred("_run_tests")
 
 
+func test_stock_hauling() -> void:
+	preload("res://tests/sim/test_stock_hauling.gd").new().run(self)
+
+
+func test_action_routing() -> void:
+	preload("res://tests/sim/test_action_routing.gd").new().run(self)
+
+
 func _run_tests() -> void:
 	var names: Array[String] = []
 	for method in get_method_list():

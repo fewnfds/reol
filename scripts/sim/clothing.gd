@@ -231,6 +231,7 @@ func _finish(job: Dictionary, outcome: String) -> void:
 	person.goal = "已整理好衣物" if outcome == "completed" else "衣物仍保留原处"
 	active.erase(job.actor)
 	world.invalidate_region(str(job.region))
+	SimActionContract.job_finished(world, "clothing", job, job.actor, outcome)
 
 
 func energy_rate(actor: String) -> int:

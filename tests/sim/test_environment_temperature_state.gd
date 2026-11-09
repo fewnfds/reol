@@ -17,7 +17,22 @@ func run(runner: Object) -> void:
 	_bulk_failures_and_limits(runner)
 	_read_order_and_restore(runner)
 	_snapshot_rejection(runner)
+	_canonical_anchor_recovery(runner)
 	print("SCENARIO environment temperature state: known segments, source-field targets, continuous moves, atomic plans, read-only projection and isolated JSON recovery")
+
+
+func _canonical_anchor_recovery(runner: Object) -> void:
+	var state := State.new()
+	state.anchor_quantum = SimWorldEnvironmentFields.ANCHOR_QUANTUM
+	state.configure(Vector2i.ONE, 1, 0)
+	_apply(state, [_new_change(Vector2i.ZERO, 0.025276326, 10.0, 10_000)], 0, 1)
+	var checkpoint: Dictionary = state.snapshot()
+	var future: Dictionary = state.actual_at(Vector2i.ZERO, 1_447)
+	for _stop: int in 3:
+		var decoded: Variant = JSON.parse_string(JSON.stringify(state.snapshot(), "", true, true))
+		runner.assert_true(state.restore(decoded), "composed thermal anchors restore after decimal transport")
+		runner.assert_eq(state.snapshot(), checkpoint, "repeated stops retain the exact committed thermal anchors")
+		runner.assert_eq(state.actual_at(Vector2i.ZERO, 1_447), future, "decimal transport never changes the thermal future")
 
 
 func _change(cell: Vector2i, target: float, until: int, tau: int = 1_000, slope: float = 0.0) -> Dictionary:

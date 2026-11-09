@@ -382,6 +382,8 @@ func _finish(job: Dictionary, outcome: String, cancelled_by: String = "", reason
 		person.goal = str(job.buyer_goal if actor == job.buyer else job.seller_goal)
 		person.retry_ms = int(job.buyer_retry_ms if actor == job.buyer else job.seller_retry_ms)
 		world.invalidate_region(home(actor))
+	for actor: String in [str(job.buyer), str(job.seller)]:
+		SimActionContract.job_finished(world, "private_exchange", job, actor, outcome, reason)
 	return true
 
 

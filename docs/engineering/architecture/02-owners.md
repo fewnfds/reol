@@ -24,7 +24,7 @@
 | [SimInventory](../../../scripts/sim/inventory_ledger.gd) | 容器内堆叠数量、预约、操作与受托责任 | 责任引用实物，不再存一份数量；不等于完整产权 |
 | [SimArtifacts](../../../scripts/sim/artifacts.gd)、[SimClothing](../../../scripts/sim/clothing.gd)、实物方法记录 | 独特物件位置/来源、穿法/湿润、有限器物过程与阅读记录 | 不同时复制成普通数量库存，持有/看见/读过不等于学会 |
 | [SimSocialMemory](../../../scripts/sim/social_memory.gd)、[SimInstitutionBook](../../../scripts/sim/institution_book.gd) | 本人有来源的认识/决定；机构任职和贡献记录 | 关系/礼遇/权限/实际履约分开；未实现通用ClaimBook/司法/继任 |
-| 原action executor、服务、劳动/生产、交换等域 | 各自过程、阶段/成本/证据与原资源引用 | 统一请求是薄门面；新增搬运动作合同没有替换这些领域过程，尚无覆盖全部动作的生命周期/任意条件协商 |
+| 原action executor、服务、劳动/生产、交换等域 | 各自过程、阶段/成本/证据与原资源引用 | 统一请求、共同动作投影/终态与集中中断均为薄接缝；原services持数量搬运jobs/回执，原库存持数量/保管，不新增任务库；任意条件协商仍未实现 |
 | [SimConflicts](../../../scripts/sim/conflicts.gd)、[SimSparring](../../../scripts/sim/sparring.gd)、[SimHealth](../../../scripts/sim/health.gd) | 招式/弹障/成本、有限对练、真实伤源与恢复 | 使用原身体、灵气（`qi`）与体力，不另造战斗人物；非完整致死/医疗/战争 |
 | 日历/气候、weather、environment、spirit_sources | 历法与天气、人体采样及有限灵源/转换，各自持有相应状态 | 热、五行亲和、物品可用灵气及有限灵源不合成万能数值；人体与植物采样读取同一普通环境域 |
 | [SimWorldEnvironmentFields](../../../scripts/sim/world_environment_fields.gd) | 普通世界室外实际温度、五行响应与相关来源/样本的唯一环境域；运行字段为`environment_fields` | 缓存与来源索引可重建，不另持实物；室内一房一温及墙门顶隔热未实现；详见[合同](../world-environment-contract.md) |

@@ -9,6 +9,7 @@
 - 同刻先结旧区间和既有过程，再形成未来决定；冲突先收集线索/命中再提交，后处理者不提前看见别人刚决定的起势。
 - `SimSettlementKernel`在装配时编译阶段/依赖并注册边界，`SimWorldSettlement`把原领域按原同刻顺序接入；运行中保留工作游标，完整阶段后才发布时刻。`settlement.contract()`是实际调用图，`schedule_contract()`仍是公共分类目录。地区生活决定保留其内部顺序；原资源争用和同时命中由相应owner处理。完整合同见[共同结算](../settlement-contract.md)。
 - 身体有唯一连续位置，格路/地块用于通行和放置。多格身体检完整覆盖及扫掠；动态通行组合静态地图、真实墙门和兽身，不把视图瓦片当碰撞真值。
+- `SimGridNavigation`复用Godot AStar2D，`SimRouteTravel`在受阻的共同边界重评原路段；原owner保留ID、预约和效果。工作、交互、战斗沿同一原身体/时间/中断接缝，战斗另持起势、飞行物和命中；完整接口与容器搬运见[行动合同](../object-lifecycle-contract.md#共同执行合同与领域过程)。
 
 **选型边界：** 用户已撤回“全对象格位置权威、移动动画纯视觉”的临时结论，要求先研究成熟项目。当前 `SimLocalMotion.position` 与 `SimRouteTravel.project` 的连续位置仍是原身体真值并参与碰撞/行动，代码保持原状；不能因未定方案把它定性为应立即迁入的错误。整格/子格、占地、碰撞和插值分别评估，最新概念边界见[空间规则](../../../design/rules/objects-and-interaction.md)。
 - `owns_for_scope`只读各域原占用，不是新增锁镜像；动作可占不同控制/执行通道，不能强行把所有生命压成一条全局动作轨。

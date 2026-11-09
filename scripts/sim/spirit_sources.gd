@@ -343,6 +343,7 @@ func _finish(job: Dictionary, result: String, line: String, before: int, after: 
 	person.goal = "刚结束引息"
 	person.retry_ms = at_ms + mini(SimInventory.MAX_COUNT - at_ms, int(world.regions[job.region].config.decision_interval) * 60000)
 	world.invalidate_region(str(job.region))
+	SimActionContract.job_finished(world, "spirit_sources", job, job.actor, "completed" if result == "success" else "cancelled" if result == "cancelled" else "failed", result)
 
 
 func describe(actor: String, source: String = "hearth_seam") -> Dictionary:

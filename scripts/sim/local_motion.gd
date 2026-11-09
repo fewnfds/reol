@@ -61,6 +61,10 @@ static func valid_rules(value: Variant) -> bool:
 	for field: String in ["prepare_ms", "travel_ms", "recover_ms", "speed", "stamina"]:
 		if not SimInventory._valid_count(value.sidestep.get(field), false):
 			return false
+	if not value.get("hauling") is Dictionary or not SimInventory._valid_count(value.hauling.get("max_units"), false) or not SimInventory._valid_count(value.hauling.get("handling_ms"), false):
+		return false
+	if int(value.hauling.handling_ms) > 60000:
+		return false
 	return SimInventory._valid_count(value.recovery.get("delay_ms")) and SimInventory._valid_count(value.recovery.get("stamina_per_second"))
 
 
