@@ -13,6 +13,7 @@ var _settled_agreement: String = ""
 var _admission_entry: String = ""
 var _admission_waiting: bool = false
 var _observed_native_events: int = 0
+var _care_world: WeakRef
 
 
 func setup(adapter: WorldContinuityRuntime, screen: Control) -> bool:
@@ -139,6 +140,12 @@ func refresh() -> void:
 	if adapter.world_sim.settlement != null and adapter.world_sim.settlement.is_pending():
 		return
 	var world: RegionalSimulation = adapter.world_sim
+	var old_world: RegionalSimulation = _care_world.get_ref() if _care_world != null else null
+	if old_world != world:
+		if old_world != null and old_world.action_finished.is_connected(_plant_action_finished):
+			old_world.action_finished.disconnect(_plant_action_finished)
+		world.action_finished.connect(_plant_action_finished)
+		_care_world = weakref(world)
 	_refresh_care_outcome(adapter._home.simulation)
 	var inventory: SimInventory = adapter.player_inventory()
 	var labor_id: String = world.budgeted_labor.latest_for("player")
@@ -241,6 +248,13 @@ func refresh() -> void:
 		remaining = ceili(float(int(native_action.due_ms) - int(world.elapsed_ms)) / 60000.0)
 		seconds = false
 		busy = true
+	if world.plants.owns_actor("player"):
+		var plant_job: Dictionary = world.plants.active.player
+		activity = "照料草木" if plant_job.kind == "water" else "处理草木"
+		phase = str(plant_job.phase)
+		remaining = ceili(float(int(plant_job.due_ms) - world.elapsed_ms) / 1000.0)
+		seconds = true
+		busy = true
 	if not adapter.player_journey.is_empty():
 		activity = "正在前往%s" % adapter._journey_label(str(adapter.player_journey.destination))
 		phase = "travel"
@@ -249,7 +263,7 @@ func refresh() -> void:
 		busy = true
 	panel.update_view(label, activity, "\n".join(details), _last_line, not region.is_empty())
 	panel.set_home_work_available(region == "home")
-	panel.set_resource_work(adapter._home.simulation.config, adapter._home.simulation.land_resources, adapter._home.visible_resource_sources(adapter._home.simulation))
+	panel.set_resource_work(adapter._home.simulation.config, adapter._home.simulation.land_resources, adapter._home.visible_resource_sources(adapter._home.simulation), int(world.plants.definitions.action_ms))
 	panel.update_activity(phase, remaining, busy, seconds)
 	var batches: Array[Dictionary] = []
 	for id: String in world.personal_production.batches:
@@ -273,3 +287,9 @@ func _refresh_care_outcome(sim: VillageSimulation) -> void:
 		elif event.kind == "interrupted":
 			_last_line = "照料已中断；没有完成浇灌，已耗工时不会退回。"
 	_observed_native_events = sim.social.events.size()
+
+
+func _plant_action_finished(outcome: Dictionary) -> void:
+	if outcome.get("domain") != "plants" or outcome.get("actor") != "player" or outcome.get("intent") != "water":
+		return
+	_last_line = "已用随身私水照料药丛；药草仍须随水土与时令慢慢生长。" if outcome.status == "completed" else "照料已中断；已耗工时不会退回，水按实际回执结算。"

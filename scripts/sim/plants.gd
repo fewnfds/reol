@@ -153,6 +153,19 @@ func canopy_at(cell: Vector2i) -> int:
 	return result
 
 
+func observation(id: String) -> Dictionary:
+	# Qualitative facts only. The caller must enforce current sight/distance.
+	if not bodies.has(id) or bodies[id].stage == "removed":
+		return {"phase": "unknown"}
+	var row: Dictionary = bodies[id]
+	if row.hp == 0:
+		return {"phase": "dormant"}
+	var inventory: SimInventory = world.regions[row.region].inventory
+	if inventory.quantity(container_id(id), str(definitions.types[row.definition].product.item)) > 0:
+		return {"phase": "harvestable"}
+	return {"phase": "dry" if _water(row) == 0 else "dormant" if row.dormant else "growing"}
+
+
 func habitat(cell: Vector2i, support: String = "") -> Dictionary:
 	var substrate: String
 	var moisture: int

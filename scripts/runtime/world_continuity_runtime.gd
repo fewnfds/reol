@@ -918,6 +918,15 @@ func start_home_work(action_id: String) -> Dictionary:
 	prepare_player_command()
 	if not _home.simulation.actors.player.active.is_empty():
 		return {"ok": false, "line": "先完成或停止眼前的劳作。"}
+	var terms: Dictionary = _home.simulation.config.actions[action_id]
+	if terms.kind == "irrigate":
+		var source: Dictionary = _home.simulation.land_resources.sources.get(str(terms.resource), {})
+		var plant_id: String = str(source.get("plant_id", ""))
+		if not plant_id.is_empty():
+			var care: Dictionary = world_sim.plants.jobs.begin("player", plant_id, "water")
+			if bool(care.ok):
+				hold_player_motion(true)
+			return {"ok": bool(care.ok), "line": "已动身照料药丛；用自己的水浇灌，药草仍须慢慢生长。" if bool(care.ok) else "眼下无法照料；请确认有自己可用的水、道路和空闲的双手。"}
 	var accepted: bool = _home.simulation.submit_action("player", action_id)
 	if accepted:
 		world_sim.invalidate_region("home")

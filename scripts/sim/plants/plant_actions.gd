@@ -30,7 +30,9 @@ func begin(actor: String, id: String, verb: String, destination: Dictionary = {}
 	if not world.synchronize_region(region) or not SimActionContract.can_begin(world, region, actor) or not _eligible(actor, id, verb, destination):
 		return _reply(false, "conditions_or_consent")
 	var sim: VillageSimulation = world.regions[region]
-	if SimRouteTravel.point(sim.actors[actor]).distance_to(TileGrid.cell_to_world(plants.cell_of(id))) > float(sim.config.observation_radius) * TileGrid.TILE_SIZE:
+	# Registered resource places are already known work destinations. Seeking
+	# one may start from afar; arbitrary individual plants still require sight.
+	if str(row.legacy_source).is_empty() and SimRouteTravel.point(sim.actors[actor]).distance_to(TileGrid.cell_to_world(plants.cell_of(id))) > float(sim.config.observation_radius) * TileGrid.TILE_SIZE:
 		return _reply(false, "unobserved")
 	for job: Dictionary in active.values():
 		if job.plant == id or verb == "transplant" and destination == job.destination:

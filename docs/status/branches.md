@@ -16,6 +16,7 @@ main已从`a4fb83a6c29e3203bf71fc1c1f950afe4906830b`快进并推送到共同结�
 
 | 分支 | 已知来源提交 | 用途 |
 |---|---|---|
+| `codex/world-events-plants` | 基于`66f56b9`；主体`801d71e`、审查修复`e2512a1`、当前测试`424d906` | 承接SL；全局事件、会话规则与植物已接普通Main，最终完整验收/推送状态见HANDOFF和BASELINE；未合main |
 | `codex/save-load-framework` | 基于main `f63844b`；主体`96a6fe0`、最终代码`d682e03` | 通用参与者/领域目录、安全保存与候选加载已推送，尚未合main；验证及收尾见HANDOFF/BASELINE |
 | `codex/adaptive-world-time` | 基于`2c4ea10`；产品/永久测试`f4257e3` | 共同时间过载降速、宿主预算、呈现和验证已交付并合入main |
 | `codex/actions-node24-integration` | 基于`8cc4091`；Actions代码`dc2558b` | 官方Actions升级已合入main；架构与状态文档同步整理，准确指针以Git为准 |
@@ -23,14 +24,14 @@ main已从`a4fb83a6c29e3203bf71fc1c1f950afe4906830b`快进并推送到共同结�
 | `codex/framework-consolidation` | 基于`eb330ee`，仅Markdown | 主线合并后的阶段盘点及现有主计划整理，不含新阶段代码 |
 | `codex/general-buildings` | 最终代码`d00bac9`、证据`eb330ee` | 通用建筑与组合空间已完整快进合入并推送main |
 | `codex/world-space-actions` | `fa45228`实现、`5fd6e31`审查修复、`f50f0a8`最终受检代码/测试及后续证据文档 | 基础建设第一阶段，已快进合入并推送main |
-| `main` | 包含结算`8cc4091`及Actions升级`dc2558b219cb2fbdf164c2d63371e01b0cff8226` | 唯一集成主线；共同空间、通用建筑和共同结算均已集成 |
+| `main` | `f63844b3cd18f92624f58de3749b1fbbcdd32fdd`，含结算、Actions升级和共同时间调速 | 唯一集成主线；通用SL和事件植物在开发分支，准确验证分别记录 |
 | `codex/sparse-world-execution` | 原远端`3f694262ecc1086a5de3554683f63cb156d4029f`，本地另含已整理提交 | 已合入main的历史开发引用，不形成另一条待开发队列 |
 | `codex/world-engine-finish` | `ffe7e8c705d2d7259dfb77dcfba3dd0a64c9c61c` | 旧环境主线集成记录，已在main历史 |
 | `codex/world-engine` | `2483a3771bc9f469509293a514fb0a059eefe095` | 旧开发起点，已在main历史 |
 | `codex/drawing-ring-use` | `8b8457ee3fe70c19e2c23ccda1ce7ff500a6830f` | 已完成功能历史，已在main |
 | `codex/private-artifact-exchange` | `a29314667f6a743fd3177b0a5190c810c2b6650b` | 已完成功能历史，已在main |
 | `codex/world-view-continuity` | `945891cc977a60ecb9a499574b33784da9f5cca1` | 已完成视图连续性历史，已在main |
-| `codex/field-contest` | `4e17c5c165cf8fca9ef884a111aa1c3ca35f445f` | 仅本地旧争环WIP；仍使用根43/旧迁移链，不是当前根53的待发布成果，隔离保留 |
+| `codex/field-contest` | `4e17c5c165cf8fca9ef884a111aa1c3ca35f445f` | 仅本地旧争环WIP；仍使用根43/旧迁移链，不是当前模型的待发布成果，隔离保留 |
 
 同名本地和origin引用不是两条开发路线，origin/HEAD不是额外分支。本轮不删除历史引用、强推或改GitHub默认分支/保护设置。
 

@@ -176,7 +176,7 @@ func set_help_offer(amount: int) -> void:
 			button.tooltip_text = "报酬先托管，实际送达才支付；已有承诺不会被挤掉。"
 
 
-func set_resource_work(config: Dictionary, domain: SimLandResources, visible_sources: Dictionary = {}) -> void:
+func set_resource_work(config: Dictionary, domain: SimLandResources, visible_sources: Dictionary = {}, plant_care_ms: int = 0) -> void:
 	_resource_note.text = "药丛近况须走近查看。"
 	_resource_note.tooltip_text = _resource_note.text
 	for button: Button in _local_buttons:
@@ -198,7 +198,8 @@ func set_resource_work(config: Dictionary, domain: SimLandResources, visible_sou
 		var observed: bool = bool(visible_sources.get(str(terms.resource), false))
 		var description: String = domain.describe("player", str(terms.resource)) if observed else str(domain.terms_for(str(terms.resource)).get("description", "")) + " 眼下看不清此处近况。"
 		if irrigation:
-			button.tooltip_text = "%s\n需自己的%d份水、%d分钟劳动；完成才浇入，不记公差贡献。" % [description, int(terms.amount), int(terms.minutes)]
+			var duration: String = "%d秒劳动" % ceili(float(plant_care_ms) / 1000.0) if not str(domain.sources.get(str(terms.resource), {}).get("plant_id", "")).is_empty() and plant_care_ms > 0 else "%d分钟劳动" % int(terms.minutes)
+			button.tooltip_text = "%s\n需自己的%d份水、%s；完成才浇入，不记公差贡献。" % [description, int(terms.amount), duration]
 			if observed:
 				_resource_note.text = description
 				_resource_note.tooltip_text = description

@@ -780,6 +780,9 @@ func herb_phase_for(sim: VillageSimulation, place_id: String) -> String:
 		# when the current body can see it at the original observation distance.
 		if not resource_is_observable(sim, id):
 			return "unknown"
+		var plant_id: String = str(sim.land_resources.sources[id].plant_id)
+		if not plant_id.is_empty() and is_instance_valid(continuity):
+			return str(continuity.world_sim.plants.observation(plant_id).get("phase", "unknown"))
 		return str(sim.land_resources.ecology_observation(id).get("phase", ""))
 	return ""
 
