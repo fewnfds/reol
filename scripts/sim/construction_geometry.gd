@@ -8,7 +8,12 @@ const CAPABILITIES: Array[String] = ["rest", "seat", "surface", "storage", "work
 
 
 static func valid_type(row: Variant) -> bool:
-	if not Shape.keys(row, ["label", "kind", "item", "amount", "work_ms", "demolish_ms", "salvage", "door", "layer", "size", "facts", "max_hp", "armor", "capabilities", "slots"]):
+	var fields: Array = ["label", "kind", "item", "amount", "work_ms", "demolish_ms", "salvage", "door", "layer", "size", "facts", "max_hp", "armor", "capabilities", "slots"]
+	if row is Dictionary and row.has("environment"):
+		fields.append("environment")
+		if not SimEnvironmentLayout.valid_terms(row.environment):
+			return false
+	if not Shape.keys(row, fields):
 		return false
 	if not SimInventory._nonempty(row.label) or not SimInventory._nonempty(row.kind) or not SimInventory._nonempty(row.item) or not row.door is bool or row.layer not in ["ground", "roof"] or not _pair(row.size, 1, 8):
 		return false

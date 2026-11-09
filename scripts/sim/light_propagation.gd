@@ -42,12 +42,15 @@ static func emission_peak(peak: int, rate: int, nominal: int) -> int:
 static func has_line_of_light(from: Vector2i, to: Vector2i, opaque: Callable) -> bool:
 	if not opaque.is_valid():
 		return false
-	if absi(int(to.x) - int(from.x)) > MAX_RADIUS or absi(int(to.y) - int(from.y)) > MAX_RADIUS:
-		return false
+	return transmission(from, to, func(cell: Vector2i) -> int: return 0 if bool(opaque.call(cell)) else SCALE) > 0
+
+
+static func transmission(from: Vector2i, to: Vector2i, permeability: Callable, limit: int = MAX_RADIUS) -> int:
+	if not permeability.is_valid() or limit < 1 or limit > 256 or absi(int(to.x) - int(from.x)) > limit or absi(int(to.y) - int(from.y)) > limit:
+		return 0
 	if from == to:
-		return true
-	if bool(opaque.call(from)):
-		return false
+		return SCALE
+	var value: int = clampi(int(permeability.call(from)), 0, SCALE)
 	var extent := Vector2i(absi(int(to.x) - int(from.x)), absi(int(to.y) - int(from.y)))
 	var step := Vector2i(signi(int(to.x) - int(from.x)), signi(int(to.y) - int(from.y)))
 	var crossed := Vector2i.ZERO
@@ -57,8 +60,8 @@ static func has_line_of_light(from: Vector2i, to: Vector2i, opaque: Callable) ->
 		var y_cross: int = (1 + 2 * crossed.y) * extent.x
 		if x_cross == y_cross:
 			# A zero-width corner is not a passage for either side's light.
-			if bool(opaque.call(at + Vector2i(step.x, 0))) or bool(opaque.call(at + Vector2i(0, step.y))):
-				return false
+			value = value * clampi(int(permeability.call(at + Vector2i(step.x, 0))), 0, SCALE) / SCALE
+			value = value * clampi(int(permeability.call(at + Vector2i(0, step.y))), 0, SCALE) / SCALE
 			at += step
 			crossed += Vector2i.ONE
 		elif x_cross < y_cross:
@@ -69,9 +72,11 @@ static func has_line_of_light(from: Vector2i, to: Vector2i, opaque: Callable) ->
 			crossed.y += 1
 		# The target wall's facing surface receives light; it still blocks the
 		# next target behind it. No light ray uses height or furniture collision.
-		if at != to and bool(opaque.call(at)):
-			return false
-	return true
+		if at != to:
+			value = value * clampi(int(permeability.call(at)), 0, SCALE) / SCALE
+		if value == 0:
+			return 0
+	return value
 
 
 static func contribution(from: Vector2i, to: Vector2i, radius: int, peak: int, opaque: Callable) -> int:

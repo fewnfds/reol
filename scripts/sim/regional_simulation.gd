@@ -6,7 +6,7 @@ signal boundary_settled(at_ms: int)
 ## Scene adapters may disappear; these instances and their pending work remain.
 
 const DEFINITIONS_VERSION: int = 1
-const SCHEMA_VERSION: int = 45
+const SCHEMA_VERSION: int = 46
 const MINUTE_MS: int = 60000
 const MAX_COUNT: int = SimInventory.MAX_COUNT
 const Services = preload("res://scripts/sim/services/settlement_services.gd")
@@ -699,6 +699,8 @@ func advance_to_ms(requested_ms: int, max_events: int = 4096, work_budget: int =
 	if environment_fields is SimWorldEnvironmentFields and not environment_fields.activate_sources():
 		errors.append("Environmental sources could not activate before advancing")
 		return false
+	if environment_fields is SimWorldEnvironmentFields and not settlement.is_pending() and not environment_fields.flush_sources(elapsed_ms):
+		return false
 	if requested_ms < elapsed_ms or requested_ms > MAX_COUNT or regions.is_empty():
 		return false
 	if object_lifecycle.environment_change_pending() and not settlement.is_pending():
@@ -752,6 +754,9 @@ func _complete_boundary(work_budget: int, should_yield: Callable = Callable()) -
 	if status != SimSettlementKernel.Status.COMPLETE:
 		if status == SimSettlementKernel.Status.FAILED and (errors.is_empty() or errors[-1] != settlement.error):
 			errors.append(settlement.error)
+		return false
+	if environment_fields is SimWorldEnvironmentFields and not environment_fields.flush_sources(elapsed_ms):
+		errors.append("Environmental source dependencies could not publish")
 		return false
 	_environment_event = null
 	_settled_ms = elapsed_ms
@@ -1034,7 +1039,7 @@ func known_event_lines(region_id: String, limit: int = 3) -> Array[String]:
 func to_dict() -> Dictionary:
 	if _publishing_boundary or settlement != null and settlement.is_pending() or construction != null and construction._changing or environment_boundary_active() or (object_lifecycle != null and (object_lifecycle._committing or object_lifecycle.environment_change_pending())):
 		return {}
-	if not environment_fields.settle_at_ms(elapsed_ms) or not synchronize_regions():
+	if not synchronize_regions() or not environment_fields.settle_at_ms(elapsed_ms):
 		return {}
 	var regional_states: Dictionary = {}
 	for region_id: String in _sorted_keys(regions):
@@ -1315,6 +1320,8 @@ func _move_goods(
 	source.containers[source_container][item] = source.quantity(source_container, item) - amount
 	destination.containers[destination_container][item] = destination.quantity(destination_container, item) + amount
 	operations[operation_id] = signature
+	source.contents_changed.emit(source_container)
+	destination.contents_changed.emit(destination_container)
 	return true
 
 

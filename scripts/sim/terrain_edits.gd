@@ -10,9 +10,20 @@ static func apply(world: RegionalSimulation, raw: Variant, player_journey: Dicti
 	var checked: Dictionary = inspect(world, raw, player_journey)
 	if not bool(checked.ok):
 		return checked
+	var parsed: Dictionary = world.map_data.inspect_terrain_patch(raw)
+	var cells: Array[Vector2i] = []
+	for cell: Vector2i in parsed.rows:
+		if int(parsed.rows[cell]) != world.map_data.get_terrain(cell):
+			cells.append(cell)
+	var fields: SimWorldEnvironmentFields = world.environment_fields as SimWorldEnvironmentFields
+	if fields != null and not cells.is_empty() and not fields.before_topology_change(world.elapsed_ms, cells):
+		return _reject("pending_time")
 	# Synchronous commit: no callbacks or mutations occur between preflight and
 	# the map's complete validation. Notifications publish only the accepted map.
 	var result: Dictionary = world.map_data.apply_terrain_patch(raw)
+	if fields != null and not cells.is_empty():
+		var published: bool = fields.diagnostics().error.is_empty()
+		assert(published, "preflighted terrain environment publication failed")
 	result["code"] = "applied" if bool(result.ok) else "invalid_patch"
 	return result
 

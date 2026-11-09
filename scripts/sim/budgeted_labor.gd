@@ -92,7 +92,7 @@ func _accept(actor: String, region: String, issuer: String, offer: String) -> Di
 		sim.cancel_action(actor, "funding_failed")
 		world.invalidate_region(region)
 		return reply(false, "工钱没有实际留出，差事没有成立。")
-	_commit(sim.inventory, candidate)
+	_commit(sim.inventory, candidate, [str(definitions.cash_container), id])
 	next_id += 1
 	var basis: Dictionary = {"amount": int(belief.amount), "at": int(belief.at), "basis": belief.basis, "source": belief.source, "event": belief.event}
 	var note: Dictionary = {"id": id, "actor": actor, "region": region, "issuer": issuer, "office": office, "offer": offer,
@@ -237,7 +237,7 @@ func settle_claim(job: Dictionary) -> Dictionary:
 	var candidate := SimInventory.new()
 	if not candidate.restore(sim.inventory.to_dict()) or not candidate.transfer(id + ":payment", id, "actor:" + str(job.actor), str(definitions.coin), int(definitions.offers[note.offer].coins)):
 		return reply(false, "专款或行囊空间暂不可用，未扣除任何工钱。", id)
-	_commit(sim.inventory, candidate)
+	_commit(sim.inventory, candidate, [id, "actor:" + str(job.actor)])
 	note.status = "paid"
 	note.terminal_ms = world.elapsed_ms
 	note.payment_job = job.id
@@ -255,11 +255,13 @@ static func _delivered_ms(note: Dictionary) -> int:
 	return int(note.attempts.back().ended_ms) if not note.attempts.is_empty() and bool(note.attempts.back().succeeded) else -1
 
 
-static func _commit(inventory: SimInventory, candidate: SimInventory) -> void:
+static func _commit(inventory: SimInventory, candidate: SimInventory, changed: Array[String]) -> void:
 	inventory.containers = candidate.containers
 	inventory.reservations = candidate.reservations
 	inventory.operations = candidate.operations
 	inventory.custody = candidate.custody
+	for container: String in changed:
+		inventory.contents_changed.emit(container)
 
 
 func describe(actor: String, id: String) -> Dictionary:

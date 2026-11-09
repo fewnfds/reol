@@ -24,7 +24,7 @@ func run(runner: Object) -> void:
 	print("SCENARIO ordinary world fields: time, actual source changes, stock, consumers and independent restoration")
 
 
-func _world(runner: Object) -> RegionalSimulation:
+func _world(runner: Object, overrides: Dictionary = {}) -> RegionalSimulation:
 	var source := ReolContentDB.new()
 	if not source.load_all():
 		runner.assert_true(false, "field fixture loads current content")
@@ -34,9 +34,13 @@ func _world(runner: Object) -> RegionalSimulation:
 	definitions.profiles["test_heat"] = definitions.profiles.intrinsic_hot.duplicate(true)
 	definitions.profiles.test_heat.thermal_grade = 1000
 	definitions.bindings.artifacts.plain_slate = "test_heat"
+	for path: String in overrides:
+		if documents.has(path):
+			documents[path] = overrides[path].duplicate(true)
 	var content := ReolContentDB.new()
-	if not content.load_bundle(ReolContentBundle.from_documents(documents)):
-		runner.assert_true(false, "field fixture binds the isolated current definitions")
+	var bundle: Dictionary = ReolContentBundle.from_documents(documents)
+	if not content.load_bundle(bundle):
+		runner.assert_true(false, "field fixture binds the isolated current definitions: " + str(content.errors))
 		return null
 	var settings: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/scenarios/world_continuity.json"))
 	var instances: Dictionary = {}
@@ -56,7 +60,7 @@ func _world(runner: Object) -> RegionalSimulation:
 		runner.assert_true(false, "field fixture binds its own natural terrain")
 		return null
 	world.bind_map_data(terrain)
-	var opening: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/scenarios/artifacts.json"))
+	var opening: Variant = overrides.get("res://data/scenarios/artifacts.json", JSON.parse_string(FileAccess.get_file_as_string("res://data/scenarios/artifacts.json")))
 	if not opening is Dictionary or not world.artifacts.spawn_opening(opening):
 		runner.assert_true(false, "field fixture places original authored devices")
 		return null

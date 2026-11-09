@@ -26,10 +26,11 @@ var _temperature: RefCounted
 var _phases: RefCounted
 var _settings: Dictionary = {}
 var _read_channels: Callable
+var _initial_temperature: Callable
 var _active: Batch
 
 
-func configure(temperature: RefCounted, phases: RefCounted, settings: Dictionary, read_channels: Callable) -> bool:
+func configure(temperature: RefCounted, phases: RefCounted, settings: Dictionary, read_channels: Callable, initial_temperature: Callable = Callable()) -> bool:
 	if _temperature != null or not is_instance_of(temperature, Temperature) or not is_instance_of(phases, Phase) or not read_channels.is_valid():
 		return false
 	if not _keys(settings, ["climate", "weather", "weather_epoch_ms", "seed", "tau_ms", "tide_grid_ms"]) or not Climate.valid_definitions(settings.climate) or not Weather.valid_definitions(settings.weather):
@@ -44,6 +45,7 @@ func configure(temperature: RefCounted, phases: RefCounted, settings: Dictionary
 	_phases = phases
 	_settings = settings.duplicate(true)
 	_read_channels = read_channels
+	_initial_temperature = initial_temperature
 	return true
 
 
@@ -185,6 +187,17 @@ func _compile_cell(index: int, cell: Vector2i, channels: PackedInt32Array, domai
 			_active.temperature_columns.initial_mask[index] = 1
 			_active.temperature_columns.initial[index] = float(segment.neutral_c)
 		if domains & ELEMENTAL:
+			_active.phase_columns.initial_mask[index] = 1
+	else:
+		if domains & THERMAL and _temperature.cell_boundary_ms(cell) < 0:
+			if not _initial_temperature.is_valid():
+				return _failure("initial_unavailable")
+			var actual: Dictionary = _initial_temperature.call(cell, at_ms)
+			if not bool(actual.get("ok", false)):
+				return _failure("initial_unavailable")
+			_active.temperature_columns.initial_mask[index] = 1
+			_active.temperature_columns.initial[index] = float(actual.value_c)
+		if domains & ELEMENTAL and _phases.cell_boundary_ms(cell) < 0:
 			_active.phase_columns.initial_mask[index] = 1
 	# Bulk preparation validates tracked/untracked, cell bounds and the old
 	# known segment in both owners. Do not project the same six actual values a

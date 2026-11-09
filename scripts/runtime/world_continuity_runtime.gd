@@ -432,7 +432,7 @@ func _bind_navigation() -> void:
 	world_sim.construction.set_terrain(world_sim.map_data.terrain_is_walkable, world_sim.map_data.get_elevation)
 	world_sim.construction.set_incoming_occupancy(_incoming_occupancy)
 	_home.simulation = world_sim.regions.home
-	_home._player.motion.bind_body(_home.simulation.actors.player, _home.simulation.notify_body_space_changed.bind("player"))
+	_home._player.motion.bind_body(_home.simulation.actors.player, _home.simulation.notify_body_space_changed.bind("player"), _home.simulation.notify_body_cell_crossed.bind("player"))
 	_home._player.set_motion_guard(_player_has_motion_control)
 	if not _home._player.cell_changed.is_connected(_on_player_moved):
 		_home._player.cell_changed.connect(_on_player_moved)

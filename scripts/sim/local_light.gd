@@ -12,12 +12,12 @@ static func _failure(reason: String) -> Dictionary:
 	return {"supported": false, "reason": reason}
 
 
-static func _sources(world: RegionalSimulation) -> Dictionary:
+static func _sources(world: RegionalSimulation, simulation: bool = false) -> Dictionary:
 	if world == null or world.map_data == null or world.construction == null or world.artifacts == null or world.environment_fields == null:
 		return _failure("missing_world")
 	if world.environment_fields.world != world or world.artifacts.world != world or world.construction.world != world:
 		return _failure("invalid_world")
-	if world.elapsed_ms != world.target_ms:
+	if not simulation and world.elapsed_ms != world.target_ms:
 		return _failure("pending_time")
 	var output: Dictionary = world.environment_fields.device_emission_rates(world.elapsed_ms)
 	if not bool(output.supported):
@@ -56,17 +56,18 @@ static func _sources(world: RegionalSimulation) -> Dictionary:
 		if not bool(location.ok) or not world.map_data.in_bounds(location.cell):
 			return _failure("unsettled_location")
 		var fixed: bool = world.regions[item.region].places.has(item.container) or str(item.container).begins_with("site:")
-		if bool(location.stale) and not fixed:
+		if bool(location.stale) and not fixed and not simulation:
 			return _failure("unsettled_location")
 		var rule: Dictionary = world.artifacts.definitions.types[item.definition].lighting
-		rows.append({"cell": location.cell, "radius": int(rule.radius_cells), "peak": int(rule.peak_relative)})
+		var factor: int = SimEnvironmentLayout.container_transmission(world, str(item.container), "light")
+		rows.append({"cell": location.cell, "radius": int(rule.radius_cells), "peak": int(rule.peak_relative) * factor / 10000})
 	return {"supported": true, "rows": rows}
 
 
-static func local_patch(world: RegionalSimulation, cells: Array[Vector2i]) -> Dictionary:
+static func local_patch(world: RegionalSimulation, cells: Array[Vector2i], simulation: bool = false) -> Dictionary:
 	if cells.size() > MAX_CELLS:
 		return _failure("cell_budget")
-	var sources: Dictionary = _sources(world)
+	var sources: Dictionary = _sources(world, simulation)
 	if not bool(sources.supported):
 		return sources
 	for cell: Vector2i in cells:
@@ -74,10 +75,21 @@ static func local_patch(world: RegionalSimulation, cells: Array[Vector2i]) -> Di
 			return _failure("outside_map")
 	# One synchronous bounded query. Only pure geometric projections are reused
 	# within it; no field or source position survives into another world step.
-	var blockers: Dictionary[Vector2i, bool] = {}
-	var opaque: Callable = func(cell: Vector2i) -> bool:
+	var blockers: Dictionary[Vector2i, int] = {}
+	var permeability: Callable = func(cell: Vector2i) -> int:
 		if not blockers.has(cell):
-			blockers[cell] = not world.map_data.in_bounds(cell) or world.map_data.get_terrain(cell) == WorldMapData.TERRAIN_ROCK or world.construction.blocks_sight(cell)
+			var value: int = 10000
+			if not world.map_data.in_bounds(cell) or world.map_data.get_terrain(cell) == WorldMapData.TERRAIN_ROCK:
+				value = 0
+			else:
+				var id: String = world.construction.project_at(cell)
+				if not id.is_empty() and world.construction.projects[id].state == "built":
+					var row: Dictionary = world.construction.projects[id]
+					var rule: Dictionary = world.construction.definitions.types[row.type]
+					value = 10000 if bool(rule.door) and bool(row.open) else int(SimEnvironmentLayout.terms(rule).light)
+				elif world.construction.blocks_sight(cell):
+					value = 0
+			blockers[cell] = value
 		return blockers[cell]
 	var values: Dictionary[Vector2i, int] = {}
 	# Identical instantaneous sources have the same *integer* contribution at
@@ -90,7 +102,12 @@ static func local_patch(world: RegionalSimulation, cells: Array[Vector2i]) -> Di
 	for cell: Vector2i in cells:
 		var relative: int = 0
 		for source: Vector4i in grouped:
-			var contribution: int = SimLightPropagation.contribution(Vector2i(source.x, source.y), cell, source.z, source.w, opaque)
+			var from := Vector2i(source.x, source.y)
+			var distance: int = (cell - from).length_squared()
+			if distance >= source.z * source.z:
+				continue
+			var factor: int = SimLightPropagation.transmission(from, cell, permeability)
+			var contribution: int = (source.w * (source.z * source.z - distance) / (source.z * source.z)) * factor / 10000
 			relative = mini(MAX_RELATIVE, relative + contribution * grouped[source])
 			if relative == MAX_RELATIVE:
 				break
@@ -99,8 +116,20 @@ static func local_patch(world: RegionalSimulation, cells: Array[Vector2i]) -> Di
 
 
 static func at_cell(world: RegionalSimulation, cell: Vector2i) -> Dictionary:
+	return _at_cell(world, cell, false)
+
+
+static func at_simulation_cell(world: RegionalSimulation, cell: Vector2i) -> Dictionary:
+	# An explicit committed simulation boundary may have retained future debt.
+	# UI still refuses that debt. Neither path advances the clock or a source.
+	if world.environment_fields.last_ms != world.elapsed_ms:
+		return _failure("unsettled_environment")
+	return _at_cell(world, cell, true)
+
+
+static func _at_cell(world: RegionalSimulation, cell: Vector2i, simulation: bool) -> Dictionary:
 	var cells: Array[Vector2i] = [cell]
-	var patch: Dictionary = local_patch(world, cells)
+	var patch: Dictionary = local_patch(world, cells, simulation)
 	if not bool(patch.supported):
 		return patch
 	var natural: Dictionary = SimNaturalLight.at_cell(world, cell)

@@ -24,8 +24,8 @@
 
 ## 当前实现的有限边界
 
-当前实现中，[SessionSaveSchema](../../scripts/persistence/session_save_schema.gd)普通入口只接受根`54`；旧根`53`返回`legacy_events`，旧根`52`返回`legacy_buildings`，旧根`1–51`返回`legacy_environment`，未来或非法版本返回`unsupported_version`。旧Q历史无法可靠推导新场的实际残留，因此不从当前物品位置伪造迁移。建筑模型写入朝向、耐久、用途与设施过程，当前不自动迁入根52；用户原档保留，失败不替换活世界。根53缺事件/植物与会话规则，不从磁盘补造。验证证据和当前状态见[HANDOFF](../status/handoff.md)与[BASELINE](../status/baseline.md)。
+当前实现中，[SessionSaveSchema](../../scripts/persistence/session_save_schema.gd)普通入口只接受根`55`；旧根`53`返回`legacy_events`，旧根`52`返回`legacy_buildings`，旧根`1–51/54`返回`legacy_environment`，未来或非法版本返回`unsupported_version`。旧Q历史无法可靠推导新场的实际残留，因此不从当前物品位置伪造迁移。建筑模型写入朝向、耐久、用途与设施过程，当前不自动迁入根52；用户原档保留，失败不替换活世界。根53缺事件/植物与会话规则；根54采用旧室外模型，不能冒称已经有房间/容纳的当前历史，不补造迁移。验证证据和当前状态见[HANDOFF](../status/handoff.md)与[BASELINE](../status/baseline.md)。
 
-普通联合区域为`45`，`RegionalSimulation.restore`明确拒绝其他区域版本与旧热导入标志。当前内容包为`3`，绑定44份定义/开局、移动/值事房/约练规则及digest；旧`1/2`版内容包可按原清单解析，但缺事件/植物和必要会话规则，不足以装配当前世界，也不会从当前磁盘补出历史能力。不要把低层旧版校验器或历史导入源码误写成旧存档已支持。
+普通联合区域为`46`，`RegionalSimulation.restore`明确拒绝其他区域版本与旧热导入标志。当前内容包为`3`，绑定44份定义/开局、移动/值事房/约练规则及digest；旧`1/2`版内容包可按原清单解析，但缺事件/植物和必要会话规则，不足以装配当前世界，也不会从当前磁盘补出历史能力。不要把低层旧版校验器或历史导入源码误写成旧存档已支持。
 
-[WorldSessionSnapshot](../../scripts/runtime/world_session_snapshot.gd)在独立候选通过校验后才替换活世界；地图按档内生成描述重建。当前环境保存版本`4`、模型`outdoor_fields_v1`，保存背景及已受影响格的响应锚点、必要来源与采样；派生来源/块缓存从已验证原物重建，细节见[环境合同](world-environment-contract.md)。存在未完成共同时间/环境事务时不能当成已完成快照。历史各阶段的导入边界保留在[归档](../archive/engineering-context-20261105/compatibility.md)，不能作为永久兼容承诺。
+[WorldSessionSnapshot](../../scripts/runtime/world_session_snapshot.gd)在独立候选通过校验后才替换活世界；地图按档内生成描述重建。当前环境保存版本`5`、模型`composed_fields_v1`，保存背景及已受影响格的响应锚点、必要来源与采样；派生来源/块缓存从已验证原物重建，细节见[环境合同](world-environment-contract.md)。存在未完成共同时间/环境事务时不能当成已完成快照。历史各阶段的导入边界保留在[归档](../archive/engineering-context-20261105/compatibility.md)，不能作为永久兼容承诺。

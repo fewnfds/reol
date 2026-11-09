@@ -260,6 +260,8 @@ func _complete(job: Dictionary) -> void:
 	sim.inventory.reservations = inventory.reservations
 	sim.inventory.operations = inventory.operations
 	sim.inventory.custody = inventory.custody
+	sim.inventory.contents_changed.emit("actor:" + str(job.actor))
+	sim.inventory.contents_changed.emit(container)
 	plants._forget(id)
 	plants.bodies[id] = row
 	plants._track(id)

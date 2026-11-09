@@ -73,6 +73,7 @@ func advance_to_ms(at_ms: int) -> void:
 				state.ecology = result.state
 				state.produced = int(state.produced) + int(result.produced)
 				_sim.inventory.containers[container_id(id)][terms.item] = int(result.stock)
+				_sim.inventory.contents_changed.emit(container_id(id))
 			continue
 		if at_ms < int(state.next_growth_ms):
 			continue
@@ -86,6 +87,7 @@ func advance_to_ms(at_ms: int) -> void:
 		var gain: int = mini(space, useful_periods * int(terms.regrow_amount))
 		gain = mini(gain, MAX_COUNT - int(state.produced))
 		_sim.inventory.containers[container_id(id)][terms.item] = stock + gain
+		_sim.inventory.contents_changed.emit(container_id(id))
 		state.produced = int(state.produced) + gain
 		# Full sources do not bank missed harvests. Retain the calendar phase,
 		# including when a quiet/full source skips many growth pulses at once.
@@ -160,6 +162,7 @@ func irrigate(action: Dictionary, actor_id: String, definition: Dictionary) -> b
 	_sim.inventory.reservations = inventory.reservations
 	_sim.inventory.operations = inventory.operations
 	_sim.inventory.custody = inventory.custody
+	_sim.inventory.contents_changed.emit(bag)
 	state.assign(candidate)
 	return true
 
@@ -188,6 +191,7 @@ func receive_rain(id: String, amount: int) -> void:
 	var stock: int = _sim.inventory.quantity(container_id(id), str(terms.item))
 	var gain: int = mini(mini(amount, int(terms.capacity) - stock), MAX_COUNT - int(sources[id].rainfall))
 	_sim.inventory.containers[container_id(id)][terms.item] = stock + gain
+	_sim.inventory.contents_changed.emit(container_id(id))
 	sources[id].rainfall = int(sources[id].rainfall) + gain
 
 

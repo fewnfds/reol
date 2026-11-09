@@ -35,6 +35,7 @@ var _pending: Dictionary = {}
 var _built: bool = false
 var _failed: bool = false
 var _last_change_chunks: Array[Vector2i] = []
+var _container_sources: Dictionary = {}
 
 
 static func artifact_key(id: String) -> String:
@@ -122,7 +123,7 @@ func build_sources() -> Dictionary:
 	# from those originals once, not from an as-yet-empty derived index.
 	for id: String in _world.object_lifecycle.created:
 		var item: Variant = _world.artifacts.objects.get(id)
-		if item is Dictionary and not str(item.container).begins_with("actor:") and not str(item.container).begins_with("ground:"):
+		if item is Dictionary and not str(item.container).begins_with("ground:"):
 			fixed[id] = true
 	var fixed_ids: Array = fixed.keys()
 	fixed_ids.sort()
@@ -131,13 +132,28 @@ func build_sources() -> Dictionary:
 		if not item is Dictionary:
 			return _build_failure("invalid_artifact")
 		var container: String = str(item.get("container", ""))
-		if container.begins_with("actor:") or container.begins_with("ground:"):
+		if container.begins_with("ground:"):
 			continue
 		var projected: Dictionary = current_artifact_source(id)
 		if not bool(projected.get("ok", false)):
 			return _build_failure(str(projected.get("reason", "artifact_projection")))
 		if not projected.source.is_empty() and not _add_initial(artifact_key(id), projected.source):
 			return _build_failure("source_index")
+	for region: String in _world.regions:
+		for container: String in _world.regions[region].inventory.containers:
+			if container.begins_with("ground:"):
+				continue
+			for item: String in _world.regions[region].inventory.containers[container]:
+				var source: Dictionary = stock_source(region, container, item)
+				if not source.is_empty():
+					var key: String = stock_key(region, container, item)
+					if not _add_initial(key, source):
+						return _build_failure("contained_stock_source")
+					_track_container(region, container, item)
+	for id: String in _world.construction._project_ids():
+		var source: Dictionary = construction_source(id)
+		if not source.is_empty() and not _add_initial("construction:" + id, source):
+			return _build_failure("construction_source")
 	if _world.plants != null:
 		var plants: Array = _world.plants.bodies.keys()
 		plants.sort()
@@ -191,10 +207,8 @@ func current_artifact_source(id: String) -> Dictionary:
 	if _world == null or _world.artifacts == null or not _world.artifacts.objects.has(id):
 		return _failure("not_found")
 	var item: Dictionary = _world.artifacts.objects[id]
-	if str(item.container).begins_with("actor:"):
-		return {"ok": true, "source": {}}
 	var location: Dictionary = SimEntityQuery.locate(_world, {"kind": "artifact", "id": id})
-	if not bool(location.get("ok", false)) or bool(location.get("stale", false)):
+	if not bool(location.get("ok", false)):
 		return _failure("unavailable_artifact_location")
 	var profile: Dictionary = _definitions.profile("artifact", str(item.definition))
 	if not bool(profile.get("ok", false)):
@@ -205,6 +219,7 @@ func current_artifact_source(id: String) -> Dictionary:
 		var size := Vector2i(int(slot.size[0]), int(slot.size[1]))
 		point += Vector2i((size.x - 1) / 2, (size.y - 1) / 2)
 	var raw: Dictionary = _source(point, int(profile.radius_cells), profile.elements, int(profile.thermal_grade))
+	_attenuate_container(raw, str(item.container))
 	var transformed: Dictionary = _apply_transform(artifact_key(id), raw)
 	if not bool(transformed.get("ok", false)):
 		return transformed
@@ -472,21 +487,20 @@ func _artifact_at(id: String, definition: String, location: Dictionary) -> Dicti
 		if not location.get("container") is String:
 			return _failure("invalid_location")
 		var container: String = location.container
-		if container.begins_with("actor:"):
-			return {"ok": true, "source": {}}
 		if container.begins_with("site:"):
 			if _world.field_opportunities == null or not _world.artifacts.valid_location(location.region, container):
 				return _failure("invalid_location")
 			point = _world.field_opportunities.slot_cell(location.region, container)
 		else:
 			var place: Dictionary = SimStorageQuery.locate(_world, {"domain": "village", "region": location.region, "container": container})
-			if not bool(place.get("ok", false)) or bool(place.get("stale", false)):
+			if not bool(place.get("ok", false)):
 				return _failure("unavailable_location")
 			point = place.cell
 	var profile: Dictionary = _definitions.profile("artifact", definition)
 	if not bool(profile.get("ok", false)):
 		return profile
 	var source: Dictionary = _source(point, int(profile.radius_cells), profile.elements, int(profile.thermal_grade))
+	_attenuate_container(source, str(location.get("container", "")))
 	var transformed: Dictionary = _apply_transform(artifact_key(id), source)
 	if not bool(transformed.get("ok", false)):
 		return transformed
@@ -555,7 +569,85 @@ static func _is_zero(source: Dictionary) -> bool:
 
 
 static func _artifact_location_emits(item: Dictionary) -> bool:
-	return not str(item.get("container", "")).begins_with("actor:")
+	return not str(item.get("container", "")).is_empty()
+
+
+func _attenuate_container(source: Dictionary, container: String) -> void:
+	var channels: PackedInt32Array = source.channels
+	for channel: int in 7:
+		var factor: int = SimEnvironmentLayout.container_transmission(_world, container, "thermal" if channel >= 5 else "elements")
+		channels[channel] = (channels[channel] * factor + 5000) / 10000
+	source.channels = channels
+
+
+func construction_source(id: String) -> Dictionary:
+	var row: Dictionary = _world.construction.projects.get(id, {})
+	if row.is_empty() or row.state != "built":
+		return {}
+	var rule: Dictionary = _world.construction.definitions.types[row.type]
+	var name: String = str(SimEnvironmentLayout.terms(rule).source)
+	var profile: Dictionary = _definitions.intrinsic_profile(name) if not name.is_empty() else _definitions.profile("material", str(rule.item))
+	if profile.is_empty() or not profile.has("elements"):
+		return {}
+	var cells: Array[Vector2i] = _world.construction.project_cells(id)
+	var size := Vector2i(int(rule.size[0]), int(rule.size[1]))
+	if int(row.rotation) % 2:
+		size = Vector2i(size.y, size.x)
+	var point: Vector2i = SimRouteTravel.cell(row.cell) + Vector2i((size.x - 1) / 2, (size.y - 1) / 2)
+	var source: Dictionary = _source(point, int(profile.radius_cells), profile.elements, int(profile.thermal_grade))
+	return {} if _is_zero(source) else source
+
+
+func stock_source(region: String, container: String, item: String) -> Dictionary:
+	var inventory: SimInventory = _world.regions[region].inventory
+	if inventory.quantity(container, item) == 0:
+		return {}
+	var profile: Dictionary = _definitions.profile("material", item)
+	if not bool(profile.get("ok", false)):
+		return {} # Only explicitly registered material capabilities participate.
+	var location: Dictionary = SimStorageQuery.locate(_world, {"domain": "village", "region": region, "container": container})
+	if not bool(location.get("ok", false)):
+		return {}
+	var source: Dictionary = _source(location.cell, int(profile.radius_cells), profile.elements, int(profile.thermal_grade))
+	_attenuate_container(source, container)
+	return {} if _is_zero(source) else source
+
+
+func _track_container(region: String, container: String, item: String) -> void:
+	var key: String = JSON.stringify([region, container])
+	if not _container_sources.has(key):
+		_container_sources[key] = {}
+	_container_sources[key][item] = true
+
+
+func container_items(region: String, container: String) -> Array:
+	var values: Dictionary = _container_sources.get(JSON.stringify([region, container]), {}).duplicate()
+	for item: String in _world.regions[region].inventory.containers.get(container, {}):
+		values[item] = true
+	var result: Array = values.keys()
+	result.sort()
+	for item: String in result:
+		_track_container(region, container, item)
+	return result
+
+
+func container_keys(region: String, container: String) -> Array[String]:
+	var result: Array[String] = []
+	for item: String in container_items(region, container):
+		var key: String = stock_key(region, container, item)
+		if _records.has(key):
+			result.append(key)
+	var ids: Dictionary = _world.object_lifecycle._contained.get(JSON.stringify([region, container]), {}).get("ids", {}).duplicate()
+	for id: String in _world.artifacts.legacy_object_ids():
+		var item: Dictionary = _world.artifacts.objects[id]
+		if item.region == region and item.container == container:
+			ids[id] = true
+	for id: String in ids:
+		var key: String = artifact_key(id)
+		if _records.has(key):
+			result.append(key)
+	result.sort()
+	return result
 
 
 func _build_failure(reason: String) -> Dictionary:

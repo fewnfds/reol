@@ -81,7 +81,7 @@ func actual_at(cell: Vector2i, at_ms: int) -> Dictionary:
 	return {"ok": true, "cell": cell, "at_ms": at_ms, "value_c": value}
 
 
-func prepare_targets(changes: Array[Dictionary], at_ms: int, budget: int) -> Dictionary:
+func prepare_targets(changes: Array[Dictionary], at_ms: int, budget: int, repartition: bool = false) -> Dictionary:
 	# Build a complete copy-on-write candidate before issuing a public proof.
 	# Only affected chunks are copied; the candidate root and counts are private.
 	if not _configured:
@@ -127,7 +127,7 @@ func prepare_targets(changes: Array[Dictionary], at_ms: int, budget: int) -> Dic
 		var index: int = _chunk_index(cell)
 		var original: Chunk = _chunks.get(key)
 		var tracked: bool = original != null and original.present[index] != 0
-		if has_initial == tracked:
+		if has_initial == tracked and not (repartition and has_initial):
 			return _failure("initial_mismatch")
 		var initial: float
 		if tracked:
@@ -145,6 +145,12 @@ func prepare_targets(changes: Array[Dictionary], at_ms: int, budget: int) -> Dic
 			candidate_count += 1
 			if candidate_count > _capacity:
 				return _failure("capacity")
+		# A topology owner may mix old cells into a new, uniform compartment.
+		# Ordinary retargeting still cannot replace an existing actual value.
+		if repartition and has_initial:
+			if not _temperature(change.initial_c):
+				return _failure("initial_out_of_range")
+			initial = float(change.initial_c)
 
 		if not _temperature(change.target_c) or not _number(change.target_per_ms) or not _integer(change.until_ms, at_ms, MAX_TIME) or not _integer(change.tau_ms, 1, Response.MAX_TAU_MS):
 			return _failure("target_invalid")

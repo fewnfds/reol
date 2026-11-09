@@ -32,7 +32,17 @@
       "max_hp": 120,
       "armor": 2,
       "capabilities": {},
-      "slots": []
+      "slots": [],
+      "environment": {
+        "source": "",
+        "thermal": 2000,
+        "elements": 8000,
+        "light": 0,
+        "contents_thermal": 10000,
+        "contents_elements": 10000,
+        "contents_light": 10000,
+        "room_tau_ms": 180000
+      }
     },
     "wood_door": {
       "label": "木门",
@@ -59,7 +69,17 @@
       "max_hp": 120,
       "armor": 2,
       "capabilities": {},
-      "slots": []
+      "slots": [],
+      "environment": {
+        "source": "",
+        "thermal": 2000,
+        "elements": 8000,
+        "light": 0,
+        "contents_thermal": 10000,
+        "contents_elements": 10000,
+        "contents_light": 10000,
+        "room_tau_ms": 180000
+      }
     },
     "wood_bed": {
       "label": "木床",
@@ -88,7 +108,17 @@
       "capabilities": {
         "rest": {}
       },
-      "slots": []
+      "slots": [],
+      "environment": {
+        "source": "",
+        "thermal": 10000,
+        "elements": 10000,
+        "light": 10000,
+        "contents_thermal": 10000,
+        "contents_elements": 10000,
+        "contents_light": 10000,
+        "room_tau_ms": 180000
+      }
     },
     "wood_roof": {
       "label": "木屋面",
@@ -115,7 +145,17 @@
       "max_hp": 80,
       "armor": 2,
       "capabilities": {},
-      "slots": []
+      "slots": [],
+      "environment": {
+        "source": "",
+        "thermal": 10000,
+        "elements": 10000,
+        "light": 10000,
+        "contents_thermal": 10000,
+        "contents_elements": 10000,
+        "contents_light": 10000,
+        "room_tau_ms": 180000
+      }
     },
     "wood_table": {
       "label": "木桌",
@@ -144,7 +184,17 @@
       "capabilities": {
         "surface": {}
       },
-      "slots": []
+      "slots": [],
+      "environment": {
+        "source": "",
+        "thermal": 10000,
+        "elements": 10000,
+        "light": 10000,
+        "contents_thermal": 10000,
+        "contents_elements": 10000,
+        "contents_light": 10000,
+        "room_tau_ms": 180000
+      }
     },
     "wood_chair": {
       "label": "木椅",
@@ -187,7 +237,17 @@
           ],
           "requires": ""
         }
-      ]
+      ],
+      "environment": {
+        "source": "",
+        "thermal": 10000,
+        "elements": 10000,
+        "light": 10000,
+        "contents_thermal": 10000,
+        "contents_elements": 10000,
+        "contents_light": 10000,
+        "room_tau_ms": 180000
+      }
     },
     "desk_chair": {
       "label": "书案座椅",
@@ -230,7 +290,17 @@
           ],
           "requires": "surface"
         }
-      ]
+      ],
+      "environment": {
+        "source": "",
+        "thermal": 10000,
+        "elements": 10000,
+        "light": 10000,
+        "contents_thermal": 10000,
+        "contents_elements": 10000,
+        "contents_light": 10000,
+        "room_tau_ms": 180000
+      }
     },
     "wood_chest": {
       "label": "储藏箱",
@@ -276,7 +346,17 @@
           ],
           "requires": ""
         }
-      ]
+      ],
+      "environment": {
+        "source": "",
+        "thermal": 10000,
+        "elements": 10000,
+        "light": 10000,
+        "contents_thermal": 2500,
+        "contents_elements": 5000,
+        "contents_light": 0,
+        "room_tau_ms": 180000
+      }
     },
     "cook_stove": {
       "label": "灶台",
@@ -323,7 +403,17 @@
           ],
           "requires": ""
         }
-      ]
+      ],
+      "environment": {
+        "source": "",
+        "thermal": 10000,
+        "elements": 10000,
+        "light": 10000,
+        "contents_thermal": 10000,
+        "contents_elements": 10000,
+        "contents_light": 10000,
+        "room_tau_ms": 180000
+      }
     },
     "wood_window": {
       "label": "木窗",
@@ -350,7 +440,17 @@
       "max_hp": 100,
       "armor": 2,
       "capabilities": {},
-      "slots": []
+      "slots": [],
+      "environment": {
+        "source": "",
+        "thermal": 2000,
+        "elements": 8000,
+        "light": 6000,
+        "contents_thermal": 10000,
+        "contents_elements": 10000,
+        "contents_light": 10000,
+        "room_tau_ms": 180000
+      }
     },
     "wood_screen": {
       "label": "屏风",
@@ -377,7 +477,17 @@
       "max_hp": 100,
       "armor": 2,
       "capabilities": {},
-      "slots": []
+      "slots": [],
+      "environment": {
+        "source": "",
+        "thermal": 10000,
+        "elements": 10000,
+        "light": 0,
+        "contents_thermal": 10000,
+        "contents_elements": 10000,
+        "contents_light": 10000,
+        "room_tau_ms": 180000
+      }
     },
     "long_bed": {
       "label": "长木床",
@@ -406,7 +516,17 @@
       "capabilities": {
         "rest": {}
       },
-      "slots": []
+      "slots": [],
+      "environment": {
+        "source": "",
+        "thermal": 10000,
+        "elements": 10000,
+        "light": 10000,
+        "contents_thermal": 10000,
+        "contents_elements": 10000,
+        "contents_light": 10000,
+        "room_tau_ms": 180000
+      }
     },
     "stone_wall": {
       "label": "石墙",
@@ -433,7 +553,17 @@
       "max_hp": 200,
       "armor": 5,
       "capabilities": {},
-      "slots": []
+      "slots": [],
+      "environment": {
+        "source": "",
+        "thermal": 1000,
+        "elements": 5000,
+        "light": 0,
+        "contents_thermal": 10000,
+        "contents_elements": 10000,
+        "contents_light": 10000,
+        "room_tau_ms": 300000
+      }
     },
     "planter": {
       "label": "花盆",
@@ -467,7 +597,17 @@
           "root_capacity": 1
         }
       },
-      "slots": []
+      "slots": [],
+      "environment": {
+        "source": "",
+        "thermal": 10000,
+        "elements": 10000,
+        "light": 10000,
+        "contents_thermal": 10000,
+        "contents_elements": 10000,
+        "contents_light": 10000,
+        "room_tau_ms": 180000
+      }
     }
   }
 }

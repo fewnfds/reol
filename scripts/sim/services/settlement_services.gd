@@ -286,6 +286,8 @@ func transfer(operation_id: String, from_region: String, from_container: String,
 	operations[operation_id] = signature
 	if not custody_id.is_empty():
 		source.settle_custody(custody_id, "service", operation_id)
+	source.contents_changed.emit(from_container)
+	target.contents_changed.emit(to_container)
 	if from_region != "escrow":
 		world.invalidate_region(from_region)
 	if to_region != "escrow":

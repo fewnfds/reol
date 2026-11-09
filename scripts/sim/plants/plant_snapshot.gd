@@ -48,7 +48,7 @@ static func _body(owner: SimPlants, row: Variant) -> bool:
 		return false
 	if not row.awakening_operation is String or row.subject.is_empty() != row.awakening_operation.is_empty() or row.subject.is_empty() != (int(row.awakened_ms) == -1) or not row.subject.is_empty() and row.awakened_ms < row.born_ms:
 		return false
-	if not Shape.keys(row.conditions, ["substrate", "moisture", "temperature", "rain", "season", "light"]) or not row.conditions.substrate is String or not row.conditions.season is String or not row.conditions.rain is bool or not Shape.count(row.conditions.moisture, 0, 100) or not Shape.count(row.conditions.temperature, -20000, 20000) or not Shape.count(row.conditions.light, 0, 40000):
+	if not Shape.keys(row.conditions, ["substrate", "moisture", "temperature", "rain", "season", "light"]) or not row.conditions.substrate is String or not row.conditions.season is String or not row.conditions.rain is bool or not Shape.count(row.conditions.moisture, 0, 100) or not Shape.count(row.conditions.temperature, -20000, int(SimEnvironmentTemperatureState.MAX_C * 10.0)) or not Shape.count(row.conditions.light, 0, SimLocalLight.MAX_RELATIVE + 10000):
 		return false
 	for item: Variant in row.produced:
 		if item not in [rule.product.item, rule.body_product.item] or not Shape.count(row.produced[item]):

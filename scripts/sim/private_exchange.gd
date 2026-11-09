@@ -351,6 +351,8 @@ func _complete(job: Dictionary) -> bool:
 	job.artifact_event = event_id
 	transfers[payment_id] = {"job": job.id, "from": job.buyer_region, "to": job.seller_region, "source": "actor:" + str(job.buyer), "target": "actor:" + str(job.seller), "item": str(definitions.currency), "amount": int(definitions.price), "artifact_event": event_id, "consent": job.consent, "at_ms": int(world.elapsed_ms)}
 	job.receipt = payment_id
+	source.contents_changed.emit("actor:" + str(job.buyer))
+	target.contents_changed.emit("actor:" + str(job.seller))
 	_finish(job, "completed")
 	world.artifact_transfers.publish(change)
 	return true

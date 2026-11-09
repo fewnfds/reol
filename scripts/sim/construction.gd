@@ -398,7 +398,7 @@ func _arrived(job: Dictionary) -> void:
 	else:
 		var project: Dictionary = projects[job.project]
 		project.carrier = ""
-		_set_material_cell(project, job.stand)
+		_set_material_cell(str(job.project), job.stand)
 		if job.kind == "build":
 			project.delivered = true
 		var rule: Dictionary = definitions.types[project.type]
@@ -519,7 +519,7 @@ func _release(job: Dictionary, line: String, status: String = "failed") -> void:
 	var sim: RefCounted = world.regions[definitions.site.region]
 	var project: Dictionary = projects[job.project]
 	if project.carrier == job.actor:
-		_set_material_cell(project, sim.actors[job.actor].cell)
+		_set_material_cell(str(job.project), sim.actors[job.actor].cell)
 		project.carrier = ""
 		sim.actors[job.actor].goal = "在脚边留下木料"
 	project.line = line
@@ -688,11 +688,9 @@ func _changes_thermal(type: String) -> bool:
 
 
 func _before_thermal_change(type: String, changed_cells: Array[Vector2i]) -> bool:
+	if world.environment_fields is SimWorldEnvironmentFields:
+		return world.environment_fields.before_topology_change(world.elapsed_ms, changed_cells)
 	if _changes_thermal(type) and world.environment_fields != null:
-		if world.environment_fields is SimWorldEnvironmentFields:
-			# The outdoor field has no wall, door or roof insulation model. Its
-			# existing state must already be settled at the shared event time.
-			return world.environment_fields.last_ms == world.elapsed_ms and world.environment_fields.can_settle_at_ms(world.elapsed_ms)
 		if not world.environment_fields.can_change_topology(world.elapsed_ms, changed_cells):
 			return false
 		return world.environment_fields.before_topology_change(world.elapsed_ms)
@@ -700,9 +698,11 @@ func _before_thermal_change(type: String, changed_cells: Array[Vector2i]) -> boo
 
 
 func _after_thermal_change(type: String) -> void:
+	if world.environment_fields is SimWorldEnvironmentFields:
+		var updated: bool = world.environment_fields.after_topology_change(world.elapsed_ms)
+		assert(updated, "preflighted construction environment publication failed")
+		return
 	if _changes_thermal(type) and world.environment_fields != null:
-		if world.environment_fields is SimWorldEnvironmentFields:
-			return
 		# Called only after a successful operation and all resulting collapses
 		# have been reindexed. Generic reindex/restore never advances heat.
 		world.environment_fields.after_topology_change(world.elapsed_ms)
@@ -721,7 +721,7 @@ func _remove(id: String, material_cell: Array) -> bool:
 	project.removed_ms = world.elapsed_ms
 	project.open = false
 	project.carrier = ""
-	_set_material_cell(project, material_cell)
+	_set_material_cell(id, material_cell)
 	return true
 
 
@@ -731,7 +731,8 @@ func material_cell_referenced(cell: Vector2i) -> bool:
 	return _material_cells.has(cell)
 
 
-func _set_material_cell(project: Dictionary, raw: Array) -> void:
+func _set_material_cell(id: String, raw: Array) -> void:
+	var project: Dictionary = projects[id]
 	var previous: Vector2i = SimRouteTravel.cell(project.material_cell)
 	var remaining: int = int(_material_cells.get(previous, 0)) - 1
 	if remaining <= 0:
@@ -741,6 +742,7 @@ func _set_material_cell(project: Dictionary, raw: Array) -> void:
 	project.material_cell = raw.duplicate()
 	var cell: Vector2i = SimRouteTravel.cell(raw)
 	_material_cells[cell] = int(_material_cells.get(cell, 0)) + 1
+	world.regions[definitions.site.region].inventory.contents_changed.emit(id)
 
 
 func _removal_projects(id: String) -> Array[String]:

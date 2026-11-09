@@ -11,8 +11,8 @@ const Response = preload("res://scripts/sim/environment_field_response.gd")
 const Temperature = preload("res://scripts/sim/environment_temperature_state.gd")
 const Phases = preload("res://scripts/sim/environment_phase_state.gd")
 const SIZE: int = SimGroundPlacements.MAP_SIZE
-const VERSION: int = 4
-const MODEL: String = "outdoor_fields_v1"
+const VERSION: int = 5
+const MODEL: String = "composed_fields_v1"
 const PULSE_DURATION_MS: int = 60000
 
 
@@ -86,6 +86,7 @@ static func restore_into(domain: RefCounted, data: Variant) -> bool:
 	for key: Vector2i in domain._sources.affected_chunks():
 		chunks[key] = true
 	domain._chunks = chunks
+	domain._add_room_chunks()
 	if not domain._rebuild_base() or not _validate_current_targets(domain, data):
 		return false
 	domain.activation_ms = int(data.activation_ms)
@@ -98,6 +99,7 @@ static func restore_into(domain: RefCounted, data: Variant) -> bool:
 	domain._active = true
 	# Derived work and boundary indices never become another saved authority.
 	domain._rebuild_participation()
+	domain._connect_owners()
 	return true
 
 
@@ -112,7 +114,10 @@ static func _owner_shapes(domain: RefCounted, data: Dictionary) -> bool:
 		return false
 	for t: Dictionary in thermal.cells:
 		var cell := Vector2i(int(t.cell[0]), int(t.cell[1]))
-		if int(t.response.tau_ms) != SimWorldEnvironmentFields.TAU_MS:
+		var tau: int = SimWorldEnvironmentFields.TAU_MS
+		if domain._layout.room_of.has(cell):
+			tau = int(domain._layout.rooms[domain._layout.room_of[cell]].tau_ms)
+		if int(t.response.tau_ms) != tau:
 			return false
 		if int(t.response.start_ms) > int(data.last_ms) or int(t.response.until_ms) < int(data.last_ms):
 			return false
@@ -132,6 +137,9 @@ static func _owner_shapes(domain: RefCounted, data: Dictionary) -> bool:
 static func _validate_current_targets(domain: RefCounted, data: Dictionary) -> bool:
 	# Each response compiles at its own causal anchor, not the anchor of a
 	# different domain which may have changed at another world millisecond.
+	var room_targets: Dictionary = {}
+	var room_responses: Dictionary = {}
+	var room_counts: Dictionary = {}
 	for t: Dictionary in data.temperature.cells:
 		var point := Vector2i(int(t.cell[0]), int(t.cell[1]))
 		var base: Dictionary = domain._field.read_base(point)
@@ -140,9 +148,22 @@ static func _validate_current_targets(domain: RefCounted, data: Dictionary) -> b
 		var channels: PackedInt32Array = base.channels
 		var start: int = int(t.response.start_ms)
 		var expected: Dictionary = domain._compiler.compile(point, start, channels[5], channels[6])
+		if domain._layout.room_of.has(point):
+			var anchor: Vector2i = domain._layout.room_of[point]
+			if not room_targets.has(anchor):
+				room_targets[anchor] = domain._layout.compile_room(domain, anchor, start)
+				room_responses[anchor] = t.response
+				room_counts[anchor] = 0
+			if t.response != room_responses[anchor]:
+				return false
+			room_counts[anchor] += 1
+			expected = room_targets[anchor]
 		if not bool(expected.get("ok", false)):
 			return false
 		if float(t.response.target_value) != float(expected.target_c) or float(t.response.target_per_ms) != float(expected.target_per_ms) or int(t.response.until_ms) != int(expected.until_ms):
+			return false
+	for anchor: Vector2i in domain._layout.rooms:
+		if int(room_counts.get(anchor, 0)) != domain._layout.rooms[anchor].cells.size():
 			return false
 	for p: Dictionary in data.phases.cells:
 		var point := Vector2i(int(p.cell[0]), int(p.cell[1]))

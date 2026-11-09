@@ -1,6 +1,6 @@
 # 游戏功能与操作入口
 
-核对：2026-11-09。当前是可操作的有限世界原型；main普通世界已接入共同时间上的室外冷热与五行场，相关准确代码有完整回归、独立进程存读和普通稀疏负载证据。当前结算生产代码`d99ac6492ad5dbe5ba1af5bcc00171b5753c28e4`、最终测试提交`38606ea342f09e5aadcb50112df6620ddafbe10f`已完成本机完整验收及对应CI，并于`8cc4091`合入main；满密度动态规模与16GB整机联合验收仍未完成。工作分支普通存档根格式为54，根1–53不自动迁入；具体行为与限制按下列领域页查阅，最终验证状态见[基线](baseline.md)和[接续](handoff.md)。
+核对：2026-11-09。当前是可操作的有限世界原型；main普通世界已接入共同时间上的室外冷热与五行场，相关准确代码有完整回归、独立进程存读和普通稀疏负载证据。当前结算生产代码`d99ac6492ad5dbe5ba1af5bcc00171b5753c28e4`、最终测试提交`38606ea342f09e5aadcb50112df6620ddafbe10f`已完成本机完整验收及对应CI，并于`8cc4091`合入main；满密度动态规模与16GB整机联合验收仍未完成。环境工作分支拟写根55/区域46（本轮在验），旧根1–54不自动迁入；具体行为与限制按下列领域页查阅，最终验证状态见[基线](baseline.md)和[接续](handoff.md)。
 
 技术是否进入Git main、开发分支与隔离服务的区别统一查[技术落地总表](technical-status.md)。本页只维护操作与玩法范围，不另存一套技术施工清单。
 
@@ -9,12 +9,12 @@
 | 领域 | 入口及现状 |
 |---|---|
 | [开局与操作](features/controls.md) | 人身、雀身和残识各有不同入口，键位与面板按身体能力分开。 |
-| [环境与计算原型](features/environment-and-prototypes.md) | 普通世界已接室外冷热与五行响应；墙门屋面不隔场，GPU计算仍为独立服务，没有玩家开关。 |
+| [环境与计算原型](features/environment-and-prototypes.md) | 环境工作分支补材质传播、房温、携物/容器和植物照明，整包在验，GPU计算仍为独立服务，没有玩家开关。 |
 | [世界连续性与生活](features/world-and-livelihood.md) | 双聚落共同时间、行旅、有限采集、生产和NPC生活；不是完整大世界或经济。 |
 | [交互、社交与组织办事](features/interaction-and-organizations.md) | 有限请求、钱货、受托劳动、公源及野外样本；不是任意谈判或自由组织治理。 |
 | [认识、器物、修行与衣着](features/knowledge-items-cultivation.md) | 原温石、有限引息、研究/记录、衣着和八向占位；不是通用创法、全装备或完整修炼。 |
 | [战斗与非人生命](features/combat-and-lifeforms.md) | 有有限对练、身体后果、雀身、残识与大体型样本；不是完整战斗、生态或转生。 |
-| [施工、居住与存读](features/construction-and-save.md) | 多定义/多格建筑家具、多处工地、操作位、真实储藏/工作台与损毁；完整室温和全部工艺仍未接。 |
+| [施工、居住与存读](features/construction-and-save.md) | 多定义/多格建筑家具、多处工地、操作位、真实储藏/工作台与损毁；环境分支补简化房温，全部工艺仍未接。 |
 | [植物与自然生命](features/plants.md) | 工作分支接真实植株、原产物、花盆、残株和最小原地觉醒；全域生态与任意距离移栽仍后置。 |
 | [有限体验链与未实现项](features/playthroughs-and-gaps.md) | 可串联的样本、明确不能玩的内容及其范围。 |
 
@@ -22,7 +22,7 @@
 
 开发侧有[对象与空间查询接口](../engineering/object-query-contract.md)与[生命周期和动作接口](../engineering/object-lifecycle-contract.md)：受管实物有唯一原物与位置，提供受控生成/移除、转移、拆合和最小耗时搬运。F8开发编辑的移除使用共同实时空间查询，普通物品面板、施工和家具使用共用最小行动条件/占用/释放；原物位置和材料成本仍归原系统。在途取放、施工可保存并完全停开接续；这不等于材料通用背包或任意NPC指挥。既有[查询QA](../qa/20261105_world_object_contract.md)与[生命周期QA](../qa/20261105_object_lifecycle.md)记录当时的受检范围。
 
-普通世界的[环境合同](../engineering/world-environment-contract.md)以地面真实来源、固定器物和共同时间驱动室外温度/五行目标及残留响应。相同材料同堆数量不放大源强；人物随身物整体辐射、房间隔热与完整五行修行尚未接入。历史[来源QA](../qa/20261105_environment_source_bindings.md)、[缓存QA](../qa/20261105_environment_ground_cache.md)和[响应QA](../qa/20261105_environment_response.md)是各自版本的局部证据，不能代替当前整包验收。
+普通世界的[环境合同](../engineering/world-environment-contract.md)在环境工作分支扩展为材质传播、房间混合温度及可定位库存/携物/容器来源，沿共同时间保留残留。相同材料同堆数量不放大源强；人物体质整体源、任意嵌套和完整五行修行尚未接入，当前整包仍在验。历史[来源QA](../qa/20261105_environment_source_bindings.md)、[缓存QA](../qa/20261105_environment_ground_cache.md)和[响应QA](../qa/20261105_environment_response.md)是各自版本的局部证据，不能代替当前整包验收。
 
 普通来源变更与目标刷新目前同步运行于CPU。独立的CPU/GPU/auto计算服务和旧版本性能数据见[计算QA](../qa/20261105_environment_ground_compute.md)与[优化QA](../qa/20261106_environment_optimization.md)；普通游戏尚无GPU开关，也未完成端到端大规模性能验收。
 

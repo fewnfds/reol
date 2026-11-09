@@ -4,6 +4,7 @@ extends RefCounted
 
 signal changed
 signal body_space_changed(id: String)
+signal body_cell_crossed(id: String, cell: Vector2i, at_ms: int)
 signal space_reset
 
 const SCHEMA_VERSION: int = 7
@@ -403,6 +404,12 @@ func project_actor_route(id: String, route: Dictionary, at_ms: int) -> void:
 func notify_body_space_changed(id: String) -> void:
 	# Manual motion writes the same original body, notifying on cell crossings.
 	body_space_changed.emit(id)
+
+
+func notify_body_cell_crossed(cell: Vector2i, at_ms: int, id: String) -> void:
+	# A traversal notice, not a second body or clock. Manual motion already
+	# integrates exact integer substeps; consumers settle only at cell crossings.
+	body_cell_crossed.emit(id, cell, at_ms)
 
 
 func set_actor_cell(id: String, grid: Vector2i) -> void:

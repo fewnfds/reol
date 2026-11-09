@@ -49,7 +49,7 @@
 | 储热量 | `SimArtifacts.objects[id].stored_q` | 热设备存储的热量单位，区别于温度、冷热等级、灵气 |
 | 体力 | 人物记录`stamina` | 与`qi`、饥饿、精力各有用途，不能用“能量”笼统替代 |
 | 灵机 | 残识观察的叙事用词 | 表示角色感受；不是又一项已实现的环境通道或库存数值 |
-| 风水 | [环境规则](../../design/rules/environment.md) | 中文世界概念；尚无可与现有class等同的通用风水实现 |
+| 风水 | [环境规则](../../design/rules/environment.md) | 中文世界概念；`SimWorldEnvironmentFields.context_at`仅组合实际环境/布局供未来方法读取，无通用风水玩法 |
 
 五行数组顺序由接口决定：来源定义的外部顺序是`wood/fire/earth/metal/water`；packed缓存及实际五行响应顺序是`metal/wood/water/fire/earth`。[SimEnvironmentFieldRules](../../scripts/sim/environment_field_rules.gd)的`source_to_packed_channels()`与`packed_to_source_elements()`负责转换，调用方不自行猜顺序。
 

@@ -262,7 +262,7 @@ func _arrived(job: Dictionary, batch: Dictionary) -> void:
 			if not candidate.consume(str(job.batch) + ":fuel:" + item, str(job.batch), item, int(terms.fuel[item])):
 				cancel(str(job.actor))
 				return
-		_commit(inventory, candidate)
+		_commit(inventory, candidate, ["actor:" + str(job.actor), str(job.batch)])
 		job.reservations = []
 		batch.supplied_ms = world.elapsed_ms
 	job.phase = "work"
@@ -299,18 +299,20 @@ func _collect(job: Dictionary, batch: Dictionary) -> void:
 		if candidate.available(str(job.batch), item) != int(terms.outputs[item]) or not candidate.transfer(str(job.batch) + ":collect:" + item, str(job.batch), "actor:" + str(job.actor), item, int(terms.outputs[item])):
 			_release(job, batch, "行囊暂时装不下完整一批；成品仍留在原处。")
 			return
-	_commit(inventory, candidate)
+	_commit(inventory, candidate, ["actor:" + str(job.actor), str(job.batch)])
 	batch.state = "collected"
 	batch.collected_ms = world.elapsed_ms
 	_release(job, batch, "这一批成品已实际装入原行囊，可以自用或按当地条件交易。")
 
 
-static func _commit(inventory: SimInventory, candidate: SimInventory) -> void:
+static func _commit(inventory: SimInventory, candidate: SimInventory, changed: Array[String]) -> void:
 	# Keep the original ledger identity; other domains still hold this instance.
 	inventory.containers = candidate.containers
 	inventory.reservations = candidate.reservations
 	inventory.operations = candidate.operations
 	inventory.custody = candidate.custody
+	for container: String in changed:
+		inventory.contents_changed.emit(container)
 
 
 func cancel(actor: String) -> bool:

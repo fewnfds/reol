@@ -4,8 +4,8 @@ extends RefCounted
 ## RegionalSimulation.environment_fields. Serialized by the world's codec.
 ## Source indexes are disposable projections over original object owners.
 
-const VERSION: int = 4
-const MODEL: String = "outdoor_fields_v1"
+const VERSION: int = 5
+const MODEL: String = "composed_fields_v1"
 const SIZE: int = SimGroundPlacements.MAP_SIZE
 const MAX_TIME: int = SimEnvironmentTemperatureState.MAX_TIME
 const TAU_MS: int = 30000
@@ -45,6 +45,11 @@ var _busy: bool = false
 var _error: String = ""
 var _participation := Participation.new()
 var _last_refresh_chunks: int = 0
+var _layout := SimEnvironmentLayout.new()
+var _dirty_containers: Dictionary = {}
+var _connections: Array[Dictionary] = []
+var _topology_cells: Array[Vector2i] = []
+var _motion_changes: Array[Dictionary] = []
 
 var world: RegionalSimulation:
 	get: return _owner.get_ref() if _owner != null else null
@@ -68,6 +73,8 @@ func bind_world(authority: RegionalSimulation) -> void:
 	if _active:
 		var rebound: bool = _sources.bind_world(authority)
 		assert(rebound, "validated field candidate failed to rebind original owners")
+		_layout.bind_world(authority)
+		_connect_owners()
 
 
 func activate_sources() -> bool:
@@ -82,10 +89,12 @@ func activate_sources() -> bool:
 		return _fail(str(built.get("reason", "source_build")))
 	for key: Vector2i in _sources.affected_chunks():
 		_chunks[key] = true
+	_add_room_chunks()
 	if not _rebuild_base() or not _refresh_targets(activation_ms, true):
 		return false
 	_active = true
 	_rebuild_participation()
+	_connect_owners()
 	return mark_sample(activation_ms)
 
 
@@ -104,7 +113,12 @@ func _configure_components(at_ms: int) -> bool:
 	_compiler = Compiler.new()
 	_targets = Targets.new()
 	_sources = Participant.new()
+	if not _layout.rebuild(world):
+		return _fail("layout_capacity")
 	var owner: WeakRef = weakref(self)
+	_field.set_transport(func(from: Vector2i, to: Vector2i, channel: int) -> int:
+		var domain: RefCounted = owner.get_ref()
+		return domain._layout.transmission(from, to, channel) if domain != null else 0)
 	var reader: Callable = func(cell: Vector2i, context: Variant = null) -> Dictionary:
 		var domain: RefCounted = owner.get_ref()
 		return domain._read_channels(cell, context) if domain != null else {"ok": false, "reason": "owner_gone"}
@@ -121,7 +135,7 @@ func _configure_components(at_ms: int) -> bool:
 		and _temperature.configure(Vector2i(SIZE, SIZE), SIZE * SIZE, at_ms) \
 		and _phases.configure(Vector2i(SIZE, SIZE), SIZE * SIZE, at_ms) \
 		and _background.configure(_settings, at_ms) and _compiler.configure(_settings) \
-		and _targets.configure(_temperature, _phases, _settings, reader) \
+		and _targets.configure(_temperature, _phases, _settings, reader, initial) \
 		and _sources.configure(world, _field, _temperature, _phases, _settings,
 			initial, phase_initial, transform)
 
@@ -145,6 +159,8 @@ func settle_at_ms(now: int) -> bool:
 		return false
 	while last_ms < now:
 		var end: int = mini(now, next_boundary_ms())
+		if not _motion_changes.is_empty():
+			end = mini(end, int(_motion_changes[0].at_ms))
 		if end <= last_ms:
 			return _fail("nonprogressing_environment_boundary")
 		var delta: int = end - last_ms
@@ -167,6 +183,14 @@ func settle_at_ms(now: int) -> bool:
 			if not _refresh_targets(end, false):
 				return false
 		last_ms = end
+		while not _motion_changes.is_empty() and int(_motion_changes[0].at_ms) == end:
+			var crossing: Dictionary = _motion_changes.pop_front()
+			for key: String in crossing.keys:
+				var source: Dictionary = _sources.get_source(key)
+				if not source.is_empty():
+					source.cell = crossing.cell
+					if not _change_source(key, source, end):
+						return _fail("moving_source")
 		for id: String in depleted:
 			_sync_device(id)
 			var key: String = Participant.artifact_key(id)
@@ -180,7 +204,7 @@ func settle_at_ms(now: int) -> bool:
 				return false
 			_transient.erase(key)
 			_participation.set_member(&"transient", key, false)
-	return true
+	return flush_sources(now)
 
 
 func prepare_object_change(request: Dictionary) -> Dictionary:
@@ -197,11 +221,15 @@ func finish_object_change(result: Dictionary, proof: Variant) -> Dictionary:
 	if bool(committed.get("ok", false)):
 		for key: Vector2i in _sources.last_change_chunks():
 			_chunks[key] = true
+		if not _refresh_rooms(_sources.last_change_chunks(), world.elapsed_ms):
+			committed = {"ok": false, "reason": "room_publication"}
 		_sync_response_deadlines(_sources.last_change_chunks())
 		var reference: Dictionary = result.get("reference", {})
 		if reference.get("kind") == "artifact":
 			_sync_device(str(reference.id))
 	_busy = false
+	if bool(committed.get("ok", false)) and not flush_sources(world.elapsed_ms):
+		return {"ok": false, "reason": "contained_source_publication"}
 	return committed
 
 
@@ -273,6 +301,8 @@ func commit_device_switch(receipt: Dictionary, proof: Variant) -> bool:
 	assert(committed, "preflighted device field commit failed")
 	device_switches[receipt.action] = receipt.duplicate(true)
 	_sync_device(str(receipt.object))
+	if not _refresh_rooms(_sources.last_change_chunks(), world.elapsed_ms):
+		return false
 	_sync_response_deadlines(_sources.last_change_chunks())
 	_busy = false
 	return true
@@ -307,6 +337,8 @@ func _change_source(key: String, source: Dictionary, at_ms: int) -> bool:
 		return _fail("source_publication")
 	for chunk: Vector2i in _sources.last_change_chunks():
 		_chunks[chunk] = true
+	if not _refresh_rooms(_sources.last_change_chunks(), at_ms):
+		return false
 	_sync_response_deadlines(_sources.last_change_chunks())
 	return true
 
@@ -353,6 +385,19 @@ func elements_at(cell: Vector2i) -> Dictionary:
 			values.append(packed[index])
 		result.values = values
 	return result
+
+
+func context_at(cell: Vector2i) -> Dictionary:
+	# Authority-only composition for layout/environment tooling and future
+	# geomancy methods. It grants neither character knowledge nor a lucky score.
+	var temperature: Dictionary = actual_at(cell, last_ms)
+	var elements: Dictionary = elements_at(cell)
+	var light: Dictionary = SimLocalLight.at_simulation_cell(world, cell)
+	if not bool(temperature.get("ok", false)) or not bool(elements.get("ok", false)) or not bool(light.get("supported", false)):
+		return {"ok": false, "reason": "environment_unavailable"}
+	return {"ok": true, "at_ms": last_ms, "visibility": "authority_only", "temperature_c": temperature.value_c,
+		"elements": elements.values, "light_relative": light.total_relative, "roofed": world.construction.roofed(cell),
+		"room": _layout.room_of.get(cell), "terrain": world.map_data.get_terrain(cell)}
 
 
 func mark_sample(now: int) -> bool:
@@ -455,6 +500,8 @@ func _refresh_targets(at_ms: int, activation: bool) -> bool:
 		var finished: Dictionary = _targets.finish(handle)
 		if not bool(finished.get("ok", false)) or not bool(_targets.commit(finished.proof).get("ok", false)):
 			return _fail("target_publication")
+	if not _refresh_rooms(keys, at_ms):
+		return false
 	_sync_response_deadlines(keys)
 	return true
 
@@ -560,7 +607,7 @@ func _fail(reason: String) -> bool:
 
 
 func to_dict() -> Dictionary:
-	if not activate_sources() or _busy:
+	if not activate_sources() or _busy or not flush_sources(world.elapsed_ms):
 		return {}
 	return load("res://scripts/persistence/world_environment_fields_state.gd").capture(self)
 
@@ -577,10 +624,217 @@ func diagnostics() -> Dictionary:
 		"last_refresh_chunks": _last_refresh_chunks,
 		"execution": {"temperature": _participation.diagnostics(&"temperature"),
 			"phases": _participation.diagnostics(&"phases"), "devices": _participation.diagnostics(&"devices")},
-		"geometry": "outdoor_no_room_attenuation", "source": _sources.diagnostics() if _active else {}}
+		"geometry": "material_transmission_mixed_rooms", "rooms": _layout.rooms.size(),
+		"source": _sources.diagnostics() if _active else {}}
 
 
 func replace_domain_source(key: String, source: Dictionary, at_ms: int) -> bool:
 	if not key.begins_with("plant:") or not _active or _busy or last_ms != at_ms or at_ms != world.elapsed_ms:
 		return false
 	return _change_source(key, source, at_ms)
+
+
+func _add_room_chunks() -> void:
+	for cell: Vector2i in _layout.room_of:
+		_chunks[Vector2i(cell.x >> 4, cell.y >> 4)] = true
+
+
+func _refresh_rooms(keys: Array[Vector2i], at_ms: int) -> bool:
+	if _layout.rooms.is_empty() or keys.is_empty():
+		return true
+	var selected: Dictionary = {}
+	for key: Vector2i in keys:
+		for y: int in 16:
+			for x: int in 16:
+				var cell: Vector2i = key * 16 + Vector2i(x, y)
+				if _layout.room_of.has(cell):
+					selected[_layout.room_of[cell]] = true
+	var changes: Array[Dictionary] = []
+	var touched: Dictionary[Vector2i, bool] = {}
+	for anchor: Vector2i in selected:
+		var segment: Dictionary = _layout.compile_room(self, anchor, at_ms)
+		if not bool(segment.get("ok", false)):
+			return _fail("room_target")
+		var room: Dictionary = _layout.rooms[anchor]
+		var actual_sum: float = 0.0
+		for cell: Vector2i in room.cells:
+			var actual: Dictionary = _temperature.actual_at(cell, at_ms)
+			if actual.get("reason") == "untracked":
+				actual = _initial_temperature(cell, at_ms)
+			if not bool(actual.get("ok", false)):
+				return _fail("room_actual")
+			actual_sum += float(actual.value_c)
+		for cell: Vector2i in room.cells:
+			changes.append({"cell": cell, "initial_c": actual_sum / room.cells.size(),
+				"target_c": segment.target_c, "target_per_ms": segment.target_per_ms,
+				"until_ms": segment.until_ms, "tau_ms": segment.tau_ms})
+			touched[Vector2i(cell.x >> 4, cell.y >> 4)] = true
+	if changes.is_empty():
+		return true
+	var plan: Dictionary = _temperature.prepare_targets(changes, at_ms, SIZE * SIZE, true)
+	if not bool(plan.get("ok", false)) or not bool(_temperature.commit(plan).get("ok", false)):
+		return _fail("room_response")
+	var affected: Array[Vector2i] = []
+	affected.assign(touched.keys())
+	_sync_response_deadlines(affected)
+	return true
+
+
+func before_topology_change(now: int, cells: Array[Vector2i]) -> bool:
+	if _busy or now != world.elapsed_ms or not settle_at_ms(now):
+		return false
+	_topology_cells = cells.duplicate()
+	return true
+
+
+func after_topology_change(now: int, terrain: bool = false) -> bool:
+	# Called inside the construction owner's synchronous publication. Preserve
+	# all old actual values; only new compartments mix them by cell area.
+	var affected: Dictionary[Vector2i, bool] = {}
+	var old_barriers: Dictionary = _layout.barriers.duplicate()
+	for cell: Vector2i in _layout.room_of:
+		affected[Vector2i(cell.x >> 4, cell.y >> 4)] = true
+	if not _layout.rebuild(world):
+		return _fail("layout_capacity")
+	for cell: Vector2i in _layout.room_of:
+		affected[Vector2i(cell.x >> 4, cell.y >> 4)] = true
+	for cell: Vector2i in _topology_cells:
+		var old_terms: Dictionary = old_barriers.get(cell, {})
+		var new_terms: Dictionary = _layout.barriers.get(cell, {})
+		if not terrain and int(old_terms.get("thermal", 10000)) == int(new_terms.get("thermal", 10000)) and int(old_terms.get("elements", 10000)) == int(new_terms.get("elements", 10000)):
+			continue
+		_field.invalidate_geometry(Rect2i(cell - Vector2i(16, 16), Vector2i(33, 33)))
+		for y: int in range(maxi(0, cell.y - 16) >> 4, (mini(SIZE - 1, cell.y + 16) >> 4) + 1):
+			for x: int in range(maxi(0, cell.x - 16) >> 4, (mini(SIZE - 1, cell.x + 16) >> 4) + 1):
+				affected[Vector2i(x, y)] = true
+	_topology_cells.clear()
+	for key: Vector2i in affected:
+		_chunks[key] = true
+	if not _rebuild_base():
+		return false
+	# Actual anchors are preserved by normal retargeting before the new rooms
+	# are mixed. No climate reset, duplicate indoor value or saved room stock.
+	var keys: Array[Vector2i] = []
+	keys.assign(affected.keys())
+	for key: Vector2i in keys:
+		var opened: Dictionary = _targets.begin(Rect2i(key * 16, Vector2i(16, 16)), now)
+		if not bool(opened.get("ok", false)):
+			return _fail("topology_target")
+		while true:
+			var progress: Dictionary = _targets.step(opened.handle, 256)
+			if not bool(progress.get("ok", false)):
+				return _fail("topology_target")
+			if not bool(progress.pending):
+				break
+		var finished: Dictionary = _targets.finish(opened.handle)
+		if not bool(finished.get("ok", false)) or not bool(_targets.commit(finished.proof).get("ok", false)):
+			return _fail("topology_response")
+	if not _refresh_rooms(keys, now):
+		return false
+	_sync_response_deadlines(keys)
+	for id: String in world.construction._project_ids():
+		_mark_container(str(world.construction.definitions.site.region), id)
+		_mark_container(str(world.construction.definitions.site.region), id + ":contents")
+		if not _change_source("construction:" + id, _sources.construction_source(id), now):
+			return false
+	return flush_sources(now)
+
+
+func _disconnect_owners() -> void:
+	for link: Dictionary in _connections:
+		var sender: Object = link.owner.get_ref()
+		if sender != null and sender.is_connected(link.signal, link.callback):
+			sender.disconnect(link.signal, link.callback)
+	_connections.clear()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		# RefCounted is already marked dying here; do not call another script
+		# method on self from this notification.
+		for link: Dictionary in _connections:
+			var sender: Object = link.owner.get_ref()
+			if sender != null and sender.is_connected(link.signal, link.callback):
+				sender.disconnect(link.signal, link.callback)
+
+
+func _connect_owners() -> void:
+	_disconnect_owners()
+	var self_ref: WeakRef = weakref(self)
+	if world.map_data != null:
+		var terrain: Callable = func(cells: Array[Vector2i]) -> void:
+			var domain: RefCounted = self_ref.get_ref()
+			if domain != null:
+				if domain._busy or domain.last_ms != domain.world.elapsed_ms:
+					domain._fail("unsettled_terrain_change")
+					return
+				domain._topology_cells = cells.duplicate()
+				if not domain.after_topology_change(domain.last_ms, true):
+					domain.world.errors.append("Terrain environment publication failed")
+		world.map_data.terrain_changed.connect(terrain)
+		_connections.append({"owner": weakref(world.map_data), "signal": &"terrain_changed", "callback": terrain})
+	for region: String in world.regions:
+		var inventory: SimInventory = world.regions[region].inventory
+		var region_id: String = region
+		var stock: Callable = func(container: String) -> void:
+			var domain: RefCounted = self_ref.get_ref()
+			if domain != null:
+				domain._mark_container(region_id, container)
+		var body: Callable = func(id: String) -> void:
+			var domain: RefCounted = self_ref.get_ref()
+			if domain != null:
+				domain._mark_container(region_id, "actor:" + id)
+				var job: Dictionary = domain.world.construction.active.get(id, {})
+				if not job.is_empty():
+					domain._mark_container(region_id, str(job.project))
+		var crossing: Callable = func(id: String, cell: Vector2i, at_ms: int) -> void:
+			var domain: RefCounted = self_ref.get_ref()
+			if domain != null:
+				domain.record_source_crossing(region_id, "actor:" + id, cell, at_ms)
+		inventory.contents_changed.connect(stock)
+		world.regions[region].body_space_changed.connect(body)
+		world.regions[region].body_cell_crossed.connect(crossing)
+		_connections.append({"owner": weakref(inventory), "signal": &"contents_changed", "callback": stock})
+		_connections.append({"owner": weakref(world.regions[region]), "signal": &"body_space_changed", "callback": body})
+		_connections.append({"owner": weakref(world.regions[region]), "signal": &"body_cell_crossed", "callback": crossing})
+
+
+func record_source_crossing(region: String, container: String, cell: Vector2i, at_ms: int) -> void:
+	if not _active or at_ms <= last_ms:
+		return
+	var keys: Array[String] = _sources.container_keys(region, container)
+	if keys.is_empty():
+		return
+	_motion_changes.append({"at_ms": at_ms, "cell": cell, "keys": keys})
+	_motion_changes.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.at_ms) < int(b.at_ms))
+
+
+func _mark_container(region: String, container: String) -> void:
+	_dirty_containers[JSON.stringify([region, container])] = [region, container]
+
+
+func flush_sources(now: int) -> bool:
+	if not _active:
+		return true
+	if _busy or now != last_ms:
+		return false
+	var keys: Array = _dirty_containers.keys()
+	keys.sort()
+	for key: String in keys:
+		var pair: Array = _dirty_containers[key]
+		for item: String in _sources.container_items(pair[0], pair[1]):
+			if not _change_source(Participant.stock_key(pair[0], pair[1], item), _sources.stock_source(pair[0], pair[1], item), now):
+				return false
+		var ids: Dictionary = world.object_lifecycle._contained.get(key, {}).get("ids", {}).duplicate()
+		for id: String in world.artifacts.legacy_object_ids():
+			var row: Dictionary = world.artifacts.objects[id]
+			if row.region == pair[0] and row.container == pair[1]:
+				ids[id] = true
+		var ordered: Array = ids.keys()
+		ordered.sort()
+		for id: String in ordered:
+			var projection: Dictionary = _sources.current_artifact_source(id)
+			if not bool(projection.get("ok", false)) or not _change_source(Participant.artifact_key(id), projection.source, now):
+				return _fail("carrier_source")
+		_dirty_containers.erase(key)
+	return true

@@ -57,6 +57,25 @@ static func _village(world: RegionalSimulation, reference: Dictionary) -> Dictio
 	var container: String = reference.container
 	if not sim.inventory.containers.has(container):
 		return _failure("not_found")
+	if container.begins_with(SimLandResources.PREFIX):
+		var id: String = container.trim_prefix(SimLandResources.PREFIX)
+		if not sim.land_resources.sources.has(id):
+			return _failure("invalid_location")
+		var place: String = str(sim.config.resource_sources[id].place)
+		return _result(world, reference, TileGrid.cell_to_world(SimRouteTravel.cell(sim.places[place].cell)), "village_inventory", sim.elapsed_ms, "village_simulation", sim.elapsed_ms, {})
+	if world.personal_production != null and world.personal_production.batches.has(container):
+		var batch: Dictionary = world.personal_production.batches[container]
+		if batch.home != reference.region:
+			return _failure("invalid_location")
+		var cell: Vector2i
+		if str(batch.facility).is_empty():
+			var place: String = str(world.personal_production.definitions.recipes[batch.recipe].place)
+			cell = SimRouteTravel.cell(world.regions[batch.region].places[place].cell)
+		else:
+			# The batch remains at the original facility even after its loss. An
+			# unusable operation slot cannot teleport retained material to (-1,-1).
+			cell = SimRouteTravel.cell(world.construction.projects[batch.facility].cell)
+		return _result(world, reference, TileGrid.cell_to_world(cell), "village_inventory", sim.elapsed_ms, "personal_production", world.elapsed_ms, {})
 	if container.begins_with("plant:") and world.plants != null:
 		var id: String = container.trim_prefix("plant:")
 		if not world.plants.bodies.has(id) or world.plants.bodies[id].region != reference.region or not str(world.plants.bodies[id].legacy_source).is_empty():

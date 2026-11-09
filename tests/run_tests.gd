@@ -220,6 +220,10 @@ func test_world_environment_fields() -> void:
 	load("res://tests/sim/test_world_environment_fields.gd").new().run(self)
 
 
+func test_environment_composition() -> void:
+	load("res://tests/sim/test_environment_composition.gd").new().run(self)
+
+
 func test_world_field_save_boundary() -> void:
 	load("res://tests/runtime/test_world_field_save_boundary.gd").new().run(self)
 

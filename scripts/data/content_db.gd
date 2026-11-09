@@ -441,6 +441,9 @@ func _load_definitions() -> bool:
 	if SimConstruction.valid_definitions(building):
 		construction = building.duplicate(true)
 		for definition: Dictionary in construction.types.values():
+			var profile: String = str(SimEnvironmentLayout.terms(definition).source)
+			if not profile.is_empty() and (environment_sources == null or environment_sources.intrinsic_profile(profile).is_empty()):
+				_error("construction.json: unknown environment source " + profile)
 			for recipe: String in definition.capabilities.get("workbench", {}).get("recipes", []):
 				if not personal_production.get("recipes", {}).has(recipe):
 					_error("construction.json: unknown workbench recipe " + recipe)

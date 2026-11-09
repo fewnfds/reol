@@ -37,6 +37,39 @@ var _candidate_cold_only: bool = false
 var _candidate_cold_blocks := Rect2i()
 var _candidate_cold_x: int = 0
 var _candidate_cold_y: int = 0
+var _transport: Callable
+var _transport_pair := Vector4i(-1, -1, -1, -1)
+var _transport_factors := PackedInt32Array([-1, -1])
+
+
+func set_transport(callback: Callable) -> void:
+	_transport = callback
+
+
+func invalidate_geometry(area: Rect2i) -> void:
+	_transport_pair = Vector4i(-1, -1, -1, -1)
+	_abort_build()
+	_revision += 1
+	_mark_dirty(area.intersection(Rect2i(Vector2i.ZERO, _size)))
+
+
+func _transport_grade(value: int, from: Vector2i, to: Vector2i, channel: int) -> int:
+	if value == 0 or not _transport.is_valid():
+		return value
+	var pair := Vector4i(from.x, from.y, to.x, to.y)
+	if pair != _transport_pair:
+		_transport_pair = pair
+		_transport_factors.fill(-1)
+	var kind: int = 1 if channel >= 5 else 0
+	if _transport_factors[kind] < 0:
+		_transport_factors[kind] = clampi(int(_transport.call(from, to, channel)), 0, 10000)
+	return (value * _transport_factors[kind] + 5000) / 10000
+
+
+func export_compute_job(area: Rect2i, compact: bool = false) -> Dictionary:
+	if _transport.is_valid():
+		return {"ok": false, "reason": "geometry_requires_cpu"}
+	return super.export_compute_job(area, compact)
 
 
 func _init() -> void:
@@ -194,6 +227,7 @@ func _step_receiver() -> void:
 		var table: PackedInt32Array = _kernels[radius]
 		@warning_ignore("integer_division")
 		var value: int = (strength * table[dy * radius + dx] + Rules.SCALE / 2) / Rules.SCALE
+		value = _transport_grade(value, Vector2i(_slot_x[_neighbor_slot], _slot_y[_neighbor_slot]), Vector2i(_receiver_x, _receiver_y), _receiver_channel)
 		_receiver_best = maxi(_receiver_best, value)
 	_neighbor_slot = _slot_next[_neighbor_slot]
 	if _neighbor_slot == -1:
@@ -262,6 +296,7 @@ func _step_source_candidate() -> void:
 				var weight: int = candidate.new_kernel[dy * candidate.new_radius + dx]
 				@warning_ignore("integer_division")
 				candidate.best = (strength * weight + Rules.SCALE / 2) / Rules.SCALE
+				candidate.best = _transport_grade(candidate.best, candidate.new_cell, Vector2i(candidate.receiver_x, candidate.receiver_y), candidate.channel)
 		candidate.phase = 1
 		return
 	if candidate.neighbor_slot == UNSET:
@@ -296,6 +331,7 @@ func _step_source_candidate() -> void:
 			var kernel: PackedInt32Array = _kernels[radius]
 			@warning_ignore("integer_division")
 			var value: int = (strength * kernel[dy * radius + dx] + Rules.SCALE / 2) / Rules.SCALE
+			value = _transport_grade(value, Vector2i(_slot_x[source_slot], _slot_y[source_slot]), Vector2i(candidate.receiver_x, candidate.receiver_y), candidate.channel)
 			candidate.best = maxi(candidate.best, value)
 	candidate.neighbor_slot = _slot_next[source_slot]
 	if candidate.neighbor_slot == -1:
@@ -388,6 +424,7 @@ func _step_incremental_candidate(candidate: SourceCandidate) -> void:
 					continue
 				@warning_ignore("integer_division")
 				var value: int = (strength * _candidate_old_weight + Rules.SCALE / 2) / Rules.SCALE
+				value = _transport_grade(value, candidate.old_cell, Vector2i(candidate.receiver_x, candidate.receiver_y), channel)
 				var offset: int = candidate.receiver_index * CHANNELS + channel
 				_candidate_old_values[offset] = value
 				candidate.values[offset] = value
@@ -401,6 +438,8 @@ func _step_incremental_candidate(candidate: SourceCandidate) -> void:
 			before = (old_grade * _candidate_old_weight + Rules.SCALE / 2) / Rules.SCALE
 			@warning_ignore("integer_division")
 			after = (new_grade * _candidate_new_weight + Rules.SCALE / 2) / Rules.SCALE
+			before = _transport_grade(before, candidate.old_cell, Vector2i(candidate.receiver_x, candidate.receiver_y), candidate.channel)
+			after = _transport_grade(after, candidate.new_cell, Vector2i(candidate.receiver_x, candidate.receiver_y), candidate.channel)
 			if before != after:
 				break
 		candidate.channel += 1

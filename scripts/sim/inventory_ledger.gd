@@ -1,5 +1,6 @@
 class_name SimInventory
 extends RefCounted
+signal contents_changed(container: String)
 ## Quantities belong to containers. Reservations protect stock from other actions.
 ## Only successful operations are retained, so retrying one cannot duplicate goods.
 
@@ -25,6 +26,7 @@ func create_container(id: String, initial: Dictionary) -> bool:
 	containers[id] = _copy_items(initial)
 	if ground:
 		ground_revision += 1
+	contents_changed.emit(id)
 	return true
 
 
@@ -163,6 +165,8 @@ func transfer(
 		settle_custody(custody_id, "inventory", operation_id)
 	if ground:
 		ground_revision += 1
+	contents_changed.emit(source)
+	contents_changed.emit(target)
 	return true
 
 
@@ -195,6 +199,7 @@ func consume(operation_id: String, container: String, item: String, amount: int,
 		settle_custody(custody_id, "inventory", operation_id)
 	if container.begins_with("ground:"):
 		ground_revision += 1
+	contents_changed.emit(container)
 	return true
 
 
@@ -222,6 +227,7 @@ func transform(operation_id: String, container: String, inputs: Dictionary, outp
 	operations[operation_id] = request
 	if ground:
 		ground_revision += 1
+	contents_changed.emit(container)
 	return true
 
 

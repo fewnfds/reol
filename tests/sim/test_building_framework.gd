@@ -65,7 +65,8 @@ func _build(runner: Object, world: RegionalSimulation, type: String, cell: Vecto
 	if not result.ok:
 		return ""
 	var id: String = result.project
-	runner.assert_true(world.construction.begin("player", id).ok, "generic construction accepts " + type)
+	var started: Dictionary = world.construction.begin("player", id)
+	runner.assert_true(started.ok, "generic construction accepts " + type + " at " + str(cell) + ": " + str(started))
 	fixture._finish(runner, world)
 	runner.assert_eq(world.construction.projects[id].state, "built", "original material/work pipeline builds " + type)
 	return id
@@ -139,6 +140,7 @@ func _test_composition_and_storage(runner: Object) -> void:
 	if chest.is_empty(): return
 	var inventory: SimInventory = world.regions.home.inventory
 	inventory.containers["actor:player"].wood = 4
+	inventory.contents_changed.emit("actor:player")
 	runner.assert_true(world.facility_use.begin("player", chest, "front", "deposit", "wood", 4).ok, "deposit reserves actual original hand stock")
 	runner.assert_eq(inventory.quantity(chest + ":contents", "wood"), 0, "requesting a deposit cannot teleport goods")
 	var reserved: Dictionary = JSON.parse_string(fixture._canonical(world))
@@ -153,6 +155,7 @@ func _test_composition_and_storage(runner: Object) -> void:
 	runner.assert_true(restored.advance_to_ms(world.elapsed_ms), "restored deposit reaches the same finish")
 	runner.assert_eq(fixture._canonical(restored), fixture._canonical(world), "restored deposit has identical original ledger receipts")
 	inventory.containers["actor:player"].wood = 25
+	inventory.contents_changed.emit("actor:player")
 	runner.assert_true(not world.facility_use.begin("player", chest, "front", "deposit", "wood", 25).ok, "aggregate capacity is checked before reserving")
 	var hp: int = int(domain.projects[chest].hp)
 	var hit: Dictionary = domain.damage(chest, 7)
@@ -189,6 +192,7 @@ func _test_workbench(runner: Object) -> void:
 	var stove: String = _build(runner, world, "cook_stove", Vector2i(110, 107))
 	if stove.is_empty(): return
 	world.regions.home.inventory.containers["actor:player"].merge({"wood": 1, "grain": 2, "water": 1}, true)
+	world.regions.home.inventory.contents_changed.emit("actor:player")
 	var stand: Vector2i = world.construction.operation_slots(stove, "workbench")[0].cell
 	world.regions.home.set_actor_cell("shi_tou", stand)
 	var blocked: Dictionary = world.personal_production.create("player", "home", "cook_rations", stove)
@@ -227,6 +231,7 @@ func _test_workbench(runner: Object) -> void:
 	fixture._finish(runner, world)
 	stove = _build(runner, world, "cook_stove", Vector2i(110, 107))
 	world.regions.home.inventory.containers["actor:player"].merge({"wood": 1, "grain": 2, "water": 1}, true)
+	world.regions.home.inventory.contents_changed.emit("actor:player")
 	var interrupted: Dictionary = world.personal_production.create("player", "home", "cook_rations", stove)
 	runner.assert_true(interrupted.ok, "a new batch reserves the same actual workbench after collection")
 	if not interrupted.ok: return

@@ -11,6 +11,8 @@ var _position: Vector2 = Vector2.ZERO
 var _facing: Vector2 = Vector2.DOWN
 var _body: Dictionary = {}
 var _space_changed: Callable
+var _cell_crossed: Callable
+var _integration_ms: int = -1
 var position: Vector2:
 	get:
 		return SimRouteTravel.point(_body) if not _body.is_empty() else _position
@@ -22,6 +24,8 @@ var position: Vector2:
 			SimRouteTravel.put(_body, value)
 			if before != SimRouteTravel.cell(_body.cell) and _space_changed.is_valid():
 				_space_changed.call()
+			if before != SimRouteTravel.cell(_body.cell) and _integration_ms >= 0 and _cell_crossed.is_valid():
+				_cell_crossed.call(SimRouteTravel.cell(_body.cell), _integration_ms)
 var velocity: Vector2 = Vector2.ZERO
 var facing: Vector2:
 	get:
@@ -60,11 +64,12 @@ static func valid_rules(value: Variant) -> bool:
 	return SimInventory._valid_count(value.recovery.get("delay_ms")) and SimInventory._valid_count(value.recovery.get("stamina_per_second"))
 
 
-func bind_body(body: Dictionary, space_changed: Callable = Callable()) -> void:
+func bind_body(body: Dictionary, space_changed: Callable = Callable(), cell_crossed: Callable = Callable()) -> void:
 	# Facing, like position, is a projection of the one original body. Preserve
 	# its last heading across route/manual control changes and view recreation.
 	_body = body
 	_space_changed = space_changed
+	_cell_crossed = cell_crossed
 
 
 func cell() -> Vector2i:
@@ -145,7 +150,9 @@ func advance(from_ms: int, to_ms: int, intent: Vector2, can_step: Callable, cont
 		velocity = velocity.move_toward(target, rate * dt)
 		if velocity.length_squared() < 1.0:
 			velocity = Vector2.ZERO
+		_integration_ms = end
 		_move(velocity * dt, can_step)
+		_integration_ms = -1
 		cursor = end
 		if intent.is_zero_approx() and velocity.is_zero_approx():
 			break
@@ -167,7 +174,9 @@ func _advance_sidestep(from_ms: int, to_ms: int, can_step: Callable) -> void:
 		var direction := Vector2(float(action.direction[0]), float(action.direction[1]))
 		while cursor < travel_end:
 			var next: int = mini(travel_end, cursor + INTEGRATION_STEP_MS)
+			_integration_ms = next
 			_move(direction * float(definition.speed) * float(next - cursor) / 1000.0, can_step, false)
+			_integration_ms = -1
 			cursor = next
 			if blocked:
 				action.blocked = true

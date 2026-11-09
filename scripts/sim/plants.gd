@@ -185,11 +185,14 @@ func habitat(cell: Vector2i, support: String = "") -> Dictionary:
 	var temperature: int = int(weather.temperature_tenths)
 	if world.environment_fields != null:
 		var actual: Dictionary = world.environment_fields.actual_at(cell, world.elapsed_ms)
-		if bool(actual.get("ok", false)):
-			temperature = roundi(float(actual.value_c) * 10.0)
-	var light: Dictionary = SimNaturalLight.at_cell(world, cell)
+		if not bool(actual.get("ok", false)):
+			return {}
+		temperature = roundi(float(actual.value_c) * 10.0)
+	var light: Dictionary = SimLocalLight.at_simulation_cell(world, cell)
+	if not bool(light.get("supported", false)):
+		return {}
 	var date: Dictionary = SimWorldCalendar.date_at(world._content.climate.calendar, world.elapsed_ms)
-	return {"substrate": substrate, "moisture": moisture, "temperature": temperature, "rain": weather.kind == "rain", "season": date.season, "light": int(light.get("local_relative", 0))}
+	return {"substrate": substrate, "moisture": moisture, "temperature": temperature, "rain": weather.kind == "rain", "season": date.season, "light": int(light.total_relative)}
 
 
 func _rootable(cell: Vector2i, support: String, except_id: String = "", solid: bool = false) -> bool:
@@ -282,6 +285,8 @@ func _settle_body(id: String, now: int, refresh_conditions: bool = true) -> bool
 		row.water = next_water
 	if refresh_conditions:
 		row.conditions = habitat(cell_of(id), str(row.location.support))
+		if row.conditions.is_empty():
+			return false
 	row.next_ms = NEVER if row.stage in ["dead", "removed"] else now - posmod(now, int(definitions.sample_ms)) + int(definitions.sample_ms)
 	if rule.life == "annual" and row.hp > 0 and row.stage != "removed":
 		row.next_ms = mini(int(row.next_ms), int(row.born_ms) + int(rule.lifespan_ms) - int(row.initial_age_ms))
@@ -293,6 +298,7 @@ func _settle_body(id: String, now: int, refresh_conditions: bool = true) -> bool
 	if gain > 0:
 		var item: String = str(rule.product.item)
 		inventory.containers[container_id(id)][item] = inventory.quantity(container_id(id), item) + gain
+		inventory.contents_changed.emit(container_id(id))
 		row.produced[item] = int(row.produced.get(item, 0)) + gain
 		if not str(row.legacy_source).is_empty():
 			world.regions[row.region].land_resources.sources[row.legacy_source].produced += gain

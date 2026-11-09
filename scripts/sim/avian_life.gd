@@ -502,6 +502,8 @@ func _exchange(operation: String, source: SimInventory, from: String, target: Si
 	source.containers[from][item] = source.quantity(from, item) - amount
 	target.containers[to][item] = target.quantity(to, item) + amount
 	exchanges[operation] = signature
+	source.contents_changed.emit(from)
+	target.contents_changed.emit(to)
 	return true
 
 

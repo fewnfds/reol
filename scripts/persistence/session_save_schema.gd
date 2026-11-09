@@ -2,7 +2,7 @@ class_name SessionSaveSchema
 extends RefCounted
 ## Version and shape validation at the session boundary. No live mutations.
 
-const VERSION: int = 54
+const VERSION: int = 55
 const REJECTION_LEGACY_BUILDINGS: String = "legacy_buildings"
 const REJECTION_LEGACY_ENVIRONMENT: String = "legacy_environment"
 const REJECTION_LEGACY_EVENTS: String = "legacy_events"
