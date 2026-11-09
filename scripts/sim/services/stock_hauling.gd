@@ -29,6 +29,8 @@ func begin(actor: String, options: Dictionary) -> Dictionary:
 		return _reply(false, "unobserved", "先查看容器，或使用本人已知的聚落地点。")
 	var carried: String = _held(actor, options)
 	var public_source: bool = world.regions[options.source.region].places.has(options.source.container)
+	if public_source and not _public_target(actor, home, options.target):
+		return _reply(false, "public_destination", "公物只能交到已登记的聚落地点，或留在本人行囊继续保管；普通箱体尚不承接公物责任。")
 	if carried.is_empty() and public_source and options.source.region != home and world.regions[options.source.region].inventory.available(options.source.container, options.item) - int(options.amount) < int(service.definitions.hauling.source_floor):
 		return _reply(false, "source_floor", "供货地点必须保留基本存量。")
 	var id: String = service.allocate("job")
@@ -57,6 +59,10 @@ func begin(actor: String, options: Dictionary) -> Dictionary:
 
 static func _reference(value: Variant) -> bool:
 	return Shape.keys(value, ["region", "container"]) and SimInventory._nonempty(value.region) and SimInventory._nonempty(value.container)
+
+
+func _public_target(actor: String, home: String, endpoint: Dictionary) -> bool:
+	return endpoint == {"region": home, "container": "actor:" + actor} or world.regions[endpoint.region].places.has(endpoint.container)
 
 
 func _allowed(actor: String, endpoint: Dictionary, taking: bool, item: String) -> bool:
@@ -167,6 +173,23 @@ func _anchor(endpoint: Dictionary) -> Array:
 	return [located.cell.x, located.cell.y] if bool(located.ok) else []
 
 
+func _stand_matches_endpoint(job: Dictionary) -> bool:
+	var endpoint: Dictionary = _endpoint(job)
+	if not _allowed(job.actor, endpoint, job.stage == "pickup", job.options.item):
+		return false
+	var expected: Array = _anchor(endpoint)
+	if expected.is_empty(): return false
+	if endpoint.container == "actor:" + str(job.actor):
+		return SimRouteTravel.cell(job.stand) == SimRouteTravel.cell(expected)
+	if SimRouteTravel.cell(job.anchor) != SimRouteTravel.cell(expected): return false
+	if str(endpoint.container).ends_with(":contents"):
+		var id: String = str(endpoint.container).trim_suffix(":contents")
+		for slot: Dictionary in world.construction.operation_slots(id, "storage"):
+			if slot.cell == SimRouteTravel.cell(job.stand): return true
+		return false
+	return SimRouteTravel.cell(job.stand) == SimRouteTravel.cell(expected)
+
+
 func _room_for(job: Dictionary, endpoint: Dictionary) -> bool:
 	var inventory: SimInventory = world.regions[endpoint.region].inventory
 	if not inventory.containers.has(endpoint.container) or inventory.quantity(endpoint.container, job.options.item) > SimInventory.MAX_COUNT - int(job.options.amount):
@@ -215,7 +238,7 @@ func settle(job: Dictionary, now: int) -> void:
 		return
 	if now < int(job.due_ms):
 		return
-	if SimRouteTravel.cell(body.cell) != SimRouteTravel.cell(job.stand) or not SimRouteTravel.point(body).is_equal_approx(TileGrid.cell_to_world(SimRouteTravel.cell(job.stand))):
+	if not _stand_matches_endpoint(job) or SimRouteTravel.cell(body.cell) != SimRouteTravel.cell(job.stand) or not SimRouteTravel.point(body).is_equal_approx(TileGrid.cell_to_world(SimRouteTravel.cell(job.stand))):
 		service._jobs.finish(job, false, "离开了操作位置，本次搬运中断。")
 		return
 	service._handling_stock = true
@@ -282,6 +305,8 @@ func valid_job(job: Dictionary, data: Dictionary) -> bool:
 		return false
 	if not world.regions.has(job.options.source.region) or not world.regions.has(job.options.target.region) or Shape.same_record(job.options.source, job.options.target) or job.status == "active" and job.region != _endpoint(job).region or job.carrying != (job.stage == "delivery"):
 		return false
+	if world.regions[job.options.source.region].places.has(job.options.source.container) and not _public_target(job.actor, job.home, job.options.target):
+		return false
 	if not Shape.count(job.get("started_ms"), 0, world.elapsed_ms) or job.started != floori(float(job.started_ms) / 60000.0):
 		return false
 	if not job.options.custody.is_empty():
@@ -302,7 +327,7 @@ func valid_job(job: Dictionary, data: Dictionary) -> bool:
 		return job.reservation.is_empty() and Shape.count(job.get("finished_at"), int(job.started), world.current_time)
 	var sim: VillageSimulation = world.regions[job.home]
 	var body: Dictionary = sim.actors[job.actor]
-	if body.autonomous or not body.active.is_empty() or not Shape.count(job.get("due_ms"), world.elapsed_ms + 1) or not Shape.count(job.get("segment_started_ms"), int(job.started_ms), world.elapsed_ms) or not SimLocalMotion._vector(job.get("segment_from")):
+	if body.autonomous or not body.active.is_empty() or not Shape.count(job.get("due_ms"), world.elapsed_ms + 1) or not Shape.count(job.get("segment_started_ms"), int(job.started_ms), world.elapsed_ms) or not SimLocalMotion._vector(job.get("segment_from")) or not _stand_matches_endpoint(job):
 		return false
 	if not job.options.custody.is_empty():
 		if not sim.inventory.can_use("actor:" + str(job.actor), job.options.item, int(job.options.amount), job.options.custody) or not job.reservation.is_empty():

@@ -485,7 +485,7 @@ func set_manual_motion_executor(executor: Callable) -> void:
 	_manual_motion_executor = executor
 
 
-func interrupt_occupation(actor: String, reason: String) -> void:
+func interrupt_occupation(actor: String, reason: String, preserve_sparring: bool = false) -> void:
 	if not accepts_commands():
 		return
 	# Hostile contact interrupts actual jobs, retaining already paid costs and
@@ -503,7 +503,7 @@ func interrupt_occupation(actor: String, reason: String) -> void:
 	for domain: RefCounted in [plants, object_lifecycle, artifacts, soul_vessels, admissions, construction, facility_use, resting, clothing, health, spirit_sources, method_records, personal_production]:
 		if domain != null:
 			domain.cancel(actor)
-	if sparring != null and sparring.owns_actor(actor):
+	if not preserve_sparring and sparring != null and sparring.owns_actor(actor):
 		sparring.stop("finished")
 	for sim: VillageSimulation in regions.values():
 		if sim.actors.has(actor):

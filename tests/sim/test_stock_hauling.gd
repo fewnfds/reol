@@ -63,6 +63,17 @@ func _private_delivery_and_restore(runner: Object) -> void:
 	world.services._hauling.settle(terminal, world.elapsed_ms)
 	runner.assert_eq(world.regions.river.inventory.quantity("store", "wood"), before + 3, "a repeated terminal settlement cannot duplicate the delivery")
 	var live: String = JSON.stringify(resumed.to_dict(), "", true, true)
+	var remote: Dictionary = checkpoint.duplicate(true)
+	var job: Dictionary = remote.services.jobs[reply.id]
+	var body: Dictionary = remote.regions.home.actors.player
+	job.phase = "work"
+	job.path = []
+	job.stand = body.cell.duplicate()
+	job.segment_from = body.position.duplicate()
+	job.segment_started_ms = remote.elapsed_ms
+	job.due_ms = int(remote.elapsed_ms) + int(world._content.local_actions.hauling.handling_ms)
+	runner.assert_true(not resumed.restore(remote), "a forged work position cannot turn a remote container into contact")
+	runner.assert_eq(JSON.stringify(resumed.to_dict(), "", true, true).sha256_text(), live.sha256_text(), "forged contact cannot replace the live candidate")
 	checkpoint.services.jobs[reply.id].options.amount = 4
 	runner.assert_true(not resumed.restore(checkpoint), "a changed cargo amount cannot borrow the old reservation")
 	runner.assert_eq(JSON.stringify(resumed.to_dict(), "", true, true), live, "bad cargo candidates leave the live world intact")
@@ -149,6 +160,9 @@ func _storage_capacity_and_damage(runner: Object) -> void:
 	inventory.containers["actor:shi_tou"]["wood"] = 1
 	var source: Dictionary = {"region": "home", "container": "actor:player"}
 	var target: Dictionary = {"region": "home", "container": chest + ":contents"}
+	var laundering: Dictionary = world.services.begin_haul("player", {"region": "home", "container": "store"}, target, "wood", 2)
+	runner.assert_true(not laundering.ok, "public cargo cannot be delivered into storage that has no continuing disposition owner")
+	if laundering.ok: world.services.cancel("player")
 	var reply: Dictionary = world.services.begin_haul("player", source, target, "wood", 4)
 	runner.assert_true(reply.ok, "hauling reserves the remaining real storage capacity: " + str(reply.line))
 	if not reply.ok: return

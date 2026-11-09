@@ -51,7 +51,7 @@
 - `RegionalSimulation.describe_actor_action(actor)`读原活动集合，提供domain/id/意图、领域phase、起止时刻、remaining_ms、status和目标id；scope为`unit_action`、visibility为`authority_only`。普通面板仅查询当前受控人身；给他人使用仍须观察过滤。当前覆盖native/services、施工/设施/植物、休息/制作、器物/衣着、救护/交换、示范/交锋、约练与原魂器请求等实际owner；不生成通用空闲任务。
 - 原owner完成效果、移除活跃成员并释放占用后，`RegionalSimulation.action_finished`发出冻结的终态投影，status为`completed/failed/cancelled`。这是当前世界瞬时通知，不是持久事件账；取放完整状态仍在原actions，施工结果仍在原项目/库存与line中。
 
-原过程仍各自序列化，恢复后重建占用和投影。`interrupt_occupation`集中结束原工作；正在交锋时手动走位沿原战斗规则，不抹掉已发射的飞行物。`SimConflicts`持招式/命中/收势及后果，施工/植物/库存继续提交各自效果；无需把全部动作塞入同一个字段或重写为战斗任务。
+原过程仍各自序列化，恢复后重建占用和投影。`interrupt_occupation`集中结束原工作；手动走位/闪身保留约练或交锋及其原阶段限制，显式停止/敌意接触仍完整中断，不抹掉已发射的飞行物。`SimConflicts`持招式/命中/收势及后果，施工/植物/库存继续提交各自效果；无需把全部动作塞入同一个字段或重写为战斗任务。
 
 ### 路线与原生搜索
 
@@ -63,7 +63,9 @@
 
 `SettlementServices.begin_haul(actor, source, target, item, amount)`复用原jobs和operations；端点为`{region,container}`。`stock_hauling.gd`只适配接近→耗时取货→随身携带→接近→耗时交付。原行囊、获准公共地点及可观察建筑箱可组合，账务region不分割地图；跨账本转移仍由原services事务完成。
 
-公物取出登记原`SimEntrustedGoods`，中断后保留保管责任；相同起终点/物品/数量可续送原批，不能重复取货或消费。私物和建筑箱取出沿原处分语义，仍在原行囊预约。容量/过滤/操作位与`SimFacilityUse`互相复核，设施毁坏中断相关工作；跨账本扣加/保管登记期间拒绝外部命令及快照重入。foreign取货仅原运粮政策授权，地点可定位不等于有提款权限。
+公物取出登记原`SimEntrustedGoods`，中断后保留保管责任；相同起终点/物品/数量可续送原批，不能重复取货或消费。当前公物只能交到登记公共地点，或留在原随身保管；普通箱体尚无持续处分owner，禁止用公共地点→箱子→行囊洗掉责任。私物和原可处分箱内材料仍在原行囊预约。容量/过滤/操作位与`SimFacilityUse`互相复核，设施毁坏中断相关工作；跨账本扣加/保管登记期间拒绝外部命令及快照重入。foreign取货仅原运粮政策授权，地点可定位不等于有提款权限。
+
+在途候选的anchor与stand须绑定原容器位置/真实操作位，到场提交再核接触；合法时间/路径形状不等于可以远程交付。恢复不提前执行取放，失败仍不改活世界。
 
 单次搬运按会话`local_actions.hauling`限制数量和取放耗时；箱体按原数量容量。地面堆、独特器物、任意嵌套和普遍质量/体积负重不由此入口实现。地面实物继续走原生命周期；跨域状态在`SimWorldSaveDomains`登记库存预约scope，不修改中央加载管线。
 

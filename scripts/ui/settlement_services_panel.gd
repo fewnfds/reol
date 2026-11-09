@@ -152,7 +152,7 @@ func _init() -> void:
 	for choice: OptionButton in [_haul_source, _haul_target]:
 		choice.custom_minimum_size.x = 200
 		choice.clip_text = true
-	UI.label(haul, "公物途中保管，中断后可续送或交回。\n受阻会尝试绕路，容器和权限在到场时复核。", UI.MUTED, 12)
+	UI.label(haul, "公物中断后可续送或交回，只交登记地点或随身保管。\n私人材料可用箱体；到场复核，受阻尝试绕路。", UI.MUTED, 12)
 	_notice = UI.label(column, "", UI.MUTED, 13)
 	_notice.mouse_filter = Control.MOUSE_FILTER_PASS
 	_notice.custom_minimum_size.y = 40

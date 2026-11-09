@@ -835,7 +835,9 @@ func cancel_travel() -> void:
 	if service_adapter != null:
 		service_adapter.cancel_manual()
 	if world_sim != null:
-		world_sim.interrupt_occupation("player", "manual_override")
+		# Manual walking/evasion is part of the original phase-aware bout.
+		# Explicit stop and hostile contact still end it through their own entry.
+		world_sim.interrupt_occupation("player", "manual_override", true)
 		if world_sim.conflicts.conflict_for("player").is_empty():
 			world_sim.conflicts.cancel("player")
 

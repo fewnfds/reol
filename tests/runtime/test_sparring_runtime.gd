@@ -56,6 +56,10 @@ func _test_actual_sidestep_avoids_contact(runner: Object) -> void:
 	GameClock.advance_msec(150)
 	runner.assert_eq(adapter.world_sim.sparring.phase("shi_tou", GameClock.elapsed_ms), "prepare", "NPC gives a visible preparation window before the hit")
 	runner.assert_true(player.request_sidestep(Vector2.LEFT), "an idle practice body can use its existing physical sidestep")
+	runner.assert_true(adapter.world_sim.sparring.owns_actor("player"), "manual evasion preserves the consenting bout and its original phases")
+	if not adapter.world_sim.sparring.owns_actor("player"):
+		fixtures._dispose(fixture)
+		return
 	GameClock.advance_msec(400)
 	runner.assert_true(player.motion.position.distance_to(point + Vector2(-120, 0)) < 0.1, "evasion is actual terrain-checked movement over shared time within subpixel precision")
 	runner.assert_eq(home.actors.player.stamina, 92, "outside the fan, the body pays only its sidestep and receives no phantom hit")
