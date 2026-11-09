@@ -38,6 +38,7 @@ var _background: RefCounted
 var _targets: RefCounted
 var _compiler: RefCounted
 var _chunks: Dictionary[Vector2i, bool] = {}
+var _thermal_chunks: Dictionary[Vector2i, bool] = {}
 var _samples: Dictionary = {}
 var _transient: Dictionary = {}
 var _active: bool = false
@@ -441,9 +442,10 @@ func has_visible_offsets(historical: bool = false) -> bool:
 			if value != 0:
 				return true
 		return false
-	# Conservative: retain location in exposure records even for phase-only
-	# tracked chunks. This query does not scan or integrate the map.
-	return not _chunks.is_empty()
+	# A phase-only source must not turn quiet temperature consumers into active
+	# participants. Changed response chunks maintain this disposable summary;
+	# actual residuals still count after their original source has disappeared.
+	return not _thermal_chunks.is_empty()
 
 
 func minimum_offset_tenths() -> int:
@@ -516,6 +518,10 @@ func _sync_response_deadlines(keys: Array[Vector2i]) -> void:
 	for row: Dictionary in _participation.pending_dirty(&"response_summary"):
 		var id: String = row.id
 		var key: Vector2i = _chunk_from_id(id)
+		if _chunk_has_thermal_deviation(key):
+			_thermal_chunks[key] = true
+		else:
+			_thermal_chunks.erase(key)
 		for kind: StringName in [&"temperature", &"phases"]:
 			var state: RefCounted = _temperature if kind == &"temperature" else _phases
 			var boundary: int = state.chunk_boundary_ms(key)
@@ -523,6 +529,31 @@ func _sync_response_deadlines(keys: Array[Vector2i]) -> void:
 			if boundary >= 0:
 				_participation.set_due(kind, id, boundary)
 		_participation.ack_dirty(&"response_summary", id, int(row.revision))
+
+
+func _chunk_has_thermal_deviation(key: Vector2i) -> bool:
+	# Prove an untouched thermal response is the shared neutral response. Only
+	# inspect this fixed-size chunk when its anchors change, never per actor/tick.
+	var chunk: SimEnvironmentTemperatureState.Chunk = _temperature._chunks.get(key)
+	if chunk == null:
+		return false
+	var neutral: Dictionary = {}
+	for index: int in Temperature.CHUNK_CELLS:
+		if chunk.present[index] == 0:
+			continue
+		if chunk.taus[index] != TAU_MS or chunk.slopes[index] != 0.0:
+			return true
+		var cell := Vector2i((key.x << 4) + (index & 15), (key.y << 4) + (index >> 4))
+		var region: String = _background.region_at(cell)
+		var cache_key: String = region + ":" + str(chunk.starts[index])
+		if not neutral.has(cache_key):
+			neutral[cache_key] = _background.value_at(cell, chunk.starts[index])
+		var value: Dictionary = neutral[cache_key]
+		var background: Dictionary = _background._regions[region]
+		if not bool(value.get("ok", false)) or absf(chunk.initials[index] - float(value.value_c)) > ANCHOR_QUANTUM \
+			or chunk.targets[index] != float(background.target_c) or chunk.untils[index] != int(background.until_ms):
+			return true
+	return false
 
 
 static func _chunk_from_id(id: String) -> Vector2i:
@@ -551,6 +582,7 @@ func _rebuild_participation() -> void:
 	# Assembly/restore only. Subsequent changes update their own IDs/chunks;
 	# the index holds no original object, actual value or alternate clock.
 	_participation.clear()
+	_thermal_chunks.clear()
 	_sync_response_deadlines(_sorted_chunks())
 	for id: String in world.artifacts.legacy_object_ids():
 		_sync_device(id)
@@ -800,10 +832,21 @@ func _connect_owners() -> void:
 
 
 func record_source_crossing(region: String, container: String, cell: Vector2i, at_ms: int) -> void:
-	if not _active or at_ms <= last_ms:
+	if not _active:
 		return
 	var keys: Array[String] = _sources.container_keys(region, container)
 	if keys.is_empty():
+		return
+	if at_ms < last_ms:
+		_fail("late_source_crossing")
+		return
+	if at_ms == last_ms:
+		for key: String in keys:
+			var source: Dictionary = _sources.get_source(key)
+			source.cell = cell
+			if not _change_source(key, source, at_ms):
+				_fail("moving_source")
+				return
 		return
 	_motion_changes.append({"at_ms": at_ms, "cell": cell, "keys": keys})
 	_motion_changes.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.at_ms) < int(b.at_ms))

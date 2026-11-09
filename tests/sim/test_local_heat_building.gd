@@ -17,7 +17,7 @@ func run(runner: Object) -> void:
 		_carried_source_leaves_released_heat(runner, room)
 	_support_collapse(runner)
 	_two_uses_one_charge(runner)
-	print("SCENARIO field/building: paid walls, doors and roofs, continuous actual temperature without room insulation, roof collapse, original finite charge and physical source receipts")
+	print("SCENARIO field/building: paid walls, doors and roofs, mixed room temperature and continuous topology commits, roof collapse, original finite charge and physical source receipts")
 
 
 func _stone(runner: Object, world: RegionalSimulation, verb: String) -> bool:
@@ -84,6 +84,7 @@ func _roofed_room(runner: Object) -> Dictionary:
 		return {}
 	var space: Dictionary = world.construction.space_at(Vector2i(110, 108))
 	runner.assert_true(space.enclosed and space.roofed and int(space.area) == 2, "actual walls and paid upper-layer roofs form a two-cell covered room")
+	runner.assert_true(not space.has("cells"), "public per-cell space metadata stays fixed-size instead of copying the whole room")
 	runner.assert_eq(world.regions.home.inventory.quantity("store", "wood"), stock - 39, "nine walls, one door and two roofs consumed exactly their original lumber")
 	runner.assert_eq(world.artifacts.object_cell("hearth_stone"), Vector2i(110, 108), "actual roof and door work carried the one held stone into the room")
 	runner.assert_true(world.environment_fields.receipts.is_empty(), "building and carrying a charged stone alone do not create a paid warming receipt")
@@ -152,7 +153,7 @@ func _door_exchange(runner: Object, fixture: Dictionary) -> void:
 	runner.assert_true(not world.construction.blocked(Vector2i(109, 108)) and closed.construction.blocked(Vector2i(109, 108)), "only completed original door handling changes the physical opening")
 	var at_ms: int = world.elapsed_ms + 60000
 	runner.assert_true(world.advance_to_ms(at_ms) and closed.advance_to_ms(at_ms), "open and closed layouts evolve from their identical actual commit-time heat")
-	_assert_same_actual(runner, world, closed, "the current outdoor field does not apply door insulation")
+	_assert_room_exchange(runner, world, closed, "opening the original door speeds the same mixed room's response")
 	if not _stone(runner, world, "warm"):
 		return
 	var opened: RegionalSimulation = _commit_against_old_layout(runner, world, fixture.door, "close")
@@ -161,7 +162,7 @@ func _door_exchange(runner: Object, fixture: Dictionary) -> void:
 	runner.assert_true(world.construction.blocked(Vector2i(109, 108)) and not opened.construction.blocked(Vector2i(109, 108)), "a second timed physical action closes only the chosen world's door")
 	at_ms = world.elapsed_ms + 60000
 	runner.assert_true(world.advance_to_ms(at_ms) and opened.advance_to_ms(at_ms), "closed and still-open doors use the same future time interval")
-	_assert_same_actual(runner, world, opened, "the current outdoor field also ignores the closed door")
+	_assert_room_exchange(runner, opened, world, "closing the original door slows the same mixed room's response")
 
 
 func _wall_breach(runner: Object, fixture: Dictionary) -> void:
@@ -176,7 +177,24 @@ func _wall_breach(runner: Object, fixture: Dictionary) -> void:
 		runner.assert_eq(world.construction.projects[id].state, "built", "remaining original walls keep this roof physically supported after a breach")
 	var end: int = world.elapsed_ms + 60000
 	runner.assert_true(world.advance_to_ms(end) and enclosed.advance_to_ms(end), "breached and intact rooms advance an identical further minute")
-	_assert_same_actual(runner, world, enclosed, "the current outdoor field does not apply wall insulation")
+	runner.assert_true(world.environment_fields._layout.room_of.is_empty() and not enclosed.environment_fields._layout.room_of.is_empty(), "a real breach removes the thermal compartment only in the changed world")
+	var breached: Dictionary = world.environment_fields.actual_at(Vector2i(110, 108), end)
+	var intact: Dictionary = enclosed.environment_fields.actual_at(Vector2i(110, 108), end)
+	runner.assert_true(bool(breached.ok) and bool(intact.ok) and absf(float(breached.value_c) - float(intact.value_c)) > 0.00001, "the breached and insulated room evolve differently after their continuous commit")
+
+
+func _assert_room_exchange(runner: Object, opened: RegionalSimulation, closed: RegionalSimulation, label: String) -> void:
+	var cell := Vector2i(110, 108)
+	var open_anchor: Vector2i = opened.environment_fields._layout.room_of[cell]
+	var closed_anchor: Vector2i = closed.environment_fields._layout.room_of[cell]
+	runner.assert_true(int(opened.environment_fields._layout.rooms[open_anchor].tau_ms) < int(closed.environment_fields._layout.rooms[closed_anchor].tau_ms), label + " uses the actual aperture")
+	var open_value: Dictionary = opened.environment_fields.actual_at(cell, opened.elapsed_ms)
+	var closed_value: Dictionary = closed.environment_fields.actual_at(cell, closed.elapsed_ms)
+	runner.assert_true(bool(open_value.ok) and bool(closed_value.ok) and absf(float(open_value.value_c) - float(closed_value.value_c)) > 0.00001, label + " changes the later actual temperature")
+	for world: RegionalSimulation in [opened, closed]:
+		var first: Dictionary = world.environment_fields.actual_at(cell, world.elapsed_ms)
+		var second: Dictionary = world.environment_fields.actual_at(Vector2i(111, 108), world.elapsed_ms)
+		runner.assert_true(bool(first.ok) and bool(second.ok) and absf(float(first.value_c) - float(second.value_c)) < 0.00001, label + " retains one actual temperature throughout each room")
 
 
 func _support_collapse(runner: Object) -> void:

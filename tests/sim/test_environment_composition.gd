@@ -160,6 +160,18 @@ func _custody_and_motion(runner: Object) -> void:
 	runner.assert_eq(buildings.fixture._canonical(world), buildings.fixture._canonical(sliced), "motion source anchors and the entire world are independent of host slicing")
 	var source: Dictionary = world.environment_fields._sources.get_source("artifact:held_heat")
 	runner.assert_true(source.cell == SimRouteTravel.cell(world.regions.home.actors.player.cell) and source.cell != start, "the source uses the same original carrier's final cell")
+	for current: RegionalSimulation in [world, sliced]:
+		current.set_manual_motion_executor(Callable())
+		var sim: VillageSimulation = current.regions.home
+		sim.set_actor_cell("player", SimRouteTravel.cell(sim.places.dorm.cell) + Vector2i.RIGHT)
+		runner.assert_true(current.set_active_region("home") and sim.submit_action("player", "rest"), "the same carrier begins an actual native route with its heat and elemental sources")
+		current.invalidate_region("home")
+	var route: Dictionary = world.regions.home.actors.player.active
+	var crossing: int = SimRouteTravel.crossing_ms(route, world.regions.home.actors.player, world.elapsed_ms)
+	fields._advance(runner, world, crossing + 3000, "whole automatic carrying interval")
+	for now: int in [crossing - 1, crossing, crossing + 137, crossing + 3000]:
+		fields._advance(runner, sliced, now, "arbitrary native route slice")
+	runner.assert_eq(buildings.fixture._canonical(world), buildings.fixture._canonical(sliced), "automatic route crossings preserve the entire thermal and elemental future under host slicing")
 
 
 func _light_and_receptors(runner: Object) -> void:

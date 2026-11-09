@@ -65,7 +65,14 @@ static func crossing_ms(route: Dictionary, body: Dictionary, now: int) -> int:
 			continue
 		var edge: float = float(maxi(current[axis], target_cell[axis]) * TileGrid.TILE_SIZE)
 		fraction = minf(fraction, (edge - origin[axis]) / delta[axis])
-	var crossing: int = int(route.segment_started_ms) + ceili(float(int(route.due_ms) - int(route.segment_started_ms)) * fraction) + 1
+	var duration: int = int(route.due_ms) - int(route.segment_started_ms)
+	var crossing: int = int(route.segment_started_ms) + ceili(float(duration) * fraction)
+	# floor-based cell ownership crosses right/down ON the edge, left/up only
+	# after it. Use the same projection arithmetic as the original body, rather
+	# than adding 1ms on every direction (which lets a host slice cross early).
+	var projected: Vector2 = origin.lerp(target, clampf(float(crossing - int(route.segment_started_ms)) / duration, 0.0, 1.0))
+	if TileGrid.world_to_cell(projected) == current:
+		crossing += 1
 	return mini(deadline, crossing) if crossing > now else deadline
 
 

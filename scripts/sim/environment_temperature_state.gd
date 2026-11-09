@@ -1,6 +1,6 @@
 class_name SimEnvironmentTemperatureState
 extends RefCounted
-## One owner for actual outdoor temperature at explicitly tracked cells.
+## One owner for actual temperature at explicitly tracked cells and rooms.
 ## Each cell keeps one known target segment; reads do not change its anchor.
 ## This object holds no clock, source inventory, Q balance, or integral ledger.
 

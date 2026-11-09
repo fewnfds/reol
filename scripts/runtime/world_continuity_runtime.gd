@@ -637,6 +637,7 @@ func advance_to_ms(target_ms: int) -> int:
 				cancel_travel()
 				continue
 			end = mini(end, int(player_journey.due_ms))
+			end = mini(end, SimRouteTravel.crossing_ms(player_journey, _home.simulation.actors.player, world_sim.elapsed_ms))
 			var body_cell: Vector2i = _cell(_home.simulation.actors.player.cell)
 			if not player_journey.path.is_empty() and not _can_step(body_cell, _cell(player_journey.path[0]) - body_cell):
 				cancel_travel()

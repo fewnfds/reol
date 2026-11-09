@@ -8,6 +8,7 @@ var rooms: Dictionary = {}
 var room_of: Dictionary[Vector2i, Vector2i] = {}
 var barriers: Dictionary[Vector2i, Dictionary] = {}
 var _owner: WeakRef
+var _terrain: Dictionary[Vector2i, bool] = {}
 
 
 static func terms(rule: Dictionary) -> Dictionary:
@@ -33,6 +34,7 @@ func rebuild(world: RegionalSimulation) -> bool:
 	rooms.clear()
 	room_of.clear()
 	barriers.clear()
+	_terrain.clear()
 	var edges: Dictionary = {}
 	var bounds: Array[Rect2i] = []
 	var types: Dictionary = world.construction.definitions.types.duplicate(false)
@@ -87,7 +89,7 @@ func rebuild(world: RegionalSimulation) -> bool:
 		visited += area.get_area()
 		if visited > MAX_CELLS:
 			return false
-		var spaces: Dictionary = SimEnclosedSpace.detect_edges(area, edges, types)
+		var spaces: Dictionary = SimEnclosedSpace.detect_edges(area, edges, types, Callable(), true)
 		var seen: Dictionary = {}
 		for cell: Vector2i in spaces:
 			var space: Dictionary = spaces[cell]
@@ -156,7 +158,9 @@ func transmission(from: Vector2i, to: Vector2i, channel: int) -> int:
 	return SimLightPropagation.transmission(from, to, func(cell: Vector2i) -> int:
 		if cell == from:
 			return SCALE # A wall source exposes its own outer surface.
-		if world.map_data != null and world.map_data.get_terrain(cell) == WorldMapData.TERRAIN_ROCK:
+		if not _terrain.has(cell):
+			_terrain[cell] = world.map_data != null and world.map_data.get_terrain(cell) == WorldMapData.TERRAIN_ROCK
+		if _terrain[cell]:
 			return 2000 if channel >= 5 else 8000
 		return int(barriers.get(cell, {}).get(field, SCALE)), 16)
 

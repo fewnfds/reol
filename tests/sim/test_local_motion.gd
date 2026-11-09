@@ -2,6 +2,7 @@ extends RefCounted
 
 
 func run(runner: Object) -> void:
+	_route_crossings(runner)
 	var motion := SimLocalMotion.new(JSON.parse_string(FileAccess.get_file_as_string(SimLocalMotion.RULES_PATH)))
 	var actor: Dictionary = {"alive": true, "active": {}, "stamina": 20}
 	var start: Vector2 = TileGrid.cell_to_world(Vector2i(10, 10))
@@ -58,3 +59,26 @@ func run(runner: Object) -> void:
 		runner.assert_true(not restored.restore(bad, start, 337), "invalid trajectory is rejected: " + mutation)
 		runner.assert_eq(restored.to_dict(), before, "invalid trajectory does not mutate live motion")
 	print("SCENARIO short action: one body/cost, preparation→swept displacement→recovery, JSON resume, wall and control interruption")
+
+
+func _route_crossings(runner: Object) -> void:
+	# Primary geometric contract: floor-based ownership changes at the same
+	# first integer millisecond used by the original segment projection.
+	for direction: Vector2i in [Vector2i.LEFT, Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]:
+		for offset: Vector2 in [Vector2.ZERO, Vector2(3, -5)]:
+			var body: Dictionary = {"position": [], "cell": [], "facing": [0.0, 1.0]}
+			SimRouteTravel.put(body, TileGrid.cell_to_world(Vector2i(10, 10)) + offset)
+			var target: Vector2i = Vector2i(10, 10) + direction
+			var route: Dictionary = {"path": [[target.x, target.y]]}
+			SimRouteTravel.begin_segment(route, body, 100, 96.0)
+			var now: int = 100
+			while SimRouteTravel.cell(body.cell) != target:
+				var before: Vector2i = SimRouteTravel.cell(body.cell)
+				var crossing: int = SimRouteTravel.crossing_ms(route, body, now)
+				SimRouteTravel.project(route, body, crossing - 1)
+				runner.assert_eq(SimRouteTravel.cell(body.cell), before, "the millisecond before a native route crossing retains its original cell")
+				SimRouteTravel.project(route, body, crossing)
+				runner.assert_true(SimRouteTravel.cell(body.cell) != before and crossing > now, "native route crossing uses the first actual floor-owned cell on each axis")
+				if SimRouteTravel.cell(body.cell) == before or crossing <= now:
+					break
+				now = crossing

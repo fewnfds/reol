@@ -396,8 +396,10 @@ func set_actor_position(id: String, point: Vector2) -> void:
 
 func project_actor_route(id: String, route: Dictionary, at_ms: int) -> void:
 	var before: Vector2i = SimRouteTravel.cell(actors[id].cell)
+	var crossing: int = SimRouteTravel.crossing_ms(route, actors[id], int(route.segment_started_ms))
 	SimRouteTravel.project(route, actors[id], at_ms)
 	if before != SimRouteTravel.cell(actors[id].cell):
+		body_cell_crossed.emit(id, SimRouteTravel.cell(actors[id].cell), crossing)
 		body_space_changed.emit(id)
 
 

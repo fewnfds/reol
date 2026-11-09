@@ -38,8 +38,8 @@ var _candidate_cold_blocks := Rect2i()
 var _candidate_cold_x: int = 0
 var _candidate_cold_y: int = 0
 var _transport: Callable
-var _transport_pair := Vector4i(-1, -1, -1, -1)
-var _transport_factors := PackedInt32Array([-1, -1])
+var _transport_receiver := Vector2i(-1, -1)
+var _transport_sources: Dictionary[Vector2i, PackedInt32Array] = {}
 
 
 func set_transport(callback: Callable) -> void:
@@ -47,7 +47,8 @@ func set_transport(callback: Callable) -> void:
 
 
 func invalidate_geometry(area: Rect2i) -> void:
-	_transport_pair = Vector4i(-1, -1, -1, -1)
+	_transport_receiver = Vector2i(-1, -1)
+	_transport_sources.clear()
 	_abort_build()
 	_revision += 1
 	_mark_dirty(area.intersection(Rect2i(Vector2i.ZERO, _size)))
@@ -56,14 +57,20 @@ func invalidate_geometry(area: Rect2i) -> void:
 func _transport_grade(value: int, from: Vector2i, to: Vector2i, channel: int) -> int:
 	if value == 0 or not _transport.is_valid():
 		return value
-	var pair := Vector4i(from.x, from.y, to.x, to.y)
-	if pair != _transport_pair:
-		_transport_pair = pair
-		_transport_factors.fill(-1)
+	# The receiver scans several effect channels over the same nearby anchors.
+	# Reuse geometry across those channels and old/new candidates, not sources
+	# or field values. Scope is one receiver (at most the radius neighborhood).
+	if to != _transport_receiver:
+		_transport_receiver = to
+		_transport_sources.clear()
+	if not _transport_sources.has(from):
+		_transport_sources[from] = PackedInt32Array([-1, -1])
+	var factors: PackedInt32Array = _transport_sources[from]
 	var kind: int = 1 if channel >= 5 else 0
-	if _transport_factors[kind] < 0:
-		_transport_factors[kind] = clampi(int(_transport.call(from, to, channel)), 0, 10000)
-	return (value * _transport_factors[kind] + 5000) / 10000
+	if factors[kind] < 0:
+		factors[kind] = clampi(int(_transport.call(from, to, channel)), 0, 10000)
+		_transport_sources[from] = factors
+	return (value * factors[kind] + 5000) / 10000
 
 
 func export_compute_job(area: Rect2i, compact: bool = false) -> Dictionary:

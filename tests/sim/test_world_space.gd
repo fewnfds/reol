@@ -45,6 +45,7 @@ func _committed_movement_and_budget(runner: Object) -> void:
 	if world == null:
 		return
 	var sim: VillageSimulation = world.regions.home
+	runner.assert_true(world.environment_fields.activate_sources(), "the low-level movement fixture establishes the real environment before advancing source clocks")
 	runner.assert_true(world.space.prepare().ok, "movement regression starts with a prepared projection")
 	var observer := Observer.new()
 	world.space.changed.connect(observer.on_changed)
@@ -60,6 +61,9 @@ func _committed_movement_and_budget(runner: Object) -> void:
 	runner.assert_eq(observer.notices.back().reason, "projection_changed", "normal movement emits a local delta instead of full restored invalidation")
 	world.elapsed_ms += 1000
 	world.synchronize_regions()
+	# This controlled low-level probe advances clocks explicitly. Complete the
+	# original environment interval too before returning to the real scheduler.
+	runner.assert_true(world.environment_fields.settle_at_ms(world.elapsed_ms), "the controlled source-clock lead finishes the original environment interval")
 	world.avian_life.settle_at_ms(world.elapsed_ms)
 	world.large_bodies.settle_at_ms(world.elapsed_ms)
 	var result: Dictionary = world.query_space(Rect2i(destination, Vector2i.ONE), ["actor"], "ground", 4)
@@ -72,7 +76,7 @@ func _committed_movement_and_budget(runner: Object) -> void:
 	var reentrant := ReentrantObserver.new()
 	reentrant.owner = weakref(world)
 	world.space.changed.connect(reentrant.on_changed)
-	world.advance_to_ms(world.elapsed_ms + 500)
+	runner.assert_true(world.advance_to_ms(world.elapsed_ms + 500), "the shared world reaches both birds' real movement batch: " + str(world.errors) + " " + str(world.environment_fields.diagnostics()))
 	runner.assert_true(reentrant.results.size() >= 2, "both changed birds publish within the same original owner batch")
 	for queried: Dictionary in reentrant.results:
 		runner.assert_true(not queried.ok and queried.reason == "pending_projection", "reentrant batch observation cannot claim a complete result before every moved body link is current")
@@ -82,9 +86,9 @@ func _committed_movement_and_budget(runner: Object) -> void:
 	runner.assert_true(world.large_bodies.add_body("later_beast", "同批山兽", "river", Vector2i(170, 140), Vector2i(175, 140)), "second large body joins the original population")
 	world.large_bodies.bodies.test_beast.retry_ms = world.elapsed_ms + 1
 	world.large_bodies.bodies.later_beast.retry_ms = world.elapsed_ms + 1
-	world.advance_to_ms(world.elapsed_ms + 1)
+	runner.assert_true(world.advance_to_ms(world.elapsed_ms + 1), "both large bodies begin on the same accepted world boundary: " + str(world.errors))
 	reentrant.results.clear()
-	world.advance_to_ms(world.elapsed_ms + ((int(world.large_bodies.definitions.step_ms) * 3) >> 2))
+	runner.assert_true(world.advance_to_ms(world.elapsed_ms + ((int(world.large_bodies.definitions.step_ms) * 3) >> 2)), "the shared world reaches the large-body movement batch: " + str(world.errors))
 	runner.assert_true(reentrant.results.size() >= 2, "large-body batch also exercises reentrant observation")
 	for queried: Dictionary in reentrant.results:
 		runner.assert_true(not queried.ok and queried.reason == "pending_projection", "large-body partial batches explicitly reject reentrant queries")

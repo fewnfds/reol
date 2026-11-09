@@ -1,6 +1,6 @@
 class_name WorldEnvironmentFieldsState
 extends RefCounted
-## JSON snapshot for the ordinary outdoor field authority. Restoration is for
+## JSON snapshot for the ordinary composed field authority. Restoration is for
 ## an independent regional candidate only: on any failure the caller discards
 ## that candidate and never replaces the live world.
 

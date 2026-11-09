@@ -398,7 +398,11 @@ func _custody_history(runner: Object) -> void:
 	_restore(runner, world, "actual later placement follows and does not rewrite the earlier draw")
 	# Past sight is historical evidence. A wall added only after the completed
 	# transfer must not be used to retroactively cancel that earlier event.
-	(world.map_data as Field.FieldMap).cover[source_cell + Vector2i(1, 0)] = true
+	var added_wall: Vector2i = source_cell + Vector2i(1, 0)
+	var changed_cells: Array[Vector2i] = [added_wall]
+	runner.assert_true(world.environment_fields.before_topology_change(world.elapsed_ms, changed_cells), "later cover prepares the existing environment before terrain publication")
+	(world.map_data as Field.FieldMap).cover[added_wall] = true
+	world.map_data.terrain_changed.emit(changed_cells)
 	_restore(runner, world, "later cover does not rejudge a completed draw's historical sight")
 
 

@@ -16,7 +16,7 @@ static func detect(bounds: Rect2i, projects: Dictionary, types: Dictionary, elev
 	return detect_edges(bounds, edges, types, elevation)
 
 
-static func detect_edges(bounds: Rect2i, edges: Dictionary, types: Dictionary, elevation: Callable = Callable()) -> Dictionary:
+static func detect_edges(bounds: Rect2i, edges: Dictionary, types: Dictionary, elevation: Callable = Callable(), include_cells: bool = false) -> Dictionary:
 	var result: Dictionary = {}
 	for start: Vector2i in SimConstruction.cells_in(bounds):
 		if edges.has(start) or result.has(start):
@@ -48,7 +48,9 @@ static func detect_edges(bounds: Rect2i, edges: Dictionary, types: Dictionary, e
 		for value: bool in doors.values():
 			if value:
 				opened += 1
-		var space: Dictionary = {"enclosed": enclosed, "flat": flat, "area": queue.size(), "doors": doors.size(), "open_doors": opened, "roofed": false, "cells": queue}
+		var space: Dictionary = {"enclosed": enclosed, "flat": flat, "area": queue.size(), "doors": doors.size(), "open_doors": opened, "roofed": false}
+		if include_cells:
+			space["cells"] = queue
 		for cell: Vector2i in queue:
 			result[cell] = space
 	return result
