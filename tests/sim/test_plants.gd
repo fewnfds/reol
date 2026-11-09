@@ -6,12 +6,22 @@ const ConstructionFixture = preload("res://tests/sim/test_construction.gd")
 const RoomsFixture = preload("res://tests/sim/test_rooms_and_rest.gd")
 
 
-func world_for(runner: Object) -> RegionalSimulation:
+func world_for(runner: Object, short_year: bool = false) -> RegionalSimulation:
 	var original := ReolContentDB.new()
 	if not original.load_all():
 		runner.assert_true(false, "plant fixture reads current complete content")
 		return null
 	var documents: Dictionary = original.content_bundle().documents
+	if short_year:
+		# A legal one-day calendar starts at 23:59: its year boundary is at
+		# 60000ms, avoiding hundreds of simulated days in a lifecycle test.
+		var climate: Dictionary = documents["res://data/definitions/climate.json"]
+		climate.calendar.days_per_month = 1
+		climate.calendar.months_per_year = 1
+		climate.calendar.seasons = ["春"]
+		climate.calendar.start_minutes = 1439
+		for region: Dictionary in climate.regions.values():
+			region.seasonal_curve = [[0, 0], [1, 0]]
 	var rules: Dictionary = documents["res://data/definitions/plants.json"]
 	rules.sample_ms = 1000
 	rules.action_ms = 100
@@ -79,6 +89,7 @@ func run(runner: Object) -> void:
 	_support_and_transplant(runner)
 	_event_identity_and_restore(runner)
 	_action_settlement_death(runner)
+	_year_boundary(runner)
 	print("SCENARIO plants: real habitats/annual life, reservations/interruptions, stumps, supported original identity, global awakening and same saved future")
 
 
@@ -202,7 +213,13 @@ func _support_and_transplant(runner: Object) -> void:
 	var removal_world: RegionalSimulation = world_for(runner)
 	runner.assert_true(removal_world.restore(JSON.parse_string(JSON.stringify(world.to_dict(), "", true, true))), "a removed potted body and empty support restore as one candidate")
 	runner.assert_true(world.plants.jobs.begin("player", "potted", "transplant", {"cell": [109, 107], "support": id}).ok, "the same body can return to the planter")
+	world.advance_to_ms(world.elapsed_ms + 1)
+	var in_transplant: RegionalSimulation = world_for(runner)
+	runner.assert_true(in_transplant.restore(JSON.parse_string(JSON.stringify(world.to_dict(), "", true, true))), "an unfinished transplant restores the original support, target and actor process")
+	_bind_navigation(in_transplant)
 	_finish_plants(runner, world)
+	_finish_plants(runner, in_transplant)
+	runner.assert_eq(_canonical(in_transplant.to_dict()), _canonical(world.to_dict()), "an unfinished transplant reaches the same complete world without duplicating roots or support")
 	var hp: int = int(world.plants.bodies.potted.hp)
 	runner.assert_true(world.construction.damage(id, 100000).ok, "furniture damage follows its existing physical contract")
 	runner.assert_true(world.plants.bodies.potted.location.support.is_empty(), "a destroyed support detaches its original plant")
@@ -223,7 +240,12 @@ func _event_identity_and_restore(runner: Object) -> void:
 	world.advance_to_ms(950)
 	world.regions.home.set_actor_cell("player", Vector2i(108, 106))
 	runner.assert_true(world.plants.jobs.begin("player", "spirit_tree", "cut", {}, "awakening_cut").ok, "a cut can be underway before its target gains a mind")
+	var waiting: RegionalSimulation = world_for(runner)
+	runner.assert_true(waiting.restore(JSON.parse_string(JSON.stringify(world.to_dict(), "", true, true))), "a waiting awakening and the ongoing cut restore together without applying either effect")
+	_bind_navigation(waiting)
 	world.advance_to_ms(1000)
+	waiting.advance_to_ms(1000)
+	runner.assert_eq(_canonical(waiting.to_dict()), _canonical(world.to_dict()), "a restored waiting trigger awakens the same original tree and reconciles the same cut")
 	runner.assert_eq(world.world_events.receipt("test_awakening").status, "completed", "maturity wakes the exact pending trigger")
 	runner.assert_eq(world.plants.bodies.spirit_tree.subject, "subject:plant:spirit_tree", "awakening attaches one subject to the same body")
 	runner.assert_eq(world.plants.bodies.spirit_tree.contacts, {}, "awakening does not invent earlier observations or relationships")
@@ -269,6 +291,24 @@ func _action_settlement_death(runner: Object) -> void:
 	runner.assert_true(world.plants.jobs.begin("player", "struck", "cut", {}, "struck_cut").ok, "a cut begins before an external injury")
 	world.plants.damage("struck", 100000, "external_damage")
 	runner.assert_true(not world.plants.active.has("player"), "external target death immediately releases its invalid action")
+
+
+func _year_boundary(runner: Object) -> void:
+	var world: RegionalSimulation = world_for(runner, true)
+	if world == null:
+		return
+	runner.assert_true(world.advance_to_ms(59000), "a short legal calendar reaches the final second of its first year")
+	runner.assert_true(world.plants.spawn("new_annual", "annual_grass", "home", Vector2i(114, 110)) and world.plants.spawn("sleeping_perennial", "winter_herb", "home", Vector2i(115, 110)), "annual and dormant perennial bodies begin before the year boundary")
+	runner.assert_true(world.advance_to_ms(60000), "the original common clock crosses the year boundary")
+	runner.assert_eq(SimWorldCalendar.date_at(world._content.climate.calendar, world.elapsed_ms).year, 2, "this is a real calendar rollover, not a manually changed plant age")
+	runner.assert_true(world.plants.bodies.new_annual.hp > 0 and world.plants.bodies.new_annual.age_ms == 1000, "year rollover neither kills a young annual nor resets its age")
+	runner.assert_true(world.plants.bodies.sleeping_perennial.dormant and world.plants.bodies.sleeping_perennial.age_ms == 1000, "a dormant perennial ages through year rollover without restarting its body")
+	var restored: RegionalSimulation = world_for(runner, true)
+	runner.assert_true(restored.restore(JSON.parse_string(JSON.stringify(world.to_dict(), "", true, true))), "the year-crossing dormant checkpoint restores under its own archived calendar")
+	world.advance_to_ms(65000)
+	restored.advance_to_ms(65000)
+	runner.assert_eq(_canonical(restored.to_dict()), _canonical(world.to_dict()), "annual lifespan and perennial dormancy have the same future after year-crossing restore")
+	runner.assert_true(world.plants.bodies.new_annual.hp == 0 and world.plants.bodies.sleeping_perennial.hp > 0, "the annual dies at its own lifetime while the perennial keeps its original living body")
 
 
 func _canonical(value: Dictionary) -> String:

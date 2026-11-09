@@ -26,8 +26,9 @@ func _open(_from: Vector2i, _direction: Vector2i) -> bool:
 
 
 func _local_clock_and_speed(runner: Object) -> void:
-	var coarse := CountedMotion.new()
-	var sliced := CountedMotion.new()
+	var rules: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SimLocalMotion.RULES_PATH))
+	var coarse := CountedMotion.new(rules)
+	var sliced := CountedMotion.new(rules)
 	coarse.velocity = Vector2.RIGHT * float(coarse.rules.motion.speed)
 	sliced.velocity = coarse.velocity
 	var fraction: float = 0.45
@@ -46,7 +47,7 @@ func _local_clock_and_speed(runner: Object) -> void:
 	immediate.velocity = Vector2.RIGHT * float(immediate.rules.motion.speed)
 	immediate.limit_walking_speed(fraction)
 	runner.assert_true(immediate.velocity.length() <= immediate.velocity_limit(fraction) + 0.001, "the cast commit can cap old velocity before any positive interval or save")
-	var stopped := CountedMotion.new()
+	var stopped := CountedMotion.new(rules)
 	stopped.advance(0, 86400000, Vector2.ZERO, _open)
 	runner.assert_eq(stopped.move_calls, 0, "one idle day performs no per-millisecond body steps")
 	var wall := SimLocalMotion.new(JSON.parse_string(FileAccess.get_file_as_string(SimLocalMotion.RULES_PATH)))

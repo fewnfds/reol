@@ -1154,6 +1154,7 @@ func test_player_cannot_cut_blocked_corner() -> void:
 	fake.open_cells[Vector2i(1, 1)] = true
 	host.add_child(fake)
 	var player: PlayerCharacter = PlayerCharacter.new()
+	player.motion.rules = JSON.parse_string(FileAccess.get_file_as_string(SimLocalMotion.RULES_PATH))
 	host.add_child(player)
 	get_root().add_child(host)
 	player._ready()

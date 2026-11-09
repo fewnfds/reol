@@ -79,6 +79,9 @@ func _test_world_validation(runner: Object) -> void:
 	var fixture: Dictionary = _make_fixture()
 	var runtime: VillageRuntime = fixture.runtime
 	var simulation := VillageSimulation.new()
+	var content := ReolContentDB.new()
+	runner.call("assert_true", content.load_all(), "spatial validation fixture binds an explicit session content database")
+	simulation._content = content
 	simulation.actors = {
 		"player": {"definition_id": "player", "cell": [10, 10], "active": {}},
 		"a_he": {"definition_id": "a_he", "cell": [12, 12], "active": {}},

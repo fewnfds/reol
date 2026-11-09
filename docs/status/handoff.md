@@ -14,7 +14,7 @@
 
 本机完整check的旧野药测试访问退役生态，已更新当前交接反例；同时补回原私水按钮→共同植物作业的入口。原2/3片通过不作为最终版本完整结论。最终产品/测试`45f140b90aa1fb6d4adbf3d028efac12ae25aa9c`已推送；Godot最终定向6组523检查/0失败，外围打印器GBK错误不算进程成功，原日志完整。独立原生观察、保存和完全停开后同未来已退出0；1024株due预算/无界同未来样本通过，限制见[本包QA](../qa/20261109_world_events_plants.md)。
 
-**剩余：** 对应[CI42595092906](https://github.com/fewnfds/reol/actions/runs/42595092906)在本次文档提交准备点仍in_progress、headSha一致，最终完整覆盖待验；Goal保留active。下一次真实提交检查点使用`python tools/ci.py status --run 42595092906 --sha 45f140b90aa1fb6d4adbf3d028efac12ae25aa9c`核终态：失败集中读首错、修复对应owner，通过再收口Goal和证据。不为查CI制造提交，不按时间轮询，不声称远端完成可唤醒聊天。
+对应[CI42595092906](https://github.com/fewnfds/reol/actions/runs/42595092906)在实际测试提交检查点核completed/failure，10片success，7/10片fixture缺会话规则/内容。三处fixture已修，生产代码不变；补移栽在途、待觉醒/砍伐同时恢复及真实年界的反例。最终4组207检查/0失败、包装器退出0；新测试准备提交推送，完整覆盖待重验，Goal保留active。
 
 当前无活本机测试、原生或审查进程；后续文档差异不启动引擎/重复审查。没有新阶段开发或main合并授权。
 

@@ -28,7 +28,9 @@
 
 ## 完整CI归属
 
-最终45f140b的[CI42595092906](https://github.com/fewnfds/reol/actions/runs/42595092906)在真实文档提交准备点经`tools/ci.py status --run 42595092906 --sha 45f140b90aa1fb6d4adbf3d028efac12ae25aa9c`核到in_progress、完整headSha一致；尚无终态，不能称完整回归通过。推送后只做过一次未登记run发现，随后按真实提交检查点查询；没有时间轮询或等待器。后续仅Markdown不改变本包产品/测试，仍须核该run终态。此包Goal保留active，缺准确完整结果时不提前标完成。
+45f140b的[CI42595092906](https://github.com/fewnfds/reol/actions/runs/42595092906)在后续真实测试提交准备点核到completed/failure，完整headSha一致。10片success，7/10片failure，完整覆盖聚合skipped；不是超时。失败日志一次集中下载到`logs/world-events-plants-ci-42595092906/`，首错为未传会话规则的运动fixture及未绑定内容的空间校验fixture。三处fixture显式装配后，`test_mobile_guard_motion`、`test_player_cannot_cut_blocked_corner`、`test_village_runtime`及补充的`test_plants`共4组207检查/0失败、包装器退出0（`logs/test-20261109-175058.log`）。生产代码未增加隐式读盘fallback。修复后完整覆盖尚待准确结果；不把10片绿色冒称完整通过。
+
+完成审计同时补齐移栽途中、等待觉醒与砍伐同时在途的恢复，以及合法短历法跨年反例。植物suite为101检查；年界在60000ms，59000ms出生的年生草跨年仍活着且年龄1000ms，到65000ms才因自身寿命结束；休眠多年生年龄连续。定义是完整校验的会话包，不手改运行时钟或植物年龄。移栽与等待事件恢复后比较整个世界未来，原身体/支撑/主体均只保留一份。
 
 ## 原生静态主审与修复
 
