@@ -41,4 +41,6 @@ Godot 4.7.2 stable标准版，doctor/import已核。日志均在本机`logs/`，
 - 公物经箱体可变为私物；当前不伪造完整产权模型，公物只交登记公共地点或随身保管，禁止转入普通箱体，私人材料仍可存取。
 - 在途候选可篡改stand远程交付；恢复绑定原端点/操作位，并在到场取放前复核接触，失败不改活世界。
 
-修复后`unit-actions-review-green.log` **5组223检查，退出0**，覆盖三项反例及原服务/走位接缝。最终原生和独立进程日志均退出0、failures为空，整个checkpoint及3287ms未来hash保持上述值。ScrollContainer布局在1280×720保留时间与停止按钮；截图已查看。最终修复SHA及对应完整CI另登记，局部通过不代表完整通过。main尚未合入，旧档原文件保留，不承诺根55迁入；新建世界可体验当前入口。
+修复后`unit-actions-review-green.log` **5组223检查，退出0**，覆盖三项反例及原服务/走位接缝。最终原生和独立进程日志均退出0、failures为空，整个checkpoint及3287ms未来hash保持上述值。ScrollContainer布局在1280×720保留时间与停止按钮；截图已查看。
+
+最终生产/测试SHA `0a0b59a15088f53f762bec13bc20b9145923402b`已推送`codex/unit-actions-integration`，其后只有本包Markdown证据。[CI42674488111](https://github.com/fewnfds/reol/actions/runs/42674488111)在本次证据提交检查点一次查找，headSha精确一致、状态queued；尚无完整通过结论。下个真实提交点再核已登记run，不重复本机全套或按时间轮询。main尚未合入，旧档原文件保留，不承诺根55迁入；新建世界可体验当前入口。
