@@ -1,21 +1,12 @@
 ---
 name: open-world-2d
-description: 设计或修改 Reol 2D 地图、区块流式、世界生成、地点和远区连续性。
+description: 修改Reol地图、区块加载、世界生成或远区接续时使用。
 ---
 
-# Reol 2D 世界
+# 地图与区块变更
 
-任务涉及地图、区块、地点、生成或远区时，先查 `docs/engineering/architecture.md`、`docs/status/features.md` 与相关设计；世界方向见 `design/systems/self_consistent_world.md` 和 `design/systems/world_continuity.md`。现有规模和区块参数以项目实际数据为准，不重启旧地图阶段。
+基础范围查[constraints](../../../docs/engineering/constraints.md)，空间规则查[objects-and-interaction](../../../design/rules/objects-and-interaction.md)，实际入口由[工程地图](../../../docs/engineering/README.md)定位。世界设计候选在[world_simulation_target](../../../design/systems/world_simulation_target.md)。
 
-## 工作原则
+先区分要改的是原地形/对象、可重建空间索引还是视图加载。根据当前瓶颈选择生成、导航、绘制或局部失效的数据粒度，避免一次跨格迫使无关对象重算。近远区交接与保存只检查本次影响的状态/过程。
 
-- 区分世界真实状态、加载的表现层和人物所知。离开可见区或卸载场景不等于冻结/重置生活；近区细算与远区跳步须维护必要事件和共同时间。
-- 保留原身体、唯一物品、资源、地点与事务的所有者。世界生成的 seed 可重建基底，但持久化必须保存无法重建的实际变化和在途状态，不能只保存玩家改动。
-- 程序生成明确种子、数据版本及跨区边界；河流、路、地点和导航按相关设计协调，不让加载顺序改变既有世界。本阶段的新世界先用平面地块，高度/多层后置；既有高度样本和旧档作为证据保留、不追改，运行时支持范围遵循[兼容政策](../../../docs/engineering/compatibility.md)。浮点和平台差异应按实际实现验证，不假设所有结果逐位一致。
-- TileMap、节点与导航方案以现有资产和实际瓶颈决定；不要为未知远区规模提前建立额外框架。表现和碰撞可按需加载，但不能让卸载丢失世界因果。
-
-## 验证
-
-按改动测试边界区块、重载及明确支持范围内的迁移、生成顺序、对象和地点归属、路径不可达及在途恢复；不支持的版本须清楚拒绝且不改原档。若涉及可见地图，运行并查看实际画面。性能改动先量测目标场景。需要 TileMap 或生成算法时再用 `godot-tilemap` / `procedural-gen`；共同时间用 `godot-sim-architecture`。
-
-处理区块卸载、确定性生成或远区接续时，读[区块与世界接续要点](references/world_streaming.md)。
+处理生成顺序或区块接续时再读[world_streaming](references/world_streaming.md)。TileMap与碰撞API按实际引擎版本查询，不预设一个Node对应一个可保存实体。

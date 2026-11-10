@@ -1,5 +1,7 @@
 # 类RimWorld模拟游戏：基础架构对照
 
+> 研究资料：记录来源与适用限制，不授予引入依赖或改变规则的权限。
+
 研究更新：2026-11-09。本轮实读Factorio开发者日志、Cataclysm:DDA官方开发文档及Tarn Adams的模拟原则；2026-11-07的Mod教程、视频页面和代码核查保留为原证据。下方历史代码表基于`b3ae3399d24e01975d231cd000c0af342740070b`，不代表当前缺口。本文记录来源与推论，不代表商业游戏内部源码审计、教学项目的生产成熟度或Reol实现验收。领域职责见[顶层框架](../../docs/engineering/architecture/05-framework-domains.md)，建设依赖和出口只在[基础建设计划](../../docs/plans/foundation-priorities.md)维护。
 
 ## 可核实的参考
@@ -30,7 +32,7 @@ Project Porcupine社区代码默认GPLv3，非代码资产默认CC BY-NC-SA；�
 
 这些来源支持“共同运行合同＋领域规则＋可组合内容”的方向，未提供要求Reol改用完整ECS、统一万能对象或一条全局事件队列的依据。CDDA的[地图开发FAQ](https://docs.cataclysmdda.org/DEVELOPER_FAQ.html)还区分持久子地图与玩家周围的活动地图；可借鉴存储和活动集合分离，不能用其活动区机制替代Reol已经要求的远区连续因果。
 
-这些经验用于核对共同结算、真实植物对象及环境组合的交付出口：可见普通入口、可解释失败和可接续过程应随框架成立。当前代码缺口归[技术总表](../../docs/status/technical-status.md)，具体先后只维护在[主计划](../../docs/plans/foundation-priorities.md)，本研究不另立任务队列。
+这些经验用于核对共同结算、真实植物对象及环境组合的交付出口：可见普通入口、可解释失败和可接续过程应随框架成立。当前代码缺口归[功能范围](../../docs/status/features.md)，具体先后只维护在[主计划](../../docs/plans/foundation-priorities.md)，本研究不另立任务队列。
 
 ## 从参考中得到的架构判断
 
@@ -44,7 +46,7 @@ Project Porcupine社区代码默认GPLv3，非代码资产默认CC BY-NC-SA；�
 
 ## 历史代码核查：2026-11-07
 
-下表只描述`b3ae3399`当时的边界，保留改造依据。后续建筑与结算工作已改变部分结论，尤其“四种wood、单工地”和“尚无共同过程合同”不能再次登记为当前缺口。当前范围及待验能力只查[技术总表](../../docs/status/technical-status.md)与[HANDOFF](../../docs/status/handoff.md)。
+下表只描述`b3ae3399`当时的边界，保留改造依据。后续建筑与结算工作已改变部分结论，尤其“四种wood、单工地”和“尚无共同过程合同”不能再次登记为当前缺口。当前范围及待验能力只查[功能范围](../../docs/status/features.md)与[HANDOFF](../../docs/status/handoff.md)。
 
 | 位置 | 实际核对 | 架构含义 |
 |---|---|---|

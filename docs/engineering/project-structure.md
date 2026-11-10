@@ -1,5 +1,7 @@
 # 文件与数据放置
 
+> 实现参考：描述代码接口及消费者假设，可随重构更新；稳定边界见constraints，范围按当前用户任务。
+
 本页描述当前目录职责，不冻结文件名、class或内部拆分。重构可以替换实现，状态唯一性、依赖方向、内容/实例与表现分离继续成立。
 
 | 位置 | 内容 |
@@ -14,7 +16,7 @@
 | design/rules | 已确认世界法则 |
 | design/systems、proposals、research | 独立领域候选和有日期/证据边界的来源 |
 | docs/plans、specs | 唯一主计划及独立的详细技术合同 |
-| docs/status、qa | 当前状态与不可混用版本的验证证据 |
+| docs/status、archive/qa | 当前事实入口、原日期/版本的历史验证证据 |
 | tools、.agents/skills | 工具与项目技能，按需路由 |
 | assets、scenes、addons | 场景/素材/第三方组件及许可；第三方不手改 |
 

@@ -1,5 +1,7 @@
 # 共同时间的运行流速与过载政策
 
+> 实现参考：描述代码接口及消费者假设，可随重构更新；稳定边界见constraints，范围按当前用户任务。
+
 本合同属于共同运行框架，入口为[GameClock](../../scripts/autoload/game_clock.gd)、[ReolSimulationPacing](../../scripts/runtime/simulation_pacing.gd)及[结算内核](settlement-contract.md)。世界政策见[世界与时间](../../design/rules/world.md)，建设出口只见[主计划](../plans/foundation-priorities.md)，版本与验证归BASELINE/HANDOFF。
 
 ## 时间与所有权

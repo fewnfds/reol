@@ -1,10 +1,12 @@
 # 稀疏执行索引：接入指南
 
+> 实现参考：描述代码接口及消费者假设，可随重构更新；稳定边界见constraints，范围按当前用户任务。
+
 本页为现存Demo的实现参考；重构目标由[执行规格](../specs/world-engine/execution.md)定义。逻辑职责/有效规则不绑定下列class、数据结构或调用链。
 
 代码入口：[SimParticipationIndex](../../scripts/sim/execution/participation_index.gd)。它是由原领域持有的可重建索引，记录哪些对象参与该领域、哪些工作已到期或因依赖变化待处理。对象的身体、位置、器物、知识、过程及共同时间仍归原所有者；索引不负责执行规则、不调用业务回调，也不另造时钟、实体表或事件总线。
 
-**接入状态：** 普通环境和健康领域已接入并有[对应验证](../qa/20261107_sparse_execution.md)；其他旧域不自动迁入。索引由原owner选择工作，[共同结算内核](settlement-contract.md)安排跨域阶段，两者不复制彼此状态。集成与范围只查[技术总表](../status/technical-status.md)。
+**接入状态：** 普通环境和健康领域已接入并有[对应验证](../archive/qa/20261107_sparse_execution.md)；其他旧域不自动迁入。索引由原owner选择工作，[共同结算内核](settlement-contract.md)安排跨域阶段，两者不复制彼此状态。集成与范围只查[功能范围](../status/features.md)。
 
 ## 原生行动的截止点复用
 

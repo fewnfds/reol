@@ -1,5 +1,7 @@
 # 植物与栽培承载合同
 
+> 实现参考：描述代码接口及消费者假设，可随重构更新；稳定边界见constraints，范围按当前用户任务。
+
 `SimPlants` 持植物唯一身体，`SimPlantRules` 持纯定义/区间规则，植物行动与候选校验分别在 `plants/plant_actions.gd`、`plants/plant_snapshot.gd`。实现归植被与自然生命框架；共同事件、空间和存读服务全局，见[领域](architecture/05-framework-domains.md)、[事件](event-contract.md)和[存读](architecture/04-persistence.md)。
 
 ## 原状态与数据

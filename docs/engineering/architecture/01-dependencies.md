@@ -1,5 +1,7 @@
 # 当前代码架构与边界：依赖方向
 
+> 实现参考：描述代码接口及消费者假设，可随重构更新；稳定边界见constraints，范围按当前用户任务。
+
 本页为现存Demo的实现参考；重构目标由[执行规格](../../specs/world-engine/execution.md)定义。逻辑职责/有效规则不绑定下列class、数据结构或调用链。
 
 ## 依赖方向
@@ -16,7 +18,7 @@ main / 场景装配
 
 纯模拟不依赖HUD或祖先 `Node` 路径。运行适配负责绑定/命令与投影，不另存身体、库存或社会余额。当前业务autoload为`GameClock`，第三方另有MCP helper；通用存读由`SimSaveSession`及纯数据参与者管线组成，未新增业务autoload或全量ECS。
 
-现有部分领域持有[参与索引](../sparse-execution.md)，登记成员、活动和到期/变脏工作；原领域负责规则及提交。该接口用于定位旧实现，新结构可以更换数据与工作选择机制；接入程度见[技术起点](../../status/technical-status.md)。
+现有部分领域持有[参与索引](../sparse-execution.md)，登记成员、活动和到期/变脏工作；原领域负责规则及提交。该接口用于定位旧实现，新结构可以更换数据与工作选择机制；接入程度见[功能范围](../../status/features.md)。
 
 普通`RegionalSimulation.environment_fields`指向`SimWorldEnvironmentFields`，由它作为室外实际温度及五行响应的唯一环境域。存档 `local_heat` 数据键经 snapshot codec 映射到该字段，内容定义的 `ReolContentDB.local_heat` 则是独立热设备参数。来源来自原实物，缓存只保存可重建投影；[普通世界环境合同](../world-environment-contract.md)说明边界。当前验收与接入范围见[BASELINE](../../status/baseline.md)，当前任务见[HANDOFF](../../status/handoff.md)。
 

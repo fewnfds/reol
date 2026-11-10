@@ -123,4 +123,4 @@ assets/third_party/kenney_topdown/
 
 ## 当前八向样本与外部制作
 
-原创代码生成的人形技术素材在[humanoid_sample](characters/humanoid_sample/README.md)，生成器与运行器合同已验但不是正式角色美术。用户外部模型使用[固定提示词包](../docs/art/character_generation/README.md)，原图先进入[候选接收区](../art_inbox/character_generation/README.md)，核方向/左右/alpha/脚点/来源及实机后才迁入发行素材。不覆盖已验技术样本、不从提示词推断已获得图像或商用授权。
+原创代码生成的人形技术素材在[humanoid_sample](characters/humanoid_sample/README.md)，生成器与运行器合同已验但不是正式角色美术。用户外部模型使用[固定提示词包](../docs/archive/art/character_generation/README.md)，原图先进入[候选接收区](../art_inbox/character_generation/README.md)，核方向/左右/alpha/脚点/来源及实机后才迁入发行素材。不覆盖已验技术样本、不从提示词推断已获得图像或商用授权。

@@ -1,22 +1,20 @@
-# 工程索引
+# 工程接口地图
 
-本目录保留稳定工程约束及现存Demo接口参考。[领域职责](architecture/05-framework-domains.md)是逻辑边界；其余带具体class/API的合同说明当前实现，不要求重构保留相同类、存储或调度。目标结构见[执行规格](../specs/world-engine/execution.md)，实施范围见[主计划](../plans/foundation-priorities.md)。
+类型：按需实现参考。稳定边界只在[constraints](constraints.md)，逻辑分工只在[七个领域](architecture/05-framework-domains.md)。下面的class/API定位当前代码，可随重构修改；实际结果看[BASELINE](../status/baseline.md)。
 
-## 共同约束
+| 处理的问题 | 先查哪里 |
+|---|---|
+| 运行装配、分层与状态owner | [architecture](architecture.md)、[owner表](architecture/02-owners.md) |
+| 调度、共同时间、同刻结算 | [settlement](settlement-contract.md)、[pacing](simulation-pacing.md) |
+| CPU批输入、生命周期、结果采用 | [execution-batches](execution-batches.md) |
+| 离散到期/触发事件、失效 | [event](event-contract.md) |
+| 活动、到期、变脏集合与局部查询 | [sparse-execution](sparse-execution.md) |
+| 空间查询、容器位置与生命周期 | [object-query](object-query-contract.md)、[object-lifecycle](object-lifecycle-contract.md) |
+| 墙、门、家具、房间与施工 | [construction](construction-contract.md) |
+| 植物、产物、环境输入 | [plants](plants-contract.md)、[world-environment](world-environment-contract.md) |
+| 保存管线、候选恢复、支持范围 | [persistence](architecture/04-persistence.md)、[compatibility](compatibility.md) |
+| 连续位置、动作、已提交画面 | [time-space-presentation](architecture/03-time-space-presentation.md) |
+| 文件放置、定义和代码标识 | [project-structure](project-structure.md)、[terminology](terminology.md) |
+| 测量/短验证、运行/编辑器连接 | [workflow](workflow/testing.md)、[usage](tooling/usage.md)、[setup](tooling/setup.md) |
 
-- [架构与目标硬件](architecture.md)、[文件放置](project-structure.md)、[术语映射](terminology.md)。
-- [依赖方向](architecture/01-dependencies.md)、[现有owner定位](architecture/02-owners.md)、[时间/空间/呈现](architecture/03-time-space-presentation.md)、[存读](architecture/04-persistence.md)。
-- [兼容政策](compatibility.md)：一个当前模型、明确支持范围、候选失败不改活世界。
-
-## 现有实现参考
-
-- [结算](settlement-contract.md)、[批计算与采用](execution-batches.md)、[事件](event-contract.md)、[运行流速](simulation-pacing.md)、[参与索引](sparse-execution.md)。
-- [对象查询](object-query-contract.md)、[原物生命周期与行动](object-lifecycle-contract.md)、[建筑](construction-contract.md)、[植物](plants-contract.md)、[普通环境](world-environment-contract.md)。
-
-旧隔离场/cache/GPU接口的细节随对应[QA证据](../qa/README.md)按Git版本追溯，不作为新环境的强制实现。复用、改写或删除由真实需求及验证决定。
-
-## 工作流和工具
-
-- [性能开发与短验证](workflow/testing.md)：已退役旧CI/全量回归和每包自动审查，围绕实测热点推进。
-- [工具使用](tooling/usage.md)、[配置](tooling/setup.md)、[维护](tooling/maintenance.md)、[选型方法](tooling/evaluation.md)。
-- [Godot与Unity对应](godot-for-unity.md)：学习资料，不是本项目所有系统的实现方案。
+这里不登记另一份任务和性能总表。GPU独立后端及旧样本的证据需要时从[archive](../archive/README.md)查询；目标结构属于[候选规格](../specs/world-engine/execution.md)。

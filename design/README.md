@@ -22,4 +22,4 @@
 - 空间/自然：[空间模型](research/spatial_models.md)、[体型净空](research/unit_footprint_and_clearance.md)、[自然与场所](research/natural_world_workplace_sources.md)、[环境来源](research/environment_sources.md)、[世界生成](research/world_engine_references.md)。
 - 玩法/资源：[社会研究](research/social_interaction_game_references.md)、[战斗](research/combat_and_character_references.md)、[资源候选](research/godot_resource_candidates.md)、[八方向](research/eight_direction_sources.md)。
 
-研究保留来源日期与证据限制；作品机制不证明其内部实现，公开代码/插件不等于已采用依赖。其余来源通过[分类目录](../docs/CATALOG.md)按需找，不把它们当当前架构或实施队列。
+研究保留来源日期与证据限制；作品机制不证明其内部实现，公开代码/插件不等于已采用依赖。其余来源通过[记忆地图](../docs/README.md)按需找，不把它们当当前架构或实施队列。

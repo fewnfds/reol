@@ -1,5 +1,7 @@
 # 修仙、战略与人生模拟：玩法重心和远区参照
 
+> 研究资料：记录来源与适用限制，不授予引入依赖或改变规则的权限。
+
 研究日期：2026-11-03；对应[超凡者优先方案](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/transcendent_focus.md)。实际打开一手页面，区分开发者功能说明、特定版本实现记录和对Reol的推论。未试玩这些作品来核验全部宣称，不据用户标签/评论推断内部架构。
 
 | 来源 | 核实到的侧重点 | 对Reol的取舍 |

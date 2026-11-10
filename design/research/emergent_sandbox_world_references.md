@@ -1,5 +1,7 @@
 # 系统沙盒参考：世界感来自哪些可复用机制
 
+> 研究资料：记录来源与适用限制，不授予引入依赖或改变规则的权限。
+
 调研日期：2026-11-02。范围：开发者/发行方官网与开发日志；不依据宣传文案推断未公开的内部实现。下列“借鉴”是Reol设计选择，“官网描述”才是来源支持的作品事实。研究不是素材授权，也不是新增依赖清单。
 
 对应方案：[世界总纲](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/design/systems/self_consistent_world.md)、[众生](../systems/beings_and_lifeways.md)、[知识/法器/创造](../systems/knowledge_artifacts_and_invention.md)。此前社会研究与长期研究仍保留，不用本页替代已经确认的代码证据。

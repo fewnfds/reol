@@ -4,7 +4,7 @@
 
 > **历史参考索引：** 以下版本、星数、兼容声明和项目状态为2026-11-01时点，不是当前已安装清单；链接、许可和具体版本使用前重新核实。项目工具现状见[套件实装](../../docs/engineering/tooling/setup.md)。
 > 每条都标注“借什么”，避免无脑收藏。
-> 2026-11-02补充：本页保留既有学习索引，星数、费用、版本等不是最新选型证据。新一轮核查见[游戏/素材研究](full_game_reference_map.md)、[Godot官方库/商店与候选](godot_resource_candidates.md)、[本机工具审计](../../docs/engineering/tooling/resources.md)；引入前按具体版本/许可与Godot4.7.2实际验证，不从旧表直接安装。
+> 2026-11-02补充：本页保留既有学习索引，星数、费用、版本等不是最新选型证据。新一轮核查见[游戏/素材研究](full_game_reference_map.md)、[Godot官方库/商店与候选](godot_resource_candidates.md)、[本机工具审计](../../docs/engineering/tooling/setup.md)；引入前按具体版本/许可与Godot4.7.2实际验证，不从旧表直接安装。
 
 ---
 

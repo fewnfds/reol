@@ -1,47 +1,34 @@
-# Reol AI开发套件：实际配置与验收
+# 工具配置与维护
 
-本页记录项目工具配置与使用边界；实际会话仍需核对，工作授权和停点见[HANDOFF](../../status/handoff.md)。选型方法见[竞品研究](evaluation.md)，组件来源与更新见[维护文档](maintenance.md)。
+类型：工具记忆，故障/升级时查询。运行命令在[usage](usage.md)，agent载入机制在[DOCUMENTATION](../../DOCUMENTATION.md)；本页不规定每包检查工具或调整模型。
 
-## 当前采用的组合
+## 当前分工
 
-| 层次 | 实际采用 | 归属和职责 |
-|---|---|---|
-| 编码与协调 | 原Codex，全局模型/权限保持 | 文件、检索、Git、命令、子代理；项目级Godot AI审批单独配置，未另装聊天插件或更换客户端 |
-| 引擎 | 当前Godot4.7.2，未来跟进最新稳定版 | 本机版本明确，旧CI已退役；不自动下载dev/RC，也不因工具升级改变引擎 |
-| 实时编辑器 | **Godot AI插件/后端4.4.1** | 插件在项目`addons/godot_ai/`，认证attach基础条目由官方配置器写用户级Codex配置；MIT，源commit `643c64f3edf984a9668b3043f4d20ebb2bbec6b6` |
-| Python工具启动器 | **uv/uvx0.13.7** | 官方Windows发行包；版本目录在本机工具目录，Godot优先查找的用户`.local/bin`也同步为同版；旧程序已备份，未改Langflow自己的目录/安装收据 |
-| 文档 | Context7启用，官方文档为核验依据 | 项目级远程连接；按目标版本核对官方说明 |
-| 备用MCP | Coding-Solo0.1.1默认禁用 | 保留包装器/来源；需要时`python tools/setup_codex.py --enable-backup-godot`，不用时关闭 |
-| 无关文档MCP | LangChain仅Reol停用 | 用户级连接保留，项目只继承后设置`enabled=false`，其他项目不变 |
-| 本地代码审查 | 项目审查模型Sol；公司`custom`路由 | 仅按明确需要手动使用，取消每包自动review；GitHub云端审查未开启，见[当前开发方法](../workflow/testing.md) |
-| 技能 | 项目技能按需读取 | 具体清单以 `.agents/skills/` 为准，保留第三方来源和许可；不叠加用途重复的框架 |
-| 验证 | 三个最小smoke、普通Demo性能测量及按需实际运行 | 不引入GUT/GdUnit4或全仓自动格式化，不改变游戏规则来迁就工具；旧CI/全回归/自动审查均已退役，见[开发方法](../workflow/testing.md) |
+| 组件 | 用途与边界 |
+|---|---|
+| Codex + 文件/CLI | 改代码、查Git、运行命令；现有路由/权限由宿主与本机配置管理 |
+| Godot AI | 单个已核对项目的实时场景、运行、日志、输入与截图；用官方dock Configure生成认证attach，不猜端口或裸HTTP |
+| Context7 | 查询目标版本文档；可用性依实际会话，没有该工具时使用官方文档 |
+| Coding-Solo | 默认关闭的备用连接，不与主连接叠写同一编辑器 |
+| 项目skills | 通用技能提供方法，自有技能提供窄范围定位；不复制基础规则或当前计划 |
+| 原生review | 可按具体需要手动使用，已有项目模型配置不意味着每包自动执行 |
 
-未加入NPGameDev、Swallowtail、FirLab、Serena或商业插件；出现明确能力缺口时可按选型方法作隔离对照。
+Godot、插件、技能/工具各有采用版本；实际引擎只登记在BASELINE，第三方pin/许可按[NOTICES](../../../THIRD_PARTY_NOTICES.md)维护。不因文档旧版本示例自动升级或安装依赖。
 
-## 配置分层与实际过滤
+## 配置在哪里
 
-用户级`~/.codex/config.toml`保存Godot AI官方配对命令与认证attach方式、宿主Node REPL等。只更新Godot AI所需启动器与版本，其余模型、权限和MCP设置经语义比较保持；未把本机配置提交Git。
+项目`.codex/config.toml`是忽略的本机覆盖，可配置Context7、备用godot及工具过滤。用户级配置保存官方Godot AI认证条目和其他项目的连接；不要将原文件/备份上传仓库。`tools/setup_codex.py`只管理其声明支持的条目，保留已有自定义；`--check`是配置核对，不证明握手。
 
-项目`.codex/config.toml`承担以下覆盖：
+Godot AI的用户级域过滤可能同时影响其他项目。恢复`csg/gridmap/testing`等域时从官方dock调整并重新Configure，核对本项目客户端过滤和新会话；不为修Reol擅自改变其他项目配置。旧attach失效或返回`NEW_CLIENT_SESSION_REQUIRED`时按实际提示重连，不重复使用坏handle。
 
-- Context7启用，Coding-Solo `godot`禁用。
-- `langchain-docs`仅继承禁用，不重复写传输类型。此覆盖要求用户级已有合法同名连接；无继承时不要复制仅`enabled`条目，否则Codex会报invalid transport。
-- Godot AI的`disabled_tools`保留四项客户端过滤：`csg_manage`、`gridmap_manage`、`test_run`、`test_manage`。客户端可能缓存旧目录，需核对当前实际连接。
-- 本地Godot AI服务器在本项目采用`default_tools_approval_mode="approve"`，对应项目编辑器操作的授权范围；不改变全局审批或系统沙盒。Codex的`auto`按工具注解判断，**不等于总是允许**。
+## skills怎样维护
 
-生成器`tools/setup_codex.py`仅管理可移植的Context7和备用godot默认值，尊重已有自定义连接/开关，不擅自覆盖继承传输或写Godot AI端口。`--check`只验项目条目，不证明握手；再用`codex mcp list`、`codex mcp get godot-ai --json`及真实调用核对。后两命令可能包含本机路径，分享时脱敏。
+项目自有入口为`reol-project`、`godot-verify`、`godot-sim-architecture`、`open-world-2d`、`colony-sim-systems`和`spec-driven-game-dev`；其余是有来源记录的通用方法。两类都按任务选择，不要求逐个读取。自有技能的正文只留方法/链接，长期事实改原领域文档，发现目录本身也有上下文成本。
 
-另外可以通过显式参数`--review-model gpt-6.1-sol`设置项目根级审查模型；不传参数时不会改已有审查模型。与`--check`结合只做核对，这个已有配置不要求每包审查，见[开发方法](../workflow/testing.md)。它不修改主模型、全局provider或权限。
+若新增方法确实跨任务复用，先改已有技能；只有触发与产物独立时才新建。第三方样例中的职业、属性面板、CI或验证配方不是Reol的全局规则。宿主/system/plugin缓存由官方入口维护，不手改。
 
-通过Godot公共`EditorSettings` API设置`godot_ai/excluded_domains="csg,gridmap,testing"`，再由官方配置器重新配置Codex。**这项是Godot用户级编辑器设置，会影响使用该编辑器设置的其他项目，不只Reol**；插件源码未改。它们移除3D CSG、GridMap及插件自带测试工具，当前只保留短smoke和按需性能测量，旧CLI全回归/CI已退役。
+## 更新或恢复时
 
-需要恢复这些域时，在Godot AI dock的工具域配置中重新勾选并Apply，再Configure Codex并重启客户端；若另一个项目需要3D工具，应先恢复对应域。Reol还须从项目`disabled_tools`移除要恢复的工具；其他项目按各自客户端过滤核对实际目录。旧attach若仍要求空排除列表，会明确返回`NEW_CLIENT_SESSION_REQUIRED`，不能在该旧会话内修复，也不要不断重试旧句柄。
+先定位实际故障和所属组件，再核对上游稳定release、兼容与许可，保存可恢复配置。Godot AI使用官方插件整树与配置流程，技能更新保留来源与自有修改；不把引擎、MCP、模型和权限打包一起换。只有真实调用/输出能证明相应能力，文件存在或`enabled`不能证明握手。
 
-用户级`godot_ai/auto_reconfigure_clients=false`关闭普通启停时的客户端自动修复。日常需要更新连接时主动使用Configure Codex；**上游升级后的自动迁移是独立路径，不保证受此开关控制，未来升级仍须备份并复核其他客户端**。
-
-## 启动故障和回退
-
-启动失败先核对实际进程、最早的错误、工具与插件/后端版本及当前会话；旧客户端缓存或旧 attach 报错不等于当前后端已停止。连接需要刷新时按官方 Configure 和客户端提示重载，勿反复使用失效句柄。
-
-回退前核对版本、进程和目标路径，按官方流程成对恢复插件、后端及原连接；保留本机备份，不能用裸 HTTP 绕过认证。完整的升级经过、历史验证和限制见[历史记录](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/engineering-context-20261105/tooling-setup.md)。
+旧更新清单、Node/CI迁移和竞品评估已进[tooling归档](../../archive/README.md)，不继续执行旧步骤。

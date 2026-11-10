@@ -1,18 +1,14 @@
 ---
 name: spec-driven-game-dev
-description: 为需求不清、跨系统的新功能或较大改动制定可执行的设计与验收。
+description: Reol跨系统需求或架构取舍尚不清楚时，收敛范围和可观察结果。
 ---
 
-# 规格驱动的游戏开发
+# 收敛设计
 
-当需求、领域职责、状态所有权或验收尚不清楚时，先明确用户要交付的框架能力与支持范围。按[领域归属](../../../docs/engineering/architecture/05-framework-domains.md)定位模块，按[基础建设计划](../../../docs/plans/foundation-priorities.md)理解依赖；明确的小修复可直接实施。用户已确定的方向不重问，常规技术选择按项目上下文处理；只有真正阻塞的问题才需要澄清。
+明确的小改动直接实施。只有范围/接口不清时才使用这个方法，不为文档模板制造额外任务。
 
-## 工作方式
+从[领域职责](../../../docs/engineering/architecture/05-framework-domains.md)定位原owner，区分当前事实、用户目标和候选做法。优先修改[现有主计划](../../../docs/plans/foundation-priorities.md)或对应接口页；范围、取舍、预期结果和证据写到一个合适位置即可。
 
-1. 结合 `docs/status/features.md`、`docs/engineering/architecture.md` 和相关设计，区分玩家意图、已实现功能与未来方案。写明目标、限制、边界和可观察验收。
-2. 按“顶层框架交付目标→模块职责与接口→内部实现与验证”组织工作，写清逻辑所有权和公共能力，记录时间/取消、资源、存读、依赖及规模增长。已有实现可按授权重写，不能让旧class/测试或沉没工作替代架构判断；内部算法不升级为另一主计划。
-3. 在已授权框架范围内安排可验证的小步并持续推进；内部小步完成不自动触发停止或重新询问。只有完成约定出口、用户改变范围、真正阻塞或需概念决定时才交回相应问题；计划页不授予额外范围。
-4. 完成已授权实现，先跑受影响的定向验证，再在合适的验收点按 `godot-verify` 和 `AGENTS.md` 执行必要完整检查；不要每改一个文件就重复全套。
-5. 对照框架出口检查复用、跨域接入、普通运行及证据，区分算法完成、模块可用与框架交付；设计变化更新领域候选，进度只更新status、详细结果放QA，不为了通过测试放宽原合同。
+内部小步不成为另一份主计划，也不扩大授权。需要选择真正影响产品方向的未知条件时才澄清，普通技术选择由现有上下文解决。验证按[开发循环](../../../docs/engineering/workflow/testing.md)，不追加完整矩阵。
 
-需要文档时按任务选用模板：[设计笔记](references/design-note.md)、[技术方案](references/tech-plan.md)、[任务](references/task.md)、[ADR](references/adr.md)。模板不是强制流程；简单、可逆的工作不必创建整套文档。
+可选写作提示：[设计](references/design-note.md)、[技术取舍](references/tech-plan.md)、[任务](references/task.md)、[独有决策](references/adr.md)。这些是提问提示，不是必须填写或各建一个文件。

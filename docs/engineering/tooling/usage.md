@@ -1,6 +1,6 @@
 # 工具入口
 
-采用版本见[BASELINE](../../status/baseline.md)，配置见[实装](setup.md)。旧CI、全量check、分片、覆盖聚合与自动审查流程已退役，当前开发方法见[性能开发](../workflow/testing.md)。
+类型：命令参考。采用版本见[BASELINE](../../status/baseline.md)，配置见[setup](setup.md)，验证强度和CI状态只查[开发循环](../workflow/testing.md)。
 
 ## 常用命令
 
@@ -13,7 +13,7 @@ python tools/godot.py run
 python tools/godot.py editor
 ```
 
-`test`仅跑三个最小smoke，默认15秒，不自动导入。新检出、新class或资源不可识别时才需要import。`check`及旧`--shard/--jobs/--test-timeout/--timing-report`参数已移除，不保留指向旧体系的别名。日志实时合流落盘，错误和超时返回非零；普通run/editor不会因错误行强关用户窗口。
+`test`使用当前短smoke入口，不自动导入。`--suite NAME`可选`settlement`、`actor_batch`或`inventory`；`--timeout SECONDS`默认15、可选1–30秒。新检出、新class或资源不可识别时才需要import。`check`及旧`--shard/--jobs/--test-timeout/--timing-report`参数已移除，不保留指向旧体系的别名。日志实时合流落盘，错误和超时返回非零；普通run/editor不会因错误行强关用户窗口。
 
 ## 实际性能
 
@@ -35,4 +35,4 @@ python tools/diagnose_demo.py --seconds 30 --auto-start --quit-after-capture
 - `python tools/setup_codex.py --check`：配置发生问题时核对项目条目，不证明MCP握手；不必每包执行。
 - Godot AI负责实时场景/输入/截图，使用官方dock Configure生成认证attach，操作前确认项目与实际会话。Context7查目标版本API；不手改第三方addon或用裸HTTP绕过连接。
 
-手动代码审查按实际需要使用原生review，沿用现有项目路由与配置；不调整全局模型/权限，不启用云端模型审查或后台CI等待。独立导出仍需实际模板/预设和运行证据，不能把命令存在当作已发布。
+手动review使用已有项目路由/配置，策略见开发循环。独立导出仍需实际模板/预设和运行证据，不能把命令存在当作已发布。

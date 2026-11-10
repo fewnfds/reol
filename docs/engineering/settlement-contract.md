@@ -1,6 +1,8 @@
 # 共同模拟与结算内核
 
-本合同贯穿[七个领域](architecture/05-framework-domains.md)。当前代码入口为[SimSettlementKernel](../../scripts/sim/execution/settlement_kernel.gd)、[SimWorldSettlement](../../scripts/sim/execution/world_settlement.gd)与`RegionalSimulation`；范围与证据分别见[技术总表](../status/technical-status.md)、[BASELINE](../status/baseline.md)。
+> 实现参考：描述代码接口及消费者假设，可随重构更新；稳定边界见constraints，范围按当前用户任务。
+
+本合同贯穿[七个领域](architecture/05-framework-domains.md)。当前代码入口为[SimSettlementKernel](../../scripts/sim/execution/settlement_kernel.gd)、[SimWorldSettlement](../../scripts/sim/execution/world_settlement.gd)与`RegionalSimulation`；范围与证据分别见[功能范围](../status/features.md)、[BASELINE](../status/baseline.md)。
 
 ## 引擎边界与所有权
 

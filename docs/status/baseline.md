@@ -1,31 +1,35 @@
-# 当前构建与证据基线
+# 已核实基线
 
-核对：2026-11-11。本页记录当前证据，旧阶段结果不累计成新架构完成度。当前工作看[HANDOFF](handoff.md)，目标与验收看[主计划](../plans/foundation-priorities.md)。
+核对：2026-11-11。这里只登记当前版本与仍有参考价值的测量；授权/下一步在[HANDOFF](handoff.md)，可用操作在[FEATURES](features.md)。原始报告属于[archive](../archive/README.md)，旧成功不继承为新架构通过。
 
-## 当前验证方式与代码起点
+## 代码与采用版本
 
-- 2026-11-11按用户要求停用GitHub CI、退役旧260组和相关Python回归/探针及自动审查门禁。当前仅三个短smoke（结算续算、CPU批一致、库存守恒），实测检查体0.783ms；启动器短检查0.287秒。见[退役记录](../qa/20261111_workflow_retirement.md)。这些结果不证明规模性能。
-- 本次main整合已包含CPU批代码`7f5947b80b62256ca370d4276dd3f62842f61d8a`、流程退役`7f881097e5091b1f44637d34927851022111c386`及后续整合说明；准确HEAD以Git为准。仅使用已有短检查证据，本次未新增游戏/性能验证。原主线`839ff88f1b7fee240d0c798f533314a3ae446430`的[CI42776609463](https://github.com/fewnfds/reol/actions/runs/42776609463)只说明旧版本。
-- 重构前代码保留点：`10260b3b45952b7b45055e807f360824227efce2`，原样保存导航/地形/视图查询WIP；文档清理为独立提交`95eac7d624b39d12fe36ba2b936ac342e7bcee89`。这些保留点与`codex/execution-foundation`均已进入main，具体未完成项见HANDOFF。A首条CPU批执行已有运行接入；300人性能出口未达；旧完整回归要求现已退役。
-- 退役前核对代码祖先`8c3deaa972f932e999167b61ea6b166b928cfe5f`的[CI42833827684](https://github.com/fewnfds/reol/actions/runs/42833827684)已completed/success；WIP保留点与新运行架构不在其覆盖内。此前1879f0c的CI42828875579失败及8cd155e夹具定向修补已被这个准确SHA的完整回归取代。
-- 保留补丁最后定向7组637检查通过，另有导航/地形联合6组898检查通过；属于旧包定向证据；最终配对/长期运行/停开验收未完成，本次仍只作明确标记，不恢复旧全回归队列。
+main已整合CPU批执行`7f5947b80b62256ca370d4276dd3f62842f61d8a`、测试/流程退役`7f881097e5091b1f44637d34927851022111c386`，整合说明为`4bf039fe8fadf95e639ae64a077e4fc3c7bdeeea`。文档提交可能更新HEAD；代码证据不因此自动变成对新行为的验证。
 
-## 引擎、内容与存档
+| 项目 | 当前值 / 代码依据 |
+|---|---|
+| 引擎 | Godot 4.7.2 stable，GDScript；开发机Windows |
+| 根存档 | 56，`SessionSaveSchema` |
+| 联合区域 | 47，`RegionalSimulation` |
+| 村落 / 环境保存 / 内容包 | 7 / 5 / 3；对应领域schema与`ReolContentBundle` |
+| 内容清单 | 内容包绑定44份定义/开局；不等于整个data目录的文件数 |
 
-采用Godot **4.7.2 stable**，GDScript；本机Windows；旧CI为Linux headless，现已停用。正式独立导出尚未验收，升级时按需核实际插件/模板。
+支持/拒绝语义见[compatibility](../engineering/compatibility.md)。正式独立导出和目标PC验收尚无证据。
 
-旧Demo当前根存档56、区域47、村落7、环境场5、内容包3。实际常量分别在`SessionSaveSchema`、`RegionalSimulation`和`ReolContentBundle`；原内容包清单含44份定义/开局文档，与data目录文件总数不是同一数量。旧根1–55普通入口拒绝，原fixture只读。
+## 有效性能事实
 
-这些版本说明现有输入边界，不要求重构继续使用原schema或迁移链。新的支持范围须明确，候选失败不改活世界。
+开发样本硬件为i5-13600KF、约32GB RAM、RTX5060Ti，Godot Windows Forward+/D3D12开发进程；不是[目标PC](../engineering/constraints.md#产品与技术范围)。
 
-## 当前性能与加速事实
+| 负载与证据 | 已测结果 | 能说明什么 |
+|---|---|---|
+| 普通300人持续行动，20秒，workers=4 / 0 | 世界流速0.512640 / 0.520303×；帧P95 22.130 / 22.024ms | 真实worker已采用18批/1302份结果，但没有可信整体提速；规模目标未达 |
+| 上述workers=4分项 | 准备累计13.488ms、worker累计2.347ms、发布38.511ms；native身体步骤另含大量直接执行 | worker数学不是整体最大成本，不能用线程活动当性能出口 |
+| 独立512²环境基础目标服务 | 历史CPU约20.65秒、GPU约0.616秒，来源装配另计 | 独立服务有实卡证据，普通环境仍未采用其GPU数学 |
 
-旧开发机为i5-13600KF、约32GB、RTX5060Ti；16GB/RTX3060[目标PC](../engineering/architecture.md#全项目性能基线)另行验收。
+身体批的代码/样本差异和限制见[原报告](../archive/qa/20261111_actor_batch_execution.md)；GPU范围见[原报告](../archive/qa/20261105_environment_ground_compute.md)。单次开发机样本不证明稳定收益、长局、RTX3060或发布版表现。早期导航/地形补丁已合main，但最终配对性能及完整停开未验收，不为此恢复旧测试队列。
 
-- 旧原生100/300人20秒样本约0.970/0.430×，帧P95约16.732/27.069ms；规模出口未达。[共同运行QA](../qa/20261110_sparse_runtime_dispatch.md)保留波动及反向样本，不用首轮改善冒充稳定收益。
-- [CPU调查](../qa/20261110_runtime_cpu_root_cause.md)记录重构前单线程热点。本包原身体连续计算已接真实CPU worker；300人18批/1302份采用见[QA](../qa/20261111_actor_batch_execution.md)，准备/发布及大部分域仍同步。普通环境仍无GPU数学采用。
-- 新300人20秒样本workers=4/0约0.512640/0.520303×，帧P95为22.130/22.024ms；仅证明首条CPU接缝，无可信整体提速，单次开发机样本不代表目标PC/发布版验收。
-- GPU服务确实实现并实卡验证过；[基础目标QA](../qa/20261105_environment_ground_compute.md)的512²密集请求约20.65秒CPU/0.616秒GPU，来源装配另计，排除普通Main及后续房间/实际响应。它是可复用代码，不能算当前游戏加速。
-- WIP保留点的最终配对/原生/停开验收未完成，不能报告为新性能基线。
+## 验证证据的范围
 
-[QA索引](../qa/README.md)保留各包原始证据；测试数量、旧集成SHA和历史“已完成”不构成对新执行结构的证明。
+短smoke三项（结算续算、CPU批一致、库存守恒）实际通过，检查体0.783ms、不含引擎启动；启动器短检查0.287秒。准确日志与退役处理见[记录](../archive/qa/20261111_workflow_retirement.md)。当前验证方法和CI状态只在[开发循环](../engineering/workflow/testing.md)维护。
+
+原整套回归在用户要求停下时人工终止，不能算完整通过。历史CI仅证明旧SHA，不再有待等CI或待补全回归任务。本轮文档整理未改变游戏代码，也未新增游戏/性能证据。

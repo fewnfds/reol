@@ -1,6 +1,8 @@
 # 大型建造与模拟游戏的性能方法
 
-调研：2026-11-06。范围是密集来源的环境场、世界数据和存读；记录一手资料及适用边界，不改变[环境规则](../rules/environment.md)，也不构成实施授权或新的任务队列。当前实现与测量分别看[接续](../../docs/status/handoff.md)及[优化QA](../../docs/qa/20261106_environment_optimization.md)。
+> 研究资料：记录来源与适用限制，不授予引入依赖或改变规则的权限。
+
+调研：2026-11-06。范围是密集来源的环境场、世界数据和存读；记录一手资料及适用边界，不改变[环境规则](../rules/environment.md)，也不构成实施授权或新的任务队列。当前实现与测量分别看[接续](../../docs/status/handoff.md)及[优化QA](../../docs/archive/qa/20261106_environment_optimization.md)。
 
 ## 结论与选型
 

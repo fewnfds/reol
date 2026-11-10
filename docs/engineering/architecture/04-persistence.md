@@ -1,5 +1,7 @@
 # 当前代码架构与边界：存读提交边界
 
+> 实现参考：描述代码接口及消费者假设，可随重构更新；稳定边界见constraints，范围按当前用户任务。
+
 本页为现存Demo的实现参考；重构目标由[执行规格](../../specs/world-engine/execution.md)定义。逻辑职责/有效规则不绑定下列class、数据结构或调用链。
 
 ## 状态与职责
@@ -15,7 +17,7 @@
 | [WorldSessionSnapshot](../../../scripts/runtime/world_session_snapshot.gd) / [WorldRestoreFactory](../../../scripts/sim/world_restore_factory.gd) | 联合封套、内容/地图/区域候选及玩家投影的校验；[WorldContinuityRuntime](../../../scripts/runtime/world_continuity_runtime.gd)负责成功后的场景接续 |
 | [SessionSaveSchema](../../../scripts/persistence/session_save_schema.gd) / [SnapshotValues](../../../scripts/persistence/snapshot_values.gd) | 当前根版本、形状及JSON值合同 |
 
-区域共同状态（时间、路线、区域、运输等）由`RegionalSimulation`校验；各领域适配器检查其原实例、引用、成本和因果。纯登记不自动赋予新领域空间、行动或认识能力；这些仍沿[领域接入检查](05-framework-domains.md#新领域的接入检查)处理。
+区域共同状态（时间、路线、区域、运输等）由`RegionalSimulation`校验；各领域适配器检查其原实例、引用、成本和因果。纯登记不自动赋予新领域空间、行动或认识能力；这些仍沿[领域职责](05-framework-domains.md)的实际接口处理。
 
 ## 新字段与新领域如何接入
 
@@ -53,6 +55,4 @@
 
 ## 格式与支持范围
 
-当前事件/植物包采用根54、区域45、内容包3，环境wire key仍为 `local_heat`。SL框架本身仍是同一 registry/session 管线；新增植物和事件只登记其原owner，没有重写文件或中央恢复循环。
-
-内容包3绑定44份定义/开局；移动、值事房和约练均使用会话规则，候选玩家运动也按档内规则验证，加载失败不改活规则。旧内容清单可独立解析，不可从当前磁盘补造缺失规则；当前只接受根54，详见[兼容政策](../compatibility.md)。
+当前数字和证据只在[BASELINE](../../status/baseline.md#代码与采用版本)登记，支持/拒绝语义由[compatibility](../compatibility.md)说明。不要把旧阶段快照当成当前采用版本；新增领域也不意味着重写通用文件管线。

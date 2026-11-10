@@ -1,11 +1,15 @@
-# 历史资料的读取边界
+# 历史资料
 
-本目录只保留追溯入口，不再存放重复的计划、规格、决策及整套文档快照。当前世界规则、实施顺序和停点分别在[规则](../../design/rules/README.md)、[主计划](../plans/foundation-priorities.md)和[HANDOFF](../status/handoff.md)。
+类型：归档。这里的“当前、必须、active、下一包”都属于原日期；既不授权工作，也不约束现行开发。当前任务从[HANDOFF](../status/handoff.md)进入，当前正文归属见[记忆地图](../README.md)。
 
-清理前已提交资料的固定来源是[8c3deaa972f932e999167b61ea6b166b928cfe5f](https://github.com/fewnfds/reol/tree/8c3deaa972f932e999167b61ea6b166b928cfe5f)。历史引用链接到该版本的原文件，避免旧指导被默认加载。需要具体文件时使用Git，例如：
+| 追溯什么 | 范围 |
+|---|---|
+| 历史验证、调查、截图 | [qa](qa/README.md)，保留当时的代码、负载和原结果 |
+| CPU根因和worker样本 | [CPU调查](qa/20261110_runtime_cpu_root_cause.md)、[首条CPU批](qa/20261111_actor_batch_execution.md)；当前采用结论只查BASELINE |
+| 旧CI/回归为什么退役 | [流程退役](qa/20261111_workflow_retirement.md) |
+| 后置正式美术的网页提示词 | [character_generation](art/character_generation/README.md)；不是当前任务 |
+| 工具选型/旧版本更新 | [tooling](tooling/evaluation.md)、[2026-11-09版本记录](tooling/20261109-updates.md) |
 
-```text
-git show 8c3deaa972f932e999167b61ea6b166b928cfe5f:docs/archive/specifications/world_engine_execution.md
-```
+`.ignore`使本目录退出默认rg搜索；需要历史时用`rg --no-ignore "关键词" docs/archive`，或直接打开已知路径。Git仍跟踪这些文件，链接可读取；它们不会自动注入agent上下文。
 
-具有独立验证价值的[QA原报告](../qa/README.md)继续保留。它们只证明当时的代码和负载，不能授权施工或证明新架构完成。未提交工作与原fixture不在此删除范围，按HANDOFF保护。
+更早已删除的计划、ADR和文档快照在固定[8c3deaa版本](https://github.com/fewnfds/reol/tree/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive)。本次合并/删除的重复入口可从[整理前主线](https://github.com/fewnfds/reol/tree/4bf039fe8fadf95e639ae64a077e4fc3c7bdeeea)追溯，例如`git show 4bf039fe8fadf95e639ae64a077e4fc3c7bdeeea:docs/status/technical-status.md`。不另复制整套旧文档，原fixture仍在原目录。
