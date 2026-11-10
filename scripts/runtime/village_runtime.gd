@@ -432,6 +432,7 @@ func _on_time_advanced(_from_ms: int, _to_ms: int) -> void:
 
 
 func publish_actor_motion(at_ms: int, snap: bool = false) -> void:
+	HumanoidSprite.publish_time(at_ms)
 	_player.publish_motion(at_ms, snap)
 	for pawn: Pawn in _pawns.values():
 		if pawn.visible:
@@ -490,7 +491,7 @@ func _sync_actor_views(snap: bool, layout: Dictionary = {}) -> void:
 			pawn.publish_motion(GameClock.elapsed_ms, snap or not was_visible)
 		if pawn.selected:
 			_sync_needs(pawn.state, simulation.projected_actor_needs(id))
-		pawn.queue_redraw()
+		pawn.refresh_appearance()
 	if is_instance_valid(continuity):
 		_player.clothing_appearance = continuity.world_sim.clothing.appearance("player")
 		_player.appearance_pose = HumanoidPose.stabilized(HumanoidPose.in_world(continuity.world_sim, "player", GameClock.elapsed_ms, continuity.player_journey, _player.manual_visual_moving, _player.motion.action), _player.appearance_pose)

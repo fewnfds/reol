@@ -141,6 +141,8 @@ CPU/GPU都只产出候选基础场。实际响应、原物变化、共同时间�
 
 2026-11-11经Context7核对4.7官方[物理插值要求](https://docs.godotengine.org/en/4.7/tutorials/physics/interpolation/using_physics_interpolation.html)：自动插值要求在`_physics_process`内更新变换，帧回调中改变换会抖动。官方[介绍](https://docs.godotengine.org/en/4.7/tutorials/physics/interpolation/physics_interpolation_introduction.html)也说明，独立时刻收到更新时可能更适合自定义插值。Reol当前50ms共同步、可续算和异步提交不是Godot固定物理tick，不能只开启开关替换；可以研究呈现桥或原生动画，但不能用未结算未来补画。
 
+同日核对官方[逐实例uniform](https://docs.godotengine.org/en/4.7/tutorials/shaders/shader_reference/shading_language.html#per-instance-uniforms)、[CanvasItem接口](https://docs.godotengine.org/en/4.7/classes/class_canvasitem.html#class-canvasitem-method-set-instance-shader-parameter)与[Sprite2D区域UV](https://docs.godotengine.org/en/4.7/classes/class_sprite2d.html#class-sprite2d-property-region-rect)：普通标量/向量可逐实例设置，纹理由材质共享，实例uniform有16项上限；区域精灵的UV仍按整个纹理解释。由此可让同一材质在顶点阶段按已提交整数游戏时间选帧，在片元阶段合成原有贴图层，避免动画每次改变都重放脚本绘图。它属于呈现计算，不接管模拟因果或身体；不能用shader `TIME`推进尚未结算的动作。颜色、层序、干湿、方向和长时间取模要与原画面核对，CPU发布、GPU成本和整局帧时一起决定是否采用，不能以减少draw call直接宣称游戏达标。
+
 ## 环境与存读专项怎样测量
 
 先用同一代码环境、预算与负载测64²/128²，确认瓶颈后再跑512²；区分静态满密度、单稀有极值、多件同强极值、混合半径及批量变化，不能只优化一种石头案例。记录：

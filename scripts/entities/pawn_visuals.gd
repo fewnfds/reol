@@ -15,7 +15,7 @@ const NAME_SIZE: int = 13
 
 static func draw_actor(
 	canvas: CanvasItem, ground: Vector2, body: Vector2, robe: Color,
-	caption: String, selected: bool, player: bool = false, clothing: Dictionary = {}, pose: Dictionary = {}
+	caption: String, selected: bool, player: bool = false, clothing: Dictionary = {}, pose: Dictionary = {}, draw_body: bool = true
 ) -> void:
 	if clothing.has("body"):
 		robe = Color(str(clothing.body.color))
@@ -28,6 +28,9 @@ static func draw_actor(
 	if selected:
 		canvas.draw_arc(ground + Vector2(0, 3), 20.0, 0.15, PI - 0.15, 20, GOLD, 2.0, true)
 		canvas.draw_arc(ground + Vector2(0, 3), 20.0, PI + 0.15, TAU - 0.15, 20, GOLD, 2.0, true)
+	if not draw_body:
+		draw_caption(canvas, body + Vector2(0, -37), caption, GOLD if selected else PAPER)
+		return
 	if Appearance.shared().draw_layers(canvas, body + Vector2(0, 13), robe, clothing, pose):
 		draw_caption(canvas, body + Vector2(0, -37), caption, GOLD if selected else PAPER)
 		return

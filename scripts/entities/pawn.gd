@@ -18,6 +18,8 @@ var appearance_pose: Dictionary = {}
 var _world: ReolWorld
 var _presentation := ReolMotionPresentation.new()
 var _projected_position: Vector2 = Vector2.ZERO
+var _sprite: HumanoidSprite
+var _decoration_key: Array = []
 
 
 func _init() -> void:
@@ -38,6 +40,12 @@ func setup(
 	project_position(TileGrid.cell_to_world(cell))
 	publish_motion(GameClock.elapsed_ms, true)
 	z_index = 9
+	var candidate := HumanoidSprite.new()
+	if candidate.configure():
+		_sprite = candidate
+		add_child(_sprite)
+	else:
+		candidate.free()
 	queue_redraw()
 
 
@@ -47,9 +55,12 @@ func set_selected(value: bool) -> void:
 
 
 func set_view_layout(layout: Dictionary) -> void:
-	visual_offset = layout.get("offset", Vector2.ZERO)
-	caption_visible = bool(layout.get("caption_visible", true))
-	queue_redraw()
+	var next_offset: Vector2 = layout.get("offset", Vector2.ZERO)
+	var next_caption: bool = bool(layout.get("caption_visible", true))
+	if visual_offset != next_offset or caption_visible != next_caption:
+		visual_offset = next_offset
+		caption_visible = next_caption
+		queue_redraw()
 
 
 func selection_center() -> Vector2:
@@ -70,7 +81,7 @@ func _process(_delta: float) -> void:
 	# native transform; it does not require replaying clothes/text drawing in
 	# GDScript on every interpolated frame.
 	global_position = _presentation.position
-	if int(appearance_pose.get("time_ms", 0)) != GameClock.elapsed_ms:
+	if _sprite == null and int(appearance_pose.get("time_ms", 0)) != GameClock.elapsed_ms:
 		appearance_pose.time_ms = GameClock.elapsed_ms
 		queue_redraw()
 
@@ -90,6 +101,19 @@ func presentation_position() -> Vector2:
 	return _presentation.position if _presentation.initialized() else global_position
 
 
+func refresh_appearance() -> void:
+	if _sprite == null:
+		queue_redraw()
+		return
+	var elevation: int = _world.get_elevation(cell) if _world != null else 0
+	var ground: Vector2 = visual_offset + Vector2(0, -float(elevation * ReolWorld.ELEVATION_PX))
+	_sprite.present(ground + Vector2(0, 13), state.pawn_def.color, clothing_appearance, appearance_pose)
+	var key: Array = [ground, selected, caption_visible, display_name_override, state.pawn_def.display_name]
+	if key != _decoration_key:
+		_decoration_key = key
+		queue_redraw()
+
+
 func _draw() -> void:
 	if state == null or state.pawn_def == null:
 		return
@@ -101,4 +125,4 @@ func _draw() -> void:
 	var text: String = display_name_override if not display_name_override.is_empty() else state.display_name()
 	if not caption_visible and not selected:
 		text = ""
-	Visuals.draw_actor(self, ground, ground, robe, text, selected, false, clothing_appearance, appearance_pose)
+	Visuals.draw_actor(self, ground, ground, robe, text, selected, false, clothing_appearance, appearance_pose, _sprite == null)

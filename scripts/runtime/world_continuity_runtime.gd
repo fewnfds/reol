@@ -310,6 +310,7 @@ func _capture_committed_canvases(_from_ms: int = 0, _to_ms: int = 0) -> void:
 	# All ordinary observers have finished. Publish body views once, sharing
 	# the layout, rather than rebuilding them inside each executor continuation.
 	var layout: Dictionary = actor_view_layout()
+	HumanoidSprite.publish_time(GameClock.elapsed_ms)
 	_home._sync_actor_views(snap, layout)
 	_refresh_views(snap, layout)
 	_refresh_advance_views()
@@ -1257,7 +1258,7 @@ func _refresh_views(snap: bool, layout: Dictionary = {}) -> void:
 			if not GameClock.is_advancing():
 				pawn.publish_motion(GameClock.elapsed_ms, snap)
 			pawn.show()
-			pawn.queue_redraw()
+			pawn.refresh_appearance()
 	for id: String in _remote_views.keys():
 		if visible_bodies.has(id):
 			continue
