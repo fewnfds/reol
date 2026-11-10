@@ -1406,11 +1406,11 @@ func _build_canvas() -> void:
 	for id: String in sim.places:
 		var place: Dictionary = sim.places[id]
 		var cell: Vector2i = _cell(place.cell)
-		if _home._fog != null and not _home._fog.is_explored(cell):
+		var workspace: Dictionary = place.get("workspace", {}).duplicate(true)
+		if workspace.is_empty() and _home._fog != null and not _home._fog.is_explored(cell):
 			continue
 		var point: Vector2 = TileGrid.cell_to_world(cell)
 		point.y -= float(_home._world.get_elevation(cell) * ReolWorld.ELEVATION_PX)
-		var workspace: Dictionary = place.get("workspace", {}).duplicate(true)
 		capture_custom(Callable(FacilityVisuals, "draw_facility").bind(self, id, point, "河湾·" + str(place.label), Color("#81b4a4"), _home.herb_phase_for(sim, id), workspace, _home._place_is_explored))
 	if _courier_visible:
 		var point: Vector2 = TileGrid.cell_to_world(_courier_cell)

@@ -1,6 +1,6 @@
 # 完整单位行动与交互验收
 
-状态：2026-11-10，按用户授权整合main，最终生产/测试`0856effd4b2bb135c9bae8f25cccbba0e3def8e0`。以环境最终`337ea13e6bfb89321d2fda9eef26f5612dc65cd9`为起点，主体`68fff8b35e90617f4e95b416cdacf73834e6bf5e`，当前根56/区域47/内容包3/环境5。对应完整CI仍待验，不把定向或合并状态当完整通过。
+状态：2026-11-10，按用户授权整合main，最终生产/测试`0856effd4b2bb135c9bae8f25cccbba0e3def8e0`。以环境最终`337ea13e6bfb89321d2fda9eef26f5612dc65cd9`为起点，主体`68fff8b35e90617f4e95b416cdacf73834e6bf5e`，当前根56/区域47/内容包3/环境5。对应CI42750266714已核completed/success；定向与合并状态本身不作为完整通过依据。
 
 ## 范围与真实修复
 
@@ -47,6 +47,6 @@ Godot 4.7.2 stable标准版，doctor/import已核。日志均在本机`logs/`，
 
 收尾`0856effd4b2bb135c9bae8f25cccbba0e3def8e0`修复休息显示，并以相同已知线索、不同隐藏坐标的独立世界对照保护感知边界，允许合法绕障；不改寻路/感知规则或放宽数值容差。休息/原服务运行2组88检查通过，最终感知组108检查通过；计时为`unit-actions-integration-green-timings.jsonl`及`unit-actions-integration-perception-final-timings.jsonl`，不是全套覆盖。
 
-本收尾包一次Sol/custom原生静态审查，宿主不能启动命令后接续同一会话`01a1c385-40f3-74f1-bac7-bb3cd069795e`，提供准确Git差异/源码完成分析，退出0、无可操作发现；`unit-actions-integration-review-resumed.log`保留证据。收尾代码的[CI42750266714](https://github.com/fewnfds/reol/actions/runs/42750266714)在本次文档提交点精确核为in_progress；完整待验，不轮询。
+本收尾包一次Sol/custom原生静态审查，宿主不能启动命令后接续同一会话`01a1c385-40f3-74f1-bac7-bb3cd069795e`，提供准确Git差异/源码完成分析，退出0、无可操作发现；`unit-actions-integration-review-resumed.log`保留证据。收尾代码的[CI42750266714](https://github.com/fewnfds/reol/actions/runs/42750266714)在本次试玩修复提交点精确核为completed/success；完整CI通过，不轮询。
 
 本轮按用户授权将通用SL、事件/植物、环境组合和行动历史一起快进整合main；试玩修复与诊断后续另分支，不混入此集成包。旧档原文件保留，不承诺根55迁入；新建世界可体验当前入口。

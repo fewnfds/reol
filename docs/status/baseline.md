@@ -2,9 +2,9 @@
 
 核对：2026-11-10。采用版本与准确代码证据记录在此，操作范围见[FEATURES](features.md)，当前停点见[HANDOFF](handoff.md)，详细日志和限制见[QA](../qa/README.md)。历史分卷只描述当时版本。
 
-## 完整单位行动与交互（主线整合，完整CI待验）
+## 完整单位行动与交互（已整合main，完整CI通过）
 
-前版0a0b59a的CI42674488111为completed/failure，两处为休息阶段显示和旧直行测试。收尾`0856effd4b2bb135c9bae8f25cccbba0e3def8e0`先复现再修复：休息/服务运行2组88检查、最终感知108检查通过，一次Sol/custom同会话恢复静态主审无可操作发现。[CI42750266714](https://github.com/fewnfds/reol/actions/runs/42750266714)在本次提交点精确核为in_progress；完整待验，不按时间轮询。
+前版0a0b59a的CI42674488111为completed/failure，两处为休息阶段显示和旧直行测试。收尾`0856effd4b2bb135c9bae8f25cccbba0e3def8e0`先复现再修复：休息/服务运行2组88检查、最终感知108检查通过，一次Sol/custom同会话恢复静态主审无可操作发现。[CI42750266714](https://github.com/fewnfds/reol/actions/runs/42750266714)在本次试玩修复提交点精确核为completed/success；完整CI通过，不按时间轮询。
 
 `codex/unit-actions-integration`主体`68fff8b35e90617f4e95b416cdacf73834e6bf5e`及上述收尾已按用户授权整合main；根56/区域47/内容包3/环境5。原生搜索、路线重评、共同动作投影/终态/停止及原库存搬运已接；主体一次Sol/custom主审2项P1/1项P2先红后绿，修复5组223检查通过。前版普通Main及独立停开整个检查点/未来一致，详见[行动QA](../qa/20261110_unit_actions.md)。整合不等于完整回归通过，不能沿用前阶段绿色。
 

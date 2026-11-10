@@ -160,7 +160,7 @@ func _apply_binding() -> void:
 		adapter.sparring_adapter.panel.hide()
 		adapter.avian_adapter.panel.hide()
 	else:
-		main.camera.follow_focus = false
+		main.camera.follow_focus = true
 		main.camera.set_focus_target(main.player)
 		main.fog.set_observer(0, FogOfWar.VISION_RADIUS)
 	_project()

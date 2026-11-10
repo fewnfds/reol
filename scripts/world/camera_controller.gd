@@ -10,7 +10,7 @@ extends Camera2D
 var _world_rect: Rect2 = Rect2()
 var _focus_target: Node2D
 var _dragging: bool = false
-var follow_focus: bool = false
+var follow_focus: bool = true
 
 
 func _ready() -> void:
@@ -45,7 +45,8 @@ func _process(delta: float) -> void:
 	elif Input.is_action_just_pressed("zoom_out"):
 		_zoom_by(-zoom_step)
 
-	if Input.is_action_just_pressed("center_camera") and _focus_target != null:
+	if Input.is_action_just_pressed("center_camera") and is_instance_valid(_focus_target):
+		follow_focus = true
 		global_position = _focus_target.global_position
 		_clamp_to_world()
 

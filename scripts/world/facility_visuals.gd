@@ -22,6 +22,8 @@ static func draw_facility(canvas: CanvasItem, place_id: String, point: Vector2, 
 				_draw_work_area(canvas, place_id, accent)
 		_: _draw_work_area(canvas, place_id, accent)
 	canvas.draw_set_transform(Vector2.ZERO)
+	if not workspace.is_empty() and known_cell.is_valid() and not bool(known_cell.call(SimRouteTravel.cell(workspace.clerk_cell))):
+		return # Seeing an outside wall does not identify the hidden workplace.
 	var font: Font = ThemeDB.fallback_font
 	var baseline: Vector2 = point + Vector2(-LABEL_WIDTH * 0.5, -38)
 	canvas.draw_string_outline(font, baseline, label, HORIZONTAL_ALIGNMENT_CENTER, LABEL_WIDTH, 13, 3, Color(0.04, 0.07, 0.07, 0.95))
@@ -44,9 +46,10 @@ static func _draw_office(canvas: CanvasItem, layout: Dictionary, known_cell: Cal
 		canvas.draw_rect(Rect2(offset + Vector2(-31, -20), Vector2(62, 45)), INK)
 		canvas.draw_rect(Rect2(offset + Vector2(-28, -17), Vector2(56, 36)), WALL)
 		canvas.draw_rect(Rect2(offset + Vector2(-29, -23), Vector2(58, 8)), TIMBER)
-	var door: Vector2 = Vector2(SimRouteTravel.cell(layout.door) - anchor) * TileGrid.TILE_SIZE
-	canvas.draw_rect(Rect2(door + Vector2(-29, -23), Vector2(6, 45)), TIMBER)
-	canvas.draw_rect(Rect2(door + Vector2(23, -23), Vector2(6, 45)), TIMBER)
+	if not known_cell.is_valid() or bool(known_cell.call(SimRouteTravel.cell(layout.door))):
+		var door: Vector2 = Vector2(SimRouteTravel.cell(layout.door) - anchor) * TileGrid.TILE_SIZE
+		canvas.draw_rect(Rect2(door + Vector2(-29, -23), Vector2(6, 45)), TIMBER)
+		canvas.draw_rect(Rect2(door + Vector2(23, -23), Vector2(6, 45)), TIMBER)
 	for id: String in ["desk", "archive"]:
 		if known_cell.is_valid() and not bool(known_cell.call(SimRouteTravel.cell(layout.fixtures[id].cell))):
 			continue
@@ -64,7 +67,8 @@ static func _draw_office(canvas: CanvasItem, layout: Dictionary, known_cell: Cal
 			canvas.draw_rect(Rect2(offset + Vector2(3, -12), Vector2(9, 18)), Color("#6cb2a0"))
 			canvas.draw_rect(Rect2(offset + Vector2(5, -9), Vector2(5, 11)), Color("#a4d1b5"))
 	# Cutaway projection: the saved roof still shelters the actual room.
-	canvas.draw_rect(Rect2(-15, 3, 30, 24), TIMBER.darkened(0.1), false, 3.0)
+	if not known_cell.is_valid() or bool(known_cell.call(anchor)):
+		canvas.draw_rect(Rect2(-15, 3, 30, 24), TIMBER.darkened(0.1), false, 3.0)
 
 
 static func _draw_work_area(canvas: CanvasItem, kind: String, accent: Color) -> void:

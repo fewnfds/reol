@@ -780,11 +780,13 @@ func _build_canvas() -> void:
 	for id: String in _places:
 		var place: Dictionary = _places[id]
 		var cell: Vector2i = _decode_cell(place.cell)
-		if _fog != null and not _fog.is_explored(cell):
+		var workspace: Dictionary = place.get("workspace", {}).duplicate(true)
+		# A room's visible outside wall does not require seeing its interior anchor.
+		# FacilityVisuals filters each saved room cell and its label separately.
+		if workspace.is_empty() and _fog != null and not _fog.is_explored(cell):
 			continue
 		var center: Vector2 = TileGrid.cell_to_world(cell)
 		center.y -= float(_world.get_elevation(cell) * ReolWorld.ELEVATION_PX)
-		var workspace: Dictionary = place.get("workspace", {}).duplicate(true)
 		capture_custom(Callable(FacilityVisuals, "draw_facility").bind(self, id, center, str(place.label), Color("#cfbc80"), herb_phase_for(simulation, id), workspace, _place_is_explored))
 
 
