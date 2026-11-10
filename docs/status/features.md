@@ -9,7 +9,7 @@
 | 领域 | 入口及现状 |
 |---|---|
 | [开局与操作](features/controls.md) | 人身、雀身和残识各有不同入口，键位与面板按身体能力分开。 |
-| [环境与计算原型](features/environment-and-prototypes.md) | 主线已接材质传播、房温、携物/容器和植物照明，完整CI待验，GPU计算仍为独立服务，没有玩家开关。 |
+| [环境与计算原型](features/environment-and-prototypes.md) | 主线已接材质传播、房温、携物/容器和植物照明，主线整合CI通过，GPU计算仍为独立服务，没有玩家开关。 |
 | [世界连续性与生活](features/world-and-livelihood.md) | 双聚落共同时间、行旅、有限采集、生产和NPC生活；不是完整大世界或经济。 |
 | [交互、社交与组织办事](features/interaction-and-organizations.md) | 有限请求、钱货、受托劳动、公源及野外样本；不是任意谈判或自由组织治理。 |
 | [认识、器物、修行与衣着](features/knowledge-items-cultivation.md) | 原温石、有限引息、研究/记录、衣着和八向占位；不是通用创法、全装备或完整修炼。 |
