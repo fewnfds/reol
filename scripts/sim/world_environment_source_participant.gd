@@ -35,7 +35,10 @@ var _pending: Dictionary = {}
 var _built: bool = false
 var _failed: bool = false
 var _last_change_chunks: Array[Vector2i] = []
+# Disposable participation over accepted, nonzero field records. Moving an
+# empty/ordinary pocket must not enumerate all materials and legacy objects.
 var _container_sources: Dictionary = {}
+var _source_containers: Dictionary[String, Array] = {}
 
 
 static func artifact_key(id: String) -> String:
@@ -149,7 +152,6 @@ func build_sources() -> Dictionary:
 					var key: String = stock_key(region, container, item)
 					if not _add_initial(key, source):
 						return _build_failure("contained_stock_source")
-					_track_container(region, container, item)
 	for id: String in _world.construction._project_ids():
 		var source: Dictionary = construction_source(id)
 		if not source.is_empty() and not _add_initial("construction:" + id, source):
@@ -281,6 +283,12 @@ func finish_source_change(proof: Variant) -> bool:
 		var entry: int = int(_records[_pending.old_key])
 		_records.erase(_pending.old_key)
 		_records[_pending.new_key] = entry
+	# Even a physically identical transfer can change the carrying container.
+	# Reindex only after the original object and the field proof both commit.
+	if _pending.has("old_key"):
+		_index_source_container(str(_pending.old_key))
+	if _pending.has("new_key") and _pending.new_key != _pending.old_key:
+		_index_source_container(str(_pending.new_key))
 	_pending = {}
 	return true
 
@@ -525,6 +533,7 @@ func _add_initial(key: String, source: Dictionary) -> bool:
 	if not bool(inserted.get("ok", false)):
 		return false
 	_records[key] = _next_slot
+	_index_source_container(key)
 	_next_slot += 1
 	_touch(source)
 	return true
@@ -613,39 +622,63 @@ func stock_source(region: String, container: String, item: String) -> Dictionary
 	return {} if _is_zero(source) else source
 
 
-func _track_container(region: String, container: String, item: String) -> void:
-	var key: String = JSON.stringify([region, container])
-	if not _container_sources.has(key):
-		_container_sources[key] = {}
-	_container_sources[key][item] = true
+func _index_source_container(key: String) -> void:
+	if key.is_empty():
+		return
+	var previous: Array = _source_containers.get(key, [])
+	if not previous.is_empty():
+		var group: Dictionary = _container_sources[previous[0]][previous[1]]
+		group.erase(key)
+		if group.is_empty():
+			_container_sources[previous[0]].erase(previous[1])
+			if _container_sources[previous[0]].is_empty():
+				_container_sources.erase(previous[0])
+		_source_containers.erase(key)
+	if not _records.has(key):
+		return
+	var region: String
+	var container: String
+	var material: String = ""
+	if key.begins_with("stock:"):
+		var parts: Array = JSON.parse_string(key.trim_prefix("stock:"))
+		region = str(parts[0])
+		container = str(parts[1])
+		material = str(parts[2])
+	elif key.begins_with("artifact:"):
+		var item: Dictionary = _world.artifacts.objects[key.trim_prefix("artifact:")]
+		region = str(item.region)
+		container = str(item.container)
+	else:
+		return
+	if container.begins_with("ground:") or container.is_empty():
+		return
+	if not _container_sources.has(region):
+		_container_sources[region] = {}
+	if not _container_sources[region].has(container):
+		_container_sources[region][container] = {}
+	_container_sources[region][container][key] = material
+	_source_containers[key] = [region, container]
+
+
+func has_container_sources(region: String, container: String) -> bool:
+	return _container_sources.get(region, {}).has(container)
 
 
 func container_items(region: String, container: String) -> Array:
-	var values: Dictionary = _container_sources.get(JSON.stringify([region, container]), {}).duplicate()
+	var values: Dictionary = {}
+	for material: String in _container_sources.get(region, {}).get(container, {}).values():
+		if not material.is_empty():
+			values[material] = true # Include a removed last unit until its source retires.
 	for item: String in _world.regions[region].inventory.containers.get(container, {}):
 		values[item] = true
 	var result: Array = values.keys()
 	result.sort()
-	for item: String in result:
-		_track_container(region, container, item)
 	return result
 
 
 func container_keys(region: String, container: String) -> Array[String]:
 	var result: Array[String] = []
-	for item: String in container_items(region, container):
-		var key: String = stock_key(region, container, item)
-		if _records.has(key):
-			result.append(key)
-	var ids: Dictionary = _world.object_lifecycle._contained.get(JSON.stringify([region, container]), {}).get("ids", {}).duplicate()
-	for id: String in _world.artifacts.legacy_object_ids():
-		var item: Dictionary = _world.artifacts.objects[id]
-		if item.region == region and item.container == container:
-			ids[id] = true
-	for id: String in ids:
-		var key: String = artifact_key(id)
-		if _records.has(key):
-			result.append(key)
+	result.assign(_container_sources.get(region, {}).get(container, {}).keys())
 	result.sort()
 	return result
 

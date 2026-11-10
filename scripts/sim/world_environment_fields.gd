@@ -870,9 +870,10 @@ func _connect_owners() -> void:
 		var body: Callable = func(id: String) -> void:
 			var domain: RefCounted = self_ref.get_ref()
 			if domain != null:
-				domain._mark_container(region_id, "actor:" + id)
+				if domain._sources.has_container_sources(region_id, "actor:" + id):
+					domain._mark_container(region_id, "actor:" + id)
 				var job: Dictionary = domain.world.construction.active.get(id, {})
-				if not job.is_empty():
+				if not job.is_empty() and domain._sources.has_container_sources(region_id, str(job.project)):
 					domain._mark_container(region_id, str(job.project))
 		var crossing: Callable = func(id: String, cell: Vector2i, at_ms: int) -> void:
 			var domain: RefCounted = self_ref.get_ref()
@@ -887,7 +888,7 @@ func _connect_owners() -> void:
 
 
 func record_source_crossing(region: String, container: String, cell: Vector2i, at_ms: int) -> void:
-	if not _active:
+	if not _active or not _sources.has_container_sources(region, container):
 		return
 	var keys: Array[String] = _sources.container_keys(region, container)
 	if keys.is_empty():

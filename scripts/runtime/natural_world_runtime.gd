@@ -14,6 +14,8 @@ var _plant_choice: OptionButton
 var _selected_plant: String = ""
 var _bound_world: WeakRef
 var _painted_claims: Dictionary[Vector2i, bool] = {}
+var _drawing_revision: int = 0
+var _drawing_connections: Array[Dictionary] = []
 
 
 func setup(adapter: WorldContinuityRuntime) -> void:
@@ -58,7 +60,7 @@ func setup(adapter: WorldContinuityRuntime) -> void:
 	adapter.home_runtime()._player.cell_changed.connect(refresh)
 	var fog: FogOfWar = adapter.home_runtime()._fog
 	if fog != null:
-		fog.visibility_updated.connect(refresh)
+		fog.visibility_updated.connect(_invalidate_drawing)
 	panel.visibility_changed.connect(queue_redraw)
 
 
@@ -67,11 +69,38 @@ func runtime() -> WorldContinuityRuntime:
 
 
 func reset_observation() -> void:
+	_drawing_revision += 1
 	selected_cell = Vector2i(-1, -1)
 	_selected_plant = ""
 	_selection_visible = false
 	panel.hide()
 	queue_redraw()
+
+
+func _invalidate_drawing(_change: Variant = null) -> void:
+	_drawing_revision += 1
+	refresh()
+
+
+func _committed_canvas_input_key() -> Variant:
+	var adapter: WorldContinuityRuntime = runtime()
+	if adapter == null or adapter.world_sim == null:
+		return null
+	var world: RegionalSimulation = adapter.world_sim
+	if _bound_world == null or _bound_world.get_ref() != world:
+		for link: Dictionary in _drawing_connections:
+			var sender: Object = link.owner.get_ref()
+			if sender != null and sender.is_connected(link.event, _invalidate_drawing):
+				sender.disconnect(link.event, _invalidate_drawing)
+		_drawing_connections.clear()
+		_bound_world = weakref(world)
+		_painted_claims.clear()
+		adapter.home_runtime()._world.flora_override = world.plants.overrides_flora
+		for event: Signal in [world.plants.plant_changed, world.map_data.terrain_changed]:
+			event.connect(_invalidate_drawing)
+			_drawing_connections.append({"owner": weakref(event.get_object()), "event": event.get_name()})
+		_drawing_revision += 1
+	return [world.get_instance_id(), _drawing_revision, adapter.controlled_cell(), adapter.soul_player_active()]
 
 
 func observe(cell: Vector2i) -> bool:
@@ -214,10 +243,6 @@ func _build_canvas() -> void:
 	var world: RegionalSimulation = adapter.world_sim
 	var home: VillageRuntime = adapter.home_runtime()
 	var fog: FogOfWar = home._fog
-	if _bound_world == null or _bound_world.get_ref() != world:
-		_bound_world = weakref(world)
-		_painted_claims.clear()
-		home._world.flora_override = world.plants.overrides_flora
 	if adapter.soul_player_active():
 		return
 	var center: Vector2i = adapter.controlled_cell()

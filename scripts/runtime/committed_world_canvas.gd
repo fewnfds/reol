@@ -7,6 +7,7 @@ var _canvas_commands: Array[Callable] = []
 var _canvas_candidate: Array[Callable] = []
 var _canvas_world: WeakRef
 var _canvas_at_ms: int = -1
+var _canvas_input_key: Variant
 # Managed world views publish together after the clock's ordinary observers.
 # Standalone views and changes outside clock advancement still capture at once.
 var clock_published_canvas: bool = false
@@ -46,18 +47,22 @@ func redraw_committed_canvas(publish: bool = false) -> void:
 		return
 	# Capture synchronously. A deferred _draw may run only after another
 	# boundary has already suspended, so it must never be the capture owner.
-	refresh_committed_canvas()
-	queue_redraw()
+	if refresh_committed_canvas():
+		queue_redraw()
 
 
-func refresh_committed_canvas() -> void:
+func refresh_committed_canvas() -> bool:
 	var world: RefCounted = _current_canvas_world()
 	if world == null or (_canvas_world != null and _canvas_world.get_ref() != world):
 		_canvas_commands.clear()
 		_canvas_world = null
 		_canvas_at_ms = -1
+		_canvas_input_key = null
 	if not _world_is_complete(world):
-		return
+		return false
+	var input_key: Variant = _committed_canvas_input_key()
+	if input_key != null and _canvas_world != null and input_key == _canvas_input_key:
+		return false
 	_canvas_candidate = []
 	_build_canvas()
 	var current: RefCounted = _current_canvas_world()
@@ -65,11 +70,19 @@ func refresh_committed_canvas() -> void:
 		_canvas_commands = _canvas_candidate
 		_canvas_world = weakref(world)
 		_canvas_at_ms = int(world.get("elapsed_ms"))
+		_canvas_input_key = input_key
 	elif current != world:
 		_canvas_commands.clear()
 		_canvas_world = null
 		_canvas_at_ms = -1
 	_canvas_candidate = []
+	return true
+
+
+func _committed_canvas_input_key() -> Variant:
+	# Time-dependent views retain the ordinary capture path. A view may opt in
+	# only with a complete key for the inputs actually read by its drawing.
+	return null
 
 
 func _build_canvas() -> void:
