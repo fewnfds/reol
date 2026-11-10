@@ -484,7 +484,7 @@ func _sync_actor_views(snap: bool, layout: Dictionary = {}) -> void:
 			pawn.clothing_appearance = continuity.world_sim.clothing.appearance(id)
 		pawn.set_view_layout(layout.get(id, {}))
 		var target: Vector2 = simulation.projected_actor_position(id)
-		pawn.global_position = target
+		pawn.project_position(target)
 		if not was_visible or not GameClock.is_advancing():
 			pawn.publish_motion(GameClock.elapsed_ms, snap or not was_visible)
 		if pawn.selected:
@@ -563,7 +563,7 @@ func _ensure_initial_reachability() -> bool:
 			push_error("VillageRuntime: not enough connected cells for the initial actors")
 			return false
 		pawn.cell = replacement
-		pawn.global_position = TileGrid.cell_to_world(replacement)
+		pawn.project_position(TileGrid.cell_to_world(replacement))
 		pawn.queue_redraw()
 		occupied[replacement] = true
 	return true

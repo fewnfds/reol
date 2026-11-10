@@ -65,11 +65,12 @@ func add_subject(id: String, legacy_actor: String = "") -> bool:
 func add_carrier(id: String, form_id: String, source: Dictionary) -> bool:
 	if not _text(id) or _carriers.has(id) or not _forms.has(form_id) or not _keys(source, ["kind", "id"]) or not _text(source.kind) or not _text(source.id):
 		return false
-	var key: String = _source_key(source)
-	if _source_carriers.has(key):
+	if not carrier_for_source(source.kind, source.id).is_empty():
 		return false
 	_carriers[id] = {"form": form_id, "source": source.duplicate(true)}
-	_source_carriers[key] = id
+	if not _source_carriers.has(source.kind):
+		_source_carriers[source.kind] = {}
+	_source_carriers[source.kind][source.id] = id
 	_controls[id] = {}
 	control_revision += 1
 	return true
@@ -125,7 +126,9 @@ func subject_for_actor(actor: String) -> String:
 
 
 func carrier_for_source(kind: String, id: String) -> String:
-	return str(_source_carriers.get(_source_key({"kind": kind, "id": id}), ""))
+	# Source kind and ID already form a composite key. Runtime control/space
+	# queries should not allocate dictionaries, arrays and JSON to look it up.
+	return str(_source_carriers.get(kind, {}).get(id, ""))
 
 
 func residence_of(subject: String) -> String:
@@ -269,10 +272,6 @@ static func legacy_state(actor_ids: Array[String]) -> Dictionary:
 		for channel: String in CHANNELS:
 			controls_map[carrier][channel] = subject
 	return {"version": VERSION, "subjects": subjects, "carriers": carriers, "residences": residences, "controls": controls_map}
-
-
-static func _source_key(source: Dictionary) -> String:
-	return JSON.stringify([source.kind, source.id])
 
 
 static func _keys(data: Dictionary, expected: Array) -> bool:

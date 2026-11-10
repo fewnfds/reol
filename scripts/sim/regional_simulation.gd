@@ -172,6 +172,7 @@ var _settled_ms: int = 0
 ## Region selection for the kernel's native_interval step. Manual input runs
 ## before begin(); the existing kernel retains all subsequent continuation.
 var _native_regions: Array[String] = []
+var _native_region_cursor: int = 0
 var _native_committing: bool = false
 
 
@@ -779,6 +780,7 @@ func advance_to_ms(requested_ms: int, max_events: int = 4096, work_budget: int =
 			_manual_motion_executor.call(elapsed_ms, next_ms)
 		_native_committing = false
 		_native_regions.clear()
+		_native_region_cursor = 0
 		for region_id: String in _sorted_keys(regions):
 			if region_id == active_region or int(_region_boundaries[region_id]) <= next_ms:
 				_native_regions.append(region_id)
@@ -802,13 +804,17 @@ func _settle_native_interval(next_ms: int, _budget: int) -> Vector2i:
 			ready = false
 	if not ready:
 		return Vector2i(1, SimSettlementKernel.Status.PENDING)
-	for region_id: String in _native_regions:
+	while _native_region_cursor < _native_regions.size():
+		var region_id: String = _native_regions[_native_region_cursor]
 		var simulation: VillageSimulation = regions[region_id]
-		if not simulation.advance_to_ms(next_ms):
+		if not simulation.advance_to_ms(next_ms, 4096, settlement.should_yield_work):
+			if simulation.has_pending_actor_interval():
+				return Vector2i(1, SimSettlementKernel.Status.PENDING)
 			errors.append("Regional executor could not reach its next boundary")
 			return Vector2i(1, SimSettlementKernel.Status.FAILED)
 		_region_boundaries[region_id] = simulation.next_boundary_ms()
 		_dirty_region_boundaries.erase(region_id)
+		_native_region_cursor += 1
 	_native_regions.clear()
 	elapsed_ms = next_ms
 	return Vector2i(1, SimSettlementKernel.Status.COMPLETE)

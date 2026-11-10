@@ -174,6 +174,8 @@ func _finish(ok: bool) -> void:
 	print("CROWD_STRESS ", JSON.stringify(crowd), " ok=", ok, " report=", _report)
 	if _moved.size() < _starts.size() / 2:
 		_failures.append("Too few original NPCs actually moved; this is not a valid movement load")
+	if _quit_after and not _opening_wave and float(report.get("running_seconds", 0.0)) < _seconds * 0.9:
+		_failures.append("The sustained capture paused early; frame/speed figures are not comparable. Runtime notice: " + str(_main._continuity._notice))
 	if not _failures.is_empty():
 		push_error(str(_failures))
 	if _quit_after or not ok or not _failures.is_empty():

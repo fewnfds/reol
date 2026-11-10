@@ -288,7 +288,7 @@ func _capture_committed_canvases(_from_ms: int = 0, _to_ms: int = 0) -> void:
 		pawn.publish_motion(GameClock.elapsed_ms, snap)
 	var views: Array[CommittedWorldCanvas] = [self, _home, natural_adapter, object_adapter,
 		sparring_adapter, conflict_adapter, avian_adapter, soul_adapter,
-		large_body_adapter, construction_adapter, field_adapter]
+		large_body_adapter, construction_adapter, field_adapter, spirit_adapter]
 	for view: CommittedWorldCanvas in views:
 		if is_instance_valid(view):
 			view.clock_published_canvas = true
@@ -1139,7 +1139,7 @@ func _refresh_views(snap: bool, layout: Dictionary = {}) -> void:
 			pawn.cell = cell
 			if pawn.selected:
 				_home._sync_needs(pawn.state, remote.projected_actor_needs(id))
-			pawn.global_position = remote.projected_actor_position(id)
+			pawn.project_position(remote.projected_actor_position(id))
 			if not GameClock.is_advancing():
 				pawn.publish_motion(GameClock.elapsed_ms, snap)
 			pawn.show()

@@ -13,6 +13,26 @@ const NEED_SCALE: int = 1000000
 const SnapshotSchema = preload("res://scripts/sim/snapshot_schema.gd")
 const Workplaces = preload("res://scripts/sim/workplaces.gd")
 
+enum NativePhase { START, INTEGRATE, PROJECT, SETTLE, CHOOSE, OBSERVE }
+
+class NativeAdvance extends RefCounted:
+	var target_ms: int
+	var initial_minute: int
+	var events_left: int
+	var phase: int = NativePhase.START
+	var sparse: bool
+	var at_boundary: bool
+	var projecting: Array = []
+	var due: Array = []
+	var observing: Array = []
+	var cursor: int = 0
+	var batch: SimActorAdvance
+	var work_started: bool = false
+	var candidates: Array = []
+	var included: Dictionary = {}
+	var work_cursor: int = 0
+
+var _native_advance: NativeAdvance
 var _actors: Dictionary = {}
 var actors: Dictionary:
 	get:
@@ -76,6 +96,7 @@ var _content: ReolContentDB
 var _boundary_revision_provider: Callable
 var _boundary_revision: int = -1
 var _actor_boundaries: Dictionary[String, int] = {}
+var _route_continuations: Dictionary[String, bool] = {}
 var _boundary_index := SimParticipationIndex.new()
 var _boundary_index_ready: bool = false
 var _dirty_actor_boundaries: Dictionary[String, bool] = {}
@@ -141,6 +162,9 @@ func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary,
 		errors.append("Invalid workplace layout or occupied opening structure")
 		return false
 	_content = content
+	_native_advance = null
+	_collect_actor_work_changes = false
+	_actor_work_changes.clear()
 	invalidate_boundary_cache()
 	motion_rules = content.local_actions
 	config = settings.duplicate(true)
@@ -367,7 +391,10 @@ func _query_actor_boundary(cached: bool) -> int:
 				_dirty_actor_boundaries.erase(id)
 			continue
 		if not actor.active.is_empty():
-			if not actor_controls(id, "action") or not actor_controls(id, "motion"):
+			var allowed: bool = actor_controls(id, "action") and actor_controls(id, "motion")
+			if cached:
+				_route_continuations[id] = allowed and actor.active.get("phase") == "travel"
+			if not allowed:
 				actor_boundary = elapsed_ms + 1
 			else:
 				actor_boundary = _executor.next_boundary_ms(actor)
@@ -400,6 +427,7 @@ func invalidate_boundary_cache() -> void:
 	if _collect_actor_work_changes:
 		_actor_work_changes.append("") # Whole-region dependency invalidation.
 	_actor_boundaries.clear()
+	_route_continuations.clear()
 	_boundary_index.clear()
 	_boundary_index_ready = false
 	_dirty_actor_boundaries.clear()
@@ -411,12 +439,31 @@ func invalidate_actor_boundary(id: String) -> void:
 	if _collect_actor_work_changes:
 		_actor_work_changes.append(id)
 	_actor_boundaries.erase(id)
+	_route_continuations.erase(id)
 	_dirty_actor_boundaries[id] = true
 	_next_actor_boundary = -1
 
 
 func has_cached_boundary_ahead(id: String) -> bool:
 	return _boundary_revision_provider.is_valid() and int(_actor_boundaries.get(id, 0)) > elapsed_ms
+
+
+func continue_native_route(id: String, route: Dictionary, at_ms: int) -> void:
+	# A canonical cell crossing is already projected. With the same accepted
+	# control/geometry inputs there is no native work/decision effect before
+	# this segment ends. Keep its deadline without querying/settling it again.
+	if not bool(_route_continuations.get(id, false)) or not _boundary_revision_provider.is_valid() or boundary_dependencies_changed():
+		return
+	if int(_actor_boundaries.get(id, -1)) != at_ms or int(route.due_ms) <= at_ms or route.path.is_empty():
+		return
+	if SimRouteTravel.cell(_actors[id].cell) != SimRouteTravel.cell(route.path[0]):
+		return # An off-centre diagonal may still cross its other axis first.
+	var next: int = mini(int(route.due_ms), int(route.started_ms) + int(config.action_timeout) * MINUTE_MS + 1)
+	if next <= at_ms:
+		return
+	_actor_boundaries[id] = next
+	_boundary_index.set_due(NATIVE_BOUNDARY, id, next)
+	_next_actor_boundary = -1
 
 
 func boundary_dependencies_changed() -> bool:
@@ -435,87 +482,134 @@ func advance_to(target_tick: int, max_events: int = 4096) -> bool:
 	return advance_to_ms(target_tick * MINUTE_MS, max_events)
 
 
-func advance_to_ms(target_ms: int, max_events: int = 4096) -> bool:
+func has_pending_actor_interval() -> bool:
+	return _native_advance != null
+
+
+func advance_to_ms(target_ms: int, max_events: int = 4096, should_yield: Callable = Callable()) -> bool:
 	if target_ms < elapsed_ms or target_ms > SimInventory.MAX_COUNT or _executor == null:
 		return false
-	var events_left: int = max_events
-	var initial_minute: int = tick_index
-	var ids: Array = []
-	if not _sparse_actor_projection or not _boundary_revision_provider.is_valid():
-		ids = _actor_ids()
-	while elapsed_ms < target_ms:
-		var boundary: int = next_boundary_ms()
-		var next: int = mini(target_ms, boundary)
-		if next == boundary and events_left < 1:
+	if _native_advance != null and _native_advance.target_ms != target_ms:
+		return false
+	if _native_advance == null:
+		_native_advance = NativeAdvance.new()
+		_native_advance.target_ms = target_ms
+		_native_advance.initial_minute = tick_index
+		_native_advance.events_left = max_events
+	var work: NativeAdvance = _native_advance
+	while elapsed_ms < target_ms or work.phase != NativePhase.START:
+		if should_yield.is_valid() and bool(should_yield.call()):
 			return false
-		var sparse: bool = _sparse_actor_projection and _boundary_revision_provider.is_valid()
-		var batch: SimActorAdvance = _take_actor_advance(next)
-		if not sparse:
-			# Keep opaque standalone input callbacks on their original pre-advance
-			# interval and order; they have not promised observable rate changes.
-			for id: String in _actors:
-				_decay_actor(id, elapsed_ms, next - elapsed_ms)
-		land_resources.advance_to_ms(next)
-		elapsed_ms = next
-		if not sparse:
-			# All original needs were integrated above in their old-input order.
-			# A synchronous geometry/crossing observer must not integrate a later
-			# body twice or project it ahead of this stable projection pass.
-			for id: String in ids:
-				_actor_projection_ms[id] = elapsed_ms
-			_all_projected_ms = elapsed_ms
-		var projecting: Array = _boundary_index.due_ids(NATIVE_BOUNDARY, elapsed_ms) if sparse else ids
-		projecting.sort() # Original same-millisecond actor order, not heap order.
-		var publish_started: int = Time.get_ticks_usec() if batch != null else 0
-		if sparse:
-			# Due bodies finish their old-input needs before synchronous geometry
-			# notices can inspect peers. This is still only the due set, not N
-			# integrations for each other actor's cell crossing.
-			for id: String in projecting:
-				if batch != null and batch.row_for(id).x >= 0:
-					_apply_actor_advance(id, batch)
-				else:
-					_integrate_actor(id)
-		for id: String in projecting:
-			_executor.project(id, elapsed_ms, batch)
-		if batch != null:
-			actor_execution_work.publish_usec = int(actor_execution_work.publish_usec) + Time.get_ticks_usec() - publish_started
-		if next == boundary:
-			var due: Array = _boundary_index.due_ids(NATIVE_BOUNDARY, elapsed_ms) if _boundary_revision_provider.is_valid() else ids
-			_settle_actor_work(due, false)
-			_settle_actor_work(due, true)
-			_update_situations()
-			events_left -= 1
-			simulation_work.boundary_count = int(simulation_work.boundary_count) + 1
-		_refresh_stock_epoch()
-		var observing: Array = _actor_ids() if not sparse or _stock_observed_epoch != _stock_epoch or _stock_observed_minute != tick_index else _stock_dirty_actors.keys()
-		observing.sort()
-		for id: String in observing:
-			if bool(_actors[id].alive):
-				_observe_stock(id)
-		_stock_dirty_actors.clear()
-		_stock_observed_epoch = _stock_epoch
-		_stock_observed_minute = tick_index
-	simulation_work.batched_minutes = int(simulation_work.batched_minutes) + tick_index - initial_minute
+		match work.phase:
+			NativePhase.START:
+				var boundary: int = next_boundary_ms()
+				var next: int = mini(target_ms, boundary)
+				if next == boundary and work.events_left < 1:
+					_native_advance = null
+					return false
+				work.at_boundary = next == boundary
+				work.sparse = _sparse_actor_projection and _boundary_revision_provider.is_valid()
+				work.batch = _take_actor_advance(next)
+				if not work.sparse:
+					# Opaque standalone callbacks retain their pre-advance input order.
+					for id: String in _actors:
+						_decay_actor(id, elapsed_ms, next - elapsed_ms)
+				land_resources.advance_to_ms(next)
+				elapsed_ms = next
+				if not work.sparse:
+					for id: String in _actors:
+						_actor_projection_ms[id] = elapsed_ms
+					_all_projected_ms = elapsed_ms
+				work.projecting = _boundary_index.due_ids(NATIVE_BOUNDARY, elapsed_ms) if work.sparse else _actor_ids()
+				work.projecting.sort()
+				work.cursor = 0
+				work.phase = NativePhase.INTEGRATE
+			NativePhase.INTEGRATE:
+				# Finish every old-input need before any geometry observer can see
+				# peers. A suspended interval remains unpublished during this pass.
+				var started: int = Time.get_ticks_usec() if work.batch != null else 0
+				if work.sparse:
+					while work.cursor < work.projecting.size():
+						if work.cursor % 8 == 0 and should_yield.is_valid() and bool(should_yield.call()):
+							if work.batch != null:
+								actor_execution_work.publish_usec = int(actor_execution_work.publish_usec) + Time.get_ticks_usec() - started
+							return false
+						var id: String = work.projecting[work.cursor]
+						if work.batch != null and work.batch.row_for(id).x >= 0:
+							_apply_actor_advance(id, work.batch)
+						else:
+							_integrate_actor(id)
+						work.cursor += 1
+				if work.batch != null:
+					actor_execution_work.publish_usec = int(actor_execution_work.publish_usec) + Time.get_ticks_usec() - started
+				work.cursor = 0
+				work.phase = NativePhase.PROJECT
+			NativePhase.PROJECT:
+				var started: int = Time.get_ticks_usec() if work.batch != null else 0
+				while work.cursor < work.projecting.size():
+					if work.cursor % 8 == 0 and should_yield.is_valid() and bool(should_yield.call()):
+						if work.batch != null:
+							actor_execution_work.publish_usec = int(actor_execution_work.publish_usec) + Time.get_ticks_usec() - started
+						return false
+					_executor.project(work.projecting[work.cursor], elapsed_ms, work.batch)
+					work.cursor += 1
+				if work.batch != null:
+					actor_execution_work.publish_usec = int(actor_execution_work.publish_usec) + Time.get_ticks_usec() - started
+				work.due = _boundary_index.due_ids(NATIVE_BOUNDARY, elapsed_ms) if _boundary_revision_provider.is_valid() else _actor_ids()
+				work.phase = NativePhase.SETTLE
+			NativePhase.SETTLE:
+				if work.at_boundary and not _settle_actor_work(work, false, should_yield):
+					return false
+				work.phase = NativePhase.CHOOSE
+			NativePhase.CHOOSE:
+				if work.at_boundary:
+					if not _settle_actor_work(work, true, should_yield):
+						return false
+					_update_situations()
+					work.events_left -= 1
+					simulation_work.boundary_count = int(simulation_work.boundary_count) + 1
+				_refresh_stock_epoch()
+				work.observing = _actor_ids() if not work.sparse or _stock_observed_epoch != _stock_epoch or _stock_observed_minute != tick_index else _stock_dirty_actors.keys()
+				work.observing.sort()
+				work.cursor = 0
+				work.phase = NativePhase.OBSERVE
+			NativePhase.OBSERVE:
+				while work.cursor < work.observing.size():
+					if work.cursor % 8 == 0 and should_yield.is_valid() and bool(should_yield.call()):
+						return false
+					var id: String = work.observing[work.cursor]
+					work.cursor += 1
+					if bool(_actors[id].alive):
+						_observe_stock(id)
+				_stock_dirty_actors.clear()
+				_stock_observed_epoch = _stock_epoch
+				_stock_observed_minute = tick_index
+				work.phase = NativePhase.START
+	simulation_work.batched_minutes = int(simulation_work.batched_minutes) + tick_index - work.initial_minute
 	simulation_work.quiet_batch_calls = int(simulation_work.quiet_batch_calls) + 1
+	_native_advance = null
 	changed.emit()
 	return true
 
 
-func _settle_actor_work(due: Array, choosing: bool) -> void:
+func _settle_actor_work(work: NativeAdvance, choosing: bool, should_yield: Callable) -> bool:
 	# A pass keeps the original ID order. A synchronous observer can invalidate
 	# a later body during this pass; merge that suffix without rescanning N peers.
 	# Earlier IDs wait for the next boundary, as in the original ordered loop.
-	var candidates: Array = due.duplicate()
-	var included: Dictionary = {}
-	for id: String in candidates:
-		included[id] = true
-	_merge_actor_work(candidates, included, "", _dirty_actor_boundaries.keys() if _boundary_index_ready else _actor_ids())
-	_collect_actor_work_changes = true
-	var cursor: int = 0
-	while cursor < candidates.size():
-		var id: String = candidates[cursor]
-		cursor += 1
+	if not work.work_started:
+		work.candidates = work.due.duplicate()
+		work.included = {}
+		for id: String in work.candidates:
+			work.included[id] = true
+		_merge_actor_work(work.candidates, work.included, "", _dirty_actor_boundaries.keys() if _boundary_index_ready else _actor_ids())
+		_collect_actor_work_changes = true
+		work.work_cursor = 0
+		work.work_started = true
+	while work.work_cursor < work.candidates.size():
+		if work.work_cursor % 8 == 0 and should_yield.is_valid() and bool(should_yield.call()):
+			return false
+		var id: String = work.candidates[work.work_cursor]
+		work.work_cursor += 1
 		var actor: Dictionary = _actors[id]
 		if choosing:
 			simulation_work.actor_decision_checks = int(simulation_work.actor_decision_checks) + 1
@@ -525,9 +619,11 @@ func _settle_actor_work(due: Array, choosing: bool) -> void:
 			simulation_work.actor_settle_checks = int(simulation_work.actor_settle_checks) + 1
 			_executor.settle(id)
 		if not _actor_work_changes.is_empty():
-			_merge_actor_work(candidates, included, id, _actor_ids() if _actor_work_changes.has("") else _actor_work_changes)
+			_merge_actor_work(work.candidates, work.included, id, _actor_ids() if _actor_work_changes.has("") else _actor_work_changes)
 			_actor_work_changes.clear()
 	_collect_actor_work_changes = false
+	work.work_started = false
+	return true
 
 
 func _merge_actor_work(candidates: Array, included: Dictionary, after: String, invalidated: Array) -> void:
@@ -1197,6 +1293,9 @@ func restore(data: Dictionary, allowed_subjects: Dictionary = {}, external_inven
 		for office: Dictionary in institution.offices.values():
 			if not str(office.holder).is_empty() and not data.actors.has(office.holder):
 				return false
+	_native_advance = null
+	_collect_actor_work_changes = false
+	_actor_work_changes.clear()
 	config = data.config.duplicate(true)
 	invalidate_boundary_cache()
 	_actors = data.actors.duplicate(true)

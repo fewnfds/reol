@@ -17,6 +17,7 @@ var appearance_pose: Dictionary = {}
 
 var _world: ReolWorld
 var _presentation := ReolMotionPresentation.new()
+var _projected_position: Vector2 = Vector2.ZERO
 
 
 func _init() -> void:
@@ -34,7 +35,7 @@ func setup(
 	pawn_id = definition.id
 	_world = world_ref
 	cell = spawn_cell
-	global_position = TileGrid.cell_to_world(cell)
+	project_position(TileGrid.cell_to_world(cell))
 	publish_motion(GameClock.elapsed_ms, true)
 	z_index = 9
 	queue_redraw()
@@ -64,16 +65,25 @@ func _process(_delta: float) -> void:
 	# Only presentation advances here; offscreen regions own no animation nodes.
 	if not is_visible_in_tree() or appearance_pose.is_empty():
 		return
-	var moved: bool = _presentation.advance(GameClock.view_delta_seconds())
+	_presentation.advance(GameClock.view_delta_seconds())
+	# Godot retains CanvasItem drawing commands. Moving the node updates its
+	# native transform; it does not require replaying clothes/text drawing in
+	# GDScript on every interpolated frame.
+	global_position = _presentation.position
 	if int(appearance_pose.get("time_ms", 0)) != GameClock.elapsed_ms:
 		appearance_pose.time_ms = GameClock.elapsed_ms
-		moved = true
-	if moved:
 		queue_redraw()
 
 
+func project_position(point: Vector2) -> void:
+	_projected_position = point
+	if not _presentation.initialized():
+		global_position = point
+
+
 func publish_motion(at_ms: int, snap: bool = false) -> void:
-	_presentation.capture(global_position, at_ms, 1.0 / GameClock.view_transition_rate(), snap)
+	_presentation.capture(_projected_position, at_ms, 1.0 / GameClock.view_transition_rate(), snap)
+	global_position = _presentation.position
 
 
 func presentation_position() -> Vector2:
@@ -83,7 +93,6 @@ func presentation_position() -> Vector2:
 func _draw() -> void:
 	if state == null or state.pawn_def == null:
 		return
-	draw_set_transform(presentation_position() - global_position)
 	var elevation: int = 0
 	if _world != null:
 		elevation = _world.get_elevation(cell)
@@ -93,4 +102,3 @@ func _draw() -> void:
 	if not caption_visible and not selected:
 		text = ""
 	Visuals.draw_actor(self, ground, ground, robe, text, selected, false, clothing_appearance, appearance_pose)
-	draw_set_transform(Vector2.ZERO)

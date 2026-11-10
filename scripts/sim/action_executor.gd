@@ -75,6 +75,7 @@ func project(actor_id: String, at_ms: int, batch: SimActorAdvance = null) -> voi
 		cancel(actor_id, "route_blocked")
 		return
 	_sim.project_actor_route(actor_id, action, at_ms, batch)
+	_sim.continue_native_route(actor_id, action, at_ms)
 
 
 func settle(actor_id: String) -> void:

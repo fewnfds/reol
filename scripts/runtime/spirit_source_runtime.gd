@@ -1,5 +1,5 @@
 class_name SpiritSourceRuntime
-extends Node2D
+extends CommittedWorldCanvas
 ## Source view and intentions only. SimSpiritSources owns all costs and effects.
 
 var panel: SpiritSourcePanel
@@ -37,7 +37,7 @@ func setup(adapter: WorldContinuityRuntime) -> void:
 	panel.choice_changed.connect(_on_choice_changed)
 	if domain() != null:
 		panel.set_terms(int(domain().definitions.duration_ms))
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func show_panel(object_id: String = "") -> bool:
@@ -192,7 +192,7 @@ func reset_observation() -> void:
 	_seen_sources.clear()
 	if panel != null:
 		panel.hide()
-	queue_redraw()
+	clear_committed_canvas()
 
 
 func refresh() -> void:
@@ -207,7 +207,7 @@ func refresh() -> void:
 		return
 	if not adapter.human_player_active():
 		panel.hide()
-		queue_redraw()
+		redraw_committed_canvas()
 		return
 	if not selected_source.is_empty():
 		var status: Dictionary = source.status("player")
@@ -218,7 +218,7 @@ func refresh() -> void:
 		panel.update_view(perception(selected_source), status, _notice, _selected_object)
 		if not panel.selected_object().is_empty():
 			_selected_object = panel.selected_object()
-	queue_redraw()
+	redraw_committed_canvas()
 
 
 func _display_point(id: String) -> Vector2:
@@ -227,7 +227,7 @@ func _display_point(id: String) -> Vector2:
 	return TileGrid.cell_to_world(cell) + Vector2(-27, 17 - adapter._home._world.get_elevation(cell) * ReolWorld.ELEVATION_PX)
 
 
-func _draw() -> void:
+func _build_canvas() -> void:
 	var source: RefCounted = domain()
 	if source == null:
 		return
@@ -236,12 +236,12 @@ func _draw() -> void:
 		if not source_visible(id):
 			continue
 		var point: Vector2 = _display_point(id)
-		draw_rect(Rect2(point + Vector2(-12, -5), Vector2(24, 12)), Color("#252829"))
-		draw_rect(Rect2(point + Vector2(-9, -2), Vector2(8, 3)), Color("#ad583a"))
-		draw_rect(Rect2(point + Vector2(-2, 1), Vector2(11, 3)), Color("#d99554"))
-		draw_rect(Rect2(point + Vector2(-3, -1), Vector2(4, 3)), Color("#f0c989"))
+		capture_rect(Rect2(point + Vector2(-12, -5), Vector2(24, 12)), Color("#252829"))
+		capture_rect(Rect2(point + Vector2(-9, -2), Vector2(8, 3)), Color("#ad583a"))
+		capture_rect(Rect2(point + Vector2(-2, 1), Vector2(11, 3)), Color("#d99554"))
+		capture_rect(Rect2(point + Vector2(-3, -1), Vector2(4, 3)), Color("#f0c989"))
 		if str(status.get("source", "")) == id and bool(status.get("busy", false)):
-			draw_arc(point, 16, 0.0, TAU, 16, Color("#d9be79"), 1.0)
+			capture_arc(point, 16, 0.0, TAU, 16, Color("#d9be79"), 1.0)
 
 
 func _unhandled_input(event: InputEvent) -> void:
