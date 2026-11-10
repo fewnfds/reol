@@ -25,9 +25,28 @@ func run(runner: Object) -> void:
 		main._process(0.0)
 		if subject == "subject:player":
 			_assert_saved_exploration(main, runner)
+		elif subject == "subject:soul:yan_heng":
+			_assert_soul_flora_binding(main, runner)
 		main.free()
 	GameClock.restore_state(previous_clock)
 	print("SCENARIO opening structure visibility: actual first observation, existing exploration and all three starting lives")
+
+
+func _assert_soul_flora_binding(main: Node, runner: Object) -> void:
+	var runtime: WorldContinuityRuntime = main._continuity
+	var old_plants: SimPlants = runtime.world_sim.plants
+	var path: String = "user://tests/soul_flora_binding_%d.json" % Time.get_ticks_usec()
+	var saved: Error = runtime.save_game(path)
+	runner.assert_eq(saved, OK, "soul session saves its original plants")
+	if saved == OK:
+		var loaded: Error = runtime.load_game(path)
+		runner.assert_eq(loaded, OK, "ordinary loading replaces a soul session")
+		if loaded == OK:
+			runner.assert_true(not is_same(old_plants, runtime.world_sim.plants), "loading installs the candidate's plant owner")
+			runner.assert_eq(main.world.flora_override.get_object(), runtime.world_sim.plants, "soul presentation binds flora to the installed world even while plant drawing is hidden")
+	for suffix: String in ["", ".tmp", ".bak", ".bak.tmp"]:
+		if FileAccess.file_exists(path + suffix):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path + suffix))
 
 
 func _assert_initial_office_sight(main: Node, runner: Object) -> void:

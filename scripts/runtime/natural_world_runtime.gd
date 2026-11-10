@@ -209,7 +209,7 @@ func _draw() -> void:
 
 func _build_canvas() -> void:
 	var adapter: WorldContinuityRuntime = runtime()
-	if adapter == null or adapter.world_sim == null or adapter.soul_player_active():
+	if adapter == null or adapter.world_sim == null:
 		return
 	var world: RegionalSimulation = adapter.world_sim
 	var home: VillageRuntime = adapter.home_runtime()
@@ -218,6 +218,8 @@ func _build_canvas() -> void:
 		_bound_world = weakref(world)
 		_painted_claims.clear()
 		home._world.flora_override = world.plants.overrides_flora
+	if adapter.soul_player_active():
+		return
 	var center: Vector2i = adapter.controlled_cell()
 	for y: int in range(center.y - 14, center.y + 15):
 		for x: int in range(center.x - 14, center.x + 15):
