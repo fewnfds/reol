@@ -1,6 +1,6 @@
 # C2-a 实物衣着验收
 
-2026-11-03。规格见[实物衣着](../archive/specifications/clothing_foundation.md)，最新完整检查数字只维护在[BASELINE](../status/baseline.md)。本包为有限生活/外观样本，完整游戏和切片仍未完成。
+2026-11-03。规格见[实物衣着](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/clothing_foundation.md)，最新完整检查数字只维护在[BASELINE](../status/baseline.md)。本包为有限生活/外观样本，完整游戏和切片仍未完成。
 
 ## 实际行为
 

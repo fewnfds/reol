@@ -3,7 +3,7 @@
 2026-11-03用户确认正式复杂资源后置，先由代码生成像素示意支撑玩法；外部提示词保留但无需继续制作。现有人形样本可重复生成，仍遵守八向/非对称/共同动作合同，不把占位图称为正式美术。
 
 > 先用占位验证玩法；素材制作按实际工作包推进。目录职责见[项目文件架构](../docs/engineering/project-structure.md)。
-> 新核查的素材/字体与许可流程见[完整资源研究](../design/research/full_game_reference_map.md)，Godot生态与具体音效/UI候选见[资源清单](../design/research/godot_resource_candidates.md)。正式批量资源在[长期方案](../docs/plans/product/full-game.md)玩法Alpha之后；开发中必要的可读反馈仍随玩法实现。
+> 新核查的素材/字体与许可流程见[完整资源研究](../design/research/full_game_reference_map.md)，Godot生态与具体音效/UI候选见[资源清单](../design/research/godot_resource_candidates.md)。正式批量资源在[长期方案](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/plans/product/full-game.md)玩法Alpha之后；开发中必要的可读反馈仍随玩法实现。
 
 ---
 

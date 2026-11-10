@@ -1,14 +1,11 @@
-# 历史文档
+# 历史资料的读取边界
 
-此目录只保存历史版本、推导和证据快照，不提供当前授权、版本或任务顺序。旧active/只设计/下一包、资源选择和坐标方案都只在原日期语境成立。
+本目录只保留追溯入口，不再存放重复的计划、规格、决策及整套文档快照。当前世界规则、实施顺序和停点分别在[规则](../../design/rules/README.md)、[主计划](../plans/foundation-priorities.md)和[HANDOFF](../status/handoff.md)。
 
-- `*_before_structure_20261102.md`：第一次结构整理前的架构、基线、路线与接续。
-- [2026-11-03整理快照](documentation_before_consolidation_20261103/INDEX.md)：此前入口/领域/计划原文。
-- [早期分向出图提示词](character_generation_prompts_20261103_early/README.md)：已被一文件一图提示词流程替代。
-- [2026-11-04整理快照](documentation_consolidation_20261104/INDEX.md)：本次大重写前原文，保留原路径层级。
+清理前已提交资料的固定来源是[8c3deaa972f932e999167b61ea6b166b928cfe5f](https://github.com/fewnfds/reol/tree/8c3deaa972f932e999167b61ea6b166b928cfe5f)。历史引用链接到该版本的原文件，避免旧指导被默认加载。需要具体文件时使用Git，例如：
 
-- [历史工作包规格](specifications/README.md)：完成、暂缓和被新顺序取代的旧包，供追溯，不能自动执行。
-- `design-context-20261105/`、`engineering-context-20261105/`：本轮从设计/工程页分离的旧实现快照及顺序。
-- `report-entries/`：旧根目录报告入口，保留原报告追溯。
+```text
+git show 8c3deaa972f932e999167b61ea6b166b928cfe5f:docs/archive/specifications/world_engine_execution.md
+```
 
-当前入口见[文档路由](../README.md)。归档中的相对链接可能反映原路径，不为通过当前链接检查而篡改原始内容；具体旧文件通过[CATALOG](../CATALOG.md)定位。
+具有独立验证价值的[QA原报告](../qa/README.md)继续保留。它们只证明当时的代码和负载，不能授权施工或证明新架构完成。未提交工作与原fixture不在此删除范围，按HANDOFF保护。

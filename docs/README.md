@@ -1,25 +1,18 @@
 # 文档入口
 
-按问题选一个入口，再读取所需领域页。目标、代码、进度和证据分别存放，不要求通读所有文档。
+从当前需求读取文档。目标、现有实现和验证证据分别保存；现有class不是重构边界，旧阶段和样本不产生任务。
 
-| 要知道什么 | 入口 |
+| 问题 | 唯一入口 |
 |---|---|
-| 游戏是什么，哪些规则已确定 | [愿景](../design/vision.md)、[已确认规则](../design/rules/README.md) |
-| 某个系统怎样设计，参考了什么 | [设计与研究](../design/README.md) |
-| 现在在做什么，未提交内容是什么 | [当前接续](status/handoff.md) |
-| 游戏现在实际有什么功能 | [功能与边界](status/features.md) |
-| 已定技术是否进main、哪些仍是原型 | [技术落地总表](status/technical-status.md) |
-| 版本及验证到什么程度 | [证据基线](status/baseline.md)、[QA](qa/README.md) |
-| 分支分别有什么用 | [分支审计](status/branches.md) |
-| 状态归谁，文件放哪里，工具怎样用 | [工程入口](engineering/README.md) |
-| 顶层框架怎样划分，算法属于哪里 | [领域归属与跨域合同](engineering/architecture/05-framework-domains.md) |
-| 中文游戏概念对应哪个class/字段 | [术语与代码映射](engineering/terminology.md) |
-| 开发规则来自哪里、哪些skill在约束 | [开发范式与来源](engineering/workflow/ai-development.md#规则来源与技能职责) |
-| 如何选测试、计时和划分GPU/CI验证 | [测试策略](engineering/workflow/testing.md) |
-| 目标硬件、内存和GPU预算是什么 | [全项目性能基线](engineering/architecture.md#全项目性能基线) |
-| 基础框架的建设依赖与完成标准 | [基础建设计划](plans/foundation-priorities.md) |
-| 更远的产品目标和技术候选 | [计划](plans/README.md)、[工程规格](specs/README.md) |
-| 为什么作这个决定，旧材料在哪 | [决策](decisions/README.md)、[历史](archive/README.md) |
-| 文档怎样维护，全部文件在哪 | [文档合同](DOCUMENTATION.md)、[分类目录](CATALOG.md) |
+| 正在做什么，哪些工作受保护 | [HANDOFF](status/handoff.md) |
+| 本次解决什么，交付和验收是什么 | [重构主计划](plans/foundation-priorities.md) |
+| 新执行架构如何设计 | [执行规格](specs/world-engine/execution.md) |
+| 游戏方向与已确认规则 | [愿景](../design/vision.md)、[规则](../design/rules/README.md) |
+| 顶层职责和状态归属 | [领域划分](engineering/architecture/05-framework-domains.md) |
+| 现有Demo能做什么 | [功能](status/features.md)、[技术起点](status/technical-status.md) |
+| 版本、CI和性能证据 | [基线](status/baseline.md)、[QA](qa/README.md) |
+| 数据、文件与原实现接口 | [内容数据](../data/README.md)、[工程索引](engineering/README.md) |
+| 测试、审查、CI和工具 | [测试策略](engineering/workflow/testing.md)、[审查流程](engineering/workflow/code-review.md)、[工具](engineering/tooling/usage.md) |
+| 文档和历史怎样读取 | [维护合同](DOCUMENTATION.md)、[Git追溯](archive/README.md)、[分类目录](CATALOG.md) |
 
-新会话先读 [AGENTS](../AGENTS.md) 和当前接续，再按任务选 1–3 个技能。旧计划/QA 中的“下一包”“active”不构成授权。
+新会话先读[AGENTS](../AGENTS.md)及HANDOFF，再按任务读取主计划/规格或当前实现参考。每次选1–3个领域技能，不默认加载历史、全部QA、旧原型或所有代码。

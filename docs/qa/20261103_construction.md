@@ -1,6 +1,6 @@
 # P2-a：实物施工、门墙与离场建造验收
 
-日期：2026-11-03。范围：[施工首包规格](../archive/specifications/construction_foundation.md)。这是有限宗门工地样本，不是完整P2/经营或完整游戏。Goal保持active，范围无需重写。
+日期：2026-11-03。范围：[施工首包规格](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/construction_foundation.md)。这是有限宗门工地样本，不是完整P2/经营或完整游戏。Goal保持active，范围无需重写。
 
 ## 规则与自动验证
 

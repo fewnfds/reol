@@ -1,21 +1,6 @@
-# evidence / 1
+# evidence 分类目录
 
-[分类总目录](../CATALOG.md)；路径存在不表示已实现或已验。
-
-- [docs/qa/20261110_demo_feedback.md](../qa/20261110_demo_feedback.md)
-- [docs/qa/20261109_world_events_plants.md](../qa/20261109_world_events_plants.md)
-- [docs/qa/20261108_settlement_kernel.md](../qa/20261108_settlement_kernel.md)
-- [docs/qa/20261107_mainline_cleanup.md](../qa/20261107_mainline_cleanup.md)
-- [docs/qa/20261107_test_optimization.md](../qa/20261107_test_optimization.md)
-- [docs/qa/20261107_terminology.md](../qa/20261107_terminology.md)
-
-- [docs/qa/20261107_test_cost_audit.md](../qa/20261107_test_cost_audit.md)
-
-- [docs/qa/20261107_framework_runtime_integration.md](../qa/20261107_framework_runtime_integration.md)
-- [docs/qa/20261107_source_change_review.md](../qa/20261107_source_change_review.md)
-- [docs/qa/20261107_sparse_execution.md](../qa/20261107_sparse_execution.md)
-- [docs/qa/20261107_world_engine_finish.md](../qa/20261107_world_engine_finish.md)
-- [docs/qa/legacy-environment-regressions.md](../qa/legacy-environment-regressions.md)
+此页只列路径；状态与任务按文档入口读取。
 
 - [docs/qa/20261103_artifact_understanding.md](../qa/20261103_artifact_understanding.md)
 - [docs/qa/20261103_autonomous_livelihood.md](../qa/20261103_autonomous_livelihood.md)
@@ -81,9 +66,32 @@
 - [docs/qa/20261105_temperature_segments_and_budget.md](../qa/20261105_temperature_segments_and_budget.md)
 - [docs/qa/20261105_world_foundation_exit.md](../qa/20261105_world_foundation_exit.md)
 - [docs/qa/20261105_world_object_contract.md](../qa/20261105_world_object_contract.md)
-- [docs/qa/20261106_environment_optimization.md](../qa/20261106_environment_optimization.md)
-- [docs/qa/20261107_world_performance_followup.md](../qa/20261107_world_performance_followup.md)
 - [docs/qa/20261106_environment_cold_build.md](../qa/20261106_environment_cold_build.md)
+- [docs/qa/20261106_environment_optimization.md](../qa/20261106_environment_optimization.md)
+- [docs/qa/20261107_framework_runtime_integration.md](../qa/20261107_framework_runtime_integration.md)
+- [docs/qa/20261107_mainline_cleanup.md](../qa/20261107_mainline_cleanup.md)
+- [docs/qa/20261107_source_change_review.md](../qa/20261107_source_change_review.md)
+- [docs/qa/20261107_sparse_execution.md](../qa/20261107_sparse_execution.md)
+- [docs/qa/20261107_terminology.md](../qa/20261107_terminology.md)
+- [docs/qa/20261107_test_cost_audit.md](../qa/20261107_test_cost_audit.md)
+- [docs/qa/20261107_test_optimization.md](../qa/20261107_test_optimization.md)
+- [docs/qa/20261107_world_engine_finish.md](../qa/20261107_world_engine_finish.md)
+- [docs/qa/20261107_world_performance_followup.md](../qa/20261107_world_performance_followup.md)
+- [docs/qa/20261107_world_space_actions.md](../qa/20261107_world_space_actions.md)
+- [docs/qa/20261108_building_framework.md](../qa/20261108_building_framework.md)
+- [docs/qa/20261108_settlement_kernel.md](../qa/20261108_settlement_kernel.md)
+- [docs/qa/20261109_environment_architecture_review.md](../qa/20261109_environment_architecture_review.md)
+- [docs/qa/20261109_environment_composition.md](../qa/20261109_environment_composition.md)
+- [docs/qa/20261109_save_framework.md](../qa/20261109_save_framework.md)
+- [docs/qa/20261109_simulation_pacing.md](../qa/20261109_simulation_pacing.md)
+- [docs/qa/20261109_world_events_plants.md](../qa/20261109_world_events_plants.md)
+- [docs/qa/20261110_demo_feedback.md](../qa/20261110_demo_feedback.md)
+- [docs/qa/20261110_execution_rewrite_reset.md](../qa/20261110_execution_rewrite_reset.md)
+- [docs/qa/20261110_performance_architecture_audit.md](../qa/20261110_performance_architecture_audit.md)
+- [docs/qa/20261110_presentation_crowd.md](../qa/20261110_presentation_crowd.md)
+- [docs/qa/20261110_runtime_cpu_root_cause.md](../qa/20261110_runtime_cpu_root_cause.md)
+- [docs/qa/20261110_sparse_runtime_dispatch.md](../qa/20261110_sparse_runtime_dispatch.md)
+- [docs/qa/20261110_unit_actions.md](../qa/20261110_unit_actions.md)
 - [docs/qa/README.md](../qa/README.md)
 - [docs/qa/baseline-history/01-clock-and-source-field.md](../qa/baseline-history/01-clock-and-source-field.md)
 - [docs/qa/baseline-history/02-heat-storage-capacity.md](../qa/baseline-history/02-heat-storage-capacity.md)
@@ -98,11 +106,4 @@
 - [docs/qa/baseline-history/11-light-and-geography.md](../qa/baseline-history/11-light-and-geography.md)
 - [docs/qa/baseline-history/12-intrinsic-light.md](../qa/baseline-history/12-intrinsic-light.md)
 - [docs/qa/baseline-history/README.md](../qa/baseline-history/README.md)
-
-- [docs/qa/20261108_building_framework.md](../qa/20261108_building_framework.md)
-
-- [docs/qa/20261107_world_space_actions.md](../qa/20261107_world_space_actions.md)
-
-- [docs/qa/20261109_simulation_pacing.md](../qa/20261109_simulation_pacing.md)
-
-- [docs/qa/20261109_save_framework.md](../qa/20261109_save_framework.md)
+- [docs/qa/legacy-environment-regressions.md](../qa/legacy-environment-regressions.md)

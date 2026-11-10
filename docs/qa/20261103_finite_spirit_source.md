@@ -1,6 +1,6 @@
 # E4-a：有限地火隙、引息与原生活用途
 
-2026-11-03。**有限首包已通过独立定向、真实引息中途档、原生1280×720、两次完整游戏进程停开接续及最终完整check；有限范围验收完成。** 最新构建、兼容与完整回归数字只在[BASELINE](../status/baseline.md)维护，规则与验收边界见[规格](../archive/specifications/finite_spirit_source.md)。当前仍是M2原型，完整修行、五行场、P1–P4及45–60分钟切片尚未完成。
+2026-11-03。**有限首包已通过独立定向、真实引息中途档、原生1280×720、两次完整游戏进程停开接续及最终完整check；有限范围验收完成。** 最新构建、兼容与完整回归数字只在[BASELINE](../status/baseline.md)维护，规则与验收边界见[规格](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/finite_spirit_source.md)。当前仍是M2原型，完整修行、五行场、P1–P4及45–60分钟切片尚未完成。
 
 ## 实际接通与状态归属
 

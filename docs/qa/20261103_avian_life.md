@@ -1,6 +1,6 @@
 # 两聚落雀妖自主生活与衔药验收
 
-2026-11-03，完成[W2-a](../archive/specifications/avian_life.md)。本包是实际非人NPC，不是可选玩家身份；W2-b开局扮演仍待接入。
+2026-11-03，完成[W2-a](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/avian_life.md)。本包是实际非人NPC，不是可选玩家身份；W2-b开局扮演仍待接入。
 
 `SimAvianLife`持有独立雀身与栖地实物，`SimEmbodiment`以avian_body引用实际身体。鸟不在Village人类名单中，没有人类职位、功绩、手臂或大背包。两地各一只：青苔、芦花；饥时飞往自己记得的食源啄食，乏时回树巢。种子/食粒实际消耗，植株到生长边界补充有限库存；远区没有视图仍继续生活。需求固定点余数、连续飞行和关键边界与原共同毫秒一致。
 

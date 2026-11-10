@@ -1,6 +1,6 @@
 # 口头资格、有限采信与真实放行：实际验收
 
-2026-11-03。W5-a有限链样本；[实施范围](../archive/specifications/social_admission.md)。不是通用幻术、身份伪装、骗经或全社会执法。
+2026-11-03。W5-a有限链样本；[实施范围](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/social_admission.md)。不是通用幻术、身份伪装、骗经或全社会执法。
 
 ## 实机经过
 

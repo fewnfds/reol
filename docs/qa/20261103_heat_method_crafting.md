@@ -1,6 +1,6 @@
 # 温养手记：试验、传授与个人采用验收
 
-2026-11-03，W6有限首包。[规格](../archive/specifications/heat_method_crafting.md)。不是任意创法、完整修行或通用学习网络；只组合已有温石注灵/储热/生活用途。
+2026-11-03，W6有限首包。[规格](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/heat_method_crafting.md)。不是任意创法、完整修行或通用学习网络；只组合已有温石注灵/储热/生活用途。
 
 ## 实机链与重启
 

@@ -13,4 +13,4 @@
 
 入口为[main.gd](main.gd)，持续世界在[regional_simulation.gd](sim/regional_simulation.gd)，地方生活在[village_simulation.gd](sim/village_simulation.gd)。新增文件按[PROJECT-STRUCTURE](../docs/engineering/project-structure.md)，改领域前查其计划和实际代码。
 
-移动`.gd`连同`.gd.uid`并更新引用；先结构检查，再按变更做导入/行为验证。第三方addons不借重构修改。整理前逐包说明完整保存在[历史原文](../docs/archive/documentation_consolidation_20261104/scripts/README.md)。
+移动`.gd`连同`.gd.uid`并更新引用；先结构检查，再按变更做导入/行为验证。第三方addons不借重构修改。整理前逐包说明完整保存在[历史原文](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/documentation_consolidation_20261104/scripts/README.md)。

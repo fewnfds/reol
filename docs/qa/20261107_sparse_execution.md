@@ -2,7 +2,7 @@
 
 ## 范围与版本
 
-起点`eff27a7dcf77031a4084258cc688bbb3616b64e4`，工作分支`codex/sparse-world-execution`。受检代码`ee3504d3c313aa07ac4e87caec3bd39488c725e3`；后续收口仅改文档，生产代码/测试差异为空。规格见[本包边界](../plans/runtime-efficiency/implementation.md)，实际接口见[接入指南](../engineering/sparse-execution.md)。
+起点`eff27a7dcf77031a4084258cc688bbb3616b64e4`，工作分支`codex/sparse-world-execution`。受检代码`ee3504d3c313aa07ac4e87caec3bd39488c725e3`；后续收口仅改文档，生产代码/测试差异为空。规格见[本包边界](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/plans/runtime-efficiency/implementation.md)，实际接口见[接入指南](../engineering/sparse-execution.md)。
 
 框架核心是原领域持有的`SimParticipationIndex`：能力/状态成员、当前参与、带修订的依赖失效和可更新到期队列；不包含五行、冷热、伤口等内建字段，不调用领域回调、不推进时间、不保存实物或数值。普通环境与健康是两种真实接入，未增加演示玩法。其他旧域未因此自动迁入。
 

@@ -1,9 +1,9 @@
-# 工程候选合同
+# 工程规格入口
 
-这些页面描述候选接口和验收设想，不是功能已经实现的证据。框架的保留/改造/补齐、施工顺序与出口只看[基础建设与改造计划](../plans/foundation-priorities.md)；旧F/W等编号及当时“下一步”只保留追溯意义。实际代码和证据分别见[工程入口](../engineering/README.md)与[状态](../status/handoff.md)，当前授权只在HANDOFF登记。
+规格描述目标合同，不表示已经实现。实施顺序和验收只在[重构主计划](../plans/foundation-priorities.md)，当前工作只看[HANDOFF](../status/handoff.md)。
 
-- [世界运行与创作工具](world-engine/program.md)：世界层、内容装配和编辑能力的候选结构。
-- [世界引擎基础](world-engine/foundation.md)：气候、环境场、时间、空间和验证设想。
-- [环境接入参考](environment/integration.md)：已有接管的工程/证据入口及房间接缝候选；不重复排定Main切换或旧档导入。
-- [历史兼容退役](persistence/retirement.md)：旧输入及当前格式的有限迁入边界。
-- [八方向外观](presentation/eight-directions.md)：角色动作、分层和不对称显示的候选约束。
+- [模拟执行架构](world-engine/execution.md)：计算粒度、局部因果、数据布局、CPU/GPU批任务及规模验证。
+- [内容与装配](world-engine/program.md)：定义、开局、实例、候选恢复和创作工具的边界。
+- [八方向外观](presentation/eight-directions.md)：有效的外观/动画候选约束，与本次执行架构分工独立。
+
+旧世界引擎、环境接入、迁移退役和样本规格已退出当前目录，源文档通过[Git历史](../archive/README.md)查阅。当前Demo接口在[工程索引](../engineering/README.md)中作为实现参考，不限制新结构。

@@ -4,13 +4,14 @@
 
 ## 按需读取
 
-- 新会话用`reol-project`；先HANDOFF，按任务查BASELINE（证据）、FEATURES（可玩范围）、ARCHITECTURE（代码所有者）。完整路由见`docs/README.md`。
+- 新会话用`reol-project`；先HANDOFF，实施任务再查唯一主计划与执行规格；BASELINE/FEATURES/现有API仅在需要核对起点时读。完整路由见`docs/README.md`。
 - 已确认概念见`design/vision.md`与`design/rules/`；详细机制候选在systems/proposals，不能冒充已定规则。领域职责只看`docs/engineering/architecture/05-framework-domains.md`，基础建设依赖与出口只看`docs/plans/foundation-priorities.md`；主计划按顶层框架组织，每项算法/优化归入明确模块与原owner。授权框架范围内持续推进，内部小步不自动成为停止或重新确认边界；不因旧Goal或旧计划扩展授权。历史QA/ADR/归档的active、下一包、版本只描述当时。
 - 文档分设计/工程/计划规格/当前状态/证据/历史，按`docs/DOCUMENTATION.md`维护；活跃单页不超过16KiB，过大按主题拆分，不在设计页追加进度流水。
 - 中/英专有术语保留原名，不互译、不另造同义名；中文概念与实际English代码标识符按[唯一映射](docs/engineering/terminology.md)定位，各层职责不混同。代码命名沿用已定映射，引用真实class/字段；更名同步调用、反射/调度、工具、存档边界及文档。解释用自然中文；详见[术语规则](docs/DOCUMENTATION.md#术语原名与唯一标记)。
 - 完成代码包时核对受影响的功能说明、工程契约、验证证据和HANDOFF；直接改写现行行为，研究/TODO/历史只留任务或证据位置。日常搜索先查当前领域目录，除迁移/追溯任务外不默认加载archive、旧QA或旧计划。
 - 每次取1–3技能，不全读。GDScript、场景、模拟/存档、地图、房间、NPC、UI/动画各取对应技能；API不确定查目标版本官方文档/Context7。
 - 开始前简述目的、范围和验收。游戏/引擎/插件改动跑doctor；文档整理不启动引擎。
+- 从目标规模和已确认规则选择模型、数据及执行方式。逻辑所有权不绑定旧class/schema/索引、单线程或调用链；授权重构允许替换内核及对应测试，旧实现/样本仅作对照。CPU多核/GPU、局部因果和数据布局共同设计，以普通世界端到端验收，不持续把并行推迟到局部优化结束。
 
 ## 游戏与技术边界
 
@@ -22,11 +23,11 @@
 
 ## 实现合同
 
-- 尽量静态类型，一脚本一系统、场景组合；定义在`data/definitions/`，开局在`data/scenarios/`，实例不改模板。
+- 尽量静态类型，按领域划分责任、场景按实际需要组合；定义在`data/definitions/`，开局在`data/scenarios/`，实例不改模板。文件拆分与数据格式可随重构调整，不以脚本数定义框架。
 - 原身体、器物、库存、账本、位置与共同整数毫秒各有唯一所有者；视图只投影。近远区、快进和存读用同一因果规则，预算耗尽保留积压，不丢时间；`_process`只呈现。
 - 地块承载实体，实体可跨多格且只有一份状态；药田/禁地是区域指定，植物/墙/家具是实物，房间是围合等结构推导，功能来自人、器具和过程。空间合同见`design/systems/construction_and_space.md`。
 - 只维护一套当前运行模型和写档格式；旧入口仅在明确支持范围内转换到当前模型，按包淘汰历史分支，不无限叠加迁移链。版本识别、候选校验和失败不改活世界仍保留；详见`docs/engineering/compatibility.md`。
-- 纯规则/适配/文件/UI分别归sim/runtime/persistence/ui。通信优先signal或明确接口，少祖先路径耦合；热路径不全组扫描/频繁load/大量分配。不预建全量autoload/ECS/规划器。
+- 纯规则/适配/文件/UI分别归sim/runtime/persistence/ui。通信优先signal或明确批接口，少祖先路径耦合；热路径不全组扫描/频繁load/大量分配。共享身份不强迫巨型实体或一对象一Node；不预建无真实消费者的autoload/ECS/规划平台。
 - 新增/重构热路径按实际能力、当前参与及到期/变脏集合执行，避免全体实体×全部可选系统轮询；派生索引归原所有者维护，接齐生命周期与恢复失效。连续需求和远区因果不能因休眠被丢弃；通用入口见`docs/engineering/sparse-execution.md`，既有域按实际收益逐包迁入，不为套框架全面重写。
 - snake_case文件/函数/变量，PascalCase类/节点，SCREAMING_SNAKE_CASE常量，私有前导下划线，signal用已发生事件名。
 - assert只用于开发不变量，不校验业务失败；运行节点用queue_free，跨帧检查is_instance_valid。纯测试释放按runner生命周期。

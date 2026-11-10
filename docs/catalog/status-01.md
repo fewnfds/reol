@@ -1,9 +1,6 @@
-# status / 1
+# status 分类目录
 
-[分类总目录](../CATALOG.md)；路径存在不表示已实现或已验。
-
-- [docs/status/features/plants.md](../status/features/plants.md)
-- [docs/status/technical-status.md](../status/technical-status.md)
+此页只列路径；状态与任务按文档入口读取。
 
 - [docs/status/README.md](../status/README.md)
 - [docs/status/baseline.md](../status/baseline.md)
@@ -15,6 +12,8 @@
 - [docs/status/features/environment-and-prototypes.md](../status/features/environment-and-prototypes.md)
 - [docs/status/features/interaction-and-organizations.md](../status/features/interaction-and-organizations.md)
 - [docs/status/features/knowledge-items-cultivation.md](../status/features/knowledge-items-cultivation.md)
+- [docs/status/features/plants.md](../status/features/plants.md)
 - [docs/status/features/playthroughs-and-gaps.md](../status/features/playthroughs-and-gaps.md)
 - [docs/status/features/world-and-livelihood.md](../status/features/world-and-livelihood.md)
 - [docs/status/handoff.md](../status/handoff.md)
+- [docs/status/technical-status.md](../status/technical-status.md)

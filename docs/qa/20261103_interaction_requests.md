@@ -1,6 +1,6 @@
 # 统一请求：有限辨物与指定石隙取药验收
 
-2026-11-03。[规格](../archive/specifications/interaction_requests.md)。只交付三项请求的共同入口；没有任意对话/条件脚本、通用规划或运行时AI。用户已恢复原完整游戏Goal，状态active，不以本包结束整个目标。
+2026-11-03。[规格](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/interaction_requests.md)。只交付三项请求的共同入口；没有任意对话/条件脚本、通用规划或运行时AI。用户已恢复原完整游戏Goal，状态active，不以本包结束整个目标。
 
 ## 实机经过
 

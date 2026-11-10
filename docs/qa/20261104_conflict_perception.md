@@ -1,6 +1,6 @@
 # U1-b0：交锋有限感知与存读验收
 
-日期：2026-11-04。范围见[规格](../archive/specifications/conflict_perception.md)。已通过最终完整检查、真实档/两次完整停开与原生画面；最新数字及版本以[BASELINE](../status/baseline.md)为准。借源/看护驱离、完整搜索规划和完整游戏未完成。
+日期：2026-11-04。范围见[规格](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/conflict_perception.md)。已通过最终完整检查、真实档/两次完整停开与原生画面；最新数字及版本以[BASELINE](../status/baseline.md)为准。借源/看护驱离、完整搜索规划和完整游戏未完成。
 
 ## 实际实现
 
@@ -46,4 +46,4 @@
 
 ## 后续
 
-首版没有听声、神识、隐身、视锥、兽身/空战感知或完整绕障搜索；新旧档不会自动生成守卫。继续[U1-b1借源](../archive/specifications/transcendent_stakes.md)，再补有限看护/警告和冲突利害，用真实场景驱动能力组合与冒险。
+首版没有听声、神识、隐身、视锥、兽身/空战感知或完整绕障搜索；新旧档不会自动生成守卫。继续[U1-b1借源](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/transcendent_stakes.md)，再补有限看护/警告和冲突利害，用真实场景驱动能力组合与冒险。

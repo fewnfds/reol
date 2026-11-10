@@ -4,4 +4,4 @@
 
 - [插件与其他组件维护](maintenance/01-updates.md)
 - [技能与工具上下文开销](maintenance/02-context.md)
-- [历史版本、调查和当时建议](../../archive/engineering-context-20261105/tooling-maintenance.md)
+- [历史版本、调查和当时建议](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/engineering-context-20261105/tooling-maintenance.md)

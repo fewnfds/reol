@@ -1,6 +1,6 @@
 # 验证入口
 
-本页只说明如何找到测试；验收结果及准确SHA见[BASELINE](../docs/status/baseline.md)，运行特性见[FEATURES](../docs/status/features.md)，真实旧档及只读要求见[fixtures记录](fixtures/README.md)。历史测试目录详述保存在[整理前快照](../docs/archive/documentation_consolidation_20261104/tests/README.md)。
+本页只说明如何找到测试；验收结果及准确SHA见[BASELINE](../docs/status/baseline.md)，运行特性见[FEATURES](../docs/status/features.md)，真实旧档及只读要求见[fixtures记录](fixtures/README.md)。历史测试目录详述保存在[整理前快照](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/documentation_consolidation_20261104/tests/README.md)。
 
 - sim/：纯规则、对象/资源所有权、冲突、知识、环境、共同时间及批算。
 - runtime/：实际场景/行程、地形、输入、联合存读和迁移；runtime/helpers/为测试重放助手，不代替产品过程。

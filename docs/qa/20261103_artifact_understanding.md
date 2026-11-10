@@ -1,6 +1,6 @@
 # 同物异观、请人检查与强注风险：实际验收
 
-2026-11-03。W3-a已交付；规则范围见[工作包](../archive/specifications/artifact_understanding.md)，当前构建数字仅在[BASELINE](../status/baseline.md)维护。
+2026-11-03。W3-a已交付；规则范围见[工作包](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/artifact_understanding.md)，当前构建数字仅在[BASELINE](../status/baseline.md)维护。
 
 同一温火石增加真实裂损。苏芷的药炉修补经历支持辨材，陈守拙的温石经历支持操纵；二者不共享知识，境界不作专业理解钥匙。杂役仍可实际循纹探查。描述由`SimArtifactUnderstanding`只读投影已有个人经历、观察和在场听到的具名说明；展开不学习，别人说出结论不复制操作方法。
 

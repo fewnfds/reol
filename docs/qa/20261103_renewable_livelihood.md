@@ -1,6 +1,6 @@
 # 有限自然来源与实际采集：验收
 
-2026-11-03。P1-a有限样本已实施；工作包见[范围](../archive/specifications/renewable_livelihood.md)，当前完整检查数字见[BASELINE](../status/baseline.md)。
+2026-11-03。P1-a有限样本已实施；工作包见[范围](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/renewable_livelihood.md)，当前完整检查数字见[BASELINE](../status/baseline.md)。
 
 各聚落有林缘落枝、野稗穗丛、井下泉脉与坡边野药。来源分别有容量、生长量/间隔和独立成熟相位；实物在原库存的resource源容器，生长只进入源，不进入仓储。增长/采出汇总与实际库存、采出事务互相校验；满容量经过数日也不会囤积无穷成熟量。泉水须有人汲入井边水缸，才供原挑水工作使用。此处是有限自然来源，不是完整农田。
 

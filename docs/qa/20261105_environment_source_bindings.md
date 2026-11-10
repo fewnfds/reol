@@ -1,6 +1,6 @@
 # A1：真实地面对象环境来源
 
-2026-11-05。用户要求第二阶段先完成第一个小部分，完成后停止讨论。本包只做显式来源定义、只读原物投影和局部基础目标查询；不是A2联合事务/B实际响应，也不是普通Main接管。实际接口见[合同](../engineering/environment-source-query-contract.md)。
+2026-11-05。用户要求第二阶段先完成第一个小部分，完成后停止讨论。本包只做显式来源定义、只读原物投影和局部基础目标查询；不是A2联合事务/B实际响应，也不是普通Main接管。实际接口见[合同](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/engineering/environment-source-query-contract.md)。
 
 ## 受检版本与功能
 

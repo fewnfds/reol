@@ -1,6 +1,6 @@
 # P1-c2：受托公物与实际归还验收
 
-日期：2026-11-03。规格见[entrusted_goods](../archive/specifications/entrusted_goods.md)，当前完整检查/格式只维护在[BASELINE](../status/baseline.md)。这是合法公差/交易路径的最小保管责任，完整产权、故意侵占/追偿与执法尚未实现。
+日期：2026-11-03。规格见[entrusted_goods](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/entrusted_goods.md)，当前完整检查/格式只维护在[BASELINE](../status/baseline.md)。这是合法公差/交易路径的最小保管责任，完整产权、故意侵占/追偿与执法尚未实现。
 
 ## 实际行为
 

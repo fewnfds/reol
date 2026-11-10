@@ -1,99 +1,29 @@
-# 构建、兼容与验证基线
+# 当前构建与证据基线
 
-核对：2026-11-10。采用版本与准确代码证据记录在此，操作范围见[FEATURES](features.md)，当前停点见[HANDOFF](handoff.md)，详细日志和限制见[QA](../qa/README.md)。历史分卷只描述当时版本。
+核对：2026-11-10。本页只说明重构起点，不把旧阶段结果累计成新架构完成度。当前工作看[HANDOFF](handoff.md)，目标与验收看[主计划](../plans/foundation-priorities.md)。
 
-## 主线试玩、缓行与规模
+## 代码起点及完整回归
 
-`main`/`origin/main`已按用户授权快进并推送至`839ff88f1b7fee240d0c798f533314a3ae446430`，最终生产/测试祖先为`c60a2beb2135d68990269f64e68cf3808396da3d`。[CI42776609463](https://github.com/fewnfds/reol/actions/runs/42776609463)的完整headSha839ff88已核completed/success，完整回归通过。镜头/外墙、独立诊断、缓行/FPS及连续呈现/压力代码均已在主线；前6420499的CI42769354347签名解析失败已修复，不代表当前结果。
+- Git main/origin/main：`839ff88f1b7fee240d0c798f533314a3ae446430`；其[CI42776609463](https://github.com/fewnfds/reol/actions/runs/42776609463)已核completed/success，只证明该旧主线。
+- 开发分支代码起点：`8c3deaa972f932e999167b61ea6b166b928cfe5f`，另有未提交的导航/地形/视图查询补丁；具体保护范围见HANDOFF。新重构尚未实现或获得完整回归。
+- 本次文档提交准备点核对开发起点`8c3deaa972f932e999167b61ea6b166b928cfe5f`的[CI42833827684](https://github.com/fewnfds/reol/actions/runs/42833827684)已completed/success；原有未提交补丁与新运行架构不在其覆盖内。此前1879f0c的CI42828875579失败及8cd155e夹具定向修补已被这个准确SHA的完整回归取代。
+- 未提交补丁最后定向7组637检查通过，另有导航/地形联合6组898检查通过；不等于完整回归或最终性能验收。原日志由HANDOFF登记。
 
-人物与镜头在完整坐标间连续显示；真实压力Demo持续沿原行动巡行。最终原生100/300人20秒约0.963/0.408×，帧P95约16.633/26.376ms，均无world_errors；百级稳定1×仍欠缺。7组603、最终守卫7组1074及主审修复3组357检查通过，同一次Sol/custom静态主审已完成；早期固定游戏10秒6188→4674ms且联合未来相同，范围见[压力QA](../qa/20261110_presentation_crowd.md)。
+## 引擎、内容与存档
 
-共同运行分支生产4ee88d7提供显式同步/纯查询、到期/失效人物集合与领域工作条件；末次300人反而慢8.34%，规模未达标。[CPU调查](../qa/20261110_runtime_cpu_root_cause.md)确认单线程热点及84.81%重复通行查询，普通模拟尚未多核/GPU加速。原head1879f0c的[CI42828875579](https://github.com/fewnfds/reol/actions/runs/42828875579)为failure；夹具修补8cd155e后6组821检查通过，完整CI待最终推送SHA。[共同运行QA](../qa/20261110_sparse_runtime_dispatch.md)记录主审、原生、停开与独立修补范围。
+采用Godot **4.7.2 stable**，GDScript；本机Windows，CI Linux headless。正式独立导出尚未验收，升级跟最新稳定版并核插件/模板/CI。
 
-前缓行修复b364870、FPS修复ac3dca3、镜头/外墙87262ff及独立诊断aa4f1a1均有各自准确SHA完整CI成功记录，详见[Demo QA](../qa/20261110_demo_feedback.md)与压力QA。连续坐标迷雾仍未实现；这些历史记录不代表全部密度已验收。
+旧Demo当前根存档56、区域47、村落7、环境场5、内容包3。实际常量分别在`SessionSaveSchema`、`RegionalSimulation`和`ReolContentBundle`；原内容包清单含44份定义/开局文档，与data目录文件总数不是同一数量。旧根1–55普通入口拒绝，原fixture只读。
 
-## 完整单位行动与交互（已整合main，完整CI通过）
+这些版本说明现有输入边界，不要求重构继续使用原schema或迁移链。新的支持范围须明确，候选失败不改活世界。
 
-前版0a0b59a的CI42674488111为completed/failure，两处为休息阶段显示和旧直行测试。收尾`0856effd4b2bb135c9bae8f25cccbba0e3def8e0`先复现再修复：休息/服务运行2组88检查、最终感知108检查通过，一次Sol/custom同会话恢复静态主审无可操作发现。[CI42750266714](https://github.com/fewnfds/reol/actions/runs/42750266714)在本次试玩修复提交点精确核为completed/success；完整CI通过，不按时间轮询。
+## 当前性能与加速事实
 
-`codex/unit-actions-integration`主体`68fff8b35e90617f4e95b416cdacf73834e6bf5e`及上述收尾已按用户授权整合main；根56/区域47/内容包3/环境5。原生搜索、路线重评、共同动作投影/终态/停止及原库存搬运已接；主体一次Sol/custom主审2项P1/1项P2先红后绿，修复5组223检查通过。前版普通Main及独立停开整个检查点/未来一致，详见[行动QA](../qa/20261110_unit_actions.md)。整合不等于完整回归通过，不能沿用前阶段绿色。
+旧开发机为i5-13600KF、约32GB、RTX5060Ti；16GB/RTX3060[目标PC](../engineering/architecture.md#全项目性能基线)另行验收。
 
-## 环境跨领域组合（已随行动历史整合main）
+- 旧原生100/300人20秒样本约0.970/0.430×，帧P95约16.732/27.069ms；规模出口未达。[共同运行QA](../qa/20261110_sparse_runtime_dispatch.md)保留波动及反向样本，不用首轮改善冒充稳定收益。
+- [CPU调查](../qa/20261110_runtime_cpu_root_cause.md)测得主要模拟计算集中在一个线程；普通世界尚无项目级CPU并行或GPU数学结算接入。
+- GPU服务确实实现并实卡验证过；[基础目标QA](../qa/20261105_environment_ground_compute.md)的512²密集请求约20.65秒CPU/0.616秒GPU，来源装配另计，排除普通Main及后续房间/实际响应。它是可复用代码，不能算当前游戏加速。
+- 未提交补丁的最终配对/原生/停开验收未完成，不能报告为新性能基线。
 
-`codex/environment-composition`承接事件/植物历史，主体`2ec88b7efec3724b065224443fbbbaa820d8f0c6`、阶段最终生产/测试`89f47163d30e172d0b858fdf8167b84ae8c208bd`已随行动历史整合main。原环境接材质传播、一房一温、容器/携物及植物照明，阶段根55/区域46/环境5。原结算、事件、空间和通用SL继续持原职责；没有新增中央世界或物理引擎。
-
-主体完整check3600秒超时且有失败，不能算完整回归；一次Sol/custom主审的跨格时刻/空间复制两项P2已修。修复后22组3761检查通过；普通Main及独立停开整个未来相同，6株180帧P95 16.753ms，不代表密集整机验收。详见[环境组合QA](../qa/20261109_environment_composition.md)。最终HEAD337ea13的CI42659346260为completed/failure：11片通过，test(1)的`test_world_persistence`因两个phase initial末位漂移失败，coverage跳过。诊断发现Godot decimal解析不保持这些double，行动包沿原模型量化恢复修复并补反例；本结果不能算完整通过。
-
-## 全局事件与植物（已整合main）
-
-`codex/world-events-plants`主体`801d71e971136e52eab594f4049d2d4f6cef0856`，审查修复`e2512a18e3fcafad04fbf38ed44c2d1b2d9e010a`，阶段最终生产`45f140b90aa1fb6d4adbf3d028efac12ae25aa9c`、最终测试`13d675e6f49be9ebe42a3bd958d9d8ff3be6266b`已随行动历史整合main。阶段根54/区域45/内容包3。全局事件接运输/植物，移动/值事房/约练规则绑定会话；植物接原株/物候/残根/产物/花盆、空间/环境与最小灵智。
-
-最终测试SHA的[CI42596694569](https://github.com/fewnfds/reol/actions/runs/42596694569)已核completed/success，**12片完整256组/126555检查/0失败**，下载报告独立覆盖校验通过。run墙钟287秒；受影响5/7/10片本机check也通过，不与旧失败run拼接。旧CI42595092906的三处fixture遗漏已修，生产代码保持45f140b。
-
-一次Sol/custom原生静态主审的四项P2有先失败再修复反例。定向6组523检查，补移栽/待觉醒/真实年界后植物101检查、相关4组207检查均通过；原生观察及完全停开后的整个世界/clock/motion检查点和250ms未来一致。6株180帧P95 16.751ms，1024株due预算/无界同未来；单次原子工作仍可能长帧，不代表16GB/RTX3060密集世界。准确日志与限制见[QA](../qa/20261109_world_events_plants.md)，停点见HANDOFF。
-
-## 通用存读模块（已整合main）
-
-主体`96a6fe0ed891dd386cf455b4f389449d74f5b878`、拒绝提示收尾`d682e030a5e28dfd04a5101bb5f826e37958422b`已随行动历史整合main。统一领域capture/stage/check/install与安全保存请求/回执，阶段根53/区域44保持；原状态仍归原owner。保存定向3组188检查、补充坏档边界311检查均退出0；同一次Sol/custom静态主审完成，无可确认发现。原生Main预算1保存、同进程及独立停开checkpoint/250ms未来一致。同代码SHA的[CI42553338071](https://github.com/fewnfds/reol/actions/runs/42553338071)本次提交准备点已核completed/success，完整回归通过；[QA](../qa/20261109_save_framework.md)记录分组证据、宿主审查恢复及限制。该包当时未封闭的移动/值事房/约练规则已由事件植物包处理，证据分别归属各包。
-
-## 共同时间过载降速（已合入main）
-
-`codex/adaptive-world-time`基于main `2c4ea10723d8140c5ae4b5f4c599f156d2ea6e5b`，共同时间已接有限准入、负载倍率和6ms合作式宿主预算；普通显示/HUD沿同一流速。根53/区域44及原状态owner不变，宿主负载估计不入档。最终定向8组796检查/0失败、包装器退出0；原生人工负载实际速度0.162×、帧间隔P95 17.600ms，移除后准入倍率恢复1×；同进程及完全停开250ms未来hash相同。产品/永久测试`f4257e38a1665c08c8596028fe71c0cea0dbeab9`的[CI42542611182](https://github.com/fewnfds/reol/actions/runs/42542611182)已核completed/success，完整12片通过；一次Sol/custom原生静态审查退出0，无可确认修复问题；已按用户授权快进整合main。产品/永久测试保持该SHA，后续仅QA帧驱动与文档，后续推送SHA的CI另行登记，不继承为已通过。细节和限制见[QA](../qa/20261109_simulation_pacing.md)。
-
-## 共同结算内核（已合入main）
-
-最终生产代码`d99ac6492ad5dbe5ba1af5bcc00171b5753c28e4`、测试提交`38606ea342f09e5aadcb50112df6620ddafbe10f`；[CI42508829722](https://github.com/fewnfds/reol/actions/runs/42508829722)为completed/success，251组/125351检查/0失败。本机12片及覆盖聚合也通过。后续仅Markdown至集成点`8cc40919599680d57e1f333f1482ebab38df7e3b`，其[CI42538304156](https://github.com/fewnfds/reol/actions/runs/42538304156)已核success。
-
-共同时间、依赖/阶段、预算续算、完整画面与完成通知、FAILED暂停和合法会话恢复已接Main。两包各一次Sol/custom静态主审的有效问题已修复；原生预算1与完整未来、独立停开、连续欠算发布通过。RTX3060普通600帧P95 17.943ms，只证明该样本。12片CI曾实测并行，run墙钟213秒；准确日志、修复、版本与限制见[QA](../qa/20261108_settlement_kernel.md)。
-
-## 官方Actions Node24升级
-
-代码`dc2558b219cb2fbdf164c2d63371e01b0cff8226`已合入并推送main，只修改workflow。四个官方稳定release精确提交的签名、`action.yml`均核通过；六处调用使用`node24`且输入合法，原触发/权限/引擎/Python/12片/ZIP报告语义保持。一次Sol/custom原生静态差异审查无可执行发现，日志和YAML/输入比对在`logs/actions-node24-upgrade-20261109/`。本轮未重复本机Godot全套；本包真实提交准备点已核同SHA的[CI42539000023](https://github.com/fewnfds/reol/actions/runs/42539000023)为completed/success；终态缓存复用。[维护规则](../engineering/tooling/maintenance/01-updates.md)解释运行时与升级边界。
-
-## 通用建筑与组合空间（已合入main）
-
-受检代码`d00bac954b69cab096d580db002fb04013fa2543`：定义/实例/能力、多格/朝向、多工地/用途、独立空间、操作位/桌椅、原库存储藏/生产及耐久损毁已接Main，13类定义、两种材料。范围及日志见[建筑QA](../qa/20261108_building_framework.md)与[合同](../engineering/construction-contract.md)。
-
-准确代码本机4片完整check250组/126290断言/0失败，墙钟约3282秒；一次Sol/custom主审的3项P2/1项P3已修。普通Main多格施工、座位与存箱三案完全停开后同未来，实际画面已验。对应CI42457788038 completed/success；此后主线集成前仅Markdown变动，不自动担保后续版本。
-
-## 已合入main的前序基线
-
-共同空间、建筑及结算的准确提交、完整CI和集成记录分别见[空间QA](../qa/20261107_world_space_actions.md)、[建筑QA](../qa/20261108_building_framework.md)、[结算QA](../qa/20261108_settlement_kernel.md)。当前main与开发分支指针只看[分支状态](branches.md)；旧争环WIP和命名stash保持隔离。
-
-## 术语与运行入口
-
-受检代码`771a587d20a38998845331fb214cd886d361d876`：普通环境成员和调度domain统一为`RegionalSimulation.environment_fields`；区域存档键`local_heat`通过codec映射，现行schema不变。术语/真实代码映射见[唯一入口](../engineering/terminology.md)。本包import与定向10组1203断言通过，RTX3060真实HUD确认灵气文案，一次Sol/custom静态审查无发现；完整CI尚待准确SHA，证据见[QA](../qa/20261107_terminology.md)。该整理不新增游戏机制或改变main集成范围。
-
-## 测试工作流与成本
-
-测试优化f166cdb与受检快照2b98280完整tree一致：本机4片覆盖248组/124981断言/0失败，Python72项与错误退出smoke通过，一次主审无发现；组内1495.275→1325.163秒，不等于GitHub并行实测。计时、范围和远端状态见[优化QA](../qa/20261107_test_optimization.md)。前序计时/选组及CI42356120868 success的准确SHA与范围见[成本调查](../qa/20261107_test_cost_audit.md)，不替代后续版本。
-
-## 顶层稀疏执行框架（已集成）
-
-代码`ee3504d3c313aa07ac4e87caec3bd39488c725e3`在`codex/sparse-world-execution`建立通用owner-local能力参与/活跃/到期/变脏索引，普通环境与健康接入。准确代码本机完整check **248组/124980断言/0失败**，一次Sol/custom静态审查无有效发现；普通两次来源操作短样本224/221ms→8.081/7.173ms，无GPU。存档字段/版本不变、恢复重建派生索引；未把其他旧域自动迁入，不代表满密度或16GB整机验收。
-
-本轮真实文档提交检查点核得[CI42345202281](https://github.com/fewnfds/reol/actions/runs/42345202281)，完整headSha`2f305de8efcbd8e51c290bbeae73cc5531fc2996`一致，终态**failure：测试1800秒超时（test=124）**。该head与上述本机受检代码只有文档差异；Python工具测试和导入完成，但Godot没有完整终态汇总，不能称远端通过。末条RUN为`test_terrain_edits`，不足以证明超时根因。未重跑/轮询或放宽门禁；日志与限制见[QA](../qa/20261107_sparse_execution.md)。
-
-## 普通环境接管基线（已验收并入main）
-
-最终代码 `6137481a07ec98b372e32ca857e546f1e1b07ee1` 已使普通Main接唯一室外冷热/五行场，原物与材料变更、人体/野药温度、共同时间及普通存档共用当前模型。保存拒绝未完成事务；旧根1–51明确拒绝，原档保留。准确SHA本机完整check **244组/124778断言/0失败**，1174源文件前后不变；同SHA双进程普通Main存读同未来、RTX3060真实画面与600帧联合负载通过。一次Sol/custom静态审查的3项有效发现均修复。普通单次生成/材料变更仍约0.22秒卡顿；不代表满密度或16GB整机验收。最终[CI42337874837](https://github.com/fewnfds/reol/actions/runs/42337874837)在后续真实调查文档提交检查点已核completed/success，完整headSha6137481一致；本包本机与CI均有准确代码证据，不重复测试。集成点`ffe7e8c705d2d7259dfb77dcfba3dd0a64c9c61c`已并入并推送main，之后仅更新文档；停止点查[HANDOFF](handoff.md)，完整证据与局限见[QA](../qa/20261107_world_engine_finish.md)。
-
-## 采用版本与存档
-
-- Godot **4.7.2 stable** 是这次采用和验证的版本；长期跟进最新稳定版，每次升级需核插件、CI与导出模板。当前是 GDScript、Windows 本机开发，CI 为 Linux headless；Windows 正式独立包未验收。
-- 当前行动工作分支普通联合根存档 schema **56**，区域 **47**、村落 **7**、场状态 **5**（`composed_fields_v1`）、环境受体状态 **3**（climate **2**）、器物状态 **8**。内容包 **v3** 固定44份定义/开局，含会话搬运规则与digest。当前只接受根56；旧根1–55按[兼容政策](../engineering/compatibility.md)明确拒绝，原fixture只读；最终验收状态见上文。
-- 本轮起点 `2483a3771bc9f469509293a514fb0a059eefe095`。原环境缓存、温度及两测试的四WIP已备份并与原工作区字节核对，不混入隔离实现/验收。分支快照见[分支状态](branches.md)，当前操作以HANDOFF为准。
-
-## 历史里程碑入口
-
-当前验收只看上面的主线/分支版本；以下QA保留各自当时的范围、失败、性能与CI，不能把其中“未接Main、pending、下一包”当作当前状态。
-
-| 历史主题 | 证据入口 |
-|---|---|
-| 世界骨架、空间查询、生命周期、联合出口 | [对象](../qa/20261105_world_object_contract.md)、[生命周期](../qa/20261105_object_lifecycle.md)、[第一阶段出口](../qa/20261105_world_foundation_exit.md) |
-| 环境来源、基础缓存与独立GPU | [来源](../qa/20261105_environment_source_bindings.md)、[缓存](../qa/20261105_environment_ground_cache.md)、[计算](../qa/20261105_environment_ground_compute.md) |
-| 连续响应、密集负载及有限优化 | [响应](../qa/20261105_environment_response.md)、[优化](../qa/20261106_environment_optimization.md)、[冷建](../qa/20261106_environment_cold_build.md)、[性能接续](../qa/20261107_world_performance_followup.md) |
-| 普通接入与环境主线收尾 | [运行接入](../qa/20261107_framework_runtime_integration.md)、[最终主线验收](../qa/20261107_world_engine_finish.md) |
-| 本轮顶层稀疏执行 | [框架验收与普通入口成本](../qa/20261107_sparse_execution.md) |
-
-旧完整基线流水可从Git的`2f305de`版本文档追溯；不在当前入口复制历史全文。早期分卷仍在[baseline-history](../qa/baseline-history/README.md)。当前技术缺口集中在[技术落地总表](technical-status.md)。
+[QA索引](../qa/README.md)保留各包原始证据；测试数量、旧集成SHA和历史“已完成”不构成对新执行结构的证明。

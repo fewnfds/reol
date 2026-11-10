@@ -10,7 +10,7 @@
 - [生命与成长](lives-and-progression.md)：不同生命、修行、死亡与有限续生。
 - [对象与交互](objects-and-interaction.md)：实物、空间、行动、策略和无 AI 玩法。
 
-[世界总纲](../systems/self_consistent_world.md)、[世界与交互原则](../systems/world_interaction_principles.md)及其他 `systems/` 文档提供更详细的设计、示例和提案；其中的具体方案不因被引用就成为已确认规则。游戏概念和全局方向由用户决定，常规实现、算法、参数和平衡由开发处理。
+[世界总纲](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/design/systems/self_consistent_world.md)、[世界与交互原则](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/design/systems/world_interaction_principles.md)及其他 `systems/` 文档提供更详细的设计、示例和提案；其中的具体方案不因被引用就成为已确认规则。游戏概念和全局方向由用户决定，常规实现、算法、参数和平衡由开发处理。
 
 ## 仍未决定
 

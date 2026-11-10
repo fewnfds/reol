@@ -1,6 +1,6 @@
 # W6-a 实物木牍与有限传播验收
 
-日期：2026-11-03。有限温养记录样本；完整游戏和45–60分钟切片仍未完成。规格见[method_records](../archive/specifications/method_records.md)，最新全量数字/格式以[BASELINE](../status/baseline.md)为准。
+日期：2026-11-03。有限温养记录样本；完整游戏和45–60分钟切片仍未完成。规格见[method_records](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/method_records.md)，最新全量数字/格式以[BASELINE](../status/baseline.md)为准。
 
 ## 实际交付
 

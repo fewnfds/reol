@@ -1,6 +1,6 @@
 # E1：历法与局地冷热验收
 
-2026-11-03。规则、普通交互、真实进行中完整重启和最终完整回归已验，最新构建数字只见[BASELINE](../status/baseline.md)。规格见[首包](../archive/specifications/calendar_temperature.md)、[环境总方案](../../design/proposals/environment.md)。这是室外背景与有限人身的首步，没有交付室内热交换、完整气候过程、生态温度响应、五行/堪舆或八方向动画。
+2026-11-03。规则、普通交互、真实进行中完整重启和最终完整回归已验，最新构建数字只见[BASELINE](../status/baseline.md)。规格见[首包](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/calendar_temperature.md)、[环境总方案](../../design/proposals/environment.md)。这是室外背景与有限人身的首步，没有交付室内热交换、完整气候过程、生态温度响应、五行/堪舆或八方向动画。
 
 ## 实际接通
 

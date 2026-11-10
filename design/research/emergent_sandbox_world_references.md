@@ -2,7 +2,7 @@
 
 调研日期：2026-11-02。范围：开发者/发行方官网与开发日志；不依据宣传文案推断未公开的内部实现。下列“借鉴”是Reol设计选择，“官网描述”才是来源支持的作品事实。研究不是素材授权，也不是新增依赖清单。
 
-对应方案：[世界总纲](../systems/self_consistent_world.md)、[众生](../systems/beings_and_lifeways.md)、[知识/法器/创造](../systems/knowledge_artifacts_and_invention.md)。此前社会研究与长期研究仍保留，不用本页替代已经确认的代码证据。
+对应方案：[世界总纲](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/design/systems/self_consistent_world.md)、[众生](../systems/beings_and_lifeways.md)、[知识/法器/创造](../systems/knowledge_artifacts_and_invention.md)。此前社会研究与长期研究仍保留，不用本页替代已经确认的代码证据。
 
 ## 1. 与本轮最相关的八组参考
 
@@ -40,4 +40,4 @@
 
 Reol应以“持续的对象＋有处境的主体＋有限认知＋可组合的作用＋会留下的后果”为共同底层。战斗、建设和社会交互依各自需要表达，不要求一个属性表覆盖全部。
 
-下一次验证应选同一地方的不同主体与多种解法；不要先堆满战斗技能、建筑配方与种族名称，再期待它们自然变成世界。具体工作包见[世界先行](../../docs/plans/product/multiple-lives.md)。
+下一次验证应选同一地方的不同主体与多种解法；不要先堆满战斗技能、建筑配方与种族名称，再期待它们自然变成世界。具体工作包见[世界先行](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/plans/product/multiple-lives.md)。

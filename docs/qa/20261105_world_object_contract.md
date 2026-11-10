@@ -4,7 +4,7 @@
 
 ## 范围与通用性
 
-原身体、器物、库存、有限自然源和结构继续各归原领域；新增 [共同描述/能力接口](../engineering/object-query-contract.md) 和 [显式集合空间快照](../../scripts/sim/object_spatial_snapshot.gd)，RegionalSimulation 公共入口复用它们。没有新增玩家玩法、物品使用或收费逻辑，没有生成/转移、全世界实时索引、完整植物或新环境接管。阶段后续在 [实施步骤](../plans/world-foundation/steps.md)，不是自动下一队列。
+原身体、器物、库存、有限自然源和结构继续各归原领域；新增 [共同描述/能力接口](../engineering/object-query-contract.md) 和 [显式集合空间快照](../../scripts/sim/object_spatial_snapshot.gd)，RegionalSimulation 公共入口复用它们。没有新增玩家玩法、物品使用或收费逻辑，没有生成/转移、全世界实时索引、完整植物或新环境接管。阶段后续在 [实施步骤](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/plans/world-foundation/steps.md)，不是自动下一队列。
 
 测试装配真实两区：12 人、2 鸟、1 大兽、7 个独特器物及库存/自然源/施工；通过不同 kind 的同名 ID、一种额外同能力器物定义验证无具名对象分支。数量条目和有限源不假装成独立实物/植物；携带锚点与蓝图不混入地面实物，非矩形墙组件中间不凭包围盒填满。开发者全知结果没有接入玩家 UI。
 

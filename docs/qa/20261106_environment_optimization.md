@@ -1,6 +1,6 @@
 # 环境候选与存读优化验收
 
-2026-11-06。范围为[优化小包](../plans/environment-object-loop/optimization.md)与[实际接口](../engineering/environment-response-contract.md)。本包优化和所列验收完成；初始化/加载仍慢，不等同于普通Main或完整游戏验收。
+2026-11-06。范围为[优化小包](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/plans/environment-object-loop/optimization.md)与[实际接口](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/engineering/environment-response-contract.md)。本包优化和所列验收完成；初始化/加载仍慢，不等同于普通Main或完整游戏验收。
 
 ## 实现与受检范围
 

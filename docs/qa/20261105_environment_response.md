@@ -4,7 +4,7 @@
 
 ## 范围与实现
 
-在原RegionalSimulation/生命周期/动作上接单个已存在受控独特实物的地面取起、放下、移位。原位置、物品、数量、共同整数毫秒仍唯一；原GroundCache派生索引与温度、五行实际响应共同提交。候选准备/取消不写活来源。接口见[实现合同](../engineering/environment-response-contract.md)，验收依据见[规格](../plans/environment-object-loop/response-ground.md)。
+在原RegionalSimulation/生命周期/动作上接单个已存在受控独特实物的地面取起、放下、移位。原位置、物品、数量、共同整数毫秒仍唯一；原GroundCache派生索引与温度、五行实际响应共同提交。候选准备/取消不写活来源。接口见[实现合同](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/engineering/environment-response-contract.md)，验收依据见[规格](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/plans/environment-object-loop/response-ground.md)。
 
 首包为封闭开发验收会话，普通Main仍旧Q。公开world/domain本身不是全局隔离API；会话独占原世界、隐藏挂起中间状态，公开查询/命令/保存busy，view只给最后完整投影。区域内物品移动是到期瞬时权威变更，没有走路尾迹、携物整体辐射、房温、生物后果或普通档迁入。原GPU继续仅加速基础目标，联合候选沿CPU。
 

@@ -13,7 +13,7 @@
 
 固定愿景/已确认规则、详细候选/研究分别放 design；实际工程结构和工具流程放 engineering；未来顺序只在 foundation-priorities，接口细节在 specs；当前任务/功能/版本/分支放 status；验证与旧规格分别在 qa/archive。
 
-大页按主题拆分，旧 BASELINE 的逐包正文保留为 [基线历史](baseline-history/README.md)。旧工作包移动至 [历史规格](../archive/specifications/README.md)，不再作为当前队列。可读入口为 [文档路由](../README.md)。
+大页按主题拆分，旧 BASELINE 的逐包正文保留为 [基线历史](baseline-history/README.md)。旧工作包移动至 [历史规格](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/README.md)，不再作为当前队列。可读入口为 [文档路由](../README.md)。
 
 ## 分支与基础判断
 

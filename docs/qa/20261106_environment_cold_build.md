@@ -1,6 +1,6 @@
 # 基础场初建局部上界优化
 
-2026-11-06。范围为[有限优化包](../plans/environment-object-loop/cold-build.md)，依据[成熟模拟项目调研](../../design/research/large_simulation_optimization.md)。本包只改变通用CPU基础目标初建；普通Main、实际响应算法、存档格式及GPU调度没有改动。
+2026-11-06。范围为[有限优化包](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/plans/environment-object-loop/cold-build.md)，依据[成熟模拟项目调研](../../design/research/large_simulation_optimization.md)。本包只改变通用CPU基础目标初建；普通Main、实际响应算法、存档格式及GPU调度没有改动。
 
 ## 受检代码与合同
 

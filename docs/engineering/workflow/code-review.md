@@ -98,4 +98,4 @@ CI负责执行确定性的检查和测试；Codex负责理解差异、找行为�
 
 这套流程不需要常驻的第二个Codex进程、自动修复循环或新增依赖。以后如果人工触发审查成为稳定瓶颈，再评估官方Action；届时固定Action/CLI版本，限制触发者和权限，审查输出与自动写回分开，不让公共PR内容取得密钥。
 
-本流程的历史配置验证与当时结果见[历史记录](../../archive/engineering-context-20261105/code-review.md)。
+本流程的历史配置验证与当时结果见[历史记录](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/engineering-context-20261105/code-review.md)。

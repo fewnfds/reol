@@ -1,6 +1,6 @@
 # P1-c1：自留采集验收
 
-2026-11-03，Godot 4.7.2 / Windows。规格见[personal_foraging](../archive/specifications/personal_foraging.md)，最新完整检查/格式统一维护在[BASELINE](../status/baseline.md)。完整游戏Goal保持active。
+2026-11-03，Godot 4.7.2 / Windows。规格见[personal_foraging](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/personal_foraging.md)，最新完整检查/格式统一维护在[BASELINE](../status/baseline.md)。完整游戏Goal保持active。
 
 ## 实际完成
 

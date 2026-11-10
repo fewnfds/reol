@@ -1,6 +1,6 @@
 # E2：屋舍与有限释热验收
 
-2026-11-03。有限首包；最新完整构建结果只见[BASELINE](../status/baseline.md)。规格见[local_heat](../archive/specifications/local_heat.md)，参考与后续边界见[四款游戏研究](../../design/research/environment_sources.md)。
+2026-11-03。有限首包；最新完整构建结果只见[BASELINE](../status/baseline.md)。规格见[local_heat](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/local_heat.md)，参考与后续边界见[四款游戏研究](../../design/research/environment_sources.md)。
 
 ## 实际接通
 

@@ -35,4 +35,4 @@
 
 [验收与回传](guides/acceptance_and_return.md)记录怎样交原PNG、实际提示词、模型/seed如可见、已知问题和来源。[Godot商店/资产库研究](guides/godot_options.md)是选型资料，不需要发给图像模型，没有安装候选插件。
 
-候选原图可放[art_inbox](../../../art_inbox/character_generation/README.md)，或在聊天中返回；不覆盖现有技术图集。之前逐向/多段提示词完整保存在[旧版归档](../../archive/character_generation_prompts_20261103_early/README.md)，本次起只用当前编号文件。
+候选原图可放[art_inbox](../../../art_inbox/character_generation/README.md)，或在聊天中返回；不覆盖现有技术图集。之前逐向/多段提示词完整保存在[旧版归档](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/character_generation_prompts_20261103_early/README.md)，本次起只用当前编号文件。

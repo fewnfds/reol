@@ -1,6 +1,6 @@
-# skills / 1
+# skills 分类目录
 
-[分类总目录](../CATALOG.md)；路径存在不表示已实现或已验。
+此页只列路径；状态与任务按文档入口读取。
 
 - [.agents/skills/ai-behavior-trees-utility-ai/SKILL.md](../../.agents/skills/ai-behavior-trees-utility-ai/SKILL.md)
 - [.agents/skills/ai-behavior-trees-utility-ai/references/behavior-tree-core.md](../../.agents/skills/ai-behavior-trees-utility-ai/references/behavior-tree-core.md)

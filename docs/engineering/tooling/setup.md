@@ -44,4 +44,4 @@
 
 启动失败先核对实际进程、最早的错误、工具与插件/后端版本及当前会话；旧客户端缓存或旧 attach 报错不等于当前后端已停止。连接需要刷新时按官方 Configure 和客户端提示重载，勿反复使用失效句柄。
 
-回退前核对版本、进程和目标路径，按官方流程成对恢复插件、后端及原连接；保留本机备份，不能用裸 HTTP 绕过认证。完整的升级经过、历史验证和限制见[历史记录](../../archive/engineering-context-20261105/tooling-setup.md)。
+回退前核对版本、进程和目标路径，按官方流程成对恢复插件、后端及原连接；保留本机备份，不能用裸 HTTP 绕过认证。完整的升级经过、历史验证和限制见[历史记录](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/engineering-context-20261105/tooling-setup.md)。

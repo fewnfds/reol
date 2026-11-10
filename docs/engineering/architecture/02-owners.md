@@ -1,5 +1,7 @@
 # 当前代码架构与边界：状态所有权
 
+本页为现存Demo的实现参考；重构目标由[执行规格](../../specs/world-engine/execution.md)定义。逻辑职责/有效规则不绑定下列class、数据结构或调用链。
+
 ## 状态所有权
 
 本表定位现有原owner；[顶层框架](05-framework-domains.md)说明其领域职责与共同接口。一个class提供跨域适配不代表多个框架可以各持一份状态；职责划分也不表示相关目标已经完成。实际接入与缺口按同一框架在[技术总表](../../status/technical-status.md)登记。
@@ -38,4 +40,4 @@
 | avian_life / soul_vessels / large_bodies | 雀身、残识与载体、3×3兽身的原持久状态 | 不是人类伪装副本；兽身不可选、无完整物种生成/繁衍 |
 | field_opportunities / site_affairs / source_care | 地点、许可/核验、具名职责/个人线索与原过程引用 | 有限样本，不能当成通用任务/产权/组织平台 |
 
-具体域的文件、过程及验证入口按[计划索引](../../plans/README.md)和[FEATURES](../../status/features.md)查；旧逐域实现细节见[整理前架构](../../archive/documentation_consolidation_20261104/docs/ARCHITECTURE.md)，其中当时的版本和待办只作历史。
+具体域的文件、过程及验证入口按[计划索引](../../plans/README.md)和[FEATURES](../../status/features.md)查；旧逐域实现细节见[整理前架构](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/documentation_consolidation_20261104/docs/ARCHITECTURE.md)，其中当时的版本和待办只作历史。

@@ -28,4 +28,4 @@
 
 普通联合区域为`47`，`RegionalSimulation.restore`明确拒绝其他区域版本与旧热导入标志。当前内容包为`3`，绑定44份定义/开局，搬运参数随`local_actions`绑定；旧`1/2`版内容包可按原清单解析，但不足以装配当前世界，不从磁盘补历史能力。不要把低层旧版校验器或历史导入源码误写成旧存档已支持。
 
-[WorldSessionSnapshot](../../scripts/runtime/world_session_snapshot.gd)在独立候选通过校验后才替换活世界；地图按档内生成描述重建。当前环境保存版本`5`、模型`composed_fields_v1`，保存背景及已受影响格的响应锚点、必要来源与采样；派生来源/块缓存从已验证原物重建，细节见[环境合同](world-environment-contract.md)。存在未完成共同时间/环境事务时不能当成已完成快照。历史各阶段的导入边界保留在[归档](../archive/engineering-context-20261105/compatibility.md)，不能作为永久兼容承诺。
+[WorldSessionSnapshot](../../scripts/runtime/world_session_snapshot.gd)在独立候选通过校验后才替换活世界；地图按档内生成描述重建。当前环境保存版本`5`、模型`composed_fields_v1`，保存背景及已受影响格的响应锚点、必要来源与采样；派生来源/块缓存从已验证原物重建，细节见[环境合同](world-environment-contract.md)。存在未完成共同时间/环境事务时不能当成已完成快照。历史各阶段的导入边界保留在[归档](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/engineering-context-20261105/compatibility.md)，不能作为永久兼容承诺。

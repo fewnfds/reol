@@ -1,36 +1,23 @@
-# 当前代码架构与边界
+# 架构与工程边界
 
-代码领域、状态所有权、依赖和公共合同的导航。基础建设按七个顶层框架组织，模块与算法在所属框架内实现；现有接入和缺口见[技术落地总表](../status/technical-status.md)，建设依赖与完成标准见[基础建设计划](../plans/foundation-priorities.md)。
+目标结构由[执行规格](../specs/world-engine/execution.md)定义，范围/问题与验收由[主计划](../plans/foundation-priorities.md)定义。[领域划分](architecture/05-framework-domains.md)维护七个逻辑职责；现有class、索引和调用链可替换。
 
-## 顶层框架
-
-[顶层框架与领域归属](architecture/05-framework-domains.md)统一维护七个领域的职责、现有代码定位和跨域交接：世界地块与空间；实体、物品与容器；建筑与组合空间；植被与自然生命；环境；单位行动与交互；认识与自主决策。
-
-共同时间、装配、事务、存读、稀疏执行以及创作/呈现/诊断贯穿各领域。框架职责不表示相应目标已完成，原状态继续归各自owner；局部算法通过只代表其模块进展。
+本目录其余接口页用于定位重构前Demo及有效合同，不证明新结构已完成。实际能力/证据见[技术起点](../status/technical-status.md)与[基线](../status/baseline.md)。
 
 ## 全项目性能基线
 
-目标平台是 **PC、16GB整机内存、单张RTX3060级显卡**。这是游戏各系统共同运行的目标，不是每个模块各限几百MB。用户允许游戏进程在合理负载下使用约10GB内存；该数是可接受量级，不是必须填满或另立的整机规格，仍需为系统与图形等留余量。测试机有3060和5060Ti时，基线用3060，另一张卡单列参考，不把两卡显存或算力相加。
+目标平台是 **PC、16GB整机RAM、单张RTX3060级显卡**。允许合理使用约10GB进程内存，这是可接受量级，不是必须填满的预算；仍需为系统和图形等留余量。不同显卡分别记录，不相加算力/显存，不以移动/Web限制本项目方案。
 
-- CPU/GPU由实际负载和端到端收益决定；允许GPU计算，不以移动/Web兼容性限制本轮PC方案。没有GPU或不适用的路径须明确回退及其性能边界。
-- 优先稳定帧时、模拟吞吐及可控积压；不要为节省少量内存牺牲性能、正确性或长期开发效率。允许合理缓存与预计算，避免无界增长及真实内存不足。
-- 整机目标、模块估算、单次压测守卫、实际测量是四种不同数字。模块估算/临时守卫不能自动升级为游戏规格；未达到局部估算先结合总预算分析，不能仅凭超几百MB宣布失败或扩优化任务。
-- 测量记录实际硬件、RAM/显存、负载、版本、p95/p99、峰值与初始化/稳态/存读成本。32GB开发机测出进程2GB不等于已在16GB整机完成全系统验收。详细测量方法沿[验收口径](../plans/world-foundation/acceptance.md)。
+CPU多核、GPU和数据/模型共同设计，以普通游戏的端到端吞吐、帧时、输入响应和积压采用；缺设备有明确回退。不为省少量内存增加无收益的复杂度，允许合理缓存/预计算，控制真实无界增长。
 
-此处是跨阶段性能基线的唯一维护点；阶段计划只写各包测量目标，QA保留原日期/版本证据。更新用户预算时改此处及直接链接，不按聊天另建一套规格。
+整机目标、模块估算、临时守卫和实测是不同数字。32GB开发机结果不代表16GB整机验收。记录准确SHA/差异、内容/命令、CPU/单张实际GPU、整机RAM/显存、运行/导出模式、冷启动/预热、重复次数、P95/P99和峰值；初始化、稳态与存读分开核算。具体场景和增长曲线由主计划定义。
 
-## 结构入口
+每次性能样本预先声明有限超时与内存守卫，按实际可用RAM/显存及已有进程留余量；仅协调本项目所属进程，不并发压力任务，不为跑完绕过守卫。
 
-- [依赖方向](architecture/01-dependencies.md)
-- [状态所有权](architecture/02-owners.md)
-- [时间、空间、行动与呈现](architecture/03-time-space-presentation.md)
-- [存读提交边界](architecture/04-persistence.md)
-- [稀疏执行接口](sparse-execution.md)：通用参与索引与新能力接入；哪些域/分支已用它以[技术总表](../status/technical-status.md)为准。
-- [历史细节及当时待办](../archive/engineering-context-20261105/architecture.md)
+## 实现参考
 
-- [对象与空间查询合同](object-query-contract.md)：跨原所有者的只读接口、声明能力与有界显式集合空间快照。
-- [实物生命周期与动作](object-lifecycle-contract.md)：原器物/库存上的受控位置变更、数量堆拆、共同时间动作和候选恢复。
-- [地面环境来源查询](environment-source-query-contract.md)：显式版本化配置、原物只读投影及有界局部基础目标；不持持续场、温度或第二套物品状态。
-- [真实来源分块缓存](environment-ground-cache-contract.md)：原物派生基础目标、有界构建、局部失效及恢复重绑；不持实际温度/五行历史。
-- [普通世界环境合同](world-environment-contract.md)：唯一室外温度/五行响应所有者、来源变更事务、受体与存读边界。实际采用版本及验证状态见[基线](../status/baseline.md)，性能以实际证据为准。
-- [静止来源实际响应](environment-response-contract.md)：封闭开发会话的单实物联合事务、可续事件边界与专用验收快照；不能把该适配器当普通Main实现。
+- [依赖](architecture/01-dependencies.md)、[现有状态定位](architecture/02-owners.md)、[时间/空间/呈现](architecture/03-time-space-presentation.md)、[存读](architecture/04-persistence.md)。
+- [结算](settlement-contract.md)、[事件](event-contract.md)、[流速](simulation-pacing.md)、[参与索引](sparse-execution.md)。
+- [原物/查询](object-query-contract.md)、[生命周期/行动](object-lifecycle-contract.md)、[建筑](construction-contract.md)、[植物](plants-contract.md)、[普通环境](world-environment-contract.md)。
+
+来源、缓存及静止响应的旧隔离合同通过[QA](../qa/README.md)和固定Git版本追溯，不作为普通世界已GPU加速的依据。

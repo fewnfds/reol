@@ -1,6 +1,6 @@
 # 自然地块与办事场所验收
 
-日期：2026-11-03。范围见[规格](../archive/specifications/natural_world_and_workplaces.md)，当前构建与唯一最新回归数字见[BASELINE](../status/baseline.md)。本包在完整游戏Goal暂停期间单独授权；收尾时用户再次通过平台恢复active，故本包验收及房间设施设计完成后继续原U1–U5。
+日期：2026-11-03。范围见[规格](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/natural_world_and_workplaces.md)，当前构建与唯一最新回归数字见[BASELINE](../status/baseline.md)。本包在完整游戏Goal暂停期间单独授权；收尾时用户再次通过平台恢复active，故本包验收及房间设施设计完成后继续原U1–U5。
 
 ## 实际变更
 
@@ -45,7 +45,7 @@ run190/191完整停开，经同一正常loader读取该档，完成兑奖后实�
 
 临时原图为`logs/natural_workplace_room.png`、`_inspection.png`、`_ground.png`，过程报告`logs/natural_workplace_visual_manifest.json`。run194当前游戏日志只有helper注册、无错误/警告；编辑器从原游标13起无新增条目。旧历史错误不清除，此静帧不证明所有动画或规模呈现均已验收。
 
-文档与索引收尾后，`python tools/check_structure.py`、资源严格检查、`git -c core.safecrlf=false diff --check`全部退出0；日志`logs/natural-final-structure-20261103.log`与`logs/natural-final-resources-20261103.log`。无遗留测试进程。用户要求的[房间/家具/容器长期规则](../../design/systems/construction_and_space.md)已补全；其后只改文档，不重复全量游戏检查。Goal实际为active，下一包接[U1-a](../archive/specifications/transcendent_conflict.md)，不是完整游戏已完成。
+文档与索引收尾后，`python tools/check_structure.py`、资源严格检查、`git -c core.safecrlf=false diff --check`全部退出0；日志`logs/natural-final-structure-20261103.log`与`logs/natural-final-resources-20261103.log`。无遗留测试进程。用户要求的[房间/家具/容器长期规则](../../design/systems/construction_and_space.md)已补全；其后只改文档，不重复全量游戏检查。Goal实际为active，下一包接[U1-a](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/transcendent_conflict.md)，不是完整游戏已完成。
 
 ## 明确边界
 

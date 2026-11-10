@@ -13,13 +13,13 @@ Godot 跟进最新稳定版；当前已安装和已验证版本以 `docs/status/
 
 ## 先找权威入口
 
-- 当前授权与构建：`docs/status/handoff.md`、`docs/status/baseline.md`；玩法是否接入看 `docs/status/features.md`。不要从旧计划、数字或样本推断完成度。
+- 先读当前授权/停点`docs/status/handoff.md`，实施任务再读唯一主计划与执行规格。需要核对旧Demo时才读BASELINE/FEATURES；旧代码、数字、测试与已完成样本不约束新架构。
 - 世界方向：`design/vision.md`与`design/rules/README.md`是已确认层；`design/systems/`、`design/proposals/`是详细候选，不能用其中的旧实现快照判断进度。
 - 基础建设依赖与框架出口只查`docs/plans/foundation-priorities.md`；主计划按顶层框架组织，内部算法/优化明确归入模块和原owner。授权范围内持续推进到约定出口，内部小步不自动成为停止或再次确认边界；执行项只由HANDOFF登记，不自动恢复旧Goal或样本队列。
-- 领域职责：`docs/engineering/architecture/05-framework-domains.md`；实际状态所有者：`docs/engineering/architecture.md`；文件职责：`docs/engineering/project-structure.md`。按任务读相关设计与 `docs/decisions/README.md`，不要把所有历史每次全读。
+- 领域职责：`docs/engineering/architecture/05-framework-domains.md`；目标结构：`docs/specs/world-engine/execution.md`；文件职责：`docs/engineering/project-structure.md`。现有owner/class/API只是实现定位，重构可替换；不默认加载旧历史或整库。
 
 ## 按任务选技能
 
 GDScript 用 `godot-gdscript`；共同时间、跨域或存档用 `godot-sim-architecture`；工作/房间用 `colony-sim-systems`；地图/区块用 `open-world-2d`；UI、AI、动画、美术等按具体问题取对应领域技能。较大的新需求用 `spec-driven-game-dev`，验证按需用 `godot-verify`。不要求每次读完所有入口。
 
-遵守 `AGENTS.md` 和本次任务范围：保留原主体、物品和共同时间的所有权；视图不能代替规则；不重做已存在系统。按变更范围验证，有可见效果须实际观察，不用猜测代替证据。
+遵守 `AGENTS.md` 和本次任务范围：保持事实唯一与共同因果，允许按授权重写现有内核、存储与算法，不复制另一份长期世界。CPU多核/GPU和数据/局部依赖共同设计，以普通运行验收。按变更范围验证，有可见效果须实际观察。

@@ -1,6 +1,6 @@
 # 独立地图数据验收
 
-2026-11-03。E3-b0已通过全图等价、独立候选、历史/最终完整回归、原生1280×720及两次完整游戏进程停开；有限等价包验收完成。最新构建数字只看[BASELINE](../status/baseline.md)。范围见[规格](../archive/specifications/world_map_foundation.md)。没有新增集雨沟、挖掘或持久地表delta，仍为M2原型。
+2026-11-03。E3-b0已通过全图等价、独立候选、历史/最终完整回归、原生1280×720及两次完整游戏进程停开；有限等价包验收完成。最新构建数字只看[BASELINE](../status/baseline.md)。范围见[规格](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/world_map_foundation.md)。没有新增集雨沟、挖掘或持久地表delta，仍为M2原型。
 
 ## 实现范围
 

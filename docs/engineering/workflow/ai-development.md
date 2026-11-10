@@ -42,7 +42,7 @@
 | [open-world-2d](../../../.agents/skills/open-world-2d/SKILL.md)、[colony-sim-systems](../../../.agents/skills/colony-sim-systems/SKILL.md) | 地图/区块/远区与人物需求/预约/库存/空间等专项方法，相关任务才读 |
 | 领域技能与MCP | GDScript、场景、动画等技能和Godot AI/Context7辅助具体操作/API核验；不决定产品方向或证明游戏已完成 |
 
-仓库现有37项项目技能：31项选自固定提交的第三方游戏开发技能，6项Reol定制。上表中除performance外的六个项目专项入口属于自有技能；来源/许可见[套件维护](../tooling/maintenance.md)，原登记见[来源记录](../../archive/engineering-context-20261105/tooling-resources.md)。这不是要求同时读取37份正文；项目规则只按任务取1–3项，目录发现也不等于所有技能流程都在执行。
+仓库现有37项项目技能：31项选自固定提交的第三方游戏开发技能，6项Reol定制。上表中除performance外的六个项目专项入口属于自有技能；来源/许可见[套件维护](../tooling/maintenance.md)，原登记见[来源记录](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/engineering-context-20261105/tooling-resources.md)。这不是要求同时读取37份正文；项目规则只按任务取1–3项，目录发现也不等于所有技能流程都在执行。
 
 当前文档目录、页数、分支数量和多数拆分粒度是开发者根据用户历次“写方案/整理文档”的要求自行选择的，**没有技能强制生成这套目录或如此多文档**。分类本身有用，重复状态、过期待验、为小包复制多份方案是维护失误，应由开发者改进，不能归因于skill。
 

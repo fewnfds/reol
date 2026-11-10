@@ -1,6 +1,6 @@
 # 身体后果与实际救护首包验收
 
-2026-11-03。范围对应[P3-a规格](../archive/specifications/health_and_recovery.md)。实际功能以[FEATURES](../status/features.md)为准，最新完整检查数字、格式版本与日志统一维护在[BASELINE](../status/baseline.md)。本包不是完整医疗、永久伤亡或人生接续系统，原完整游戏Goal持续active。
+2026-11-03。范围对应[P3-a规格](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/health_and_recovery.md)。实际功能以[FEATURES](../status/features.md)为准，最新完整检查数字、格式版本与日志统一维护在[BASELINE](../status/baseline.md)。本包不是完整医疗、永久伤亡或人生接续系统，原完整游戏Goal持续active。
 
 ## 已接通的因果链
 
@@ -56,4 +56,4 @@ C再选处理：`health:action:2`于`2231073ms`开始，应完成`2351073ms`。�
 
 ## 接续
 
-首包收尾后按[架构review](../archive/report-entries/architecture-review-20261103.md)和[环境E0–E6](../../design/proposals/environment.md)逐步收拢公共接缝/落实历法与局地冷热，穿插[真八向外观](../specs/presentation/eight-directions.md)，继续P1–P4和45–60分钟切片。完整游戏Goal不因本包验收完成。
+首包收尾后按[架构review](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/report-entries/architecture-review-20261103.md)和[环境E0–E6](../../design/proposals/environment.md)逐步收拢公共接缝/落实历法与局地冷热，穿插[真八向外观](../specs/presentation/eight-directions.md)，继续P1–P4和45–60分钟切片。完整游戏Goal不因本包验收完成。

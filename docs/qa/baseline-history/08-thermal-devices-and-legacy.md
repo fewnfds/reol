@@ -72,7 +72,7 @@ C1b-0代码提交`6a074a7eecf064e6f91d271e7e5d6ab346fa9f79`，一次Sol/custom�
 
 ### R0a 有限兼容入口清理（当前候选）
 
-从`RegionalSimulation.restore`删除区域30–37的死转换链（原结果最多38，当前形状要求41），九个根档仍需的历史纯转换迁入`persistence/legacy_regional_upgrades.gd`，`SessionSaveSchema`按需调用。逐函数机械对比除显式限定原`RegionalSimulation._integer`外函数体不变；没有复制算法或保留旧运行入口wrapper。旧根导入/39、40专用热候选及旧地图支持未改，格式仍根49/区域41/热3/器物8，旧fixture/用户档不改写。依赖清点见[首包清单](../../specs/persistence/retirement.md)，本包不声称整个旧迁移链已退役。
+从`RegionalSimulation.restore`删除区域30–37的死转换链（原结果最多38，当前形状要求41），九个根档仍需的历史纯转换迁入`persistence/legacy_regional_upgrades.gd`，`SessionSaveSchema`按需调用。逐函数机械对比除显式限定原`RegionalSimulation._integer`外函数体不变；没有复制算法或保留旧运行入口wrapper。旧根导入/39、40专用热候选及旧地图支持未改，格式仍根49/区域41/热3/器物8，旧fixture/用户档不改写。依赖清点见[首包清单](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/specs/persistence/retirement.md)，本包不声称整个旧迁移链已退役。
 
 主代理doctor正常，导入5.722秒/1000693760B，无引擎错误，`logs/retirement-import.json`；以下验证顺序运行，各受30秒/1GiB限制，共6组494项0失败，无引擎错误：
 

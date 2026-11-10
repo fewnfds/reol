@@ -1,6 +1,6 @@
 # 工具链与运行入口
 
-状态：当前操作入口。实际安装及已验范围由[AI套件实装](setup.md)维护，版本与来源/更新流程见[维护记录](maintenance.md)，代码审查/CI成本策略见[工作流](../workflow/code-review.md)。本页不重复旧竞品表或宣称导出已验。完整旧文已存[整理前快照](../../archive/documentation_consolidation_20261104/docs/TOOLCHAIN.md)。
+状态：当前操作入口。实际安装及已验范围由[AI套件实装](setup.md)维护，版本与来源/更新流程见[维护记录](maintenance.md)，代码审查/CI成本策略见[工作流](../workflow/code-review.md)。本页不重复旧竞品表或宣称导出已验。完整旧文已存[整理前快照](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/documentation_consolidation_20261104/docs/TOOLCHAIN.md)。
 
 Godot跟进最新稳定版；当前已核对的是**4.7.2**，不是永久锁定。每次升级要核对编辑器、插件、CI及导出模板的实际版本与兼容；不要自动使用dev/RC。优先[官方Windows下载](https://godotengine.org/download/windows/)的标准版，不使用.NET版。可用GODOT_BIN指向具体可执行文件；设置用户环境变量后需重启读取它的进程。
 
@@ -51,7 +51,7 @@ Demo性能诊断独立于普通入口：`python tools/diagnose_demo.py --seconds
 | doctor找不到Godot | 检查GODOT_BIN指向实际可执行文件，新设置后重启终端；对照安装版本，不改断言或引擎要求凑绿 |
 | 新class_name未识别 | 先导入并读首个解析错误；涉及资源/场景按项目验证规则实机打开 |
 | Godot AI连接失败 | 先核对打开的项目、插件/后端版本、dock和原始启动首错；官方Configure后按提示重启客户端，不猜端口；已知uv/attach排查见[实装记录](setup.md) |
-| Python/磁盘/内存异常 | 先核实进程命令、归属与实时指标，不凭名字停止他人进程；必要的性能样本有时间和内存上限，见[执行计划](../../archive/specifications/world_engine_execution.md) |
+| Python/磁盘/内存异常 | 先核实进程命令、归属与实时指标，不凭名字停止他人进程；性能样本预设有限时间/内存守卫，见[性能基线](../architecture.md#全项目性能基线) |
 | 需要新依赖/升级 | 核验用途、许可、固定版本及与当前引擎的兼容，保留回退；比较和官方来源见[维护](maintenance.md) |
 
 纯文档工作只检查文档结构/链接与差异；不要把上述全部命令变成每次任务的强制启动脚本。

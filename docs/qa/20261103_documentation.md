@@ -6,11 +6,11 @@
 
 | 用户要求 | 本轮落点 |
 |---|---|
-| 录入本轮理解 | [世界与交互原则](../../design/systems/world_interaction_principles.md)：环境/生态、五行/风水、模块化建筑/破坏、组织、自动策略、顺滑移动、通用请求与世界对象 |
+| 录入本轮理解 | [世界与交互原则](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/design/systems/world_interaction_principles.md)：环境/生态、五行/风水、模块化建筑/破坏、组织、自动策略、顺滑移动、通用请求与世界对象 |
 | 保留明确澄清 | 自由文字/AI与结构化动作/脚本、无AI可玩；有意识树类生活优先，被动终老由玩家选择；用户方向与开发建议分开 |
 | 收集已有全局理念 | [GAME-BRIEF](../../design/vision.md)汇总社会归属、信息差、多种生活、非人、衣着、开放学习、术法文明、时间、有限转生及协作分工，链接原专题规则 |
 | 只读文档能懂当前功能 | [FEATURES](../status/features.md)逐项列入口、后果、证据与边界，末尾列隔离原型/尚不能玩的设计 |
-| 避免旧状态误导 | 入口/BASELINE/架构/路线/交接重整；领域设计校正状态；旧交付报告/调查加时点说明；原文[归档](../archive/documentation_before_consolidation_20261103/INDEX.md) |
+| 避免旧状态误导 | 入口/BASELINE/架构/路线/交接重整；领域设计校正状态；旧交付报告/调查加时点说明；原文[归档](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/documentation_before_consolidation_20261103/INDEX.md) |
 | 后续会话不跑偏 | AGENTS及Goal记录明确当前暂停；ADR-0050/0051记录交互与世界扩展的来源和未实现边界 |
 
 功能描述对照当前sim/runtime、UI按钮与开局定义，以及已存在的各包QA；未重新宣称整套玩法或规模验收。没有给文档整理编写新的游戏测试：无业务行为变更，复用结构检查与原有回归适合本任务。

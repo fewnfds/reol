@@ -1,6 +1,6 @@
 # A2a真实地面来源分块缓存验证
 
-2026-11-05。A2a在本页声明的CPU缓存范围完成；准确代码SHA本机完整check和一次原生审查修复已有证据，修复SHA远端CI仍待验。范围为[缓存合同](../engineering/environment-ground-cache-contract.md)；普通Main、实际温度/五行响应、移动携源和GPU不属于本包。
+2026-11-05。A2a在本页声明的CPU缓存范围完成；准确代码SHA本机完整check和一次原生审查修复已有证据，修复SHA远端CI仍待验。范围为[缓存合同](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/engineering/environment-ground-cache-contract.md)；普通Main、实际温度/五行响应、移动携源和GPU不属于本包。
 
 ## 起点与保护
 

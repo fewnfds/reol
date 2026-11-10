@@ -1,6 +1,6 @@
 # U1-b1：一次借源与公器验还
 
-日期：2026-11-04。范围见[规格](../archive/specifications/source_loan.md)。**本包最终完整检查、真实在途档/最终两次完整停开与原生画面已通过。** 最新完整测试数字与兼容版本只维护在[BASELINE](../status/baseline.md)。看护、警告、驱离与完整游戏均未完成。
+日期：2026-11-04。范围见[规格](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/source_loan.md)。**本包最终完整检查、真实在途档/最终两次完整停开与原生画面已通过。** 最新完整测试数字与兼容版本只维护在[BASELINE](../status/baseline.md)。看护、警告、驱离与完整游戏均未完成。
 
 ## 实际实现
 
@@ -59,4 +59,4 @@ run213继续`replay_loan(...,"a")`，完整停止游戏进程后run214以原load
 
 ![原管事亲自赴灶旁核验](source_loan_inspection_20261104.png)
 
-这是一个公源、公器、指定职位和有限借用/验还样本，不是通用产权、任意合同、完整任务图、可携私账、完整机构继任或守卫系统。继续沿[真实利害顺序](../archive/specifications/transcendent_stakes.md)接有限看护/警告与实际驱离，再用场景需要驱动能力组合与冒险。
+这是一个公源、公器、指定职位和有限借用/验还样本，不是通用产权、任意合同、完整任务图、可携私账、完整机构继任或守卫系统。继续沿[真实利害顺序](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/transcendent_stakes.md)接有限看护/警告与实际驱离，再用场景需要驱动能力组合与冒险。

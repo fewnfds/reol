@@ -1,6 +1,6 @@
 # Reol — 参考资料库
 
-2026-11-03最新玩法取舍见[修仙/战略/人生与远区研究](transcendent_focus_sources.md)，对应[超凡者优先](../../docs/archive/specifications/transcendent_focus.md)。一手页面区分商店设计陈述与特定版本实现，不把“动态世界”直接解释成纯事件引擎。
+2026-11-03最新玩法取舍见[修仙/战略/人生与远区研究](transcendent_focus_sources.md)，对应[超凡者优先](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/transcendent_focus.md)。一手页面区分商店设计陈述与特定版本实现，不把“动态世界”直接解释成纯事件引擎。
 
 > **历史参考索引：** 以下版本、星数、兼容声明和项目状态为2026-11-01时点，不是当前已安装清单；链接、许可和具体版本使用前重新核实。项目工具现状见[套件实装](../../docs/engineering/tooling/setup.md)。
 > 每条都标注“借什么”，避免无脑收藏。
@@ -64,7 +64,7 @@
 | **Microverse** | https://github.com/KsanaDock/Microverse | 2.5k | MIT | Godot 4 + LLM NPC 记忆/对话/任务；**只借技术，不做核心依赖** |
 | NobodyWho | https://github.com/nobodywho-ooo/nobodywho | 1.7k | MIT | 本地 LLM 推理；后期可选 |
 
-> 规则驱动世界保障无AI可玩；未来LLM可参与意图理解、对话与计划，实际结果仍经共同动作规则。早期“只做对话风味”的范围由ADR-0050修订，见[最新交互原则](../systems/world_interaction_principles.md)。本页资源是参考候选，不是已安装依赖。
+> 规则驱动世界保障无AI可玩；未来LLM可参与意图理解、对话与计划，实际结果仍经共同动作规则。早期“只做对话风味”的范围由ADR-0050修订，见[最新交互原则](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/design/systems/world_interaction_principles.md)。本页资源是参考候选，不是已安装依赖。
 
 ---
 

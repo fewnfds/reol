@@ -1,6 +1,6 @@
 # 真实地面来源 CPU/GPU 接入验证
 
-2026-11-05。范围为[真实缓存合同](../engineering/environment-ground-cache-contract.md)的计算后端：由同一真实原物投影计算基础目标，不包括实际温度/五行残留、普通Main、移动携物、房间或新存档域。GPU结果不能作为另一份世界事实。
+2026-11-05。范围为[真实缓存合同](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/engineering/environment-ground-cache-contract.md)的计算后端：由同一真实原物投影计算基础目标，不包括实际温度/五行残留、普通Main、移动携物、房间或新存档域。GPU结果不能作为另一份世界事实。
 
 ## 版本与方法
 

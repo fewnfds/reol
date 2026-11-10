@@ -4,7 +4,7 @@
 
 ## 变更
 
-- [实施顺序](../archive/specifications/transcendent_focus.md)：U0公共基础→U1超凡冲突→U2功法/器物构筑→U3冒险/任务→U4组织/权力→U5首小时/规模。P/F为领域验收索引，生产/建筑不再作为必须全部做完的前置；浅沟、导流和精细农务暂缓。
+- [实施顺序](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/transcendent_focus.md)：U0公共基础→U1超凡冲突→U2功法/器物构筑→U3冒险/任务→U4组织/权力→U5首小时/规模。P/F为领域验收索引，生产/建筑不再作为必须全部做完的前置；浅沟、导流和精细农务暂缓。
 - [参考研究](../../design/research/transcendent_focus_sources.md)：国产修仙、战略/战棋、人生模拟和远区分精度的一手资料，说明设计宣称与实际版本记录的区别。
 - `RegionalSimulation.owns_for_scope`把原八种用途的活动集合放在一个固定目录，保留原对练阶段差别与runtime回调范围；`body_action_owns`可排除自身。主体控制权、原生`actor.active`及施工/休息职责仍分别判断，没有第二份锁或任务真值。
 - `activity_previous_autonomy`统一投影原活动的返回自主标记；本人当前自主、寄魂差事等仍由身份校验单独处理。

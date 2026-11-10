@@ -2,7 +2,7 @@
 
 ## 范围与边界
 
-在既有普通主场景和普通存档内补通定义实物的生成/移除、取放与取消，不新增演示世界。采用Godot4.7.2；原四份环境WIP保持独立，不纳入验证。计划和环境未接入原因见[接入范围](../plans/world-foundation/runtime-integration.md)。
+在既有普通主场景和普通存档内补通定义实物的生成/移除、取放与取消，不新增演示世界。采用Godot4.7.2；原四份环境WIP保持独立，不纳入验证。计划和环境未接入原因见[接入范围](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/plans/world-foundation/runtime-integration.md)。
 
 - F8开发编辑按当前physical定义生成/移除，支持真实多格。开发生成不扣材料，不能冒充普通玩家制造权限。
 - 既有物品面板使用原生命周期耗时取放，启动/截止同高触及及遮挡复验，原行动占用、取消和普通联合存档不另造副本。

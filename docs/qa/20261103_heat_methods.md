@@ -1,6 +1,6 @@
 # 温火石第二用途与 NPC 自主摸索验收
 
-2026-11-03，工作包见[范围](../archive/specifications/artifact_heat_methods.md)。仍为有限生活样本，非通用热力学或完整自主发明。
+2026-11-03，工作包见[范围](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/artifact_heat_methods.md)。仍为有限生活样本，非通用热力学或完整自主发明。
 
 同一块温火石既能替柴做饭，也能在药圃烘药；共用有限储能、本人灵气和原库存事务。烘药消耗两份原草药，留下两份干药，不直接增加钱或功绩。缺料、预约冲突、容量不足或热量不够均不半扣材料；中断不退已投入灵气、不发产物。
 

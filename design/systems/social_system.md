@@ -2,7 +2,7 @@
 
 > 详细设计与候选：已确认体验原则见[社会与认识](../rules/society-and-knowledge.md)；具体记录、权重、机构政治和继任规则仍待评审。
 
-早期草案保留在[历史档案](../../docs/archive/documentation_consolidation_20261104/design/systems/social_system.md)；其中数值、排序和发行或继承条件都是提案。决策因素与来源见[社会互动评审](social_interaction_review.md)，共同原则见[世界总纲](self_consistent_world.md)。
+早期草案保留在[历史档案](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/documentation_consolidation_20261104/design/systems/social_system.md)；其中数值、排序和发行或继承条件都是提案。决策因素与来源见[社会互动评审](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/design/systems/social_interaction_review.md)，共同原则见[世界总纲](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/design/systems/self_consistent_world.md)。
 
 ## 已确定的体验与边界
 
@@ -52,7 +52,7 @@
 
 ## 5.7 继任原型的地位
 
-早期[历史草案的5.7](../../docs/archive/documentation_consolidation_20261104/design/systems/social_system.md)及`SuccessionResolver`提出两阶段方案：先对候选人和权势形成结果，再考虑逐笔旧账是否承认、折价、冻结、谈判或拒绝。名分、派系、实力、控制、资源、证据、受益者、前任联系等都可能是候选因素；**权重、阈值、硬门槛及五种结果只是隔离原型，不代表用户已拍板，也没有接入完整组织与人物行为。**
+早期[历史草案的5.7](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/documentation_consolidation_20261104/design/systems/social_system.md)及`SuccessionResolver`提出两阶段方案：先对候选人和权势形成结果，再考虑逐笔旧账是否承认、折价、冻结、谈判或拒绝。名分、派系、实力、控制、资源、证据、受益者、前任联系等都可能是候选因素；**权重、阈值、硬门槛及五种结果只是隔离原型，不代表用户已拍板，也没有接入完整组织与人物行为。**
 
 未来若重新采用，应先基于候选人本人所知、组织程序、实际资产与有关人的选择，区分提议、承认和执行，再用可解释的多个场景验证；不能默认空位时全部旧账冻结，也不能以一次总分决定所有部门和成员的反应。原型如何被迁移、替代或保留由实际设计验证决定。
 

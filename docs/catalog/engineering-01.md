@@ -1,14 +1,6 @@
-# engineering / 1
+# engineering 分类目录
 
-[分类总目录](../CATALOG.md)；路径存在不表示已实现或已验。
-
-- [docs/engineering/event-contract.md](../engineering/event-contract.md)
-- [docs/engineering/plants-contract.md](../engineering/plants-contract.md)
-- [docs/engineering/settlement-contract.md](../engineering/settlement-contract.md)
-- [docs/engineering/terminology.md](../engineering/terminology.md)
-
-- [docs/engineering/sparse-execution.md](../engineering/sparse-execution.md)
-- [docs/engineering/world-environment-contract.md](../engineering/world-environment-contract.md)
+此页只列路径；状态与任务按文档入口读取。
 
 - [docs/engineering/README.md](../engineering/README.md)
 - [docs/engineering/architecture.md](../engineering/architecture.md)
@@ -18,13 +10,17 @@
 - [docs/engineering/architecture/04-persistence.md](../engineering/architecture/04-persistence.md)
 - [docs/engineering/architecture/05-framework-domains.md](../engineering/architecture/05-framework-domains.md)
 - [docs/engineering/compatibility.md](../engineering/compatibility.md)
-- [docs/engineering/environment-ground-cache-contract.md](../engineering/environment-ground-cache-contract.md)
-- [docs/engineering/environment-response-contract.md](../engineering/environment-response-contract.md)
-- [docs/engineering/environment-source-query-contract.md](../engineering/environment-source-query-contract.md)
+- [docs/engineering/construction-contract.md](../engineering/construction-contract.md)
+- [docs/engineering/event-contract.md](../engineering/event-contract.md)
 - [docs/engineering/godot-for-unity.md](../engineering/godot-for-unity.md)
 - [docs/engineering/object-lifecycle-contract.md](../engineering/object-lifecycle-contract.md)
 - [docs/engineering/object-query-contract.md](../engineering/object-query-contract.md)
+- [docs/engineering/plants-contract.md](../engineering/plants-contract.md)
 - [docs/engineering/project-structure.md](../engineering/project-structure.md)
+- [docs/engineering/settlement-contract.md](../engineering/settlement-contract.md)
+- [docs/engineering/simulation-pacing.md](../engineering/simulation-pacing.md)
+- [docs/engineering/sparse-execution.md](../engineering/sparse-execution.md)
+- [docs/engineering/terminology.md](../engineering/terminology.md)
 - [docs/engineering/tooling/evaluation.md](../engineering/tooling/evaluation.md)
 - [docs/engineering/tooling/evaluation/01-comparison-method.md](../engineering/tooling/evaluation/01-comparison-method.md)
 - [docs/engineering/tooling/maintenance.md](../engineering/tooling/maintenance.md)
@@ -36,7 +32,4 @@
 - [docs/engineering/workflow/ai-development.md](../engineering/workflow/ai-development.md)
 - [docs/engineering/workflow/code-review.md](../engineering/workflow/code-review.md)
 - [docs/engineering/workflow/testing.md](../engineering/workflow/testing.md)
-
-- [docs/engineering/construction-contract.md](../engineering/construction-contract.md)
-
-- [docs/engineering/simulation-pacing.md](../engineering/simulation-pacing.md)
+- [docs/engineering/world-environment-contract.md](../engineering/world-environment-contract.md)

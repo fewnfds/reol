@@ -1,6 +1,6 @@
 # 玩家寄魂开局：实际验收
 
-2026-11-03。W4-b有限样本；规则/范围见[实施包](../archive/specifications/soul_player.md)。完整游戏Goal保持active。
+2026-11-03。W4-b有限样本；规则/范围见[实施包](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/soul_player.md)。完整游戏Goal保持active。
 
 ## 实际操作与接续
 

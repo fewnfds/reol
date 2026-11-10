@@ -1,6 +1,6 @@
 # 世界底座性能有限接续：创建优化与存读停止点
 
-2026-11-07，依据用户“能解决就解决，解决不了停下讨论”的[有限接续范围](../plans/environment-object-loop/performance-followup.md)。本轮A改善通用材料落地查询；B两条轻量路线无明显端到端收益，全部撤回运行代码；C未继续实施。不能把一次有效优化写成全部性能瓶颈已经解决。
+2026-11-07，依据用户“能解决就解决，解决不了停下讨论”的[有限接续范围](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/plans/environment-object-loop/performance-followup.md)。本轮A改善通用材料落地查询；B两条轻量路线无明显端到端收益，全部撤回运行代码；C未继续实施。不能把一次有效优化写成全部性能瓶颈已经解决。
 
 ## 受检范围
 

@@ -4,7 +4,7 @@
 
 2026-11-03，用户插入的架构审查方案。**A1八方向技术样本已接通，完整动作与正式美术仍待完成。** 当前人物/NPC/V页使用原创代码生成的八方向分层像素占位；正式美术后置，不要求用户继续批量生成复杂资源。当前功能/验证仅见[FEATURES](../../status/features.md)/[BASELINE](../../status/baseline.md)。来源、版本与许可见[调研](../../../design/research/eight_direction_sources.md)。
 
-A1技术样本按[首包规格](../../archive/specifications/eight_direction_sample.md)/[QA](../../qa/20261103_eight_direction_sample.md)接通，本轮九张PNG改为原生96网格硬像素、有限明暗与二值alpha，manifest/原点/方向/解剖锚点不变；Player、Pawn、V实际绘制用的 `Node` 已用局部nearest。运行仅有`idle / walk / gesture`，行走固定900ms世界时间周期、未按路程锁脚；基础长袍仍作占位。当前旧示意投影不是严格55°美术镜头；九层解码101.25MiB与原48视图约1ms人物CPU目标未达的限制保留，不能把像素替换当规模优化。本文后续目标不都已实现；[外部提示词](../../art/character_generation/README.md)保留供未来使用，暂不继续制作。
+A1技术样本按[首包规格](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/specifications/eight_direction_sample.md)/[QA](../../qa/20261103_eight_direction_sample.md)接通，本轮九张PNG改为原生96网格硬像素、有限明暗与二值alpha，manifest/原点/方向/解剖锚点不变；Player、Pawn、V实际绘制用的 `Node` 已用局部nearest。运行仅有`idle / walk / gesture`，行走固定900ms世界时间周期、未按路程锁脚；基础长袍仍作占位。当前旧示意投影不是严格55°美术镜头；九层解码101.25MiB与原48视图约1ms人物CPU目标未达的限制保留，不能把像素替换当规模优化。本文后续目标不都已实现；[外部提示词](../../art/character_generation/README.md)保留供未来使用，暂不继续制作。
 
 目标：一个角色沿任意路线平顺移动，停步不乱转；左手持剑始终属于左手，右腰玉佩始终属于右腰，换向时有正确的透视与遮挡。人物、衣服、头发、手持物和挂件共享同一身体动作与相位；外观继续是原实物用途，不另建一套装备真值。
 

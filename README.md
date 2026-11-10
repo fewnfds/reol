@@ -1,21 +1,21 @@
 # Reol
 
-GDScript / 2D正交俯视的修仙开放世界沙盒。玩家是持续世界中的一员，可选择生活、修行、创造、冒险或组织他人。Reol取意于Dota Allstars的`/reroll`。
+GDScript / 2D正交俯视的修仙持续世界。玩家是众生之一，可以生活、修行、创造、冒险或组织他人。Reol取意于Dota Allstars的`/reroll`。
 
-项目正在收束世界基础架构，已有功能、样本限制和验证范围分别见[功能](docs/status/features.md)与[证据基线](docs/status/baseline.md)。Godot 跟进最新稳定版，采用版本单独登记。
-
-基础建设按七个顶层框架组织：[领域职责与跨域接口](docs/engineering/architecture/05-framework-domains.md)说明各框架负责什么，[建设计划](docs/plans/foundation-priorities.md)说明依赖与完成标准，[技术总表](docs/status/technical-status.md)按同一领域登记现有能力和缺口。算法与局部优化归入框架内部模块。
+项目进入模拟执行架构重构。旧Demo提供可复用内容和行为样本，现有代码结构不限制新方案；多核、GPU、计算粒度、数据布局及呈现共同设计，以普通游戏的整体规模验收。
 
 ## 开发入口
 
-- [AGENTS.md](AGENTS.md)：短工程规则，按任务取技能和文档。
-- [HANDOFF](docs/status/handoff.md)：当前授权、暂停状态、未提交工作与恢复顺序。
-- [文档路由](docs/README.md)：按问题定位权威文件；无需加载全部文档。
-- [游戏概念](design/vision.md)、[实际功能](docs/status/features.md)、[代码架构](docs/engineering/architecture.md)：分别说明目标、可玩行为与真实状态所有者。
+1. [HANDOFF](docs/status/handoff.md)：授权、停点、工作区及受保护内容。
+2. [唯一重构计划](docs/plans/foundation-priorities.md)：16类核心问题、12类验收情况、交付依赖与规模目标。
+3. [执行架构规格](docs/specs/world-engine/execution.md)：目标结构；[领域职责](docs/engineering/architecture/05-framework-domains.md)明确问题归属。
+4. [愿景与规则](design/vision.md)、[Demo功能](docs/status/features.md)、[证据基线](docs/status/baseline.md)：分别说明游戏方向、现有行为和已验证范围。
 
-## 运行
+旧阶段编号、已完成样本和旧class不构成新任务。文档权威与完整导航见[文档入口](docs/README.md)，稳定工程规则见[AGENTS](AGENTS.md)。
 
-安装项目当前采用的Godot稳定版并配置`GODOT_BIN`：
+## 运行旧Demo
+
+按[基线](docs/status/baseline.md)安装采用的Godot稳定版并配置`GODOT_BIN`：
 
 ```text
 python tools/godot.py doctor
@@ -23,6 +23,6 @@ python tools/godot.py editor
 python tools/godot.py run
 ```
 
-验证与工具配置按[TOOLCHAIN](docs/engineering/tooling/usage.md)；当前操作按[FEATURES](docs/status/features.md)。程序CI不替代实机画面、手感和性能证据。
+键位见[操作说明](docs/status/features/controls.md)，验证和工具见[工程入口](docs/engineering/README.md)。当前Demo尚未达到规模目标，不能用已有完整CI替新架构验收。
 
-项目代码许可证尚未选定。第三方组件、资源与技能来源见[THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md)；候选资源不等于已安装或可直接商用。
+项目代码许可证尚未选定。第三方来源与限制见[THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md)。
