@@ -61,7 +61,7 @@ var motion_rules: Dictionary = {}
 var controlled_actor: String = "player"
 var errors: Array[String] = []
 ## Diagnostics only. These counters do not affect decisions or persisted state.
-var simulation_work: Dictionary = {"step_count": 0, "boundary_count": 0, "batched_minutes": 0, "quiet_batch_calls": 0, "actor_settle_checks": 0, "actor_decision_checks": 0}
+var simulation_work: Dictionary = {"step_count": 0, "boundary_count": 0, "batched_minutes": 0, "quiet_batch_calls": 0, "actor_settle_checks": 0, "actor_decision_checks": 0, "actor_merge_checks": 0}
 
 var _content: ReolContentDB
 var _boundary_revision_provider: Callable
@@ -70,7 +70,10 @@ var _actor_boundaries: Dictionary[String, int] = {}
 var _boundary_index := SimParticipationIndex.new()
 var _boundary_index_ready: bool = false
 var _dirty_actor_boundaries: Dictionary[String, bool] = {}
-var _boundary_invalidation_revision: int = 0
+# Only changes produced during one ordered pass. The deadline dirty set must
+# remain intact until its next query; it is not an incremental execution queue.
+var _actor_work_changes: Array[String] = []
+var _collect_actor_work_changes: bool = false
 const NATIVE_BOUNDARY: StringName = &"native_action"
 var _next_actor_boundary: int = -1
 var _navigation: Callable
@@ -142,7 +145,7 @@ func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary,
 	institutions = SimInstitutionBook.new()
 	_rng.seed = int(config.seed)
 	elapsed_ms = opening_ms
-	simulation_work = {"step_count": 0, "boundary_count": 0, "batched_minutes": 0, "quiet_batch_calls": 0, "actor_settle_checks": 0, "actor_decision_checks": 0}
+	simulation_work = {"step_count": 0, "boundary_count": 0, "batched_minutes": 0, "quiet_batch_calls": 0, "actor_settle_checks": 0, "actor_decision_checks": 0, "actor_merge_checks": 0}
 	_next_id = 1
 	_last_request = -int(config.request_interval)
 	situations = {}
@@ -384,7 +387,8 @@ func set_boundary_revision_provider(provider: Callable) -> void:
 
 
 func invalidate_boundary_cache() -> void:
-	_boundary_invalidation_revision += 1
+	if _collect_actor_work_changes:
+		_actor_work_changes.append("") # Whole-region dependency invalidation.
 	_actor_boundaries.clear()
 	_boundary_index.clear()
 	_boundary_index_ready = false
@@ -393,7 +397,8 @@ func invalidate_boundary_cache() -> void:
 
 
 func invalidate_actor_boundary(id: String) -> void:
-	_boundary_invalidation_revision += 1
+	if _collect_actor_work_changes:
+		_actor_work_changes.append(id)
 	_actor_boundaries.erase(id)
 	_dirty_actor_boundaries[id] = true
 	_next_actor_boundary = -1
@@ -487,8 +492,8 @@ func _settle_actor_work(due: Array, choosing: bool) -> void:
 	var included: Dictionary = {}
 	for id: String in candidates:
 		included[id] = true
-	_merge_actor_work(candidates, included, "")
-	var revision: int = _boundary_invalidation_revision
+	_merge_actor_work(candidates, included, "", _dirty_actor_boundaries.keys() if _boundary_index_ready else _actor_ids())
+	_collect_actor_work_changes = true
 	var cursor: int = 0
 	while cursor < candidates.size():
 		var id: String = candidates[cursor]
@@ -501,15 +506,16 @@ func _settle_actor_work(due: Array, choosing: bool) -> void:
 		elif not _boundary_revision_provider.is_valid() or int(_actor_boundaries.get(id, 0)) <= elapsed_ms:
 			simulation_work.actor_settle_checks = int(simulation_work.actor_settle_checks) + 1
 			_executor.settle(id)
-		if revision != _boundary_invalidation_revision:
-			_merge_actor_work(candidates, included, id)
-			revision = _boundary_invalidation_revision
+		if not _actor_work_changes.is_empty():
+			_merge_actor_work(candidates, included, id, _actor_ids() if _actor_work_changes.has("") else _actor_work_changes)
+			_actor_work_changes.clear()
+	_collect_actor_work_changes = false
 
 
-func _merge_actor_work(candidates: Array, included: Dictionary, after: String) -> void:
+func _merge_actor_work(candidates: Array, included: Dictionary, after: String, invalidated: Array) -> void:
 	var changed: bool = false
-	var invalidated: Array = _dirty_actor_boundaries.keys() if _boundary_index_ready else _actor_ids()
 	for id: String in invalidated:
+		simulation_work.actor_merge_checks = int(simulation_work.actor_merge_checks) + 1
 		if id > after and not included.has(id):
 			candidates.append(id)
 			included[id] = true
@@ -1041,7 +1047,7 @@ func restore(data: Dictionary, allowed_subjects: Dictionary = {}, external_inven
 	land_resources.bind_restored(self, _content.land_resources, data.land_resources)
 	_executor = SimActionExecutor.new(self)
 	_reset_actor_projections()
-	simulation_work = {"step_count": 0, "boundary_count": 0, "batched_minutes": 0, "quiet_batch_calls": 0, "actor_settle_checks": 0, "actor_decision_checks": 0}
+	simulation_work = {"step_count": 0, "boundary_count": 0, "batched_minutes": 0, "quiet_batch_calls": 0, "actor_settle_checks": 0, "actor_decision_checks": 0, "actor_merge_checks": 0}
 	space_reset.emit()
 	return true
 

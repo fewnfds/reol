@@ -20,6 +20,7 @@ func run(runner: Object) -> void:
 	_test_reads_do_not_advance(runner)
 	_test_due_actor_work(runner)
 	_test_invalidation_during_settlement(runner)
+	_test_simultaneous_completions(runner)
 
 
 func _test_reads_do_not_advance(runner: Object) -> void:
@@ -89,6 +90,24 @@ func _test_invalidation_during_settlement(runner: Object) -> void:
 			sim.advance_to_ms(60002)
 		runner.assert_true(not indexed.actor_has_action(target), "an invalidated earlier ID is cancelled at the next causal boundary")
 		_same(runner, reference, indexed, "deferred earlier IDs retain the same next-boundary future")
+
+
+func _test_simultaneous_completions(runner: Object) -> void:
+	var sim: VillageSimulation = _make(runner)
+	if sim == null:
+		return
+	for id: String in sim.actor_ids():
+		sim.set_actor_cell(id, SimRouteTravel.cell(sim.places.records.cell))
+		runner.assert_true(sim.submit_action(id, "seek_records"), "simultaneous completion fixture starts original colocated visits")
+	sim.set_boundary_revision_provider(func() -> int: return 0)
+	sim.set_sparse_actor_projection(true)
+	runner.assert_true(sim.advance_to_ms(1), "all original visits start their timed work at the same millisecond")
+	var before: int = int(sim.simulation_work.actor_merge_checks)
+	runner.assert_true(sim.advance_to_ms(60001), "all original visits finish at the same causal boundary")
+	for id: String in sim.actor_ids():
+		runner.assert_true(not sim.actor_has_action(id), "a simultaneous original visit completes once")
+	var checks: int = int(sim.simulation_work.actor_merge_checks) - before
+	runner.assert_true(checks <= sim.actor_ids().size() * 2, "same-time completions merge only newly invalidated IDs plus the following decision pass, not accumulated prefixes")
 
 
 func _make(runner: Object, autonomous: bool = false) -> VillageSimulation:
