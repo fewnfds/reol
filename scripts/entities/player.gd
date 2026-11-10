@@ -204,6 +204,7 @@ func restore_motion(data: Dictionary, point: Vector2, now: int) -> bool:
 	_intent = Vector2.ZERO
 	manual_visual_moving = not motion.velocity.is_zero_approx()
 	_project_motion()
+	publish_motion(now, true)
 	return true
 
 

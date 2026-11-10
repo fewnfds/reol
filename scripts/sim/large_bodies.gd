@@ -3,6 +3,8 @@ extends RefCounted
 signal body_space_changed(id: String)
 signal bodies_space_changed(ids: Array[String])
 signal space_reset
+
+var _sweep_changes: Dictionary = {}
 var space_updating: bool = false
 ## One physical source per large body. Views and Embodiment only reference it.
 ## A bounded roaming sample, not a complete species/needs/combat simulation.
@@ -163,6 +165,7 @@ func settle_at_ms(now: int) -> void:
 	if now < elapsed_ms:
 		return
 	space_updating = true
+	_sweep_changes.clear()
 	elapsed_ms = now
 	var moved: Array[String] = []
 	for id: String in SimAvianLife.sorted_keys(bodies):
@@ -180,6 +183,7 @@ func settle_at_ms(now: int) -> void:
 			if now < int(step.due_ms):
 				continue
 			body.step = {}
+			_notify_sweep_change(id)
 			if body_cell(id) == SimRouteTravel.cell(body.waypoints[body.destination]):
 				body.destination = 1 - int(body.destination)
 				body.path = []
@@ -188,6 +192,10 @@ func settle_at_ms(now: int) -> void:
 			body.retry_ms = now
 		if int(body.retry_ms) <= now:
 			_start_step(id)
+	for id: String in _sweep_changes:
+		if not moved.has(id):
+			moved.append(id)
+	_sweep_changes.clear()
 	if not moved.is_empty():
 		bodies_space_changed.emit(moved)
 	space_updating = false
@@ -219,6 +227,16 @@ func _start_step(id: String) -> void:
 	body.path.pop_front()
 	body.facing = SimBodyGeometry.DIRECTIONS.find(next - at)
 	body.step = {"from": [at.x, at.y], "to": [next.x, next.y], "started_ms": elapsed_ms, "due_ms": elapsed_ms + int(definitions.step_ms)}
+	_notify_sweep_change(id)
+
+
+func _notify_sweep_change(id: String) -> void:
+	# Starting/ending a sweep changes occupied cells even if the center has
+	# not crossed a cell. Reuse the original spatial notification contract.
+	if space_updating:
+		_sweep_changes[id] = true
+	else:
+		body_space_changed.emit(id)
 
 
 func visible_to(actor: String, id: String) -> bool:
@@ -289,5 +307,6 @@ func restore(data: Variant) -> bool:
 	events.assign(data.events.duplicate(true))
 	elapsed_ms = int(data.elapsed_ms)
 	next_id = int(data.next_id)
+	_sweep_changes.clear()
 	space_reset.emit()
 	return true

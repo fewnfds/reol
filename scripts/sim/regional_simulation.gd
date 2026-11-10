@@ -105,7 +105,16 @@ var in_transit: SimInventory = SimInventory.new()
 var errors: Array[String] = []
 var simulation_work: Dictionary = {"boundaries": 0, "deliveries": 0, "messages": 0}
 var services: RefCounted
-var embodiment: SimEmbodiment
+var embodiment: SimEmbodiment:
+	set(value):
+		if embodiment != null:
+			embodiment.set_control_change_guard(Callable())
+		embodiment = value
+		if embodiment != null:
+			var owner: WeakRef = weakref(self)
+			embodiment.set_control_change_guard(func(source: Dictionary) -> bool:
+				var authority: RegionalSimulation = owner.get_ref()
+				return authority != null and authority._prepare_control_change(source))
 var artifacts: SimArtifacts
 ## Session hooks survive an in-place restore; candidates have separate hooks.
 var artifact_transfers := SimArtifactTransfers.new()
@@ -668,6 +677,17 @@ func actor_controls(actor_id: String, channel: String) -> bool:
 	for simulation: VillageSimulation in regions.values():
 		if simulation.actors.has(actor_id):
 			return bool(simulation.actors[actor_id].alive)
+	return false
+
+
+func _prepare_control_change(source: Dictionary) -> bool:
+	if source.kind != "village_actor":
+		return true
+	if not accepts_commands():
+		return false
+	for region: String in regions:
+		if regions[region].actors.has(str(source.id)):
+			return synchronize_region(region)
 	return false
 
 

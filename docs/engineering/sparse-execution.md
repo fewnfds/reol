@@ -6,7 +6,7 @@
 
 ## 原生行动的截止点复用
 
-`VillageSimulation`保留原行动、连续需求和观察所有权。普通世界通过`set_boundary_revision_provider()`声明可观察的导航/控制依赖：`WorldContinuityRuntime`同步监听地形、建筑、植物和大体型阻碍变化；`SimEmbodiment.control_revision`反映控制权变更。只有这条接缝完整时才复用每个人的绝对截止点，截止前不重复路线检查；到期仍按原稳定顺序结算。未提供依赖通知的独立Callable走保守查询，不推断其外部状态不变。
+`VillageSimulation`保留原行动、连续需求和观察所有权。普通世界通过`set_boundary_revision_provider()`声明可观察的导航/控制依赖：`WorldContinuityRuntime`同步监听地形、建筑、植物和大体型阻碍变化；`SimEmbodiment.control_revision`反映控制权变更。世界绑定的控制权guard在写入前先以原控制权同步对应地区至当前世界边界，独立候选不带此宿主hook；新控制条件不能回写地区落后期间。大体型开始/结束整段占地也沿原空间signal通知，不等中心跨格。只有这条接缝完整时才复用每个人的绝对截止点，截止前不重复路线检查；到期仍按原稳定顺序结算。未提供依赖通知的独立Callable走保守查询，不推断其外部状态不变。
 
 开始/取消/完成行动及身体重定位使对应截止点失效；跨域改动调用原`RegionalSimulation.invalidate_region(region_id, actor_id)`；明确单个人物的命令可只使该人物失效，空actor参数保守处理全区，合并本边界的重复失效，在下一次调度前重算。已经到达同一毫秒的`synchronize_region()`是空操作，实际观察仍先同步所读地区。恢复时清空截止点并重绑通知；索引不入档，不复制路径或成为另一份行动计划。原生截止点缓存不是`SimParticipationIndex`，两者不互相执行或登记同一份原状态。
 

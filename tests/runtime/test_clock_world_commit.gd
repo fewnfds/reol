@@ -17,6 +17,7 @@ class PublicationProbe extends CommittedWorldCanvas:
 
 func run(runner: Object) -> void:
 	_presentation_segments(runner)
+	_native_dependency_changes(runner)
 	_published_after_world(runner)
 	_budgeted_frame_and_save(runner)
 	_budgeted_explicit(runner)
@@ -63,6 +64,34 @@ func _presentation_segments(runner: Object) -> void:
 	runner.assert_eq(camera._focus_position(), player.presentation_position(), "follow camera uses the same interpolated view instead of the stepped anchor")
 	camera.free()
 	player.free()
+
+
+func _native_dependency_changes(runner: Object) -> void:
+	var fixture: Dictionary = _setup(runner)
+	if fixture.is_empty():
+		return
+	var runtime: WorldContinuityRuntime = fixture.continuity
+	var world: RegionalSimulation = runtime.world_sim
+	var remote: VillageSimulation = world.regions.river
+	var id: String = "river_a_he"
+	runner.assert_true(remote.submit_action(id, "rest"), "a real far resident starts an original native journey")
+	world.invalidate_region("river", id)
+	runner.assert_true(world.advance_to_ms(25), "the world reaches a boundary before the far resident's next crossing")
+	runner.assert_true(remote.elapsed_ms < world.elapsed_ms, "the dependency fixture has an actually lazy far region")
+	var expected: Dictionary = remote.actors[id].duplicate(true)
+	SimRouteTravel.project(expected.active, expected, world.elapsed_ms)
+	var body: String = world.embodiment.carrier_for_source("village_actor", id)
+	var subject: String = world.embodiment.subject_for_actor(id)
+	runner.assert_true(world.embodiment.release_control(subject, body, "motion"), "authority releases the original far body's motion channel")
+	runner.assert_eq(remote.elapsed_ms, world.elapsed_ms, "old control settles the far body through the actual change time")
+	runner.assert_eq(remote.actors[id].position, expected.position, "a current control change never cancels motion retroactively")
+	runner.assert_true(world.advance_to_ms(26) and world.errors.is_empty(), "dependency wakeups cannot send the world scheduler into its past")
+	runner.assert_true(remote.actors[id].active.is_empty(), "lost control cancels the original action at its next canonical boundary")
+	var before: int = runtime._native_boundary_revision()
+	world.large_bodies._start_step("hill_beast")
+	runner.assert_true(not world.large_bodies.bodies.hill_beast.step.is_empty(), "the original beast starts a real swept step")
+	runner.assert_true(runtime._native_boundary_revision() != before, "new swept occupancy invalidates cached pedestrian routes before its center crosses a cell")
+	fixtures._dispose(fixture)
 
 
 func _setup(runner: Object) -> Dictionary:

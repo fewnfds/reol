@@ -15,6 +15,7 @@ var _actor_subjects: Dictionary = {}
 var _source_carriers: Dictionary = {}
 ## Disposable dependency epoch, not identity or saved control state.
 var control_revision: int = 0
+var _control_change_guard: Callable
 
 
 static func valid_forms(data: Variant) -> bool:
@@ -87,6 +88,8 @@ func grant_control(subject: String, carrier: String, channel: String) -> bool:
 	var holder: String = str(_controls[carrier].get(channel, ""))
 	if not holder.is_empty() and holder != subject:
 		return false
+	if holder != subject and not _prepare_control_change(carrier):
+		return false
 	_controls[carrier][channel] = subject
 	control_revision += 1
 	return true
@@ -95,9 +98,22 @@ func grant_control(subject: String, carrier: String, channel: String) -> bool:
 func release_control(subject: String, carrier: String, channel: String) -> bool:
 	if not controls(subject, carrier, channel):
 		return false
+	if not _prepare_control_change(carrier):
+		return false
 	_controls[carrier].erase(channel)
 	control_revision += 1
 	return true
+
+
+func set_control_change_guard(provider: Callable) -> void:
+	_control_change_guard = provider
+
+
+func _prepare_control_change(carrier: String) -> bool:
+	# A world-bound registry settles the original body's old interval before
+	# changing control at the current world time. Pure candidate registries
+	# remain independent and have no world execution hook.
+	return not _control_change_guard.is_valid() or bool(_control_change_guard.call(_carriers[carrier].source.duplicate(true)))
 
 
 func controls(subject: String, carrier: String, channel: String) -> bool:

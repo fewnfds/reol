@@ -169,6 +169,7 @@ func _test_save_load(runner: Object) -> void:
 	player.set_altitude(0)
 	runner.call("assert_eq", runtime.load_game(path), OK, "runtime reloads the mid-journey save")
 	runner.call("assert_eq", player.global_position, expected_position, "runtime restores the precise player position")
+	runner.call("assert_eq", player.presentation_position(), expected_position, "standalone load snaps the displayed point to the exact restored body")
 	runner.call("assert_eq", player.altitude, 1, "runtime restores the player height layer")
 	runner.call("assert_eq", _json_normalized(runtime.simulation.to_dict()), _json_normalized(expected_simulation), "runtime restores resources, RNG, commitments, and action progress")
 	runner.call("assert_eq", _clock_state(), expected_clock, "runtime restores clock state with simulation state")
