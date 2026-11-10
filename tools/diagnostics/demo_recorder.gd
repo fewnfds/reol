@@ -39,12 +39,21 @@ var _windows: FileAccess
 var _done: bool = false
 var _sample_clock_work: bool = false
 var _profile_kernel: bool = false
+var _profile_render: bool = false
+var _render_viewport := RID()
+var _render_cpu: Array[float] = []
+var _render_gpu: Array[float] = []
+var _render_setup: Array[float] = []
 
 
 func configure(main: Node, options: Dictionary) -> bool:
 	_main = main
 	_options = options
 	_profile_kernel = bool(options.get("profile_kernel", false))
+	_profile_render = bool(options.get("profile_render", false)) and RenderingServer.get_rendering_device() != null
+	if _profile_render:
+		_render_viewport = get_viewport().get_viewport_rid()
+		RenderingServer.viewport_set_measure_render_time(_render_viewport, true)
 	_clock = get_tree().root.get_node("GameClock")
 	_runtime = main.get("_continuity")
 	_executor = _clock._interval_executor
@@ -176,6 +185,10 @@ func _process(_delta: float) -> void:
 	if _frames.size() < MAX_SAMPLES:
 		_frames.append(float(span) / 1000.0)
 		_clock_samples.append(float(clock_usec) / 1000.0)
+		if _profile_render:
+			_render_cpu.append(RenderingServer.viewport_get_measured_render_time_cpu(_render_viewport))
+			_render_gpu.append(RenderingServer.viewport_get_measured_render_time_gpu(_render_viewport))
+			_render_setup.append(RenderingServer.get_frame_setup_time_cpu())
 	if _spikes.size() < MAX_SPIKES or float(span) / 1000.0 > float(_spikes[-1].frame_ms):
 		var row: Dictionary = _snapshot(now, clock_usec)
 		row["frame_ms"] = float(span) / 1000.0
@@ -216,6 +229,9 @@ func _snapshot(now: int, clock_usec: int) -> Dictionary:
 		"terrain_painting": view._painting_chunk.x >= 0,
 		"terrain_dirty": maxi(0, view._dirty_order.size() - int(view._dirty_cursor)),
 		"process_monitor_ms": Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+		"render_cpu_ms": _render_cpu.back() if not _render_cpu.is_empty() else null,
+		"render_gpu_ms": _render_gpu.back() if not _render_gpu.is_empty() else null,
+		"render_setup_cpu_ms": _render_setup.back() if not _render_setup.is_empty() else null,
 		"draw_calls": Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)}
 
 
@@ -250,6 +266,8 @@ func finish() -> void:
 		return
 	_done = true
 	set_process(false)
+	if _profile_render:
+		RenderingServer.viewport_set_measure_render_time(_render_viewport, false)
 	if _clock._interval_executor == Callable(self, "_execute"):
 		_clock._interval_executor = _executor
 	_unwrap_kernel()
@@ -260,6 +278,7 @@ func finish() -> void:
 	_windows.close()
 	var report: Dictionary = {"format": "demo_profile_v1", "revision": _options.revision, "dirty": _options.dirty,
 		"kernel_timing_enabled": _profile_kernel,
+		"render_timing_enabled": _profile_render,
 		"engine": Engine.get_version_info().string, "renderer": RenderingServer.get_video_adapter_name(),
 		"display": DisplayServer.get_name(), "assembly_ms": float(_options.assembly_usec) / 1000.0,
 		"terrain_warmup_ms": float(_options.get("terrain_warmup_usec", 0)) / 1000.0,
@@ -269,13 +288,14 @@ func finish() -> void:
 		"requested_world_ms": _requested_ms, "achieved_fraction": _advanced_ms / _requested_ms if _requested_ms > 0.0 else null,
 		"minimum_load_rate": _minimum_rate, "slow_seconds": _slow_usec / 1000000.0,
 		"frame_ms": _summary(_frames), "clock_ms": _summary(_clock_samples),
+		"render_cpu_ms": _summary(_render_cpu), "render_gpu_ms": _summary(_render_gpu), "render_setup_cpu_ms": _summary(_render_setup),
 		"work_totals_ms": {"clock": _total_clock_usec / 1000.0,
 			"runtime_interval": _total_executor_usec / 1000.0, "kernel_callbacks": _total_kernel_usec / 1000.0 if _profile_kernel else null,
 			"interval_outside_kernel": maxi(0, _total_executor_usec - _total_kernel_usec) / 1000.0 if _profile_kernel else null},
 		"kernel_scopes": _scope_rows(), "largest_frames": _spikes,
 		"actor_execution": _actor_execution_summary(),
 		"world_errors": _runtime.world_sim.errors.duplicate(),
-		"limits": "Development process with frame/interval recording; frame intervals include render/host waits. Optional kernel callback wrappers add overhead; disabled timings are null. Interval residual includes regional execution, scheduling and view refresh, not one attributed system. Fog/streaming flags indicate correlation, not measured cost. Paused/wait/load transitions excluded from achieved fraction; no GPU-time claim. First 20000 frame samples; largest 24 frames retained."}
+		"limits": "Development process with frame/interval recording; frame intervals include render/host waits. Optional kernel/render measurements add overhead; disabled timings are null/empty. Render timings are RenderingServer measurements of last available rendered frame, not this script's clock work; frame/GPU values must not be added. Interval residual includes scheduling and views. Fog/streaming flags indicate correlation. Paused/wait/load transitions excluded from achieved fraction. First 20000 frame samples; largest 24 frames retained."}
 	var file := FileAccess.open(str(_options.report), FileAccess.WRITE)
 	if file == null:
 		push_error("Demo recorder cannot write its summary")

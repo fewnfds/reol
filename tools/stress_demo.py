@@ -17,6 +17,7 @@ def main() -> int:
     parser.add_argument("--headless", action="store_true", help="rules/CPU diagnostics only, not rendering performance")
     parser.add_argument("--opening-wave", action="store_true", help="single ordinary rest journey, for the original before/after comparison")
     parser.add_argument("--profile-kernel", action="store_true", help="wrap every world phase for diagnosis; adds overhead, disabled for throughput captures")
+    parser.add_argument("--profile-render", action="store_true", help="enable Godot viewport CPU/GPU rendering timings; adds measurement overhead")
     parser.add_argument("--actor-workers", type=int, choices=range(9), default=4, help="native actor calculation workers; 0 uses the same packed calculation serially")
     args = parser.parse_args()
     if not 6 <= args.residents <= 256 or not 5 <= args.seconds <= 300:
@@ -39,6 +40,8 @@ def main() -> int:
         cmd.append("--opening-wave")
     if args.profile_kernel:
         cmd.append("--profile-kernel")
+    if args.profile_render:
+        cmd.append("--profile-render")
     return godot._run(cmd, tag, timeout=args.seconds + 180 if args.quit_after_capture else None)
 
 

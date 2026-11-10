@@ -30,6 +30,8 @@ python tools/diagnose_demo.py --seconds 30 --auto-start --quit-after-capture
 
 默认仅保留帧/区间计时；追加`--profile-kernel`才包裹每个结算步骤，供定位使用。报告明确写`kernel_timing_enabled`；关闭时未测的步骤/残差为null，不能当作零成本。比较吞吐时保持计时模式一致。
 
+`--profile-render`启用Godot原生viewport CPU/GPU绘制计时及全局CPU准备计时，记录`render_timing_enabled`和各自分位数。它们是最近可用渲染帧的数据，不包含脚本/物理、也不能与当前帧时相加；诊断开销单独对待。headless没有有效GPU绘制计时。
+
 实现仍在`tools/diagnostics/demo_recorder.gd`及两个`tools/qa/`开发入口，普通Main不加载诊断器。HUD常显FPS、帧间隔和世界流速，F3展开详情。Godot编辑器Debugger → Profiler/Visual Profiler用于继续定位；宿主帧间隔不能冒称GPU时间。
 
 ## 其他工具

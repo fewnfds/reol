@@ -23,6 +23,7 @@ var _last_travelling: int = 0
 var _redirects: int = 0
 var _actor_workers: int = 4
 var _profile_kernel: bool = false
+var _profile_render: bool = false
 const CIRCUIT: Array[String] = ["rest", "inspect", "check_store", "check_well"]
 
 
@@ -45,6 +46,8 @@ func _run() -> void:
 			_opening_wave = true
 		elif argument == "--profile-kernel":
 			_profile_kernel = true
+		elif argument == "--profile-render":
+			_profile_render = true
 		elif argument.begins_with("--actor-workers="):
 			_actor_workers = clampi(argument.get_slice("=", 1).to_int(), 0, 8)
 	_main = load("res://scenes/main.tscn").instantiate()
@@ -114,7 +117,7 @@ func _run() -> void:
 	_recorder = load("res://tools/diagnostics/demo_recorder.gd").new()
 	root.add_child(_recorder)
 	_recorder.finished.connect(_finish)
-	if not _recorder.configure(_main, {"seconds": _seconds, "report": _report, "revision": _revision, "dirty": true, "profile_kernel": _profile_kernel, "assembly_usec": Time.get_ticks_usec() - assembly_started,
+	if not _recorder.configure(_main, {"seconds": _seconds, "report": _report, "revision": _revision, "dirty": true, "profile_kernel": _profile_kernel, "profile_render": _profile_render, "assembly_usec": Time.get_ticks_usec() - assembly_started,
 		"terrain_warmup_usec": Time.get_ticks_usec() - warmup_started, "terrain_warmup_complete": warmup_complete}):
 		quit(1)
 		return

@@ -29,6 +29,8 @@ func _run() -> void:
 			_quit_after = true
 		elif arg == "--profile-kernel":
 			options["profile_kernel"] = true
+		elif arg == "--profile-render":
+			options["profile_render"] = true
 	var started: int = Time.get_ticks_usec()
 	_main = load("res://scenes/main.tscn").instantiate()
 	root.add_child(_main)
