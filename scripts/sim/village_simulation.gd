@@ -694,8 +694,6 @@ func advance_to_ms(target_ms: int, max_events: int = 4096, should_yield: Callabl
 					work.events_left -= 1
 					simulation_work.boundary_count = int(simulation_work.boundary_count) + 1
 				_refresh_stock_epoch()
-				if work.sparse and (_stock_observed_epoch != _stock_epoch or _stock_observed_minute != tick_index):
-					synchronize_actors()
 				work.observing = _actor_ids() if not work.sparse or _stock_observed_epoch != _stock_epoch or _stock_observed_minute != tick_index else _stock_dirty_actors.keys()
 				work.observing.sort()
 				work.cursor = 0
@@ -1613,9 +1611,11 @@ func _refresh_stock_epoch() -> void:
 	for id: String in places:
 		var items: Dictionary = inventory.containers[id]
 		if _stock_contents.get(id) != items:
+			# A first cache sample is not a physical content change. The route
+			# planner already read these same original contents at this boundary.
+			changed_contents = changed_contents or _stock_contents.has(id)
 			_stock_contents[id] = items.duplicate(true)
 			_stock_epoch += 1
-			changed_contents = true
 	if changed_contents and _native_crossing_interest.is_valid():
 		invalidate_boundary_cache()
 
@@ -1654,7 +1654,9 @@ func _route_stock_crossing_required(actor: Dictionary, completion: Dictionary) -
 
 func _observe_stock(actor_id: String) -> void:
 	var actor: Dictionary = _actors[actor_id]
-	var cell: Vector2i = SimRouteTravel.cell(actor.cell)
+	# Seeing a container needs current geometry, not every body's need balance
+	# or a materialized route cursor. Consequential crossings still wake here.
+	var cell: Vector2i = TileGrid.world_to_cell(projected_actor_position(actor_id))
 	var previous_observation: Array = _stock_observations.get(actor_id, [])
 	if previous_observation.size() == 3 and previous_observation[0] == cell and previous_observation[1] == tick_index and previous_observation[2] == _stock_epoch:
 		return
