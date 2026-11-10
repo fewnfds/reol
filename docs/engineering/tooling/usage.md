@@ -27,6 +27,12 @@ check包括结构、导入和统一同步测试runner；test不替代导入，�
 
 ## 配置和观察
 
+Demo性能诊断独立于普通入口：`python tools/diagnose_demo.py --seconds 120`启动一个新的普通Main试玩进程，不接管已运行的游戏。正常选择人生、移动和交互；采样到时停止并恢复原回调，游戏继续运行，关闭窗口也会落盘。1–300秒有界采样，默认120秒；`--auto-start --quit-after-capture`仅供自动选择人身并在采样后关闭该新进程的QA。`--headless`只能验证工具，不证明画面性能。
+
+报告在忽略的`logs/demo-profile-*.json`及同名JSONL，每秒写入一条窗口记录并flush；保留最多20000帧样本和24个最大帧现场。报告包含源码SHA/dirty、请求与实际推进、负载倍率/欠算、原结算步骤调用次数/累计与最长耗时、运行层剩余耗时、迷雾更新/地块加载标记。暂停、等候与加载切换不计入正常流速比值。步骤以外的剩余时间包含区域推进、调度和视图刷新，不能冒称某单一模块；迷雾/加载标记表示相关性，非直接耗时。
+
+实装在`tools/diagnostics/demo_recorder.gd`，由`tools/qa/demo_diagnostics.gd`单独装配，普通Main不加载。只包装原Callable并原样返回，不改变阶段顺序、事件、输入、预算、存档或领域状态；读档更换内核后重新挂接，结束时恢复原回调。这是有测量开销的开发诊断，不是发布版/GPU时间或整机性能证明；针对疑似显示热点继续使用Godot原生Profiler。
+
 - 首选实时场景连接为Godot AI：编辑器启用插件后用官方dock的Configure → Codex生成带认证的attach，重载后实际核查Reol会话、日志和运行状态；不手写端口/裸HTTP，不更改第三方addon。当前实现与过滤范围见[套件实装](setup.md)。
 - python tools/setup_codex.py 补项目中的Context7和默认禁用的Coding-Solo备用入口；已存在连接和无关配置保留。仅在明确需要备用时用 --enable-backup-godot；显式 --review-model gpt-6.1-sol 设置项目审查模型，--check只验证配置而不证实握手。项目配置/备份不入库；用户级路由与认证不在此脚本中改写。
 - API以当前目标版本的Godot官方文档为准，Context7可辅助查询。旧opencode.json属于旧客户端，不是Codex生效配置。
