@@ -2,6 +2,8 @@
 
 本目录为[七个顶层框架](../../engineering/architecture/05-framework-domains.md)提供共同的执行效率约束、静态风险和实测参考。建设目标与出口归[基础建设计划](../foundation-priorities.md)，实际授权归[HANDOFF](../../status/handoff.md)，已有通用索引/环境/健康范围归[实施规格](implementation.md)和状态证据。审计起点为`eff27a7dcf77031a4084258cc688bbb3616b64e4`，既有短测见[来源成本复核](../../qa/20261107_source_change_review.md)。
 
+当前839ff88的人口/执行链实测及插件取舍见[20261110架构调查](../../qa/20261110_performance_architecture_audit.md)；本目录旧eff27审计的路径/数值不冒充当前热点。近期改造已收进唯一基础计划，不恢复旧A–D队列。
+
 定义编译、能力参与、到期调度、空间候选、缓存失效和呈现路径都服务于所属框架的交付能力。根据实测在框架内安排实现，跨域瓶颈必要时统一协调，不把每个可优化函数提升为独立主计划。
 
 ## 要达到的执行方式

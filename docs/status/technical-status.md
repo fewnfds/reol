@@ -6,7 +6,7 @@
 
 | 名称 | 实际情况 |
 |---|---|
-| Git `main` / `origin/main` | 当前集成包含最终生产/测试`0856effd4b2bb135c9bae8f25cccbba0e3def8e0`，通用SL、事件/植物、环境与行动均已合入main；主线整合CI通过；精确证据见BASELINE |
+| Git `main` / `origin/main` | 当前为`839ff88f1b7fee240d0c798f533314a3ae446430`，含上述框架及后续试玩/缓行/连续呈现和压力Demo；同SHA完整CI通过；精确证据见BASELINE |
 | 共同时间流速整合 | 产品/永久测试`f4257e38a1665c08c8596028fe71c0cea0dbeab9`已合入main，CI42542611182完整通过；有限准入、自动降速、宿主步骤预算和HUD/F3已接普通Main，后续仅QA驱动与文档，准确证据见BASELINE |
 | 通用存读工作分支 | `codex/save-load-framework`主体96a6fe0、最终代码d682e03已推送，已随行动历史合入main；下文能力在主线可用，完整CI状态见[QA](../qa/20261109_save_framework.md) |
 | 事件与植物工作分支 | `codex/world-events-plants` 承接SL；全局事件/规则闭包、植物实例、环境/空间/行动和花盆已接普通Main并推送；原生主审/修复及停开完成；13d675e对应12片CI完整256组通过，已随行动历史合入main |
@@ -47,8 +47,8 @@
 | 公共能力 | 已有接入 | 未覆盖与验收边界 |
 |---|---|---|
 | 共同时间、结算与远区 | 已集成的[SimSettlementKernel](../../scripts/sim/execution/settlement_kernel.gd)与[SimWorldSettlement](../../scripts/sim/execution/world_settlement.gd)提供编译依赖、9个阶段、到期边界和预算续算；`GameClock`与[RegionalSimulation](../../scripts/sim/regional_simulation.gd)仍持共同整数毫秒、双聚落离场接续、行旅/货运/消息 | `SimFacilityUse`、植物到期及离散事件已按实际工作接预算，其余原子回调及领域内部大循环未自动可抢占；非所有领域事件化，大人口、多年与密集动态组合未验。具体受检版本与限制见[QA](../qa/20261108_settlement_kernel.md) |
-| 定义、装配与当前快照 | 工作分支内容包v3绑定44份定义/开局及digest；[WorldRestoreFactory](../../scripts/sim/world_restore_factory.gd)、[SessionSaveSchema](../../scripts/persistence/session_save_schema.gd)、[SimSaveStore](../../scripts/persistence/save_store.gd)与`SimSaveRegistry`/`SimWorldSaveDomains`/`SimSaveSession`提供统一领域管线、安全保存请求与回执、联合候选恢复及文件备份/替换 | 移动/工作场所/对练使用会话规则，普通呈现/恢复限定home、river两区；环境工作分支根55/区域46，根1–54拒绝；保存屏障停止新时间、结清受理工作并保留暂停状态。历史位置/回执尚无长期安全回收，不是事件重放系统 |
-| 稀疏执行与规模 | main的[SimParticipationIndex](../../scripts/sim/execution/participation_index.gd)已接环境和健康，member/active/due/dirty及生命周期重建可运行 | 自主、衣物、空间候选、光/UI及历史查询未普遍迁入；定义编译/能力登记未统一覆盖内容。按所属框架的实测收益补接，不能把算法或静态压测视为整机验收 |
+| 定义、装配与当前快照 | 主线内容包v3绑定44份定义/开局及digest；[WorldRestoreFactory](../../scripts/sim/world_restore_factory.gd)、[SessionSaveSchema](../../scripts/persistence/session_save_schema.gd)、[SimSaveStore](../../scripts/persistence/save_store.gd)与`SimSaveRegistry`/`SimWorldSaveDomains`/`SimSaveSession`提供统一领域管线、安全保存请求与回执、联合候选恢复及文件备份/替换 | 移动/工作场所/对练使用会话规则，普通呈现/恢复限定home、river两区；当前根56/区域47，仅接受当前格式，旧档明确拒绝；保存屏障停止新时间、结清受理工作并保留暂停状态。历史位置/回执尚无长期安全回收，不是事件重放系统 |
+| 稀疏执行与规模 | main的[SimParticipationIndex](../../scripts/sim/execution/participation_index.gd)已接环境和健康，member/active/due/dirty及生命周期重建可运行 | 原行动已复用到期堆，衣着槽/候选及观察变化已有有限优化；全局阶段、动作筛选、空间候选、光/UI及历史查询仍未普遍稀疏化。按所属框架的实测收益补接，不能把算法或静态压测视为整机验收 |
 | 创作、呈现与诊断 | `--world-editor`的F8地表/真实物编辑，F3诊断、普通面板和代码示意外观，沿原规则与存档 | 完整内容/开局/组合模板编辑和独立预览未齐；开发生成是权限，不是玩家免费造物；正式多体型/全装备和全动作仍未完成 |
 | GPU计算 | main历史中有独立CPU/GPU/auto基础场计算服务及旧版对照证据 | 普通响应/原物事务仍为CPU，无玩家GPU开关；隔离加速倍数不等于全游戏收益，联合性能以实际版本/负载为准 |
 
@@ -71,6 +71,8 @@
 
 当前集成的建筑代码d00bac有本机4片完整覆盖250组/126290检查/0失败、3份普通在途档完全停开同未来、一次原生审查发现并修复4项问题，以及同SHA CI42457788038 completed/success。集成点至阶段盘点仅Markdown，不重复引擎/整套回归/模型审查；主线push的新run独立记证据，详情见BASELINE。
 
-工作分支补人物/镜头连续显示及真实巡行压力入口。原行动复用到期堆，原身体/需求按因果边界和读取积分；百人固定10秒CPU6188→4674ms且联合未来相同。最终原生100/300人持续巡行约0.963/0.408×，仍未达百级稳定1×；见[压力QA](../qa/20261110_presentation_crowd.md)。
+主线提供人物/镜头连续显示及真实巡行压力入口。原行动复用到期堆，原身体/需求按因果边界和读取积分；百人固定10秒CPU6188→4674ms且联合未来相同。最终原生100/300人持续巡行约0.963/0.408×，仍未达百级稳定1×；见[压力QA](../qa/20261110_presentation_crowd.md)。
+
+本轮[运行架构调查](../qa/20261110_performance_architecture_audit.md)确认局部边界放大全局执行、隐式读取补算及重复公共布局；调研未实施新算法。改造优先级只在唯一基础计划维护。
 
 不能用前序截图/帧时替代当前版本的规模验收，也不能拿此前26万静态物品的旧版压力结果担保当前密集动态世界。当前没有证据要求换引擎，也没有证据宣称全游戏规模已达标。

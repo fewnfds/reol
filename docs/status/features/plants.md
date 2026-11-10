@@ -1,6 +1,6 @@
 # 植物与自然生命
 
-工作分支 `codex/environment-composition` 承接的有限操作范围；准确验收及主线状态见[HANDOFF](../handoff.md)/[BASELINE](../baseline.md)。工程行为见[植物合同](../../engineering/plants-contract.md)，建设仍归唯一主计划。
+main已整合的有限操作范围；准确验收及主线状态见[HANDOFF](../handoff.md)/[BASELINE](../baseline.md)。工程行为见[植物合同](../../engineering/plants-contract.md)，建设仍归唯一主计划。
 
 普通人身右键观察当前可见地面。真实植物显示外观与可见生长阶段；面板可以采摘产物、伐取地上部、采走原株、清残株、浇水、中断，或把同一植株移栽至邻格空花盆。先靠近、预约、经过工时后才提交；继续时间才能完成，WASD/停止可中断。
 
