@@ -8,7 +8,7 @@
 
 人物与镜头在完整坐标间连续显示；真实压力Demo持续沿原行动巡行。最终原生100/300人20秒约0.963/0.408×，帧P95约16.633/26.376ms，均无world_errors；百级稳定1×仍欠缺。7组603、最终守卫7组1074及主审修复3组357检查通过，同一次Sol/custom静态主审已完成；早期固定游戏10秒6188→4674ms且联合未来相同，范围见[压力QA](../qa/20261110_presentation_crowd.md)。
 
-调研da90e3b后的`codex/sparse-runtime-dispatch`落实显式同步/纯查询、到期及失效人物筛选与领域工作条件。多次固定负载整个快照一致，但耗时波动、300人末次更慢8.34%，不能称稳定提速；原生规模仍未达标。一次Sol/custom主审的P2累计dirty平方扫描已先红后绿修复。定向、原生独立停开及最终SHA/CI见[共同运行QA](../qa/20261110_sparse_runtime_dispatch.md)；完整回归待本包SHA，不沿用主线绿色。前[架构调查](../qa/20261110_performance_architecture_audit.md)为旧版研究。
+`codex/sparse-runtime-dispatch`最终生产/测试4ee88d7落实显式同步/纯查询、到期及失效人物筛选与领域工作条件。多次固定负载整个快照一致，但耗时波动、300人末次更慢8.34%，不能称稳定提速；原生规模仍未达标。一次Sol/custom主审的P2累计dirty平方扫描已先红后绿修复。定向、原生独立停开及最终SHA/CI见[共同运行QA](../qa/20261110_sparse_runtime_dispatch.md)；完整回归待本包SHA，不沿用主线绿色。前[架构调查](../qa/20261110_performance_architecture_audit.md)为旧版研究。
 
 前缓行修复b364870、FPS修复ac3dca3、镜头/外墙87262ff及独立诊断aa4f1a1均有各自准确SHA完整CI成功记录，详见[Demo QA](../qa/20261110_demo_feedback.md)与压力QA。连续坐标迷雾仍未实现；这些历史记录不代表全部密度已验收。
 

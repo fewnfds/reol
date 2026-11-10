@@ -12,7 +12,7 @@
 
 | 分支 | 已知来源提交 | 用途 |
 |---|---|---|
-| `codex/sparse-runtime-dispatch` | 基于调研da90e3b | 当前共同运行/人物执行包；未自动合入main，验证看BASELINE |
+| `codex/sparse-runtime-dispatch` | 最终生产/测试4ee88d7，基于调研da90e3b | 当前共同运行/人物执行包；一次主审/修复和定向完成，完整CI待验，未合main |
 | `codex/performance-architecture-audit` | da90e3b，基于main839ff88 | 前性能调查与计划文档；生产改造由当前分支承接 |
 | `codex/presentation-stress-demo` | 最终生产/测试c60a2be，证据839ff88 | 已快进合入并推送main；839ff88完整CI42776609463 success |
 | `codex/demo-slowdown-fix` | 缓行最终b364870、FPS最终ac3dca3、文档29c50dc | 两个代码SHA完整CI均success；已随呈现/压力历史合入main |
