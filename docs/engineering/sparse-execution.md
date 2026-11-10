@@ -12,13 +12,15 @@
 
 `VillageSimulation`保留原行动、连续需求和观察所有权。普通世界通过`set_boundary_revision_provider()`声明可观察的导航/控制依赖：`WorldContinuityRuntime`同步监听地形、建筑、植物和大体型阻碍变化；`SimEmbodiment.control_revision`反映控制权变更。世界绑定的控制权guard在写入前先以原控制权同步对应地区至当前世界边界，独立候选不带此宿主hook；新控制条件不能回写地区落后期间。大体型开始/结束整段占地也沿原空间signal通知，不等中心跨格。只有这条接缝完整时才复用每个人的绝对截止点，截止前不重复路线检查；到期仍按原稳定顺序结算。未提供依赖通知的独立Callable走保守查询，不推断其外部状态不变。
 
-开始/取消/完成行动及身体重定位使对应截止点失效；跨域改动调用原`RegionalSimulation.invalidate_region(region_id, actor_id)`；明确单个人物的命令可只使该人物失效，空actor参数保守处理全区，合并本边界的重复失效，在下一次调度前重算。已经到达同一毫秒的`synchronize_region()`是空操作，实际观察仍先同步所读地区。恢复时清空截止点并重绑通知；索引不入档，不复制路径或成为另一份行动计划。派生截止点复用`SimParticipationIndex`，路径与动作仍由原执行器持有，不另存第二份行动计划。
+开始/取消/完成行动及身体重定位使对应截止点失效；跨域改动调用原`RegionalSimulation.invalidate_region(region_id, actor_id)`；明确单个人物的命令可只使该人物失效，空actor参数保守处理全区，合并本边界的重复失效，在下一次调度前重算。`advance_region_to_world(region)`只推进该地区已到期行动和后果；同一毫秒不重跑。`synchronize_region()`在此基础上补齐指定人物或全体连续状态，实际需要可写身体的操作继续显式同步。恢复时清空截止点并重绑通知；索引不入档，不复制路径或成为另一份行动计划。派生截止点复用`SimParticipationIndex`，路径与动作仍由原执行器持有，不另存第二份行动计划。
 
 `VillageSimulation`的原生截止点已复用`SimParticipationIndex`的可更新最小堆，只重算到期/失效人物，并按原ID顺序结算同刻候选。动作状态仍归原执行器，索引只持原引用和截止点，恢复重建。
 
 普通runtime在导航/控制通知和连续输入变更接缝绑定后调用`set_sparse_actor_projection(true)`。每人保留可丢弃的已积分时刻；无跨格/到期/显式同步时，不随他人跨格反复积分。独立/不透明Callable保持原提前积分顺序，不猜测其捕获输入不变。
 
 `actors`与`actor_state(id)`只返回原记录，不推进需求、移动、锚点或通知；记录中的连续值属于该人物最近积分时刻，不承诺与地区时刻相等。需要当前可写身体的规则入口显式调用`synchronize_actor(id)`，完整捕获、输入率变更与公共画面发布显式调用`synchronize_actors()`，后者返回原记录表；不复制第二份身体。保存继续沿原捕获屏障，不增加格式。`projected_actor_position(id)`按已受理路段纯求值至本地区时刻，实体/容器位置查询复用同一路段公式，不写身体或预测未受理未来。
+
+山兽拟占地和`SimMotionClearance`从原已受理轨迹纯求值当前格/当前短段；整路积分通过原`Timeline`定位当前段，保留对角边格、已经跨入目标格但尚未结束的段。它们不为几何查询补算全体需求，也不复制路线。野外周期观察先推进到期后果，再以投影距离保守筛候选，入围人物仍走原同步、控制/高度/遮挡和个人认识记录。库存认识、移动来源和空间订阅的精确边界继续由原参与条件负责，不因查询变纯而取消。
 
 原动作结算与自主筛选只取到期及失效人物，保留原ID顺序。执行中同步通知使较后ID失效时，只合并本次新增变化；较早ID与旧顺序一样留待下个边界。累计dirty集合保留给下一次截止点查询，不能每处理一人就重新枚举其全部前缀。整区导航/控制失效仍保守回退全体，不依赖未声明通知的Callable。`simulation_work`的`actor_settle_checks`、`actor_decision_checks`、`actor_merge_checks`仅计诊断，不入档。
 

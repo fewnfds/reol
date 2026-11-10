@@ -204,10 +204,11 @@ func settle_at_ms(now: int) -> void:
 func _start_step(id: String) -> void:
 	var body: Dictionary = bodies[id]
 	body.retry_ms = elapsed_ms + int(definitions.retry_ms)
-	# Far-region actors may be projected lazily. Settle their actual bodies before
-	# claiming a sweep, rather than treating an outdated cell as empty space.
-	if not world.synchronize_regions():
-		return
+	# Run due consequences in far regions; geometry below reads their original
+	# accepted trajectories without integrating every unrelated need balance.
+	for region: String in world.regions:
+		if not world.advance_region_to_world(region):
+			return
 	if not world.embodiment.controls(subject_id(id), carrier_id(id), "motion"):
 		return
 	var at: Vector2i = body_cell(id)
@@ -229,7 +230,7 @@ func _start_step(id: String) -> void:
 		for actor: String in sim.actor_ids():
 			var original: Dictionary = sim.actor_state(actor)
 			if bool(original.alive):
-				occupied[SimRouteTravel.cell(original.cell)] = true
+				occupied[TileGrid.world_to_cell(sim.projected_actor_position(actor))] = true
 		for place: Dictionary in sim.places.values():
 			occupied[SimRouteTravel.cell(place.cell)] = true
 	if world.avian_life != null:

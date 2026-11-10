@@ -6,10 +6,10 @@ extends RefCounted
 
 
 static func active_segment_reserves(world: RefCounted, cell: Vector2i) -> bool:
-	return _visit_active_routes(world, func(body: Dictionary, route: Dictionary) -> bool: return segment_reserves(body, route, cell))
+	return _visit_active_routes(world, func(body: Dictionary, route: Dictionary, timeline: SimRouteTravel.Timeline, at_ms: int) -> bool: return segment_reserves(body, route, cell, timeline, at_ms))
 
 
-static func segment_reserves(body: Dictionary, route: Dictionary, cell: Vector2i) -> bool:
+static func segment_reserves(body: Dictionary, route: Dictionary, cell: Vector2i, timeline: SimRouteTravel.Timeline = null, at_ms: int = -1) -> bool:
 	var path: Variant = route.get("path", [])
 	if not path is Array:
 		return true
@@ -22,9 +22,17 @@ static func segment_reserves(body: Dictionary, route: Dictionary, cell: Vector2i
 	var origin_raw: Array = route.segment_from
 	var origin: Vector2i = TileGrid.world_to_cell(Vector2(float(origin_raw[0]), float(origin_raw[1])))
 	var target: Vector2i = SimRouteTravel.cell(path[0])
+	var point: Vector2 = SimRouteTravel.point(body)
+	if timeline != null:
+		var leg: int = timeline.leg_at(at_ms)
+		origin = TileGrid.world_to_cell(timeline.points[leg])
+		target = TileGrid.world_to_cell(timeline.points[leg + 1])
+		point = timeline.point_at(at_ms)
+	elif at_ms >= 0:
+		point = SimRouteTravel.projected_point(route, body, at_ms)
 	if absi(target.x - origin.x) > 1 or absi(target.y - origin.y) > 1:
 		return true
-	var current: Vector2i = TileGrid.world_to_cell(SimRouteTravel.point(body))
+	var current: Vector2i = TileGrid.world_to_cell(point)
 	# Preserve the entire current leg until its owner consumes path[0], even
 	# after crossing into the target cell. A diagonal protects both side cells.
 	return current == cell or _leg_rectangle_contains(origin, target, cell)
@@ -34,8 +42,8 @@ static func capture_active_reservations(world: RefCounted) -> Dictionary:
 	# One synchronous proposed footprint may query several cells. Capture the
 	# original short legs once, then discard this projection after the operation.
 	var snapshot: Dictionary = {"all": false, "cells": {}}
-	_visit_active_routes(world, func(body: Dictionary, route: Dictionary) -> bool:
-		_capture_leg(snapshot, body, route)
+	_visit_active_routes(world, func(body: Dictionary, route: Dictionary, timeline: SimRouteTravel.Timeline, at_ms: int) -> bool:
+		_capture_leg(snapshot, body, route, timeline, at_ms)
 		return bool(snapshot.all))
 	return snapshot
 
@@ -45,18 +53,18 @@ static func _visit_active_routes(world: RefCounted, inspect: Callable) -> bool:
 		return false
 	var bodies: Dictionary = {}
 	for sim: VillageSimulation in world.regions.values():
-		for actor: String in sim.synchronize_actors():
+		for actor: String in sim.actor_ids():
 			var body: Dictionary = sim.actor_state(actor)
 			bodies[actor] = body
 			var action: Dictionary = body.get("active", {})
 			if action.get("phase") == "travel":
-				if bool(inspect.call(body, action)):
+				if bool(inspect.call(body, action, sim.coarse_native_timeline(actor), sim.elapsed_ms)):
 					return true
 	if world.services != null:
 		for actor: String in world.services.active_jobs:
 			var job: Dictionary = world.services.jobs[world.services.active_jobs[actor]]
 			if job.get("phase") == "travel" and not bool(job.get("road_paused", false)):
-				if bool(inspect.call(bodies.get(actor, {}), job)):
+				if bool(inspect.call(bodies.get(actor, {}), job, null, -1)):
 					return true
 	for domain: RefCounted in [world.construction, world.facility_use, world.resting, world.plants, world.personal_production, world.capability_practice]:
 		if domain == null:
@@ -65,24 +73,24 @@ static func _visit_active_routes(world: RefCounted, inspect: Callable) -> bool:
 			var job: Dictionary = domain.active[actor]
 			var phase: String = str(job.get("phase", ""))
 			if phase.begins_with("to_") or phase in ["travel", "leave", "walk"]:
-				if bool(inspect.call(bodies.get(actor, {}), job)):
+				if bool(inspect.call(bodies.get(actor, {}), job, null, -1)):
 					return true
 	if world.field_opportunities != null:
 		var field: RefCounted = world.field_opportunities
 		for actor: String in field.purposes:
 			if field.owns_actor(actor):
-				if bool(inspect.call(bodies.get(actor, {}), field.trips[field.purposes[actor].trip])):
+				if bool(inspect.call(bodies.get(actor, {}), field.trips[field.purposes[actor].trip], null, -1)):
 					return true
 	if world.soul_vessels != null:
 		for actor: String in world.soul_vessels.agency.errands:
 			var job: Dictionary = world.soul_vessels.agency.errands[actor]
 			if job.get("phase") in ["approach", "carry"]:
-				if bool(inspect.call(bodies.get(actor, {}), job)):
+				if bool(inspect.call(bodies.get(actor, {}), job, null, -1)):
 					return true
 	return false
 
 
-static func _capture_leg(snapshot: Dictionary, body: Dictionary, route: Dictionary) -> void:
+static func _capture_leg(snapshot: Dictionary, body: Dictionary, route: Dictionary, timeline: SimRouteTravel.Timeline = null, at_ms: int = -1) -> void:
 	var path: Variant = route.get("path", [])
 	if not path is Array:
 		snapshot.all = true
@@ -95,10 +103,18 @@ static func _capture_leg(snapshot: Dictionary, body: Dictionary, route: Dictiona
 	var raw: Array = route.segment_from
 	var origin: Vector2i = TileGrid.world_to_cell(Vector2(float(raw[0]), float(raw[1])))
 	var target: Vector2i = SimRouteTravel.cell(path[0])
+	var point: Vector2 = SimRouteTravel.point(body)
+	if timeline != null:
+		var leg: int = timeline.leg_at(at_ms)
+		origin = TileGrid.world_to_cell(timeline.points[leg])
+		target = TileGrid.world_to_cell(timeline.points[leg + 1])
+		point = timeline.point_at(at_ms)
+	elif at_ms >= 0:
+		point = SimRouteTravel.projected_point(route, body, at_ms)
 	if absi(target.x - origin.x) > 1 or absi(target.y - origin.y) > 1:
 		snapshot.all = true
 		return
-	snapshot.cells[TileGrid.world_to_cell(SimRouteTravel.point(body))] = true
+	snapshot.cells[TileGrid.world_to_cell(point)] = true
 	var low: Vector2i = origin.min(target)
 	var high: Vector2i = origin.max(target)
 	for y: int in range(low.y, high.y + 1):

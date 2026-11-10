@@ -865,6 +865,19 @@ func set_active_region(region_id: String) -> bool:
 
 
 func synchronize_region(region_id: String, actor_id: String = "") -> bool:
+	if not advance_region_to_world(region_id):
+		return false
+	var simulation: VillageSimulation = regions[region_id]
+	if actor_id.is_empty():
+		simulation.synchronize_actors()
+	else:
+		simulation.synchronize_actor(actor_id)
+	return true
+
+
+func advance_region_to_world(region_id: String) -> bool:
+	# Run due actions and consequences, without materializing every unaffected
+	# body's needs and position merely to read accepted geometry.
 	if not regions.has(region_id):
 		return false
 	var simulation: VillageSimulation = regions[region_id]
@@ -873,19 +886,11 @@ func synchronize_region(region_id: String, actor_id: String = "") -> bool:
 	# emit another empty advance for each actor/job. Mutations still call
 	# invalidate_region, including when the region is already current.
 	if simulation.elapsed_ms == elapsed_ms:
-		if actor_id.is_empty():
-			simulation.synchronize_actors()
-		else:
-			simulation.synchronize_actor(actor_id)
 		return true
 	if not simulation.advance_to_ms(elapsed_ms):
 		return false
 	_region_boundaries[region_id] = simulation.next_world_boundary_ms()
 	_dirty_region_boundaries.erase(region_id)
-	if actor_id.is_empty():
-		simulation.synchronize_actors()
-	else:
-		simulation.synchronize_actor(actor_id)
 	return true
 
 

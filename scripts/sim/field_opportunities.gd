@@ -243,12 +243,21 @@ func settle_at_ms(now: int) -> void:
 	# Real arrival and an ordinary passer-by use the same bounded perception.
 	# Query/UI methods only project the memories produced at these boundaries.
 	if world.services != null and not sites.is_empty() and now >= next_observation_ms:
-		# Sleeping intentions do not wake an entire remote settlement at every
-		# unrelated boundary. Actual observations still read current bodies.
-		world.synchronize_regions()
+		# Due actions still settle first. Reject distant candidates from the
+		# original accepted trajectories before integrating individual observers.
+		for region: String in world.regions:
+			if not world.advance_region_to_world(region): return
 		_wake_idle_intentions(now)
+		# Conservative padding avoids rejecting a boundary point before _sees()
+		# applies the original distance/level/occlusion rules.
+		var radius: float = float(definitions.observation_cells) * TileGrid.TILE_SIZE + 0.001
+		var radius_squared: float = radius * radius
 		for actor: String in world._actor_ids(world.regions):
-			for id: String in sites: _observe(actor, id)
+			var sim: VillageSimulation = world.regions[home(actor)]
+			var at: Vector2 = sim.projected_actor_position(actor)
+			for id: String in sites:
+				if at.distance_squared_to(TileGrid.cell_to_world(SimRouteTravel.cell(sites[id].cell))) <= radius_squared:
+					_observe(actor, id)
 		next_observation_ms = now + int(definitions.observation_ms)
 
 
