@@ -22,6 +22,7 @@ var _sampled_world_ms: int = 0
 var _last_travelling: int = 0
 var _redirects: int = 0
 var _actor_workers: int = 4
+var _profile_kernel: bool = false
 const CIRCUIT: Array[String] = ["rest", "inspect", "check_store", "check_well"]
 
 
@@ -42,6 +43,8 @@ func _run() -> void:
 			_quit_after = true
 		elif argument == "--opening-wave":
 			_opening_wave = true
+		elif argument == "--profile-kernel":
+			_profile_kernel = true
 		elif argument.begins_with("--actor-workers="):
 			_actor_workers = clampi(argument.get_slice("=", 1).to_int(), 0, 8)
 	_main = load("res://scenes/main.tscn").instantiate()
@@ -106,7 +109,7 @@ func _run() -> void:
 	_recorder = load("res://tools/diagnostics/demo_recorder.gd").new()
 	root.add_child(_recorder)
 	_recorder.finished.connect(_finish)
-	if not _recorder.configure(_main, {"seconds": _seconds, "report": _report, "revision": _revision, "dirty": true, "assembly_usec": Time.get_ticks_usec() - assembly_started}):
+	if not _recorder.configure(_main, {"seconds": _seconds, "report": _report, "revision": _revision, "dirty": true, "profile_kernel": _profile_kernel, "assembly_usec": Time.get_ticks_usec() - assembly_started}):
 		quit(1)
 		return
 	_status.text = "临时压力世界 · %d个真实身体 / 双聚落\n原寻路、生活、环境、共同时间 · %s\n不保存到普通档 · WASD / F3 · %d秒采样后%s" % [total, "单次出发" if _opening_wave else "抵达后用原命令持续巡行", _seconds, "退出" if _quit_after else "可继续试玩"]

@@ -38,11 +38,13 @@ var _slow_usec: int = 0
 var _windows: FileAccess
 var _done: bool = false
 var _sample_clock_work: bool = false
+var _profile_kernel: bool = false
 
 
 func configure(main: Node, options: Dictionary) -> bool:
 	_main = main
 	_options = options
+	_profile_kernel = bool(options.get("profile_kernel", false))
 	_clock = get_tree().root.get_node("GameClock")
 	_runtime = main.get("_continuity")
 	_executor = _clock._interval_executor
@@ -69,6 +71,8 @@ func configure(main: Node, options: Dictionary) -> bool:
 
 
 func _bind_kernel() -> void:
+	if not _profile_kernel:
+		return
 	var kernel = _runtime.world_sim.settlement
 	if _kernel_ref != null and _kernel_ref.get_ref() == kernel:
 		return
@@ -203,8 +207,8 @@ func _process(_delta: float) -> void:
 func _snapshot(now: int, clock_usec: int) -> Dictionary:
 	var view = _main.get("world")
 	return {"host_ms": (now - _started) / 1000.0, "clock_ms": clock_usec / 1000.0,
-		"interval_ms": _frame_executor_usec / 1000.0, "kernel_ms": _frame_kernel_usec / 1000.0,
-		"interval_outside_kernel_ms": maxi(0, _frame_executor_usec - _frame_kernel_usec) / 1000.0,
+		"interval_ms": _frame_executor_usec / 1000.0, "kernel_ms": _frame_kernel_usec / 1000.0 if _profile_kernel else null,
+		"interval_outside_kernel_ms": maxi(0, _frame_executor_usec - _frame_kernel_usec) / 1000.0 if _profile_kernel else null,
 		"clock_outside_interval_ms": maxi(0, clock_usec - _frame_executor_usec) / 1000.0,
 		"pace": _clock.pacing_status(), "pending_step": _runtime.world_sim.settlement.progress().step,
 		"paused": _clock.paused, "waiting": int(_clock.wait_target_ms) > 0,
@@ -255,6 +259,7 @@ func finish() -> void:
 		get_tree().process_frame.disconnect(_before_frame)
 	_windows.close()
 	var report: Dictionary = {"format": "demo_profile_v1", "revision": _options.revision, "dirty": _options.dirty,
+		"kernel_timing_enabled": _profile_kernel,
 		"engine": Engine.get_version_info().string, "renderer": RenderingServer.get_video_adapter_name(),
 		"display": DisplayServer.get_name(), "assembly_ms": float(_options.assembly_usec) / 1000.0,
 		"capture_seconds": (Time.get_ticks_usec() - _started) / 1000000.0,
@@ -263,12 +268,12 @@ func finish() -> void:
 		"minimum_load_rate": _minimum_rate, "slow_seconds": _slow_usec / 1000000.0,
 		"frame_ms": _summary(_frames), "clock_ms": _summary(_clock_samples),
 		"work_totals_ms": {"clock": _total_clock_usec / 1000.0,
-			"runtime_interval": _total_executor_usec / 1000.0, "kernel_callbacks": _total_kernel_usec / 1000.0,
-			"interval_outside_kernel": maxi(0, _total_executor_usec - _total_kernel_usec) / 1000.0},
+			"runtime_interval": _total_executor_usec / 1000.0, "kernel_callbacks": _total_kernel_usec / 1000.0 if _profile_kernel else null,
+			"interval_outside_kernel": maxi(0, _total_executor_usec - _total_kernel_usec) / 1000.0 if _profile_kernel else null},
 		"kernel_scopes": _scope_rows(), "largest_frames": _spikes,
 		"actor_execution": _actor_execution_summary(),
 		"world_errors": _runtime.world_sim.errors.duplicate(),
-		"limits": "Instrumented development process; frame intervals include render/host waits. Callback wrappers add overhead. Interval residual includes regional execution, scheduling and view refresh, not one attributed system. Fog/streaming flags indicate correlation, not measured cost. Paused/wait/load transitions excluded from achieved fraction; no GPU-time claim. First 20000 frame samples; largest 24 frames retained."}
+		"limits": "Development process with frame/interval recording; frame intervals include render/host waits. Optional kernel callback wrappers add overhead; disabled timings are null. Interval residual includes regional execution, scheduling and view refresh, not one attributed system. Fog/streaming flags indicate correlation, not measured cost. Paused/wait/load transitions excluded from achieved fraction; no GPU-time claim. First 20000 frame samples; largest 24 frames retained."}
 	var file := FileAccess.open(str(_options.report), FileAccess.WRITE)
 	if file == null:
 		push_error("Demo recorder cannot write its summary")

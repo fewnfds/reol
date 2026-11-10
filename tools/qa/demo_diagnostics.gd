@@ -27,6 +27,8 @@ func _run() -> void:
 			auto_start = true
 		elif arg == "--quit-after-capture":
 			_quit_after = true
+		elif arg == "--profile-kernel":
+			options["profile_kernel"] = true
 	var started: int = Time.get_ticks_usec()
 	_main = load("res://scenes/main.tscn").instantiate()
 	root.add_child(_main)

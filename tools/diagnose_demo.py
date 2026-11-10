@@ -22,6 +22,7 @@ def main() -> int:
     parser.add_argument("--seconds", type=capture_seconds, default=120)
     parser.add_argument("--headless", action="store_true", help="tool smoke only; cannot measure rendering")
     parser.add_argument("--auto-start", action="store_true", help="choose the ordinary human opening for unattended QA")
+    parser.add_argument("--profile-kernel", action="store_true", help="add detailed world-phase timings; has additional measurement overhead")
     parser.add_argument("--quit-after-capture", action="store_true", help="close this new demo after capture (default: keep playing)")
     args = parser.parse_args()
     executable = godot.find_godot()
@@ -43,6 +44,8 @@ def main() -> int:
         cmd.append("--auto-start")
     if args.quit_after_capture:
         cmd.append("--quit-after-capture")
+    if args.profile_kernel:
+        cmd.append("--profile-kernel")
     print(f"Performance report: {output}", flush=True)
     print("Capture stops automatically; the demo stays open unless --quit-after-capture is supplied.", flush=True)
     return godot._run(cmd, tag, timeout=args.seconds + 90 if args.quit_after_capture else None)
