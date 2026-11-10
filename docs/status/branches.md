@@ -18,7 +18,9 @@ main已从`a4fb83a6c29e3203bf71fc1c1f950afe4906830b`快进并推送到共同结�
 
 | 分支 | 已知来源提交 | 用途 |
 |---|---|---|
-| `codex/demo-playtest-fixes` | 基于main `7def7d2`；简单修复`87262ff`、工具最终`aa4f1a1` | 镜头/外墙与独立缓行诊断分别提交，未合main；前者完整CI通过，工具最终CI待验 |
+| `codex/presentation-stress-demo` | 基于29c50dc；主体e56adac、最终代码/测试db995598 | 连续人物/镜头、原行动/查询复用与临时真实人口压力Demo，定向及一次主审完成；完整CI待当前HEAD结果，未合main |
+| `codex/demo-slowdown-fix` | 缓行最终b364870、FPS最终ac3dca3、文档29c50dc | 两个代码SHA完整CI均success；被当前呈现/压力分支承接，未合main |
+| `codex/demo-playtest-fixes` | 基于main `7def7d2`；简单修复`87262ff`、工具最终`aa4f1a1` | 镜头/外墙与独立缓行诊断分别提交，未合main；两者完整CI通过 |
 | `codex/unit-actions-integration` | 基于环境最终`337ea13`；主体`68fff8b`、最终生产/测试`0856eff` | 第5阶段实现、主审修复与本机试玩验收收尾并推送；已合入main，0856eff完整CI通过 |
 | `codex/environment-composition` | 基于`3880802`；主体`2ec88b7`、最终代码/测试`89f4716` | 环境组合及主审修复推送；22组定向/原生停开通过，最终HEAD337ea13 / CI42659346260失败，checkpoint末位漂移由行动包修复；已随行动历史合入main，证据见BASELINE/HANDOFF |
 | `codex/world-events-plants` | 基于`66f56b9`；主体`801d71e`、最终生产`45f140b`、最终测试`13d675e` | 承接SL；全局事件、会话规则与植物已接普通Main并推送，13d675e完整CI通过；已随行动历史合入main，证据见BASELINE |
