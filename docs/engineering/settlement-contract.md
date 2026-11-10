@@ -46,7 +46,7 @@ Godot提供渲染、输入、SceneTree、固定物理步及碰撞服务。`_proc
 
 `begin(from_ms, at_ms)`接受严格向前的有限区间；`resume(work_budget, should_yield)`返回COMPLETE/PENDING/FAILED，游标只在步骤完成后前进。预算耗尽或YIELDING回调未完成会保留同一时刻/步骤；已完成领域不重算。失败与普通欠算区分，失败步骤不自动重试或继续依赖者。拓扑环在装配时拒绝，未完成步骤也不会在一次调用里无预算自旋。
 
-普通回调可按时刻/无参数执行，CHECKED回调须返回bool；YIELDING的false表示保留当前步骤。BUDGETED回调接收`(at_ms, allowance)`并返回`Vector2i(实际工作量, Status)`，工作量须在1至allowance内。域持有自身活动项游标；每个实体不需要一条全局回调。`SimFacilityUse`、植物due项和离散事件已按实际工作逐项接入，过程中取消/替换的旧工作不借同一actor引用再次执行。
+普通回调可按时刻/无参数执行，CHECKED回调须返回bool；YIELDING的false表示保留当前步骤。BUDGETED回调接收`(at_ms, allowance)`并返回`Vector2i(实际工作量, Status)`，工作量须在1至allowance内。域持有自身活动项游标；每个实体不需要一条全局回调。`should_yield_work()`只在当前resume执行期间提供同一个宿主截止条件，允许装配器传给域，在其内部工作项间让步；不进入业务时刻或存档。环境到期响应、`SimFacilityUse`、植物due项和离散事件已接入，过程中取消/替换的旧工作不借同一actor引用再次执行。
 
 `advance_to_ms`保留原事件数预算，另接受工作预算。普通runtime每次执行器调用的默认工作预算为4096，快进预算不足继续原请求。一次原子回调本身不能被内核抢占；其他旧域的内部大循环及同步来源事务没有因此自动变成可续算，此边界须按实际热点逐域接入。
 

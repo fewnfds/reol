@@ -1,6 +1,6 @@
 # 当前接续
 
-2026-11-10：本轮用户要求“先合并前阶段；简单Demo问题先修；缓行能定位即可；debug单独写”。已完成并推送，当前干净分支`codex/demo-playtest-fixes`；前阶段与本包分开，**本包未合main**。没有活测试/审查handle，不开CI等待器。详见[本包QA](../qa/20261110_demo_feedback.md)。
+2026-11-10：用户后续反馈“缓行非常严重”，当前`codex/demo-slowdown-fix`承接5526944进行修复，前Demo包和本包均未合main。已定位重复显示捕获、环境原子尖峰及短片段误降速；实现与定向/原生验证完成，准备提交和一次原生主审，完整CI待验。没有活引擎或测试handle，不开CI等待器。详见[本包QA](../qa/20261110_demo_feedback.md#严重缓行修复)。
 
 ## 主线集成
 
@@ -14,10 +14,16 @@
 - 独立诊断主体`fff597619bcd89ced71eb186543e4effd116c8fa`，审查修复最终`aa4f1a1fb893ed908281deda81fc2696659b3ea6`：`python tools/diagnose_demo.py --seconds 120`启动可玩新进程，自动有界采样、关闭落盘，采样停止后继续玩。代码只在tools/diagnostics和QA入口，普通Main不加载；不改频率、预算、规则或存档。报告为logs/demo-profile-*.json及同名JSONL，记录各原结算步骤、运行层剩余、倍率/欠算及迷雾/加载标记。
 - 一次Sol/custom静态主审的等候CPU漏计P2已先红后绿修复；同一会话`01a1c39c-9879-7d40-bc24-a4c57dee682e`完成后退出。独立QA存档250ms整个world/clock/motion未来在包装/加载新内核后相同，结束恢复全部原Callable。headless有界smoke和原生20秒及最终2秒均通过；没有注册额外永久Main慢组。
 
-20秒原生样本约0.829×、最低rate0.269，开局加载后约9秒恢复1×，后段每现实秒约1000游戏毫秒。较重callback包括consider:clothing、previous:environment_fields、field_opportunities；这只是带诊断开销的开局样本，不能认定用户移动/交互缓行根因。记录路径及范围在QA；下一次可用诊断入口实际试玩。连续坐标迷雾仍未实现，本轮没有用提高逐格频率代替它。
+## 严重缓行修复
+
+`WorldContinuityRuntime`在完整时钟发布时集中捕获canvas，普通观察者不再反复构建；暂停/可见性/读档仍立即更新。植物捕获复用一次运行/视野上下文。`SimWorldEnvironmentFields`复用原批处理handle，按16格工作项、内核同一宿主截止条件续算，完成后才放行后续领域。`ReolSimulationPacing`按250ms游戏时间窗口的累计工作/时长估算，避免1ms边界将固定发布成本放大；保留已受理欠算和恢复斜率。衣着先筛当前有资格的决策，再计算一次选择。未改6ms预算、业务频率、阶段顺序或存档格式，临时探针均在忽略的logs。
+
+用户96秒样本0.808×、最低rate0.093、缓行49.536秒、时钟最大97.893ms。最终同一5秒headless负载CPU3179→2282ms（约-28%）；90秒原生自动人身0.986×、缓行4.764秒、时钟最大17.645ms、帧P95 14.057ms；30秒真实Input移动39格、0.968×、无world_errors，截图已查。用户操作样本与无人输入样本不混作严格同路径。环境callback仍有14.293ms，加载及来源/房间/拓扑仍含同步原子部分，不声称6ms硬实时或满密度验收。
+
+定向5组344、4组426、调速1组20检查均通过，短片段误降速反例先红后绿；环境预算1恢复与无界字段锚点及后续未来完全一致，内核域内截止条件/后续阶段不早跑、pending旧画面和暂停同毫秒刷新已覆盖。准确日志见QA。
 
 ## 最终待验与后续
 
-最终诊断代码run **42753794423**已在本次文档提交检查点一次查找登记，headSha精确为aa4f1a1，观测**pending**，完整CI待验。下个真实提交点用`python tools/ci.py status --run 42753794423 --sha aa4f1a1fb893ed908281deda81fc2696659b3ea6`核一次；前版工具run42752959149先前in_progress，不能继承为最终通过。无时间轮询，无GitHub结果→聊天自动回调；已终态旧run复用缓存。
+原诊断最终代码aa4f1a1的CI **42753794423 completed/success**已在本包真实提交检查点核对；该结果不代替缓行修复CI。本包准备提交、一次Sol/custom原生主审及push，完整CI待验。无时间轮询，无GitHub结果→聊天自动回调。
 
 后续按用户试玩反馈推进；本包不自动合main，不启动第6阶段、完整战斗或发行工程。唯一建设计划仍为[foundation-priorities](../plans/foundation-priorities.md)。

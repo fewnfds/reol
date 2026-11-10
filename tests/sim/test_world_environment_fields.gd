@@ -126,6 +126,27 @@ func _current_world_and_slices(runner: Object) -> void:
 		if bool(first_phase.get("ok", false)) and bool(second_phase.get("ok", false)):
 			for channel: int in 5:
 				_near(runner, float(first_phase.values[channel]), float(second_phase.values[channel]), "shared-time element is independent of slicing")
+	# Reuse this source pair at a real response deadline. The production
+	# scheduler must retain the private refresh cursor instead of running all
+	# target cells atomically or publishing consumers against half an update.
+	for world: RegionalSimulation in [whole, sliced]:
+		if not _advance(runner, world, 59999, "prepare real response deadline"):
+			return
+	if not _advance(runner, whole, 60000, "unbounded response reference"):
+		return
+	var complete: bool = sliced.advance_to_ms(60000, 4096, 1)
+	runner.assert_true(not complete and sliced.settlement.is_pending() and sliced.settled_ms() == 59999, "a one-work response refresh cannot publish a partial world boundary")
+	runner.assert_eq(sliced.settlement.progress().step, "previous:environment_fields", "response work yields inside its original owner before health and other consumers")
+	var continuations: int = 0
+	while not complete and continuations < 4096:
+		complete = sliced.advance_to_ms(60000, 4096, 1)
+		continuations += 1
+	runner.assert_true(complete and continuations > 2 and sliced.errors.is_empty(), "finite work allowances resume every response cell and finish the original boundary")
+	runner.assert_eq(VillageRuntime._json_normalized(sliced.environment_fields.to_dict()), VillageRuntime._json_normalized(whole.environment_fields.to_dict()), "budgeted refresh preserves the exact field anchors, device stock receipts and sampled state")
+	for world: RegionalSimulation in [whole, sliced]:
+		if not _advance(runner, world, 61000, "continue after budgeted response"):
+			return
+	runner.assert_eq(VillageRuntime._json_normalized(sliced.environment_fields.to_dict()), VillageRuntime._json_normalized(whole.environment_fields.to_dict()), "resuming a refresh neither repeats work nor changes the subsequent field future")
 
 
 func _objects_and_continuation(runner: Object) -> void:

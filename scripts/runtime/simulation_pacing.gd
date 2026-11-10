@@ -9,11 +9,14 @@ const HEADROOM: float = 0.85
 const MAX_LEAD_SECONDS: float = 0.25
 const MIN_RATE: float = 0.01
 const RECOVERY_PER_SECOND: float = 0.25
+const COST_WINDOW_MS: float = 250.0
 
 var rate: float = 1.0
 var last_work_usec: int = 0
 var longest_work_usec: int = 0
 var _cost_per_ms: float = 0.0
+var _sample_work_usec: float = 0.0
+var _sample_world_ms: float = 0.0
 var _unpublished_work_usec: int = 0
 var _frame_seconds: float = 1.0 / TARGET_RENDER_HZ
 
@@ -31,9 +34,14 @@ func observe(real_seconds: float, work_usec: int, advanced_ms: int, pending: boo
 	_unpublished_work_usec += last_work_usec
 	_frame_seconds = lerpf(_frame_seconds, clampf(real_seconds, 1.0 / TARGET_RENDER_HZ, MAX_LEAD_SECONDS), 0.1)
 	if advanced_ms > 0:
-		var cost: float = float(_unpublished_work_usec) / float(advanced_ms)
-		# React immediately to expensive work; reclaim capacity conservatively.
-		_cost_per_ms = cost if cost >= _cost_per_ms else lerpf(_cost_per_ms, cost, 0.1)
+		# Estimate work / represented world time over a short bounded window.
+		# Taking the maximum of individual ratios made a 1ms causal split's
+		# ordinary publication cost look like permanently overloaded simulation.
+		# Work spent before publication (including yielded frames) stays included.
+		var retained: float = exp(-float(advanced_ms) / COST_WINDOW_MS)
+		_sample_work_usec = _sample_work_usec * retained + float(_unpublished_work_usec)
+		_sample_world_ms = _sample_world_ms * retained + float(advanced_ms)
+		_cost_per_ms = _sample_work_usec / _sample_world_ms
 		_unpublished_work_usec = 0
 	var target: float = 1.0
 	if _cost_per_ms > 0.0:
@@ -53,5 +61,7 @@ func reset() -> void:
 	last_work_usec = 0
 	longest_work_usec = 0
 	_cost_per_ms = 0.0
+	_sample_work_usec = 0.0
+	_sample_world_ms = 0.0
 	_unpublished_work_usec = 0
 	_frame_seconds = 1.0 / TARGET_RENDER_HZ

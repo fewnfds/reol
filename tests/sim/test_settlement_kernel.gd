@@ -25,6 +25,14 @@ class Owner extends RefCounted:
 		return false
 	func invalid_receipt(_at_ms: int, budget: int) -> Vector2i:
 		return Vector2i(budget + 1, Kernel.Status.COMPLETE)
+	func many_cooperative(_at_ms: int, budget: int, source: WeakRef) -> Vector2i:
+		var used: int = 0
+		while used < budget and count < 10000:
+			count += 1
+			used += 1
+			if (source.get_ref() as SimSettlementKernel).should_yield_work():
+				break
+		return Vector2i(used, Kernel.Status.COMPLETE if count == 10000 else Kernel.Status.PENDING)
 
 
 func run(runner: Object) -> void:
@@ -140,3 +148,15 @@ func _host_yield(runner: Object) -> void:
 		kernel.resume(100, owner.exhausted)
 	runner.assert_eq(owner.effects, ["weather", "heat", "wound", "choice"], "host deadline yields preserve the same complete causal order")
 	runner.assert_true(not kernel.is_pending(), "fresh host budgets eventually complete the retained boundary")
+	var batch := Owner.new()
+	var cooperative := Kernel.new([&"effects"])
+	cooperative.add_step(&"many", &"effects", batch.many_cooperative.bind(weakref(cooperative)), Kernel.CallMode.BUDGETED)
+	cooperative.add_step(&"done", &"effects", batch.effect.bind("done"), Kernel.CallMode.TIMED, [&"many"])
+	cooperative.compile()
+	cooperative.begin(0, 1)
+	batch.allowance = 3
+	runner.assert_eq(cooperative.resume(10000, batch.exhausted), Kernel.Status.PENDING, "a domain can yield between its bounded units at the same host deadline")
+	runner.assert_true(batch.count == 3 and cooperative.last_work == 3 and batch.effects.is_empty(), "intra-domain deadline retains the exact cursor and blocks dependents")
+	runner.assert_true(not cooperative.should_yield_work(), "a completed resume does not retain a live host deadline")
+	runner.assert_eq(cooperative.resume(10000), Kernel.Status.COMPLETE, "the next resume installs its own deadline policy")
+	runner.assert_eq([batch.count, batch.effects], [10000, ["done"]], "cooperative domain continuation completes each original unit and dependent once")

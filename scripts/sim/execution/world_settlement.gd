@@ -19,7 +19,9 @@ func initialize(authority: RegionalSimulation) -> bool:
 	var previous: StringName = &""
 	for domain: StringName in [&"environment_fields", &"health", &"weather", &"clothing", &"standing_work", &"budgeted_labor"]:
 		var id := StringName("previous:" + String(domain))
-		if not kernel.add_step(id, &"previous_interval", _timed.bind(domain, &"settle_at_ms"), Kernel.CallMode.CHECKED, [] if previous == &"" else [previous]):
+		var callback: Callable = _environment_fields if domain == &"environment_fields" else _timed.bind(domain, &"settle_at_ms")
+		var mode: int = Kernel.CallMode.BUDGETED if domain == &"environment_fields" else Kernel.CallMode.CHECKED
+		if not kernel.add_step(id, &"previous_interval", callback, mode, [] if previous == &"" else [previous]):
 			return false
 		previous = id
 	if not kernel.add_step(&"previous:plants", &"previous_interval", authority.plants.settle_budgeted, Kernel.CallMode.BUDGETED, [previous]):
@@ -56,6 +58,10 @@ func initialize(authority: RegionalSimulation) -> bool:
 		if not kernel.add_boundary(domain, _boundary.bind(domain), RegionalSimulation.RUNTIME_BOUNDARY_DOMAINS.has(domain)):
 			return false
 	return kernel.compile()
+
+
+func _environment_fields(at_ms: int, budget: int) -> Vector2i:
+	return world.environment_fields.settle_budgeted(at_ms, budget, kernel.should_yield_work)
 
 
 func _timed(at_ms: int, domain: StringName, method: StringName) -> bool:

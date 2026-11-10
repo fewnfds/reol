@@ -282,7 +282,8 @@ func _capture_committed_canvases(_from_ms: int = 0, _to_ms: int = 0) -> void:
 		large_body_adapter, construction_adapter, field_adapter]
 	for view: CommittedWorldCanvas in views:
 		if is_instance_valid(view):
-			view.redraw_committed_canvas()
+			view.clock_published_canvas = true
+			view.redraw_committed_canvas(true)
 
 
 func _create_remote(origin: Vector2i, reachable: Array[Vector2i]) -> VillageSimulation:

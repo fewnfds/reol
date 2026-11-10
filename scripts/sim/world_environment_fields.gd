@@ -12,6 +12,7 @@ const TAU_MS: int = 30000
 const TIDE_GRID_MS: int = 60000
 const MAX_TRANSIENT: int = 128
 const ANCHOR_QUANTUM: float = 0.000000001
+const TARGET_CELLS_PER_WORK: int = 16
 const Field = preload("res://scripts/sim/environment_ground_field.gd")
 const Temperature = preload("res://scripts/sim/environment_temperature_state.gd")
 const Phases = preload("res://scripts/sim/environment_phase_state.gd")
@@ -51,6 +52,7 @@ var _dirty_containers: Dictionary = {}
 var _connections: Array[Dictionary] = []
 var _topology_cells: Array[Vector2i] = []
 var _motion_changes: Array[Dictionary] = []
+var _settle_cursor: Dictionary = {}
 
 var world: RegionalSimulation:
 	get: return _owner.get_ref() if _owner != null else null
@@ -152,18 +154,37 @@ func next_boundary_ms() -> int:
 
 
 func can_settle_at_ms(now: int) -> bool:
-	return world != null and not _busy and _error.is_empty() and now >= last_ms and now < MAX_TIME
+	return world != null and not _busy and _error.is_empty() and now >= last_ms and now < MAX_TIME and (_settle_cursor.is_empty() or int(_settle_cursor.target_ms) == now)
 
 
 func settle_at_ms(now: int) -> bool:
-	if not can_settle_at_ms(now) or not activate_sources():
-		return false
-	while last_ms < now:
+	return settle_budgeted(now, 2147483647).y == SimSettlementKernel.Status.COMPLETE
+
+
+func settle_budgeted(now: int, budget: int, should_yield: Callable = Callable()) -> Vector2i:
+	if budget < 1 or not can_settle_at_ms(now) or not activate_sources():
+		return Vector2i(1, SimSettlementKernel.Status.FAILED)
+	var used: int = 0
+	while used < budget:
+		var status: int = _settle_work(now)
+		used += 1
+		if status != SimSettlementKernel.Status.PENDING:
+			return Vector2i(used, status)
+		if should_yield.is_valid() and bool(should_yield.call()):
+			break
+	return Vector2i(used, SimSettlementKernel.Status.PENDING)
+
+
+func _settle_work(now: int) -> int:
+	if _settle_cursor.is_empty():
+		if last_ms == now:
+			return SimSettlementKernel.Status.COMPLETE if flush_sources(now) else SimSettlementKernel.Status.FAILED
 		var end: int = mini(now, next_boundary_ms())
 		if not _motion_changes.is_empty():
 			end = mini(end, int(_motion_changes[0].at_ms))
 		if end <= last_ms:
-			return _fail("nonprogressing_environment_boundary")
+			_fail("nonprogressing_environment_boundary")
+			return SimSettlementKernel.Status.FAILED
 		var delta: int = end - last_ms
 		# Original device stock remains in the artifact owner. The field does
 		# not implement or claim energy conservation between fantasy sources.
@@ -177,35 +198,48 @@ func settle_at_ms(now: int) -> bool:
 			if spent == available:
 				depleted.append(id)
 		if not _background.advance_to_ms(end):
-			return _fail("background_advance")
+			_fail("background_advance")
+			return SimSettlementKernel.Status.FAILED
+		_settle_cursor = {"target_ms": now, "end_ms": end, "depleted": depleted}
 		# Refresh old-source target segments at their exact boundary first;
 		# source expiry then reanchors at the same millisecond with no jump.
 		if end == _temperature.next_boundary_ms() or end == _phases.next_boundary_ms():
-			if not _refresh_targets(end, false):
-				return false
-		last_ms = end
-		while not _motion_changes.is_empty() and int(_motion_changes[0].at_ms) == end:
-			var crossing: Dictionary = _motion_changes.pop_front()
-			for key: String in crossing.keys:
-				var source: Dictionary = _sources.get_source(key)
-				if not source.is_empty():
-					source.cell = crossing.cell
-					if not _change_source(key, source, end):
-						return _fail("moving_source")
-		for id: String in depleted:
-			_sync_device(id)
-			var key: String = Participant.artifact_key(id)
+			_settle_cursor.refresh = _target_refresh(end, false)
+		return SimSettlementKernel.Status.PENDING
+	if _settle_cursor.has("refresh"):
+		var status: int = _refresh_target_work(_settle_cursor.refresh)
+		if status != SimSettlementKernel.Status.COMPLETE:
+			return status
+		_settle_cursor.erase("refresh")
+		return SimSettlementKernel.Status.PENDING
+	var end: int = int(_settle_cursor.end_ms)
+	last_ms = end
+	while not _motion_changes.is_empty() and int(_motion_changes[0].at_ms) == end:
+		var crossing: Dictionary = _motion_changes.pop_front()
+		for key: String in crossing.keys:
 			var source: Dictionary = _sources.get_source(key)
 			if not source.is_empty():
-				source = _transform_source(key, source)
+				source.cell = crossing.cell
 				if not _change_source(key, source, end):
-					return false
-		for key: String in _participation.due_ids(&"transient", end):
-			if not _change_source(key, {}, end):
-				return false
-			_transient.erase(key)
-			_participation.set_member(&"transient", key, false)
-	return flush_sources(now)
+					_fail("moving_source")
+					return SimSettlementKernel.Status.FAILED
+	for id: String in _settle_cursor.depleted:
+		_sync_device(id)
+		var key: String = Participant.artifact_key(id)
+		var source: Dictionary = _sources.get_source(key)
+		if not source.is_empty():
+			source = _transform_source(key, source)
+			if not _change_source(key, source, end):
+				return SimSettlementKernel.Status.FAILED
+	for key: String in _participation.due_ids(&"transient", end):
+		if not _change_source(key, {}, end):
+			return SimSettlementKernel.Status.FAILED
+		_transient.erase(key)
+		_participation.set_member(&"transient", key, false)
+	_settle_cursor.clear()
+	if last_ms < now:
+		return SimSettlementKernel.Status.PENDING
+	return SimSettlementKernel.Status.COMPLETE if flush_sources(now) else SimSettlementKernel.Status.FAILED
 
 
 func prepare_object_change(request: Dictionary) -> Dictionary:
@@ -474,6 +508,15 @@ func device_emission_rates(at_ms: int) -> Dictionary:
 
 
 func _refresh_targets(at_ms: int, activation: bool) -> bool:
+	var cursor: Dictionary = _target_refresh(at_ms, activation)
+	while true:
+		var status: int = _refresh_target_work(cursor)
+		if status != SimSettlementKernel.Status.PENDING:
+			return status == SimSettlementKernel.Status.COMPLETE
+	return false
+
+
+func _target_refresh(at_ms: int, activation: bool) -> Dictionary:
 	var selected: Dictionary[Vector2i, int] = {}
 	if activation:
 		for key: Vector2i in _sorted_chunks():
@@ -488,24 +531,36 @@ func _refresh_targets(at_ms: int, activation: bool) -> bool:
 	keys.assign(selected.keys())
 	keys.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y or (a.y == b.y and a.x < b.x))
 	_last_refresh_chunks = keys.size()
-	for key: Vector2i in keys:
-		var opened: Dictionary = _targets.begin(Rect2i(key * 16, Vector2i(16, 16)), at_ms, activation, null, selected[key], not activation)
+	return {"at_ms": at_ms, "activation": activation, "domains": selected, "keys": keys, "index": 0, "handle": null}
+
+
+func _refresh_target_work(cursor: Dictionary) -> int:
+	var at_ms: int = int(cursor.at_ms)
+	var keys: Array[Vector2i] = cursor.keys
+	if int(cursor.index) >= keys.size():
+		if not _refresh_rooms(keys, at_ms):
+			return SimSettlementKernel.Status.FAILED
+		_sync_response_deadlines(keys)
+		return SimSettlementKernel.Status.COMPLETE
+	if cursor.handle == null:
+		var key: Vector2i = keys[int(cursor.index)]
+		var opened: Dictionary = _targets.begin(Rect2i(key * 16, Vector2i(16, 16)), at_ms, bool(cursor.activation), null, int(cursor.domains[key]), not bool(cursor.activation))
 		if not bool(opened.get("ok", false)):
-			return _fail(str(opened.get("reason", "target_begin")))
-		var handle: Variant = opened.handle
-		while true:
-			var progress: Dictionary = _targets.step(handle, 256)
-			if not bool(progress.get("ok", false)):
-				return _fail(str(progress.get("reason", "target_step")))
-			if not bool(progress.get("pending", true)):
-				break
-		var finished: Dictionary = _targets.finish(handle)
+			_fail(str(opened.get("reason", "target_begin")))
+			return SimSettlementKernel.Status.FAILED
+		cursor.handle = opened.handle
+	var progress: Dictionary = _targets.step(cursor.handle, TARGET_CELLS_PER_WORK)
+	if not bool(progress.get("ok", false)):
+		_fail(str(progress.get("reason", "target_step")))
+		return SimSettlementKernel.Status.FAILED
+	if not bool(progress.get("pending", true)):
+		var finished: Dictionary = _targets.finish(cursor.handle)
 		if not bool(finished.get("ok", false)) or not bool(_targets.commit(finished.proof).get("ok", false)):
-			return _fail("target_publication")
-	if not _refresh_rooms(keys, at_ms):
-		return false
-	_sync_response_deadlines(keys)
-	return true
+			_fail("target_publication")
+			return SimSettlementKernel.Status.FAILED
+		cursor.handle = null
+		cursor.index = int(cursor.index) + 1
+	return SimSettlementKernel.Status.PENDING
 
 
 func _sync_response_deadlines(keys: Array[Vector2i]) -> void:

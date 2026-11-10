@@ -50,6 +50,7 @@ class Timeline extends RefCounted:
 func run(runner: Object) -> void:
 	_admission_and_retained_work(runner)
 	_rate_and_restore(runner)
+	_short_boundary_cost(runner)
 	for heal_at: int in [990, 1000, 1010]:
 		var fast: Dictionary = _future(heal_at, false)
 		var slow: Dictionary = _future(heal_at, true)
@@ -98,6 +99,23 @@ func _rate_and_restore(runner: Object) -> void:
 	runner.assert_eq(restored.to_dict().frame_debt_ms, 17.25, "paused host time does not become new simulation debt")
 	clock.free()
 	restored.free()
+
+
+func _short_boundary_cost(runner: Object) -> void:
+	var pacing := ReolSimulationPacing.new()
+	for _sample: int in 60:
+		pacing.observe(1.0 / 60.0, 2000, 50, false, 1.0)
+	# An exact action/weather boundary can split an otherwise ordinary frame
+	# into one millisecond. Its fixed publication cost is not sustained cost
+	# per millisecond across the whole already measured workload.
+	pacing.observe(1.0 / 60.0, 2000, 1, false, 1.0)
+	runner.assert_true(pacing.rate > 0.9, "one cheap short boundary cannot turn spare capacity into prolonged severe slowdown")
+	for _sample: int in 120:
+		pacing.observe(1.0 / 60.0, 12000, 10, false, 1.0)
+	runner.assert_true(pacing.rate < 0.5, "sustained expensive work still throttles future admission")
+	var before: float = pacing.rate
+	pacing.observe(1.0 / 60.0, 1, 50, false, 1.0)
+	runner.assert_true(pacing.rate <= before + ReolSimulationPacing.RECOVERY_PER_SECOND / 60.0 + 0.00001, "windowed cost estimation preserves gradual recovery")
 
 
 func _future(heal_at: int, overloaded: bool) -> Dictionary:

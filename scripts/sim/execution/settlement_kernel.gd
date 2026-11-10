@@ -30,6 +30,7 @@ var _pending: bool = false
 var _executing: bool = false
 var _cursor: int = 0
 var _failed: bool = false
+var _work_yield: Callable
 
 
 func _init(phases: Array[StringName] = []) -> void:
@@ -138,6 +139,7 @@ func resume(work_budget: int, should_yield: Callable = Callable()) -> int:
 	if not _pending:
 		return Status.COMPLETE
 	_executing = true
+	_work_yield = should_yield
 	while _cursor < _plan.size() and last_work < maxi(0, work_budget):
 		if should_yield.is_valid() and bool(should_yield.call()):
 			_executing = false
@@ -194,6 +196,12 @@ func is_pending() -> bool:
 
 func is_executing() -> bool:
 	return _executing
+
+
+func should_yield_work() -> bool:
+	# Budgeted owners can share this resume's host deadline between bounded
+	# work units. No host time enters their causal calculations or saved state.
+	return _executing and _work_yield.is_valid() and bool(_work_yield.call())
 
 
 func has_failed() -> bool:

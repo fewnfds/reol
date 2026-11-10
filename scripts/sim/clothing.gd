@@ -323,7 +323,7 @@ func _outer_choice(actor: String, at_ms: int) -> String:
 
 func consider_weather() -> void:
 	for actor: String in world._actor_ids(world.regions):
-		if not wants_decision(actor, world.elapsed_ms) or not world.autonomous_decision(actor) or not world.standing_work.duty_for(actor, world.elapsed_ms).is_empty():
+		if not world.autonomous_decision(actor) or not world.standing_work.duty_for(actor, world.elapsed_ms).is_empty():
 			continue
 		var id: String = _outer_choice(actor, world.elapsed_ms)
 		if not id.is_empty():

@@ -4,7 +4,9 @@
 
 ## Demo反馈与独立诊断（独立分支）
 
-main集成点`7def7d2f40e3584dfe6c455b6280d894a455a9e3`的CI42751032965已核success。`codex/demo-playtest-fixes`简单修复`87262ffe5216da2d88afe4a2e8ba87ec20dfa1db`接默认跟随/F恢复与外墙逐格显露，4组112检查、原生画面及一次静态主审通过，同SHA CI42751769110 success。独立诊断工具最终`aa4f1a1fb893ed908281deda81fc2696659b3ea6`不改普通入口/预算/规则；有界smoke、同未来/回调恢复和20秒原生采样通过，一次静态主审的等候CPU计量P2已先红后绿修复。最终CI42753794423 pending，不能沿用简单修复绿色；[本包QA](../qa/20261110_demo_feedback.md)记录范围。未合main，连续坐标迷雾仍未改。
+`codex/demo-slowdown-fix`修复重复画面捕获、环境原子刷新及短片段误降速，未合main。原生90秒0.986×、时钟最大17.645ms，30秒移动39格无world_errors；定向通过，主审和完整CI待验。负载、日志及局限见[缓行QA](../qa/20261110_demo_feedback.md#严重缓行修复)。
+
+main集成点7def7d2的CI42751032965已核success。前Demo分支`codex/demo-playtest-fixes`的默认跟随/外墙修复87262ff：4组112检查、原生画面及一次主审通过，CI42751769110 success。独立诊断最终aa4f1a1：同未来/回调恢复、有界smoke及原生采样通过，一次主审的等候CPU漏计P2先红后绿；CI42753794423已核success。详见[QA](../qa/20261110_demo_feedback.md)。以上未合main，连续坐标迷雾仍未改。
 
 ## 完整单位行动与交互（已整合main，完整CI通过）
 
@@ -62,9 +64,7 @@ main包含建筑阶段最终受检代码`d00bac954b69cab096d580db002fb04013fa254
 
 ## 测试工作流与成本
 
-测试提交`f166cdb4360e91055a3f942cedf66ae446f2301e`与受检快照`2b9828040343e53a469ec8cdce5f12df16656e31`的完整tree一致：4片完整覆盖本机**248组/124981断言/0失败**，各worker日志/退出码与汇总校验通过，Python72项及错误退出smoke通过，一次Sol/custom静态审查无可执行发现。组内合计1495.275→1325.163秒；受改两组重复装配合计减少40.751秒，其余波动不全归因代码。4片最慢组内466.318秒，本机顺序验证不等于GitHub并行实测；一个未改组的预算循环断言次数波动已定位，固定检查/结果出口没有减少。范围、完整证据与远端待验见[优化QA](../qa/20261107_test_optimization.md)。生产代码及存档格式未改。
-
-前序受检代码`b60adadfcab73a17e101b62538da62ddc5bccf9f`建立248组精确选组和逐组计时；当时Python60项及有界五组54894断言通过。其后纯文档提交`d27337d67c0148132dfaef2d802d72a860b62d38`的[CI42356120868](https://github.com/fewnfds/reol/actions/runs/42356120868)已在本轮真实提交检查点核completed/success，完整SHA相符；不替代后续术语和分片版本的远端结果。五组实测与限制见[成本调查](../qa/20261107_test_cost_audit.md)。
+测试优化f166cdb与受检快照2b98280完整tree一致：本机4片覆盖248组/124981断言/0失败，Python72项与错误退出smoke通过，一次主审无发现；组内1495.275→1325.163秒，不等于GitHub并行实测。计时、范围和远端状态见[优化QA](../qa/20261107_test_optimization.md)。前序计时/选组及CI42356120868 success的准确SHA与范围见[成本调查](../qa/20261107_test_cost_audit.md)，不替代后续版本。
 
 ## 顶层稀疏执行框架（已集成）
 

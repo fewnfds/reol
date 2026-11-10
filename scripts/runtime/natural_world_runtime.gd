@@ -209,21 +209,25 @@ func _draw() -> void:
 
 func _build_canvas() -> void:
 	var adapter: WorldContinuityRuntime = runtime()
-	if adapter == null or adapter.world_sim == null:
+	if adapter == null or adapter.world_sim == null or adapter.soul_player_active():
 		return
 	var world: RegionalSimulation = adapter.world_sim
+	var home: VillageRuntime = adapter.home_runtime()
+	var fog: FogOfWar = home._fog
 	if _bound_world == null or _bound_world.get_ref() != world:
 		_bound_world = weakref(world)
 		_painted_claims.clear()
-		adapter.home_runtime()._world.flora_override = world.plants.overrides_flora
+		home._world.flora_override = world.plants.overrides_flora
 	var center: Vector2i = adapter.controlled_cell()
 	for y: int in range(center.y - 14, center.y + 15):
 		for x: int in range(center.x - 14, center.x + 15):
 			var cell := Vector2i(x, y)
-			if not visible_cell(cell):
+			# One complete, synchronous capture shares its owner/sight context;
+			# do not resolve the same adapters and settlement state per tile.
+			if not world.map_data.in_bounds(cell) or not (fog.is_cell_visible(cell) if fog != null else cell.distance_to(center) <= 5.0):
 				continue
 			if world.plants.overrides_flora(cell) and not _painted_claims.has(cell):
-				adapter.home_runtime()._world.refresh_flora(cell)
+				home._world.refresh_flora(cell)
 				_painted_claims[cell] = true
 			for id: String in world.plants.ids_at(cell):
 				var row: Dictionary = world.plants.bodies[id]

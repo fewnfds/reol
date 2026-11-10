@@ -5,6 +5,15 @@ extends RefCounted
 const RuntimeFixtures = preload("res://tests/runtime/test_world_continuity_runtime.gd")
 var fixtures := RuntimeFixtures.new()
 
+class PublicationProbe extends CommittedWorldCanvas:
+	var world: RefCounted
+	var captures: int = 0
+	func _current_canvas_world() -> RefCounted:
+		return world
+	func _build_canvas() -> void:
+		captures += 1
+		capture_circle(Vector2.ZERO, 1.0, Color.WHITE)
+
 
 func run(runner: Object) -> void:
 	_published_after_world(runner)
@@ -424,10 +433,27 @@ func _continuous_canvas_publication(runner: Object) -> void:
 		fixtures._dispose(fixture)
 		return
 	var world: RegionalSimulation = runtime.world_sim
+	var probe := PublicationProbe.new()
+	probe.world = world
+	probe.clock_published_canvas = true
+	runtime.add_child(probe)
+	probe.redraw_committed_canvas()
+	var initial_captures: int = probe.captures
+	probe.redraw_committed_canvas()
+	probe.redraw_committed_canvas()
+	runner.assert_eq(probe.captures, initial_captures + 2, "paused changes at the same world millisecond are never deduplicated by timestamp")
+	runner.assert_true(runtime.clock_published_canvas and fixture.home.clock_published_canvas and runtime.natural_adapter.clock_published_canvas, "the world publication owner coalesces managed views only")
 	runtime.settlement_work_budget = 1
 	var observed: Array[bool] = []
+	var coalesced: Array[bool] = []
 	var listener: Callable = func(_from: int, at: int) -> void:
 		observed.append(runtime._canvas_at_ms == at and runtime.construction_adapter._canvas_at_ms == at and runtime.avian_adapter._canvas_at_ms == at and fixture.home._canvas_at_ms == at)
+		var before: int = probe.captures
+		probe.redraw_committed_canvas()
+		probe.redraw_committed_canvas()
+		coalesced.append(probe.captures == before)
+		probe.redraw_committed_canvas(true)
+		coalesced.append(probe.captures == before + 1 and probe._canvas_at_ms == at)
 	GameClock.time_advanced.connect(listener)
 	# Keep adding real wall time. Each completed old interval can immediately
 	# start another suspended interval before a deferred _draw ever occurs.
@@ -438,7 +464,11 @@ func _continuous_canvas_publication(runner: Object) -> void:
 	GameClock.time_advanced.disconnect(listener)
 	runner.assert_true(observed.size() >= 2 and world.settlement.is_pending(), "continuous one-work frames publish multiple old intervals while the next interval is already pending")
 	runner.assert_true(not observed.has(false), "every public clock boundary synchronously captures all representative canvases before the next interval")
+	runner.assert_true(not coalesced.is_empty() and not coalesced.has(false), "repeated clock observer redraws capture once at complete publication")
 	runner.assert_eq(runtime.construction_adapter._canvas_at_ms, GameClock.elapsed_ms, "pending draw playback uses the latest published boundary, never an arbitrarily old picture")
+	var held: int = probe.captures
+	probe.redraw_committed_canvas()
+	runner.assert_eq(probe.captures, held, "outside-clock redraws still retain the last complete picture while settlement is pending")
 	fixtures._dispose(fixture)
 
 

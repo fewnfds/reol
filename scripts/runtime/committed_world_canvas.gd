@@ -7,6 +7,9 @@ var _canvas_commands: Array[Callable] = []
 var _canvas_candidate: Array[Callable] = []
 var _canvas_world: WeakRef
 var _canvas_at_ms: int = -1
+# Managed world views publish together after the clock's ordinary observers.
+# Standalone views and changes outside clock advancement still capture at once.
+var clock_published_canvas: bool = false
 
 
 func _canvas_adapter() -> Node:
@@ -38,7 +41,9 @@ func clear_committed_canvas() -> void:
 	redraw_committed_canvas()
 
 
-func redraw_committed_canvas() -> void:
+func redraw_committed_canvas(publish: bool = false) -> void:
+	if clock_published_canvas and GameClock.is_advancing() and not publish:
+		return
 	# Capture synchronously. A deferred _draw may run only after another
 	# boundary has already suspended, so it must never be the capture owner.
 	refresh_committed_canvas()
