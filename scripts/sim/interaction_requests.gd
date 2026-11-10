@@ -408,7 +408,8 @@ static func _resolve(world: RefCounted, subject: String) -> Dictionary:
 	if world.embodiment.residence_of(subject).is_empty():
 		return {}
 	for region: String in world.regions:
-		for actor: String in world.regions[region].synchronize_actors():
+		# Subject identity does not depend on integrating any body's time.
+		for actor: String in world.regions[region].actors:
 			if world.embodiment.subject_for_actor(actor) == subject:
 				return {"kind": "human", "id": actor, "region": region}
 	for bird_id: String in world.avian_life.birds:

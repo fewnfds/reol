@@ -775,10 +775,26 @@ func _notification(what: int) -> void:
 
 
 func _decay_actor(id: String, from_ms: int, duration_ms: int) -> void:
+	_advance_needs(_actors[id], id, from_ms, duration_ms)
+
+
+func projected_actor_needs(id: String) -> Dictionary:
+	# UI evaluates the same accepted input interval without changing the body,
+	# its carry, participation deadlines, routes or pending worker candidates.
+	var actor: Dictionary = _actors[id]
+	var previous: int = int(_actor_projection_ms.get(id, elapsed_ms))
+	if previous == elapsed_ms or not bool(actor.alive):
+		return actor
+	var view: Dictionary = actor.duplicate()
+	view.need_carry = actor.need_carry.duplicate()
+	_advance_needs(view, id, previous, elapsed_ms - previous)
+	return view
+
+
+func _advance_needs(actor: Dictionary, id: String, from_ms: int, duration_ms: int) -> void:
 	var hunger_rate: int = roundi(float(config.needs.hunger_per_minute) * NEED_SCALE)
 	var base_energy_rate: int = roundi(float(config.needs.energy_per_minute) * NEED_SCALE)
 	var work_rate: int = roundi(float(config.needs.work_energy_per_minute) * NEED_SCALE)
-	var actor: Dictionary = _actors[id]
 	if not bool(actor.alive):
 		return
 	var energy_rate: int = base_energy_rate

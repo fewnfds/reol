@@ -275,6 +275,14 @@ func _capture_committed_canvases(_from_ms: int = 0, _to_ms: int = 0) -> void:
 	# Connected after the ordinary clock observers: body/fog invalidation and
 	# panels are committed, and the clock cannot start another interval yet.
 	var snap: bool = _to_ms <= _from_ms
+	if not _presentation_ready():
+		return
+	# All ordinary observers have finished. Publish body views once, sharing
+	# the layout, rather than rebuilding them inside each executor continuation.
+	var layout: Dictionary = actor_view_layout()
+	_home._sync_actor_views(snap, layout)
+	_refresh_views(snap, layout)
+	_refresh_advance_views()
 	_home.publish_actor_motion(GameClock.elapsed_ms, snap)
 	for pawn: Pawn in _remote_views.values():
 		pawn.publish_motion(GameClock.elapsed_ms, snap)
@@ -403,6 +411,8 @@ func select_actor_view(pawn: Pawn) -> void:
 	if actor_region(id) != "home":
 		_selected_remote = id
 	pawn.set_selected(true)
+	if _presentation_ready():
+		_home._sync_needs(pawn.state, world_sim.regions[actor_region(id)].projected_actor_needs(id))
 
 
 func visible_actor_status(actor: String) -> String:
@@ -414,7 +424,7 @@ func visible_actor_status(actor: String) -> String:
 
 
 func _on_visibility_updated() -> void:
-	if world_sim == null or world_sim.has_pending_boundary():
+	if world_sim == null or world_sim.has_pending_boundary() or GameClock.is_advancing():
 		return
 	# Fog updates while paused too. Refresh only scene projections, not clocks,
 	# learning, route progress or the hidden world's event outcome.
@@ -656,7 +666,6 @@ func advance_to_ms(target_ms: int) -> int:
 	# can advance. Compare against the first observation until views commit.
 	if _advance_view_baseline.is_empty():
 		_advance_view_baseline = _capture_advance_view_state()
-	var prior: Dictionary = _advance_view_baseline
 	var cursor: int = world_sim.settled_ms()
 	var work_left: int = maxi(1, settlement_work_budget)
 	while cursor < target_ms or world_sim.has_pending_boundary():
@@ -716,6 +725,13 @@ func advance_to_ms(target_ms: int) -> int:
 			_notice = "世界事务待处理，未完成时间已保留。"
 			_refresh_panel()
 			break
+	return cursor
+
+
+func _refresh_advance_views() -> void:
+	if _advance_view_baseline.is_empty():
+		return
+	var prior: Dictionary = _advance_view_baseline
 	_home._player._project_motion()
 	if clothing_adapter != null:
 		clothing_adapter.refresh()
@@ -729,7 +745,6 @@ func advance_to_ms(target_ms: int) -> int:
 		construction_adapter.refresh()
 		construction_adapter.redraw_committed_canvas()
 	_update_region()
-	_refresh_views(true)
 	if object_adapter != null and (object_adapter.panel.visible or prior.object_busy != world_sim.object_lifecycle.owns_actor("player")):
 		object_adapter.refresh()
 	if soul_adapter != null:
@@ -753,7 +768,6 @@ func advance_to_ms(target_ms: int) -> int:
 	if not str(prior.labor_id).is_empty() and prior.labor_status != str(world_sim.budgeted_labor.contracts[prior.labor_id].status):
 		_refresh_panel()
 	_advance_view_baseline = {}
-	return cursor
 
 
 func project_player_journey(to_ms: int) -> void:
@@ -1080,18 +1094,20 @@ func _on_player_moved() -> void:
 
 func _on_advanced() -> void:
 	_update_region()
-	_refresh_views(false)
+	if not GameClock.is_advancing():
+		_refresh_views(false)
 	_refresh_panel()
 	redraw_committed_canvas()
 
 
-func _refresh_views(snap: bool) -> void:
+func _refresh_views(snap: bool, layout: Dictionary = {}) -> void:
 	if not _presentation_ready():
 		return
 	# A body keeps its original ledger owner while travelling. Only actual
 	# visibility decides whether its nonhome scene projection is materialized.
 	var visible_bodies: Dictionary = {}
-	var layout: Dictionary = actor_view_layout()
+	if layout.is_empty():
+		layout = actor_view_layout()
 	for region: String in world_sim.regions:
 		if region == "home":
 			continue
@@ -1106,7 +1122,7 @@ func _refresh_views(snap: bool) -> void:
 				continue
 			if _home._fog != null and not _home._fog.is_cell_visible(cell):
 				continue
-			actor = remote.synchronize_actor(id)
+			# Visibility does not materialize or advance the original body.
 			visible_bodies[id] = true
 			if not _remote_views.has(id):
 				var created_pawn := Pawn.new()
@@ -1121,8 +1137,9 @@ func _refresh_views(snap: bool) -> void:
 			pawn.clothing_appearance = world_sim.clothing.appearance(id)
 			pawn.set_view_layout(layout.get(id, {}))
 			pawn.cell = cell
-			_home._sync_needs(pawn.state, actor)
-			pawn.global_position = remote.actor_position(actor)
+			if pawn.selected:
+				_home._sync_needs(pawn.state, remote.projected_actor_needs(id))
+			pawn.global_position = remote.projected_actor_position(id)
 			if not GameClock.is_advancing():
 				pawn.publish_motion(GameClock.elapsed_ms, snap)
 			pawn.show()

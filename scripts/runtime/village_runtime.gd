@@ -418,7 +418,8 @@ func _on_time_advanced(_from_ms: int, _to_ms: int) -> void:
 	# The executor has already completed this actual interval. In particular,
 	# another listener may now safely read the shared clock and original body.
 	_player._project_motion()
-	_sync_actor_views(true)
+	if not is_instance_valid(continuity):
+		_sync_actor_views(true)
 	if had_events:
 		_refresh_panel()
 		redraw_committed_canvas()
@@ -460,9 +461,10 @@ func _sync_player_cell() -> void:
 		continuity.world_sim.invalidate_region("home")
 
 
-func _sync_actor_views(snap: bool) -> void:
+func _sync_actor_views(snap: bool, layout: Dictionary = {}) -> void:
 	var residents: Dictionary = simulation.actors
-	var layout: Dictionary = continuity.actor_view_layout() if is_instance_valid(continuity) else PawnViewLayout.build(residents, "player")
+	if layout.is_empty():
+		layout = continuity.actor_view_layout() if is_instance_valid(continuity) else PawnViewLayout.build(residents, "player")
 	for id: String in _pawns:
 		if not simulation.has_actor(id):
 			_pawns[id].hide()
@@ -474,24 +476,26 @@ func _sync_actor_views(snap: bool) -> void:
 		pawn.visible = bool(actor.alive) and (_fog.is_cell_visible(pawn.cell) if _fog != null else true)
 		if not pawn.visible:
 			continue # Hidden views have no pose, clothing or draw work.
-		actor = simulation.synchronize_actor(id)
+		# A visible view reads the accepted route at committed time. Rendering
+		# must not integrate needs, repair routes or publish spatial changes.
 		var pose: Dictionary = HumanoidPose.in_world(continuity.world_sim, id, GameClock.elapsed_ms) if is_instance_valid(continuity) else HumanoidPose.from_body(actor, GameClock.elapsed_ms, actor.active)
 		pawn.appearance_pose = HumanoidPose.stabilized(pose, pawn.appearance_pose)
 		if is_instance_valid(continuity):
 			pawn.clothing_appearance = continuity.world_sim.clothing.appearance(id)
 		pawn.set_view_layout(layout.get(id, {}))
-		var target: Vector2 = simulation.actor_position(actor)
+		var target: Vector2 = simulation.projected_actor_position(id)
 		pawn.global_position = target
 		if not was_visible or not GameClock.is_advancing():
 			pawn.publish_motion(GameClock.elapsed_ms, snap or not was_visible)
-		_sync_needs(pawn.state, actor)
+		if pawn.selected:
+			_sync_needs(pawn.state, simulation.projected_actor_needs(id))
 		pawn.queue_redraw()
 	if is_instance_valid(continuity):
 		_player.clothing_appearance = continuity.world_sim.clothing.appearance("player")
 		_player.appearance_pose = HumanoidPose.stabilized(HumanoidPose.in_world(continuity.world_sim, "player", GameClock.elapsed_ms, continuity.player_journey, _player.manual_visual_moving, _player.motion.action), _player.appearance_pose)
 	else:
 		_player.appearance_pose = HumanoidPose.stabilized(HumanoidPose.from_body(residents.player, GameClock.elapsed_ms, residents.player.active, _player.manual_visual_moving), _player.appearance_pose)
-	_sync_needs(_player.state, simulation.synchronize_actor("player"))
+	_sync_needs(_player.state, simulation.projected_actor_needs("player"))
 	if is_instance_valid(continuity) and _player.state != null:
 		# A visible visitor's body can be projected across a quiet interval without
 		# waking every resident in their home settlement for a HUD update.

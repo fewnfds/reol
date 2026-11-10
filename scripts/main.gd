@@ -312,10 +312,10 @@ func _select_pawn(pawn: Pawn) -> void:
 	_selected = pawn
 	_selected.set_selected(true)
 	player.set_selected(false)
-	if pawn.state != null:
-		hud.show_pawn_state(pawn.state, false, pawn.display_name_override)
 	if _continuity != null:
 		_continuity.select_actor_view(pawn)
+	if pawn.state != null:
+		hud.show_pawn_state(pawn.state, false, pawn.display_name_override)
 	if _village != null:
 		_village.select_actor(String(pawn.pawn_id) if _continuity == null or _continuity.actor_region(String(pawn.pawn_id)) == "home" else "player")
 	_refresh_interaction()

@@ -43,6 +43,37 @@ Reol已有分块、局部失效、packed响应列、分段二进制及基础场G
 
 ## 成熟项目用了什么
 
+### 用户参考网址逐篇核对（2026-11-11）
+
+已读取`参考资料网址.txt`的19个显式URL及27个不重复的Google引用跳转；跳转解析出补充项目、版本页和文章。重复目标只读一次。原始抓取/解析清单在忽略的`logs/performance-references/inventory.json`，源码固定提交在`source-inventory.json`。外部仓库的CLAUDE.md只作研究资料，不成为Reol指令。
+
+| 资料 / 核对范围 | 有意义的思路与限制 |
+|---|---|
+| [Vav crowd benchmark](https://github.com/Vav-Labs/godot-crowd-pathfinding-benchmark)，`1b9340a`，README、agent_set、shared_field、scheduler | 同目标共享解、紧凑数组、双缓冲、固定工作量续算、同时量帧时和新解延迟。500/10000/20000人是窄导航负载，不含殖民模拟；基线故意每人每帧A*。源码有无方向时直接趋近目标的演示回退，不能照搬为越墙移动 |
+| [配套文章](https://vav-labs.com/blog/moving-10000-agents-in-godot/)及重复README | 延迟也要测：其1536步预算样本新场延迟中位数2150ms；“每帧不卡”不等于行为及时。共享问题先复用答案，再组织调度 |
+| [PathForge产品页](https://vav-labs.com/products/pathforge/)及[Vav主页](https://github.com/Vav-Labs) | 多尺寸clearance、局部阻挡与明确失败原因值得借鉴。产品为早期付费候选，页面不是已交付成熟性能证据；不安装或购买 |
+| [GodotBoids](https://github.com/Shmupo/GodotBoids)，`94f028f`，V1–V3及SpatialGrid | 空间分桶、同桶共享聚合、MultiMesh。Godot4.2/3D；作者说明V2有时比物理更慢，V3牺牲边界精度；V3桶内分离仍两两比较且未查相邻桶，不能宣传为普遍O(N)。未见明确许可，不复制其代码 |
+| [GodotFlowField](https://github.com/TheFamousRat/GodotFlowField)，`0da627f`，README、flowfield结构 | 反向距离场、单向边和通行能力分组。实际是Godot3.2.x的3D/C++ GDNative工程，含OpenMP/RVO依赖，作者也提示性能/错误问题；不是现成Godot4 GDScript插件 |
+| [VectorFieldNavigation](https://github.com/D2klaas/Godot-4-VectorFieldNavigation)，`1f266ab`，README、VFNField | 同地图多个权重层、预处理邻接与后台构建。其128²场约130ms是作者硬件样本；共享可变地图不应边写边算，完整场重建也不适合每个细小变化 |
+| [gdmapf](https://github.com/nathanfranke-archive/gdmapf)，`3a19071`，README、pathfinding_server_3d | 密度影响代价、共享势场。已归档，作者明确“障碍密集时相向单位卡住”；3D原生扩展，不能作为可靠拥堵解法直接接入 |
+| [官方Servers](https://docs.godotengine.org/en/stable/tutorials/performance/using_servers.html)，含引用中的4.3版本 | SceneTree可绕过，RID集中管理；资源引用与RID生命周期要自己管理；反复同步回读可能阻塞。4.3语法仅作历史比较，采用API按本项目4.7核对 |
+| [官方bullet_shower目录](https://github.com/godotengine/godot-demo-projects/tree/master/2d/bullet_shower)、[README](https://github.com/godotengine/godot-demo-projects/blob/master/2d/bullet_shower/README.md)、[bullets.gd](https://github.com/godotengine/godot-demo-projects/blob/master/2d/bullet_shower/bullets.gd) | 一个循环管理数据和RID，所有子弹共享碰撞形状，一个绘制节点。示例只禁用子弹之间碰撞，仍使用PhysicsServer；不是“高性能必须禁用全部物理” |
+| [WorkerThreadPool](https://docs.godotengine.org/en/stable/classes/class_workerthreadpool.html) | 原生常驻线程池、足量组任务、完成后回收；小任务可能更慢。需要测准备、排队、计算、等待、采用，而非只看kernel |
+| [线程安全](https://docs.godotengine.org/en/stable/tutorials/performance/thread_safe_apis.html) | 隔离数据并行、主线程处理场景；同一AStar实例不能多线程同时查询。NavigationServer可并行不代表任意自定义路径对象可共享写 |
+| [MultiMesh](https://docs.godotengine.org/en/stable/tutorials/performance/using_multimesh.html)，含4.6引用页 | 整批buffer、批次按区域拆分、visible_instance_count、shader插值；单实例无独立剔除，人物遮挡/外观/排序不能靠“一次drawcall”自动解决。该教程标有未更新说明，具体API需核对 |
+| [CPU优化](https://docs.godotengine.org/en/stable/tutorials/performance/cpu_optimization.html)，含4.5引用页 | 连续访问、减少跨层分派、移除无用工作；原生API与脚本循环区别、线程/语言只在实际热点上选择；冷缓存和限帧影响比较 |
+| [通用优化](https://docs.godotengine.org/en/stable/tutorials/performance/general_optimization.html) | 用隔离开关/二分定位，区分持续慢、偶发峰值与初建；先改算法/数据设计，再修局部；计时有开销，瓶颈可能在GPU或驱动等待 |
+| [GECS](https://github.com/csprance/gecs)与[CLAUDE.md](https://github.com/csprance/gecs/blob/main/CLAUDE.md)，`8d2d2b2`，archetype/system/command_buffer | 代际句柄、按能力分组、列访问、增量查询缓存、批量结构变更、changed过滤。主README仍写v8安装，CLAUDE含v9升级；Entity仍是Node、Component仍是Resource，不等于纯原生连续数值或免费多核。不引入整套ECS或复制其开发流程 |
+| [Arch ECS demo](https://github.com/Neerti/Arch-ECS-Godot-Demo)，README、Systems.cs、EntityRenderer.cs | struct列、InlineParallelQuery、MultiMesh桥接。五万实体只是反弹方块/变色，未承担本游戏规则；C#依赖不是本轮默认技术迁移 |
+| [Stagehand](https://github.com/60k41p/Stagehand)，README、rendering_multimesh | Flecs缓存查询、原生系统及批量渲染桥。早期C++ GDExtension，ComputeRenderer明示WIP；不将产品图标当成通用GPU模拟已经成熟 |
+| [Rust boids](https://github.com/90-008/godot_boids)，`afa08b9`，README、flock/boid实现 | 原生批计算与Godot桥分开；作者2000/11ms声明明确尚无空间分区，扩展目标4.3。说明语言能改常数，不能消除坏复杂度 |
+| [Godex](https://github.com/GodotECS/godex)，`dafb7b0`，README与pipeline布局 | 读写依赖组织系统并行；需要定制引擎构建且绑定旧master，无法当现成4.7 addon直接接入 |
+| [gdscript-ecs](https://github.com/yihrmc/gdscript-ecs)，`871ac77`，文档、EcsWorld | 索引ID、能力索引、实体复用及command/event分离；简单组件类并不自动改善数值局部性，查询append实现还有线性去重。可借鉴模式，未见明确许可，不复制代码 |
+| [Knightmared原文](https://www.reddit.com/r/Knightmared/comments/1u2as89/godot_4_horde_optimization_hundreds_of_enemies/) | 隔离开关、无帧率上限诊断、分散出生、路径缓存、减少离屏表现；作者明确物理/AI/特效叠加，MultiMesh不能解决逻辑。读取到原帖，未把其他评论当作者结论 |
+| [Destroy The Monoliths修正网址](https://radiantslothgames.itch.io/destroy-the-monoliths/devlog/499567/devlog-9-how-to-optimize-your-game-made-with-godot-22) | 原显式网址404，引用跳转给出了有效原文。按需特效、共享Resource、可选池化、移除无用重力/碰撞、低频邻域检查、图形质量设置。原文是3D/旧API；不复制每帧raycast或改变本项目碰撞规则 |
+
+全部可执行思路已收敛到[主计划实验清单](../../docs/plans/foundation-priorities.md#参考资料驱动的实验清单2026-11-11)。相近建议合并一次实验；已具备、版本不适配、许可不明或会改变规则的方案说明理由后取其可用原理，不以“都试”要求安装全部框架。
+
 | 一手资料 | 可核实做法 | 对Reol的启发与限制 |
 |---|---|---|
 | [Factorio FFF421](https://www.factorio.com/blog/post/fff-421)，2024 | 无事的机器人站休眠、事件唤醒；雷达覆盖在chunk登记并共享处理；电网多线程实验受内存吞吐限制 | 不变目标不反复搜索；重叠影响共享索引。雷达是覆盖计数，不能直接代替有强度、半径及次强接替的max场 |

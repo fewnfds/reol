@@ -107,7 +107,7 @@ func source_visible(id: String) -> bool:
 	if cell.x < 0 or adapter._home._fog != null and not adapter._home._fog.is_cell_visible(cell):
 		return false
 	var sim: VillageSimulation = adapter.world_sim.regions.home
-	return sim.actor_position(sim.synchronize_actors().player).distance_to(TileGrid.cell_to_world(cell)) <= float(sim.config.observation_radius) * TileGrid.TILE_SIZE
+	return sim.projected_actor_position("player").distance_to(TileGrid.cell_to_world(cell)) <= float(sim.config.observation_radius) * TileGrid.TILE_SIZE
 
 
 func perception(id: String) -> Dictionary:
