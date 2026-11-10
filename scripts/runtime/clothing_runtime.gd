@@ -201,7 +201,7 @@ func refresh() -> void:
 	preview.appearance = domain.appearance("player")
 	preview.queue_redraw()
 	var id: String = selected()
-	var busy: bool = not runtime().world_sim.native_action_allowed("player") or not runtime()._home.simulation.actors.player.active.is_empty() or not runtime().player_journey.is_empty() or not runtime()._home._player.motion.action.is_empty()
+	var busy: bool = not runtime().world_sim.native_action_allowed("player") or not runtime()._home.simulation.synchronize_actors().player.active.is_empty() or not runtime().player_journey.is_empty() or not runtime()._home._player.motion.action.is_empty()
 	for verb: String in buttons:
 		buttons[verb].disabled = id.is_empty() or busy or not domain._allowed("player", verb, id, "dorm" if verb == "place" else "")
 	var detail: String = "附近没有自己的可取衣物；可回住处寻找。"
@@ -216,7 +216,7 @@ func refresh() -> void:
 		var at: Vector2i = domain.cell(domain.home(actor), "actor:" + actor)
 		if at.distance_to(runtime()._home._player.cell) > float(runtime()._home.simulation.config.observation_radius) or runtime()._home._fog != null and not runtime()._home._fog.is_cell_visible(at):
 			continue
-		var person: Dictionary = runtime().world_sim.regions[domain.home(actor)].actors[actor]
+		var person: Dictionary = runtime().world_sim.regions[domain.home(actor)].synchronize_actors()[actor]
 		var label: String = str(runtime().settings.runtime.remote_names.get(actor, runtime()._home._content.get_pawn(StringName(person.definition_id)).display_name))
 		lines.append(label + "：" + domain.seen_clothing("player", actor))
 	observation.text = "眼前衣着\n" + ("\n".join(lines) if not lines.is_empty() else "周围无人可细看；看不到他人的行囊。")

@@ -62,8 +62,8 @@ func opening_objects() -> Dictionary:
 	var result: Dictionary = {}
 	for region: String in world._sorted_keys(world.regions):
 		var sim: VillageSimulation = world.regions[region]
-		for actor: String in world._sorted_keys(sim.actors):
-			var definition: PawnDef = world._content.get_pawn(StringName(sim.actor_state(actor).definition_id))
+		for actor: String in world._sorted_keys(sim.synchronize_actors()):
+			var definition: PawnDef = world._content.get_pawn(StringName(sim.synchronize_actor(actor).definition_id))
 			result["clothing:robe:" + actor] = _object(str(definitions.opening.robe), actor, region, "actor:" + actor, true, "#" + definition.color.to_html(false))
 	for index: int in definitions.opening.spares.size():
 		var row: Dictionary = definitions.opening.spares[index]
@@ -105,7 +105,7 @@ func valid_location(region: String, container: String) -> bool:
 
 func cell(region: String, container: String) -> Vector2i:
 	var sim: VillageSimulation = world.regions[region]
-	return SimRouteTravel.cell(sim.actor_state(container.trim_prefix("actor:")).cell if container.begins_with("actor:") else sim.places[container].cell)
+	return SimRouteTravel.cell(sim.synchronize_actor(container.trim_prefix("actor:")).cell if container.begins_with("actor:") else sim.places[container].cell)
 
 
 func held(actor: String, id: String) -> bool:
@@ -153,7 +153,7 @@ func begin(actor: String, verb: String, id: String, target: String = "", autonom
 		return reply(false, "先等当前世界事务结算完，再安排穿脱。")
 	var region: String = home(actor)
 	world.synchronize_region(region, actor)
-	var person: Dictionary = world.regions[region].actor_state(actor)
+	var person: Dictionary = world.regions[region].synchronize_actor(actor)
 	if not world.native_action_allowed(actor) or not person.active.is_empty() or not world.actor_controls(actor, "motion"):
 		return reply(false, "先完成或停止手头的事，才能整理自己的衣物。")
 	var object: Dictionary = objects[id]
@@ -197,7 +197,11 @@ func _connected(job: Dictionary) -> bool:
 	if not world.actor_controls(str(job.actor), "action") or not world.actor_controls(str(job.actor), "motion") or not objects.has(job.object):
 		return false
 	var object: Dictionary = objects[job.object]
-	return object.region == job.from_region and object.container == job.from_container and object.worn == job.from_worn and world.regions[job.region].actor_state(job.actor).position == job.position and cell(str(job.region), "actor:" + str(job.actor)) == SimRouteTravel.cell(job.at) and _allowed(str(job.actor), str(job.verb), str(job.object), str(job.target))
+	return object.region == job.from_region and object.container == job.from_container and object.worn == job.from_worn and world.regions[job.region].synchronize_actor(job.actor).position == job.position and cell(str(job.region), "actor:" + str(job.actor)) == SimRouteTravel.cell(job.at) and _allowed(str(job.actor), str(job.verb), str(job.object), str(job.target))
+
+
+func has_settlement_work(_at_ms: int) -> bool:
+	return not active.is_empty()
 
 
 func next_boundary_ms() -> int:
@@ -249,7 +253,7 @@ func _finish(job: Dictionary, outcome: String) -> void:
 	record["outcome"] = outcome
 	record["finished_ms"] = world.elapsed_ms
 	events.append(record)
-	var person: Dictionary = world.regions[job.region].actor_state(job.actor)
+	var person: Dictionary = world.regions[job.region].synchronize_actor(job.actor)
 	person.autonomous = bool(job.previous_autonomous)
 	person.retry_ms = world.elapsed_ms + int(world.regions[job.region].config.decision_interval) * 60000
 	person.goal = "已整理好衣物" if outcome == "completed" else "衣物仍保留原处"
@@ -375,7 +379,7 @@ func seen_clothing(observer: String, target: String) -> String:
 
 func status(actor: String) -> String:
 	if active.has(actor):
-		return "%s，还需%.1f秒。" % [str(world.regions[home(actor)].actor_state(actor).goal), float(int(active[actor].due_ms) - world.elapsed_ms) / 1000.0]
+		return "%s，还需%.1f秒。" % [str(world.regions[home(actor)].synchronize_actor(actor).goal), float(int(active[actor].due_ms) - world.elapsed_ms) / 1000.0]
 	return "湿透的常服贴在身上，行动更容易疲惫。" if energy_rate(actor) > 0 else "衣物的外观、用途与身份凭据分别成立。"
 
 

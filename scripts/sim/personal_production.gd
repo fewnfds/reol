@@ -99,9 +99,9 @@ func _job(actor: String, id: String, kind: String) -> Dictionary:
 func _accept(job: Dictionary, batch: Dictionary) -> void:
 	var sim: VillageSimulation = world.regions[batch.home]
 	next_job += 1
-	job.previous_autonomous = bool(sim.actor_state(job.actor).autonomous)
-	sim.actor_state(job.actor).autonomous = false
-	sim.actor_state(job.actor).goal = str(definitions.recipes[batch.recipe].label)
+	job.previous_autonomous = bool(sim.synchronize_actor(job.actor).autonomous)
+	sim.synchronize_actor(job.actor).autonomous = false
+	sim.synchronize_actor(job.actor).goal = str(definitions.recipes[batch.recipe].label)
 	active[job.actor] = job
 	world.invalidate_region(str(batch.home))
 
@@ -112,7 +112,7 @@ func _ready(actor: String) -> bool:
 	var home: String = world.artifacts.actor_home(actor)
 	if home.is_empty() or not world.synchronize_region(home):
 		return false
-	return world.regions[home].actor_state(actor).active.is_empty() and world.embodiment.capable(world.embodiment.carrier_for_source("village_actor", actor), "grasp")
+	return world.regions[home].synchronize_actor(actor).active.is_empty() and world.embodiment.capable(world.embodiment.carrier_for_source("village_actor", actor), "grasp")
 
 
 func owns_actor(actor: String) -> bool:
@@ -155,7 +155,7 @@ func work_cell(batch: Dictionary) -> Vector2i:
 
 func _route(job: Dictionary, batch: Dictionary) -> bool:
 	var sim: VillageSimulation = world.regions[batch.home]
-	var body: Dictionary = sim.actor_state(job.actor)
+	var body: Dictionary = sim.synchronize_actor(job.actor)
 	var from: Vector2i = SimRouteTravel.cell(body.cell)
 	var target: Vector2i = work_cell(batch)
 	var route: Array[Vector2i] = sim.find_path(from, target)
@@ -183,9 +183,13 @@ func _route(job: Dictionary, batch: Dictionary) -> bool:
 
 
 func at_workplace(job: Dictionary, batch: Dictionary) -> bool:
-	var body: Dictionary = world.regions[batch.home].actor_state(job.actor)
+	var body: Dictionary = world.regions[batch.home].synchronize_actor(job.actor)
 	var cell: Vector2i = work_cell(batch)
 	return SimRouteTravel.point(body).is_equal_approx(TileGrid.cell_to_world(cell)) and (str(batch.facility).is_empty() or world.facility_use.position_clear(str(job.actor), cell))
+
+
+func has_settlement_work(_at_ms: int) -> bool:
+	return not active.is_empty()
 
 
 func next_boundary_ms() -> int:
@@ -193,7 +197,7 @@ func next_boundary_ms() -> int:
 	for job: Dictionary in active.values():
 		if not world.actor_controls(str(job.actor), "action") or not world.actor_controls(str(job.actor), "motion"):
 			return world.elapsed_ms + 1
-		var body: Dictionary = world.regions[batches[job.batch].home].actors[job.actor]
+		var body: Dictionary = world.regions[batches[job.batch].home].synchronize_actors()[job.actor]
 		boundary = mini(boundary, SimRouteTravel.next_boundary(job, body, world.elapsed_ms, world.regions[batches[job.batch].home]._step_validator) if job.phase == "travel" else int(job.due_ms))
 	return boundary
 
@@ -204,7 +208,7 @@ func settle_at_ms(now: int) -> void:
 		var batch: Dictionary = batches[job.batch]
 		world.synchronize_region(str(batch.home))
 		var sim: VillageSimulation = world.regions[batch.home]
-		var body: Dictionary = sim.actor_state(actor)
+		var body: Dictionary = sim.synchronize_actor(actor)
 		if not world.actor_controls(actor, "motion") or not world.actor_controls(actor, "action") or not str(batch.facility).is_empty() and not _facility_accessible(batch, actor, str(job.kind)):
 			cancel(actor)
 			continue
@@ -331,9 +335,9 @@ func cancel(actor: String) -> bool:
 func _release(job: Dictionary, batch: Dictionary, line: String, status: String = "cancelled") -> void:
 	_release_reservations(job, batch)
 	var sim: VillageSimulation = world.regions[batch.home]
-	sim.actor_state(job.actor).autonomous = bool(job.previous_autonomous)
-	sim.actor_state(job.actor).goal = line
-	sim.actor_state(job.actor).retry_ms = mini(SimInventory.MAX_COUNT, world.elapsed_ms + int(sim.config.decision_interval) * 60000)
+	sim.synchronize_actor(job.actor).autonomous = bool(job.previous_autonomous)
+	sim.synchronize_actor(job.actor).goal = line
+	sim.synchronize_actor(job.actor).retry_ms = mini(SimInventory.MAX_COUNT, world.elapsed_ms + int(sim.config.decision_interval) * 60000)
 	active.erase(job.actor)
 	world.invalidate_region(str(batch.home))
 	SimActionContract.job_finished(world, "personal_production", job, str(job.actor), status, line)

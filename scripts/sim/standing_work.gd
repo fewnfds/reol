@@ -52,7 +52,7 @@ func ask(region: String, requester: String, responder: String, plan_id: String) 
 	var sim: VillageSimulation = world.regions[region]
 	if not sim.has_actor(requester) or not sim.has_actor(responder) or requester == responder or not _can_talk(sim, requester, responder):
 		return _reply(false, "unheard", "先走到同一聚落的对方面前，才能商量。")
-	var actor: Dictionary = sim.actor_state(responder)
+	var actor: Dictionary = sim.synchronize_actor(responder)
 	if not actor.autonomous:
 		return _reply(false, "unavailable", "对方的打算需要本人另作选择，不能替他自动答应。")
 	if _by_actor.has(responder):
@@ -231,7 +231,7 @@ func describe(viewer: String, id: String) -> Dictionary:
 	var other: String = str(note.responder) if viewer == note.requester else str(note.requester)
 	if not _can_talk(sim, viewer, other):
 		return _reply(false, "unconfirmed", "你记得约定还在期限内，尚未当面核对对方近况。", id)
-	var action: Dictionary = sim.actor_state(note.responder).active
+	var action: Dictionary = sim.synchronize_actor(note.responder).active
 	var activity: String = "暂未看见他进行这类劳动；之前做了多少还需核对。"
 	if not action.is_empty():
 		activity = "你看见他正在" + str(sim.config.actions[action.action].label) + ("，仍在路上。" if action.phase == "travel" else "。")

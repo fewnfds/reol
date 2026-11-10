@@ -27,7 +27,7 @@ static func validate(data: Dictionary, domain: RefCounted, practice: Array) -> b
 		var job: Variant = data.active[actor]
 		if not Shape.keys(job, JOB_KEYS) or job.actor != actor or not _common(job, domain) or int(job.due_ms) <= domain.world.elapsed_ms or not _add(job, jobs, markers, int(data.next_id)):
 			return false
-		var body: Dictionary = domain.world.regions[job.region].actors[actor]
+		var body: Dictionary = domain.world.regions[job.region].synchronize_actors()[actor]
 		if body.autonomous or not body.active.is_empty() or not domain.world.actor_controls(actor, "action") or not domain.world.actor_controls(actor, "motion"):
 			return false
 	if jobs.size() != int(data.next_id) - 1:

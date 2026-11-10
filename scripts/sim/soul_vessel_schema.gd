@@ -125,7 +125,7 @@ static func validate(data: Variant, domain: RefCounted, registry_override: SimEm
 		var terms: Dictionary = domain.definitions.verbs[job.verb]
 		if not count(job.due_ms, int(data.elapsed_ms) + 1) or int(job.due_ms) - int(job.started_ms) != int(terms.ms) or occupied.has(job.vessel):
 			return false
-		var person: Dictionary = domain.world.regions[job.region].actors[actor]
+		var person: Dictionary = domain.world.regions[job.region].synchronize_actors()[actor]
 		if not person.active.is_empty() or person.autonomous or not domain.world.actor_controls(actor, "action") or not domain.world.actor_controls(actor, "motion") or not domain.world.actor_controls(actor, "communication") or (domain.world.services != null and domain.world.services.owns_actor(actor)) or domain.world.artifacts.owns_actor(actor):
 			return false
 		var item: Dictionary = data.vessels[job.vessel]
@@ -136,7 +136,7 @@ static func validate(data: Variant, domain: RefCounted, registry_override: SimEm
 		if not str(job.verb) in ["take", "place", "give"] and not domain.world.embodiment.controls("subject:soul:" + str(job.soul), "vessel:" + str(job.vessel), "communication"):
 			return false
 		var source: RefCounted = domain.world.regions[item.region]
-		var cell: Vector2i = SimRouteTravel.cell(source.actors[str(item.container).trim_prefix("actor:")].cell if str(item.container).begins_with("actor:") else source.places[item.container].cell)
+		var cell: Vector2i = SimRouteTravel.cell(source.synchronize_actors()[str(item.container).trim_prefix("actor:")].cell if str(item.container).begins_with("actor:") else source.places[item.container].cell)
 		if SimRouteTravel.cell(person.cell).distance_to(cell) > float(domain.definitions.interaction_cells):
 			return false
 		if job.verb == "guide":

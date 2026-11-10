@@ -163,7 +163,7 @@ func _display_point(id: String) -> Vector2:
 	var point: Vector2 = TileGrid.cell_to_world(cell)
 	var item: Dictionary = domain.vessels[id]
 	if str(item.container).begins_with("actor:"):
-		var body: Dictionary = adapter.world_sim.regions[item.region].actors[str(item.container).trim_prefix("actor:")]
+		var body: Dictionary = adapter.world_sim.regions[item.region].synchronize_actors()[str(item.container).trim_prefix("actor:")]
 		point = Vector2(float(body.position[0]), float(body.position[1]))
 	return point + Vector2(-22, -25 - adapter._home._world.get_elevation(cell) * ReolWorld.ELEVATION_PX)
 

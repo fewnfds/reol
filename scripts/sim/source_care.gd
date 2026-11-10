@@ -80,13 +80,17 @@ func note_decision(actor: String, at_ms: int) -> void:
 	if wants_decision(actor, at_ms): _handed_off[actor] = at_ms
 
 
+func has_decision_work(_at_ms: int) -> bool:
+	return not _handed_off.is_empty()
+
+
 func consider() -> void:
 	for actor: String in world._sorted_keys(_handed_off):
 		if int(_handed_off[actor]) != int(world.elapsed_ms) or not world.autonomous_decision(actor) or not wants_decision(actor, int(world.elapsed_ms)): continue
 		var row: Dictionary = _arrangement_for(actor)
 		var sim: VillageSimulation = world.regions[row.region]
 		if sim.submit_action(actor, str(definitions.watch_action)):
-			row.visit_action = str(sim.actor_state(actor).active.id)
+			row.visit_action = str(sim.synchronize_actor(actor).active.id)
 			row.next_visit_ms = world.elapsed_ms + int(definitions.revisit_ms)
 			row.next_observation_ms = world.elapsed_ms + int(definitions.observation_ms) if _has_source(row) else -1
 			world.invalidate_region(str(row.region))
@@ -433,7 +437,7 @@ func _known_basis(actor: String, basis_id: String, row: Dictionary) -> Dictionar
 
 func _context(row: Dictionary, actor: String, basis: String, source_event: String, source_job: String) -> Dictionary:
 	var sim: VillageSimulation = world.regions[row.region]
-	var person: Dictionary = sim.actor_state(row.guard)
+	var person: Dictionary = sim.synchronize_actor(row.guard)
 	return {"energy": floorf(float(person.energy) / 20.0) / 5.0, "risk": 1.0 if source_event.is_empty() else 0.0, "reliability": float(sim.social.relation(str(row.guard), actor).reliability), "affinity": float(sim.social.relation(str(row.guard), actor).affinity), "terms": {"arrangement": row.id, "basis": basis, "source_event": source_event, "source_job": source_job}}
 
 
@@ -506,7 +510,7 @@ func _arrangement_for(guard: String) -> Dictionary:
 
 func _body(actor: String) -> Dictionary:
 	for sim: VillageSimulation in world.regions.values():
-		if sim.has_actor(actor): return sim.actor_state(actor)
+		if sim.has_actor(actor): return sim.synchronize_actor(actor)
 	return {}
 
 
@@ -543,7 +547,7 @@ func _watching(row: Dictionary) -> bool:
 
 func _need_boundary(row: Dictionary) -> int:
 	var sim: VillageSimulation = world.regions[row.region]
-	var person: Dictionary = sim.actor_state(row.guard)
+	var person: Dictionary = sim.synchronize_actor(row.guard)
 	var result: int = NEVER
 	for need: String in ["hunger", "energy"]:
 		var rate: int = roundi(float(sim.config.needs.hunger_per_minute) * VillageSimulation.NEED_SCALE) if need == "hunger" else roundi(float(sim.config.needs.energy_per_minute) * VillageSimulation.NEED_SCALE) + roundi(float(sim.config.needs.work_energy_per_minute) * VillageSimulation.NEED_SCALE)

@@ -311,7 +311,7 @@ func _settle_body(id: String, now: int, refresh_conditions: bool = true) -> bool
 
 func _occupied(cell: Vector2i) -> bool:
 	for sim: VillageSimulation in world.regions.values():
-		for body: Dictionary in sim.actors.values():
+		for body: Dictionary in sim.synchronize_actors().values():
 			if bool(body.alive) and SimRouteTravel.cell(body.cell) == cell:
 				return true
 	return world.large_bodies.blocked(cell) or SimMotionClearance.active_segment_reserves(world, cell)
@@ -452,7 +452,7 @@ func communicate(actor: String, id: String, request: String) -> Dictionary:
 	if not world.accepts_commands() or world.elapsed_ms != world.target_ms or not bodies.has(id) or str(bodies[id].subject).is_empty() or bodies[id].stage in ["dead", "removed"]:
 		return {"ok": false, "reason": "no_response"}
 	var row: Dictionary = bodies[id]
-	if not world.regions[row.region].has_actor(actor) or not world.actor_controls(actor, "communication") or SimRouteTravel.point(world.regions[row.region].actor_state(actor)).distance_to(TileGrid.cell_to_world(cell_of(id))) > 3.0 * TileGrid.TILE_SIZE:
+	if not world.regions[row.region].has_actor(actor) or not world.actor_controls(actor, "communication") or SimRouteTravel.point(world.regions[row.region].synchronize_actor(actor)).distance_to(TileGrid.cell_to_world(cell_of(id))) > 3.0 * TileGrid.TILE_SIZE:
 		return {"ok": false, "reason": "out_of_reach"}
 	row.contacts[actor] = {"at_ms": world.elapsed_ms, "consent": request == "ask_harvest"}
 	return {"ok": true, "reason": "accepted" if request == "ask_harvest" else "refused", "line": "枝叶微动：可取熟果，请勿伤根。" if request == "ask_harvest" else "枝叶收拢，未应允此事。"}

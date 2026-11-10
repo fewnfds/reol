@@ -105,17 +105,17 @@ func actor_home(actor: String) -> String:
 func vessel_cell(id: String) -> Vector2i:
 	var item: Dictionary = vessels[id]
 	var sim: RefCounted = world.regions[item.region]
-	return SimRouteTravel.cell(sim.actor_state(item.container.trim_prefix("actor:")).cell if str(item.container).begins_with("actor:") else sim.places[item.container].cell)
+	return SimRouteTravel.cell(sim.synchronize_actor(item.container.trim_prefix("actor:")).cell if str(item.container).begins_with("actor:") else sim.places[item.container].cell)
 
 
 func near(actor: String, id: String) -> bool:
 	var home: String = actor_home(actor)
-	return not home.is_empty() and vessels.has(id) and bool(world.regions[home].actor_state(actor).alive) and SimRouteTravel.cell(world.regions[home].actor_state(actor).cell).distance_to(vessel_cell(id)) <= float(definitions.interaction_cells)
+	return not home.is_empty() and vessels.has(id) and bool(world.regions[home].synchronize_actor(actor).alive) and SimRouteTravel.cell(world.regions[home].synchronize_actor(actor).cell).distance_to(vessel_cell(id)) <= float(definitions.interaction_cells)
 
 
 func can_see(actor: String, id: String) -> bool:
 	var home: String = actor_home(actor)
-	return not home.is_empty() and vessels.has(id) and bool(world.regions[home].actor_state(actor).alive) and SimRouteTravel.cell(world.regions[home].actor_state(actor).cell).distance_to(vessel_cell(id)) <= float(definitions.observation_cells)
+	return not home.is_empty() and vessels.has(id) and bool(world.regions[home].synchronize_actor(actor).alive) and SimRouteTravel.cell(world.regions[home].synchronize_actor(actor).cell).distance_to(vessel_cell(id)) <= float(definitions.observation_cells)
 
 
 func resident_of(vessel: String) -> String:
@@ -146,12 +146,12 @@ func _held(actor: String, id: String) -> bool:
 
 func _available(actor: String) -> bool:
 	var home: String = actor_home(actor)
-	return not home.is_empty() and world.actor_controls(actor, "action") and world.actor_controls(actor, "motion") and world.actor_controls(actor, "communication") and world.regions[home].actor_state(actor).active.is_empty() and not world.local_action_owns(actor) and not world.artifacts.owns_actor(actor) and (world.services == null or not world.services.owns_actor(actor))
+	return not home.is_empty() and world.actor_controls(actor, "action") and world.actor_controls(actor, "motion") and world.actor_controls(actor, "communication") and world.regions[home].synchronize_actor(actor).active.is_empty() and not world.local_action_owns(actor) and not world.artifacts.owns_actor(actor) and (world.services == null or not world.services.owns_actor(actor))
 
 
 func _at_goal(actor: String, soul: String) -> bool:
 	var mind: Dictionary = definitions.minds[residents[soul].definition]
-	return _held(actor, str(residents[soul].vessel)) and SimRouteTravel.cell(world.regions[actor_home(actor)].actor_state(actor).cell).distance_to(SimRouteTravel.cell(world.regions[mind.goal_region].places[mind.goal_place].cell)) <= float(definitions.interaction_cells)
+	return _held(actor, str(residents[soul].vessel)) and SimRouteTravel.cell(world.regions[actor_home(actor)].synchronize_actor(actor).cell).distance_to(SimRouteTravel.cell(world.regions[mind.goal_region].places[mind.goal_place].cell)) <= float(definitions.interaction_cells)
 
 
 func _lesson(soul: String, target: String) -> String:
@@ -223,7 +223,7 @@ func begin(actor: String, verb: String, vessel: String, target: String = "", rec
 	if verb == "promise" and pacts[soul].get(actor, {}).get("state") in ["pledged", "fulfilled"]:
 		return _reply(false, "他记得这次约定，无需反复许诺。")
 	var home: String = actor_home(actor)
-	var person: Dictionary = world.regions[home].actor_state(actor)
+	var person: Dictionary = world.regions[home].synchronize_actor(actor)
 	if int(person.qi) < int(terms.qi) or world.elapsed_ms > SimInventory.MAX_COUNT - int(terms.ms):
 		return _reply(false, "眼下没有足够灵气或时间完成这次接触。")
 	if verb == "give" and not _accept_custody(actor, recipient, vessel):
@@ -243,7 +243,7 @@ func begin(actor: String, verb: String, vessel: String, target: String = "", rec
 func _accept_custody(actor: String, recipient: String, vessel: String) -> bool:
 	var home: String = actor_home(recipient)
 	var sim: RefCounted = world.regions[home]
-	var person: Dictionary = sim.actor_state(recipient)
+	var person: Dictionary = sim.synchronize_actor(recipient)
 	var relation: Dictionary = sim.social.relation(recipient, actor)
 	var context: Dictionary = {"energy": floorf(float(person.energy) / 20.0) / 5.0, "busy": 0.0, "distance": 0.0, "duty": 0.0, "offer": 0.0,
 		"benevolence": float(sim.config.actor_profiles[recipient].get("benevolence", 0.5)), "affinity": relation.get("affinity", 0.0), "reliability": relation.get("reliability", 0.5), "terms": {"vessel": vessel}}
@@ -255,7 +255,7 @@ func _accept_custody(actor: String, recipient: String, vessel: String) -> bool:
 func _near_destination(actor: String, destination: String) -> bool:
 	var region: String = destination.get_slice(":", 0)
 	var place: String = destination.get_slice(":", 1)
-	return SimRouteTravel.cell(world.regions[actor_home(actor)].actor_state(actor).cell).distance_to(SimRouteTravel.cell(world.regions[region].places[place].cell)) <= float(definitions.interaction_cells)
+	return SimRouteTravel.cell(world.regions[actor_home(actor)].synchronize_actor(actor).cell).distance_to(SimRouteTravel.cell(world.regions[region].places[place].cell)) <= float(definitions.interaction_cells)
 
 
 func next_boundary_ms() -> int:
@@ -384,7 +384,7 @@ func _finish(job: Dictionary, kind: String, line: String) -> void:
 	record["kind"] = kind
 	record["line"] = line
 	events.append(record)
-	var person: Dictionary = world.regions[job.region].actor_state(job.actor)
+	var person: Dictionary = world.regions[job.region].synchronize_actor(job.actor)
 	person.autonomous = bool(job.previous_autonomous)
 	person.goal = "回味方才交流" if kind != "cancelled" else "接触已中断"
 	active.erase(job.actor)

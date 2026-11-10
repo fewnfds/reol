@@ -27,7 +27,7 @@ func ask(actor_id: String, courier_id: String, route_id: String, offer: int) -> 
 		if existing.actor == actor_id and existing.courier == courier_id and existing.route == route_id and int(existing.offer) == offer and existing.status == "accepted" and existing.execution == "pending":
 			return existing.duplicate(true)
 	world.synchronize_region(home)
-	var actor: Dictionary = world.regions[home].actor_state(actor_id)
+	var actor: Dictionary = world.regions[home].synchronize_actor(actor_id)
 	if not actor.alive:
 		return _refuse("unavailable", "你眼下无法与对方交谈。")
 	var position := Vector2(float(actor.cell[0]), float(actor.cell[1]))

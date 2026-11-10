@@ -90,7 +90,7 @@ func register_site(actor: String, origin: Vector2i, size: Vector2i = Vector2i.ZE
 		return reply(false, "须由获准同门在库房附近划定工地；工地数量已达上限。")
 	var sim: RefCounted = world.regions[definitions.site.region]
 	var source: Vector2i = SimRouteTravel.cell(sim.places[definitions.site.source].cell)
-	if source.distance_to(origin) > float(definitions.site.source_cells) or SimRouteTravel.point(sim.actor_state(actor)).distance_to(TileGrid.cell_to_world(origin)) > float(definitions.site.observe_cells) * TileGrid.TILE_SIZE:
+	if source.distance_to(origin) > float(definitions.site.source_cells) or SimRouteTravel.point(sim.synchronize_actor(actor)).distance_to(TileGrid.cell_to_world(origin)) > float(definitions.site.observe_cells) * TileGrid.TILE_SIZE:
 		return reply(false, "这片地离库房或你太远，不能在这里登记宗门工地。")
 	if size == Vector2i.ZERO:
 		size = Vector2i(int(definitions.site.width), int(definitions.site.height))
@@ -265,7 +265,7 @@ func _begin(actor: String, id: String, kind: String, during_commit: bool) -> Dic
 	var stand: Array = _work_cell(actor, id)
 	if stand.is_empty():
 		return reply(false, "工地旁没有可达的站脚处。")
-	var job: Dictionary = {"id": "construction_job:%d" % next_job, "actor": actor, "project": id, "kind": kind, "phase": "", "path": [], "segment_from": sim.actor_state(actor).position.duplicate(), "segment_started_ms": world.elapsed_ms, "due_ms": world.elapsed_ms + 1, "destination": [], "stand": stand, "started_ms": world.elapsed_ms, "work_started_ms": world.elapsed_ms, "previous_autonomous": bool(sim.actor_state(actor).autonomous), "reserved": false}
+	var job: Dictionary = {"id": "construction_job:%d" % next_job, "actor": actor, "project": id, "kind": kind, "phase": "", "path": [], "segment_from": sim.synchronize_actor(actor).position.duplicate(), "segment_started_ms": world.elapsed_ms, "due_ms": world.elapsed_ms + 1, "destination": [], "stand": stand, "started_ms": world.elapsed_ms, "work_started_ms": world.elapsed_ms, "previous_autonomous": bool(sim.synchronize_actor(actor).autonomous), "reserved": false}
 	var destination: Array = stand
 	var phase: String = "to_site"
 	if kind == "build" and not bool(project.delivered) or kind == "recover":
@@ -281,7 +281,7 @@ func _begin(actor: String, id: String, kind: String, during_commit: bool) -> Dic
 	next_job += 1
 	active[actor] = job
 	SimActionContract.occupy(world, str(definitions.site.region), actor)
-	sim.actor_state(actor).goal = "处理工地：" + str(rule.label)
+	sim.synchronize_actor(actor).goal = "处理工地：" + str(rule.label)
 	project.line = "有人接手，正在实际搬料或动工。"
 	world.invalidate_region(str(definitions.site.region))
 	return reply(true, "已接手工程；移动、搬料、动工均会经过世界时间。")
@@ -308,12 +308,16 @@ func _cancel(actor: String) -> bool:
 	return true
 
 
+func has_settlement_work(at_ms: int) -> bool:
+	return not active.is_empty() or at_ms >= next_check_ms
+
+
 func next_boundary_ms() -> int:
 	var boundary: int = next_check_ms
 	for job: Dictionary in active.values():
 		if not _can_continue(job):
 			return world.elapsed_ms + 1
-		var body: Dictionary = world.regions[definitions.site.region].actor_state(job.actor)
+		var body: Dictionary = world.regions[definitions.site.region].synchronize_actor(job.actor)
 		boundary = mini(boundary, SimRouteTravel.next_boundary(job, body, world.elapsed_ms, route_step) if str(job.phase).begins_with("to_") else int(job.due_ms))
 	return boundary
 
@@ -323,7 +327,7 @@ func settle_at_ms(now: int) -> void:
 		var job: Dictionary = active[actor]
 		world.synchronize_region(str(definitions.site.region))
 		var sim: RefCounted = world.regions[definitions.site.region]
-		var body: Dictionary = sim.actor_state(actor)
+		var body: Dictionary = sim.synchronize_actor(actor)
 		if not _can_continue(job):
 			cancel(actor)
 			continue
@@ -366,7 +370,7 @@ func duty_for(actor: String) -> String:
 	if not definitions.site.workers.has(actor) or not authorized(actor) or owns_actor(actor):
 		return ""
 	var sim: RefCounted = world.regions[definitions.site.region]
-	var body: Dictionary = sim.actor_state(actor)
+	var body: Dictionary = sim.synchronize_actor(actor)
 	if not bool(body.autonomous) or not body.active.is_empty() or not world.actor_controls(actor, "action") or float(body.hunger) <= maxf(float(definitions.minimum_fullness), float(sim.config.needs.eat_below)) or float(body.energy) <= maxf(float(definitions.minimum_energy), float(sim.config.needs.rest_below)):
 		return ""
 	for id: String in _pending:
@@ -491,7 +495,7 @@ func _complete(job: Dictionary) -> void:
 
 func _route(job: Dictionary, raw: Array, phase: String) -> bool:
 	var sim: RefCounted = world.regions[definitions.site.region]
-	var body: Dictionary = sim.actor_state(job.actor)
+	var body: Dictionary = sim.synchronize_actor(job.actor)
 	var target: Vector2i = SimRouteTravel.cell(raw)
 	var from: Vector2i = SimRouteTravel.cell(body.cell)
 	var path: Array[Vector2i] = sim.find_path(from, target)
@@ -519,12 +523,12 @@ func _release(job: Dictionary, line: String, status: String = "failed") -> void:
 	var sim: RefCounted = world.regions[definitions.site.region]
 	var project: Dictionary = projects[job.project]
 	if project.carrier == job.actor:
-		_set_material_cell(str(job.project), sim.actor_state(job.actor).cell)
+		_set_material_cell(str(job.project), sim.synchronize_actor(job.actor).cell)
 		project.carrier = ""
-		sim.actor_state(job.actor).goal = "在脚边留下木料"
+		sim.synchronize_actor(job.actor).goal = "在脚边留下木料"
 	project.line = line
-	sim.actor_state(job.actor).goal = line
-	sim.actor_state(job.actor).retry_ms = world.elapsed_ms + int(definitions.check_ms)
+	sim.synchronize_actor(job.actor).goal = line
+	sim.synchronize_actor(job.actor).retry_ms = world.elapsed_ms + int(definitions.check_ms)
 	active.erase(job.actor)
 	SimActionContract.release(world, str(definitions.site.region), job.actor, bool(job.previous_autonomous), job.id)
 	_schedule_check()
@@ -533,7 +537,7 @@ func _release(job: Dictionary, line: String, status: String = "failed") -> void:
 
 func _work_cell(actor: String, id: String) -> Array:
 	var sim: RefCounted = world.regions[definitions.site.region]
-	var from: Vector2i = SimRouteTravel.cell(sim.actor_state(actor).cell)
+	var from: Vector2i = SimRouteTravel.cell(sim.synchronize_actor(actor).cell)
 	var result: Array = []
 	var best: int = SimInventory.MAX_COUNT
 	var footprint: Array[Vector2i] = project_cells(id)
@@ -563,7 +567,7 @@ func _ready_actor(actor: String, require_idle: bool, during_commit: bool = false
 func can_observe(actor: String, cell: Vector2i) -> bool:
 	if not authorized(actor):
 		return false
-	var body: Dictionary = world.regions[definitions.site.region].actor_state(actor)
+	var body: Dictionary = world.regions[definitions.site.region].synchronize_actor(actor)
 	return SimRouteTravel.point(body).distance_to(TileGrid.cell_to_world(cell)) <= float(definitions.site.observe_cells) * TileGrid.TILE_SIZE
 
 
@@ -598,7 +602,7 @@ func occupied(cell: Vector2i, include_motion: bool = true) -> bool:
 		if str(project.carrier).is_empty() and SimRouteTravel.cell(project.material_cell) == cell and world.regions[definitions.site.region].inventory.quantity(id, str(definitions.types[project.type].item)) > 0:
 			return true
 	for sim: RefCounted in world.regions.values():
-		for body: Dictionary in sim.actors.values():
+		for body: Dictionary in sim.synchronize_actors().values():
 			if bool(body.alive) and SimRouteTravel.cell(body.cell) == cell:
 				return true
 	if world.avian_life != null:
@@ -942,7 +946,7 @@ func space_valid() -> bool:
 		if str(project.carrier).is_empty() and blocked(SimRouteTravel.cell(project.material_cell)) and world.regions[definitions.site.region].inventory.quantity(id, str(definitions.types[project.type].item)) > 0:
 			return false
 	for sim: RefCounted in world.regions.values():
-		for body: Dictionary in sim.actors.values():
+		for body: Dictionary in sim.synchronize_actors().values():
 			if blocked(SimRouteTravel.cell(body.cell)):
 				return false
 	for id: String in world.avian_life.birds:

@@ -143,11 +143,11 @@ func _visible_object() -> String:
 	if not adapter.world_sim.artifacts.objects.has(id) or not adapter.world_sim.artifacts.can_see("player", id):
 		return ""
 	var cell: Vector2i = adapter.world_sim.artifacts.object_cell(id)
-	var origin: Vector2 = SimRouteTravel.point(adapter.world_sim.regions.home.actors.player)
+	var origin: Vector2 = SimRouteTravel.point(adapter.world_sim.regions.home.synchronize_actors().player)
 	var point: Vector2 = TileGrid.cell_to_world(cell)
 	var item: Dictionary = adapter.world_sim.artifacts.objects[id]
-	if str(item.container).begins_with("actor:") and adapter.world_sim.regions[item.region].actors.has(str(item.container).trim_prefix("actor:")):
-		point = SimRouteTravel.point(adapter.world_sim.regions[item.region].actors[str(item.container).trim_prefix("actor:")])
+	if str(item.container).begins_with("actor:") and adapter.world_sim.regions[item.region].has_actor(str(item.container).trim_prefix("actor:")):
+		point = SimRouteTravel.point(adapter.world_sim.regions[item.region].synchronize_actors()[str(item.container).trim_prefix("actor:")])
 	if Space.level(adapter.world_sim, origin) != Space.level(adapter.world_sim, point) or not Space.clear_segment(adapter.world_sim, origin, point, Space.level(adapter.world_sim, origin)):
 		return ""
 	return id if adapter.home_runtime()._fog == null or adapter.home_runtime()._fog.is_cell_visible(cell) else ""

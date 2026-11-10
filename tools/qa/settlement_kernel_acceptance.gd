@@ -60,8 +60,8 @@ func _publication() -> Dictionary:
 		runtime.select_starting_avatar("subject:player")
 	runtime.settlement_work_budget = 2147483647
 	for region: VillageSimulation in runtime.world_sim.regions.values():
-		for actor: String in region.actors:
-			region.actors[actor].autonomous = false
+		for actor: String in region.synchronize_actors():
+			region.synchronize_actors()[actor].autonomous = false
 			region.cancel_action(actor, "publication_qa")
 	var domain: SimConstruction = runtime.world_sim.construction
 	var source: Vector2i = SimRouteTravel.cell(runtime.world_sim.regions.home.places[domain.definitions.site.source].cell)

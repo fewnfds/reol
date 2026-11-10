@@ -136,6 +136,10 @@ func duty_for(actor: String) -> String:
 	return best
 
 
+func has_settlement_work(at_ms: int) -> bool:
+	return not active.is_empty() or at_ms >= next_check_ms
+
+
 func next_boundary_ms() -> int:
 	var boundary: int = next_check_ms
 	for actor: String in active:
@@ -256,8 +260,8 @@ func _occupied_by_other(actor: String, bed: String) -> bool:
 
 func _cell_occupied(actor: String, cell: Vector2i) -> bool:
 	for sim: RefCounted in world.regions.values():
-		for other: String in sim.actors:
-			if other != actor and bool(sim.actor_state(other).alive) and SimRouteTravel.cell(sim.actor_state(other).cell) == cell:
+		for other: String in sim.synchronize_actors():
+			if other != actor and bool(sim.synchronize_actor(other).alive) and SimRouteTravel.cell(sim.synchronize_actor(other).cell) == cell:
 				return true
 	for id: String in world.avian_life.birds:
 		if int(world.avian_life.birds[id].altitude) == 0 and world.avian_life.body_cell(id) == cell:
@@ -275,7 +279,7 @@ func _route_step(from: Vector2i, step: Vector2i) -> bool:
 
 
 func _body(actor: String) -> Dictionary:
-	return world.regions[definitions.region].actor_state(actor)
+	return world.regions[definitions.region].synchronize_actor(actor)
 
 
 func _cell(bed: String) -> Vector2i:

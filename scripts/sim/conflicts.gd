@@ -85,7 +85,7 @@ func home(actor: String) -> String:
 
 func body(actor: String) -> Dictionary:
 	var region: String = home(actor)
-	return world.regions[region].actor_state(actor) if not region.is_empty() else {}
+	return world.regions[region].synchronize_actor(actor) if not region.is_empty() else {}
 
 
 func knows(actor: String, method: String) -> bool:
@@ -449,7 +449,7 @@ func _advance_projectiles(now: int, contacts: Array[Dictionary]) -> void:
 		var nearest: float = from.distance_to(to) + 1.0
 		for region: String in world.regions:
 			world.synchronize_region(region)
-			for candidate: String in world._sorted_keys(world.regions[region].actors):
+			for candidate: String in world._sorted_keys(world.regions[region].synchronize_actors()):
 				if candidate == str(shot.actor) or not bool(body(candidate).alive):
 					continue
 				var target_point: Vector2 = SimRouteTravel.point(body(candidate))
@@ -737,7 +737,7 @@ func _observe(kind: String, actor: String, target: String, details: Dictionary) 
 	var radius: float = float(world.regions[home(target)].config.observation_radius) * TileGrid.TILE_SIZE
 	var witnesses: Array[String] = []
 	for region: String in world._sorted_keys(world.regions):
-		for observer: String in world._sorted_keys(world.regions[region].actors):
+		for observer: String in world._sorted_keys(world.regions[region].synchronize_actors()):
 			if observer in [actor, target] or not bool(body(observer).alive):
 				continue
 			var point: Vector2 = SimRouteTravel.point(body(observer))

@@ -72,7 +72,7 @@ func _accept(actor: String, region: String, issuer: String, offer: String) -> Di
 		return reply(old.offer == offer and old.region == region, "你已有一笔尚未结清的现金差事；重复商量不会再次留钱。", str(old.id))
 	if contracts.size() >= int(definitions.max_contracts):
 		return reply(false, "现有差事记录已满，暂不再签新约。")
-	if not world.native_action_allowed(actor) or not sim.actor_state(actor).active.is_empty() or not world.standing_work.duty_for(actor, world.elapsed_ms).is_empty():
+	if not world.native_action_allowed(actor) or not sim.synchronize_actor(actor).active.is_empty() or not world.standing_work.duty_for(actor, world.elapsed_ms).is_empty():
 		return reply(false, "先处理手头事务或已有的照看安排，再承接现金差事。")
 	var terms: Dictionary = definitions.offers[offer]
 	var task: Dictionary = sim.config.actions[terms.action]
@@ -101,7 +101,7 @@ func _accept(actor: String, region: String, issuer: String, offer: String) -> Di
 	contracts[id] = note
 	_by_actor[actor] = id
 	note.agreement = sim.observe("labor_agreed", issuer, actor, {"participants": {"contract": id, "offer": offer, "coins": int(terms.coins), "basis": basis.duplicate(true), "until_ms": note.until_ms, "office": office}})
-	native_event("start", actor, sim.actor_state(actor).active)
+	native_event("start", actor, sim.synchronize_actor(actor).active)
 	world.invalidate_region(region)
 	return reply(true, "工钱已从公库实际留出。先取料送达，再当面请求验收；本趟不另记贡献。", id)
 
@@ -166,7 +166,7 @@ func abandon(actor: String, id: String) -> Dictionary:
 func _end(note: Dictionary, status: String, now: int) -> void:
 	var sim: VillageSimulation = world.regions[note.region]
 	world.synchronize_region(str(note.region))
-	var action: Dictionary = sim.actor_state(note.actor).active
+	var action: Dictionary = sim.synchronize_actor(note.actor).active
 	if not action.is_empty() and note.status == "working" and action.id == note.attempts.back().action:
 		sim.cancel_action(str(note.actor), status)
 	note.status = status
@@ -230,9 +230,9 @@ func settle_claim(job: Dictionary) -> Dictionary:
 	var note: Dictionary = contracts[id]
 	var sim: VillageSimulation = world.regions[note.region]
 	var office: Dictionary = sim.institutions.institutions[sim.config.institution.id].offices[job.options.office]
-	if not sim.actor_state(job.options.issuer).alive or office.holder != job.options.issuer or not office.permissions.has(definitions.permission):
+	if not sim.synchronize_actor(job.options.issuer).alive or office.holder != job.options.issuer or not office.permissions.has(definitions.permission):
 		return reply(false, "验收签发人已不能代表公库；工钱仍在专款中，可另找现任办理。", id)
-	if job.status != "active" or job.phase != "work" or world.elapsed_ms < int(job.due_ms) or SimRouteTravel.cell(sim.actor_state(job.actor).cell) != SimRouteTravel.cell(sim.places[definitions.cash_container].cell):
+	if job.status != "active" or job.phase != "work" or world.elapsed_ms < int(job.due_ms) or SimRouteTravel.cell(sim.synchronize_actor(job.actor).cell) != SimRouteTravel.cell(sim.places[definitions.cash_container].cell):
 		return reply(false, "尚未实际到功德堂办完验收。", id)
 	var candidate := SimInventory.new()
 	if not candidate.restore(sim.inventory.to_dict()) or not candidate.transfer(id + ":payment", id, "actor:" + str(job.actor), str(definitions.coin), int(definitions.offers[note.offer].coins)):
@@ -248,7 +248,7 @@ func settle_claim(job: Dictionary) -> Dictionary:
 
 
 func _near(sim: VillageSimulation, actor: String, issuer: String) -> bool:
-	return bool(sim.actor_state(actor).alive) and bool(sim.actor_state(issuer).alive) and world.actor_controls(actor, "communication") and world.actor_controls(issuer, "communication") and sim._distance(actor, issuer) <= float(world._content.interaction_requests.communication_cells)
+	return bool(sim.synchronize_actor(actor).alive) and bool(sim.synchronize_actor(issuer).alive) and world.actor_controls(actor, "communication") and world.actor_controls(issuer, "communication") and sim._distance(actor, issuer) <= float(world._content.interaction_requests.communication_cells)
 
 
 static func _delivered_ms(note: Dictionary) -> int:

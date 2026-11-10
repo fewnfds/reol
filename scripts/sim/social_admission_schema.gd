@@ -49,7 +49,7 @@ static func validate(data: Variant, domain: RefCounted) -> bool:
 		var job: Variant = data.active[actor]
 		if not Shape.keys(job, ["id", "actor", "receiver", "region", "method", "evidence", "started_ms", "due_ms", "previous_autonomous"]) or not _id(job.id, int(data.next_id), ids) or job.actor != actor or not _people(job, domain) or not job.evidence is String or not job.previous_autonomous is bool or not Shape.count(job.started_ms, 0, int(world.elapsed_ms)) or not Shape.count(job.due_ms, int(world.elapsed_ms) + 1) or job.due_ms - job.started_ms != domain.definitions.actions[job.method]:
 			return false
-		var body: Dictionary = world.regions[job.region].actors[actor]
+		var body: Dictionary = world.regions[job.region].synchronize_actors()[actor]
 		if body.autonomous or not body.active.is_empty() or not world.actor_controls(actor, "communication") or not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion") or world.artifacts.owns_actor(actor) or world.soul_vessels.owns_actor(actor) or world.sparring.owns_actor(actor) or world.services != null and world.services.owns_actor(actor):
 			return false
 		if job.method == "show_pass":

@@ -62,7 +62,7 @@ func home(actor: String) -> String:
 
 func body(actor: String) -> Dictionary:
 	var region: String = home(actor)
-	return world.regions[region].actor_state(actor) if not region.is_empty() else {}
+	return world.regions[region].synchronize_actor(actor) if not region.is_empty() else {}
 
 
 func spawn_opening(centers: Dictionary) -> bool:
@@ -179,6 +179,10 @@ func wants_decision(actor: String, at_ms: int) -> bool:
 
 func note_decision(actor: String, at_ms: int) -> void:
 	if wants_decision(actor, at_ms): _handed_off[actor] = at_ms
+
+
+func has_decision_work(_at_ms: int) -> bool:
+	return not _handed_off.is_empty()
 
 
 func consider() -> void:

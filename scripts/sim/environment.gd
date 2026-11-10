@@ -51,7 +51,7 @@ func region_for_actor(actor: String) -> String:
 	var home: String = world.clothing.home(actor)
 	if home.is_empty():
 		return ""
-	return SimClimateRules.region_at(definitions, SimRouteTravel.cell(world.regions[home].actor_state(actor).cell))
+	return SimClimateRules.region_at(definitions, SimRouteTravel.cell(world.regions[home].synchronize_actor(actor).cell))
 
 
 func _garments(actor: String) -> Array[Dictionary]:
@@ -163,7 +163,7 @@ func sample_for(actor: String, at_ms: int) -> Dictionary:
 		return sample
 	var home: String = world.clothing.home(actor)
 	var region: String = region_for_actor(actor)
-	sample.cell = world.regions[home].actor_state(actor).cell.duplicate()
+	sample.cell = world.regions[home].synchronize_actor(actor).cell.duplicate()
 	sample.region = region
 	sample.heat_tenths = _sample_heat_tenths(SimRouteTravel.cell(sample.cell), at_ms)
 	var temperature: int = _temperature(region, at_ms) + int(sample.heat_tenths)
@@ -178,7 +178,7 @@ func local_conditions(actor: String, at_ms: int = -1) -> Dictionary:
 		return {}
 	var now: int = world.elapsed_ms if at_ms < 0 else at_ms
 	var home: String = world.clothing.home(actor)
-	var cell: Vector2i = SimRouteTravel.cell(world.regions[home].actor_state(actor).cell)
+	var cell: Vector2i = SimRouteTravel.cell(world.regions[home].synchronize_actor(actor).cell)
 	var heat_tenths: int = 0
 	var heat_supported: bool = true
 	var heat_reason: String = ""
@@ -282,7 +282,7 @@ func settle_at_ms(now: int) -> void:
 	for home: String in world._sorted_keys(world.regions):
 		var sim: VillageSimulation = world.regions[home]
 		var affected: bool = false
-		for actor: String in world._sorted_keys(sim.actors):
+		for actor: String in world._sorted_keys(sim.synchronize_actors()):
 			if energy_rate(actor) > 0 or not _neutral_everywhere(now, insulation_for(actor)):
 				affected = true
 				break
@@ -298,7 +298,7 @@ func settle_at_ms(now: int) -> void:
 		return
 	for home: String in world._sorted_keys(world.regions):
 		var sim: VillageSimulation = world.regions[home]
-		for actor: String in world._sorted_keys(sim.actors):
+		for actor: String in world._sorted_keys(sim.synchronize_actors()):
 			samples[actor] = sample_for(actor, now)
 		if affected_regions.has(home):
 			world.invalidate_region(home)

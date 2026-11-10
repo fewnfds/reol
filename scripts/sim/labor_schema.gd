@@ -60,7 +60,7 @@ static func _contract(note: Variant, id: String, domain: RefCounted, attempts: D
 		return false
 	var sim: VillageSimulation = world.regions[note.region]
 	var offices: Dictionary = sim.institutions.institutions[sim.config.institution.id].offices
-	if not sim.actors.has(note.actor) or not sim.actors.has(note.issuer) or note.actor == note.issuer or not offices.has(note.office) or not offices[note.office].permissions.has(domain.definitions.permission) or not Shape.count(note.signed_ms, 0, world.elapsed_ms) or not Shape.count(note.until_ms, int(note.signed_ms), SimInventory.MAX_COUNT) or int(note.until_ms) - int(note.signed_ms) != int(domain.definitions.deadline_ms) or not note.attempts is Array or note.attempts.is_empty():
+	if not sim.has_actor(note.actor) or not sim.has_actor(note.issuer) or note.actor == note.issuer or not offices.has(note.office) or not offices[note.office].permissions.has(domain.definitions.permission) or not Shape.count(note.signed_ms, 0, world.elapsed_ms) or not Shape.count(note.until_ms, int(note.signed_ms), SimInventory.MAX_COUNT) or int(note.until_ms) - int(note.signed_ms) != int(domain.definitions.deadline_ms) or not note.attempts is Array or note.attempts.is_empty():
 		return false
 	var task: Dictionary = sim.config.actions[domain.definitions.offers[note.offer].action]
 	var coins: int = int(domain.definitions.offers[note.offer].coins)
@@ -81,7 +81,7 @@ static func _contract(note: Variant, id: String, domain: RefCounted, attempts: D
 		if attempts.has(key):
 			return false
 		attempts[key] = true
-		var active: Dictionary = sim.actors[note.actor].active
+		var active: Dictionary = sim.synchronize_actors()[note.actor].active
 		if attempt.ended_ms == -1:
 			if note.status != "working" or index != note.attempts.size() - 1 or attempt.succeeded or attempt.event != "" or active.get("id") != attempt.action or active.get("action") != task_id(domain, note) or active.get("started_ms") != attempt.started_ms:
 				return false
@@ -138,7 +138,7 @@ static func _contract(note: Variant, id: String, domain: RefCounted, attempts: D
 
 static func _basis(note: Dictionary, sim: VillageSimulation, task: Dictionary) -> bool:
 	var basis: Variant = note.basis
-	if not Shape.keys(basis, ["amount", "at", "basis", "source", "event"]) or not Shape.count(basis.amount, 0, int(task.stock_below) - 1) or not Shape.count(basis.at, 0, floori(float(note.signed_ms) / 60000.0)) or not sim.actors.has(basis.source):
+	if not Shape.keys(basis, ["amount", "at", "basis", "source", "event"]) or not Shape.count(basis.amount, 0, int(task.stock_below) - 1) or not Shape.count(basis.at, 0, floori(float(note.signed_ms) / 60000.0)) or not sim.has_actor(basis.source):
 		return false
 	if basis.basis == "observed":
 		return basis.source == note.issuer and basis.event == ""

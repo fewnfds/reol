@@ -74,7 +74,7 @@ func _write_phase() -> bool:
 		return _fail("ordinary human selection failed")
 	# Choosing an avatar resumes the clock; freeze it before any rendered frame.
 	_clock.set_paused(true)
-	_origin = SimRouteTravel.point(_runtime.world_sim.regions.home.actors.player)
+	_origin = SimRouteTravel.point(_runtime.world_sim.regions.home.synchronize_actors().player)
 	if not _runtime.travel_to("river"):
 		return _fail("ordinary cross-settlement journey was refused")
 	if not _check_committed(0, false) or not _advance(CHECKPOINT_MS):
@@ -205,7 +205,7 @@ func _check_committed(expected_ms: int, must_have_moved: bool) -> bool:
 	var body_error: String = _body_error(expected_ms)
 	if not body_error.is_empty():
 		return _fail(body_error)
-	if must_have_moved and SimRouteTravel.point(_runtime.world_sim.regions.home.actors.player).is_equal_approx(_origin):
+	if must_have_moved and SimRouteTravel.point(_runtime.world_sim.regions.home.synchronize_actors().player).is_equal_approx(_origin):
 		return _fail("the original body has not moved from the journey origin")
 	return true
 
@@ -216,7 +216,7 @@ func _body_error(at_ms: int) -> String:
 	var world: RegionalSimulation = _runtime.world_sim
 	var home: Node = _runtime.home_runtime()
 	var player: PlayerCharacter = home._player
-	var body: Dictionary = world.regions.home.actors.player
+	var body: Dictionary = world.regions.home.synchronize_actors().player
 	if not is_same(home.simulation, world.regions.home) or not is_same(player.motion._body, body):
 		return "the player motion is not bound to the world's original body"
 	var journey: Dictionary = _runtime.player_journey
@@ -234,7 +234,7 @@ func _body_error(at_ms: int) -> String:
 
 
 func _body_report() -> Dictionary:
-	var body: Dictionary = _runtime.world_sim.regions.home.actors.player
+	var body: Dictionary = _runtime.world_sim.regions.home.synchronize_actors().player
 	var journey: Dictionary = _runtime.player_journey
 	return {"position": body.position.duplicate(), "cell": body.cell.duplicate(),
 		"destination": journey.destination, "due_ms": journey.due_ms, "remaining_cells": journey.path.size()}

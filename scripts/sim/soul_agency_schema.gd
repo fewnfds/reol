@@ -21,7 +21,7 @@ static func validate(data: Variant, domain: RefCounted, source: Dictionary) -> b
 		return false
 	var allowed: Dictionary = {subject: true}
 	for sim: RefCounted in world.regions.values():
-		for actor: String in sim.actors:
+		for actor: String in sim.synchronize_actors():
 			allowed[world.embodiment.subject_for_actor(actor)] = true
 	for id: String in social._actors:
 		if not allowed.has(id):
@@ -60,7 +60,7 @@ static func validate(data: Variant, domain: RefCounted, source: Dictionary) -> b
 		var profile: Dictionary = domain.definitions.minds[source.residents[soul].definition]
 		if job.goal_region != profile.goal_region or job.goal_place != profile.goal_place or bool(job.picked) != (job.phase == "carry") or not _consent(social, job.request, subject, world.embodiment.subject_for_actor(actor), vessel, job.goal_region, job.goal_place):
 			return false
-		var body: Dictionary = world.regions[job.region].actors[actor]
+		var body: Dictionary = world.regions[job.region].synchronize_actors()[actor]
 		if body.autonomous or not body.active.is_empty() or source.active.has(actor) or not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion") or world.artifacts.owns_actor(actor) or world.services != null and world.services.owns_actor(actor):
 			return false
 		var item: Dictionary = source.vessels[vessel]

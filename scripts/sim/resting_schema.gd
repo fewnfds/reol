@@ -29,7 +29,7 @@ static func _job(actor: String, job: Variant, data: Dictionary, domain: RefCount
 	if not Shape.keys(job, ["id", "actor", "bed", "phase", "path", "segment_from", "segment_started_ms", "due_ms", "started_ms", "arrived_ms", "previous_autonomous"]) or job.actor != actor or not domain.member(actor) or not job.id is String or not _id(str(job.id), int(data.next_job)) or not job.bed is String or not domain.world.construction.is_bed(job.bed) or not job.phase in ["travel", "sleep", "leave"] or not job.path is Array or not job.previous_autonomous is bool or not SimLocalMotion._vector(job.segment_from):
 		return false
 	var world: RefCounted = domain.world
-	var body: Dictionary = world.regions[domain.definitions.region].actors[actor]
+	var body: Dictionary = world.regions[domain.definitions.region].synchronize_actors()[actor]
 	if not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion") or bool(body.autonomous) or not body.active.is_empty() or world.construction.owns_actor(actor) or world.admissions.owns_actor(actor) or world.soul_vessels.owns_actor(actor) or world.sparring.owns_actor(actor) or world.artifacts.owns_actor(actor) or world.services != null and world.services.owns_actor(actor):
 		return false
 	if data.allocations.has(job.bed) and data.allocations[job.bed] != actor or world.construction._project_busy(job.bed):

@@ -70,7 +70,7 @@ static func validate(data: Dictionary, domain: RefCounted) -> bool:
 		var terms: Dictionary = domain.job_terms(job, data.objects)
 		if terms.is_empty() or not _count(job.started_ms) or job.started_ms > world.elapsed_ms or not _count(job.due_ms, int(world.elapsed_ms) + 1) or int(job.due_ms) - int(job.started_ms) != _duration(terms) or not _count(job.qi_spent) or job.qi_spent != terms.qi or not job.previous_autonomous is bool:
 			return false
-		var person: Dictionary = world.regions[job.region].actors[actor]
+		var person: Dictionary = world.regions[job.region].synchronize_actors()[actor]
 		if not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion") or not person.active.is_empty() or bool(person.autonomous) or object_users.has(job.object) or (world.services != null and world.services.owns_actor(actor)):
 			return false
 		var item: Dictionary = data.objects[job.object]
@@ -88,7 +88,7 @@ static func validate(data: Dictionary, domain: RefCounted) -> bool:
 		actor_users[actor] = true
 		if job.has("method") and not str(job.method.guide).is_empty():
 			var guide_id: String = str(job.method.guide)
-			var guide: Dictionary = world.regions[job.region].actors[guide_id]
+			var guide: Dictionary = world.regions[job.region].synchronize_actors()[guide_id]
 			if actor_users.has(guide_id) or not guide.active.is_empty() or bool(guide.autonomous) or not bool(guide.alive) or (world.services != null and world.services.owns_actor(guide_id)):
 				return false
 			for channel: String in ["action", "motion", "communication"]:

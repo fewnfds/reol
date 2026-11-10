@@ -611,7 +611,7 @@ func autonomous_decision(actor: String) -> bool:
 	var sim: VillageSimulation = regions[region]
 	if not sim.actor_is_autonomous(actor) or sim.actor_has_action(actor):
 		return false
-	var person: Dictionary = sim.actor_state(actor)
+	var person: Dictionary = sim.synchronize_actor(actor)
 	return sim.elapsed_ms == elapsed_ms and bool(person.autonomous) and person.active.is_empty() and int(person.retry_ms) - int(sim.config.decision_interval) * MINUTE_MS == elapsed_ms and person.hunger > sim.config.needs.eat_below and person.energy > sim.config.needs.rest_below and native_action_allowed(actor)
 
 
@@ -696,7 +696,7 @@ func _prepare_control_change(source: Dictionary) -> bool:
 static func _actor_ids(instances: Dictionary) -> Array[String]:
 	var result: Array[String] = []
 	for simulation: VillageSimulation in instances.values():
-		for actor_id: String in simulation.actors:
+		for actor_id: String in simulation.actor_ids():
 			result.append(actor_id)
 	result.sort()
 	return result
@@ -825,18 +825,18 @@ func synchronize_region(region_id: String, actor_id: String = "") -> bool:
 	# invalidate_region, including when the region is already current.
 	if simulation.elapsed_ms == elapsed_ms:
 		if actor_id.is_empty():
-			simulation.materialize_actors()
+			simulation.synchronize_actors()
 		else:
-			simulation.actor_state(actor_id)
+			simulation.synchronize_actor(actor_id)
 		return true
 	if not simulation.advance_to_ms(elapsed_ms):
 		return false
 	_region_boundaries[region_id] = simulation.next_boundary_ms()
 	_dirty_region_boundaries.erase(region_id)
 	if actor_id.is_empty():
-		simulation.materialize_actors()
+		simulation.synchronize_actors()
 	else:
-		simulation.actor_state(actor_id)
+		simulation.synchronize_actor(actor_id)
 	return true
 
 
@@ -1342,7 +1342,7 @@ func _deliver(courier_id: String) -> void:
 	shipment.delivered_at = current_time
 	courier.phase = "returning"
 	courier.progress = 0
-	for actor: Dictionary in destination.actors.values():
+	for actor: Dictionary in destination.synchronize_actors().values():
 		if actor.active.is_empty():
 			actor.retry_ms = mini(int(actor.retry_ms), elapsed_ms)
 	simulation_work.deliveries = int(simulation_work.deliveries) + 1
@@ -1429,11 +1429,11 @@ func _valid_settings(definitions: Dictionary, instances: Dictionary) -> bool:
 		if owners.has(simulation.get_instance_id()):
 			return false
 		owners[simulation.get_instance_id()] = true
-		for actor_id: String in simulation.actors:
+		for actor_id: String in simulation.synchronize_actors():
 			if actor_ids.has(actor_id):
 				return false
 			actor_ids[actor_id] = true
-		if simulation.actors.is_empty() or (time >= 0 and time != simulation.elapsed_ms):
+		if simulation.synchronize_actors().is_empty() or (time >= 0 and time != simulation.elapsed_ms):
 			return false
 		time = simulation.elapsed_ms
 		if not definitions.regions[region_id].get("label") is String:

@@ -19,14 +19,15 @@ func initialize(authority: RegionalSimulation) -> bool:
 	var previous: StringName = &""
 	for domain: StringName in [&"environment_fields", &"health", &"weather", &"clothing", &"standing_work", &"budgeted_labor"]:
 		var id := StringName("previous:" + String(domain))
-		var callback: Callable = _environment_fields if domain == &"environment_fields" else _timed.bind(domain, &"settle_at_ms")
-		var mode: int = Kernel.CallMode.BUDGETED if domain == &"environment_fields" else Kernel.CallMode.CHECKED
-		if not kernel.add_step(id, &"previous_interval", callback, mode, [] if previous == &"" else [previous]):
+		var target: RefCounted = authority.get(domain)
+		var callback: Callable = _environment_fields if domain == &"environment_fields" else Callable(target, &"settle_at_ms")
+		var mode: int = Kernel.CallMode.BUDGETED if domain == &"environment_fields" else Kernel.CallMode.TIMED
+		if not kernel.add_step(id, &"previous_interval", callback, mode, [] if previous == &"" else [previous], [], _condition(target, &"has_settlement_work")):
 			return false
 		previous = id
 	if not kernel.add_step(&"previous:plants", &"previous_interval", authority.plants.settle_budgeted, Kernel.CallMode.BUDGETED, [previous]):
 		return false
-	if not kernel.add_step(&"plant_actions", &"current_processes", authority.plants.jobs.settle_at_ms):
+	if not kernel.add_step(&"plant_actions", &"current_processes", authority.plants.jobs.settle_at_ms, Kernel.CallMode.TIMED, [], [], authority.plants.jobs.has_settlement_work):
 		return false
 	if not kernel.add_step(&"arrivals", &"arrivals", _arrivals):
 		return false
@@ -36,10 +37,17 @@ func initialize(authority: RegionalSimulation) -> bool:
 	for domain: StringName in [&"object_lifecycle", &"services", &"artifacts", &"spirit_sources", &"capability_practice", &"method_records", &"sparring", &"conflicts", &"consider_reading", &"consider_methods", &"avian_life", &"soul_vessels", &"admissions", &"construction", &"facility_use", &"personal_production", &"resting", &"large_bodies", &"environment", &"source_care", &"private_exchange", &"field_opportunities"]:
 		var mode: int = Kernel.CallMode.YIELDING if domain == &"object_lifecycle" else Kernel.CallMode.CHECKED
 		var callback: Callable = _current.bind(domain)
+		var target: RefCounted = authority.get(domain) if domain not in [&"consider_reading", &"consider_methods"] else null
+		if target != null and domain != &"object_lifecycle":
+			callback = Callable(target, &"settle_at_ms")
+			mode = Kernel.CallMode.TIMED
 		if domain == &"facility_use":
 			mode = Kernel.CallMode.BUDGETED
 			callback = _facilities
-		if not kernel.add_step(domain, &"current_processes", callback, mode, [] if previous == &"" else [previous]):
+		# Lifecycle also releases the prepared environment context, even if an
+		# earlier process cancelled its last due action at this same boundary.
+		var condition: Callable = Callable() if domain == &"object_lifecycle" else _condition(target, &"has_settlement_work")
+		if not kernel.add_step(domain, &"current_processes", callback, mode, [] if previous == &"" else [previous], [], condition):
 			return false
 		previous = domain
 	if not kernel.add_step(&"herb_conditions", &"sampling", authority._sample_herb_conditions, Kernel.CallMode.CHECKED_UNTIMED):
@@ -47,7 +55,7 @@ func initialize(authority: RegionalSimulation) -> bool:
 	previous = &""
 	for id: StringName in [&"health", &"clothing", &"artifacts", &"spirit_sources", &"autonomous_livelihood", &"source_care", &"field_opportunities"]:
 		var step := StringName("consider:" + String(id))
-		if not kernel.add_step(step, &"decisions", _consider.bind(id), Kernel.CallMode.UNTIMED, [] if previous == &"" else [previous]):
+		if not kernel.add_step(step, &"decisions", _consider.bind(id), Kernel.CallMode.UNTIMED, [] if previous == &"" else [previous], [], _condition(authority.get(id), &"has_decision_work")):
 			return false
 		previous = step
 	if not kernel.add_step(&"messages", &"messages", authority._process_messages, Kernel.CallMode.UNTIMED) or not kernel.add_step(&"routes", &"transport", _routes):
@@ -58,6 +66,10 @@ func initialize(authority: RegionalSimulation) -> bool:
 		if not kernel.add_boundary(domain, _boundary.bind(domain), RegionalSimulation.RUNTIME_BOUNDARY_DOMAINS.has(domain)):
 			return false
 	return kernel.compile()
+
+
+func _condition(target: RefCounted, method: StringName) -> Callable:
+	return Callable(target, method) if target != null and target.has_method(method) else Callable()
 
 
 func _environment_fields(at_ms: int, budget: int) -> Vector2i:
@@ -110,7 +122,7 @@ func _arrivals(_at_ms: int) -> void:
 
 func _prepare_environment_event(at_ms: int) -> bool:
 	var guard: RefCounted = world._environment_guard.get_ref() if world._environment_guard != null else null
-	if guard != null and world.object_lifecycle.next_boundary_ms() <= at_ms:
+	if guard != null and world.object_lifecycle.has_settlement_work(at_ms):
 		if not world.synchronize_regions():
 			return false
 		world._environment_event = RegionalSimulation.EnvironmentEventContext.new(world, guard, at_ms, true)

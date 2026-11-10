@@ -140,8 +140,8 @@ func receivers() -> Array[Dictionary]:
 	var from: Vector2i = adapter.controlled_cell()
 	for region: String in SimAvianLife.sorted_keys(world.regions):
 		var sim: VillageSimulation = world.regions[region]
-		for actor: String in SimAvianLife.sorted_keys(sim.actors):
-			var person: Dictionary = sim.actors[actor]
+		for actor: String in SimAvianLife.sorted_keys(sim.synchronize_actors()):
+			var person: Dictionary = sim.synchronize_actors()[actor]
 			var cell: Vector2i = SimRouteTravel.cell(person.cell)
 			if actor != "player" and bool(person.alive) and from.distance_to(cell) <= float(adapter._home.simulation.config.observation_radius) and _seen(cell):
 				choices.append({"key": world.embodiment.subject_for_actor(actor), "label": str(adapter.settings.runtime.remote_names.get(actor, sim._name(actor)))})

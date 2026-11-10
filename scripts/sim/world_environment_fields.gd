@@ -440,7 +440,7 @@ func mark_sample(now: int) -> bool:
 		return false
 	var cells: Dictionary[Vector2i, bool] = {}
 	for region: VillageSimulation in world.regions.values():
-		for person: Dictionary in region.actors.values():
+		for person: Dictionary in region.synchronize_actors().values():
 			cells[SimRouteTravel.cell(person.cell)] = true
 		for id: String in region.land_resources.sources:
 			var place_id: String = str(region.config.resource_sources[id].place)

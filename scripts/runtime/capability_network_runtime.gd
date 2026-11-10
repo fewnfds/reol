@@ -182,7 +182,7 @@ func refresh() -> void:
 func _source_line(source: Dictionary) -> String:
 	var actor: String = str(source.get("source", ""))
 	for simulation: VillageSimulation in runtime().world_sim.regions.values():
-		if simulation.actors.has(actor):
+		if simulation.has_actor(actor):
 			actor = simulation._name(actor)
 			break
 	var label: String = {"background": "既有经历", "lesson": "当面示范", "artifact_event": "亲自实践", "opening_experience": "既有器物经验", "method_draft": "本人草案", "record_read": "实际阅读", "practice": "完成练习"}.get(str(source.get("kind", "")), "本人经历")

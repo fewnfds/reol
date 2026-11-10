@@ -15,6 +15,8 @@ class Step extends RefCounted:
 	var mode: int
 	var after: Array
 	var before: Array
+	var condition: Callable
+	var conditional: bool = false
 
 var error: String = ""
 var last_work: int = 0
@@ -31,13 +33,17 @@ var _executing: bool = false
 var _cursor: int = 0
 var _failed: bool = false
 var _work_yield: Callable
+var _step_started: bool = false
+## Diagnostics only; skipped steps never invoke a business owner.
+var executed_steps: int = 0
+var skipped_steps: int = 0
 
 
 func _init(phases: Array[StringName] = []) -> void:
 	_phases = phases.duplicate()
 
 
-func add_step(id: StringName, phase: StringName, callback: Callable, mode: int = CallMode.TIMED, after: Array = [], before: Array = []) -> bool:
+func add_step(id: StringName, phase: StringName, callback: Callable, mode: int = CallMode.TIMED, after: Array = [], before: Array = [], condition: Callable = Callable()) -> bool:
 	if _frozen or _steps.size() >= MAX_STEPS or String(id).is_empty() or _steps.has(id) or not _phases.has(phase) or not callback.is_valid() or mode < CallMode.TIMED or mode > CallMode.BUDGETED:
 		return false
 	var step := Step.new()
@@ -47,6 +53,10 @@ func add_step(id: StringName, phase: StringName, callback: Callable, mode: int =
 	step.mode = mode
 	step.after = after.duplicate()
 	step.before = before.duplicate()
+	if not condition.is_null() and not condition.is_valid():
+		return false
+	step.condition = condition
+	step.conditional = not condition.is_null()
 	_steps[id] = step
 	return true
 
@@ -124,6 +134,7 @@ func begin(previous_ms: int, next_ms: int) -> bool:
 	from_ms = previous_ms
 	at_ms = next_ms
 	_cursor = 0
+	_step_started = false
 	_pending = true
 	_failed = false
 	error = ""
@@ -147,6 +158,18 @@ func resume(work_budget: int, should_yield: Callable = Callable()) -> int:
 		var step: Step = _plan[_cursor]
 		if not step.callback.is_valid():
 			return _failure("owner_unavailable:" + String(step.id))
+		if step.conditional and not _step_started:
+			if not step.condition.is_valid():
+				return _failure("condition_unavailable:" + String(step.id))
+			var eligible: Variant = step.condition.call(at_ms)
+			if not eligible is bool:
+				return _failure("invalid_step_condition:" + String(step.id))
+			if not eligible:
+				_cursor += 1
+				skipped_steps += 1
+				continue
+		_step_started = true
+		executed_steps += 1
 		var result: Variant
 		match step.mode:
 			CallMode.UNTIMED, CallMode.CHECKED_UNTIMED:
@@ -175,6 +198,7 @@ func resume(work_budget: int, should_yield: Callable = Callable()) -> int:
 					return _failure("step_failed:" + String(step.id))
 				_executing = false
 				return Status.PENDING
+		_step_started = false
 		_cursor += 1
 	_executing = false
 	_pending = _cursor < _plan.size()

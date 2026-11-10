@@ -22,9 +22,9 @@ func run(scene: Node, mode: String) -> Dictionary:
 		runtime.select_starting_avatar("subject:player")
 	clock.set_paused(true)
 	for sim: VillageSimulation in runtime.world_sim.regions.values():
-		for actor: String in sim.actors:
+		for actor: String in sim.synchronize_actors():
 			sim.cancel_action(actor, "acceptance_setup")
-			sim.actors[actor].autonomous = false
+			sim.synchronize_actors()[actor].autonomous = false
 	var source: Vector2i = SimRouteTravel.cell(runtime.world_sim.regions.home.places.store.cell)
 	runtime._home._player.spawn_at(source)
 	runtime.prepare_player_command()

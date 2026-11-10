@@ -49,7 +49,7 @@ static func readiness(domain: RefCounted, actor: String, tool: String, target: S
 		return "目标须在同高、无遮挡的短距内。"
 	if not draw.is_empty():
 		var cell: Vector2i = domain._location_cell(str(item.region), str(item.container))
-		var point: Vector2 = SimRouteTravel.point(domain.world.regions[home].actor_state(actor))
+		var point: Vector2 = SimRouteTravel.point(domain.world.regions[home].synchronize_actor(actor))
 		if draw.get("target") != target or draw.get("from_region") != item.region or draw.get("from_container") != item.container or not draw.get("from_cell") is Array or draw.from_cell.size() != 2 or SimRouteTravel.cell(draw.from_cell) != cell or not draw.get("caster_position") is Array or draw.caster_position.size() != 2:
 			return "目标原位置已变化，引物未能接续。"
 		if point != Vector2(float(draw.caster_position[0]), float(draw.caster_position[1])):
@@ -62,7 +62,7 @@ static func _body_readiness(domain: RefCounted, actor: String, owned: bool) -> S
 	var home: String = domain.actor_home(actor)
 	if home.is_empty():
 		return "找不到本人身体。"
-	var person: Dictionary = world.regions[home].actor_state(actor)
+	var person: Dictionary = world.regions[home].synchronize_actor(actor)
 	if not bool(person.alive) or not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion") or not person.active.is_empty():
 		return "须由本人支配活身体，并先完成手头的事情。"
 	if world.body_action_owns(actor, &"artifacts") or not owned and domain.owns_actor(actor):

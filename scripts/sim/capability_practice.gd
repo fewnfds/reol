@@ -57,7 +57,7 @@ func home(actor: String) -> String:
 
 func body(actor: String) -> Dictionary:
 	var region: String = home(actor)
-	return world.regions[region].actor_state(actor) if not region.is_empty() else {}
+	return world.regions[region].synchronize_actor(actor) if not region.is_empty() else {}
 
 
 func owns_actor(actor: String) -> bool:
@@ -153,6 +153,10 @@ func cancel(actor: String, reason: String = "cancelled") -> bool:
 	var cause: String = "struck" if reason == "struck_by_conflict" else reason
 	_finish(active[actor], "cancelled", cause if cause in Schema.REASONS and cause != "completed" else "cancelled", int(world.elapsed_ms))
 	return true
+
+
+func has_settlement_work(_at_ms: int) -> bool:
+	return not active.is_empty()
 
 
 func next_boundary_ms() -> int:

@@ -149,11 +149,11 @@ static func at_desk(sim: RefCounted, actor: String) -> bool:
 		return false
 	var layout: Dictionary = sim.places.records.workspace
 	var point: Vector2 = TileGrid.cell_to_world(SimRouteTravel.cell(layout.clerk_cell))
-	return sim.actor_position(sim.actor_state(actor)).distance_to(point) <= float(sim._content.workplaces.desk_reach_px)
+	return sim.actor_position(sim.synchronize_actor(actor)).distance_to(point) <= float(sim._content.workplaces.desk_reach_px)
 
 
 static func assessment(sim: RefCounted, issuer: String, permission: String, own_service_job: Dictionary = {}) -> Dictionary:
-	if not sim.has_actor(issuer) or not bool(sim.actor_state(issuer).alive) or not sim.institutions.has_permission(str(sim.config.institution.id), issuer, permission):
+	if not sim.has_actor(issuer) or not bool(sim.synchronize_actor(issuer).alive) or not sim.institutions.has_permission(str(sim.config.institution.id), issuer, permission):
 		return _reply(false, "no_authority", "桌案不能代替任职；此人无权代表当地办理。")
 	if not sim.config.has("workplaces_version"):
 		return _reply(true, "legacy_counter", "沿用原有柜台办理。") if own_service_job.is_empty() else _reply(false, "records_unavailable", "现场核验须回到实际桌案与登记载体前办理。")

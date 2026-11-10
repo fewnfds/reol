@@ -514,7 +514,7 @@ func visible_to(actor: String, id: String) -> bool:
 	if home.is_empty():
 		return false
 	var sim: RefCounted = world.regions[home]
-	return bool(sim.actor_state(actor).alive) and SimRouteTravel.cell(sim.actor_state(actor).cell).distance_to(body_cell(id)) <= float(sim.config.observation_radius)
+	return bool(sim.synchronize_actor(actor).alive) and SimRouteTravel.cell(sim.synchronize_actor(actor).cell).distance_to(body_cell(id)) <= float(sim.config.observation_radius)
 
 
 func actor_region(actor: String) -> String:
@@ -529,7 +529,7 @@ func describe(actor: String, id: String) -> Dictionary:
 		return {"known": false}
 	var body: Dictionary = birds[id]
 	var sim: RefCounted = world.regions[actor_region(actor)]
-	var near: bool = SimRouteTravel.cell(sim.actor_state(actor).cell).distance_to(body_cell(id)) <= float(rules().interaction_cells)
+	var near: bool = SimRouteTravel.cell(sim.synchronize_actor(actor).cell).distance_to(body_cell(id)) <= float(rules().interaction_cells)
 	var visible_action: String = {"fly": "正在振翅飞行", "forage": "正在低头啄食", "rest": "正在树巢歇翅", "pickup": "正从石隙衔取药枝", "drop": "正在落架放下药枝"}.get(str(body.active.get("verb", "")), "正停在近处听风")
 	var line: String = ("一只已有灵性的麻雀，" if bool(body.get("understands_gestures", true)) else "一只普通山雀，") + visible_action + "。"
 	if inventory.quantity("bird:" + id, "herb") > 0:
@@ -543,7 +543,7 @@ func offer_grain(actor: String, id: String) -> Dictionary:
 	var home: String = actor_region(actor)
 	world.synchronize_region(home)
 	var village: RefCounted = world.regions[home]
-	if not world.actor_controls(actor, "action") or not village.actor_state(actor).active.is_empty() or world.local_action_owns(actor) or world.artifacts.owns_actor(actor) or (world.services != null and world.services.owns_actor(actor)):
+	if not world.actor_controls(actor, "action") or not village.synchronize_actor(actor).active.is_empty() or world.local_action_owns(actor) or world.artifacts.owns_actor(actor) or (world.services != null and world.services.owns_actor(actor)):
 		return response(false, "双手还在忙，先结束手头的事情再投食。")
 	var source: String = "actor:" + actor
 	var food: String = ""
@@ -556,7 +556,7 @@ func offer_grain(actor: String, id: String) -> Dictionary:
 	var site_id: String = _nearest_site(id, "seeds", false)
 	if site_id.is_empty():
 		return response(false, "附近没有安全的投食处。")
-	if SimRouteTravel.cell(village.actor_state(actor).cell).distance_to(SimRouteTravel.cell(sites[site_id].cell)) > float(rules().interaction_cells):
+	if SimRouteTravel.cell(village.synchronize_actor(actor).cell).distance_to(SimRouteTravel.cell(sites[site_id].cell)) > float(rules().interaction_cells):
 		return response(false, "先靠近结籽草丛，再在近处撒粮。")
 	var maximum: int = SimInventory.MAX_COUNT
 	if int(definitions.gift.seed) > maximum - inventory.quantity(site_id, "seed"):

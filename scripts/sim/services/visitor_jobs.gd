@@ -18,7 +18,7 @@ func begin(actor_id: String, region_id: String, kind: String, options: Dictionar
 		return service.response(false, "unknown_actor", "没有可办理这件事的人或地点。")
 	world.synchronize_region(home)
 	world.synchronize_region(region_id)
-	var actor: Dictionary = world.regions[home].actor_state(actor_id)
+	var actor: Dictionary = world.regions[home].synchronize_actor(actor_id)
 	if not world.actor_controls(actor_id, "action") or not world.actor_controls(actor_id, "motion"):
 		return service.response(false, "control_missing", "眼下无法支配身体去办这件事。")
 	if not actor.alive or not actor.active.is_empty() or service.owns_actor(actor_id) or world.artifacts.owns_actor(actor_id) or world.local_action_owns(actor_id):
@@ -151,7 +151,7 @@ func cancel(actor_id: String, reason: String) -> bool:
 
 func settle(job: Dictionary) -> void:
 	var world: RefCounted = service.world
-	var actor: Dictionary = world.regions[job.home].actor_state(job.actor)
+	var actor: Dictionary = world.regions[job.home].synchronize_actor(job.actor)
 	if job.phase == "travel":
 		if not job.path.is_empty():
 			if job.kind == "haul_grain" and job.stage == "delivery" and bool(world.routes[job.route].blocked):
@@ -179,7 +179,7 @@ func settle(job: Dictionary) -> void:
 func _arrive(job: Dictionary) -> void:
 	var world: RefCounted = service.world
 	var home: RefCounted = world.regions[job.home]
-	var actor: Dictionary = home.actors[job.actor]
+	var actor: Dictionary = home.synchronize_actors()[job.actor]
 	var local: RefCounted = world.regions[job.region]
 	world.synchronize_region(job.region)
 	if job.kind == "eat":
@@ -213,14 +213,14 @@ func _arrive(job: Dictionary) -> void:
 	job.phase = "work"
 	var minutes: int = int(service.definitions.hauling.unload_minutes) if job.kind == "haul_grain" and job.stage == "delivery" else int(job.spec.minutes)
 	job.segment_started_ms = world.elapsed_ms
-	job.segment_from = actor.position.duplicate() if home.actors.has(job.actor) else []
+	job.segment_from = actor.position.duplicate() if home.has_actor(job.actor) else []
 	job.due_ms = world.elapsed_ms + minutes * 60000
 
 
 func _finish_work(job: Dictionary) -> void:
 	var world: RefCounted = service.world
 	var home: RefCounted = world.regions[job.home]
-	var actor: Dictionary = home.actors[job.actor]
+	var actor: Dictionary = home.synchronize_actors()[job.actor]
 	var bag: String = "actor:" + str(job.actor)
 	world.synchronize_region(job.region)
 	match str(job.kind):
@@ -311,7 +311,7 @@ func _continue_site_register(job: Dictionary, line: String) -> void:
 		finish(job, false, "现场已核验，登记条款暂不可用；现场证据仍保留。")
 		return
 	var home: RefCounted = world.regions[job.home]
-	var actor: Dictionary = home.actors[job.actor]
+	var actor: Dictionary = home.synchronize_actors()[job.actor]
 	var destination: Array = world.regions[job.region].places[spec.place].cell
 	job.stage = "register"
 	job.spec = spec
@@ -331,7 +331,7 @@ func finish(job: Dictionary, succeeded: bool, line: String, status: String = "")
 	if job.status != "active":
 		return
 	var world: RefCounted = service.world
-	var actor: Dictionary = world.regions[job.home].actor_state(job.actor)
+	var actor: Dictionary = world.regions[job.home].synchronize_actor(job.actor)
 	job.status = status if not status.is_empty() else ("completed" if succeeded else "failed")
 	job.finished_at = world.current_time
 	job.outcome = line

@@ -52,7 +52,7 @@ func _resume_archive(attempt: int) -> String:
 	var world: RefCounted = runtime.world_sim
 	var identities: Dictionary = {}
 	for region: String in world.regions:
-		identities[region] = world.regions[region].actors.keys()
+		identities[region] = world.regions[region].actor_ids()
 	var object_count: int = world.clothing.objects.size()
 	var prior_events: int = world.clothing.events.size()
 	var action: Dictionary = world.clothing.active.get("player", {})
@@ -105,7 +105,7 @@ func _resume_archive(attempt: int) -> String:
 	assert_true(crossed_climate, "real intermediate movement crosses from mountain into lowland climate")
 	assert_eq(runtime.current_region, "river", "the continuous body actually arrives in the distant settlement")
 	assert_eq(runtime._home._player.cell, runtime.centers.river, "arrival reaches the original destination cell")
-	assert_true(world.regions.home.actors.has("player") and not world.regions.river.actors.has("player"), "geographic climate does not clone or transfer the original body's state ownership")
+	assert_true(world.regions.home.has_actor("player") and not world.regions.river.has_actor("player"), "geographic climate does not clone or transfer the original body's state ownership")
 	assert_eq(world.environment.local_conditions("player").region, "river", "the visiting original body senses its real destination climate")
 	if _clock.elapsed_ms < FUTURE_MS:
 		_clock.advance_msec(FUTURE_MS - _clock.elapsed_ms)
@@ -114,7 +114,7 @@ func _resume_archive(attempt: int) -> String:
 	assert_eq(world.clothing.events.size(), prior_events + 1, "the original world retains exactly one additional dressing event through the full future")
 	assert_eq(_event_count(world, "clothing:action:4"), 1, "the physical dressing still has only one completion after arrival")
 	for region: String in world.regions:
-		assert_eq(world.regions[region].actors.keys(), identities[region], "scene continuation preserves the original named people in " + region)
+		assert_eq(world.regions[region].actor_ids(), identities[region], "scene continuation preserves the original named people in " + region)
 	var snapshot_script: GDScript = load("res://scripts/runtime/world_session_snapshot.gd")
 	var captured: Dictionary = snapshot_script.capture(runtime)
 	var future: String = JSON.stringify(JSON.parse_string(JSON.stringify(captured, "", true, true)), "", true, true)

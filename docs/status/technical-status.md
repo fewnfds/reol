@@ -48,7 +48,7 @@
 |---|---|---|
 | 共同时间、结算与远区 | 已集成的[SimSettlementKernel](../../scripts/sim/execution/settlement_kernel.gd)与[SimWorldSettlement](../../scripts/sim/execution/world_settlement.gd)提供编译依赖、9个阶段、到期边界和预算续算；`GameClock`与[RegionalSimulation](../../scripts/sim/regional_simulation.gd)仍持共同整数毫秒、双聚落离场接续、行旅/货运/消息 | `SimFacilityUse`、植物到期及离散事件已按实际工作接预算，其余原子回调及领域内部大循环未自动可抢占；非所有领域事件化，大人口、多年与密集动态组合未验。具体受检版本与限制见[QA](../qa/20261108_settlement_kernel.md) |
 | 定义、装配与当前快照 | 主线内容包v3绑定44份定义/开局及digest；[WorldRestoreFactory](../../scripts/sim/world_restore_factory.gd)、[SessionSaveSchema](../../scripts/persistence/session_save_schema.gd)、[SimSaveStore](../../scripts/persistence/save_store.gd)与`SimSaveRegistry`/`SimWorldSaveDomains`/`SimSaveSession`提供统一领域管线、安全保存请求与回执、联合候选恢复及文件备份/替换 | 移动/工作场所/对练使用会话规则，普通呈现/恢复限定home、river两区；当前根56/区域47，仅接受当前格式，旧档明确拒绝；保存屏障停止新时间、结清受理工作并保留暂停状态。历史位置/回执尚无长期安全回收，不是事件重放系统 |
-| 稀疏执行与规模 | main的[SimParticipationIndex](../../scripts/sim/execution/participation_index.gd)已接环境和健康，member/active/due/dirty及生命周期重建可运行 | 原行动已复用到期堆，衣着槽/候选及观察变化已有有限优化；全局阶段、动作筛选、空间候选、光/UI及历史查询仍未普遍稀疏化。按所属框架的实测收益补接，不能把算法或静态压测视为整机验收 |
+| 稀疏执行与规模 | main的[SimParticipationIndex](../../scripts/sim/execution/participation_index.gd)已接环境/健康与原行动截止堆；工作分支扩显式身体同步/纯查询、到期及失效人物筛选、领域工作条件 | 尚有活动域内部轮询、完整世界边界、公共发布同步和重复布局；空间候选、光/UI及历史查询未普遍稀疏化。100/300人原生约0.967/0.425×，规模出口未达，准确范围见共同运行QA |
 | 创作、呈现与诊断 | `--world-editor`的F8地表/真实物编辑，F3诊断、普通面板和代码示意外观，沿原规则与存档 | 完整内容/开局/组合模板编辑和独立预览未齐；开发生成是权限，不是玩家免费造物；正式多体型/全装备和全动作仍未完成 |
 | GPU计算 | main历史中有独立CPU/GPU/auto基础场计算服务及旧版对照证据 | 普通响应/原物事务仍为CPU，无玩家GPU开关；隔离加速倍数不等于全游戏收益，联合性能以实际版本/负载为准 |
 
@@ -71,8 +71,6 @@
 
 当前集成的建筑代码d00bac有本机4片完整覆盖250组/126290检查/0失败、3份普通在途档完全停开同未来、一次原生审查发现并修复4项问题，以及同SHA CI42457788038 completed/success。集成点至阶段盘点仅Markdown，不重复引擎/整套回归/模型审查；主线push的新run独立记证据，详情见BASELINE。
 
-主线提供人物/镜头连续显示及真实巡行压力入口。原行动复用到期堆，原身体/需求按因果边界和读取积分；百人固定10秒CPU6188→4674ms且联合未来相同。最终原生100/300人持续巡行约0.963/0.408×，仍未达百级稳定1×；见[压力QA](../qa/20261110_presentation_crowd.md)。
-
-本轮[运行架构调查](../qa/20261110_performance_architecture_audit.md)确认局部边界放大全局执行、隐式读取补算及重复公共布局；调研未实施新算法。改造优先级只在唯一基础计划维护。
+主线提供连续显示及真实巡行压力入口。[运行架构调查](../qa/20261110_performance_architecture_audit.md)后的共同运行包已落实显式同步和稀疏筛选；固定10秒100/300人耗时减少3.60%/8.84%，整个最终快照与旧版一致，原生帧P95没有改善。证据和停开范围见[共同运行QA](../qa/20261110_sparse_runtime_dispatch.md)；空间导航、呈现及300人1×仍待原计划后两包，不把本包当作严重缓行已解决。
 
 不能用前序截图/帧时替代当前版本的规模验收，也不能拿此前26万静态物品的旧版压力结果担保当前密集动态世界。当前没有证据要求换引擎，也没有证据宣称全游戏规模已达标。

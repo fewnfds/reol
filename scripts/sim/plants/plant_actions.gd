@@ -32,7 +32,7 @@ func begin(actor: String, id: String, verb: String, destination: Dictionary = {}
 	var sim: VillageSimulation = world.regions[region]
 	# Registered resource places are already known work destinations. Seeking
 	# one may start from afar; arbitrary individual plants still require sight.
-	if str(row.legacy_source).is_empty() and SimRouteTravel.point(sim.actor_state(actor)).distance_to(TileGrid.cell_to_world(plants.cell_of(id))) > float(sim.config.observation_radius) * TileGrid.TILE_SIZE:
+	if str(row.legacy_source).is_empty() and SimRouteTravel.point(sim.synchronize_actor(actor)).distance_to(TileGrid.cell_to_world(plants.cell_of(id))) > float(sim.config.observation_radius) * TileGrid.TILE_SIZE:
 		return _reply(false, "unobserved")
 	for job: Dictionary in active.values():
 		if job.plant == id or verb == "transplant" and destination == job.destination:
@@ -55,7 +55,7 @@ func begin(actor: String, id: String, verb: String, destination: Dictionary = {}
 	var job: Dictionary = {"id": action_id, "request": signature, "actor": actor, "plant": id, "kind": verb, "region": region,
 		"destination": destination.duplicate(true), "target_location": row.location.duplicate(true), "stand": stand,
 		"started_ms": world.elapsed_ms, "work_started_ms": 0, "due_ms": world.elapsed_ms + 1,
-		"phase": "travel", "path": [], "segment_from": sim.actor_state(actor).position.duplicate(), "segment_started_ms": world.elapsed_ms,
+		"phase": "travel", "path": [], "segment_from": sim.synchronize_actor(actor).position.duplicate(), "segment_started_ms": world.elapsed_ms,
 		"previous_autonomous": SimActionContract.occupy(world, region, actor)}
 	active[actor] = job
 	if not _route(job, stand):
@@ -102,7 +102,7 @@ func _eligible(actor: String, id: String, verb: String, destination: Dictionary)
 
 func _stand(actor: String, id: String) -> Array:
 	var sim: VillageSimulation = world.regions[plants.bodies[id].region]
-	var from: Vector2i = SimRouteTravel.cell(sim.actor_state(actor).cell)
+	var from: Vector2i = SimRouteTravel.cell(sim.synchronize_actor(actor).cell)
 	var target: Vector2i = plants.cell_of(id)
 	var best: Array = []
 	var length: int = SimInventory.MAX_COUNT
@@ -121,7 +121,7 @@ func _stand(actor: String, id: String) -> Array:
 
 func _route(job: Dictionary, raw: Array) -> bool:
 	var sim: VillageSimulation = world.regions[job.region]
-	var body: Dictionary = sim.actor_state(job.actor)
+	var body: Dictionary = sim.synchronize_actor(job.actor)
 	var from: Vector2i = SimRouteTravel.cell(body.cell)
 	var to: Vector2i = SimRouteTravel.cell(raw)
 	var path: Array[Vector2i] = sim.find_path(from, to)
@@ -137,11 +137,15 @@ func _route(job: Dictionary, raw: Array) -> bool:
 	return true
 
 
+func has_settlement_work(_at_ms: int) -> bool:
+	return not active.is_empty()
+
+
 func next_boundary_ms() -> int:
 	var result: int = SimInventory.MAX_COUNT
 	for job: Dictionary in active.values():
 		var sim: VillageSimulation = world.regions[job.region]
-		result = mini(result, SimRouteTravel.next_boundary(job, sim.actor_state(job.actor), world.elapsed_ms, _route_step.bind(job.region)) if job.phase == "travel" else int(job.due_ms))
+		result = mini(result, SimRouteTravel.next_boundary(job, sim.synchronize_actor(job.actor), world.elapsed_ms, _route_step.bind(job.region)) if job.phase == "travel" else int(job.due_ms))
 	return result
 
 
@@ -167,7 +171,7 @@ func settle_at_ms(now: int) -> void:
 			if not job.path.is_empty():
 				sim.set_actor_position(actor, TileGrid.cell_to_world(SimRouteTravel.cell(job.path.pop_front())))
 			if not job.path.is_empty():
-				SimRouteTravel.begin_segment(job, sim.actor_state(actor), now, float(sim.motion_rules.motion.speed))
+				SimRouteTravel.begin_segment(job, sim.synchronize_actor(actor), now, float(sim.motion_rules.motion.speed))
 				continue
 			job.phase = "work"
 			job.work_started_ms = now

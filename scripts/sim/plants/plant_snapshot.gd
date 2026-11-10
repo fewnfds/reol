@@ -54,7 +54,7 @@ static func _body(owner: SimPlants, row: Variant) -> bool:
 		if item not in [rule.product.item, rule.body_product.item] or not Shape.count(row.produced[item]):
 			return false
 	for actor: Variant in row.contacts:
-		if not actor is String or not owner.world.regions[row.region].actors.has(actor) or not Shape.keys(row.contacts[actor], ["at_ms", "consent"]) or not Shape.count(row.contacts[actor].at_ms, maxi(0, int(row.awakened_ms)), owner.world.elapsed_ms) or not row.contacts[actor].consent is bool or row.subject.is_empty():
+		if not actor is String or not owner.world.regions[row.region].has_actor(actor) or not Shape.keys(row.contacts[actor], ["at_ms", "consent"]) or not Shape.count(row.contacts[actor].at_ms, maxi(0, int(row.awakened_ms)), owner.world.elapsed_ms) or not row.contacts[actor].consent is bool or row.subject.is_empty():
 			return false
 	return true
 
@@ -130,10 +130,10 @@ static func _jobs(owner: SimPlants) -> bool:
 		if operations.has(job.id):
 			return false
 		operations[job.id] = true
-		if job.region != owner.bodies[job.plant].region or not owner.world.regions[job.region].actors.has(actor) or job.kind not in owner.jobs.VERBS or not job.destination is Dictionary or job.target_location != owner.bodies[job.plant].location or not Shape.cell_valid(job.stand) or not job.previous_autonomous is bool or job.phase not in ["travel", "work"] or not Shape.count(job.started_ms, 0, owner.elapsed_ms) or not Shape.count(job.due_ms, owner.elapsed_ms + 1) or not Shape.count(job.work_started_ms, 0, owner.elapsed_ms) or not job.path is Array:
+		if job.region != owner.bodies[job.plant].region or not owner.world.regions[job.region].has_actor(actor) or job.kind not in owner.jobs.VERBS or not job.destination is Dictionary or job.target_location != owner.bodies[job.plant].location or not Shape.cell_valid(job.stand) or not job.previous_autonomous is bool or job.phase not in ["travel", "work"] or not Shape.count(job.started_ms, 0, owner.elapsed_ms) or not Shape.count(job.due_ms, owner.elapsed_ms + 1) or not Shape.count(job.work_started_ms, 0, owner.elapsed_ms) or not job.path is Array:
 			return false
 		var sim: VillageSimulation = owner.world.regions[job.region]
-		if not sim.actors[actor].active.is_empty() or bool(sim.actors[actor].autonomous) or not SimActionContract.can_continue(owner.world, job.region, actor, &"plants"):
+		if not sim.synchronize_actors()[actor].active.is_empty() or bool(sim.synchronize_actors()[actor].autonomous) or not SimActionContract.can_continue(owner.world, job.region, actor, &"plants"):
 			return false
 		if job.request != {"actor": actor, "plant": job.plant, "kind": job.kind, "destination": job.destination} or not owner.jobs._eligible(actor, job.plant, job.kind, job.destination):
 			return false
@@ -141,9 +141,9 @@ static func _jobs(owner: SimPlants) -> bool:
 			for cell: Variant in job.path:
 				if not Shape.cell_valid(cell):
 					return false
-			if not SimRouteTravel.valid_segment(job, sim.actors[actor], owner.elapsed_ms, float(sim.motion_rules.motion.speed)):
+			if not SimRouteTravel.valid_segment(job, sim.synchronize_actors()[actor], owner.elapsed_ms, float(sim.motion_rules.motion.speed)):
 				return false
-		elif not job.path.is_empty() or job.due_ms != job.work_started_ms + owner.definitions.action_ms or not SimRouteTravel.point(sim.actors[actor]).is_equal_approx(TileGrid.cell_to_world(SimRouteTravel.cell(job.stand))):
+		elif not job.path.is_empty() or job.due_ms != job.work_started_ms + owner.definitions.action_ms or not SimRouteTravel.point(sim.synchronize_actors()[actor]).is_equal_approx(TileGrid.cell_to_world(SimRouteTravel.cell(job.stand))):
 			return false
 		if job.kind in ["harvest", "water"]:
 			var source: String = owner.container_id(job.plant) if job.kind == "harvest" else "actor:" + actor
@@ -157,7 +157,7 @@ static func _jobs(owner: SimPlants) -> bool:
 			return false
 		var row: Dictionary = owner.bodies[receipt.request.plant]
 		var sim: VillageSimulation = owner.world.regions[row.region]
-		if not sim.actors.has(receipt.request.actor) or receipt.result.status != "completed" and not receipt.operations.is_empty():
+		if not sim.has_actor(receipt.request.actor) or receipt.result.status != "completed" and not receipt.operations.is_empty():
 			return false
 		for operation: String in receipt.operations:
 			if not sim.inventory.operations.has(operation) or not Shape.same_record(sim.inventory.operations[operation], receipt.operations[operation]):

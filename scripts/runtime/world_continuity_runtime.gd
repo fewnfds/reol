@@ -378,7 +378,7 @@ func actor_region(actor: String) -> String:
 	if world_sim == null:
 		return ""
 	for region: String in world_sim.regions:
-		if world_sim.regions[region].actors.has(actor):
+		if world_sim.regions[region].has_actor(actor):
 			return region
 	return ""
 
@@ -392,8 +392,7 @@ func actor_view_layout() -> Dictionary:
 	# of positions. Two owners' visitors can share one physical cell.
 	var bodies: Dictionary = {}
 	for sim: VillageSimulation in world_sim.regions.values():
-		for id: String in sim.actors:
-			bodies[id] = sim.actors[id]
+		bodies.merge(sim.synchronize_actors())
 	return PawnViewLayout.build(bodies, "player")
 
 
@@ -450,7 +449,7 @@ func _bind_navigation() -> void:
 	world_sim.construction.set_terrain(world_sim.map_data.terrain_is_walkable, world_sim.map_data.get_elevation)
 	world_sim.construction.set_incoming_occupancy(_incoming_occupancy)
 	_home.simulation = world_sim.regions.home
-	_home._player.motion.bind_body(_home.simulation.actors.player, _home.simulation.notify_body_space_changed.bind("player"), _home.simulation.notify_body_cell_crossed.bind("player"))
+	_home._player.motion.bind_body(_home.simulation.synchronize_actors().player, _home.simulation.notify_body_space_changed.bind("player"), _home.simulation.notify_body_cell_crossed.bind("player"))
 	_home._player.set_motion_guard(_player_has_motion_control)
 	if not _home._player.cell_changed.is_connected(_on_player_moved):
 		_home._player.cell_changed.connect(_on_player_moved)
@@ -504,7 +503,7 @@ func _native_boundary_revision() -> int:
 
 
 func _incoming_occupancy(cell: Vector2i) -> bool:
-	return world_sim != null and SimMotionClearance.segment_reserves(world_sim.regions.home.actor_state("player"), player_journey, cell)
+	return world_sim != null and SimMotionClearance.segment_reserves(world_sim.regions.home.synchronize_actor("player"), player_journey, cell)
 
 
 func _physical_obstacle(cell: Vector2i) -> bool:
@@ -573,7 +572,7 @@ func select_starting_avatar(subject: String) -> bool:
 			world_sim.avian_life.birds[id].autonomous = false
 		else:
 			return false
-		_home.simulation.actors.player.autonomous = true
+		_home.simulation.synchronize_actors().player.autonomous = true
 		world_sim.invalidate_region("home")
 	avatar_subject = subject
 	_opening_selection_available = false
@@ -671,8 +670,8 @@ func advance_to_ms(target_ms: int) -> int:
 				cancel_travel()
 				continue
 			end = mini(end, int(player_journey.due_ms))
-			end = mini(end, SimRouteTravel.crossing_ms(player_journey, _home.simulation.actors.player, world_sim.elapsed_ms))
-			var body_cell: Vector2i = _cell(_home.simulation.actors.player.cell)
+			end = mini(end, SimRouteTravel.crossing_ms(player_journey, _home.simulation.synchronize_actors().player, world_sim.elapsed_ms))
+			var body_cell: Vector2i = _cell(_home.simulation.synchronize_actors().player.cell)
 			if not player_journey.path.is_empty() and not _can_step(body_cell, _cell(player_journey.path[0]) - body_cell):
 				if not SimRouteTravel.repair(_home.simulation, "player", player_journey, world_sim.elapsed_ms):
 					cancel_travel()
@@ -838,10 +837,10 @@ func travel_to(region_id: String, destination_cell: Variant = null) -> bool:
 	for cell: Vector2i in path:
 		if cell != _home._player.cell:
 			encoded.append([cell.x, cell.y])
-	if not _home.simulation.actor_position(_home.simulation.actors.player).is_equal_approx(TileGrid.cell_to_world(_home._player.cell)):
+	if not _home.simulation.actor_position(_home.simulation.synchronize_actors().player).is_equal_approx(TileGrid.cell_to_world(_home._player.cell)):
 		encoded.push_front([_home._player.cell.x, _home._player.cell.y])
-	player_journey = {"destination": region_id, "path": encoded, "due_ms": world_sim.elapsed_ms + 1, "segment_started_ms": world_sim.elapsed_ms, "segment_from": _home.simulation.actors.player.position.duplicate()}
-	SimRouteTravel.begin_segment(player_journey, _home.simulation.actors.player, world_sim.elapsed_ms, float(_home._player.motion.rules.motion.speed))
+	player_journey = {"destination": region_id, "path": encoded, "due_ms": world_sim.elapsed_ms + 1, "segment_started_ms": world_sim.elapsed_ms, "segment_from": _home.simulation.synchronize_actors().player.position.duplicate()}
+	SimRouteTravel.begin_segment(player_journey, _home.simulation.synchronize_actors().player, world_sim.elapsed_ms, float(_home._player.motion.rules.motion.speed))
 	if destination_cell is Vector2i:
 		player_journey["target"] = [target.x, target.y]
 	_notice = "正在前往%s，WASD 可中断。" % _journey_label(region_id)
@@ -928,7 +927,7 @@ func player_inventory() -> SimInventory:
 
 
 func player_goal() -> String:
-	return str(_home.simulation.actors.player.goal)
+	return str(_home.simulation.synchronize_actors().player.goal)
 
 
 func start_home_work(action_id: String) -> Dictionary:
@@ -941,7 +940,7 @@ func start_home_work(action_id: String) -> Dictionary:
 	if world_sim.services.owns_actor("player"):
 		return {"ok": false, "line": "先完成或停止正在办理的事务。"}
 	prepare_player_command()
-	if not _home.simulation.actors.player.active.is_empty():
+	if not _home.simulation.synchronize_actors().player.active.is_empty():
 		return {"ok": false, "line": "先完成或停止眼前的劳作。"}
 	var terms: Dictionary = _home.simulation.config.actions[action_id]
 	if terms.kind == "irrigate":
@@ -1037,7 +1036,7 @@ func _advance_player_travel() -> void:
 		player_journey = {}
 		_refresh_panel()
 	else:
-		SimRouteTravel.begin_segment(player_journey, _home.simulation.actors.player, world_sim.elapsed_ms, float(_home._player.motion.rules.motion.speed))
+		SimRouteTravel.begin_segment(player_journey, _home.simulation.synchronize_actors().player, world_sim.elapsed_ms, float(_home._player.motion.rules.motion.speed))
 
 
 func _update_region() -> void:
@@ -1090,8 +1089,9 @@ func _refresh_views(snap: bool) -> void:
 		if region == "home":
 			continue
 		var remote: VillageSimulation = world_sim.regions[region]
-		for id: String in remote.actors:
-			var actor: Dictionary = remote.actors[id]
+		var residents: Dictionary = remote.synchronize_actors()
+		for id: String in residents:
+			var actor: Dictionary = residents[id]
 			if not bool(actor.alive):
 				continue
 			var cell: Vector2i = _cell(actor.cell)

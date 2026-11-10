@@ -51,7 +51,7 @@ static func describe(domain: RefCounted, actor: String, id: String) -> Dictionar
 				material = event
 		elif event.recipient == actor and event.kind in ["examined", "studied"]:
 			last = event
-			var pawn: PawnDef = domain.world._content.get_pawn(StringName(domain.world.regions[event.region].actor_state(event.actor).definition_id))
+			var pawn: PawnDef = domain.world._content.get_pawn(StringName(domain.world.regions[event.region].synchronize_actor(event.actor).definition_id))
 			var name: String = pawn.display_name if pawn != null else str(event.actor)
 			reported.append("%s曾告诉你：%s" % [name, str(event.line)])
 	var seeing: bool = domain.can_see(actor, id)

@@ -65,7 +65,7 @@ static func validate(data: Variant, domain: RefCounted) -> bool:
 
 static func _batch(batch: Variant, id: String, data: Dictionary, domain: RefCounted, expected: Dictionary, jobs: Dictionary) -> bool:
 	var world: RefCounted = domain.world
-	if not Shape.keys(batch, ["owner", "home", "region", "recipe", "facility", "created_ms", "supplied_ms", "completed_ms", "collected_ms", "work_ms", "state"]) or not batch.owner is String or not world.regions.has(batch.home) or not world.regions.has(batch.region) or not domain.definitions.recipes.has(batch.recipe) or not world.regions[batch.home].actors.has(batch.owner) or not batch.state in ["open", "ready", "collected"]:
+	if not Shape.keys(batch, ["owner", "home", "region", "recipe", "facility", "created_ms", "supplied_ms", "completed_ms", "collected_ms", "work_ms", "state"]) or not batch.owner is String or not world.regions.has(batch.home) or not world.regions.has(batch.region) or not domain.definitions.recipes.has(batch.recipe) or not world.regions[batch.home].has_actor(batch.owner) or not batch.state in ["open", "ready", "collected"]:
 		return false
 	var terms: Dictionary = domain.definitions.recipes[batch.recipe]
 	var inventory: SimInventory = world.regions[batch.home].inventory
@@ -133,7 +133,7 @@ static func _job(actor: String, job: Variant, data: Dictionary, domain: RefCount
 	var batch: Dictionary = data.batches[job.batch]
 	var world: RefCounted = domain.world
 	var sim: VillageSimulation = world.regions[batch.home]
-	var body: Dictionary = sim.actors[batch.owner]
+	var body: Dictionary = sim.synchronize_actors()[batch.owner]
 	var terms: Dictionary = domain.definitions.recipes[batch.recipe]
 	if actor != batch.owner or bool(body.autonomous) or not body.active.is_empty() or not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion") or not world.embodiment.capable(world.embodiment.carrier_for_source("village_actor", actor), "grasp"):
 		return false

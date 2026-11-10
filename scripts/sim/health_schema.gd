@@ -151,7 +151,7 @@ static func _job(job: Variant, id: String, data: Dictionary, domain: RefCounted)
 			return false
 		for role: String in ["patient", "doctor"]:
 			var actor: String = str(job[role])
-			var body: Dictionary = domain.world.regions[job[role + "_region"]].actors[actor]
+			var body: Dictionary = domain.world.regions[job[role + "_region"]].synchronize_actors()[actor]
 			if body.autonomous or not body.active.is_empty() or not Shape.same_record({"value": body.position}, {"value": job[role + "_position"]}) or not domain.world.actor_controls(actor, "action") or not domain.world.actor_controls(actor, "motion") or not _free_elsewhere(actor, domain):
 				return false
 	else:

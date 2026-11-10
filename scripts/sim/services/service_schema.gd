@@ -81,7 +81,7 @@ static func validate_snapshot(data: Dictionary, service: RefCounted) -> bool:
 		return false
 	var expected_actors: Dictionary = {}
 	for sim: RefCounted in world.regions.values():
-		for actor: String in sim.actors:
+		for actor: String in sim.synchronize_actors():
 			expected_actors[actor] = true
 	for courier: String in world.couriers:
 		expected_actors[courier] = true
@@ -128,7 +128,7 @@ static func validate_snapshot(data: Dictionary, service: RefCounted) -> bool:
 			return false
 		var sim: RefCounted = world.regions[permit.region]
 		var job: Dictionary = data.jobs[permit.job]
-		if key != str(permit.region) + ":" + str(permit.actor) + ":" + str(permit.scope) or not sim.actors.has(permit.get("issuer")) or not _count(permit.get("at"), 0, world.current_time) or job.status != "completed" or job.kind != "access" or job.actor != permit.actor or job.region != permit.region or job.options.get("scope") != permit.scope:
+		if key != str(permit.region) + ":" + str(permit.actor) + ":" + str(permit.scope) or not sim.has_actor(permit.get("issuer")) or not _count(permit.get("at"), 0, world.current_time) or job.status != "completed" or job.kind != "access" or job.actor != permit.actor or job.region != permit.region or job.options.get("scope") != permit.scope:
 			return false
 	for operation_id: Variant in data.operations:
 		if not _text(operation_id) or not _valid_operation(data.operations[operation_id], world, escrow) or not _owned_operation(operation_id, data.operations[operation_id], data, service):
@@ -144,7 +144,7 @@ static func _valid_job(job: Dictionary, _data: Dictionary, service: RefCounted) 
 	if not world.regions.has(job.get("home")) or not world.regions.has(job.get("region")) or not _text(job.get("actor")):
 		return false
 	var home: RefCounted = world.regions[job.home]
-	if not home.actors.has(job.actor) or not job.get("kind") in ["carry_stock", "eat", "rest", "haul_grain", "report", "redeem", "access", "collect_herb", "trade", "return_goods", "claim_wage", "site_loan", "site_return"] or not job.get("status") in ["active", "completed", "failed", "cancelled"] or not job.get("phase") in ["travel", "work"]:
+	if not home.has_actor(job.actor) or not job.get("kind") in ["carry_stock", "eat", "rest", "haul_grain", "report", "redeem", "access", "collect_herb", "trade", "return_goods", "claim_wage", "site_loan", "site_return"] or not job.get("status") in ["active", "completed", "failed", "cancelled"] or not job.get("phase") in ["travel", "work"]:
 		return false
 	if not job.get("path") is Array or not job.get("options") is Dictionary or not job.get("spec") is Dictionary or not _count(job.get("started"), 0, world.current_time) or not job.get("previous_autonomous") is bool or not job.get("carrying") is bool or not job.get("outcome") is String:
 		return false
@@ -173,9 +173,9 @@ static func _valid_job(job: Dictionary, _data: Dictionary, service: RefCounted) 
 		if job.region != SimEntrustedGoods.return_region(str(job.home), note) or (job.status == "active" and not note.settled_by.is_empty()) or (job.status == "completed" and note.settled_by != {"domain": "service", "operation": str(job.id) + ":return"}):
 			return false
 	if job.status == "active":
-		if not _count(job.get("due_ms"), world.elapsed_ms + 1) or not _count(job.get("started_ms")) or int(job.started_ms) > world.elapsed_ms or not SimLocalMotion._vector(job.get("segment_from")) or not _count(job.get("segment_started_ms")) or int(job.segment_started_ms) > world.elapsed_ms or not home.actors[job.actor].active.is_empty() or home.actors[job.actor].autonomous:
+		if not _count(job.get("due_ms"), world.elapsed_ms + 1) or not _count(job.get("started_ms")) or int(job.started_ms) > world.elapsed_ms or not SimLocalMotion._vector(job.get("segment_from")) or not _count(job.get("segment_started_ms")) or int(job.segment_started_ms) > world.elapsed_ms or not home.synchronize_actors()[job.actor].active.is_empty() or home.synchronize_actors()[job.actor].autonomous:
 			return false
-		var previous: Array = home.actors[job.actor].cell
+		var previous: Array = home.synchronize_actors()[job.actor].cell
 		for point: Variant in job.path:
 			if not _cell(point) or (not _adjacent(previous, point) and not same_value(previous, point)):
 				return false
@@ -188,9 +188,9 @@ static func _valid_job(job: Dictionary, _data: Dictionary, service: RefCounted) 
 			return false
 		if job.phase == "travel":
 			if bool(job.get("road_paused", false)):
-				if not SimLocalMotion._vector(job.segment_from) or not home.actor_position(home.actors[job.actor]).is_equal_approx(Vector2(float(job.segment_from[0]), float(job.segment_from[1]))):
+				if not SimLocalMotion._vector(job.segment_from) or not home.actor_position(home.synchronize_actors()[job.actor]).is_equal_approx(Vector2(float(job.segment_from[0]), float(job.segment_from[1]))):
 					return false
-			elif not SimRouteTravel.valid_segment(job, home.actors[job.actor], world.elapsed_ms, float(home.motion_rules.motion.speed)):
+			elif not SimRouteTravel.valid_segment(job, home.synchronize_actors()[job.actor], world.elapsed_ms, float(home.motion_rules.motion.speed)):
 				return false
 		if job.carrying:
 			if not job.kind in ["eat", "haul_grain"]:
@@ -259,7 +259,7 @@ static func _valid_service_accounts(data: Dictionary, service: RefCounted) -> bo
 		for entry: Dictionary in sim.institutions.entries:
 			var id: String = entry.operation_id
 			if not id.begins_with("service:") and not str(entry.evidence).begins_with("service:"):
-				if not sim.actors.has(entry.subject):
+				if not sim.has_actor(entry.subject):
 					return false
 				continue
 			if entry.kind == "issue":
@@ -306,7 +306,7 @@ static func _valid_help(data: Dictionary, service: RefCounted, escrow: RefCounte
 	var claimed_shipments: Dictionary = {}
 	for request_id: Variant in data.help_requests:
 		var request: Variant = data.help_requests[request_id]
-		if not request is Dictionary or request.get("id") != request_id or not _id(request_id, data.next_id, ids) or not world.couriers.has(request.get("courier")) or not world.routes.has(request.get("route")) or not world.regions.has(request.get("home")) or not world.regions[request.home].actors.has(request.get("actor")):
+		if not request is Dictionary or request.get("id") != request_id or not _id(request_id, data.next_id, ids) or not world.couriers.has(request.get("courier")) or not world.routes.has(request.get("route")) or not world.regions.has(request.get("home")) or not world.regions[request.home].has_actor(request.get("actor")):
 			return false
 		if not _count(request.get("offer"), int(service.definitions.help.minimum_fee)) or request.get("escrow") != "escrow:" + str(request_id) or request.get("wallet") != "wallet:" + str(request.courier) or not escrow.containers.has(request.escrow) or not escrow.containers.has(request.wallet) or not _count(request.get("at"), 0, world.current_time):
 			return false

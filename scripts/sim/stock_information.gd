@@ -20,7 +20,7 @@ static func assess(sim: RefCounted, observer: String, place: String, item: Strin
 		return {"known": false, "conflicted": false, "accounts": []}
 	var accounts: Array[Dictionary] = []
 	var selected: Dictionary = {}
-	var direct: Dictionary = sim.actor_state(observer).stock_memory.get(place, {})
+	var direct: Dictionary = sim.synchronize_actor(observer).stock_memory.get(place, {})
 	if not direct.is_empty() and sim.tick_index - int(direct.tick) <= int(policy.memory_lifetime_minutes):
 		selected = {"amount": int(direct.items.get(item, 0)), "at": int(direct.tick),
 			"basis": "observed", "source": observer, "credible": true, "event": ""}
@@ -61,7 +61,7 @@ static func assess(sim: RefCounted, observer: String, place: String, item: Strin
 static func tell(sim: RefCounted, speaker: String, listener: String, place: String, item: String, amount: int, policy: Dictionary) -> Dictionary:
 	if speaker == listener or not sim.has_actor(speaker) or not sim.has_actor(listener) or not sim.places.has(place) or item.is_empty() or amount < 0 or amount > SimInventory.MAX_COUNT:
 		return {"ok": false, "line": "暂时无法谈论这件事。"}
-	if not bool(sim.actor_state(speaker).alive) or not bool(sim.actor_state(listener).alive) or sim._distance(speaker, listener) > float(sim.config.talk_radius):
+	if not bool(sim.synchronize_actor(speaker).alive) or not bool(sim.synchronize_actor(listener).alive) or sim._distance(speaker, listener) > float(sim.config.talk_radius):
 		return {"ok": false, "line": "先走近些，才能当面说话。"}
 	# Repeated clicks reuse the real utterance, without new memory/events or RNG.
 	for index in range(sim.social.events.size() - 1, -1, -1):

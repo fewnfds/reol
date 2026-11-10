@@ -8,6 +8,11 @@ class Owner extends RefCounted:
 	var count: int = 0
 	var due: int = 17
 	var allowance: int = 0
+	var ready: bool = false
+	func has_work(_at_ms: int) -> bool:
+		return ready
+	func activate(_at_ms: int) -> void:
+		ready = true
 	func exhausted() -> bool:
 		if allowance <= 0:
 			return true
@@ -41,7 +46,39 @@ func run(runner: Object) -> void:
 	_budgeted_owner(runner)
 	_host_yield(runner)
 	_failure_stops_dependents(runner)
+	_conditional_execution(runner)
 	print("SCENARIO settlement kernel: compiled dependencies, stable ties, exact continuation, bounded work and failure barrier")
+
+
+func _conditional_execution(runner: Object) -> void:
+	var owner := Owner.new()
+	var kernel := Kernel.new([&"work"])
+	kernel.add_step(&"optional", &"work", owner.effect.bind("optional"), Kernel.CallMode.TIMED, [], [], owner.has_work)
+	kernel.add_step(&"consumer", &"work", owner.effect.bind("consumer"), Kernel.CallMode.TIMED, [&"optional"])
+	runner.assert_true(kernel.compile() and kernel.begin(0, 10), "conditional owners use the original compiled dependency graph")
+	runner.assert_eq(kernel.resume(1), Kernel.Status.COMPLETE, "an inactive predecessor does not consume the consumer's work allowance")
+	runner.assert_eq(owner.effects, ["consumer"], "inactive domain callbacks do not execute")
+	runner.assert_eq(kernel.skipped_steps, 1, "skipped business work has a diagnostic counter")
+	owner.ready = true
+	runner.assert_true(kernel.begin(10, 20), "the same original owner can become active at the next boundary")
+	runner.assert_eq(kernel.resume(2), Kernel.Status.COMPLETE, "new work executes in its original phase")
+	runner.assert_eq(owner.effects, ["consumer", "optional", "consumer"], "eligibility changes never reorder registered dependencies")
+	var budgeted := Kernel.new([&"work"])
+	budgeted.add_step(&"many", &"work", owner.many, Kernel.CallMode.BUDGETED, [], [], owner.has_work)
+	runner.assert_true(budgeted.compile() and budgeted.begin(0, 1), "a conditional budgeted owner compiles")
+	runner.assert_eq(budgeted.resume(3), Kernel.Status.PENDING, "active work retains its original unfinished cursor")
+	owner.ready = false
+	runner.assert_eq(budgeted.resume(10000), Kernel.Status.COMPLETE, "an entered owner completes cleanup even when its eligibility changes while pending")
+	runner.assert_eq(owner.count, 10000, "a condition cannot discard already entered work")
+	var activated := Owner.new()
+	var chained := Kernel.new([&"work"])
+	chained.add_step(&"activate", &"work", activated.activate)
+	chained.add_step(&"consume", &"work", activated.effect.bind("consume"), Kernel.CallMode.TIMED, [&"activate"], [], activated.has_work)
+	runner.assert_true(chained.compile() and chained.begin(0, 1), "a predecessor can activate conditional work at the same timestamp")
+	runner.assert_eq(chained.resume(0), Kernel.Status.PENDING, "zero budget does not even consume inactive steps")
+	runner.assert_true(not activated.ready and activated.effects.is_empty(), "zero budget retains all original state")
+	runner.assert_eq(chained.resume(2), Kernel.Status.COMPLETE, "conditions observe changes from their completed predecessors")
+	runner.assert_eq(activated.effects, ["consume"], "new same-boundary work executes exactly once in dependency order")
 
 
 func _plan(owner: Owner, reversed: bool) -> SimSettlementKernel:

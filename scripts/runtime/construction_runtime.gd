@@ -358,7 +358,7 @@ func use_bed() -> void:
 
 
 func _actor_name(actor: String) -> String:
-	return String(runtime()._home._content.get_pawn(StringName(runtime().world_sim.regions.home.actors[actor].definition_id)).display_name)
+	return String(runtime()._home._content.get_pawn(StringName(runtime().world_sim.regions.home.synchronize_actors()[actor].definition_id)).display_name)
 
 
 func refresh_choices(preferred: String = "") -> void:
@@ -457,7 +457,7 @@ func refresh() -> void:
 		for job: Dictionary in domain().active.values():
 			if job.project == id:
 				var sim: RefCounted = runtime().world_sim.regions[domain().definitions.site.region]
-				var label: String = String(runtime()._home._content.get_pawn(StringName(sim.actors[job.actor].definition_id)).display_name)
+				var label: String = String(runtime()._home._content.get_pawn(StringName(sim.synchronize_actors()[job.actor].definition_id)).display_name)
 				var phase: String = "搬运" if str(job.phase).begins_with("to_") else "取料" if job.phase == "pickup" else "动工"
 				_details.text = "%s正在%s，当前步骤还需%d秒。\n%s" % [label, phase, maxi(0, ceili(float(int(job.due_ms) - runtime().world_sim.elapsed_ms) / 1000.0)), str(project.line)]
 		if domain().is_bed(id):
@@ -465,7 +465,7 @@ func refresh() -> void:
 			var assigned: String = str(resting.allocations.get(id, ""))
 			_bed_details.text = "本院共用。" if assigned.is_empty() else "安排给%s使用。" % _actor_name(assigned)
 			for job: Dictionary in resting.active.values():
-				if job.bed == id and _visible(SimRouteTravel.cell(runtime().world_sim.regions.home.actors[job.actor].cell)):
+				if job.bed == id and _visible(SimRouteTravel.cell(runtime().world_sim.regions.home.synchronize_actors()[job.actor].cell)):
 					_bed_details.text += "\n%s%s。" % [_actor_name(job.actor), "正在休息" if job.phase == "sleep" else "正在起身让位" if job.phase == "leave" else "正前来休息"]
 			_bed_details.text += "\n到床后持续恢复精神，肚饿或精神充足会起身。"
 			_bed_details.text += "\n床铺潮湿，休息恢复较慢。" if runtime().world_sim.weather.bed_is_wet(id) else "\n床铺干燥。"
@@ -577,7 +577,7 @@ func _build_canvas() -> void:
 							capture_rect(Rect2(p + Vector2(-12, -14), Vector2(24, 18)), Color("8ca7a4"))
 				else:
 					_draw_furniture(p, definition, int(project.rotation))
-		var raw: Array = sim.actors[project.carrier].cell if not str(project.carrier).is_empty() else project.material_cell
+		var raw: Array = sim.synchronize_actors()[project.carrier].cell if not str(project.carrier).is_empty() else project.material_cell
 		var material_cell: Vector2i = SimRouteTravel.cell(raw)
 		if sim.inventory.quantity(id, str(definition.item)) > 0 and _visible(material_cell):
 			var p: Vector2 = _point(material_cell) + Vector2(12, 16)

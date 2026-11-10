@@ -78,7 +78,7 @@ func _run() -> void:
 func _combat() -> void:
 	var world = runtime.world_sim
 	var teacher: String = "shi_tou"
-	var cell: Vector2i = SimRouteTravel.cell(world.regions.home.actors[teacher].cell)
+	var cell: Vector2i = SimRouteTravel.cell(world.regions.home.synchronize_actors()[teacher].cell)
 	_expect(runtime.travel_to("home", cell), "ordinary travel approaches the actual resident")
 	for _step: int in 128:
 		if runtime.player_journey.is_empty(): break

@@ -17,7 +17,7 @@ func _init(simulation: RefCounted) -> void:
 func begin(actor_id: String, action_id: String, request_id: String = "", requester: String = "") -> bool:
 	if not _sim.has_actor(actor_id) or not _sim.config.actions.has(action_id):
 		return false
-	var actor: Dictionary = _sim.actor_state(actor_id)
+	var actor: Dictionary = _sim.synchronize_actor(actor_id)
 	if not actor.active.is_empty() or not actor.alive:
 		return false
 	var definition: Dictionary = _sim.config.actions[action_id]
@@ -66,6 +66,7 @@ func begin(actor_id: String, action_id: String, request_id: String = "", request
 
 
 func project(actor_id: String, at_ms: int) -> void:
+	# Only the original body owner calls projection, after integrating old inputs.
 	var actor: Dictionary = _sim.actor_state(actor_id)
 	var action: Dictionary = actor.active
 	if action.is_empty() or action.phase != "travel" or action.path.is_empty():
@@ -77,7 +78,7 @@ func project(actor_id: String, at_ms: int) -> void:
 
 
 func settle(actor_id: String) -> void:
-	var actor: Dictionary = _sim.actor_state(actor_id)
+	var actor: Dictionary = _sim.synchronize_actor(actor_id)
 	var action: Dictionary = actor.active
 	if action.is_empty():
 		return
@@ -114,7 +115,7 @@ func next_boundary_ms(actor: Dictionary) -> int:
 func cancel(actor_id: String, reason: String = "cancelled") -> void:
 	if not _sim.has_actor(actor_id):
 		return
-	var actor: Dictionary = _sim.actor_state(actor_id)
+	var actor: Dictionary = _sim.synchronize_actor(actor_id)
 	if actor.active.is_empty():
 		return
 	var action: Dictionary = actor.active

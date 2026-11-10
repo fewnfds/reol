@@ -168,7 +168,7 @@ static func _job(actor: String, job: Variant, data: Dictionary, domain: RefCount
 		return false
 	var world: RefCounted = domain.world
 	var sim: RefCounted = world.regions[domain.definitions.site.region]
-	var body: Dictionary = sim.actors[actor]
+	var body: Dictionary = sim.synchronize_actors()[actor]
 	if bool(body.autonomous) or not body.active.is_empty() or not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion") or world.artifacts.owns_actor(actor) or world.admissions.owns_actor(actor) or world.soul_vessels.owns_actor(actor) or world.sparring.owns_actor(actor) or world.services != null and world.services.owns_actor(actor):
 		return false
 	var project: Dictionary = data.projects[job.project]

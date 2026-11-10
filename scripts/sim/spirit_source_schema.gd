@@ -30,7 +30,7 @@ static func validate(data: Variant, domain: RefCounted) -> bool:
 		objects[job.object] = true
 		reserved[job.source] = int(reserved.get(job.source, 0)) + int(domain.definitions.source_cost)
 		all_jobs.append(job)
-		var body: Dictionary = domain.world.regions[job.region].actors[actor]
+		var body: Dictionary = domain.world.regions[job.region].synchronize_actors()[actor]
 		if bool(body.autonomous) or not domain._same_position(job) or not domain.readiness(actor, str(job.source), str(job.target), str(job.object), true).is_empty():
 			return false
 	for id: Variant in data.records:
@@ -224,7 +224,7 @@ static func _baselines(data: Dictionary, domain: RefCounted, jobs: Array[Diction
 	if conflicts != null:
 		var allocated: Dictionary = {}
 		for region: String in domain.world.regions:
-			for actor: String in domain.world.regions[region].actors:
+			for actor: String in domain.world.regions[region].synchronize_actors():
 				for cost: Dictionary in conflicts.qi_spending(actor):
 					if not _valid_cost(cost, domain) or cost.domain != "conflict" or allocated.has(cost.number):
 						return false
@@ -309,7 +309,7 @@ static func _qi_ledger(data: Dictionary, domain: RefCounted) -> bool:
 				spent += int(cost.amount)
 			elif int(cost.at_ms) > int(baseline.at_ms):
 				return false
-		var body: Dictionary = domain.world.regions[domain.actor_home(actor)].actors[actor]
+		var body: Dictionary = domain.world.regions[domain.actor_home(actor)].synchronize_actors()[actor]
 		if int(body.qi) != int(baseline.qi) + outputs - spent:
 			return false
 		for receipt: Dictionary in successful:

@@ -45,13 +45,13 @@ func owns_soul(id: String) -> bool:
 func point(id: String) -> Vector2:
 	var item: Dictionary = domain.vessels[domain.residents[id].vessel]
 	if str(item.container).begins_with("actor:"):
-		return SimRouteTravel.point(world.regions[item.region].actor_state(str(item.container).trim_prefix("actor:")))
+		return SimRouteTravel.point(world.regions[item.region].synchronize_actor(str(item.container).trim_prefix("actor:")))
 	return TileGrid.cell_to_world(SimRouteTravel.cell(world.regions[item.region].places[item.container].cell))
 
 
 func _can_hear(id: String, actor: String) -> bool:
 	var home: String = domain.actor_home(actor)
-	return not home.is_empty() and bool(world.regions[home].actor_state(actor).alive) and point(id).distance_to(SimRouteTravel.point(world.regions[home].actor_state(actor))) <= float(domain.definitions.agency.sense_cells) * TileGrid.TILE_SIZE
+	return not home.is_empty() and bool(world.regions[home].synchronize_actor(actor).alive) and point(id).distance_to(SimRouteTravel.point(world.regions[home].synchronize_actor(actor))) <= float(domain.definitions.agency.sense_cells) * TileGrid.TILE_SIZE
 
 
 func _introduced(actor: String) -> bool:
@@ -70,13 +70,13 @@ func perceive(id: String) -> Dictionary:
 	var signals: Array[Dictionary] = []
 	if bool(mind.awake) and int(item.damage) < int(domain.definitions.vessel_types[item.type].damage_max):
 		for region: String in world.regions:
-			for actor: String in world.regions[region].actors:
+			for actor: String in world.regions[region].synchronize_actors():
 				if not _can_hear(id, actor):
 					continue
-				var offset: Vector2 = SimRouteTravel.point(world.regions[region].actor_state(actor)) - point(id)
+				var offset: Vector2 = SimRouteTravel.point(world.regions[region].synchronize_actor(actor)) - point(id)
 				var label: String = "一道呼吸的气息"
 				if _introduced(actor):
-					label = world._content.get_pawn(StringName(world.regions[region].actor_state(actor).definition_id)).display_name
+					label = world._content.get_pawn(StringName(world.regions[region].synchronize_actor(actor).definition_id)).display_name
 				signals.append({"id": actor, "label": label, "offset": [offset.x, offset.y]})
 		signals.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 			var da: float = Vector2(float(a.offset[0]), float(a.offset[1])).length_squared()
@@ -144,7 +144,7 @@ func next_boundary_ms() -> int:
 			return world.elapsed_ms + 1
 		boundary = mini(boundary, int(job.due_ms))
 		if job.phase != "pickup":
-			boundary = mini(boundary, SimRouteTravel.next_boundary(job, world.regions[job.region].actor_state(actor), world.elapsed_ms, world.regions[job.region]._step_validator))
+			boundary = mini(boundary, SimRouteTravel.next_boundary(job, world.regions[job.region].synchronize_actor(actor), world.elapsed_ms, world.regions[job.region]._step_validator))
 	return boundary
 
 
@@ -189,11 +189,11 @@ func settle_at_ms(now: int) -> void:
 			if not job.path.is_empty():
 				sim.set_actor_cell(actor, SimRouteTravel.cell(job.path.pop_front()))
 			if not job.path.is_empty():
-				SimRouteTravel.begin_segment(job, sim.actor_state(actor), now, _speed())
+				SimRouteTravel.begin_segment(job, sim.synchronize_actor(actor), now, _speed())
 			elif job.phase == "approach":
 				job.phase = "pickup"
 				job.segment_started_ms = now
-				job.segment_from = sim.actor_state(actor).position.duplicate()
+				job.segment_from = sim.synchronize_actor(actor).position.duplicate()
 				job.due_ms = now + int(domain.definitions.verbs.take.ms)
 			else:
 				_finish_errand(job, true, "对方践约把同一枚旧戒带到了药圃；你可以亲自感受此地草木。")
@@ -224,7 +224,7 @@ func _request_carry(id: String, actor: String) -> void:
 	var region: String = domain.actor_home(actor)
 	var sim: RefCounted = world.regions[region]
 	world.synchronize_region(region)
-	var body: Dictionary = sim.actor_state(actor)
+	var body: Dictionary = sim.synchronize_actor(actor)
 	var profile: Dictionary = domain.definitions.minds[domain.residents[id].definition]
 	var subject: String = "subject:soul:" + id
 	var responder: String = world.embodiment.subject_for_actor(actor)
@@ -258,7 +258,7 @@ func _request_carry(id: String, actor: String) -> void:
 
 func _route(job: Dictionary, target: Vector2i, phase: String) -> bool:
 	var sim: RefCounted = world.regions[job.region]
-	var body: Dictionary = sim.actor_state(job.actor)
+	var body: Dictionary = sim.synchronize_actor(job.actor)
 	var path: Array[Vector2i] = sim.find_path(SimRouteTravel.cell(body.cell), target)
 	if path.is_empty() and SimRouteTravel.cell(body.cell) != target:
 		return false
@@ -279,7 +279,7 @@ func _custody_matches(job: Dictionary) -> bool:
 
 
 func _finish_errand(job: Dictionary, success: bool, line: String) -> void:
-	var body: Dictionary = world.regions[job.region].actor_state(job.actor)
+	var body: Dictionary = world.regions[job.region].synchronize_actor(job.actor)
 	body.autonomous = bool(job.previous_autonomous)
 	body.goal = "刚结束携戒相助" if success else "携戒请求已中断"
 	_record(str(job.soul), str(job.actor), "arrived" if success else "interrupted", line, str(job.request))

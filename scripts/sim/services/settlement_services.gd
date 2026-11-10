@@ -60,7 +60,7 @@ func initialize(simulation: RefCounted, settings: Dictionary) -> bool:
 	_hauling = Hauling.new(self)
 	social.configure({})
 	for region: RefCounted in world.regions.values():
-		for actor_id: String in region.actors:
+		for actor_id: String in region.synchronize_actors():
 			social.register_actor(actor_id)
 	for courier_id: String in world.couriers:
 		social.register_actor(courier_id)
@@ -112,7 +112,7 @@ func workplace_job_available(sim: RefCounted, actor_id: String, job_id: String) 
 		return false
 	if world.get("site_affairs") == null or not Schema.same_value(job.spec, world.site_affairs.service_spec("site_return", str(job.region), job.options, "register")):
 		return false
-	var actor: Dictionary = sim.actor_state(actor_id)
+	var actor: Dictionary = sim.synchronize_actor(actor_id)
 	if not actor.active.is_empty() or bool(actor.autonomous) or not world.actor_controls(actor_id, "communication") or not world.actor_controls(actor_id, "action") or not world.actor_controls(actor_id, "motion"):
 		return false
 	if world.body_action_owns(actor_id, &"services") or (world.construction != null and not world.construction.duty_for(actor_id).is_empty()) or (world.resting != null and not world.resting.duty_for(actor_id).is_empty()):
@@ -157,7 +157,7 @@ func has_access(actor_id: String, region_id: String, scope: String) -> bool:
 		return false
 	var permission: Dictionary = authorizations[key]
 	var sim: RefCounted = world.regions[region_id]
-	return sim.has_actor(permission.issuer) and bool(sim.actor_state(permission.issuer).alive) and sim.institutions.has_permission(sim.config.institution.id, permission.issuer, "authorize")
+	return sim.has_actor(permission.issuer) and bool(sim.synchronize_actor(permission.issuer).alive) and sim.institutions.has_permission(sim.config.institution.id, permission.issuer, "authorize")
 
 
 func collection_allowed(job: Dictionary) -> bool:
@@ -198,7 +198,7 @@ func next_boundary_ms() -> int:
 		boundary = mini(boundary, int(job.due_ms))
 		boundary = mini(boundary, int(job.started_ms) + int(definitions.job_timeout) * 60000)
 		if job.phase == "travel":
-			boundary = mini(boundary, SimRouteTravel.next_boundary(job, world.regions[job.home].actor_state(actor_id), world.elapsed_ms, route_step.bind(job.home))) if not bool(job.get("road_paused", false)) else boundary
+			boundary = mini(boundary, SimRouteTravel.next_boundary(job, world.regions[job.home].synchronize_actor(actor_id), world.elapsed_ms, route_step.bind(job.home))) if not bool(job.get("road_paused", false)) else boundary
 	return maxi(world.elapsed_ms + 1, boundary)
 
 
@@ -212,7 +212,7 @@ func settle_at_ms(at_ms: int) -> void:
 		var job: Dictionary = jobs[active_jobs[actor_id]]
 		world.synchronize_region(job.home)
 		var sim: RefCounted = world.regions[job.home]
-		var actor: Dictionary = sim.actor_state(actor_id)
+		var actor: Dictionary = sim.synchronize_actor(actor_id)
 		sim._decay_need(actor, "energy", roundi(float(definitions.work_energy_per_minute) * 1000000.0), elapsed)
 		if not world.actor_controls(actor_id, "action") or not world.actor_controls(actor_id, "motion") or at_ms >= int(job.started_ms) + int(definitions.job_timeout) * 60000:
 			_jobs.finish(job, false, "差事中止，已取出的物资仍随身保存。")
@@ -324,12 +324,12 @@ func issuer(region_id: String, actor_id: String, permission: String) -> String:
 	if home.is_empty() or permission.is_empty() or not world.synchronize_region(region_id):
 		return ""
 	var sim: RefCounted = world.regions[region_id]
-	var visitor: Dictionary = world.regions[home].actor_state(actor_id)
+	var visitor: Dictionary = world.regions[home].synchronize_actor(actor_id)
 	if not visitor.alive:
 		return ""
 	var visitor_cell := Vector2(float(visitor.cell[0]), float(visitor.cell[1]))
 	for id: String in sim._actor_ids():
-		var person: Dictionary = sim.actor_state(id)
+		var person: Dictionary = sim.synchronize_actor(id)
 		if person.alive and sim.institutions.has_permission(sim.config.institution.id, id, permission):
 			if visitor_cell.distance_to(Vector2(float(person.cell[0]), float(person.cell[1]))) <= float(sim.config.talk_radius) and bool(Workplaces.assessment(sim, id, permission).ok):
 				return id

@@ -26,7 +26,7 @@ func _run() -> void:
 func _actors(regions: Dictionary) -> Dictionary:
 	var result: Dictionary = {}
 	for region: Dictionary in regions.values():
-		for id: String in region.actors:
+		for id: String in region.synchronize_actors():
 			result[id] = true
 	return result
 

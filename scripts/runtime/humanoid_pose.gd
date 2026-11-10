@@ -25,8 +25,8 @@ static func from_body(body: Dictionary, now: int, job: Dictionary = {}, manual_m
 static func in_world(world: RegionalSimulation, id: String, now: int, journey: Dictionary = {}, manual_moving: bool = false, local_action: Dictionary = {}) -> Dictionary:
 	var body: Dictionary = {}
 	for sim: VillageSimulation in world.regions.values():
-		if sim.actors.has(id):
-			body = sim.actors[id]
+		if sim.has_actor(id):
+			body = sim.actor_state(id)
 			break
 	if body.is_empty():
 		return {}

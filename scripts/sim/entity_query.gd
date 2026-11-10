@@ -52,6 +52,7 @@ static func _actor(world: RegionalSimulation, id: String) -> Dictionary:
 	var point: Variant = _actor_position(simulation.actor_state(id))
 	if point == null:
 		return _failure("invalid_location")
+	point = simulation.projected_actor_position(id)
 	return _position_result(world, "actor", id, point, "village_simulation", region, simulation.elapsed_ms, "village_simulation", simulation.elapsed_ms)
 
 

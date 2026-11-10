@@ -16,11 +16,10 @@ const Workplaces = preload("res://scripts/sim/workplaces.gd")
 var _actors: Dictionary = {}
 var actors: Dictionary:
 	get:
-		# Compatibility/inspection is a read barrier over the original bodies.
-		materialize_actors()
+		# Identity/state lookup is pure. Execution and capture use explicit barriers.
 		return _actors
 	set(value):
-		materialize_actors()
+		synchronize_actors()
 		_actors = value
 		_reset_actor_projections()
 var _actor_projection_ms: Dictionary[String, int] = {}
@@ -62,7 +61,7 @@ var motion_rules: Dictionary = {}
 var controlled_actor: String = "player"
 var errors: Array[String] = []
 ## Diagnostics only. These counters do not affect decisions or persisted state.
-var simulation_work: Dictionary = {"step_count": 0, "boundary_count": 0, "batched_minutes": 0, "quiet_batch_calls": 0}
+var simulation_work: Dictionary = {"step_count": 0, "boundary_count": 0, "batched_minutes": 0, "quiet_batch_calls": 0, "actor_settle_checks": 0, "actor_decision_checks": 0}
 
 var _content: ReolContentDB
 var _boundary_revision_provider: Callable
@@ -71,6 +70,7 @@ var _actor_boundaries: Dictionary[String, int] = {}
 var _boundary_index := SimParticipationIndex.new()
 var _boundary_index_ready: bool = false
 var _dirty_actor_boundaries: Dictionary[String, bool] = {}
+var _boundary_invalidation_revision: int = 0
 const NATIVE_BOUNDARY: StringName = &"native_action"
 var _next_actor_boundary: int = -1
 var _navigation: Callable
@@ -142,7 +142,7 @@ func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary,
 	institutions = SimInstitutionBook.new()
 	_rng.seed = int(config.seed)
 	elapsed_ms = opening_ms
-	simulation_work = {"step_count": 0, "boundary_count": 0, "batched_minutes": 0, "quiet_batch_calls": 0}
+	simulation_work = {"step_count": 0, "boundary_count": 0, "batched_minutes": 0, "quiet_batch_calls": 0, "actor_settle_checks": 0, "actor_decision_checks": 0}
 	_next_id = 1
 	_last_request = -int(config.request_interval)
 	situations = {}
@@ -212,7 +212,7 @@ func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary,
 
 
 func set_navigation(provider: Callable, step_validator: Callable = Callable()) -> void:
-	materialize_actors()
+	synchronize_actors()
 	rebuild_workplace_geometry()
 	invalidate_boundary_cache()
 	_navigation = provider
@@ -224,23 +224,23 @@ func set_action_guard(provider: Callable) -> void:
 
 
 func set_control_guard(provider: Callable) -> void:
-	materialize_actors()
+	synchronize_actors()
 	invalidate_boundary_cache()
 	_control_guard = provider
 
 
 func set_rest_recovery(provider: Callable) -> void:
-	materialize_actors()
+	synchronize_actors()
 	_rest_recovery = provider
 
 
 func set_exposure_rate(provider: Callable) -> void:
-	materialize_actors()
+	synchronize_actors()
 	_exposure_rate = provider
 
 
 func set_external_labor(provider: Callable) -> void:
-	materialize_actors()
+	synchronize_actors()
 	_external_labor = provider
 
 
@@ -314,7 +314,7 @@ func next_boundary_ms() -> int:
 	if cached:
 		var revision: int = int(_boundary_revision_provider.call())
 		if revision != _boundary_revision:
-			materialize_actors()
+			synchronize_actors()
 			invalidate_boundary_cache()
 			_boundary_revision = revision
 	if cached and _next_actor_boundary > elapsed_ms:
@@ -377,13 +377,14 @@ func set_boundary_revision_provider(provider: Callable) -> void:
 	# Opt in only with observable navigation/control dependencies. Arbitrary
 	# standalone Callables keep the conservative path. Absolute deadlines are
 	# reused until due; this is not a second action state or saved schedule.
-	materialize_actors()
+	synchronize_actors()
 	_boundary_revision_provider = provider
 	_boundary_revision = -1
 	invalidate_boundary_cache()
 
 
 func invalidate_boundary_cache() -> void:
+	_boundary_invalidation_revision += 1
 	_actor_boundaries.clear()
 	_boundary_index.clear()
 	_boundary_index_ready = false
@@ -392,6 +393,7 @@ func invalidate_boundary_cache() -> void:
 
 
 func invalidate_actor_boundary(id: String) -> void:
+	_boundary_invalidation_revision += 1
 	_actor_boundaries.erase(id)
 	_dirty_actor_boundaries[id] = true
 	_next_actor_boundary = -1
@@ -422,7 +424,9 @@ func advance_to_ms(target_ms: int, max_events: int = 4096) -> bool:
 		return false
 	var events_left: int = max_events
 	var initial_minute: int = tick_index
-	var ids: Array = _actor_ids()
+	var ids: Array = []
+	if not _sparse_actor_projection or not _boundary_revision_provider.is_valid():
+		ids = _actor_ids()
 	while elapsed_ms < target_ms:
 		var boundary: int = next_boundary_ms()
 		var next: int = mini(target_ms, boundary)
@@ -454,18 +458,14 @@ func advance_to_ms(target_ms: int, max_events: int = 4096) -> bool:
 		for id: String in projecting:
 			_executor.project(id, elapsed_ms)
 		if next == boundary:
-			for id: String in ids:
-				if not _boundary_revision_provider.is_valid() or int(_actor_boundaries.get(id, 0)) <= elapsed_ms:
-					_executor.settle(id)
-			for id: String in ids:
-				var actor: Dictionary = _actors[id]
-				if bool(actor.alive) and bool(actor.autonomous) and actor.active.is_empty() and elapsed_ms >= int(actor.retry_ms):
-					_choose_routine(id)
+			var due: Array = _boundary_index.due_ids(NATIVE_BOUNDARY, elapsed_ms) if _boundary_revision_provider.is_valid() else ids
+			_settle_actor_work(due, false)
+			_settle_actor_work(due, true)
 			_update_situations()
 			events_left -= 1
 			simulation_work.boundary_count = int(simulation_work.boundary_count) + 1
 		_refresh_stock_epoch()
-		var observing: Array = ids if not sparse or _stock_observed_epoch != _stock_epoch or _stock_observed_minute != tick_index else _stock_dirty_actors.keys()
+		var observing: Array = _actor_ids() if not sparse or _stock_observed_epoch != _stock_epoch or _stock_observed_minute != tick_index else _stock_dirty_actors.keys()
 		observing.sort()
 		for id: String in observing:
 			if bool(_actors[id].alive):
@@ -477,6 +477,45 @@ func advance_to_ms(target_ms: int, max_events: int = 4096) -> bool:
 	simulation_work.quiet_batch_calls = int(simulation_work.quiet_batch_calls) + 1
 	changed.emit()
 	return true
+
+
+func _settle_actor_work(due: Array, choosing: bool) -> void:
+	# A pass keeps the original ID order. A synchronous observer can invalidate
+	# a later body during this pass; merge that suffix without rescanning N peers.
+	# Earlier IDs wait for the next boundary, as in the original ordered loop.
+	var candidates: Array = due.duplicate()
+	var included: Dictionary = {}
+	for id: String in candidates:
+		included[id] = true
+	_merge_actor_work(candidates, included, "")
+	var revision: int = _boundary_invalidation_revision
+	var cursor: int = 0
+	while cursor < candidates.size():
+		var id: String = candidates[cursor]
+		cursor += 1
+		var actor: Dictionary = _actors[id]
+		if choosing:
+			simulation_work.actor_decision_checks = int(simulation_work.actor_decision_checks) + 1
+			if bool(actor.alive) and bool(actor.autonomous) and actor.active.is_empty() and elapsed_ms >= int(actor.retry_ms):
+				_choose_routine(id)
+		elif not _boundary_revision_provider.is_valid() or int(_actor_boundaries.get(id, 0)) <= elapsed_ms:
+			simulation_work.actor_settle_checks = int(simulation_work.actor_settle_checks) + 1
+			_executor.settle(id)
+		if revision != _boundary_invalidation_revision:
+			_merge_actor_work(candidates, included, id)
+			revision = _boundary_invalidation_revision
+
+
+func _merge_actor_work(candidates: Array, included: Dictionary, after: String) -> void:
+	var changed: bool = false
+	var invalidated: Array = _dirty_actor_boundaries.keys() if _boundary_index_ready else _actor_ids()
+	for id: String in invalidated:
+		if id > after and not included.has(id):
+			candidates.append(id)
+			included[id] = true
+			changed = true
+	if changed or after.is_empty():
+		candidates.sort()
 
 
 func has_actor(id: Variant) -> bool:
@@ -499,7 +538,7 @@ func set_sparse_actor_projection(enabled: bool) -> void:
 	# World adapters opt in only after their continuous-input mutation barriers
 	# and navigation/control notifications are bound. Standalone Callables keep
 	# eager projection because their captured inputs may change invisibly.
-	materialize_actors()
+	synchronize_actors()
 	_sparse_actor_projection = enabled
 
 
@@ -508,6 +547,11 @@ func actor_ids() -> Array:
 
 
 func actor_state(id: String) -> Dictionary:
+	# Original state at its last owner integration. This query emits no signals.
+	return _actors.get(id, {})
+
+
+func synchronize_actor(id: String) -> Dictionary:
 	if not _actors.has(id):
 		return {}
 	var actor: Dictionary = _actors[id]
@@ -530,14 +574,15 @@ func _integrate_actor(id: String) -> void:
 		_decay_actor(id, previous, elapsed_ms - previous)
 
 
-func materialize_actors() -> void:
+func synchronize_actors() -> Dictionary:
 	if _materializing_actors or _all_projected_ms == elapsed_ms:
-		return
+		return _actors
 	_materializing_actors = true
 	for id: String in _actor_ids():
-		actor_state(id)
+		synchronize_actor(id)
 	_materializing_actors = false
 	_all_projected_ms = elapsed_ms
+	return _actors
 
 
 func _reset_actor_projections() -> void:
@@ -628,8 +673,16 @@ func actor_position(actor: Dictionary) -> Vector2:
 	return Vector2(float(actor.position[0]), float(actor.position[1]))
 
 
+func projected_actor_position(id: String) -> Vector2:
+	var actor: Dictionary = _actors[id]
+	var route: Dictionary = actor.get("active", {})
+	if route.get("phase") == "travel":
+		return SimRouteTravel.projected_point(route, actor, elapsed_ms)
+	return actor_position(actor)
+
+
 func set_actor_position(id: String, point: Vector2) -> void:
-	actor_state(id)
+	synchronize_actor(id)
 	invalidate_actor_boundary(id)
 	var before: Vector2i = SimRouteTravel.cell(_actors[id].cell)
 	SimRouteTravel.put(_actors[id], point)
@@ -693,8 +746,8 @@ func remove_actor(actor_id: String) -> void:
 func request_help(requester: String, responder: String, occasion: String = "personal_request") -> Dictionary:
 	if not _actors.has(requester) or not _actors.has(responder) or requester == responder:
 		return {"status": "refused", "reason": "invalid_actor", "message": "没有可交谈的人。"}
-	var source: Dictionary = actor_state(requester)
-	var person: Dictionary = actor_state(responder)
+	var source: Dictionary = synchronize_actor(requester)
+	var person: Dictionary = synchronize_actor(responder)
 	if not bool(source.alive) or not bool(person.alive):
 		return {"status": "refused", "reason": "unavailable", "message": "对方已经离开。"}
 	if not actor_controls(requester, "communication") or not actor_controls(responder, "communication"):
@@ -896,7 +949,7 @@ func allocate_id(prefix: String) -> String:
 
 
 func to_dict() -> Dictionary:
-	materialize_actors()
+	synchronize_actors()
 	return {
 		"version": SCHEMA_VERSION, "config": config.duplicate(true),
 		"actors": _actors.duplicate(true), "places": places.duplicate(true),
@@ -988,13 +1041,13 @@ func restore(data: Dictionary, allowed_subjects: Dictionary = {}, external_inven
 	land_resources.bind_restored(self, _content.land_resources, data.land_resources)
 	_executor = SimActionExecutor.new(self)
 	_reset_actor_projections()
-	simulation_work = {"step_count": 0, "boundary_count": 0, "batched_minutes": 0, "quiet_batch_calls": 0}
+	simulation_work = {"step_count": 0, "boundary_count": 0, "batched_minutes": 0, "quiet_batch_calls": 0, "actor_settle_checks": 0, "actor_decision_checks": 0}
 	space_reset.emit()
 	return true
 
 
 func _choose_routine(id: String, consider_initiative: bool = true) -> void:
-	var actor: Dictionary = actor_state(id)
+	var actor: Dictionary = synchronize_actor(id)
 	actor.retry_ms = elapsed_ms + int(config.decision_interval) * MINUTE_MS
 	if float(actor.hunger) <= float(config.needs.eat_below) and submit_action(id, "eat"):
 		return

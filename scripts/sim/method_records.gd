@@ -54,12 +54,12 @@ func valid_location(region: Variant, container: Variant) -> bool:
 
 func cell_at(region: String, container: String) -> Vector2i:
 	var sim: VillageSimulation = world.regions[region]
-	return SimRouteTravel.cell(sim.actor_state(container.trim_prefix("actor:")).cell if container.begins_with("actor:") else sim.places[container].cell)
+	return SimRouteTravel.cell(sim.synchronize_actor(container.trim_prefix("actor:")).cell if container.begins_with("actor:") else sim.places[container].cell)
 
 
 func near(actor: String, id: String, radius: float = -1.0) -> bool:
 	var region: String = home(actor)
-	if region.is_empty() or not objects.has(id) or not world.regions[region].actor_state(actor).alive:
+	if region.is_empty() or not objects.has(id) or not world.regions[region].synchronize_actor(actor).alive:
 		return false
 	return cell_at(region, "actor:" + actor).distance_to(cell_at(str(objects[id].region), str(objects[id].container))) <= (float(definitions.interaction_cells) if radius < 0 else radius)
 
@@ -114,7 +114,7 @@ func destination(target: String) -> Dictionary:
 
 func _available(actor: String) -> bool:
 	var region: String = home(actor)
-	return not region.is_empty() and world.native_action_allowed(actor) and world.actor_controls(actor, "motion") and world.regions[region].actor_state(actor).active.is_empty()
+	return not region.is_empty() and world.native_action_allowed(actor) and world.actor_controls(actor, "motion") and world.regions[region].synchronize_actor(actor).active.is_empty()
 
 
 func begin(actor: String, verb: String, id: String = "", method: String = "", target: String = "", during_commit: bool = false) -> Dictionary:
@@ -125,7 +125,7 @@ func begin(actor: String, verb: String, id: String = "", method: String = "", ta
 		return reply(false, "先完成或中断手头的事情，再动手。")
 	var region: String = home(actor)
 	var sim: VillageSimulation = world.regions[region]
-	var person: Dictionary = sim.actor_state(actor)
+	var person: Dictionary = sim.synchronize_actor(actor)
 	var consent: String = ""
 	var source: String = ""
 	var from_region: String = region
@@ -177,7 +177,7 @@ func _consent(actor: String, recipient: String, id: String) -> Dictionary:
 	var sim: VillageSimulation = world.regions[region]
 	if actor == recipient or not world.actor_controls(actor, "communication") or not world.actor_controls(recipient, "communication") or distance(actor, recipient) > float(definitions.interaction_cells):
 		return reply(false, "先到对方面前，说明想把这份木牍交给他。")
-	var body: Dictionary = sim.actor_state(recipient)
+	var body: Dictionary = sim.synchronize_actor(recipient)
 	if not body.autonomous or not _available(recipient):
 		return reply(false, "对方正在忙，或须由本人另作选择。")
 	var memory: SimSocialMemory = social_for(actor, recipient)
@@ -213,6 +213,10 @@ func _connected(job: Dictionary) -> bool:
 		var place: Dictionary = destination(str(job.target))
 		return not place.is_empty() and cell_at(str(job.region), "actor:" + str(job.actor)).distance_to(cell_at(str(place.region), str(place.container))) <= float(definitions.interaction_cells)
 	return true
+
+
+func has_settlement_work(_at_ms: int) -> bool:
+	return not active.is_empty()
 
 
 func next_boundary_ms() -> int:
@@ -262,7 +266,7 @@ func _finish(job: Dictionary, outcome: String) -> void:
 	record["outcome"] = outcome
 	record["finished_ms"] = world.elapsed_ms
 	events.append(record)
-	var person: Dictionary = world.regions[job.region].actor_state(job.actor)
+	var person: Dictionary = world.regions[job.region].synchronize_actor(job.actor)
 	person.autonomous = bool(job.previous_autonomous)
 	person.goal = "刚结束刻写" if job.verb == "write" else "刚结束阅读" if job.verb == "read" else "刚结束交接"
 	person.retry_ms = world.elapsed_ms + int(world.regions[job.region].config.decision_interval) * 60000
@@ -284,7 +288,7 @@ func consider_reading() -> void:
 		for actor: String in world._sorted_keys(holders):
 			if not sim.has_actor(actor):
 				continue
-			var person: Dictionary = sim.actor_state(actor)
+			var person: Dictionary = sim.synchronize_actor(actor)
 			if not person.autonomous or not person.active.is_empty() or int(person.retry_ms) - int(sim.config.decision_interval) * 60000 != world.elapsed_ms or person.hunger <= sim.config.needs.eat_below or person.energy <= sim.config.needs.rest_below or not _available(actor):
 				continue
 			for id: String in world._sorted_keys(objects):

@@ -395,7 +395,7 @@ func _door_id() -> String:
 
 
 func _body_position() -> Vector2:
-	return SimRouteTravel.point(_runtime.world_sim.regions.home.actors.player)
+	return SimRouteTravel.point(_runtime.world_sim.regions.home.synchronize_actors().player)
 
 
 func _prepare_view() -> void:
@@ -497,7 +497,7 @@ func _fail(message: String) -> void:
 	_report["elapsed_real_ms"] = Time.get_ticks_msec() - _started_ms
 	_report["structure_events"] = _events
 	if _runtime != null and _runtime.world_sim != null:
-		_report["diagnostic"] = {"avatar": _runtime.avatar_subject, "world_ms": _runtime.world_sim.elapsed_ms, "target_ms": _runtime.world_sim.target_ms, "player": _runtime.world_sim.regions.home.actors.player.duplicate(true), "journey": _runtime.player_journey.duplicate(true), "construction": _domain().to_dict()}
+		_report["diagnostic"] = {"avatar": _runtime.avatar_subject, "world_ms": _runtime.world_sim.elapsed_ms, "target_ms": _runtime.world_sim.target_ms, "player": _runtime.world_sim.regions.home.synchronize_actors().player.duplicate(true), "journey": _runtime.player_journey.duplicate(true), "construction": _domain().to_dict()}
 	_write_json(_report_path(), _report)
 	printerr("STRUCTURE_NATIVE_FAILED ", _phase, " ", message, " report=", _report_path())
 	quit(1)

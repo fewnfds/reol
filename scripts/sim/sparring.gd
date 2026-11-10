@@ -47,7 +47,7 @@ func action_blocks(id: String) -> bool:
 func body(id: String) -> Dictionary:
 	for simulation: VillageSimulation in world.regions.values():
 		if simulation.has_actor(id):
-			return simulation.actor_state(id)
+			return simulation.synchronize_actor(id)
 	return {}
 
 
@@ -118,6 +118,10 @@ func phase(id: String, at_ms: int) -> String:
 	if elapsed < int(rules.strike.prepare_ms) + int(rules.strike.contact_ms):
 		return "contact"
 	return "recover" if elapsed < _duration() else ""
+
+
+func has_settlement_work(_at_ms: int) -> bool:
+	return not bout.is_empty()
 
 
 func next_boundary_ms() -> int:

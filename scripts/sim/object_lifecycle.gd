@@ -321,6 +321,10 @@ func cancel(actor: String) -> bool:
 	return ActionProcess.cancel(self, actor)
 
 
+func has_settlement_work(at_ms: int) -> bool:
+	return next_boundary_ms() <= at_ms
+
+
 func next_boundary_ms() -> int:
 	var result: int = SimInventory.MAX_COUNT
 	for id: String in _active_actions:

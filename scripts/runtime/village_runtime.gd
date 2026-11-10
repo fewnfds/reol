@@ -136,7 +136,7 @@ func _workspace_wall(cell: Vector2i) -> bool:
 
 
 func select_actor(id: String) -> void:
-	if simulation == null or not simulation.actors.has(id):
+	if simulation == null or not simulation.has_actor(id):
 		return
 	_selected_actor = id
 	_refresh_panel()
@@ -145,7 +145,7 @@ func select_actor(id: String) -> void:
 func _player_actor() -> Dictionary:
 	if is_instance_valid(continuity):
 		continuity.prepare_home_command()
-	return simulation.actor_state("player")
+	return simulation.synchronize_actor("player")
 
 
 func _player_can_act() -> bool:
@@ -184,7 +184,7 @@ func bind_shared_motion(authority: RegionalSimulation) -> void:
 func _advance_player_motion(from_ms: int, to_ms: int) -> void:
 	# Leave view/cell signals until the existing end-of-world projection; an
 	# intermediate body position must not make UI observers reenter settlement.
-	simulation.actor_state("player")
+	simulation.synchronize_actor("player")
 	_player.prepare_motion_interval()
 	if is_instance_valid(continuity):
 		continuity.project_player_journey(to_ms)
@@ -224,17 +224,17 @@ func reconcile_actor_views() -> void:
 	# Scene nodes project the accepted roster; creating/removing a view never
 	# creates/removes a body, inventory or social entry in the simulation.
 	for id: String in _pawns.keys():
-		if simulation.actors.has(id):
+		if simulation.has_actor(id):
 			continue
 		var removed: Pawn = _pawns[id]
 		removed.hide()
 		removed.set_selected(false)
 		removed.queue_free()
 		_pawns.erase(id)
-	for id: String in simulation.actors:
+	for id: String in simulation.synchronize_actors():
 		if id == "player" or _pawns.has(id):
 			continue
-		var body: Dictionary = simulation.actors[id]
+		var body: Dictionary = simulation.synchronize_actors()[id]
 		var created := Pawn.new()
 		created.name = "Resident_" + id
 		created.setup(_content.get_pawn(StringName(body.definition_id)), _content, _world, _decode_cell(body.cell))
@@ -244,7 +244,7 @@ func reconcile_actor_views() -> void:
 		created.z_as_relative = false
 		add_child(created)
 		_pawns[id] = created
-	if not simulation.actors.has(_selected_actor):
+	if not simulation.has_actor(_selected_actor):
 		_selected_actor = "player"
 
 
@@ -337,7 +337,7 @@ func load_game(path: String = SAVE_PATH) -> Error:
 		return _load_failed("近况里的行动或账目不完整。")
 	var saved_player: Dictionary = snapshot["player"]
 	var player_cell: Vector2i = _decode_cell(saved_player["cell"])
-	if _decode_cell(restored.actors["player"]["cell"]) != player_cell:
+	if _decode_cell(restored.synchronize_actors()["player"]["cell"]) != player_cell:
 		return _load_failed("近况里的位置记录不一致。")
 	if not GameClock.restore_state(snapshot["clock"]):
 		return _load_failed("近况里的时间记录不正确。")
@@ -350,14 +350,14 @@ func load_game(path: String = SAVE_PATH) -> Error:
 	_places = simulation.places.duplicate(true)
 	_player.spawn_at(player_cell)
 	var saved_position: Array = saved_player["position"]
-	_player.motion.bind_body(simulation.actors.player, simulation.notify_body_space_changed.bind("player"), simulation.notify_body_cell_crossed.bind("player"))
+	_player.motion.bind_body(simulation.synchronize_actors().player, simulation.notify_body_space_changed.bind("player"), simulation.notify_body_cell_crossed.bind("player"))
 	_player.restore_motion(saved_player.motion, Vector2(float(saved_position[0]), float(saved_position[1])), int(snapshot.clock.elapsed_ms))
 	_player.set_altitude(int(saved_player["altitude"]))
 	_world.set_focus(player_cell)
 	if _fog != null:
 		_fog.restore_exploration(snapshot.world.exploration, player_cell)
 	_sync_actor_views(true)
-	if not simulation.actors.has(_selected_actor):
+	if not simulation.has_actor(_selected_actor):
 		_selected_actor = "player"
 	_notice = "已回到记下近况的那一刻。"
 	_refresh_panel()
@@ -452,21 +452,22 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 func _sync_player_cell() -> void:
 	# SimLocalMotion writes this very body. Keep legacy standalone probes explicit.
-	if _player.motion._body != simulation.actors.player:
-		_player.motion.bind_body(simulation.actors.player, simulation.notify_body_space_changed.bind("player"), simulation.notify_body_cell_crossed.bind("player"))
+	if _player.motion._body != simulation.synchronize_actors().player:
+		_player.motion.bind_body(simulation.synchronize_actors().player, simulation.notify_body_space_changed.bind("player"), simulation.notify_body_cell_crossed.bind("player"))
 	if is_instance_valid(continuity):
 		continuity.world_sim.invalidate_region("home")
 
 
 func _sync_actor_views(snap: bool) -> void:
-	var layout: Dictionary = continuity.actor_view_layout() if is_instance_valid(continuity) else PawnViewLayout.build(simulation.actors, "player")
+	var residents: Dictionary = simulation.synchronize_actors()
+	var layout: Dictionary = continuity.actor_view_layout() if is_instance_valid(continuity) else PawnViewLayout.build(residents, "player")
 	for id: String in _pawns:
-		if not simulation.actors.has(id):
+		if not simulation.has_actor(id):
 			_pawns[id].hide()
 			continue
 		var pawn: Pawn = _pawns[id]
 		var was_visible: bool = pawn.visible
-		var actor: Dictionary = simulation.actors[id]
+		var actor: Dictionary = residents[id]
 		pawn.cell = _decode_cell(actor["cell"])
 		pawn.visible = bool(actor.alive) and (_fog.is_cell_visible(pawn.cell) if _fog != null else true)
 		pawn.global_position = simulation.actor_position(actor)
@@ -487,15 +488,15 @@ func _sync_actor_views(snap: bool) -> void:
 		_player.clothing_appearance = continuity.world_sim.clothing.appearance("player")
 		_player.appearance_pose = HumanoidPose.stabilized(HumanoidPose.in_world(continuity.world_sim, "player", GameClock.elapsed_ms, continuity.player_journey, _player.manual_visual_moving, _player.motion.action), _player.appearance_pose)
 	else:
-		_player.appearance_pose = HumanoidPose.stabilized(HumanoidPose.from_body(simulation.actors.player, GameClock.elapsed_ms, simulation.actors.player.active, _player.manual_visual_moving), _player.appearance_pose)
-	_sync_needs(_player.state, simulation.actors["player"])
+		_player.appearance_pose = HumanoidPose.stabilized(HumanoidPose.from_body(residents.player, GameClock.elapsed_ms, residents.player.active, _player.manual_visual_moving), _player.appearance_pose)
+	_sync_needs(_player.state, residents["player"])
 	if is_instance_valid(continuity) and _player.state != null:
 		# A visible visitor's body can be projected across a quiet interval without
 		# waking every resident in their home settlement for a HUD update.
 		var elapsed: int = maxi(0, int(continuity.world_sim.current_time) - simulation.tick_index)
 		_player.state.hunger = maxf(0.0, _player.state.hunger - float(_config.needs.hunger_per_minute) * elapsed)
 		var energy_rate: float = float(_config.needs.energy_per_minute)
-		if not simulation.actors.player.active.is_empty():
+		if not residents.player.active.is_empty():
 			energy_rate += float(_config.needs.work_energy_per_minute)
 		_player.state.energy = maxf(0.0, _player.state.energy - energy_rate * elapsed)
 	body_state_changed.emit()
@@ -648,7 +649,7 @@ func _refresh_panel() -> void:
 		simulation.inventory.quantity("actor:player", "herb"),
 	]
 	if _selected_actor == "player":
-		var actor: Dictionary = simulation.actors["player"]
+		var actor: Dictionary = simulation.synchronize_actors()["player"]
 		details = "饱食 %d · 精力 %d · 功德堂 %d 功\n%s" % [
 			int(actor["hunger"]), int(actor["energy"]),
 			simulation.institutions.balance("sect", "player"), details,
@@ -722,7 +723,7 @@ func resource_is_observable(sim: VillageSimulation, source_id: String) -> bool:
 	var cell: Vector2i = _decode_cell(sim.places[source.place].cell)
 	if _fog != null and not _fog.is_cell_visible(cell):
 		return false
-	var observer: Vector2 = simulation.actor_position(simulation.actors.player)
+	var observer: Vector2 = simulation.actor_position(simulation.synchronize_actors().player)
 	return observer.distance_to(TileGrid.cell_to_world(cell)) <= float(sim.config.observation_radius) * TileGrid.TILE_SIZE
 
 
@@ -850,15 +851,15 @@ func _matches_world(candidate: VillageSimulation, candidate_map: WorldMapData = 
 			expected_actors[id] = opening.actor_profiles[id].get("definition_id", id)
 		for definition: Dictionary in opening.place_defs:
 			expected_places.append(str(definition.id))
-	if candidate.actors.size() != expected_actors.size() or candidate.places.size() != expected_places.size():
+	if candidate.synchronize_actors().size() != expected_actors.size() or candidate.places.size() != expected_places.size():
 		return false
 	for id: String in expected_actors:
-		if not candidate.actors.has(id) or candidate.actors[id]["definition_id"] != expected_actors[id]:
+		if not candidate.has_actor(id) or candidate.synchronize_actors()[id]["definition_id"] != expected_actors[id]:
 			return false
 	for id: String in expected_places:
 		if not candidate.places.has(id) or not candidate.places[id].get("label") is String:
 			return false
-	for actor: Dictionary in candidate.actors.values():
+	for actor: Dictionary in candidate.synchronize_actors().values():
 		var current: Vector2i = _decode_cell(actor["cell"])
 		if not terrain.terrain_is_walkable(current):
 			return false

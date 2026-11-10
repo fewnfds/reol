@@ -218,7 +218,7 @@ func _project() -> void:
 	_activity_line.text = str(body.goal)
 	if not body.active.is_empty():
 		_activity_line.text += "\n还需约%d秒" % ceili(float(int(body.active.due_ms) - GameClock.elapsed_ms) / 1000.0)
-	main.player.visible = bool(adapter.world_sim.regions.home.actors.player.alive) and main.fog.is_cell_visible(main.player.cell)
+	main.player.visible = bool(adapter.world_sim.regions.home.synchronize_actors().player.alive) and main.fog.is_cell_visible(main.player.cell)
 	adapter._panel.hide()
 	adapter.service_adapter.panel.hide()
 

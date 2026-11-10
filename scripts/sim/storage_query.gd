@@ -129,6 +129,7 @@ static func _actor_anchor(world: RegionalSimulation, reference: Dictionary, sim:
 	var point: Variant = actor_position(sim.actor_state(id))
 	if point == null:
 		return _failure("invalid_location")
+	point = sim.projected_actor_position(id)
 	return _result(world, reference, point, "village_inventory", sim.elapsed_ms, "village_simulation", sim.elapsed_ms, {"kind": "actor", "id": id})
 
 

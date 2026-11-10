@@ -21,7 +21,7 @@ static func schedule(owner: SimObjectLifecycle, request: Dictionary, actor: Stri
 	var home: String = world.artifacts.actor_home(actor)
 	if home.is_empty() or not world.synchronize_region(home):
 		return owner._fail("actor_unavailable")
-	var person: Dictionary = world.regions[home].actor_state(actor)
+	var person: Dictionary = world.regions[home].synchronize_actor(actor)
 	if not SimActionContract.can_begin(world, home, actor):
 		return owner._fail("actor_busy")
 	if blocked(owner, request):
@@ -82,7 +82,7 @@ static func contact_valid(owner: SimObjectLifecycle, request: Dictionary, actor:
 		cell = SimRouteTravel.cell(request.to.cell)
 	else:
 		return false
-	var origin: Vector2 = SimRouteTravel.point(world.regions[home].actor_state(actor))
+	var origin: Vector2 = SimRouteTravel.point(world.regions[home].synchronize_actor(actor))
 	var target: Vector2 = TileGrid.cell_to_world(cell)
 	var level: int = SimConflictSpace.level(world, origin)
 	return origin.distance_to(target) <= float(world.artifacts.definitions.interaction_radius) * TileGrid.TILE_SIZE and level == SimConflictSpace.level(world, target) and SimConflictSpace.clear_segment(world, origin, target, level)
@@ -205,7 +205,7 @@ static func cross_valid(owner: SimObjectLifecycle) -> bool:
 		if action.status == "active":
 			if not Shape.count(action.due_ms, world.elapsed_ms + 1) or action.finished_ms != -1 or not action.result.is_empty() or owner.receipts.has(id) or actors.has(action.actor):
 				return false
-			var person: Dictionary = world.regions[action.region].actor_state(action.actor)
+			var person: Dictionary = world.regions[action.region].synchronize_actor(action.actor)
 			if not bool(person.alive) or bool(person.autonomous) or not person.active.is_empty() or not owner._same(person.position, action.position) or not world.actor_controls(action.actor, "action") or not world.actor_controls(action.actor, "motion") or world.owns_for_scope(action.actor, &"body", &"object_lifecycle"):
 				return false
 			if not expected.is_empty() and not owner._same(inventory.reservations.get(expected), {"container": action.request.from.container, "item": action.request.item, "amount": action.request.amount, "owner_id": action.actor}):

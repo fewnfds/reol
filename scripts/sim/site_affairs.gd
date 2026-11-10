@@ -232,7 +232,7 @@ func settle_service(job: Dictionary) -> Dictionary:
 		var point: Vector2 = TileGrid.cell_to_world(SimRouteTravel.cell(world.regions[row.region].places[row.return_place].cell))
 		if item.region != row.region or item.container != row.return_place or not _sees(str(check.issuer), point) or int(item.damage) >= int(world.artifacts.definitions.types[item.definition].damage_max):
 			return {"ok": false, "line": "到场未能确认同一公器完好复位，尚不能结清。", "next_stage": ""}
-		var observer: Vector2 = SimRouteTravel.point(world.regions[row.region].actor_state(check.issuer))
+		var observer: Vector2 = SimRouteTravel.point(world.regions[row.region].synchronize_actor(check.issuer))
 		var observed: Dictionary = {"at_ms": int(world.elapsed_ms), "observer_position": _point(observer), "position": _point(point), "level": Space.level(world, observer), "object": row.object, "container": row.return_place}
 		var event: String = _record(row, "site_return_observed", str(check.issuer), "", {"case": row.id, "note": note.id, "job": job.id, "observation": observed.duplicate(true)})
 		observed["event"] = event
@@ -373,7 +373,7 @@ func _authority(issuer: String, row: Dictionary, desk: bool, own_job: String = "
 func _body_available(actor: String, own_job: String = "") -> bool:
 	var home: String = world.artifacts.actor_home(actor)
 	if home.is_empty(): return false
-	var person: Dictionary = world.regions[home].actor_state(actor)
+	var person: Dictionary = world.regions[home].synchronize_actor(actor)
 	if not bool(person.alive) or not person.active.is_empty(): return false
 	for channel: String in ["communication", "action", "motion"]:
 		if not world.actor_controls(actor, channel): return false
@@ -390,15 +390,15 @@ func _talk(actor: String, issuer: String, row: Dictionary) -> bool:
 	for id: String in [actor, issuer]:
 		if not world.actor_controls(id, "communication"): return false
 	var sim: VillageSimulation = world.regions[row.region]
-	var point: Vector2 = SimRouteTravel.point(sim.actor_state(actor))
-	var other: Vector2 = SimRouteTravel.point(sim.actor_state(issuer))
+	var point: Vector2 = SimRouteTravel.point(sim.synchronize_actor(actor))
+	var other: Vector2 = SimRouteTravel.point(sim.synchronize_actor(issuer))
 	return point.distance_to(other) <= float(world._content.interaction_requests.communication_cells) * TileGrid.TILE_SIZE and Space.level(world, point) == Space.level(world, other) and Space.clear_segment(world, point, other, Space.level(world, point))
 
 
 func _sees(actor: String, point: Vector2) -> bool:
 	var home: String = world.artifacts.actor_home(actor)
 	if home.is_empty(): return false
-	var from: Vector2 = SimRouteTravel.point(world.regions[home].actor_state(actor))
+	var from: Vector2 = SimRouteTravel.point(world.regions[home].synchronize_actor(actor))
 	return from.distance_to(point) <= float(definitions.interaction_px) and Space.level(world, from) == Space.level(world, point) and Space.clear_segment(world, from, point, Space.level(world, from))
 
 
@@ -409,7 +409,7 @@ func _service_due(job: Dictionary) -> bool:
 	var spec: Dictionary = service_spec(str(job.kind), str(job.region), job.options, str(job.stage))
 	if spec.is_empty() or SnapshotValues.normalized(spec) != SnapshotValues.normalized(job.spec): return false
 	var home: String = world.artifacts.actor_home(str(job.actor))
-	return not home.is_empty() and SimRouteTravel.cell(world.regions[home].actor_state(job.actor).cell) == SimRouteTravel.cell(world.regions[job.region].places[spec.place].cell)
+	return not home.is_empty() and SimRouteTravel.cell(world.regions[home].synchronize_actor(job.actor).cell) == SimRouteTravel.cell(world.regions[job.region].places[spec.place].cell)
 
 
 func _observation_after_use(note_id: String, at_ms: int, before_ms: int = SimInventory.MAX_COUNT) -> bool:
@@ -440,7 +440,7 @@ func _checking(note_id: String) -> bool:
 
 func _decide(actor: String, issuer: String, row: Dictionary, purpose: String, value: String) -> Dictionary:
 	var sim: VillageSimulation = world.regions[row.region]
-	var person: Dictionary = sim.actor_state(issuer)
+	var person: Dictionary = sim.synchronize_actor(issuer)
 	var context: Dictionary = {"energy": floorf(float(person.energy) / 20.0) / 5.0, "busy": 0.0, "duty": 1.0, "reliability": float(sim.social.relation(issuer, actor).reliability), "affinity": float(sim.social.relation(issuer, actor).affinity), "terms": {"case": row.id, "purpose": purpose, "value": value}}
 	return sim.social.evaluate_request(actor, issuer, "site:" + purpose + ":" + str(row.id), context, definitions.policy, sim._rng, sim.tick_index)
 

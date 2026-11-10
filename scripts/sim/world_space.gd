@@ -76,7 +76,7 @@ func prepare(budget: int = MAX_WORK) -> Dictionary:
 	_build_work = 0
 	for region: String in world.regions:
 		var sim: VillageSimulation = world.regions[region]
-		for id: String in sim.actors:
+		for id: String in sim.actor_ids():
 			if not _prepare_reference({"kind": "actor", "id": id}, budget):
 				return _build_failed(budget)
 		for part: String in SimStructureQuery.PARTS:

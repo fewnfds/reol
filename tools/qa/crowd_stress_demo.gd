@@ -90,13 +90,13 @@ func _run() -> void:
 	var total: int = 0
 	for region: String in runtime.world_sim.regions:
 		var sim: VillageSimulation = runtime.world_sim.regions[region]
-		for id: String in sim.actors:
+		for id: String in sim.synchronize_actors():
 			total += 1
-			_starts[id] = sim.actor_position(sim.actors[id])
+			_starts[id] = sim.actor_position(sim.synchronize_actors()[id])
 			if id != "player":
 				_legs[id] = 0
 				if sim.submit_action(id, CIRCUIT[0]):
-					_orders[id] = str(sim.actors[id].active.id)
+					_orders[id] = str(sim.synchronize_actors()[id].active.id)
 		runtime.world_sim.invalidate_region(region)
 	_recorder = load("res://tools/diagnostics/demo_recorder.gd").new()
 	root.add_child(_recorder)
@@ -120,10 +120,10 @@ func _sample() -> void:
 	_last_sample_ms = int(_clock.elapsed_ms)
 	_last_travelling = 0
 	for sim: VillageSimulation in runtime.world_sim.regions.values():
-		for id: String in sim.actors:
-			if not _moved.has(id) and _starts.has(id) and sim.actor_position(sim.actors[id]) != _starts[id]:
+		for id: String in sim.synchronize_actors():
+			if not _moved.has(id) and _starts.has(id) and sim.actor_position(sim.synchronize_actors()[id]) != _starts[id]:
 				_moved[id] = true
-			var person: Dictionary = sim.actors[id]
+			var person: Dictionary = sim.synchronize_actors()[id]
 			if not _opening_wave and _legs.has(id) and bool(person.alive):
 				# Redirect only our own arrived order, through original cancellation
 				# and submission. Never teleport or replace a domain-owned process.

@@ -32,7 +32,7 @@ static func valid(domain: SimFacilityUse) -> bool:
 		if row.is_empty() or row.cell != SimRouteTravel.cell(job.stand) or not domain._can_continue(job):
 			return false
 		jobs[job.id] = true
-		var body: Dictionary = world.regions[world.construction.definitions.site.region].actors[actor]
+		var body: Dictionary = world.regions[world.construction.definitions.site.region].synchronize_actors()[actor]
 		if bool(body.autonomous) or not body.active.is_empty():
 			return false
 		for field: String in ["started_ms", "work_started_ms", "segment_started_ms"]:

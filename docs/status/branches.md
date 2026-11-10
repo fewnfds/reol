@@ -6,13 +6,14 @@
 
 `main`和`origin/main`已按用户授权快进并推送至`839ff88f1b7fee240d0c798f533314a3ae446430`，包括通用SL、事件/植物、环境、行动及后续镜头/诊断/缓行/FPS/连续呈现和压力Demo。该SHA的CI42776609463已核completed/success，最终生产/测试祖先为c60a2be；详细证据见[BASELINE](baseline.md)。
 
-当前`codex/performance-architecture-audit`从上述主线建立，交付性能调查、成熟方案取舍及现有主计划修订，不修改生产代码。旧开发分支已集成的不再构成待合并队列；本轮不删除引用、不应用隔离stash，工具停点看[HANDOFF](handoff.md)。
+当前`codex/sparse-runtime-dispatch`承接调研da90e3b，落实共同运行与人物执行：显式同步/纯读取、到期及失效候选、原领域工作条件。准确提交/验证看BASELINE；空间导航和呈现规模仍在原计划。旧开发分支已集成的不再构成待合并队列；本轮不删除引用、不应用隔离stash，工具停点看[HANDOFF](handoff.md)。
 
 ## 保留分支用途
 
 | 分支 | 已知来源提交 | 用途 |
 |---|---|---|
-| `codex/performance-architecture-audit` | 基于main839ff88 | 当前性能调查与计划文档；没有新运行算法 |
+| `codex/sparse-runtime-dispatch` | 基于调研da90e3b | 当前共同运行/人物执行包；未自动合入main，验证看BASELINE |
+| `codex/performance-architecture-audit` | da90e3b，基于main839ff88 | 前性能调查与计划文档；生产改造由当前分支承接 |
 | `codex/presentation-stress-demo` | 最终生产/测试c60a2be，证据839ff88 | 已快进合入并推送main；839ff88完整CI42776609463 success |
 | `codex/demo-slowdown-fix` | 缓行最终b364870、FPS最终ac3dca3、文档29c50dc | 两个代码SHA完整CI均success；已随呈现/压力历史合入main |
 | `codex/demo-playtest-fixes` | 基于main `7def7d2`；简单修复`87262ff`、工具最终`aa4f1a1` | 镜头/外墙与独立缓行诊断分别提交，已合入main；两者完整CI通过 |

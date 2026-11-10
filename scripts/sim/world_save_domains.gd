@@ -85,8 +85,8 @@ static func _embodiment(owner: RefCounted, data: Dictionary, context: Dictionary
 	if not owner.configure(context.content.body_forms) or not owner.restore(data):
 		return false
 	for region: VillageSimulation in context.world.regions.values():
-		for id: String in region.actors:
-			if not region.actors[id].active.is_empty() and (not owner.self_controls_actor(id, "action") or not owner.self_controls_actor(id, "motion")):
+		for id: String in region.synchronize_actors():
+			if not region.synchronize_actors()[id].active.is_empty() and (not owner.self_controls_actor(id, "action") or not owner.self_controls_actor(id, "motion")):
 				return false
 	context.world.embodiment = owner
 	return true

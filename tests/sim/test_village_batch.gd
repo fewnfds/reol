@@ -17,6 +17,78 @@ func run(runner: Object) -> void:
 	_test_sparse_actor_projection(runner)
 	_test_projection_observers(runner)
 	_test_sparse_request_energy(runner)
+	_test_reads_do_not_advance(runner)
+	_test_due_actor_work(runner)
+	_test_invalidation_during_settlement(runner)
+
+
+func _test_reads_do_not_advance(runner: Object) -> void:
+	var sim: VillageSimulation = _make(runner)
+	if sim == null:
+		return
+	sim.set_boundary_revision_provider(func() -> int: return 0)
+	sim.set_sparse_actor_projection(true)
+	runner.assert_true(sim.submit_action("player", "rest") and sim.advance_to_ms(13), "pure-read fixture retains a moving original body between due events")
+	var before: Dictionary = sim._actors.duplicate(true)
+	var anchors: Dictionary = sim._actor_projection_ms.duplicate()
+	var projected: Vector2 = sim.projected_actor_position("player")
+	var notices: Array[String] = []
+	sim.body_space_changed.connect(func(id: String) -> void: notices.append(id))
+	for _read: int in 3:
+		sim.actor_state("player")
+		var _bodies: Dictionary = sim.actors
+	runner.assert_eq(sim._actors, before, "reading a body or its identity map never integrates needs or moves the original body")
+	runner.assert_eq(sim._actor_projection_ms, anchors, "queries cannot consume an owner's deferred integration")
+	runner.assert_true(notices.is_empty(), "queries cannot emit spatial changes")
+	sim.synchronize_actors()
+	runner.assert_true(sim._actors.player.position != before.player.position, "an explicit owner barrier integrates the retained route")
+	runner.assert_eq(sim.actor_position(sim.actor_state("player")), projected, "pure position evaluation and explicit body integration use one segment formula")
+	runner.assert_eq(sim.elapsed_ms, 13, "explicit synchronization retains the existing shared time")
+
+
+func _test_due_actor_work(runner: Object) -> void:
+	var reference: VillageSimulation = _make(runner)
+	var indexed: VillageSimulation = _make(runner)
+	if reference == null or indexed == null:
+		return
+	indexed.set_boundary_revision_provider(func() -> int: return 0)
+	indexed.set_sparse_actor_projection(true)
+	for sim: VillageSimulation in [reference, indexed]:
+		runner.assert_true(sim.submit_action("player", "rest") and sim.advance_to_ms(10000), "due-set fixture advances one real route among idle peers")
+	_same(runner, reference, indexed, "due actors retain the full original future among nonparticipants")
+	runner.assert_true(int(indexed.simulation_work.actor_decision_checks) * 3 < int(reference.simulation_work.actor_decision_checks), "unrelated boundaries do not screen every idle peer for a native decision")
+
+
+func _test_invalidation_during_settlement(runner: Object) -> void:
+	for reversed_ids: bool in [false, true]:
+		var reference: VillageSimulation = _make(runner)
+		var indexed: VillageSimulation = _make(runner)
+		if reference == null or indexed == null:
+			return
+		var source: String = "player" if reversed_ids else "a_he"
+		var target: String = "a_he" if reversed_ids else "player"
+		for sim: VillageSimulation in [reference, indexed]:
+			var blocked: Array[String] = []
+			var owner: WeakRef = weakref(sim)
+			sim.set_control_guard(func(id: String, _control: String) -> bool: return not blocked.has(id))
+			sim.set_labor_observer(func(stage: String, id: String, _action: Dictionary, _event: String) -> String:
+				if stage == "finish" and id == source:
+					blocked.append(target)
+					owner.get_ref().invalidate_actor_boundary(target)
+				return "")
+			sim.set_actor_cell(source, SimRouteTravel.cell(sim.places.records.cell))
+			sim.set_actor_cell(target, SimRouteTravel.cell(sim.places.dorm.cell))
+			runner.assert_true(sim.submit_action(source, "seek_records") and sim.submit_action(target, "rest"), "ordered invalidation starts two original actions")
+		indexed.set_boundary_revision_provider(func() -> int: return 0)
+		indexed.set_sparse_actor_projection(true)
+		for sim: VillageSimulation in [reference, indexed]:
+			runner.assert_true(sim.advance_to_ms(60001), "the earlier action completes while its peer's deadline is still ahead")
+		runner.assert_eq(indexed.actor_has_action(target), reversed_ids, "a synchronous change reaches only the remaining ID suffix at the same millisecond")
+		_same(runner, reference, indexed, "dynamic due-set changes preserve the original full-pass ordering")
+		for sim: VillageSimulation in [reference, indexed]:
+			sim.advance_to_ms(60002)
+		runner.assert_true(not indexed.actor_has_action(target), "an invalidated earlier ID is cancelled at the next causal boundary")
+		_same(runner, reference, indexed, "deferred earlier IDs retain the same next-boundary future")
 
 
 func _make(runner: Object, autonomous: bool = false) -> VillageSimulation:
@@ -44,10 +116,10 @@ func _test_sparse_actor_projection(runner: Object) -> void:
 	sparse.set_sparse_actor_projection(true)
 	for at: int in [13, 50, 200, 1207, 5000]:
 		runner.assert_true(eager.advance_to_ms(at) and sparse.advance_to_ms(at), "same exact target accepts eager and sparse bodies")
-		runner.assert_eq(sparse.actor_state(str(ids[0])), eager.actor_state(str(ids[0])), "single-body read integrates the original point and needs at %d" % at)
+		runner.assert_eq(sparse.synchronize_actor(str(ids[0])), eager.synchronize_actor(str(ids[0])), "single-body read integrates the original point and needs at %d" % at)
 	# Both bodies and old rates settle before a real dependency changes.
-	eager.materialize_actors()
-	sparse.materialize_actors()
+	eager.synchronize_actors()
+	sparse.synchronize_actors()
 	inputs[1] = 3
 	inputs[2] = 1
 	for sim: VillageSimulation in [eager, sparse]:

@@ -95,7 +95,7 @@ static func cross_valid(domain: RefCounted) -> bool:
 static func _cross_job(row: Dictionary, domain: RefCounted, used: Dictionary) -> bool:
 	if domain.home(str(row.actor)) != row.region or not domain.prerequisite(str(row.actor), str(row.node), int(row.started_ms)): return false
 	var sim: VillageSimulation = domain.world.regions[row.region]
-	var person: Dictionary = sim.actors[row.actor]
+	var person: Dictionary = sim.synchronize_actors()[row.actor]
 	var definition: PawnDef = sim._content.get_pawn(StringName(person.definition_id))
 	if definition == null or int(row.stamina_spent) > definition.max_stamina or int(row.qi_spent) > definition.max_qi: return false
 	var neighbor: Vector2i = SimRouteTravel.cell(row.anchor) + SimRouteTravel.cell(row.direction)

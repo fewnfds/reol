@@ -59,7 +59,7 @@ func home(actor: String) -> String:
 
 func body(actor: String) -> Dictionary:
 	var region: String = home(actor)
-	return world.regions[region].actor_state(actor) if not region.is_empty() else {}
+	return world.regions[region].synchronize_actor(actor) if not region.is_empty() else {}
 
 
 func offered_objects(buyer: String, seller: String) -> Array[Dictionary]:
@@ -400,6 +400,10 @@ func cancel(actor: String, reason: String = "cancelled") -> bool:
 				recorded_reason = "cancelled"
 			return _finish(job, "cancelled", actor, recorded_reason)
 	return false
+
+
+func has_settlement_work(_at_ms: int) -> bool:
+	return not active_jobs.is_empty()
 
 
 func next_boundary_ms() -> int:

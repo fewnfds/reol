@@ -27,7 +27,7 @@ static func validate(data: Variant, domain: RefCounted) -> bool:
 		if serial < 1 or serial >= int(data.next_id) or event.id != "large_food:%d" % serial or event.item != domain.definitions.food or event.amount != domain.definitions.food_amount:
 			return false
 		var sim: VillageSimulation = domain.world.regions[event.region]
-		if not sim.actors.has(event.actor) or not Shape.same_record(sim.inventory.operations.get(event.id), {"kind": "consume", "container": "actor:" + str(event.actor), "item": str(event.item), "amount": int(event.amount)}):
+		if not sim.has_actor(event.actor) or not Shape.same_record(sim.inventory.operations.get(event.id), {"kind": "consume", "container": "actor:" + str(event.actor), "item": str(event.item), "amount": int(event.amount)}):
 			return false
 		if latest.has(event.body) and int(event.at_ms) - int(latest[event.body]) < int(domain.definitions.feed_interval_ms):
 			return false

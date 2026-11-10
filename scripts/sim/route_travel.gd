@@ -39,13 +39,22 @@ static func project(route: Dictionary, body: Dictionary, now: int) -> void:
 		return
 	var origin := Vector2(float(route.segment_from[0]), float(route.segment_from[1]))
 	var end: Vector2 = TileGrid.cell_to_world(cell(route.path[0]))
-	var ratio: float = clampf(float(now - int(route.segment_started_ms)) / float(int(route.due_ms) - int(route.segment_started_ms)), 0, 1)
-	var next: Vector2 = origin.lerp(end, ratio)
+	var next: Vector2 = projected_point(route, body, now)
 	if not point(body).is_equal_approx(next):
 		# The segment direction is stable under fine/batched projections. A
 		# normalized difference between successive samples can round differently.
 		face(body, end - origin)
 	put(body, next)
+
+
+static func projected_point(route: Dictionary, body: Dictionary, now: int) -> Vector2:
+	# Pure evaluation of the already accepted segment, never a new movement.
+	if route.path.is_empty():
+		return point(body)
+	var origin := Vector2(float(route.segment_from[0]), float(route.segment_from[1]))
+	var end: Vector2 = TileGrid.cell_to_world(cell(route.path[0]))
+	var ratio: float = clampf(float(now - int(route.segment_started_ms)) / float(int(route.due_ms) - int(route.segment_started_ms)), 0, 1)
+	return origin.lerp(end, ratio)
 
 
 static func crossing_ms(route: Dictionary, body: Dictionary, now: int) -> int:
@@ -119,7 +128,7 @@ static func leg_open(route: Dictionary, body: Dictionary, step: Callable) -> boo
 static func repair(sim: VillageSimulation, actor: String, route: Dictionary, now: int, destination: Array = [], speed: float = -1.0, clearance: Callable = Callable()) -> bool:
 	# Domains keep target validity, reservations, phase and effects. Repair only
 	# replaces an invalid geometric remainder, from the real continuous point.
-	var body: Dictionary = sim.actor_state(actor)
+	var body: Dictionary = sim.synchronize_actor(actor)
 	var step: Callable = clearance if clearance.is_valid() else sim._step_validator
 	if leg_open(route, body, step):
 		return true

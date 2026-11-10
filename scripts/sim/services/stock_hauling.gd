@@ -37,9 +37,9 @@ func begin(actor: String, options: Dictionary) -> Dictionary:
 	var job: Dictionary = {"id": id, "actor": actor, "home": home, "region": home, "kind": "carry_stock", "label": "搬运物资",
 		"status": "active", "phase": "travel", "stage": "delivery" if not carried.is_empty() else "pickup", "carrying": not carried.is_empty(),
 		"path": [], "started_ms": world.elapsed_ms, "started": world.current_time, "segment_started_ms": world.elapsed_ms,
-		"segment_from": world.regions[home].actor_state(actor).position.duplicate(), "due_ms": world.elapsed_ms + 1,
+		"segment_from": world.regions[home].synchronize_actor(actor).position.duplicate(), "due_ms": world.elapsed_ms + 1,
 		"options": options.duplicate(true), "spec": {"label": "搬运物资"}, "stand": [], "anchor": [],
-		"reservation": "", "previous_autonomous": bool(world.regions[home].actor_state(actor).autonomous), "outcome": ""}
+		"reservation": "", "previous_autonomous": bool(world.regions[home].synchronize_actor(actor).autonomous), "outcome": ""}
 	job.options["custody"] = carried
 	if not _route(job):
 		return _reply(false, "unreachable", "目前无法接近搬运地点。")
@@ -52,7 +52,7 @@ func begin(actor: String, options: Dictionary) -> Dictionary:
 	service.active_jobs[actor] = id
 	service.remember_job(job)
 	SimActionContract.occupy(world, home, actor)
-	world.regions[home].actor_state(actor).goal = "前往取货" if carried.is_empty() else "继续交付随身受托物资"
+	world.regions[home].synchronize_actor(actor).goal = "前往取货" if carried.is_empty() else "继续交付随身受托物资"
 	service.record("service_started", actor, {"job": id, "kind": "carry_stock", "region": job.region})
 	return _reply(true, "started", "已预约物资；到场取货后实际携带，交付前会再核对容器。", id)
 
@@ -99,7 +99,7 @@ func _observed(actor: String, endpoint: Dictionary) -> bool:
 	var anchor: Dictionary = SimStorageQuery.locate(world, {"domain": "village", "region": endpoint.region, "container": endpoint.container})
 	if not bool(anchor.ok):
 		return false
-	var person: Dictionary = world.regions[service.actor_home(actor)].actor_state(actor)
+	var person: Dictionary = world.regions[service.actor_home(actor)].synchronize_actor(actor)
 	var from: Vector2 = SimRouteTravel.point(person)
 	if from.distance_to(anchor.position) > float(world.regions[service.actor_home(actor)].config.observation_radius) * TileGrid.TILE_SIZE:
 		return false
@@ -129,7 +129,7 @@ func _stands(job: Dictionary) -> Array[Vector2i]:
 	var endpoint: Dictionary = _endpoint(job)
 	var result: Array[Vector2i] = []
 	if endpoint.container == "actor:" + str(job.actor):
-		result.append(SimRouteTravel.cell(world.regions[job.home].actor_state(job.actor).cell))
+		result.append(SimRouteTravel.cell(world.regions[job.home].synchronize_actor(job.actor).cell))
 	elif str(endpoint.container).ends_with(":contents"):
 		var id: String = str(endpoint.container).trim_suffix(":contents")
 		for slot: Dictionary in world.construction.operation_slots(id, "storage"):
@@ -143,7 +143,7 @@ func _stands(job: Dictionary) -> Array[Vector2i]:
 func _route(job: Dictionary) -> bool:
 	var endpoint: Dictionary = _endpoint(job)
 	var sim: VillageSimulation = world.regions[job.home]
-	var from: Vector2i = SimRouteTravel.cell(sim.actor_state(job.actor).cell)
+	var from: Vector2i = SimRouteTravel.cell(sim.synchronize_actor(job.actor).cell)
 	var best: Array = []
 	var stand: Array = []
 	var length: int = SimInventory.MAX_COUNT
@@ -162,9 +162,9 @@ func _route(job: Dictionary) -> bool:
 	job.path = best
 	job.phase = "travel"
 	job.region = endpoint.region
-	if not SimRouteTravel.point(sim.actor_state(job.actor)).is_equal_approx(TileGrid.cell_to_world(from)):
+	if not SimRouteTravel.point(sim.synchronize_actor(job.actor)).is_equal_approx(TileGrid.cell_to_world(from)):
 		job.path.push_front([from.x, from.y])
-	SimRouteTravel.begin_segment(job, sim.actor_state(job.actor), world.elapsed_ms, float(sim.motion_rules.motion.speed))
+	SimRouteTravel.begin_segment(job, sim.synchronize_actor(job.actor), world.elapsed_ms, float(sim.motion_rules.motion.speed))
 	return true
 
 
@@ -215,7 +215,7 @@ func settle(job: Dictionary, now: int) -> void:
 	var endpoint: Dictionary = _endpoint(job)
 	world.synchronize_region(endpoint.region)
 	var sim: VillageSimulation = world.regions[job.home]
-	var body: Dictionary = sim.actor_state(job.actor)
+	var body: Dictionary = sim.synchronize_actor(job.actor)
 	if not _allowed(job.actor, endpoint, job.stage == "pickup", job.options.item) or endpoint.container != "actor:" + str(job.actor) and RegionalSimulation._normalized(job.anchor) != RegionalSimulation._normalized(_anchor(endpoint)):
 		service._jobs.finish(job, false, "目标或使用权已改变，物资保留在原容器或行囊中。")
 		return
@@ -326,7 +326,7 @@ func valid_job(job: Dictionary, data: Dictionary) -> bool:
 	if job.status != "active":
 		return job.reservation.is_empty() and Shape.count(job.get("finished_at"), int(job.started), world.current_time)
 	var sim: VillageSimulation = world.regions[job.home]
-	var body: Dictionary = sim.actor_state(job.actor)
+	var body: Dictionary = sim.synchronize_actor(job.actor)
 	if body.autonomous or not body.active.is_empty() or not Shape.count(job.get("due_ms"), world.elapsed_ms + 1) or not Shape.count(job.get("segment_started_ms"), int(job.started_ms), world.elapsed_ms) or not SimLocalMotion._vector(job.get("segment_from")) or not _stand_matches_endpoint(job):
 		return false
 	if not job.options.custody.is_empty():

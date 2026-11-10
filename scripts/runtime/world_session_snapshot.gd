@@ -85,7 +85,7 @@ static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
 	if not _valid_workplace_routes(restored, snapshot, extra, candidate_map):
 		return {}
 	for sim: VillageSimulation in restored.regions.values():
-		for body: Dictionary in sim.actors.values():
+		for body: Dictionary in sim.synchronize_actors().values():
 			if bool(body.alive) and restored.large_bodies.blocked(SimRouteTravel.cell(body.cell)):
 				return {}
 	if not _valid_avatar(str(snapshot.avatar_subject), restored, snapshot, extra):
@@ -129,11 +129,11 @@ static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
 			return {}
 		if int(restored.avian_life.birds[id].altitude) == 0 and restored.large_bodies.blocked(restored.avian_life.body_cell(id)):
 			return {}
-	if _cell(home.actors.player.cell) != _cell(snapshot.player.cell) or not home.actor_position(home.actors.player).is_equal_approx(Vector2(float(snapshot.player.position[0]), float(snapshot.player.position[1]))):
+	if _cell(home.synchronize_actors().player.cell) != _cell(snapshot.player.cell) or not home.actor_position(home.synchronize_actors().player).is_equal_approx(Vector2(float(snapshot.player.position[0]), float(snapshot.player.position[1]))):
 		return {}
-	if not SimRouteTravel.facing(home.actors.player).is_equal_approx(Vector2(float(snapshot.player.motion.facing[0]), float(snapshot.player.motion.facing[1]))):
+	if not SimRouteTravel.facing(home.synchronize_actors().player).is_equal_approx(Vector2(float(snapshot.player.motion.facing[0]), float(snapshot.player.motion.facing[1]))):
 		return {}
-	if not extra.player_journey.is_empty() and not SimRouteTravel.valid_segment(extra.player_journey, home.actors.player, restored.elapsed_ms, float(content.local_actions.motion.speed)):
+	if not extra.player_journey.is_empty() and not SimRouteTravel.valid_segment(extra.player_journey, home.synchronize_actors().player, restored.elapsed_ms, float(content.local_actions.motion.speed)):
 		return {}
 	return {"world": restored, "map": candidate_map, "content": content, "snapshot": snapshot}
 
@@ -150,13 +150,13 @@ static func _valid_workplace_routes(world: RegionalSimulation, snapshot: Diction
 	var routes: Array = [extra.player_journey.get("path", [])]
 	for sim: VillageSimulation in world.regions.values():
 		for places: Dictionary in rooms:
-			if not SimWorkplaces.actors_clear(places, sim.actors):
+			if not SimWorkplaces.actors_clear(places, sim.synchronize_actors()):
 				return false
 	if world.services != null:
 		for actor: String in world.services.active_jobs:
 			routes.append(world.services.jobs[world.services.active_jobs[actor]].get("path", []))
 	for sim: VillageSimulation in world.regions.values():
-		for actor: String in sim.actors:
+		for actor: String in sim.synchronize_actors():
 			routes.append(world.field_opportunities.route_projection(actor).get("path", []))
 	for path: Array in routes:
 		for raw: Array in path:
@@ -176,7 +176,7 @@ static func _valid_avatar(subject: String, world: RegionalSimulation, snapshot: 
 		if bool(world.avian_life.birds[id].autonomous) == (subject == SimAvianLife.subject_id(id)):
 			return false
 	var manual_soul: String = str(world.soul_vessels.agency.manual)
-	var former_free: bool = world.activity_previous_autonomy("player") or bool(world.regions.home.actors.player.autonomous)
+	var former_free: bool = world.activity_previous_autonomy("player") or bool(world.regions.home.synchronize_actors().player.autonomous)
 	if (not manual_soul.is_empty()) != subject.begins_with("subject:soul:"):
 		return false
 	if subject == world.embodiment.subject_for_actor("player"):
@@ -231,7 +231,7 @@ static func _valid_journey(centers: Dictionary, journey: Dictionary, start: Vect
 
 
 static func _valid_remote_terrain(sim: VillageSimulation, terrain: WorldMapData, center: Vector2i) -> bool:
-	for actor: Dictionary in sim.actors.values():
+	for actor: Dictionary in sim.synchronize_actors().values():
 		var current: Vector2i = _cell(actor.cell)
 		if not terrain.terrain_is_walkable(current):
 			return false

@@ -97,12 +97,12 @@ static func _arrangement(row: Dictionary, domain: RefCounted) -> bool:
 	var case_row: Dictionary = domain.world.site_affairs.cases.get(row.case, {})
 	if case_row.is_empty() or row.region != case_row.region or row.office != case_row.office or not domain.world.regions.has(row.region): return false
 	var sim: VillageSimulation = domain.world.regions[row.region]
-	if not sim.actors.has(row.guard) or not sim.actors.has(row.issuer): return false
+	if not sim.has_actor(row.guard) or not sim.has_actor(row.issuer): return false
 	var action: Dictionary = sim.config.actions.get(domain.definitions.watch_action, {})
 	if action.get("kind") != "visit" or action.get("target") != case_row.return_place: return false
 	if not _event(domain, row, str(row.event), "source_care_opened", str(row.issuer), str(row.guard), int(row.started_ms), {"arrangement": row.id, "case": row.case, "office": row.office, "until_ms": row.until_ms, "basis": "opening_accepted"}): return false
 	if not str(row.visit_action).is_empty():
-		var native: Dictionary = sim.actors[row.guard].active
+		var native: Dictionary = sim.synchronize_actors()[row.guard].active
 		if native.get("id") != row.visit_action or native.get("action") != domain.definitions.watch_action or native.get("destination") != case_row.return_place: return false
 	if row.status == "withdrawn":
 		var ended: Dictionary = sim.social._event_by_id.get(str(row.end_event), {})
@@ -113,7 +113,7 @@ static func _arrangement(row: Dictionary, domain: RefCounted) -> bool:
 static func _explanation(entry: Dictionary, domain: RefCounted) -> bool:
 	var row: Dictionary = domain.arrangements[entry.arrangement]
 	var sim: VillageSimulation = domain.world.regions[row.region]
-	if not sim.actors.has(entry.actor): return false
+	if not sim.has_actor(entry.actor): return false
 	var claim: Dictionary = sim.social._event_by_id.get(str(entry.claim_event), {})
 	var details: Dictionary = claim.get("details", {}).get("participants", {})
 	var original_source: String = str(details.get("source_job", ""))
@@ -151,7 +151,7 @@ static func _warning(warning: Dictionary, domain: RefCounted) -> bool:
 	var row: Dictionary = domain.arrangements[warning.arrangement]
 	var sim: VillageSimulation = domain.world.regions[row.region]
 	var job: Dictionary = domain._source_job(str(warning.source_job))
-	if not sim.actors.has(warning.actor) or job.is_empty() or job.get("actor") != warning.actor or not domain._source_matches(row, job) or int(job.started_ms) > int(warning.observed_ms) or int(job.get("finished_ms", SimInventory.MAX_COUNT)) <= int(warning.observed_ms): return false
+	if not sim.has_actor(warning.actor) or job.is_empty() or job.get("actor") != warning.actor or not domain._source_matches(row, job) or int(job.started_ms) > int(warning.observed_ms) or int(job.get("finished_ms", SimInventory.MAX_COUNT)) <= int(warning.observed_ms): return false
 	if not _source_observation(warning, job, domain): return false
 	if not _event(domain, row, str(warning.event), "source_care_warned", str(row.guard), str(warning.actor), int(warning.started_ms), {"warning": warning.id, "arrangement": row.id, "source_job": job.id, "observer_position": warning.observer_position, "position": warning.position, "level": warning.level, "due_ms": warning.due_ms, "text": domain.definitions.labels.warning}): return false
 	if warning.status == "active":

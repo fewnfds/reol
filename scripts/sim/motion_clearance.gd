@@ -10,8 +10,8 @@ static func active_segment_reserves(world: RefCounted, cell: Vector2i) -> bool:
 		return false
 	var bodies: Dictionary = {}
 	for sim: VillageSimulation in world.regions.values():
-		for actor: String in sim.actors:
-			var body: Dictionary = sim.actor_state(actor)
+		for actor: String in sim.synchronize_actors():
+			var body: Dictionary = sim.synchronize_actor(actor)
 			bodies[actor] = body
 			var action: Dictionary = body.get("active", {})
 			if action.get("phase") == "travel" and segment_reserves(body, action, cell):
