@@ -51,6 +51,7 @@ func run(runner: Object) -> void:
 	_admission_and_retained_work(runner)
 	_rate_and_restore(runner)
 	_short_boundary_cost(runner)
+	_actual_frame_capacity(runner)
 	for heal_at: int in [990, 1000, 1010]:
 		var fast: Dictionary = _future(heal_at, false)
 		var slow: Dictionary = _future(heal_at, true)
@@ -116,6 +117,18 @@ func _short_boundary_cost(runner: Object) -> void:
 	var before: float = pacing.rate
 	pacing.observe(1.0 / 60.0, 1, 50, false, 1.0)
 	runner.assert_true(pacing.rate <= before + ReolSimulationPacing.RECOVERY_PER_SECOND / 60.0 + 0.00001, "windowed cost estimation preserves gradual recovery")
+
+
+func _actual_frame_capacity(runner: Object) -> void:
+	var sixty := ReolSimulationPacing.new()
+	var faster := ReolSimulationPacing.new()
+	for _sample: int in 360:
+		# The same measured work per game millisecond and unchanged 6ms/frame
+		# allowance, with twice as many actual callbacks available per second.
+		sixty.observe(1.0 / 60.0, 6000, 10, false, 1.0)
+		faster.observe(1.0 / 120.0, 6000, 10, false, 1.0)
+	runner.assert_true(sixty.rate < 0.55, "60 callbacks retain the measured six-millisecond capacity limit")
+	runner.assert_true(faster.rate > 0.95, "120 actual callbacks are not artificially counted as only 60")
 
 
 func _future(heal_at: int, overloaded: bool) -> Dictionary:

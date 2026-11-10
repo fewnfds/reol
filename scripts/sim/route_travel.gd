@@ -49,13 +49,16 @@ static func project(route: Dictionary, body: Dictionary, now: int) -> void:
 
 
 static func crossing_ms(route: Dictionary, body: Dictionary, now: int) -> int:
+	return crossing_from_cell_ms(route, cell(body.cell), now)
+
+
+static func crossing_from_cell_ms(route: Dictionary, current: Vector2i, now: int) -> int:
 	var deadline: int = int(route.due_ms)
 	if route.path.is_empty():
 		return deadline
 	var origin := Vector2(float(route.segment_from[0]), float(route.segment_from[1]))
 	var target_cell: Vector2i = cell(route.path[0])
 	var target: Vector2 = TileGrid.cell_to_world(target_cell)
-	var current: Vector2i = cell(body.cell)
 	if target_cell == current:
 		return deadline
 	var fraction: float = 1.0

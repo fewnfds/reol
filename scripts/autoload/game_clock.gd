@@ -420,8 +420,9 @@ func cancel_wait() -> void:
 
 
 func view_transition_rate() -> float:
-	# A short presentation blend after a coarse position commit, never a rule.
-	return 1000.0 / float(_rules.clock.view_transition_ms)
+	# Published-body interpolation follows the simulation step. The historical
+	# 150ms cosmetic blend would add unnecessary input/follow lag at a 50ms step.
+	return 1000.0 / float(_rules.clock.fixed_step_ms)
 
 
 func set_speed(value: float) -> void:

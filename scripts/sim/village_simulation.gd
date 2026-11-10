@@ -14,7 +14,17 @@ const SnapshotSchema = preload("res://scripts/sim/snapshot_schema.gd")
 const Workplaces = preload("res://scripts/sim/workplaces.gd")
 
 var actors: Dictionary = {}
-var places: Dictionary = {}
+var _workplace_blocks: Dictionary[Vector2i, bool] = {}
+var _stock_places_at_cell: Dictionary = {}
+var _stock_contents: Dictionary = {}
+var _stock_observations: Dictionary = {}
+var _stock_epoch: int = 0
+var places: Dictionary = {}:
+	set(value):
+		places = value
+		# The accepted workplace layout is replaced on opening/restore. Runtime
+		# edits belong to SimConstruction, with its own original spatial index.
+		rebuild_workplace_geometry()
 var config: Dictionary = {}
 var situations: Dictionary = {}
 var authorizations: Dictionary = {}
@@ -38,6 +48,10 @@ var errors: Array[String] = []
 var simulation_work: Dictionary = {"step_count": 0, "boundary_count": 0, "batched_minutes": 0, "quiet_batch_calls": 0}
 
 var _content: ReolContentDB
+var _boundary_revision_provider: Callable
+var _boundary_revision: int = -1
+var _actor_boundaries: Dictionary[String, int] = {}
+var _next_actor_boundary: int = -1
 var _navigation: Callable
 var _step_validator: Callable
 var _executor: SimActionExecutor
@@ -94,6 +108,7 @@ func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary,
 		errors.append("Invalid workplace layout or occupied opening structure")
 		return false
 	_content = content
+	invalidate_boundary_cache()
 	motion_rules = content.local_actions
 	config = settings.duplicate(true)
 	controlled_actor = str(config.get("controlled_actor", "player"))
@@ -174,6 +189,8 @@ func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary,
 
 
 func set_navigation(provider: Callable, step_validator: Callable = Callable()) -> void:
+	rebuild_workplace_geometry()
+	invalidate_boundary_cache()
 	_navigation = provider
 	_step_validator = step_validator
 
@@ -183,6 +200,7 @@ func set_action_guard(provider: Callable) -> void:
 
 
 func set_control_guard(provider: Callable) -> void:
+	invalidate_boundary_cache()
 	_control_guard = provider
 
 
@@ -235,6 +253,28 @@ func find_path(from_cell: Vector2i, to_cell: Vector2i) -> Array[Vector2i]:
 	return result
 
 
+func rebuild_workplace_geometry() -> void:
+	_workplace_blocks.clear()
+	_stock_places_at_cell.clear()
+	_stock_contents.clear()
+	_stock_observations.clear()
+	_stock_epoch = 0
+	var layout: Dictionary = places.get("records", {}).get("workspace", {})
+	for raw: Array in layout.get("walls", []):
+		_workplace_blocks[SimRouteTravel.cell(raw)] = true
+	for id: String in ["desk", "archive"]:
+		if layout.get("fixtures", {}).get(id) is Dictionary:
+			_workplace_blocks[SimRouteTravel.cell(layout.fixtures[id].cell)] = true
+
+
+func workplace_blocked(cell: Vector2i) -> bool:
+	# enable_opening commits a new accepted layout into the existing places
+	# dictionary. This one-way activation also works without replacing places.
+	if _workplace_blocks.is_empty() and config.has("workplaces_version"):
+		rebuild_workplace_geometry()
+	return _workplace_blocks.has(cell)
+
+
 func step() -> void:
 	simulation_work.step_count = int(simulation_work.step_count) + 1
 	advance_to_ms((tick_index + 1) * MINUTE_MS)
@@ -242,16 +282,17 @@ func step() -> void:
 
 func next_boundary_ms() -> int:
 	var boundary: int = land_resources.next_boundary_ms()
-	for id: String in _actor_ids():
-		var actor: Dictionary = actors[id]
-		if not bool(actor.alive):
-			continue
-		if not actor.active.is_empty():
-			if not actor_controls(id, "action") or not actor_controls(id, "motion"):
-				return elapsed_ms + 1
-			boundary = mini(boundary, _executor.next_boundary_ms(actor))
-		elif bool(actor.autonomous):
-			boundary = mini(boundary, maxi(elapsed_ms + 1, int(actor.retry_ms)))
+	var cached: bool = _boundary_revision_provider.is_valid()
+	if cached:
+		var revision: int = int(_boundary_revision_provider.call())
+		if revision != _boundary_revision:
+			invalidate_boundary_cache()
+			_boundary_revision = revision
+	if cached and _next_actor_boundary > elapsed_ms:
+		boundary = mini(boundary, _next_actor_boundary)
+	else:
+		_next_actor_boundary = _query_actor_boundary(cached)
+		boundary = mini(boundary, _next_actor_boundary)
 	var scenario: Dictionary = config.scenario
 	var definition: Dictionary = config.actions[scenario.task]
 	var shortage: bool = inventory.quantity(definition.target, definition.item) == 0
@@ -263,6 +304,56 @@ func next_boundary_ms() -> int:
 	elif open:
 		boundary = mini(boundary, elapsed_ms + 1)
 	return maxi(elapsed_ms + 1, boundary)
+
+
+func _query_actor_boundary(cached: bool) -> int:
+	var boundary: int = SimInventory.MAX_COUNT
+	for id: String in _actor_ids():
+		var actor: Dictionary = actors[id]
+		if cached and _actor_boundaries.get(id, 0) > elapsed_ms:
+			boundary = mini(boundary, int(_actor_boundaries[id]))
+			continue
+		var actor_boundary: int = SimInventory.MAX_COUNT
+		if not bool(actor.alive):
+			continue
+		if not actor.active.is_empty():
+			if not actor_controls(id, "action") or not actor_controls(id, "motion"):
+				actor_boundary = elapsed_ms + 1
+			else:
+				actor_boundary = _executor.next_boundary_ms(actor)
+		elif bool(actor.autonomous):
+			actor_boundary = maxi(elapsed_ms + 1, int(actor.retry_ms))
+		if cached:
+			_actor_boundaries[id] = actor_boundary
+		boundary = mini(boundary, actor_boundary)
+	return boundary
+
+
+func set_boundary_revision_provider(provider: Callable) -> void:
+	# Opt in only with observable navigation/control dependencies. Arbitrary
+	# standalone Callables keep the conservative path. Absolute deadlines are
+	# reused until due; this is not a second action state or saved schedule.
+	_boundary_revision_provider = provider
+	_boundary_revision = -1
+	invalidate_boundary_cache()
+
+
+func invalidate_boundary_cache() -> void:
+	_actor_boundaries.clear()
+	_next_actor_boundary = -1
+
+
+func invalidate_actor_boundary(id: String) -> void:
+	_actor_boundaries.erase(id)
+	_next_actor_boundary = -1
+
+
+func has_cached_boundary_ahead(id: String) -> bool:
+	return _boundary_revision_provider.is_valid() and int(_actor_boundaries.get(id, 0)) > elapsed_ms
+
+
+func boundary_dependencies_changed() -> bool:
+	return _boundary_revision_provider.is_valid() and int(_boundary_revision_provider.call()) != _boundary_revision
 
 
 func next_boundary_tick() -> int:
@@ -282,6 +373,7 @@ func advance_to_ms(target_ms: int, max_events: int = 4096) -> bool:
 		return false
 	var events_left: int = max_events
 	var initial_minute: int = tick_index
+	var ids: Array = _actor_ids()
 	while elapsed_ms < target_ms:
 		var boundary: int = next_boundary_ms()
 		var next: int = mini(target_ms, boundary)
@@ -290,19 +382,21 @@ func advance_to_ms(target_ms: int, max_events: int = 4096) -> bool:
 		_decay_elapsed(next - elapsed_ms)
 		land_resources.advance_to_ms(next)
 		elapsed_ms = next
-		for id: String in _actor_ids():
+		for id: String in ids:
 			_executor.project(id, elapsed_ms)
 		if next == boundary:
-			for id: String in _actor_ids():
-				_executor.settle(id)
-			for id: String in _actor_ids():
+			for id: String in ids:
+				if not _boundary_revision_provider.is_valid() or int(_actor_boundaries.get(id, 0)) <= elapsed_ms:
+					_executor.settle(id)
+			for id: String in ids:
 				var actor: Dictionary = actors[id]
 				if bool(actor.alive) and bool(actor.autonomous) and actor.active.is_empty() and elapsed_ms >= int(actor.retry_ms):
 					_choose_routine(id)
 			_update_situations()
 			events_left -= 1
 			simulation_work.boundary_count = int(simulation_work.boundary_count) + 1
-		for id: String in _actor_ids():
+		_refresh_stock_epoch()
+		for id: String in ids:
 			if bool(actors[id].alive):
 				_observe_stock(id)
 	simulation_work.batched_minutes = int(simulation_work.batched_minutes) + tick_index - initial_minute
@@ -312,17 +406,19 @@ func advance_to_ms(target_ms: int, max_events: int = 4096) -> bool:
 
 
 func _decay_elapsed(duration_ms: int) -> void:
+	var hunger_rate: int = roundi(float(config.needs.hunger_per_minute) * NEED_SCALE)
+	var base_energy_rate: int = roundi(float(config.needs.energy_per_minute) * NEED_SCALE)
+	var work_rate: int = roundi(float(config.needs.work_energy_per_minute) * NEED_SCALE)
 	for id: String in actors:
 		var actor: Dictionary = actors[id]
 		if not bool(actor.alive):
 			continue
-		var hunger_rate: int = roundi(float(config.needs.hunger_per_minute) * NEED_SCALE)
-		var energy_rate: int = roundi(float(config.needs.energy_per_minute) * NEED_SCALE)
+		var energy_rate: int = base_energy_rate
 		if _exposure_rate.is_valid():
 			energy_rate += int(_exposure_rate.call(id))
 		var laboring: bool = not actor.active.is_empty() or (_external_labor.is_valid() and bool(_external_labor.call(id)))
 		if laboring:
-			energy_rate += roundi(float(config.needs.work_energy_per_minute) * NEED_SCALE)
+			energy_rate += work_rate
 		if _rest_recovery.is_valid():
 			energy_rate -= int(_rest_recovery.call(id)) * NEED_SCALE
 		_decay_need(actor, "hunger", hunger_rate, duration_ms)
@@ -334,6 +430,9 @@ func _decay_elapsed(duration_ms: int) -> void:
 			var duration: int = maxi(0, elapsed_ms + duration_ms - maxi(elapsed_ms, int(actor.exertion_until_ms)))
 			var definition: PawnDef = _content.get_pawn(StringName(actor.definition_id))
 			var missing: int = definition.max_stamina - int(actor.stamina)
+			if missing == 0:
+				actor.stamina_carry = 0
+				continue
 			var rate: int = int(motion_rules.recovery.stamina_per_second)
 			var gain: int = int(actor.stamina_carry) + rate * mini(duration, ceili(float(missing * 1000) / rate))
 			@warning_ignore("integer_division")
@@ -388,6 +487,7 @@ func actor_position(actor: Dictionary) -> Vector2:
 
 
 func set_actor_position(id: String, point: Vector2) -> void:
+	invalidate_actor_boundary(id)
 	var before: Vector2i = SimRouteTravel.cell(actors[id].cell)
 	SimRouteTravel.put(actors[id], point)
 	if before != SimRouteTravel.cell(actors[id].cell):
@@ -396,15 +496,16 @@ func set_actor_position(id: String, point: Vector2) -> void:
 
 func project_actor_route(id: String, route: Dictionary, at_ms: int) -> void:
 	var before: Vector2i = SimRouteTravel.cell(actors[id].cell)
-	var crossing: int = SimRouteTravel.crossing_ms(route, actors[id], int(route.segment_started_ms))
 	SimRouteTravel.project(route, actors[id], at_ms)
 	if before != SimRouteTravel.cell(actors[id].cell):
+		var crossing: int = SimRouteTravel.crossing_from_cell_ms(route, before, int(route.segment_started_ms))
 		body_cell_crossed.emit(id, SimRouteTravel.cell(actors[id].cell), crossing)
 		body_space_changed.emit(id)
 
 
 func notify_body_space_changed(id: String) -> void:
 	# Manual motion writes the same original body, notifying on cell crossings.
+	invalidate_actor_boundary(id)
 	body_space_changed.emit(id)
 
 
@@ -436,6 +537,7 @@ func remove_actor(actor_id: String) -> void:
 		return
 	_executor.cancel(actor_id, "actor_unavailable")
 	actors[actor_id].alive = false
+	invalidate_actor_boundary(actor_id)
 	actors[actor_id].goal = "已离开，随身物资留在原地"
 	# Inventory stays attached to the persistent actor; nothing is duplicated.
 	observe("departed", actor_id, "", {})
@@ -719,6 +821,7 @@ func restore(data: Dictionary, allowed_subjects: Dictionary = {}, external_inven
 			if not str(office.holder).is_empty() and not data.actors.has(office.holder):
 				return false
 	config = data.config.duplicate(true)
+	invalidate_boundary_cache()
 	actors = data.actors.duplicate(true)
 	places = data.places.duplicate(true)
 	situations = data.situations.duplicate(true)
@@ -862,15 +965,36 @@ func _update_situations() -> void:
 
 func observe_current_surroundings(actor_id: String) -> void:
 	if actors.has(actor_id) and bool(actors[actor_id].alive):
+		_refresh_stock_epoch()
 		_observe_stock(actor_id)
+
+
+func _refresh_stock_epoch() -> void:
+	for id: String in places:
+		var items: Dictionary = inventory.containers[id]
+		if _stock_contents.get(id) != items:
+			_stock_contents[id] = items.duplicate(true)
+			_stock_epoch += 1
 
 
 func _observe_stock(actor_id: String) -> void:
 	var actor: Dictionary = actors[actor_id]
-	var position := Vector2(float(actor.cell[0]), float(actor.cell[1]))
-	for id: String in places:
-		var location: Array = places[id].cell
-		if position.distance_to(Vector2(float(location[0]), float(location[1]))) <= float(config.observation_radius):
+	var cell: Vector2i = SimRouteTravel.cell(actor.cell)
+	var previous_observation: Array = _stock_observations.get(actor_id, [])
+	if previous_observation.size() == 3 and previous_observation[0] == cell and previous_observation[1] == tick_index and previous_observation[2] == _stock_epoch:
+		return
+	_stock_observations[actor_id] = [cell, tick_index, _stock_epoch]
+	if not _stock_places_at_cell.has(cell):
+		var nearby: Array[String] = []
+		for id: String in places:
+			if Vector2(cell).distance_to(Vector2(SimRouteTravel.cell(places[id].cell))) <= float(config.observation_radius):
+				nearby.append(id)
+		_stock_places_at_cell[cell] = nearby
+	for id: String in _stock_places_at_cell[cell]:
+		var previous: Dictionary = actor.stock_memory.get(id, {})
+		# The exact same minute/contents are the same observation. Quantity
+		# changes remain visible immediately, including direct recipe commits.
+		if previous.get("tick", -1) != tick_index or previous.get("items") != inventory.containers[id]:
 			actor.stock_memory[id] = {"items": inventory.containers[id].duplicate(true), "tick": tick_index}
 
 

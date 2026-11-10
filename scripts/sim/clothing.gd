@@ -13,6 +13,8 @@ var active: Dictionary = {}
 var events: Array[Dictionary] = []
 var next_id: int = 1
 var _owner: WeakRef
+var _worn: Dictionary = {}
+var _outer_holders: Dictionary[String, bool] = {}
 var world: RefCounted:
 	get:
 		return _owner.get_ref()
@@ -45,6 +47,7 @@ static func _color(value: Variant) -> bool:
 func bind_world(authority: RefCounted) -> void:
 	# Rebind a validated candidate without resetting its saved process.
 	_owner = weakref(authority)
+	_rebuild_worn()
 
 
 func initialize(authority: RefCounted, rules: Dictionary) -> bool:
@@ -81,6 +84,7 @@ func spawn_opening() -> bool:
 	if opening.is_empty():
 		return false
 	objects = opening
+	_rebuild_worn()
 	seeded = true
 	return true
 
@@ -113,10 +117,29 @@ func owns_actor(actor: String) -> bool:
 
 
 func worn_at(actor: String, slot: String) -> String:
+	return str(_worn.get(actor, {}).get(slot, ""))
+
+
+func _rebuild_worn() -> void:
+	# Disposable owner-local index; original objects retain custody/wetness.
+	_worn.clear()
+	_outer_holders.clear()
 	for id: String in objects:
-		if held(actor, id) and bool(objects[id].worn) and definitions.types[objects[id].type].slot == slot:
-			return id
-	return ""
+		var row: Dictionary = objects[id]
+		if not str(row.container).begins_with("actor:"):
+			continue
+		var actor: String = str(row.container).trim_prefix("actor:")
+		if not held(actor, id):
+			continue
+		if definitions.types[row.type].slot == "outer":
+			_outer_holders[actor] = true
+		if not bool(row.worn):
+			continue
+		if not _worn.has(actor):
+			_worn[actor] = {}
+		var slot: String = str(definitions.types[row.type].slot)
+		if not _worn[actor].has(slot):
+			_worn[actor][slot] = id
 
 
 func duration(verb: String) -> int:
@@ -221,6 +244,7 @@ static func transition(object: Dictionary, job: Dictionary) -> void:
 func _finish(job: Dictionary, outcome: String) -> void:
 	if outcome == "completed":
 		transition(objects[job.object], job)
+		_rebuild_worn()
 	var record: Dictionary = job.duplicate(true)
 	record["outcome"] = outcome
 	record["finished_ms"] = world.elapsed_ms
@@ -322,7 +346,8 @@ func _outer_choice(actor: String, at_ms: int) -> String:
 
 
 func consider_weather() -> void:
-	for actor: String in world._actor_ids(world.regions):
+	# Only a holder of an actual outer garment can make this decision.
+	for actor: String in world._sorted_keys(_outer_holders):
 		if not world.autonomous_decision(actor) or not world.standing_work.duty_for(actor, world.elapsed_ms).is_empty():
 			continue
 		var id: String = _outer_choice(actor, world.elapsed_ms)
@@ -371,6 +396,7 @@ func restore(data: Variant) -> bool:
 		return false
 	seeded = bool(data.seeded)
 	objects = data.objects.duplicate(true)
+	_rebuild_worn()
 	active = data.active.duplicate(true)
 	events.assign(data.events.duplicate(true))
 	next_id = int(data.next_id)

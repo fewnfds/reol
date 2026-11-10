@@ -145,6 +145,7 @@ var space: SimWorldSpace
 var _content: ReolContentDB
 var _next_id: int = 1
 var _region_boundaries: Dictionary = {}
+var _dirty_region_boundaries: Dictionary = {}
 var _local_action_owner: Callable
 var _manual_motion_executor: Callable
 ## Opt-in exclusive acceptance-session guard. These credentials do not make
@@ -419,6 +420,7 @@ func initialize(definitions: Dictionary, instances: Dictionary, content: ReolCon
 	_next_id = 1
 	simulation_work = {"boundaries": 0, "deliveries": 0, "messages": 0}
 	_region_boundaries = {}
+	_dirty_region_boundaries.clear()
 	for region_id: String in regions:
 		local_news[region_id] = []
 		_region_boundaries[region_id] = regions[region_id].next_boundary_ms()
@@ -592,14 +594,14 @@ func _wants_initiative(actor: String, at_ms: int) -> bool:
 
 
 func autonomous_decision(actor: String) -> bool:
-	if services == null or not native_action_allowed(actor):
+	if services == null:
 		return false
 	var region: String = services.actor_home(actor)
 	if region.is_empty():
 		return false
 	var sim: VillageSimulation = regions[region]
 	var person: Dictionary = sim.actors[actor]
-	return sim.elapsed_ms == elapsed_ms and bool(person.autonomous) and person.active.is_empty() and int(person.retry_ms) - int(sim.config.decision_interval) * MINUTE_MS == elapsed_ms and person.hunger > sim.config.needs.eat_below and person.energy > sim.config.needs.rest_below
+	return sim.elapsed_ms == elapsed_ms and bool(person.autonomous) and person.active.is_empty() and int(person.retry_ms) - int(sim.config.decision_interval) * MINUTE_MS == elapsed_ms and person.hunger > sim.config.needs.eat_below and person.energy > sim.config.needs.rest_below and native_action_allowed(actor)
 
 
 func native_action_allowed(actor_id: String) -> bool:
@@ -724,8 +726,9 @@ func advance_to_ms(requested_ms: int, max_events: int = 4096, work_budget: int =
 			return false
 		var next_ms: int = mini(requested_ms, _next_boundary(requested_ms))
 		for region_id: String in regions:
-			if region_id == active_region:
+			if region_id == active_region or _dirty_region_boundaries.has(region_id) or regions[region_id].boundary_dependencies_changed():
 				_region_boundaries[region_id] = regions[region_id].next_boundary_ms()
+				_dirty_region_boundaries.erase(region_id)
 			next_ms = mini(next_ms, int(_region_boundaries[region_id]))
 		# Numeric/ledger exhaustion must leave all original clocks and bodies at
 		# the last accepted boundary. Keep target_ms as explicit owed work.
@@ -742,6 +745,7 @@ func advance_to_ms(requested_ms: int, max_events: int = 4096, work_budget: int =
 					errors.append("Regional executor could not reach its next boundary")
 					return false
 				_region_boundaries[region_id] = simulation.next_boundary_ms()
+				_dirty_region_boundaries.erase(region_id)
 		elapsed_ms = next_ms
 		if not settlement.begin(old_ms, next_ms):
 			errors.append("Settlement boundary could not begin")
@@ -793,16 +797,28 @@ func synchronize_region(region_id: String) -> bool:
 	if not regions.has(region_id):
 		return false
 	var simulation: VillageSimulation = regions[region_id]
+	# Synchronization only catches up elapsed time. Multiple domains may need
+	# the same region at one boundary; do not rerun its full deadline scan or
+	# emit another empty advance for each actor/job. Mutations still call
+	# invalidate_region, including when the region is already current.
+	if simulation.elapsed_ms == elapsed_ms:
+		return true
 	if not simulation.advance_to_ms(elapsed_ms):
 		return false
 	_region_boundaries[region_id] = simulation.next_boundary_ms()
+	_dirty_region_boundaries.erase(region_id)
 	return true
 
 
-func invalidate_region(region_id: String) -> void:
-	# Call after a command or adapter input mutates a far region in place.
+func invalidate_region(region_id: String, actor_id: String = "") -> void:
+	# Original owners invalidate after changing a region. Coalesce repeated
+	# mutations at one boundary; recompute before the next scheduling decision.
 	if regions.has(region_id):
-		_region_boundaries[region_id] = regions[region_id].next_boundary_ms()
+		_dirty_region_boundaries[region_id] = true
+		if actor_id.is_empty():
+			regions[region_id].invalidate_boundary_cache()
+		else:
+			regions[region_id].invalidate_actor_boundary(actor_id)
 
 
 func _next_herb_sample_ms() -> int:
@@ -1165,6 +1181,7 @@ func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: boo
 	assert(installed, "validated saved-world participants must install")
 	_bind_service_guards()
 	_region_boundaries = {}
+	_dirty_region_boundaries.clear()
 	for region_id: String in regions:
 		_region_boundaries[region_id] = regions[region_id].next_boundary_ms()
 	_replace_space()

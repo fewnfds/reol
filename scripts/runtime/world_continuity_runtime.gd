@@ -46,9 +46,6 @@ var _remote_views: Dictionary[String, Pawn] = {}
 var _panel: WorldContinuityPanel
 var _notice: String = "两地各自生活；前往另一处，观察途中和归来的变化。"
 var _selected_remote: String = ""
-var _visual_progress: float = 1.0
-var _visual_starts: Dictionary = {}
-var _visual_targets: Dictionary = {}
 var _known_lines: Array[String] = []
 var _courier_cell: Vector2i = Vector2i.ZERO
 var _courier_visible: bool = false
@@ -277,6 +274,10 @@ func setup(home: VillageRuntime, opening_source_loan: bool = false, opening_sour
 func _capture_committed_canvases(_from_ms: int = 0, _to_ms: int = 0) -> void:
 	# Connected after the ordinary clock observers: body/fog invalidation and
 	# panels are committed, and the clock cannot start another interval yet.
+	var snap: bool = _to_ms <= _from_ms
+	_home.publish_actor_motion(GameClock.elapsed_ms, snap)
+	for pawn: Pawn in _remote_views.values():
+		pawn.publish_motion(GameClock.elapsed_ms, snap)
 	var views: Array[CommittedWorldCanvas] = [self, _home, natural_adapter, object_adapter,
 		sparring_adapter, conflict_adapter, avian_adapter, soul_adapter,
 		large_body_adapter, construction_adapter, field_adapter]
@@ -297,7 +298,7 @@ func _create_remote(origin: Vector2i, reachable: Array[Vector2i]) -> VillageSimu
 	for original: String in config.actor_profiles:
 		var id: String = REMOTE_PREFIX + original
 		var profile: Dictionary = config.actor_profiles[original].duplicate(true)
-		profile.definition_id = original
+		profile.definition_id = str(profile.get("definition_id", original))
 		profile.autonomous = true
 		profiles[id] = profile
 		var placed: Vector2i = _nearest_unused(origin, reachable, used)
@@ -423,7 +424,23 @@ func _on_visibility_updated() -> void:
 	redraw_committed_canvas()
 
 
+var _navigation_revision: int = 0
+var _navigation_connections: Array[Array] = []
+
+
 func _bind_navigation() -> void:
+	for link: Array in _navigation_connections:
+		var event: Signal = link[0]
+		if is_instance_valid(event.get_object()) and event.is_connected(link[1]):
+			event.disconnect(link[1])
+	_navigation_connections.clear()
+	_navigation_revision += 1
+	for event: Signal in [world_sim.map_data.terrain_changed, world_sim.construction.space_changed, world_sim.plants.plant_changed, world_sim.large_bodies.body_space_changed, world_sim.large_bodies.bodies_space_changed]:
+		var callback: Callable = _navigation_changed.unbind(1)
+		event.connect(callback)
+		_navigation_connections.append([event, callback])
+	world_sim.large_bodies.space_reset.connect(_navigation_changed)
+	_navigation_connections.append([world_sim.large_bodies.space_reset, _navigation_changed])
 	_home._world.bind_map_data(world_sim.map_data)
 	_home._world.set_obstacle_provider(_physical_obstacle)
 	_home._world.set_sight_obstacle_provider(world_sim.construction.blocks_sight)
@@ -443,6 +460,7 @@ func _bind_navigation() -> void:
 	_home._places = _home.simulation.places.duplicate(true)
 	for sim: VillageSimulation in world_sim.regions.values():
 		sim.set_navigation(_find_path, _can_step)
+		sim.set_boundary_revision_provider(_native_boundary_revision)
 	if world_sim.services != null:
 		world_sim.services.set_navigation(_find_path, _can_step)
 	world_sim.sparring.set_geometry(_practice_contact_allowed, _can_step)
@@ -471,17 +489,31 @@ func _bind_navigation() -> void:
 		field_adapter.reset_observation()
 
 
+func _navigation_changed() -> void:
+	_navigation_revision += 1
+	for region: String in world_sim.regions:
+		world_sim.invalidate_region(region)
+
+
+func _native_boundary_revision() -> int:
+	var revision: int = _navigation_revision + world_sim.embodiment.control_revision
+	for sim: VillageSimulation in world_sim.regions.values():
+		revision += int(sim.config.get("workplaces_version", 0))
+	return revision
+
+
 func _incoming_occupancy(cell: Vector2i) -> bool:
 	return world_sim != null and SimMotionClearance.segment_reserves(world_sim.regions.home.actors.player, player_journey, cell)
 
 
 func _physical_obstacle(cell: Vector2i) -> bool:
-	return world_sim.plants.blocked(cell) or world_sim.construction.blocked(cell) or world_sim.large_bodies.blocked(cell) or _workplace_obstacle(cell)
+	# Construction already includes accepted workplace walls and fixtures.
+	return world_sim.plants.blocked(cell) or world_sim.construction.blocked(cell) or world_sim.large_bodies.blocked(cell)
 
 
 func _workplace_obstacle(cell: Vector2i) -> bool:
 	for sim: VillageSimulation in world_sim.regions.values():
-		if SimWorkplaces.blocked(sim.places, cell):
+		if sim.workplace_blocked(cell):
 			return true
 	return false
 
@@ -1081,10 +1113,9 @@ func _refresh_views(snap: bool) -> void:
 			pawn.set_view_layout(layout.get(id, {}))
 			pawn.cell = cell
 			_home._sync_needs(pawn.state, actor)
-			_visual_starts[id] = pawn.global_position
-			_visual_targets[id] = remote.actor_position(actor)
-			if snap:
-				pawn.global_position = _visual_targets[id]
+			pawn.global_position = remote.actor_position(actor)
+			if not GameClock.is_advancing():
+				pawn.publish_motion(GameClock.elapsed_ms, snap)
 			pawn.show()
 			pawn.queue_redraw()
 	for id: String in _remote_views.keys():
@@ -1095,21 +1126,12 @@ func _refresh_views(snap: bool) -> void:
 		_remote_views[id].hide()
 		_remote_views[id].queue_free()
 		_remote_views.erase(id)
-		_visual_starts.erase(id)
-		_visual_targets.erase(id)
-	_visual_progress = 1.0 if snap else 0.0
 	_update_courier_view()
 
 
 func _process(_delta: float) -> void:
 	if _saves != null:
 		_saves.process_save()
-	if GameClock.paused or _visual_progress >= 1.0:
-		return
-	_visual_progress = minf(1.0, _visual_progress + GameClock.view_delta_seconds() * GameClock.view_transition_rate())
-	for id: String in _remote_views:
-		var pawn: Pawn = _remote_views[id]
-		pawn.global_position = (_visual_starts[id] as Vector2).lerp(_visual_targets[id], _visual_progress)
 
 
 func _unhandled_input(event: InputEvent) -> void:

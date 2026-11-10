@@ -35,6 +35,10 @@ Demo性能诊断独立于普通入口：`python tools/diagnose_demo.py --seconds
 
 实装在`tools/diagnostics/demo_recorder.gd`，由`tools/qa/demo_diagnostics.gd`单独装配，普通Main不加载。只包装原Callable并原样返回，不改变阶段顺序、事件、输入、预算、存档或领域状态；读档更换内核后重新挂接，结束时恢复原回调。这是有测量开销的开发诊断，不是发布版/GPU时间或整机性能证明；针对疑似显示热点继续使用Godot原生Profiler。
 
+临时人口压力入口为`python tools/stress_demo.py --residents 50 --seconds 30`：两地各50人，共100个人物身体；普通Main不加载该入口。真实实例使用原定义、原寻路、生活、环境和共同时间，抵达后通过原取消/提交命令在四处持续巡行，采样后可继续试玩。`--quit-after-capture`自动退出，`--opening-wave`复现单次去宿舍的旧对比负载；`--headless`不证明渲染表现。每地6–256人，采样5–300秒。临时派生运行层拒绝普通保存/读取，既有玩家档不参与。
+
+压力报告为`logs/crowd-人数-时间.json`与同名JSONL，复用原诊断并增加实际移动人数、巡行重下命令数、采样期间处于travel阶段的平均人数；后者不是逐帧速度测量。指令装配和诊断自身会占用宿主，累计结算计时不包括压力控制器的输入成本，帧间隔包括它。开发可执行文件、密集持续移动与普通生活负载分别声明，不能用人数或一次移动成功冒称规模达标。
+
 - 首选实时场景连接为Godot AI：编辑器启用插件后用官方dock的Configure → Codex生成带认证的attach，重载后实际核查Reol会话、日志和运行状态；不手写端口/裸HTTP，不更改第三方addon。当前实现与过滤范围见[套件实装](setup.md)。
 - python tools/setup_codex.py 补项目中的Context7和默认禁用的Coding-Solo备用入口；已存在连接和无关配置保留。仅在明确需要备用时用 --enable-backup-godot；显式 --review-model gpt-6.1-sol 设置项目审查模型，--check只验证配置而不证实握手。项目配置/备份不入库；用户级路由与认证不在此脚本中改写。
 - API以当前目标版本的Godot官方文档为准，Context7可辅助查询。旧opencode.json属于旧客户端，不是Codex生效配置。

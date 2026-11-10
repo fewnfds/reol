@@ -13,6 +13,7 @@ func run(runner: Object) -> void:
 	_test_external_change_interrupts_prediction(runner)
 	_test_inflight_restore_and_mode_switch(runner)
 	_test_single_minute_targets_match_fine(runner)
+	_test_observable_boundaries(runner)
 
 
 func _make(runner: Object, autonomous: bool = false) -> VillageSimulation:
@@ -137,3 +138,47 @@ func _test_single_minute_targets_match_fine(runner: Object) -> void:
 		while not coarse.advance_to(target, 1):
 			pass
 	_same(runner, fine, coarse, "minute-at-a-time scheduler remains equivalent")
+
+
+func _test_observable_boundaries(runner: Object) -> void:
+	var reference: VillageSimulation = _make(runner)
+	var cached: VillageSimulation = _make(runner)
+	if reference == null or cached == null:
+		return
+	var dependency: Array = [0, true, true]
+	var calls: Array[int] = [0]
+	var step: Callable = func(_cell: Vector2i, _direction: Vector2i) -> bool:
+		calls[0] += 1
+		return bool(dependency[1])
+	for sim: VillageSimulation in [reference, cached]:
+		sim.advance_to_ms(1)
+		sim.set_navigation(_fixtures._manhattan_path, step)
+		sim.set_control_guard(func(_id: String, _channel: String) -> bool: return bool(dependency[2]))
+		sim.submit_action("player", "rest")
+	cached.set_boundary_revision_provider(func() -> int: return int(dependency[0]))
+	var expected: int = reference.next_boundary_ms()
+	runner.assert_eq(cached.next_boundary_ms(), expected, "observable native deadlines retain exact crossing time")
+	var queried: int = calls[0]
+	for _read: int in 20:
+		cached.next_boundary_ms()
+	runner.assert_eq(calls[0], queried, "unchanged deadlines do not repeat full route geometry checks")
+	for at: int in [2, 7, 33, 50, expected]:
+		reference.advance_to_ms(at)
+		cached.advance_to_ms(at)
+		_same(runner, reference, cached, "deadline reuse keeps bodies, needs and observations at %d" % at)
+	dependency[1] = false
+	dependency[0] += 1
+	runner.assert_eq(cached.next_boundary_ms(), reference.next_boundary_ms(), "an obstacle dependency change wakes the original blocked leg")
+	dependency[1] = true
+	dependency[2] = false
+	dependency[0] += 1
+	runner.assert_eq(cached.next_boundary_ms(), cached.elapsed_ms + 1, "control loss cannot hide behind a cached future deadline")
+	dependency[2] = true
+	dependency[0] += 1
+	for sim: VillageSimulation in [reference, cached]:
+		sim.cancel_action("player")
+		sim.submit_action("player", "inspect")
+	runner.assert_eq(cached.next_boundary_ms(), reference.next_boundary_ms(), "new commands discard their old deadline")
+	var snapshot: Dictionary = cached.to_dict()
+	runner.assert_true(cached.restore(snapshot), "the original in-flight format restores without derived deadlines")
+	runner.assert_true(cached._actor_boundaries.is_empty(), "restore clears all derived deadline entries")

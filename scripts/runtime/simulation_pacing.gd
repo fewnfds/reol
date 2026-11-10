@@ -32,7 +32,10 @@ func observe(real_seconds: float, work_usec: int, advanced_ms: int, pending: boo
 	last_work_usec = maxi(0, work_usec)
 	longest_work_usec = maxi(longest_work_usec, last_work_usec)
 	_unpublished_work_usec += last_work_usec
-	_frame_seconds = lerpf(_frame_seconds, clampf(real_seconds, 1.0 / TARGET_RENDER_HZ, MAX_LEAD_SECONDS), 0.1)
+	# The budget is per actual callback. Clamping 120Hz callbacks to 60Hz
+	# silently halved available capacity even while most frames were idle.
+	if is_finite(real_seconds) and real_seconds > 0.0:
+		_frame_seconds = lerpf(_frame_seconds, clampf(real_seconds, 0.001, MAX_LEAD_SECONDS), 0.1)
 	if advanced_ms > 0:
 		# Estimate work / represented world time over a short bounded window.
 		# Taking the maximum of individual ratios made a 1ms causal split's

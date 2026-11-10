@@ -13,6 +13,8 @@ var _residences: Dictionary = {}
 var _controls: Dictionary = {}
 var _actor_subjects: Dictionary = {}
 var _source_carriers: Dictionary = {}
+## Disposable dependency epoch, not identity or saved control state.
+var control_revision: int = 0
 
 
 static func valid_forms(data: Variant) -> bool:
@@ -45,6 +47,7 @@ func configure(definitions: Dictionary) -> bool:
 	_controls = {}
 	_actor_subjects = {}
 	_source_carriers = {}
+	control_revision += 1
 	return true
 
 
@@ -52,6 +55,7 @@ func add_subject(id: String, legacy_actor: String = "") -> bool:
 	if not _text(id) or _subjects.has(id) or (not legacy_actor.is_empty() and _actor_subjects.has(legacy_actor)):
 		return false
 	_subjects[id] = {"legacy_actor": legacy_actor}
+	control_revision += 1
 	if not legacy_actor.is_empty():
 		_actor_subjects[legacy_actor] = id
 	return true
@@ -66,6 +70,7 @@ func add_carrier(id: String, form_id: String, source: Dictionary) -> bool:
 	_carriers[id] = {"form": form_id, "source": source.duplicate(true)}
 	_source_carriers[key] = id
 	_controls[id] = {}
+	control_revision += 1
 	return true
 
 
@@ -83,6 +88,7 @@ func grant_control(subject: String, carrier: String, channel: String) -> bool:
 	if not holder.is_empty() and holder != subject:
 		return false
 	_controls[carrier][channel] = subject
+	control_revision += 1
 	return true
 
 
@@ -90,6 +96,7 @@ func release_control(subject: String, carrier: String, channel: String) -> bool:
 	if not controls(subject, carrier, channel):
 		return false
 	_controls[carrier].erase(channel)
+	control_revision += 1
 	return true
 
 
@@ -225,6 +232,7 @@ func restore(data: Dictionary) -> bool:
 	_controls = candidate._controls
 	_actor_subjects = candidate._actor_subjects
 	_source_carriers = candidate._source_carriers
+	control_revision += 1
 	return true
 
 

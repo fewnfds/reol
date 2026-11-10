@@ -15,6 +15,7 @@ var follow_focus: bool = true
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	process_priority = 40 # Follow this frame's completed presentation update.
 
 
 func setup(world_rect: Rect2, start_position: Vector2) -> void:
@@ -37,7 +38,7 @@ func _process(delta: float) -> void:
 		global_position += direction.normalized() * pan_speed * delta / zoom.x
 		_clamp_to_world()
 	elif follow_focus and not _dragging and is_instance_valid(_focus_target):
-		global_position = _focus_target.global_position
+		global_position = _focus_position()
 		_clamp_to_world()
 
 	if Input.is_action_just_pressed("zoom_in"):
@@ -47,8 +48,12 @@ func _process(delta: float) -> void:
 
 	if Input.is_action_just_pressed("center_camera") and is_instance_valid(_focus_target):
 		follow_focus = true
-		global_position = _focus_target.global_position
+		global_position = _focus_position()
 		_clamp_to_world()
+
+
+func _focus_position() -> Vector2:
+	return _focus_target.call("presentation_position") if _focus_target.has_method("presentation_position") else _focus_target.global_position
 
 
 func _unhandled_input(event: InputEvent) -> void:

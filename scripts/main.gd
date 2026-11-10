@@ -125,7 +125,7 @@ func _ready() -> void:
 		player.setup_state(PawnState.create(player_def, _content))
 
 	_spawn_named_pawns(spawn_cell)
-	_village = VillageRuntime.new()
+	_village = _create_village_runtime()
 	_village.name = "VillageRuntime"
 	add_child(_village)
 	if not _village.setup(world, player, _pawns, _content, true):
@@ -167,6 +167,10 @@ func _ready() -> void:
 		_terrain_editor.name = "TerrainEditorRuntime"
 		add_child(_terrain_editor)
 		_terrain_editor.setup(_continuity)
+
+
+func _create_village_runtime() -> VillageRuntime:
+	return VillageRuntime.new()
 
 
 func _on_content_replaced(content: ReolContentDB) -> void:

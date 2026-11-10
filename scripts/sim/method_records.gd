@@ -272,11 +272,20 @@ func _finish(job: Dictionary, outcome: String) -> void:
 
 
 func consider_reading() -> void:
+	var holders: Dictionary = {}
+	for id: String in objects:
+		var container: String = str(objects[id].container)
+		if container.begins_with("actor:"):
+			holders[container.trim_prefix("actor:")] = true
+	if holders.is_empty():
+		return
 	for region: String in world._sorted_keys(world.regions):
 		var sim: VillageSimulation = world.regions[region]
-		for actor: String in world._sorted_keys(sim.actors):
+		for actor: String in world._sorted_keys(holders):
+			if not sim.actors.has(actor):
+				continue
 			var person: Dictionary = sim.actors[actor]
-			if not person.autonomous or not _available(actor) or int(person.retry_ms) - int(sim.config.decision_interval) * 60000 != world.elapsed_ms or person.hunger <= sim.config.needs.eat_below or person.energy <= sim.config.needs.rest_below:
+			if not person.autonomous or not person.active.is_empty() or int(person.retry_ms) - int(sim.config.decision_interval) * 60000 != world.elapsed_ms or person.hunger <= sim.config.needs.eat_below or person.energy <= sim.config.needs.rest_below or not _available(actor):
 				continue
 			for id: String in world._sorted_keys(objects):
 				if held(actor, id) and not has_read(actor, str(objects[id].method)):

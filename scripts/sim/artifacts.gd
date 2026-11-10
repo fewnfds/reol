@@ -1045,7 +1045,7 @@ func note_warming_decision(actor: String, at_ms: int) -> void:
 func consider_warming() -> void:
 	var handed_off: Dictionary = _warming_decisions.duplicate()
 	_warming_decisions.clear()
-	for actor: String in world._actor_ids(world.regions):
+	for actor: String in world._sorted_keys(handed_off):
 		if int(handed_off.get(actor, -1)) != world.elapsed_ms or not world.autonomous_decision(actor):
 			continue
 		var started: bool = false

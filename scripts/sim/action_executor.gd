@@ -59,6 +59,7 @@ func begin(actor_id: String, action_id: String, request_id: String = "", request
 		actor.goal = "路途不通，稍后再试"
 		return false
 	actor.active = action
+	_sim.invalidate_actor_boundary(actor_id)
 	actor.goal = definition.label
 	_sim.notify_labor("start", actor_id, action)
 	return true
@@ -69,7 +70,7 @@ func project(actor_id: String, at_ms: int) -> void:
 	var action: Dictionary = actor.active
 	if action.is_empty() or action.phase != "travel" or action.path.is_empty():
 		return
-	if not SimRouteTravel.repair(_sim, actor_id, action, at_ms, _sim.places[action.destination].cell):
+	if not _sim.has_cached_boundary_ahead(actor_id) and not SimRouteTravel.repair(_sim, actor_id, action, at_ms, _sim.places[action.destination].cell):
 		cancel(actor_id, "route_blocked")
 		return
 	_sim.project_actor_route(actor_id, action, at_ms)
@@ -119,6 +120,7 @@ func cancel(actor_id: String, reason: String = "cancelled") -> void:
 	var action: Dictionary = actor.active
 	_release(action)
 	actor.active = {}
+	_sim.invalidate_actor_boundary(actor_id)
 	actor.goal = "行动中断"
 	actor.retry_ms = _sim.elapsed_ms + int(_sim.config.retry_minutes) * MINUTE_MS
 	_sim.action_finished(actor_id, action, false, reason)
@@ -282,6 +284,7 @@ func _finish(actor_id: String, actor: Dictionary, action: Dictionary) -> void:
 				target[item] = _sim.inventory.quantity(definition.target, item) + int(definition.outputs[item])
 	_release(action)
 	actor.active = {}
+	_sim.invalidate_actor_boundary(actor_id)
 	actor.goal = "已完成" if succeeded else "未能完成"
 	actor.retry_ms = _sim.elapsed_ms + int(_sim.config.decision_interval) * MINUTE_MS
 	_sim.action_finished(actor_id, action, succeeded, "fulfilled" if succeeded else "execution_failed")

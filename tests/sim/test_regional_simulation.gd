@@ -19,6 +19,23 @@ func run(runner: Object) -> void:
 	_test_bounded_advancement_can_resume(runner)
 	_test_coarse_execution_agrees_with_detailed_execution(runner)
 	_test_one_actor_has_one_execution_owner(runner)
+	_test_idempotent_sync(runner)
+
+
+func _test_idempotent_sync(runner: Object) -> void:
+	var world: RegionWorld = _make_world(runner)
+	if world == null:
+		return
+	var sim: VillageSimulation = world.regions.home
+	var calls: int = int(sim.simulation_work.quiet_batch_calls)
+	for _read: int in 20:
+		world.synchronize_region("home")
+	runner.assert_eq(int(sim.simulation_work.quiet_batch_calls), calls, "already synchronized domains do not advance an empty region again")
+	runner.assert_true(sim.submit_action("player", "rest"), "far command starts at the synchronized point")
+	world.invalidate_region("home")
+	runner.assert_true(world._dirty_region_boundaries.has("home"), "mutations retain a pending deadline refresh")
+	world.advance_to_ms(50)
+	runner.assert_true(not world._dirty_region_boundaries.has("home"), "scheduling consumes the refresh before advancing")
 
 
 func _make_world(runner: Object, autonomous: bool = false, competing: bool = false, scarce_export: bool = true, managed_herbs: bool = true) -> RegionWorld:

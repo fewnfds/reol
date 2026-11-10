@@ -16,10 +16,12 @@ var clothing_appearance: Dictionary = {}
 var appearance_pose: Dictionary = {}
 
 var _world: ReolWorld
+var _presentation := ReolMotionPresentation.new()
 
 
 func _init() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	process_priority = 20
 
 
 func setup(
@@ -33,6 +35,7 @@ func setup(
 	_world = world_ref
 	cell = spawn_cell
 	global_position = TileGrid.cell_to_world(cell)
+	publish_motion(GameClock.elapsed_ms, true)
 	z_index = 9
 	queue_redraw()
 
@@ -52,7 +55,7 @@ func selection_center() -> Vector2:
 	var elevation: int = 0
 	if _world != null:
 		elevation = _world.get_elevation(cell)
-	return global_position + visual_offset + Vector2(
+	return presentation_position() + visual_offset + Vector2(
 		0.0, -float(elevation * ReolWorld.ELEVATION_PX) - 12.0
 	)
 
@@ -61,14 +64,26 @@ func _process(_delta: float) -> void:
 	# Only presentation advances here; offscreen regions own no animation nodes.
 	if not is_visible_in_tree() or appearance_pose.is_empty():
 		return
+	var moved: bool = _presentation.advance(GameClock.view_delta_seconds())
 	if int(appearance_pose.get("time_ms", 0)) != GameClock.elapsed_ms:
 		appearance_pose.time_ms = GameClock.elapsed_ms
+		moved = true
+	if moved:
 		queue_redraw()
+
+
+func publish_motion(at_ms: int, snap: bool = false) -> void:
+	_presentation.capture(global_position, at_ms, 1.0 / GameClock.view_transition_rate(), snap)
+
+
+func presentation_position() -> Vector2:
+	return _presentation.position if _presentation.initialized() else global_position
 
 
 func _draw() -> void:
 	if state == null or state.pawn_def == null:
 		return
+	draw_set_transform(presentation_position() - global_position)
 	var elevation: int = 0
 	if _world != null:
 		elevation = _world.get_elevation(cell)
@@ -78,3 +93,4 @@ func _draw() -> void:
 	if not caption_visible and not selected:
 		text = ""
 	Visuals.draw_actor(self, ground, ground, robe, text, selected, false, clothing_appearance, appearance_pose)
+	draw_set_transform(Vector2.ZERO)

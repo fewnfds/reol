@@ -16,6 +16,7 @@ class PublicationProbe extends CommittedWorldCanvas:
 
 
 func run(runner: Object) -> void:
+	_presentation_segments(runner)
 	_published_after_world(runner)
 	_budgeted_frame_and_save(runner)
 	_budgeted_explicit(runner)
@@ -28,6 +29,40 @@ func run(runner: Object) -> void:
 	_construction_publication(runner)
 	_queued_save(runner)
 	print("SCENARIO real clock/world commit: published boundary, budget debt, route override and retained regional target")
+
+
+func _presentation_segments(runner: Object) -> void:
+	var view := ReolMotionPresentation.new()
+	view.capture(Vector2(10, 20), 0, 0.05, true)
+	view.capture(Vector2(20, 20), 50, 0.05)
+	runner.assert_eq(view.position, Vector2(10, 20), "publication captures a complete endpoint without jumping its displayed point")
+	view.advance(0.025)
+	runner.assert_eq(view.position, Vector2(15, 20), "half a presentation interval lies between the two committed points")
+	view.capture(Vector2(20, 20), 50, 0.05)
+	view.advance(0.025)
+	runner.assert_eq(view.position, Vector2(20, 20), "duplicate same-boundary refresh does not restart a segment")
+	runner.assert_true(not view.advance(10.0), "presentation never extrapolates past its committed endpoint")
+	view.capture(Vector2(30, 20), 100, 0.05)
+	view.advance(0.0)
+	runner.assert_eq(view.position, Vector2(20, 20), "paused presentation preserves the last visible point")
+	view.advance(0.01)
+	var before: Vector2 = view.position
+	view.capture(Vector2(35, 20), 101, 0.05)
+	runner.assert_eq(view.position, before, "a short causal split replaces the target without a rendered jump")
+	view.capture(Vector2(200, 200), 0, 0.05, true)
+	runner.assert_eq(view.position, Vector2(200, 200), "load or teleport discards the previous world's presentation segment")
+	var player := PlayerCharacter.new()
+	player.global_position = Vector2(10, 0)
+	player.publish_motion(0, true)
+	player.global_position = Vector2(20, 0)
+	player.publish_motion(50)
+	player._presentation.advance(0.025)
+	runner.assert_eq(player.global_position, Vector2(20, 0), "display interpolation never moves the authoritative scene anchor")
+	var camera := CameraController.new()
+	camera.set_focus_target(player)
+	runner.assert_eq(camera._focus_position(), player.presentation_position(), "follow camera uses the same interpolated view instead of the stepped anchor")
+	camera.free()
+	player.free()
 
 
 func _setup(runner: Object) -> Dictionary:

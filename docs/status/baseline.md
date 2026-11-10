@@ -4,7 +4,7 @@
 
 ## Demo反馈与独立诊断（独立分支）
 
-FPS后续代码`ac3dca32ffd8b3e6b7eda47c4efb756c8941e473`已推送：顶部原生读数与F3帧间隔/峰值，一组17检查及实际画面、按键/暂停只读通过。约110–120FPS下位移约20Hz，玩家显示插值仍缺；小场景流速不证明规模达标。一次Sol/custom静态主审无发现；同SHA CI42759378487本次文档提交点in_progress，完整CI待验，证据见[QA](../qa/20261110_demo_feedback.md#fps显示与呈现频率核对)。
+`codex/presentation-stress-demo`补人物/镜头连续显示与独立人口压力Demo；100人单次出发0.127→0.999×，持续32/100/300人约0.998/0.845/0.250×，密集1×未达。原生移动288帧变化286次、定向6组524检查通过；完整CI待验，见[压力QA](../qa/20261110_presentation_crowd.md)。前FPS代码`ac3dca32ffd8b3e6b7eda47c4efb756c8941e473`的CI42759378487 success。
 
 `codex/demo-slowdown-fix`最终生产/测试`b364870e5ddc92f3c3de2d689fcf3e2755e8d67d`已推送，修复重复画面捕获、环境原子刷新及短片段误降速，未合main。原生90秒0.986×、时钟最大17.645ms，30秒移动39格无world_errors；定向通过，一次Sol/custom主审的灵体读档旧flora回调P2先红后绿修复，补1组42检查通过；同SHA CI42757726701已核completed/success，完整回归通过。负载、日志及局限见[缓行QA](../qa/20261110_demo_feedback.md#严重缓行修复)。
 

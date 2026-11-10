@@ -31,9 +31,6 @@ var _places: Dictionary = {}
 var _selected_actor: String = "player"
 var _panel: VillagePanel
 var _notice: String = "选中同门可以开口求助；WASD 可中断自己的行动。"
-var _visual_starts: Dictionary[String, Vector2] = {}
-var _visual_targets: Dictionary[String, Vector2] = {}
-var _visual_progress: float = 1.0
 var _shared_motion_world: WeakRef
 var _clock_interval_had_events: bool = false
 
@@ -246,8 +243,6 @@ func reconcile_actor_views() -> void:
 		created.z_as_relative = false
 		add_child(created)
 		_pawns[id] = created
-	_visual_starts.clear()
-	_visual_targets.clear()
 	if not simulation.actors.has(_selected_actor):
 		_selected_actor = "player"
 
@@ -427,21 +422,17 @@ func _on_time_advanced(_from_ms: int, _to_ms: int) -> void:
 		redraw_committed_canvas()
 		simulation_advanced.emit()
 	if not is_instance_valid(continuity):
+		publish_actor_motion(_to_ms)
 		# Standalone runtime has no world adapter to capture its publication.
 		refresh_committed_canvas()
 		queue_redraw()
 
 
-func _process(_delta: float) -> void:
-	if simulation == null or GameClock.paused or _visual_progress >= 1.0:
-		return
-	_visual_progress = minf(1.0, _visual_progress + GameClock.view_delta_seconds() * GameClock.view_transition_rate())
-	for id: String in _visual_targets:
-		var pawn: Pawn = _pawns.get(id)
-		if is_instance_valid(pawn):
-			pawn.global_position = _visual_starts[id].lerp(
-				_visual_targets[id], _visual_progress
-			)
+func publish_actor_motion(at_ms: int, snap: bool = false) -> void:
+	_player.publish_motion(at_ms, snap)
+	for pawn: Pawn in _pawns.values():
+		if pawn.visible:
+			pawn.publish_motion(at_ms, snap)
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -467,26 +458,28 @@ func _sync_player_cell() -> void:
 
 
 func _sync_actor_views(snap: bool) -> void:
-	_visual_progress = 1.0 if snap else 0.0
 	var layout: Dictionary = continuity.actor_view_layout() if is_instance_valid(continuity) else PawnViewLayout.build(simulation.actors, "player")
 	for id: String in _pawns:
 		if not simulation.actors.has(id):
 			_pawns[id].hide()
 			continue
 		var pawn: Pawn = _pawns[id]
+		var was_visible: bool = pawn.visible
 		var actor: Dictionary = simulation.actors[id]
+		pawn.cell = _decode_cell(actor["cell"])
+		pawn.visible = bool(actor.alive) and (_fog.is_cell_visible(pawn.cell) if _fog != null else true)
+		pawn.global_position = simulation.actor_position(actor)
+		if not pawn.visible:
+			continue # Hidden views have no pose, clothing or draw work.
 		var pose: Dictionary = HumanoidPose.in_world(continuity.world_sim, id, GameClock.elapsed_ms) if is_instance_valid(continuity) else HumanoidPose.from_body(actor, GameClock.elapsed_ms, actor.active)
 		pawn.appearance_pose = HumanoidPose.stabilized(pose, pawn.appearance_pose)
 		if is_instance_valid(continuity):
 			pawn.clothing_appearance = continuity.world_sim.clothing.appearance(id)
 		pawn.set_view_layout(layout.get(id, {}))
-		pawn.cell = _decode_cell(actor["cell"])
-		pawn.visible = bool(actor.alive) and (_fog.is_cell_visible(pawn.cell) if _fog != null else true)
 		var target: Vector2 = simulation.actor_position(actor)
-		_visual_starts[id] = pawn.global_position
-		_visual_targets[id] = target
-		if snap:
-			pawn.global_position = target
+		pawn.global_position = target
+		if not was_visible or not GameClock.is_advancing():
+			pawn.publish_motion(GameClock.elapsed_ms, snap or not was_visible)
 		_sync_needs(pawn.state, actor)
 		pawn.queue_redraw()
 	if is_instance_valid(continuity):

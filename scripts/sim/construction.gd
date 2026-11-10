@@ -804,7 +804,7 @@ func blocked(cell: Vector2i) -> bool:
 	if _blocked.has(cell):
 		return true
 	for sim: RefCounted in world.regions.values():
-		if SimWorkplaces.blocked(sim.places, cell):
+		if sim.workplace_blocked(cell):
 			return true
 	return false
 

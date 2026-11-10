@@ -35,9 +35,11 @@ var _shared_motion_executor: bool = false
 var _clock: ReolGameClock
 var _motion_guard: Callable
 var _has_motion_guard: bool = false
+var _presentation := ReolMotionPresentation.new()
 
 
 func _ready() -> void:
+	process_priority = 20
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_world = get_parent().get_node_or_null("World") as ReolWorld
 	_clock = get_node_or_null("/root/GameClock") as ReolGameClock
@@ -58,7 +60,7 @@ func selection_center() -> Vector2:
 	var elevation: int = 0
 	if _world != null:
 		elevation = _world.get_elevation(cell)
-	return global_position + Vector2(
+	return presentation_position() + Vector2(
 		0.0,
 		-float(
 			elevation * ReolWorld.ELEVATION_PX
@@ -71,6 +73,7 @@ func spawn_at(spawn_cell: Vector2i) -> void:
 	cell = spawn_cell
 	motion.relocate(TileGrid.cell_to_world(cell))
 	global_position = motion.position
+	publish_motion(0, true)
 	blocked = false
 	queue_redraw()
 
@@ -107,6 +110,20 @@ func _physics_process(_delta: float) -> void:
 	_intent = Input.get_vector("move_left", "move_right", "move_up", "move_down") if avatar_active else Vector2.ZERO
 	if not _intent.is_zero_approx() and _clock != null:
 		_clock.cancel_wait()
+
+
+func publish_motion(at_ms: int, snap: bool = false) -> void:
+	var duration: float = 1.0 / _clock.view_transition_rate() if _clock != null else 0.05
+	_presentation.capture(global_position, at_ms, duration, snap)
+
+
+func presentation_position() -> Vector2:
+	return _presentation.position if _presentation.initialized() else global_position
+
+
+func _process(_delta: float) -> void:
+	if _clock != null and _presentation.advance(_clock.view_delta_seconds()):
+		queue_redraw()
 
 
 func _on_time_advanced(from_ms: int, to_ms: int) -> void:
@@ -197,6 +214,7 @@ func _move_step(displacement: Vector2) -> void:
 
 
 func _draw() -> void:
+	draw_set_transform(presentation_position() - global_position)
 	var elevation: int = 0
 	if _world != null:
 		elevation = _world.get_elevation(cell)
@@ -218,3 +236,4 @@ func _draw() -> void:
 		caption = state.display_name()
 	appearance_pose["time_ms"] = _clock.elapsed_ms if _clock != null else 0
 	Visuals.draw_actor(self, ground_offset, body_offset, robe, caption if avatar_active else "无名杂役", selected, avatar_active, clothing_appearance, appearance_pose)
+	draw_set_transform(Vector2.ZERO)

@@ -207,8 +207,8 @@ func next_boundary_ms() -> int:
 func settle_at_ms(now: int) -> void:
 	for actor: String in world._sorted_keys(purposes):
 		var purpose: Dictionary = purposes[actor]
-		world.synchronize_region(str(purpose.region))
 		if owns_actor(actor):
+			world.synchronize_region(str(purpose.region))
 			var trip: Dictionary = trips[purpose.trip]
 			var reason: String = _continuation_reason(trip)
 			if not reason.is_empty():
@@ -239,6 +239,9 @@ func settle_at_ms(now: int) -> void:
 	# Real arrival and an ordinary passer-by use the same bounded perception.
 	# Query/UI methods only project the memories produced at these boundaries.
 	if world.services != null and not sites.is_empty() and now >= next_observation_ms:
+		# Sleeping intentions do not wake an entire remote settlement at every
+		# unrelated boundary. Actual observations still read current bodies.
+		world.synchronize_regions()
 		_wake_idle_intentions(now)
 		for actor: String in world._actor_ids(world.regions):
 			for id: String in sites: _observe(actor, id)
@@ -387,9 +390,12 @@ func _observe(actor: String, id: String) -> String:
 	# a distant holder's identity nor their present position.
 	var outcome: String = "present" if item.get("region") == sites[id].region and item.get("container") == sites[id].container else "empty"
 	var latest: Dictionary = {}
-	for event: Dictionary in world.services.social.events:
+	for index: int in range(world.services.social.events.size() - 1, -1, -1):
+		var event: Dictionary = world.services.social.events[index]
 		var known: Dictionary = world.services.social.knowledge.get(actor, {}).get(event.id, {})
-		if known.get("kind") == "field_site_observed" and known.get("actor") == actor and known.details.get("site") == id: latest = known
+		if known.get("kind") == "field_site_observed" and known.get("actor") == actor and known.details.get("site") == id:
+			latest = known
+			break
 	if latest.get("details", {}).get("outcome") == outcome: return str(latest.id)
 	return _record("field_site_observed", actor, "", {"site": id, "cell": sites[id].cell.duplicate(), "label": str(definitions.site.label), "outcome": outcome, "observer_position": body(actor).position.duplicate(), "level": Space.level(world, SimRouteTravel.point(body(actor)))})
 
@@ -410,9 +416,9 @@ func _artifact_result(id: String) -> Dictionary:
 
 func _sees(actor: String, point: Vector2) -> bool:
 	var person: Dictionary = body(actor)
-	if person.is_empty() or not bool(person.alive) or not world.actor_controls(actor, "action"): return false
+	if person.is_empty() or not bool(person.alive): return false
 	var from: Vector2 = SimRouteTravel.point(person)
-	return from.distance_to(point) <= float(definitions.observation_cells) * TileGrid.TILE_SIZE and Space.level(world, from) == Space.level(world, point) and Space.clear_segment(world, from, point, Space.level(world, from))
+	return from.distance_to(point) <= float(definitions.observation_cells) * TileGrid.TILE_SIZE and world.actor_controls(actor, "action") and Space.level(world, from) == Space.level(world, point) and Space.clear_segment(world, from, point, Space.level(world, from))
 
 
 func _talk(left: String, right: String) -> bool:
