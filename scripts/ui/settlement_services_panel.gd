@@ -195,7 +195,7 @@ func update_activity(phase: String, remaining: int, busy: bool, seconds: bool = 
 	if not busy:
 		_phase.text = "选择事项后会自行前往；WASD可中断。"
 		return
-	if phase == "rest":
+	if phase in ["rest", "sleep"]:
 		_phase.text = "持续休息 · 精神充足或肚饿时起身，可主动停下。"
 		return
 	var phase_text: String = {"travel": "前往办理地点", "work": "正在办理"}.get(phase, phase)

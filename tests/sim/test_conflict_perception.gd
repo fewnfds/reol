@@ -102,10 +102,21 @@ func _hidden_motion_and_memory(runner: Object) -> void:
 	if world == null:
 		return
 	var original: Dictionary = _sight(world, "su_zhi").duplicate(true)
+	var alternate: RegionalSimulation = _world(runner)
+	if alternate == null:
+		return
+	alternate.bind_map_data(_map(world).independent_copy())
+	var accepted: bool = alternate.restore(JSON.parse_string(_combat._canonical(world)))
+	runner.assert_true(accepted, "independent pursuit starts with the same observed clue and physical cover")
+	if not accepted:
+		return
+	_combat._put(alternate, "chen_shouzhuo", ARENA - Vector2(0.0, 160.0))
 	runner.assert_true(world.advance_to_ms(973), "hidden movement advances on the shared scheduler")
+	runner.assert_true(alternate.advance_to_ms(973), "a different unseen relocation advances through the same scheduler")
 	runner.assert_eq(_sight(world, "su_zhi"), original, "unseen relocation does not rewrite a person's last actual spatial clue")
 	runner.assert_true(_point(world, "su_zhi").x < ARENA.x + 300.0, "observer approaches the last seen place after its finite reaction")
-	runner.assert_true(is_equal_approx(_point(world, "su_zhi").y, ARENA.y), "observer does not track the hidden opponent's new vertical coordinate")
+	runner.assert_true(_point(world, "su_zhi").is_equal_approx(_point(alternate, "su_zhi")), "navigation around known cover is identical for different hidden opponent coordinates")
+	runner.assert_eq(SnapshotValues.normalized(_sight(alternate, "su_zhi")), SnapshotValues.normalized(original), "alternate hidden movement also preserves the original spatial clue")
 	runner.assert_true(world.conflicts.actions.is_empty(), "old spatial memory grants neither a hidden attack nor a hidden-windup shield")
 	runner.assert_true(world.advance_to_ms(4300), "lost sight can age beyond the configured finite memory")
 	runner.assert_true(_sight(world, "su_zhi").is_empty(), "expired sight becomes unknown instead of a permanent tracking marker")
