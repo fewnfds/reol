@@ -560,8 +560,9 @@ func _navigation_changed(cells: Array[Vector2i] = []) -> void:
 	_navigation_revision += 1
 	_home._world.invalidate_navigation(cells, previous_revision)
 	for region: String in world_sim.regions:
-		world_sim.regions[region].update_native_route_geometry(cells, previous_geometry, _native_geometry_revision())
-		world_sim.invalidate_region(region)
+		var invalidated: Array[String] = world_sim.regions[region].update_native_route_geometry(cells, previous_geometry, _native_geometry_revision(), previous_revision, _native_boundary_revision())
+		for actor: String in invalidated:
+			world_sim.invalidate_region(region, actor)
 
 
 func _native_boundary_revision() -> int:

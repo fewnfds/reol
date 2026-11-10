@@ -415,9 +415,9 @@ func _route_geometry_revision() -> int:
 	return int(_route_geometry_revision_provider.call()) if _route_geometry_revision_provider.is_valid() else int(_boundary_revision_provider.call())
 
 
-func update_native_route_geometry(cells: Array[Vector2i], previous_revision: int, next_revision: int) -> void:
+func update_native_route_geometry(cells: Array[Vector2i], previous_revision: int, next_revision: int, previous_boundary: int = -1, next_boundary: int = -1) -> Array[String]:
 	if cells.is_empty():
-		return # Unknown coverage keeps every previous proof stale.
+		return [""] # Unknown coverage requires the original whole-region reset.
 	for completion: Dictionary in _route_completions.values():
 		if int(completion.revision) != previous_revision:
 			continue
@@ -428,6 +428,24 @@ func update_native_route_geometry(cells: Array[Vector2i], previous_revision: int
 				break
 		if not intersects:
 			completion.revision = next_revision
+	# A declared local geometry edit must not masquerade as an unrelated
+	# control/consumer change. Keep the conservative reset if that input was
+	# already stale, or if no reusable deadline index exists yet.
+	if previous_boundary < 0 or next_boundary < 0 or _boundary_revision != previous_boundary or not _boundary_index_ready:
+		return [""]
+	_cancel_actor_advance()
+	_boundary_revision = next_boundary
+	var invalidated: Array[String] = []
+	for id: String in _actors:
+		var action: Dictionary = _actors[id].active
+		if action.get("phase") != "travel":
+			continue
+		var completion: Dictionary = _route_completions.get(id, {})
+		if completion.is_empty() or not is_same(completion.route, action) or int(completion.revision) != next_revision:
+			invalidated.append(id)
+	# Empty actor means whole region to the original invalidate_region API.
+	# Otherwise only changed/unknown routes need their deadline recalculated.
+	return invalidated
 
 
 func invalidate_native_route_completion(id: String) -> void:
