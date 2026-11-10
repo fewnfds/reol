@@ -277,6 +277,8 @@ func finish() -> void:
 		get_tree().process_frame.disconnect(_before_frame)
 	_windows.close()
 	var report: Dictionary = {"format": "demo_profile_v1", "revision": _options.revision, "dirty": _options.dirty,
+		"debug_build": OS.is_debug_build(), "editor_build": OS.has_feature("editor"),
+		"artifact_sha256": _options.get("artifact_sha256", ""),
 		"kernel_timing_enabled": _profile_kernel,
 		"render_timing_enabled": _profile_render,
 		"engine": Engine.get_version_info().string, "renderer": RenderingServer.get_video_adapter_name(),
@@ -295,7 +297,7 @@ func finish() -> void:
 		"kernel_scopes": _scope_rows(), "largest_frames": _spikes,
 		"actor_execution": _actor_execution_summary(),
 		"world_errors": _runtime.world_sim.errors.duplicate(),
-		"limits": "Development process with frame/interval recording; frame intervals include render/host waits. Optional kernel/render measurements add overhead; disabled timings are null/empty. Render timings are RenderingServer measurements of last available rendered frame, not this script's clock work; frame/GPU values must not be added. Interval residual includes scheduling and views. Fog/streaming flags indicate correlation. Paused/wait/load transitions excluded from achieved fraction. First 20000 frame samples; largest 24 frames retained."}
+		"limits": "Instrumented process: check debug_build/editor_build for build type. Frame intervals include render/host waits. Optional kernel/render measurements add overhead; disabled timings are null/empty. Render timings are RenderingServer measurements of last available rendered frame, not this script's clock work; frame/GPU values must not be added. Interval residual includes scheduling and views. Fog/streaming flags indicate correlation. Paused/wait/load transitions excluded from achieved fraction. First 20000 frame samples; largest 24 frames retained."}
 	var file := FileAccess.open(str(_options.report), FileAccess.WRITE)
 	if file == null:
 		push_error("Demo recorder cannot write its summary")

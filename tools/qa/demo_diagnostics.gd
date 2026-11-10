@@ -40,7 +40,7 @@ func _run() -> void:
 		quit(1)
 		return
 	options["assembly_usec"] = Time.get_ticks_usec() - started
-	_recorder = load("res://tools/diagnostics/demo_recorder.gd").new()
+	_recorder = load("res://scripts/diagnostics/demo_recorder.gd").new()
 	root.add_child(_recorder)
 	_recorder.finished.connect(_recording_finished)
 	auto_accept_quit = false

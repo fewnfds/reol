@@ -19,10 +19,15 @@ python tools/godot.py editor
 
 ```powershell
 python tools/stress_demo.py --residents 150 --seconds 20 --quit-after-capture
+python tools/stress_demo.py --release --residents 150 --seconds 20 --quit-after-capture
 python tools/diagnose_demo.py --seconds 30 --auto-start --quit-after-capture
 ```
 
 压力入口两地各150人，持续使用普通Main原人物、寻路、生活、环境及共同时间；临时人口状态不写玩家档。`--actor-workers 0`与默认4可对照同一Packed数学的串行/线程执行，不能预设后者更快。普通诊断保留原开局；不加`--quit-after-capture`可继续试玩。
+
+Windows的`--release`先用`Windows Performance`预设导出当前代码到忽略的`logs/release-stress/`，然后启动真正的release exe/PCK，复用同一压力会话。需安装与当前引擎完全匹配的Windows x86_64 release模板；本机模板不入库。导出上限45秒，退出式采样进程上限为采样时长加45秒；不会启动CI或smoke。`performance_stress`特征只替换这个预设的启动场景，普通Main入口不变。
+
+报告用`debug_build/editor_build`区分开发版与release，release还记录exe与PCK合并内容的`artifact_sha256`；源码`revision/dirty`按导出前真实Git状态记录。采样报告使用绝对logs路径，直接运行导出入口的默认诊断输出在`user://diagnostics/`，不向只读`res://`或普通玩家存档写入。开发版/发布版差异包括编译及运行形态，不能包装成算法提速；性能结论优先使用同构建类型的对照。
 
 压力入口在最终观察位置最多等待15秒地形呈现完成后开始持续运行计时；`terrain_warmup_ms/terrain_warmup_complete`单独记录这段时间。初始化和运行中继续发生的加载仍需各自优化，预热后的样本不能冒充从点击开局起的全程结果。
 
@@ -32,7 +37,7 @@ python tools/diagnose_demo.py --seconds 30 --auto-start --quit-after-capture
 
 `--profile-render`启用Godot原生viewport CPU/GPU绘制计时及全局CPU准备计时，记录`render_timing_enabled`和各自分位数。它们是最近可用渲染帧的数据，不包含脚本/物理、也不能与当前帧时相加；诊断开销单独对待。headless没有有效GPU绘制计时。
 
-实现仍在`tools/diagnostics/demo_recorder.gd`及两个`tools/qa/`开发入口，普通Main不加载诊断器。HUD常显FPS、帧间隔和世界流速，F3展开详情。Godot编辑器Debugger → Profiler/Visual Profiler用于继续定位；宿主帧间隔不能冒称GPU时间。
+运行实现位于`scripts/diagnostics/`，压力场景为`scenes/diagnostics/crowd_stress.tscn`；`tools/qa/`只保留CLI适配入口，避免被`tools/.gdignore`排除出release包。普通Main不加载诊断器。HUD常显FPS、帧间隔和世界流速，F3展开详情。Godot编辑器Debugger → Profiler/Visual Profiler用于继续定位；宿主帧间隔不能冒称GPU时间。
 
 ## 其他工具
 
@@ -41,4 +46,4 @@ python tools/diagnose_demo.py --seconds 30 --auto-start --quit-after-capture
 - `python tools/setup_codex.py --check`：配置发生问题时核对项目条目，不证明MCP握手；不必每包执行。
 - Godot AI负责实时场景/输入/截图，使用官方dock Configure生成认证attach，操作前确认项目与实际会话。Context7查目标版本API；不手改第三方addon或用裸HTTP绕过连接。
 
-手动review使用已有项目路由/配置，策略见开发循环。独立导出仍需实际模板/预设和运行证据，不能把命令存在当作已发布。
+手动review使用已有项目路由/配置，策略见开发循环。Windows性能导出已实际运行；它是无普通存档写入的临时人口诊断包，不等于正式游戏发行或目标PC验收。

@@ -14,7 +14,7 @@ main已整合CPU批执行`7f5947b80b62256ca370d4276dd3f62842f61d8a`、测试/流
 | 村落 / 环境保存 / 内容包 | 7 / 5 / 3；对应领域schema与`ReolContentBundle` |
 | 内容清单 | 内容包绑定44份定义/开局；不等于整个data目录的文件数 |
 
-支持/拒绝语义见[compatibility](../engineering/compatibility.md)。正式独立导出和目标PC验收尚无证据。
+支持/拒绝语义见[compatibility](../engineering/compatibility.md)。Windows性能诊断包已独立导出实跑，见第十一轮；正式游戏发行和目标PC验收尚未完成。
 
 ## 有效性能事实
 
@@ -22,8 +22,8 @@ main已整合CPU批执行`7f5947b80b62256ca370d4276dd3f62842f61d8a`、测试/流
 
 | 负载与证据 | 已测结果 | 能说明什么 |
 |---|---|---|
-| 普通300人持续行动，20秒，workers=4 / 0 | 世界流速0.512640 / 0.520303×；帧P95 22.130 / 22.024ms | 真实worker已采用18批/1302份结果，但没有可信整体提速；规模目标未达 |
-| 上述workers=4分项 | 准备累计13.488ms、worker累计2.347ms、发布38.511ms；native身体步骤另含大量直接执行 | worker数学不是整体最大成本，不能用线程活动当性能出口 |
+| 最新同代码Windows release，300人20秒、workers=4 | 世界流速0.989663×；帧P95/P99 14.233/15.290ms | 实际`debug_build=false/editor_build=false`；开局仍降速，目标尚未完成 |
+| 同代码开发版300人20秒、workers=4 | 世界流速0.977422×；帧P95/P99 15.219/17.785ms | 开发版开销影响判断；构建差异不是算法收益，细项见第十一轮 |
 | 独立512²环境基础目标服务 | 历史CPU约20.65秒、GPU约0.616秒，来源装配另计 | 历史独立服务证据；普通来源采用范围与新对照见后文 |
 
 身体批的代码/样本差异和限制见[原报告](../archive/qa/20261111_actor_batch_execution.md)；GPU范围见[原报告](../archive/qa/20261105_environment_ground_compute.md)。单次开发机样本不证明稳定收益、长局、RTX3060或发布版表现。早期导航/地形补丁已合main，但最终配对性能及完整停开未验收，不为此恢复旧测试队列。
@@ -233,6 +233,25 @@ Godot原生viewport计时样本`logs/crowd-300-20261111-035649.json`：300人20�
 排查发现旧通用探针在`return`表达式执行前记录退出，之前布局函数约60ms仅含返回前准备。第十轮改量真正的`PawnViewLayout.build`/候选`capture`及各画布完整调用，未将漏计当作已经消除的成本。尝试保留人物布局条目、只对成员变化的格分组排序；120次300体创建/移除/更替、观察中心/访客与投影模式对照均等于原输出。
 
 随后在同一普通世界逐次配对：`logs/layout_paired_profile.gd`5秒、92次实际提交，同输入原布局116.218ms、缓存118.159ms，输出完全相同。候选没有真实收益，93行布局缓存及接入全部撤回，补丁仅在忽略的`logs/rejected-retained-layout.patch`；原`PawnViewLayout.build`继续在生产使用。没有继续围绕这份缓存叠加优化，所有临时插桩均逐字节恢复。
+
+### 参考资料第十一轮：真正的Windows release对照
+
+已从Godot官方镜像取得4.7.2 stable的Windows x86_64 release exe、console wrapper与ICU数据，只下载相应ZIP条目并核长度/CRC；`--version`为`4.7.2.stable.official.ed1daf0bf`。模板装入本机Godot缓存，未把二进制、模板或本机路径入库。标准release模板禁止`--path/--script`覆盖，故新增`Windows Performance`导出预设：`performance_stress`特征选择专用场景，编译后的实际exe/PCK复用现有普通Main和同一压力会话，不复制负载逻辑。
+
+运行诊断从被忽略的`tools/diagnostics`迁到`scripts/diagnostics`；共享会话由Node场景或原CLI适配器启动，普通Main入口不变。报告使用绝对logs路径；直接运行导出入口默认写`user://diagnostics/`。报告新增真实构建标志和exe/PCK内容摘要，命令、模板与时间上限见[工具入口](../engineering/tooling/usage.md#实际性能)。这是可选的真实性能入口，不是每包测试门禁。
+
+同机、300人持续行动、20秒、workers=4、自动GPU、kernel与原生render计时均开启，两种构建复用迁移后的同一会话：
+
+| 报告 / 构建 | 平均流速 | 帧P95 / P99 | 时钟累计 |
+|---|---|---|---|
+| `logs/crowd-release-300-20261111-055609.json`，实际release | 0.989663× | 14.233 / 15.290ms | 5008.544ms |
+| `logs/crowd-300-20261111-055717.json`，开发版 | 0.977422× | 15.219 / 17.785ms | 5861.247ms |
+
+两者各有299人移动、平均约298.24人在路上、约1800次重定向，结束150人可见；环境GPU各采用78个候选且零失败，world_errors均为空。release报告实际标志为`debug_build=false/editor_build=false`，开发版两项为true。release的exe/PCK联合SHA256为`3a707f331a4eb620cffd0eea1343224e9102040292480bd32449fccdef90b716`。采样时源码为`f0ecfb0`加本轮诊断入口改动，dirty=true；构建成本区别包括release编译/运行形态及导出时移除编辑器桥，不能声称某项模拟算法因而提速。
+
+release仍未达到完整1×出口：最低降速估计0.76948×、低于0.97×约1.097秒，第一秒仅推进800ms，约第二秒恢复1×；平均值仍受开局影响。装配5.940秒（其中地形预热3.940秒），没有把点击开局后的加载算进持续窗口。最大帧20.895ms，持续窗口也仍有尖峰，不能以P99低于16.67ms代替“全部帧稳定”。没有RTX3060/16GB目标机数据。
+
+剩余尖峰有实际指向：最大帧的时钟16.357ms里16.231ms在区间执行之外；其他约19–21ms帧包含大型身体7–8ms及野外认识6–7ms的原子步骤。查源确认`SimMotionClearance._visit_active_routes`和`SimLargeBodies._start_step`仍同步所有原人物，`SimFieldOpportunities`周期观察也先`synchronize_regions()`。下一步应量准这些同步/几何读取，再判断哪些可读取原已受理轨迹或局部候选，不能未经核对直接删掉实际认识与空间后果，也不默认继续扩大画面缓存。
 
 ## 验证证据的范围
 
