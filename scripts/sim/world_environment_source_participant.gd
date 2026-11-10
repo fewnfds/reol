@@ -240,6 +240,35 @@ func prepare_source_change(key: String, new_source: Dictionary, at_ms: int) -> D
 	return _prepare_transition(key if _records.has(key) else "", key if not new_source.is_empty() else "", new_source, at_ms)
 
 
+func begin_source_change(key: String, new_source: Dictionary, at_ms: int) -> Dictionary:
+	if key.strip_edges().is_empty():
+		return _failure("invalid_reference")
+	return _begin_transition(key if _records.has(key) else "", key if not new_source.is_empty() else "", new_source, at_ms)
+
+
+func step_source_change(proof: Variant, field_work: int, cell_budget: int) -> Dictionary:
+	if _pending.is_empty() or not is_same(_pending.token, proof):
+		return _failure("invalid_commit")
+	if field_work < 1 or field_work > Field.MAX_WORK or cell_budget < 0 or cell_budget > SIDE * SIDE:
+		return _failure("work_budget")
+	if _pending.kind != "preparing":
+		return {"ok": true, "pending": false}
+	var progress: Dictionary = _changes.step(_pending.handle, field_work, cell_budget)
+	if not bool(progress.get("ok", false)):
+		_pending = {} # The coordinator has already cancelled its domain candidates.
+		return progress
+	if bool(progress.get("pending", true)):
+		return {"ok": true, "pending": true}
+	var finished: Dictionary = _changes.finish(_pending.handle)
+	if not bool(finished.get("ok", false)):
+		_changes.cancel(_pending.handle)
+		_pending = {}
+		return finished
+	_pending.kind = "change"
+	_pending.field_proof = finished.proof
+	return {"ok": true, "pending": false}
+
+
 func prepare_object_change(request: Dictionary) -> Dictionary:
 	if not _available() or not request.get("op") is String:
 		return _failure("invalid_state")
@@ -252,7 +281,7 @@ func prepare_object_change(request: Dictionary) -> Dictionary:
 
 
 func can_commit(proof: Variant) -> bool:
-	if _pending.is_empty() or not is_same(_pending.token, proof):
+	if _pending.is_empty() or not is_same(_pending.token, proof) or _pending.kind == "preparing":
 		return false
 	return bool(_changes.can_commit(_pending.field_proof).get("ok", false)) if _pending.kind == "change" else true
 
@@ -304,7 +333,7 @@ func finish_object_change(result: Dictionary, proof: Variant) -> Dictionary:
 func cancel_source_change(proof: Variant) -> bool:
 	if _pending.is_empty() or not is_same(_pending.token, proof):
 		return false
-	if _pending.kind == "change":
+	if _pending.kind in ["change", "preparing"]:
 		var cancelled: Dictionary = _changes.cancel(_pending.handle)
 		if not bool(cancelled.get("ok", false)):
 			return false
@@ -317,6 +346,22 @@ func cancel_object_change(proof: Variant) -> bool:
 
 
 func _prepare_transition(old_key: String, new_key: String, source: Dictionary, at_ms: int) -> Dictionary:
+	# Object operations require a prepared proof before their synchronous write.
+	# Internal world settlement uses the same coordinator with bounded resumes.
+	var opened: Dictionary = _begin_transition(old_key, new_key, source, at_ms)
+	if not bool(opened.get("ok", false)):
+		return opened
+	for _step: int in MAX_SYNC_STEPS:
+		var progress: Dictionary = step_source_change(opened.proof, Field.MAX_WORK, SIDE * SIDE)
+		if not bool(progress.get("ok", false)):
+			return progress
+		if not bool(progress.get("pending", true)):
+			return opened
+	cancel_source_change(opened.proof)
+	return _failure("source_work_limit")
+
+
+func _begin_transition(old_key: String, new_key: String, source: Dictionary, at_ms: int) -> Dictionary:
 	if not _available() or at_ms < 0 or at_ms >= Change.Temperature.MAX_TIME:
 		return _failure("invalid_state")
 	if not old_key.is_empty() and not _records.has(old_key):
@@ -351,22 +396,10 @@ func _prepare_transition(old_key: String, new_key: String, source: Dictionary, a
 	var opened: Dictionary = _changes.begin(slot, operation, source, at_ms, Change.Temperature.MAX_TIME)
 	if not bool(opened.get("ok", false)):
 		return opened
-	var handle: Variant = opened.handle
-	for _step: int in MAX_SYNC_STEPS:
-		var progress: Dictionary = _changes.step(handle, Field.MAX_WORK, SIDE * SIDE)
-		if not bool(progress.get("ok", false)):
-			# The coordinator cancels itself on domain failures.
-			return progress
-		if not bool(progress.get("pending", true)):
-			var finished: Dictionary = _changes.finish(handle)
-			if not bool(finished.get("ok", false)):
-				return finished
-			_pending = {"kind": "change", "token": token, "handle": handle,
-				"field_proof": finished.proof, "slot": slot, "allocation": allocation,
-				"old_key": old_key, "new_key": new_key, "source": source.duplicate(true)}
-			return {"ok": true, "proof": token, "changed": true}
-	_changes.cancel(handle)
-	return _failure("source_work_limit")
+	_pending = {"kind": "preparing", "token": token, "handle": opened.handle,
+		"slot": slot, "allocation": allocation, "old_key": old_key,
+		"new_key": new_key, "source": source.duplicate(true)}
+	return {"ok": true, "proof": token, "changed": true}
 
 
 func _prepare_artifact(request: Dictionary) -> Dictionary:

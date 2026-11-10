@@ -13,6 +13,7 @@ const TIDE_GRID_MS: int = 60000
 const MAX_TRANSIENT: int = 128
 const ANCHOR_QUANTUM: float = 0.000000001
 const TARGET_CELLS_PER_WORK: int = 16
+const SOURCE_FIELD_WORK: int = 256
 const Field = preload("res://scripts/sim/environment_ground_field.gd")
 const Temperature = preload("res://scripts/sim/environment_temperature_state.gd")
 const Phases = preload("res://scripts/sim/environment_phase_state.gd")
@@ -213,29 +214,46 @@ func _settle_work(now: int) -> int:
 		_settle_cursor.erase("refresh")
 		return SimSettlementKernel.Status.PENDING
 	var end: int = int(_settle_cursor.end_ms)
-	last_ms = end
-	while not _motion_changes.is_empty() and int(_motion_changes[0].at_ms) == end:
-		var crossing: Dictionary = _motion_changes.pop_front()
-		for key: String in crossing.keys:
-			var source: Dictionary = _sources.get_source(key)
-			if not source.is_empty():
-				source.cell = crossing.cell
-				if not _change_source(key, source, end):
-					_fail("moving_source")
-					return SimSettlementKernel.Status.FAILED
-	for id: String in _settle_cursor.depleted:
+	if not _settle_cursor.has("motion"):
+		last_ms = end
+		_settle_cursor.motion = {}
+		_settle_cursor.device_index = 0
+		_settle_cursor.expiring = _participation.due_ids(&"transient", end)
+		_settle_cursor.expiry_index = 0
+	if not _settle_cursor.motion.is_empty() or not _motion_changes.is_empty() and int(_motion_changes[0].at_ms) == end:
+		if _settle_cursor.motion.is_empty():
+			_settle_cursor.motion = _motion_changes.pop_front()
+			_settle_cursor.motion.index = 0
+		var crossing: Dictionary = _settle_cursor.motion
+		if int(crossing.index) >= crossing.keys.size():
+			_settle_cursor.motion = {}
+			return SimSettlementKernel.Status.PENDING
+		var key: String = crossing.keys[int(crossing.index)]
+		var source: Dictionary = _sources.get_source(key)
+		var status: int = SimSettlementKernel.Status.COMPLETE
+		if not source.is_empty():
+			source.cell = crossing.cell
+			status = _step_settlement_source(key, source, end)
+		if status == SimSettlementKernel.Status.COMPLETE:
+			crossing.index = int(crossing.index) + 1
+		return SimSettlementKernel.Status.FAILED if status == SimSettlementKernel.Status.FAILED else SimSettlementKernel.Status.PENDING
+	if int(_settle_cursor.device_index) < _settle_cursor.depleted.size():
+		var id: String = _settle_cursor.depleted[int(_settle_cursor.device_index)]
 		_sync_device(id)
 		var key: String = Participant.artifact_key(id)
 		var source: Dictionary = _sources.get_source(key)
-		if not source.is_empty():
-			source = _transform_source(key, source)
-			if not _change_source(key, source, end):
-				return SimSettlementKernel.Status.FAILED
-	for key: String in _participation.due_ids(&"transient", end):
-		if not _change_source(key, {}, end):
-			return SimSettlementKernel.Status.FAILED
-		_transient.erase(key)
-		_participation.set_member(&"transient", key, false)
+		var status: int = SimSettlementKernel.Status.COMPLETE if source.is_empty() else _step_settlement_source(key, _transform_source(key, source), end)
+		if status == SimSettlementKernel.Status.COMPLETE:
+			_settle_cursor.device_index = int(_settle_cursor.device_index) + 1
+		return SimSettlementKernel.Status.FAILED if status == SimSettlementKernel.Status.FAILED else SimSettlementKernel.Status.PENDING
+	if int(_settle_cursor.expiry_index) < _settle_cursor.expiring.size():
+		var key: String = _settle_cursor.expiring[int(_settle_cursor.expiry_index)]
+		var status: int = _step_settlement_source(key, {}, end)
+		if status == SimSettlementKernel.Status.COMPLETE:
+			_transient.erase(key)
+			_participation.set_member(&"transient", key, false)
+			_settle_cursor.expiry_index = int(_settle_cursor.expiry_index) + 1
+		return SimSettlementKernel.Status.FAILED if status == SimSettlementKernel.Status.FAILED else SimSettlementKernel.Status.PENDING
 	_settle_cursor.clear()
 	if last_ms < now:
 		return SimSettlementKernel.Status.PENDING
@@ -368,7 +386,32 @@ func _change_source(key: String, source: Dictionary, at_ms: int) -> bool:
 	var prepared: Dictionary = _sources.prepare_source_change(key, source, at_ms)
 	if not bool(prepared.get("ok", false)):
 		return false # Rejected candidates have not changed either domain.
-	if not _sources.finish_source_change(prepared.proof):
+	return _finish_source_change(prepared.proof, at_ms)
+
+
+func _step_settlement_source(key: String, source: Dictionary, at_ms: int) -> int:
+	# The existing source/response coordinator owns the candidate and cursor.
+	# Only this already-pending world boundary can resume it; no second queue.
+	if not _settle_cursor.has("source_proof"):
+		var opened: Dictionary = _sources.begin_source_change(key, source, at_ms)
+		if not bool(opened.get("ok", false)):
+			_fail(str(opened.get("reason", "source_begin")))
+			return SimSettlementKernel.Status.FAILED
+		_settle_cursor.source_proof = opened.proof
+	var progress: Dictionary = _sources.step_source_change(_settle_cursor.source_proof, SOURCE_FIELD_WORK, TARGET_CELLS_PER_WORK)
+	if not bool(progress.get("ok", false)):
+		_fail(str(progress.get("reason", "source_step")))
+		return SimSettlementKernel.Status.FAILED
+	if bool(progress.get("pending", true)):
+		return SimSettlementKernel.Status.PENDING
+	if not _finish_source_change(_settle_cursor.source_proof, at_ms):
+		return SimSettlementKernel.Status.FAILED
+	_settle_cursor.erase("source_proof")
+	return SimSettlementKernel.Status.COMPLETE
+
+
+func _finish_source_change(proof: Variant, at_ms: int) -> bool:
+	if not _sources.finish_source_change(proof):
 		return _fail("source_publication")
 	for chunk: Vector2i in _sources.last_change_chunks():
 		_chunks[chunk] = true
