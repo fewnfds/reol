@@ -44,6 +44,10 @@ var actors: Dictionary:
 		_reset_actor_projections()
 var _actor_projection_ms: Dictionary[String, int] = {}
 var _projecting_actors: Dictionary[String, bool] = {}
+var _witness_sample_ms: int = -1
+var _witness_ready: bool = false
+var _witness_cells: Dictionary[Vector2i, Dictionary] = {}
+var _witness_locations: Dictionary[String, Vector2i] = {}
 var _materializing_actors: bool = false
 var _all_projected_ms: int = -1
 var _sparse_actor_projection: bool = false
@@ -178,6 +182,7 @@ func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary,
 	places = locations.duplicate(true)
 	_actors = {}
 	_actor_projection_ms.clear()
+	_reset_witness_cells()
 	inventory = SimInventory.new()
 	social = SimSocialMemory.new()
 	social.configure(config.social_policy)
@@ -846,6 +851,7 @@ func synchronize_actors() -> Dictionary:
 
 func _reset_actor_projections() -> void:
 	_cancel_actor_advance()
+	_reset_witness_cells()
 	_route_completions.clear()
 	_actor_projection_ms.clear()
 	_projecting_actors.clear()
@@ -1120,7 +1126,7 @@ func project_coarse_native_route(id: String, route: Dictionary, at_ms: int) -> b
 		_stock_dirty_actors[id] = true
 		# This span was accepted only without cell-edge consumers. New consumers
 		# see its current location, then restore precise future edges on invalidation.
-		body_space_changed.emit(id)
+		_body_space_changed(id)
 	return true
 
 
@@ -1133,7 +1139,7 @@ func set_actor_position(id: String, point: Vector2) -> void:
 	SimRouteTravel.put(_actors[id], point)
 	if before != SimRouteTravel.cell(_actors[id].cell):
 		_stock_dirty_actors[id] = true
-		body_space_changed.emit(id)
+		_body_space_changed(id)
 
 
 func project_actor_route(id: String, route: Dictionary, at_ms: int, batch: SimActorAdvance = null) -> void:
@@ -1151,7 +1157,7 @@ func project_actor_route(id: String, route: Dictionary, at_ms: int, batch: SimAc
 		_stock_dirty_actors[id] = true
 		var crossing: int = SimRouteTravel.crossing_from_cell_ms(route, before, int(route.segment_started_ms))
 		body_cell_crossed.emit(id, SimRouteTravel.cell(_actors[id].cell), crossing)
-		body_space_changed.emit(id)
+		_body_space_changed(id)
 
 
 func notify_body_space_changed(id: String) -> void:
@@ -1159,6 +1165,21 @@ func notify_body_space_changed(id: String) -> void:
 	invalidate_native_route_completion(id)
 	invalidate_actor_boundary(id)
 	_stock_dirty_actors[id] = true
+	_body_space_changed(id)
+
+
+func _body_space_changed(id: String) -> void:
+	if _witness_ready and _witness_sample_ms == elapsed_ms:
+		var new_cell: Vector2i = SimRouteTravel.cell(_actors[id].cell)
+		var old_cell: Vector2i = _witness_locations.get(id, new_cell)
+		if not _witness_locations.has(id):
+			_record_witness_cell(id, new_cell)
+		elif old_cell != new_cell:
+			var previous: Dictionary = _witness_cells[old_cell]
+			previous.erase(id)
+			if previous.is_empty():
+				_witness_cells.erase(old_cell)
+			_record_witness_cell(id, new_cell)
 	body_space_changed.emit(id)
 
 
@@ -1322,12 +1343,64 @@ func _can_authorize(issuer: String) -> bool:
 
 
 func observe(kind: String, actor_id: String, target: String, details: Dictionary) -> String:
+	if not _actors.has(actor_id):
+		return ""
 	var witnesses: Array[String] = []
-	for id: String in _actor_ids():
-		if id != actor_id and id != target and bool(_actors[id].alive):
-			if _distance(actor_id, id) <= float(config.observation_radius):
-				witnesses.append(id)
+	var radius: float = float(config.observation_radius)
+	if _can_share_witness_cells(radius):
+		var origin: Vector2i = SimRouteTravel.cell(_actors[actor_id].cell)
+		var reach: int = ceili(radius)
+		for y: int in range(origin.y - reach, origin.y + reach + 1):
+			for x: int in range(origin.x - reach, origin.x + reach + 1):
+				var cell := Vector2i(x, y)
+				if not _witness_cells.has(cell) or Vector2(origin).distance_to(Vector2(cell)) > radius:
+					continue
+				for id: String in _witness_cells[cell]:
+					if id != actor_id and id != target and bool(_actors[id].alive):
+						witnesses.append(id)
+		witnesses.sort()
+	else:
+		for id: String in _actor_ids():
+			if id != actor_id and id != target and bool(_actors[id].alive):
+				if _distance(actor_id, id) <= radius:
+					witnesses.append(id)
 	return social.record(kind, actor_id, target, details, witnesses, tick_index)
+
+
+func _can_share_witness_cells(radius: float) -> bool:
+	if radius < 0.0 or radius > 32.0:
+		return false
+	var width: int = ceili(radius) * 2 + 1
+	if width * width >= _actors.size():
+		return false
+	if _witness_sample_ms != elapsed_ms:
+		# Do not build an index for one isolated event. This query reads the
+		# same materialized cells as the old observer, not precise movement or
+		# a new subscription to every native crossing.
+		_witness_sample_ms = elapsed_ms
+		_witness_ready = false
+		return false
+	if not _witness_ready:
+		_witness_cells.clear()
+		_witness_locations.clear()
+		for id: String in _actors:
+			_record_witness_cell(id, SimRouteTravel.cell(_actors[id].cell))
+		_witness_ready = true
+	return true
+
+
+func _record_witness_cell(id: String, cell: Vector2i) -> void:
+	if not _witness_cells.has(cell):
+		_witness_cells[cell] = {}
+	_witness_cells[cell][id] = true
+	_witness_locations[id] = cell
+
+
+func _reset_witness_cells() -> void:
+	_witness_sample_ms = -1
+	_witness_ready = false
+	_witness_cells.clear()
+	_witness_locations.clear()
 
 
 func _actor_ids() -> Array:
