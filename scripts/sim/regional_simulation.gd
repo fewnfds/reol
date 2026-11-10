@@ -109,6 +109,10 @@ var embodiment: SimEmbodiment:
 	set(value):
 		if embodiment != null:
 			embodiment.set_control_change_guard(Callable())
+			if value != null and value != embodiment:
+				# A wholesale replacement is conservative and must never reuse
+				# the live registry's revision by coincidence.
+				value.native_motion_revision = embodiment.native_motion_revision + 1
 		embodiment = value
 		if embodiment != null:
 			var owner: WeakRef = weakref(self)

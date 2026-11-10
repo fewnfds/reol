@@ -13,8 +13,8 @@ var _residences: Dictionary = {}
 var _controls: Dictionary = {}
 var _actor_subjects: Dictionary = {}
 var _source_carriers: Dictionary = {}
-## Disposable dependency epoch, not identity or saved control state.
-var control_revision: int = 0
+## Dependency epoch for native action/motion, not for unrelated carriers.
+var native_motion_revision: int = 0
 var _control_change_guard: Callable
 
 
@@ -48,7 +48,7 @@ func configure(definitions: Dictionary) -> bool:
 	_controls = {}
 	_actor_subjects = {}
 	_source_carriers = {}
-	control_revision += 1
+	native_motion_revision += 1
 	return true
 
 
@@ -56,9 +56,9 @@ func add_subject(id: String, legacy_actor: String = "") -> bool:
 	if not _text(id) or _subjects.has(id) or (not legacy_actor.is_empty() and _actor_subjects.has(legacy_actor)):
 		return false
 	_subjects[id] = {"legacy_actor": legacy_actor}
-	control_revision += 1
 	if not legacy_actor.is_empty():
 		_actor_subjects[legacy_actor] = id
+		native_motion_revision += 1
 	return true
 
 
@@ -67,12 +67,37 @@ func add_carrier(id: String, form_id: String, source: Dictionary) -> bool:
 		return false
 	if not carrier_for_source(source.kind, source.id).is_empty():
 		return false
+	_insert_carrier(id, form_id, source)
+	if source.kind == "village_actor":
+		native_motion_revision += 1
+	return true
+
+
+func _insert_carrier(id: String, form_id: String, source: Dictionary) -> void:
 	_carriers[id] = {"form": form_id, "source": source.duplicate(true)}
 	if not _source_carriers.has(source.kind):
 		_source_carriers[source.kind] = {}
 	_source_carriers[source.kind][source.id] = id
 	_controls[id] = {}
-	control_revision += 1
+
+
+func bind_new_creature(subject: String, carrier: String, form_id: String, source: Dictionary, channels: Array[String]) -> bool:
+	# A new non-village body has no prior holders or actions. Validate the
+	# entire attachment before publishing any of its identity/control records.
+	if not _text(subject) or _subjects.has(subject) or not _text(carrier) or _carriers.has(carrier) or not _forms.has(form_id):
+		return false
+	if not _keys(source, ["kind", "id"]) or not _text(source.kind) or not _text(source.id) or source.kind == "village_actor" or not carrier_for_source(source.kind, source.id).is_empty():
+		return false
+	if not _unique_texts(channels):
+		return false
+	for channel: String in channels:
+		if not _forms[form_id].channels.has(channel):
+			return false
+	_subjects[subject] = {"legacy_actor": ""}
+	_insert_carrier(carrier, form_id, source)
+	_residences[subject] = carrier
+	for channel: String in channels:
+		_controls[carrier][channel] = subject
 	return true
 
 
@@ -92,7 +117,8 @@ func grant_control(subject: String, carrier: String, channel: String) -> bool:
 	if holder != subject and not _prepare_control_change(carrier):
 		return false
 	_controls[carrier][channel] = subject
-	control_revision += 1
+	if holder != subject and _is_native_motion_control(carrier, channel):
+		native_motion_revision += 1
 	return true
 
 
@@ -102,8 +128,13 @@ func release_control(subject: String, carrier: String, channel: String) -> bool:
 	if not _prepare_control_change(carrier):
 		return false
 	_controls[carrier].erase(channel)
-	control_revision += 1
+	if _is_native_motion_control(carrier, channel):
+		native_motion_revision += 1
 	return true
+
+
+func _is_native_motion_control(carrier: String, channel: String) -> bool:
+	return channel in ["action", "motion"] and _carriers[carrier].source.kind == "village_actor"
 
 
 func set_control_change_guard(provider: Callable) -> void:
@@ -251,7 +282,7 @@ func restore(data: Dictionary) -> bool:
 	_controls = candidate._controls
 	_actor_subjects = candidate._actor_subjects
 	_source_carriers = candidate._source_carriers
-	control_revision += 1
+	native_motion_revision += 1
 	return true
 
 

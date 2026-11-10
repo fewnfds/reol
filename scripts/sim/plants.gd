@@ -423,14 +423,11 @@ func awaken(id: String, operation: String) -> bool:
 		return false
 	if not str(bodies[id].subject).is_empty():
 		return bodies[id].awakening_operation == operation
-	var registry := SimEmbodiment.new()
-	if not registry.configure(world._content.body_forms) or not registry.restore(world.embodiment.to_dict()):
-		return false
 	var subject: String = "subject:plant:" + id
 	var carrier: String = "body:plant:" + id
-	if not registry.add_subject(subject) or not registry.add_carrier(carrier, "rooted_plant", {"kind": "plant", "id": id}) or not registry.reside(subject, carrier) or not registry.grant_control(subject, carrier, "communication"):
+	var channels: Array[String] = ["communication"]
+	if not world.embodiment.bind_new_creature(subject, carrier, "rooted_plant", {"kind": "plant", "id": id}, channels):
 		return false
-	world.embodiment = registry
 	bodies[id].subject = subject
 	bodies[id].awakened_ms = world.elapsed_ms
 	bodies[id].awakening_operation = operation

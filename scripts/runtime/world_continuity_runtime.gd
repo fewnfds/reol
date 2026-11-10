@@ -569,7 +569,7 @@ func _native_boundary_revision() -> int:
 	# even before a query builds the index. The bit changes existing deadlines;
 	# route geometry proofs keep their separate, unchanged geometry revision.
 	var spatial: int = int(world_sim.space != null and world_sim.space.needs_native_crossings())
-	return (_native_geometry_revision() + world_sim.embodiment.control_revision) * 2 + spatial
+	return (_native_geometry_revision() + world_sim.embodiment.native_motion_revision) * 2 + spatial
 
 
 func _native_geometry_revision() -> int:
