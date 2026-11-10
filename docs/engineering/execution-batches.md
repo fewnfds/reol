@@ -40,6 +40,6 @@ GPU后续沿“紧凑输入、时刻/代次/依赖、候选输出、原owner采�
 
 当前仍有主线程输入采样、地区/动作决定、路线搜索、领域同步及发布；准备也不是可抢占回调。本接口不证明300人1×/60FPS或所有规则已多核，证据见[BASELINE](../status/baseline.md)。
 
-`test_actor_advance`主要保护真实worker/pending、取消回收、原身体同未来、成功/失败restore及native续算不重复手动移动。普通时钟/呈现/存读由其主要owner验证，不每层重复装配Main。
+旧`test_actor_advance`已随全量套件退役，原验证范围保留在QA。当前`tests/smoke.gd`仅短查串行/worker数值一致及取消标记；完整世界采用、存读和长期稳定不由这个短检查证明。
 
 官方依据：[WorkerThreadPool](https://docs.godotengine.org/en/4.7/classes/class_workerthreadpool.html)、[线程安全](https://docs.godotengine.org/en/4.7/tutorials/performance/thread_safe_apis.html)。无新增依赖或业务autoload。

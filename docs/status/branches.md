@@ -1,15 +1,14 @@
 # 分支与保护范围
 
-核对：2026-11-11；实时指针以Git为准。本页不列已结束分支的实施历史，也不因旧分支存在恢复其任务。
+核对：2026-11-11。本次已将`codex/execution-foundation`快进合入main；源分支保留。main包含CPU批代码`7f5947b80b62256ca370d4276dd3f62842f61d8a`及流程退役`7f881097e5091b1f44637d34927851022111c386`，另有后续整合说明提交。准确HEAD以Git为准。
 
-| 引用 | 作用 |
+| 引用 | 状态 |
 |---|---|
-| main / origin/main，839ff88f1b7fee240d0c798f533314a3ae446430 | 当前已集成旧Demo，其准确SHA完整CI通过 |
-| codex/execution-foundation | 当前A开发入口；从旧保留点建立，首条CPU批执行已接普通Main，验证与准确提交见HANDOFF/BASELINE |
-| codex/navigation-data-reuse，10260b3b45952b7b45055e807f360824227efce2 | 文档清理95eac7d与原样代码WIP保留点，均本地提交、未推送；没有自动合main |
-| codex/sparse-runtime-dispatch | 上一共同运行实现及夹具修补来源；完整证据见BASELINE，不继续旧局部优化队列 |
-| codex/field-contest，4e17c5c165cf8fca9ef884a111aa1c3ca35f445f | 隔离的旧争环WIP，未恢复/删除，不是新架构待合并成果 |
+| main / origin/main | 本次整合主线；性能和未完成项见HANDOFF，不继承旧CI的绿色声明 |
+| codex/execution-foundation | 本次整合来源，已有全部成果进入main，不再有独立待合并开发项 |
+| codex/navigation-data-reuse，10260b3b45952b7b45055e807f360824227efce2 | 早期补丁保留点，已随源分支进入main；未完成的配对/停开等验证明确标记，不阻碍本次整合 |
+| codex/field-contest，4e17c5c165cf8fca9ef884a111aa1c3ca35f445f | 明确隔离的旧争环实验，未合入、未恢复、未删除 |
 
-命名stash `424f956d280fb390d17e1f6dd879f3614b51a430`继续保留，不应用或删除。其他历史分支不清理、不强推，使用Git按需追溯。当前任务、工作区和工具handle只登记[HANDOFF](handoff.md)，验证见[BASELINE](baseline.md)。
+本次Git祖先核对中，除上述隔离实验外，其余本地开发分支均已包含于整合历史；保留历史名称，不清理或强推。stash `424f956d280fb390d17e1f6dd879f3614b51a430`原样保留。
 
-2026-11-11：当前开发分支已退役旧CI/完整测试及自动审查门禁，GitHub CI已停用；分支合并状态不等同于旧CI门禁，接续见[HANDOFF](handoff.md)。
+旧CI/全量测试及自动审查门禁已退役。当前停在讨论节点，不自动恢复性能开发或历史收尾；授权和缺口只查[HANDOFF](handoff.md)。
