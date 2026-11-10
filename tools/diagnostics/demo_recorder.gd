@@ -37,6 +37,7 @@ var _minimum_rate: float = 1.0
 var _slow_usec: int = 0
 var _windows: FileAccess
 var _done: bool = false
+var _sample_clock_work: bool = false
 
 
 func configure(main: Node, options: Dictionary) -> bool:
@@ -56,6 +57,7 @@ func configure(main: Node, options: Dictionary) -> bool:
 	_clock._interval_executor = _execute
 	_bind_kernel()
 	_main.get("fog").visibility_updated.connect(_fog_updated)
+	get_tree().process_frame.connect(_before_frame)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	process_priority = 100000
 	_started = Time.get_ticks_usec()
@@ -142,6 +144,12 @@ func _fog_updated() -> void:
 	_fog_updates += 1
 
 
+func _before_frame() -> void:
+	# Capture the clock's admission condition before its _process. A wait may
+	# pause on completion in this frame; that frame still did real CPU work.
+	_sample_clock_work = (not _clock.paused or bool(_clock._explicit_allow_paused)) and not _clock._save_boundary_held()
+
+
 func _process(_delta: float) -> void:
 	if _done:
 		return
@@ -157,7 +165,7 @@ func _process(_delta: float) -> void:
 		_minimum_rate = minf(_minimum_rate, float(_clock.pacing.rate))
 		if float(_clock.pacing.rate) < 0.97:
 			_slow_usec += span
-	var clock_usec: int = int(_clock.pacing.last_work_usec) if running else 0
+	var clock_usec: int = int(_clock.pacing.last_work_usec) if _sample_clock_work else 0
 	_total_clock_usec += clock_usec
 	_total_executor_usec += _frame_executor_usec
 	_total_kernel_usec += _frame_kernel_usec
@@ -243,6 +251,8 @@ func finish() -> void:
 	_unwrap_kernel()
 	if is_instance_valid(_main) and _main.get("fog").visibility_updated.is_connected(_fog_updated):
 		_main.get("fog").visibility_updated.disconnect(_fog_updated)
+	if get_tree().process_frame.is_connected(_before_frame):
+		get_tree().process_frame.disconnect(_before_frame)
 	_windows.close()
 	var report: Dictionary = {"format": "demo_profile_v1", "revision": _options.revision, "dirty": _options.dirty,
 		"engine": Engine.get_version_info().string, "renderer": RenderingServer.get_video_adapter_name(),
