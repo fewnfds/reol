@@ -6,43 +6,7 @@ extends RefCounted
 
 
 static func active_segment_reserves(world: RefCounted, cell: Vector2i) -> bool:
-	if world == null:
-		return false
-	var bodies: Dictionary = {}
-	for sim: VillageSimulation in world.regions.values():
-		for actor: String in sim.synchronize_actors():
-			var body: Dictionary = sim.synchronize_actor(actor)
-			bodies[actor] = body
-			var action: Dictionary = body.get("active", {})
-			if action.get("phase") == "travel" and segment_reserves(body, action, cell):
-				return true
-	if world.services != null:
-		for actor: String in world.services.active_jobs:
-			var job: Dictionary = world.services.jobs[world.services.active_jobs[actor]]
-			if job.get("phase") == "travel" and not bool(job.get("road_paused", false)) and segment_reserves(bodies.get(actor, {}), job, cell):
-				return true
-	for domain: RefCounted in [world.construction, world.facility_use, world.resting, world.plants, world.personal_production, world.capability_practice]:
-		if domain == null:
-			continue
-		for actor: String in domain.active:
-			var job: Dictionary = domain.active[actor]
-			var phase: String = str(job.get("phase", ""))
-			if (phase.begins_with("to_") or phase in ["travel", "leave", "walk"]) and segment_reserves(bodies.get(actor, {}), job, cell):
-				return true
-	if world.field_opportunities != null:
-		var field: RefCounted = world.field_opportunities
-		for actor: String in field.purposes:
-			if not field.owns_actor(actor):
-				continue
-			var trip: Dictionary = field.trips[field.purposes[actor].trip]
-			if segment_reserves(bodies.get(actor, {}), trip, cell):
-				return true
-	if world.soul_vessels != null:
-		for actor: String in world.soul_vessels.agency.errands:
-			var job: Dictionary = world.soul_vessels.agency.errands[actor]
-			if job.get("phase") in ["approach", "carry"] and segment_reserves(bodies.get(actor, {}), job, cell):
-				return true
-	return false
+	return _visit_active_routes(world, func(body: Dictionary, route: Dictionary) -> bool: return segment_reserves(body, route, cell))
 
 
 static func segment_reserves(body: Dictionary, route: Dictionary, cell: Vector2i) -> bool:
@@ -64,6 +28,82 @@ static func segment_reserves(body: Dictionary, route: Dictionary, cell: Vector2i
 	# Preserve the entire current leg until its owner consumes path[0], even
 	# after crossing into the target cell. A diagonal protects both side cells.
 	return current == cell or _leg_rectangle_contains(origin, target, cell)
+
+
+static func capture_active_reservations(world: RefCounted) -> Dictionary:
+	# One synchronous proposed footprint may query several cells. Capture the
+	# original short legs once, then discard this projection after the operation.
+	var snapshot: Dictionary = {"all": false, "cells": {}}
+	_visit_active_routes(world, func(body: Dictionary, route: Dictionary) -> bool:
+		_capture_leg(snapshot, body, route)
+		return bool(snapshot.all))
+	return snapshot
+
+
+static func _visit_active_routes(world: RefCounted, inspect: Callable) -> bool:
+	if world == null:
+		return false
+	var bodies: Dictionary = {}
+	for sim: VillageSimulation in world.regions.values():
+		for actor: String in sim.synchronize_actors():
+			var body: Dictionary = sim.actor_state(actor)
+			bodies[actor] = body
+			var action: Dictionary = body.get("active", {})
+			if action.get("phase") == "travel":
+				if bool(inspect.call(body, action)):
+					return true
+	if world.services != null:
+		for actor: String in world.services.active_jobs:
+			var job: Dictionary = world.services.jobs[world.services.active_jobs[actor]]
+			if job.get("phase") == "travel" and not bool(job.get("road_paused", false)):
+				if bool(inspect.call(bodies.get(actor, {}), job)):
+					return true
+	for domain: RefCounted in [world.construction, world.facility_use, world.resting, world.plants, world.personal_production, world.capability_practice]:
+		if domain == null:
+			continue
+		for actor: String in domain.active:
+			var job: Dictionary = domain.active[actor]
+			var phase: String = str(job.get("phase", ""))
+			if phase.begins_with("to_") or phase in ["travel", "leave", "walk"]:
+				if bool(inspect.call(bodies.get(actor, {}), job)):
+					return true
+	if world.field_opportunities != null:
+		var field: RefCounted = world.field_opportunities
+		for actor: String in field.purposes:
+			if field.owns_actor(actor):
+				if bool(inspect.call(bodies.get(actor, {}), field.trips[field.purposes[actor].trip])):
+					return true
+	if world.soul_vessels != null:
+		for actor: String in world.soul_vessels.agency.errands:
+			var job: Dictionary = world.soul_vessels.agency.errands[actor]
+			if job.get("phase") in ["approach", "carry"]:
+				if bool(inspect.call(bodies.get(actor, {}), job)):
+					return true
+	return false
+
+
+static func _capture_leg(snapshot: Dictionary, body: Dictionary, route: Dictionary) -> void:
+	var path: Variant = route.get("path", [])
+	if not path is Array:
+		snapshot.all = true
+		return
+	if path.is_empty():
+		return
+	if not SimLocalMotion._vector(body.get("position")) or not SimLocalMotion._vector(route.get("segment_from")) or not VillageSimulation._valid_cell(path[0]):
+		snapshot.all = true
+		return
+	var raw: Array = route.segment_from
+	var origin: Vector2i = TileGrid.world_to_cell(Vector2(float(raw[0]), float(raw[1])))
+	var target: Vector2i = SimRouteTravel.cell(path[0])
+	if absi(target.x - origin.x) > 1 or absi(target.y - origin.y) > 1:
+		snapshot.all = true
+		return
+	snapshot.cells[TileGrid.world_to_cell(SimRouteTravel.point(body))] = true
+	var low: Vector2i = origin.min(target)
+	var high: Vector2i = origin.max(target)
+	for y: int in range(low.y, high.y + 1):
+		for x: int in range(low.x, high.x + 1):
+			snapshot.cells[Vector2i(x, y)] = true
 
 
 static func fixed_road_reserves(world: RefCounted, cell: Vector2i) -> bool:

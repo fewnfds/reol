@@ -221,8 +221,28 @@ func _start_step(id: String) -> void:
 	if not SimBodyGeometry.can_step(at, next - at, size(), _walkable, _elevation):
 		body.path = []
 		return
+	# The proposed footprint is one synchronous decision. Original bodies and
+	# accepted segments do not change between these cell reads; scan them once.
+	var reservations: Dictionary = SimMotionClearance.capture_active_reservations(world)
+	var occupied: Dictionary[Vector2i, bool] = {}
+	for sim: VillageSimulation in world.regions.values():
+		for actor: String in sim.actor_ids():
+			var original: Dictionary = sim.actor_state(actor)
+			if bool(original.alive):
+				occupied[SimRouteTravel.cell(original.cell)] = true
+		for place: Dictionary in sim.places.values():
+			occupied[SimRouteTravel.cell(place.cell)] = true
+	if world.avian_life != null:
+		for bird: String in world.avian_life.birds:
+			if int(world.avian_life.birds[bird].altitude) == 0:
+				occupied[world.avian_life.body_cell(bird)] = true
 	for cell: Vector2i in SimBodyGeometry.cells(next, size()):
-		if occupied_by_other(cell, id):
+		if occupied.has(cell) or bool(reservations.all) or reservations.cells.has(cell):
+			return
+		for other: String in bodies:
+			if other != id and swept_bounds(other).has_point(cell):
+				return
+		if _incoming.is_valid() and bool(_incoming.call(cell)):
 			return
 	body.path.pop_front()
 	body.facing = SimBodyGeometry.DIRECTIONS.find(next - at)
