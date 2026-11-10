@@ -52,14 +52,14 @@ func bind_world(authority: RefCounted) -> void:
 
 func home(actor: String) -> String:
 	for region: String in world.regions:
-		if world.regions[region].actors.has(actor):
+		if world.regions[region].has_actor(actor):
 			return region
 	return ""
 
 
 func body(actor: String) -> Dictionary:
 	var region: String = home(actor)
-	return world.regions[region].actors[actor] if not region.is_empty() else {}
+	return world.regions[region].actor_state(actor) if not region.is_empty() else {}
 
 
 func offered_objects(buyer: String, seller: String) -> Array[Dictionary]:

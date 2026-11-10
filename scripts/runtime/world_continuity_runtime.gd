@@ -461,6 +461,7 @@ func _bind_navigation() -> void:
 	for sim: VillageSimulation in world_sim.regions.values():
 		sim.set_navigation(_find_path, _can_step)
 		sim.set_boundary_revision_provider(_native_boundary_revision)
+		sim.set_sparse_actor_projection(true)
 	if world_sim.services != null:
 		world_sim.services.set_navigation(_find_path, _can_step)
 	world_sim.sparring.set_geometry(_practice_contact_allowed, _can_step)
@@ -503,7 +504,7 @@ func _native_boundary_revision() -> int:
 
 
 func _incoming_occupancy(cell: Vector2i) -> bool:
-	return world_sim != null and SimMotionClearance.segment_reserves(world_sim.regions.home.actors.player, player_journey, cell)
+	return world_sim != null and SimMotionClearance.segment_reserves(world_sim.regions.home.actor_state("player"), player_journey, cell)
 
 
 func _physical_obstacle(cell: Vector2i) -> bool:

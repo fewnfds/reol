@@ -29,7 +29,7 @@ func initialize(parent: RefCounted, rules: Dictionary) -> bool:
 	if not valid_definitions(rules) or not parent.regions.has(rules.region) or rules.region != parent.construction.definitions.site.region:
 		return false
 	for actor: String in rules.members:
-		if not parent.regions[rules.region].actors.has(actor):
+		if not parent.regions[rules.region].has_actor(actor):
 			return false
 	_owner = weakref(parent)
 	definitions = rules.duplicate(true)
@@ -37,7 +37,7 @@ func initialize(parent: RefCounted, rules: Dictionary) -> bool:
 
 
 func member(actor: String) -> bool:
-	return definitions.members.has(actor) and world.regions[definitions.region].actors.has(actor)
+	return definitions.members.has(actor) and world.regions[definitions.region].has_actor(actor)
 
 
 func can_observe(actor: String, bed: String) -> bool:
@@ -257,7 +257,7 @@ func _occupied_by_other(actor: String, bed: String) -> bool:
 func _cell_occupied(actor: String, cell: Vector2i) -> bool:
 	for sim: RefCounted in world.regions.values():
 		for other: String in sim.actors:
-			if other != actor and bool(sim.actors[other].alive) and SimRouteTravel.cell(sim.actors[other].cell) == cell:
+			if other != actor and bool(sim.actor_state(other).alive) and SimRouteTravel.cell(sim.actor_state(other).cell) == cell:
 				return true
 	for id: String in world.avian_life.birds:
 		if int(world.avian_life.birds[id].altitude) == 0 and world.avian_life.body_cell(id) == cell:
@@ -275,7 +275,7 @@ func _route_step(from: Vector2i, step: Vector2i) -> bool:
 
 
 func _body(actor: String) -> Dictionary:
-	return world.regions[definitions.region].actors[actor]
+	return world.regions[definitions.region].actor_state(actor)
 
 
 func _cell(bed: String) -> Vector2i:

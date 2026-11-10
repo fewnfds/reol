@@ -78,14 +78,14 @@ func bind_world(authority: RefCounted) -> void:
 
 func home(actor: String) -> String:
 	for id: String in world.regions:
-		if world.regions[id].actors.has(actor):
+		if world.regions[id].has_actor(actor):
 			return id
 	return ""
 
 
 func body(actor: String) -> Dictionary:
 	var region: String = home(actor)
-	return world.regions[region].actors[actor] if not region.is_empty() else {}
+	return world.regions[region].actor_state(actor) if not region.is_empty() else {}
 
 
 func knows(actor: String, method: String) -> bool:

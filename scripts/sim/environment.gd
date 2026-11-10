@@ -51,7 +51,7 @@ func region_for_actor(actor: String) -> String:
 	var home: String = world.clothing.home(actor)
 	if home.is_empty():
 		return ""
-	return SimClimateRules.region_at(definitions, SimRouteTravel.cell(world.regions[home].actors[actor].cell))
+	return SimClimateRules.region_at(definitions, SimRouteTravel.cell(world.regions[home].actor_state(actor).cell))
 
 
 func _garments(actor: String) -> Array[Dictionary]:
@@ -163,7 +163,7 @@ func sample_for(actor: String, at_ms: int) -> Dictionary:
 		return sample
 	var home: String = world.clothing.home(actor)
 	var region: String = region_for_actor(actor)
-	sample.cell = world.regions[home].actors[actor].cell.duplicate()
+	sample.cell = world.regions[home].actor_state(actor).cell.duplicate()
 	sample.region = region
 	sample.heat_tenths = _sample_heat_tenths(SimRouteTravel.cell(sample.cell), at_ms)
 	var temperature: int = _temperature(region, at_ms) + int(sample.heat_tenths)
@@ -178,7 +178,7 @@ func local_conditions(actor: String, at_ms: int = -1) -> Dictionary:
 		return {}
 	var now: int = world.elapsed_ms if at_ms < 0 else at_ms
 	var home: String = world.clothing.home(actor)
-	var cell: Vector2i = SimRouteTravel.cell(world.regions[home].actors[actor].cell)
+	var cell: Vector2i = SimRouteTravel.cell(world.regions[home].actor_state(actor).cell)
 	var heat_tenths: int = 0
 	var heat_supported: bool = true
 	var heat_reason: String = ""

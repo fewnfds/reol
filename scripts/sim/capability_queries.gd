@@ -365,8 +365,8 @@ static func _thermal(artifacts: RefCounted, id: String) -> bool:
 
 static func _body(world: RefCounted, actor: String) -> Dictionary:
 	for sim: VillageSimulation in world.regions.values():
-		if sim.actors.has(actor):
-			return sim.actors[actor]
+		if sim.has_actor(actor):
+			return sim.actor_state(actor)
 	return {}
 
 

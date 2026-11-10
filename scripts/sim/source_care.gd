@@ -59,7 +59,7 @@ func spawn_opening(scenario: Dictionary) -> bool:
 		var sim: VillageSimulation = world.regions[case_row.region]
 		var office: Dictionary = sim.institutions.institutions.get(case_row.institution, {}).get("offices", {}).get(case_row.office, {})
 		var issuer: String = str(office.get("holder", ""))
-		if not sim.actors.has(value.guard) or not sim.actors.has(issuer) or issuer == value.guard or not office.get("permissions", []).has(case_row.permission) or not sim.config.actions.has(definitions.watch_action) or sim.config.actions[definitions.watch_action].get("kind") != "visit" or sim.config.actions[definitions.watch_action].get("target") != case_row.return_place or world.elapsed_ms > SimInventory.MAX_COUNT - int(value.duration_ms): return false
+		if not sim.has_actor(value.guard) or not sim.has_actor(issuer) or issuer == value.guard or not office.get("permissions", []).has(case_row.permission) or not sim.config.actions.has(definitions.watch_action) or sim.config.actions[definitions.watch_action].get("kind") != "visit" or sim.config.actions[definitions.watch_action].get("target") != case_row.return_place or world.elapsed_ms > SimInventory.MAX_COUNT - int(value.duration_ms): return false
 		pending_rows[value.id] = {"id": value.id, "case": value.case, "region": case_row.region, "guard": value.guard, "issuer": issuer, "office": case_row.office, "started_ms": int(world.elapsed_ms), "until_ms": int(world.elapsed_ms) + int(value.duration_ms), "status": "active", "ended_ms": -1, "event": "", "end_event": "", "next_observation_ms": -1, "next_visit_ms": int(world.elapsed_ms) + int(definitions.revisit_ms), "visit_action": ""}
 		guards[value.guard] = true
 	for row: Dictionary in pending_rows.values():
@@ -86,7 +86,7 @@ func consider() -> void:
 		var row: Dictionary = _arrangement_for(actor)
 		var sim: VillageSimulation = world.regions[row.region]
 		if sim.submit_action(actor, str(definitions.watch_action)):
-			row.visit_action = str(sim.actors[actor].active.id)
+			row.visit_action = str(sim.actor_state(actor).active.id)
 			row.next_visit_ms = world.elapsed_ms + int(definitions.revisit_ms)
 			row.next_observation_ms = world.elapsed_ms + int(definitions.observation_ms) if _has_source(row) else -1
 			world.invalidate_region(str(row.region))
@@ -120,7 +120,7 @@ func next_boundary_ms() -> int:
 func settle_at_ms(now: int) -> void:
 	for row: Dictionary in arrangements.values():
 		if row.status != "active": continue
-		world.synchronize_region(str(row.region))
+		world.synchronize_region(str(row.region), str(row.guard))
 		if now >= int(row.until_ms):
 			_end_arrangement(row, "expired", int(row.until_ms))
 			continue
@@ -433,7 +433,7 @@ func _known_basis(actor: String, basis_id: String, row: Dictionary) -> Dictionar
 
 func _context(row: Dictionary, actor: String, basis: String, source_event: String, source_job: String) -> Dictionary:
 	var sim: VillageSimulation = world.regions[row.region]
-	var person: Dictionary = sim.actors[row.guard]
+	var person: Dictionary = sim.actor_state(row.guard)
 	return {"energy": floorf(float(person.energy) / 20.0) / 5.0, "risk": 1.0 if source_event.is_empty() else 0.0, "reliability": float(sim.social.relation(str(row.guard), actor).reliability), "affinity": float(sim.social.relation(str(row.guard), actor).affinity), "terms": {"arrangement": row.id, "basis": basis, "source_event": source_event, "source_job": source_job}}
 
 
@@ -485,7 +485,7 @@ func _sees(actor: String, point: Vector2) -> bool:
 
 
 func _talk(actor: String, receiver: String, row: Dictionary) -> bool:
-	if actor == receiver or not world.regions[row.region].actors.has(actor) or not world.regions[row.region].actors.has(receiver) or not world.actor_controls(actor, "communication") or not world.actor_controls(receiver, "communication"): return false
+	if actor == receiver or not world.regions[row.region].has_actor(actor) or not world.regions[row.region].has_actor(receiver) or not world.actor_controls(actor, "communication") or not world.actor_controls(receiver, "communication"): return false
 	var from: Vector2 = SimRouteTravel.point(_body(actor))
 	var to: Vector2 = SimRouteTravel.point(_body(receiver))
 	return from.distance_to(to) <= float(definitions.interaction_px) and Space.level(world, from) == Space.level(world, to) and Space.clear_segment(world, from, to, Space.level(world, from))
@@ -506,7 +506,7 @@ func _arrangement_for(guard: String) -> Dictionary:
 
 func _body(actor: String) -> Dictionary:
 	for sim: VillageSimulation in world.regions.values():
-		if sim.actors.has(actor): return sim.actors[actor]
+		if sim.has_actor(actor): return sim.actor_state(actor)
 	return {}
 
 
@@ -543,7 +543,7 @@ func _watching(row: Dictionary) -> bool:
 
 func _need_boundary(row: Dictionary) -> int:
 	var sim: VillageSimulation = world.regions[row.region]
-	var person: Dictionary = sim.actors[row.guard]
+	var person: Dictionary = sim.actor_state(row.guard)
 	var result: int = NEVER
 	for need: String in ["hunger", "energy"]:
 		var rate: int = roundi(float(sim.config.needs.hunger_per_minute) * VillageSimulation.NEED_SCALE) if need == "hunger" else roundi(float(sim.config.needs.energy_per_minute) * VillageSimulation.NEED_SCALE) + roundi(float(sim.config.needs.work_energy_per_minute) * VillageSimulation.NEED_SCALE)

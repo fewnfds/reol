@@ -166,7 +166,7 @@ func initialize(authority: RefCounted, rules: Dictionary) -> bool:
 
 func home(actor: String) -> String:
 	for region: String in world.regions:
-		if world.regions[region].actors.has(actor):
+		if world.regions[region].has_actor(actor):
 			return region
 	return ""
 
@@ -176,7 +176,7 @@ func eligible(actor: String) -> bool:
 
 
 func can_diagnose(actor: String) -> bool:
-	return eligible(actor) and definitions.practices.has(world.regions[home(actor)].actors[actor].definition_id)
+	return eligible(actor) and definitions.practices.has(world.regions[home(actor)].actor_state(actor).definition_id)
 
 
 func record_effect(event: Dictionary) -> void:
@@ -232,7 +232,7 @@ func combat_burden(actor: String) -> int:
 
 
 func can_fight(actor: String) -> bool:
-	return eligible(actor) and bool(world.regions[home(actor)].actors[actor].alive) and combat_burden(actor) < int(definitions.contusion.retreat_burden)
+	return eligible(actor) and bool(world.regions[home(actor)].actor_state(actor).alive) and combat_burden(actor) < int(definitions.contusion.retreat_burden)
 
 
 func recovery_required(wound: Dictionary) -> int:
@@ -279,12 +279,12 @@ func terms(patient: String, doctor: String, verb: String, source: String) -> Dic
 
 
 func _available(actor: String) -> bool:
-	var person: Dictionary = world.regions[home(actor)].actors[actor]
+	var person: Dictionary = world.regions[home(actor)].actor_state(actor)
 	return bool(person.alive) and person.active.is_empty() and world.native_action_allowed(actor) and world.actor_controls(actor, "motion") and world.actor_controls(actor, "communication")
 
 
 func distance(left: String, right: String) -> float:
-	return SimRouteTravel.point(world.regions[home(left)].actors[left]).distance_to(SimRouteTravel.point(world.regions[home(right)].actors[right])) / float(TileGrid.TILE_SIZE)
+	return SimRouteTravel.point(world.regions[home(left)].actor_state(left)).distance_to(SimRouteTravel.point(world.regions[home(right)].actor_state(right))) / float(TileGrid.TILE_SIZE)
 
 
 func diagnosis(patient: String, doctor: String, source: String) -> String:
@@ -309,7 +309,7 @@ func request(patient: String, doctor: String, verb: String, autonomous: bool = f
 	var source: String = current_source(patient)
 	if source.is_empty():
 		return reply(false, "unavailable", "本人眼下没有这种持续不适；这不是万能治愈。")
-	if not _available(patient) or not _available(doctor) or not bool(world.regions[home(doctor)].actors[doctor].autonomous):
+	if not _available(patient) or not _available(doctor) or not bool(world.regions[home(doctor)].actor_state(doctor).autonomous):
 		return reply(false, "unavailable", "双方需要先放下手头的事，再由本人答应接受查看或处理。")
 	var prior: String = diagnosis(patient, doctor, source)
 	var sim: VillageSimulation = world.regions[home(patient)]
@@ -323,7 +323,7 @@ func request(patient: String, doctor: String, verb: String, autonomous: bool = f
 	var memory: SimSocialMemory = social_for(patient, doctor)
 	if memory == null:
 		return reply(false, "unavailable", "眼下没有办法当面商量。")
-	var body: Dictionary = world.regions[home(doctor)].actors[doctor]
+	var body: Dictionary = world.regions[home(doctor)].actor_state(doctor)
 	var relation: Dictionary = memory.relation(doctor, patient)
 	var context: Dictionary = {"energy": floorf(float(body.energy) / 20.0) / 5.0, "busy": 0.0, "distance": 0.0, "risk": 0.0, "duty": 0.0, "offer": 0.0,
 		"benevolence": float(world.regions[home(doctor)].config.actor_profiles[doctor].get("benevolence", 0.5)), "affinity": relation.affinity, "reliability": relation.reliability, "terms": terms(patient, doctor, verb, source)}
@@ -334,7 +334,7 @@ func request(patient: String, doctor: String, verb: String, autonomous: bool = f
 	var id: String = "health:action:%d" % next_id
 	if verb == "treat" and not sim.inventory.consume(id + ":material", "actor:" + patient, str(definitions.material), int(definitions.material_amount)):
 		return reply(false, "unavailable", "药材已不可用，处理没有开始。")
-	var person: Dictionary = sim.actors[patient]
+	var person: Dictionary = sim.actor_state(patient)
 	jobs[id] = {"id": id, "patient": patient, "doctor": doctor, "patient_region": home(patient), "doctor_region": home(doctor), "source": source, "verb": verb,
 		"consent": str(decision.id), "started_ms": world.elapsed_ms, "due_ms": world.elapsed_ms + duration(verb), "finished_ms": -1, "status": "active", "patient_autonomous": bool(person.autonomous), "doctor_autonomous": bool(body.autonomous), "patient_position": person.position.duplicate(), "doctor_position": body.position.duplicate(), "diagnosis": prior if verb == "treat" else ""}
 	_add_care_participant(id)
@@ -352,7 +352,7 @@ func _connected(job: Dictionary) -> bool:
 	for actor: String in [str(job.patient), str(job.doctor)]:
 		if not eligible(actor):
 			return false
-		var person: Dictionary = world.regions[home(actor)].actors[actor]
+		var person: Dictionary = world.regions[home(actor)].actor_state(actor)
 		var position: Array = job.patient_position if actor == job.patient else job.doctor_position
 		if not bool(person.alive) or not person.active.is_empty() or person.position != position:
 			return false
@@ -373,7 +373,7 @@ func _finish(job: Dictionary, outcome: String) -> void:
 		wounds[job.source].treated_ms = world.elapsed_ms
 		_sync_care_candidate(str(job.patient))
 	for actor: String in [str(job.patient), str(job.doctor)]:
-		var body: Dictionary = world.regions[home(actor)].actors[actor]
+		var body: Dictionary = world.regions[home(actor)].actor_state(actor)
 		body.autonomous = job.patient_autonomous if actor == job.patient else job.doctor_autonomous
 		body.goal = "刚结束查看" if job.verb == "diagnose" else "刚结束处理，仍需休养"
 		body.retry_ms = world.elapsed_ms + int(world.regions[home(actor)].config.decision_interval) * MINUTE_MS
@@ -428,7 +428,7 @@ func settle_at_ms(now: int) -> void:
 			continue
 		world.synchronize_region(str(wound.region))
 		var actor: String = str(wound.actor)
-		var body: Dictionary = world.regions[wound.region].actors[actor]
+		var body: Dictionary = world.regions[wound.region].actor_state(actor)
 		var rested: bool = body.active.get("action") == "rest" and body.active.get("phase") == "work" and int(body.active.get("segment_started_ms", now)) <= now - MINUTE_MS
 		if world.resting != null and world.resting.active.has(actor):
 			var bed_job: Dictionary = world.resting.active[actor]

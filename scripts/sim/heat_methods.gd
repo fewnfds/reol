@@ -150,7 +150,7 @@ func teach(teacher: String, learner: String, object_id: String, id: String) -> D
 	if world.elapsed_ms != world.target_ms or not _lesson_ready(teacher, learner, object_id, id) or knows(learner, id):
 		return reply(false, "先学会这一版，再与空闲、愿学的同门一起靠近温石；已学过的版本不重复传授。")
 	var sim: RefCounted = world.regions[world.artifacts.actor_home(learner)]
-	var person: Dictionary = sim.actors[learner]
+	var person: Dictionary = sim.actor_state(learner)
 	var relation: Dictionary = sim.social.relation(learner, teacher)
 	var context: Dictionary = {"energy": floorf(float(person.energy) / 20.0) / 5.0, "busy": 0.0, "distance": 0.0, "duty": 0.0, "offer": 0.0, "risk": float(definitions.lesson_risk),
 		"benevolence": float(sim.config.actor_profiles[learner].get("benevolence", 0.5)), "affinity": relation.get("affinity", 0.0), "reliability": relation.get("reliability", 0.5), "terms": {"object": object_id, "method": id}}
@@ -170,10 +170,10 @@ func _lesson_ready(teacher: String, learner: String, object_id: String, id: Stri
 		return false
 	var sim: RefCounted = world.regions[home]
 	for actor: String in [teacher, learner]:
-		var body: Dictionary = sim.actors[actor]
+		var body: Dictionary = sim.actor_state(actor)
 		if not bool(body.alive) or not body.active.is_empty() or not world.native_action_allowed(actor) or not world.actor_controls(actor, "motion") or not world.actor_controls(actor, "communication"):
 			return false
-	if int(sim.actors[teacher].qi) < int(definitions.guide_qi) or int(sim.actors[learner].qi) < int(terms(id).qi):
+	if int(sim.actor_state(teacher).qi) < int(definitions.guide_qi) or int(sim.actor_state(learner).qi) < int(terms(id).qi):
 		return false
 	var container: String = str(artifacts.objects[object_id].container)
 	if container.begins_with("actor:") and container not in ["actor:" + teacher, "actor:" + learner]:
@@ -224,7 +224,7 @@ func apply_charge(job: Dictionary) -> void:
 		if int(item.damage) >= int(shape.unsafe_damage):
 			item.damage = int(shape.damage_max)
 			item.charge = 0
-			var person: Dictionary = world.regions[job.region].actors[job.actor]
+			var person: Dictionary = world.regions[job.region].actor_state(job.actor)
 			person.stamina = maxi(0, int(person.stamina) - int(shape.force_backlash_stamina))
 			artifacts._finish_record(job, "fractured", "急灌撑开了旧裂隙，石芯崩断、余热散尽；回卷震得手臂发麻。")
 			return

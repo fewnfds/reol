@@ -97,10 +97,10 @@ static func _village(world: RegionalSimulation, reference: Dictionary) -> Dictio
 	var actor: String = container.trim_prefix("actor:") if container.begins_with("actor:") else ""
 	var construction: SimConstruction = world.construction
 	var project_here: bool = construction != null and construction.world == world and construction.definitions.get("site", {}).get("region") == reference.region and construction.projects.has(container)
-	var candidates: int = int(not actor.is_empty() and sim.actors.has(actor)) + int(sim.places.has(container)) + int(project_here)
+	var candidates: int = int(not actor.is_empty() and sim.has_actor(actor)) + int(sim.places.has(container)) + int(project_here)
 	if candidates > 1:
 		return _failure("ambiguous_reference")
-	if not actor.is_empty() and sim.actors.has(actor):
+	if not actor.is_empty() and sim.has_actor(actor):
 		return _actor_anchor(world, reference, sim, actor)
 	if sim.places.has(container):
 		var place: Variant = sim.places[container]
@@ -126,7 +126,7 @@ static func _village(world: RegionalSimulation, reference: Dictionary) -> Dictio
 
 
 static func _actor_anchor(world: RegionalSimulation, reference: Dictionary, sim: VillageSimulation, id: String) -> Dictionary:
-	var point: Variant = actor_position(sim.actors.get(id))
+	var point: Variant = actor_position(sim.actor_state(id))
 	if point == null:
 		return _failure("invalid_location")
 	return _result(world, reference, point, "village_inventory", sim.elapsed_ms, "village_simulation", sim.elapsed_ms, {"kind": "actor", "id": id})

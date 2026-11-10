@@ -42,7 +42,7 @@ func initialize(parent: RefCounted, rules: Dictionary) -> bool:
 
 func actor_home(actor: String) -> String:
 	for region: String in world.regions:
-		if world.regions[region].actors.has(actor):
+		if world.regions[region].has_actor(actor):
 			return region
 	return ""
 
@@ -53,7 +53,7 @@ func owns_actor(actor: String) -> bool:
 
 func nearby(actor: String, receiver: String) -> bool:
 	var region: String = actor_home(actor)
-	return not region.is_empty() and actor != receiver and actor_home(receiver) == region and SimRouteTravel.point(world.regions[region].actors[actor]).distance_to(SimRouteTravel.point(world.regions[region].actors[receiver])) <= float(definitions.talk_cells) * TileGrid.TILE_SIZE
+	return not region.is_empty() and actor != receiver and actor_home(receiver) == region and SimRouteTravel.point(world.regions[region].actor_state(actor)).distance_to(SimRouteTravel.point(world.regions[region].actor_state(receiver))) <= float(definitions.talk_cells) * TileGrid.TILE_SIZE
 
 
 func start(actor: String, receiver: String, method: String) -> Dictionary:
@@ -64,7 +64,7 @@ func start(actor: String, receiver: String, method: String) -> Dictionary:
 	if not nearby(actor, receiver) or not world.actor_controls(actor, "communication") or not world.actor_controls(receiver, "communication") or not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion"):
 		return _reply(false, "先走到能当面说话的距离。")
 	var sim: RefCounted = world.regions[region]
-	var body: Dictionary = sim.actors[actor]
+	var body: Dictionary = sim.actor_state(actor)
 	if not body.active.is_empty() or world.local_action_owns(actor) or world.artifacts.owns_actor(actor) or world.services.owns_actor(actor):
 		return _reply(false, "先完成或停止手头的行动。")
 	var evidence: String = ""
@@ -242,7 +242,7 @@ func _finish(job: Dictionary, status: String, line: String, evidence: String = "
 
 
 func _release(job: Dictionary, line: String, status: String = "cancelled") -> void:
-	var body: Dictionary = world.regions[job.region].actors[job.actor]
+	var body: Dictionary = world.regions[job.region].actor_state(job.actor)
 	body.autonomous = bool(job.previous_autonomous)
 	body.goal = line
 	active.erase(job.actor)

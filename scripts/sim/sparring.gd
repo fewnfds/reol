@@ -46,14 +46,14 @@ func action_blocks(id: String) -> bool:
 
 func body(id: String) -> Dictionary:
 	for simulation: VillageSimulation in world.regions.values():
-		if simulation.actors.has(id):
-			return simulation.actors[id]
+		if simulation.has_actor(id):
+			return simulation.actor_state(id)
 	return {}
 
 
 func _home(id: String) -> String:
 	for region: String in world.regions:
-		if world.regions[region].actors.has(id):
+		if world.regions[region].has_actor(id):
 			return region
 	return ""
 
@@ -290,7 +290,7 @@ func _valid_state(data: Variant) -> bool:
 	if int(saved.started_ms) > int(saved.last_ms) or int(saved.last_ms) > world.elapsed_ms or int(saved.next_step_ms) != int(saved.last_ms) + int(rules.step_ms) or int(saved.next_step_ms) <= world.elapsed_ms or int(saved.started_ms) + int(rules.duration_ms) <= int(saved.last_ms):
 		return false
 	for id: String in saved.people:
-		if not world.regions[saved.region].actors.has(id) or not world.actor_controls(id, "action") or not world.actor_controls(id, "motion") or not body(id).active.is_empty() or bool(body(id).autonomous) or world.artifacts.owns_actor(id) or (world.soul_vessels != null and world.soul_vessels.owns_actor(id)) or (world.services != null and world.services.owns_actor(id)):
+		if not world.regions[saved.region].has_actor(id) or not world.actor_controls(id, "action") or not world.actor_controls(id, "motion") or not body(id).active.is_empty() or bool(body(id).autonomous) or world.artifacts.owns_actor(id) or (world.soul_vessels != null and world.soul_vessels.owns_actor(id)) or (world.services != null and world.services.owns_actor(id)):
 			return false
 		var person: Variant = saved.people[id]
 		if not person is Dictionary or not person.get("autonomous") is bool or not person.get("action") is Dictionary or not SimSnapshotSchema._count(person.get("ready_ms")) or not SimSnapshotSchema._count(person.get("hits")):

@@ -60,7 +60,7 @@ func initialize(authority: RefCounted, rules: Dictionary) -> bool:
 	for region: String in world.regions:
 		var sim: VillageSimulation = world.regions[region]
 		for actor: String in sim.actors:
-			if rules.actor_definitions.has(sim.actors[actor].definition_id):
+			if rules.actor_definitions.has(sim.actor_state(actor).definition_id):
 				plans[actor] = {"region": region, "retry_ms": world.elapsed_ms, "stop_index": 0, "search_count": 0, "last_ms": -1, "last_result": "none"}
 	return true
 
@@ -72,7 +72,7 @@ func wants_decision(actor: String, at_ms: int) -> bool:
 	if offer.get("direction") != "buy" or offer.get("item") != definitions.desired_item:
 		return false
 	var sim: VillageSimulation = world.regions[plans[actor].region]
-	if not sim.actors[actor].autonomous:
+	if not sim.actor_is_autonomous(actor):
 		return false
 	var contract: Dictionary = _contract(actor)
 	return not contract.is_empty() or sim.inventory.available("actor:" + actor, str(definitions.desired_item)) < int(definitions.desired_amount)
@@ -130,7 +130,7 @@ func _speaker(actor: String, sim: VillageSimulation) -> String:
 	var visible: Array[String] = []
 	var radius: float = minf(float(sim.config.observation_radius), float(world._content.interaction_requests.communication_cells))
 	for other: String in world._sorted_keys(sim.actors):
-		if other != actor and sim.actors[other].alive and sim._distance(actor, other) <= radius:
+		if other != actor and sim.actor_state(other).alive and sim._distance(actor, other) <= radius:
 			visible.append(other)
 	for other: String in visible:
 		if _claims_payment(sim, actor, other):
@@ -195,7 +195,7 @@ func restore(data: Variant) -> bool:
 		if not actor is String or not Shape.keys(plan, ["region", "retry_ms", "stop_index", "search_count", "last_ms", "last_result"]) or not plan.region is String or not world.regions.has(plan.region):
 			return false
 		var sim: VillageSimulation = world.regions[plan.region]
-		if not sim.actors.has(actor) or not definitions.actor_definitions.has(sim.actors[actor].definition_id) or not Shape.count(plan.retry_ms, 0, SimInventory.MAX_COUNT) or not Shape.count(plan.stop_index, 0, definitions.search_actions.size() - 1) or not Shape.count(plan.search_count, 0, definitions.search_actions.size()) or not Shape.count(plan.last_ms, -1, world.elapsed_ms) or plan.last_result not in RESULTS:
+		if not sim.has_actor(actor) or not definitions.actor_definitions.has(sim.actor_state(actor).definition_id) or not Shape.count(plan.retry_ms, 0, SimInventory.MAX_COUNT) or not Shape.count(plan.stop_index, 0, definitions.search_actions.size() - 1) or not Shape.count(plan.search_count, 0, definitions.search_actions.size()) or not Shape.count(plan.last_ms, -1, world.elapsed_ms) or plan.last_result not in RESULTS:
 			return false
 		if (int(plan.last_ms) == -1) != (plan.last_result == "none") or int(plan.retry_ms) < int(plan.last_ms):
 			return false

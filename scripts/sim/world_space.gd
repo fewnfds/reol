@@ -250,8 +250,8 @@ func _body_projection(reference: Dictionary) -> Dictionary:
 	var layer: String = "ground"
 	if reference.kind == "actor":
 		for sim: VillageSimulation in world.regions.values():
-			if sim.actors.has(reference.id):
-				point = SimStorageQuery.actor_position(sim.actors[reference.id])
+			if sim.has_actor(reference.id):
+				point = SimStorageQuery.actor_position(sim.actor_state(reference.id))
 	elif reference.kind == "avian" and world.avian_life.birds.has(reference.id):
 		point = SimAvianLife.point(world.avian_life.birds[reference.id])
 		layer = "air" if int(world.avian_life.birds[reference.id].altitude) > 0 else "ground"

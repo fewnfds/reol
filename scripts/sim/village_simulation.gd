@@ -13,12 +13,29 @@ const NEED_SCALE: int = 1000000
 const SnapshotSchema = preload("res://scripts/sim/snapshot_schema.gd")
 const Workplaces = preload("res://scripts/sim/workplaces.gd")
 
-var actors: Dictionary = {}
+var _actors: Dictionary = {}
+var actors: Dictionary:
+	get:
+		# Compatibility/inspection is a read barrier over the original bodies.
+		materialize_actors()
+		return _actors
+	set(value):
+		materialize_actors()
+		_actors = value
+		_reset_actor_projections()
+var _actor_projection_ms: Dictionary[String, int] = {}
+var _projecting_actors: Dictionary[String, bool] = {}
+var _materializing_actors: bool = false
+var _all_projected_ms: int = -1
+var _sparse_actor_projection: bool = false
 var _workplace_blocks: Dictionary[Vector2i, bool] = {}
 var _stock_places_at_cell: Dictionary = {}
 var _stock_contents: Dictionary = {}
 var _stock_observations: Dictionary = {}
 var _stock_epoch: int = 0
+var _stock_observed_epoch: int = -1
+var _stock_observed_minute: int = -1
+var _stock_dirty_actors: Dictionary[String, bool] = {}
 var places: Dictionary = {}:
 	set(value):
 		places = value
@@ -51,6 +68,10 @@ var _content: ReolContentDB
 var _boundary_revision_provider: Callable
 var _boundary_revision: int = -1
 var _actor_boundaries: Dictionary[String, int] = {}
+var _boundary_index := SimParticipationIndex.new()
+var _boundary_index_ready: bool = false
+var _dirty_actor_boundaries: Dictionary[String, bool] = {}
+const NATIVE_BOUNDARY: StringName = &"native_action"
 var _next_actor_boundary: int = -1
 var _navigation: Callable
 var _step_validator: Callable
@@ -113,7 +134,8 @@ func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary,
 	config = settings.duplicate(true)
 	controlled_actor = str(config.get("controlled_actor", "player"))
 	places = locations.duplicate(true)
-	actors = {}
+	_actors = {}
+	_actor_projection_ms.clear()
 	inventory = SimInventory.new()
 	social = SimSocialMemory.new()
 	social.configure(config.social_policy)
@@ -138,7 +160,7 @@ func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary,
 			errors.append("Unknown actor or invalid position: " + id)
 			return false
 		var definition: PawnDef = content.get_pawn(StringName(definition_id))
-		actors[id] = {
+		_actors[id] = {
 			"definition_id": definition_id, "cell": cells[id].duplicate(), "hunger": float(profile.get("hunger", 100.0)),
 			"energy": float(profile.get("energy", 100.0)), "active": {}, "goal": "安顿日常",
 			"autonomous": bool(profile.get("autonomous", id != controlled_actor)),
@@ -150,9 +172,10 @@ func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary,
 			"stock_memory": {}, "rank_id": String(definition.rank_id),
 			"qi": definition.max_qi, "stamina": definition.max_stamina, "mood": 60.0,
 		}
+		_actor_projection_ms[id] = opening_ms
 		social.register_actor(id)
 		inventory.create_container("actor:" + id, {})
-	if not actors.has(controlled_actor):
+	if not _actors.has(controlled_actor):
 		errors.append("Missing controlled actor")
 		return false
 	for id: String in config.initial_stock:
@@ -170,15 +193,15 @@ func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary,
 		return false
 	var institution: Dictionary = config.institution
 	for office: Dictionary in institution.offices.values():
-		if not str(office.holder).is_empty() and not actors.has(office.holder):
+		if not str(office.holder).is_empty() and not _actors.has(office.holder):
 			errors.append("Unknown office holder")
 			return false
 	if not institutions.add_institution(institution.id, institution.offices):
 		return false
 	# Origin entitlements are institutional opening entries, never body attributes.
 	var registrar: String = _registrar()
-	for id: String in actors:
-		var definition: PawnDef = content.get_pawn(StringName(actors[id].definition_id))
+	for id: String in _actors:
+		var definition: PawnDef = content.get_pawn(StringName(_actors[id].definition_id))
 		var origin: OriginDef = content.get_origin(definition.origin_id)
 		if origin != null and origin.starting_contribution > 0:
 			institutions.issue("opening:" + id, institution.id, registrar, id, origin.starting_contribution, "origin:" + String(origin.id))
@@ -189,6 +212,7 @@ func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary,
 
 
 func set_navigation(provider: Callable, step_validator: Callable = Callable()) -> void:
+	materialize_actors()
 	rebuild_workplace_geometry()
 	invalidate_boundary_cache()
 	_navigation = provider
@@ -200,19 +224,23 @@ func set_action_guard(provider: Callable) -> void:
 
 
 func set_control_guard(provider: Callable) -> void:
+	materialize_actors()
 	invalidate_boundary_cache()
 	_control_guard = provider
 
 
 func set_rest_recovery(provider: Callable) -> void:
+	materialize_actors()
 	_rest_recovery = provider
 
 
 func set_exposure_rate(provider: Callable) -> void:
+	materialize_actors()
 	_exposure_rate = provider
 
 
 func set_external_labor(provider: Callable) -> void:
+	materialize_actors()
 	_external_labor = provider
 
 
@@ -233,11 +261,11 @@ func notify_labor(stage: String, actor_id: String, action: Dictionary, event: St
 
 
 func actor_controls(actor_id: String, channel: String) -> bool:
-	return actors.has(actor_id) and bool(actors[actor_id].alive) and (not _control_guard.is_valid() or bool(_control_guard.call(actor_id, channel)))
+	return _actors.has(actor_id) and bool(_actors[actor_id].alive) and (not _control_guard.is_valid() or bool(_control_guard.call(actor_id, channel)))
 
 
 func workspace_action_available(actor_id: String) -> bool:
-	return actor_controls(actor_id, "communication") and actor_controls(actor_id, "action") and actor_controls(actor_id, "motion") and actors[actor_id].active.is_empty() and (not _action_guard.is_valid() or bool(_action_guard.call(actor_id)))
+	return actor_controls(actor_id, "communication") and actor_controls(actor_id, "action") and actor_controls(actor_id, "motion") and _actors[actor_id].active.is_empty() and (not _action_guard.is_valid() or bool(_action_guard.call(actor_id)))
 
 
 func find_path(from_cell: Vector2i, to_cell: Vector2i) -> Array[Vector2i]:
@@ -286,6 +314,7 @@ func next_boundary_ms() -> int:
 	if cached:
 		var revision: int = int(_boundary_revision_provider.call())
 		if revision != _boundary_revision:
+			materialize_actors()
 			invalidate_boundary_cache()
 			_boundary_revision = revision
 	if cached and _next_actor_boundary > elapsed_ms:
@@ -308,13 +337,22 @@ func next_boundary_ms() -> int:
 
 func _query_actor_boundary(cached: bool) -> int:
 	var boundary: int = SimInventory.MAX_COUNT
-	for id: String in _actor_ids():
-		var actor: Dictionary = actors[id]
-		if cached and _actor_boundaries.get(id, 0) > elapsed_ms:
-			boundary = mini(boundary, int(_actor_boundaries[id]))
-			continue
+	var ids: Array = []
+	if cached and _boundary_index_ready:
+		var pending: Dictionary = _dirty_actor_boundaries.duplicate()
+		for id: String in _boundary_index.due_ids(NATIVE_BOUNDARY, elapsed_ms):
+			pending[id] = true
+		ids = pending.keys()
+		ids.sort()
+	else:
+		ids = _actor_ids()
+	for id: String in ids:
+		var actor: Dictionary = _actors[id]
 		var actor_boundary: int = SimInventory.MAX_COUNT
 		if not bool(actor.alive):
+			if cached:
+				_boundary_index.cancel_due(NATIVE_BOUNDARY, id)
+				_dirty_actor_boundaries.erase(id)
 			continue
 		if not actor.active.is_empty():
 			if not actor_controls(id, "action") or not actor_controls(id, "motion"):
@@ -325,7 +363,13 @@ func _query_actor_boundary(cached: bool) -> int:
 			actor_boundary = maxi(elapsed_ms + 1, int(actor.retry_ms))
 		if cached:
 			_actor_boundaries[id] = actor_boundary
+			_boundary_index.set_member(NATIVE_BOUNDARY, id)
+			_boundary_index.set_due(NATIVE_BOUNDARY, id, actor_boundary)
+			_dirty_actor_boundaries.erase(id)
 		boundary = mini(boundary, actor_boundary)
+	if cached:
+		_boundary_index_ready = true
+		return _boundary_index.next_due_ms(NATIVE_BOUNDARY, SimInventory.MAX_COUNT)
 	return boundary
 
 
@@ -333,6 +377,7 @@ func set_boundary_revision_provider(provider: Callable) -> void:
 	# Opt in only with observable navigation/control dependencies. Arbitrary
 	# standalone Callables keep the conservative path. Absolute deadlines are
 	# reused until due; this is not a second action state or saved schedule.
+	materialize_actors()
 	_boundary_revision_provider = provider
 	_boundary_revision = -1
 	invalidate_boundary_cache()
@@ -340,11 +385,15 @@ func set_boundary_revision_provider(provider: Callable) -> void:
 
 func invalidate_boundary_cache() -> void:
 	_actor_boundaries.clear()
+	_boundary_index.clear()
+	_boundary_index_ready = false
+	_dirty_actor_boundaries.clear()
 	_next_actor_boundary = -1
 
 
 func invalidate_actor_boundary(id: String) -> void:
 	_actor_boundaries.erase(id)
+	_dirty_actor_boundaries[id] = true
 	_next_actor_boundary = -1
 
 
@@ -379,66 +428,146 @@ func advance_to_ms(target_ms: int, max_events: int = 4096) -> bool:
 		var next: int = mini(target_ms, boundary)
 		if next == boundary and events_left < 1:
 			return false
-		_decay_elapsed(next - elapsed_ms)
+		var sparse: bool = _sparse_actor_projection and _boundary_revision_provider.is_valid()
+		if not sparse:
+			# Keep opaque standalone input callbacks on their original pre-advance
+			# interval and order; they have not promised observable rate changes.
+			for id: String in _actors:
+				_decay_actor(id, elapsed_ms, next - elapsed_ms)
 		land_resources.advance_to_ms(next)
 		elapsed_ms = next
-		for id: String in ids:
-			_executor.project(id, elapsed_ms)
+		var projecting: Array = _boundary_index.due_ids(NATIVE_BOUNDARY, elapsed_ms) if sparse else ids
+		projecting.sort() # Original same-millisecond actor order, not heap order.
+		for id: String in projecting:
+			if not sparse:
+				_actor_projection_ms[id] = elapsed_ms
+				_executor.project(id, elapsed_ms)
+			elif int(_actor_boundaries.get(id, 0)) <= elapsed_ms:
+				actor_state(id)
+		if not sparse:
+			_all_projected_ms = elapsed_ms
 		if next == boundary:
 			for id: String in ids:
 				if not _boundary_revision_provider.is_valid() or int(_actor_boundaries.get(id, 0)) <= elapsed_ms:
 					_executor.settle(id)
 			for id: String in ids:
-				var actor: Dictionary = actors[id]
+				var actor: Dictionary = _actors[id]
 				if bool(actor.alive) and bool(actor.autonomous) and actor.active.is_empty() and elapsed_ms >= int(actor.retry_ms):
 					_choose_routine(id)
 			_update_situations()
 			events_left -= 1
 			simulation_work.boundary_count = int(simulation_work.boundary_count) + 1
 		_refresh_stock_epoch()
-		for id: String in ids:
-			if bool(actors[id].alive):
+		var observing: Array = ids if not sparse or _stock_observed_epoch != _stock_epoch or _stock_observed_minute != tick_index else _stock_dirty_actors.keys()
+		observing.sort()
+		for id: String in observing:
+			if bool(_actors[id].alive):
 				_observe_stock(id)
+		_stock_dirty_actors.clear()
+		_stock_observed_epoch = _stock_epoch
+		_stock_observed_minute = tick_index
 	simulation_work.batched_minutes = int(simulation_work.batched_minutes) + tick_index - initial_minute
 	simulation_work.quiet_batch_calls = int(simulation_work.quiet_batch_calls) + 1
 	changed.emit()
 	return true
 
 
-func _decay_elapsed(duration_ms: int) -> void:
+func has_actor(id: Variant) -> bool:
+	return _actors.has(id)
+
+
+func actor_is_alive(id: String) -> bool:
+	return _actors.has(id) and bool(_actors[id].alive)
+
+
+func actor_is_autonomous(id: String) -> bool:
+	return _actors.has(id) and bool(_actors[id].autonomous)
+
+
+func actor_has_action(id: String) -> bool:
+	return _actors.has(id) and not _actors[id].active.is_empty()
+
+
+func set_sparse_actor_projection(enabled: bool) -> void:
+	# World adapters opt in only after their continuous-input mutation barriers
+	# and navigation/control notifications are bound. Standalone Callables keep
+	# eager projection because their captured inputs may change invisibly.
+	materialize_actors()
+	_sparse_actor_projection = enabled
+
+
+func actor_ids() -> Array:
+	return _actor_ids()
+
+
+func actor_state(id: String) -> Dictionary:
+	if not _actors.has(id):
+		return {}
+	var actor: Dictionary = _actors[id]
+	if _executor == null or _projecting_actors.has(id):
+		return actor
+	var previous: int = int(_actor_projection_ms.get(id, elapsed_ms))
+	if previous == elapsed_ms:
+		return actor
+	_projecting_actors[id] = true
+	_decay_actor(id, previous, elapsed_ms - previous)
+	_actor_projection_ms[id] = elapsed_ms
+	_executor.project(id, elapsed_ms)
+	_projecting_actors.erase(id)
+	return actor
+
+
+func materialize_actors() -> void:
+	if _materializing_actors or _all_projected_ms == elapsed_ms:
+		return
+	_materializing_actors = true
+	for id: String in _actor_ids():
+		actor_state(id)
+	_materializing_actors = false
+	_all_projected_ms = elapsed_ms
+
+
+func _reset_actor_projections() -> void:
+	_actor_projection_ms.clear()
+	_projecting_actors.clear()
+	for id: String in _actors:
+		_actor_projection_ms[id] = elapsed_ms
+	_all_projected_ms = elapsed_ms
+
+
+func _decay_actor(id: String, from_ms: int, duration_ms: int) -> void:
 	var hunger_rate: int = roundi(float(config.needs.hunger_per_minute) * NEED_SCALE)
 	var base_energy_rate: int = roundi(float(config.needs.energy_per_minute) * NEED_SCALE)
 	var work_rate: int = roundi(float(config.needs.work_energy_per_minute) * NEED_SCALE)
-	for id: String in actors:
-		var actor: Dictionary = actors[id]
-		if not bool(actor.alive):
-			continue
-		var energy_rate: int = base_energy_rate
-		if _exposure_rate.is_valid():
-			energy_rate += int(_exposure_rate.call(id))
-		var laboring: bool = not actor.active.is_empty() or (_external_labor.is_valid() and bool(_external_labor.call(id)))
-		if laboring:
-			energy_rate += work_rate
-		if _rest_recovery.is_valid():
-			energy_rate -= int(_rest_recovery.call(id)) * NEED_SCALE
-		_decay_need(actor, "hunger", hunger_rate, duration_ms)
-		if energy_rate < 0:
-			_recover_need(actor, "energy", -energy_rate, duration_ms)
-		else:
-			_decay_need(actor, "energy", energy_rate, duration_ms)
-		if not laboring or str(actor.active.get("action", "")) == "rest":
-			var duration: int = maxi(0, elapsed_ms + duration_ms - maxi(elapsed_ms, int(actor.exertion_until_ms)))
-			var definition: PawnDef = _content.get_pawn(StringName(actor.definition_id))
-			var missing: int = definition.max_stamina - int(actor.stamina)
-			if missing == 0:
-				actor.stamina_carry = 0
-				continue
-			var rate: int = int(motion_rules.recovery.stamina_per_second)
-			var gain: int = int(actor.stamina_carry) + rate * mini(duration, ceili(float(missing * 1000) / rate))
-			@warning_ignore("integer_division")
-			var units: int = gain / 1000
-			actor.stamina = mini(definition.max_stamina, int(actor.stamina) + units)
-			actor.stamina_carry = gain % 1000 if int(actor.stamina) < definition.max_stamina else 0
+	var actor: Dictionary = _actors[id]
+	if not bool(actor.alive):
+		return
+	var energy_rate: int = base_energy_rate
+	if _exposure_rate.is_valid():
+		energy_rate += int(_exposure_rate.call(id))
+	var laboring: bool = not actor.active.is_empty() or (_external_labor.is_valid() and bool(_external_labor.call(id)))
+	if laboring:
+		energy_rate += work_rate
+	if _rest_recovery.is_valid():
+		energy_rate -= int(_rest_recovery.call(id)) * NEED_SCALE
+	_decay_need(actor, "hunger", hunger_rate, duration_ms)
+	if energy_rate < 0:
+		_recover_need(actor, "energy", -energy_rate, duration_ms)
+	else:
+		_decay_need(actor, "energy", energy_rate, duration_ms)
+	if not laboring or str(actor.active.get("action", "")) == "rest":
+		var duration: int = maxi(0, from_ms + duration_ms - maxi(from_ms, int(actor.exertion_until_ms)))
+		var definition: PawnDef = _content.get_pawn(StringName(actor.definition_id))
+		var missing: int = definition.max_stamina - int(actor.stamina)
+		if missing == 0:
+			actor.stamina_carry = 0
+			return
+		var rate: int = int(motion_rules.recovery.stamina_per_second)
+		var gain: int = int(actor.stamina_carry) + rate * mini(duration, ceili(float(missing * 1000) / rate))
+		@warning_ignore("integer_division")
+		var units: int = gain / 1000
+		actor.stamina = mini(definition.max_stamina, int(actor.stamina) + units)
+		actor.stamina_carry = gain % 1000 if int(actor.stamina) < definition.max_stamina else 0
 
 
 func _recover_need(actor: Dictionary, kind: String, rate: int, duration_ms: int) -> void:
@@ -487,25 +616,29 @@ func actor_position(actor: Dictionary) -> Vector2:
 
 
 func set_actor_position(id: String, point: Vector2) -> void:
+	actor_state(id)
 	invalidate_actor_boundary(id)
-	var before: Vector2i = SimRouteTravel.cell(actors[id].cell)
-	SimRouteTravel.put(actors[id], point)
-	if before != SimRouteTravel.cell(actors[id].cell):
+	var before: Vector2i = SimRouteTravel.cell(_actors[id].cell)
+	SimRouteTravel.put(_actors[id], point)
+	if before != SimRouteTravel.cell(_actors[id].cell):
+		_stock_dirty_actors[id] = true
 		body_space_changed.emit(id)
 
 
 func project_actor_route(id: String, route: Dictionary, at_ms: int) -> void:
-	var before: Vector2i = SimRouteTravel.cell(actors[id].cell)
-	SimRouteTravel.project(route, actors[id], at_ms)
-	if before != SimRouteTravel.cell(actors[id].cell):
+	var before: Vector2i = SimRouteTravel.cell(_actors[id].cell)
+	SimRouteTravel.project(route, _actors[id], at_ms)
+	if before != SimRouteTravel.cell(_actors[id].cell):
+		_stock_dirty_actors[id] = true
 		var crossing: int = SimRouteTravel.crossing_from_cell_ms(route, before, int(route.segment_started_ms))
-		body_cell_crossed.emit(id, SimRouteTravel.cell(actors[id].cell), crossing)
+		body_cell_crossed.emit(id, SimRouteTravel.cell(_actors[id].cell), crossing)
 		body_space_changed.emit(id)
 
 
 func notify_body_space_changed(id: String) -> void:
 	# Manual motion writes the same original body, notifying on cell crossings.
 	invalidate_actor_boundary(id)
+	_stock_dirty_actors[id] = true
 	body_space_changed.emit(id)
 
 
@@ -533,21 +666,21 @@ func cancel_action(actor_id: String, reason: String = "cancelled") -> void:
 
 
 func remove_actor(actor_id: String) -> void:
-	if not actors.has(actor_id):
+	if not _actors.has(actor_id):
 		return
 	_executor.cancel(actor_id, "actor_unavailable")
-	actors[actor_id].alive = false
+	_actors[actor_id].alive = false
 	invalidate_actor_boundary(actor_id)
-	actors[actor_id].goal = "已离开，随身物资留在原地"
+	_actors[actor_id].goal = "已离开，随身物资留在原地"
 	# Inventory stays attached to the persistent actor; nothing is duplicated.
 	observe("departed", actor_id, "", {})
 	changed.emit()
 
 
 func request_help(requester: String, responder: String, occasion: String = "personal_request") -> Dictionary:
-	if not actors.has(requester) or not actors.has(responder) or requester == responder:
+	if not _actors.has(requester) or not _actors.has(responder) or requester == responder:
 		return {"status": "refused", "reason": "invalid_actor", "message": "没有可交谈的人。"}
-	if not bool(actors[requester].alive) or not bool(actors[responder].alive):
+	if not bool(_actors[requester].alive) or not bool(_actors[responder].alive):
 		return {"status": "refused", "reason": "unavailable", "message": "对方已经离开。"}
 	if not actor_controls(requester, "communication") or not actor_controls(responder, "communication"):
 		return {"status": "refused", "reason": "cannot_communicate", "message": "眼下无法交谈。"}
@@ -557,7 +690,7 @@ func request_help(requester: String, responder: String, occasion: String = "pers
 	if distance > float(config.talk_radius):
 		return {"status": "refused", "reason": "out_of_range", "message": "相距太远，需要靠近交谈。"}
 	var task: String = config.scenario.task
-	var person: Dictionary = actors[responder]
+	var person: Dictionary = _actors[responder]
 	var profile: Dictionary = config.actor_profiles.get(responder, {})
 	var context: Dictionary = {
 		"energy": float(person.energy) / 100.0,
@@ -599,14 +732,14 @@ func request_help(requester: String, responder: String, occasion: String = "pers
 
 
 func report_work(actor_id: String) -> bool:
-	if not actors.has(actor_id):
+	if not _actors.has(actor_id):
 		return false
 	var registrar: String = _registrar()
-	if registrar.is_empty() or not bool(actors[registrar].alive) or _distance(actor_id, registrar) > float(config.talk_radius):
+	if registrar.is_empty() or not bool(_actors[registrar].alive) or _distance(actor_id, registrar) > float(config.talk_radius):
 		return false
 	if not bool(Workplaces.assessment(self, registrar, "record").ok):
 		return false
-	var receipts: Array = actors[actor_id].receipts
+	var receipts: Array = _actors[actor_id].receipts
 	var remaining: Array = []
 	for receipt: Dictionary in receipts:
 		var event_id: String = receipt.event
@@ -622,29 +755,29 @@ func report_work(actor_id: String) -> bool:
 			observe("registered", registrar, actor_id, {"amount": receipt.amount})
 		else:
 			remaining.append(receipt)
-	actors[actor_id].receipts = remaining
+	_actors[actor_id].receipts = remaining
 	return remaining.is_empty()
 
 
 func approve_promotion(issuer: String, actor_id: String, rank_id: String) -> bool:
-	if not actors.has(issuer) or not actors.has(actor_id) or not bool(actors[issuer].alive):
+	if not _actors.has(issuer) or not _actors.has(actor_id) or not bool(_actors[issuer].alive):
 		return false
 	if not institutions.has_permission(config.institution.id, issuer, "authorize"):
 		return false
 	var next: RankDef = _content.get_rank(StringName(rank_id))
-	var current: RankDef = _content.get_rank(StringName(actors[actor_id].rank_id))
+	var current: RankDef = _content.get_rank(StringName(_actors[actor_id].rank_id))
 	if next == null or current == null or next.tier <= current.tier:
 		return false
 	if institutions.balance(config.institution.id, actor_id) < next.required_contribution:
 		return false
-	actors[actor_id].rank_id = rank_id
+	_actors[actor_id].rank_id = rank_id
 	observe("promoted", issuer, actor_id, {"public": {"rank": rank_id}})
 	changed.emit()
 	return true
 
 
 func grant_access(issuer: String, subject: String, scope: String) -> bool:
-	if not actors.has(subject) or not _can_authorize(issuer) or not places.has(scope):
+	if not _actors.has(subject) or not _can_authorize(issuer) or not places.has(scope):
 		return false
 	authorizations[subject + ":" + scope] = {"issuer": issuer, "subject": subject, "scope": scope}
 	observe("authorized", issuer, subject, {"location": scope})
@@ -664,20 +797,20 @@ func revoke_access(issuer: String, subject: String, scope: String) -> bool:
 
 
 func _can_authorize(issuer: String) -> bool:
-	return actors.has(issuer) and bool(actors[issuer].alive) and institutions.has_permission(config.institution.id, issuer, "authorize")
+	return _actors.has(issuer) and bool(_actors[issuer].alive) and institutions.has_permission(config.institution.id, issuer, "authorize")
 
 
 func observe(kind: String, actor_id: String, target: String, details: Dictionary) -> String:
 	var witnesses: Array[String] = []
 	for id: String in _actor_ids():
-		if id != actor_id and id != target and bool(actors[id].alive):
+		if id != actor_id and id != target and bool(_actors[id].alive):
 			if _distance(actor_id, id) <= float(config.observation_radius):
 				witnesses.append(id)
 	return social.record(kind, actor_id, target, details, witnesses, tick_index)
 
 
 func _actor_ids() -> Array:
-	var ids: Array = actors.keys()
+	var ids: Array = _actors.keys()
 	ids.sort()
 	return ids
 
@@ -698,7 +831,7 @@ func action_finished(actor_id: String, action: Dictionary, succeeded: bool, reas
 		social.learn(requester, event_id, actor_id)
 		social.remember_outcome(requester, actor_id, "fulfilled", event_id)
 	if earned > 0:
-		actors[actor_id].receipts.append({"event": event_id, "amount": earned})
+		_actors[actor_id].receipts.append({"event": event_id, "amount": earned})
 	if action.action == "report" and succeeded:
 		report_work(actor_id)
 	# Successful helpers release their commitment; the original decision remains cached.
@@ -707,9 +840,9 @@ func action_finished(actor_id: String, action: Dictionary, succeeded: bool, reas
 
 
 func actor_status(id: String) -> String:
-	if not actors.has(id):
+	if not _actors.has(id):
 		return "未知人物"
-	var actor: Dictionary = actors[id]
+	var actor: Dictionary = _actors[id]
 	if actor.active.is_empty():
 		return str(actor.goal)
 	var action: Dictionary = actor.active
@@ -749,9 +882,10 @@ func allocate_id(prefix: String) -> String:
 
 
 func to_dict() -> Dictionary:
+	materialize_actors()
 	return {
 		"version": SCHEMA_VERSION, "config": config.duplicate(true),
-		"actors": actors.duplicate(true), "places": places.duplicate(true),
+		"actors": _actors.duplicate(true), "places": places.duplicate(true),
 		"situations": situations.duplicate(true), "authorizations": authorizations.duplicate(true),
 		"interaction_results": interaction_results.duplicate(true),
 		"inventory": inventory.to_dict(), "social": social.to_dict(),
@@ -822,7 +956,7 @@ func restore(data: Dictionary, allowed_subjects: Dictionary = {}, external_inven
 				return false
 	config = data.config.duplicate(true)
 	invalidate_boundary_cache()
-	actors = data.actors.duplicate(true)
+	_actors = data.actors.duplicate(true)
 	places = data.places.duplicate(true)
 	situations = data.situations.duplicate(true)
 	authorizations = data.authorizations.duplicate(true)
@@ -839,13 +973,14 @@ func restore(data: Dictionary, allowed_subjects: Dictionary = {}, external_inven
 	# Containers have already been restored. Bind without re-creating sources.
 	land_resources.bind_restored(self, _content.land_resources, data.land_resources)
 	_executor = SimActionExecutor.new(self)
+	_reset_actor_projections()
 	simulation_work = {"step_count": 0, "boundary_count": 0, "batched_minutes": 0, "quiet_batch_calls": 0}
 	space_reset.emit()
 	return true
 
 
 func _choose_routine(id: String, consider_initiative: bool = true) -> void:
-	var actor: Dictionary = actors[id]
+	var actor: Dictionary = actor_state(id)
 	actor.retry_ms = elapsed_ms + int(config.decision_interval) * MINUTE_MS
 	if float(actor.hunger) <= float(config.needs.eat_below) and submit_action(id, "eat"):
 		return
@@ -906,7 +1041,7 @@ func _choose_supply(id: String, duty: String) -> bool:
 
 
 func needs_action(actor_id: String, action_id: String) -> bool:
-	return actors.has(actor_id) and config.actions.has(action_id) and _needed(actor_id, action_id)
+	return _actors.has(actor_id) and config.actions.has(action_id) and _needed(actor_id, action_id)
 
 
 func _needed(actor_id: String, action_id: String) -> bool:
@@ -951,7 +1086,7 @@ func _update_situations() -> void:
 			situations["kitchen_shortage"] = {"id": allocate_id("situation"), "status": "open", "since": tick_index, "item": definition.item}
 		if tick_index - _last_request >= int(config.request_interval):
 			_last_request = tick_index
-			var known: Dictionary = actors[scenario.requester].stock_memory.get(definition.target, {})
+			var known: Dictionary = _actors[scenario.requester].stock_memory.get(definition.target, {})
 			if known.is_empty() or int(known.items.get(definition.item, 0)) > 0:
 				return
 			for helper: String in scenario.helpers:
@@ -964,7 +1099,7 @@ func _update_situations() -> void:
 
 
 func observe_current_surroundings(actor_id: String) -> void:
-	if actors.has(actor_id) and bool(actors[actor_id].alive):
+	if _actors.has(actor_id) and bool(_actors[actor_id].alive):
 		_refresh_stock_epoch()
 		_observe_stock(actor_id)
 
@@ -978,7 +1113,7 @@ func _refresh_stock_epoch() -> void:
 
 
 func _observe_stock(actor_id: String) -> void:
-	var actor: Dictionary = actors[actor_id]
+	var actor: Dictionary = _actors[actor_id]
 	var cell: Vector2i = SimRouteTravel.cell(actor.cell)
 	var previous_observation: Array = _stock_observations.get(actor_id, [])
 	if previous_observation.size() == 3 and previous_observation[0] == cell and previous_observation[1] == tick_index and previous_observation[2] == _stock_epoch:
@@ -1007,13 +1142,13 @@ func _registrar() -> String:
 
 
 func _distance(a: String, b: String) -> float:
-	var left: Array = actors[a].cell
-	var right: Array = actors[b].cell
+	var left: Array = _actors[a].cell
+	var right: Array = _actors[b].cell
 	return Vector2(float(left[0]), float(left[1])).distance_to(Vector2(float(right[0]), float(right[1])))
 
 
 func _name(id: String) -> String:
-	var definition_id: String = str(actors.get(id, {}).get("definition_id", id))
+	var definition_id: String = str(_actors.get(id, {}).get("definition_id", id))
 	var definition: PawnDef = _content.get_pawn(StringName(definition_id)) if _content != null else null
 	return definition.display_name if definition != null else id
 

@@ -36,6 +36,10 @@ class RegionStub extends RefCounted:
 	}
 	var config: Dictionary = {"decision_interval": 1}
 	var inventory: SimInventory = SimInventory.new()
+	func has_actor(id: Variant) -> bool:
+		return actors.has(id)
+	func actor_state(id: String) -> Dictionary:
+		return actors.get(id, {})
 
 
 class WorldStub extends RefCounted:

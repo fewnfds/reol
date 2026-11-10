@@ -91,14 +91,14 @@ func begin(actor: String, project: String, name: String, kind: String = "sit", i
 	if not domain.can_observe(actor, row.cell):
 		return SimConstruction.reply(false, "先走近，查看设施的实际操作位置。")
 	var sim: VillageSimulation = world.regions[region]
-	var from: Vector2i = SimRouteTravel.cell(sim.actors[actor].cell)
+	var from: Vector2i = SimRouteTravel.cell(sim.actor_state(actor).cell)
 	var path: Array[Vector2i] = sim.find_path(from, row.cell)
 	if from != row.cell and path.is_empty():
 		return SimConstruction.reply(false, "到不了设施的操作位置。")
 	var id: String = "facility_use:%d" % next_job
 	var job: Dictionary = {"id": id, "actor": actor, "project": project, "slot": name, "kind": kind, "item": item, "amount": amount, "duration_ms": duration_ms,
-		"phase": "travel", "path": [], "stand": [row.cell.x, row.cell.y], "support": "", "segment_from": sim.actors[actor].position.duplicate(), "segment_started_ms": world.elapsed_ms,
-		"due_ms": world.elapsed_ms + 1, "started_ms": world.elapsed_ms, "work_started_ms": world.elapsed_ms, "previous_autonomous": bool(sim.actors[actor].autonomous), "reserved": false}
+		"phase": "travel", "path": [], "stand": [row.cell.x, row.cell.y], "support": "", "segment_from": sim.actor_state(actor).position.duplicate(), "segment_started_ms": world.elapsed_ms,
+		"due_ms": world.elapsed_ms + 1, "started_ms": world.elapsed_ms, "work_started_ms": world.elapsed_ms, "previous_autonomous": bool(sim.actor_state(actor).autonomous), "reserved": false}
 	if kind == "sit":
 		if not item.is_empty() or amount != 0:
 			return SimConstruction.reply(false, "坐下不包含物资转移。")
@@ -112,13 +112,13 @@ func begin(actor: String, project: String, name: String, kind: String = "sit", i
 		job.support = domain.project_at(row.cell + row.facing)
 	for cell: Vector2i in path:
 		job.path.append([cell.x, cell.y])
-	if job.path.is_empty() and not SimRouteTravel.point(sim.actors[actor]).is_equal_approx(TileGrid.cell_to_world(row.cell)):
+	if job.path.is_empty() and not SimRouteTravel.point(sim.actor_state(actor)).is_equal_approx(TileGrid.cell_to_world(row.cell)):
 		job.path.append([row.cell.x, row.cell.y])
-	SimRouteTravel.begin_segment(job, sim.actors[actor], world.elapsed_ms, float(sim.motion_rules.motion.speed))
+	SimRouteTravel.begin_segment(job, sim.actor_state(actor), world.elapsed_ms, float(sim.motion_rules.motion.speed))
 	next_job += 1
 	active[actor] = job
 	SimActionContract.occupy(world, region, actor)
-	sim.actors[actor].goal = "前往设施操作位置"
+	sim.actor_state(actor).goal = "前往设施操作位置"
 	world.invalidate_region(region)
 	return SimConstruction.reply(true, "操作位已预约；实际到场后才开始使用。")
 
@@ -191,7 +191,7 @@ func next_boundary_ms() -> int:
 	for job: Dictionary in active.values():
 		if not _can_continue(job):
 			return world.elapsed_ms + 1
-		var body: Dictionary = world.regions[world.construction.definitions.site.region].actors[job.actor]
+		var body: Dictionary = world.regions[world.construction.definitions.site.region].actor_state(job.actor)
 		boundary = mini(boundary, SimRouteTravel.next_boundary(job, body, world.elapsed_ms, world.construction.route_step) if job.phase == "travel" else int(job.due_ms))
 	return boundary
 
@@ -232,7 +232,7 @@ func _settle_actor(actor: String, now: int) -> void:
 	world.synchronize_region(region)
 	var job: Dictionary = active[actor]
 	var sim: VillageSimulation = world.regions[region]
-	var body: Dictionary = sim.actors[actor]
+	var body: Dictionary = sim.actor_state(actor)
 	if not _can_continue(job):
 		cancel(actor)
 		return
@@ -275,7 +275,7 @@ func _release(job: Dictionary, status: String, line: String) -> void:
 	var region: String = str(world.construction.definitions.site.region)
 	active.erase(job.actor)
 	SimActionContract.release(world, region, job.actor, bool(job.previous_autonomous), job.id)
-	world.regions[region].actors[job.actor].goal = line
+	world.regions[region].actor_state(job.actor).goal = line
 	SimActionContract.publish_finished(world, SimActionContract.view(world, "facility_use", job.id, job.actor, job.kind, job.phase, int(job.started_ms), int(job.due_ms), status, job.project), line)
 
 
@@ -313,7 +313,7 @@ func restore(data: Variant) -> bool:
 func position_clear(actor: String, cell: Vector2i) -> bool:
 	for sim: VillageSimulation in world.regions.values():
 		for other: String in sim.actors:
-			if other != actor and bool(sim.actors[other].alive) and SimRouteTravel.cell(sim.actors[other].cell) == cell:
+			if other != actor and bool(sim.actor_state(other).alive) and SimRouteTravel.cell(sim.actor_state(other).cell) == cell:
 				return false
 	if world.large_bodies != null and world.large_bodies.blocked(cell): return false
 	if world.avian_life != null:

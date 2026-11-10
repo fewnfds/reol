@@ -244,7 +244,7 @@ func visible_to(actor: String, id: String) -> bool:
 	if home.is_empty() or not bodies.has(id):
 		return false
 	var sim: VillageSimulation = world.regions[home]
-	return bool(sim.actors[actor].alive) and SimBodyGeometry.contact_distance(SimRouteTravel.point(sim.actors[actor]), point(id), size()) <= float(sim.config.observation_radius * TileGrid.TILE_SIZE)
+	return bool(sim.actor_state(actor).alive) and SimBodyGeometry.contact_distance(SimRouteTravel.point(sim.actor_state(actor)), point(id), size()) <= float(sim.config.observation_radius * TileGrid.TILE_SIZE)
 
 
 func offer_food(actor: String, id: String, food: String) -> Dictionary:
@@ -254,11 +254,11 @@ func offer_food(actor: String, id: String, food: String) -> Dictionary:
 	world.synchronize_region(home)
 	var sim: VillageSimulation = world.regions[home]
 	var body: Dictionary = bodies[id]
-	if not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion") or not sim.actors[actor].active.is_empty() or world.local_action_owns(actor) or world.artifacts.owns_actor(actor) or world.services != null and world.services.owns_actor(actor):
+	if not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion") or not sim.actor_state(actor).active.is_empty() or world.local_action_owns(actor) or world.artifacts.owns_actor(actor) or world.services != null and world.services.owns_actor(actor):
 		return _reply(false, "先停下手头的事情，再腾手递食。")
 	if not body.step.is_empty():
 		return _reply(false, "山兽正在迈步，先等它停稳。")
-	if SimBodyGeometry.contact_distance(SimRouteTravel.point(sim.actors[actor]), point(id), size()) > float(definitions.contact_px) or swept_bounds(id).has_point(SimRouteTravel.cell(sim.actors[actor].cell)):
+	if SimBodyGeometry.contact_distance(SimRouteTravel.point(sim.actor_state(actor)), point(id), size()) > float(definitions.contact_px) or swept_bounds(id).has_point(SimRouteTravel.cell(sim.actor_state(actor).cell)):
 		return _reply(false, "站到山兽身侧，隔着身体边缘递出食物。", "unheard")
 	if int(body.last_fed_ms) >= 0 and elapsed_ms - int(body.last_fed_ms) < int(definitions.feed_interval_ms):
 		return _reply(false, "它嗅了嗅，没有再张口；这一会儿不想吃。", "refused")

@@ -44,8 +44,8 @@ static func _ask(world: RefCounted, listener: String, speaker: String, topic: St
 	world.synchronize_region(home)
 	world.synchronize_region(other)
 	var sim: VillageSimulation = world.regions[home]
-	var person: Dictionary = sim.actors[speaker]
-	var questioner: Dictionary = world.regions[other].actors[listener]
+	var person: Dictionary = sim.actor_state(speaker)
+	var questioner: Dictionary = world.regions[other].actor_state(listener)
 	if not world.actor_controls(listener, "communication") or not world.actor_controls(speaker, "communication") or SimRouteTravel.cell(person.cell).distance_to(SimRouteTravel.cell(questioner.cell)) > float(world._content.interaction_requests.communication_cells):
 		return SimInteractionRequests.result("unheard", "相距太远或眼下无法说话，尚未听到这番自述。")
 	if not world.native_action_allowed(speaker) or float(person.energy) < float(rules.minimum_energy):

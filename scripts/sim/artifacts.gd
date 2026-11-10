@@ -23,6 +23,8 @@ var next_id: int = 1
 ## per-object change counter and is deliberately absent from save data.
 var state_generation: int = 0
 var _owner: WeakRef
+var _method_configs: Dictionary = {}
+var _method_candidates: Dictionary[String, Array] = {}
 var _warming_decisions: Dictionary = {}
 var _intrinsic_light_ids: Array[String] = []
 var _legacy_object_ids: Array[String] = []
@@ -296,7 +298,7 @@ func can_record_exchange(job: Dictionary) -> bool:
 	if not SimInventory._nonempty(job.get("source_event")) or current_holder_source(str(job.object), str(job.seller)) != job.source_event:
 		return false
 	var seller_point := Vector2(float(job.seller_position[0]), float(job.seller_position[1]))
-	if SimRouteTravel.point(world.regions[job.seller_region].actors[job.seller]) != seller_point:
+	if SimRouteTravel.point(world.regions[job.seller_region].actor_state(job.seller)) != seller_point:
 		return false
 	for item: Dictionary in active.values():
 		if item.id == job.artifact_action:
@@ -372,6 +374,8 @@ func initialize(authority: RefCounted, content: Dictionary) -> bool:
 func bind_world(authority: RefCounted) -> void:
 	_owner = weakref(authority)
 	_warming_decisions.clear()
+	_method_configs.clear()
+	_method_candidates.clear()
 
 
 func spawn_opening(scenario: Dictionary) -> bool:
@@ -449,7 +453,7 @@ func previous_autonomy(actor: String) -> bool:
 
 func actor_home(actor: String) -> String:
 	for region: String in world.regions:
-		if world.regions[region].actors.has(actor):
+		if world.regions[region].has_actor(actor):
 			return region
 	return ""
 
@@ -467,7 +471,7 @@ func valid_location(region: Variant, container: Variant) -> bool:
 		var slot: Dictionary = lifecycle.ground.locate(region, container)
 		return bool(slot.ok) and bool(slot.active) and slot.reference.kind == "artifact"
 	var sim: RefCounted = world.regions[region]
-	return sim.inventory.containers.has(container) and (sim.places.has(container) or (container.begins_with("actor:") and sim.actors.has(container.trim_prefix("actor:"))))
+	return sim.inventory.containers.has(container) and (sim.places.has(container) or (container.begins_with("actor:") and sim.has_actor(container.trim_prefix("actor:"))))
 
 
 func thermal_fixed_location(item: Dictionary) -> bool:
@@ -502,7 +506,7 @@ func storage_near(actor: String, region: String, container: String) -> bool:
 	var destination: String = storage_region(region, container)
 	if container.begins_with("site:"):
 		return not destination.is_empty() and _clear_reach(actor, destination, container, float(definitions.interaction_radius) * TileGrid.TILE_SIZE)
-	return not home.is_empty() and not destination.is_empty() and _cell(world.regions[home].actors[actor].cell).distance_to(_location_cell(destination, container)) <= float(definitions.interaction_radius)
+	return not home.is_empty() and not destination.is_empty() and _cell(world.regions[home].actor_state(actor).cell).distance_to(_location_cell(destination, container)) <= float(definitions.interaction_radius)
 
 
 func _location_cell(region: String, container: String) -> Vector2i:
@@ -513,7 +517,7 @@ func _location_cell(region: String, container: String) -> Vector2i:
 	if container.begins_with("ground:"):
 		return world.get("object_lifecycle").ground.locate(region, container).cell
 	var sim: RefCounted = world.regions[region]
-	var raw: Array = sim.actors[container.trim_prefix("actor:")].cell if container.begins_with("actor:") else sim.places[container].cell
+	var raw: Array = sim.actor_state(container.trim_prefix("actor:")).cell if container.begins_with("actor:") else sim.places[container].cell
 	return _cell(raw)
 
 
@@ -522,7 +526,7 @@ func can_see(actor: String, id: String) -> bool:
 	if not home.is_empty() and objects.has(id) and has_capability(id, "remote_draw"):
 		var item: Dictionary = objects[id]
 		return _clear_reach(actor, str(item.region), str(item.container), float(world.regions[home].config.observation_radius) * TileGrid.TILE_SIZE)
-	return not home.is_empty() and bool(world.regions[home].actors[actor].alive) and objects.has(id) and _cell(world.regions[home].actors[actor].cell).distance_to(object_cell(id)) <= float(world.regions[home].config.observation_radius)
+	return not home.is_empty() and bool(world.regions[home].actor_state(actor).alive) and objects.has(id) and _cell(world.regions[home].actor_state(actor).cell).distance_to(object_cell(id)) <= float(world.regions[home].config.observation_radius)
 
 
 func describe(actor: String, id: String) -> Dictionary:
@@ -553,7 +557,7 @@ func begin_draw(actor: String, tool: String, target: String) -> Dictionary:
 	var reason: String = Drawing.readiness(self, actor, tool, target)
 	if not reason.is_empty():
 		return _response(false, reason)
-	var person: Dictionary = world.regions[home].actors[actor]
+	var person: Dictionary = world.regions[home].actor_state(actor)
 	var terms: Dictionary = verbs_for(tool).draw
 	if int(person.qi) < int(terms.qi):
 		return _response(false, "你的灵气不足以引取这件实物。")
@@ -586,7 +590,7 @@ func _begin(actor: String, verb: String, id: String, during_commit: bool, recipi
 	world.synchronize_region(objects[id].region)
 	if not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion"):
 		return _response(false, "眼下无法支配身体操作它。")
-	var person: Dictionary = world.regions[home].actors[actor]
+	var person: Dictionary = world.regions[home].actor_state(actor)
 	if world.health != null and verb in ["heat", "charge", "dry", "force", "warm", "use_research", "enable"] and world.health.blocks_channeling(actor):
 		return _response(false, "手臂仍灼涩，引流不顺；先停下催动，休养或求助。")
 	if not bool(person.alive) or not person.active.is_empty() or owns_actor(actor) or world.local_action_owns(actor) or (world.services != null and world.services.owns_actor(actor)):
@@ -660,7 +664,7 @@ func _begin(actor: String, verb: String, id: String, during_commit: bool, recipi
 		meta["guide_was_autonomous"] = false
 		meta["guide_qi"] = 0
 		if not str(meta.guide).is_empty():
-			var guide: Dictionary = world.regions[home].actors[meta.guide]
+			var guide: Dictionary = world.regions[home].actor_state(meta.guide)
 			meta.guide_was_autonomous = bool(guide.autonomous)
 			meta.guide_qi = int(world.heat_methods.definitions.guide_qi)
 			guide.qi = int(guide.qi) - int(meta.guide_qi)
@@ -683,7 +687,7 @@ func request_check(requester: String, responder: String, verb: String, id: Strin
 		return _response(false, "眼下无法与对方交流。", "unheard")
 	world.synchronize_region(home)
 	var sim: VillageSimulation = world.regions[home]
-	var person: Dictionary = sim.actors[responder]
+	var person: Dictionary = sim.actor_state(responder)
 	if not person.active.is_empty() or not world.native_action_allowed(responder):
 		return _response(false, "对方有自己的事情或眼下不便动手。", "unavailable")
 	if not verbs_for(id).has(verb) or int(person.qi) < int(verbs_for(id)[verb].qi):
@@ -744,7 +748,7 @@ func _complete(job: Dictionary) -> void:
 	var item: Dictionary = objects[job.object]
 	var definition: Dictionary = definitions.types[item.definition]
 	var sim: RefCounted = world.regions[job.region]
-	var person: Dictionary = sim.actors[job.actor]
+	var person: Dictionary = sim.actor_state(job.actor)
 	if job.verb == "draw":
 		var reason: String = _continuation_reason(job)
 		if not reason.is_empty():
@@ -938,7 +942,7 @@ func _finish_thermal_switch(job: Dictionary, item: Dictionary) -> void:
 func _finish_heat(job: Dictionary, recipe: Dictionary) -> void:
 	var item: Dictionary = objects[job.object]
 	var local: RefCounted = world.regions[item.region]
-	var person: Dictionary = world.regions[job.region].actors[job.actor]
+	var person: Dictionary = world.regions[job.region].actor_state(job.actor)
 	world.synchronize_region(item.region)
 	if _cell(person.cell).distance_to(_cell(local.places[recipe.workplace].cell)) > float(definitions.interaction_radius):
 		_finish_record(job, "failed", "已离开备料处，热工艺没有接续。")
@@ -955,12 +959,12 @@ func _finish_heat(job: Dictionary, recipe: Dictionary) -> void:
 		_finish_record(job, "failed", str(recipe.failure_line))
 		return
 	item.charge = int(item.charge) - int(recipe.heat_cost)
-	if not action.is_empty() and local.actors.has(job.actor):
+	if not action.is_empty() and local.has_actor(job.actor):
 		local.action_finished(job.actor, {"requester": "", "request_id": "", "action": recipe.credited_action, "credit_earned": credit}, true, "artifact_heat")
-	if local.actors.has(job.actor):
+	if local.has_actor(job.actor):
 		local.observe_current_surroundings(job.actor)
 	world.invalidate_region(item.region)
-	_finish_record(job, "heated", str(recipe.success_line) + ("凭据需另去登记。" if credit > 0 and local.actors.has(job.actor) else ""))
+	_finish_record(job, "heated", str(recipe.success_line) + ("凭据需另去登记。" if credit > 0 and local.has_actor(job.actor) else ""))
 
 
 func _warming_readiness(actor: String, id: String) -> Dictionary:
@@ -1028,7 +1032,7 @@ func _warming_choice(actor: String, at_ms: int) -> String:
 
 func wants_warming_decision(actor: String, at_ms: int) -> bool:
 	var home: String = actor_home(actor)
-	if home.is_empty() or not bool(world.regions[home].actors[actor].autonomous) or not world.standing_work.duty_for(actor, at_ms).is_empty():
+	if home.is_empty() or not bool(world.regions[home].actor_state(actor).autonomous) or not world.standing_work.duty_for(actor, at_ms).is_empty():
 		return false
 	var contract: String = world.budgeted_labor.latest_for(actor)
 	if not contract.is_empty() and world.budgeted_labor.contracts[contract].status in ["working", "paused"]:
@@ -1071,16 +1075,27 @@ func consider_methods() -> void:
 	region_ids.sort()
 	for region: String in region_ids:
 		var sim: VillageSimulation = world.regions[region]
-		var ids: Array = sim.actors.keys()
-		ids.sort()
+		if not is_same(_method_configs.get(region), sim.config):
+			# Definition participation, rebuilt with the owning session/config.
+			# A resident without a kitchen recipe duty cannot use this decision.
+			var candidates: Array = []
+			for actor: String in world._sorted_keys(sim.config.actor_profiles):
+				var duty: String = str(sim.config.actor_profiles[actor].get("duty", ""))
+				if not duty.is_empty() and sim.config.actions[duty].kind == "recipe" and sim.config.actions[duty].target == "kitchen":
+					candidates.append(actor)
+			_method_configs[region] = sim.config
+			_method_candidates[region] = candidates
+		var ids: Array = _method_candidates[region]
 		for actor: String in ids:
-			var person: Dictionary = sim.actors[actor]
+			var duty: String = str(sim.config.actor_profiles[actor].get("duty", ""))
+			if not sim.has_actor(actor) or sim.actor_has_action(actor):
+				continue
+			var person: Dictionary = sim.actor_state(actor)
 			if not bool(person.autonomous) or not person.active.is_empty() or int(person.retry_ms) - int(sim.config.decision_interval) * 60000 != world.elapsed_ms or not world.native_action_allowed(actor):
 				continue
 			if float(person.hunger) <= float(sim.config.needs.eat_below) or float(person.energy) <= float(sim.config.needs.rest_below):
 				continue
-			var duty: String = str(sim.config.actor_profiles[actor].get("duty", ""))
-			if duty.is_empty() or sim.config.actions[duty].kind != "recipe" or sim.config.actions[duty].target != "kitchen" or not sim.needs_action(actor, duty):
+			if not sim.needs_action(actor, duty):
 				continue
 			var stock: Dictionary = sim.stock_understanding(actor, "kitchen", "wood")
 			if not bool(stock.known) or float(stock.amount) > 0:
@@ -1118,14 +1133,14 @@ func consider_methods() -> void:
 
 
 func _finish_record(job: Dictionary, kind: String, line: String, heat_amount: int = 0) -> Dictionary:
-	var person: Dictionary = world.regions[job.region].actors[job.actor]
+	var person: Dictionary = world.regions[job.region].actor_state(job.actor)
 	person.autonomous = bool(job.previous_autonomous)
 	# Other characters can see a finished activity, not its private conclusion.
 	# The operator and a present recipient read the actual note through describe.
 	person.goal = "刚结束" + str(verbs_for(str(job.object))[job.verb].label)
 	person.retry_ms = world.elapsed_ms + int(world.regions[job.region].config.decision_interval) * 60000
 	if job.has("method") and not str(job.method.guide).is_empty():
-		var guide: Dictionary = world.regions[job.region].actors[job.method.guide]
+		var guide: Dictionary = world.regions[job.region].actor_state(job.method.guide)
 		guide.autonomous = bool(job.method.guide_was_autonomous)
 		guide.goal = "刚结束当面指导"
 		guide.retry_ms = person.retry_ms
@@ -1209,7 +1224,7 @@ func _method_connected(job: Dictionary) -> bool:
 	if not job.has("method") or str(job.method.guide).is_empty():
 		return true
 	for actor: String in [str(job.actor), str(job.method.guide)]:
-		if not bool(world.regions[job.region].actors[actor].alive) or not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion") or not world.actor_controls(actor, "communication") or not _near(actor, str(job.object)):
+		if not bool(world.regions[job.region].actor_state(actor).alive) or not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion") or not world.actor_controls(actor, "communication") or not _near(actor, str(job.object)):
 			return false
 	return true
 
@@ -1261,15 +1276,15 @@ func _near(actor: String, id: String) -> bool:
 	if not home.is_empty() and objects.has(id) and has_capability(id, "remote_draw"):
 		var item: Dictionary = objects[id]
 		return _clear_reach(actor, str(item.region), str(item.container), float(definitions.interaction_radius) * TileGrid.TILE_SIZE)
-	return not home.is_empty() and objects.has(id) and _cell(world.regions[home].actors[actor].cell).distance_to(object_cell(id)) <= float(definitions.interaction_radius)
+	return not home.is_empty() and objects.has(id) and _cell(world.regions[home].actor_state(actor).cell).distance_to(object_cell(id)) <= float(definitions.interaction_radius)
 
 
 func _clear_reach(actor: String, region: String, container: String, radius: float) -> bool:
 	var home: String = actor_home(actor)
-	if home.is_empty() or not valid_location(region, container) or not bool(world.regions[home].actors[actor].alive):
+	if home.is_empty() or not valid_location(region, container) or not bool(world.regions[home].actor_state(actor).alive):
 		return false
-	var from: Vector2 = SimRouteTravel.point(world.regions[home].actors[actor])
-	var target: Vector2 = SimRouteTravel.point(world.regions[region].actors[container.trim_prefix("actor:")]) if container.begins_with("actor:") else TileGrid.cell_to_world(_location_cell(region, container))
+	var from: Vector2 = SimRouteTravel.point(world.regions[home].actor_state(actor))
+	var target: Vector2 = SimRouteTravel.point(world.regions[region].actor_state(container.trim_prefix("actor:"))) if container.begins_with("actor:") else TileGrid.cell_to_world(_location_cell(region, container))
 	var level: int = Space.level(world, from)
 	return from.distance_to(target) <= radius and level == Space.level(world, target) and Space.clear_segment(world, from, target, level)
 

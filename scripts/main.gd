@@ -229,7 +229,7 @@ func _process(_delta: float) -> void:
 	if _flying != null:
 		_flying.visible = hud.diagnostics_visible() and fog.is_cell_visible(_flying.cell)
 	for pawn: Pawn in _pawns:
-		pawn.visible = fog.is_cell_visible(pawn.cell) and (_village == null or _village.simulation == null or bool(_village.simulation.actors.get(String(pawn.pawn_id), {}).get("alive", false)))
+		pawn.visible = fog.is_cell_visible(pawn.cell) and (_village == null or _village.simulation == null or _village.simulation.actor_is_alive(String(pawn.pawn_id)))
 	if _selected != null and (not is_instance_valid(_selected) or not _selected.visible):
 		_select_player()
 

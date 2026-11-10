@@ -55,7 +55,7 @@ static func submit(world: RefCounted, intent: Dictionary) -> Dictionary:
 		return result("unheard", "先看清要谈的东西；不能向对方指认自己眼下找不到的对象。")
 	world.synchronize_region(str(sender.region))
 	world.synchronize_region(str(receiver.region))
-	var person: Dictionary = world.regions[sender.region].actors[actor]
+	var person: Dictionary = world.regions[sender.region].actor_state(actor)
 	var target_cell: Vector2i = _receiver_cell(world, receiver)
 	var distance: float = SimBodyGeometry.contact_distance(SimRouteTravel.point(person), world.large_bodies.point(str(receiver.id)), world.large_bodies.size()) / float(TileGrid.TILE_SIZE) if receiver.kind == "large" else SimRouteTravel.cell(person.cell).distance_to(target_cell)
 	if not bool(person.alive) or distance > float(world._content.interaction_requests.communication_cells):
@@ -333,7 +333,7 @@ static func _known_object(world: RefCounted, actor: String, object: Dictionary, 
 		if world.plants == null or not world.plants.bodies.has(object.id):
 			return false
 		var region: String = str(world.plants.bodies[object.id].region)
-		return world.regions[region].actors.has(actor) and SimRouteTravel.cell(world.regions[region].actors[actor].cell).distance_to(world.plants.cell_of(object.id)) <= float(world.regions[region].config.observation_radius)
+		return world.regions[region].has_actor(actor) and SimRouteTravel.cell(world.regions[region].actor_state(actor).cell).distance_to(world.plants.cell_of(object.id)) <= float(world.regions[region].config.observation_radius)
 	if object.kind == "private_artifact":
 		var exchange: RefCounted = world.get("private_exchange")
 		if exchange == null or receiver.is_empty():
@@ -388,7 +388,7 @@ static func _known_object(world: RefCounted, actor: String, object: Dictionary, 
 		var home: String = world.artifacts.actor_home(actor)
 		var sim: VillageSimulation = world.regions[home]
 		var place: String = world.standing_work.definitions.plans[object.id].place
-		return SimRouteTravel.cell(sim.actors[actor].cell).distance_to(SimRouteTravel.cell(sim.places[place].cell)) <= float(sim.config.observation_radius)
+		return SimRouteTravel.cell(sim.actor_state(actor).cell).distance_to(SimRouteTravel.cell(sim.places[place].cell)) <= float(sim.config.observation_radius)
 	if object.kind == "trade_offer":
 		return world.services != null and world.services.definitions.trade.offers.has(object.id)
 	if object.kind == "artifact":
@@ -397,7 +397,7 @@ static func _known_object(world: RefCounted, actor: String, object: Dictionary, 
 		return false
 	var owner: String = world.artifacts.actor_home(actor)
 	var sim: RefCounted = world.regions[owner]
-	return bool(sim.actors[actor].alive) and SimRouteTravel.cell(sim.actors[actor].cell).distance_to(SimRouteTravel.cell(world.avian_life.sites[object.id].cell)) <= float(sim.config.observation_radius)
+	return bool(sim.actor_state(actor).alive) and SimRouteTravel.cell(sim.actor_state(actor).cell).distance_to(SimRouteTravel.cell(world.avian_life.sites[object.id].cell)) <= float(sim.config.observation_radius)
 
 
 static func _resolve(world: RefCounted, subject: String) -> Dictionary:
@@ -425,7 +425,7 @@ static func _receiver_cell(world: RefCounted, receiver: Dictionary) -> Vector2i:
 		return world.plants.cell_of(str(receiver.id))
 	if receiver.kind == "large":
 		return world.large_bodies.body_cell(str(receiver.id))
-	return world.avian_life.body_cell(str(receiver.id)) if receiver.kind == "bird" else SimRouteTravel.cell(world.regions[receiver.region].actors[receiver.id].cell)
+	return world.avian_life.body_cell(str(receiver.id)) if receiver.kind == "bird" else SimRouteTravel.cell(world.regions[receiver.region].actor_state(receiver.id).cell)
 
 
 static func _wrap(reply: Dictionary, process: Dictionary) -> Dictionary:

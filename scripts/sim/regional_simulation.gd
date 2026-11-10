@@ -517,7 +517,7 @@ func interrupt_occupation(actor: String, reason: String, preserve_sparring: bool
 	if not preserve_sparring and sparring != null and sparring.owns_actor(actor):
 		sparring.stop("finished")
 	for sim: VillageSimulation in regions.values():
-		if sim.actors.has(actor):
+		if sim.has_actor(actor):
 			sim.cancel_action(actor, reason)
 	if source_care != null:
 		source_care.occupation_interrupted(actor)
@@ -609,7 +609,9 @@ func autonomous_decision(actor: String) -> bool:
 	if region.is_empty():
 		return false
 	var sim: VillageSimulation = regions[region]
-	var person: Dictionary = sim.actors[actor]
+	if not sim.actor_is_autonomous(actor) or sim.actor_has_action(actor):
+		return false
+	var person: Dictionary = sim.actor_state(actor)
 	return sim.elapsed_ms == elapsed_ms and bool(person.autonomous) and person.active.is_empty() and int(person.retry_ms) - int(sim.config.decision_interval) * MINUTE_MS == elapsed_ms and person.hunger > sim.config.needs.eat_below and person.energy > sim.config.needs.rest_below and native_action_allowed(actor)
 
 
@@ -675,8 +677,8 @@ func actor_controls(actor_id: String, channel: String) -> bool:
 	if embodiment == null or not embodiment.self_controls_actor(actor_id, channel):
 		return false
 	for simulation: VillageSimulation in regions.values():
-		if simulation.actors.has(actor_id):
-			return bool(simulation.actors[actor_id].alive)
+		if simulation.has_actor(actor_id):
+			return simulation.actor_is_alive(actor_id)
 	return false
 
 
@@ -686,7 +688,7 @@ func _prepare_control_change(source: Dictionary) -> bool:
 	if not accepts_commands():
 		return false
 	for region: String in regions:
-		if regions[region].actors.has(str(source.id)):
+		if regions[region].has_actor(str(source.id)):
 			return synchronize_region(region)
 	return false
 
@@ -813,7 +815,7 @@ func set_active_region(region_id: String) -> bool:
 	return true
 
 
-func synchronize_region(region_id: String) -> bool:
+func synchronize_region(region_id: String, actor_id: String = "") -> bool:
 	if not regions.has(region_id):
 		return false
 	var simulation: VillageSimulation = regions[region_id]
@@ -822,11 +824,19 @@ func synchronize_region(region_id: String) -> bool:
 	# emit another empty advance for each actor/job. Mutations still call
 	# invalidate_region, including when the region is already current.
 	if simulation.elapsed_ms == elapsed_ms:
+		if actor_id.is_empty():
+			simulation.materialize_actors()
+		else:
+			simulation.actor_state(actor_id)
 		return true
 	if not simulation.advance_to_ms(elapsed_ms):
 		return false
 	_region_boundaries[region_id] = simulation.next_boundary_ms()
 	_dirty_region_boundaries.erase(region_id)
+	if actor_id.is_empty():
+		simulation.materialize_actors()
+	else:
+		simulation.actor_state(actor_id)
 	return true
 
 

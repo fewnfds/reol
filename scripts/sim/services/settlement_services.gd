@@ -108,11 +108,11 @@ func workplace_job_available(sim: RefCounted, actor_id: String, job_id: String) 
 	var job: Dictionary = jobs[job_id]
 	if job.actor != actor_id or job.kind != "site_return" or job.status != "active" or job.phase != "work" or job.stage != "register" or not job.path.is_empty() or int(job.due_ms) > world.elapsed_ms:
 		return false
-	if not world.regions.has(job.home) or not world.regions.has(job.region) or world.regions[job.home] != sim or world.regions[job.region] != sim or not sim.actors.has(actor_id) or job.options.get("issuer") != actor_id:
+	if not world.regions.has(job.home) or not world.regions.has(job.region) or world.regions[job.home] != sim or world.regions[job.region] != sim or not sim.has_actor(actor_id) or job.options.get("issuer") != actor_id:
 		return false
 	if world.get("site_affairs") == null or not Schema.same_value(job.spec, world.site_affairs.service_spec("site_return", str(job.region), job.options, "register")):
 		return false
-	var actor: Dictionary = sim.actors[actor_id]
+	var actor: Dictionary = sim.actor_state(actor_id)
 	if not actor.active.is_empty() or bool(actor.autonomous) or not world.actor_controls(actor_id, "communication") or not world.actor_controls(actor_id, "action") or not world.actor_controls(actor_id, "motion"):
 		return false
 	if world.body_action_owns(actor_id, &"services") or (world.construction != null and not world.construction.duty_for(actor_id).is_empty()) or (world.resting != null and not world.resting.duty_for(actor_id).is_empty()):
@@ -157,7 +157,7 @@ func has_access(actor_id: String, region_id: String, scope: String) -> bool:
 		return false
 	var permission: Dictionary = authorizations[key]
 	var sim: RefCounted = world.regions[region_id]
-	return sim.actors.has(permission.issuer) and bool(sim.actors[permission.issuer].alive) and sim.institutions.has_permission(sim.config.institution.id, permission.issuer, "authorize")
+	return sim.has_actor(permission.issuer) and bool(sim.actor_state(permission.issuer).alive) and sim.institutions.has_permission(sim.config.institution.id, permission.issuer, "authorize")
 
 
 func collection_allowed(job: Dictionary) -> bool:
@@ -198,7 +198,7 @@ func next_boundary_ms() -> int:
 		boundary = mini(boundary, int(job.due_ms))
 		boundary = mini(boundary, int(job.started_ms) + int(definitions.job_timeout) * 60000)
 		if job.phase == "travel":
-			boundary = mini(boundary, SimRouteTravel.next_boundary(job, world.regions[job.home].actors[actor_id], world.elapsed_ms, route_step.bind(job.home))) if not bool(job.get("road_paused", false)) else boundary
+			boundary = mini(boundary, SimRouteTravel.next_boundary(job, world.regions[job.home].actor_state(actor_id), world.elapsed_ms, route_step.bind(job.home))) if not bool(job.get("road_paused", false)) else boundary
 	return maxi(world.elapsed_ms + 1, boundary)
 
 
@@ -212,7 +212,7 @@ func settle_at_ms(at_ms: int) -> void:
 		var job: Dictionary = jobs[active_jobs[actor_id]]
 		world.synchronize_region(job.home)
 		var sim: RefCounted = world.regions[job.home]
-		var actor: Dictionary = sim.actors[actor_id]
+		var actor: Dictionary = sim.actor_state(actor_id)
 		sim._decay_need(actor, "energy", roundi(float(definitions.work_energy_per_minute) * 1000000.0), elapsed)
 		if not world.actor_controls(actor_id, "action") or not world.actor_controls(actor_id, "motion") or at_ms >= int(job.started_ms) + int(definitions.job_timeout) * 60000:
 			_jobs.finish(job, false, "差事中止，已取出的物资仍随身保存。")
@@ -250,7 +250,7 @@ func route_step(from: Vector2i, direction: Vector2i, home: String) -> bool:
 
 func actor_home(actor_id: String) -> String:
 	for region_id: String in world.regions:
-		if world.regions[region_id].actors.has(actor_id):
+		if world.regions[region_id].has_actor(actor_id):
 			return region_id
 	return ""
 
@@ -324,12 +324,12 @@ func issuer(region_id: String, actor_id: String, permission: String) -> String:
 	if home.is_empty() or permission.is_empty() or not world.synchronize_region(region_id):
 		return ""
 	var sim: RefCounted = world.regions[region_id]
-	var visitor: Dictionary = world.regions[home].actors[actor_id]
+	var visitor: Dictionary = world.regions[home].actor_state(actor_id)
 	if not visitor.alive:
 		return ""
 	var visitor_cell := Vector2(float(visitor.cell[0]), float(visitor.cell[1]))
 	for id: String in sim._actor_ids():
-		var person: Dictionary = sim.actors[id]
+		var person: Dictionary = sim.actor_state(id)
 		if person.alive and sim.institutions.has_permission(sim.config.institution.id, id, permission):
 			if visitor_cell.distance_to(Vector2(float(person.cell[0]), float(person.cell[1]))) <= float(sim.config.talk_radius) and bool(Workplaces.assessment(sim, id, permission).ok):
 				return id

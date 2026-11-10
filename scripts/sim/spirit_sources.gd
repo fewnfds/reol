@@ -89,7 +89,7 @@ func target_in_use(object_id: String) -> bool:
 
 func actor_home(actor: String) -> String:
 	for region: String in world.regions:
-		if world.regions[region].actors.has(actor):
+		if world.regions[region].has_actor(actor):
 			return region
 	return ""
 
@@ -131,7 +131,7 @@ func begin(actor: String, source: String, target: String, object_id: String, aut
 		return reply(false, "眼前可引的暖息不足，须等地隙再透出些。")
 	if world.elapsed_ms > SimInventory.MAX_COUNT - int(definitions.duration_ms) or next_id >= SimInventory.MAX_COUNT:
 		return reply(false, "当前无法安排这次完整引息。")
-	var person: Dictionary = world.regions[home].actors[actor]
+	var person: Dictionary = world.regions[home].actor_state(actor)
 	if not ensure_qi_baseline(actor):
 		return reply(false, "当前无法核对本人已有的灵气。")
 	if target == "stone" and not charge_baselines.has(object_id):
@@ -161,7 +161,7 @@ func ensure_qi_baseline(actor: String) -> bool:
 	var home: String = actor_home(actor)
 	if home.is_empty():
 		return false
-	var person: Dictionary = world.regions[home].actors[actor]
+	var person: Dictionary = world.regions[home].actor_state(actor)
 	if not Shape.count(person.qi, 0, max_qi(actor)):
 		return false
 	if qi_baselines.has(actor):
@@ -180,7 +180,7 @@ func readiness(actor: String, source: String, target: String, object_id: String,
 	var home: String = actor_home(actor)
 	if home.is_empty() or not sources.has(source) or target not in ["body", "stone"]:
 		return "没有找到可接续的源息。"
-	var person: Dictionary = world.regions[home].actors[actor]
+	var person: Dictionary = world.regions[home].actor_state(actor)
 	if not bool(person.alive) or not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion") or not person.active.is_empty() or (not owned and owns_actor(actor)) or other_body_in_use(actor):
 		return "先完成手头的事，眼下不能凝神引息。"
 	if world.health != null and world.health.blocks_channeling(actor):
@@ -222,7 +222,7 @@ func medium_allowed(actor: String, source: String, object_id: String) -> bool:
 
 func max_qi(actor: String) -> int:
 	var home: String = actor_home(actor)
-	return int(world.regions[home]._content.get_pawn(StringName(world.regions[home].actors[actor].definition_id)).max_qi)
+	return int(world.regions[home]._content.get_pawn(StringName(world.regions[home].actor_state(actor).definition_id)).max_qi)
 
 
 func near(actor: String, source: String) -> bool:
@@ -309,7 +309,7 @@ func _complete(job: Dictionary, at_ms: int) -> void:
 	if not reason.is_empty() or not _same_position(job) or int(sources[job.source].amount) < int(definitions.source_cost):
 		_finish(job, "failed", reason if not reason.is_empty() else "引息条件已变，这次未能接续。", 0, 0, 0, at_ms)
 		return
-	var target: Dictionary = world.regions[job.region].actors[job.actor] if job.target == "body" else world.artifacts.objects[job.object]
+	var target: Dictionary = world.regions[job.region].actor_state(job.actor) if job.target == "body" else world.artifacts.objects[job.object]
 	var field: String = "qi" if job.target == "body" else "charge"
 	var maximum: int = max_qi(str(job.actor)) if job.target == "body" else int(world.artifacts.definitions.types[target.definition].max_charge)
 	var before: int = int(target[field])
@@ -323,7 +323,7 @@ func _complete(job: Dictionary, at_ms: int) -> void:
 
 
 func _same_position(job: Dictionary) -> bool:
-	var body: Dictionary = world.regions[job.region].actors[job.actor]
+	var body: Dictionary = world.regions[job.region].actor_state(job.actor)
 	return SimRouteTravel.cell(body.cell) == SimRouteTravel.cell(job.cell) and SimRouteTravel.point(body).is_equal_approx(Vector2(float(job.position[0]), float(job.position[1])))
 
 
@@ -338,7 +338,7 @@ func _finish(job: Dictionary, result: String, line: String, before: int, after: 
 		world.site_affairs.source_finished(record)
 	if world.source_care != null:
 		world.source_care.source_finished(record)
-	var person: Dictionary = world.regions[job.region].actors[job.actor]
+	var person: Dictionary = world.regions[job.region].actor_state(job.actor)
 	person.autonomous = bool(job.previous_autonomous)
 	person.goal = "刚结束引息"
 	person.retry_ms = at_ms + mini(SimInventory.MAX_COUNT - at_ms, int(world.regions[job.region].config.decision_interval) * 60000)
@@ -351,7 +351,7 @@ func describe(actor: String, source: String = "hearth_seam") -> Dictionary:
 		return {"known": false, "near": false}
 	var rule: Dictionary = definitions.sources[source]
 	var home: String = actor_home(actor)
-	var observed: bool = home == rule.region and SimRouteTravel.point(world.regions[home].actors[actor]).distance_to(TileGrid.cell_to_world(source_cell(source))) <= float(world.regions[home].config.observation_radius) * TileGrid.TILE_SIZE
+	var observed: bool = home == rule.region and SimRouteTravel.point(world.regions[home].actor_state(actor)).distance_to(TileGrid.cell_to_world(source_cell(source))) <= float(world.regions[home].config.observation_radius) * TileGrid.TILE_SIZE
 	var remembered: bool = active.get(actor, {}).get("source") == source
 	for record: Dictionary in records.values():
 		remembered = remembered or record.actor == actor and record.source == source
@@ -387,7 +387,7 @@ func wants_decision(actor: String, at_ms: int) -> bool:
 	if home.is_empty():
 		return false
 	var sim: RefCounted = world.regions[home]
-	var person: Dictionary = sim.actors[actor]
+	var person: Dictionary = sim.actor_state(actor)
 	if not person.autonomous or int(person.qi) >= int(world.artifacts.definitions.verbs.charge.qi) or not world.standing_work.duty_for(actor, at_ms).is_empty():
 		return false
 	var contract: String = world.budgeted_labor.latest_for(actor)

@@ -127,7 +127,7 @@ func can_irrigate(id: String) -> bool:
 
 func irrigate(action: Dictionary, actor_id: String, definition: Dictionary) -> bool:
 	var id: String = str(definition.get("resource", ""))
-	if not sources.has(id) or sources[id].ecology.is_empty() or not _sim.actors.has(actor_id) or definition.get("kind") != "irrigate" or definition.get("item") != "water" or definition.get("amount") != 1:
+	if not sources.has(id) or sources[id].ecology.is_empty() or not _sim.has_actor(actor_id) or definition.get("kind") != "irrigate" or definition.get("item") != "water" or definition.get("amount") != 1:
 		return false
 	var state: Dictionary = sources[id].ecology
 	var rules: Dictionary = terms_for(id).ecology
@@ -138,7 +138,7 @@ func irrigate(action: Dictionary, actor_id: String, definition: Dictionary) -> b
 	if state.irrigation_receipts.has(action_id):
 		return state.irrigation_receipts[action_id].actor == actor_id and _sim.inventory.operations.has(operation) and Shape.same_record(_sim.inventory.operations[operation], request)
 	var place: String = str(_sim.config.resource_sources[id].place)
-	var body: Dictionary = _sim.actors[actor_id]
+	var body: Dictionary = _sim.actor_state(actor_id)
 	var reservation: String = action_id + ":water"
 	if int(state.last_ms) != int(_sim.elapsed_ms) or not SimInventory._nonempty(action_id) or action.get("phase") != "work" or bool(action.get("carrying", true)) or not action.get("reservations") is Array or action.reservations.size() != 1 or action.reservations[0] != reservation or definition.get("target") != place:
 		return false
@@ -196,11 +196,11 @@ func receive_rain(id: String, amount: int) -> void:
 
 
 func describe(actor_id: String, id: String) -> String:
-	if not sources.has(id) or not _sim.actors.has(actor_id):
+	if not sources.has(id) or not _sim.has_actor(actor_id):
 		return ""
 	var terms: Dictionary = terms_for(id)
 	var place: String = str(_sim.config.resource_sources[id].place)
-	var nearby: bool = _sim.actor_position(_sim.actors[actor_id]).distance_to(
+	var nearby: bool = _sim.actor_position(_sim.actor_state(actor_id)).distance_to(
 		TileGrid.cell_to_world(Vector2i(int(_sim.places[place].cell[0]), int(_sim.places[place].cell[1])))) <= float(_sim.config.observation_radius) * TileGrid.TILE_SIZE
 	if not nearby:
 		return str(terms.description) + " 眼下离得远，看不清可采情形。"

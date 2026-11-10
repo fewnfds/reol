@@ -576,7 +576,7 @@ func _stock_container_mutable(region: String, container: String, item: String) -
 	if container.begins_with("ground:"):
 		var slot: Dictionary = ground.locate(region, container)
 		return bool(slot.ok) and bool(slot.active) and slot.reference.kind == "stock" and slot.reference.domain == "village" and slot.reference.item == item
-	return sim.places.has(container) or container.begins_with("actor:") and sim.actors.has(container.trim_prefix("actor:"))
+	return sim.places.has(container) or container.begins_with("actor:") and sim.has_actor(container.trim_prefix("actor:"))
 
 
 func stock_destination(region: String, cell: Vector2i, item: String) -> Dictionary:

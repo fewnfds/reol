@@ -110,7 +110,7 @@ static func _routes_open(world: RegionalSimulation, changes: Dictionary, journey
 	var actors: Dictionary = {}
 	for sim: VillageSimulation in world.regions.values():
 		for id: String in sim.actors:
-			var body: Dictionary = sim.actors[id]
+			var body: Dictionary = sim.actor_state(id)
 			var start: Vector2i = SimRouteTravel.cell(body.cell)
 			actors[id] = start
 			if not _path_open(world, changes, start, body.active.get("path", [])):
@@ -225,7 +225,7 @@ static func _artifact_contact_reserved(world: RegionalSimulation, job: Dictionar
 		var target: Vector2i = domain.object_cell(id)
 		for actor: String in [str(job.actor), str(job.get("recipient", "")), str(job.get("method", {}).get("guide", ""))]:
 			var region: String = domain.actor_home(actor)
-			if not region.is_empty() and _between_cells(cell, SimRouteTravel.cell(world.regions[region].actors[actor].cell), target):
+			if not region.is_empty() and _between_cells(cell, SimRouteTravel.cell(world.regions[region].actor_state(actor).cell), target):
 				return true
 	# Placing a carried tool into a fixed field slot also checks clear reach;
 	# its current position is the holder, not that future storage destination.
@@ -235,7 +235,7 @@ static func _artifact_contact_reserved(world: RegionalSimulation, job: Dictionar
 		var actor_region: String = domain.actor_home(str(job.actor))
 		if not region.is_empty() and not actor_region.is_empty():
 			var target: Vector2i = world.field_opportunities.slot_cell(region, destination)
-			return _between_cells(cell, SimRouteTravel.cell(world.regions[actor_region].actors[job.actor].cell), target)
+			return _between_cells(cell, SimRouteTravel.cell(world.regions[actor_region].actor_state(job.actor).cell), target)
 	return false
 
 

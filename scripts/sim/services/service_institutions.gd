@@ -51,7 +51,7 @@ func settle(job: Dictionary) -> Dictionary:
 	var home: String = services.actor_home(job.actor)
 	if home.is_empty() or not world.synchronize_region(home):
 		return _failure("missing_actor", "来访者已经不可用。")
-	var actor: Dictionary = world.regions[home].actors[job.actor]
+	var actor: Dictionary = world.regions[home].actor_state(job.actor)
 	if not actor.alive:
 		return _failure("actor_unavailable", "来访者无法继续办理。")
 	match str(job.kind):

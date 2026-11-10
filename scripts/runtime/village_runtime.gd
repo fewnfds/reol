@@ -145,7 +145,7 @@ func select_actor(id: String) -> void:
 func _player_actor() -> Dictionary:
 	if is_instance_valid(continuity):
 		continuity.prepare_home_command()
-	return simulation.actors.player
+	return simulation.actor_state("player")
 
 
 func _player_can_act() -> bool:
@@ -159,7 +159,7 @@ func _player_can_continue_action() -> bool:
 
 
 func _automatic_player_motion() -> bool:
-	return not simulation.actors.player.active.is_empty() or (is_instance_valid(continuity) and (not continuity.player_journey.is_empty() or continuity.world_sim.owns_for_scope("player", &"automatic_motion")))
+	return simulation.actor_has_action("player") or (is_instance_valid(continuity) and (not continuity.player_journey.is_empty() or continuity.world_sim.owns_for_scope("player", &"automatic_motion")))
 
 
 func _player_walking_projection() -> Dictionary:
@@ -184,6 +184,7 @@ func bind_shared_motion(authority: RegionalSimulation) -> void:
 func _advance_player_motion(from_ms: int, to_ms: int) -> void:
 	# Leave view/cell signals until the existing end-of-world projection; an
 	# intermediate body position must not make UI observers reenter settlement.
+	simulation.actor_state("player")
 	_player.prepare_motion_interval()
 	if is_instance_valid(continuity):
 		continuity.project_player_journey(to_ms)

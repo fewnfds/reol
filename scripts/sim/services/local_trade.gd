@@ -32,7 +32,7 @@ func spec_for(region: String, options: Dictionary) -> Dictionary:
 	if not Shape.keys(options, ["offer", "lots", "issuer", "office"]) or not rules.offers.has(options.offer) or not Shape.count(options.lots, 1, int(rules.max_lots)) or not world.regions.has(region):
 		return {}
 	var sim: RefCounted = world.regions[region]
-	if not sim.actors.has(options.issuer) or not sim.institutions.institutions[sim.config.institution.id].offices.has(options.office):
+	if not sim.has_actor(options.issuer) or not sim.institutions.institutions[sim.config.institution.id].offices.has(options.office):
 		return {}
 	var office: Dictionary = sim.institutions.institutions[sim.config.institution.id].offices[options.office]
 	if not office.permissions.has(rules.permission):
@@ -50,10 +50,10 @@ func prepare(actor: String, region: String, options: Dictionary) -> Dictionary:
 	var world: RefCounted = services.world
 	var sim: RefCounted = world.regions[region]
 	var home: String = services.actor_home(actor)
-	var issuer: Dictionary = sim.actors[options.issuer]
+	var issuer: Dictionary = sim.actor_state(options.issuer)
 	if not issuer.alive or sim.institutions.institutions[sim.config.institution.id].offices[options.office].holder != options.issuer or not world.actor_controls(str(options.issuer), "communication"):
 		return services.response(false, "no_authority", "对方没有当前可用的公库付款权限，不能替当地许下这笔买卖。")
-	var buyer: Dictionary = world.regions[home].actors[actor]
+	var buyer: Dictionary = world.regions[home].actor_state(actor)
 	if actor == options.issuer or SimRouteTravel.cell(buyer.cell).distance_to(SimRouteTravel.cell(issuer.cell)) > float(world._content.interaction_requests.communication_cells):
 		return services.response(false, "unheard", "先到有权办此事的人身边当面商量。")
 	# A standing policy is a quote, never an omniscient live-stock guarantee.
@@ -102,11 +102,11 @@ func settle(job: Dictionary) -> Dictionary:
 	world.synchronize_region(str(job.home))
 	world.synchronize_region(str(job.region))
 	var local: RefCounted = world.regions[job.region]
-	var actor: Dictionary = world.regions[job.home].actors[job.actor]
+	var actor: Dictionary = world.regions[job.home].actor_state(job.actor)
 	if not actor.alive or not world.actor_controls(str(job.actor), "action") or not world.actor_controls(str(job.actor), "motion") or SimRouteTravel.cell(actor.cell) != SimRouteTravel.cell(local.places[job.spec.place].cell):
 		return services.response(false, "not_present", "没有实际到交货点办完这件事，钱货仍在原处。")
 	var office: Dictionary = local.institutions.institutions[local.config.institution.id].offices[job.options.office]
-	if not local.actors[job.options.issuer].alive or office.holder != job.options.issuer or not office.permissions.has(services.definitions.trade.permission):
+	if not local.actor_state(job.options.issuer).alive or office.holder != job.options.issuer or not office.permissions.has(services.definitions.trade.permission):
 		return services.response(false, "mandate_lost", "签发人已不能代表公库；钱货都还在原处，这次没有成交。")
 	var offer: Dictionary = services.definitions.trade.offers[job.options.offer]
 	var stock: int = local.inventory.quantity(str(offer.place), str(offer.item))

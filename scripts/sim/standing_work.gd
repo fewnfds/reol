@@ -50,9 +50,9 @@ func ask(region: String, requester: String, responder: String, plan_id: String) 
 		return _reply(false, "invalid", "还没有这样的常备安排。")
 	world.synchronize_region(region)
 	var sim: VillageSimulation = world.regions[region]
-	if not sim.actors.has(requester) or not sim.actors.has(responder) or requester == responder or not _can_talk(sim, requester, responder):
+	if not sim.has_actor(requester) or not sim.has_actor(responder) or requester == responder or not _can_talk(sim, requester, responder):
 		return _reply(false, "unheard", "先走到同一聚落的对方面前，才能商量。")
-	var actor: Dictionary = sim.actors[responder]
+	var actor: Dictionary = sim.actor_state(responder)
 	if not actor.autonomous:
 		return _reply(false, "unavailable", "对方的打算需要本人另作选择，不能替他自动答应。")
 	if _by_actor.has(responder):
@@ -176,7 +176,7 @@ func restore(data: Dictionary) -> bool:
 		if not Shape.keys(note, ["id", "region", "requester", "responder", "plan", "decision", "started_ms", "until_ms", "status", "ended_ms", "event", "end_event"]) or note.id != id or not world.regions.has(note.region) or not definitions.plans.has(note.plan) or not note.status in ["active", "refused", "expired", "withdrawn"]:
 			return false
 		var sim: VillageSimulation = world.regions[note.region]
-		if not sim.actors.has(note.requester) or not sim.actors.has(note.responder) or note.requester == note.responder or id != "standing:" + str(note.region) + ":" + str(note.decision) or not Shape.count(note.started_ms, 0, world.elapsed_ms) or not Shape.count(note.until_ms, 1, NEVER):
+		if not sim.has_actor(note.requester) or not sim.has_actor(note.responder) or note.requester == note.responder or id != "standing:" + str(note.region) + ":" + str(note.decision) or not Shape.count(note.started_ms, 0, world.elapsed_ms) or not Shape.count(note.until_ms, 1, NEVER):
 			return false
 		var plan: Dictionary = definitions.plans[note.plan]
 		if int(note.until_ms) - int(note.started_ms) != int(plan.minutes) * 60000:
@@ -231,7 +231,7 @@ func describe(viewer: String, id: String) -> Dictionary:
 	var other: String = str(note.responder) if viewer == note.requester else str(note.requester)
 	if not _can_talk(sim, viewer, other):
 		return _reply(false, "unconfirmed", "你记得约定还在期限内，尚未当面核对对方近况。", id)
-	var action: Dictionary = sim.actors[note.responder].active
+	var action: Dictionary = sim.actor_state(note.responder).active
 	var activity: String = "暂未看见他进行这类劳动；之前做了多少还需核对。"
 	if not action.is_empty():
 		activity = "你看见他正在" + str(sim.config.actions[action.action].label) + ("，仍在路上。" if action.phase == "travel" else "。")

@@ -18,7 +18,7 @@ func begin(actor_id: String, region_id: String, kind: String, options: Dictionar
 		return service.response(false, "unknown_actor", "没有可办理这件事的人或地点。")
 	world.synchronize_region(home)
 	world.synchronize_region(region_id)
-	var actor: Dictionary = world.regions[home].actors[actor_id]
+	var actor: Dictionary = world.regions[home].actor_state(actor_id)
 	if not world.actor_controls(actor_id, "action") or not world.actor_controls(actor_id, "motion"):
 		return service.response(false, "control_missing", "眼下无法支配身体去办这件事。")
 	if not actor.alive or not actor.active.is_empty() or service.owns_actor(actor_id) or world.artifacts.owns_actor(actor_id) or world.local_action_owns(actor_id):
@@ -151,7 +151,7 @@ func cancel(actor_id: String, reason: String) -> bool:
 
 func settle(job: Dictionary) -> void:
 	var world: RefCounted = service.world
-	var actor: Dictionary = world.regions[job.home].actors[job.actor]
+	var actor: Dictionary = world.regions[job.home].actor_state(job.actor)
 	if job.phase == "travel":
 		if not job.path.is_empty():
 			if job.kind == "haul_grain" and job.stage == "delivery" and bool(world.routes[job.route].blocked):
@@ -331,7 +331,7 @@ func finish(job: Dictionary, succeeded: bool, line: String, status: String = "")
 	if job.status != "active":
 		return
 	var world: RefCounted = service.world
-	var actor: Dictionary = world.regions[job.home].actors[job.actor]
+	var actor: Dictionary = world.regions[job.home].actor_state(job.actor)
 	job.status = status if not status.is_empty() else ("completed" if succeeded else "failed")
 	job.finished_at = world.current_time
 	job.outcome = line

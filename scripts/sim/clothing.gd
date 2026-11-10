@@ -63,7 +63,7 @@ func opening_objects() -> Dictionary:
 	for region: String in world._sorted_keys(world.regions):
 		var sim: VillageSimulation = world.regions[region]
 		for actor: String in world._sorted_keys(sim.actors):
-			var definition: PawnDef = world._content.get_pawn(StringName(sim.actors[actor].definition_id))
+			var definition: PawnDef = world._content.get_pawn(StringName(sim.actor_state(actor).definition_id))
 			result["clothing:robe:" + actor] = _object(str(definitions.opening.robe), actor, region, "actor:" + actor, true, "#" + definition.color.to_html(false))
 	for index: int in definitions.opening.spares.size():
 		var row: Dictionary = definitions.opening.spares[index]
@@ -91,7 +91,7 @@ func spawn_opening() -> bool:
 
 func home(actor: String) -> String:
 	for region: String in world.regions:
-		if world.regions[region].actors.has(actor):
+		if world.regions[region].has_actor(actor):
 			return region
 	return ""
 
@@ -100,12 +100,12 @@ func valid_location(region: String, container: String) -> bool:
 	if not world.regions.has(region):
 		return false
 	var sim: VillageSimulation = world.regions[region]
-	return sim.places.has(container) or container.begins_with("actor:") and sim.actors.has(container.trim_prefix("actor:"))
+	return sim.places.has(container) or container.begins_with("actor:") and sim.has_actor(container.trim_prefix("actor:"))
 
 
 func cell(region: String, container: String) -> Vector2i:
 	var sim: VillageSimulation = world.regions[region]
-	return SimRouteTravel.cell(sim.actors[container.trim_prefix("actor:")].cell if container.begins_with("actor:") else sim.places[container].cell)
+	return SimRouteTravel.cell(sim.actor_state(container.trim_prefix("actor:")).cell if container.begins_with("actor:") else sim.places[container].cell)
 
 
 func held(actor: String, id: String) -> bool:
@@ -152,8 +152,8 @@ func begin(actor: String, verb: String, id: String, target: String = "", autonom
 	if world.elapsed_ms != world.target_ms and not autonomous or autonomous and not world.autonomous_decision(actor):
 		return reply(false, "先等当前世界事务结算完，再安排穿脱。")
 	var region: String = home(actor)
-	world.synchronize_region(region)
-	var person: Dictionary = world.regions[region].actors[actor]
+	world.synchronize_region(region, actor)
+	var person: Dictionary = world.regions[region].actor_state(actor)
 	if not world.native_action_allowed(actor) or not person.active.is_empty() or not world.actor_controls(actor, "motion"):
 		return reply(false, "先完成或停止手头的事，才能整理自己的衣物。")
 	var object: Dictionary = objects[id]
@@ -197,7 +197,7 @@ func _connected(job: Dictionary) -> bool:
 	if not world.actor_controls(str(job.actor), "action") or not world.actor_controls(str(job.actor), "motion") or not objects.has(job.object):
 		return false
 	var object: Dictionary = objects[job.object]
-	return object.region == job.from_region and object.container == job.from_container and object.worn == job.from_worn and world.regions[job.region].actors[job.actor].position == job.position and cell(str(job.region), "actor:" + str(job.actor)) == SimRouteTravel.cell(job.at) and _allowed(str(job.actor), str(job.verb), str(job.object), str(job.target))
+	return object.region == job.from_region and object.container == job.from_container and object.worn == job.from_worn and world.regions[job.region].actor_state(job.actor).position == job.position and cell(str(job.region), "actor:" + str(job.actor)) == SimRouteTravel.cell(job.at) and _allowed(str(job.actor), str(job.verb), str(job.object), str(job.target))
 
 
 func next_boundary_ms() -> int:
@@ -212,7 +212,7 @@ func next_boundary_ms() -> int:
 func settle_at_ms(now: int) -> void:
 	for actor: String in world._sorted_keys(active):
 		var job: Dictionary = active[actor]
-		world.synchronize_region(str(job.region))
+		world.synchronize_region(str(job.region), str(job.actor))
 		if not _connected(job):
 			_finish(job, "failed")
 		elif now >= int(job.due_ms):
@@ -249,7 +249,7 @@ func _finish(job: Dictionary, outcome: String) -> void:
 	record["outcome"] = outcome
 	record["finished_ms"] = world.elapsed_ms
 	events.append(record)
-	var person: Dictionary = world.regions[job.region].actors[job.actor]
+	var person: Dictionary = world.regions[job.region].actor_state(job.actor)
 	person.autonomous = bool(job.previous_autonomous)
 	person.retry_ms = world.elapsed_ms + int(world.regions[job.region].config.decision_interval) * 60000
 	person.goal = "已整理好衣物" if outcome == "completed" else "衣物仍保留原处"
@@ -375,7 +375,7 @@ func seen_clothing(observer: String, target: String) -> String:
 
 func status(actor: String) -> String:
 	if active.has(actor):
-		return "%s，还需%.1f秒。" % [str(world.regions[home(actor)].actors[actor].goal), float(int(active[actor].due_ms) - world.elapsed_ms) / 1000.0]
+		return "%s，还需%.1f秒。" % [str(world.regions[home(actor)].actor_state(actor).goal), float(int(active[actor].due_ms) - world.elapsed_ms) / 1000.0]
 	return "湿透的常服贴在身上，行动更容易疲惫。" if energy_rate(actor) > 0 else "衣物的外观、用途与身份凭据分别成立。"
 
 

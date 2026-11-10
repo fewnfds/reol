@@ -14,10 +14,58 @@ func run(runner: Object) -> void:
 	_test_inflight_restore_and_mode_switch(runner)
 	_test_single_minute_targets_match_fine(runner)
 	_test_observable_boundaries(runner)
+	_test_sparse_actor_projection(runner)
 
 
 func _make(runner: Object, autonomous: bool = false) -> VillageSimulation:
 	return _fixtures._make_simulation(runner, autonomous)
+
+
+func _test_sparse_actor_projection(runner: Object) -> void:
+	var eager: VillageSimulation = _make(runner)
+	var sparse: VillageSimulation = _make(runner)
+	if eager == null or sparse == null:
+		return
+	var inputs: Array[int] = [20000, 0, 0]
+	var crossings: Array = [[], []]
+	var ids: Array = eager.actor_ids().slice(0, 3)
+	for index: int in 2:
+		var sim: VillageSimulation = eager if index == 0 else sparse
+		sim.set_exposure_rate(func(_id: String) -> int: return inputs[0])
+		sim.set_rest_recovery(func(_id: String) -> int: return inputs[1])
+		sim.set_external_labor(func(_id: String) -> bool: return inputs[2] != 0)
+		sim.set_boundary_revision_provider(func() -> int: return 0)
+		var notices: Array = crossings[index]
+		sim.body_cell_crossed.connect(func(id: String, cell: Vector2i, at_ms: int) -> void: notices.append([id, cell.x, cell.y, at_ms]))
+		for id: String in ids:
+			runner.assert_true(sim.submit_action(id, "rest"), "original native route starts before sparse projection")
+	sparse.set_sparse_actor_projection(true)
+	for at: int in [13, 50, 200, 1207, 5000]:
+		runner.assert_true(eager.advance_to_ms(at) and sparse.advance_to_ms(at), "same exact target accepts eager and sparse bodies")
+		runner.assert_eq(sparse.actor_state(str(ids[0])), eager.actor_state(str(ids[0])), "single-body read integrates the original point and needs at %d" % at)
+	# Both bodies and old rates settle before a real dependency changes.
+	eager.materialize_actors()
+	sparse.materialize_actors()
+	inputs[1] = 3
+	inputs[2] = 1
+	for sim: VillageSimulation in [eager, sparse]:
+		sim.advance_to_ms(5307)
+		sim.cancel_action(str(ids[0]), "test_interrupt")
+		sim.submit_action(str(ids[0]), "inspect")
+		sim.advance_to_ms(9000)
+	_same(runner, eager, sparse, "rate changes and cancellation preserve the whole original village")
+	runner.assert_eq(crossings[1], crossings[0], "sparse projection never drops or reorders original cell crossings")
+	var resumed: VillageSimulation = _make(runner)
+	runner.assert_true(resumed.restore(JSON.parse_string(JSON.stringify(sparse.to_dict()))), "materialized sparse snapshot restores without another save format")
+	resumed.set_exposure_rate(func(_id: String) -> int: return inputs[0])
+	resumed.set_rest_recovery(func(_id: String) -> int: return inputs[1])
+	resumed.set_external_labor(func(_id: String) -> bool: return inputs[2] != 0)
+	resumed.set_boundary_revision_provider(func() -> int: return 0)
+	resumed.set_sparse_actor_projection(true)
+	for sim: VillageSimulation in [eager, sparse, resumed]:
+		sim.advance_to_ms(800000)
+	_same(runner, eager, sparse, "long sparse intervals retain exact saturation, stamina and fractional carries")
+	_same(runner, sparse, resumed, "rebuilding transient projection anchors retains the same later future")
 
 
 func _state(sim: VillageSimulation) -> String:

@@ -64,7 +64,7 @@ class Authority extends RegionalSimulation:
 		outcomes.append(outcome.duplicate(true))
 
 
-	func invalidate_region(_region: String) -> void:
+	func invalidate_region(_region: String, _actor_id: String = "") -> void:
 		pass
 
 	func on_structures_changed(cells: Array[Vector2i]) -> void:

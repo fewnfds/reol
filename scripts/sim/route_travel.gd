@@ -119,7 +119,7 @@ static func leg_open(route: Dictionary, body: Dictionary, step: Callable) -> boo
 static func repair(sim: VillageSimulation, actor: String, route: Dictionary, now: int, destination: Array = [], speed: float = -1.0, clearance: Callable = Callable()) -> bool:
 	# Domains keep target validity, reservations, phase and effects. Repair only
 	# replaces an invalid geometric remainder, from the real continuous point.
-	var body: Dictionary = sim.actors[actor]
+	var body: Dictionary = sim.actor_state(actor)
 	var step: Callable = clearance if clearance.is_valid() else sim._step_validator
 	if leg_open(route, body, step):
 		return true

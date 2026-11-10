@@ -5,29 +5,29 @@ extends RefCounted
 
 
 static func can_act(world: RegionalSimulation, region: String, actor: String) -> bool:
-	return world != null and world.regions.has(region) and world.regions[region].actors.has(actor) and bool(world.regions[region].actors[actor].alive) and world.actor_controls(actor, "action") and world.actor_controls(actor, "motion")
+	return world != null and world.regions.has(region) and world.regions[region].has_actor(actor) and bool(world.regions[region].actor_state(actor).alive) and world.actor_controls(actor, "action") and world.actor_controls(actor, "motion")
 
 
 static func can_begin(world: RegionalSimulation, region: String, actor: String) -> bool:
-	return can_act(world, region, actor) and world.regions[region].actors[actor].active.is_empty() and not world.owns_for_scope(actor, &"body")
+	return can_act(world, region, actor) and world.regions[region].actor_state(actor).active.is_empty() and not world.owns_for_scope(actor, &"body")
 
 
 static func can_continue(world: RegionalSimulation, region: String, actor: String, domain: StringName, position: Array = []) -> bool:
-	if not can_act(world, region, actor) or not world.regions[region].actors[actor].active.is_empty() or world.owns_for_scope(actor, &"body", domain):
+	if not can_act(world, region, actor) or not world.regions[region].actor_state(actor).active.is_empty() or world.owns_for_scope(actor, &"body", domain):
 		return false
-	return position.is_empty() or world.regions[region].actors[actor].position == position
+	return position.is_empty() or world.regions[region].actor_state(actor).position == position
 
 
 static func occupy(world: RegionalSimulation, region: String, actor: String) -> bool:
-	var previous: bool = bool(world.regions[region].actors[actor].autonomous)
-	world.regions[region].actors[actor].autonomous = false
+	var previous: bool = bool(world.regions[region].actor_state(actor).autonomous)
+	world.regions[region].actor_state(actor).autonomous = false
 	world.invalidate_region(region)
 	return previous
 
 
 static func release(world: RegionalSimulation, region: String, actor: String, previous: bool, reservation: String) -> void:
 	world.regions[region].inventory.release(reservation)
-	world.regions[region].actors[actor].autonomous = previous
+	world.regions[region].actor_state(actor).autonomous = previous
 	world.invalidate_region(region)
 
 

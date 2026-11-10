@@ -42,14 +42,14 @@ static func _actor(world: RegionalSimulation, id: String) -> Dictionary:
 		var sim: Variant = world.regions[candidate]
 		if not candidate is String or not sim is VillageSimulation:
 			return _failure("invalid_world")
-		if sim.actors.has(id):
+		if sim.has_actor(id):
 			if not region.is_empty():
 				return _failure("ambiguous_reference")
 			region = candidate
 	if region.is_empty():
 		return _failure("not_found")
 	var simulation: VillageSimulation = world.regions[region]
-	var point: Variant = _actor_position(simulation.actors.get(id))
+	var point: Variant = _actor_position(simulation.actor_state(id))
 	if point == null:
 		return _failure("invalid_location")
 	return _position_result(world, "actor", id, point, "village_simulation", region, simulation.elapsed_ms, "village_simulation", simulation.elapsed_ms)

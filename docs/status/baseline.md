@@ -4,7 +4,7 @@
 
 ## Demo反馈与独立诊断（独立分支）
 
-`codex/presentation-stress-demo`补人物/镜头连续显示与独立人口压力Demo；100人单次出发0.127→0.999×，持续样本32/100/300人约0.998/0.845/0.250×，最终百人0.788×。代码db995598：原生显示已验、定向6组524及修复5组390检查通过，一次Sol/custom主审完成；完整CI待验，见[压力QA](../qa/20261110_presentation_crowd.md)。前FPS代码`ac3dca32ffd8b3e6b7eda47c4efb756c8941e473`的CI42759378487 success。
+`codex/presentation-stress-demo`补人物/镜头连续显示与独立人口压力Demo；100人单次出发0.127→0.999×，持续样本32/100/300人约0.998/0.845/0.250×，最终百人0.788×。前代码db995598：原生显示/定向及主审完成。前HEAD6420499的CI42769354347失败（heat_topology夹具覆写签名解析错误），已定向修正。续包原人物按需积分/到期堆/实际观察变化：百人固定游戏10秒CPU6172→4714ms且完整未来相同；100/300人持续0.957/0.408×，7组603及夹具4组468检查通过，最终完整CI待验，见[压力QA](../qa/20261110_presentation_crowd.md)。前FPS代码`ac3dca32ffd8b3e6b7eda47c4efb756c8941e473`的CI42759378487 success。
 
 `codex/demo-slowdown-fix`最终生产/测试`b364870e5ddc92f3c3de2d689fcf3e2755e8d67d`已推送，修复重复画面捕获、环境原子刷新及短片段误降速，未合main。原生90秒0.986×、时钟最大17.645ms，30秒移动39格无world_errors；定向通过，一次Sol/custom主审的灵体读档旧flora回调P2先红后绿修复，补1组42检查通过；同SHA CI42757726701已核completed/success，完整回归通过。负载、日志及局限见[缓行QA](../qa/20261110_demo_feedback.md#严重缓行修复)。
 
@@ -50,11 +50,9 @@ main集成点7def7d2的CI42751032965已核success。前Demo分支`codex/demo-pla
 
 ## 通用建筑与组合空间（已合入main）
 
-main包含建筑阶段最终受检代码`d00bac954b69cab096d580db002fb04013fa2543`：定义/实例/能力分开，多格/朝向、多工地/用途，独立空间事实、操作位/桌椅、原库存储藏、工作台接原生产、耐久/防护/损毁已接普通Main。13类定义、两种材料，框架出口和实际限制见[本阶段QA](../qa/20261108_building_framework.md)及[建筑合同](../engineering/construction-contract.md)。
+受检代码`d00bac954b69cab096d580db002fb04013fa2543`：定义/实例/能力、多格/朝向、多工地/用途、独立空间、操作位/桌椅、原库存储藏/生产及耐久损毁已接Main，13类定义、两种材料。范围及日志见[建筑QA](../qa/20261108_building_framework.md)与[合同](../engineering/construction-contract.md)。
 
-准确代码本机4片顺序完整check **250组/126290断言/0失败**，各worker结构、导入、脚本错误/超时及退出码均通过，独立覆盖汇总核250组无遗漏；总墙钟约3282秒，最慢片约1185秒，没有放宽单片1800秒门禁。首次单进程全量因夹具/非热通知错误及1800秒超时未通过，修复与证据保留在QA。一次Sol/custom原生静态审查的3项P2/1项P3均已修复并用反例验证。
-
-最终d00bac普通Main多格施工、座位使用、存箱三案均在完全停止游戏进程后独立恢复，checkpoint、原截止时间与整个联合未来SHA相同；RTX3060原生1280×720界面已查看。[CI42457788038](https://github.com/fewnfds/reol/actions/runs/42457788038)已在本轮整合检查点核completed/success，完整headSha与d00bac一致。此后至主线集成点只有Markdown差异，受检代码/数据/测试保持不变；本轮未重复游戏验证。
+准确代码本机4片完整check250组/126290断言/0失败，墙钟约3282秒；一次Sol/custom主审的3项P2/1项P3已修。普通Main多格施工、座位与存箱三案完全停开后同未来，实际画面已验。对应CI42457788038 completed/success；此后主线集成前仅Markdown变动，不自动担保后续版本。
 
 ## 已合入main的前序基线
 
