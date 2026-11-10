@@ -2,6 +2,10 @@
 
 核对：2026-11-10。采用版本与准确代码证据记录在此，操作范围见[FEATURES](features.md)，当前停点见[HANDOFF](handoff.md)，详细日志和限制见[QA](../qa/README.md)。历史分卷只描述当时版本。
 
+## Demo反馈与独立诊断（独立分支）
+
+main集成点`7def7d2f40e3584dfe6c455b6280d894a455a9e3`的CI42751032965已核success。`codex/demo-playtest-fixes`简单修复`87262ffe5216da2d88afe4a2e8ba87ec20dfa1db`接默认跟随/F恢复与外墙逐格显露，4组112检查、原生画面及一次静态主审通过，同SHA CI42751769110 success。独立诊断工具最终`aa4f1a1fb893ed908281deda81fc2696659b3ea6`不改普通入口/预算/规则；有界smoke、同未来/回调恢复和20秒原生采样通过，一次静态主审的等候CPU计量P2已先红后绿修复。最终CI42753794423 pending，不能沿用简单修复绿色；[本包QA](../qa/20261110_demo_feedback.md)记录范围。未合main，连续坐标迷雾仍未改。
+
 ## 完整单位行动与交互（已整合main，完整CI通过）
 
 前版0a0b59a的CI42674488111为completed/failure，两处为休息阶段显示和旧直行测试。收尾`0856effd4b2bb135c9bae8f25cccbba0e3def8e0`先复现再修复：休息/服务运行2组88检查、最终感知108检查通过，一次Sol/custom同会话恢复静态主审无可操作发现。[CI42750266714](https://github.com/fewnfds/reol/actions/runs/42750266714)在本次试玩修复提交点精确核为completed/success；完整CI通过，不按时间轮询。

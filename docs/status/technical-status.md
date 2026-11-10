@@ -6,19 +6,19 @@
 
 | 名称 | 实际情况 |
 |---|---|
-| Git `main` / `origin/main` | 当前集成包含最终生产/测试`0856effd4b2bb135c9bae8f25cccbba0e3def8e0`，通用SL、事件/植物、环境与行动均已合入main；对应完整CI待验；精确证据见BASELINE |
+| Git `main` / `origin/main` | 当前集成包含最终生产/测试`0856effd4b2bb135c9bae8f25cccbba0e3def8e0`，通用SL、事件/植物、环境与行动均已合入main；主线整合CI通过；精确证据见BASELINE |
 | 共同时间流速整合 | 产品/永久测试`f4257e38a1665c08c8596028fe71c0cea0dbeab9`已合入main，CI42542611182完整通过；有限准入、自动降速、宿主步骤预算和HUD/F3已接普通Main，后续仅QA驱动与文档，准确证据见BASELINE |
 | 通用存读工作分支 | `codex/save-load-framework`主体96a6fe0、最终代码d682e03已推送，已随行动历史合入main；下文能力在主线可用，完整CI状态见[QA](../qa/20261109_save_framework.md) |
 | 事件与植物工作分支 | `codex/world-events-plants` 承接SL；全局事件/规则闭包、植物实例、环境/空间/行动和花盆已接普通Main并推送；原生主审/修复及停开完成；13d675e对应12片CI完整256组通过，已随行动历史合入main |
-| 环境组合工作分支 | `codex/environment-composition`承接上述历史；补材质传播、单一房温、容器/携物与植物照明，已随行动历史合入main；完整CI待验 |
-| 完整行动工作分支 | `codex/unit-actions-integration`承接上述历史；共同投影/终态/停止、原生搜索与受阻重评、原库存跨账本搬运、普通面板及有限战斗衔接已实现；已合入main，收尾完整CI待验 |
+| 环境组合工作分支 | `codex/environment-composition`承接上述历史；补材质传播、单一房温、容器/携物与植物照明，已随行动历史合入main；主线整合CI通过 |
+| 完整行动工作分支 | `codex/unit-actions-integration`承接上述历史；共同投影/终态/停止、原生搜索与受阻重评、原库存跨账本搬运、普通面板及有限战斗衔接已实现；已合入main，主线整合CI通过 |
 | 普通 `Main` 游戏入口 | `scenes/main.tscn`及其运行接线；有限游戏能力和Git集成状态分别按功能及版本证据核验 |
 
 通用参与索引、环境局部/到期执行、健康活跃集合、共同空间/最小行动和通用建筑均已接普通Main并合入Git main；共同结算内核及共同时间负载调速均已合入main。隔离旧实验`codex/field-contest`与命名stash不是待发布功能或自动恢复任务。来源见[分支页](branches.md)及[建筑验收](../qa/20261108_building_framework.md)。
 
 ## 按顶层框架的实际接入
 
-领域职责以[顶层框架](../engineering/architecture/05-framework-domains.md)为准，依赖与出口以[基础建设计划](../plans/foundation-priorities.md)为准。下表含当前main的事件/植物、环境与行动代码（完整CI待验）；主线集成与准确验证以HANDOFF/BASELINE为准。前三阶段达到声明范围出口，各顶层领域仍有后续扩展边界。
+领域职责以[顶层框架](../engineering/architecture/05-framework-domains.md)为准，依赖与出口以[基础建设计划](../plans/foundation-priorities.md)为准。下表含当前main的事件/植物、环境与行动代码（主线整合CI通过）；主线集成与准确验证以HANDOFF/BASELINE为准。前三阶段达到声明范围出口，各顶层领域仍有后续扩展边界。
 
 | 顶层框架 | 已有运行能力与主要入口 | 距框架出口的缺口 |
 |---|---|---|
@@ -26,7 +26,7 @@
 | **实体、物品与容器框架** | [SimEntityQuery](../../scripts/sim/entity_query.gd)、[SimEmbodiment](../../scripts/sim/embodiment.gd)提供原身体/能力/几何；[SimObjectLifecycle](../../scripts/sim/object_lifecycle.gd)、[SimInventory](../../scripts/sim/inventory_ledger.gd)、[SimGroundPlacements](../../scripts/sim/ground_placements.gd)支持原物生命周期、同账本转移/堆拆/预约；建筑箱已接原库存、数量总容量和过滤 | 植物已接共同引用/原生命过程；原services已接数量物跨账本搬运；普遍体积/负重规则、嵌套容器、独特器物入箱、自由背包与完整处分权限未齐。各原owner分工继续保留，不需要合并成一个对象库 |
 | **建筑与组合空间框架** | 第2阶段声明范围已交付；`SimConstruction`持多格/朝向、工地/用途、施工及耐久/损毁；`SimConstructionGeometry`校验定义；`SimStructureQuery`/`SimEnclosedSpace`推导空间；`SimFacilityUse`接操作位/桌椅/真实储藏，原生产接工作台，普通营造入口可用 | 当前限home账本/授权和有界工地；通用维修、更多设施能力、私人地产及跨区政策尚未接。完整工艺归生产，房温/灯火归环境，路径/主动攻击归行动；这些边界不计作已实现建筑能力 |
 | **植被与自然生命框架** | [SimPlants](../../scripts/sim/plants.gd)持原株、生境/物候/寿命/残株、采集/损毁/花盆和最小植灵；`NaturalEnvironment`持地表背景，`SimLandResources`保留原产物账；`SimAvianLife`与`SimLargeBodies`提供有限非人生命 | 任意距离活株搬运、全域自然种群生成/繁衍、生态网与完整树身人生仍未接。完整动物繁衍/食物网另属后续，巨兽不可选 |
-| **环境框架** | 原温度/五行响应、共享气候背景与参与索引；主线已扩展`SimEnvironmentLayout`的材质传播/房间成员、同房温度锚点、箱体/携物/库存来源和植物人工光，当前整包在验 | 充分混合、射线与tau是近似；无空气流体/热守恒、任意嵌套、鸟兽本体/人物体质整体源、完整风水玩法或密集规模出口。`context_at`仅为authority_only实际布局/环境查询 |
+| **环境框架** | 原温度/五行响应、共享气候背景与参与索引；主线已扩展`SimEnvironmentLayout`的材质传播/房间成员、同房温度锚点、箱体/携物/库存来源和植物人工光，主线整合CI通过 | 充分混合、射线与tau是近似；无空气流体/热守恒、任意嵌套、鸟兽本体/人物体质整体源、完整风水玩法或密集规模出口。`context_at`仅为authority_only实际布局/环境查询 |
 | **单位行动与交互框架** | [SimLocalMotion](../../scripts/sim/local_motion.gd)、[SimRouteTravel](../../scripts/sim/route_travel.gd)、多格扫掠及运行层寻路读原身体/空间；[SimInteractionRequests](../../scripts/sim/interaction_requests.gd)与原执行器区分表达/理解/意愿/耗时/中断/结果，耗时搬运已接普通面板；`SimActionContract`使取放/施工/家具使用共用条件、占用、复核、终态与释放 | 原过程共用只读投影、终态及停止入口；`SimGridNavigation`复用AStar2D，`SimRouteTravel`按共同边界重评；原services搬运支持不同容器/账本、保管与设施容量，工作可交给有限战斗。尚无任意全局规划、全部飞行/穿墙能力、嵌套/普遍负重、完整战斗或通用策略；证据行旅/规定步法保留原遇阻中断规则 |
 | **认识与自主决策框架** | [SimSocialMemory](../../scripts/sim/social_memory.gd)私人认识/有向关系/来源、当面自述；[SimInstitutionBook](../../scripts/sim/institution_book.gd)任职公账和贡献；双聚落需求/职责/吃住/采集生产、预约、少量自主目的和互助；迷雾/探索提供有限观察接缝 | 新对象/属性未全面接共同观察与认识；通用目标/策略编排、工作依赖及授权依据仍有限；关系判断仍用有限因素加权/边界骰与逐人值。通用Claim为候选，现有贡献不等于Claim；制度与长程社会玩法后续实现 |
 

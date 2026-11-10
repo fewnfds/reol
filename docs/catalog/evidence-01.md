@@ -2,6 +2,7 @@
 
 [分类总目录](../CATALOG.md)；路径存在不表示已实现或已验。
 
+- [docs/qa/20261110_demo_feedback.md](../qa/20261110_demo_feedback.md)
 - [docs/qa/20261109_world_events_plants.md](../qa/20261109_world_events_plants.md)
 - [docs/qa/20261108_settlement_kernel.md](../qa/20261108_settlement_kernel.md)
 - [docs/qa/20261107_mainline_cleanup.md](../qa/20261107_mainline_cleanup.md)
