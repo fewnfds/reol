@@ -108,3 +108,4 @@
 - [docs/qa/baseline-history/12-intrinsic-light.md](../qa/baseline-history/12-intrinsic-light.md)
 - [docs/qa/baseline-history/README.md](../qa/baseline-history/README.md)
 - [docs/qa/legacy-environment-regressions.md](../qa/legacy-environment-regressions.md)
+- [docs/qa/20261111_workflow_retirement.md](../qa/20261111_workflow_retirement.md)

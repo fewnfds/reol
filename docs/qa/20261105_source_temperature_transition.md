@@ -23,7 +23,7 @@ Godot4.7.2 stable / Windows / i5-13600KF，主代理依次运行，进程外30�
 
 ## 独立两进程
 
-[入库QA](../../tools/qa/environment_source_change_restart.gd) write完成热源A→B、加冷/撤冷后保存温度v1与当前源投影声明；原活上下文随后在5000ms将热源移回A。read在另一个进程严格恢复实际温度，按明确声明重建派生场，再做同一未来移动；不保存handle/proof，不称Main保存或原物实例。
+[入库QA](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tools/qa/environment_source_change_restart.gd) write完成热源A→B、加冷/撤冷后保存温度v1与当前源投影声明；原活上下文随后在5000ms将热源移回A。read在另一个进程严格恢复实际温度，按明确声明重建派生场，再做同一未来移动；不保存handle/proof，不称Main保存或原物实例。
 
 write/read检查点相同：`8789d42743e7de57b3d6751a63b3d15873666346f4cddd785fc4bfe882c3201a`；未来温度快照、6000/7000ms四个实际样本及A/B全部七通道相同：`fd4d946482f9814bb6228d1af696d7049dc4a55d55f8529bf4ca417ecb41949f`。write/read各1.595/1.597秒，工作集239198208/237969408 B，`logs/source-change-restart-write.json`、`source-change-restart-read-fixed.json`。
 
@@ -31,7 +31,7 @@ write/read检查点相同：`8789d42743e7de57b3d6751a63b3d15873666346f4cddd785fc
 
 ## 每格来源的局部变更成本
 
-[容量探针](../../tools/qa/environment_source_change_capacity.gd)：每格实际插入一个来源投影（七通道、固定半径），原点slot0较强，迁到地图另一端；共同世界时间固定0，全部格20°C是显式初始条件，无历史推断。测来源填充、准备各phase、输入/温度预算与完成提交；只计算两端2块/512接收格和512实际温度锚点。每格来源不是独立Node/完整实物。
+[容量探针](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tools/qa/environment_source_change_capacity.gd)：每格实际插入一个来源投影（七通道、固定半径），原点slot0较强，迁到地图另一端；共同世界时间固定0，全部格20°C是显式初始条件，无历史推断。测来源填充、准备各phase、输入/温度预算与完成提交；只计算两端2块/512接收格和512实际温度锚点。每格来源不是独立Node/完整实物。
 
 两端每块16×16输出分别与含半径halo的局部F0 Index对照，总512格/3584通道；不会复制另一张几百万来源全图。512及以上半径8案例实际96格场值改变。所有phase百分位来自**单次运行内调用**，不是多轮统计；进程含内容加载和oracle成本，不是游戏帧率。
 

@@ -14,7 +14,7 @@
 
 ## 原生Main与人工负载
 
-[simulation_pacing_probe](../../tools/qa/simulation_pacing_probe.gd)使用普通Main和人身开局，不加载或覆盖玩家存档；真实D3D12/Forward+，NVIDIA GeForce RTX5060Ti，1280×720，限制显示60FPS。在16个原结算步骤各增加2500µs忙工作，保留原callback/模式/业务结果，之后移除。它是控制机制样本，不是密集人口性能模拟。
+[simulation_pacing_probe](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tools/qa/simulation_pacing_probe.gd)使用普通Main和人身开局，不加载或覆盖玩家存档；真实D3D12/Forward+，NVIDIA GeForce RTX5060Ti，1280×720，限制显示60FPS。在16个原结算步骤各增加2500µs忙工作，保留原callback/模式/业务结果，之后移除。它是控制机制样本，不是密集人口性能模拟。
 
 | 阶段 | 现实秒/帧数 | 游戏毫秒 | 实际平均速度 | 帧间隔P95/最大ms | 结束准入倍率 |
 |---|---|---|---|---|---|

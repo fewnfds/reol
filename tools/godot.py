@@ -6,7 +6,7 @@ Cross-platform wrapper used by humans, AI agents, and the MCP bridge.
 Examples:
     python tools/godot.py doctor
     python tools/godot.py import
-    python tools/godot.py check
+    python tools/godot.py test
     python tools/godot.py run --headless --quit-after 120
     python tools/godot.py editor
     python tools/godot.py export --preset "Windows Desktop" --output build/windows/reol.exe
@@ -17,10 +17,12 @@ from __future__ import annotations
 import argparse
 import os
 import platform
+import queue
 import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -192,59 +194,69 @@ def _require_godot() -> Path | None:
     return path
 
 
-def _run(cmd: list[str], name: str, timeout: int | None = None) -> int:
+def _run(cmd: list[str], name: str, timeout: float | None = None, *, fail_fast: bool = True) -> int:
+    """Stream one owned process; errors/timeouts retain the log and stop promptly."""
     LOG_DIR.mkdir(parents=True, exist_ok=True)
-    # Logs may include temporary GDScript reproducers. Keep generated tooling
-    # out of Godot's importer even on a fresh checkout.
     (LOG_DIR / ".gdignore").touch(exist_ok=True)
-    stamp = time.strftime("%Y%m%d-%H%M%S")
-    log_path = LOG_DIR / f"{name}-{stamp}.log"
+    log_path = LOG_DIR / f"{name}-{time.strftime('%Y%m%d-%H%M%S')}-{time.time_ns() % 1000000000}.log"
+    print("$ " + " ".join(map(str, cmd)), flush=True)
+    with log_path.open("w", encoding="utf-8", buffering=1) as log:
+        def record(line: str) -> None:
+            log.write(line if line.endswith("\n") else line + "\n")
+            print(line.rstrip("\r\n"), flush=True)
 
-    print("$ " + " ".join(str(part) for part in cmd))
-    try:
-        proc = subprocess.run(
-            cmd,
-            cwd=ROOT,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout,
-        )
-    except subprocess.TimeoutExpired as exc:
-        partial = exc.stdout or ""
-        output = partial.decode("utf-8", errors="replace") if isinstance(partial, bytes) else partial
-        print(output, end="" if output.endswith("\n") else "\n")
-        print(f"ERROR: timed out after {timeout}s", file=sys.stderr)
-        log_path.write_text(output + f"\nERROR: timed out after {timeout}s\n", encoding="utf-8")
         try:
-            shown = log_path.relative_to(ROOT)
-        except ValueError:
-            shown = log_path
-        print(f"[log] {shown}")
-        return 124
-    except OSError as exc:
-        print(f"ERROR: failed to start Godot: {exc}", file=sys.stderr)
-        return 127
+            child = subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.PIPE,
+                                     stderr=subprocess.STDOUT, text=True,
+                                     encoding="utf-8", errors="replace")
+        except OSError as error:
+            record(f"ERROR: cannot start process: {error}")
+            return 127
+        events: queue.Queue[str | None] = queue.Queue()
 
-    output = proc.stdout or ""
-    print(output, end="" if output.endswith("\n") else "\n")
-    log_path.write_text(output, encoding="utf-8")
-    try:
-        shown = log_path.relative_to(ROOT)
-    except ValueError:
-        shown = log_path
-    print(f"[log] {shown}")
-    # GDScript can abort a test method yet leave SceneTree's exit code at zero.
-    # A green gate must not hide parse/runtime errors behind that exit code.
-    if proc.returncode == 0 and any(
-        line.lstrip().startswith(("SCRIPT ERROR:", "ERROR:"))
-        for line in output.splitlines()
-    ):
-        print("ERROR: Godot reported errors despite a zero exit code.", file=sys.stderr)
-        return 1
-    return proc.returncode
+        def read() -> None:
+            for line in child.stdout:
+                events.put(line)
+            child.wait()
+            events.put(None)
+
+        reader = threading.Thread(target=read, daemon=True)
+        reader.start()
+        deadline = time.monotonic() + timeout if timeout is not None else None
+        code: int | None = None
+        errors = False
+        try:
+            while True:
+                remaining = max(0, deadline - time.monotonic()) if deadline is not None else None
+                try:
+                    line = events.get(timeout=remaining)
+                except queue.Empty:
+                    record(f"ERROR: timed out after {timeout:g}s")
+                    code = 124
+                    break
+                if line is None:
+                    break
+                record(line)
+                plain = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", line).lstrip()
+                if plain.startswith(("SCRIPT ERROR:", "ERROR:", "FAIL ")):
+                    errors = True
+                    if fail_fast:
+                        code = 1
+                        break
+        finally:
+            if child.poll() is None:
+                child.kill()
+            child.wait()
+            reader.join(timeout=1)
+            if not reader.is_alive():
+                child.stdout.close()
+            # Preserve the final buffered lines after failure/timeout as evidence.
+            while not events.empty():
+                line = events.get_nowait()
+                if line is not None:
+                    record(line)
+            print(f"[log] {log_path}", flush=True)
+        return code if code is not None else child.returncode or int(errors)
 
 
 def cmd_doctor(_args: argparse.Namespace) -> int:
@@ -270,7 +282,7 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
         ("project.godot", ROOT / "project.godot"),
         (".godot/ import cache", ROOT / ".godot"),
         ("addons/godot_ai", ROOT / "addons" / "godot_ai" / "plugin.cfg"),
-        ("tests/run_tests.gd", ROOT / "tests" / "run_tests.gd"),
+        ("tests/smoke.gd", ROOT / "tests" / "smoke.gd"),
         (".agents/skills", ROOT / ".agents" / "skills"),
         (".codex/config.toml", ROOT / ".codex" / "config.toml"),
     ]
@@ -307,7 +319,7 @@ def cmd_import(_args: argparse.Namespace) -> int:
     if godot is None:
         return 1
     return _run(
-        [str(godot), "--headless", "--path", str(ROOT), "--import"],
+        [str(godot), "--headless", "--path", str(ROOT), "--quiet", "--import"],
         "import",
         timeout=600,
     )
@@ -317,72 +329,13 @@ def cmd_test(args: argparse.Namespace) -> int:
     godot = _require_godot()
     if godot is None:
         return 1
-    return _run(
-        _test_command(godot, args, "test"),
-        "test",
-        timeout=args.test_timeout,
-    )
-
-
-def _test_command(godot: Path, args: argparse.Namespace, name: str) -> list[str]:
     command = [str(godot), "--headless", "--path", str(ROOT),
-               "--script", "res://tests/run_tests.gd", "--"]
-    if getattr(args, "shard", None):
-        command.extend(["--shard", args.shard])
-    for suite in getattr(args, "suite", []):
+               "--script", "res://tests/smoke.gd", "--"]
+    for suite in args.suite:
         command.extend(["--suite", suite])
-    if getattr(args, "list_suites", False):
-        return command + ["--list-suites"]
-    # The runner flushes one record per suite. A timeout preserves completed
-    # timings without live log readers or repeated process/CI queries.
-    report = args.timing_report
-    if report is None:
-        report = LOG_DIR / f"{name}-timings-{time.time_ns()}.jsonl"
-    elif not report.is_absolute():
-        report = ROOT / report
-    report = report.resolve()
-    report.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        shown = report.relative_to(ROOT)
-    except ValueError:
-        shown = report
-    print(f"[timings] {shown}")
-    return command + ["--timing-report", str(report)]
-
-
-def cmd_check(args: argparse.Namespace) -> int:
-    structure_code = _run(
-        [sys.executable, str(ROOT / "tools" / "check_structure.py")],
-        "check-structure",
-        timeout=60,
-    )
-    if structure_code != 0:
-        return structure_code
-    godot = _require_godot()
-    if godot is None:
-        return 1
-
-    import_code = _run(
-        [str(godot), "--headless", "--path", str(ROOT), "--import"],
-        "check-import",
-        timeout=600,
-    )
-    if import_code != 0:
-        print(f"CHECK FAILED (import={import_code}, test=not-run)", file=sys.stderr)
-        return 1
-    test_code = _run(
-        _test_command(godot, args, "check-test"),
-        "check-test",
-        timeout=args.test_timeout,
-    )
-    if test_code != 0:
-        print(f"CHECK FAILED (import={import_code}, test={test_code})", file=sys.stderr)
-        return 1
-    if args.shard:
-        print(f"CHECK SHARD {args.shard} PASSED (partial registry; all shards are required)")
-    else:
-        print("CHECK PASSED")
-    return 0
+    if args.list_suites:
+        command.append("--list-suites")
+    return _run(command, "smoke", timeout=args.timeout)
 
 
 def cmd_run(args: argparse.Namespace) -> int:
@@ -395,14 +348,14 @@ def cmd_run(args: argparse.Namespace) -> int:
     if args.quit_after is not None:
         cmd.extend(["--quit-after", str(args.quit_after)])
     cmd.extend(args.extra)
-    return _run(cmd, "run")
+    return _run(cmd, "run", fail_fast=False)
 
 
 def cmd_editor(_args: argparse.Namespace) -> int:
     godot = _require_godot()
     if godot is None:
         return 1
-    return _run([str(godot), "--editor", "--path", str(ROOT)], "editor")
+    return _run([str(godot), "--editor", "--path", str(ROOT)], "editor", fail_fast=False)
 
 
 def cmd_export(args: argparse.Namespace) -> int:
@@ -428,21 +381,14 @@ def cmd_export(args: argparse.Namespace) -> int:
     )
 
 
-def _positive_seconds(value: str) -> int:
+def _short_timeout(value: str) -> int:
     try:
         seconds = int(value)
-    except ValueError as exc:
-        raise argparse.ArgumentTypeError("must be a positive integer number of seconds") from exc
-    if seconds <= 0:
-        raise argparse.ArgumentTypeError("must be a positive integer number of seconds")
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("use 1..30 seconds for a short check") from error
+    if not 1 <= seconds <= 30:
+        raise argparse.ArgumentTypeError("use 1..30 seconds; reduce an overlong check instead")
     return seconds
-
-
-def _test_shard(value: str) -> str:
-    match = re.fullmatch(r"([1-9][0-9]*)/([1-9][0-9]*)", value)
-    if match is None or int(match[1]) > int(match[2]):
-        raise argparse.ArgumentTypeError("use INDEX/TOTAL with 1 <= INDEX <= TOTAL")
-    return value
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -456,34 +402,11 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("which", help="print the Godot executable path").set_defaults(func=cmd_which)
     sub.add_parser("version", help="print the Godot version").set_defaults(func=cmd_version)
     sub.add_parser("import", help="headless import resources").set_defaults(func=cmd_import)
-    for name, help_text, handler in [
-        ("test", "run headless tests", cmd_test),
-        ("check", "import + tests (pre-commit gate)", cmd_check),
-    ]:
-        command = sub.add_parser(name, help=help_text)
-        command.add_argument(
-            "--test-timeout", type=_positive_seconds, default=900, metavar="SECONDS",
-            help="headless test timeout in positive whole seconds (default: 900)",
-        )
-        command.add_argument(
-            "--timing-report", type=Path, metavar="PATH",
-            help="suite timings JSONL (default: unique file under logs/)",
-        )
-        selection = command.add_mutually_exclusive_group()
-        selection.add_argument(
-            "--shard", type=_test_shard, metavar="INDEX/TOTAL",
-            help="run a disjoint slice of the complete registry; all shards verify full coverage",
-        )
-        if name == "test":
-            selection.add_argument(
-                "--suite", action="append", default=[], metavar="TEST_NAME",
-                help="run an exact registered test_* suite; repeat for several",
-            )
-            command.add_argument(
-                "--list-suites", action="store_true",
-                help="list registered suites without executing tests",
-            )
-        command.set_defaults(func=handler)
+    test = sub.add_parser("test", help="run the small local smoke checks; old full check/CI retired")
+    test.add_argument("--suite", action="append", default=[], choices=("settlement", "actor_batch", "inventory"))
+    test.add_argument("--list-suites", action="store_true")
+    test.add_argument("--timeout", type=_short_timeout, default=15, metavar="SECONDS")
+    test.set_defaults(func=cmd_test)
 
     run = sub.add_parser("run", help="run the project")
     run.add_argument("--headless", action="store_true", help="no window")

@@ -20,7 +20,7 @@
 
 ## 有界成本
 
-[同一探针](../../tools/qa/environment_temperature_capacity.gd)扩展为密集/16格间隔稀疏，20000ms翻转1%/10%/全部冷热目标，32347ms采未来；未跟踪洞仍明确unknown，变更时温度连续并核独立预期未来。所有prepare/commit/snapshot/全采仅单次测量，只有边界查询20次统计；不是FPS、真实器物/源场联测或文件存读性能。
+[同一探针](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tools/qa/environment_temperature_capacity.gd)扩展为密集/16格间隔稀疏，20000ms翻转1%/10%/全部冷热目标，32347ms采未来；未跟踪洞仍明确unknown，变更时温度连续并核独立预期未来。所有prepare/commit/snapshot/全采仅单次测量，只有边界查询20次统计；不是FPS、真实器物/源场联测或文件存读性能。
 
 | 密集边长/变化 | 实际温度格/变化格 | 初次prepare/commit ms | 变化prepare/commit ms | 工作集峰B |
 |---|---:|---:|---:|---:|

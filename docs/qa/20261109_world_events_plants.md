@@ -52,7 +52,7 @@
 
 ## 原生Main、观察与完全停开
 
-驱动为[world_events_plants_probe.gd](../../tools/qa/world_events_plants_probe.gd)。Godot原生进程运行该脚本，退出后独立运行加`-- --resume`；外层145秒超时，脚本120秒真实计时器，均退出0且无SCRIPT ERROR/ERROR。
+驱动为[world_events_plants_probe.gd](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tools/qa/world_events_plants_probe.gd)。Godot原生进程运行该脚本，退出后独立运行加`-- --resume`；外层145秒超时，脚本120秒真实计时器，均退出0且无SCRIPT ERROR/ERROR。
 
 最终生产45f140b原生两进程通过。普通人身开局6株，其中原野药/野稗交接4株，赤叶草和古树各1株。共同推进60000ms，显式事件为原古树建立一次主体。观察赤叶草后启动真实跨区行旅；预算1保存经86帧结清至60075ms，原暂停保持，恰有一次成功回执。受检档位为独占`user://tests/world_events_plants_native_7245702.json`，未接触玩家档。
 

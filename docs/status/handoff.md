@@ -1,28 +1,24 @@
 # 当前接续
 
-2026-11-11：用户授权开始A的第一小部分。本包接通普通Main原身体的CPU批计算、原owner有序采用及取消/恢复失效；未创建Goal。A整包和300人性能出口仍未完成。
+2026-11-11：用户明确要求退役现有CI和test，重建短小稳定检查，删除妨碍性能开发的过度防御流程。本包已落实，未创建Goal。之后继续解决游戏真实性能，不恢复旧回归/CI/自动审查队列。
 
-## 当前依据与实现
+## 当前状态
 
-- [唯一主计划](../plans/foundation-priorities.md)：P01–P16、S01–S12及A–D框架交付；不恢复旧局部优化队列。
-- [目标执行规格](../specs/world-engine/execution.md)、[领域职责](../engineering/architecture/05-framework-domains.md)保持目标/逻辑边界，允许替换现有类、存储与调用链。
-- 已接[CPU批执行](../engineering/execution-batches.md)：SimBatchExecution＋SimActorAdvance，native_interval/native_actors进入同一个SimSettlementKernel。普通运行按到期集合准备，worker只算紧凑数值候选，原身体/空间/动作owner采用；手动输入在begin前受理。
-- GPU输入/结果/代次的公共采用接缝已明确，本包没有GPU dispatch。世界仍有同步准备/路线/决定/领域与提交成本，不能宣称所有模拟已并行。
+- 分支`codex/execution-foundation`；CPU批代码提交`7f5947b80b62256ca370d4276dd3f62842f61d8a`。本轮流程退役作为后续独立提交，main未合并。
+- GitHub workflow `406322998`（CI）已停用，实查`disabled_manually`；工作树删除workflow。旧260组套件、Python回归、历史验证探针、CI监控/覆盖聚合及刚写的本机12片方案已退役。
+- AGENTS及验证技能已简化；单独的审查/AI工作流页已删除。没有全量check、逐提交查CI、每包自动模型审查、全迁移矩阵或固定文档页长门禁。方法只看[性能开发与短验证](../engineering/workflow/testing.md)。
+- 新`python tools/godot.py test`只跑结算续算、CPU批一致和库存守恒三个smoke，默认15秒。实测3项通过、检查体0.783ms；启动器短检查0.287秒。新脚本已由实际Godot导入，日志及范围见[本包记录](../qa/20261111_workflow_retirement.md)。没有完整回归或性能改善声明。
 
-## 工作区、验证与接续
+## 性能工作接续
 
-分支`codex/execution-foundation`，起点`3e32b7048e0622de87bc1fa6823ed661c36b8369`。旧8份代码补丁已原样保留于`10260b3b45952b7b45055e807f360824227efce2`，旧文档清理为`95eac7d624b39d12fe36ba2b936ac342e7bcee89`；本包按需替换其中实现，不继续旧优化收尾队列。
+唯一实施范围仍在[主计划](../plans/foundation-priorities.md)。普通Main已接CPU批候选与原owner采用，但300人workers=4/0仍约0.5126/0.5203×，没有可信整体提速；GPU没有普通环境数学采用。最大成本仍需从同步准备、数据访问、原状态发布及直接执行链实测拆开，允许替换实现，不能继续把接口接通算作性能交付。
 
-本包定向证据、实际失败及修复见[QA](../qa/20261111_actor_batch_execution.md)。原身体串行/worker未来、搬运守恒、取消/成功与失败restore通过。实际clock/world与环境/搬运接缝5组526检查通过；扩充后批组132检查通过，最终失败回执反例由完整回归覆盖。
+下一轮从最大实测成本选择一处结构性改动，同内容/人数/命令做20–30秒前后对照；不要先重新建设测试平台或扩大压力矩阵。使用原普通Demo诊断和人口入口，必要短检查按受影响范围选。
 
-当前唯一完整验证是`python tools/godot.py check --test-timeout 3600`，活终端handle `9476`，不另开重复整套；只剩等待时一次工具编排持有此handle直到终态。原生审查尚未启动，后续按准确代码提交一次只读审查；主代理协调测试，审查器不得再开引擎或递归审查。
+## 保留证据与保护范围
 
-300人Windows实卡20秒样本证明18个真实worker批次、1302份结果被采用；workers=4/0约0.5126/0.5203×，帧P95约22.13/22.024ms。没有可信整体收益，未达1×/60FPS。准备/发布比数学更贵；下一A内部工作应收敛热数据所有权与批量发布，不能用线程占用代替性能出口。
-
-未改变内容JSON/原fixture/保存格式。新脚本保留Godot生成UID；导入新增的shader .import空行在提交前复原为HEAD原字节。原争环分支`4e17c5c165cf8fca9ef884a111aa1c3ca35f445f`及stash `424f956d280fb390d17e1f6dd879f3614b51a430`未恢复/删除。
-
-## Git与CI
-
-main/origin/main仍为`839ff88f1b7fee240d0c798f533314a3ae446430`，无自动合并。已核代码祖先`8c3deaa972f932e999167b61ea6b166b928cfe5f`的[CI42833827684](https://github.com/fewnfds/reol/actions/runs/42833827684)为completed/success，只证明该祖先；本地新提交不继承其绿色。
-
-CI仅在真实提交准备点核对相关已推送SHA/run一次，不轮询、不后台等待、不声称GitHub结果可唤醒聊天。本包最终提交/原生审查/完整回归终态完成后直接改写本页与BASELINE。
+- 原完整check在用户要求停下时已人工终止，handle `9476`和编排`g2:740`均结束；整轮中断，不是通过。日志`logs/check-test-20261111-003758.log`、计时`logs/check-test-timings-1794328678620613600.jsonl`及输入hash保留，不再续跑。该轮区域模拟组完成276769.175ms，历史707593.192ms不是本轮数字。
+- 旧批代码的定向与300人样本见[原包QA](../qa/20261111_actor_batch_execution.md)。旧原生只读审查已经完成，但今后不自动重复。
+- 退役前的未提交工作和本机并行工具保存在忽略的`logs/retired-test-workflow-20261111-012331/`。原fixture JSON、内容JSON、存档格式和运行代码未因流程清理改动。
+- 保留分支`codex/field-contest`的`4e17c5c165cf8fca9ef884a111aa1c3ca35f445f`、stash `424f956d280fb390d17e1f6dd879f3614b51a430`及旧补丁提交`10260b3b45952b7b45055e807f360824227efce2`，不恢复/删除。
+- main/origin/main仍为`839ff88f1b7fee240d0c798f533314a3ae446430`；旧CI仅为历史证据，不再是当前任务的待验或提交条件。

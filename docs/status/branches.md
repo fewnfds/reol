@@ -11,3 +11,5 @@
 | codex/field-contest，4e17c5c165cf8fca9ef884a111aa1c3ca35f445f | 隔离的旧争环WIP，未恢复/删除，不是新架构待合并成果 |
 
 命名stash `424f956d280fb390d17e1f6dd879f3614b51a430`继续保留，不应用或删除。其他历史分支不清理、不强推，使用Git按需追溯。当前任务、工作区和工具handle只登记[HANDOFF](handoff.md)，验证见[BASELINE](baseline.md)。
+
+2026-11-11：当前开发分支已退役旧CI/完整测试及自动审查门禁，GitHub CI已停用；分支合并状态不等同于旧CI门禁，接续见[HANDOFF](handoff.md)。

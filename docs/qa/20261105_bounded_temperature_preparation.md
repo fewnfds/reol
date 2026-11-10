@@ -20,7 +20,7 @@
 
 ## 成本与范围
 
-入库[探针](../../tools/qa/environment_temperature_bulk.gd)以 `-- 128 1/17/256` 各独立进程测试：16384格、64块，共同0ms冷启动，20000ms翻转1639格，再在25000ms准备不同目标后取消。包含输入构造、传入复制、逐步处理、finish/commit/cancel及本地凭证释放的墙钟成本；不在片间推进另一个时钟。确认解析点、温度连续、未跟踪边界、取消前后快照和未来一致。
+入库[探针](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tools/qa/environment_temperature_bulk.gd)以 `-- 128 1/17/256` 各独立进程测试：16384格、64块，共同0ms冷启动，20000ms翻转1639格，再在25000ms准备不同目标后取消。包含输入构造、传入复制、逐步处理、finish/commit/cancel及本地凭证释放的墙钟成本；不在片间推进另一个时钟。确认解析点、温度连续、未跟踪边界、取消前后快照和未来一致。
 
 | 每次槽预算 | 冷resume p95/p99/最大ms | 冷整笔墙钟ms | 变更resume p95/p99/最大ms | 变更整笔ms | 变更commit/cancel ms |
 |---:|---:|---:|---:|---:|---:|

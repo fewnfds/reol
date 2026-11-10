@@ -2,11 +2,12 @@
 
 核对：2026-11-11。本页记录当前证据，旧阶段结果不累计成新架构完成度。当前工作看[HANDOFF](handoff.md)，目标与验收看[主计划](../plans/foundation-priorities.md)。
 
-## 代码起点及完整回归
+## 当前验证方式与代码起点
 
+- 2026-11-11按用户要求停用GitHub CI、退役旧260组和相关Python回归/探针及自动审查门禁。当前仅三个短smoke（结算续算、CPU批一致、库存守恒），实测检查体0.783ms；启动器短检查0.287秒。见[退役记录](../qa/20261111_workflow_retirement.md)。这些结果不证明规模性能。
 - Git main/origin/main：`839ff88f1b7fee240d0c798f533314a3ae446430`；其[CI42776609463](https://github.com/fewnfds/reol/actions/runs/42776609463)已核completed/success，只证明该旧主线。
-- 重构前代码保留点：`10260b3b45952b7b45055e807f360824227efce2`，原样保存导航/地形/视图查询WIP；文档清理为独立提交`95eac7d624b39d12fe36ba2b936ac342e7bcee89`。当前开发分支`codex/execution-foundation`，具体保护范围见HANDOFF。A首条CPU批执行已有运行接入；整包尚未获得完整回归/性能出口。
-- 本次提交准备点核对代码祖先`8c3deaa972f932e999167b61ea6b166b928cfe5f`的[CI42833827684](https://github.com/fewnfds/reol/actions/runs/42833827684)已completed/success；WIP保留点与新运行架构不在其覆盖内。此前1879f0c的CI42828875579失败及8cd155e夹具定向修补已被这个准确SHA的完整回归取代。
+- 重构前代码保留点：`10260b3b45952b7b45055e807f360824227efce2`，原样保存导航/地形/视图查询WIP；文档清理为独立提交`95eac7d624b39d12fe36ba2b936ac342e7bcee89`。当前开发分支`codex/execution-foundation`，具体保护范围见HANDOFF。A首条CPU批执行已有运行接入；300人性能出口未达；旧完整回归要求现已退役。
+- 退役前核对代码祖先`8c3deaa972f932e999167b61ea6b166b928cfe5f`的[CI42833827684](https://github.com/fewnfds/reol/actions/runs/42833827684)已completed/success；WIP保留点与新运行架构不在其覆盖内。此前1879f0c的CI42828875579失败及8cd155e夹具定向修补已被这个准确SHA的完整回归取代。
 - 保留补丁最后定向7组637检查通过，另有导航/地形联合6组898检查通过；本轮仅原样提交，没有重跑或补齐完整回归/最终性能验收。原日志由HANDOFF登记。
 
 ## 引擎、内容与存档

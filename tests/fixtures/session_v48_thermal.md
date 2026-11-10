@@ -13,4 +13,4 @@
 
 干净生成记录为 `logs/device-v2-generate-clean.json`，当前普通导入与完整同未来验证为 `logs/device-v2-verify-final.json`，均无引擎错误；后者规范化完整未来 SHA256 为 `6a5166a35cda63b58c0c4bbe8a32519ed96bc173266b0978078d0daec0c915ec`。首次带纹理缓存错误的生成记录不作为证据，干净生成的两个存档字节与其相同。
 
-回归入口为 [test_thermal_device_migration.gd](../runtime/test_thermal_device_migration.gd)。测试只读这两个旧档，升级到当前唯一格式后比较原字段、普通 load、完整未来及损坏候选原子拒绝；不得用测试重新生成或改写本档。
+回归入口为 [test_thermal_device_migration.gd](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/runtime/test_thermal_device_migration.gd)。测试只读这两个旧档，升级到当前唯一格式后比较原字段、普通 load、完整未来及损坏候选原子拒绝；不得用测试重新生成或改写本档。

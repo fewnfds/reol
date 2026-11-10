@@ -30,7 +30,7 @@ Godot4.7.2 stable / Windows / i5-13600KF，主代理顺序运行；各进程30�
 
 ## 普通 Main 两进程与截图
 
-[原生QA脚本](../../tools/qa/clock_world_capture.gd)以独立 `write` / `read` 进程运行普通 Main，选择原人类，真实跨聚落出发1234ms后保持在途保存，再推进3217ms；新进程普通加载同档并推进同一未来。write拒绝覆盖原证据，read使用同一文件；不造身体、位置、源或世界时钟。
+[原生QA脚本](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tools/qa/clock_world_capture.gd)以独立 `write` / `read` 进程运行普通 Main，选择原人类，真实跨聚落出发1234ms后保持在途保存，再推进3217ms；新进程普通加载同档并推进同一未来。write拒绝覆盖原证据，read使用同一文件；不造身体、位置、源或世界时钟。
 
 - 检查点1234ms完整规范快照：`f3974bc632bf15eb4c94d35f730eee5c67c8be8381be12dff8aa2966fff62bed`。
 - 保存文件字节：`4a9f7a73c05cf607fa78a9d3cad0a8c22c762acac85ae8c639aaa611a089dcd3`。

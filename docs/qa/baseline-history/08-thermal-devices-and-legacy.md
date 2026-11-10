@@ -20,7 +20,7 @@
 
 新测试含3375组通用小整数、3294组物理Q/余量可信路径与逐毫秒参照和通用路径对比，大于int64乘积的准确比例、JSON浮点整数/非法形状拒绝、排序与输入不变、同格冷热不净抵消、真实137ms注热/5500ms气候/10000ms步边界和5731ms段内独立恢复后不同分片同未来。它们证明预算核，不能替代真实持续器物或全世界完整回归。
 
-同机i5-13600KF/20逻辑核/34104020992B内存、Godot4.7.2 debug无头，原[组件基准](../../../tests/benchmarks/thermal_field.gd)相同工作量默认背景测量：
+同机i5-13600KF/20逻辑核/34104020992B内存、Godot4.7.2 debug无头，原[组件基准](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/benchmarks/thermal_field.gd)相同工作量默认背景测量：
 
 | 实际热格 | 推进p95 / p99 | JSON恢复p95 | 峰值工作集 |
 |---|---|---|---|
@@ -53,7 +53,7 @@ C1b-0代码提交`6a074a7eecf064e6f91d271e7e5d6ab346fa9f79`，一次Sol/custom�
 
 实际两个原生Compatibility进程：write经原器物面板学习/启用，段内173ms保存后退出；read原load_game恢复，再推进35秒，完整检查点及未来规范摘要均一致。1600×900截图`logs/thermal_devices_read_future.png`已观察，原迷雾/火寒石/人物与定性面板同屏，画面无后台能量泄漏。write6.831秒/410062848B，最终read6.982秒/430866432B，无引擎错误；`logs/device-native-write.json`、`logs/device-native-read-fixed.json`及`logs/thermal_devices_{write,read}.json`。首次QA直接比较JSON坐标Array导致只读断言失败，改用完整规范值比较；原产品与保存不变。
 
-同机i5-13600KF/20逻辑核/34104020992B内存、Godot4.7.2 debug无头，[真实器物基准](../../../tests/benchmarks/thermal_devices.gd)双地区12人，各40次×1秒推进：
+同机i5-13600KF/20逻辑核/34104020992B内存、Godot4.7.2 debug无头，[真实器物基准](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/benchmarks/thermal_devices.gd)双地区12人，各40次×1秒推进：
 
 | 启用设备 | 实际热格 / 末尾流 | 推进p50 / p95 / p99 | 完整区域JSON恢复 | 进程峰值工作集 |
 |---|---|---|---|---|

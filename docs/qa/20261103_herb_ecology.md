@@ -50,7 +50,7 @@ run172通过鼠标选择人身，在原采集页启用自留采集，实际汲�
 
 - 源档[session_v33.json](../../tests/fixtures/session_v33.json)：189595字节，SHA256 `d1a4e0f5fbaa4b87728f34723fe75876647ccd114f3622ef830fd17f7822c9e2`。
 - 保存时刻1333120ms，原`action:11`为`irrigate_herb`、phase为work、目的garden，`action:11:water`仍预约本人水；行动开始1300450ms、到场劳动开始1303120ms、应完成1423120ms。行囊水12、钱6，`irrigated=0`，尚未提前耗水或灌入。
-- run173/run174分别完整停止并重开游戏，均由原loader读同一源档，再执行[重启探针](../../tools/qa/herb_ecology_restart.gd)。两次在1423120ms完成后均水11、仅一份60000000微量灌入与一个来源回执。随后修正非零时刻新建场景的初始化接缝后，再以最终代码完整停开run175/run176，完整未来仍为相同172612字节及下述SHA。
+- run173/run174分别完整停止并重开游戏，均由原loader读同一源档，再执行[重启探针](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tools/qa/herb_ecology_restart.gd)。两次在1423120ms完成后均水11、仅一份60000000微量灌入与一个来源回执。随后修正非零时刻新建场景的初始化接缝后，再以最终代码完整停开run175/run176，完整未来仍为相同172612字节及下述SHA。
 - 随后原私采药得到2鲜药，原私拾柴得到3木，原私料焙药实际消耗2鲜药及1木，再实际取回2干药。之后通过原路线前往河湾，推进到相同7200000ms，行囊为水11、干药2、鲜药0、木2、钱6；这条实机证据没有卖药或诊治。
 - 原药源此时`extracted=2`、`produced=1`，土水输入包含真实降雨42000000与本次灌入60000000，保有102000000微量水；植物仍归原空间，离场不重置。两个未来均`candidate_valid=true`。
 - 完整联合未来两份各172612 UTF-8字节，SHA256均为`8eacf7a6f251e0cf6e09c2804ce3c6299fb7a886758904d35e0d5e3743fd020f`；`logs/herb_ecology_future_a.json`/`_b.json`及`logs/herb_ecology_restart_a.json`/`_b.json`保留原输出，逐字节一致。

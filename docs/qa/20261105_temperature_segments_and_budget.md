@@ -18,7 +18,7 @@ Godot4.7.2 stable/Windows/i5-13600KF，所有进程按30秒/1GiB守卫依次运�
 - 目标段：138项0失败，1.706秒，工作集峰222482432 B（`logs/temperature-segments-final.json`）。包括非格点天气/气候边界、重叠边界、回退地区、极端等级、绝对零拒绝/允许边界、原Index到State的连续段、只读查询与中途全精度JSON恢复。初跑同样138项通过，没有产品错误重试。
 - 新脚本导入通过，`logs/import-20261105-111606.log`。索引修改后独立两进程原QA再次通过，3格/12未来点的检查点及未来SHA256与F2a-1原证据相同；0.349/0.290秒、工作集约100MB，日志`logs/temperature-state-index-restart-{write,read}.json`。不是Main完整停开，本包没有可见改动。
 
-可复现成本探针：[environment_temperature_capacity.gd](../../tools/qa/environment_temperature_capacity.gd)。每进程配置一个正方形，全部格20°C起值，冷热交错常量目标200/−100°C、tau10000ms；测完整计划/提交、全部格12347ms读取、20次下一边界查询与一次内存快照，不涉及真实物品/GPU/气候编译/文件序列化或FPS。
+可复现成本探针：[environment_temperature_capacity.gd](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tools/qa/environment_temperature_capacity.gd)。每进程配置一个正方形，全部格20°C起值，冷热交错常量目标200/−100°C、tau10000ms；测完整计划/提交、全部格12347ms读取、20次下一边界查询与一次内存快照，不涉及真实物品/GPU/气候编译/文件序列化或FPS。
 
 | 表示/边长 | 真实温度格 | prepare/commit ms | 全格读 ms | 边界p95/p99 ms | 工作集峰B |
 |---|---:|---:|---:|---:|---:|

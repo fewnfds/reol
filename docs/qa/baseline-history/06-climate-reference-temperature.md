@@ -94,7 +94,7 @@ C1a-1代码已提交推送`4fba563c1f7cae3f95d6b65bb74be06866d402cd`，Godot UID
 
 ## 工具工作包
 
-`e19804e5f10caf3751ca5c780441b7d8d14f8654`配置生成器支持项目审查模型；20项Python测试通过。现有CI等待器9项离线测试通过。本地显式Sol/custom路由原生审查已完成，无可操作缺陷；日志与配置边界见[审查工作流](../../engineering/workflow/code-review.md)。它们不是游戏半成品的通过证据，远端状态以实际Git/对应run为准。
+`e19804e5f10caf3751ca5c780441b7d8d14f8654`配置生成器支持项目审查模型；20项Python测试通过。现有CI等待器9项离线测试通过。本地显式Sol/custom路由原生审查已完成，无可操作缺陷；日志与配置边界见[审查工作流](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/engineering/workflow/code-review.md)。它们不是游戏半成品的通过证据，远端状态以实际Git/对应run为准。
 
 ## 验收纪律
 

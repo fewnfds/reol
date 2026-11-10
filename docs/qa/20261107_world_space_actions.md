@@ -22,7 +22,7 @@
 
 ## 普通Main与完全停开
 
-Godot AI核对Reol工程、Godot4.7.2 stable和官方插件4.4.1后启动普通`scenes/main.tscn`。按需脚本[world_space_acceptance.gd](../../tools/qa/world_space_acceptance.gd)通过实际开发编辑适配器、普通物品面板、行旅与施工簿操作，不进入每次回归注册表。
+Godot AI核对Reol工程、Godot4.7.2 stable和官方插件4.4.1后启动普通`scenes/main.tscn`。按需脚本[world_space_acceptance.gd](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tools/qa/world_space_acceptance.gd)通过实际开发编辑适配器、普通物品面板、行旅与施工簿操作，不进入每次回归注册表。
 
 `write`创建两格长石板、通过非锚格移除另一个原物、普通耗时取起；随后实际走到库房、登记工地、落图、取料并开始木床施工。两个过程均保存进行中checkpoint，再记录完整联合未来。完全停止游戏进程、重启普通Main后执行`read`，分别恢复两份档并按同一时间继续；checkpoint和完整未来SHA256均相同，原截止时刻为60000与243448ms，旧空间handle失效。当前根52/区域43/村落7不变。
 

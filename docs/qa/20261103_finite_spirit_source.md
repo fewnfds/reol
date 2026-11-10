@@ -36,7 +36,7 @@ NPC只在原需求、健康、衣着、职责与承诺之后的本人决策时�
 | `logs/spirit_ui_runtime_probe.gd` / `logs/spirit-ui-runtime-20261103.log` | 88 | 原器物单入口/未学方法拒绝、原学习、body/stone目标路由、无提前收益、原取消/进行中存读、fog/本人历史/远处未见与只读世界投影 |
 | `logs/spirit_panel_layout_probe.gd` / `logs/spirit-panel-layout-20261103.log` | 8 | 原生1280×720源页远近/忙闲、同一开始按钮/原对象ID；新增入口的原器物页也不越屏 |
 
-正式测试位于[规则](../../tests/sim/test_spirit_sources.gd)、[完整性](../../tests/sim/test_spirit_source_integrity.gd)、[连续性](../../tests/runtime/test_spirit_source_continuity.gd)、[真实档](../../tests/runtime/test_spirit_source_archive.gd)。四组使用原世界/身体/库存/器物和共同时间；测试fixture的初始配置/投影敏感性反例不当作实机游玩证据。共享[重放实现](../../tests/runtime/helpers/spirit_source_replay.gd)在受扫描目录，`tools/qa/spirit_source_restart.gd`只继承它。
+正式测试位于[规则](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/sim/test_spirit_sources.gd)、[完整性](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/sim/test_spirit_source_integrity.gd)、[连续性](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/runtime/test_spirit_source_continuity.gd)、[真实档](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/runtime/test_spirit_source_archive.gd)。四组使用原世界/身体/库存/器物和共同时间；测试fixture的初始配置/投影敏感性反例不当作实机游玩证据。共享[重放实现](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/runtime/helpers/spirit_source_replay.gd)在受扫描目录，`tools/qa/spirit_source_restart.gd`只继承它。
 
 ## 失败与修正
 

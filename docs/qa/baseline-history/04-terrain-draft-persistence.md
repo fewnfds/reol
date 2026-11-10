@@ -6,9 +6,9 @@
 
 导入通过；最终4组283断言0失败（`logs/terrain-final-focus.log`），覆盖批量原子拒绝/JSON整值/复制隔离/还原基底、水邻与缓存、旧植被擦除/区块卸载/静止视线、真实联合和独立聚落存读。初次呈现测试选的离开位置仍在保留半径内，改为真正离开；初次存档断言混用JSON浮点与内存整数，改为规范值比较；没有放宽产品校验。flat跨图和装配组另在`logs/terrain-snapshot-focus.log`通过，最终新修改仍待对应SHA CI全回归。
 
-实际两进程：写入35格水/岩开局后进程退出，另起普通新局通过原加载器恢复；完整联合摘要同为`4854ebad04be86e6008dd8b9a5568825086686ad641e6d623986af66523a823f`。写进程6.695秒，最终1600×900读档/截图进程7.569秒、峰值工作集414003200B；截图`logs/terrain_native_read.png`已观察，QA隐藏界面/迷雾以检查布局，不写玩家知识。日志`logs/terrain_native_write_result.json`、`logs/terrain_read_final.json`；脚本[terrain_visual_capture](../../../tools/qa/terrain_visual_capture.gd)。首次QA脚本过早静态引用GameClock导致编译超时，改为autoload完成后动态加载；实际存读另暴露了数组成员检测不等价于整值版本比较，已恢复显式版本比较并由JSON存读覆盖。
+实际两进程：写入35格水/岩开局后进程退出，另起普通新局通过原加载器恢复；完整联合摘要同为`4854ebad04be86e6008dd8b9a5568825086686ad641e6d623986af66523a823f`。写进程6.695秒，最终1600×900读档/截图进程7.569秒、峰值工作集414003200B；截图`logs/terrain_native_read.png`已观察，QA隐藏界面/迷雾以检查布局，不写玩家知识。日志`logs/terrain_native_write_result.json`、`logs/terrain_read_final.json`；脚本[terrain_visual_capture](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tools/qa/terrain_visual_capture.gd)。首次QA脚本过早静态引用GameClock导致编译超时，改为autoload完成后动态加载；实际存读另暴露了数组成员检测不等价于整值版本比较，已恢复显式版本比较并由JSON存读覆盖。
 
-地表批量压力：同机i5-13600KF/20逻辑核/34104020992B内存、Godot4.7.2 debug无头，512图seed42；256/4096/32768格分别反复修改10次，提交p50为0.972/18.412/168.884ms，p95与p99均为1.145/20.273/172.199ms（10样本尾部分位等于最大值，非稳定尾延迟）。最大组序列化58.589ms/348289B；完整子进程2.474秒、峰值工作集130514944B，受30秒/1GiB预算。脚本[terrain_overrides benchmark](../../../tests/benchmarks/terrain_overrides.gd)，原记录`logs/terrain_benchmark_final.json`含硬件/样本。此为纯地图提交成本，不是渲染帧时、人口/环境/远区容量；大画笔需继续按事务和预算拆分，不能宣称32768格能在一帧内编辑。
+地表批量压力：同机i5-13600KF/20逻辑核/34104020992B内存、Godot4.7.2 debug无头，512图seed42；256/4096/32768格分别反复修改10次，提交p50为0.972/18.412/168.884ms，p95与p99均为1.145/20.273/172.199ms（10样本尾部分位等于最大值，非稳定尾延迟）。最大组序列化58.589ms/348289B；完整子进程2.474秒、峰值工作集130514944B，受30秒/1GiB预算。脚本[terrain_overrides benchmark](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/benchmarks/terrain_overrides.gd)，原记录`logs/terrain_benchmark_final.json`含硬件/样本。此为纯地图提交成本，不是渲染帧时、人口/环境/远区容量；大画笔需继续按事务和预算拆分，不能宣称32768格能在一帧内编辑。
 
 | 范围 | 已有证据 | 尚未覆盖 |
 |---|---|---|

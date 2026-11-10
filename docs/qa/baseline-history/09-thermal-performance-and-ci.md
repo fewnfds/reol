@@ -8,7 +8,7 @@
 
 doctor/导入通过，导入5.826秒/峰值工作集1000648704B，无引擎错误（`logs/thermal-capacity-import.json`）。资格检查、气候包络及原气候背景/边界四组487项0失败，2.552秒/峰值228384768B（`logs/thermal-reclaim-probe-final.json`）；覆盖真实器物刚分配时零残差、真实下一天气相位跳变超过0.5°C、在途和下一采样、独立JSON恢复相同诊断、恰好工作预算与少一单位失败、自定义Callable不调用、未知/滞后不改原世界。没有画面变更，不用headless声称视觉或帧率通过。
 
-同机i5-13600KF/20逻辑核/34104020992B内存、Godot4.7.2 debug无头，[真实多源基准](../../../tests/benchmarks/thermal_device_scale.gd)每档各一受限进程：
+同机i5-13600KF/20逻辑核/34104020992B内存、Godot4.7.2 debug无头，[真实多源基准](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/benchmarks/thermal_device_scale.gd)每档各一受限进程：
 
 | 真实器物 / 热格 / 人物 | 开启推进p50 / p95 / p99 | 关闭对照p95 | 两次完整区域JSON恢复 | 峰值工作集 / 进程时长 |
 |---|---|---|---|---|

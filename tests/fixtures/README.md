@@ -1,8 +1,10 @@
-# 存档回归样本
+# 历史存档样本
+
+旧测试套件于2026-11-11退役。本目录只保留原档字节与来源；下文回归/迁移描述属于历史，不构成当前开发门禁。
 
 此页记录不同历史时点的不可改写档案及对应测试，不声明这些旧格式是当前运行格式；当前已验与未验版本范围以[BASELINE](../../docs/status/baseline.md)和实际代码为准。
 
-`session_v49_thermal.json`是固定冷热器物包原生两进程验收时已经写出的`logs/thermal_devices_restart.json`的原字节副本，258961字节，SHA256 `a6ae26fad7fff13394ec1a7c9831d5a1fdd85c191222b31213c7f9de138bf8bd`。由[原停开工具](../../tools/qa/thermal_devices_restart.gd)经普通主场景、学习/启用动作和保存器捕获，根49/区域41/热3/器物8/climate1，在120173ms：火石已启用、原stored_q为179827000Q、累计真实转移173000Q，旧冻结段终点130000ms。原验收只安排本人位置以确保可见，未注设备余额或伪造收据；历史主代理日志`logs/device-native-write.json`与`-read-fixed.json`记录两次原生进程成功。本次为日照迁移冻结此已存在来源，不用根50序列化器倒改版本生成旧档，不覆盖更早fixture。
+`session_v49_thermal.json`是固定冷热器物包原生两进程验收时已经写出的`logs/thermal_devices_restart.json`的原字节副本，258961字节，SHA256 `a6ae26fad7fff13394ec1a7c9831d5a1fdd85c191222b31213c7f9de138bf8bd`。由[原停开工具](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tools/qa/thermal_devices_restart.gd)经普通主场景、学习/启用动作和保存器捕获，根49/区域41/热3/器物8/climate1，在120173ms：火石已启用、原stored_q为179827000Q、累计真实转移173000Q，旧冻结段终点130000ms。原验收只安排本人位置以确保可见，未注设备余额或伪造收据；历史主代理日志`logs/device-native-write.json`与`-read-fixed.json`记录两次原生进程成功。本次为日照迁移冻结此已存在来源，不用根50序列化器倒改版本生成旧档，不覆盖更早fixture。
 
 历史文件的原内容与来源不追改；是否继续纳入当前运行支持和主CI，按[有限兼容及退役政策](../../docs/engineering/compatibility.md)决定。下文“必须迁移/此前沿链抵达”等描述对应当时样本，不要求永远维护全链；退役时用可验证的当前格式回归承接有效场景。本轮未改样本或测试。
 

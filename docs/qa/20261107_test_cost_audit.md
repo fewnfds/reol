@@ -4,7 +4,7 @@
 
 2026-11-07；起点`d4e5f716aa1cd9fb84b47727160506c2b63addc9`，分支`codex/sparse-world-execution`，受检代码`b60adadfcab73a17e101b62538da62ddc5bccf9f`。本包只改工程工作流、测试工具与运行器、CI计时artifact；生产scripts/data/scenes/addons及全部现有测试组/断言不变。收尾提交只更新文档证据。
 
-只读参考本机`agent-shell`的AGENTS、文档策略、测试策略及外部工作台；未修改参考项目。可复用的是现行契约与阶段过程分离、完成时同步说明、按主要owner与成本选测试。其`.docs`未纳入Git、索引仍有漂移，故没有机械迁移Reol目录或建立仓外唯一权威。现行规则落在[文档合同](../DOCUMENTATION.md)、[开发流程](../engineering/workflow/ai-development.md)、[测试策略](../engineering/workflow/testing.md)。
+只读参考本机`agent-shell`的AGENTS、文档策略、测试策略及外部工作台；未修改参考项目。可复用的是现行契约与阶段过程分离、完成时同步说明、按主要owner与成本选测试。其`.docs`未纳入Git、索引仍有漂移，故没有机械迁移Reol目录或建立仓外唯一权威。现行规则落在[文档合同](../DOCUMENTATION.md)、[开发流程](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/engineering/workflow/ai-development.md)、[测试策略](../engineering/workflow/testing.md)。
 
 ## 原有证据及调查限制
 

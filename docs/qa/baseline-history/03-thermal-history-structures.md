@@ -8,7 +8,7 @@
 
 最终库存/热/拓扑/真实施工/热建造/呈现通知6组862项0失败，4.663秒/230469632B工作集（`logs/thermal-topology-focus-fixed.json`）；导入5.825秒/1004343296B、无脚本错误，结构检查201文档/401脚本0错误。首跑因typed Array的三元空数组丢类型而反复触发运行错误，30秒受限中止；已改为显式分支赋值，保留断言后复验通过（首错`logs/thermal-topology-focus.json`），未放宽门禁。
 
-原生复用[结构QA](../../../tools/qa/structure_capture.gd)的隔离输出副本，真实新局搬料建7处墙门，1344762ms保存并完全退出；独立普通加载完整摘要同为`3460d373f53cc711d57ae497b7fdfe2eaf644379928960bf19524669b2a70fcc`。重启后原人物不动开/关门，真实遮挡与Fog目标可见性随完成边界false→true→false，1600×900的closed/open截图已观察。日志`logs/thermal-topology-native-safe-{write,read}.json`及`logs/thermal_topology_structure_safe_{write,read}.json`，截图同前缀。两进程13.575/8.897秒，工作集494235648/480710656B，采样私有699224064/703131648B，均30秒/1GiB有界；这不是容量或FPS证明。首试旧QA自动选址包含现受保护道路，建墙被正确拒绝；已将QA改为选择当前规则下合法完整工地（仍由原register_site/build验证），未关道路保护。入库QA各函数与实际通过的隔离副本逐值核一致，只差输出名/函数排列，旧证据未覆盖。
+原生复用[结构QA](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tools/qa/structure_capture.gd)的隔离输出副本，真实新局搬料建7处墙门，1344762ms保存并完全退出；独立普通加载完整摘要同为`3460d373f53cc711d57ae497b7fdfe2eaf644379928960bf19524669b2a70fcc`。重启后原人物不动开/关门，真实遮挡与Fog目标可见性随完成边界false→true→false，1600×900的closed/open截图已观察。日志`logs/thermal-topology-native-safe-{write,read}.json`及`logs/thermal_topology_structure_safe_{write,read}.json`，截图同前缀。两进程13.575/8.897秒，工作集494235648/480710656B，采样私有699224064/703131648B，均30秒/1GiB有界；这不是容量或FPS证明。首试旧QA自动选址包含现受保护道路，建墙被正确拒绝；已将QA改为选择当前规则下合法完整工地（仍由原register_site/build验证），未关道路保护。入库QA各函数与实际通过的隔离副本逐值核一致，只差输出名/函数排列，旧证据未覆盖。
 
 本包最终SHA完整回归待CI；此提交检查点准确4394dfb/run41922985281仅发现pending，不等待。首次手输非Git SHA的空结果不算目标查询证据，随后从Git取值纠正发现一次；后续沿登记run接续，不按时轮询。
 

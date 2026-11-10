@@ -6,22 +6,22 @@
 
 旧 Q 的单元存储、压缩、分组、分配、历史、查询复用与传递预算属于原实现的内部合同：
 
-- [test_local_heat](../../tests/sim/test_local_heat.gd)
-- [test_thermal_cell_store](../../tests/sim/test_thermal_cell_store.gd)
-- [test_thermal_compressed_field](../../tests/sim/test_thermal_compressed_field.gd)
-- [test_thermal_allocation](../../tests/sim/test_thermal_allocation.gd)
-- [test_heat_geometry_reuse](../../tests/sim/test_heat_geometry_reuse.gd)
-- [test_thermal_frozen_groups](../../tests/sim/test_thermal_frozen_groups.gd)
-- [test_thermal_grouped_field](../../tests/sim/test_thermal_grouped_field.gd)
-- [test_absolute_heat](../../tests/sim/test_absolute_heat.gd)
-- [test_heat_query_reuse](../../tests/sim/test_heat_query_reuse.gd)
-- [test_thermal_history](../../tests/sim/test_thermal_history.gd)
-- [test_thermal_reclaim_probe](../../tests/sim/test_thermal_reclaim_probe.gd)
-- [test_thermal_transfer_budget](../../tests/sim/test_thermal_transfer_budget.gd)
+- [test_local_heat](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/sim/test_local_heat.gd)
+- [test_thermal_cell_store](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/sim/test_thermal_cell_store.gd)
+- [test_thermal_compressed_field](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/sim/test_thermal_compressed_field.gd)
+- [test_thermal_allocation](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/sim/test_thermal_allocation.gd)
+- [test_heat_geometry_reuse](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/sim/test_heat_geometry_reuse.gd)
+- [test_thermal_frozen_groups](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/sim/test_thermal_frozen_groups.gd)
+- [test_thermal_grouped_field](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/sim/test_thermal_grouped_field.gd)
+- [test_absolute_heat](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/sim/test_absolute_heat.gd)
+- [test_heat_query_reuse](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/sim/test_heat_query_reuse.gd)
+- [test_thermal_history](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/sim/test_thermal_history.gd)
+- [test_thermal_reclaim_probe](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/sim/test_thermal_reclaim_probe.gd)
+- [test_thermal_transfer_budget](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/sim/test_thermal_transfer_budget.gd)
 
-[test_legacy_heat_v1](../../tests/sim/test_legacy_heat_v1.gd) 和 [test_thermal_import](../../tests/sim/test_thermal_import.gd) 验证的是旧热模型或旧根档的成功迁入，随同作为历史案例保存。以上组的源码位于 `tests/sim/`，原文件和 fixture 均未改写。
+[test_legacy_heat_v1](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/sim/test_legacy_heat_v1.gd) 和 [test_thermal_import](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/sim/test_thermal_import.gd) 验证的是旧热模型或旧根档的成功迁入，随同作为历史案例保存。以上组的源码位于 `tests/sim/`，原文件和 fixture 均未改写。
 
-当前入口新增 [test_world_environment_fields](../../tests/sim/test_world_environment_fields.gd) 和 [test_world_field_save_boundary](../../tests/runtime/test_world_field_save_boundary.gd)。带有业务、在途、有限设备或当前坏候选拒绝语义的其他混合组不按名称整体退役；它们的旧档样本需要分别重建或拆分。
+当前入口新增 [test_world_environment_fields](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/sim/test_world_environment_fields.gd) 和 [test_world_field_save_boundary](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/runtime/test_world_field_save_boundary.gd)。带有业务、在途、有限设备或当前坏候选拒绝语义的其他混合组不按名称整体退役；它们的旧档样本需要分别重建或拆分。
 
 ## 在旧源码检出复现
 

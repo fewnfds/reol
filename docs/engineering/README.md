@@ -17,6 +17,6 @@
 
 ## 工作流和工具
 
-- [测试](workflow/testing.md)、[审查/CI](workflow/code-review.md)、[AI开发流程](workflow/ai-development.md)。
+- [性能开发与短验证](workflow/testing.md)：已退役旧CI/全量回归和每包自动审查，围绕实测热点推进。
 - [工具使用](tooling/usage.md)、[配置](tooling/setup.md)、[维护](tooling/maintenance.md)、[选型方法](tooling/evaluation.md)。
 - [Godot与Unity对应](godot-for-unity.md)：学习资料，不是本项目所有系统的实现方案。

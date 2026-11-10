@@ -24,7 +24,7 @@
 
 ## 原生Main与完整停开
 
-永久回归外的驱动为[save_framework_probe.gd](../../tools/qa/save_framework_probe.gd)。用Godot `--path . --script res://tools/qa/save_framework_probe.gd`运行；退出后另启动同命令加`-- --resume`。各次采用包装器75秒超时、错误日志及退出码门禁，均退出0。普通面板的保存signal实际连接`request_save`；测试使用独占`user://tests/save_framework_native_6118159.json`，未接触玩家普通档位。
+永久回归外的驱动为[save_framework_probe.gd](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tools/qa/save_framework_probe.gd)。用Godot `--path . --script res://tools/qa/save_framework_probe.gd`运行；退出后另启动同命令加`-- --resume`。各次采用包装器75秒超时、错误日志及退出码门禁，均退出0。普通面板的保存signal实际连接`request_save`；测试使用独占`user://tests/save_framework_native_6118159.json`，未接触玩家普通档位。
 
 真实Main选择人身、开始前往river的原行程，以预算1在部分结算中申请保存，再按真实帧循环续算。**121帧**后唯一成功回执，保存恰为原75ms，暂停保持；该帧数是有界验收样本，不是保存速度承诺。
 

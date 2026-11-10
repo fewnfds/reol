@@ -30,7 +30,5 @@
 - [docs/engineering/tooling/resources.md](../engineering/tooling/resources.md)
 - [docs/engineering/tooling/setup.md](../engineering/tooling/setup.md)
 - [docs/engineering/tooling/usage.md](../engineering/tooling/usage.md)
-- [docs/engineering/workflow/ai-development.md](../engineering/workflow/ai-development.md)
-- [docs/engineering/workflow/code-review.md](../engineering/workflow/code-review.md)
 - [docs/engineering/workflow/testing.md](../engineering/workflow/testing.md)
 - [docs/engineering/world-environment-contract.md](../engineering/world-environment-contract.md)

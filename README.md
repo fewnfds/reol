@@ -7,7 +7,7 @@ GDScript / 2D正交俯视的修仙持续世界。玩家是众生之一，可以�
 ## 开发入口
 
 1. [HANDOFF](docs/status/handoff.md)：授权、停点、工作区及受保护内容。
-2. [唯一重构计划](docs/plans/foundation-priorities.md)：16类核心问题、12类验收情况、交付依赖与规模目标。
+2. [唯一重构计划](docs/plans/foundation-priorities.md)：性能问题、顶层框架交付与规模目标。
 3. [执行架构规格](docs/specs/world-engine/execution.md)：目标结构；[领域职责](docs/engineering/architecture/05-framework-domains.md)明确问题归属。
 4. [愿景与规则](design/vision.md)、[Demo功能](docs/status/features.md)、[证据基线](docs/status/baseline.md)：分别说明游戏方向、现有行为和已验证范围。
 
@@ -23,6 +23,6 @@ python tools/godot.py editor
 python tools/godot.py run
 ```
 
-键位见[操作说明](docs/status/features/controls.md)，验证和工具见[工程入口](docs/engineering/README.md)。当前Demo尚未达到规模目标，不能用已有完整CI替新架构验收。
+键位见[操作说明](docs/status/features/controls.md)，验证和工具见[工程入口](docs/engineering/README.md)。当前Demo尚未达到规模目标。旧CI与全量测试已退役，开发以真实性能对照和少量短检查推进，见[开发循环](docs/engineering/workflow/testing.md)。
 
 项目代码许可证尚未选定。第三方来源与限制见[THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md)。

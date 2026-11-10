@@ -10,7 +10,7 @@ doctor正常；最终导入5.825秒/1006456832B、无引擎错误（`logs/intrin
 
 原引物精确时刻/占用/几何变化两部分101项0失败，10.404秒/229908480B（`intrinsic-drawing-parts.json`）；一次合组及一次完整引物组各触发30秒上限，保留timeout，不称完整引物通过，完整回归留对应SHA CI。旧式健康源测试改为只在零时刻核空热账、精确开局行及全引用后排除历史定义不存在的后来开局物，并重建派生索引；真实旧档不改，相关旧源54项0失败，3.370秒/416129024B（`intrinsic-health-legacy.json`）。没有删断言或放宽产品加载门禁。
 
-有界[查询基准](../../../tests/benchmarks/intrinsic_light.gd)，i5-13600KF/20逻辑核、Godot4.7.2 headless开发程序；原器物分别真实发行，同格源含两种峰值/半径，441受光格、30样本。先测得128源逐源查询p95/p99=34.844/36.194ms，热点为相同贡献重复计算。当前只在单次查询按格/半径/峰值共用**各源已经取整后的**贡献，再乘源数，不先合峰值，源预算仍按真实引用数核验；无持久空间/光缓存：
+有界[查询基准](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tests/benchmarks/intrinsic_light.gd)，i5-13600KF/20逻辑核、Godot4.7.2 headless开发程序；原器物分别真实发行，同格源含两种峰值/半径，441受光格、30样本。先测得128源逐源查询p95/p99=34.844/36.194ms，热点为相同贡献重复计算。当前只在单次查询按格/半径/峰值共用**各源已经取整后的**贡献，再乘源数，不先合峰值，源预算仍按真实引用数核验；无持久空间/光缓存：
 
 | 固有源数 | mean / p95 / p99 | 完整进程 / 工作集峰值 |
 |---|---|---|
@@ -20,7 +20,7 @@ doctor正常；最终导入5.825秒/1006456832B、无引擎错误（`logs/intrin
 
 日志`intrinsic-benchmark-{1,16}-final.json`、`intrinsic-benchmark-128-grouped.json`，改前`intrinsic-benchmark-{1,16,128}.json`。这是同格的即时查询负载，非128个分散移动源、FPS、多年或热格容量。首次一源末测误与仍在运行的分组回归有短时重叠，未用于上表；终态后另行顺序重测。所有进程仍有30秒/1GiB外部限制，未并发整套回归。
 
-[原生脚本](../../../tools/qa/intrinsic_light_capture.gd)在入树前选经度180°的新局，在民用08点实际夜间，真实到住处/取物/走六格/返回放置。1600×900的placed/held/moved/returned/restarted_held图逐张观察，最终用普通相机跟随且收起检查窗，让真实光与承载人可见；路径`logs/intrinsic_native_<label>.png`。每次等绘制完成后逐像素核GPU纹理等于实际提交图，当前视野外全黑；不凭headless判断GPU。write/read分别7.429/6.127秒，工作集605958144/597352448B、采样私有峰934002688/936632320B，D3D12 Forward+/RTX3060，0引擎错误。报告/guard为`intrinsic_native_{write,read}.json`和`intrinsic-native-{write,read}-final.json`。
+[原生脚本](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/tools/qa/intrinsic_light_capture.gd)在入树前选经度180°的新局，在民用08点实际夜间，真实到住处/取物/走六格/返回放置。1600×900的placed/held/moved/returned/restarted_held图逐张观察，最终用普通相机跟随且收起检查窗，让真实光与承载人可见；路径`logs/intrinsic_native_<label>.png`。每次等绘制完成后逐像素核GPU纹理等于实际提交图，当前视野外全黑；不凭headless判断GPU。write/read分别7.429/6.127秒，工作集605958144/597352448B、采样私有峰934002688/936632320B，D3D12 Forward+/RTX3060，0引擎错误。报告/guard为`intrinsic_native_{write,read}.json`和`intrinsic-native-{write,read}-final.json`。
 
 保存的是进行中take，checkpoint SHA256=`991185503e5971aface2fb9ebbfc85e677a0a7c8c26c63c99e38f171c44c44fa`；完全退出后新进程加载，再31234ms完整未来与原进程均=`4e18f915d799d6529d8b2911a6de05a2f260076ed97f0f1efcc7b37830f05194`。W1b既有原生50另由普通loader读取，原checkpoint/12347ms未来摘要仍通过，未补珠子/薄片（6.074秒/589832192B，`intrinsic-old50-native.json`）。
 
