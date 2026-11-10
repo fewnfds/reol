@@ -34,6 +34,7 @@ var _cursor: int = 0
 var _failed: bool = false
 var _work_yield: Callable
 var _step_started: bool = false
+var _completion_ready: Callable
 ## Diagnostics only; skipped steps never invoke a business owner.
 var executed_steps: int = 0
 var skipped_steps: int = 0
@@ -141,6 +142,15 @@ func begin(previous_ms: int, next_ms: int) -> bool:
 	return true
 
 
+func set_completion_readiness(provider: Callable) -> bool:
+	# Optional host pacing only. All effects remain executed once at at_ms;
+	# keeping this boundary pending also keeps public commands/observers closed.
+	if _executing or not provider.is_null() and not provider.is_valid():
+		return false
+	_completion_ready = provider
+	return true
+
+
 func resume(work_budget: int, should_yield: Callable = Callable()) -> int:
 	last_work = 0
 	if _executing:
@@ -200,6 +210,15 @@ func resume(work_budget: int, should_yield: Callable = Callable()) -> int:
 				return Status.PENDING
 		_step_started = false
 		_cursor += 1
+	if _cursor == _plan.size() and not _completion_ready.is_null():
+		if not _completion_ready.is_valid():
+			return _failure("completion_owner_unavailable")
+		var ready: Variant = _completion_ready.call(at_ms)
+		if not ready is bool:
+			return _failure("invalid_completion_readiness")
+		if not ready:
+			_executing = false
+			return Status.PENDING
 	_executing = false
 	_pending = _cursor < _plan.size()
 	return Status.PENDING if _pending else Status.COMPLETE
@@ -240,7 +259,7 @@ func contract() -> Dictionary:
 
 
 func progress() -> Dictionary:
-	return {"pending": _pending, "executing": _executing, "from_ms": from_ms, "at_ms": at_ms, "completed_steps": _cursor, "total_steps": _plan.size(), "step": String(_plan[_cursor].id) if _pending else "", "error": error}
+	return {"pending": _pending, "executing": _executing, "from_ms": from_ms, "at_ms": at_ms, "completed_steps": _cursor, "total_steps": _plan.size(), "step": (String(_plan[_cursor].id) if _cursor < _plan.size() else "publication") if _pending else "", "error": error}
 
 
 func _invalid(reason: String) -> bool:

@@ -511,6 +511,7 @@ func _bind_navigation() -> void:
 	world_sim.set_local_action_owner(_local_action_owns)
 	_home.bind_shared_motion(world_sim)
 	GameClock.bind_wait_guard(_can_wait)
+	world_sim.settlement.set_completion_readiness(GameClock.ready_for_publication)
 	_home._places = _home.simulation.places.duplicate(true)
 	for region: String in world_sim.regions:
 		var sim: VillageSimulation = world_sim.regions[region]

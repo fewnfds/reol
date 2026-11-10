@@ -24,6 +24,8 @@
 
 时间预算不会修改调用图或业务输入。已完成步骤不重算，未完成步骤先完成再进入下一时刻；外部命令和公共画面仍遵守完整边界。截止时间已经耗尽且世界pending时，runtime返回旧公共时间，不读取部分身体投影。
 
+`SimSettlementKernel.set_completion_readiness`可在全部规则步骤完成后仍保持原边界PENDING，诊断步骤为`publication`，不重跑规则。普通runtime接`GameClock.ready_for_publication(at_ms)`：根据近期真实时钟通知成本为即将发布的画面预留本帧空间，内部无需完整公共发布的时刻不预留；不足时下一帧沿同一kernel完成。单个时刻至多延后一个宿主帧，防止前置工作或过重观察者导致饥饿。等待期间外部命令、公共画面及新存档继续被原pending状态挡住；显式无墙钟驱动立即通过。观测成本和延期标记不入档，恢复后清空。
+
 预算领域可通过`SimSettlementKernel.should_yield_work()`复用本次resume的宿主截止条件，在自身有界工作项之间检查。环境到期响应按16格工作项保留原批处理handle和区间游标，完成后才放行健康等消费者；无宿主截止条件时仍沿同一过程结清。旧原子回调、地区前置推进及未拆分的大循环不能被中途抢占，单个原子步骤仍可超过6ms。该值是合作式预算，不是硬实时承诺；GPU过载、同步文件操作也不会被调速自动消除。
 
 ## 呈现、存读和诊断
@@ -36,4 +38,4 @@
 
 [Fix Your Timestep](https://gafferongames.com/post/fix_your_timestep/)说明固定步、显示分离与追赶导致的spiral of death，以及限制每帧工作后允许降速的取舍。[Godot Node](https://docs.godotengine.org/en/4.7/classes/class_node.html#class-node-private-method-process)说明`delta`的限制，[Time](https://docs.godotengine.org/en/4.7/classes/class_time.html#class-time-method-get-ticks-usec)提供单调宿主计时；这些只支持采用的原理，不证明Reol已达到整机规模。
 
-`test_simulation_pacing`主要保护有限准入、已有工作保留、恢复斜率、宿主状态不入档，以及简化治疗/攻击在不同倍率和预算下的同未来。简化生命值不代表Reol已实现该药物玩法。`test_settlement_kernel`保护宿主让出不改阶段，`test_clock_world_commit`保护实际世界/身体/发布接缝；普通渲染、独立停开和声明负载以QA证据为准。
+当前短smoke只保护结算续算及发布等待不重跑已完成规则等基础接缝，不恢复退役的旧测试矩阵；实际临时反例与普通渲染数值见[BASELINE](../status/baseline.md)。宿主有界执行和发布预留都不代表300人稳定60FPS已经达到。

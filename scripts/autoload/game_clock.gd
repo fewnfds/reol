@@ -51,6 +51,9 @@ var _frame_deadline_usec: int = 0
 var _view_delta_seconds: float = 0.0
 var _pace_display_bucket: int = 20
 var _save_boundary_owner: WeakRef
+var _publication_cost_usec: int = 0
+var _publication_deferred_at_ms: int = -1
+var _publication_deferred_deadline: int = 0
 
 
 func bind_rules(definitions: Dictionary) -> bool:
@@ -118,6 +121,25 @@ func advance_frame(delta: float) -> void:
 
 func frame_budget_exhausted() -> bool:
 	return _frame_deadline_usec > 0 and Time.get_ticks_usec() >= _frame_deadline_usec
+
+
+func ready_for_publication(at_ms: int) -> bool:
+	if _frame_deadline_usec == 0:
+		return true # Explicit drivers have no host deadline.
+	if _publication_deferred_at_ms == at_ms and _publication_deferred_deadline != _frame_deadline_usec:
+		_publication_deferred_at_ms = -1
+		return true # At most one frame of deferral, even if preflight alone is slow.
+	if at_ms < _pending_end_ms and not frame_budget_exhausted():
+		return true # Interior rule boundaries need no full clock/view publication.
+	# Leave room for the measured clock observers. A fresh callback can always
+	# publish even if observers alone exceed the soft budget; no deadlock/debt loss.
+	var reserve: int = mini(_publication_cost_usec, roundi(ReolSimulationPacing.FRAME_BUDGET_USEC * ReolSimulationPacing.HEADROOM))
+	if Time.get_ticks_usec() + reserve <= _frame_deadline_usec:
+		_publication_deferred_at_ms = -1
+		return true
+	_publication_deferred_at_ms = at_ms
+	_publication_deferred_deadline = _frame_deadline_usec
+	return false
 
 
 func effective_speed() -> float:
@@ -275,6 +297,7 @@ func _commit_pending() -> bool:
 	if minute > tick_index:
 		total_minutes += minute - tick_index
 		tick_index = minute
+	var publication_started: int = Time.get_ticks_usec()
 	time_advanced.emit(start, committed)
 	if advanced_minute:
 		tick.emit(tick_index)
@@ -282,6 +305,9 @@ func _commit_pending() -> bool:
 		hour_changed.emit(get_hour())
 	if get_day() != previous_day:
 		day_changed.emit(get_day())
+	if _frame_deadline_usec > 0:
+		var cost: int = Time.get_ticks_usec() - publication_started
+		_publication_cost_usec = cost if _publication_cost_usec == 0 else roundi(lerpf(float(_publication_cost_usec), float(cost), 0.25))
 	return completed
 
 
@@ -501,6 +527,9 @@ func restore_state(data: Dictionary) -> bool:
 	_explicit_allow_paused = false
 	_executor_required = false
 	pacing.reset()
+	_publication_cost_usec = 0
+	_publication_deferred_at_ms = -1
+	_publication_deferred_deadline = 0
 	_last_host_usec = Time.get_ticks_usec()
 	_view_delta_seconds = 0.0
 	_publish_pacing()

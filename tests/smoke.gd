@@ -57,7 +57,18 @@ func _settlement() -> bool:
 		return false
 	if kernel.resume(1) != Kernel.Status.COMPLETE or order != ["heal", "attack"]:
 		return false
-	return kernel.resume(1) == Kernel.Status.COMPLETE and order == ["heal", "attack"]
+	if kernel.resume(1) != Kernel.Status.COMPLETE or order != ["heal", "attack"]:
+		return false
+	var ready: Array[bool] = [false]
+	if not kernel.set_completion_readiness(func(_at: int) -> bool: return ready[0]) or not kernel.begin(17, 50):
+		return false
+	if kernel.resume(8) != Kernel.Status.PENDING or kernel.progress().step != "publication" or order != ["heal", "attack", "heal", "attack"]:
+		return false
+	var executed: int = kernel.executed_steps
+	if kernel.resume(8) != Kernel.Status.PENDING or kernel.executed_steps != executed:
+		return false
+	ready[0] = true
+	return kernel.resume(8) == Kernel.Status.COMPLETE and kernel.executed_steps == executed and not kernel.is_pending()
 
 
 func _batch(workers: int) -> SimActorAdvance:
