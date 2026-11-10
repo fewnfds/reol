@@ -429,10 +429,12 @@ func actor_view_layout() -> Dictionary:
 	# One transient view of original body references, never a second registry
 	# of positions. Two owners' visitors can share one physical cell.
 	var bodies: Dictionary = {}
+	var native_routes: Dictionary = {}
 	for sim: VillageSimulation in world_sim.regions.values():
 		# Evaluate accepted segments at this committed time; no body integration.
 		bodies.merge(sim.actors)
-	return PawnViewLayout.build(bodies, "player", null, GameClock.elapsed_ms)
+		native_routes.merge(sim.native_route_projections())
+	return PawnViewLayout.build(bodies, "player", null, GameClock.elapsed_ms, native_routes)
 
 
 func select_actor_view(pawn: Pawn) -> void:

@@ -5,7 +5,7 @@ extends RefCounted
 const CROWD_RADIUS: float = 24.0
 
 
-static func build(actors: Dictionary, center_actor_id: String = "", visitor_cell: Variant = null, at_ms: int = -1) -> Dictionary:
+static func build(actors: Dictionary, center_actor_id: String = "", visitor_cell: Variant = null, at_ms: int = -1, native_routes: Dictionary = {}) -> Dictionary:
 	var groups: Dictionary = {}
 	var positions: Dictionary[String, Vector2] = {}
 	for id: String in actors:
@@ -16,7 +16,12 @@ static func build(actors: Dictionary, center_actor_id: String = "", visitor_cell
 		if at_ms >= 0:
 			var body: Dictionary = actors[id]
 			var route: Dictionary = body.get("active", {})
-			positions[id] = SimRouteTravel.projected_point(route, body, at_ms) if route.get("phase") == "travel" else SimRouteTravel.point(body)
+			var completion: Dictionary = native_routes.get(id, {})
+			if route.get("phase") == "travel" and bool(completion.get("coarse", false)) and is_same(completion.route, route):
+				var timeline: SimRouteTravel.Timeline = completion.timeline
+				positions[id] = timeline.point_at(at_ms)
+			else:
+				positions[id] = SimRouteTravel.projected_point(route, body, at_ms) if route.get("phase") == "travel" else SimRouteTravel.point(body)
 			cell = TileGrid.world_to_cell(positions[id])
 		if not groups.has(cell):
 			groups[cell] = []

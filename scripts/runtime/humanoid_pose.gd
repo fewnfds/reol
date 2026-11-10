@@ -24,9 +24,11 @@ static func from_body(body: Dictionary, now: int, job: Dictionary = {}, manual_m
 
 static func in_world(world: RegionalSimulation, id: String, now: int, journey: Dictionary = {}, manual_moving: bool = false, local_action: Dictionary = {}) -> Dictionary:
 	var body: Dictionary = {}
+	var owner: VillageSimulation
 	for sim: VillageSimulation in world.regions.values():
 		if sim.has_actor(id):
 			body = sim.actor_state(id)
+			owner = sim
 			break
 	if body.is_empty():
 		return {}
@@ -43,6 +45,12 @@ static func in_world(world: RegionalSimulation, id: String, now: int, journey: D
 				job = domain.active[id]
 				break
 	var result: Dictionary = from_body(body, now, job, manual_moving)
+	if is_same(job, body.active):
+		var timeline: SimRouteTravel.Timeline = owner.coarse_native_timeline(id)
+		if timeline != null and now < timeline.ends[-1]:
+			result.direction = timeline.heading_at(now, SimRouteTravel.facing(body))
+			result.moving = true
+			result.action = "walk"
 	if bool(result.moving):
 		return result
 	# Only supported ordinary hand motions use the generic technical clip. A

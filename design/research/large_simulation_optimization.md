@@ -137,7 +137,9 @@ CPU/GPU都只产出候选基础场。实际响应、原物变化、共同时间�
 
 16GB整机、单RTX3060仍是目标；更多内存可以换缓存和批量缓冲，却不能使每帧全世界扫描变得合理。线程数也不等于速度倍数：任务太小、内存带宽或主线程提交占优都会限制收益。Reol模拟已不依赖每物品一个Node，不能把“去掉海量节点”包装为本轮新成果。
 
-建议先在现有Godot/GDScript、内置批处理与已有GPU内验证。只有确认剩余热点确实受脚本执行限制，且算法/布局已合理，才单独评估局部原生实现；引入依赖须另核许可与兼容。没有证据支持现在重写整款游戏或更换引擎。
+建议先在现有Godot/GDScript、内置批处理与已有GPU内验证。只有确认剩余热点确实受脚本执行限制，且算法/布局已合理，才单独评估局部原生实现；引入依赖须另核许可与兼容。用户允许大范围重构，现有class和投入不限制候选；是否扩大重写由实际热路径和实验决定。
+
+2026-11-11经Context7核对4.7官方[物理插值要求](https://docs.godotengine.org/en/4.7/tutorials/physics/interpolation/using_physics_interpolation.html)：自动插值要求在`_physics_process`内更新变换，帧回调中改变换会抖动。官方[介绍](https://docs.godotengine.org/en/4.7/tutorials/physics/interpolation/physics_interpolation_introduction.html)也说明，独立时刻收到更新时可能更适合自定义插值。Reol当前50ms共同步、可续算和异步提交不是Godot固定物理tick，不能只开启开关替换；可以研究呈现桥或原生动画，但不能用未结算未来补画。
 
 ## 环境与存读专项怎样测量
 

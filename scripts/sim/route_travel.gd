@@ -4,6 +4,67 @@ extends RefCounted
 ## Body dictionary owns the point; routes own only their segment and remainder.
 
 
+class Timeline extends RefCounted:
+	## Disposable arithmetic for an accepted native route. The action still owns
+	## its path/cursor; this table never owns world state or commits consequences.
+	var points := PackedVector2Array()
+	var ends := PackedInt64Array()
+	var started_ms: int
+
+	func _init(route: Dictionary, speed: float) -> void:
+		started_ms = int(route.segment_started_ms)
+		points.append(Vector2(float(route.segment_from[0]), float(route.segment_from[1])))
+		var deadline: int = int(route.due_ms)
+		for index: int in route.path.size():
+			var target: Vector2 = TileGrid.cell_to_world(SimRouteTravel.cell(route.path[index]))
+			if index > 0:
+				deadline += maxi(1, ceili(points[-1].distance_to(target) / speed * 1000.0))
+			points.append(target)
+			ends.append(deadline)
+
+	func leg_at(now: int) -> int:
+		# Upper bound: exact vertices belong to the next leg, except the final
+		# vertex, which the action owner must consume to perform arrival effects.
+		var low: int = 0
+		var high: int = ends.size()
+		while low < high:
+			@warning_ignore("integer_division")
+			var middle: int = (low + high) / 2
+			if ends[middle] <= now:
+				low = middle + 1
+			else:
+				high = middle
+		return mini(low, ends.size() - 1)
+
+	func point_at(now: int) -> Vector2:
+		var leg: int = leg_at(now)
+		var start: int = started_ms if leg == 0 else ends[leg - 1]
+		return points[leg].lerp(points[leg + 1], clampf(float(now - start) / float(ends[leg] - start), 0.0, 1.0))
+
+	func heading_at(now: int, previous: Vector2) -> Vector2:
+		var leg: int = leg_at(now)
+		# At an exact vertex, the next segment has not moved yet. Preserve the
+		# preceding facing, including a zero-distance centering leg at spawn.
+		if leg > 0 and now == ends[leg - 1]:
+			leg -= 1
+		while leg >= 0:
+			var delta: Vector2 = points[leg + 1] - points[leg]
+			if not delta.is_zero_approx() and now > (started_ms if leg == 0 else ends[leg - 1]):
+				return delta.normalized()
+			leg -= 1
+		return previous
+
+	func materialize(route: Dictionary, now: int) -> void:
+		var consumed: int = ends.size() - route.path.size()
+		var leg: int = maxi(consumed, leg_at(now))
+		if leg <= consumed:
+			return
+		route.path = route.path.slice(leg - consumed)
+		route.segment_started_ms = ends[leg - 1]
+		route.segment_from = [points[leg].x, points[leg].y]
+		route.due_ms = ends[leg]
+
+
 static func point(body: Dictionary) -> Vector2:
 	return Vector2(float(body.position[0]), float(body.position[1]))
 

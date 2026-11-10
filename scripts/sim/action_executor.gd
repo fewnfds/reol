@@ -71,6 +71,8 @@ func project(actor_id: String, at_ms: int, batch: SimActorAdvance = null) -> voi
 	var action: Dictionary = actor.active
 	if action.is_empty() or action.phase != "travel" or action.path.is_empty():
 		return
+	if _sim.project_coarse_native_route(actor_id, action, at_ms):
+		return
 	if not _sim.has_cached_boundary_ahead(actor_id) and not SimRouteTravel.repair(_sim, actor_id, action, at_ms, _sim.places[action.destination].cell):
 		cancel(actor_id, "route_blocked")
 		return

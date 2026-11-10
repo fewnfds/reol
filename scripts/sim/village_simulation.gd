@@ -386,8 +386,8 @@ func accept_native_route(id: String, route: Dictionary) -> void:
 	# Only a freshly found/repaired route has a proof for ALL remaining legs.
 	# After an intersecting topology revision an old path keeps local boundaries
 	# until it is repaired or replaced, even if its first leg is still open.
-	var result: int = int(route.due_ms)
 	var speed: float = float(motion_rules.motion.speed)
+	var timeline := SimRouteTravel.Timeline.new(route, speed)
 	var cells: Dictionary[Vector2i, bool] = {}
 	var previous: Vector2i = TileGrid.world_to_cell(Vector2(float(route.segment_from[0]), float(route.segment_from[1])))
 	cells[previous] = true
@@ -398,11 +398,12 @@ func accept_native_route(id: String, route: Dictionary) -> void:
 			cells[Vector2i(previous.x, at.y)] = true
 			cells[Vector2i(at.x, previous.y)] = true
 		previous = at
-	for index: int in range(1, route.path.size()):
-		var from: Vector2 = TileGrid.cell_to_world(SimRouteTravel.cell(route.path[index - 1]))
-		var to: Vector2 = TileGrid.cell_to_world(SimRouteTravel.cell(route.path[index]))
-		result += maxi(1, ceili(from.distance_to(to) / speed * 1000.0))
-	_route_completions[id] = {"route": route, "at_ms": result, "cells": cells, "revision": _route_geometry_revision()}
+	var nearby: Dictionary[String, bool] = {}
+	for cell: Vector2i in cells:
+		for place: String in _stock_places_near(cell):
+			nearby[place] = true
+	_route_completions[id] = {"route": route, "at_ms": int(timeline.ends[-1]) if not timeline.ends.is_empty() else int(route.due_ms),
+		"cells": cells, "revision": _route_geometry_revision(), "timeline": timeline, "coarse": false, "stock_places": nearby}
 
 
 func set_route_geometry_revision_provider(provider: Callable) -> void:
@@ -459,13 +460,20 @@ func _query_actor_boundary(cached: bool) -> int:
 			var allowed: bool = actor_controls(id, "action") and actor_controls(id, "motion")
 			var completion: Dictionary = _route_completions.get(id, {})
 			var accepted: bool = allowed and native_route_events_enabled and actor.active.get("phase") == "travel" and not completion.is_empty() and is_same(completion.route, actor.active) and int(completion.revision) == geometry_revision
+			var coarse: bool = accepted and not actor.active.path.is_empty() and _native_crossing_interest.is_valid() and not bool(_native_crossing_interest.call(id)) and not _route_stock_crossing_required(actor, completion)
+			if not completion.is_empty():
+				if bool(completion.coarse) and not coarse:
+					project_coarse_native_route(id, actor.active, elapsed_ms)
+				completion.coarse = coarse
 			if cached:
 				_route_continuations[id] = allowed and actor.active.get("phase") == "travel"
 			if not allowed:
 				actor_boundary = elapsed_ms + 1
+			elif coarse:
+				# An accepted stable route has no intermediate world consequence.
+				# Evaluate its polyline directly rather than scheduling every vertex.
+				actor_boundary = maxi(elapsed_ms + 1, mini(int(completion.at_ms), int(actor.active.started_ms) + int(config.action_timeout) * MINUTE_MS + 1))
 			elif accepted and _native_crossing_interest.is_valid() and not bool(_native_crossing_interest.call(id)) and not _stock_crossing_required(actor):
-				# No domain consumes this body's cell edge. Keep the accepted segment
-				# continuous until its end; authority queries still project on demand.
 				actor_boundary = maxi(elapsed_ms + 1, mini(int(actor.active.due_ms), int(actor.active.started_ms) + int(config.action_timeout) * MINUTE_MS + 1))
 			else:
 				actor_boundary = _executor.next_boundary_ms(actor)
@@ -1033,8 +1041,39 @@ func projected_actor_position(id: String) -> Vector2:
 	var actor: Dictionary = _actors[id]
 	var route: Dictionary = actor.get("active", {})
 	if route.get("phase") == "travel":
+		var timeline: SimRouteTravel.Timeline = coarse_native_timeline(id)
+		if timeline != null:
+			return timeline.point_at(elapsed_ms)
 		return SimRouteTravel.projected_point(route, actor, elapsed_ms)
 	return actor_position(actor)
+
+
+func coarse_native_timeline(id: String) -> SimRouteTravel.Timeline:
+	var completion: Dictionary = _route_completions.get(id, {})
+	return completion.timeline if bool(completion.get("coarse", false)) and is_same(completion.route, _actors[id].active) and _actors[id].active.get("phase") == "travel" else null
+
+
+func native_route_projections() -> Dictionary:
+	# Owner-local disposable tables; presentation may read them, never mutate.
+	return _route_completions
+
+
+func project_coarse_native_route(id: String, route: Dictionary, at_ms: int) -> bool:
+	var timeline: SimRouteTravel.Timeline = coarse_native_timeline(id)
+	if timeline == null or not is_same(route, _actors[id].active):
+		return false
+	var body: Dictionary = _actors[id]
+	var before: Vector2i = SimRouteTravel.cell(body.cell)
+	timeline.materialize(route, at_ms)
+	var heading: Vector2 = timeline.heading_at(at_ms, SimRouteTravel.facing(body))
+	SimRouteTravel.put(body, timeline.point_at(at_ms))
+	body.facing = [heading.x, heading.y]
+	if before != SimRouteTravel.cell(body.cell):
+		_stock_dirty_actors[id] = true
+		# This span was accepted only without cell-edge consumers. New consumers
+		# see its current location, then restore precise future edges on invalidation.
+		body_space_changed.emit(id)
+	return true
 
 
 func set_actor_position(id: String, point: Vector2) -> void:
@@ -1574,6 +1613,14 @@ func _stock_crossing_required(actor: Dictionary) -> bool:
 				var memory: Dictionary = actor.stock_memory.get(id, {})
 				if memory.get("tick", -1) != tick_index or memory.get("items") != inventory.containers[id]:
 					return true
+	return false
+
+
+func _route_stock_crossing_required(actor: Dictionary, completion: Dictionary) -> bool:
+	for place: String in completion.stock_places:
+		var memory: Dictionary = actor.stock_memory.get(place, {})
+		if memory.get("tick", -1) != tick_index or memory.get("items") != inventory.containers[place]:
+			return true
 	return false
 
 
