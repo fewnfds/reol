@@ -154,22 +154,32 @@ func _neutral_everywhere(at_ms: int, insulation: int, historical: bool = false) 
 	return true
 
 
-func sample_for(actor: String, at_ms: int) -> Dictionary:
+func _sample_exposure(actor: String, at_ms: int, cell: Vector2i, temperatures: Dictionary[String, int], neutral: Dictionary[int, bool], detailed: bool) -> Dictionary:
 	var garments: Array[Dictionary] = _garments(actor)
 	var insulation: int = _insulation(garments)
 	var sample: Dictionary = {"at_ms": at_ms, "cell": [], "region": "", "temperature_tenths": 0,
 		"heat_tenths": 0, "garments": garments, "insulation_tenths": insulation, "energy_rate": 0}
-	if _neutral_everywhere(at_ms, insulation, true):
+	if not detailed and _neutral_background(temperatures, neutral, insulation):
 		return sample
-	var home: String = world.clothing.home(actor)
-	var region: String = region_for_actor(actor)
-	sample.cell = world.regions[home].synchronize_actor(actor).cell.duplicate()
+	var region: String = SimClimateRules.region_at(definitions, cell)
+	sample.cell = [cell.x, cell.y]
 	sample.region = region
-	sample.heat_tenths = _sample_heat_tenths(SimRouteTravel.cell(sample.cell), at_ms)
-	var temperature: int = _temperature(region, at_ms) + int(sample.heat_tenths)
+	sample.heat_tenths = _sample_heat_tenths(cell, at_ms)
+	var temperature: int = temperatures[region] + int(sample.heat_tenths)
 	sample.temperature_tenths = temperature
 	sample.energy_rate = int(SimClimateRules.burden(definitions, temperature, insulation).energy_rate)
 	return sample
+
+
+func _neutral_background(temperatures: Dictionary[String, int], known: Dictionary[int, bool], insulation: int) -> bool:
+	if not known.has(insulation):
+		var neutral: bool = true
+		for temperature: int in temperatures.values():
+			if int(SimClimateRules.burden(definitions, temperature, insulation).energy_rate) != 0:
+				neutral = false
+				break
+		known[insulation] = neutral
+	return known[insulation]
 
 
 func local_conditions(actor: String, at_ms: int = -1) -> Dictionary:
@@ -278,30 +288,53 @@ func next_boundary_ms() -> int:
 func settle_at_ms(now: int) -> void:
 	if now < next_boundary_ms() or now - activation_ms < MINUTE_MS or posmod(now, MINUTE_MS) != 0:
 		return
-	var affected_regions: Dictionary = {}
-	for home: String in world._sorted_keys(world.regions):
-		var sim: VillageSimulation = world.regions[home]
-		var affected: bool = false
-		for actor: String in world._sorted_keys(sim.synchronize_actors()):
-			if energy_rate(actor) > 0 or not _neutral_everywhere(now, insulation_for(actor)):
-				affected = true
-				break
-		# No time-varying callback: old cached exposure settles first, then all
-		# new samples in this region become effective for future intervals.
-		if affected:
-			world.synchronize_region(home)
-			affected_regions[home] = true
-	# All original bodies first settle their old cached rate. Only then freeze
-	# the one historical thermal sample after this timestamp's real effects.
 	var heat: RefCounted = _thermal()
-	if heat != null and not heat.mark_sample(now):
-		return
-	for home: String in world._sorted_keys(world.regions):
+	var temperatures: Dictionary[String, int] = {}
+	for region: String in definitions.regions:
+		temperatures[region] = _temperature(region, now)
+	var neutral: Dictionary[int, bool] = {}
+	var detail_possible: bool = heat.sample_may_include_offset(now) if heat is SimWorldEnvironmentFields else _has_sampled_heat(now, false)
+	var homes: Array = world._sorted_keys(world.regions)
+	for home: String in homes:
 		var sim: VillageSimulation = world.regions[home]
-		for actor: String in world._sorted_keys(sim.synchronize_actors()):
-			samples[actor] = sample_for(actor, now)
-		if affected_regions.has(home):
-			world.invalidate_region(home)
+		if sim.elapsed_ms == now:
+			continue
+		var needed: bool = detail_possible
+		if not needed:
+			for id: String in sim.actors:
+				if energy_rate(id) > 0 or not _neutral_background(temperatures, neutral, insulation_for(id)):
+					needed = true
+					break
+		if needed and not world.advance_region_to_world(home):
+			return
+	# Take the exact physical sample once. A proven trajectory can provide
+	# geometry without eagerly integrating a body's old exposure balance.
+	var actor_cells: Dictionary[String, Vector2i] = {}
+	var cells: Dictionary[Vector2i, bool] = {}
+	for home: String in homes:
+		var sim: VillageSimulation = world.regions[home]
+		for id: String in sim.actor_ids():
+			var cell: Vector2i = sim.exposure_sample_cell(id)
+			actor_cells[id] = cell
+			cells[cell] = true
+	if heat is SimWorldEnvironmentFields:
+		if not heat.mark_sample(now, cells):
+			return
+	elif heat != null and not heat.mark_sample(now):
+		return
+	var detailed: bool = _has_sampled_heat(now, true)
+	var candidate: Dictionary = {}
+	for home: String in homes:
+		var sim: VillageSimulation = world.regions[home]
+		for id: String in sim.actor_ids():
+			var sample: Dictionary = _sample_exposure(id, now, actor_cells[id], temperatures, neutral, detailed)
+			if int(sample.energy_rate) != energy_rate(id):
+				# Integrate the old rate before this boundary supplies a new one.
+				# Unchanged recipients keep their original deadlines and anchors.
+				sim.synchronize_actor(id)
+				world.invalidate_region(home, id)
+			candidate[id] = sample
+	samples = candidate
 	last_pulse_ms = now
 
 

@@ -486,26 +486,63 @@ func context_at(cell: Vector2i) -> Dictionary:
 		"room": _layout.room_of.get(cell), "terrain": world.map_data.get_terrain(cell)}
 
 
-func mark_sample(now: int) -> bool:
-	if _busy or now != last_ms or not activate_sources():
+func mark_sample(now: int, actor_cells: Dictionary[Vector2i, bool] = {}) -> bool:
+	if _busy or not _error.is_empty() or now != last_ms or not activate_sources():
 		return false
-	var cells: Dictionary[Vector2i, bool] = {}
+	var cells: Dictionary[Vector2i, bool] = actor_cells.duplicate()
 	for region: VillageSimulation in world.regions.values():
-		for person: Dictionary in region.synchronize_actors().values():
-			cells[SimRouteTravel.cell(person.cell)] = true
+		if actor_cells.is_empty(): # Opening capture has no prepared exposure batch.
+			for id: String in region.actors:
+				cells[region.exposure_sample_cell(id)] = true
 		for id: String in region.land_resources.sources:
 			var place_id: String = str(region.config.resource_sources[id].place)
 			var place: Dictionary = region.places.get(place_id, {})
 			if place.has("cell"):
 				cells[SimRouteTravel.cell(place.cell)] = true
+	var backgrounds: Dictionary[String, int] = {}
+	var background_offsets: Dictionary[String, int] = {}
+	if not _sample_background(now, backgrounds, background_offsets):
+		return false
 	var candidate: Dictionary = {}
 	for cell: Vector2i in cells:
-		var projected: Dictionary = project_tenths(cell, now)
-		if not bool(projected.get("supported", false)):
+		var climate_region: String = _background.region_at(cell)
+		if not backgrounds.has(climate_region):
 			return false
-		candidate[_key(cell)] = int(projected.value)
+		var actual: Dictionary = _temperature.actual_at(cell, now)
+		if actual.get("reason") == "untracked":
+			candidate[_key(cell)] = background_offsets[climate_region]
+		elif bool(actual.get("ok", false)):
+			candidate[_key(cell)] = roundi(float(actual.value_c) * 10.0) - backgrounds[climate_region]
+		else:
+			return false
 	_samples = candidate
 	last_sample_ms = now
+	return true
+
+
+func sample_may_include_offset(now: int) -> bool:
+	if _background == null or not _thermal_chunks.is_empty():
+		return true
+	for region: String in _settings.climate.regions:
+		var current: Dictionary = _background.value_for_region(region, now)
+		var target: Dictionary = SimClimateRules.background_for_region(_settings.climate, _settings.weather, int(_settings.weather_epoch_ms), region, now)
+		# Neutral anchors can differ by the canonical quantum. Do not exclude
+		# a cell whose actual value could round across a tenth-degree edge.
+		if not bool(current.get("ok", false)) or not target.has("temperature_tenths") or absf(float(current.value_c) * 10.0 - float(target.temperature_tenths)) >= 0.5 - ANCHOR_QUANTUM * 20.0:
+			return true
+	return false
+
+
+func _sample_background(now: int, targets: Dictionary[String, int], offsets: Dictionary[String, int]) -> bool:
+	if _background == null:
+		return false
+	for region: String in _settings.climate.regions:
+		var current: Dictionary = _background.value_for_region(region, now)
+		var target: Dictionary = SimClimateRules.background_for_region(_settings.climate, _settings.weather, int(_settings.weather_epoch_ms), region, now)
+		if not bool(current.get("ok", false)) or not target.has("temperature_tenths"):
+			return false
+		targets[region] = int(target.temperature_tenths)
+		offsets[region] = roundi(float(current.value_c) * 10.0) - targets[region]
 	return true
 
 

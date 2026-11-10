@@ -69,7 +69,10 @@ func region_at(cell: Vector2i) -> String:
 
 
 func value_at(cell: Vector2i, at_ms: int) -> Dictionary:
-	var region: String = region_at(cell)
+	return value_for_region(region_at(cell), at_ms)
+
+
+func value_for_region(region: String, at_ms: int) -> Dictionary:
 	if region.is_empty() or not _regions.has(region):
 		return {"ok": false, "reason": "invalid_cell_or_unconfigured"}
 	var anchor: Dictionary = _regions[region]
