@@ -4,6 +4,7 @@ extends RefCounted
 
 class NavigationWorld extends ReolWorld:
 	var cells: Dictionary[Vector2i, int] = {}
+	var terrain_queries: int = 0
 
 
 	func _ready() -> void:
@@ -11,6 +12,7 @@ class NavigationWorld extends ReolWorld:
 
 
 	func terrain_is_walkable(cell: Vector2i) -> bool:
+		terrain_queries += 1
 		return cells.has(cell)
 
 
@@ -32,6 +34,79 @@ func run_tests(runner: Object) -> void:
 	_test_same_cell(runner)
 	_test_elevation(runner)
 	_test_diagonal(runner)
+	_test_revisioned_reuse(runner)
+	_test_opaque_geometry(runner)
+	_test_owner_isolation(runner)
+
+
+func _test_revisioned_reuse(runner: Object) -> void:
+	var world := NavigationWorld.new()
+	for x: int in 6:
+		world.cells[Vector2i(x, 0)] = 0
+	var state: Dictionary = {"revision": 0, "blocked": {}}
+	world.set_obstacle_provider(func(cell: Vector2i) -> bool: return state.blocked.has(cell),
+		func() -> int: return int(state.revision))
+	var path: Array[Vector2i] = VillageRuntime.find_grid_path(world, Vector2i.ZERO, Vector2i(5, 0), 6, 64)
+	runner.assert_true(not path.is_empty(), "observable geometry produces an original legal route")
+	var queries: int = world.terrain_queries
+	var repeated: Array[Vector2i] = VillageRuntime.find_grid_path(world, Vector2i.ZERO, Vector2i(5, 0), 6, 64)
+	runner.assert_eq(repeated, path, "same-version route reuse preserves the original native path")
+	runner.assert_eq(world.terrain_queries, queries, "repeated same-version route does not query terrain again")
+	repeated.clear()
+	runner.assert_eq(VillageRuntime.find_grid_path(world, Vector2i.ZERO, Vector2i(5, 0), 6, 64), path, "caller mutation cannot consume a cached shared route")
+	runner.assert_true(VillageRuntime.find_grid_path(world, Vector2i.ZERO, Vector2i(5, 0), 6, 1).is_empty(), "a cached successful route does not bypass a later search budget")
+	state.blocked[Vector2i(2, 0)] = true
+	state.revision += 1
+	runner.assert_true(VillageRuntime.find_grid_path(world, Vector2i.ZERO, Vector2i(5, 0), 6, 64).is_empty(), "revision-only obstacle change invalidates cached routes and clearance")
+	state.blocked.clear()
+	state.revision += 1
+	runner.assert_eq(VillageRuntime.find_grid_path(world, Vector2i.ZERO, Vector2i(5, 0), 6, 64), path, "opening the route invalidates the cached failure")
+	world.is_walkable(Vector2i(5, 0))
+	state.blocked[Vector2i(2, 0)] = true
+	var previous_revision: int = int(state.revision)
+	state.revision += 1
+	world.invalidate_navigation([Vector2i(2, 0)], previous_revision)
+	queries = world.terrain_queries
+	runner.assert_true(world.is_walkable(Vector2i(5, 0)), "unaffected local clearance remains valid")
+	runner.assert_eq(world.terrain_queries, queries, "local topology invalidation retains unrelated point queries")
+	runner.assert_true(not world.is_walkable(Vector2i(2, 0)), "local invalidation refreshes its changed obstacle")
+	runner.assert_true(VillageRuntime.find_grid_path(world, Vector2i.ZERO, Vector2i(5, 0), 6, 64).is_empty(), "local obstacle change still invalidates complete routes")
+	state.blocked[Vector2i(5, 0)] = true
+	state.revision += 1 # A separate dependency changed without a local notice.
+	previous_revision = int(state.revision)
+	state.revision += 1
+	world.invalidate_navigation([Vector2i(2, 0)], previous_revision)
+	runner.assert_true(not world.is_walkable(Vector2i(5, 0)), "a later local notice cannot hide an older unobserved dependency revision")
+	world.free()
+
+
+func _test_opaque_geometry(runner: Object) -> void:
+	var world := NavigationWorld.new()
+	for x: int in 3:
+		world.cells[Vector2i(x, 0)] = 0
+	var blocked: Dictionary = {}
+	world.set_obstacle_provider(func(cell: Vector2i) -> bool: return blocked.has(cell))
+	runner.assert_true(not VillageRuntime.find_grid_path(world, Vector2i.ZERO, Vector2i(2, 0), 3, 32).is_empty(), "opaque geometry initially allows its current route")
+	blocked[Vector2i(1, 0)] = true
+	runner.assert_true(VillageRuntime.find_grid_path(world, Vector2i.ZERO, Vector2i(2, 0), 3, 32).is_empty(), "unobservable callback changes are checked live instead of cached")
+	blocked.clear()
+	runner.assert_true(not VillageRuntime.find_grid_path(world, Vector2i.ZERO, Vector2i(2, 0), 3, 32).is_empty(), "opaque reopening does not retain a cached failure")
+	world.free()
+
+
+func _test_owner_isolation(runner: Object) -> void:
+	var first := NavigationWorld.new()
+	var second := NavigationWorld.new()
+	for x: int in 3:
+		first.cells[Vector2i(x, 0)] = 0
+	for world: NavigationWorld in [first, second]:
+		world.set_obstacle_provider(func(_cell: Vector2i) -> bool: return false, func() -> int: return 1)
+	runner.assert_true(not VillageRuntime.find_grid_path(first, Vector2i.ZERO, Vector2i(2, 0), 3, 32).is_empty(), "first owner accepts its actual terrain")
+	runner.assert_true(VillageRuntime.find_grid_path(second, Vector2i.ZERO, Vector2i(2, 0), 3, 32).is_empty(), "same revision in another world cannot reuse the first owner's route")
+	first.set_obstacle_provider(func(_cell: Vector2i) -> bool: return true, func() -> int: return 1)
+	runner.assert_true(VillageRuntime.find_grid_path(first, Vector2i.ZERO, Vector2i(2, 0), 3, 32).is_empty(), "replacing a provider invalidates same-number revision queries")
+	first.free()
+	second.free()
 
 
 func _test_detour(runner: Object) -> void:

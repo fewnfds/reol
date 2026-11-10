@@ -144,7 +144,7 @@ func select_actor(id: String) -> void:
 
 func _player_actor() -> Dictionary:
 	if is_instance_valid(continuity):
-		continuity.prepare_home_command()
+		continuity.prepare_home_command("player")
 	return simulation.synchronize_actor("player")
 
 
@@ -337,7 +337,7 @@ func load_game(path: String = SAVE_PATH) -> Error:
 		return _load_failed("近况里的行动或账目不完整。")
 	var saved_player: Dictionary = snapshot["player"]
 	var player_cell: Vector2i = _decode_cell(saved_player["cell"])
-	if _decode_cell(restored.synchronize_actors()["player"]["cell"]) != player_cell:
+	if _decode_cell(restored.synchronize_actor("player")["cell"]) != player_cell:
 		return _load_failed("近况里的位置记录不一致。")
 	if not GameClock.restore_state(snapshot["clock"]):
 		return _load_failed("近况里的时间记录不正确。")
@@ -350,7 +350,7 @@ func load_game(path: String = SAVE_PATH) -> Error:
 	_places = simulation.places.duplicate(true)
 	_player.spawn_at(player_cell)
 	var saved_position: Array = saved_player["position"]
-	_player.motion.bind_body(simulation.synchronize_actors().player, simulation.notify_body_space_changed.bind("player"), simulation.notify_body_cell_crossed.bind("player"))
+	_player.motion.bind_body(simulation.synchronize_actor("player"), simulation.notify_body_space_changed.bind("player"), simulation.notify_body_cell_crossed.bind("player"))
 	_player.restore_motion(saved_player.motion, Vector2(float(saved_position[0]), float(saved_position[1])), int(snapshot.clock.elapsed_ms))
 	_player.set_altitude(int(saved_player["altitude"]))
 	_world.set_focus(player_cell)
@@ -377,7 +377,7 @@ static func find_grid_path(
 	var empty: Array[Vector2i] = []
 	if world == null or radius < 0 or budget < 1:
 		return empty
-	return SimGridNavigation.find_path(from_cell, to_cell, world.is_walkable, world.can_step, radius, budget)
+	return world.find_grid_path(from_cell, to_cell, radius, budget)
 
 
 func _execute_clock_interval(from_ms: int, to_ms: int) -> int:
@@ -452,14 +452,15 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 func _sync_player_cell() -> void:
 	# SimLocalMotion writes this very body. Keep legacy standalone probes explicit.
-	if _player.motion._body != simulation.synchronize_actors().player:
-		_player.motion.bind_body(simulation.synchronize_actors().player, simulation.notify_body_space_changed.bind("player"), simulation.notify_body_cell_crossed.bind("player"))
+	var player_body: Dictionary = simulation.synchronize_actor("player")
+	if _player.motion._body != player_body:
+		_player.motion.bind_body(player_body, simulation.notify_body_space_changed.bind("player"), simulation.notify_body_cell_crossed.bind("player"))
 	if is_instance_valid(continuity):
 		continuity.world_sim.invalidate_region("home")
 
 
 func _sync_actor_views(snap: bool) -> void:
-	var residents: Dictionary = simulation.synchronize_actors()
+	var residents: Dictionary = simulation.actors
 	var layout: Dictionary = continuity.actor_view_layout() if is_instance_valid(continuity) else PawnViewLayout.build(residents, "player")
 	for id: String in _pawns:
 		if not simulation.has_actor(id):
@@ -470,9 +471,9 @@ func _sync_actor_views(snap: bool) -> void:
 		var actor: Dictionary = residents[id]
 		pawn.cell = _decode_cell(actor["cell"])
 		pawn.visible = bool(actor.alive) and (_fog.is_cell_visible(pawn.cell) if _fog != null else true)
-		pawn.global_position = simulation.actor_position(actor)
 		if not pawn.visible:
 			continue # Hidden views have no pose, clothing or draw work.
+		actor = simulation.synchronize_actor(id)
 		var pose: Dictionary = HumanoidPose.in_world(continuity.world_sim, id, GameClock.elapsed_ms) if is_instance_valid(continuity) else HumanoidPose.from_body(actor, GameClock.elapsed_ms, actor.active)
 		pawn.appearance_pose = HumanoidPose.stabilized(pose, pawn.appearance_pose)
 		if is_instance_valid(continuity):
@@ -489,7 +490,7 @@ func _sync_actor_views(snap: bool) -> void:
 		_player.appearance_pose = HumanoidPose.stabilized(HumanoidPose.in_world(continuity.world_sim, "player", GameClock.elapsed_ms, continuity.player_journey, _player.manual_visual_moving, _player.motion.action), _player.appearance_pose)
 	else:
 		_player.appearance_pose = HumanoidPose.stabilized(HumanoidPose.from_body(residents.player, GameClock.elapsed_ms, residents.player.active, _player.manual_visual_moving), _player.appearance_pose)
-	_sync_needs(_player.state, residents["player"])
+	_sync_needs(_player.state, simulation.synchronize_actor("player"))
 	if is_instance_valid(continuity) and _player.state != null:
 		# A visible visitor's body can be projected across a quiet interval without
 		# waking every resident in their home settlement for a HUD update.
@@ -649,7 +650,7 @@ func _refresh_panel() -> void:
 		simulation.inventory.quantity("actor:player", "herb"),
 	]
 	if _selected_actor == "player":
-		var actor: Dictionary = simulation.synchronize_actors()["player"]
+		var actor: Dictionary = simulation.synchronize_actor("player")
 		details = "饱食 %d · 精力 %d · 功德堂 %d 功\n%s" % [
 			int(actor["hunger"]), int(actor["energy"]),
 			simulation.institutions.balance("sect", "player"), details,
@@ -723,7 +724,7 @@ func resource_is_observable(sim: VillageSimulation, source_id: String) -> bool:
 	var cell: Vector2i = _decode_cell(sim.places[source.place].cell)
 	if _fog != null and not _fog.is_cell_visible(cell):
 		return false
-	var observer: Vector2 = simulation.actor_position(simulation.synchronize_actors().player)
+	var observer: Vector2 = simulation.actor_position(simulation.synchronize_actor("player"))
 	return observer.distance_to(TileGrid.cell_to_world(cell)) <= float(sim.config.observation_radius) * TileGrid.TILE_SIZE
 
 

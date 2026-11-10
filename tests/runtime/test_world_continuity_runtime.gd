@@ -4,6 +4,11 @@ extends RefCounted
 const Runtime = preload("res://scripts/runtime/world_continuity_runtime.gd")
 
 
+class HiddenFog extends FogOfWar:
+	func is_cell_visible(_cell: Vector2i) -> bool:
+		return false
+
+
 class FlatMap extends WorldMapData:
 	func get_terrain(cell: Vector2i) -> int:
 		return TERRAIN_GRASS if terrain_is_walkable(cell) else TERRAIN_ROCK
@@ -31,8 +36,50 @@ class FlatWorld extends ReolWorld:
 
 
 func run(runner: Object) -> void:
+	_test_view_materialization(runner)
 	_test_actual_travel_reentry_and_npc_continuity(runner)
 	_test_two_region_save_resumes_player_and_cargo(runner)
+
+
+func _test_view_materialization(runner: Object) -> void:
+	var fixture: Dictionary = _fixture(runner)
+	if fixture.is_empty():
+		return
+	var runtime: WorldContinuityRuntime = fixture.continuity
+	var sim: VillageSimulation = runtime.world_sim.regions.home
+	# Isolate presentation from actual autonomous conversations, whose rule
+	# entry deliberately has its own regional synchronization barrier.
+	for id: String in sim.actor_ids():
+		sim.actor_state(id).autonomous = false
+	var actor: String = "chen_shouzhuo"
+	var travelling: bool = false
+	for action: String in ["rest", "inspect", "check_store", "check_well"]:
+		if sim.submit_action(actor, action) and not sim.actor_state(actor).active.path.is_empty():
+			travelling = true
+			break
+		sim.cancel_action(actor, "view_fixture")
+	runner.assert_true(travelling, "view probe accepts a real native journey")
+	if not travelling:
+		_dispose(fixture)
+		return
+	runtime.world_sim.invalidate_region("home", actor)
+	runner.assert_true(runtime.world_sim.advance_to_ms(50), "original scheduler reaches a partial continuous leg")
+	var point: Vector2 = sim.projected_actor_position(actor)
+	runner.assert_true(sim.actor_position(sim.actor_state(actor)) != point, "hidden body has a genuine unmaterialized continuous interval")
+	var before: String = JSON.stringify(sim.actor_state(actor), "", true, true)
+	var layout: Dictionary = runtime.actor_view_layout()
+	runner.assert_true(layout.has(actor), "layout still includes the original actor's current cell")
+	runner.assert_eq(JSON.stringify(sim.actor_state(actor), "", true, true), before, "layout query does not integrate original needs or movement")
+	var fog := HiddenFog.new()
+	fixture.home._fog = fog
+	fixture.home._sync_actor_views(false)
+	runner.assert_eq(JSON.stringify(sim.actor_state(actor), "", true, true), before, "refreshing hidden views does not materialize unrelated bodies")
+	fixture.home._fog = null
+	fog.free()
+	fixture.home._sync_actor_views(false)
+	runner.assert_eq(sim.actor_position(sim.actor_state(actor)), point, "visible projection synchronizes its own original body")
+	runner.assert_eq((fixture.home._pawns[actor] as Pawn).global_position, point, "visible scene uses that committed continuous point")
+	_dispose(fixture)
 
 
 func _fixture(runner: Object, bundle: Dictionary = {}, initial_workplaces: bool = false, opening_field: bool = false) -> Dictionary:

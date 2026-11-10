@@ -29,6 +29,7 @@ var _map_seed: int
 var _map_size: int
 var _flat: bool = false
 var _terrain_overrides: Dictionary = {}
+var _base_terrain_cache := PackedByteArray()
 
 
 func _init() -> void:
@@ -52,6 +53,8 @@ func _initialize_generation(value: Dictionary) -> void:
 	_map_seed = int(_generation.seed)
 	_map_size = int(_generation.size)
 	_flat = _generation.generator == FLAT_GENERATOR_ID
+	_base_terrain_cache.resize(_map_size * _map_size)
+	_base_terrain_cache.fill(0) # Unknown; generated terrain is stored as type + 1.
 	_terrain_noise.seed = _map_seed
 	_height_noise.seed = _map_seed + 1
 
@@ -295,12 +298,14 @@ func get_terrain(cell: Vector2i) -> int:
 
 
 func _base_terrain(cell: Vector2i) -> int:
+	var index: int = cell.y * _map_size + cell.x
+	var cached: int = _base_terrain_cache[index]
+	if cached != 0:
+		return cached - 1
 	var n: float = _terrain_noise.get_noise_2d(float(cell.x), float(cell.y))
-	if n < -0.45:
-		return TERRAIN_WATER
-	if n > 0.5:
-		return TERRAIN_ROCK
-	return TERRAIN_GRASS
+	var terrain: int = TERRAIN_WATER if n < -0.45 else (TERRAIN_ROCK if n > 0.5 else TERRAIN_GRASS)
+	_base_terrain_cache[index] = terrain + 1
+	return terrain
 
 
 func get_elevation(cell: Vector2i) -> int:

@@ -39,6 +39,11 @@ var _pending_unload: Array[Vector2i] = []
 var _focus_chunk: Vector2i = Vector2i(-9999, -9999)
 var _initialized: bool = false
 var _obstacles: Callable
+var _navigation_revision_provider: Callable
+var _cached_navigation_revision: int = -1
+var _walkability_cache: Dictionary[Vector2i, bool] = {}
+var _navigation_paths: Dictionary[String, Array] = {}
+const NAVIGATION_PATH_CACHE_LIMIT: int = 1024
 var _sight_obstacles: Callable
 var _painting_chunk: Vector2i = Vector2i(-1, -1)
 var _painting_offset: int = 0
@@ -72,6 +77,7 @@ func bind_map_data(data: WorldMapData) -> void:
 	if _map_data != null and _map_data.terrain_changed.is_connected(_on_terrain_changed):
 		_map_data.terrain_changed.disconnect(_on_terrain_changed)
 	_map_data = data
+	invalidate_navigation()
 	_map_data.terrain_changed.connect(_on_terrain_changed)
 	_dirty_cells.clear()
 	_dirty_order.clear()
@@ -158,6 +164,7 @@ func _process(_delta: float) -> void:
 
 
 func _on_terrain_changed(cells: Array[Vector2i]) -> void:
+	invalidate_navigation(cells)
 	# Rules change immediately. Only already drawn cells need repainting; other
 	# cells will read current facts when their streamed chunk is first painted.
 	if _initialized:
@@ -285,11 +292,57 @@ func get_elevation(cell: Vector2i) -> int:
 
 
 func is_walkable(cell: Vector2i) -> bool:
-	return terrain_is_walkable(cell) and (not _obstacles.is_valid() or not bool(_obstacles.call(cell)))
+	var reusable: bool = _refresh_navigation_cache()
+	var revision: int = _cached_navigation_revision
+	if reusable and _walkability_cache.has(cell):
+		return _walkability_cache[cell]
+	var walkable: bool = terrain_is_walkable(cell) and (not _obstacles.is_valid() or not bool(_obstacles.call(cell)))
+	if reusable and _navigation_revision_provider.is_valid() and int(_navigation_revision_provider.call()) == revision:
+		_walkability_cache[cell] = walkable
+	return walkable
 
 
-func set_obstacle_provider(provider: Callable) -> void:
+func set_obstacle_provider(provider: Callable, revision_provider: Callable = Callable()) -> void:
+	# Opt in only when all terrain/clearance dependencies are observable. Opaque
+	# callbacks remain live on every query, including standalone callers.
 	_obstacles = provider
+	_navigation_revision_provider = revision_provider
+	invalidate_navigation()
+
+
+func invalidate_navigation(cells: Array[Vector2i] = [], previous_revision: int = -1) -> void:
+	# A local edit may open a better route outside a cached path. Clear paths,
+	# but retain unaffected point queries when the owner supplies exact cells.
+	_navigation_paths.clear()
+	var revision: int = int(_navigation_revision_provider.call()) if _navigation_revision_provider.is_valid() else -1
+	if cells.is_empty() or (revision != _cached_navigation_revision and previous_revision != _cached_navigation_revision):
+		_walkability_cache.clear()
+	else:
+		for cell: Vector2i in cells:
+			_walkability_cache.erase(cell)
+	_cached_navigation_revision = revision
+
+
+func _refresh_navigation_cache() -> bool:
+	if not _navigation_revision_provider.is_valid():
+		return false
+	if int(_navigation_revision_provider.call()) != _cached_navigation_revision:
+		invalidate_navigation()
+	return true
+
+
+func find_grid_path(from: Vector2i, to: Vector2i, radius: int, budget: int) -> Array[Vector2i]:
+	var reusable: bool = _refresh_navigation_cache()
+	var revision: int = _cached_navigation_revision
+	var key: String = "%s:%s:%d:%d" % [from, to, radius, budget]
+	if reusable and _navigation_paths.has(key):
+		return _navigation_paths[key].duplicate()
+	var path: Array[Vector2i] = SimGridNavigation.find_path(from, to, is_walkable, can_step, radius, budget)
+	if reusable and _navigation_revision_provider.is_valid() and int(_navigation_revision_provider.call()) == revision:
+		if _navigation_paths.size() >= NAVIGATION_PATH_CACHE_LIMIT:
+			_navigation_paths.clear()
+		_navigation_paths[key] = path.duplicate()
+	return path
 
 
 func set_sight_obstacle_provider(provider: Callable) -> void:

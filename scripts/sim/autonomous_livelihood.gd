@@ -129,8 +129,11 @@ func _speaker(actor: String, sim: VillageSimulation) -> String:
 	# coordinates never choose whom to seek. Old testimony may now be wrong.
 	var visible: Array[String] = []
 	var radius: float = minf(float(sim.config.observation_radius), float(world._content.interaction_requests.communication_cells))
-	for other: String in world._sorted_keys(sim.synchronize_actors()):
-		if other != actor and sim.synchronize_actor(other).alive and sim._distance(actor, other) <= radius:
+	# Cells are committed at canonical crossings. Discovering a nearby speaker
+	# needs no continuous needs/movement integration for the whole settlement;
+	# the actual conversation still synchronizes its original participants.
+	for other: String in sim.actor_ids():
+		if other != actor and sim.actor_is_alive(other) and sim._distance(actor, other) <= radius:
 			visible.append(other)
 	for other: String in visible:
 		if _claims_payment(sim, actor, other):
