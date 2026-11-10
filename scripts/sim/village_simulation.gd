@@ -436,16 +436,23 @@ func advance_to_ms(target_ms: int, max_events: int = 4096) -> bool:
 				_decay_actor(id, elapsed_ms, next - elapsed_ms)
 		land_resources.advance_to_ms(next)
 		elapsed_ms = next
+		if not sparse:
+			# All original needs were integrated above in their old-input order.
+			# A synchronous geometry/crossing observer must not integrate a later
+			# body twice or project it ahead of this stable projection pass.
+			for id: String in ids:
+				_actor_projection_ms[id] = elapsed_ms
+			_all_projected_ms = elapsed_ms
 		var projecting: Array = _boundary_index.due_ids(NATIVE_BOUNDARY, elapsed_ms) if sparse else ids
 		projecting.sort() # Original same-millisecond actor order, not heap order.
+		if sparse:
+			# Due bodies finish their old-input needs before synchronous geometry
+			# notices can inspect peers. This is still only the due set, not N
+			# integrations for each other actor's cell crossing.
+			for id: String in projecting:
+				_integrate_actor(id)
 		for id: String in projecting:
-			if not sparse:
-				_actor_projection_ms[id] = elapsed_ms
-				_executor.project(id, elapsed_ms)
-			elif int(_actor_boundaries.get(id, 0)) <= elapsed_ms:
-				actor_state(id)
-		if not sparse:
-			_all_projected_ms = elapsed_ms
+			_executor.project(id, elapsed_ms)
 		if next == boundary:
 			for id: String in ids:
 				if not _boundary_revision_provider.is_valid() or int(_actor_boundaries.get(id, 0)) <= elapsed_ms:
@@ -510,11 +517,17 @@ func actor_state(id: String) -> Dictionary:
 	if previous == elapsed_ms:
 		return actor
 	_projecting_actors[id] = true
-	_decay_actor(id, previous, elapsed_ms - previous)
-	_actor_projection_ms[id] = elapsed_ms
+	_integrate_actor(id)
 	_executor.project(id, elapsed_ms)
 	_projecting_actors.erase(id)
 	return actor
+
+
+func _integrate_actor(id: String) -> void:
+	var previous: int = int(_actor_projection_ms.get(id, elapsed_ms))
+	if previous != elapsed_ms:
+		_actor_projection_ms[id] = elapsed_ms
+		_decay_actor(id, previous, elapsed_ms - previous)
 
 
 func materialize_actors() -> void:
@@ -680,7 +693,9 @@ func remove_actor(actor_id: String) -> void:
 func request_help(requester: String, responder: String, occasion: String = "personal_request") -> Dictionary:
 	if not _actors.has(requester) or not _actors.has(responder) or requester == responder:
 		return {"status": "refused", "reason": "invalid_actor", "message": "没有可交谈的人。"}
-	if not bool(_actors[requester].alive) or not bool(_actors[responder].alive):
+	var source: Dictionary = actor_state(requester)
+	var person: Dictionary = actor_state(responder)
+	if not bool(source.alive) or not bool(person.alive):
 		return {"status": "refused", "reason": "unavailable", "message": "对方已经离开。"}
 	if not actor_controls(requester, "communication") or not actor_controls(responder, "communication"):
 		return {"status": "refused", "reason": "cannot_communicate", "message": "眼下无法交谈。"}
@@ -690,7 +705,6 @@ func request_help(requester: String, responder: String, occasion: String = "pers
 	if distance > float(config.talk_radius):
 		return {"status": "refused", "reason": "out_of_range", "message": "相距太远，需要靠近交谈。"}
 	var task: String = config.scenario.task
-	var person: Dictionary = _actors[responder]
 	var profile: Dictionary = config.actor_profiles.get(responder, {})
 	var context: Dictionary = {
 		"energy": float(person.energy) / 100.0,

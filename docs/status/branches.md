@@ -18,7 +18,7 @@ main已从`a4fb83a6c29e3203bf71fc1c1f950afe4906830b`快进并推送到共同结�
 
 | 分支 | 已知来源提交 | 用途 |
 |---|---|---|
-| `codex/presentation-stress-demo` | 基于29c50dc；主体e56adac、最终代码/测试db995598 | 连续人物/镜头及真实压力Demo；续包原身体按需积分/到期堆。前HEAD6420499的CI42769354347因夹具签名解析失败，已定向修复；新包主审/完整CI待验，未合main |
+| `codex/presentation-stress-demo` | 基于29c50dc；主体e56adac、最终代码/测试db995598 | 连续人物/镜头及真实压力Demo；续包原身体按需积分/到期堆。前HEAD6420499的CI42769354347因夹具签名解析失败，已定向修复；续包主审及定向已完成，新HEAD完整CI待验，未合main |
 | `codex/demo-slowdown-fix` | 缓行最终b364870、FPS最终ac3dca3、文档29c50dc | 两个代码SHA完整CI均success；被当前呈现/压力分支承接，未合main |
 | `codex/demo-playtest-fixes` | 基于main `7def7d2`；简单修复`87262ff`、工具最终`aa4f1a1` | 镜头/外墙与独立缓行诊断分别提交，未合main；两者完整CI通过 |
 | `codex/unit-actions-integration` | 基于环境最终`337ea13`；主体`68fff8b`、最终生产/测试`0856eff` | 第5阶段实现、主审修复与本机试玩验收收尾并推送；已合入main，0856eff完整CI通过 |

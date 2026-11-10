@@ -15,6 +15,8 @@ func run(runner: Object) -> void:
 	_test_single_minute_targets_match_fine(runner)
 	_test_observable_boundaries(runner)
 	_test_sparse_actor_projection(runner)
+	_test_projection_observers(runner)
+	_test_sparse_request_energy(runner)
 
 
 func _make(runner: Object, autonomous: bool = false) -> VillageSimulation:
@@ -66,6 +68,58 @@ func _test_sparse_actor_projection(runner: Object) -> void:
 		sim.advance_to_ms(800000)
 	_same(runner, eager, sparse, "long sparse intervals retain exact saturation, stamina and fractional carries")
 	_same(runner, sparse, resumed, "rebuilding transient projection anchors retains the same later future")
+
+
+func _test_projection_observers(runner: Object) -> void:
+	_projection_observers_case(runner, false)
+	_projection_observers_case(runner, true)
+
+
+func _projection_observers_case(runner: Object, sparse_observer: bool) -> void:
+	var plain: VillageSimulation = _make(runner)
+	var observed: VillageSimulation = _make(runner)
+	if plain == null or observed == null:
+		return
+	var events: Array = [[], []]
+	for index: int in 2:
+		var sim: VillageSimulation = plain if index == 0 else observed
+		var notices: Array = events[index]
+		sim.body_cell_crossed.connect(func(id: String, cell: Vector2i, at_ms: int) -> void: notices.append(["cross", id, cell.x, cell.y, at_ms]))
+		sim.body_space_changed.connect(func(id: String) -> void: notices.append(["space", id]))
+		for id: String in ["a_he", "player"]:
+			runner.assert_true(sim.submit_action(id, "rest"), "synchronous observer fixture starts two original moving bodies")
+	if sparse_observer:
+		observed.set_boundary_revision_provider(func() -> int: return 0)
+		observed.set_sparse_actor_projection(true)
+	var callback_reads: Array[int] = [0]
+	var read_owner: WeakRef = weakref(observed)
+	observed.body_cell_crossed.connect(func(_id: String, _cell: Vector2i, _at_ms: int) -> void:
+		var bodies: Dictionary = read_owner.get_ref().actors
+		callback_reads[0] += bodies.size())
+	for at: int in [100, 300, 1700, 4000]:
+		plain.advance_to_ms(at)
+		observed.advance_to_ms(at)
+		_same(runner, plain, observed, "synchronous read cannot repeat eager need integration at %d" % at)
+	runner.assert_true(callback_reads[0] > 0, "the actual body crossing signal exercised the read barrier")
+	runner.assert_eq(events[1], events[0], "a synchronous observer cannot reorder later original body crossings")
+
+
+func _test_sparse_request_energy(runner: Object) -> void:
+	var eager: VillageSimulation = _make(runner)
+	var sparse: VillageSimulation = _make(runner)
+	if eager == null or sparse == null:
+		return
+	for sim: VillageSimulation in [eager, sparse]:
+		sim.config.needs.energy_per_minute = 100.0
+		sim.set_boundary_revision_provider(func() -> int: return 0)
+	sparse.set_sparse_actor_projection(true)
+	for sim: VillageSimulation in [eager, sparse]:
+		sim.advance_to_ms(20000)
+	var reference: Dictionary = eager.request_help("player", "a_he", "sparse_test")
+	var result: Dictionary = sparse.request_help("player", "a_he", "sparse_test")
+	runner.assert_true(reference.has("context") and result.has("context"), "personal help reaches the real willingness and cached social decision")
+	runner.assert_eq(result.get("context", {}), reference.get("context", {}), "internal help uses current integrated energy before quantizing willingness")
+	_same(runner, eager, sparse, "help has identical original social outcome and resource reservations")
 
 
 func _state(sim: VillageSimulation) -> String:
