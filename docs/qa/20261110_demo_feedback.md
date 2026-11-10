@@ -64,4 +64,6 @@ doctor与`test_environment_runtime`一组17检查通过，日志`test-20261110-1
 
 另以同一探针连续按住移动3秒，302次渲染采样中300次处于移动状态，但人物位置仅变化60次；原生FPS读取109，截图随后116。源码`PlayerCharacter._project_motion()`直接把原身体位置投影到Node，普通共同时间步为50ms，缺少玩家位移的连续显示插值；因此高FPS和1×流速仍可表现为约20Hz的位移。此证据不证明百级NPC吞吐，也未在本包改变移动规则或补插值。计划的共同运行/行动呈现出口已明确分别验收流畅、吞吐和规模，后续按该出口处理，不把主动缓行当性能验收通过。
 
-准备本包实际提交时已核旧生产b364870的CI42757726701，结果仍为in_progress，未继承绿色。当前FPS显示包的最终提交、一次主审及完整CI状态见HANDOFF/BASELINE。
+准备本包实际提交时已核旧生产b364870的CI42757726701，结果仍为in_progress，未继承绿色。FPS最终代码`ac3dca32ffd8b3e6b7eda47c4efb756c8941e473`已推送；原生会话`01a1c3d0-baff-7801-b6f0-12057b2d7ba6`完成一次Sol/custom静态主审，无可操作发现，日志`demo-fps-review.log`；没有重复启动引擎或测试。完整CI状态见HANDOFF/BASELINE。
+
+FPS收尾文档真实提交点：旧生产b364870的CI42757726701已核completed/success；当前FPS代码ac3dca3对应CI42759378487一次登记为in_progress，不能继承旧版绿色。完整CI待验，后续按HANDOFF的准确run/SHA核查。

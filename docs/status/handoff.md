@@ -1,6 +1,6 @@
 # 当前接续
 
-2026-11-10：当前`codex/demo-slowdown-fix`承接严重缓行修复，补用户要求的原生FPS显示。顶部常显FPS、帧间隔/2秒窗峰值及世界流速，F3保留详情；一组17检查及真实画面/按键/暂停只读验证通过。实测渲染约110–120FPS，但玩家位置仅约20次/秒变化，明确缺少显示插值，不能用开局流速近1×证明流畅/规模达标。本次不改移动规则。准备提交及一次原生主审，完整CI待验；前Demo包均未合main，没有活引擎或测试handle。详见[QA](../qa/20261110_demo_feedback.md#fps显示与呈现频率核对)。
+2026-11-10：当前`codex/demo-slowdown-fix`承接严重缓行修复，补用户要求的原生FPS显示。顶部常显FPS、帧间隔/2秒窗峰值及世界流速，F3保留详情；一组17检查及真实画面/按键/暂停只读验证通过。实测渲染约110–120FPS，但玩家位置仅约20次/秒变化，明确缺少显示插值，不能用开局流速近1×证明流畅/规模达标。本次不改移动规则。FPS最终代码`ac3dca32ffd8b3e6b7eda47c4efb756c8941e473`已推送，一次Sol/custom原生静态主审无可操作发现，完整CI待验；前Demo包均未合main，没有活引擎或测试handle。详见[QA](../qa/20261110_demo_feedback.md#fps显示与呈现频率核对)。
 
 ## 主线集成
 
@@ -24,6 +24,8 @@
 
 ## 最终待验与后续
 
-原诊断最终代码aa4f1a1的CI **42753794423 completed/success**已在本包真实提交检查点核对；该结果不代替缓行修复CI。本包生产/测试最终`b364870e5ddc92f3c3de2d689fcf3e2755e8d67d`已推送；主审与P2修复验证完成。最终生产SHA的CI **42757726701**在本次真实文档提交检查点一次发现，headSha精确为b364870，观测**in_progress**；完整CI待验。下次真实提交点用`python tools/ci.py status --run 42757726701 --sha b364870e5ddc92f3c3de2d689fcf3e2755e8d67d`核一次。无时间轮询，无GitHub结果→聊天自动回调。
+原诊断aa4f1a1的CI42753794423及缓行修复最终生产/测试`b364870e5ddc92f3c3de2d689fcf3e2755e8d67d`的CI **42757726701**已核completed/success，完整回归通过。FPS最终代码`ac3dca32ffd8b3e6b7eda47c4efb756c8941e473`已推送；其CI **42759378487**在本次真实文档提交点一次发现为**in_progress**，headSha精确相符，当前FPS包完整CI待验。下次真实提交点用`python tools/ci.py status --run 42759378487 --sha ac3dca32ffd8b3e6b7eda47c4efb756c8941e473`核一次，不继承旧版绿色。无时间轮询，无GitHub结果→聊天自动回调。
+
+FPS包在原生会话`01a1c3d0-baff-7801-b6f0-12057b2d7ba6`完成一次静态主审；日志`demo-fps-review.log`，未另启引擎/测试。当前待补的移动显示插值与人口规模验收归原行动呈现/共同运行框架，本包只提供真实可见指标，未启动这些后续代码。
 
 后续按用户试玩反馈推进；本包不自动合main，不启动第6阶段、完整战斗或发行工程。唯一建设计划仍为[foundation-priorities](../plans/foundation-priorities.md)。
