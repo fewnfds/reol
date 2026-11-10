@@ -5,7 +5,8 @@
 | 引用 | 作用 |
 |---|---|
 | main / origin/main，839ff88f1b7fee240d0c798f533314a3ae446430 | 当前已集成旧Demo，其准确SHA完整CI通过 |
-| codex/navigation-data-reuse，代码起点8c3deaa972f932e999167b61ea6b166b928cfe5f | 文档/数据清理单独本地提交、未推送；原有性能补丁继续未提交，没有自动合main |
+| codex/execution-foundation | 当前A开发入口；从10260b3b45952b7b45055e807f360824227efce2建立，运行重构尚未开始 |
+| codex/navigation-data-reuse，10260b3b45952b7b45055e807f360824227efce2 | 文档清理95eac7d与原样代码WIP保留点，均本地提交、未推送；没有自动合main |
 | codex/sparse-runtime-dispatch | 上一共同运行实现及夹具修补来源；完整证据见BASELINE，不继续旧局部优化队列 |
 | codex/field-contest，4e17c5c165cf8fca9ef884a111aa1c3ca35f445f | 隔离的旧争环WIP，未恢复/删除，不是新架构待合并成果 |
 
