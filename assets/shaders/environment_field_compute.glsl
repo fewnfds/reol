@@ -46,6 +46,13 @@ layout(set = 0, binding = 5, std430) restrict writeonly buffer OutputBuffer {
     uint values[];
 } output_field;
 
+// Optional immutable geometry: [enabled, x, y, width, height, ray_limit],
+// followed by thermal(low16)/elemental(high16) permeability pairs (0..10000).
+// Coordinates match compute_params, including compact source snapshots.
+layout(set = 0, binding = 6, std430) restrict readonly buffer GeometryBuffer {
+    int values[];
+} geometry;
+
 const uint CHANNELS = 7u;
 const uint SCALE = 1000000u;
 const uint INVALID = 0xffffffffu;
@@ -66,6 +73,73 @@ uint scaled_strength(uint strength, uint weight) {
     uint b = low * weight;
     return high * weight + a / 1000u +
             ((a % 1000u) * 1000u + b + 500000u) / SCALE;
+}
+
+
+uvec2 permeability(ivec2 cell) {
+    ivec2 local = cell - ivec2(geometry.values[1], geometry.values[2]);
+    int width = geometry.values[3];
+    int height = geometry.values[4];
+    if (any(lessThan(local, ivec2(0))) || local.x >= width || local.y >= height) {
+        return uvec2(INVALID);
+    }
+    uint value = uint(geometry.values[6 + local.y * width + local.x]);
+    uvec2 result = uvec2(value & 65535u, value >> 16u);
+    return any(greaterThan(result, uvec2(10000u))) ? uvec2(INVALID) : result;
+}
+
+
+uvec2 ray_transmission(ivec2 from, ivec2 to) {
+    if (geometry.values[0] == 0 || all(equal(from, to))) {
+        return uvec2(10000u);
+    }
+    ivec2 extent = abs(to - from);
+    if (any(greaterThan(extent, ivec2(geometry.values[5])))) {
+        return uvec2(0u);
+    }
+    ivec2 direction = ivec2(sign(to - from));
+    ivec2 crossed = ivec2(0);
+    ivec2 at = from;
+    uvec2 value = uvec2(10000u); // The source's own surface is exposed.
+    while (any(notEqual(at, to))) {
+        int x_cross = (1 + 2 * crossed.x) * extent.y;
+        int y_cross = (1 + 2 * crossed.y) * extent.x;
+        if (x_cross == y_cross) {
+            uvec2 first = permeability(at + ivec2(direction.x, 0));
+            uvec2 second = permeability(at + ivec2(0, direction.y));
+            if (any(equal(first, uvec2(INVALID))) || any(equal(second, uvec2(INVALID)))) {
+                return uvec2(INVALID);
+            }
+            value = value * first / 10000u;
+            value = value * second / 10000u;
+            at += direction;
+            crossed += ivec2(1);
+        } else if (x_cross < y_cross) {
+            at.x += direction.x;
+            crossed.x += 1;
+        } else {
+            at.y += direction.y;
+            crossed.y += 1;
+        }
+        if (any(notEqual(at, to))) { // A target wall receives on its near surface.
+            uvec2 term = permeability(at);
+            if (any(equal(term, uvec2(INVALID)))) {
+                return uvec2(INVALID);
+            }
+            value = value * term / 10000u;
+        }
+        if (all(equal(value, uvec2(0u)))) {
+            break;
+        }
+    }
+    return value;
+}
+
+
+uint transported_strength(uint value, uint transmission) {
+    // Exact rounded product without uint32 overflow for value up to 1e9.
+    return (value / 10000u) * transmission +
+            ((value % 10000u) * transmission + 5000u) / 10000u;
 }
 
 
@@ -105,6 +179,12 @@ bool visit_cell(int source_x, int source_y, int dx, int dy,
                 }
             }
             if (weight != 0u) {
+                ivec2 receiver = ivec2(params.values[4] + gl_GlobalInvocationID.x,
+                        params.values[5] + gl_GlobalInvocationID.y);
+                uvec2 transmission = ray_transmission(ivec2(source_x, source_y), receiver);
+                if (any(equal(transmission, uvec2(INVALID)))) {
+                    return false;
+                }
                 for (uint channel = 0u; channel < CHANNELS; ++channel) {
                     int raw_strength = slots.values[4u * capacity + index_slot * CHANNELS + channel];
                     if (raw_strength < 0 || raw_strength > 1000000000) {
@@ -115,6 +195,7 @@ bool visit_cell(int source_x, int source_y, int dx, int dy,
                     // than the current max cannot win after rounding.
                     if (strength > best[channel]) {
                         uint candidate = weight == SCALE ? strength : scaled_strength(strength, weight);
+                        candidate = transported_strength(candidate, transmission[channel >= 5u ? 0 : 1]);
                         best[channel] = max(best[channel], candidate);
                     }
                 }

@@ -62,6 +62,12 @@ func compute(job: Dictionary, rows_per_dispatch: int = 16) -> Dictionary:
 		return _failure("job_area")
 	if job.heads.size() != params[0] * params[1] or job.slots.size() != params[2] * 11 or job.radius_offsets.size() != 257:
 		return _failure("job_layout")
+	var geometry: Variant = job.get("geometry", PackedInt32Array([0]))
+	if not geometry is PackedInt32Array or geometry.is_empty():
+		return _failure("job_geometry")
+	if geometry[0] != 0:
+		if geometry.size() < 6 or geometry[0] != 1 or geometry[3] < 1 or geometry[3] > 4096 or geometry[4] < 1 or geometry[4] > 4096 or geometry[5] < 1 or geometry[5] > 256 or geometry.size() != 6 + geometry[3] * geometry[4]:
+			return _failure("job_geometry")
 	var neighbor_width: int = mini(params[0], maxi(1, params[3] * 2 - 1))
 	var neighbor_height: int = mini(params[1], maxi(1, params[3] * 2 - 1))
 	# Limit a dispatch's receiver/source-cell visits before driver submission.
@@ -75,7 +81,7 @@ func compute(job: Dictionary, rows_per_dispatch: int = 16) -> Dictionary:
 		return _failure("device_radius_budget")
 	@warning_ignore("integer_division")
 	rows_per_dispatch = mini(rows_per_dispatch, maxi(1, 2_000_000 / row_work))
-	var input_size: int = (params.size() + job.heads.size() + job.slots.size() + job.kernels.size() + job.radius_offsets.size()) * 4
+	var input_size: int = (params.size() + job.heads.size() + job.slots.size() + job.kernels.size() + job.radius_offsets.size() + geometry.size()) * 4
 	if input_size > MAX_INPUT_BYTES:
 		return _failure("device_working_budget")
 	var started: int = Time.get_ticks_usec()
@@ -96,8 +102,19 @@ func compute(job: Dictionary, rows_per_dispatch: int = 16) -> Dictionary:
 		return _failure("device_memory_budget")
 	var buffers: Array[RID] = []
 	var uniforms: Array[RDUniform] = []
-	for binding: int in 6:
-		var buffer: RID = _rd.storage_buffer_create(bytes[binding].size(), bytes[binding]) if binding < 5 else _rd.storage_buffer_create(output_bytes)
+	for binding: int in 7:
+		var buffer: RID
+		if binding < 5:
+			buffer = _rd.storage_buffer_create(bytes[binding].size(), bytes[binding])
+		elif binding == 5:
+			buffer = _rd.storage_buffer_create(output_bytes)
+		else:
+			var geometry_bytes: PackedByteArray = geometry.to_byte_array()
+			if geometry_bytes.size() > limit or total_bytes > MAX_TOTAL_BYTES - geometry_bytes.size():
+				_free_buffers(buffers)
+				return _failure("device_memory_budget")
+			total_bytes += geometry_bytes.size()
+			buffer = _rd.storage_buffer_create(geometry_bytes.size(), geometry_bytes)
 		if not buffer.is_valid():
 			_free_buffers(buffers)
 			return _failure("buffer_create")

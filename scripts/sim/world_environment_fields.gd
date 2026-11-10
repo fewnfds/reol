@@ -122,7 +122,10 @@ func _configure_components(at_ms: int) -> bool:
 	var owner: WeakRef = weakref(self)
 	_field.set_transport(func(from: Vector2i, to: Vector2i, channel: int) -> int:
 		var domain: RefCounted = owner.get_ref()
-		return domain._layout.transmission(from, to, channel) if domain != null else 0)
+		return domain._layout.transmission(from, to, channel) if domain != null else 0,
+		func(area: Rect2i) -> Dictionary:
+			var domain: RefCounted = owner.get_ref()
+			return domain._layout.capture_transmission(area) if domain != null else {"ok": false, "reason": "owner_gone"})
 	var reader: Callable = func(cell: Vector2i, context: Variant = null) -> Dictionary:
 		var domain: RefCounted = owner.get_ref()
 		return domain._read_channels(cell, context) if domain != null else {"ok": false, "reason": "owner_gone"}

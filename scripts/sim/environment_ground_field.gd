@@ -38,12 +38,14 @@ var _candidate_cold_blocks := Rect2i()
 var _candidate_cold_x: int = 0
 var _candidate_cold_y: int = 0
 var _transport: Callable
+var _transport_capture: Callable
 var _transport_receiver := Vector2i(-1, -1)
 var _transport_sources: Dictionary[Vector2i, PackedInt32Array] = {}
 
 
-func set_transport(callback: Callable) -> void:
+func set_transport(callback: Callable, capture: Callable = Callable()) -> void:
 	_transport = callback
+	_transport_capture = capture
 
 
 func invalidate_geometry(area: Rect2i) -> void:
@@ -74,9 +76,26 @@ func _transport_grade(value: int, from: Vector2i, to: Vector2i, channel: int) ->
 
 
 func export_compute_job(area: Rect2i, compact: bool = false) -> Dictionary:
-	if _transport.is_valid():
+	if _transport.is_valid() and not _transport_capture.is_valid():
 		return {"ok": false, "reason": "geometry_requires_cpu"}
-	return super.export_compute_job(area, compact)
+	var job: Dictionary = super.export_compute_job(area, compact)
+	if not bool(job.get("ok", false)) or not _transport.is_valid() or job.has("geometry"):
+		return job
+	var region: Rect2i = area.grow(maxi(0, _max_radius - 1)).intersection(Rect2i(Vector2i.ZERO, _size))
+	var captured: Dictionary = _transport_capture.call(region)
+	if not bool(captured.get("ok", false)) or not captured.get("geometry") is PackedInt32Array:
+		return {"ok": false, "reason": "geometry_capture"}
+	var geometry: PackedInt32Array = captured.geometry
+	if geometry.size() != 6 + region.get_area() or geometry[0] != 1 or geometry[1] != region.position.x or geometry[2] != region.position.y or geometry[3] != region.size.x or geometry[4] != region.size.y:
+		return {"ok": false, "reason": "geometry_layout"}
+	# Compact source jobs use local coordinates. Move only the geometry header;
+	# world publication still validates the original area/owner/revision.
+	geometry = geometry.duplicate()
+	var compute: PackedInt32Array = job.compute_params
+	geometry[1] -= area.position.x - compute[4]
+	geometry[2] -= area.position.y - compute[5]
+	job.geometry = geometry
+	return job
 
 
 func _init() -> void:

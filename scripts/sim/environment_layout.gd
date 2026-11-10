@@ -165,6 +165,31 @@ func transmission(from: Vector2i, to: Vector2i, channel: int) -> int:
 		return int(barriers.get(cell, {}).get(field, SCALE)), 16)
 
 
+func capture_transmission(area: Rect2i) -> Dictionary:
+	var world: RegionalSimulation = _owner.get_ref() if _owner != null else null
+	var bounds := Rect2i(Vector2i.ZERO, Vector2i(WorldMapData.WORLD_SIZE, WorldMapData.WORLD_SIZE))
+	if world == null or not area.has_area() or not bounds.encloses(area):
+		return {"ok": false, "reason": "geometry_area"}
+	# One packed pair per cell, derived from the original terrain/structure.
+	# Source surfaces, target surfaces and diagonal corners are handled by the
+	# same integer ray convention on the device, never precomputed N² rays.
+	var values := PackedInt32Array([1, area.position.x, area.position.y, area.size.x, area.size.y, 16])
+	values.resize(6 + area.get_area())
+	var index: int = 6
+	for y: int in range(area.position.y, area.end.y):
+		for x: int in range(area.position.x, area.end.x):
+			var cell := Vector2i(x, y)
+			if not _terrain.has(cell):
+				_terrain[cell] = world.map_data != null and world.map_data.get_terrain(cell) == WorldMapData.TERRAIN_ROCK
+			var rock: bool = _terrain[cell]
+			var terms: Dictionary = barriers.get(cell, {})
+			var thermal: int = 2000 if rock else int(terms.get("thermal", SCALE))
+			var elements: int = 8000 if rock else int(terms.get("elements", SCALE))
+			values[index] = thermal | (elements << 16)
+			index += 1
+	return {"ok": true, "geometry": values}
+
+
 static func container_transmission(world: RegionalSimulation, container: String, channel: String) -> int:
 	var id: String = container.trim_suffix(":contents")
 	if id == container or not world.construction.projects.has(id):
