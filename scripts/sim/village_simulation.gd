@@ -355,6 +355,10 @@ func next_boundary_ms(effects_only: bool = false) -> int:
 	var boundary: int = land_resources.next_boundary_ms()
 	var cached: bool = _boundary_revision_provider.is_valid()
 	if cached:
+		# Establish the content baseline before deriving reusable deadlines.
+		# A later edit, even before the first advance, must still invalidate it.
+		if _stock_contents.is_empty():
+			_refresh_stock_epoch()
 		var revision: int = int(_boundary_revision_provider.call())
 		if revision != _boundary_revision:
 			synchronize_actors()
@@ -1611,11 +1615,9 @@ func _refresh_stock_epoch() -> void:
 	for id: String in places:
 		var items: Dictionary = inventory.containers[id]
 		if _stock_contents.get(id) != items:
-			# A first cache sample is not a physical content change. The route
-			# planner already read these same original contents at this boundary.
-			changed_contents = changed_contents or _stock_contents.has(id)
 			_stock_contents[id] = items.duplicate(true)
 			_stock_epoch += 1
+			changed_contents = true
 	if changed_contents and _native_crossing_interest.is_valid():
 		invalidate_boundary_cache()
 
