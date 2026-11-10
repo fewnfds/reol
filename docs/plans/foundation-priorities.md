@@ -132,6 +132,8 @@ Main可观察/作用多株植物；采集中被另人采空、损毁、移栽或
 
 以不同定义/布局及普通入口验证复用；联合覆盖“装配→改变→空间/环境反馈→离场快进→在途保存→完整停开→继续”、争用、取消及坏候选。兼容见[政策](../engineering/compatibility.md)，性能见[架构](../engineering/architecture.md)，局部测试不代替16GB/RTX3060整机目标。
 
+性能分别验帧时、1×流速、连续呈现及百级NPC真负载；开局均值不证明规模，50ms规则步不限制画面频率。
+
 验证沿[测试策略](../engineering/workflow/testing.md)：游戏包先定向，再一次完整check或同SHA CI，画面/规模另取证。内部参考[世界骨架](world-foundation/README.md)、[装配/创作](../specs/world-engine/program.md)及[效率审计](runtime-efficiency/README.md)，不恢复旧队列。
 
 战斗、修行、组织治理、任务与正式内容在上述框架上实现规则，接口存在不等于玩法完成。高差、坡道、多层/3D、复杂农务及定向能量继续后置；长期目标见[roadmap](roadmap.md)。

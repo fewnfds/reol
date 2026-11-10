@@ -19,6 +19,11 @@ var _input_hint: Label
 var _speeds: Array[Button] = []
 var _diagnostics: PanelContainer
 var _diagnostic_text: Label
+var _performance_text: Label
+var _previous_frame_usec: int = -1
+var _frame_window_usec: int = 0
+var _last_frame_usec: int = 0
+var _frame_peak_usec: int = 0
 var _pawn_panel: PanelContainer
 var _pawn_name: Label
 var _pawn_role: Label
@@ -196,6 +201,17 @@ func _need_row(parent: Node, caption: String) -> Dictionary:
 
 
 func _build_diagnostics() -> void:
+	var performance_panel := PanelContainer.new()
+	_screen.add_child(performance_panel)
+	performance_panel.anchor_left = 0.5
+	performance_panel.anchor_right = 0.5
+	performance_panel.offset_left = 20
+	performance_panel.offset_right = 304
+	performance_panel.offset_top = 14
+	performance_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_performance_text = UI.label(performance_panel, "FPS 采样中 · F3详情", UI.MUTED, 12)
+	_performance_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_performance_text.tooltip_text = "FPS来自Godot原生指标，每秒更新；帧间隔用宿主单调时间测量，峰值每2秒重置。世界流速与画面FPS分别显示。"
 	_diagnostics = PanelContainer.new()
 	_screen.add_child(_diagnostics)
 	_diagnostics.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
@@ -210,6 +226,19 @@ func _build_diagnostics() -> void:
 	timer.autostart = true
 	timer.timeout.connect(_refresh_diagnostics)
 	add_child(timer)
+
+
+func _process(_delta: float) -> void:
+	# Presentation telemetry only, including pauses; no simulation reads or
+	# engine-delta scaling. Keep constant storage and update labels at 2Hz.
+	var now: int = Time.get_ticks_usec()
+	if _previous_frame_usec >= 0:
+		if now - _frame_window_usec >= 2000000:
+			_frame_window_usec = now
+			_frame_peak_usec = 0
+		_last_frame_usec = now - _previous_frame_usec
+		_frame_peak_usec = maxi(_frame_peak_usec, _last_frame_usec)
+	_previous_frame_usec = now
 
 
 func _on_clock_tick(_tick_index: int) -> void:
@@ -316,11 +345,13 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 func _refresh_diagnostics() -> void:
+	var pace: Dictionary = GameClock.pacing_status()
+	var flow: String = "暂停" if GameClock.paused else "等候" if GameClock.wait_target_ms > GameClock.elapsed_ms else "%.2f×" % float(pace.effective_speed)
+	_performance_text.text = "FPS %d · 世界 %s\n帧 %.1fms · 本2s窗峰值 %.1fms · F3" % [int(Engine.get_frames_per_second()), flow, float(_last_frame_usec) / 1000.0, float(_frame_peak_usec) / 1000.0]
 	if _diagnostics == null or not _diagnostics.visible or _world == null or _player == null or _camera == null:
 		return
 	var fog_text: String = "?"
 	if _fog != null:
 		fog_text = ["未见", "曾见", "可见"][_fog.get_state(_player.cell)]
-	_diagnostic_text.text = "开发诊断 · F3收起\nFPS %d  |  格 (%d,%d)  %s  |  高度 %d / 飞行 %d\n迷雾 %s  |  区块 %d  |  缩放 %.2f" % [int(Engine.get_frames_per_second()), _player.cell.x, _player.cell.y, _world.terrain_name(_player.cell), _world.get_elevation(_player.cell), _player.altitude, fog_text, _world.loaded_chunk_count(), _camera.zoom.x]
-	var pace: Dictionary = GameClock.pacing_status()
+	_diagnostic_text.text = "开发诊断 · F3收起  |  高度 %d / 飞行 %d\nFPS %d  |  画面帧间隔 %.2fms / 本2s窗峰值 %.2fms\n格 (%d,%d) %s  |  迷雾 %s  |  区块 %d  |  缩放 %.2f" % [_world.get_elevation(_player.cell), _player.altitude, int(Engine.get_frames_per_second()), float(_last_frame_usec) / 1000.0, float(_frame_peak_usec) / 1000.0, _player.cell.x, _player.cell.y, _world.terrain_name(_player.cell), fog_text, _world.loaded_chunk_count(), _camera.zoom.x]
 	_diagnostic_text.text += "\n流速 %.2f× / 所选 %.0f×  |  已接纳欠算 %.1fms\n时钟调用 %.2fms / 峰值 %.2fms" % [pace.effective_speed, pace.requested_speed, pace.admitted_debt_ms, float(pace.last_work_usec) / 1000.0, float(pace.longest_work_usec) / 1000.0]

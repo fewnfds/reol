@@ -55,3 +55,13 @@ doctor沿本轮最初检查通过，结构/文档链接、`git diff --check`及�
 主体提交`081b56ce0119c602d0a05985cd335c67e54d3f11`完成一次Sol/custom原生主审。宿主命令仍报`registered Core launch requires an installed app`，在同一会话`01a1c3bd-2195-7081-b187-a6a694f8b1c7`提供准确diff及相关源码，继续只读静态核查后退出；日志`demo-slowdown-review.log`和`demo-slowdown-review-resumed.log`。确认一项P2：灵体模式的提前返回跳过了读档新世界的flora覆盖回调重绑，保留旧植物owner。已将灵体判断移到绑定之后，只跳过绘制。复用三种人生的现有Main fixture增加灵体实际save/load反例，`test-20261110-124207.log`准确失败于旧owner，修复后`test-20261110-124249.log`一组42检查退出0，无额外全Main组。人身性能采样的行为路径不受此三行修复影响。
 
 最终生产/测试`b364870e5ddc92f3c3de2d689fcf3e2755e8d67d`已推送，本次真实文档提交点一次发现同SHA CI42757726701为in_progress，完整CI待验；后续按HANDOFF的准确run/SHA核对，不开等待循环。尚有加载、来源候选和房间/拓扑等同步原子工作，不扩大为本轮全域性能重构。
+
+## FPS显示与呈现频率核对
+
+用户随后要求查看原生帧率，并质疑小场景性能余量。`GameHUD`顶部新增常显读数：Godot原生FPS、宿主画面帧间隔及当前2秒窗口最大间隔、世界有效流速/暂停/等候。沿既有0.5秒Timer刷新文字，逐帧只记固定标量；FPS仍按引擎1秒更新。F3完整诊断保留，并压回五行，避免底行被生活面板遮住。无模拟、存档、帧率上限或VSync改动，不另建Profiler。
+
+doctor与`test_environment_runtime`一组17检查通过，日志`test-20261110-125037.log`。实际Godot4.7.2/D3D12/RTX5060Ti普通Main人身探针：默认常显、真实F3键切换、1280×720两块面板间284×57布局及F3不覆盖生活面板均通过。暂停1.2秒后FPS采样仍继续，整个world字典及共同毫秒保持不变。最终`demo-fps-readout-final-20261110-125342.log`退出0、failures为空，`logs/demo-fps-readout.png`已实看；探针只在logs，没有新增永久Main组。报告中的暂停后112ms窗口峰值包含探针自身序列化整世界的检查成本，不能当作普通游戏卡顿测量。
+
+另以同一探针连续按住移动3秒，302次渲染采样中300次处于移动状态，但人物位置仅变化60次；原生FPS读取109，截图随后116。源码`PlayerCharacter._project_motion()`直接把原身体位置投影到Node，普通共同时间步为50ms，缺少玩家位移的连续显示插值；因此高FPS和1×流速仍可表现为约20Hz的位移。此证据不证明百级NPC吞吐，也未在本包改变移动规则或补插值。计划的共同运行/行动呈现出口已明确分别验收流畅、吞吐和规模，后续按该出口处理，不把主动缓行当性能验收通过。
+
+准备本包实际提交时已核旧生产b364870的CI42757726701，结果仍为in_progress，未继承绿色。当前FPS显示包的最终提交、一次主审及完整CI状态见HANDOFF/BASELINE。

@@ -27,6 +27,8 @@ check包括结构、导入和统一同步测试runner；test不替代导入，�
 
 ## 配置和观察
 
+试玩HUD顶部常显FPS、帧间隔/当前2秒窗口峰值及世界流速；F3展开/收起完整诊断。FPS复用Godot的`Engine.get_frames_per_second()`，与编辑器Debugger → Monitors的原生指标同类，每秒更新；帧间隔用单调宿主时钟，包括显示等待及调度，不能冒充GPU时间。采样只持固定标量，标签2Hz刷新，暂停不停止采样。需要追踪耗时用编辑器Debugger → Profiler/Visual Profiler；原生`--print-fps`只向stdout输出FPS。API依据[Engine](https://docs.godotengine.org/en/4.7/classes/class_engine.html#class-engine-method-get-frames-per-second)与[Performance](https://docs.godotengine.org/en/4.7/classes/class_performance.html)。
+
 Demo性能诊断独立于普通入口：`python tools/diagnose_demo.py --seconds 120`启动一个新的普通Main试玩进程，不接管已运行的游戏。正常选择人生、移动和交互；采样到时停止并恢复原回调，游戏继续运行，关闭窗口也会落盘。1–300秒有界采样，默认120秒；`--auto-start --quit-after-capture`仅供自动选择人身并在采样后关闭该新进程的QA。`--headless`只能验证工具，不证明画面性能。
 
 报告在忽略的`logs/demo-profile-*.json`及同名JSONL，每秒写入一条窗口记录并flush；保留最多20000帧样本和24个最大帧现场。报告包含源码SHA/dirty、请求与实际推进、负载倍率/欠算、原结算步骤调用次数/累计与最长耗时、运行层剩余耗时、迷雾更新/地块加载标记。暂停、等候与加载切换不计入正常流速比值。步骤以外的剩余时间包含区域推进、调度和视图刷新，不能冒称某单一模块；迷雾/加载标记表示相关性，非直接耗时。
