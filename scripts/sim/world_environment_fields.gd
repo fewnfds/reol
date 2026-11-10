@@ -54,6 +54,7 @@ var _connections: Array[Dictionary] = []
 var _topology_cells: Array[Vector2i] = []
 var _motion_changes: Array[Dictionary] = []
 var _settle_cursor: Dictionary = {}
+var _allow_source_compute: bool = false
 
 var world: RegionalSimulation:
 	get: return _owner.get_ref() if _owner != null else null
@@ -170,10 +171,13 @@ func settle_budgeted(now: int, budget: int, should_yield: Callable = Callable())
 		return Vector2i(1, SimSettlementKernel.Status.FAILED)
 	var used: int = 0
 	while used < budget:
+		_allow_source_compute = should_yield.is_valid()
 		var status: int = _settle_work(now)
 		used += 1
 		if status != SimSettlementKernel.Status.PENDING:
 			return Vector2i(used, status)
+		if bool(_settle_cursor.get("source_waiting", false)):
+			break
 		if should_yield.is_valid() and bool(should_yield.call()):
 			break
 	return Vector2i(used, SimSettlementKernel.Status.PENDING)
@@ -396,12 +400,13 @@ func _step_settlement_source(key: String, source: Dictionary, at_ms: int) -> int
 	# The existing source/response coordinator owns the candidate and cursor.
 	# Only this already-pending world boundary can resume it; no second queue.
 	if not _settle_cursor.has("source_proof"):
-		var opened: Dictionary = _sources.begin_source_change(key, source, at_ms)
+		var opened: Dictionary = _sources.begin_source_change(key, source, at_ms, _allow_source_compute)
 		if not bool(opened.get("ok", false)):
 			_fail(str(opened.get("reason", "source_begin")))
 			return SimSettlementKernel.Status.FAILED
 		_settle_cursor.source_proof = opened.proof
 	var progress: Dictionary = _sources.step_source_change(_settle_cursor.source_proof, SOURCE_FIELD_WORK, TARGET_CELLS_PER_WORK)
+	_settle_cursor.source_waiting = bool(progress.get("waiting", false))
 	if not bool(progress.get("ok", false)):
 		_fail(str(progress.get("reason", "source_step")))
 		return SimSettlementKernel.Status.FAILED

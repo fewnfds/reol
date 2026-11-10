@@ -15,6 +15,7 @@ extends RefCounted
 const Cache = preload("res://scripts/sim/environment_field_cache.gd")
 const GroundCache = preload("res://scripts/sim/environment_ground_cache.gd")
 const AUTO_GPU_MIN_CELLS: int = 4096 # Candidate crossover; not a measured universal threshold.
+const AUTO_SOURCE_GPU_MIN_CELLS: int = 256 # Warm, clean source candidates; see ordinary-world measurements.
 const MAX_GPU_AREA_AXIS: int = 512 # Larger requests remain on the bounded CPU path.
 const MAX_TICKET: int = 9007199254740991
 const MODES: Array[String] = ["auto", "cpu", "gpu"]
@@ -39,6 +40,13 @@ var _request_main_usec: int = 0
 var _snapshot_main_usec: int = 0
 var _publish_main_usec: int = 0
 var _preparation_main_usec: int = 0
+var _purpose: String = "cache"
+var _candidate_requests: int = 0
+var _candidate_completed: int = 0
+var _candidate_adopted: int = 0
+var _candidate_failures: int = 0
+var _candidate_snapshot_usec: int = 0
+var _candidate_compute_ms: float = 0.0
 
 
 func configure(cache: RefCounted, mode: String = "auto") -> bool:
@@ -120,6 +128,71 @@ func request(area: Rect2i) -> Dictionary:
 		"preparation_main_usec": _preparation_main_usec}
 
 
+func request_source_candidate(handle: RefCounted) -> Dictionary:
+	if _cache == null or _ground != null or _state != "idle" or _mode == "cpu" or _ticket_counter >= MAX_TICKET:
+		return _failure("candidate_backend_unavailable")
+	if RenderingServer.get_rendering_device() == null:
+		return _failure("rendering_device_unavailable")
+	var area: Rect2i = _cache.source_compute_area(handle)
+	if area.size.x <= 0 or area.size.y <= 0 or area.size.x > MAX_GPU_AREA_AXIS or area.size.y > MAX_GPU_AREA_AXIS:
+		return _failure("gpu_area_budget")
+	if _mode == "auto" and area.get_area() < AUTO_SOURCE_GPU_MIN_CELLS:
+		return _failure("candidate_below_crossover")
+	var started: int = Time.get_ticks_usec()
+	var job: Dictionary = _cache.export_source_compute_job(handle)
+	if not bool(job.get("ok", false)):
+		return job
+	if _worker == null:
+		_worker = GPUWorker.new()
+	var error: Error = _worker.submit(job)
+	if error != OK:
+		return _failure("thread_start:" + str(error))
+	_ticket_counter += 1
+	_ticket = _ticket_counter
+	_job = job
+	_area = area
+	_scan_revision = int(job.revision)
+	_purpose = "candidate"
+	_state = "gpu"
+	_candidate_requests += 1
+	_snapshot_main_usec = Time.get_ticks_usec() - started
+	_candidate_snapshot_usec += _snapshot_main_usec
+	return {"ok": true, "pending": true, "ticket": _ticket}
+
+
+func note_source_adoption() -> void:
+	_candidate_adopted += 1
+
+
+func warmup() -> bool:
+	if _cache == null or _state != "idle" or _mode == "cpu" or RenderingServer.get_rendering_device() == null:
+		return false
+	if _worker == null:
+		_worker = GPUWorker.new()
+	if _worker.submit({"warmup": true}) != OK:
+		return false
+	_purpose = "warmup"
+	_state = "gpu"
+	return true
+
+
+func maintain() -> void:
+	# Only reap warmup or a cancelled request. A live candidate is exclusively
+	# polled by its existing settlement cursor.
+	if _state == "gpu" and (_purpose == "warmup" or _cancelled):
+		poll()
+
+
+func shutdown() -> void:
+	# Application teardown only: no world can consume this service afterwards.
+	# The immutable in-flight job may finish before the device is destroyed.
+	if _worker != null:
+		_worker.close_idle()
+		_worker = null
+	_reset_request()
+	close()
+
+
 func poll(max_tiles: int = 1, max_work: int = 4096) -> Dictionary:
 	if _cache == null:
 		return _failure("not_configured")
@@ -147,6 +220,20 @@ func poll(max_tiles: int = 1, max_work: int = 4096) -> Dictionary:
 			return _finish_failed(_terminal_reason)
 		if _cancelled:
 			return _finish_cancelled()
+		if _purpose == "warmup":
+			_reset_request()
+			return {"ok": bool(result.get("ok", false)), "pending": false}
+		if _purpose == "candidate":
+			var candidate_result: Dictionary = {"ok": bool(result.get("ok", false)), "pending": false,
+				"ticket": _ticket, "job": _job, "prepared": result.get("prepared", {}),
+				"gpu": result.get("metrics", {}), "reason": result.get("reason", "")}
+			if bool(candidate_result.ok):
+				_candidate_completed += 1
+				_candidate_compute_ms += float(candidate_result.gpu.get("compute_ms", 0.0))
+			else:
+				_candidate_failures += 1
+			_reset_request()
+			return candidate_result
 		if not result is Dictionary or not bool(result.get("ok", false)):
 			var reason: String = "worker_result" if not result is Dictionary else str(result.get("reason", "worker_error"))
 			return _fallback("gpu:" + reason)
@@ -263,7 +350,11 @@ func diagnostics() -> Dictionary:
 		"ground_bound": _ground != null, "ground_lease_valid": _owns_ground(),
 		"terminal_reason": _terminal_reason, "request_main_usec": _request_main_usec,
 		"snapshot_main_usec": _snapshot_main_usec, "publish_main_usec": _publish_main_usec,
-		"preparation_main_usec": _preparation_main_usec}
+		"preparation_main_usec": _preparation_main_usec, "purpose": _purpose,
+		"candidate_requests": _candidate_requests, "candidate_completed": _candidate_completed,
+		"candidate_adopted": _candidate_adopted,
+		"candidate_failures": _candidate_failures, "candidate_snapshot_usec": _candidate_snapshot_usec,
+		"candidate_compute_ms": _candidate_compute_ms}
 
 
 func close() -> bool:
@@ -350,6 +441,7 @@ func _finish_failed(reason: String) -> Dictionary:
 
 
 func _reset_request() -> void:
+	_purpose = "cache"
 	_state = "idle"
 	_ticket = 0
 	_area = Rect2i()
@@ -470,6 +562,8 @@ class GPUWorker:
 		var initialized: Dictionary = device.initialize()
 		if not bool(initialized.get("ok", false)):
 			return {"ok": false, "reason": "initialize:" + str(initialized.get("reason", "unknown"))}
+		if bool(job.get("warmup", false)):
+			return initialized
 		var computed: Dictionary = device.compute(job)
 		if not bool(computed.get("ok", false)):
 			return {"ok": false, "reason": "compute:" + str(computed.get("reason", "unknown"))}

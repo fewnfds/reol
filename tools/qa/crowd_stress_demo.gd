@@ -168,7 +168,9 @@ func _finish(ok: bool) -> void:
 	for pawn: Node2D in _main._continuity._remote_views.values():
 		if pawn.is_visible_in_tree():
 			visible += 1
-	var crowd: Dictionary = {"actors": _starts.size(), "moved": _moved.size(), "mode": "opening_wave" if _opening_wave else "sustained_circuit", "mean_travelling": float(_travel_actor_ms) / maxi(1, _sampled_world_ms), "visible_at_finish": visible, "redirects": _redirects}
+	var runtime: Node = _main.get("_continuity")
+	var crowd: Dictionary = {"actors": _starts.size(), "moved": _moved.size(), "mode": "opening_wave" if _opening_wave else "sustained_circuit", "mean_travelling": float(_travel_actor_ms) / maxi(1, _sampled_world_ms), "visible_at_finish": visible, "redirects": _redirects,
+		"environment_compute": runtime._field_compute.diagnostics() if runtime._field_compute != null else {}}
 	var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(_report))
 	if not raw is Dictionary:
 		push_error("Crowd recorder did not write a valid report")

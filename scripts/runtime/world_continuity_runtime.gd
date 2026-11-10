@@ -50,6 +50,8 @@ var _known_lines: Array[String] = []
 var _courier_cell: Vector2i = Vector2i.ZERO
 var _courier_visible: bool = false
 var _saves: SimSaveSession
+var _field_compute: EnvironmentFieldComputeRuntime
+var _retired_field_compute: Array[EnvironmentFieldComputeRuntime] = []
 
 
 func home_runtime() -> VillageRuntime:
@@ -268,7 +270,35 @@ func setup(home: VillageRuntime, opening_source_loan: bool = false, opening_sour
 	_refresh_panel()
 	GameClock.time_advanced.connect(_capture_committed_canvases)
 	_capture_committed_canvases()
+	_configure_field_compute()
 	return true
+
+
+func _configure_field_compute() -> void:
+	if world_sim == null:
+		return
+	var mode: String = "auto"
+	for argument: String in OS.get_cmdline_user_args():
+		if argument.begins_with("--environment-backend="):
+			mode = argument.get_slice("=", 1)
+	var service := EnvironmentFieldComputeRuntime.new()
+	if not service.configure(world_sim.environment_fields._field, mode):
+		return
+	_field_compute = service
+	world_sim.environment_fields._field.set_compute_backend(service)
+	service.warmup()
+
+
+func _retire_field_compute() -> void:
+	if _field_compute == null:
+		return
+	var info: Dictionary = _field_compute.diagnostics()
+	if bool(info.busy):
+		_field_compute.cancel(int(info.ticket))
+		_retired_field_compute.append(_field_compute)
+	else:
+		_field_compute.close()
+	_field_compute = null
 
 
 func _capture_committed_canvases(_from_ms: int = 0, _to_ms: int = 0) -> void:
@@ -1230,6 +1260,14 @@ func _refresh_views(snap: bool, layout: Dictionary = {}) -> void:
 
 
 func _process(_delta: float) -> void:
+	if _field_compute != null:
+		_field_compute.maintain()
+	for index: int in range(_retired_field_compute.size() - 1, -1, -1):
+		var service: EnvironmentFieldComputeRuntime = _retired_field_compute[index]
+		service.maintain()
+		if not bool(service.diagnostics().busy):
+			service.close()
+			_retired_field_compute.remove_at(index)
 	if _saves != null:
 		_saves.process_save()
 
@@ -1430,6 +1468,11 @@ func _show_save_result(result: Error) -> void:
 
 
 func _exit_tree() -> void:
+	if _field_compute != null:
+		_field_compute.shutdown()
+	for service: EnvironmentFieldComputeRuntime in _retired_field_compute:
+		service.shutdown()
+	_retired_field_compute.clear()
 	if world_sim != null:
 		world_sim.close_actor_execution()
 	if _saves != null:
@@ -1464,7 +1507,9 @@ func _adopt_session(staged: Dictionary) -> void:
 	var extra: Dictionary = snapshot.continuity
 	# All validation is complete before changing any live world or clock state.
 	var previous_world: RegionalSimulation = world_sim
+	_retire_field_compute()
 	world_sim = staged.world
+	_configure_field_compute()
 	_advance_view_baseline = {}
 	_home._clock_interval_had_events = false
 	previous_world.close_actor_execution()

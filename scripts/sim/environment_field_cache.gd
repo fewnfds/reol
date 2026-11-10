@@ -294,6 +294,11 @@ func step_source_change(handle: Variant, max_work: int) -> Dictionary:
 		"completed_tiles": _source_candidate.tile_index, "total_tiles": _source_candidate.tile_ids.size()}
 
 
+func allow_source_compute(handle: Variant) -> void:
+	if _source_handle_matches(handle):
+		_source_candidate.allow_compute = true
+
+
 func _step_source_candidate() -> void:
 	var candidate: SourceCandidate = _source_candidate
 	if candidate.phase == 0:
@@ -549,23 +554,50 @@ func request_area(area: Rect2i) -> Dictionary:
 
 
 func export_compute_job(area: Rect2i, compact: bool = false) -> Dictionary:
+	return _export_compute_job(area, compact)
+
+
+func export_source_compute_job(handle: Variant) -> Dictionary:
+	if not _source_handle_matches(handle) or _source_candidate.revision != _revision or _source_candidate.sealed or _source_candidate.tile_index != 0 or _source_candidate.building:
+		return _failure("candidate_unavailable")
+	var area: Rect2i = _rect_for_tile(_source_candidate.tile_ids[0])
+	for id: int in _source_candidate.tile_ids:
+		# Exact masks require the old committed value. Cold/dirty tiles use CPU.
+		var tile: Dictionary = _tiles.get(id, {})
+		if tile.is_empty() or bool(tile.get("dirty", true)):
+			return _failure("candidate_cold")
+		area = area.merge(_rect_for_tile(id))
+	return _export_compute_job(area, true, _source_candidate)
+
+
+func source_compute_area(handle: Variant) -> Rect2i:
+	if not _source_handle_matches(handle):
+		return Rect2i()
+	var area: Rect2i = _rect_for_tile(_source_candidate.tile_ids[0])
+	for id: int in _source_candidate.tile_ids:
+		area = area.merge(_rect_for_tile(id))
+	return area
+
+
+func _export_compute_job(area: Rect2i, compact: bool, candidate: SourceCandidate = null) -> Dictionary:
 	if _capacity == 0:
 		return _failure("not_configured")
 	if not _valid_compute_area(area):
 		return _failure("compute_area")
 	# A window covering the whole map needs no source-ID remapping. Keep the
 	# native SoA copy path for this common case instead of interpreted packing.
-	if compact and area.grow(maxi(0, _max_radius - 1)).encloses(Rect2i(Vector2i.ZERO, _size)):
+	if candidate == null and compact and area.grow(maxi(0, _max_radius - 1)).encloses(Rect2i(Vector2i.ZERO, _size)):
 		return export_compute_job(area, false)
 	# This is a synchronous snapshot of projections, not another item owner.
 	# Full packing is O(map cells + capacity * 11 + active kernel values).
 	# Compact packing visits the clipped influence window and its references;
 	# neither mode is represented as a bounded rebuild work unit.
-	var params := PackedInt32Array([_size.x, _size.y, _capacity, _max_radius,
+	var max_radius: int = maxi(_max_radius, candidate.new_radius) if candidate != null else _max_radius
+	var params := PackedInt32Array([_size.x, _size.y, _capacity, max_radius,
 		area.position.x, area.position.y, area.size.x, area.size.y])
 	var projection: Dictionary
 	if compact:
-		projection = _compact_projection(area)
+		projection = _compact_projection(area, candidate)
 	else:
 		if (_size.x * _size.y + _capacity * 11) * 4 > MAX_COMPUTE_SNAPSHOT_BYTES:
 			return _failure("compute_snapshot_budget")
@@ -587,27 +619,32 @@ func export_compute_job(area: Rect2i, compact: bool = false) -> Dictionary:
 		return _failure("snapshot_allocation")
 	offsets.fill(-1)
 	for radius: int in range(1, Rules.MAX_RADIUS + 1):
-		if _radius_counts[radius] <= 0:
+		if _radius_counts[radius] <= 0 and (candidate == null or radius != candidate.new_radius):
 			continue
 		offsets[radius] = kernels.size()
-		kernels.append_array(_kernels[radius])
+		kernels.append_array(candidate.new_kernel if candidate != null and radius == candidate.new_radius else _kernels[radius])
 	# A valid job is publishable only for previously requested whole tiles.
 	# Request missing tiles without disturbing already clean or in-flight ones.
 	for y: int in range(area.position.y, area.end.y, TILE_SIZE):
 		for x: int in range(area.position.x, area.end.x, TILE_SIZE):
 			var tile_id: int = _tile_for_cell(Vector2i(x, y))
-			if not _tiles.has(tile_id):
+			if candidate == null and not _tiles.has(tile_id):
 				_tiles[tile_id] = {"dirty": true, "queued": true, "values": PackedInt32Array()}
 				_queue.append(tile_id)
-	return {"ok": true, "owner_token": get_instance_id(), "revision": _revision,
+	var job: Dictionary = {"ok": true, "owner_token": get_instance_id(), "revision": _revision,
 		"area": area, "params": params, "compute_params": projection.params,
 		"max_cell_sources": mini(int(projection.params[2]), maxi(1, _max_cell_sources)),
 		"heads": projection.heads, "slots": projection.slots,
 		"kernels": kernels, "radius_offsets": offsets}
+	if candidate != null:
+		job.candidate_token = candidate.handle.get_instance_id()
+		job.max_cell_sources = mini(int(projection.params[2]), maxi(1, _max_cell_sources + 1))
+	return job
 
 
-func _compact_projection(area: Rect2i) -> Dictionary:
-	var extent: int = maxi(0, _max_radius - 1)
+func _compact_projection(area: Rect2i, candidate: SourceCandidate = null) -> Dictionary:
+	var radius_limit: int = maxi(_max_radius, candidate.new_radius) if candidate != null else _max_radius
+	var extent: int = maxi(0, radius_limit - 1)
 	var left: int = maxi(0, area.position.x - extent)
 	var top: int = maxi(0, area.position.y - extent)
 	var right: int = mini(_size.x, area.end.x + extent)
@@ -632,6 +669,9 @@ func _compact_projection(area: Rect2i) -> Dictionary:
 			var slot: int = _heads[y * _size.x + x]
 			var local_head: int = -1
 			while slot >= 0:
+				if candidate != null and slot == candidate.slot:
+					slot = _slot_next[slot]
+					continue
 				var local_slot: int = xs.size()
 				if (width * height + (local_slot + 1) * 11) * 4 > MAX_COMPUTE_SNAPSHOT_BYTES:
 					return _failure("compute_snapshot_budget")
@@ -644,6 +684,14 @@ func _compact_projection(area: Rect2i) -> Dictionary:
 				local_head = local_slot
 				local_max_radius = maxi(local_max_radius, _slot_radius[slot])
 				slot = _slot_next[slot]
+			if candidate != null and candidate.new_radius > 0 and candidate.new_cell == Vector2i(x, y):
+				xs.append(x - left)
+				ys.append(y - top)
+				radii.append(candidate.new_radius)
+				next.append(local_head)
+				channels.append_array(candidate.new_channels)
+				local_head = xs.size() - 1
+				local_max_radius = maxi(local_max_radius, candidate.new_radius)
 			heads[(y - top) * width + x - left] = local_head
 	# Device storage buffers cannot be zero-sized. Empty windows retain one
 	# inactive slot and max radius zero; all heads remain -1.
@@ -655,6 +703,8 @@ func _compact_projection(area: Rect2i) -> Dictionary:
 		if channels.resize(CHANNELS) != OK:
 			return _failure("snapshot_allocation")
 	var local_capacity: int = xs.size()
+	if (width * height + local_capacity * 11) * 4 > MAX_COMPUTE_SNAPSHOT_BYTES:
+		return _failure("compute_snapshot_budget")
 	if ys.size() != local_capacity or radii.size() != local_capacity or next.size() != local_capacity or channels.size() != local_capacity * CHANNELS:
 		return _failure("snapshot_allocation")
 	var slots: PackedInt32Array = xs.duplicate()
@@ -724,6 +774,8 @@ func publish_compute_result(job: Dictionary, prepared: Dictionary) -> Dictionary
 	# It is NOT an untrusted input: range validation already ran in the worker.
 	if _capacity == 0:
 		return _failure("not_configured")
+	if job.has("candidate_token"):
+		return _failure("candidate_not_committed")
 	if not job.get("ok", false) is bool or not bool(job.get("ok", false)):
 		return _failure("compute_job")
 	if not job.get("owner_token") is int or int(job.owner_token) != get_instance_id():
@@ -1132,6 +1184,7 @@ class SourceChangeProof:
 
 class SourceCandidate:
 	extends RefCounted
+	var allow_compute: bool = false
 	var handle: SourceChangeHandle
 	var proof: SourceChangeProof
 	var revision: int = 0

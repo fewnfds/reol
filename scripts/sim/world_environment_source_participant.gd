@@ -240,10 +240,10 @@ func prepare_source_change(key: String, new_source: Dictionary, at_ms: int) -> D
 	return _prepare_transition(key if _records.has(key) else "", key if not new_source.is_empty() else "", new_source, at_ms)
 
 
-func begin_source_change(key: String, new_source: Dictionary, at_ms: int) -> Dictionary:
+func begin_source_change(key: String, new_source: Dictionary, at_ms: int, allow_compute: bool = false) -> Dictionary:
 	if key.strip_edges().is_empty():
 		return _failure("invalid_reference")
-	return _begin_transition(key if _records.has(key) else "", key if not new_source.is_empty() else "", new_source, at_ms)
+	return _begin_transition(key if _records.has(key) else "", key if not new_source.is_empty() else "", new_source, at_ms, allow_compute)
 
 
 func step_source_change(proof: Variant, field_work: int, cell_budget: int) -> Dictionary:
@@ -258,7 +258,7 @@ func step_source_change(proof: Variant, field_work: int, cell_budget: int) -> Di
 		_pending = {} # The coordinator has already cancelled its domain candidates.
 		return progress
 	if bool(progress.get("pending", true)):
-		return {"ok": true, "pending": true}
+		return {"ok": true, "pending": true, "waiting": bool(progress.get("waiting", false))}
 	var finished: Dictionary = _changes.finish(_pending.handle)
 	if not bool(finished.get("ok", false)):
 		_changes.cancel(_pending.handle)
@@ -361,7 +361,7 @@ func _prepare_transition(old_key: String, new_key: String, source: Dictionary, a
 	return _failure("source_work_limit")
 
 
-func _begin_transition(old_key: String, new_key: String, source: Dictionary, at_ms: int) -> Dictionary:
+func _begin_transition(old_key: String, new_key: String, source: Dictionary, at_ms: int, allow_compute: bool = false) -> Dictionary:
 	if not _available() or at_ms < 0 or at_ms >= Change.Temperature.MAX_TIME:
 		return _failure("invalid_state")
 	if not old_key.is_empty() and not _records.has(old_key):
@@ -393,7 +393,7 @@ func _begin_transition(old_key: String, new_key: String, source: Dictionary, at_
 	else:
 		return _failure("source_capacity")
 	var operation: String = "remove" if new_key.is_empty() else "set"
-	var opened: Dictionary = _changes.begin(slot, operation, source, at_ms, Change.Temperature.MAX_TIME)
+	var opened: Dictionary = _changes.begin(slot, operation, source, at_ms, Change.Temperature.MAX_TIME, allow_compute)
 	if not bool(opened.get("ok", false)):
 		return opened
 	_pending = {"kind": "preparing", "token": token, "handle": opened.handle,

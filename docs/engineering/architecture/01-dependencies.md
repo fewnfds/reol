@@ -22,4 +22,4 @@ main / 场景装配
 
 普通`RegionalSimulation.environment_fields`指向`SimWorldEnvironmentFields`，由它作为室外实际温度及五行响应的唯一环境域。存档 `local_heat` 数据键经 snapshot codec 映射到该字段，内容定义的 `ReolContentDB.local_heat` 则是独立热设备参数。来源来自原实物，缓存只保存可重建投影；[普通世界环境合同](../world-environment-contract.md)说明边界。当前验收与接入范围见[BASELINE](../../status/baseline.md)，当前任务见[HANDOFF](../../status/handoff.md)。
 
-普通环境域组合温度、五行响应、气候背景及目标编译组件，并复用同一共同时间；它不持有第二份实物。独立GPU/开发会话仍是不同范围的计算或测试接口，不代表普通主局已有GPU开关或后台加速。
+普通环境域组合温度、五行响应、气候背景及目标编译组件，并复用同一共同时间；它不持有第二份实物。普通运行适配器持有环境GPU服务，内部来源候选可采用其不可变计算结果，温度/五行和世界时间仍经原协调器提交；独立GPU服务的历史结果不能代替该路径的端到端证据。

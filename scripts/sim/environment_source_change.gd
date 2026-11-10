@@ -53,7 +53,7 @@ func configure(field: RefCounted, temperature: RefCounted, settings: Dictionary,
 	return true
 
 
-func begin(slot: int, operation: String, source: Dictionary, at_ms: int, horizon_ms: int) -> Dictionary:
+func begin(slot: int, operation: String, source: Dictionary, at_ms: int, horizon_ms: int, allow_compute: bool = false) -> Dictionary:
 	if _field == null:
 		return _failure("not_configured")
 	if _active != null:
@@ -63,6 +63,8 @@ func begin(slot: int, operation: String, source: Dictionary, at_ms: int, horizon
 	var opened: Dictionary = _field.begin_source_change(slot, operation, source)
 	if not bool(opened.get("ok", false)):
 		return opened
+	if allow_compute:
+		_field.allow_source_compute(opened.handle)
 	var tiles: Array[int] = opened.tile_ids
 	var candidate := Change.new()
 	candidate.handle = Handle.new()
@@ -112,7 +114,9 @@ func step(handle: Variant, field_work: int, cell_budget: int) -> Dictionary:
 				return _abort(str(finished.get("reason", "source_unavailable")))
 			_active.field_proof = finished.proof
 			_active.phase = "input"
-		return _progress(int(result.get("work", 0)), 0)
+		var progress: Dictionary = _progress(int(result.get("work", 0)), 0)
+		progress.waiting = bool(result.get("waiting", false))
+		return progress
 	if _active.phase == "input":
 		return _prepare_tile_input(cell_budget)
 	if _active.phase == "temperature":

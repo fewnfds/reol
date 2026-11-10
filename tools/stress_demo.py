@@ -19,6 +19,7 @@ def main() -> int:
     parser.add_argument("--profile-kernel", action="store_true", help="wrap every world phase for diagnosis; adds overhead, disabled for throughput captures")
     parser.add_argument("--profile-render", action="store_true", help="enable Godot viewport CPU/GPU rendering timings; adds measurement overhead")
     parser.add_argument("--actor-workers", type=int, choices=range(9), default=4, help="native actor calculation workers; 0 uses the same packed calculation serially")
+    parser.add_argument("--environment-backend", choices=("auto", "cpu", "gpu"), default="auto", help="compare ordinary source candidate calculation; auto keeps small batches on CPU")
     args = parser.parse_args()
     if not 6 <= args.residents <= 256 or not 5 <= args.seconds <= 300:
         parser.error("residents must be 6..256 and seconds 5..300")
@@ -33,7 +34,7 @@ def main() -> int:
         cmd.append("--headless")
     cmd += ["--script", "res://tools/qa/crowd_stress_demo.gd", "--", f"--residents={args.residents}",
             f"--seconds={args.seconds}", f"--report=res://logs/{tag}.json", f"--revision={sha}",
-            f"--actor-workers={args.actor_workers}"]
+            f"--actor-workers={args.actor_workers}", f"--environment-backend={args.environment_backend}"]
     if args.quit_after_capture:
         cmd.append("--quit-after-capture")
     if args.opening_wave:

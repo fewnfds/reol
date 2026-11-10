@@ -41,6 +41,11 @@ var _transport: Callable
 var _transport_capture: Callable
 var _transport_receiver := Vector2i(-1, -1)
 var _transport_sources: Dictionary[Vector2i, PackedInt32Array] = {}
+var _compute_backend: WeakRef
+var _compute_attempted: bool = false
+var _compute_ticket: int = 0
+var _compute_tiles: Dictionary[int, PackedInt32Array] = {}
+var _compute_cell: int = 0
 
 
 func set_transport(callback: Callable, capture: Callable = Callable()) -> void:
@@ -76,12 +81,20 @@ func _transport_grade(value: int, from: Vector2i, to: Vector2i, channel: int) ->
 
 
 func export_compute_job(area: Rect2i, compact: bool = false) -> Dictionary:
+	return _with_geometry(super.export_compute_job(area, compact), area, _max_radius)
+
+
+func export_source_compute_job(handle: Variant) -> Dictionary:
+	var job: Dictionary = super.export_source_compute_job(handle)
+	return _with_geometry(job, job.get("area", Rect2i()), maxi(_max_radius, _source_candidate.new_radius) if _source_candidate != null else _max_radius)
+
+
+func _with_geometry(job: Dictionary, area: Rect2i, radius: int) -> Dictionary:
 	if _transport.is_valid() and not _transport_capture.is_valid():
 		return {"ok": false, "reason": "geometry_requires_cpu"}
-	var job: Dictionary = super.export_compute_job(area, compact)
 	if not bool(job.get("ok", false)) or not _transport.is_valid() or job.has("geometry"):
 		return job
-	var region: Rect2i = area.grow(maxi(0, _max_radius - 1)).intersection(Rect2i(Vector2i.ZERO, _size))
+	var region: Rect2i = area.grow(maxi(0, radius - 1)).intersection(Rect2i(Vector2i.ZERO, _size))
 	var captured: Dictionary = _transport_capture.call(region)
 	if not bool(captured.get("ok", false)) or not captured.get("geometry") is PackedInt32Array:
 		return {"ok": false, "reason": "geometry_capture"}
@@ -96,6 +109,77 @@ func export_compute_job(area: Rect2i, compact: bool = false) -> Dictionary:
 	geometry[2] -= area.position.y - compute[5]
 	job.geometry = geometry
 	return job
+
+
+func set_compute_backend(backend: RefCounted) -> void:
+	_compute_backend = weakref(backend) if backend != null else null
+
+
+func step_source_change(handle: Variant, max_work: int) -> Dictionary:
+	if not _source_handle_matches(handle) or _source_candidate.revision != _revision or _source_candidate.sealed or max_work < 0 or max_work > MAX_WORK:
+		return super.step_source_change(handle, max_work)
+	var backend: RefCounted = _compute_backend.get_ref() if _compute_backend != null else null
+	if _source_candidate.allow_compute and not _compute_attempted and backend != null and max_work > 0:
+		_compute_attempted = true
+		var started: Dictionary = backend.request_source_candidate(handle)
+		if bool(started.get("ok", false)):
+			_compute_ticket = int(started.ticket)
+	if _compute_ticket != 0:
+		var result: Dictionary = backend.poll() if backend != null else {"ok": false}
+		if bool(result.get("pending", false)):
+			return {"ok": true, "done": false, "work": 0, "waiting": true}
+		_compute_ticket = 0
+		if bool(result.get("ok", false)) and not bool(result.get("cancelled", false)):
+			var job: Dictionary = result.job
+			var prepared: Dictionary = result.prepared
+			if int(job.owner_token) == get_instance_id() and int(job.revision) == _revision and int(job.candidate_token) == handle.get_instance_id() and int(prepared.owner_token) == get_instance_id() and int(prepared.revision) == _revision:
+				var entries: Dictionary[int, PackedInt32Array] = {}
+				for entry: Dictionary in prepared.tiles:
+					entries[int(entry.id)] = entry.values
+				var valid: bool = true
+				for id: int in _source_candidate.tile_ids:
+					var old: Dictionary = _tiles.get(id, {})
+					if not entries.has(id) or old.is_empty() or bool(old.dirty) or entries[id].size() != old.values.size():
+						valid = false
+						break
+				if valid:
+					_compute_tiles = entries
+	if _compute_tiles.is_empty():
+		return super.step_source_change(handle, max_work)
+	# Build exact changed-channel masks with the original bounded work budget.
+	# Nothing is published until field + response proofs commit together.
+	var candidate: SourceCandidate = _source_candidate
+	var used: int = 0
+	while used < max_work and candidate.tile_index < candidate.tile_ids.size():
+		var id: int = candidate.tile_ids[candidate.tile_index]
+		var values: PackedInt32Array = _compute_tiles[id]
+		var old: PackedInt32Array = _tiles[id].values
+		if _compute_cell == 0:
+			var masks := PackedByteArray()
+			masks.resize(values.size() / CHANNELS)
+			_candidate_change_masks[id] = masks
+		var mask: int = 0
+		for channel: int in CHANNELS:
+			var index: int = _compute_cell * CHANNELS + channel
+			if values[index] != old[index]:
+				mask |= 1 << channel
+		_candidate_change_masks[id][_compute_cell] = mask
+		_compute_cell += 1
+		used += 1
+		if _compute_cell * CHANNELS == values.size():
+			candidate.results[id] = values
+			candidate.tile_index += 1
+			_compute_cell = 0
+	return {"ok": true, "work": used, "done": candidate.tile_index == candidate.tile_ids.size()}
+
+
+func cancel_source_change(handle: Variant) -> Dictionary:
+	if _source_handle_matches(handle) and _compute_ticket != 0:
+		var backend: RefCounted = _compute_backend.get_ref() if _compute_backend != null else null
+		if backend != null:
+			backend.cancel(_compute_ticket)
+		_compute_ticket = 0
+	return super.cancel_source_change(handle)
 
 
 func _init() -> void:
@@ -128,6 +212,10 @@ func remove_source(slot: int) -> Dictionary:
 func begin_source_change(slot: int, operation: String, change: Dictionary = {}) -> Dictionary:
 	var result: Dictionary = super.begin_source_change(slot, operation, change)
 	if bool(result.get("ok", false)):
+		_compute_attempted = false
+		_compute_ticket = 0
+		_compute_tiles.clear()
+		_compute_cell = 0
 		var old := _slot_grades(slot)
 		_candidate_channel_mask = 0
 		_candidate_fast_tile = -1
@@ -164,6 +252,11 @@ func _apply_source_candidate(candidate: SourceCandidate) -> void:
 	var current := _slot_grades(candidate.slot)
 	_replace_grades(old, current)
 	_replace_block_grades(candidate.old_cell, old, candidate.new_cell, current)
+	if not _compute_tiles.is_empty():
+		var backend: RefCounted = _compute_backend.get_ref() if _compute_backend != null else null
+		if backend != null:
+			backend.note_source_adoption()
+	_compute_tiles.clear()
 
 
 func _replace_block_grades(old_cell: Vector2i, old: PackedInt32Array, cell: Vector2i, current: PackedInt32Array) -> void:
