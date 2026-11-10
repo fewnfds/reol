@@ -472,7 +472,8 @@ func _sync_actor_views(snap: bool, layout: Dictionary = {}) -> void:
 		var pawn: Pawn = _pawns[id]
 		var was_visible: bool = pawn.visible
 		var actor: Dictionary = residents[id]
-		pawn.cell = _decode_cell(actor["cell"])
+		var drawing: Dictionary = layout.get(id, {})
+		pawn.cell = drawing.get("cell", _decode_cell(actor["cell"]))
 		pawn.visible = bool(actor.alive) and (_fog.is_cell_visible(pawn.cell) if _fog != null else true)
 		if not pawn.visible:
 			continue # Hidden views have no pose, clothing or draw work.
@@ -482,8 +483,8 @@ func _sync_actor_views(snap: bool, layout: Dictionary = {}) -> void:
 		pawn.appearance_pose = HumanoidPose.stabilized(pose, pawn.appearance_pose)
 		if is_instance_valid(continuity):
 			pawn.clothing_appearance = continuity.world_sim.clothing.appearance(id)
-		pawn.set_view_layout(layout.get(id, {}))
-		var target: Vector2 = simulation.projected_actor_position(id)
+		pawn.set_view_layout(drawing)
+		var target: Vector2 = drawing.position if drawing.has("position") else simulation.projected_actor_position(id)
 		pawn.project_position(target)
 		if not was_visible or not GameClock.is_advancing():
 			pawn.publish_motion(GameClock.elapsed_ms, snap or not was_visible)

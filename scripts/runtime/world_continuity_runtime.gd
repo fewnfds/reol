@@ -430,9 +430,9 @@ func actor_view_layout() -> Dictionary:
 	# of positions. Two owners' visitors can share one physical cell.
 	var bodies: Dictionary = {}
 	for sim: VillageSimulation in world_sim.regions.values():
-		# Cell ownership already changes at canonical crossing boundaries.
+		# Evaluate accepted segments at this committed time; no body integration.
 		bodies.merge(sim.actors)
-	return PawnViewLayout.build(bodies, "player")
+	return PawnViewLayout.build(bodies, "player", null, GameClock.elapsed_ms)
 
 
 func select_actor_view(pawn: Pawn) -> void:
@@ -510,10 +510,12 @@ func _bind_navigation() -> void:
 	_home.bind_shared_motion(world_sim)
 	GameClock.bind_wait_guard(_can_wait)
 	_home._places = _home.simulation.places.duplicate(true)
-	for sim: VillageSimulation in world_sim.regions.values():
+	for region: String in world_sim.regions:
+		var sim: VillageSimulation = world_sim.regions[region]
 		sim.set_navigation(_find_path, _can_step)
 		sim.set_boundary_revision_provider(_native_boundary_revision)
 		sim.set_route_geometry_revision_provider(_native_geometry_revision)
+		sim.set_native_crossing_interest(world_sim.environment_fields.needs_native_crossings.bind(region))
 		sim.set_sparse_actor_projection(true)
 		# Original route geometry and its change revision are bound above. Local
 		# crossings stay in the resumable body owner; gameplay deadlines still
@@ -1221,7 +1223,7 @@ func _refresh_views(snap: bool, layout: Dictionary = {}) -> void:
 			var actor: Dictionary = residents[id]
 			if not bool(actor.alive):
 				continue
-			var cell: Vector2i = _cell(actor.cell)
+			var cell: Vector2i = layout.get(id, {}).get("cell", _cell(actor.cell))
 			if _home._fog == null and cell.distance_to(controlled_cell()) > float(_home.simulation.config.observation_radius):
 				continue
 			if _home._fog != null and not _home._fog.is_cell_visible(cell):
@@ -1243,7 +1245,8 @@ func _refresh_views(snap: bool, layout: Dictionary = {}) -> void:
 			pawn.cell = cell
 			if pawn.selected:
 				_home._sync_needs(pawn.state, remote.projected_actor_needs(id))
-			pawn.project_position(remote.projected_actor_position(id))
+			var drawing: Dictionary = layout.get(id, {})
+			pawn.project_position(drawing.position if drawing.has("position") else remote.projected_actor_position(id))
 			if not GameClock.is_advancing():
 				pawn.publish_motion(GameClock.elapsed_ms, snap)
 			pawn.show()

@@ -5,13 +5,19 @@ extends RefCounted
 const CROWD_RADIUS: float = 24.0
 
 
-static func build(actors: Dictionary, center_actor_id: String = "", visitor_cell: Variant = null) -> Dictionary:
+static func build(actors: Dictionary, center_actor_id: String = "", visitor_cell: Variant = null, at_ms: int = -1) -> Dictionary:
 	var groups: Dictionary = {}
+	var positions: Dictionary[String, Vector2] = {}
 	for id: String in actors:
 		var raw_cell: Variant = actors[id].get("cell", [])
 		if not raw_cell is Array or raw_cell.size() != 2:
 			continue
 		var cell := Vector2i(int(raw_cell[0]), int(raw_cell[1]))
+		if at_ms >= 0:
+			var body: Dictionary = actors[id]
+			var route: Dictionary = body.get("active", {})
+			positions[id] = SimRouteTravel.projected_point(route, body, at_ms) if route.get("phase") == "travel" else SimRouteTravel.point(body)
+			cell = TileGrid.world_to_cell(positions[id])
 		if not groups.has(cell):
 			groups[cell] = []
 		groups[cell].append(id)
@@ -31,4 +37,7 @@ static func build(actors: Dictionary, center_actor_id: String = "", visitor_cell
 				var angle: float = -PI * 0.5 + TAU * float(index) / float(ids.size())
 				offset = Vector2(cos(angle), sin(angle)) * CROWD_RADIUS
 			result[ids[index]] = {"offset": offset, "caption_visible": not crowded}
+	for id: String in positions:
+		result[id].position = positions[id]
+		result[id].cell = TileGrid.world_to_cell(positions[id])
 	return result

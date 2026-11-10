@@ -656,6 +656,18 @@ func stock_source(region: String, container: String, item: String) -> Dictionary
 
 
 func _index_source_container(key: String) -> void:
+	var previous: Array = _source_containers.get(key, [])
+	_reindex_source_container(key)
+	var current: Array = _source_containers.get(key, [])
+	if previous != current:
+		# First/last source or a new carrier changes whether a local cell edge
+		# has a world consequence. Recompute that body's existing deadline.
+		for pair: Array in [previous, current]:
+			if not pair.is_empty() and str(pair[1]).begins_with("actor:"):
+				_world.regions[str(pair[0])].invalidate_actor_boundary(str(pair[1]).trim_prefix("actor:"))
+
+
+func _reindex_source_container(key: String) -> void:
 	if key.is_empty():
 		return
 	var previous: Array = _source_containers.get(key, [])

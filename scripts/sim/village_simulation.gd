@@ -100,6 +100,7 @@ var _route_continuations: Dictionary[String, bool] = {}
 var native_route_events_enabled: bool = false
 var _route_completions: Dictionary[String, Dictionary] = {}
 var _route_geometry_revision_provider: Callable
+var _native_crossing_interest: Callable
 var _boundary_index := SimParticipationIndex.new()
 var _boundary_index_ready: bool = false
 var _dirty_actor_boundaries: Dictionary[String, bool] = {}
@@ -456,14 +457,19 @@ func _query_actor_boundary(cached: bool) -> int:
 			continue
 		if not actor.active.is_empty():
 			var allowed: bool = actor_controls(id, "action") and actor_controls(id, "motion")
+			var completion: Dictionary = _route_completions.get(id, {})
+			var accepted: bool = allowed and native_route_events_enabled and actor.active.get("phase") == "travel" and not completion.is_empty() and is_same(completion.route, actor.active) and int(completion.revision) == geometry_revision
 			if cached:
 				_route_continuations[id] = allowed and actor.active.get("phase") == "travel"
 			if not allowed:
 				actor_boundary = elapsed_ms + 1
+			elif accepted and _native_crossing_interest.is_valid() and not bool(_native_crossing_interest.call(id)) and not _stock_crossing_required(actor):
+				# No domain consumes this body's cell edge. Keep the accepted segment
+				# continuous until its end; authority queries still project on demand.
+				actor_boundary = maxi(elapsed_ms + 1, mini(int(actor.active.due_ms), int(actor.active.started_ms) + int(config.action_timeout) * MINUTE_MS + 1))
 			else:
 				actor_boundary = _executor.next_boundary_ms(actor)
-			var completion: Dictionary = _route_completions.get(id, {})
-			if allowed and native_route_events_enabled and actor.active.get("phase") == "travel" and not completion.is_empty() and is_same(completion.route, actor.active) and int(completion.revision) == geometry_revision:
+			if accepted:
 				effect_boundary = mini(int(completion.at_ms), int(actor.active.started_ms) + int(config.action_timeout) * MINUTE_MS + 1)
 			else:
 				effect_boundary = actor_boundary
@@ -495,6 +501,11 @@ func set_boundary_revision_provider(provider: Callable) -> void:
 	_boundary_revision_provider = provider
 	_route_completions.clear()
 	_boundary_revision = -1
+	invalidate_boundary_cache()
+
+
+func set_native_crossing_interest(provider: Callable) -> void:
+	_native_crossing_interest = provider
 	invalidate_boundary_cache()
 
 
@@ -647,6 +658,8 @@ func advance_to_ms(target_ms: int, max_events: int = 4096, should_yield: Callabl
 					work.events_left -= 1
 					simulation_work.boundary_count = int(simulation_work.boundary_count) + 1
 				_refresh_stock_epoch()
+				if work.sparse and (_stock_observed_epoch != _stock_epoch or _stock_observed_minute != tick_index):
+					synchronize_actors()
 				work.observing = _actor_ids() if not work.sparse or _stock_observed_epoch != _stock_epoch or _stock_observed_minute != tick_index else _stock_dirty_actors.keys()
 				work.observing.sort()
 				work.cursor = 0
@@ -1529,11 +1542,39 @@ func observe_current_surroundings(actor_id: String) -> void:
 
 
 func _refresh_stock_epoch() -> void:
+	var changed_contents: bool = false
 	for id: String in places:
 		var items: Dictionary = inventory.containers[id]
 		if _stock_contents.get(id) != items:
 			_stock_contents[id] = items.duplicate(true)
 			_stock_epoch += 1
+			changed_contents = true
+	if changed_contents and _native_crossing_interest.is_valid():
+		invalidate_boundary_cache()
+
+
+func _stock_places_near(cell: Vector2i) -> Array[String]:
+	if not _stock_places_at_cell.has(cell):
+		var nearby: Array[String] = []
+		for id: String in places:
+			if Vector2(cell).distance_to(Vector2(SimRouteTravel.cell(places[id].cell))) <= float(config.observation_radius):
+				nearby.append(id)
+		_stock_places_at_cell[cell] = nearby
+	return _stock_places_at_cell[cell]
+
+
+func _stock_crossing_required(actor: Dictionary) -> bool:
+	var route: Dictionary = actor.active
+	var origin: Vector2i = TileGrid.world_to_cell(Vector2(float(route.segment_from[0]), float(route.segment_from[1])))
+	var target: Vector2i = SimRouteTravel.cell(route.path[0])
+	# Off-centre and mixed diagonal legs may enter the two side cells separately.
+	for y: int in range(mini(origin.y, target.y), maxi(origin.y, target.y) + 1):
+		for x: int in range(mini(origin.x, target.x), maxi(origin.x, target.x) + 1):
+			for id: String in _stock_places_near(Vector2i(x, y)):
+				var memory: Dictionary = actor.stock_memory.get(id, {})
+				if memory.get("tick", -1) != tick_index or memory.get("items") != inventory.containers[id]:
+					return true
+	return false
 
 
 func _observe_stock(actor_id: String) -> void:
@@ -1543,13 +1584,7 @@ func _observe_stock(actor_id: String) -> void:
 	if previous_observation.size() == 3 and previous_observation[0] == cell and previous_observation[1] == tick_index and previous_observation[2] == _stock_epoch:
 		return
 	_stock_observations[actor_id] = [cell, tick_index, _stock_epoch]
-	if not _stock_places_at_cell.has(cell):
-		var nearby: Array[String] = []
-		for id: String in places:
-			if Vector2(cell).distance_to(Vector2(SimRouteTravel.cell(places[id].cell))) <= float(config.observation_radius):
-				nearby.append(id)
-		_stock_places_at_cell[cell] = nearby
-	for id: String in _stock_places_at_cell[cell]:
+	for id: String in _stock_places_near(cell):
 		var previous: Dictionary = actor.stock_memory.get(id, {})
 		# The exact same minute/contents are the same observation. Quantity
 		# changes remain visible immediately, including direct recipe commits.

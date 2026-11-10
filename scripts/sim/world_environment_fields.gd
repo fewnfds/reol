@@ -959,6 +959,15 @@ func record_source_crossing(region: String, container: String, cell: Vector2i, a
 	_motion_changes.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.at_ms) < int(b.at_ms))
 
 
+func needs_native_crossings(id: String, region: String) -> bool:
+	if world.space != null and world.space.needs_native_crossings():
+		return true
+	if not _active or _dirty_containers.has(JSON.stringify([region, "actor:" + id])) or _sources.has_container_sources(region, "actor:" + id):
+		return true
+	var job: Dictionary = world.construction.active.get(id, {})
+	return not job.is_empty() and _sources.has_container_sources(region, str(job.project))
+
+
 func _mark_container(region: String, container: String) -> void:
 	_dirty_containers[JSON.stringify([region, container])] = [region, container]
 

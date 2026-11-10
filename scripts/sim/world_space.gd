@@ -63,6 +63,11 @@ func reset(reason: String = "restored") -> void:
 	_announce([], [], [], reason)
 
 
+func needs_native_crossings() -> bool:
+	# An active spatial index or observer consumes every cell-edge update.
+	return _ready or not changed.get_connections().is_empty()
+
+
 func prepare(budget: int = MAX_WORK) -> Dictionary:
 	if world == null or world.space != self:
 		return _failure("world_replaced", 0)
@@ -100,6 +105,8 @@ func prepare(budget: int = MAX_WORK) -> Dictionary:
 			return _build_failed(budget)
 	_building = false
 	_ready = true
+	for sim: VillageSimulation in world.regions.values():
+		sim.invalidate_boundary_cache()
 	return {"ok": true, "work_used": _build_work}
 
 
@@ -252,6 +259,8 @@ func _body_projection(reference: Dictionary) -> Dictionary:
 		for sim: VillageSimulation in world.regions.values():
 			if sim.has_actor(reference.id):
 				point = SimStorageQuery.actor_position(sim.actor_state(reference.id))
+				if point is Vector2:
+					point = sim.projected_actor_position(reference.id)
 	elif reference.kind == "avian" and world.avian_life.birds.has(reference.id):
 		point = SimAvianLife.point(world.avian_life.birds[reference.id])
 		layer = "air" if int(world.avian_life.birds[reference.id].altitude) > 0 else "ground"
