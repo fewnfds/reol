@@ -3,13 +3,14 @@ extends RefCounted
 ## Optional one-request scheduler for a disposable field cache or the guarded
 ## projection of original ground objects. The ground cache remains the owner
 ## of the projection and validates every snapshot and publication.
-## All methods except GPUWorker.run are called on the cache's owner thread.
+## All service methods are called on the cache's owner thread.
 ## The worker receives only an immutable snapshot; it never touches the cache,
 ## this service, an entity, a scene or the shared world clock.
 ##
 ## The owner must retain this service while busy and poll until it returns a
-## terminal result, including after cancellation. close() never blocks or joins
-## a live thread. Dropping the last reference without reaping is unsupported.
+## terminal result, including after cancellation, then close it when retired.
+## The worker/device persist between requests. close() only accepts idle state;
+## it wakes and joins that idle worker for resource teardown, never in-flight math.
 
 const Cache = preload("res://scripts/sim/environment_field_cache.gd")
 const GroundCache = preload("res://scripts/sim/environment_ground_cache.gd")
@@ -31,7 +32,7 @@ var _scan_index: int = 0
 var _scan_revision: int = 0
 var _cancelled: bool = false
 var _fallback_reason: String = ""
-var _thread: Thread
+var _worker: GPUWorker
 var _job: Dictionary = {}
 var _terminal_reason: String = ""
 var _request_main_usec: int = 0
@@ -132,17 +133,16 @@ func poll(max_tiles: int = 1, max_work: int = 4096) -> Dictionary:
 	if not _owns_ground():
 		_terminal_reason = "backend_detached"
 	if _state == "gpu":
-		# Never call wait_to_finish while alive. Cancellation invalidates the
-		# ticket but still requires subsequent polling to reap the thread.
-		if _thread.is_alive():
+		# The same worker remains alive between requests. Read only a completed
+		# mailbox result; GPU synchronization stays on that worker.
+		if not _worker.ready():
 			var status: String = "gpu_pending"
 			if not _terminal_reason.is_empty():
 				status = "discarding_detached_backend"
 			elif _cancelled:
 				status = "cancelling"
 			return _pending(status, 0, 0, 0)
-		var result: Variant = _thread.wait_to_finish()
-		_thread = null
+		var result: Dictionary = _worker.take_result()
 		if not _terminal_reason.is_empty():
 			return _finish_failed(_terminal_reason)
 		if _cancelled:
@@ -273,6 +273,9 @@ func close() -> bool:
 	# never release another scheduler's lease on the newly bound ground cache.
 	if _ground != null and _owns_ground() and not bool(_ground.release_compute_backend(self)):
 		return false
+	if _worker != null:
+		_worker.close_idle()
+		_worker = null
 	_cache = null
 	_ground = null
 	_mode = "auto"
@@ -302,17 +305,16 @@ func _start_gpu(allow_preparing: bool) -> void:
 		_fallback_reason = "snapshot:" + reason
 		_state = "cpu"
 		return
-	# The static nested-class Callable is bound only to the detached job,
-	# never to self. The owner does not mutate the job while the worker lives.
-	var worker: Callable = GPUWorker.run.bind(job)
-	var thread := Thread.new()
-	var error: Error = thread.start(worker)
+	# A private mailbox carries only detached jobs/results. Its worker owns the
+	# persistent device and never retains this service or any world authority.
+	if _worker == null:
+		_worker = GPUWorker.new()
+	var error: Error = _worker.submit(job)
 	if error != OK:
 		_fallback_reason = "thread_start:" + str(error)
 		_state = "cpu"
 		return
 	_job = job
-	_thread = thread
 	_state = "gpu"
 
 
@@ -385,19 +387,90 @@ static func _failure(reason: String) -> Dictionary:
 
 
 class GPUWorker:
-	# This class and method are static so the thread's Callable cannot retain
-	# the scheduler instance or access a live cache through an instance field.
+	extends RefCounted
 	const GPU = preload("res://scripts/runtime/environment_field_gpu.gd")
 	const WorkerCache = preload("res://scripts/sim/environment_field_cache.gd")
+	var _thread: Thread
+	var _mutex := Mutex.new()
+	var _wake := Semaphore.new()
+	var _job: Dictionary = {}
+	var _result: Dictionary = {}
+	var _in_flight: bool = false
+	var _closing: bool = false
 
-	static func run(job: Dictionary) -> Dictionary:
+	func submit(job: Dictionary) -> Error:
+		_mutex.lock()
+		if _in_flight or _closing:
+			_mutex.unlock()
+			return ERR_BUSY
+		_job = job
+		_in_flight = true
+		_mutex.unlock()
+		if _thread == null:
+			_thread = Thread.new()
+			var error: Error = _thread.start(_run)
+			if error != OK:
+				_thread = null
+				_mutex.lock()
+				_job = {}
+				_in_flight = false
+				_mutex.unlock()
+				return error
+		_wake.post()
+		return OK
+
+	func ready() -> bool:
+		_mutex.lock()
+		var completed: bool = not _result.is_empty()
+		_mutex.unlock()
+		return completed or _thread != null and not _thread.is_alive()
+
+	func take_result() -> Dictionary:
+		_mutex.lock()
+		var result: Dictionary = _result
+		_result = {}
+		_in_flight = false
+		_mutex.unlock()
+		if result.is_empty():
+			# A script error can end the thread before a normal reply. Reap it,
+			# let the caller fall back, and allow a later request to restart.
+			if _thread != null and not _thread.is_alive():
+				_thread.wait_to_finish()
+				_thread = null
+			return {"ok": false, "reason": "worker_ended_without_result"}
+		return result
+
+	func close_idle() -> void:
+		_mutex.lock()
+		_closing = true
+		_mutex.unlock()
+		if _thread != null:
+			_wake.post()
+			_thread.wait_to_finish()
+			_thread = null
+
+	func _run() -> void:
 		var device := GPU.new()
+		while true:
+			_wake.wait()
+			_mutex.lock()
+			if _closing:
+				_mutex.unlock()
+				break
+			var job: Dictionary = _job
+			_job = {}
+			_mutex.unlock()
+			var result: Dictionary = _compute(device, job)
+			_mutex.lock()
+			_result = result
+			_mutex.unlock()
+		device.close()
+
+	static func _compute(device: RefCounted, job: Dictionary) -> Dictionary:
 		var initialized: Dictionary = device.initialize()
 		if not bool(initialized.get("ok", false)):
-			device.close()
 			return {"ok": false, "reason": "initialize:" + str(initialized.get("reason", "unknown"))}
 		var computed: Dictionary = device.compute(job)
-		device.close()
 		if not bool(computed.get("ok", false)):
 			return {"ok": false, "reason": "compute:" + str(computed.get("reason", "unknown"))}
 		if not computed.get("values") is PackedInt32Array:
