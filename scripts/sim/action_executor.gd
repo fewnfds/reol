@@ -73,7 +73,7 @@ func project(actor_id: String, at_ms: int, batch: SimActorAdvance = null) -> voi
 		return
 	if _sim.project_coarse_native_route(actor_id, action, at_ms):
 		return
-	if not _sim.has_cached_boundary_ahead(actor_id) and not SimRouteTravel.repair(_sim, actor_id, action, at_ms, _sim.places[action.destination].cell):
+	if not _sim.has_cached_boundary_ahead(actor_id) and not _sim.has_valid_native_route(actor_id, action) and not SimRouteTravel.repair(_sim, actor_id, action, at_ms, _sim.places[action.destination].cell):
 		cancel(actor_id, "route_blocked")
 		return
 	_sim.project_actor_route(actor_id, action, at_ms, batch)

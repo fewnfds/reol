@@ -475,6 +475,11 @@ func _query_actor_boundary(cached: bool) -> int:
 				actor_boundary = maxi(elapsed_ms + 1, mini(int(completion.at_ms), int(actor.active.started_ms) + int(config.action_timeout) * MINUTE_MS + 1))
 			elif accepted and _native_crossing_interest.is_valid() and not bool(_native_crossing_interest.call(id)) and not _stock_crossing_required(actor):
 				actor_boundary = maxi(elapsed_ms + 1, mini(int(actor.active.due_ms), int(actor.active.started_ms) + int(config.action_timeout) * MINUTE_MS + 1))
+			elif accepted:
+				# The same revision already proves every leg open. Precise cell-edge
+				# consumers need its arithmetic deadline, not another world clearance.
+				actor_boundary = mini(int(actor.active.due_ms), int(actor.active.started_ms) + int(config.action_timeout) * MINUTE_MS + 1)
+				actor_boundary = maxi(elapsed_ms + 1, mini(actor_boundary, SimRouteTravel.crossing_ms(actor.active, actor, elapsed_ms)))
 			else:
 				actor_boundary = _executor.next_boundary_ms(actor)
 			if accepted:
@@ -543,6 +548,11 @@ func invalidate_actor_boundary(id: String) -> void:
 
 func has_cached_boundary_ahead(id: String) -> bool:
 	return _boundary_revision_provider.is_valid() and int(_actor_boundaries.get(id, 0)) > elapsed_ms
+
+
+func has_valid_native_route(id: String, route: Dictionary) -> bool:
+	var completion: Dictionary = _route_completions.get(id, {})
+	return native_route_events_enabled and not completion.is_empty() and is_same(completion.route, route) and int(completion.revision) == _route_geometry_revision()
 
 
 func continue_native_route(id: String, route: Dictionary, at_ms: int) -> void:
