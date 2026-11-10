@@ -260,7 +260,7 @@ func cancel_player_action() -> void:
 	if is_instance_valid(continuity):
 		# Manual input cannot change the region while the world is between
 		# settlement stages. A held movement intent is sampled again later.
-		if continuity.world_sim != null and continuity.world_sim.settlement != null and continuity.world_sim.settlement.is_pending():
+		if continuity.world_sim != null and continuity.world_sim.settlement != null and continuity.world_sim.has_pending_boundary():
 			return
 		continuity.prepare_home_command()
 		continuity.cancel_travel()
@@ -390,9 +390,10 @@ func _execute_clock_interval(from_ms: int, to_ms: int) -> int:
 		if continuity.world_sim == null:
 			return from_ms
 		var world: RegionalSimulation = continuity.world_sim
-		var pending: bool = world.settlement.is_pending()
+		var pending: bool = world.has_pending_boundary()
 		if pending:
-			if world.settlement.from_ms < from_ms or world.elapsed_ms > to_ms:
+			var pending_from: int = world.settlement.from_ms if world.settlement.is_pending() else world.elapsed_ms
+			if pending_from < from_ms or world.pending_boundary_ms() > to_ms:
 				return from_ms
 		elif world.elapsed_ms != from_ms:
 			return from_ms

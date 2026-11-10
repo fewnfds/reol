@@ -414,7 +414,7 @@ func visible_actor_status(actor: String) -> String:
 
 
 func _on_visibility_updated() -> void:
-	if world_sim == null or world_sim.settlement.is_pending():
+	if world_sim == null or world_sim.has_pending_boundary():
 		return
 	# Fog updates while paused too. Refresh only scene projections, not clocks,
 	# learning, route progress or the hidden world's event outcome.
@@ -465,6 +465,7 @@ func _bind_navigation() -> void:
 		sim.set_navigation(_find_path, _can_step)
 		sim.set_boundary_revision_provider(_native_boundary_revision)
 		sim.set_sparse_actor_projection(true)
+		sim.configure_actor_execution()
 	if world_sim.services != null:
 		world_sim.services.set_navigation(_find_path, _can_step)
 	world_sim.sparring.set_geometry(_practice_contact_allowed, _can_step)
@@ -649,7 +650,7 @@ func advance_to_ms(target_ms: int) -> int:
 	if world_sim.settlement.has_failed():
 		_report_settlement_failure()
 		return GameClock.elapsed_ms
-	if avatar_adapter != null and not world_sim.settlement.is_pending():
+	if avatar_adapter != null and not world_sim.has_pending_boundary():
 		avatar_adapter.prepare_step()
 	# Earlier continuations may have changed a domain before the public clock
 	# can advance. Compare against the first observation until views commit.
@@ -658,13 +659,13 @@ func advance_to_ms(target_ms: int) -> int:
 	var prior: Dictionary = _advance_view_baseline
 	var cursor: int = world_sim.settled_ms()
 	var work_left: int = maxi(1, settlement_work_budget)
-	while cursor < target_ms or world_sim.settlement.is_pending():
+	while cursor < target_ms or world_sim.has_pending_boundary():
 		if work_left <= 0 or GameClock.frame_budget_exhausted():
-			if world_sim.settlement.is_pending():
+			if world_sim.has_pending_boundary():
 				return GameClock.elapsed_ms
 			break
-		var resuming: bool = world_sim.settlement.is_pending()
-		var end: int = world_sim.elapsed_ms if resuming else world_sim.next_runtime_boundary_ms(target_ms)
+		var resuming: bool = world_sim.has_pending_boundary()
+		var end: int = world_sim.pending_boundary_ms() if resuming else world_sim.next_runtime_boundary_ms(target_ms)
 		if not world_sim.environment_fields.can_settle_at_ms(end):
 			world_sim.target_ms = maxi(world_sim.target_ms, target_ms)
 			GameClock.set_paused(true)
@@ -687,7 +688,7 @@ func advance_to_ms(target_ms: int) -> int:
 		var completed: bool = world_sim.advance_to_ms(end, int(settings.event_budget), work_left, GameClock.frame_budget_exhausted)
 		work_left -= world_sim.settlement_work
 		cursor = world_sim.settled_ms()
-		if world_sim.settlement.is_pending():
+		if world_sim.has_pending_boundary():
 			if world_sim.settlement.has_failed():
 				_report_settlement_failure()
 				return GameClock.elapsed_ms
@@ -894,7 +895,7 @@ func prepare_player_command() -> void:
 func stop_player_action(reason: String = "player_cancelled") -> bool:
 	# This is an external command, including when called by a synchronous UI
 	# observer. Domain-internal interruption keeps its own authorized entry.
-	if world_sim == null or not world_sim.accepts_commands() or world_sim.settlement != null and world_sim.settlement.is_pending():
+	if world_sim == null or not world_sim.accepts_commands() or world_sim.settlement != null and world_sim.has_pending_boundary():
 		return false
 	if soul_player_active():
 		return bool(world_sim.soul_vessels.agency.command(soul_avatar_id(), "cancel").ok)
@@ -1228,13 +1229,13 @@ func _report_settlement_failure() -> void:
 
 
 func _presentation_ready() -> bool:
-	return world_sim != null and not world_sim.settlement.is_pending()
+	return world_sim != null and not world_sim.has_pending_boundary()
 
 
 func _refresh_panel() -> void:
 	if _panel == null or world_sim == null:
 		return
-	if world_sim.settlement.is_pending():
+	if world_sim.has_pending_boundary():
 		_panel.update_notice(_notice)
 		return
 	var here: String = str(settings.regions.get(current_region, {}).get("label", "山野"))
@@ -1285,7 +1286,7 @@ func _save_service() -> SimSaveSession:
 
 
 func _save_ready() -> bool:
-	return world_sim != null and not GameClock.has_pending_advance() and GameClock.elapsed_ms == world_sim.elapsed_ms and world_sim.target_ms == world_sim.elapsed_ms and not world_sim.settlement.is_pending() and not world_sim.settlement.has_failed()
+	return world_sim != null and not GameClock.has_pending_advance() and GameClock.elapsed_ms == world_sim.elapsed_ms and world_sim.target_ms == world_sim.elapsed_ms and not world_sim.has_pending_boundary() and not world_sim.settlement.has_failed()
 
 
 func _save_failed() -> bool:
@@ -1338,6 +1339,8 @@ func _show_save_result(result: Error) -> void:
 
 
 func _exit_tree() -> void:
+	if world_sim != null:
+		world_sim.close_actor_execution()
 	if _saves != null:
 		_saves.save_finished.disconnect(_on_save_finished)
 		_saves.cancel_save()
@@ -1373,6 +1376,7 @@ func _adopt_session(staged: Dictionary) -> void:
 	world_sim = staged.world
 	_advance_view_baseline = {}
 	_home._clock_interval_had_events = false
+	previous_world.close_actor_execution()
 	previous_world.retire_space()
 	previous_world.plants.retire_bindings()
 	_home.adopt_content(staged.content)

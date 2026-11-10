@@ -10,6 +10,7 @@
 - 跨区写入前同步有关区域，近远区共享原事实与规则。安静区间可批算，战斗/环境等已接细步不能冒称全部事件化远区完成。
 - 同刻先结旧区间和既有过程，再形成未来决定；冲突先收集线索/命中再提交，后处理者不提前看见别人刚决定的起势。
 - `SimSettlementKernel`在装配时编译阶段/依赖并注册边界，`SimWorldSettlement`把原领域按原同刻顺序接入；运行中保留工作游标，完整阶段后才发布时刻。`settlement.contract()`是实际调用图，`schedule_contract()`仍是公共分类目录。地区生活决定保留其内部顺序；原资源争用和同时命中由相应owner处理。完整合同见[共同结算](../settlement-contract.md)。
+- `native_interval/native_actors`是同一个kernel的首阶段：相关人物的连续量和已受理路段可交给CPU worker，原身体按序采用；待计算与其余阶段沿同一pending/发布/存读保护，不建立第二套时钟或调度游标。实现见[批执行](../execution-batches.md)。
 - 身体有唯一连续位置，格路/地块用于通行和放置。多格身体检完整覆盖及扫掠；动态通行组合静态地图、真实墙门和兽身，不把视图瓦片当碰撞真值。
 - `SimGridNavigation`复用Godot AStar2D，`SimRouteTravel`在受阻的共同边界重评原路段；原owner保留ID、预约和效果。工作、交互、战斗沿同一原身体/时间/中断接缝，战斗另持起势、飞行物和命中；完整接口与容器搬运见[行动合同](../object-lifecycle-contract.md#共同执行合同与领域过程)。
 

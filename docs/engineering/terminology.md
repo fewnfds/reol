@@ -21,6 +21,7 @@
 | `Resource`、`PackedScene` | Godot资源类型；世界中的木料/灵气等资源不叫`Resource` |
 | `TileMapLayer`、`TileSet` | Godot地图与Tile定义；模拟地图仍定位实际`WorldMapData`，不混同呈现类型 |
 | `RenderingDevice`、`RenderingServer` | Godot计算/渲染API，使用对应class及其方法名 |
+| `WorkerThreadPool` | Godot CPU线程池；线程/任务不是另一个游戏时钟，也不等于GPU计算 |
 | `MultiMesh`、`MultiMeshInstance2D` | Godot批量绘制资源与2D呈现`Node`，不是每个实体的模拟状态 |
 | `Shader`、`ShaderMaterial` | Godot类型；讨论`.gdshader`/`.glsl`文件时引用实际路径 |
 | `Sprite2D`、`AnimatedSprite2D` | Godot呈现`Node`；素材称Sprite，动作/方向排在同一图片时称Sprite sheet |
@@ -69,6 +70,7 @@
 | 共同执行合同 | [SimActionContract](../../scripts/sim/action_contract.gd) | 原动作的条件、占用、复核、投影和终态通知；过程与效果归原owner，见[合同](object-lifecycle-contract.md) |
 | 格路搜索 | [SimGridNavigation](../../scripts/sim/grid_navigation.gd) | Godot AStar2D与当前净空适配；不保存身体或世界状态 |
 | 共同结算内核 | [SimSettlementKernel](../../scripts/sim/execution/settlement_kernel.gd)、[SimWorldSettlement](../../scripts/sim/execution/world_settlement.gd) | 编译依赖/阶段、预算游标及现有域装配；数值与共同时间仍归原owner |
+| 批计算与采用 | [SimBatchExecution](../../scripts/sim/execution/batch_execution.gd)、[SimActorAdvance](../../scripts/sim/actor_advance.gd) | CPU任务生命周期及原身体连续量候选；业务提交仍归VillageSimulation，见[合同](execution-batches.md) |
 | 世界对象查询 | [SimWorldObjectQuery](../../scripts/sim/world_object_query.gd) | 复用定位并扩展数量条目/资源/结构等参照；与`SimEntityQuery`接口不同 |
 | 独特器物 | `SimArtifacts.objects[id]` | 独特实例；`artifact`在该接口不代表所有物品 |
 | 数量物品/容器 | [SimInventory](../../scripts/sim/inventory_ledger.gd)、[SimStorageQuery](../../scripts/sim/storage_query.gd) | 数量账本及原容器查询，不与独特器物重复计数 |

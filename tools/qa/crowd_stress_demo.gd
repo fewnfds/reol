@@ -21,6 +21,7 @@ var _travel_actor_ms: int = 0
 var _sampled_world_ms: int = 0
 var _last_travelling: int = 0
 var _redirects: int = 0
+var _actor_workers: int = 4
 const CIRCUIT: Array[String] = ["rest", "inspect", "check_store", "check_well"]
 
 
@@ -41,6 +42,8 @@ func _run() -> void:
 			_quit_after = true
 		elif argument == "--opening-wave":
 			_opening_wave = true
+		elif argument.begins_with("--actor-workers="):
+			_actor_workers = clampi(argument.get_slice("=", 1).to_int(), 0, 8)
 	_main = load("res://scenes/main.tscn").instantiate()
 	_main.set_script(load("res://tools/diagnostics/crowd_scene.gd"))
 	root.add_child(_main)
@@ -51,6 +54,8 @@ func _run() -> void:
 		push_error("Stress opening could not assemble the ordinary world")
 		quit(1)
 		return
+	for sim: VillageSimulation in runtime.world_sim.regions.values():
+		sim.configure_actor_execution(_actor_workers)
 	# Original save hotkeys/panels must not overwrite an ordinary player slot.
 	runtime.home_runtime().set_process_unhandled_key_input(false)
 	for panel: Control in [runtime._panel, _main._village._panel, runtime.service_adapter.panel, _main.hud._pawn_panel]:

@@ -12,6 +12,7 @@
 - [docs/engineering/compatibility.md](../engineering/compatibility.md)
 - [docs/engineering/construction-contract.md](../engineering/construction-contract.md)
 - [docs/engineering/event-contract.md](../engineering/event-contract.md)
+- [docs/engineering/execution-batches.md](../engineering/execution-batches.md)
 - [docs/engineering/godot-for-unity.md](../engineering/godot-for-unity.md)
 - [docs/engineering/object-lifecycle-contract.md](../engineering/object-lifecycle-contract.md)
 - [docs/engineering/object-query-contract.md](../engineering/object-query-contract.md)

@@ -169,6 +169,10 @@ var settlement: SimSettlementKernel
 var _settlement_adapter: SimWorldSettlement
 var settlement_work: int = 0
 var _settled_ms: int = 0
+## Region selection for the kernel's native_interval step. Manual input runs
+## before begin(); the existing kernel retains all subsequent continuation.
+var _native_regions: Array[String] = []
+var _native_committing: bool = false
 
 
 static func schedule_contract() -> Dictionary:
@@ -474,7 +478,15 @@ func _bind_settlement() -> bool:
 
 
 func settled_ms() -> int:
-	return _settled_ms if settlement != null and settlement.is_pending() else elapsed_ms
+	return _settled_ms if has_pending_boundary() else elapsed_ms
+
+
+func has_pending_boundary() -> bool:
+	return settlement != null and settlement.is_pending()
+
+
+func pending_boundary_ms() -> int:
+	return settlement.at_ms if has_pending_boundary() else elapsed_ms
 
 
 func accepts_commands() -> bool:
@@ -482,7 +494,7 @@ func accepts_commands() -> bool:
 
 
 func publish_action_finished(outcome: Dictionary) -> void:
-	if settlement != null and settlement.is_pending():
+	if has_pending_boundary():
 		_finished_notices.append(outcome)
 	else:
 		action_finished.emit(outcome)
@@ -718,7 +730,7 @@ func advance_to(requested_time: int, max_events: int = 4096) -> bool:
 
 
 func advance_to_ms(requested_ms: int, max_events: int = 4096, work_budget: int = MAX_COUNT, should_yield: Callable = Callable()) -> bool:
-	if settlement == null or settlement.is_executing() or _publishing_boundary:
+	if settlement == null or settlement.is_executing() or _native_committing or _publishing_boundary:
 		return false
 	settlement_work = 0
 	if construction != null and construction._changing:
@@ -728,16 +740,18 @@ func advance_to_ms(requested_ms: int, max_events: int = 4096, work_budget: int =
 	if environment_fields is SimWorldEnvironmentFields and not environment_fields.activate_sources():
 		errors.append("Environmental sources could not activate before advancing")
 		return false
-	if environment_fields is SimWorldEnvironmentFields and not settlement.is_pending() and not environment_fields.flush_sources(elapsed_ms):
+	if environment_fields is SimWorldEnvironmentFields and not has_pending_boundary() and not environment_fields.flush_sources(elapsed_ms):
 		return false
 	if requested_ms < elapsed_ms or requested_ms > MAX_COUNT or regions.is_empty():
 		return false
-	if object_lifecycle.environment_change_pending() and not settlement.is_pending():
+	if object_lifecycle.environment_change_pending() and not has_pending_boundary():
 		return false
 	_environment_response = null
 	target_ms = maxi(target_ms, requested_ms)
 	var processed: int = 0
 	if settlement.is_pending():
+		if requested_ms < settlement.at_ms:
+			return false
 		if processed >= maxi(0, max_events) or not _complete_boundary(work_budget, should_yield):
 			return false
 		processed += 1
@@ -758,17 +772,16 @@ func advance_to_ms(requested_ms: int, max_events: int = 4096, work_budget: int =
 			errors.append("Environment fields exceed their declared numerical budget")
 			return false
 		var old_ms: int = elapsed_ms
+		# Manual override must be accepted before the kernel closes external
+		# commands. It executes exactly once for this newly admitted interval.
+		_native_committing = true
 		if _manual_motion_executor.is_valid():
 			_manual_motion_executor.call(elapsed_ms, next_ms)
+		_native_committing = false
+		_native_regions.clear()
 		for region_id: String in _sorted_keys(regions):
-			var simulation: VillageSimulation = regions[region_id]
 			if region_id == active_region or int(_region_boundaries[region_id]) <= next_ms:
-				if not simulation.advance_to_ms(next_ms):
-					errors.append("Regional executor could not reach its next boundary")
-					return false
-				_region_boundaries[region_id] = simulation.next_boundary_ms()
-				_dirty_region_boundaries.erase(region_id)
-		elapsed_ms = next_ms
+				_native_regions.append(region_id)
 		if not settlement.begin(old_ms, next_ms):
 			errors.append("Settlement boundary could not begin")
 			return false
@@ -776,6 +789,34 @@ func advance_to_ms(requested_ms: int, max_events: int = 4096, work_budget: int =
 			return false
 		processed += 1
 	return true
+
+
+func _settle_native_interval(next_ms: int, _budget: int) -> Vector2i:
+	# Submit all independent regions before checking their completion. The
+	# shared logical boundary stays unpublished until every original owner ends.
+	for region_id: String in _native_regions:
+		regions[region_id].prepare_actor_advance(next_ms)
+	var ready: bool = true
+	for region_id: String in _native_regions:
+		if not regions[region_id].actor_advance_ready():
+			ready = false
+	if not ready:
+		return Vector2i(1, SimSettlementKernel.Status.PENDING)
+	for region_id: String in _native_regions:
+		var simulation: VillageSimulation = regions[region_id]
+		if not simulation.advance_to_ms(next_ms):
+			errors.append("Regional executor could not reach its next boundary")
+			return Vector2i(1, SimSettlementKernel.Status.FAILED)
+		_region_boundaries[region_id] = simulation.next_boundary_ms()
+		_dirty_region_boundaries.erase(region_id)
+	_native_regions.clear()
+	elapsed_ms = next_ms
+	return Vector2i(1, SimSettlementKernel.Status.COMPLETE)
+
+
+func close_actor_execution() -> void:
+	for simulation: VillageSimulation in regions.values():
+		simulation.close_actor_execution()
 
 
 func _complete_boundary(work_budget: int, should_yield: Callable = Callable()) -> bool:
@@ -1090,7 +1131,7 @@ func known_event_lines(region_id: String, limit: int = 3) -> Array[String]:
 func to_dict() -> Dictionary:
 	if services != null and services._handling_stock:
 		return {}
-	if _publishing_boundary or settlement != null and settlement.is_pending() or construction != null and construction._changing or environment_boundary_active() or (object_lifecycle != null and (object_lifecycle._committing or object_lifecycle.environment_change_pending())):
+	if _publishing_boundary or has_pending_boundary() or construction != null and construction._changing or environment_boundary_active() or (object_lifecycle != null and (object_lifecycle._committing or object_lifecycle.environment_change_pending())):
 		return {}
 	if not synchronize_regions() or not environment_fields.settle_at_ms(elapsed_ms):
 		return {}
@@ -1116,7 +1157,7 @@ func to_dict() -> Dictionary:
 
 
 func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: bool = false) -> bool:
-	if _publishing_boundary or settlement != null and settlement.is_pending() or object_lifecycle != null and object_lifecycle._committing:
+	if _publishing_boundary or has_pending_boundary() or object_lifecycle != null and object_lifecycle._committing:
 		return false
 	# The current model cannot reconstruct causal field residuals from a Q
 	# archive. Historical importers remain evidence, not a second running engine.

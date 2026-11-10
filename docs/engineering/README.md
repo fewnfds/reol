@@ -10,7 +10,7 @@
 
 ## 现有实现参考
 
-- [结算](settlement-contract.md)、[事件](event-contract.md)、[运行流速](simulation-pacing.md)、[参与索引](sparse-execution.md)。
+- [结算](settlement-contract.md)、[批计算与采用](execution-batches.md)、[事件](event-contract.md)、[运行流速](simulation-pacing.md)、[参与索引](sparse-execution.md)。
 - [对象查询](object-query-contract.md)、[原物生命周期与行动](object-lifecycle-contract.md)、[建筑](construction-contract.md)、[植物](plants-contract.md)、[普通环境](world-environment-contract.md)。
 
 旧隔离场/cache/GPU接口的细节随对应[QA证据](../qa/README.md)按Git版本追溯，不作为新环境的强制实现。复用、改写或删除由真实需求及验证决定。

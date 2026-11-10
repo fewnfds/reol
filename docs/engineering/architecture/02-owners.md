@@ -12,6 +12,7 @@
 | [WorldMapData](../../../scripts/sim/world_map_data.gd)、[NaturalEnvironment](../../../scripts/sim/natural_environment.gd) | 版本化底图加稀疏地表覆盖，通行读同一真值；派生地表/植被覆盖/五行亲和和缓存 | 均仍512；草稿/存读及暂停开发画笔已接，玩家合法改造待接；亲和不是能量库存，覆盖不是独立植物 |
 | [SimTerrainEdits](../../../scripts/sim/terrain_edits.gd)、[TerrainEditorRuntime](../../../scripts/runtime/terrain_editor_runtime.gd) | 原地图上的小批量事务、空间预检；开发工具负责暂停准备和输入投影 | 显式启动才开放；沿原active/位置/施工材料引用，单笔最多256格，不发放玩家权限或平行状态 |
 | [VillageSimulation](../../../scripts/sim/village_simulation.gd) | 人类原身体、唯一位置/朝向、原生活状态和村落配置 | 所属区是保存所有者，不是人物当前所在空间 |
+| [SimBatchExecution](../../../scripts/sim/execution/batch_execution.gd)、[SimActorAdvance](../../../scripts/sim/actor_advance.gd) | 前者持有可回收的CPU批任务；后者持有原人物连续推进的紧凑输入/候选结果 | 不持第二份身体/时钟/库存；由VillageSimulation验证后采用，见[批执行](../execution-batches.md) |
 | [RegionalSimulation](../../../scripts/sim/regional_simulation.gd) | 区域同步、域装配、共同边界/积压和跨域校验；`schedule_contract()`返回有序目录及阶段副本 | 领域状态仍归原owner；阶段目录描述既有调用顺序，不是自动事件总线或任意世界工厂 |
 | [SimEventQueue](../../../scripts/sim/execution/event_queue.gd)、[SimWorldEvents](../../../scripts/sim/world_events.gd) | 离散请求、到期/等待、重复/取消/期限与回执；可信规则接原域效果 | 不是第二个时钟或世界事实仓库；[事件合同](../event-contract.md) |
 | [SimPlants](../../../scripts/sim/plants.gd) | 原植物身体、年龄/生长/残根、环境条件、行动与觉醒后关系 | 产物归原库存，花盆水/支撑归建筑，主体归Embodiment；[植物合同](../plants-contract.md) |

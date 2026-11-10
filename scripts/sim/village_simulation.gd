@@ -27,6 +27,15 @@ var _projecting_actors: Dictionary[String, bool] = {}
 var _materializing_actors: bool = false
 var _all_projected_ms: int = -1
 var _sparse_actor_projection: bool = false
+var actor_execution_enabled: bool = false
+var actor_execution_workers: int = 4
+var actor_execution_minimum: int = SimActorAdvance.PARALLEL_MINIMUM
+## Unsaved measurements; preparation/publication remain on the owner thread.
+var actor_execution_work: Dictionary = {"batches": 0, "parallel_batches": 0, "rows": 0, "adopted": 0, "motion_adopted": 0, "discarded": 0, "prepare_usec": 0, "dispatch_usec": 0, "worker_usec": 0, "worker_wall_usec": 0, "queue_usec": 0, "collection_delay_usec": 0, "publish_usec": 0, "pending_returns": 0, "threads": {}}
+var _prepared_actor_advance: SimActorAdvance
+var _retired_actor_advances: Array[SimActorAdvance] = []
+var _preparing_actor_advance: bool = false
+var _actor_advance_generation: int = 0
 var _workplace_blocks: Dictionary[Vector2i, bool] = {}
 var _stock_places_at_cell: Dictionary = {}
 var _stock_contents: Dictionary = {}
@@ -387,6 +396,7 @@ func set_boundary_revision_provider(provider: Callable) -> void:
 
 
 func invalidate_boundary_cache() -> void:
+	_cancel_actor_advance()
 	if _collect_actor_work_changes:
 		_actor_work_changes.append("") # Whole-region dependency invalidation.
 	_actor_boundaries.clear()
@@ -397,6 +407,7 @@ func invalidate_boundary_cache() -> void:
 
 
 func invalidate_actor_boundary(id: String) -> void:
+	_cancel_actor_advance()
 	if _collect_actor_work_changes:
 		_actor_work_changes.append(id)
 	_actor_boundaries.erase(id)
@@ -438,6 +449,7 @@ func advance_to_ms(target_ms: int, max_events: int = 4096) -> bool:
 		if next == boundary and events_left < 1:
 			return false
 		var sparse: bool = _sparse_actor_projection and _boundary_revision_provider.is_valid()
+		var batch: SimActorAdvance = _take_actor_advance(next)
 		if not sparse:
 			# Keep opaque standalone input callbacks on their original pre-advance
 			# interval and order; they have not promised observable rate changes.
@@ -454,14 +466,20 @@ func advance_to_ms(target_ms: int, max_events: int = 4096) -> bool:
 			_all_projected_ms = elapsed_ms
 		var projecting: Array = _boundary_index.due_ids(NATIVE_BOUNDARY, elapsed_ms) if sparse else ids
 		projecting.sort() # Original same-millisecond actor order, not heap order.
+		var publish_started: int = Time.get_ticks_usec() if batch != null else 0
 		if sparse:
 			# Due bodies finish their old-input needs before synchronous geometry
 			# notices can inspect peers. This is still only the due set, not N
 			# integrations for each other actor's cell crossing.
 			for id: String in projecting:
-				_integrate_actor(id)
+				if batch != null and batch.row_for(id).x >= 0:
+					_apply_actor_advance(id, batch)
+				else:
+					_integrate_actor(id)
 		for id: String in projecting:
-			_executor.project(id, elapsed_ms)
+			_executor.project(id, elapsed_ms, batch)
+		if batch != null:
+			actor_execution_work.publish_usec = int(actor_execution_work.publish_usec) + Time.get_ticks_usec() - publish_started
 		if next == boundary:
 			var due: Array = _boundary_index.due_ids(NATIVE_BOUNDARY, elapsed_ms) if _boundary_revision_provider.is_valid() else ids
 			_settle_actor_work(due, false)
@@ -566,6 +584,8 @@ func synchronize_actor(id: String) -> Dictionary:
 	var previous: int = int(_actor_projection_ms.get(id, elapsed_ms))
 	if previous == elapsed_ms:
 		return actor
+	if not _preparing_actor_advance:
+		_cancel_actor_advance()
 	_projecting_actors[id] = true
 	_integrate_actor(id)
 	_executor.project(id, elapsed_ms)
@@ -581,6 +601,8 @@ func _integrate_actor(id: String) -> void:
 
 
 func synchronize_actors() -> Dictionary:
+	if not _preparing_actor_advance:
+		_cancel_actor_advance()
 	if _materializing_actors or _all_projected_ms == elapsed_ms:
 		return _actors
 	_materializing_actors = true
@@ -592,11 +614,164 @@ func synchronize_actors() -> Dictionary:
 
 
 func _reset_actor_projections() -> void:
+	_cancel_actor_advance()
 	_actor_projection_ms.clear()
 	_projecting_actors.clear()
 	for id: String in _actors:
 		_actor_projection_ms[id] = elapsed_ms
 	_all_projected_ms = elapsed_ms
+
+
+func configure_actor_execution(workers: int = 4, minimum: int = SimActorAdvance.PARALLEL_MINIMUM) -> void:
+	_cancel_actor_advance()
+	actor_execution_enabled = true
+	actor_execution_workers = clampi(workers, 0, 8)
+	actor_execution_minimum = maxi(1, minimum)
+
+
+func prepare_actor_advance(to_ms: int) -> bool:
+	_collect_actor_batches()
+	if not actor_execution_enabled or not _sparse_actor_projection or not _boundary_revision_provider.is_valid() or to_ms <= elapsed_ms:
+		return true
+	var revision: int = int(_boundary_revision_provider.call())
+	if _prepared_actor_advance != null:
+		if _prepared_actor_advance.at_ms == to_ms and _prepared_actor_advance.generation == _actor_advance_generation and _prepared_actor_advance.dependency_revision == revision:
+			return _prepared_actor_advance.execution.finish()
+		_cancel_actor_advance()
+	var ids: Array[String] = _boundary_index.due_ids(NATIVE_BOUNDARY, to_ms)
+	if ids.size() < actor_execution_minimum:
+		return true
+	ids.sort()
+	var started: int = Time.get_ticks_usec()
+	var batch := SimActorAdvance.new()
+	batch.at_ms = to_ms
+	var hunger_rate: int = roundi(float(config.needs.hunger_per_minute) * NEED_SCALE)
+	var base_rate: int = roundi(float(config.needs.energy_per_minute) * NEED_SCALE)
+	var work_rate: int = roundi(float(config.needs.work_energy_per_minute) * NEED_SCALE)
+	_preparing_actor_advance = true
+	for id: String in ids:
+		var body: Dictionary = _actors[id]
+		if not bool(body.alive):
+			continue
+		# Callbacks are evaluated by the authority, before workers start. Only
+		# the resulting numbers and an accepted route segment cross the seam.
+		var energy_rate: int = base_rate + (int(_exposure_rate.call(id)) if _exposure_rate.is_valid() else 0)
+		var laboring: bool = not body.active.is_empty() or (_external_labor.is_valid() and bool(_external_labor.call(id)))
+		if laboring:
+			energy_rate += work_rate
+		if _rest_recovery.is_valid():
+			energy_rate -= int(_rest_recovery.call(id)) * NEED_SCALE
+		var definition: PawnDef = _content.get_pawn(StringName(body.definition_id))
+		batch.append(id, body, int(_actor_projection_ms.get(id, elapsed_ms)), hunger_rate, energy_rate,
+			not laboring or str(body.active.get("action", "")) == "rest", definition.max_stamina, int(motion_rules.recovery.stamina_per_second))
+	_preparing_actor_advance = false
+	batch.generation = _actor_advance_generation
+	batch.dependency_revision = revision
+	_prepared_actor_advance = batch
+	actor_execution_work.prepare_usec = int(actor_execution_work.prepare_usec) + Time.get_ticks_usec() - started
+	batch.start(actor_execution_workers)
+	actor_execution_work.prepare_usec = int(actor_execution_work.prepare_usec) + batch.preparation_usec
+	actor_execution_work.dispatch_usec = int(actor_execution_work.dispatch_usec) + batch.execution.dispatch_usec
+	actor_execution_work.batches = int(actor_execution_work.batches) + 1
+	actor_execution_work.rows = int(actor_execution_work.rows) + batch.ids.size()
+	if batch.execution.parallel:
+		actor_execution_work.parallel_batches = int(actor_execution_work.parallel_batches) + 1
+	return batch.execution.finish()
+
+
+func actor_advance_ready() -> bool:
+	var ready: bool = _prepared_actor_advance == null or _prepared_actor_advance.execution.finish()
+	if not ready:
+		actor_execution_work.pending_returns = int(actor_execution_work.pending_returns) + 1
+	return ready
+
+
+func _take_actor_advance(to_ms: int) -> SimActorAdvance:
+	var batch: SimActorAdvance = _prepared_actor_advance
+	if batch == null:
+		return null
+	if batch.execution.cancelled or batch.at_ms != to_ms or batch.generation != _actor_advance_generation or not _boundary_revision_provider.is_valid() or batch.dependency_revision != int(_boundary_revision_provider.call()) or not batch.execution.finish():
+		_cancel_actor_advance()
+		return null
+	_prepared_actor_advance = null
+	_measure_actor_batch(batch)
+	return batch
+
+
+func _measure_actor_batch(batch: SimActorAdvance) -> void:
+	if batch.measured:
+		return
+	batch.measured = true
+	var first: int = 9223372036854775807
+	var last: int = 0
+	for chunk: SimActorAdvance.Chunk in batch.chunks:
+		actor_execution_work.worker_usec = int(actor_execution_work.worker_usec) + chunk.finished_usec - chunk.started_usec
+		actor_execution_work.threads[chunk.thread_id] = true
+		first = mini(first, chunk.started_usec)
+		last = maxi(last, chunk.finished_usec)
+	if last > 0:
+		actor_execution_work.worker_wall_usec = int(actor_execution_work.worker_wall_usec) + last - first
+		actor_execution_work.queue_usec = int(actor_execution_work.queue_usec) + maxi(0, first - batch.execution.submitted_usec)
+		actor_execution_work.collection_delay_usec = int(actor_execution_work.collection_delay_usec) + maxi(0, batch.execution.completed_usec - last)
+
+
+func _apply_actor_advance(id: String, batch: SimActorAdvance) -> void:
+	var row: Vector2i = batch.row_for(id)
+	var flat: int = row.x * SimActorAdvance.CHUNK_SIZE + row.y
+	if int(_actor_projection_ms.get(id, elapsed_ms)) != batch.anchors[flat]:
+		actor_execution_work.discarded = int(actor_execution_work.discarded) + 1
+		_integrate_actor(id)
+		return
+	var chunk: SimActorAdvance.Chunk = batch.chunks[row.x]
+	var i: int = row.y * SimActorAdvance.InputField.STRIDE
+	var o: int = row.y * SimActorAdvance.OutputField.STRIDE
+	var body: Dictionary = _actors[id]
+	if chunk.input[i + SimActorAdvance.InputField.HUNGER_RATE] != 0:
+		SimActorAdvance.write_need(body, "hunger", chunk.output[o + SimActorAdvance.OutputField.HUNGER])
+	if chunk.input[i + SimActorAdvance.InputField.ENERGY_RATE] != 0:
+		SimActorAdvance.write_need(body, "energy", chunk.output[o + SimActorAdvance.OutputField.ENERGY])
+	body.stamina = chunk.output[o + SimActorAdvance.OutputField.STAMINA]
+	body.stamina_carry = chunk.output[o + SimActorAdvance.OutputField.STAMINA_CARRY]
+	_actor_projection_ms[id] = elapsed_ms
+	actor_execution_work.adopted = int(actor_execution_work.adopted) + 1
+
+
+func _cancel_actor_advance() -> void:
+	_actor_advance_generation += 1
+	if _prepared_actor_advance == null:
+		return
+	var batch: SimActorAdvance = _prepared_actor_advance
+	_prepared_actor_advance = null
+	batch.execution.cancel()
+	actor_execution_work.discarded = int(actor_execution_work.discarded) + batch.ids.size()
+	if not batch.execution.finish():
+		_retired_actor_advances.append(batch)
+	else:
+		_measure_actor_batch(batch)
+
+
+func _collect_actor_batches() -> void:
+	for index: int in range(_retired_actor_advances.size() - 1, -1, -1):
+		if _retired_actor_advances[index].execution.finish():
+			_measure_actor_batch(_retired_actor_advances[index])
+			_retired_actor_advances.remove_at(index)
+
+
+func close_actor_execution() -> void:
+	_cancel_actor_advance()
+	for batch: SimActorAdvance in _retired_actor_advances:
+		batch.execution.finish(true)
+	_retired_actor_advances.clear()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		# RefCounted has already reached zero here; do not call a method on self.
+		if _prepared_actor_advance != null:
+			_prepared_actor_advance.execution.cancel()
+			_prepared_actor_advance.execution.finish(true)
+		for batch: SimActorAdvance in _retired_actor_advances:
+			batch.execution.finish(true)
 
 
 func _decay_actor(id: String, from_ms: int, duration_ms: int) -> void:
@@ -622,12 +797,8 @@ func _decay_actor(id: String, from_ms: int, duration_ms: int) -> void:
 	if not laboring or str(actor.active.get("action", "")) == "rest":
 		var duration: int = maxi(0, from_ms + duration_ms - maxi(from_ms, int(actor.exertion_until_ms)))
 		var definition: PawnDef = _content.get_pawn(StringName(actor.definition_id))
-		var missing: int = definition.max_stamina - int(actor.stamina)
-		if missing == 0:
-			actor.stamina_carry = 0
-			return
 		var rate: int = int(motion_rules.recovery.stamina_per_second)
-		var gain: int = int(actor.stamina_carry) + rate * mini(duration, ceili(float(missing * 1000) / rate))
+		var gain: int = SimActorAdvance.stamina_gain(int(actor.stamina), definition.max_stamina, int(actor.stamina_carry), rate, duration)
 		@warning_ignore("integer_division")
 		var units: int = gain / 1000
 		actor.stamina = mini(definition.max_stamina, int(actor.stamina) + units)
@@ -635,40 +806,15 @@ func _decay_actor(id: String, from_ms: int, duration_ms: int) -> void:
 
 
 func _recover_need(actor: Dictionary, kind: String, rate: int, duration_ms: int) -> void:
-	# The same saved fractional debt works for positive and negative rates.
-	# Saturate before multiplication, keeping huge absent-world jumps in range.
 	var available: int = roundi(float(actor[kind]) * NEED_SCALE)
-	if duration_ms >= ceili(float((100 * NEED_SCALE - available) * MINUTE_MS + int(actor.need_carry[kind])) / rate):
-		actor[kind] = 100.0
-		actor.need_carry[kind] = 0
-		return
-	var numerator: int = int(actor.need_carry[kind]) - rate * duration_ms
-	@warning_ignore("integer_division")
-	var spent: int = numerator / MINUTE_MS
-	var remainder: int = numerator % MINUTE_MS
-	if remainder < 0:
-		spent -= 1
-		remainder += MINUTE_MS
-	actor[kind] = float(available - spent) / NEED_SCALE
-	actor.need_carry[kind] = remainder
+	SimActorAdvance.write_need(actor, kind, SimActorAdvance.need_balance(available, int(actor.need_carry[kind]), -rate, duration_ms))
 
 
 func _decay_need(actor: Dictionary, kind: String, rate: int, duration_ms: int) -> void:
-	# Fixed-point numerator with a saved remainder; fine frames and sparse
-	# absent-region jumps lose exactly the same fractions, including rate changes.
 	if rate == 0:
 		return
 	var available: int = roundi(float(actor[kind]) * NEED_SCALE)
-	if duration_ms >= ceili(float(available * MINUTE_MS - int(actor.need_carry[kind])) / rate):
-		actor[kind] = 0.0
-		actor.need_carry[kind] = 0
-		return
-	var numerator: int = int(actor.need_carry[kind]) + rate * duration_ms
-	@warning_ignore("integer_division")
-	var spent: int = numerator / MINUTE_MS
-	var remaining: int = maxi(0, roundi(float(actor[kind]) * NEED_SCALE) - spent)
-	actor[kind] = float(remaining) / NEED_SCALE
-	actor.need_carry[kind] = numerator % MINUTE_MS if remaining > 0 else 0
+	SimActorAdvance.write_need(actor, kind, SimActorAdvance.need_balance(available, int(actor.need_carry[kind]), rate, duration_ms))
 
 
 static func _decode(raw: Array) -> Vector2i:
@@ -697,9 +843,17 @@ func set_actor_position(id: String, point: Vector2) -> void:
 		body_space_changed.emit(id)
 
 
-func project_actor_route(id: String, route: Dictionary, at_ms: int) -> void:
+func project_actor_route(id: String, route: Dictionary, at_ms: int, batch: SimActorAdvance = null) -> void:
 	var before: Vector2i = SimRouteTravel.cell(_actors[id].cell)
-	SimRouteTravel.project(route, _actors[id], at_ms)
+	if batch != null and batch.at_ms == at_ms and batch.motion_matches(id, _actors[id], route):
+		var row: Vector2i = batch.row_for(id)
+		var poses: PackedVector2Array = batch.chunks[row.x].poses
+		SimRouteTravel.put(_actors[id], poses[row.y * 2])
+		var facing: Vector2 = poses[row.y * 2 + 1]
+		_actors[id].facing = [facing.x, facing.y]
+		actor_execution_work.motion_adopted = int(actor_execution_work.motion_adopted) + 1
+	else:
+		SimRouteTravel.project(route, _actors[id], at_ms)
 	if before != SimRouteTravel.cell(_actors[id].cell):
 		_stock_dirty_actors[id] = true
 		var crossing: int = SimRouteTravel.crossing_from_cell_ms(route, before, int(route.segment_started_ms))

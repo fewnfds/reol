@@ -1,11 +1,11 @@
 # 当前构建与证据基线
 
-核对：2026-11-10。本页只说明重构起点，不把旧阶段结果累计成新架构完成度。当前工作看[HANDOFF](handoff.md)，目标与验收看[主计划](../plans/foundation-priorities.md)。
+核对：2026-11-11。本页记录当前证据，旧阶段结果不累计成新架构完成度。当前工作看[HANDOFF](handoff.md)，目标与验收看[主计划](../plans/foundation-priorities.md)。
 
 ## 代码起点及完整回归
 
 - Git main/origin/main：`839ff88f1b7fee240d0c798f533314a3ae446430`；其[CI42776609463](https://github.com/fewnfds/reol/actions/runs/42776609463)已核completed/success，只证明该旧主线。
-- 重构前代码保留点：`10260b3b45952b7b45055e807f360824227efce2`，原样保存导航/地形/视图查询WIP；文档清理为独立提交`95eac7d624b39d12fe36ba2b936ac342e7bcee89`。当前开发分支`codex/execution-foundation`，具体保护范围见HANDOFF。新重构尚未实现或获得完整回归。
+- 重构前代码保留点：`10260b3b45952b7b45055e807f360824227efce2`，原样保存导航/地形/视图查询WIP；文档清理为独立提交`95eac7d624b39d12fe36ba2b936ac342e7bcee89`。当前开发分支`codex/execution-foundation`，具体保护范围见HANDOFF。A首条CPU批执行已有运行接入；整包尚未获得完整回归/性能出口。
 - 本次提交准备点核对代码祖先`8c3deaa972f932e999167b61ea6b166b928cfe5f`的[CI42833827684](https://github.com/fewnfds/reol/actions/runs/42833827684)已completed/success；WIP保留点与新运行架构不在其覆盖内。此前1879f0c的CI42828875579失败及8cd155e夹具定向修补已被这个准确SHA的完整回归取代。
 - 保留补丁最后定向7组637检查通过，另有导航/地形联合6组898检查通过；本轮仅原样提交，没有重跑或补齐完整回归/最终性能验收。原日志由HANDOFF登记。
 
@@ -22,7 +22,8 @@
 旧开发机为i5-13600KF、约32GB、RTX5060Ti；16GB/RTX3060[目标PC](../engineering/architecture.md#全项目性能基线)另行验收。
 
 - 旧原生100/300人20秒样本约0.970/0.430×，帧P95约16.732/27.069ms；规模出口未达。[共同运行QA](../qa/20261110_sparse_runtime_dispatch.md)保留波动及反向样本，不用首轮改善冒充稳定收益。
-- [CPU调查](../qa/20261110_runtime_cpu_root_cause.md)测得主要模拟计算集中在一个线程；普通世界尚无项目级CPU并行或GPU数学结算接入。
+- [CPU调查](../qa/20261110_runtime_cpu_root_cause.md)记录重构前单线程热点。本包原身体连续计算已接真实CPU worker；300人18批/1302份采用见[QA](../qa/20261111_actor_batch_execution.md)，准备/发布及大部分域仍同步。普通环境仍无GPU数学采用。
+- 新300人20秒样本workers=4/0约0.512640/0.520303×，帧P95为22.130/22.024ms；仅证明首条CPU接缝，无可信整体提速，单次开发机样本不代表目标PC/发布版验收。
 - GPU服务确实实现并实卡验证过；[基础目标QA](../qa/20261105_environment_ground_compute.md)的512²密集请求约20.65秒CPU/0.616秒GPU，来源装配另计，排除普通Main及后续房间/实际响应。它是可复用代码，不能算当前游戏加速。
 - WIP保留点的最终配对/原生/停开验收未完成，不能报告为新性能基线。
 

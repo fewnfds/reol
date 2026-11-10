@@ -65,7 +65,7 @@ func begin(actor_id: String, action_id: String, request_id: String = "", request
 	return true
 
 
-func project(actor_id: String, at_ms: int) -> void:
+func project(actor_id: String, at_ms: int, batch: SimActorAdvance = null) -> void:
 	# Only the original body owner calls projection, after integrating old inputs.
 	var actor: Dictionary = _sim.actor_state(actor_id)
 	var action: Dictionary = actor.active
@@ -74,7 +74,7 @@ func project(actor_id: String, at_ms: int) -> void:
 	if not _sim.has_cached_boundary_ahead(actor_id) and not SimRouteTravel.repair(_sim, actor_id, action, at_ms, _sim.places[action.destination].cell):
 		cancel(actor_id, "route_blocked")
 		return
-	_sim.project_actor_route(actor_id, action, at_ms)
+	_sim.project_actor_route(actor_id, action, at_ms, batch)
 
 
 func settle(actor_id: String) -> void:

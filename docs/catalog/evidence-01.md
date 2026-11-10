@@ -93,6 +93,7 @@
 - [docs/qa/20261110_sparse_runtime_dispatch.md](../qa/20261110_sparse_runtime_dispatch.md)
 - [docs/qa/20261110_unit_actions.md](../qa/20261110_unit_actions.md)
 - [docs/qa/README.md](../qa/README.md)
+- [docs/qa/20261111_actor_batch_execution.md](../qa/20261111_actor_batch_execution.md)
 - [docs/qa/baseline-history/01-clock-and-source-field.md](../qa/baseline-history/01-clock-and-source-field.md)
 - [docs/qa/baseline-history/02-heat-storage-capacity.md](../qa/baseline-history/02-heat-storage-capacity.md)
 - [docs/qa/baseline-history/03-thermal-history-structures.md](../qa/baseline-history/03-thermal-history-structures.md)

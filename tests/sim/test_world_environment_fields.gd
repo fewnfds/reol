@@ -136,6 +136,8 @@ func _current_world_and_slices(runner: Object) -> void:
 		return
 	var complete: bool = sliced.advance_to_ms(60000, 4096, 1)
 	runner.assert_true(not complete and sliced.settlement.is_pending() and sliced.settled_ms() == 59999, "a one-work response refresh cannot publish a partial world boundary")
+	runner.assert_eq(sliced.settlement.progress().step, "previous:environment_fields", "one work unit first completes the native interval, leaving environment as the next original owner")
+	complete = sliced.advance_to_ms(60000, 4096, 1)
 	runner.assert_eq(sliced.settlement.progress().step, "previous:environment_fields", "response work yields inside its original owner before health and other consumers")
 	var continuations: int = 0
 	while not complete and continuations < 4096:

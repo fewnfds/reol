@@ -238,7 +238,7 @@ func _summary(samples: Array[float]) -> Dictionary:
 		return {}
 	var sorted: Array[float] = samples.duplicate()
 	sorted.sort()
-	return {"samples": sorted.size(), "p50": sorted[sorted.size() / 2], "p95": sorted[mini(sorted.size() - 1, int(sorted.size() * 0.95))], "max": sorted[-1]}
+	return {"samples": sorted.size(), "p50": sorted[sorted.size() / 2], "p95": sorted[mini(sorted.size() - 1, int(sorted.size() * 0.95))], "p99": sorted[mini(sorted.size() - 1, int(sorted.size() * 0.99))], "max": sorted[-1]}
 
 
 func finish() -> void:
@@ -266,6 +266,7 @@ func finish() -> void:
 			"runtime_interval": _total_executor_usec / 1000.0, "kernel_callbacks": _total_kernel_usec / 1000.0,
 			"interval_outside_kernel": maxi(0, _total_executor_usec - _total_kernel_usec) / 1000.0},
 		"kernel_scopes": _scope_rows(), "largest_frames": _spikes,
+		"actor_execution": _actor_execution_summary(),
 		"world_errors": _runtime.world_sim.errors.duplicate(),
 		"limits": "Instrumented development process; frame intervals include render/host waits. Callback wrappers add overhead. Interval residual includes regional execution, scheduling and view refresh, not one attributed system. Fog/streaming flags indicate correlation, not measured cost. Paused/wait/load transitions excluded from achieved fraction; no GPU-time claim. First 20000 frame samples; largest 24 frames retained."}
 	var file := FileAccess.open(str(_options.report), FileAccess.WRITE)
@@ -277,3 +278,14 @@ func finish() -> void:
 	file.close()
 	print("DEMO_PROFILE ", _options.report, " achieved=", report.achieved_fraction, " top=", JSON.stringify(report.kernel_scopes.slice(0, 3)))
 	finished.emit(true)
+
+
+func _actor_execution_summary() -> Dictionary:
+	var result: Dictionary = {}
+	for id: String in _runtime.world_sim.regions:
+		var sim: VillageSimulation = _runtime.world_sim.regions[id]
+		result[id] = sim.actor_execution_work.duplicate(true)
+		result[id]["configured_workers"] = sim.actor_execution_workers
+		result[id]["minimum_rows"] = sim.actor_execution_minimum
+		result[id]["owner_thread"] = OS.get_thread_caller_id()
+	return result

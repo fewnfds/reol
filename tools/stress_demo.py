@@ -16,6 +16,7 @@ def main() -> int:
     parser.add_argument("--quit-after-capture", action="store_true", help="otherwise keep playing the temporary world")
     parser.add_argument("--headless", action="store_true", help="rules/CPU diagnostics only, not rendering performance")
     parser.add_argument("--opening-wave", action="store_true", help="single ordinary rest journey, for the original before/after comparison")
+    parser.add_argument("--actor-workers", type=int, choices=range(9), default=4, help="native actor calculation workers; 0 uses the same packed calculation serially")
     args = parser.parse_args()
     if not 6 <= args.residents <= 256 or not 5 <= args.seconds <= 300:
         parser.error("residents must be 6..256 and seconds 5..300")
@@ -29,7 +30,8 @@ def main() -> int:
     if args.headless:
         cmd.append("--headless")
     cmd += ["--script", "res://tools/qa/crowd_stress_demo.gd", "--", f"--residents={args.residents}",
-            f"--seconds={args.seconds}", f"--report=res://logs/{tag}.json", f"--revision={sha}"]
+            f"--seconds={args.seconds}", f"--report=res://logs/{tag}.json", f"--revision={sha}",
+            f"--actor-workers={args.actor_workers}"]
     if args.quit_after_capture:
         cmd.append("--quit-after-capture")
     if args.opening_wave:

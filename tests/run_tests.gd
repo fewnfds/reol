@@ -29,6 +29,10 @@ func test_action_routing() -> void:
 	preload("res://tests/sim/test_action_routing.gd").new().run(self)
 
 
+func test_actor_advance() -> void:
+	preload("res://tests/sim/test_actor_advance.gd").new().run(self)
+
+
 func _run_tests() -> void:
 	var names: Array[String] = []
 	for method in get_method_list():

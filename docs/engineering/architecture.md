@@ -17,7 +17,7 @@ CPU多核、GPU和数据/模型共同设计，以普通游戏的端到端吞吐�
 ## 实现参考
 
 - [依赖](architecture/01-dependencies.md)、[现有状态定位](architecture/02-owners.md)、[时间/空间/呈现](architecture/03-time-space-presentation.md)、[存读](architecture/04-persistence.md)。
-- [结算](settlement-contract.md)、[事件](event-contract.md)、[流速](simulation-pacing.md)、[参与索引](sparse-execution.md)。
+- [结算](settlement-contract.md)、[批计算与采用](execution-batches.md)、[事件](event-contract.md)、[流速](simulation-pacing.md)、[参与索引](sparse-execution.md)。
 - [原物/查询](object-query-contract.md)、[生命周期/行动](object-lifecycle-contract.md)、[建筑](construction-contract.md)、[植物](plants-contract.md)、[普通环境](world-environment-contract.md)。
 
 来源、缓存及静止响应的旧隔离合同通过[QA](../qa/README.md)和固定Git版本追溯，不作为普通世界已GPU加速的依据。

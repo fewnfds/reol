@@ -3,6 +3,7 @@
 本目录均为指定版本/场景的原记录，不是当前架构、执行队列或授权。当前问题和验收由[重构主计划](../plans/foundation-priorities.md)维护。
 
 - [执行架构重构节点](20261110_execution_rewrite_reset.md)：文档/数据盘点、旧指导删除、问题/情况登记及保护范围，仅做静态清理验证。
+- [原身体CPU批计算](20261111_actor_batch_execution.md)：A首条真实worker/有序采用、取消/恢复与native续算；300人对照没有证明整体加速。
 
 - [普通世界CPU根因与并行边界](20261110_runtime_cpu_root_cause.md)：线程CPU实测、不重叠分项、寻路重复查询对照及普通GPU接入核查。
 - [共同运行与人物执行](20261110_sparse_runtime_dispatch.md)：显式同步、纯读取、到期/失效人物集合、领域工作条件及同负载前后对照。

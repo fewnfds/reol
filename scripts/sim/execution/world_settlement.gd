@@ -4,7 +4,7 @@ extends RefCounted
 ## simultaneous-effect/resource arbitration rules. No saved domain data here.
 
 const Kernel = preload("res://scripts/sim/execution/settlement_kernel.gd")
-const PHASES: Array[StringName] = [&"previous_interval", &"arrivals", &"environment_event", &"current_processes", &"sampling", &"decisions", &"messages", &"events", &"transport"]
+const PHASES: Array[StringName] = [&"native_interval", &"previous_interval", &"arrivals", &"environment_event", &"current_processes", &"sampling", &"decisions", &"messages", &"events", &"transport"]
 var _owner: WeakRef
 var kernel: SimSettlementKernel
 var world: RegionalSimulation:
@@ -14,6 +14,8 @@ var world: RegionalSimulation:
 func initialize(authority: RegionalSimulation) -> bool:
 	_owner = weakref(authority)
 	kernel = Kernel.new(PHASES)
+	if not kernel.add_step(&"native_actors", &"native_interval", authority._settle_native_interval, Kernel.CallMode.BUDGETED):
+		return false
 	# Explicit dependency chains retain the adopted same-millisecond rules.
 	# New concepts register their methods and dependencies here, not in the loop.
 	var previous: StringName = &""

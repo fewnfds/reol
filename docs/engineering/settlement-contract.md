@@ -22,7 +22,7 @@ Godot提供渲染、输入、SceneTree、固定物理步及碰撞服务。`_proc
 
 `SimWorldSettlement`把当前原领域接入以下次序，保留原同毫秒行为：
 
-1. `RegionalSimulation`先投影手动移动并推进有关地区；地区原生活决策仍在地区执行器内部。
+1. `RegionalSimulation`先受理手动接管并投影一次手动移动；原kernel的`native_interval/native_actors`准备身体批计算，完成后按序提交并推进地区。待计算沿同一kernel续算，地区生活决策仍在原执行器内部，详见[批执行](execution-batches.md)。
 2. `previous_interval`：环境场、健康、天气、衣着、常设劳动、计量劳动和到期植物结清刚过去的区间。
 3. `arrivals`及`environment_event`：行旅抵达与必要的原环境事务上下文。
 4. `current_processes`：植物动作、物品、服务、器物、修行、战斗、非人生命、建筑、家具、生产、休息及其余已接过程，按装配依赖提交。
@@ -32,7 +32,7 @@ Godot提供渲染、输入、SceneTree、固定物理步及碰撞服务。`_proc
 
 新领域先确定唯一状态owner、输入及生效时刻，在装配器注册到期入口、阶段与前后依赖，再接保存/恢复和必要呈现。仅新增同能力内容沿原定义扩展；新规则需代码实现。相互读取的领域不能用依赖环表达“瞬间互相计算”：有时间延迟就安排未来边界；确需局部平衡时由该owner实现有误差/收敛合同的求解。
 
-当前装配仍是显式代码：调用图、`BOUNDARY_DOMAINS`、`SimWorldSaveDomains`、`ACTIVITY_DOMAINS`及对象查询各有不同职责。注册一个结算步骤不会自动获得身份、存读、占用或空间能力；扩域按[接入检查](architecture/05-framework-domains.md#新领域的接入检查)逐项核对。没有实际消费者的能力不强制注册，也不为统一表形状搬走原状态。
+当前装配仍是显式代码：调用图、`BOUNDARY_DOMAINS`、`SimWorldSaveDomains`、`ACTIVITY_DOMAINS`及对象查询各有不同职责。注册一个结算步骤不会自动获得身份、存读、占用或空间能力；扩域按[接入检查](architecture/05-framework-domains.md#新能力接入需回答)逐项核对。没有实际消费者的能力不强制注册，也不为统一表形状搬走原状态。
 
 ## 同刻效果、争用与变更
 
@@ -56,7 +56,7 @@ Godot提供渲染、输入、SceneTree、固定物理步及碰撞服务。`_proc
 
 `advance_to_ms`保留原事件数预算，另接受工作预算。普通runtime每次执行器调用的默认工作预算为4096，快进预算不足继续原请求。一次原子回调本身不能被内核抢占；其他旧域的内部大循环及同步来源事务没有因此自动变成可续算，此边界须按实际热点逐域接入。
 
-内部`elapsed_ms`可在部分阶段执行时到达边界时刻；`settled_ms()`只表示已完成边界。runtime保留原请求，阶段尚未完成时不发布新的`GameClock`时刻，不启动下一边界。沿该时钟发布的监听者看到完整世界与身体投影；共同对象/空间查询及已接入guard的行动入口拒绝半结算输入。`WorldContinuityRuntime.stop_player_action()`返回bool表示是否受理，相关UI依据真实回执更新提示；领域执行中允许内部中断，任意外部raw写不在保护范围内。视图比较起点与地区通知标记保留至完整提交，成功读档重置这些派生标记。
+内部`elapsed_ms`可在部分阶段执行时到达边界时刻；`settled_ms()`只表示已完成边界。`has_pending_boundary()`涵盖native准备及kernel阶段，`pending_boundary_ms()`给出准确目标。runtime保留原请求，阶段尚未完成时不发布新的`GameClock`时刻，不启动下一边界。沿该时钟发布的监听者看到完整世界与身体投影；共同对象/空间查询及已接入guard的行动入口拒绝半结算输入。`WorldContinuityRuntime.stop_player_action()`返回bool表示是否受理，相关UI依据真实回执更新提示；领域执行中允许内部中断，任意外部raw写不在保护范围内。视图比较起点与地区通知标记保留至完整提交，成功读档重置这些派生标记。
 
 `CommittedWorldCanvas`只缓存最近完整世界边界的有限可见绘图参数，不复制世界状态；在完整公共时钟发布时同步采集，开始下一边界前即持有最新投影；暂停中的合法呈现变化也同步采集。延后的`_draw()`只回放缓存，部分边界不读取世界。`ConstructionRuntime`将结算中发生的视线障碍失效积存到公共`GameClock`发布后再通知呈现侧；Fog和灯光在部分边界保留dirty请求和上次投影，相关普通面板拒绝在此时刷新世界数据，命令受理/拒绝提示独立更新，终态失败也不会吞掉回执。这样领域内部索引可同步变化，外部视图不读取半结算结果；原始状态仍由各领域持有。
 
