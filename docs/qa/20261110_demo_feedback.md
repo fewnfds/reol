@@ -54,4 +54,4 @@ doctor沿本轮最初检查通过，结构/文档链接、`git diff --check`及�
 
 主体提交`081b56ce0119c602d0a05985cd335c67e54d3f11`完成一次Sol/custom原生主审。宿主命令仍报`registered Core launch requires an installed app`，在同一会话`01a1c3bd-2195-7081-b187-a6a694f8b1c7`提供准确diff及相关源码，继续只读静态核查后退出；日志`demo-slowdown-review.log`和`demo-slowdown-review-resumed.log`。确认一项P2：灵体模式的提前返回跳过了读档新世界的flora覆盖回调重绑，保留旧植物owner。已将灵体判断移到绑定之后，只跳过绘制。复用三种人生的现有Main fixture增加灵体实际save/load反例，`test-20261110-124207.log`准确失败于旧owner，修复后`test-20261110-124249.log`一组42检查退出0，无额外全Main组。人身性能采样的行为路径不受此三行修复影响。
 
-最终生产提交和对应SHA CI状态见HANDOFF/BASELINE；完整CI在准确结果前保持待验。尚有加载、来源候选和房间/拓扑等同步原子工作，不扩大为本轮全域性能重构。
+最终生产/测试`b364870e5ddc92f3c3de2d689fcf3e2755e8d67d`已推送，本次真实文档提交点一次发现同SHA CI42757726701为in_progress，完整CI待验；后续按HANDOFF的准确run/SHA核对，不开等待循环。尚有加载、来源候选和房间/拓扑等同步原子工作，不扩大为本轮全域性能重构。

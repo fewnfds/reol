@@ -4,7 +4,7 @@
 
 ## Demo反馈与独立诊断（独立分支）
 
-`codex/demo-slowdown-fix`修复重复画面捕获、环境原子刷新及短片段误降速，未合main。原生90秒0.986×、时钟最大17.645ms，30秒移动39格无world_errors；定向通过，主审和完整CI待验。负载、日志及局限见[缓行QA](../qa/20261110_demo_feedback.md#严重缓行修复)。
+`codex/demo-slowdown-fix`最终生产/测试`b364870e5ddc92f3c3de2d689fcf3e2755e8d67d`已推送，修复重复画面捕获、环境原子刷新及短片段误降速，未合main。原生90秒0.986×、时钟最大17.645ms，30秒移动39格无world_errors；定向通过，一次Sol/custom主审的灵体读档旧flora回调P2先红后绿修复，补1组42检查通过；同SHA CI42757726701本次文档提交点观测in_progress，完整CI待验。负载、日志及局限见[缓行QA](../qa/20261110_demo_feedback.md#严重缓行修复)。
 
 main集成点7def7d2的CI42751032965已核success。前Demo分支`codex/demo-playtest-fixes`的默认跟随/外墙修复87262ff：4组112检查、原生画面及一次主审通过，CI42751769110 success。独立诊断最终aa4f1a1：同未来/回调恢复、有界smoke及原生采样通过，一次主审的等候CPU漏计P2先红后绿；CI42753794423已核success。详见[QA](../qa/20261110_demo_feedback.md)。以上未合main，连续坐标迷雾仍未改。
 
