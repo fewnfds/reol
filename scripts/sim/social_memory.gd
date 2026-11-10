@@ -67,17 +67,14 @@ func record(
 		return ""
 	if not _valid_details(details):
 		return ""
-	var audience: Array[String] = [actor]
-	if not target.is_empty() and not audience.has(target):
-		audience.append(target)
 	var observed_by: Array[String] = []
+	var unique: Dictionary[String, bool] = {}
 	for witness: String in witnesses:
 		if not _actors.has(witness):
 			return ""
-		if not observed_by.has(witness):
+		if not unique.has(witness):
+			unique[witness] = true
 			observed_by.append(witness)
-		if not audience.has(witness):
-			audience.append(witness)
 	var event_id: String = "event_%d" % _next_event_id
 	_next_event_id += 1
 	var event: Dictionary = {
@@ -86,8 +83,19 @@ func record(
 	}
 	events.append(event)
 	_event_by_id[event_id] = event
-	for observer: String in audience:
-		knowledge[observer][event_id] = _observed_event(event, observer)
+	# Audience membership and source stay personal. The same redacted facts
+	# are computed once per scope and shared without granting mutation rights.
+	var public_view: Dictionary = _public_details(event.details)
+	var participant_view: Dictionary = _participant_details(event.details, public_view)
+	_freeze_details(public_view)
+	if not is_same(public_view, participant_view):
+		_freeze_details(participant_view)
+	knowledge[actor][event_id] = _observation(event, actor, participant_view)
+	if not target.is_empty() and target != actor:
+		knowledge[target][event_id] = _observation(event, target, participant_view)
+	for witness: String in observed_by:
+		if witness != actor and witness != target:
+			knowledge[witness][event_id] = _observation(event, witness, public_view)
 	return event_id
 
 
@@ -262,19 +270,47 @@ func restore(data: Dictionary) -> bool:
 
 
 func _observed_event(event: Dictionary, observer: String) -> Dictionary:
-	var details: Dictionary = event["details"]
+	var visible: Dictionary = _public_details(event.details)
+	if observer == event.actor or observer == event.target:
+		visible = _participant_details(event.details, visible)
+	return _observation(event, observer, visible)
+
+
+func _public_details(details: Dictionary) -> Dictionary:
 	var visible: Dictionary = {}
 	for field: String in SURFACE_FIELDS:
 		if details.has(field):
 			visible[field] = _redacted_surface(details[field])
 	visible.merge(details.get("public", {}).duplicate(true), true)
-	if observer == event["actor"] or observer == event["target"]:
-		visible.merge(details.get("participants", {}).duplicate(true), true)
+	return visible
+
+
+func _participant_details(details: Dictionary, public_view: Dictionary) -> Dictionary:
+	var extra: Dictionary = details.get("participants", {})
+	if extra.is_empty():
+		return public_view
+	var visible: Dictionary = public_view.duplicate()
+	visible.merge(extra.duplicate(true), true)
+	return visible
+
+
+static func _observation(event: Dictionary, observer: String, visible: Dictionary) -> Dictionary:
 	return {
 		"id": event["id"], "kind": event["kind"], "actor": event["actor"],
 		"target": event["target"], "details": visible, "tick": event["tick"],
 		"source": observer, "direct": true,
 	}
+
+
+static func _freeze_details(value: Variant) -> void:
+	if value is Dictionary and not value.is_read_only():
+		for entry: Variant in value.values():
+			_freeze_details(entry)
+		value.make_read_only()
+	elif value is Array and not value.is_read_only():
+		for entry: Variant in value:
+			_freeze_details(entry)
+		value.make_read_only()
 
 
 func _redacted_surface(value: Variant) -> Variant:
