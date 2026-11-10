@@ -54,9 +54,8 @@ func set_selected(value: bool) -> void:
 	queue_redraw()
 
 
-func set_view_layout(layout: Dictionary) -> void:
-	var next_offset: Vector2 = layout.get("offset", Vector2.ZERO)
-	var next_caption: bool = bool(layout.get("caption_visible", true))
+func set_view_layout(next_offset: Vector2) -> void:
+	var next_caption: bool = next_offset == Vector2.ZERO
 	if visual_offset != next_offset or caption_visible != next_caption:
 		visual_offset = next_offset
 		caption_visible = next_caption

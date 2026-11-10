@@ -462,43 +462,51 @@ func _sync_player_cell() -> void:
 		continuity.world_sim.invalidate_region("home")
 
 
-func _sync_actor_views(snap: bool, layout: Dictionary = {}) -> void:
+func _sync_actor_views(snap: bool, layout: PawnViewLayout = null, poses: HumanoidPose.WorldFrame = null) -> void:
 	var residents: Dictionary = simulation.actors
-	if layout.is_empty():
-		layout = continuity.actor_view_layout() if is_instance_valid(continuity) else PawnViewLayout.build(residents, "player")
+	var unified: bool = is_instance_valid(continuity)
+	var now: int = GameClock.elapsed_ms
+	if layout == null:
+		if unified:
+			layout = continuity.actor_view_layout()
+		else:
+			layout = PawnViewLayout.new(_fog)
+			layout.include_bodies(residents)
+			layout.finish("player")
+	if unified and poses == null:
+		poses = HumanoidPose.WorldFrame.new(continuity.world_sim, now)
 	for id: String in _pawns:
-		if not simulation.has_actor(id):
+		if not residents.has(id):
 			_pawns[id].hide()
 			continue
 		var pawn: Pawn = _pawns[id]
 		var was_visible: bool = pawn.visible
 		var actor: Dictionary = residents[id]
-		var drawing: Dictionary = layout.get(id, {})
-		pawn.cell = drawing.get("cell", _decode_cell(actor["cell"]))
-		pawn.visible = bool(actor.alive) and (_fog.is_cell_visible(pawn.cell) if _fog != null else true)
+		pawn.cell = layout.cells[id] if layout.cells.has(id) else _decode_cell(actor.cell)
+		pawn.visible = bool(actor.alive) and layout.sees(pawn.cell)
 		if not pawn.visible:
 			continue # Hidden views have no pose, clothing or draw work.
 		# A visible view reads the accepted route at committed time. Rendering
 		# must not integrate needs, repair routes or publish spatial changes.
-		var pose: Dictionary = HumanoidPose.in_world(continuity.world_sim, id, GameClock.elapsed_ms) if is_instance_valid(continuity) else HumanoidPose.from_body(actor, GameClock.elapsed_ms, actor.active)
+		var pose: Dictionary = poses.pose(simulation, id, actor, int(layout.native_legs.get(id, -1))) if unified else HumanoidPose.from_body(actor, now, actor.active)
 		pawn.appearance_pose = HumanoidPose.stabilized(pose, pawn.appearance_pose)
-		if is_instance_valid(continuity):
+		if unified:
 			pawn.clothing_appearance = continuity.world_sim.clothing.appearance(id)
-		pawn.set_view_layout(drawing)
-		var target: Vector2 = drawing.position if drawing.has("position") else simulation.projected_actor_position(id)
+		pawn.set_view_layout(layout.offsets.get(id, Vector2.ZERO))
+		var target: Vector2 = layout.points[id] if layout.points.has(id) else simulation.projected_actor_position(id)
 		pawn.project_position(target)
 		if not was_visible or not GameClock.is_advancing():
-			pawn.publish_motion(GameClock.elapsed_ms, snap or not was_visible)
+			pawn.publish_motion(now, snap or not was_visible)
 		if pawn.selected:
 			_sync_needs(pawn.state, simulation.projected_actor_needs(id))
 		pawn.refresh_appearance()
-	if is_instance_valid(continuity):
+	if unified:
 		_player.clothing_appearance = continuity.world_sim.clothing.appearance("player")
-		_player.appearance_pose = HumanoidPose.stabilized(HumanoidPose.in_world(continuity.world_sim, "player", GameClock.elapsed_ms, continuity.player_journey, _player.manual_visual_moving, _player.motion.action), _player.appearance_pose)
+		_player.appearance_pose = HumanoidPose.stabilized(poses.pose(simulation, "player", residents.player, -1, continuity.player_journey, _player.manual_visual_moving, _player.motion.action), _player.appearance_pose)
 	else:
-		_player.appearance_pose = HumanoidPose.stabilized(HumanoidPose.from_body(residents.player, GameClock.elapsed_ms, residents.player.active, _player.manual_visual_moving), _player.appearance_pose)
+		_player.appearance_pose = HumanoidPose.stabilized(HumanoidPose.from_body(residents.player, now, residents.player.active, _player.manual_visual_moving), _player.appearance_pose)
 	_sync_needs(_player.state, simulation.projected_actor_needs("player"))
-	if is_instance_valid(continuity) and _player.state != null:
+	if unified and _player.state != null:
 		# A visible visitor's body can be projected across a quiet interval without
 		# waking every resident in their home settlement for a HUD update.
 		var elapsed: int = maxi(0, int(continuity.world_sim.current_time) - simulation.tick_index)

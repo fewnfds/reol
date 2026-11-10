@@ -3,6 +3,62 @@ extends RefCounted
 ## Read-only presentation of existing bodies/routes/actions. No simulation writes.
 
 
+class WorldFrame extends RefCounted:
+	## A single committed observation: actual cross-domain jobs and hand motions
+	## override the native job in the same order for home and visiting bodies.
+	var at_ms: int
+	var _jobs: Dictionary = {}
+	var _hand_actions: Dictionary = {}
+	var _sparring_people: Dictionary = {}
+
+	func _init(world: RegionalSimulation, now: int) -> void:
+		at_ms = now
+		for domain: RefCounted in [world.capability_practice, world.personal_production, world.resting, world.construction]:
+			if domain != null:
+				_jobs.merge(domain.active, true)
+		if world.field_opportunities != null:
+			for id: String in world.field_opportunities.purposes:
+				var route: Dictionary = world.field_opportunities.route_projection(id)
+				if not route.is_empty():
+					_jobs[id] = route
+		if world.services != null:
+			for id: String in world.services.active_jobs:
+				_jobs[id] = world.services.jobs[world.services.active_jobs[id]]
+		for domain: RefCounted in [world.clothing, world.method_records, world.capability_practice]:
+			if domain != null:
+				_hand_actions.merge(domain.active, true)
+		if world.sparring != null and not world.sparring.bout.is_empty():
+			_sparring_people = world.sparring.bout.people
+
+	func pose(owner: VillageSimulation, id: String, body: Dictionary, native_leg: int = -1, journey: Dictionary = {}, manual_moving: bool = false, local_action: Dictionary = {}) -> Dictionary:
+		var job: Dictionary = journey if id == "player" and not journey.is_empty() else _jobs.get(id, body.active)
+		if is_same(job, body.active):
+			var timeline: SimRouteTravel.Timeline = owner.coarse_native_timeline(id)
+			if timeline != null and at_ms < timeline.ends[-1]:
+				var leg: int = native_leg if native_leg >= 0 else timeline.leg_at(at_ms)
+				var direction: Vector2 = timeline.heading_on_leg(at_ms, leg, SimRouteTravel.facing(body))
+				return {"direction": direction, "moving": true, "time_ms": at_ms, "action": "walk", "started_ms": 0}
+		var result: Dictionary = HumanoidPose.from_body(body, at_ms, job, manual_moving)
+		if bool(result.moving):
+			return result
+		# Sleeping patients and unrelated occupied bodies do not gesture.
+		if _hand_actions.has(id):
+			result.action = "gesture"
+			result.started_ms = int(_hand_actions[id].started_ms)
+		if not local_action.is_empty():
+			_apply_gesture(result, local_action)
+		if _sparring_people.has(id):
+			var action: Dictionary = _sparring_people[id].action
+			if not action.is_empty():
+				_apply_gesture(result, action)
+		return result
+
+	static func _apply_gesture(result: Dictionary, action: Dictionary) -> void:
+		result.direction = Vector2(float(action.direction[0]), float(action.direction[1]))
+		result.action = "gesture"
+		result.started_ms = int(action.started_ms)
+
+
 static func from_body(body: Dictionary, now: int, job: Dictionary = {}, manual_moving: bool = false) -> Dictionary:
 	var pose: Dictionary = {"direction": SimRouteTravel.facing(body), "moving": manual_moving,
 		"time_ms": now, "action": "idle", "started_ms": 0}
@@ -20,55 +76,6 @@ static func from_body(body: Dictionary, now: int, job: Dictionary = {}, manual_m
 	if pose.moving:
 		pose.action = "walk"
 	return pose
-
-
-static func in_world(world: RegionalSimulation, id: String, now: int, journey: Dictionary = {}, manual_moving: bool = false, local_action: Dictionary = {}) -> Dictionary:
-	var body: Dictionary = {}
-	var owner: VillageSimulation
-	for sim: VillageSimulation in world.regions.values():
-		if sim.has_actor(id):
-			body = sim.actor_state(id)
-			owner = sim
-			break
-	if body.is_empty():
-		return {}
-	var job: Dictionary = body.active
-	if id == "player" and not journey.is_empty():
-		job = journey
-	elif world.services != null and world.services.active_jobs.has(id):
-		job = world.services.jobs[world.services.active_jobs[id]]
-	elif world.field_opportunities != null and not world.field_opportunities.route_projection(id).is_empty():
-		job = world.field_opportunities.route_projection(id)
-	else:
-		for domain: RefCounted in [world.construction, world.resting, world.personal_production, world.capability_practice]:
-			if domain != null and domain.active.has(id):
-				job = domain.active[id]
-				break
-	var result: Dictionary = from_body(body, now, job, manual_moving)
-	if is_same(job, body.active):
-		var timeline: SimRouteTravel.Timeline = owner.coarse_native_timeline(id)
-		if timeline != null and now < timeline.ends[-1]:
-			result.direction = timeline.heading_at(now, SimRouteTravel.facing(body))
-			result.moving = true
-			result.action = "walk"
-	if bool(result.moving):
-		return result
-	# Only supported ordinary hand motions use the generic technical clip. A
-	# sleeping patient is not made to work merely because its body is occupied.
-	for domain: RefCounted in [world.clothing, world.method_records, world.capability_practice]:
-		if domain != null and domain.active.has(id):
-			result.action = "gesture"
-			result.started_ms = int(domain.active[id].started_ms)
-	if not local_action.is_empty():
-		result.direction = Vector2(float(local_action.direction[0]), float(local_action.direction[1]))
-		result.action = "gesture"
-		result.started_ms = int(local_action.started_ms)
-	if world.sparring.owns_actor(id) and not world.sparring.bout.people[id].action.is_empty():
-		var action: Dictionary = world.sparring.bout.people[id].action
-		result.direction = Vector2(float(action.direction[0]), float(action.direction[1]))
-		result.action = "gesture"
-		result.started_ms = int(action.started_ms)
-	return result
 
 
 static func stabilized(pose: Dictionary, previous: Dictionary) -> Dictionary:

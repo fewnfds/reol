@@ -309,10 +309,11 @@ func _capture_committed_canvases(_from_ms: int = 0, _to_ms: int = 0) -> void:
 		return
 	# All ordinary observers have finished. Publish body views once, sharing
 	# the layout, rather than rebuilding them inside each executor continuation.
-	var layout: Dictionary = actor_view_layout()
+	var layout: PawnViewLayout = actor_view_layout()
+	var poses := HumanoidPose.WorldFrame.new(world_sim, GameClock.elapsed_ms)
 	HumanoidSprite.publish_time(GameClock.elapsed_ms)
-	_home._sync_actor_views(snap, layout)
-	_refresh_views(snap, layout)
+	_home._sync_actor_views(snap, layout, poses)
+	_refresh_views(snap, layout, poses)
 	_refresh_advance_views()
 	_home.publish_actor_motion(GameClock.elapsed_ms, snap)
 	for pawn: Pawn in _remote_views.values():
@@ -426,16 +427,14 @@ func actor_view(actor: String) -> Pawn:
 	return _home._pawns.get(actor) as Pawn if actor_region(actor) == "home" else _remote_views.get(actor) as Pawn
 
 
-func actor_view_layout() -> Dictionary:
-	# One transient view of original body references, never a second registry
-	# of positions. Two owners' visitors can share one physical cell.
-	var bodies: Dictionary = {}
-	var native_routes: Dictionary = {}
+func actor_view_layout() -> PawnViewLayout:
+	# No merger or materialization of body tables. Visitors join residents in
+	# their actual visible cell regardless of the owner of their original body.
+	var layout := PawnViewLayout.new(_home._fog)
 	for sim: VillageSimulation in world_sim.regions.values():
-		# Evaluate accepted segments at this committed time; no body integration.
-		bodies.merge(sim.actors)
-		native_routes.merge(sim.native_route_projections())
-	return PawnViewLayout.build(bodies, "player", null, GameClock.elapsed_ms, native_routes)
+		layout.include_bodies(sim.actors, GameClock.elapsed_ms, sim.native_route_projections())
+	layout.finish("player")
+	return layout
 
 
 func select_actor_view(pawn: Pawn) -> void:
@@ -1215,14 +1214,17 @@ func _on_advanced() -> void:
 	redraw_committed_canvas()
 
 
-func _refresh_views(snap: bool, layout: Dictionary = {}) -> void:
+func _refresh_views(snap: bool, layout: PawnViewLayout = null, poses: HumanoidPose.WorldFrame = null) -> void:
 	if not _presentation_ready():
 		return
 	# A body keeps its original ledger owner while travelling. Only actual
 	# visibility decides whether its nonhome scene projection is materialized.
 	var visible_bodies: Dictionary = {}
-	if layout.is_empty():
+	if layout == null:
 		layout = actor_view_layout()
+	if poses == null:
+		poses = HumanoidPose.WorldFrame.new(world_sim, world_sim.elapsed_ms)
+	var reuse_native_leg: bool = poses.at_ms == GameClock.elapsed_ms
 	for region: String in world_sim.regions:
 		if region == "home":
 			continue
@@ -1232,10 +1234,10 @@ func _refresh_views(snap: bool, layout: Dictionary = {}) -> void:
 			var actor: Dictionary = residents[id]
 			if not bool(actor.alive):
 				continue
-			var cell: Vector2i = layout.get(id, {}).get("cell", _cell(actor.cell))
+			var cell: Vector2i = layout.cells[id] if layout.cells.has(id) else _cell(actor.cell)
 			if _home._fog == null and cell.distance_to(controlled_cell()) > float(_home.simulation.config.observation_radius):
 				continue
-			if _home._fog != null and not _home._fog.is_cell_visible(cell):
+			if not layout.sees(cell):
 				continue
 			# Visibility does not materialize or advance the original body.
 			visible_bodies[id] = true
@@ -1248,14 +1250,14 @@ func _refresh_views(snap: bool, layout: Dictionary = {}) -> void:
 				add_child(created_pawn)
 				_remote_views[id] = created_pawn
 			var pawn: Pawn = _remote_views[id]
-			pawn.appearance_pose = HumanoidPose.stabilized(HumanoidPose.in_world(world_sim, id, world_sim.elapsed_ms), pawn.appearance_pose)
+			var leg: int = int(layout.native_legs.get(id, -1)) if reuse_native_leg else -1
+			pawn.appearance_pose = HumanoidPose.stabilized(poses.pose(remote, id, actor, leg), pawn.appearance_pose)
 			pawn.clothing_appearance = world_sim.clothing.appearance(id)
-			pawn.set_view_layout(layout.get(id, {}))
+			pawn.set_view_layout(layout.offsets.get(id, Vector2.ZERO))
 			pawn.cell = cell
 			if pawn.selected:
 				_home._sync_needs(pawn.state, remote.projected_actor_needs(id))
-			var drawing: Dictionary = layout.get(id, {})
-			pawn.project_position(drawing.position if drawing.has("position") else remote.projected_actor_position(id))
+			pawn.project_position(layout.points[id] if layout.points.has(id) else remote.projected_actor_position(id))
 			if not GameClock.is_advancing():
 				pawn.publish_motion(GameClock.elapsed_ms, snap)
 			pawn.show()

@@ -1,48 +1,77 @@
 class_name PawnViewLayout
 extends RefCounted
-## Cell sharing is a simulation fact; spreading the drawings is presentation only.
+## One disposable sample of accepted motion. Only observed cells need a
+## drawing layout; bodies sharing them include visitors from other owners.
 
 const CROWD_RADIUS: float = 24.0
 
+var cells: Dictionary[String, Vector2i] = {}
+var points: Dictionary[String, Vector2] = {}
+var native_legs: Dictionary[String, int] = {}
+var offsets: Dictionary[String, Vector2] = {}
 
-static func build(actors: Dictionary, center_actor_id: String = "", visitor_cell: Variant = null, at_ms: int = -1, native_routes: Dictionary = {}) -> Dictionary:
-	var groups: Dictionary = {}
-	var positions: Dictionary[String, Vector2] = {}
+var _fog: FogOfWar
+var _observed: Dictionary[Vector2i, bool] = {}
+var _occupants: Dictionary[Vector2i, String] = {}
+var _crowds: Dictionary[Vector2i, Array] = {}
+
+
+func _init(fog: FogOfWar = null) -> void:
+	_fog = fog
+
+
+func include_bodies(actors: Dictionary, at_ms: int = -1, native_routes: Dictionary = {}) -> void:
 	for id: String in actors:
-		var raw_cell: Variant = actors[id].get("cell", [])
+		var body: Dictionary = actors[id]
+		var raw_cell: Variant = body.get("cell", [])
 		if not raw_cell is Array or raw_cell.size() != 2:
 			continue
-		var cell := Vector2i(int(raw_cell[0]), int(raw_cell[1]))
+		var cell: Vector2i
+		var point: Vector2
+		var leg: int = -1
 		if at_ms >= 0:
-			var body: Dictionary = actors[id]
-			var route: Dictionary = body.get("active", {})
-			var completion: Dictionary = native_routes.get(id, {})
-			if route.get("phase") == "travel" and bool(completion.get("coarse", false)) and is_same(completion.route, route):
-				var timeline: SimRouteTravel.Timeline = completion.timeline
-				positions[id] = timeline.point_at(at_ms)
+			var route: Dictionary = body.active
+			if route.get("phase") == "travel":
+				var completion: Dictionary = native_routes.get(id, {})
+				if bool(completion.get("coarse", false)) and is_same(completion.route, route):
+					var timeline: SimRouteTravel.Timeline = completion.timeline
+					leg = timeline.leg_at(at_ms)
+					point = timeline.point_on_leg(at_ms, leg)
+				else:
+					point = SimRouteTravel.projected_point(route, body, at_ms)
 			else:
-				positions[id] = SimRouteTravel.projected_point(route, body, at_ms) if route.get("phase") == "travel" else SimRouteTravel.point(body)
-			cell = TileGrid.world_to_cell(positions[id])
-		if not groups.has(cell):
-			groups[cell] = []
-		groups[cell].append(id)
-	var result: Dictionary = {}
-	for cell: Vector2i in groups:
-		var ids: Array = groups[cell]
+				point = SimRouteTravel.point(body)
+			cell = TileGrid.world_to_cell(point)
+		else:
+			cell = SimRouteTravel.cell(raw_cell)
+		cells[id] = cell
+		if _fog != null:
+			if not _observed.has(cell):
+				_observed[cell] = _fog.is_cell_visible(cell)
+			if not _observed[cell]:
+				continue
+		if at_ms >= 0:
+			points[id] = point
+			if leg >= 0:
+				native_legs[id] = leg
+		if _crowds.has(cell):
+			_crowds[cell].append(id)
+		elif _occupants.has(cell):
+			_crowds[cell] = [_occupants[cell], id]
+		else:
+			_occupants[cell] = id
+
+
+func finish(center_actor_id: String) -> void:
+	for ids: Array in _crowds.values():
+		ids.erase(center_actor_id)
 		ids.sort()
-		var has_center: bool = ids.has(center_actor_id)
-		var has_visitor: bool = visitor_cell is Vector2i and visitor_cell == cell
-		var crowded: bool = ids.size() + (1 if has_visitor and not has_center else 0) > 1
-		if has_center:
-			result[center_actor_id] = {"offset": Vector2.ZERO, "caption_visible": true}
-			ids.erase(center_actor_id)
 		for index: int in ids.size():
-			var offset := Vector2.ZERO
-			if crowded:
-				var angle: float = -PI * 0.5 + TAU * float(index) / float(ids.size())
-				offset = Vector2(cos(angle), sin(angle)) * CROWD_RADIUS
-			result[ids[index]] = {"offset": offset, "caption_visible": not crowded}
-	for id: String in positions:
-		result[id].position = positions[id]
-		result[id].cell = TileGrid.world_to_cell(positions[id])
-	return result
+			var angle: float = -PI * 0.5 + TAU * float(index) / float(ids.size())
+			offsets[ids[index]] = Vector2(cos(angle), sin(angle)) * CROWD_RADIUS
+	_occupants.clear()
+	_crowds.clear()
+
+
+func sees(cell: Vector2i) -> bool:
+	return _fog == null or bool(_observed.get(cell, false))

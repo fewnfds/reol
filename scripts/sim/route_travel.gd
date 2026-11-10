@@ -37,12 +37,16 @@ class Timeline extends RefCounted:
 		return mini(low, ends.size() - 1)
 
 	func point_at(now: int) -> Vector2:
-		var leg: int = leg_at(now)
+		return point_on_leg(now, leg_at(now))
+
+	func point_on_leg(now: int, leg: int) -> Vector2:
 		var start: int = started_ms if leg == 0 else ends[leg - 1]
 		return points[leg].lerp(points[leg + 1], clampf(float(now - start) / float(ends[leg] - start), 0.0, 1.0))
 
 	func heading_at(now: int, previous: Vector2) -> Vector2:
-		var leg: int = leg_at(now)
+		return heading_on_leg(now, leg_at(now), previous)
+
+	func heading_on_leg(now: int, leg: int, previous: Vector2) -> Vector2:
 		# At an exact vertex, the next segment has not moved yet. Preserve the
 		# preceding facing, including a zero-distance centering leg at spawn.
 		if leg > 0 and now == ends[leg - 1]:
