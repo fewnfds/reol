@@ -2,29 +2,29 @@
 
 核对：2026-11-10。采用版本与准确代码证据记录在此，操作范围见[FEATURES](features.md)，当前停点见[HANDOFF](handoff.md)，详细日志和限制见[QA](../qa/README.md)。历史分卷只描述当时版本。
 
-## 完整单位行动与交互（工作分支在验）
+## 完整单位行动与交互（主线整合，完整CI待验）
 
-最终代码的[CI42674488111](https://github.com/fewnfds/reol/actions/runs/42674488111)已在本包证据提交检查点登记，headSha与下文一致，观测queued；完整待验，不按时间轮询。
+前版0a0b59a的CI42674488111为completed/failure，两处为休息阶段显示和旧直行测试。收尾`0856effd4b2bb135c9bae8f25cccbba0e3def8e0`先复现再修复：休息/服务运行2组88检查、最终感知108检查通过，一次Sol/custom同会话恢复静态主审无可操作发现。[CI42750266714](https://github.com/fewnfds/reol/actions/runs/42750266714)在本次提交点精确核为in_progress；完整待验，不按时间轮询。
 
-`codex/unit-actions-integration`主体`68fff8b35e90617f4e95b416cdacf73834e6bf5e`，最终生产/测试`0a0b59a15088f53f762bec13bc20b9145923402b`已推送，未合main；根56/区域47/内容包3/环境5。原生搜索、路线重评、共同动作投影/终态/停止及原库存搬运已接；一次Sol/custom主审2项P1/1项P2先红后绿，修复5组223检查通过。最终普通Main及独立停开整个检查点/未来一致，详见[行动QA](../qa/20261110_unit_actions.md)。对应完整CI待验，不能沿用前阶段绿色。
+`codex/unit-actions-integration`主体`68fff8b35e90617f4e95b416cdacf73834e6bf5e`及上述收尾已按用户授权整合main；根56/区域47/内容包3/环境5。原生搜索、路线重评、共同动作投影/终态/停止及原库存搬运已接；主体一次Sol/custom主审2项P1/1项P2先红后绿，修复5组223检查通过。前版普通Main及独立停开整个检查点/未来一致，详见[行动QA](../qa/20261110_unit_actions.md)。整合不等于完整回归通过，不能沿用前阶段绿色。
 
-## 环境跨领域组合（工作分支在验）
+## 环境跨领域组合（已随行动历史整合main）
 
-`codex/environment-composition`承接事件/植物历史，主体`2ec88b7efec3724b065224443fbbbaa820d8f0c6`、最终生产/测试`89f47163d30e172d0b858fdf8167b84ae8c208bd`；后续仅本包Markdown，分支推送，未合main。原环境接材质传播、一房一温、容器/携物及植物照明，根55/区域46/环境5。原结算、事件、空间和通用SL继续持原职责；没有新增中央世界或物理引擎。
+`codex/environment-composition`承接事件/植物历史，主体`2ec88b7efec3724b065224443fbbbaa820d8f0c6`、阶段最终生产/测试`89f47163d30e172d0b858fdf8167b84ae8c208bd`已随行动历史整合main。原环境接材质传播、一房一温、容器/携物及植物照明，阶段根55/区域46/环境5。原结算、事件、空间和通用SL继续持原职责；没有新增中央世界或物理引擎。
 
 主体完整check3600秒超时且有失败，不能算完整回归；一次Sol/custom主审的跨格时刻/空间复制两项P2已修。修复后22组3761检查通过；普通Main及独立停开整个未来相同，6株180帧P95 16.753ms，不代表密集整机验收。详见[环境组合QA](../qa/20261109_environment_composition.md)。最终HEAD337ea13的CI42659346260为completed/failure：11片通过，test(1)的`test_world_persistence`因两个phase initial末位漂移失败，coverage跳过。诊断发现Godot decimal解析不保持这些double，行动包沿原模型量化恢复修复并补反例；本结果不能算完整通过。
 
-## 全局事件与植物（工作分支已验收）
+## 全局事件与植物（已整合main）
 
-`codex/world-events-plants`主体`801d71e971136e52eab594f4049d2d4f6cef0856`，审查修复`e2512a18e3fcafad04fbf38ed44c2d1b2d9e010a`，最终生产`45f140b90aa1fb6d4adbf3d028efac12ae25aa9c`、最终测试`13d675e6f49be9ebe42a3bd958d9d8ff3be6266b`已推送；后续仅Markdown，尚未合main。根54/区域45/内容包3。全局事件接运输/植物，移动/值事房/约练规则绑定会话；植物接原株/物候/残根/产物/花盆、空间/环境与最小灵智。
+`codex/world-events-plants`主体`801d71e971136e52eab594f4049d2d4f6cef0856`，审查修复`e2512a18e3fcafad04fbf38ed44c2d1b2d9e010a`，阶段最终生产`45f140b90aa1fb6d4adbf3d028efac12ae25aa9c`、最终测试`13d675e6f49be9ebe42a3bd958d9d8ff3be6266b`已随行动历史整合main。阶段根54/区域45/内容包3。全局事件接运输/植物，移动/值事房/约练规则绑定会话；植物接原株/物候/残根/产物/花盆、空间/环境与最小灵智。
 
 最终测试SHA的[CI42596694569](https://github.com/fewnfds/reol/actions/runs/42596694569)已核completed/success，**12片完整256组/126555检查/0失败**，下载报告独立覆盖校验通过。run墙钟287秒；受影响5/7/10片本机check也通过，不与旧失败run拼接。旧CI42595092906的三处fixture遗漏已修，生产代码保持45f140b。
 
 一次Sol/custom原生静态主审的四项P2有先失败再修复反例。定向6组523检查，补移栽/待觉醒/真实年界后植物101检查、相关4组207检查均通过；原生观察及完全停开后的整个世界/clock/motion检查点和250ms未来一致。6株180帧P95 16.751ms，1024株due预算/无界同未来；单次原子工作仍可能长帧，不代表16GB/RTX3060密集世界。准确日志与限制见[QA](../qa/20261109_world_events_plants.md)，停点见HANDOFF。
 
-## 通用存读模块（工作分支）
+## 通用存读模块（已整合main）
 
-主体`96a6fe0ed891dd386cf455b4f389449d74f5b878`、拒绝提示收尾`d682e030a5e28dfd04a5101bb5f826e37958422b`已推送`codex/save-load-framework`，尚未合main。统一领域capture/stage/check/install与安全保存请求/回执，根53/区域44保持；原状态仍归原owner。保存定向3组188检查、补充坏档边界311检查均退出0；同一次Sol/custom静态主审完成，无可确认发现。原生Main预算1保存、同进程及独立停开checkpoint/250ms未来一致。同代码SHA的[CI42553338071](https://github.com/fewnfds/reol/actions/runs/42553338071)本次提交准备点已核completed/success，完整回归通过；[QA](../qa/20261109_save_framework.md)记录分组证据、宿主审查恢复及限制。该包当时未封闭的移动/值事房/约练规则已由事件植物包处理，证据分别归属各包。
+主体`96a6fe0ed891dd386cf455b4f389449d74f5b878`、拒绝提示收尾`d682e030a5e28dfd04a5101bb5f826e37958422b`已随行动历史整合main。统一领域capture/stage/check/install与安全保存请求/回执，阶段根53/区域44保持；原状态仍归原owner。保存定向3组188检查、补充坏档边界311检查均退出0；同一次Sol/custom静态主审完成，无可确认发现。原生Main预算1保存、同进程及独立停开checkpoint/250ms未来一致。同代码SHA的[CI42553338071](https://github.com/fewnfds/reol/actions/runs/42553338071)本次提交准备点已核completed/success，完整回归通过；[QA](../qa/20261109_save_framework.md)记录分组证据、宿主审查恢复及限制。该包当时未封闭的移动/值事房/约练规则已由事件植物包处理，证据分别归属各包。
 
 ## 共同时间过载降速（已合入main）
 

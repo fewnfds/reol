@@ -1,27 +1,19 @@
 # 当前接续
 
-2026-11-10：第5阶段**完整单位行动与交互**实现、主审修复及本机试玩验收已收尾。主体`68fff8b35e90617f4e95b416cdacf73834e6bf5e`，最终生产/测试`0a0b59a15088f53f762bec13bc20b9145923402b`已推送`codex/unit-actions-integration`，完整CI待对应SHA；未合main。一次Sol/custom静态主审2项P1/1项P2均先复现、另步修复，不重开主审。效果归各原域，不包含完整致死战斗/掉落/平衡。
+2026-11-10：用户授权先整合Git，再单独处理Demo简单问题和缓行诊断。通用SL、全局事件/植物、环境组合及第5阶段行动历史已快进整合main，最终生产/测试`0856effd4b2bb135c9bae8f25cccbba0e3def8e0`；后续仅本次整合文档。旧`codex/field-contest`与命名stash仍隔离，不删除/恢复。准确分支以Git及[分支状态](branches.md)为准。
 
-已接原生AStar2D、连续路线重评、共同动作投影/终态/取消及原services库存搬运。主审前恢复7组2277、运行9组822、搬运/建筑/战斗5组449检查，主审修复5组223检查均退出0；最终普通Main及独立停开整个未来相同、工作→战斗和气弹已验。根56/区域47。手动闪身保留约练；公物只交登记公共地点或随身保管，普通箱只接私人材料；恢复及提交复核原端点/操作位。无活测试/审查handle，无CI等待器；证据见[行动QA](../qa/20261110_unit_actions.md)，试玩路线见[体验链](features/playthroughs-and-gaps.md#第一次试玩建议)。
+## 本轮整合证据
 
-第4阶段最终HEAD的CI已核：SHA `337ea13e6bfb89321d2fda9eef26f5612dc65cd9` / run `42659346260` **completed/failure**，11片通过，test(1)失败。真实首错为`test_world_persistence`恢复后local_heat的两个initial浮点末位漂移，本包沿原owner已修并定向验证，未放宽断言；诊断在`logs/environment-ci-42659346260-failed.log`和同名artifact目录。终态已有缓存，不再轮询。
+前版`0a0b59a15088f53f762bec13bc20b9145923402b`的CI42674488111已核completed/failure：第5片旧感知直行断言、第11片休息界面漏认`sleep`，不是超时。两项本机原代码复现；收尾修复显示映射，并以相同已知线索、不同隐藏坐标的独立世界比较，允许合法绕墙且防止全知追踪。休息/服务运行2组88检查、最终感知108检查通过；不是完整回归。
 
-## 前阶段承接证据
+0856eff仅两文件，一次Sol/custom原生静态主审因宿主命令故障接续同一会话`01a1c385-40f3-74f1-bac7-bb3cd069795e`，提供准确diff/源码完成，无可操作发现、退出0。日志`logs/unit-actions-integration-review-resumed.log`。主体原审查与原生停开证据不重复，见[行动QA](../qa/20261110_unit_actions.md)。
 
-本包最终代码的run `42674488111`已在证据文档提交检查点一次查找登记，headSha `0a0b59a15088f53f762bec13bc20b9145923402b`精确一致，观测为**queued**，不算完整通过。下个真实提交检查点用`python tools/ci.py status --run 42674488111 --sha 0a0b59a15088f53f762bec13bc20b9145923402b`核对一次；不建立等待/轮询。此后只有本包Markdown证据。
+最终代码run **42750266714**已在整合文档提交检查点一次查找，headSha精确为0856eff，观测in_progress，**完整CI待验**。下个真实提交检查点用`python tools/ci.py status --run 42750266714 --sha 0856effd4b2bb135c9bae8f25cccbba0e3def8e0`核一次；不轮询/开等待器。没有活测试或审查handle，没有GitHub结果→聊天自动回调。main后续同代码的push run不冒充该SHA证据。
 
-原`SimWorldEnvironmentFields`接建筑/岩地材质传播、覆顶房间均温及分合连续性、库存/携物/箱体来源、手动/格路实际跨格时刻、植物自然/人工照明及原codec恢复校验。复用Godot场景/signal/呈现、原结算/事件/空间/通用SL，没有第二份原物、房温或世界引擎。当前根55/区域46/环境5/composed_fields_v1，内容包3；旧根1–54明确拒绝，原fixture/用户档保留。
+## 正在执行的Demo反馈
 
-doctor/import、修复后22组3761检查定向、普通Main及独立停开同未来通过；6株180帧P95 16.753ms，不代表密集整机目标。一次Sol/custom主审两项P2已修并补反例，详见[本包QA](../qa/20261109_environment_composition.md)。主体完整check曾3600秒超时并有失败；不能算当前整包完整通过。
+先合入上述历史，再在独立`codex/`分支处理：人身自动跟随及F恢复跟随、预置房间中心格未探索导致眼前外墙不画；缓行只补能采样定位原因的诊断，暂不改结算频率/预算。诊断入口与正式修复分开提交，不向规则代码散布临时print或测试负载。迷雾连续坐标呈现先按范围判断，不以简单提高逐格更新频率冒充平滑解决。
 
-前阶段证据不等于本轮第五阶段通过。不要推送后立即查找/轮询，不运行`ci.py wait`。当前没有CI→聊天自动回调，不声称会唤醒。
+最近普通试玩`logs/run-20261110-111202.log`仅启动信息，无脚本报错或缓行过程数据；F3现有倍率/欠算/时钟耗时不落盘。此前旧QA普通短样本约0.51×，不是当前稳定负载结论。当前未连接可读Godot AI会话，不停止/覆盖用户正在玩的进程或存档。
 
-唯一建设计划仍为[foundation-priorities](../plans/foundation-priorities.md)。第五阶段已获本轮用户授权；第六阶段共同认识不是自动扩域授权，不恢复旧Goal/队列，不重复整包模型审查。
-
-用户优先尽快试玩、通过“用户玩→代理改”迭代。当前可新开山门杂役体验搬运、施工/植物及有限交锋；操作见上方体验链。后续先收集试玩反馈和核对本包完整结果，不自动启动第六阶段或完整战斗/发行包工程。
-
-## 承接证据与保留
-
-事件/植物最终生产`45f140b90aa1fb6d4adbf3d028efac12ae25aa9c`、测试`13d675e6f49be9ebe42a3bd958d9d8ff3be6266b`，CI42596694569在本包提交检查点复用completed/success缓存，256组126555检查；不验证本轮环境代码。通用SL最终生产`d682e030a5e28dfd04a5101bb5f826e37958422b`已在本分支历史。
-
-main保持`f63844b3cd18f92624f58de3749b1fbbcdd32fdd`。旧`codex/field-contest`=`4e17c5c165cf8fca9ef884a111aa1c3ca35f445f`和stash`424f956d280fb390d17e1f6dd879f3614b51a430`保持隔离；不改用户配置/凭据。
+根56/区域47/内容包3/环境5，只支持当前格式，旧原档保留。试玩操作见[体验链](features/playthroughs-and-gaps.md#第一次试玩建议)。本轮不自动开展第6阶段、完整战斗或发行工程；唯一建设计划仍为[foundation-priorities](../plans/foundation-priorities.md)。
