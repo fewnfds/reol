@@ -24,6 +24,8 @@ python tools/diagnose_demo.py --seconds 30 --auto-start --quit-after-capture
 
 压力入口两地各150人，持续使用普通Main原人物、寻路、生活、环境及共同时间；临时人口状态不写玩家档。`--actor-workers 0`与默认4可对照同一Packed数学的串行/线程执行，不能预设后者更快。普通诊断保留原开局；不加`--quit-after-capture`可继续试玩。
 
+压力入口在最终观察位置最多等待15秒地形呈现完成后开始持续运行计时；`terrain_warmup_ms/terrain_warmup_complete`单独记录这段时间。初始化和运行中继续发生的加载仍需各自优化，预热后的样本不能冒充从点击开局起的全程结果。
+
 结果在忽略的`logs/crowd-*`或`logs/demo-profile-*` JSON及JSONL。记录实际世界流速、帧时、结算步骤、批计算准备/采用等；测量本身有开销，单次差异不足以证明收益。先读已测最大成本，保持内容、人数、命令和采样窗口可比。headless只证明CPU/工具路径，画面性能用真实显卡渲染。
 
 默认仅保留帧/区间计时；追加`--profile-kernel`才包裹每个结算步骤，供定位使用。报告明确写`kernel_timing_enabled`；关闭时未测的步骤/残差为null，不能当作零成本。比较吞吐时保持计时模式一致。

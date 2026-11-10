@@ -262,6 +262,8 @@ func finish() -> void:
 		"kernel_timing_enabled": _profile_kernel,
 		"engine": Engine.get_version_info().string, "renderer": RenderingServer.get_video_adapter_name(),
 		"display": DisplayServer.get_name(), "assembly_ms": float(_options.assembly_usec) / 1000.0,
+		"terrain_warmup_ms": float(_options.get("terrain_warmup_usec", 0)) / 1000.0,
+		"terrain_warmup_complete": _options.get("terrain_warmup_complete"),
 		"capture_seconds": (Time.get_ticks_usec() - _started) / 1000000.0,
 		"running_seconds": _running_usec / 1000000.0, "world_ms": _advanced_ms,
 		"requested_world_ms": _requested_ms, "achieved_fraction": _advanced_ms / _requested_ms if _requested_ms > 0.0 else null,

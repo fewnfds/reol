@@ -79,11 +79,6 @@ func _run() -> void:
 	_status.add_theme_font_size_override("font_size", 16)
 	root.title = "Reol / temporary full-world crowd stress / no ordinary saves"
 	_clock.set_paused(true)
-	# Let terrain loading settle before measuring steady play, not before CPU
-	# assembly. The wrapper's finite process timeout covers this warmup too.
-	var until: int = Time.get_ticks_msec() + 15000
-	while (not _main.world._pending_load.is_empty() or _main.world._painting_chunk.x >= 0) and Time.get_ticks_msec() < until:
-		await process_frame
 	if not _opening_wave:
 		# One opening placement of the observer at the real gathering point lets
 		# this demo exercise visible crowd rendering too. NPCs never teleport.
@@ -95,6 +90,16 @@ func _run() -> void:
 		_main.fog.set_focus(at)
 		_main.fog.update_now()
 		_main.camera.global_position = TileGrid.cell_to_world(at)
+	# Settle the FINAL observer location. Warming before moving the camera left
+	# its newly requested terrain inside the alleged steady-state measurement.
+	var warmup_started: int = Time.get_ticks_usec()
+	await process_frame
+	await process_frame
+	var until: int = Time.get_ticks_msec() + 15000
+	while (not _main.world._pending_load.is_empty() or _main.world._painting_chunk.x >= 0 or _main.world._dirty_cursor < _main.world._dirty_order.size()) and Time.get_ticks_msec() < until:
+		await process_frame
+	await process_frame
+	var warmup_complete: bool = _main.world._pending_load.is_empty() and _main.world._painting_chunk.x < 0 and _main.world._dirty_cursor >= _main.world._dirty_order.size()
 	var total: int = 0
 	for region: String in runtime.world_sim.regions:
 		var sim: VillageSimulation = runtime.world_sim.regions[region]
@@ -109,7 +114,8 @@ func _run() -> void:
 	_recorder = load("res://tools/diagnostics/demo_recorder.gd").new()
 	root.add_child(_recorder)
 	_recorder.finished.connect(_finish)
-	if not _recorder.configure(_main, {"seconds": _seconds, "report": _report, "revision": _revision, "dirty": true, "profile_kernel": _profile_kernel, "assembly_usec": Time.get_ticks_usec() - assembly_started}):
+	if not _recorder.configure(_main, {"seconds": _seconds, "report": _report, "revision": _revision, "dirty": true, "profile_kernel": _profile_kernel, "assembly_usec": Time.get_ticks_usec() - assembly_started,
+		"terrain_warmup_usec": Time.get_ticks_usec() - warmup_started, "terrain_warmup_complete": warmup_complete}):
 		quit(1)
 		return
 	_status.text = "临时压力世界 · %d个真实身体 / 双聚落\n原寻路、生活、环境、共同时间 · %s\n不保存到普通档 · WASD / F3 · %d秒采样后%s" % [total, "单次出发" if _opening_wave else "抵达后用原命令持续巡行", _seconds, "退出" if _quit_after else "可继续试玩"]
