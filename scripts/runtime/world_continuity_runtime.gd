@@ -808,7 +808,7 @@ func advance_to_ms(target_ms: int) -> int:
 					_notice = "道路已改变，暂时无法到达目的地。"
 				continue
 		var old_errors: int = world_sim.errors.size()
-		var completed: bool = world_sim.advance_to_ms(end, int(settings.event_budget), work_left, GameClock.frame_budget_exhausted)
+		var completed: bool = world_sim.advance_to_ms(end, int(settings.event_budget), work_left, GameClock.frame_budget_exhausted, GameClock.frame_budget_has_room)
 		work_left -= world_sim.settlement_work
 		cursor = world_sim.settled_ms()
 		if world_sim.has_pending_boundary():

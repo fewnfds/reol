@@ -123,6 +123,10 @@ func frame_budget_exhausted() -> bool:
 	return _frame_deadline_usec > 0 and Time.get_ticks_usec() >= _frame_deadline_usec
 
 
+func frame_budget_has_room(work_usec: int) -> bool:
+	return _frame_deadline_usec == 0 or Time.get_ticks_usec() + work_usec <= _frame_deadline_usec
+
+
 func ready_for_publication(at_ms: int) -> bool:
 	if _frame_deadline_usec == 0:
 		return true # Explicit drivers have no host deadline.
@@ -134,7 +138,7 @@ func ready_for_publication(at_ms: int) -> bool:
 	# Leave room for the measured clock observers. A fresh callback can always
 	# publish even if observers alone exceed the soft budget; no deadlock/debt loss.
 	var reserve: int = mini(_publication_cost_usec, roundi(ReolSimulationPacing.FRAME_BUDGET_USEC * ReolSimulationPacing.HEADROOM))
-	if Time.get_ticks_usec() + reserve <= _frame_deadline_usec:
+	if frame_budget_has_room(reserve):
 		_publication_deferred_at_ms = -1
 		return true
 	_publication_deferred_at_ms = at_ms

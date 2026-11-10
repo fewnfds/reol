@@ -736,7 +736,7 @@ func advance_to(requested_time: int, max_events: int = 4096) -> bool:
 	return advance_to_ms(requested_time * MINUTE_MS, max_events)
 
 
-func advance_to_ms(requested_ms: int, max_events: int = 4096, work_budget: int = MAX_COUNT, should_yield: Callable = Callable()) -> bool:
+func advance_to_ms(requested_ms: int, max_events: int = 4096, work_budget: int = MAX_COUNT, should_yield: Callable = Callable(), plan_has_room: Callable = Callable()) -> bool:
 	if settlement == null or settlement.is_executing() or _native_committing or _publishing_boundary:
 		return false
 	settlement_work = 0
@@ -768,10 +768,21 @@ func advance_to_ms(requested_ms: int, max_events: int = 4096, work_budget: int =
 		if processed >= maxi(0, max_events) or settlement_work >= maxi(0, work_budget) or should_yield.is_valid() and bool(should_yield.call()):
 			return false
 		var next_ms: int = mini(requested_ms, _next_boundary(requested_ms))
+		var last_full_refresh_usec: int = 0
 		for region_id: String in regions:
-			if region_id == active_region or _dirty_region_boundaries.has(region_id) or regions[region_id].boundary_dependencies_changed():
-				_region_boundaries[region_id] = regions[region_id].next_world_boundary_ms()
+			var simulation: VillageSimulation = regions[region_id]
+			if region_id == active_region or _dirty_region_boundaries.has(region_id) or simulation.boundary_dependencies_changed():
+				var rebuilding: bool = elapsed_ms == 0 and plan_has_room.is_valid() and simulation.has_unbuilt_opening_deadlines()
+				# All regions must be ready before selecting one logical time. A
+				# completed index stays reusable if another large refresh will not
+				# fit; no new interval or gameplay effect has been accepted yet.
+				if rebuilding and last_full_refresh_usec > 0 and not bool(plan_has_room.call(last_full_refresh_usec)):
+					return false
+				var started: int = Time.get_ticks_usec() if rebuilding else 0
+				_region_boundaries[region_id] = simulation.next_world_boundary_ms()
 				_dirty_region_boundaries.erase(region_id)
+				if rebuilding:
+					last_full_refresh_usec = maxi(1, Time.get_ticks_usec() - started)
 			next_ms = mini(next_ms, int(_region_boundaries[region_id]))
 		# Numeric/ledger exhaustion must leave all original clocks and bodies at
 		# the last accepted boundary. Keep target_ms as explicit owed work.

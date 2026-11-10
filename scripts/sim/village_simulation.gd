@@ -599,6 +599,12 @@ func boundary_dependencies_changed() -> bool:
 	return _boundary_revision_provider.is_valid() and int(_boundary_revision_provider.call()) != _boundary_revision
 
 
+func has_unbuilt_opening_deadlines() -> bool:
+	# Only initial derived work can be staged before interval admission.
+	# Later revisions may synchronize existing routes and emit consequences.
+	return elapsed_ms == 0 and _all_projected_ms == 0 and not _boundary_index_ready
+
+
 func next_boundary_tick() -> int:
 	return maxi(tick_index + 1, ceili(float(next_boundary_ms()) / MINUTE_MS))
 
