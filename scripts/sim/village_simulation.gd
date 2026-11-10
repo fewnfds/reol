@@ -97,6 +97,9 @@ var _boundary_revision_provider: Callable
 var _boundary_revision: int = -1
 var _actor_boundaries: Dictionary[String, int] = {}
 var _route_continuations: Dictionary[String, bool] = {}
+var native_route_events_enabled: bool = false
+var _route_completions: Dictionary[String, Dictionary] = {}
+var _route_geometry_revision_provider: Callable
 var _boundary_index := SimParticipationIndex.new()
 var _boundary_index_ready: bool = false
 var _dirty_actor_boundaries: Dictionary[String, bool] = {}
@@ -105,6 +108,7 @@ var _dirty_actor_boundaries: Dictionary[String, bool] = {}
 var _actor_work_changes: Array[String] = []
 var _collect_actor_work_changes: bool = false
 const NATIVE_BOUNDARY: StringName = &"native_action"
+const NATIVE_EFFECT: StringName = &"native_effect"
 var _next_actor_boundary: int = -1
 var _navigation: Callable
 var _step_validator: Callable
@@ -163,6 +167,7 @@ func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary,
 		return false
 	_content = content
 	_native_advance = null
+	_route_completions.clear()
 	_collect_actor_work_changes = false
 	_actor_work_changes.clear()
 	invalidate_boundary_cache()
@@ -249,6 +254,7 @@ func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary,
 
 func set_navigation(provider: Callable, step_validator: Callable = Callable()) -> void:
 	synchronize_actors()
+	_route_completions.clear()
 	rebuild_workplace_geometry()
 	invalidate_boundary_cache()
 	_navigation = provider
@@ -344,7 +350,7 @@ func step() -> void:
 	advance_to_ms((tick_index + 1) * MINUTE_MS)
 
 
-func next_boundary_ms() -> int:
+func next_boundary_ms(effects_only: bool = false) -> int:
 	var boundary: int = land_resources.next_boundary_ms()
 	var cached: bool = _boundary_revision_provider.is_valid()
 	if cached:
@@ -353,11 +359,9 @@ func next_boundary_ms() -> int:
 			synchronize_actors()
 			invalidate_boundary_cache()
 			_boundary_revision = revision
-	if cached and _next_actor_boundary > elapsed_ms:
-		boundary = mini(boundary, _next_actor_boundary)
-	else:
+	if not cached or _next_actor_boundary <= elapsed_ms:
 		_next_actor_boundary = _query_actor_boundary(cached)
-		boundary = mini(boundary, _next_actor_boundary)
+	boundary = mini(boundary, _boundary_index.next_due_ms(NATIVE_EFFECT, SimInventory.MAX_COUNT) if cached and effects_only and native_route_events_enabled else _next_actor_boundary)
 	var scenario: Dictionary = config.scenario
 	var definition: Dictionary = config.actions[scenario.task]
 	var shortage: bool = inventory.quantity(definition.target, definition.item) == 0
@@ -371,8 +375,66 @@ func next_boundary_ms() -> int:
 	return maxi(elapsed_ms + 1, boundary)
 
 
+func next_world_boundary_ms() -> int:
+	return next_boundary_ms(true)
+
+
+func accept_native_route(id: String, route: Dictionary) -> void:
+	if not native_route_events_enabled or not _boundary_revision_provider.is_valid():
+		return
+	# Only a freshly found/repaired route has a proof for ALL remaining legs.
+	# After an intersecting topology revision an old path keeps local boundaries
+	# until it is repaired or replaced, even if its first leg is still open.
+	var result: int = int(route.due_ms)
+	var speed: float = float(motion_rules.motion.speed)
+	var cells: Dictionary[Vector2i, bool] = {}
+	var previous: Vector2i = TileGrid.world_to_cell(Vector2(float(route.segment_from[0]), float(route.segment_from[1])))
+	cells[previous] = true
+	for raw: Array in route.path:
+		var at: Vector2i = SimRouteTravel.cell(raw)
+		cells[at] = true
+		if previous.x != at.x and previous.y != at.y:
+			cells[Vector2i(previous.x, at.y)] = true
+			cells[Vector2i(at.x, previous.y)] = true
+		previous = at
+	for index: int in range(1, route.path.size()):
+		var from: Vector2 = TileGrid.cell_to_world(SimRouteTravel.cell(route.path[index - 1]))
+		var to: Vector2 = TileGrid.cell_to_world(SimRouteTravel.cell(route.path[index]))
+		result += maxi(1, ceili(from.distance_to(to) / speed * 1000.0))
+	_route_completions[id] = {"route": route, "at_ms": result, "cells": cells, "revision": _route_geometry_revision()}
+
+
+func set_route_geometry_revision_provider(provider: Callable) -> void:
+	_route_completions.clear()
+	_route_geometry_revision_provider = provider
+
+
+func _route_geometry_revision() -> int:
+	return int(_route_geometry_revision_provider.call()) if _route_geometry_revision_provider.is_valid() else int(_boundary_revision_provider.call())
+
+
+func update_native_route_geometry(cells: Array[Vector2i], previous_revision: int, next_revision: int) -> void:
+	if cells.is_empty():
+		return # Unknown coverage keeps every previous proof stale.
+	for completion: Dictionary in _route_completions.values():
+		if int(completion.revision) != previous_revision:
+			continue
+		var intersects: bool = false
+		for cell: Vector2i in cells:
+			if completion.cells.has(cell):
+				intersects = true
+				break
+		if not intersects:
+			completion.revision = next_revision
+
+
+func invalidate_native_route_completion(id: String) -> void:
+	_route_completions.erase(id)
+
+
 func _query_actor_boundary(cached: bool) -> int:
 	var boundary: int = SimInventory.MAX_COUNT
+	var geometry_revision: int = _route_geometry_revision() if cached and native_route_events_enabled else -1
 	var ids: Array = []
 	if cached and _boundary_index_ready:
 		var pending: Dictionary = _dirty_actor_boundaries.duplicate()
@@ -385,9 +447,11 @@ func _query_actor_boundary(cached: bool) -> int:
 	for id: String in ids:
 		var actor: Dictionary = _actors[id]
 		var actor_boundary: int = SimInventory.MAX_COUNT
+		var effect_boundary: int = SimInventory.MAX_COUNT
 		if not bool(actor.alive):
 			if cached:
 				_boundary_index.cancel_due(NATIVE_BOUNDARY, id)
+				_boundary_index.cancel_due(NATIVE_EFFECT, id)
 				_dirty_actor_boundaries.erase(id)
 			continue
 		if not actor.active.is_empty():
@@ -398,12 +462,23 @@ func _query_actor_boundary(cached: bool) -> int:
 				actor_boundary = elapsed_ms + 1
 			else:
 				actor_boundary = _executor.next_boundary_ms(actor)
+			var completion: Dictionary = _route_completions.get(id, {})
+			if allowed and native_route_events_enabled and actor.active.get("phase") == "travel" and not completion.is_empty() and is_same(completion.route, actor.active) and int(completion.revision) == geometry_revision:
+				effect_boundary = mini(int(completion.at_ms), int(actor.active.started_ms) + int(config.action_timeout) * MINUTE_MS + 1)
+			else:
+				effect_boundary = actor_boundary
+				if actor.active.get("phase") != "travel":
+					_route_completions.erase(id)
 		elif bool(actor.autonomous):
 			actor_boundary = maxi(elapsed_ms + 1, int(actor.retry_ms))
+			effect_boundary = actor_boundary
+			_route_completions.erase(id)
 		if cached:
 			_actor_boundaries[id] = actor_boundary
 			_boundary_index.set_member(NATIVE_BOUNDARY, id)
 			_boundary_index.set_due(NATIVE_BOUNDARY, id, actor_boundary)
+			_boundary_index.set_member(NATIVE_EFFECT, id)
+			_boundary_index.set_due(NATIVE_EFFECT, id, effect_boundary)
 			_dirty_actor_boundaries.erase(id)
 		boundary = mini(boundary, actor_boundary)
 	if cached:
@@ -418,6 +493,7 @@ func set_boundary_revision_provider(provider: Callable) -> void:
 	# reused until due; this is not a second action state or saved schedule.
 	synchronize_actors()
 	_boundary_revision_provider = provider
+	_route_completions.clear()
 	_boundary_revision = -1
 	invalidate_boundary_cache()
 
@@ -442,6 +518,8 @@ func invalidate_actor_boundary(id: String) -> void:
 	_route_continuations.erase(id)
 	_dirty_actor_boundaries[id] = true
 	_next_actor_boundary = -1
+	if _route_completions.has(id) and not is_same(_route_completions[id].route, _actors.get(id, {}).get("active", {})):
+		_route_completions.erase(id)
 
 
 func has_cached_boundary_ahead(id: String) -> bool:
@@ -711,6 +789,7 @@ func synchronize_actors() -> Dictionary:
 
 func _reset_actor_projections() -> void:
 	_cancel_actor_advance()
+	_route_completions.clear()
 	_actor_projection_ms.clear()
 	_projecting_actors.clear()
 	for id: String in _actors:
@@ -947,6 +1026,8 @@ func projected_actor_position(id: String) -> Vector2:
 
 func set_actor_position(id: String, point: Vector2) -> void:
 	synchronize_actor(id)
+	if SimRouteTravel.point(_actors[id]) != point:
+		invalidate_native_route_completion(id)
 	invalidate_actor_boundary(id)
 	var before: Vector2i = SimRouteTravel.cell(_actors[id].cell)
 	SimRouteTravel.put(_actors[id], point)
@@ -975,6 +1056,7 @@ func project_actor_route(id: String, route: Dictionary, at_ms: int, batch: SimAc
 
 func notify_body_space_changed(id: String) -> void:
 	# Manual motion writes the same original body, notifying on cell crossings.
+	invalidate_native_route_completion(id)
 	invalidate_actor_boundary(id)
 	_stock_dirty_actors[id] = true
 	body_space_changed.emit(id)

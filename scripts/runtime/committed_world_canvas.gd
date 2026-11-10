@@ -53,13 +53,15 @@ func redraw_committed_canvas(publish: bool = false) -> void:
 
 func refresh_committed_canvas() -> bool:
 	var world: RefCounted = _current_canvas_world()
+	var cleared: bool = false
 	if world == null or (_canvas_world != null and _canvas_world.get_ref() != world):
+		cleared = _canvas_world != null or not _canvas_commands.is_empty()
 		_canvas_commands.clear()
 		_canvas_world = null
 		_canvas_at_ms = -1
 		_canvas_input_key = null
 	if not _world_is_complete(world):
-		return false
+		return cleared # Also remove native draw commands belonging to a retired world.
 	var input_key: Variant = _committed_canvas_input_key()
 	if input_key != null and _canvas_world != null and input_key == _canvas_input_key:
 		return false

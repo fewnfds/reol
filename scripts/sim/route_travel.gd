@@ -149,5 +149,8 @@ static func repair(sim: VillageSimulation, actor: String, route: Dictionary, now
 	if not point(body).is_equal_approx(TileGrid.cell_to_world(from)):
 		encoded.push_front([from.x, from.y])
 	route.path = encoded
+	sim.invalidate_native_route_completion(actor)
 	begin_segment(route, body, now, float(sim.motion_rules.motion.speed) if speed < 0.0 else speed)
+	if is_same(sim.actor_state(actor).active, route):
+		sim.accept_native_route(actor, route)
 	return true

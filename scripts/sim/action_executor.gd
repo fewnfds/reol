@@ -54,7 +54,7 @@ func begin(actor_id: String, action_id: String, request_id: String = "", request
 			if missing > 0 and not _reserve(action, actor_id, destination, item, missing):
 				_release(action)
 				return false
-	if not _route(actor, action, destination):
+	if not _route(actor_id, actor, action, destination):
 		_release(action)
 		actor.goal = "路途不通，稍后再试"
 		return false
@@ -136,7 +136,7 @@ func _reserve(action: Dictionary, owner: String, container: String, item: String
 	return true
 
 
-func _route(actor: Dictionary, action: Dictionary, place_id: String) -> bool:
+func _route(actor_id: String, actor: Dictionary, action: Dictionary, place_id: String) -> bool:
 	var start := Vector2i(int(actor.cell[0]), int(actor.cell[1]))
 	var data: Array = _sim.places[place_id].cell
 	var target := Vector2i(int(data[0]), int(data[1]))
@@ -153,6 +153,7 @@ func _route(actor: Dictionary, action: Dictionary, place_id: String) -> bool:
 	if not point.is_equal_approx(TileGrid.cell_to_world(start)):
 		action.path.push_front([start.x, start.y])
 	_begin_segment(actor, action)
+	_sim.accept_native_route(actor_id, action)
 	return true
 
 
@@ -182,7 +183,7 @@ func _arrive(actor_id: String, actor: Dictionary, action: Dictionary) -> void:
 		action.reservations.clear()
 		action.carrying = true
 		_sim.observe("picked_up", actor_id, "", {"item": definition.item, "amount": definition.amount})
-		if not _route(actor, action, definition.target):
+		if not _route(actor_id, actor, action, definition.target):
 			cancel(actor_id, "route_blocked")
 		return
 	if (kind == "consume" and not bool(action.carrying)) or kind == "recipe":
@@ -235,7 +236,7 @@ func _finish(actor_id: String, actor: Dictionary, action: Dictionary) -> void:
 		action.reservations.clear()
 		action.carrying = true
 		_sim.observe("picked_up", actor_id, "", {"item": definition.item, "amount": definition.amount})
-		if not _route(actor, action, definition.target):
+		if not _route(actor_id, actor, action, definition.target):
 			cancel(actor_id, "route_blocked")
 		return
 	var succeeded: bool = true

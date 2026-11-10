@@ -92,8 +92,8 @@ static func from_job(world: RegionalSimulation, domain: String, job: Dictionary,
 	return view(world, domain, str(job.get("id", domain + ":" + actor)), actor, intent, str(job.get("phase", "work")), int(job.get("started_ms", world.elapsed_ms)), int(job.get("due_ms", world.elapsed_ms)), status, target)
 
 
-static func job_finished(world: RegionalSimulation, domain: String, job: Dictionary, actor: String, status: String, reason: String = "") -> void:
-	publish_finished(world, from_job(world, domain, job, actor, status), reason if not reason.is_empty() else status)
+static func job_finished(world: RegionalSimulation, domain: String, job: Dictionary, actor: String, status: String, reason: String = "", at_ms: int = -1) -> void:
+	publish_finished(world, from_job(world, domain, job, actor, status), reason if not reason.is_empty() else status, at_ms)
 
 
 static func view(world: RegionalSimulation, domain: String, id: String, actor: String, intent: String, phase: String, started: int, due: int, status: String, target: String) -> Dictionary:
@@ -102,12 +102,15 @@ static func view(world: RegionalSimulation, domain: String, id: String, actor: S
 		"remaining_ms": maxi(0, due - world.elapsed_ms) if status == "active" else 0, "status": status, "target": target}
 
 
-static func publish_finished(world: RegionalSimulation, outcome: Dictionary, reason: String) -> void:
+static func publish_finished(world: RegionalSimulation, outcome: Dictionary, reason: String, at_ms: int = -1) -> void:
 	# Transient, recursively detached scalar projection; no saved history. The
 	# original owner has completed effects, erased active membership and released
 	# reservations before observers run.
 	var notice: Dictionary = outcome.duplicate(true)
 	notice["reason"] = reason
-	notice["finished_ms"] = world.elapsed_ms
+	# A native owner can finish while the shared interval is still executing.
+	# Its logical effect time is authoritative; publication still waits for commit.
+	notice["finished_ms"] = world.elapsed_ms if at_ms < 0 else at_ms
+	notice["world_time_ms"] = notice["finished_ms"]
 	notice.make_read_only()
 	world.publish_action_finished(notice)

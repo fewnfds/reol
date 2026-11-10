@@ -562,6 +562,7 @@ func configure_services(definitions: Dictionary) -> bool:
 func _bind_service_guards() -> void:
 	var owner: WeakRef = weakref(self)
 	for simulation: VillageSimulation in regions.values():
+		var native_owner: WeakRef = weakref(simulation)
 		simulation.set_control_guard(func(actor_id: String, channel: String) -> bool:
 			var authority: RefCounted = owner.get_ref()
 			return authority != null and authority.actor_controls(actor_id, channel))
@@ -582,11 +583,12 @@ func _bind_service_guards() -> void:
 			return "" if authority == null else authority.standing_work.duty_for(actor_id, at_ms))
 		simulation.set_labor_observer(func(stage: String, actor_id: String, action: Dictionary, event: String) -> String:
 			var authority: RefCounted = owner.get_ref()
-			if authority == null:
+			var native: VillageSimulation = native_owner.get_ref()
+			if authority == null or native == null:
 				return ""
 			var result: String = authority.budgeted_labor.native_event(stage, actor_id, action, event)
 			if stage in ["finish", "fail"]:
-				SimActionContract.job_finished(authority, "native", action, actor_id, "completed" if stage == "finish" else "cancelled", stage)
+				SimActionContract.job_finished(authority, "native", action, actor_id, "completed" if stage == "finish" else "cancelled", stage, native.elapsed_ms)
 			return result)
 		simulation.set_initiative_provider(func(actor_id: String, at_ms: int) -> bool:
 			var authority: RefCounted = owner.get_ref()
@@ -764,7 +766,7 @@ func advance_to_ms(requested_ms: int, max_events: int = 4096, work_budget: int =
 		var next_ms: int = mini(requested_ms, _next_boundary(requested_ms))
 		for region_id: String in regions:
 			if region_id == active_region or _dirty_region_boundaries.has(region_id) or regions[region_id].boundary_dependencies_changed():
-				_region_boundaries[region_id] = regions[region_id].next_boundary_ms()
+				_region_boundaries[region_id] = regions[region_id].next_world_boundary_ms()
 				_dirty_region_boundaries.erase(region_id)
 			next_ms = mini(next_ms, int(_region_boundaries[region_id]))
 		# Numeric/ledger exhaustion must leave all original clocks and bodies at
@@ -782,7 +784,7 @@ func advance_to_ms(requested_ms: int, max_events: int = 4096, work_budget: int =
 		_native_regions.clear()
 		_native_region_cursor = 0
 		for region_id: String in _sorted_keys(regions):
-			if region_id == active_region or int(_region_boundaries[region_id]) <= next_ms:
+			if region_id == active_region or int(_region_boundaries[region_id]) <= next_ms or regions[region_id].next_boundary_ms() <= next_ms:
 				_native_regions.append(region_id)
 		if not settlement.begin(old_ms, next_ms):
 			errors.append("Settlement boundary could not begin")
@@ -812,7 +814,7 @@ func _settle_native_interval(next_ms: int, _budget: int) -> Vector2i:
 				return Vector2i(1, SimSettlementKernel.Status.PENDING)
 			errors.append("Regional executor could not reach its next boundary")
 			return Vector2i(1, SimSettlementKernel.Status.FAILED)
-		_region_boundaries[region_id] = simulation.next_boundary_ms()
+		_region_boundaries[region_id] = simulation.next_world_boundary_ms()
 		_dirty_region_boundaries.erase(region_id)
 		_native_region_cursor += 1
 	_native_regions.clear()
@@ -878,7 +880,7 @@ func synchronize_region(region_id: String, actor_id: String = "") -> bool:
 		return true
 	if not simulation.advance_to_ms(elapsed_ms):
 		return false
-	_region_boundaries[region_id] = simulation.next_boundary_ms()
+	_region_boundaries[region_id] = simulation.next_world_boundary_ms()
 	_dirty_region_boundaries.erase(region_id)
 	if actor_id.is_empty():
 		simulation.synchronize_actors()
