@@ -23,12 +23,19 @@ class OriginalJobs extends RefCounted:
 	var events: Array[Dictionary] = []
 
 
+class Region extends RefCounted:
+	var actors: Dictionary = {"player": {"qi": 0}}
+
+	func synchronize_actors() -> Dictionary:
+		return actors
+
+
 class Authority extends RefCounted:
 	var elapsed_ms: int = 1000
 	var conflicts: Costs = Costs.new()
 	var artifacts: OriginalJobs = OriginalJobs.new()
 	var soul_vessels: OriginalJobs = OriginalJobs.new()
-	var regions: Dictionary = {"home": {"actors": {"player": {"qi": 0}}}}
+	var regions: Dictionary = {"home": Region.new()}
 
 
 class Context extends RefCounted:

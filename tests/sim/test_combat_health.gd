@@ -40,6 +40,8 @@ class RegionStub extends RefCounted:
 		return actors.has(id)
 	func actor_state(id: String) -> Dictionary:
 		return actors.get(id, {})
+	func synchronize_actor(id: String) -> Dictionary:
+		return actor_state(id)
 
 
 class WorldStub extends RefCounted:

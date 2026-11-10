@@ -74,6 +74,10 @@ func _world(runner: Object, spawn: bool = true) -> RegionalSimulation:
 		return null
 	var slots := Slots.new()
 	world.field_opportunities = slots
+	# The compiled plan binds original owners, like production restore does.
+	if not world._bind_settlement():
+		runner.assert_true(false, "field location fixture binds its actual settlement owner")
+		return null
 	world.bind_map_data(FieldGeometry.new())
 	if spawn:
 		slots.enabled = true

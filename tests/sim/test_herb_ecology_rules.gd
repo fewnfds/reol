@@ -26,6 +26,9 @@ class Authority extends RefCounted:
 	func actor_state(id: String) -> Dictionary:
 		return actors.get(id, {})
 
+	func synchronize_actor(id: String) -> Dictionary:
+		return actor_state(id)
+
 
 	func actor_position(body: Dictionary) -> Vector2:
 		return TileGrid.cell_to_world(Vector2i(int(body.cell[0]), int(body.cell[1])))

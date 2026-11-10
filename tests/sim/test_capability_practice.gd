@@ -237,6 +237,7 @@ func _midwalk_stop(runner: Object, cause: String) -> void:
 	if cause == "health":
 		runner.assert_true(gate.initialize(world, world.health.definitions), "isolated health permission uses original valid health rules")
 		world.health = gate
+		runner.assert_true(world._bind_settlement(), "test health replacement rebinds the original settlement owners")
 	var domain: RefCounted = world.capability_practice
 	var person: Dictionary = domain.body("chen_shouzhuo")
 	var qi: int = int(person.qi)
