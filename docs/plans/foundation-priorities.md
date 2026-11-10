@@ -1,12 +1,12 @@
 # 世界基础架构建设与改造计划
 
-基础建设唯一计划。职责见[领域归属](../engineering/architecture/05-framework-domains.md)，实际能力/缺口见[技术总表](../status/technical-status.md)，授权与停点见[HANDOFF](../status/handoff.md)，准确证据见[BASELINE](../status/baseline.md)。计划不代表已实现，也不自动授权开发。
+基础建设唯一计划。职责见[领域归属](../engineering/architecture/05-framework-domains.md)，能力/缺口见[技术总表](../status/technical-status.md)，授权/停点见[HANDOFF](../status/handoff.md)，证据见[BASELINE](../status/baseline.md)。计划不代表实现或授权。
 
 ## 计划层级与共同依赖
 
-**顶层框架目标 → 模块职责/接口 → 内部实现与验证。** 内部算法、修复与优化归原模块，按普通入口、不同内容复用及跨域结果验收，不为每个小算法建立主计划。已授权框架内的小步不自动成为停止或重新确认边界。
+**顶层框架 → 模块职责/接口 → 实现与验证。** 算法/优化归原模块，验收覆盖普通入口、内容复用及跨域结果；授权框架内的小步不自动成为停止或确认边界。
 
-参考[架构研究](../../design/research/colony_sim_architecture.md)及[自然地块研究](../../design/research/natural_world_workplace_sources.md)，复用定义/实例/能力、设施组合、可中断过程及变化通知；公开玩法不证明内部实现。保留原owner与共同时间，不预建全量ECS或全事件重放。
+参考[架构研究](../../design/research/colony_sim_architecture.md)及[自然地块研究](../../design/research/natural_world_workplace_sources.md)，复用定义/实例/能力、设施组合、可中断过程及通知。玩法不证明内部实现；保留原owner/共同时间，不预建全量ECS或事件重放。
 
 空间支撑建筑/植物，环境与生命反馈，行动/观察从首次可作用时参与。沿[共同结算合同](../engineering/settlement-contract.md)确定依赖、同刻顺序及完整发布；预算不足保留工作并主动降速，不冻结远区或丢时间。
 
@@ -24,17 +24,17 @@
 
 ## 当前优先：共同运行与规模
 
-先完成现有框架的规模出口，再扩大第6阶段。[人口与架构调查](../qa/20261110_performance_architecture_audit.md)支持以下顺序。共同运行与原身体执行在工作分支落实，准确状态看HANDOFF/BASELINE；后两包待实现。
+先完成规模出口，再扩大第6阶段。[架构](../qa/20261110_performance_architecture_audit.md)与[CPU调查](../qa/20261110_runtime_cpu_root_cause.md)支持以下顺序。显式同步与条件执行已在分支；局部边界仍驱动完整计划，规模未达标。状态看HANDOFF/BASELINE。
 
 | 框架交付 | 主要owner与改造范围 | 出口 |
 |---|---|---|
-| 共同运行与原身体执行 | `RegionalSimulation`、`SimSettlementKernel`、`VillageSimulation`、`SimActionExecutor`；按到期/变脏和依赖唤醒领域，动作/重试复用原索引；推进显式同步，读取不发业务通知 | 同一时间/阶段/积压；固定输入与游戏时长测有效工作，不再每人跨格重跑所有域/全员筛选；分片、中断、争用及存读同未来 |
-| 空间与行动的导航接入 | `SimGridNavigation`、`SimMotionClearance`及原空间owner；比较原生搜索的几何复用、按移动能力/净空的局部失效；共同目标密集时比较共享flow field | 普通不同目标、动态墙门、多格身体仍成立，返回路径与实际执行均复核；以全游戏时间收益选择算法，不把插件独立跑分当收益 |
-| 呈现与联合规模 | `WorldContinuityRuntime`、`VillageRuntime`及原视图；同次发布复用布局、局部可见/改变集合驱动投影，按draw calls/CPU/GPU证据选择池化或原生批绘 | 发布版原生100/300人持续真实移动，分别记录1×流速、帧P95/P99及积压；以60FPS、300人正常流速为本轮改造目标，联合拓扑变化/交互与停开。开发机结果和16GB/RTX3060目标分别声明 |
+| 共同运行与原身体执行 | `RegionalSimulation`、`SimSettlementKernel`、`VillageSimulation`、`SimActionExecutor`；局部变化仅标记依赖，消费者按需读取/按输入段积分；到期效应入原队列，持续运动按有界步；不逐局部边界遍历全计划 | 同一时间/阶段/积压；固定游戏时长核对调度、物化与有效工作总成本；分片、中断、争用及存读同未来 |
+| 空间与行动的导航接入 | `SimGridNavigation`、`SimMotionClearance`及地块/空间owner；复用静态地形/通行数据，动态障碍按能力/净空/局部revision复核；共同目标比较flow field，批查询评估多核 | 不同目标、动态墙门、多格身体成立，结果与执行均复核；减少边过滤重复查询，以全游戏收益选择 |
+| 呈现与联合规模 | `WorldContinuityRuntime`、`VillageRuntime`及原视图；发布时复用布局，局部可见/改变集合驱动投影，按CPU/GPU证据选择池化或原生批绘 | 发布版100/300人持续移动，记录流速、帧P95/P99及积压；目标300人1×/60FPS，联合拓扑/交互与停开；开发机和16GB/RTX3060分别声明 |
 
-沿已有公共窗口组合多频率/到期任务与局部有序事件，优先保留精确顺序，退役隐式getter/旧轮询。动作量化、低频采样或环境近似须声明新精度/误差，不借卡顿改顺序、冻结远区或丢积压。
+沿公共窗口组合多频率/到期任务与局部有序事件。精确事件不要求全世界在每个局部时刻物化；动作量化、低频采样或环境近似须声明精度/误差，不冻结远区或丢积压。
 
-Godot负责原生搜索/几何/渲染，项目负责业务时间/仲裁；不先迁全量ECS或换引擎。插件按瓶颈/兼容选取，存读复用既有登记。
+Godot负责搜索/几何/渲染/线程池，项目负责时间/仲裁。多核采用只读版本快照、独立worker、原顺序复核提交，过期重算，不并写活世界。GPU须由批量场负载证明端到端收益，含准备/传输/回读；独立cache不算普通世界已加速。存读复用原登记。
 
 ## 统一交付顺序
 

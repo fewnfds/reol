@@ -88,6 +88,12 @@ Windows/D3D12 Forward+、同一开发机/引擎，`python tools/stress_demo.py -
 
 ## 提交与待验
 
-最终生产/测试提交`4ee88d7617a232e50e6e6a9ee949f7b137dff1fd`包含主体与上述主审修正；之后只修改证据/状态文档。交付分支`codex/sparse-runtime-dispatch`，未自动合main。最终结构检查336份当前文档/522份脚本、0错误；差异空白、凭据/生成物检查通过，临时插桩/截图/报告均未入库。
+原生产/测试提交`4ee88d7617a232e50e6e6a9ee949f7b137dff1fd`包含主体与上述主审修正；当次交付HEAD1879f0c只追加证据/状态文档。分支`codex/sparse-runtime-dispatch`未自动合main。当次结构检查336份当前文档/522份脚本、0错误；差异空白、凭据/生成物检查通过，临时插桩/截图/报告均未入库。
 
-本包完整CI待最终推送SHA，尚未查询新run，不轮询/后台wait。旧main839ff88的CI42776609463 success在提交准备点复用终态缓存，仅证明旧main；本包不能继承为已通过。当前没有活引擎、测试或审查handle；下一工作包仍沿原计划处理空间导航与联合呈现，300人1×/60FPS目标未达。
+后续CPU调查文档的真实提交准备点，一次发现[CI42828875579](https://github.com/fewnfds/reol/actions/runs/42828875579)，完整headSha为`1879f0c9cbf43d5e06f66cd68bc86b7308df1abe`，已completed/failure。集中获取失败日志到`logs/root-cause-ci-42828875579-failed.log`；不是性能超时。6个失败组涉及3个未迁移的最小模拟替身，以及2个替换领域owner但未重绑编译计划的夹具，产生61条脚本错误及后续断言失败。普通恢复路径已有结算重新绑定，未发现同一装配缺口。
+
+独立修补`8cd155ed5ef3c7281c3106ee903eccaf3583b5eb`只改5份测试脚本：账本fixture用最小Region提供`synchronize_actors()`；健康/土壤替身提供`synchronize_actor()`；野外器物和修炼测试替换领域后调用原`_bind_settlement()`。没有删断言或改变运行规则，未新增测试组。原6个失败组在同一命令通过：`test_capability_practice`、`test_combat_health`、`test_combat_qi_ledger`、`test_field_artifacts`、`test_health_participation`、`test_herb_ecology_rules`，共821检查/0失败、包装器退出0，约59.5秒；日志`test-20261110-221322.log`与`test-timings-1794320002724299400.jsonl`。
+
+该修补由主代理启动一次精确提交原生审查，model=gpt-6.1-sol、provider=custom。首段因宿主`registered Core launch requires an installed app`未读到diff，不计通过；随后恢复同一会话`01a1c5d0-236e-7002-93c6-64e75681febe`，提供精确Git差异、5份目标完整文件和相关生产源码，实际静态分析完成，退出0，无可执行发现。恢复段未调用工具/测试/引擎或递归审查；日志`root-cause-fixture-review-20261110.log`与`root-cause-fixture-review-resumed-20261110.log`。主代理未因审查重跑已通过的6组。
+
+修补后的完整CI待最终推送SHA，不把定向与旧main绿色拼成完整通过。当前性能去向、线程CPU与重复查询实验见[根因调查](20261110_runtime_cpu_root_cause.md)；300人1×/60FPS仍未达标。

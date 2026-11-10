@@ -8,7 +8,7 @@
 
 人物与镜头在完整坐标间连续显示；真实压力Demo持续沿原行动巡行。最终原生100/300人20秒约0.963/0.408×，帧P95约16.633/26.376ms，均无world_errors；百级稳定1×仍欠缺。7组603、最终守卫7组1074及主审修复3组357检查通过，同一次Sol/custom静态主审已完成；早期固定游戏10秒6188→4674ms且联合未来相同，范围见[压力QA](../qa/20261110_presentation_crowd.md)。
 
-`codex/sparse-runtime-dispatch`最终生产/测试4ee88d7落实显式同步/纯查询、到期及失效人物筛选与领域工作条件。多次固定负载整个快照一致，但耗时波动、300人末次更慢8.34%，不能称稳定提速；原生规模仍未达标。一次Sol/custom主审的P2累计dirty平方扫描已先红后绿修复。定向、原生独立停开及最终SHA/CI见[共同运行QA](../qa/20261110_sparse_runtime_dispatch.md)；完整回归待本包SHA，不沿用主线绿色。前[架构调查](../qa/20261110_performance_architecture_audit.md)为旧版研究。
+共同运行分支生产4ee88d7提供显式同步/纯查询、到期/失效人物集合与领域工作条件；末次300人反而慢8.34%，规模未达标。[CPU调查](../qa/20261110_runtime_cpu_root_cause.md)确认单线程热点及84.81%重复通行查询，普通模拟尚未多核/GPU加速。原head1879f0c的[CI42828875579](https://github.com/fewnfds/reol/actions/runs/42828875579)为failure；夹具修补8cd155e后6组821检查通过，完整CI待最终推送SHA。[共同运行QA](../qa/20261110_sparse_runtime_dispatch.md)记录主审、原生、停开与独立修补范围。
 
 前缓行修复b364870、FPS修复ac3dca3、镜头/外墙87262ff及独立诊断aa4f1a1均有各自准确SHA完整CI成功记录，详见[Demo QA](../qa/20261110_demo_feedback.md)与压力QA。连续坐标迷雾仍未实现；这些历史记录不代表全部密度已验收。
 
