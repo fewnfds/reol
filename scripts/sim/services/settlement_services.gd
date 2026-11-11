@@ -355,7 +355,7 @@ func response(ok: bool, reason: String, line: String, id: String = "") -> Dictio
 
 
 func to_dict() -> Dictionary:
-	return world._json_keys({
+	return SnapshotValues.for_save({
 		"version": 5, "definitions": definitions.duplicate(true), "jobs": jobs.duplicate(true),
 		"active_jobs": active_jobs.duplicate(true), "receipts": receipts.duplicate(true),
 		"authorizations": authorizations.duplicate(true), "help_requests": help_requests.duplicate(true),

@@ -171,7 +171,7 @@ static func _job(actor: String, job: Variant, data: Dictionary, domain: RefCount
 	if job.phase == "travel":
 		var current: Vector2i = SimRouteTravel.cell(body.cell)
 		for raw: Variant in job.path:
-			if not Shape.cell_valid(raw) or raw[0] >= ReolWorld.WORLD_SIZE or raw[1] >= ReolWorld.WORLD_SIZE:
+			if not Shape.cell_valid(raw) or raw[0] >= WorldMapData.WORLD_SIZE or raw[1] >= WorldMapData.WORLD_SIZE:
 				return false
 			var next: Vector2i = SimRouteTravel.cell(raw)
 			if absi(next.x - current.x) > 1 or absi(next.y - current.y) > 1:

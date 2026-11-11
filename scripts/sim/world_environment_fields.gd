@@ -61,7 +61,7 @@ var world: RegionalSimulation:
 
 
 func initialize(authority: RegionalSimulation, rules: Dictionary) -> bool:
-	if _owner != null or authority == null or authority._content == null or authority._content.environment_sources == null or not SimLocalHeat.valid_definitions(rules):
+	if _owner != null or authority == null or authority._content == null or authority._content.environment_sources == null or not ThermalDefinitions.is_valid(rules):
 		return false
 	_owner = weakref(authority)
 	definitions = rules.duplicate(true) # Original action-price receipt unit only.

@@ -1,7 +1,5 @@
 # 离散事件执行合同
 
-> 实现参考：描述代码接口及消费者假设，可随重构更新；稳定边界见constraints，范围按当前用户任务。
-
 `SimEventQueue` 是共同结算之上的通用离散工作队列；`SimWorldEvents` 登记可信领域规则。连续过程、命令受理、Godot signal 和玩家消息仍保留各自责任。资料与取舍见[研究](../../design/research/simulation_events.md)，阶段顺序见[结算合同](settlement-contract.md)。
 
 ## 所有权与顺序

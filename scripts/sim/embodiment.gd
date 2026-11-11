@@ -212,7 +212,7 @@ func self_controls_actor(actor: String, channel: String) -> bool:
 	return controls(subject_for_actor(actor), carrier_for_source("village_actor", actor), channel)
 
 
-func matches_legacy_actors(actor_ids: Array[String], avian_ids: Array = [], soul_bindings: Dictionary = {}, large_ids: Array = [], plant_ids: Array = []) -> bool:
+func matches_body_roster(actor_ids: Array[String], avian_ids: Array = [], soul_bindings: Dictionary = {}, large_ids: Array = [], plant_ids: Array = []) -> bool:
 	# Every extra carrier must resolve to an actual body in its owning domain.
 	if _subjects.size() != actor_ids.size() + avian_ids.size() + soul_bindings.size() + large_ids.size() + plant_ids.size() or _carriers.size() != _subjects.size() or _actor_subjects.size() != actor_ids.size():
 		return false
@@ -286,7 +286,7 @@ func restore(data: Dictionary) -> bool:
 	return true
 
 
-static func legacy_state(actor_ids: Array[String]) -> Dictionary:
+static func human_roster_state(actor_ids: Array[String]) -> Dictionary:
 	var subjects: Dictionary = {}
 	var carriers: Dictionary = {}
 	var residences: Dictionary = {}

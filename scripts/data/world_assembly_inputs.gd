@@ -17,20 +17,6 @@ static func from_world(world: RegionalSimulation, centers: Variant) -> Dictionar
 	return _joint(configurations, world.settings, centers)
 
 
-static func from_saved(regional: Variant, centers: Variant) -> Dictionary:
-	# Old saves only recorded each region's config as part of its own state.
-	# Preserve exactly that evidence instead of consulting today's opening.
-	if not regional is Dictionary or not regional.get("regions") is Dictionary or not regional.get("settings") is Dictionary or not centers is Dictionary:
-		return {}
-	var configurations: Dictionary = {}
-	for id: Variant in regional.regions:
-		var region: Variant = regional.regions[id]
-		if not _id(id) or not region is Dictionary or not region.get("config") is Dictionary:
-			return {}
-		configurations[id] = region.config.duplicate(true)
-	return _joint(configurations, regional.settings, centers)
-
-
 static func standalone(configuration: Variant) -> Dictionary:
 	if not configuration is Dictionary:
 		return {}

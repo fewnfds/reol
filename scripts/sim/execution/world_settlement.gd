@@ -4,7 +4,7 @@ extends RefCounted
 ## simultaneous-effect/resource arbitration rules. No saved domain data here.
 
 const Kernel = preload("res://scripts/sim/execution/settlement_kernel.gd")
-const PHASES: Array[StringName] = [&"native_interval", &"previous_interval", &"arrivals", &"environment_event", &"current_processes", &"sampling", &"decisions", &"messages", &"events", &"transport"]
+const PHASES: Array[StringName] = [&"native_interval", &"previous_interval", &"arrivals", &"current_processes", &"sampling", &"decisions", &"messages", &"events", &"transport"]
 var _owner: WeakRef
 var kernel: SimSettlementKernel
 var world: RegionalSimulation:
@@ -33,8 +33,6 @@ func initialize(authority: RegionalSimulation) -> bool:
 		return false
 	if not kernel.add_step(&"arrivals", &"arrivals", _arrivals):
 		return false
-	if not kernel.add_step(&"prepare_environment_event", &"environment_event", _prepare_environment_event, Kernel.CallMode.CHECKED):
-		return false
 	previous = &"plant_actions"
 	for domain: StringName in [&"object_lifecycle", &"services", &"artifacts", &"spirit_sources", &"capability_practice", &"method_records", &"sparring", &"conflicts", &"consider_reading", &"consider_methods", &"avian_life", &"soul_vessels", &"admissions", &"construction", &"facility_use", &"personal_production", &"resting", &"large_bodies", &"environment", &"source_care", &"private_exchange", &"field_opportunities"]:
 		var mode: int = Kernel.CallMode.YIELDING if domain == &"object_lifecycle" else Kernel.CallMode.CHECKED
@@ -46,9 +44,7 @@ func initialize(authority: RegionalSimulation) -> bool:
 		if domain == &"facility_use":
 			mode = Kernel.CallMode.BUDGETED
 			callback = _facilities
-		# Lifecycle also releases the prepared environment context, even if an
-		# earlier process cancelled its last due action at this same boundary.
-		var condition: Callable = Callable() if domain == &"object_lifecycle" else _condition(target, &"has_settlement_work")
+		var condition: Callable = _condition(target, &"has_settlement_work")
 		if not kernel.add_step(domain, &"current_processes", callback, mode, [] if previous == &"" else [previous], [], condition):
 			return false
 		previous = domain
@@ -93,10 +89,7 @@ func _current(at_ms: int, domain: StringName) -> bool:
 	if domain == &"consider_methods":
 		world.artifacts.consider_methods()
 		return true
-	var completed: bool = _timed(at_ms, domain, &"settle_at_ms")
-	if domain == &"object_lifecycle" and completed:
-		world._environment_event = null
-	return completed
+	return _timed(at_ms, domain, &"settle_at_ms")
 
 
 func _consider(domain: StringName) -> void:
@@ -120,15 +113,6 @@ func _arrivals(_at_ms: int) -> void:
 	var old_minute: int = kernel.from_ms / RegionalSimulation.MINUTE_MS
 	world._advance_journeys(world.current_time - old_minute)
 	world._process_arrivals()
-
-
-func _prepare_environment_event(at_ms: int) -> bool:
-	var guard: RefCounted = world._environment_guard.get_ref() if world._environment_guard != null else null
-	if guard != null and world.object_lifecycle.has_settlement_work(at_ms):
-		if not world.synchronize_regions():
-			return false
-		world._environment_event = RegionalSimulation.EnvironmentEventContext.new(world, guard, at_ms, true)
-	return true
 
 
 func _routes(_at_ms: int) -> void:

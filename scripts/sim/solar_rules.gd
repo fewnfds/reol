@@ -14,14 +14,6 @@ const TWILIGHT_DEGREES: float = 6.0
 const FIELDS: Array[String] = ["latitude_mdeg", "longitude_mdeg", "meridian_mdeg", "axial_tilt_mdeg", "vernal_day", "relative_scale", "clear_transmission", "rain_transmission", "roof_transmission"]
 
 
-static func migration_defaults() -> Dictionary:
-	# Frozen historical-v1 import defaults also used by the current opening.
-	# No disk lookup: later installed content cannot rewrite an old world's sky.
-	return {"latitude_mdeg": 30000, "longitude_mdeg": 0, "meridian_mdeg": 0,
-		"axial_tilt_mdeg": 23500, "vernal_day": 0, "relative_scale": 10000,
-		"clear_transmission": 10000, "rain_transmission": 4500, "roof_transmission": 1000}
-
-
 static func valid_definitions(solar: Variant) -> bool:
 	if not Calendar._keys(solar, FIELDS):
 		return false

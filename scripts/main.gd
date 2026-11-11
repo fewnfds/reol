@@ -1,5 +1,5 @@
 extends Node2D
-## M2 bootstrap: world + player + named pawns + fixed camera + HUD.
+## Ordinary demo composition: world, player, NPC views, camera and HUD.
 ##
 ## Content is data-driven; main assembles adapters and routes selection/input.
 

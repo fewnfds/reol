@@ -56,7 +56,7 @@ Project Porcupine社区代码默认GPLv3，非代码资产默认CC BY-NC-SA；�
 | [SimConstruction.valid_definitions / register_site](../../scripts/sim/construction.gd) | 校验器固定四种wood类型；已有工地时拒绝新登记，项目绑定sect_yard；原材料与施工阶段真实存在 | 主要扩展点是结构定义、工地/实例和几何的一般化；保留原库存、材料与工时，不用另造演示施工器 |
 | [SimActionExecutor](../../scripts/sim/action_executor.gd)、[object_actions.gd](../../scripts/sim/object_actions.gd)、[SimConstruction](../../scripts/sim/construction.gd) | 生活动作、耗时取放和施工分别维护过程；已有travel、预约、截止、中断等基础，但并非覆盖全部域的共同协议 | 提炼可复用的过程接缝和结果语义；领域继续提交各自效果，不必换成一个包办所有业务的执行器 |
 | [SimLandResources](../../scripts/sim/land_resources.gd)、[SimWorldObjectQuery](../../scripts/sim/world_object_query.gd) | 自然资源保留原库存和生长/采出账；查询明确标记independent_plant=false | 完整植物实例是实质缺口，应接入共同空间/环境/行动；不能只加树木画面或再复制一份产量 |
-| [RegionalSimulation](../../scripts/sim/regional_simulation.gd)、[WorldRestoreFactory](../../scripts/sim/world_restore_factory.gd) | 已有共同整数毫秒、明确有序阶段、欠算与独立候选恢复；初始化/恢复仍显式装配领域 | 保留确定次序与失败原子性；随真实新领域补接装配，不按脚本长度或教程风格全面改造调度器 |
+| [RegionalSimulation](../../scripts/sim/regional_simulation.gd)、[WorldRestoreFactory](../../scripts/persistence/world_restore_factory.gd) | 已有共同整数毫秒、明确有序阶段、欠算与独立候选恢复；初始化/恢复仍显式装配领域 | 保留确定次序与失败原子性；随真实新领域补接装配，不按脚本长度或教程风格全面改造调度器 |
 
 现有纯sim与runtime/UI分离、原状态唯一、共同时间及候选恢复方向合理。没有外部证据要求换引擎、把连续身体位置改成整格，或强行合并器物/数量/植物的原状态；位置精度继续沿[空间研究](spatial_models.md)和[当前架构](../../docs/engineering/architecture/03-time-space-presentation.md)单独评估。
 

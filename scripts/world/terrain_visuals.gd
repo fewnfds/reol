@@ -3,7 +3,6 @@ extends RefCounted
 ## One small deterministic atlas, shared by every tile and elevation layer.
 
 const VARIANTS: int = 4
-const COLORS: Array[Color] = [Color("#284a54"), Color("#64745a"), Color("#7a7b6e")]
 
 
 static func build_natural_image(tile_size: int, surfaces: Dictionary) -> Image:
@@ -64,30 +63,3 @@ static func build_flora_image(tile_size: int, flora: Dictionary) -> Image:
 
 static func variant_for(cell: Vector2i) -> int:
 	return int((cell.x * 73856093 ^ cell.y * 19349663) & 0x7fffffff) % VARIANTS
-
-
-static func build_image(tile_size: int) -> Image:
-	var atlas := Image.create(tile_size * COLORS.size(), tile_size * VARIANTS, false, Image.FORMAT_RGBA8)
-	for terrain: int in COLORS.size():
-		for variant: int in VARIANTS:
-			var base: Color = COLORS[terrain].lightened(float(variant) * 0.012)
-			var origin := Vector2i(terrain * tile_size, variant * tile_size)
-			atlas.fill_rect(Rect2i(origin, Vector2i(tile_size, tile_size)), base)
-			# A single quiet edge retains square-grid orientation without heavy bars.
-			atlas.fill_rect(Rect2i(origin, Vector2i(tile_size, 1)), base.darkened(0.075))
-			atlas.fill_rect(Rect2i(origin, Vector2i(1, tile_size)), base.darkened(0.075))
-			for detail: int in range(7):
-				var x: int = 7 + ((detail * 17 + variant * 11) % (tile_size - 14))
-				var y: int = 8 + ((detail * 23 + variant * 7) % (tile_size - 16))
-				var pixel := origin + Vector2i(x, y)
-				match terrain:
-					0:
-						atlas.fill_rect(Rect2i(pixel, Vector2i(7 + detail % 3, 1)), base.lightened(0.08))
-						atlas.fill_rect(Rect2i(pixel + Vector2i(3, 2), Vector2i(4, 1)), base.darkened(0.04))
-					1:
-						atlas.fill_rect(Rect2i(pixel, Vector2i(1, 3)), base.lightened(0.08))
-						atlas.fill_rect(Rect2i(pixel + Vector2i(2, 1), Vector2i(1, 2)), base.darkened(0.07))
-					2:
-						atlas.fill_rect(Rect2i(pixel, Vector2i(7, 4)), base.darkened(0.12))
-						atlas.fill_rect(Rect2i(pixel + Vector2i(1, 0), Vector2i(5, 1)), base.lightened(0.1))
-	return atlas

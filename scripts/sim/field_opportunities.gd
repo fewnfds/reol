@@ -538,7 +538,7 @@ func _elevation(cell: Vector2i) -> int:
 
 
 func _center(value: Variant) -> Vector2i:
-	return value if value is Vector2i else SimRouteTravel.cell(value) if Shape.cell_valid(value) else Vector2i(-ReolWorld.WORLD_SIZE, -ReolWorld.WORLD_SIZE)
+	return value if value is Vector2i else SimRouteTravel.cell(value) if Shape.cell_valid(value) else Vector2i(-WorldMapData.WORLD_SIZE, -WorldMapData.WORLD_SIZE)
 
 
 func _record(kind: String, actor: String, target: String, details: Dictionary) -> String:

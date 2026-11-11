@@ -516,18 +516,7 @@ func to_dict() -> Dictionary:
 	return {"version": VERSION, "source_floor": source_floor, "conflict_source_floor": conflict_source_floor, "next_id": next_id, "wounds": wounds.duplicate(true), "jobs": jobs.duplicate(true)}
 
 
-static func upgrade_legacy(data: Variant) -> Dictionary:
-	if not data is Dictionary:
-		return {}
-	var upgraded: Dictionary = data.duplicate(true)
-	if upgraded.get("version") == 1 and Shape.keys(upgraded, ["version", "source_floor", "next_id", "wounds", "jobs"]):
-		upgraded.version = VERSION
-		upgraded["conflict_source_floor"] = 1
-	return upgraded
-
-
 func restore(data: Variant) -> bool:
-	data = upgrade_legacy(data)
 	if not Schema.validate(data, self):
 		return false
 	source_floor = int(data.source_floor)

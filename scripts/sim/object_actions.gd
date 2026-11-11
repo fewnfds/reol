@@ -8,7 +8,7 @@ const MAX_ACTIVE: int = 256
 
 static func schedule(owner: SimObjectLifecycle, request: Dictionary, actor: String, duration_ms: int, require_contact: bool = false) -> Dictionary:
 	var world: RegionalSimulation = owner.world
-	if world == null or owner._committing or owner._settling or owner.environment_change_pending() or world.environment_boundary_active() or not owner._request_valid(request) or request.op not in ["move", "stock_transfer"] or duration_ms < 1 or duration_ms > 86400000:
+	if world == null or owner._committing or owner._settling or world.environment_boundary_active() or not owner._request_valid(request) or request.op not in ["move", "stock_transfer"] or duration_ms < 1 or duration_ms > 86400000:
 		return owner._fail("invalid_action")
 	var id: String = request.command
 	if owner.actions.has(id):
@@ -141,13 +141,6 @@ static func settle(owner: SimObjectLifecycle, at_ms: int) -> bool:
 		var result: Dictionary = owner._fail("actor_changed")
 		if SimActionContract.can_continue(owner.world, action.region, action.actor, &"object_lifecycle", action.position):
 			result = owner._execute(action.request, action.reservation, false) if not bool(action.get("contact", false)) or contact_valid(owner, action.request, action.actor) else owner._fail("contact_changed")
-		if bool(result.get("pending", false)):
-			# Keep the original action, deadline, reservation and actor ownership.
-			# The same sorted active set resumes at this boundary on the next call.
-			owner._settling = false
-			return false
-		if not bool(result.ok) and owner.environment_change_pending() and owner._environment_pending.request.command == id:
-			owner._cancel_environment_change(owner._environment_pending.public_handle)
 		_finish(owner, id, "completed" if bool(result.ok) else "failed", result)
 		owner._settling = false
 		if owner.world == null or owner.world.object_lifecycle != owner:
@@ -162,8 +155,6 @@ static func cancel(owner: SimObjectLifecycle, actor: String) -> bool:
 		return false
 	for id: String in owner._active_actions.keys():
 		if owner.actions[id].actor == actor:
-			if owner.environment_change_pending() and owner._environment_pending.request.command == id:
-				owner._cancel_environment_change(owner._environment_pending.public_handle)
 			_finish(owner, id, "cancelled", owner._fail("cancelled"))
 			return true
 	return false

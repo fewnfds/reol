@@ -144,7 +144,7 @@ func query(area: Rect2i, kinds: Array = [], layer: String = "", budget: int = 40
 	for kind: Variant in kinds:
 		if not kind is String or not KINDS.has(kind):
 			return _failure("unsupported_kind", 0)
-	if world.elapsed_ms != world.target_ms or world.environment_boundary_active() or world.object_lifecycle.environment_change_pending() or world.object_lifecycle._committing:
+	if world.elapsed_ms != world.target_ms or world.environment_boundary_active() or world.object_lifecycle._committing:
 		return _failure("pending_time", 0)
 	if world.avian_life.space_updating or world.large_bodies.space_updating:
 		return _failure("pending_projection", 0)

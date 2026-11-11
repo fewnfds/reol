@@ -51,7 +51,7 @@ static func _body(body: Variant, domain: RefCounted, now: int) -> bool:
 	if not Shape.keys(body, ["label", "region", "position", "waypoints", "destination", "facing", "step", "path", "retry_ms", "last_fed_ms"]) or not SimInventory._nonempty(body.label) or not domain.world.regions.has(body.region) or not SimLocalMotion._vector(body.position) or not body.waypoints is Array or body.waypoints.size() != 2 or not Shape.count(body.destination, 0, 1) or not Shape.count(body.facing, 0, 3) or not body.path is Array or body.path.size() > int(domain.definitions.navigation_budget) or not body.step is Dictionary or not Shape.count(body.retry_ms) or not Shape.count(body.last_fed_ms, -1, now):
 		return false
 	var position: Vector2 = SimAvianLife.point(body)
-	if position.x < 0 or position.y < 0 or position.x >= ReolWorld.WORLD_SIZE * TileGrid.TILE_SIZE or position.y >= ReolWorld.WORLD_SIZE * TileGrid.TILE_SIZE:
+	if position.x < 0 or position.y < 0 or position.x >= WorldMapData.WORLD_SIZE * TileGrid.TILE_SIZE or position.y >= WorldMapData.WORLD_SIZE * TileGrid.TILE_SIZE:
 		return false
 	for cell: Variant in body.waypoints:
 		if not _cell(cell):
@@ -89,4 +89,4 @@ static func _body(body: Variant, domain: RefCounted, now: int) -> bool:
 
 
 static func _cell(value: Variant) -> bool:
-	return value is Array and value.size() == 2 and Shape.count(value[0], 0, ReolWorld.WORLD_SIZE - 1) and Shape.count(value[1], 0, ReolWorld.WORLD_SIZE - 1)
+	return value is Array and value.size() == 2 and Shape.count(value[0], 0, WorldMapData.WORLD_SIZE - 1) and Shape.count(value[1], 0, WorldMapData.WORLD_SIZE - 1)

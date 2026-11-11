@@ -573,7 +573,7 @@ func can_observe(actor: String, cell: Vector2i) -> bool:
 
 
 func terrain_open(cell: Vector2i) -> bool:
-	return cell.x >= 0 and cell.y >= 0 and cell.x < ReolWorld.WORLD_SIZE and cell.y < ReolWorld.WORLD_SIZE and (not _terrain.is_valid() or bool(_terrain.call(cell)))
+	return cell.x >= 0 and cell.y >= 0 and cell.x < WorldMapData.WORLD_SIZE and cell.y < WorldMapData.WORLD_SIZE and (not _terrain.is_valid() or bool(_terrain.call(cell)))
 
 
 func protected_cell(cell: Vector2i) -> bool:

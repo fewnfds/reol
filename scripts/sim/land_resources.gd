@@ -295,35 +295,6 @@ static func empty_state() -> Dictionary:
 	return {"version": VERSION, "sources": {}}
 
 
-static func upgrade_state(previous: Dictionary, config: Dictionary, rules: Dictionary, at_ms: int, conditions: Dictionary = {}) -> Dictionary:
-	if not Shape.keys(previous, ["version", "sources"]) or previous.version != 2 or not previous.sources is Dictionary:
-		return {}
-	var result: Dictionary = previous.duplicate(true)
-	result.version = VERSION
-	for id: String in result.sources:
-		if not config.get("resource_sources", {}).has(id):
-			return {}
-		var source: Dictionary = result.sources[id]
-		if not Shape.keys(source, ["next_growth_ms", "produced", "extracted", "rainfall"]):
-			return {}
-		var terms: Dictionary = rules.types.get(config.resource_sources[id].get("definition"), {})
-		if terms.is_empty():
-			return {}
-		for field: String in ["next_growth_ms", "produced", "extracted", "rainfall"]:
-			if not Shape.count(source[field], 0, MAX_COUNT):
-				return {}
-		var interval: int = int(terms.regrow_ms)
-		@warning_ignore("integer_division")
-		var periods: int = at_ms / interval
-		if int(source.next_growth_ms) != mini(MAX_COUNT, at_ms - posmod(at_ms, interval) + interval) or int(source.produced) > periods * int(terms.regrow_amount):
-			return {}
-		source["plant_id"] = ""
-		source.ecology = Ecology.empty_state(terms.ecology, at_ms, int(source.produced), conditions.get(id, {})) if terms.has("ecology") else {}
-		if not source.ecology.is_empty():
-			source.next_growth_ms = MAX_COUNT
-	return result
-
-
 static func valid_definitions(value: Variant) -> bool:
 	if not value is Dictionary or value.get("version") != 1 or not value.get("types") is Dictionary or value.types.is_empty():
 		return false

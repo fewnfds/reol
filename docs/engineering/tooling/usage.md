@@ -47,7 +47,7 @@ Windows的`--release`先用`Windows Performance`预设导出当前代码到忽�
 ## 其他工具
 
 - `python tests/tool_smoke.py`：几秒内核对启动器的错误/超时退出，仅在修改启动器时需要。
-- `python tools/check_structure.py`：可选的链接/字面路径检查，不是提交门禁。
+- `python tools/check_structure.py --audit-code`：可选的链接/字面路径及源码引用图检查，提示UID、重复类、反向呈现依赖与无静态入口的文件；动态调用需人工确认，不自动删代码，不是提交门禁。
 - `python tools/setup_codex.py --check`：配置发生问题时核对项目条目，不证明MCP握手；不必每包执行。
 - Godot AI负责实时场景/输入/截图，使用官方dock Configure生成认证attach，操作前确认项目与实际会话。Context7查目标版本API；不手改第三方addon或用裸HTTP绕过连接。
 

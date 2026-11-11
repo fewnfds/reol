@@ -160,28 +160,3 @@ static func valid_services(data: Dictionary, service: RefCounted) -> bool:
 
 static func return_region(home: String, note: Dictionary) -> String:
 	return home if note.basis.domain == "native" else str(note.basis.return_region)
-
-
-static func migrate_native(data: Dictionary) -> bool:
-	if data.get("version") != 3 or not data.get("inventory") is Dictionary or data.inventory.has("custody") or not data.get("actors") is Dictionary or not SimSchema.validate_config(data.get("config")):
-		return false
-	data.inventory["custody"] = {}
-	for actor: String in data.actors:
-		if not data.actors[actor] is Dictionary or not data.actors[actor].get("active") is Dictionary:
-			return false
-		var action: Dictionary = data.actors[actor].active
-		if action.is_empty():
-			continue
-		if not action.get("carrying") is bool or not data.config.actions.has(action.get("action")) or not SimInventory._nonempty(action.get("id")):
-			return false
-		if not action.carrying:
-			continue
-		var terms: Dictionary = data.config.actions[action.action]
-		if not terms.kind in ["haul", "gather", "recipe"]:
-			continue
-		var inputs: Dictionary = terms.inputs if terms.kind == "recipe" else {terms.item: int(terms.amount)}
-		for item: String in inputs:
-			var id: String = "legacy:" + str(action.id) + ":" + item
-			data.inventory.custody[id] = {"container": "actor:" + actor, "item": item, "amount": int(inputs[item]), "basis": native_basis(data.config, str(action.action), str(action.id), true), "settled_by": {}}
-	data.version = 4
-	return true

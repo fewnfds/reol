@@ -4,6 +4,7 @@
 
 本目录均为指定版本/场景的原记录，不是当前架构、执行队列或授权。当前问题和验收由[重构主计划](../../plans/foundation-priorities.md)维护。
 
+- [性能实验长记录](20261111_performance_experiments.md)：整顿前的逐轮测量和放弃路线；当前基线只保留最新有效结果。
 - [测试与流程退役](20261111_workflow_retirement.md)：停用远端CI、移除旧套件和自动门禁，保留短smoke及性能入口。
 - [执行架构重构节点](20261110_execution_rewrite_reset.md)：文档/数据盘点、旧指导删除、问题/情况登记及保护范围，仅做静态清理验证。
 - [原身体CPU批计算](20261111_actor_batch_execution.md)：A首条真实worker/有序采用、取消/恢复与native续算；300人对照没有证明整体加速。

@@ -46,7 +46,7 @@ const ACTIVITY_DOMAINS: Dictionary = {
 	&"services": ActivityScope.BODY | ActivityScope.AUTOMATIC_MOTION | ActivityScope.JOURNEY | ActivityScope.MANUAL_ACTION,
 }
 const SPARRING_PHASE_SCOPES: int = ActivityScope.PLAYER_ACTION | ActivityScope.AUTOMATIC_MOTION | ActivityScope.MANUAL_ACTION
-const SaveDomains = preload("res://scripts/sim/world_save_domains.gd")
+const SaveDomains = preload("res://scripts/persistence/world_save_domains.gd")
 # Keep query order stable too: a future derived cache must not silently turn
 # next-boundary collection into an unordered set of domain callbacks.
 const BOUNDARY_DOMAINS: Array[StringName] = [
@@ -71,7 +71,7 @@ const RUNTIME_BOUNDARY_DOMAINS: Array[StringName] = [
 # registry. In particular, interrupted object settlement resumes at that phase.
 const ADVANCE_PHASES: Array[StringName] = [
 	&"manual_motion_and_regional_advance", &"settle_previous_interval",
-	&"advance_journeys_and_arrivals", &"prepare_environment_event",
+	&"advance_journeys_and_arrivals",
 	&"settle_current_processes", &"sample_herb_conditions", &"consider_future_actions",
 	&"process_messages", &"discrete_events", &"dispatch_routes",
 ]
@@ -141,7 +141,7 @@ var autonomous_livelihood: SimAutonomousLivelihood
 var clothing: SimClothing
 var health: SimHealth
 var environment: SimEnvironment
-var environment_fields: RefCounted
+var environment_fields: SimWorldEnvironmentFields
 var spirit_sources: SimSpiritSources
 var conflicts: SimConflicts
 var site_affairs: RefCounted
@@ -161,12 +161,6 @@ var _region_boundaries: Dictionary = {}
 var _dirty_region_boundaries: Dictionary = {}
 var _local_action_owner: Callable
 var _manual_motion_executor: Callable
-## Opt-in exclusive acceptance-session guard. These credentials do not make
-## arbitrary raw access to this public simulation an isolated transaction.
-var _environment_guard: WeakRef
-var _environment_boundary_waiting: bool = false
-var _environment_event: EnvironmentEventContext
-var _environment_response: EnvironmentEventContext
 ## Derived execution links/cursor; partial boundaries cannot be saved. Domain
 ## state and accepted target time remain in their original owners.
 var settlement: SimSettlementKernel
@@ -234,56 +228,8 @@ func retire_space() -> void:
 		previous.detach()
 
 
-func bind_environment_boundary_guard(guard: RefCounted) -> bool:
-	if guard != null and environment_fields is SimWorldEnvironmentFields:
-		return false # Ordinary fields are the sole transaction participant.
-	if object_lifecycle == null or _environment_boundary_waiting or _environment_event != null or object_lifecycle.environment_change_pending():
-		return false
-	var previous: RefCounted = _environment_guard.get_ref() if _environment_guard != null else null
-	if guard != null and previous != null and previous != guard:
-		return false
-	if not object_lifecycle.bind_environment_boundary_guard(guard):
-		return false
-	_environment_guard = weakref(guard) if guard != null else null
-	_environment_response = null
-	return true
-
-
 func environment_boundary_active() -> bool:
-	return _environment_event != null or _environment_boundary_waiting or not accepts_commands()
-
-
-func environment_event_context() -> Variant:
-	return _environment_event if environment_event_valid(_environment_event) else null
-
-
-func environment_response_context(guard: RefCounted) -> Variant:
-	var bound: RefCounted = _environment_guard.get_ref() if _environment_guard != null else null
-	if guard == null or guard != bound or object_lifecycle == null or environment_boundary_active() or object_lifecycle.environment_change_pending() or not _environment_regions_synchronized():
-		return null
-	_environment_response = EnvironmentEventContext.new(self, guard, elapsed_ms, false)
-	return _environment_response
-
-
-func environment_event_valid(context: Variant) -> bool:
-	if not context is EnvironmentEventContext:
-		return false
-	var bound: RefCounted = _environment_guard.get_ref() if _environment_guard != null else null
-	if bound == null or context.owner.get_ref() != self or context.guard.get_ref() != bound or context.at_ms != elapsed_ms:
-		return false
-	if context.event:
-		if not is_same(context, _environment_event):
-			return false
-	elif not is_same(context, _environment_response) or object_lifecycle == null or environment_boundary_active() or object_lifecycle.environment_change_pending():
-		return false
-	return _environment_regions_synchronized()
-
-
-func _environment_regions_synchronized() -> bool:
-	for region: VillageSimulation in regions.values():
-		if region.elapsed_ms != elapsed_ms:
-			return false
-	return true
+	return not accepts_commands()
 
 
 func bind_map_data(data: WorldMapData) -> void:
@@ -304,7 +250,7 @@ func initialize(definitions: Dictionary, instances: Dictionary, content: ReolCon
 		errors.append("Invalid regional definitions, containers or clocks")
 		return false
 	var next_embodiment := SimEmbodiment.new()
-	if content == null or not next_embodiment.configure(content.body_forms) or not next_embodiment.restore(SimEmbodiment.legacy_state(_actor_ids(instances))):
+	if content == null or not next_embodiment.configure(content.body_forms) or not next_embodiment.restore(SimEmbodiment.human_roster_state(_actor_ids(instances))):
 		errors.append("Invalid body forms or subject references")
 		return false
 	_content = content
@@ -477,7 +423,6 @@ func _bind_settlement() -> bool:
 	_settlement_adapter = adapter
 	settlement = adapter.kernel
 	_settled_ms = elapsed_ms
-	_environment_boundary_waiting = false
 	_finished_notices.clear()
 	return true
 
@@ -751,9 +696,6 @@ func advance_to_ms(requested_ms: int, max_events: int = 4096, work_budget: int =
 		return false
 	if requested_ms < elapsed_ms or requested_ms > MAX_COUNT or regions.is_empty():
 		return false
-	if object_lifecycle.environment_change_pending() and not has_pending_boundary():
-		return false
-	_environment_response = null
 	target_ms = maxi(target_ms, requested_ms)
 	var processed: int = 0
 	if settlement.is_pending():
@@ -845,7 +787,6 @@ func close_actor_execution() -> void:
 func _complete_boundary(work_budget: int, should_yield: Callable = Callable()) -> bool:
 	var status: int = settlement.resume(work_budget, should_yield)
 	settlement_work += settlement.last_work
-	_environment_boundary_waiting = settlement.is_pending() and settlement.progress().step == "object_lifecycle"
 	if status != SimSettlementKernel.Status.COMPLETE:
 		if status == SimSettlementKernel.Status.FAILED and (errors.is_empty() or errors[-1] != settlement.error):
 			errors.append(settlement.error)
@@ -853,7 +794,6 @@ func _complete_boundary(work_budget: int, should_yield: Callable = Callable()) -
 	if environment_fields is SimWorldEnvironmentFields and not environment_fields.flush_sources(elapsed_ms):
 		errors.append("Environmental source dependencies could not publish")
 		return false
-	_environment_event = null
 	_settled_ms = elapsed_ms
 	simulation_work.boundaries = int(simulation_work.boundaries) + 1
 	# Internal indexes were updated synchronously by their owners. Public
@@ -928,8 +868,7 @@ func _next_herb_sample_ms() -> int:
 
 
 static func herb_conditions_for(content: ReolContentDB, weather_state: Dictionary, point: Vector2i, at_ms: int, heat_tenths: int = 0) -> Dictionary:
-	# A pure projection shared by live sampling and the explicit old-save
-	# activation. Plant conditions never inherit human clothes or comfort.
+	# Plant conditions never inherit human clothes or comfort.
 	if content == null or not SimInventory._valid_count(at_ms) or not SimInventory._valid_count(weather_state.get("epoch_ms")):
 		return {}
 	var background: Dictionary = SimClimateRules.background_at(content.climate, content.weather, int(weather_state.epoch_ms), point, at_ms)
@@ -995,24 +934,6 @@ func _valid_herb_conditions() -> bool:
 				# Only that actual activation sample is known to be neutral; an
 				# older sample cannot be reconstructed from today's field.
 				if at_ms != int(environment_fields.activation_ms) or heat != 0:
-					return false
-			else:
-				# A migrated source can retain its activation sample across the
-				# first partial minute. That older heat slice is no longer stored
-				# by the heat field: check its finite source/space upper bound,
-				# without pretending to replay an unavailable thermal history.
-				var key: String = "%d,%d" % [point.x, point.y]
-				@warning_ignore("integer_division")
-				if environment_fields is LegacyHeatV1:
-					var maximum: int = mini(int(environment_fields.definitions.max_cell_energy), int(environment_fields.input_energy)) / int(environment_fields.definitions.capacity_per_tenth)
-					if heat < 0 or heat > maximum or heat > 0 and not environment_fields.cells.has(key):
-						return false
-				elif at_ms < int(environment_fields.model_started_ms):
-					var limits: Dictionary = environment_fields.legacy_limits
-					var maximum: int = mini(int(environment_fields.definitions.max_cell_energy) - 13000 * int(environment_fields.definitions.capacity_per_tenth), int(limits.get("input_energy", 0))) / int(environment_fields.definitions.capacity_per_tenth)
-					if limits.is_empty() or heat < 0 or heat > maximum or heat > 0 and not limits.cells.has(key):
-						return false
-				elif heat < environment_fields.minimum_offset_tenths() or heat > environment_fields.maximum_offset_tenths() or heat != 0 and not environment_fields.has_cell(point):
 					return false
 			var expected: Dictionary = herb_conditions_for(_content, weather.to_dict(), point, at_ms, heat)
 			if expected.is_empty() or int(ecology.temperature_tenths) != int(expected.temperature_tenths) or bool(ecology.rain) != bool(expected.rain):
@@ -1157,134 +1078,11 @@ func known_event_lines(region_id: String, limit: int = 3) -> Array[String]:
 
 
 func to_dict() -> Dictionary:
-	if services != null and services._handling_stock:
-		return {}
-	if _publishing_boundary or has_pending_boundary() or construction != null and construction._changing or environment_boundary_active() or (object_lifecycle != null and (object_lifecycle._committing or object_lifecycle.environment_change_pending())):
-		return {}
-	if not synchronize_regions() or not environment_fields.settle_at_ms(elapsed_ms):
-		return {}
-	var regional_states: Dictionary = {}
-	for region_id: String in _sorted_keys(regions):
-		regional_states[region_id] = regions[region_id].to_dict()
-	var snapshot: Dictionary = {
-		"version": SCHEMA_VERSION, "settings": settings.duplicate(true),
-		"current_time": current_time, "target_time": target_time, "elapsed_ms": elapsed_ms, "target_ms": target_ms,
-		"active_region": active_region, "regions": regional_states,
-		"routes": routes.duplicate(true), "shipments": shipments.duplicate(true),
-		"couriers": couriers.duplicate(true), "events": events.duplicate(true),
-		"messages": messages.duplicate(true), "local_news": local_news.duplicate(true),
-		"operations": operations.duplicate(true), "in_transit": in_transit.to_dict(),
-		"next_id": _next_id,
-	}
-	var domains := SaveDomains.registry(services != null)
-	var captured: Dictionary = domains.capture(self)
-	if captured.is_empty():
-		return {}
-	snapshot.merge(captured)
-	return _json_keys(snapshot)
+	return RegionalSnapshot.capture(self)
 
 
-func restore(data: Dictionary, legacy_heat_v1: bool = false, legacy_heat_v2: bool = false) -> bool:
-	if _publishing_boundary or has_pending_boundary() or object_lifecycle != null and object_lifecycle._committing:
-		return false
-	# The current model cannot reconstruct causal field residuals from a Q
-	# archive. Historical importers remain evidence, not a second running engine.
-	if legacy_heat_v1 or legacy_heat_v2 or data.get("version") != SCHEMA_VERSION:
-		return false
-	if construction != null and construction._changing or environment_boundary_active() or (object_lifecycle != null and object_lifecycle.environment_change_pending()) or (_environment_guard != null and _environment_guard.get_ref() != null):
-		return false
-	# Validation constructs an entirely separate world. Failed loads preserve
-	# existing regional objects, inventory and pending deliveries.
-	# Earlier regional and thermal versions are rejected before validation.
-	if _content == null or not _valid_world_shape(data):
-		return false
-	if (services != null) != data.has("services"):
-		return false
-	var allowed_subjects: Dictionary = {}
-	for saved_region: Variant in data.regions.values():
-		if not saved_region is Dictionary or not saved_region.get("actors") is Dictionary:
-			return false
-		for actor_id: Variant in saved_region.actors:
-			if not actor_id is String or allowed_subjects.has(actor_id):
-				return false
-			allowed_subjects[actor_id] = true
-	var domains := SaveDomains.registry(services != null)
-	var next_regions: Dictionary = {}
-	var subject_scope: Dictionary = allowed_subjects if services != null else {}
-	for region_id: String in _sorted_keys(regions):
-		var saved: Dictionary = data.regions[region_id]
-		if not saved.get("actors") is Dictionary or not saved.get("places") is Dictionary or not saved.get("config") is Dictionary:
-			return false
-		if not SimLandResources.opening_matches(_base_workplace_config(saved.config), _base_workplace_config(opening_config(region_id))):
-			return false
-		var inventory_scope: Dictionary = domains.inventory_scope(data, region_id, _content)
-		if inventory_scope.is_empty():
-			return false
-		inventory_scope["service_custody"] = services != null
-		inventory_scope["rainfall_limit"] = SimWeather.rain_budget(data.weather, _content.weather, region_id, int(data.elapsed_ms))
-		var simulation: VillageSimulation = VillageSimulation.from_snapshot(_content, saved, subject_scope, inventory_scope)
-		if simulation == null:
-			return false
-		if simulation.elapsed_ms != int(data.elapsed_ms):
-			return false
-		# Navigation is an adapter, never serialized. Keep the caller's provider.
-		simulation.set_navigation(regions[region_id]._navigation, regions[region_id]._step_validator)
-		next_regions[region_id] = simulation
-	# A restore-only factory has no initialized opening instances to validate.
-	# Check actual restored owners, route endpoints and clocks before any commit.
-	if not _valid_settings(settings, next_regions):
-		return false
-	var next_transit := SimInventory.new()
-	if not next_transit.restore(data.in_transit) or not _valid_cross_state(data, next_regions, next_transit):
-		return false
-	var candidate_world := RegionalSimulation.new()
-	candidate_world.map_data = map_data
-	candidate_world.regions = next_regions
-	candidate_world.settings = settings
-	candidate_world.elapsed_ms = int(data.elapsed_ms)
-	candidate_world.target_ms = int(data.target_ms)
-	candidate_world.routes = data.routes.duplicate(true)
-	candidate_world.shipments = data.shipments.duplicate(true)
-	candidate_world.couriers = data.couriers.duplicate(true)
-	candidate_world.operations = data.operations.duplicate(true)
-	candidate_world.in_transit = next_transit
-	candidate_world._content = _content
-	var context: Dictionary = {"world": candidate_world, "source": self, "content": _content, "data": data}
-	if not domains.stage(data, context):
-		return false
-	# Candidate checks use only candidate geometry. Reattach live adapter
-	# callbacks after every domain has passed validation, before old owners go.
-	if map_data != null:
-		if large_bodies != null:
-			context["large_incoming"] = large_bodies._incoming
-		if construction != null:
-			context["construction_incoming"] = construction._incoming
-		if avian_life != null:
-			context["avian_landing"] = avian_life._landing
-	regions = next_regions
-	elapsed_ms = int(data.elapsed_ms)
-	target_ms = int(data.target_ms)
-	active_region = data.active_region
-	routes = data.routes.duplicate(true)
-	shipments = data.shipments.duplicate(true)
-	couriers = data.couriers.duplicate(true)
-	events = data.events.duplicate(true)
-	messages = data.messages.duplicate(true)
-	local_news = data.local_news.duplicate(true)
-	operations = data.operations.duplicate(true)
-	in_transit = next_transit
-	_next_id = int(data.next_id)
-	if plants != null:
-		plants.retire_bindings()
-	var installed: bool = domains.install(self, context)
-	assert(installed, "validated saved-world participants must install")
-	_bind_service_guards()
-	_region_boundaries = {}
-	_dirty_region_boundaries.clear()
-	for region_id: String in regions:
-		_region_boundaries[region_id] = regions[region_id].next_boundary_ms()
-	_replace_space()
-	return _bind_settlement()
+func restore(data: Dictionary) -> bool:
+	return RegionalSnapshot.restore(self, data)
 
 
 func _next_boundary(limit_ms: int) -> int:
@@ -1536,105 +1334,6 @@ func _valid_settings(definitions: Dictionary, instances: Dictionary) -> bool:
 	return true
 
 
-func _valid_world_shape(data: Dictionary) -> bool:
-	if data.get("version") != SCHEMA_VERSION or _normalized(data.get("settings")) != _normalized(settings):
-		return false
-	for field: String in ["regions", "routes", "shipments", "couriers", "local_news", "operations", "in_transit"]:
-		if not data.get(field) is Dictionary:
-			return false
-	if not SaveDomains.registry(services != null).valid_shape(data):
-		return false
-	if data.spirit_sources.get("version") != SimSpiritSources.VERSION:
-		return false
-	for field: String in ["events", "messages"]:
-		if not data.get(field) is Array:
-			return false
-	if not _integer(data.get("current_time"), 0) or not _integer(data.get("target_time"), int(data.current_time)) or not _integer(data.get("next_id"), 1):
-		return false
-	if not _integer(data.get("elapsed_ms"), 0) or not _integer(data.get("target_ms"), int(data.elapsed_ms)):
-		return false
-	if int(data.current_time) != floori(float(data.elapsed_ms) / MINUTE_MS) or int(data.target_time) != floori(float(data.target_ms) / MINUTE_MS):
-		return false
-	if not data.get("active_region") is String or (not str(data.active_region).is_empty() and not regions.has(data.active_region)):
-		return false
-	return _sorted_keys(data.regions) == _sorted_keys(regions) and _sorted_keys(data.routes) == _sorted_keys(routes) and _sorted_keys(data.couriers) == _sorted_keys(couriers) and _sorted_keys(data.local_news) == _sorted_keys(regions)
-
-
-func _valid_cross_state(data: Dictionary, candidates: Dictionary, cargo: SimInventory) -> bool:
-	var time: int = int(data.current_time)
-	var ids: Dictionary = {}
-	for route_id: String in data.routes:
-		var route: Variant = data.routes[route_id]
-		if not route is Dictionary or route.has("next_assessment") or not route.get("blocked") is bool or not _integer(route.get("demand"), 0) or not _integer(route.get("request_time"), -1, time):
-			return false
-	for shipment_id: Variant in data.shipments:
-		var shipment: Variant = data.shipments[shipment_id]
-		if not shipment_id is String or not shipment is Dictionary or shipment.get("id") != shipment_id or not _unique_id(shipment_id, ids, int(data.next_id)):
-			return false
-		if not data.routes.has(shipment.get("route")) or not shipment.get("status") in ["outbound", "blocked", "delivered"] or not _integer(shipment.get("amount"), 1) or not _integer(shipment.get("departed_at"), 0, time):
-			return false
-		var definition: Dictionary = settings.routes[shipment.route]
-		if shipment.get("item") != definition.item or shipment.get("container") != "cargo:" + String(shipment_id) or not cargo.containers.has(shipment.container):
-			return false
-		var delivered: bool = shipment.status == "delivered"
-		if not _integer(shipment.get("delivered_at"), int(shipment.departed_at) if delivered else -1, time if delivered else -1):
-			return false
-		if cargo.containers[shipment.container].size() != 1 or cargo.quantity(shipment.container, shipment.item) != (0 if delivered else int(shipment.amount)):
-			return false
-		if not _valid_transfer_receipt(data.operations.get(shipment_id + ":pickup"), definition.from, "transit", definition.source, shipment.container, shipment.item, int(shipment.amount)):
-			return false
-		if delivered and not _valid_transfer_receipt(data.operations.get(shipment_id + ":delivery"), "transit", definition.to, shipment.container, definition.target, shipment.item, int(shipment.amount)):
-			return false
-		if not delivered and data.operations.has(shipment_id + ":delivery"):
-			return false
-	for courier_id: String in data.couriers:
-		var courier: Variant = data.couriers[courier_id]
-		if not courier is Dictionary or courier.get("id") != courier_id or not data.routes.has(courier.get("route")):
-			return false
-		var definition: Dictionary = settings.routes[courier.route]
-		if definition.courier != courier_id or courier.get("name") != definition.courier_name or not courier.get("phase") in ["idle", "outbound", "returning", "resting", "waiting_delivery"]:
-			return false
-		var maximum_progress: int = int(definition.travel_minutes) if courier.phase == "waiting_delivery" else int(definition.travel_minutes) - 1
-		if not _number(courier.get("energy"), 0.0, 100.0) or not _integer(courier.get("progress"), 0, maximum_progress) or not _integer(courier.get("rest_remaining"), 0, int(settings.courier_needs.rest_minutes)) or not courier.get("shipment") is String:
-			return false
-		if courier.phase in ["outbound", "returning", "waiting_delivery"]:
-			if not data.shipments.has(courier.shipment) or data.shipments[courier.shipment].route != courier.route:
-				return false
-			if (courier.phase == "returning") != (data.shipments[courier.shipment].status == "delivered"):
-				return false
-			if courier.phase == "outbound" and ((data.shipments[courier.shipment].status == "blocked") != bool(data.routes[courier.route].blocked)):
-				return false
-			if courier.phase == "waiting_delivery" and (not _integer(courier.get("retry_at"), time + 1) or int(courier.progress) != int(definition.travel_minutes)):
-				return false
-		elif courier.shipment != "" or int(courier.progress) != 0:
-			return false
-	for shipment: Dictionary in data.shipments.values():
-		if shipment.status != "delivered" and data.couriers[settings.routes[shipment.route].courier].shipment != shipment.id:
-			return false
-	if not cargo.reservations.is_empty() or not cargo.operations.is_empty() or not cargo.custody.is_empty() or cargo.containers.size() != data.shipments.size():
-		return false
-	for region_id: String in data.local_news:
-		if not data.local_news[region_id] is Array:
-			return false
-		for news: Variant in data.local_news[region_id]:
-			if not news is Dictionary or not news.get("id") is String or not candidates.has(news.get("source")) or not news.get("line") is String or not _integer(news.get("occurred_at"), 0, time) or not _integer(news.get("heard_at"), int(news.occurred_at), time):
-				return false
-	for event: Variant in data.events:
-		if not event is Dictionary or not event.get("kind") is String or not event.get("line") is String or not candidates.has(event.get("region")) or not data.routes.has(event.get("route")) or not _integer(event.get("at"), 0, time) or not _unique_id(event.get("id"), ids, int(data.next_id)):
-			return false
-	for message: Variant in data.messages:
-		if not message is Dictionary or not message.get("kind") in ["stock_request", "news"] or not candidates.has(message.get("from")) or not candidates.has(message.get("to")) or message.from == message.to or not data.routes.has(message.get("route")):
-			return false
-		if not _integer(message.get("sent_at"), 0, time) or not _integer(message.get("due"), time + 1) or not message.get("details") is Dictionary or not message.details.get("line") is String or not _unique_id(message.get("id"), ids, int(data.next_id)):
-			return false
-		if message.kind == "stock_request" and (not _integer(message.details.get("amount"), 0) or not _integer(message.details.get("observed_at"), 0, int(message.sent_at))):
-			return false
-	var expected_operations: int = 0
-	for shipment: Dictionary in data.shipments.values():
-		expected_operations += 2 if shipment.status == "delivered" else 1
-	return data.operations.size() == expected_operations
-
-
 static func _valid_transfer_receipt(record: Variant, origin: String, destination: String, source: String, target: String, item: String, amount: int) -> bool:
 	return (
 		record is Dictionary and record.size() == 6
@@ -1642,16 +1341,6 @@ static func _valid_transfer_receipt(record: Variant, origin: String, destination
 		and record.get("source") == source and record.get("target") == target
 		and record.get("item") == item and _integer(record.get("amount"), amount, amount)
 	)
-
-
-static func _unique_id(value: Variant, used: Dictionary, next_id: int) -> bool:
-	if not value is String or not String(value).begins_with("world:") or used.has(value):
-		return false
-	var tail: String = String(value).get_slice(":", 2)
-	if not tail.is_valid_int() or int(tail) < 1 or int(tail) >= next_id:
-		return false
-	used[value] = true
-	return true
 
 
 static func _sorted_keys(value: Dictionary) -> Array:
@@ -1681,37 +1370,3 @@ static func _valid_cell(value: Variant) -> bool:
 
 static func _cell(value: Array) -> Vector2:
 	return Vector2(float(value[0]), float(value[1]))
-
-
-static func _normalized(value: Variant) -> Variant:
-	return JSON.parse_string(JSON.stringify(value, "", true, true))
-
-
-static func _json_keys(value: Variant) -> Variant:
-	if value is StringName:
-		return String(value)
-	if value is Array:
-		var array: Array = []
-		for child: Variant in value:
-			array.append(_json_keys(child))
-		return array
-	if value is Dictionary:
-		var record: Dictionary = {}
-		for key: Variant in value:
-			record[String(key) if key is StringName else key] = _json_keys(value[key])
-		return record
-	return value
-
-
-class EnvironmentEventContext:
-	extends RefCounted
-	var owner: WeakRef
-	var guard: WeakRef
-	var at_ms: int
-	var event: bool
-
-	func _init(bound_owner: RefCounted, bound_guard: RefCounted, time_ms: int, is_event: bool) -> void:
-		owner = weakref(bound_owner)
-		guard = weakref(bound_guard)
-		at_ms = time_ms
-		event = is_event

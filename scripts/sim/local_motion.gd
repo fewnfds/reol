@@ -234,10 +234,6 @@ func to_dict() -> Dictionary:
 		"action": action.duplicate(true), "last_outcome": last_outcome, "blocked": blocked}
 
 
-static func legacy_state() -> Dictionary:
-	return {"velocity": [0.0, 0.0], "facing": [0.0, 1.0], "action": {}, "last_outcome": "", "blocked": false}
-
-
 func valid_state(data: Variant, now: int) -> bool:
 	if not data is Dictionary or data.size() != 5 or not _vector(data.get("velocity")) or not _vector(data.get("facing")) or not data.get("action") is Dictionary or not data.get("last_outcome") is String or not data.get("blocked") is bool:
 		return false

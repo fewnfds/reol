@@ -18,11 +18,6 @@ var _committing: bool = false
 var _settling: bool = false
 var _active_actions: Dictionary = {}
 var _contained: Dictionary = {}
-var _environment_cache: WeakRef
-## Optional authority used only by an exclusive acceptance session. Ordinary
-## game worlds keep the original synchronous lifecycle unchanged.
-var _environment_guard: WeakRef
-var _environment_pending: Dictionary = {}
 
 var world: RegionalSimulation:
 	get: return _owner.get_ref() if _owner != null else null
@@ -56,7 +51,7 @@ func execute(request: Dictionary) -> Dictionary:
 		return _fail("transaction_busy")
 	if not _request_valid(request):
 		return _fail("invalid_request")
-	if environment_change_pending() or world.environment_boundary_active():
+	if world.environment_boundary_active():
 		return _fail("transaction_busy")
 	if receipts.has(request.command):
 		var previous: Dictionary = _receipt(request.command)
@@ -71,19 +66,8 @@ func execute(request: Dictionary) -> Dictionary:
 
 
 func _execute(request: Dictionary, reservation: String = "", notify: bool = true) -> Dictionary:
-	if environment_change_pending():
-		if _environment_pending.request.command != request.command or not _same(_environment_pending.request, request) or str(_environment_pending.reservation) != reservation or bool(_environment_pending.notify) != notify:
-			return _fail("transaction_busy")
-		return _resume_environment_change(_environment_pending.public_handle)
 	if receipts.size() >= MAX_RECEIPTS:
 		return _fail("receipt_limit")
-	var guard: RefCounted = _environment_guard.get_ref() if _environment_guard != null else null
-	if guard != null:
-		if _unsupported_environment_change(request):
-			return _fail("environment_operation_unsupported")
-		if _changes_ground_artifact(request):
-			return _begin_environment_move(request, reservation, notify, guard)
-	var cache: RefCounted = _environment_cache.get_ref() if _environment_cache != null else null
 	var fields: SimWorldEnvironmentFields = world.environment_fields as SimWorldEnvironmentFields
 	var proof: Variant
 	_committing = true
@@ -106,8 +90,6 @@ func _execute(request: Dictionary, reservation: String = "", notify: bool = true
 			fields.cancel_object_change(proof)
 			_committing = false
 			return _fail("environment_change_stale")
-	if cache != null:
-		cache.before_object_change()
 	var result: Dictionary
 	match str(request.op):
 		"spawn": result = _spawn(request)
@@ -123,146 +105,10 @@ func _execute(request: Dictionary, reservation: String = "", notify: bool = true
 			fields.cancel_object_change(proof)
 	if bool(result.ok):
 		receipts[request.command] = Receipt.encode(request, result, world.elapsed_ms, receipts.size() + 1)
-		if cache != null:
-			# Invalidate before any external notification, including timed actions.
-			# This is a disposable base cache, never physical environment history.
-			cache.objects_changed(result)
 	_committing = false
 	if bool(result.ok) and notify:
 		_publish(request, result)
 	return result
-
-
-func bind_environment_cache(cache: RefCounted) -> bool:
-	var previous: RefCounted = _environment_cache.get_ref() if _environment_cache != null else null
-	if cache != null and previous != null and previous != cache:
-		return false
-	_environment_cache = weakref(cache) if cache != null else null
-	return true
-
-
-func bind_environment_boundary_guard(guard: RefCounted) -> bool:
-	if guard != null and world != null and world.environment_fields is SimWorldEnvironmentFields:
-		return false
-	if _committing or _settling or environment_change_pending():
-		return false
-	var previous: RefCounted = _environment_guard.get_ref() if _environment_guard != null else null
-	if guard != null and previous != null and previous != guard:
-		return false
-	_environment_guard = weakref(guard) if guard != null else null
-	return true
-
-
-func environment_change_pending() -> bool:
-	return not _environment_pending.is_empty()
-
-
-func resume_environment_change(handle: Variant) -> Dictionary:
-	if _settling or _committing or world == null or world.environment_boundary_active():
-		return _fail("transaction_busy")
-	return _resume_environment_change(handle)
-
-
-func cancel_environment_change(handle: Variant) -> Dictionary:
-	if _settling or _committing or world == null or world.environment_boundary_active():
-		return _fail("transaction_busy")
-	return _cancel_environment_change(handle)
-
-
-func _cancel_environment_change(handle: Variant) -> Dictionary:
-	if not environment_change_pending() or not is_same(handle, _environment_pending.public_handle):
-		return _fail("invalid_handle")
-	var guard: RefCounted = _environment_guard.get_ref() if _environment_guard != null else null
-	if guard != null:
-		guard.cancel_move(_environment_pending.guard_handle)
-	_environment_pending.clear()
-	return {"ok": true}
-
-
-func _begin_environment_move(request: Dictionary, reservation: String, notify: bool, guard: RefCounted) -> Dictionary:
-	var planned: Dictionary = prepare_move_plan(request)
-	if not bool(planned.get("ok", false)):
-		return planned
-	var context: Variant = world.environment_event_context()
-	var prepared: Dictionary = guard.prepare_move(planned.plan, context)
-	if not bool(prepared.get("ok", false)):
-		return prepared
-	if not prepared.has("handle"):
-		return _fail("environment_invalid_handle")
-	var handle := EnvironmentPendingHandle.new()
-	_environment_pending = {"public_handle": handle, "guard_handle": prepared.handle, "guard": guard,
-		"request": request.duplicate(true), "reservation": reservation, "notify": notify,
-		"plan": planned.plan, "context": context}
-	if bool(prepared.get("pending", false)):
-		return {"ok": true, "pending": true, "handle": handle}
-	return _finish_environment_change(prepared.get("proof"))
-
-
-func _resume_environment_change(handle: Variant) -> Dictionary:
-	if not environment_change_pending() or not is_same(handle, _environment_pending.public_handle):
-		return _fail("invalid_handle")
-	var guard: RefCounted = _environment_guard.get_ref() if _environment_guard != null else null
-	if guard == null or guard != _environment_pending.guard:
-		_environment_pending.clear()
-		return _fail("environment_guard_lost")
-	var result: Dictionary = guard.resume_move(_environment_pending.guard_handle)
-	if not bool(result.get("ok", false)):
-		guard.cancel_move(_environment_pending.guard_handle)
-		_environment_pending.clear()
-		return result
-	if bool(result.get("pending", false)):
-		return {"ok": true, "pending": true, "handle": handle}
-	return _finish_environment_change(result.get("proof"))
-
-
-func _finish_environment_change(proof: Variant) -> Dictionary:
-	var pending: Dictionary = _environment_pending
-	var guard: RefCounted = pending.guard
-	var command: String = str(pending.request.command)
-	var timed: bool = not bool(pending.notify)
-	if receipts.size() >= MAX_RECEIPTS or receipts.has(command) or (actions.has(command) and not timed) or (timed and (not _active_actions.has(command) or actions[command].status != "active")) or ActionProcess.blocked(self, pending.request, command if timed else ""):
-		guard.cancel_move(pending.guard_handle)
-		_environment_pending.clear()
-		return _fail("transaction_stale")
-	var check: Dictionary = prepare_move_plan(pending.request)
-	if not bool(check.get("ok", false)) or not _same_move_plan(check.get("plan", {}), pending.plan):
-		guard.cancel_move(pending.guard_handle)
-		_environment_pending.clear()
-		return check if not bool(check.get("ok", false)) else _fail("environment_plan_stale")
-	var valid: Dictionary = guard.can_commit_move(proof, pending.plan, pending.context)
-	if not bool(valid.get("ok", false)):
-		guard.cancel_move(pending.guard_handle)
-		_environment_pending.clear()
-		return valid
-	# The original physical write and the already-validated environment publish
-	# are a synchronous transaction with no signal, callback, yield or observer.
-	_committing = true
-	var result: Dictionary = _move(pending.request)
-	if not bool(result.get("ok", false)):
-		_committing = false
-		guard.cancel_move(pending.guard_handle)
-		_environment_pending.clear()
-		return result
-	var published: Dictionary = guard.commit_move(proof, pending.plan)
-	assert(bool(published.get("ok", false)), "preflighted environment commit failed")
-	receipts[pending.request.command] = Receipt.encode(pending.request, result, world.elapsed_ms, receipts.size() + 1)
-	_committing = false
-	_environment_pending = {}
-	if bool(pending.notify):
-		_publish(pending.request, result)
-	return result
-
-
-static func _changes_ground_artifact(request: Dictionary) -> bool:
-	return request.op == "move" and (str(request.from.container).begins_with("ground:") or request.to.has("cell"))
-
-
-static func _unsupported_environment_change(request: Dictionary) -> bool:
-	match str(request.op):
-		"spawn": return request.to.has("cell")
-		"remove": return str(request.from.container).begins_with("ground:")
-		"stock_transfer": return str(request.from.container).begins_with("ground:") or request.to.has("cell")
-	return false
 
 
 func _publish(request: Dictionary, result: Dictionary) -> void:
@@ -315,8 +161,6 @@ func cancel(actor: String) -> bool:
 	if _owner != null and world != null and world.has_method("accepts_commands") and not world.accepts_commands():
 		return false
 	if world != null and world.artifact_transfers != null and world.artifact_transfers.checking:
-		return false
-	if environment_change_pending() and not world.environment_boundary_active():
 		return false
 	return ActionProcess.cancel(self, actor)
 
@@ -388,58 +232,6 @@ func _move(request: Dictionary) -> Dictionary:
 	world.invalidate_region(before.region)
 	world.invalidate_region(target.region)
 	return {"ok": true, "reference": {"kind": "artifact", "id": request.id}, "from": before, "to": _location(target)}
-
-
-func prepare_move_plan(request: Dictionary) -> Dictionary:
-	# The exclusive caller synchronizes relevant regions before this read-only
-	# preflight. It must not advance a region while preparing a candidate.
-	if world == null or not _request_valid(request) or request.op != "move":
-		return _fail("invalid_request")
-	var source_region: String = str(request.from.region)
-	if not world.regions.has(source_region) or int(world.regions[source_region].elapsed_ms) != world.elapsed_ms:
-		return _fail("unsynchronized_region")
-	if request.to.region != source_region:
-		return _fail("cross_region_unsupported")
-	var checked: Dictionary = _movable_synchronized(request.id)
-	if not bool(checked.ok):
-		return checked
-	var item: Dictionary = world.artifacts.objects[request.id]
-	var before: Dictionary = {"region": item.region, "container": item.container}
-	if not _same(before, request.from):
-		return _fail("source_changed")
-	var size: Vector2i = _size(world.artifacts.definitions.types[item.definition])
-	var target: Dictionary = _destination_synchronized(request.to, request.command)
-	if not bool(target.ok):
-		return target
-	if before.region == target.region and before.container == target.container:
-		return _fail("same_location")
-	var old_slot: String = str(before.container) if str(before.container).begins_with("ground:") else ""
-	if not old_slot.is_empty():
-		var old: Dictionary = ground.locate(source_region, old_slot)
-		if not bool(old.get("ok", false)) or not bool(old.get("active", false)) or not _same(old.get("reference"), {"kind": "artifact", "id": request.id}):
-			return _fail("source_changed")
-	if bool(target.ground):
-		var key: String = JSON.stringify({"kind": "artifact", "id": request.id}, "", true)
-		var stats: Dictionary = ground.stats()
-		if int(stats.slots) >= SimGroundPlacements.MAX_SLOTS:
-			return _fail("slot_capacity")
-		if key.length() > SimGroundPlacements.MAX_REFERENCE_CHARACTERS - int(stats.reference_characters):
-			return _fail("reference_capacity")
-		var metadata: int = key.length() + str(target.container).length() + str(target.region).length()
-		if metadata > SimGroundPlacements.MAX_METADATA_CHARACTERS - int(stats.metadata_characters):
-			return _fail("metadata_capacity")
-		var clearance: Dictionary = ground.can_place(source_region, target.cell, size, old_slot)
-		if not bool(clearance.ok):
-			return clearance
-	var plan: Dictionary = {"request": request.duplicate(true), "reference": {"kind": "artifact", "id": request.id}, "definition": str(item.definition),
-		"from": before, "target": target, "size": size, "at_ms": world.elapsed_ms,
-		"ground_revision": ground.revision, "artifact_generation": world.artifacts.state_generation}
-	_freeze(plan)
-	return {"ok": true, "plan": plan}
-
-
-static func _same_move_plan(a: Dictionary, b: Dictionary) -> bool:
-	return _same(a, b)
 
 
 func _remove(request: Dictionary) -> Dictionary:
@@ -870,7 +662,7 @@ static func ground_cells(slot: Dictionary) -> Array[Vector2i]:
 
 
 static func _same(a: Variant, b: Variant) -> bool:
-	return RegionalSimulation._normalized(a) == RegionalSimulation._normalized(b)
+	return SnapshotValues.normalized(a) == SnapshotValues.normalized(b)
 
 
 static func _fail(reason: String) -> Dictionary:
@@ -886,7 +678,3 @@ static func _freeze(value: Variant) -> void:
 		for entry: Variant in value:
 			_freeze(entry)
 		value.make_read_only()
-
-
-class EnvironmentPendingHandle:
-	extends RefCounted

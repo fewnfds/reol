@@ -108,7 +108,7 @@ func build_sources() -> Dictionary:
 		# The independent restore candidate may legitimately retain target-time
 		# debt. Read the checked committed slot at elapsed_ms without treating
 		# the future target as already completed or clearing that debt.
-		var projected: Dictionary = _query._project_slot(_world, slot, slot_id)
+		var projected: Dictionary = _query.project_ground_slot(_world, slot, slot_id)
 		if not bool(projected.get("ok", false)):
 			return _build_failure(str(projected.get("reason", "source_projection")))
 		if projected.get("status") == "source":

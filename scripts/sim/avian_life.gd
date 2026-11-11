@@ -93,7 +93,7 @@ func spawn_opening(scenario: Dictionary, centers: Dictionary) -> bool:
 		for bird: Variant in opening_birds:
 			if not bird is Dictionary or not candidate._stage_opening_bird(registry, region, bird, nest):
 				return false
-	if not registry.matches_legacy_actors(world._actor_ids(world.regions), candidate.birds.keys(), world.soul_vessels.bindings(), world.large_bodies.bodies.keys(), world.plants.subject_ids() if world.plants != null else []):
+	if not registry.matches_body_roster(world._actor_ids(world.regions), candidate.birds.keys(), world.soul_vessels.bindings(), world.large_bodies.bodies.keys(), world.plants.subject_ids() if world.plants != null else []):
 		return false
 	# All references and physical containers are staged before either is replaced.
 	world.embodiment = registry
@@ -415,7 +415,7 @@ func command_flight(id: String, direction: Vector2) -> bool:
 	if not body.active.is_empty():
 		cancel(id)
 	var target: Vector2 = point(body) + direction * float(definitions.manual.leg_distance_px)
-	var edge: float = float(ReolWorld.WORLD_SIZE * TileGrid.TILE_SIZE) - 1.0
+	var edge: float = float(WorldMapData.WORLD_SIZE * TileGrid.TILE_SIZE) - 1.0
 	target = target.clamp(Vector2.ZERO, Vector2(edge, edge))
 	if target.distance_to(point(body)) < 0.01:
 		return false

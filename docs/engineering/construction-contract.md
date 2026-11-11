@@ -1,7 +1,5 @@
 # 建筑、家具与组合空间合同
 
-> 实现参考：描述代码接口及消费者假设，可随重构更新；稳定边界见constraints，范围按当前用户任务。
-
 领域职责见[顶层框架](architecture/05-framework-domains.md)，交付范围见[主计划](../plans/foundation-priorities.md)，实际验证见[BASELINE](../status/baseline.md)。本页描述当前接口，不把未来生产、环境或战斗规则算作已实现。
 
 ## 定义、实例与原所有者

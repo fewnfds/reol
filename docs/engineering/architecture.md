@@ -10,7 +10,7 @@ Main / 场景装配
                   ↘ persistence文件/候选恢复
 ```
 
-当前业务时钟为`GameClock`，共同结算由`RegionalSimulation`装配的`SimSettlementKernel`推进；身体批计算用`SimBatchExecution`，结果由原领域采用。Godot负责SceneTree、呈现、资源及适用的原生几何/线程能力。普通环境对象为`SimWorldEnvironmentFields`，旧独立GPU服务没有因此自动接入。
+当前业务时钟为`GameClock`，共同结算由`RegionalSimulation`装配的`SimSettlementKernel`推进；身体批计算用`SimBatchExecution`，结果由原领域采用。Godot负责SceneTree、呈现、资源及适用的原生几何/线程能力。普通环境对象为`SimWorldEnvironmentFields`，内部来源候选已接入常驻GPU服务；当前路径和CPU回退见[环境合同](world-environment-contract.md)。新局只走`WorldOpening`，联合候选由`WorldSessionSnapshot`和`RegionalSnapshot`恢复。
 
 - [依赖方向](architecture/01-dependencies.md)解释代码层；[owner表](architecture/02-owners.md)定位状态来源，不表示每域需要一个Node或同一巨型对象。
 - [时间/空间/呈现](architecture/03-time-space-presentation.md)定位连续身体和已提交视图。

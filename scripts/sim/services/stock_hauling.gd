@@ -216,7 +216,7 @@ func settle(job: Dictionary, now: int) -> void:
 	world.advance_region_to_world(endpoint.region)
 	var sim: VillageSimulation = world.regions[job.home]
 	var body: Dictionary = sim.synchronize_actor(job.actor)
-	if not _allowed(job.actor, endpoint, job.stage == "pickup", job.options.item) or endpoint.container != "actor:" + str(job.actor) and RegionalSimulation._normalized(job.anchor) != RegionalSimulation._normalized(_anchor(endpoint)):
+	if not _allowed(job.actor, endpoint, job.stage == "pickup", job.options.item) or endpoint.container != "actor:" + str(job.actor) and SnapshotValues.normalized(job.anchor) != SnapshotValues.normalized(_anchor(endpoint)):
 		service._jobs.finish(job, false, "目标或使用权已改变，物资保留在原容器或行囊中。")
 		return
 	if job.phase == "travel":

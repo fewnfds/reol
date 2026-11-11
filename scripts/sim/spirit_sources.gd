@@ -448,57 +448,10 @@ func practice_cost_floor() -> int:
 	return 1 if practice == null else int(practice.get("next_id"))
 
 
-static func upgrade_legacy(data: Dictionary) -> Dictionary:
-	# Old worlds had no conflict casting. The explicit floor is the first
-	# future allocation, never a reconstructed qi value or retroactive spend.
-	if data.get("version") != 1:
-		return data.duplicate(true)
-	if not Shape.keys(data, ["version", "rules_version", "activation_ms", "last_ms", "sources", "active", "records", "qi_baselines", "charge_baselines", "next_id"]) or not data.records is Dictionary or not data.qi_baselines is Dictionary:
-		return {}
-	for row: Variant in data.qi_baselines.values():
-		if not Shape.keys(row, ["at_ms", "qi", "artifact_floor", "soul_floor"]):
-			return {}
-	var old_keys: Array[String] = Schema.JOB_KEYS.duplicate()
-	old_keys.append_array(Schema.RESULT_KEYS)
-	old_keys.erase("conflict_floor")
-	old_keys.erase("practice_floor")
-	for row: Variant in data.records.values():
-		if not Shape.keys(row, old_keys):
-			return {}
-	var upgraded: Dictionary = data.duplicate(true)
-	upgraded.version = 2
-	for row: Dictionary in upgraded.qi_baselines.values():
-		row["conflict_floor"] = 1
-	for row: Dictionary in upgraded.records.values():
-		row["conflict_floor"] = 1
-	return upgraded
-
-
-static func upgrade_practice(data: Dictionary) -> Dictionary:
-	if data.get("version") != 2 or not Shape.keys(data, ["version", "rules_version", "activation_ms", "last_ms", "sources", "active", "records", "qi_baselines", "charge_baselines", "next_id"]) or not data.records is Dictionary or not data.qi_baselines is Dictionary: return {}
-	for row: Variant in data.qi_baselines.values():
-		if not Shape.keys(row, ["at_ms", "qi", "artifact_floor", "soul_floor", "conflict_floor"]): return {}
-	var old_keys: Array[String] = Schema.JOB_KEYS.duplicate()
-	old_keys.append_array(Schema.RESULT_KEYS)
-	old_keys.erase("practice_floor")
-	for row: Variant in data.records.values():
-		if not Shape.keys(row, old_keys): return {}
-	var upgraded: Dictionary = data.duplicate(true)
-	upgraded.version = VERSION
-	for row: Dictionary in upgraded.qi_baselines.values(): row["practice_floor"] = 1
-	for row: Dictionary in upgraded.records.values(): row["practice_floor"] = 1
-	return upgraded
-
-
 func restore(data: Dictionary) -> bool:
-	var upgraded: Dictionary = upgrade_legacy(data)
-	# Regional v34 -> v35 upgrades v2 explicitly. This older standalone entry
-	# accepts only the complete historical v1 shape, never a modern v2 mix.
-	if data.get("version") == 1 and not upgraded.is_empty():
-		upgraded = upgrade_practice(upgraded)
-	if not Schema.validate(upgraded, self):
+	if not Schema.validate(data, self):
 		return false
-	_assign(upgraded)
+	_assign(data)
 	return true
 
 

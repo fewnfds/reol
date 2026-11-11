@@ -485,18 +485,6 @@ func _rebuild_queues() -> void:
 			_pending_unload.append(chunk)
 
 
-func _load_chunk(chunk: Vector2i) -> void:
-	# Explicit synchronous entry for tools/tests; normal streaming is budgeted.
-	if _loaded.has(chunk):
-		return
-	if _painting_chunk.x >= 0:
-		_cancel_painting()
-	_pending_load.erase(chunk)
-	_painting_chunk = chunk
-	_painting_offset = 0
-	_paint_batch(CHUNK_SIZE * CHUNK_SIZE)
-
-
 @warning_ignore("integer_division")
 func _cancel_painting() -> void:
 	var abandoned: Vector2i = _painting_chunk

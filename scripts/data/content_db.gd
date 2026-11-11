@@ -24,8 +24,7 @@ const SERVICES_PATH: String = "res://data/definitions/settlement_services.json"
 const PERSONAL_FORAGING_PATH: String = "res://data/definitions/personal_foraging.json"
 const ENVIRONMENT_SOURCES_PATH: String = "res://data/definitions/environment_sources.json"
 
-# Format-v3 manifest. Historical manifests are derived in ReolContentBundle;
-# missing historical rules are never supplemented from current local files.
+# Complete format-v3 manifest; saved definitions are never filled from disk.
 const DOCUMENT_PATHS: Array[String] = [
 	"res://data/definitions/plants.json",
 	"res://data/scenarios/plants.json",
@@ -85,8 +84,6 @@ var errors: Array[String] = []
 var stock_information_policy: Dictionary = {}
 var body_forms: Dictionary = {}
 var artifacts: Dictionary = {}
-## Null for a valid historical v1 bundle. A new environment owner must reject it
-## or apply an explicit migration; it must not read replacement definitions.
 var environment_sources: EnvironmentSourceDefinitions
 var avian_life: Dictionary = {}
 var land_resources: Dictionary = {}
@@ -124,9 +121,6 @@ var private_exchange: Dictionary = {}
 
 
 var _documents: Dictionary = {}
-var _legacy_heat_input: bool = false
-var _legacy_heat_v2_input: bool = false
-var _legacy_climate_input: bool = false
 var _bundle: Dictionary = {}
 var _loaded: bool = false
 
@@ -146,23 +140,15 @@ func load_all() -> bool:
 	return load_bundle(ReolContentBundle.from_documents(documents))
 
 
-func load_bundle(bundle: Variant, legacy_heat_input: bool = false, legacy_heat_v2_input: bool = false, legacy_climate_input: bool = false) -> bool:
+func load_bundle(bundle: Variant) -> bool:
 	if _loaded:
 		errors.assign(["ContentDB is already loaded; create an independent candidate"])
 		return false
 	errors.clear()
-	if legacy_heat_input and legacy_heat_v2_input:
-		errors.append("Only one explicit historical heat definition format may be bound")
-		return false
 	if not ReolContentBundle.is_valid(bundle, DOCUMENT_PATHS):
 		errors.append("Invalid or incomplete content bundle")
 		return false
 	_documents = bundle.documents.duplicate(true)
-	_legacy_heat_input = legacy_heat_input
-	_legacy_heat_v2_input = legacy_heat_v2_input
-	# Both historical thermal formats predate the solar climate contract.
-	# The v1 climate may otherwise be bound only by the explicit solar importer.
-	_legacy_climate_input = legacy_climate_input or legacy_heat_input or legacy_heat_v2_input
 	_loaded = _load_definitions()
 	if not _loaded:
 		_documents.clear()
@@ -173,17 +159,6 @@ func load_bundle(bundle: Variant, legacy_heat_input: bool = false, legacy_heat_v
 
 func content_bundle() -> Dictionary:
 	return _bundle.duplicate(true)
-
-
-static func legacy_v42() -> ReolContentDB:
-	# Historical saves did not record their definitions. Bind them to the explicit
-	# last v42 repository baseline, never to templates edited after that baseline.
-	var path: String = "res://data/compatibility/content_db_v42.json"
-	var source: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
-	if not source is Dictionary or source.get("version") != 1 or not source.get("documents") is Dictionary:
-		return null
-	var content := ReolContentDB.new()
-	return content if content.load_bundle(ReolContentBundle.from_documents(source.documents, ReolContentBundle.LEGACY_VERSION), true) else null
 
 
 func _load_definitions() -> bool:
@@ -299,17 +274,13 @@ func _load_definitions() -> bool:
 		_error("spirit_sources.json: invalid finite spiritual source rules")
 
 	var heat_rules: Variant = _read_json("res://data/definitions/local_heat.json")
-	var valid_heat: bool = SimLocalHeat.valid_definitions(heat_rules)
-	if _legacy_heat_input:
-		valid_heat = LegacyHeatV1.valid_definitions(heat_rules)
-	elif _legacy_heat_v2_input:
-		valid_heat = load("res://scripts/persistence/legacy_heat_v2.gd").valid_definitions(heat_rules)
+	var valid_heat: bool = ThermalDefinitions.is_valid(heat_rules)
 	if valid_heat:
 		local_heat = heat_rules.duplicate(true)
 	else:
 		_error("local_heat.json: invalid finite local heat rules")
 	var environment_rules: Variant = _read_json("res://data/definitions/climate.json")
-	var valid_climate: bool = SimClimateRules.valid_legacy_definitions(environment_rules) if _legacy_climate_input else SimClimateRules.valid_definitions(environment_rules)
+	var valid_climate: bool = SimClimateRules.valid_definitions(environment_rules)
 	if valid_climate:
 		climate = environment_rules.duplicate(true)
 	else:
@@ -387,11 +358,6 @@ func _load_definitions() -> bool:
 		_error("%s: invalid body forms" % BODY_FORMS_PATH)
 	var objects: Variant = _read_json(ARTIFACTS_PATH)
 	var valid_objects: bool = SimArtifacts.valid_definitions(objects)
-	if valid_objects and (_legacy_heat_input or _legacy_heat_v2_input):
-		for definition: Dictionary in objects.types.values():
-			if SimArtifacts.type_has_capability(definition, "thermal_exchange"):
-				valid_objects = false
-				break
 	if valid_objects:
 		artifacts = objects.duplicate(true)
 	else:

@@ -27,14 +27,14 @@ static func same_record(data: Variant, expected: Dictionary) -> bool:
 
 
 static func cell_valid(value: Variant, offset: bool = false) -> bool:
-	return value is Array and value.size() == 2 and count(value[0], -ReolWorld.WORLD_SIZE if offset else 0, ReolWorld.WORLD_SIZE - 1) and count(value[1], -ReolWorld.WORLD_SIZE if offset else 0, ReolWorld.WORLD_SIZE - 1)
+	return value is Array and value.size() == 2 and count(value[0], -WorldMapData.WORLD_SIZE if offset else 0, WorldMapData.WORLD_SIZE - 1) and count(value[1], -WorldMapData.WORLD_SIZE if offset else 0, WorldMapData.WORLD_SIZE - 1)
 
 
 static func position_valid(value: Variant) -> bool:
 	if not SimLocalMotion._vector(value):
 		return false
 	for coordinate: Variant in value:
-		if coordinate < 0 or coordinate >= ReolWorld.WORLD_SIZE * TileGrid.TILE_SIZE:
+		if coordinate < 0 or coordinate >= WorldMapData.WORLD_SIZE * TileGrid.TILE_SIZE:
 			return false
 	return true
 
@@ -116,7 +116,7 @@ static func validate(data: Variant, domain: RefCounted) -> bool:
 		if not _bird(id, data.birds[id], data, domain, inv, ids):
 			return false
 		containers.append("bird:" + str(id))
-	if not keys(inv.containers, containers) or not domain.world.embodiment.matches_legacy_actors(domain.world._actor_ids(domain.world.regions), data.birds.keys(), domain.world.soul_vessels.bindings(), domain.world.large_bodies.bodies.keys(), domain.world.plants.subject_ids() if domain.world.plants != null else []):
+	if not keys(inv.containers, containers) or not domain.world.embodiment.matches_body_roster(domain.world._actor_ids(domain.world.regions), data.birds.keys(), domain.world.soul_vessels.bindings(), domain.world.large_bodies.bodies.keys(), domain.world.plants.subject_ids() if domain.world.plants != null else []):
 		return false
 	var expected_ops: Dictionary = {}
 	var expected_exchanges: Dictionary = {}

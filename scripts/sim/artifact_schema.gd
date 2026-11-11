@@ -149,7 +149,7 @@ static func validate(data: Dictionary, domain: RefCounted) -> bool:
 			# restoration. Never guess an amount from today's disk definitions or
 			# tolerate an absent amount in this current artifact format.
 			var heat: Variant = world.get("environment_fields")
-			if heat == null or not heat.definitions is Dictionary or not Shape.count(heat.definitions.get("pulse_energy"), 1, SimLocalHeat.MAX_INTEGER) or not Shape.count(event.heat_amount, 1, SimLocalHeat.MAX_INTEGER) or event.heat_amount != heat.definitions.pulse_energy:
+			if heat == null or not heat.definitions is Dictionary or not Shape.count(heat.definitions.get("pulse_energy"), 1, ThermalDefinitions.MAX_INTEGER) or not Shape.count(event.heat_amount, 1, ThermalDefinitions.MAX_INTEGER) or event.heat_amount != heat.definitions.pulse_energy:
 				return false
 		if event.has("method") and (not SimArtifacts.type_has_capability(domain.definitions.types[data.objects[event.object].definition], "heat_storage") or not Methods.metadata_valid(event.method, event, domain, data.events, data.objects)):
 			return false

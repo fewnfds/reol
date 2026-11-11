@@ -1493,7 +1493,7 @@ func to_dict() -> Dictionary:
 
 func restore(data: Dictionary, allowed_subjects: Dictionary = {}, external_inventory: Dictionary = {}) -> bool:
 	# Build and validate everything before swapping state. The previous game survives failure.
-	if not SnapshotSchema.validate(data, _content, allowed_subjects, false, false, external_inventory):
+	if not SnapshotSchema.validate(data, _content, allowed_subjects, external_inventory):
 		return false
 	if int(data.get("version", -1)) != SCHEMA_VERSION or not _valid_config(data.get("config", {})):
 		return false

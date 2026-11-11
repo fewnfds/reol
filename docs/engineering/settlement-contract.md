@@ -1,7 +1,5 @@
 # 共同模拟与结算内核
 
-> 实现参考：描述代码接口及消费者假设，可随重构更新；稳定边界见constraints，范围按当前用户任务。
-
 本合同贯穿[七个领域](architecture/05-framework-domains.md)。当前代码入口为[SimSettlementKernel](../../scripts/sim/execution/settlement_kernel.gd)、[SimWorldSettlement](../../scripts/sim/execution/world_settlement.gd)与`RegionalSimulation`；范围与证据分别见[功能范围](../status/features.md)、[BASELINE](../status/baseline.md)。
 
 ## 引擎边界与所有权
@@ -20,13 +18,13 @@ Godot提供渲染、输入、SceneTree、固定物理步及碰撞服务。`_proc
 
 条件在轮到该步骤时求值，先前阶段可以唤醒后续领域。条件为false跳过业务回调，依赖次序仍保留；开始过的YIELDING/BUDGETED步骤在续算时不重新用条件筛掉，以完成原游标与清理。跳过不消耗业务工作额度，宿主截止检查仍有效；条件失效或返回非bool为失败。`executed_steps`/`skipped_steps`只作累计诊断，不持业务事实或入档。
 
-承担公共清理的步骤保留执行：`object_lifecycle`完成后释放本边界的环境事务上下文，即使先前步骤取消了最后一个到期物品动作也不能跳过。`has_settlement_work()`只决定是否准备该环境上下文，不代替清理合同。
+旧独立环境验收上下文已删除；物品过程和其他领域一样按实际到期工作执行。普通环境的来源事务与CPU/GPU续算仍由当前环境owner负责。
 
 `SimWorldSettlement`把当前原领域接入以下次序，保留原同毫秒行为：
 
 1. `RegionalSimulation`先受理手动接管并投影一次手动移动；原kernel的`native_interval/native_actors`准备身体批计算，完成后按序提交并推进地区。待计算沿同一kernel续算，地区生活决策仍在原执行器内部，详见[批执行](execution-batches.md)。
 2. `previous_interval`：环境场、健康、天气、衣着、常设劳动、计量劳动和到期植物结清刚过去的区间。
-3. `arrivals`及`environment_event`：行旅抵达与必要的原环境事务上下文。
+3. `arrivals`：行旅抵达。
 4. `current_processes`：植物动作、物品、服务、器物、修行、战斗、非人生命、建筑、家具、生产、休息及其余已接过程，按装配依赖提交。
 5. `sampling`→`decisions`→`messages`→`events` → `transport`：野药条件、世界级未来选择、消息、运输评估/派遣。
 
@@ -80,7 +78,7 @@ Godot提供渲染、输入、SceneTree、固定物理步及碰撞服务。`_proc
 
 游标和调用图是可重建的执行状态。部分阶段及失败边界不能捕获新存档，`RegionalSimulation.restore()`也拒绝原地恢复；结清后按[当前格式](../status/baseline.md)保存原进行中动作和共同时间。完整会话`WorldContinuityRuntime.load_game()`是不同入口：拒绝同步推进回调中加载，帧间可独立校验合法旧档并替换整个世界、重绑owner和重置时钟欠算；不要求失败的旧世界先结清。坏候选不改活世界，不能留下指向旧身体/库存的调用。当前格式不新增游标存储库。
 
-主要反例由`test_settlement_kernel`保护：依赖/平局、非法图、预算回执、失败停住及大量工作不丢不重。真实时钟/身体/存档边界由`test_clock_world_commit`保护，家具多工作项由`test_building_framework`保护；既有战斗、环境、库存测试仍是其业务规则owner。普通Main完整停开和声明负载按QA记录，不以局部调用计时保证整机规模。
+当前短smoke覆盖基本依赖顺序、续算和不重复提交；真实场景与恢复按本次风险做针对性检查，范围见[开发循环](workflow/testing.md)。历史长套件已经退役，不作为当前保护或待办。
 
 ## 采用的来源
 

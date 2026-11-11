@@ -208,12 +208,6 @@ func restore_motion(data: Dictionary, point: Vector2, now: int) -> bool:
 	return true
 
 
-func _move_step(displacement: Vector2) -> void:
-	# Explicit terrain probe retained for the existing corner regression.
-	motion._move(displacement, _world.can_step)
-	_project_motion()
-
-
 func _draw() -> void:
 	draw_set_transform(presentation_position() - global_position)
 	var elevation: int = 0

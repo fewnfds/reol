@@ -475,18 +475,6 @@ func to_dict() -> Dictionary:
 		"elapsed_ms": elapsed_ms, "frame_debt_ms": _accumulator, "wait_target_ms": wait_target_ms}
 
 
-static func upgrade_legacy(data: Dictionary) -> Dictionary:
-	if data.size() != 4 or data.has("elapsed_ms") or not is_valid_state(data):
-		return {}
-	if float(data.tick_index) > floorf(float(MAX_EXACT_INTEGER) / MS_PER_MINUTE):
-		return {}
-	var result: Dictionary = data.duplicate(true)
-	result["elapsed_ms"] = int(data.tick_index) * MS_PER_MINUTE
-	result["frame_debt_ms"] = 0.0
-	result["wait_target_ms"] = 0
-	return result
-
-
 static func is_valid_state(data: Dictionary) -> bool:
 	for field: String in ["tick_index", "total_minutes"]:
 		if not _integer(data.get(field)):
@@ -494,10 +482,6 @@ static func is_valid_state(data: Dictionary) -> bool:
 	var speed_value: Variant = data.get("speed")
 	if not (speed_value is int or speed_value is float) or not float(speed_value) in SUPPORTED_SPEEDS or not data.get("paused") is bool:
 		return false
-	# Four-field values are explicit legacy/programmatic input. Session v5
-	# additionally requires all modern fields at its own validation boundary.
-	if data.size() == 4:
-		return not data.has("elapsed_ms")
 	if data.size() != 7 or not _integer(data.get("elapsed_ms")) or not _integer(data.get("wait_target_ms")):
 		return false
 	@warning_ignore("integer_division")
@@ -513,10 +497,6 @@ static func _integer(value: Variant) -> bool:
 func restore_state(data: Dictionary) -> bool:
 	if _advancing or not is_valid_state(data):
 		return false
-	if data.size() == 4:
-		data = upgrade_legacy(data)
-		if data.is_empty():
-			return false
 	_advancing = true
 	tick_index = int(data.tick_index)
 	total_minutes = int(data.total_minutes)

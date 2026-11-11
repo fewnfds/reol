@@ -9,8 +9,8 @@ const Book = preload("res://scripts/sim/institution_book.gd")
 const MAX_COUNT: int = 9007199254740991
 
 
-static func validate(data: Dictionary, content: ReolContentDB, allowed_subjects: Dictionary = {}, legacy: bool = false, pre_resources: bool = false, external_inventory: Dictionary = {}) -> bool:
-	if content == null or not _json_value(data) or not _count(data.get("version"), 1) or data["version"] != (1 if legacy else (2 if pre_resources else 7)):
+static func validate(data: Dictionary, content: ReolContentDB, allowed_subjects: Dictionary = {}, external_inventory: Dictionary = {}) -> bool:
+	if content == null or not _json_value(data) or not _count(data.get("version"), 1) or data["version"] != 7:
 		return false
 	if not ConfigSchema.validate_config(data.get("config")) or not SimPersonalForaging.matches(data.config, content.personal_foraging):
 		return false
@@ -27,9 +27,8 @@ static func validate(data: Dictionary, content: ReolContentDB, allowed_subjects:
 	if str(int(data["rng_state"])) != data["rng_state"]:
 		return false
 	var tick: int = int(data["tick_index"])
-	if not legacy:
-		if not _count(data.get("elapsed_ms")) or tick != floori(float(data.elapsed_ms) / 60000.0):
-			return false
+	if not _count(data.get("elapsed_ms")) or tick != floori(float(data.elapsed_ms) / 60000.0):
+		return false
 	var settings: Dictionary = data["config"]
 	if not _number(data.get("last_request")) or float(data["last_request"]) != floorf(float(data["last_request"])):
 		return false
@@ -54,11 +53,9 @@ static func validate(data: Dictionary, content: ReolContentDB, allowed_subjects:
 	var institutions := Book.new()
 	if not inventory.restore(data["inventory"]) or not social.restore(data["social"]) or not institutions.restore(data["institutions"]):
 		return false
-	if not legacy and not pre_resources and not SimEntrustedGoods.valid_native(data, inventory, bool(external_inventory.get("service_custody", false))):
+	if not SimEntrustedGoods.valid_native(data, inventory, bool(external_inventory.get("service_custody", false))):
 		return false
-	if not legacy and not pre_resources and not SimLandResources.valid_state(data.get("land_resources"), settings, places, inventory, int(data.elapsed_ms), content.land_resources, int(external_inventory.get("rainfall_limit", 0))):
-		return false
-	if (legacy or pre_resources) and (data.has("land_resources") or settings.has("resource_sources")):
+	if not SimLandResources.valid_state(data.get("land_resources"), settings, places, inventory, int(data.elapsed_ms), content.land_resources, int(external_inventory.get("rainfall_limit", 0))):
 		return false
 	if social.actor_count() != actors.size():
 		return false
@@ -95,18 +92,16 @@ static func validate(data: Dictionary, content: ReolContentDB, allowed_subjects:
 	var seen_reservations: Dictionary = {}
 	for actor_id: String in actors:
 		var actor: Variant = actors[actor_id]
-		if not _actor(actor_id, actor, settings["actor_profiles"][actor_id], content, places, inventory.containers, tick, legacy, not legacy and not pre_resources):
+		if not _actor(actor_id, actor, settings["actor_profiles"][actor_id], content, places, inventory.containers, tick):
 			return false
 		for receipt: Variant in actor["receipts"]:
 			if not _receipt(receipt, actor_id, events, settings["actions"], seen_receipts):
 				return false
 		if not actor["active"].is_empty():
-			if not _active(actor_id, actor, data, inventory, decisions, seen_actions, seen_reservations, legacy):
+			if not _active(actor_id, actor, data, inventory, decisions, seen_actions, seen_reservations):
 				return false
 	# Opening controller is scenario content; runtime autonomy may change when
 	# the player begins a nonhuman life. Session validation checks that binding.
-	if legacy and actors[data["controlled_actor"]]["autonomous"] != settings.get("autonomous_controller", false):
-		return false
 	for id: String in external_inventory.get("reservations", {}):
 		if seen_reservations.has(id) or not inventory.reservations.has(id):
 			return false
@@ -135,16 +130,15 @@ static func validate(data: Dictionary, content: ReolContentDB, allowed_subjects:
 
 static func _actor(
 	actor_id: String, value: Variant, profile: Dictionary, content: ReolContentDB, places: Dictionary,
-	containers: Dictionary, tick: int, legacy: bool, require_facing: bool
+	containers: Dictionary, tick: int
 ) -> bool:
 	if not value is Dictionary:
 		return false
-	if require_facing:
-		if not _point(value.get("facing")):
-			return false
-		var heading := Vector2(float(value.facing[0]), float(value.facing[1]))
-		if absf(heading.length() - 1.0) > 0.001:
-			return false
+	if not _point(value.get("facing")):
+		return false
+	var heading := Vector2(float(value.facing[0]), float(value.facing[1]))
+	if absf(heading.length() - 1.0) > 0.001:
+		return false
 	for field: String in ["definition_id", "rank_id", "goal"]:
 		if not value.get(field) is String:
 			return false
@@ -160,19 +154,18 @@ static func _actor(
 	for field: String in ["hunger", "energy", "mood"]:
 		if not _range(value.get(field), 0.0, 100.0):
 			return false
-	if not value.get("alive") is bool or not value.get("autonomous") is bool or not _count(value.get("retry_at" if legacy else "retry_ms")):
+	if not value.get("alive") is bool or not value.get("autonomous") is bool or not _count(value.get("retry_ms")):
 		return false
-	if not legacy:
-		if not _point(value.get("position")) or not value.get("need_carry") is Dictionary or not _keys(value.need_carry, ["hunger", "energy"]):
+	if not _point(value.get("position")) or not value.get("need_carry") is Dictionary or not _keys(value.need_carry, ["hunger", "energy"]):
+		return false
+	var point := Vector2(float(value.position[0]), float(value.position[1]))
+	if TileGrid.world_to_cell(point) != Vector2i(int(value.cell[0]), int(value.cell[1])):
+		return false
+	if not _count(value.get("exertion_until_ms")) or not _count(value.get("stamina_carry")) or int(value.stamina_carry) >= 1000:
+		return false
+	for field: String in ["hunger", "energy"]:
+		if not _count(value.need_carry[field]) or int(value.need_carry[field]) >= 60000:
 			return false
-		var point := Vector2(float(value.position[0]), float(value.position[1]))
-		if TileGrid.world_to_cell(point) != Vector2i(int(value.cell[0]), int(value.cell[1])):
-			return false
-		if not _count(value.get("exertion_until_ms")) or not _count(value.get("stamina_carry")) or int(value.stamina_carry) >= 1000:
-			return false
-		for field: String in ["hunger", "energy"]:
-			if not _count(value.need_carry[field]) or int(value.need_carry[field]) >= 60000:
-				return false
 	if not value.get("active") is Dictionary or not value.get("receipts") is Array or not value.get("stock_memory") is Dictionary:
 		return false
 	if not value["alive"] and not value["active"].is_empty():
@@ -213,11 +206,11 @@ static func _receipt(
 
 static func _active(
 	actor_id: String, actor: Dictionary, data: Dictionary, inventory: RefCounted,
-	decisions: Dictionary, seen_actions: Dictionary, seen_reservations: Dictionary, legacy: bool
+	decisions: Dictionary, seen_actions: Dictionary, seen_reservations: Dictionary
 ) -> bool:
 	var action: Dictionary = actor["active"]
 	var expected: Array = ["id", "action", "phase", "path", "reservations", "request_id", "requester", "destination", "carrying"]
-	expected.append_array(["remaining", "move_left", "started"] if legacy else ["due_ms", "segment_started_ms", "segment_from", "started_ms"])
+	expected.append_array(["due_ms", "segment_started_ms", "segment_from", "started_ms"])
 	if not _keys(action, expected):
 		return false
 	if not _text(action["id"]) or not action["id"].begins_with("action:") or seen_actions.has(action["id"]):
@@ -231,16 +224,10 @@ static func _active(
 	if not action["carrying"] is bool:
 		return false
 	var definition: Dictionary = data["config"]["actions"][action["action"]]
-	if legacy:
-		if not _count(action["started"]) or int(action["started"]) > int(data["tick_index"]):
-			return false
-		if not _range(action["remaining"], 0.0, float(definition["minutes"])) or not _range(action["move_left"], 0.0, float(data["config"]["move_minutes_per_cell"])):
-			return false
-	else:
-		if not _count(action.get("started_ms")) or int(action.started_ms) > int(data.elapsed_ms) or not _count(action.get("due_ms")) or int(action.due_ms) <= int(data.elapsed_ms) or not _count(action.get("segment_started_ms")) or int(action.segment_started_ms) > int(data.elapsed_ms) or int(action.segment_started_ms) < int(action.started_ms) or not _point(action.get("segment_from")):
-			return false
-		if action.phase == "work" and int(action.due_ms) - int(action.segment_started_ms) > int(definition.minutes) * 60000:
-			return false
+	if not _count(action.get("started_ms")) or int(action.started_ms) > int(data.elapsed_ms) or not _count(action.get("due_ms")) or int(action.due_ms) <= int(data.elapsed_ms) or not _count(action.get("segment_started_ms")) or int(action.segment_started_ms) > int(data.elapsed_ms) or int(action.segment_started_ms) < int(action.started_ms) or not _point(action.get("segment_from")):
+		return false
+	if action.phase == "work" and int(action.due_ms) - int(action.segment_started_ms) > int(definition.minutes) * 60000:
+		return false
 	var expected_destination: String = str(definition.get("source", definition.get("target", "")))
 	if definition["kind"] in ["haul", "gather"] and action["carrying"]:
 		expected_destination = definition["target"]
@@ -248,30 +235,27 @@ static func _active(
 		return false
 	var cursor: Array = actor["cell"]
 	for cell: Variant in action["path"]:
-		if not _cell(cell) or (not _adjacent(cursor, cell) and (legacy or not _same_cell(cursor, cell))):
+		if not _cell(cell) or (not _adjacent(cursor, cell) and not _same_cell(cursor, cell)):
 			return false
 		cursor = cell
 	var destination: Array = data["places"][action["destination"]]["cell"]
 	if not _same_cell(cursor, destination):
 		return false
-	if action["phase"] == "work" and (not action["path"].is_empty() or not _same_cell(actor["cell"], destination) or (legacy and float(action["remaining"]) <= 0.0)):
+	if action["phase"] == "work" and (not action["path"].is_empty() or not _same_cell(actor["cell"], destination)):
 		return false
-	if legacy and action["phase"] == "travel" and float(action["remaining"]) != 0.0:
-		return false
-	if not legacy:
-		var point := Vector2(float(actor.position[0]), float(actor.position[1]))
-		var origin := Vector2(float(action.segment_from[0]), float(action.segment_from[1]))
-		var target: Vector2 = TileGrid.cell_to_world(Vector2i(int(destination[0]), int(destination[1])))
-		if action.phase == "travel" and not action.path.is_empty():
-			var rules: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SimLocalMotion.RULES_PATH))
-			if not SimRouteTravel.valid_segment(action, actor, int(data.elapsed_ms), float(rules.motion.speed)):
-				return false
-			target = TileGrid.cell_to_world(Vector2i(int(action.path[0][0]), int(action.path[0][1])))
-			var ratio: float = float(int(data.elapsed_ms) - int(action.segment_started_ms)) / float(int(action.due_ms) - int(action.segment_started_ms))
-			if not point.is_equal_approx(origin.lerp(target, ratio)):
-				return false
-		elif not point.is_equal_approx(target):
+	var point := Vector2(float(actor.position[0]), float(actor.position[1]))
+	var origin := Vector2(float(action.segment_from[0]), float(action.segment_from[1]))
+	var target: Vector2 = TileGrid.cell_to_world(Vector2i(int(destination[0]), int(destination[1])))
+	if action.phase == "travel" and not action.path.is_empty():
+		var rules: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SimLocalMotion.RULES_PATH))
+		if not SimRouteTravel.valid_segment(action, actor, int(data.elapsed_ms), float(rules.motion.speed)):
 			return false
+		target = TileGrid.cell_to_world(Vector2i(int(action.path[0][0]), int(action.path[0][1])))
+		var ratio: float = float(int(data.elapsed_ms) - int(action.segment_started_ms)) / float(int(action.due_ms) - int(action.segment_started_ms))
+		if not point.is_equal_approx(origin.lerp(target, ratio)):
+			return false
+	elif not point.is_equal_approx(target):
+		return false
 	if not action["request_id"] is String or not action["requester"] is String:
 		return false
 	if action["request_id"].is_empty():
@@ -293,7 +277,7 @@ static func _active(
 		expected_inputs = definition["inputs"]
 	if definition.kind in ["forage", "irrigate"] and action.carrying:
 		return false
-	if definition.kind == "irrigate" and (legacy or int(data.version) < 6 or action.phase == "work" and int(action.due_ms) - int(action.segment_started_ms) != int(definition.minutes) * 60000):
+	if definition.kind == "irrigate" and (action.phase == "work" and int(action.due_ms) - int(action.segment_started_ms) != int(definition.minutes) * 60000):
 		return false
 	if action["phase"] == "work" and not expected_inputs.is_empty() and not action["carrying"] and definition.kind not in ["gather", "forage", "irrigate"]:
 		return false

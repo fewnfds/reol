@@ -42,28 +42,8 @@ static func supports_version(version: Variant) -> bool:
 	return rejection_reason(version).is_empty()
 
 
-static func upgrade(source: Dictionary, _content: ReolContentDB = null, _restore_map_factory: Callable = Callable()) -> Dictionary:
-	# Earlier roots lack authoritative field-response history. Do not synthesize
-	# it from disk content or route an old save into a historical importer.
-	if not supports_version(source.get("schema_version")):
-		return {}
-	return source if is_valid_world(source) else {}
-
-
-static func _upgrade(source: Dictionary, _content: ReolContentDB) -> Dictionary:
-	# Historical test callers retain this spelling while their cases are split.
-	# It has the same current-only boundary as the ordinary entry.
-	return upgrade(source)
-
-
 static func is_valid_world(snapshot: Dictionary) -> bool:
-	return _valid_solar_envelope(snapshot, VERSION)
-
-
-static func _valid_solar_envelope(snapshot: Dictionary, expected_version: int) -> bool:
-	# Root 50 remains a shape validator for the isolated historical importer;
-	# validating that envelope does not admit it through upgrade().
-	if not expected_version in [50, VERSION] or not _valid_world_fields(snapshot, expected_version):
+	if not _valid_world_fields(snapshot):
 		return false
 	var climate: Variant = snapshot.content_bundle.documents.get("res://data/definitions/climate.json")
 	if not SimClimateRules.valid_definitions(climate):
@@ -73,21 +53,16 @@ static func _valid_solar_envelope(snapshot: Dictionary, expected_version: int) -
 		if not continuity is Dictionary or not continuity.get("world") is Dictionary:
 			return false
 		var regional: Dictionary = continuity.world
-		if expected_version == 50:
-			if regional.get("version") != 41 or regional.has("object_lifecycle"):
-				return false
-		elif regional.get("version") != RegionalSimulation.SCHEMA_VERSION or not regional.get("object_lifecycle") is Dictionary:
+		if regional.get("version") != RegionalSimulation.SCHEMA_VERSION or not regional.get("object_lifecycle") is Dictionary:
 			return false
-		var environment: Variant = continuity.world.get("environment")
+		var environment: Variant = regional.get("environment")
 		if not environment is Dictionary or environment.get("version") != SimEnvironment.VERSION or environment.get("rules_version") != 2:
 			return false
 	return true
 
 
-static func _valid_world_fields(snapshot: Dictionary, expected_version: int) -> bool:
-	# The old importers still refer to these validators; ordinary loading accepts
-	# only VERSION above and never invokes them as a migration chain.
-	if expected_version not in [47, 48, 49, 50, VERSION] or snapshot.get("schema_version") != expected_version:
+static func _valid_world_fields(snapshot: Dictionary) -> bool:
+	if not supports_version(snapshot.get("schema_version")):
 		return false
 	if not ReolWorldAssemblyInputs.is_valid(snapshot.get("assembly"), snapshot.has("continuity")):
 		return false

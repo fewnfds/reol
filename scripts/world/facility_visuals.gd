@@ -96,39 +96,6 @@ static func _draw_work_area(canvas: CanvasItem, kind: String, accent: Color) -> 
 			canvas.draw_line(Vector2(-11, -6), Vector2(-1, -6), accent, 2.0)
 
 
-static func _draw_building(canvas: CanvasItem, kind: String, accent: Color) -> void:
-	canvas.draw_rect(Rect2(-21, -10, 42, 30), INK)
-	canvas.draw_rect(Rect2(-18, -8, 36, 25), WALL)
-	canvas.draw_rect(Rect2(-6, 1, 12, 19), TIMBER.darkened(0.3))
-	canvas.draw_rect(Rect2(-16, -4, 7, 8), ROOF.darkened(0.25))
-	canvas.draw_rect(Rect2(9, -4, 7, 8), ROOF.darkened(0.25))
-	canvas.draw_colored_polygon(PackedVector2Array([
-		Vector2(-27, -11), Vector2(-18, -28), Vector2(18, -28), Vector2(27, -11),
-	]), INK)
-	canvas.draw_colored_polygon(PackedVector2Array([
-		Vector2(-23, -13), Vector2(-16, -25), Vector2(16, -25), Vector2(23, -13),
-	]), ROOF)
-	canvas.draw_line(Vector2(-17, -26), Vector2(17, -26), accent.darkened(0.05), 2.0)
-	canvas.draw_line(Vector2(-26, -11), Vector2(26, -11), INK, 3.0)
-	match kind:
-		"kitchen":
-			canvas.draw_rect(Rect2(11, -34, 7, 12), INK)
-			canvas.draw_rect(Rect2(13, -33, 3, 9), TIMBER)
-			canvas.draw_circle(Vector2(-5, 6), 2.0, Color("#d99e62"))
-		"store":
-			canvas.draw_rect(Rect2(13, 8, 12, 12), TIMBER.darkened(0.2))
-			canvas.draw_line(Vector2(14, 9), Vector2(24, 19), WALL, 1.0)
-			canvas.draw_line(Vector2(24, 9), Vector2(14, 19), WALL, 1.0)
-		"records":
-			canvas.draw_rect(Rect2(-12, -9, 24, 7), INK)
-			canvas.draw_line(Vector2(-7, -6), Vector2(7, -6), accent, 2.0)
-			canvas.draw_rect(Rect2(-22, -8, 3, 28), TIMBER)
-			canvas.draw_rect(Rect2(19, -8, 3, 28), TIMBER)
-		"dorm":
-			canvas.draw_rect(Rect2(8, 0, 9, 12), ROOF.darkened(0.35))
-			canvas.draw_line(Vector2(12, 0), Vector2(12, 12), WALL.darkened(0.15), 1.0)
-
-
 static func _draw_well(canvas: CanvasItem, point: Vector2) -> void:
 	canvas.draw_set_transform(point + Vector2(0, 7), 0.0, Vector2(1.0, 0.55))
 	canvas.draw_circle(Vector2.ZERO, 20.0, INK)

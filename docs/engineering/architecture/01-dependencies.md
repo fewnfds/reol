@@ -1,7 +1,5 @@
 # 当前代码架构与边界：依赖方向
 
-> 实现参考：描述代码接口及消费者假设，可随重构更新；稳定边界见constraints，范围按当前用户任务。
-
 本页为现存Demo的实现参考；重构目标由[执行规格](../../specs/world-engine/execution.md)定义。逻辑职责/有效规则不绑定下列class、数据结构或调用链。
 
 ## 依赖方向
@@ -13,7 +11,7 @@ main / 场景装配
   输入与UI → runtime命令适配 → sim规则/过程/状态
                 ↓                 ↓
           世界/人物呈现       data定义与开局
-                ↘ persistence快照/迁移/文件边界
+                ↘ persistence快照/候选/文件边界
 ```
 
 纯模拟不依赖HUD或祖先 `Node` 路径。运行适配负责绑定/命令与投影，不另存身体、库存或社会余额。当前业务autoload为`GameClock`，第三方另有MCP helper；通用存读由`SimSaveSession`及纯数据参与者管线组成，未新增业务autoload或全量ECS。

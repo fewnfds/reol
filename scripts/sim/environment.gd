@@ -24,7 +24,7 @@ func bind_world(authority: RefCounted) -> void:
 func initialize(authority: RefCounted, rules: Dictionary) -> bool:
 	# Importers build an isolated candidate with its validated historical v1
 	# content. Ordinary content loading only binds the current v2 definition.
-	if authority == null or not (SimClimateRules.valid_definitions(rules) or SimClimateRules.valid_legacy_definitions(rules)) or int(rules.human.energy_scale) != VillageSimulation.NEED_SCALE:
+	if authority == null or not SimClimateRules.valid_definitions(rules) or int(rules.human.energy_scale) != VillageSimulation.NEED_SCALE:
 		return false
 	for region: String in rules.regions:
 		if not authority.weather.definitions.regions.has(region):

@@ -73,8 +73,8 @@ func setup(
 			return false
 		_world.set_obstacle_provider(_workspace_obstacle)
 		_world.set_sight_obstacle_provider(_workspace_wall)
-		_config = _snapshot_json_value(_config)
-		_places = _snapshot_json_value(_places)
+		_config = SnapshotValues.for_save(_config)
+		_places = SnapshotValues.for_save(_places)
 	var next_simulation := VillageSimulation.new()
 	if not next_simulation.initialize(_content, _config, _actor_cells(), _places, GameClock.elapsed_ms):
 		push_error("VillageRuntime: simulation initialization failed: %s" % str(next_simulation.errors))
@@ -284,7 +284,7 @@ func save_game(path: String = SAVE_PATH) -> Error:
 	if GameClock.has_pending_advance() or GameClock.elapsed_ms != simulation.elapsed_ms:
 		return ERR_BUSY
 	_sync_player_cell()
-	var snapshot: Dictionary = _snapshot_json_value({
+	var snapshot: Dictionary = SnapshotValues.for_save({
 		"schema_version": SAVE_VERSION,
 		"content_bundle": _content.content_bundle(),
 		"assembly": ReolWorldAssemblyInputs.standalone(_config),
@@ -319,7 +319,9 @@ func load_game(path: String = SAVE_PATH) -> Error:
 	var raw_snapshot: Variant = loaded.get("data")
 	if not raw_snapshot is Dictionary:
 		return _load_failed("近况文件格式不正确。")
-	var snapshot: Dictionary = SessionSaveSchema.upgrade(raw_snapshot, null, Callable(self, "create_candidate_map"))
+	if not SessionSaveSchema.is_valid_world(raw_snapshot):
+		return _load_failed("近况文件的格式或版本不受支持。")
+	var snapshot: Dictionary = raw_snapshot
 	var content := ReolContentDB.new()
 	if not content.load_bundle(snapshot.get("content_bundle")):
 		return _load_failed("近况里的内容定义不完整。")
@@ -939,12 +941,3 @@ static func _valid_integer(value: Variant, minimum: int) -> bool:
 
 static func _number_pair(value: Variant, integers_only: bool = false) -> bool:
 	return SnapshotValues.number_pair(value, integers_only)
-
-
-static func _json_normalized(value: Variant) -> Variant:
-	# Compatibility for existing probes and adapters; rules live at persistence.
-	return SnapshotValues.normalized(value)
-
-
-static func _snapshot_json_value(value: Variant) -> Variant:
-	return SnapshotValues.for_save(value)

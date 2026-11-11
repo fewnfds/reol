@@ -1,7 +1,5 @@
 # 当前代码架构与边界：存读提交边界
 
-> 实现参考：描述代码接口及消费者假设，可随重构更新；稳定边界见constraints，范围按当前用户任务。
-
 本页为现存Demo的实现参考；重构目标由[执行规格](../../specs/world-engine/execution.md)定义。逻辑职责/有效规则不绑定下列class、数据结构或调用链。
 
 ## 状态与职责
@@ -12,12 +10,12 @@
 |---|---|
 | [SimSaveStore](../../../scripts/persistence/save_store.gd) | FileAccess/JSON、临时文件验证、备份和替换；不认识人物、建筑或领域规则 |
 | [SimSaveRegistry](../../../scripts/persistence/save_registry.gd) | 通用数据参与者登记，统一capture、候选stage、校验及install；纯数据，不扫描SceneTree |
-| [SimWorldSaveDomains](../../../scripts/sim/world_save_domains.gd) | 当前世界的唯一存档领域目录；声明wire key、可信工厂、恢复适配、跨域校验、重绑及库存引用范围 |
+| [SimWorldSaveDomains](../../../scripts/persistence/world_save_domains.gd) | 当前世界的唯一存档领域目录；声明wire key、可信工厂、恢复适配、跨域校验、重绑及库存引用范围 |
 | [SimSaveSession](../../../scripts/runtime/save_session.gd) | 通用会话操作：严格同步保存、普通保存请求/回执、独立候选加载与提交；通过明确回调适配宿主 |
-| [WorldSessionSnapshot](../../../scripts/runtime/world_session_snapshot.gd) / [WorldRestoreFactory](../../../scripts/sim/world_restore_factory.gd) | 联合封套、内容/地图/区域候选及玩家投影的校验；[WorldContinuityRuntime](../../../scripts/runtime/world_continuity_runtime.gd)负责成功后的场景接续 |
+| [WorldSessionSnapshot](../../../scripts/runtime/world_session_snapshot.gd) / [WorldRestoreFactory](../../../scripts/persistence/world_restore_factory.gd) | 联合封套、内容/地图/区域候选及玩家投影的校验；[WorldContinuityRuntime](../../../scripts/runtime/world_continuity_runtime.gd)负责成功后的场景接续 |
 | [SessionSaveSchema](../../../scripts/persistence/session_save_schema.gd) / [SnapshotValues](../../../scripts/persistence/snapshot_values.gd) | 当前根版本、形状及JSON值合同 |
 
-区域共同状态（时间、路线、区域、运输等）由`RegionalSimulation`校验；各领域适配器检查其原实例、引用、成本和因果。纯登记不自动赋予新领域空间、行动或认识能力；这些仍沿[领域职责](05-framework-domains.md)的实际接口处理。
+区域共同状态（时间、路线、区域、运输等）由`RegionalSnapshot`构造并校验候选；各领域适配器检查其原实例、引用、成本和因果。纯登记不自动赋予新领域空间、行动或认识能力；这些仍沿[领域职责](05-framework-domains.md)的实际接口处理。
 
 ## 新字段与新领域如何接入
 
@@ -27,7 +25,7 @@
 
 登记顺序是明确的恢复依赖顺序。通用管线先构造所有候选owner，再执行可选`prepare`、按序恢复、最后执行全部跨域`check`。`prepare`用于环境等需要先提供候选接口、后恢复数据的情况；不能借它查询活世界。各适配器只修改独立候选，失败不能调用install。完整世界校验后，install先替换全部owner，再统一重绑，防止绑定看见新旧混合状态。库存引用贡献沿同一目录汇总；受保护的原物ID冲突拒绝，不能被其他贡献覆盖。
 
-当前`RegionalSimulation.to_dict/restore`与shape检查均消费该目录，不另维护一份存档domain清单或逐域new/restore/bind链。普通新增领域仍须在世界装配处创建其新局实例，这是新局的职责；存档恢复不调用开局发行逻辑。新业务规则及跨域引用需要自己的验证，自动序列化不能替代它。
+`RegionalSimulation.to_dict/restore`委托`RegionalSnapshot`完成世界捕获、独立候选构造及交叉校验；codec与shape检查均消费该目录，不另维护一份存档domain清单或逐域new/restore/bind链。普通新增领域仍须在世界装配处创建其新局实例，这是新局的职责；存档恢复不调用开局发行逻辑。新业务规则及跨域引用需要自己的验证，自动序列化不能替代它。
 
 ## 保存请求与安全边界
 

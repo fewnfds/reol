@@ -1,16 +1,19 @@
-# 代码目录职责
+# 代码入口与职责
 
-当前状态所有者、时间与提交边界只由[ARCHITECTURE](../docs/engineering/architecture.md)维护；格式/证据见[BASELINE](../docs/status/baseline.md)，当前授权见[HANDOFF](../docs/status/handoff.md)。本页不再逐包复制实现流水账。
+先确定修改的事实归谁，再沿下面的路径读代码。当前停点见[HANDOFF](../docs/status/handoff.md)，领域owner见[索引](../docs/engineering/architecture/02-owners.md)。
 
-| 路径 | 职责 |
+| 从哪里开始 | 负责什么 |
 |---|---|
-| `sim/`、`sim/services/` | 纯规则、过程与可序列化状态 |
-| `runtime/` | 输入/时钟/寻路/场景适配，提交命令与呈现投影 |
-| `persistence/` | 数据编码、迁移、候选与文件；不决定社会后果 |
-| `data/`、`core/` | 定义类/内容装配、少量通用坐标工具 |
-| `world/`、`entities/`、`ui/` | 地图/区块/迷雾/相机，人物和有限可知界面 |
-| `autoload/`、`social/` | 当前时钟；未接入游戏的继任原型 |
+| [main.gd](main.gd) → [WorldOpening](runtime/world_opening.gd) | 场景适配和新局装配；开局发行不会在读档时重跑 |
+| [WorldContinuityRuntime](runtime/world_continuity_runtime.gd) | 已运行会话、玩家行旅、视图、计算后端的绑定与替换 |
+| [RegionalSimulation](sim/regional_simulation.gd) → [execution](sim/execution/) | 共同边界、地区同步和领域执行顺序 |
+| [VillageSimulation](sim/village_simulation.gd)、`sim/`、`sim/services/`、`sim/plants/` | 原状态、规则和领域过程；`sim`不依赖runtime或呈现节点 |
+| [WorldSessionSnapshot](runtime/world_session_snapshot.gd) → [RegionalSnapshot](persistence/regional_snapshot.gd) → [world_save_domains](persistence/world_save_domains.gd) | 联合会话输入、独立候选和领域存读目录 |
+| `persistence/`、`data/`、`core/` | 编码/文件、定义装配和共用坐标；`ThermalDefinitions`只验证热设备参数 |
+| `world/`、`entities/`、`ui/` | 地图/人物呈现和可知界面，消费已提交状态 |
+| `runtime/` | 输入、场景、呈现与计算后端适配；领域结果回到原owner采用 |
+| `diagnostics/`、`tests/` | 临时人口/性能记录与三个短smoke；普通Main不加载诊断器 |
 
-入口为[main.gd](main.gd)，持续世界在[regional_simulation.gd](sim/regional_simulation.gd)，地方生活在[village_simulation.gd](sim/village_simulation.gd)。新增文件按[PROJECT-STRUCTURE](../docs/engineering/project-structure.md)，改领域前查其计划和实际代码。
+旧热量模拟器、独立环境验收会话、旧迁移链、boot与继任原型已删除；历史由Git/归档追溯。有效CPU批执行、环境GPU计算及CPU回退保留。
 
-移动`.gd`连同`.gd.uid`并更新引用；先结构检查，再按变更做导入/行为验证。第三方addons不借重构修改。整理前逐包说明完整保存在[历史原文](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive/documentation_consolidation_20261104/scripts/README.md)。
+可选运行`python tools/check_structure.py --audit-code`查看字面引用、UID与层依赖疑点；动态调用仍需人工核对，工具不会自动删除代码，也不是提交门禁。文件放置见[project-structure](../docs/engineering/project-structure.md)，具体接口见[工程地图](../docs/engineering/README.md)。

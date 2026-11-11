@@ -6,7 +6,7 @@
 
 实际版本数字唯一登记在[BASELINE](../status/baseline.md#代码与采用版本)，以`SessionSaveSchema`、`RegionalSimulation`、`ReolContentBundle`及领域schema为代码依据。能被某低层解析器读取，不等于普通联合会话支持该版本。
 
-当前根schema只接受当前格式；历史拒绝分别可能给出`legacy_actions`、`legacy_events`、`legacy_buildings`、`legacy_environment`或`unsupported_version`。装配不从当前磁盘补造旧世界缺失的规则/物资/经历；旧内容清单可解析也不能因此拼成合法当前会话。
+当前根schema只接受当前格式；历史拒绝分别可能给出`legacy_actions`、`legacy_events`、`legacy_buildings`、`legacy_environment`或`unsupported_version`。装配不从当前磁盘补造旧世界缺失的规则/物资/经历；内容装配仅接受当前完整清单。旧热量、太阳、生命周期与分钟制迁移已删除，当前身体/健康/灵源校验也只走当前表示。
 
 当前根版本内的旧认识账本仍可读取。它在独立候选中按原格式核对事件、见证和转述，再转换到当前表示；旧档的两份本地认识内容须一致。写档只使用当前认识格式，原档不因读取而改写。
 

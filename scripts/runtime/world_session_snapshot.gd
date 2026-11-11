@@ -36,7 +36,6 @@ static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
 	var context: Dictionary = home_runtime.snapshot_context()
 	var player: PlayerCharacter = context.player
 	# Validate the envelope before constructing its independent saved terrain.
-	snapshot = SessionSaveSchema.upgrade(snapshot)
 	if not SessionSaveSchema.is_valid_world(snapshot) or not snapshot.get("continuity") is Dictionary:
 		return {}
 	var content := ReolContentDB.new()

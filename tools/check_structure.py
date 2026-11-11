@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only checks for Reol's current documentation and migrated file layout.
+"""Read-only checks for current links, resource paths and optional code ownership.
 
 This supplements the existing Godot scene/UID checker; it does not parse scenes
 or promise to resolve computed resource paths or Markdown heading anchors.
@@ -30,22 +30,6 @@ ROLE_DIRECTORIES = (
     "design/rules", "design/systems", "design/research", "docs/plans",
     "docs/status", "docs/engineering", "docs/specs", "docs/archive",
 )
-MOVED_PATHS = {
-    "scripts/sim/village_runtime.gd": "scripts/runtime/village_runtime.gd",
-    "scripts/sim/world_continuity_runtime.gd": "scripts/runtime/world_continuity_runtime.gd",
-    "scripts/sim/save_store.gd": "scripts/persistence/save_store.gd",
-    "data/simulation.json": "data/scenarios/village.json",
-    "data/world_continuity.json": "data/scenarios/world_continuity.json",
-    **{f"data/{name}.json": f"data/definitions/{name}.json"
-       for name in ("pawns", "origins", "ranks")},
-    **{f"tests/{name}.gd": f"tests/sim/{name}.gd" for name in (
-        "test_regional_simulation", "test_sim_ledgers", "test_sim_schema",
-        "test_social_memory", "test_village_batch", "test_village_simulation",
-    )},
-    **{f"tests/{name}.gd": f"tests/runtime/{name}.gd" for name in (
-        "test_village_navigation", "test_village_runtime", "test_world_continuity_runtime",
-    )},
-}
 LINK = re.compile(
     r"!?\[[^\]\n]*\]\(\s*(?:<(?P<angle>[^>\n]+)>|"
     r"(?P<plain>(?:\\.|[^\s()\\]|\([^()\n]*\))+))"
@@ -117,9 +101,7 @@ def check_script(path: Path, root: Path) -> list[str]:
             continue
         line = text.count("\n", 0, match.start()) + 1
         where = f"{path.relative_to(root).as_posix()}:{line}"
-        if relative in MOVED_PATHS:
-            issues.append(f"{where}: moved res://{relative}; use res://{MOVED_PATHS[relative]}")
-        elif not (root / relative).exists():
+        if not (root / relative).exists():
             issues.append(f"{where}: missing resource res://{relative}")
     return issues
 
@@ -149,20 +131,76 @@ def check_project(root: Path) -> tuple[list[str], int, int]:
     return issues, len(documents), len(scripts)
 
 
+def audit_code(root: Path) -> list[str]:
+    """Suggest review targets; computed paths and external editor calls are unknown.
+
+    This is deliberately not a dead-code deletion tool or a CI gate. Registered
+    classes and literal resources provide a conservative, explainable graph.
+    """
+    sources = {
+        path.relative_to(root).as_posix(): path.read_text(encoding="utf-8-sig")
+        for folder in ("scripts", "scenes", "tests")
+        for path in (root / folder).rglob("*")
+        if path.is_file() and path.suffix in {".gd", ".tscn", ".tres"}
+    }
+    classes: dict[str, str] = {}
+    notes: list[str] = []
+    for path, source in sources.items():
+        match = re.search(r"^class_name\s+(\w+)", source, re.M)
+        if match:
+            name = match.group(1)
+            if name in classes:
+                notes.append(f"REVIEW duplicate class {name}: {classes[name]}, {path}")
+            classes[name] = path
+        if path.endswith(".gd") and not (root / (path + ".uid")).is_file():
+            notes.append(f"REVIEW missing script UID: {path}")
+    edges: dict[str, set[str]] = {}
+    for path, source in sources.items():
+        text = re.sub(r"#[^\n]*", "", source)
+        words = set(re.findall(r"\b\w+\b", text))
+        references = {classes[name] for name in words & classes.keys()}
+        references.update(re.findall(r'res://([^"\s)]+)', text))
+        edges[path] = (references & sources.keys()) - {path}
+        if path.startswith("scripts/sim/"):
+            for target in sorted(edges[path]):
+                if target.startswith(("scripts/runtime/", "scripts/entities/", "scripts/world/", "scripts/ui/")):
+                    notes.append(f"REVIEW simulation depends on presentation: {path} -> {target}")
+    # All checked-in scenes are deliberate entries, including the temporary
+    # crowd scene. Tests and autoloads are separate from ordinary gameplay.
+    roots = {path for path in sources if path.startswith(("scenes/", "tests/", "scripts/autoload/"))}
+    visited: set[str] = set()
+    pending = list(roots)
+    while pending:
+        path = pending.pop()
+        if path in visited:
+            continue
+        visited.add(path)
+        pending.extend(edges[path] - visited)
+    for path in sorted(sources.keys() - visited):
+        notes.append(f"REVIEW no static entry path (may be dynamic): {path}")
+    count = sum(path.startswith("scripts/") for path in sources)
+    notes.insert(0, f"Code audit: {count} source files, {len(classes)} registered classes; suggestions only")
+    return notes
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("project_dir", nargs="?", type=Path, default=ROOT)
+    parser.add_argument("--audit-code", action="store_true", help="show static reachability, UID and dependency review targets; never deletes files")
     args = parser.parse_args(argv)
     root = args.project_dir.resolve()
     if not root.is_dir():
         parser.error(f"not a directory: {root}")
     try:
         issues, document_count, script_count = check_project(root)
+        notes = audit_code(root) if args.audit_code else []
     except (OSError, UnicodeError) as error:
         print(f"ERROR: cannot read project: {error}")
         return 1
     for issue in issues:
         print(f"ERROR {issue}")
+    for note in notes:
+        print(note)
     print(f"Structure: {document_count} current documents, {script_count} scripts, {len(issues)} errors; archive excluded")
     return 1 if issues else 0
 

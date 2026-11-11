@@ -88,7 +88,7 @@ ACS 商店的 “View the manual” 链接本轮实际导向社区 Fandom，不�
 
 ## 4. 与本轮 E2 代码的边界
 
-调研时的工作树包含 [SimLocalHeat](../../scripts/sim/local_heat.gd)、[原器物系统](../../scripts/sim/artifacts.gd)的 `warm` 动作和[施工接缝](../../scripts/sim/construction.gd)。当时的有限目标是：实际完成释热时扣原温石的一份储能，把一份正余热留在实际空间，再由墙门/覆盖影响传递与散失。煮饭、烘药和释热竞争原器物储能。
+调研时的工作树包含 [当时的SimLocalHeat](https://github.com/fewnfds/reol/blob/7006ce1/scripts/sim/local_heat.gd)、[原器物系统](../../scripts/sim/artifacts.gd)的 `warm` 动作和[施工接缝](../../scripts/sim/construction.gd)。当时的有限目标是：实际完成释热时扣原温石的一份储能，把一份正余热留在实际空间，再由墙门/覆盖影响传递与散失。煮饭、烘药和释热竞争原器物储能。
 
 该次调研中的 `SimLocalHeat` 模拟的是**相对原室外背景的正余热**，不是绝对热力学。实现内用规则能量单位记输入、局地存量和对外损失，不把器物 charge、温度和灵气直接当同单位相加。调研时没有持续携带辐射、全材料比热/相变、完整气液或五行场；门墙参数与房屋几何也是最小抽象。
 

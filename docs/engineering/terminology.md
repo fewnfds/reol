@@ -1,7 +1,5 @@
 # 术语与代码映射
 
-> 实现参考：描述代码接口及消费者假设，可随重构更新；稳定边界见constraints，范围按当前用户任务。
-
 本页为现存Demo的实现参考；重构目标由[执行规格](../specs/world-engine/execution.md)定义。逻辑职责/有效规则不绑定下列class、数据结构或调用链。
 
 本页固定跨文档使用的名称，并把中文概念指向真实实现。游戏规则由[design/rules](../../design/rules/README.md)负责，状态所有者见[architecture](architecture/02-owners.md)。表中的多个入口分别表示定义、实例或视图，不是可互换的别名；候选模型不因列在这里成为已实现功能。
@@ -103,7 +101,7 @@
 
 当前运行成员和调度domain使用`environment_fields`，区域存档键仍为`local_heat`；`SimWorldSaveDomains`在capture、shape validation和restore共用该映射。根/区域版本只看[兼容政策](compatibility.md)，没有运行时`local_heat`兼容getter或第二环境owner。
 
-`ReolContentDB.local_heat`和`data/definitions/local_heat.json`保留为热设备参数定义入口；历史`SimLocalHeat`不因此成为当前环境owner。使用时写出限定路径/所属对象，不能只写`local_heat`猜它指运行域、存档还是定义。
+`ReolContentDB.local_heat`和`data/definitions/local_heat.json`保留为热设备参数定义入口；参数由`ThermalDefinitions`验证；旧`SimLocalHeat`及迁移链已删除。使用时写出限定路径/所属对象，不能只写`local_heat`猜它指运行域、存档还是定义。
 
 本页不重命名第三方API、官方作品名、原fixture或历史证据。新增/更名概念同时维护本页及其领域owner文档，不另建一套翻译词表。
 
