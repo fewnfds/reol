@@ -40,6 +40,9 @@ var avatar_subject: String = "subject:player"
 var _opening_selection_available: bool = false
 
 var _home: VillageRuntime
+var body_publication: SimBodyPublication
+var body_publication_workers: int = 4
+var body_publication_work: Dictionary = {"batches": 0, "parallel_batches": 0, "rows": 0, "prepare_usec": 0, "elapsed_usec": 0, "worker_usec": 0, "adopt_usec": 0}
 var _remote_views: Dictionary[String, Pawn] = {}
 var _panel: WorldContinuityPanel
 var _notice: String = "两地各自生活；前往另一处，观察途中和归来的变化。"
@@ -153,6 +156,9 @@ func _configure_field_compute() -> void:
 		if argument.begins_with("--environment-backend="):
 			mode = argument.get_slice("=", 1)
 	var service := EnvironmentFieldComputeRuntime.new()
+	for argument: String in OS.get_cmdline_user_args():
+		if argument.begins_with("--actor-workers="):
+			service.cpu_workers = clampi(argument.get_slice("=", 1).to_int(), 0, 8)
 	if not service.configure(world_sim.environment_fields._field, mode):
 		return
 	_field_compute = service
@@ -180,11 +186,11 @@ func _capture_committed_canvases(_from_ms: int = 0, _to_ms: int = 0) -> void:
 		return
 	# All ordinary observers have finished. Publish body views once, sharing
 	# the layout, rather than rebuilding them inside each executor continuation.
-	var layout: PawnViewLayout = actor_view_layout()
-	var poses := HumanoidPose.WorldFrame.new(world_sim, GameClock.elapsed_ms)
+	_publish_bodies()
+	var layout: PawnViewLayout = actor_view_layout(true)
 	HumanoidSprite.publish_time(GameClock.elapsed_ms)
-	_home._sync_actor_views(snap, layout, poses)
-	_refresh_views(snap, layout, poses)
+	_home._sync_actor_views(snap, layout)
+	_refresh_views(snap, layout)
 	_refresh_advance_views()
 	_home.publish_actor_motion(GameClock.elapsed_ms, snap)
 	for pawn: Pawn in _remote_views.values():
@@ -211,14 +217,25 @@ func actor_view(actor: String) -> Pawn:
 	return _home._pawns.get(actor) as Pawn if actor_region(actor) == "home" else _remote_views.get(actor) as Pawn
 
 
-func actor_view_layout() -> PawnViewLayout:
+func actor_view_layout(reuse_publication: bool = false) -> PawnViewLayout:
 	# No merger or materialization of body tables. Visitors join residents in
 	# their actual visible cell regardless of the owner of their original body.
 	var layout := PawnViewLayout.new(_home._fog)
-	for sim: VillageSimulation in world_sim.regions.values():
-		layout.include_bodies(sim.actors, GameClock.elapsed_ms, sim.native_route_projections())
+	if not reuse_publication or body_publication == null or body_publication.world_id != world_sim.get_instance_id() or body_publication.at_ms != GameClock.elapsed_ms:
+		_publish_bodies()
+	layout.include_publication(body_publication)
 	layout.finish("player")
 	return layout
+
+
+func _publish_bodies() -> void:
+	body_publication = SimBodyPublication.capture(world_sim, GameClock.elapsed_ms, body_publication_workers,
+		[_home._selected_actor, _selected_remote], player_journey, _home._player.manual_visual_moving, _home._player.motion.action)
+	var work: Dictionary = body_publication.work
+	body_publication_work.batches += 1
+	body_publication_work.parallel_batches += int(work.parallel)
+	for key: String in ["rows", "prepare_usec", "elapsed_usec", "worker_usec", "adopt_usec"]:
+		body_publication_work[key] += int(work[key])
 
 
 func select_actor_view(pawn: Pawn) -> void:
@@ -947,7 +964,7 @@ func _on_advanced() -> void:
 	redraw_committed_canvas()
 
 
-func _refresh_views(snap: bool, layout: PawnViewLayout = null, poses: HumanoidPose.WorldFrame = null) -> void:
+func _refresh_views(snap: bool, layout: PawnViewLayout = null) -> void:
 	if not _presentation_ready():
 		return
 	# A body keeps its original ledger owner while travelling. Only actual
@@ -955,46 +972,38 @@ func _refresh_views(snap: bool, layout: PawnViewLayout = null, poses: HumanoidPo
 	var visible_bodies: Dictionary = {}
 	if layout == null:
 		layout = actor_view_layout()
-	if poses == null:
-		poses = HumanoidPose.WorldFrame.new(world_sim, world_sim.elapsed_ms)
-	var reuse_native_leg: bool = poses.at_ms == GameClock.elapsed_ms
-	for region: String in world_sim.regions:
-		if region == "home":
+	for id: String in body_publication.rows:
+		var row: Dictionary = body_publication.rows[id]
+		if row.region == "home" or not bool(row.alive):
 			continue
-		var remote: VillageSimulation = world_sim.regions[region]
-		var residents: Dictionary = remote.actors
-		for id: String in residents:
-			var actor: Dictionary = residents[id]
-			if not bool(actor.alive):
-				continue
-			var cell: Vector2i = layout.cells[id] if layout.cells.has(id) else _cell(actor.cell)
-			if _home._fog == null and cell.distance_to(controlled_cell()) > float(_home.simulation.config.observation_radius):
-				continue
-			if not layout.sees(cell):
-				continue
-			# Visibility does not materialize or advance the original body.
-			visible_bodies[id] = true
-			if not _remote_views.has(id):
-				var created_pawn := Pawn.new()
-				created_pawn.name = "Visitor_" + id
-				created_pawn.setup(_home._content.get_pawn(StringName(actor.definition_id)), _home._content, _home._world, cell)
-				created_pawn.pawn_id = StringName(id)
-				created_pawn.display_name_override = str(settings.runtime.remote_names.get(id, remote._name(id)))
-				add_child(created_pawn)
-				_remote_views[id] = created_pawn
-			var pawn: Pawn = _remote_views[id]
-			var leg: int = int(layout.native_legs.get(id, -1)) if reuse_native_leg else -1
-			pawn.appearance_pose = HumanoidPose.stabilized(poses.pose(remote, id, actor, leg), pawn.appearance_pose)
-			pawn.clothing_appearance = world_sim.clothing.appearance(id)
-			pawn.set_view_layout(layout.offsets.get(id, Vector2.ZERO))
-			pawn.cell = cell
-			if pawn.selected:
-				_home._sync_needs(pawn.state, remote.projected_actor_needs(id))
-			pawn.project_position(layout.points[id] if layout.points.has(id) else remote.projected_actor_position(id))
-			if not GameClock.is_advancing():
-				pawn.publish_motion(GameClock.elapsed_ms, snap)
-			pawn.show()
-			pawn.refresh_appearance()
+		var cell: Vector2i = row.cell
+		if _home._fog == null and cell.distance_to(controlled_cell()) > float(_home.simulation.config.observation_radius):
+			continue
+		if not layout.sees(cell):
+			continue
+		# Visibility does not materialize or advance the original body.
+		visible_bodies[id] = true
+		if not _remote_views.has(id):
+			var created_pawn := Pawn.new()
+			created_pawn.name = "Visitor_" + id
+			created_pawn.setup(_home._content.get_pawn(StringName(row.definition_id)), _home._content, _home._world, cell)
+			created_pawn.pawn_id = StringName(id)
+			var definition: PawnDef = _home._content.get_pawn(StringName(row.definition_id))
+			created_pawn.display_name_override = str(settings.runtime.remote_names.get(id, definition.display_name if definition != null else id))
+			add_child(created_pawn)
+			_remote_views[id] = created_pawn
+		var pawn: Pawn = _remote_views[id]
+		pawn.appearance_pose = HumanoidPose.stabilized(row.pose.duplicate(), pawn.appearance_pose)
+		pawn.clothing_appearance = row.clothing
+		pawn.set_view_layout(layout.offsets.get(id, Vector2.ZERO))
+		pawn.cell = cell
+		if pawn.selected and row.has("needs"):
+			_home._sync_needs(pawn.state, row.needs)
+		pawn.project_position(row.point)
+		if not GameClock.is_advancing():
+			pawn.publish_motion(GameClock.elapsed_ms, snap)
+		pawn.show()
+		pawn.refresh_appearance()
 	for id: String in _remote_views.keys():
 		if visible_bodies.has(id):
 			continue

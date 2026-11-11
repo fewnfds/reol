@@ -12,6 +12,9 @@ class CrowdVillage extends VillageRuntime:
 	func _load_config() -> bool:
 		if not super._load_config():
 			return false
+		if OS.get_cmdline_user_args().has("--complex") or residents > 512:
+			_config.navigation_radius = 64
+			_config.navigation_budget = 16384
 		for index: int in range(6, residents):
 			_config.actor_profiles["crowd_%04d" % index] = {"definition_id": "a_he", "autonomous": true, "hunger": 90.0, "energy": 90.0}
 		return true
@@ -20,7 +23,7 @@ class CrowdVillage extends VillageRuntime:
 func _resident_count() -> int:
 	for argument: String in OS.get_cmdline_user_args():
 		if argument.begins_with("--residents="):
-			return clampi(argument.get_slice("=", 1).to_int(), 6, 256)
+			return clampi(argument.get_slice("=", 1).to_int(), 6, 4096)
 	return 16
 
 
@@ -35,14 +38,22 @@ func _spawn_named_pawns(spawn_cell: Vector2i) -> void:
 	var used: Dictionary = {spawn_cell: true}
 	for pawn: Pawn in _pawns:
 		used[pawn.cell] = true
-	var reachable: Array[Vector2i] = VillageRuntime.find_reachable_cells(world, spawn_cell, 22, 8192)
+	# Leave the ordinary opening's axial plant samples free. Large fixtures
+	# must not consume their scenario footprint before that owner is assembled.
+	for radius: int in range(2, 10):
+		for direction: Vector2i in [Vector2i.LEFT, Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN]:
+			used[spawn_cell + direction * radius] = true
+	var spread: int = mini(64, maxi(22, ceili(sqrt(float(_resident_count()))) + 4))
+	var reachable: Array[Vector2i] = VillageRuntime.find_reachable_cells(world, spawn_cell, spread, 32768)
+	var cursor: int = 0
 	for index: int in range(6, _resident_count()):
 		var cell: Vector2i = spawn_cell
 		# Stable spatial spread, not a stack of clones at a single point.
-		for candidate: Vector2i in reachable:
-			if not used.has(candidate):
-				cell = candidate
-				break
+		while cursor < reachable.size() and used.has(reachable[cursor]):
+			cursor += 1
+		if cursor < reachable.size():
+			cell = reachable[cursor]
+			cursor += 1
 		used[cell] = true
 		var pawn := Pawn.new()
 		pawn.name = "Crowd_%04d" % index

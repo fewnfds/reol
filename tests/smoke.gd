@@ -74,7 +74,76 @@ func _spatial() -> bool:
 	var expected_targets: PackedInt32Array = serial.collect(starts.size())
 	if parallel.collect(starts.size()) != expected_targets or not parallel.execution.parallel:
 		return false
-	return expected_targets[0] == 65 and expected_targets[1] == 0 and expected_targets[30] == -1 and expected_targets[31] == -1
+	return expected_targets[0] == 65 and expected_targets[1] == 0 and expected_targets[30] == -1 and expected_targets[31] == -1 and _field_workers() and _body_publication()
+
+
+func _field_workers() -> bool:
+	var field := SimEnvironmentGroundField.new()
+	if not field.configure(Vector2i(32, 32), 32):
+		return false
+	var geometry := PackedInt32Array([1, 0, 0, 32, 32, 16])
+	for y: int in 32:
+		for x: int in 32:
+			geometry.append((2000 | (8000 << 16)) if x == 16 and y % 7 != 0 else (10000 | (10000 << 16)))
+	field.set_transport(func(from: Vector2i, to: Vector2i, channel: int) -> int:
+		var factors: Vector2i = SimFieldCompute.transmission(geometry, from, to)
+		return factors.x if channel >= 5 else factors.y)
+	for slot: int in 12:
+		if not field.set_source(slot, Vector2i(3 + (slot % 4) * 7, 3 + (slot / 4) * 9), 8, PackedInt32Array([100, slot * 70, 200, 300, 1000, 2000, 3000 - slot * 100])).ok:
+			return false
+	var area := Rect2i(0, 0, 32, 32)
+	field.request_area(area)
+	while field.diagnostics().pending_tiles > 0:
+		if not field.rebuild(4, 1000000).ok:
+			return false
+	# Geometry snapshot has the same original coordinates in this full job.
+	var job: Dictionary = field._export_compute_job(area, false)
+	job.geometry = geometry
+	var serial := SimFieldCompute.new()
+	serial.start(job, 0)
+	var expected: Dictionary = serial.collect()
+	var parallel := SimFieldCompute.new()
+	parallel.start(job, 4)
+	parallel.execution.finish(true)
+	var actual: Dictionary = parallel.collect()
+	if not expected.ok or not actual.ok or not parallel.execution.parallel or expected.prepared.tiles != actual.prepared.tiles:
+		return false
+	for tile: Dictionary in actual.prepared.tiles:
+		var rect: Rect2i = field._rect_for_tile(int(tile.id))
+		for y: int in rect.size.y:
+			for x: int in rect.size.x:
+				var reference: Dictionary = field.read_base(rect.position + Vector2i(x, y))
+				var offset: int = (y * rect.size.x + x) * 7
+				if reference.channels != tile.values.slice(offset, offset + 7):
+					return false
+	return true
+
+
+func _body_publication() -> bool:
+	var world := RegionalSimulation.new()
+	var poses := HumanoidPose.WorldFrame.new(world, 550)
+	var action: Dictionary = {"phase": "travel", "path": [[2, 0], [2, 1]], "segment_from": [0.0, 0.0], "segment_started_ms": 0, "due_ms": 1000}
+	var body: Dictionary = {"position": [0.0, 0.0], "cell": [0, 0], "facing": [1.0, 0.0], "active": action, "alive": true, "definition_id": "test"}
+	var before: Dictionary = body.duplicate(true)
+	var chunks: Array[RefCounted] = []
+	for index: int in 2:
+		var chunk := SimBodyPublication.Chunk.new()
+		var id: String = "actor_" + str(index)
+		chunk.roster = [{"id": id, "body": body}]
+		chunk.first = 0
+		chunk.stop = 1
+		chunk.region = "home"
+		chunk.completions = {id: {"route": action, "timeline": SimRouteTravel.Timeline.new(action, 100.0), "coarse": true}}
+		chunk.poses = poses
+		chunks.append(chunk)
+	var batch := SimBatchExecution.new()
+	batch.start(chunks, 2)
+	batch.finish(true)
+	if body != before or chunks[0].rows[0].pose != poses.pose_read(SimRouteTravel.Timeline.new(action, 100.0), "actor_0", body):
+		return false
+	var captured: Vector2 = chunks[0].rows[0].point
+	body.position = [999.0, 999.0]
+	return chunks[0].rows[0].point == captured and chunks[0].roster.is_empty()
 
 
 func _initialize() -> void:

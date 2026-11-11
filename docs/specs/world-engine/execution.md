@@ -2,7 +2,7 @@
 
 类型：本阶段实施设计。授权和交付顺序只在[唯一主计划](../../plans/foundation-priorities.md)，当前运行事实在[批执行合同](../../engineering/execution-batches.md)和[BASELINE](../../status/baseline.md)。2026-11-11替换泛化候选，明确主要计算多核化；下文目标结构尚未全部实现。
 
-首批实际实现：`SimWorldGeometry`提供局部更新、旧页保留的几何读取，普通人物/服务已直接绑定模拟层导航；`SimBodyReadView`为同一交锋边界捕获紧凑身体列，`SimSpatialQueries`执行串行/worker候选。身体捕获与结果收集仍在原交锋回调，下面的模拟协调线程、显示数据交换和广泛任务重叠尚未落地。当前API与等待范围只见批计算合同。
+当前实际实现：共享几何与交锋批查询之后，`SimBodyPublication`复用身体成员表，在任务池准备脱离原身体的显示值；`SimFieldCompute`沿现有场候选接口新增CPU分块计算。其他画布/面板仍在完整边界读取原世界，模拟协调线程与广泛任务重叠尚未落地。当前API与等待范围见批计算合同，测量见BASELINE。
 
 ## 目标结构
 

@@ -194,7 +194,7 @@ def _require_godot() -> Path | None:
     return path
 
 
-def _run(cmd: list[str], name: str, timeout: float | None = None, *, fail_fast: bool = True) -> int:
+def _run(cmd: list[str], name: str, timeout: float | None = None, *, fail_fast: bool = True, on_start=None) -> int:
     """Stream one owned process; errors/timeouts retain the log and stop promptly."""
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     (LOG_DIR / ".gdignore").touch(exist_ok=True)
@@ -206,12 +206,23 @@ def _run(cmd: list[str], name: str, timeout: float | None = None, *, fail_fast: 
             print(line.rstrip("\r\n"), flush=True)
 
         try:
-            child = subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.PIPE,
-                                     stderr=subprocess.STDOUT, text=True,
-                                     encoding="utf-8", errors="replace")
+            # A newly exported Windows executable may briefly be held by the
+            # host scanner. Retry only that sharing violation, for at most 3s.
+            for attempt in range(7):
+                try:
+                    child = subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.PIPE,
+                                             stderr=subprocess.STDOUT, text=True,
+                                             encoding="utf-8", errors="replace")
+                    break
+                except OSError as transient:
+                    if getattr(transient, "winerror", None) != 32 or attempt == 6:
+                        raise
+                    time.sleep(0.5)
         except OSError as error:
             record(f"ERROR: cannot start process: {error}")
             return 127
+        if on_start is not None:
+            on_start(child.pid)
         events: queue.Queue[str | None] = queue.Queue()
 
         def read() -> None:

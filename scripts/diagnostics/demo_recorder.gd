@@ -34,6 +34,7 @@ var _frames: Array[float] = []
 var _clock_samples: Array[float] = []
 var _spikes: Array[Dictionary] = []
 var _started: int = 0
+var _started_unix: float = 0.0
 var _last: int = 0
 var _window: int = 0
 var _last_world_ms: int = 0
@@ -57,6 +58,7 @@ var _initial_actor_execution: Dictionary = {}
 var _initial_actor_world_id: int = 0
 var _initial_spatial_work: Dictionary = {}
 var _initial_geometry_work: Dictionary = {}
+var _initial_body_publication_work: Dictionary = {}
 var _profile_navigation: bool = false
 var _navigation_originals: Array[Dictionary] = []
 var _navigation_calls: int = 0
@@ -92,6 +94,7 @@ func configure(main: Node, options: Dictionary) -> bool:
 	_initial_actor_world_id = _runtime.world_sim.get_instance_id()
 	_initial_spatial_work = _runtime.world_sim.conflicts.spatial_work.duplicate()
 	_initial_geometry_work = _runtime.world_sim.geometry_read().work.duplicate()
+	_initial_body_publication_work = _runtime.body_publication_work.duplicate()
 	if _profile_navigation:
 		for sim: VillageSimulation in _runtime.world_sim.regions.values():
 			_profile_navigation_owner(sim)
@@ -103,6 +106,7 @@ func configure(main: Node, options: Dictionary) -> bool:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	process_priority = 100000
 	_started = Time.get_ticks_usec()
+	_started_unix = Time.get_unix_time_from_system()
 	_last = _started
 	_window = _started
 	_last_world_ms = int(_clock.elapsed_ms)
@@ -373,6 +377,7 @@ func finish() -> void:
 		"terrain_warmup_ms": float(_options.get("terrain_warmup_usec", 0)) / 1000.0,
 		"terrain_warmup_complete": _options.get("terrain_warmup_complete"),
 		"capture_seconds": (Time.get_ticks_usec() - _started) / 1000000.0,
+		"capture_started_unix": _started_unix, "capture_finished_unix": Time.get_unix_time_from_system(),
 		"running_seconds": _running_usec / 1000000.0, "world_ms": _advanced_ms,
 		"requested_world_ms": _requested_ms, "achieved_fraction": _advanced_ms / _requested_ms if _requested_ms > 0.0 else null,
 		"minimum_load_rate": _minimum_rate, "slow_seconds": _slow_usec / 1000000.0,
@@ -391,6 +396,7 @@ func finish() -> void:
 		"actor_execution_capture": _actor_execution_capture(),
 		"actor_execution_capture_available": _runtime.world_sim.get_instance_id() == _initial_actor_world_id,
 		"spatial_execution_capture": _counter_delta(_runtime.world_sim.conflicts.spatial_work, _initial_spatial_work) if _runtime.world_sim.get_instance_id() == _initial_actor_world_id else {},
+		"body_publication_capture": _counter_delta(_runtime.body_publication_work, _initial_body_publication_work),
 		"geometry_read_capture": _counter_delta(_runtime.world_sim.geometry_read().work, _initial_geometry_work) if _runtime.world_sim.get_instance_id() == _initial_actor_world_id else {},
 		"navigation_profile": {"enabled": _profile_navigation, "scope": "capture; native and service providers only; includes existing path cache hits; excludes conflict-space direct searches",
 			"calls": _navigation_calls, "total_ms": _navigation_usec / 1000.0, "max_ms": _navigation_max_usec / 1000.0,
@@ -423,6 +429,7 @@ func _actor_execution_summary() -> Dictionary:
 		result[id]["configured_workers"] = sim.actor_execution_workers
 		result[id]["minimum_rows"] = sim.actor_execution_minimum
 		result[id]["owner_thread"] = OS.get_thread_caller_id()
+		result[id]["native_profile_including_setup"] = sim.native_profile.duplicate()
 	return result
 
 

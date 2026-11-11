@@ -31,9 +31,13 @@ class WorldFrame extends RefCounted:
 			_sparring_people = world.sparring.bout.people
 
 	func pose(owner: VillageSimulation, id: String, body: Dictionary, native_leg: int = -1, journey: Dictionary = {}, manual_moving: bool = false, local_action: Dictionary = {}) -> Dictionary:
+		return pose_read(owner.coarse_native_timeline(id), id, body, native_leg, journey, manual_moving, local_action)
+
+	func pose_read(timeline: SimRouteTravel.Timeline, id: String, body: Dictionary, native_leg: int = -1, journey: Dictionary = {}, manual_moving: bool = false, local_action: Dictionary = {}) -> Dictionary:
+		# Owner lends these inputs read-only until its batch is collected. This
+		# function never queries an owner, Node, resource loader or live getter.
 		var job: Dictionary = journey if id == "player" and not journey.is_empty() else _jobs.get(id, body.active)
 		if is_same(job, body.active):
-			var timeline: SimRouteTravel.Timeline = owner.coarse_native_timeline(id)
 			if timeline != null and at_ms < timeline.ends[-1]:
 				var leg: int = native_leg if native_leg >= 0 else timeline.leg_at(at_ms)
 				var direction: Vector2 = timeline.heading_on_leg(at_ms, leg, SimRouteTravel.facing(body))

@@ -3,6 +3,7 @@ extends Node
 ## work, pathfinding, fields and shared-clock recorder; never writes a save.
 
 const MixedWorkload = preload("res://scripts/diagnostics/crowd_mixed_workload.gd")
+const ComplexWorkload = preload("res://scripts/diagnostics/crowd_complex_workload.gd")
 
 class FullRateProbe extends ReolSimulationPacing:
 	# Diagnostic only: keep normal bounded admission and cooperative execution,
@@ -34,6 +35,7 @@ var _last_sample_ms: int = 0
 var _travel_actor_ms: int = 0
 var _sampled_world_ms: int = 0
 var _last_travelling: int = 0
+var _next_count_ms: int = 0
 var _redirects: int = 0
 var _actor_workers: int = 4
 var _profile_kernel: bool = false
@@ -41,6 +43,11 @@ var _profile_render: bool = false
 var _profile_navigation: bool = false
 var _pacing_policy: String = "auto"
 var _mixed: RefCounted
+var _complex: RefCounted
+var _rooms: int = 48
+var _sources: int = 128
+var _circuit_due := SimParticipationIndex.new()
+var _circuit_regions: Dictionary[String, String] = {}
 const CIRCUIT: Array[String] = ["rest", "inspect", "check_store", "check_well"]
 
 
@@ -67,6 +74,12 @@ func _run() -> void:
 			_opening_wave = true
 		elif argument == "--mixed":
 			_mixed = MixedWorkload.new()
+		elif argument == "--complex":
+			_complex = ComplexWorkload.new()
+		elif argument.begins_with("--rooms="):
+			_rooms = clampi(argument.get_slice("=", 1).to_int(), 1, 64)
+		elif argument.begins_with("--sources="):
+			_sources = clampi(argument.get_slice("=", 1).to_int(), 5, 512)
 		elif argument == "--profile-kernel":
 			_profile_kernel = true
 		elif argument == "--profile-render":
@@ -83,6 +96,11 @@ func _run() -> void:
 		return
 	_main = load("res://scenes/main.tscn").instantiate()
 	_main.set_script(load("res://scripts/diagnostics/crowd_scene.gd"))
+	if _complex != null and not ComplexWorkload.configure(_main):
+		push_error("Complex fixture definitions/map were rejected")
+		_main.free()
+		get_tree().quit(1)
+		return
 	root.add_child(_main)
 	get_tree().current_scene = _main
 	_clock = root.get_node("GameClock")
@@ -93,6 +111,8 @@ func _run() -> void:
 		return
 	for sim: VillageSimulation in runtime.world_sim.regions.values():
 		sim.configure_actor_execution(_actor_workers)
+		sim.profile_native = _profile_kernel
+	runtime.body_publication_workers = _actor_workers
 	# Original save hotkeys/panels must not overwrite an ordinary player slot.
 	runtime.home_runtime().set_process_unhandled_key_input(false)
 	for panel: Control in [runtime._panel, _main._village._panel, runtime.service_adapter.panel, _main.hud._pawn_panel]:
@@ -113,6 +133,13 @@ func _run() -> void:
 	_status.add_theme_font_size_override("font_size", 16)
 	root.title = "Reol / temporary full-world crowd stress / no ordinary saves"
 	_clock.set_paused(true)
+	if _complex != null:
+		var failure: String = _complex.prepare(runtime, _rooms, _sources)
+		if not failure.is_empty():
+			push_error(failure)
+			_main.free()
+			get_tree().quit(1)
+			return
 	if not _opening_wave:
 		# One opening placement of the observer at the real gathering point lets
 		# this demo exercise visible crowd rendering too. NPCs never teleport.
@@ -164,6 +191,8 @@ func _run() -> void:
 				_legs[id] = 0
 				if sim.submit_action(id, CIRCUIT[0]):
 					_orders[id] = str(bodies[id].active.id)
+				_circuit_regions[id] = region
+				_arm_circuit(sim, id)
 		runtime.world_sim.invalidate_region(region)
 	if _pacing_policy == "full-rate":
 		_clock.pacing = FullRateProbe.new()
@@ -192,34 +221,51 @@ func _sample() -> void:
 	_sampled_world_ms += span
 	_travel_actor_ms += _last_travelling * span
 	_last_sample_ms = int(_clock.elapsed_ms)
-	_last_travelling = 0
 	if _mixed != null and world.elapsed_ms == world.target_ms:
 		_mixed.sample()
-	for region: String in world.regions:
+	if _complex != null and world.elapsed_ms == world.target_ms:
+		_complex.sample()
+	# This diagnostic driver wakes original orders at their actual route end,
+	# rather than polling every body on every rendered frame.
+	for id: String in _circuit_due.due_ids(&"circuit", _clock.elapsed_ms):
+		var region: String = _circuit_regions[id]
 		var sim: VillageSimulation = world.regions[region]
-		for id: String in sim.actors:
-			if not _moved.has(id) and _starts.has(id) and sim.projected_actor_position(id) != _starts[id]:
-				_moved[id] = true
-			var person: Dictionary = sim.actor_state(id)
-			if not _opening_wave and _legs.has(id) and bool(person.alive):
-				var ready: bool = person.active.is_empty() or (person.active.get("id", "") == _orders.get(id, "") and person.active.get("phase") == "work")
-				if ready and not world.advance_region_to_world(region):
-					continue
-				# Redirect only our own arrived order, through original cancellation
-				# and submission. Never teleport or replace a domain-owned process.
-				if person.active.get("id", "") == _orders.get(id, "") and person.active.get("phase") == "work":
-					sim.cancel_action(id, "stress_circuit")
-					world.invalidate_region(world.clothing.home(id), id)
-					_legs[id] = (int(_legs[id]) + 1) % CIRCUIT.size()
-					_redirects += 1
-				if person.active.is_empty() and sim.submit_action(id, CIRCUIT[int(_legs[id])]):
-					_orders[id] = str(person.active.id)
-					world.invalidate_region(world.clothing.home(id), id)
-			if person.active.get("phase") == "travel":
-				_last_travelling += 1
-	if _mixed != null:
-		_last_travelling += _mixed.travelling()
+		if not _moved.has(id) and sim.projected_actor_position(id) != _starts[id]:
+			_moved[id] = true
+		var person: Dictionary = sim.actor_state(id)
+		if not _opening_wave and _legs.has(id) and bool(person.alive):
+			var ready: bool = person.active.is_empty() or (person.active.get("id", "") == _orders.get(id, "") and person.active.get("phase") == "work")
+			if ready and not world.advance_region_to_world(region):
+				continue
+			# Redirect only our own arrived order through the original commands.
+			if person.active.get("id", "") == _orders.get(id, "") and person.active.get("phase") == "work":
+				sim.cancel_action(id, "stress_circuit")
+				world.invalidate_region(world.clothing.home(id), id)
+				_legs[id] = (int(_legs[id]) + 1) % CIRCUIT.size()
+				_redirects += 1
+			if person.active.is_empty() and sim.submit_action(id, CIRCUIT[int(_legs[id])]):
+				_orders[id] = str(person.active.id)
+				world.invalidate_region(world.clothing.home(id), id)
+		_arm_circuit(sim, id)
+	# A bounded low-frequency count is measurement, not workload scheduling.
+	if _clock.elapsed_ms >= _next_count_ms:
+		_next_count_ms = _clock.elapsed_ms + 500
+		_last_travelling = 0
+		for sim: VillageSimulation in world.regions.values():
+			for id: String in sim.actors:
+				if sim.actor_state(id).active.get("phase") == "travel":
+					_last_travelling += 1
+				if not _moved.has(id) and sim.projected_actor_position(id) != _starts.get(id, Vector2.ZERO):
+					_moved[id] = true
+		if _mixed != null:
+			_last_travelling += _mixed.travelling()
 	_recorder.note_driver_work(Time.get_ticks_usec() - began)
+
+
+func _arm_circuit(sim: VillageSimulation, id: String) -> void:
+	var completion: Dictionary = sim.native_route_projections().get(id, {})
+	_circuit_due.set_member(&"circuit", id)
+	_circuit_due.set_due(&"circuit", id, maxi(sim.elapsed_ms + 1, int(completion.get("at_ms", sim.elapsed_ms + 250))))
 
 
 func _finish(ok: bool) -> void:
@@ -245,6 +291,8 @@ func _finish(ok: bool) -> void:
 		var outcomes: Dictionary = mixed.completed
 		if int(outcomes.get("haul:completed", 0)) < 4 or int(outcomes.get("cook:completed", 0)) < 1 or not mixed.door_built or int(mixed.projectiles_emitted) < 1 or int(mixed.observer_cell_changes) < 10 or not mixed.source_carried:
 			_failures.append("Mixed capture did not exercise all intended activity: " + JSON.stringify(mixed))
+	if _complex != null:
+		crowd["complex"] = _complex.evidence()
 	var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(_report))
 	if not raw is Dictionary:
 		push_error("Crowd recorder did not write a valid report")

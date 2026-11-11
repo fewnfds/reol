@@ -34,6 +34,7 @@ class NativeAdvance extends RefCounted:
 
 var _native_advance: NativeAdvance
 var _actors: Dictionary = {}
+var _body_read_roster: Array[Dictionary] = []
 var actors: Dictionary:
 	get:
 		# Identity/state lookup is pure. Execution and capture use explicit barriers.
@@ -41,6 +42,7 @@ var actors: Dictionary:
 	set(value):
 		synchronize_actors()
 		_actors = value
+		_body_read_roster.clear()
 		_reset_actor_projections()
 var _actor_projection_ms: Dictionary[String, int] = {}
 var _projecting_actors: Dictionary[String, bool] = {}
@@ -95,6 +97,8 @@ var controlled_actor: String = "player"
 var errors: Array[String] = []
 ## Diagnostics only. These counters do not affect decisions or persisted state.
 var simulation_work: Dictionary = {"step_count": 0, "boundary_count": 0, "batched_minutes": 0, "quiet_batch_calls": 0, "actor_settle_checks": 0, "actor_decision_checks": 0, "actor_merge_checks": 0}
+var profile_native: bool = false
+var native_profile: Dictionary = {}
 
 var _content: ReolContentDB
 var _boundary_revision_provider: Callable
@@ -181,6 +185,7 @@ func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary,
 	controlled_actor = str(config.get("controlled_actor", "player"))
 	places = locations.duplicate(true)
 	_actors = {}
+	_body_read_roster.clear()
 	_actor_projection_ms.clear()
 	_reset_witness_cells()
 	inventory = SimInventory.new()
@@ -462,6 +467,7 @@ func invalidate_native_route_completion(id: String) -> void:
 
 
 func _query_actor_boundary(cached: bool) -> int:
+	var profile_started: int = Time.get_ticks_usec() if profile_native else 0
 	var boundary: int = SimInventory.MAX_COUNT
 	var geometry_revision: int = _route_geometry_revision() if cached and native_route_events_enabled else -1
 	var ids: Array = []
@@ -529,6 +535,8 @@ func _query_actor_boundary(cached: bool) -> int:
 		boundary = mini(boundary, actor_boundary)
 	if cached:
 		_boundary_index_ready = true
+		if profile_native:
+			native_profile["deadline"] = int(native_profile.get("deadline", 0)) + Time.get_ticks_usec() - profile_started
 		return _boundary_index.next_due_ms(NATIVE_BOUNDARY, SimInventory.MAX_COUNT)
 	return boundary
 
@@ -640,6 +648,8 @@ func advance_to_ms(target_ms: int, max_events: int = 4096, should_yield: Callabl
 	while elapsed_ms < target_ms or work.phase != NativePhase.START:
 		if should_yield.is_valid() and bool(should_yield.call()):
 			return false
+		var timed_phase: int = work.phase
+		var phase_started: int = Time.get_ticks_usec() if profile_native else 0
 		match work.phase:
 			NativePhase.START:
 				var boundary: int = next_boundary_ms()
@@ -725,6 +735,9 @@ func advance_to_ms(target_ms: int, max_events: int = 4096, should_yield: Callabl
 				_stock_observed_epoch = _stock_epoch
 				_stock_observed_minute = tick_index
 				work.phase = NativePhase.START
+		if profile_native:
+			var key: String = str(NativePhase.keys()[timed_phase])
+			native_profile[key] = int(native_profile.get(key, 0)) + Time.get_ticks_usec() - phase_started
 	simulation_work.batched_minutes = int(simulation_work.batched_minutes) + tick_index - work.initial_minute
 	simulation_work.quiet_batch_calls = int(simulation_work.quiet_batch_calls) + 1
 	_native_advance = null
@@ -804,6 +817,15 @@ func set_sparse_actor_projection(enabled: bool) -> void:
 
 func actor_ids() -> Array:
 	return _actor_ids()
+
+
+func body_read_roster() -> Array[Dictionary]:
+	# Reusable read membership over the original bodies. No mirrored health,
+	# position or action state; only roster replacement rebuilds these rows.
+	if _body_read_roster.is_empty() and not _actors.is_empty():
+		for id: String in _actors:
+			_body_read_roster.append({"id": id, "body": _actors[id]})
+	return _body_read_roster
 
 
 func actor_state(id: String) -> Dictionary:
@@ -1555,6 +1577,7 @@ func restore(data: Dictionary, allowed_subjects: Dictionary = {}, external_inven
 	config = data.config.duplicate(true)
 	invalidate_boundary_cache()
 	_actors = data.actors.duplicate(true)
+	_body_read_roster.clear()
 	places = data.places.duplicate(true)
 	situations = data.situations.duplicate(true)
 	authorizations = data.authorizations.duplicate(true)

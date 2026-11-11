@@ -73,5 +73,25 @@ func finish(center_actor_id: String) -> void:
 	_crowds.clear()
 
 
+func include_publication(frame: SimBodyPublication) -> void:
+	for id: String in frame.rows:
+		var row: Dictionary = frame.rows[id]
+		var cell: Vector2i = row.cell
+		cells[id] = cell
+		if not _observed.has(cell):
+			_observed[cell] = _fog == null or _fog.is_cell_visible(cell)
+		if not _observed[cell]:
+			continue
+		points[id] = row.point
+		if not bool(row.alive):
+			continue
+		if _crowds.has(cell):
+			_crowds[cell].append(id)
+		elif _occupants.has(cell):
+			_crowds[cell] = [_occupants[cell], id]
+		else:
+			_occupants[cell] = id
+
+
 func sees(cell: Vector2i) -> bool:
 	return _fog == null or bool(_observed.get(cell, false))

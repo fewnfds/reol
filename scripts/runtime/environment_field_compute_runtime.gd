@@ -1,6 +1,6 @@
 class_name EnvironmentFieldComputeRuntime
 extends RefCounted
-## One source-candidate GPU request at a time over an immutable field snapshot.
+## One source-candidate CPU/GPU request over an immutable compact field job.
 ## The original field validates and adopts results, or resumes its CPU path.
 ## All service methods run on the owner thread; only GPUWorker owns the device.
 ## Retain a busy service until cancellation is reaped. Only application teardown
@@ -19,6 +19,9 @@ var _ticket_counter: int = 0
 var _ticket: int = 0
 var _cancelled: bool = false
 var _worker: GPUWorker
+var _cpu: SimFieldCompute
+var cpu_workers: int = 4
+var _cpu_work: Dictionary = {"batches": 0, "parallel_batches": 0, "worker_usec": 0, "elapsed_usec": 0, "prepare_result_usec": 0}
 var _job: Dictionary = {}
 var _purpose: String = "candidate"
 var _candidate_requests: int = 0
@@ -40,10 +43,8 @@ func configure(cache: RefCounted, mode: String = "auto") -> bool:
 
 
 func request_source_candidate(handle: RefCounted) -> Dictionary:
-	if _cache == null or _state != "idle" or _mode == "cpu" or _ticket_counter >= MAX_TICKET:
+	if _cache == null or _state != "idle" or _ticket_counter >= MAX_TICKET:
 		return _failure("candidate_backend_unavailable")
-	if RenderingServer.get_rendering_device() == null:
-		return _failure("rendering_device_unavailable")
 	var area: Rect2i = _cache.source_compute_area(handle)
 	if area.size.x <= 0 or area.size.y <= 0 or area.size.x > MAX_GPU_AREA_AXIS or area.size.y > MAX_GPU_AREA_AXIS:
 		return _failure("gpu_area_budget")
@@ -53,16 +54,21 @@ func request_source_candidate(handle: RefCounted) -> Dictionary:
 	var job: Dictionary = _cache.export_source_compute_job(handle)
 	if not bool(job.get("ok", false)):
 		return job
-	if _worker == null:
-		_worker = GPUWorker.new()
-	var error: Error = _worker.submit(job)
-	if error != OK:
-		return _failure("thread_start:" + str(error))
+	if _mode == "cpu" or RenderingServer.get_rendering_device() == null:
+		_cpu = SimFieldCompute.new()
+		_cpu.start(job, cpu_workers)
+		_state = "cpu"
+	else:
+		if _worker == null:
+			_worker = GPUWorker.new()
+		var error: Error = _worker.submit(job)
+		if error != OK:
+			return _failure("thread_start:" + str(error))
+		_state = "gpu"
 	_ticket_counter += 1
 	_ticket = _ticket_counter
 	_job = job
 	_purpose = "candidate"
-	_state = "gpu"
 	_candidate_requests += 1
 	_candidate_snapshot_usec += Time.get_ticks_usec() - started
 	return {"ok": true, "pending": true, "ticket": _ticket}
@@ -86,7 +92,7 @@ func warmup() -> bool:
 
 func maintain() -> void:
 	# A live candidate is exclusively polled by its settlement cursor.
-	if _state == "gpu" and (_purpose == "warmup" or _cancelled):
+	if _state != "idle" and (_purpose == "warmup" or _cancelled):
 		poll()
 
 
@@ -95,6 +101,20 @@ func poll() -> Dictionary:
 		return _failure("not_configured")
 	if _state == "idle":
 		return _failure("idle")
+	if _state == "cpu":
+		var result: Dictionary = _cpu.collect()
+		if bool(result.get("pending", false)):
+			return {"ok": true, "pending": true, "ticket": _ticket}
+		_cpu_work.batches += 1
+		_cpu_work.parallel_batches += int(_cpu.work.parallel)
+		for key: String in ["worker_usec", "elapsed_usec", "prepare_result_usec"]:
+			_cpu_work[key] += int(_cpu.work[key])
+		var completed: Dictionary = {"ok": bool(result.ok), "pending": false, "ticket": _ticket,
+			"cancelled": _cancelled, "job": _job, "prepared": result.prepared, "cpu": result.metrics}
+		if not _cancelled:
+			_candidate_completed += int(result.ok)
+		_reset_request()
+		return completed
 	if not _worker.ready():
 		return {"ok": true, "pending": true, "ticket": _ticket,
 			"status": "cancelling" if _cancelled else "gpu_pending"}
@@ -136,7 +156,8 @@ func diagnostics() -> Dictionary:
 		"backend": _state, "ticket": _ticket, "cancelled": _cancelled, "purpose": _purpose,
 		"candidate_requests": _candidate_requests, "candidate_completed": _candidate_completed,
 		"candidate_adopted": _candidate_adopted, "candidate_failures": _candidate_failures,
-		"candidate_snapshot_usec": _candidate_snapshot_usec, "candidate_compute_ms": _candidate_compute_ms}
+		"candidate_snapshot_usec": _candidate_snapshot_usec, "candidate_compute_ms": _candidate_compute_ms,
+		"cpu": _cpu_work.duplicate()}
 
 
 func close() -> bool:
@@ -152,6 +173,9 @@ func close() -> bool:
 
 func shutdown() -> void:
 	# Application teardown only: no world can consume this service afterwards.
+	if _cpu != null:
+		_cpu.execution.cancel()
+		_cpu.execution.finish(true)
 	if _worker != null:
 		_worker.close_idle()
 		_worker = null
@@ -160,6 +184,7 @@ func shutdown() -> void:
 
 
 func _reset_request() -> void:
+	_cpu = null
 	_purpose = "candidate"
 	_state = "idle"
 	_ticket = 0
