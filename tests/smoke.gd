@@ -344,6 +344,19 @@ func _batch(workers: int) -> SimActorAdvance:
 func _actor_batch() -> bool:
 	if SimBatchExecution.resolve_workers(-1, 50, 20) != 18 or SimBatchExecution.resolve_workers(64, 50, 20) != 20 or SimBatchExecution.resolve_workers(-1, 3, 20) != 3 or SimBatchExecution.resolve_workers(-1, 1, 20) != 0 or SimBatchExecution.resolve_workers(-1, 50, 1) != 0 or SimBatchExecution.resolve_workers(0, 50, 20) != 0:
 		return false
+	# A resumed regional pass must finish its current publication before
+	# preparing a later interval from inputs that are still being changed.
+	var suspended := VillageSimulation.new()
+	var authority := RegionalSimulation.new()
+	suspended.actor_execution_enabled = true
+	suspended._body_read_world = weakref(authority)
+	suspended._sparse_actor_projection = true
+	var revision_reads: Array[int] = [0]
+	suspended._boundary_revision_provider = func() -> int: revision_reads[0] += 1; return 7
+	suspended._native_advance = VillageSimulation.NativeAdvance.new()
+	suspended._native_advance.phase = VillageSimulation.NativePhase.PROJECT
+	if not suspended.prepare_actor_advance(200) or revision_reads[0] != 0 or suspended._prepared_actor_advance != null:
+		return false
 	var serial: SimActorAdvance = _batch(0)
 	var parallel: SimActorAdvance = _batch(2)
 	if not parallel.execution.parallel:
@@ -363,7 +376,65 @@ func _actor_batch() -> bool:
 	if not is_equal_approx(float(bodies["0"].hunger), 79.975) or not is_equal_approx(float(bodies["0"].energy), 59.95) or bodies["0"].stamina != 65 or anchors["0"] != 1500:
 		return false
 	parallel.execution.cancel()
-	return parallel.execution.cancelled and parallel.execution.finish()
+	return parallel.execution.cancelled and parallel.execution.finish() and _route_candidates()
+
+
+func _route_candidates() -> bool:
+	# A candidate must match the original projection, including exact vertices,
+	# turns, crossing timestamps and a zero-length initial centering segment.
+	for coarse: bool in [false, true]:
+		for centering: bool in [false, true]:
+			for now: int in [0, 1, 500, 1000, 1001, 2000]:
+				var origin: Vector2 = TileGrid.cell_to_world(Vector2i.ZERO)
+				var path: Array = [[1, 0], [1, 1]]
+				if centering:
+					path.push_front([0, 0])
+				var route: Dictionary = {"id": "route", "phase": "travel", "action": "inspect", "path": path,
+					"started_ms": 0, "segment_started_ms": 0, "segment_from": [origin.x, origin.y], "due_ms": 1 if centering else 1000}
+				var body: Dictionary = {"alive": true, "active": route, "position": [origin.x, origin.y], "cell": [0, 0], "facing": [-1.0, 0.0],
+					"hunger": 80.0, "energy": 60.0, "need_carry": {"hunger": 0, "energy": 0}, "stamina": 50, "stamina_carry": 0}
+				var actual := VillageSimulation.new()
+				actual._actors = {"body": body}
+				var expected := VillageSimulation.new()
+				expected._actors = actual._actors.duplicate(true)
+				var timeline: SimRouteTravel.Timeline
+				if coarse:
+					timeline = SimRouteTravel.Timeline.new(route, 32.0)
+					actual._route_completions = {"body": {"route": route, "timeline": timeline, "coarse": true}}
+					expected._route_completions = {"body": {"route": expected._actors.body.active,
+						"timeline": SimRouteTravel.Timeline.new(expected._actors.body.active, 32.0), "coarse": true}}
+				var read := SimBodyRead.new()
+				read.actors = actual._actors
+				read.completions = actual._route_completions
+				var calculation := ActorBatch.new()
+				calculation.prepare(read, ["body"], now)
+				calculation.start(0)
+				if calculation.motion_row("body", body, route, timeline).x < 0 or calculation.motion_row("body", body, route.duplicate(true), timeline).x >= 0:
+					return false
+				# Earlier ordered observers may replace this point before adoption.
+				body.position[0] += 1.0
+				var rejected: bool = calculation.motion_row("body", body, route, timeline).x < 0
+				body.position[0] -= 1.0
+				if not rejected:
+					return false
+				body.facing[0] = 1.0
+				rejected = calculation.motion_row("body", body, route, timeline).x < 0
+				body.facing[0] = -1.0
+				if not rejected:
+					return false
+				var actual_crossings: Array = []
+				var expected_crossings: Array = []
+				actual.body_cell_crossed.connect(func(id: String, cell: Vector2i, at: int) -> void: actual_crossings.append([id, cell, at]))
+				expected.body_cell_crossed.connect(func(id: String, cell: Vector2i, at: int) -> void: expected_crossings.append([id, cell, at]))
+				if coarse:
+					actual.project_coarse_native_route("body", route, now, calculation)
+					expected.project_coarse_native_route("body", expected._actors.body.active, now)
+				else:
+					actual.project_actor_route("body", route, now, calculation)
+					expected.project_actor_route("body", expected._actors.body.active, now)
+				if actual._actors != expected._actors or actual_crossings != expected_crossings:
+					return false
+	return true
 
 
 func _inventory() -> bool:

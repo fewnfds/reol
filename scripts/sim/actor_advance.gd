@@ -11,7 +11,7 @@ const CHUNK_SIZE: int = 64
 const PARALLEL_MINIMUM: int = 64
 enum PointField { CURRENT, ORIGIN, TARGET, FACING, STRIDE }
 enum OutputField { HUNGER, ENERGY, STAMINA, STAMINA_CARRY, HUNGER_RATE, ENERGY_RATE,
-	ANCHOR, SEGMENT_MS, DUE_MS, MOVING, ALIVE, STRIDE }
+	ANCHOR, SEGMENT_MS, DUE_MS, MOVING, ALIVE, PATH_SIZE, COARSE_LEG, CROSSING_MS, STRIDE }
 
 class Chunk extends RefCounted:
 	var read: SimBodyRead
@@ -23,6 +23,8 @@ class Chunk extends RefCounted:
 	var output := PackedInt64Array()
 	var poses := PackedVector2Array()
 	var action_ids: Array[String] = []
+	var routes: Array[Dictionary] = []
+	var timelines: Array[SimRouteTravel.Timeline] = []
 	var thread_id: int = 0
 	var started_usec: int = 0
 	var finished_usec: int = 0
@@ -33,6 +35,8 @@ class Chunk extends RefCounted:
 		points.resize(count * PointField.STRIDE)
 		poses.resize(count * 2)
 		action_ids.resize(count)
+		routes.resize(count)
+		timelines.resize(count)
 
 	func run() -> void:
 		thread_id = OS.get_thread_caller_id()
@@ -73,6 +77,8 @@ class Chunk extends RefCounted:
 			points[p + PointField.FACING] = facing
 			output[o + OutputField.MOVING] = int(moving)
 			action_ids[row] = str(route.get("id", ""))
+			routes[row] = route
+			output[o + OutputField.COARSE_LEG] = -1
 			if moving:
 				var origin := Vector2(float(route.segment_from[0]), float(route.segment_from[1]))
 				var target: Vector2 = TileGrid.cell_to_world(SimRouteTravel.cell(route.path[0]))
@@ -80,11 +86,22 @@ class Chunk extends RefCounted:
 				points[p + PointField.TARGET] = target
 				output[o + OutputField.SEGMENT_MS] = int(route.segment_started_ms)
 				output[o + OutputField.DUE_MS] = int(route.due_ms)
-				var ratio: float = clampf(float(at_ms - int(route.segment_started_ms)) / float(int(route.due_ms) - int(route.segment_started_ms)), 0.0, 1.0)
-				var next: Vector2 = origin.lerp(target, ratio)
-				if not point.is_equal_approx(next) and not (target - origin).is_zero_approx():
-					facing = (target - origin).normalized()
-				point = next
+				output[o + OutputField.PATH_SIZE] = route.path.size()
+				var completion: Dictionary = read.completions.get(id, {})
+				var timeline: SimRouteTravel.Timeline = completion.timeline if bool(completion.get("coarse", false)) and is_same(completion.route, route) else null
+				if timeline != null:
+					var leg: int = timeline.leg_at(at_ms)
+					output[o + OutputField.COARSE_LEG] = leg
+					timelines[row] = timeline
+					point = timeline.point_on_leg(at_ms, leg)
+					facing = timeline.heading_on_leg(at_ms, leg, facing)
+				else:
+					point = SimRouteTravel.projected_point(route, body, at_ms)
+					if not SimRouteTravel.point(body).is_equal_approx(point) and not (target - origin).is_zero_approx():
+						facing = (target - origin).normalized()
+					var before: Vector2i = SimRouteTravel.cell(body.cell)
+					if before != TileGrid.world_to_cell(point):
+						output[o + OutputField.CROSSING_MS] = SimRouteTravel.crossing_from_cell_ms(route, before, int(route.segment_started_ms))
 			poses[row * 2] = point
 			poses[row * 2 + 1] = facing
 		read = null
@@ -177,16 +194,27 @@ func row_for(id: String) -> Vector2i:
 	return Vector2i(index / CHUNK_SIZE, index % CHUNK_SIZE) if index >= 0 else Vector2i(-1, -1)
 
 
-func motion_matches(id: String, body: Dictionary, route: Dictionary) -> bool:
+func motion_row(id: String, body: Dictionary, route: Dictionary, timeline: SimRouteTravel.Timeline = null) -> Vector2i:
+	# Prior ordered observers can replace a later body's route or cursor. The
+	# original object, cursor, point and coarse proof must still be the same;
+	# otherwise its owner runs the existing projection/repair path.
 	var row: Vector2i = row_for(id)
 	if row.x < 0:
-		return false
+		return row
 	var chunk: Chunk = chunks[row.x]
-	if chunk.action_ids[row.y] != str(route.get("id", "")):
-		return false
+	if not is_same(chunk.routes[row.y], route) or not is_same(chunk.timelines[row.y], timeline) or chunk.action_ids[row.y] != str(route.get("id", "")):
+		return Vector2i(-1, -1)
 	var o: int = row.y * OutputField.STRIDE
 	var p: int = row.y * PointField.STRIDE
-	return chunk.output[o + OutputField.MOVING] != 0 and not route.path.is_empty() and int(route.segment_started_ms) == chunk.output[o + OutputField.SEGMENT_MS] and int(route.due_ms) == chunk.output[o + OutputField.DUE_MS] and SimRouteTravel.point(body) == chunk.points[p + PointField.CURRENT] and Vector2(float(route.segment_from[0]), float(route.segment_from[1])) == chunk.points[p + PointField.ORIGIN] and TileGrid.cell_to_world(SimRouteTravel.cell(route.path[0])) == chunk.points[p + PointField.TARGET]
+	if chunk.output[o + OutputField.MOVING] == 0 or route.path.is_empty() or route.path.size() != chunk.output[o + OutputField.PATH_SIZE]:
+		return Vector2i(-1, -1)
+	if int(route.segment_started_ms) != chunk.output[o + OutputField.SEGMENT_MS] or int(route.due_ms) != chunk.output[o + OutputField.DUE_MS]:
+		return Vector2i(-1, -1)
+	if SimRouteTravel.point(body) != chunk.points[p + PointField.CURRENT] or SimRouteTravel.facing(body) != chunk.points[p + PointField.FACING]:
+		return Vector2i(-1, -1)
+	if Vector2(float(route.segment_from[0]), float(route.segment_from[1])) != chunk.points[p + PointField.ORIGIN] or TileGrid.cell_to_world(SimRouteTravel.cell(route.path[0])) != chunk.points[p + PointField.TARGET]:
+		return Vector2i(-1, -1)
+	return row
 
 
 func adopt_needs(actors: Dictionary, anchors: Dictionary, projecting: Array, workers: int) -> Array[String]:

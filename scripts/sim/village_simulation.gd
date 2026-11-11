@@ -490,13 +490,18 @@ func _query_actor_boundary(cached: bool) -> int:
 	else:
 		ids = _actor_ids()
 	var batch: SimBodyDeadlines
+	var read: SimBodyRead
 	var read_started: int = Time.get_ticks_usec()
-	if cached and actor_execution_enabled and _body_read_world != null and ids.size() >= SimBodyDeadlines.PARALLEL_MINIMUM:
-		var read: SimBodyRead = body_read_inputs()
-		if read != null:
+	if cached and actor_execution_enabled and _body_read_world != null and not ids.is_empty():
+		read = body_read_inputs()
+		if read != null and ids.size() >= SimBodyDeadlines.PARALLEL_MINIMUM:
 			batch = SimBodyDeadlines.new()
 			batch.compute(read, ids, actor_execution_workers)
 			_record_deadline_batch(batch, ids.size(), Time.get_ticks_usec() - read_started)
+		elif read != null:
+			# Small dirty sets use the same hot read/query without paying task
+			# dispatch or re-entering several layers of standard world callbacks.
+			actor_execution_work["deadline_direct_rows"] = int(actor_execution_work.get("deadline_direct_rows", 0)) + ids.size()
 	var read_generation: int = _actor_advance_generation
 	var adopt_started: int = Time.get_ticks_usec() if batch != null else 0
 	# With no transition/repair, this loop emits no observer callbacks. Adopt
@@ -520,6 +525,8 @@ func _query_actor_boundary(cached: bool) -> int:
 				_dirty_actor_boundaries.erase(id)
 			continue
 		var candidate: Dictionary = batch.row_at(index) if batch != null and read_generation == _actor_advance_generation else {}
+		if batch == null and read != null and read_generation == _actor_advance_generation:
+			candidate = SimBodyDeadlines.Chunk.query(read, id)
 		if not candidate.is_empty() and not bool(candidate.fallback):
 			actor_boundary = int(candidate.boundary)
 			effect_boundary = int(candidate.effect)
@@ -635,7 +642,7 @@ func body_read_inputs() -> SimBodyRead:
 
 
 func invalidate_boundary_cache() -> void:
-	_cancel_actor_advance()
+	_cancel_actor_advance("all_dependencies")
 	if _collect_actor_work_changes:
 		_actor_work_changes.append("") # Whole-region dependency invalidation.
 	_actor_boundaries.clear()
@@ -647,7 +654,7 @@ func invalidate_boundary_cache() -> void:
 
 
 func invalidate_actor_boundary(id: String) -> void:
-	_cancel_actor_advance()
+	_cancel_actor_advance("body_dependency")
 	if _collect_actor_work_changes:
 		_actor_work_changes.append(id)
 	_actor_boundaries.erase(id)
@@ -736,6 +743,12 @@ func advance_to_ms(target_ms: int, max_events: int = 4096, should_yield: Callabl
 					return false
 				work.at_boundary = next == boundary
 				work.sparse = _sparse_actor_projection and _boundary_revision_provider.is_valid()
+				# A common world request can contain several exact local crossings.
+				# Prepare the next actual interval, then resume this same START when
+				# its readers finish. Never calculate to the outer request and reject
+				# those candidates at the earlier local boundary.
+				if work.sparse and not prepare_actor_advance(next):
+					return false
 				work.batch = _take_actor_advance(next)
 				if not work.sparse:
 					# Opaque standalone callbacks retain their pre-advance input order.
@@ -927,7 +940,7 @@ func synchronize_actor(id: String) -> Dictionary:
 	var previous: int = int(_actor_projection_ms.get(id, elapsed_ms))
 	if previous == elapsed_ms:
 		return actor
-	_cancel_actor_advance()
+	_cancel_actor_advance("body_sync")
 	_projecting_actors[id] = true
 	_integrate_actor(id)
 	_executor.project(id, elapsed_ms)
@@ -943,7 +956,7 @@ func _integrate_actor(id: String) -> void:
 
 
 func synchronize_actors() -> Dictionary:
-	_cancel_actor_advance()
+	_cancel_actor_advance("all_sync")
 	if _materializing_actors or _all_projected_ms == elapsed_ms:
 		return _actors
 	_materializing_actors = true
@@ -975,11 +988,17 @@ func configure_actor_execution(workers: int = 4, minimum: int = SimActorAdvance.
 func prepare_actor_advance(to_ms: int) -> bool:
 	if not actor_execution_enabled or _body_read_world == null or not _sparse_actor_projection or not _boundary_revision_provider.is_valid() or to_ms <= elapsed_ms:
 		return true
+	if _native_advance != null and _native_advance.phase != NativePhase.START:
+		# Regional resume offers preparation again even when this interval is
+		# midway through adoption/notifications. Finish that phase before lending
+		# its partially written inputs to a candidate for a later interval.
+		return true
+	to_ms = mini(to_ms, next_boundary_ms())
 	var revision: int = int(_boundary_revision_provider.call())
 	if _prepared_actor_advance != null:
 		if _prepared_actor_advance.at_ms == to_ms and _prepared_actor_advance.generation == _actor_advance_generation and _prepared_actor_advance.dependency_revision == revision:
 			return _prepared_actor_advance.execution.finish()
-		_cancel_actor_advance()
+		_cancel_actor_advance("replacement")
 	var ids: Array[String] = _boundary_index.due_ids(NATIVE_BOUNDARY, to_ms)
 	if ids.size() < actor_execution_minimum:
 		return true
@@ -1021,8 +1040,19 @@ func _take_actor_advance(to_ms: int) -> SimActorAdvance:
 	var batch: SimActorAdvance = _prepared_actor_advance
 	if batch == null:
 		return null
-	if batch.execution.cancelled or batch.at_ms != to_ms or batch.generation != _actor_advance_generation or not _boundary_revision_provider.is_valid() or batch.dependency_revision != int(_boundary_revision_provider.call()) or not batch.execution.finish():
-		_cancel_actor_advance()
+	var rejection: String = ""
+	if batch.execution.cancelled:
+		rejection = "take_cancelled"
+	elif batch.at_ms != to_ms:
+		rejection = "take_time"
+	elif batch.generation != _actor_advance_generation:
+		rejection = "take_generation"
+	elif not _boundary_revision_provider.is_valid() or batch.dependency_revision != int(_boundary_revision_provider.call()):
+		rejection = "take_dependency"
+	elif not batch.execution.finish():
+		rejection = "take_unfinished"
+	if not rejection.is_empty():
+		_cancel_actor_advance(rejection)
 		return null
 	_prepared_actor_advance = null
 	_measure_actor_batch(batch)
@@ -1046,12 +1076,14 @@ func _measure_actor_batch(batch: SimActorAdvance) -> void:
 		actor_execution_work.collection_delay_usec = int(actor_execution_work.collection_delay_usec) + maxi(0, batch.execution.completed_usec - last)
 
 
-func _cancel_actor_advance() -> void:
+func _cancel_actor_advance(reason: String = "reset") -> void:
 	_actor_advance_generation += 1
 	if _prepared_actor_advance == null:
 		return
 	var batch: SimActorAdvance = _prepared_actor_advance
 	_prepared_actor_advance = null
+	var reason_key: String = "discard_" + reason + "_rows"
+	actor_execution_work[reason_key] = int(actor_execution_work.get(reason_key, 0)) + batch.ids.size()
 	batch.execution.cancel()
 	actor_execution_work.discarded = int(actor_execution_work.discarded) + batch.ids.size()
 	# Unlike the former packed copies, a reader borrows original dictionaries.
@@ -1176,15 +1208,24 @@ func native_route_projections() -> Dictionary:
 	return _route_completions
 
 
-func project_coarse_native_route(id: String, route: Dictionary, at_ms: int) -> bool:
+func project_coarse_native_route(id: String, route: Dictionary, at_ms: int, batch: SimActorAdvance = null) -> bool:
 	var timeline: SimRouteTravel.Timeline = coarse_native_timeline(id)
 	if timeline == null or not is_same(route, _actors[id].active):
 		return false
 	var body: Dictionary = _actors[id]
 	var before: Vector2i = SimRouteTravel.cell(body.cell)
-	timeline.materialize(route, at_ms)
-	var heading: Vector2 = timeline.heading_at(at_ms, SimRouteTravel.facing(body))
-	SimRouteTravel.put(body, timeline.point_at(at_ms))
+	var row: Vector2i = batch.motion_row(id, body, route, timeline) if batch != null and batch.at_ms == at_ms else Vector2i(-1, -1)
+	var heading: Vector2
+	if row.x >= 0:
+		var chunk: SimActorAdvance.Chunk = batch.chunks[row.x]
+		timeline.materialize_leg(route, int(chunk.output[row.y * SimActorAdvance.OutputField.STRIDE + SimActorAdvance.OutputField.COARSE_LEG]))
+		SimRouteTravel.put(body, chunk.poses[row.y * 2])
+		heading = chunk.poses[row.y * 2 + 1]
+		actor_execution_work["coarse_motion_adopted"] = int(actor_execution_work.get("coarse_motion_adopted", 0)) + 1
+	else:
+		timeline.materialize(route, at_ms)
+		heading = timeline.heading_at(at_ms, SimRouteTravel.facing(body))
+		SimRouteTravel.put(body, timeline.point_at(at_ms))
 	body.facing = [heading.x, heading.y]
 	if before != SimRouteTravel.cell(body.cell):
 		_stock_dirty_actors[id] = true
@@ -1207,9 +1248,10 @@ func set_actor_position(id: String, point: Vector2) -> void:
 
 
 func project_actor_route(id: String, route: Dictionary, at_ms: int, batch: SimActorAdvance = null) -> void:
+	var started: int = Time.get_ticks_usec() if profile_native else 0
 	var before: Vector2i = SimRouteTravel.cell(_actors[id].cell)
-	if batch != null and batch.at_ms == at_ms and batch.motion_matches(id, _actors[id], route):
-		var row: Vector2i = batch.row_for(id)
+	var row: Vector2i = batch.motion_row(id, _actors[id], route) if batch != null and batch.at_ms == at_ms else Vector2i(-1, -1)
+	if row.x >= 0:
 		var poses: PackedVector2Array = batch.chunks[row.x].poses
 		SimRouteTravel.put(_actors[id], poses[row.y * 2])
 		var facing: Vector2 = poses[row.y * 2 + 1]
@@ -1217,11 +1259,16 @@ func project_actor_route(id: String, route: Dictionary, at_ms: int, batch: SimAc
 		actor_execution_work.motion_adopted = int(actor_execution_work.motion_adopted) + 1
 	else:
 		SimRouteTravel.project(route, _actors[id], at_ms)
+	if profile_native:
+		native_profile["route_math_adoption"] = int(native_profile.get("route_math_adoption", 0)) + Time.get_ticks_usec() - started
 	if before != SimRouteTravel.cell(_actors[id].cell):
 		_stock_dirty_actors[id] = true
-		var crossing: int = SimRouteTravel.crossing_from_cell_ms(route, before, int(route.segment_started_ms))
+		var crossing: int = int(batch.chunks[row.x].output[row.y * SimActorAdvance.OutputField.STRIDE + SimActorAdvance.OutputField.CROSSING_MS]) if row.x >= 0 else SimRouteTravel.crossing_from_cell_ms(route, before, int(route.segment_started_ms))
+		started = Time.get_ticks_usec() if profile_native else 0
 		body_cell_crossed.emit(id, SimRouteTravel.cell(_actors[id].cell), crossing)
 		_body_space_changed(id)
+		if profile_native:
+			native_profile["crossing_notifications"] = int(native_profile.get("crossing_notifications", 0)) + Time.get_ticks_usec() - started
 
 
 func notify_body_space_changed(id: String) -> void:
@@ -1410,6 +1457,7 @@ func observe(kind: String, actor_id: String, target: String, details: Dictionary
 	if not _actors.has(actor_id):
 		return ""
 	var witnesses: Array[String] = []
+	var began: int = Time.get_ticks_usec() if profile_native else 0
 	var radius: float = float(config.observation_radius)
 	if _can_share_witness_cells(radius):
 		var origin: Vector2i = SimRouteTravel.cell(_actors[actor_id].cell)
@@ -1428,7 +1476,13 @@ func observe(kind: String, actor_id: String, target: String, details: Dictionary
 			if id != actor_id and id != target and bool(_actors[id].alive):
 				if _distance(actor_id, id) <= radius:
 					witnesses.append(id)
-	return social.record(kind, actor_id, target, details, witnesses, tick_index)
+	if profile_native:
+		native_profile["witness_query"] = int(native_profile.get("witness_query", 0)) + Time.get_ticks_usec() - began
+		began = Time.get_ticks_usec()
+	var event_id: String = social.record(kind, actor_id, target, details, witnesses, tick_index)
+	if profile_native:
+		native_profile["witness_record"] = int(native_profile.get("witness_record", 0)) + Time.get_ticks_usec() - began
+	return event_id
 
 
 func _can_share_witness_cells(radius: float) -> bool:

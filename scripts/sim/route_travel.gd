@@ -59,8 +59,13 @@ class Timeline extends RefCounted:
 		return previous
 
 	func materialize(route: Dictionary, now: int) -> void:
+		materialize_leg(route, leg_at(now))
+
+	func materialize_leg(route: Dictionary, leg: int) -> void:
+		# A worker may evaluate the immutable timeline; the route owner alone
+		# consumes its path, after validating the same route and cursor.
 		var consumed: int = ends.size() - route.path.size()
-		var leg: int = maxi(consumed, leg_at(now))
+		leg = maxi(consumed, leg)
 		if leg <= consumed:
 			return
 		route.path = route.path.slice(leg - consumed)
