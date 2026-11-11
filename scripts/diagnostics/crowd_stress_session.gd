@@ -49,6 +49,7 @@ var _sources: int = 128
 var _circuit_due := SimParticipationIndex.new()
 var _circuit_regions: Dictionary[String, String] = {}
 var _circuit: ReolCrowdCircuit
+var _actor_minimum: int = SimActorAdvance.PARALLEL_MINIMUM
 const CIRCUIT: Array[String] = ["rest", "inspect", "check_store", "check_well"]
 
 
@@ -91,6 +92,8 @@ func _run() -> void:
 			_pacing_policy = argument.get_slice("=", 1)
 		elif argument.begins_with("--actor-workers="):
 			_actor_workers = clampi(argument.get_slice("=", 1).to_int(), -1, 64)
+		elif argument.begins_with("--actor-minimum="):
+			_actor_minimum = clampi(argument.get_slice("=", 1).to_int(), 1, 4096)
 	if _mixed != null and (_opening_wave or _seconds < 45):
 		push_error("Mixed capture requires at least 45 seconds and no --opening-wave")
 		get_tree().quit(1)
@@ -111,7 +114,7 @@ func _run() -> void:
 		get_tree().quit(1)
 		return
 	for sim: VillageSimulation in runtime.world_sim.regions.values():
-		sim.configure_actor_execution(_actor_workers)
+		sim.configure_actor_execution(_actor_workers, _actor_minimum)
 		sim.profile_native = _profile_kernel
 	runtime.body_publication_workers = _actor_workers
 	# Original save hotkeys/panels must not overwrite an ordinary player slot.

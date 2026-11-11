@@ -27,6 +27,7 @@ class NativeAdvance extends RefCounted:
 	var observing: Array = []
 	var cursor: int = 0
 	var batch: SimActorAdvance
+	var motion_partition: bool = false
 	var work_started: bool = false
 	var candidates: Array = []
 	var included: Dictionary = {}
@@ -56,6 +57,7 @@ var _sparse_actor_projection: bool = false
 var actor_execution_enabled: bool = false
 var actor_execution_workers: int = 4
 var actor_execution_minimum: int = SimActorAdvance.PARALLEL_MINIMUM
+var actor_projection_partition: bool = true
 ## Unsaved measurements; dependency checks and observable effects stay ordered.
 var actor_execution_work: Dictionary = {"batches": 0, "parallel_batches": 0, "rows": 0, "adopted": 0, "motion_adopted": 0, "discarded": 0, "prepare_usec": 0, "dispatch_usec": 0, "worker_usec": 0, "worker_wall_usec": 0, "queue_usec": 0, "collection_delay_usec": 0, "publish_usec": 0, "pending_returns": 0, "threads": {}}
 var _prepared_actor_advance: SimActorAdvance
@@ -763,6 +765,7 @@ func advance_to_ms(target_ms: int, max_events: int = 4096, should_yield: Callabl
 				work.projecting = _boundary_index.due_ids(NATIVE_BOUNDARY, elapsed_ms) if work.sparse else _actor_ids()
 				work.projecting.sort()
 				work.cursor = 0
+				work.motion_partition = false
 				work.phase = NativePhase.INTEGRATE
 			NativePhase.INTEGRATE:
 				# Finish every old-input need before any geometry observer can see
@@ -770,9 +773,10 @@ func advance_to_ms(target_ms: int, max_events: int = 4096, should_yield: Callabl
 				var started: int = Time.get_ticks_usec() if work.batch != null else 0
 				if work.sparse:
 					if work.batch != null and work.cursor == 0:
-						# Original need dictionaries are disjoint write partitions.
-						# Finish all of them before any projection/observer can read peers.
-						for id: String in work.batch.adopt_needs(_actors, _actor_projection_ms, work.projecting, actor_execution_workers):
+						# A proven standard projection can lend the same disjoint body
+						# partitions too. Every writer ends before ordered notifications.
+						work.motion_partition = _can_partition_projection(work.batch, work.projecting)
+						for id: String in work.batch.adopt_needs(_actors, _actor_projection_ms, work.projecting, actor_execution_workers, work.motion_partition):
 							_integrate_actor(id)
 						for key: String in work.batch.adoption_work:
 							if key == "threads":
@@ -799,10 +803,15 @@ func advance_to_ms(target_ms: int, max_events: int = 4096, should_yield: Callabl
 						if work.batch != null:
 							actor_execution_work.publish_usec = int(actor_execution_work.publish_usec) + Time.get_ticks_usec() - started
 						return false
-					_executor.project(work.projecting[work.cursor], elapsed_ms, work.batch)
+					if work.motion_partition:
+						_notify_partition_projection(work.projecting[work.cursor], work.batch)
+					else:
+						_executor.project(work.projecting[work.cursor], elapsed_ms, work.batch)
 					work.cursor += 1
 				if work.batch != null:
 					actor_execution_work.publish_usec = int(actor_execution_work.publish_usec) + Time.get_ticks_usec() - started
+				if work.motion_partition:
+					_adopt_partition_continuations(work.batch)
 				work.due = _boundary_index.due_ids(NATIVE_BOUNDARY, elapsed_ms) if _boundary_revision_provider.is_valid() else _actor_ids()
 				work.phase = NativePhase.SETTLE
 			NativePhase.SETTLE:
@@ -983,6 +992,59 @@ func configure_actor_execution(workers: int = 4, minimum: int = SimActorAdvance.
 	actor_execution_enabled = true
 	actor_execution_workers = clampi(workers, -1, 64)
 	actor_execution_minimum = maxi(1, minimum)
+
+
+func _can_partition_projection(batch: SimActorAdvance, projecting: Array) -> bool:
+	var reason: String
+	var world: RegionalSimulation = _body_read_world.get_ref() if _body_read_world != null else null
+	if not actor_projection_partition:
+		reason = "disabled"
+	elif world == null or batch.generation != _actor_advance_generation:
+		reason = "generation"
+	elif batch.ids != projecting:
+		reason = "membership"
+	elif not batch.projection_is_proven():
+		reason = "route_proof"
+	elif not _boundary_revision_provider.is_valid() or batch.dependency_revision != int(_boundary_revision_provider.call()):
+		reason = "dependency"
+	elif not world.native_projection_isolated(self):
+		reason = "observer"
+	elif not batch.projection_matches(_actors, _route_completions, actor_execution_workers):
+		reason = "changed_input"
+	else:
+		return true
+	var key: String = "projection_retained_" + reason + "_rows"
+	actor_execution_work[key] = int(actor_execution_work.get(key, 0)) + batch.ids.size()
+	return false
+
+
+func _notify_partition_projection(id: String, batch: SimActorAdvance) -> void:
+	var row: Vector2i = batch.row_for(id)
+	var chunk: SimActorAdvance.Chunk = batch.chunks[row.x]
+	var o: int = row.y * SimActorAdvance.OutputField.STRIDE
+	if chunk.output[o + SimActorAdvance.OutputField.MOVING] == 0:
+		return
+	var before: Vector2i = TileGrid.world_to_cell(chunk.points[row.y * SimActorAdvance.PointField.STRIDE + SimActorAdvance.PointField.CURRENT])
+	var after: Vector2i = TileGrid.world_to_cell(chunk.poses[row.y * 2])
+	if before != after:
+		_stock_dirty_actors[id] = true
+		if chunk.output[o + SimActorAdvance.OutputField.COARSE_LEG] < 0:
+			body_cell_crossed.emit(id, after, int(chunk.output[o + SimActorAdvance.OutputField.CROSSING_MS]))
+		_body_space_changed(id)
+
+
+func _adopt_partition_continuations(batch: SimActorAdvance) -> void:
+	var deadlines: Dictionary[String, int] = {}
+	for chunk: SimActorAdvance.Chunk in batch.chunks:
+		for row: int in chunk.stop - chunk.first:
+			var next: int = int(chunk.output[row * SimActorAdvance.OutputField.STRIDE + SimActorAdvance.OutputField.NEXT_BOUNDARY])
+			if next > elapsed_ms:
+				var id: String = batch.ids[chunk.first + row]
+				_actor_boundaries[id] = next
+				deadlines[id] = next
+	if not deadlines.is_empty():
+		_boundary_index.set_due_many(NATIVE_BOUNDARY, deadlines)
+		_next_actor_boundary = -1
 
 
 func prepare_actor_advance(to_ms: int) -> bool:

@@ -26,7 +26,7 @@ python tools/stress_report.py logs/<capture>.json
 python tools/diagnose_demo.py --seconds 30 --auto-start --quit-after-capture
 ```
 
-人数是每地6–4096，实际总人数为两倍；持续使用普通Main原人物、寻路、生活、环境及共同时间，临时状态不写玩家档。`--actor-workers -1`按硬件/任务量选择，`0`串行，`1..64`指定本批并发上限；实际按逻辑处理器及chunk数收窄，`--simulation-thread off`关闭协调线程但仍运行同一runner。`--release-binary PATH`复用同一exe/PCK进行规模/并发/后端对照，不能预设线程越多越快。不加`--quit-after-capture`可继续试玩。
+人数是每地6–4096，实际总人数为两倍；持续使用普通Main原人物、寻路、生活、环境及共同时间，临时状态不写玩家档。`--actor-workers -1`按硬件/任务量选择，`0`串行，`1..64`指定本批并发上限；实际按逻辑处理器及chunk数收窄，`--simulation-thread off`关闭协调线程但仍运行同一runner。`--actor-projection ordered`保留逐人采用供同包对照，默认partitioned只对证明独立的身体分区写入；`--actor-minimum N`实验人物候选最小集合，默认64，小集合保留直接入口。`--release-binary PATH`复用同一exe/PCK进行规模/并发/后端对照，不能预设线程越多越快。不加`--quit-after-capture`可继续试玩。
 
 `--complex`临时装配1–64个5×5房间、5–512个实际冷热/五行来源；约四分之一来源由原人物携带，其余通过原实物命令移动。两地运行单位一起布置在观察者附近，不使用假移动。场景结构是一次性安装、没有历史施工回执，不可当作正常存档fixture。
 

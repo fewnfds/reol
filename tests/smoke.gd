@@ -376,7 +376,59 @@ func _actor_batch() -> bool:
 	if not is_equal_approx(float(bodies["0"].hunger), 79.975) or not is_equal_approx(float(bodies["0"].energy), 59.95) or bodies["0"].stamina != 65 or anchors["0"] != 1500:
 		return false
 	parallel.execution.cancel()
-	return parallel.execution.cancelled and parallel.execution.finish() and _route_candidates()
+	return parallel.execution.cancelled and parallel.execution.finish() and _route_candidates() and _partition_motion()
+
+
+func _partition_motion() -> bool:
+	# Original bodies/routes are separate write partitions, including mixed
+	# coarse and precise movement. Compare their complete state to the original
+	# route functions, rather than duplicating the candidate arithmetic here.
+	var read := SimBodyRead.new()
+	read.route_events = true
+	read.geometry_revision = 7
+	read.timeout_ms = 60000
+	var selected: Array[String] = []
+	var expected: Dictionary = {}
+	for index: int in 128:
+		var id: String = str(index)
+		var origin: Vector2 = TileGrid.cell_to_world(Vector2i(index * 3 + 10, 10))
+		var target := Vector2i(index * 3 + 9, 9)
+		var route: Dictionary = {"id": id, "phase": "travel", "action": "inspect", "path": [[target.x, target.y], [target.x, target.y - 1]],
+			"started_ms": 0, "segment_started_ms": 0, "segment_from": [origin.x, origin.y], "due_ms": 1000}
+		var body: Dictionary = {"alive": true, "active": route, "position": [origin.x, origin.y], "cell": [index * 3 + 10, 10], "facing": [1.0, 0.0],
+			"hunger": 80.0, "energy": 60.0, "need_carry": {"hunger": 0, "energy": 0}, "stamina": 50, "stamina_carry": 0}
+		read.actors[id] = body
+		read.anchors[id] = 0
+		read.boundaries[id] = 501
+		read.continuations[id] = true
+		read.completions[id] = {"route": route, "timeline": SimRouteTravel.Timeline.new(route, 32.0), "revision": 7, "coarse": index % 2 == 0}
+		expected[id] = body.duplicate(true)
+		selected.append(id)
+	var batch := ActorBatch.new()
+	batch.prepare(read, selected, 501)
+	batch.start(2)
+	batch.execution.finish(true)
+	if not batch.projection_is_proven():
+		return false
+	read.actors["127"].facing = [0.0, 1.0]
+	if batch.projection_matches(read.actors, read.completions, 2):
+		return false
+	read.actors["127"].facing = [1.0, 0.0]
+	if not batch.projection_matches(read.actors, read.completions, 2):
+		return false
+	for id: String in selected:
+		var body: Dictionary = expected[id]
+		if bool(read.completions[id].coarse):
+			var timeline: SimRouteTravel.Timeline = read.completions[id].timeline
+			timeline.materialize(body.active, 501)
+			var heading: Vector2 = timeline.heading_at(501, SimRouteTravel.facing(body))
+			SimRouteTravel.put(body, timeline.point_at(501))
+			body.facing = [heading.x, heading.y]
+		else:
+			SimRouteTravel.project(body.active, body, 501)
+	if not batch.adopt_needs(read.actors, read.anchors, selected, 2, true).is_empty() or read.actors != expected:
+		return false
+	return batch.adoption_work.motion_partition_parallel_batches == 1 and batch.adoption_work.motion_adopted == 64 and batch.adoption_work.coarse_motion_adopted == 64
 
 
 func _route_candidates() -> bool:

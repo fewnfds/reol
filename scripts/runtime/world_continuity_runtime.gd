@@ -335,6 +335,7 @@ func _bind_navigation() -> void:
 		# split the shared world before any other domain can observe an effect.
 		sim.native_route_events_enabled = true
 		sim.configure_actor_execution()
+		sim.actor_projection_partition = not OS.get_cmdline_user_args().has("--actor-projection=ordered")
 		sim.set_body_read_world(world_sim, region)
 	# Scene-independent rules are bound even before the first thread request;
 	# opening/paused commands use exactly the same motion owner and callbacks.

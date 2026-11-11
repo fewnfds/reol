@@ -109,6 +109,8 @@ func _run() -> void:
 		if stopping:
 			break
 		var reply: Dictionary = execute(request)
+		if not reply.is_empty():
+			reply.work["ready_usec"] = Time.get_ticks_usec()
 		_mutex.lock()
 		_reply = reply
 		_mutex.unlock()

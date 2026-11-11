@@ -11,7 +11,7 @@ const CHUNK_SIZE: int = 64
 const PARALLEL_MINIMUM: int = 64
 enum PointField { CURRENT, ORIGIN, TARGET, FACING, STRIDE }
 enum OutputField { HUNGER, ENERGY, STAMINA, STAMINA_CARRY, HUNGER_RATE, ENERGY_RATE,
-	ANCHOR, SEGMENT_MS, DUE_MS, MOVING, ALIVE, PATH_SIZE, COARSE_LEG, CROSSING_MS, STRIDE }
+	ANCHOR, SEGMENT_MS, DUE_MS, MOVING, ALIVE, PATH_SIZE, COARSE_LEG, CROSSING_MS, NEXT_BOUNDARY, STRIDE }
 
 class Chunk extends RefCounted:
 	var read: SimBodyRead
@@ -28,6 +28,7 @@ class Chunk extends RefCounted:
 	var thread_id: int = 0
 	var started_usec: int = 0
 	var finished_usec: int = 0
+	var projection_proven: bool = true
 
 	func seal() -> void:
 		var count: int = stop - first
@@ -50,6 +51,7 @@ class Chunk extends RefCounted:
 			output[o + OutputField.ANCHOR] = previous
 			output[o + OutputField.ALIVE] = int(body.alive)
 			if not bool(body.alive):
+				projection_proven = projection_proven and body.active.is_empty()
 				continue
 			var duration: int = at_ms - previous
 			var energy: Vector2i = read.energy_input(id, body)
@@ -88,6 +90,7 @@ class Chunk extends RefCounted:
 				output[o + OutputField.DUE_MS] = int(route.due_ms)
 				output[o + OutputField.PATH_SIZE] = route.path.size()
 				var completion: Dictionary = read.completions.get(id, {})
+				projection_proven = projection_proven and read.route_events and not completion.is_empty() and is_same(completion.route, route) and int(completion.revision) == read.geometry_revision
 				var timeline: SimRouteTravel.Timeline = completion.timeline if bool(completion.get("coarse", false)) and is_same(completion.route, route) else null
 				if timeline != null:
 					var leg: int = timeline.leg_at(at_ms)
@@ -102,23 +105,58 @@ class Chunk extends RefCounted:
 					var before: Vector2i = SimRouteTravel.cell(body.cell)
 					if before != TileGrid.world_to_cell(point):
 						output[o + OutputField.CROSSING_MS] = SimRouteTravel.crossing_from_cell_ms(route, before, int(route.segment_started_ms))
+					if bool(read.continuations.get(id, false)) and int(read.boundaries.get(id, -1)) == at_ms and int(route.due_ms) > at_ms and TileGrid.world_to_cell(point) == SimRouteTravel.cell(route.path[0]):
+						output[o + OutputField.NEXT_BOUNDARY] = mini(int(route.due_ms), int(route.started_ms) + read.timeout_ms + 1)
 			poses[row * 2] = point
 			poses[row * 2 + 1] = facing
 		read = null
 		ids = []
 		finished_usec = Time.get_ticks_usec()
 
+class ProjectionCheck extends RefCounted:
+	var calculation: SimActorAdvance
+	var actors: Dictionary
+	var completions: Dictionary
+	var first: int
+	var stop: int
+	var valid: bool = true
+
+	func run() -> void:
+		for index: int in range(first, stop):
+			var id: String = calculation.ids[index]
+			var body: Dictionary = actors[id]
+			var route: Dictionary = body.active
+			var moving: bool = route.get("phase") == "travel" and not route.path.is_empty()
+			var row: Vector2i = calculation.row_for(id)
+			var chunk: Chunk = calculation.chunks[row.x]
+			if moving != (chunk.output[row.y * OutputField.STRIDE + OutputField.MOVING] != 0):
+				valid = false
+				break
+			if moving:
+				var completion: Dictionary = completions.get(id, {})
+				var timeline: SimRouteTravel.Timeline = completion.timeline if bool(completion.get("coarse", false)) and is_same(completion.route, route) else null
+				if calculation.motion_row(id, body, route, timeline).x < 0:
+					valid = false
+					break
+		actors = {}
+		completions = {}
+		calculation = null
+
 class AdoptionChunk extends RefCounted:
-	## The owner lends disjoint original need fields only AFTER candidate
-	## validation. Every reader has ended; no effects/queries run until join.
+	## The owner lends disjoint original body fields only AFTER validation.
+	## Motion requires a complete input and observer-isolation proof; needs
+	## retain their anchor check. No effects/queries run until every writer joins.
 	var calculation: SimActorAdvance
 	var actors: Dictionary
 	var anchors: Dictionary
 	var ids: Array
 	var first: int
 	var stop: int
+	var project_motion: bool = false
 	var adopted: Array[String] = []
 	var fallback: Array[String] = []
+	var precise_count: int = 0
+	var coarse_count: int = 0
 	var elapsed_usec: int
 	var thread_id: int
 
@@ -133,18 +171,29 @@ class AdoptionChunk extends RefCounted:
 				continue
 			var output: PackedInt64Array = calculation.chunks[row.x].output
 			var o: int = row.y * OutputField.STRIDE
+			var body: Dictionary = actors[id]
 			if int(anchors.get(id, calculation.at_ms)) != output[o + OutputField.ANCHOR]:
 				fallback.append(id)
-				continue
-			var body: Dictionary = actors[id]
-			if output[o + OutputField.ALIVE] != 0:
-				if output[o + OutputField.HUNGER_RATE] != 0:
-					SimActorAdvance.write_need(body, "hunger", output[o + OutputField.HUNGER])
-				if output[o + OutputField.ENERGY_RATE] != 0:
-					SimActorAdvance.write_need(body, "energy", output[o + OutputField.ENERGY])
-				body.stamina = output[o + OutputField.STAMINA]
-				body.stamina_carry = output[o + OutputField.STAMINA_CARRY]
-			adopted.append(id)
+			else:
+				if output[o + OutputField.ALIVE] != 0:
+					if output[o + OutputField.HUNGER_RATE] != 0:
+						SimActorAdvance.write_need(body, "hunger", output[o + OutputField.HUNGER])
+					if output[o + OutputField.ENERGY_RATE] != 0:
+						SimActorAdvance.write_need(body, "energy", output[o + OutputField.ENERGY])
+					body.stamina = output[o + OutputField.STAMINA]
+					body.stamina_carry = output[o + OutputField.STAMINA_CARRY]
+				adopted.append(id)
+			if project_motion and output[o + OutputField.MOVING] != 0:
+				var chunk: Chunk = calculation.chunks[row.x]
+				SimRouteTravel.put(body, chunk.poses[row.y * 2])
+				var heading: Vector2 = chunk.poses[row.y * 2 + 1]
+				body.facing = [heading.x, heading.y]
+				var leg: int = int(output[o + OutputField.COARSE_LEG])
+				if leg >= 0:
+					chunk.timelines[row.y].materialize_leg(body.active, leg)
+					coarse_count += 1
+				else:
+					precise_count += 1
 		actors = {}
 		anchors = {}
 		ids = []
@@ -160,6 +209,7 @@ var ids: Array[String] = []
 var chunks: Array[Chunk] = []
 var execution := SimBatchExecution.new()
 var adoption_work: Dictionary = {}
+var projection_check_work: Dictionary = {}
 var _rows: Dictionary[String, int] = {}
 
 
@@ -217,7 +267,39 @@ func motion_row(id: String, body: Dictionary, route: Dictionary, timeline: SimRo
 	return row
 
 
-func adopt_needs(actors: Dictionary, anchors: Dictionary, projecting: Array, workers: int) -> Array[String]:
+func projection_is_proven() -> bool:
+	for chunk: Chunk in chunks:
+		if not chunk.projection_proven:
+			return false
+	return true
+
+
+func projection_matches(actors: Dictionary, completions: Dictionary, workers: int) -> bool:
+	# Validate all original inputs before ANY motion writer runs. A resource
+	# callback between preparation and adoption may have changed a body even
+	# when no geometry/control version changed. No observer runs in this pass.
+	var began: int = Time.get_ticks_usec()
+	var tasks: Array[RefCounted] = []
+	for first: int in range(0, ids.size(), CHUNK_SIZE):
+		var task := ProjectionCheck.new()
+		task.calculation = self
+		task.actors = actors
+		task.completions = completions
+		task.first = first
+		task.stop = mini(first + CHUNK_SIZE, ids.size())
+		tasks.append(task)
+	var batch := SimBatchExecution.new()
+	batch.start(tasks, workers)
+	batch.finish(true)
+	var valid: bool = true
+	for task: ProjectionCheck in tasks:
+		valid = valid and task.valid
+	projection_check_work = {"projection_check_batches": 1, "projection_check_parallel_batches": int(batch.parallel),
+		"projection_check_elapsed_usec": Time.get_ticks_usec() - began, "projection_check_rejected_batches": int(not valid)}
+	return valid
+
+
+func adopt_needs(actors: Dictionary, anchors: Dictionary, projecting: Array, workers: int, project_motion: bool = false) -> Array[String]:
 	var began: int = Time.get_ticks_usec()
 	var work: Array[RefCounted] = []
 	for first: int in range(0, projecting.size(), CHUNK_SIZE):
@@ -228,6 +310,7 @@ func adopt_needs(actors: Dictionary, anchors: Dictionary, projecting: Array, wor
 		chunk.ids = projecting
 		chunk.first = first
 		chunk.stop = mini(first + CHUNK_SIZE, projecting.size())
+		chunk.project_motion = project_motion
 		work.append(chunk)
 	var batch := SimBatchExecution.new()
 	batch.start(work, workers)
@@ -235,6 +318,8 @@ func adopt_needs(actors: Dictionary, anchors: Dictionary, projecting: Array, wor
 	var fallback: Array[String] = []
 	var count: int = 0
 	var worker_usec: int = 0
+	var precise_count: int = 0
+	var coarse_count: int = 0
 	var threads: Dictionary = {}
 	for chunk: AdoptionChunk in work:
 		# Only the owner writes the shared anchor index, after every private
@@ -244,10 +329,15 @@ func adopt_needs(actors: Dictionary, anchors: Dictionary, projecting: Array, wor
 		count += chunk.adopted.size()
 		fallback.append_array(chunk.fallback)
 		worker_usec += chunk.elapsed_usec
+		precise_count += chunk.precise_count
+		coarse_count += chunk.coarse_count
 		threads[chunk.thread_id] = true
 	adoption_work = {"adoption_batches": 1, "adoption_parallel_batches": int(batch.parallel),
 		"adopted": count, "adoption_worker_usec": worker_usec, "adoption_elapsed_usec": Time.get_ticks_usec() - began,
-		"adoption_dispatch_usec": batch.dispatch_usec, "discarded": fallback.size(), "threads": threads}
+		"adoption_dispatch_usec": batch.dispatch_usec, "discarded": fallback.size(), "threads": threads,
+		"motion_partition_batches": int(project_motion), "motion_partition_parallel_batches": int(project_motion and batch.parallel),
+		"motion_adopted": precise_count, "coarse_motion_adopted": coarse_count}
+	adoption_work.merge(projection_check_work)
 	return fallback
 
 

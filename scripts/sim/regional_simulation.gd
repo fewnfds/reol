@@ -263,6 +263,24 @@ func native_boundary_revision() -> int:
 	return (native_geometry_revision() + embodiment.native_motion_revision) * 2 + spatial
 
 
+func native_projection_isolated(sim: VillageSimulation) -> bool:
+	# These original observers read only the changed body's projection. Space
+	# updates derived links, and fields read the changed carrier/room inputs.
+	# An external observer can inspect or mutate peers, so retain ID-by-ID
+	# projection whenever the actual connection set goes beyond this proof.
+	if space == null or not space.changed.get_connections().is_empty() or environment_fields == null:
+		return false
+	var allowed: Dictionary = {&"body_space_changed": [space._body_changed.bind("actor")], &"body_cell_crossed": []}
+	for link: Dictionary in environment_fields._connections:
+		if link.owner.get_ref() == sim and allowed.has(link.signal):
+			allowed[link.signal].append(link.callback)
+	for event: StringName in allowed:
+		for connection: Dictionary in sim.get_signal_connection_list(event):
+			if not allowed[event].has(connection.callable):
+				return false
+	return true
+
+
 func _geometry_changed(cells: Array[Vector2i], previous_geometry: int) -> void:
 	if embodiment == null:
 		return # A map-only assembly has no accepted native routes yet.

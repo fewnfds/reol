@@ -7,6 +7,8 @@ extends RefCounted
 var actors: Dictionary = {}
 var anchors: Dictionary = {}
 var completions: Dictionary = {}
+var boundaries: Dictionary = {}
+var continuations: Dictionary = {}
 var pawns: Dictionary = {}
 var at_ms: int
 var hunger_rate: int
@@ -51,6 +53,8 @@ static func capture(world: RegionalSimulation, sim: VillageSimulation, region: S
 	read.actors = sim.actors
 	read.anchors = sim._actor_projection_ms
 	read.completions = sim.native_route_projections()
+	read.boundaries = sim._actor_boundaries
+	read.continuations = sim._route_continuations
 	read.pawns = world._content.pawns
 	read.at_ms = sim.elapsed_ms
 	read.hunger_rate = roundi(float(sim.config.needs.hunger_per_minute) * VillageSimulation.NEED_SCALE)

@@ -9,7 +9,8 @@ var busy: bool = false
 var threaded: bool = true
 var work: Dictionary = {"requests": 0, "elapsed_usec": 0, "pending_wait_usec": 0,
 	"handoff_usec": 0, "prepare_usec": 0, "signal_usec": 0, "input_count": 0, "input_delay_usec": 0,
-	"input_max_delay_usec": 0, "thread_ids": {}}
+	"input_max_delay_usec": 0, "mailbox_ready_delay_usec": 0, "mailbox_ready_max_usec": 0,
+	"between_requests_usec": 0, "thread_ids": {}}
 var _bridge := ReolSimulationSignalBridge.new()
 var _scene: Node
 var _modes: Array[Dictionary] = []
@@ -17,6 +18,7 @@ var _events: Array[Dictionary] = []
 var _request: Dictionary = {}
 var _ready: Dictionary = {}
 var _gated_at: int
+var _returned_at: int = 0
 var _probe_enabled: bool = false
 var _probe_next_usec: int = 0
 var _probe_pending_usec: int = -1
@@ -43,6 +45,10 @@ func begin(request: Dictionary) -> void:
 	assert(not busy)
 	busy = true
 	_gated_at = Time.get_ticks_usec()
+	if _returned_at > 0:
+		# Wall time, including intentional pacing idle; this is not CPU work.
+		work.between_requests_usec += _gated_at - _returned_at
+		_returned_at = 0
 	_request = request
 	_bridge.lend()
 	for row: Dictionary in _modes:
@@ -69,6 +75,10 @@ func collect() -> Dictionary:
 	_ready = {}
 	busy = false
 	var began: int = Time.get_ticks_usec()
+	if reply.work.has("ready_usec"):
+		var ready_delay: int = maxi(0, began - int(reply.work.ready_usec))
+		work.mailbox_ready_delay_usec += ready_delay
+		work.mailbox_ready_max_usec = maxi(int(work.mailbox_ready_max_usec), ready_delay)
 	_ungate_tree()
 	_bridge.reclaim()
 	work.signal_usec += Time.get_ticks_usec() - began
@@ -76,6 +86,7 @@ func collect() -> Dictionary:
 		work[key] += int(reply.work[key])
 	work.handoff_usec += Time.get_ticks_usec() - _gated_at
 	work.thread_ids[int(reply.work.thread_id)] = true
+	_returned_at = Time.get_ticks_usec()
 	_finish_probe()
 	return reply
 
