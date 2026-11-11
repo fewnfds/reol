@@ -73,10 +73,11 @@ func submit(verb: String) -> Dictionary:
 		return {"ok": false, "line": "当前形态还不能借人的双手操作器物。"}
 	if verb == "cancel":
 		var warming: bool = adapter.world_sim.artifacts.active.get("player", {}).get("verb") == "warm"
-		if not adapter.stop_player_action():
-			_notice = "当前结算尚未完成，本次停止未受理。"
+		var result: Dictionary = adapter.request_player_command("cancel")
+		if not result.ok or result.queued:
+			_notice = str(result.line)
 			refresh()
-			return {"ok": false, "line": _notice}
+			return result
 		_notice = "释热已停止，石中余热没有耗去，身边也没有留下暖流。" if warming else "操作已停止，已投入的灵气不会退回。"
 		refresh()
 		return {"ok": true, "line": _notice}

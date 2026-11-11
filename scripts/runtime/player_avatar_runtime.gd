@@ -181,8 +181,9 @@ func submit(verb: String) -> Dictionary:
 	var domain: SimAvianLife = adapter.world_sim.avian_life
 	var result: Dictionary
 	if verb == "cancel":
-		var accepted: bool = adapter.stop_player_action()
-		result = SimAvianLife.response(accepted, "停下动作，嘴中的实物保留。" if accepted else "当前结算尚未完成，本次停止未受理。")
+		result = adapter.request_player_command("cancel")
+		if result.ok and not result.queued:
+			result.line = "停下动作，嘴中的实物保留。"
 	elif verb == "land":
 		result = domain.command_land(adapter.bird_avatar_id())
 	else:

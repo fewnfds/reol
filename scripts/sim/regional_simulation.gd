@@ -6,7 +6,7 @@ signal boundary_settled(at_ms: int)
 ## Scene adapters may disappear; these instances and their pending work remain.
 
 const DEFINITIONS_VERSION: int = 1
-const SCHEMA_VERSION: int = 47
+const SCHEMA_VERSION: int = 48
 const MINUTE_MS: int = 60000
 const MAX_COUNT: int = SimInventory.MAX_COUNT
 const Services = preload("res://scripts/sim/services/settlement_services.gd")

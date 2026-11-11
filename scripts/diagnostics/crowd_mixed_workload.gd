@@ -2,7 +2,6 @@ extends RefCounted
 ## Reproducible mixed pressure on the ordinary owners. Setup uses original
 ## commands and explicit clock advances; measurement runs at requested 1×.
 
-const DOOR_WORKER: String = "shi_tou"
 const COOK: String = "a_he"
 const FIGHTERS: Array[String] = ["chen_shouzhuo", "river_chen_shouzhuo"]
 const HAULERS_PER_REGION: int = 8
@@ -19,7 +18,6 @@ var _door: String = ""
 var _conflict: String = ""
 var _start_ms: int = 0
 var _next_haul_ms: int = 0
-var _next_door_ms: int = 5000
 var _visit: int = 0
 var _moves: int = 0
 var _elapsed_usec: int = 0
@@ -80,12 +78,10 @@ func prepare(runtime: WorldContinuityRuntime, clock: ReolGameClock) -> String:
 	# Leave the last 24 game seconds of the unchanged recipe inside the capture.
 	if not await _advance_to(int(recipe.due_ms) - 24000) or home.actor_state(COOK).active.get("id", "") != _cook_id:
 		return "Recipe setup did not reach its final work interval"
-	_participants = {"player": true, COOK: true, DOOR_WORKER: true}
-	var stand: Vector2i = SimRouteTravel.cell(home.actor_state("player").cell)
+	_participants = {"player": true, COOK: true}
 	var dorm: Vector2i = SimRouteTravel.cell(home.places.dorm.cell)
 	# Only initial positions are staged. During the capture movement comes
 	# exclusively from the real actions, combat and observer route.
-	_stage_body(DOOR_WORKER, stand)
 	_stage_body(FIGHTERS[0], dorm)
 	var nearby: Array[Vector2i] = VillageRuntime.find_reachable_cells(runtime.home_runtime()._world, dorm, 3, 64)
 	for cell: Vector2i in nearby:
@@ -156,13 +152,6 @@ func sample() -> void:
 		else:
 			_increment(_rejected, "haul:" + str(hauling.reason))
 		_next_haul_ms += 450
-	if elapsed >= _next_door_ms:
-		var verb: String = "close" if _world.construction.projects[_door].open else "open"
-		_world.advance_region_to_world("home")
-		home.cancel_action(DOOR_WORKER, "mixed_door_order")
-		if not _world.construction.begin(DOOR_WORKER, _door, verb).ok:
-			_increment(_rejected, verb)
-		_next_door_ms += 15000
 	if elapsed >= 10000 and _conflict.is_empty():
 		_world.advance_region_to_world("home")
 		_world.advance_region_to_world("river")
@@ -192,8 +181,6 @@ func _on_finished(outcome: Dictionary) -> void:
 		_increment(_completed, "haul:" + str(outcome.status))
 	elif id == _cook_id and outcome.actor == COOK:
 		_increment(_completed, "cook:" + str(outcome.status))
-	elif outcome.domain == "construction" and outcome.target == _door:
-		_increment(_completed, str(outcome.intent) + ":" + str(outcome.status))
 
 
 func travelling() -> int:
@@ -215,6 +202,7 @@ func evidence() -> Dictionary:
 			if action.method == "qi_bolt":
 				projectiles += 1
 	return {"setup_world_ms": _start_ms, "haul_started": _carry_ids.size(), "completed": _completed,
+		"door_model": "passable_wall", "door_built": _world.construction.projects[_door].state == "built",
 		"rejected": _rejected, "observer_cell_changes": _moves, "source_carried": _world.artifacts.objects.amber_pearl.container == "actor:player",
 		"combat_effects": effects, "projectiles_emitted": projectiles, "combat_hits": _world.conflicts.hits.size(), "driver_ms": _elapsed_usec / 1000.0,
 		"max_driver_ms": _max_usec / 1000.0}

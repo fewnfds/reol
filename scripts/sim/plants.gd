@@ -81,7 +81,7 @@ func spawn(id: String, type: String, region: String, cell: Vector2i, support: St
 		return false
 	var row: Dictionary = {"definition": type, "region": region, "location": {"cell": [cell.x, cell.y] if support.is_empty() else [], "support": support},
 		"claimed_cells": [[cell.x, cell.y]], "initial_age_ms": initial_age_ms, "born_ms": world.elapsed_ms, "age_ms": initial_age_ms, "growth_ms": initial_growth_ms, "fruit_ms": 0, "last_ms": world.elapsed_ms,
-		"next_ms": world.elapsed_ms + int(definitions.sample_ms), "hp": int(rule.max_hp), "injury_carry": 0,
+		"next_ms": SimCadence.after(world.elapsed_ms, int(definitions.sample_ms), SimCadence.phase(id, int(definitions.sample_ms))), "hp": int(rule.max_hp), "injury_carry": 0,
 		"water": int(conditions.moisture) * Rules.WATER_UNIT if support.is_empty() else 0, "water_carry": 0, "stage": "growing", "dormant": false,
 		"generation": 0, "body_taken": false, "produced": {}, "subject": "", "awakened_ms": -1, "awakening_operation": "", "contacts": {}, "legacy_source": "", "conditions": conditions}
 	var inventory: SimInventory = world.regions[region].inventory
@@ -287,7 +287,7 @@ func _settle_body(id: String, now: int, refresh_conditions: bool = true) -> bool
 		row.conditions = habitat(cell_of(id), str(row.location.support))
 		if row.conditions.is_empty():
 			return false
-	row.next_ms = NEVER if row.stage in ["dead", "removed"] else now - posmod(now, int(definitions.sample_ms)) + int(definitions.sample_ms)
+	row.next_ms = NEVER if row.stage in ["dead", "removed"] else SimCadence.after(now, int(definitions.sample_ms), SimCadence.phase(id, int(definitions.sample_ms)))
 	if rule.life == "annual" and row.hp > 0 and row.stage != "removed":
 		row.next_ms = mini(int(row.next_ms), int(row.born_ms) + int(rule.lifespan_ms) - int(row.initial_age_ms))
 	if not _publish_source(id, row):

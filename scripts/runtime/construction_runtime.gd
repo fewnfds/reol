@@ -110,7 +110,6 @@ func setup(adapter: WorldContinuityRuntime) -> void:
 	actions.columns = 3
 	column.add_child(actions)
 	UI.button(actions, "亲自施工", act.bind("build"))
-	UI.button(actions, "开 / 关门", operate_door)
 	UI.button(actions, "拆除", act.bind("demolish"))
 	UI.button(actions, "撤蓝图", revoke)
 	UI.button(actions, "余料回库", act.bind("recover"))
@@ -319,11 +318,6 @@ func act(kind: String) -> void:
 	refresh()
 
 
-func operate_door() -> void:
-	var id: String = selected_project()
-	act("close" if domain().projects.has(id) and domain().projects[id].open else "open")
-
-
 func revoke() -> void:
 	if not _available():
 		return
@@ -334,8 +328,8 @@ func revoke() -> void:
 
 
 func stop() -> void:
-	var accepted: bool = runtime().stop_player_action()
-	_reply.text = "已停下；工料、工时与已恢复的精神继续保留。" if accepted else "当前结算尚未完成，本次停止未受理。"
+	var result: Dictionary = runtime().request_player_command("cancel")
+	_reply.text = "已停下；工料、工时与已恢复的精神继续保留。" if result.ok and not result.queued else str(result.line)
 	refresh()
 
 
@@ -429,14 +423,14 @@ func refresh() -> void:
 		panel.hide()
 		return
 	var is_near: bool = not domain().sites.is_empty() and domain().can_observe("player", domain().site_bounds(selected_site()).get_center())
-	_summary.text = "先走到库房附近，划定获准宗门工地。" if domain().sites.is_empty() else "工地 · 宗门所有。选格：%s\n□ 空地 ◇ 蓝图 ■ 墙 + 关门 / 开门 床" % str(selection) if is_near else "工地已登记；走近后查看当前施工情况。"
+	_summary.text = "先走到库房附近，划定获准宗门工地。" if domain().sites.is_empty() else "工地 · 宗门所有。选格：%s\n□ 空地 ◇ 蓝图 ■ 墙 + 可穿行的门 床" % str(selection) if is_near else "工地已登记；走近后查看当前施工情况。"
 	grid.visible = is_near
 	for cell: Vector2i in _cell_buttons:
 		var id: String = domain().project_at(cell, _selection_layer())
 		var marker: String = "□"
 		if not id.is_empty():
 			var project: Dictionary = domain().projects[id]
-			marker = "◇" if project.state == "blueprint" else "顶" if _selection_layer() == "roof" else "床" if domain().is_bed(id) else "/" if project.open else "+" if domain().definitions.types[project.type].door else "■"
+			marker = "◇" if project.state == "blueprint" else "顶" if _selection_layer() == "roof" else "床" if domain().is_bed(id) else "+" if domain().definitions.types[project.type].door else "■"
 		var button: Button = _cell_buttons[cell]
 		button.text = marker if _visible(cell) else "?"
 		button.disabled = not _visible(cell)
@@ -454,6 +448,8 @@ func refresh() -> void:
 		var project: Dictionary = domain().projects[id]
 		var definition: Dictionary = domain().definitions.types[project.type]
 		_details.text = "%s · %s\n耐久 %d/%d · 防护 %d\n%s" % [definition.label, str(selection), int(project.hp), int(definition.max_hp), int(definition.armor), str(project.line)]
+		if bool(definition.door) and project.state == "built":
+			_details.text += "\n可自由穿行；始终参与围合、隔热和遮光。"
 		for job: Dictionary in domain().active.values():
 			if job.project == id:
 				var sim: RefCounted = runtime().world_sim.regions[domain().definitions.site.region]
@@ -492,10 +488,8 @@ func _describe_space(space: Dictionary) -> String:
 	if space.is_empty():
 		return "此格是墙或门口。"
 	if not space.enclosed:
-		return "开放空间 · 未覆顶；墙门闭合后再查看围合。"
-	var doorway: String = "无门口" if int(space.doors) == 0 else "门口闭合"
-	if int(space.open_doors) > 0:
-		doorway = "%d扇门敞开" % int(space.open_doors)
+		return "开放空间 · 未覆顶；补齐围合结构后再查看。"
+	var doorway: String = "无门口" if int(space.doors) == 0 else "%d扇可穿行的门" % int(space.doors)
 	return "围合空间 · %d格 · %s · %s\n未覆顶，不提供防雨或保温。" % [int(space.area), "地面平整" if space.flat else "地面有高差", doorway]
 
 
@@ -570,7 +564,7 @@ func _build_canvas() -> void:
 				elif definition.facts.wall_connection:
 					var mask: int = SimStructureQuery.wall_mask(runtime().world_sim, cell, _visible)
 					if bool(definition.door):
-						capture_custom(Callable(Walls, "draw_door").bind(self, p, mask, bool(project.open)))
+						capture_custom(Callable(Walls, "draw_door").bind(self, p, mask, true))
 					else:
 						capture_custom(Callable(Walls, "draw_wall").bind(self, p, mask))
 						if not definition.facts.sight_blocked:

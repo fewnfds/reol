@@ -37,7 +37,7 @@ var world: RefCounted:
 
 
 static func valid_definitions(data: Variant) -> bool:
-	if not Shape.keys(data, ["version", "site", "check_ms", "minimum_fullness", "minimum_energy", "operate_ms", "pickup_ms", "roof_span", "types"]) or data.version != 2 or not Shape.count(data.roof_span, 1, 4) or not Shape.keys(data.site, ["region", "source", "builders", "workers", "width", "height", "source_cells", "notice_cells", "observe_cells"]):
+	if not Shape.keys(data, ["version", "site", "check_ms", "minimum_fullness", "minimum_energy", "pickup_ms", "roof_span", "types"]) or data.version != 3 or not Shape.count(data.roof_span, 1, 4) or not Shape.keys(data.site, ["region", "source", "builders", "workers", "width", "height", "source_cells", "notice_cells", "observe_cells"]):
 		return false
 	if not SimInventory._nonempty(data.site.region) or not SimInventory._nonempty(data.site.source) or not SimEmbodiment._unique_texts(data.site.builders) or data.site.builders.is_empty() or not SimEmbodiment._unique_texts(data.site.workers):
 		return false
@@ -47,7 +47,7 @@ static func valid_definitions(data: Variant) -> bool:
 	for key: String in ["width", "height", "source_cells", "notice_cells", "observe_cells"]:
 		if not Shape.count(data.site[key], 1, 32):
 			return false
-	for value: Variant in [data.check_ms, data.operate_ms, data.pickup_ms]:
+	for value: Variant in [data.check_ms, data.pickup_ms]:
 		if not Shape.count(value, 1, 600000):
 			return false
 	if not Shape.count(data.minimum_fullness, 1, 100) or not Shape.count(data.minimum_energy, 1, 100) or not data.types is Dictionary or data.types.is_empty() or data.types.size() > 256:
@@ -125,7 +125,7 @@ func place(actor: String, type: String, cell: Vector2i, rotation: int = 0) -> Di
 	if not sim.inventory.create_container(id, {}):
 		return reply(false, "无法登记这批材料的容器。")
 	next_project += 1
-	projects[id] = {"site": site, "type": type, "cell": [cell.x, cell.y], "rotation": rotation, "hp": 0, "state": "blueprint", "open": false, "created_by": actor, "created_ms": world.elapsed_ms, "completed_ms": 0, "removed_ms": 0, "work_ms": 0, "material_cell": [cell.x, cell.y], "carrier": "", "delivered": false, "line": "蓝图已画好，等待取料施工。"}
+	projects[id] = {"site": site, "type": type, "cell": [cell.x, cell.y], "rotation": rotation, "hp": 0, "state": "blueprint", "created_by": actor, "created_ms": world.elapsed_ms, "completed_ms": 0, "removed_ms": 0, "work_ms": 0, "material_cell": [cell.x, cell.y], "carrier": "", "delivered": false, "line": "蓝图已画好，等待取料施工。"}
 	_reindex()
 	_schedule_check()
 	space_changed.emit(footprint)
@@ -248,7 +248,7 @@ func begin(actor: String, id: String, kind: String = "build") -> Dictionary:
 
 
 func _begin(actor: String, id: String, kind: String, during_commit: bool) -> Dictionary:
-	if not _ready_actor(actor, true, during_commit) or not projects.has(id) or not kind in ["build", "demolish", "recover", "open", "close"]:
+	if not _ready_actor(actor, true, during_commit) or not projects.has(id) or not kind in ["build", "demolish", "recover"]:
 		return reply(false, "先停下手头的事；只有获准且能行动的同门可施工。")
 	var project: Dictionary = projects[id]
 	var rule: Dictionary = definitions.types[project.type]
@@ -256,10 +256,8 @@ func _begin(actor: String, id: String, kind: String, during_commit: bool) -> Dic
 	if not can_observe(actor, SimRouteTravel.cell(project.cell)) or _project_busy(id):
 		return reply(false, "先走到工地附近；同一处工程只由一人接手。")
 	var material: int = sim.inventory.quantity(id, str(rule.item))
-	if kind == "build" and project.state != "blueprint" or kind == "demolish" and project.state not in ["built", "ruined"] or kind in ["open", "close"] and project.state != "built" or kind == "recover" and (not project.state in ["cancelled", "removed", "ruined"] or material == 0):
+	if kind == "build" and project.state != "blueprint" or kind == "demolish" and project.state not in ["built", "ruined"] or kind == "recover" and (not project.state in ["cancelled", "removed", "ruined"] or material == 0):
 		return reply(false, "这项工程当前不适用此操作。")
-	if kind in ["open", "close"] and (not rule.door or bool(project.open) == (kind == "open")):
-		return reply(false, "此处没有需要这样操作的木门。")
 	if kind == "demolish" and (_facility_reserved(id) or not _contents_empty(id)):
 		return reply(false, "这张床已有人在用或正前来，先让对方结束休息。")
 	var stand: Array = _work_cell(actor, id)
@@ -407,7 +405,7 @@ func _arrived(job: Dictionary) -> void:
 		if job.kind == "build":
 			project.delivered = true
 		var rule: Dictionary = definitions.types[project.type]
-		var duration: int = maxi(1, int(rule.work_ms) - int(project.work_ms)) if job.kind == "build" else int(rule.demolish_ms) if job.kind == "demolish" else int(definitions.operate_ms)
+		var duration: int = maxi(1, int(rule.work_ms) - int(project.work_ms)) if job.kind == "build" else int(rule.demolish_ms)
 		_work(job, "work", duration)
 
 
@@ -439,8 +437,8 @@ func _complete(job: Dictionary) -> void:
 			if not roof_supported(covered):
 				_release(job, "屋面缺少近处支撑；工时与材料保留。")
 				return
-	var newly_solid: bool = job.kind == "close" or job.kind == "build" and bool(rule.facts.movement_blocked)
-	if (job.kind == "build" or job.kind == "close") and not _completion_clear(str(job.project), newly_solid):
+	var newly_solid: bool = bool(rule.facts.movement_blocked)
+	if job.kind == "build" and not _completion_clear(str(job.project), newly_solid):
 		_release(job, "占地有人、余料或通道尚未清空，工时与材料保留。")
 		return
 	# Preflight the whole transaction before spending completion materials,
@@ -481,13 +479,11 @@ func _complete(job: Dictionary) -> void:
 				_after_thermal_change(str(project.type))
 				_release(job, "拆除余料记录不一致。")
 				return
-		"open", "close":
-			project.open = job.kind == "open"
 	if job.kind == "demolish":
 		_collapse_roofs(removals.slice(1))
 	_reindex()
 	_after_thermal_change(str(project.type))
-	_release(job, "结构已完工。" if job.kind == "build" else "拆除完成，余料还在工地。" if job.kind == "demolish" else "木门已打开。" if job.kind == "open" else "木门已关上。", "completed")
+	_release(job, "结构已完工。" if job.kind == "build" else "拆除完成，余料还在工地。", "completed")
 	# Observers only see the completed transaction, including collateral roofs,
 	# derived rooms/heat geometry and released worker/material reservations.
 	structures_changed.emit(changed_cells)
@@ -666,8 +662,7 @@ func roofed(cell: Vector2i) -> bool:
 
 
 func thermal_barrier(cell: Vector2i) -> bool:
-	# Facts only: an open door conducts as an opening, while a blueprint is
-	# still paper. The heat domain owns conductance and fixed-space storage.
+	# Free passage through a door does not remove its thermal boundary.
 	return _physical_fact(cell, "thermal_barrier")
 
 
@@ -728,7 +723,6 @@ func _remove(id: String, material_cell: Array) -> bool:
 	project.state = "removed"
 	project.hp = 0
 	project.removed_ms = world.elapsed_ms
-	project.open = false
 	project.carrier = ""
 	_set_material_cell(id, material_cell)
 	return true
@@ -908,11 +902,11 @@ func _reindex() -> void:
 		world.weather.structures_changed()
 
 static func empty_state() -> Dictionary:
-	return {"version": 4, "cultivation": {}, "sites": {}, "projects": {}, "active": {}, "zones": {}, "next_zone": 1, "next_project": 1, "next_job": 1, "next_check_ms": SimInventory.MAX_COUNT}
+	return {"version": 5, "cultivation": {}, "sites": {}, "projects": {}, "active": {}, "zones": {}, "next_zone": 1, "next_project": 1, "next_job": 1, "next_check_ms": SimInventory.MAX_COUNT}
 
 
 func to_dict() -> Dictionary:
-	return {"version": 4, "cultivation": cultivation.duplicate(true), "sites": sites.duplicate(true), "projects": projects.duplicate(true), "active": active.duplicate(true), "zones": zones.duplicate(true), "next_zone": next_zone, "next_project": next_project, "next_job": next_job, "next_check_ms": next_check_ms}
+	return {"version": 5, "cultivation": cultivation.duplicate(true), "sites": sites.duplicate(true), "projects": projects.duplicate(true), "active": active.duplicate(true), "zones": zones.duplicate(true), "next_zone": next_zone, "next_project": next_project, "next_job": next_job, "next_check_ms": next_check_ms}
 
 
 func restore(data: Dictionary) -> bool:

@@ -1,6 +1,6 @@
 class_name SimEnclosedSpace
 extends RefCounted
-## Derived bounded topology. A doorway separates spaces even while open.
+## Derived bounded topology. Walking through doors does not change a room.
 ## Enclosure never implies a roof or thermal/weather protection.
 
 const SIDES: Array[Vector2i] = [Vector2i.LEFT, Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN]
@@ -40,7 +40,7 @@ static func detect_edges(bounds: Rect2i, edges: Dictionary, types: Dictionary, e
 				elif edges.has(neighbor):
 					var edge: Dictionary = edges[neighbor]
 					if types[edge.project.type].door:
-						doors[edge.id] = bool(edge.project.open)
+						doors[edge.id] = bool(types[edge.project.type].get("aperture", false))
 				elif not found.has(neighbor):
 					found[neighbor] = true
 					queue.append(neighbor)
@@ -48,7 +48,7 @@ static func detect_edges(bounds: Rect2i, edges: Dictionary, types: Dictionary, e
 		for value: bool in doors.values():
 			if value:
 				opened += 1
-		var space: Dictionary = {"enclosed": enclosed, "flat": flat, "area": queue.size(), "doors": doors.size(), "open_doors": opened, "roofed": false}
+		var space: Dictionary = {"enclosed": enclosed, "flat": flat, "area": queue.size(), "doors": doors.size(), "openings": opened, "roofed": false}
 		if include_cells:
 			space["cells"] = queue
 		for cell: Vector2i in queue:

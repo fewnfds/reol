@@ -26,7 +26,7 @@ static func valid_type(row: Variant) -> bool:
 			return false
 	if row.layer == "roof" and (row.door or not row.capabilities.is_empty() or not row.slots.is_empty() or row.facts.values().has(true)):
 		return false
-	if row.door and (not row.facts.enclosure_boundary or not row.facts.movement_blocked):
+	if row.door and (not row.facts.enclosure_boundary or row.facts.movement_blocked):
 		return false
 	for capability: Variant in row.capabilities:
 		if not capability is String or capability not in CAPABILITIES:
@@ -106,7 +106,5 @@ static func slots(project: Dictionary, rule: Dictionary, capability: String = ""
 
 static func fact(project: Dictionary, rule: Dictionary, name: String) -> bool:
 	if project.state != "built":
-		return false
-	if bool(rule.door) and bool(project.open) and name in ["movement_blocked", "sight_blocked", "thermal_barrier"]:
 		return false
 	return bool(rule.facts.get(name, false))

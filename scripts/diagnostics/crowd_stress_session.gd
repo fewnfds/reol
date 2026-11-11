@@ -171,7 +171,7 @@ func _run() -> void:
 		"terrain_warmup_usec": Time.get_ticks_usec() - warmup_started, "terrain_warmup_complete": warmup_complete, "pacing_policy": _pacing_policy}):
 		get_tree().quit(1)
 		return
-	_status.text = "临时压力世界 · %d个真实身体 / 双聚落\n原寻路、生活、环境、共同时间 · %s\n不保存到普通档 · WASD / F3 · %d秒采样后%s" % [total, "搬运、生产、开关门与交锋" if _mixed != null else ("单次出发" if _opening_wave else "抵达后用原命令持续巡行"), _seconds, "退出" if _quit_after else "可继续试玩"]
+	_status.text = "临时压力世界 · %d个真实身体 / 双聚落\n原寻路、生活、环境、共同时间 · %s\n不保存到普通档 · WASD / F3 · %d秒采样后%s" % [total, "搬运、生产、移动视野与交锋" if _mixed != null else ("单次出发" if _opening_wave else "抵达后用原命令持续巡行"), _seconds, "退出" if _quit_after else "可继续试玩"]
 	_last_sample_ms = _clock.elapsed_ms
 	if _mixed != null:
 		_mixed.start()
@@ -234,11 +234,13 @@ func _finish(ok: bool) -> void:
 	var runtime: Node = _main.get("_continuity")
 	var crowd: Dictionary = {"actors": _starts.size(), "moved": _moved.size(), "mode": "mixed" if _mixed != null else ("opening_wave" if _opening_wave else "sustained_circuit"), "mean_travelling": float(_travel_actor_ms) / maxi(1, _sampled_world_ms), "visible_at_finish": visible, "redirects": _redirects,
 		"environment_compute": runtime._field_compute.diagnostics() if runtime._field_compute != null else {}}
+	crowd["environment_sampling"] = runtime.world_sim.environment_fields.motion_sampling_work.duplicate()
+	crowd["environment_sampling_scope"] = "session_including_setup"
 	if _mixed != null:
 		var mixed: Dictionary = _mixed.evidence()
 		crowd["mixed"] = mixed
 		var outcomes: Dictionary = mixed.completed
-		if int(outcomes.get("haul:completed", 0)) < 4 or int(outcomes.get("cook:completed", 0)) < 1 or int(outcomes.get("open:completed", 0)) < 1 or int(outcomes.get("close:completed", 0)) < 1 or int(mixed.projectiles_emitted) < 1 or int(mixed.observer_cell_changes) < 10 or not mixed.source_carried:
+		if int(outcomes.get("haul:completed", 0)) < 4 or int(outcomes.get("cook:completed", 0)) < 1 or not mixed.door_built or int(mixed.projectiles_emitted) < 1 or int(mixed.observer_cell_changes) < 10 or not mixed.source_carried:
 			_failures.append("Mixed capture did not exercise all intended activity: " + JSON.stringify(mixed))
 	var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(_report))
 	if not raw is Dictionary:

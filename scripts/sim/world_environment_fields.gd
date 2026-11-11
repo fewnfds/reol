@@ -4,7 +4,7 @@ extends RefCounted
 ## RegionalSimulation.environment_fields. Serialized by the world's codec.
 ## Source indexes are disposable projections over original object owners.
 
-const VERSION: int = 5
+const VERSION: int = 6
 const MODEL: String = "composed_fields_v1"
 const SIZE: int = SimGroundPlacements.MAP_SIZE
 const MAX_TIME: int = SimEnvironmentTemperatureState.MAX_TIME
@@ -45,6 +45,7 @@ var _samples: Dictionary = {}
 var _transient: Dictionary = {}
 var _active: bool = false
 var _busy: bool = false
+var _object_motion_key: String = ""
 var _error: String = ""
 var _participation := Participation.new()
 var _last_refresh_chunks: int = 0
@@ -55,6 +56,7 @@ var _topology_cells: Array[Vector2i] = []
 var _motion_changes: Array[Dictionary] = []
 var _settle_cursor: Dictionary = {}
 var _allow_source_compute: bool = false
+var motion_sampling_work: Dictionary = {"crossings": 0, "coalesced": 0, "adopted": 0, "forced": 0}
 
 var world: RegionalSimulation:
 	get: return _owner.get_ref() if _owner != null else null
@@ -158,6 +160,8 @@ func next_boundary_ms() -> int:
 	var next: int = _background.next_boundary_ms()
 	for kind: StringName in [&"temperature", &"phases", &"devices", &"transient"]:
 		next = mini(next, _participation.next_due_ms(kind, MAX_TIME))
+	if not _motion_changes.is_empty():
+		next = mini(next, int(_motion_changes[0].at_ms))
 	return next
 
 
@@ -246,6 +250,7 @@ func _settle_work(now: int) -> int:
 			status = _step_settlement_source(key, source, end)
 		if status == SimSettlementKernel.Status.COMPLETE:
 			crossing.index = int(crossing.index) + 1
+			motion_sampling_work.adopted += 1
 		return SimSettlementKernel.Status.FAILED if status == SimSettlementKernel.Status.FAILED else SimSettlementKernel.Status.PENDING
 	if int(_settle_cursor.device_index) < _settle_cursor.depleted.size():
 		var id: String = _settle_cursor.depleted[int(_settle_cursor.device_index)]
@@ -273,15 +278,23 @@ func _settle_work(now: int) -> int:
 func prepare_object_change(request: Dictionary) -> Dictionary:
 	if _busy or not _error.is_empty() or not activate_sources() or not settle_at_ms(world.elapsed_ms):
 		return {"ok": false, "reason": "environment_unavailable"}
-	var prepared: Dictionary = _sources.prepare_object_change(request)
+	var key: String = Participant.artifact_key(str(request.get("id", "")))
+	var sample: Dictionary = _motion_sample(key)
+	# Validate ownership at the original current position without publishing an
+	# early field sample. A rejected/cancelled command leaves that sample intact.
+	var prepared: Dictionary = _sources.prepare_object_change(request, sample.get("cell"))
 	if bool(prepared.get("ok", false)):
 		_busy = true
+		_object_motion_key = key if not sample.is_empty() else ""
 	return prepared
 
 
 func finish_object_change(result: Dictionary, proof: Variant) -> Dictionary:
 	var committed: Dictionary = _sources.finish_object_change(result, proof)
 	if bool(committed.get("ok", false)):
+		if not _object_motion_key.is_empty():
+			_erase_motion_samples(_object_motion_key)
+			motion_sampling_work.forced += 1
 		for key: Vector2i in _sources.last_change_chunks():
 			_chunks[key] = true
 		if not _refresh_source_responses(world.elapsed_ms):
@@ -290,6 +303,7 @@ func finish_object_change(result: Dictionary, proof: Variant) -> Dictionary:
 		if reference.get("kind") == "artifact":
 			_sync_device(str(reference.id))
 	_busy = false
+	_object_motion_key = ""
 	if bool(committed.get("ok", false)) and not flush_sources(world.elapsed_ms):
 		return {"ok": false, "reason": "contained_source_publication"}
 	return committed
@@ -298,6 +312,7 @@ func finish_object_change(result: Dictionary, proof: Variant) -> Dictionary:
 func cancel_object_change(proof: Variant) -> bool:
 	var cancelled: bool = _sources.cancel_object_change(proof)
 	_busy = false
+	_object_motion_key = ""
 	return cancelled
 
 
@@ -801,6 +816,8 @@ func restore(data: Variant) -> bool:
 
 func diagnostics() -> Dictionary:
 	return {"model": MODEL, "active": _active, "error": _error, "at_ms": last_ms,
+		"motion_sampling": motion_sampling_work.duplicate(), "pending_motion_samples": _motion_changes.size(),
+		"motion_period_ms": {"thermal": SimCadence.THERMAL_MOTION_MS, "elemental": SimCadence.FIELD_MOTION_MS},
 		"tracked_chunks": _chunks.size(), "transient_sources": _transient.size(),
 		"last_refresh_chunks": _last_refresh_chunks,
 		"execution": {"temperature": _participation.diagnostics(&"temperature"),
@@ -874,13 +891,20 @@ func after_topology_change(now: int, terrain: bool = false) -> bool:
 	var affected: Dictionary[Vector2i, bool] = {}
 	var old_barriers: Dictionary = _layout.barriers.duplicate()
 	var old_rooms: Dictionary[Vector2i, Vector2i] = _layout.room_of.duplicate()
+	var old_compartments: Dictionary = _layout.rooms.duplicate()
 	var invalidations: Array[Rect2i] = []
-	for cell: Vector2i in _layout.room_of:
-		affected[Vector2i(cell.x >> 4, cell.y >> 4)] = true
 	if not _layout.rebuild(world):
 		return _fail("layout_capacity")
-	for cell: Vector2i in _layout.room_of:
-		affected[Vector2i(cell.x >> 4, cell.y >> 4)] = true
+	# A structural change must not reanchor every unchanged room in the world.
+	# Changed compartments include both old/new cells (split, merge and roof).
+	for anchor: Vector2i in old_compartments:
+		if old_compartments[anchor] != _layout.rooms.get(anchor, {}):
+			for cell: Vector2i in old_compartments[anchor].cells:
+				affected[Vector2i(cell.x >> 4, cell.y >> 4)] = true
+	for anchor: Vector2i in _layout.rooms:
+		if _layout.rooms[anchor] != old_compartments.get(anchor, {}):
+			for cell: Vector2i in _layout.rooms[anchor].cells:
+				affected[Vector2i(cell.x >> 4, cell.y >> 4)] = true
 	for cell: Vector2i in _topology_cells:
 		var old_terms: Dictionary = old_barriers.get(cell, {})
 		var new_terms: Dictionary = _layout.barriers.get(cell, {})
@@ -1020,16 +1044,70 @@ func record_source_crossing(region: String, container: String, cell: Vector2i, a
 	if at_ms < last_ms:
 		_fail("late_source_crossing")
 		return
-	if at_ms == last_ms:
-		for key: String in keys:
-			var source: Dictionary = _sources.get_source(key)
+	motion_sampling_work.crossings += keys.size()
+	for key: String in keys:
+		var source: Dictionary = _sources.get_source(key)
+		var due: int = SimCadence.at_or_after(at_ms, SimCadence.source_motion_ms(source.channels))
+		if due == last_ms:
 			source.cell = cell
 			if not _change_source(key, source, at_ms):
 				_fail("moving_source")
 				return
-		return
-	_motion_changes.append({"at_ms": at_ms, "cell": cell, "keys": keys})
-	_motion_changes.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.at_ms) < int(b.at_ms))
+			motion_sampling_work.adopted += 1
+			continue
+		var merged: bool = false
+		for row: Dictionary in _motion_changes:
+			if int(row.at_ms) == due and row.keys[0] == key:
+				row.cell = cell
+				row.changed_ms = at_ms
+				merged = true
+				motion_sampling_work.coalesced += 1
+				break
+		if not merged:
+			_motion_changes.append({"at_ms": due, "changed_ms": at_ms, "cell": cell, "keys": [key]})
+	_motion_changes.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return int(a.at_ms) < int(b.at_ms) if a.at_ms != b.at_ms else str(a.keys[0]) < str(b.keys[0]))
+
+
+func _motion_sample(key: String) -> Dictionary:
+	for index: int in range(_motion_changes.size() - 1, -1, -1):
+		if _motion_changes[index].keys[0] == key:
+			return _motion_changes[index]
+	return {}
+
+
+func _erase_motion_samples(key: String) -> void:
+	for index: int in range(_motion_changes.size() - 1, -1, -1):
+		if _motion_changes[index].keys[0] == key:
+			_motion_changes.remove_at(index)
+
+
+func _refresh_container_source(key: String, source: Dictionary, now: int) -> bool:
+	# body_space_changed follows crossing notifications too. Do not turn that
+	# ordinary dirty notification into an immediate duplicate field rebuild.
+	var queued: Dictionary = _motion_sample(key)
+	if not queued.is_empty() and not source.is_empty():
+		var sampled: Dictionary = _sources.get_source(key)
+		if not sampled.is_empty():
+			sampled.cell = queued.cell
+			if sampled == source:
+				return true
+	# Changed strength, transfer, disappearance or an actual teleport wins over
+	# a previously queued position. Its old candidate cannot move it back later.
+	_erase_motion_samples(key)
+	return _change_source(key, source, now)
+
+
+func capture_motion_samples() -> Array:
+	var result: Array = []
+	for row: Dictionary in _motion_changes:
+		var key: String = row.keys[0]
+		var source: Dictionary = _sources.get_source(key)
+		if source.is_empty():
+			continue
+		result.append({"key": key, "at_ms": row.at_ms, "changed_ms": row.changed_ms,
+			"cell": [row.cell.x, row.cell.y], "sampled_cell": [source.cell.x, source.cell.y]})
+	return result
 
 
 func needs_native_crossings(id: String, region: String) -> bool:
@@ -1055,7 +1133,7 @@ func flush_sources(now: int) -> bool:
 	for key: String in keys:
 		var pair: Array = _dirty_containers[key]
 		for item: String in _sources.container_items(pair[0], pair[1]):
-			if not _change_source(Participant.stock_key(pair[0], pair[1], item), _sources.stock_source(pair[0], pair[1], item), now):
+			if not _refresh_container_source(Participant.stock_key(pair[0], pair[1], item), _sources.stock_source(pair[0], pair[1], item), now):
 				return false
 		var ids: Dictionary = world.object_lifecycle._contained.get(key, {}).get("ids", {}).duplicate()
 		for id: String in world.artifacts.legacy_object_ids():
@@ -1066,7 +1144,7 @@ func flush_sources(now: int) -> bool:
 		ordered.sort()
 		for id: String in ordered:
 			var projection: Dictionary = _sources.current_artifact_source(id)
-			if not bool(projection.get("ok", false)) or not _change_source(Participant.artifact_key(id), projection.source, now):
+			if not bool(projection.get("ok", false)) or not _refresh_container_source(Participant.artifact_key(id), projection.source, now):
 				return _fail("carrier_source")
 		_dirty_containers.erase(key)
 	return true

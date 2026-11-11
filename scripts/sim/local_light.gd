@@ -86,7 +86,7 @@ static func local_patch(world: RegionalSimulation, cells: Array[Vector2i], simul
 				if not id.is_empty() and world.construction.projects[id].state == "built":
 					var row: Dictionary = world.construction.projects[id]
 					var rule: Dictionary = world.construction.definitions.types[row.type]
-					value = 10000 if bool(rule.door) and bool(row.open) else int(SimEnvironmentLayout.terms(rule).light)
+					value = int(SimEnvironmentLayout.terms(rule).light)
 				elif world.construction.blocks_sight(cell):
 					value = 0
 			blockers[cell] = value

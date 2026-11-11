@@ -10,6 +10,7 @@ signal day_changed(day: int)
 signal speed_changed(speed: float)
 signal paused_changed(paused_state: bool)
 signal pacing_changed(effective_speed: float)
+signal input_boundary
 
 const MINUTES_PER_HOUR: int = 60
 const MINUTES_PER_DAY: int = 1440
@@ -54,6 +55,7 @@ var _save_boundary_owner: WeakRef
 var _publication_cost_usec: int = 0
 var _publication_deferred_at_ms: int = -1
 var _publication_deferred_deadline: int = 0
+var _input_boundary_requested: bool = false
 
 
 func bind_rules(definitions: Dictionary) -> bool:
@@ -117,6 +119,19 @@ func advance_frame(delta: float) -> void:
 	_advancing = true
 	_process_pending()
 	_advancing = false
+	_offer_input_boundary()
+
+
+func request_input_boundary() -> void:
+	# Finish the offered interval, then let host intents enter before admitting
+	# another one. Busy frames cannot starve input by always starting more work.
+	_input_boundary_requested = true
+
+
+func _offer_input_boundary() -> void:
+	if _input_boundary_requested and not has_pending_advance():
+		_input_boundary_requested = false
+		input_boundary.emit()
 
 
 func frame_budget_exhausted() -> bool:
@@ -178,6 +193,8 @@ func _process_pending() -> void:
 			return
 	if _frame_end_ms > elapsed_ms and not _finish_frame_step(_explicit_allow_paused):
 		return
+	if _input_boundary_requested and _explicit_target_ms <= elapsed_ms:
+		return
 	if _explicit_target_ms > elapsed_ms:
 		_drain_explicit(MAX_MINUTES_PER_FRAME)
 		if _explicit_target_ms > elapsed_ms or paused:
@@ -192,6 +209,8 @@ func _process_pending() -> void:
 			minute_budget -= 1
 			if not _commit_pending() or _finish_wait_if_due():
 				return
+			if _input_boundary_requested:
+				return
 		return
 	var step: float = float(_rules.clock.fixed_step_ms)
 	var epsilon: float = step * STEP_EPSILON_RATIO
@@ -200,6 +219,8 @@ func _process_pending() -> void:
 		budget -= 1
 		_frame_end_ms = elapsed_ms + int(step)
 		if not _finish_frame_step(false):
+			return
+		if _input_boundary_requested:
 			return
 	# Budgeting never discards debt, including a callback interruption.
 
@@ -244,6 +265,7 @@ func advance_msec(amount: int) -> void:
 	_advancing = true
 	_drain_explicit(MAX_EXPLICIT_INTERVALS)
 	_advancing = false
+	_offer_input_boundary()
 
 
 func _drain_explicit(budget: int) -> void:
@@ -511,6 +533,7 @@ func restore_state(data: Dictionary) -> bool:
 	_explicit_target_ms = 0
 	_explicit_allow_paused = false
 	_executor_required = false
+	_input_boundary_requested = false
 	pacing.reset()
 	_publication_cost_usec = 0
 	_publication_deferred_at_ms = -1

@@ -11,7 +11,7 @@ const Response = preload("res://scripts/sim/environment_field_response.gd")
 const Temperature = preload("res://scripts/sim/environment_temperature_state.gd")
 const Phases = preload("res://scripts/sim/environment_phase_state.gd")
 const SIZE: int = SimGroundPlacements.MAP_SIZE
-const VERSION: int = 5
+const VERSION: int = 6
 const MODEL: String = "composed_fields_v1"
 const PULSE_DURATION_MS: int = 60000
 
@@ -33,6 +33,7 @@ static func capture(domain: RefCounted) -> Dictionary:
 		"temperature": domain._temperature.snapshot(), "phases": domain._phases.snapshot(),
 		"transient": domain._transient.duplicate(true), "receipts": domain.receipts.duplicate(true),
 		"device_switches": domain.device_switches.duplicate(true), "samples": domain._samples.duplicate(true),
+		"motion_samples": domain.capture_motion_samples(),
 	}
 
 
@@ -41,7 +42,7 @@ static func restore_into(domain: RefCounted, data: Variant) -> bool:
 	# candidate shell. The caller must discard this entire shell on any failure.
 	if not domain is SimWorldEnvironmentFields or domain.world == null or domain._active or domain._busy or not domain._error.is_empty():
 		return false
-	var fields: Array[String] = ["version", "model", "settings_digest", "source_digest", "activation_ms", "last_ms", "last_sample_ms", "background", "temperature", "phases", "transient", "receipts", "device_switches", "samples"]
+	var fields: Array[String] = ["version", "model", "settings_digest", "source_digest", "activation_ms", "last_ms", "last_sample_ms", "background", "temperature", "phases", "transient", "receipts", "device_switches", "samples", "motion_samples"]
 	if not _keys(data, fields) or not Shape.count(data.version, VERSION, VERSION) or data.model != MODEL:
 		return false
 	if not Shape.count(data.activation_ms, 0, int(domain.world.elapsed_ms)) or not Shape.count(data.last_ms, int(domain.world.elapsed_ms), int(domain.world.elapsed_ms)):
@@ -51,6 +52,8 @@ static func restore_into(domain: RefCounted, data: Variant) -> bool:
 	if not data.settings_digest is String or not data.source_digest is String or domain.world._content.environment_sources == null or data.source_digest != domain.world._content.environment_sources.digest():
 		return false
 	if not data.transient is Dictionary or not data.receipts is Dictionary or not data.device_switches is Dictionary or not data.samples is Dictionary:
+		return false
+	if not _valid_motion_samples(data.motion_samples, int(data.last_ms)):
 		return false
 	if not domain._configure_components(int(data.activation_ms)) or data.settings_digest != _settings_digest(domain._settings):
 		return false
@@ -64,7 +67,7 @@ static func restore_into(domain: RefCounted, data: Variant) -> bool:
 	domain.last_ms = int(data.last_ms)
 	if not _validate_receipts(domain, data) or not _validate_switches(domain, data) or not _validate_samples(domain, data):
 		return false
-	var built: Dictionary = domain._sources.build_sources()
+	var built: Dictionary = domain._sources.build_sources(data.motion_samples)
 	if not bool(built.get("ok", false)):
 		return false
 	for key: String in data.transient:
@@ -96,10 +99,34 @@ static func restore_into(domain: RefCounted, data: Variant) -> bool:
 	domain.receipts = data.receipts.duplicate(true)
 	domain.device_switches = data.device_switches.duplicate(true)
 	domain._samples = data.samples.duplicate(true)
+	for row: Dictionary in data.motion_samples:
+		domain._motion_changes.append({"keys": [row.key], "at_ms": int(row.at_ms),
+			"changed_ms": int(row.changed_ms), "cell": Vector2i(int(row.cell[0]), int(row.cell[1]))})
 	domain._active = true
 	# Derived work and boundary indices never become another saved authority.
 	domain._rebuild_participation()
 	domain._connect_owners()
+	return true
+
+
+static func _valid_motion_samples(rows: Variant, now: int) -> bool:
+	if not rows is Array:
+		return false
+	var seen: Dictionary = {}
+	var previous_due: int = 0
+	var previous_key: String = ""
+	for row: Variant in rows:
+		if not _keys(row, ["key", "at_ms", "changed_ms", "cell", "sampled_cell"]) or not row.key is String or row.key.is_empty() or seen.has(row.key):
+			return false
+		if not Shape.count(row.changed_ms, maxi(0, now - SimCadence.FIELD_MOTION_MS + 1), now) or not Shape.count(row.at_ms, now + 1, now + SimCadence.FIELD_MOTION_MS):
+			return false
+		if not Shape.cell_valid(row.cell) or not Shape.cell_valid(row.sampled_cell):
+			return false
+		if int(row.at_ms) < previous_due or int(row.at_ms) == previous_due and str(row.key) <= previous_key:
+			return false
+		seen[row.key] = true
+		previous_due = int(row.at_ms)
+		previous_key = str(row.key)
 	return true
 
 

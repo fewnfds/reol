@@ -136,7 +136,7 @@ static func _construction(world: RegionalSimulation, reference: Dictionary) -> D
 		return _failure("invalid_source")
 	if project.state in ["removed", "cancelled"]:
 		return _failure("not_found")
-	if not project.state in ["blueprint", "built", "ruined"] or not Shape.cell_valid(project.get("cell")) or not project.get("open") is bool or not project.get("type") is String or not domain.definitions.get("types") is Dictionary:
+	if not project.state in ["blueprint", "built", "ruined"] or not Shape.cell_valid(project.get("cell")) or not project.get("type") is String or not domain.definitions.get("types") is Dictionary:
 		return _failure("invalid_source")
 	var rule: Variant = domain.definitions.types.get(project.type)
 	if not rule is Dictionary or not rule.get("kind") is String:
@@ -149,7 +149,7 @@ static func _construction(world: RegionalSimulation, reference: Dictionary) -> D
 	var cells: Array[Vector2i] = domain.project_cells(str(reference.id))
 	var layer: String = str(rule.layer)
 	var covered: bool = project.state == "built" and layer == "roof" and cells.all(func(cell: Vector2i) -> bool: return domain.roofed(cell))
-	var result: Dictionary = _projection(reference, str(rule.kind), layer, str(project.state), cells, str(site.region), bool(project.open), covered)
+	var result: Dictionary = _projection(reference, str(rule.kind), layer, str(project.state), cells, str(site.region), false, covered)
 	for fact: String in FACTS:
 		if fact != "roofed":
 			result[fact] = domain.fact(str(reference.id), fact)

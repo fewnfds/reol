@@ -266,7 +266,7 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("move_left") or event.is_action_pressed("move_right") or event.is_action_pressed("move_up") or event.is_action_pressed("move_down"):
 		GameClock.cancel_wait()
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_SHIFT:
-		player.request_sidestep()
+		_continuity.request_player_command("sidestep")
 		get_viewport().set_input_as_handled()
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_T:
 		GameClock.request_wait()

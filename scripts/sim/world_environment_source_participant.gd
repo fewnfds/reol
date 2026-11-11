@@ -41,6 +41,7 @@ var _last_phase_chunks: Array[Vector2i] = []
 # empty/ordinary pocket must not enumerate all materials and legacy objects.
 var _container_sources: Dictionary = {}
 var _source_containers: Dictionary[String, Array] = {}
+var _initial_motion_samples: Dictionary = {}
 
 
 static func artifact_key(id: String) -> String:
@@ -92,7 +93,9 @@ func bind_world(world: RegionalSimulation) -> bool:
 	return true
 
 
-func build_sources() -> Dictionary:
+func build_sources(motion_samples: Array = []) -> Dictionary:
+	for row: Dictionary in motion_samples:
+		_initial_motion_samples[row.key] = row
 	# Invoke on a candidate world after the original opening/restore is complete
 	# and relevant regions are synchronized. Failure discards this participant.
 	if _world == null or _built or _failed or not _pending.is_empty():
@@ -166,6 +169,8 @@ func build_sources() -> Dictionary:
 			if not source.is_empty() and not _add_initial("plant:" + id, source):
 				return _build_failure("plant_source")
 	_built = true
+	if not _initial_motion_samples.is_empty():
+		return _build_failure("motion_source_missing")
 	return {"ok": true, "source_count": _records.size(), "affected_chunks": affected_chunks()}
 
 
@@ -279,12 +284,12 @@ func step_source_change(proof: Variant, field_work: int, cell_budget: int) -> Di
 	return {"ok": true, "pending": false}
 
 
-func prepare_object_change(request: Dictionary) -> Dictionary:
+func prepare_object_change(request: Dictionary, pending_motion_cell: Variant = null) -> Dictionary:
 	if not _available() or not request.get("op") is String:
 		return _failure("invalid_state")
 	var op: String = request.op
 	if op in ["spawn", "move", "remove", "artifact_transfer"]:
-		return _prepare_artifact(request)
+		return _prepare_artifact(request, pending_motion_cell)
 	if op == "stock_transfer":
 		return _prepare_stock(request)
 	return _failure("unsupported_operation")
@@ -416,7 +421,7 @@ func _begin_transition(old_key: String, new_key: String, source: Dictionary, at_
 	return {"ok": true, "proof": token, "changed": true}
 
 
-func _prepare_artifact(request: Dictionary) -> Dictionary:
+func _prepare_artifact(request: Dictionary, pending_motion_cell: Variant = null) -> Dictionary:
 	if not request.get("id") is String or str(request.id).is_empty():
 		return _failure("invalid_reference")
 	var id: String = request.id
@@ -439,7 +444,10 @@ func _prepare_artifact(request: Dictionary) -> Dictionary:
 		var old_projection: Dictionary = current_artifact_source(id)
 		if not bool(old_projection.get("ok", false)):
 			return old_projection
-		if old_projection.source.is_empty() != old_key.is_empty() or not old_key.is_empty() and old_projection.source != get_source(old_key):
+		var sampled: Dictionary = get_source(old_key)
+		if not sampled.is_empty() and pending_motion_cell is Vector2i:
+			sampled.cell = pending_motion_cell
+		if old_projection.source.is_empty() != old_key.is_empty() or not old_key.is_empty() and old_projection.source != sampled:
 			return _failure("source_index_mismatch")
 	var source: Dictionary = {}
 	if op != "remove":
@@ -576,6 +584,14 @@ func _add_initial(key: String, source: Dictionary) -> bool:
 		return true
 	if _next_slot >= _capacity:
 		return false
+	if _initial_motion_samples.has(key):
+		var sample: Dictionary = _initial_motion_samples[key]
+		if source.cell != Vector2i(int(sample.cell[0]), int(sample.cell[1])) \
+			or int(sample.at_ms) != SimCadence.at_or_after(int(sample.changed_ms), SimCadence.source_motion_ms(source.channels)):
+			return false
+		source = source.duplicate(true)
+		source.cell = Vector2i(int(sample.sampled_cell[0]), int(sample.sampled_cell[1]))
+		_initial_motion_samples.erase(key)
 	var inserted: Dictionary = _field.set_source(_next_slot, source.cell, source.radius, source.channels)
 	if not bool(inserted.get("ok", false)):
 		return false

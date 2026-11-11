@@ -51,8 +51,9 @@ func submit(verb: String) -> Dictionary:
 	var view: Dictionary = domain.describe("player", selected_vessel)
 	var result: Dictionary = {"ok": false, "line": "先到近处看清旧戒。"}
 	if verb == "cancel":
-		var accepted: bool = adapter.stop_player_action()
-		result = {"ok": accepted, "line": "已经中断接触；已付投入不退。" if accepted else "当前结算尚未完成，本次停止未受理。"}
+		result = adapter.request_player_command("cancel")
+		if result.ok and not result.queued:
+			result.line = "已经中断接触；已付投入不退。"
 	elif bool(view.get("known", false)):
 		if verb in ["approach", "to_garden"]:
 			var cell: Vector2i = SimRouteTravel.cell(view.cell) if verb == "approach" else SimRouteTravel.cell(adapter.world_sim.regions.home.places.garden.cell)

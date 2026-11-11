@@ -8,6 +8,7 @@ signal player_travel_advanced(position_value: Vector2)
 signal resident_selected(pawn: Pawn)
 signal avatar_changed
 signal save_finished(path: String, result: Error)
+signal player_command_finished(id: int, kind: String, result: Dictionary)
 
 const Opening = preload("res://scripts/runtime/world_opening.gd")
 
@@ -48,6 +49,7 @@ var _courier_visible: bool = false
 var _saves: SimSaveSession
 var _field_compute: EnvironmentFieldComputeRuntime
 var _retired_field_compute: Array[EnvironmentFieldComputeRuntime] = []
+var _player_commands := ReolPlayerCommandBuffer.new()
 
 
 func home_runtime() -> VillageRuntime:
@@ -126,6 +128,8 @@ func setup(home: VillageRuntime, opening_source_loan: bool = false, opening_sour
 	GameClock.time_advanced.connect(_capture_committed_canvases)
 	_capture_committed_canvases()
 	_configure_field_compute()
+	_player_commands.finished.connect(_on_player_command_finished)
+	GameClock.input_boundary.connect(_drain_player_commands)
 	return true
 
 
@@ -480,6 +484,7 @@ func select_starting_avatar(subject: String) -> bool:
 		_home.simulation.synchronize_actor("player").autonomous = true
 		world_sim.invalidate_region("home")
 	avatar_subject = subject
+	_player_commands.clear()
 	_opening_selection_available = false
 	avatar_changed.emit()
 	return true
@@ -667,7 +672,7 @@ func project_player_journey(to_ms: int) -> void:
 
 
 func travel_to(region_id: String, destination_cell: Variant = null) -> bool:
-	if not human_player_active() or world_sim == null:
+	if not human_player_active() or not _player_command_ready():
 		return false
 	if world_sim.object_lifecycle.owns_actor("player"):
 		_notice = "先完成或停止手中的实物取放，再安排远行。"
@@ -792,6 +797,71 @@ func prepare_home_command(actor_id: String = "") -> void:
 func prepare_player_command() -> void:
 	prepare_home_command("player")
 	_home._sync_player_cell()
+
+
+func _player_command_context() -> String:
+	return str(world_sim.get_instance_id()) + ":" + avatar_subject if world_sim != null else ""
+
+
+func _player_command_ready() -> bool:
+	return world_sim != null and not GameClock.has_pending_advance() \
+		and world_sim.accepts_commands() and not world_sim.has_pending_boundary() \
+		and not world_sim.settlement.has_failed() and world_sim.elapsed_ms == GameClock.elapsed_ms \
+		and world_sim.target_ms == world_sim.elapsed_ms and (_saves == null or not _saves.pending())
+
+
+func request_player_command(kind: String, args: Dictionary = {}) -> Dictionary:
+	# `queued` means only that the host remembers the intent. Resources and
+	# targets are checked by the original action entry when a boundary is ready.
+	if world_sim == null or world_sim.settlement.has_failed() or _opening_selection_available or not ReolPlayerCommandBuffer.LIFETIME_MS.has(kind):
+		return {"ok": false, "queued": false, "line": "眼下无法受理这个操作。"}
+	if kind == "travel" and (not args.get("region") is String or not (args.get("cell") == null or args.get("cell") is Vector2i)):
+		return {"ok": false, "queued": false, "line": "没有可用的目的地。"}
+	if kind == "sidestep":
+		var direction: Variant = args.get("direction", Input.get_vector("move_left", "move_right", "move_up", "move_down"))
+		if not direction is Vector2 or not direction.is_finite():
+			return {"ok": false, "queued": false, "line": "没有可用的闪避方向。"}
+		args = {"direction": _home._player.motion.facing if direction.is_zero_approx() else direction}
+	GameClock.cancel_wait()
+	_player_commands.supersede(kind)
+	_drain_player_commands()
+	if _player_command_ready():
+		return _execute_player_command(kind, args)
+	var id: int = _player_commands.enqueue(kind, args, _player_command_context(), Time.get_ticks_msec())
+	GameClock.request_input_boundary()
+	return {"ok": true, "queued": true, "id": id, "line": "已记下操作，待当前结算完成后尝试。"}
+
+
+func _execute_player_command(kind: String, args: Dictionary) -> Dictionary:
+	var ok: bool = false
+	match kind:
+		"sidestep": ok = _home._player.request_sidestep(args.direction)
+		"travel": ok = travel_to(str(args.region), args.get("cell"))
+		"cancel": ok = stop_player_action()
+	return {"ok": ok, "queued": false, "line": "操作已执行。" if ok else "眼下的状态无法执行这个操作。"}
+
+
+func _drain_player_commands() -> void:
+	_player_commands.expire(_player_command_context(), Time.get_ticks_msec())
+	while _player_commands.pending() and _player_command_ready():
+		var item: Dictionary = _player_commands.take()
+		_player_commands.complete(item, _execute_player_command(str(item.kind), item.args))
+
+
+func _on_player_command_finished(id: int, kind: String, result: Dictionary) -> void:
+	player_command_finished.emit(id, kind, result)
+	if result.get("reason", "") in ["superseded", "context_changed"]:
+		return
+	_notice = "等待的操作已过期，请重新操作。" if result.get("reason") == "expired" else str(result.get("line", ""))
+	if _panel != null:
+		_panel.update_notice(_notice)
+
+
+func _request_travel(region: String) -> void:
+	var result: Dictionary = request_player_command("travel", {"region": region})
+	if bool(result.queued) or not bool(result.ok):
+		_notice = str(result.line)
+		_panel.update_notice(_notice)
 
 
 func stop_player_action(reason: String = "player_cancelled") -> bool:
@@ -1058,6 +1128,7 @@ func _process(_delta: float) -> void:
 			_retired_field_compute.remove_at(index)
 	if _saves != null:
 		_saves.process_save()
+	_drain_player_commands()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -1118,7 +1189,7 @@ func _build_panel() -> void:
 	layer.add_child(screen)
 	_panel = WorldContinuityPanel.new()
 	screen.add_child(_panel)
-	_panel.travel_requested.connect(travel_to)
+	_panel.travel_requested.connect(_request_travel)
 	_panel.route_toggle_requested.connect(_toggle_route)
 	_panel.save_requested.connect(_home.request_save)
 	_panel.load_requested.connect(_home.load_game)
@@ -1295,6 +1366,7 @@ func _adopt_session(staged: Dictionary) -> void:
 	var extra: Dictionary = snapshot.continuity
 	# All validation is complete before changing any live world or clock state.
 	var previous_world: RegionalSimulation = world_sim
+	_player_commands.clear()
 	_retire_field_compute()
 	world_sim = staged.world
 	_configure_field_compute()

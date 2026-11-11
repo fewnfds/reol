@@ -77,8 +77,9 @@ func submit(action_id: String) -> Dictionary:
 	if world.services == null:
 		return _result(false, "尚未准备好当地服务。")
 	if action_id == "cancel":
-		if not adapter.stop_player_action():
-			return _result(false, "当前结算尚未完成，本次停止未受理。")
+		var result: Dictionary = adapter.request_player_command("cancel")
+		if not result.ok or result.queued:
+			return _result(bool(result.ok), str(result.line))
 		return _result(true, "已停止当前行动，随身物品保留；受托公物可续做或交回。")
 	if not adapter.player_journey.is_empty():
 		return _result(false, "先完成或停止当前行程。")

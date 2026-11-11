@@ -1,9 +1,8 @@
 {
-  "version": 2,
+  "version": 3,
   "check_ms": 60000,
   "minimum_fullness": 35,
   "minimum_energy": 30,
-  "operate_ms": 2000,
   "pickup_ms": 1000,
   "roof_span": 2,
   "types": {
@@ -59,7 +58,7 @@
         1
       ],
       "facts": {
-        "movement_blocked": true,
+        "movement_blocked": false,
         "enclosure_boundary": true,
         "thermal_barrier": true,
         "sight_blocked": true,

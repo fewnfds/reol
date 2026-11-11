@@ -53,15 +53,11 @@ func rebuild(world: RegionalSimulation) -> bool:
 		var exposure: Dictionary = terms(rule)
 		for cell: Vector2i in world.construction.project_cells(id):
 			barriers[cell] = exposure.duplicate()
-			if bool(rule.door) and bool(row.open):
-				barriers[cell].thermal = SCALE
-				barriers[cell].elements = SCALE
-				barriers[cell].light = SCALE
 			if bool(rule.facts.enclosure_boundary):
 				edges[cell] = {"id": id, "project": row}
 	# Existing offices are original fixed structures, not new wall entities.
 	types["@office_wall"] = {"door": false}
-	types["@office_door"] = {"door": true}
+	types["@office_door"] = {"door": true, "aperture": true}
 	for sim: VillageSimulation in world.regions.values():
 		var office: Dictionary = sim.places.get("records", {}).get("workspace", {})
 		if office.is_empty():
@@ -69,11 +65,11 @@ func rebuild(world: RegionalSimulation) -> bool:
 		var area := Rect2i(SimRouteTravel.cell(office.door), Vector2i.ONE)
 		for raw: Array in office.walls:
 			var cell: Vector2i = SimRouteTravel.cell(raw)
-			edges[cell] = {"id": "office:" + str(cell), "project": {"type": "@office_wall", "open": false}}
+			edges[cell] = {"id": "office:" + str(cell), "project": {"type": "@office_wall"}}
 			barriers[cell] = {"thermal": 2000, "elements": 8000, "light": 0, "room_tau_ms": 180000}
 			area = area.expand(cell)
 		var door: Vector2i = SimRouteTravel.cell(office.door)
-		edges[door] = {"id": "office_door:" + str(door), "project": {"type": "@office_door", "open": true}}
+		edges[door] = {"id": "office_door:" + str(door), "project": {"type": "@office_door"}}
 		bounds.append(area.grow(1))
 	# Merge only overlapping local work areas, not the hull of distant sites.
 	var merged: bool = true
@@ -115,7 +111,7 @@ func rebuild(world: RegionalSimulation) -> bool:
 				continue
 			var tau: int = maxi(30000, tau_sum / maxi(1, faces))
 			# Open apertures and missing roof expose the whole mixed compartment.
-			tau = maxi(30000, tau / (1 + int(space.open_doors) * 4 + (space.cells.size() - covered)))
+			tau = maxi(30000, tau / (1 + int(space.openings) * 4 + (space.cells.size() - covered)))
 			rooms[anchor] = {"cells": space.cells, "tau_ms": tau, "roofed": covered}
 			for point: Vector2i in space.cells:
 				room_of[point] = anchor

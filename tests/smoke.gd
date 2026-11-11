@@ -4,7 +4,7 @@ extends SceneTree
 const Kernel = preload("res://scripts/sim/execution/settlement_kernel.gd")
 const ActorBatch = preload("res://scripts/sim/actor_advance.gd")
 const Inventory = preload("res://scripts/sim/inventory_ledger.gd")
-const SUITES: Array[String] = ["settlement", "actor_batch", "inventory"]
+const SUITES: Array[String] = ["settlement", "actor_batch", "inventory", "input"]
 
 
 func _initialize() -> void:
@@ -107,3 +107,38 @@ func _inventory() -> bool:
 	if inventory.transfer("too_much", "store", "bag", "wood", 3):
 		return false
 	return inventory.quantity("store", "wood") == 2 and inventory.quantity("bag", "wood") == 3
+
+
+func _input() -> bool:
+	# Backlog must offer a completed boundary before starting another interval.
+	var clock := ReolGameClock.new()
+	var calls: Array[int] = [0]
+	var boundaries: Array[int] = []
+	clock.bind_interval_executor(func(from: int, to: int) -> int:
+		calls[0] += 1
+		return from if calls[0] == 1 else to)
+	clock.input_boundary.connect(func() -> void:
+		if not clock.has_pending_advance(): boundaries.append(clock.elapsed_ms))
+	clock.advance_frame(0.2)
+	clock.request_input_boundary()
+	clock.advance_frame(0.0)
+	var offered: bool = boundaries == [50] and calls[0] == 2
+	clock.advance_frame(0.0)
+	var caught_up: bool = clock.elapsed_ms == 200 and boundaries == [50]
+	clock.free()
+	if not offered or not caught_up:
+		return false
+	# Never execute a replaced destination, expired dodge or prior-avatar input.
+	var buffer := ReolPlayerCommandBuffer.new()
+	var finished: Array[int] = []
+	buffer.finished.connect(func(id: int, _kind: String, _result: Dictionary) -> void: finished.append(id))
+	buffer.enqueue("travel", {"region": "home"}, "session:a", 0)
+	buffer.enqueue("travel", {"region": "river"}, "session:a", 1)
+	buffer.enqueue("sidestep", {"direction": Vector2.RIGHT}, "session:a", 2)
+	buffer.expire("session:a", 303)
+	var command: Dictionary = buffer.take()
+	if finished != [1, 3] or command.get("id") != 2 or command.args.region != "river" or buffer.pending():
+		return false
+	buffer.enqueue("cancel", {}, "session:a", 304)
+	buffer.expire("session:b", 305)
+	return not buffer.pending() and finished == [1, 3, 4]

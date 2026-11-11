@@ -285,8 +285,8 @@ func teach_selected() -> void:
 
 
 func stop() -> void:
-	var accepted: bool = runtime().stop_player_action()
-	_reply.text = "操作已中止；已付出的灵气和木料不退，未完成的阅读或练习不会授予本领。" if accepted else "当前结算尚未完成，本次停止未受理。"
+	var result: Dictionary = runtime().request_player_command("cancel")
+	_reply.text = "操作已中止；已付出的灵气和木料不退，未完成的阅读或练习不会授予本领。" if result.ok and not result.queued else str(result.line)
 	refresh()
 
 
