@@ -401,6 +401,7 @@ func next_world_boundary_ms() -> int:
 func accept_native_route(id: String, route: Dictionary) -> void:
 	if not native_route_events_enabled or not _boundary_revision_provider.is_valid():
 		return
+	var profile_started: int = Time.get_ticks_usec() if profile_native else 0
 	# Only a freshly found/repaired route has a proof for ALL remaining legs.
 	# After an intersecting topology revision an old path keeps local boundaries
 	# until it is repaired or replaced, even if its first leg is still open.
@@ -422,6 +423,8 @@ func accept_native_route(id: String, route: Dictionary) -> void:
 			nearby[place] = true
 	_route_completions[id] = {"route": route, "at_ms": int(timeline.ends[-1]) if not timeline.ends.is_empty() else int(route.due_ms),
 		"cells": cells, "revision": _route_geometry_revision(), "timeline": timeline, "coarse": false, "stock_places": nearby}
+	if profile_native:
+		native_profile["route_preparation"] = int(native_profile.get("route_preparation", 0)) + Time.get_ticks_usec() - profile_started
 
 
 func set_route_geometry_revision_provider(provider: Callable) -> void:
