@@ -6,13 +6,11 @@ extends RefCounted
 
 const Values = preload("res://scripts/persistence/snapshot_values.gd")
 const Shape = preload("res://scripts/sim/avian_schema.gd")
-const Rules = preload("res://scripts/sim/environment_field_rules.gd")
 const Response = preload("res://scripts/sim/environment_field_response.gd")
-const Temperature = preload("res://scripts/sim/environment_temperature_state.gd")
 const Phases = preload("res://scripts/sim/environment_phase_state.gd")
 const SIZE: int = SimGroundPlacements.MAP_SIZE
-const VERSION: int = 6
-const MODEL: String = "composed_fields_v1"
+const VERSION: int = 7
+const MODEL: String = "composed_fields_v2"
 const PULSE_DURATION_MS: int = 60000
 
 
@@ -198,15 +196,10 @@ static func _validate_current_targets(domain: RefCounted, data: Dictionary) -> b
 		if not bool(base.get("ok", false)) or bool(base.get("pending", true)):
 			return false
 		var channels: PackedInt32Array = base.channels
-		var start: int = int(p.start_ms)
-		var expected: Dictionary = domain._compiler.compile(point, start, channels[5], channels[6])
-		if not bool(expected.get("ok", false)):
-			return false
-		var next_grid: int = start + mini(SimWorldEnvironmentFields.TIDE_GRID_MS - posmod(start, SimWorldEnvironmentFields.TIDE_GRID_MS), Response.MAX_TIME - start)
-		if int(p.until_ms) != mini(int(expected.until_ms), next_grid):
+		if int(p.until_ms) != Phases.MAX_TIME:
 			return false
 		for channel: int in 5:
-			if float(p.target[channel]) != float(Rules.effective_grade(channels[channel], int(expected.multiplier))) or float(p.slope[channel]) != 0.0:
+			if float(p.target[channel]) != float(channels[channel]) or float(p.slope[channel]) != 0.0:
 				return false
 	# Saved anchors can be sparse, but a current, nonzero source cannot be made
 	# to disappear by deleting its actual response from an otherwise valid save.

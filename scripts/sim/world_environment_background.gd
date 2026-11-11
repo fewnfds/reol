@@ -168,13 +168,13 @@ static func _segment(settings: Dictionary, region: String, start_ms: int, initia
 
 
 static func _valid_settings(settings: Dictionary, activation_ms: int) -> bool:
-	if not Calendar._keys(settings, ["climate", "weather", "weather_epoch_ms", "seed", "tau_ms", "tide_grid_ms"]):
+	if not Calendar._keys(settings, ["climate", "weather", "weather_epoch_ms", "seed", "tau_ms", "thermal_grid_ms"]):
 		return false
 	if activation_ms < 0 or activation_ms > Response.MAX_TIME or not Climate.valid_definitions(settings.climate) or not Weather.valid_definitions(settings.weather):
 		return false
 	if not settings.seed is int or not _integer(settings.seed, -Calendar.MAX_TIMESTAMP, Calendar.MAX_TIMESTAMP):
 		return false
-	if not _integer(settings.weather_epoch_ms, 0, activation_ms) or not _integer(settings.tau_ms, 1, Response.MAX_TAU_MS) or not _integer(settings.tide_grid_ms, 1, Response.MAX_TIME):
+	if not _integer(settings.weather_epoch_ms, 0, activation_ms) or not _integer(settings.tau_ms, 1, Response.MAX_TAU_MS) or not _integer(settings.thermal_grid_ms, 1, Response.MAX_TIME):
 		return false
 	for region: String in settings.climate.regions:
 		if not settings.weather.regions.has(region):

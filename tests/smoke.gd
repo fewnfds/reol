@@ -4,7 +4,11 @@ extends SceneTree
 const Kernel = preload("res://scripts/sim/execution/settlement_kernel.gd")
 const ActorBatch = preload("res://scripts/sim/actor_advance.gd")
 const Inventory = preload("res://scripts/sim/inventory_ledger.gd")
-const SUITES: Array[String] = ["settlement", "actor_batch", "inventory", "input", "presentation", "spatial"]
+const SUITES: Array[String] = ["settlement", "actor_batch", "inventory", "input", "presentation", "spatial", "elements"]
+
+
+func _elements() -> bool:
+	return preload("res://tests/element_fields.gd").run()
 
 class NavigationReadCheck extends RefCounted:
 	var graph := SimGridNavigation.Search.new(16, true)
@@ -119,7 +123,7 @@ func _signal_handoff() -> bool:
 func _response_input() -> bool:
 	var settings: Dictionary = {"climate": JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/climate.json")),
 		"weather": JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/weather.json")),
-		"weather_epoch_ms": 0, "seed": 17, "tau_ms": 30000, "tide_grid_ms": 60000}
+		"weather_epoch_ms": 0, "seed": 17, "tau_ms": 30000, "thermal_grid_ms": 60000}
 	var compiler := SimEnvironmentTargetCompiler.new()
 	var temperature := SimEnvironmentTemperatureState.new()
 	var phases := SimEnvironmentPhaseState.new()
@@ -143,7 +147,6 @@ func _response_input() -> bool:
 			input.at_ms = 100
 			input.horizon_ms = 60000
 			input.tau_ms = 30000
-			input.grid_ms = 60000
 			if mode == 0:
 				input.run()
 				reference.append(input)

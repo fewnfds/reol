@@ -7,7 +7,7 @@ extends RefCounted
 const Calendar = preload("res://scripts/sim/world_calendar.gd")
 const Climate = preload("res://scripts/sim/climate_rules.gd")
 const Weather = preload("res://scripts/sim/weather.gd")
-const Tide = preload("res://scripts/sim/environment_field_tide.gd")
+const Tide = preload("res://scripts/sim/environment_thermal_tide.gd")
 const Rules = preload("res://scripts/sim/environment_field_rules.gd")
 const Response = preload("res://scripts/sim/environment_field_response.gd")
 const State = preload("res://scripts/sim/environment_temperature_state.gd")

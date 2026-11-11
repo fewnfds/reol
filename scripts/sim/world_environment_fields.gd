@@ -4,12 +4,12 @@ extends RefCounted
 ## RegionalSimulation.environment_fields. Serialized by the world's codec.
 ## Source indexes are disposable projections over original object owners.
 
-const VERSION: int = 6
-const MODEL: String = "composed_fields_v1"
+const VERSION: int = 7
+const MODEL: String = "composed_fields_v2"
 const SIZE: int = SimGroundPlacements.MAP_SIZE
 const MAX_TIME: int = SimEnvironmentTemperatureState.MAX_TIME
 const TAU_MS: int = 30000
-const TIDE_GRID_MS: int = 60000
+const THERMAL_GRID_MS: int = 60000
 const MAX_TRANSIENT: int = 128
 const ANCHOR_QUANTUM: float = 0.000000001
 const TARGET_CELLS_PER_WORK: int = 16
@@ -19,6 +19,7 @@ const Temperature = preload("res://scripts/sim/environment_temperature_state.gd"
 const Phases = preload("res://scripts/sim/environment_phase_state.gd")
 const Targets = preload("res://scripts/sim/environment_response_targets.gd")
 const Rules = preload("res://scripts/sim/environment_field_rules.gd")
+const ElementTide = preload("res://scripts/sim/environment_element_tide.gd")
 const Compiler = preload("res://scripts/sim/environment_target_compiler.gd")
 const Participant = preload("res://scripts/sim/world_environment_source_participant.gd")
 const Background = preload("res://scripts/sim/world_environment_background.gd")
@@ -42,6 +43,8 @@ var _compiler: RefCounted
 var _chunks: Dictionary[Vector2i, bool] = {}
 var _thermal_chunks: Dictionary[Vector2i, bool] = {}
 var _samples: Dictionary = {}
+var _element_sample_ms: int = -1
+var _element_samples: Dictionary[Vector2i, Dictionary] = {}
 var _transient: Dictionary = {}
 var _active: bool = false
 var _busy: bool = false
@@ -108,7 +111,7 @@ func activate_sources() -> bool:
 func _configure_components(at_ms: int) -> bool:
 	var seed: int = int(world.map_data.descriptor().seed) if world.map_data != null else 0
 	_settings = {"climate": world._content.climate, "weather": world.weather.definitions,
-		"weather_epoch_ms": world.weather.epoch_ms, "seed": seed, "tau_ms": TAU_MS, "tide_grid_ms": TIDE_GRID_MS}
+		"weather_epoch_ms": world.weather.epoch_ms, "seed": seed, "tau_ms": TAU_MS, "thermal_grid_ms": THERMAL_GRID_MS}
 	_field = Field.new()
 	_temperature = Temperature.new()
 	_phases = Phases.new()
@@ -485,15 +488,27 @@ func local_tenths(cell: Vector2i, at_ms: int = -1) -> int:
 func elements_at(cell: Vector2i) -> Dictionary:
 	if _busy or not _active:
 		return {"ok": false, "reason": "environment_unavailable"}
+	var sampled_at: int = _phases.sample_ms(last_ms)
+	if _element_sample_ms != sampled_at:
+		_element_sample_ms = sampled_at
+		_element_samples.clear()
+	if _element_samples.has(cell):
+		return _element_samples[cell].duplicate(true)
 	var result: Dictionary = _phases.actual_at(cell, last_ms)
 	if result.get("reason") == "untracked":
 		result = _initial_phase(cell, last_ms)
 	if bool(result.get("ok", false)):
 		var packed: PackedFloat64Array = result.values
-		var values := PackedFloat64Array()
+		var base := PackedFloat64Array()
 		for index: int in Rules.SOURCE_FROM_PACKED_ELEMENT_INDEX:
-			values.append(packed[index])
-		result.values = values
+			base.append(packed[index])
+		var percent: PackedInt32Array = ElementTide.percentages(int(_settings.seed), cell, sampled_at)
+		result = {"ok": true, "cell": cell, "at_ms": sampled_at, "base_values": base,
+			"tide_percent": percent, "tide_at_ms": sampled_at - posmod(sampled_at, ElementTide.PERIOD_MS),
+			"values": ElementTide.apply(base, percent)}
+		# Held authoritative values, not display interpolation. Any source update
+		# in this same second preserves its old sample and replaces only its target.
+		_element_samples[cell] = result.duplicate(true)
 	return result
 
 
@@ -506,7 +521,9 @@ func context_at(cell: Vector2i) -> Dictionary:
 	if not bool(temperature.get("ok", false)) or not bool(elements.get("ok", false)) or not bool(light.get("supported", false)):
 		return {"ok": false, "reason": "environment_unavailable"}
 	return {"ok": true, "at_ms": last_ms, "visibility": "authority_only", "temperature_c": temperature.value_c,
-		"elements": elements.values, "light_relative": light.total_relative, "roofed": world.construction.roofed(cell),
+		"elements": elements.values, "elements_base": elements.base_values, "elements_at_ms": elements.at_ms,
+		"element_tide_percent": elements.tide_percent, "element_tide_at_ms": elements.tide_at_ms,
+		"light_relative": light.total_relative, "roofed": world.construction.roofed(cell),
 		"room": _layout.room_of.get(cell), "terrain": world.map_data.get_terrain(cell)}
 
 

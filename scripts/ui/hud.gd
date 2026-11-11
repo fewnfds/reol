@@ -225,8 +225,9 @@ func _build_development() -> void:
 	inspector = DevelopmentInspectorPanel.new()
 	_screen.add_child(inspector)
 	# Keep F3's optional timing details clear of the numeric environment block.
-	_diagnostics.offset_top = 286
-	_diagnostics.offset_bottom = 448
+	panel.resized.connect(func() -> void:
+		_diagnostics.offset_top = panel.offset_top + panel.size.y + 12.0
+		_diagnostics.offset_bottom = _diagnostics.offset_top + 162.0)
 
 
 func set_pointer_position(point: Vector2) -> void:
@@ -251,7 +252,10 @@ func set_development_snapshot(data: Dictionary) -> void:
 	if context.get("ok", false):
 		var elements: PackedFloat64Array = context.elements
 		lines.append("温度 %.3f ℃ · 照度 %.2f · roof=%d · room=%s" % [context.temperature_c, context.light_relative, int(context.roofed), str(context.room)])
-		lines.append("木 %.3f / 火 %.3f / 土 %.3f / 金 %.3f / 水 %.3f" % [elements[0], elements[1], elements[2], elements[3], elements[4]])
+		lines.append("木 %.0f / 火 %.0f / 土 %.0f / 金 %.0f / 水 %.0f" % [elements[0], elements[1], elements[2], elements[3], elements[4]])
+		var tide: PackedInt32Array = context.element_tide_percent
+		lines.append("潮汐 木%+d%% / 火%+d%% / 土%+d%% / 金%+d%% / 水%+d%%" % [tide[0], tide[1], tide[2], tide[3], tide[4]])
+		lines.append("五行采样=%dms · 潮汐采样=%dms" % [context.elements_at_ms, context.element_tide_at_ms])
 		lines.append("环境时刻=%dms · 冷热负担 energy_rate=%s" % [context.at_ms, str(data.exposure.get("burden_rate", "n/a"))])
 	else:
 		lines.append("环境 unavailable: " + str(context.get("reason", "unknown")))

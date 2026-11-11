@@ -6,11 +6,12 @@ extends RefCounted
 ##
 ## For bulk input, mask/initial_mask/until_ms/tau_ms have 256 cell entries;
 ## initial/target/slope have 256 * 5 values at cell_index * 5 + channel.
-## All five channels share the cell's time segment and response time. Reads do
-## not re-anchor: unknown history and an exhausted segment are explicit.
+## All five channels share a one-second logical sample and response time.
+## Source changes in one second replace the next target, retaining that second's
+## held value. Reads project whole seconds without advancing a clock or anchor.
 
 const Response = preload("res://scripts/sim/environment_field_response.gd")
-const VERSION: int = 1
+const VERSION: int = 2
 const CHANNELS: int = 5
 const CHUNK_SIDE: int = 16
 const CHUNK_CELLS: int = 256
@@ -64,16 +65,21 @@ func actual_at(cell: Vector2i, at_ms: int) -> Dictionary:
 		return _failure("history_unavailable")
 	if at_ms > chunk.untils[index]:
 		return _failure("target_boundary")
+	var sampled_at: int = sample_ms(at_ms)
 	var values := PackedFloat64Array()
 	values.resize(CHANNELS)
 	for channel: int in CHANNELS:
 		var offset: int = index * CHANNELS + channel
-		var value: float = Response._value_only_unchecked(chunk.starts[index], at_ms,
+		var value: float = Response._value_only_unchecked(chunk.starts[index], sampled_at,
 			chunk.initials[offset], chunk.targets[offset], chunk.slopes[offset], chunk.taus[index])
 		if not _valid_value(value):
 			return _failure("response_unavailable")
-		values[channel] = value
-	return {"ok": true, "cell": cell, "at_ms": at_ms, "values": values}
+		values[channel] = clampf(snappedf(value, anchor_quantum), 0.0, MAX_VALUE) if anchor_quantum > 0.0 else value
+	return {"ok": true, "cell": cell, "at_ms": sampled_at, "values": values}
+
+
+func sample_ms(at_ms: int) -> int:
+	return maxi(_activation_ms, at_ms - posmod(at_ms, SimCadence.FIELD_SAMPLE_MS))
 
 
 func begin_bulk(at_ms: int, max_changed_chunks: int) -> Dictionary:
@@ -203,12 +209,13 @@ func _apply_bulk_slot(index: int, has_initial: bool) -> String:
 		return "capacity"
 	var until_ms: int = _bulk.pending.until_ms[index]
 	var tau_ms: int = _bulk.pending.tau_ms[index]
+	var sampled_at: int = sample_ms(_bulk.at_ms)
 	if until_ms < _bulk.at_ms or until_ms > MAX_TIME or tau_ms < 1 or tau_ms > Response.MAX_TAU_MS:
 		return "target_invalid"
 	for channel: int in CHANNELS:
 		var offset: int = index * CHANNELS + channel
 		if tracked:
-			_bulk.initial[channel] = Response._value_only_unchecked(original.starts[index], _bulk.at_ms,
+			_bulk.initial[channel] = Response._value_only_unchecked(original.starts[index], sampled_at,
 				original.initials[offset], original.targets[offset], original.slopes[offset], original.taus[index])
 		else:
 			_bulk.initial[channel] = _bulk.pending.initial[offset]
@@ -225,7 +232,7 @@ func _apply_bulk_slot(index: int, has_initial: bool) -> String:
 	if anchor_quantum > 0.0:
 		for channel: int in CHANNELS:
 			_bulk.initial[channel] = clampf(snappedf(_bulk.initial[channel], anchor_quantum), 0.0, MAX_VALUE)
-	_bulk.current.set_anchor(index, _bulk.at_ms, until_ms, _bulk.initial, _bulk.target, _bulk.slope, tau_ms)
+	_bulk.current.set_anchor(index, sampled_at, until_ms, _bulk.initial, _bulk.target, _bulk.slope, tau_ms)
 	var old_boundary: int = original.untils[index] if tracked else -1
 	if old_boundary != until_ms:
 		if old_boundary >= 0:
@@ -314,6 +321,7 @@ func chunk_boundary_ms(key: Vector2i) -> int:
 
 func diagnostics() -> Dictionary:
 	return {"configured": _configured, "size": _size, "capacity": _capacity,
+		"sample_ms": SimCadence.FIELD_SAMPLE_MS,
 		"activation_ms": _activation_ms, "last_change_ms": _last_change_ms,
 		"revision": _revision, "tracked": _tracked_count, "chunks": _chunks.size(),
 		"next_boundary_ms": next_boundary_ms(), "bulk_active": _bulk != null}
@@ -364,6 +372,8 @@ func restore(data: Variant) -> bool:
 		var cell := Vector2i(int(row.cell[0]), int(row.cell[1]))
 		if not _after(cell, prior) or not _integer(row.start_ms, activation, last_change) or not _integer(row.until_ms, int(row.start_ms), MAX_TIME) or not _integer(row.tau_ms, 1, Response.MAX_TAU_MS):
 			return false
+		if int(row.start_ms) != maxi(activation, int(row.start_ms) - posmod(int(row.start_ms), SimCadence.FIELD_SAMPLE_MS)):
+			return false
 		if not row.initial is Array or not row.target is Array or not row.slope is Array or row.initial.size() != CHANNELS or row.target.size() != CHANNELS or row.slope.size() != CHANNELS:
 			return false
 		var initial := PackedFloat64Array()
@@ -393,7 +403,7 @@ func restore(data: Variant) -> bool:
 			candidate_chunks[key] = chunk
 		chunk.set_anchor(_chunk_index(cell), int(row.start_ms), boundary, initial, target, slope, int(row.tau_ms))
 		prior = cell
-	if newest != last_change:
+	if newest != maxi(activation, last_change - posmod(last_change, SimCadence.FIELD_SAMPLE_MS)):
 		return false
 	_size = size
 	_capacity = capacity

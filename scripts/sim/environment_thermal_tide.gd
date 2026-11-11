@@ -1,5 +1,6 @@
-class_name SimEnvironmentFieldTide
+class_name SimEnvironmentThermalTide
 extends RefCounted
+## Thermal-source modulation, independent of the five-element percentage tide.
 ## A pure receiver-side multiplier derived from the world's seed, cell and time.
 ## Interpolate the four raw, nonnegative corner phases first; the triangular
 ## cycle is applied once afterward, so every cell traverses the full amplitude.

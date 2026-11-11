@@ -105,8 +105,8 @@ static func temperature(neutral_milli: int, net_grade_milli: int) -> Dictionary:
 static func thermal_target(neutral_milli: int, hot_grade_milli: int, cold_grade_milli: int, multiplier: int = SCALE) -> Dictionary:
 	if hot_grade_milli < 0 or hot_grade_milli > MAX_GRADE_MILLI or cold_grade_milli < 0 or cold_grade_milli > MAX_GRADE_MILLI:
 		return _failure("source_grade_out_of_range")
-	# This common attenuation accepts 0..1; the tide rule has its own narrower
-	# 0.98..1 interval. Zero also permits complete insulation at this layer.
+	# Thermal modulation accepts 0..1 and normally uses 0.98..1. The separate
+	# five-element receiver tide can exceed 1 and never passes through here.
 	if multiplier < 0 or multiplier > SCALE:
 		return _failure("multiplier_out_of_range")
 	var net_grade: int = hot_grade_milli - cold_grade_milli

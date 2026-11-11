@@ -16,6 +16,8 @@
 
 开发观察及选择入口只查[操作](features/controls.md)，其线程/快照边界见[呈现](../engineering/architecture/03-time-space-presentation.md)。NPC的同格画面挪位已删除；这没有新增人群碰撞/避让。结构感知消耗与实际遮光已分开，定义与规则只查[建筑合同](../engineering/construction-contract.md#几何围合与用途)；含旧建筑定义的开发档需新开局。
 
+五行改为整秒环境值和独立分钟百分比潮汐，规则与数据入口只查[环境合同](../engineering/world-environment-contract.md#时间变化与受体)。新环境模型需新开局；冷热目标保持原规则，不共享五行倍率。短规则与实机存读证据见BASELINE。
+
 上一轮计算接入与项目记忆整顿已提交；当前实现查工程指南，旧研究调用链及测量在[历史](../archive/qa/README.md)。临时验证脚本、截图及日志仍在忽略的logs，不恢复旧测试或容量队列。
 
 ## 受保护内容

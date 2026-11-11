@@ -14,7 +14,6 @@ var initial_phase: Callable
 var at_ms: int
 var horizon_ms: int
 var tau_ms: int
-var grid_ms: int
 var cursor: int = 0
 var thermal_columns: Dictionary = {}
 var phase_columns: Dictionary = {}
@@ -59,10 +58,12 @@ func _compile_cell(index: int) -> void:
 		return
 	var offset: int = receiver * 7
 	var channels: PackedInt32Array = tile.channels
-	var target: Dictionary = compiler.compile(cell, at_ms, channels[offset + 5], channels[offset + 6], horizon_ms)
-	if not bool(target.get("ok", false)):
-		error = str(target.get("reason", "target_unavailable"))
-		return
+	var target: Dictionary = {}
+	if thermal_changed:
+		target = compiler.compile(cell, at_ms, channels[offset + 5], channels[offset + 6], horizon_ms)
+		if not bool(target.get("ok", false)):
+			error = str(target.get("reason", "target_unavailable"))
+			return
 	if phases_changed:
 		if phase_columns.is_empty():
 			phase_columns = empty_columns(5)
@@ -75,10 +76,10 @@ func _compile_cell(index: int) -> void:
 			for channel: int in 5:
 				phase_columns.initial[index * 5 + channel] = initial.values[channel]
 		phase_columns.mask[index] = 1
-		phase_columns.until_ms[index] = mini(int(target.until_ms), at_ms + mini(grid_ms - posmod(at_ms, grid_ms), SimEnvironmentTemperatureState.MAX_TIME - at_ms))
+		phase_columns.until_ms[index] = SimEnvironmentPhaseState.MAX_TIME
 		phase_columns.tau_ms[index] = tau_ms
 		for channel: int in 5:
-			phase_columns.target[index * 5 + channel] = SimEnvironmentFieldRules.effective_grade(channels[offset + channel], int(target.multiplier))
+			phase_columns.target[index * 5 + channel] = channels[offset + channel]
 	if not thermal_changed:
 		return
 	if thermal_columns.is_empty():

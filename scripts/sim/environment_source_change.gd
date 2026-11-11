@@ -11,7 +11,6 @@ const Temperature = preload("res://scripts/sim/environment_temperature_state.gd"
 const Segments = preload("res://scripts/sim/environment_temperature_segments.gd")
 const Climate = preload("res://scripts/sim/climate_rules.gd")
 const Weather = preload("res://scripts/sim/weather.gd")
-const Tide = preload("res://scripts/sim/environment_field_tide.gd")
 const Rules = preload("res://scripts/sim/environment_field_rules.gd")
 const Compiler = preload("res://scripts/sim/environment_target_compiler.gd")
 const SIDE: int = 16
@@ -33,9 +32,9 @@ var compute_work: Dictionary = {"batches": 0, "parallel_batches": 0, "tiles": 0,
 func configure(field: RefCounted, temperature: RefCounted, settings: Dictionary, initial_at: Callable, phases: RefCounted = null, phase_initial: Callable = Callable()) -> bool:
 	if _field != null or not is_instance_of(field, Field) or not is_instance_of(temperature, Temperature) or not initial_at.is_valid():
 		return false
-	if not _keys(settings, ["climate", "weather", "weather_epoch_ms", "seed", "tau_ms", "tide_grid_ms"]) or not Climate.valid_definitions(settings.climate) or not Weather.valid_definitions(settings.weather):
+	if not _keys(settings, ["climate", "weather", "weather_epoch_ms", "seed", "tau_ms", "thermal_grid_ms"]) or not Climate.valid_definitions(settings.climate) or not Weather.valid_definitions(settings.weather):
 		return false
-	if not _integer(settings.weather_epoch_ms, 0, Temperature.MAX_TIME) or not settings.seed is int or not _integer(settings.tau_ms, 1, Temperature.Response.MAX_TAU_MS) or not _integer(settings.tide_grid_ms, 1, Temperature.MAX_TIME):
+	if not _integer(settings.weather_epoch_ms, 0, Temperature.MAX_TIME) or not settings.seed is int or not _integer(settings.tau_ms, 1, Temperature.Response.MAX_TAU_MS) or not _integer(settings.thermal_grid_ms, 1, Temperature.MAX_TIME):
 		return false
 	if int(field.diagnostics().get("capacity", 0)) <= 0:
 		return false
@@ -258,7 +257,6 @@ func _new_input(tile: Dictionary, private_cache: bool) -> SimFieldResponseInput:
 	input.at_ms = _active.at_ms
 	input.horizon_ms = _active.horizon_ms
 	input.tau_ms = int(_settings.tau_ms)
-	input.grid_ms = int(_settings.tide_grid_ms)
 	return input
 
 

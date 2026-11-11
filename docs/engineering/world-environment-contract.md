@@ -44,6 +44,10 @@ Godot负责Node/场景/脚本组合、signal、资源和呈现，也提供Physic
 
 `actual_at`、`project_tenths`、`elements_at`只查已提交范围，不推进时间。`context_at`组合当前实际温度、五行、总光、屋面、房间及地表，标为authority_only；这是未来堪舆方法读取真实布局的接缝，不生成吉凶分、不写角色认识，也不代表风水玩法已完成。
 
+五行的秒/分钟规则见[环境规则](../../design/rules/environment.md)。`SimEnvironmentPhaseState`只保存未加潮汐的基础响应，按`SimCadence.FIELD_SAMPLE_MS`采样；秒内来源变化保留该秒实际值、替换后续目标。`elements_at`按需解析求出最新整秒，不逐秒遍历全图；同秒同格查询复用派生结果。`SimEnvironmentElementTide`以世界seed、受体格、分钟编号和通道独立散列百分比，查询顺序、执行线程和停开不会重抽。倍率在受体端乘基础响应，四舍五入后输出，不写回响应锚点、来源强度或下分钟基数。五行不再使用温度目标的共享倍率，也不因气候段或潮汐分钟到期全量重锚；`SimEnvironmentThermalTide`只保留原冷热目标规则。
+
+`context_at`提供`elements`最终整数、`elements_base`未加潮汐的实际值、`element_tide_percent`、`elements_at_ms`和`element_tide_at_ms`，顺序均为木/火/土/金/水。开发HUD显示最终值、五种倍率及两个采样时刻，检查器保留完整原值；切换格子会读取另一个格的秒值。
+
 ## 存读、失败与性能
 
 保留存档键`local_heat`和`SimWorldSaveDomains`通用管线，由`WorldEnvironmentFieldsState`保存当前响应与尚未采用的移动采样（包括旧采样格）。版本见[兼容政策](compatibility.md)。恢复从档内原物核对最新格、来源能力与采样截止，再重建旧采样位置的派生场；不保存GPU句柄或另一份实体库。房间实际响应/目标/tau和覆盖必须一致；坏候选丢弃，不部分替换活世界。模型在因果提交时按1e-9量化锚点，JSON恢复按同一精度重建原锚点，避免decimal解析末位漂移改变未来；纯数值参考模式保持不量化。进行中及完整停开须同未来，不重新触发开局。

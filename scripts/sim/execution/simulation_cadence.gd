@@ -5,7 +5,8 @@ extends RefCounted
 
 const BASE_MS: int = 50
 const THERMAL_MOTION_MS: int = 2 * BASE_MS
-const FIELD_MOTION_MS: int = 8 * BASE_MS
+const FIELD_SAMPLE_MS: int = 20 * BASE_MS
+const FIELD_MOTION_MS: int = FIELD_SAMPLE_MS
 
 
 static func source_motion_ms(channels: PackedInt32Array) -> int:

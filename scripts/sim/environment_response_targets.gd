@@ -12,7 +12,6 @@ const SourceChange = preload("res://scripts/sim/environment_source_change.gd")
 const Segments = preload("res://scripts/sim/environment_temperature_segments.gd")
 const Climate = preload("res://scripts/sim/climate_rules.gd")
 const Weather = preload("res://scripts/sim/weather.gd")
-const Tide = preload("res://scripts/sim/environment_field_tide.gd")
 const Rules = preload("res://scripts/sim/environment_field_rules.gd")
 const SIDE: int = 16
 const SLOTS: int = 256
@@ -33,9 +32,9 @@ var _active: Batch
 func configure(temperature: RefCounted, phases: RefCounted, settings: Dictionary, read_channels: Callable, initial_temperature: Callable = Callable()) -> bool:
 	if _temperature != null or not is_instance_of(temperature, Temperature) or not is_instance_of(phases, Phase) or not read_channels.is_valid():
 		return false
-	if not _keys(settings, ["climate", "weather", "weather_epoch_ms", "seed", "tau_ms", "tide_grid_ms"]) or not Climate.valid_definitions(settings.climate) or not Weather.valid_definitions(settings.weather):
+	if not _keys(settings, ["climate", "weather", "weather_epoch_ms", "seed", "tau_ms", "thermal_grid_ms"]) or not Climate.valid_definitions(settings.climate) or not Weather.valid_definitions(settings.weather):
 		return false
-	if not _integer(settings.weather_epoch_ms, 0, Temperature.MAX_TIME) or not settings.seed is int or not _integer(settings.tau_ms, 1, Temperature.Response.MAX_TAU_MS) or not _integer(settings.tide_grid_ms, 1, Temperature.MAX_TIME):
+	if not _integer(settings.weather_epoch_ms, 0, Temperature.MAX_TIME) or not settings.seed is int or not _integer(settings.tau_ms, 1, Temperature.Response.MAX_TAU_MS) or not _integer(settings.thermal_grid_ms, 1, Temperature.MAX_TIME):
 		return false
 	if not bool(phases.diagnostics().get("configured", false)):
 		return false
@@ -189,9 +188,11 @@ func _selected_domains(cell: Vector2i) -> int:
 
 func _compile_cell(index: int, cell: Vector2i, channels: PackedInt32Array, domains: int) -> Dictionary:
 	var at_ms: int = _active.at_ms
-	var segment: Dictionary = _compiler.compile(cell, at_ms, channels[5], channels[6])
-	if not bool(segment.get("ok", false)):
-		return segment
+	var segment: Dictionary = {}
+	if domains & THERMAL:
+		segment = _compiler.compile(cell, at_ms, channels[5], channels[6])
+		if not bool(segment.get("ok", false)):
+			return segment
 	if _active.activation:
 		if domains & THERMAL:
 			_active.temperature_columns.initial_mask[index] = 1
@@ -212,8 +213,6 @@ func _compile_cell(index: int, cell: Vector2i, channels: PackedInt32Array, domai
 	# Bulk preparation validates tracked/untracked, cell bounds and the old
 	# known segment in both owners. Do not project the same six actual values a
 	# second time during input compilation before those checked preparations.
-	var grid: int = int(_settings.tide_grid_ms)
-	var next_grid: int = at_ms + mini(grid - posmod(at_ms, grid), Temperature.MAX_TIME - at_ms)
 	if domains & THERMAL:
 		_active.temperature_columns.mask[index] = 1
 		_active.temperature_columns.target[index] = float(segment.target_c)
@@ -222,11 +221,13 @@ func _compile_cell(index: int, cell: Vector2i, channels: PackedInt32Array, domai
 		_active.temperature_columns.tau_ms[index] = int(segment.tau_ms)
 	if domains & ELEMENTAL:
 		_active.phase_columns.mask[index] = 1
-		_active.phase_columns.until_ms[index] = mini(int(segment.until_ms), next_grid)
+		# Elemental response depends on real source changes, not thermal climate
+		# segments. Receiver-side tides are applied after this base response.
+		_active.phase_columns.until_ms[index] = Phase.MAX_TIME
 		_active.phase_columns.tau_ms[index] = int(_settings.tau_ms)
 		for channel: int in Phase.CHANNELS:
 			var offset: int = index * Phase.CHANNELS + channel
-			var target: int = Rules.effective_grade(channels[channel], int(segment.multiplier))
+			var target: int = channels[channel]
 			_active.phase_columns.target[offset] = target
 			if _active.activation:
 				_active.phase_columns.initial[offset] = target
