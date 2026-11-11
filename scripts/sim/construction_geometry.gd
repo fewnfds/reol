@@ -3,12 +3,12 @@ extends RefCounted
 ## Definition validation and detached geometry. No instances, clock or inventory.
 
 const Shape = preload("res://scripts/sim/avian_schema.gd")
-const FACTS: Array[String] = ["movement_blocked", "enclosure_boundary", "thermal_barrier", "sight_blocked", "wall_connection", "roof_support"]
+const FACTS: Array[String] = ["movement_blocked", "enclosure_boundary", "thermal_barrier", "light_blocked", "wall_connection", "roof_support"]
 const CAPABILITIES: Array[String] = ["rest", "seat", "surface", "storage", "workbench", "cultivation"]
 
 
 static func valid_type(row: Variant) -> bool:
-	var fields: Array = ["label", "kind", "item", "amount", "work_ms", "demolish_ms", "salvage", "door", "layer", "size", "facts", "max_hp", "armor", "capabilities", "slots"]
+	var fields: Array = ["label", "kind", "item", "amount", "work_ms", "demolish_ms", "salvage", "door", "layer", "size", "facts", "perception_cost", "max_hp", "armor", "capabilities", "slots"]
 	if row is Dictionary and row.has("environment"):
 		fields.append("environment")
 		if not SimEnvironmentLayout.valid_terms(row.environment):
@@ -20,6 +20,8 @@ static func valid_type(row: Variant) -> bool:
 	if not Shape.count(row.amount, 1, 1000) or not Shape.count(row.salvage, 1, int(row.amount) - 1) or not Shape.count(row.work_ms, 1, 3600000) or not Shape.count(row.demolish_ms, 1, 3600000) or not Shape.count(row.max_hp, 1, 1000000) or not Shape.count(row.armor, 0, 1000000):
 		return false
 	if not Shape.keys(row.facts, FACTS) or not row.capabilities is Dictionary or not row.slots is Array or row.slots.size() > 64:
+		return false
+	if not Shape.count(row.perception_cost, 0, 32) or row.layer == "roof" and row.perception_cost != 0:
 		return false
 	for fact: String in FACTS:
 		if not row.facts[fact] is bool:

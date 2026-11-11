@@ -4,8 +4,8 @@ signal visibility_updated
 ## Per-cell fog of war: HIDDEN / EXPLORED / VISIBLE.
 ##
 ## One 512x512 texture is stretched over the region; each pixel is one cell.
-## Visibility is recomputed around the focus at 10 Hz, with height/rock
-## occlusion. Explored cells stay dim; hidden cells are black.
+## Visibility is recomputed around the focus at 10 Hz, with structural range
+## costs and terrain occlusion. Explored cells stay dim; hidden cells are black.
 
 const STATE_HIDDEN: int = 0
 const STATE_EXPLORED: int = 1
@@ -33,7 +33,7 @@ var _visibility_dirty: bool = true
 var _observer_altitude: int = 0
 var _observer_radius: int = VISION_RADIUS
 var _projection_guard: Callable
-var _ray_obstructions := PackedByteArray()
+var _ray_obstructions := PackedInt32Array()
 var visibility_revision: int = 0
 
 
@@ -144,7 +144,7 @@ func update_now() -> void:
 			var cell := _focus_cell + Vector2i(dx, dy)
 			if not _in_bounds(cell):
 				continue
-			if not _has_line_of_sight(_focus_cell, cell, origin_elevation):
+			if not _within_perception(_focus_cell, cell, origin_elevation):
 				continue
 			var index: int = _index(cell)
 			_states[index] = STATE_VISIBLE
@@ -244,7 +244,7 @@ func _clear_visible() -> void:
 	_visible_cells.clear()
 
 
-func _has_line_of_sight(
+func _within_perception(
 	from_cell: Vector2i, to_cell: Vector2i, from_elevation: int
 ) -> bool:
 	var x0: int = from_cell.x
@@ -256,10 +256,11 @@ func _has_line_of_sight(
 	var dy: int = -absi(y1 - y0)
 	var sy: int = 1 if y0 < y1 else -1
 	var err: int = dx + dy
+	var range_cost: float = from_cell.distance_to(to_cell)
 
 	while true:
 		if x0 == x1 and y0 == y1:
-			return true
+			return range_cost <= _observer_radius
 		var e2: int = 2 * err
 		if e2 >= dy:
 			err += dy
@@ -268,7 +269,7 @@ func _has_line_of_sight(
 			err += dx
 			y0 += sy
 		if x0 == x1 and y0 == y1:
-			return true
+			return range_cost <= _observer_radius
 
 		var index: int = (y0 - from_cell.y + VISION_RADIUS) * OCCLUSION_WIDTH + x0 - from_cell.x + VISION_RADIUS
 		var obstruction: int = _ray_obstructions[index]
@@ -276,12 +277,14 @@ func _has_line_of_sight(
 			var cell := Vector2i(x0, y0)
 			var blocked: bool = (
 				world.get_terrain(cell) == ReolWorld.TERRAIN_ROCK
-				or world.is_sight_blocked(cell)
 				or world.get_elevation(cell) > from_elevation
 			)
-			obstruction = 2 if blocked else 1
+			obstruction = -1 if blocked else 1 + world.perception_cost(cell)
 			_ray_obstructions[index] = obstruction
-		if obstruction == 2:
+		if obstruction == -1:
+			return false
+		range_cost += obstruction - 1
+		if range_cost > _observer_radius:
 			return false
 
 	return false

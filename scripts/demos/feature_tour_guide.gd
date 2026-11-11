@@ -44,10 +44,11 @@ func _build() -> void:
 	screen.theme = UI.create()
 	_compact = PanelContainer.new()
 	screen.add_child(_compact)
-	_compact.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_compact.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 	_compact.offset_left = -195
 	_compact.offset_right = 195
-	_compact.offset_top = 108
+	_compact.offset_top = -88
+	_compact.offset_bottom = -16
 	var compact_rows := VBoxContainer.new()
 	_compact.add_child(compact_rows)
 	_compact_text = UI.label(compact_rows, "", UI.JADE, 14)

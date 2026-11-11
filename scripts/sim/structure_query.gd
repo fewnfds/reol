@@ -14,7 +14,7 @@ const SOUTH: int = 4
 const WEST: int = 8
 const SIDES: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
 const PARTS: Array[String] = ["walls", "door", "desk", "archive", "roof"]
-const FACTS: Array[String] = ["movement_blocked", "enclosure_boundary", "roofed", "thermal_barrier", "sight_blocked", "wall_connection"]
+const FACTS: Array[String] = ["movement_blocked", "enclosure_boundary", "roofed", "thermal_barrier", "light_blocked", "wall_connection"]
 
 
 static func locate(world: RegionalSimulation, reference: Variant) -> Dictionary:
@@ -158,6 +158,7 @@ static func _construction(world: RegionalSimulation, reference: Dictionary) -> D
 	result["hp"] = int(project.hp)
 	result["max_hp"] = int(rule.max_hp)
 	result["armor"] = int(rule.armor)
+	result["perception_cost"] = int(rule.perception_cost) if project.state == "built" else 0
 	result["material"] = str(rule.item)
 	result["capabilities"] = rule.capabilities.duplicate(true) if project.state == "built" else {}
 	result["operation_slots"] = domain.operation_slots(str(reference.id)) if project.state in ["built", "ruined"] else []
@@ -210,7 +211,9 @@ static func _workplace(world: RegionalSimulation, reference: Dictionary) -> Dict
 		if cells.has(cell):
 			return _failure("invalid_source")
 		cells.append(cell)
-	return _projection(reference, kind, "roof" if part == "roof" else "ground", "built", cells, str(reference.region), part == "door", part == "roof")
+	var result: Dictionary = _projection(reference, kind, "roof" if part == "roof" else "ground", "built", cells, str(reference.region), part == "door", part == "roof")
+	result["perception_cost"] = int(SimWorkplaces.PERCEPTION_COST[part])
+	return result
 
 
 static func _projection(reference: Dictionary, kind: String, layer: String, state: String, cells: Array[Vector2i], region: String, opened: bool, covered: bool) -> Dictionary:
@@ -224,7 +227,7 @@ static func _projection(reference: Dictionary, kind: String, layer: String, stat
 		"movement_blocked": barrier or built and kind in ["desk", "archive_cabinet"],
 		"enclosure_boundary": wall, "roofed": covered,
 		# This is the existing binary heat-boundary fact, not a conductivity.
-		"thermal_barrier": barrier, "sight_blocked": barrier, "wall_connection": wall,
+		"thermal_barrier": barrier, "light_blocked": barrier, "wall_connection": wall,
 	}
 
 

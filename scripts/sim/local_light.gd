@@ -87,7 +87,7 @@ static func local_patch(world: RegionalSimulation, cells: Array[Vector2i], simul
 					var row: Dictionary = world.construction.projects[id]
 					var rule: Dictionary = world.construction.definitions.types[row.type]
 					value = int(SimEnvironmentLayout.terms(rule).light)
-				elif world.construction.blocks_sight(cell):
+				elif world.construction.blocks_light(cell):
 					value = 0
 			blockers[cell] = value
 		return blockers[cell]

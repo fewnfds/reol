@@ -10,8 +10,6 @@ var cell: Vector2i = Vector2i.ZERO
 var pawn_id: StringName = &""
 var selected: bool = false
 var display_name_override: String = ""
-var visual_offset: Vector2 = Vector2.ZERO
-var caption_visible: bool = true
 var clothing_appearance: Dictionary = {}
 var appearance_pose: Dictionary = {}
 var publication_world_id: int = 0
@@ -59,16 +57,8 @@ func set_selected(value: bool) -> void:
 	queue_redraw()
 
 
-func set_view_layout(next_offset: Vector2) -> void:
-	var next_caption: bool = next_offset == Vector2.ZERO
-	if visual_offset != next_offset or caption_visible != next_caption:
-		visual_offset = next_offset
-		caption_visible = next_caption
-		queue_redraw()
-
-
 func selection_center() -> Vector2:
-	return presentation_position() + visual_offset + Vector2(
+	return presentation_position() + Vector2(
 		0.0, -float(_view_elevation * ReolWorld.ELEVATION_PX) - 12.0
 	)
 
@@ -108,9 +98,9 @@ func refresh_appearance(sampled_elevation: int = -2) -> void:
 	if _sprite == null:
 		queue_redraw()
 		return
-	var ground: Vector2 = visual_offset + Vector2(0, -float(_view_elevation * ReolWorld.ELEVATION_PX))
+	var ground := Vector2(0, -float(_view_elevation * ReolWorld.ELEVATION_PX))
 	_sprite.present(ground + Vector2(0, 13), state.pawn_def.color, clothing_appearance, appearance_pose)
-	var key: Array = [ground, selected, caption_visible, display_name_override, state.pawn_def.display_name]
+	var key: Array = [ground, selected, display_name_override, state.pawn_def.display_name]
 	if key != _decoration_key:
 		_decoration_key = key
 		queue_redraw()
@@ -119,9 +109,7 @@ func refresh_appearance(sampled_elevation: int = -2) -> void:
 func _draw() -> void:
 	if state == null or state.pawn_def == null:
 		return
-	var ground: Vector2 = visual_offset + Vector2(0.0, -float(_view_elevation * ReolWorld.ELEVATION_PX))
+	var ground := Vector2(0.0, -float(_view_elevation * ReolWorld.ELEVATION_PX))
 	var robe: Color = state.pawn_def.color
 	var text: String = display_name_override if not display_name_override.is_empty() else state.display_name()
-	if not caption_visible and not selected:
-		text = ""
 	Visuals.draw_actor(self, ground, ground, robe, text, selected, false, clothing_appearance, appearance_pose, _sprite == null)

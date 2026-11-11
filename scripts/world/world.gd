@@ -45,7 +45,7 @@ var _cached_navigation_revision: int = -1
 var _walkability_cache: Dictionary[Vector2i, bool] = {}
 var _navigation_paths: Dictionary[String, Array] = {}
 const NAVIGATION_PATH_CACHE_LIMIT: int = 1024
-var _sight_obstacles: Callable
+var _perception_cost: Callable
 var _painting_chunk: Vector2i = Vector2i(-1, -1)
 var _painting_offset: int = 0
 const PAINT_CELLS_PER_FRAME: int = 256
@@ -371,14 +371,14 @@ func find_grid_path(from: Vector2i, to: Vector2i, radius: int, budget: int) -> A
 	return path
 
 
-func set_sight_obstacle_provider(provider: Callable) -> void:
-	_sight_obstacles = provider
+func set_perception_cost_provider(provider: Callable) -> void:
+	_perception_cost = provider
 	var changed: Array[Vector2i] = []
 	sight_obstacles_changed.emit(changed)
 
 
-func is_sight_blocked(cell: Vector2i) -> bool:
-	return _sight_obstacles.is_valid() and bool(_sight_obstacles.call(cell))
+func perception_cost(cell: Vector2i) -> int:
+	return int(_perception_cost.call(cell)) if _perception_cost.is_valid() else 0
 
 
 func notify_sight_obstacles_changed(cells: Array[Vector2i]) -> void:

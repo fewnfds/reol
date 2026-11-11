@@ -21,7 +21,7 @@ static func terms(rule: Dictionary) -> Dictionary:
 		return rule.environment
 	var barrier: bool = bool(rule.facts.thermal_barrier)
 	return {"source": "", "thermal": 2000 if barrier else SCALE, "elements": 8000 if barrier else SCALE,
-		"light": 0 if bool(rule.facts.sight_blocked) else SCALE, "contents_thermal": SCALE,
+		"light": 0 if bool(rule.facts.light_blocked) else SCALE, "contents_thermal": SCALE,
 		"contents_elements": SCALE, "contents_light": SCALE, "room_tau_ms": 180000}
 
 

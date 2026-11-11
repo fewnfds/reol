@@ -38,6 +38,7 @@ var _opening_map: WorldMapData
 var _opening_content: ReolContentDB
 var _opening_started: bool = false
 var _terrain_editor: TerrainEditorRuntime
+var _development: DevelopmentInspectionRuntime
 
 
 func configure_opening_map(description: Variant, terrain_overrides: Variant = []) -> bool:
@@ -162,6 +163,12 @@ func _ready() -> void:
 	_avatar.name = "PlayerAvatarRuntime"
 	add_child(_avatar)
 	_avatar.setup(self, _continuity)
+	_continuity.set_life_panels_visible(false)
+	hud.life_panels_requested.connect(func() -> void: _continuity.set_life_panels_visible(not _continuity.life_panels_visible))
+	_development = DevelopmentInspectionRuntime.new()
+	_development.name = "DevelopmentInspection"
+	add_child(_development)
+	_development.setup(self)
 	if OS.get_cmdline_user_args().has("--world-editor"):
 		_terrain_editor = TerrainEditorRuntime.new()
 		_terrain_editor.name = "TerrainEditorRuntime"

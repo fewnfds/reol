@@ -1,19 +1,14 @@
 class_name PawnViewLayout
 extends RefCounted
-## One disposable sample of accepted motion. Only observed cells need a
-## drawing layout; bodies sharing them include visitors from other owners.
-
-const CROWD_RADIUS: float = SimBodyPublication.CROWD_RADIUS
+## One disposable sample of accepted motion and observed cells. Presentation
+## never moves bodies aside when they share a cell.
 
 var cells: Dictionary[String, Vector2i] = {}
 var points: Dictionary[String, Vector2] = {}
 var native_legs: Dictionary[String, int] = {}
-var offsets: Dictionary[String, Vector2] = {}
 
 var _fog: FogOfWar
 var _observed: Dictionary[Vector2i, bool] = {}
-var _occupants: Dictionary[Vector2i, String] = {}
-var _crowds: Dictionary[Vector2i, Array] = {}
 var _sample_cells: Array[Vector2i] = []
 var _visibility_frozen: bool = false
 
@@ -56,31 +51,13 @@ func include_bodies(actors: Dictionary, at_ms: int = -1, native_routes: Dictiona
 			points[id] = point
 			if leg >= 0:
 				native_legs[id] = leg
-		if _crowds.has(cell):
-			_crowds[cell].append(id)
-		elif _occupants.has(cell):
-			_crowds[cell] = [_occupants[cell], id]
-		else:
-			_occupants[cell] = id
-
-
-func finish(center_actor_id: String) -> void:
-	for ids: Array in _crowds.values():
-		ids.erase(center_actor_id)
-		ids.sort()
-		for index: int in ids.size():
-			var angle: float = -PI * 0.5 + TAU * float(index) / float(ids.size())
-			offsets[ids[index]] = Vector2(cos(angle), sin(angle)) * CROWD_RADIUS
-	_occupants.clear()
-	_crowds.clear()
 
 
 func include_publication(frame: SimBodyPublication) -> void:
-	# Geometry and crowd layout are detached values prepared with the body
+	# Geometry uses detached values prepared with the body
 	# publication. Visibility stays on the host and cannot teach the world.
 	cells = frame.cells
 	points = frame.points
-	offsets = frame.offsets
 	_sample_cells = frame.sample_cells
 
 

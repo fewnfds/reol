@@ -1,8 +1,10 @@
 class_name GameHUD
 extends CanvasLayer
-## Player-facing status; technical diagnostics are optional and sampled slowly.
+## Development HUD: numeric status and detached raw cell inspection. Actions
+## still route through the original adapters rather than editing these views.
 
 signal help_requested
+signal life_panels_requested
 
 const UI = preload("res://scripts/ui/reol_ui_theme.gd")
 
@@ -29,11 +31,8 @@ var _pawn_name: Label
 var _pawn_role: Label
 var _pawn_resources: Label
 var _pawn_mood: Label
-var _pawn_bio: Label
 var _activity: Label
 var _help: Button
-var _hunger: ProgressBar
-var _energy: ProgressBar
 var _hunger_value: Label
 var _energy_value: Label
 var _pawn_state: PawnState
@@ -43,6 +42,11 @@ var _last_pawn_values: Array = []
 var _refresh_queued: bool = false
 var _last_second: int = -1
 var _bird_avatar: bool = false
+var inspector: DevelopmentInspectorPanel
+var development_snapshot: Dictionary = {}
+var _backend_text: Label
+var _coordinates: Label
+var _pointer: Vector2
 
 
 func _ready() -> void:
@@ -55,6 +59,7 @@ func _ready() -> void:
 	_build_time_bar()
 	_build_pawn_panel()
 	_build_diagnostics()
+	_build_development()
 	GameClock.tick.connect(_on_clock_tick)
 	GameClock.paused_changed.connect(_on_clock_state_changed)
 	GameClock.speed_changed.connect(_on_clock_speed_changed)
@@ -84,9 +89,9 @@ func show_pawn_state(state: PawnState, is_player: bool = false, display_name: St
 func set_interaction(text_value: String, enabled: bool) -> void:
 	if _help == null:
 		return
-	_help.text = text_value if not text_value.is_empty() else "选择附近同门，可开口求助"
+	_help.text = "请求帮助 · available=%d" % int(enabled)
 	_help.disabled = not enabled
-	_help.tooltip_text = "求助会考虑对方的体力、距离、已有工作和对你的看法。"
+	_help.tooltip_text = text_value
 
 
 func set_activity(text_value: String) -> void:
@@ -98,7 +103,8 @@ func set_activity(text_value: String) -> void:
 func set_bird_avatar(value: bool) -> void:
 	_bird_avatar = value
 	_pawn_panel.visible = not value
-	_input_hint.text = "WASD 振翅 · F 落地 · E 觅食 · R 歇翅" if value else "WASD 行走 · Shift 闪身 · C 交互 · 右键观察"
+	_input_hint.text = "WASD · F/E/R" if value else "WASD · Shift · C"
+	_input_hint.tooltip_text = "WASD振翅 · F落地 · E觅食 · R歇翅" if value else "WASD行走 · Shift闪身 · C交互 · 左键检查 · 右键植物操作"
 
 
 func diagnostics_visible() -> bool:
@@ -107,7 +113,8 @@ func diagnostics_visible() -> bool:
 
 func set_soul_avatar() -> void:
 	set_bird_avatar(true)
-	_input_hint.text = "E 感知 · C 换气息 · Q 传意 · R 休眠 · F 凝神 · T 等候"
+	_input_hint.text = "E/C/Q/R/F · T"
+	_input_hint.tooltip_text = "E感知 · C换气息 · Q传意 · R休眠 · F凝神 · T等候"
 
 
 func _build_time_bar() -> void:
@@ -122,7 +129,7 @@ func _build_time_bar() -> void:
 	panel.add_child(column)
 	var row := HBoxContainer.new()
 	column.add_child(row)
-	var title: Label = UI.label(row, "REOL  /  一山一宗", UI.GOLD, 19)
+	var title: Label = UI.label(row, "REOL / DEV", UI.PAPER, 17)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_time_label = UI.label(row, "", UI.PAPER)
 	_time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -135,6 +142,8 @@ func _build_time_bar() -> void:
 	_pause.custom_minimum_size.x = 72
 	_pause.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_pause.tooltip_text = "空格：暂停或继续世界时间。"
+	var life: Button = UI.button(controls, "生活 · F2", func() -> void: life_panels_requested.emit())
+	life.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	for speed: int in [1, 2, 4]:
 		var button: Button = UI.button(controls, "%d×" % speed, GameClock.set_speed.bind(float(speed)))
 		button.custom_minimum_size.x = 36
@@ -145,7 +154,7 @@ func _build_time_bar() -> void:
 	_wait.custom_minimum_size.x = 86
 	_wait.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_wait.tooltip_text = "T：推进十五世界分钟，到时暂停；空格可中断，WASD取消等候。"
-	_input_hint = UI.label(controls, "WASD 行走 · Shift 闪身 · C 交互 · 右键观察", UI.MUTED, 12)
+	_input_hint = UI.label(controls, "WASD · Shift · C", UI.MUTED, 12)
 	_input_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 
 
@@ -162,42 +171,14 @@ func _build_pawn_panel() -> void:
 	_pawn_name = UI.label(column, "", UI.GOLD, 19)
 	_pawn_role = UI.label(column, "", UI.MUTED, 13)
 	_pawn_resources = UI.label(column, "", UI.PAPER, 13)
-	var hunger_row: Dictionary = _need_row(column, "饱食")
-	_hunger = hunger_row.bar
-	_hunger_value = hunger_row.value
-	var energy_row: Dictionary = _need_row(column, "精力")
-	_energy = energy_row.bar
-	_energy_value = energy_row.value
+	_hunger_value = UI.label(column, "", UI.PAPER, 13)
+	_energy_value = UI.label(column, "", UI.PAPER, 13)
 	_pawn_mood = UI.label(column, "", UI.MUTED, 13)
 	_activity = UI.label(column, "", UI.JADE, 13)
 	_activity.visible = false
-	_help = UI.button(column, "选择附近同门，可开口求助", _on_help_requested)
+	_help = UI.button(column, "请求帮助 · available=0", _on_help_requested)
 	_help.disabled = true
-	var biography: Button = UI.button(column, "人物档案", _toggle_biography)
-	biography.add_theme_font_size_override("font_size", 12)
-	biography.custom_minimum_size.y = 24
-	_pawn_bio = UI.label(column, "", UI.MUTED, 13)
-	_pawn_bio.visible = false
 	_pawn_panel.visible = false
-
-
-func _need_row(parent: Node, caption: String) -> Dictionary:
-	var row := HBoxContainer.new()
-	parent.add_child(row)
-	var label: Label = UI.label(row, caption, UI.MUTED, 13)
-	label.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	label.custom_minimum_size.x = 32
-	var bar := ProgressBar.new()
-	bar.custom_minimum_size = Vector2(80, 8)
-	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	bar.show_percentage = false
-	row.add_child(bar)
-	var amount: Label = UI.label(row, "", UI.PAPER, 13)
-	amount.custom_minimum_size.x = 26
-	amount.size_flags_horizontal = Control.SIZE_SHRINK_END
-	amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	return {"bar": bar, "value": amount}
 
 
 func _build_diagnostics() -> void:
@@ -226,6 +207,56 @@ func _build_diagnostics() -> void:
 	timer.autostart = true
 	timer.timeout.connect(_refresh_diagnostics)
 	add_child(timer)
+
+
+func _build_development() -> void:
+	var panel := PanelContainer.new()
+	_screen.add_child(panel)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	panel.offset_left = 16
+	panel.offset_right = 642
+	panel.offset_top = 106
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var column := VBoxContainer.new()
+	panel.add_child(column)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_coordinates = UI.label(column, "坐标等待采样", UI.PAPER, 13)
+	_backend_text = UI.label(column, "环境等待完整结算快照", UI.PAPER, 13)
+	inspector = DevelopmentInspectorPanel.new()
+	_screen.add_child(inspector)
+	# Keep F3's optional timing details clear of the numeric environment block.
+	_diagnostics.offset_top = 286
+	_diagnostics.offset_bottom = 448
+
+
+func set_pointer_position(point: Vector2) -> void:
+	_pointer = point
+	_refresh_coordinates()
+
+
+func _refresh_coordinates() -> void:
+	if _coordinates == null or development_snapshot.is_empty():
+		return
+	var cell: Vector2i = development_snapshot.cell
+	var point: Vector2 = development_snapshot.position
+	var cursor: Vector2i = TileGrid.world_to_cell(_pointer)
+	_coordinates.text = "角色格 (%d,%d) · px (%.1f,%.1f)\n鼠标格 (%d,%d) · px (%.1f,%.1f)" % [cell.x, cell.y, point.x, point.y, cursor.x, cursor.y, _pointer.x, _pointer.y]
+
+
+func set_development_snapshot(data: Dictionary) -> void:
+	development_snapshot = data
+	_refresh_coordinates()
+	var context: Dictionary = data.environment
+	var lines: Array[String] = ["后台快照 t=%dms · %s · weather=%s" % [data.at_ms, data.subject, data.weather]]
+	if context.get("ok", false):
+		var elements: PackedFloat64Array = context.elements
+		lines.append("温度 %.3f ℃ · 照度 %.2f · roof=%d · room=%s" % [context.temperature_c, context.light_relative, int(context.roofed), str(context.room)])
+		lines.append("木 %.3f / 火 %.3f / 土 %.3f / 金 %.3f / 水 %.3f" % [elements[0], elements[1], elements[2], elements[3], elements[4]])
+		lines.append("环境时刻=%dms · 冷热负担 energy_rate=%s" % [context.at_ms, str(data.exposure.get("burden_rate", "n/a"))])
+	else:
+		lines.append("环境 unavailable: " + str(context.get("reason", "unknown")))
+	lines.append("左键格子：查看各层对象与原始值 · 当前为DEV全知观察")
+	_backend_text.text = "\n".join(lines)
 
 
 func _process(_delta: float) -> void:
@@ -293,7 +324,7 @@ func _refresh_clock() -> void:
 		return
 	@warning_ignore("integer_division")
 	var second: int = (GameClock.elapsed_ms / 1000) % 60
-	_time_label.text = GameClock.format_time() + ":%02d" % second
+	_time_label.text = GameClock.format_time() + ":%02d · t=%dms" % [second, GameClock.elapsed_ms]
 	_pace_label.text = "缓行 %.2f×" % GameClock.effective_speed() if GameClock.pacing.rate < 0.97 and not GameClock.paused and GameClock.wait_target_ms == 0 else ""
 	_pause.text = "继续" if GameClock.paused else "暂停"
 	if _wait != null:
@@ -309,28 +340,16 @@ func _refresh_pawn_panel() -> void:
 	if _pawn_state == null or _bird_avatar:
 		return
 	var state: PawnState = _pawn_state
-	var values: Array = [state, _pawn_is_player, state.qi, state.stamina, int(state.hunger), int(state.energy), int(state.mood), state.rank]
+	var values: Array = [state, _pawn_is_player, state.qi, state.stamina, state.hunger, state.energy, state.mood, state.rank]
 	if values == _last_pawn_values:
 		return
 	_last_pawn_values = values
 	_pawn_name.text = ("你 · " if _pawn_is_player else "") + (state.display_name() if _display_name.is_empty() else _display_name)
-	var role: String = state.rank_name()
-	if not state.role_name().is_empty() and state.role_name() != role:
-		role += " · " + state.role_name()
-	_pawn_role.text = "%s  /  %s" % [role, state.realm_name()]
+	_pawn_role.text = "rank=%s · realm=%s" % [state.rank_name(), state.realm_name()]
 	_pawn_resources.text = "灵气 %d/%d  ·  体力 %d/%d" % [state.qi, state.max_qi(), state.stamina, state.max_stamina()]
-	_hunger.value = state.hunger
-	_energy.value = state.energy
-	_hunger_value.text = str(int(state.hunger))
-	_energy_value.text = str(int(state.energy))
-	_hunger.modulate = UI.WARNING if state.hunger < 35 else Color.WHITE
-	_energy.modulate = UI.WARNING if state.energy < 35 else Color.WHITE
-	_pawn_mood.text = "心情 %d  ·  出身 %s" % [int(state.mood), state.origin_name()]
-	_pawn_bio.text = state.bio_text()
-
-
-func _toggle_biography() -> void:
-	_pawn_bio.visible = not _pawn_bio.visible
+	_hunger_value.text = "hunger=%.3f / 100" % state.hunger
+	_energy_value.text = "energy=%.3f / 100" % state.energy
+	_pawn_mood.text = "mood=%.2f · definition=%s" % [state.mood, str(state.pawn_def.id)]
 
 
 func _on_help_requested() -> void:
@@ -338,6 +357,10 @@ func _on_help_requested() -> void:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F2:
+		life_panels_requested.emit()
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F3:
 		_diagnostics.visible = not _diagnostics.visible
 		_refresh_diagnostics()

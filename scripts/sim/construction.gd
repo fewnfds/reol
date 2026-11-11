@@ -37,7 +37,7 @@ var world: RefCounted:
 
 
 static func valid_definitions(data: Variant) -> bool:
-	if not Shape.keys(data, ["version", "site", "check_ms", "minimum_fullness", "minimum_energy", "pickup_ms", "roof_span", "types"]) or data.version != 3 or not Shape.count(data.roof_span, 1, 4) or not Shape.keys(data.site, ["region", "source", "builders", "workers", "width", "height", "source_cells", "notice_cells", "observe_cells"]):
+	if not Shape.keys(data, ["version", "site", "check_ms", "minimum_fullness", "minimum_energy", "pickup_ms", "roof_span", "types"]) or data.version != 4 or not Shape.count(data.roof_span, 1, 4) or not Shape.keys(data.site, ["region", "source", "builders", "workers", "width", "height", "source_cells", "notice_cells", "observe_cells"]):
 		return false
 	if not SimInventory._nonempty(data.site.region) or not SimInventory._nonempty(data.site.source) or not SimEmbodiment._unique_texts(data.site.builders) or data.site.builders.is_empty() or not SimEmbodiment._unique_texts(data.site.workers):
 		return false
@@ -666,10 +666,21 @@ func thermal_barrier(cell: Vector2i) -> bool:
 	return _physical_fact(cell, "thermal_barrier")
 
 
-func blocks_sight(cell: Vector2i) -> bool:
-	# Current built types are opaque wood. Keep sight separate from furniture
-	# collision and from heat coefficients so later materials can differ.
-	return _physical_fact(cell, "sight_blocked")
+func blocks_light(cell: Vector2i) -> bool:
+	return _physical_fact(cell, "light_blocked")
+
+
+func perception_cost(cell: Vector2i) -> int:
+	# Per crossed ground cell, in extra cells of perception range. Physical
+	# passage, room enclosure and actual light transmission remain separate.
+	var id: String = project_at(cell)
+	if not id.is_empty() and projects[id].state == "built":
+		return int(definitions.types[projects[id].type].perception_cost)
+	for sim: RefCounted in world.regions.values():
+		var cost: int = SimWorkplaces.perception_cost(sim.places, cell)
+		if cost > 0:
+			return cost
+	return 0
 
 
 func _physical_fact(cell: Vector2i, name: String) -> bool:

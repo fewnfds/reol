@@ -239,6 +239,7 @@ static func _structure(world: RegionalSimulation, reference: Dictionary) -> Dict
 	var facts: Dictionary = {"state": source.state, "component": source.kind}
 	for fact: String in SimStructureQuery.FACTS:
 		facts[fact] = source[fact]
+	facts["perception_cost"] = source.perception_cost
 	var capabilities: Array = ["structure_geometry"]
 	if reference.kind == "construction":
 		for field: String in ["definition", "rotation", "hp", "max_hp", "armor", "material", "operation_slots"]:

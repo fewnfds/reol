@@ -71,7 +71,7 @@ func setup(
 			push_error("VillageRuntime: no accessible footprint for the opening office")
 			return false
 		_world.set_obstacle_provider(_workspace_obstacle)
-		_world.set_sight_obstacle_provider(_workspace_wall)
+		_world.set_perception_cost_provider(_workspace_perception_cost)
 		_config = SnapshotValues.for_save(_config)
 		_places = SnapshotValues.for_save(_places)
 	var next_simulation := VillageSimulation.new()
@@ -130,8 +130,8 @@ func _workspace_obstacle(cell: Vector2i) -> bool:
 	return SimWorkplaces.blocked(_places, cell)
 
 
-func _workspace_wall(cell: Vector2i) -> bool:
-	return SimWorkplaces.wall_at(_places, cell)
+func _workspace_perception_cost(cell: Vector2i) -> int:
+	return SimWorkplaces.perception_cost(_places, cell)
 
 
 func select_actor(id: String) -> void:
@@ -436,7 +436,6 @@ func _sync_actor_views(snap: bool, layout: PawnViewLayout = null) -> void:
 	if layout == null:
 		layout = PawnViewLayout.new(_fog)
 		layout.include_bodies(residents)
-		layout.finish("player")
 	for id: String in _pawns:
 		if not residents.has(id):
 			_pawns[id].hide()
@@ -452,7 +451,6 @@ func _sync_actor_views(snap: bool, layout: PawnViewLayout = null) -> void:
 		# must not integrate needs, repair routes or publish spatial changes.
 		var pose: Dictionary = HumanoidPose.from_body(actor, now, actor.active)
 		pawn.appearance_pose = HumanoidAppearance.stabilize_pose(pose, pawn.appearance_pose)
-		pawn.set_view_layout(layout.offsets.get(id, Vector2.ZERO))
 		var target: Vector2 = layout.points[id] if layout.points.has(id) else simulation.projected_actor_position(id)
 		pawn.project_position(target)
 		if not was_visible or not GameClock.is_advancing():
@@ -485,7 +483,6 @@ func apply_published_actor(pawn: Pawn, row: Dictionary, layout: PawnViewLayout, 
 	pawn.cell = row.cell
 	pawn.appearance_pose = HumanoidAppearance.stabilize_pose(row.pose.duplicate(), pawn.appearance_pose)
 	pawn.clothing_appearance = row.clothing
-	pawn.set_view_layout(layout.offsets.get(str(row.id), Vector2.ZERO))
 	pawn.project_position(row.point)
 	pawn.publish_motion(at_ms, snap or not was_visible, int(row.elevation))
 	if pawn.selected and row.has("needs"):

@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "check_ms": 60000,
   "minimum_fullness": 35,
   "minimum_energy": 30,
@@ -20,11 +20,12 @@
         1,
         1
       ],
+      "perception_cost": 3,
       "facts": {
         "movement_blocked": true,
         "enclosure_boundary": true,
         "thermal_barrier": true,
-        "sight_blocked": true,
+        "light_blocked": true,
         "wall_connection": true,
         "roof_support": true
       },
@@ -57,11 +58,12 @@
         1,
         1
       ],
+      "perception_cost": 1,
       "facts": {
         "movement_blocked": false,
         "enclosure_boundary": true,
         "thermal_barrier": true,
-        "sight_blocked": true,
+        "light_blocked": true,
         "wall_connection": true,
         "roof_support": true
       },
@@ -94,11 +96,12 @@
         1,
         1
       ],
+      "perception_cost": 1,
       "facts": {
         "movement_blocked": false,
         "enclosure_boundary": false,
         "thermal_barrier": false,
-        "sight_blocked": false,
+        "light_blocked": false,
         "wall_connection": false,
         "roof_support": false
       },
@@ -133,11 +136,12 @@
         1,
         1
       ],
+      "perception_cost": 0,
       "facts": {
         "movement_blocked": false,
         "enclosure_boundary": false,
         "thermal_barrier": false,
-        "sight_blocked": false,
+        "light_blocked": false,
         "wall_connection": false,
         "roof_support": false
       },
@@ -170,11 +174,12 @@
         2,
         1
       ],
+      "perception_cost": 1,
       "facts": {
         "movement_blocked": true,
         "enclosure_boundary": false,
         "thermal_barrier": false,
-        "sight_blocked": false,
+        "light_blocked": false,
         "wall_connection": false,
         "roof_support": false
       },
@@ -209,11 +214,12 @@
         1,
         1
       ],
+      "perception_cost": 1,
       "facts": {
         "movement_blocked": false,
         "enclosure_boundary": false,
         "thermal_barrier": false,
-        "sight_blocked": false,
+        "light_blocked": false,
         "wall_connection": false,
         "roof_support": false
       },
@@ -262,11 +268,12 @@
         1,
         1
       ],
+      "perception_cost": 1,
       "facts": {
         "movement_blocked": false,
         "enclosure_boundary": false,
         "thermal_barrier": false,
-        "sight_blocked": false,
+        "light_blocked": false,
         "wall_connection": false,
         "roof_support": false
       },
@@ -315,11 +322,12 @@
         1,
         1
       ],
+      "perception_cost": 1,
       "facts": {
         "movement_blocked": true,
         "enclosure_boundary": false,
         "thermal_barrier": false,
-        "sight_blocked": false,
+        "light_blocked": false,
         "wall_connection": false,
         "roof_support": false
       },
@@ -371,11 +379,12 @@
         2,
         1
       ],
+      "perception_cost": 1,
       "facts": {
         "movement_blocked": true,
         "enclosure_boundary": false,
         "thermal_barrier": false,
-        "sight_blocked": false,
+        "light_blocked": false,
         "wall_connection": false,
         "roof_support": false
       },
@@ -428,11 +437,12 @@
         1,
         1
       ],
+      "perception_cost": 1,
       "facts": {
         "movement_blocked": true,
         "enclosure_boundary": true,
         "thermal_barrier": true,
-        "sight_blocked": false,
+        "light_blocked": false,
         "wall_connection": true,
         "roof_support": true
       },
@@ -465,11 +475,12 @@
         2,
         1
       ],
+      "perception_cost": 2,
       "facts": {
         "movement_blocked": true,
         "enclosure_boundary": false,
         "thermal_barrier": false,
-        "sight_blocked": true,
+        "light_blocked": true,
         "wall_connection": false,
         "roof_support": false
       },
@@ -502,11 +513,12 @@
         1,
         2
       ],
+      "perception_cost": 1,
       "facts": {
         "movement_blocked": false,
         "enclosure_boundary": false,
         "thermal_barrier": false,
-        "sight_blocked": false,
+        "light_blocked": false,
         "wall_connection": false,
         "roof_support": false
       },
@@ -541,11 +553,12 @@
         1,
         1
       ],
+      "perception_cost": 4,
       "facts": {
         "movement_blocked": true,
         "enclosure_boundary": true,
         "thermal_barrier": true,
-        "sight_blocked": true,
+        "light_blocked": true,
         "wall_connection": true,
         "roof_support": true
       },
@@ -578,11 +591,12 @@
         1,
         1
       ],
+      "perception_cost": 1,
       "facts": {
         "movement_blocked": true,
         "enclosure_boundary": false,
         "thermal_barrier": false,
-        "sight_blocked": false,
+        "light_blocked": false,
         "wall_connection": false,
         "roof_support": false
       },

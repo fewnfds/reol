@@ -7,7 +7,6 @@ const UI = preload("res://scripts/ui/reol_ui_theme.gd")
 const Space = preload("res://scripts/sim/conflict_space.gd")
 var panel: PanelContainer
 var site_choice: OptionButton
-var entry: Button
 var _details: Label
 var _notice: Label
 var _travel: Button
@@ -31,13 +30,6 @@ func setup(adapter: WorldContinuityRuntime) -> void:
 	layer.add_child(screen)
 	screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	entry = UI.button(screen, "野外见闻 · L", show_panel)
-	entry.theme = UI.create()
-	entry.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	entry.offset_left = -364
-	entry.offset_right = -16
-	entry.offset_top = -338
-	entry.offset_bottom = -304
 	panel = PanelContainer.new()
 	panel.theme = UI.create()
 	panel.add_theme_stylebox_override("panel", UI.panel(UI.GOLD))
@@ -196,7 +188,6 @@ func refresh() -> void:
 		return
 	if not can_refresh_canvas():
 		return
-	entry.visible = adapter.human_player_active() and adapter.home_runtime()._player.avatar_active
 	if not adapter.human_player_active():
 		panel.hide()
 	if not panel.visible:

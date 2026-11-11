@@ -1,6 +1,7 @@
 class_name NaturalWorldRuntime
 extends CommittedWorldCanvas
-## Read-only local observation. Substrate affinities are not public qi gauges.
+## Local plant actions. Development values are read from the original owners;
+## no observation manufactures character knowledge or usable qi.
 
 const UI = preload("res://scripts/ui/reol_ui_theme.gd")
 var panel: PanelContainer
@@ -38,7 +39,7 @@ func setup(adapter: WorldContinuityRuntime) -> void:
 	panel.custom_minimum_size = Vector2(340, 0)
 	var column := VBoxContainer.new()
 	panel.add_child(column)
-	UI.label(column, "山川草木 · 眼前所见", UI.GOLD, 19)
+	UI.label(column, "地块 / 植物操作", UI.PAPER, 19)
 	_description = UI.label(column, "", UI.PAPER, 14)
 	_description.custom_minimum_size = Vector2(318, 150)
 	_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -124,55 +125,19 @@ func visible_cell(cell: Vector2i) -> bool:
 
 func describe(cell: Vector2i) -> String:
 	if _presentation_pending():
-		return _description.text if cell == selected_cell and _description != null else "世界事务仍在接续，请稍后观察。"
+		return _description.text if cell == selected_cell and _description != null else "pending_boundary"
 	if not visible_cell(cell):
-		return "此处已离开视野，眼下的情形无法确认。"
+		return "visible=0"
 	var adapter: WorldContinuityRuntime = runtime()
-	for region: VillageSimulation in adapter.world_sim.regions.values():
-		if SimWorkplaces.roofed(region.places, cell):
-			var layout: Dictionary = region.places.records.workspace
-			var line: String = "值事房 · 铺木地面\n墙体围合，屋面遮雨；画面采用剖开屋顶的视图。"
-			for id: String in layout.fixtures:
-				if SimRouteTravel.cell(layout.fixtures[id].cell) == cell:
-					line += "\n这里安置着%s。" % str(layout.fixtures[id].label)
-			if SimWorkplaces.blocked(region.places, cell):
-				line += "\n墙与桌柜占据实际空间，需要绕行。"
-			line += "\n办事要由有权的人回到桌前，依据机构记录核验。"
-			line += "\n" + SimNaturalLight.description(SimNaturalLight.at_cell(adapter.world_sim, cell))
-			line += _local_light_line(cell)
-			return line
 	var natural: Dictionary = adapter.world_sim.map_data.natural_cell(cell)
-	var line: String = str(natural.get("label", "地面"))
-	line += "\n土质%s，地势%s。" % ["丰厚" if int(natural.get("fertility", 0)) >= 60 else "瘠薄" if int(natural.get("fertility", 0)) < 35 else "平常", "敞露" if int(natural.get("exposure", 0)) >= 65 else "稍有遮蔽"]
-	line += "\n此地%s。" % ("近水，较易涵养水分" if int(natural.get("water_nearby", 0)) > 0 else "偏于干燥" if int(natural.get("moisture_potential", 0)) < 35 else "草木有适生的土壤")
-	var flora: Dictionary = natural.get("flora", {})
-	if not flora.is_empty() and not adapter.world_sim.plants.overrides_flora(cell):
-		line += "\n可见%s。" % ("青叶灌丛" if flora.id == "spirit_shrub" else str(flora.label))
+	var line: String = "cell=(%d,%d) · t=%dms\nterrain=%d · elevation=%d" % [cell.x, cell.y, adapter.world_sim.elapsed_ms, adapter.world_sim.map_data.get_terrain(cell), adapter.world_sim.map_data.get_elevation(cell)]
+	for key: String in ["fertility", "exposure", "water_nearby", "moisture_potential"]:
+		line += "\n%s=%s" % [key, str(natural.get(key, "n/a"))]
 	for id: String in adapter.world_sim.plants.ids_at(cell):
 		var row: Dictionary = adapter.world_sim.plants.bodies[id]
-		var label: String = "赤叶草" if row.definition == "fire_herb" else str(adapter.world_sim.plants.definitions.types[row.definition].label)
-		line += "\n可见%s：%s。" % [label, {"growing": "枝叶尚幼", "mature": "枝叶长成", "flowering": "正在开花", "fruiting": "已到结果阶段", "root": "留有根桩", "dead": "已经枯死"}.get(row.stage, "仍在此处")]
-		if row.dormant and row.stage not in ["dead", "removed"]:
-			line += " 生长暂歇。"
-		if row.contacts.has("player"):
-			line += " 它曾回应过你，可以继续商量。"
-	line += "\n五行影响尚未辨明；地表草木不代表可用灵气。"
-	line += "\n" + SimNaturalLight.description(SimNaturalLight.at_cell(adapter.world_sim, cell))
-	line += _local_light_line(cell)
-	for region: VillageSimulation in adapter.world_sim.regions.values():
-		for source: String in region.land_resources.sources:
-			var place: String = str(region.config.resource_sources[source].place)
-			if SimRouteTravel.cell(region.places[place].cell) == cell:
-				line += "\n这里有%s，可按原有采集方式取用；有其实际储量。" % str(region.land_resources.terms_for(source).label)
-	var weather_region: String = SimClimateRules.region_at(adapter.home_runtime()._content.climate, cell)
-	if adapter.world_sim.weather.definitions.regions.has(weather_region) and adapter.world_sim.weather.current_kind(weather_region) == "rain" and not adapter.world_sim.construction.roofed(cell):
-		line += "\n眼前正落着雨。"
+		line += "\n%s · %s\nstage=%s · dormant=%d\nage_ms=%d · growth_ms=%d\nwater=%d · hp=%d" % [id, row.definition, row.stage, int(row.dormant), row.age_ms, row.growth_ms, row.water, row.hp]
+	line += "\n环境数值见HUD；全部原始值用左键检查。"
 	return line
-
-
-func _local_light_line(cell: Vector2i) -> String:
-	var text: String = SimLocalLight.description(SimLocalLight.at_cell(runtime().world_sim, cell))
-	return "\n" + text if not text.is_empty() else ""
 
 
 func refresh() -> void:

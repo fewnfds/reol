@@ -6,6 +6,16 @@ extends RefCounted
 const Shape = preload("res://scripts/sim/avian_schema.gd")
 const RULES_PATH: String = "res://data/definitions/workplaces.json"
 const VERSION: int = 1
+const PERCEPTION_COST: Dictionary = {"walls": 3, "door": 1, "desk": 1, "archive": 1, "roof": 0}
+
+
+static func perception_cost(places: Dictionary, cell: Vector2i) -> int:
+	if wall_at(places, cell):
+		return int(PERCEPTION_COST.walls)
+	var layout: Dictionary = places.get("records", {}).get("workspace", {})
+	if not layout.is_empty() and cell == SimRouteTravel.cell(layout.door):
+		return int(PERCEPTION_COST.door)
+	return int(PERCEPTION_COST.desk) if blocked(places, cell) else 0
 
 
 

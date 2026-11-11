@@ -46,7 +46,7 @@ var _opening_selection_available: bool = false
 var _home: VillageRuntime
 var body_publication: SimBodyPublication
 var body_publication_workers: int = SimBatchExecution.DEFAULT_WORKERS
-var body_publication_work: Dictionary = {"batches": 0, "parallel_batches": 0, "rows": 0, "prepare_usec": 0, "elapsed_usec": 0, "worker_usec": 0, "adopt_usec": 0, "layout_elapsed_usec": 0, "layout_worker_usec": 0}
+var body_publication_work: Dictionary = {"batches": 0, "parallel_batches": 0, "rows": 0, "prepare_usec": 0, "elapsed_usec": 0, "worker_usec": 0, "adopt_usec": 0}
 var body_presentation: ReolBodyPresentation
 var _remote_views: Dictionary[String, Pawn] = {}
 var _panel: WorldContinuityPanel
@@ -264,7 +264,6 @@ func actor_view_layout(reuse_publication: bool = false) -> PawnViewLayout:
 	if not reuse_publication or body_publication == null or body_publication.world_id != world_sim.get_instance_id() or body_publication.at_ms != GameClock.elapsed_ms:
 		_publish_bodies()
 	layout.include_publication(body_publication)
-	layout.finish("player")
 	return layout
 
 
@@ -280,7 +279,7 @@ func _record_body_publication() -> void:
 	body_publication_work[worker_key] = int(body_publication_work.get(worker_key, 0)) + 1
 	body_publication_work.batches += 1
 	body_publication_work.parallel_batches += int(work.parallel)
-	for key: String in ["rows", "prepare_usec", "elapsed_usec", "worker_usec", "adopt_usec", "layout_elapsed_usec", "layout_worker_usec"]:
+	for key: String in ["rows", "prepare_usec", "elapsed_usec", "worker_usec", "adopt_usec"]:
 		body_publication_work[key] += int(work[key])
 
 
@@ -317,7 +316,7 @@ func _bind_navigation() -> void:
 	var geometry: SimWorldGeometry = world_sim.bind_geometry_navigation()
 	_home._world.bind_map_data(world_sim.map_data)
 	_home._world.bind_geometry(geometry, world_sim.native_boundary_revision)
-	_home._world.set_sight_obstacle_provider(world_sim.construction.blocks_sight)
+	_home._world.set_perception_cost_provider(world_sim.construction.perception_cost)
 	if _home._fog != null:
 		_home._fog.set_projection_guard(_presentation_ready)
 	world_sim.large_bodies.set_geometry(world_sim.map_data.terrain_is_walkable, world_sim.map_data.get_elevation, _incoming_occupancy, true)

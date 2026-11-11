@@ -581,7 +581,7 @@ func _build_canvas() -> void:
 						capture_custom(Callable(Walls, "draw_door").bind(self, p, mask, true))
 					else:
 						capture_custom(Callable(Walls, "draw_wall").bind(self, p, mask))
-						if not definition.facts.sight_blocked:
+						if definition.kind == "window":
 							capture_rect(Rect2(p + Vector2(-12, -14), Vector2(24, 18)), Color("8ca7a4"))
 				else:
 					_draw_furniture(p, definition, int(project.rotation))
