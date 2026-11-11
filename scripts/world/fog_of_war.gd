@@ -14,6 +14,7 @@ const EXPLORATION_ENCODING: String = "explored_runs_v1"
 
 const VISION_RADIUS: int = 10
 const UPDATE_INTERVAL: float = 0.1
+const OCCLUSION_WIDTH: int = VISION_RADIUS * 2 + 1
 
 const COLOR_HIDDEN := Color(0.0, 0.0, 0.0, 1.0)
 const COLOR_EXPLORED := Color(0.0, 0.0, 0.0, 0.62)
@@ -32,6 +33,7 @@ var _visibility_dirty: bool = true
 var _observer_altitude: int = 0
 var _observer_radius: int = VISION_RADIUS
 var _projection_guard: Callable
+var _ray_obstructions := PackedByteArray()
 
 
 func set_projection_guard(guard: Callable) -> void:
@@ -129,6 +131,10 @@ func update_now() -> void:
 
 	_clear_visible()
 	var origin_elevation: int = world.get_elevation(_focus_cell) + _observer_altitude
+	# Rays share intermediate cells. Query the original world once per cell for
+	# this observer/elevation only; the next update discards the whole scratchpad.
+	_ray_obstructions.resize(OCCLUSION_WIDTH * OCCLUSION_WIDTH)
+	_ray_obstructions.fill(0)
 	for dy in range(-_observer_radius, _observer_radius + 1):
 		for dx in range(-_observer_radius, _observer_radius + 1):
 			if dx * dx + dy * dy > _observer_radius * _observer_radius:
@@ -262,12 +268,18 @@ func _has_line_of_sight(
 		if x0 == x1 and y0 == y1:
 			return true
 
-		var cell := Vector2i(x0, y0)
-		if world.get_terrain(cell) == ReolWorld.TERRAIN_ROCK:
-			return false
-		if world.is_sight_blocked(cell):
-			return false
-		if world.get_elevation(cell) > from_elevation:
+		var index: int = (y0 - from_cell.y + VISION_RADIUS) * OCCLUSION_WIDTH + x0 - from_cell.x + VISION_RADIUS
+		var obstruction: int = _ray_obstructions[index]
+		if obstruction == 0:
+			var cell := Vector2i(x0, y0)
+			var blocked: bool = (
+				world.get_terrain(cell) == ReolWorld.TERRAIN_ROCK
+				or world.is_sight_blocked(cell)
+				or world.get_elevation(cell) > from_elevation
+			)
+			obstruction = 2 if blocked else 1
+			_ray_obstructions[index] = obstruction
+		if obstruction == 2:
 			return false
 
 	return false
