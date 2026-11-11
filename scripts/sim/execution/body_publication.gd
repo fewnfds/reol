@@ -5,6 +5,26 @@ extends RefCounted
 ## retain values and private pose dictionaries, never bodies or action tables.
 const CHUNK_SIZE: int = 64
 const PARALLEL_MINIMUM: int = 256
+const CROWD_RADIUS: float = 24.0
+
+class LayoutChunk extends RefCounted:
+	var groups: Array[Array]
+	var first: int
+	var stop: int
+	var offsets: Dictionary[String, Vector2] = {}
+	var elapsed_usec: int
+
+	func run() -> void:
+		var began: int = Time.get_ticks_usec()
+		for index: int in range(first, stop):
+			var ids: Array = groups[index].duplicate()
+			ids.erase("player")
+			ids.sort()
+			for ordinal: int in ids.size():
+				var angle: float = -PI * 0.5 + TAU * float(ordinal) / float(ids.size())
+				offsets[ids[ordinal]] = Vector2(cos(angle), sin(angle)) * SimBodyPublication.CROWD_RADIUS
+		groups = []
+		elapsed_usec = Time.get_ticks_usec() - began
 
 class Chunk extends RefCounted:
 	var roster: Array[Dictionary]
@@ -68,6 +88,10 @@ class Chunk extends RefCounted:
 var world_id: int
 var at_ms: int
 var rows: Dictionary[String, Dictionary] = {}
+var cells: Dictionary[String, Vector2i] = {}
+var points: Dictionary[String, Vector2] = {}
+var offsets: Dictionary[String, Vector2] = {}
+var sample_cells: Array[Vector2i] = []
 var work: Dictionary = {}
 
 
@@ -106,10 +130,25 @@ static func capture(world: RegionalSimulation, now: int, workers: int = 4, selec
 	var adopt_started: int = Time.get_ticks_usec()
 	var worker_usec: int = 0
 	var threads: Dictionary = {}
+	var elevations: Dictionary[Vector2i, int] = {}
+	var occupants: Dictionary[Vector2i, Array] = {}
 	for chunk: Chunk in chunks:
 		worker_usec += chunk.finished_usec - chunk.started_usec
 		threads[chunk.thread_id] = true
 		for row: Dictionary in chunk.rows:
+			var id: String = str(row.id)
+			var cell: Vector2i = row.cell
+			frame.cells[id] = cell
+			frame.points[id] = row.point
+			if not elevations.has(cell):
+				# Terrain can lazily populate its original cache. Resolve each
+				# occupied cell once on the owner, never on a publication worker.
+				elevations[cell] = world.map_data.get_elevation(cell)
+			row["elevation"] = elevations[cell]
+			if bool(row.alive):
+				if not occupants.has(cell):
+					occupants[cell] = []
+				occupants[cell].append(id)
 			if str(row.id) == "player" or str(row.id) in selected:
 				var sim: VillageSimulation = world.regions[row.region]
 				var needs: Dictionary = sim.projected_actor_needs(str(row.id))
@@ -123,7 +162,29 @@ static func capture(world: RegionalSimulation, now: int, workers: int = 4, selec
 					surface.energy = maxf(0.0, float(surface.energy) - rate * elapsed)
 				row["needs"] = surface
 			frame.rows[str(row.id)] = row
+	frame.sample_cells.assign(elevations.keys())
+	var adopt_usec: int = Time.get_ticks_usec() - adopt_started
+	var layout_started: int = Time.get_ticks_usec()
+	var groups: Array[Array] = []
+	for ids: Array in occupants.values():
+		if ids.size() > 1:
+			groups.append(ids)
+	var layout_work: Array[RefCounted] = []
+	for first: int in range(0, groups.size(), CHUNK_SIZE):
+		var chunk := LayoutChunk.new()
+		chunk.groups = groups
+		chunk.first = first
+		chunk.stop = mini(first + CHUNK_SIZE, groups.size())
+		layout_work.append(chunk)
+	var layout_batch := SimBatchExecution.new()
+	layout_batch.start(layout_work, workers)
+	layout_batch.finish(true)
+	var layout_worker_usec: int = 0
+	for chunk: LayoutChunk in layout_work:
+		frame.offsets.merge(chunk.offsets)
+		layout_worker_usec += chunk.elapsed_usec
 	frame.work = {"rows": count, "parallel": batch.parallel, "workers": batch.worker_count, "prepare_usec": preparation,
 		"dispatch_usec": batch.dispatch_usec, "elapsed_usec": batch.completed_usec - batch.submitted_usec,
-		"worker_usec": worker_usec, "adopt_usec": Time.get_ticks_usec() - adopt_started, "threads": threads.keys()}
+		"worker_usec": worker_usec, "adopt_usec": adopt_usec, "threads": threads.keys(),
+		"layout_elapsed_usec": Time.get_ticks_usec() - layout_started, "layout_worker_usec": layout_worker_usec}
 	return frame

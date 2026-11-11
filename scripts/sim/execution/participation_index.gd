@@ -179,6 +179,47 @@ func set_due(kind: StringName, id: String, at_ms: int) -> bool:
 	return true
 
 
+## One owner adoption with no intervening observers. Sparse changes retain
+## indexed O(log N) updates; a large replacement heapifies once in O(N).
+## Membership/dirty/active state is preserved. Updates win over cancellations.
+func set_due_many(kind: StringName, updates: Dictionary[String, int], cancelled: Array[String] = []) -> bool:
+	if kind == &"":
+		return false
+	for id: String in updates:
+		if id.is_empty() or updates[id] < 0:
+			return false
+	for id: String in cancelled:
+		if id.is_empty():
+			return false
+	var group: Group = _groups.get(kind)
+	if group == null:
+		if updates.is_empty():
+			return true
+		group = Group.new()
+		_groups[kind] = group
+	for id: String in cancelled:
+		_remove_due(group, id)
+	@warning_ignore("integer_division")
+	var rebuild: bool = updates.size() >= maxi(16, group.heap.size() / 4)
+	for id: String in updates:
+		if not group.members.has(id):
+			group.members[id] = true
+			group.members_valid = false
+		if not rebuild:
+			set_due(kind, id, updates[id])
+			continue
+		if not group.due.has(id):
+			group.positions[id] = group.heap.size()
+			group.heap.append(id)
+		group.due[id] = updates[id]
+	if rebuild:
+		@warning_ignore("integer_division")
+		var last_parent: int = group.heap.size() / 2 - 1
+		for index: int in range(last_parent, -1, -1):
+			_sift_down(group, index)
+	return true
+
+
 ## An already-cancelled deadline is a valid no-op for an existing member.
 func cancel_due(kind: StringName, id: String) -> bool:
 	var group: Group = _groups.get(kind)

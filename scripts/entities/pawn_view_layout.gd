@@ -3,7 +3,7 @@ extends RefCounted
 ## One disposable sample of accepted motion. Only observed cells need a
 ## drawing layout; bodies sharing them include visitors from other owners.
 
-const CROWD_RADIUS: float = 24.0
+const CROWD_RADIUS: float = SimBodyPublication.CROWD_RADIUS
 
 var cells: Dictionary[String, Vector2i] = {}
 var points: Dictionary[String, Vector2] = {}
@@ -14,6 +14,8 @@ var _fog: FogOfWar
 var _observed: Dictionary[Vector2i, bool] = {}
 var _occupants: Dictionary[Vector2i, String] = {}
 var _crowds: Dictionary[Vector2i, Array] = {}
+var _sample_cells: Array[Vector2i] = []
+var _visibility_frozen: bool = false
 
 
 func _init(fog: FogOfWar = null) -> void:
@@ -74,24 +76,28 @@ func finish(center_actor_id: String) -> void:
 
 
 func include_publication(frame: SimBodyPublication) -> void:
-	for id: String in frame.rows:
-		var row: Dictionary = frame.rows[id]
-		var cell: Vector2i = row.cell
-		cells[id] = cell
-		if not _observed.has(cell):
-			_observed[cell] = _fog == null or _fog.is_cell_visible(cell)
-		if not _observed[cell]:
-			continue
-		points[id] = row.point
-		if not bool(row.alive):
-			continue
-		if _crowds.has(cell):
-			_crowds[cell].append(id)
-		elif _occupants.has(cell):
-			_crowds[cell] = [_occupants[cell], id]
-		else:
-			_occupants[cell] = id
+	# Geometry and crowd layout are detached values prepared with the body
+	# publication. Visibility stays on the host and cannot teach the world.
+	cells = frame.cells
+	points = frame.points
+	offsets = frame.offsets
+	_sample_cells = frame.sample_cells
+
+
+func freeze_visibility() -> void:
+	if _visibility_frozen:
+		return
+	for cell: Vector2i in _sample_cells:
+		_observed[cell] = _fog == null or _fog.is_cell_visible(cell)
+	_visibility_frozen = true
+	_fog = null # A deferred presentation job retains no live visibility Node.
 
 
 func sees(cell: Vector2i) -> bool:
-	return _fog == null or bool(_observed.get(cell, false))
+	if _visibility_frozen:
+		return bool(_observed.get(cell, false))
+	if _fog == null:
+		return true
+	if not _observed.has(cell):
+		_observed[cell] = _fog.is_cell_visible(cell)
+	return bool(_observed[cell])

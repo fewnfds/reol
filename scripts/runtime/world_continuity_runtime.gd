@@ -42,7 +42,8 @@ var _opening_selection_available: bool = false
 var _home: VillageRuntime
 var body_publication: SimBodyPublication
 var body_publication_workers: int = 4
-var body_publication_work: Dictionary = {"batches": 0, "parallel_batches": 0, "rows": 0, "prepare_usec": 0, "elapsed_usec": 0, "worker_usec": 0, "adopt_usec": 0}
+var body_publication_work: Dictionary = {"batches": 0, "parallel_batches": 0, "rows": 0, "prepare_usec": 0, "elapsed_usec": 0, "worker_usec": 0, "adopt_usec": 0, "layout_elapsed_usec": 0, "layout_worker_usec": 0}
+var body_presentation: ReolBodyPresentation
 var _remote_views: Dictionary[String, Pawn] = {}
 var _panel: WorldContinuityPanel
 var _notice: String = "两地各自生活；前往另一处，观察途中和归来的变化。"
@@ -197,16 +198,25 @@ func _capture_committed_canvases(_from_ms: int = 0, _to_ms: int = 0) -> void:
 	_measure_publication("layout", began)
 	began = Time.get_ticks_usec()
 	HumanoidSprite.publish_time(GameClock.elapsed_ms)
-	_home._sync_actor_views(snap, layout)
-	_refresh_views(snap, layout)
-	_measure_publication("body_nodes", began)
+	layout.freeze_visibility()
+	_home.apply_published_player(body_publication, false)
+	# Selected status and player feedback stay immediate; bulk NPC Nodes use
+	# detached values after the original world has returned to its coordinator.
+	var selected: Pawn = _home._pawns.get(_home._selected_actor)
+	if selected != null:
+		_home.apply_published_actor(selected, body_publication.rows.get(_home._selected_actor, {}), layout, body_publication.at_ms, snap, body_publication.world_id)
+	selected = _remote_views.get(_selected_remote)
+	if selected != null:
+		_home.apply_published_actor(selected, body_publication.rows.get(_selected_remote, {}), layout, body_publication.at_ms, snap, body_publication.world_id)
+	_home.body_state_changed.emit()
+	_present_body_nodes(layout, snap, snap or GameClock.paused)
+	_update_courier_view()
+	_measure_publication("body_prepare", began)
 	began = Time.get_ticks_usec()
 	_refresh_advance_views()
 	_measure_publication("panels", began)
 	began = Time.get_ticks_usec()
-	_home.publish_actor_motion(GameClock.elapsed_ms, snap)
-	for pawn: Pawn in _remote_views.values():
-		pawn.publish_motion(GameClock.elapsed_ms, snap)
+	_home._player.publish_motion(GameClock.elapsed_ms, snap)
 	var views: Array[CommittedWorldCanvas] = [self, _home, natural_adapter, object_adapter,
 		sparring_adapter, conflict_adapter, avian_adapter, soul_adapter,
 		large_body_adapter, construction_adapter, field_adapter, spirit_adapter]
@@ -220,6 +230,14 @@ func _capture_committed_canvases(_from_ms: int = 0, _to_ms: int = 0) -> void:
 
 func _measure_publication(key: String, began: int) -> void:
 	publication_work[key] = int(publication_work.get(key, 0)) + Time.get_ticks_usec() - began
+
+
+func _present_body_nodes(layout: PawnViewLayout, snap: bool, immediate: bool) -> void:
+	layout.freeze_visibility()
+	if body_presentation == null:
+		body_presentation = ReolBodyPresentation.new()
+		body_presentation.configure(self)
+	body_presentation.publish(body_publication, layout, snap, immediate)
 
 
 func actor_region(actor: String) -> String:
@@ -258,7 +276,7 @@ func _record_body_publication() -> void:
 	body_publication_work[worker_key] = int(body_publication_work.get(worker_key, 0)) + 1
 	body_publication_work.batches += 1
 	body_publication_work.parallel_batches += int(work.parallel)
-	for key: String in ["rows", "prepare_usec", "elapsed_usec", "worker_usec", "adopt_usec"]:
+	for key: String in ["rows", "prepare_usec", "elapsed_usec", "worker_usec", "adopt_usec", "layout_elapsed_usec", "layout_worker_usec"]:
 		body_publication_work[key] += int(work[key])
 
 
@@ -317,6 +335,7 @@ func _bind_navigation() -> void:
 		# split the shared world before any other domain can observe an effect.
 		sim.native_route_events_enabled = true
 		sim.configure_actor_execution()
+		sim.set_body_read_world(world_sim, region)
 	# Scene-independent rules are bound even before the first thread request;
 	# opening/paused commands use exactly the same motion owner and callbacks.
 	var runner := SimWorldRunner.new()
@@ -921,51 +940,11 @@ func _on_advanced() -> void:
 func _refresh_views(snap: bool, layout: PawnViewLayout = null) -> void:
 	if not _presentation_ready():
 		return
-	# A body keeps its original ledger owner while travelling. Only actual
-	# visibility decides whether its nonhome scene projection is materialized.
-	var visible_bodies: Dictionary = {}
 	if layout == null:
 		layout = actor_view_layout()
-	for id: String in body_publication.rows:
-		var row: Dictionary = body_publication.rows[id]
-		if row.region == "home" or not bool(row.alive):
-			continue
-		var cell: Vector2i = row.cell
-		if _home._fog == null and cell.distance_to(controlled_cell()) > float(_home.simulation.config.observation_radius):
-			continue
-		if not layout.sees(cell):
-			continue
-		# Visibility does not materialize or advance the original body.
-		visible_bodies[id] = true
-		if not _remote_views.has(id):
-			var created_pawn := Pawn.new()
-			created_pawn.name = "Visitor_" + id
-			created_pawn.setup(_home._content.get_pawn(StringName(row.definition_id)), _home._content, _home._world, cell)
-			created_pawn.pawn_id = StringName(id)
-			var definition: PawnDef = _home._content.get_pawn(StringName(row.definition_id))
-			created_pawn.display_name_override = str(settings.runtime.remote_names.get(id, definition.display_name if definition != null else id))
-			add_child(created_pawn)
-			_remote_views[id] = created_pawn
-		var pawn: Pawn = _remote_views[id]
-		pawn.appearance_pose = HumanoidAppearance.stabilize_pose(row.pose.duplicate(), pawn.appearance_pose)
-		pawn.clothing_appearance = row.clothing
-		pawn.set_view_layout(layout.offsets.get(id, Vector2.ZERO))
-		pawn.cell = cell
-		if pawn.selected and row.has("needs"):
-			_home._sync_needs(pawn.state, row.needs)
-		pawn.project_position(row.point)
-		if not GameClock.is_advancing():
-			pawn.publish_motion(GameClock.elapsed_ms, snap)
-		pawn.show()
-		pawn.refresh_appearance()
-	for id: String in _remote_views.keys():
-		if visible_bodies.has(id):
-			continue
-		if _selected_remote == id:
-			clear_remote_selection()
-		_remote_views[id].hide()
-		_remote_views[id].queue_free()
-		_remote_views.erase(id)
+	# Explicit/paused refresh uses the same detached application as normal
+	# frames. No duplicate visitor creation, pose or clothing path remains here.
+	_present_body_nodes(layout, snap, true)
 	_update_courier_view()
 
 
@@ -1223,6 +1202,8 @@ func _adopt_session(staged: Dictionary) -> void:
 	# All validation is complete before changing any live world or clock state.
 	var previous_world: RegionalSimulation = world_sim
 	_close_simulation_host()
+	if body_presentation != null:
+		body_presentation.cancel()
 	presentation_work.clear()
 	_player_commands.clear()
 	_retire_field_compute()

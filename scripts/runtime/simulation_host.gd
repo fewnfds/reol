@@ -140,6 +140,10 @@ func _process(_delta: float) -> void:
 	# remain alive even when a save was requested during a background interval.
 	if GameClock._save_boundary_held() and runtime._saves != null:
 		runtime._saves.process_save()
+	if busy and runtime.presentation_work != null:
+		# The ordinary scene is gated. Detached Node projection still has work;
+		# other view callbacks retain their ordinary complete-world window.
+		runtime.presentation_work.run_pending(GameClock.presentation_budget_usec(), true)
 	if not _probe_enabled:
 		return
 	var now: int = Time.get_ticks_usec()

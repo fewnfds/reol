@@ -1,7 +1,8 @@
 class_name SimBatchExecution
 extends RefCounted
-## One disposable calculation batch. Workers own scratch results, never live
-## domain/SceneTree state. The caller alone validates and publishes results.
+## One disposable group over the engine's pool. Candidates have private results;
+## a validated commit stage may lend disjoint original fields, with a join before
+## any observer runs. Never live SceneTree or concurrently shared writes.
 
 class WorkGroup extends RefCounted:
 	var chunks: Array[RefCounted] = []

@@ -467,27 +467,39 @@ func _sync_actor_views(snap: bool, layout: PawnViewLayout = null) -> void:
 
 func _sync_published_actor_views(frame: SimBodyPublication, layout: PawnViewLayout, snap: bool) -> void:
 	for id: String in _pawns:
-		var pawn: Pawn = _pawns[id]
-		var row: Dictionary = frame.rows.get(id, {})
-		var was_visible: bool = pawn.visible
-		pawn.visible = not row.is_empty() and bool(row.alive) and layout.sees(row.cell)
-		if not pawn.visible:
-			continue
-		pawn.cell = row.cell
-		pawn.appearance_pose = HumanoidAppearance.stabilize_pose(row.pose.duplicate(), pawn.appearance_pose)
-		pawn.clothing_appearance = row.clothing
-		pawn.set_view_layout(layout.offsets.get(id, Vector2.ZERO))
-		pawn.project_position(row.point)
-		if not was_visible or not GameClock.is_advancing():
-			pawn.publish_motion(frame.at_ms, snap or not was_visible)
-		if pawn.selected and row.has("needs"):
-			_sync_needs(pawn.state, row.needs)
-		pawn.refresh_appearance()
+		apply_published_actor(_pawns[id], frame.rows.get(id, {}), layout, frame.at_ms, snap, frame.world_id)
+	apply_published_player(frame)
+
+
+func apply_published_actor(pawn: Pawn, row: Dictionary, layout: PawnViewLayout, at_ms: int, snap: bool, world_id: int) -> void:
+	# Main-thread scene projection from detached values only. Safe while the
+	# simulation owns the world; callbacks and live terrain reads stay outside.
+	if pawn.publication_world_id == world_id and pawn.publication_ms > at_ms:
+		return # An immediate selected-body update must not be overwritten by an older frame.
+	pawn.publication_world_id = world_id
+	pawn.publication_ms = at_ms
+	var was_visible: bool = pawn.visible
+	pawn.visible = not row.is_empty() and bool(row.alive) and layout.sees(row.cell)
+	if not pawn.visible:
+		return
+	pawn.cell = row.cell
+	pawn.appearance_pose = HumanoidAppearance.stabilize_pose(row.pose.duplicate(), pawn.appearance_pose)
+	pawn.clothing_appearance = row.clothing
+	pawn.set_view_layout(layout.offsets.get(str(row.id), Vector2.ZERO))
+	pawn.project_position(row.point)
+	pawn.publish_motion(at_ms, snap or not was_visible, int(row.elevation))
+	if pawn.selected and row.has("needs"):
+		_sync_needs(pawn.state, row.needs)
+	pawn.refresh_appearance(int(row.elevation))
+
+
+func apply_published_player(frame: SimBodyPublication, notify: bool = true) -> void:
 	var player_view: Dictionary = frame.rows.player
 	_player.clothing_appearance = player_view.clothing
 	_player.appearance_pose = HumanoidAppearance.stabilize_pose(player_view.pose.duplicate(), _player.appearance_pose)
 	_sync_needs(_player.state, player_view.needs)
-	body_state_changed.emit()
+	if notify:
+		body_state_changed.emit()
 
 
 func _sync_needs(state: PawnState, actor: Dictionary) -> void:

@@ -2,7 +2,7 @@ class_name ReolPresentationWork
 extends Node
 ## Host-only, disposable projections. Never enqueue rule effects or exploration.
 ## One slot per domain job, not per entity. Callbacks do one bounded chunk and
-## return false only when blocked (e.g. the world has no complete boundary).
+## return false while blocked or while a bounded projection has more chunks.
 
 enum Priority { VISIBLE, BACKGROUND }
 const MAX_WORK_USEC: int = 1000
@@ -23,6 +23,7 @@ class Work:
 	var priority: int
 	var queued_usec: int
 	var due_usec: int
+	var detached: bool
 
 
 func _ready() -> void:
@@ -32,12 +33,13 @@ func _ready() -> void:
 	set_process(not _pending.is_empty())
 
 
-func request(id: StringName, callback: Callable, priority: int, max_delay_ms: int) -> void:
+func request(id: StringName, callback: Callable, priority: int, max_delay_ms: int, detached: bool = false) -> void:
 	assert(id != &"" and callback.is_valid() and max_delay_ms >= 0)
 	var work := Work.new()
 	work.id = id
 	work.callback = callback
 	work.priority = priority
+	work.detached = detached
 	work.queued_usec = int(host_time.call())
 	work.due_usec = work.queued_usec + max_delay_ms * 1000
 	var previous: Work = _pending.get(id)
@@ -65,7 +67,7 @@ func _process(_delta: float) -> void:
 	run_pending(int(budget_provider.call()) if budget_provider.is_valid() else MAX_WORK_USEC)
 
 
-func run_pending(budget_usec: int) -> void:
+func run_pending(budget_usec: int, detached_only: bool = false) -> void:
 	if _running or _pending.is_empty():
 		return
 	_running = true
@@ -85,6 +87,8 @@ func run_pending(budget_usec: int) -> void:
 	for item: Work in work:
 		if attempts >= MAX_ATTEMPTS or _pending.get(item.id) != item:
 			continue
+		if detached_only and not item.detached:
+			continue # A gated world's terrain/cache readers cannot run here.
 		if not item.callback.is_valid():
 			_pending.erase(item.id)
 			continue

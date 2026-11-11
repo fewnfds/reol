@@ -56,12 +56,12 @@ var _sparse_actor_projection: bool = false
 var actor_execution_enabled: bool = false
 var actor_execution_workers: int = 4
 var actor_execution_minimum: int = SimActorAdvance.PARALLEL_MINIMUM
-## Unsaved measurements; preparation/publication remain on the owner thread.
+## Unsaved measurements; dependency checks and observable effects stay ordered.
 var actor_execution_work: Dictionary = {"batches": 0, "parallel_batches": 0, "rows": 0, "adopted": 0, "motion_adopted": 0, "discarded": 0, "prepare_usec": 0, "dispatch_usec": 0, "worker_usec": 0, "worker_wall_usec": 0, "queue_usec": 0, "collection_delay_usec": 0, "publish_usec": 0, "pending_returns": 0, "threads": {}}
 var _prepared_actor_advance: SimActorAdvance
-var _retired_actor_advances: Array[SimActorAdvance] = []
-var _preparing_actor_advance: bool = false
 var _actor_advance_generation: int = 0
+var _body_read_world: WeakRef
+var _body_read_region: String
 var _workplace_blocks: Dictionary[Vector2i, bool] = {}
 var _stock_places_at_cell: Dictionary = {}
 var _stock_contents: Dictionary = {}
@@ -279,21 +279,25 @@ func set_action_guard(provider: Callable) -> void:
 func set_control_guard(provider: Callable) -> void:
 	synchronize_actors()
 	invalidate_boundary_cache()
+	_body_read_world = null
 	_control_guard = provider
 
 
 func set_rest_recovery(provider: Callable) -> void:
 	synchronize_actors()
+	_body_read_world = null
 	_rest_recovery = provider
 
 
 func set_exposure_rate(provider: Callable) -> void:
 	synchronize_actors()
+	_body_read_world = null
 	_exposure_rate = provider
 
 
 func set_external_labor(provider: Callable) -> void:
 	synchronize_actors()
+	_body_read_world = null
 	_external_labor = provider
 
 
@@ -479,17 +483,50 @@ func _query_actor_boundary(cached: bool) -> int:
 		ids.sort()
 	else:
 		ids = _actor_ids()
-	for id: String in ids:
+	var batch: SimBodyDeadlines
+	var read_started: int = Time.get_ticks_usec()
+	if cached and actor_execution_enabled and _body_read_world != null and ids.size() >= SimBodyDeadlines.PARALLEL_MINIMUM:
+		var read: SimBodyRead = body_read_inputs()
+		if read != null:
+			batch = SimBodyDeadlines.new()
+			batch.compute(read, ids, actor_execution_workers)
+			_record_deadline_batch(batch, ids.size(), Time.get_ticks_usec() - read_started)
+	var read_generation: int = _actor_advance_generation
+	var adopt_started: int = Time.get_ticks_usec() if batch != null else 0
+	# With no transition/repair, this loop emits no observer callbacks. Adopt
+	# both deadline groups together instead of rebalancing their heaps per ID.
+	var bulk_adoption: bool = batch != null and not batch.has_fallback
+	var deadlines: Dictionary[String, int] = {}
+	var effects: Dictionary[String, int] = {}
+	var retired: Array[String] = []
+	for index: int in ids.size():
+		var id: String = ids[index]
 		var actor: Dictionary = _actors[id]
 		var actor_boundary: int = SimInventory.MAX_COUNT
 		var effect_boundary: int = SimInventory.MAX_COUNT
 		if not bool(actor.alive):
 			if cached:
-				_boundary_index.cancel_due(NATIVE_BOUNDARY, id)
-				_boundary_index.cancel_due(NATIVE_EFFECT, id)
+				if bulk_adoption:
+					retired.append(id)
+				else:
+					_boundary_index.cancel_due(NATIVE_BOUNDARY, id)
+					_boundary_index.cancel_due(NATIVE_EFFECT, id)
 				_dirty_actor_boundaries.erase(id)
 			continue
-		if not actor.active.is_empty():
+		var candidate: Dictionary = batch.row_at(index) if batch != null and read_generation == _actor_advance_generation else {}
+		if not candidate.is_empty() and not bool(candidate.fallback):
+			actor_boundary = int(candidate.boundary)
+			effect_boundary = int(candidate.effect)
+			var completion: Dictionary = _route_completions.get(id, {})
+			if not actor.active.is_empty():
+				if not completion.is_empty():
+					completion.coarse = bool(candidate.coarse)
+				_route_continuations[id] = bool(candidate.allowed) and actor.active.get("phase") == "travel"
+				if not bool(candidate.accepted) and actor.active.get("phase") != "travel":
+					_route_completions.erase(id)
+			elif bool(actor.autonomous):
+				_route_completions.erase(id)
+		elif not actor.active.is_empty():
 			var allowed: bool = actor_controls(id, "action") and actor_controls(id, "motion")
 			var completion: Dictionary = _route_completions.get(id, {})
 			var accepted: bool = allowed and native_route_events_enabled and actor.active.get("phase") == "travel" and not completion.is_empty() and is_same(completion.route, actor.active) and int(completion.revision) == geometry_revision
@@ -527,18 +564,37 @@ func _query_actor_boundary(cached: bool) -> int:
 			_route_completions.erase(id)
 		if cached:
 			_actor_boundaries[id] = actor_boundary
-			_boundary_index.set_member(NATIVE_BOUNDARY, id)
-			_boundary_index.set_due(NATIVE_BOUNDARY, id, actor_boundary)
-			_boundary_index.set_member(NATIVE_EFFECT, id)
-			_boundary_index.set_due(NATIVE_EFFECT, id, effect_boundary)
+			if bulk_adoption:
+				deadlines[id] = actor_boundary
+				effects[id] = effect_boundary
+			else:
+				_boundary_index.set_member(NATIVE_BOUNDARY, id)
+				_boundary_index.set_due(NATIVE_BOUNDARY, id, actor_boundary)
+				_boundary_index.set_member(NATIVE_EFFECT, id)
+				_boundary_index.set_due(NATIVE_EFFECT, id, effect_boundary)
 			_dirty_actor_boundaries.erase(id)
 		boundary = mini(boundary, actor_boundary)
+	if bulk_adoption:
+		_boundary_index.set_due_many(NATIVE_BOUNDARY, deadlines, retired)
+		_boundary_index.set_due_many(NATIVE_EFFECT, effects, retired)
+	if batch != null:
+		actor_execution_work["deadline_adopt_usec"] = int(actor_execution_work.get("deadline_adopt_usec", 0)) + Time.get_ticks_usec() - adopt_started
 	if cached:
 		_boundary_index_ready = true
 		if profile_native:
 			native_profile["deadline"] = int(native_profile.get("deadline", 0)) + Time.get_ticks_usec() - profile_started
 		return _boundary_index.next_due_ms(NATIVE_BOUNDARY, SimInventory.MAX_COUNT)
 	return boundary
+
+
+func _record_deadline_batch(batch: SimBodyDeadlines, count: int, elapsed: int) -> void:
+	for entry: Array in [["deadline_batches", 1], ["deadline_rows", count],
+		["deadline_parallel_batches", int(batch.execution.parallel)], ["deadline_elapsed_usec", elapsed],
+		["deadline_prepare_usec", batch.preparation_usec], ["deadline_dispatch_usec", batch.execution.dispatch_usec]]:
+		actor_execution_work[entry[0]] = int(actor_execution_work.get(entry[0], 0)) + int(entry[1])
+	for chunk: SimBodyDeadlines.Chunk in batch.chunks:
+		actor_execution_work["deadline_worker_usec"] = int(actor_execution_work.get("deadline_worker_usec", 0)) + chunk.finished_usec - chunk.started_usec
+		actor_execution_work.threads[chunk.thread_id] = true
 
 
 func set_boundary_revision_provider(provider: Callable) -> void:
@@ -553,7 +609,21 @@ func set_boundary_revision_provider(provider: Callable) -> void:
 
 
 func set_native_crossing_interest(provider: Callable) -> void:
+	_body_read_world = null
 	_native_crossing_interest = provider
+
+
+func set_body_read_world(world: RegionalSimulation, region: String) -> void:
+	# Explicit opt-in for the standard world bindings above. Replacing an opaque
+	# provider revokes this seam; its standalone callback order stays serial.
+	_cancel_actor_advance()
+	_body_read_world = weakref(world) if world != null else null
+	_body_read_region = region
+
+
+func body_read_inputs() -> SimBodyRead:
+	var world: RegionalSimulation = _body_read_world.get_ref() if _body_read_world != null else null
+	return SimBodyRead.capture(world, self, _body_read_region) if world != null else null
 	invalidate_boundary_cache()
 
 
@@ -679,16 +749,24 @@ func advance_to_ms(target_ms: int, max_events: int = 4096, should_yield: Callabl
 				# peers. A suspended interval remains unpublished during this pass.
 				var started: int = Time.get_ticks_usec() if work.batch != null else 0
 				if work.sparse:
+					if work.batch != null and work.cursor == 0:
+						# Original need dictionaries are disjoint write partitions.
+						# Finish all of them before any projection/observer can read peers.
+						for id: String in work.batch.adopt_needs(_actors, _actor_projection_ms, work.projecting, actor_execution_workers):
+							_integrate_actor(id)
+						for key: String in work.batch.adoption_work:
+							if key == "threads":
+								actor_execution_work.threads.merge(work.batch.adoption_work.threads)
+							else:
+								actor_execution_work[key] = int(actor_execution_work.get(key, 0)) + int(work.batch.adoption_work[key])
+						work.cursor = work.projecting.size()
 					while work.cursor < work.projecting.size():
 						if work.cursor % 8 == 0 and should_yield.is_valid() and bool(should_yield.call()):
 							if work.batch != null:
 								actor_execution_work.publish_usec = int(actor_execution_work.publish_usec) + Time.get_ticks_usec() - started
 							return false
 						var id: String = work.projecting[work.cursor]
-						if work.batch != null and work.batch.row_for(id).x >= 0:
-							_apply_actor_advance(id, work.batch)
-						else:
-							_integrate_actor(id)
+						_integrate_actor(id)
 						work.cursor += 1
 				if work.batch != null:
 					actor_execution_work.publish_usec = int(actor_execution_work.publish_usec) + Time.get_ticks_usec() - started
@@ -842,8 +920,7 @@ func synchronize_actor(id: String) -> Dictionary:
 	var previous: int = int(_actor_projection_ms.get(id, elapsed_ms))
 	if previous == elapsed_ms:
 		return actor
-	if not _preparing_actor_advance:
-		_cancel_actor_advance()
+	_cancel_actor_advance()
 	_projecting_actors[id] = true
 	_integrate_actor(id)
 	_executor.project(id, elapsed_ms)
@@ -859,8 +936,7 @@ func _integrate_actor(id: String) -> void:
 
 
 func synchronize_actors() -> Dictionary:
-	if not _preparing_actor_advance:
-		_cancel_actor_advance()
+	_cancel_actor_advance()
 	if _materializing_actors or _all_projected_ms == elapsed_ms:
 		return _actors
 	_materializing_actors = true
@@ -890,8 +966,7 @@ func configure_actor_execution(workers: int = 4, minimum: int = SimActorAdvance.
 
 
 func prepare_actor_advance(to_ms: int) -> bool:
-	_collect_actor_batches()
-	if not actor_execution_enabled or not _sparse_actor_projection or not _boundary_revision_provider.is_valid() or to_ms <= elapsed_ms:
+	if not actor_execution_enabled or _body_read_world == null or not _sparse_actor_projection or not _boundary_revision_provider.is_valid() or to_ms <= elapsed_ms:
 		return true
 	var revision: int = int(_boundary_revision_provider.call())
 	if _prepared_actor_advance != null:
@@ -903,34 +978,16 @@ func prepare_actor_advance(to_ms: int) -> bool:
 		return true
 	ids.sort()
 	var started: int = Time.get_ticks_usec()
+	var read: SimBodyRead = body_read_inputs()
+	if read == null:
+		return true
 	var batch := SimActorAdvance.new()
-	batch.at_ms = to_ms
-	var hunger_rate: int = roundi(float(config.needs.hunger_per_minute) * NEED_SCALE)
-	var base_rate: int = roundi(float(config.needs.energy_per_minute) * NEED_SCALE)
-	var work_rate: int = roundi(float(config.needs.work_energy_per_minute) * NEED_SCALE)
-	_preparing_actor_advance = true
-	for id: String in ids:
-		var body: Dictionary = _actors[id]
-		if not bool(body.alive):
-			continue
-		# Callbacks are evaluated by the authority, before workers start. Only
-		# the resulting numbers and an accepted route segment cross the seam.
-		var energy_rate: int = base_rate + (int(_exposure_rate.call(id)) if _exposure_rate.is_valid() else 0)
-		var laboring: bool = not body.active.is_empty() or (_external_labor.is_valid() and bool(_external_labor.call(id)))
-		if laboring:
-			energy_rate += work_rate
-		if _rest_recovery.is_valid():
-			energy_rate -= int(_rest_recovery.call(id)) * NEED_SCALE
-		var definition: PawnDef = _content.get_pawn(StringName(body.definition_id))
-		batch.append(id, body, int(_actor_projection_ms.get(id, elapsed_ms)), hunger_rate, energy_rate,
-			not laboring or str(body.active.get("action", "")) == "rest", definition.max_stamina, int(motion_rules.recovery.stamina_per_second))
-	_preparing_actor_advance = false
+	batch.prepare(read, ids, to_ms)
 	batch.generation = _actor_advance_generation
 	batch.dependency_revision = revision
 	_prepared_actor_advance = batch
 	actor_execution_work.prepare_usec = int(actor_execution_work.prepare_usec) + Time.get_ticks_usec() - started
 	batch.start(actor_execution_workers)
-	actor_execution_work.prepare_usec = int(actor_execution_work.prepare_usec) + batch.preparation_usec
 	actor_execution_work.dispatch_usec = int(actor_execution_work.dispatch_usec) + batch.execution.dispatch_usec
 	actor_execution_work.batches = int(actor_execution_work.batches) + 1
 	actor_execution_work.rows = int(actor_execution_work.rows) + batch.ids.size()
@@ -982,27 +1039,6 @@ func _measure_actor_batch(batch: SimActorAdvance) -> void:
 		actor_execution_work.collection_delay_usec = int(actor_execution_work.collection_delay_usec) + maxi(0, batch.execution.completed_usec - last)
 
 
-func _apply_actor_advance(id: String, batch: SimActorAdvance) -> void:
-	var row: Vector2i = batch.row_for(id)
-	var flat: int = row.x * SimActorAdvance.CHUNK_SIZE + row.y
-	if int(_actor_projection_ms.get(id, elapsed_ms)) != batch.anchors[flat]:
-		actor_execution_work.discarded = int(actor_execution_work.discarded) + 1
-		_integrate_actor(id)
-		return
-	var chunk: SimActorAdvance.Chunk = batch.chunks[row.x]
-	var i: int = row.y * SimActorAdvance.InputField.STRIDE
-	var o: int = row.y * SimActorAdvance.OutputField.STRIDE
-	var body: Dictionary = _actors[id]
-	if chunk.input[i + SimActorAdvance.InputField.HUNGER_RATE] != 0:
-		SimActorAdvance.write_need(body, "hunger", chunk.output[o + SimActorAdvance.OutputField.HUNGER])
-	if chunk.input[i + SimActorAdvance.InputField.ENERGY_RATE] != 0:
-		SimActorAdvance.write_need(body, "energy", chunk.output[o + SimActorAdvance.OutputField.ENERGY])
-	body.stamina = chunk.output[o + SimActorAdvance.OutputField.STAMINA]
-	body.stamina_carry = chunk.output[o + SimActorAdvance.OutputField.STAMINA_CARRY]
-	_actor_projection_ms[id] = elapsed_ms
-	actor_execution_work.adopted = int(actor_execution_work.adopted) + 1
-
-
 func _cancel_actor_advance() -> void:
 	_actor_advance_generation += 1
 	if _prepared_actor_advance == null:
@@ -1011,24 +1047,14 @@ func _cancel_actor_advance() -> void:
 	_prepared_actor_advance = null
 	batch.execution.cancel()
 	actor_execution_work.discarded = int(actor_execution_work.discarded) + batch.ids.size()
-	if not batch.execution.finish():
-		_retired_actor_advances.append(batch)
-	else:
-		_measure_actor_batch(batch)
-
-
-func _collect_actor_batches() -> void:
-	for index: int in range(_retired_actor_advances.size() - 1, -1, -1):
-		if _retired_actor_advances[index].execution.finish():
-			_measure_actor_batch(_retired_actor_advances[index])
-			_retired_actor_advances.remove_at(index)
+	# Unlike the former packed copies, a reader borrows original dictionaries.
+	# Revoke adoption and collect it BEFORE the caller can mutate those inputs.
+	batch.execution.finish(true)
+	_measure_actor_batch(batch)
 
 
 func close_actor_execution() -> void:
 	_cancel_actor_advance()
-	for batch: SimActorAdvance in _retired_actor_advances:
-		batch.execution.finish(true)
-	_retired_actor_advances.clear()
 
 
 func _notification(what: int) -> void:
@@ -1037,8 +1063,6 @@ func _notification(what: int) -> void:
 		if _prepared_actor_advance != null:
 			_prepared_actor_advance.execution.cancel()
 			_prepared_actor_advance.execution.finish(true)
-		for batch: SimActorAdvance in _retired_actor_advances:
-			batch.execution.finish(true)
 
 
 func _decay_actor(id: String, from_ms: int, duration_ms: int) -> void:

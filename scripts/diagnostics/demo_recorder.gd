@@ -55,6 +55,7 @@ var _initial_actor_world_id: int = 0
 var _initial_spatial_work: Dictionary = {}
 var _initial_geometry_work: Dictionary = {}
 var _initial_body_publication_work: Dictionary = {}
+var _initial_publication_work: Dictionary = {}
 var _profile_navigation: bool = false
 var _navigation_calls: int = 0
 var _navigation_usec: int = 0
@@ -91,6 +92,7 @@ func configure(main: Node, options: Dictionary) -> bool:
 	_initial_spatial_work = _runtime.world_sim.conflicts.spatial_work.duplicate()
 	_initial_geometry_work = _runtime.world_sim.geometry_read().work.duplicate()
 	_initial_body_publication_work = _runtime.body_publication_work.duplicate()
+	_initial_publication_work = _runtime.publication_work.duplicate()
 	if _profile_navigation:
 		for sim: VillageSimulation in _runtime.world_sim.regions.values():
 			_profile_navigation_owner(sim)
@@ -324,6 +326,7 @@ func finish() -> void:
 		"spatial_execution_capture": _counter_delta(_runtime.world_sim.conflicts.spatial_work, _initial_spatial_work) if _runtime.world_sim.get_instance_id() == _initial_actor_world_id else {},
 		"simulation_host": _runtime.simulation_host.work.duplicate(true) if _runtime.simulation_host != null else {},
 		"publication_work_including_setup": _runtime.publication_work.duplicate(),
+		"publication_work_capture": _counter_delta(_runtime.publication_work, _initial_publication_work),
 		"input_probe": _runtime.simulation_host.input_probe() if _runtime.simulation_host != null else {},
 		"body_publication_capture": _counter_delta(_runtime.body_publication_work, _initial_body_publication_work),
 		"geometry_read_capture": _counter_delta(_runtime.world_sim.geometry_read().work, _initial_geometry_work) if _runtime.world_sim.get_instance_id() == _initial_actor_world_id else {},
@@ -331,6 +334,7 @@ func finish() -> void:
 			"calls": _navigation_calls, "total_ms": _navigation_usec / 1000.0, "max_ms": _navigation_max_usec / 1000.0,
 			"queries": _navigation_queries},
 		"presentation_work": _runtime.presentation_work.diagnostics(),
+		"body_presentation": _runtime.body_presentation.diagnostics() if _runtime.body_presentation != null else {},
 		"world_errors": _runtime.world_sim.errors.duplicate(),
 		"limits": "Instrumented process: check debug_build/editor_build for build type. Frame intervals include render/host waits. Optional kernel/render measurements add overhead; disabled timings are null/empty. Render timings are RenderingServer measurements of last available rendered frame, not this script's clock work; frame/GPU values must not be added. Interval residual includes scheduling and views. Fog/streaming flags indicate correlation. Paused/wait/load transitions excluded from achieved fraction. First 20000 frame samples; largest 24 frames retained."}
 	if not report.world_errors.is_empty():
@@ -357,7 +361,7 @@ func _actor_execution_summary() -> Dictionary:
 		result[id] = sim.actor_execution_work.duplicate(true)
 		result[id]["configured_workers"] = sim.actor_execution_workers
 		result[id]["minimum_rows"] = sim.actor_execution_minimum
-		result[id]["owner_thread"] = OS.get_thread_caller_id()
+		result[id]["report_thread"] = OS.get_thread_caller_id()
 		result[id]["native_profile_including_setup"] = sim.native_profile.duplicate()
 	return result
 
@@ -370,6 +374,7 @@ func _actor_execution_capture() -> Dictionary:
 		var sim: VillageSimulation = _runtime.world_sim.regions[id]
 		var before: Dictionary = _initial_actor_execution.get(id, {})
 		result[id] = _counter_delta(sim.actor_execution_work, before)
+		result[id]["native_profile"] = _counter_delta(sim.native_profile, before.get("native_profile_including_setup", {}))
 	return result
 
 

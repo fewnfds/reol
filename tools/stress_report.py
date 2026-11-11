@@ -24,6 +24,8 @@ def summarize(path: Path) -> dict:
         "environment": crowd.get("environment_compute"),
         "environment_response": crowd.get("environment_response_compute"),
         "publication_including_setup": report.get("publication_work_including_setup"),
+        "publication_capture": report.get("publication_work_capture"),
+        "actor_execution_capture": report.get("actor_execution_capture"),
         "errors": report.get("world_errors"),
     }
     sidecar = path.with_suffix(".cpu.json")

@@ -289,17 +289,53 @@ func _settlement() -> bool:
 	if kernel.resume(8) != Kernel.Status.PENDING or kernel.executed_steps != executed:
 		return false
 	ready[0] = true
-	return kernel.resume(8) == Kernel.Status.COMPLETE and kernel.executed_steps == executed and not kernel.is_pending()
+	return kernel.resume(8) == Kernel.Status.COMPLETE and kernel.executed_steps == executed and not kernel.is_pending() and _deadline_adoption()
+
+
+func _deadline_adoption() -> bool:
+	var serial := SimParticipationIndex.new()
+	var batch := SimParticipationIndex.new()
+	var updates: Dictionary[String, int] = {}
+	for index: int in 64:
+		updates["body_%02d" % index] = (index * 13) % 17
+	if not batch.set_due_many(&"body", updates):
+		return false
+	for id: String in updates:
+		serial.set_member(&"body", id)
+		serial.set_due(&"body", id, updates[id])
+	for round: int in 2:
+		for time: int in [0, 5, 20, 100]:
+			if batch.due_ids(&"body", time) != serial.due_ids(&"body", time):
+				return false
+		updates = {"body_03": 0, "new_body": 24}
+		if not batch.set_due_many(&"body", updates, ["body_01", "body_03"]):
+			return false
+		for id: String in ["body_01", "body_03"]:
+			serial.cancel_due(&"body", id)
+		for id: String in updates:
+			serial.set_member(&"body", id)
+			serial.set_due(&"body", id, updates[id])
+	var before: Array[String] = batch.due_ids(&"body", 100)
+	return not batch.set_due_many(&"body", {"bad": -1}) and batch.due_ids(&"body", 100) == before
 
 
 func _batch(workers: int) -> SimActorAdvance:
 	var batch := ActorBatch.new()
-	batch.at_ms = 1500
-	var body: Dictionary = {"active": {}, "position": [32.0, 32.0], "facing": [1.0, 0.0],
+	var body: Dictionary = {"alive": true, "definition_id": "sample", "active": {}, "position": [32.0, 32.0], "facing": [1.0, 0.0],
 		"hunger": 80.0, "energy": 60.0, "need_carry": {"hunger": 0, "energy": 0},
 		"stamina": 50, "stamina_carry": 0, "exertion_until_ms": 0}
-	for row: int in 64:
-		batch.append(str(row), body, 0, 1000000, 2000000, true, 100, 10)
+	var read := SimBodyRead.new()
+	read.hunger_rate = 1000000
+	read.base_energy_rate = 2000000
+	read.stamina_rate = 10
+	var definition := PawnDef.new()
+	definition.max_stamina = 100
+	read.pawns[&"sample"] = definition
+	var ids: Array[String] = []
+	for row: int in 128:
+		ids.append(str(row))
+		read.actors[str(row)] = body
+	batch.prepare(read, ids, 1500)
 	batch.start(workers)
 	batch.execution.finish(true)
 	return batch
@@ -315,6 +351,17 @@ func _actor_batch() -> bool:
 	for index: int in serial.chunks.size():
 		if serial.chunks[index].output != parallel.chunks[index].output or serial.chunks[index].poses != parallel.chunks[index].poses:
 			return false
+	var bodies: Dictionary = {}
+	var anchors: Dictionary = {}
+	for id: String in serial.ids:
+		bodies[id] = {"hunger": 80.0, "energy": 60.0, "need_carry": {"hunger": 0, "energy": 0}, "stamina": 50, "stamina_carry": 0}
+		anchors[id] = 0
+	anchors["10"] = 100 # This body's old input was already replaced.
+	var rejected: Array[String] = serial.adopt_needs(bodies, anchors, serial.ids, 2)
+	if rejected != ["10"] or anchors["10"] != 100 or bodies["10"].hunger != 80.0:
+		return false
+	if not is_equal_approx(float(bodies["0"].hunger), 79.975) or not is_equal_approx(float(bodies["0"].energy), 59.95) or bodies["0"].stamina != 65 or anchors["0"] != 1500:
+		return false
 	parallel.execution.cancel()
 	return parallel.execution.cancelled and parallel.execution.finish()
 
@@ -408,5 +455,18 @@ func _presentation() -> bool:
 	queue.clear()
 	queue.run_pending(1000)
 	valid = valid and order.back() == "replacement"
+	# While the world is loaned out, only explicitly detached projections run.
+	queue.request(&"live_world", func() -> bool: order.append("live_world"); return true,
+		ReolPresentationWork.Priority.VISIBLE, 0)
+	var partial: Array[int] = [0]
+	queue.request(&"detached", func() -> bool:
+		partial[0] += 1
+		return partial[0] == 2, ReolPresentationWork.Priority.VISIBLE, 0, true)
+	queue.run_pending(1000, true)
+	valid = valid and partial[0] == 1 and order.back() == "replacement" and queue.diagnostics().pending == 2
+	queue.run_pending(1000, true)
+	valid = valid and partial[0] == 2 and queue.diagnostics().pending == 1
+	queue.run_pending(1000)
+	valid = valid and order.back() == "live_world" and queue.diagnostics().pending == 0
 	queue.free()
 	return valid
