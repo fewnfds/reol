@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import subprocess
 import time
 from pathlib import Path
@@ -64,6 +65,18 @@ def main() -> int:
                 for chunk in iter(lambda: stream.read(1024 * 1024), b""):
                     digest.update(chunk)
         artifact_sha = digest.hexdigest()
+        provenance = output.with_suffix(".build.json")
+        if args.release_binary:
+            # Launching an old artifact after editing/committing the checkout
+            # must not relabel it as a build of the current source revision.
+            build = json.loads(provenance.read_text(encoding="utf-8")) if provenance.is_file() else {}
+            if build.get("artifact_sha256") != artifact_sha:
+                sha, dirty = "unknown", True
+            else:
+                sha, dirty = build["revision"], build["dirty"]
+        else:
+            provenance.write_text(json.dumps({"revision": sha, "dirty": dirty,
+                                  "artifact_sha256": artifact_sha}, indent=2), encoding="utf-8")
         cmd = [str(output)]
     else:
         cmd = [str(executable), "--path", str(godot.ROOT), "res://scenes/diagnostics/crowd_stress.tscn"]

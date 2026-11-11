@@ -130,3 +130,4 @@ speed_4={
 [rendering]
 
 rendering_device/driver.windows="d3d12"
+limits/global_shader_variables/buffer_size.performance_stress=262144
