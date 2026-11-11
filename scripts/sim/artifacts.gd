@@ -1017,6 +1017,15 @@ func _warming_choice(actor: String, at_ms: int) -> String:
 	var home: String = actor_home(actor)
 	if home.is_empty() or world.environment == null:
 		return ""
+	# This decision needs an actual carried tool. Do not materialize cold
+	# environment tiles for every idle body when it owns no such object.
+	# Preserve the original stable object order and all final readiness checks.
+	var held: Array[String] = []
+	for id: String in legacy_object_ids():
+		if objects[id].region == home and objects[id].container == "actor:" + actor:
+			held.append(id)
+	if held.is_empty():
+		return ""
 	var conditions: Dictionary = world.environment.local_conditions(actor, at_ms)
 	if conditions.is_empty():
 		return ""
@@ -1028,8 +1037,8 @@ func _warming_choice(actor: String, at_ms: int) -> String:
 		return ""
 	# Only the holder's own controlled object is considered. This never seeks
 	# another person's private store or creates an opening stone for a need.
-	for id: String in legacy_object_ids():
-		if objects[id].region == home and objects[id].container == "actor:" + actor and bool(_warming_readiness(actor, id).ok):
+	for id: String in held:
+		if bool(_warming_readiness(actor, id).ok):
 			return id
 	return ""
 
