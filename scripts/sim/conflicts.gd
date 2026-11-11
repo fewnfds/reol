@@ -342,16 +342,13 @@ func settle_at_ms(now: int) -> void:
 		var row: Dictionary = conflicts[id]
 		if int(row.ended_ms) == -1 and _row_due(row, now):
 			for actor: String in row.people:
-				world.synchronize_region(home(actor))
+				world.synchronize_region(home(actor), actor)
 			Perception.refresh(self, row)
 	var decisions: Array[Dictionary] = []
 	for id: String in world._sorted_keys(conflicts):
 		var row: Dictionary = conflicts[id]
 		if int(row.ended_ms) != -1 or not _row_due(row, now):
 			continue
-		world.synchronize_region(str(row.region))
-		world.synchronize_region(home(str(row.initiator)))
-		world.synchronize_region(home(str(row.defender)))
 		if not world.actor_controls(str(row.initiator), "action") or not world.actor_controls(str(row.defender), "action") or not world.actor_controls(str(row.initiator), "motion") or not world.actor_controls(str(row.defender), "motion"):
 			_end(id, "control_lost", "")
 			continue
@@ -403,7 +400,7 @@ func settle_at_ms(now: int) -> void:
 		for actor: String in world._sorted_keys(row.people):
 			if _automatic(row, actor):
 				decisions.append({"id": id, "actor": actor, "cues": Perception.cues(self, row, actor)})
-		world.invalidate_region(str(row.region))
+			world.invalidate_region(home(actor), actor)
 	# All current cues exist before the first NPC starts a new action. A later
 	# encounter cannot react to an earlier encounter's newly committed windup.
 	for decision: Dictionary in decisions:
@@ -447,17 +444,20 @@ func _advance_projectiles(now: int, contacts: Array[Dictionary]) -> void:
 		var target: String = ""
 		var contact_point: Vector2 = to
 		var nearest: float = from.distance_to(to) + 1.0
+		var radius: float = float(rules.projectile_radius)
 		for region: String in world.regions:
-			world.synchronize_region(region)
-			for candidate: String in world._sorted_keys(world.regions[region].synchronize_actors()):
-				if candidate == str(shot.actor) or not bool(body(candidate).alive):
+			world.advance_region_to_world(region)
+			var sim: VillageSimulation = world.regions[region]
+			for candidate: String in sim.actor_ids():
+				if candidate == str(shot.actor) or not bool(sim.actor_state(candidate).alive):
 					continue
-				var target_point: Vector2 = SimRouteTravel.point(body(candidate))
-				if Space.level(world, target_point) != int(shot.level) or Space.segment_distance(from, to, target_point) > float(rules.projectile_radius):
-					continue
+				var target_point: Vector2 = sim.rule_actor_position(candidate)
 				var closest: Vector2 = Geometry2D.get_closest_point_to_segment(target_point, from, to)
-				if closest.distance_to(from) < nearest:
-					nearest = closest.distance_to(from)
+				if closest.distance_to(target_point) > radius or Space.level(world, target_point) != int(shot.level):
+					continue
+				var distance: float = closest.distance_to(from)
+				if distance < nearest:
+					nearest = distance
 					target = candidate
 					contact_point = closest
 		if not Space.clear_segment(world, from, contact_point, int(shot.level)):
@@ -586,7 +586,7 @@ func _settle_withdrawals(now: int) -> void:
 		if withdrawal.get("status") != "active" or now < int(withdrawal.next_step_ms):
 			continue
 		var actor: String = str(withdrawal.actor)
-		world.synchronize_region(home(actor))
+		world.synchronize_region(home(actor), actor)
 		var reason: String = ""
 		if not world.actor_controls(actor, "action") or not world.actor_controls(actor, "motion") or not world.actor_controls(actor, "communication"):
 			reason = "control_lost"
@@ -611,7 +611,7 @@ func _settle_withdrawals(now: int) -> void:
 			body(actor).autonomous = bool(row.people[actor].previous_autonomous)
 			body(actor).goal = "退开后调息，保留先前的责任"
 			body(actor).retry_ms = now + int(world.regions[home(actor)].config.decision_interval) * 60000
-		world.invalidate_region(home(actor))
+		world.invalidate_region(home(actor), actor)
 
 
 func _ai_motion(row: Dictionary, actor: String, elapsed: int, cues: Dictionary) -> void:
@@ -734,14 +734,16 @@ func _observe(kind: String, actor: String, target: String, details: Dictionary) 
 	if world.services == null:
 		return
 	var origin: Vector2 = SimRouteTravel.point(body(actor))
+	var level: int = Space.level(world, origin)
 	var radius: float = float(world.regions[home(target)].config.observation_radius) * TileGrid.TILE_SIZE
 	var witnesses: Array[String] = []
 	for region: String in world._sorted_keys(world.regions):
-		for observer: String in world._sorted_keys(world.regions[region].synchronize_actors()):
-			if observer in [actor, target] or not bool(body(observer).alive):
+		var sim: VillageSimulation = world.regions[region]
+		for observer: String in sim.actor_ids():
+			if observer == actor or observer == target or not bool(sim.actor_state(observer).alive):
 				continue
-			var point: Vector2 = SimRouteTravel.point(body(observer))
-			if point.distance_to(origin) <= radius and Space.level(world, point) == Space.level(world, origin) and Space.clear_segment(world, origin, point, Space.level(world, origin)):
+			var point: Vector2 = sim.rule_actor_position(observer)
+			if point.distance_to(origin) <= radius and Space.level(world, point) == level and Space.clear_segment(world, origin, point, level):
 				witnesses.append(observer)
 	@warning_ignore("integer_division")
 	world.services.social.record(kind, actor, target, details, witnesses, int(world.elapsed_ms) / 60000)

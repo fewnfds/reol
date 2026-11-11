@@ -323,11 +323,12 @@ func next_boundary_ms() -> int:
 
 
 func settle_at_ms(now: int) -> void:
+	var region: String = str(definitions.site.region)
 	for actor: String in SimAvianLife.sorted_keys(active):
 		var job: Dictionary = active[actor]
-		world.synchronize_region(str(definitions.site.region))
-		var sim: RefCounted = world.regions[definitions.site.region]
-		var body: Dictionary = sim.synchronize_actor(actor)
+		world.synchronize_region(region, actor)
+		var sim: VillageSimulation = world.regions[region]
+		var body: Dictionary = sim.actor_state(actor)
 		if not _can_continue(job):
 			cancel(actor)
 			continue

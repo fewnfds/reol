@@ -1091,15 +1091,19 @@ func projected_actor_position(id: String) -> Vector2:
 
 
 func exposure_sample_cell(id: String) -> Vector2i:
+	return TileGrid.world_to_cell(rule_actor_position(id))
+
+
+func rule_actor_position(id: String) -> Vector2:
 	var actor: Dictionary = _actors[id]
 	var route: Dictionary = actor.active
 	if int(_actor_projection_ms.get(id, elapsed_ms)) == elapsed_ms or route.get("phase") != "travel" or route.path.is_empty():
-		return SimRouteTravel.cell(actor.cell)
+		return actor_position(actor)
 	# Same acceptance condition as the executor's projection. An unproven
 	# leg may require a real repair before it has a historical location.
 	if coarse_native_timeline(id) != null or has_cached_boundary_ahead(id) or has_valid_native_route(id, route):
-		return TileGrid.world_to_cell(projected_actor_position(id))
-	return SimRouteTravel.cell(synchronize_actor(id).cell)
+		return projected_actor_position(id)
+	return actor_position(synchronize_actor(id))
 
 
 func coarse_native_timeline(id: String) -> SimRouteTravel.Timeline:
