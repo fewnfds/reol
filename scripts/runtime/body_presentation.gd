@@ -74,6 +74,7 @@ func cancel() -> void:
 
 func diagnostics() -> Dictionary:
 	var result: Dictionary = work.duplicate()
+	result["scope"] = "since adapter setup; maximum slice includes explicit/paused immediate refreshes"
 	result["pending_frames"] = int(_active != null) + int(_latest != null)
 	return result
 

@@ -265,6 +265,7 @@ func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary,
 
 func set_navigation(provider: Callable, step_validator: Callable = Callable()) -> void:
 	synchronize_actors()
+	_body_read_world = null
 	_route_completions.clear()
 	rebuild_workplace_geometry()
 	invalidate_boundary_cache()
@@ -428,6 +429,8 @@ func accept_native_route(id: String, route: Dictionary) -> void:
 
 
 func set_route_geometry_revision_provider(provider: Callable) -> void:
+	_cancel_actor_advance()
+	_body_read_world = null
 	_route_completions.clear()
 	_route_geometry_revision_provider = provider
 
@@ -605,6 +608,7 @@ func set_boundary_revision_provider(provider: Callable) -> void:
 	# standalone Callables keep the conservative path. Absolute deadlines are
 	# reused until due; this is not a second action state or saved schedule.
 	synchronize_actors()
+	_body_read_world = null
 	_boundary_revision_provider = provider
 	_route_completions.clear()
 	_boundary_revision = -1
