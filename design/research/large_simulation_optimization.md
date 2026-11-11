@@ -41,7 +41,7 @@ Reol已有分块、局部失效、packed响应列、分段二进制及基础场G
 - 导航原共享`SimGridNavigation._graphs`会修改AStar上下文，且stand/step回调进入活`ReolWorld`。需要可复用几何读取和每个并行执行槽的私有搜索上下文；不能直接将原函数扔进线程池或套一个大锁。
 - `synchronize_actor`等读取会更新身体、取消准备候选或发后续通知。worker输入需要显式物化、只读且不触发世界同步的读取界面；否则多个“只读任务”实际仍在竞争世界。
 - 先分离模拟协调与显示，再把主要计算族分批交给共用线程池；仅将整世界搬到一条后台线程只能解除部分主线程阻塞，不能作为模拟吞吐多核化的终点。
-- 保留原环境GPU路径，并行CPU不是GPU替代品。每条路径测准备、计算、等待、采用/发布，避免只比较纯核函数。详细数值和真实探针限制见[BASELINE](../../docs/status/baseline.md#多核主线的首轮核查)。
+- 保留原环境GPU路径，并行CPU不是GPU替代品。每条路径测准备、计算、等待、采用/发布，避免只比较纯核函数。当前数值和限制见[BASELINE](../../docs/status/baseline.md)；迁移前的探针留在[历史实验](../../docs/archive/qa/20261111_performance_experiments.md#多核主线的首轮核查)。
 
 随后用户提供[Godot性能目录（中文）](https://docs.godotengine.org/zh-cn/4.x/tutorials/performance/index.html)。按项目4.7版本核对[CPU优化](https://docs.godotengine.org/en/4.7/tutorials/performance/cpu_optimization.html)、[Server接口](https://docs.godotengine.org/en/4.7/tutorials/performance/using_servers.html)及上述线程安全页：优先连续、批量输入，避免活SceneTree访问；现成渲染/物理服务仍由引擎负责，但不会自动并行本项目RefCounted规则。首批据此将导航几何移回模拟层、按页复用读取，并把真实投射物候选接入原任务池，未新建物理引擎或ECS。探针还发现共享脚本对象的逐候选字段访问会抵消并行收益，改为任务内一次解析列引用后才有收益；同构建结果、冷准备成本及普通负载未触发并行的限制见BASELINE。
 
