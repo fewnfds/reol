@@ -1,10 +1,10 @@
 # 当前接续
 
-更新：2026-11-11。用户授权的多核执行底座与复杂规模测量已收尾：普通游戏使用常驻SimWorldRunner、单一原世界独占交接，共用任务池处理身体/空间/CPU场/来源响应，原GPU路径保留。没有把全部规则并行或吃满20核；真实收益、容量与局限只看[BASELINE](baseline.md)。分支、提交和推送以Git为准。
+更新：2026-11-11。整个多核优化任务仍在进行；上一轮只完成线程底座与首轮规模测量，提前结束goal的判断已纠正，不能把余下架构工作移出原授权范围。普通游戏已有常驻SimWorldRunner、单一原世界独占交接，共用任务池处理身体/空间/CPU场/来源响应，原GPU路径保留。真实收益、容量与局限只看[BASELINE](baseline.md)。分支、提交和推送以Git为准。
 
 ## 接手入口
 
-- 下一阶段只维护[主计划](../plans/foundation-priorities.md)：原生身体热数据/独立候选，以及显示快照/有序采用；不要从历史研究恢复其他任务。
+- 当前未完成工作只维护在[主计划](../plans/foundation-priorities.md)：原生身体热数据/独立候选、显示快照/有序采用及可靠并发/规模复测，均继续属于此次多核任务；不要从历史研究恢复其他任务。
 - [执行设计](../specs/world-engine/execution.md)、[批执行API](../engineering/execution-batches.md)说明当前线程和交接边界；[计算范式](../engineering/settlement-contract.md#计算优化范式)、[领域频率](../engineering/simulation-pacing.md#领域频率)仍服务所有领域。
 - [代码入口](../../scripts/README.md)、[owner表](../engineering/architecture/02-owners.md)定位原状态；[FEATURES](features.md)定位可玩操作。当前只支持最新存档，见[compatibility](../engineering/compatibility.md)。
 
