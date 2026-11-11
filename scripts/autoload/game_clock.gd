@@ -81,11 +81,11 @@ func _process(_delta: float) -> void:
 		return
 	var before: int = elapsed_ms
 	var running: bool = not paused or _explicit_allow_paused
-	_frame_deadline_usec = now + ReolSimulationPacing.FRAME_BUDGET_USEC
+	_frame_deadline_usec = now + pacing.frame_budget_usec()
 	advance_frame(seconds)
 	_frame_deadline_usec = 0
 	if running:
-		pacing.observe(seconds, Time.get_ticks_usec() - now, elapsed_ms - before, has_pending_advance(), speed)
+		pacing.observe(seconds, Time.get_ticks_usec() - now, elapsed_ms - before, has_pending_advance(), speed, _accumulator)
 		_publish_pacing()
 
 
@@ -137,7 +137,7 @@ func ready_for_publication(at_ms: int) -> bool:
 		return true # Interior rule boundaries need no full clock/view publication.
 	# Leave room for the measured clock observers. A fresh callback can always
 	# publish even if observers alone exceed the soft budget; no deadlock/debt loss.
-	var reserve: int = mini(_publication_cost_usec, roundi(ReolSimulationPacing.FRAME_BUDGET_USEC * ReolSimulationPacing.HEADROOM))
+	var reserve: int = mini(_publication_cost_usec, roundi(pacing.frame_budget_usec() * ReolSimulationPacing.HEADROOM))
 	if frame_budget_has_room(reserve):
 		_publication_deferred_at_ms = -1
 		return true
@@ -157,6 +157,7 @@ func view_delta_seconds() -> float:
 func pacing_status() -> Dictionary:
 	return {"requested_speed": speed, "effective_speed": effective_speed(), "load_rate": pacing.rate,
 		"admitted_debt_ms": _accumulator, "pending": has_pending_advance(),
+		"frame_work_budget_usec": pacing.frame_budget_usec(),
 		"last_work_usec": pacing.last_work_usec, "longest_work_usec": pacing.longest_work_usec}
 
 

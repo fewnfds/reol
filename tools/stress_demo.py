@@ -20,6 +20,7 @@ def main() -> int:
     parser.add_argument("--mixed", action="store_true", help="exercise stock delivery, a real recipe, a door, moving view and limited combat")
     parser.add_argument("--profile-kernel", action="store_true", help="wrap every world phase for diagnosis; adds overhead, disabled for throughput captures")
     parser.add_argument("--profile-render", action="store_true", help="enable Godot viewport CPU/GPU rendering timings; adds measurement overhead")
+    parser.add_argument("--pacing-policy", choices=("auto", "full-rate"), default="auto", help="diagnostic full-rate bypasses adaptive slowdown, preserving bounded debt and the normal cooperative work budget")
     parser.add_argument("--actor-workers", type=int, choices=range(9), default=4, help="native actor calculation workers; 0 uses the same packed calculation serially")
     parser.add_argument("--environment-backend", choices=("auto", "cpu", "gpu"), default="auto", help="compare ordinary source candidate calculation; auto keeps small batches on CPU")
     parser.add_argument("--release", action="store_true", help="export the current project with Windows Performance, then run the identical crowd entry in its release binary")
@@ -56,7 +57,8 @@ def main() -> int:
     report = (godot.ROOT / "logs" / f"{tag}.json").as_posix()
     cmd += ["--", f"--residents={args.residents}",
             f"--seconds={args.seconds}", f"--report={report}", f"--revision={sha}", f"--source-dirty={int(dirty)}",
-            f"--actor-workers={args.actor_workers}", f"--environment-backend={args.environment_backend}"]
+            f"--actor-workers={args.actor_workers}", f"--environment-backend={args.environment_backend}",
+            f"--pacing-policy={args.pacing_policy}"]
     if args.release:
         cmd.append(f"--artifact-sha256={artifact_sha}")
     if args.quit_after_capture:

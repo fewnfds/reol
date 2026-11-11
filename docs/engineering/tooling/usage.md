@@ -38,6 +38,8 @@ Windows的`--release`先用`Windows Performance`预设导出当前代码到忽�
 
 默认仅保留帧/区间计时；追加`--profile-kernel`才包裹每个结算步骤，供定位使用。报告明确写`kernel_timing_enabled`；关闭时未测的步骤/残差为null，不能当作零成本。比较吞吐时保持计时模式一致。
 
+`--pacing-policy full-rate`只在临时压力场景绕过主动限速，保留有限准入、正常执行预算、续算和规则；只用于判别准入政策与实际吞吐，不是游戏设置。报告记录policy和`max_fps`，区分executor调用/无公共推进、完整世界边界、公共发布及其跨度；逐步骤同时记录calls与logical_boundaries，不能把续算次数当作新的逻辑tick。完整世界边界计数来自原世界统计，采样结束未完成的边界可能已进入某一步。
+
 `--profile-render`启用Godot原生viewport CPU/GPU绘制计时及全局CPU准备计时，记录`render_timing_enabled`和各自分位数。它们是最近可用渲染帧的数据，不包含脚本/物理、也不能与当前帧时相加；诊断开销单独对待。headless没有有效GPU绘制计时。
 
 运行实现位于`scripts/diagnostics/`，压力场景为`scenes/diagnostics/crowd_stress.tscn`；`tools/qa/`只保留CLI适配入口，避免被`tools/.gdignore`排除出release包。普通Main不加载诊断器。HUD常显FPS、帧间隔和世界流速，F3展开详情。Godot编辑器Debugger → Profiler/Visual Profiler用于继续定位；宿主帧间隔不能冒称GPU时间。

@@ -4,6 +4,13 @@ extends Node
 
 const MixedWorkload = preload("res://scripts/diagnostics/crowd_mixed_workload.gd")
 
+class FullRateProbe extends ReolSimulationPacing:
+	# Diagnostic only: keep normal bounded admission and cooperative execution,
+	# but isolate the cost of the adaptive admission policy.
+	func observe(seconds: float, work: int, advanced: int, pending: bool, requested: float, owed: float = 0.0) -> void:
+		super.observe(seconds, work, advanced, pending, requested, owed)
+		rate = 1.0
+
 var root: Window:
 	get: return get_tree().root
 
@@ -31,6 +38,7 @@ var _redirects: int = 0
 var _actor_workers: int = 4
 var _profile_kernel: bool = false
 var _profile_render: bool = false
+var _pacing_policy: String = "auto"
 var _mixed: RefCounted
 const CIRCUIT: Array[String] = ["rest", "inspect", "check_store", "check_well"]
 
@@ -62,6 +70,8 @@ func _run() -> void:
 			_profile_kernel = true
 		elif argument == "--profile-render":
 			_profile_render = true
+		elif argument.begins_with("--pacing-policy="):
+			_pacing_policy = argument.get_slice("=", 1)
 		elif argument.begins_with("--actor-workers="):
 			_actor_workers = clampi(argument.get_slice("=", 1).to_int(), 0, 8)
 	if _mixed != null and (_opening_wave or _seconds < 45):
@@ -152,11 +162,13 @@ func _run() -> void:
 				if sim.submit_action(id, CIRCUIT[0]):
 					_orders[id] = str(bodies[id].active.id)
 		runtime.world_sim.invalidate_region(region)
+	if _pacing_policy == "full-rate":
+		_clock.pacing = FullRateProbe.new()
 	_recorder = load("res://scripts/diagnostics/demo_recorder.gd").new()
 	root.add_child(_recorder)
 	_recorder.finished.connect(_finish)
 	if not _recorder.configure(_main, {"seconds": _seconds, "report": _report, "revision": _revision, "dirty": _source_dirty, "artifact_sha256": _artifact_sha, "profile_kernel": _profile_kernel, "profile_render": _profile_render, "assembly_usec": Time.get_ticks_usec() - assembly_started,
-		"terrain_warmup_usec": Time.get_ticks_usec() - warmup_started, "terrain_warmup_complete": warmup_complete}):
+		"terrain_warmup_usec": Time.get_ticks_usec() - warmup_started, "terrain_warmup_complete": warmup_complete, "pacing_policy": _pacing_policy}):
 		get_tree().quit(1)
 		return
 	_status.text = "临时压力世界 · %d个真实身体 / 双聚落\n原寻路、生活、环境、共同时间 · %s\n不保存到普通档 · WASD / F3 · %d秒采样后%s" % [total, "搬运、生产、开关门与交锋" if _mixed != null else ("单次出发" if _opening_wave else "抵达后用原命令持续巡行"), _seconds, "退出" if _quit_after else "可继续试玩"]

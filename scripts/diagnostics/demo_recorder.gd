@@ -22,6 +22,11 @@ var _total_executor_usec: int = 0
 var _total_kernel_usec: int = 0
 var _driver_usec: int = 0
 var _total_driver_usec: int = 0
+var _executor_calls: int = 0
+var _executor_no_progress: int = 0
+var _clock_publications: int = 0
+var _publication_spans: Array[float] = []
+var _initial_world_boundaries: int = 0
 var _frame_count: int = 0
 var _over_60fps_budget: int = 0
 var _fog_updates: int = 0
@@ -70,6 +75,8 @@ func configure(main: Node, options: Dictionary) -> bool:
 		push_error("Demo recorder cannot open its window log")
 		return false
 	_clock._interval_executor = _execute
+	_clock.time_advanced.connect(_published)
+	_initial_world_boundaries = int(_runtime.world_sim.simulation_work.boundaries)
 	_bind_kernel()
 	_main.get("fog").visibility_updated.connect(_fog_updated)
 	get_tree().process_frame.connect(_before_frame)
@@ -123,7 +130,16 @@ func _execute(from_ms: int, to_ms: int) -> Variant:
 	var started: int = Time.get_ticks_usec()
 	var result: Variant = _executor.call(from_ms, to_ms)
 	_frame_executor_usec += Time.get_ticks_usec() - started
+	_executor_calls += 1
+	if result == from_ms:
+		_executor_no_progress += 1
 	return result
+
+
+func _published(from_ms: int, to_ms: int) -> void:
+	_clock_publications += 1
+	if _publication_spans.size() < MAX_SAMPLES:
+		_publication_spans.append(float(to_ms - from_ms))
 
 
 func _timed(at_ms: int, callback: Callable, id: String) -> Variant:
@@ -148,8 +164,12 @@ func _budgeted(at_ms: int, budget: int, callback: Callable, id: String) -> Varia
 
 
 func _record(id: String, usec: int) -> void:
-	var row: Dictionary = _scopes.get(id, {"calls": 0, "total_usec": 0, "max_usec": 0})
+	var row: Dictionary = _scopes.get(id, {"calls": 0, "logical_boundaries": 0, "last_at_ms": -1, "total_usec": 0, "max_usec": 0})
 	row.calls = int(row.calls) + 1
+	var at_ms: int = int(_runtime.world_sim.settlement.at_ms)
+	if int(row.last_at_ms) != at_ms:
+		row.logical_boundaries = int(row.logical_boundaries) + 1
+		row.last_at_ms = at_ms
 	row.total_usec = int(row.total_usec) + usec
 	row.max_usec = maxi(int(row.max_usec), usec)
 	_scopes[id] = row
@@ -260,6 +280,7 @@ func _scope_rows() -> Array[Dictionary]:
 	var rows: Array[Dictionary] = []
 	for id: String in _scopes:
 		var row: Dictionary = _scopes[id].duplicate()
+		row.erase("last_at_ms")
 		row["step"] = id
 		rows.append(row)
 	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.total_usec) > int(b.total_usec))
@@ -283,6 +304,8 @@ func finish() -> void:
 		RenderingServer.viewport_set_measure_render_time(_render_viewport, false)
 	if _clock._interval_executor == Callable(self, "_execute"):
 		_clock._interval_executor = _executor
+	if _clock.time_advanced.is_connected(_published):
+		_clock.time_advanced.disconnect(_published)
 	_unwrap_kernel()
 	if is_instance_valid(_main) and _main.get("fog").visibility_updated.is_connected(_fog_updated):
 		_main.get("fog").visibility_updated.disconnect(_fog_updated)
@@ -294,6 +317,7 @@ func finish() -> void:
 		"artifact_sha256": _options.get("artifact_sha256", ""),
 		"kernel_timing_enabled": _profile_kernel,
 		"render_timing_enabled": _profile_render,
+		"pacing_policy": _options.get("pacing_policy", "auto"), "max_fps": Engine.max_fps,
 		"engine": Engine.get_version_info().string, "renderer": RenderingServer.get_video_adapter_name(),
 		"display": DisplayServer.get_name(), "assembly_ms": float(_options.assembly_usec) / 1000.0,
 		"terrain_warmup_ms": float(_options.get("terrain_warmup_usec", 0)) / 1000.0,
@@ -309,6 +333,9 @@ func finish() -> void:
 			"diagnostic_driver": _total_driver_usec / 1000.0,
 			"runtime_interval": _total_executor_usec / 1000.0, "kernel_callbacks": _total_kernel_usec / 1000.0 if _profile_kernel else null,
 			"interval_outside_kernel": maxi(0, _total_executor_usec - _total_kernel_usec) / 1000.0 if _profile_kernel else null},
+		"execution_counts": {"executor_calls": _executor_calls, "executor_no_public_progress": _executor_no_progress,
+			"world_boundaries": int(_runtime.world_sim.simulation_work.boundaries) - _initial_world_boundaries,
+			"clock_publications": _clock_publications, "publication_span_ms": _summary(_publication_spans)},
 		"kernel_scopes": _scope_rows(), "largest_frames": _spikes,
 		"actor_execution": _actor_execution_summary(),
 		"world_errors": _runtime.world_sim.errors.duplicate(),
