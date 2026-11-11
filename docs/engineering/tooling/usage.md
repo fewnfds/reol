@@ -38,6 +38,8 @@ Windows的`--release`先用`Windows Performance`预设导出当前代码到忽�
 
 默认仅保留帧/区间计时；追加`--profile-kernel`才包裹每个结算步骤，供定位使用。报告明确写`kernel_timing_enabled`；关闭时未测的步骤/残差为null，不能当作零成本。比较吞吐时保持计时模式一致。
 
+`--profile-navigation`可选统计原生/服务导航提供者的调用成本，最多保留4096组请求坐标作批处理探针输入；包含原路径缓存命中，不包括`SimConflictSpace`绕过提供者的直接搜索。该模式有额外计时与记录开销，不是普通试玩默认设置。`navigation_profile`只覆盖运行采样窗口；`actor_execution`明确为包含装配的累计计数，`actor_execution_capture`给出同一世界内运行窗口的差值。加载替换世界后后者为空，`actor_execution_capture_available=false`；历史累计线程ID也不代表运行期同时并行数。
+
 `--pacing-policy full-rate`只在临时压力场景绕过主动限速，保留有限准入、正常执行预算、续算和规则；只用于判别准入政策与实际吞吐，不是游戏设置。报告记录policy和`max_fps`，区分executor调用/无公共推进、完整世界边界、公共发布及其跨度；逐步骤同时记录calls与logical_boundaries，不能把续算次数当作新的逻辑tick。完整世界边界计数来自原世界统计，采样结束未完成的边界可能已进入某一步。
 
 `--profile-render`启用Godot原生viewport CPU/GPU绘制计时及全局CPU准备计时，记录`render_timing_enabled`和各自分位数。它们是最近可用渲染帧的数据，不包含脚本/物理、也不能与当前帧时相加；诊断开销单独对待。headless没有有效GPU绘制计时。

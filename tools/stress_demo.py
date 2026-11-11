@@ -20,6 +20,7 @@ def main() -> int:
     parser.add_argument("--mixed", action="store_true", help="exercise stock delivery, a real recipe, a door, moving view and limited combat")
     parser.add_argument("--profile-kernel", action="store_true", help="wrap every world phase for diagnosis; adds overhead, disabled for throughput captures")
     parser.add_argument("--profile-render", action="store_true", help="enable Godot viewport CPU/GPU rendering timings; adds measurement overhead")
+    parser.add_argument("--profile-navigation", action="store_true", help="time native/service path providers and retain at most 4096 query coordinates for parallel replay")
     parser.add_argument("--pacing-policy", choices=("auto", "full-rate"), default="auto", help="diagnostic full-rate bypasses adaptive slowdown, preserving bounded debt and the normal cooperative work budget")
     parser.add_argument("--actor-workers", type=int, choices=range(9), default=4, help="native actor calculation workers; 0 uses the same packed calculation serially")
     parser.add_argument("--environment-backend", choices=("auto", "cpu", "gpu"), default="auto", help="compare ordinary source candidate calculation; auto keeps small batches on CPU")
@@ -71,6 +72,8 @@ def main() -> int:
         cmd.append("--profile-kernel")
     if args.profile_render:
         cmd.append("--profile-render")
+    if args.profile_navigation:
+        cmd.append("--profile-navigation")
     return godot._run(cmd, tag, timeout=args.seconds + 45 if args.quit_after_capture else None)
 
 

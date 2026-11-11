@@ -38,6 +38,7 @@ var _redirects: int = 0
 var _actor_workers: int = 4
 var _profile_kernel: bool = false
 var _profile_render: bool = false
+var _profile_navigation: bool = false
 var _pacing_policy: String = "auto"
 var _mixed: RefCounted
 const CIRCUIT: Array[String] = ["rest", "inspect", "check_store", "check_well"]
@@ -70,6 +71,8 @@ func _run() -> void:
 			_profile_kernel = true
 		elif argument == "--profile-render":
 			_profile_render = true
+		elif argument == "--profile-navigation":
+			_profile_navigation = true
 		elif argument.begins_with("--pacing-policy="):
 			_pacing_policy = argument.get_slice("=", 1)
 		elif argument.begins_with("--actor-workers="):
@@ -167,7 +170,7 @@ func _run() -> void:
 	_recorder = load("res://scripts/diagnostics/demo_recorder.gd").new()
 	root.add_child(_recorder)
 	_recorder.finished.connect(_finish)
-	if not _recorder.configure(_main, {"seconds": _seconds, "report": _report, "revision": _revision, "dirty": _source_dirty, "artifact_sha256": _artifact_sha, "profile_kernel": _profile_kernel, "profile_render": _profile_render, "assembly_usec": Time.get_ticks_usec() - assembly_started,
+	if not _recorder.configure(_main, {"seconds": _seconds, "report": _report, "revision": _revision, "dirty": _source_dirty, "artifact_sha256": _artifact_sha, "profile_kernel": _profile_kernel, "profile_render": _profile_render, "profile_navigation": _profile_navigation, "assembly_usec": Time.get_ticks_usec() - assembly_started,
 		"terrain_warmup_usec": Time.get_ticks_usec() - warmup_started, "terrain_warmup_complete": warmup_complete, "pacing_policy": _pacing_policy}):
 		get_tree().quit(1)
 		return

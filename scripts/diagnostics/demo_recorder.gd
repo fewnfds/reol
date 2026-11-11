@@ -53,12 +53,21 @@ var _render_viewport := RID()
 var _render_cpu: Array[float] = []
 var _render_gpu: Array[float] = []
 var _render_setup: Array[float] = []
+var _initial_actor_execution: Dictionary = {}
+var _initial_actor_world_id: int = 0
+var _profile_navigation: bool = false
+var _navigation_originals: Array[Dictionary] = []
+var _navigation_calls: int = 0
+var _navigation_usec: int = 0
+var _navigation_max_usec: int = 0
+var _navigation_queries: Array = []
 
 
 func configure(main: Node, options: Dictionary) -> bool:
 	_main = main
 	_options = options
 	_profile_kernel = bool(options.get("profile_kernel", false))
+	_profile_navigation = bool(options.get("profile_navigation", false))
 	_profile_render = bool(options.get("profile_render", false)) and RenderingServer.get_rendering_device() != null
 	if _profile_render:
 		_render_viewport = get_viewport().get_viewport_rid()
@@ -77,6 +86,13 @@ func configure(main: Node, options: Dictionary) -> bool:
 	_clock._interval_executor = _execute
 	_clock.time_advanced.connect(_published)
 	_initial_world_boundaries = int(_runtime.world_sim.simulation_work.boundaries)
+	_initial_actor_execution = _actor_execution_summary()
+	_initial_actor_world_id = _runtime.world_sim.get_instance_id()
+	if _profile_navigation:
+		for sim: VillageSimulation in _runtime.world_sim.regions.values():
+			_profile_navigation_owner(sim)
+		if _runtime.world_sim.services != null:
+			_profile_navigation_owner(_runtime.world_sim.services)
 	_bind_kernel()
 	_main.get("fog").visibility_updated.connect(_fog_updated)
 	get_tree().process_frame.connect(_before_frame)
@@ -111,6 +127,35 @@ func _bind_kernel() -> void:
 				wrapper = _timed.bind(step.callback, id)
 		_wrappers[id] = wrapper
 		step.callback = wrapper
+
+
+func _profile_navigation_owner(owner: RefCounted) -> void:
+	var original: Callable = owner.get("_navigation")
+	if not original.is_valid():
+		return
+	var wrapper: Callable = _navigate.bind(original)
+	_navigation_originals.append({"owner": weakref(owner), "original": original, "wrapper": wrapper})
+	owner.set("_navigation", wrapper)
+
+
+func _navigate(from: Vector2i, to: Vector2i, original: Callable) -> Array[Vector2i]:
+	var started: int = Time.get_ticks_usec()
+	var result: Array[Vector2i] = original.call(from, to)
+	var usec: int = Time.get_ticks_usec() - started
+	_navigation_calls += 1
+	_navigation_usec += usec
+	_navigation_max_usec = maxi(_navigation_max_usec, usec)
+	if _navigation_queries.size() < 4096:
+		_navigation_queries.append([from.x, from.y, to.x, to.y])
+	return result
+
+
+func _unprofile_navigation() -> void:
+	for row: Dictionary in _navigation_originals:
+		var owner: RefCounted = row.owner.get_ref()
+		if owner != null and owner.get("_navigation") == row.wrapper:
+			owner.set("_navigation", row.original)
+	_navigation_originals.clear()
 
 
 func _unwrap_kernel() -> void:
@@ -311,6 +356,7 @@ func finish() -> void:
 		_main.get("fog").visibility_updated.disconnect(_fog_updated)
 	if get_tree().process_frame.is_connected(_before_frame):
 		get_tree().process_frame.disconnect(_before_frame)
+	_unprofile_navigation()
 	_windows.close()
 	var report: Dictionary = {"format": "demo_profile_v1", "revision": _options.revision, "dirty": _options.dirty,
 		"debug_build": OS.is_debug_build(), "editor_build": OS.has_feature("editor"),
@@ -337,7 +383,12 @@ func finish() -> void:
 			"world_boundaries": int(_runtime.world_sim.simulation_work.boundaries) - _initial_world_boundaries,
 			"clock_publications": _clock_publications, "publication_span_ms": _summary(_publication_spans)},
 		"kernel_scopes": _scope_rows(), "largest_frames": _spikes,
-		"actor_execution": _actor_execution_summary(),
+		"actor_execution": _actor_execution_summary(), "actor_execution_scope": "session_including_setup",
+		"actor_execution_capture": _actor_execution_capture(),
+		"actor_execution_capture_available": _runtime.world_sim.get_instance_id() == _initial_actor_world_id,
+		"navigation_profile": {"enabled": _profile_navigation, "scope": "capture; native and service providers only; includes existing path cache hits; excludes conflict-space direct searches",
+			"calls": _navigation_calls, "total_ms": _navigation_usec / 1000.0, "max_ms": _navigation_max_usec / 1000.0,
+			"queries": _navigation_queries},
 		"presentation_work": _runtime.presentation_work.diagnostics(),
 		"world_errors": _runtime.world_sim.errors.duplicate(),
 		"limits": "Instrumented process: check debug_build/editor_build for build type. Frame intervals include render/host waits. Optional kernel/render measurements add overhead; disabled timings are null/empty. Render timings are RenderingServer measurements of last available rendered frame, not this script's clock work; frame/GPU values must not be added. Interval residual includes scheduling and views. Fog/streaming flags indicate correlation. Paused/wait/load transitions excluded from achieved fraction. First 20000 frame samples; largest 24 frames retained."}
@@ -366,4 +417,19 @@ func _actor_execution_summary() -> Dictionary:
 		result[id]["configured_workers"] = sim.actor_execution_workers
 		result[id]["minimum_rows"] = sim.actor_execution_minimum
 		result[id]["owner_thread"] = OS.get_thread_caller_id()
+	return result
+
+
+func _actor_execution_capture() -> Dictionary:
+	var result: Dictionary = {}
+	if _runtime.world_sim.get_instance_id() != _initial_actor_world_id:
+		return result # Replacement counters cannot be subtracted from the old world.
+	for id: String in _runtime.world_sim.regions:
+		var sim: VillageSimulation = _runtime.world_sim.regions[id]
+		var before: Dictionary = _initial_actor_execution.get(id, {})
+		var row: Dictionary = {}
+		for key: String in sim.actor_execution_work:
+			if sim.actor_execution_work[key] is int:
+				row[key] = int(sim.actor_execution_work[key]) - int(before.get(key, 0))
+		result[id] = row
 	return result

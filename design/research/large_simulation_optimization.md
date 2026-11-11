@@ -2,7 +2,7 @@
 
 > 研究资料：记录来源与适用限制，不授予引入依赖或改变规则的权限。
 
-调研：2026-11-06，2026-11-11补充普通300人运行、外部建议与分频经验。范围是运行链、环境场及世界数据；记录来源与适用边界，不改变[环境规则](../rules/environment.md)，也不构成新的任务队列。当前授权、有效测量与实施优先级分别看[接续](../../docs/status/handoff.md)、[BASELINE](../../docs/status/baseline.md)与[主计划](../../docs/plans/foundation-priorities.md)。
+调研：2026-11-06，2026-11-11补充普通300人运行、外部建议、分频及多核执行。范围是运行链、环境场及世界数据；记录来源与适用边界，不改变[环境规则](../rules/environment.md)，也不构成新的任务队列。当前授权、有效测量与实施优先级分别看[接续](../../docs/status/handoff.md)、[BASELINE](../../docs/status/baseline.md)与[主计划](../../docs/plans/foundation-priorities.md)。
 
 ## 结论与选型
 
@@ -16,6 +16,28 @@ Reol已有分块、局部失效、packed响应列、分段二进制及基础场G
 2. **大档存读**：先区分编码、解析、校验、I/O和原世界候选恢复；对高重复段评估类型化列、数字字典和批量读写，而非再次宣称“改成二进制”。
 
 这些是按负载选择的研究方向，不替代普通游戏的性能目标。当前没有充分证据把瓶颈归结为Godot引擎上限，也没有依据承诺优化后必然几秒加载。
+
+## 多核执行（2026-11-11）
+
+用户要求将主要模拟负载的多核化作为主线，允许重构。这里核对成熟项目的一手经验；实施结构只维护在[执行方案](../../docs/specs/world-engine/execution.md)，阶段顺序只见主计划。此前“有线程入口”不能代表主要工作已经并行，来源本身也不能证明Reol性能达标。
+
+| 一手资料 | 可采用的经验 / 适用边界 |
+|---|---|
+| [Ludeon：Odyssey与1.6公告](https://ludeon.com/blog/2025/06/announcing-odyssey-and-update-1-6/)，2025-06；[官方Steam公告](https://store.steampowered.com/news/app/294100/view/498322216088241321) | 官方明确把寻路改为批量多线程，并并行照明。采用“批量独立查询”的职责划分，不声称RimWorld全部模拟已经并行；公告没有提供其完整内部数据/调度实现。此次网页直取受403/正文展示限制，已通过Steam官方`ISteamNews/GetNewsForApp`读取同标题正文核实 |
+| [Ludeon：Waylith与1.7公告](https://ludeon.com/blog/2026/10/announcing-the-waylith-engine-and-update-1-7/)，2026-10-12 | 截至本次调研公告将其作为unstable测试，声明专用引擎带来性能改善；经上述Steam官方接口核对。说明不能把多年前单核印象当最新状态；这份公告不能推出Reol应更换引擎、也不能将其宣称倍数换算为本项目收益 |
+| [Factorio FFF421](https://www.factorio.com/blog/post/fff-421)，2024-07-26 | 只读带式计数/组合器计算能够并行，输出再采用；全局随机流需处理。电网并行因共享消费者与内存带宽失败，说明还要量输入布局、带宽和端到端成本；这不是继续回避多核的理由 |
+| [Factorio FFF215](https://www.factorio.com/blog/post/fff-215)，2017-11-03 | 并行跨实体更新可能因共享缓存行互相干扰；线程和数据分块要一起设计。其当时全量更新实验不能当作2026所有模拟游戏的上限 |
+| [Factorio FFF415](https://www.factorio.com/blog/post/fff-415)，2024-06-14 | 核心数改变曾影响地图生成结果；必须让任务分割与效果顺序、随机语义分开。只选有关的线程数/顺序反例，不由此恢复冗长回归 |
+| [Epic MassEntity概述](https://dev.epicgames.com/documentation/en-us/unreal-engine/overview-of-mass-entity-in-unreal-engine) | 连续数据块、无状态批计算、结构变化延后合并；借鉴数据/过程分离，不引入Unreal或要求先搭完整ECS |
+| [Godot 4.7线程池](https://docs.godotengine.org/en/4.7/classes/class_workerthreadpool.html)、[线程安全](https://docs.godotengine.org/en/4.7/tutorials/performance/thread_safe_apis.html)、[线程组](https://docs.godotengine.org/en/4.7/classes/class_node.html#class-node-property-process-thread-group) | GDScript可用现成worker；活SceneTree不能任意并发访问，同一AStar对象也不能并发查询。用私有执行槽/共享只读输入；线程组不自动拆解RefCounted世界。小任务并行可能亏损，不等于主要负载不必并行 |
+
+对当前代码的具体推论：
+
+- `VillageSimulation.prepare_actor_advance`只选择同一到期点至少64人的小算术批；`_integrate_actor`、身体同步、观察、工作选择、原效果和发布仍主要在主线程。稀疏化后此批覆盖反而更低，不能单靠提高worker数改善主要路径。
+- 导航原共享`SimGridNavigation._graphs`会修改AStar上下文，且stand/step回调进入活`ReolWorld`。需要可复用几何读取和每个并行执行槽的私有搜索上下文；不能直接将原函数扔进线程池或套一个大锁。
+- `synchronize_actor`等读取会更新身体、取消准备候选或发后续通知。worker输入需要显式物化、只读且不触发世界同步的读取界面；否则多个“只读任务”实际仍在竞争世界。
+- 先分离模拟协调与显示，再把主要计算族分批交给共用线程池；仅将整世界搬到一条后台线程只能解除部分主线程阻塞，不能作为模拟吞吐多核化的终点。
+- 保留原环境GPU路径，并行CPU不是GPU替代品。每条路径测准备、计算、等待、采用/发布，避免只比较纯核函数。详细数值和真实探针限制见[BASELINE](../../docs/status/baseline.md#多核主线的首轮核查)。
 
 ## 分频、错峰与有界近似（2026-11-11）
 
@@ -77,7 +99,7 @@ Reol已有分块、局部失效、packed响应列、分段二进制及基础场G
 | GPU密集数学 | 已有环境基础场GPU服务，现已实际接入普通来源候选并由原owner采用。仍需比较装配、异步等待、计算与采用的端到端收益；CPU/GPU批处理与减少无效工作可以同时推进。Compute Shader不是任意GDScript或共享世界操作的自动加速器 |
 | C# / GDExtension、移除全部物理 | 局部原生热点可以评估，不能用无出处的语言倍数或单位上限作选型。当前没有引入新语言/插件；未来投射物、接触检测等仍可使用适合的Godot原生能力，无须因格子游戏而全盘禁止物理 |
 
-本次最需要带进实施的结论是**并行覆盖范围与调用放大**：原行动仍是已计时kernel中最大项，状态发布和kernel外围也占有明显成本；短探针显示控制查询远多于完整寻路，但该查询不是全部瓶颈。下一次行动重构应沿主计划A/B，把局部输入准备、活动执行、依赖变更和已提交投影放在同一条热数据链上，减少跨领域重复读取，形成有分量的独立CPU工作；不要只把几个加减法搬进线程池。
+本次最需要带进实施的结论是**并行覆盖范围与调用放大**：原行动仍是已计时kernel中最大项，状态发布和kernel外围也占有明显成本；短探针显示控制查询远多于完整寻路，但该查询不是全部瓶颈。当前多核阶段沿唯一主计划，把局部输入准备、活动执行、依赖变更和已提交投影放在同一条热数据链上，减少跨领域重复读取，形成有分量的独立CPU工作；不要只把几个加减法搬进线程池。
 
 稳定路段可以按已受理的起点/速度/时间直接求位置，在抵达或真实依赖变化时执行后果；有环境来源、阻碍、交互依赖的过格子仍须保留相应因果。可见性只决定表现工作，不能让离屏战斗突然换成另一套胜负规则。现有`SimRouteTravel.projected_point`已支持路段投影，重点是哪些调用仍反复物化身体或扩大唤醒范围。
 
