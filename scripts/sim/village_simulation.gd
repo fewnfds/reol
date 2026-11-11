@@ -1722,6 +1722,8 @@ func _stock_places_near(cell: Vector2i) -> Array[String]:
 
 func _stock_crossing_required(actor: Dictionary) -> bool:
 	var route: Dictionary = actor.active
+	if route.path.is_empty():
+		return false # Already at the destination; the arrival still has its own deadline.
 	var origin: Vector2i = TileGrid.world_to_cell(Vector2(float(route.segment_from[0]), float(route.segment_from[1])))
 	var target: Vector2i = SimRouteTravel.cell(route.path[0])
 	# Off-centre and mixed diagonal legs may enter the two side cells separately.
