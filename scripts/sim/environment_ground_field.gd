@@ -46,6 +46,7 @@ var _candidate_cold_x: int = 0
 var _candidate_cold_y: int = 0
 var _transport: Callable
 var _transport_capture: Callable
+var _transport_pair: Callable
 var _transport_receiver := Vector2i(-1, -1)
 var _transport_sources: Dictionary[Vector2i, PackedInt32Array] = {}
 var _compute_backend: WeakRef
@@ -55,9 +56,10 @@ var _compute_tiles: Dictionary[int, PackedInt32Array] = {}
 var _compute_cell: int = 0
 
 
-func set_transport(callback: Callable, capture: Callable = Callable()) -> void:
+func set_transport(callback: Callable, capture: Callable = Callable(), pair: Callable = Callable()) -> void:
 	_transport = callback
 	_transport_capture = capture
+	_transport_pair = pair
 
 
 func invalidate_geometry(area: Rect2i) -> void:
@@ -82,7 +84,12 @@ func _transport_grade(value: int, from: Vector2i, to: Vector2i, channel: int) ->
 	var factors: PackedInt32Array = _transport_sources[from]
 	var kind: int = 1 if channel >= 5 else 0
 	if factors[kind] < 0:
-		factors[kind] = clampi(int(_transport.call(from, to, channel)), 0, 10000)
+		if _transport_pair.is_valid():
+			var pair: Vector2i = _transport_pair.call(from, to)
+			factors[0] = clampi(pair.y, 0, 10000)
+			factors[1] = clampi(pair.x, 0, 10000)
+		else:
+			factors[kind] = clampi(int(_transport.call(from, to, channel)), 0, 10000)
 		_transport_sources[from] = factors
 	return (value * factors[kind] + 5000) / 10000
 

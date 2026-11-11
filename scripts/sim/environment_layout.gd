@@ -8,7 +8,12 @@ var rooms: Dictionary = {}
 var room_of: Dictionary[Vector2i, Vector2i] = {}
 var barriers: Dictionary[Vector2i, Dictionary] = {}
 var _owner: WeakRef
-var _terrain: Dictionary[Vector2i, bool] = {}
+var _permeability := PackedInt32Array()
+
+
+func _init() -> void:
+	_permeability.resize(MAX_CELLS)
+	_permeability.fill(-1)
 
 
 static func terms(rule: Dictionary) -> Dictionary:
@@ -34,7 +39,7 @@ func rebuild(world: RegionalSimulation) -> bool:
 	rooms.clear()
 	room_of.clear()
 	barriers.clear()
-	_terrain.clear()
+	_permeability.fill(-1)
 	var edges: Dictionary = {}
 	var bounds: Array[Rect2i] = []
 	var types: Dictionary = world.construction.definitions.types.duplicate(false)
@@ -151,18 +156,63 @@ static func _json_number(value: float) -> float:
 
 
 func transmission(from: Vector2i, to: Vector2i, channel: int) -> int:
+	var pair: Vector2i = transmission_pair(from, to)
+	return pair.x if channel >= 5 else pair.y
+
+
+func transmission_pair(from: Vector2i, to: Vector2i) -> Vector2i:
+	# Same supercover/corner order and integer truncation as LightPropagation.
+	# Thermal and elemental permeability share geometry, so traverse it once.
+	# Source and target surfaces keep their original exposed-face convention.
 	var world: RegionalSimulation = _owner.get_ref() if _owner != null else null
-	if world == null:
-		return 0
-	var field: String = "thermal" if channel >= 5 else "elements"
-	return SimLightPropagation.transmission(from, to, func(cell: Vector2i) -> int:
-		if cell == from:
-			return SCALE # A wall source exposes its own outer surface.
-		if not _terrain.has(cell):
-			_terrain[cell] = world.map_data != null and world.map_data.get_terrain(cell) == WorldMapData.TERRAIN_ROCK
-		if _terrain[cell]:
-			return 2000 if channel >= 5 else 8000
-		return int(barriers.get(cell, {}).get(field, SCALE)), 16)
+	var extent := Vector2i(absi(to.x - from.x), absi(to.y - from.y))
+	if world == null or extent.x > 16 or extent.y > 16:
+		return Vector2i.ZERO
+	var thermal: int = SCALE
+	var elements: int = SCALE
+	var direction := Vector2i(signi(to.x - from.x), signi(to.y - from.y))
+	var crossed := Vector2i.ZERO
+	var at: Vector2i = from
+	while at != to:
+		var x_cross: int = (1 + 2 * crossed.x) * extent.y
+		var y_cross: int = (1 + 2 * crossed.y) * extent.x
+		if x_cross == y_cross:
+			var first: int = _cell_permeability(at + Vector2i(direction.x, 0), world)
+			var second: int = _cell_permeability(at + Vector2i(0, direction.y), world)
+			thermal = (thermal * (first & 65535) / SCALE) * (second & 65535) / SCALE
+			elements = (elements * (first >> 16) / SCALE) * (second >> 16) / SCALE
+			at += direction
+			crossed += Vector2i.ONE
+		elif x_cross < y_cross:
+			at.x += direction.x
+			crossed.x += 1
+		else:
+			at.y += direction.y
+			crossed.y += 1
+		if at != to:
+			var terms: int = _cell_permeability(at, world)
+			thermal = thermal * (terms & 65535) / SCALE
+			elements = elements * (terms >> 16) / SCALE
+		if thermal == 0 and elements == 0:
+			break
+	return Vector2i(thermal, elements)
+
+
+func _cell_permeability(cell: Vector2i, world: RegionalSimulation) -> int:
+	var inside: bool = cell.x >= 0 and cell.y >= 0 and cell.x < WorldMapData.WORLD_SIZE and cell.y < WorldMapData.WORLD_SIZE
+	var index: int = cell.y * WorldMapData.WORLD_SIZE + cell.x
+	if inside and _permeability[index] >= 0:
+		return _permeability[index]
+	var rock: bool = world.map_data != null and world.map_data.get_terrain(cell) == WorldMapData.TERRAIN_ROCK
+	var thermal: int = 2000 if rock else SCALE
+	var elements: int = 8000 if rock else SCALE
+	if not rock and barriers.has(cell):
+		thermal = int(barriers[cell].get("thermal", SCALE))
+		elements = int(barriers[cell].get("elements", SCALE))
+	var packed: int = thermal | (elements << 16)
+	if inside:
+		_permeability[index] = packed
+	return packed
 
 
 func capture_transmission(area: Rect2i) -> Dictionary:
@@ -178,14 +228,7 @@ func capture_transmission(area: Rect2i) -> Dictionary:
 	var index: int = 6
 	for y: int in range(area.position.y, area.end.y):
 		for x: int in range(area.position.x, area.end.x):
-			var cell := Vector2i(x, y)
-			if not _terrain.has(cell):
-				_terrain[cell] = world.map_data != null and world.map_data.get_terrain(cell) == WorldMapData.TERRAIN_ROCK
-			var rock: bool = _terrain[cell]
-			var terms: Dictionary = barriers.get(cell, {})
-			var thermal: int = 2000 if rock else int(terms.get("thermal", SCALE))
-			var elements: int = 8000 if rock else int(terms.get("elements", SCALE))
-			values[index] = thermal | (elements << 16)
+			values[index] = _cell_permeability(Vector2i(x, y), world)
 			index += 1
 	return {"ok": true, "geometry": values}
 

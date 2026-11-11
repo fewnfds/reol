@@ -126,7 +126,10 @@ func _configure_components(at_ms: int) -> bool:
 		return domain._layout.transmission(from, to, channel) if domain != null else 0,
 		func(area: Rect2i) -> Dictionary:
 			var domain: RefCounted = owner.get_ref()
-			return domain._layout.capture_transmission(area) if domain != null else {"ok": false, "reason": "owner_gone"})
+			return domain._layout.capture_transmission(area) if domain != null else {"ok": false, "reason": "owner_gone"},
+		func(from: Vector2i, to: Vector2i) -> Vector2i:
+			var domain: RefCounted = owner.get_ref()
+			return domain._layout.transmission_pair(from, to) if domain != null else Vector2i.ZERO)
 	var reader: Callable = func(cell: Vector2i, context: Variant = null) -> Dictionary:
 		var domain: RefCounted = owner.get_ref()
 		return domain._read_channels(cell, context) if domain != null else {"ok": false, "reason": "owner_gone"}
