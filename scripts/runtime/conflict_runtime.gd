@@ -191,8 +191,7 @@ func refresh() -> void:
 	var domain: SimConflicts = adapter.world_sim.conflicts
 	var active: bool = not domain.conflict_for("player").is_empty()
 	# Keep the world readable during actual fighting, including after a load.
-	adapter.service_adapter.panel.visible = adapter.human_player_active() and not active
-	adapter._panel.visible = adapter.human_player_active() and not active
+	adapter.set_life_panels_available(adapter.human_player_active() and not active)
 	badge.visible = active and adapter.human_player_active()
 	var known: Array[String] = []
 	for method: String in domain.rules.methods:

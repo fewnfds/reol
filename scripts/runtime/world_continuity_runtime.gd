@@ -16,6 +16,10 @@ var world_sim: RegionalSimulation
 var centers: Dictionary = {}
 var current_region: String = "home"
 var settings: Dictionary = {}
+## Default UI slot can be isolated by an explicit demo opening.
+var save_path: String = VillageRuntime.SAVE_PATH
+var life_panels_visible: bool = true
+var _life_panels_available: bool = true
 var player_journey: Dictionary = {}
 var service_adapter: SettlementServicesRuntime
 var object_adapter: WorldObjectsRuntime
@@ -898,6 +902,25 @@ func hide_legacy_controls() -> void:
 	_home._panel.visible = false
 
 
+func set_life_panels_visible(value: bool) -> void:
+	life_panels_visible = value
+	_apply_life_panel_visibility()
+
+
+func set_life_panels_available(value: bool) -> void:
+	# Avatar/combat adapters publish availability at complete world boundaries;
+	# toggling a UI preference never reads a world currently owned by workers.
+	_life_panels_available = value
+	_apply_life_panel_visibility()
+
+
+func _apply_life_panel_visibility() -> void:
+	if _panel != null:
+		_panel.visible = life_panels_visible and _life_panels_available
+	if service_adapter != null:
+		service_adapter.panel.visible = life_panels_visible and _life_panels_available
+
+
 func _update_region() -> void:
 	var focus: Vector2i = controlled_cell()
 	var nearest: String = ""
@@ -1133,6 +1156,7 @@ func _stage_session(snapshot: Dictionary) -> Dictionary:
 
 
 func save_game(path: String) -> Error:
+	path = save_path if path == VillageRuntime.SAVE_PATH else path
 	# Strict synchronous API for tools/callers already at a complete boundary.
 	if world_sim == null:
 		return ERR_UNCONFIGURED
@@ -1142,6 +1166,7 @@ func save_game(path: String) -> Error:
 
 
 func request_save(path: String) -> Error:
+	path = save_path if path == VillageRuntime.SAVE_PATH else path
 	if world_sim == null:
 		return ERR_UNCONFIGURED
 	var result: Error = _save_service().request_save(path)
@@ -1180,6 +1205,7 @@ func _exit_tree() -> void:
 
 
 func load_game(path: String) -> Error:
+	path = save_path if path == VillageRuntime.SAVE_PATH else path
 	if not simulation_accessible():
 		return ERR_BUSY
 	var result: Error = _save_service().load_now(path)

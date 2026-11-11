@@ -15,6 +15,18 @@ python tools/godot.py editor
 
 `test`使用当前短smoke入口，不自动导入。`--suite NAME`可选`settlement`、`actor_batch`、`inventory`、`input`、`presentation`或`spatial`。`--timeout SECONDS`默认15、可选1–30秒。新检出、新class或资源不可识别时才需要import。`check`及旧`--shard/--jobs/--test-timeout/--timing-report`参数已移除，不保留指向旧体系的别名。日志实时合流落盘，错误和超时返回非零；普通run/editor不会因错误行强关用户窗口。
 
+## 功能试游
+
+```powershell
+python tools/feature_demo.py
+```
+
+这是轻量的可玩导览，不是人口压力场景。也可在Godot打开`scenes/demos/feature_tour.tscn`运行当前场景。F1打开/收起功能册，按页前往体验地点或打开原操作面板；F2切换生活/行旅面板。具体体验步骤和样本限制只维护在游戏内[导览内容](../../../data/scenarios/feature_tour.json)，不在文档复制一份清单。
+
+场景复用普通双聚落和原领域，预置两间房、家具、成熟植物、花盆及少量冷热来源。已有设施只在新局装配，包含原库存材料回执；后续取放、使用、施工和采集均走原规则。F5/F9及原保存按钮使用独立的`user://feature_tour.json`，不覆盖普通槽；重新开始身份会重置未保存的试游世界，读取仍沿现有存读管线。只支持当前格式。
+
+需要固定显卡时可加`--gpu-index N`，不固定本机设备编号。未完成玩法在导览每页注明；短功能试玩不证明大人口或长期性能。
+
 ## 实际性能
 
 ```powershell

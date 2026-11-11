@@ -166,7 +166,7 @@ func save_game() -> void:
 
 
 func _on_save_finished(path: String, result: Error) -> void:
-	if path == VillageRuntime.SAVE_PATH:
+	if path == runtime().save_path:
 		_notice.text = "已记下这段残识与同一个世界。" if result == OK else "保存失败：" + error_string(result)
 
 

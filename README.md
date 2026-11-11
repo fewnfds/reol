@@ -8,5 +8,6 @@ GDScript / 2D正交俯视的修仙持续世界。玩家是众生之一，可以�
 - 当前计划：[foundation-priorities](docs/plans/foundation-priorities.md)。
 - 可玩能力与实际证据：[FEATURES](docs/status/features.md)、[BASELINE](docs/status/baseline.md)。
 - 运行方式：[工具命令](docs/engineering/tooling/usage.md)，键位见[controls](docs/status/features/controls.md)。
+- 逐项体验已有功能：[轻量功能试游](docs/engineering/tooling/usage.md#功能试游)。
 
 旧Demo仍是可重用实现，不限制重构。项目代码许可证尚未选定；第三方来源见[NOTICES](THIRD_PARTY_NOTICES.md)。历史报告与后置素材方案在[archive](docs/archive/README.md)，不会成为当前任务。

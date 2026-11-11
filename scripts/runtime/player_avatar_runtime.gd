@@ -147,8 +147,7 @@ func _apply_binding() -> void:
 	_bird_status.visible = bird
 	_bird_actions.visible = bird
 	var fighting: bool = not adapter.world_sim.conflicts.conflict_for("player").is_empty()
-	adapter._panel.visible = human and not fighting
-	adapter.service_adapter.panel.visible = human and not fighting
+	adapter.set_life_panels_available(human and not fighting)
 	if not human:
 		main.camera.follow_focus = true
 		main.camera.set_focus_target(self)
@@ -222,7 +221,7 @@ func _save() -> void:
 
 
 func _on_save_finished(path: String, result: Error) -> void:
-	if path == VillageRuntime.SAVE_PATH:
+	if path == runtime().save_path:
 		_notice.text = "近况已记下。" if result == OK else "保存失败：" + error_string(result)
 
 

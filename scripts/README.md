@@ -16,5 +16,6 @@
 | `world/`、`entities/`、`ui/` | 地图/人物呈现和可知界面，消费已提交状态 |
 | `runtime/` | 输入、场景、呈现与计算后端适配；领域结果回到原owner采用 |
 | `diagnostics/`、`tests/` | 临时人口/性能记录与短smoke；普通Main不加载诊断器 |
+| `demos/feature_tour*` | 可玩功能导览、一次性样本装配及目录UI，复用普通Main和原领域；体验文字只维护在`data/scenarios/feature_tour.json` |
 
 可选运行`python tools/check_structure.py --audit-code`查看字面引用、UID与层依赖疑点；动态调用仍需人工核对，工具不会自动删除代码，也不是提交门禁。文件放置见[project-structure](../docs/engineering/project-structure.md)，具体接口见[工程地图](../docs/engineering/README.md)。

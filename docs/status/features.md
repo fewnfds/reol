@@ -4,6 +4,7 @@
 
 | 内容 | 入口 |
 |---|---|
+| 轻量的逐项功能试玩 | [启动功能试游](../engineering/tooling/usage.md#功能试游)；步骤与范围在游戏内导览维护 |
 | 开局、身体选择、键位与面板 | [操作](features/controls.md) |
 | 环境、场与隔离计算服务 | [环境边界](features/environment-and-prototypes.md) |
 | 双聚落、行旅、采集、生产与生活 | [世界与生活](features/world-and-livelihood.md) |
