@@ -6,7 +6,8 @@ extends RefCounted
 ## parties. `private`, reason and unlisted fields stay in the objective log.
 ## Learning preserves the informant's disclosure scope, never revealing the objective event.
 
-const VERSION: int = 1
+const VERSION: int = 2
+const LEGACY_VERSION: int = 1
 const SURFACE_FIELDS: Array[String] = [
 	"item", "item_id", "resource", "amount", "quantity", "task", "status",
 	"outcome", "request_id", "job_id", "location", "offer", "terms", "text",
@@ -100,12 +101,7 @@ func record(
 		"details": details.duplicate(true), "witnesses": observed_by, "tick": tick,
 	}
 	var index: int = _append_event(event)
-	_actors[actor].add_direct(index)
-	if not target.is_empty() and target != actor:
-		_actors[target].add_direct(index)
-	for witness: String in observed_by:
-		if witness != actor and witness != target:
-			_actors[witness].add_direct(index)
+	_index_direct_observations(index)
 	return event_id
 
 
@@ -115,6 +111,16 @@ func _append_event(event: Dictionary) -> int:
 	_freeze_details(event)
 	events.append(event)
 	return index
+
+
+func _index_direct_observations(index: int) -> void:
+	var event: Dictionary = events[index]
+	_actors[event.actor].add_direct(index)
+	if not event.target.is_empty() and event.target != event.actor:
+		_actors[event.target].add_direct(index)
+	for witness: String in event.witnesses:
+		if witness != event.actor and witness != event.target:
+			_actors[witness].add_direct(index)
 
 
 func learn(actor: String, event_id: String, source: String) -> bool:
@@ -297,16 +303,23 @@ func _snapshot_knowledge() -> Dictionary:
 	var result: Dictionary = {}
 	for actor: String in _actors:
 		var observer: Observer = _actors[actor]
-		var known: Dictionary = {}
-		for index: int in observer.order:
-			known[events[index].id] = _known_at(actor, observer, index).duplicate(true)
-		result[actor] = known
+		# Direct facts and their normal order are already in the event ledger.
+		# Keep only what cannot be recovered from it: retelling and actual order.
+		if observer.heard.is_empty() and observer.order == observer.direct:
+			continue
+		var heard: Dictionary = {}
+		for index: int in observer.heard:
+			heard[events[index].id] = observer.heard[index][0]
+		var order: Array = []
+		order.assign(observer.order)
+		result[actor] = {"heard": heard, "order": order}
 	return result
 
 
 func restore(data: Dictionary) -> bool:
 	# All validation and reconstruction happens off to the side.
-	if not _serializable(data) or data.get("version") != VERSION:
+	var version: Variant = data.get("version")
+	if not _serializable(data) or (version != LEGACY_VERSION and version != VERSION):
 		return false
 	if (
 		not data.get("actors") is Array or not data.get("events") is Array
@@ -339,7 +352,8 @@ func restore(data: Dictionary) -> bool:
 		staged._append_event(raw.duplicate(true))
 	if int(data["next_event_id"]) <= largest_event:
 		return false
-	if not staged._restore_knowledge(data["knowledge"]):
+	var restored: bool = staged._restore_legacy_knowledge(data.knowledge) if version == LEGACY_VERSION else staged._restore_knowledge(data.knowledge)
+	if not restored:
 		return false
 	if not staged._restore_relationships(data["relationships"]):
 		return false
@@ -559,6 +573,68 @@ func _valid_event(event: Dictionary) -> bool:
 
 
 func _restore_knowledge(saved: Dictionary) -> bool:
+	for index: int in events.size():
+		_index_direct_observations(index)
+	for actor: Variant in saved:
+		var row: Variant = saved[actor]
+		if not actor is String or not _actors.has(actor) or not row is Dictionary or not _has_keys(row, ["heard", "order"]) or not row.heard is Dictionary or not row.order is Array:
+			return false
+		var observer: Observer = _actors[actor]
+		for event_id: Variant in row.heard:
+			var source: Variant = row.heard[event_id]
+			if not event_id is String or not source is String or source == actor or not _actors.has(source):
+				return false
+			var index: int = _event_indices.get(event_id, -1)
+			if index < 0 or observer.saw(index):
+				return false
+			observer.heard[index] = [source, -1] # Scope is derived from the verified source chain.
+		if row.order.size() != observer.direct.size() + observer.heard.size():
+			return false
+		var included: Dictionary[int, bool] = {}
+		var order := PackedInt32Array()
+		for raw: Variant in row.order:
+			if not _integer_at_least(raw, 0) or raw >= events.size():
+				return false
+			var index: int = int(raw)
+			if included.has(index) or not observer.knows(index):
+				return false
+			included[index] = true
+			order.append(index)
+		observer.order = order
+	for actor: String in saved:
+		for index: int in _actors[actor].heard:
+			if not _restore_heard_scope(actor, index):
+				return false
+	return true
+
+
+func _restore_heard_scope(actor: String, index: int) -> bool:
+	var chain: Array[String] = []
+	var visited: Dictionary[String, bool] = {}
+	var cursor: String = actor
+	var scope: int = -1
+	while scope < 0:
+		if visited.has(cursor):
+			return false
+		visited[cursor] = true
+		var observer: Observer = _actors[cursor]
+		if observer.saw(index):
+			scope = int(_participant(events[index], cursor))
+			break
+		if not observer.heard.has(index):
+			return false
+		var source: Array = observer.heard[index]
+		if int(source[1]) >= 0:
+			scope = int(source[1])
+			break
+		chain.append(cursor)
+		cursor = str(source[0])
+	for observer_id: String in chain:
+		_actors[observer_id].heard[index][1] = scope
+	return true
+
+
+func _restore_legacy_knowledge(saved: Dictionary) -> bool:
 	if saved.size() != _actors.size():
 		return false
 	for observer: String in saved:
