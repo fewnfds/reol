@@ -11,10 +11,13 @@ var last_image: Image
 var _owner: WeakRef
 var _dirty: bool = true
 var _texture: ImageTexture
+var _work: ReolPresentationWork
+var _urgent: bool = true
 
 
 func setup(adapter: WorldContinuityRuntime) -> void:
 	_owner = weakref(adapter)
+	_work = adapter.presentation_work
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	light = PointLight2D.new()
 	light.name = "LocalRuleLight"
@@ -24,20 +27,31 @@ func setup(adapter: WorldContinuityRuntime) -> void:
 	light.energy = 1.0
 	light.enabled = false
 	add_child(light)
-	adapter.avatar_changed.connect(_mark_dirty)
-	adapter.region_changed.connect(func(_id: String) -> void: _mark_dirty())
+	adapter.avatar_changed.connect(_invalidate_projection)
+	adapter.region_changed.connect(func(_id: String) -> void: _invalidate_projection())
 	adapter.player_travel_advanced.connect(func(_point: Vector2) -> void: _mark_dirty())
 	adapter.home_runtime()._player.cell_changed.connect(_mark_dirty)
 	adapter.home_runtime()._world.terrain_changed.connect(_on_cells)
 	adapter.home_runtime()._world.sight_obstacles_changed.connect(_on_cells)
 	if adapter.home_runtime()._fog != null:
 		adapter.home_runtime()._fog.visibility_updated.connect(_mark_dirty)
-	GameClock.time_advanced.connect(func(_from: int, _to: int) -> void: _mark_dirty())
+	GameClock.time_advanced.connect(func(_from: int, _to: int) -> void: _dirty = true)
 	refresh()
 
 
 func _mark_dirty() -> void:
 	_dirty = true
+	_urgent = true
+
+
+func _invalidate_projection() -> void:
+	# World/avatar replacement must never display the previous context's light.
+	light.enabled = false
+	last_projection = {}
+	last_image = null
+	if is_instance_valid(_work):
+		_work.cancel(&"local_light")
+	_mark_dirty()
 
 
 func _on_cells(_cells: Array[Vector2i]) -> void:
@@ -46,22 +60,26 @@ func _on_cells(_cells: Array[Vector2i]) -> void:
 
 func _process(_delta: float) -> void:
 	if _dirty:
-		refresh()
+		if is_instance_valid(_work):
+			_work.request(&"local_light", refresh, ReolPresentationWork.Priority.VISIBLE, 0 if _urgent else 100)
+		else:
+			refresh()
 
 
-func refresh() -> void:
+func refresh() -> bool:
 	var adapter: WorldContinuityRuntime = _owner.get_ref() as WorldContinuityRuntime if _owner != null else null
 	if adapter != null and adapter.world_sim != null and adapter.world_sim.settlement != null and adapter.world_sim.settlement.is_pending():
 		# Keep the last complete texture and retry after the boundary commits.
 		# A refused query is not evidence that the existing lights went out.
 		_dirty = true
-		return
+		return false
 	_dirty = false
+	_urgent = false
 	light.enabled = false
 	last_projection = {}
 	last_image = null
 	if adapter == null or adapter.soul_player_active():
-		return
+		return true
 	var center: Vector2i = adapter.controlled_cell()
 	var fog: FogOfWar = adapter.home_runtime()._fog
 	var cells: Array[Vector2i] = []
@@ -72,7 +90,7 @@ func refresh() -> void:
 				cells.append(cell)
 	var patch: Dictionary = SimLocalLight.local_patch(adapter.world_sim, cells)
 	if not bool(patch.supported):
-		return
+		return true
 	last_projection = patch
 	var any_light: bool = false
 	for value: int in patch.values.values():
@@ -80,7 +98,7 @@ func refresh() -> void:
 			any_light = true
 			break
 	if not any_light:
-		return
+		return true
 	var image: Image = Image.create(SIDE, SIDE, false, Image.FORMAT_RGB8)
 	image.fill(Color.BLACK)
 	for cell: Vector2i in patch.values:
@@ -102,3 +120,4 @@ func refresh() -> void:
 		_texture.update(image)
 	light.position = TileGrid.cell_to_world(center)
 	light.enabled = true
+	return true

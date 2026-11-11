@@ -3,10 +3,6 @@ extends RefCounted
 ## Version and shape validation at the session boundary. No live mutations.
 
 const VERSION: int = 57
-const REJECTION_LEGACY_BUILDINGS: String = "legacy_buildings"
-const REJECTION_LEGACY_ENVIRONMENT: String = "legacy_environment"
-const REJECTION_LEGACY_EVENTS: String = "legacy_events"
-const REJECTION_LEGACY_ACTIONS: String = "legacy_actions"
 const REJECTION_UNSUPPORTED_VERSION: String = "unsupported_version"
 
 
@@ -21,19 +17,9 @@ static func capture_world(fog: FogOfWar, focus: Vector2i, terrain: WorldMapData 
 
 
 static func rejection_reason(version: Variant) -> String:
-	# JSON may parse an integral version as a float. Zero, fractional values,
-	# non-numbers, out-of-range numbers and future versions are not old saves.
-	if not ReolGameClock._integer(version) or int(version) < 1:
-		return REJECTION_UNSUPPORTED_VERSION
-	if int(version) == 52:
-		return REJECTION_LEGACY_BUILDINGS
-	if int(version) == 53:
-		return REJECTION_LEGACY_EVENTS
-	if int(version) == 55:
-		return REJECTION_LEGACY_ACTIONS
-	if int(version) < VERSION:
-		return REJECTION_LEGACY_ENVIRONMENT
-	if int(version) > VERSION:
+	# Development saves support only the current format, including its domains.
+	# JSON may parse an integral version as a float.
+	if not ReolGameClock._integer(version) or int(version) != VERSION:
 		return REJECTION_UNSUPPORTED_VERSION
 	return ""
 

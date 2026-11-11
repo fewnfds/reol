@@ -288,7 +288,7 @@ static func _active(
 			return false
 		for item: String in expected_inputs:
 			var usable: bool = inventory.available("actor:" + actor_id, item) >= int(expected_inputs[item])
-			if int(data.version) >= 4 and definition.kind in ["haul", "gather", "recipe"]:
+			if definition.kind in ["haul", "gather", "recipe"]:
 				usable = not SimEntrustedGoods.find(inventory, actor_id, str(action.action), item, int(expected_inputs[item])).is_empty()
 			if not usable:
 				return false
@@ -296,7 +296,7 @@ static func _active(
 		var missing_inputs: Dictionary = expected_inputs.duplicate()
 		if definition["kind"] == "recipe":
 			for item: String in expected_inputs:
-				var missing: int = maxi(0, int(expected_inputs[item]) - inventory.available("actor:" + actor_id, item)) if int(data.version) < 4 else (int(expected_inputs[item]) if SimEntrustedGoods.find(inventory, actor_id, str(action.action), item, int(expected_inputs[item])).is_empty() else 0)
+				var missing: int = int(expected_inputs[item]) if SimEntrustedGoods.find(inventory, actor_id, str(action.action), item, int(expected_inputs[item])).is_empty() else 0
 				if missing == 0:
 					missing_inputs.erase(item)
 				else:

@@ -338,6 +338,7 @@ func finish() -> void:
 			"clock_publications": _clock_publications, "publication_span_ms": _summary(_publication_spans)},
 		"kernel_scopes": _scope_rows(), "largest_frames": _spikes,
 		"actor_execution": _actor_execution_summary(),
+		"presentation_work": _runtime.presentation_work.diagnostics(),
 		"world_errors": _runtime.world_sim.errors.duplicate(),
 		"limits": "Instrumented process: check debug_build/editor_build for build type. Frame intervals include render/host waits. Optional kernel/render measurements add overhead; disabled timings are null/empty. Render timings are RenderingServer measurements of last available rendered frame, not this script's clock work; frame/GPU values must not be added. Interval residual includes scheduling and views. Fog/streaming flags indicate correlation. Paused/wait/load transitions excluded from achieved fraction. First 20000 frame samples; largest 24 frames retained."}
 	if not report.world_errors.is_empty():

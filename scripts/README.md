@@ -12,7 +12,7 @@
 | `persistence/`、`data/`、`core/` | 编码/文件、定义装配和共用坐标；`ThermalDefinitions`只验证热设备参数 |
 | `world/`、`entities/`、`ui/` | 地图/人物呈现和可知界面，消费已提交状态 |
 | `runtime/` | 输入、场景、呈现与计算后端适配；领域结果回到原owner采用 |
-| `diagnostics/`、`tests/` | 临时人口/性能记录与三个短smoke；普通Main不加载诊断器 |
+| `diagnostics/`、`tests/` | 临时人口/性能记录与短smoke；普通Main不加载诊断器 |
 
 旧热量模拟器、独立环境验收会话、旧迁移链、boot与继任原型已删除；历史由Git/归档追溯。有效CPU批执行、环境GPU计算及CPU回退保留。
 

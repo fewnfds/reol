@@ -33,6 +33,7 @@ var spirit_adapter: SpiritSourceRuntime
 var natural_adapter: NaturalWorldRuntime
 var weather_adapter: WeatherRuntime
 var light_adapter: LocalLightRuntime
+var presentation_work: ReolPresentationWork
 var large_body_adapter: LargeBodiesRuntime
 var avatar_adapter: Node
 var avatar_subject: String = "subject:player"
@@ -88,6 +89,11 @@ func setup(home: VillageRuntime, opening_source_loan: bool = false, opening_sour
 	z_index = 8
 	if not Opening.assemble(self, home, opening_source_loan, opening_source_care, opening_field):
 		return false
+	presentation_work = ReolPresentationWork.new()
+	presentation_work.name = "PresentationWork"
+	presentation_work.budget_provider = GameClock.presentation_budget_usec
+	add_child(presentation_work)
+	home._world.presentation_work = presentation_work
 	_bind_navigation()
 	_build_panel()
 	object_adapter = WorldObjectsRuntime.new()
@@ -1345,14 +1351,8 @@ func load_game(path: String) -> Error:
 		_notice = "两地已接续到保存时刻，途中事务保持原样。"
 	elif result == ERR_BUSY:
 		_notice = "当前事务仍在处理，暂不能读取。"
-	elif _saves.reason == SessionSaveSchema.REJECTION_LEGACY_BUILDINGS:
-		_notice = "这份存档采用旧建筑模型；当前版本需要新建世界，原档未改动。"
-	elif _saves.reason == SessionSaveSchema.REJECTION_LEGACY_ENVIRONMENT:
-		_notice = "旧环境格式不再支持，存档未改；请新开局。"
-	elif _saves.reason == SessionSaveSchema.REJECTION_LEGACY_ACTIONS:
-		_notice = "旧行动格式不再支持，存档未改；请新开局。"
-	elif _saves.reason == SessionSaveSchema.REJECTION_LEGACY_EVENTS:
-		_notice = "这份旧档没有完整事件、植物与会话规则；请新开局，原档未改动。"
+	elif _saves.reason == SessionSaveSchema.REJECTION_UNSUPPORTED_VERSION:
+		_notice = "开发版本只支持当前存档格式，请新开局。"
 	elif _saves.reason == "unreadable":
 		_notice = "没有读到可用近况，请先保存一次。"
 	else:
@@ -1366,6 +1366,7 @@ func _adopt_session(staged: Dictionary) -> void:
 	var extra: Dictionary = snapshot.continuity
 	# All validation is complete before changing any live world or clock state.
 	var previous_world: RegionalSimulation = world_sim
+	presentation_work.clear()
 	_player_commands.clear()
 	_retire_field_compute()
 	world_sim = staged.world

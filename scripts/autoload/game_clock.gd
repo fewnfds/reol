@@ -142,6 +142,15 @@ func frame_budget_has_room(work_usec: int) -> bool:
 	return _frame_deadline_usec == 0 or Time.get_ticks_usec() + work_usec <= _frame_deadline_usec
 
 
+func presentation_budget_usec() -> int:
+	# Separate from rule continuation: late-frame disposable work gets at most
+	# 1ms, within 2ms after the simulation slice. No new world time is admitted.
+	if _last_host_usec < 0:
+		return ReolPresentationWork.MAX_WORK_USEC
+	return clampi(_last_host_usec + pacing.frame_budget_usec() + 2000 - Time.get_ticks_usec(),
+		0, ReolPresentationWork.MAX_WORK_USEC)
+
+
 func ready_for_publication(at_ms: int) -> bool:
 	if _frame_deadline_usec == 0:
 		return true # Explicit drivers have no host deadline.

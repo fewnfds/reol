@@ -7,7 +7,6 @@ extends RefCounted
 ## Learning preserves the informant's disclosure scope, never revealing the objective event.
 
 const VERSION: int = 2
-const LEGACY_VERSION: int = 1
 const SURFACE_FIELDS: Array[String] = [
 	"item", "item_id", "resource", "amount", "quantity", "task", "status",
 	"outcome", "request_id", "job_id", "location", "offer", "terms", "text",
@@ -318,8 +317,7 @@ func _snapshot_knowledge() -> Dictionary:
 
 func restore(data: Dictionary) -> bool:
 	# All validation and reconstruction happens off to the side.
-	var version: Variant = data.get("version")
-	if not _serializable(data) or (version != LEGACY_VERSION and version != VERSION):
+	if not _serializable(data) or data.get("version") != VERSION:
 		return false
 	if (
 		not data.get("actors") is Array or not data.get("events") is Array
@@ -352,8 +350,7 @@ func restore(data: Dictionary) -> bool:
 		staged._append_event(raw.duplicate(true))
 	if int(data["next_event_id"]) <= largest_event:
 		return false
-	var restored: bool = staged._restore_legacy_knowledge(data.knowledge) if version == LEGACY_VERSION else staged._restore_knowledge(data.knowledge)
-	if not restored:
+	if not staged._restore_knowledge(data.knowledge):
 		return false
 	if not staged._restore_relationships(data["relationships"]):
 		return false
@@ -634,76 +631,6 @@ func _restore_heard_scope(actor: String, index: int) -> bool:
 	return true
 
 
-func _restore_legacy_knowledge(saved: Dictionary) -> bool:
-	if saved.size() != _actors.size():
-		return false
-	for observer: String in saved:
-		if not _actors.has(observer) or not saved[observer] is Dictionary:
-			return false
-		for event_id: String in saved[observer]:
-			var known: Variant = saved[observer][event_id]
-			var index: int = _event_indices.get(event_id, -1)
-			if not known is Dictionary or index < 0:
-				return false
-			if not _has_keys(known, ["id", "kind", "actor", "target", "details", "tick", "source", "direct"]):
-				return false
-			var event: Dictionary = events[index]
-			if (
-				known["id"] != event_id or known["kind"] != event["kind"]
-				or known["actor"] != event["actor"] or known["target"] != event["target"]
-				or known["tick"] != event["tick"] or not known["details"] is Dictionary
-				or not known["source"] is String or not _actors.has(known["source"])
-				or not known["direct"] is bool
-			):
-				return false
-			if known["direct"]:
-				if known["source"] != observer or not _is_audience(event, observer):
-					return false
-				if _canonical(known.details) != _canonical(_view(index, _participant(event, observer))):
-					return false
-			_actors[observer].order.append(index)
-	for observer: String in saved:
-		for event_id: String in saved[observer]:
-			var first: Dictionary = saved[observer][event_id]
-			if first.direct:
-				continue
-			var visited: Dictionary = {}
-			var cursor: String = observer
-			while true:
-				if visited.has(cursor) or not saved[cursor].has(event_id):
-					return false
-				visited[cursor] = true
-				var entry: Dictionary = saved[cursor][event_id]
-				if entry["direct"]:
-					break
-				var source: String = entry["source"]
-				if not saved[source].has(event_id):
-					return false
-				if _canonical(entry.details) != _canonical(saved[source][event_id].details):
-					return false
-				cursor = source
-			var index: int = _event_indices[event_id]
-			_actors[observer].heard[index] = [first.source, _participant(events[index], cursor)]
-	# Direct membership is rebuilt in event order from actual audiences only.
-	for index: int in events.size():
-		var event: Dictionary = events[index]
-		if not _restore_direct(saved, event.actor, event.id, index):
-			return false
-		if not event.target.is_empty() and event.target != event.actor and not _restore_direct(saved, event.target, event.id, index):
-			return false
-		for witness: String in event.witnesses:
-			if witness != event.actor and witness != event.target and not _restore_direct(saved, witness, event.id, index):
-				return false
-	return true
-
-
-func _restore_direct(saved: Dictionary, observer: String, id: String, index: int) -> bool:
-	if not bool(saved[observer].get(id, {}).get("direct", false)):
-		return false
-	_actors[observer].direct.append(index)
-	return true
-
-
 func _restore_relationships(saved: Dictionary) -> bool:
 	if saved.size() != _actors.size():
 		return false
@@ -784,10 +711,6 @@ func _valid_request(cache_key: String, request: Dictionary) -> bool:
 		and request["reason"] == expected_reasons[0]
 		and _canonical(request["reasons"]) == _canonical(expected_reasons)
 	)
-
-
-func _is_audience(event: Dictionary, observer: String) -> bool:
-	return event["actor"] == observer or event["target"] == observer or event["witnesses"].has(observer)
 
 
 func _has_keys(value: Dictionary, keys: Array) -> bool:

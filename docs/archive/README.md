@@ -12,4 +12,4 @@
 
 `.ignore`使本目录退出默认rg搜索；需要历史时用`rg --no-ignore "关键词" docs/archive`，或直接打开已知路径。Git仍跟踪这些文件，链接可读取；它们不会自动注入agent上下文。
 
-更早已删除的计划、ADR和文档快照在固定[8c3deaa版本](https://github.com/fewnfds/reol/tree/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive)。本次合并/删除的重复入口可从[整理前主线](https://github.com/fewnfds/reol/tree/4bf039fe8fadf95e639ae64a077e4fc3c7bdeeea)追溯，例如`git show 4bf039fe8fadf95e639ae64a077e4fc3c7bdeeea:docs/status/technical-status.md`。不另复制整套旧文档，原fixture仍在原目录。
+更早已删除的计划、ADR和文档快照在固定[8c3deaa版本](https://github.com/fewnfds/reol/tree/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/archive)。本次合并/删除的重复入口可从[整理前主线](https://github.com/fewnfds/reol/tree/4bf039fe8fadf95e639ae64a077e4fc3c7bdeeea)追溯，例如`git show 4bf039fe8fadf95e639ae64a077e4fc3c7bdeeea:docs/status/technical-status.md`。不另复制整套旧文档，旧fixture已按开发期政策删除，需要追溯时查Git。

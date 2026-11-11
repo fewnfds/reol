@@ -119,7 +119,7 @@ static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
 	if int(snapshot.clock.wait_target_ms) != 0 and not Vector2(float(snapshot.player.motion.velocity[0]), float(snapshot.player.motion.velocity[1])).is_zero_approx():
 		return {}
 	var home: VillageSimulation = restored.regions.home
-	if restored.elapsed_ms != int(snapshot.clock.elapsed_ms) or not _same_home_snapshot(home, snapshot.simulation, extra.world.regions.home):
+	if restored.elapsed_ms != int(snapshot.clock.elapsed_ms) or SnapshotValues.normalized(home.to_dict()) != SnapshotValues.normalized(snapshot.simulation):
 		return {}
 	if not home_runtime.matches_snapshot_world(home, candidate_map, assembly.region_configs.home) or not _valid_remote_terrain(restored.regions.river, candidate_map, _cell(assembly.centers.river)):
 		return {}
@@ -135,19 +135,6 @@ static func stage(adapter: Node, snapshot: Dictionary) -> Dictionary:
 	if not extra.player_journey.is_empty() and not SimRouteTravel.valid_segment(extra.player_journey, home.synchronize_actors().player, restored.elapsed_ms, float(content.local_actions.motion.speed)):
 		return {}
 	return {"world": restored, "map": candidate_map, "content": content, "snapshot": snapshot}
-
-
-static func _same_home_snapshot(home: VillageSimulation, local: Dictionary, joint: Dictionary) -> bool:
-	var current: Dictionary = home.to_dict()
-	if local.social.version == SimSocialMemory.LEGACY_VERSION:
-		# The joint copy has already passed the original knowledge validator.
-		# Require the duplicated legacy payload to match before comparing the
-		# upgraded representation of this one domain.
-		if local.social != joint.social:
-			return false
-		local = local.duplicate()
-		local.social = current.social
-	return SnapshotValues.normalized(current) == SnapshotValues.normalized(local)
 
 
 static func _valid_workplace_routes(world: RegionalSimulation, snapshot: Dictionary, extra: Dictionary, terrain: WorldMapData) -> bool:

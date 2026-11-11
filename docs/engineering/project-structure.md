@@ -10,7 +10,7 @@
 | scripts/data、core | 内容装配、定义与必要通用工具 |
 | scripts/entities、world、ui | 当前人物/地图视图与界面 |
 | data/definitions、scenarios | 可复用规则和初始条件；运行状态不回写模板 |
-| tests | 三个短smoke、启动器短检查及只读历史fixture；旧全量套件已退役 |
+| tests | 短smoke与启动器短检查；旧全量套件已退役 |
 | design/rules | 已确认世界法则 |
 | design/systems、proposals、research | 独立领域候选和有日期/证据边界的来源 |
 | docs/plans、specs | 唯一主计划及独立的详细技术合同 |

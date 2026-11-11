@@ -4,7 +4,7 @@ extends SceneTree
 const Kernel = preload("res://scripts/sim/execution/settlement_kernel.gd")
 const ActorBatch = preload("res://scripts/sim/actor_advance.gd")
 const Inventory = preload("res://scripts/sim/inventory_ledger.gd")
-const SUITES: Array[String] = ["settlement", "actor_batch", "inventory", "input"]
+const SUITES: Array[String] = ["settlement", "actor_batch", "inventory", "input", "presentation"]
 
 
 func _initialize() -> void:
@@ -142,3 +142,48 @@ func _input() -> bool:
 	buffer.enqueue("cancel", {}, "session:a", 304)
 	buffer.expire("session:b", 305)
 	return not buffer.pending() and finished == [1, 3, 4]
+
+
+func _presentation() -> bool:
+	var queue := ReolPresentationWork.new()
+	var now: Array[int] = [0]
+	var order: Array[String] = []
+	queue.host_time = func() -> int: return now[0]
+	queue.request(&"terrain", func() -> bool: order.append("old"); return true,
+		ReolPresentationWork.Priority.BACKGROUND, 10)
+	queue.request(&"light", func() -> bool: order.append("light"); now[0] += 1200; return true,
+		ReolPresentationWork.Priority.VISIBLE, 10)
+	queue.run_pending(1000)
+	var valid: bool = order == ["light"] and queue.diagnostics().pending == 1
+	# Repeated changes keep the original deadline but use the latest projection.
+	now[0] = 5000
+	queue.request(&"terrain", func() -> bool: order.append("latest"); return true,
+		ReolPresentationWork.Priority.BACKGROUND, 10)
+	queue.request(&"new_light", func() -> bool: order.append("new_light"); return true,
+		ReolPresentationWork.Priority.VISIBLE, 0)
+	now[0] = 10000
+	queue.run_pending(0)
+	queue.run_pending(0)
+	valid = valid and order == ["light", "new_light", "latest"] and queue.diagnostics().pending == 0
+	# A blocked completed-world query must not starve another overdue projection.
+	queue.request(&"blocked", func() -> bool: return false, ReolPresentationWork.Priority.VISIBLE, 0)
+	queue.request(&"ready", func() -> bool: order.append("ready"); return true, ReolPresentationWork.Priority.BACKGROUND, 0)
+	queue.run_pending(0)
+	valid = valid and order.back() == "ready" and queue.diagnostics().pending == 1
+	queue.clear()
+	# A newer dirty mark inside a callback survives acknowledgement of old work.
+	queue.request(&"replace", func() -> bool:
+		queue.request(&"replace", func() -> bool: order.append("replacement"); return true,
+			ReolPresentationWork.Priority.VISIBLE, 0)
+		return true, ReolPresentationWork.Priority.VISIBLE, 0)
+	queue.run_pending(1000)
+	valid = valid and queue.diagnostics().pending == 1
+	queue.run_pending(1000)
+	valid = valid and order.back() == "replacement" and queue.diagnostics().pending == 0
+	queue.request(&"cancelled", func() -> bool: order.append("wrong"); return true,
+		ReolPresentationWork.Priority.VISIBLE, 0)
+	queue.clear()
+	queue.run_pending(1000)
+	valid = valid and order.back() == "replacement"
+	queue.free()
+	return valid

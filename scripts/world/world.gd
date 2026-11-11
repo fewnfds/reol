@@ -57,6 +57,7 @@ var _preview_chunks: Dictionary[Vector2i, Dictionary] = {}
 var _dirty_cells: Dictionary[Vector2i, bool] = {}
 var _dirty_order: Array[Vector2i] = []
 var _dirty_cursor: int = 0
+var presentation_work: ReolPresentationWork
 
 
 static func generation_descriptor() -> Dictionary:
@@ -77,6 +78,8 @@ func bind_map_data(data: WorldMapData) -> void:
 	if _map_data != null and _map_data.terrain_changed.is_connected(_on_terrain_changed):
 		_map_data.terrain_changed.disconnect(_on_terrain_changed)
 	_map_data = data
+	if is_instance_valid(presentation_work):
+		presentation_work.cancel(&"terrain_prepaint")
 	invalidate_navigation()
 	_map_data.terrain_changed.connect(_on_terrain_changed)
 	_dirty_cells.clear()
@@ -154,13 +157,23 @@ func _process(_delta: float) -> void:
 		_unload_chunk(unload_coord)
 	var remaining: int = PAINT_CELLS_PER_FRAME - _paint_dirty(PAINT_CELLS_PER_FRAME)
 	remaining -= _paint_priority(remaining)
-	if remaining == 0:
+	if remaining == 0 or (_painting_chunk.x < 0 and _pending_load.is_empty()):
+		if is_instance_valid(presentation_work):
+			presentation_work.cancel(&"terrain_prepaint")
 		return
+	if is_instance_valid(presentation_work):
+		presentation_work.request(&"terrain_prepaint", _paint_background.bind(remaining), ReolPresentationWork.Priority.BACKGROUND, 500)
+	else:
+		_paint_background(remaining)
+
+
+func _paint_background(remaining: int) -> bool:
 	if _painting_chunk.x < 0 and not _pending_load.is_empty():
 		_painting_chunk = _pending_load.pop_front()
 		_painting_offset = 0
 	if _painting_chunk.x >= 0:
 		_paint_batch(remaining)
+	return true
 
 
 func _on_terrain_changed(cells: Array[Vector2i]) -> void:
