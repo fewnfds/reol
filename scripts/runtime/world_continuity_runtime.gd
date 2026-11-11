@@ -5,7 +5,6 @@ extends CommittedWorldCanvas
 
 signal region_changed(region_id: String)
 signal player_travel_advanced(position_value: Vector2)
-signal resident_selected(pawn: Pawn)
 signal avatar_changed
 signal save_finished(path: String, result: Error)
 signal player_command_finished(id: int, kind: String, result: Dictionary)
@@ -987,43 +986,6 @@ func _process(_delta: float) -> void:
 	if _saves != null:
 		_saves.process_save()
 	_drain_player_commands()
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if not human_player_active() or not event is InputEventMouseButton:
-		return
-	var mouse := event as InputEventMouseButton
-	if mouse.button_index != MOUSE_BUTTON_LEFT or not mouse.pressed:
-		return
-	var point: Vector2 = get_canvas_transform().affine_inverse() * mouse.position
-	if select_remote_at(point):
-		get_viewport().set_input_as_handled()
-
-
-func select_remote_at(point: Vector2) -> bool:
-	if not human_player_active():
-		return false
-	var nearest: Pawn
-	var distance: float = 36.0
-	for id: String in _remote_views:
-		var pawn: Pawn = _remote_views[id]
-		var candidate: float = pawn.selection_center().distance_to(point)
-		if pawn.visible and candidate < distance:
-			distance = candidate
-			nearest = pawn
-	if nearest == null:
-		return false
-	if _home._player.selection_center().distance_to(point) < distance:
-		return false
-	for pawn: Pawn in _home._pawns.values():
-		if pawn.visible and pawn.selection_center().distance_to(point) < distance:
-			return false
-	clear_remote_selection()
-	_selected_remote = String(nearest.pawn_id)
-	nearest.set_selected(true)
-	resident_selected.emit(nearest)
-	_refresh_panel()
-	return true
 
 
 func _update_courier_view() -> void:

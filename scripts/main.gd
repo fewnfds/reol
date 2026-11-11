@@ -152,7 +152,6 @@ func _ready() -> void:
 	# Village setup synchronized the views while every fog cell was still hidden.
 	_village._sync_actor_views(true)
 	_continuity.player_travel_advanced.connect(_on_travel_advanced)
-	_continuity.resident_selected.connect(_select_pawn)
 	_village.simulation_advanced.connect(_refresh_interaction)
 	_village.body_state_changed.connect(hud.refresh_body)
 	_village.content_replaced.connect(_on_content_replaced)
@@ -242,20 +241,25 @@ func _process(_delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _continuity != null and not _continuity.human_player_active():
-		return
 	if event is InputEventMouseButton:
 		var mouse := event as InputEventMouseButton
 		if mouse.button_index == MOUSE_BUTTON_LEFT and mouse.pressed:
 			var world_position: Vector2 = (
 				get_canvas_transform().affine_inverse() * mouse.position
 			)
-			_select_at(world_position)
+			# Ordinary world selection has one owner. Explicit construction and
+			# terrain tools keep their own earlier GUI/tool input handling.
+			if _development != null and not _continuity.construction_adapter.panel.visible:
+				_development.select_point(world_position)
 			get_viewport().set_input_as_handled()
 			return
+	if _continuity != null and not _continuity.human_player_active():
+		return
 	if event is InputEventKey:
 		var key := event as InputEventKey
 		if key.pressed and key.keycode == KEY_ESCAPE:
+			if _development != null:
+				_development.clear_selection()
 			_select_player()
 			get_viewport().set_input_as_handled()
 			return
@@ -290,27 +294,6 @@ func _input(event: InputEvent) -> void:
 	elif event.is_action_pressed("speed_4"):
 		GameClock.set_speed(4.0)
 		get_viewport().set_input_as_handled()
-
-
-func _select_at(world_position: Vector2) -> void:
-	if _continuity != null and _continuity.select_remote_at(world_position):
-		return
-	var best: Pawn = null
-	var best_distance: float = SELECT_RADIUS / camera.zoom.x
-	for pawn: Pawn in _pawns:
-		if not pawn.visible:
-			continue
-		var distance: float = pawn.selection_center().distance_to(world_position)
-		if distance < best_distance:
-			best = pawn
-			best_distance = distance
-
-	if player.selection_center().distance_to(world_position) < best_distance:
-		_select_player()
-	elif best != null:
-		_select_pawn(best)
-	else:
-		_select_player()
 
 
 func _select_pawn(pawn: Pawn) -> void:

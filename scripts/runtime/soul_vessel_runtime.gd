@@ -144,11 +144,6 @@ func _unhandled_input(event: InputEvent) -> void:
 					if select_vessel(id):
 						break
 			get_viewport().set_input_as_handled()
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		for id: String in adapter.world_sim.soul_vessels.vessels:
-			if _visible(id) and get_global_mouse_position().distance_to(_display_point(id)) <= 18.0 and select_vessel(id):
-				get_viewport().set_input_as_handled()
-				break
 
 
 func _visible(id: String) -> bool:

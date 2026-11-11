@@ -52,5 +52,5 @@ func _ready() -> void:
 	tour_guide.name = "FeatureTourGuide"
 	add_child(tour_guide)
 	tour_guide.setup(self, tour_locations)
-	DisplayServer.window_set_title("REOL · 功能试游 · DEV数值与点选")
+	DisplayServer.window_set_title("REOL · 功能试游 · 地块悬浮与单位选择")
 	print("FEATURE_TOUR_READY residents=12 rooms=2 save_slot=", SAVE_SLOT)

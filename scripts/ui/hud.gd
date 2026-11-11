@@ -1,6 +1,6 @@
 class_name GameHUD
 extends CanvasLayer
-## Development HUD: numeric status and detached raw cell inspection. Actions
+## Development HUD: numeric status, passive terrain hover and unit inspection. Actions
 ## still route through the original adapters rather than editing these views.
 
 signal help_requested
@@ -47,6 +47,9 @@ var development_snapshot: Dictionary = {}
 var _backend_text: Label
 var _coordinates: Label
 var _pointer: Vector2
+var terrain_snapshot: Dictionary = {}
+var _terrain_hover: PanelContainer
+var _terrain_text: Label
 
 
 func _ready() -> void:
@@ -104,7 +107,7 @@ func set_bird_avatar(value: bool) -> void:
 	_bird_avatar = value
 	_pawn_panel.visible = not value
 	_input_hint.text = "WASD · F/E/R" if value else "WASD · Shift · C"
-	_input_hint.tooltip_text = "WASD振翅 · F落地 · E觅食 · R歇翅" if value else "WASD行走 · Shift闪身 · C交互 · 左键检查 · 右键植物操作"
+	_input_hint.tooltip_text = "WASD振翅 · F落地 · E觅食 · R歇翅" if value else "WASD行走 · Shift闪身 · C交互 · 左键选择单位 · 地块信息跟随鼠标"
 
 
 func diagnostics_visible() -> bool:
@@ -228,11 +231,64 @@ func _build_development() -> void:
 	panel.resized.connect(func() -> void:
 		_diagnostics.offset_top = panel.offset_top + panel.size.y + 12.0
 		_diagnostics.offset_bottom = _diagnostics.offset_top + 162.0)
+	_terrain_hover = PanelContainer.new()
+	_terrain_hover.name = "TerrainHover"
+	_terrain_hover.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_terrain_hover.z_index = 100
+	_screen.add_child(_terrain_hover)
+	_terrain_text = UI.label(_terrain_hover, "", UI.PAPER, 12)
+	_terrain_text.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_terrain_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_terrain_hover.hide()
 
 
 func set_pointer_position(point: Vector2) -> void:
 	_pointer = point
 	_refresh_coordinates()
+	_position_terrain_hover()
+
+
+func pointer_over_interface() -> bool:
+	return get_viewport().gui_get_hovered_control() != null
+
+
+func set_terrain_snapshot(data: Dictionary) -> void:
+	terrain_snapshot = data
+	if data.is_empty():
+		_terrain_hover.hide()
+		return
+	var cell: Vector2i = data.cell
+	var natural: Dictionary = data.natural
+	var lines: Array[String] = ["地块 (%d,%d) · terrain=%d · 高度=%d" % [cell.x, cell.y, data.terrain, data.elevation],
+		"肥力=%s · 水分=%s · 矿化=%s" % [natural.get("fertility", "n/a"), natural.get("moisture_potential", "n/a"), natural.get("mineralization", "n/a")],
+		"曝露=%s · 冠层=%s · 近水=%s" % [natural.get("exposure", "n/a"), natural.get("canopy_potential", "n/a"), natural.get("water_nearby", "n/a")]]
+	var context: Dictionary = data.environment
+	if context.get("ok", false):
+		var elements: PackedFloat64Array = context.elements
+		var tide: PackedInt32Array = context.element_tide_percent
+		lines.append("温度=%.3f℃ · 照度=%.2f · roof=%d" % [context.temperature_c, context.light_relative, int(context.roofed)])
+		lines.append("五行场 木%.0f / 火%.0f / 土%.0f / 金%.0f / 水%.0f" % [elements[0], elements[1], elements[2], elements[3], elements[4]])
+		lines.append("潮汐 木%+d%% / 火%+d%% / 土%+d%% / 金%+d%% / 水%+d%%" % [tide[0], tide[1], tide[2], tide[3], tide[4]])
+		lines.append("t=%dms · 五行=%dms · 潮汐=%dms" % [data.at_ms, context.elements_at_ms, context.element_tide_at_ms])
+	else:
+		lines.append("environment=unavailable · t=%dms" % data.at_ms)
+	_terrain_text.text = "\n".join(lines)
+	_terrain_hover.reset_size()
+	_terrain_hover.show()
+	_position_terrain_hover()
+
+
+func _position_terrain_hover() -> void:
+	if _terrain_hover == null or not _terrain_hover.visible:
+		return
+	var cursor: Vector2 = _screen.get_local_mouse_position()
+	var target: Vector2 = cursor + Vector2(20, 20)
+	var extent: Vector2 = _terrain_hover.size
+	if target.x + extent.x > _screen.size.x - 8.0:
+		target.x = cursor.x - extent.x - 20.0
+	if target.y + extent.y > _screen.size.y - 8.0:
+		target.y = cursor.y - extent.y - 20.0
+	_terrain_hover.position = target.clamp(Vector2(8, 8), (_screen.size - extent - Vector2(8, 8)).max(Vector2(8, 8)))
 
 
 func _refresh_coordinates() -> void:
@@ -259,7 +315,7 @@ func set_development_snapshot(data: Dictionary) -> void:
 		lines.append("环境时刻=%dms · 冷热负担 energy_rate=%s" % [context.at_ms, str(data.exposure.get("burden_rate", "n/a"))])
 	else:
 		lines.append("环境 unavailable: " + str(context.get("reason", "unknown")))
-	lines.append("左键格子：查看各层对象与原始值 · 当前为DEV全知观察")
+	lines.append("地块信息跟随鼠标 · 左键选择单位 · 当前为DEV全知观察")
 	_backend_text.text = "\n".join(lines)
 
 

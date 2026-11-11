@@ -253,8 +253,3 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE and panel.visible:
 		panel.hide()
 		get_viewport().set_input_as_handled()
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		for id: String in source.definitions.sources:
-			if source_visible(id) and get_global_mouse_position().distance_to(_display_point(id)) <= 18.0 and select_source(id):
-				get_viewport().set_input_as_handled()
-				break

@@ -25,7 +25,7 @@ func _ready() -> void:
 	add_child(column)
 	var header := HBoxContainer.new()
 	column.add_child(header)
-	UI.label(header, "DEV · 地块 / 全部对象", UI.PAPER, 16)
+	UI.label(header, "DEV · 选中单位", UI.PAPER, 16)
 	UI.button(header, "关闭", hide)
 	_summary = UI.label(column, "", UI.MUTED, 13)
 	_choice = OptionButton.new()
@@ -51,12 +51,10 @@ func _ready() -> void:
 
 func present(data: Dictionary) -> void:
 	var previous: String = _keys[_choice.selected] if _choice.selected >= 0 and _choice.selected < _keys.size() else ""
-	if _cell != data.cell:
-		previous = ""
+	if not data.get("selected_reference", {}).is_empty():
+		previous = JSON.stringify(data.selected_reference, "", true)
 		_notice.hide()
 	snapshot = data
-	_cell = data.cell
-	_summary.text = "格 (%d,%d) · t=%dms\n查询=%s · DEV原状态，不写入角色认识" % [_cell.x, _cell.y, data.at_ms, data.query_status]
 	_rows = data.objects
 	var next: Array[String] = []
 	for row: Dictionary in _rows:
@@ -69,10 +67,6 @@ func present(data: Dictionary) -> void:
 	var index: int = _keys.find(previous)
 	if index < 0:
 		index = 0
-		for candidate: int in range(1, _rows.size()):
-			if _rows[candidate].values.get("spatial", {}).get("layer", "") in ["ground", "air", "planned"]:
-				index = candidate
-				break
 	_choice.select(index)
 	_show_values()
 
@@ -90,18 +84,33 @@ func _show_values() -> void:
 		_open.disabled = true
 		return
 	var row: Dictionary = _rows[_choice.selected]
+	_cell = row.cell
+	_summary.text = "格 (%d,%d) · t=%dms · 候选=%d\n下拉或重复点击切换单位 · DEV原始值" % [_cell.x, _cell.y, snapshot.at_ms, _rows.size()]
 	var value: String = JSON.stringify(row.values, "  ", false, true)
 	if _values.text != value:
 		var scroll: float = _values.scroll_vertical
 		_values.text = value
 		_values.scroll_vertical = scroll
-	_open.disabled = row.reference.kind not in ["terrain", "construction", "artifact", "plant", "actor", "avian", "workplace"]
+	_open.disabled = row.reference.kind not in ["construction", "artifact", "plant", "actor", "avian", "large_body", "workplace", "vessel", "spirit_source"]
 	_open.text = "打开对应操作 · " + str(row.reference.kind)
 
 
 func _operate() -> void:
 	if not _rows.is_empty():
 		operation_requested.emit(_rows[_choice.selected].reference.duplicate(true), _cell)
+
+
+func selected_reference() -> Dictionary:
+	return _rows[_choice.selected].reference.duplicate(true) if not _rows.is_empty() and _choice.selected >= 0 else {}
+
+
+func clear() -> void:
+	_rows.clear()
+	_keys.clear()
+	snapshot = {}
+	_choice.clear()
+	_values.text = ""
+	hide()
 
 
 func _copy() -> void:

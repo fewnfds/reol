@@ -43,7 +43,7 @@ func setup(adapter: WorldContinuityRuntime) -> void:
 	redraw_committed_canvas()
 
 
-func select_object(id: String, hit_point: Vector2 = Vector2.INF) -> bool:
+func select_object(id: String, hit_point: Vector2 = Vector2.INF, open_panel: bool = true) -> bool:
 	var adapter: WorldContinuityRuntime = runtime()
 	if not _can_observe(adapter):
 		return false
@@ -60,7 +60,7 @@ func select_object(id: String, hit_point: Vector2 = Vector2.INF) -> bool:
 		spirit.panel.hide()
 	if adapter.soul_adapter != null:
 		adapter.soul_adapter.panel.hide()
-	panel.show()
+	panel.visible = open_panel
 	refresh()
 	return true
 
@@ -383,6 +383,11 @@ func _unhandled_input(event: InputEvent) -> void:
 				panel.hide()
 			else:
 				var authority: RegionalSimulation = adapter.world_sim
+				# I opens the explicitly selected item before falling back to the
+				# original nearby inventory choices.
+				if not selected_object.is_empty() and _visible(selected_object, authority) and select_object(selected_object):
+					get_viewport().set_input_as_handled()
+					return
 				var candidates: Array[String] = _local_candidates(authority)
 				candidates.sort()
 				var thermal: Array[String] = []
@@ -402,16 +407,6 @@ func _unhandled_input(event: InputEvent) -> void:
 					if visible and select_object(id):
 						break
 			get_viewport().set_input_as_handled()
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var cursor: Vector2 = get_canvas_transform().affine_inverse() * event.position
-		var authority: RegionalSimulation = adapter.world_sim
-		var hits: Array[String] = _visible_hits(cursor, authority)
-		if not hits.is_empty():
-			# Independently moving holders can overlap a placed icon after layout.
-			# Keep only the clicked position, not a potentially stale hit list.
-			var previous: int = hits.find(selected_object) if panel.visible else -1
-			if select_object(hits[(previous + 1) % hits.size()], cursor):
-				get_viewport().set_input_as_handled()
 
 
 func _cycle_selection() -> void:

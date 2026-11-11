@@ -101,21 +101,6 @@ func select_body(id: String) -> bool:
 	return true
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not runtime().human_player_active() or not event is InputEventMouseButton or not event.pressed or event.button_index != MOUSE_BUTTON_LEFT:
-		return
-	var point: Vector2 = get_canvas_transform().affine_inverse() * event.position
-	if select_at(point):
-		get_viewport().set_input_as_handled()
-
-
-func select_at(point: Vector2) -> bool:
-	for id: String in runtime().world_sim.large_bodies.bodies:
-		if is_visible_body(id) and point.distance_to(display_point(id)) < float(TileGrid.TILE_SIZE) * 1.35 and select_body(id):
-			return true
-	return false
-
-
 func _build_canvas() -> void:
 	var adapter: WorldContinuityRuntime = runtime()
 	if adapter == null:

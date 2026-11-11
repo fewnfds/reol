@@ -39,11 +39,11 @@ func setup(adapter: WorldContinuityRuntime) -> void:
 	panel.custom_minimum_size = Vector2(340, 0)
 	var column := VBoxContainer.new()
 	panel.add_child(column)
-	UI.label(column, "地块 / 植物操作", UI.PAPER, 19)
+	UI.label(column, "植物操作", UI.PAPER, 19)
 	_description = UI.label(column, "", UI.PAPER, 14)
 	_description.custom_minimum_size = Vector2(318, 150)
 	_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	UI.label(column, "右键观察地面 · 只显示当前可见处", UI.MUTED, 12)
+	UI.label(column, "选中植物后打开操作 · 地块数据跟随鼠标", UI.MUTED, 12)
 	_plant_choice = OptionButton.new()
 	column.add_child(_plant_choice)
 	_plant_choice.item_selected.connect(func(index: int) -> void:
@@ -104,12 +104,14 @@ func _committed_canvas_input_key() -> Variant:
 	return [world.get_instance_id(), _drawing_revision, adapter.controlled_cell(), adapter.soul_player_active()]
 
 
-func observe(cell: Vector2i) -> bool:
+func observe(cell: Vector2i, plant_id: String = "") -> bool:
 	var adapter: WorldContinuityRuntime = runtime()
 	if adapter == null or _presentation_pending() or adapter.soul_player_active() or not visible_cell(cell):
 		return false
+	if not plant_id.is_empty() and plant_id not in adapter.world_sim.plants.ids_at(cell):
+		return false
 	selected_cell = cell
-	_selected_plant = ""
+	_selected_plant = plant_id
 	panel.show()
 	refresh()
 	return true
@@ -136,7 +138,7 @@ func describe(cell: Vector2i) -> String:
 	for id: String in adapter.world_sim.plants.ids_at(cell):
 		var row: Dictionary = adapter.world_sim.plants.bodies[id]
 		line += "\n%s · %s\nstage=%s · dormant=%d\nage_ms=%d · growth_ms=%d\nwater=%d · hp=%d" % [id, row.definition, row.stage, int(row.dormant), row.age_ms, row.growth_ms, row.water, row.hp]
-	line += "\n环境数值见HUD；全部原始值用左键检查。"
+	line += "\n地块数据跟随鼠标；单位原始值用左键选择。"
 	return line
 
 
@@ -183,11 +185,7 @@ func cell_at_point(point: Vector2) -> Vector2i:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		var point: Vector2 = get_canvas_transform().affine_inverse() * event.position
-		if observe(cell_at_point(point)):
-			get_viewport().set_input_as_handled()
-	elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE and panel.visible:
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE and panel.visible:
 		panel.hide()
 		get_viewport().set_input_as_handled()
 
