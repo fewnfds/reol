@@ -20,6 +20,9 @@ var next_id: int = 1
 var next_cost_id: int = 1
 var next_hit_id: int = 1
 var next_lesson_id: int = 1
+## Host execution policy and measurements, never saved gameplay state.
+var spatial_workers: int = 4
+var spatial_work: Dictionary = {"batches": 0, "parallel_batches": 0, "bodies": 0, "segments": 0, "prepare_usec": 0, "query_usec": 0}
 var _owner: WeakRef
 var world: RefCounted:
 	get: return _owner.get_ref() if _owner != null else null
@@ -429,6 +432,13 @@ func _emit(row: Dictionary, action: Dictionary) -> void:
 
 
 func _advance_projectiles(now: int, contacts: Array[Dictionary]) -> void:
+	var prepared_at: int = Time.get_ticks_usec()
+	var ids: Array[String] = []
+	var starts := PackedVector2Array()
+	var ends := PackedVector2Array()
+	var owners := PackedStringArray()
+	var levels := PackedInt32Array()
+	var distances := PackedFloat64Array()
 	for id: String in world._sorted_keys(projectiles):
 		var shot: Dictionary = projectiles[id]
 		if now < int(shot.last_ms) + int(rules.step_ms):
@@ -441,30 +451,41 @@ func _advance_projectiles(now: int, contacts: Array[Dictionary]) -> void:
 		# from the immutable emission and the accumulated scalar distance.
 		# Keep a restored legacy shot's actual position as this segment's start.
 		var to: Vector2 = _vector(shot.origin) + _vector(shot.direction) * travelled
-		var target: String = ""
-		var contact_point: Vector2 = to
-		var nearest: float = from.distance_to(to) + 1.0
-		var radius: float = float(rules.projectile_radius)
-		for region: String in world.regions:
-			world.advance_region_to_world(region)
-			var sim: VillageSimulation = world.regions[region]
-			for candidate: String in sim.actor_ids():
-				if candidate == str(shot.actor) or not bool(sim.actor_state(candidate).alive):
-					continue
-				var target_point: Vector2 = sim.rule_actor_position(candidate)
-				var closest: Vector2 = Geometry2D.get_closest_point_to_segment(target_point, from, to)
-				if closest.distance_to(target_point) > radius or Space.level(world, target_point) != int(shot.level):
-					continue
-				var distance: float = closest.distance_to(from)
-				if distance < nearest:
-					nearest = distance
-					target = candidate
-					contact_point = closest
+		ids.append(id)
+		starts.append(from)
+		ends.append(to)
+		owners.append(str(shot.actor))
+		levels.append(int(shot.level))
+		distances.append(travelled)
+	if ids.is_empty():
+		return
+	# Synchronize/capture once at this rule boundary. Workers never call a live
+	# body getter or region advance; every projectile sees the same body input.
+	var bodies: SimBodyReadView = SimBodyReadView.capture(world)
+	spatial_work.prepare_usec += Time.get_ticks_usec() - prepared_at
+	var queried_at: int = Time.get_ticks_usec()
+	var queries := SimSpatialQueries.new()
+	queries.start(bodies, starts, ends, owners, levels, float(rules.projectile_radius), spatial_workers)
+	var targets: PackedInt32Array = queries.collect(ids.size())
+	spatial_work.query_usec += Time.get_ticks_usec() - queried_at
+	spatial_work.batches += 1
+	spatial_work.parallel_batches += int(queries.execution.parallel)
+	spatial_work.bodies += bodies.ids.size()
+	spatial_work.segments += ids.size()
+	for index: int in ids.size():
+		var id: String = ids[index]
+		var shot: Dictionary = projectiles[id]
+		var spec: Dictionary = rules.methods.qi_bolt
+		var from: Vector2 = starts[index]
+		var to: Vector2 = ends[index]
+		var travelled: float = distances[index]
+		var target: String = bodies.ids[targets[index]] if targets[index] >= 0 else ""
+		var contact_point: Vector2 = Geometry2D.get_closest_point_to_segment(bodies.points[targets[index]], from, to) if targets[index] >= 0 else to
 		if not Space.clear_segment(world, from, contact_point, int(shot.level)):
 			actions[id].projectile_end = {"at_ms": now, "reason": "blocked", "position": _point(contact_point), "travelled": minf(travelled, float(shot.travelled) + from.distance_to(contact_point))}
 			projectiles.erase(id)
 		elif not target.is_empty():
-			contacts.append({"action": id, "target": target, "from": shot.origin.duplicate(), "to": _point(SimRouteTravel.point(body(target))), "segment_from": _point(from), "segment_to": _point(to)})
+			contacts.append({"action": id, "target": target, "from": shot.origin.duplicate(), "to": _point(bodies.points[targets[index]]), "segment_from": _point(from), "segment_to": _point(to)})
 			actions[id].projectile_end = {"at_ms": now, "reason": "hit", "position": _point(contact_point), "travelled": minf(travelled, float(shot.travelled) + from.distance_to(contact_point))}
 			projectiles.erase(id)
 		else:

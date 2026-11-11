@@ -6,7 +6,7 @@
 
 ## 选择最短的有效检查
 
-- `python tools/godot.py test`只跑结算续算、CPU批一致、库存守恒、忙碌输入与呈现延后；默认进程上限15秒。`--suite NAME`选择相关项，语法见[usage](../tooling/usage.md)。
+- `python tools/godot.py test`只跑结算续算、CPU批一致、库存守恒、忙碌输入、呈现延后与共享空间读取；默认进程上限15秒。`--suite NAME`选择相关项，语法见[usage](../tooling/usage.md)。
 - 新class、资源或路径改变后按需import。规则、存读与场景改动核对本次受影响的具体流程；文档只查差异和链接。
 - `python tools/check_structure.py --audit-code`可辅助定位路径、UID和层依赖疑点；动态调用需要人工判断。`tests/tool_smoke.py`用于启动器改动。
 

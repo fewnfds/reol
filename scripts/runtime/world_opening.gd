@@ -38,7 +38,9 @@ static func assemble(adapter: Node, home: VillageRuntime, opening_source_loan: b
 		push_error("World continuity: remote settlement initialization failed")
 		return false
 	var route: Dictionary = adapter.settings.routes.river_road
-	var road: Array[Vector2i] = adapter._find_path(_cell(remote.places[route.source].cell), _cell(home.simulation.places[route.target].cell))
+	var road: Array[Vector2i] = VillageRuntime.find_grid_path(home._world,
+		_cell(remote.places[route.source].cell), _cell(home.simulation.places[route.target].cell),
+		int(adapter.settings.runtime.layout_radius), int(adapter.settings.runtime.layout_budget))
 	if road.size() < 2:
 		push_error("World continuity: settlement warehouses have no connected route")
 		return false

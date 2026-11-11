@@ -4,7 +4,77 @@ extends SceneTree
 const Kernel = preload("res://scripts/sim/execution/settlement_kernel.gd")
 const ActorBatch = preload("res://scripts/sim/actor_advance.gd")
 const Inventory = preload("res://scripts/sim/inventory_ledger.gd")
-const SUITES: Array[String] = ["settlement", "actor_batch", "inventory", "input", "presentation"]
+const SUITES: Array[String] = ["settlement", "actor_batch", "inventory", "input", "presentation", "spatial"]
+
+class NavigationReadCheck extends RefCounted:
+	var graph := SimGridNavigation.Search.new(16, true)
+	var view: SimWorldGeometry.ReadView
+	var result: Array[Vector2i] = []
+	func run() -> void:
+		result = graph.find_path(Vector2i(116, 120), Vector2i(130, 120), view.is_walkable, view.can_step, 4096)
+
+
+func _spatial() -> bool:
+	# Freeze once, change the authoritative terrain, then use the old input on
+	# actual workers. It must remain readable but fail adoption as current data.
+	var world := RegionalSimulation.new()
+	world.bind_map_data(WorldMapData.from_descriptor(WorldMapData.flat_descriptor(17)))
+	var patch: Array = []
+	for y: int in range(100, 137):
+		for x: int in range(100, 137):
+			patch.append([x, y, WorldMapData.TERRAIN_GRASS])
+	if not bool(world.map_data.apply_terrain_patch(patch).ok):
+		return false
+	var geometry: SimWorldGeometry = world.geometry_read()
+	var view: SimWorldGeometry.ReadView = geometry.capture(Rect2i(100, 100, 37, 37))
+	var built: int = int(geometry.work.built_pages)
+	var repeated: SimWorldGeometry.ReadView = geometry.capture(view.bounds)
+	if not geometry.is_current(view) or geometry.work.built_pages != built or repeated.pages != view.pages:
+		return false
+	var expected: Array[Vector2i] = SimGridNavigation.find_path(Vector2i(116, 120), Vector2i(130, 120), world.map_data.terrain_is_walkable, world.map_data.terrain_can_step, 16, 4096)
+	if expected.is_empty() or not bool(world.map_data.apply_terrain_patch([[130, 120, WorldMapData.TERRAIN_ROCK]]).ok):
+		return false
+	if geometry.is_current(view) or not view.is_walkable(Vector2i(130, 120)) or geometry.is_walkable(Vector2i(130, 120)) or geometry.work.built_pages != built:
+		return false
+	var tasks: Array[RefCounted] = []
+	for index: int in 2:
+		var task := NavigationReadCheck.new()
+		task.view = view
+		tasks.append(task)
+	var batch := SimBatchExecution.new()
+	batch.start(tasks, 2)
+	batch.finish(true)
+	if not batch.parallel or tasks[0].result != expected or tasks[1].result != expected:
+		return false
+	world._retire_geometry()
+	if geometry.is_current(view) or geometry.capture(view.bounds) != null or world.geometry_read().is_current(view):
+		return false
+	# Equal-distance targets straddle chunk boundaries. The first original row
+	# wins even when another worker finishes first; shooter/height filters apply.
+	var bodies := SimBodyReadView.new()
+	for row: int in 512:
+		bodies.ids.append(str(row))
+		bodies.points.append(Vector2(200 + row * 4, 0))
+		bodies.levels.append(0)
+	bodies.points[0] = Vector2(10, 0)
+	bodies.points[65] = Vector2(10, 0)
+	var starts := PackedVector2Array()
+	var ends := PackedVector2Array()
+	var excluded := PackedStringArray()
+	var levels := PackedInt32Array()
+	for shot: int in 32:
+		starts.append(Vector2.ZERO if shot != 31 else Vector2(0, 50))
+		ends.append(Vector2(20, 0) if shot != 31 else Vector2(20, 50))
+		excluded.append("0" if shot % 2 == 0 else "none")
+		levels.append(0 if shot != 30 else 1)
+	var serial := SimSpatialQueries.new()
+	serial.start(bodies, starts, ends, excluded, levels, 1.0, 0)
+	var parallel := SimSpatialQueries.new()
+	parallel.start(bodies, starts, ends, excluded, levels, 1.0, 4)
+	var expected_targets: PackedInt32Array = serial.collect(starts.size())
+	if parallel.collect(starts.size()) != expected_targets or not parallel.execution.parallel:
+		return false
+	return expected_targets[0] == 65 and expected_targets[1] == 0 and expected_targets[30] == -1 and expected_targets[31] == -1
 
 
 func _initialize() -> void:

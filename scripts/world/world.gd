@@ -32,6 +32,7 @@ var _flora_ids: Array = []
 var flora_override: Callable
 var _tile_set: TileSet
 var _map_data: WorldMapData
+var _geometry_reader: SimWorldGeometry
 var _loaded: Dictionary[Vector2i, bool] = {}
 var _cliff_nodes: Dictionary[Vector2i, CliffChunk] = {}
 var _pending_load: Array[Vector2i] = []
@@ -305,6 +306,8 @@ func get_elevation(cell: Vector2i) -> int:
 
 
 func is_walkable(cell: Vector2i) -> bool:
+	if _geometry_reader != null:
+		return _geometry_reader.is_walkable(cell)
 	var reusable: bool = _refresh_navigation_cache()
 	var revision: int = _cached_navigation_revision
 	if reusable and _walkability_cache.has(cell):
@@ -318,7 +321,15 @@ func is_walkable(cell: Vector2i) -> bool:
 func set_obstacle_provider(provider: Callable, revision_provider: Callable = Callable()) -> void:
 	# Opt in only when all terrain/clearance dependencies are observable. Opaque
 	# callbacks remain live on every query, including standalone callers.
+	_geometry_reader = null
 	_obstacles = provider
+	_navigation_revision_provider = revision_provider
+	invalidate_navigation()
+
+
+func bind_geometry(reader: SimWorldGeometry, revision_provider: Callable) -> void:
+	_geometry_reader = reader
+	_obstacles = Callable()
 	_navigation_revision_provider = revision_provider
 	invalidate_navigation()
 
@@ -345,6 +356,8 @@ func _refresh_navigation_cache() -> bool:
 
 
 func find_grid_path(from: Vector2i, to: Vector2i, radius: int, budget: int) -> Array[Vector2i]:
+	if _geometry_reader != null:
+		return _geometry_reader.find_path(from, to, radius, budget)
 	var reusable: bool = _refresh_navigation_cache()
 	var revision: int = _cached_navigation_revision
 	var key: String = "%s:%s:%d:%d" % [from, to, radius, budget]
@@ -397,6 +410,8 @@ func can_move(from_cell: Vector2i, to_cell: Vector2i) -> bool:
 
 
 func can_step(from_cell: Vector2i, step: Vector2i) -> bool:
+	if _geometry_reader != null:
+		return _geometry_reader.can_step(from_cell, step)
 	if step == Vector2i.ZERO:
 		return true
 	if not can_move(from_cell, from_cell + step):

@@ -13,6 +13,7 @@
 | [SimTerrainEdits](../../../scripts/sim/terrain_edits.gd)、[TerrainEditorRuntime](../../../scripts/runtime/terrain_editor_runtime.gd) | 原地图上的小批量事务、空间预检；开发工具负责暂停准备和输入投影 | 显式启动才开放；沿原active/位置/施工材料引用，单笔最多256格，不发放玩家权限或平行状态 |
 | [VillageSimulation](../../../scripts/sim/village_simulation.gd) | 人类原身体、唯一位置/朝向、原生活状态和村落配置 | 所属区是保存所有者，不是人物当前所在空间 |
 | [SimBatchExecution](../../../scripts/sim/execution/batch_execution.gd)、[SimActorAdvance](../../../scripts/sim/actor_advance.gd) | 前者持有可回收的CPU批任务；后者持有原人物连续推进的紧凑输入/候选结果 | 不持第二份身体/时钟/库存；由VillageSimulation验证后采用，见[批执行](../execution-batches.md) |
+| [SimWorldGeometry](../../../scripts/sim/world_geometry.gd)、[SimBodyReadView](../../../scripts/sim/body_read_view.gd)、[SimSpatialQueries](../../../scripts/sim/execution/spatial_queries.gd) | 模拟层维护几何读取页/路径缓存和变化失效；同边界身体列供独立空间候选计算，原交锋采用 | 几何可局部替换并保留旧只读页，身体输入每批捕获；不写身体/库存，不入档；主线程与模拟尚未分离，见[读取与查询](../execution-batches.md#共享空间读取与批量查询) |
 | [WorldOpening](../../../scripts/runtime/world_opening.gd)、[RegionalSnapshot](../../../scripts/persistence/regional_snapshot.gd) | 新局发行与存档候选构造分别归属；前者装配，后者捕获/校验/恢复 | 不持久保存第二个世界；读档不重跑新局，领域存读登记在`persistence/world_save_domains.gd` |
 | [RegionalSimulation](../../../scripts/sim/regional_simulation.gd) | 区域同步、域装配、共同边界/积压和跨域校验；`schedule_contract()`返回有序目录及阶段副本 | 领域状态仍归原owner；阶段目录描述既有调用顺序，不是自动事件总线或任意世界工厂 |
 | [SimEventQueue](../../../scripts/sim/execution/event_queue.gd)、[SimWorldEvents](../../../scripts/sim/world_events.gd) | 离散请求、到期/等待、重复/取消/期限与回执；可信规则接原域效果 | 不是第二个时钟或世界事实仓库；[事件合同](../event-contract.md) |

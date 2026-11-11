@@ -1,10 +1,10 @@
 # 批计算与原状态提交
 
-本合同属于共同运行与数据底座。施工出口只在[主计划](../plans/foundation-priorities.md)，总体因果见[共同结算](settlement-contract.md)；本页说明当前CPU接入，不代表整个A包或规模性能通过。
+本合同属于共同运行与数据底座。交付顺序只在[主计划](../plans/foundation-priorities.md)，总体因果见[共同结算](settlement-contract.md)；本页说明当前CPU接入，不代表整个多核方案或规模性能通过。
 
 ## 任务、数据与所有权
 
-[SimBatchExecution](../../scripts/sim/execution/batch_execution.gd)持有一次可回收任务，使用Godot `WorkerThreadPool.add_group_task()`。每个chunk私有输入、输出和计时；容器先完成分配，worker不调整共享容器大小、不访问活SceneTree、不调用世界提供者、不写身体或库存。它不另持世界时钟、实体库或业务回执。
+[SimBatchExecution](../../scripts/sim/execution/batch_execution.gd)持有一次可回收任务，使用Godot `WorkerThreadPool.add_group_task()`。共享输入在提交前固定，每个chunk拥有私有输出和计时；worker只调整自身输出，不调整共享容器大小、不访问活SceneTree、不调用世界提供者、不写身体或库存。它不另持世界时钟、实体库或业务回执。
 
 任务Callable只保留scratch `WorkGroup`，不反向保留handle、世界或场景。正常推进用`finish()`检查完成，未完成返回pending；完成后收集Godot任务资源，不立即阻塞主线程。`cancel()`撤销采用权，已运行的有界chunk可以结束；owner保留退休handle并在随后推进时收集。退出/世界替换负责最终回收，清理时可以等待。
 
@@ -28,6 +28,20 @@
 
 身体显式同步、动作/控制/几何依赖失效、重建和成功restore撤销准备结果；失败restore不改变活世界及有效候选。原anchor与时刻也须匹配，同ID的新身体不能继承旧结果。
 
+## 共享空间读取与批量查询
+
+[SimWorldGeometry](../../scripts/sim/world_geometry.gd)是原地图、建筑、植物及大型身体阻挡的可重建读取层，由`RegionalSimulation`持有，不保存另一份权威世界。普通人物和服务通过`bind_geometry_navigation()`直接使用模拟层路径/通行提供者；几何变化与原路线证明失效也在模拟层处理，`ReolWorld`转为读取适配。
+
+读取按16×16格页组织，保存高度、地表类型、行走及掩体标记；稳定页复用，变化只替换已建页中受影响格，未知页首次需要时生成。植物生长状态不改变阻挡时不失效。`capture(area)`固定范围、来源ID和几何版本，封住页表并保留旧页；任务并行时owner可替换新页，既有输入仍可读，采用前用`is_current`核对。新世界/成功恢复会退休旧owner；旧页不写档，失败恢复不退休活输入。冷建块仍有同步成本，尚未移入后台。
+
+`SimGridNavigation.Search.find_path`可在私有AStar上下文上运行同一算法。同步便利入口仍使用原主线程缓存；worker不得调用该全局缓存，也不得共享一个正在搜索的AStar。首批只验证了私有上下文批查询，尚未把普通行动的即时路线请求改为异步。
+
+[SimBodyReadView](../../scripts/sim/body_read_view.gd)在原规则边界由owner同步所需地区并捕获身体ID、位置、高度列；worker不触发身体getter。它保留原地区/人物遍历顺序，当前每批捕获一次，尚未实现持久身体热列或显示发布。
+
+[SimSpatialQueries](../../scripts/sim/execution/spatial_queries.gd)按64个身体分块，对多个线段求接触候选；达到4096个身体×线段候选对才尝试最多4个worker，小批用同算法串行。任务内一次解析列引用，避免每对候选重复访问共享脚本对象。候选按固定chunk顺序收敛，等距仍由原身体顺序决定。
+
+真实消费者是`SimConflicts._advance_projectiles`：同边界捕获一次身体输入、批量查候选，再沿原投射物顺序核遮挡、收集全部接触、最后沿原规则提交伤害。此首批接入仍在原交锋回调内等待完成，没有跨帧交锋游标或新的取消时机；大批的等待也计入回调成本。不是每个领域独建线程或第二个战斗世界。
+
 ## 跨帧、存读与呈现
 
 `RegionalSimulation`在边界开始前受理手动接管并执行一次手动移动，然后由原`SimSettlementKernel`的`native_interval/native_actors`步骤准备各地区批次。全部提交后检查完成；未完成返回宿主，原kernel保留游标，后续沿同一边界接续，手动位移不重放。
@@ -44,10 +58,10 @@
 
 普通诊断和人口压力报告包含各地区数据；`tools/stress_demo.py --actor-workers 0/4`对照相同路径。逻辑流速、帧P95/P99及真实渲染另行测量，线程ID/采用数只能证明接入。
 
-GPU后续沿“紧凑输入、时刻/代次/依赖、候选输出、原owner采用”接入环境计算。当前需求采用64位整数，GPU布局与精度须按环境算法确定，不能改成浮点就假定同未来。身体批本身没有GPU dispatch；普通环境的实际GPU采用和收益范围见[环境合同](world-environment-contract.md)与BASELINE。
+环境GPU已经沿“紧凑输入、时刻/代次/依赖、候选输出、原owner采用”实际接入，继续复用。当前需求采用64位整数，不能改成浮点就假定同未来。身体批和空间候选本身没有GPU dispatch；普通环境的实际GPU采用和收益范围见[环境合同](world-environment-contract.md)与BASELINE。
 
 当前仍有主线程输入采样、地区/动作决定、路线搜索、领域同步及发布；准备也不是可抢占回调。本接口不证明300人1×/60FPS或所有规则已多核，证据见[BASELINE](../status/baseline.md)。
 
-旧`test_actor_advance`已随全量套件退役，原验证范围保留在QA。当前`tests/smoke.gd`仅短查串行/worker数值一致及取消标记；完整世界采用、存读和长期稳定不由这个短检查证明。
+旧`test_actor_advance`已随全量套件退役，原验证范围保留在QA。当前`tests/smoke.gd`短查身体串行/worker数值一致及取消标记，`spatial`补空间候选等距/过滤、保留旧页、局部地形变化及来源替换；完整世界采用、存读和长期稳定不由这个短检查证明。
 
 官方依据：[WorkerThreadPool](https://docs.godotengine.org/en/4.7/classes/class_workerthreadpool.html)、[线程安全](https://docs.godotengine.org/en/4.7/tutorials/performance/thread_safe_apis.html)。无新增依赖或业务autoload。

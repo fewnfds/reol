@@ -13,7 +13,7 @@ python tools/godot.py run
 python tools/godot.py editor
 ```
 
-`test`使用当前短smoke入口，不自动导入。`--suite NAME`可选`settlement`、`actor_batch`、`inventory`、`input`或`presentation`；`--timeout SECONDS`默认15、可选1–30秒。新检出、新class或资源不可识别时才需要import。`check`及旧`--shard/--jobs/--test-timeout/--timing-report`参数已移除，不保留指向旧体系的别名。日志实时合流落盘，错误和超时返回非零；普通run/editor不会因错误行强关用户窗口。
+`test`使用当前短smoke入口，不自动导入。`--suite NAME`可选`settlement`、`actor_batch`、`inventory`或`spatial`；完整短smoke还包含输入与呈现检查。`--timeout SECONDS`默认15、可选1–30秒。新检出、新class或资源不可识别时才需要import。`check`及旧`--shard/--jobs/--test-timeout/--timing-report`参数已移除，不保留指向旧体系的别名。日志实时合流落盘，错误和超时返回非零；普通run/editor不会因错误行强关用户窗口。
 
 ## 实际性能
 
@@ -39,6 +39,8 @@ Windows的`--release`先用`Windows Performance`预设导出当前代码到忽�
 默认仅保留帧/区间计时；追加`--profile-kernel`才包裹每个结算步骤，供定位使用。报告明确写`kernel_timing_enabled`；关闭时未测的步骤/残差为null，不能当作零成本。比较吞吐时保持计时模式一致。
 
 `--profile-navigation`可选统计原生/服务导航提供者的调用成本，最多保留4096组请求坐标作批处理探针输入；包含原路径缓存命中，不包括`SimConflictSpace`绕过提供者的直接搜索。该模式有额外计时与记录开销，不是普通试玩默认设置。`navigation_profile`只覆盖运行采样窗口；`actor_execution`明确为包含装配的累计计数，`actor_execution_capture`给出同一世界内运行窗口的差值。加载替换世界后后者为空，`actor_execution_capture_available=false`；历史累计线程ID也不代表运行期同时并行数。
+
+`spatial_execution_capture`记录运行窗口的身体捕获/查询成本、候选段数及并行批次数；`geometry_read_capture`记录新增读取页、局部更新格与捕获页引用。均在同一世界内作差，替换世界后为空；没有满足批量阈值时并行数为0，不能用探针的局部倍数冒充普通游戏收益。
 
 `--pacing-policy full-rate`只在临时压力场景绕过主动限速，保留有限准入、正常执行预算、续算和规则；只用于判别准入政策与实际吞吐，不是游戏设置。报告记录policy和`max_fps`，区分executor调用/无公共推进、完整世界边界、公共发布及其跨度；逐步骤同时记录calls与logical_boundaries，不能把续算次数当作新的逻辑tick。完整世界边界计数来自原世界统计，采样结束未完成的边界可能已进入某一步。
 

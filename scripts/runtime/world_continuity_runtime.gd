@@ -250,37 +250,10 @@ func _on_visibility_updated() -> void:
 	redraw_committed_canvas()
 
 
-var _navigation_revision: int = 0
-var _navigation_connections: Array[Array] = []
-var _plant_navigation_cells: Dictionary[String, Vector2i] = {}
-var _large_navigation_bounds: Dictionary[String, Rect2i] = {}
-
-
 func _bind_navigation() -> void:
-	for link: Array in _navigation_connections:
-		var event: Signal = link[0]
-		if is_instance_valid(event.get_object()) and event.is_connected(link[1]):
-			event.disconnect(link[1])
-	_navigation_connections.clear()
-	_plant_navigation_cells.clear()
-	_large_navigation_bounds.clear()
-	_navigation_revision += 1
-	for event: Signal in [world_sim.map_data.terrain_changed, world_sim.construction.space_changed]:
-		event.connect(_navigation_changed)
-		_navigation_connections.append([event, _navigation_changed])
-	for id: String in world_sim.plants.bodies:
-		var cell: Variant = _blocking_plant_cell(id)
-		if cell is Vector2i:
-			_plant_navigation_cells[id] = cell
-	for id: String in world_sim.large_bodies.bodies:
-		_large_navigation_bounds[id] = world_sim.large_bodies.swept_bounds(id)
-	for link: Array in [[world_sim.plants.plant_changed, _plant_navigation_changed], [world_sim.large_bodies.body_space_changed, _large_navigation_changed], [world_sim.large_bodies.bodies_space_changed, _large_navigation_batch_changed]]:
-		link[0].connect(link[1])
-		_navigation_connections.append(link)
-	world_sim.large_bodies.space_reset.connect(_large_navigation_reset)
-	_navigation_connections.append([world_sim.large_bodies.space_reset, _large_navigation_reset])
+	var geometry: SimWorldGeometry = world_sim.bind_geometry_navigation()
 	_home._world.bind_map_data(world_sim.map_data)
-	_home._world.set_obstacle_provider(_physical_obstacle, _native_boundary_revision)
+	_home._world.bind_geometry(geometry, world_sim.native_boundary_revision)
 	_home._world.set_sight_obstacle_provider(world_sim.construction.blocks_sight)
 	if _home._fog != null:
 		_home._fog.set_projection_guard(_presentation_ready)
@@ -299,9 +272,6 @@ func _bind_navigation() -> void:
 	_home._places = _home.simulation.places.duplicate(true)
 	for region: String in world_sim.regions:
 		var sim: VillageSimulation = world_sim.regions[region]
-		sim.set_navigation(_find_path, _can_step)
-		sim.set_boundary_revision_provider(_native_boundary_revision)
-		sim.set_route_geometry_revision_provider(_native_geometry_revision)
 		sim.set_native_crossing_interest(world_sim.environment_fields.needs_native_crossings.bind(region))
 		sim.set_sparse_actor_projection(true)
 		# Original route geometry and its change revision are bound above. Local
@@ -309,9 +279,7 @@ func _bind_navigation() -> void:
 		# split the shared world before any other domain can observe an effect.
 		sim.native_route_events_enabled = true
 		sim.configure_actor_execution()
-	if world_sim.services != null:
-		world_sim.services.set_navigation(_find_path, _can_step)
-	world_sim.sparring.set_geometry(_practice_contact_allowed, _can_step)
+	world_sim.sparring.set_geometry(_practice_contact_allowed, geometry.can_step)
 	world_sim.avian_life.set_landing_check(_home._world.is_walkable)
 	if object_adapter != null:
 		object_adapter.reset_observation()
@@ -337,93 +305,8 @@ func _bind_navigation() -> void:
 		field_adapter.reset_observation()
 
 
-func _navigation_changed(cells: Array[Vector2i] = []) -> void:
-	var previous_revision: int = _native_boundary_revision()
-	var previous_geometry: int = _native_geometry_revision()
-	_navigation_revision += 1
-	_home._world.invalidate_navigation(cells, previous_revision)
-	for region: String in world_sim.regions:
-		var invalidated: Array[String] = world_sim.regions[region].update_native_route_geometry(cells, previous_geometry, _native_geometry_revision(), previous_revision, _native_boundary_revision())
-		for actor: String in invalidated:
-			world_sim.invalidate_region(region, actor)
-
-
-func _native_boundary_revision() -> int:
-	# Connecting the first spatial observer can make cell edges consequential
-	# even before a query builds the index. The bit changes existing deadlines;
-	# route geometry proofs keep their separate, unchanged geometry revision.
-	var spatial: int = int(world_sim.space != null and world_sim.space.needs_native_crossings())
-	return (_native_geometry_revision() + world_sim.embodiment.native_motion_revision) * 2 + spatial
-
-
-func _native_geometry_revision() -> int:
-	var revision: int = _navigation_revision
-	for sim: VillageSimulation in world_sim.regions.values():
-		revision += int(sim.config.get("workplaces_version", 0))
-	return revision
-
-
-func _blocking_plant_cell(id: String) -> Variant:
-	var row: Dictionary = world_sim.plants.bodies.get(id, {})
-	if row.is_empty() or row.stage in ["root", "removed", "dead"] or not str(row.location.support).is_empty() or not bool(world_sim.plants.definitions.types[row.definition].blocks):
-		return null
-	return world_sim.plants.cell_of(id)
-
-
-func _plant_navigation_changed(id: String) -> void:
-	var previous: Variant = _plant_navigation_cells.get(id)
-	var current: Variant = _blocking_plant_cell(id)
-	if previous == current:
-		return # Growth, products and dormancy alone do not change walkability.
-	var cells: Array[Vector2i] = []
-	if previous is Vector2i:
-		cells.append(previous)
-		_plant_navigation_cells.erase(id)
-	if current is Vector2i:
-		cells.append(current)
-		_plant_navigation_cells[id] = current
-	_navigation_changed(cells)
-
-
-func _large_navigation_changed(id: String) -> void:
-	_large_navigation_batch_changed([id])
-
-
-func _large_navigation_reset() -> void:
-	_large_navigation_bounds.clear()
-	for id: String in world_sim.large_bodies.bodies:
-		_large_navigation_bounds[id] = world_sim.large_bodies.swept_bounds(id)
-	_navigation_changed()
-
-
-func _large_navigation_batch_changed(ids: Array[String]) -> void:
-	var changed: Dictionary[Vector2i, bool] = {}
-	for id: String in ids:
-		var previous: Rect2i = _large_navigation_bounds.get(id, Rect2i())
-		var current: Rect2i = world_sim.large_bodies.swept_bounds(id) if world_sim.large_bodies.bodies.has(id) else Rect2i()
-		if previous == current:
-			continue
-		for area: Rect2i in [previous, current]:
-			for y: int in range(area.position.y, area.end.y):
-				for x: int in range(area.position.x, area.end.x):
-					changed[Vector2i(x, y)] = true
-		if current.has_area():
-			_large_navigation_bounds[id] = current
-		else:
-			_large_navigation_bounds.erase(id)
-	if not changed.is_empty():
-		var cells: Array[Vector2i] = []
-		cells.assign(changed.keys())
-		_navigation_changed(cells)
-
-
 func _incoming_occupancy(cell: Vector2i) -> bool:
 	return world_sim != null and SimMotionClearance.segment_reserves(world_sim.regions.home.synchronize_actor("player"), player_journey, cell)
-
-
-func _physical_obstacle(cell: Vector2i) -> bool:
-	# Construction already includes accepted workplace walls and fixtures.
-	return world_sim.plants.blocked(cell) or world_sim.construction.blocked(cell) or world_sim.large_bodies.blocked(cell)
 
 
 func _workplace_obstacle(cell: Vector2i) -> bool:
@@ -529,11 +412,11 @@ func _practice_contact_allowed(from: Vector2, to: Vector2) -> bool:
 
 
 func _can_step(from_cell: Vector2i, direction: Vector2i) -> bool:
-	return _home._world.can_step(from_cell, direction)
+	return world_sim.geometry_read().can_step(from_cell, direction)
 
 
 func _find_path(from_cell: Vector2i, to_cell: Vector2i) -> Array[Vector2i]:
-	return VillageRuntime.find_grid_path(_home._world, from_cell, to_cell,
+	return world_sim.geometry_read().find_path(from_cell, to_cell,
 		int(settings.runtime.layout_radius), int(settings.runtime.layout_budget))
 
 

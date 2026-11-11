@@ -39,6 +39,8 @@ Reol已有分块、局部失效、packed响应列、分段二进制及基础场G
 - 先分离模拟协调与显示，再把主要计算族分批交给共用线程池；仅将整世界搬到一条后台线程只能解除部分主线程阻塞，不能作为模拟吞吐多核化的终点。
 - 保留原环境GPU路径，并行CPU不是GPU替代品。每条路径测准备、计算、等待、采用/发布，避免只比较纯核函数。详细数值和真实探针限制见[BASELINE](../../docs/status/baseline.md#多核主线的首轮核查)。
 
+随后用户提供[Godot性能目录（中文）](https://docs.godotengine.org/zh-cn/4.x/tutorials/performance/index.html)。按项目4.7版本核对[CPU优化](https://docs.godotengine.org/en/4.7/tutorials/performance/cpu_optimization.html)、[Server接口](https://docs.godotengine.org/en/4.7/tutorials/performance/using_servers.html)及上述线程安全页：优先连续、批量输入，避免活SceneTree访问；现成渲染/物理服务仍由引擎负责，但不会自动并行本项目RefCounted规则。首批据此将导航几何移回模拟层、按页复用读取，并把真实投射物候选接入原任务池，未新建物理引擎或ECS。探针还发现共享脚本对象的逐候选字段访问会抵消并行收益，改为任务内一次解析列引用后才有收益；同构建结果、冷准备成本及普通负载未触发并行的限制见BASELINE。
+
 ## 分频、错峰与有界近似（2026-11-11）
 
 用户最新提出在正常流速和手感优先的前提下，讨论降低不同领域的计算频率及允许环境近似。周期例子不是指定参数，旧“只许统一降速”不作为本次方案评审的前提；本轮已按用户授权落地固定逻辑分频，过载仍有原有限准入/缓行后备。

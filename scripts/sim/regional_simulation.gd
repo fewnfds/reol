@@ -154,6 +154,7 @@ var world_events: SimWorldEvents
 var map_data: WorldMapData
 ## Rebuildable spatial links only; never serialized as another world state.
 var space: SimWorldSpace
+var _geometry_read: SimWorldGeometry
 
 var _content: ReolContentDB
 var _next_id: int = 1
@@ -210,17 +211,22 @@ func describe_actor_action(actor: String) -> Dictionary:
 
 
 func _replace_space() -> void:
+	var rebind_geometry: bool = _geometry_read != null
+	_retire_geometry()
 	var previous: SimWorldSpace = space
 	space = SimWorldSpace.new(self)
 	if previous != null:
 		previous.reset("world_replaced")
 		previous.detach()
+	if rebind_geometry and map_data != null:
+		bind_geometry_navigation()
 
 
 func retire_space() -> void:
 	# A runtime adopts a fully validated independent world. Retained handles to
 	# the previous live projection must fail even if another diagnostic keeps
 	# that original simulation alive.
+	_retire_geometry()
 	var previous: SimWorldSpace = space
 	space = null
 	if previous != null:
@@ -228,11 +234,58 @@ func retire_space() -> void:
 		previous.detach()
 
 
+func geometry_read() -> SimWorldGeometry:
+	if _geometry_read == null and map_data != null:
+		_geometry_read = SimWorldGeometry.new(self)
+		_geometry_read.changed.connect(_geometry_changed)
+	return _geometry_read
+
+
+func bind_geometry_navigation() -> SimWorldGeometry:
+	var geometry: SimWorldGeometry = geometry_read()
+	var radius: int = int(settings.runtime.layout_radius)
+	var budget: int = int(settings.runtime.layout_budget)
+	for sim: VillageSimulation in regions.values():
+		sim.set_navigation(geometry.find_path.bind(radius, budget), geometry.can_step)
+		sim.set_boundary_revision_provider(native_boundary_revision)
+		sim.set_route_geometry_revision_provider(geometry.current_revision)
+	if services != null:
+		services.set_navigation(geometry.find_path.bind(radius, budget), geometry.can_step)
+	return geometry
+
+
+func native_geometry_revision() -> int:
+	return geometry_read().current_revision()
+
+
+func native_boundary_revision() -> int:
+	var spatial: int = int(space != null and space.needs_native_crossings())
+	return (native_geometry_revision() + embodiment.native_motion_revision) * 2 + spatial
+
+
+func _geometry_changed(cells: Array[Vector2i], previous_geometry: int) -> void:
+	if embodiment == null:
+		return # A map-only assembly has no accepted native routes yet.
+	var spatial: int = int(space != null and space.needs_native_crossings())
+	var previous_boundary: int = (previous_geometry + embodiment.native_motion_revision) * 2 + spatial
+	for region: String in regions:
+		var invalidated: Array[String] = regions[region].update_native_route_geometry(cells, previous_geometry, native_geometry_revision(), previous_boundary, native_boundary_revision())
+		for actor: String in invalidated:
+			invalidate_region(region, actor)
+
+
+func _retire_geometry() -> void:
+	if _geometry_read != null:
+		_geometry_read.detach()
+		_geometry_read = null
+
+
 func environment_boundary_active() -> bool:
 	return not accepts_commands()
 
 
 func bind_map_data(data: WorldMapData) -> void:
+	_retire_geometry()
 	map_data = data
 	if data == null:
 		return

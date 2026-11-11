@@ -7,6 +7,7 @@
 | [main.gd](main.gd) → [WorldOpening](runtime/world_opening.gd) | 场景适配和新局装配；开局发行不会在读档时重跑 |
 | [WorldContinuityRuntime](runtime/world_continuity_runtime.gd) | 已运行会话、玩家行旅、视图、计算后端的绑定与替换 |
 | [RegionalSimulation](sim/regional_simulation.gd) → [execution](sim/execution/) | 共同边界、地区同步和领域执行顺序 |
+| [SimWorldGeometry](sim/world_geometry.gd)、[SimBodyReadView](sim/body_read_view.gd) → [SimSpatialQueries](sim/execution/spatial_queries.gd) | 原owner维护的几何页/身体输入与CPU批量空间候选；普通导航已直接绑定模拟层 |
 | [VillageSimulation](sim/village_simulation.gd)、`sim/`、`sim/services/`、`sim/plants/` | 原状态、规则和领域过程；`sim`不依赖runtime或呈现节点 |
 | [WorldSessionSnapshot](runtime/world_session_snapshot.gd) → [RegionalSnapshot](persistence/regional_snapshot.gd) → [world_save_domains](persistence/world_save_domains.gd) | 联合会话输入、独立候选和领域存读目录 |
 | `persistence/`、`data/`、`core/` | 编码/文件、定义装配和共用坐标；`ThermalDefinitions`只验证热设备参数 |

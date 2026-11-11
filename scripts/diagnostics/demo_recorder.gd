@@ -55,6 +55,8 @@ var _render_gpu: Array[float] = []
 var _render_setup: Array[float] = []
 var _initial_actor_execution: Dictionary = {}
 var _initial_actor_world_id: int = 0
+var _initial_spatial_work: Dictionary = {}
+var _initial_geometry_work: Dictionary = {}
 var _profile_navigation: bool = false
 var _navigation_originals: Array[Dictionary] = []
 var _navigation_calls: int = 0
@@ -88,6 +90,8 @@ func configure(main: Node, options: Dictionary) -> bool:
 	_initial_world_boundaries = int(_runtime.world_sim.simulation_work.boundaries)
 	_initial_actor_execution = _actor_execution_summary()
 	_initial_actor_world_id = _runtime.world_sim.get_instance_id()
+	_initial_spatial_work = _runtime.world_sim.conflicts.spatial_work.duplicate()
+	_initial_geometry_work = _runtime.world_sim.geometry_read().work.duplicate()
 	if _profile_navigation:
 		for sim: VillageSimulation in _runtime.world_sim.regions.values():
 			_profile_navigation_owner(sim)
@@ -386,6 +390,8 @@ func finish() -> void:
 		"actor_execution": _actor_execution_summary(), "actor_execution_scope": "session_including_setup",
 		"actor_execution_capture": _actor_execution_capture(),
 		"actor_execution_capture_available": _runtime.world_sim.get_instance_id() == _initial_actor_world_id,
+		"spatial_execution_capture": _counter_delta(_runtime.world_sim.conflicts.spatial_work, _initial_spatial_work) if _runtime.world_sim.get_instance_id() == _initial_actor_world_id else {},
+		"geometry_read_capture": _counter_delta(_runtime.world_sim.geometry_read().work, _initial_geometry_work) if _runtime.world_sim.get_instance_id() == _initial_actor_world_id else {},
 		"navigation_profile": {"enabled": _profile_navigation, "scope": "capture; native and service providers only; includes existing path cache hits; excludes conflict-space direct searches",
 			"calls": _navigation_calls, "total_ms": _navigation_usec / 1000.0, "max_ms": _navigation_max_usec / 1000.0,
 			"queries": _navigation_queries},
@@ -427,9 +433,13 @@ func _actor_execution_capture() -> Dictionary:
 	for id: String in _runtime.world_sim.regions:
 		var sim: VillageSimulation = _runtime.world_sim.regions[id]
 		var before: Dictionary = _initial_actor_execution.get(id, {})
-		var row: Dictionary = {}
-		for key: String in sim.actor_execution_work:
-			if sim.actor_execution_work[key] is int:
-				row[key] = int(sim.actor_execution_work[key]) - int(before.get(key, 0))
-		result[id] = row
+		result[id] = _counter_delta(sim.actor_execution_work, before)
+	return result
+
+
+func _counter_delta(current: Dictionary, initial: Dictionary) -> Dictionary:
+	var result: Dictionary = {}
+	for key: String in current:
+		if current[key] is int:
+			result[key] = int(current[key]) - int(initial.get(key, 0))
 	return result

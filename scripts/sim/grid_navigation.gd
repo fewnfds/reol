@@ -53,6 +53,39 @@ class Search extends AStar2D:
 		var to: Vector2i = cell(neighbor_id)
 		return not bool(stand.call(to)) or not bool(step.call(from, to - from))
 
+	func find_path(from: Vector2i, to: Vector2i, can_stand: Callable, can_step: Callable, limit: int) -> Array[Vector2i]:
+		# A persistent private context may be assigned to an execution slot.
+		# Only the synchronous convenience function below uses the global cache.
+		var result: Array[Vector2i] = []
+		if busy or limit < 1 or maxi(absi(to.x - from.x), absi(to.y - from.y)) > radius or not can_stand.is_valid() or not can_step.is_valid():
+			return result
+		if not bool(can_stand.call(from)) or not bool(can_stand.call(to)):
+			return result
+		if from == to:
+			result.append(from)
+			return result
+		return _search(from, to, can_stand, can_step, limit)
+
+	func _search(from: Vector2i, to: Vector2i, can_stand: Callable, can_step: Callable, limit: int) -> Array[Vector2i]:
+		var result: Array[Vector2i] = []
+		busy = true
+		origin = from
+		stand = can_stand
+		step = can_step
+		budget = limit
+		exhausted = false
+		visited.clear()
+		var delta: Vector2i = to - from
+		var path: PackedInt64Array = get_id_path(radius * width + radius, (delta.y + radius) * width + delta.x + radius)
+		if not exhausted and visited.size() < budget:
+			for id: int in path:
+				result.append(cell(id))
+		stand = Callable()
+		step = Callable()
+		visited.clear()
+		busy = false
+		return result
+
 
 static func find_path(from: Vector2i, to: Vector2i, stand: Callable, step: Callable, radius: int, budget: int, diagonal: bool = true) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
@@ -71,23 +104,4 @@ static func find_path(from: Vector2i, to: Vector2i, stand: Callable, step: Calla
 		graph = Search.new(radius, diagonal)
 		if not _graphs.has(key):
 			_graphs[key] = graph
-	graph.busy = true
-	graph.origin = from
-	graph.stand = stand
-	graph.step = step
-	graph.budget = budget
-	graph.exhausted = false
-	graph.visited.clear()
-	var start: int = radius * graph.width + radius
-	var delta: Vector2i = to - from
-	var target: int = (delta.y + radius) * graph.width + delta.x + radius
-	var path: PackedInt64Array = graph.get_id_path(start, target)
-	if not graph.exhausted and graph.visited.size() < budget:
-		for id: int in path:
-			result.append(graph.cell(id))
-	# Do not retain scene instances, an old session or geometry Callables.
-	graph.stand = Callable()
-	graph.step = Callable()
-	graph.visited.clear()
-	graph.busy = false
-	return result
+	return graph._search(from, to, stand, step, budget)

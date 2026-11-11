@@ -7,6 +7,8 @@ static func level(world: RefCounted, point: Vector2) -> int:
 
 
 static func solid(world: RefCounted, cell: Vector2i, at_level: int, observed_structure: String = "") -> bool:
+	if world.map_data != null and observed_structure.is_empty():
+		return world.geometry_read().is_solid(cell, at_level)
 	if world.map_data != null:
 		if not world.map_data.in_bounds(cell) or world.map_data.get_elevation(cell) > at_level or world.map_data.get_terrain(cell) == WorldMapData.TERRAIN_ROCK:
 			return true
