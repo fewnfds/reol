@@ -414,7 +414,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("version", help="print the Godot version").set_defaults(func=cmd_version)
     sub.add_parser("import", help="headless import resources").set_defaults(func=cmd_import)
     test = sub.add_parser("test", help="run the small local smoke checks; old full check/CI retired")
-    test.add_argument("--suite", action="append", default=[], choices=("settlement", "actor_batch", "inventory", "spatial"))
+    test.add_argument("--suite", action="append", default=[], choices=("settlement", "actor_batch", "inventory", "input", "presentation", "spatial"))
     test.add_argument("--list-suites", action="store_true")
     test.add_argument("--timeout", type=_short_timeout, default=15, metavar="SECONDS")
     test.set_defaults(func=cmd_test)

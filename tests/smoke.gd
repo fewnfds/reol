@@ -503,6 +503,8 @@ func _inventory() -> bool:
 
 
 func _input() -> bool:
+	if not _completion_notice():
+		return false
 	# Backlog must offer a completed boundary before starting another interval.
 	var clock := ReolGameClock.new()
 	var calls: Array[int] = [0]
@@ -535,6 +537,48 @@ func _input() -> bool:
 	buffer.enqueue("cancel", {}, "session:a", 304)
 	buffer.expire("session:b", 305)
 	return not buffer.pending() and finished == [1, 3, 4]
+
+
+func _completion_notice() -> bool:
+	var clock := ReolGameClock.new()
+	var ready: Array[bool] = [false]
+	var calls: Array[int] = [0]
+	var notices: Array[int] = []
+	clock.bind_interval_executor(func(from: int, to: int) -> int:
+		calls[0] += 1
+		return to if ready[0] else from)
+	clock.input_boundary.connect(func() -> void: notices.append(clock.elapsed_ms))
+	# A repeated/reentrant completion cannot manufacture another world step.
+	clock.time_advanced.connect(func(_from: int, _to: int) -> void: clock.notify_interval_ready())
+	clock.advance_frame(0.2)
+	clock.request_input_boundary()
+	ready[0] = true
+	# Idle completions share the process frame's quota, rather than each
+	# granting another full budget or accepting new wall time.
+	clock._host_work_frame = Engine.get_process_frames()
+	clock._host_work_usec = clock.pacing.frame_budget_usec()
+	clock.notify_interval_ready()
+	if clock.elapsed_ms != 0 or calls[0] != 1:
+		clock.free()
+		return false
+	clock._host_work_usec = 0
+	clock.notify_interval_ready()
+	var valid: bool = clock.elapsed_ms == 50 and calls[0] == 2 and notices == [50] and is_equal_approx(clock._accumulator, 150.0) and clock._notified_world_ms == 50
+	clock.notify_interval_ready()
+	valid = valid and clock.elapsed_ms == 50 and calls[0] == 2
+	clock.free()
+	# Explicit paused work may finish from a notice. Its permission to advance
+	# while paused belongs only to that request, not to later process frames.
+	clock = ReolGameClock.new()
+	ready[0] = false
+	clock.set_paused(true)
+	clock.bind_interval_executor(func(from: int, to: int) -> int: return to if ready[0] else from)
+	clock.advance_msec(50)
+	ready[0] = true
+	clock.notify_interval_ready()
+	valid = valid and clock.elapsed_ms == 50 and not clock._explicit_allow_paused and clock._explicit_target_ms == 0
+	clock.free()
+	return valid
 
 
 func _presentation() -> bool:

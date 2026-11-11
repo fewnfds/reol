@@ -64,7 +64,7 @@
 
 ## 协调线程、存读与呈现
 
-`SimWorldRunner`持有原世界的一次独占执行权，常驻线程处理单个时间请求；CPU批和GPU候选仍使用原kernel游标。原手动移动每区间只积分一次，不按渲染帧重复。需要依赖时后台等待实际完成，主线程继续绘图。
+`SimWorldRunner`持有原世界的一次独占执行权，常驻线程处理单个时间请求；CPU批和GPU候选仍使用原kernel游标。原手动移动每区间只积分一次，不按渲染帧重复。需要依赖时后台等待实际完成，主线程继续绘图。邮箱ready后通过CONNECT_DEFERRED唤醒宿主，收取结果并可继续已准入的时间债务，共享当帧预算、不额外准入时间；没有来自worker的活Node调用，普通process仍能收取。暂停显式推进完成就清理该请求的暂停许可，保存边界仍走原drain。
 
 `ReolSimulationHost`在运行期间暂缓旧世界读取回调；`ReolSimulationSignalBridge`只记下领域向Node的通知，内部领域信号继续同步。完整边界返回后递送通知、处理缓冲输入及旧UI/画布读取，再发下一请求。人物批量Node采用已移出这段窗口，最多一个应用帧和一个最新等待帧；玩家/选中反馈即时更新，旧帧不覆盖更新的选中状态。其他画布尚非完全异步快照，交接尾部仍测量。
 
@@ -72,7 +72,7 @@
 
 ## 诊断与验证范围
 
-压力报告含`actor_execution_capture`（含native阶段、需求采用与deadline计算/采用）、`body_publication_capture`、`body_presentation`、`simulation_host`、`publication_work_capture`及环境CPU/GPU/响应计数。包含装配的旧计数明确保留后缀；人物Node累计量还报告显示帧年龄和切片上限。worker微秒是经过时间，Windows `--profile-cpu`侧录才是线程真实CPU。
+压力报告含`actor_execution_capture`（含native阶段、需求采用与deadline计算/采用）、`body_publication_capture`、`body_presentation`、`simulation_host`、`publication_work_capture`及环境CPU/GPU/响应计数。宿主含ready→collect等待、回复后→下一请求间隔及完成通知数，后一间隔包含必要UI/输入与主动节奏空闲；不能全归为CPU工作。包含装配的旧计数明确保留后缀；人物Node累计量还报告显示帧年龄和切片上限。worker微秒是经过时间，Windows `--profile-cpu`侧录才是线程真实CPU。
 
 `--simulation-thread off`、`--actor-workers 0/4/8`和`--release-binary`用于同构建对照。`--input-probe`测无副作用宿主请求等到完整边界的延迟，不冒充玩家输入到像素的端到端延迟。
 

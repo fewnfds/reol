@@ -20,6 +20,8 @@ flowchart LR
 
 `ReolSimulationSignalBridge`在交接时暂存领域向Node的通知，保留领域内部同步信号。回复后恢复原连接、按记录次序在主线程递送；不从worker调用SceneTree。输入在完整边界重放，暂停/速度键立即响应，已接受的区间仍完成。保存等待同一边界，加载/换世界先回收旧协调线程和批任务。
 
+协调者发布邮箱后发出无世界引用的`reply_ready`信号，宿主以Godot `CONNECT_DEFERRED`接收。在主线程idle队列收取回复，并可继续已准入的时间债务；普通process仍是预算耗尽或异常终止的后备入口。完成通知不准入新的现实时间，且与同一引擎process帧共享软预算，避免连续idle回调反复放大预算。帧外完成的逻辑时间/宿主工作归入下一次节奏观察，不依赖完成快慢决定业务顺序。`--simulation-completion=frame`保留原逐帧收取供同包对照。
+
 ## 共用计算底座
 
 | 工作族 | worker计算 | 原owner保留 |

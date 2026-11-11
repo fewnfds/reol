@@ -1,5 +1,6 @@
 class_name SimWorldRunner
 extends RefCounted
+signal reply_ready
 ## One writer for the original world. The host lends exclusive ownership for
 ## an interval; the mailbox returns it only at a complete boundary. No Nodes,
 ## engine frame deadlines or Input calls are used on this thread.
@@ -114,6 +115,9 @@ func _run() -> void:
 		_mutex.lock()
 		_reply = reply
 		_mutex.unlock()
+		# CONNECT_DEFERRED receivers run on the host's idle queue. This signal
+		# carries no world references and never calls a Node on this thread.
+		reply_ready.emit()
 
 
 func execute(request: Dictionary) -> Dictionary:

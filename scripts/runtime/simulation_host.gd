@@ -7,10 +7,11 @@ var runner: SimWorldRunner
 var runtime: WorldContinuityRuntime
 var busy: bool = false
 var threaded: bool = true
+var deferred_completion: bool = true
 var work: Dictionary = {"requests": 0, "elapsed_usec": 0, "pending_wait_usec": 0,
 	"handoff_usec": 0, "prepare_usec": 0, "signal_usec": 0, "input_count": 0, "input_delay_usec": 0,
 	"input_max_delay_usec": 0, "mailbox_ready_delay_usec": 0, "mailbox_ready_max_usec": 0,
-	"between_requests_usec": 0, "thread_ids": {}}
+	"between_requests_usec": 0, "completion_notices": 0, "thread_ids": {}}
 var _bridge := ReolSimulationSignalBridge.new()
 var _scene: Node
 var _modes: Array[Dictionary] = []
@@ -30,6 +31,7 @@ func configure(adapter: WorldContinuityRuntime) -> void:
 	_scene = adapter.home_runtime().get_parent()
 	runner = SimWorldRunner.new()
 	runner.configure(adapter.world_sim, adapter.home_runtime()._player.motion)
+	runner.reply_ready.connect(_reply_ready, CONNECT_DEFERRED)
 	_bridge.discover(adapter.world_sim)
 	_register_tree(_scene)
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -39,6 +41,15 @@ func configure(adapter: WorldContinuityRuntime) -> void:
 			threaded = false
 		elif argument == "--input-probe":
 			_probe_enabled = true
+		elif argument == "--simulation-completion=frame":
+			deferred_completion = false
+	work["completion_delivery"] = "deferred" if deferred_completion else "frame"
+
+
+func _reply_ready() -> void:
+	if deferred_completion and busy and runner != null and is_inside_tree():
+		work.completion_notices += 1
+		GameClock.notify_interval_ready()
 
 
 func begin(request: Dictionary) -> void:

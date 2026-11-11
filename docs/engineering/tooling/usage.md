@@ -28,6 +28,8 @@ python tools/diagnose_demo.py --seconds 30 --auto-start --quit-after-capture
 
 人数是每地6–4096，实际总人数为两倍；持续使用普通Main原人物、寻路、生活、环境及共同时间，临时状态不写玩家档。`--actor-workers -1`按硬件/任务量选择，`0`串行，`1..64`指定本批并发上限；实际按逻辑处理器及chunk数收窄，`--simulation-thread off`关闭协调线程但仍运行同一runner。`--actor-projection ordered`保留逐人采用供同包对照，默认partitioned只对证明独立的身体分区写入；`--actor-minimum N`实验人物候选最小集合，默认64，小集合保留直接入口。`--release-binary PATH`复用同一exe/PCK进行规模/并发/后端对照，不能预设线程越多越快。不加`--quit-after-capture`可继续试玩。
 
+完成收取默认经Godot延后通知；`--simulation-completion frame`使用原process入口，供相同包比较ready→collect等待。通知不放大当帧工作预算，不额外准入游戏时间。
+
 `--complex`临时装配1–64个5×5房间、5–512个实际冷热/五行来源；约四分之一来源由原人物携带，其余通过原实物命令移动。两地运行单位一起布置在观察者附近，不使用假移动。场景结构是一次性安装、没有历史施工回执，不可当作正常存档fixture。
 
 `--profile-cpu`用Windows线程CPU时钟、进程内存及整机可用内存每0.5秒侧录到`.cpu.json`；记录涵盖装配，`stress_report.py`按capture时间范围加权裁剪边缘样本，CPU秒才是真实执行，GDScript微秒仍是经过时间。`--gpu-index N`固定适配器序号，须核对报告renderer名称；两张卡的序号未必长期相同。CPU竞争、整机内存不足及其他程序占满GPU的窗口只保留为干扰证据，不用于选择最优线程数。`--input-probe`只测宿主请求等到完整世界交接的延迟，不是鼠标到显示像素延迟。身体、来源响应与后台等待的成本可在同一JSON查看。

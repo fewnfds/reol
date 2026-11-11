@@ -35,6 +35,7 @@ def main() -> int:
     parser.add_argument("--actor-projection", choices=("partitioned", "ordered"), default="partitioned", help="compare proven disjoint body adoption with original ID-by-ID projection; notifications remain ordered")
     parser.add_argument("--actor-minimum", type=int, choices=range(1, 4097), default=64, help="smallest body candidate batch; smaller sets retain the direct owner path")
     parser.add_argument("--simulation-thread", choices=("on", "off"), default="on", help="same world runner on its coordinator thread or synchronously for a same-build comparison")
+    parser.add_argument("--simulation-completion", choices=("deferred", "frame"), default="deferred", help="collect completed mailbox through engine idle notification or original next-process-frame polling")
     parser.add_argument("--environment-backend", choices=("auto", "cpu", "gpu"), default="auto", help="compare ordinary source candidate calculation; auto keeps small batches on CPU")
     parser.add_argument("--release", action="store_true", help="export the current project with Windows Performance, then run the identical crowd entry in its release binary")
     parser.add_argument("--release-binary", type=Path, help="reuse a specific exported binary for same-build worker/scale comparisons; requires --release")
@@ -90,7 +91,7 @@ def main() -> int:
     report = (godot.ROOT / "logs" / f"{tag}.json").as_posix()
     cmd += ["--", f"--residents={args.residents}",
             f"--seconds={args.seconds}", f"--report={report}", f"--revision={sha}", f"--source-dirty={int(dirty)}",
-            f"--actor-workers={args.actor_workers}", f"--actor-projection={args.actor_projection}", f"--actor-minimum={args.actor_minimum}", f"--simulation-thread={args.simulation_thread}", f"--environment-backend={args.environment_backend}",
+            f"--actor-workers={args.actor_workers}", f"--actor-projection={args.actor_projection}", f"--actor-minimum={args.actor_minimum}", f"--simulation-thread={args.simulation_thread}", f"--simulation-completion={args.simulation_completion}", f"--environment-backend={args.environment_backend}",
             f"--pacing-policy={args.pacing_policy}"]
     if args.release:
         cmd.append(f"--artifact-sha256={artifact_sha}")

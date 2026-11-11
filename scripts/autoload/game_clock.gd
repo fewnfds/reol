@@ -56,6 +56,10 @@ var _publication_cost_usec: int = 0
 var _publication_deferred_at_ms: int = -1
 var _publication_deferred_deadline: int = 0
 var _input_boundary_requested: bool = false
+var _host_work_frame: int = -1
+var _host_work_usec: int = 0
+var _notified_world_ms: int = 0
+var _notified_work_usec: int = 0
 
 
 func bind_rules(definitions: Dictionary) -> bool:
@@ -82,13 +86,52 @@ func _process(_delta: float) -> void:
 		_view_delta_seconds = 0.0
 		return
 	var before: int = elapsed_ms
+	var notified_ms: int = _notified_world_ms
+	var notified_work: int = _notified_work_usec
+	_notified_world_ms = 0
+	_notified_work_usec = 0
 	var running: bool = not paused or _explicit_allow_paused
-	_frame_deadline_usec = now + pacing.frame_budget_usec()
+	_frame_deadline_usec = now + _remaining_host_work()
 	advance_frame(seconds)
 	_frame_deadline_usec = 0
+	var work_usec: int = Time.get_ticks_usec() - now
+	_host_work_usec += work_usec
 	if running:
-		pacing.observe(seconds, Time.get_ticks_usec() - now, elapsed_ms - before, has_pending_advance(), speed, _accumulator)
+		pacing.observe(seconds, work_usec + notified_work, elapsed_ms - before + notified_ms, has_pending_advance(), speed, _accumulator)
 		_publish_pacing()
+
+
+func _remaining_host_work() -> int:
+	var frame: int = Engine.get_process_frames()
+	if frame != _host_work_frame:
+		_host_work_frame = frame
+		_host_work_usec = 0
+	return maxi(0, pacing.frame_budget_usec() - _host_work_usec)
+
+
+func notify_interval_ready() -> void:
+	# An engine-deferred completion can collect the existing mailbox before
+	# the next process frame. It admits NO wall time and shares that frame's
+	# original soft budget, so an idle-call chain cannot create unbounded work.
+	if _advancing or _save_boundary_held() or _pending_kind == PENDING_NONE:
+		return
+	var remaining: int = _remaining_host_work()
+	if remaining < 1:
+		return
+	var began: int = Time.get_ticks_usec()
+	var before: int = elapsed_ms
+	_frame_deadline_usec = began + remaining
+	_advancing = true
+	_process_pending()
+	_advancing = false
+	_frame_deadline_usec = 0
+	var work_usec: int = Time.get_ticks_usec() - began
+	_host_work_usec += work_usec
+	_notified_work_usec += work_usec
+	_notified_world_ms += elapsed_ms - before
+	# An input-boundary handler may replace/restore this clock. Account the
+	# completed old interval first so restore clears its host-only samples.
+	_offer_input_boundary()
 
 
 func advance_frame(delta: float) -> void:
@@ -198,6 +241,9 @@ func _process_pending() -> void:
 	if _pending_kind != PENDING_NONE:
 		if not _commit_pending() or _finish_wait_if_due():
 			return
+		if _explicit_target_ms > 0 and _explicit_target_ms <= elapsed_ms:
+			_explicit_target_ms = 0
+			_explicit_allow_paused = false
 		if paused and not _explicit_allow_paused:
 			return
 	if _frame_end_ms > elapsed_ms and not _finish_frame_step(_explicit_allow_paused):
@@ -543,6 +589,10 @@ func restore_state(data: Dictionary) -> bool:
 	_explicit_allow_paused = false
 	_executor_required = false
 	_input_boundary_requested = false
+	_host_work_frame = -1
+	_host_work_usec = 0
+	_notified_world_ms = 0
+	_notified_work_usec = 0
 	pacing.reset()
 	_publication_cost_usec = 0
 	_publication_deferred_at_ms = -1
