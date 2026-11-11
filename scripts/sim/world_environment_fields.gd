@@ -281,9 +281,8 @@ func finish_object_change(result: Dictionary, proof: Variant) -> Dictionary:
 	if bool(committed.get("ok", false)):
 		for key: Vector2i in _sources.last_change_chunks():
 			_chunks[key] = true
-		if not _refresh_rooms(_sources.last_change_chunks(), world.elapsed_ms):
+		if not _refresh_source_responses(world.elapsed_ms):
 			committed = {"ok": false, "reason": "room_publication"}
-		_sync_response_deadlines(_sources.last_change_chunks())
 		var reference: Dictionary = result.get("reference", {})
 		if reference.get("kind") == "artifact":
 			_sync_device(str(reference.id))
@@ -361,9 +360,8 @@ func commit_device_switch(receipt: Dictionary, proof: Variant) -> bool:
 	assert(committed, "preflighted device field commit failed")
 	device_switches[receipt.action] = receipt.duplicate(true)
 	_sync_device(str(receipt.object))
-	if not _refresh_rooms(_sources.last_change_chunks(), world.elapsed_ms):
+	if not _refresh_source_responses(world.elapsed_ms):
 		return false
-	_sync_response_deadlines(_sources.last_change_chunks())
 	_busy = false
 	return true
 
@@ -423,9 +421,17 @@ func _finish_source_change(proof: Variant, at_ms: int) -> bool:
 		return _fail("source_publication")
 	for chunk: Vector2i in _sources.last_change_chunks():
 		_chunks[chunk] = true
-	if not _refresh_rooms(_sources.last_change_chunks(), at_ms):
+	return _refresh_source_responses(at_ms)
+
+
+func _refresh_source_responses(at_ms: int) -> bool:
+	# The existing joint receipt already identifies the response owners that
+	# changed. Elemental cargo must not remix/reinspect untouched room heat.
+	var thermal: Array[Vector2i] = _sources.last_temperature_chunks()
+	if not _refresh_rooms(thermal, at_ms):
 		return false
-	_sync_response_deadlines(_sources.last_change_chunks())
+	_sync_response_deadlines(thermal, Targets.THERMAL)
+	_sync_response_deadlines(_sources.last_phase_chunks(), Targets.ELEMENTAL)
 	return true
 
 
@@ -651,27 +657,24 @@ func _refresh_target_work(cursor: Dictionary) -> int:
 	return SimSettlementKernel.Status.PENDING
 
 
-func _sync_response_deadlines(keys: Array[Vector2i]) -> void:
+func _sync_response_deadlines(keys: Array[Vector2i], domains: int = Targets.THERMAL | Targets.ELEMENTAL) -> void:
+	# Checked owner receipts contain distinct chunk keys. This synchronous
+	# refresh needs no dirty/ack queue between two consecutive local statements.
 	for key: Vector2i in keys:
 		var id: String = str(key.y * (SIZE / 16) + key.x)
-		_participation.set_member(&"response_summary", id)
-		_participation.mark_dirty(&"response_summary", id, &"anchors_changed")
-	# Coalesce dependencies before reading summaries. This is derived work,
-	# acknowledged only after both original response owners have been queried.
-	for row: Dictionary in _participation.pending_dirty(&"response_summary"):
-		var id: String = row.id
-		var key: Vector2i = _chunk_from_id(id)
-		if _chunk_has_thermal_deviation(key):
-			_thermal_chunks[key] = true
-		else:
-			_thermal_chunks.erase(key)
+		if domains & Targets.THERMAL:
+			if _chunk_has_thermal_deviation(key):
+				_thermal_chunks[key] = true
+			else:
+				_thermal_chunks.erase(key)
 		for kind: StringName in [&"temperature", &"phases"]:
+			if not (domains & (Targets.THERMAL if kind == &"temperature" else Targets.ELEMENTAL)):
+				continue
 			var state: RefCounted = _temperature if kind == &"temperature" else _phases
 			var boundary: int = state.chunk_boundary_ms(key)
 			_participation.set_member(kind, id, boundary >= 0)
 			if boundary >= 0:
 				_participation.set_due(kind, id, boundary)
-		_participation.ack_dirty(&"response_summary", id, int(row.revision))
 
 
 func _chunk_has_thermal_deviation(key: Vector2i) -> bool:

@@ -35,6 +35,8 @@ var _pending: Dictionary = {}
 var _built: bool = false
 var _failed: bool = false
 var _last_change_chunks: Array[Vector2i] = []
+var _last_temperature_chunks: Array[Vector2i] = []
+var _last_phase_chunks: Array[Vector2i] = []
 # Disposable participation over accepted, nonzero field records. Moving an
 # empty/ordinary pocket must not enumerate all materials and legacy objects.
 var _container_sources: Dictionary = {}
@@ -182,6 +184,14 @@ func last_change_chunks() -> Array[Vector2i]:
 	return _last_change_chunks.duplicate()
 
 
+func last_temperature_chunks() -> Array[Vector2i]:
+	return _last_temperature_chunks.duplicate()
+
+
+func last_phase_chunks() -> Array[Vector2i]:
+	return _last_phase_chunks.duplicate()
+
+
 func get_source(key: String) -> Dictionary:
 	if not _records.has(key):
 		return {}
@@ -290,10 +300,14 @@ func finish_source_change(proof: Variant) -> bool:
 	if not can_commit(proof):
 		return false
 	_last_change_chunks.clear()
+	_last_temperature_chunks.clear()
+	_last_phase_chunks.clear()
 	if _pending.kind == "change":
 		var committed: Dictionary = _changes.commit(_pending.field_proof)
 		assert(bool(committed.get("ok", false)), "preflighted environment source commit failed")
 		_last_change_chunks.assign(committed.get("touched_chunks", []))
+		_last_temperature_chunks.assign(committed.get("temperature_chunks", []))
+		_last_phase_chunks.assign(committed.get("phase_chunks", []))
 		var old_key: String = _pending.old_key
 		var new_key: String = _pending.new_key
 		var slot: int = _pending.slot
