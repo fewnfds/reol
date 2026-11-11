@@ -38,11 +38,12 @@ func _spawn_named_pawns(spawn_cell: Vector2i) -> void:
 	var used: Dictionary = {spawn_cell: true}
 	for pawn: Pawn in _pawns:
 		used[pawn.cell] = true
-	# Leave the ordinary opening's axial plant samples free. Large fixtures
-	# must not consume their scenario footprint before that owner is assembled.
-	for radius: int in range(2, 10):
-		for direction: Vector2i in [Vector2i.LEFT, Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN]:
-			used[spawn_cell + direction * radius] = true
+	# The ordinary office/facilities and axial plant samples are assembled
+	# after spawning. Reserve their whole footprint, even for thousands of
+	# extras; leaving only the axial cells free cannot fit the office walls.
+	for y: int in range(-10, 11):
+		for x: int in range(-10, 11):
+			used[spawn_cell + Vector2i(x, y)] = true
 	var spread: int = mini(64, maxi(22, ceili(sqrt(float(_resident_count()))) + 4))
 	var reachable: Array[Vector2i] = VillageRuntime.find_reachable_cells(world, spawn_cell, spread, 32768)
 	var cursor: int = 0

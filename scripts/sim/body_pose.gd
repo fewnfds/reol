@@ -80,4 +80,3 @@ static func from_body(body: Dictionary, now: int, job: Dictionary = {}, manual_m
 	if pose.moving:
 		pose.action = "walk"
 	return pose
-

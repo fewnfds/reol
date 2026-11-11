@@ -8,6 +8,7 @@ var source_cells: Array[Vector2i] = []
 var requested_rooms: int = 48
 var requested_sources: int = 128
 var source_moves: int = 0
+var source_move_attempts: int = 0
 var _next_change_ms: int = 0
 var _world: RegionalSimulation
 var _center: Vector2i
@@ -132,18 +133,21 @@ func sample() -> void:
 	if _world.elapsed_ms < _next_change_ms or source_ids.is_empty():
 		return
 	_next_change_ms = _world.elapsed_ms + 500
-	var index: int = source_moves % source_ids.size()
+	# A blocked destination must not retry the same source forever. Keep the
+	# work rate bounded but rotate attempts independently of successful moves.
+	var index: int = source_move_attempts % source_ids.size()
 	var id: String = source_ids[index]
 	var item: Dictionary = _world.artifacts.objects[id]
 	if str(item.container).begins_with("actor:"):
 		# Carried sources already change through actual body crossing notices.
-		index = _mobile_sources + (source_moves % maxi(1, source_ids.size() - _mobile_sources))
+		index = _mobile_sources + (source_move_attempts % maxi(1, source_ids.size() - _mobile_sources))
 		id = source_ids[index]
 		item = _world.artifacts.objects[id]
 	var origin: Vector2i = source_cells[index]
-	var target: Vector2i = origin + Vector2i(0, 1 if (source_moves / source_ids.size()) % 2 == 0 else -1)
-	var result: Dictionary = _world.object_lifecycle.execute({"command": "stress_move:%d" % source_moves, "op": "move", "id": id,
+	var target: Vector2i = origin + Vector2i(0, 1 if (source_move_attempts / source_ids.size()) % 2 == 0 else -1)
+	var result: Dictionary = _world.object_lifecycle.execute({"command": "stress_move:%d" % source_move_attempts, "op": "move", "id": id,
 		"from": {"region": "home", "container": str(item.container)}, "to": {"region": "home", "cell": [target.x, target.y]}})
+	source_move_attempts += 1
 	if result.ok:
 		source_cells[index] = target
 		source_moves += 1
@@ -151,6 +155,6 @@ func sample() -> void:
 
 func evidence() -> Dictionary:
 	return {"requested_rooms": requested_rooms, "actual_rooms": _world.environment_fields._layout.rooms.size(),
-		"physical_sources": source_ids.size(), "mobile_sources": _mobile_sources, "source_moves": source_moves, "staged_near_observer": _nearby_count,
+		"physical_sources": source_ids.size(), "mobile_sources": _mobile_sources, "source_moves": source_moves, "source_move_attempts": source_move_attempts, "staged_near_observer": _nearby_count,
 		"structures": _world.construction.projects.size(), "fields": _world.environment_fields.diagnostics(),
 		"setup": "temporary installed scenario; no ordinary save; structures installed at setup, original owners run during capture"}
