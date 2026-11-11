@@ -1,27 +1,25 @@
 # 当前接续
 
-更新：2026-11-11。最新用户要求完成多核计划并测出复杂世界上限。已落地独立`SimWorldRunner`、原世界独占交接、身体/空间/CPU场/来源响应任务池、现有GPU路径及真实线程CPU采样。当前正在同构建比较worker与规模曲线，未以局部加速宣布完成。当前分支/提交以Git为准。
-
-交付顺序只看[主计划](../plans/foundation-priorities.md#当前阶段主要模拟负载多核化)，线程与交接取舍看[执行方案](../specs/world-engine/execution.md)。身体显示已脱离活对象，其他面板/画布在完整交接窗口读取原世界；后台计算期间这些旧回调暂缓，镜头、身体插值及已捕获绘图继续。仍有显示发布串行尾部，全部画布尚非永久双缓冲。
+更新：2026-11-11。用户授权的多核执行底座与复杂规模测量已收尾：普通游戏使用常驻SimWorldRunner、单一原世界独占交接，共用任务池处理身体/空间/CPU场/来源响应，原GPU路径保留。没有把全部规则并行或吃满20核；真实收益、容量与局限只看[BASELINE](baseline.md)。分支、提交和推送以Git为准。
 
 ## 接手入口
 
-- [计算范式](../engineering/settlement-contract.md#计算优化范式)是新增领域选择事件、周期、变脏、延后、续算及CPU/GPU路径的唯一正文；具体频率与宿主预算见[运行合同](../engineering/simulation-pacing.md)。
-- [代码入口](../../scripts/README.md)、[owner表](../engineering/architecture/02-owners.md)定位原状态；[唯一计划](../plans/foundation-priorities.md)保留范围与暂停候选。
-- [BASELINE](baseline.md)维护当前版本、测量及验证限制；旧性能实验在[历史记录](../archive/qa/20261111_performance_experiments.md)，不自动续做。
+- 下一阶段只维护[主计划](../plans/foundation-priorities.md)：原生身体热数据/独立候选，以及显示快照/有序采用；不要从历史研究恢复其他任务。
+- [执行设计](../specs/world-engine/execution.md)、[批执行API](../engineering/execution-batches.md)说明当前线程和交接边界；[计算范式](../engineering/settlement-contract.md#计算优化范式)、[领域频率](../engineering/simulation-pacing.md#领域频率)仍服务所有领域。
+- [代码入口](../../scripts/README.md)、[owner表](../engineering/architecture/02-owners.md)定位原状态；[FEATURES](features.md)定位可玩操作。当前只支持最新存档，见[compatibility](../engineering/compatibility.md)。
 
-## 当前事实
+## 本轮结论
 
-`SimWorldGeometry`由RegionalSimulation持有，16×16格页复用、局部变更替换页，捕获的旧页保留只读且带来源/版本。普通人物/服务已直接绑定模拟层导航与依赖失效，不再借runtime Node；共享AStar同步入口保留，worker只能用私有`Search.find_path`。原地图/建筑/植物/大身体仍持有原事实，不增加存档格式。
+普通千人同包对照：后台协调者显著减小显示阻塞，4worker相对同协调者串行吞吐约高15%；仍只有约1.3核平均执行，硬件未饱和。复杂场景已测50实际房间/128冷热五行物件/32携带来源、最多8192原身体，找到明显过载区。原生身体准备/投影/有序采用和主线程显示发布仍是下一轮重点，不再猜测寻路或GPU一定是最大项。
 
-`SimBodyReadView`每交锋边界由owner捕获一次紧凑列；`SimSpatialQueries`用原Godot任务池批量查线段候选，原交锋按固定顺序采用。当前仍同步收集，不具备跨帧交锋游标。300人45秒混合release为0.992210×、P99 18.704ms，无世界错误；同刻飞行物少，空间并行批为0。纯候选300×64探针约1.95ms→4worker0.93ms、暖几何捕获约0.159ms，仅证明局部可行，不代表整游戏收益；冷准备和真实采样范围见[BASELINE](baseline.md#共享空间读取的首批实施)。
+8192暴露的每人全世界衣物扫描已改用原持有索引，原选择结果定向复核通过。身体显示已脱离活对象；其他UI/画布仍在完整交接窗口读取，后台计算期间暂缓，镜头/身体插值/已捕获绘图继续。保持这个实际边界，不误称全部UI已永久双缓冲。
 
-开发期只维护最新存档，历史fixture/本机旧开发档已清理；支持范围查[compatibility](../engineering/compatibility.md)。门继续是可自由穿行、围合/隔热/遮光不变的墙体，锁门以后再说。原计算范式及已有频率仍有效，阶段不会借线程完成顺序改写因果。
+并发不再限8：0串行、显式1–64实验、-1按硬件和独立chunk数选槽；生产默认4。追加12/16/20及自动档途中遇其他程序占满5060Ti、整机内存紧张，结果保留为干扰证据，不据此选最佳档。工具已补构建溯源、GPU选择、选槽计数和整机可用内存。没有停止用户其他程序。
 
-## 工作区与受保护内容
+相关短检查、实际手动移动/暂停/保存/读取，以及300原身体固定输入的串行与4worker/自动档完整世界一致均通过；不恢复旧CI或长回归。实验脚本/报告在忽略的logs，不是新长期任务。
 
-短实验、临时检查与报告在忽略的logs；旧CI/长回归仍退役。`--suite spatial`增加一个毫秒级执行原语检查，没有全世界回归；真实植物变化及完整候选恢复另做一次临时短集成。没有改变业务周期或新增语言/GPU后端。
+## 受保护内容
 
-- 保留`codex/field-contest`（`4e17c5c165cf8fca9ef884a111aa1c3ca35f445f`）及其他已有工作分支。
-- 原stash `424f956d280fb390d17e1f6dd879f3614b51a430`原样保留。
-- 退役测试WIP仍在忽略的`logs/retired-test-workflow-20261111-012331/`，不恢复为任务。
+- 保留codex/field-contest（4e17c5c165cf8fca9ef884a111aa1c3ca35f445f）及已有工作分支。
+- 原stash 424f956d280fb390d17e1f6dd879f3614b51a430原样保留。
+- 退役测试WIP仍在logs/retired-test-workflow-20261111-012331/，不恢复。门仍自由穿行并保持房间，锁门后续再议。

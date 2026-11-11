@@ -29,7 +29,7 @@ flowchart LR
 | 环境基场 | 同一compact job的16×16 CPU场块或既有GPU路径 | 原场版本验证、采纳与取消 |
 | 来源响应 | 各候选tile的温度/五行响应输入；每任务私有气候memo | 历史、容量、锚点和多owner原子提交 |
 
-`SimBatchExecution`复用Godot线程池；小集合可以同算法串行，任务不各开线程。身体显示64人一块，候选空间按64身体分块，场和响应按16×16格。默认4worker是可测的宿主选择，不是游戏规则；`--actor-workers=0`和`--simulation-thread=off`用于同构建对照。
+`SimBatchExecution`复用Godot线程池；小集合可以同算法串行，任务不各开线程。身体显示64人一块，候选空间按64身体分块，场和响应按16×16格。并发不是游戏规则：`--actor-workers=-1`按硬件和批量选择，`0`串行，显式1–64可压测，不再限8；`--simulation-thread=off`关闭协调线程供同构建对照。生产默认及高并发取舍由BASELINE维护。
 
 `SimWorldGeometry`由原owner维护16×16页，局部变化替换旧页，已捕获输入保留旧页并带来源/版本。路径不能跨worker共享可变AStar；普通同步入口使用其缓存，真正并发查询使用私有`SimGridNavigation.Search`。当前普通行动路线搜索仍由协调者顺序调用，未引入另一个规划平台。
 

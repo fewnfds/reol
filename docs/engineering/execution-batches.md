@@ -10,6 +10,8 @@
 
 线程完成顺序不决定游戏顺序。原owner检查时刻、代次、依赖及原对象，再按领域顺序提交；资源争用仍沿原预约/账本。计算结束不等于动作生效。
 
+`workers`是本批使用线程池的并发上限，不是游戏总线程数。`0`沿相同算法串行；`-1`根据本机逻辑处理器和独立chunk数选择，较大机器为主线程/协调者留两个执行槽；显式1–64用于对照，实际不超过逻辑处理器、chunk数及Godot线程池容量。单chunk或只剩一个槽时直接串行。不再硬限8；自动模式按硬件/任务量适配，不冒充在线学习最优并发。生产默认档及实测选型只查BASELINE。
+
 ## 原身体连续推进
 
 [VillageSimulation](../../scripts/sim/village_simulation.gd)选择当前到期人物，为[SimActorAdvance](../../scripts/sim/actor_advance.gd)准备需求固定点值/余数、有效速率、体力/恢复条件、旧锚点、目标时刻及已受理路段。稳定ID、动作ID和采用依据留在原owner线程；worker只读`PackedInt64Array`及`PackedVector2Array`。

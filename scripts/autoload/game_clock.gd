@@ -97,8 +97,8 @@ func advance_frame(delta: float) -> void:
 	_view_delta_seconds = 0.0
 	if _advancing or _save_boundary_held() or not is_finite(delta) or delta < 0.0:
 		return
-	# An explicitly requested advance can start while paused. A new pause after
-	# it started, however, stops its continuation until the user resumes.
+	# A paused host still collects the exact interval already offered to its
+	# coordinator. Once complete it starts no new realtime/explicit work.
 	if paused and _pending_kind == PENDING_NONE and not (_explicit_target_ms > elapsed_ms and _explicit_allow_paused):
 		return
 	# Interpolate only previously committed projections, even while a newer

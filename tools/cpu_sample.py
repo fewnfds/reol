@@ -51,6 +51,11 @@ class ProcessSample:
                 (key, c.c_size_t) for key in ("peak_working", "working", "peak_paged", "paged",
                 "peak_nonpaged", "nonpaged", "pagefile", "peak_pagefile", "private")]
 
+        class SystemMemory(c.Structure):
+            _fields_ = [("size", w.DWORD), ("load_percent", w.DWORD)] + [
+                (key, c.c_ulonglong) for key in ("total_physical", "available_physical", "total_pagefile",
+                "available_pagefile", "total_virtual", "available_virtual", "available_extended_virtual")]
+
         kernel.CreateToolhelp32Snapshot.argtypes = [w.DWORD, w.DWORD]
         kernel.CreateToolhelp32Snapshot.restype = w.HANDLE
         kernel.Thread32First.argtypes = kernel.Thread32Next.argtypes = [w.HANDLE, c.POINTER(Entry)]
@@ -64,6 +69,7 @@ class ProcessSample:
         kernel.GetThreadDescription.restype = w.LONG
         kernel.LocalFree.argtypes = [c.c_void_p]
         psapi.GetProcessMemoryInfo.argtypes = [w.HANDLE, c.POINTER(Memory), w.DWORD]
+        kernel.GlobalMemoryStatusEx.argtypes = [c.POINTER(SystemMemory)]
         process = kernel.OpenProcess(0x1000 | 0x10, False, pid)
         previous: dict[int, float] = {}
         last = time.perf_counter()
@@ -98,9 +104,14 @@ class ProcessSample:
                 memory = Memory()
                 memory.size = c.sizeof(memory)
                 psapi.GetProcessMemoryInfo(process, c.byref(memory), memory.size)
+                system_memory = SystemMemory()
+                system_memory.size = c.sizeof(system_memory)
+                kernel.GlobalMemoryStatusEx(c.byref(system_memory))
                 self.rows.append({"unix_seconds": time.time(), "elapsed_seconds": now - last,
                     "thread_cpu_seconds": {str(tid): max(0, value - previous[tid]) for tid, value in current.items() if tid in previous},
-                    "working_bytes": memory.working, "private_bytes": memory.private})
+                    "working_bytes": memory.working, "private_bytes": memory.private,
+                    "system_available_physical_bytes": system_memory.available_physical,
+                    "system_memory_load_percent": system_memory.load_percent})
                 previous, last = current, now
                 self._stop.wait(0.5)
         finally:

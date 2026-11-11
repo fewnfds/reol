@@ -26,15 +26,17 @@ python tools/stress_report.py logs/<capture>.json
 python tools/diagnose_demo.py --seconds 30 --auto-start --quit-after-capture
 ```
 
-人数是每地6–4096，实际总人数为两倍；持续使用普通Main原人物、寻路、生活、环境及共同时间，临时状态不写玩家档。`--actor-workers 0/4/8`对照同一计算路径，`--simulation-thread off`关闭协调线程但仍运行同一runner。`--release-binary PATH`复用同一exe/PCK进行规模/并发/后端对照，不能预设线程越多越快。不加`--quit-after-capture`可继续试玩。
+人数是每地6–4096，实际总人数为两倍；持续使用普通Main原人物、寻路、生活、环境及共同时间，临时状态不写玩家档。`--actor-workers -1`按硬件/任务量选择，`0`串行，`1..64`指定本批并发上限；实际按逻辑处理器及chunk数收窄，`--simulation-thread off`关闭协调线程但仍运行同一runner。`--release-binary PATH`复用同一exe/PCK进行规模/并发/后端对照，不能预设线程越多越快。不加`--quit-after-capture`可继续试玩。
 
 `--complex`临时装配1–64个5×5房间、5–512个实际冷热/五行来源；约四分之一来源由原人物携带，其余通过原实物命令移动。两地运行单位一起布置在观察者附近，不使用假移动。场景结构是一次性安装、没有历史施工回执，不可当作正常存档fixture。
 
-`--profile-cpu`用Windows线程CPU时钟和进程内存每0.5秒侧录到`.cpu.json`；记录涵盖装配，`stress_report.py`按capture时间范围加权裁剪边缘样本，CPU秒才是真实执行，GDScript微秒仍是经过时间。`--input-probe`只测宿主请求等到完整世界交接的延迟，不是鼠标到显示像素延迟。身体、来源响应与后台等待的成本可在同一JSON查看。
+`--profile-cpu`用Windows线程CPU时钟、进程内存及整机可用内存每0.5秒侧录到`.cpu.json`；记录涵盖装配，`stress_report.py`按capture时间范围加权裁剪边缘样本，CPU秒才是真实执行，GDScript微秒仍是经过时间。`--gpu-index N`固定适配器序号，须核对报告renderer名称；两张卡的序号未必长期相同。CPU竞争、整机内存不足及其他程序占满GPU的窗口只保留为干扰证据，不用于选择最优线程数。`--input-probe`只测宿主请求等到完整世界交接的延迟，不是鼠标到显示像素延迟。身体、来源响应与后台等待的成本可在同一JSON查看。
 
 `--mixed`在两地巡行中加入实际取货/交付、原配方完工、可穿行门、有限交锋和携发光器物的移动视野。工地和配方通过原命令及共同时间准备，门不再周期性执行开关动作；`assembly_ms`和`crowd.mixed.setup_world_ms`与采样分开。采样报告记录实际完成的行为、世界流速、超16.67ms帧数和场景驱动耗时；如因缓行未覆盖完整负载，报告保留，进程返回非零。世界错误立即结束采样并保存第一手上下文。
 
 Windows的`--release`先用`Windows Performance`预设导出当前代码到忽略的`logs/release-stress/`，然后启动真正的release exe/PCK，复用同一压力会话。需安装与当前引擎完全匹配的Windows x86_64 release模板；本机模板不入库。导出上限45秒，退出式采样进程上限为采样时长加90秒；不会启动CI或smoke。`performance_stress`特征只替换这个预设的启动场景，普通Main入口不变。
+
+压力导出还把Godot的实例shader参数缓冲提高到262144个槽，容纳8192身体的实际呈现，避免先撞到默认约4096实例的缓冲上限；普通游戏不覆盖此设置。导出同时写exe旁的`.build.json`记录源码版本、dirty和内容digest；复用时检查digest并读取原构建信息，缺失或不符时版本标为unknown，不冒用当前工作区HEAD。
 
 报告用`debug_build/editor_build`区分开发版与release，release还记录exe与PCK合并内容的`artifact_sha256`；源码`revision/dirty`按导出前真实Git状态记录。采样报告使用绝对logs路径，直接运行导出入口的默认诊断输出在`user://diagnostics/`，不向只读`res://`或普通玩家存档写入。开发版/发布版差异包括编译及运行形态，不能包装成算法提速；性能结论优先使用同构建类型的对照。
 

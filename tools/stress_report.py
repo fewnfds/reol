@@ -32,6 +32,7 @@ def summarize(path: Path) -> dict:
         start, end = report["capture_started_unix"], report["capture_finished_unix"]
         totals: dict[str, float] = defaultdict(float)
         memory, covered = 0, 0.0
+        available_memory: list[int] = []
         for row in cpu["samples"]:
             elapsed = row["elapsed_seconds"]
             overlap = max(0.0, min(end, row["unix_seconds"]) - max(start, row["unix_seconds"] - elapsed))
@@ -41,6 +42,8 @@ def summarize(path: Path) -> dict:
             for tid, seconds in row["thread_cpu_seconds"].items():
                 totals[tid] += seconds * overlap / elapsed
             memory = max(memory, row["private_bytes"])
+            if "system_available_physical_bytes" in row:
+                available_memory.append(row["system_available_physical_bytes"])
         names = cpu.get("thread_names", {})
         main = str(cpu.get("main_thread_id", ""))
         result["cpu"] = {
@@ -48,6 +51,7 @@ def summarize(path: Path) -> dict:
             "covered_seconds": covered, "cpu_seconds": sum(totals.values()),
             "mean_executing_cores": sum(totals.values()) / covered if covered else None,
             "main_cpu_seconds": totals.get(main), "peak_private_mib": memory / 1024**2,
+            "minimum_system_available_mib": min(available_memory) / 1024**2 if available_memory else None,
             "top_threads": [{"id": tid, "name": names.get(tid, ""), "cpu_seconds": seconds,
                              "main": tid == main} for tid, seconds in sorted(totals.items(), key=lambda pair: -pair[1])[:12]],
         }

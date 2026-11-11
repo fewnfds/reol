@@ -166,14 +166,6 @@ func _apply_binding() -> void:
 	_project()
 
 
-func prepare_step() -> void:
-	var adapter: WorldContinuityRuntime = runtime()
-	if not adapter.bird_player_active() or opening.visible:
-		return
-	var intent: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")
-	adapter.world_sim.avian_life.command_flight(adapter.bird_avatar_id(), intent)
-
-
 func submit(verb: String) -> Dictionary:
 	var adapter: WorldContinuityRuntime = runtime()
 	if not adapter.bird_player_active() or opening.visible:

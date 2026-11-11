@@ -21,6 +21,10 @@ Reol已有分块、局部失效、packed响应列、分段二进制及基础场G
 
 用户要求将主要模拟负载的多核化作为主线，允许重构。这里核对成熟项目的一手经验；实施结构只维护在[执行方案](../../docs/specs/world-engine/execution.md)，阶段顺序只见主计划。此前“有线程入口”不能代表主要工作已经并行，来源本身也不能证明Reol性能达标。
 
+关于worker数量，再核对[Godot线程池](https://docs.godotengine.org/en/4.7/classes/class_workerthreadpool.html)和[项目设置](https://docs.godotengine.org/en/4.7/classes/class_projectsettings.html)：线程池在启动时维护工作线程，每次group可以选择参与数量，默认`tasks_needed=-1`使用所有可用worker；不是每批重新创建线程。池上限为-1时，桌面平台按逻辑处理器数配置，小任务仍可能变慢。[Unity Job System](https://docs.unity.com/en-us/engine/6000.0/manual/scripting/programming-distribute-work-threads/job-system)采用任务与依赖的同类职责划分；不把其C#/原生性能或调度实现当作Godot保证。
+
+因此固定4/8只是实验档，不是核心数的永久限制；Reol补充按硬件/批量选槽与高并发对照。FFF421既有独立读计算成功，也有线程CPU占用大升但整局不快的电网实验，支持实测端到端和准备/采用成本；它没有给出适用于Reol的最佳worker数。没有公开依据声称RimWorld按某个公式动态调整全部游戏线程。
+
 | 一手资料 | 可采用的经验 / 适用边界 |
 |---|---|
 | [Ludeon：Odyssey与1.6公告](https://ludeon.com/blog/2025/06/announcing-odyssey-and-update-1-6/)，2025-06；[官方Steam公告](https://store.steampowered.com/news/app/294100/view/498322216088241321) | 官方明确把寻路改为批量多线程，并并行照明。采用“批量独立查询”的职责划分，不声称RimWorld全部模拟已经并行；公告没有提供其完整内部数据/调度实现。此次网页直取受403/正文展示限制，已通过Steam官方`ISteamNews/GetNewsForApp`读取同标题正文核实 |

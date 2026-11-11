@@ -45,7 +45,8 @@ static func resolve_workers(requested: int, chunks: int, logical_processors: int
 		return 0
 	var processors: int = logical_processors if logical_processors > 0 else OS.get_processor_count()
 	var available: int = maxi(1, processors - 2) if requested < 0 else maxi(1, processors)
-	return mini(chunks, available if requested < 0 else mini(requested, available))
+	var slots: int = mini(chunks, available if requested < 0 else mini(requested, available))
+	return slots if slots > 1 else 0
 
 
 func finish(blocking: bool = false) -> bool:
