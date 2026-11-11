@@ -14,7 +14,7 @@ var events: Array[Dictionary] = []
 var next_id: int = 1
 var _owner: WeakRef
 var _worn: Dictionary = {}
-var _outer_holders: Dictionary[String, bool] = {}
+var _outer_holders: Dictionary[String, Array] = {}
 var world: RefCounted:
 	get:
 		return _owner.get_ref()
@@ -132,7 +132,9 @@ func _rebuild_worn() -> void:
 		if not held(actor, id):
 			continue
 		if definitions.types[row.type].slot == "outer":
-			_outer_holders[actor] = true
+			if not _outer_holders.has(actor):
+				_outer_holders[actor] = []
+			_outer_holders[actor].append(id)
 		if not bool(row.worn):
 			continue
 		if not _worn.has(actor):
@@ -334,14 +336,19 @@ func wants_decision(actor: String, at_ms: int) -> bool:
 
 
 func _outer_choice(actor: String, at_ms: int) -> String:
-	if home(actor).is_empty() or world.weather == null:
+	# Actual held outer garments are already indexed at custody changes. A
+	# decision for each body must not sort/scan the whole world's wardrobe.
+	var candidates: Array = _outer_holders.get(actor, [])
+	if candidates.is_empty() or home(actor).is_empty() or world.weather == null:
 		return ""
 	var region: String = physical_region_for(actor)
 	var rain: bool = world.weather.kind_at(world.weather.definitions, region, world.weather.epoch_ms, at_ms) == "rain"
 	var outer: String = worn_at(actor, "outer")
 	if not outer.is_empty():
 		return outer if not rain and world.environment != null and world.environment.cooler_without_outer(actor, str(objects[outer].type), int(objects[outer].wet), at_ms) else ""
-	for id: String in world._sorted_keys(objects):
+	var ordered: Array = candidates.duplicate()
+	ordered.sort()
+	for id: String in ordered:
 		if not held(actor, id) or objects[id].worn or definitions.types[objects[id].type].slot != "outer":
 			continue
 		if rain and definitions.types[objects[id].type].rain_cover or world.environment != null and world.environment.warmer_outer(actor, str(objects[id].type), int(objects[id].wet), at_ms):
