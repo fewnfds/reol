@@ -190,7 +190,7 @@ func restore(data: Dictionary) -> bool:
 		var terms: Dictionary = {"plan": note.plan, "minutes": int(plan.minutes), "period": floori(float(note.started_ms) / (int(plan.minutes) * 60000))}
 		if not Shape.same_record(decision.context.get("terms"), terms) or not Shape.same_record(decision.policy, sim.social._normalized_policy(definitions.policy)):
 			return false
-		var event: Dictionary = sim.social._event_by_id.get(note.event, {})
+		var event: Dictionary = sim.social.objective_event(note.event)
 		if event.get("kind") != "standing_work" or event.get("actor") != note.requester or event.get("target") != note.responder or event.get("tick") != decision.tick or event.details.get("task") != decision.task or event.details.get("status") != decision.status or event.details.get("participants", {}).get("until_ms") != note.until_ms:
 			return false
 		if note.status == "active":
@@ -203,7 +203,7 @@ func restore(data: Dictionary) -> bool:
 		else:
 			if not Shape.count(note.ended_ms, int(note.started_ms), mini(int(note.until_ms), world.elapsed_ms)) or (note.status == "expired" and note.ended_ms != note.until_ms):
 				return false
-			var ended: Dictionary = sim.social._event_by_id.get(note.end_event, {})
+			var ended: Dictionary = sim.social.objective_event(note.end_event)
 			var targets: Array = [""] if note.status == "expired" else ["", note.requester]
 			if ended.get("kind") != "standing_work_ended" or ended.get("actor") != note.responder or not ended.get("target") in targets or ended.get("tick") != floori(float(note.ended_ms) / 60000.0) or ended.details.get("status") != note.status or ended.details.get("task") != decision.task:
 				return false
@@ -226,7 +226,7 @@ func describe(viewer: String, id: String) -> Dictionary:
 		return _answer(note)
 	if world.elapsed_ms >= int(note.until_ms):
 		return _reply(true, "completed", "原定照看时段已过；实际做成了什么，还要到场核对。", id)
-	if note.status == "withdrawn" and sim.social.knowledge[viewer].has(note.end_event):
+	if note.status == "withdrawn" and sim.social.knows(viewer, str(note.end_event)):
 		return _reply(false, "cancelled", "你已经得知对方不再接这项安排的新活；原过程仍正常收尾。", id)
 	var other: String = str(note.responder) if viewer == note.requester else str(note.requester)
 	if not _can_talk(sim, viewer, other):

@@ -68,7 +68,7 @@ static func _ask(world: RefCounted, listener: String, speaker: String, topic: St
 	var witnesses: Array[String] = []
 	var id: String = memory.record(KIND, speaker, listener,
 		{"participants": {"topic": topic, "claims": claims, "text": _quote(claims, rules)}, "private": {"decision": decision.id}}, witnesses, world.current_time)
-	return _answer(world, scope, memory._event_by_id[id])
+	return _answer(world, scope, memory.objective_event(id))
 
 
 static func _self_description(world: RefCounted, speaker: String, rules: Dictionary) -> Array[String]:
@@ -118,9 +118,9 @@ static func recall(world: RefCounted, listener: String, process: Dictionary) -> 
 	var scope: String = str(process.id).get_slice(":", 0)
 	var id: String = str(process.id).get_slice(":", 1)
 	var memory: SimSocialMemory = _ledger(world, scope)
-	if memory == null or not memory.knowledge.has(listener):
+	if memory == null or not memory.has_actor(listener):
 		return SimInteractionRequests.result("unconfirmed", "没有本人听到的自述。")
-	var known: Dictionary = memory.knowledge[listener].get(id, {})
+	var known: Dictionary = memory.observation(listener, id)
 	if known.get("kind") != KIND or known.get("target") != listener or world.embodiment.subject_for_actor(str(known.get("actor", ""))) != process.performer or not known.details.has("text"):
 		return SimInteractionRequests.result("unconfirmed", "这不是对方向你说过的话。")
 	var home: String = world.services.actor_home(str(known.actor))
@@ -136,7 +136,7 @@ static func latest(world: RefCounted, listener: String) -> Dictionary:
 	var last_tick: int = -1
 	for scope: String in [home, "services"]:
 		var memory: SimSocialMemory = _ledger(world, scope)
-		for known: Dictionary in memory.knowledge[listener].values():
+		for known: Dictionary in memory.known_events(listener, KIND, true):
 			if known.kind == KIND and known.target == listener and int(known.tick) >= last_tick:
 				last_tick = int(known.tick)
 				found = {"domain": "conversation", "id": scope + ":" + str(known.id), "performer": world.embodiment.subject_for_actor(str(known.actor))}

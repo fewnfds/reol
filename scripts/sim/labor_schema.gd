@@ -66,7 +66,7 @@ static func _contract(note: Variant, id: String, domain: RefCounted, attempts: D
 	var coins: int = int(domain.definitions.offers[note.offer].coins)
 	if not _basis(note, sim, task):
 		return false
-	var agreement: Dictionary = sim.social._event_by_id.get(note.agreement, {})
+	var agreement: Dictionary = sim.social.objective_event(note.agreement)
 	var details: Dictionary = {"contract": id, "offer": note.offer, "coins": coins, "basis": note.basis, "until_ms": note.until_ms, "office": note.office}
 	if agreement.get("kind") != "labor_agreed" or agreement.get("actor") != note.issuer or agreement.get("target") != note.actor or agreement.get("tick") != floori(float(note.signed_ms) / 60000.0) or not Shape.same_record(agreement.details.get("participants"), details):
 		return false
@@ -88,7 +88,7 @@ static func _contract(note: Variant, id: String, domain: RefCounted, attempts: D
 		else:
 			if not Shape.count(attempt.ended_ms, int(attempt.started_ms), mini(world.elapsed_ms, int(note.until_ms))) or active.get("id") == attempt.action:
 				return false
-			var event: Dictionary = sim.social._event_by_id.get(attempt.event, {})
+			var event: Dictionary = sim.social.objective_event(attempt.event)
 			if event.get("kind") != ("completed" if attempt.succeeded else "interrupted") or event.get("actor") != note.actor or event.get("tick") != floori(float(attempt.ended_ms) / 60000.0) or event.details.get("task") != task_id(domain, note) or event.details.get("public", {}).get("work_credit") != 0 or event.details.get("public", {}).get("labor") != id or event.details.get("private", {}).get("action_id") != attempt.action:
 				return false
 			var event_key: String = str(note.region) + ":" + str(attempt.event)
@@ -127,7 +127,7 @@ static func _contract(note: Variant, id: String, domain: RefCounted, attempts: D
 	if note.status in ["cancelled", "expired"]:
 		if not Shape.count(note.terminal_ms, previous, mini(world.elapsed_ms, int(note.until_ms))) or note.status == "expired" and note.terminal_ms != note.until_ms:
 			return false
-		var ended: Dictionary = sim.social._event_by_id.get(note.end_event, {})
+		var ended: Dictionary = sim.social.objective_event(note.end_event)
 		if ended.get("kind") != "labor_ended" or ended.get("actor") != note.actor or ended.get("tick") != floori(float(note.terminal_ms) / 60000.0) or not Shape.same_record(ended.details.get("private"), {"contract": id, "status": note.status}):
 			return false
 		events[str(note.region) + ":" + str(note.end_event)] = true
@@ -144,8 +144,8 @@ static func _basis(note: Dictionary, sim: VillageSimulation, task: Dictionary) -
 		return basis.source == note.issuer and basis.event == ""
 	if basis.basis != "said":
 		return false
-	var event: Dictionary = sim.social._event_by_id.get(basis.event, {})
-	return event.get("kind") == "stock_statement" and event.get("tick") == basis.at and event.details.get("participants", {}).get("location") == task.target and event.details.get("participants", {}).get("item") == task.item and event.details.get("participants", {}).get("amount") == basis.amount and sim.social.knowledge[note.issuer].has(basis.event)
+	var event: Dictionary = sim.social.objective_event(basis.event)
+	return event.get("kind") == "stock_statement" and event.get("tick") == basis.at and event.details.get("participants", {}).get("location") == task.target and event.details.get("participants", {}).get("item") == task.item and event.details.get("participants", {}).get("amount") == basis.amount and sim.social.knows(str(note.issuer), str(basis.event))
 
 
 static func task_id(domain: RefCounted, note: Dictionary) -> String:

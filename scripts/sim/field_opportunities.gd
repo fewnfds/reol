@@ -71,7 +71,7 @@ func spawn_opening(centers: Dictionary) -> bool:
 	var actor: String = str(definitions.purpose.actor)
 	if not centers.has(rule.region) or not world.regions.has(rule.region) or home(actor).is_empty() or world.artifacts.objects.has(rule.object) or not world.regions[home(actor)].places.has(definitions.purpose.return_place): return false
 	for knower: String in definitions.opening_knowers:
-		if home(knower).is_empty() or not world.services.social.knowledge.has(knower): return false
+		if home(knower).is_empty() or not world.services.social.has_actor(knower): return false
 	var cell: Vector2i = _opening_cell(centers)
 	if cell.x < 0 or world.elapsed_ms > SimInventory.MAX_COUNT - int(definitions.purpose.delay_ms): return false
 	var site: Dictionary = {"id": str(rule.id), "region": str(rule.region), "container": str(rule.container), "cell": [cell.x, cell.y], "opened_ms": int(world.elapsed_ms), "source_events": {}}
@@ -98,7 +98,7 @@ func slot_cell(region: String, container: String) -> Vector2i:
 
 func known_sites(actor: String) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	if world.services == null or not world.services.social.knowledge.has(actor): return result
+	if world.services == null or not world.services.social.has_actor(actor): return result
 	for id: String in world._sorted_keys(sites):
 		if not _known_event(actor, id).is_empty(): result.append(_site_row(id))
 	return result
@@ -137,7 +137,7 @@ func learn_from(requester: String, responder: String) -> Dictionary:
 	if decision.get("status") != "accepted": return _reply(false, "refused", "对方眼下不愿分享这条旧闻。")
 	for event: Dictionary in memory.events:
 		if event.kind == "field_clue_shared" and event.details.get("private", {}).get("decision") == decision.id: return _reply(true, "completed", str(definitions.labels.clue))
-	if not memory.knowledge[requester].has(known.id): memory.learn(requester, str(known.id), responder)
+	if not memory.knows(requester, str(known.id)): memory.learn(requester, str(known.id), responder)
 	var details: Dictionary = {"site": id, "cell": sites[id].cell.duplicate(), "label": str(definitions.site.label), "source_event": str(known.id), "at_ms": int(world.elapsed_ms), "requester_position": body(requester).position.duplicate(), "responder_position": body(responder).position.duplicate(), "level": Space.level(world, SimRouteTravel.point(body(responder)))}
 	var witnesses: Array[String] = []
 	memory.record("field_clue_shared", responder, requester, {"participants": details, "private": {"decision": str(decision.id)}}, witnesses, world.current_time)
@@ -151,7 +151,7 @@ func observe_site(actor: String, id: String) -> Dictionary:
 	world.synchronize_region(home(actor))
 	var event: String = _observe(actor, id)
 	if event.is_empty(): return _reply(false, "unheard", "先实际走近同高度、无遮挡的旧址再查看。")
-	var known: Dictionary = world.services.social.knowledge[actor][event]
+	var known: Dictionary = world.services.social.observation(actor, event)
 	return _reply(true, "completed", str(definitions.labels["present" if known.details.outcome == "present" else "empty"]))
 
 
@@ -374,7 +374,7 @@ func _arrive(purpose: Dictionary) -> void:
 		purpose.retry_ms = int(world.elapsed_ms) + int(definitions.purpose.retry_ms)
 		return
 	purpose.observed_event = seen
-	var known: Dictionary = world.services.social.knowledge[actor][seen]
+	var known: Dictionary = world.services.social.observation(actor, seen)
 	if known.details.outcome == "empty":
 		purpose.goal = "return"
 		purpose.last_result = "empty"
@@ -405,7 +405,7 @@ func _observe(actor: String, id: String) -> String:
 	var latest: Dictionary = {}
 	for index: int in range(world.services.social.events.size() - 1, -1, -1):
 		var event: Dictionary = world.services.social.events[index]
-		var known: Dictionary = world.services.social.knowledge.get(actor, {}).get(event.id, {})
+		var known: Dictionary = world.services.social.observation(actor, str(event.id))
 		if known.get("kind") == "field_site_observed" and known.get("actor") == actor and known.details.get("site") == id:
 			latest = known
 			break
@@ -416,7 +416,7 @@ func _observe(actor: String, id: String) -> String:
 func _known_event(actor: String, id: String) -> Dictionary:
 	if world.services == null or not sites.has(id): return {}
 	for event: Dictionary in world.services.social.events:
-		var known: Dictionary = world.services.social.knowledge.get(actor, {}).get(event.id, {})
+		var known: Dictionary = world.services.social.observation(actor, str(event.id))
 		if known.get("kind") in ["field_origin_clue", "field_site_observed", "field_clue_shared"] and known.details.get("site") == id and SnapshotValues.normalized(known.details.get("cell")) == SnapshotValues.normalized(sites[id].cell): return known
 	return {}
 

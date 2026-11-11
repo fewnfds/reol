@@ -175,13 +175,13 @@ static func cross_valid(domain: RefCounted) -> bool:
 
 
 static func consent_valid(memory: SimSocialMemory, proposal: Dictionary, job: Dictionary) -> bool:
-	var event: Dictionary = memory._event_by_id.get(job.consent, {})
+	var event: Dictionary = memory.objective_event(job.consent)
 	var details: Dictionary = {"participants": {"proposal": proposal.id, "job": job.id, "object": job.object, "source_event": job.source_event, "price": int(proposal.price), "currency": proposal.currency, "at_ms": int(job.started_ms), "buyer_position": job.buyer_position, "seller_position": job.seller_position}, "private": {"decision": proposal.decision}}
 	if event.get("kind") != "private_exchange_consent" or event.get("actor") != job.seller or event.get("target") != job.buyer or event.get("witnesses") != [] or int(event.get("tick", -1)) != floori(float(job.started_ms) / 60000.0):
 		return false
 	if SnapshotValues.normalized(event.get("details")) != SnapshotValues.normalized(details):
 		return false
-	return memory.knowledge.get(job.buyer, {}).get(job.consent, {}).get("direct") == true and memory.knowledge.get(job.seller, {}).get(job.consent, {}).get("direct") == true
+	return memory.saw(str(job.buyer), str(job.consent)) and memory.saw(str(job.seller), str(job.consent))
 
 
 static func _historical_distance(domain: RefCounted, job: Dictionary) -> bool:

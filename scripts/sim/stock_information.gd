@@ -25,8 +25,8 @@ static func assess(sim: RefCounted, observer: String, place: String, item: Strin
 		selected = {"amount": int(direct.items.get(item, 0)), "at": int(direct.tick),
 			"basis": "observed", "source": observer, "credible": true, "event": ""}
 		accounts.append(selected.duplicate(true))
-	for event_id: String in sim.social.knowledge[observer]:
-		var known: Dictionary = sim.social.knowledge[observer][event_id]
+	for known: Dictionary in sim.social.known_events(observer, "stock_statement", true):
+		var event_id: String = str(known.id)
 		var details: Dictionary = known.details
 		if known.kind != "stock_statement" or details.get("location") != place or details.get("item") != item or known.actor == observer:
 			continue

@@ -17,7 +17,7 @@ static func validate(data: Variant, domain: RefCounted) -> bool:
 			return false
 		previous = int(row.at_ms)
 		var sim: RefCounted = world.regions[row.region]
-		var event: Dictionary = sim.social._event_by_id.get(row.social_event, {})
+		var event: Dictionary = sim.social.objective_event(row.social_event)
 		var details: Dictionary = {"participants": {"text": row.line, "status": row.status, "action": row.method, "terms": {"scope": domain.definitions.scope, "evidence": row.evidence}}}
 		if event.get("kind") != "admission_statement" or event.get("actor") != row.actor or event.get("target") != row.receiver or int(event.get("tick", -1)) != floori(float(row.at_ms) / 60000.0) or event.get("details") != details or event.get("witnesses") != []:
 			return false

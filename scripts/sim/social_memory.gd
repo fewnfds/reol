@@ -4,7 +4,7 @@ extends RefCounted
 ## Event details are private by default. Surface fields below are observable;
 ## `public` explicitly addresses everyone present, `participants` only the two
 ## parties. `private`, reason and unlisted fields stay in the objective log.
-## Learning copies the informant's snapshot, never the objective event.
+## Learning preserves the informant's disclosure scope, never revealing the objective event.
 
 const VERSION: int = 1
 const SURFACE_FIELDS: Array[String] = [
@@ -25,12 +25,31 @@ const OUTCOME_EFFECTS: Dictionary = {
 }
 
 var events: Array[Dictionary] = []
-var knowledge: Dictionary = {}
 var relationships: Dictionary = {}
 var requests: Dictionary = {}
 
-var _actors: Dictionary = {}
-var _event_by_id: Dictionary = {}
+class Observer extends RefCounted:
+	# Direct knowledge indexes the original event audience. Only retelling
+	# needs extra facts: immediate source and the original disclosure scope.
+	var direct := PackedInt32Array()
+	var order := PackedInt32Array()
+	var heard: Dictionary[int, Array] = {}
+
+	func saw(index: int) -> bool:
+		var at: int = direct.bsearch(index)
+		return at < direct.size() and direct[at] == index
+
+	func knows(index: int) -> bool:
+		return heard.has(index) or saw(index)
+
+	func add_direct(index: int) -> void:
+		direct.append(index)
+		order.append(index)
+
+
+var _actors: Dictionary[String, Observer] = {}
+var _event_indices: Dictionary[String, int] = {}
+var _scopes: Dictionary[int, Array] = {}
 var _next_event_id: int = 1
 var _next_request_id: int = 1
 var _outcome_effects: Dictionary = OUTCOME_EFFECTS.duplicate(true)
@@ -52,8 +71,7 @@ func configure(policy: Dictionary) -> void:
 func register_actor(actor_id: String) -> void:
 	if actor_id.is_empty() or _actors.has(actor_id):
 		return
-	_actors[actor_id] = true
-	knowledge[actor_id] = {}
+	_actors[actor_id] = Observer.new()
 	relationships[actor_id] = {}
 
 
@@ -81,44 +99,117 @@ func record(
 		"id": event_id, "kind": kind, "actor": actor, "target": target,
 		"details": details.duplicate(true), "witnesses": observed_by, "tick": tick,
 	}
-	events.append(event)
-	_event_by_id[event_id] = event
-	# Audience membership and source stay personal. The same redacted facts
-	# are computed once per scope and shared without granting mutation rights.
-	var public_view: Dictionary = _public_details(event.details)
-	var participant_view: Dictionary = _participant_details(event.details, public_view)
-	_freeze_details(public_view)
-	if not is_same(public_view, participant_view):
-		_freeze_details(participant_view)
-	knowledge[actor][event_id] = _observation(event, actor, participant_view)
+	var index: int = _append_event(event)
+	_actors[actor].add_direct(index)
 	if not target.is_empty() and target != actor:
-		knowledge[target][event_id] = _observation(event, target, participant_view)
+		_actors[target].add_direct(index)
 	for witness: String in observed_by:
 		if witness != actor and witness != target:
-			knowledge[witness][event_id] = _observation(event, witness, public_view)
+			_actors[witness].add_direct(index)
 	return event_id
+
+
+func _append_event(event: Dictionary) -> int:
+	var index: int = events.size()
+	_event_indices[event.id] = index
+	_freeze_details(event)
+	events.append(event)
+	return index
 
 
 func learn(actor: String, event_id: String, source: String) -> bool:
 	if not _actors.has(actor) or not _actors.has(source) or actor == source:
 		return false
-	if knowledge[actor].has(event_id) or not knowledge[source].has(event_id):
+	var index: int = _event_indices.get(event_id, -1)
+	var from: Observer = _actors[source]
+	var to: Observer = _actors[actor]
+	if index < 0 or to.knows(index) or not from.knows(index):
 		return false
-	var learned: Dictionary = knowledge[source][event_id].duplicate(true)
-	learned["source"] = source
-	learned["direct"] = false
-	knowledge[actor][event_id] = learned
+	var participants: bool = bool(from.heard[index][1]) if from.heard.has(index) else _participant(events[index], source)
+	to.heard[index] = [source, participants]
+	to.order.append(index)
 	return true
 
 
-func known_events(actor: String) -> Array[Dictionary]:
+func has_actor(actor: String) -> bool:
+	return _actors.has(actor)
+
+
+func actor_count() -> int:
+	return _actors.size()
+
+
+func observation_count() -> int:
+	var total: int = 0
+	for observer: Observer in _actors.values():
+		total += observer.order.size()
+	return total
+
+
+func knows(actor: String, event_id: String) -> bool:
+	var observer: Observer = _actors.get(actor)
+	var index: int = _event_indices.get(event_id, -1)
+	return observer != null and index >= 0 and observer.knows(index)
+
+
+func saw(actor: String, event_id: String) -> bool:
+	var observer: Observer = _actors.get(actor)
+	var index: int = _event_indices.get(event_id, -1)
+	return observer != null and index >= 0 and observer.saw(index)
+
+
+func objective_event(event_id: String) -> Dictionary:
+	# For domain validation. Player-facing readers use observation() instead.
+	var index: int = _event_indices.get(event_id, -1)
+	return events[index] if index >= 0 else {}
+
+
+func observation(actor: String, event_id: String) -> Dictionary:
+	var observer: Observer = _actors.get(actor)
+	var index: int = _event_indices.get(event_id, -1)
+	return _known_at(actor, observer, index) if observer != null and index >= 0 and observer.knows(index) else {}
+
+
+func known_events(actor: String, kind: String = "", in_acquisition_order: bool = false, limit: int = -1) -> Array[Dictionary]:
 	var visible: Array[Dictionary] = []
-	if not knowledge.has(actor):
+	var observer: Observer = _actors.get(actor)
+	if observer == null or limit == 0:
 		return visible
-	for event: Dictionary in events:
-		if knowledge[actor].has(event["id"]):
-			visible.append(knowledge[actor][event["id"]].duplicate(true))
+	var indices: PackedInt32Array = observer.order if in_acquisition_order else observer.direct
+	if not in_acquisition_order and not observer.heard.is_empty():
+		indices = indices.duplicate()
+		for index: int in observer.heard:
+			indices.append(index)
+		indices.sort()
+	for offset: int in indices.size():
+		var index: int = indices[offset if limit < 0 else indices.size() - 1 - offset]
+		if kind.is_empty() or events[index].kind == kind:
+			visible.append(_known_at(actor, observer, index).duplicate(true))
+			if visible.size() == limit:
+				break
+	if limit >= 0:
+		visible.reverse()
 	return visible
+
+
+func _known_at(actor: String, observer: Observer, index: int) -> Dictionary:
+	var event: Dictionary = events[index]
+	var received: Array = observer.heard.get(index, [])
+	var direct: bool = received.is_empty()
+	var participants: bool = _participant(event, actor) if direct else bool(received[1])
+	return _observation(event, actor if direct else str(received[0]), _view(index, participants), direct)
+
+
+func _view(index: int, participants: bool) -> Dictionary:
+	if not _scopes.has(index):
+		var details: Dictionary = events[index].details
+		var public_view: Dictionary = _public_details(details)
+		var participant_view: Dictionary = _participant_details(details, public_view)
+		_freeze_details(public_view)
+		if not is_same(public_view, participant_view):
+			_freeze_details(participant_view)
+		_scopes[index] = [public_view, participant_view]
+	return _scopes[index][int(participants)]
 
 
 func remember_outcome(
@@ -126,9 +217,9 @@ func remember_outcome(
 ) -> bool:
 	if not _actors.has(observer) or not _actors.has(other) or observer == other:
 		return false
-	if not knowledge[observer].has(event_id) or not OUTCOME_EFFECTS.has(outcome):
+	var known: Dictionary = observation(observer, event_id)
+	if known.is_empty() or not OUTCOME_EFFECTS.has(outcome):
 		return false
-	var known: Dictionary = knowledge[observer][event_id]
 	if known["actor"] != other and known["target"] != other:
 		return false
 	var memory: Dictionary = relation(observer, other)
@@ -196,10 +287,21 @@ func to_dict() -> Dictionary:
 	actor_ids.sort()
 	return {
 		"version": VERSION, "actors": actor_ids, "events": events.duplicate(true),
-		"knowledge": knowledge.duplicate(true), "relationships": relationships.duplicate(true),
+		"knowledge": _snapshot_knowledge(), "relationships": relationships.duplicate(true),
 		"requests": requests.duplicate(true), "next_event_id": _next_event_id,
 		"next_request_id": _next_request_id, "outcome_effects": _outcome_effects.duplicate(true),
 	}
+
+
+func _snapshot_knowledge() -> Dictionary:
+	var result: Dictionary = {}
+	for actor: String in _actors:
+		var observer: Observer = _actors[actor]
+		var known: Dictionary = {}
+		for index: int in observer.order:
+			known[events[index].id] = _known_at(actor, observer, index).duplicate(true)
+		result[actor] = known
+	return result
 
 
 func restore(data: Dictionary) -> bool:
@@ -231,12 +333,10 @@ func restore(data: Dictionary) -> bool:
 		if not raw is Dictionary or not staged._valid_event(raw):
 			return false
 		var number: int = _numbered_id(raw["id"], "event_")
-		if number < 1 or staged._event_by_id.has(raw["id"]):
+		if number < 1 or staged._event_indices.has(raw["id"]):
 			return false
 		largest_event = maxi(largest_event, number)
-		var event: Dictionary = raw.duplicate(true)
-		staged.events.append(event)
-		staged._event_by_id[event["id"]] = event
+		staged._append_event(raw.duplicate(true))
 	if int(data["next_event_id"]) <= largest_event:
 		return false
 	if not staged._restore_knowledge(data["knowledge"]):
@@ -258,22 +358,15 @@ func restore(data: Dictionary) -> bool:
 	if int(data["next_request_id"]) <= largest_request:
 		return false
 	events = staged.events
-	knowledge = staged.knowledge
 	relationships = staged.relationships
 	requests = staged.requests
 	_actors = staged._actors
-	_event_by_id = staged._event_by_id
+	_event_indices = staged._event_indices
+	_scopes = staged._scopes
 	_next_event_id = int(data["next_event_id"])
 	_next_request_id = int(data["next_request_id"])
 	_outcome_effects = staged._outcome_effects
 	return true
-
-
-func _observed_event(event: Dictionary, observer: String) -> Dictionary:
-	var visible: Dictionary = _public_details(event.details)
-	if observer == event.actor or observer == event.target:
-		visible = _participant_details(event.details, visible)
-	return _observation(event, observer, visible)
 
 
 func _public_details(details: Dictionary) -> Dictionary:
@@ -294,12 +387,16 @@ func _participant_details(details: Dictionary, public_view: Dictionary) -> Dicti
 	return visible
 
 
-static func _observation(event: Dictionary, observer: String, visible: Dictionary) -> Dictionary:
+static func _observation(event: Dictionary, source: String, visible: Dictionary, direct: bool) -> Dictionary:
 	return {
 		"id": event["id"], "kind": event["kind"], "actor": event["actor"],
 		"target": event["target"], "details": visible, "tick": event["tick"],
-		"source": observer, "direct": true,
+		"source": source, "direct": direct,
 	}
+
+
+static func _participant(event: Dictionary, observer: String) -> bool:
+	return event.actor == observer or event.target == observer
 
 
 static func _freeze_details(value: Variant) -> void:
@@ -469,11 +566,12 @@ func _restore_knowledge(saved: Dictionary) -> bool:
 			return false
 		for event_id: String in saved[observer]:
 			var known: Variant = saved[observer][event_id]
-			if not known is Dictionary or not _event_by_id.has(event_id):
+			var index: int = _event_indices.get(event_id, -1)
+			if not known is Dictionary or index < 0:
 				return false
 			if not _has_keys(known, ["id", "kind", "actor", "target", "details", "tick", "source", "direct"]):
 				return false
-			var event: Dictionary = _event_by_id[event_id]
+			var event: Dictionary = events[index]
 			if (
 				known["id"] != event_id or known["kind"] != event["kind"]
 				or known["actor"] != event["actor"] or known["target"] != event["target"]
@@ -485,10 +583,14 @@ func _restore_knowledge(saved: Dictionary) -> bool:
 			if known["direct"]:
 				if known["source"] != observer or not _is_audience(event, observer):
 					return false
-				if _canonical(known) != _canonical(_observed_event(event, observer)):
+				if _canonical(known.details) != _canonical(_view(index, _participant(event, observer))):
 					return false
+			_actors[observer].order.append(index)
 	for observer: String in saved:
 		for event_id: String in saved[observer]:
+			var first: Dictionary = saved[observer][event_id]
+			if first.direct:
+				continue
 			var visited: Dictionary = {}
 			var cursor: String = observer
 			while true:
@@ -501,18 +603,28 @@ func _restore_knowledge(saved: Dictionary) -> bool:
 				var source: String = entry["source"]
 				if not saved[source].has(event_id):
 					return false
-				var expected: Dictionary = saved[source][event_id].duplicate(true)
-				expected["source"] = source
-				expected["direct"] = false
-				if _canonical(entry) != _canonical(expected):
+				if _canonical(entry.details) != _canonical(saved[source][event_id].details):
 					return false
 				cursor = source
-	for event: Dictionary in events:
-		for observer: String in _actors:
-			if _is_audience(event, observer):
-				if not saved[observer].has(event["id"]) or not saved[observer][event["id"]]["direct"]:
-					return false
-	knowledge = saved.duplicate(true)
+			var index: int = _event_indices[event_id]
+			_actors[observer].heard[index] = [first.source, _participant(events[index], cursor)]
+	# Direct membership is rebuilt in event order from actual audiences only.
+	for index: int in events.size():
+		var event: Dictionary = events[index]
+		if not _restore_direct(saved, event.actor, event.id, index):
+			return false
+		if not event.target.is_empty() and event.target != event.actor and not _restore_direct(saved, event.target, event.id, index):
+			return false
+		for witness: String in event.witnesses:
+			if witness != event.actor and witness != event.target and not _restore_direct(saved, witness, event.id, index):
+				return false
+	return true
+
+
+func _restore_direct(saved: Dictionary, observer: String, id: String, index: int) -> bool:
+	if not bool(saved[observer].get(id, {}).get("direct", false)):
+		return false
+	_actors[observer].direct.append(index)
 	return true
 
 

@@ -104,7 +104,7 @@ static func cross_valid(domain: RefCounted) -> bool:
 	var purpose: Dictionary = domain.purposes[domain.definitions.purpose.actor]
 	if domain._known_event(str(purpose.actor), str(purpose.site)).is_empty(): return false
 	if purpose.observed_event != "":
-		var observed: Dictionary = memory.knowledge[purpose.actor].get(purpose.observed_event, {})
+		var observed: Dictionary = memory.observation(str(purpose.actor), str(purpose.observed_event))
 		if observed.get("kind") != "field_site_observed" or observed.actor != purpose.actor or observed.details.site != purpose.site: return false
 	if purpose.artifact_action != "":
 		var job: Dictionary = domain.world.artifacts.active.get(purpose.actor, {})
@@ -151,8 +151,8 @@ static func _shared(domain: RefCounted, event: Dictionary, used: Dictionary) -> 
 	var to: Vector2 = _point(details.responder_position)
 	if from.distance_to(to) > minf(float(domain.definitions.interaction_px), float(domain.world._content.interaction_requests.communication_cells) * TileGrid.TILE_SIZE) + 0.001 or Space.level(domain.world, from) != details.level or Space.level(domain.world, to) != details.level: return false
 	var memory: SimSocialMemory = domain.world.services.social
-	var source: Dictionary = memory.knowledge.get(event.actor, {}).get(details.source_event, {})
-	var heard: Dictionary = memory.knowledge.get(event.target, {}).get(details.source_event, {})
+	var source: Dictionary = memory.observation(str(event.actor), str(details.source_event))
+	var heard: Dictionary = memory.observation(str(event.target), str(details.source_event))
 	if source.is_empty() or heard.is_empty() or source.get("kind") not in ["field_origin_clue", "field_site_observed", "field_clue_shared"] or source.details.get("site") != details.site or SnapshotValues.normalized(source.details) != SnapshotValues.normalized(heard.details) or int(source.tick) > int(event.tick): return false
 	if not Shape.count(source.details.get("at_ms"), int(domain.sites[details.site].opened_ms), int(details.at_ms)): return false
 	var decision: Dictionary = {}
@@ -185,10 +185,10 @@ static func _custody_at(domain: RefCounted, at_ms: int) -> Dictionary:
 static func _event(domain: RefCounted, id: String, kind: String, actor: String, target: String, at_ms: int, details: Dictionary) -> bool:
 	if domain.world.services == null: return false
 	var memory: SimSocialMemory = domain.world.services.social
-	var event: Dictionary = memory._event_by_id.get(id, {})
+	var event: Dictionary = memory.objective_event(id)
 	var payload: Dictionary = details.duplicate(true)
 	payload["at_ms"] = at_ms
-	return event.get("kind") == kind and event.get("actor") == actor and event.get("target") == target and event.get("tick") == floori(float(at_ms) / 60000.0) and event.get("witnesses") == [] and SnapshotValues.normalized(event.get("details")) == SnapshotValues.normalized({"participants": payload}) and memory.knowledge.get(actor, {}).get(id, {}).get("direct") == true and (target == "" or memory.knowledge.get(target, {}).get(id, {}).get("direct") == true)
+	return event.get("kind") == kind and event.get("actor") == actor and event.get("target") == target and event.get("tick") == floori(float(at_ms) / 60000.0) and event.get("witnesses") == [] and SnapshotValues.normalized(event.get("details")) == SnapshotValues.normalized({"participants": payload}) and memory.saw(actor, id) and (target == "" or memory.saw(target, id))
 
 
 static func _any_field_event(domain: RefCounted) -> bool:

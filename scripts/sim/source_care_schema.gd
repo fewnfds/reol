@@ -105,7 +105,7 @@ static func _arrangement(row: Dictionary, domain: RefCounted) -> bool:
 		var native: Dictionary = sim.synchronize_actors()[row.guard].active
 		if native.get("id") != row.visit_action or native.get("action") != domain.definitions.watch_action or native.get("destination") != case_row.return_place: return false
 	if row.status == "withdrawn":
-		var ended: Dictionary = sim.social._event_by_id.get(str(row.end_event), {})
+		var ended: Dictionary = sim.social.objective_event(str(row.end_event))
 		if ended.get("actor") not in [row.guard, row.issuer] or ended.get("target") not in [row.guard, row.issuer] or ended.get("actor") == ended.get("target") or not _event(domain, row, str(row.end_event), "source_care_ended", str(ended.actor), str(ended.target), int(row.ended_ms), {"arrangement": row.id, "status": "withdrawn"}): return false
 	return true
 
@@ -114,7 +114,7 @@ static func _explanation(entry: Dictionary, domain: RefCounted) -> bool:
 	var row: Dictionary = domain.arrangements[entry.arrangement]
 	var sim: VillageSimulation = domain.world.regions[row.region]
 	if not sim.has_actor(entry.actor): return false
-	var claim: Dictionary = sim.social._event_by_id.get(str(entry.claim_event), {})
+	var claim: Dictionary = sim.social.objective_event(str(entry.claim_event))
 	var details: Dictionary = claim.get("details", {}).get("participants", {})
 	var original_source: String = str(details.get("source_job", ""))
 	var text: String = str(domain.definitions.labels.unauthenticated) if entry.source_event == "" else "我记得管事签过这次借源；所述用途为" + str(entry.target) + "，最迟开始时刻为" + str(int(entry.until_ms)) + "。"
@@ -126,8 +126,8 @@ static func _explanation(entry: Dictionary, domain: RefCounted) -> bool:
 	if entry.source_event != "":
 		var note: Dictionary = domain.world.site_affairs.notes.get(entry.basis, {})
 		if note.get("actor") != entry.actor or note.get("case") != row.case or note.get("issue_event") != entry.source_event or int(note.get("issued_ms", SimInventory.MAX_COUNT)) > int(entry.at_ms): return false
-		var spoken: Dictionary = sim.social.knowledge[entry.actor].get(str(entry.source_event), {})
-		var heard: Dictionary = sim.social.knowledge[entry.receiver].get(str(entry.source_event), {})
+		var spoken: Dictionary = sim.social.observation(str(entry.actor), str(entry.source_event))
+		var heard: Dictionary = sim.social.observation(str(entry.receiver), str(entry.source_event))
 		var known: Dictionary = spoken.get("details", {})
 		if spoken.is_empty() or heard.is_empty() or known.get("start_until_ms") != entry.until_ms or domain.world.site_affairs.definitions.offers.get(known.get("offer", ""), {}).get("target") != entry.target: return false
 		# The original social schema proves the attributed chain. A receiver
@@ -141,7 +141,7 @@ static func _explanation(entry: Dictionary, domain: RefCounted) -> bool:
 		if not job.is_empty() and (int(job.started_ms) > int(entry.at_ms) or int(job.get("finished_ms", SimInventory.MAX_COUNT)) <= int(entry.at_ms)): return false
 	else:
 		if original_source != "" or entry.source_job == "" or not bool(entry.accepted): return false
-		var bound: Dictionary = sim.social._event_by_id.get(str(entry.binding_event), {})
+		var bound: Dictionary = sim.social.objective_event(str(entry.binding_event))
 		var observation: Dictionary = bound.get("details", {}).get("participants", {})
 		if not Shape.keys(observation, ["explanation", "source_job", "observer_position", "position", "level", "at_ms"]) or observation.explanation != entry.id or observation.source_job != entry.source_job or not Shape.count(observation.at_ms, maxi(int(entry.at_ms), int(job.started_ms)), mini(int(domain.world.elapsed_ms), int(job.get("finished_ms", SimInventory.MAX_COUNT)) - 1)) or not _source_observation(observation, job, domain) or not _event(domain, row, str(entry.binding_event), "source_care_basis_applied", str(row.guard), "", int(observation.at_ms), {"explanation": entry.id, "source_job": entry.source_job, "observer_position": observation.observer_position, "position": observation.position, "level": observation.level}): return false
 	return true
@@ -186,10 +186,10 @@ static func _source_observation(data: Dictionary, job: Dictionary, domain: RefCo
 
 static func _event(domain: RefCounted, row: Dictionary, id: String, kind: String, actor: String, target: String, at_ms: int, details: Dictionary) -> bool:
 	var sim: VillageSimulation = domain.world.regions[row.region]
-	var event: Dictionary = sim.social._event_by_id.get(id, {})
+	var event: Dictionary = sim.social.objective_event(id)
 	var payload: Dictionary = details.duplicate(true)
 	payload["at_ms"] = at_ms
-	return event.get("kind") == kind and event.get("actor") == actor and event.get("target") == target and event.get("tick") == floori(float(at_ms) / 60000.0) and event.get("witnesses") == [] and SnapshotValues.normalized(event.get("details")) == SnapshotValues.normalized({"participants": payload}) and sim.social.knowledge.get(actor, {}).get(id, {}).get("direct") == true and (target == "" or sim.social.knowledge.get(target, {}).get(id, {}).get("direct") == true)
+	return event.get("kind") == kind and event.get("actor") == actor and event.get("target") == target and event.get("tick") == floori(float(at_ms) / 60000.0) and event.get("witnesses") == [] and SnapshotValues.normalized(event.get("details")) == SnapshotValues.normalized({"participants": payload}) and sim.social.saw(actor, id) and (target == "" or sim.social.saw(target, id))
 
 
 static func _point(value: Array) -> Vector2:

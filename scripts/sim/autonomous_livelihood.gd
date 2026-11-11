@@ -154,9 +154,8 @@ func _claims_payment(sim: VillageSimulation, listener: String, speaker: String) 
 	var latest: Dictionary = {}
 	# Event order survives JSON key sorting, including multiple statements in
 	# one coarse minute. Read only the listener's own version of those events.
-	for event: Dictionary in sim.social.events:
-		var known: Dictionary = sim.social.knowledge[listener].get(event.id, {})
-		if known.get("kind") == SimCapabilityConversation.KIND and known.actor == speaker and known.target == listener:
+	for known: Dictionary in sim.social.known_events(listener, SimCapabilityConversation.KIND):
+		if known.actor == speaker and known.target == listener:
 			latest = known
 	return not latest.is_empty() and latest.details.get("claims", []).has(definitions.capability_claim)
 

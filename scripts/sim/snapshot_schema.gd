@@ -60,8 +60,11 @@ static func validate(data: Dictionary, content: ReolContentDB, allowed_subjects:
 		return false
 	if (legacy or pre_resources) and (data.has("land_resources") or settings.has("resource_sources")):
 		return false
-	if not _same_keys(social.knowledge, actors):
+	if social.actor_count() != actors.size():
 		return false
+	for actor: String in actors:
+		if not social.has_actor(actor):
+			return false
 	if not SimCapabilityConversation.valid_history(social, content.capability_conversation, tick):
 		return false
 	var expected_containers: Dictionary = expected_places.duplicate()

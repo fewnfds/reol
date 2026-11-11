@@ -1285,12 +1285,12 @@ func report_work(actor_id: String) -> bool:
 	var remaining: Array = []
 	for receipt: Dictionary in receipts:
 		var event_id: String = receipt.event
-		if not social.knowledge[actor_id].has(event_id):
+		if not social.knows(actor_id, event_id):
 			remaining.append(receipt)
 			continue
 		if registrar != actor_id:
 			social.learn(registrar, event_id, actor_id)
-		if not social.knowledge[registrar].has(event_id):
+		if not social.knows(registrar, event_id):
 			remaining.append(receipt)
 			continue
 		if institutions.issue("credit:" + event_id, config.institution.id, registrar, actor_id, int(receipt.amount), event_id):
@@ -1446,10 +1446,7 @@ func actor_status(id: String) -> String:
 
 func known_event_lines(actor_id: String, limit: int = 5) -> Array[String]:
 	var result: Array[String] = []
-	var known: Array[Dictionary] = social.known_events(actor_id)
-	var start: int = maxi(0, known.size() - limit)
-	for index in range(start, known.size()):
-		var event: Dictionary = known[index]
+	for event: Dictionary in social.known_events(actor_id, "", false, maxi(0, limit)):
 		var person: String = _name(str(event.get("actor", "")))
 		var details: Dictionary = event.get("details", {})
 		var task: String = str(details.get("task", ""))
@@ -1518,7 +1515,7 @@ func restore(data: Dictionary, allowed_subjects: Dictionary = {}, external_inven
 	for id: Variant in data.actors:
 		if not id is String or not _valid_actor(data.actors[id], data.config, data.places):
 			return false
-		if not next_inventory.containers.has("actor:" + id) or not next_social.knowledge.has(id):
+		if not next_inventory.containers.has("actor:" + id) or not next_social.has_actor(id):
 			return false
 		if _content == null or _content.get_pawn(StringName(data.actors[id].definition_id)) == null:
 			return false

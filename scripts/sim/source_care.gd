@@ -264,7 +264,7 @@ func explain(actor: String, receiver: String, basis_id: String) -> Dictionary:
 	var text: String = str(definitions.labels.unauthenticated) if basis.is_empty() else "我记得管事签过这次借源；所述用途为" + str(basis.target) + "，最迟开始时刻为" + str(until) + "。"
 	var source_event: String = str(basis.get("event", ""))
 	var sim: VillageSimulation = world.regions[row.region]
-	if not source_event.is_empty() and not sim.social.knowledge[receiver].has(source_event): sim.social.learn(receiver, source_event, actor)
+	if not source_event.is_empty() and not sim.social.knows(receiver, source_event): sim.social.learn(receiver, source_event, actor)
 	var context: Dictionary = _context(row, actor, basis_id, source_event, source_id)
 	var decision: Dictionary = sim.social.evaluate_request(actor, receiver, "source_care:explain:" + str(row.id), context, definitions.policy, sim._rng, sim.tick_index)
 	if not decision.has("id"): return _reply(false, "unavailable", "对方尚未形成可以保存的判断。")
@@ -292,7 +292,7 @@ func inquire(actor: String, receiver: String, id: String) -> Dictionary:
 	var row: Dictionary = arrangements.get(id, {})
 	if world.elapsed_ms != world.target_ms or row.is_empty() or receiver not in [row.guard, row.issuer] or not _talk(actor, receiver, row): return _reply(false, "unheard", "需要向实际参与这项安排的人当面询问。")
 	var social: SimSocialMemory = world.regions[row.region].social
-	if not social.knowledge[actor].has(row.event): social.learn(actor, str(row.event), receiver)
+	if not social.knows(actor, str(row.event)): social.learn(actor, str(row.event), receiver)
 	return _reply(true, "completed", "这段照看只涉及灶旁这处公源与原温石；本人仍要吃饭歇息，借用签发须找现任管事。", id, _process(row, id))
 
 
@@ -310,13 +310,13 @@ func pending(actor: String) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for row: Dictionary in arrangements.values():
 		var social: SimSocialMemory = world.regions[row.region].social
-		if social.knowledge.get(actor, {}).has(row.event): result.append(_process(row, str(row.id)))
+		if social.knows(actor, str(row.event)): result.append(_process(row, str(row.id)))
 	for warning: Dictionary in warnings.values():
 		var row: Dictionary = arrangements[warning.arrangement]
-		if world.regions[row.region].social.knowledge.get(actor, {}).has(warning.event): result.append(_process(row, str(warning.id)))
+		if world.regions[row.region].social.knows(actor, str(warning.event)): result.append(_process(row, str(warning.id)))
 	for entry: Dictionary in explanations.values():
 		var row: Dictionary = arrangements[entry.arrangement]
-		if world.regions[row.region].social.knowledge.get(actor, {}).has(entry.claim_event): result.append(_process(row, str(entry.id)))
+		if world.regions[row.region].social.knows(actor, str(entry.claim_event)): result.append(_process(row, str(entry.id)))
 	return result
 
 
@@ -326,20 +326,20 @@ func observe(actor: String, process: Dictionary) -> Dictionary:
 	var explanation: Dictionary = explanations.get(id, {})
 	var row: Dictionary = arrangements.get(warning.get("arrangement", explanation.get("arrangement", id)), {})
 	if row.is_empty() or process.get("domain") != "source_care" or process.get("performer") != world.embodiment.subject_for_actor(str(row.guard)): return SimInteractionRequests.result("unconfirmed", "本人没有这条照看记录。")
-	var known: Dictionary = world.regions[row.region].social.knowledge.get(actor, {})
+	var memory: SimSocialMemory = world.regions[row.region].social
 	if not explanation.is_empty():
-		if not known.has(explanation.claim_event): return SimInteractionRequests.result("unconfirmed", "本人没有听到这次说明。")
+		if not memory.knows(actor, str(explanation.claim_event)): return SimInteractionRequests.result("unconfirmed", "本人没有听到这次说明。")
 		return SimInteractionRequests.result("completed" if bool(explanation.accepted) else "refused", str(definitions.labels.accepted if bool(explanation.accepted) else definitions.labels.refused), process)
 	if not warning.is_empty():
-		if not known.has(warning.event): return SimInteractionRequests.result("unconfirmed", "本人没有听到这次警告。")
+		if not memory.knows(actor, str(warning.event)): return SimInteractionRequests.result("unconfirmed", "本人没有听到这次警告。")
 		var line: String = str(definitions.labels.warning)
-		var informed_end: bool = not str(warning.end_event).is_empty() and known.has(warning.end_event)
+		var informed_end: bool = not str(warning.end_event).is_empty() and memory.knows(actor, str(warning.end_event))
 		var encounter: Dictionary = world.conflicts.conflicts.get(str(warning.conflict), {})
 		var own_conflict: bool = not encounter.is_empty() and encounter.get("people", {}).has(actor)
-		if warning.status == "resolved" and known.has(warning.end_event): line = str(definitions.labels.accepted)
+		if warning.status == "resolved" and memory.knows(actor, str(warning.end_event)): line = str(definitions.labels.accepted)
 		elif warning.status == "escalated" and own_conflict: line = "劝阻已经转成交锋；挫伤与已付代价都按原过程保留。"
 		return SimInteractionRequests.result("completed" if informed_end or own_conflict else "pending", line, process)
-	if not known.has(row.event): return SimInteractionRequests.result("unconfirmed", "本人还未得知这项看护安排。")
+	if not memory.knows(actor, str(row.event)): return SimInteractionRequests.result("unconfirmed", "本人还未得知这项看护安排。")
 	return SimInteractionRequests.result("completed", "本人记得有人在一段时限内照看灶旁公源；当前远处状况须实际问人或到场查看。", process)
 
 
@@ -348,7 +348,7 @@ func alerts_for(actor: String) -> Array[Dictionary]:
 	for warning: Dictionary in warnings.values():
 		if warning.actor != actor or warning.status != "active": continue
 		var row: Dictionary = arrangements[warning.arrangement]
-		if world.regions[row.region].social.knowledge.get(actor, {}).has(warning.event): result.append({"id": str(warning.id), "line": str(definitions.labels.warning), "process": _process(row, str(warning.id)), "received_ms": int(warning.started_ms), "until_ms": int(warning.due_ms)})
+		if world.regions[row.region].social.knows(actor, str(warning.event)): result.append({"id": str(warning.id), "line": str(definitions.labels.warning), "process": _process(row, str(warning.id)), "received_ms": int(warning.started_ms), "until_ms": int(warning.due_ms)})
 	return result
 
 
@@ -428,7 +428,7 @@ func _accepted_explanation(row: Dictionary, actor: String, job: Dictionary) -> D
 func _known_basis(actor: String, basis_id: String, row: Dictionary) -> Dictionary:
 	var note: Dictionary = world.site_affairs.notes.get(basis_id, {})
 	if note.get("actor") != actor or note.get("case") != row.case: return {}
-	var memory: Dictionary = world.regions[row.region].social.knowledge.get(actor, {}).get(str(note.get("issue_event", "")), {})
+	var memory: Dictionary = world.regions[row.region].social.observation(actor, str(note.get("issue_event", "")))
 	var details: Dictionary = memory.get("details", {})
 	var offer: Dictionary = world.site_affairs.definitions.offers.get(str(details.get("offer", "")), {})
 	if memory.get("kind") != "site_loan_issued" or details.get("note") != basis_id or details.get("case") != row.case or offer.get("case") != row.case or not Shape.count(details.get("start_until_ms"), 0): return {}

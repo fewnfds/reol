@@ -453,7 +453,7 @@ func _decision_valid(row: Dictionary, id: String, actor: String, issuer: String,
 
 
 func _claim_valid(row: Dictionary, options: Dictionary, at_ms: int) -> bool:
-	var event: Dictionary = world.regions[row.region].social._event_by_id.get(str(options.claim_event), {})
+	var event: Dictionary = world.regions[row.region].social.objective_event(str(options.claim_event))
 	return event.get("kind") == "site_return_claimed" and event.get("actor") == options.requester and event.get("target") == options.issuer and SnapshotValues.normalized(event.get("details")) == SnapshotValues.normalized({"participants": {"case": row.id, "note": options.note, "text": definitions.labels.claim, "at_ms": at_ms}})
 
 
@@ -467,7 +467,7 @@ func _record(row: Dictionary, kind: String, actor: String, target: String, detai
 
 
 func _knows_event(actor: String, row: Dictionary, event: String) -> bool:
-	return world.regions[row.region].social.knowledge.get(actor, {}).has(event)
+	return world.regions[row.region].social.knows(actor, event)
 
 
 func _announcement_line(row: Dictionary) -> String:

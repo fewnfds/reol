@@ -107,7 +107,7 @@ static func _cross_job(row: Dictionary, domain: RefCounted, used: Dictionary) ->
 	if row.status == "active":
 		if bool(person.autonomous) or not person.active.is_empty() or not domain.world.actor_controls(str(row.actor), "action") or not domain.world.actor_controls(str(row.actor), "motion") or domain.world.body_action_owns(str(row.actor), &"capability_practice") or not domain._at_expected_position(row) or not domain._continuation_reason(row).is_empty(): return false
 	else:
-		var ended: Dictionary = sim.social._event_by_id.get(str(row.finish_event), {})
+		var ended: Dictionary = sim.social.objective_event(str(row.finish_event))
 		var position: Variant = ended.get("details", {}).get("participants", {}).get("position")
 		if not Shape.position_valid(position) or SnapshotValues.normalized(position) != SnapshotValues.normalized(row.stopped_position) or not _event(domain, row, str(row.finish_event), "capability_practice_finished", int(row.finished_ms), {"practice": row.id, "node": row.node, "status": row.status, "reason": row.reason, "step_index": row.step_index, "stopped_ms": row.stopped_ms, "position": position}, used): return false
 		if row.status == "completed" and _point(position).distance_to(domain.expected_position(row, int(row.complete_ms))) > 0.01: return false
@@ -143,11 +143,11 @@ static func _historical_exclusion(jobs: Array[Dictionary], domain: RefCounted) -
 
 static func _event(domain: RefCounted, row: Dictionary, id: String, kind: String, at_ms: int, details: Dictionary, used: Dictionary) -> bool:
 	var sim: VillageSimulation = domain.world.regions[row.region]
-	var event: Dictionary = sim.social._event_by_id.get(id, {})
+	var event: Dictionary = sim.social.objective_event(id)
 	var key: String = str(row.region) + ":" + id
 	var payload: Dictionary = details.duplicate(true)
 	payload["at_ms"] = at_ms
-	if used.has(key) or event.get("kind") != kind or event.get("actor") != row.actor or event.get("target") != "" or event.get("witnesses") != [] or event.get("tick") != floori(float(at_ms) / 60000.0) or SnapshotValues.normalized(event.get("details")) != SnapshotValues.normalized({"participants": payload}) or not sim.social.knowledge.get(row.actor, {}).get(id, {}).get("direct", false): return false
+	if used.has(key) or event.get("kind") != kind or event.get("actor") != row.actor or event.get("target") != "" or event.get("witnesses") != [] or event.get("tick") != floori(float(at_ms) / 60000.0) or SnapshotValues.normalized(event.get("details")) != SnapshotValues.normalized({"participants": payload}) or not sim.social.saw(str(row.actor), id): return false
 	used[key] = row.id
 	return true
 

@@ -222,7 +222,7 @@ static func _people(domain: RefCounted, row: Dictionary, actor: Variant, issuer:
 
 static func _event(domain: RefCounted, row: Dictionary, id: String, kind: String, actor: String, target: String, at_ms: int, details: Dictionary) -> bool:
 	var social: SimSocialMemory = domain.world.regions[row.region].social
-	var event: Dictionary = social._event_by_id.get(id, {})
+	var event: Dictionary = social.objective_event(id)
 	var payload: Dictionary = details.duplicate(true)
 	payload["at_ms"] = at_ms
 	return event.get("kind") == kind and event.get("actor") == actor and event.get("target") == target and event.get("tick") == floori(float(at_ms) / 60000.0) and SnapshotValues.normalized(event.get("details")) == SnapshotValues.normalized({"participants": payload})

@@ -85,10 +85,10 @@ static func validate_snapshot(data: Dictionary, service: RefCounted) -> bool:
 			expected_actors[actor] = true
 	for courier: String in world.couriers:
 		expected_actors[courier] = true
-	if social.knowledge.size() != expected_actors.size():
+	if social.actor_count() != expected_actors.size():
 		return false
 	for actor: String in expected_actors:
-		if not social.knowledge.has(actor):
+		if not social.has_actor(actor):
 			return false
 	var owned: Dictionary = {}
 	var ids: Dictionary = {}
