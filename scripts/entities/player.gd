@@ -210,8 +210,12 @@ func restore_motion(data: Dictionary, point: Vector2, now: int) -> bool:
 
 
 func _draw() -> void:
-	draw_set_transform(presentation_position() - global_position)
-	var ground_offset := Vector2(0.0, -float(_view_elevation * ReolWorld.ELEVATION_PX))
+	# The layered renderer sets its own local drawing transforms. Pass the
+	# interpolated offset as geometry so body, shadow and caption share the
+	# camera's presentation position instead of jumping to each simulation step.
+	var ground_offset: Vector2 = presentation_position() - global_position + Vector2(
+		0.0, -float(_view_elevation * ReolWorld.ELEVATION_PX)
+	)
 	var body_offset := ground_offset - Vector2(
 		0.0, float(altitude * ReolWorld.ALTITUDE_PX)
 	)
@@ -229,4 +233,3 @@ func _draw() -> void:
 		caption = state.display_name()
 	appearance_pose["time_ms"] = _clock.elapsed_ms if _clock != null else 0
 	Visuals.draw_actor(self, ground_offset, body_offset, robe, caption if avatar_active else "无名杂役", selected, avatar_active, clothing_appearance, appearance_pose)
-	draw_set_transform(Vector2.ZERO)
