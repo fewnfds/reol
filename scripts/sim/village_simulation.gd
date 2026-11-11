@@ -506,6 +506,7 @@ func _query_actor_boundary(cached: bool) -> int:
 			actor_execution_work["deadline_direct_rows"] = int(actor_execution_work.get("deadline_direct_rows", 0)) + ids.size()
 	var read_generation: int = _actor_advance_generation
 	var adopt_started: int = Time.get_ticks_usec() if batch != null else 0
+	var metadata_started: int = Time.get_ticks_usec() if profile_native else 0
 	# With no transition/repair, this loop emits no observer callbacks. Adopt
 	# both deadline groups together instead of rebalancing their heaps per ID.
 	var bulk_adoption: bool = batch != null and not batch.has_fallback
@@ -589,9 +590,14 @@ func _query_actor_boundary(cached: bool) -> int:
 				_boundary_index.set_due(NATIVE_EFFECT, id, effect_boundary)
 			_dirty_actor_boundaries.erase(id)
 		boundary = mini(boundary, actor_boundary)
+	if profile_native:
+		native_profile["deadline_metadata"] = int(native_profile.get("deadline_metadata", 0)) + Time.get_ticks_usec() - metadata_started
+	var index_started: int = Time.get_ticks_usec() if profile_native else 0
 	if bulk_adoption:
 		_boundary_index.set_due_many(NATIVE_BOUNDARY, deadlines, retired)
 		_boundary_index.set_due_many(NATIVE_EFFECT, effects, retired)
+	if profile_native:
+		native_profile["deadline_index"] = int(native_profile.get("deadline_index", 0)) + Time.get_ticks_usec() - index_started
 	if batch != null:
 		actor_execution_work["deadline_adopt_usec"] = int(actor_execution_work.get("deadline_adopt_usec", 0)) + Time.get_ticks_usec() - adopt_started
 	if cached:
@@ -635,12 +641,12 @@ func set_body_read_world(world: RegionalSimulation, region: String) -> void:
 	_cancel_actor_advance()
 	_body_read_world = weakref(world) if world != null else null
 	_body_read_region = region
+	invalidate_boundary_cache()
 
 
 func body_read_inputs() -> SimBodyRead:
 	var world: RegionalSimulation = _body_read_world.get_ref() if _body_read_world != null else null
 	return SimBodyRead.capture(world, self, _body_read_region) if world != null else null
-	invalidate_boundary_cache()
 
 
 func invalidate_boundary_cache() -> void:

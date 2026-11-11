@@ -76,4 +76,6 @@
 
 `--simulation-thread off`、`--actor-workers 0/4/8`和`--release-binary`用于同构建对照。`--input-probe`测无副作用宿主请求等到完整边界的延迟，不冒充玩家输入到像素的端到端延迟。
 
+开启kernel定位时，`native_profile.deadline_metadata`量逐人采用循环（小批逐项索引更新也在其中），`deadline_index`量大批合并后的索引更新；它们嵌套于deadline总量。
+
 短`spatial`检查包括同输入场/响应列串行与worker一致、身体发布不保留原对象、Node信号在交接后递送及恢复连接；不证明所有玩法或长期性能。真实规模、暂时方案和未测范围只记BASELINE。官方API依据见[执行设计](../specs/world-engine/execution.md)。
