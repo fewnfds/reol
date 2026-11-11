@@ -118,6 +118,8 @@ func poll() -> Dictionary:
 		if bool(result.get("pending", false)):
 			return {"ok": true, "pending": true, "ticket": _ticket}
 		_cpu_work.batches += 1
+		var worker_key: String = "workers_%d_batches" % int(_cpu.work.workers)
+		_cpu_work[worker_key] = int(_cpu_work.get(worker_key, 0)) + 1
 		_cpu_work.parallel_batches += int(_cpu.work.parallel)
 		for key: String in ["worker_usec", "elapsed_usec", "prepare_result_usec"]:
 			_cpu_work[key] += int(_cpu.work[key])

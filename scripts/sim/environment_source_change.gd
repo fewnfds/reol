@@ -91,7 +91,7 @@ func begin(slot: int, operation: String, source: Dictionary, at_ms: int, horizon
 	candidate.tile_ids = tiles.duplicate()
 	candidate.at_ms = at_ms
 	candidate.horizon_ms = horizon_ms
-	candidate.parallel_input = allow_compute and workers > 0 and tiles.size() > 1
+	candidate.parallel_input = allow_compute and workers != 0 and tiles.size() > 1
 	_active = candidate
 	return {"ok": true, "handle": candidate.handle, "at_ms": at_ms, "tiles": tiles.size()}
 
@@ -189,6 +189,8 @@ func _prepare_tile_input(budget: int) -> Dictionary:
 		if not _active.measured:
 			_active.measured = true
 			compute_work.batches += 1
+			var worker_key: String = "workers_%d_batches" % _active.execution.worker_count
+			compute_work[worker_key] = int(compute_work.get(worker_key, 0)) + 1
 			compute_work.parallel_batches += int(_active.execution.parallel)
 			compute_work.tiles += _active.inputs.size()
 			compute_work.elapsed_usec += _active.execution.completed_usec - _active.execution.submitted_usec

@@ -885,7 +885,7 @@ func _reset_actor_projections() -> void:
 func configure_actor_execution(workers: int = 4, minimum: int = SimActorAdvance.PARALLEL_MINIMUM) -> void:
 	_cancel_actor_advance()
 	actor_execution_enabled = true
-	actor_execution_workers = clampi(workers, 0, 8)
+	actor_execution_workers = clampi(workers, -1, 64)
 	actor_execution_minimum = maxi(1, minimum)
 
 

@@ -28,9 +28,10 @@ def main() -> int:
     parser.add_argument("--profile-render", action="store_true", help="enable Godot viewport CPU/GPU rendering timings; adds measurement overhead")
     parser.add_argument("--profile-navigation", action="store_true", help="time native/service path providers and retain at most 4096 query coordinates for parallel replay")
     parser.add_argument("--profile-cpu", action="store_true", help="sample owned Windows process per-thread CPU execution and memory every 0.5s")
+    parser.add_argument("--gpu-index", type=int, help="pin a Godot rendering adapter index; verify the report renderer name")
     parser.add_argument("--input-probe", action="store_true", help="measure a harmless host request's wait for the same complete-world boundary as gameplay input")
     parser.add_argument("--pacing-policy", choices=("auto", "full-rate"), default="auto", help="diagnostic full-rate bypasses adaptive slowdown, preserving bounded debt and the normal cooperative work budget")
-    parser.add_argument("--actor-workers", type=int, choices=range(9), default=4, help="native actor calculation workers; 0 uses the same packed calculation serially")
+    parser.add_argument("--actor-workers", type=int, choices=range(-1, 65), default=4, help="shared batch worker cap; -1 adapts to hardware/chunks, 0 is same-algorithm serial, 1..64 explicit experiment")
     parser.add_argument("--simulation-thread", choices=("on", "off"), default="on", help="same world runner on its coordinator thread or synchronously for a same-build comparison")
     parser.add_argument("--environment-backend", choices=("auto", "cpu", "gpu"), default="auto", help="compare ordinary source candidate calculation; auto keeps small batches on CPU")
     parser.add_argument("--release", action="store_true", help="export the current project with Windows Performance, then run the identical crowd entry in its release binary")
@@ -82,6 +83,8 @@ def main() -> int:
         cmd = [str(executable), "--path", str(godot.ROOT), "res://scenes/diagnostics/crowd_stress.tscn"]
     if args.headless:
         cmd.append("--headless")
+    if args.gpu_index is not None:
+        cmd += ["--gpu-index", str(args.gpu_index)]
     report = (godot.ROOT / "logs" / f"{tag}.json").as_posix()
     cmd += ["--", f"--residents={args.residents}",
             f"--seconds={args.seconds}", f"--report={report}", f"--revision={sha}", f"--source-dirty={int(dirty)}",

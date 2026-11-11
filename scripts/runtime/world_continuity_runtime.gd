@@ -161,7 +161,7 @@ func _configure_field_compute() -> void:
 	var service := EnvironmentFieldComputeRuntime.new()
 	for argument: String in OS.get_cmdline_user_args():
 		if argument.begins_with("--actor-workers="):
-			service.cpu_workers = clampi(argument.get_slice("=", 1).to_int(), 0, 8)
+			service.cpu_workers = clampi(argument.get_slice("=", 1).to_int(), -1, 64)
 	if not service.configure(world_sim.environment_fields._field, mode):
 		return
 	_field_compute = service
@@ -254,6 +254,8 @@ func _publish_bodies() -> void:
 
 func _record_body_publication() -> void:
 	var work: Dictionary = body_publication.work
+	var worker_key: String = "workers_%d_batches" % int(work.workers)
+	body_publication_work[worker_key] = int(body_publication_work.get(worker_key, 0)) + 1
 	body_publication_work.batches += 1
 	body_publication_work.parallel_batches += int(work.parallel)
 	for key: String in ["rows", "prepare_usec", "elapsed_usec", "worker_usec", "adopt_usec"]:

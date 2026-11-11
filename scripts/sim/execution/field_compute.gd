@@ -90,7 +90,7 @@ func collect() -> Dictionary:
 			for index: int in tile.rect.size.x * CHANNELS:
 				output[target + index] = tile.values[row * tile.rect.size.x * CHANNELS + index]
 	var prepared: Dictionary = SimEnvironmentFieldCache.prepare_compute_result(job, output)
-	work = {"parallel": execution.parallel, "tiles": tiles.size(), "worker_usec": worker_usec,
+	work = {"parallel": execution.parallel, "workers": execution.worker_count, "tiles": tiles.size(), "worker_usec": worker_usec,
 		"elapsed_usec": execution.completed_usec - execution.submitted_usec,
 		"prepare_result_usec": Time.get_ticks_usec() - started, "threads": thread_ids.keys()}
 	return {"ok": bool(prepared.get("ok", false)), "pending": false, "prepared": prepared, "metrics": work}

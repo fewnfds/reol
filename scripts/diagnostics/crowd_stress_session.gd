@@ -90,7 +90,7 @@ func _run() -> void:
 		elif argument.begins_with("--pacing-policy="):
 			_pacing_policy = argument.get_slice("=", 1)
 		elif argument.begins_with("--actor-workers="):
-			_actor_workers = clampi(argument.get_slice("=", 1).to_int(), 0, 8)
+			_actor_workers = clampi(argument.get_slice("=", 1).to_int(), -1, 64)
 	if _mixed != null and (_opening_wave or _seconds < 45):
 		push_error("Mixed capture requires at least 45 seconds and no --opening-wave")
 		get_tree().quit(1)

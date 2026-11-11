@@ -14,6 +14,7 @@ def summarize(path: Path) -> dict:
     result = {
         "report": str(path), "revision": report.get("revision"),
         "artifact_sha256": report.get("artifact_sha256"),
+        "renderer": report.get("renderer"), "max_fps": report.get("max_fps"),
         "actors": crowd.get("actors"), "complex": crowd.get("complex", {}),
         "workers": report.get("actor_execution", {}).get("home", {}).get("configured_workers"),
         "capture_seconds": report.get("capture_seconds"),

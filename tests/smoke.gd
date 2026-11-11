@@ -306,6 +306,8 @@ func _batch(workers: int) -> SimActorAdvance:
 
 
 func _actor_batch() -> bool:
+	if SimBatchExecution.resolve_workers(-1, 50, 20) != 18 or SimBatchExecution.resolve_workers(64, 50, 20) != 20 or SimBatchExecution.resolve_workers(-1, 3, 20) != 3 or SimBatchExecution.resolve_workers(-1, 1, 20) != 0 or SimBatchExecution.resolve_workers(0, 50, 20) != 0:
+		return false
 	var serial: SimActorAdvance = _batch(0)
 	var parallel: SimActorAdvance = _batch(2)
 	if not parallel.execution.parallel:

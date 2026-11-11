@@ -123,7 +123,7 @@ static func capture(world: RegionalSimulation, now: int, workers: int = 4, selec
 					surface.energy = maxf(0.0, float(surface.energy) - rate * elapsed)
 				row["needs"] = surface
 			frame.rows[str(row.id)] = row
-	frame.work = {"rows": count, "parallel": batch.parallel, "prepare_usec": preparation,
+	frame.work = {"rows": count, "parallel": batch.parallel, "workers": batch.worker_count, "prepare_usec": preparation,
 		"dispatch_usec": batch.dispatch_usec, "elapsed_usec": batch.completed_usec - batch.submitted_usec,
 		"worker_usec": worker_usec, "adopt_usec": Time.get_ticks_usec() - adopt_started, "threads": threads.keys()}
 	return frame
