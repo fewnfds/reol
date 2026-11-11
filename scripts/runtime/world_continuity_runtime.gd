@@ -967,7 +967,7 @@ func travel_to(region_id: String, destination_cell: Variant = null) -> bool:
 		return false
 	prepare_home_command()
 	_home.simulation.cancel_action("player", "travel_order")
-	world_sim.invalidate_region("home")
+	world_sim.invalidate_region("home", "player")
 	var encoded: Array = []
 	for cell: Vector2i in path:
 		if cell != _home._player.cell:
@@ -1165,7 +1165,7 @@ func _advance_player_travel() -> void:
 	var path: Array = player_journey.path
 	if not path.is_empty():
 		_home.simulation.set_actor_cell("player", _cell(path.pop_front()))
-	world_sim.invalidate_region("home")
+	world_sim.invalidate_region("home", "player")
 	if path.is_empty():
 		_notice = "已到达%s。" % _journey_label(str(player_journey.destination))
 		player_journey = {}

@@ -21,14 +21,14 @@ static func can_continue(world: RegionalSimulation, region: String, actor: Strin
 static func occupy(world: RegionalSimulation, region: String, actor: String) -> bool:
 	var previous: bool = bool(world.regions[region].synchronize_actor(actor).autonomous)
 	world.regions[region].synchronize_actor(actor).autonomous = false
-	world.invalidate_region(region)
+	world.invalidate_region(region, actor)
 	return previous
 
 
 static func release(world: RegionalSimulation, region: String, actor: String, previous: bool, reservation: String) -> void:
 	world.regions[region].inventory.release(reservation)
 	world.regions[region].synchronize_actor(actor).autonomous = previous
-	world.invalidate_region(region)
+	world.invalidate_region(region, actor)
 
 
 static func describe(world: RegionalSimulation, actor: String) -> Dictionary:

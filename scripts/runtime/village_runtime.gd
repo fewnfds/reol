@@ -459,7 +459,7 @@ func _sync_player_cell() -> void:
 	if _player.motion._body != player_body:
 		_player.motion.bind_body(player_body, simulation.notify_body_space_changed.bind("player"), simulation.notify_body_cell_crossed.bind("player"))
 	if is_instance_valid(continuity):
-		continuity.world_sim.invalidate_region("home")
+		continuity.world_sim.invalidate_region("home", "player")
 
 
 func _sync_actor_views(snap: bool, layout: PawnViewLayout = null, poses: HumanoidPose.WorldFrame = null) -> void:

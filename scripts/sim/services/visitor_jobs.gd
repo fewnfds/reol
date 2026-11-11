@@ -170,7 +170,7 @@ func settle(job: Dictionary) -> void:
 			job.outcome = ""
 			job.path.pop_front()
 			world.regions[job.home].set_actor_cell(str(job.actor), Vector2i(int(next[0]), int(next[1])))
-			world.invalidate_region(job.home)
+			world.invalidate_region(job.home, str(job.actor))
 			if not job.path.is_empty():
 				SimRouteTravel.begin_segment(job, actor, world.elapsed_ms, float(world.regions[job.home].motion_rules.motion.speed))
 				return
@@ -327,7 +327,7 @@ func _continue_site_register(job: Dictionary, line: String) -> void:
 	job.phase = "travel"
 	SimRouteTravel.begin_segment(job, actor, world.elapsed_ms, float(home.motion_rules.motion.speed))
 	actor.goal = str(job.label)
-	world.invalidate_region(str(job.home))
+	world.invalidate_region(str(job.home), str(job.actor))
 
 
 func finish(job: Dictionary, succeeded: bool, line: String, status: String = "") -> void:
@@ -347,7 +347,7 @@ func finish(job: Dictionary, succeeded: bool, line: String, status: String = "")
 		world.request_delivery(job.route)
 	actor.autonomous = bool(job.previous_autonomous)
 	actor.goal = line
-	world.invalidate_region(job.home)
+	world.invalidate_region(job.home, str(job.actor))
 	service.record("service_completed" if succeeded else "service_interrupted", job.actor, {"job": job.id, "line": line})
 	if job.kind in ["site_loan", "site_return"] and world.get("site_affairs") != null:
 		world.site_affairs.service_finished(job)

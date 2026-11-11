@@ -215,7 +215,7 @@ func record_conflict_effect(source_id: String) -> bool:
 	# Only a committed hit in the conflict authority can create this consequence.
 	wounds[source_id] = {"actor": source.actor, "region": source.region, "type": "contusion", "impact": int(source.impact), "at_ms": int(source.at_ms), "remaining": int(source.impact) * int(definitions.contusion.recovery_per_impact), "treated_ms": -1, "recovered_ms": -1, "recovery": []}
 	_add_wound_participant(source_id)
-	world.invalidate_region(str(source.region))
+	world.invalidate_region(str(source.region), str(source.actor))
 	return true
 
 

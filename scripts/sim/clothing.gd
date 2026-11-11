@@ -296,7 +296,7 @@ func weather_pulse(previous: int) -> void:
 		if wet != int(object.wet):
 			object.wet = wet
 			if object.worn:
-				world.invalidate_region(home(str(object.owner)))
+				world.invalidate_region(home(str(object.owner)), str(object.owner))
 
 
 func _exposure_changed(actor: String, since: int) -> bool:

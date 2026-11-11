@@ -200,7 +200,7 @@ func teach(teacher: String, pupil: String) -> Dictionary:
 		world.regions[home(actor)].cancel_action(actor, "martial_demonstration")
 		body(actor).autonomous = false
 		body(actor).goal = "当面示范与练习护身手段"
-		world.invalidate_region(home(actor))
+		world.invalidate_region(home(actor), actor)
 	return _reply(true, "对方答应当面示范。需一起练习一分钟；会辨认木剑不等于会御气。")
 
 
@@ -256,8 +256,8 @@ func _commit_begin(initiator: String, defender: String, warning_id: String = "")
 		world.source_care.conflict_started(warning_id, id)
 	Perception.refresh(self, conflicts[id])
 	_observe("conflict_warned", initiator, defender, {})
-	world.invalidate_region(home(initiator))
-	world.invalidate_region(home(defender))
+	world.invalidate_region(home(initiator), initiator)
+	world.invalidate_region(home(defender), defender)
 	return _reply(true, "你表明驱离的敌意。对方已警觉；消耗与挫伤都会留下，随时可退让离开。")
 
 
@@ -289,7 +289,7 @@ func cast(actor: String, method: String, direction: Vector2, internal: bool = fa
 	body(actor).exertion_until_ms = world.elapsed_ms + duration(method) + int(world.regions[home(actor)].motion_rules.recovery.delay_ms)
 	body(actor).facing = _point(facing)
 	conflicts[id].people[actor].action = action_id
-	world.invalidate_region(home(actor))
+	world.invalidate_region(home(actor), actor)
 	return _reply(true, str(spec.label) + "已经起势；已投入的灵气与体力不会因取消返还。")
 
 
@@ -575,7 +575,7 @@ func _end(id: String, reason: String, yielded: String) -> void:
 		body(actor).autonomous = bool(row.people[actor].previous_autonomous) and row.withdrawal.get("actor", "") != actor
 		body(actor).goal = "交锋已停，挫伤与已付代价仍在；先调息"
 		body(actor).retry_ms = world.elapsed_ms + int(world.regions[home(actor)].config.decision_interval) * 60000
-		world.invalidate_region(home(actor))
+		world.invalidate_region(home(actor), actor)
 	_observe("conflict_ended", str(row.initiator), str(row.defender), {"reason": reason})
 	world.invalidate_region(str(row.region))
 
@@ -703,7 +703,7 @@ func _finish_lesson(lesson: Dictionary, status: String) -> void:
 		body(actor).autonomous = bool(lesson.teacher_autonomous if actor == lesson.teacher else lesson.pupil_autonomous)
 		body(actor).retry_ms = world.elapsed_ms + int(world.regions[home(actor)].config.decision_interval) * 60000
 		body(actor).goal = "示范练习结束" if status == "completed" else "示范中断，尚未掌握"
-		world.invalidate_region(home(actor))
+		world.invalidate_region(home(actor), actor)
 	for actor: String in [lesson.teacher, lesson.pupil]:
 		SimActionContract.job_finished(world, "conflicts", lesson, actor, "completed" if status == "completed" else "cancelled", status)
 
