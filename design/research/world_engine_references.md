@@ -4,7 +4,7 @@
 
 日期：2026-11-04。第一方文档、公开源码及本地只读审计；未安装插件、未测试候选插件兼容性，不是实现验收。执行方案见[世界引擎基础](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/specs/world-engine/foundation.md)。
 
-运行层与编辑工具的总序见[世界运行与创作工具总计划](../../docs/specs/world-engine/execution.md)。以下是方法依据；五行环境影响、灵气、气韵及灵物补给是Reol的虚构世界法则，不声称得到现实科学证明。
+运行层与编辑工具的总序见[计算接入](../../docs/engineering/execution-batches.md)。以下是方法依据；五行环境影响、灵气、气韵及灵物补给是Reol的虚构世界法则，不声称得到现实科学证明。
 
 RimWorld、修仙模拟器、Project Porcupine及Godot从零教程的对象/空间/行动架构对照见[模拟游戏基础架构研究](colony_sim_architecture.md)，其中区分公开接口、教学实现与Reol迁入建议。
 

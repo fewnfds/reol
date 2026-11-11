@@ -95,7 +95,7 @@ var sample_cells: Array[Vector2i] = []
 var work: Dictionary = {}
 
 
-static func capture(world: RegionalSimulation, now: int, workers: int = 4, selected: Array[String] = [], journey: Dictionary = {}, manual_moving: bool = false, local_action: Dictionary = {}) -> SimBodyPublication:
+static func capture(world: RegionalSimulation, now: int, workers: int = SimBatchExecution.DEFAULT_WORKERS, selected: Array[String] = [], journey: Dictionary = {}, manual_moving: bool = false, local_action: Dictionary = {}) -> SimBodyPublication:
 	var started: int = Time.get_ticks_usec()
 	var frame := SimBodyPublication.new()
 	frame.world_id = world.get_instance_id()

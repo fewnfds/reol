@@ -20,7 +20,7 @@ var _ticket: int = 0
 var _cancelled: bool = false
 var _worker: GPUWorker
 var _cpu: SimFieldCompute
-var cpu_workers: int = 4
+var cpu_workers: int = SimBatchExecution.DEFAULT_WORKERS
 var _cpu_work: Dictionary = {"batches": 0, "parallel_batches": 0, "worker_usec": 0, "elapsed_usec": 0, "prepare_result_usec": 0}
 var _job: Dictionary = {}
 var _purpose: String = "candidate"

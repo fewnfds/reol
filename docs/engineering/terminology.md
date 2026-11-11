@@ -1,6 +1,6 @@
 # 术语与代码映射
 
-本页为现存Demo的实现参考；重构目标由[执行规格](../specs/world-engine/execution.md)定义。逻辑职责/有效规则不绑定下列class、数据结构或调用链。
+本页定位当前实现；逻辑职责见领域划分，代码结构可随需求重构。
 
 本页固定跨文档使用的名称，并把中文概念指向真实实现。游戏规则由[design/rules](../../design/rules/README.md)负责，状态所有者见[architecture](architecture/02-owners.md)。表中的多个入口分别表示定义、实例或视图，不是可互换的别名；候选模型不因列在这里成为已实现功能。
 

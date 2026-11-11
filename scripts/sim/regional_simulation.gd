@@ -589,15 +589,7 @@ func _bind_service_guards() -> void:
 		simulation.set_action_guard(func(actor_id: String) -> bool:
 			var authority: RefCounted = owner.get_ref()
 			return authority != null and authority.native_action_allowed(actor_id))
-		simulation.set_rest_recovery(func(actor_id: String) -> int:
-			var authority: RefCounted = owner.get_ref()
-			return 0 if authority == null else authority.resting.recovery_for(actor_id))
-		simulation.set_external_labor(func(actor_id: String) -> bool:
-			var authority: RefCounted = owner.get_ref()
-			return authority != null and (authority.personal_production.owns_actor(actor_id) or authority.clothing.owns_actor(actor_id) or (authority.field_opportunities != null and authority.field_opportunities.owns_actor(actor_id))))
-		simulation.set_exposure_rate(func(actor_id: String) -> int:
-			var authority: RefCounted = owner.get_ref()
-			return 0 if authority == null else authority.clothing.energy_rate(actor_id) + authority.environment.energy_rate(actor_id))
+		simulation.bind_body_needs(self)
 		simulation.set_duty_provider(func(actor_id: String, at_ms: int) -> String:
 			var authority: RefCounted = owner.get_ref()
 			return "" if authority == null else authority.standing_work.duty_for(actor_id, at_ms))

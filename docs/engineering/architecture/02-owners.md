@@ -1,6 +1,6 @@
 # 当前代码架构与边界：状态所有权
 
-本页为现存Demo的实现参考；重构目标由[执行规格](../../specs/world-engine/execution.md)定义。逻辑职责/有效规则不绑定下列class、数据结构或调用链。
+本页定位当前实现；逻辑职责见领域划分，代码结构可随需求重构。
 
 ## 状态所有权
 
@@ -12,9 +12,9 @@
 | [WorldMapData](../../../scripts/sim/world_map_data.gd)、[NaturalEnvironment](../../../scripts/sim/natural_environment.gd) | 版本化底图加稀疏地表覆盖，通行读同一真值；派生地表/植被覆盖/五行亲和和缓存 | 当前512²格；草稿/存读及暂停开发画笔已接，玩家合法改造待接；亲和不是能量库存，覆盖不是独立植物 |
 | [SimTerrainEdits](../../../scripts/sim/terrain_edits.gd)、[TerrainEditorRuntime](../../../scripts/runtime/terrain_editor_runtime.gd) | 原地图上的小批量事务、空间预检；开发工具负责暂停准备和输入投影 | 显式启动才开放；沿原active/位置/施工材料引用，单笔最多256格，不发放玩家权限或平行状态 |
 | [VillageSimulation](../../../scripts/sim/village_simulation.gd) | 人类原身体、唯一位置/朝向、原生活状态和村落配置 | 所属区是保存所有者，不是人物当前所在空间 |
-| [SimBatchExecution](../../../scripts/sim/execution/batch_execution.gd)、[SimActorAdvance](../../../scripts/sim/actor_advance.gd) | 前者持有可回收的CPU批任务；后者持有原人物连续推进的紧凑输入/候选结果 | 不持第二份身体/时钟/库存；由VillageSimulation验证后采用，见[批执行](../execution-batches.md) |
+| [SimBatchExecution](../../../scripts/sim/execution/batch_execution.gd)、[SimActorAdvance](../../../scripts/sim/actor_advance.gd) | 前者持有可回收CPU批；后者借读人物输入并持有私有候选，需求输入在SimBodyNeedsRead独立适配 | 不持第二份身体/时钟/库存；由VillageSimulation验证后采用，见[批执行](../execution-batches.md) |
 | [SimWorldGeometry](../../../scripts/sim/world_geometry.gd)、[SimBodyReadView](../../../scripts/sim/body_read_view.gd)、[SimSpatialQueries](../../../scripts/sim/execution/spatial_queries.gd) | 模拟层维护几何读取页/路径缓存和变化失效；同边界身体列供独立空间候选计算，原交锋采用 | 几何可局部替换并保留旧只读页，身体输入每批捕获；不写身体/库存，不入档，见[读取与查询](../execution-batches.md#共享空间读取与批量查询) |
-| [SimWorldRunner](../../../scripts/sim/execution/world_runner.gd)、[ReolSimulationHost](../../../scripts/runtime/simulation_host.gd) | 常驻协调线程与完整边界邮箱，独占借用原世界，向共用任务池/GPU派发；宿主缓冲输入并在交接后更新Node | 不建第二可写世界；身体显示值脱离原对象，旧UI/画布在交接窗口读取，仍有串行发布尾部，见[执行设计](../../specs/world-engine/execution.md) |
+| [SimWorldRunner](../../../scripts/sim/execution/world_runner.gd)、[ReolSimulationHost](../../../scripts/runtime/simulation_host.gd) | 常驻协调线程与完整边界邮箱，独占借用原世界，向共用任务池/GPU派发；宿主缓冲输入并在交接后更新Node | 不建第二可写世界；身体显示值脱离原对象，旧UI/画布在交接窗口读取，仍有串行发布尾部，见[计算接入](../execution-batches.md) |
 | [WorldOpening](../../../scripts/runtime/world_opening.gd)、[RegionalSnapshot](../../../scripts/persistence/regional_snapshot.gd) | 新局发行与存档候选构造分别归属；前者装配，后者捕获/校验/恢复 | 不持久保存第二个世界；读档不重跑新局，领域存读登记在`persistence/world_save_domains.gd` |
 | [RegionalSimulation](../../../scripts/sim/regional_simulation.gd) | 区域同步、域装配、共同边界/积压和跨域校验；`schedule_contract()`返回有序目录及阶段副本 | 领域状态仍归原owner；阶段目录描述既有调用顺序，不是自动事件总线或任意世界工厂 |
 | [SimEventQueue](../../../scripts/sim/execution/event_queue.gd)、[SimWorldEvents](../../../scripts/sim/world_events.gd) | 离散请求、到期/等待、重复/取消/期限与回执；可信规则接原域效果 | 不是第二个时钟或世界事实仓库；[事件合同](../event-contract.md) |

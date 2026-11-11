@@ -1,81 +1,80 @@
-# 批计算与原状态提交
+# 计算接入与并行执行
 
-本合同属于共同运行与数据底座。交付顺序只在[主计划](../plans/foundation-priorities.md)，总体因果见[共同结算](settlement-contract.md)；本页说明当前CPU接入，不代表整个多核方案或规模性能通过。
+本页是现有机制的选择指南与代码入口，不是所有功能必须实现的接口或验收清单。小规模、低频且足够快的计算可以直接写在原领域；接入共同时序也不意味着必须多线程。产品与因果边界见[constraints](constraints.md)，领域职责见[owner表](architecture/02-owners.md)。
 
-## 任务、数据与所有权
+## 新计算从哪里接
 
-[SimBatchExecution](../../scripts/sim/execution/batch_execution.gd)持有一次可回收任务，使用Godot `WorkerThreadPool.add_group_task()`。候选任务借读固定输入，每个chunk拥有私有输出和计时，不访问活SceneTree、隐式同步的getter或共享可写容器。已经验证的需求采用可由原owner独占借出互不别名的身体需求分区，所有任务join后才允许后续观察；其他规则提交保持顺序。任务不另持世界时钟、实体库或业务回执。
+先定位事实归属和实际输入，再按工作性质选用；同一个功能可以组合几种方式。
 
-任务Callable保留有界`WorkGroup`，不调用活场景。原owner可用`finish()`保留pending游标，或在后台协调线程等待必须的依赖；主线程每帧取一次世界邮箱。完成后收集Godot任务资源。`cancel()`撤销候选采用权：复制输入的批可退休后收集，借读原表的批须先结束读取才允许原状态变更。独占采用阶段不接受中途撤销。退出/世界替换负责最终回收。
+| 工作性质 | 适用方式 | 现有入口 / 可读的实例 |
+|---|---|---|
+| 少量判断、库存/预约/伤害等争用结果 | 直接由原领域有序处理 | [共同结算](settlement-contract.md)、[事件](event-contract.md)；不要为了并行拆散一笔事务 |
+| 稀疏变化、到期后果 | 只处理变脏或到期子集 | [SimParticipationIndex](../../scripts/sim/execution/participation_index.gd)、[SimEventQueue](../../scripts/sim/execution/event_queue.gd) |
+| 持续变化但输入暂时稳定 | 结算时间区间，输入改变前结清旧段 | 身体需求、环境温度响应；跨输入变化或阈值时分段 |
+| 可以接受采样误差或稍后重评的工作 | 内容周期、稳定错峰、重复变化合并 | [SimCadence](../../scripts/sim/execution/simulation_cadence.gd)、[领域频率](simulation-pacing.md#领域频率)；已受理命中/转移不能丢弃 |
+| 大批相互独立的判断、数学或投影 | 冻结/借出输入 → 分块计算 → 校验 → 采用 | [SimBatchExecution](../../scripts/sim/execution/batch_execution.gd)；空间候选、身体和场计算共用Godot池 |
+| 已有冷热/五行来源场的内容扩展 | 复用现有场CPU/GPU候选路径 | [环境合同](world-environment-contract.md)、下文GPU入口 |
+| 新的GPU算法 | 有收益依据时实现专用kernel和数据布局 | Godot提供RenderingDevice；当前场shader不会自动执行任意GDScript |
+| 可丢弃的画面/缓存工作 | 发布独立显示值、延后或合并重建 | [ReolPresentationWork](../../scripts/runtime/presentation_work.gd)、[身体发布](../../scripts/sim/execution/body_publication.gd) |
 
-线程完成顺序不决定游戏顺序。原owner检查时刻、代次、依赖及原对象，再按领域顺序提交；资源争用仍沿原预约/账本。计算结束不等于动作生效。
+先使用足够简单的做法；出现大批独立工作时复用批执行，不必先造注册表、通用基类或全量ECS。若现有接口迫使领域暴露无关状态或制造昂贵快照，可以调整接口或保留局部顺序实现，并说明真实限制。串行是合法执行方式，错误接入导致的无声退化才需要避免。
 
-`workers`是本批使用线程池的并发上限，不是游戏总线程数。`0`沿相同算法串行；`-1`根据本机逻辑处理器和独立chunk数选择，较大机器为主线程/协调者留两个执行槽；显式1–64用于对照，实际不超过逻辑处理器、chunk数及Godot线程池容量。单chunk或只剩一个槽时直接串行。不再硬限8；自动模式按硬件/任务量适配，不冒充在线学习最优并发。生产默认档及实测选型只查BASELINE。
+## 执行链与职责
 
-## 原身体连续推进
+```mermaid
+flowchart LR
+    Host["主线程：输入、Node、已提交画面"] -->|单个逻辑区间| Sim["SimWorldRunner：原世界协调者"]
+    Sim -->|独立批任务| CPU["Godot WorkerThreadPool"]
+    Sim -->|来源场候选| GPU["专用GPU服务 / compute shader"]
+    CPU -->|计算结果| Sim
+    GPU -->|计算结果| Sim
+    Sim -->|完整边界 / 独立显示值| Host
+```
 
-[VillageSimulation](../../scripts/sim/village_simulation.gd)选择到期人物，经[SimBodyRead](../../scripts/sim/execution/body_read.gd)借出原身体及跨域热表；[SimActorAdvance](../../scripts/sim/actor_advance.gd)在worker读取属性、准备速率/恢复条件并计算私有固定点及路段结果。准备成本按chunk增长，不在owner逐人重新打包。自定义控制/需求/crossing provider会撤销标准借读接入，保留不透明回调的原调用顺序。
+[SimWorldSettlement](../../scripts/sim/execution/world_settlement.gd)装配的是逻辑先后关系，`add_step()`不会自动把领域代码并行化。[SimWorldRunner](../../scripts/sim/execution/world_runner.gd)独占原世界执行该顺序，内部适合并行的阶段显式派发任务。阶段、事件和共同时间只由[结算合同](settlement-contract.md)解释。
 
-计算包括饱食、精力、体力恢复、既有路段或已受理整路的位置/朝向及跨格时刻，不包括工作选择、路线搜索、资源转移或攻击。整路沿原Timeline求段，原owner验证后收敛同一path游标；不建立另一套运动规则。串行和worker使用同一需求公式，巨大跨度先饱和再乘算，恢复沿同一余数。
+### CPU批生命周期
 
-普通`WorldContinuityRuntime._bind_navigation()`配置本接口。默认到期集合少于64人直接执行，较大集合按64人一块；并发参数沿共用池，不另设固定4线程平台。无关身体不因跨格进入批次；`workers=0`用同一算法串行计算，供对照。
+任务对象实现`run()`，持有稳定的输入和自己的输出；`SimBatchExecution.start(chunks, workers)`使用Godot池，`finish()`收集完成结果，协调者可在真正需要的依赖上`finish(true)`。小集合或`workers=0`执行同一任务代码的串行路径。`workers=-1`按硬件/独立块选并发，显式正数是本批上限；不是创建相应数量的线程，也不是在线最优调参器。实际规则与阈值以[执行器](../../scripts/sim/execution/batch_execution.gd)和各任务类常量为准，CLI语法只查[usage](tooling/usage.md)。
 
-候选终点是**下一个实际本地区间**，不是外层世界请求的终点。同一世界请求内存在多个精确跨格边界时，每个内部区间继续准备和收集同一批接口，避免计算到过晚时刻后再丢弃并串行重算。当前采用/通知阶段尚未完成时，区域resume不会提前借出半写入输入去准备后一区间。失效计数按时间、依赖、同步及替换原因区分。
+借读期间原owner不修改输入，worker不访问活SceneTree、隐式同步getter或共享可变搜索上下文。原owner验证时间、代次、对象和依赖，再按领域规则采用；资源争用和随机生效不由完成快慢决定。独立分区写入是少数已验证阶段的能力，不是给任意任务开放共享写权限。
 
-采用时先校验共同时间/依赖；独占阶段按互不重叠的ID分区写入原需求字典，再由owner更新共享锚点。已经被单独同步的锚点回原入口处理。运动候选核对原路线对象、当前段、path长度、位置、朝向和整路表；原执行器保留通行复核、修路及不透明回调顺序。
+`cancel()`撤销结果采用，不会杀掉运行中的算法。借读原表的任务先join再修改输入；复制输入的任务可以退休后收集。退出/换世界回收任务。线程handle、计时和可重建输入不入档；保存与失败恢复见[存读管线](architecture/04-persistence.md)。
 
-当整批路线证明仍有效、成员/代次/依赖相符，且实际观察者只含原空间索引和环境来源处理、空间changed没有外部订阅时，可以在同一独占阶段并行写入各身体的原位置/朝向/整路游标。写入前再经只读分块核对全部运动输入；任何一行失配，整批保留逐人投影。标准观察者只读当前身体，所有分区写完后才按原人物ID发送跨格/空间通知，之后集中采用已证明的段内延续边界。它们不读取其他身体的未投影位置，因而提前分区写入不改变观察结果。
+### 身体：需求输入与运动输入分开
 
-外部身体观察者或空间订阅可能读取/改变后续人物，出现这类连接就保留原逐人投影/通知；此前人物改写的后续候选仍走原修复入口。连接集由`RegionalSimulation.native_projection_isolated`核对，而不是由worker猜测安全。采用阶段不并发增删名册、索引或共享容器；库存/预约/伤害及其他行动后果仍归原owner。
+[SimBodyRead](../../scripts/sim/execution/body_read.gd)提供路线、控制、来源参与与库存观察输入；[SimBodyNeedsRead](../../scripts/sim/execution/body_needs_read.gd)单独借出需求使用的衣着、环境、劳动和休息表。其`Source`既绑定原owner回调，也识别这些回调是否仍是标准输入；没有任意worker回调注册器。
 
-[SimBodyDeadlines](../../scripts/sim/execution/body_deadlines.gd)按相同热表并行判断下一次人物/效果边界。退出整路积分和未知几何回到owner处理；其余结果无通知地集中采用。`SimParticipationIndex.set_due_many()`保留ID/时间排序、小量索引更新与大量O(N)建堆，不把每人结果变成一次完整的队列重排。
+[SimActorAdvance](../../scripts/sim/actor_advance.gd)计算需求与当前实际本地区间的路线候选，[SimBodyDeadlines](../../scripts/sim/execution/body_deadlines.gd)判断下一边界。小集合保留直接入口，路线搜索/修复和效果提交仍由原行动owner负责。原生数据内容沿相应表扩展即可受益；新增计算规则仍要实现自身算法。
 
-标准绑定的小集合也复用这份热读取和同一query，少于128人时不派发deadline任务；自定义provider仍保留原回调路径。人物候选默认少于64人保留直接入口，避免为很小集合增加准备/采用成本；阈值可在压力工具中对照。状态采用可分区不表示通知或行动后果已经并行，三者单独测量。
+替换需求回调后，只有需求积分回到原owner；运动候选和边界判断继续使用共用读取。未知回调可能改变身体，所以该批不提前并行写位置，原投影逐人复核候选。恢复原回调后，需求借读自动恢复。更换控制、几何或crossing回调仍会撤销相应标准运动输入，不能把未知逻辑标作线程安全。
 
-有效受理路段只有在环境来源、可改变的库存认识、组合空间索引/观察者需要时才保留内部跨格步骤。全路几何证明仍有效且整条路无途中消费者时，`SimRouteTravel.Timeline`用绝对到达时刻直接求当前位置/朝向，原行动在权威读取或捕获时收敛path和当前段；到达及取放等后果仍由原执行器处理。此时表可丢弃，不存档，不拥有另一份身体状态，画面只读其已提交时间下的投影。
-
-组合空间首次prepare用当前连续投影建索引并使既有身体到期重算，首次观察订阅也参与原边界修订，之后恢复精确维护；来源载体参与变化也重算到期。退出整路积分前先收敛已受理历史，再按新依赖处理未来。没有等价输入证明的独立Callables保留原细步。
-
-需要精确跨格的身体也复用仍有效的全路几何证明，只计算当前过格/到达时刻；投影不会再次查询同版地形/阻挡。证明对象、路线引用或几何版本不匹配时恢复原通行复核/修路，而非把旧路径当作永久通行许可。
-
-身体显式同步、动作/控制/几何依赖失效、重建和成功restore撤销准备结果；失败restore不改变活世界及有效候选。原anchor与时刻也须匹配，同ID的新身体不能继承旧结果。
+原需求分区、以及满足完整路线/输入和观察者隔离证明的运动分区，可独占写入互不别名的原身体；join后才更新共享索引、按原ID通知空间消费者。额外观察者或输入失配保留逐人入口。判断集中在`VillageSimulation._can_partition_projection()`与`RegionalSimulation.native_projection_isolated()`，不用在新领域复制这些条件。
 
 ## 共享空间读取与批量查询
 
-[SimWorldGeometry](../../scripts/sim/world_geometry.gd)是原地图、建筑、植物及大型身体阻挡的可重建读取层，由`RegionalSimulation`持有，不保存另一份权威世界。普通人物和服务通过`bind_geometry_navigation()`直接使用模拟层路径/通行提供者；几何变化与原路线证明失效也在模拟层处理，`ReolWorld`转为读取适配。
+[SimWorldGeometry](../../scripts/sim/world_geometry.gd)从原地形/建筑提供可复用几何页；局部变化替换页并使受影响证明失效。并发搜索使用私有[SimGridNavigation.Search](../../scripts/sim/grid_navigation.gd)，不共享可变AStar上下文。
 
-读取按16×16格页组织，保存高度、地表类型、行走及掩体标记；稳定页复用，变化只替换已建页中受影响格，未知页首次需要时生成。植物生长状态不改变阻挡时不失效。`capture(area)`固定范围、来源ID和几何版本，封住页表并保留旧页；任务并行时owner可替换新页，既有输入仍可读，采用前用`is_current`核对。新世界/成功恢复会退休旧owner；旧页不写档，失败恢复不退休活输入。冷建块仍有同步成本，尚未移入后台。
+[SimBodyReadView](../../scripts/sim/body_read_view.gd)捕获同边界身体列，[SimSpatialQueries](../../scripts/sim/execution/spatial_queries.gd)分块求线段候选；固定合并顺序处理等距离，原交锋owner仍复核遮挡、伤害和消耗。这是新批查询可参考的完整例子，不是全部空间算法的强制模板。
 
-`SimGridNavigation.Search.find_path`可在私有AStar上下文上运行同一算法。同步便利入口仍使用协调者的缓存；worker不得调用该全局缓存，也不得共享一个正在搜索的AStar。首批只验证了私有上下文批查询，尚未把普通行动的即时路线请求改为异步。
+## GPU来源场与CPU后端
 
-[SimBodyReadView](../../scripts/sim/body_read_view.gd)在原规则边界由owner同步所需地区并捕获身体ID、位置、高度列；worker不触发身体getter。它保留原地区/人物遍历顺序，当前每批捕获一次，该战斗读取表不承担显示发布；显示使用下述独立纯数据视图。
+[EnvironmentFieldComputeRuntime](../../scripts/runtime/environment_field_compute_runtime.gd)负责来源场单请求、ticket、取消、完成及后端选择；[EnvironmentFieldGPU](../../scripts/runtime/environment_field_gpu.gd)持本地RenderingDevice和专用[shader](../../assets/shaders/environment_field_compute.glsl)。GPU线程只持不可变job；上传、提交、同步读回发生在该线程，不能把`sync()`等待称作没有成本的异步执行。
 
-[SimSpatialQueries](../../scripts/sim/execution/spatial_queries.gd)按64个身体分块，对多个线段求接触候选；达到4096个身体×线段候选对才尝试最多4个worker，小批用同算法串行。任务内一次解析列引用，避免每对候选重复访问共享脚本对象。候选按固定chunk顺序收敛，等距仍由原身体顺序决定。
+同一个compact job可交给[SimFieldCompute](../../scripts/sim/execution/field_compute.gd)分块CPU计算。GPU不可用/输入不适用时由原场owner继续CPU路径；大批响应输入使用[SimFieldResponseInput](../../scripts/sim/execution/field_response_input.gd)。来源覆盖、传输、通道组合与温度/五行的原子采用语义只维护在[环境合同](world-environment-contract.md)。
 
-真实消费者是`SimConflicts._advance_projectiles`：同边界捕获一次身体输入、批量查候选，再沿原投射物顺序核遮挡、收集全部接触、最后沿原规则提交伤害。此首批接入仍在原交锋回调内等待完成，没有跨帧交锋游标或新的取消时机；大批的等待也计入回调成本。不是每个领域独建线程或第二个战斗世界。
+扩展同类发源物不需要另写GPU服务；毒气扩散等新方程不自动适用当前shader。后端只改变算在哪里，不改变领域事实、逻辑时间或提交权；不要求每个新计算都实现CPU和GPU两份算法。
 
-## 身体发布与环境计算
+## 宿主交接与呈现
 
-`SimBodyPublication`复用`VillageSimulation.body_read_roster()`成员表，64人一块准备位置、姿态、衣着及原身份；原owner补齐玩家/选中需求、每个占用格的高度，同格排列也在发布阶段准备。结果不保留原身体/动作引用，输入读取期间不允许修改。主线程冻结可见格样本，`ReolBodyPresentation`在共用呈现队列分批采用Node；忙碌窗口只执行显式标记`detached`的任务，地形预画等原世界读取仍被隔离。
+[ReolSimulationHost](../../scripts/runtime/simulation_host.gd)在模拟独占期间停用会读活世界的旧回调；[signal bridge](../../scripts/runtime/simulation_signal_bridge.gd)保留域内同步通知，向Node的通知在完整回复后递送。邮箱完成用Godot延后通知收取，仍有process后备入口；通知只续算已准入债务，与当帧共享预算。时间准入/过载只查[pacing](simulation-pacing.md)。
 
-`SimFieldCompute`使用已有compact场job和相同整数max方程/材质穿行，按16×16格给任务私有输出，串行与worker共用公式；原场owner验证输入版本与候选证明后采用。GPU路径原样保留，CPU模式与无渲染设备时使用任务池。
+[SimBodyPublication](../../scripts/sim/execution/body_publication.gd)输出脱离原对象的姿态、衣着与布局，[ReolBodyPresentation](../../scripts/runtime/body_presentation.gd)在主线程分批应用。旧UI/画布仍在完整交接窗口读世界，当前没有让所有视图永久双缓冲；新视图也可以按实际需要选择。
 
-`SimFieldResponseInput`在候选field完成后，为各tile准备温度/五行目标列；私有compiler只共享不可变定义、拥有独立memo。原temperature/phase owner保持历史、范围、容量和锚点复核，提交仍同步有序。小量/禁用worker可沿相同输入类分预算运行；取消先收集正在读取的任务再丢候选，不在任务尚读时修改原响应数据。
+## 诊断与证据
 
-## 协调线程、存读与呈现
+任务计时分准备、执行、等待、采用、发布；嵌套项不能相加。`actor_execution.input_modes`显示需求/运动是否借读，`needs_callback_rows`记录需求回到owner的行数，`projection_retained_*`解释运动保留逐人采用的原因。小批主动串行和输入不支持并行应分开看，不能用CPU总占用或线程数证明收益。
 
-`SimWorldRunner`持有原世界的一次独占执行权，常驻线程处理单个时间请求；CPU批和GPU候选仍使用原kernel游标。原手动移动每区间只积分一次，不按渲染帧重复。需要依赖时后台等待实际完成，主线程继续绘图。邮箱ready后通过CONNECT_DEFERRED唤醒宿主，收取结果并可继续已准入的时间债务，共享当帧预算、不额外准入时间；没有来自worker的活Node调用，普通process仍能收取。暂停显式推进完成就清理该请求的暂停许可，保存边界仍走原drain。
+测量数值和已知缺口只维护在[BASELINE](../status/baseline.md)，工具参数在[usage](tooling/usage.md)，验证强度在[开发循环](workflow/testing.md)。不为接入一个普通功能自动运行整套压力矩阵。
 
-`ReolSimulationHost`在运行期间暂缓旧世界读取回调；`ReolSimulationSignalBridge`只记下领域向Node的通知，内部领域信号继续同步。完整边界返回后递送通知、处理缓冲输入及旧UI/画布读取，再发下一请求。人物批量Node采用已移出这段窗口，最多一个应用帧和一个最新等待帧；玩家/选中反馈即时更新，旧帧不覆盖更新的选中状态。其他画布尚非完全异步快照，交接尾部仍测量。
-
-存档只保存原身体、动作及共同时间。输入/结果、线程handle、游标和计时不入档；保存时等待同一完整边界，加载/退出先回收旧协调者和批任务。坏候选不替换活世界，开发期不新增历史兼容链。
-
-## 诊断与验证范围
-
-压力报告含`actor_execution_capture`（含native阶段、需求采用与deadline计算/采用）、`body_publication_capture`、`body_presentation`、`simulation_host`、`publication_work_capture`及环境CPU/GPU/响应计数。宿主含ready→collect等待、回复后→下一请求间隔及完成通知数，后一间隔包含必要UI/输入与主动节奏空闲；不能全归为CPU工作。包含装配的旧计数明确保留后缀；人物Node累计量还报告显示帧年龄和切片上限。worker微秒是经过时间，Windows `--profile-cpu`侧录才是线程真实CPU。
-
-`--simulation-thread off`、`--actor-workers 0/4/8`和`--release-binary`用于同构建对照。`--input-probe`测无副作用宿主请求等到完整边界的延迟，不冒充玩家输入到像素的端到端延迟。
-
-开启kernel定位时，`native_profile.deadline_metadata`量逐人采用循环（小批逐项索引更新也在其中），`deadline_index`量大批合并后的索引更新；它们嵌套于deadline总量。
-
-短`spatial`检查包括同输入场/响应列串行与worker一致、身体发布不保留原对象、Node信号在交接后递送及恢复连接；不证明所有玩法或长期性能。真实规模、暂时方案和未测范围只记BASELINE。官方API依据见[执行设计](../specs/world-engine/execution.md)。
+依据：[Godot线程安全](https://docs.godotengine.org/en/4.7/tutorials/performance/thread_safe_apis.html)、[WorkerThreadPool](https://docs.godotengine.org/en/4.7/classes/class_workerthreadpool.html)、[compute shaders](https://docs.godotengine.org/en/4.7/tutorials/shaders/compute_shaders.html)。成熟项目来源见[研究](../../design/research/large_simulation_optimization.md)，不把研究中的历史Reol调用链当当前实现。

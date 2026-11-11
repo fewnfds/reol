@@ -21,7 +21,7 @@ var next_cost_id: int = 1
 var next_hit_id: int = 1
 var next_lesson_id: int = 1
 ## Host execution policy and measurements, never saved gameplay state.
-var spatial_workers: int = 4
+var spatial_workers: int = SimBatchExecution.DEFAULT_WORKERS
 var spatial_work: Dictionary = {"batches": 0, "parallel_batches": 0, "bodies": 0, "segments": 0, "prepare_usec": 0, "query_usec": 0}
 var _owner: WeakRef
 var world: RefCounted:

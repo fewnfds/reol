@@ -41,7 +41,7 @@ var _opening_selection_available: bool = false
 
 var _home: VillageRuntime
 var body_publication: SimBodyPublication
-var body_publication_workers: int = 4
+var body_publication_workers: int = SimBatchExecution.DEFAULT_WORKERS
 var body_publication_work: Dictionary = {"batches": 0, "parallel_batches": 0, "rows": 0, "prepare_usec": 0, "elapsed_usec": 0, "worker_usec": 0, "adopt_usec": 0, "layout_elapsed_usec": 0, "layout_worker_usec": 0}
 var body_presentation: ReolBodyPresentation
 var _remote_views: Dictionary[String, Pawn] = {}

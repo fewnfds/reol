@@ -31,9 +31,9 @@ def main() -> int:
     parser.add_argument("--gpu-index", type=int, help="pin a Godot rendering adapter index; verify the report renderer name")
     parser.add_argument("--input-probe", action="store_true", help="measure a harmless host request's wait for the same complete-world boundary as gameplay input")
     parser.add_argument("--pacing-policy", choices=("auto", "full-rate"), default="auto", help="diagnostic full-rate bypasses adaptive slowdown, preserving bounded debt and the normal cooperative work budget")
-    parser.add_argument("--actor-workers", type=int, choices=range(-1, 65), default=4, help="shared batch worker cap; -1 adapts to hardware/chunks, 0 is same-algorithm serial, 1..64 explicit experiment")
+    parser.add_argument("--actor-workers", type=int, choices=range(-1, 65), help="override the game's shared batch worker cap; omitted uses SimBatchExecution.DEFAULT_WORKERS, -1 adapts to hardware/chunks, 0 is serial, 1..64 explicit experiment")
     parser.add_argument("--actor-projection", choices=("partitioned", "ordered"), default="partitioned", help="compare proven disjoint body adoption with original ID-by-ID projection; notifications remain ordered")
-    parser.add_argument("--actor-minimum", type=int, choices=range(1, 4097), default=64, help="smallest body candidate batch; smaller sets retain the direct owner path")
+    parser.add_argument("--actor-minimum", type=int, choices=range(1, 4097), help="override smallest body candidate batch; omitted uses SimActorAdvance.PARALLEL_MINIMUM")
     parser.add_argument("--simulation-thread", choices=("on", "off"), default="on", help="same world runner on its coordinator thread or synchronously for a same-build comparison")
     parser.add_argument("--simulation-completion", choices=("deferred", "frame"), default="deferred", help="collect completed mailbox through engine idle notification or original next-process-frame polling")
     parser.add_argument("--environment-backend", choices=("auto", "cpu", "gpu"), default="auto", help="compare ordinary source candidate calculation; auto keeps small batches on CPU")
@@ -91,8 +91,12 @@ def main() -> int:
     report = (godot.ROOT / "logs" / f"{tag}.json").as_posix()
     cmd += ["--", f"--residents={args.residents}",
             f"--seconds={args.seconds}", f"--report={report}", f"--revision={sha}", f"--source-dirty={int(dirty)}",
-            f"--actor-workers={args.actor_workers}", f"--actor-projection={args.actor_projection}", f"--actor-minimum={args.actor_minimum}", f"--simulation-thread={args.simulation_thread}", f"--simulation-completion={args.simulation_completion}", f"--environment-backend={args.environment_backend}",
+            f"--actor-projection={args.actor_projection}", f"--simulation-thread={args.simulation_thread}", f"--simulation-completion={args.simulation_completion}", f"--environment-backend={args.environment_backend}",
             f"--pacing-policy={args.pacing_policy}"]
+    if args.actor_workers is not None:
+        cmd.append(f"--actor-workers={args.actor_workers}")
+    if args.actor_minimum is not None:
+        cmd.append(f"--actor-minimum={args.actor_minimum}")
     if args.release:
         cmd.append(f"--artifact-sha256={artifact_sha}")
     if args.quit_after_capture:

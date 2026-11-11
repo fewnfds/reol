@@ -13,7 +13,7 @@ python tools/godot.py run
 python tools/godot.py editor
 ```
 
-`test`使用当前短smoke入口，不自动导入。`--suite NAME`可选`settlement`、`actor_batch`、`inventory`或`spatial`；完整短smoke还包含输入与呈现检查。`--timeout SECONDS`默认15、可选1–30秒。新检出、新class或资源不可识别时才需要import。`check`及旧`--shard/--jobs/--test-timeout/--timing-report`参数已移除，不保留指向旧体系的别名。日志实时合流落盘，错误和超时返回非零；普通run/editor不会因错误行强关用户窗口。
+`test`使用当前短smoke入口，不自动导入。`--suite NAME`可选`settlement`、`actor_batch`、`inventory`、`input`、`presentation`或`spatial`。`--timeout SECONDS`默认15、可选1–30秒。新检出、新class或资源不可识别时才需要import。`check`及旧`--shard/--jobs/--test-timeout/--timing-report`参数已移除，不保留指向旧体系的别名。日志实时合流落盘，错误和超时返回非零；普通run/editor不会因错误行强关用户窗口。
 
 ## 实际性能
 
@@ -26,7 +26,7 @@ python tools/stress_report.py logs/<capture>.json
 python tools/diagnose_demo.py --seconds 30 --auto-start --quit-after-capture
 ```
 
-人数是每地6–4096，实际总人数为两倍；持续使用普通Main原人物、寻路、生活、环境及共同时间，临时状态不写玩家档。`--actor-workers -1`按硬件/任务量选择，`0`串行，`1..64`指定本批并发上限；实际按逻辑处理器及chunk数收窄，`--simulation-thread off`关闭协调线程但仍运行同一runner。`--actor-projection ordered`保留逐人采用供同包对照，默认partitioned只对证明独立的身体分区写入；`--actor-minimum N`实验人物候选最小集合，默认64，小集合保留直接入口。`--release-binary PATH`复用同一exe/PCK进行规模/并发/后端对照，不能预设线程越多越快。不加`--quit-after-capture`可继续试玩。
+人数是每地6–4096，实际总人数为两倍；持续使用普通Main原人物、寻路、生活、环境及共同时间，临时状态不写玩家档。`--actor-workers -1`自动选槽，`0`串行，`1..64`指定本批并发上限；选槽语义见[计算接入](../execution-batches.md)，`--simulation-thread off`关闭协调线程但仍运行同一runner。`--actor-projection ordered`保留逐人采用供同包对照，默认partitioned只对证明独立的身体分区写入；`--actor-minimum N`实验人物候选最小集合，默认值见工具`--help`。`--release-binary PATH`复用同一exe/PCK进行规模/并发/后端对照，不能预设线程越多越快。不加`--quit-after-capture`可继续试玩。
 
 完成收取默认经Godot延后通知；`--simulation-completion frame`使用原process入口，供相同包比较ready→collect等待。通知不放大当帧工作预算，不额外准入游戏时间。
 

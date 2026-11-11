@@ -6,7 +6,7 @@
 |---|---|
 | 运行装配、分层与状态owner | [architecture](architecture.md)、[owner表](architecture/02-owners.md) |
 | 调度、共同时间、同刻结算 | [settlement](settlement-contract.md)、[pacing](simulation-pacing.md) |
-| CPU批输入、生命周期、结果采用 | [execution-batches](execution-batches.md) |
+| 新计算归类、CPU/GPU接入、线程/结果生命周期 | [execution-batches](execution-batches.md) |
 | 离散到期/触发事件、失效 | [event](event-contract.md) |
 | 活动、到期、变脏集合与局部查询 | [sparse-execution](sparse-execution.md) |
 | 空间查询、容器位置与生命周期 | [object-query](object-query-contract.md)、[object-lifecycle](object-lifecycle-contract.md) |
@@ -17,4 +17,4 @@
 | 文件放置、定义和代码标识 | [project-structure](project-structure.md)、[terminology](terminology.md) |
 | 测量/短验证、运行/编辑器连接 | [workflow](workflow/testing.md)、[usage](tooling/usage.md)、[setup](tooling/setup.md) |
 
-这里不登记另一份任务和性能总表。GPU独立后端及旧样本的证据需要时从[archive](../archive/README.md)查询；目标结构属于[候选规格](../specs/world-engine/execution.md)。
+本页只定位正文；当前测量只看[BASELINE](../status/baseline.md)，历史实验需要时显式查[archive](../archive/README.md)。

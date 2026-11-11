@@ -55,7 +55,7 @@ var _materializing_actors: bool = false
 var _all_projected_ms: int = -1
 var _sparse_actor_projection: bool = false
 var actor_execution_enabled: bool = false
-var actor_execution_workers: int = 4
+var actor_execution_workers: int = SimBatchExecution.DEFAULT_WORKERS
 var actor_execution_minimum: int = SimActorAdvance.PARALLEL_MINIMUM
 var actor_projection_partition: bool = true
 ## Unsaved measurements; dependency checks and observable effects stay ordered.
@@ -64,6 +64,7 @@ var _prepared_actor_advance: SimActorAdvance
 var _actor_advance_generation: int = 0
 var _body_read_world: WeakRef
 var _body_read_region: String
+var _body_needs_source: SimBodyNeedsRead.Source
 var _workplace_blocks: Dictionary[Vector2i, bool] = {}
 var _stock_places_at_cell: Dictionary = {}
 var _stock_contents: Dictionary = {}
@@ -288,19 +289,16 @@ func set_control_guard(provider: Callable) -> void:
 
 func set_rest_recovery(provider: Callable) -> void:
 	synchronize_actors()
-	_body_read_world = null
 	_rest_recovery = provider
 
 
 func set_exposure_rate(provider: Callable) -> void:
 	synchronize_actors()
-	_body_read_world = null
 	_exposure_rate = provider
 
 
 func set_external_labor(provider: Callable) -> void:
 	synchronize_actors()
-	_body_read_world = null
 	_external_labor = provider
 
 
@@ -649,6 +647,26 @@ func body_read_inputs() -> SimBodyRead:
 	return SimBodyRead.capture(world, self, _body_read_region) if world != null else null
 
 
+func bind_body_needs(world: RegionalSimulation) -> void:
+	# Concrete native adapter, not a registry of arbitrary worker callbacks.
+	# Replacing one provider only revokes need integration, not motion reads.
+	var source := SimBodyNeedsRead.Source.new(world)
+	set_rest_recovery(source.recovery_for)
+	set_external_labor(source.laboring)
+	set_exposure_rate(source.exposure_rate)
+	_body_needs_source = source
+
+
+func body_needs_read() -> SimBodyNeedsRead:
+	return _body_needs_source.capture(self) if _body_needs_source != null else null
+
+
+func actor_execution_status() -> Dictionary:
+	var world: RegionalSimulation = _body_read_world.get_ref() if _body_read_world != null else null
+	return {"motion_inputs": "borrowed" if world != null else "owner_callbacks",
+		"needs_inputs": "borrowed" if _body_needs_source != null and _body_needs_source.matches(self) else "owner_callbacks"}
+
+
 func invalidate_boundary_cache() -> void:
 	_cancel_actor_advance("all_dependencies")
 	if _collect_actor_work_changes:
@@ -778,7 +796,7 @@ func advance_to_ms(target_ms: int, max_events: int = 4096, should_yield: Callabl
 				# peers. A suspended interval remains unpublished during this pass.
 				var started: int = Time.get_ticks_usec() if work.batch != null else 0
 				if work.sparse:
-					if work.batch != null and work.cursor == 0:
+					if work.batch != null and work.batch.needs_supported and work.cursor == 0:
 						# A proven standard projection can lend the same disjoint body
 						# partitions too. Every writer ends before ordered notifications.
 						work.motion_partition = _can_partition_projection(work.batch, work.projecting)
@@ -797,6 +815,8 @@ func advance_to_ms(target_ms: int, max_events: int = 4096, should_yield: Callabl
 							return false
 						var id: String = work.projecting[work.cursor]
 						_integrate_actor(id)
+						if work.batch != null and not work.batch.needs_supported:
+							actor_execution_work["needs_callback_rows"] = int(actor_execution_work.get("needs_callback_rows", 0)) + 1
 						work.cursor += 1
 				if work.batch != null:
 					actor_execution_work.publish_usec = int(actor_execution_work.publish_usec) + Time.get_ticks_usec() - started
@@ -993,7 +1013,7 @@ func _reset_actor_projections() -> void:
 	_all_projected_ms = elapsed_ms
 
 
-func configure_actor_execution(workers: int = 4, minimum: int = SimActorAdvance.PARALLEL_MINIMUM) -> void:
+func configure_actor_execution(workers: int = SimBatchExecution.DEFAULT_WORKERS, minimum: int = SimActorAdvance.PARALLEL_MINIMUM) -> void:
 	_cancel_actor_advance()
 	actor_execution_enabled = true
 	actor_execution_workers = clampi(workers, -1, 64)
@@ -1005,6 +1025,10 @@ func _can_partition_projection(batch: SimActorAdvance, projecting: Array) -> boo
 	var world: RegionalSimulation = _body_read_world.get_ref() if _body_read_world != null else null
 	if not actor_projection_partition:
 		reason = "disabled"
+	elif not batch.needs_supported:
+		# Opaque need callbacks may also change motion. Keep their old order and
+		# validate each later motion candidate after those callbacks have run.
+		reason = "needs_callbacks"
 	elif world == null or batch.generation != _actor_advance_generation:
 		reason = "generation"
 	elif batch.ids != projecting:

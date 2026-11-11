@@ -362,6 +362,7 @@ func _actor_execution_summary() -> Dictionary:
 		result[id]["configured_workers"] = sim.actor_execution_workers
 		result[id]["minimum_rows"] = sim.actor_execution_minimum
 		result[id]["partitioned_projection"] = sim.actor_projection_partition
+		result[id]["input_modes"] = sim.actor_execution_status()
 		result[id]["report_thread"] = OS.get_thread_caller_id()
 		result[id]["native_profile_including_setup"] = sim.native_profile.duplicate()
 	return result

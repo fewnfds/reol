@@ -17,9 +17,9 @@
 | 引擎/存档版本、有效测量、性能是否达标 | [BASELINE](status/baseline.md) | 已核实事实与证据索引 |
 | 能玩什么、键位、未实现玩法 | [FEATURES](status/features.md) | 当前能力；不重复测量和计划 |
 | 七个领域谁负责、跨域影响、原owner在哪 | [领域职责](engineering/architecture/05-framework-domains.md)、[owner定位](engineering/architecture/02-owners.md) | 逻辑边界 / 当前代码索引 |
-| 时间/结算/事件、空间/行动、环境/植物、存读接口 | [工程接口地图](engineering/README.md) | 实现参考；可重构 |
+| 新计算接入、时间/事件、空间/行动、环境/植物、存读接口 | [工程接口地图](engineering/README.md) | 实现参考；可重构 |
 | 数据定义、开局、内容装配 | [data](../data/README.md) | 数据入口与实际清单 |
-| 目标CPU/GPU结构、候选算法与外观方案 | [specs](specs/README.md) | 候选；未实现不算事实 |
+| 尚未采用的工程/外观方案 | [specs](specs/README.md) | 候选；未实现不算事实 |
 | 游戏愿景、长期层次、详细机制与来源 | [design](../design/README.md)、[产品层次](plans/roadmap.md) | 愿景 / 候选 / 研究，各有边界 |
 | 当前怎样开发和验证、运行/测量命令 | [开发循环](engineering/workflow/testing.md)、[命令](engineering/tooling/usage.md) | 当前方法 / 工具语法 |
 | MCP配置、插件/技能来源、升级与恢复 | [tooling/setup](engineering/tooling/setup.md) | 按工具故障或更新需求读取 |

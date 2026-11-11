@@ -53,24 +53,8 @@ class Chunk extends RefCounted:
 			if not bool(body.alive):
 				projection_proven = projection_proven and body.active.is_empty()
 				continue
-			var duration: int = at_ms - previous
-			var energy: Vector2i = read.energy_input(id, body)
-			output[o + OutputField.HUNGER_RATE] = read.hunger_rate
-			output[o + OutputField.ENERGY_RATE] = energy.x
-			output[o + OutputField.HUNGER] = SimActorAdvance.need_balance(roundi(float(body.hunger) * NEED_SCALE), int(body.need_carry.hunger), read.hunger_rate, duration)
-			output[o + OutputField.ENERGY] = SimActorAdvance.need_balance(roundi(float(body.energy) * NEED_SCALE), int(body.need_carry.energy), energy.x, duration)
-			var stamina: int = int(body.stamina)
-			var carry: int = int(body.stamina_carry)
-			if energy.y != 0:
-				var maximum: int = int(read.pawns[StringName(body.definition_id)].max_stamina)
-				var recovery_ms: int = maxi(0, at_ms - maxi(previous, int(body.exertion_until_ms)))
-				var gain: int = SimActorAdvance.stamina_gain(stamina, maximum, carry, read.stamina_rate, recovery_ms)
-				@warning_ignore("integer_division")
-				var units: int = gain / 1000
-				stamina = mini(maximum, stamina + units)
-				carry = gain % 1000 if stamina < maximum else 0
-			output[o + OutputField.STAMINA] = stamina
-			output[o + OutputField.STAMINA_CARRY] = carry
+			if read.needs != null:
+				_calculate_needs(id, body, read.needs, o, previous)
 			var route: Dictionary = body.active
 			var moving: bool = route.get("phase") == "travel" and not route.path.is_empty()
 			var point: Vector2 = SimRouteTravel.point(body)
@@ -112,6 +96,26 @@ class Chunk extends RefCounted:
 		read = null
 		ids = []
 		finished_usec = Time.get_ticks_usec()
+
+	func _calculate_needs(id: String, body: Dictionary, needs: SimBodyNeedsRead, o: int, previous: int) -> void:
+		var duration: int = at_ms - previous
+		var energy: Vector2i = needs.energy_input(id, body)
+		output[o + OutputField.HUNGER_RATE] = needs.hunger_rate
+		output[o + OutputField.ENERGY_RATE] = energy.x
+		output[o + OutputField.HUNGER] = SimActorAdvance.need_balance(roundi(float(body.hunger) * NEED_SCALE), int(body.need_carry.hunger), needs.hunger_rate, duration)
+		output[o + OutputField.ENERGY] = SimActorAdvance.need_balance(roundi(float(body.energy) * NEED_SCALE), int(body.need_carry.energy), energy.x, duration)
+		var stamina: int = int(body.stamina)
+		var carry: int = int(body.stamina_carry)
+		if energy.y != 0:
+			var maximum: int = int(needs.pawns[StringName(body.definition_id)].max_stamina)
+			var recovery_ms: int = maxi(0, at_ms - maxi(previous, int(body.exertion_until_ms)))
+			var gain: int = SimActorAdvance.stamina_gain(stamina, maximum, carry, needs.stamina_rate, recovery_ms)
+			@warning_ignore("integer_division")
+			var units: int = gain / 1000
+			stamina = mini(maximum, stamina + units)
+			carry = gain % 1000 if stamina < maximum else 0
+		output[o + OutputField.STAMINA] = stamina
+		output[o + OutputField.STAMINA_CARRY] = carry
 
 class ProjectionCheck extends RefCounted:
 	var calculation: SimActorAdvance
@@ -205,6 +209,7 @@ var generation: int = 0
 var dependency_revision: int = 0
 var preparation_usec: int = 0
 var measured: bool = false
+var needs_supported: bool = true
 var ids: Array[String] = []
 var chunks: Array[Chunk] = []
 var execution := SimBatchExecution.new()
@@ -216,6 +221,7 @@ var _rows: Dictionary[String, int] = {}
 func prepare(read: SimBodyRead, selected: Array[String], to_ms: int) -> void:
 	var started: int = Time.get_ticks_usec()
 	at_ms = to_ms
+	needs_supported = read.needs != null
 	ids = selected
 	for index: int in ids.size():
 		_rows[ids[index]] = index
@@ -300,6 +306,12 @@ func projection_matches(actors: Dictionary, completions: Dictionary, workers: in
 
 
 func adopt_needs(actors: Dictionary, anchors: Dictionary, projecting: Array, workers: int, project_motion: bool = false) -> Array[String]:
+	if not needs_supported:
+		# Unknown need providers run once on the owner, never on workers. Motion
+		# candidates still exist and are checked by the original ordered path.
+		assert(not project_motion)
+		adoption_work = {"needs_callback_rows": projecting.size()}
+		return projecting.duplicate()
 	var began: int = Time.get_ticks_usec()
 	var work: Array[RefCounted] = []
 	for first: int in range(0, projecting.size(), CHUNK_SIZE):

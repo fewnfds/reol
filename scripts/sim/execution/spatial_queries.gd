@@ -54,7 +54,7 @@ var chunks: Array[Chunk] = []
 var execution := SimBatchExecution.new()
 
 
-func start(bodies: SimBodyReadView, starts: PackedVector2Array, ends: PackedVector2Array, excluded: PackedStringArray, levels: PackedInt32Array, radius: float, workers: int = 4) -> void:
+func start(bodies: SimBodyReadView, starts: PackedVector2Array, ends: PackedVector2Array, excluded: PackedStringArray, levels: PackedInt32Array, radius: float, workers: int = SimBatchExecution.DEFAULT_WORKERS) -> void:
 	assert(starts.size() == ends.size() and starts.size() == excluded.size() and starts.size() == levels.size())
 	var work: Array[RefCounted] = []
 	for first: int in range(0, bodies.ids.size(), CHUNK_SIZE):

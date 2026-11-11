@@ -9,12 +9,8 @@ var anchors: Dictionary = {}
 var completions: Dictionary = {}
 var boundaries: Dictionary = {}
 var continuations: Dictionary = {}
-var pawns: Dictionary = {}
+var needs: SimBodyNeedsRead
 var at_ms: int
-var hunger_rate: int
-var base_energy_rate: int
-var work_energy_rate: int
-var stamina_rate: int
 var timeout_ms: int
 var geometry_revision: int
 var route_events: bool
@@ -24,20 +20,6 @@ var actor_carriers: Dictionary = {}
 var subjects: Dictionary = {}
 var carriers: Dictionary = {}
 var controls: Dictionary = {}
-var worn: Dictionary = {}
-var garments: Dictionary = {}
-var garment_wet_threshold: int
-var garment_energy_rate: int
-var exposures: Dictionary = {}
-var production: Dictionary = {}
-var clothing_jobs: Dictionary = {}
-var field_purposes: Dictionary = {}
-var field_trips: Dictionary = {}
-var resting: Dictionary = {}
-var damp_beds: Dictionary = {}
-var bed_wet_threshold: int
-var dry_recovery: int
-var wet_recovery: int
 var precise_all: bool
 var source_containers: Dictionary = {}
 var dirty_containers: Dictionary[String, bool] = {}
@@ -55,12 +37,8 @@ static func capture(world: RegionalSimulation, sim: VillageSimulation, region: S
 	read.completions = sim.native_route_projections()
 	read.boundaries = sim._actor_boundaries
 	read.continuations = sim._route_continuations
-	read.pawns = world._content.pawns
+	read.needs = sim.body_needs_read()
 	read.at_ms = sim.elapsed_ms
-	read.hunger_rate = roundi(float(sim.config.needs.hunger_per_minute) * VillageSimulation.NEED_SCALE)
-	read.base_energy_rate = roundi(float(sim.config.needs.energy_per_minute) * VillageSimulation.NEED_SCALE)
-	read.work_energy_rate = roundi(float(sim.config.needs.work_energy_per_minute) * VillageSimulation.NEED_SCALE)
-	read.stamina_rate = int(sim.motion_rules.recovery.stamina_per_second)
 	read.timeout_ms = int(sim.config.action_timeout) * VillageSimulation.MINUTE_MS
 	read.geometry_revision = world.native_geometry_revision()
 	read.route_events = sim.native_route_events_enabled
@@ -70,21 +48,6 @@ static func capture(world: RegionalSimulation, sim: VillageSimulation, region: S
 	read.subjects = world.embodiment._subjects
 	read.carriers = world.embodiment._carriers
 	read.controls = world.embodiment._controls
-	read.worn = world.clothing._worn
-	read.garments = world.clothing.objects
-	read.garment_wet_threshold = int(world.clothing.definitions.wet_threshold)
-	read.garment_energy_rate = roundi(float(world.clothing.definitions.wet_energy_per_minute) * VillageSimulation.NEED_SCALE)
-	read.exposures = world.environment.samples
-	read.production = world.personal_production.active
-	read.clothing_jobs = world.clothing.active
-	if world.field_opportunities != null:
-		read.field_purposes = world.field_opportunities.purposes
-		read.field_trips = world.field_opportunities.trips
-	read.resting = world.resting.active
-	read.damp_beds = world.weather.damp_beds
-	read.bed_wet_threshold = int(world.weather.definitions.wet_threshold)
-	read.dry_recovery = int(world.resting.definitions.energy_per_minute)
-	read.wet_recovery = int(world.weather.definitions.wet_recovery)
 	var fields: SimWorldEnvironmentFields = world.environment_fields
 	read.precise_all = not fields._active or (world.space != null and world.space.needs_native_crossings())
 	read.source_containers = fields._sources._container_sources.get(region, {})
@@ -97,22 +60,6 @@ static func capture(world: RegionalSimulation, sim: VillageSimulation, region: S
 	read.stock_near = sim._stock_places_at_cell
 	read.observation_radius = float(sim.config.observation_radius)
 	return read
-
-
-func energy_input(id: String, body: Dictionary) -> Vector2i:
-	var rate: int = base_energy_rate + int(exposures.get(id, {}).get("energy_rate", 0))
-	var garment: String = str(worn.get(id, {}).get("body", ""))
-	if not garment.is_empty() and int(garments[garment].wet) >= garment_wet_threshold:
-		rate += garment_energy_rate
-	var field: Dictionary = field_purposes.get(id, {})
-	var field_labor: bool = field.get("phase", "") in ["outbound", "returning"] and field_trips.get(field.get("trip", ""), {}).get("status") == "active"
-	var laboring: bool = not body.active.is_empty() or production.has(id) or clothing_jobs.has(id) or field_labor
-	if laboring:
-		rate += work_energy_rate
-	var rest: Dictionary = resting.get(id, {})
-	if rest.get("phase", "") == "sleep":
-		rate -= (wet_recovery if int(damp_beds.get(rest.bed, 0)) >= bed_wet_threshold else dry_recovery) * VillageSimulation.NEED_SCALE
-	return Vector2i(rate, int(not laboring or str(body.active.get("action", "")) == "rest"))
 
 
 func controls_action(id: String) -> bool:

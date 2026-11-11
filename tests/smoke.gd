@@ -325,12 +325,13 @@ func _batch(workers: int) -> SimActorAdvance:
 		"hunger": 80.0, "energy": 60.0, "need_carry": {"hunger": 0, "energy": 0},
 		"stamina": 50, "stamina_carry": 0, "exertion_until_ms": 0}
 	var read := SimBodyRead.new()
-	read.hunger_rate = 1000000
-	read.base_energy_rate = 2000000
-	read.stamina_rate = 10
+	read.needs = SimBodyNeedsRead.new()
+	read.needs.hunger_rate = 1000000
+	read.needs.base_energy_rate = 2000000
+	read.needs.stamina_rate = 10
 	var definition := PawnDef.new()
 	definition.max_stamina = 100
-	read.pawns[&"sample"] = definition
+	read.needs.pawns[&"sample"] = definition
 	var ids: Array[String] = []
 	for row: int in 128:
 		ids.append(str(row))
@@ -376,14 +377,41 @@ func _actor_batch() -> bool:
 	if not is_equal_approx(float(bodies["0"].hunger), 79.975) or not is_equal_approx(float(bodies["0"].energy), 59.95) or bodies["0"].stamina != 65 or anchors["0"] != 1500:
 		return false
 	parallel.execution.cancel()
-	return parallel.execution.cancelled and parallel.execution.finish() and _route_candidates() and _partition_motion()
+	return parallel.execution.cancelled and parallel.execution.finish() and _route_candidates() and _partition_motion() and _partition_motion(false) and _needs_provider_isolation()
 
 
-func _partition_motion() -> bool:
+func _needs_provider_isolation() -> bool:
+	var world := RegionalSimulation.new()
+	var sim := VillageSimulation.new()
+	sim._body_read_world = weakref(world)
+	sim.bind_body_needs(world)
+	var source: SimBodyNeedsRead.Source = sim._body_needs_source
+	if sim.actor_execution_status() != {"motion_inputs": "borrowed", "needs_inputs": "borrowed"}:
+		return false
+	# Custom callbacks keep their legal ordered entry. Only their own needs
+	# input is revoked, including when the movement lease is rebound later.
+	sim.set_exposure_rate(func(_id: String) -> int: return 7)
+	sim.set_body_read_world(world, "home")
+	if sim.actor_execution_status() != {"motion_inputs": "borrowed", "needs_inputs": "owner_callbacks"} or sim.body_needs_read() != null:
+		return false
+	sim.set_exposure_rate(source.exposure_rate)
+	sim.set_rest_recovery(func(_id: String) -> int: return 9)
+	if source.matches(sim) or sim.actor_execution_status().motion_inputs != "borrowed":
+		return false
+	sim.set_rest_recovery(source.recovery_for)
+	sim.set_external_labor(func(_id: String) -> bool: return true)
+	if source.matches(sim) or sim.actor_execution_status().motion_inputs != "borrowed":
+		return false
+	sim.set_external_labor(source.laboring)
+	return source.matches(sim)
+
+
+func _partition_motion(needs_supported: bool = true) -> bool:
 	# Original bodies/routes are separate write partitions, including mixed
 	# coarse and precise movement. Compare their complete state to the original
 	# route functions, rather than duplicating the candidate arithmetic here.
 	var read := SimBodyRead.new()
+	read.needs = SimBodyNeedsRead.new() if needs_supported else null
 	read.route_events = true
 	read.geometry_revision = 7
 	read.timeout_ms = 60000
@@ -410,6 +438,12 @@ func _partition_motion() -> bool:
 	batch.execution.finish(true)
 	if not batch.projection_is_proven():
 		return false
+	if not needs_supported:
+		var before: Dictionary = read.actors.duplicate(true)
+		var anchors: Dictionary = read.anchors.duplicate()
+		# Fallback must leave the original needs and anchors for the owner;
+		# movement candidates remain usable, rather than disabling the batch.
+		return not batch.needs_supported and batch.execution.parallel and batch.motion_row("127", read.actors["127"], read.actors["127"].active).x >= 0 and batch.adopt_needs(read.actors, read.anchors, selected, 2) == selected and read.actors == before and read.anchors == anchors
 	read.actors["127"].facing = [0.0, 1.0]
 	if batch.projection_matches(read.actors, read.completions, 2):
 		return false

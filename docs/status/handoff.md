@@ -1,20 +1,20 @@
 # 当前接续
 
-更新：2026-11-11。用户要求收尾、review、提交main后先停下来讨论；本轮停点goal为paused，整个多核任务未声明完成。已保留常驻协调者、共享线程池、原GPU路径、原身体运动分区采用和Godot延后完成通知。真实收益、容量与局限只看[BASELINE](baseline.md)，分支、提交和推送以Git为准。
+更新：2026-11-11。本轮完成计算接入、代码职责与项目记忆整理，收尾提交main。当前没有active或paused goal，不恢复旧容量攻坚；后续开发范围等待下一次讨论。分支、提交和推送状态以Git为准。
 
 ## 接手入口
 
-- 未完成范围只维护在[主计划](../plans/foundation-priorities.md)。当前先讨论demo试玩与后续开发，不自行恢复优化；若用户恢复，继续人物状态采用/空间通知/下一边界采用，以及显示交接尾部和可靠并发/规模。
-- [执行设计](../specs/world-engine/execution.md)、[批执行API](../engineering/execution-batches.md)说明当前线程和交接边界；[计算范式](../engineering/settlement-contract.md#计算优化范式)、[领域频率](../engineering/simulation-pacing.md#领域频率)仍服务所有领域。
+- [主计划](../plans/foundation-priorities.md)维护本轮交付和暂缓范围；[BASELINE](baseline.md)维护版本、实测与已知限制。
+- [计算接入](../engineering/execution-batches.md)是直接领域逻辑、事件/分频、CPU批与GPU场的唯一选择指南，按需使用，不要求所有功能实现统一接口。具体领域只查[工程地图](../engineering/README.md)。
 - [代码入口](../../scripts/README.md)、[owner表](../engineering/architecture/02-owners.md)定位原状态；[FEATURES](features.md)定位可玩操作。当前只支持最新存档，见[compatibility](../engineering/compatibility.md)。
 
-## 当前停点
+## 本轮接续
 
-已测300–600人巡行/复杂环境短窗基本满速，复杂千人约0.89×，4000人约0.35–0.37×；不等同于全部玩法或长期60FPS。实际CPU执行远未吃满硬件，更高并发没有持续增益，生产默认保持4。人物Node已在模拟忙碌期间采用，旧UI/画布仍在完整交接窗口读取。
+人物需求读取已从运动读取拆开，自定义需求回调只撤销需求借读；原顺序执行与运动候选复核保留。共用CPU默认并发集中到SimBatchExecution.DEFAULT_WORKERS，工具省略参数时沿用游戏值。
 
-本轮最后追加的边界元数据分区采用已撤回：同包4000人对照没有可靠整局收益。主线只保留deadline逐人元数据/大批索引更新细分计时，以及把读取绑定切换的缓存失效从不可达return后移回setter。已运行的任务在收尾前全部结束，没有后台压测或待采用实验代码。
+重复的执行候选规格已删除，旧多核长记录与研究调用链移到[历史](../archive/qa/README.md)，当前入口不再指向旧任务。参数定义、工具语法和测量分别归代码、usage和BASELINE；没有增加AGENTS约束。
 
-原身体采用、固定输入和同伴改写观察者对照通过；复杂独立装配固定输入也一致，但不支持把临时fixture当存读样本。最终相关短检查和读取切换后的原串行/多worker完整状态复核见BASELINE。临时实验脚本、原报告和导出包在忽略的logs，非主线功能，不恢复旧CI或长回归。
+短检查、原生/自定义需求的完整状态对照、普通会话存读和单次真实千人窗口已结束，证据见BASELINE；没有后台压测或待采用实验。临时脚本、报告及构建在忽略的logs中。
 
 ## 受保护内容
 
