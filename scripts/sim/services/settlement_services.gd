@@ -210,9 +210,11 @@ func settle_at_ms(at_ms: int) -> void:
 		if not active_jobs.has(actor_id):
 			continue
 		var job: Dictionary = jobs[active_jobs[actor_id]]
-		world.synchronize_region(job.home)
+		# A job spends only its actor's needs and reads its own accepted leg.
+		# Advance due regional effects first, but leave other bodies projected.
+		world.synchronize_region(job.home, actor_id)
 		var sim: RefCounted = world.regions[job.home]
-		var actor: Dictionary = sim.synchronize_actor(actor_id)
+		var actor: Dictionary = sim.actor_state(actor_id)
 		sim._decay_need(actor, "energy", roundi(float(definitions.work_energy_per_minute) * 1000000.0), elapsed)
 		if not world.actor_controls(actor_id, "action") or not world.actor_controls(actor_id, "motion") or at_ms >= int(job.started_ms) + int(definitions.job_timeout) * 60000:
 			_jobs.finish(job, false, "差事中止，已取出的物资仍随身保存。")

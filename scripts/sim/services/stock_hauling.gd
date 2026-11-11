@@ -21,7 +21,7 @@ func begin(actor: String, options: Dictionary) -> Dictionary:
 	var home: String = service.actor_home(actor)
 	if not _reference(options.source) or not _reference(options.target) or Shape.same_record(options.source, options.target):
 		return _reply(false, "invalid_endpoint", "起点和终点必须是两个实际容器。")
-	if not world.synchronize_region(options.source.region) or not world.synchronize_region(options.target.region):
+	if not world.advance_region_to_world(options.source.region) or not world.advance_region_to_world(options.target.region):
 		return _reply(false, "unavailable", "搬运地点尚未准备好。")
 	if not _allowed(actor, options.source, true, options.item) or not _allowed(actor, options.target, false, options.item):
 		return _reply(false, "permission", "这些物资或容器不在本人可办理的范围。")
@@ -213,7 +213,7 @@ func settle(job: Dictionary, now: int) -> void:
 	if job.status != "active":
 		return
 	var endpoint: Dictionary = _endpoint(job)
-	world.synchronize_region(endpoint.region)
+	world.advance_region_to_world(endpoint.region)
 	var sim: VillageSimulation = world.regions[job.home]
 	var body: Dictionary = sim.synchronize_actor(job.actor)
 	if not _allowed(job.actor, endpoint, job.stage == "pickup", job.options.item) or endpoint.container != "actor:" + str(job.actor) and RegionalSimulation._normalized(job.anchor) != RegionalSimulation._normalized(_anchor(endpoint)):

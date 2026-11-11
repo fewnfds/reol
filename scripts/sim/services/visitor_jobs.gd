@@ -16,8 +16,11 @@ func begin(actor_id: String, region_id: String, kind: String, options: Dictionar
 	var home: String = service.actor_home(actor_id)
 	if home.is_empty() or not world.regions.has(region_id):
 		return service.response(false, "unknown_actor", "没有可办理这件事的人或地点。")
-	world.synchronize_region(home)
-	world.synchronize_region(region_id)
+	if kind == "carry_stock":
+		world.advance_region_to_world(home)
+	else:
+		world.synchronize_region(home)
+		world.synchronize_region(region_id)
 	var actor: Dictionary = world.regions[home].synchronize_actor(actor_id)
 	if not world.actor_controls(actor_id, "action") or not world.actor_controls(actor_id, "motion"):
 		return service.response(false, "control_missing", "眼下无法支配身体去办这件事。")
