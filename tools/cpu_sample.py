@@ -18,6 +18,8 @@ class ProcessSample:
     def __init__(self, path: Path):
         self.path = path
         self.rows: list[dict] = []
+        self.thread_names: dict[int, str] = {}
+        self.main_thread: int | None = None
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
 
@@ -33,6 +35,7 @@ class ProcessSample:
         self.path.write_text(json.dumps({"format": "windows_thread_cpu_v1",
             "logical_processors": os.cpu_count(), "interval_seconds": 0.5,
             "scope": "owned process including assembly; timestamps allow capture-only selection; CPU seconds are kernel+user, not elapsed time",
+            "main_thread_id": self.main_thread, "thread_names": self.thread_names,
             "samples": self.rows}, indent=2), encoding="utf-8")
 
     def _run(self, pid: int) -> None:
@@ -57,6 +60,9 @@ class ProcessSample:
         kernel.OpenProcess.restype = w.HANDLE
         kernel.CloseHandle.argtypes = [w.HANDLE]
         kernel.GetThreadTimes.argtypes = [w.HANDLE] + [c.POINTER(w.FILETIME)] * 4
+        kernel.GetThreadDescription.argtypes = [w.HANDLE, c.POINTER(c.c_wchar_p)]
+        kernel.GetThreadDescription.restype = w.LONG
+        kernel.LocalFree.argtypes = [c.c_void_p]
         psapi.GetProcessMemoryInfo.argtypes = [w.HANDLE, c.POINTER(Memory), w.DWORD]
         process = kernel.OpenProcess(0x1000 | 0x10, False, pid)
         previous: dict[int, float] = {}
@@ -64,6 +70,7 @@ class ProcessSample:
         try:
             while not self._stop.is_set():
                 current: dict[int, float] = {}
+                creation: dict[int, int] = {}
                 snapshot = kernel.CreateToolhelp32Snapshot(4, 0)
                 if snapshot and snapshot != c.c_void_p(-1).value:
                     entry = Entry()
@@ -76,10 +83,18 @@ class ProcessSample:
                                 values = [w.FILETIME() for _ in range(4)]
                                 if kernel.GetThreadTimes(handle, *[c.byref(t) for t in values]):
                                     current[entry.tid] = sum((t.dwHighDateTime << 32) + t.dwLowDateTime for t in values[2:]) / 1e7
+                                    creation[entry.tid] = (values[0].dwHighDateTime << 32) + values[0].dwLowDateTime
+                                description = c.c_wchar_p()
+                                if kernel.GetThreadDescription(handle, c.byref(description)) == 0:
+                                    if description.value:
+                                        self.thread_names[entry.tid] = description.value
+                                    kernel.LocalFree(c.cast(description, c.c_void_p))
                                 kernel.CloseHandle(handle)
                         valid = kernel.Thread32Next(snapshot, c.byref(entry))
                     kernel.CloseHandle(snapshot)
                 now = time.perf_counter()
+                if self.main_thread is None and creation:
+                    self.main_thread = min(creation, key=creation.get)
                 memory = Memory()
                 memory.size = c.sizeof(memory)
                 psapi.GetProcessMemoryInfo(process, c.byref(memory), memory.size)

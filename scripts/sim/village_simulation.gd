@@ -946,6 +946,13 @@ func actor_advance_ready() -> bool:
 	return ready
 
 
+func wait_for_actor_compute() -> void:
+	# Owner-thread dependency wait. Main-thread gameplay uses the mailbox and
+	# never blocks here; all independent regional batches were submitted first.
+	if _prepared_actor_advance != null:
+		_prepared_actor_advance.execution.finish(true)
+
+
 func _take_actor_advance(to_ms: int) -> SimActorAdvance:
 	var batch: SimActorAdvance = _prepared_actor_advance
 	if batch == null:

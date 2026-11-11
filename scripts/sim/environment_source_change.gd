@@ -26,6 +26,8 @@ var _phase_initial: Callable
 var _compiler := Compiler.new()
 var _active: Change
 var _selective: bool = false
+var workers: int = 0 # Production explicitly lends pure response readers.
+var compute_work: Dictionary = {"batches": 0, "parallel_batches": 0, "tiles": 0, "prepare_usec": 0, "elapsed_usec": 0, "worker_usec": 0}
 
 
 func configure(field: RefCounted, temperature: RefCounted, settings: Dictionary, initial_at: Callable, phases: RefCounted = null, phase_initial: Callable = Callable()) -> bool:
@@ -89,6 +91,7 @@ func begin(slot: int, operation: String, source: Dictionary, at_ms: int, horizon
 	candidate.tile_ids = tiles.duplicate()
 	candidate.at_ms = at_ms
 	candidate.horizon_ms = horizon_ms
+	candidate.parallel_input = allow_compute and workers > 0 and tiles.size() > 1
 	_active = candidate
 	return {"ok": true, "handle": candidate.handle, "at_ms": at_ms, "tiles": tiles.size()}
 
@@ -142,6 +145,7 @@ func step(handle: Variant, field_work: int, cell_budget: int) -> Dictionary:
 func _next_tile(visited: int) -> Dictionary:
 	_active.tile_index += 1
 	_active.tile = {}
+	_active.input = null
 	_active.columns = {}
 	_active.phase_columns = {}
 	_active.chunk_has_phase = false
@@ -165,61 +169,45 @@ func _next_tile(visited: int) -> Dictionary:
 func _prepare_tile_input(budget: int) -> Dictionary:
 	if budget == 0:
 		return _progress(0, 0)
-	if _active.tile.is_empty():
+	if _active.parallel_input and _active.inputs.is_empty():
+		var began: int = Time.get_ticks_usec()
+		var tasks: Array[RefCounted] = []
+		for tile_id: int in _active.tile_ids:
+			var tile: Dictionary = _field.candidate_tile_copy(_active.field_proof, tile_id)
+			if not bool(tile.get("ok", false)):
+				return _abort(str(tile.get("reason", "source_tile_unavailable")))
+			var input: SimFieldResponseInput = _new_input(tile, true)
+			_active.inputs.append(input)
+			tasks.append(input)
+		compute_work.prepare_usec += Time.get_ticks_usec() - began
+		_active.execution = SimBatchExecution.new()
+		_active.execution.start(tasks, workers)
+	if _active.parallel_input:
+		# Input is the next required dependency. The coordinator can collect
+		# directly; yielding to a millisecond timer cost more than these tiles.
+		_active.execution.finish(true)
+		if not _active.measured:
+			_active.measured = true
+			compute_work.batches += 1
+			compute_work.parallel_batches += int(_active.execution.parallel)
+			compute_work.tiles += _active.inputs.size()
+			compute_work.elapsed_usec += _active.execution.completed_usec - _active.execution.submitted_usec
+			for item: SimFieldResponseInput in _active.inputs:
+				compute_work.worker_usec += item.finished_usec - item.started_usec
+		_active.input = _active.inputs[_active.tile_index]
+	elif _active.input == null:
 		var tile: Dictionary = _field.candidate_tile_copy(_active.field_proof, _active.tile_ids[_active.tile_index])
 		if not bool(tile.get("ok", false)):
 			return _abort(str(tile.get("reason", "source_tile_unavailable")))
-		_active.tile = tile
-		_active.columns = {}
-		_active.phase_columns = {}
-		_active.cursor = 0
+		_active.input = _new_input(tile, false)
+	var used: int = 0 if _active.parallel_input else _active.input.step(budget)
+	if not _active.input.error.is_empty():
+		return _abort(_active.input.error)
+	_active.tile = _active.input.tile
+	_active.columns = _active.input.thermal_columns
+	_active.phase_columns = _active.input.phase_columns
+	_active.cursor = _active.input.cursor
 	var rect: Rect2i = _active.tile.rect
-	var channels: PackedInt32Array = _active.tile.channels
-	var used: int = 0
-	while _active.cursor < SLOTS and used < budget:
-		var index: int = _active.cursor
-		_active.cursor += 1
-		used += 1
-		var cell: Vector2i = rect.position + Vector2i(index & 15, index >> 4)
-		if not rect.has_point(cell):
-			continue
-		var receiver: int = (cell.y - rect.position.y) * rect.size.x + cell.x - rect.position.x
-		var changed: int = int(_active.tile.change_mask[receiver]) if _active.tile.has("change_mask") else 127
-		var thermal_changed: bool = (changed & 96) != 0
-		var phases_changed: bool = _phases != null and (changed & 31) != 0
-		if not thermal_changed and not phases_changed:
-			continue
-		var offset: int = receiver * 7
-		var target: Dictionary = _compiler.compile(cell, _active.at_ms, channels[offset + 5], channels[offset + 6], _active.horizon_ms)
-		if not bool(target.get("ok", false)):
-			return _abort(str(target.get("reason", "target_unavailable")))
-		if phases_changed:
-			if _active.phase_columns.is_empty():
-				_active.phase_columns = _empty_columns(5)
-			var phase_result: Dictionary = _prepare_phase_cell(index, cell, channels, offset, int(target.until_ms), int(target.multiplier))
-			if not bool(phase_result.get("ok", false)):
-				return _abort(str(phase_result.get("reason", "phase_unavailable")))
-		if not thermal_changed:
-			continue
-		if _active.columns.is_empty():
-			_active.columns = _empty_columns()
-		var actual: Dictionary = _temperature.actual_at(cell, _active.at_ms)
-		if not bool(actual.get("ok", false)):
-			if actual.get("reason") != "untracked":
-				return _abort(str(actual.get("reason", "actual_unavailable")))
-			# Only the real environment authority may supply the actual initial
-			# condition of an untracked cell. Never infer it from the new source,
-			# invent zero/20 C, or ask a view to manufacture an old temperature.
-			var initial: Variant = _initial_at.call(cell, _active.at_ms)
-			if not initial is Dictionary or not initial.get("ok") is bool or not initial.ok or not _number(initial.get("value_c")):
-				return _abort("initial_unavailable")
-			_active.columns.initial_mask[index] = 1
-			_active.columns.initial[index] = float(initial.value_c)
-		_active.columns.mask[index] = 1
-		_active.columns.target[index] = float(target.target_c)
-		_active.columns.slope[index] = float(target.target_per_ms)
-		_active.columns.until_ms[index] = int(target.until_ms)
-		_active.columns.tau_ms[index] = int(target.tau_ms)
 	if _active.cursor == SLOTS:
 		@warning_ignore("integer_division")
 		var key := Vector2i(rect.position.x / SIDE, rect.position.y / SIDE)
@@ -257,25 +245,19 @@ func _prepare_tile_input(budget: int) -> Dictionary:
 	return _progress(0, used)
 
 
-func _prepare_phase_cell(index: int, cell: Vector2i, channels: PackedInt32Array, offset: int, until_ms: int, multiplier: int) -> Dictionary:
-	var actual: Dictionary = _phases.actual_at(cell, _active.at_ms)
-	if not bool(actual.get("ok", false)):
-		if actual.get("reason") != "untracked":
-			return actual
-		var initial: Variant = _phase_initial.call(cell, _active.at_ms)
-		if not initial is Dictionary or initial.get("ok") != true or not initial.get("values") is PackedFloat64Array or initial.values.size() != 5:
-			return _failure("phase_initial_unavailable")
-		_active.phase_columns.initial_mask[index] = 1
-		for channel: int in 5:
-			_active.phase_columns.initial[index * 5 + channel] = initial.values[channel]
-	var grid: int = int(_settings.tide_grid_ms)
-	var at_ms: int = _active.at_ms
-	_active.phase_columns.mask[index] = 1
-	_active.phase_columns.until_ms[index] = mini(until_ms, at_ms + mini(grid - posmod(at_ms, grid), Temperature.MAX_TIME - at_ms))
-	_active.phase_columns.tau_ms[index] = int(_settings.tau_ms)
-	for channel: int in 5:
-		_active.phase_columns.target[index * 5 + channel] = Rules.effective_grade(channels[offset + channel], multiplier)
-	return {"ok": true}
+func _new_input(tile: Dictionary, private_cache: bool) -> SimFieldResponseInput:
+	var input := SimFieldResponseInput.new()
+	input.tile = tile
+	input.compiler = _compiler.fork() if private_cache else _compiler
+	input.temperature = _temperature
+	input.phases = _phases
+	input.initial_temperature = _initial_at
+	input.initial_phase = _phase_initial
+	input.at_ms = _active.at_ms
+	input.horizon_ms = _active.horizon_ms
+	input.tau_ms = int(_settings.tau_ms)
+	input.grid_ms = int(_settings.tide_grid_ms)
+	return input
 
 
 func finish(handle: Variant) -> Dictionary:
@@ -336,6 +318,9 @@ func commit(proof: Variant) -> Dictionary:
 func cancel(handle: Variant) -> Dictionary:
 	if not _current(handle):
 		return _failure("invalid_handle")
+	if _active.execution != null:
+		_active.execution.cancel()
+		_active.execution.finish(true)
 	_field.cancel_source_change(_active.field_handle)
 	if _active.temperature_handle != null:
 		_temperature.cancel_bulk(_active.temperature_handle)
@@ -374,22 +359,7 @@ func _current(handle: Variant) -> bool:
 
 
 static func _empty_columns(channels: int = 1) -> Dictionary:
-	var mask := PackedByteArray()
-	var initial_mask := PackedByteArray()
-	var initial := PackedFloat64Array()
-	var target := PackedFloat64Array()
-	var slope := PackedFloat64Array()
-	var until := PackedInt64Array()
-	var tau := PackedInt32Array()
-	mask.resize(SLOTS)
-	initial_mask.resize(SLOTS)
-	initial.resize(SLOTS * channels)
-	target.resize(SLOTS * channels)
-	slope.resize(SLOTS * channels)
-	until.resize(SLOTS)
-	tau.resize(SLOTS)
-	return {"mask": mask, "initial_mask": initial_mask, "initial": initial,
-		"target": target, "slope": slope, "until_ms": until, "tau_ms": tau}
+	return SimFieldResponseInput.empty_columns(channels)
 
 
 static func _keys(value: Dictionary, expected: Array[String]) -> bool:
@@ -437,6 +407,11 @@ class Change:
 	var tile_ids: Array[int] = []
 	var tile_index: int = 0
 	var tile: Dictionary = {}
+	var input: SimFieldResponseInput
+	var inputs: Array[SimFieldResponseInput] = []
+	var execution: SimBatchExecution
+	var parallel_input: bool = false
+	var measured: bool = false
 	var columns: Dictionary = {}
 	var phase_columns: Dictionary = {}
 	var cursor: int = 0

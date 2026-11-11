@@ -129,6 +129,11 @@ func set_compute_backend(backend: RefCounted) -> void:
 	_compute_backend = weakref(backend) if backend != null else null
 
 
+func wait_for_source_compute() -> bool:
+	var backend: RefCounted = _compute_backend.get_ref() if _compute_backend != null else null
+	return _compute_ticket != 0 and backend != null and backend.has_method("wait_for_completion") and bool(backend.wait_for_completion())
+
+
 func step_source_change(handle: Variant, max_work: int) -> Dictionary:
 	if not _source_handle_matches(handle) or _source_candidate.revision != _revision or _source_candidate.sealed or max_work < 0 or max_work > MAX_WORK:
 		return super.step_source_change(handle, max_work)

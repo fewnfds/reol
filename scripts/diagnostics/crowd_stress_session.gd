@@ -48,6 +48,7 @@ var _rooms: int = 48
 var _sources: int = 128
 var _circuit_due := SimParticipationIndex.new()
 var _circuit_regions: Dictionary[String, String] = {}
+var _circuit: ReolCrowdCircuit
 const CIRCUIT: Array[String] = ["rest", "inspect", "check_store", "check_well"]
 
 
@@ -205,6 +206,19 @@ func _run() -> void:
 		return
 	_status.text = "临时压力世界 · %d个真实身体 / 双聚落\n原寻路、生活、环境、共同时间 · %s\n不保存到普通档 · WASD / F3 · %d秒采样后%s" % [total, "搬运、生产、移动视野与交锋" if _mixed != null else ("单次出发" if _opening_wave else "抵达后用原命令持续巡行"), _seconds, "退出" if _quit_after else "可继续试玩"]
 	_last_sample_ms = _clock.elapsed_ms
+	if _mixed == null and not _opening_wave:
+		# The temporary producer is pure data and follows the ordinary world's
+		# owner, rather than adding serial command work to every render frame.
+		_circuit = ReolCrowdCircuit.new()
+		_circuit.configure(runtime.world_sim)
+		_circuit.complex = _complex
+		_circuit.starts = _starts
+		_circuit.orders = _orders
+		_circuit.legs = _legs
+		_circuit.due = _circuit_due
+		_circuit.regions = _circuit_regions
+		runtime.ensure_simulation_host()
+		runtime.simulation_host.runner.boundary_driver = _circuit.sample
 	if _mixed != null:
 		_mixed.start()
 	_clock.set_paused(false)
@@ -213,7 +227,11 @@ func _run() -> void:
 
 func _sample() -> void:
 	var runtime: Node = _main.get("_continuity")
+	if not runtime.simulation_accessible():
+		return
 	var world: RegionalSimulation = runtime.world_sim
+	if _circuit != null:
+		return
 	if not world.accepts_commands() or int(_clock.elapsed_ms) == _last_sample_ms:
 		return
 	var began: int = Time.get_ticks_usec()
@@ -269,6 +287,11 @@ func _arm_circuit(sim: VillageSimulation, id: String) -> void:
 
 
 func _finish(ok: bool) -> void:
+	if _circuit != null:
+		_moved = _circuit.moved
+		_redirects = _circuit.redirects
+		_travel_actor_ms = _circuit.travel_actor_ms
+		_sampled_world_ms = _circuit.sampled_world_ms
 	get_tree().process_frame.disconnect(_sample)
 	# Capture after timing ends so the GPU readback is not a gameplay spike.
 	if DisplayServer.get_name() != "headless":
@@ -283,7 +306,11 @@ func _finish(ok: bool) -> void:
 	var runtime: Node = _main.get("_continuity")
 	var crowd: Dictionary = {"actors": _starts.size(), "moved": _moved.size(), "mode": "mixed" if _mixed != null else ("opening_wave" if _opening_wave else "sustained_circuit"), "mean_travelling": float(_travel_actor_ms) / maxi(1, _sampled_world_ms), "visible_at_finish": visible, "redirects": _redirects,
 		"environment_compute": runtime._field_compute.diagnostics() if runtime._field_compute != null else {}}
+	if _circuit != null:
+		crowd["driver_thread"] = "simulation owner"
+		crowd["driver_usec"] = _circuit.work_usec
 	crowd["environment_sampling"] = runtime.world_sim.environment_fields.motion_sampling_work.duplicate()
+	crowd["environment_response_compute"] = runtime.world_sim.environment_fields._sources._changes.compute_work.duplicate()
 	crowd["environment_sampling_scope"] = "session_including_setup"
 	if _mixed != null:
 		var mixed: Dictionary = _mixed.evidence()

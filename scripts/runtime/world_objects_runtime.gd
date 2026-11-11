@@ -203,7 +203,7 @@ func _submit_physical(verb: String, view: Dictionary) -> Dictionary:
 	# invalid command. The lifecycle also checks body ownership on schedule.
 	if not authority.actor_controls("player", "action") or not authority.actor_controls("player", "motion") or authority.owns_for_scope("player", &"body"):
 		return _refuse("先完成或中断手头的事情。")
-	var actor: Dictionary = authority.regions[home].synchronize_actors().player
+	var actor: Dictionary = authority.regions[home].synchronize_actor("player")
 	var origin: Vector2 = SimRouteTravel.point(actor)
 	var target: Vector2 = TileGrid.cell_to_world(domain.object_cell(id)) if verb == "take" else origin
 	var level: int = SimConflictSpace.level(authority, origin)
@@ -288,7 +288,7 @@ func draw_targets() -> Array[Dictionary]:
 		if not visible:
 			continue
 		var target: Vector2 = TileGrid.cell_to_world(domain.object_cell(id))
-		var origin: Vector2 = SimRouteTravel.point(authority.regions[domain.actor_home("player")].synchronize_actors().player)
+		var origin: Vector2 = authority.regions[domain.actor_home("player")].projected_actor_position("player")
 		var level: int = SimConflictSpace.level(authority, origin)
 		if origin.distance_to(target) > float(definition.drawing.range_cells) * TileGrid.TILE_SIZE or level != SimConflictSpace.level(authority, target) or not SimConflictSpace.clear_segment(authority, origin, target, level):
 			continue
@@ -588,7 +588,7 @@ func _base_display_point(id: String, authority: RegionalSimulation) -> Vector2:
 			if is_instance_valid(pawn):
 				point = pawn.global_position + pawn.visual_offset
 			else:
-				point = SimRouteTravel.point(authority.regions[item.region].synchronize_actors()[holder])
+				point = authority.regions[item.region].projected_actor_position(holder)
 	var offset := Vector2(20, -24 - adapter._home._world.get_elevation(cell) * ReolWorld.ELEVATION_PX - altitude * ReolWorld.ALTITUDE_PX)
 	if domain.has_capability(id, "thermal_exchange"):
 		# A visual offset distinguishes objects at the same original place. It
@@ -658,7 +658,7 @@ func _visible_footprint_cell(footprint: Rect2i, authority: RegionalSimulation) -
 	if adapter == null or adapter.world_sim != authority or not adapter.human_player_active():
 		return Vector2i(-1, -1)
 	var home: String = authority.artifacts.actor_home("player")
-	if home.is_empty() or not bool(authority.regions[home].synchronize_actors().player.alive):
+	if home.is_empty() or not authority.regions[home].actor_is_alive("player"):
 		return Vector2i(-1, -1)
 	var observer: Vector2i = adapter.controlled_cell()
 	var radius: int = int(authority.regions[home].config.observation_radius)

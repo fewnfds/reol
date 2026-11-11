@@ -1,5 +1,6 @@
 class_name ConstructionRuntime
 extends CommittedWorldCanvas
+var _drawing_revision: int = 0
 ## Ground presentation and construction book. All mutations use SimConstruction.
 
 const UI = preload("res://scripts/ui/reol_ui_theme.gd")
@@ -189,6 +190,7 @@ func _bind_structure_changes() -> void:
 
 
 func _on_structures_changed(cells: Array[Vector2i]) -> void:
+	_drawing_revision += 1
 	if runtime().world_sim.settlement.is_pending():
 		for cell: Vector2i in cells:
 			_pending_sight_cells[cell] = true
@@ -209,8 +211,9 @@ func _flush_sight_changes() -> void:
 		cells.assign(_pending_sight_cells.keys())
 		_pending_sight_cells.clear()
 		runtime().home_runtime()._world.notify_sight_obstacles_changed(cells)
-	refresh_choices()
-	refresh()
+	if panel.is_visible_in_tree():
+		refresh_choices()
+		refresh()
 	redraw_committed_canvas()
 
 
@@ -352,7 +355,7 @@ func use_bed() -> void:
 
 
 func _actor_name(actor: String) -> String:
-	return String(runtime()._home._content.get_pawn(StringName(runtime().world_sim.regions.home.synchronize_actors()[actor].definition_id)).display_name)
+	return String(runtime()._home._content.get_pawn(StringName(runtime().world_sim.regions.home.actor_state(actor).definition_id)).display_name)
 
 
 func refresh_choices(preferred: String = "") -> void:
@@ -415,7 +418,7 @@ func _selection_layer() -> String:
 
 
 func refresh() -> void:
-	if panel == null or not panel.visible:
+	if panel == null or not panel.is_visible_in_tree():
 		return
 	if runtime().world_sim.settlement.is_pending():
 		return
@@ -453,7 +456,7 @@ func refresh() -> void:
 		for job: Dictionary in domain().active.values():
 			if job.project == id:
 				var sim: RefCounted = runtime().world_sim.regions[domain().definitions.site.region]
-				var label: String = String(runtime()._home._content.get_pawn(StringName(sim.synchronize_actors()[job.actor].definition_id)).display_name)
+				var label: String = String(runtime()._home._content.get_pawn(StringName(sim.actor_state(job.actor).definition_id)).display_name)
 				var phase: String = "搬运" if str(job.phase).begins_with("to_") else "取料" if job.phase == "pickup" else "动工"
 				_details.text = "%s正在%s，当前步骤还需%d秒。\n%s" % [label, phase, maxi(0, ceili(float(int(job.due_ms) - runtime().world_sim.elapsed_ms) / 1000.0)), str(project.line)]
 		if domain().is_bed(id):
@@ -461,7 +464,7 @@ func refresh() -> void:
 			var assigned: String = str(resting.allocations.get(id, ""))
 			_bed_details.text = "本院共用。" if assigned.is_empty() else "安排给%s使用。" % _actor_name(assigned)
 			for job: Dictionary in resting.active.values():
-				if job.bed == id and _visible(SimRouteTravel.cell(runtime().world_sim.regions.home.synchronize_actors()[job.actor].cell)):
+				if job.bed == id and _visible(TileGrid.world_to_cell(runtime().world_sim.regions.home.projected_actor_position(job.actor))):
 					_bed_details.text += "\n%s%s。" % [_actor_name(job.actor), "正在休息" if job.phase == "sleep" else "正在起身让位" if job.phase == "leave" else "正前来休息"]
 			_bed_details.text += "\n到床后持续恢复精神，肚饿或精神充足会起身。"
 			_bed_details.text += "\n床铺潮湿，休息恢复较慢。" if runtime().world_sim.weather.bed_is_wet(id) else "\n床铺干燥。"
@@ -531,10 +534,21 @@ func _visible(cell: Vector2i) -> bool:
 	return runtime()._home._fog == null or runtime()._home._fog.is_cell_visible(cell)
 
 
+func _committed_canvas_input_key() -> Variant:
+	var adapter: WorldContinuityRuntime = runtime()
+	var fog: FogOfWar = adapter.home_runtime()._fog
+	# Built room glyphs have no rule-time dependency. Dynamic material
+	# carriers/jobs and the open grid still refresh at each complete boundary.
+	return [adapter.world_sim.get_instance_id(), _drawing_revision, domain().projects.size(),
+		fog.visibility_revision if fog != null else -1, adapter.controlled_cell(),
+		panel.is_visible_in_tree(), selection,
+		GameClock.elapsed_ms if not domain().active.is_empty() or panel.is_visible_in_tree() else -1]
+
+
 func _build_canvas() -> void:
 	if _owner == null or runtime() == null:
 		return
-	if panel.visible and not domain().sites.is_empty():
+	if panel.is_visible_in_tree() and not domain().sites.is_empty():
 		for cell: Vector2i in SimConstruction.cells_in(domain().site_bounds(selected_site())):
 			if _visible(cell):
 				var space: Dictionary = domain().space_at(cell)
@@ -571,7 +585,10 @@ func _build_canvas() -> void:
 							capture_rect(Rect2(p + Vector2(-12, -14), Vector2(24, 18)), Color("8ca7a4"))
 				else:
 					_draw_furniture(p, definition, int(project.rotation))
-		var raw: Array = sim.synchronize_actors()[project.carrier].cell if not str(project.carrier).is_empty() else project.material_cell
+		var raw: Array = project.material_cell
+		if not str(project.carrier).is_empty():
+			var cell: Vector2i = TileGrid.world_to_cell(sim.projected_actor_position(project.carrier))
+			raw = [cell.x, cell.y]
 		var material_cell: Vector2i = SimRouteTravel.cell(raw)
 		if sim.inventory.quantity(id, str(definition.item)) > 0 and _visible(material_cell):
 			var p: Vector2 = _point(material_cell) + Vector2(12, 16)

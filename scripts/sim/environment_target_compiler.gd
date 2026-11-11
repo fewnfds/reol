@@ -13,6 +13,14 @@ var _horizon: int = -1
 var _regions: Dictionary = {}
 
 
+func fork() -> SimEnvironmentTargetCompiler:
+	# Validated rule data is immutable. Each execution slot has its own memo
+	# table; workers must not share the original compiler's mutable region cache.
+	var context := SimEnvironmentTargetCompiler.new()
+	context._settings = _settings
+	return context
+
+
 func configure(settings: Dictionary) -> bool:
 	if not _settings.is_empty() or settings.size() != 6:
 		return false

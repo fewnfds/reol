@@ -81,11 +81,3 @@ static func from_body(body: Dictionary, now: int, job: Dictionary = {}, manual_m
 		pose.action = "walk"
 	return pose
 
-
-static func stabilized(pose: Dictionary, previous: Dictionary) -> Dictionary:
-	if pose.is_empty():
-		return pose
-	var appearance: HumanoidAppearance = HumanoidAppearance.shared()
-	var index: int = HumanoidAppearance.direction_index(pose.direction, int(previous.get("direction_index", -1)), float(appearance.definition.get("turn_hysteresis_degrees", 0)))
-	pose.direction_index = index
-	return pose

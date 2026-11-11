@@ -27,6 +27,14 @@ static func shared() -> HumanoidAppearance:
 	return _shared
 
 
+static func stabilize_pose(pose: Dictionary, previous: Dictionary) -> Dictionary:
+	if pose.is_empty():
+		return pose
+	var appearance: HumanoidAppearance = shared()
+	pose.direction_index = direction_index(pose.direction, int(previous.get("direction_index", -1)), float(appearance.definition.get("turn_hysteresis_degrees", 0)))
+	return pose
+
+
 static func reset_cache() -> void:
 	# Explicit editor/QA reload only. Never called from the frame renderer.
 	_shared = null

@@ -96,6 +96,18 @@ func maintain() -> void:
 		poll()
 
 
+func wait_for_completion() -> bool:
+	# Simulation coordinator only. The host never calls this; it continues
+	# drawing the last publication. Wait on the actual dependency, not a timer.
+	if _state == "cpu":
+		_cpu.execution.finish(true)
+		return true
+	if _state == "gpu":
+		_worker.wait_for_completion()
+		return true
+	return false
+
+
 func poll() -> Dictionary:
 	if _cache == null:
 		return _failure("not_configured")
@@ -113,6 +125,7 @@ func poll() -> Dictionary:
 			"cancelled": _cancelled, "job": _job, "prepared": result.prepared, "cpu": result.metrics}
 		if not _cancelled:
 			_candidate_completed += int(result.ok)
+			_candidate_failures += int(not bool(result.ok))
 		_reset_request()
 		return completed
 	if not _worker.ready():
@@ -203,6 +216,7 @@ class GPUWorker:
 	var _thread: Thread
 	var _mutex := Mutex.new()
 	var _wake := Semaphore.new()
+	var _done := Semaphore.new()
 	var _job: Dictionary = {}
 	var _result: Dictionary = {}
 	var _in_flight: bool = false
@@ -241,6 +255,7 @@ class GPUWorker:
 		_result = {}
 		_in_flight = false
 		_mutex.unlock()
+		_done.try_wait()
 		if result.is_empty():
 			# A script error can end the thread before a normal reply. Reap it,
 			# let the caller fall back, and allow a later request to restart.
@@ -249,6 +264,11 @@ class GPUWorker:
 				_thread = null
 			return {"ok": false, "reason": "worker_ended_without_result"}
 		return result
+
+
+	func wait_for_completion() -> void:
+		if not ready():
+			_done.wait()
 
 	func close_idle() -> void:
 		_mutex.lock()
@@ -273,6 +293,7 @@ class GPUWorker:
 			var result: Dictionary = _compute(device, job)
 			_mutex.lock()
 			_result = result
+			_done.post()
 			_mutex.unlock()
 		device.close()
 

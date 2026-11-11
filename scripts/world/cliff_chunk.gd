@@ -12,20 +12,24 @@ var tile_size: int = 64
 var elevation_px: int = 16
 var complete: bool = true
 var partial_cells: Dictionary = {}
+var _faces: Array[Dictionary] = []
 
 
-func _draw() -> void:
+func rebuild() -> void:
+	_faces.clear()
 	if world == null:
 		return
 	var base: Vector2i = chunk * chunk_size
 	if not complete:
 		for cell: Vector2i in partial_cells:
 			_draw_cell(cell, cell - base)
+		queue_redraw()
 		return
 	for local_y in range(chunk_size):
 		for local_x in range(chunk_size):
 			var cell: Vector2i = base + Vector2i(local_x, local_y)
 			_draw_cell(cell, Vector2i(local_x, local_y))
+	queue_redraw()
 
 
 func _draw_cell(cell: Vector2i, local_cell: Vector2i) -> void:
@@ -45,6 +49,15 @@ func _draw_cell(cell: Vector2i, local_cell: Vector2i) -> void:
 		cliff_color = Color("#4b4f47")
 	elif terrain == 0:
 		cliff_color = Color("#213b43")
-	draw_rect(Rect2(x, y, float(tile_size), float(drop)), cliff_color)
-	draw_line(Vector2(x, y), Vector2(x + float(tile_size), y), cliff_color.lightened(0.18), 1.0)
-	draw_line(Vector2(x, y + float(drop) - 1.0), Vector2(x + float(tile_size), y + float(drop) - 1.0), cliff_color.darkened(0.2), 1.0)
+	_faces.append({"rect": Rect2(x, y, float(tile_size), float(drop)), "color": cliff_color})
+
+
+func _draw() -> void:
+	# Drawing can overlap simulation. Terrain queries happened in the host's
+	# complete-world phase; replay retains only display values.
+	for face: Dictionary in _faces:
+		var rect: Rect2 = face.rect
+		var color: Color = face.color
+		draw_rect(rect, color)
+		draw_line(rect.position, rect.position + Vector2(rect.size.x, 0), color.lightened(0.18), 1.0)
+		draw_line(Vector2(rect.position.x, rect.end.y - 1), rect.end - Vector2(0, 1), color.darkened(0.2), 1.0)

@@ -99,7 +99,7 @@ func advance_frame(delta: float) -> void:
 		return
 	# An explicitly requested advance can start while paused. A new pause after
 	# it started, however, stops its continuation until the user resumes.
-	if paused and not (_explicit_target_ms > elapsed_ms and _explicit_allow_paused):
+	if paused and _pending_kind == PENDING_NONE and not (_explicit_target_ms > elapsed_ms and _explicit_allow_paused):
 		return
 	# Interpolate only previously committed projections, even while a newer
 	# boundary waits. This clock never extrapolates unfinished world facts.

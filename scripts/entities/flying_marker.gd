@@ -5,22 +5,21 @@ extends Node2D
 var world: ReolWorld
 var cell: Vector2i = Vector2i.ZERO
 var altitude: int = 1
+var _view_elevation: int = 0
 
 
 func setup(world_ref: ReolWorld, spawn_cell: Vector2i, spawn_altitude: int) -> void:
 	world = world_ref
 	cell = spawn_cell
 	altitude = clampi(spawn_altitude, 1, 2)
+	_view_elevation = world.get_elevation(cell) if world != null else 0
 	global_position = TileGrid.cell_to_world(cell)
 	z_index = 11
 	queue_redraw()
 
 
 func _draw() -> void:
-	var elevation: int = 0
-	if world != null:
-		elevation = world.get_elevation(cell)
-	var ground_offset := Vector2(0.0, -float(elevation * ReolWorld.ELEVATION_PX))
+	var ground_offset := Vector2(0.0, -float(_view_elevation * ReolWorld.ELEVATION_PX))
 	var body_offset := ground_offset - Vector2(
 		0.0, float(altitude * ReolWorld.ALTITUDE_PX)
 	)

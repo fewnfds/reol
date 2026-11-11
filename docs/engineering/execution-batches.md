@@ -6,13 +6,13 @@
 
 [SimBatchExecution](../../scripts/sim/execution/batch_execution.gd)持有一次可回收任务，使用Godot `WorkerThreadPool.add_group_task()`。共享输入在提交前固定，每个chunk拥有私有输出和计时；worker只调整自身输出，不调整共享容器大小、不访问活SceneTree、不调用世界提供者、不写身体或库存。它不另持世界时钟、实体库或业务回执。
 
-任务Callable只保留scratch `WorkGroup`，不反向保留handle、世界或场景。正常推进用`finish()`检查完成，未完成返回pending；完成后收集Godot任务资源，不立即阻塞主线程。`cancel()`撤销采用权，已运行的有界chunk可以结束；owner保留退休handle并在随后推进时收集。退出/世界替换负责最终回收，清理时可以等待。
+任务Callable只保留scratch `WorkGroup`，不反向保留handle、世界或场景。原owner可用`finish()`保留pending游标，或在后台协调线程等待必须的依赖；主线程只轮询一次世界邮箱，不等待批计算。完成后收集Godot任务资源。`cancel()`撤销采用权，已运行的有界chunk可以结束；owner保留退休handle并在随后推进时收集。退出/世界替换负责最终回收，清理时可以等待。
 
 线程完成顺序不决定游戏顺序。原owner检查时刻、代次、依赖及原对象，再按领域顺序提交；资源争用仍沿原预约/账本。计算结束不等于动作生效。
 
 ## 原身体连续推进
 
-[VillageSimulation](../../scripts/sim/village_simulation.gd)选择当前到期人物，为[SimActorAdvance](../../scripts/sim/actor_advance.gd)准备需求固定点值/余数、有效速率、体力/恢复条件、旧锚点、目标时刻及已受理路段。稳定ID、动作ID和采用依据留在主线程；worker只读`PackedInt64Array`及`PackedVector2Array`。
+[VillageSimulation](../../scripts/sim/village_simulation.gd)选择当前到期人物，为[SimActorAdvance](../../scripts/sim/actor_advance.gd)准备需求固定点值/余数、有效速率、体力/恢复条件、旧锚点、目标时刻及已受理路段。稳定ID、动作ID和采用依据留在原owner线程；worker只读`PackedInt64Array`及`PackedVector2Array`。
 
 计算包括饱食、精力、体力恢复及既有路段的位置/朝向，不包括工作选择、路线搜索、资源转移或攻击。串行和worker使用同一需求公式，巨大跨度先饱和再乘算，恢复沿同一余数；不建立另一套需求/运动规则。
 
@@ -34,34 +34,34 @@
 
 读取按16×16格页组织，保存高度、地表类型、行走及掩体标记；稳定页复用，变化只替换已建页中受影响格，未知页首次需要时生成。植物生长状态不改变阻挡时不失效。`capture(area)`固定范围、来源ID和几何版本，封住页表并保留旧页；任务并行时owner可替换新页，既有输入仍可读，采用前用`is_current`核对。新世界/成功恢复会退休旧owner；旧页不写档，失败恢复不退休活输入。冷建块仍有同步成本，尚未移入后台。
 
-`SimGridNavigation.Search.find_path`可在私有AStar上下文上运行同一算法。同步便利入口仍使用原主线程缓存；worker不得调用该全局缓存，也不得共享一个正在搜索的AStar。首批只验证了私有上下文批查询，尚未把普通行动的即时路线请求改为异步。
+`SimGridNavigation.Search.find_path`可在私有AStar上下文上运行同一算法。同步便利入口仍使用协调者的缓存；worker不得调用该全局缓存，也不得共享一个正在搜索的AStar。首批只验证了私有上下文批查询，尚未把普通行动的即时路线请求改为异步。
 
-[SimBodyReadView](../../scripts/sim/body_read_view.gd)在原规则边界由owner同步所需地区并捕获身体ID、位置、高度列；worker不触发身体getter。它保留原地区/人物遍历顺序，当前每批捕获一次，尚未实现持久身体热列或显示发布。
+[SimBodyReadView](../../scripts/sim/body_read_view.gd)在原规则边界由owner同步所需地区并捕获身体ID、位置、高度列；worker不触发身体getter。它保留原地区/人物遍历顺序，当前每批捕获一次，该战斗读取表不承担显示发布；显示使用下述独立纯数据视图。
 
 [SimSpatialQueries](../../scripts/sim/execution/spatial_queries.gd)按64个身体分块，对多个线段求接触候选；达到4096个身体×线段候选对才尝试最多4个worker，小批用同算法串行。任务内一次解析列引用，避免每对候选重复访问共享脚本对象。候选按固定chunk顺序收敛，等距仍由原身体顺序决定。
 
 真实消费者是`SimConflicts._advance_projectiles`：同边界捕获一次身体输入、批量查候选，再沿原投射物顺序核遮挡、收集全部接触、最后沿原规则提交伤害。此首批接入仍在原交锋回调内等待完成，没有跨帧交锋游标或新的取消时机；大批的等待也计入回调成本。不是每个领域独建线程或第二个战斗世界。
 
-## 跨帧、存读与呈现
+## 身体发布与环境计算
 
-`RegionalSimulation`在边界开始前受理手动接管并执行一次手动移动，然后由原`SimSettlementKernel`的`native_interval/native_actors`步骤准备各地区批次。全部提交后检查完成；未完成返回宿主，原kernel保留游标，后续沿同一边界接续，手动位移不重放。
+`SimBodyPublication`复用`VillageSimulation.body_read_roster()`成员表，64人一块准备位置、姿态、衣着及原身份；结果不保留原身体/动作引用，少量玩家/选中需求由原owner补齐。输入只在owner等待此批时借出，不允许并发写；最终Node/贴图更新在主线程。
 
-`has_pending_boundary()`读取同一个kernel的pending状态，涵盖native准备及后续阶段；`pending_boundary_ms()`读取其`at_ms`，不要求内部世界时间已经到达目标。地区提交后进入后续领域步骤，最终才发布`boundary_settled`及公共时间。等待期间外部命令和半步存档被拒绝，呈现保持最近完整状态；原owner的内部合法提交仍能完成。
+`SimFieldCompute`使用已有compact场job和相同整数max方程/材质穿行，按16×16格给任务私有输出，串行与worker共用公式；原场owner验证输入版本与候选证明后采用。GPU路径原样保留，CPU模式与无渲染设备时使用任务池。
 
-人物采用本身也可让出：`VillageSimulation.NativeAdvance`保存一次已受理区间的需求采用、空间投影、既有动作、未来选择和观察游标，昂贵人物循环按小组检查宿主截止条件。所有到期身体的旧输入需求先完成，之后才允许空间通知观察同刻同伴；同刻人物仍按ID处理。`RegionalSimulation`记住已经完成的地区，不在下次resume重放。该游标只是原kernel步骤内的未完成工作，不是另一个时钟或保存状态。
+`SimFieldResponseInput`在候选field完成后，为各tile准备温度/五行目标列；私有compiler只共享不可变定义、拥有独立memo。原temperature/phase owner保持历史、范围、容量和锚点复核，提交仍同步有序。小量/禁用worker可沿相同输入类分预算运行；取消先收集正在读取的任务再丢候选，不在任务尚读时修改原响应数据。
 
-存档只保存原身体、动作及共同时间。Packed输入/结果、线程handle、游标和计时不入档，不新增格式/迁移链。完整会话候选验证后替换世界、回收旧任务并重绑owner；坏候选不部分改活世界。
+## 协调线程、存读与呈现
 
-## 诊断与设备接缝
+`SimWorldRunner`持有原世界的一次独占执行权，常驻线程处理单个时间请求；CPU批和GPU候选仍使用原kernel游标。原手动移动每区间只积分一次，不按渲染帧重复。需要依赖时后台等待实际完成，主线程继续绘图。
 
-`actor_execution_work`有界记录准备/分配、提交、worker累计及时间跨度、排队、完成至收集延迟、原状态发布、采用/丢弃数和线程ID。输入提供者采样仍在主线程，发布包含原空间通知；worker数学耗时不等于整段身体推进成本。
+`ReolSimulationHost`在运行期间暂缓旧世界读取回调；`ReolSimulationSignalBridge`只记下领域向Node的通知，内部领域信号继续同步。完整边界返回后恢复原连接并递送通知、处理缓冲输入及旧UI/画布读取，然后才能发下一请求。绘图函数只读提前捕获的显示值，人物/镜头插值可与模拟并行；其他画布尚非完全异步快照，交接尾部是测量项。
 
-普通诊断和人口压力报告包含各地区数据；`tools/stress_demo.py --actor-workers 0/4`对照相同路径。逻辑流速、帧P95/P99及真实渲染另行测量，线程ID/采用数只能证明接入。
+存档只保存原身体、动作及共同时间。输入/结果、线程handle、游标和计时不入档；保存时等待同一完整边界，加载/退出先回收旧协调者和批任务。坏候选不替换活世界，开发期不新增历史兼容链。
 
-环境GPU已经沿“紧凑输入、时刻/代次/依赖、候选输出、原owner采用”实际接入，继续复用。当前需求采用64位整数，不能改成浮点就假定同未来。身体批和空间候选本身没有GPU dispatch；普通环境的实际GPU采用和收益范围见[环境合同](world-environment-contract.md)与BASELINE。
+## 诊断与验证范围
 
-当前仍有主线程输入采样、地区/动作决定、路线搜索、领域同步及发布；准备也不是可抢占回调。本接口不证明300人1×/60FPS或所有规则已多核，证据见[BASELINE](../status/baseline.md)。
+普通压力报告含`actor_execution_capture`、`body_publication_capture`、`simulation_host`、`publication_work_including_setup`及环境CPU/GPU/响应计数。worker微秒是经过时间，Windows `--profile-cpu`侧录才是线程真实CPU；按capture起止时间排除装配。
 
-旧`test_actor_advance`已随全量套件退役，原验证范围保留在QA。当前`tests/smoke.gd`短查身体串行/worker数值一致及取消标记，`spatial`补空间候选等距/过滤、保留旧页、局部地形变化及来源替换；完整世界采用、存读和长期稳定不由这个短检查证明。
+`--simulation-thread off`、`--actor-workers 0/4/8`和`--release-binary`用于同构建对照。`--input-probe`测无副作用宿主请求等到完整边界的延迟，不冒充玩家输入到像素的端到端延迟。
 
-官方依据：[WorkerThreadPool](https://docs.godotengine.org/en/4.7/classes/class_workerthreadpool.html)、[线程安全](https://docs.godotengine.org/en/4.7/tutorials/performance/thread_safe_apis.html)。无新增依赖或业务autoload。
+短`spatial`检查包括同输入场/响应列串行与worker一致、身体发布不保留原对象、Node信号在交接后递送及恢复连接；不证明所有玩法或长期性能。真实规模、暂时方案和未测范围只记BASELINE。官方API依据见[执行设计](../specs/world-engine/execution.md)。

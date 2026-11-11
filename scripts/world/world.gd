@@ -582,7 +582,7 @@ func _ensure_cliff_chunk(chunk: Vector2i) -> void:
 		var existing: CliffChunk = _cliff_nodes[chunk]
 		existing.complete = _loaded.has(chunk)
 		existing.partial_cells = _preview_chunks.get(chunk, {})
-		existing.queue_redraw()
+		existing.rebuild()
 		return
 
 	var cliff := CliffChunk.new()
@@ -597,6 +597,7 @@ func _ensure_cliff_chunk(chunk: Vector2i) -> void:
 	cliff.z_index = 5
 	add_child(cliff)
 	_cliff_nodes[chunk] = cliff
+	cliff.rebuild()
 
 
 func _unload_chunk(chunk: Vector2i) -> void:

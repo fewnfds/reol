@@ -23,6 +23,9 @@ func _current_canvas_world() -> RefCounted:
 
 
 func _world_is_complete(world: RefCounted) -> bool:
+	var adapter: Node = _canvas_adapter()
+	if adapter != null and adapter.has_method("simulation_accessible") and not adapter.simulation_accessible():
+		return false
 	if world == null:
 		return false
 	var kernel: Object = world.get("settlement") as Object

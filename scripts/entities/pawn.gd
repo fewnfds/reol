@@ -20,9 +20,11 @@ var _presentation := ReolMotionPresentation.new()
 var _projected_position: Vector2 = Vector2.ZERO
 var _sprite: HumanoidSprite
 var _decoration_key: Array = []
+var _view_elevation: int = 0
 
 
 func _init() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	process_priority = 20
 
@@ -63,11 +65,8 @@ func set_view_layout(next_offset: Vector2) -> void:
 
 
 func selection_center() -> Vector2:
-	var elevation: int = 0
-	if _world != null:
-		elevation = _world.get_elevation(cell)
 	return presentation_position() + visual_offset + Vector2(
-		0.0, -float(elevation * ReolWorld.ELEVATION_PX) - 12.0
+		0.0, -float(_view_elevation * ReolWorld.ELEVATION_PX) - 12.0
 	)
 
 
@@ -92,6 +91,7 @@ func project_position(point: Vector2) -> void:
 
 
 func publish_motion(at_ms: int, snap: bool = false) -> void:
+	_view_elevation = _world.get_elevation(cell) if _world != null else 0
 	_presentation.capture(_projected_position, at_ms, 1.0 / GameClock.view_transition_rate(), snap)
 	global_position = _presentation.position
 
@@ -116,10 +116,7 @@ func refresh_appearance() -> void:
 func _draw() -> void:
 	if state == null or state.pawn_def == null:
 		return
-	var elevation: int = 0
-	if _world != null:
-		elevation = _world.get_elevation(cell)
-	var ground: Vector2 = visual_offset + Vector2(0.0, -float(elevation * ReolWorld.ELEVATION_PX))
+	var ground: Vector2 = visual_offset + Vector2(0.0, -float(_view_elevation * ReolWorld.ELEVATION_PX))
 	var robe: Color = state.pawn_def.color
 	var text: String = display_name_override if not display_name_override.is_empty() else state.display_name()
 	if not caption_visible and not selected:

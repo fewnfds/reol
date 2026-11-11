@@ -34,6 +34,7 @@ var _observer_altitude: int = 0
 var _observer_radius: int = VISION_RADIUS
 var _projection_guard: Callable
 var _ray_obstructions := PackedByteArray()
+var visibility_revision: int = 0
 
 
 func set_projection_guard(guard: Callable) -> void:
@@ -127,6 +128,7 @@ func update_now() -> void:
 		return
 	if _projection_guard.is_valid() and not bool(_projection_guard.call()):
 		return # Keep both the last image and the dirty request until commit.
+	visibility_revision += 1
 	_visibility_dirty = false
 
 	_clear_visible()

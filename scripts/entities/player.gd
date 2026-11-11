@@ -36,6 +36,8 @@ var _clock: ReolGameClock
 var _motion_guard: Callable
 var _has_motion_guard: bool = false
 var _presentation := ReolMotionPresentation.new()
+var _view_elevation: int = 0
+var _view_action_phase: String = ""
 
 
 func _ready() -> void:
@@ -57,13 +59,10 @@ func set_selected(value: bool) -> void:
 
 
 func selection_center() -> Vector2:
-	var elevation: int = 0
-	if _world != null:
-		elevation = _world.get_elevation(cell)
 	return presentation_position() + Vector2(
 		0.0,
 		-float(
-			elevation * ReolWorld.ELEVATION_PX
+			_view_elevation * ReolWorld.ELEVATION_PX
 			+ altitude * ReolWorld.ALTITUDE_PX
 		) - 12.0
 	)
@@ -113,6 +112,8 @@ func _physics_process(_delta: float) -> void:
 
 
 func publish_motion(at_ms: int, snap: bool = false) -> void:
+	_view_elevation = _world.get_elevation(cell) if _world != null else 0
+	_view_action_phase = motion.phase(at_ms) if not motion.action.is_empty() else ""
 	var duration: float = 1.0 / _clock.view_transition_rate() if _clock != null else 0.05
 	_presentation.capture(global_position, at_ms, duration, snap)
 
@@ -210,16 +211,13 @@ func restore_motion(data: Dictionary, point: Vector2, now: int) -> bool:
 
 func _draw() -> void:
 	draw_set_transform(presentation_position() - global_position)
-	var elevation: int = 0
-	if _world != null:
-		elevation = _world.get_elevation(cell)
-	var ground_offset := Vector2(0.0, -float(elevation * ReolWorld.ELEVATION_PX))
+	var ground_offset := Vector2(0.0, -float(_view_elevation * ReolWorld.ELEVATION_PX))
 	var body_offset := ground_offset - Vector2(
 		0.0, float(altitude * ReolWorld.ALTITUDE_PX)
 	)
 
-	if not motion.action.is_empty():
-		var phase: String = motion.phase(_clock.elapsed_ms if _clock != null else int(motion.action.advanced_ms))
+	if not _view_action_phase.is_empty():
+		var phase: String = _view_action_phase
 		var color := Color("#e9c98b") if phase == "起势" else Color("#87c9cf")
 		draw_arc(ground_offset, 23.0, -PI * 0.8, PI * 0.8, 14, color, 2.5)
 		draw_string(ThemeDB.fallback_font, body_offset + Vector2(-15, -48), phase, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, color)

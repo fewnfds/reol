@@ -31,7 +31,6 @@ var _places: Dictionary = {}
 var _selected_actor: String = "player"
 var _panel: VillagePanel
 var _notice: String = "选中同门可以开口求助；WASD 可中断自己的行动。"
-var _shared_motion_world: WeakRef
 var _clock_interval_had_events: bool = false
 
 
@@ -166,29 +165,6 @@ func _player_walking_projection() -> Dictionary:
 	if is_instance_valid(continuity):
 		return continuity.world_sim.conflicts.walking_projection("player")
 	return {"allowed": true, "speed_fraction": 1.0}
-
-
-func bind_shared_motion(authority: RegionalSimulation) -> void:
-	if _shared_motion_world != null:
-		var previous: RegionalSimulation = _shared_motion_world.get_ref() as RegionalSimulation
-		if previous != null:
-			previous.set_manual_motion_executor(Callable())
-	_shared_motion_world = weakref(authority) if authority != null else null
-	# The clock executor owns standalone movement too; its notification is now
-	# exclusively a projection, never a second body integrator.
-	_player.set_shared_motion_executor(true)
-	if authority != null:
-		authority.set_manual_motion_executor(_advance_player_motion)
-
-
-func _advance_player_motion(from_ms: int, to_ms: int) -> void:
-	# Leave view/cell signals until the existing end-of-world projection; an
-	# intermediate body position must not make UI observers reenter settlement.
-	simulation.synchronize_actor("player")
-	_player.prepare_motion_interval()
-	if is_instance_valid(continuity):
-		continuity.project_player_journey(to_ms)
-	_player.advance_motion_interval(from_ms, to_ms, false, false)
 
 
 func snapshot_context() -> Dictionary:
@@ -383,33 +359,18 @@ static func find_grid_path(
 
 
 func _execute_clock_interval(from_ms: int, to_ms: int) -> int:
-	if simulation == null:
+	# The world may be exclusively owned by its coordinator. Poll its mailbox
+	# before reading even a body counter or kernel progress from the host.
+	if is_instance_valid(continuity):
+		return continuity.advance_to_ms(to_ms)
+	if simulation == null or simulation.elapsed_ms != from_ms:
 		return from_ms
 	var old_events: int = int(simulation.simulation_work.boundary_count)
 	var previous_minute: int = simulation.tick_index
-	var completed_ms: int
-	if is_instance_valid(continuity):
-		if continuity.world_sim == null:
-			return from_ms
-		var world: RegionalSimulation = continuity.world_sim
-		var pending: bool = world.has_pending_boundary()
-		if pending:
-			var pending_from: int = world.settlement.from_ms if world.settlement.is_pending() else world.elapsed_ms
-			if pending_from < from_ms or world.pending_boundary_ms() > to_ms:
-				return from_ms
-		elif world.elapsed_ms != from_ms:
-			return from_ms
-		completed_ms = continuity.advance_to_ms(to_ms)
-	else:
-		if simulation.elapsed_ms != from_ms:
-			return from_ms
-		_player.advance_motion_interval(from_ms, to_ms, false)
-		simulation.advance_to_ms(to_ms)
-		completed_ms = simulation.elapsed_ms
-	# A suspended kernel may already have advanced the original region. Keep
-	# its notification debt until a completed public interval is emitted.
+	_player.advance_motion_interval(from_ms, to_ms, false)
+	simulation.advance_to_ms(to_ms)
 	_clock_interval_had_events = _clock_interval_had_events or old_events != int(simulation.simulation_work.boundary_count) or previous_minute != simulation.tick_index
-	return completed_ms
+	return simulation.elapsed_ms
 
 
 func _on_time_advanced(_from_ms: int, _to_ms: int) -> void:
@@ -490,7 +451,7 @@ func _sync_actor_views(snap: bool, layout: PawnViewLayout = null) -> void:
 		# A visible view reads the accepted route at committed time. Rendering
 		# must not integrate needs, repair routes or publish spatial changes.
 		var pose: Dictionary = HumanoidPose.from_body(actor, now, actor.active)
-		pawn.appearance_pose = HumanoidPose.stabilized(pose, pawn.appearance_pose)
+		pawn.appearance_pose = HumanoidAppearance.stabilize_pose(pose, pawn.appearance_pose)
 		pawn.set_view_layout(layout.offsets.get(id, Vector2.ZERO))
 		var target: Vector2 = layout.points[id] if layout.points.has(id) else simulation.projected_actor_position(id)
 		pawn.project_position(target)
@@ -499,7 +460,7 @@ func _sync_actor_views(snap: bool, layout: PawnViewLayout = null) -> void:
 		if pawn.selected:
 			_sync_needs(pawn.state, simulation.projected_actor_needs(id))
 		pawn.refresh_appearance()
-	_player.appearance_pose = HumanoidPose.stabilized(HumanoidPose.from_body(residents.player, now, residents.player.active, _player.manual_visual_moving), _player.appearance_pose)
+	_player.appearance_pose = HumanoidAppearance.stabilize_pose(HumanoidPose.from_body(residents.player, now, residents.player.active, _player.manual_visual_moving), _player.appearance_pose)
 	_sync_needs(_player.state, simulation.projected_actor_needs("player"))
 	body_state_changed.emit()
 
@@ -513,7 +474,7 @@ func _sync_published_actor_views(frame: SimBodyPublication, layout: PawnViewLayo
 		if not pawn.visible:
 			continue
 		pawn.cell = row.cell
-		pawn.appearance_pose = HumanoidPose.stabilized(row.pose.duplicate(), pawn.appearance_pose)
+		pawn.appearance_pose = HumanoidAppearance.stabilize_pose(row.pose.duplicate(), pawn.appearance_pose)
 		pawn.clothing_appearance = row.clothing
 		pawn.set_view_layout(layout.offsets.get(id, Vector2.ZERO))
 		pawn.project_position(row.point)
@@ -524,7 +485,7 @@ func _sync_published_actor_views(frame: SimBodyPublication, layout: PawnViewLayo
 		pawn.refresh_appearance()
 	var player_view: Dictionary = frame.rows.player
 	_player.clothing_appearance = player_view.clothing
-	_player.appearance_pose = HumanoidPose.stabilized(player_view.pose.duplicate(), _player.appearance_pose)
+	_player.appearance_pose = HumanoidAppearance.stabilize_pose(player_view.pose.duplicate(), _player.appearance_pose)
 	_sync_needs(_player.state, player_view.needs)
 	body_state_changed.emit()
 

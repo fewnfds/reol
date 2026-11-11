@@ -1,5 +1,5 @@
 extends Node
-## Host-only callback timings. No rule, save, input or time-budget changes.
+## Host frame timings plus optional locked simulation-side measurements.
 
 signal finished(ok: bool)
 
@@ -10,10 +10,6 @@ var _clock
 var _runtime
 var _options: Dictionary
 var _executor: Callable
-var _kernel_ref: WeakRef
-var _originals: Dictionary = {}
-var _wrappers: Dictionary = {}
-var _scopes: Dictionary = {}
 var _frame_scopes: Dictionary = {}
 var _frame_kernel_usec: int = 0
 var _frame_executor_usec: int = 0
@@ -60,11 +56,11 @@ var _initial_spatial_work: Dictionary = {}
 var _initial_geometry_work: Dictionary = {}
 var _initial_body_publication_work: Dictionary = {}
 var _profile_navigation: bool = false
-var _navigation_originals: Array[Dictionary] = []
 var _navigation_calls: int = 0
 var _navigation_usec: int = 0
 var _navigation_max_usec: int = 0
 var _navigation_queries: Array = []
+var _profile := ReolSimulationProfile.new()
 
 
 func configure(main: Node, options: Dictionary) -> bool:
@@ -115,67 +111,20 @@ func configure(main: Node, options: Dictionary) -> bool:
 
 
 func _bind_kernel() -> void:
-	if not _profile_kernel:
-		return
-	var kernel = _runtime.world_sim.settlement
-	if _kernel_ref != null and _kernel_ref.get_ref() == kernel:
-		return
-	_unwrap_kernel()
-	_kernel_ref = weakref(kernel)
-	for step in kernel._plan:
-		var id: String = String(step.id)
-		_originals[id] = step.callback
-		var wrapper: Callable
-		match step.mode:
-			SimSettlementKernel.CallMode.UNTIMED, SimSettlementKernel.CallMode.CHECKED_UNTIMED:
-				wrapper = _untimed.bind(step.callback, id)
-			SimSettlementKernel.CallMode.BUDGETED:
-				wrapper = _budgeted.bind(step.callback, id)
-			_:
-				wrapper = _timed.bind(step.callback, id)
-		_wrappers[id] = wrapper
-		step.callback = wrapper
+	if _profile_kernel and _runtime.simulation_accessible():
+		_profile.bind_kernel(_runtime.world_sim.settlement)
 
 
 func _profile_navigation_owner(owner: RefCounted) -> void:
-	var original: Callable = owner.get("_navigation")
-	if not original.is_valid():
-		return
-	var wrapper: Callable = _navigate.bind(original)
-	_navigation_originals.append({"owner": weakref(owner), "original": original, "wrapper": wrapper})
-	owner.set("_navigation", wrapper)
-
-
-func _navigate(from: Vector2i, to: Vector2i, original: Callable) -> Array[Vector2i]:
-	var started: int = Time.get_ticks_usec()
-	var result: Array[Vector2i] = original.call(from, to)
-	var usec: int = Time.get_ticks_usec() - started
-	_navigation_calls += 1
-	_navigation_usec += usec
-	_navigation_max_usec = maxi(_navigation_max_usec, usec)
-	if _navigation_queries.size() < 4096:
-		_navigation_queries.append([from.x, from.y, to.x, to.y])
-	return result
+	_profile.bind_navigation(owner)
 
 
 func _unprofile_navigation() -> void:
-	for row: Dictionary in _navigation_originals:
-		var owner: RefCounted = row.owner.get_ref()
-		if owner != null and owner.get("_navigation") == row.wrapper:
-			owner.set("_navigation", row.original)
-	_navigation_originals.clear()
+	_profile.unwrap_navigation()
 
 
 func _unwrap_kernel() -> void:
-	var old = _kernel_ref.get_ref() if _kernel_ref != null else null
-	if old != null:
-		for step in old._plan:
-			var id: String = String(step.id)
-			if _wrappers.has(id) and step.callback == _wrappers[id]:
-				step.callback = _originals[id]
-	_originals.clear()
-	_wrappers.clear()
-	_kernel_ref = null
+	_profile.unwrap_kernel()
 
 
 func _execute(from_ms: int, to_ms: int) -> Variant:
@@ -193,41 +142,6 @@ func _published(from_ms: int, to_ms: int) -> void:
 	_clock_publications += 1
 	if _publication_spans.size() < MAX_SAMPLES:
 		_publication_spans.append(float(to_ms - from_ms))
-
-
-func _timed(at_ms: int, callback: Callable, id: String) -> Variant:
-	var started: int = Time.get_ticks_usec()
-	var result: Variant = callback.call(at_ms)
-	_record(id, Time.get_ticks_usec() - started)
-	return result
-
-
-func _untimed(callback: Callable, id: String) -> Variant:
-	var started: int = Time.get_ticks_usec()
-	var result: Variant = callback.call()
-	_record(id, Time.get_ticks_usec() - started)
-	return result
-
-
-func _budgeted(at_ms: int, budget: int, callback: Callable, id: String) -> Variant:
-	var started: int = Time.get_ticks_usec()
-	var result: Variant = callback.call(at_ms, budget)
-	_record(id, Time.get_ticks_usec() - started)
-	return result
-
-
-func _record(id: String, usec: int) -> void:
-	var row: Dictionary = _scopes.get(id, {"calls": 0, "logical_boundaries": 0, "last_at_ms": -1, "total_usec": 0, "max_usec": 0})
-	row.calls = int(row.calls) + 1
-	var at_ms: int = int(_runtime.world_sim.settlement.at_ms)
-	if int(row.last_at_ms) != at_ms:
-		row.logical_boundaries = int(row.logical_boundaries) + 1
-		row.last_at_ms = at_ms
-	row.total_usec = int(row.total_usec) + usec
-	row.max_usec = maxi(int(row.max_usec), usec)
-	_scopes[id] = row
-	_frame_scopes[id] = int(_frame_scopes.get(id, 0)) + usec
-	_frame_kernel_usec += usec
 
 
 func _fog_updated() -> void:
@@ -248,6 +162,9 @@ func _process(_delta: float) -> void:
 	if _done:
 		return
 	_bind_kernel()
+	var drained: Dictionary = _profile.drain()
+	_frame_kernel_usec += int(drained.frame_usec)
+	_frame_scopes = drained.frame
 	var now: int = Time.get_ticks_usec()
 	var span: int = now - _last
 	_frame_count += 1
@@ -299,7 +216,7 @@ func _process(_delta: float) -> void:
 	_last_world_ms = int(_clock.elapsed_ms)
 	_last_world_id = world_id
 	_was_running = running
-	if not _runtime.world_sim.errors.is_empty() or now - _started >= int(_options.seconds) * 1000000:
+	if (_runtime.simulation_accessible() and not _runtime.world_sim.errors.is_empty()) or now - _started >= int(_options.seconds) * 1000000:
 		finish()
 
 
@@ -309,7 +226,7 @@ func _snapshot(now: int, clock_usec: int) -> Dictionary:
 		"interval_ms": _frame_executor_usec / 1000.0, "kernel_ms": _frame_kernel_usec / 1000.0 if _profile_kernel else null,
 		"interval_outside_kernel_ms": maxi(0, _frame_executor_usec - _frame_kernel_usec) / 1000.0 if _profile_kernel else null,
 		"clock_outside_interval_ms": maxi(0, clock_usec - _frame_executor_usec) / 1000.0,
-		"pace": _clock.pacing_status(), "pending_step": _runtime.world_sim.settlement.progress().step,
+		"pace": _clock.pacing_status(), "pending_step": _runtime.world_sim.settlement.progress().step if _runtime.simulation_accessible() else "background",
 		"paused": _clock.paused, "waiting": int(_clock.wait_target_ms) > 0,
 		"fog_updates": _fog_updates, "terrain_pending_load": view._pending_load.size(),
 		"terrain_painting": view._painting_chunk.x >= 0,
@@ -331,8 +248,9 @@ func _top_frame() -> Array[Dictionary]:
 
 func _scope_rows() -> Array[Dictionary]:
 	var rows: Array[Dictionary] = []
-	for id: String in _scopes:
-		var row: Dictionary = _scopes[id].duplicate()
+	var scopes: Dictionary = _profile.totals().scopes
+	for id: String in scopes:
+		var row: Dictionary = scopes[id].duplicate()
 		row.erase("last_at_ms")
 		row["step"] = id
 		rows.append(row)
@@ -349,6 +267,9 @@ func _summary(samples: Array[float]) -> Dictionary:
 
 
 func finish() -> void:
+	if not _runtime.simulation_accessible():
+		_clock.request_input_boundary()
+		return
 	if _done:
 		return
 	_done = true
@@ -366,6 +287,11 @@ func finish() -> void:
 		get_tree().process_frame.disconnect(_before_frame)
 	_unprofile_navigation()
 	_windows.close()
+	var navigation: Dictionary = _profile.totals()
+	_navigation_calls = int(navigation.calls)
+	_navigation_usec = int(navigation.usec)
+	_navigation_max_usec = int(navigation.max_usec)
+	_navigation_queries = navigation.queries
 	var report: Dictionary = {"format": "demo_profile_v1", "revision": _options.revision, "dirty": _options.dirty,
 		"debug_build": OS.is_debug_build(), "editor_build": OS.has_feature("editor"),
 		"artifact_sha256": _options.get("artifact_sha256", ""),
@@ -396,6 +322,9 @@ func finish() -> void:
 		"actor_execution_capture": _actor_execution_capture(),
 		"actor_execution_capture_available": _runtime.world_sim.get_instance_id() == _initial_actor_world_id,
 		"spatial_execution_capture": _counter_delta(_runtime.world_sim.conflicts.spatial_work, _initial_spatial_work) if _runtime.world_sim.get_instance_id() == _initial_actor_world_id else {},
+		"simulation_host": _runtime.simulation_host.work.duplicate(true) if _runtime.simulation_host != null else {},
+		"publication_work_including_setup": _runtime.publication_work.duplicate(),
+		"input_probe": _runtime.simulation_host.input_probe() if _runtime.simulation_host != null else {},
 		"body_publication_capture": _counter_delta(_runtime.body_publication_work, _initial_body_publication_work),
 		"geometry_read_capture": _counter_delta(_runtime.world_sim.geometry_read().work, _initial_geometry_work) if _runtime.world_sim.get_instance_id() == _initial_actor_world_id else {},
 		"navigation_profile": {"enabled": _profile_navigation, "scope": "capture; native and service providers only; includes existing path cache hits; excludes conflict-space direct searches",

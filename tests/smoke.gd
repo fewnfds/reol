@@ -14,6 +14,22 @@ class NavigationReadCheck extends RefCounted:
 		result = graph.find_path(Vector2i(116, 120), Vector2i(130, 120), view.is_walkable, view.can_step, 4096)
 
 
+class SignalSource extends RefCounted:
+	signal changed(value: int)
+
+
+class SignalView extends Node:
+	var seen: Array[int] = []
+	func receive(value: int) -> void:
+		seen.append(value)
+
+
+class SignalWork extends RefCounted:
+	var source: SignalSource
+	func run() -> void:
+		source.changed.emit(7)
+
+
 func _spatial() -> bool:
 	# Freeze once, change the authoritative terrain, then use the old input on
 	# actual workers. It must remain readable but fail adoption as current data.
@@ -74,7 +90,73 @@ func _spatial() -> bool:
 	var expected_targets: PackedInt32Array = serial.collect(starts.size())
 	if parallel.collect(starts.size()) != expected_targets or not parallel.execution.parallel:
 		return false
-	return expected_targets[0] == 65 and expected_targets[1] == 0 and expected_targets[30] == -1 and expected_targets[31] == -1 and _field_workers() and _body_publication()
+	return expected_targets[0] == 65 and expected_targets[1] == 0 and expected_targets[30] == -1 and expected_targets[31] == -1 and _field_workers() and _body_publication() and _signal_handoff() and _response_input()
+
+
+func _signal_handoff() -> bool:
+	var source := SignalSource.new()
+	var first := SignalView.new()
+	var second := SignalView.new()
+	source.changed.connect(first.receive)
+	source.changed.connect(second.receive)
+	var bridge := ReolSimulationSignalBridge.new()
+	bridge.discover(source)
+	bridge.lend()
+	var task := SignalWork.new()
+	task.source = source
+	var execution := SimBatchExecution.new()
+	execution.start([task, task] as Array[RefCounted], 2)
+	execution.finish(true)
+	var deferred: bool = first.seen.is_empty() and second.seen.is_empty()
+	bridge.reclaim()
+	var restored: bool = source.changed.is_connected(first.receive) and source.changed.is_connected(second.receive)
+	var delivered: bool = first.seen == [7, 7] and second.seen == [7, 7]
+	first.free()
+	second.free()
+	return deferred and restored and delivered
+
+
+func _response_input() -> bool:
+	var settings: Dictionary = {"climate": JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/climate.json")),
+		"weather": JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/weather.json")),
+		"weather_epoch_ms": 0, "seed": 17, "tau_ms": 30000, "tide_grid_ms": 60000}
+	var compiler := SimEnvironmentTargetCompiler.new()
+	var temperature := SimEnvironmentTemperatureState.new()
+	var phases := SimEnvironmentPhaseState.new()
+	if not compiler.configure(settings) or not temperature.configure(Vector2i(32, 32), 1024, 0) or not phases.configure(Vector2i(32, 32), 1024, 0):
+		return false
+	var channels := PackedInt32Array()
+	for cell: int in 256:
+		channels.append_array(PackedInt32Array([cell, 300, 100, 400, 700, 1300, 200]))
+	var reference: Array[SimFieldResponseInput] = []
+	var parallel: Array[RefCounted] = []
+	for index: int in 4:
+		var rect := Rect2i((index % 2) * 16, (index / 2) * 16, 16, 16)
+		for mode: int in 2:
+			var input := SimFieldResponseInput.new()
+			input.tile = {"rect": rect, "channels": channels}
+			input.compiler = compiler.fork()
+			input.temperature = temperature
+			input.phases = phases
+			input.initial_temperature = func(_cell: Vector2i, _at: int) -> Dictionary: return {"ok": true, "value_c": 19.25}
+			input.initial_phase = func(_cell: Vector2i, _at: int) -> Dictionary: return {"ok": true, "values": PackedFloat64Array([1, 2, 3, 4, 5])}
+			input.at_ms = 100
+			input.horizon_ms = 60000
+			input.tau_ms = 30000
+			input.grid_ms = 60000
+			if mode == 0:
+				input.run()
+				reference.append(input)
+			else:
+				parallel.append(input)
+	var execution := SimBatchExecution.new()
+	execution.start(parallel, 4)
+	execution.finish(true)
+	for index: int in 4:
+		var input: SimFieldResponseInput = parallel[index]
+		if not input.error.is_empty() or input.thermal_columns != reference[index].thermal_columns or input.phase_columns != reference[index].phase_columns or input.temperature != null:
+			return false
+	return true
 
 
 func _field_workers() -> bool:

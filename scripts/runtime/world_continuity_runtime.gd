@@ -54,6 +54,9 @@ var _saves: SimSaveSession
 var _field_compute: EnvironmentFieldComputeRuntime
 var _retired_field_compute: Array[EnvironmentFieldComputeRuntime] = []
 var _player_commands := ReolPlayerCommandBuffer.new()
+var simulation_host: ReolSimulationHost
+var _published_from_runner: bool = false
+var publication_work: Dictionary = {}
 
 
 func home_runtime() -> VillageRuntime:
@@ -184,14 +187,23 @@ func _capture_committed_canvases(_from_ms: int = 0, _to_ms: int = 0) -> void:
 	var snap: bool = _to_ms <= _from_ms
 	if not _presentation_ready():
 		return
+	var began: int = Time.get_ticks_usec()
 	# All ordinary observers have finished. Publish body views once, sharing
 	# the layout, rather than rebuilding them inside each executor continuation.
-	_publish_bodies()
+	if not _published_from_runner:
+		_publish_bodies()
+	_published_from_runner = false
 	var layout: PawnViewLayout = actor_view_layout(true)
+	_measure_publication("layout", began)
+	began = Time.get_ticks_usec()
 	HumanoidSprite.publish_time(GameClock.elapsed_ms)
 	_home._sync_actor_views(snap, layout)
 	_refresh_views(snap, layout)
+	_measure_publication("body_nodes", began)
+	began = Time.get_ticks_usec()
 	_refresh_advance_views()
+	_measure_publication("panels", began)
+	began = Time.get_ticks_usec()
 	_home.publish_actor_motion(GameClock.elapsed_ms, snap)
 	for pawn: Pawn in _remote_views.values():
 		pawn.publish_motion(GameClock.elapsed_ms, snap)
@@ -202,6 +214,12 @@ func _capture_committed_canvases(_from_ms: int = 0, _to_ms: int = 0) -> void:
 		if is_instance_valid(view):
 			view.clock_published_canvas = true
 			view.redraw_committed_canvas(true)
+			_measure_publication("canvas:" + String(view.name), began)
+			began = Time.get_ticks_usec()
+
+
+func _measure_publication(key: String, began: int) -> void:
+	publication_work[key] = int(publication_work.get(key, 0)) + Time.get_ticks_usec() - began
 
 
 func actor_region(actor: String) -> String:
@@ -231,6 +249,10 @@ func actor_view_layout(reuse_publication: bool = false) -> PawnViewLayout:
 func _publish_bodies() -> void:
 	body_publication = SimBodyPublication.capture(world_sim, GameClock.elapsed_ms, body_publication_workers,
 		[_home._selected_actor, _selected_remote], player_journey, _home._player.manual_visual_moving, _home._player.motion.action)
+	_record_body_publication()
+
+
+func _record_body_publication() -> void:
 	var work: Dictionary = body_publication.work
 	body_publication_work.batches += 1
 	body_publication_work.parallel_batches += int(work.parallel)
@@ -257,7 +279,7 @@ func visible_actor_status(actor: String) -> String:
 
 
 func _on_visibility_updated() -> void:
-	if world_sim == null or world_sim.has_pending_boundary() or GameClock.is_advancing():
+	if not simulation_accessible() or world_sim == null or world_sim.has_pending_boundary() or GameClock.is_advancing():
 		return
 	# Fog updates while paused too. Refresh only scene projections, not clocks,
 	# learning, route progress or the hidden world's event outcome.
@@ -282,10 +304,7 @@ func _bind_navigation() -> void:
 	_home._player.set_motion_guard(_player_has_motion_control)
 	if not _home._player.cell_changed.is_connected(_on_player_moved):
 		_home._player.cell_changed.connect(_on_player_moved)
-	world_sim.set_local_action_owner(_local_action_owns)
-	_home.bind_shared_motion(world_sim)
 	GameClock.bind_wait_guard(_can_wait)
-	world_sim.settlement.set_completion_readiness(GameClock.ready_for_publication)
 	_home._places = _home.simulation.places.duplicate(true)
 	for region: String in world_sim.regions:
 		var sim: VillageSimulation = world_sim.regions[region]
@@ -296,8 +315,11 @@ func _bind_navigation() -> void:
 		# split the shared world before any other domain can observe an effect.
 		sim.native_route_events_enabled = true
 		sim.configure_actor_execution()
-	world_sim.sparring.set_geometry(_practice_contact_allowed, geometry.can_step)
-	world_sim.avian_life.set_landing_check(_home._world.is_walkable)
+	# Scene-independent rules are bound even before the first thread request;
+	# opening/paused commands use exactly the same motion owner and callbacks.
+	var runner := SimWorldRunner.new()
+	runner.configure(world_sim, _home._player.motion)
+	_bootstrap_runner = runner
 	if object_adapter != null:
 		object_adapter.reset_observation()
 	if spirit_adapter != null:
@@ -396,10 +418,6 @@ func select_starting_avatar(subject: String) -> bool:
 	return true
 
 
-func _local_action_owns(actor_id: String) -> bool:
-	return actor_id == "player" and not _home._player.motion.action.is_empty()
-
-
 func _can_wait() -> bool:
 	if conflict_adapter != null and conflict_adapter.has_visible_danger():
 		return false
@@ -412,34 +430,13 @@ func _can_wait() -> bool:
 	return not world_sim.owns_for_scope("player", &"wait") and player.motion.action.is_empty() and player.motion.velocity.is_zero_approx() and player._intent.is_zero_approx() and intent.is_zero_approx()
 
 
-func _practice_contact_allowed(from: Vector2, to: Vector2) -> bool:
-	var from_cell: Vector2i = TileGrid.world_to_cell(from)
-	var to_cell: Vector2i = TileGrid.world_to_cell(to)
-	if _home._player.altitude != 0 or _home._world.get_elevation(from_cell) != _home._world.get_elevation(to_cell):
-		return false
-	var length: float = from.distance_to(to)
-	var count: int = maxi(1, ceili(length / float(_home._player.motion.rules.motion.sweep_px)))
-	var previous: Vector2i = from_cell
-	for index: int in range(1, count + 1):
-		var current: Vector2i = TileGrid.world_to_cell(from.lerp(to, float(index) / count))
-		if current != previous and not _can_step(previous, current - previous):
-			return false
-		previous = current
-	return true
-
-
-func _can_step(from_cell: Vector2i, direction: Vector2i) -> bool:
-	return world_sim.geometry_read().can_step(from_cell, direction)
-
-
 func _find_path(from_cell: Vector2i, to_cell: Vector2i) -> Array[Vector2i]:
 	return world_sim.geometry_read().find_path(from_cell, to_cell,
 		int(settings.runtime.layout_radius), int(settings.runtime.layout_budget))
 
 
-## Callback work allowance, independent of game rules or saved world time.
-var settlement_work_budget: int = 4096
 var _advance_view_baseline: Dictionary = {}
+var _bootstrap_runner: SimWorldRunner
 
 
 func _capture_advance_view_state() -> Dictionary:
@@ -454,77 +451,57 @@ func _capture_advance_view_state() -> Dictionary:
 
 
 func advance_to_ms(target_ms: int) -> int:
+	if simulation_host != null and simulation_host.busy:
+		return _collect_simulation_reply()
 	if world_sim == null:
 		return GameClock.elapsed_ms
 	if world_sim.settlement.has_failed():
 		_report_settlement_failure()
 		return GameClock.elapsed_ms
-	if avatar_adapter != null and not world_sim.has_pending_boundary():
-		avatar_adapter.prepare_step()
-	# Earlier continuations may have changed a domain before the public clock
-	# can advance. Compare against the first observation until views commit.
+	ensure_simulation_host()
 	if _advance_view_baseline.is_empty():
 		_advance_view_baseline = _capture_advance_view_state()
-	var cursor: int = world_sim.settled_ms()
-	var work_left: int = maxi(1, settlement_work_budget)
-	while cursor < target_ms or world_sim.has_pending_boundary():
-		if work_left <= 0 or GameClock.frame_budget_exhausted():
-			if world_sim.has_pending_boundary():
-				return GameClock.elapsed_ms
-			break
-		var resuming: bool = world_sim.has_pending_boundary()
-		var end: int = world_sim.pending_boundary_ms() if resuming else world_sim.next_runtime_boundary_ms(target_ms)
-		if not world_sim.environment_fields.can_settle_at_ms(end):
-			world_sim.target_ms = maxi(world_sim.target_ms, target_ms)
-			GameClock.set_paused(true)
-			_notice = "环境结算达到数值边界；待处理时间已保留。"
-			_refresh_panel()
-			return GameClock.elapsed_ms if resuming else world_sim.settled_ms()
-		if not resuming and not player_journey.is_empty():
-			if not _player_has_motion_control():
-				cancel_travel()
-				continue
-			end = mini(end, int(player_journey.due_ms))
-			end = mini(end, SimRouteTravel.crossing_ms(player_journey, _home.simulation.synchronize_actor("player"), world_sim.elapsed_ms))
-			var body_cell: Vector2i = _cell(_home.simulation.synchronize_actor("player").cell)
-			if not player_journey.path.is_empty() and not _can_step(body_cell, _cell(player_journey.path[0]) - body_cell):
-				if not SimRouteTravel.repair(_home.simulation, "player", player_journey, world_sim.elapsed_ms):
-					cancel_travel()
-					_notice = "道路已改变，暂时无法到达目的地。"
-				continue
-		var old_errors: int = world_sim.errors.size()
-		var completed: bool = world_sim.advance_to_ms(end, int(settings.event_budget), work_left, GameClock.frame_budget_exhausted, GameClock.frame_budget_has_room)
-		work_left -= world_sim.settlement_work
-		cursor = world_sim.settled_ms()
-		if world_sim.has_pending_boundary():
-			if world_sim.settlement.has_failed():
-				_report_settlement_failure()
-				return GameClock.elapsed_ms
-			if world_sim.errors.size() > old_errors:
-				GameClock.set_paused(true)
-			_notice = "世界事务待处理，未完成时间已保留。"
-			if _panel != null:
-				_panel.update_notice(_notice)
-			# No notification may publish a partially completed boundary, even
-			# if this invocation completed earlier boundaries before yielding.
-			return GameClock.elapsed_ms
-		# A blow at the final boundary can impose a new reaction lock after the
-		# body's last displacement. Commit its speed constraint at this same
-		# boundary, so a genuine immediate save is already a valid candidate.
-		var walking: Dictionary = world_sim.conflicts.walking_projection("player")
-		_home._player.motion.limit_walking_speed(float(walking.speed_fraction) if bool(walking.allowed) else 0.0)
-		if _home._player.motion.velocity.is_zero_approx() and _home._player.motion.action.is_empty():
-			_home._player.manual_visual_moving = false
-		_advance_player_travel()
-		if not completed:
-			# Exhausting an event budget is normal pending work. The clock keeps
-			# the request and retries on a later frame without publishing its end.
-			if world_sim.errors.size() > old_errors:
-				GameClock.set_paused(true)
-			_notice = "世界事务待处理，未完成时间已保留。"
-			_refresh_panel()
-			break
-	return cursor
+	var intent: Vector2 = Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	var opening: bool = avatar_adapter != null and avatar_adapter.opening.visible
+	if opening:
+		intent = Vector2.ZERO
+	var request: Dictionary = {"target_ms": target_ms, "intent": intent, "subject": avatar_subject,
+		"altitude": _home._player.altitude, "opening": opening, "journey": player_journey,
+		"workers": body_publication_workers, "selected": [_home._selected_actor, _selected_remote] as Array[String]}
+	simulation_host.begin(request)
+	return _collect_simulation_reply() if not simulation_host.threaded else GameClock.elapsed_ms
+
+
+func _collect_simulation_reply() -> int:
+	var reply: Dictionary = simulation_host.collect()
+	if reply.is_empty():
+		return GameClock.elapsed_ms
+	player_journey = reply.journey
+	_home._player.manual_visual_moving = bool(reply.manual_moving)
+	_home._clock_interval_had_events = _home._clock_interval_had_events or bool(reply.had_events)
+	if not str(reply.notice).is_empty():
+		_notice = str(reply.notice)
+	if reply.publication != null:
+		body_publication = reply.publication
+		_published_from_runner = true
+		_record_body_publication()
+	if bool(reply.failed):
+		GameClock.set_paused(true)
+		_report_settlement_failure()
+		return GameClock.elapsed_ms
+	return int(reply.at_ms)
+
+
+func simulation_accessible() -> bool:
+	return simulation_host == null or not simulation_host.busy
+
+
+func ensure_simulation_host() -> void:
+	if simulation_host == null:
+		simulation_host = ReolSimulationHost.new()
+		simulation_host.configure(self)
+		_bootstrap_runner = null
+		get_tree().root.add_child(simulation_host)
 
 
 func _refresh_advance_views() -> void:
@@ -569,14 +546,6 @@ func _refresh_advance_views() -> void:
 	_advance_view_baseline = {}
 
 
-func project_player_journey(to_ms: int) -> void:
-	# Called by the original regional motion executor only after preflight, at
-	# each accepted sub-boundary. Never project the whole requested interval
-	# before a limited event budget has actually reached it.
-	if not player_journey.is_empty():
-		_home.simulation.project_actor_route("player", player_journey, to_ms)
-
-
 func travel_to(region_id: String, destination_cell: Variant = null) -> bool:
 	if not human_player_active() or not _player_command_ready():
 		return false
@@ -617,7 +586,7 @@ func travel_to(region_id: String, destination_cell: Variant = null) -> bool:
 		return false
 	if world_sim != null and world_sim.sparring.owns_actor("player"):
 		return false
-	if _local_action_owns("player"):
+	if not _home._player.motion.action.is_empty():
 		return false
 	var site: Dictionary = {}
 	if region_id.begins_with("site:"):
@@ -710,7 +679,7 @@ func _player_command_context() -> String:
 
 
 func _player_command_ready() -> bool:
-	return world_sim != null and not GameClock.has_pending_advance() \
+	return simulation_accessible() and world_sim != null and not GameClock.has_pending_advance() \
 		and world_sim.accepts_commands() and not world_sim.has_pending_boundary() \
 		and not world_sim.settlement.has_failed() and world_sim.elapsed_ms == GameClock.elapsed_ms \
 		and world_sim.target_ms == world_sim.elapsed_ms and (_saves == null or not _saves.pending())
@@ -719,7 +688,7 @@ func _player_command_ready() -> bool:
 func request_player_command(kind: String, args: Dictionary = {}) -> Dictionary:
 	# `queued` means only that the host remembers the intent. Resources and
 	# targets are checked by the original action entry when a boundary is ready.
-	if world_sim == null or world_sim.settlement.has_failed() or _opening_selection_available or not ReolPlayerCommandBuffer.LIFETIME_MS.has(kind):
+	if world_sim == null or (simulation_accessible() and world_sim.settlement.has_failed()) or _opening_selection_available or not ReolPlayerCommandBuffer.LIFETIME_MS.has(kind):
 		return {"ok": false, "queued": false, "line": "眼下无法受理这个操作。"}
 	if kind == "travel" and (not args.get("region") is String or not (args.get("cell") == null or args.get("cell") is Vector2i)):
 		return {"ok": false, "queued": false, "line": "没有可用的目的地。"}
@@ -727,7 +696,7 @@ func request_player_command(kind: String, args: Dictionary = {}) -> Dictionary:
 		var direction: Variant = args.get("direction", Input.get_vector("move_left", "move_right", "move_up", "move_down"))
 		if not direction is Vector2 or not direction.is_finite():
 			return {"ok": false, "queued": false, "line": "没有可用的闪避方向。"}
-		args = {"direction": _home._player.motion.facing if direction.is_zero_approx() else direction}
+		args = {"direction": _home._player.appearance_pose.get("direction", Vector2.DOWN) if direction.is_zero_approx() else direction}
 	GameClock.cancel_wait()
 	_player_commands.supersede(kind)
 	_drain_player_commands()
@@ -748,6 +717,10 @@ func _execute_player_command(kind: String, args: Dictionary) -> Dictionary:
 
 
 func _drain_player_commands() -> void:
+	if not simulation_accessible():
+		return
+	if simulation_host != null:
+		simulation_host.replay_inputs()
 	_player_commands.expire(_player_command_context(), Time.get_ticks_msec())
 	while _player_commands.pending() and _player_command_ready():
 		var item: Dictionary = _player_commands.take()
@@ -903,27 +876,6 @@ func hide_legacy_controls() -> void:
 	_home._panel.visible = false
 
 
-func _advance_player_travel() -> void:
-	if player_journey.is_empty():
-		return
-	if not _player_has_motion_control():
-		cancel_travel()
-		_notice = "无法继续行走，停在当前位置。"
-		return
-	if world_sim.elapsed_ms < int(player_journey.due_ms):
-		return
-	var path: Array = player_journey.path
-	if not path.is_empty():
-		_home.simulation.set_actor_cell("player", _cell(path.pop_front()))
-	world_sim.invalidate_region("home", "player")
-	if path.is_empty():
-		_notice = "已到达%s。" % _journey_label(str(player_journey.destination))
-		player_journey = {}
-		_refresh_panel()
-	else:
-		SimRouteTravel.begin_segment(player_journey, _home.simulation.synchronize_actor("player"), world_sim.elapsed_ms, float(_home._player.motion.rules.motion.speed))
-
-
 func _update_region() -> void:
 	var focus: Vector2i = controlled_cell()
 	var nearest: String = ""
@@ -993,7 +945,7 @@ func _refresh_views(snap: bool, layout: PawnViewLayout = null) -> void:
 			add_child(created_pawn)
 			_remote_views[id] = created_pawn
 		var pawn: Pawn = _remote_views[id]
-		pawn.appearance_pose = HumanoidPose.stabilized(row.pose.duplicate(), pawn.appearance_pose)
+		pawn.appearance_pose = HumanoidAppearance.stabilize_pose(row.pose.duplicate(), pawn.appearance_pose)
 		pawn.clothing_appearance = row.clothing
 		pawn.set_view_layout(layout.offsets.get(id, Vector2.ZERO))
 		pawn.cell = cell
@@ -1016,6 +968,10 @@ func _refresh_views(snap: bool, layout: PawnViewLayout = null) -> void:
 
 
 func _process(_delta: float) -> void:
+	if not simulation_accessible():
+		return
+	if simulation_host != null:
+		simulation_host.replay_inputs()
 	if _field_compute != null:
 		_field_compute.maintain()
 	for index: int in range(_retired_field_compute.size() - 1, -1, -1):
@@ -1115,11 +1071,14 @@ func _report_settlement_failure() -> void:
 
 
 func _presentation_ready() -> bool:
-	return world_sim != null and not world_sim.has_pending_boundary()
+	return simulation_accessible() and world_sim != null and not world_sim.has_pending_boundary()
 
 
 func _refresh_panel() -> void:
 	if _panel == null or world_sim == null:
+		return
+	if not simulation_accessible():
+		_panel.update_notice(_notice)
 		return
 	if world_sim.has_pending_boundary():
 		_panel.update_notice(_notice)
@@ -1172,11 +1131,11 @@ func _save_service() -> SimSaveSession:
 
 
 func _save_ready() -> bool:
-	return world_sim != null and not GameClock.has_pending_advance() and GameClock.elapsed_ms == world_sim.elapsed_ms and world_sim.target_ms == world_sim.elapsed_ms and not world_sim.has_pending_boundary() and not world_sim.settlement.has_failed()
+	return simulation_accessible() and world_sim != null and not GameClock.has_pending_advance() and GameClock.elapsed_ms == world_sim.elapsed_ms and world_sim.target_ms == world_sim.elapsed_ms and not world_sim.has_pending_boundary() and not world_sim.settlement.has_failed()
 
 
 func _save_failed() -> bool:
-	return world_sim == null or world_sim.settlement.has_failed()
+	return world_sim == null or (simulation_accessible() and world_sim.settlement.has_failed())
 
 
 func _capture_session() -> Dictionary:
@@ -1225,6 +1184,7 @@ func _show_save_result(result: Error) -> void:
 
 
 func _exit_tree() -> void:
+	_close_simulation_host()
 	if _field_compute != null:
 		_field_compute.shutdown()
 	for service: EnvironmentFieldComputeRuntime in _retired_field_compute:
@@ -1238,6 +1198,8 @@ func _exit_tree() -> void:
 
 
 func load_game(path: String) -> Error:
+	if not simulation_accessible():
+		return ERR_BUSY
 	var result: Error = _save_service().load_now(path)
 	if result == OK:
 		_notice = "两地已接续到保存时刻，途中事务保持原样。"
@@ -1258,6 +1220,7 @@ func _adopt_session(staged: Dictionary) -> void:
 	var extra: Dictionary = snapshot.continuity
 	# All validation is complete before changing any live world or clock state.
 	var previous_world: RegionalSimulation = world_sim
+	_close_simulation_host()
 	presentation_work.clear()
 	_player_commands.clear()
 	_retire_field_compute()
@@ -1312,6 +1275,13 @@ func _adopt_session(staged: Dictionary) -> void:
 		interaction_adapter.receive_current_care_alerts()
 	_home.content_replaced.emit(_home._content)
 	_capture_committed_canvases()
+
+
+func _close_simulation_host() -> void:
+	if simulation_host != null:
+		simulation_host.close()
+		simulation_host.queue_free()
+		simulation_host = null
 
 
 func known_lines() -> Array[String]:
