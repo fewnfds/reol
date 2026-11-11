@@ -532,6 +532,16 @@ func read_base(cell: Vector2i) -> Dictionary:
 	return {"ok": true, "pending": false, "channels": result, "revision": _revision}
 
 
+func cached_chunk_channels(key: Vector2i) -> PackedInt32Array:
+	var cell: Vector2i = key * TILE_SIZE
+	if not _inside(cell):
+		return PackedInt32Array()
+	var tile: Dictionary = _tiles.get(_tile_for_cell(cell), {})
+	# Packed arrays have value semantics. Holding this value preserves the
+	# previous tile while the original owner replaces its current cache.
+	return tile.values if not tile.is_empty() and not bool(tile.dirty) else PackedInt32Array()
+
+
 func request_area(area: Rect2i) -> Dictionary:
 	# Validate the entire tile-aligned region before queuing anything. This
 	# CPU path does not copy the map, sources, kernels or any field values.

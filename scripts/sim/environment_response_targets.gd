@@ -49,7 +49,7 @@ func configure(temperature: RefCounted, phases: RefCounted, settings: Dictionary
 	return true
 
 
-func begin(area: Rect2i, at_ms: int, activation: bool = false, event_context: Variant = null, domains: int = THERMAL | ELEMENTAL, due_only: bool = false) -> Dictionary:
+func begin(area: Rect2i, at_ms: int, activation: bool = false, event_context: Variant = null, domains: int = THERMAL | ELEMENTAL, due_only: bool = false, selection: PackedByteArray = PackedByteArray()) -> Dictionary:
 	if _temperature == null:
 		return _failure("not_configured")
 	if _active != null:
@@ -65,6 +65,12 @@ func begin(area: Rect2i, at_ms: int, activation: bool = false, event_context: Va
 	var chunk_count: int = (area.size.x / SIDE) * (area.size.y / SIDE)
 	if chunk_count > MAX_CHUNKS:
 		return _failure("chunk_limit")
+	if not selection.is_empty():
+		if chunk_count != 1 or selection.size() != SLOTS:
+			return _failure("selection_layout")
+		for value: int in selection:
+			if value > (THERMAL | ELEMENTAL):
+				return _failure("selection_domains")
 	var batch := Batch.new()
 	batch.handle = Handle.new()
 	if domains & THERMAL:
@@ -84,6 +90,7 @@ func begin(area: Rect2i, at_ms: int, activation: bool = false, event_context: Va
 	batch.activation = activation
 	batch.domains = domains
 	batch.due_only = due_only
+	batch.selection = selection
 	batch.context = event_context
 	batch.chunk_count = chunk_count
 	batch.chunk_x = area.position.x
@@ -163,14 +170,17 @@ func _compile_input(budget: int) -> Dictionary:
 
 
 func _selected_domains(cell: Vector2i) -> int:
+	var allowed: int = _active.domains
+	if not _active.selection.is_empty():
+		allowed &= _active.selection[(cell.y - _active.chunk_y) * SIDE + cell.x - _active.chunk_x]
 	if not _active.due_only:
-		return _active.domains
+		return allowed
 	var result: int = 0
-	if _active.domains & THERMAL:
+	if allowed & THERMAL:
 		var boundary: int = _temperature.cell_boundary_ms(cell)
 		if boundary >= 0 and boundary <= _active.at_ms:
 			result |= THERMAL
-	if _active.domains & ELEMENTAL:
+	if allowed & ELEMENTAL:
 		var boundary: int = _phases.cell_boundary_ms(cell)
 		if boundary >= 0 and boundary <= _active.at_ms:
 			result |= ELEMENTAL
@@ -383,6 +393,7 @@ class Batch:
 	var activation: bool = false
 	var domains: int = 3
 	var due_only: bool = false
+	var selection := PackedByteArray()
 	var context: Variant
 	var field_revision: int = -1
 	var chunk_count: int = 0

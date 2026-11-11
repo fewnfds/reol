@@ -10,6 +10,8 @@ extends "res://scripts/sim/environment_field_cache.gd"
 ## that old slot. In particular a unique extreme grade cannot force a full
 ## radius scan after it has already been logically removed from the candidate.
 
+const SOURCE_LIST_LIMIT: int = 64
+
 var _grade_bounds: Array[GradeBounds] = []
 var _candidate_bounds := PackedInt32Array()
 # Exact grade counts for source-anchor blocks, derived from the SAME slots.
@@ -20,6 +22,11 @@ var _build_bounds := PackedInt32Array()
 var _bounds_rect := Rect2i()
 var _bounds_x: int = 0
 var _bounds_y: int = 0
+var _build_sources := PackedInt32Array()
+var _build_gathering: bool = false
+var _build_gather_slot: int = -1
+var _build_source_index: int = 0
+var _build_source_direct: bool = false
 # Disposable per-candidate participation metadata. A bit denotes an effect
 # channel that can differ because of this source, not another copy of a source
 # or world state. Clean old tiles permit exact per-cell change masks; a missing
@@ -283,24 +290,30 @@ func _replace_block_grades(old_cell: Vector2i, old: PackedInt32Array, cell: Vect
 
 func _begin_next() -> void:
 	super._begin_next()
+	_build_sources = PackedInt32Array()
+	_build_source_index = 0
+	_build_gather_slot = -1
+	_build_source_direct = false
+	_build_gathering = false
 	if _build_phase == 2:
 		return
 	var area: Rect2i = _build_rect.grow(_max_radius - 1).intersection(Rect2i(Vector2i.ZERO, _size))
-	var first := Vector2i(area.position.x >> 4, area.position.y >> 4)
-	var last := Vector2i((area.end.x - 1) >> 4, (area.end.y - 1) >> 4)
-	_bounds_rect = Rect2i(first, last - first + Vector2i.ONE)
-	_bounds_x = first.x
-	_bounds_y = first.y
 	_build_bounds = PackedInt32Array()
 	_build_bounds.resize(CHANNELS)
-	# One source block per work unit, even at the largest supported radius.
-	# The ordinary receiver loop starts only after the conservative bound is
-	# complete. No partial tile values or bound become externally visible.
+	# Share the local source list over the whole receiver tile. Gathering one
+	# cell/link per work unit keeps cold geometry rebuilds resumable.
+	_bounds_rect = area
+	_bounds_x = area.position.x
+	_bounds_y = area.position.y
+	_build_gathering = true
 	_build_phase = 3
 
 
 func _step_receiver() -> void:
 	if _build_phase == 3:
+		if _build_gathering:
+			_gather_build_source()
+			return
 		var block: BlockBounds = _block_bounds.get(_bounds_y * _tile_columns + _bounds_x)
 		if block != null:
 			for channel: int in CHANNELS:
@@ -311,6 +324,9 @@ func _step_receiver() -> void:
 			_bounds_y += 1
 			if _bounds_y >= _bounds_rect.end.y:
 				_build_phase = 0
+		return
+	if _build_source_direct:
+		_step_listed_receiver()
 		return
 	# Same ordered offsets, source chain, rounding and work accounting as the
 	# base cache. Only the conservative strength bound is now spatially local.
@@ -352,6 +368,73 @@ func _step_receiver() -> void:
 	if _neighbor_slot == -1:
 		_neighbor_slot = UNSET
 		_neighbor_index += 1
+
+
+func _gather_build_source() -> void:
+	if _build_gather_slot >= 0:
+		var slot: int = _build_gather_slot
+		_build_sources.append(slot)
+		_build_gather_slot = _slot_next[slot]
+		if _build_sources.size() > SOURCE_LIST_LIMIT:
+			# Dense source windows keep the original distance-ordered search and
+			# block bound. Do not finish scanning a huge list merely to discard it.
+			var first := Vector2i(_bounds_rect.position.x >> 4, _bounds_rect.position.y >> 4)
+			var last := Vector2i((_bounds_rect.end.x - 1) >> 4, (_bounds_rect.end.y - 1) >> 4)
+			_bounds_rect = Rect2i(first, last - first + Vector2i.ONE)
+			_bounds_x = first.x
+			_bounds_y = first.y
+			_build_gathering = false
+			_build_sources.clear()
+			return
+		for channel: int in CHANNELS:
+			_build_bounds[channel] = maxi(_build_bounds[channel], _slot_channels[slot * CHANNELS + channel])
+		return
+	if _bounds_y >= _bounds_rect.end.y:
+		_build_source_direct = _build_sources.size() <= SOURCE_LIST_LIMIT
+		_build_gathering = false
+		_build_phase = 0
+		return
+	_build_gather_slot = _heads[_bounds_y * _size.x + _bounds_x]
+	_bounds_x += 1
+	if _bounds_x >= _bounds_rect.end.x:
+		_bounds_x = _bounds_rect.position.x
+		_bounds_y += 1
+
+
+func _step_listed_receiver() -> void:
+	if _build_source_index >= _build_sources.size():
+		_build_source_index = 0
+		_receiver_index += 1
+		if _receiver_index >= _build_rect.size.x * _build_rect.size.y:
+			_build_phase = 2
+			return
+		_receiver_x += 1
+		if _receiver_x >= _build_rect.end.x:
+			_receiver_x = _build_rect.position.x
+			_receiver_y += 1
+		return
+	var slot: int = _build_sources[_build_source_index]
+	_build_source_index += 1
+	# An adopted source outside this tile may have removed/reused a gathered
+	# slot. Its current footprint has no contribution here; read the live slot.
+	var radius: int = _slot_radius[slot]
+	var dx: int = absi(_receiver_x - _slot_x[slot])
+	var dy: int = absi(_receiver_y - _slot_y[slot])
+	if radius == 0 or dx >= radius or dy >= radius:
+		return
+	var table: PackedInt32Array = _kernels[radius]
+	var weight: int = table[dy * radius + dx]
+	var offset: int = _receiver_index * CHANNELS
+	for channel: int in CHANNELS:
+		var strength: int = _slot_channels[slot * CHANNELS + channel]
+		if strength <= _build_values[offset + channel]:
+			continue
+		@warning_ignore("integer_division")
+		var value: int = (strength * weight + Rules.SCALE / 2) / Rules.SCALE
+		if value <= _build_values[offset + channel]:
+			continue
+		value = _transport_grade(value, Vector2i(_slot_x[slot], _slot_y[slot]), Vector2i(_receiver_x, _receiver_y), channel)
+		_build_values[offset + channel] = maxi(_build_values[offset + channel], value)
 
 
 class BlockBounds:

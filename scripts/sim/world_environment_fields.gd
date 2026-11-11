@@ -867,6 +867,8 @@ func after_topology_change(now: int, terrain: bool = false) -> bool:
 	# all old actual values; only new compartments mix them by cell area.
 	var affected: Dictionary[Vector2i, bool] = {}
 	var old_barriers: Dictionary = _layout.barriers.duplicate()
+	var old_rooms: Dictionary[Vector2i, Vector2i] = _layout.room_of.duplicate()
+	var invalidations: Array[Rect2i] = []
 	for cell: Vector2i in _layout.room_of:
 		affected[Vector2i(cell.x >> 4, cell.y >> 4)] = true
 	if not _layout.rebuild(world):
@@ -878,13 +880,17 @@ func after_topology_change(now: int, terrain: bool = false) -> bool:
 		var new_terms: Dictionary = _layout.barriers.get(cell, {})
 		if not terrain and int(old_terms.get("thermal", 10000)) == int(new_terms.get("thermal", 10000)) and int(old_terms.get("elements", 10000)) == int(new_terms.get("elements", 10000)):
 			continue
-		_field.invalidate_geometry(Rect2i(cell - Vector2i(16, 16), Vector2i(33, 33)))
+		invalidations.append(Rect2i(cell - Vector2i(16, 16), Vector2i(33, 33)))
 		for y: int in range(maxi(0, cell.y - 16) >> 4, (mini(SIZE - 1, cell.y + 16) >> 4) + 1):
 			for x: int in range(maxi(0, cell.x - 16) >> 4, (mini(SIZE - 1, cell.x + 16) >> 4) + 1):
 				affected[Vector2i(x, y)] = true
 	_topology_cells.clear()
+	var old_channels: Dictionary[Vector2i, PackedInt32Array] = {}
 	for key: Vector2i in affected:
+		old_channels[key] = _field.cached_chunk_channels(key)
 		_chunks[key] = true
+	for area: Rect2i in invalidations:
+		_field.invalidate_geometry(area)
 	if not _rebuild_base():
 		return false
 	# Actual anchors are preserved by normal retargeting before the new rooms
@@ -892,7 +898,31 @@ func after_topology_change(now: int, terrain: bool = false) -> bool:
 	var keys: Array[Vector2i] = []
 	keys.assign(affected.keys())
 	for key: Vector2i in keys:
-		var opened: Dictionary = _targets.begin(Rect2i(key * 16, Vector2i(16, 16)), now)
+		var previous: PackedInt32Array = old_channels[key]
+		var current: PackedInt32Array = _field.cached_chunk_channels(key)
+		if current.size() != 256 * 7:
+			return _fail("topology_base_unavailable")
+		var masks := PackedByteArray()
+		masks.resize(256)
+		var domains: int = 0
+		for index: int in 256:
+			var cell := key * 16 + Vector2i(index & 15, index >> 4)
+			var changed: int = 0
+			if previous.size() != current.size():
+				changed = Targets.THERMAL | Targets.ELEMENTAL
+			else:
+				for channel: int in 7:
+					if previous[index * 7 + channel] != current[index * 7 + channel]:
+						changed |= Targets.THERMAL if channel >= 5 else Targets.ELEMENTAL
+			# Entering or leaving a mixed room changes its thermal law even if
+			# the source max stayed the same. Unrelated cells keep their anchors.
+			if old_rooms.has(cell) or _layout.room_of.has(cell):
+				changed |= Targets.THERMAL
+			masks[index] = changed
+			domains |= changed
+		if domains == 0:
+			continue
+		var opened: Dictionary = _targets.begin(Rect2i(key * 16, Vector2i(16, 16)), now, false, null, domains, false, masks)
 		if not bool(opened.get("ok", false)):
 			return _fail("topology_target")
 		while true:
