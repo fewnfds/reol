@@ -20,10 +20,13 @@ python tools/godot.py editor
 ```powershell
 python tools/stress_demo.py --residents 150 --seconds 20 --quit-after-capture
 python tools/stress_demo.py --release --residents 150 --seconds 20 --quit-after-capture
+python tools/stress_demo.py --release --mixed --residents 150 --seconds 45 --quit-after-capture
 python tools/diagnose_demo.py --seconds 30 --auto-start --quit-after-capture
 ```
 
 压力入口两地各150人，持续使用普通Main原人物、寻路、生活、环境及共同时间；临时人口状态不写玩家档。`--actor-workers 0`与默认4可对照同一Packed数学的串行/线程执行，不能预设后者更快。普通诊断保留原开局；不加`--quit-after-capture`可继续试玩。
+
+`--mixed`在两地巡行中加入实际取货/交付、原配方完工、开关门、有限交锋和携发光器物的移动视野。工地和配方通过原命令及共同时间准备，`assembly_ms`和`crowd.mixed.setup_world_ms`与采样分开。采样报告记录实际完成的行为、世界流速、超16.67ms帧数和场景驱动耗时；如因缓行未覆盖完整负载，报告保留，进程返回非零。世界错误立即结束采样并保存第一手上下文。
 
 Windows的`--release`先用`Windows Performance`预设导出当前代码到忽略的`logs/release-stress/`，然后启动真正的release exe/PCK，复用同一压力会话。需安装与当前引擎完全匹配的Windows x86_64 release模板；本机模板不入库。导出上限45秒，退出式采样进程上限为采样时长加45秒；不会启动CI或smoke。`performance_stress`特征只替换这个预设的启动场景，普通Main入口不变。
 

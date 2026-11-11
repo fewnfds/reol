@@ -2,12 +2,14 @@ extends Node
 ## Development-only full world opening. Uses real NPC bodies, original native
 ## work, pathfinding, fields and shared-clock recorder; never writes a save.
 
+const MixedWorkload = preload("res://scripts/diagnostics/crowd_mixed_workload.gd")
+
 var root: Window:
 	get: return get_tree().root
 
 var _main: Node
 var _recorder: Node
-var _clock: Node
+var _clock: ReolGameClock
 var _quit_after: bool = false
 var _report: String = "user://diagnostics/crowd-stress.json"
 var _seconds: int = 30
@@ -29,6 +31,7 @@ var _redirects: int = 0
 var _actor_workers: int = 4
 var _profile_kernel: bool = false
 var _profile_render: bool = false
+var _mixed: RefCounted
 const CIRCUIT: Array[String] = ["rest", "inspect", "check_store", "check_well"]
 
 
@@ -53,18 +56,24 @@ func _run() -> void:
 			_quit_after = true
 		elif argument == "--opening-wave":
 			_opening_wave = true
+		elif argument == "--mixed":
+			_mixed = MixedWorkload.new()
 		elif argument == "--profile-kernel":
 			_profile_kernel = true
 		elif argument == "--profile-render":
 			_profile_render = true
 		elif argument.begins_with("--actor-workers="):
 			_actor_workers = clampi(argument.get_slice("=", 1).to_int(), 0, 8)
+	if _mixed != null and (_opening_wave or _seconds < 45):
+		push_error("Mixed capture requires at least 45 seconds and no --opening-wave")
+		get_tree().quit(1)
+		return
 	_main = load("res://scenes/main.tscn").instantiate()
 	_main.set_script(load("res://scripts/diagnostics/crowd_scene.gd"))
 	root.add_child(_main)
 	get_tree().current_scene = _main
 	_clock = root.get_node("GameClock")
-	var runtime: Node = _main.get("_continuity")
+	var runtime: WorldContinuityRuntime = _main.get("_continuity")
 	if runtime == null or runtime.world_sim == null or not runtime.avatar_adapter.choose("subject:player"):
 		push_error("Stress opening could not assemble the ordinary world")
 		get_tree().quit(1)
@@ -99,6 +108,16 @@ func _run() -> void:
 		home.set_actor_cell("player", at)
 		_main.player.spawn_at(at)
 		runtime.world_sim.invalidate_region("home")
+		if _mixed != null:
+			var failure: String = await _mixed.prepare(runtime, _clock)
+			if not failure.is_empty():
+				push_error("Mixed workload setup failed: " + failure)
+				_main.free()
+				get_tree().quit(1)
+				return
+			# The deliberately accelerated setup is not a throughput sample.
+			_clock.pacing.reset()
+			_main.player.spawn_at(at)
 		_main.fog.set_focus(at)
 		_main.fog.update_now()
 		_main.camera.global_position = TileGrid.cell_to_world(at)
@@ -114,14 +133,24 @@ func _run() -> void:
 	var warmup_complete: bool = _main.world._pending_load.is_empty() and _main.world._painting_chunk.x < 0 and _main.world._dirty_cursor >= _main.world._dirty_order.size()
 	var total: int = 0
 	for region: String in runtime.world_sim.regions:
+		# Explicit setup may leave a quiet region at its last local event. The
+		# first ordinary order belongs to the current shared time, never its past.
+		if not runtime.world_sim.advance_region_to_world(region):
+			push_error("Crowd region could not reach the start of the capture: " + region)
+			_main.free()
+			get_tree().quit(1)
+			return
 		var sim: VillageSimulation = runtime.world_sim.regions[region]
-		for id: String in sim.synchronize_actors():
+		var bodies: Dictionary = sim.synchronize_actors()
+		for id: String in bodies:
 			total += 1
-			_starts[id] = sim.actor_position(sim.synchronize_actors()[id])
-			if id != "player":
+			_starts[id] = sim.actor_position(bodies[id])
+			if id != "player" and (_mixed == null or not _mixed.uses_actor(id)):
+				if _mixed != null and not bodies[id].active.is_empty():
+					sim.cancel_action(id, "mixed_circuit_setup")
 				_legs[id] = 0
 				if sim.submit_action(id, CIRCUIT[0]):
-					_orders[id] = str(sim.synchronize_actors()[id].active.id)
+					_orders[id] = str(bodies[id].active.id)
 		runtime.world_sim.invalidate_region(region)
 	_recorder = load("res://scripts/diagnostics/demo_recorder.gd").new()
 	root.add_child(_recorder)
@@ -130,7 +159,10 @@ func _run() -> void:
 		"terrain_warmup_usec": Time.get_ticks_usec() - warmup_started, "terrain_warmup_complete": warmup_complete}):
 		get_tree().quit(1)
 		return
-	_status.text = "临时压力世界 · %d个真实身体 / 双聚落\n原寻路、生活、环境、共同时间 · %s\n不保存到普通档 · WASD / F3 · %d秒采样后%s" % [total, "单次出发" if _opening_wave else "抵达后用原命令持续巡行", _seconds, "退出" if _quit_after else "可继续试玩"]
+	_status.text = "临时压力世界 · %d个真实身体 / 双聚落\n原寻路、生活、环境、共同时间 · %s\n不保存到普通档 · WASD / F3 · %d秒采样后%s" % [total, "搬运、生产、开关门与交锋" if _mixed != null else ("单次出发" if _opening_wave else "抵达后用原命令持续巡行"), _seconds, "退出" if _quit_after else "可继续试玩"]
+	_last_sample_ms = _clock.elapsed_ms
+	if _mixed != null:
+		_mixed.start()
 	_clock.set_paused(false)
 	get_tree().process_frame.connect(_sample)
 
@@ -140,17 +172,24 @@ func _sample() -> void:
 	var world: RegionalSimulation = runtime.world_sim
 	if not world.accepts_commands() or int(_clock.elapsed_ms) == _last_sample_ms:
 		return
+	var began: int = Time.get_ticks_usec()
 	var span: int = int(_clock.elapsed_ms) - _last_sample_ms
 	_sampled_world_ms += span
 	_travel_actor_ms += _last_travelling * span
 	_last_sample_ms = int(_clock.elapsed_ms)
 	_last_travelling = 0
-	for sim: VillageSimulation in runtime.world_sim.regions.values():
+	if _mixed != null and world.elapsed_ms == world.target_ms:
+		_mixed.sample()
+	for region: String in world.regions:
+		var sim: VillageSimulation = world.regions[region]
 		for id: String in sim.actors:
 			if not _moved.has(id) and _starts.has(id) and sim.projected_actor_position(id) != _starts[id]:
 				_moved[id] = true
 			var person: Dictionary = sim.actor_state(id)
 			if not _opening_wave and _legs.has(id) and bool(person.alive):
+				var ready: bool = person.active.is_empty() or (person.active.get("id", "") == _orders.get(id, "") and person.active.get("phase") == "work")
+				if ready and not world.advance_region_to_world(region):
+					continue
 				# Redirect only our own arrived order, through original cancellation
 				# and submission. Never teleport or replace a domain-owned process.
 				if person.active.get("id", "") == _orders.get(id, "") and person.active.get("phase") == "work":
@@ -163,6 +202,9 @@ func _sample() -> void:
 					world.invalidate_region(world.clothing.home(id), id)
 			if person.active.get("phase") == "travel":
 				_last_travelling += 1
+	if _mixed != null:
+		_last_travelling += _mixed.travelling()
+	_recorder.note_driver_work(Time.get_ticks_usec() - began)
 
 
 func _finish(ok: bool) -> void:
@@ -178,8 +220,14 @@ func _finish(ok: bool) -> void:
 		if pawn.is_visible_in_tree():
 			visible += 1
 	var runtime: Node = _main.get("_continuity")
-	var crowd: Dictionary = {"actors": _starts.size(), "moved": _moved.size(), "mode": "opening_wave" if _opening_wave else "sustained_circuit", "mean_travelling": float(_travel_actor_ms) / maxi(1, _sampled_world_ms), "visible_at_finish": visible, "redirects": _redirects,
+	var crowd: Dictionary = {"actors": _starts.size(), "moved": _moved.size(), "mode": "mixed" if _mixed != null else ("opening_wave" if _opening_wave else "sustained_circuit"), "mean_travelling": float(_travel_actor_ms) / maxi(1, _sampled_world_ms), "visible_at_finish": visible, "redirects": _redirects,
 		"environment_compute": runtime._field_compute.diagnostics() if runtime._field_compute != null else {}}
+	if _mixed != null:
+		var mixed: Dictionary = _mixed.evidence()
+		crowd["mixed"] = mixed
+		var outcomes: Dictionary = mixed.completed
+		if int(outcomes.get("haul:completed", 0)) < 4 or int(outcomes.get("cook:completed", 0)) < 1 or int(outcomes.get("open:completed", 0)) < 1 or int(outcomes.get("close:completed", 0)) < 1 or int(mixed.projectiles_emitted) < 1 or int(mixed.observer_cell_changes) < 10 or not mixed.source_carried:
+			_failures.append("Mixed capture did not exercise all intended activity: " + JSON.stringify(mixed))
 	var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(_report))
 	if not raw is Dictionary:
 		push_error("Crowd recorder did not write a valid report")
@@ -204,6 +252,6 @@ func _finish(ok: bool) -> void:
 	if _quit_after or not ok or not _failures.is_empty():
 		_main.free()
 		get_tree().quit(0 if ok and _failures.is_empty() else 1)
-	elif not _opening_wave:
+	elif not _opening_wave and _mixed == null:
 		# Keep the same circuit playable after recording stops.
 		get_tree().process_frame.connect(_sample)

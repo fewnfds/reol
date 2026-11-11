@@ -17,6 +17,7 @@ def main() -> int:
     parser.add_argument("--quit-after-capture", action="store_true", help="otherwise keep playing the temporary world")
     parser.add_argument("--headless", action="store_true", help="rules/CPU diagnostics only, not rendering performance")
     parser.add_argument("--opening-wave", action="store_true", help="single ordinary rest journey, for the original before/after comparison")
+    parser.add_argument("--mixed", action="store_true", help="exercise stock delivery, a real recipe, a door, moving view and limited combat")
     parser.add_argument("--profile-kernel", action="store_true", help="wrap every world phase for diagnosis; adds overhead, disabled for throughput captures")
     parser.add_argument("--profile-render", action="store_true", help="enable Godot viewport CPU/GPU rendering timings; adds measurement overhead")
     parser.add_argument("--actor-workers", type=int, choices=range(9), default=4, help="native actor calculation workers; 0 uses the same packed calculation serially")
@@ -25,12 +26,14 @@ def main() -> int:
     args = parser.parse_args()
     if not 6 <= args.residents <= 256 or not 5 <= args.seconds <= 300:
         parser.error("residents must be 6..256 and seconds 5..300")
+    if args.mixed and (args.opening_wave or args.residents < 14 or args.seconds < 45):
+        parser.error("mixed requires at least 14 residents per settlement and 45 seconds, without --opening-wave")
     executable = godot.find_godot()
     if executable is None:
         parser.error("Godot was not found; run python tools/godot.py doctor")
     sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=godot.ROOT, text=True).strip()
     dirty = bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=godot.ROOT, text=True).strip())
-    tag = f"crowd-{'release-' if args.release else ''}{args.residents * 2}-{time.strftime('%Y%m%d-%H%M%S')}"
+    tag = f"crowd-{'release-' if args.release else ''}{'mixed-' if args.mixed else ''}{args.residents * 2}-{time.strftime('%Y%m%d-%H%M%S')}"
     print(f"Temporary crowd: {args.residents * 2} bodies; report logs/{tag}.json", flush=True)
     if args.release:
         output = godot.ROOT / "logs" / "release-stress" / "reol-perf.exe"
@@ -60,6 +63,8 @@ def main() -> int:
         cmd.append("--quit-after-capture")
     if args.opening_wave:
         cmd.append("--opening-wave")
+    if args.mixed:
+        cmd.append("--mixed")
     if args.profile_kernel:
         cmd.append("--profile-kernel")
     if args.profile_render:

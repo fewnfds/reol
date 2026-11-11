@@ -20,6 +20,10 @@ var _frame_executor_usec: int = 0
 var _total_clock_usec: int = 0
 var _total_executor_usec: int = 0
 var _total_kernel_usec: int = 0
+var _driver_usec: int = 0
+var _total_driver_usec: int = 0
+var _frame_count: int = 0
+var _over_60fps_budget: int = 0
 var _fog_updates: int = 0
 var _frames: Array[float] = []
 var _clock_samples: Array[float] = []
@@ -163,12 +167,19 @@ func _before_frame() -> void:
 	_sample_clock_work = (not _clock.paused or bool(_clock._explicit_allow_paused)) and not _clock._save_boundary_held()
 
 
+func note_driver_work(usec: int) -> void:
+	_driver_usec += usec
+
+
 func _process(_delta: float) -> void:
 	if _done:
 		return
 	_bind_kernel()
 	var now: int = Time.get_ticks_usec()
 	var span: int = now - _last
+	_frame_count += 1
+	if span * 60 > 1000000:
+		_over_60fps_budget += 1
 	var world_id: int = _runtime.world_sim.get_instance_id()
 	var running: bool = not _clock.paused and int(_clock.wait_target_ms) == 0
 	if running and _was_running and world_id == _last_world_id and int(_clock.elapsed_ms) >= _last_world_ms:
@@ -182,6 +193,7 @@ func _process(_delta: float) -> void:
 	_total_clock_usec += clock_usec
 	_total_executor_usec += _frame_executor_usec
 	_total_kernel_usec += _frame_kernel_usec
+	_total_driver_usec += _driver_usec
 	if _frames.size() < MAX_SAMPLES:
 		_frames.append(float(span) / 1000.0)
 		_clock_samples.append(float(clock_usec) / 1000.0)
@@ -208,18 +220,19 @@ func _process(_delta: float) -> void:
 	_frame_scopes.clear()
 	_frame_executor_usec = 0
 	_frame_kernel_usec = 0
+	_driver_usec = 0
 	_fog_updates = 0
 	_last = now
 	_last_world_ms = int(_clock.elapsed_ms)
 	_last_world_id = world_id
 	_was_running = running
-	if now - _started >= int(_options.seconds) * 1000000:
+	if not _runtime.world_sim.errors.is_empty() or now - _started >= int(_options.seconds) * 1000000:
 		finish()
 
 
 func _snapshot(now: int, clock_usec: int) -> Dictionary:
 	var view = _main.get("world")
-	return {"host_ms": (now - _started) / 1000.0, "clock_ms": clock_usec / 1000.0,
+	return {"host_ms": (now - _started) / 1000.0, "clock_ms": clock_usec / 1000.0, "driver_ms": _driver_usec / 1000.0,
 		"interval_ms": _frame_executor_usec / 1000.0, "kernel_ms": _frame_kernel_usec / 1000.0 if _profile_kernel else null,
 		"interval_outside_kernel_ms": maxi(0, _frame_executor_usec - _frame_kernel_usec) / 1000.0 if _profile_kernel else null,
 		"clock_outside_interval_ms": maxi(0, clock_usec - _frame_executor_usec) / 1000.0,
@@ -290,14 +303,22 @@ func finish() -> void:
 		"requested_world_ms": _requested_ms, "achieved_fraction": _advanced_ms / _requested_ms if _requested_ms > 0.0 else null,
 		"minimum_load_rate": _minimum_rate, "slow_seconds": _slow_usec / 1000000.0,
 		"frame_ms": _summary(_frames), "clock_ms": _summary(_clock_samples),
+		"frame_count": _frame_count, "frames_over_60fps_budget": _over_60fps_budget,
 		"render_cpu_ms": _summary(_render_cpu), "render_gpu_ms": _summary(_render_gpu), "render_setup_cpu_ms": _summary(_render_setup),
 		"work_totals_ms": {"clock": _total_clock_usec / 1000.0,
+			"diagnostic_driver": _total_driver_usec / 1000.0,
 			"runtime_interval": _total_executor_usec / 1000.0, "kernel_callbacks": _total_kernel_usec / 1000.0 if _profile_kernel else null,
 			"interval_outside_kernel": maxi(0, _total_executor_usec - _total_kernel_usec) / 1000.0 if _profile_kernel else null},
 		"kernel_scopes": _scope_rows(), "largest_frames": _spikes,
 		"actor_execution": _actor_execution_summary(),
 		"world_errors": _runtime.world_sim.errors.duplicate(),
 		"limits": "Instrumented process: check debug_build/editor_build for build type. Frame intervals include render/host waits. Optional kernel/render measurements add overhead; disabled timings are null/empty. Render timings are RenderingServer measurements of last available rendered frame, not this script's clock work; frame/GPU values must not be added. Interval residual includes scheduling and views. Fog/streaming flags indicate correlation. Paused/wait/load transitions excluded from achieved fraction. First 20000 frame samples; largest 24 frames retained."}
+	if not report.world_errors.is_empty():
+		var world: RegionalSimulation = _runtime.world_sim
+		var fields: SimWorldEnvironmentFields = world.environment_fields as SimWorldEnvironmentFields
+		if fields != null:
+			report["failure_context"] = {"published_ms": _clock.elapsed_ms, "world_ms": world.elapsed_ms, "requested_ms": world.target_ms,
+				"field_ms": fields.last_ms, "field_target_ms": fields._settle_cursor.get("target_ms"), "field_busy": fields._busy, "field_error": fields._error}
 	var file := FileAccess.open(str(_options.report), FileAccess.WRITE)
 	if file == null:
 		push_error("Demo recorder cannot write its summary")
@@ -306,7 +327,7 @@ func finish() -> void:
 	file.store_string(JSON.stringify(report, "\t"))
 	file.close()
 	print("DEMO_PROFILE ", _options.report, " achieved=", report.achieved_fraction, " top=", JSON.stringify(report.kernel_scopes.slice(0, 3)))
-	finished.emit(true)
+	finished.emit(report.world_errors.is_empty())
 
 
 func _actor_execution_summary() -> Dictionary:
