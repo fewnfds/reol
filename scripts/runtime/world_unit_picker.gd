@@ -12,8 +12,12 @@ static func pick(main: Node2D, point: Vector2) -> Dictionary:
 	var cell: Vector2i = runtime.natural_adapter.cell_at_point(point)
 	if not world.map_data.in_bounds(cell):
 		return {"ok": true, "cell": cell, "references": []}
-	var area := Rect2i(cell - Vector2i(2, 2), Vector2i(5, 5)).intersection(Rect2i(0, 0, WorldMapData.WORLD_SIZE, WorldMapData.WORLD_SIZE))
-	var query: Dictionary = world.space.query(area)
+	# Query the complete screen-sized hit margin, including raised terrain and
+	# body glyphs above their anchors. A fixed five-cell box missed zoomed-out
+	# actors even when the cursor was inside the rendered selection radius.
+	var margin: int = ceili((main.SELECT_RADIUS / main.camera.zoom.x + ReolWorld.ELEVATION_LEVELS * ReolWorld.ELEVATION_PX + ReolWorld.ALTITUDE_PX * 2) / TileGrid.TILE_SIZE)
+	var area := Rect2i(cell - Vector2i.ONE * margin, Vector2i.ONE * (margin * 2 + 1)).intersection(Rect2i(0, 0, WorldMapData.WORLD_SIZE, WorldMapData.WORLD_SIZE))
+	var query: Dictionary = world.space.presentation_candidates(area)
 	if not query.ok:
 		return query
 	var hits: Array[Dictionary] = []
@@ -37,7 +41,7 @@ static func pick(main: Node2D, point: Vector2) -> Dictionary:
 				if not runtime.avian_adapter._visible(str(reference.id)):
 					continue
 				center = runtime.avian_adapter._bird_point(str(reference.id))
-				radius = 18.0
+				radius = 18.0 / main.camera.zoom.x
 			"large_body":
 				if not runtime.large_body_adapter.is_visible_body(str(reference.id)):
 					continue
@@ -50,17 +54,17 @@ static func pick(main: Node2D, point: Vector2) -> Dictionary:
 		if radius > 0.0 and center.distance_to(point) > radius:
 			continue
 		hits.append({"reference": reference, "priority": priority, "distance": center.distance_squared_to(point)})
+	for id: String in runtime.object_adapter._visible_hits(point, world):
+		hits.append({"reference": {"kind": "artifact", "id": id}, "priority": 0,
+			"distance": runtime.object_adapter._display_point(id, world).distance_squared_to(point)})
 	if runtime.human_player_active():
-		for id: String in runtime.object_adapter._visible_hits(point, world):
-			hits.append({"reference": {"kind": "artifact", "id": id}, "priority": 0,
-				"distance": runtime.object_adapter._display_point(id, world).distance_squared_to(point)})
 		for id: String in world.soul_vessels.vessels:
 			var center: Vector2 = runtime.soul_adapter._display_point(id)
-			if runtime.soul_adapter._visible(id) and center.distance_to(point) <= 18.0:
+			if runtime.soul_adapter._visible(id) and center.distance_to(point) <= 18.0 / main.camera.zoom.x:
 				hits.append({"reference": {"kind": "vessel", "id": id}, "priority": 0, "distance": center.distance_squared_to(point)})
 		for id: String in world.spirit_sources.definitions.sources:
 			var center: Vector2 = runtime.spirit_adapter._display_point(id)
-			if runtime.spirit_adapter.source_visible(id) and center.distance_to(point) <= 18.0:
+			if runtime.spirit_adapter.source_visible(id) and center.distance_to(point) <= 18.0 / main.camera.zoom.x:
 				hits.append({"reference": {"kind": "spirit_source", "id": id}, "priority": 0, "distance": center.distance_squared_to(point)})
 	# Fixed site markers are visible records, not spawned entities or terrain.
 	if main.fog.is_cell_visible(cell):

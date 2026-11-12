@@ -10,9 +10,10 @@ signal visibility_updated
 const STATE_HIDDEN: int = 0
 const STATE_EXPLORED: int = 1
 const STATE_VISIBLE: int = 2
-const EXPLORATION_ENCODING: String = "explored_runs_v1"
+const EXPLORATION_ENCODING: String = "explored_visuals_v2"
+const VisualMemory = preload("res://scripts/world/fog_visual_memory.gd")
 
-const VISION_RADIUS: int = 10
+const VISION_RADIUS: int = 20
 const UPDATE_INTERVAL: float = 0.1
 const OCCLUSION_WIDTH: int = VISION_RADIUS * 2 + 1
 
@@ -35,6 +36,7 @@ var _observer_radius: int = VISION_RADIUS
 var _projection_guard: Callable
 var _ray_obstructions := PackedInt32Array()
 var visibility_revision: int = 0
+var visual_memory := VisualMemory.new()
 
 
 func set_projection_guard(guard: Callable) -> void:
@@ -53,6 +55,7 @@ func setup(world_ref: ReolWorld, start_cell: Vector2i) -> void:
 	world.sight_obstacles_changed.connect(_on_sight_obstacles_changed)
 	_focus_cell = start_cell
 	_visibility_dirty = true
+	visual_memory.clear()
 	_states.resize(ReolWorld.WORLD_SIZE * ReolWorld.WORLD_SIZE)
 	_states.fill(STATE_HIDDEN)
 
@@ -92,6 +95,10 @@ func set_observer(altitude: int, radius: int) -> void:
 		_observer_altitude = altitude
 		_observer_radius = radius
 		_visibility_dirty = true
+
+
+func observer_radius() -> int:
+	return _observer_radius
 
 
 func invalidate_visibility() -> void:
@@ -174,7 +181,7 @@ func get_state(cell: Vector2i) -> int:
 
 
 static func empty_exploration() -> Dictionary:
-	return {"encoding": EXPLORATION_ENCODING, "runs": []}
+	return {"encoding": EXPLORATION_ENCODING, "runs": [], "visuals": []}
 
 
 func exploration_to_dict() -> Dictionary:
@@ -190,11 +197,11 @@ func exploration_to_dict() -> Dictionary:
 			start = -1
 	if start >= 0:
 		runs.append([start, _states.size() - start])
-	return {"encoding": EXPLORATION_ENCODING, "runs": runs}
+	return {"encoding": EXPLORATION_ENCODING, "runs": runs, "visuals": visual_memory.to_array()}
 
 
 static func is_valid_exploration(data: Variant) -> bool:
-	if not data is Dictionary or data.size() != 2 or data.get("encoding") != EXPLORATION_ENCODING or not data.get("runs") is Array:
+	if not data is Dictionary or data.size() != 3 or data.get("encoding") != EXPLORATION_ENCODING or not data.get("runs") is Array:
 		return false
 	var size: int = ReolWorld.WORLD_SIZE * ReolWorld.WORLD_SIZE
 	if data.runs.size() > size:
@@ -214,7 +221,7 @@ static func is_valid_exploration(data: Variant) -> bool:
 		if length < 1 or start <= previous_end or start + length > size:
 			return false
 		previous_end = start + length
-	return true
+	return VisualMemory.valid(data.get("visuals"), data.runs)
 
 
 func restore_exploration(data: Dictionary, focus: Vector2i) -> bool:
@@ -229,6 +236,7 @@ func restore_exploration(data: Dictionary, focus: Vector2i) -> bool:
 			var y: int = floori(float(index) / ReolWorld.WORLD_SIZE)
 			_image.set_pixel(index % ReolWorld.WORLD_SIZE, y, COLOR_EXPLORED)
 	_focus_cell = focus
+	visual_memory.restore(data.visuals)
 	_accumulator = 0.0
 	update_now()
 	return true

@@ -22,6 +22,7 @@ var _drawing_connections: Array[Dictionary] = []
 func setup(adapter: WorldContinuityRuntime) -> void:
 	_owner = weakref(adapter)
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	z_as_relative = false
 	z_index = 7
 	var layer := CanvasLayer.new()
 	layer.layer = 6
@@ -209,29 +210,36 @@ func _build_canvas() -> void:
 	if adapter.soul_player_active():
 		return
 	var center: Vector2i = adapter.controlled_cell()
-	for y: int in range(center.y - 14, center.y + 15):
-		for x: int in range(center.x - 14, center.x + 15):
-			var cell := Vector2i(x, y)
-			# One complete, synchronous capture shares its owner/sight context;
-			# do not resolve the same adapters and settlement state per tile.
-			if not world.map_data.in_bounds(cell) or not (fog.is_cell_visible(cell) if fog != null else cell.distance_to(center) <= 5.0):
-				continue
-			if world.plants.overrides_flora(cell) and not _painted_claims.has(cell):
-				home._world.refresh_flora(cell)
-				_painted_claims[cell] = true
-			for id: String in world.plants.ids_at(cell):
-				var row: Dictionary = world.plants.bodies[id]
-				var point: Vector2 = TileGrid.cell_to_world(cell)
-				var tree: bool = bool(world.plants.definitions.types[row.definition].blocks)
-				var color := Color("#b55b43") if row.definition == "fire_herb" else Color("#739653")
-				if row.stage in ["root", "dead"]:
-					capture_rect(Rect2(point - Vector2(5, 3), Vector2(10, 6)), Color("#79654c"))
-				else:
-					if tree:
-						capture_rect(Rect2(point - Vector2(4, 5), Vector2(8, 12)), Color("#79654c"))
-					capture_circle(point - Vector2(0, 9 if tree else 3), 15 if tree else 7, color)
-					if row.stage == "fruiting":
-						capture_circle(point - Vector2(2, 7), 2.5, Color("#d5bd73"))
+	var visible_cells: Array[Vector2i] = fog._visible_cells if fog != null else SimConstruction.cells_in(Rect2i(center - Vector2i(5, 5), Vector2i(11, 11)))
+	var observed: Dictionary = {}
+	for cell: Vector2i in visible_cells:
+		if not world.map_data.in_bounds(cell): continue
+		if world.plants.overrides_flora(cell) and not _painted_claims.has(cell):
+			home._world.refresh_flora(cell)
+			_painted_claims[cell] = true
+		for id: String in world.plants.ids_at(cell):
+			var row: Dictionary = world.plants.bodies[id]
+			var point: Vector2 = TileGrid.cell_to_world(cell) - Vector2(0, world.map_data.get_elevation(cell) * ReolWorld.ELEVATION_PX)
+			if not observed.has(cell): observed[cell] = []
+			observed[cell].append([point.x, point.y, bool(world.plants.definitions.types[row.definition].blocks), row.definition == "fire_herb", str(row.stage)])
+	if fog != null:
+		fog.visual_memory.observe("plants", visible_cells, observed)
+		observed = fog.visual_memory.cells("plants")
+	for rows: Array in observed.values():
+		for appearance: Array in rows:
+			_draw_seen_plant(appearance)
+
+
+func _draw_seen_plant(row: Array) -> void:
+	var point := Vector2(float(row[0]), float(row[1]))
+	var tree: bool = row[2]
+	var color := Color("#b55b43") if row[3] else Color("#739653")
+	if row[4] in ["root", "dead"]:
+		capture_rect(Rect2(point - Vector2(5, 3), Vector2(10, 6)), Color("#79654c"))
+	else:
+		if tree: capture_rect(Rect2(point - Vector2(4, 5), Vector2(8, 12)), Color("#79654c"))
+		capture_circle(point - Vector2(0, 9 if tree else 3), 15 if tree else 7, color)
+		if row[4] == "fruiting": capture_circle(point - Vector2(2, 7), 2.5, Color("#d5bd73"))
 
 
 func _plant_action(verb: String) -> void:

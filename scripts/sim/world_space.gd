@@ -131,6 +131,18 @@ func _connect(event: Signal, callback: Callable) -> void:
 
 
 func query(area: Rect2i, kinds: Array = [], layer: String = "", budget: int = 4096) -> Dictionary:
+	return _query(area, kinds, layer, budget, true)
+
+
+func presentation_candidates(area: Rect2i, budget: int = 4096) -> Dictionary:
+	# Picking is a broad-phase search followed by the actual drawn hit test.
+	# Idle/low-frequency owners can lag the shared clock without their fixed
+	# locations changing. Do not synchronize the whole world just for a click,
+	# or promise that these candidates authorize live occupancy/actions.
+	return _query(area, [], "", budget, false)
+
+
+func _query(area: Rect2i, kinds: Array, layer: String, budget: int, require_current: bool) -> Dictionary:
 	if world == null or world.space != self:
 		return _failure("world_replaced", 0)
 	if budget < 1 or budget > MAX_WORK:
@@ -153,13 +165,13 @@ func query(area: Rect2i, kinds: Array = [], layer: String = "", budget: int = 40
 		return prepared
 	# An out-of-date body could have moved into the requested area. Refuse the
 	# whole body query instead of claiming a locally empty, complete answer.
-	if kinds.is_empty() or "actor" in kinds:
+	if require_current and (kinds.is_empty() or "actor" in kinds):
 		for sim: VillageSimulation in world.regions.values():
 			if sim.elapsed_ms != world.elapsed_ms:
 				return _failure("stale_source", 0)
-	if (kinds.is_empty() or "avian" in kinds) and world.avian_life.elapsed_ms != world.elapsed_ms:
+	if require_current and (kinds.is_empty() or "avian" in kinds) and world.avian_life.elapsed_ms != world.elapsed_ms:
 		return _failure("stale_source", 0)
-	if (kinds.is_empty() or "large_body" in kinds) and world.large_bodies.elapsed_ms != world.elapsed_ms:
+	if require_current and (kinds.is_empty() or "large_body" in kinds) and world.large_bodies.elapsed_ms != world.elapsed_ms:
 		return _failure("stale_source", 0)
 	var state: Dictionary = {"found": {}, "work": int(prepared.work_used)}
 	for y: int in range(area.position.y, area.end.y):
@@ -169,20 +181,20 @@ func query(area: Rect2i, kinds: Array = [], layer: String = "", budget: int = 40
 				return _failure("budget_exhausted", budget)
 			var cell := Vector2i(x, y)
 			for key: String in _cells.get(cell, {}):
-				var reason: String = _visit(_entries[key].reference, kinds, layer, cell, budget, state)
+				var reason: String = _visit(_entries[key].reference, kinds, layer, cell, budget, state, require_current)
 				if not reason.is_empty():
 					return _failure(reason, mini(state.work, budget))
 			var ground: Dictionary = world.object_lifecycle.ground.query_cell(cell)
 			if not bool(ground.get("ok", false)):
 				return _failure("invalid_source", mini(state.work, budget))
 			for id: String in ground.get("ids", []):
-				var reason: String = _visit(world.object_lifecycle.ground.slots[id].reference, kinds, layer, cell, budget, state)
+				var reason: String = _visit(world.object_lifecycle.ground.slots[id].reference, kinds, layer, cell, budget, state, require_current)
 				if not reason.is_empty():
 					return _failure(reason, mini(state.work, budget))
 			for current: String in ["ground", "roof"]:
 				var id: String = world.construction.project_at(cell, current)
 				if not id.is_empty():
-					var reason: String = _visit({"kind": "construction", "id": id}, kinds, layer, cell, budget, state)
+					var reason: String = _visit({"kind": "construction", "id": id}, kinds, layer, cell, budget, state, require_current)
 					if not reason.is_empty():
 						return _failure(reason, mini(state.work, budget))
 	var references: Array = []
@@ -190,14 +202,14 @@ func query(area: Rect2i, kinds: Array = [], layer: String = "", budget: int = 40
 	keys.sort()
 	for key: String in keys:
 		references.append(state.found[key])
-	return {"ok": true, "complete": true, "scope": "world_space", "live": true,
+	return {"ok": true, "complete": true, "scope": "world_space" if require_current else "presentation_candidates", "live": require_current,
 		"visibility": "authority_only", "geometry": "cell_projection", "references": references,
 		"world_time_ms": world.elapsed_ms, "world_id": world.get_instance_id(),
 		"space_id": get_instance_id(), "revision": revision, "work_used": int(state.work),
 		"supported_kinds": KINDS.duplicate()}
 
 
-func _visit(reference: Dictionary, kinds: Array, layer: String, cell: Vector2i, budget: int, state: Dictionary) -> String:
+func _visit(reference: Dictionary, kinds: Array, layer: String, cell: Vector2i, budget: int, state: Dictionary, require_current: bool) -> String:
 	# Charge before decoding/allocating one candidate. Never materialize a dense
 	# cell's whole candidate set before the caller's budget can stop the walk.
 	state.work += 1
@@ -209,7 +221,7 @@ func _visit(reference: Dictionary, kinds: Array, layer: String, cell: Vector2i, 
 	if state.found.has(key):
 		return ""
 	var row: Dictionary = world.describe_object(reference)
-	if not bool(row.get("ok", false)) or bool(row.get("stale", true)):
+	if not bool(row.get("ok", false)) or require_current and bool(row.get("stale", true)):
 		return "stale_source"
 	state.work += row.spatial.cells.size()
 	if state.work > budget:

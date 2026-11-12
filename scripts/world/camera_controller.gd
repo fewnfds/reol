@@ -4,7 +4,7 @@ extends Camera2D
 
 @export var pan_speed: float = 760.0
 @export var zoom_step: float = 0.1
-@export var min_zoom: float = 0.75
+@export var min_zoom: float = 0.375
 @export var max_zoom: float = 1.5
 
 var _world_rect: Rect2 = Rect2()

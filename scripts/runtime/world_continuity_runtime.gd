@@ -96,7 +96,7 @@ func setup(home: VillageRuntime, opening_source_loan: bool = false, opening_sour
 		push_error("World continuity: calendar and original clock start hour differ")
 		return false
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	z_index = 8
+	z_index = 7 # Fixed river sites are shaded by the world's fog at z=8.
 	if not Opening.assemble(self, home, opening_source_loan, opening_source_care, opening_field):
 		return false
 	presentation_work = ReolPresentationWork.new()
@@ -1268,15 +1268,11 @@ func _build_canvas() -> void:
 		return
 	var sim: VillageSimulation = world_sim.regions.river
 	var font: Font = ThemeDB.fallback_font
-	for id: String in sim.places:
-		var place: Dictionary = sim.places[id]
-		var cell: Vector2i = _cell(place.cell)
-		var workspace: Dictionary = place.get("workspace", {}).duplicate(true)
-		if workspace.is_empty() and _home._fog != null and not _home._fog.is_explored(cell):
-			continue
-		var point: Vector2 = TileGrid.cell_to_world(cell)
-		point.y -= float(_home._world.get_elevation(cell) * ReolWorld.ELEVATION_PX)
-		capture_custom(Callable(FacilityVisuals, "draw_facility").bind(self, id, point, "河湾·" + str(place.label), Color("#81b4a4"), _home.herb_phase_for(sim, id), workspace, _home._place_is_explored))
+	var seen: Dictionary = FacilityVisuals.observe_sites(sim.places, world_sim.map_data, _home._fog, "river_sites",
+		func(id: String) -> String: return _home.herb_phase_for(sim, id), "河湾·")
+	for rows: Array in seen.values():
+		for row: Array in rows:
+			capture_custom(Callable(FacilityVisuals, "draw_seen_site").bind(self, row, Color("#81b4a4")))
 	if _courier_visible:
 		var point: Vector2 = TileGrid.cell_to_world(_courier_cell)
 		point.y -= float(_home._world.get_elevation(_courier_cell) * ReolWorld.ELEVATION_PX)

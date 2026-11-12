@@ -9,66 +9,98 @@ const TIMBER := Color("#7f6747")
 const LABEL_WIDTH: float = 152.0
 
 
-static func draw_facility(canvas: CanvasItem, place_id: String, point: Vector2, label: String, accent: Color, herb_phase: String = "", workspace: Dictionary = {}, known_cell: Callable = Callable()) -> void:
+static func observe_sites(places: Dictionary, map: WorldMapData, fog: FogOfWar, layer: String, phase_at: Callable, label_prefix: String = "") -> Dictionary:
+	var observed: Dictionary = {}
+	for id: String in places:
+		var place: Dictionary = places[id]
+		var cell: Vector2i = SimRouteTravel.cell(place.cell)
+		var workspace: Dictionary = place.get("workspace", {})
+		if workspace.is_empty():
+			if fog == null or fog.is_cell_visible(cell):
+				_add_seen_part(observed, map, cell, id, label_prefix + str(place.label), str(phase_at.call(id)), "marker")
+			continue
+		# Each visible part replaces only its own last-seen appearance. An
+		# outside wall reveals neither the room's label nor hidden furniture.
+		for part: String in ["roof", "walls"]:
+			for raw: Array in workspace[part]:
+				var at: Vector2i = SimRouteTravel.cell(raw)
+				if fog == null or fog.is_cell_visible(at):
+					_add_seen_part(observed, map, at, id, "", "", "wall" if part == "walls" else "roof")
+		var door: Vector2i = SimRouteTravel.cell(workspace.door)
+		if fog == null or fog.is_cell_visible(door): _add_seen_part(observed, map, door, id, "", "", "door")
+		for part: String in ["desk", "archive"]:
+			var at: Vector2i = SimRouteTravel.cell(workspace.fixtures[part].cell)
+			if fog == null or fog.is_cell_visible(at): _add_seen_part(observed, map, at, id, "", "", part)
+		var anchor: Vector2i = SimRouteTravel.cell(workspace.clerk_cell)
+		if fog == null or fog.is_cell_visible(anchor): _add_seen_part(observed, map, anchor, id, label_prefix + str(place.label), "", "anchor")
+	if fog != null:
+		fog.visual_memory.observe(layer, fog._visible_cells, observed)
+		return fog.visual_memory.cells(layer)
+	return observed
+
+
+static func _add_seen_part(observed: Dictionary, map: WorldMapData, cell: Vector2i, id: String, label: String, phase: String, part: String) -> void:
+	var point: Vector2 = TileGrid.cell_to_world(cell) - Vector2(0, map.get_elevation(cell) * ReolWorld.ELEVATION_PX)
+	if not observed.has(cell): observed[cell] = []
+	observed[cell].append([point.x, point.y, id, label, phase, part])
+
+
+static func draw_seen_site(canvas: CanvasItem, row: Array, accent: Color) -> void:
+	var point := Vector2(float(row[0]), float(row[1]))
+	if row[5] == "marker":
+		draw_facility(canvas, str(row[2]), point, str(row[3]), accent, str(row[4]))
+		return
+	canvas.draw_set_transform(point)
+	_draw_office_part(canvas, str(row[5]))
+	canvas.draw_set_transform(Vector2.ZERO)
+	if row[5] == "anchor": _draw_label(canvas, point, str(row[3]), accent)
+
+
+static func draw_facility(canvas: CanvasItem, place_id: String, point: Vector2, label: String, accent: Color, herb_phase: String = "") -> void:
 	canvas.draw_set_transform(point)
 	match place_id:
 		"well": _draw_well(canvas, point)
 		"garden": _draw_garden(canvas, herb_phase)
 		"gate": _draw_gate(canvas, accent)
-		"records":
-			if not workspace.is_empty():
-				_draw_office(canvas, workspace, known_cell)
-			else:
-				_draw_work_area(canvas, place_id, accent)
 		_: _draw_work_area(canvas, place_id, accent)
 	canvas.draw_set_transform(Vector2.ZERO)
-	if not workspace.is_empty() and known_cell.is_valid() and not bool(known_cell.call(SimRouteTravel.cell(workspace.clerk_cell))):
-		return # Seeing an outside wall does not identify the hidden workplace.
+	_draw_label(canvas, point, label, accent)
+
+
+static func _draw_label(canvas: CanvasItem, point: Vector2, label: String, accent: Color) -> void:
 	var font: Font = ThemeDB.fallback_font
 	var baseline: Vector2 = point + Vector2(-LABEL_WIDTH * 0.5, -38)
 	canvas.draw_string_outline(font, baseline, label, HORIZONTAL_ALIGNMENT_CENTER, LABEL_WIDTH, 13, 3, Color(0.04, 0.07, 0.07, 0.95))
 	canvas.draw_string(font, baseline, label, HORIZONTAL_ALIGNMENT_CENTER, LABEL_WIDTH, 13, accent.lightened(0.35))
 
 
-static func _draw_office(canvas: CanvasItem, layout: Dictionary, known_cell: Callable) -> void:
-	var anchor: Vector2i = SimRouteTravel.cell(layout.clerk_cell)
-	for raw: Array in layout.roof:
-		if known_cell.is_valid() and not bool(known_cell.call(SimRouteTravel.cell(raw))):
-			continue
-		var offset: Vector2 = Vector2(SimRouteTravel.cell(raw) - anchor) * TileGrid.TILE_SIZE
-		canvas.draw_rect(Rect2(offset - Vector2.ONE * 32, Vector2.ONE * 64), Color("#8e8061"))
-		canvas.draw_rect(Rect2(offset - Vector2.ONE * 31, Vector2.ONE * 62), Color("#9e8f70"))
-		canvas.draw_line(offset + Vector2(-30, -10), offset + Vector2(30, -10), Color("#938366"), 1.0)
-	for raw: Array in layout.walls:
-		if known_cell.is_valid() and not bool(known_cell.call(SimRouteTravel.cell(raw))):
-			continue
-		var offset: Vector2 = Vector2(SimRouteTravel.cell(raw) - anchor) * TileGrid.TILE_SIZE
-		canvas.draw_rect(Rect2(offset + Vector2(-31, -20), Vector2(62, 45)), INK)
-		canvas.draw_rect(Rect2(offset + Vector2(-28, -17), Vector2(56, 36)), WALL)
-		canvas.draw_rect(Rect2(offset + Vector2(-29, -23), Vector2(58, 8)), TIMBER)
-	if not known_cell.is_valid() or bool(known_cell.call(SimRouteTravel.cell(layout.door))):
-		var door: Vector2 = Vector2(SimRouteTravel.cell(layout.door) - anchor) * TileGrid.TILE_SIZE
-		canvas.draw_rect(Rect2(door + Vector2(-29, -23), Vector2(6, 45)), TIMBER)
-		canvas.draw_rect(Rect2(door + Vector2(23, -23), Vector2(6, 45)), TIMBER)
-	for id: String in ["desk", "archive"]:
-		if known_cell.is_valid() and not bool(known_cell.call(SimRouteTravel.cell(layout.fixtures[id].cell))):
-			continue
-		var offset: Vector2 = Vector2(SimRouteTravel.cell(layout.fixtures[id].cell) - anchor) * TileGrid.TILE_SIZE
-		canvas.draw_rect(Rect2(offset + Vector2(-24, -19), Vector2(48, 38)), INK)
-		canvas.draw_rect(Rect2(offset + Vector2(-21, -16), Vector2(42, 31)), TIMBER)
-		if id == "desk":
-			canvas.draw_rect(Rect2(offset + Vector2(-13, -12), Vector2(16, 20)), Color("#d7d0aa"))
-			for row: int in 3:
-				canvas.draw_line(offset + Vector2(-10, -7 + row * 5), offset + Vector2(-2, -7 + row * 5), INK, 1.0)
-			canvas.draw_rect(Rect2(offset + Vector2(10, -8), Vector2(5, 10)), Color("#2a4446"))
-		else:
-			for row: int in 3:
-				canvas.draw_rect(Rect2(offset + Vector2(-17, -12 + row * 8), Vector2(34, 6)), Color("#b7b499"))
-			canvas.draw_rect(Rect2(offset + Vector2(3, -12), Vector2(9, 18)), Color("#6cb2a0"))
-			canvas.draw_rect(Rect2(offset + Vector2(5, -9), Vector2(5, 11)), Color("#a4d1b5"))
-	# Cutaway projection: the saved roof still shelters the actual room.
-	if not known_cell.is_valid() or bool(known_cell.call(anchor)):
-		canvas.draw_rect(Rect2(-15, 3, 30, 24), TIMBER.darkened(0.1), false, 3.0)
+static func _draw_office_part(canvas: CanvasItem, part: String) -> void:
+	match part:
+		"roof":
+			canvas.draw_rect(Rect2(-32, -32, 64, 64), Color("#8e8061"))
+			canvas.draw_rect(Rect2(-31, -31, 62, 62), Color("#9e8f70"))
+			canvas.draw_line(Vector2(-30, -10), Vector2(30, -10), Color("#938366"), 1.0)
+		"wall":
+			canvas.draw_rect(Rect2(-31, -20, 62, 45), INK)
+			canvas.draw_rect(Rect2(-28, -17, 56, 36), WALL)
+			canvas.draw_rect(Rect2(-29, -23, 58, 8), TIMBER)
+		"door":
+			canvas.draw_rect(Rect2(-29, -23, 6, 45), TIMBER)
+			canvas.draw_rect(Rect2(23, -23, 6, 45), TIMBER)
+		"desk", "archive":
+			canvas.draw_rect(Rect2(-24, -19, 48, 38), INK)
+			canvas.draw_rect(Rect2(-21, -16, 42, 31), TIMBER)
+			if part == "desk":
+				canvas.draw_rect(Rect2(-13, -12, 16, 20), Color("#d7d0aa"))
+				for row: int in 3:
+					canvas.draw_line(Vector2(-10, -7 + row * 5), Vector2(-2, -7 + row * 5), INK, 1.0)
+				canvas.draw_rect(Rect2(10, -8, 5, 10), Color("#2a4446"))
+			else:
+				for row: int in 3:
+					canvas.draw_rect(Rect2(-17, -12 + row * 8, 34, 6), Color("#b7b499"))
+				canvas.draw_rect(Rect2(3, -12, 9, 18), Color("#6cb2a0"))
+				canvas.draw_rect(Rect2(5, -9, 5, 11), Color("#a4d1b5"))
+		"anchor": canvas.draw_rect(Rect2(-15, 3, 30, 24), TIMBER.darkened(0.1), false, 3.0)
 
 
 static func _draw_work_area(canvas: CanvasItem, kind: String, accent: Color) -> void:

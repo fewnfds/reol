@@ -27,6 +27,13 @@ static func run() -> bool:
 		return false
 	if Tide.apply(base, PackedInt32Array([-5, 5, -5, 5, -5])) != PackedFloat64Array([95, 105, 10, 11, 0]) or base != PackedFloat64Array([100, 100, 10, 10, 0]):
 		return false
+	# A settled base has no oscillator or per-second random input. Sampling an
+	# unchanged equilibrium later must retain exactly the same five values.
+	var settled := Phase.new()
+	if not settled.configure(Vector2i(16, 16), 256, 0) or not _set_target(settled, 0, 1000.0, 1000.0):
+		return false
+	for at_ms: int in [0, 1000, 59000, 60000, 3600000]:
+		if settled.actual_at(Vector2i.ZERO, at_ms).values != PackedFloat64Array([1000, 1000, 1000, 1000, 1000]): return false
 	var phase := Phase.new()
 	phase.anchor_quantum = 0.000000001
 	if not phase.configure(Vector2i(16, 16), 256, 0) or not _set_target(phase, 0, 1000.0):
@@ -48,7 +55,7 @@ static func run() -> bool:
 	return phase.actual_at(Vector2i.ZERO, 2000).values[0] > held[0]
 
 
-static func _set_target(phase: RefCounted, at_ms: int, target: float) -> bool:
+static func _set_target(phase: RefCounted, at_ms: int, target: float, initial: float = 0.0) -> bool:
 	var columns: Dictionary = Columns.empty_columns(5)
 	columns.mask[0] = 1
 	columns.initial_mask[0] = 1 if phase.cell_boundary_ms(Vector2i.ZERO) < 0 else 0
@@ -56,6 +63,7 @@ static func _set_target(phase: RefCounted, at_ms: int, target: float) -> bool:
 	columns.tau_ms[0] = 30000
 	for channel: int in 5:
 		columns.target[channel] = target
+		columns.initial[channel] = initial
 	var opened: Dictionary = phase.begin_bulk(at_ms, 1)
 	if not opened.ok or not phase.offer_bulk_chunk(opened.handle, Vector2i.ZERO, columns).ok:
 		return false

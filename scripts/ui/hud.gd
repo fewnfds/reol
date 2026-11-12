@@ -268,6 +268,8 @@ func set_terrain_snapshot(data: Dictionary) -> void:
 		var tide: PackedInt32Array = context.element_tide_percent
 		lines.append("温度=%.3f℃ · 照度=%.2f · roof=%d" % [context.temperature_c, context.light_relative, int(context.roofed)])
 		lines.append("五行场 木%.0f / 火%.0f / 土%.0f / 金%.0f / 水%.0f" % [elements[0], elements[1], elements[2], elements[3], elements[4]])
+		lines.append(_element_debug_line("base", context.elements_base))
+		lines.append(_element_debug_line("target", context.elements_target))
 		lines.append("潮汐 木%+d%% / 火%+d%% / 土%+d%% / 金%+d%% / 水%+d%%" % [tide[0], tide[1], tide[2], tide[3], tide[4]])
 		lines.append("t=%dms · 五行=%dms · 潮汐=%dms" % [data.at_ms, context.elements_at_ms, context.element_tide_at_ms])
 	else:
@@ -309,6 +311,8 @@ func set_development_snapshot(data: Dictionary) -> void:
 		var elements: PackedFloat64Array = context.elements
 		lines.append("温度 %.3f ℃ · 照度 %.2f · roof=%d · room=%s" % [context.temperature_c, context.light_relative, int(context.roofed), str(context.room)])
 		lines.append("木 %.0f / 火 %.0f / 土 %.0f / 金 %.0f / 水 %.0f" % [elements[0], elements[1], elements[2], elements[3], elements[4]])
+		lines.append(_element_debug_line("base", context.elements_base))
+		lines.append(_element_debug_line("target", context.elements_target))
 		var tide: PackedInt32Array = context.element_tide_percent
 		lines.append("潮汐 木%+d%% / 火%+d%% / 土%+d%% / 金%+d%% / 水%+d%%" % [tide[0], tide[1], tide[2], tide[3], tide[4]])
 		lines.append("五行采样=%dms · 潮汐采样=%dms" % [context.elements_at_ms, context.element_tide_at_ms])
@@ -317,6 +321,10 @@ func set_development_snapshot(data: Dictionary) -> void:
 		lines.append("环境 unavailable: " + str(context.get("reason", "unknown")))
 	lines.append("地块信息跟随鼠标 · 左键选择单位 · 当前为DEV全知观察")
 	_backend_text.text = "\n".join(lines)
+
+
+func _element_debug_line(label: String, values: PackedFloat64Array) -> String:
+	return "%s 木%.2f / 火%.2f / 土%.2f / 金%.2f / 水%.2f" % [label, values[0], values[1], values[2], values[3], values[4]]
 
 
 func _process(_delta: float) -> void:

@@ -769,21 +769,10 @@ func _world_is_complete(world: RefCounted) -> bool:
 func _build_canvas() -> void:
 	if _world == null:
 		return
-	for id: String in _places:
-		var place: Dictionary = _places[id]
-		var cell: Vector2i = _decode_cell(place.cell)
-		var workspace: Dictionary = place.get("workspace", {}).duplicate(true)
-		# A room's visible outside wall does not require seeing its interior anchor.
-		# FacilityVisuals filters each saved room cell and its label separately.
-		if workspace.is_empty() and _fog != null and not _fog.is_explored(cell):
-			continue
-		var center: Vector2 = TileGrid.cell_to_world(cell)
-		center.y -= float(_world.get_elevation(cell) * ReolWorld.ELEVATION_PX)
-		capture_custom(Callable(FacilityVisuals, "draw_facility").bind(self, id, center, str(place.label), Color("#cfbc80"), herb_phase_for(simulation, id), workspace, _place_is_explored))
-
-
-func _place_is_explored(cell: Vector2i) -> bool:
-	return _fog == null or _fog.is_explored(cell)
+	var seen: Dictionary = FacilityVisuals.observe_sites(_places, _world.map_data(), _fog, "home_sites", func(id: String) -> String: return herb_phase_for(simulation, id))
+	for rows: Array in seen.values():
+		for row: Array in rows:
+			capture_custom(Callable(FacilityVisuals, "draw_seen_site").bind(self, row, Color("#cfbc80")))
 
 
 func _load_failed(message: String) -> Error:

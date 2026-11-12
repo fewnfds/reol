@@ -673,4 +673,28 @@ func _presentation() -> bool:
 	queue.run_pending(1000)
 	valid = valid and order.back() == "live_world" and queue.diagnostics().pending == 0
 	queue.free()
-	return valid
+	return valid and _fog_memory()
+
+
+func _fog_memory() -> bool:
+	var memory := FogVisualMemory.new()
+	var cell := Vector2i(1, 1)
+	var appearance: Array = [96.0, 96.0, "bed", 0, 0, 0]
+	var visible: Array[Vector2i] = [cell]
+	memory.observe("construction", visible, {cell: [appearance]})
+	appearance[2] = "ruined"
+	var none: Array[Vector2i] = []
+	memory.observe("construction", none, {cell: [appearance]})
+	if memory.cells("construction")[cell][0][2] != "bed": return false
+	var saved: Array = memory.to_array()
+	var json: Array = JSON.parse_string(JSON.stringify(saved))
+	var runs: Array = [[WorldMapData.WORLD_SIZE + 1, 1]]
+	if not FogVisualMemory.valid(json, runs) or FogVisualMemory.valid(json, []): return false
+	var restored := FogVisualMemory.new()
+	restored.restore(json)
+	if restored.to_array() != saved: return false
+	var invalid: Array = json.duplicate(true)
+	invalid[0][3][0][2] = "unknown_drawing_callback"
+	if FogVisualMemory.valid(invalid, runs): return false
+	memory.observe("construction", visible, {})
+	return not memory.cells("construction").has(cell)

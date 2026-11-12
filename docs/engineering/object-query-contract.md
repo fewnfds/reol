@@ -37,6 +37,8 @@
 
 `RegionalSimulation.query_space(area: Rect2i, kinds=[], layer="", budget=4096)`由[SimWorldSpace](../../scripts/sim/world_space.gd)组合原索引。支持当前512²地图内最多4096格的矩形，工作预算1–65536；成功才返回去重、稳定排序的完整`references`，声明`scope=world_space`、`live=true`、`geometry=cell_projection`、`visibility=authority_only`。非法范围/层、未支持类型、预算耗尽、来源滞后和共同时间待算均明确失败且不发布部分集合；查询不同步或推进世界。
 
+鼠标选取使用同一索引的`space.presentation_candidates(area,budget)`。它仍拒绝未完成世界和正在批量更新的投影，但允许安静/低频owner时刻落后，声明`scope=presentation_candidates`、`live=false`；调用者随后按实际显示位置、占格和当前视野命中。它只提供显示候选，不能替代上面的实时占用合同或授权动作，点击也不为此强制推进全体领域。低频植物、静止大兽等来源时钟不同，不应令所有可见单位无法选择。
+
 | 接入范围 | 原来源与语义 |
 |---|---|
 | `actor`、`avian`、`large_body` | 原身体位置与形态占地；人类/行旅/各原域路线和手动运动跨格通知，雀升降层也更新。死亡不抹去仍留在原地的身体 |

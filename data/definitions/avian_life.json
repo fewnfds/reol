@@ -4,7 +4,7 @@
     "sparrow": {
       "carry_grams": 30,
       "flight_speed": 280,
-      "observation_cells": 6,
+      "observation_cells": 12,
       "interaction_cells": 3,
       "hunger_per_minute": 1000000,
       "energy_per_minute": 300000,

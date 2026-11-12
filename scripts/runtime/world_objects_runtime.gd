@@ -23,7 +23,8 @@ func _can_observe(adapter: WorldContinuityRuntime) -> bool:
 func setup(adapter: WorldContinuityRuntime) -> void:
 	_owner = weakref(adapter)
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	z_index = 12
+	z_as_relative = false
+	z_index = 7 # Both current and remembered ground silhouettes sit below fog.
 	var layer := CanvasLayer.new()
 	layer.layer = 5
 	add_child(layer)
@@ -435,9 +436,9 @@ func _visible_hits(cursor: Vector2, authority: RegionalSimulation) -> Array[Stri
 	for id: String in points:
 		var footprint: Rect2i = _physical_ground_rect(id, authority)
 		if footprint.size != Vector2i.ZERO:
-			var cell: Vector2i = TileGrid.world_to_cell(cursor)
+			var cell: Vector2i = runtime().natural_adapter.cell_at_point(cursor)
 			var adapter: WorldContinuityRuntime = runtime()
-			if adapter != null and footprint.has_point(cell) and _cell_visible(cell, adapter.controlled_cell(), _observation_radius(authority)) and _physical_tile_rect(cell).has_point(cursor):
+			if adapter != null and footprint.has_point(cell) and _cell_visible(cell, adapter.controlled_cell(), _observation_radius(authority)) and _physical_tile_rect(cell, authority.map_data.get_elevation(cell)).has_point(cursor):
 				hits.append(id)
 		elif cursor.distance_squared_to(points[id]) <= 22.0 * 22.0:
 			hits.append(id)
@@ -450,7 +451,7 @@ func _visible_hits(cursor: Vector2, authority: RegionalSimulation) -> Array[Stri
 
 func _visible(id: String, observed_world: RegionalSimulation = null) -> bool:
 	var adapter: WorldContinuityRuntime = runtime()
-	if not _can_observe(adapter) or not adapter.human_player_active():
+	if not _can_observe(adapter):
 		return false
 	# A reload may replace the accepted session during a debugger callback.
 	# Keep the observed world alive for every weak-owned domain read in this view.
@@ -461,6 +462,8 @@ func _visible(id: String, observed_world: RegionalSimulation = null) -> bool:
 	var footprint: Rect2i = _physical_ground_rect(id, authority)
 	if footprint.size != Vector2i.ZERO:
 		return _visible_footprint_cell(footprint, authority) != Vector2i(-1, -1)
+	if not adapter.human_player_active():
+		return false # Ground silhouettes do not grant human inventory/actions.
 	return domain.can_see("player", id) and (adapter._home._fog == null or adapter._home._fog.is_cell_visible(domain.object_cell(id)))
 
 
@@ -507,6 +510,9 @@ func _display_point(id: String, observed_world: RegionalSimulation = null) -> Ve
 func _observation_radius(authority: RegionalSimulation) -> int:
 	if authority == null:
 		return -1
+	var fog: FogOfWar = runtime().home_runtime()._fog
+	if fog != null:
+		return fog.observer_radius()
 	var home: String = authority.artifacts.actor_home("player")
 	return int(authority.regions[home].config.observation_radius) if not home.is_empty() else -1
 
@@ -514,7 +520,7 @@ func _observation_radius(authority: RegionalSimulation) -> int:
 func _local_candidates(authority: RegionalSimulation, radius: int = -1) -> Array[String]:
 	var ids: Array[String] = []
 	var adapter: WorldContinuityRuntime = runtime()
-	if not _can_observe(adapter) or authority == null or adapter.world_sim != authority or authority.object_lifecycle == null or not adapter.human_player_active():
+	if not _can_observe(adapter) or authority == null or adapter.world_sim != authority or authority.object_lifecycle == null:
 		return ids
 	if radius < 0:
 		radius = _observation_radius(authority)
@@ -601,7 +607,8 @@ func _build_canvas() -> void:
 	var points: Dictionary = _visible_display_points(authority)
 	if not _can_observe(adapter) or adapter.world_sim != authority:
 		return
-	var current: Dictionary = authority.artifacts.active.get("player", {})
+	var current: Dictionary = authority.artifacts.active.get("player", {}) if adapter.human_player_active() else {}
+	var observed: Dictionary = {}
 	if current.has("draw") and points.has(str(current.draw.target)):
 		var from: Vector2 = points[str(current.object)] if points.has(str(current.object)) else _base_display_point(str(current.object), authority)
 		var to: Vector2 = points[str(current.draw.target)]
@@ -611,7 +618,7 @@ func _build_canvas() -> void:
 	for id: String in points:
 		var point: Vector2 = points[id]
 		if authority.artifacts.has_capability(id, "physical"):
-			_draw_physical(id, point, authority)
+			_draw_physical(id, point, authority, observed)
 			continue
 		if authority.artifacts.has_capability(id, "weapon"):
 			_draw_wooden_sword(point)
@@ -633,6 +640,15 @@ func _build_canvas() -> void:
 		capture_polygon(diamond, Color("#a6553b"))
 		capture_polyline(PackedVector2Array([diamond[0], diamond[1], diamond[2], diamond[3], diamond[0]]), Color("#f0c989"), 2)
 		capture_line(point + Vector2(-3, -3), point + Vector2(3, 3), Color("#e8b479"), 1.5)
+	var fog: FogOfWar = adapter.home_runtime()._fog
+	if fog != null:
+		fog.visual_memory.observe("physical", fog._visible_cells, observed)
+		observed = fog.visual_memory.cells("physical")
+	for rows: Array in observed.values():
+		for appearance: Array in rows:
+			var bounds := Rect2(Vector2(float(appearance[0]), float(appearance[1])), Vector2.ONE * (TileGrid.TILE_SIZE - 8.0))
+			capture_rect(bounds, Color("#777b7b"))
+			capture_rect(bounds, Color("#c0c4bf"), false, 1.5)
 
 
 func _physical_ground_rect(id: String, authority: RegionalSimulation) -> Rect2i:
@@ -650,13 +666,13 @@ func _physical_ground_rect(id: String, authority: RegionalSimulation) -> Rect2i:
 
 func _visible_footprint_cell(footprint: Rect2i, authority: RegionalSimulation) -> Vector2i:
 	var adapter: WorldContinuityRuntime = runtime()
-	if adapter == null or adapter.world_sim != authority or not adapter.human_player_active():
+	if adapter == null or adapter.world_sim != authority:
 		return Vector2i(-1, -1)
 	var home: String = authority.artifacts.actor_home("player")
-	if home.is_empty() or not authority.regions[home].actor_is_alive("player"):
+	if adapter.human_player_active() and (home.is_empty() or not authority.regions[home].actor_is_alive("player")):
 		return Vector2i(-1, -1)
 	var observer: Vector2i = adapter.controlled_cell()
-	var radius: int = int(authority.regions[home].config.observation_radius)
+	var radius: int = _observation_radius(authority)
 	var first := Vector2i(maxi(footprint.position.x, observer.x - radius), maxi(footprint.position.y, observer.y - radius))
 	var end := Vector2i(mini(footprint.end.x, observer.x + radius + 1), mini(footprint.end.y, observer.y + radius + 1))
 	for y: int in range(first.y, end.y):
@@ -672,8 +688,8 @@ func _visible_footprint_cell(footprint: Rect2i, authority: RegionalSimulation) -
 	return Vector2i(-1, -1)
 
 
-static func _physical_tile_rect(cell: Vector2i) -> Rect2:
-	return Rect2(TileGrid.cell_to_world(cell) - Vector2.ONE * (TileGrid.HALF_TILE - 4.0), Vector2.ONE * (TileGrid.TILE_SIZE - 8.0))
+static func _physical_tile_rect(cell: Vector2i, elevation: int = 0) -> Rect2:
+	return Rect2(TileGrid.cell_to_world(cell) - Vector2(0, elevation * ReolWorld.ELEVATION_PX) - Vector2.ONE * (TileGrid.HALF_TILE - 4.0), Vector2.ONE * (TileGrid.TILE_SIZE - 8.0))
 
 
 func _cell_visible(cell: Vector2i, observer: Vector2i, radius: int) -> bool:
@@ -681,7 +697,7 @@ func _cell_visible(cell: Vector2i, observer: Vector2i, radius: int) -> bool:
 	return adapter != null and radius >= 0 and observer.distance_to(cell) <= float(radius) and (adapter._home._fog == null or adapter._home._fog.is_cell_visible(cell))
 
 
-func _draw_physical(id: String, point: Vector2, authority: RegionalSimulation) -> void:
+func _draw_physical(id: String, point: Vector2, authority: RegionalSimulation, observed: Dictionary) -> void:
 	var footprint: Rect2i = _physical_ground_rect(id, authority)
 	if footprint.size == Vector2i.ZERO:
 		# Carried or stored objects remain a small marker, not a ground footprint.
@@ -699,9 +715,9 @@ func _draw_physical(id: String, point: Vector2, authority: RegionalSimulation) -
 			var cell := Vector2i(x, y)
 			if not _cell_visible(cell, observer, radius):
 				continue
-			var bounds: Rect2 = _physical_tile_rect(cell)
-			capture_rect(bounds, Color("#777b7b"))
-			capture_rect(bounds, Color("#c0c4bf"), false, 1.5)
+			var bounds: Rect2 = _physical_tile_rect(cell, authority.map_data.get_elevation(cell))
+			if not observed.has(cell): observed[cell] = []
+			observed[cell].append([bounds.position.x, bounds.position.y])
 
 
 func _draw_thermal_stone(point: Vector2, warm: bool) -> void:

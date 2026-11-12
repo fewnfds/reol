@@ -50,7 +50,7 @@ func configure(size: Vector2i, capacity: int, activation_ms: int) -> bool:
 	return true
 
 
-func actual_at(cell: Vector2i, at_ms: int) -> Dictionary:
+func actual_at(cell: Vector2i, at_ms: int, include_response: bool = false) -> Dictionary:
 	if not _configured:
 		return _failure("not_configured")
 	if not _inside(cell, _size):
@@ -75,11 +75,23 @@ func actual_at(cell: Vector2i, at_ms: int) -> Dictionary:
 		if not _valid_value(value):
 			return _failure("response_unavailable")
 		values[channel] = clampf(snappedf(value, anchor_quantum), 0.0, MAX_VALUE) if anchor_quantum > 0.0 else value
-	return {"ok": true, "cell": cell, "at_ms": sampled_at, "values": values}
+	var result: Dictionary = {"ok": true, "cell": cell, "at_ms": sampled_at, "values": values}
+	if include_response:
+		# Diagnostic metadata is not allocated by the ordinary math reads.
+		var targets := PackedFloat64Array()
+		for channel: int in CHANNELS:
+			var offset: int = index * CHANNELS + channel
+			targets.append(chunk.targets[offset] + chunk.slopes[offset] * float(sampled_at - chunk.starts[index]))
+		result.merge({"targets": targets, "response_start_ms": chunk.starts[index], "tau_ms": chunk.taus[index]})
+	return result
 
 
 func sample_ms(at_ms: int) -> int:
 	return maxi(_activation_ms, at_ms - posmod(at_ms, SimCadence.FIELD_SAMPLE_MS))
+
+
+func response_revision() -> int:
+	return _revision
 
 
 func begin_bulk(at_ms: int, max_changed_chunks: int) -> Dictionary:

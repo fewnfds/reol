@@ -46,7 +46,8 @@ func domain() -> SimConstruction:
 func setup(adapter: WorldContinuityRuntime) -> void:
 	_owner = weakref(adapter)
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	z_index = 1
+	z_as_relative = false
+	z_index = 7
 	var layer := CanvasLayer.new()
 	layer.layer = 9
 	add_child(layer)
@@ -558,33 +559,29 @@ func _build_canvas() -> void:
 		if domain().site_contains(selection) and _visible(selection):
 			capture_rect(Rect2(_point(selection) - Vector2(29, 29), Vector2(58, 58)), UI.GOLD, false, 2)
 	var sim: RefCounted = runtime().world_sim.regions[domain().definitions.site.region]
+	var fog: FogOfWar = runtime().home_runtime()._fog
+	var observed: Dictionary = {}
 	for id: String in domain().projects:
 		var project: Dictionary = domain().projects[id]
 		var definition: Dictionary = domain().definitions.types[project.type]
 		for cell: Vector2i in domain().project_cells(id):
-			if not _visible(cell):
+			if not _visible(cell) or project.state not in ["blueprint", "built", "ruined"]:
 				continue
 			var p: Vector2 = _point(cell)
-			if project.state == "blueprint":
-				capture_rect(Rect2(p - Vector2(24, 18), Vector2(48, 36)), Color(UI.JADE, 0.25))
-				capture_rect(Rect2(p - Vector2(24, 18), Vector2(48, 36)), UI.JADE, false, 2)
-			elif project.state == "ruined":
-				capture_rect(Rect2(p - Vector2(20, 12), Vector2(40, 24)), Color("635e56"))
-			elif project.state == "built":
-				if definition.layer == "roof":
-					_draw_roof(p)
-				elif domain().is_bed(id):
-					_draw_bed(p)
+			var glyph: String = str(project.state)
+			var mask: int = 0
+			var flags: int = 0
+			if project.state == "built":
+				if definition.layer == "roof": glyph = "roof"
+				elif domain().is_bed(id): glyph = "bed"
 				elif definition.facts.wall_connection:
-					var mask: int = SimStructureQuery.wall_mask(runtime().world_sim, cell, _visible)
-					if bool(definition.door):
-						capture_custom(Callable(Walls, "draw_door").bind(self, p, mask, true))
-					else:
-						capture_custom(Callable(Walls, "draw_wall").bind(self, p, mask))
-						if definition.kind == "window":
-							capture_rect(Rect2(p + Vector2(-12, -14), Vector2(24, 18)), Color("8ca7a4"))
+					mask = SimStructureQuery.wall_mask(runtime().world_sim, cell, _visible)
+					glyph = "door" if bool(definition.door) else "window" if definition.kind == "window" else "wall"
 				else:
-					_draw_furniture(p, definition, int(project.rotation))
+					glyph = "furniture"
+					flags = int(definition.capabilities.has("storage")) | (int(definition.capabilities.has("workbench")) << 1) | (int(definition.capabilities.has("seat")) << 2)
+			if not observed.has(cell): observed[cell] = []
+			observed[cell].append([p.x, p.y, glyph, mask, int(project.rotation), flags])
 		var raw: Array = project.material_cell
 		if not str(project.carrier).is_empty():
 			var cell: Vector2i = TileGrid.world_to_cell(sim.projected_actor_position(project.carrier))
@@ -594,6 +591,28 @@ func _build_canvas() -> void:
 			var p: Vector2 = _point(material_cell) + Vector2(12, 16)
 			for i: int in 3:
 				capture_line(p + Vector2(-8, i * 4), p + Vector2(8, i * 4 - 3), Color("ae8553"), 4)
+	if fog != null:
+		fog.visual_memory.observe("construction", fog._visible_cells, observed)
+		observed = fog.visual_memory.cells("construction")
+	for rows: Array in observed.values():
+		for appearance: Array in rows:
+			_draw_seen_structure(appearance)
+
+
+func _draw_seen_structure(row: Array) -> void:
+	var p := Vector2(float(row[0]), float(row[1]))
+	match str(row[2]):
+		"blueprint":
+			capture_rect(Rect2(p - Vector2(24, 18), Vector2(48, 36)), Color(UI.JADE, 0.25))
+			capture_rect(Rect2(p - Vector2(24, 18), Vector2(48, 36)), UI.JADE, false, 2)
+		"ruined": capture_rect(Rect2(p - Vector2(20, 12), Vector2(40, 24)), Color("635e56"))
+		"roof": _draw_roof(p)
+		"bed": _draw_bed(p)
+		"door": capture_custom(Callable(Walls, "draw_door").bind(self, p, int(row[3]), true))
+		"wall", "window":
+			capture_custom(Callable(Walls, "draw_wall").bind(self, p, int(row[3])))
+			if row[2] == "window": capture_rect(Rect2(p + Vector2(-12, -14), Vector2(24, 18)), Color("8ca7a4"))
+		"furniture": _draw_furniture(p, int(row[5]), int(row[4]))
 
 
 func _draw_roof(p: Vector2) -> void:
@@ -685,12 +704,12 @@ func produce_at_facility() -> void:
 	refresh()
 
 
-func _draw_furniture(p: Vector2, definition: Dictionary, rotation: int) -> void:
+func _draw_furniture(p: Vector2, flags: int, rotation: int) -> void:
 	_draw_shadow(p)
 	var color := Color("866340")
-	if definition.capabilities.has("storage"): color = Color("a48754")
-	elif definition.capabilities.has("workbench"): color = Color("69777a")
-	elif definition.capabilities.has("seat"): color = Color("aa916b")
+	if flags & 1: color = Color("a48754")
+	elif flags & 2: color = Color("69777a")
+	elif flags & 4: color = Color("aa916b")
 	capture_rect(Rect2(p - Vector2(22, 19), Vector2(44, 38)), color)
 	capture_rect(Rect2(p - Vector2(22, 19), Vector2(44, 38)), Color("3e352d"), false, 2)
 	var facing: Vector2i = SimConstructionGeometry.direction(Vector2i.UP, rotation)

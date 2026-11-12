@@ -1,19 +1,19 @@
 # 已核实基线
 
-更新：2026-11-11。本页只保留当前版本、有效证据摘要和已知限制；接口见[计算接入](../engineering/execution-batches.md)，范围见[主计划](../plans/foundation-priorities.md)。旧构建完整测量在[多核停点记录](../archive/qa/20261111_multicore_stop.md)，原始日志/包在忽略的logs中。
+更新：2026-11-12。本页只保留当前版本、有效证据摘要和已知限制；接口见[计算接入](../engineering/execution-batches.md)，范围见[主计划](../plans/foundation-priorities.md)。旧构建完整测量在[多核停点记录](../archive/qa/20261111_multicore_stop.md)，原始日志/包在忽略的logs中。
 
 ## 代码与采用版本
 
 | 项目 | 当前值 / 代码依据 |
 |---|---|
 | 引擎 | Godot 4.7.2 stable；GDScript；Windows |
-| 根存档 / 联合区域 | 57 / 48；SessionSaveSchema、RegionalSimulation |
+| 根存档 / 联合区域 | 58 / 48；SessionSaveSchema、RegionalSimulation |
 | 村落 / 环境保存 / 内容包 | 7 / 7 / 3；五行响应内部格式2 |
 | 施工保存 / 施工定义 | 5 / 4 |
 | 认识账本 | 2；只读当前格式 |
 | 内容清单 | 44份定义/开局文档 |
 
-只支持[当前存档格式](../engineering/compatibility.md)。建筑定义为独立感知消耗/遮光事实；环境改为整秒五行与独立分钟潮汐，含旧定义或旧环境模型的开发存档需重新开局，根与施工实例版本未变。
+只支持[当前存档格式](../engineering/compatibility.md)。当前根格式包含探索格与固定外观记忆，旧开发档需新开局；建筑定义仍为独立感知消耗/遮光事实，环境仍为整秒五行与独立分钟潮汐。
 
 ## 实际执行范围与缺口
 
@@ -68,3 +68,7 @@
 五行节奏与独立潮汐：短elements/spatial检查通过，覆盖秒内来源目标多次替换、五通道分钟稳定、百分比与整数舍入、基数不累加、局部JSON停开和CPU批一致；日志smoke-20261111-230940-833176000。D3D12 / RTX5060Ti功能试游沿真实共同时间显式推进至61秒，对比0/250/750/999/1000/1250/59999/60000/60500/61000ms的同格读数，在1.25秒及61秒做完整世界JSON独立恢复，基础值/倍率/最终值一致且world_errors为空；日志element-minute-final-20261111-230952-373087400，原值为logs/element-minute-result.json。新增HUD已在1024×576实看（element-minute-hud-small-20261111-230829-344897000），数值与F3区域分开。没有据此追加容量或性能收益结论。
 
 地块悬浮与统一单位选择：D3D12 / RTX5060Ti，1280×720及1024×576实看。真实鼠标事件验证悬浮不吞点击、右键不弹面板、左键实物选择与I打开同一实物、植物按钮转入所选原株、重叠人物切换、墙体项目保留及营造工具优先选格；移动指针不换单位，悬浮移到交互UI上收起，world_errors为空。日志hover-unit-final-20261111-232835-588932800和hover-unit-reviewed-20261111-232957-652377000，截图hover-unit.png与hover-unit-small.png。input/presentation短检查通过（smoke-20261111-232559-286912300）。此轮修改输入和呈现，不改变领域存档或宣称人口性能收益。
+
+2026-11-12试玩修复：固定格实测木base从500到516.391949759，target保持1000，tau=30000ms；同分钟五种潮汐百分比不变，确认是原建立响应，非秒级随机。短elements增加初值等于固定目标的一小时解析采样，无基础漂移；HUD显示base/target。
+
+D3D12 / RTX5060Ti，功能试游1280×720与1024×576短窗：固定物离场保留，隐藏植物受伤死亡、家具损毁和physical移除均不刷新旧影像；两次完整JSON候选加载保留未见的旧外观，重见时更新并清除已移除物，NPC离场隐藏。检查了worker实际忙碌输入、已交回但主时钟仍pending的点击、缓冲期间移动相机、最远缩放选人；world_errors为空。日志fog-input-candidates-20261112-095854-126133100与最终小窗fog-input-shading-20261112-100632-137537300，截图fog-last-seen.png、fog-input-small.png；固定图层绝对z设在fog下方，已实看暗色缓存。另以显式丘陵开局验证高地大件的绘制/命中一致（raised-pick-hills-20261112-101023-347086600），雀身验证12格视野与地面大件观察/选择（bird-pick-20261112-101039-865202400）。相关input/presentation/elements/spatial短检查通过（smoke-20261112-100851-22182500）；没有重跑人口规模或长时性能矩阵。新的右键移动和A/S/H仍为主计划中的下一阶段。

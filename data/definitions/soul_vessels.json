@@ -97,7 +97,7 @@
     }
   },
   "agency": {
-    "sense_cells": 3,
+    "sense_cells": 6,
     "actions": {
       "wake": {
         "ms": 1000,

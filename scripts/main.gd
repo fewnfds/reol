@@ -244,9 +244,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mouse := event as InputEventMouseButton
 		if mouse.button_index == MOUSE_BUTTON_LEFT and mouse.pressed:
-			var world_position: Vector2 = (
-				get_canvas_transform().affine_inverse() * mouse.position
-			)
+			var world_position: Vector2 = mouse.get_meta("reol_world_point", get_canvas_transform().affine_inverse() * mouse.position)
 			# Ordinary world selection has one owner. Explicit construction and
 			# terrain tools keep their own earlier GUI/tool input handling.
 			if _development != null and not _continuity.construction_adapter.panel.visible:

@@ -137,7 +137,10 @@ func _refresh_selection(preferred: Dictionary = {}) -> void:
 	var rows: Array = []
 	for reference: Dictionary in _selection_refs:
 		var row: Dictionary = _inspect_reference(reference)
-		if not row.is_empty(): rows.append(row)
+		if row.is_empty(): continue
+		var occupied: Array = row.values.get("spatial", {}).get("cells", [row.cell])
+		if occupied.any(func(cell: Vector2i) -> bool: return main.fog.is_cell_visible(cell)):
+			rows.append(row)
 	if rows.is_empty():
 		clear_selection()
 		return

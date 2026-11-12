@@ -122,7 +122,7 @@ func _ungate_tree() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if not busy:
+	if not busy and not GameClock.has_pending_advance():
 		return
 	# Time controls have no world mutation; they remain immediate during a
 	# long computation. Finishing the accepted boundary is still mandatory.
@@ -139,13 +139,20 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE:
 		return
 	else:
-		_events.append({"event": event.duplicate(), "at": Time.get_ticks_usec()})
+		var captured: InputEvent = event.duplicate()
+		if captured is InputEventMouseButton:
+			# GUI still receives the original screen coordinate. If unhandled,
+			# world selection uses the point seen at receipt, before camera follow.
+			captured.set_meta("reol_world_point", _scene.get_canvas_transform().affine_inverse() * captured.position)
+		_events.append({"event": captured, "at": Time.get_ticks_usec()})
 		GameClock.request_input_boundary()
 	get_viewport().set_input_as_handled()
 
 
 func replay_inputs() -> void:
-	if busy or _events.is_empty():
+	# A reclaimed worker can leave a partially published clock frame. Replaying
+	# there used to consume clicks while the picker still rejected all reads.
+	if busy or GameClock.has_pending_advance() or not runtime._presentation_ready() or _events.is_empty():
 		return
 	var events: Array[Dictionary] = _events
 	_events = []

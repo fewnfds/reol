@@ -44,6 +44,7 @@ var _chunks: Dictionary[Vector2i, bool] = {}
 var _thermal_chunks: Dictionary[Vector2i, bool] = {}
 var _samples: Dictionary = {}
 var _element_sample_ms: int = -1
+var _element_response_revision: int = -1
 var _element_samples: Dictionary[Vector2i, Dictionary] = {}
 var _transient: Dictionary = {}
 var _active: bool = false
@@ -489,21 +490,27 @@ func elements_at(cell: Vector2i) -> Dictionary:
 	if _busy or not _active:
 		return {"ok": false, "reason": "environment_unavailable"}
 	var sampled_at: int = _phases.sample_ms(last_ms)
-	if _element_sample_ms != sampled_at:
+	var response_revision: int = _phases.response_revision()
+	if _element_sample_ms != sampled_at or _element_response_revision != response_revision:
 		_element_sample_ms = sampled_at
+		_element_response_revision = response_revision
 		_element_samples.clear()
 	if _element_samples.has(cell):
 		return _element_samples[cell].duplicate(true)
-	var result: Dictionary = _phases.actual_at(cell, last_ms)
+	var result: Dictionary = _phases.actual_at(cell, last_ms, true)
 	if result.get("reason") == "untracked":
 		result = _initial_phase(cell, last_ms)
 	if bool(result.get("ok", false)):
 		var packed: PackedFloat64Array = result.values
 		var base := PackedFloat64Array()
+		var targets := PackedFloat64Array()
+		var packed_targets: PackedFloat64Array = result.get("targets", packed)
 		for index: int in Rules.SOURCE_FROM_PACKED_ELEMENT_INDEX:
 			base.append(packed[index])
+			targets.append(packed_targets[index])
 		var percent: PackedInt32Array = ElementTide.percentages(int(_settings.seed), cell, sampled_at)
-		result = {"ok": true, "cell": cell, "at_ms": sampled_at, "base_values": base,
+		result = {"ok": true, "cell": cell, "at_ms": sampled_at, "base_values": base, "target_values": targets,
+			"response_start_ms": int(result.get("response_start_ms", sampled_at)), "tau_ms": int(result.get("tau_ms", TAU_MS)),
 			"tide_percent": percent, "tide_at_ms": sampled_at - posmod(sampled_at, ElementTide.PERIOD_MS),
 			"values": ElementTide.apply(base, percent)}
 		# Held authoritative values, not display interpolation. Any source update
@@ -521,7 +528,8 @@ func context_at(cell: Vector2i) -> Dictionary:
 	if not bool(temperature.get("ok", false)) or not bool(elements.get("ok", false)) or not bool(light.get("supported", false)):
 		return {"ok": false, "reason": "environment_unavailable"}
 	return {"ok": true, "at_ms": last_ms, "visibility": "authority_only", "temperature_c": temperature.value_c,
-		"elements": elements.values, "elements_base": elements.base_values, "elements_at_ms": elements.at_ms,
+		"elements": elements.values, "elements_base": elements.base_values, "elements_target": elements.target_values, "elements_at_ms": elements.at_ms,
+		"elements_response_start_ms": elements.response_start_ms, "elements_tau_ms": elements.tau_ms,
 		"element_tide_percent": elements.tide_percent, "element_tide_at_ms": elements.tide_at_ms,
 		"light_relative": light.total_relative, "roofed": world.construction.roofed(cell),
 		"room": _layout.room_of.get(cell), "terrain": world.map_data.get_terrain(cell)}
