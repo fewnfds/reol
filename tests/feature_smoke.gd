@@ -108,7 +108,7 @@ static func run(check: Callable) -> void:
 	var object: int = w.objects.create("chest", "wood_chest", memory_tile)
 	w.perception.update(w, w.elapsed_ms, true)
 	check.call(w.perception.memories.has(object), "Visible static object was not remembered")
-	w.terrain.floors.append(memory_tile)
+	w.terrain.set_floor(memory_tile, true)
 	w.terrain.revision += 1
 	w.perception.update(w, w.elapsed_ms + 200)
 	check.call((w.perception.ground[memory_tile] & 8) != 0, "Observed ground was not cached")
@@ -119,7 +119,7 @@ static func run(check: Callable) -> void:
 	page.positions[5] = Terrain.center(memory_tile)
 	page.positions[0] = Vector2(310.5, 195.5)
 	w.objects.remove_empty(object)
-	w.terrain.floors.erase(memory_tile)
+	w.terrain.set_floor(memory_tile, false)
 	w.terrain.revision += 1
 	w.objects.records[tree].stage = 3
 	w.objects.layout_revision += 1
@@ -157,3 +157,4 @@ static func run(check: Callable) -> void:
 	w.combat.begin(w, 1, "pursue", 4)
 	w.step()
 	check.call(page.health[3] == 75, "Switching to pursuit bypassed the shared attack cooldown")
+	preload("res://tests/tile_smoke.gd").run(w, check)

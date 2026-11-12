@@ -186,7 +186,7 @@ func _ready() -> void:
 	item_choice.item_selected.connect(func(index: int): _item = item_choice.get_item_text(index))
 	layout.add_child(item_choice)
 	var build_choice := OptionButton.new()
-	for definition: String in ["wood_wall", "wood_door", "long_bed", "wood_chest", "cook_stove", "wood_table", "wood_chair", "wood_roof", "planter"]:
+	for definition: String in ["wood_wall", "wood_door", "long_bed", "wood_chest", "cook_stove", "wood_table", "wood_chair", "wood_roof", "planter", "wood_floor"]:
 		build_choice.add_item(definition)
 	build_choice.item_selected.connect(func(index: int): _build_definition = build_choice.get_item_text(index))
 	layout.add_child(build_choice)
@@ -273,7 +273,6 @@ func _process(delta: float) -> void:
 		if fog_enabled:
 			fog.adopt(frame)
 			ground.visibility(fog.visibility)
-			object_canvas.visibility(fog.visibility, true)
 	if _ready_at == 0:
 		_ready_at = begin
 		print("KERNEL_READY actors=", _actors, " workers=", frame.counters.workers)
@@ -293,7 +292,8 @@ func _process(delta: float) -> void:
 	_render_previous = older.positions
 	_render_current = newer.positions
 	_render_older = older
-	if _render_pose != newer or (frame.paused and _render_frame != frame) or population.multimesh.instance_count != frame.positions.size() or (_render_frame != null and not is_same(_render_frame.actor_slots, frame.actor_slots)):
+	var scenery_changed: bool = population.scenery(object_canvas, fog.visibility)
+	if scenery_changed or _render_pose != newer or (frame.paused and _render_frame != frame) or population.actor_count != frame.positions.size() or (_render_frame != null and not is_same(_render_frame.actor_slots, frame.actor_slots)):
 		var adopt_start: int = Time.get_ticks_usec()
 		population.adopt(frame, older, newer)
 		_render_pose = newer
@@ -355,6 +355,7 @@ func _update_hud() -> void:
 		"采集 %d / 入库 %d / 材料 %d" % [stats.harvested, stats.stored, stats.material],
 		"鼠标格 (%d,%d) | 选中格 %d" % [mouse.x, mouse.y, selected_tile],
 		"地块温度 %.2f°C | 房间 %d" % [float(frame.tile_probe.get("temperature", 22.0)), int(frame.tile_probe.get("room", -1))],
+		"基底 %s | 地被 %d | 地板 %d" % [frame.tile_probe.get("substrate", ""), int(frame.tile_probe.get("cover", 0)), int(frame.tile_probe.get("flooring", 0))],
 		"地块五行 %s" % str(frame.tile_probe.get("elements", [])),
 		"潮汐%% 金木水火土 %s" % str(frame.tides)]))
 	var lines := PackedStringArray([
@@ -583,7 +584,7 @@ func _capture(now: int) -> void:
 	report.erase("step_window_usec")
 	for key: String in ["steps", "moved_cells", "harvested", "deliveries", "step_usec", "environment_usec", "units_usec", "effects_usec", "snapshot_usec", "overload_demand_usec", "path_requests", "path_failures", "nature_usec", "combat_usec", "shots", "hits", "plant_collections", "plant_evaluations", "perception_usec", "sight_observers", "sight_candidates", "sight_queries", "sight_index_usec", "sight_batch_usec", "sight_parallel_batches", "sight_sync_usec", "sight_rebuilds"]:
 		report[key + "_delta"] = float(report[key]) - float(_capture_counters[key])
-	report.instance_slots = population.multimesh.instance_count
+	report.instance_slots = population.actor_count
 	report.fog = fog_enabled
 	report.visible_instances = frame.visible.count(1) if fog_enabled else frame.counters.actors
 	report.adopted_frames = _adoptions

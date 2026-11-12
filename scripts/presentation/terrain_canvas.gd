@@ -23,7 +23,6 @@ func adopt(value: RefCounted, knowledge: Dictionary = {}) -> void:
     elif geometry_changed:
         bytes.resize(512 * 512)
         for tile: int in bytes.size(): bytes[tile] = terrain.surface_at(tile)
-        for tile: int in terrain.floors: bytes[tile] |= 8
     else: return
     var image := Image.create_from_data(512, 512, false, Image.FORMAT_R8, bytes)
     if _memory_texture == null:

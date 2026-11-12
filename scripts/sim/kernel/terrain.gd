@@ -2,12 +2,16 @@ extends RefCounted
 ## Authoritative tile facts. Navigation contexts are private to execution lanes.
 
 const SIZE: int = 512
-const STATE_FIELDS: Array = ["blocked", "enclosures", "rooms", "structures", "floors", "room_cells", "resources", "depots", "revision", "source_cells", "source_channels"]
+const STATE_FIELDS: Array = ["blocked", "enclosures", "rooms", "structures", "base", "cover", "flooring", "room_cells", "resources", "depots", "revision", "source_cells", "source_channels"]
 var blocked := PackedByteArray()
 var enclosures := PackedByteArray() # Doors divide rooms but remain walkable.
 var rooms := PackedInt32Array()
 var structures := PackedInt32Array()
-var floors := PackedInt32Array() # Fixed ground, distinct from live object footprints.
+enum Substrate { SOIL = 1, SAND, WATER }
+enum Cover { NONE, GRASS }
+var base := PackedByteArray() # Soil/sand/water remains underneath surface coverings.
+var cover := PackedByteArray() # Decorative groundcover; never an object or a growth loop.
+var flooring := PackedByteArray() # 0 bare, 1 wood; object records own paid materials.
 var room_cells: Array[PackedInt32Array] = []
 var resources := PackedInt32Array()
 var depots := PackedInt32Array()
@@ -21,6 +25,13 @@ func initialize(room_count: int = 50, resource_count: int = 200) -> void:
 	enclosures.resize(SIZE * SIZE)
 	rooms.resize(SIZE * SIZE)
 	rooms.fill(-1)
+	base.resize(SIZE * SIZE)
+	cover.resize(SIZE * SIZE)
+	flooring.resize(SIZE * SIZE)
+	for tile: int in base.size():
+		var point: Vector2i = cell(tile)
+		base[tile] = Substrate.SAND if region(tile) == 2 or Rect2i(166, 181, 8, 8).has_point(point) else (Substrate.WATER if Rect2i(169, 175, 6, 4).has_point(point) else Substrate.SOIL)
+		cover[tile] = Cover.GRASS if base[tile] == Substrate.SOIL and region(tile) == 0 else Cover.NONE
 	for room: int in room_count:
 		var origin := Vector2i(180 + (room % 8) * 9, 180 + (room / 8) * 9)
 		var members := PackedInt32Array()
@@ -28,25 +39,28 @@ func initialize(room_count: int = 50, resource_count: int = 200) -> void:
 			for x: int in 5:
 				var cell: int = index(origin + Vector2i(x, y))
 				structures.append(cell)
+				# Floor extends under the wall/door, not just to its upper foot.
+				base[cell] = Substrate.SOIL
+				cover[cell] = Cover.NONE
+				flooring[cell] = 1
 				var edge: bool = x == 0 or x == 4 or y == 0 or y == 4
 				blocked[cell] = int(edge and not (x == 2 and y == 4))
 				enclosures[cell] = int(edge)
 				if not edge:
-					floors.append(cell)
 					rooms[cell] = room
 					members.append(cell)
 		room_cells.append(members)
+	for id: int in 8:
+		depots.append(index(Vector2i(180 + (id % 4) * 25, 194 + (id / 4) * 45)))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1747
 	var used: Dictionary = {}
 	while resources.size() < resource_count:
 		var point := Vector2i(rng.randi_range(169, 259), rng.randi_range(169, 259))
-		var tile: int = nearest_open(index(point))
-		if not used.has(tile):
+		var tile: int = index(point)
+		if wild_site(tile, ["soil"]) and not used.has(tile) and not depots.has(tile) and point not in [Vector2i(176,182), Vector2i(176,183), Vector2i(174,185), Vector2i(175,185), Vector2i(176,186), Vector2i(173,182)]:
 			used[tile] = true
 			resources.append(tile)
-	for id: int in 8:
-		depots.append(index(Vector2i(180 + (id % 4) * 25, 194 + (id / 4) * 45)))
 
 
 static func index(cell: Vector2i) -> int:
@@ -111,22 +125,29 @@ func fits(point: Vector2i, clearance: int) -> bool:
 
 
 func substrate(tile: int) -> String:
-	var point: Vector2i = cell(tile)
-	if region(tile) == 2:
-		return "sand"
-	if Rect2i(169, 175, 6, 4).has_point(point):
-		return "water"
-	if Rect2i(166, 181, 8, 8).has_point(point):
-		return "sand"
-	return "soil"
+	return ["", "soil", "sand", "water"][base[tile]] if tile >= 0 and tile < base.size() else ""
+
+
+func wild_site(tile: int, allowed: Array) -> bool:
+	return tile >= 0 and tile < base.size() and blocked[tile] == 0 and enclosures[tile] == 0 and rooms[tile] < 0 and flooring[tile] == 0 and allowed.has(substrate(tile))
+
+
+func set_floor(tile: int, present: bool) -> void:
+	if flooring[tile] == int(present):
+		return
+	flooring[tile] = int(present)
+	if present:
+		base[tile] = Substrate.SOIL
+		cover[tile] = Cover.NONE
+	revision += 1
 
 
 func surface_at(tile: int) -> int:
-	# Stable visual codes for the observed-ground raster, independent of fog.
-	match substrate(tile):
-		"sand": return 2
-		"water": return 3
-	return 4 if region(tile) == 1 else 1
+	# One observed byte: base appearance, floor bit, decorative grass bit.
+	var surface: int = int(base[tile])
+	if surface == Substrate.SOIL and region(tile) == 1:
+		surface = 4
+	return surface | (8 if flooring[tile] != 0 else 0) | (16 if cover[tile] == Cover.GRASS and flooring[tile] == 0 else 0)
 
 
 static func region(tile: int) -> int:
@@ -170,7 +191,9 @@ func detached() -> RefCounted:
 	for room: PackedInt32Array in room_cells:
 		value.room_cells.append(room.duplicate())
 	value.structures = structures.duplicate()
-	value.floors = floors.duplicate()
+	value.base = base.duplicate()
+	value.cover = cover.duplicate()
+	value.flooring = flooring.duplicate()
 	value.resources = resources.duplicate()
 	value.depots = depots.duplicate()
 	value.revision = revision

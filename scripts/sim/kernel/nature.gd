@@ -51,7 +51,7 @@ func initialize(world: RefCounted, count: int = 512) -> void:
 		["old_tree", Vector2i(175, 180)], ["lotus", Vector2i(171, 177)],
 		["desert_thorn", Vector2i(170, 183)], ["fire_herb", Vector2i(176, 179)]]
 	for example: Array in examples:
-		var id: int = create(world, example[0], Terrain.index(example[1]))
+		var id: int = create(world, example[0], Terrain.index(example[1]), false, true)
 		if id > 0:
 			var rec: Dictionary = world.objects.records[id]
 			rec.growth_ms = int(definitions[example[0]].mature_ms) - 15000
@@ -63,8 +63,8 @@ func initialize(world: RefCounted, count: int = 512) -> void:
 			_sync(world, id)
 	for index: int in count:
 		var tile: int = Terrain.index(Vector2i(168 + posmod(index * 37, 96), 168 + posmod((index / 96) * 5 + index * 13, 96)))
-		if can_plant(world, "perennial_herb", tile).ok:
-			create(world, "perennial_herb", tile)
+		if can_plant(world, "perennial_herb", tile, true).ok:
+			create(world, "perennial_herb", tile, false, true)
 	var planter: int = world.facilities.seed_fixture(world, "planter", Terrain.index(Vector2i(173, 182)))
 	world.objects.records[planter]["water"] = 80
 	world.objects.add(1, "herb", 8)
@@ -74,14 +74,14 @@ func initialize(world: RefCounted, count: int = 512) -> void:
 	world.objects.add(1, "water", 8)
 
 
-func can_plant(world: RefCounted, definition: String, tile: int) -> Dictionary:
+func can_plant(world: RefCounted, definition: String, tile: int, wild: bool = false) -> Dictionary:
 	if not definitions.has(definition) or tile < 0 or tile >= world.terrain.blocked.size():
 		return {"ok": false, "reason": "invalid_plant_or_tile"}
 	var substrate: String = world.terrain.substrate(tile)
 	var host: int = 0
 	for other: int in world.objects.by_tile.get(tile, []):
 		var rec: Dictionary = world.objects.records[other]
-		if rec.get("layer", "ground") == "roof":
+		if rec.kind == "pile" or (rec.get("layer", "ground") in ["roof", "floor"] and rec.kind != "blueprint"):
 			continue
 		var cultivation: Dictionary = world.facilities.definitions.get(rec.definition, {}).get("capabilities", {}).get("cultivation", {})
 		if rec.kind != "blueprint" and not cultivation.is_empty() and int(rec.get("guest", 0)) == 0:
@@ -89,6 +89,10 @@ func can_plant(world: RefCounted, definition: String, tile: int) -> Dictionary:
 			substrate = str(cultivation.substrate)
 		else:
 			return {"ok": false, "reason": "occupied"}
+	if host == 0 and world.terrain.flooring[tile] != 0:
+		return {"ok": false, "reason": "covered_by_floor"}
+	if wild and (host > 0 or not world.terrain.wild_site(tile, definitions[definition].substrates)):
+		return {"ok": false, "reason": "not_a_wild_site"}
 	if host == 0 and world.terrain.blocked[tile] != 0:
 		return {"ok": false, "reason": "blocked"}
 	if not definitions[definition].substrates.has(substrate):
@@ -98,8 +102,8 @@ func can_plant(world: RefCounted, definition: String, tile: int) -> Dictionary:
 	return {"ok": true, "host": host}
 
 
-func create(world: RefCounted, definition: String, tile: int, seeding: bool = false) -> int:
-	var place: Dictionary = can_plant(world, definition, tile)
+func create(world: RefCounted, definition: String, tile: int, seeding: bool = false, wild: bool = false) -> int:
+	var place: Dictionary = can_plant(world, definition, tile, wild)
 	if not place.ok:
 		return 0
 	var spec: Dictionary = definitions[definition]
@@ -114,6 +118,14 @@ func create(world: RefCounted, definition: String, tile: int, seeding: bool = fa
 	ids.append(id)
 	cohorts[id % GROUPS].append(id)
 	return id
+
+
+func vegetation_level(rec: Dictionary) -> int:
+	if rec.kind == "resource":
+		return int(rec.get("vegetation_level", 3))
+	if rec.kind == "plant":
+		return int(definitions[rec.definition].vegetation_level)
+	return 0
 
 
 func seed_item(definition: String) -> String:
@@ -220,6 +232,17 @@ func _sync(world: RefCounted, id: int) -> void:
 
 func finish(world: RefCounted, actor: int, action: Dictionary, now: int) -> String:
 	var rec: Dictionary = world.objects.records[action.target]
+	if rec.kind == "resource":
+		if action.kind not in ["cut", "uproot"]:
+			return "not_a_growing_plant"
+		var level: int = vegetation_level(rec)
+		if level == 0 or (action.kind == "cut" and level < 3):
+			return "already_cleared_or_cut"
+		rec["vegetation_level"] = 2 if action.kind == "cut" else 0
+		# These resource fixtures already contain all their timber. Clearing
+		# changes the plant body into a stump/loose stock without minting wood.
+		world.objects.layout_revision += 1
+		return "completed"
 	var spec: Dictionary = definitions[rec.definition]
 	match action.kind:
 		"sow":
@@ -248,16 +271,14 @@ func finish(world: RefCounted, actor: int, action: Dictionary, now: int) -> Stri
 		"cut", "uproot":
 			if action.kind == "cut" and rec.stage != Stage.MATURE:
 				return "not_mature"
-			var body_count: int = int(spec.body_product.amount) if rec.stage == Stage.MATURE else 0
-			var capacity: int = world.objects.records[actor].capacity
-			if capacity >= 0 and world.objects.count_inventory(actor) + world.objects.count_inventory(action.target) + body_count > capacity:
-				return "inventory_full"
 			if rec.stage == Stage.MATURE:
 				world.objects.add(action.target, str(spec.body_product.item), int(spec.body_product.amount))
 			for item: String in rec.inventory.keys():
 				world.objects.transfer(action.target, actor, item, world.objects.amount(action.target, item))
 			if world.objects.count_inventory(action.target) > 0:
-				return "inventory_full"
+				var pile: int = world.objects.create("pile", "plant_remains", rec.tile)
+				for item: String in rec.inventory.keys():
+					world.objects.transfer(action.target, pile, item, world.objects.amount(action.target, item))
 			if action.kind == "cut" and bool(spec.regrow) and rec.stage != Stage.WITHERED:
 				rec.stage = Stage.STUMP
 				rec.growth_ms = 0

@@ -1479,7 +1479,7 @@
       ],
       "anchor": [
         32,
-        56
+        48
       ],
       "label": "wall_0",
       "category": "structures",
@@ -1496,7 +1496,7 @@
       ],
       "anchor": [
         32,
-        56
+        48
       ],
       "label": "wall_1",
       "category": "structures",
@@ -1513,7 +1513,7 @@
       ],
       "anchor": [
         32,
-        56
+        48
       ],
       "label": "wall_2",
       "category": "structures",
@@ -1530,7 +1530,7 @@
       ],
       "anchor": [
         32,
-        56
+        48
       ],
       "label": "wall_3",
       "category": "structures",
@@ -1547,7 +1547,7 @@
       ],
       "anchor": [
         32,
-        56
+        48
       ],
       "label": "wall_4",
       "category": "structures",
@@ -1564,7 +1564,7 @@
       ],
       "anchor": [
         32,
-        56
+        48
       ],
       "label": "wall_5",
       "category": "structures",
@@ -1581,7 +1581,7 @@
       ],
       "anchor": [
         32,
-        56
+        48
       ],
       "label": "wall_6",
       "category": "structures",
@@ -1598,7 +1598,7 @@
       ],
       "anchor": [
         32,
-        56
+        48
       ],
       "label": "wall_7",
       "category": "structures",
@@ -1615,7 +1615,7 @@
       ],
       "anchor": [
         32,
-        56
+        48
       ],
       "label": "wall_8",
       "category": "structures",
@@ -1632,7 +1632,7 @@
       ],
       "anchor": [
         32,
-        56
+        48
       ],
       "label": "wall_9",
       "category": "structures",
@@ -1649,7 +1649,7 @@
       ],
       "anchor": [
         32,
-        56
+        48
       ],
       "label": "wall_10",
       "category": "structures",
@@ -1666,7 +1666,7 @@
       ],
       "anchor": [
         32,
-        56
+        48
       ],
       "label": "wall_11",
       "category": "structures",
@@ -1683,7 +1683,7 @@
       ],
       "anchor": [
         32,
-        56
+        48
       ],
       "label": "wall_12",
       "category": "structures",
@@ -1700,7 +1700,7 @@
       ],
       "anchor": [
         32,
-        56
+        48
       ],
       "label": "wall_13",
       "category": "structures",
@@ -1717,7 +1717,7 @@
       ],
       "anchor": [
         32,
-        56
+        48
       ],
       "label": "wall_14",
       "category": "structures",
@@ -1734,7 +1734,7 @@
       ],
       "anchor": [
         32,
-        56
+        48
       ],
       "label": "wall_15",
       "category": "structures",
@@ -1751,14 +1751,14 @@
       ],
       "anchor": [
         32,
-        56
+        48
       ],
-      "label": "通行门廊",
+      "label": "东西门廊",
       "category": "structures",
       "state": "ready",
       "source": "authored"
     },
-    "roof": {
+    "door_v": {
       "slot": 95,
       "rect": [
         448,
@@ -1768,7 +1768,24 @@
       ],
       "anchor": [
         32,
-        56
+        48
+      ],
+      "label": "南北门廊",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored"
+    },
+    "roof": {
+      "slot": 96,
+      "rect": [
+        0,
+        768,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        48
       ],
       "label": "屋顶层",
       "category": "structures",
@@ -1776,9 +1793,9 @@
       "source": "authored"
     },
     "item_wood": {
-      "slot": 96,
+      "slot": 97,
       "rect": [
-        0,
+        64,
         768,
         64,
         64
@@ -1793,9 +1810,9 @@
       "source": "kenney:tiny-town/0106"
     },
     "item_stone": {
-      "slot": 97,
+      "slot": 98,
       "rect": [
-        64,
+        128,
         768,
         64,
         64
@@ -1810,9 +1827,9 @@
       "source": "kenney:tiny-farm/0089"
     },
     "item_grain": {
-      "slot": 98,
+      "slot": 99,
       "rect": [
-        128,
+        192,
         768,
         64,
         64
@@ -1827,9 +1844,9 @@
       "source": "kenney:tiny-farm/0032"
     },
     "item_herb": {
-      "slot": 99,
+      "slot": 100,
       "rect": [
-        192,
+        256,
         768,
         64,
         64
@@ -1844,9 +1861,9 @@
       "source": "kenney:tiny-farm/0029"
     },
     "item_potion": {
-      "slot": 100,
+      "slot": 101,
       "rect": [
-        256,
+        320,
         768,
         64,
         64
@@ -1861,9 +1878,9 @@
       "source": "kenney:tiny-dungeon/0116"
     },
     "item_fruit": {
-      "slot": 101,
+      "slot": 102,
       "rect": [
-        320,
+        384,
         768,
         64,
         64
@@ -1878,9 +1895,9 @@
       "source": "kenney:tiny-farm/0041"
     },
     "item_sword": {
-      "slot": 102,
+      "slot": 103,
       "rect": [
-        384,
+        448,
         768,
         64,
         64
@@ -1895,10 +1912,10 @@
       "source": "kenney:tiny-dungeon/0105"
     },
     "item_bow": {
-      "slot": 103,
+      "slot": 104,
       "rect": [
-        448,
-        768,
+        0,
+        832,
         64,
         64
       ],
@@ -1912,9 +1929,9 @@
       "source": "kenney:tiny-town/0118"
     },
     "item_hoe": {
-      "slot": 104,
+      "slot": 105,
       "rect": [
-        0,
+        64,
         832,
         64,
         64
@@ -1929,9 +1946,9 @@
       "source": "kenney:tiny-farm/0087"
     },
     "item_staff": {
-      "slot": 105,
+      "slot": 106,
       "rect": [
-        64,
+        128,
         832,
         64,
         64
@@ -1946,9 +1963,9 @@
       "source": "kenney:tiny-dungeon/0127"
     },
     "item_shield": {
-      "slot": 106,
+      "slot": 107,
       "rect": [
-        128,
+        192,
         832,
         64,
         64
@@ -1963,9 +1980,9 @@
       "source": "authored"
     },
     "item_arrow": {
-      "slot": 107,
+      "slot": 108,
       "rect": [
-        192,
+        256,
         832,
         64,
         64
@@ -1980,9 +1997,9 @@
       "source": "authored"
     },
     "item_water": {
-      "slot": 108,
+      "slot": 109,
       "rect": [
-        256,
+        320,
         832,
         64,
         64
@@ -1997,9 +2014,9 @@
       "source": "authored"
     },
     "item_watering_can": {
-      "slot": 109,
+      "slot": 110,
       "rect": [
-        320,
+        384,
         832,
         64,
         64
@@ -2014,9 +2031,9 @@
       "source": "authored"
     },
     "item_robe": {
-      "slot": 110,
+      "slot": 111,
       "rect": [
-        384,
+        448,
         832,
         64,
         64
@@ -2031,10 +2048,10 @@
       "source": "authored"
     },
     "item_armor": {
-      "slot": 111,
+      "slot": 112,
       "rect": [
-        448,
-        832,
+        0,
+        896,
         64,
         64
       ],
@@ -2048,9 +2065,9 @@
       "source": "authored"
     },
     "item_boots": {
-      "slot": 112,
+      "slot": 113,
       "rect": [
-        0,
+        64,
         896,
         64,
         64
@@ -2065,9 +2082,9 @@
       "source": "authored"
     },
     "item_hat": {
-      "slot": 113,
+      "slot": 114,
       "rect": [
-        64,
+        128,
         896,
         64,
         64
@@ -2082,9 +2099,9 @@
       "source": "authored"
     },
     "item_talisman": {
-      "slot": 114,
+      "slot": 115,
       "rect": [
-        128,
+        192,
         896,
         64,
         64
@@ -2099,9 +2116,9 @@
       "source": "authored"
     },
     "item_spirit_stone": {
-      "slot": 115,
+      "slot": 116,
       "rect": [
-        192,
+        256,
         896,
         64,
         64
@@ -2116,9 +2133,9 @@
       "source": "authored"
     },
     "item_egg": {
-      "slot": 116,
+      "slot": 117,
       "rect": [
-        256,
+        320,
         896,
         64,
         64
@@ -2133,9 +2150,9 @@
       "source": "authored"
     },
     "item_fish": {
-      "slot": 117,
+      "slot": 118,
       "rect": [
-        320,
+        384,
         896,
         64,
         64
@@ -2150,9 +2167,9 @@
       "source": "authored"
     },
     "item_meal": {
-      "slot": 118,
+      "slot": 119,
       "rect": [
-        384,
+        448,
         896,
         64,
         64
@@ -2167,10 +2184,10 @@
       "source": "authored"
     },
     "item_dried_herb": {
-      "slot": 119,
+      "slot": 120,
       "rect": [
-        448,
-        896,
+        0,
+        960,
         64,
         64
       ],
@@ -2184,9 +2201,9 @@
       "source": "authored"
     },
     "item_fiber": {
-      "slot": 120,
+      "slot": 121,
       "rect": [
-        0,
+        64,
         960,
         64,
         64
@@ -2201,9 +2218,9 @@
       "source": "authored"
     },
     "item_lotus_seed": {
-      "slot": 121,
+      "slot": 122,
       "rect": [
-        64,
+        128,
         960,
         64,
         64
@@ -2218,9 +2235,9 @@
       "source": "authored"
     },
     "item_lotus_root": {
-      "slot": 122,
+      "slot": 123,
       "rect": [
-        128,
+        192,
         960,
         64,
         64
@@ -2235,9 +2252,9 @@
       "source": "authored"
     },
     "item_breath_manual": {
-      "slot": 123,
+      "slot": 124,
       "rect": [
-        192,
+        256,
         960,
         64,
         64
@@ -2252,9 +2269,9 @@
       "source": "authored"
     },
     "item_axe": {
-      "slot": 124,
+      "slot": 125,
       "rect": [
-        256,
+        320,
         960,
         64,
         64
@@ -2269,9 +2286,9 @@
       "source": "authored"
     },
     "item_pickaxe": {
-      "slot": 125,
+      "slot": 126,
       "rect": [
-        320,
+        384,
         960,
         64,
         64
@@ -2286,9 +2303,9 @@
       "source": "authored"
     },
     "item_shovel": {
-      "slot": 126,
+      "slot": 127,
       "rect": [
-        384,
+        448,
         960,
         64,
         64
@@ -2303,10 +2320,10 @@
       "source": "authored"
     },
     "item_spear": {
-      "slot": 127,
+      "slot": 128,
       "rect": [
-        448,
-        960,
+        0,
+        1024,
         64,
         64
       ],
@@ -2320,9 +2337,9 @@
       "source": "authored"
     },
     "item_bundle": {
-      "slot": 128,
+      "slot": 129,
       "rect": [
-        0,
+        64,
         1024,
         64,
         64
@@ -2337,9 +2354,9 @@
       "source": "authored"
     },
     "fx_fire_0": {
-      "slot": 129,
+      "slot": 130,
       "rect": [
-        64,
+        128,
         1024,
         64,
         64
@@ -2354,9 +2371,9 @@
       "source": "authored"
     },
     "fx_fire_1": {
-      "slot": 130,
+      "slot": 131,
       "rect": [
-        128,
+        192,
         1024,
         64,
         64
@@ -2371,9 +2388,9 @@
       "source": "authored"
     },
     "fx_fire_2": {
-      "slot": 131,
+      "slot": 132,
       "rect": [
-        192,
+        256,
         1024,
         64,
         64
@@ -2388,9 +2405,9 @@
       "source": "authored"
     },
     "fx_fire_3": {
-      "slot": 132,
+      "slot": 133,
       "rect": [
-        256,
+        320,
         1024,
         64,
         64
@@ -2405,9 +2422,9 @@
       "source": "authored"
     },
     "fx_ice_0": {
-      "slot": 133,
+      "slot": 134,
       "rect": [
-        320,
+        384,
         1024,
         64,
         64
@@ -2422,9 +2439,9 @@
       "source": "authored"
     },
     "fx_ice_1": {
-      "slot": 134,
+      "slot": 135,
       "rect": [
-        384,
+        448,
         1024,
         64,
         64
@@ -2439,10 +2456,10 @@
       "source": "authored"
     },
     "fx_ice_2": {
-      "slot": 135,
+      "slot": 136,
       "rect": [
-        448,
-        1024,
+        0,
+        1088,
         64,
         64
       ],
@@ -2456,9 +2473,9 @@
       "source": "authored"
     },
     "fx_ice_3": {
-      "slot": 136,
+      "slot": 137,
       "rect": [
-        0,
+        64,
         1088,
         64,
         64
@@ -2473,9 +2490,9 @@
       "source": "authored"
     },
     "fx_heal_0": {
-      "slot": 137,
+      "slot": 138,
       "rect": [
-        64,
+        128,
         1088,
         64,
         64
@@ -2490,9 +2507,9 @@
       "source": "authored"
     },
     "fx_heal_1": {
-      "slot": 138,
+      "slot": 139,
       "rect": [
-        128,
+        192,
         1088,
         64,
         64
@@ -2507,9 +2524,9 @@
       "source": "authored"
     },
     "fx_heal_2": {
-      "slot": 139,
+      "slot": 140,
       "rect": [
-        192,
+        256,
         1088,
         64,
         64
@@ -2524,9 +2541,9 @@
       "source": "authored"
     },
     "fx_heal_3": {
-      "slot": 140,
+      "slot": 141,
       "rect": [
-        256,
+        320,
         1088,
         64,
         64
@@ -2541,9 +2558,9 @@
       "source": "authored"
     },
     "fx_hit_0": {
-      "slot": 141,
+      "slot": 142,
       "rect": [
-        320,
+        384,
         1088,
         64,
         64
@@ -2558,9 +2575,9 @@
       "source": "authored"
     },
     "fx_hit_1": {
-      "slot": 142,
+      "slot": 143,
       "rect": [
-        384,
+        448,
         1088,
         64,
         64
@@ -2575,10 +2592,10 @@
       "source": "authored"
     },
     "fx_hit_2": {
-      "slot": 143,
+      "slot": 144,
       "rect": [
-        448,
-        1088,
+        0,
+        1152,
         64,
         64
       ],
@@ -2592,9 +2609,9 @@
       "source": "authored"
     },
     "fx_hit_3": {
-      "slot": 144,
+      "slot": 145,
       "rect": [
-        0,
+        64,
         1152,
         64,
         64
@@ -2609,9 +2626,9 @@
       "source": "authored"
     },
     "fx_qi_0": {
-      "slot": 145,
+      "slot": 146,
       "rect": [
-        64,
+        128,
         1152,
         64,
         64
@@ -2626,9 +2643,9 @@
       "source": "authored"
     },
     "fx_qi_1": {
-      "slot": 146,
+      "slot": 147,
       "rect": [
-        128,
+        192,
         1152,
         64,
         64
@@ -2643,9 +2660,9 @@
       "source": "authored"
     },
     "fx_qi_2": {
-      "slot": 147,
+      "slot": 148,
       "rect": [
-        192,
+        256,
         1152,
         64,
         64
@@ -2660,9 +2677,9 @@
       "source": "authored"
     },
     "fx_qi_3": {
-      "slot": 148,
+      "slot": 149,
       "rect": [
-        256,
+        320,
         1152,
         64,
         64
@@ -2677,9 +2694,9 @@
       "source": "authored"
     },
     "fx_dust_0": {
-      "slot": 149,
+      "slot": 150,
       "rect": [
-        320,
+        384,
         1152,
         64,
         64
@@ -2694,9 +2711,9 @@
       "source": "authored"
     },
     "fx_dust_1": {
-      "slot": 150,
+      "slot": 151,
       "rect": [
-        384,
+        448,
         1152,
         64,
         64
@@ -2711,10 +2728,10 @@
       "source": "authored"
     },
     "fx_dust_2": {
-      "slot": 151,
+      "slot": 152,
       "rect": [
-        448,
-        1152,
+        0,
+        1216,
         64,
         64
       ],
@@ -2728,9 +2745,9 @@
       "source": "authored"
     },
     "fx_dust_3": {
-      "slot": 152,
+      "slot": 153,
       "rect": [
-        0,
+        64,
         1216,
         64,
         64
@@ -2745,9 +2762,9 @@
       "source": "authored"
     },
     "fx_metal_0": {
-      "slot": 153,
+      "slot": 154,
       "rect": [
-        64,
+        128,
         1216,
         64,
         64
@@ -2762,9 +2779,9 @@
       "source": "authored"
     },
     "fx_metal_1": {
-      "slot": 154,
+      "slot": 155,
       "rect": [
-        128,
+        192,
         1216,
         64,
         64
@@ -2779,9 +2796,9 @@
       "source": "authored"
     },
     "fx_metal_2": {
-      "slot": 155,
+      "slot": 156,
       "rect": [
-        192,
+        256,
         1216,
         64,
         64
@@ -2796,9 +2813,9 @@
       "source": "authored"
     },
     "fx_metal_3": {
-      "slot": 156,
+      "slot": 157,
       "rect": [
-        256,
+        320,
         1216,
         64,
         64
@@ -2813,9 +2830,9 @@
       "source": "authored"
     },
     "fx_wood_0": {
-      "slot": 157,
+      "slot": 158,
       "rect": [
-        320,
+        384,
         1216,
         64,
         64
@@ -2830,9 +2847,9 @@
       "source": "authored"
     },
     "fx_wood_1": {
-      "slot": 158,
+      "slot": 159,
       "rect": [
-        384,
+        448,
         1216,
         64,
         64
@@ -2847,10 +2864,10 @@
       "source": "authored"
     },
     "fx_wood_2": {
-      "slot": 159,
+      "slot": 160,
       "rect": [
-        448,
-        1216,
+        0,
+        1280,
         64,
         64
       ],
@@ -2864,9 +2881,9 @@
       "source": "authored"
     },
     "fx_wood_3": {
-      "slot": 160,
+      "slot": 161,
       "rect": [
-        0,
+        64,
         1280,
         64,
         64
@@ -2881,9 +2898,9 @@
       "source": "authored"
     },
     "fx_water_0": {
-      "slot": 161,
+      "slot": 162,
       "rect": [
-        64,
+        128,
         1280,
         64,
         64
@@ -2898,9 +2915,9 @@
       "source": "authored"
     },
     "fx_water_1": {
-      "slot": 162,
+      "slot": 163,
       "rect": [
-        128,
+        192,
         1280,
         64,
         64
@@ -2915,9 +2932,9 @@
       "source": "authored"
     },
     "fx_water_2": {
-      "slot": 163,
+      "slot": 164,
       "rect": [
-        192,
+        256,
         1280,
         64,
         64
@@ -2932,9 +2949,9 @@
       "source": "authored"
     },
     "fx_water_3": {
-      "slot": 164,
+      "slot": 165,
       "rect": [
-        256,
+        320,
         1280,
         64,
         64
@@ -2949,9 +2966,9 @@
       "source": "authored"
     },
     "fx_earth_0": {
-      "slot": 165,
+      "slot": 166,
       "rect": [
-        320,
+        384,
         1280,
         64,
         64
@@ -2966,9 +2983,9 @@
       "source": "authored"
     },
     "fx_earth_1": {
-      "slot": 166,
+      "slot": 167,
       "rect": [
-        384,
+        448,
         1280,
         64,
         64
@@ -2983,10 +3000,10 @@
       "source": "authored"
     },
     "fx_earth_2": {
-      "slot": 167,
+      "slot": 168,
       "rect": [
-        448,
-        1280,
+        0,
+        1344,
         64,
         64
       ],
@@ -3000,9 +3017,9 @@
       "source": "authored"
     },
     "fx_earth_3": {
-      "slot": 168,
+      "slot": 169,
       "rect": [
-        0,
+        64,
         1344,
         64,
         64
@@ -3035,7 +3052,7 @@
   },
   "sha256": {
     "actors.png": "399aee8374e60273c958ed6aeb17844d126ad0ba97ebebb00558e3aad1dcd5e9",
-    "world.png": "f59d5b66b00f68b5214892fff8ac031562a7fd473936525eac3853e9b69e033c",
+    "world.png": "2fa51e9bd1f7c1df382e8b7ee36bd5c60323c17dacdf7f3694ee5fe0c58ccfd0",
     "terrain.png": "ec803c9e7a280020e07af16932c06df6fa35c315cfd201a591452d12fdd8ec18"
   }
 }

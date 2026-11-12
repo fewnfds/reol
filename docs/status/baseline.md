@@ -1,17 +1,40 @@
 # 当前运行基线
 
-更新：2026-11-12。本页记录当前临时视觉包与前轮功能/视野基线的证据。实际能力/键位查[FEATURES](features.md)，运行边界查[架构](../engineering/architecture.md)，咨询取舍查[研究](../../design/research/large_simulation_optimization.md)。
+更新：2026-11-13。本页首先记录当前地块/视觉修复的正式包与证据，后续章节保留前轮对照，不作为当前地图数量或待办。实际能力/键位查[FEATURES](features.md)，运行边界查[架构](../engineering/architecture.md)，咨询取舍查[研究](../../design/research/large_simulation_optimization.md)。
 
 ## 构建与环境
 
 - Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+，1280×720，无VSync。未引入C#、原生扩展或外部ECS。
 - 开发机i5-13600KF，14物理核/20线程、32GB，RTX5060Ti（Godot GPU index1）。目标16GB/RTX3060整机未实测。
 - 正式入口`scenes/main.tscn`，试玩包`build/windows/reol-demo.exe`和同目录pck；默认24人，压力开局仍是同一后端。存档范围只看compatibility。
-- 六段恢复时正式包PCK SHA256：`817b2660204f1192faca04824b5d43d8db97fc6f2907f5dbce4086b2bdd8df82`。exe是引擎模板，单独exe哈希不能识别游戏代码。下表所有窗口使用这个最终包，没有边测边改代码。报告Git为fac70ab后的dirty工作树，随后随本轮main提交交付；提交文档不改变运行包。
+- exe是引擎模板，单独exe哈希不能识别游戏代码，按各节PCK哈希固定窗口。当前包见下面首节；六段恢复前的`817b2660204f1192faca04824b5d43d8db97fc6f2907f5dbce4086b2bdd8df82`只对应文末历史表。
 
-后续人物UV与树形图元修复证据在`logs/sprite-orientation-20261112/`和`logs/tree-orientation-20261112/`；又完成下面的单位视野/迷雾修复。单位视野阶段曾单独导出`build/sight-candidate/reol-demo.exe`；当前`build/windows`已更新为下面的临时视觉包，源码试玩仍走usage入口。
+前轮人物UV与树形图元修复证据在`logs/sprite-orientation-20261112/`和`logs/tree-orientation-20261112/`；单位视野阶段曾单独导出`build/sight-candidate/reol-demo.exe`。这些均为历史对照，当前`build/windows`只以下面首节的地块/视觉修复包为准，源码试玩仍走usage入口。
 
-## 本轮：临时像素视觉包
+## 当前：地块环境、完整精灵与柔和视野
+
+正式`build/windows/reol-demo.exe`与pck已重建，PCK SHA256：`e3704609817007ee0d77d389a412a41c8028521e878966df406e4e04a82e2974`。以下三窗同包、串行独占图形负载；报告Git为1a0f507后的dirty工作树，随后随本轮main提交。最后去除一个文件尾空行再次导出，同一PCK哈希未变。
+
+与原main包对照：同13600KF/5060Ti、D3D12、1280×720、千人混合配置（100名持续战斗、20个真实材料施工、50房间），3秒预热+10秒采样。修正生境后植物477→451，资源点位置变化，新增1250个独立可选择地板对象；配置相同而具体世界工作量已变，不能把步均下降或交付增加当作纯算法加速百分比。
+
+| 窗口 | 实际倍率 | 帧P99 / 最大 ms | 步均 / P99 / 最大 ms | 窗内交付 |
+|---|---|---|---|---|
+| 原main包，1000人全图，4×/60FPS | 4.0035× | 16.703 / 16.893 | 9.049 / 15.946 / 22.503 | 2920 |
+| 当前包，1000人全图，4×/60FPS | 4.0035× | 16.979 / 17.117 | 8.565 / 13.651 / 16.931 | 3123 |
+| 当前包，1000人迷雾，4×/60FPS | 3.9985× | 16.944 / 17.195 | 8.505 / 13.650 / 15.155 | 3116 |
+| 当前包，24人迷雾，1×/120FPS，5秒 | 0.9984× | 8.468 / 8.561 | 0.426 / 1.588 / 2.044 | 16 |
+
+所有窗材料总量200000、无过载需求截断。人物/静物统一前后排序有实际成本：千人全图主线程process均值1.618→2.650ms、姿态采用1.443→2.490ms，GPU均值0.081→0.081ms。本机短窗维持请求倍率和总体帧率，不承诺排序零成本、每个4×步都小于12.5ms或所有长局相同表现。
+
+必要短反例`tiles-final-smoke3-20261113-001236-30779900.log`通过，约8.3秒/0错误；覆盖既有共同行动并新增自然生境、水/地板准入、低草覆盖与取消、树桩清场不复制木料、地板/盆栽分层恢复、满背包产物落地。之前一次新代码缩进错误和一次把旱地散木料误当活树的测试断言已更正，失败日志保留，不以重跑抹去。
+
+视觉探针确认人物在树前/后的遮挡、完整古树冠、L/T连接墙、横纵门、拆后邻接刷新、地板蓝图平铺以及视野外整棵静态物暗色/人物隐藏。实际小场景截图核对柔和边缘、房内无自然植物、水中仅水生植物、地板到墙脚、HUD原始地块分层值，无脚本/shader错误。这些是自动图像/交互核查，不冒充完整手动游玩验收。
+
+证据目录`logs/tile-environment-20261112/`（任务于11-12开始，最终交付11-13）：`before.json`、同最终包的`shipped-overview.json`/`shipped-fog.json`/`shipped-play.json`及日志/CPU采样、`shipped-play.png`、`depth-and-walls.png`/`whole-frozen-objects.png`/`wall-neighbour-refresh.png`。较早的candidate/final窗口是中间包，仅保留追溯。素材QA与离线重建同哈希记录为`asset-qa.json`；结构审查0错误。
+
+仍有明确近似：装饰地被不逐株结算；自然撒布尚不持续扩散；压力木料点保留有限库存/下标而非完整树经济；观察按周期/换格、排序按采用姿态。精度只维护simulation-pacing，素材边界只维护assets。目标低配、长局及极密集拆建未测。
+
+## 前轮：临时像素视觉包
 
 完整覆盖、来源、重建与限制只查[assets](../../assets/README.md)。最终release为`build/windows/reol-demo.exe`与同目录pck，PCK SHA256 `4c2c1a225143d77844412e2266cfd98feff006d53d7611427539d21d5b44acc0`。窗口报告记录c0724b4之后的dirty工作树，随后随本轮main提交交付；导出后的文档更新不改变运行代码或资源。
 

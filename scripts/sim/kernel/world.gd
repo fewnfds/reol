@@ -109,6 +109,10 @@ func initialize(count: int = 1000, requested_workers: int = 4) -> void:
 	for tile: int in terrain.structures:
 		if terrain.enclosures[tile] != 0:
 			objects.create("wall" if terrain.blocked[tile] != 0 else "door", "wood_wall" if terrain.blocked[tile] != 0 else "wood_door", tile)
+	for tile: int in terrain.flooring.size():
+		if terrain.flooring[tile] != 0:
+			var id: int = objects.create("floor", "wood_floor", tile)
+			objects.records[id]["layer"] = "floor"
 	initial_material = objects.total("wood")
 	var pile: int = objects.create("pile", "wood", Terrain.index(Vector2i(178, 186)))
 	objects.transfer(source_objects[0], pile, "wood", 50)
@@ -501,7 +505,7 @@ func command(input: Dictionary) -> Dictionary:
 			if tile < 0 or tile >= terrain.blocked.size() or kind < 0 or kind > 2:
 				return receipt
 			for object: int in objects.by_tile.get(tile, []):
-				if objects.records[object].kind not in ["wall", "door", "pile"]:
+				if objects.records[object].kind not in ["wall", "door", "pile", "floor", "roof"]:
 					receipt.reason = "occupied"
 					return receipt
 			if kind == 1:
@@ -591,7 +595,7 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 		return "not_available_for_contact"
 	if objects.records[target].tile < 0 and input.kind not in Society.ACTIONS:
 		return "invalid_target"
-	if input.kind in Nature.ACTIONS and objects.records[target].kind != "plant":
+	if input.kind in Nature.ACTIONS and objects.records[target].kind != "plant" and not (objects.records[target].kind == "resource" and input.kind in ["cut", "uproot"]):
 		return "not_a_plant"
 	var exclusive: bool = input.kind not in ["take", "put", "eat"]
 	if exclusive and reservations.has(target) and reservations[target] != id and input.get("autonomous", false):

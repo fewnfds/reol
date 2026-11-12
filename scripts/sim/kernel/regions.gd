@@ -24,11 +24,13 @@ func initialize(world: RefCounted) -> void:
 		for local: int in 6:
 			var site: int = Terrain.index(DESTINATIONS[region] + Vector2i(4 + local * 2, 3 + local % 3))
 			var resource: int = world.objects.create("resource", "wood", site)
+			# Dry-region supply is already-cut timber, not a tree on sand.
+			world.objects.records[resource]["vegetation_level"] = 0 if region == 2 else 3
 			world.objects.transfer(world.source_objects[local], resource, "wood", 100)
 			world.source_objects.append(resource)
 			world.terrain.resources.append(site)
 			var plant_tile: int = Terrain.index(DESTINATIONS[region] + Vector2i(4 + local * 2, -3))
-			world.nature.create(world, "perennial_herb" if region == 1 else "desert_thorn", plant_tile)
+			world.nature.create(world, "perennial_herb" if region == 1 else "desert_thorn", plant_tile, false, true)
 		var source: int = world.environment.add_source(tile + 5, 1 if region == 1 else 0, 12)
 		world.terrain.source_cells.append(world.environment.source_cells[source])
 		world.terrain.source_channels.append(world.environment.source_channels[source])

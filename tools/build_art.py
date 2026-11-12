@@ -11,7 +11,7 @@ import json
 import math
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageOps
+from PIL import Image, ImageDraw, ImageOps, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "assets/art"
@@ -85,12 +85,15 @@ def pixelize(image: Image.Image, max_size: tuple[int, int], colors: int = 28) ->
     alpha = image.getchannel("A").point(lambda p: 255 if p > 155 else 0)
     image = image.convert("RGB").quantize(colors, dither=Image.Dither.NONE).convert("RGBA")
     image.putalpha(alpha)
-    return image
+    # Resampling/thresholding can leave transparent rows below the feet. Crop
+    # again before Pack.add aligns the sprite to its catalog anchor.
+    return image.crop(image.getbbox()) if image.getbbox() else image
 
 
-def cells(path: Path, columns: int, rows: int) -> list[Image.Image]:
+def cells(path: Path, columns: int, rows: int, row_edges: list[int] | None = None) -> list[Image.Image]:
     image = Image.open(path)
-    return [isolate(image.crop((round(x * image.width / columns), round(y * image.height / rows), round((x + 1) * image.width / columns), round((y + 1) * image.height / rows)))) for y in range(rows) for x in range(columns)]
+    edges = row_edges or [round(y * image.height / rows) for y in range(rows+1)]
+    return [isolate(image.crop((round(x * image.width / columns), edges[y], round((x + 1) * image.width / columns), edges[y+1]))) for y in range(rows) for x in range(columns)]
 
 
 def blank(size: int = 48) -> Image.Image:
@@ -196,14 +199,14 @@ class Pack:
         self.images: list[Image.Image] = []
         self.entries: dict = {}
 
-    def add(self, key: str, image: Image.Image, label: str = "", category: str = "objects", state: str = "ready", source: str = "authored") -> None:
+    def add(self, key: str, image: Image.Image, label: str = "", category: str = "objects", state: str = "ready", source: str = "authored", anchor: tuple[int, int] = (32, 56)) -> None:
         if image.size != (64, 64):
             normalized = Image.new("RGBA", (64, 64))
             normalized.alpha_composite(image, (32 - image.width // 2, 56 - image.height))
             image = normalized
         slot = len(self.images)
         self.images.append(image)
-        self.entries[key] = {"slot": slot, "rect": [slot % 8 * 64, slot // 8 * 64, 64, 64], "anchor": [32, 56], "label": label or key, "category": category, "state": state, "source": source}
+        self.entries[key] = {"slot": slot, "rect": [slot % 8 * 64, slot // 8 * 64, 64, 64], "anchor": list(anchor), "label": label or key, "category": category, "state": state, "source": source}
 
     def save(self) -> None:
         atlas = Image.new("RGBA", (512, math.ceil(len(self.images) / 8) * 64))
@@ -232,7 +235,7 @@ def world() -> dict:
     for i, image in enumerate(cells(SOURCE / "fauna.png", 4, 4)):
         small = pixelize(image, (24, 28))
         pack.add(FAUNA[i], small.resize((small.width * 2, small.height * 2), Image.Resampling.NEAREST), FAUNA_LABELS[i], category="creatures", state="reserve", source="generated:fauna")
-    plant_sources = cells(SOURCE / "plants.png", 5, 6)
+    plant_sources = cells(SOURCE / "plants.png", 5, 6, [0, 192, 352, 507, 651, 800, 1024])
     plant_names = json.loads((ROOT / "data/definitions/plants.json").read_text(encoding="utf-8"))["types"]
     stages = ["播种", "幼苗", "成熟", "残株", "枯萎"]
     for row, name in enumerate(["perennial_herb", "annual_grass", "fire_herb", "lotus", "desert_thorn", "old_tree"]):
@@ -242,35 +245,40 @@ def world() -> dict:
             image = pixelize(plant_sources[row*5+stage], sizes[stage])
             image = image.resize((image.width*2, image.height*2), Image.Resampling.NEAREST)
             pack.add(f"{name}_{stage}", image, label=f"{plant_names[name]['label']} · {stages[stage]}", category="plants", source="generated:plants")
+    # Each cell contains the COMPLETE wall junction. Endpoints meet neighbours
+    # on the 32px grid; the 64px art region includes the raised front face.
     for mask in range(16):
         im = blank(64)
-        d = ImageDraw.Draw(im)
-        d.rectangle((16, 26, 47, 55), fill="#86563f", outline=INK, width=2)
-        for x in range(19, 48, 7):
-            d.line((x, 30, x, 53), fill="#ab7650", width=2)
-        d.rectangle((16, 22, 47, 29), fill="#caa16c", outline=INK, width=2)
-        if mask & 1:
-            d.rectangle((26, 0, 37, 26), fill="#b58c5a", outline=INK, width=2)
-        if mask & 4:
-            d.rectangle((26, 34, 37, 63), fill="#8e6045", outline=INK, width=2)
-        if mask & 2:
-            d.rectangle((38, 22, 47, 29), fill="#caa16c")
-        if mask & 8:
-            d.rectangle((16, 22, 25, 29), fill="#caa16c")
-        pack.add(f"wall_{mask}", im, category="structures")
-    im = blank(64)
-    d = ImageDraw.Draw(im)
-    d.rectangle((16, 18, 21, 55), fill="#9d6148", outline=INK)
-    d.rectangle((42, 18, 47, 55), fill="#9d6148", outline=INK)
-    d.rectangle((14, 16, 49, 22), fill="#658394", outline=INK)
-    d.line((14, 16, 49, 16), fill="#a2bac0", width=2)
-    pack.add("door", im, "通行门廊", category="structures")
-    im = blank(64)
-    d = ImageDraw.Draw(im)
-    d.rectangle((16, 24, 47, 55), fill="#5e7c89", outline=INK)
-    for y in range(25, 56, 6):
-        d.line((16, y, 47, y), fill="#a6bac1", width=1)
-    pack.add("roof", im, "屋顶层", category="structures")
+        top = Image.new("L", (64, 64)); d = ImageDraw.Draw(top)
+        d.rectangle((28, 28, 36, 36), fill=255)
+        for bit,rect in [(1,(28,16,36,32)),(2,(32,28,48,36)),(4,(28,32,36,48)),(8,(16,28,32,36))]:
+            if mask & bit:d.rectangle(rect,fill=255)
+        edge=top.filter(ImageFilter.MaxFilter(3))
+        for offset in range(11,0,-1):
+            im.paste(INK,(0,offset),edge)
+            im.paste("#8e6045",(0,offset),top)
+        im.paste(INK,(0,0),edge); im.paste("#c4a16b",(0,0),top)
+        cap=Image.new("RGBA",(64,64)); cd=ImageDraw.Draw(cap)
+        for y in range(17,50,4):cd.line((15,y,49,y),fill="#d7b881")
+        cap.putalpha(Image.composite(cap.getchannel("A"), Image.new("L",(64,64)),top))
+        im.alpha_composite(cap)
+        # No dark end-cap border at a connected tile boundary.
+        pack.add(f"wall_{mask}", im, category="structures", anchor=(32,48))
+    for vertical in [False,True]:
+        im=blank(64);d=ImageDraw.Draw(im)
+        if vertical:
+            d.rectangle((28,16,36,24),fill=WOOD,outline=INK)
+            d.rectangle((28,40,36,58),fill=WOOD,outline=INK)
+            d.line((27,16,27,48),fill="#90a7aa",width=3)
+        else:
+            d.rectangle((16,30,21,52),fill=WOOD,outline=INK)
+            d.rectangle((43,30,48,52),fill=WOOD,outline=INK)
+            d.rectangle((15,27,49,32),fill="#8aa0a1",outline=INK)
+        pack.add("door_v" if vertical else "door", im, "南北门廊" if vertical else "东西门廊",category="structures",anchor=(32,48))
+    im=blank(64);d=ImageDraw.Draw(im)
+    d.rectangle((16,16,47,47),fill="#5e7c89")
+    for y in range(18,48,6):d.line((16,y,47,y),fill="#a6bac1")
+    pack.add("roof", im, "屋顶层",category="structures",anchor=(32,48))
     items = {"wood": ("tiny-town", 106), "stone": ("tiny-farm", 89), "grain": ("tiny-farm", 32), "herb": ("tiny-farm", 29), "potion": ("tiny-dungeon", 116), "fruit": ("tiny-farm", 41), "sword": ("tiny-dungeon", 105), "bow": ("tiny-town", 118), "hoe": ("tiny-farm", 87), "staff": ("tiny-dungeon", 127)}
     for name, (source, index) in items.items():
         image = Image.open(THIRD / source / f"tile_{index:04d}.png").convert("RGBA")

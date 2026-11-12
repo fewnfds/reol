@@ -308,7 +308,7 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 	if _perception_revision != _world.perception.revision:
 		_perception_revision = _world.perception.revision
 		_perception_view = {"revision": _perception_revision, "tiles": _world.perception.tiles.duplicate(),
-			"explored": _world.perception.explored.duplicate(), "ground": _world.perception.ground.duplicate(),
+			"softness": _world.perception.softness.duplicate(), "explored": _world.perception.explored.duplicate(), "ground": _world.perception.ground.duplicate(),
 			"memories": _world.State.copy(_world.perception.memories)}
 	frame.perception = _perception_view
 	frame.visible = _world.perception.visible.duplicate()
@@ -336,7 +336,8 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 		for channel: int in 5:
 			elements.append(_world.environment.element(probe, values, 0, channel))
 		frame.tile_probe = {"tile": probe, "temperature": _world.environment.temperature_at(probe, values, 0),
-			"elements": elements, "room": _world.terrain.rooms[probe], "blocked": _world.terrain.blocked[probe]}
+			"elements": elements, "room": _world.terrain.rooms[probe], "blocked": _world.terrain.blocked[probe],
+			"substrate": _world.terrain.substrate(probe), "cover": _world.terrain.cover[probe], "flooring": _world.terrain.flooring[probe]}
 	_snapshot_usec += Time.get_ticks_usec() - start
 	frame.published_usec = Time.get_ticks_usec()
 	_mutex.lock()

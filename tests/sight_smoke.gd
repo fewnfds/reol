@@ -17,9 +17,9 @@ static func run(check: Callable) -> void:
 		page.positions[row] = Vector2(140.5, 140.5 + row)
 	var a: int = Terrain.index(Vector2i(130, 130))
 	var b: int = Terrain.index(Vector2i(134, 130))
-	w.sight.loss[a + 1] = 1
+	w.sight.smooth_loss[a + 1] = 1.0
 	check.call(not w.sight.sees_tile(a, b, 4.0) and w.sight.sees_tile(a, b, 5.0) and not w.sight.sees_tile(a, a, 0.0), "Sight ignored a zero remaining budget, its own range or blindness")
-	w.sight.loss[a + 1] = 0
+	w.sight.smooth_loss[a + 1] = 0.0
 	var far: int = Terrain.index(Vector2i(170, 147))
 	check.call(w.sight.sees_tile(a, far, 60.0) and w.sight.sees_tile(far, a, 60.0), "Long sight has no symmetric fallback outside the prepared table")
 	check.call(not w.sight.sees(Vector2(20.99, 20.99), Terrain.index(Vector2i(44, 21)), 24.0) and w.sight.sees(Vector2(20.99, 20.99), Terrain.index(Vector2i(44, 21)), 25.0), "Sight-table rim disagrees with the tile-centre rule")
@@ -84,7 +84,7 @@ static func run(check: Callable) -> void:
 	w.flush_topology()
 	w.perception.update(w, w.elapsed_ms + 50)
 	check.call(w.perception.tiles[Terrain.index(Vector2i(153, 150))] == 0, "Stationary observation retained stale sight after a wall appeared")
-	var multi: Dictionary = {"tile": Terrain.index(Vector2i(154, 149)), "cells": PackedInt32Array([Terrain.index(Vector2i(154, 149)), Terrain.index(Vector2i(152, 149))])}
+	var multi: Dictionary = {"tile": Terrain.index(Vector2i(154, 149)), "cells": PackedInt32Array([Terrain.index(Vector2i(154, 149)), Terrain.index(Vector2i(151, 149))])}
 	check.call(w.sight.sees_object(page.positions[0], multi, 7.0), "A visible footprint cell did not reveal its static object")
 	for row: int in 6:
 		w.release(row + 1)

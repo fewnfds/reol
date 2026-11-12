@@ -43,7 +43,8 @@
       "source": "ordinary_plant",
       "blocks": false,
       "canopy": 1000,
-      "sapient": false
+      "sapient": false,
+      "vegetation_level": 1
     },
     "perennial_herb": {
       "label": "野药",
@@ -85,7 +86,8 @@
       "source": "ordinary_plant",
       "blocks": false,
       "canopy": 1000,
-      "sapient": false
+      "sapient": false,
+      "vegetation_level": 1
     },
     "old_tree": {
       "label": "古树",
@@ -127,7 +129,8 @@
       "source": "ordinary_plant",
       "blocks": true,
       "canopy": 6500,
-      "sapient": true
+      "sapient": true,
+      "vegetation_level": 3
     },
     "lotus": {
       "label": "荷花",
@@ -167,7 +170,8 @@
       "source": "aquatic_plant",
       "blocks": false,
       "canopy": 1000,
-      "sapient": false
+      "sapient": false,
+      "vegetation_level": 1
     },
     "desert_thorn": {
       "label": "骆驼刺",
@@ -209,7 +213,8 @@
       "source": "ordinary_plant",
       "blocks": false,
       "canopy": 1000,
-      "sapient": false
+      "sapient": false,
+      "vegetation_level": 2
     },
     "fire_herb": {
       "label": "赤焰草",
@@ -262,7 +267,8 @@
           "channel": 5,
           "strength": 45
         }
-      ]
+      ],
+      "vegetation_level": 1
     }
   }
 }

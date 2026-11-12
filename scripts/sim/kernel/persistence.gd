@@ -83,13 +83,18 @@ static func _terrain_valid(terrain: RefCounted) -> bool:
 	var size: int = terrain.SIZE * terrain.SIZE
 	if terrain.blocked.size() != size or terrain.enclosures.size() != size or terrain.rooms.size() != size:
 		return false
+	if terrain.base.size() != size or terrain.cover.size() != size or terrain.flooring.size() != size:
+		return false
+	for tile: int in size:
+		if terrain.base[tile] < 1 or terrain.base[tile] > 3 or terrain.cover[tile] > 1 or terrain.flooring[tile] > 1:
+			return false
 	for members: Variant in terrain.room_cells:
 		if not members is PackedInt32Array or members.is_empty():
 			return false
 		for tile: int in members:
 			if tile < 0 or tile >= size:
 				return false
-	for cells: PackedInt32Array in [terrain.resources, terrain.depots, terrain.structures, terrain.floors, terrain.source_cells]:
+	for cells: PackedInt32Array in [terrain.resources, terrain.depots, terrain.structures, terrain.source_cells]:
 		for tile: int in cells:
 			if tile < 0 or tile >= size:
 				return false

@@ -14,6 +14,10 @@ var _identities := PackedInt64Array()
 var _hurt_until := PackedInt64Array()
 var _epoch: int = -1
 var fog_enabled: bool = false
+var actor_count: int = 0
+var _scenery: Node2D
+var _scenery_revision: int = -1
+const ORDER_STRIDE: int = 1048576
 
 
 func configure(count: int) -> void:
@@ -23,14 +27,15 @@ func configure(count: int) -> void:
 	texture = Art.ACTORS
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	var quad := QuadMesh.new()
-	quad.size = Vector2(48.0, 48.0)
-	quad.center_offset = Vector3(0.0, -18.0, 0.0)
+	quad.size = Vector2.ONE
 	multimesh = MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_2D
 	multimesh.use_colors = true
 	multimesh.use_custom_data = true
 	multimesh.mesh = quad
 	multimesh.instance_count = count
+	actor_count = count
+	_shader.set_shader_parameter("world_atlas", Art.WORLD)
 	_directions.resize(count)
 	_directions.fill(4)
 	_buffer.resize(count * 16)
@@ -50,7 +55,7 @@ func configure(count: int) -> void:
 
 
 func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted) -> void:
-	if multimesh.instance_count != frame.positions.size():
+	if actor_count != frame.positions.size():
 		configure(frame.positions.size())
 	if _epoch != frame.epoch:
 		_epoch = frame.epoch
@@ -95,10 +100,47 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted) ->
 			clip = Art.Clip.FLY
 		elif not delta.is_zero_approx() and clip in [Art.Clip.IDLE, Art.Clip.WALK]:
 			clip = Art.Clip.WALK
-		buffer[offset + 15] = float(int(not delta.is_zero_approx()) + int(frame.radii[index] > 0.5) * 2 + int(frame.flight[index] > 0) * 4 + clip * 8)
-	multimesh.buffer = buffer
+		buffer[offset + 15] = float(int(not delta.is_zero_approx()) + int(frame.radii[index] > 0.5) * 2 + int(frame.flight[index] > 0) * 4 + clip * 8 + int(id % 11) * 256)
+	_compose(buffer)
 
 
 func interpolate(alpha: float, at_ms: int) -> void:
 	_shader.set_shader_parameter(&"alpha", alpha)
 	_shader.set_shader_parameter(&"world_ms", float(posmod(at_ms, 14400)))
+
+
+func scenery(value: Node2D, visibility: Texture2D) -> bool:
+	_scenery = value
+	_shader.set_shader_parameter("visible_map", visibility)
+	_shader.set_shader_parameter("use_fog", fog_enabled)
+	var changed: bool = _scenery_revision != value.revision
+	_scenery_revision = value.revision
+	return changed
+
+
+func _compose(actors: PackedFloat32Array) -> void:
+	# Native numeric sort plus a linear merge. Entire sprites share painter order
+	# across static scenery and interpolated actors, without per-actor Nodes.
+	if _scenery == null or _scenery.order.is_empty():
+		multimesh.instance_count = actor_count
+		multimesh.buffer = actors
+		return
+	var order := PackedFloat64Array()
+	for index: int in actor_count:
+		order.append(float(int(actors[index * 16 + 7] * 256.0) * ORDER_STRIDE + index))
+	order.sort()
+	var merged := PackedFloat32Array()
+	var a: int = 0
+	var b: int = 0
+	while a < order.size() or b < _scenery.order.size():
+		var use_actor: bool = b == _scenery.order.size() or (a < order.size() and order[a] < _scenery.order[b])
+		var source: PackedFloat32Array = actors if use_actor else _scenery.buffer
+		var key: float = order[a] if use_actor else _scenery.order[b]
+		var offset: int = (int(key) % ORDER_STRIDE) * 16
+		merged.append_array(source.slice(offset, offset + 16))
+		if use_actor: a += 1
+		else: b += 1
+	var count: int = merged.size() / 16
+	if multimesh.instance_count != count:
+		multimesh.instance_count = count
+	multimesh.buffer = merged

@@ -15,7 +15,7 @@ func _init() -> void:
 
 func footprint(definition: String, tile: int) -> PackedInt32Array:
 	var result := PackedInt32Array()
-	if not definitions.has(definition) or tile < 0:
+	if not definitions.has(definition) or tile < 0 or tile >= Terrain.SIZE * Terrain.SIZE:
 		return result
 	var size: Array = definitions[definition].size
 	var origin: Vector2i = Terrain.cell(tile)
@@ -61,25 +61,43 @@ func blueprint(world: RefCounted, actor: int, definition: String, tile: int) -> 
 	if cells.is_empty():
 		return {"reason": "invalid_definition_or_tile"}
 	var spec: Dictionary = definitions[definition]
-	var roof: bool = spec.get("layer", "ground") == "roof"
-	for member: int in cells:
-		for object: int in world.objects.by_tile.get(member, []):
-			var other: Dictionary = world.objects.records[object]
-			if (other.get("layer", "ground") == "roof") == roof:
-				return {"reason": "occupied"}
+	var layer: String = str(spec.get("layer", "ground"))
+	var site: String = placement(world, layer, cells)
+	if site != "accepted":
+		return {"reason": site}
 	var amount: int = int(spec.amount)
 	var item: String = str(spec.item)
 	if world.objects.amount(actor, item) < amount:
 		return {"reason": "missing_materials"}
 	var id: int = world.objects.create("blueprint", definition, tile)
 	var record: Dictionary = world.objects.records[id]
-	record["layer"] = "roof" if roof else "ground"
+	record["layer"] = layer
 	record["remaining_ms"] = int(spec.work_ms)
 	record["max_hp"] = int(spec.max_hp)
 	world.objects.reindex(id, cells)
 	world.objects.transfer(actor, id, item, amount)
 	world._sync_inventory(actor)
 	return {"reason": "accepted", "target": id}
+
+
+func placement(world: RefCounted, layer: String, cells: PackedInt32Array, ignore: int = 0) -> String:
+	for member: int in cells:
+		if layer == "floor" and (world.terrain.substrate(member) == "water" or world.terrain.flooring[member] != 0):
+			return "water_or_existing_floor"
+		for id: int in world.objects.by_tile.get(member, []):
+			if id == ignore:
+				continue
+			var other: Dictionary = world.objects.records[id]
+			var other_layer: String = str(other.get("layer", "ground"))
+			var loose_stock: bool = other.kind == "pile" or (other.kind == "resource" and world.nature.vegetation_level(other) == 0)
+			if layer == "floor":
+				if other_layer == "floor":
+					return "occupied"
+				if world.nature.vegetation_level(other) >= 2:
+					return "clear_shrub_tree_or_stump_first"
+			elif not loose_stock and (other_layer == layer or (layer == "ground" and other_layer not in ["floor", "roof"])):
+				return "occupied"
+	return "accepted"
 
 
 func duration(world: RefCounted, action: Dictionary) -> int:
@@ -140,6 +158,15 @@ func finish(world: RefCounted, actor: int, action: Dictionary, at: int) -> Strin
 	match action.kind:
 		"construct":
 			var cells: PackedInt32Array = record.cells
+			if record.get("layer", "ground") == "floor":
+				var reason: String = placement(world, "floor", cells, action.target)
+				if reason != "accepted":
+					return reason
+				for member: int in cells:
+					for other: int in world.objects.by_tile.get(member, []).duplicate():
+						if world.objects.records[other].kind == "plant" and int(world.objects.records[other].get("host", 0)) == 0:
+							world.nature.remove(world, other, at)
+					world.terrain.set_floor(member, true)
 			if spec.get("facts", {}).get("movement_blocked", false):
 				for body: RefCounted in world.pages:
 					for index: int in body.ids.size():
@@ -153,7 +180,7 @@ func finish(world: RefCounted, actor: int, action: Dictionary, at: int) -> Strin
 				record.capacity = int(spec.capabilities.storage.capacity)
 			record.hp = int(spec.max_hp)
 			record.erase("remaining_ms")
-			if record.get("layer", "ground") != "roof":
+			if record.get("layer", "ground") not in ["roof", "floor"]:
 				for member: int in cells:
 					world.queue_structure(member, bool(spec.facts.get("movement_blocked", false)), bool(spec.facts.get("enclosure_boundary", false)))
 			world.objects.layout_revision += 1
@@ -180,7 +207,15 @@ func demolish(world: RefCounted, target: int, at: int = -1) -> bool:
 	var record: Dictionary = world.objects.records[target]
 	if record.tile < 0:
 		return false
+	if record.kind == "resource":
+		# Keep source identity/stock indices valid; all timber becomes loose stock.
+		record["vegetation_level"] = 0
+		world.objects.layout_revision += 1
+		return true
 	world.forget_target(target, at)
+	if record.kind == "floor":
+		for tile: int in record.get("cells", PackedInt32Array([record.tile])):
+			world.terrain.set_floor(tile, false)
 	if record.kind == "plant":
 		world.nature.remove(world, target, at)
 		return true

@@ -621,6 +621,25 @@
         "contents_light": 10000,
         "room_tau_ms": 180000
       }
+    },
+    "wood_floor": {
+      "label": "木地板",
+      "kind": "floor",
+      "layer": "floor",
+      "item": "wood",
+      "amount": 1,
+      "work_ms": 1000,
+      "max_hp": 100,
+      "size": [
+        1,
+        1
+      ],
+      "perception_cost": 0,
+      "facts": {
+        "movement_blocked": false,
+        "enclosure_boundary": false
+      },
+      "capabilities": {}
     }
   }
 }

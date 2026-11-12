@@ -4,9 +4,11 @@ extends RefCounted
 
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const DEFAULT_RANGE: float = 24.0
+const FEATHER: float = 1.25 # Visual transition on either side of logical visibility.
 const PREPARED: int = 24 # Common-case table size, not a gameplay range limit.
 const STRIDE: int = PREPARED * 2 + 1
 var loss := PackedByteArray()
+var smooth_loss := PackedFloat32Array() # Soft range attenuation, rebuilt only with layout.
 var revision: int = 0
 var layout_seen: int = -1
 var sync_usec: int = 0
@@ -17,6 +19,7 @@ var _distances := PackedFloat32Array()
 
 func _init() -> void:
 	loss.resize(Terrain.SIZE * Terrain.SIZE)
+	smooth_loss.resize(loss.size())
 	_rays.resize((PREPARED + 1) * STRIDE)
 	_distances.resize(_rays.size())
 	for y: int in range(PREPARED + 1):
@@ -42,12 +45,27 @@ func sync(world: RefCounted) -> void:
 		var cost: int = int(world.facilities.definitions.get(rec.definition, {}).get("perception_cost", 0))
 		if rec.kind == "plant":
 			cost = 2 if rec.definition == "old_tree" and rec.stage == 2 else 0
+		elif rec.kind == "resource":
+			cost = 2 if world.nature.vegetation_level(rec) >= 3 else 0
 		if cost == 0:
 			continue
 		for tile: int in rec.get("cells", PackedInt32Array([rec.tile])):
 			value[tile] = maxi(value[tile], cost)
 	if value != loss:
 		loss = value
+		# A finite-width perception sample avoids single-pixel ray cracks. Unit
+		# queries still use one prepared path; no per-query neighbourhood loops.
+		smooth_loss.fill(0.0)
+		for tile: int in value.size():
+			if value[tile] == 0:
+				continue
+			var point: Vector2i = Terrain.cell(tile)
+			for dy: int in range(-1, 2):
+				for dx: int in range(-1, 2):
+					var neighbour: Vector2i = point + Vector2i(dx, dy)
+					if neighbour.x >= 0 and neighbour.y >= 0 and neighbour.x < Terrain.SIZE and neighbour.y < Terrain.SIZE:
+						var weight: float = (2.0 if dx == 0 else 1.0) * (2.0 if dy == 0 else 1.0) / 16.0
+						smooth_loss[Terrain.index(neighbour)] += value[tile] * weight
 		revision += 1
 	layout_seen = world.objects.layout_revision
 	rebuilds += 1
@@ -73,19 +91,19 @@ func sees_tile(a: int, b: int, sight_range: float) -> bool:
 		var key: int = dy * STRIDE + dx + PREPARED
 		# Small epsilon compensates float32 distance-table rounding at the rim.
 		var budget: float = sight_range - _distances[key] + 0.00001
-		var amount: int = 0
+		var amount: float = 0.0
 		for offset: int in _rays[key]:
-			amount += loss[low + offset]
+			amount += smooth_loss[low + offset]
 			if amount > budget:
 				return false
 		return true
 	# Rare long sight uses the same discrete line, without growing an O(R^3) table.
 	var budget: float = sight_range - sqrt(float(distance_sq)) + 0.00001
-	var amount: int = 0
+	var amount: float = 0.0
 	var length: int = maxi(absi(dx), dy)
 	for step: int in range(1, length):
 		var offset: int = floori(float(dy * step) / length + 0.5) * Terrain.SIZE + floori(float(dx * step) / length + 0.5)
-		amount += loss[low + offset]
+		amount += smooth_loss[low + offset]
 		if amount > budget:
 			return false
 	return true
@@ -122,3 +140,28 @@ func observed_position(world: RefCounted, observer: int, target: int) -> Variant
 			best = origin.distance_squared_to(point)
 			observed = point
 	return observed
+
+
+func strength(a: int, b: int, sight_range: float) -> float:
+	# Signed range margin gives the renderer a continuous edge, rather than
+	# trying to turn binary square steps into a circle by filtering alone.
+	if sight_range <= 0 or a < 0 or b < 0 or a >= loss.size() or b >= loss.size():
+		return 0.0
+	var low: int = mini(a, b)
+	var high: int = maxi(a, b)
+	var dx: int = high % Terrain.SIZE - low % Terrain.SIZE
+	var dy: int = high / Terrain.SIZE - low / Terrain.SIZE
+	var distance: float = sqrt(float(dx * dx + dy * dy))
+	var margin: float = sight_range - distance
+	if margin < -FEATHER:
+		return 0.0
+	var amount: float = 0.0
+	if absi(dx) <= PREPARED and dy <= PREPARED:
+		for offset: int in _rays[dy * STRIDE + dx + PREPARED]:
+			amount += smooth_loss[low + offset]
+	else:
+		var length: int = maxi(absi(dx), dy)
+		for step: int in range(1, length):
+			var offset: int = floori(float(dy * step) / length + 0.5) * Terrain.SIZE + floori(float(dx * step) / length + 0.5)
+			amount += smooth_loss[low + offset]
+	return clampf((margin - amount + FEATHER) / (FEATHER * 2.0), 0.0, 1.0)

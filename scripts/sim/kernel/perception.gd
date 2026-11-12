@@ -7,7 +7,8 @@ const STATE_FIELDS: Array = ["memories", "explored", "ground", "next_ms", "previ
 var memories: Dictionary = {}
 var explored := PackedByteArray()
 var ground := PackedByteArray() # Last observed terrain appearance, not live terrain.
-var tiles := PackedByteArray() # Current player visibility; derived, not saved.
+var tiles := PackedByteArray() # Current logical player visibility; derived, not saved.
+var softness := PackedByteArray() # Continuous visual range margin, never authority or a separate sight simulation.
 var seen_tiles := PackedInt32Array()
 var visible := PackedByteArray()
 var revision: int = 0
@@ -19,13 +20,13 @@ var _view_range: float = -1.0
 var _sight_revision: int = -1
 var _layout_seen: int = -1
 var _ground_revision: int = -1
-var _ground_flags: Dictionary = {}
 
 
 func _init() -> void:
 	explored.resize(Terrain.SIZE * Terrain.SIZE)
 	ground.resize(explored.size())
 	tiles.resize(explored.size())
+	softness.resize(explored.size())
 
 
 func rebuild(world: RefCounted) -> bool:
@@ -58,10 +59,10 @@ func update(world: RefCounted, now: int, force: bool = false) -> void:
 	update_visible(world)
 	if force or changed or view_changed:
 		previous = Terrain.center(Terrain.index(Vector2i(origin.floor())))
-		update_ground_flags(world)
+		_ground_revision = world.terrain.revision
 		for tile: int in seen_tiles:
-			explored[tile] = 255
-			ground[tile] = world.terrain.surface_at(tile) | int(_ground_flags.get(tile, 0))
+			explored[tile] = maxi(explored[tile], softness[tile])
+			ground[tile] = world.terrain.surface_at(tile)
 		var nearby: Array[int] = world.objects.nearby(previous, _view_range)
 		for id: int in memories.keys():
 			var current: Dictionary = world.objects.records.get(id, {})
@@ -73,7 +74,7 @@ func update(world: RefCounted, now: int, force: bool = false) -> void:
 				continue
 			memories[id] = {"id": id, "kind": rec.kind, "definition": rec.definition, "tile": rec.tile,
 				"cells": rec.get("cells", PackedInt32Array([rec.tile])).duplicate(), "layer": rec.get("layer", "ground"),
-				"stage": rec.get("stage", -1), "sapient": rec.get("sapient", false)}
+				"stage": rec.get("stage", -1), "vegetation_level": rec.get("vegetation_level", 3), "sapient": rec.get("sapient", false)}
 		_layout_seen = world.objects.layout_revision
 		revision += 1
 	work_usec += Time.get_ticks_usec() - started
@@ -99,13 +100,17 @@ func update_tiles(world: RefCounted) -> bool:
 	_view_range = sight_range
 	_sight_revision = world.sight.revision
 	tiles.fill(0)
+	softness.fill(0)
 	seen_tiles.clear()
-	var radius: int = mini(Terrain.SIZE, ceili(sight_range))
+	var radius: int = mini(Terrain.SIZE, ceili(sight_range + world.sight.FEATHER))
 	for y: int in range(maxi(0, cell.y - radius), mini(Terrain.SIZE, cell.y + radius + 1)):
 		for x: int in range(maxi(0, cell.x - radius), mini(Terrain.SIZE, cell.x + radius + 1)):
 			var tile: int = y * Terrain.SIZE + x
-			if world.sight.sees_tile(index, tile, sight_range):
+			var weight: float = world.sight.strength(index, tile, sight_range)
+			softness[tile] = maxi(1, roundi(weight * 255.0)) if weight > 0.0 else 0
+			if weight >= 0.5:
 				tiles[tile] = 255
+			if weight > 0.0:
 				seen_tiles.append(tile)
 	return true
 
@@ -117,17 +122,3 @@ func observes(rec: Dictionary) -> bool:
 		if tiles[tile] != 0:
 			return true
 	return false
-
-
-func update_ground_flags(world: RefCounted) -> void:
-	if _ground_revision == world.terrain.revision:
-		return
-	_ground_revision = world.terrain.revision
-	_ground_flags.clear()
-	for tile: int in world.terrain.floors:
-		_ground_flags[tile] = 8
-	# The development source markers are observed too, not a live overlay on
-	# already explored terrain. Bits 4..6 encode seven marker colours.
-	for source: int in world.terrain.source_cells.size():
-		var tile: int = world.terrain.source_cells[source]
-		_ground_flags[tile] = (int(_ground_flags.get(tile, 0)) & 15) | ((world.terrain.source_channels[source] + 1) << 4)
