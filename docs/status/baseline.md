@@ -1,6 +1,6 @@
 # 当前运行基线
 
-更新：2026-11-12。本页记录当前单位视野修复与六段功能恢复前基线的证据。实际能力/键位查[FEATURES](features.md)，运行边界查[架构](../engineering/architecture.md)，咨询取舍查[研究](../../design/research/large_simulation_optimization.md)。
+更新：2026-11-12。本页记录当前临时视觉包与前轮功能/视野基线的证据。实际能力/键位查[FEATURES](features.md)，运行边界查[架构](../engineering/architecture.md)，咨询取舍查[研究](../../design/research/large_simulation_optimization.md)。
 
 ## 构建与环境
 
@@ -9,9 +9,29 @@
 - 正式入口`scenes/main.tscn`，试玩包`build/windows/reol-demo.exe`和同目录pck；默认24人，压力开局仍是同一后端。存档范围只看compatibility。
 - 六段恢复时正式包PCK SHA256：`817b2660204f1192faca04824b5d43d8db97fc6f2907f5dbce4086b2bdd8df82`。exe是引擎模板，单独exe哈希不能识别游戏代码。下表所有窗口使用这个最终包，没有边测边改代码。报告Git为fac70ab后的dirty工作树，随后随本轮main提交交付；提交文档不改变运行包。
 
-后续人物UV与树形图元修复证据在`logs/sprite-orientation-20261112/`和`logs/tree-orientation-20261112/`；又完成下面的单位视野/迷雾修复。`build/windows`仍是前基线快照，本轮单独导出`build/sight-candidate/reol-demo.exe`用于release测量；最新试玩优先使用usage的源码入口。
+后续人物UV与树形图元修复证据在`logs/sprite-orientation-20261112/`和`logs/tree-orientation-20261112/`；又完成下面的单位视野/迷雾修复。单位视野阶段曾单独导出`build/sight-candidate/reol-demo.exe`；当前`build/windows`已更新为下面的临时视觉包，源码试玩仍走usage入口。
 
-## 本轮单位视野与迷雾
+## 本轮：临时像素视觉包
+
+完整覆盖、来源、重建与限制只查[assets](../../assets/README.md)。最终release为`build/windows/reol-demo.exe`与同目录pck，PCK SHA256 `4c2c1a225143d77844412e2266cfd98feff006d53d7611427539d21d5b44acc0`。窗口报告记录c0724b4之后的dirty工作树，随后随本轮main提交交付；导出后的文档更新不改变运行代码或资源。
+
+千人使用相同混合开局（100名持续战斗、20个真实材料施工、50房间、477植物），4×/60FPS，3秒预热+10秒采样；旧包在本轮呈现修改前导出，PCK SHA256 `2a12357b8eeedfb5d3214f0d6a2802e045cb74a5f666ac0a97efddfc9adff63e`，报告中的dirty不表示旧包启用了新呈现。两包都用本机13600KF/5060Ti、D3D12、1280×720，基准窗口串行运行，不同时跑两个采样程序。
+
+| 窗口 | 实际倍率 | 帧P99 / 最大 ms | 步均 / P99 / 最大 ms | 窗内交付 |
+|---|---|---|---|---|
+| 原呈现，千人全图 | 3.9985× | 16.718 / 17.103 | 9.362 / 15.462 / 21.147 | 2917 |
+| 最终视觉包，千人全图 | 3.9985× | 16.763 / 16.850 | 9.385 / 15.800 / 20.420 | 2918 |
+| 同最终包，24人/迷雾，1×/120FPS，5秒 | 0.9984× | 8.437 / 8.592 | 0.512 / 2.090 / 2.292 | 17 |
+
+千人前后窗同为10668次命中，材料200000，均无过载需求截断。新动作/受击显示有CPU成本：主线程回调均值1.115→1.583ms，姿态采用均值1.027→1.398ms，快照成本约0.180→0.559ms/步；GPU实测均值1.894→0.080ms。新纹理/短影没有造成目标帧率或世界吞吐明显回退，但不宣称美术零成本或把单窗差值当严格统计收益。
+
+较早候选包（只差随后补的手动单次攻击显示分类）另测千人混合/迷雾4×：实速3.9985×、帧P99 16.736ms/最大16.852ms、步均9.412ms，文件`after-fog.json`。它的PCK是`a6bd62e0c8c6b2fa75c9ebb46752cdf66dfc37df6b85d7eb653593eb6f9d6568`，不冒充最终包同窗证据。
+
+最终短smoke约7.9秒/0错误；结构审查0错误。`asset-qa.json`核对512个人物格非空/留边、169切片非空、二值Alpha、死亡横倒且不循环、32地形片和全部运行产物重复构建同哈希。真实图像探针核对方向、昼夜、四种天气、F8图鉴、死亡/飞行/动作；短反例覆盖家具多格中心、蓝图比例、屋顶掩码、epoch/身份受击重置、飞行受击保持高度、暂停同时间天气刷新、取放/治疗反馈。另`runner_visual_probe.gd`核对无持续战斗订单的单次攻击显示、成功治疗/能力只发真实完成通知、拒绝治疗无新通知。
+
+原始证据留忽略的`logs/temp-art-20261112/`：`before.json`、`final-after.json`、`final-play.json/png`、候选`after[-fog].json`、`visual_probe.gd`与`runner_visual_probe.gd`、`final-visual-engine.log`及`runner-probe-engine.log`。最终短日志`art-final-smoke-20261112-223715-95218300.log`；太阳影子是有界视觉近似，家具/人物尚无跨批次完整Y排序。天气图像是隔离显示fixture，不把它当真实降雪/积雪或雨天千人release容量测量。低配整机、长局和更广内容组合仍未因此验证。
+
+## 前轮：单位视野与迷雾
 
 最终代码已短检查、review并重新导出，当前测量包为`build/sight-candidate/reol-demo.exe`及同目录pck，PCK SHA256 `f2e98092652ac6728c08ab0dbced1b1c9f862925168a01e73473bccdb169ad02`。同开发机，1000人/4×/60FPS/玩家迷雾，原混合fixture启用，3秒预热+10秒采样；新被动警戒继续产生真实战斗，远处生活不停止。以下两窗使用同一个包，独占运行，无脚本/shader错误。
 

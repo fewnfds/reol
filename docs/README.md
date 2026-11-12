@@ -18,6 +18,7 @@
 | 能玩什么、键位、未实现玩法 | [FEATURES](status/features.md) | 当前能力；不重复测量和计划 |
 | 七个领域谁负责、跨域影响、原owner在哪 | [领域职责](engineering/architecture/05-framework-domains.md)、[当前实现](engineering/architecture.md) | 逻辑边界 / 当前代码索引 |
 | 新计算接入、时间/事件、空间/行动、环境/植物、存读接口 | [工程接口地图](engineering/README.md) | 实现参考；可重构 |
+| 当前美术素材、动作、来源、图鉴与离线重建 | [assets](../assets/README.md) | 当前素材唯一清单 |
 | 数据定义、开局、内容装配 | [data](../data/README.md) | 数据入口与实际清单 |
 | 尚未采用的工程/外观方案 | [specs](specs/README.md) | 候选；未实现不算事实 |
 | 游戏愿景、长期层次、详细机制与来源 | [design](../design/README.md)、[产品层次](plans/roadmap.md) | 愿景 / 候选 / 研究，各有边界 |

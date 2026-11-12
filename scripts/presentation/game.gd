@@ -8,12 +8,19 @@ const Ground = preload("res://scripts/presentation/terrain_canvas.gd")
 const ObjectCanvas = preload("res://scripts/presentation/objects_canvas.gd")
 const Fog = preload("res://scripts/presentation/fog.gd")
 const Units = preload("res://scripts/sim/kernel/units.gd")
+const Art = preload("res://scripts/presentation/art.gd")
+const Atmosphere = preload("res://scripts/presentation/atmosphere.gd")
+const ActionEffects = preload("res://scripts/presentation/action_effects.gd")
+const ArtGallery = preload("res://scripts/presentation/art_gallery.gd")
 const TILE: float = 32.0
 var runner := Runner.new()
 var population := Population.new()
 var ground := Ground.new()
 var object_canvas := ObjectCanvas.new()
 var fog := Fog.new()
+var atmosphere := Atmosphere.new()
+var action_effects := ActionEffects.new()
+var art_gallery := ArtGallery.new()
 var fog_enabled: bool = true
 var camera := Camera2D.new()
 var hud := Label.new()
@@ -101,14 +108,19 @@ func _ready() -> void:
 	object_canvas.z_index = -5
 	add_child(object_canvas)
 	add_child(population)
+	action_effects.z_index = 2
+	add_child(action_effects)
 	add_child(fog)
 	fog.visible = fog_enabled
 	population.configure(_actors)
 	add_child(camera)
+	add_child(atmosphere)
+	add_child(art_gallery)
 	camera.position = (Vector2(220, 220) if _actors >= 1000 else Vector2(178, 186)) * TILE
 	camera.zoom = Vector2.ONE * (0.21 if _actors >= 1000 else 0.9)
 	camera.position_smoothing_enabled = false
 	var layer := CanvasLayer.new()
+	layer.layer = 2
 	add_child(layer)
 	var panel := PanelContainer.new()
 	panel.position = Vector2(12, 12)
@@ -167,8 +179,10 @@ func _ready() -> void:
 				_pause_button = button
 				_pause_button.text = "暂停"
 	var item_choice := OptionButton.new()
+	item_choice.add_theme_constant_override("icon_max_width", 24)
 	for item: String in ["wood", "stone", "grain", "water", "meal", "herb", "potion"]:
-		item_choice.add_item(item)
+		item_choice.add_icon_item(Art.icon("item_" + item), item)
+	item_choice.get_popup().max_size = Vector2i(300, 400)
 	item_choice.item_selected.connect(func(index: int): _item = item_choice.get_item_text(index))
 	layout.add_child(item_choice)
 	var build_choice := OptionButton.new()
@@ -216,6 +230,8 @@ func _process(delta: float) -> void:
 	var begin: int = Time.get_ticks_usec()
 	var mailbox: Dictionary = runner.poll()
 	var next: RefCounted = mailbox.frame
+	if next != null:
+		action_effects.adopt(next, mailbox.outcomes, fog_enabled)
 	for receipt: Dictionary in mailbox.receipts:
 		_last_receipt = "%s #%d @%d: %s" % [receipt.kind, receipt.seq, receipt.at_ms, receipt.reason]
 		_feedback.text = _last_receipt
@@ -256,6 +272,8 @@ func _process(delta: float) -> void:
 		object_canvas.adopt(frame.perception.memories if fog_enabled else frame.objects)
 		if fog_enabled:
 			fog.adopt(frame)
+			ground.visibility(fog.visibility)
+			object_canvas.visibility(fog.visibility, true)
 	if _ready_at == 0:
 		_ready_at = begin
 		print("KERNEL_READY actors=", _actors, " workers=", frame.counters.workers)
@@ -284,11 +302,14 @@ func _process(delta: float) -> void:
 		if _capture_at > 0:
 			_adoption_times.append((Time.get_ticks_usec() - adopt_start) / 1000.0)
 	population.interpolate(alpha, int(render_ms))
+	atmosphere.adopt(frame, render_ms)
+	action_effects.advance(int(render_ms), fog_enabled)
 	if following:
 		camera.position = _displayed(1) * TILE
-	elif _debug_console == null or not _debug_console.is_open():
+	elif not art_gallery.is_open() and (_debug_console == null or not _debug_console.is_open()):
 		var pan := Vector2(float(Input.is_key_pressed(KEY_RIGHT)) - float(Input.is_key_pressed(KEY_LEFT)), float(Input.is_key_pressed(KEY_DOWN)) - float(Input.is_key_pressed(KEY_UP)))
 		camera.position += pan.normalized() * delta * 800.0 / camera.zoom.x
+	atmosphere.view(fog.visibility, object_canvas.shelter, fog_enabled)
 	if begin >= _hud_next:
 		_update_hud()
 		_hud_next = begin + 100000
@@ -350,14 +371,14 @@ func _update_hud() -> void:
 		"库存 %s" % str(data.get("inventory", {})),
 		"行动 %s" % str(data.get("action", {})),
 		"生长 %d / 阶段 %d / 速率 %d / 伤害时长 %d" % [int(data.get("growth_ms", 0)), int(data.get("stage", -1)), int(data.get("rate", 0)), int(data.get("injury_ms", 0))],
-		"左键选择；右键命令玩家#1移动", "S 停止，J 工作，A 攻击，E 喝药", "N 建造 / B 墙 / G 门 / Delete 拆除", "空格暂停；1/2/4 倍速；F 跟随", "方向键平移；滚轮缩放", _last_receipt])
+		"左键选择；右键命令玩家#1移动", "S 停止，J 工作，A 攻击，E 喝药", "N 建造 / B 墙 / G 门 / Delete 拆除", "空格暂停；1/2/4 倍速；F 跟随", "方向键平移；滚轮缩放", "F8 素材图鉴；F12 调试", _last_receipt])
 	hud.text = "\n".join(lines)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if frame == null:
 		return
-	if _debug_console != null and _debug_console.is_open() and event is InputEventKey:
+	if (art_gallery.is_open() or (_debug_console != null and _debug_console.is_open())) and event is InputEventKey:
 		return
 	if event is InputEventMouseButton and event.pressed:
 		var point: Vector2 = get_canvas_transform().affine_inverse() * event.position / TILE
@@ -378,12 +399,15 @@ func _unhandled_input(event: InputEvent) -> void:
 					continue
 				if fog_enabled and id != 1 and (index >= frame.visible.size() or frame.visible[index] == 0):
 					continue
-				var visual: Vector2 = _displayed(id) - Vector2(0, 18.0 / TILE if frame.flight[index] != 0 else 0.0)
 				var body_scale: float = 1.6 if frame.radii[index] > 0.5 else 1.0
+				var dead: bool = frame.health[index] <= 0
+				var lift: float = 6.0 * body_scale if frame.flight[index] != 0 and not dead else 0.0
+				var visual: Vector2 = _displayed(id) - Vector2(0, lift / TILE)
 				var relative: Vector2 = point - visual
-				if not Rect2(Vector2(-0.45, -1.8) * body_scale, Vector2(0.9, 2.1) * body_scale).has_point(relative):
+				var bounds := Rect2(Vector2(-0.6, -0.85), Vector2(1.2, 1.0)) if dead else Rect2(Vector2(-0.45, -1.15), Vector2(0.9, 1.3))
+				if not Rect2(bounds.position * body_scale, bounds.size * body_scale).has_point(relative):
 					continue
-				var distance: float = relative.distance_squared_to(Vector2(0, -0.7 * body_scale))
+				var distance: float = relative.distance_squared_to(Vector2(0, -0.5 * body_scale))
 				if distance < best:
 					best = distance
 					selected = id
@@ -507,9 +531,13 @@ func _draw() -> void:
 		draw_rect(Rect2(Vector2(Terrain.cell(selected_tile)) * TILE, Vector2.ONE * TILE), Color.CYAN, false, 2.0)
 	if _target.x >= 0:
 		draw_circle(_target * TILE, 5, Color.GOLD)
-	for point: Vector2 in frame.projectiles:
+	for index: int in frame.projectiles.size():
+		var point: Vector2 = frame.projectiles[index]
 		if not fog_enabled or _visible_point(point):
-			draw_circle(point * TILE, 3, Color(1.0, 0.9, 0.3))
+			var direction: Vector2 = frame.projectile_velocities[index].normalized()
+			draw_line(point * TILE - direction * 9, point * TILE + direction * 4, Color(0.88, 0.78, 0.56), 2)
+			draw_line(point * TILE + direction * 4, point * TILE + direction.rotated(0.45) * -2, Color(0.85, 0.94, 0.90), 2)
+			draw_line(point * TILE + direction * 4, point * TILE + direction.rotated(-0.45) * -2, Color(0.85, 0.94, 0.90), 2)
 	for source: int in frame.mobile_cells.size():
 		if frame.mobile_cells[source] < 0:
 			continue

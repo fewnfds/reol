@@ -1,0 +1,10 @@
+{
+  "model": "gemini-nano-banana-2.1",
+  "date": "2026-11-12",
+  "prompt": "A production sprite sheet of 32 separate environment objects for an original cute Chinese fantasy farming and cultivation colony game. EXACTLY 8 columns by 4 rows on a perfectly flat solid white background. No text, no labels, no shadows on the ground, no grid borders. Each cell has ONE isolated sprite, same camera orthographic top-down three-quarter, NOT isometric. Coarse clean 16-bit pixel art with 1 logical pixel dark navy outline, flat muted jade/teal grass and honey wood, warm cream highlights, blue slate stone, earthy umber. Low resolution clusters, sharp edges, no gradients/blur/anti-aliasing. All objects fully contained in own cell with large empty white gutters. Row1: a leafy round oak tree, a conical pine tree, a bare dead tree, a cut tree stump, a rounded moss rock, a pink blooming shrub, a desert cactus, a pink lotus with lily pad. Row2: a simple wooden storage chest, a bed with teal blanket, a round wooden table, a wooden chair, a small brick cooking stove with orange fire, a wooden crafting bench, a gray stone furnace, a little clay flower planter. Row3: a red wood Chinese wall segment, a freestanding door arch WITHOUT a closed panel, a paper lattice window wall, a blue tiled roof segment, a stone well, a full blue water jar, a campfire, a gray grave with flowers. Row4: a meditation cushion, a copper incense burner, a small bookcase, a yellow standing lantern, an alchemy cauldron, a loom, a folding cream screen, a go game board. Every object has a recognizably different silhouette. Match a cute small 24x30 pixel topknot jade robe character. Cropped sprites usable by programmer, not an illustration scene. No characters in this sheet.",
+  "seed": null,
+  "reference_images": [],
+  "terms_url": "https://ai.google.dev/gemini-api/terms",
+  "status": "temporary generated source, not final commissioned art",
+  "edits": "Background extraction, pixel-grid downsampling, palette limiting, authored animation and atlas packing by tools/build_art.py"
+}

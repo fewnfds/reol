@@ -10,6 +10,13 @@ const Scenarios = preload("res://scripts/sim/kernel/scenarios.gd")
 const MAX_PENDING: int = 4096
 const STEP_USEC: int = 50000
 const MAX_DEBT_USEC: float = 1000000.0
+const ACTION_VISUALS: Dictionary = {
+	"construct": Frame.Visual.BUILD, "continue_build": Frame.Visual.BUILD, "demolish": Frame.Visual.BUILD,
+	"cook": Frame.Visual.CRAFT, "cut": Frame.Visual.HARVEST, "gather": Frame.Visual.HARVEST, "uproot": Frame.Visual.HARVEST,
+	"tend": Frame.Visual.WATER, "sow": Frame.Visual.WATER, "plant": Frame.Visual.WATER,
+	"rest": Frame.Visual.REST, "eat": Frame.Visual.EAT, "study": Frame.Visual.READ, "learn": Frame.Visual.READ,
+	"talk": Frame.Visual.READ, "trade": Frame.Visual.READ, "practice": Frame.Visual.MEDITATE,
+	"take": Frame.Visual.CARRY, "put": Frame.Visual.CARRY}
 var _thread := Thread.new()
 var _mutex := Mutex.new()
 var _wake := Semaphore.new()
@@ -262,6 +269,27 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 		frame.modes.append_array(page.modes)
 		frame.flight.append_array(page.flight)
 		frame.radii.append_array(page.radii)
+		var base: int = frame.visuals.size()
+		frame.visuals.resize(base + page.ids.size())
+		for row: int in page.ids.size():
+			# Small display codes, not a presentation dependency in simulation.
+			if page.modes[row] == World.Units.Mode.IDLE and _world.attack_due[base + row] > frame.world_ms:
+				frame.visuals[base + row] = Frame.Visual.MELEE # Includes one-shot manual attacks without a combat order.
+			elif page.modes[row] == World.Units.Mode.HARVEST:
+				frame.visuals[base + row] = Frame.Visual.HARVEST
+			elif page.cargo[row] > 0:
+				frame.visuals[base + row] = Frame.Visual.CARRY
+	for id: int in _world.actions:
+		if not _world.actor_slots.has(id):
+			continue
+		var slot: int = _world.actor_slots[id]
+		if frame.modes[slot] == World.Units.Mode.ACTION:
+			frame.visuals[slot] = ACTION_VISUALS.get(_world.actions[id].kind, Frame.Visual.IDLE)
+	for id: int in _world.combat.orders:
+		if _world.actor_slots.has(id):
+			var slot: int = _world.actor_slots[id]
+			if frame.modes[slot] == World.Units.Mode.IDLE and _world.attack_due[slot] > frame.world_ms:
+				frame.visuals[slot] = Frame.Visual.SHOOT if _world.combat.orders[id].ranged else Frame.Visual.MELEE
 	if _poses.is_empty() or _poses.back().world_ms != frame.world_ms:
 		var pose := Frame.Pose.new()
 		pose.world_ms = frame.world_ms
@@ -287,6 +315,7 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 	frame.actor_slots = _actor_view
 	for bolt: Dictionary in _world.combat.bolts.values():
 		frame.projectiles.append(bolt.position)
+		frame.projectile_velocities.append(bolt.velocity)
 	frame.inspected = _world.describe(selected)
 	frame.player = frame.inspected if selected == 1 else _world.describe(1)
 	frame.counters = _world.counters()

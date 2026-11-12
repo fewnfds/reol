@@ -36,3 +36,18 @@ enabled=PackedStringArray("res://addons/godot_ai/plugin.cfg")
 [rendering]
 
 rendering_device/driver.windows="d3d12"
+
+[shader_globals]
+
+art_sun={
+"type": "vec2",
+"value": Vector2(0.1, 0.15)
+}
+art_sun_strength={
+"type": "float",
+"value": 1.0
+}
+art_time={
+"type": "float",
+"value": 0.0
+}

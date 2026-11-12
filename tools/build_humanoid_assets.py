@@ -3,8 +3,8 @@
 This is an offline, deterministic, small orthographic mesh rasterizer.  Its
 native 96-pixel cells use hard coverage and three material shade levels, not
 an antialiased miniature render or a half-resolution image enlarged again.
-Godot loads only the resulting PNG atlases and JSON; no 3D scene or extra
-runtime dependency is introduced.  Positive local X is anatomical right,
+This retired sample is no longer read by the main scene or shipped. Current
+assets are built by tools/build_art.py; this tool only reproduces old source art.  Positive local X is anatomical right,
 positive Y is forwards, Z is up.  Neither pixels nor anatomy are mirrored.
 
 Requires the already available Pillow 10-13.  Run from any working directory:

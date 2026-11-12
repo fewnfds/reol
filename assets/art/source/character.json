@@ -1,0 +1,10 @@
+{
+  "model": "gemini-nano-banana-2.1",
+  "date": "2026-11-12",
+  "prompt": "Production-ready pixel art sprite reference sheet for a cute Chinese fantasy colony simulation game. EXACTLY 8 separate sprites of the SAME little human monk, arranged in a perfectly regular 4 columns by 2 rows grid. Pure flat white background RGB 255,255,255, no ground, no shadows, no text or labels or grid lines. Each cell is square 256x256 on a 1024x512 wide image. All sprites centered, same size, same feet baseline and camera. ROW1 left to right: back facing NORTH, back-right NORTH-EAST, right side EAST, front-right SOUTH-EAST. ROW2 left to right: front SOUTH, front-left SOUTH-WEST, left side WEST, back-left NORTH-WEST. All eight directions genuinely different, correct same asymmetric green jade sash. A chibi young adult cultivator, big round head about half total body height, very small feet, dark indigo hair in a little topknot, pale warm peach skin, teal-jade wrap robe, cream collar, ochre gold belt, brown tiny boots. Friendly visible face in front views, no face on back views. Flat clean low-resolution hand-clustered pixel art on a strict coarse grid, about 24x30 original logical pixels per character, 1 logical pixel dark navy outline, only 14 colors, no anti-aliasing, no gradients, no lighting bloom, no painterly blur. Approximately 65 percent of each cell occupied by the character. View is orthographic top-down three-quarter game view, NOT isometric. Sharp easy to read silhouette. Fully contained, lots of white margins so extraction is possible. No weapons, capes or props in this sheet. No copied existing videogame designs.",
+  "seed": null,
+  "reference_images": [],
+  "terms_url": "https://ai.google.dev/gemini-api/terms",
+  "status": "temporary generated source, not final commissioned art",
+  "edits": "Background extraction, pixel-grid downsampling, palette limiting, authored animation and atlas packing by tools/build_art.py"
+}

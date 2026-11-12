@@ -368,6 +368,8 @@ func command(input: Dictionary) -> Dictionary:
 			var reason: String = society.use_ability(self, id)
 			receipt.ok = reason == "ability_used"
 			receipt.reason = reason
+			if receipt.ok:
+				outcomes.append({"kind": "ability_used", "actor": id, "at_ms": elapsed_ms})
 			return receipt
 		"pursue", "attack_move", "hold":
 			var destination: int = int(input.get("tile", -1))
@@ -414,6 +416,7 @@ func command(input: Dictionary) -> Dictionary:
 			_sync_inventory(id)
 			page.health[row] = mini(100, page.health[row] + 40)
 			heals += 1
+			outcomes.append({"kind": "healed", "actor": id, "at_ms": elapsed_ms})
 		"attack":
 			var target: int = int(input.get("target", 0))
 			if not actor_slots.has(target) or target == id:

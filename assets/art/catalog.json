@@ -1,0 +1,3041 @@
+{
+  "schema": 1,
+  "name": "Jade Valley temporary pixel pack",
+  "date": "2026-11-12",
+  "world": {
+    "texture": "res://assets/art/world.png",
+    "cell_size": 64,
+    "columns": 8
+  },
+  "characters": {
+    "texture": "res://assets/art/actors.png",
+    "frame_size": 48,
+    "origin": [
+      24,
+      42
+    ],
+    "columns": 32,
+    "directions": [
+      "N",
+      "NE",
+      "E",
+      "SE",
+      "S",
+      "SW",
+      "W",
+      "NW"
+    ],
+    "frames_per_clip": 4,
+    "clips": [
+      {
+        "id": "idle",
+        "label": "待机",
+        "row": 0,
+        "period_ms": 1600,
+        "loop": true
+      },
+      {
+        "id": "walk",
+        "label": "行走",
+        "row": 1,
+        "period_ms": 900,
+        "loop": true
+      },
+      {
+        "id": "carry",
+        "label": "搬运",
+        "row": 2,
+        "period_ms": 900,
+        "loop": true
+      },
+      {
+        "id": "harvest",
+        "label": "采集/砍伐",
+        "row": 3,
+        "period_ms": 900,
+        "loop": true
+      },
+      {
+        "id": "build",
+        "label": "施工",
+        "row": 4,
+        "period_ms": 900,
+        "loop": true
+      },
+      {
+        "id": "craft",
+        "label": "加工/烹饪",
+        "row": 5,
+        "period_ms": 900,
+        "loop": true
+      },
+      {
+        "id": "melee",
+        "label": "近战",
+        "row": 6,
+        "period_ms": 900,
+        "loop": true
+      },
+      {
+        "id": "shoot",
+        "label": "弓箭",
+        "row": 7,
+        "period_ms": 900,
+        "loop": true
+      },
+      {
+        "id": "hurt",
+        "label": "受击",
+        "row": 8,
+        "period_ms": 900,
+        "loop": false
+      },
+      {
+        "id": "rest",
+        "label": "休息",
+        "row": 9,
+        "period_ms": 900,
+        "loop": true
+      },
+      {
+        "id": "eat",
+        "label": "进食",
+        "row": 10,
+        "period_ms": 900,
+        "loop": true
+      },
+      {
+        "id": "read",
+        "label": "读书/交谈",
+        "row": 11,
+        "period_ms": 900,
+        "loop": true
+      },
+      {
+        "id": "meditate",
+        "label": "修行",
+        "row": 12,
+        "period_ms": 900,
+        "loop": true
+      },
+      {
+        "id": "fly",
+        "label": "飞行",
+        "row": 13,
+        "period_ms": 900,
+        "loop": true
+      },
+      {
+        "id": "dead",
+        "label": "死亡",
+        "row": 14,
+        "period_ms": 900,
+        "loop": false
+      },
+      {
+        "id": "water",
+        "label": "浇灌",
+        "row": 15,
+        "period_ms": 900,
+        "loop": true
+      }
+    ],
+    "note": "SW direction corrected by mirroring SE; equipment later needs authored anatomical attachment; derived action frames are temporary cutout animation."
+  },
+  "entries": {
+    "oak": {
+      "slot": 0,
+      "rect": [
+        0,
+        0,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "阔叶树",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "pine": {
+      "slot": 1,
+      "rect": [
+        64,
+        0,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "松树",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "dead_tree": {
+      "slot": 2,
+      "rect": [
+        128,
+        0,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "枯树",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "stump": {
+      "slot": 3,
+      "rect": [
+        192,
+        0,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "树桩",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "rock": {
+      "slot": 4,
+      "rect": [
+        256,
+        0,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "矿石",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "flower_bush": {
+      "slot": 5,
+      "rect": [
+        320,
+        0,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "花灌木",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "cactus": {
+      "slot": 6,
+      "rect": [
+        384,
+        0,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "沙生刺",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "lotus": {
+      "slot": 7,
+      "rect": [
+        448,
+        0,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "荷花",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "chest": {
+      "slot": 8,
+      "rect": [
+        0,
+        64,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "储物箱",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "bed": {
+      "slot": 9,
+      "rect": [
+        64,
+        64,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "床",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "table": {
+      "slot": 10,
+      "rect": [
+        128,
+        64,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "桌",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "chair": {
+      "slot": 11,
+      "rect": [
+        192,
+        64,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "椅",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "stove": {
+      "slot": 12,
+      "rect": [
+        256,
+        64,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "灶台",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "workbench": {
+      "slot": 13,
+      "rect": [
+        320,
+        64,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "工作台",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "furnace": {
+      "slot": 14,
+      "rect": [
+        384,
+        64,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "炉",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "planter": {
+      "slot": 15,
+      "rect": [
+        448,
+        64,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "花盆",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "wall_preview": {
+      "slot": 16,
+      "rect": [
+        0,
+        128,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "墙样稿",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "door_preview": {
+      "slot": 17,
+      "rect": [
+        64,
+        128,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "门样稿",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "window": {
+      "slot": 18,
+      "rect": [
+        128,
+        128,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "窗",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "roof_preview": {
+      "slot": 19,
+      "rect": [
+        192,
+        128,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "屋面样稿",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "well": {
+      "slot": 20,
+      "rect": [
+        256,
+        128,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "井",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "water_jar": {
+      "slot": 21,
+      "rect": [
+        320,
+        128,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "水缸",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "campfire": {
+      "slot": 22,
+      "rect": [
+        384,
+        128,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "篝火",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "grave": {
+      "slot": 23,
+      "rect": [
+        448,
+        128,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "墓",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "cushion": {
+      "slot": 24,
+      "rect": [
+        0,
+        192,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "蒲团",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "incense": {
+      "slot": 25,
+      "rect": [
+        64,
+        192,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "香炉",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "bookcase": {
+      "slot": 26,
+      "rect": [
+        128,
+        192,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "书柜",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "lantern": {
+      "slot": 27,
+      "rect": [
+        192,
+        192,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "灯",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "alchemy": {
+      "slot": 28,
+      "rect": [
+        256,
+        192,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "炼丹炉",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "loom": {
+      "slot": 29,
+      "rect": [
+        320,
+        192,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "织机",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "screen": {
+      "slot": 30,
+      "rect": [
+        384,
+        192,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "屏风",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "go_board": {
+      "slot": 31,
+      "rect": [
+        448,
+        192,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "棋盘",
+      "category": "objects",
+      "state": "ready",
+      "source": "generated:world"
+    },
+    "chicken": {
+      "slot": 32,
+      "rect": [
+        0,
+        256,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "鸡",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
+    },
+    "rabbit": {
+      "slot": 33,
+      "rect": [
+        64,
+        256,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "兔",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
+    },
+    "sheep": {
+      "slot": 34,
+      "rect": [
+        128,
+        256,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "羊",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
+    },
+    "cow": {
+      "slot": 35,
+      "rect": [
+        192,
+        256,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "牛",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
+    },
+    "boar": {
+      "slot": 36,
+      "rect": [
+        256,
+        256,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "野猪",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
+    },
+    "fox": {
+      "slot": 37,
+      "rect": [
+        320,
+        256,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "狐",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
+    },
+    "wolf": {
+      "slot": 38,
+      "rect": [
+        384,
+        256,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "狼",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
+    },
+    "deer": {
+      "slot": 39,
+      "rect": [
+        448,
+        256,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "鹿",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
+    },
+    "crane": {
+      "slot": 40,
+      "rect": [
+        0,
+        320,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "鹤",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
+    },
+    "butterfly": {
+      "slot": 41,
+      "rect": [
+        64,
+        320,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "蝶",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
+    },
+    "slime": {
+      "slot": 42,
+      "rect": [
+        128,
+        320,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "玉液怪",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
+    },
+    "ghost": {
+      "slot": 43,
+      "rect": [
+        192,
+        320,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "灵体",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
+    },
+    "tree_spirit": {
+      "slot": 44,
+      "rect": [
+        256,
+        320,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "树精",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
+    },
+    "golem": {
+      "slot": 45,
+      "rect": [
+        320,
+        320,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "石傀儡",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
+    },
+    "demon": {
+      "slot": 46,
+      "rect": [
+        384,
+        320,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "小妖",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
+    },
+    "flying_sword": {
+      "slot": 47,
+      "rect": [
+        448,
+        320,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "飞剑",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
+    },
+    "perennial_herb_0": {
+      "slot": 48,
+      "rect": [
+        0,
+        384,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "野药 · 播种",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "perennial_herb_1": {
+      "slot": 49,
+      "rect": [
+        64,
+        384,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "野药 · 幼苗",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "perennial_herb_2": {
+      "slot": 50,
+      "rect": [
+        128,
+        384,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "野药 · 成熟",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "perennial_herb_3": {
+      "slot": 51,
+      "rect": [
+        192,
+        384,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "野药 · 残株",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "perennial_herb_4": {
+      "slot": 52,
+      "rect": [
+        256,
+        384,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "野药 · 枯萎",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "annual_grass_0": {
+      "slot": 53,
+      "rect": [
+        320,
+        384,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "野稗 · 播种",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "annual_grass_1": {
+      "slot": 54,
+      "rect": [
+        384,
+        384,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "野稗 · 幼苗",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "annual_grass_2": {
+      "slot": 55,
+      "rect": [
+        448,
+        384,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "野稗 · 成熟",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "annual_grass_3": {
+      "slot": 56,
+      "rect": [
+        0,
+        448,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "野稗 · 残株",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "annual_grass_4": {
+      "slot": 57,
+      "rect": [
+        64,
+        448,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "野稗 · 枯萎",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "fire_herb_0": {
+      "slot": 58,
+      "rect": [
+        128,
+        448,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "赤焰草 · 播种",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "fire_herb_1": {
+      "slot": 59,
+      "rect": [
+        192,
+        448,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "赤焰草 · 幼苗",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "fire_herb_2": {
+      "slot": 60,
+      "rect": [
+        256,
+        448,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "赤焰草 · 成熟",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "fire_herb_3": {
+      "slot": 61,
+      "rect": [
+        320,
+        448,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "赤焰草 · 残株",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "fire_herb_4": {
+      "slot": 62,
+      "rect": [
+        384,
+        448,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "赤焰草 · 枯萎",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "lotus_0": {
+      "slot": 63,
+      "rect": [
+        448,
+        448,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "荷花 · 播种",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "lotus_1": {
+      "slot": 64,
+      "rect": [
+        0,
+        512,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "荷花 · 幼苗",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "lotus_2": {
+      "slot": 65,
+      "rect": [
+        64,
+        512,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "荷花 · 成熟",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "lotus_3": {
+      "slot": 66,
+      "rect": [
+        128,
+        512,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "荷花 · 残株",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "lotus_4": {
+      "slot": 67,
+      "rect": [
+        192,
+        512,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "荷花 · 枯萎",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "desert_thorn_0": {
+      "slot": 68,
+      "rect": [
+        256,
+        512,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "骆驼刺 · 播种",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "desert_thorn_1": {
+      "slot": 69,
+      "rect": [
+        320,
+        512,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "骆驼刺 · 幼苗",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "desert_thorn_2": {
+      "slot": 70,
+      "rect": [
+        384,
+        512,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "骆驼刺 · 成熟",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "desert_thorn_3": {
+      "slot": 71,
+      "rect": [
+        448,
+        512,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "骆驼刺 · 残株",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "desert_thorn_4": {
+      "slot": 72,
+      "rect": [
+        0,
+        576,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "骆驼刺 · 枯萎",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "old_tree_0": {
+      "slot": 73,
+      "rect": [
+        64,
+        576,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "古树 · 播种",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "old_tree_1": {
+      "slot": 74,
+      "rect": [
+        128,
+        576,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "古树 · 幼苗",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "old_tree_2": {
+      "slot": 75,
+      "rect": [
+        192,
+        576,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "古树 · 成熟",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "old_tree_3": {
+      "slot": 76,
+      "rect": [
+        256,
+        576,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "古树 · 残株",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "old_tree_4": {
+      "slot": 77,
+      "rect": [
+        320,
+        576,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "古树 · 枯萎",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
+    },
+    "wall_0": {
+      "slot": 78,
+      "rect": [
+        384,
+        576,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "wall_0",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored"
+    },
+    "wall_1": {
+      "slot": 79,
+      "rect": [
+        448,
+        576,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "wall_1",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored"
+    },
+    "wall_2": {
+      "slot": 80,
+      "rect": [
+        0,
+        640,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "wall_2",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored"
+    },
+    "wall_3": {
+      "slot": 81,
+      "rect": [
+        64,
+        640,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "wall_3",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored"
+    },
+    "wall_4": {
+      "slot": 82,
+      "rect": [
+        128,
+        640,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "wall_4",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored"
+    },
+    "wall_5": {
+      "slot": 83,
+      "rect": [
+        192,
+        640,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "wall_5",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored"
+    },
+    "wall_6": {
+      "slot": 84,
+      "rect": [
+        256,
+        640,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "wall_6",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored"
+    },
+    "wall_7": {
+      "slot": 85,
+      "rect": [
+        320,
+        640,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "wall_7",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored"
+    },
+    "wall_8": {
+      "slot": 86,
+      "rect": [
+        384,
+        640,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "wall_8",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored"
+    },
+    "wall_9": {
+      "slot": 87,
+      "rect": [
+        448,
+        640,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "wall_9",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored"
+    },
+    "wall_10": {
+      "slot": 88,
+      "rect": [
+        0,
+        704,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "wall_10",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored"
+    },
+    "wall_11": {
+      "slot": 89,
+      "rect": [
+        64,
+        704,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "wall_11",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored"
+    },
+    "wall_12": {
+      "slot": 90,
+      "rect": [
+        128,
+        704,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "wall_12",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored"
+    },
+    "wall_13": {
+      "slot": 91,
+      "rect": [
+        192,
+        704,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "wall_13",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored"
+    },
+    "wall_14": {
+      "slot": 92,
+      "rect": [
+        256,
+        704,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "wall_14",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored"
+    },
+    "wall_15": {
+      "slot": 93,
+      "rect": [
+        320,
+        704,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "wall_15",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored"
+    },
+    "door": {
+      "slot": 94,
+      "rect": [
+        384,
+        704,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "通行门廊",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored"
+    },
+    "roof": {
+      "slot": 95,
+      "rect": [
+        448,
+        704,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "屋顶层",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored"
+    },
+    "item_wood": {
+      "slot": 96,
+      "rect": [
+        0,
+        768,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_wood",
+      "category": "items",
+      "state": "ready",
+      "source": "kenney:tiny-town/0106"
+    },
+    "item_stone": {
+      "slot": 97,
+      "rect": [
+        64,
+        768,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_stone",
+      "category": "items",
+      "state": "ready",
+      "source": "kenney:tiny-farm/0089"
+    },
+    "item_grain": {
+      "slot": 98,
+      "rect": [
+        128,
+        768,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_grain",
+      "category": "items",
+      "state": "ready",
+      "source": "kenney:tiny-farm/0032"
+    },
+    "item_herb": {
+      "slot": 99,
+      "rect": [
+        192,
+        768,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_herb",
+      "category": "items",
+      "state": "ready",
+      "source": "kenney:tiny-farm/0029"
+    },
+    "item_potion": {
+      "slot": 100,
+      "rect": [
+        256,
+        768,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_potion",
+      "category": "items",
+      "state": "ready",
+      "source": "kenney:tiny-dungeon/0116"
+    },
+    "item_fruit": {
+      "slot": 101,
+      "rect": [
+        320,
+        768,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_fruit",
+      "category": "items",
+      "state": "ready",
+      "source": "kenney:tiny-farm/0041"
+    },
+    "item_sword": {
+      "slot": 102,
+      "rect": [
+        384,
+        768,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_sword",
+      "category": "items",
+      "state": "ready",
+      "source": "kenney:tiny-dungeon/0105"
+    },
+    "item_bow": {
+      "slot": 103,
+      "rect": [
+        448,
+        768,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_bow",
+      "category": "items",
+      "state": "ready",
+      "source": "kenney:tiny-town/0118"
+    },
+    "item_hoe": {
+      "slot": 104,
+      "rect": [
+        0,
+        832,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_hoe",
+      "category": "items",
+      "state": "ready",
+      "source": "kenney:tiny-farm/0087"
+    },
+    "item_staff": {
+      "slot": 105,
+      "rect": [
+        64,
+        832,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_staff",
+      "category": "items",
+      "state": "ready",
+      "source": "kenney:tiny-dungeon/0127"
+    },
+    "item_shield": {
+      "slot": 106,
+      "rect": [
+        128,
+        832,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_shield",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_arrow": {
+      "slot": 107,
+      "rect": [
+        192,
+        832,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_arrow",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_water": {
+      "slot": 108,
+      "rect": [
+        256,
+        832,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_water",
+      "category": "items",
+      "state": "ready",
+      "source": "authored"
+    },
+    "item_watering_can": {
+      "slot": 109,
+      "rect": [
+        320,
+        832,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_watering_can",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_robe": {
+      "slot": 110,
+      "rect": [
+        384,
+        832,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_robe",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_armor": {
+      "slot": 111,
+      "rect": [
+        448,
+        832,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_armor",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_boots": {
+      "slot": 112,
+      "rect": [
+        0,
+        896,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_boots",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_hat": {
+      "slot": 113,
+      "rect": [
+        64,
+        896,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_hat",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_talisman": {
+      "slot": 114,
+      "rect": [
+        128,
+        896,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_talisman",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_spirit_stone": {
+      "slot": 115,
+      "rect": [
+        192,
+        896,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_spirit_stone",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_egg": {
+      "slot": 116,
+      "rect": [
+        256,
+        896,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_egg",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_fish": {
+      "slot": 117,
+      "rect": [
+        320,
+        896,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_fish",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_meal": {
+      "slot": 118,
+      "rect": [
+        384,
+        896,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_meal",
+      "category": "items",
+      "state": "ready",
+      "source": "authored"
+    },
+    "item_dried_herb": {
+      "slot": 119,
+      "rect": [
+        448,
+        896,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_dried_herb",
+      "category": "items",
+      "state": "ready",
+      "source": "authored"
+    },
+    "item_fiber": {
+      "slot": 120,
+      "rect": [
+        0,
+        960,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_fiber",
+      "category": "items",
+      "state": "ready",
+      "source": "authored"
+    },
+    "item_lotus_seed": {
+      "slot": 121,
+      "rect": [
+        64,
+        960,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_lotus_seed",
+      "category": "items",
+      "state": "ready",
+      "source": "authored"
+    },
+    "item_lotus_root": {
+      "slot": 122,
+      "rect": [
+        128,
+        960,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_lotus_root",
+      "category": "items",
+      "state": "ready",
+      "source": "authored"
+    },
+    "item_breath_manual": {
+      "slot": 123,
+      "rect": [
+        192,
+        960,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_breath_manual",
+      "category": "items",
+      "state": "ready",
+      "source": "authored"
+    },
+    "item_axe": {
+      "slot": 124,
+      "rect": [
+        256,
+        960,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_axe",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_pickaxe": {
+      "slot": 125,
+      "rect": [
+        320,
+        960,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_pickaxe",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_shovel": {
+      "slot": 126,
+      "rect": [
+        384,
+        960,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_shovel",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_spear": {
+      "slot": 127,
+      "rect": [
+        448,
+        960,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_spear",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_bundle": {
+      "slot": 128,
+      "rect": [
+        0,
+        1024,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "item_bundle",
+      "category": "items",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_fire_0": {
+      "slot": 129,
+      "rect": [
+        64,
+        1024,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_fire_0",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_fire_1": {
+      "slot": 130,
+      "rect": [
+        128,
+        1024,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_fire_1",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_fire_2": {
+      "slot": 131,
+      "rect": [
+        192,
+        1024,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_fire_2",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_fire_3": {
+      "slot": 132,
+      "rect": [
+        256,
+        1024,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_fire_3",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_ice_0": {
+      "slot": 133,
+      "rect": [
+        320,
+        1024,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_ice_0",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_ice_1": {
+      "slot": 134,
+      "rect": [
+        384,
+        1024,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_ice_1",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_ice_2": {
+      "slot": 135,
+      "rect": [
+        448,
+        1024,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_ice_2",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_ice_3": {
+      "slot": 136,
+      "rect": [
+        0,
+        1088,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_ice_3",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_heal_0": {
+      "slot": 137,
+      "rect": [
+        64,
+        1088,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_heal_0",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_heal_1": {
+      "slot": 138,
+      "rect": [
+        128,
+        1088,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_heal_1",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_heal_2": {
+      "slot": 139,
+      "rect": [
+        192,
+        1088,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_heal_2",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_heal_3": {
+      "slot": 140,
+      "rect": [
+        256,
+        1088,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_heal_3",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_hit_0": {
+      "slot": 141,
+      "rect": [
+        320,
+        1088,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_hit_0",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_hit_1": {
+      "slot": 142,
+      "rect": [
+        384,
+        1088,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_hit_1",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_hit_2": {
+      "slot": 143,
+      "rect": [
+        448,
+        1088,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_hit_2",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_hit_3": {
+      "slot": 144,
+      "rect": [
+        0,
+        1152,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_hit_3",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_qi_0": {
+      "slot": 145,
+      "rect": [
+        64,
+        1152,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_qi_0",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_qi_1": {
+      "slot": 146,
+      "rect": [
+        128,
+        1152,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_qi_1",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_qi_2": {
+      "slot": 147,
+      "rect": [
+        192,
+        1152,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_qi_2",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_qi_3": {
+      "slot": 148,
+      "rect": [
+        256,
+        1152,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_qi_3",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_dust_0": {
+      "slot": 149,
+      "rect": [
+        320,
+        1152,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_dust_0",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_dust_1": {
+      "slot": 150,
+      "rect": [
+        384,
+        1152,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_dust_1",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_dust_2": {
+      "slot": 151,
+      "rect": [
+        448,
+        1152,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_dust_2",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_dust_3": {
+      "slot": 152,
+      "rect": [
+        0,
+        1216,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_dust_3",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_metal_0": {
+      "slot": 153,
+      "rect": [
+        64,
+        1216,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_metal_0",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_metal_1": {
+      "slot": 154,
+      "rect": [
+        128,
+        1216,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_metal_1",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_metal_2": {
+      "slot": 155,
+      "rect": [
+        192,
+        1216,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_metal_2",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_metal_3": {
+      "slot": 156,
+      "rect": [
+        256,
+        1216,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_metal_3",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_wood_0": {
+      "slot": 157,
+      "rect": [
+        320,
+        1216,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_wood_0",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_wood_1": {
+      "slot": 158,
+      "rect": [
+        384,
+        1216,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_wood_1",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_wood_2": {
+      "slot": 159,
+      "rect": [
+        448,
+        1216,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_wood_2",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_wood_3": {
+      "slot": 160,
+      "rect": [
+        0,
+        1280,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_wood_3",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_water_0": {
+      "slot": 161,
+      "rect": [
+        64,
+        1280,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_water_0",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_water_1": {
+      "slot": 162,
+      "rect": [
+        128,
+        1280,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_water_1",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_water_2": {
+      "slot": 163,
+      "rect": [
+        192,
+        1280,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_water_2",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_water_3": {
+      "slot": 164,
+      "rect": [
+        256,
+        1280,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_water_3",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_earth_0": {
+      "slot": 165,
+      "rect": [
+        320,
+        1280,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_earth_0",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_earth_1": {
+      "slot": 166,
+      "rect": [
+        384,
+        1280,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_earth_1",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_earth_2": {
+      "slot": 167,
+      "rect": [
+        448,
+        1280,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_earth_2",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_earth_3": {
+      "slot": 168,
+      "rect": [
+        0,
+        1344,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "fx_earth_3",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    }
+  },
+  "terrain": {
+    "texture": "res://assets/art/terrain.png",
+    "tile_size": 16,
+    "surfaces": [
+      "grass",
+      "soil",
+      "water",
+      "cold_stone",
+      "sand",
+      "wood_floor",
+      "tilled_soil",
+      "snow"
+    ],
+    "variants": 4,
+    "source": "authored"
+  },
+  "sha256": {
+    "actors.png": "399aee8374e60273c958ed6aeb17844d126ad0ba97ebebb00558e3aad1dcd5e9",
+    "world.png": "f59d5b66b00f68b5214892fff8ac031562a7fd473936525eac3853e9b69e033c",
+    "terrain.png": "ec803c9e7a280020e07af16932c06df6fa35c315cfd201a591452d12fdd8ec18"
+  }
+}

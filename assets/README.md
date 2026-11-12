@@ -1,126 +1,50 @@
-# Assets 约定
+# 临时美术包：玉谷
 
-2026-11-03用户确认正式复杂资源后置，先由代码生成像素示意支撑玩法；外部提示词保留但无需继续制作。现有人形样本可重复生成，仍遵守八向/非对称/共同动作合同，不把占位图称为正式美术。
+2026-11-12接入，简约Q版像素测试风格，用于让现有玩法可观察，不是最终美术定稿。游戏内按 **F8** 浏览图鉴；实际玩法与键位只查[FEATURES](../docs/status/features.md)，性能实测只查[BASELINE](../docs/status/baseline.md)。
 
-> 先用占位验证玩法；素材制作按实际工作包推进。目录职责见[项目文件架构](../docs/engineering/project-structure.md)。
-> 新核查的素材/字体与许可流程见[完整资源研究](../design/research/full_game_reference_map.md)，Godot生态与具体音效/UI候选见[资源清单](../design/research/godot_resource_candidates.md)。正式批量资源在[长期方案](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/plans/product/full-game.md)玩法Alpha之后；开发中必要的可读反馈仍随玩法实现。
+## 素材清单与接入范围
 
----
+完整切片坐标、脚点、动作顺序、来源和运行图集哈希由[机器清单](art/catalog.json)维护，本页不复制逐项参数。
 
-## 目录
-
-下面是新增素材时的归属约定，按需要创建，不代表当前已有这些素材。多个场景共用的资源放这里；只属于某个场景的小资源可以就近保存。
-
-```
-assets/
-├── art/
-│   ├── characters/      # 玩家、Pawn、敌人
-│   ├── tiles/           # TileSet、地形、建筑
-│   ├── ui/              # 图标、面板、字体装饰
-│   ├── fx/              # 特效、粒子贴图
-│   └── world/           # 树、石头、装饰
-├── audio/
-│   ├── sfx/
-│   ├── music/
-│   └── ambience/
-├── fonts/
-└── third_party/         # 每个素材包一个目录 + LICENSE
-```
-
----
-
-## 命名
-
-| 类型 | 前缀 | 示例 |
+| 类别 | 本次交付 | 游戏接入 / 预备边界 |
 |---|---|---|
-| Sprite | `spr_` | `spr_pawn_cook.png` |
-| Tile | `tile_` | `tile_grass_01.png` |
-| UI | `ui_` | `ui_panel_wood.png` |
-| 图标 | `icon_` | `icon_wood.png` |
-| 特效 | `fx_` | `fx_hit_spark.png` |
-| 音效 | `sfx_` | `sfx_chop_01.ogg` |
-| 音乐 | `mus_` | `mus_camp_day.ogg` |
-| 环境 | `amb_` | `amb_forest.ogg` |
+| 人物 | 同一修士八方向，16动作×4帧×8向，共512格；衣色可变 | 待机、行走、搬运、采集、施工、加工、近战、弓箭、受击、休息、进食、读书/交谈、修行、飞行、死亡、浇灌根据真实Frame切换。死亡为静止横倒灰化姿态；飞行受击仍悬空 |
+| 地形 | 草地、土、水、寒石、沙地、木地板、耕地、雪地，共32变体切片 | 现有地表、地板和水岸接入；耕地/积雪切片预备，没有因此增加耕作/积雪规则 |
+| 建筑与家具 | 连接墙16种、通行门廊、屋面、床、箱、桌椅、灶、花盆与工作台等 | 现有单/多格家具、蓝图、屋顶层和地面物资接入；窗、炼丹炉、织机、香炉、棋盘、墓等已备图，尚无对应完整玩法 |
+| 植物 | 6种×5阶段：一年生草、多年生草药、赤焰草、荷花、沙生刺、古树；另树精 | 按原生命周期、采后残株/树桩、枯萎和灵智状态选图；花盆与植株分别绘制 |
+| 物品与装备 | 木石粮水饭药、草药产物、古籍、剑弓斧镐锄铲、水壶、衣甲靴帽、符、灵石、蛋鱼等 | 当前物品堆与物品下拉图标接入；混合残物用包裹。更多武器/服装/食材仅预备，不表示已实现换装和所有配方 |
+| 生物 | 鸡、兔、羊、牛、野猪、狐、狼、鹿、鹤、蝶、玉液怪、灵体、树精、石傀儡、小妖、飞剑 | 16个静态造型预备；树精供古树成精显示。其余没有虚构移动、八向动作、繁殖或怪物AI |
+| 特效 | 受击、治疗、灵气、尘土、火、冰、金木水土等四帧切片，箭矢线段 | 命中/死亡、取放结果使用有界短特效；弓箭随真实弹道方向显示。部分元素切片为后续能力预备，未把特效当作伤害或场计算 |
+| 天光与天气 | 昼夜色温、晨昏、随太阳方向改变的短影，雨、寒风白絮、热浪，水面波动、树木轻摇 | 共用已提交世界时间，暂停不继续推进。屋顶遮住天气粒子；当前视野外不播放天气/水面/树木动态。寒风白絮只是视觉，不代表已实现降雪堆积 |
+| 开发界面 | 素材图鉴、选中圈、蓝图透明色、目标与弹道、真实数值HUD、死亡提示和F12诊断 | 保留开发期真实后台数据，不引入一套掩盖数值的正式UI |
 
-规则：
-- 全小写 `snake_case`；不要空格/中文/大写。
-- 同一类用两位序号：`_01`、`_02`。
-- 变体用后缀：`_day`、`_night`、`_broken`。
-- 不要用 `final`、`new`、`copy`、`v2` 这种命名。
+## 来源与权利记录
 
----
+- `art/source/`的角色、地物、生物、植物4张原始PNG来自用户指定的Google AI Studio中转，模型`gemini-nano-banana-2.1`。每张同名JSON记录实际提示词、日期、编辑、无参考图和未知seed。没有复制参考游戏的原作素材。
+- 生成结果按[Gemini API附加条款](https://ai.google.dev/gemini-api/terms)和[AI Studio条款](https://aistudio.google.com/docs/terms)记录来源。Google不主张输出所有权不等于独占权、CC0或对第三方权利的保证；本记录不另行给整个项目指定许可证。
+- 精选物品底图采用Kenney的[Tiny Town](https://kenney.nl/assets/tiny-town)、[Tiny Farm](https://kenney.nl/assets/tiny-farm)、[Tiny Dungeon](https://kenney.nl/assets/tiny-dungeon)，均CC0。原切片、原始`LICENSE.txt`和来源日期在[third_party/kenney](third_party/kenney/)。图集保留每格来源；部分语义不准确的现成图标已改为程序原创。
+- 地形、墙门连接、工具附件、动作派生和特效由本项目脚本绘制。无需运行时模型或网络。未使用禁止公开原图再分发的素材包。
+- 顾问用于清单和源码反例审查，采纳/拒绝理由只归[研究页](../design/research/large_simulation_optimization.md#临时像素美术的清单与源码核查)。本机请求、凭据、下载评估包不入库。
 
-## 导入设置
+## 重建和代码入口
 
-### 像素示意素材（当前占位，不预设最终风格）
-- Filter：**Nearest**
-- Mipmaps：**Off**
-- Compression：**Lossless**
-- 像素网格对齐；不要缩放非整数倍。
-
-### 手绘/高清（如果后续选择该方向）
-- Filter：Linear
-- Mipmaps：On（缩小显示时）
-- Compression：VRAM Compressed（注意色带）
-
-### 音频
-- SFX：`.ogg` 或 `.wav`（短音效用 wav 也可）
-- Music：`.ogg`
-- 统一采样率 44.1kHz/48kHz；不要在仓库放 192kHz 大文件。
-
-### 字体
-- 只放需要的字重/字符集。
-- 开发期可用系统回退字体；独立包必须验证中文覆盖，不能直接拷贝系统字体分发。正式字体选有分发许可的确切版本，子集化也检查许可与保留字体名。
-- 保留 OFL/LICENSE。
-
----
-
-## 第三方素材
-
-每个包：
-
-```
-assets/third_party/kenney_topdown/
-├── LICENSE
-├── SOURCE.md        # 链接、作者、下载日期、是否修改
-└── ...素材
+```powershell
+python tools/build_art.py
+python tools/godot.py import
 ```
 
-`SOURCE.md` 模板：
+生成器仅依赖Pillow 10–13（实际本机13），从已入库源图离线重建三张运行atlas、catalog和两张联系表；不会请求模型、改存档或装配世界。源图经边界白底提取、去杂、量化与固定网格装箱，不直接把模型画出的不齐网格交给引擎。
 
-```markdown
-- 名称：
-- 作者：
-- 链接：
-- 许可证：
-- 下载日期：
-- 修改：
-```
+- `scripts/presentation/art.gd`：图集/图标读取与八向解释；`frame.gd.Visual`是共同显示代码，Runner从真实行动发布，不让模拟依赖美术脚本。
+- `population.gd`及shader：单MultiMesh、GPU坐标插值和动作采样。静态物由`objects_canvas.gd`批绘，仅观察描述符改变时重建；屋顶遮雨掩码一并更新。
+- `terrain_canvas.gd`、`atmosphere.gd`与shader：地面图集、原有迷雾纹理、Godot CanvasModulate、单屏天气和有界太阳短影。没有每格/每人灯、粒子节点或新结算引擎。
+- `action_effects.gd`：可靠结果的有界显示；`art_gallery.gd`：F8按需预览，关闭不更新预览帧。
+- 运行纹理使用nearest、无mipmap、lossless。导出包含catalog，排除源稿、联系表、第三方原切片和已退役的旧人形技术样本；源码保留来源可重建。
 
-规则：
-- 不把付费素材原样再分发。
-- 不删除许可证。
-- 不用来源不明的素材。
-- AI生成素材记录工具/模型、实际提示词、生成日期、参考来源及可取得的seed和具体服务许可；缺失信息标未知，不编造授权结论。
+## 临时包的明确局限
 
----
+动作由同一八向底姿派生，是剪纸/工具叠加动画，不是专业逐帧完整动作。模型的SW误画为SE，已用镜像修正；目前不作为解剖左右或非对称装备挂点标准。休息/进食等是状态示意，不保证手口或床面精确接触；攻击相位不是精确的命中帧。
 
-## 大文件
+太阳影子在原quad范围内截短并淡出，不做物理长影/动态灯。静态物内部按脚点排序、屋顶最后画，人物批次仍整体在静态物上方，没有跨批次完整Y排序。生物预备仅单姿，完整八向动作/尸体在启用对应生物玩法时再补。音效、音乐、全套技能与最终UI皮肤不属于本次视觉包的已交付范围。
 
-- 单文件 > 50MB：先问，必要时 Git LFS。
-- 不提交原始 PSD/Blend/Aseprite 工程，除非需要协作；放 `art_source/` 并考虑 LFS。
-- 不提交导出缓存、临时图、重复素材。
-
----
-
-## 占位素材推荐
-
-- **Kenney**：CC0，2D/3D/UI/音效，最适合占位。
-- **LimeZu**：精致 2D，注意许可证/付费。
-- **OpenGameArt**：混合许可，逐项检查。
-
-先用纯色块也能做 M1；不要等美术。
-
-## 当前八向样本与外部制作
-
-原创代码生成的人形技术素材在[humanoid_sample](characters/humanoid_sample/README.md)，生成器与运行器合同已验但不是正式角色美术。用户外部模型使用[固定提示词包](../docs/archive/art/character_generation/README.md)，原图先进入[候选接收区](../art_inbox/character_generation/README.md)，核方向/左右/alpha/脚点/来源及实机后才迁入发行素材。不覆盖已验技术样本、不从提示词推断已获得图像或商用授权。
+旧[humanoid_sample](characters/humanoid_sample/README.md)只保留原创源资产与重建工具供追溯，已不被当前场景读取；旧提示词不形成后续开发任务。

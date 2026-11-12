@@ -22,7 +22,7 @@
 | `runner.gd`、`frame.gd` | 一个自主Thread、倍率/暂停、可靠命令/回执、只读Frame及姿态历史、采用候选与关停 |
 | `scripts/sim/execution/batch_execution.gd` | Godot WorkerThreadPool group任务与join，不建每域线程池 |
 | `scripts/presentation/` | 主线程UI/输入/相机/选择、静态画布、GPU迷雾与MultiMesh显示，只读Frame |
-| `scripts/entities/humanoid_appearance.gd` | 八方向人物资源清单与只读外观解释 |
+| `scripts/presentation/art.gd` | 当前临时视觉包的图集、图标与八向读取；覆盖/来源唯一查[assets](../../assets/README.md) |
 
 表中省略目录的脚本均在`scripts/sim/kernel/`。外部身份不复用，身体槽位可以回收；`actor_slots`只在owner映射到页行。worker不查询库存/对象字典，cargo/potions是变化时同步的工作摘要。植物、箱、家具和墙没有移动页；活的植物增加能力仍保留原身份。对象视距由共用字段承载，移动人物默认有感知，普通静态物默认0；静态感知查询不要求占身体页，目前自动战斗仍只调度移动人物。定义/开局/实例分开，不因保留旧JSON就启用其旧后端。
 
@@ -47,6 +47,8 @@ Runner按单调墙钟累积所选倍率的时间需求，不等主线程派发�
 Frame包含必要身体列、静态外观版本、玩家格图/记忆、选中详情和统计，全部与活世界脱离。短Mutex只交换latest引用和通知队列；发布后不写已发布容器，也不复用消费者仍持有的槽位。外观/身份索引按布局版本发布，不每步复制所有库存。
 
 画面可跳过中间Frame，可靠命令回执/到达/失败/死亡走独立队列。命令在途上限包含未收回执。Pose随位置保留身份；槽位换人不串插值，读档提升epoch并重置显示历史、拒绝旧会话命令。
+
+`Frame.Visual`发布行动显示代码，受击缓存随会话/身份重置；美术不改变身体事实。`atmosphere.gd`用Godot CanvasModulate和单屏shader呈现共同时钟的天光/天气，屋顶与当前格图限制粒子；太阳短影与动作在原批次内完成，不建逐人物灯或计时器。素材清单、局限与重建入口只查[assets](../../assets/README.md)。
 
 MultiMesh只在采用新姿态时上传，GPU在相邻已提交姿态间插值；动画、选择和镜头使用相同显示时刻，飞行显示偏移另作拾取修正。玩家可见图在格子中心判定，探索记录和人物显隐共用该图；GPU只采样可见/探索纹理柔边，不再逐像素投射视线。地表外观另存R8观察缓存，静态对象用最后所见descriptor；视野外变化不刷新它们，动态人物/选中圈/在飞物按当前可见格过滤。开发全图视图只改变显示，不减掉远处模拟；开发HUD仍按用户要求显示真实后台数值。
 

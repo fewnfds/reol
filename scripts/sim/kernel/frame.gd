@@ -2,6 +2,8 @@ extends RefCounted
 ## Detached values. Publication ends all writes to this object and its arrays.
 ## A slow consumer can retain old frames without blocking simulation.
 
+enum Visual { IDLE, WALK, CARRY, HARVEST, BUILD, CRAFT, MELEE, SHOOT, HURT, REST, EAT, READ, MEDITATE, FLY, DEAD, WATER }
+
 class Pose extends RefCounted:
 	var world_ms: int
 	var completed_usec: int
@@ -9,6 +11,7 @@ class Pose extends RefCounted:
 	var ids := PackedInt64Array()
 
 var projectiles := PackedVector2Array()
+var projectile_velocities := PackedVector2Array()
 var sequence: int
 var world_ms: int
 var published_usec: int
@@ -26,6 +29,7 @@ var health := PackedInt32Array()
 var modes := PackedByteArray()
 var flight := PackedByteArray()
 var radii := PackedFloat32Array()
+var visuals := PackedByteArray() # Detached action presentation; never used by settlement.
 var inspected: Dictionary = {}
 var player: Dictionary = {} # Always present independently of selection/scroll position.
 var counters: Dictionary = {}
