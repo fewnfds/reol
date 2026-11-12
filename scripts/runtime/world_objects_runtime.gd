@@ -2,6 +2,8 @@ class_name WorldObjectsRuntime
 extends CommittedWorldCanvas
 ## Local rendering/selection and intent routing for the pure object domain.
 
+const MarkerView = preload("res://scripts/runtime/object_marker_view.gd")
+
 var panel: ObjectInspectionPanel
 var selected_object: String = ""
 var _owner: WeakRef
@@ -10,6 +12,10 @@ var _settled_event: String = ""
 var _selection_hit: Vector2 = Vector2.INF
 ## Presentation pointer only; the action and its result remain in lifecycle.
 var _physical_action: String = ""
+var _marker_world: WeakRef
+var _observed_world: WeakRef
+var _held_markers: Dictionary = {}
+var _draw_link: Dictionary = {}
 
 
 func runtime() -> WorldContinuityRuntime:
@@ -41,6 +47,7 @@ func setup(adapter: WorldContinuityRuntime) -> void:
 	adapter.avatar_changed.connect(reset_observation)
 	if adapter._home._fog != null and not adapter._home._fog.visibility_updated.is_connected(refresh):
 		adapter._home._fog.visibility_updated.connect(refresh)
+	_bind_object_changes()
 	redraw_committed_canvas()
 
 
@@ -321,13 +328,33 @@ func submit_draw(target: String) -> Dictionary:
 func reset_observation() -> void:
 	if not _can_observe(runtime()):
 		return
+	_bind_object_changes()
 	selected_object = ""
 	_selection_hit = Vector2.INF
 	_notice = ""
 	_settled_event = ""
 	_physical_action = ""
+	_clear_marker_views()
 	clear_committed_canvas()
 	panel.hide()
+	redraw_committed_canvas()
+
+
+func _bind_object_changes() -> void:
+	var world: RegionalSimulation = runtime().world_sim
+	var previous: RegionalSimulation = _observed_world.get_ref() if _observed_world != null else null
+	if previous == world:
+		return
+	if previous != null:
+		previous.object_lifecycle.committed.disconnect(_object_committed)
+		previous.artifacts.space_reset.disconnect(redraw_committed_canvas)
+	_observed_world = weakref(world)
+	world.object_lifecycle.committed.connect(_object_committed)
+	world.artifacts.space_reset.connect(redraw_committed_canvas)
+
+
+func _object_committed(_change: Dictionary) -> void:
+	# Paused/editor transactions need the same invalidation as clock commits.
 	redraw_committed_canvas()
 
 
@@ -367,8 +394,36 @@ func refresh() -> void:
 
 
 func _process(_delta: float) -> void:
-	# Only presentation: carried items follow the holder's interpolated view.
-	redraw_committed_canvas()
+	# Holder nodes move their retained markers without any world query/rebuild.
+	var adapter: WorldContinuityRuntime = runtime()
+	if _marker_world != null and (adapter == null or _marker_world.get_ref() != adapter.world_sim):
+		_clear_marker_views()
+		redraw_committed_canvas()
+	elif not _draw_link.is_empty():
+		queue_redraw() # Only the active link needs per-frame drawing.
+
+
+func _clear_marker_views() -> void:
+	for marker: Node2D in _held_markers.values():
+		marker.free()
+	_held_markers.clear()
+	_marker_world = null
+	_draw_link.clear()
+
+
+func _draw() -> void:
+	super._draw()
+	if _draw_link.is_empty():
+		return
+	var from: Vector2 = _marker_point(_draw_link.from_id, _draw_link.from)
+	var to: Vector2 = _marker_point(_draw_link.to_id, _draw_link.to)
+	var progress: float = _draw_link.progress
+	draw_line(from, to, Color(0.63, 0.81, 0.77, 0.28), 1.0)
+	draw_arc(to, 13.0 + 5.0 * (1.0 - progress), -PI * 0.5, TAU * progress - PI * 0.5, 24, Color("#c4ded5"), 2.0)
+
+
+func _marker_point(id: String, fallback: Vector2) -> Vector2:
+	return _held_markers[id].display_point() if _held_markers.has(id) else fallback
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -580,16 +635,10 @@ func _base_display_point(id: String, authority: RegionalSimulation) -> Vector2:
 	var item: Dictionary = domain.objects[id]
 	var altitude: int = 0
 	if item.container.begins_with("actor:"):
-		var holder: String = str(item.container).trim_prefix("actor:")
-		if holder == "player":
-			point = adapter._home._player.global_position
+		var holder: Node2D = _holder_view(item)
+		if holder == adapter._home._player:
 			altitude = adapter._home._player.altitude
-		else:
-			var pawn: Pawn = adapter._home._pawns.get(holder) if item.region == "home" else adapter._remote_views.get(holder)
-			if is_instance_valid(pawn):
-				point = pawn.global_position + pawn.visual_offset
-			else:
-				point = authority.regions[item.region].projected_actor_position(holder)
+		point = holder.presentation_position() if holder != null else authority.regions[item.region].projected_actor_position(str(item.container).trim_prefix("actor:"))
 	var offset := Vector2(20, -24 - adapter._home._world.get_elevation(cell) * ReolWorld.ELEVATION_PX - altitude * ReolWorld.ALTITUDE_PX)
 	if domain.has_capability(id, "thermal_exchange"):
 		# A visual offset distinguishes objects at the same original place. It
@@ -597,6 +646,16 @@ func _base_display_point(id: String, authority: RegionalSimulation) -> Vector2:
 		var definition: Dictionary = domain.definitions.types[item.definition]
 		offset.x += -32.0 if definition.thermal.mode == "emit" else 32.0
 	return point + offset
+
+
+func _holder_view(item: Dictionary) -> Node2D:
+	if not str(item.container).begins_with("actor:"):
+		return null
+	var adapter: WorldContinuityRuntime = runtime()
+	var id: String = str(item.container).trim_prefix("actor:")
+	if id == "player":
+		return adapter._home._player
+	return adapter._home._pawns.get(id) if item.region == "home" else adapter._remote_views.get(id)
 
 
 func _build_canvas() -> void:
@@ -607,39 +666,35 @@ func _build_canvas() -> void:
 	var points: Dictionary = _visible_display_points(authority)
 	if not _can_observe(adapter) or adapter.world_sim != authority:
 		return
+	_marker_world = weakref(authority)
 	var current: Dictionary = authority.artifacts.active.get("player", {}) if adapter.human_player_active() else {}
 	var observed: Dictionary = {}
+	_draw_link.clear()
 	if current.has("draw") and points.has(str(current.draw.target)):
 		var from: Vector2 = points[str(current.object)] if points.has(str(current.object)) else _base_display_point(str(current.object), authority)
 		var to: Vector2 = points[str(current.draw.target)]
 		var progress: float = clampf(float(authority.elapsed_ms - int(current.started_ms)) / float(int(current.due_ms) - int(current.started_ms)), 0.0, 1.0)
-		capture_line(from, to, Color(0.63, 0.81, 0.77, 0.28), 1.0)
-		capture_arc(to, 13.0 + 5.0 * (1.0 - progress), -PI * 0.5, TAU * progress - PI * 0.5, 24, Color("#c4ded5"), 2.0)
+		_draw_link = {"from_id": str(current.object), "from": from, "to_id": str(current.draw.target), "to": to, "progress": progress}
+	var held: Dictionary = {}
 	for id: String in points:
 		var point: Vector2 = points[id]
-		if authority.artifacts.has_capability(id, "physical"):
+		var item: Dictionary = authority.artifacts.objects[id]
+		var shape: String = _marker_shape(id, authority)
+		if str(item.container).begins_with("actor:"):
+			var marker: Node2D = _held_markers.get(id)
+			if marker == null:
+				marker = MarkerView.new()
+				add_child(marker)
+			marker.present(shape, point, _holder_view(item))
+			held[id] = marker
+		elif shape == "physical":
 			_draw_physical(id, point, authority, observed)
-			continue
-		if authority.artifacts.has_capability(id, "weapon"):
-			_draw_wooden_sword(point)
-			continue
-		if authority.artifacts.has_capability(id, "remote_draw"):
-			_draw_drawing_ring(point)
-			continue
-		if authority.artifacts.has_capability(id, "thermal_exchange"):
-			var definition: Dictionary = authority.artifacts.definitions.types[authority.artifacts.objects[id].definition]
-			_draw_thermal_stone(point, definition.thermal.mode == "emit")
-			continue
-		if authority.artifacts.has_capability(id, "intrinsic_light"):
-			capture_circle(point, 11, Color("#302826"))
-			capture_circle(point, 7, Color("#b5a86d"))
-			capture_circle(point + Vector2(-2, -2), 3, Color("#f4e8ad"))
-			continue
-		var diamond := PackedVector2Array([point + Vector2(0, -9), point + Vector2(8, 0), point + Vector2(0, 9), point + Vector2(-8, 0)])
-		capture_circle(point, 13, Color("#251c20"))
-		capture_polygon(diamond, Color("#a6553b"))
-		capture_polyline(PackedVector2Array([diamond[0], diamond[1], diamond[2], diamond[3], diamond[0]]), Color("#f0c989"), 2)
-		capture_line(point + Vector2(-3, -3), point + Vector2(3, 3), Color("#e8b479"), 1.5)
+		else:
+			capture_custom(MarkerView.paint.bind(self, shape, point))
+	for id: String in _held_markers:
+		if not held.has(id):
+			_held_markers[id].free()
+	_held_markers = held
 	var fog: FogOfWar = adapter.home_runtime()._fog
 	if fog != null:
 		fog.visual_memory.observe("physical", fog._visible_cells, observed)
@@ -649,6 +704,17 @@ func _build_canvas() -> void:
 			var bounds := Rect2(Vector2(float(appearance[0]), float(appearance[1])), Vector2.ONE * (TileGrid.TILE_SIZE - 8.0))
 			capture_rect(bounds, Color("#777b7b"))
 			capture_rect(bounds, Color("#c0c4bf"), false, 1.5)
+
+
+func _marker_shape(id: String, authority: RegionalSimulation) -> String:
+	for capability: String in ["physical", "weapon", "remote_draw", "thermal_exchange", "intrinsic_light"]:
+		if not authority.artifacts.has_capability(id, capability):
+			continue
+		if capability == "thermal_exchange":
+			var definition: Dictionary = authority.artifacts.definitions.types[authority.artifacts.objects[id].definition]
+			return "warm" if definition.thermal.mode == "emit" else "cool"
+		return capability
+	return "artifact"
 
 
 func _physical_ground_rect(id: String, authority: RegionalSimulation) -> Rect2i:
@@ -701,8 +767,7 @@ func _draw_physical(id: String, point: Vector2, authority: RegionalSimulation, o
 	var footprint: Rect2i = _physical_ground_rect(id, authority)
 	if footprint.size == Vector2i.ZERO:
 		# Carried or stored objects remain a small marker, not a ground footprint.
-		capture_rect(Rect2(point - Vector2(9, 7), Vector2(18, 14)), Color("#777b7b"))
-		capture_rect(Rect2(point - Vector2(9, 7), Vector2(18, 14)), Color("#c0c4bf"), false, 1.5)
+		capture_custom(MarkerView.paint.bind(self, "physical", point))
 		return
 	var adapter: WorldContinuityRuntime = runtime()
 	var observer: Vector2i = adapter.controlled_cell()
@@ -718,32 +783,3 @@ func _draw_physical(id: String, point: Vector2, authority: RegionalSimulation, o
 			var bounds: Rect2 = _physical_tile_rect(cell, authority.map_data.get_elevation(cell))
 			if not observed.has(cell): observed[cell] = []
 			observed[cell].append([bounds.position.x, bounds.position.y])
-
-
-func _draw_thermal_stone(point: Vector2, warm: bool) -> void:
-	var rim: Color = Color("#f1bd8a") if warm else Color("#c3e8ed")
-	var body: Color = Color("#a64f36") if warm else Color("#588fa5")
-	var outline := PackedVector2Array([point + Vector2(-8, -6), point + Vector2(2, -10), point + Vector2(10, -3), point + Vector2(8, 7), point + Vector2(-4, 10), point + Vector2(-10, 3)])
-	capture_circle(point, 13, Color("#251c20"))
-	capture_polygon(outline, body)
-	capture_polyline(PackedVector2Array([outline[0], outline[1], outline[2], outline[3], outline[4], outline[5], outline[0]]), rim, 2.0)
-	capture_line(point + Vector2(-5, -3), point + Vector2(4, 4), rim, 1.5)
-
-
-func _draw_wooden_sword(point: Vector2) -> void:
-	var tip: Vector2 = point + Vector2(8, -15)
-	var pommel: Vector2 = point + Vector2(-8, 14)
-	capture_line(pommel, tip, Color("#251c20"), 8)
-	capture_line(point + Vector2(-2, 4), tip, Color("#d6ad71"), 5)
-	capture_line(pommel, point + Vector2(-2, 4), Color("#6b513b"), 5)
-	capture_line(point + Vector2(-8, 0), point + Vector2(5, 7), Color("#251c20"), 6)
-	capture_line(point + Vector2(-8, 0), point + Vector2(5, 7), Color("#b8804b"), 3)
-
-
-func _draw_drawing_ring(point: Vector2) -> void:
-	# A hollow copper ring, without the warm stone's glow or solid centre.
-	capture_arc(point, 9.0, 0.0, TAU, 24, Color("#251c20"), 6.0)
-	capture_arc(point, 9.0, 0.0, TAU, 24, Color("#a8926a"), 3.0)
-	capture_arc(point, 8.0, PI * 1.1, PI * 1.8, 8, Color("#ded8b9"), 1.0)
-	capture_line(point + Vector2(7, -6), point + Vector2(11, -5), Color("#e6e4d2"), 2.0)
-	capture_line(point + Vector2(-8, 3), point + Vector2(-11, 5), Color("#c2c8bf"), 2.0)

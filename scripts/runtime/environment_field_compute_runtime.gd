@@ -30,6 +30,8 @@ var _candidate_adopted: int = 0
 var _candidate_failures: int = 0
 var _candidate_snapshot_usec: int = 0
 var _candidate_compute_ms: float = 0.0
+var _candidate_upload_ms: float = 0.0
+var _candidate_readback_ms: float = 0.0
 
 
 func configure(cache: RefCounted, mode: String = "auto") -> bool:
@@ -147,6 +149,8 @@ func poll() -> Dictionary:
 	if bool(completed.ok):
 		_candidate_completed += 1
 		_candidate_compute_ms += float(completed.gpu.get("compute_ms", 0.0))
+		_candidate_upload_ms += float(completed.gpu.get("upload_ms", 0.0))
+		_candidate_readback_ms += float(completed.gpu.get("readback_ms", 0.0))
 	else:
 		_candidate_failures += 1
 	_reset_request()
@@ -172,6 +176,7 @@ func diagnostics() -> Dictionary:
 		"candidate_requests": _candidate_requests, "candidate_completed": _candidate_completed,
 		"candidate_adopted": _candidate_adopted, "candidate_failures": _candidate_failures,
 		"candidate_snapshot_usec": _candidate_snapshot_usec, "candidate_compute_ms": _candidate_compute_ms,
+		"candidate_upload_ms": _candidate_upload_ms, "candidate_readback_ms": _candidate_readback_ms,
 		"cpu": _cpu_work.duplicate()}
 
 

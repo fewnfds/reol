@@ -58,7 +58,9 @@ Windows的`--release`先用`Windows Performance`预设导出当前代码到忽�
 
 结果在忽略的`logs/crowd-*`或`logs/demo-profile-*` JSON及JSONL。记录实际世界流速、帧时、结算步骤、批计算准备/采用等；测量本身有开销，单次差异不足以证明收益。先读已测最大成本，保持内容、人数、命令和采样窗口可比。headless只证明CPU/工具路径，画面性能用真实显卡渲染。
 
-默认仅保留帧/区间计时；追加`--profile-kernel`才包裹每个结算步骤，供定位使用。报告明确写`kernel_timing_enabled`；关闭时未测的步骤/残差为null，不能当作零成本。比较吞吐时保持计时模式一致。
+默认仅保留帧/区间计时；追加`--profile-kernel`才包裹每个结算步骤，并打开`CommittedWorldCanvas`构建计时，供定位使用。报告明确写`kernel_timing_enabled`；关闭时未测的步骤/残差为null，不能当作零成本。比较吞吐时保持计时模式一致。
+
+`simulation_host`是当前宿主累计wall计数，`pending_wait_usec`保留兼容总量，另给`actor_wait_usec/environment_wait_usec`；两者是等待相应完成条件的时段，不能当线程CPU或断言环境等待全属GPU。`environment_capture`在同世界内扣除装配前值，给出来源计算、响应和来源采样；GPU上传/读回已包含于`candidate_compute_ms`，不能再相加。`body_presentation_capture`只对累计字段作差，不对最大值或当前队列长度作差；`canvas_capture`覆盖整个采样窗的画布构建，包括时钟发布之外的捕获，不等同较窄的`publication_work_capture`。这些计时有嵌套或可并行重叠，不能全数相加；旧报告缺字段代表未测，世界替换后的环境差值为空。
 
 `--profile-navigation`可选统计原生/服务导航提供者的调用成本，最多保留4096组请求坐标作批处理探针输入；包含原路径缓存命中，不包括`SimConflictSpace`绕过提供者的直接搜索。该模式有额外计时与记录开销，不是普通试玩默认设置。`navigation_profile`只覆盖运行采样窗口；`actor_execution`明确为包含装配的累计计数，`actor_execution_capture`给出同一世界内运行窗口的差值。加载替换世界后后者为空，`actor_execution_capture_available=false`；历史累计线程ID也不代表运行期同时并行数。
 

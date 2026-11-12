@@ -3,12 +3,15 @@ extends Node
 ## Host-side exclusive lease. Drawing retains only previously captured data.
 ## Gameplay callbacks resume after a complete reply;
 ## cached drawing, camera and detached body interpolation remain on the host.
+const ObjectMarkerView = preload("res://scripts/runtime/object_marker_view.gd")
+
 var runner: SimWorldRunner
 var runtime: WorldContinuityRuntime
 var busy: bool = false
 var threaded: bool = true
 var deferred_completion: bool = true
 var work: Dictionary = {"requests": 0, "elapsed_usec": 0, "pending_wait_usec": 0,
+	"actor_wait_usec": 0, "environment_wait_usec": 0,
 	"handoff_usec": 0, "prepare_usec": 0, "signal_usec": 0, "input_count": 0, "input_delay_usec": 0,
 	"input_max_delay_usec": 0, "mailbox_ready_delay_usec": 0, "mailbox_ready_max_usec": 0,
 	"between_requests_usec": 0, "completion_notices": 0, "thread_ids": {}}
@@ -93,8 +96,8 @@ func collect() -> Dictionary:
 	_ungate_tree()
 	_bridge.reclaim()
 	work.signal_usec += Time.get_ticks_usec() - began
-	for key: String in ["elapsed_usec", "pending_wait_usec"]:
-		work[key] += int(reply.work[key])
+	for key: String in ["elapsed_usec", "pending_wait_usec", "actor_wait_usec", "environment_wait_usec"]:
+		work[key] += int(reply.work.get(key, 0))
 	work.handoff_usec += Time.get_ticks_usec() - _gated_at
 	work.thread_ids[int(reply.work.thread_id)] = true
 	_returned_at = Time.get_ticks_usec()
@@ -105,7 +108,7 @@ func collect() -> Dictionary:
 func _register_tree(node: Node) -> void:
 	# Override old ALWAYS adapters too. The small whitelist has no live-world
 	# reads in either process or draw, and only uses published body/clock data.
-	if node is Pawn or node is PlayerCharacter or node is CameraController:
+	if node is Pawn or node is PlayerCharacter or node is CameraController or node is ObjectMarkerView:
 		node.process_mode = Node.PROCESS_MODE_ALWAYS
 		return
 	if node == _scene or node.process_mode != Node.PROCESS_MODE_INHERIT:

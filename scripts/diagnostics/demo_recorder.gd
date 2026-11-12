@@ -56,6 +56,9 @@ var _initial_spatial_work: Dictionary = {}
 var _initial_geometry_work: Dictionary = {}
 var _initial_body_publication_work: Dictionary = {}
 var _initial_publication_work: Dictionary = {}
+var _initial_environment_work: Dictionary = {}
+var _initial_body_presentation: Dictionary = {}
+var _canvas_profiles: Array[Dictionary] = []
 var _profile_navigation: bool = false
 var _navigation_calls: int = 0
 var _navigation_usec: int = 0
@@ -93,6 +96,16 @@ func configure(main: Node, options: Dictionary) -> bool:
 	_initial_geometry_work = _runtime.world_sim.geometry_read().work.duplicate()
 	_initial_body_publication_work = _runtime.body_publication_work.duplicate()
 	_initial_publication_work = _runtime.publication_work.duplicate()
+	_initial_environment_work = _environment_work()
+	_initial_body_presentation = _runtime.body_presentation.diagnostics() if _runtime.body_presentation != null else {}
+	if _profile_kernel:
+		var nodes: Array[Node] = [main]
+		while not nodes.is_empty():
+			var node: Node = nodes.pop_back()
+			nodes.append_array(node.get_children())
+			if node is CommittedWorldCanvas:
+				_canvas_profiles.append({"node": weakref(node), "initial": node.canvas_work.duplicate(), "enabled": node.profile_canvas})
+				node.profile_canvas = true
 	if _profile_navigation:
 		for sim: VillageSimulation in _runtime.world_sim.regions.values():
 			_profile_navigation_owner(sim)
@@ -288,6 +301,12 @@ func finish() -> void:
 	if get_tree().process_frame.is_connected(_before_frame):
 		get_tree().process_frame.disconnect(_before_frame)
 	_unprofile_navigation()
+	var canvas_capture: Dictionary = {}
+	for row: Dictionary in _canvas_profiles:
+		var canvas: CommittedWorldCanvas = row.node.get_ref()
+		if canvas != null:
+			canvas_capture[String(canvas.name)] = _counter_delta(canvas.canvas_work, row.initial)
+			canvas.profile_canvas = bool(row.enabled)
 	_windows.close()
 	var navigation: Dictionary = _profile.totals()
 	_navigation_calls = int(navigation.calls)
@@ -327,8 +346,12 @@ func finish() -> void:
 		"simulation_host": _runtime.simulation_host.work.duplicate(true) if _runtime.simulation_host != null else {},
 		"publication_work_including_setup": _runtime.publication_work.duplicate(),
 		"publication_work_capture": _counter_delta(_runtime.publication_work, _initial_publication_work),
+		"canvas_capture": canvas_capture,
 		"input_probe": _runtime.simulation_host.input_probe() if _runtime.simulation_host != null else {},
 		"body_publication_capture": _counter_delta(_runtime.body_publication_work, _initial_body_publication_work),
+		"environment_capture": _environment_capture(),
+		"body_presentation_capture": _counter_delta(_runtime.body_presentation.diagnostics(), _initial_body_presentation,
+			["frames", "coalesced", "row_visits", "elapsed_usec", "while_simulation_busy"]) if _runtime.body_presentation != null else {},
 		"geometry_read_capture": _counter_delta(_runtime.world_sim.geometry_read().work, _initial_geometry_work) if _runtime.world_sim.get_instance_id() == _initial_actor_world_id else {},
 		"navigation_profile": {"enabled": _profile_navigation, "scope": "capture; native and service providers only; includes existing path cache hits; excludes conflict-space direct searches",
 			"calls": _navigation_calls, "total_ms": _navigation_usec / 1000.0, "max_ms": _navigation_max_usec / 1000.0,
@@ -380,9 +403,32 @@ func _actor_execution_capture() -> Dictionary:
 	return result
 
 
-func _counter_delta(current: Dictionary, initial: Dictionary) -> Dictionary:
+func _environment_work() -> Dictionary:
+	var fields: SimWorldEnvironmentFields = _runtime.world_sim.environment_fields
+	return {"compute": _runtime._field_compute.diagnostics() if _runtime._field_compute != null else {},
+		"response": fields._sources._changes.compute_work.duplicate(), "sampling": fields.motion_sampling_work.duplicate()}
+
+
+func _environment_capture() -> Dictionary:
+	if _runtime.world_sim.get_instance_id() != _initial_actor_world_id:
+		return {}
+	var current: Dictionary = _environment_work()
+	var compute: Dictionary = _counter_delta(current.compute, _initial_environment_work.compute,
+		["candidate_requests", "candidate_completed", "candidate_adopted", "candidate_failures",
+		"candidate_snapshot_usec", "candidate_compute_ms", "candidate_upload_ms", "candidate_readback_ms"])
+	compute["cpu"] = _counter_delta(current.compute.get("cpu", {}), _initial_environment_work.compute.get("cpu", {}))
+	return {"scope": "capture delta; same world only; GPU upload/readback are parts of compute_ms",
+		"compute": compute, "response": _counter_delta(current.response, _initial_environment_work.response),
+		"sampling": _counter_delta(current.sampling, _initial_environment_work.sampling)}
+
+
+func _counter_delta(current: Dictionary, initial: Dictionary, keys: Array[String] = []) -> Dictionary:
 	var result: Dictionary = {}
-	for key: String in current:
+	for key: String in current if keys.is_empty() else keys:
+		if not current.has(key):
+			continue
 		if current[key] is int:
 			result[key] = int(current[key]) - int(initial.get(key, 0))
+		elif current[key] is float:
+			result[key] = float(current[key]) - float(initial.get(key, 0.0))
 	return result

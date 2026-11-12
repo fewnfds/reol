@@ -132,7 +132,8 @@ func execute(request: Dictionary) -> Dictionary:
 	_notice = ""
 	var target: int = request.target_ms
 	var allow_partial: bool = target - world.settled_ms() > int(motion.rules.clock.fixed_step_ms)
-	var pending_wait_usec: int = 0
+	var actor_wait_usec: int = 0
+	var environment_wait_usec: int = 0
 	var failure: bool = false
 	var home: VillageSimulation = world.regions.home
 	world.environment_fields._sources._changes.workers = int(request.workers)
@@ -167,8 +168,10 @@ func execute(request: Dictionary) -> Dictionary:
 			# completion only; a work-budget yield simply continues immediately.
 			for sim: VillageSimulation in world.regions.values():
 				sim.wait_for_actor_compute()
+			actor_wait_usec += Time.get_ticks_usec() - waited
+			waited = Time.get_ticks_usec()
 			world.environment_fields._field.wait_for_source_compute()
-			pending_wait_usec += Time.get_ticks_usec() - waited
+			environment_wait_usec += Time.get_ticks_usec() - waited
 			continue
 		var walking: Dictionary = world.conflicts.walking_projection("player")
 		motion.limit_walking_speed(float(walking.speed_fraction) if bool(walking.allowed) else 0.0)
@@ -186,7 +189,8 @@ func execute(request: Dictionary) -> Dictionary:
 	return {"at_ms": completed, "failed": failure, "journey": journey, "notice": _notice,
 		"manual_moving": manual_moving, "publication": publication,
 		"had_events": before_events != int(home.simulation_work.boundary_count) or before_minute != home.tick_index,
-		"work": {"elapsed_usec": Time.get_ticks_usec() - began, "pending_wait_usec": pending_wait_usec,
+		"work": {"elapsed_usec": Time.get_ticks_usec() - began, "pending_wait_usec": actor_wait_usec + environment_wait_usec,
+			"actor_wait_usec": actor_wait_usec, "environment_wait_usec": environment_wait_usec,
 			"thread_id": OS.get_thread_caller_id()}, "progress": world.settlement.progress().duplicate()}
 
 

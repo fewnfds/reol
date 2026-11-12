@@ -11,6 +11,8 @@ var _canvas_input_key: Variant
 # Managed world views publish together after the clock's ordinary observers.
 # Standalone views and changes outside clock advancement still capture at once.
 var clock_published_canvas: bool = false
+var profile_canvas: bool = false
+var canvas_work: Dictionary = {"builds": 0, "build_usec": 0}
 
 
 func _canvas_adapter() -> Node:
@@ -69,7 +71,11 @@ func refresh_committed_canvas() -> bool:
 	if input_key != null and _canvas_world != null and input_key == _canvas_input_key:
 		return false
 	_canvas_candidate = []
+	var started: int = Time.get_ticks_usec() if profile_canvas else 0
 	_build_canvas()
+	if profile_canvas:
+		canvas_work.builds += 1
+		canvas_work.build_usec += Time.get_ticks_usec() - started
 	var current: RefCounted = _current_canvas_world()
 	if current == world and _world_is_complete(world):
 		_canvas_commands = _canvas_candidate
