@@ -71,6 +71,7 @@ func _run() -> void:
 	_build_and_live()
 	_nature_cycle()
 	preload("res://tests/feature_smoke.gd").run(check)
+	preload("res://tests/sight_smoke.gd").run(check)
 	await _disk_restart()
 	_thread_boundary()
 	print("KERNEL_SMOKE errors=", _errors)

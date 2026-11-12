@@ -15,6 +15,7 @@ const Nature = preload("res://scripts/sim/kernel/nature.gd")
 const Combat = preload("res://scripts/sim/kernel/combat.gd")
 const Society = preload("res://scripts/sim/kernel/society.gd")
 const Perception = preload("res://scripts/sim/kernel/perception.gd")
+const Sight = preload("res://scripts/sim/kernel/sight.gd")
 const Regions = preload("res://scripts/sim/kernel/regions.gd")
 const STATE_FIELDS: Array = ["elapsed_ms", "actor_count", "initial_material", "harvested", "deliveries", "failed_harvests", "steps", "deaths", "attacks", "heals", "attack_due", "topology_revision", "source_objects", "depot_objects", "reservations", "actions"]
 
@@ -50,6 +51,7 @@ var nature := Nature.new()
 var combat := Combat.new()
 var society := Society.new()
 var perception := Perception.new()
+var sight := Sight.new() # Derived shared geometry; observation state is separate.
 var regions := Regions.new()
 var actor_slots: Dictionary = {} # External identity -> stable internal body slot.
 var source_objects := PackedInt64Array()
@@ -184,10 +186,11 @@ func step() -> void:
 		for row: int in page.failures:
 			var id: int = page.ids[row]
 			if combat.orders.has(id):
-				combat.finish(self, id, end)
+				# Do not interrupt work every discovery interval for an unreachable contact.
+				combat.blocked(self, id, end)
 				outcomes.append({"kind": "path_failed", "actor": id, "at_ms": end})
 				continue
-			release(id)
+			release(id, end)
 			if page.modes[row] == Units.Mode.MANUAL:
 				page.modes[row] = Units.Mode.IDLE
 				outcomes.append({"kind": "path_failed", "actor": id, "at_ms": end})
@@ -311,7 +314,7 @@ func kill(id: int, at: int = -1) -> void:
 	if page.modes[row] == Units.Mode.DEAD:
 		return
 	release(id, at)
-	forget_target(id)
+	forget_target(id, at)
 	objects.records[id].erase("commitment")
 	page.health[row] = 0
 	page.modes[row] = Units.Mode.DEAD
@@ -321,17 +324,18 @@ func kill(id: int, at: int = -1) -> void:
 	outcomes.append({"kind": "death", "actor": id, "at_ms": at if at >= 0 else elapsed_ms})
 
 
-func forget_target(target: int) -> void:
+func forget_target(target: int, at: int = -1) -> void:
+	var now: int = at if at >= 0 else elapsed_ms
 	# Rare structural deletion cleans cold dependents immediately, including
 	# save-between-removal-and-arrival. No per-step scan for missing objects.
 	for actor: int in actions.keys():
 		if actions[actor].target == target:
 			var automatic: bool = actions[actor].get("autonomous", false)
-			release(actor)
+			release(actor, now)
 			var slot: int = actor_slots[actor]
 			pages[slot / Units.PAGE_SIZE].modes[slot % Units.PAGE_SIZE] = Units.Mode.IDLE
 			if automatic:
-				livelihood.after_action(self, actor, elapsed_ms)
+				livelihood.after_action(self, actor, now)
 	reservations.erase(target)
 
 
@@ -420,10 +424,14 @@ func command(input: Dictionary) -> Dictionary:
 			if victim.health[other] <= 0 or page.positions[row].distance_to(victim.positions[other]) > 2.0 or attack_due[slot] > elapsed_ms:
 				receipt.reason = "out_of_reach_or_cooldown"
 				return receipt
+			sight.sync(self)
+			if sight.observed_position(self, id, target) == null or Terrain.blocking_fraction(terrain.blocked, page.positions[row], victim.positions[other]) >= 0:
+				receipt.reason = "target_not_visible_or_blocked"
+				return receipt
 			release(id)
 			page.modes[row] = Units.Mode.IDLE
 			attack_due[slot] = elapsed_ms + 600
-			combat.damage(self, id, target, 25, elapsed_ms)
+			combat.damage(self, id, target, 25, elapsed_ms, (page.positions[row] - victim.positions[other]).normalized())
 			if objects.records[id].get("autonomous", false):
 				livelihood.after_action(self, id, elapsed_ms)
 		"source":
@@ -541,7 +549,12 @@ func counters() -> Dictionary:
 		"structures": terrain.structures.size(), "static_sources": environment.source_cells.size(),
 		"mobile_sources": environment.mobile_units.size(), "objects": objects.records.size(), "transfers": objects.transfers,
 		"decisions": livelihood.decisions, "observations": livelihood.observations, "decision_usec": livelihood.decision_usec, "observe_usec": livelihood.observe_usec, "topology_usec": topology_usec,
-		"facility_completions": facilities.completed.duplicate(), "plants": nature.ids.size(), "plant_evaluations": nature.evaluations, "plant_transitions": nature.transitions, "plant_collections": nature.collections, "nature_usec": nature.work_usec, "calendar": environment.calendar(), "combatants": combat.orders.size(), "projectiles": combat.bolts.size(), "shots": combat.shots, "hits": combat.hits, "combat_usec": combat.work_usec, "combat_repaths": combat.repaths, "combat_resumed": combat.resumed}
+		"facility_completions": facilities.completed.duplicate(), "plants": nature.ids.size(), "plant_evaluations": nature.evaluations, "plant_transitions": nature.transitions, "plant_collections": nature.collections, "nature_usec": nature.work_usec, "calendar": environment.calendar(), "combatants": combat.orders.size(), "projectiles": combat.bolts.size(), "shots": combat.shots, "hits": combat.hits, "combat_usec": combat.work_usec, "combat_repaths": combat.repaths, "combat_resumed": combat.resumed,
+		"perception_usec": perception.work_usec, "sight_observers": combat.scan.observer_count,
+		"sight_candidates": combat.scan.candidates, "sight_queries": combat.scan.queries,
+		"sight_index_usec": combat.scan.index_usec, "sight_batch_usec": combat.scan.batch_usec,
+		"sight_sync_usec": sight.sync_usec, "sight_rebuilds": sight.rebuilds,
+		"sight_parallel_batches": combat.scan.parallel_batches, "sight_thread_ids": combat.scan.thread_ids.keys()}
 
 
 func _sync_inventory(id: int) -> void:
@@ -632,7 +645,7 @@ func settle_action(id: int, at: int) -> void:
 		var exclusive: bool = action.kind not in ["take", "put", "eat"]
 		if exclusive and reservations.has(target) and reservations[target] != id:
 			if action.get("autonomous", false):
-				release(id)
+				release(id, at)
 				livelihood.after_action(self, id, at, target)
 				return
 			page.modes[row] = Units.Mode.ACTION
@@ -660,7 +673,7 @@ func settle_action(id: int, at: int) -> void:
 	if action.kind not in ["take", "put"]:
 		var reason: String
 		if action.kind == "demolish":
-			reason = "completed" if facilities.demolish(self, target) else "failed"
+			reason = "completed" if facilities.demolish(self, target, at) else "failed"
 		elif action.kind in Nature.ACTIONS:
 			reason = nature.finish(self, id, action, at)
 		elif action.kind in Society.ACTIONS:
@@ -675,7 +688,7 @@ func settle_action(id: int, at: int) -> void:
 		if objects.records.has(target) and action.kind == "construct":
 			action.erase("started_ms") # Completion/cannot-build is not an extra work interval.
 		var autonomous: bool = action.get("autonomous", false)
-		release(id)
+		release(id, at)
 		page.modes[row] = Units.Mode.IDLE
 		outcomes.append({"kind": reason, "actor": id, "at_ms": at})
 		if autonomous:
@@ -688,7 +701,7 @@ func settle_action(id: int, at: int) -> void:
 		objects.remove_empty(source)
 	var autonomous: bool = action.get("autonomous", false)
 	_sync_inventory(id)
-	release(id)
+	release(id, at)
 	page.modes[row] = Units.Mode.IDLE
 	outcomes.append({"kind": "transferred" if amount > 0 else "empty_or_full", "actor": id, "at_ms": at, "amount": amount})
 	if autonomous:
@@ -711,6 +724,7 @@ func describe(id: int) -> Dictionary:
 		result["action"] = State.copy(actions.get(id, combat.orders.get(id, {})))
 		result["flight"] = page.flight[row]
 		result["radius"] = page.radii[row]
+		result["sight_range"] = sight.range_for(self, id)
 	return result
 
 
@@ -831,6 +845,7 @@ func remove_actor(id: int) -> bool:
 			objects.transfer(id, pile, item, objects.amount(id, item))
 	objects.remove_empty(id)
 	actor_slots.erase(id)
+	combat.unreachable.erase(id)
 	page.ids[row] = 0
 	page.health[row] = 0
 	page.cargo[row] = 0

@@ -116,3 +116,38 @@ Background loading是相关补充，不属于原performance目录。MultiMesh/�
 | 原领域显式状态列表+通用存读遍历 | 不为每个新增领域重写文件格式代码，不序列化任意Object；开发格式可替换，不延续旧档迁移链 |
 
 最终跨域顾问提出的枯树修行完成校验是有效发现；预约等待、拆除清理、协作恢复的核查项在本地已有实现。我们另核查并修复了即时攻击/持续追击的双冷却，以及飞行输入与显示拾取偏移。真正的共同边界由小反例、独立新进程存读及同一release混合窗口确认；未测收益和闭源游戏内部class仍不写成事实。
+
+
+## 格子视野与静态记忆修复
+
+2026-11-12实际截图显示细碎暗射线；源码确认CPU稀疏探索与GPU逐像素遮挡不是同一判定。现统一为玩家局部格图，GPU仅滤波掩码，地表/静态对象保存最后所见，动态人物按当前可见格过滤。Godot官方[ImageTexture.update](https://docs.godotengine.org/en/4.7/classes/class_imagetexture.html#class-imagetexture-method-update)的同尺寸/格式纹理更新能力经Context7核对；采用R8值纹理与版本化脱离发布，不引入每NPC全图或新的并行调度器。
+
+一次非流式顾问源码review提出地形版本变化、记忆索引边界和图像边界取舍，前两项已核实补足；顾问假定植物阶段不更新layout_revision，实际Nature._sync已有更新，不再加一套外观版本。其建议隐藏迷雾外HUD原数值与用户当前开发诊断需求冲突，未采用；普通世界显示仍遵守视野。部分看见的多格静态对象仍记住其整体外观，柔边是显示近似，不把它宣传为严格连续光学。另自主审查补上跨会话相同revision仍须更新纹理的epoch判断。实际成本和短窗只查BASELINE，原问答留本机fog-grid-20261112目录。
+
+## 全单位感知与战斗视野咨询
+
+2026-11-12用户在纯玩家遮罩实验期间提出战斗单位都需要视野属性。两份非流式顾问分别比较架构路线和查反例，均正常stop返回；原问答和逐项核查留本机`unit-sight-20261112`。讨论方案和未提交状态分别归唯一主计划、HANDOFF，本节不表示战斗接入已经实现。
+
+实际源码确认：生活观察调用共同的距离加损耗判定；战斗发现仍用固定半径加物理硬阻挡，已有目标则用实时位置追路，受击也直接锁定攻击者。当前只有全局24视距，预准备格线的覆盖范围还与它耦合。这些是本次要收敛的真实缺口，不是另造一套世界结算内核。
+
+公开证据：OpenRA的[AutoTarget](https://github.com/OpenRA/OpenRA/blob/playtest-20261026/OpenRA.Mods.Common/Traits/AutoTarget.cs)先查询附近候选并过滤可见性，扫描间隔分散；[RevealsShroud](https://github.com/OpenRA/OpenRA/blob/playtest-20261026/OpenRA.Mods.Common/Traits/RevealsShroud.cs)向玩家迷雾贡献视野；[AttackFollow](https://github.com/OpenRA/OpenRA/blob/bleed/OpenRA.Mods.Common/Traits/Attack/AttackFollow.cs)维护最后可见目标，隐藏时可追旧位置；[FrozenUnderFog](https://github.com/OpenRA/OpenRA/blob/playtest-20261026/OpenRA.Mods.Common/Traits/Modifiers/FrozenUnderFog.cs)保留离场静态外观。[Mindustry FogControl](https://github.com/Anuken/Mindustry/blob/master/core/src/mindustry/game/FogControl.java)按队伍维护当前/探索位集，[Units](https://github.com/Anuken/Mindustry/blob/master/core/src/mindustry/entities/Units.java)用附近查询和可见性过滤目标；其中AI视野有特殊豁免，不能照搬为本游戏的共同规则。闭源War3/RimWorld的具体内部算法未据此声称已确认。
+
+| 采用为方案方向 | 限定或未采用 |
+|---|---|
+| 每单位有视距，NPC按候选查询，玩家格图适配共同感知规则 | 不把所有单位有视野等同每人周期性生成整图；近处候选在密集交战也可能很多，不能固定假设只有个位数 |
+| 新目标发现分散，攻击前复核，失去视野保留最后所见 | 和平NPC不能因为没有战斗订单就永远不看威胁；检查可见性可以读取真实位置，失败后不能把它泄漏给行为或记忆 |
+| 感知衰减与物理阻挡分开，已发射物继续碰撞 | 顾问示例把受击时射手当前坐标当线索、或无条件初始化last_seen，仍会泄漏隐藏真相，拒绝；真实受击方向也不等于精确知道发射点 |
+| 批量纯数据查询可复用CPU工作池，结果由owner提交 | 不把所有小查询强制派任务，不并发修改现有缓存；也不采纳将owner单线程或“禁GPU”升级为全局规则 |
+| 同一格图负责探索/静态刷新，GPU仅柔化显示 | 二值shadowcasting不能原样替代当前距离损耗；带权传播可能绕墙改变含义。顾问对所有改进算法必然失败的断言没有证据 |
+| 对比缓存、连续格线与预算早退 | 两答给出的70%/90%归因及亚毫秒目标均无实测，不能据此直接删除缓存或承诺速度；共享队伍图也不必然低效或导致个人知识全共享 |
+
+Godot 4.7的[RenderingDevice](https://docs.godotengine.org/en/4.7/classes/class_renderingdevice.html)文档经Context7核对：`texture_get_data`同步阻塞，但也有`texture_get_data_async`。本场景需要CPU小批即时感知，暂无证据表明搬到GPU再回读有收益；这不是引擎没有异步回读，也不是以后大批宽容延迟任务不能用GPU。本次未实施新感知算法，既有迷雾候选性能证据仍只查BASELINE，不能当作全单位新视野的实测。
+
+
+### 实施后的核查与取舍
+
+用户随后授权完成，共同几何已独立为`sight.gd`，玩家记忆留`perception.gd`，`combat_scan.gd`负责脱离的索引/观察者CPU批，结果回owner提交。常用连续格线表与预算早退替代共享写格对缓存，长半径走同公式后备；这同时避免worker写缓存和固定24格上限。普通静态物视距默认0，查询不要求移动页；当前主动警戒/战斗调度仍面向已有移动人物，未借本轮预建炮塔、队伍共享或完整注意力平台。
+
+又做两次high思考源码咨询，实际请求固定携带用户指定的`thinking: high`；均完整stop返回。采用的反例包括：守卫不能永久锁射不到的目标，失联搜索要按实际寻路终点结束，不可达接触不能每隔短冷却就打断长工作，以及反击应保留原攻击方式/实际来向。对应的观察、失败位置记忆、复核和时间透传在原owner中补足，没有另造行动系统。古树阶段通知经核查已有，不加重复版本；同步损耗当前没有可测热点，不扩成跨域dirty日志。顾问的静态“已验证”不代替本机短反例和容量窗口。
+
+单步准备、批计算/join、采用和显示分别计量；实际性能及未测范围只查BASELINE。单次视线无需强制派任务，团队格图也未被禁止；当前做法是此负载的选择，不是未来不可改的架构信条。原咨询、失败/未采用实验及逐项取舍保存在本机review，不把过程副本继续铺到AGENTS或唯一主计划。

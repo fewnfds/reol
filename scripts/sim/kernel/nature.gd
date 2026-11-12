@@ -265,13 +265,13 @@ func finish(world: RefCounted, actor: int, action: Dictionary, now: int) -> Stri
 				rec.sapient = false
 				_sync(world, action.target)
 			else:
-				remove(world, action.target)
+				remove(world, action.target, now)
 	world._sync_inventory(actor)
 	return "completed"
 
 
-func remove(world: RefCounted, id: int) -> void:
-	world.forget_target(id)
+func remove(world: RefCounted, id: int, at: int = -1) -> void:
+	world.forget_target(id, at)
 	var rec: Dictionary = world.objects.records[id]
 	rec.stage = Stage.WITHERED
 	_sync(world, id)

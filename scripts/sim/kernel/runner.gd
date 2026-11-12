@@ -269,8 +269,9 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 	frame.objects = _object_view
 	if _perception_revision != _world.perception.revision:
 		_perception_revision = _world.perception.revision
-		_perception_view = {"revision": _perception_revision, "loss": _world.perception.loss.duplicate(),
-			"explored": _world.perception.explored.duplicate(), "memories": _world.State.copy(_world.perception.memories)}
+		_perception_view = {"revision": _perception_revision, "tiles": _world.perception.tiles.duplicate(),
+			"explored": _world.perception.explored.duplicate(), "ground": _world.perception.ground.duplicate(),
+			"memories": _world.State.copy(_world.perception.memories)}
 	frame.perception = _perception_view
 	frame.visible = _world.perception.visible.duplicate()
 	frame.actor_slots = _actor_view

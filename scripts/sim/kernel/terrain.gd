@@ -121,6 +121,14 @@ func substrate(tile: int) -> String:
 	return "soil"
 
 
+func surface_at(tile: int) -> int:
+	# Stable visual codes for the observed-ground raster, independent of fog.
+	match substrate(tile):
+		"sand": return 2
+		"water": return 3
+	return 4 if region(tile) == 1 else 1
+
+
 static func region(tile: int) -> int:
 	var point: Vector2i = cell(tile)
 	if Rect2i(300, 170, 80, 80).has_point(point):
@@ -224,3 +232,22 @@ func rebuild_rooms() -> void:
 				for tile: int in pending:
 					rooms[tile] = room_cells.size()
 				room_cells.append(pending)
+
+
+static func blocking_fraction(blocked: PackedByteArray, from: Vector2, to: Vector2, ignore: PackedInt32Array = PackedInt32Array()) -> float:
+	var result: float = -1.0
+	for tile: int in trace_cells(from, to):
+		if tile < 0 or tile >= blocked.size() or blocked[tile] == 0 or ignore.has(tile):
+			continue
+		var low: Vector2 = Vector2(cell(tile))
+		if Rect2(low, Vector2.ONE).has_point(from):
+			return 0.0
+		for edge: Array in [[low, low + Vector2.RIGHT], [low, low + Vector2.DOWN], [low + Vector2.ONE, low + Vector2.RIGHT], [low + Vector2.ONE, low + Vector2.DOWN]]:
+			var crossing: Variant = Geometry2D.segment_intersects_segment(from, to, edge[0], edge[1])
+			if crossing != null:
+				var fraction: float = from.distance_to(crossing) / maxf(0.000001, from.distance_to(to))
+				if result < 0 or fraction < result:
+					result = fraction
+		if result >= 0:
+			return result
+	return -1.0

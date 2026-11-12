@@ -174,19 +174,19 @@ func finish(world: RefCounted, actor: int, action: Dictionary, at: int) -> Strin
 	return "completed"
 
 
-func demolish(world: RefCounted, target: int) -> bool:
+func demolish(world: RefCounted, target: int, at: int = -1) -> bool:
 	if not world.objects.records.has(target):
 		return false
 	var record: Dictionary = world.objects.records[target]
 	if record.tile < 0:
 		return false
-	world.forget_target(target)
+	world.forget_target(target, at)
 	if record.kind == "plant":
-		world.nature.remove(world, target)
+		world.nature.remove(world, target, at)
 		return true
 	var guest: int = int(record.get("guest", 0))
 	if guest > 0 and world.objects.records.has(guest):
-		world.nature.remove(world, guest)
+		world.nature.remove(world, guest, at)
 	var pile: int = 0
 	if world.objects.count_inventory(target) > 0 or not record.get("materials", {}).is_empty():
 		pile = world.objects.create("pile", "salvage", record.tile)

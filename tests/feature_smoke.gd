@@ -108,15 +108,30 @@ static func run(check: Callable) -> void:
 	var object: int = w.objects.create("chest", "wood_chest", memory_tile)
 	w.perception.update(w, w.elapsed_ms, true)
 	check.call(w.perception.memories.has(object), "Visible static object was not remembered")
+	w.terrain.floors.append(memory_tile)
+	w.terrain.revision += 1
+	w.perception.update(w, w.elapsed_ms + 200)
+	check.call((w.perception.ground[memory_tile] & 8) != 0, "Observed ground was not cached")
+	for tile: int in w.perception.seen_tiles:
+		check.call(w.perception.explored[tile] != 0 and w.perception.ground[tile] != 0, "Visible tile left a hole in exploration or remembered terrain")
+	var previous_tree_stage: int = w.perception.memories[tree].stage
 	var original_position: Vector2 = page.positions[0]
+	page.positions[5] = Terrain.center(memory_tile)
 	page.positions[0] = Vector2(310.5, 195.5)
 	w.objects.remove_empty(object)
+	w.terrain.floors.erase(memory_tile)
+	w.terrain.revision += 1
+	w.objects.records[tree].stage = 3
+	w.objects.layout_revision += 1
 	w.perception.update(w, w.elapsed_ms, true)
+	check.call(w.perception.explored[memory_tile] != 0 and w.perception.tiles[memory_tile] == 0 and w.perception.visible[5] == 0, "Explored fog revealed a live unit or remained currently visible")
+	check.call((w.perception.ground[memory_tile] & 8) != 0 and w.perception.memories[tree].stage == previous_tree_stage, "Offscreen terrain or plant changes leaked into memory")
 	saved = Persistence.candidate(Persistence.capture(w), 0)
-	check.call(saved != null and saved.perception.memories.has(object), "Loading or unseen removal refreshed a frozen static memory")
+	check.call(saved != null and saved.perception.memories.has(object) and (saved.perception.ground[memory_tile] & 8) != 0 and saved.perception.memories[tree].stage == previous_tree_stage, "Loading or unseen removal refreshed frozen terrain/object memory")
 	page.positions[0] = original_position
 	w.perception.update(w, w.elapsed_ms, true)
 	check.call(not w.perception.memories.has(object), "Returning to an empty observed place retained a ghost object")
+	check.call((w.perception.ground[memory_tile] & 8) == 0 and w.perception.memories[tree].stage == 3 and w.perception.visible[5] != 0, "Reobservation did not refresh terrain, plant and unit visibility together")
 	var carried: int = w.objects.amount(1, "breath_manual")
 	var before: int = w.nature.evaluations
 	w.command({"kind": "journey", "region": 1})

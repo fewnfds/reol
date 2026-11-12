@@ -35,14 +35,16 @@ func observe(world: RefCounted, id: int, at: int) -> void:
 	if not person.has("known"):
 		person["known"] = {}
 	var clues: Dictionary = person.known
-	var nearby: Array[int] = world.objects.nearby(position, 24.0, false)
+	world.sight.sync(world)
+	var sight_range: float = world.sight.range_for(world, id)
+	var nearby: Array[int] = world.objects.nearby(position, sight_range, false)
 	var visible: Array[int] = []
 	for target: int in nearby:
-		if world.perception.sees_object(position, world.objects.records[target]):
+		if world.sight.sees_object(position, world.objects.records[target], sight_range):
 			visible.append(target)
 	for target: int in clues.keys():
 		var tile: int = clues[target].tile
-		if world.perception.sees(position, tile) and not visible.has(target):
+		if world.sight.sees(position, tile, sight_range) and not visible.has(target):
 			clues.erase(target)
 	for target: int in visible:
 		var rec: Dictionary = world.objects.records[target]

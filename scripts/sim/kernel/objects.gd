@@ -2,6 +2,7 @@ extends RefCounted
 ## Owner-only identity, static placement and inventories. No periodic object loop.
 ## Actor positions stay in body pages; these records do not duplicate them.
 const STATE_FIELDS: Array = ["records", "next_id"]
+const Sight = preload("res://scripts/sim/kernel/sight.gd")
 
 var next_id: int = 1
 var records: Dictionary = {}
@@ -24,7 +25,7 @@ func create(kind: String, definition: String, tile: int = -1, capacity: int = -1
 	var id: int = next_id
 	next_id += 1
 	records[id] = {"id": id, "kind": kind, "definition": definition, "tile": tile,
-		"inventory": {}, "capacity": capacity}
+		"inventory": {}, "capacity": capacity, "sight_range": Sight.DEFAULT_RANGE if kind == "actor" else 0.0}
 	if kind != "actor":
 		records[id].hp = 100
 	if tile >= 0:

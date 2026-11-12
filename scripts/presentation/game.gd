@@ -210,7 +210,7 @@ func _process(delta: float) -> void:
 			_target = Vector2(-1, -1)
 			_speed_at = 0
 		frame = next
-		ground.adopt(frame.terrain)
+		ground.adopt(frame.terrain, frame.perception)
 		object_canvas.adopt(frame.perception.memories if fog_enabled else frame.objects)
 		if fog_enabled:
 			fog.adopt(frame)
@@ -242,8 +242,6 @@ func _process(delta: float) -> void:
 		if _capture_at > 0:
 			_adoption_times.append((Time.get_ticks_usec() - adopt_start) / 1000.0)
 	population.interpolate(alpha, int(render_ms))
-	if fog_enabled:
-		fog.follow(_displayed(1))
 	if following:
 		camera.position = _displayed(1) * TILE
 	else:
@@ -300,6 +298,7 @@ func _update_hud() -> void:
 		"选中#%d HP %d | 状态 %d" % [int(data.get("id", 0)), int(data.get("hp", 0)), int(data.get("mode", 0))],
 		"类型 %s / %s" % [data.get("kind", ""), data.get("definition", "")],
 		"身体: 飞行 %d / 半径 %.2f" % [int(data.get("flight", 0)), float(data.get("radius", 0))],
+		"视距 %.2f 格" % float(data.get("sight_range", 0)),
 		"体温 %.2f | 精力 %d | 饥饿 %d" % [float(data.get("temperature", 0)), int(data.get("energy", 0)), int(data.get("hunger", 0))],
 		"单位五行 %s" % str(data.get("elements", [])),
 		"灵气 %d / 修行 %s / 方法 %s / 能力 %s" % [int(data.get("qi", 0)), str(data.get("practice", 0)), str(data.get("methods", {})), str(data.get("abilities", {}))],
@@ -431,18 +430,25 @@ func _draw() -> void:
 	if frame == null:
 		return
 	draw_arc(_displayed(1) * TILE, 15, 0, TAU, 24, Color.GOLD, 2.0)
-	if frame.actor_slots.has(selected):
+	if frame.actor_slots.has(selected) and (not fog_enabled or frame.visible[frame.actor_slots[selected]] != 0):
 		draw_arc(_displayed(selected) * TILE, 18, 0, TAU, 24, Color.CYAN, 2.0)
 	elif selected_tile >= 0:
 		draw_rect(Rect2(Vector2(Terrain.cell(selected_tile)) * TILE, Vector2.ONE * TILE), Color.CYAN, false, 2.0)
 	if _target.x >= 0:
 		draw_circle(_target * TILE, 5, Color.GOLD)
 	for point: Vector2 in frame.projectiles:
-		draw_circle(point * TILE, 3, Color(1.0, 0.9, 0.3))
+		if not fog_enabled or _visible_point(point):
+			draw_circle(point * TILE, 3, Color(1.0, 0.9, 0.3))
 	for source: int in frame.mobile_cells.size():
 		if frame.mobile_cells[source] < 0:
 			continue
+		if fog_enabled and frame.perception.tiles[frame.mobile_cells[source]] == 0:
+			continue
 		draw_arc(Terrain.center(frame.mobile_cells[source]) * TILE, 10, 0, TAU, 12, Ground.SOURCE_COLORS[source % 7], 1.5)
+
+
+func _visible_point(point: Vector2) -> bool:
+	return point.x >= 0 and point.y >= 0 and point.x < Terrain.SIZE and point.y < Terrain.SIZE and frame.perception.tiles[Terrain.index(Vector2i(point))] != 0
 
 
 func _capture(now: int) -> void:
@@ -476,7 +482,7 @@ func _capture(now: int) -> void:
 	report.start_frame_age_usec = _capture_age_usec
 	report.finish_frame_age_usec = now - frame.published_usec
 	report.erase("step_window_usec")
-	for key: String in ["steps", "moved_cells", "harvested", "deliveries", "step_usec", "environment_usec", "units_usec", "effects_usec", "snapshot_usec", "overload_demand_usec", "path_requests", "path_failures", "nature_usec", "combat_usec", "shots", "hits", "plant_collections", "plant_evaluations"]:
+	for key: String in ["steps", "moved_cells", "harvested", "deliveries", "step_usec", "environment_usec", "units_usec", "effects_usec", "snapshot_usec", "overload_demand_usec", "path_requests", "path_failures", "nature_usec", "combat_usec", "shots", "hits", "plant_collections", "plant_evaluations", "perception_usec", "sight_observers", "sight_candidates", "sight_queries", "sight_index_usec", "sight_batch_usec", "sight_parallel_batches", "sight_sync_usec", "sight_rebuilds"]:
 		report[key + "_delta"] = float(report[key]) - float(_capture_counters[key])
 	report.instance_slots = population.multimesh.instance_count
 	report.fog = fog_enabled

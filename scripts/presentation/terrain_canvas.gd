@@ -3,20 +3,40 @@ extends Node2D
 
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const TILE: float = 32.0
+const MemoryShader = preload("res://scripts/presentation/terrain.gdshader")
 const SOURCE_COLORS: Array[Color] = [Color.ORANGE_RED, Color.SKY_BLUE, Color.SILVER, Color.LIME_GREEN, Color.DODGER_BLUE, Color.RED, Color.SANDY_BROWN]
 var terrain: RefCounted
 var use_memory: bool = false
+var _memory_revision: int = -1
+var _memory_texture: ImageTexture
+var _memory_material := ShaderMaterial.new()
 
 
-func adopt(value: RefCounted) -> void:
-	if terrain == value:
+func adopt(value: RefCounted, knowledge: Dictionary = {}) -> void:
+	var next_revision: int = int(knowledge.get("revision", -1)) if use_memory else -1
+	if terrain == value and _memory_revision == next_revision:
 		return
 	terrain = value
+	_memory_revision = next_revision
+	if use_memory and knowledge.has("ground"):
+		var image := Image.create_from_data(Terrain.SIZE, Terrain.SIZE, false, Image.FORMAT_R8, knowledge.ground)
+		if _memory_texture == null:
+			_memory_texture = ImageTexture.create_from_image(image)
+			_memory_material.shader = MemoryShader
+			_memory_material.set_shader_parameter("ground_map", _memory_texture)
+		else:
+			_memory_texture.update(image)
+		material = _memory_material
+	else:
+		material = null
 	queue_redraw()
 
 
 func _draw() -> void:
 	if terrain == null:
+		return
+	if use_memory and _memory_texture != null:
+		draw_rect(Rect2(0, 0, Terrain.SIZE * TILE, Terrain.SIZE * TILE), Color.WHITE)
 		return
 	draw_rect(Rect2(0, 0, Terrain.SIZE * TILE, Terrain.SIZE * TILE), Color(0.11, 0.17, 0.13))
 	draw_rect(Rect2(169 * TILE, 175 * TILE, 6 * TILE, 4 * TILE), Color(0.13, 0.32, 0.47))
