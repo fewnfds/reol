@@ -13,6 +13,9 @@ const CHANNELS: int = 7
 var _rd: RenderingDevice
 var _shader := RID()
 var _pipeline := RID()
+var _buffers: Array[RID] = []
+var _buffer_sizes := PackedInt32Array()
+var _uniform_set := RID()
 
 
 func initialize() -> Dictionary:
@@ -47,7 +50,7 @@ func initialize() -> Dictionary:
 	return {"ok": true, "device": _rd.get_device_name(), "setup_ms": _ms(started)}
 
 
-func compute(job: Dictionary, rows_per_dispatch: int = 16) -> Dictionary:
+func compute(job: Dictionary, rows_per_dispatch: int = 64) -> Dictionary:
 	if _rd == null:
 		return _failure("not_initialized")
 	if rows_per_dispatch < 1 or rows_per_dispatch > 64:
@@ -100,34 +103,14 @@ func compute(job: Dictionary, rows_per_dispatch: int = 16) -> Dictionary:
 		total_bytes += data.size()
 	if output_bytes > limit or total_bytes > MAX_TOTAL_BYTES:
 		return _failure("device_memory_budget")
-	var buffers: Array[RID] = []
-	var uniforms: Array[RDUniform] = []
-	for binding: int in 7:
-		var buffer: RID
-		if binding < 5:
-			buffer = _rd.storage_buffer_create(bytes[binding].size(), bytes[binding])
-		elif binding == 5:
-			buffer = _rd.storage_buffer_create(output_bytes)
-		else:
-			var geometry_bytes: PackedByteArray = geometry.to_byte_array()
-			if geometry_bytes.size() > limit or total_bytes > MAX_TOTAL_BYTES - geometry_bytes.size():
-				_free_buffers(buffers)
-				return _failure("device_memory_budget")
-			total_bytes += geometry_bytes.size()
-			buffer = _rd.storage_buffer_create(geometry_bytes.size(), geometry_bytes)
-		if not buffer.is_valid():
-			_free_buffers(buffers)
-			return _failure("buffer_create")
-		buffers.append(buffer)
-		var uniform := RDUniform.new()
-		uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
-		uniform.binding = binding
-		uniform.add_id(buffer)
-		uniforms.append(uniform)
-	var uniform_set: RID = _rd.uniform_set_create(uniforms, _shader, 0)
-	if not uniform_set.is_valid():
-		_free_buffers(buffers)
-		return _failure("uniform_create")
+	bytes.append(PackedByteArray()) # output has no upload
+	bytes.append(geometry.to_byte_array())
+	if bytes[6].size() > limit or total_bytes > MAX_TOTAL_BYTES - bytes[6].size():
+		return _failure("device_memory_budget")
+	total_bytes += bytes[6].size()
+	var prepared: Dictionary = _prepare_buffers(bytes, output_bytes)
+	if not bool(prepared.ok):
+		return prepared
 	var upload_ms: float = _ms(started)
 	var values := PackedInt32Array()
 	var dispatch_samples: Array[float] = []
@@ -137,11 +120,13 @@ func compute(job: Dictionary, rows_per_dispatch: int = 16) -> Dictionary:
 		batch[5] += offset_y
 		batch[7] = mini(rows_per_dispatch, params[7] - offset_y)
 		var batch_bytes: PackedByteArray = batch.to_byte_array()
-		_rd.buffer_update(buffers[0], 0, batch_bytes.size(), batch_bytes)
+		if _rd.buffer_update(_buffers[0], 0, batch_bytes.size(), batch_bytes) != OK:
+			_release_buffers()
+			return _failure("buffer_update")
 		var dispatch_started: int = Time.get_ticks_usec()
 		var list: int = _rd.compute_list_begin()
 		_rd.compute_list_bind_compute_pipeline(list, _pipeline)
-		_rd.compute_list_bind_uniform_set(list, uniform_set, 0)
+		_rd.compute_list_bind_uniform_set(list, _uniform_set, 0)
 		@warning_ignore("integer_division")
 		var groups_x: int = (batch[6] + 7) / 8
 		@warning_ignore("integer_division")
@@ -155,24 +140,23 @@ func compute(job: Dictionary, rows_per_dispatch: int = 16) -> Dictionary:
 		dispatch_samples.append(_ms(dispatch_started))
 		var read_started: int = Time.get_ticks_usec()
 		var count: int = batch[6] * batch[7] * CHANNELS
-		var raw: PackedByteArray = _rd.buffer_get_data(buffers[5], 0, count * 4)
+		var raw: PackedByteArray = _rd.buffer_get_data(_buffers[5], 0, count * 4)
 		if raw.size() != count * 4:
-			_rd.free_rid(uniform_set)
-			_free_buffers(buffers)
+			_release_buffers()
 			return _failure("readback_length")
 		# Native append avoids one interpreted assignment per channel value.
 		values.append_array(raw.to_int32_array())
 		readback_ms += _ms(read_started)
-	_rd.free_rid(uniform_set)
-	_free_buffers(buffers)
 	return {"ok": true, "values": values, "total_ms": _ms(started), "upload_ms": upload_ms,
 		"dispatch_ms": dispatch_samples, "readback_ms": readback_ms, "buffer_bytes": total_bytes,
+		"retained_buffer_bytes": prepared.retained_bytes,
 		"device": _rd.get_device_name()}
 
 
 func close() -> void:
 	if _rd == null:
 		return
+	_release_buffers()
 	if _pipeline.is_valid():
 		_rd.free_rid(_pipeline)
 	if _shader.is_valid():
@@ -183,9 +167,77 @@ func close() -> void:
 	_rd = null
 
 
-func _free_buffers(buffers: Array[RID]) -> void:
-	for buffer: RID in buffers:
-		_rd.free_rid(buffer)
+func _prepare_buffers(bytes: Array[PackedByteArray], output_bytes: int) -> Dictionary:
+	# Only this accelerator's worker uses these RIDs. Every previous dispatch
+	# has been synced before reuse; capacities are bounded and freed at close.
+	var capacities := PackedInt32Array()
+	var required := PackedInt32Array()
+	var retained: int = 0
+	for binding: int in 7:
+		var needed: int = output_bytes if binding == 5 else bytes[binding].size()
+		var capacity: int = 256
+		while capacity < needed:
+			capacity *= 2
+		# The shader validates kernel addresses against this buffer's length.
+		# Keep its logical length exact; padding must not legalize stale offsets.
+		if binding == 3:
+			capacity = needed
+		required.append(capacity)
+		if binding != 3 and _buffer_sizes.size() == 7:
+			capacity = maxi(capacity, _buffer_sizes[binding])
+		capacities.append(capacity)
+		retained += capacity
+	if retained > MAX_TOTAL_BYTES:
+		# Alternating large shapes must not accumulate unbounded high-water marks.
+		_release_buffers()
+		capacities = required
+		retained = 0
+		for capacity: int in capacities:
+			retained += capacity
+		if retained > MAX_TOTAL_BYTES:
+			return _failure("device_retained_budget")
+	if _buffers.is_empty():
+		_buffers.resize(7)
+		_buffer_sizes.resize(7)
+	if capacities != _buffer_sizes and _uniform_set.is_valid():
+		_rd.free_rid(_uniform_set)
+		_uniform_set = RID()
+	for binding: int in 7:
+		if capacities[binding] != _buffer_sizes[binding]:
+			if _buffers[binding].is_valid():
+				_rd.free_rid(_buffers[binding])
+			_buffers[binding] = _rd.storage_buffer_create(capacities[binding])
+			_buffer_sizes[binding] = capacities[binding]
+		if not _buffers[binding].is_valid():
+			_release_buffers()
+			return _failure("buffer_create")
+		if binding != 5 and _rd.buffer_update(_buffers[binding], 0, bytes[binding].size(), bytes[binding]) != OK:
+			_release_buffers()
+			return _failure("buffer_update")
+	if not _uniform_set.is_valid():
+		var uniforms: Array[RDUniform] = []
+		for binding: int in 7:
+			var uniform := RDUniform.new()
+			uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
+			uniform.binding = binding
+			uniform.add_id(_buffers[binding])
+			uniforms.append(uniform)
+		_uniform_set = _rd.uniform_set_create(uniforms, _shader, 0)
+		if not _uniform_set.is_valid():
+			_release_buffers()
+			return _failure("uniform_create")
+	return {"ok": true, "retained_bytes": retained}
+
+
+func _release_buffers() -> void:
+	if _uniform_set.is_valid():
+		_rd.free_rid(_uniform_set)
+	_uniform_set = RID()
+	for buffer: RID in _buffers:
+		if buffer.is_valid():
+			_rd.free_rid(buffer)
+	_buffers.clear()
+	_buffer_sizes.clear()
 
 
 static func _ms(started: int) -> float:

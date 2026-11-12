@@ -50,6 +50,8 @@ flowchart LR
 
 [SimActorAdvance](../../scripts/sim/actor_advance.gd)计算需求与当前实际本地区间的路线候选，[SimBodyDeadlines](../../scripts/sim/execution/body_deadlines.gd)判断下一边界。小集合保留直接入口，路线搜索/修复和效果提交仍由原行动owner负责。原生数据内容沿相应表扩展即可受益；新增计算规则仍要实现自身算法。
 
+边界批把截止点、效果截止点及判断标志写入连续整数列；owner复用一个`Query`读取，不逐人建立结果Dictionary。有序名册在原名册替换/恢复后重建，调用者取得可独立保留的ID数组；这些都是可重建执行元数据，不保存为另一份人物状态。
+
 替换需求回调后，只有需求积分回到原owner；运动候选和边界判断继续使用共用读取。未知回调可能改变身体，所以该批不提前并行写位置，原投影逐人复核候选。恢复原回调后，需求借读自动恢复。更换控制、几何或crossing回调仍会撤销相应标准运动输入，不能把未知逻辑标作线程安全。
 
 原需求分区、以及满足完整路线/输入和观察者隔离证明的运动分区，可独占写入互不别名的原身体；join后才更新共享索引、按原ID通知空间消费者。额外观察者或输入失配保留逐人入口。判断集中在`VillageSimulation._can_partition_projection()`与`RegionalSimulation.native_projection_isolated()`，不用在新领域复制这些条件。
@@ -64,6 +66,8 @@ flowchart LR
 
 [EnvironmentFieldComputeRuntime](../../scripts/runtime/environment_field_compute_runtime.gd)负责来源场单请求、ticket、取消、完成及后端选择；[EnvironmentFieldGPU](../../scripts/runtime/environment_field_gpu.gd)持本地RenderingDevice和专用[shader](../../assets/shaders/environment_field_compute.glsl)。GPU线程只持不可变job；上传、提交、同步读回发生在该线程，不能把`sync()`等待称作没有成本的异步执行。
 
+设备worker复用有容量上限的storage buffers与uniform set，仅在容量/句柄改变时重建绑定；每个job仍上传自己的有效输入。kernel表保留实际字节长度，不能让高水位填充掩盖无效偏移。派发按已有访问量预算分段，结果只读回有效范围；交替形状超出保留预算时清理旧水位并按当前需求重试。设备及RID在其所属worker退出时释放，不从任意对象析构线程调用设备清理。
+
 同一个compact job可交给[SimFieldCompute](../../scripts/sim/execution/field_compute.gd)分块CPU计算。GPU不可用/输入不适用时由原场owner继续CPU路径；大批响应输入使用[SimFieldResponseInput](../../scripts/sim/execution/field_response_input.gd)。来源覆盖、传输、通道组合与温度/五行的原子采用语义只维护在[环境合同](world-environment-contract.md)。
 
 扩展同类发源物不需要另写GPU服务；毒气扩散等新方程不自动适用当前shader。后端只改变算在哪里，不改变领域事实、逻辑时间或提交权；不要求每个新计算都实现CPU和GPU两份算法。
@@ -73,6 +77,8 @@ flowchart LR
 [ReolSimulationHost](../../scripts/runtime/simulation_host.gd)在模拟独占期间停用会读活世界的旧回调；[signal bridge](../../scripts/runtime/simulation_signal_bridge.gd)保留域内同步通知，向Node的通知在完整回复后递送。邮箱完成用Godot延后通知收取，仍有process后备入口；通知只续算已准入债务，与当帧共享预算。时间准入/过载只查[pacing](simulation-pacing.md)。
 
 [SimBodyPublication](../../scripts/sim/execution/body_publication.gd)输出脱离原对象的姿态、衣着与布局，[ReolBodyPresentation](../../scripts/runtime/body_presentation.gd)在主线程分批应用。旧UI/画布仍在完整交接窗口读世界，当前没有让所有视图永久双缓冲；新视图也可以按实际需要选择。
+
+衣着owner在穿脱、保管变化、恢复及干湿视觉阈值变化时替换不可变外观值；发布worker只在借读期间读取外层索引，画面可保留内层旧值。远区ID随发布一并收集，避免主线程再次扫描全部home行。隐藏或插值完成的原生人物外观停用空`_process`，新运动/显隐变化唤醒；共享shader时间仍在完整发布时更新，安静人物不会因此停掉站立动画。自定义绘制回退保留其必要回调。
 
 ## 诊断与证据
 

@@ -221,6 +221,18 @@ func add_transient_initial(key: String, source: Dictionary) -> bool:
 
 
 func current_artifact_source(id: String) -> Dictionary:
+	var projected: Dictionary = artifact_source_input(id)
+	if not bool(projected.get("ok", false)):
+		return projected
+	var transformed: Dictionary = _apply_transform(artifact_key(id), projected.source)
+	if not bool(transformed.get("ok", false)):
+		return transformed
+	return {"ok": true, "source": {} if _is_zero(transformed.source) else transformed.source}
+
+
+func artifact_source_input(id: String) -> Dictionary:
+	# Raw definition/location input is also needed to switch on a device whose
+	# current zero output has no field slot. It does not activate that output.
 	if _world == null or _world.artifacts == null or not _world.artifacts.objects.has(id):
 		return _failure("not_found")
 	var item: Dictionary = _world.artifacts.objects[id]
@@ -237,10 +249,7 @@ func current_artifact_source(id: String) -> Dictionary:
 		point += Vector2i((size.x - 1) / 2, (size.y - 1) / 2)
 	var raw: Dictionary = _source(point, int(profile.radius_cells), profile.elements, int(profile.thermal_grade))
 	_attenuate_container(raw, str(item.container))
-	var transformed: Dictionary = _apply_transform(artifact_key(id), raw)
-	if not bool(transformed.get("ok", false)):
-		return transformed
-	return {"ok": true, "source": {} if _is_zero(transformed.source) else transformed.source}
+	return {"ok": true, "source": raw}
 
 
 func diagnostics() -> Dictionary:
@@ -259,6 +268,81 @@ func begin_source_change(key: String, new_source: Dictionary, at_ms: int, allow_
 	if key.strip_edges().is_empty():
 		return _failure("invalid_reference")
 	return _begin_transition(key if _records.has(key) else "", key if not new_source.is_empty() else "", new_source, at_ms, allow_compute)
+
+
+func group_source_changes(updates: Dictionary[String, Dictionary]) -> Array[Dictionary]:
+	# Bounded spatial unions; distant edits must never become one map-wide GPU
+	# rectangle. The same candidate/proof works for CPU and device backends.
+	var groups: Array[Dictionary] = []
+	for key: String in updates:
+		var tiles: Dictionary[int, bool] = {}
+		var bounds := Rect2i()
+		for source: Dictionary in [get_source(key), updates[key]]:
+			if source.is_empty():
+				continue
+			var cell: Vector2i = source.cell
+			var radius: int = int(source.radius)
+			var first := Vector2i(maxi(0, cell.x - radius + 1) >> 4, maxi(0, cell.y - radius + 1) >> 4)
+			var last := Vector2i(mini(SimGroundPlacements.MAP_SIZE - 1, cell.x + radius - 1) >> 4, mini(SimGroundPlacements.MAP_SIZE - 1, cell.y + radius - 1) >> 4)
+			var area := Rect2i(first, last - first + Vector2i.ONE)
+			bounds = area if bounds.size == Vector2i.ZERO else bounds.merge(area)
+			for y: int in range(first.y, last.y + 1):
+				for x: int in range(first.x, last.x + 1):
+					tiles[y * (SimGroundPlacements.MAP_SIZE / SIDE) + x] = true
+		var chosen: Dictionary = {}
+		for group: Dictionary in groups:
+			var merged: Rect2i = group.area.merge(bounds)
+			if not group.area.grow(1).intersects(bounds) or merged.get_area() > Field.MAX_CANDIDATE_TILES:
+				continue
+			var union: Dictionary = group.tiles.duplicate()
+			union.merge(tiles)
+			if union.size() > Field.MAX_CANDIDATE_TILES or merged.get_area() > union.size() * 2 or group.changes.size() >= Field.MAX_CANDIDATE_TILES:
+				continue
+			chosen = group
+			group.area = merged
+			group.tiles = union
+			break
+		if chosen.is_empty():
+			chosen = {"area": bounds, "tiles": tiles, "changes": {}}
+			groups.append(chosen)
+		chosen.changes[key] = updates[key]
+	var result: Array[Dictionary] = []
+	for group: Dictionary in groups:
+		result.append(group.changes)
+	return result
+
+
+func begin_existing_source_changes(updates: Dictionary, at_ms: int, allow_compute: bool = false) -> Dictionary:
+	# Internal settlement changes existing projections only. Object creation and
+	# reference/slot allocation retain the original synchronous lifecycle API.
+	if not _available() or updates.is_empty():
+		return _failure("invalid_state")
+	var changes: Array[Dictionary] = []
+	var entries: Array[Dictionary] = []
+	for key: String in updates:
+		var source: Dictionary = updates[key]
+		if key.is_empty() or not source.is_empty() and not _valid_source(source):
+			return _failure("invalid_source")
+		if not source.is_empty() and _is_zero(source):
+			source = {}
+		if not _records.has(key):
+			if source.is_empty():
+				continue
+			return _failure("source_missing")
+		if get_source(key) == source:
+			continue
+		var slot: int = int(_records[key])
+		changes.append({"slot": slot, "operation": "remove" if source.is_empty() else "set", "source": source})
+		entries.append({"old_key": key, "new_key": "" if source.is_empty() else key, "slot": slot, "source": source.duplicate(true)})
+	var token := RefCounted.new()
+	if changes.is_empty():
+		_pending = {"kind": "none", "token": token}
+		return {"ok": true, "proof": token, "changed": false}
+	var opened: Dictionary = _changes.begin_sources(changes, at_ms, Change.Temperature.MAX_TIME, allow_compute)
+	if not bool(opened.get("ok", false)):
+		return opened
+	_pending = {"kind": "preparing", "token": token, "handle": opened.handle, "entries": entries}
+	return {"ok": true, "proof": token, "changed": true}
 
 
 func step_source_change(proof: Variant, field_work: int, cell_budget: int) -> Dictionary:
@@ -313,20 +397,30 @@ func finish_source_change(proof: Variant) -> bool:
 		_last_change_chunks.assign(committed.get("touched_chunks", []))
 		_last_temperature_chunks.assign(committed.get("temperature_chunks", []))
 		_last_phase_chunks.assign(committed.get("phase_chunks", []))
-		var old_key: String = _pending.old_key
-		var new_key: String = _pending.new_key
-		var slot: int = _pending.slot
-		if not old_key.is_empty():
-			_records.erase(old_key)
-		if not new_key.is_empty():
-			_records[new_key] = slot
-			_touch(_pending.source)
-		elif not old_key.is_empty():
-			_free.append(slot)
-		if _pending.allocation == "free":
-			_free.pop_back()
-		elif _pending.allocation == "new":
-			_next_slot += 1
+		if _pending.has("entries"):
+			for entry: Dictionary in _pending.entries:
+				_records.erase(entry.old_key)
+				if not str(entry.new_key).is_empty():
+					_records[entry.new_key] = int(entry.slot)
+					_touch(entry.source)
+				else:
+					_free.append(int(entry.slot))
+				_index_source_container(str(entry.old_key))
+		else:
+			var old_key: String = _pending.old_key
+			var new_key: String = _pending.new_key
+			var slot: int = _pending.slot
+			if not old_key.is_empty():
+				_records.erase(old_key)
+			if not new_key.is_empty():
+				_records[new_key] = slot
+				_touch(_pending.source)
+			elif not old_key.is_empty():
+				_free.append(slot)
+			if _pending.allocation == "free":
+				_free.pop_back()
+			elif _pending.allocation == "new":
+				_next_slot += 1
 	elif _pending.kind == "change_reference":
 		var entry: int = int(_records[_pending.old_key])
 		_records.erase(_pending.old_key)
@@ -389,6 +483,9 @@ func _begin_transition(old_key: String, new_key: String, source: Dictionary, at_
 		return _failure("source_exists")
 	if new_key.is_empty() != source.is_empty() or not source.is_empty() and not _valid_source(source):
 		return _failure("invalid_source")
+	if not source.is_empty() and _is_zero(source):
+		source = {}
+		new_key = ""
 	var token := RefCounted.new()
 	if old_key.is_empty() and new_key.is_empty():
 		_pending = {"kind": "none", "token": token}

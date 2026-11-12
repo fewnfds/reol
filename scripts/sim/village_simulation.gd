@@ -36,6 +36,7 @@ class NativeAdvance extends RefCounted:
 var _native_advance: NativeAdvance
 var _actors: Dictionary = {}
 var _body_read_roster: Array[Dictionary] = []
+var _sorted_actor_ids: Array = []
 var actors: Dictionary:
 	get:
 		# Identity/state lookup is pure. Execution and capture use explicit barriers.
@@ -44,6 +45,7 @@ var actors: Dictionary:
 		synchronize_actors()
 		_actors = value
 		_body_read_roster.clear()
+		_sorted_actor_ids.clear()
 		_reset_actor_projections()
 var _actor_projection_ms: Dictionary[String, int] = {}
 var _projecting_actors: Dictionary[String, bool] = {}
@@ -189,6 +191,7 @@ func initialize(content: ReolContentDB, settings: Dictionary, cells: Dictionary,
 	places = locations.duplicate(true)
 	_actors = {}
 	_body_read_roster.clear()
+	_sorted_actor_ids.clear()
 	_actor_projection_ms.clear()
 	_reset_witness_cells()
 	inventory = SimInventory.new()
@@ -511,6 +514,7 @@ func _query_actor_boundary(cached: bool) -> int:
 	var deadlines: Dictionary[String, int] = {}
 	var effects: Dictionary[String, int] = {}
 	var retired: Array[String] = []
+	var judgment := SimBodyDeadlines.Query.new()
 	for index: int in ids.size():
 		var id: String = ids[index]
 		var actor: Dictionary = _actors[id]
@@ -525,10 +529,15 @@ func _query_actor_boundary(cached: bool) -> int:
 					_boundary_index.cancel_due(NATIVE_EFFECT, id)
 				_dirty_actor_boundaries.erase(id)
 			continue
-		var candidate: Dictionary = batch.row_at(index) if batch != null and read_generation == _actor_advance_generation else {}
-		if batch == null and read != null and read_generation == _actor_advance_generation:
-			candidate = SimBodyDeadlines.Chunk.query(read, id)
-		if not candidate.is_empty() and not bool(candidate.fallback):
+		var candidate: SimBodyDeadlines.Query
+		if read_generation == _actor_advance_generation:
+			if batch != null:
+				batch.read_row(index, judgment)
+				candidate = judgment
+			elif read != null:
+				judgment.evaluate(read, id)
+				candidate = judgment
+		if candidate != null and not candidate.fallback:
 			actor_boundary = int(candidate.boundary)
 			effect_boundary = int(candidate.effect)
 			var completion: Dictionary = _route_completions.get(id, {})
@@ -1614,9 +1623,11 @@ func _reset_witness_cells() -> void:
 
 
 func _actor_ids() -> Array:
-	var ids: Array = _actors.keys()
-	ids.sort()
-	return ids
+	if _sorted_actor_ids.size() != _actors.size():
+		_sorted_actor_ids = _actors.keys()
+		_sorted_actor_ids.sort()
+	# Callers may sort or retain a cursor while another roster is installed.
+	return _sorted_actor_ids.duplicate()
 
 
 func action_finished(actor_id: String, action: Dictionary, succeeded: bool, reason: String) -> void:
@@ -1762,6 +1773,7 @@ func restore(data: Dictionary, allowed_subjects: Dictionary = {}, external_inven
 	invalidate_boundary_cache()
 	_actors = data.actors.duplicate(true)
 	_body_read_roster.clear()
+	_sorted_actor_ids.clear()
 	places = data.places.duplicate(true)
 	situations = data.situations.duplicate(true)
 	authorizations = data.authorizations.duplicate(true)

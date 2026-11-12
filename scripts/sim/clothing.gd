@@ -15,6 +15,7 @@ var next_id: int = 1
 var _owner: WeakRef
 var _worn: Dictionary = {}
 var _outer_holders: Dictionary[String, Array] = {}
+var _published_appearances: Dictionary = {}
 var world: RefCounted:
 	get:
 		return _owner.get_ref()
@@ -142,6 +143,9 @@ func _rebuild_worn() -> void:
 		var slot: String = str(definitions.types[row.type].slot)
 		if not _worn[actor].has(slot):
 			_worn[actor][slot] = id
+	_published_appearances.clear()
+	for actor: String in _worn:
+		_refresh_published_appearance(actor)
 
 
 func duration(verb: String) -> int:
@@ -296,8 +300,11 @@ func weather_pulse(previous: int) -> void:
 			raining = not roofed and not covered and world.weather.kind_at(world.weather.definitions, physical_region, world.weather.epoch_ms, previous) == "rain"
 		wet = mini(100, wet + int(definitions.types[object.type].absorb_per_pulse)) if raining else maxi(0, wet - int(definitions.dry_per_pulse))
 		if wet != int(object.wet):
+			var appearance_changed: bool = (int(object.wet) >= int(definitions.wet_threshold)) != (wet >= int(definitions.wet_threshold))
 			object.wet = wet
 			if object.worn:
+				if appearance_changed:
+					_refresh_published_appearance(str(object.container).trim_prefix("actor:"))
 				world.invalidate_region(home(str(object.owner)), str(object.owner))
 
 
@@ -364,6 +371,20 @@ func consider_weather() -> void:
 		var id: String = _outer_choice(actor, world.elapsed_ms)
 		if not id.is_empty():
 			begin(actor, "remove" if objects[id].worn else "wear", id, "", true)
+
+
+func publication_appearances() -> Dictionary:
+	# Borrowed only while the owner is stopped. Each outfit is an immutable
+	# disposable value, so a published frame may retain it after the next change.
+	return _published_appearances
+
+
+func _refresh_published_appearance(actor: String) -> void:
+	var projected: Dictionary = appearance(actor)
+	for garment: Dictionary in projected.values():
+		garment.make_read_only()
+	projected.make_read_only()
+	_published_appearances[actor] = projected
 
 
 func appearance(actor: String) -> Dictionary:

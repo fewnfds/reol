@@ -10,7 +10,7 @@ class Chunk extends RefCounted:
 	var ids: Array
 	var first: int
 	var stop: int
-	var rows: Array[Dictionary] = []
+	var rows := PackedInt64Array()
 	var started_usec: int
 	var finished_usec: int
 	var thread_id: int
@@ -19,39 +19,52 @@ class Chunk extends RefCounted:
 	func run() -> void:
 		started_usec = Time.get_ticks_usec()
 		thread_id = OS.get_thread_caller_id()
+		rows.resize((stop - first) * 3)
+		var row := Query.new()
 		for index: int in range(first, stop):
-			var row: Dictionary = query(read, str(ids[index]))
-			rows.append(row)
+			row.evaluate(read, str(ids[index]))
+			var offset: int = (index - first) * 3
+			rows[offset] = row.boundary
+			rows[offset + 1] = row.effect
+			rows[offset + 2] = int(row.allowed) | (int(row.accepted) << 1) | (int(row.coarse) << 2) | (int(row.fallback) << 3)
 			fallback_count += int(row.fallback)
 		read = null
 		ids = []
 		finished_usec = Time.get_ticks_usec()
 
-	static func query(input: SimBodyRead, id: String) -> Dictionary:
+class Query extends RefCounted:
+	var boundary: int
+	var effect: int
+	var allowed: bool
+	var accepted: bool
+	var coarse: bool
+	var fallback: bool
+
+	func evaluate(input: SimBodyRead, id: String) -> void:
 		var body: Dictionary = input.actors[id]
-		var row: Dictionary = {"boundary": SimInventory.MAX_COUNT, "effect": SimInventory.MAX_COUNT,
-			"allowed": false, "accepted": false, "coarse": false, "fallback": false}
+		boundary = SimInventory.MAX_COUNT
+		effect = SimInventory.MAX_COUNT
+		allowed = false
+		accepted = false
+		coarse = false
+		fallback = false
 		if not bool(body.alive):
-			return row
+			return
 		var route: Dictionary = body.active
 		if route.is_empty():
 			if bool(body.autonomous):
-				row.boundary = maxi(input.at_ms + 1, int(body.retry_ms))
-				row.effect = row.boundary
-			return row
-		var allowed: bool = input.controls_action(id)
-		row.allowed = allowed
+				self.boundary = maxi(input.at_ms + 1, int(body.retry_ms))
+				self.effect = self.boundary
+			return
+		allowed = input.controls_action(id)
 		var completion: Dictionary = input.completions.get(id, {})
-		var accepted: bool = allowed and input.route_events and route.get("phase") == "travel" and not completion.is_empty() and is_same(completion.route, route) and int(completion.revision) == input.geometry_revision
-		row.accepted = accepted
+		accepted = allowed and input.route_events and route.get("phase") == "travel" and not completion.is_empty() and is_same(completion.route, route) and int(completion.revision) == input.geometry_revision
 		var precise: bool = accepted and input.precise_crossings(id)
-		var coarse: bool = accepted and not route.path.is_empty() and not precise and not input.stock_crossing(body, completion)
-		row.coarse = coarse
+		coarse = accepted and not route.path.is_empty() and not precise and not input.stock_crossing(body, completion)
 		if bool(completion.get("coarse", false)) and not coarse:
-			row.fallback = true # Materialization may notify other original owners.
-			return row
+			self.fallback = true # Materialization may notify other original owners.
+			return
 		var timeout: int = int(route.started_ms) + input.timeout_ms + 1
-		var boundary: int
 		if not allowed:
 			boundary = input.at_ms + 1
 		elif coarse:
@@ -63,11 +76,10 @@ class Chunk extends RefCounted:
 		elif route.get("phase") != "travel":
 			boundary = maxi(input.at_ms + 1, mini(int(route.due_ms), timeout))
 		else:
-			row.fallback = true # Unknown/changed geometry uses the original executor.
-			return row
-		row.boundary = boundary
-		row.effect = mini(int(completion.at_ms), timeout) if accepted else boundary
-		return row
+			self.fallback = true # Unknown/changed geometry uses the original executor.
+			return
+		self.effect = mini(int(completion.at_ms), timeout) if accepted else boundary
+		return
 
 var chunks: Array[Chunk] = []
 var execution := SimBatchExecution.new()
@@ -93,6 +105,14 @@ func compute(read: SimBodyRead, ids: Array, workers: int) -> void:
 		has_fallback = has_fallback or chunk.fallback_count > 0
 
 
-func row_at(index: int) -> Dictionary:
+func read_row(index: int, row: Query) -> void:
 	@warning_ignore("integer_division")
-	return chunks[index / CHUNK_SIZE].rows[index % CHUNK_SIZE]
+	var chunk: Chunk = chunks[index / CHUNK_SIZE]
+	var offset: int = (index % CHUNK_SIZE) * 3
+	row.boundary = chunk.rows[offset]
+	row.effect = chunk.rows[offset + 1]
+	var flags: int = chunk.rows[offset + 2]
+	row.allowed = (flags & 1) != 0
+	row.accepted = (flags & 2) != 0
+	row.coarse = (flags & 4) != 0
+	row.fallback = (flags & 8) != 0

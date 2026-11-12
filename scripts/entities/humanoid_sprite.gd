@@ -13,6 +13,8 @@ static var _published_ms: int = -1
 var _clip := Vector4i(-1, -1, -1, -1)
 var _robe := Color(-1, -1, -1, -1)
 var _cape := Color(-1, -1, -1, -1)
+var _clothing: Dictionary = {}
+var _base_robe := Color(-1, -1, -1, -1)
 
 
 static func publish_time(at_ms: int) -> void:
@@ -64,7 +66,9 @@ func configure() -> bool:
 
 func present(foot: Vector2, robe: Color, clothing: Dictionary, pose: Dictionary) -> void:
 	var definition: Dictionary = _appearance.definition
-	position = foot - Vector2(definition.origin[0], definition.origin[1])
+	var point: Vector2 = foot - Vector2(definition.origin[0], definition.origin[1])
+	if position != point:
+		position = point
 	var action: String = str(pose.get("action", "idle"))
 	var clip_index: int = HumanoidAppearance.ACTIONS.find(action)
 	if clip_index < 0:
@@ -76,6 +80,10 @@ func present(foot: Vector2, robe: Color, clothing: Dictionary, pose: Dictionary)
 	if clip != _clip:
 		_clip = clip
 		set_instance_shader_parameter(&"pose", clip)
+	if robe == _base_robe and clothing == _clothing:
+		return
+	_base_robe = robe
+	_clothing = clothing # Detached outfit; publication never mutates it.
 	if clothing.has("body"):
 		robe = Color(str(clothing.body.color))
 		if bool(clothing.body.wet):

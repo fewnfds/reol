@@ -559,7 +559,7 @@ func _display_point(id: String, observed_world: RegionalSimulation = null) -> Ve
 		return Vector2.INF
 	var authority: RegionalSimulation = observed_world if observed_world != null else adapter.world_sim
 	var points: Dictionary = _visible_display_points(authority)
-	return points[id] if points.has(id) else _base_display_point(id, authority)
+	return points[id] if points.has(id) else _base_display_point(id, authority, authority.artifacts.object_cell(id))
 
 
 func _observation_radius(authority: RegionalSimulation) -> int:
@@ -610,7 +610,7 @@ func _visible_display_points(authority: RegionalSimulation) -> Dictionary:
 		if not visible:
 			continue
 		var cell: Vector2i = domain.object_cell(id)
-		var point: Vector2 = _base_display_point(id, authority)
+		var point: Vector2 = _base_display_point(id, authority, cell)
 		points[id] = point
 		var cells: Dictionary = groups.get(point, {})
 		var peers: Array = cells.get(cell, [])
@@ -627,10 +627,9 @@ func _visible_display_points(authority: RegionalSimulation) -> Dictionary:
 	return points
 
 
-func _base_display_point(id: String, authority: RegionalSimulation) -> Vector2:
+func _base_display_point(id: String, authority: RegionalSimulation, cell: Vector2i) -> Vector2:
 	var adapter: WorldContinuityRuntime = runtime()
 	var domain: SimArtifacts = authority.artifacts
-	var cell: Vector2i = domain.object_cell(id)
 	var point: Vector2 = TileGrid.cell_to_world(cell)
 	var item: Dictionary = domain.objects[id]
 	var altitude: int = 0
@@ -671,7 +670,7 @@ func _build_canvas() -> void:
 	var observed: Dictionary = {}
 	_draw_link.clear()
 	if current.has("draw") and points.has(str(current.draw.target)):
-		var from: Vector2 = points[str(current.object)] if points.has(str(current.object)) else _base_display_point(str(current.object), authority)
+		var from: Vector2 = points[str(current.object)] if points.has(str(current.object)) else _base_display_point(str(current.object), authority, authority.artifacts.object_cell(str(current.object)))
 		var to: Vector2 = points[str(current.draw.target)]
 		var progress: float = clampf(float(authority.elapsed_ms - int(current.started_ms)) / float(int(current.due_ms) - int(current.started_ms)), 0.0, 1.0)
 		_draw_link = {"from_id": str(current.object), "from": from, "to_id": str(current.draw.target), "to": to, "progress": progress}

@@ -232,47 +232,44 @@ func _settle_work(now: int) -> int:
 		_settle_cursor.erase("refresh")
 		return SimSettlementKernel.Status.PENDING
 	var end: int = int(_settle_cursor.end_ms)
-	if not _settle_cursor.has("motion"):
+	if not _settle_cursor.has("groups"):
 		last_ms = end
-		_settle_cursor.motion = {}
-		_settle_cursor.device_index = 0
+		var updates: Dictionary[String, Dictionary] = {}
+		while not _motion_changes.is_empty() and int(_motion_changes[0].at_ms) == end:
+			var crossing: Dictionary = _motion_changes.pop_front()
+			for key: String in crossing.keys:
+				var source: Dictionary = updates.get(key, _sources.get_source(key))
+				if not source.is_empty():
+					source.cell = crossing.cell
+					updates[key] = source
+				motion_sampling_work.adopted += 1
+		for id: String in _settle_cursor.depleted:
+			_sync_device(id)
+			var key: String = Participant.artifact_key(id)
+			var source: Dictionary = updates.get(key, _sources.get_source(key))
+			if not source.is_empty():
+				updates[key] = _transform_source(key, source)
 		_settle_cursor.expiring = _participation.due_ids(&"transient", end)
-		_settle_cursor.expiry_index = 0
-	if not _settle_cursor.motion.is_empty() or not _motion_changes.is_empty() and int(_motion_changes[0].at_ms) == end:
-		if _settle_cursor.motion.is_empty():
-			_settle_cursor.motion = _motion_changes.pop_front()
-			_settle_cursor.motion.index = 0
-		var crossing: Dictionary = _settle_cursor.motion
-		if int(crossing.index) >= crossing.keys.size():
-			_settle_cursor.motion = {}
-			return SimSettlementKernel.Status.PENDING
-		var key: String = crossing.keys[int(crossing.index)]
-		var source: Dictionary = _sources.get_source(key)
-		var status: int = SimSettlementKernel.Status.COMPLETE
-		if not source.is_empty():
-			source.cell = crossing.cell
-			status = _step_settlement_source(key, source, end)
+		for key: String in _settle_cursor.expiring:
+			updates[key] = {} # Expiry wins over any same-time motion.
+		_settle_cursor.groups = _sources.group_source_changes(updates)
+		_settle_cursor.group_index = 0
+		_settle_cursor.thermal_chunks = {}
+		_settle_cursor.phase_chunks = {}
+	if int(_settle_cursor.group_index) < _settle_cursor.groups.size():
+		var status: int = _step_settlement_sources(_settle_cursor.groups[int(_settle_cursor.group_index)], end)
 		if status == SimSettlementKernel.Status.COMPLETE:
-			crossing.index = int(crossing.index) + 1
-			motion_sampling_work.adopted += 1
+			_settle_cursor.group_index = int(_settle_cursor.group_index) + 1
 		return SimSettlementKernel.Status.FAILED if status == SimSettlementKernel.Status.FAILED else SimSettlementKernel.Status.PENDING
-	if int(_settle_cursor.device_index) < _settle_cursor.depleted.size():
-		var id: String = _settle_cursor.depleted[int(_settle_cursor.device_index)]
-		_sync_device(id)
-		var key: String = Participant.artifact_key(id)
-		var source: Dictionary = _sources.get_source(key)
-		var status: int = SimSettlementKernel.Status.COMPLETE if source.is_empty() else _step_settlement_source(key, _transform_source(key, source), end)
-		if status == SimSettlementKernel.Status.COMPLETE:
-			_settle_cursor.device_index = int(_settle_cursor.device_index) + 1
-		return SimSettlementKernel.Status.FAILED if status == SimSettlementKernel.Status.FAILED else SimSettlementKernel.Status.PENDING
-	if int(_settle_cursor.expiry_index) < _settle_cursor.expiring.size():
-		var key: String = _settle_cursor.expiring[int(_settle_cursor.expiry_index)]
-		var status: int = _step_settlement_source(key, {}, end)
-		if status == SimSettlementKernel.Status.COMPLETE:
-			_transient.erase(key)
-			_participation.set_member(&"transient", key, false)
-			_settle_cursor.expiry_index = int(_settle_cursor.expiry_index) + 1
-		return SimSettlementKernel.Status.FAILED if status == SimSettlementKernel.Status.FAILED else SimSettlementKernel.Status.PENDING
+	var thermal: Array[Vector2i] = []
+	thermal.assign(_settle_cursor.thermal_chunks.keys())
+	var phases: Array[Vector2i] = []
+	phases.assign(_settle_cursor.phase_chunks.keys())
+	if not _refresh_source_chunks(thermal, phases, end):
+		return SimSettlementKernel.Status.FAILED
+	for key: String in _settle_cursor.expiring:
+		_transient.erase(key)
+		_participation.set_member(&"transient", key, false)
 	_settle_cursor.clear()
 	if last_ms < now:
 		return SimSettlementKernel.Status.PENDING
@@ -359,7 +356,10 @@ func prepare_device_switch(id: String, enabled: bool) -> Dictionary:
 	var key: String = Participant.artifact_key(id)
 	var source: Dictionary = _sources.get_source(key)
 	if source.is_empty():
-		return {"ok": false, "reason": "source_missing"}
+		var projected: Dictionary = _sources.artifact_source_input(id)
+		if not bool(projected.get("ok", false)):
+			return projected
+		source = projected.source
 	var channels: PackedInt32Array = source.channels
 	channels[5] = 0
 	channels[6] = 0
@@ -416,11 +416,11 @@ func _change_source(key: String, source: Dictionary, at_ms: int) -> bool:
 	return _finish_source_change(prepared.proof, at_ms)
 
 
-func _step_settlement_source(key: String, source: Dictionary, at_ms: int) -> int:
+func _step_settlement_sources(updates: Dictionary, at_ms: int) -> int:
 	# The existing source/response coordinator owns the candidate and cursor.
 	# Only this already-pending world boundary can resume it; no second queue.
 	if not _settle_cursor.has("source_proof"):
-		var opened: Dictionary = _sources.begin_source_change(key, source, at_ms, _allow_source_compute)
+		var opened: Dictionary = _sources.begin_existing_source_changes(updates, at_ms, _allow_source_compute)
 		if not bool(opened.get("ok", false)):
 			_fail(str(opened.get("reason", "source_begin")))
 			return SimSettlementKernel.Status.FAILED
@@ -432,28 +432,37 @@ func _step_settlement_source(key: String, source: Dictionary, at_ms: int) -> int
 		return SimSettlementKernel.Status.FAILED
 	if bool(progress.get("pending", true)):
 		return SimSettlementKernel.Status.PENDING
-	if not _finish_source_change(_settle_cursor.source_proof, at_ms):
+	if not _finish_source_change(_settle_cursor.source_proof, at_ms, true):
 		return SimSettlementKernel.Status.FAILED
 	_settle_cursor.erase("source_proof")
 	return SimSettlementKernel.Status.COMPLETE
 
 
-func _finish_source_change(proof: Variant, at_ms: int) -> bool:
+func _finish_source_change(proof: Variant, at_ms: int, defer_responses: bool = false) -> bool:
 	if not _sources.finish_source_change(proof):
 		return _fail("source_publication")
 	for chunk: Vector2i in _sources.last_change_chunks():
 		_chunks[chunk] = true
+	if defer_responses:
+		for chunk: Vector2i in _sources.last_temperature_chunks():
+			_settle_cursor.thermal_chunks[chunk] = true
+		for chunk: Vector2i in _sources.last_phase_chunks():
+			_settle_cursor.phase_chunks[chunk] = true
+		return true
 	return _refresh_source_responses(at_ms)
 
 
 func _refresh_source_responses(at_ms: int) -> bool:
 	# The existing joint receipt already identifies the response owners that
 	# changed. Elemental cargo must not remix/reinspect untouched room heat.
-	var thermal: Array[Vector2i] = _sources.last_temperature_chunks()
+	return _refresh_source_chunks(_sources.last_temperature_chunks(), _sources.last_phase_chunks(), at_ms)
+
+
+func _refresh_source_chunks(thermal: Array[Vector2i], phases: Array[Vector2i], at_ms: int) -> bool:
 	if not _refresh_rooms(thermal, at_ms):
 		return false
 	_sync_response_deadlines(thermal, Targets.THERMAL)
-	_sync_response_deadlines(_sources.last_phase_chunks(), Targets.ELEMENTAL)
+	_sync_response_deadlines(phases, Targets.ELEMENTAL)
 	return true
 
 

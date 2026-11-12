@@ -45,7 +45,7 @@ func publish(publication: SimBodyPublication, layout: PawnViewLayout, snap: bool
 	frame.publication = publication
 	frame.layout = layout
 	frame.home_ids = runtime.home_runtime()._pawns.keys()
-	frame.ids = publication.rows.keys()
+	frame.ids = publication.remote_ids
 	frame.snap = snap
 	frame.center = runtime.controlled_cell()
 	frame.radius = float(runtime.home_runtime().simulation.config.observation_radius)

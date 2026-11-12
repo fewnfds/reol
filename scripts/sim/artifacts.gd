@@ -517,8 +517,12 @@ func _location_cell(region: String, container: String) -> Vector2i:
 	if container.begins_with("ground:"):
 		return world.get("object_lifecycle").ground.locate(region, container).cell
 	var sim: RefCounted = world.regions[region]
-	var raw: Array = sim.synchronize_actor(container.trim_prefix("actor:")).cell if container.begins_with("actor:") else sim.places[container].cell
-	return _cell(raw)
+	# A location read needs the accepted motion at this time, not integration
+	# of every need/animation field on the carrier. Unknown routes still repair
+	# through the body's existing rule query before it returns a position.
+	if container.begins_with("actor:"):
+		return TileGrid.world_to_cell(sim.rule_actor_position(container.trim_prefix("actor:")))
+	return _cell(sim.places[container].cell)
 
 
 func can_see(actor: String, id: String) -> bool:
@@ -526,7 +530,10 @@ func can_see(actor: String, id: String) -> bool:
 	if not home.is_empty() and objects.has(id) and has_capability(id, "remote_draw"):
 		var item: Dictionary = objects[id]
 		return _clear_reach(actor, str(item.region), str(item.container), float(world.regions[home].config.observation_radius) * TileGrid.TILE_SIZE)
-	return not home.is_empty() and bool(world.regions[home].synchronize_actor(actor).alive) and objects.has(id) and _cell(world.regions[home].synchronize_actor(actor).cell).distance_to(object_cell(id)) <= float(world.regions[home].config.observation_radius)
+	if home.is_empty() or not objects.has(id):
+		return false
+	var sim: VillageSimulation = world.regions[home]
+	return sim.actor_is_alive(actor) and TileGrid.world_to_cell(sim.rule_actor_position(actor)).distance_to(object_cell(id)) <= float(sim.config.observation_radius)
 
 
 func describe(actor: String, id: String) -> Dictionary:

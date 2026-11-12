@@ -2,7 +2,7 @@
 
 > 研究资料：记录来源与适用限制，不授予引入依赖或改变规则的权限。
 
-调研：2026-11-06，2026-11-11补充普通300人运行、外部建议、分频及多核执行。范围是运行链、环境场及世界数据；记录来源与适用边界，不改变[环境规则](../rules/environment.md)，也不构成新的任务队列。当前授权、有效测量与实施优先级分别看[接续](../../docs/status/handoff.md)、[BASELINE](../../docs/status/baseline.md)与[主计划](../../docs/plans/foundation-priorities.md)。
+调研：2026-11-06，2026-11-11补充分频与多核，2026-11-12完成官方性能目录逐篇核查。范围是运行链、环境场及世界数据；记录来源与适用边界，不改变[环境规则](../rules/environment.md)，也不构成新的任务队列。当前授权、有效测量与实施优先级分别看[接续](../../docs/status/handoff.md)、[BASELINE](../../docs/status/baseline.md)与[主计划](../../docs/plans/foundation-priorities.md)。
 
 ## 结论与选型
 
@@ -16,6 +16,27 @@ Reol已有分块、局部失效、packed响应列、分段二进制及基础场G
 2. **大档存读**：先区分编码、解析、校验、I/O和原世界候选恢复；对高重复段评估类型化列、数字字典和批量读写，而非再次宣称“改成二进制”。
 
 这些是按负载选择的研究方向，不替代普通游戏的性能目标。当前没有充分证据把瓶颈归结为Godot引擎上限，也没有依据承诺优化后必然几秒加载。
+
+## 官方性能指南逐篇核查（2026-11-12）
+
+已通读用户指定的[stable目录](https://docs.godotengine.org/en/stable/tutorials/performance/index.html)及下列全部子篇；全文与源码对照使用项目实际引擎对应的4.7文档。以下是适用性和取舍，测量只维护在BASELINE，实际接口只在工程文档解释。未把每篇示例都变成新模块。
+
+| 官方文章 | 对当前代码的研究结果 |
+|---|---|
+| [General optimization](https://docs.godotengine.org/en/4.7/tutorials/performance/general_optimization.html) | 分开持续运行、装配/预热与存读；release真实渲染窗口核对吞吐、帧时及线程CPU。临时逐Node/owner剖析用于归因，结束恢复；计时嵌套和原生引擎残差不能强行相加或归给某算法 |
+| [Using servers](https://docs.godotengine.org/en/4.7/tutorials/performance/using_servers.html) | 世界规则本已为RefCounted数据，身体外观已使用原生Sprite/Canvas保留命令。直接RID能减少Node开销，但需手工管理生命周期、可见性和选择；当前先消除无工作回调及重复准备，不仅为换API搬写全体身体。Server同步getter可能形成栅栏，采样与业务读取要区分 |
+| [CPU optimization](https://docs.godotengine.org/en/4.7/tutorials/performance/cpu_optimization.html) | 核查原due/dirty、连续列、缓存与批粒度；本轮采用同刻环境合并、身体发布/采用减量、有序名册复用及连续列边界结果。原导航已有AStar复用且该窗占比低，不再重写寻路以代替处理真实热点 |
+| [GPU optimization](https://docs.godotengine.org/en/4.7/tutorials/performance/gpu_optimization.html) | 同窗GPU绘制分项很低，降低分辨率/删透明层不是当前首要解法。共享atlas/material已具备；计算GPU另量快照、上传、dispatch/sync、读回，减少小候选与反复分配，不能用绘制GPU时间代表compute时间 |
+| [Using MultiMesh](https://docs.godotengine.org/en/4.7/tutorials/performance/using_multimesh.html) | 该篇标记旧版内容，不能照抄旧API。实例只能整组裁剪，需空间分块；人物独立外观、透明顺序、文字与选中仍有成本。当前渲染提交未构成需要全面替换人物Node的证据；大量同形纯装饰可按此思路接入 |
+| [Pipeline compilations](https://docs.godotengine.org/en/4.7/tutorials/performance/pipeline_compilations.html) | 区分首次效果尖峰与持续CPU负担；2D Canvas仍可能在首次绘制编译，不声称4.4后全消失。监测实际pipeline计数再预热出现的材质。Shader baker改善初始编译，但本项目headless导出不支持它，不能只打开选项便宣称已烘焙 |
+| [Optimizing 3D performance](https://docs.godotengine.org/en/4.7/tutorials/performance/optimizing_3d_performance.html) | 3D遮挡、网格LOD、GI、阴影及远景 impostor不适用于当前2D世界。借用兴趣裁剪、分块和共享资源思想；固定物迷雾记忆仍保存观察外观，不能把遮挡剔除变成世界删除 |
+| [Vertex animation目录](https://docs.godotengine.org/en/4.7/tutorials/performance/vertex_animation/index.html) | GPU可保留纯外观动画，不接管角色原状态、资源、伤害或共同时间。本项目已由共享shader播放身体图层，未为读教程再建第二套动画时钟 |
+| [Animating thousands of fish](https://docs.godotengine.org/en/4.7/tutorials/performance/vertex_animation/animating_thousands_of_fish.html) | 同形大量实例的波动可放shader；该页标记旧版，示例3D鱼网格与本游戏像素角色不同。已有图集时间游标和instance参数足够承载当前外观，无理由把真实NPC降格为无交互鱼群 |
+| [Controlling thousands of fish](https://docs.godotengine.org/en/4.7/tutorials/performance/vertex_animation/controlling_thousands_of_fish.html) | 用少量控制点驱动大批视觉对象适合装饰群/粒子。当前NPC有独立路线、保管和社会记忆，不能让视觉控制器成为第二个位置owner；多人数学仍沿CPU批或领域专用GPU计算 |
+| [Using multiple threads](https://docs.godotengine.org/en/4.7/tutorials/performance/using_multiple_threads.html) | 已有常驻协调者、Godot池和GPU专用线程；信号量睡眠，任务结束join，不每帧创建线程。区分任务粒度与线程数；准备、采用和真正串行依赖也必须计入，增加worker不自动提高吞吐 |
+| [Thread-safe APIs](https://docs.godotengine.org/en/4.7/tutorials/performance/thread_safe_apis.html) | 核对SceneTree、共享Resource、容器结构变化和并行搜索边界。同一个AStar实例不能并用；当前路径owner独占/私有搜索槽合法。GPU local RenderingDevice由自己的worker独占；这不等于可在任意线程读写活Node或共享RenderingServer状态 |
+
+采用与暂缓都依据项目当前负载。Godot原生线程、保留绘制、资源导入、渲染和导航服务继续复用；共同时间、原事实归属和领域效果仍由项目实现。这里不新增强制接入流程或固定性能参数，未来出现不同热点时可重新选择。
 
 ## 多核执行（2026-11-11）
 

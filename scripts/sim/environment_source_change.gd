@@ -55,13 +55,17 @@ func configure(field: RefCounted, temperature: RefCounted, settings: Dictionary,
 
 
 func begin(slot: int, operation: String, source: Dictionary, at_ms: int, horizon_ms: int, allow_compute: bool = false) -> Dictionary:
+	return begin_sources([{"slot": slot, "operation": operation, "source": source}], at_ms, horizon_ms, allow_compute)
+
+
+func begin_sources(changes: Array[Dictionary], at_ms: int, horizon_ms: int, allow_compute: bool = false) -> Dictionary:
 	if _field == null:
 		return _failure("not_configured")
 	if _active != null:
 		return _failure("busy")
 	if at_ms < 0 or at_ms >= Temperature.MAX_TIME or horizon_ms <= at_ms or horizon_ms > Temperature.MAX_TIME:
 		return _failure("time_out_of_range")
-	var opened: Dictionary = _field.begin_source_change(slot, operation, source)
+	var opened: Dictionary = _field.begin_source_changes(changes)
 	if not bool(opened.get("ok", false)):
 		return opened
 	if allow_compute:

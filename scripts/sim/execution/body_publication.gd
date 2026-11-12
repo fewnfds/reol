@@ -5,6 +5,7 @@ extends RefCounted
 ## retain values and private pose dictionaries, never bodies or action tables.
 const CHUNK_SIZE: int = 64
 const PARALLEL_MINIMUM: int = 256
+const EMPTY_CLOTHING: Dictionary = {}
 
 class Chunk extends RefCounted:
 	var roster: Array[Dictionary]
@@ -16,10 +17,7 @@ class Chunk extends RefCounted:
 	var journey: Dictionary
 	var local_action: Dictionary
 	var manual_moving: bool
-	var clothing_worn: Dictionary
-	var clothing_objects: Dictionary
-	var clothing_types: Dictionary
-	var wet_threshold: int
+	var clothing: Dictionary
 	var rows: Array[Dictionary] = []
 	var started_usec: int
 	var finished_usec: int
@@ -43,16 +41,9 @@ class Chunk extends RefCounted:
 					point = SimRouteTravel.projected_point(body.active, body, poses.at_ms)
 			else:
 				point = SimRouteTravel.point(body)
-			var clothing: Dictionary = {}
-			for slot: String in ["body", "outer"]:
-				var garment_id: String = str(clothing_worn.get(id, {}).get(slot, ""))
-				if garment_id.is_empty():
-					continue
-				var garment: Dictionary = clothing_objects[garment_id]
-				clothing[slot] = {"shape": clothing_types[garment.type].shape, "color": garment.color, "wet": int(garment.wet) >= wet_threshold}
 			rows.append({"id": id, "region": region, "definition_id": str(body.definition_id),
 				"alive": bool(body.alive), "point": point, "cell": TileGrid.world_to_cell(point),
-				"clothing": clothing,
+				"clothing": clothing.get(id, EMPTY_CLOTHING),
 				"pose": poses.pose_read(timeline, id, body, leg, journey if id == "player" else {}, manual_moving if id == "player" else false, local_action if id == "player" else {})})
 		# Stop retaining lent inputs before announcing completion.
 		roster = []
@@ -60,14 +51,13 @@ class Chunk extends RefCounted:
 		poses = null
 		journey = {}
 		local_action = {}
-		clothing_worn = {}
-		clothing_objects = {}
-		clothing_types = {}
+		clothing = {}
 		finished_usec = Time.get_ticks_usec()
 
 var world_id: int
 var at_ms: int
 var rows: Dictionary[String, Dictionary] = {}
+var remote_ids: Array[String] = []
 var cells: Dictionary[String, Vector2i] = {}
 var points: Dictionary[String, Vector2] = {}
 var sample_cells: Array[Vector2i] = []
@@ -80,6 +70,7 @@ static func capture(world: RegionalSimulation, now: int, workers: int = SimBatch
 	frame.world_id = world.get_instance_id()
 	frame.at_ms = now
 	var poses := HumanoidPose.WorldFrame.new(world, now)
+	var clothing: Dictionary = world.clothing.publication_appearances()
 	var chunks: Array[RefCounted] = []
 	var count: int = 0
 	for region: String in world.regions:
@@ -97,10 +88,7 @@ static func capture(world: RegionalSimulation, now: int, workers: int = SimBatch
 			chunk.journey = journey
 			chunk.manual_moving = manual_moving
 			chunk.local_action = local_action
-			chunk.clothing_worn = world.clothing._worn
-			chunk.clothing_objects = world.clothing.objects
-			chunk.clothing_types = world.clothing.definitions.types
-			chunk.wet_threshold = int(world.clothing.definitions.wet_threshold)
+			chunk.clothing = clothing
 			chunks.append(chunk)
 	var preparation: int = Time.get_ticks_usec() - started
 	var batch := SimBatchExecution.new()
@@ -115,6 +103,8 @@ static func capture(world: RegionalSimulation, now: int, workers: int = SimBatch
 		threads[chunk.thread_id] = true
 		for row: Dictionary in chunk.rows:
 			var id: String = str(row.id)
+			if chunk.region != "home":
+				frame.remote_ids.append(id)
 			var cell: Vector2i = row.cell
 			frame.cells[id] = cell
 			frame.points[id] = row.point
@@ -123,7 +113,7 @@ static func capture(world: RegionalSimulation, now: int, workers: int = SimBatch
 				# occupied cell once on the owner, never on a publication worker.
 				elevations[cell] = world.map_data.get_elevation(cell)
 			row["elevation"] = elevations[cell]
-			if str(row.id) == "player" or str(row.id) in selected:
+			if id == "player" or id in selected:
 				var sim: VillageSimulation = world.regions[row.region]
 				var needs: Dictionary = sim.projected_actor_needs(str(row.id))
 				var surface: Dictionary = {}
@@ -135,7 +125,7 @@ static func capture(world: RegionalSimulation, now: int, workers: int = SimBatch
 					var rate: float = float(sim.config.needs.energy_per_minute) + (float(sim.config.needs.work_energy_per_minute) if not needs.active.is_empty() else 0.0)
 					surface.energy = maxf(0.0, float(surface.energy) - rate * elapsed)
 				row["needs"] = surface
-			frame.rows[str(row.id)] = row
+			frame.rows[id] = row
 	frame.sample_cells.assign(elevations.keys())
 	var adopt_usec: int = Time.get_ticks_usec() - adopt_started
 	frame.work = {"rows": count, "parallel": batch.parallel, "workers": batch.worker_count, "prepare_usec": preparation,

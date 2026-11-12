@@ -5,9 +5,9 @@ extends "res://scripts/sim/environment_field_cache.gd"
 ## count *distinct* nonzero grades per channel; they are derived bounds only.
 ## This does not hold object identities, source positions or field values.
 ##
-## A candidate scans the old live index excluding its replaced slot, and adds
-## the candidate source separately. Its stop bound therefore must also exclude
-## that old slot. In particular a unique extreme grade cannot force a full
+## A candidate scans the old live index excluding its replaced slots, and adds
+## the candidate sources separately. Its stop bound must also exclude those
+## old slots. In particular a unique extreme grade cannot force a full
 ## radius scan after it has already been logically removed from the candidate.
 
 const SOURCE_LIST_LIMIT: int = 64
@@ -37,8 +37,8 @@ var _candidate_fast: bool = false
 var _candidate_old_values := PackedInt32Array()
 var _candidate_change_masks: Dictionary[int, PackedByteArray] = {}
 var _candidate_weight_index: int = -1
-var _candidate_old_weight: int = 0
-var _candidate_new_weight: int = 0
+var _candidate_before := PackedInt32Array()
+var _candidate_after := PackedInt32Array()
 var _candidate_cold_pending: bool = false
 var _candidate_cold_only: bool = false
 var _candidate_cold_blocks := Rect2i()
@@ -100,7 +100,7 @@ func export_compute_job(area: Rect2i, compact: bool = false) -> Dictionary:
 
 func export_source_compute_job(handle: Variant) -> Dictionary:
 	var job: Dictionary = super.export_source_compute_job(handle)
-	return _with_geometry(job, job.get("area", Rect2i()), maxi(_max_radius, _source_candidate.new_radius) if _source_candidate != null else _max_radius)
+	return _with_geometry(job, job.get("area", Rect2i()), maxi(_max_radius, _source_candidate.max_new_radius) if _source_candidate != null else _max_radius)
 
 
 func _with_geometry(job: Dictionary, area: Rect2i, radius: int) -> Dictionary:
@@ -228,14 +228,13 @@ func remove_source(slot: int) -> Dictionary:
 	return result
 
 
-func begin_source_change(slot: int, operation: String, change: Dictionary = {}) -> Dictionary:
-	var result: Dictionary = super.begin_source_change(slot, operation, change)
+func begin_source_changes(changes: Array[Dictionary]) -> Dictionary:
+	var result: Dictionary = super.begin_source_changes(changes)
 	if bool(result.get("ok", false)):
 		_compute_attempted = false
 		_compute_ticket = 0
 		_compute_tiles.clear()
 		_compute_cell = 0
-		var old := _slot_grades(slot)
 		_candidate_channel_mask = 0
 		_candidate_fast_tile = -1
 		_candidate_fast = false
@@ -244,12 +243,18 @@ func begin_source_change(slot: int, operation: String, change: Dictionary = {}) 
 		_candidate_weight_index = -1
 		_candidate_cold_pending = false
 		_candidate_cold_only = false
+		_candidate_before.resize(CHANNELS)
+		_candidate_after.resize(CHANNELS)
 		for channel: int in CHANNELS:
-			_candidate_bounds[channel] = _grade_bounds[channel].maximum_without(old[channel] if not old.is_empty() else 0)
-			var before: int = old[channel] if not old.is_empty() else 0
-			var after: int = _source_candidate.new_channels[channel] if _source_candidate.new_radius > 0 else 0
-			if before != 0 or after != 0:
-				_candidate_channel_mask |= 1 << channel
+			var excluded: Dictionary[int, int] = {}
+			for entry: SourceEntry in _source_candidate.entries:
+				var before: int = _slot_channels[entry.slot * CHANNELS + channel] if entry.old_radius > 0 else 0
+				var after: int = entry.new_channels[channel] if entry.new_radius > 0 else 0
+				if before > 0:
+					excluded[before] = int(excluded.get(before, 0)) + 1
+				if before != 0 or after != 0:
+					_candidate_channel_mask |= 1 << channel
+			_candidate_bounds[channel] = _grade_bounds[channel].maximum_excluding(excluded)
 	return result
 
 
@@ -266,16 +271,27 @@ func has_candidate_change_masks() -> bool:
 
 
 func _apply_source_candidate(candidate: SourceCandidate) -> void:
-	var old := _slot_grades(candidate.slot)
+	# A paused gather can point at a small source outside this receiver tile's
+	# coverage, with an affecting source behind it in the same cell chain. Skip
+	# replaced links before relinking; the base cache guards its own scan cursor.
+	if _build_tile >= 0:
+		while _build_gather_slot >= 0 and candidate.modified_slots.has(_build_gather_slot):
+			_build_gather_slot = _slot_next[_build_gather_slot]
 	super._apply_source_candidate(candidate)
-	var current := _slot_grades(candidate.slot)
-	_replace_grades(old, current)
-	_replace_block_grades(candidate.old_cell, old, candidate.new_cell, current)
 	if not _compute_tiles.is_empty():
 		var backend: RefCounted = _compute_backend.get_ref() if _compute_backend != null else null
 		if backend != null:
 			backend.note_source_adoption()
 	_compute_tiles.clear()
+
+
+func _apply_source_entry(entry: SourceEntry) -> void:
+	var old := _slot_grades(entry.slot)
+	super._apply_source_entry(entry)
+	var current := _slot_grades(entry.slot)
+	_replace_grades(old, current)
+	_replace_block_grades(entry.old_cell, old, entry.new_cell, current)
+
 
 
 func _replace_block_grades(old_cell: Vector2i, old: PackedInt32Array, cell: Vector2i, current: PackedInt32Array) -> void:
@@ -489,7 +505,7 @@ func _replace_grades(old: PackedInt32Array, current: PackedInt32Array) -> void:
 func _step_source_candidate() -> void:
 	# Same stepped receiver, distance weights, rounding and work accounting as
 	# the base cache. Only the safe upper bound differs: it excludes exactly the
-	# live slot that the candidate scan below deliberately skips.
+	# live slots that the candidate scan below deliberately skips.
 	var candidate: SourceCandidate = _source_candidate
 	var tile_id: int = candidate.tile_ids[candidate.tile_index]
 	if tile_id != _candidate_fast_tile:
@@ -502,15 +518,12 @@ func _step_source_candidate() -> void:
 		return
 	if candidate.phase == 0:
 		candidate.best = 0
-		if candidate.new_radius > 0:
-			var dx: int = absi(candidate.receiver_x - candidate.new_cell.x)
-			var dy: int = absi(candidate.receiver_y - candidate.new_cell.y)
-			if dx < candidate.new_radius and dy < candidate.new_radius:
-				var strength: int = candidate.new_channels[candidate.channel]
-				var weight: int = candidate.new_kernel[dy * candidate.new_radius + dx]
+		for entry: SourceEntry in candidate.entries:
+			var weight: int = _candidate_weight(candidate.receiver_x, candidate.receiver_y, entry.new_cell, entry.new_radius, entry.new_kernel)
+			if weight > 0:
 				@warning_ignore("integer_division")
-				candidate.best = (strength * weight + Rules.SCALE / 2) / Rules.SCALE
-				candidate.best = _transport_grade(candidate.best, candidate.new_cell, Vector2i(candidate.receiver_x, candidate.receiver_y), candidate.channel)
+				var value: int = (entry.new_channels[candidate.channel] * weight + Rules.SCALE / 2) / Rules.SCALE
+				candidate.best = maxi(candidate.best, _transport_grade(value, entry.new_cell, Vector2i(candidate.receiver_x, candidate.receiver_y), candidate.channel))
 		candidate.phase = 1
 		return
 	if candidate.neighbor_slot == UNSET:
@@ -536,7 +549,7 @@ func _step_source_candidate() -> void:
 			candidate.offset_index += 1
 		return
 	var source_slot: int = candidate.neighbor_slot
-	if source_slot != candidate.slot:
+	if not candidate.modified_slots.has(source_slot):
 		var radius: int = _slot_radius[source_slot]
 		var dx: int = absi(candidate.dx)
 		var dy: int = absi(candidate.dy)
@@ -594,10 +607,12 @@ func _begin_cold_proof(tile_id: int, candidate: SourceCandidate) -> void:
 
 func _step_cold_proof(tile_id: int, candidate: SourceCandidate) -> void:
 	# One block per work unit preserves the existing resumable budget. The
-	# replaced slot may be present, but no other nearby source is assumed away.
+	# replaced slots may be present, but no other nearby source is assumed away.
 	var block_id: int = _candidate_cold_y * _tile_columns + _candidate_cold_x
 	var block: BlockBounds = _block_bounds.get(block_id)
-	var excluded: int = 1 if candidate.old_radius > 0 and _tile_for_cell(candidate.old_cell) == block_id else 0
+	var excluded: int = 0
+	for entry: SourceEntry in candidate.entries:
+		excluded += int(entry.old_radius > 0 and _tile_for_cell(entry.old_cell) == block_id)
 	if block != null and block.sources > excluded:
 		_candidate_cold_pending = false
 		return
@@ -611,8 +626,8 @@ func _step_cold_proof(tile_id: int, candidate: SourceCandidate) -> void:
 
 
 func _initialize_cold_tile(tile_id: int, candidate: SourceCandidate) -> void:
-	# The proof means the old field is exactly the old slot's own contribution,
-	# or zero when it is a new slot. Fill that old contribution per receiver in
+	# The proof means the old field is exactly the replaced slots' contribution,
+	# or zero for new slots. Fill that old contribution per receiver in
 	# the regular bounded step, rather than scanning the whole tile up front.
 	_candidate_old_values = PackedInt32Array()
 	_candidate_old_values.resize(candidate.values.size())
@@ -626,34 +641,35 @@ func _initialize_cold_tile(tile_id: int, candidate: SourceCandidate) -> void:
 
 func _step_incremental_candidate(candidate: SourceCandidate) -> void:
 	# A clean tile is a complete, revision-checked snapshot of the old max.
-	# Only the changed source's old/new weighted contributions can alter it.
+	# Only the changed sources' old/new weighted maxima can alter it.
 	if _candidate_weight_index != candidate.receiver_index:
 		_candidate_weight_index = candidate.receiver_index
-		_candidate_old_weight = _candidate_weight(candidate.receiver_x, candidate.receiver_y, candidate.old_cell, candidate.old_radius, _kernels.get(candidate.old_radius, PackedInt32Array()))
-		_candidate_new_weight = _candidate_weight(candidate.receiver_x, candidate.receiver_y, candidate.new_cell, candidate.new_radius, candidate.new_kernel)
-		if _candidate_cold_only and _candidate_old_weight > 0 and candidate.old_radius > 0:
+		_candidate_before.fill(0)
+		_candidate_after.fill(0)
+		var receiver := Vector2i(candidate.receiver_x, candidate.receiver_y)
+		for entry: SourceEntry in candidate.entries:
+			var old_weight: int = _candidate_weight(receiver.x, receiver.y, entry.old_cell, entry.old_radius, _kernels.get(entry.old_radius, PackedInt32Array()))
+			var new_weight: int = _candidate_weight(receiver.x, receiver.y, entry.new_cell, entry.new_radius, entry.new_kernel)
 			for channel: int in CHANNELS:
-				var strength: int = _slot_channels[candidate.slot * CHANNELS + channel]
-				if strength == 0:
-					continue
+				var old_grade: int = _slot_channels[entry.slot * CHANNELS + channel] if entry.old_radius > 0 else 0
+				var new_grade: int = entry.new_channels[channel] if entry.new_radius > 0 else 0
 				@warning_ignore("integer_division")
-				var value: int = (strength * _candidate_old_weight + Rules.SCALE / 2) / Rules.SCALE
-				value = _transport_grade(value, candidate.old_cell, Vector2i(candidate.receiver_x, candidate.receiver_y), channel)
+				var before: int = (old_grade * old_weight + Rules.SCALE / 2) / Rules.SCALE
+				@warning_ignore("integer_division")
+				var after: int = (new_grade * new_weight + Rules.SCALE / 2) / Rules.SCALE
+				_candidate_before[channel] = maxi(_candidate_before[channel], _transport_grade(before, entry.old_cell, receiver, channel))
+				_candidate_after[channel] = maxi(_candidate_after[channel], _transport_grade(after, entry.new_cell, receiver, channel))
+		if _candidate_cold_only:
+			for channel: int in CHANNELS:
 				var offset: int = candidate.receiver_index * CHANNELS + channel
-				_candidate_old_values[offset] = value
-				candidate.values[offset] = value
+				_candidate_old_values[offset] = _candidate_before[channel]
+				candidate.values[offset] = _candidate_before[channel]
 	var before: int = 0
 	var after: int = 0
 	while candidate.channel < CHANNELS:
 		if (_candidate_channel_mask & (1 << candidate.channel)) != 0:
-			var old_grade: int = _slot_channels[candidate.slot * CHANNELS + candidate.channel] if candidate.old_radius > 0 else 0
-			var new_grade: int = candidate.new_channels[candidate.channel] if candidate.new_radius > 0 else 0
-			@warning_ignore("integer_division")
-			before = (old_grade * _candidate_old_weight + Rules.SCALE / 2) / Rules.SCALE
-			@warning_ignore("integer_division")
-			after = (new_grade * _candidate_new_weight + Rules.SCALE / 2) / Rules.SCALE
-			before = _transport_grade(before, candidate.old_cell, Vector2i(candidate.receiver_x, candidate.receiver_y), candidate.channel)
-			after = _transport_grade(after, candidate.new_cell, Vector2i(candidate.receiver_x, candidate.receiver_y), candidate.channel)
+			before = _candidate_before[candidate.channel]
+			after = _candidate_after[candidate.channel]
 			if before != after:
 				break
 		candidate.channel += 1
@@ -737,6 +753,19 @@ class GradeBounds:
 			_sift_up(position)
 		else:
 			_sift_down(position)
+
+	func maximum_excluding(excluded: Dictionary[int, int]) -> int:
+		if excluded.is_empty():
+			return maximum_without(0)
+		if excluded.size() == 1:
+			var grade: int = excluded.keys()[0]
+			if excluded[grade] == 1:
+				return maximum_without(grade)
+		var maximum: int = 0
+		for grade: int in counts:
+			if counts[grade] > int(excluded.get(grade, 0)):
+				maximum = maxi(maximum, grade)
+		return maximum
 
 	func maximum_without(grade: int) -> int:
 		if heap.is_empty():

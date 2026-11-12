@@ -35,3 +35,7 @@ func advance(seconds: float) -> bool:
 
 func initialized() -> bool:
 	return _at_ms >= 0
+
+
+func has_pending_motion() -> bool:
+	return _progress < 1.0

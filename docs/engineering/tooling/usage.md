@@ -27,6 +27,8 @@ python tools/feature_demo.py
 
 需要固定显卡时可加`--gpu-index N`，不固定本机设备编号。未完成玩法在导览每页注明；短功能试玩不证明大人口或长期性能。
 
+Windows release试游使用`Windows Demo`导出预设，默认进入相同功能导览：`python tools/godot.py export --preset "Windows Demo" --output build/windows/reol-demo.exe`。导出后exe与同名PCK需放在一起；产物不入库。它不带人口压力启动特征，普通源码Main入口不变。
+
 ## 实际性能
 
 ```powershell
@@ -39,6 +41,8 @@ python tools/diagnose_demo.py --seconds 30 --auto-start --quit-after-capture
 ```
 
 人数是每地6–4096，实际总人数为两倍；持续使用普通Main原人物、寻路、生活、环境及共同时间，临时状态不写玩家档。`--actor-workers -1`自动选槽，`0`串行，`1..64`指定本批并发上限；选槽语义见[计算接入](../execution-batches.md)，`--simulation-thread off`关闭协调线程但仍运行同一runner。`--actor-projection ordered`保留逐人采用供同包对照，默认partitioned只对证明独立的身体分区写入；`--actor-minimum N`实验人物候选最小集合，默认值见工具`--help`。`--release-binary PATH`复用同一exe/PCK进行规模/并发/后端对照，不能预设线程越多越快。不加`--quit-after-capture`可继续试玩。
+
+自动退出式采样关闭本窗口的物理输入映射与UI事件，防止桌面键鼠误改速度、移动观察者或打开面板；原NPC、规则和脚本输入探针继续执行。交互试玩压力场景保留键鼠。release模板默认禁止命令行覆写入口，因此压力包与功能试游包分别使用现有导出预设。
 
 完成收取默认经Godot延后通知；`--simulation-completion frame`使用原process入口，供相同包比较ready→collect等待。通知不放大当帧工作预算，不额外准入游戏时间。
 

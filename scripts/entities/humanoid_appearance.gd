@@ -30,6 +30,9 @@ static func shared() -> HumanoidAppearance:
 static func stabilize_pose(pose: Dictionary, previous: Dictionary) -> Dictionary:
 	if pose.is_empty():
 		return pose
+	if previous.has("direction_index") and pose.direction == previous.get("direction"):
+		pose.direction_index = previous.direction_index
+		return pose
 	var appearance: HumanoidAppearance = shared()
 	pose.direction_index = direction_index(pose.direction, int(previous.get("direction_index", -1)), float(appearance.definition.get("turn_hysteresis_degrees", 0)))
 	return pose

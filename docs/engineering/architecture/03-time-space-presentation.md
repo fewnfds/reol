@@ -28,6 +28,8 @@
 
 物品的地面外观、重叠偏移与可见性由`WorldObjectsRuntime`在完整边界捕获；暂停事务由原`object_lifecycle.committed`及`artifacts.space_reset`通知，换世界重绑，视野变化沿原fog通知。携带物用`object_marker_view.gd`保留外观，只在每帧读取holder的`presentation_position()`更新Node2D显示变换；外观与地面图标共用绘制函数。它不访问物品owner或决定保管/可见性，holder失效即隐藏；物品放下、移除、失去视野或换世界时清理旧节点。玩家主动引物的连线仅读取已捕获端点和显示节点，进度仍来自完整边界。该做法复用Godot的[保留绘制命令](https://docs.godotengine.org/en/4.7/tutorials/2d/custom_drawing_in_2d.html#updating)，不为平滑跟随重新查询整片世界。
 
+携物位置查询复用原身体`rule_actor_position()`取得当前已受理位置，不为一次位置读取积分全部需求；未知路线仍由原查询处理必要修复。一次视图构建复用已经读取的cell。衣着派生值、身体发布和人物回调的减量方式只维护在[计算接入](../execution-batches.md#宿主交接与呈现)，不建立第二套人物或物品坐标。
+
 当前开发HUD由`DevelopmentInspectionRuntime`在完整边界读取原环境和选中单位，向`GameHUD`及`DevelopmentInspectorPanel`发布脱离owner的数值。静止指针/单位最多4Hz刷新；鼠标切格只读单格地形与环境，悬浮信息不用空间对象扫描；每帧只更新提示的屏幕位置。所有提示Control忽略鼠标，UI上收起悬浮。数据包含采样时刻，后台忙碌时保留最后快照，不补造角色认识。
 
 普通世界左键由`Main`路由给`WorldUnitPicker`，复用[空间显示候选](../object-query-contract.md#实时局部空间)、`describe_object`和原可见图标命中方法；身体按显示位置命中，墙/家具按高程投影后的占格命中，屋面和蓝图次序靠后。命中半径按缩放换算，候选窗口包含身体/高差抬升。固定场所仍是原记录，地块不放入单位候选。候选失败保留原选择，不当作空地；成功后按单位引用保持选择与重叠切换。失去视野时收起对应实时单位数据，记忆影像不提供隐藏真值。点击只选择；显式打开操作才交回原领域复核，动作权限、耗时和消耗不在检查器实现。

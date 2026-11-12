@@ -8,7 +8,7 @@ const SUITES: Array[String] = ["settlement", "actor_batch", "inventory", "input"
 
 
 func _elements() -> bool:
-	return preload("res://tests/element_fields.gd").run()
+	return preload("res://tests/element_fields.gd").run() and preload("res://tests/field_changes.gd").run()
 
 class NavigationReadCheck extends RefCounted:
 	var graph := SimGridNavigation.Search.new(16, true)

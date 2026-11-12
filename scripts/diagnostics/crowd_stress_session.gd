@@ -98,6 +98,14 @@ func _run() -> void:
 		push_error("Mixed capture requires at least 45 seconds and no --opening-wave")
 		get_tree().quit(1)
 		return
+	if _quit_after:
+		# Automated captures must not change speed, move the observer or open UI
+		# because the desktop user types while this window has focus. Keep all
+		# simulation and scripted probes; interactive stress runs retain input.
+		root.gui_disable_input = true
+		for action: StringName in InputMap.get_actions():
+			Input.action_release(action)
+			InputMap.action_erase_events(action)
 	_main = load("res://scenes/main.tscn").instantiate()
 	_main.set_script(load("res://scripts/diagnostics/crowd_scene.gd"))
 	if _complex != null and not ComplexWorkload.configure(_main):
@@ -207,7 +215,7 @@ func _run() -> void:
 		"terrain_warmup_usec": Time.get_ticks_usec() - warmup_started, "terrain_warmup_complete": warmup_complete, "pacing_policy": _pacing_policy}):
 		get_tree().quit(1)
 		return
-	_status.text = "临时压力世界 · %d个真实身体 / 双聚落\n原寻路、生活、环境、共同时间 · %s\n不保存到普通档 · WASD / F3 · %d秒采样后%s" % [total, "搬运、生产、移动视野与交锋" if _mixed != null else ("单次出发" if _opening_wave else "抵达后用原命令持续巡行"), _seconds, "退出" if _quit_after else "可继续试玩"]
+	_status.text = "临时压力世界 · %d个真实身体 / 双聚落\n原寻路、生活、环境、共同时间 · %s\n不保存到普通档 · %s · %d秒采样后%s" % [total, "搬运、生产、移动视野与交锋" if _mixed != null else ("单次出发" if _opening_wave else "抵达后用原命令持续巡行"), "自动采样，输入锁定" if _quit_after else "WASD / F3", _seconds, "退出" if _quit_after else "可继续试玩"]
 	_last_sample_ms = _clock.elapsed_ms
 	if _mixed == null and not _opening_wave:
 		# The temporary producer is pure data and follows the ordinary world's

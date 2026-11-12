@@ -179,11 +179,55 @@ func remove_source(slot: int) -> Dictionary:
 
 
 func begin_source_change(slot: int, operation: String, change: Dictionary = {}) -> Dictionary:
-	# A failed or busy begin never displaces an existing candidate.
+	return begin_source_changes([{"slot": slot, "operation": operation, "source": change}])
+
+
+func begin_source_changes(changes: Array[Dictionary]) -> Dictionary:
 	if _source_candidate != null:
 		return _failure("busy")
-	if _capacity == 0:
-		return _failure("not_configured")
+	if _capacity == 0 or changes.is_empty() or changes.size() > MAX_CANDIDATE_TILES:
+		return _failure("source_batch_size")
+	var candidate := SourceCandidate.new()
+	var tile_set: Dictionary[int, bool] = {}
+	for change: Dictionary in changes:
+		if not change.get("slot") is int or not change.get("operation") is String or not change.get("source") is Dictionary:
+			return _failure("source_shape")
+		var slot: int = change.slot
+		if candidate.modified_slots.has(slot):
+			return _failure("duplicate_source_slot")
+		var normalized: Dictionary = _normalize_source_change(slot, change.operation, change.source)
+		if not bool(normalized.ok):
+			return normalized
+		var entry: SourceEntry = normalized.entry
+		if not _add_candidate_tiles(entry.old_area, tile_set) or not _add_candidate_tiles(entry.new_area, tile_set):
+			return _failure("candidate_tile_limit")
+		candidate.entries.append(entry)
+		candidate.modified_slots[slot] = true
+		candidate.max_new_radius = maxi(candidate.max_new_radius, entry.new_radius)
+		if entry.new_radius > 0:
+			candidate.new_kernels[entry.new_radius] = entry.new_kernel
+			if not candidate.added_by_cell.has(entry.new_cell):
+				candidate.added_by_cell[entry.new_cell] = []
+			candidate.added_by_cell[entry.new_cell].append(entry)
+	var ids: Array[int] = []
+	ids.assign(tile_set.keys())
+	ids.sort()
+	ids.make_read_only()
+	if _max_radius > 0:
+		_ensure_ordered_offsets()
+	candidate.handle = SourceChangeHandle.new()
+	candidate.revision = _revision
+	candidate.tile_ids = ids
+	candidate.tile_set = tile_set
+	candidate.offsets = _ordered_offsets
+	candidate.weights = _ordered_weights
+	_source_candidate = candidate
+	var public_ids: Array = ids.duplicate()
+	public_ids.make_read_only()
+	return {"ok": true, "handle": candidate.handle, "tile_ids": public_ids}
+
+
+func _normalize_source_change(slot: int, operation: String, change: Dictionary) -> Dictionary:
 	if slot < 0 or slot >= _capacity:
 		return _failure("slot_out_of_range")
 	var old_radius: int = _slot_radius[slot]
@@ -221,45 +265,18 @@ func begin_source_change(slot: int, operation: String, change: Dictionary = {}) 
 			return _failure("unchanged")
 	else:
 		return _failure("source_operation")
-	var old_area: Rect2i = _coverage(old_cell, old_radius)
-	var new_area: Rect2i = _coverage(new_cell, new_radius)
-	var tile_set: Dictionary[int, bool] = {}
-	if not _add_candidate_tiles(old_area, tile_set) or not _add_candidate_tiles(new_area, tile_set):
-		return _failure("candidate_tile_limit")
-	var ids: Array[int] = []
-	for tile_id: int in tile_set:
-		ids.append(tile_id)
-	ids.sort()
-	ids.make_read_only()
-	# New kernels and the existing ordered-offset table may require a
-	# synchronous first build; this setup is not covered by step's budget.
-	var new_kernel := PackedInt32Array()
+	var entry := SourceEntry.new()
+	entry.slot = slot
+	entry.old_cell = old_cell
+	entry.old_radius = old_radius
+	entry.new_cell = new_cell
+	entry.new_radius = new_radius
+	entry.new_channels = normalized
 	if new_radius > 0:
-		new_kernel = _kernels[new_radius] if _kernels.has(new_radius) else _make_kernel(new_radius)
-	if _max_radius > 0:
-		_ensure_ordered_offsets()
-	var candidate := SourceCandidate.new()
-	candidate.handle = SourceChangeHandle.new()
-	candidate.revision = _revision
-	candidate.slot = slot
-	candidate.old_cell = old_cell
-	candidate.old_radius = old_radius
-	candidate.new_cell = new_cell
-	candidate.new_radius = new_radius
-	candidate.new_channels = normalized
-	candidate.new_kernel = new_kernel
-	candidate.old_area = old_area
-	candidate.new_area = new_area
-	candidate.tile_ids = ids
-	candidate.tile_set = tile_set
-	if _max_radius > 0:
-		candidate.offsets = _ordered_offsets
-		candidate.weights = _ordered_weights
-	_source_candidate = candidate
-	var public_ids: Array = ids.duplicate()
-	public_ids.make_read_only()
-	return {"ok": true, "handle": candidate.handle, "tile_ids": public_ids,
-		"old_area": old_area, "new_area": new_area}
+		entry.new_kernel = _kernels[new_radius] if _kernels.has(new_radius) else _make_kernel(new_radius)
+	entry.old_area = _coverage(old_cell, old_radius)
+	entry.new_area = _coverage(new_cell, new_radius)
+	return {"ok": true, "entry": entry}
 
 
 func step_source_change(handle: Variant, max_work: int) -> Dictionary:
@@ -302,17 +319,17 @@ func allow_source_compute(handle: Variant) -> void:
 func _step_source_candidate() -> void:
 	var candidate: SourceCandidate = _source_candidate
 	if candidate.phase == 0:
-		# Count the candidate source independently; it is absent from the live
-		# scan below, and never mutates the live heads/slots while pending.
 		candidate.best = 0
-		if candidate.new_radius > 0:
-			var dx: int = absi(candidate.receiver_x - candidate.new_cell.x)
-			var dy: int = absi(candidate.receiver_y - candidate.new_cell.y)
-			if dx < candidate.new_radius and dy < candidate.new_radius:
-				var strength: int = candidate.new_channels[candidate.channel]
-				var weight: int = candidate.new_kernel[dy * candidate.new_radius + dx]
+		for entry: SourceEntry in candidate.entries:
+			if entry.new_radius <= 0:
+				continue
+			var dx: int = absi(candidate.receiver_x - entry.new_cell.x)
+			var dy: int = absi(candidate.receiver_y - entry.new_cell.y)
+			if dx < entry.new_radius and dy < entry.new_radius:
+				var strength: int = entry.new_channels[candidate.channel]
+				var weight: int = entry.new_kernel[dy * entry.new_radius + dx]
 				@warning_ignore("integer_division")
-				candidate.best = (strength * weight + Rules.SCALE / 2) / Rules.SCALE
+				candidate.best = maxi(candidate.best, (strength * weight + Rules.SCALE / 2) / Rules.SCALE)
 		candidate.phase = 1
 		return
 	if candidate.neighbor_slot == UNSET:
@@ -338,7 +355,7 @@ func _step_source_candidate() -> void:
 			candidate.offset_index += 1
 		return # resolving an offset and consuming a source are separate work
 	var source_slot: int = candidate.neighbor_slot
-	if source_slot != candidate.slot:
+	if not candidate.modified_slots.has(source_slot):
 		var radius: int = _slot_radius[source_slot]
 		var dx: int = absi(candidate.dx)
 		var dy: int = absi(candidate.dy)
@@ -433,10 +450,10 @@ func commit_source_change(proof: Variant) -> Dictionary:
 		_build_offsets = PackedInt32Array()
 		_build_weights = PackedInt32Array()
 		_build_tile = -1
-	elif _build_tile >= 0 and _neighbor_slot == candidate.slot and candidate.old_radius > 0:
-		# The build is outside both affected footprints, so this source has zero
-		# contribution there. Advance past its old link before relinking it.
-		_neighbor_slot = _slot_next[candidate.slot]
+	elif _build_tile >= 0:
+		# Skip every replaced link BEFORE any slot is relinked into another cell.
+		while _neighbor_slot >= 0 and candidate.modified_slots.has(_neighbor_slot):
+			_neighbor_slot = _slot_next[_neighbor_slot]
 		if _neighbor_slot == -1:
 			_neighbor_slot = UNSET
 			_neighbor_index += 1
@@ -451,8 +468,7 @@ func commit_source_change(proof: Variant) -> Dictionary:
 	_queue_cursor = 0
 	_revision += 1
 	_source_candidate = null
-	return {"ok": true, "revision": _revision, "old_area": candidate.old_area,
-		"new_area": candidate.new_area, "published_tiles": candidate.tile_ids.size()}
+	return {"ok": true, "revision": _revision, "published_tiles": candidate.tile_ids.size()}
 
 
 func cancel_source_change(handle: Variant) -> Dictionary:
@@ -480,6 +496,11 @@ func _add_candidate_tiles(area: Rect2i, result: Dictionary[int, bool]) -> bool:
 
 
 func _apply_source_candidate(candidate: SourceCandidate) -> void:
+	for entry: SourceEntry in candidate.entries:
+		_apply_source_entry(entry)
+
+
+func _apply_source_entry(candidate: SourceEntry) -> void:
 	var slot: int = candidate.slot
 	if candidate.old_radius > 0:
 		_unlink(slot, candidate.old_cell)
@@ -577,6 +598,14 @@ func export_source_compute_job(handle: Variant) -> Dictionary:
 		if tile.is_empty() or bool(tile.get("dirty", true)):
 			return _failure("candidate_cold")
 		area = area.merge(_rect_for_tile(id))
+	# A single source may move far enough that its old/new coverage is sparse.
+	# Keep that union on the tile-wise CPU path instead of computing the entire
+	# rectangle between the endpoints merely to discard its interior tiles.
+	var first := Vector2i(area.position.x / TILE_SIZE, area.position.y / TILE_SIZE)
+	var last := Vector2i((area.end.x - 1) / TILE_SIZE, (area.end.y - 1) / TILE_SIZE)
+	var tile_count: int = (last.x - first.x + 1) * (last.y - first.y + 1)
+	if tile_count > MAX_CANDIDATE_TILES or tile_count > _source_candidate.tile_ids.size() * 2:
+		return _failure("candidate_sparse_area")
 	return _export_compute_job(area, true, _source_candidate)
 
 
@@ -602,7 +631,7 @@ func _export_compute_job(area: Rect2i, compact: bool, candidate: SourceCandidate
 	# Full packing is O(map cells + capacity * 11 + active kernel values).
 	# Compact packing visits the clipped influence window and its references;
 	# neither mode is represented as a bounded rebuild work unit.
-	var max_radius: int = maxi(_max_radius, candidate.new_radius) if candidate != null else _max_radius
+	var max_radius: int = maxi(_max_radius, candidate.max_new_radius) if candidate != null else _max_radius
 	var params := PackedInt32Array([_size.x, _size.y, _capacity, max_radius,
 		area.position.x, area.position.y, area.size.x, area.size.y])
 	var projection: Dictionary
@@ -629,10 +658,10 @@ func _export_compute_job(area: Rect2i, compact: bool, candidate: SourceCandidate
 		return _failure("snapshot_allocation")
 	offsets.fill(-1)
 	for radius: int in range(1, Rules.MAX_RADIUS + 1):
-		if _radius_counts[radius] <= 0 and (candidate == null or radius != candidate.new_radius):
+		if _radius_counts[radius] <= 0 and (candidate == null or not candidate.new_kernels.has(radius)):
 			continue
 		offsets[radius] = kernels.size()
-		kernels.append_array(candidate.new_kernel if candidate != null and radius == candidate.new_radius else _kernels[radius])
+		kernels.append_array(candidate.new_kernels[radius] if candidate != null and candidate.new_kernels.has(radius) else _kernels[radius])
 	# A valid job is publishable only for previously requested whole tiles.
 	# Request missing tiles without disturbing already clean or in-flight ones.
 	for y: int in range(area.position.y, area.end.y, TILE_SIZE):
@@ -648,12 +677,12 @@ func _export_compute_job(area: Rect2i, compact: bool, candidate: SourceCandidate
 		"kernels": kernels, "radius_offsets": offsets}
 	if candidate != null:
 		job.candidate_token = candidate.handle.get_instance_id()
-		job.max_cell_sources = mini(int(projection.params[2]), maxi(1, _max_cell_sources + 1))
+		job.max_cell_sources = mini(int(projection.params[2]), maxi(1, _max_cell_sources + candidate.entries.size()))
 	return job
 
 
 func _compact_projection(area: Rect2i, candidate: SourceCandidate = null) -> Dictionary:
-	var radius_limit: int = maxi(_max_radius, candidate.new_radius) if candidate != null else _max_radius
+	var radius_limit: int = maxi(_max_radius, candidate.max_new_radius) if candidate != null else _max_radius
 	var extent: int = maxi(0, radius_limit - 1)
 	var left: int = maxi(0, area.position.x - extent)
 	var top: int = maxi(0, area.position.y - extent)
@@ -679,7 +708,7 @@ func _compact_projection(area: Rect2i, candidate: SourceCandidate = null) -> Dic
 			var slot: int = _heads[y * _size.x + x]
 			var local_head: int = -1
 			while slot >= 0:
-				if candidate != null and slot == candidate.slot:
+				if candidate != null and candidate.modified_slots.has(slot):
 					slot = _slot_next[slot]
 					continue
 				var local_slot: int = xs.size()
@@ -694,14 +723,14 @@ func _compact_projection(area: Rect2i, candidate: SourceCandidate = null) -> Dic
 				local_head = local_slot
 				local_max_radius = maxi(local_max_radius, _slot_radius[slot])
 				slot = _slot_next[slot]
-			if candidate != null and candidate.new_radius > 0 and candidate.new_cell == Vector2i(x, y):
+			for entry: SourceEntry in candidate.added_by_cell.get(Vector2i(x, y), []) if candidate != null else []:
 				xs.append(x - left)
 				ys.append(y - top)
-				radii.append(candidate.new_radius)
+				radii.append(entry.new_radius)
 				next.append(local_head)
-				channels.append_array(candidate.new_channels)
+				channels.append_array(entry.new_channels)
 				local_head = xs.size() - 1
-				local_max_radius = maxi(local_max_radius, candidate.new_radius)
+				local_max_radius = maxi(local_max_radius, entry.new_radius)
 			heads[(y - top) * width + x - left] = local_head
 	# Device storage buffers cannot be zero-sized. Empty windows retain one
 	# inactive slot and max radius zero; all heads remain -1.
@@ -1192,12 +1221,8 @@ class SourceChangeProof:
 	extends RefCounted
 
 
-class SourceCandidate:
+class SourceEntry:
 	extends RefCounted
-	var allow_compute: bool = false
-	var handle: SourceChangeHandle
-	var proof: SourceChangeProof
-	var revision: int = 0
 	var slot: int = -1
 	var old_cell := Vector2i.ZERO
 	var old_radius: int = 0
@@ -1207,6 +1232,19 @@ class SourceCandidate:
 	var new_kernel := PackedInt32Array()
 	var old_area := Rect2i()
 	var new_area := Rect2i()
+
+
+class SourceCandidate:
+	extends RefCounted
+	var allow_compute: bool = false
+	var handle: SourceChangeHandle
+	var proof: SourceChangeProof
+	var revision: int = 0
+	var entries: Array[SourceEntry] = []
+	var modified_slots: Dictionary[int, bool] = {}
+	var added_by_cell: Dictionary[Vector2i, Array] = {}
+	var max_new_radius: int = 0
+	var new_kernels: Dictionary[int, PackedInt32Array] = {}
 	var tile_ids: Array[int] = []
 	var tile_set: Dictionary[int, bool] = {}
 	var results: Dictionary = {}
