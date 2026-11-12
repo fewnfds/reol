@@ -2,6 +2,8 @@ class_name SimEnvironmentElementTide
 extends RefCounted
 ## Receiver-cell percentages, held for one game minute. Order matches source
 ## definitions: wood/fire/earth/metal/water. No global RNG or accumulated bonus.
+## A minute change selects new multipliers immediately at the receiver; it
+## schedules no map sweep and never enters the source build-up/decay response.
 
 const PERIOD_MS: int = 60000
 const MAX_PERCENT: int = 5

@@ -3,6 +3,7 @@ extends RefCounted
 ## accumulation, and the same future after a mid-second JSON roundtrip.
 const Tide = preload("res://scripts/sim/environment_element_tide.gd")
 const Phase = preload("res://scripts/sim/environment_phase_state.gd")
+const Fields = preload("res://scripts/sim/world_environment_fields.gd")
 const Columns = preload("res://scripts/sim/execution/field_response_input.gd")
 
 
@@ -34,6 +35,7 @@ static func run() -> bool:
 		return false
 	for at_ms: int in [0, 1000, 59000, 60000, 3600000]:
 		if settled.actual_at(Vector2i.ZERO, at_ms).values != PackedFloat64Array([1000, 1000, 1000, 1000, 1000]): return false
+	if not _steady_tide(settled): return false
 	var phase := Phase.new()
 	phase.anchor_quantum = 0.000000001
 	if not phase.configure(Vector2i(16, 16), 256, 0) or not _set_target(phase, 0, 1000.0):
@@ -53,6 +55,29 @@ static func run() -> bool:
 		if restored.actual_at(Vector2i.ZERO, at_ms) != phase.actual_at(Vector2i.ZERO, at_ms):
 			return false
 	return phase.actual_at(Vector2i.ZERO, 2000).values[0] > held[0]
+
+
+static func _steady_tide(phase: RefCounted) -> bool:
+	# Exercise the real receiver composition with no world, source-field/GPU
+	# backend or scheduler installed: a tide read must need none of them.
+	var fields := Fields.new()
+	fields._phases = phase
+	fields._settings = {"seed": 17}
+	fields._active = true
+	var anchors: Dictionary = phase.snapshot()
+	var previous := PackedFloat64Array()
+	for at_ms: int in [59000, 59999, 60000, 60001, 60999, 61000]:
+		fields.last_ms = at_ms
+		var row: Dictionary = fields.elements_at(Vector2i.ZERO)
+		var percent: PackedInt32Array = Tide.percentages(17, Vector2i.ZERO, at_ms)
+		if not row.ok or row.base_values != PackedFloat64Array([1000, 1000, 1000, 1000, 1000]): return false
+		if row.values != Tide.apply(row.base_values, percent) or row.tide_percent != percent: return false
+		if at_ms == 59999 and row.values != previous or at_ms == 60000 and row.values == previous: return false
+		if fields._element_samples.size() != 1: return false
+		previous = row.values
+	# A second receiver is lazy too; reading it creates no new source/response.
+	if not fields.elements_at(Vector2i.ONE).ok or fields._element_samples.size() != 2: return false
+	return phase.snapshot() == anchors
 
 
 static func _set_target(phase: RefCounted, at_ms: int, target: float, initial: float = 0.0) -> bool:

@@ -11,6 +11,7 @@
 | 少量判断、库存/预约/伤害等争用结果 | 直接由原领域有序处理 | [共同结算](settlement-contract.md)、[事件](event-contract.md)；不要为了并行拆散一笔事务 |
 | 稀疏变化、到期后果 | 只处理变脏或到期子集 | [SimParticipationIndex](../../scripts/sim/execution/participation_index.gd)、[SimEventQueue](../../scripts/sim/execution/event_queue.gd) |
 | 持续变化但输入暂时稳定 | 结算时间区间，输入改变前结清旧段 | 身体需求、环境温度响应；跨输入变化或阈值时分段 |
+| 周期变化、能直接求值的派生属性 | 按逻辑时刻及受体按需计算 | [五行潮汐](world-environment-contract.md#时间变化与受体)；逻辑上全图变化不必建立全图定时遍历 |
 | 可以接受采样误差或稍后重评的工作 | 内容周期、稳定错峰、重复变化合并 | [SimCadence](../../scripts/sim/execution/simulation_cadence.gd)、[领域频率](simulation-pacing.md#领域频率)；已受理命中/转移不能丢弃 |
 | 大批相互独立的判断、数学或投影 | 冻结/借出输入 → 分块计算 → 校验 → 采用 | [SimBatchExecution](../../scripts/sim/execution/batch_execution.gd)；空间候选、身体和场计算共用Godot池 |
 | 已有冷热/五行来源场的内容扩展 | 复用现有场CPU/GPU候选路径 | [环境合同](world-environment-contract.md)、下文GPU入口 |
@@ -18,6 +19,8 @@
 | 可丢弃的画面/缓存工作 | 发布独立显示值、延后或合并重建 | [ReolPresentationWork](../../scripts/runtime/presentation_work.gd)、[身体发布](../../scripts/sim/execution/body_publication.gd) |
 
 先使用足够简单的做法；出现大批独立工作时复用批执行，不必先造注册表、通用基类或全量ECS。若现有接口迫使领域暴露无关状态或制造昂贵快照，可以调整接口或保留局部顺序实现，并说明真实限制。串行是合法执行方式，错误接入导致的无声退化才需要避免。
+
+现有低优先级呈现工作由`ReolPresentationWork`合并、限额并提升久候任务；地形预绘和光照贴图已接入。玩法中允许慢周期重评的内容走原领域频率/稳定错峰，到期后果仍沿共同结算及CPU批续算；这与可丢弃的呈现缓存有不同的采用条件。Godot共用worker池分担计算，但当前没有一个可以把任意业务回调随意延后的通用低优先级池。先减少无用工作，再按可见性、逻辑截止和实际依赖选择已有入口。
 
 ## 执行链与职责
 

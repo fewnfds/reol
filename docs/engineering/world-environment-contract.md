@@ -46,6 +46,8 @@ Godot负责Node/场景/脚本组合、signal、资源和呈现，也提供Physic
 
 五行的秒/分钟规则见[环境规则](../../design/rules/environment.md)。`SimEnvironmentPhaseState`只保存未加潮汐的基础响应，按`SimCadence.FIELD_SAMPLE_MS`采样；秒内来源变化保留该秒实际值、替换后续目标。`elements_at`按需解析求出最新整秒，不逐秒遍历全图；同秒同格查询复用派生结果。`SimEnvironmentElementTide`以世界seed、受体格、分钟编号和通道独立散列百分比，查询顺序、执行线程和停开不会重抽。倍率在受体端乘基础响应，四舍五入后输出，不写回响应锚点、来源强度或下分钟基数。五行不再使用温度目标的共享倍率，也不因气候段或潮汐分钟到期全量重锚；`SimEnvironmentThermalTide`只保留原冷热目标规则。
 
+分钟交界的潮汐直接生效，不经过基础响应的tau。所谓全图同刻变化是查询语义：分钟编号决定每格当时的倍率，仅被读取的受体才做固定大小的散列与五通道乘法；未读取格不枚举、不写回、不提交CPU/GPU来源重建任务。潮汐本身没有到期队列或全图分钟作业，因此不用把它再搬入低优先级池。未来若增加整张五行热力图等批量呈现，沿[计算接入](execution-batches.md)分块延后其缓存生成，真实读取仍使用当前分钟；不能把缓存延后变成规则生效时间依赖机器忙闲。
+
 当前五行基础响应仍使用一阶建立/消散：固定目标下，实际值等于`target + (initial-target) × exp(-经过时间/tau)`，tau由代码定义。这是当前实现选择，不是每秒抽随机数，也不将响应速度固化成玩法规则。初值已等于目标且来源未变时基础值不动；来源刚变化时，即使地表没变，残留差额仍逐秒趋近。试玩场景在环境装配后补充行囊物资、设施和植物，因此开局存在真实目标变化；NPC携物移动也会改变来源。每分钟独立百分比潮汐在这个基础值之外应用。
 
 `context_at`提供`elements`最终整数、`elements_base`未加潮汐的实际值、`elements_target`基础响应目标、`elements_response_start_ms`、`elements_tau_ms`，以及`element_tide_percent`、`elements_at_ms`和`element_tide_at_ms`，五通道顺序均为木/火/土/金/水。开发HUD直接显示final/base/target及倍率；响应修订也会刷新秒缓存的诊断目标，基础值仍遵循秒内保持。切换格子会读取另一个格的值，DEV诊断不写个人认识。
