@@ -17,6 +17,8 @@ var fog_enabled: bool = true
 var camera := Camera2D.new()
 var hud := Label.new()
 var readout := Label.new()
+var _pause_notice := Label.new()
+var _pause_button: Button
 var frame: RefCounted
 var selected: int = 1
 var selected_tile: int = -1
@@ -121,6 +123,22 @@ func _ready() -> void:
 	font.font_names = PackedStringArray(["Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC"])
 	body.add_theme_font_override("font", font)
 	body.add_theme_font_size_override("font_size", 13)
+	layer.add_child(_pause_notice)
+	_pause_notice.text = "已暂停 · 空格继续"
+	_pause_notice.add_theme_font_override("font", font)
+	_pause_notice.add_theme_font_size_override("font_size", 24)
+	_pause_notice.add_theme_color_override("font_color", Color.GOLD)
+	_pause_notice.add_theme_color_override("font_shadow_color", Color.BLACK)
+	_pause_notice.add_theme_constant_override("shadow_offset_x", 2)
+	_pause_notice.add_theme_constant_override("shadow_offset_y", 2)
+	_pause_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_pause_notice.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_pause_notice.offset_left = -220
+	_pause_notice.offset_right = 220
+	_pause_notice.offset_top = 12
+	_pause_notice.offset_bottom = 48
+	_pause_notice.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pause_notice.visible = false
 	readout.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	readout.custom_minimum_size = Vector2(315, 0)
 	readout.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -137,6 +155,9 @@ func _ready() -> void:
 			button.text = text
 			button.pressed.connect(_button.bind(text))
 			row.add_child(button)
+			if text == "暂停/继续":
+				_pause_button = button
+				_pause_button.text = "暂停"
 	var item_choice := OptionButton.new()
 	for item: String in ["wood", "stone", "grain", "water", "meal", "herb", "potion"]:
 		item_choice.add_item(item)
@@ -189,18 +210,24 @@ func _process(delta: float) -> void:
 	var next: RefCounted = mailbox.frame
 	for receipt: Dictionary in mailbox.receipts:
 		_last_receipt = "%s #%d @%d: %s" % [receipt.kind, receipt.seq, receipt.at_ms, receipt.reason]
+		print("COMMAND_RESULT ", JSON.stringify(receipt))
 		if receipt.seq == _pending_move and not receipt.ok:
 			_target = Vector2(-1, -1)
 	for outcome: Dictionary in mailbox.outcomes:
 		if next != null and outcome.get("epoch", next.epoch) != next.epoch:
 			continue
+		if outcome.actor != 1 and int(outcome.get("target", 0)) != 1:
+			continue # NPC traffic must not bury the player's command feedback.
 		_last_receipt = "%s #%d @%d" % [outcome.kind, outcome.actor, outcome.at_ms]
+		print("PLAYER_OUTCOME ", JSON.stringify(outcome))
 		if outcome.actor == 1 and outcome.kind in ["arrived", "path_failed", "death"]:
 			_target = Vector2(-1, -1)
 	if next == null:
 		readout.text = "正在构建新内核…"
 		return
 	if frame != next:
+		if frame == null or frame.epoch != next.epoch or frame.paused != next.paused or frame.speed != next.speed:
+			print("SESSION_STATE ", JSON.stringify({"epoch": next.epoch, "world_ms": next.world_ms, "paused": next.paused, "speed": next.speed}))
 		if frame != null and frame.epoch != next.epoch:
 			render_ms = maxf(0, next.world_ms - 50)
 			_render_pose = null
@@ -210,6 +237,8 @@ func _process(delta: float) -> void:
 			_target = Vector2(-1, -1)
 			_speed_at = 0
 		frame = next
+		_pause_notice.visible = frame.paused
+		_pause_button.text = "继续" if frame.paused else "暂停"
 		ground.adopt(frame.terrain, frame.perception)
 		object_canvas.adopt(frame.perception.memories if fog_enabled else frame.objects)
 		if fog_enabled:
@@ -284,7 +313,7 @@ func _update_hud() -> void:
 	var stats: Dictionary = frame.counters
 	var data: Dictionary = frame.inspected
 	readout.text = "\n".join(PackedStringArray(["Reol · 功能重构试玩", "FPS %d | 世界 %.2fs | 请求 %.1f×" % [Engine.get_frames_per_second(), frame.world_ms / 1000.0, frame.speed],
-		"实速 %.3f×" % _actual_speed,
+		"实速 %.3f× | %s" % [_actual_speed, "已暂停（空格继续）" if frame.paused else "运行中"],
 		"单位 %d | worker %d | 房间 %d" % [stats.actors, stats.workers, stats.rooms],
 		"采集 %d / 入库 %d / 材料 %d" % [stats.harvested, stats.stored, stats.material],
 		"鼠标格 (%d,%d) | 选中格 %d" % [mouse.x, mouse.y, selected_tile],
@@ -423,7 +452,11 @@ func _send(command: Dictionary) -> int:
 	if frame == null:
 		return 0
 	command.epoch = frame.epoch
-	return runner.send(command)
+	var seq: int = runner.send(command)
+	print("PLAYER_COMMAND seq=%d %s" % [seq, JSON.stringify(command)])
+	if seq == 0:
+		_last_receipt = "指令未入队：队列已满或会话关闭"
+	return seq
 
 
 func _draw() -> void:
