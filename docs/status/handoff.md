@@ -13,7 +13,9 @@
 
 ## 当前停点
 
-用户随后授权完成单位视野与战斗感知，已接共同几何、最后所见/盲区反击、分散警戒、CPU查询批和玩家格图/静态记忆。临时纯圆与旧GPU逐像素判定均已退出。实现只查[架构](../engineering/architecture.md)，阶段已在[唯一主计划](../plans/foundation-priorities.md#当前试玩反馈单位视野与迷雾)收尾；没有待恢复的优化goal或仍待领取的顾问请求。
+最新试玩“世界运行但玩家不能动”已从所读快速档确认玩家#1在世界416秒时HP0/DEAD，原UI缺少死亡与拒绝提示。现已补独立F12诊断面板、玩家常驻状态/回执和角色身体拾取；操作与日志归[运行与测量](../engineering/tooling/usage.md)，排查/短探针证据留忽略的`logs/live-movement-20261112/`。未主动关闭用户原窗口或改写原存档；新面板需重开源码进程，死因尚未从该旧档确认。
+
+单位视野与战斗感知阶段已接共同几何、最后所见/盲区反击、分散警戒、CPU查询批和玩家格图/静态记忆。临时纯圆与旧GPU逐像素判定均已退出。实现只查[架构](../engineering/architecture.md)，阶段已在[唯一主计划](../plans/foundation-priorities.md#当前试玩反馈单位视野与迷雾)收尾；没有待恢复的优化goal或仍待领取的顾问请求。
 
 最后两次顾问已用用户指定的顶层`thinking: high`并完整收取；本机客户端和说明同步更新，程序/凭据/问答不入库。原问答在忽略的`.local/advisor/runs/unit-sight-20261112-*`，取舍只查[研究页](../../design/research/large_simulation_optimization.md#全单位感知与战斗视野咨询)。
 

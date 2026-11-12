@@ -109,6 +109,16 @@ func close() -> void:
 	_thread.wait_to_finish() # Every lane batch is joined before a step returns.
 
 
+func diagnostics() -> Dictionary:
+	# Main-thread mailbox values only; never inspect a running world's internals.
+	_mutex.lock()
+	var result: Dictionary = {"queued": _commands.size(), "requested_pause": _paused, "closing": _closing}
+	_mutex.unlock()
+	result.pending = _pending
+	result.thread_alive = _thread.is_alive()
+	return result
+
+
 func _notify_locked() -> void:
 	# At most one wake token, including while the simulation is running.
 	if not _wake_pending:
@@ -278,6 +288,7 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 	for bolt: Dictionary in _world.combat.bolts.values():
 		frame.projectiles.append(bolt.position)
 	frame.inspected = _world.describe(selected)
+	frame.player = frame.inspected if selected == 1 else _world.describe(1)
 	frame.counters = _world.counters()
 	frame.counters.snapshot_usec = _snapshot_usec
 	frame.counters.overload_demand_usec = _overload_usec

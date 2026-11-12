@@ -7,6 +7,7 @@ const Population = preload("res://scripts/presentation/population.gd")
 const Ground = preload("res://scripts/presentation/terrain_canvas.gd")
 const ObjectCanvas = preload("res://scripts/presentation/objects_canvas.gd")
 const Fog = preload("res://scripts/presentation/fog.gd")
+const Units = preload("res://scripts/sim/kernel/units.gd")
 const TILE: float = 32.0
 var runner := Runner.new()
 var population := Population.new()
@@ -17,8 +18,10 @@ var fog_enabled: bool = true
 var camera := Camera2D.new()
 var hud := Label.new()
 var readout := Label.new()
-var _pause_notice := Label.new()
+var _state_notice := Label.new()
 var _pause_button: Button
+var _feedback := Label.new()
+var _debug_console: Node
 var frame: RefCounted
 var selected: int = 1
 var selected_tile: int = -1
@@ -70,6 +73,9 @@ var _attack_cursor: bool = false
 
 
 func _ready() -> void:
+	_debug_console = get_node_or_null("/root/DebugConsole")
+	if _debug_console != null:
+		_debug_console.attach(diagnostics)
 	for argument: String in OS.get_cmdline_user_args():
 		var part: PackedStringArray = argument.trim_prefix("--").split("=", true, 1)
 		if part.size() != 2:
@@ -123,26 +129,28 @@ func _ready() -> void:
 	font.font_names = PackedStringArray(["Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC"])
 	body.add_theme_font_override("font", font)
 	body.add_theme_font_size_override("font_size", 13)
-	layer.add_child(_pause_notice)
-	_pause_notice.text = "已暂停 · 空格继续"
-	_pause_notice.add_theme_font_override("font", font)
-	_pause_notice.add_theme_font_size_override("font_size", 24)
-	_pause_notice.add_theme_color_override("font_color", Color.GOLD)
-	_pause_notice.add_theme_color_override("font_shadow_color", Color.BLACK)
-	_pause_notice.add_theme_constant_override("shadow_offset_x", 2)
-	_pause_notice.add_theme_constant_override("shadow_offset_y", 2)
-	_pause_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_pause_notice.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	_pause_notice.offset_left = -220
-	_pause_notice.offset_right = 220
-	_pause_notice.offset_top = 12
-	_pause_notice.offset_bottom = 48
-	_pause_notice.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_pause_notice.visible = false
+	layer.add_child(_state_notice)
+	_state_notice.add_theme_font_override("font", font)
+	_state_notice.add_theme_font_size_override("font_size", 24)
+	_state_notice.add_theme_color_override("font_color", Color.GOLD)
+	_state_notice.add_theme_color_override("font_shadow_color", Color.BLACK)
+	_state_notice.add_theme_constant_override("shadow_offset_x", 2)
+	_state_notice.add_theme_constant_override("shadow_offset_y", 2)
+	_state_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_state_notice.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_state_notice.offset_left = -300
+	_state_notice.offset_right = 300
+	_state_notice.offset_top = 12
+	_state_notice.offset_bottom = 48
+	_state_notice.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_state_notice.visible = false
 	readout.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	readout.custom_minimum_size = Vector2(315, 0)
 	readout.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	body.add_child(readout)
+	_feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_feedback.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body.add_child(_feedback)
 	body.add_child(scroll)
 	hud.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hud.custom_minimum_size = Vector2(315, 0)
@@ -210,6 +218,8 @@ func _process(delta: float) -> void:
 	var next: RefCounted = mailbox.frame
 	for receipt: Dictionary in mailbox.receipts:
 		_last_receipt = "%s #%d @%d: %s" % [receipt.kind, receipt.seq, receipt.at_ms, receipt.reason]
+		_feedback.text = _last_receipt
+		_feedback.modulate = Color.WHITE if receipt.ok else Color(1.0, 0.45, 0.4)
 		print("COMMAND_RESULT ", JSON.stringify(receipt))
 		if receipt.seq == _pending_move and not receipt.ok:
 			_target = Vector2(-1, -1)
@@ -219,6 +229,7 @@ func _process(delta: float) -> void:
 		if outcome.actor != 1 and int(outcome.get("target", 0)) != 1:
 			continue # NPC traffic must not bury the player's command feedback.
 		_last_receipt = "%s #%d @%d" % [outcome.kind, outcome.actor, outcome.at_ms]
+		_feedback.text = _last_receipt
 		print("PLAYER_OUTCOME ", JSON.stringify(outcome))
 		if outcome.actor == 1 and outcome.kind in ["arrived", "path_failed", "death"]:
 			_target = Vector2(-1, -1)
@@ -237,7 +248,9 @@ func _process(delta: float) -> void:
 			_target = Vector2(-1, -1)
 			_speed_at = 0
 		frame = next
-		_pause_notice.visible = frame.paused
+		var dead: bool = not frame.player.is_empty() and int(frame.player.get("hp", 0)) <= 0
+		_state_notice.visible = frame.paused or dead
+		_state_notice.text = "玩家#1已死亡 · 无法执行行动" + (" | 已暂停" if frame.paused else "") if dead else "已暂停 · 空格继续"
 		_pause_button.text = "继续" if frame.paused else "暂停"
 		ground.adopt(frame.terrain, frame.perception)
 		object_canvas.adopt(frame.perception.memories if fog_enabled else frame.objects)
@@ -273,7 +286,7 @@ func _process(delta: float) -> void:
 	population.interpolate(alpha, int(render_ms))
 	if following:
 		camera.position = _displayed(1) * TILE
-	else:
+	elif _debug_console == null or not _debug_console.is_open():
 		var pan := Vector2(float(Input.is_key_pressed(KEY_RIGHT)) - float(Input.is_key_pressed(KEY_LEFT)), float(Input.is_key_pressed(KEY_DOWN)) - float(Input.is_key_pressed(KEY_UP)))
 		camera.position += pan.normalized() * delta * 800.0 / camera.zoom.x
 	if begin >= _hud_next:
@@ -312,8 +325,11 @@ func _update_hud() -> void:
 		runner.inspect(selected, tile)
 	var stats: Dictionary = frame.counters
 	var data: Dictionary = frame.inspected
+	var player: Dictionary = frame.player
+	_feedback.text = _last_receipt
 	readout.text = "\n".join(PackedStringArray(["Reol · 功能重构试玩", "FPS %d | 世界 %.2fs | 请求 %.1f×" % [Engine.get_frames_per_second(), frame.world_ms / 1000.0, frame.speed],
 		"实速 %.3f× | %s" % [_actual_speed, "已暂停（空格继续）" if frame.paused else "运行中"],
+		"玩家#1 HP %d | %s" % [int(player.get("hp", 0)), str(Units.Mode.find_key(int(player.get("mode", Units.Mode.FREE))))],
 		"单位 %d | worker %d | 房间 %d" % [stats.actors, stats.workers, stats.rooms],
 		"采集 %d / 入库 %d / 材料 %d" % [stats.harvested, stats.stored, stats.material],
 		"鼠标格 (%d,%d) | 选中格 %d" % [mouse.x, mouse.y, selected_tile],
@@ -341,8 +357,10 @@ func _update_hud() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if frame == null:
 		return
+	if _debug_console != null and _debug_console.is_open() and event is InputEventKey:
+		return
 	if event is InputEventMouseButton and event.pressed:
-		var point: Vector2 = get_global_mouse_position() / TILE
+		var point: Vector2 = get_canvas_transform().affine_inverse() * event.position / TILE
 		var cell := Vector2i(point.floor())
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			camera.zoom = Vector2.ONE * clampf(camera.zoom.x * (1.15 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.15), 0.1, 2.0)
@@ -353,7 +371,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 			var previous_selected: int = selected
 			selected = 0
-			var best: float = 0.16
+			var best: float = INF
 			for index: int in frame.positions.size():
 				var id: int = frame.ids[index]
 				if id == 0:
@@ -361,7 +379,11 @@ func _unhandled_input(event: InputEvent) -> void:
 				if fog_enabled and id != 1 and (index >= frame.visible.size() or frame.visible[index] == 0):
 					continue
 				var visual: Vector2 = _displayed(id) - Vector2(0, 18.0 / TILE if frame.flight[index] != 0 else 0.0)
-				var distance: float = point.distance_squared_to(visual)
+				var body_scale: float = 1.6 if frame.radii[index] > 0.5 else 1.0
+				var relative: Vector2 = point - visual
+				if not Rect2(Vector2(-0.45, -1.8) * body_scale, Vector2(0.9, 2.1) * body_scale).has_point(relative):
+					continue
+				var distance: float = relative.distance_squared_to(Vector2(0, -0.7 * body_scale))
 				if distance < best:
 					best = distance
 					selected = id
@@ -372,7 +394,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			runner.inspect(selected, selected_tile)
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			var tile: int = Terrain.index(cell) if cell.x >= 0 and cell.y >= 0 and cell.x < Terrain.SIZE and cell.y < Terrain.SIZE else -1
-			if tile >= 0 and (frame.terrain.blocked[tile] == 0 or frame.flight[0] != 0):
+			if tile >= 0:
 				_pending_move = _send({"kind": "move", "actor": 1, "tile": tile})
 				if _pending_move > 0:
 					_target = Vector2(cell) + Vector2(0.5, 0.5)
@@ -456,7 +478,23 @@ func _send(command: Dictionary) -> int:
 	print("PLAYER_COMMAND seq=%d %s" % [seq, JSON.stringify(command)])
 	if seq == 0:
 		_last_receipt = "指令未入队：队列已满或会话关闭"
+		_feedback.text = _last_receipt
+		_feedback.modulate = Color(1.0, 0.45, 0.4)
 	return seq
+
+
+func diagnostics() -> Dictionary:
+	var focused: Control = get_viewport().gui_get_focus_owner()
+	var hovered: Control = get_viewport().gui_get_hovered_control()
+	var result: Dictionary = {"mailbox": runner.diagnostics(), "selected": selected, "selected_tile": selected_tile,
+		"last_result": _last_receipt, "last_move_seq": _pending_move, "actual_speed": _actual_speed,
+		"fps": Engine.get_frames_per_second(), "focused_control": str(focused.get_path()) if focused != null else "",
+		"hovered_control": str(hovered.get_path()) if hovered != null else ""}
+	if frame != null:
+		result.merge({"epoch": frame.epoch, "sequence": frame.sequence, "world_ms": frame.world_ms, "paused": frame.paused,
+			"speed": frame.speed, "frame_age_ms": (Time.get_ticks_usec() - frame.published_usec) / 1000.0,
+			"player": frame.player, "inspected": frame.inspected})
+	return result
 
 
 func _draw() -> void:

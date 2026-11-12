@@ -27,6 +27,7 @@ var modes := PackedByteArray()
 var flight := PackedByteArray()
 var radii := PackedFloat32Array()
 var inspected: Dictionary = {}
+var player: Dictionary = {} # Always present independently of selection/scroll position.
 var counters: Dictionary = {}
 var tides := PackedInt32Array()
 var mobile_cells := PackedInt32Array()
