@@ -82,6 +82,6 @@ Godot提供渲染、输入、SceneTree、固定物理步及碰撞服务。`_proc
 
 ## 采用的来源
 
-[Godot 4.7处理入口](https://docs.godotengine.org/en/4.7/tutorials/scripting/idle_and_physics_processing.html)和[线程安全边界](https://docs.godotengine.org/en/4.7/tutorials/performance/thread_safe_apis.html)说明宿主/物理步与活SceneTree的约束。[SimPy时间调度](https://simpy.readthedocs.io/en/stable/topical_guides/time_and_scheduling.html)提供到期及稳定同刻序的算法参考；[Factorio存读要求](https://www.factorio.com/blog/post/fff-270)说明停开不能改变后续结果，其[并行化经验](https://www.factorio.com/blog/post/fff-215)说明并行写入不自动提高性能。[RimWorld Multiplayer源码](https://github.com/rwmt/Multiplayer/blob/master/Source/Client/AsyncTime/AsyncTimeComp.cs)展示社区实现的固定调用与随机上下文，不是官方内部审计。这里只采用原理，未引入外部运行依赖或复制源码。
+[Godot 4.7处理入口](https://docs.godotengine.org/en/4.7/tutorials/scripting/idle_and_physics_processing.html)和[线程安全边界](https://docs.godotengine.org/en/4.7/tutorials/performance/thread_safe_apis.html)说明宿主/物理步与活SceneTree的约束。[SimPy时间调度](https://simpy.readthedocs.io/en/stable/topical_guides/time_and_scheduling.html)提供到期及稳定同刻序的算法参考；[Factorio存读要求](https://www.factorio.com/blog/post/fff-270)解释该游戏为多人加入、重放及验证等需求追求严格存读确定性，Reol不整包采用其产品要求；其[并行化经验](https://www.factorio.com/blog/post/fff-215)说明并行写入不自动提高性能。[RimWorld Multiplayer源码](https://github.com/rwmt/Multiplayer/blob/master/Source/Client/AsyncTime/AsyncTimeComp.cs)展示社区实现的固定调用与随机上下文，不是官方内部审计。这里只采用原理，未引入外部运行依赖或复制源码。
 
 全局离散工作在 messages 后、transport 前由 `SimEventQueue` 有界派发；可信规则目录为 `SimWorldEvents`。连续区间过程仍归原域，详见[事件合同](event-contract.md)。

@@ -5,7 +5,7 @@
 | 处理的问题 | 先查哪里 |
 |---|---|
 | 运行装配、分层与状态owner | [architecture](architecture.md)、[owner表](architecture/02-owners.md) |
-| 调度、共同时间、同刻结算 | [settlement](settlement-contract.md)、[pacing](simulation-pacing.md) |
+| 调度、共同时间、同刻结算、近似精度与有界延迟 | [settlement](settlement-contract.md)、[pacing](simulation-pacing.md) |
 | 新计算归类、CPU/GPU接入、线程/结果生命周期 | [execution-batches](execution-batches.md) |
 | 离散到期/触发事件、失效 | [event](event-contract.md) |
 | 活动、到期、变脏集合与局部查询 | [sparse-execution](sparse-execution.md) |

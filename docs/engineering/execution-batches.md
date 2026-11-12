@@ -1,6 +1,6 @@
 # 计算接入与并行执行
 
-本页是现有机制的选择指南与代码入口，不是所有功能必须实现的接口或验收清单。小规模、低频且足够快的计算可以直接写在原领域；接入共同时序也不意味着必须多线程。产品与因果边界见[constraints](constraints.md)，领域职责见[owner表](architecture/02-owners.md)。
+本页是现有机制的选择指南与代码入口，不是所有功能必须实现的接口或验收清单。小规模、低频且足够快的计算可以直接写在原领域；接入共同时序也不意味着必须多线程。产品与因果边界见[constraints](constraints.md)，近似与有界延迟的取舍见[运行与精度](simulation-pacing.md#世界事实与计算精度)，领域职责见[owner表](architecture/02-owners.md)。
 
 ## 新计算从哪里接
 
@@ -40,7 +40,7 @@ flowchart LR
 
 任务对象实现`run()`，持有稳定的输入和自己的输出；`SimBatchExecution.start(chunks, workers)`使用Godot池，`finish()`收集完成结果，协调者可在真正需要的依赖上`finish(true)`。小集合或`workers=0`执行同一任务代码的串行路径。`workers=-1`按硬件/独立块选并发，显式正数是本批上限；不是创建相应数量的线程，也不是在线最优调参器。实际规则与阈值以[执行器](../../scripts/sim/execution/batch_execution.gd)和各任务类常量为准，CLI语法只查[usage](tooling/usage.md)。
 
-借读期间原owner不修改输入，worker不访问活SceneTree、隐式同步getter或共享可变搜索上下文。原owner验证时间、代次、对象和依赖，再按领域规则采用；资源争用和随机生效不由完成快慢决定。独立分区写入是少数已验证阶段的能力，不是给任意任务开放共享写权限。
+借读期间原owner不修改输入，worker不访问活SceneTree、隐式同步getter或共享可变搜索上下文。原owner验证时间、代次、对象和依赖，再按领域规则采用；当前批任务不通过抢先完成取得资源或触发随机效果。独立分区写入是少数已验证阶段的能力，不是给任意任务开放共享写权限。
 
 `cancel()`撤销结果采用，不会杀掉运行中的算法。借读原表的任务先join再修改输入；复制输入的任务可以退休后收集。退出/换世界回收任务。线程handle、计时和可重建输入不入档；保存与失败恢复见[存读管线](architecture/04-persistence.md)。
 
