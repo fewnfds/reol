@@ -9,6 +9,7 @@ var _shader := ShaderMaterial.new()
 var _directions := PackedInt32Array()
 var _colors: Array[Color] = []
 var _buffer := PackedFloat32Array()
+var fog_enabled: bool = false
 
 
 func configure(count: int) -> void:
@@ -62,11 +63,11 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted) ->
 		buffer[offset + 8] = color.r
 		buffer[offset + 9] = color.g
 		buffer[offset + 10] = color.b
-		buffer[offset + 11] = 1.0 if id > 0 else 0.0
+		buffer[offset + 11] = 1.0 if id > 0 and (not fog_enabled or id == 1 or (index < frame.visible.size() and frame.visible[index] != 0)) else 0.0
 		buffer[offset + 12] = from.x
 		buffer[offset + 13] = from.y
 		buffer[offset + 14] = _directions[index]
-		buffer[offset + 15] = float(not delta.is_zero_approx())
+		buffer[offset + 15] = float(int(not delta.is_zero_approx()) + int(frame.radii[index] > 0.5) * 2 + int(frame.flight[index] > 0) * 4)
 	multimesh.buffer = buffer
 
 

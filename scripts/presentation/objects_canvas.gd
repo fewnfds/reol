@@ -26,6 +26,29 @@ func _draw() -> void:
 		var object: Dictionary = objects[id]
 		var point: Vector2 = Terrain.center(object.tile) * TILE
 		match object.kind:
+			"landmark":
+				draw_line(point, point - Vector2(0, 30), Color(0.6, 0.45, 0.2), 5)
+				draw_rect(Rect2(point - Vector2(10, 30), Vector2(24, 12)), Color(0.5, 0.75, 0.7))
+			"wall", "door":
+				var rect := Rect2(Vector2(Terrain.cell(object.tile)) * TILE + Vector2.ONE, Vector2.ONE * (TILE - 2.0))
+				draw_rect(rect, Color(0.4, 0.41, 0.42) if object.kind == "wall" else Color(0.43, 0.28, 0.15))
+				if object.kind == "wall":
+					draw_line(rect.position, rect.position + Vector2(30, 0), Color(0.7, 0.7, 0.6), 3)
+			"plant":
+				var stage: int = int(object.get("stage", 0))
+				var color := Color(0.25, 0.65, 0.36)
+				if object.definition == "fire_herb":
+					color = Color(0.9, 0.3, 0.12)
+				elif object.definition == "lotus":
+					color = Color(0.9, 0.55, 0.75)
+				if stage in [3, 4]:
+					color = Color(0.44, 0.3, 0.18)
+				draw_circle(point, 11 if stage == 2 else 5, color)
+				if object.definition == "old_tree":
+					draw_line(point, point - Vector2(0, 24), Color(0.4, 0.3, 0.2), 7)
+					draw_circle(point - Vector2(0, 24), 18 if stage == 2 else 6, color)
+				if object.get("sapient", false):
+					draw_arc(point, 20, 0, TAU, 24, Color.GOLD, 2)
 			"resource":
 				draw_circle(point, 9, Color(0.24, 0.58, 0.3))
 				draw_line(point, point - Vector2(0, 18), Color(0.4, 0.68, 0.3), 5)

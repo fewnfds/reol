@@ -7,7 +7,10 @@ const CHANNELS: int = 7 # heat, cold, metal, wood, water, fire, earth
 const RADIUS: int = 8
 const BUCKET: int = 16
 const BUCKETS: int = Terrain.SIZE / BUCKET
-const STATE_FIELDS: Array = ["source_cells", "source_channels", "source_strengths", "enabled", "mobile_units", "room_temperature", "tides", "revision", "updates"]
+const STATE_FIELDS: Array = ["source_cells", "source_channels", "source_strengths", "enabled", "mobile_units", "room_temperature", "tides", "revision", "updates", "free_sources", "clock_ms", "weather", "weather_override", "ambient_temperature", "light", "rng_seed", "rng_state"]
+const DAY_MS: int = 1200000
+const SEASONS: Array[String] = ["春", "夏", "秋", "冬"]
+const WEATHER: Array[String] = ["晴", "雨", "寒风", "热浪"]
 var terrain: RefCounted
 var field := PackedInt32Array()
 var source_cells := PackedInt32Array()
@@ -24,6 +27,18 @@ var rng := RandomNumberGenerator.new()
 var revision: int = 0
 var updates: int = 0
 var samples: int = 0
+var free_sources := PackedInt32Array()
+var clock_ms: int = 0
+var weather: int = 0
+var weather_override: int = -1
+var ambient_temperature: float = 22.0
+var light: int = 1000
+var rng_seed: int:
+	get: return rng.seed
+	set(value): rng.seed = value
+var rng_state: int:
+	get: return rng.state
+	set(value): rng.state = value
 
 
 func initialize(ground: RefCounted, actor_count: int) -> void:
@@ -87,6 +102,34 @@ func contribution(origin: Vector2i, receiver: Vector2i, strength: int) -> int:
 
 
 func update(now: int, pages: Array[RefCounted], actor_slots: Dictionary = {}) -> void:
+	clock_ms = now
+	if now > 0 and now % 300000 == 0 and weather_override < 0:
+		weather = rng.randi_range(0, 3)
+	if weather_override >= 0:
+		weather = weather_override
+	var season: int = (now / DAY_MS / 4) % 4
+	var phase: float = fposmod(float(now) / DAY_MS + 0.5, 1.0)
+	light = roundi(maxf(0, sin((phase - 0.25) * TAU)) * (650 if weather == 1 else 1000))
+	ambient_temperature = 18.0 + [0.0, 9.0, -2.0, -15.0][season] + light * 0.004 + [0.0, -3.0, -10.0, 12.0][weather]
+	index_mobile(pages, actor_slots)
+	if now > 0 and now % 60000 == 0:
+		for channel: int in 5:
+			tides[channel] = rng.randi_range(95, 105)
+	# A room is one receiver, not hundreds of duplicated cell response curves.
+	var probe := PackedInt32Array()
+	probe.resize(CHANNELS)
+	for room: int in terrain.room_cells.size():
+		var target: float = 0.0
+		for tile: int in terrain.room_cells[room]:
+			sample_raw(tile, probe, 0)
+			target += ambient_at(tile) + probe[0] - probe[1]
+		target /= maxi(1, terrain.room_cells[room].size())
+		if now > 0:
+			room_temperature[room] = lerpf(room_temperature[room], target, 1.0 - exp(-1.0 / 30.0))
+	updates += 1
+
+
+func index_mobile(pages: Array[RefCounted], actor_slots: Dictionary) -> void:
 	heads.fill(-1)
 	for source: int in mobile_units.size():
 		var id: int = int(actor_slots.get(mobile_units[source], mobile_units[source] - 1))
@@ -105,21 +148,6 @@ func update(now: int, pages: Array[RefCounted], actor_slots: Dictionary = {}) ->
 		var bucket: int = (point.y / BUCKET) * BUCKETS + point.x / BUCKET
 		links[source] = heads[bucket]
 		heads[bucket] = source
-	if now > 0 and now % 60000 == 0:
-		for channel: int in 5:
-			tides[channel] = rng.randi_range(95, 105)
-	# A room is one receiver, not hundreds of duplicated cell response curves.
-	var probe := PackedInt32Array()
-	probe.resize(CHANNELS)
-	for room: int in terrain.room_cells.size():
-		var target: float = 0.0
-		for tile: int in terrain.room_cells[room]:
-			sample_raw(tile, probe, 0)
-			target += 22.0 + probe[0] - probe[1]
-		target /= maxi(1, terrain.room_cells[room].size())
-		if now > 0:
-			room_temperature[room] = lerpf(room_temperature[room], target, 1.0 - exp(-1.0 / 30.0))
-	updates += 1
 
 
 func remove_mobile(unit: int) -> void:
@@ -156,7 +184,70 @@ func sample_raw(tile: int, output: PackedInt32Array, offset: int) -> void:
 
 func temperature_at(tile: int, values: PackedInt32Array, offset: int) -> float:
 	var room: int = terrain.rooms[tile]
-	return room_temperature[room] if room >= 0 else 22.0 + values[offset] - values[offset + 1]
+	return room_temperature[room] if room >= 0 else ambient_at(tile) + values[offset] - values[offset + 1]
+
+
+func ambient_at(tile: int) -> float:
+	return ambient_temperature + [0.0, -19.0, 14.0][Terrain.region(tile)]
+
+
+func calendar() -> Dictionary:
+	return {"day": clock_ms / DAY_MS + 1, "season": SEASONS[(clock_ms / DAY_MS / 4) % 4],
+		"day_phase": fposmod(float(clock_ms) / DAY_MS + 0.5, 1.0), "light": light,
+		"weather": WEATHER[weather], "ambient": ambient_temperature}
+
+
+func add_source(tile: int, channel: int, strength: int) -> int:
+	var source: int
+	if free_sources.is_empty():
+		source = source_cells.size()
+		source_cells.append(tile)
+		source_channels.append(channel)
+		source_strengths.append(0)
+		enabled.append(0)
+	else:
+		source = free_sources[-1]
+		free_sources.resize(free_sources.size() - 1)
+		source_cells[source] = tile
+		source_channels[source] = channel
+	set_source(source, strength)
+	return source
+
+
+func set_source(source: int, strength: int) -> void:
+	if source_strengths[source] == strength and enabled[source] == int(strength > 0):
+		return
+	source_strengths[source] = strength
+	enabled[source] = int(strength > 0)
+	refresh_region(Terrain.cell(source_cells[source]), source_channels[source])
+
+
+func release_source(source: int) -> void:
+	set_source(source, 0)
+	if not free_sources.has(source):
+		free_sources.append(source)
+
+
+func refresh_region(origin: Vector2i, only_channel: int = -1) -> void:
+	# max-fields cannot subtract a removed source. Recompose the affected
+	# footprint including every surviving overlapping source, not the whole map.
+	var low: Vector2i = (origin - Vector2i.ONE * RADIUS).max(Vector2i.ZERO)
+	var high: Vector2i = (origin + Vector2i.ONE * RADIUS).min(Vector2i.ONE * (Terrain.SIZE - 1))
+	for y: int in range(low.y, high.y + 1):
+		for x: int in range(low.x, high.x + 1):
+			for channel: int in range(0 if only_channel < 0 else only_channel, CHANNELS if only_channel < 0 else only_channel + 1):
+				field[(y * Terrain.SIZE + x) * CHANNELS + channel] = 0
+	for source: int in source_cells.size():
+		if enabled[source] == 0 or (only_channel >= 0 and source_channels[source] != only_channel):
+			continue
+		var center: Vector2i = Terrain.cell(source_cells[source])
+		if absi(center.x - origin.x) > RADIUS * 2 or absi(center.y - origin.y) > RADIUS * 2:
+			continue
+		for y: int in range(maxi(low.y, center.y - RADIUS), mini(high.y, center.y + RADIUS) + 1):
+			for x: int in range(maxi(low.x, center.x - RADIUS), mini(high.x, center.x + RADIUS) + 1):
+				var address: int = (y * Terrain.SIZE + x) * CHANNELS + source_channels[source]
+				field[address] = maxi(field[address], contribution(center, Vector2i(x, y), source_strengths[source]))
+	revision += 1
 
 
 func element(tile: int, values: PackedInt32Array, offset: int, channel: int) -> int:

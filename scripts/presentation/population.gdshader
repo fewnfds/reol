@@ -15,9 +15,12 @@ vec4 over(vec4 below, vec4 above) {
 void vertex() {
 	// Coordinates are two committed positions, never a speculative next step.
 	vec2 current = MODEL_MATRIX[3].xy;
+	int flags = int(INSTANCE_CUSTOM.w);
+	if ((flags & 2) != 0) { VERTEX *= 1.6; }
+	if ((flags & 4) != 0) { VERTEX.y -= 18.0; }
 	VERTEX += (INSTANCE_CUSTOM.xy - current) * (1.0 - alpha);
 	int frame = cursors.x * 8 / 1600;
-	if (INSTANCE_CUSTOM.w > 0.5) {
+	if ((flags & 1) != 0) {
 		frame = 8 + cursors.y * 16 / 900;
 	}
 	atlas_offset = vec2(float(frame), INSTANCE_CUSTOM.z) / vec2(40.0, 8.0);

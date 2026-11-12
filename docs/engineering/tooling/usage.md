@@ -10,20 +10,24 @@ python tools/godot.py test
 python tools/godot.py export --preset "Windows Demo" --output build/windows/reol-demo.exe
 ```
 
-`run`和唯一Windows Demo都进入同一内核。试玩包为`build/windows/reol-demo.exe`及同目录pck；默认千人有限世界，键位查[FEATURES](../../status/features.md)。每次启动新局，当前没有SL。
+`run`和Windows Demo均进入同一内核，默认24人普通开局，每次启动新局；F5/F9主动保存/加载当前格式。包为`build/windows/reol-demo.exe`及同目录pck，键位/试玩路线查[FEATURES](../../status/features.md)。
 
 ## 实际性能
 
 ```powershell
-python tools/benchmark.py --actors 1000 --speed 4 --fps 60 --seconds 20
-python tools/benchmark.py --actors 1000 --speed 4 --fps 30 --workers 0
-python tools/benchmark.py --actors 10000 --speed 4 --fps 60 --out logs/capacity.json --screenshot
+python tools/benchmark.py --actors 1000 --speed 4 --fps 60 --seconds 15
+python tools/benchmark.py --actors 1000 --speed 4 --fps 60 --mixed
+python tools/benchmark.py --actors 1000 --speed 4 --fps 60 --mixed --fog
+python tools/benchmark.py --actors 24 --speed 1 --fps 120 --screenshot
+python tools/benchmark.py --actors 1000 --speed 4 --fps 60 --workers 0
 ```
 
-采样器使用已导出的release，默认`build/windows/reol-demo.exe`；`--binary PATH`可固定同一构建。3秒运行预热后采样20秒，准备/预热不计世界倍率。记录实际世界推进、步数、资源工作量/守恒、帧时、GPU绘制、批参与线程及有界CPU/内存采样；后者包含装配，不能把整进程CPU秒直接当采样窗计算。
+采样器使用已导出的release，默认`build/windows/reol-demo.exe`，`--binary PATH`可固定构建。3秒运行预热，默认采样20秒，可用`--seconds`设5..60秒；装配/预热不计世界倍率。记录实际世界推进、步数/帧时、路径与交付、战斗/植物、材料审计、GPU绘制、线程及有界CPU/内存采样。CPU采样含装配，不能把整进程CPU秒直接当测量窗计算。
 
-默认`--gpu-index 1`对应本机5060Ti；其他电脑先检查Godot输出并选择实际设备，不把索引当通用硬件约定。`--workers -1`按独立页/处理器自适应，0为串行对照。输出JSON/日志/截图留在忽略的logs。
+千人及以上默认全图开发视图，`--fog`强制玩家迷雾显示，不停止远处模拟。`--mixed`在同一后端冷装配100名持续交战者、20个真实材料施工与4次真实交换，其余人物继续生活；战斗HP与施工时长是明确压力配置，不是游戏平衡或第二套算法。小于150人不装配这组压力。
 
-必要时可直接运行exe并附带`-- --actors=1000 --speed=4 --fps=60`；`--duration=20 --warmup=3 --metrics=绝对路径`用于有界采样。headless只能说明CPU/规则，不证明真实帧率。相同构建的独立窗口串行跑，避免几场游戏争用设备。
+默认`--gpu-index 1`对应本机5060Ti；其他机器核对Godot输出后选实际设备。`--workers -1`按独立页/处理器自适应，0为同算法串行；少量一页会选择直接执行，不为了占满核心制造调度工作。JSON、日志、CPU采样和可选截图留在忽略的logs，报告含exe/pck哈希与当时Git状态。
 
-短检查默认15秒进程上限，不再有旧分片/长回归/3600秒等待；检查策略见[验证方式](../workflow/testing.md)。
+直接运行exe可附`-- --actors=1000 --speed=4 --fps=60 --mixed=true --fog=true`；有界采样加`--duration=15 --warmup=3 --metrics=绝对路径`。同构建窗口串行跑，避免争用设备。headless只验证规则/CPU，不证明真实FPS。
+
+短检查默认15秒进程上限，无旧分片、长回归或`check`命令；策略见[验证方式](../workflow/testing.md)。

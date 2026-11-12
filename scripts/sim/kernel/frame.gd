@@ -8,6 +8,7 @@ class Pose extends RefCounted:
 	var positions := PackedVector2Array()
 	var ids := PackedInt64Array()
 
+var projectiles := PackedVector2Array()
 var sequence: int
 var world_ms: int
 var published_usec: int
@@ -17,10 +18,14 @@ var epoch: int = 1
 var ids := PackedInt64Array()
 var actor_slots: Dictionary = {}
 var objects: Dictionary = {}
+var perception: Dictionary = {}
+var visible := PackedByteArray()
 var positions := PackedVector2Array()
 var history: Array[RefCounted] = []
 var health := PackedInt32Array()
 var modes := PackedByteArray()
+var flight := PackedByteArray()
+var radii := PackedFloat32Array()
 var inspected: Dictionary = {}
 var counters: Dictionary = {}
 var tides := PackedInt32Array()

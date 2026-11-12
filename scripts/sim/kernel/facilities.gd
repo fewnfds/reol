@@ -30,6 +30,8 @@ func footprint(definition: String, tile: int) -> PackedInt32Array:
 func interaction_tile(world: RefCounted, target: int, origin: Vector2 = Vector2(-1, -1)) -> int:
 	var record: Dictionary = world.objects.records[target]
 	var tile: int = record.tile
+	if world.actor_slots.has(target):
+		return world.terrain.nearest_open(Terrain.index(Vector2i(world.combat.position(world, target))))
 	if record.kind in ["pile", "resource", "chest"] and world.terrain.blocked[tile] == 0:
 		return tile
 	var members: PackedInt32Array = record.get("cells", PackedInt32Array([tile]))
@@ -121,7 +123,7 @@ func available(world: RefCounted, action: Dictionary) -> bool:
 
 
 func interrupt(world: RefCounted, action: Dictionary, now: int) -> void:
-	if action.kind != "construct" or not action.has("started_ms") or not world.objects.records.has(action.target):
+	if action.kind not in ["construct", "sow"] or not action.has("started_ms") or not world.objects.records.has(action.target):
 		return
 	var record: Dictionary = world.objects.records[action.target]
 	record.remaining_ms = maxi(1, int(record.remaining_ms) - maxi(0, now - int(action.started_ms)))
@@ -155,6 +157,7 @@ func finish(world: RefCounted, actor: int, action: Dictionary, at: int) -> Strin
 				for member: int in cells:
 					world.queue_structure(member, bool(spec.facts.get("movement_blocked", false)), bool(spec.facts.get("enclosure_boundary", false)))
 			world.objects.layout_revision += 1
+			world.objects.reindex(action.target, cells)
 		"rest": page.energy[row] = mini(10000, page.energy[row] + 2000)
 		"eat":
 			if world.objects.amount(action.target, "meal") <= 0:
@@ -177,6 +180,13 @@ func demolish(world: RefCounted, target: int) -> bool:
 	var record: Dictionary = world.objects.records[target]
 	if record.tile < 0:
 		return false
+	world.forget_target(target)
+	if record.kind == "plant":
+		world.nature.remove(world, target)
+		return true
+	var guest: int = int(record.get("guest", 0))
+	if guest > 0 and world.objects.records.has(guest):
+		world.nature.remove(world, guest)
 	var pile: int = 0
 	if world.objects.count_inventory(target) > 0 or not record.get("materials", {}).is_empty():
 		pile = world.objects.create("pile", "salvage", record.tile)

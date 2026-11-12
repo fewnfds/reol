@@ -11,6 +11,11 @@ const Objects = preload("res://scripts/sim/kernel/objects.gd")
 const State = preload("res://scripts/sim/kernel/state.gd")
 const Facilities = preload("res://scripts/sim/kernel/facilities.gd")
 const Livelihood = preload("res://scripts/sim/kernel/livelihood.gd")
+const Nature = preload("res://scripts/sim/kernel/nature.gd")
+const Combat = preload("res://scripts/sim/kernel/combat.gd")
+const Society = preload("res://scripts/sim/kernel/society.gd")
+const Perception = preload("res://scripts/sim/kernel/perception.gd")
+const Regions = preload("res://scripts/sim/kernel/regions.gd")
 const STATE_FIELDS: Array = ["elapsed_ms", "actor_count", "initial_material", "harvested", "deliveries", "failed_harvests", "steps", "deaths", "attacks", "heals", "attack_due", "topology_revision", "source_objects", "depot_objects", "reservations", "actions"]
 
 class Lane extends RefCounted:
@@ -20,6 +25,7 @@ class Lane extends RefCounted:
 	var work_usec: int = 0
 	var thread_id: int
 	var sampling: bool = false
+	var large_graph: AStarGrid2D
 
 	func run() -> void:
 		var start: int = Time.get_ticks_usec()
@@ -28,7 +34,9 @@ class Lane extends RefCounted:
 			if sampling:
 				page.sample_environment()
 			else:
-				page.advance(graph, paths)
+				if large_graph == null and page.has_large:
+					large_graph = page.terrain.navigation(1)
+				page.advance(graph, paths, large_graph)
 		work_usec += Time.get_ticks_usec() - start
 
 var terrain := Terrain.new()
@@ -38,6 +46,11 @@ var lanes: Array[RefCounted] = []
 var objects := Objects.new()
 var facilities := Facilities.new()
 var livelihood := Livelihood.new()
+var nature := Nature.new()
+var combat := Combat.new()
+var society := Society.new()
+var perception := Perception.new()
+var regions := Regions.new()
 var actor_slots: Dictionary = {} # External identity -> stable internal body slot.
 var source_objects := PackedInt64Array()
 var depot_objects := PackedInt64Array()
@@ -119,6 +132,25 @@ func initialize(count: int = 1000, requested_workers: int = 4) -> void:
 	objects.add(supplies, "water", 30)
 	flush_topology()
 	livelihood.initialize(self)
+	nature.initialize(self)
+	society.initialize(self)
+	regions.initialize(self)
+	flush_topology()
+	if count >= 24:
+		for actor: int in range(count - 3, count + 1):
+			var slot: int = actor_slots[actor]
+			var page: RefCounted = pages[slot / 256]
+			page.positions[slot % 256] = Terrain.center(Terrain.index(Vector2i(177 + count - actor, 168)))
+			objects.records[actor]["side"] = 1
+			objects.records[actor].autonomous = false
+			combat.begin(self, actor, "hold", 0, -1, actor % 2 == 0)
+	perception.update(self, 0, true)
+
+
+func state_owners() -> Dictionary:
+	# The concrete composition root lists real domains; field selection belongs
+	# to each owner. New domains do not require a new serializer implementation.
+	return {"world": self, "terrain": terrain, "objects": objects, "environment": environment, "nature": nature, "combat": combat, "perception": perception, "regions": regions}
 
 
 func configure_lanes(requested_workers: int) -> void:
@@ -136,6 +168,7 @@ func configure_lanes(requested_workers: int) -> void:
 func step() -> void:
 	var start: int = Time.get_ticks_usec()
 	var end: int = elapsed_ms + 50
+	combat.before_motion(self)
 	for page: RefCounted in pages:
 		page.end_ms = end
 	var unit_start: int = Time.get_ticks_usec()
@@ -150,6 +183,10 @@ func step() -> void:
 	for page: RefCounted in pages:
 		for row: int in page.failures:
 			var id: int = page.ids[row]
+			if combat.orders.has(id):
+				combat.finish(self, id, end)
+				outcomes.append({"kind": "path_failed", "actor": id, "at_ms": end})
+				continue
 			release(id)
 			if page.modes[row] == Units.Mode.MANUAL:
 				page.modes[row] = Units.Mode.IDLE
@@ -165,10 +202,12 @@ func step() -> void:
 		for entry: int in range(0, page.ready.size(), 2):
 			var slot: int = actor_slots[page.ids[page.ready[entry]]]
 			events.append(clampi(page.ready[entry + 1] - elapsed_ms, 0, 50) * stride + slot)
-	events.sort() # Arrival/due time first; stable ID breaks simultaneous ties.
+	events.sort() # Arrival/due time first; stable body slot breaks equal-time ties.
 	for event: int in events:
 		var slot: int = event % stride
 		settle(pages[slot / Units.PAGE_SIZE].ids[slot % Units.PAGE_SIZE], elapsed_ms + int(event / stride))
+	combat.step(self, end)
+	nature.pulse(self, end)
 	flush_topology()
 	effects_usec += Time.get_ticks_usec() - effect_start
 	if end % 1000 == 0:
@@ -187,6 +226,7 @@ func step() -> void:
 				kill(page.ids[row], end)
 		environment_usec += Time.get_ticks_usec() - env_start
 	elapsed_ms = end
+	perception.update(self, end)
 	steps += 1
 	var cost: int = Time.get_ticks_usec() - start
 	step_usec += cost
@@ -226,7 +266,7 @@ func settle(id: int, at: int) -> void:
 			page.modes[row] = Units.Mode.REST
 			page.due_ms[row] = at + 1000
 	elif mode == Units.Mode.REST:
-		resume_work(id)
+		resume_work(id, at)
 	elif mode == Units.Mode.MANUAL:
 		page.modes[row] = Units.Mode.IDLE
 		outcomes.append({"kind": "arrived", "actor": id, "at_ms": at})
@@ -235,26 +275,31 @@ func settle(id: int, at: int) -> void:
 	elif mode == Units.Mode.EXPLORE:
 		livelihood.observe(self, id, at)
 		livelihood.think(self, id, at)
+	elif mode == Units.Mode.COMBAT_MOVE:
+		page.modes[row] = Units.Mode.IDLE
 
 
-func resume_work(id: int) -> void:
-	livelihood.think(self, id, elapsed_ms)
+func resume_work(id: int, at: int = -1) -> void:
+	livelihood.think(self, id, at if at >= 0 else elapsed_ms)
 
 
 func release(id: int, at: int = -1) -> void:
 	if not actor_slots.has(id):
 		return
+	combat.orders.erase(id)
 	var slot: int = actor_slots[id]
 	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
 	var target: int = source_objects[page.source_ids[slot % Units.PAGE_SIZE]]
 	if reservations.get(target, 0) == id:
 		reservations.erase(target)
 	if actions.has(id):
-		target = actions[id].target
+		var action: Dictionary = actions[id]
+		actions.erase(id)
+		target = action.target
 		if reservations.get(target, 0) == id:
 			reservations.erase(target)
-		facilities.interrupt(self, actions[id], at if at >= 0 else elapsed_ms)
-		actions.erase(id)
+		facilities.interrupt(self, action, at if at >= 0 else elapsed_ms)
+		society.interrupt(self, action, at if at >= 0 else elapsed_ms)
 
 
 func kill(id: int, at: int = -1) -> void:
@@ -266,12 +311,28 @@ func kill(id: int, at: int = -1) -> void:
 	if page.modes[row] == Units.Mode.DEAD:
 		return
 	release(id, at)
+	forget_target(id)
+	objects.records[id].erase("commitment")
 	page.health[row] = 0
 	page.modes[row] = Units.Mode.DEAD
 	environment.remove_mobile(id)
 	# A corpse retains its cargo. Death cannot erase or duplicate materials.
 	deaths += 1
 	outcomes.append({"kind": "death", "actor": id, "at_ms": at if at >= 0 else elapsed_ms})
+
+
+func forget_target(target: int) -> void:
+	# Rare structural deletion cleans cold dependents immediately, including
+	# save-between-removal-and-arrival. No per-step scan for missing objects.
+	for actor: int in actions.keys():
+		if actions[actor].target == target:
+			var automatic: bool = actions[actor].get("autonomous", false)
+			release(actor)
+			var slot: int = actor_slots[actor]
+			pages[slot / Units.PAGE_SIZE].modes[slot % Units.PAGE_SIZE] = Units.Mode.IDLE
+			if automatic:
+				livelihood.after_action(self, actor, elapsed_ms)
+	reservations.erase(target)
 
 
 func command(input: Dictionary) -> Dictionary:
@@ -286,9 +347,47 @@ func command(input: Dictionary) -> Dictionary:
 		receipt.reason = "dead"
 		return receipt
 	match str(input.get("kind", "")):
+		"journey":
+			if not input.get("region") is int:
+				return receipt
+			var tile: int = regions.destination(int(input.get("region", 0)))
+			if tile < 0:
+				return receipt
+			tile = terrain.nearest_open(tile, int(page.radii[row] > 0.5 and page.flight[row] == 0))
+			if tile < 0:
+				receipt.reason = "destination_blocked"
+				return receipt
+			release(id)
+			objects.records[id].autonomous = false
+			page.move_to(row, tile, Units.Mode.MANUAL)
+		"ability":
+			var reason: String = society.use_ability(self, id)
+			receipt.ok = reason == "ability_used"
+			receipt.reason = reason
+			return receipt
+		"pursue", "attack_move", "hold":
+			var destination: int = int(input.get("tile", -1))
+			if input.kind == "attack_move" and (destination < 0 or destination >= terrain.blocked.size() or terrain.blocked[destination] != 0):
+				receipt.reason = "blocked"
+				return receipt
+			var reason: String = combat.begin(self, id, input.kind, int(input.get("target", 0)), destination, input.get("ranged", false))
+			if reason != "accepted":
+				receipt.reason = reason
+				return receipt
+		"body":
+			var clearance: int = 1 if input.get("large", false) else 0
+			var flight: int = clampi(int(input.get("flight", 0)), 0, 1)
+			if flight == 0 and not terrain.fits(Vector2i(page.positions[row]), clearance):
+				receipt.reason = "body_does_not_fit_here"
+				return receipt
+			release(id)
+			page.flight[row] = flight
+			page.radii[row] = 0.9 if input.get("large", false) else 0.35
+			page.has_large = page.has_large or clearance > 0
+			page.modes[row] = Units.Mode.IDLE
 		"move":
 			var tile: int = int(input.get("tile", -1))
-			if tile < 0 or tile >= terrain.blocked.size() or terrain.blocked[tile] != 0:
+			if tile < 0 or tile >= terrain.blocked.size() or (terrain.blocked[tile] != 0 and page.flight[row] == 0):
 				receipt.reason = "blocked"
 				return receipt
 			release(id)
@@ -321,14 +420,23 @@ func command(input: Dictionary) -> Dictionary:
 			if victim.health[other] <= 0 or page.positions[row].distance_to(victim.positions[other]) > 2.0 or attack_due[slot] > elapsed_ms:
 				receipt.reason = "out_of_reach_or_cooldown"
 				return receipt
-			attack_due[slot] = elapsed_ms + 500
-			victim.health[other] = maxi(0, victim.health[other] - 25)
-			attacks += 1
-			if victim.health[other] == 0:
-				kill(target)
+			release(id)
+			page.modes[row] = Units.Mode.IDLE
+			attack_due[slot] = elapsed_ms + 600
+			combat.damage(self, id, target, 25, elapsed_ms)
+			if objects.records[id].get("autonomous", false):
+				livelihood.after_action(self, id, elapsed_ms)
 		"source":
 			var source: int = int(input.get("target", -1))
-			if source < 0 or source >= environment.enabled.size():
+			if input.has("tile"):
+				# Render marker order is not a source identity: plants can add,
+				# release and reuse slots before a region adds its own emitters.
+				source = -1
+				for index: int in environment.source_cells.size():
+					if environment.source_cells[index] == int(input.tile) and not environment.free_sources.has(index):
+						source = index
+						break
+			if source < 0 or source >= environment.enabled.size() or environment.free_sources.has(source):
 				return receipt
 			environment.enabled[source] = 1 - environment.enabled[source]
 			environment.rebuild_static()
@@ -346,7 +454,18 @@ func command(input: Dictionary) -> Dictionary:
 			if reason != "accepted":
 				receipt.reason = reason
 				return receipt
-		"rest", "eat", "cook", "continue_build", "demolish":
+		"plant":
+			var result: Dictionary = nature.plant_site(self, id, str(input.get("definition", "perennial_herb")), int(input.get("tile", -1)))
+			if result.reason != "accepted":
+				receipt.reason = result.reason
+				return receipt
+			var reason: String = begin_interaction(id, {"kind": "sow", "target": result.target})
+			if reason != "accepted":
+				receipt.reason = reason
+				return receipt
+		"weather":
+			environment.weather_override = clampi(int(input.get("weather", -1)), -1, 3)
+		"talk", "trade", "request_help", "learn", "study", "practice", "sow", "tend", "gather", "cut", "uproot", "rest", "eat", "cook", "continue_build", "demolish":
 			var action: Dictionary = input.duplicate()
 			if action.kind == "continue_build":
 				action.kind = "construct"
@@ -370,6 +489,10 @@ func command(input: Dictionary) -> Dictionary:
 			var kind: int = int(input.get("structure", 1))
 			if tile < 0 or tile >= terrain.blocked.size() or kind < 0 or kind > 2:
 				return receipt
+			for object: int in objects.by_tile.get(tile, []):
+				if objects.records[object].kind not in ["wall", "door", "pile"]:
+					receipt.reason = "occupied"
+					return receipt
 			if kind == 1:
 				if terrain.resources.has(tile) or terrain.depots.has(tile):
 					receipt.reason = "reserved_ground"
@@ -418,7 +541,7 @@ func counters() -> Dictionary:
 		"structures": terrain.structures.size(), "static_sources": environment.source_cells.size(),
 		"mobile_sources": environment.mobile_units.size(), "objects": objects.records.size(), "transfers": objects.transfers,
 		"decisions": livelihood.decisions, "observations": livelihood.observations, "decision_usec": livelihood.decision_usec, "observe_usec": livelihood.observe_usec, "topology_usec": topology_usec,
-		"facility_completions": facilities.completed.duplicate()}
+		"facility_completions": facilities.completed.duplicate(), "plants": nature.ids.size(), "plant_evaluations": nature.evaluations, "plant_transitions": nature.transitions, "plant_collections": nature.collections, "nature_usec": nature.work_usec, "calendar": environment.calendar(), "combatants": combat.orders.size(), "projectiles": combat.bolts.size(), "shots": combat.shots, "hits": combat.hits, "combat_usec": combat.work_usec, "combat_repaths": combat.repaths, "combat_resumed": combat.resumed}
 
 
 func _sync_inventory(id: int) -> void:
@@ -444,12 +567,18 @@ func begin_transfer(id: int, input: Dictionary) -> String:
 
 func begin_interaction(id: int, input: Dictionary) -> String:
 	var target: int = int(input.get("target", 0))
-	if not objects.records.has(target) or objects.records[target].tile < 0:
+	if not objects.records.has(target) or (actor_slots.has(target) and not combat.alive(self, target)):
 		return "invalid_target"
-	if input.kind not in ["take", "put", "demolish"] and not facilities.available(self, input):
+	if input.kind not in ["take", "put", "demolish"] and input.kind not in Nature.ACTIONS and input.kind not in Society.ACTIONS and not facilities.available(self, input):
 		return "unavailable"
+	if input.kind in Society.ACTIONS and not society.available(self, id, input):
+		return "not_available_for_contact"
+	if objects.records[target].tile < 0 and input.kind not in Society.ACTIONS:
+		return "invalid_target"
+	if input.kind in Nature.ACTIONS and objects.records[target].kind != "plant":
+		return "not_a_plant"
 	var exclusive: bool = input.kind not in ["take", "put", "eat"]
-	if exclusive and reservations.has(target) and reservations[target] != id:
+	if exclusive and reservations.has(target) and reservations[target] != id and input.get("autonomous", false):
 		return "target_busy"
 	var slot: int = actor_slots[id]
 	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
@@ -459,8 +588,10 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 		return "no_operation_place"
 	release(id)
 	actions[id] = input.duplicate(true)
-	if exclusive:
+	if exclusive and not reservations.has(target):
 		reservations[target] = id
+	if input.kind in Society.ACTIONS and reservations.get(target, 0) == id:
+		society.invite(self, id, actions[id])
 	page.move_to(row, tile, Units.Mode.APPROACH)
 	return "accepted"
 
@@ -474,11 +605,26 @@ func settle_action(id: int, at: int) -> void:
 		return
 	var action: Dictionary = actions[id]
 	var target: int = action.target
-	if not objects.records.has(target):
+	if not objects.records.has(target) or (actor_slots.has(target) and not combat.alive(self, target)):
 		var autonomous: bool = action.get("autonomous", false)
-		release(id)
+		release(id, at)
 		page.modes[row] = Units.Mode.IDLE
 		outcomes.append({"kind": "target_gone", "actor": id, "at_ms": at})
+		if autonomous:
+			livelihood.after_action(self, id, at, target)
+		return
+	var in_range: bool = false
+	var target_cells: PackedInt32Array = objects.records[target].get("cells", PackedInt32Array([objects.records[target].tile]))
+	if actor_slots.has(target):
+		target_cells = PackedInt32Array([Terrain.index(Vector2i(combat.position(self, target)))])
+	for tile: int in target_cells:
+		if page.positions[row].distance_to(Terrain.center(tile)) <= 1.5:
+			in_range = true
+	if not in_range:
+		var autonomous: bool = action.get("autonomous", false)
+		release(id, at)
+		page.modes[row] = Units.Mode.IDLE
+		outcomes.append({"kind": "out_of_reach", "actor": id, "at_ms": at})
 		if autonomous:
 			livelihood.after_action(self, id, at, target)
 		return
@@ -495,28 +641,30 @@ func settle_action(id: int, at: int) -> void:
 			return
 		if exclusive:
 			reservations[target] = id
+		if action.kind in Society.ACTIONS and not action.get("partner_waiting", false):
+			society.invite(self, id, action)
 		page.modes[row] = Units.Mode.ACTION
 		action["started_ms"] = at
-		page.due_ms[row] = at + facilities.duration(self, action)
+		var duration: int = facilities.duration(self, action)
+		if action.kind in Nature.ACTIONS:
+			duration = int(objects.records[target].remaining_ms) if action.kind == "sow" else 1500
+		elif action.kind in Society.ACTIONS:
+			duration = 3000 if action.kind == "practice" else 1000
+		page.due_ms[row] = at + duration
 		return
 	if action.get("waiting", false):
 		action.erase("waiting")
 		page.modes[row] = Units.Mode.APPROACH
 		settle_action(id, at)
 		return
-	var in_range: bool = false
-	for tile: int in objects.records[target].get("cells", PackedInt32Array([objects.records[target].tile])):
-		if page.positions[row].distance_to(Terrain.center(tile)) <= 1.5:
-			in_range = true
-	if not in_range:
-		release(id)
-		page.modes[row] = Units.Mode.IDLE
-		outcomes.append({"kind": "out_of_reach", "actor": id, "at_ms": at})
-		return
 	if action.kind not in ["take", "put"]:
 		var reason: String
 		if action.kind == "demolish":
 			reason = "completed" if facilities.demolish(self, target) else "failed"
+		elif action.kind in Nature.ACTIONS:
+			reason = nature.finish(self, id, action, at)
+		elif action.kind in Society.ACTIONS:
+			reason = society.finish(self, id, action, at)
 		else:
 			reason = facilities.finish(self, id, action, at)
 		if reason == "occupied" and action.kind == "construct":
@@ -560,7 +708,9 @@ func describe(id: int) -> Dictionary:
 		result.merge({"hp": page.health[row], "energy": page.energy[row], "hunger": page.hunger[row],
 			"temperature": page.body_heat[row], "elements": page.elements.slice(row * 5, row * 5 + 5),
 			"cargo": page.cargo[row], "potions": page.potions[row], "mode": page.modes[row], "position": page.positions[row]}, true)
-		result["action"] = State.copy(actions.get(id, {}))
+		result["action"] = State.copy(actions.get(id, combat.orders.get(id, {})))
+		result["flight"] = page.flight[row]
+		result["radius"] = page.radii[row]
 	return result
 
 
@@ -588,6 +738,7 @@ func flush_topology() -> void:
 			for lane: RefCounted in lanes:
 				lane.graph.set_point_solid(Terrain.cell(tile), terrain.blocked[tile] != 0)
 				lane.paths.clear()
+				lane.large_graph = null
 			if terrain.blocked[tile] != 0:
 				blockers[tile] = true
 			for source: int in environment.source_cells:
@@ -639,6 +790,8 @@ func spawn_actor(tile: int) -> int:
 		page.energy[row] = 10000
 		page.hunger[row] = 10000
 		page.body_heat[row] = 22.0
+		page.flight[row] = 0
+		page.radii[row] = 0.35
 		page.cargo[row] = 0
 		page.potions[row] = 0
 		page.routes[row] = PackedInt32Array()
@@ -670,6 +823,7 @@ func remove_actor(id: int) -> bool:
 	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
 	var row: int = slot % Units.PAGE_SIZE
 	release(id)
+	forget_target(id)
 	environment.remove_mobile(id)
 	if objects.count_inventory(id) > 0:
 		var pile: int = objects.create("pile", "remains", Terrain.index(Vector2i(page.positions[row])))

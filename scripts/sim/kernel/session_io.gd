@@ -2,7 +2,7 @@ extends RefCounted
 ## One cold I/O job at a time. Receives detached values, never the live world.
 ## Only the simulation owner adopts a loaded candidate.
 
-const FORMAT: String = "reol-world-1"
+const FORMAT: String = "reol-world-2"
 const Persistence = preload("res://scripts/sim/kernel/persistence.gd")
 const MAX_BYTES: int = 268435456
 var _thread := Thread.new()

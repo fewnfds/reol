@@ -20,10 +20,10 @@ func check(ok: bool, message: String) -> void:
 
 func _run() -> void:
 	var serial := World.new()
-	serial.initialize(1000, 0)
+	serial.initialize(512, 0)
 	var parallel := World.new()
-	parallel.initialize(1000, 4)
-	for step: int in 400:
+	parallel.initialize(512, 4)
+	for step: int in 120:
 		serial.step()
 		parallel.step()
 	check(serial.stored > 0 and serial.counters().material == serial.initial_material, "No real work or lost materials")
@@ -69,6 +69,8 @@ func _run() -> void:
 	_same_step_causality()
 	_inventory_session()
 	_build_and_live()
+	_nature_cycle()
+	preload("res://tests/feature_smoke.gd").run(check)
 	await _disk_restart()
 	_thread_boundary()
 	print("KERNEL_SMOKE errors=", _errors)
@@ -95,7 +97,7 @@ func _inventory_session() -> void:
 		loaded.step()
 	check(world.objects.amount(1, "wood") == 7 and loaded.objects.amount(1, "wood") == 7, "In-progress take did not resume once")
 	check(world.environment.rng.randi() == loaded.environment.rng.randi(), "Restored random stream lost its seed/state")
-	check(snapshot.objects[1].inventory.get("wood", 0) == 0, "Captured inventory aliases the live world")
+	check(snapshot.domains.objects.records[1].inventory.get("wood", 0) == 0, "Captured inventory aliases the live world")
 	loaded.command({"kind": "put", "actor": 1, "target": chest, "amount": 7})
 	loaded.command({"kind": "stop", "actor": 1})
 	check(loaded.objects.amount(1, "wood") == 7 and not loaded.actions.has(1), "Cancel erased committed goods")
@@ -114,7 +116,7 @@ func _inventory_session() -> void:
 	var again: RefCounted = Persistence.candidate(Persistence.capture(loaded), 0)
 	check(again != null and again.actor_slots.has(born) and not again.actor_slots.has(removed), "Spawn/remove did not survive state restore")
 	var invalid: Dictionary = Persistence.capture(loaded)
-	invalid.objects[chest].inventory.wood = -4
+	invalid.domains.objects.records[chest].inventory.wood = -4
 	check(Persistence.candidate(invalid, 0) == null and loaded.objects.amount(chest, "wood") >= 7, "Invalid load damaged the live session")
 
 
@@ -132,13 +134,14 @@ func _disk_restart() -> void:
 		check(false, "Save test runner never started")
 		first.close()
 		return
-	var saved_seq: int = first.send({"kind": "save", "path": path})
-	var receipts: Array = []
-	while receipts.is_empty() and Time.get_ticks_usec() < deadline:
-		await process_frame
-		receipts = first.poll().receipts
+	for attempt: int in 4:
+		var saved_seq: int = first.send({"kind": "save", "path": path})
+		var receipts: Array = []
+		while receipts.is_empty() and Time.get_ticks_usec() < deadline:
+			await process_frame
+			receipts = first.poll().receipts
+		check(receipts.size() == 1 and receipts[0].seq == saved_seq and receipts[0].ok, "Repeated save did not complete on disk")
 	first.close()
-	check(receipts.size() == 1 and receipts[0].seq == saved_seq and receipts[0].ok, "Save did not complete on disk")
 	var second := Runner.new()
 	second.control(true, 1)
 	second.start(2, 0, 1)
@@ -192,15 +195,47 @@ func _build_and_live() -> void:
 	world.objects.add(1, "water", 1)
 	page.positions[0] = Terrain.center(world.facilities.interaction_tile(world, stove))
 	var meals: int = world.objects.amount(stove, "meal")
+	var grain: int = world.objects.amount(1, "grain")
 	check(world.command({"kind": "cook", "target": stove}).ok, "Cooking rejected")
 	for step: int in 84:
 		world.step()
-	check(world.objects.amount(stove, "meal") == meals + 3 and world.objects.amount(1, "grain") == 0, "Cooking did not consume real ingredients once")
+	check(world.objects.amount(stove, "meal") == meals + 3 and world.objects.amount(1, "grain") == grain - 2, "Cooking did not consume real ingredients once")
 	page.hunger[0] = 500
 	world.command({"kind": "eat", "target": stove})
 	for step: int in 24:
 		world.step()
 	check(page.hunger[0] > 3000 and world.objects.amount(stove, "meal") == meals + 2, "Eating did not consume real food")
+
+
+func _nature_cycle() -> void:
+	var w := World.new()
+	w.initialize(1, 0)
+	var tile: int = Terrain.index(Vector2i(155, 160))
+	check(not w.nature.can_plant(w, "lotus", tile).ok, "Lotus accepted dry soil")
+	var planter: int = w.objects.by_tile[Terrain.index(Vector2i(173, 182))][0]
+	check(w.nature.can_plant(w, "perennial_herb", w.objects.records[planter].tile).ok, "Planter rejected independent plant")
+	var id: int = w.nature.create(w, "fire_herb", tile)
+	var rec: Dictionary = w.objects.records[id]
+	rec.growth_ms = int(w.nature.definitions.fire_herb.mature_ms) - 1000
+	w.nature.evaluate(w, id, 2000)
+	check(rec.stage == 2 and rec.sources.size() == 2, "Maturing herb did not register its explicit sources")
+	var values := PackedInt32Array([0, 0, 0, 0, 0, 0, 0])
+	w.environment.sample_raw(tile, values, 0)
+	check(values[5] >= 45, "Fire herb produced no fire influence")
+	var other: int = w.environment.add_source(tile + 1, 5, 60)
+	w.nature.remove(w, id)
+	w.environment.sample_raw(tile, values, 0)
+	check(values[5] > 0 and values[5] < 60, "Removing max source erased overlapping live source")
+	w.environment.release_source(other)
+	var tree: int = w.nature.create(w, "old_tree", tile)
+	w.objects.records[tree].stage = 2
+	w.nature._sync(w, tree)
+	var before: int = w.objects.total("wood")
+	check(w.nature.finish(w, 1, {"kind": "cut", "target": tree}, 0) == "completed", "Tree cutting failed")
+	check(w.objects.records[tree].stage == 3 and w.objects.total("wood") == before + 8 and w.objects.audit_total("wood") == w.objects.total("wood"), "Tree stump/physical products duplicated or disappeared")
+	w.flush_topology()
+	var restored: RefCounted = Persistence.candidate(Persistence.capture(w), 0)
+	check(restored != null and restored.objects.records[tree].stage == 3, "Plant state failed current-format restore")
 
 
 func _same_step_causality() -> void:

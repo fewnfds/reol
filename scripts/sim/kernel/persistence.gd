@@ -8,32 +8,30 @@ const State = preload("res://scripts/sim/kernel/state.gd")
 
 
 static func capture(world: RefCounted) -> Dictionary:
-	var result: Dictionary = {"world": State.capture(world, world.STATE_FIELDS),
-		"terrain": State.capture(world.terrain, world.terrain.STATE_FIELDS),
-		"environment": State.capture(world.environment, world.environment.STATE_FIELDS),
-		"rng_state": world.environment.rng.state, "rng_seed": world.environment.rng.seed, "objects": State.copy(world.objects.records),
-		"next_id": world.objects.next_id, "pages": []}
+	var result: Dictionary = {"domains": {}, "pages": []}
+	for key: String in world.state_owners():
+		var owner: RefCounted = world.state_owners()[key]
+		result.domains[key] = State.capture(owner, owner.STATE_FIELDS)
 	for page: RefCounted in world.pages:
 		result.pages.append(State.capture(page, Units.STATE_FIELDS))
 	return result
 
 
 static func candidate(data: Dictionary, workers: int) -> RefCounted:
-	if not data.get("world") is Dictionary or not data.get("terrain") is Dictionary or not data.get("environment") is Dictionary or not data.get("objects") is Dictionary or not data.get("pages") is Array or not data.get("rng_state") is int or not data.get("rng_seed") is int or not data.get("next_id") is int:
+	if not data.get("domains") is Dictionary or not data.get("pages") is Array:
 		return null
 	var world := World.new()
-	if not State.matches(world, world.STATE_FIELDS, data.world) or not State.matches(world.terrain, world.terrain.STATE_FIELDS, data.terrain) or not State.matches(world.environment, world.environment.STATE_FIELDS, data.environment):
-		return null
-	for members: Variant in data.terrain.room_cells:
+	var owners: Dictionary = world.state_owners()
+	for key: String in owners:
+		if not data.domains.get(key) is Dictionary or not State.matches(owners[key], owners[key].STATE_FIELDS, data.domains[key]):
+			return null
+	for members: Variant in data.domains.terrain.room_cells:
 		if not members is PackedInt32Array:
 			return null
-	State.apply(world, world.STATE_FIELDS, data.world)
-	State.apply(world.terrain, world.terrain.STATE_FIELDS, data.terrain)
-	State.apply(world.environment, world.environment.STATE_FIELDS, data.environment)
+	for key: String in owners:
+		State.apply(owners[key], owners[key].STATE_FIELDS, data.domains[key])
 	if not _terrain_valid(world.terrain) or world.elapsed_ms < 0 or world.elapsed_ms % 50 != 0:
 		return null
-	world.objects.records = State.copy(data.objects)
-	world.objects.next_id = data.next_id
 	if not _objects_valid(world):
 		return null
 	var slot: int = 0
@@ -65,14 +63,18 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 	if not _environment_valid(environment, world):
 		return null
 	environment.terrain = world.terrain
-	environment.rng.seed = data.rng_seed
-	environment.rng.state = data.rng_state
 	environment.field.resize(world.terrain.SIZE * world.terrain.SIZE * environment.CHANNELS)
 	environment.heads.resize(environment.BUCKETS * environment.BUCKETS)
 	environment.mobile_cells.resize(environment.mobile_units.size())
 	environment.links.resize(environment.mobile_units.size())
 	environment.rebuild_static()
-	environment.update(0, world.pages, world.actor_slots)
+	environment.index_mobile(world.pages, world.actor_slots)
+	if not world.nature.rebuild(world) or not world.combat.valid(world):
+		return null
+	if not world.regions.valid(world):
+		return null
+	if not world.perception.rebuild(world):
+		return null
 	world.configure_lanes(workers)
 	return world
 
@@ -87,7 +89,7 @@ static func _terrain_valid(terrain: RefCounted) -> bool:
 		for tile: int in members:
 			if tile < 0 or tile >= size:
 				return false
-	for cells: PackedInt32Array in [terrain.resources, terrain.depots, terrain.structures, terrain.source_cells]:
+	for cells: PackedInt32Array in [terrain.resources, terrain.depots, terrain.structures, terrain.floors, terrain.source_cells]:
 		for tile: int in cells:
 			if tile < 0 or tile >= size:
 				return false
@@ -135,8 +137,6 @@ static func _objects_valid(world: RefCounted) -> bool:
 					world.objects.by_tile[member] = []
 				world.objects.by_tile[member].append(id)
 				world.objects._index_bucket(id, member)
-	if world.objects.total("wood") != world.initial_material:
-		return false
 	return true
 
 
@@ -144,7 +144,7 @@ static func _page_valid(page: RefCounted, world: RefCounted, start: int) -> bool
 	var count: int = page.ids.size()
 	if count < 1 or count > Units.PAGE_SIZE:
 		return false
-	for field: String in ["positions", "targets", "modes", "health", "energy", "hunger", "body_heat", "potions", "cargo", "source_ids", "due_ms", "route_cursors", "routes"]:
+	for field: String in ["positions", "targets", "modes", "health", "energy", "hunger", "body_heat", "flight", "radii", "potions", "cargo", "source_ids", "due_ms", "route_cursors", "routes"]:
 		if page.get(field).size() != count:
 			return false
 	if page.elements.size() != count * 5 or page.exposure.size() != count * 7:
@@ -158,7 +158,7 @@ static func _page_valid(page: RefCounted, world: RefCounted, start: int) -> bool
 			return false
 		if not page.positions[row].is_finite() or page.positions[row].x < 0 or page.positions[row].y < 0 or page.positions[row].x >= world.terrain.SIZE or page.positions[row].y >= world.terrain.SIZE or not is_finite(page.body_heat[row]):
 			return false
-		if page.modes[row] > Units.Mode.EXPLORE or page.modes[row] == Units.Mode.FREE or page.health[row] < 0 or page.energy[row] < 0 or page.hunger[row] < 0 or page.source_ids[row] < 0 or page.source_ids[row] >= world.source_objects.size() or page.targets[row] < 0 or page.targets[row] >= world.terrain.blocked.size():
+		if page.modes[row] > Units.Mode.COMBAT_MOVE or page.modes[row] == Units.Mode.FREE or page.health[row] < 0 or page.energy[row] < 0 or page.hunger[row] < 0 or page.source_ids[row] < 0 or page.source_ids[row] >= world.source_objects.size() or page.targets[row] < 0 or page.targets[row] >= world.terrain.blocked.size():
 			return false
 		if page.route_cursors[row] < 0 or page.route_cursors[row] > page.routes[row].size():
 			return false
@@ -166,6 +166,9 @@ static func _page_valid(page: RefCounted, world: RefCounted, start: int) -> bool
 			if tile < 0 or tile >= world.terrain.blocked.size():
 				return false
 		world.actor_slots[id] = start + row
+		if not is_finite(page.radii[row]) or page.radii[row] < 0.1 or page.radii[row] > 1.0 or page.flight[row] > 1:
+			return false
+		page.has_large = page.has_large or page.radii[row] > 0.5
 		page.cargo[row] = world.objects.amount(id, "wood")
 		page.potions[row] = world.objects.amount(id, "potion")
 	return true
@@ -185,7 +188,7 @@ static func _processes_valid(world: RefCounted) -> bool:
 			return false
 	for actor: Variant in world.actions:
 		var action: Variant = world.actions[actor]
-		if not world.actor_slots.has(actor) or not action is Dictionary or not action.get("kind") is String or action.kind not in ["take", "put", "construct", "rest", "cook", "eat", "demolish"] or not action.get("target") is int or not world.objects.records.has(action.target):
+		if not world.actor_slots.has(actor) or not action is Dictionary or not action.get("kind") is String or action.kind not in ["take", "put", "construct", "rest", "cook", "eat", "demolish", "sow", "tend", "gather", "cut", "uproot", "talk", "trade", "request_help", "learn", "study", "practice"] or not action.get("target") is int or not world.objects.records.has(action.target):
 			return false
 		if action.kind in ["take", "put"] and (not action.get("item") is String or not action.get("amount") is int or action.amount <= 0):
 			return false
@@ -199,6 +202,8 @@ static func _environment_valid(environment: RefCounted, world: RefCounted) -> bo
 	for source: int in size:
 		if environment.source_cells[source] < 0 or environment.source_cells[source] >= world.terrain.blocked.size() or environment.source_channels[source] < 0 or environment.source_channels[source] >= 7:
 			return false
+	if environment.weather < 0 or environment.weather >= environment.WEATHER.size() or environment.weather_override < -1 or environment.weather_override >= environment.WEATHER.size() or not is_finite(environment.ambient_temperature):
+		return false
 	for heat: float in environment.room_temperature:
 		if not is_finite(heat):
 			return false

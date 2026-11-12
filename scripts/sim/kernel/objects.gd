@@ -1,11 +1,13 @@
 extends RefCounted
 ## Owner-only identity, static placement and inventories. No periodic object loop.
 ## Actor positions stay in body pages; these records do not duplicate them.
+const STATE_FIELDS: Array = ["records", "next_id"]
 
 var next_id: int = 1
 var records: Dictionary = {}
 var by_tile: Dictionary = {}
 var buckets: Dictionary = {}
+var interaction_buckets: Dictionary = {} # Cold derived index excludes structures.
 var layout_revision: int = 0
 var transfers: int = 0
 var totals: Dictionary = {}
@@ -88,6 +90,21 @@ func remove_empty(id: int) -> bool:
 	return true
 
 
+func exchange(a: int, b: int, give: String, given: int, want: String, wanted: int) -> bool:
+	if a == b or not records.has(a) or not records.has(b) or given <= 0 or wanted <= 0 or amount(a, give) < given or amount(b, want) < wanted:
+		return false
+	if (records[a].capacity >= 0 and count_inventory(a) - given + wanted > records[a].capacity) or (records[b].capacity >= 0 and count_inventory(b) - wanted + given > records[b].capacity):
+		return false
+	# Validate both final capacities before either side changes. Ordinary
+	# transfer() twice could partially commit when the first side is full.
+	add(a, give, -given)
+	add(b, want, -wanted)
+	add(b, give, given)
+	add(a, want, wanted)
+	transfers += 2
+	return true
+
+
 func reindex(id: int, cells: PackedInt32Array) -> void:
 	var record: Dictionary = records[id]
 	var previous: PackedInt32Array = record.get("cells", PackedInt32Array([record.tile]))
@@ -124,7 +141,8 @@ func layout() -> Dictionary:
 		var record: Dictionary = records[id]
 		if record.tile >= 0:
 			result[id] = {"id": id, "kind": record.kind, "definition": record.definition, "tile": record.tile,
-				"cells": record.get("cells", PackedInt32Array([record.tile])).duplicate(), "layer": record.get("layer", "ground")}
+				"cells": record.get("cells", PackedInt32Array([record.tile])).duplicate(), "layer": record.get("layer", "ground"),
+				"stage": record.get("stage", -1), "sapient": record.get("sapient", false)}
 	return result
 
 
@@ -140,6 +158,11 @@ func _index_bucket(id: int, tile: int) -> void:
 		buckets[bucket] = []
 	if not buckets[bucket].has(id):
 		buckets[bucket].append(id)
+	if records[id].kind not in ["wall", "door", "roof"]:
+		if not interaction_buckets.has(bucket):
+			interaction_buckets[bucket] = []
+		if not interaction_buckets[bucket].has(id):
+			interaction_buckets[bucket].append(id)
 
 
 func _unindex_buckets(id: int, cells: PackedInt32Array) -> void:
@@ -149,16 +172,21 @@ func _unindex_buckets(id: int, cells: PackedInt32Array) -> void:
 			buckets[bucket].erase(id)
 			if buckets[bucket].is_empty():
 				buckets.erase(bucket)
+		if interaction_buckets.has(bucket):
+			interaction_buckets[bucket].erase(id)
+			if interaction_buckets[bucket].is_empty():
+				interaction_buckets.erase(bucket)
 
 
 func nearby(position: Vector2, radius: float, structures: bool = true) -> Array[int]:
 	var result: Array[int] = []
 	var seen: Dictionary = {}
+	var index: Dictionary = buckets if structures else interaction_buckets
 	var low := Vector2i((position - Vector2.ONE * radius) / 16.0)
 	var high := Vector2i((position + Vector2.ONE * radius) / 16.0)
 	for y: int in range(maxi(0, low.y), mini(31, high.y) + 1):
 		for x: int in range(maxi(0, low.x), mini(31, high.x) + 1):
-			for id: int in buckets.get(y * 32 + x, []):
+			for id: int in index.get(y * 32 + x, []):
 				if seen.has(id):
 					continue
 				seen[id] = true

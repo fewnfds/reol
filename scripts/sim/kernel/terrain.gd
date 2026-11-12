@@ -2,11 +2,12 @@ extends RefCounted
 ## Authoritative tile facts. Navigation contexts are private to execution lanes.
 
 const SIZE: int = 512
-const STATE_FIELDS: Array = ["blocked", "enclosures", "rooms", "structures", "room_cells", "resources", "depots", "revision", "source_cells", "source_channels"]
+const STATE_FIELDS: Array = ["blocked", "enclosures", "rooms", "structures", "floors", "room_cells", "resources", "depots", "revision", "source_cells", "source_channels"]
 var blocked := PackedByteArray()
 var enclosures := PackedByteArray() # Doors divide rooms but remain walkable.
 var rooms := PackedInt32Array()
 var structures := PackedInt32Array()
+var floors := PackedInt32Array() # Fixed ground, distinct from live object footprints.
 var room_cells: Array[PackedInt32Array] = []
 var resources := PackedInt32Array()
 var depots := PackedInt32Array()
@@ -31,6 +32,7 @@ func initialize(room_count: int = 50, resource_count: int = 200) -> void:
 				blocked[cell] = int(edge and not (x == 2 and y == 4))
 				enclosures[cell] = int(edge)
 				if not edge:
+					floors.append(cell)
 					rooms[cell] = room
 					members.append(cell)
 		room_cells.append(members)
@@ -59,20 +61,83 @@ static func center(id: int) -> Vector2:
 	return Vector2(cell(id)) + Vector2(0.5, 0.5)
 
 
-func nearest_open(id: int) -> int:
-	if id >= 0 and id < blocked.size() and blocked[id] == 0:
+static func trace_cells(from: Vector2, to: Vector2) -> PackedInt32Array:
+	var tile := Vector2i(from.floor())
+	var finish := Vector2i(to.floor())
+	var result := PackedInt32Array()
+	var delta: Vector2 = to - from
+	var direction := Vector2i(signi(int(signf(delta.x))), signi(int(signf(delta.y))))
+	var stride := Vector2(absf(1.0 / delta.x) if delta.x != 0 else INF, absf(1.0 / delta.y) if delta.y != 0 else INF)
+	var next := Vector2((tile.x + (1 if direction.x > 0 else 0) - from.x) / delta.x if delta.x != 0 else INF,
+		(tile.y + (1 if direction.y > 0 else 0) - from.y) / delta.y if delta.y != 0 else INF)
+	while tile.x >= 0 and tile.y >= 0 and tile.x < SIZE and tile.y < SIZE:
+		result.append(index(tile))
+		if tile == finish:
+			break
+		if is_equal_approx(next.x, next.y):
+			for side: Vector2i in [tile + Vector2i(direction.x, 0), tile + Vector2i(0, direction.y)]:
+				if side.x >= 0 and side.y >= 0 and side.x < SIZE and side.y < SIZE:
+					result.append(index(side))
+			tile += direction
+			next += stride
+		elif next.x < next.y:
+			tile.x += direction.x
+			next.x += stride.x
+		else:
+			tile.y += direction.y
+			next.y += stride.y
+	return result
+
+
+func nearest_open(id: int, clearance: int = 0) -> int:
+	if id >= 0 and id < blocked.size() and fits(cell(id), clearance):
 		return id
 	var point: Vector2i = cell(clampi(id, 0, blocked.size() - 1))
 	for radius: int in range(1, 9):
 		for y: int in range(maxi(0, point.y - radius), mini(SIZE, point.y + radius + 1)):
 			for x: int in range(maxi(0, point.x - radius), mini(SIZE, point.x + radius + 1)):
 				var next: int = y * SIZE + x
-				if blocked[next] == 0:
+				if fits(Vector2i(x, y), clearance):
 					return next
 	return -1
 
 
-func navigation() -> AStarGrid2D:
+func fits(point: Vector2i, clearance: int) -> bool:
+	for y: int in range(point.y - clearance, point.y + clearance + 1):
+		for x: int in range(point.x - clearance, point.x + clearance + 1):
+			if x < 0 or y < 0 or x >= SIZE or y >= SIZE or blocked[y * SIZE + x] != 0:
+				return false
+	return true
+
+
+func substrate(tile: int) -> String:
+	var point: Vector2i = cell(tile)
+	if region(tile) == 2:
+		return "sand"
+	if Rect2i(169, 175, 6, 4).has_point(point):
+		return "water"
+	if Rect2i(166, 181, 8, 8).has_point(point):
+		return "sand"
+	return "soil"
+
+
+static func region(tile: int) -> int:
+	var point: Vector2i = cell(tile)
+	if Rect2i(300, 170, 80, 80).has_point(point):
+		return 1
+	if Rect2i(300, 290, 80, 80).has_point(point):
+		return 2
+	return 0
+
+
+func moisture(tile: int) -> int:
+	match substrate(tile):
+		"water": return 100
+		"sand": return 15
+	return 55
+
+
+func navigation(clearance: int = 0) -> AStarGrid2D:
 	var graph := AStarGrid2D.new()
 	graph.region = Rect2i(0, 0, SIZE, SIZE)
 	graph.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER
@@ -81,7 +146,11 @@ func navigation() -> AStarGrid2D:
 	graph.update()
 	for id: int in structures:
 		if blocked[id] != 0:
-			graph.set_point_solid(cell(id))
+			for y: int in range(-clearance, clearance + 1):
+				for x: int in range(-clearance, clearance + 1):
+					var point: Vector2i = cell(id) + Vector2i(x, y)
+					if graph.is_in_boundsv(point):
+						graph.set_point_solid(point)
 	return graph
 
 
@@ -93,6 +162,7 @@ func detached() -> RefCounted:
 	for room: PackedInt32Array in room_cells:
 		value.room_cells.append(room.duplicate())
 	value.structures = structures.duplicate()
+	value.floors = floors.duplicate()
 	value.resources = resources.duplicate()
 	value.depots = depots.duplicate()
 	value.revision = revision

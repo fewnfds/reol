@@ -36,11 +36,18 @@ func observe(world: RefCounted, id: int, at: int) -> void:
 		person["known"] = {}
 	var clues: Dictionary = person.known
 	var nearby: Array[int] = world.objects.nearby(position, 24.0, false)
+	var visible: Array[int] = []
+	for target: int in nearby:
+		if world.perception.sees_object(position, world.objects.records[target]):
+			visible.append(target)
 	for target: int in clues.keys():
 		var tile: int = clues[target].tile
-		if Terrain.center(tile).distance_squared_to(position) <= 24.0 * 24.0 and not nearby.has(target):
+		if world.perception.sees(position, tile) and not visible.has(target):
 			clues.erase(target)
-	for target: int in nearby:
+	for target: int in visible:
+		var rec: Dictionary = world.objects.records[target]
+		if rec.kind == "plant" and rec.inventory.is_empty() and not clues.has(target):
+			continue # No actionable clue yet; the next observation can find fruit.
 		remember(world, id, target, at)
 	person["observe_due"] = at + 5000
 	observations += 1
@@ -81,6 +88,18 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 	var row: int = slot % 256
 	if person.get("observe_due", 0) <= at:
 		observe(world, id, at)
+	var commitment: Dictionary = person.get("commitment", {})
+	if not commitment.is_empty():
+		var target: int = int(commitment.target)
+		if at >= int(commitment.expires_ms) or world.objects.records.get(target, {}).get("kind", "") != "blueprint":
+			person.erase("commitment")
+			person.autonomous = commitment.get("was_autonomous", true)
+			if not person.autonomous:
+				page.modes[row] = Units.Mode.IDLE
+				return
+		elif page.hunger[row] >= 2500 and page.energy[row] >= 2000:
+			if world.begin_interaction(id, {"kind": "construct", "target": target, "autonomous": true}) == "accepted":
+				return
 	var clues: Dictionary = person.known
 	var chosen: int = 0
 	var kind: String = ""
@@ -98,12 +117,15 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 		elif clue.kind == "blueprint":
 			candidate = "construct"
 			priority = -2000
-		elif clue.definition == "cook_stove" and world.objects.amount(id, "grain") >= 2 and world.objects.amount(id, "water") >= 1:
+		elif page.cargo[row] == 0 and clue.definition == "cook_stove" and world.objects.amount(id, "grain") >= 2 and world.objects.amount(id, "water") >= 1:
 			candidate = "cook"
 			priority = -1500
 		elif page.cargo[row] > 0 and clue.kind == "chest":
 			candidate = "put"
 			priority = -1000
+		elif clue.kind == "plant" and not clue.inventory.is_empty():
+			candidate = "gather"
+			priority = -700
 		elif page.cargo[row] == 0 and clue.kind == "resource" and int(clue.inventory.get("wood", 0)) > 0:
 			candidate = "harvest"
 		if candidate.is_empty():
@@ -134,7 +156,7 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 	if kind == "put":
 		reason = world.begin_transfer(id, {"kind": "put", "target": chosen, "item": "wood", "amount": page.cargo[row]})
 	else:
-		reason = world.begin_interaction(id, {"kind": kind, "target": chosen})
+		reason = world.begin_interaction(id, {"kind": kind, "target": chosen, "autonomous": true})
 	if reason == "accepted":
 		world.actions[id]["autonomous"] = true
 	else:

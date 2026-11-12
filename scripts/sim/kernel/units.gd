@@ -4,16 +4,19 @@ extends RefCounted
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const PAGE_SIZE: int = 256
 const WALK_SPEED: float = 5.0
-enum Mode { RESOURCE, HARVEST, REST, MANUAL, IDLE, DEAD, APPROACH, ACTION, FREE, EXPLORE }
+enum Mode { RESOURCE, HARVEST, REST, MANUAL, IDLE, DEAD, APPROACH, ACTION, FREE, EXPLORE, COMBAT_MOVE }
 
 const STATE_FIELDS: Array = ["ids", "positions", "targets", "modes", "health", "energy", "hunger", "body_heat",
 	"exposure", "elements", "due_ms", "route_cursors", "routes", "source_ids",
-	"moved_distance", "path_requests", "path_failures"]
+	"flight", "radii", "moved_distance", "path_requests", "path_failures"]
 
 var ids := PackedInt64Array()
 var positions := PackedVector2Array()
 var targets := PackedInt32Array()
 var modes := PackedByteArray()
+var flight := PackedByteArray()
+var radii := PackedFloat32Array()
+var has_large: bool = false # Derived navigation capability, not another position.
 var health := PackedInt32Array()
 var energy := PackedInt32Array()
 var hunger := PackedInt32Array()
@@ -56,6 +59,8 @@ func add_row(id: int, tile: int) -> int:
 	targets.append(terrain.resources[source])
 	modes.append(Mode.RESOURCE)
 	health.append(100)
+	flight.append(0)
+	radii.append(0.35)
 	energy.append(10000)
 	hunger.append(10000)
 	body_heat.append(22.0)
@@ -76,7 +81,7 @@ func move_to(row: int, target: int, mode: int) -> void:
 	route_cursors[row] = 0
 
 
-func advance(graph: AStarGrid2D, path_cache: Dictionary) -> void:
+func advance(graph: AStarGrid2D, path_cache: Dictionary, large_graph: AStarGrid2D = null) -> void:
 	ready.clear()
 	failures.clear()
 	for row: int in positions.size():
@@ -93,13 +98,18 @@ func advance(graph: AStarGrid2D, path_cache: Dictionary) -> void:
 		var route: PackedInt32Array = routes[row]
 		if route.is_empty():
 			var start: int = Terrain.index(Vector2i(positions[row]))
-			var key: int = start + targets[row] * Terrain.SIZE * Terrain.SIZE
+			var key: int = start + targets[row] * Terrain.SIZE * Terrain.SIZE + int(radii[row] > 0.5) * 68719476736 + int(flight[row] > 0) * 137438953472
 			if path_cache.has(key):
 				route = path_cache[key]
 			else:
 				path_requests += 1
 				route = PackedInt32Array() # A cached empty route is also immutable.
-				for tile: Vector2i in graph.get_id_path(Terrain.cell(start), Terrain.cell(targets[row])):
+				var navigation: AStarGrid2D = large_graph if radii[row] > 0.5 and large_graph != null else graph
+				var destination: int = targets[row]
+				if flight[row] == 0 and radii[row] > 0.5 and navigation.is_point_solid(Terrain.cell(destination)):
+					destination = terrain.nearest_open(destination, 1)
+				var path: Array[Vector2i] = [Terrain.cell(destination)] if flight[row] > 0 else navigation.get_id_path(Terrain.cell(start), Terrain.cell(destination))
+				for tile: Vector2i in path:
 					route.append(Terrain.index(tile))
 				if path_cache.size() >= 4096:
 					path_cache.clear()

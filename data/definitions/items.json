@@ -1,14 +1,53 @@
 {
-  "wood": {"label": "木料", "stackable": true},
-  "stone": {"label": "石料", "stackable": true},
-  "grain": {"label": "谷物", "stackable": true},
-  "herb": {"label": "鲜药", "stackable": true},
-  "meal": {"label": "饭食", "stackable": true},
-  "water": {"label": "清水", "stackable": true},
-  "potion": {"label": "药物", "stackable": true},
-  "dried_herb": {"label": "干药", "stackable": true},
-  "fruit": {"label": "果实", "stackable": true},
-  "fiber": {"label": "纤维", "stackable": true},
-  "lotus_seed": {"label": "莲子", "stackable": true},
-  "lotus_root": {"label": "莲藕", "stackable": true}
+  "wood": {
+    "label": "木料",
+    "stackable": true
+  },
+  "stone": {
+    "label": "石料",
+    "stackable": true
+  },
+  "grain": {
+    "label": "谷物",
+    "stackable": true
+  },
+  "herb": {
+    "label": "鲜药",
+    "stackable": true
+  },
+  "meal": {
+    "label": "饭食",
+    "stackable": true
+  },
+  "water": {
+    "label": "清水",
+    "stackable": true
+  },
+  "potion": {
+    "label": "药物",
+    "stackable": true
+  },
+  "dried_herb": {
+    "label": "干药",
+    "stackable": true
+  },
+  "fruit": {
+    "label": "果实",
+    "stackable": true
+  },
+  "fiber": {
+    "label": "纤维",
+    "stackable": true
+  },
+  "lotus_seed": {
+    "label": "莲子",
+    "stackable": true
+  },
+  "lotus_root": {
+    "label": "莲藕",
+    "stackable": true
+  },
+  "breath_manual": {
+    "label": "吐纳手抄本"
+  }
 }

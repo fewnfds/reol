@@ -6,6 +6,7 @@ const World = preload("res://scripts/sim/kernel/world.gd")
 const Frame = preload("res://scripts/sim/kernel/frame.gd")
 const Persistence = preload("res://scripts/sim/kernel/persistence.gd")
 const SessionIO = preload("res://scripts/sim/kernel/session_io.gd")
+const Scenarios = preload("res://scripts/sim/kernel/scenarios.gd")
 const MAX_PENDING: int = 4096
 const STEP_USEC: int = 50000
 const MAX_DEBT_USEC: float = 1000000.0
@@ -27,6 +28,7 @@ var _next_seq: int = 1
 var _pending: int = 0 # Admission also counts receipts not yet collected.
 var _count: int
 var _workers: int
+var _mixed: bool = false
 # These fields are used exclusively by the simulation thread.
 var _world: RefCounted
 var _terrain_view: RefCounted
@@ -39,13 +41,16 @@ var _poses: Array[RefCounted] = []
 var _object_revision: int = -1
 var _object_view: Dictionary = {}
 var _actor_view: Dictionary = {}
+var _perception_revision: int = -1
+var _perception_view: Dictionary = {}
 var _io := SessionIO.new()
 var _epoch: int = 1
 
 
-func start(count: int = 1000, workers: int = -1, speed: float = 1.0) -> Error:
+func start(count: int = 1000, workers: int = -1, speed: float = 1.0, mixed: bool = false) -> Error:
 	_count = clampi(count, 1, 60000)
 	_workers = workers
+	_mixed = mixed
 	_speed = clampf(speed, 0.25, 16.0)
 	return _thread.start(_run)
 
@@ -120,6 +125,8 @@ func _notify_io() -> void:
 func _run() -> void:
 	_world = World.new()
 	_world.initialize(_count, _workers)
+	if _mixed:
+		Scenarios.mixed(_world)
 	_terrain_view = _world.terrain.detached()
 	_mutex.lock()
 	var paused: bool = _paused
@@ -171,6 +178,7 @@ func _run() -> void:
 					_epoch += 1
 					_poses.clear()
 					_object_revision = -1
+					_perception_revision = -1
 					_terrain_view = _world.terrain.detached()
 					_steps_cost.clear()
 					_worker_ids.clear()
@@ -188,6 +196,7 @@ func _run() -> void:
 			elif command.get("kind", "") in ["save", "load"]:
 				var state: Dictionary = {}
 				if command.kind == "save" and not _io.busy:
+					_world.flush_topology()
 					state = Persistence.capture(_world)
 				if not _io.submit(command, state, _notify_io, _workers):
 					replies.append({"seq": command.seq, "kind": command.kind, "at_ms": _world.elapsed_ms, "ok": false, "reason": "io_busy_or_failed"})
@@ -241,6 +250,8 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 		frame.positions.append_array(page.positions)
 		frame.health.append_array(page.health)
 		frame.modes.append_array(page.modes)
+		frame.flight.append_array(page.flight)
+		frame.radii.append_array(page.radii)
 	if _poses.is_empty() or _poses.back().world_ms != frame.world_ms:
 		var pose := Frame.Pose.new()
 		pose.world_ms = frame.world_ms
@@ -256,7 +267,15 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 		_object_view = _world.objects.layout()
 		_actor_view = _world.actor_slots.duplicate()
 	frame.objects = _object_view
+	if _perception_revision != _world.perception.revision:
+		_perception_revision = _world.perception.revision
+		_perception_view = {"revision": _perception_revision, "loss": _world.perception.loss.duplicate(),
+			"explored": _world.perception.explored.duplicate(), "memories": _world.State.copy(_world.perception.memories)}
+	frame.perception = _perception_view
+	frame.visible = _world.perception.visible.duplicate()
 	frame.actor_slots = _actor_view
+	for bolt: Dictionary in _world.combat.bolts.values():
+		frame.projectiles.append(bolt.position)
 	frame.inspected = _world.describe(selected)
 	frame.counters = _world.counters()
 	frame.counters.snapshot_usec = _snapshot_usec

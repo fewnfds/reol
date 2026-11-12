@@ -24,6 +24,8 @@ def main() -> int:
     parser.add_argument("--gpu-index", type=int, default=1)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--screenshot", action="store_true")
+    parser.add_argument("--fog", action="store_true", help="render the player fog view instead of the full developer overview")
+    parser.add_argument("--mixed", action="store_true", help="100 sustained fighters, 20 material builds and contact exchanges")
     args = parser.parse_args()
     binary = args.binary.resolve()
     if not binary.is_file() or not 5 <= args.seconds <= 60 or not 1 <= args.actors <= 60000:
@@ -35,6 +37,10 @@ def main() -> int:
                f"--workers={args.workers}", f"--duration={args.seconds}", "--warmup=3", f"--metrics={output}"]
     if args.screenshot:
         command.append(f"--screenshot={output.with_suffix('.png')}")
+    if args.mixed:
+        command.append("--mixed=true")
+    if args.fog:
+        command.append("--fog=true")
     with output.with_suffix(".log").open("w", encoding="utf-8") as log:
         process = subprocess.Popen(command, cwd=godot.ROOT, stdout=log, stderr=subprocess.STDOUT)
         sampler = ProcessSample(output.with_suffix(".cpu.json"))
