@@ -43,15 +43,22 @@ func _draw() -> void:
 					color = Color(0.9, 0.55, 0.75)
 				if stage in [3, 4]:
 					color = Color(0.44, 0.3, 0.18)
-				draw_circle(point, 11 if stage == 2 else 5, color)
 				if object.definition == "old_tree":
-					draw_line(point, point - Vector2(0, 24), Color(0.4, 0.3, 0.2), 7)
-					draw_circle(point - Vector2(0, 24), 18 if stage == 2 else 6, color)
+					if stage == 3:
+						draw_rect(Rect2(point - Vector2(4, 7), Vector2(8, 7)), Color(0.4, 0.3, 0.2))
+						draw_line(point - Vector2(4, 7), point + Vector2(4, -7), Color(0.65, 0.48, 0.3), 2)
+					elif stage == 4:
+						draw_line(point, point + Vector2.UP * 24, Color(0.4, 0.3, 0.2), 5)
+						draw_line(point + Vector2(0, -12), point + Vector2(-9, -22), Color(0.4, 0.3, 0.2), 3)
+						draw_line(point + Vector2(0, -15), point + Vector2(8, -26), Color(0.4, 0.3, 0.2), 3)
+					else:
+						_draw_tree(point, 24 if stage == 2 else 14, 18 if stage == 2 else 6, color)
+				else:
+					draw_circle(point, 11 if stage == 2 else 5, color)
 				if object.get("sapient", false):
 					draw_arc(point, 20, 0, TAU, 24, Color.GOLD, 2)
 			"resource":
-				draw_circle(point, 9, Color(0.24, 0.58, 0.3))
-				draw_line(point, point - Vector2(0, 18), Color(0.4, 0.68, 0.3), 5)
+				_draw_tree(point, 20, 11, Color(0.24, 0.58, 0.3))
 			"chest":
 				draw_rect(Rect2(point - Vector2(13, 11), Vector2(26, 22)), Color(0.76, 0.56, 0.2))
 				draw_rect(Rect2(point - Vector2(13, 11), Vector2(26, 22)), Color(0.3, 0.2, 0.1), false, 2)
@@ -71,3 +78,11 @@ func _draw() -> void:
 					var rect := Rect2(Vector2(Terrain.cell(tile)) * TILE + Vector2(2, 2), Vector2(28, 28))
 					draw_rect(rect, color)
 					draw_rect(rect, Color(0.8, 0.85, 0.9), false, 1)
+
+
+func _draw_tree(foot: Vector2, height: float, crown_radius: float, foliage: Color) -> void:
+	# The tile position is the ground anchor. Canvas Y grows down, so both
+	# resource trees and living plants put their crown above the same foot.
+	var crown: Vector2 = foot + Vector2.UP * height
+	draw_line(foot, crown, Color(0.4, 0.3, 0.2), maxf(3.0, crown_radius * 0.4))
+	draw_circle(crown, crown_radius, foliage)
