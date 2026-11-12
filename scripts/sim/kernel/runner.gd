@@ -4,6 +4,8 @@ extends RefCounted
 
 const World = preload("res://scripts/sim/kernel/world.gd")
 const Frame = preload("res://scripts/sim/kernel/frame.gd")
+const Persistence = preload("res://scripts/sim/kernel/persistence.gd")
+const SessionIO = preload("res://scripts/sim/kernel/session_io.gd")
 const MAX_PENDING: int = 4096
 const STEP_USEC: int = 50000
 const MAX_DEBT_USEC: float = 1000000.0
@@ -13,6 +15,7 @@ var _wake := Semaphore.new()
 var _wake_pending: bool = false
 var _commands: Array[Dictionary] = []
 var _receipts: Array[Dictionary] = []
+var _ready_receipts: Array[Dictionary] = [] # Owner-only until the matching Frame publishes.
 var _outcomes: Array[Dictionary] = []
 var _latest: RefCounted
 var _closing: bool = false
@@ -33,6 +36,11 @@ var _overload_usec: float = 0.0
 var _steps_cost := PackedInt64Array()
 var _worker_ids: Dictionary = {}
 var _poses: Array[RefCounted] = []
+var _object_revision: int = -1
+var _object_view: Dictionary = {}
+var _actor_view: Dictionary = {}
+var _io := SessionIO.new()
+var _epoch: int = 1
 
 
 func start(count: int = 1000, workers: int = -1, speed: float = 1.0) -> Error:
@@ -50,6 +58,8 @@ func send(value: Dictionary) -> int:
 	_next_seq += 1
 	_pending += 1
 	_mutex.lock()
+	if not command.has("epoch"):
+		command.epoch = _latest.epoch if _latest != null else 1
 	_commands.append(command)
 	_notify_locked()
 	_mutex.unlock()
@@ -101,6 +111,12 @@ func _notify_locked() -> void:
 		_wake.post()
 
 
+func _notify_io() -> void:
+	_mutex.lock()
+	_notify_locked()
+	_mutex.unlock()
+
+
 func _run() -> void:
 	_world = World.new()
 	_world.initialize(_count, _workers)
@@ -133,10 +149,8 @@ func _run() -> void:
 		if closing:
 			# Shutdown cancels unexecuted admissions with receipts, rather than
 			# silently dropping them or running a long queued construction batch.
-			_mutex.lock()
 			for command: Dictionary in commands:
-				_receipts.append({"seq": command.seq, "kind": command.get("kind", ""), "at_ms": _world.elapsed_ms, "ok": false, "reason": "closed"})
-			_mutex.unlock()
+				_ready_receipts.append({"seq": command.seq, "kind": command.get("kind", ""), "at_ms": _world.elapsed_ms, "ok": false, "reason": "closed"})
 			_publish(true, speed, selected, probe)
 			break
 		var changed: bool = paused != next_paused or speed != next_speed or selected != next_selected or probe != next_probe or not commands.is_empty()
@@ -147,14 +161,43 @@ func _run() -> void:
 		selected = next_selected
 		probe = next_probe
 		var replies: Array[Dictionary] = []
+		var io_result: Dictionary = _io.poll()
+		if not io_result.is_empty():
+			var io_command: Dictionary = io_result.command
+			if io_result.ok and io_command.kind == "load":
+				var candidate: RefCounted = io_result.candidate
+				if candidate != null:
+					_world = candidate
+					_epoch += 1
+					_poses.clear()
+					_object_revision = -1
+					_terrain_view = _world.terrain.detached()
+					_steps_cost.clear()
+					_worker_ids.clear()
+					debt = 0.0
+					last = Time.get_ticks_usec()
+					io_result.reason = "loaded"
+				else:
+					io_result.ok = false
+					io_result.reason = "invalid_state"
+			replies.append({"seq": io_command.seq, "kind": io_command.kind, "at_ms": _world.elapsed_ms, "ok": io_result.ok, "reason": io_result.reason})
+			changed = true
 		for command: Dictionary in commands:
-			replies.append(_world.command(command))
+			if command.get("epoch", _epoch) != _epoch:
+				replies.append({"seq": command.seq, "kind": command.get("kind", ""), "at_ms": _world.elapsed_ms, "ok": false, "reason": "session_changed"})
+			elif command.get("kind", "") in ["save", "load"]:
+				var state: Dictionary = {}
+				if command.kind == "save" and not _io.busy:
+					state = Persistence.capture(_world)
+				if not _io.submit(command, state, _notify_io, _workers):
+					replies.append({"seq": command.seq, "kind": command.kind, "at_ms": _world.elapsed_ms, "ok": false, "reason": "io_busy_or_failed"})
+			else:
+				replies.append(_world.command(command))
+		_world.flush_topology()
 		if _terrain_view.revision != _world.terrain.revision:
 			_terrain_view = _world.terrain.detached()
 		if not replies.is_empty():
-			_mutex.lock()
-			_receipts.append_array(replies)
-			_mutex.unlock()
+			_ready_receipts.append_array(replies)
 		if debt > MAX_DEBT_USEC:
 			_overload_usec += debt - MAX_DEBT_USEC
 			debt = MAX_DEBT_USEC # Time demand is capped; no committed effect is dropped.
@@ -175,6 +218,13 @@ func _run() -> void:
 		else:
 			# Godot Semaphore has no timed wait. Sleep rather than busy-spin.
 			OS.delay_usec(clampi(int((STEP_USEC - debt) / speed), 100, 2000))
+	# Complete an admitted cold I/O job once even when closing the session.
+	_io.close()
+	var final_io: Dictionary = _io.poll()
+	if not final_io.is_empty():
+		_mutex.lock()
+		_receipts.append({"seq": final_io.command.seq, "kind": final_io.command.kind, "at_ms": _world.elapsed_ms, "ok": final_io.ok and final_io.command.kind == "save", "reason": "saved" if final_io.ok and final_io.command.kind == "save" else "closed"})
+		_mutex.unlock()
 
 
 func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
@@ -182,10 +232,12 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 	var frame := Frame.new()
 	_sequence += 1
 	frame.sequence = _sequence
+	frame.epoch = _epoch
 	frame.world_ms = _world.elapsed_ms
 	frame.speed = speed
 	frame.paused = paused
 	for page: RefCounted in _world.pages:
+		frame.ids.append_array(page.ids)
 		frame.positions.append_array(page.positions)
 		frame.health.append_array(page.health)
 		frame.modes.append_array(page.modes)
@@ -194,16 +246,18 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 		pose.world_ms = frame.world_ms
 		pose.completed_usec = Time.get_ticks_usec()
 		pose.positions = frame.positions # Detached once, immutable in both owners.
+		pose.ids = frame.ids
 		_poses.append(pose)
 		if _poses.size() > 8:
 			_poses.pop_front()
 	frame.history = _poses.duplicate()
-	if selected > 0 and selected <= _world.actor_count:
-		var page: RefCounted = _world.pages[(selected - 1) / 256]
-		var row: int = (selected - 1) % 256
-		frame.inspected = {"id": selected, "hp": page.health[row], "energy": page.energy[row], "hunger": page.hunger[row],
-			"temperature": page.body_heat[row], "elements": page.elements.slice(row * 5, row * 5 + 5),
-			"cargo": page.cargo[row], "potions": page.potions[row], "mode": page.modes[row], "position": page.positions[row]}
+	if _object_revision != _world.objects.layout_revision:
+		_object_revision = _world.objects.layout_revision
+		_object_view = _world.objects.layout()
+		_actor_view = _world.actor_slots.duplicate()
+	frame.objects = _object_view
+	frame.actor_slots = _actor_view
+	frame.inspected = _world.describe(selected)
 	frame.counters = _world.counters()
 	frame.counters.snapshot_usec = _snapshot_usec
 	frame.counters.overload_demand_usec = _overload_usec
@@ -226,7 +280,11 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 	_snapshot_usec += Time.get_ticks_usec() - start
 	frame.published_usec = Time.get_ticks_usec()
 	_mutex.lock()
+	for outcome: Dictionary in _world.outcomes:
+		outcome.epoch = _epoch
 	_outcomes.append_array(_world.outcomes)
+	_receipts.append_array(_ready_receipts)
+	_ready_receipts.clear()
 	_latest = frame
 	_mutex.unlock()
 	_world.outcomes.clear()

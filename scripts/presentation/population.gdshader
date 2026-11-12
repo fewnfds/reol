@@ -29,5 +29,5 @@ void fragment() {
 	vec4 result = texture(body, uv);
 	result = over(result, texture(robe, uv) * tint);
 	result = over(result, texture(detail, uv));
-	COLOR = vec4(result.rgb / max(result.a, 0.00001), result.a);
+	COLOR = vec4(result.rgb / max(result.a, 0.00001), result.a * tint.a);
 }

@@ -5,10 +5,12 @@ const Runner = preload("res://scripts/sim/kernel/runner.gd")
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Population = preload("res://scripts/presentation/population.gd")
 const Ground = preload("res://scripts/presentation/terrain_canvas.gd")
+const ObjectCanvas = preload("res://scripts/presentation/objects_canvas.gd")
 const TILE: float = 32.0
 var runner := Runner.new()
 var population := Population.new()
 var ground := Ground.new()
+var object_canvas := ObjectCanvas.new()
 var camera := Camera2D.new()
 var hud := Label.new()
 var frame: RefCounted
@@ -20,7 +22,7 @@ var paused: bool = false
 var speed: float = 1.0
 var render_ms: float = 0.0
 var alpha: float = 1.0
-var _actors: int = 1000
+var _actors: int = 24
 var _workers: int = -1
 var _fps: int = 120
 var _duration: float = 0.0
@@ -45,12 +47,15 @@ var _adoptions: int = 0
 var _render_previous := PackedVector2Array()
 var _render_current := PackedVector2Array()
 var _render_pose: RefCounted
+var _render_older: RefCounted
 var _render_frame: RefCounted
 var _capture_age_usec: int = 0
 var _capture_adoptions: int = 0
 var _speed_at: int = 0
 var _speed_world: int = 0
 var _actual_speed: float = 0.0
+var _item: String = "wood"
+var _build_definition: String = "wood_wall"
 
 
 func _ready() -> void:
@@ -71,29 +76,37 @@ func _ready() -> void:
 	ground.z_index = -10
 	population.z_index = -1
 	add_child(ground)
+	object_canvas.z_index = -5
+	add_child(object_canvas)
 	add_child(population)
 	population.configure(_actors)
 	add_child(camera)
-	camera.position = Vector2(220, 220) * TILE
-	camera.zoom = Vector2.ONE * 0.21
+	camera.position = (Vector2(220, 220) if _actors >= 1000 else Vector2(178, 186)) * TILE
+	camera.zoom = Vector2.ONE * (0.21 if _actors >= 1000 else 0.9)
 	camera.position_smoothing_enabled = false
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var panel := PanelContainer.new()
 	panel.position = Vector2(12, 12)
-	panel.custom_minimum_size = Vector2(300, 0)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
+	panel.offset_left = 12
+	panel.offset_top = 12
+	panel.offset_right = 342
+	panel.offset_bottom = -12
 	layer.add_child(panel)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	panel.add_child(scroll)
 	var layout := VBoxContainer.new()
-	panel.add_child(layout)
+	scroll.add_child(layout)
 	var font := SystemFont.new()
 	font.font_names = PackedStringArray(["Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC"])
 	layout.add_theme_font_override("font", font)
-	layout.add_theme_font_size_override("font_size", 14)
-	layout.add_child(hud)
+	layout.add_theme_font_size_override("font_size", 13)
 	hud.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hud.custom_minimum_size = Vector2(315, 0)
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for group: Array in [["暂停/继续", "1×", "2×", "4×"], ["F 跟随", "恢复工作", "喝药", "攻击选中"]]:
+	for group: Array in [["暂停/继续", "1×", "2×", "4×"], ["F 跟随", "恢复工作", "喝药", "攻击选中"], ["R 拿取", "Q 放入", "D 丢下"], ["N 施工", "继续施工", "拆除"], ["休息", "进食", "烹饪"], ["F5 保存", "F9 读取"]]:
 		var row := HBoxContainer.new()
 		layout.add_child(row)
 		for text: String in group:
@@ -101,6 +114,17 @@ func _ready() -> void:
 			button.text = text
 			button.pressed.connect(_button.bind(text))
 			row.add_child(button)
+	var item_choice := OptionButton.new()
+	for item: String in ["wood", "stone", "grain", "water", "meal", "herb", "potion"]:
+		item_choice.add_item(item)
+	item_choice.item_selected.connect(func(index: int): _item = item_choice.get_item_text(index))
+	layout.add_child(item_choice)
+	var build_choice := OptionButton.new()
+	for definition: String in ["wood_wall", "wood_door", "long_bed", "wood_chest", "cook_stove", "wood_table", "wood_chair", "wood_roof", "planter"]:
+		build_choice.add_item(definition)
+	build_choice.item_selected.connect(func(index: int): _build_definition = build_choice.get_item_text(index))
+	layout.add_child(build_choice)
+	layout.add_child(hud)
 	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 	if runner.start(_actors, _workers, speed) != OK:
 		push_error("Simulation thread could not start")
@@ -116,6 +140,8 @@ func _process(delta: float) -> void:
 		if receipt.seq == _pending_move and not receipt.ok:
 			_target = Vector2(-1, -1)
 	for outcome: Dictionary in mailbox.outcomes:
+		if next != null and outcome.get("epoch", next.epoch) != next.epoch:
+			continue
 		_last_receipt = "%s #%d @%d" % [outcome.kind, outcome.actor, outcome.at_ms]
 		if outcome.actor == 1 and outcome.kind in ["arrived", "path_failed", "death"]:
 			_target = Vector2(-1, -1)
@@ -123,8 +149,18 @@ func _process(delta: float) -> void:
 		hud.text = "正在构建新内核…"
 		return
 	if frame != next:
+		if frame != null and frame.epoch != next.epoch:
+			render_ms = maxf(0, next.world_ms - 50)
+			_render_pose = null
+			selected = 1
+			selected_tile = -1
+			selected_source = -1
+			_pending_move = 0
+			_target = Vector2(-1, -1)
+			_speed_at = 0
 		frame = next
 		ground.adopt(frame.terrain)
+		object_canvas.adopt(frame.objects)
 	if _ready_at == 0:
 		_ready_at = begin
 		print("KERNEL_READY actors=", _actors, " workers=", frame.counters.workers)
@@ -143,9 +179,10 @@ func _process(delta: float) -> void:
 	alpha = clampf((render_ms - older.world_ms) / maxf(1.0, newer.world_ms - older.world_ms), 0.0, 1.0)
 	_render_previous = older.positions
 	_render_current = newer.positions
-	if _render_pose != newer or (frame.paused and _render_frame != frame):
+	_render_older = older
+	if _render_pose != newer or (frame.paused and _render_frame != frame) or population.multimesh.instance_count != frame.positions.size() or (_render_frame != null and not is_same(_render_frame.actor_slots, frame.actor_slots)):
 		var adopt_start: int = Time.get_ticks_usec()
-		population.adopt(frame, _render_previous, _render_current)
+		population.adopt(frame, older, newer)
 		_render_pose = newer
 		_render_frame = frame
 		_adoptions += 1
@@ -177,7 +214,12 @@ func _process(delta: float) -> void:
 
 
 func _displayed(id: int) -> Vector2:
-	return _render_previous[id - 1].lerp(_render_current[id - 1], alpha)
+	var slot: int = int(frame.actor_slots.get(id, -1))
+	if slot < 0:
+		return Vector2.ZERO
+	if slot >= _render_current.size() or slot >= _render_previous.size() or _render_older.ids[slot] != id or _render_pose == null or _render_pose.ids[slot] != id:
+		return frame.positions[slot]
+	return _render_previous[slot].lerp(_render_current[slot], alpha)
 
 
 func _update_hud() -> void:
@@ -188,20 +230,21 @@ func _update_hud() -> void:
 		runner.inspect(selected, tile)
 	var stats: Dictionary = frame.counters
 	var data: Dictionary = frame.inspected
-	var lines := PackedStringArray(["Reol · 重建运行内核", "FPS %d | 世界 %.2fs | 请求 %.1f×" % [Engine.get_frames_per_second(), frame.world_ms / 1000.0, frame.speed],
+	var lines := PackedStringArray(["Reol · 实物与接续", "FPS %d | 世界 %.2fs | 请求 %.1f×" % [Engine.get_frames_per_second(), frame.world_ms / 1000.0, frame.speed],
 		"实速 %.3f×" % _actual_speed,
-		"单位 %d | worker %d | 房间 %d" % [_actors, stats.workers, stats.rooms],
+		"单位 %d | worker %d | 房间 %d" % [stats.actors, stats.workers, stats.rooms],
 		"采集 %d / 入库 %d / 材料 %d" % [stats.harvested, stats.stored, stats.material],
 		"鼠标格 (%d,%d) | 选中格 %d" % [mouse.x, mouse.y, selected_tile],
 		"地块温度 %.2f°C | 房间 %d" % [float(frame.tile_probe.get("temperature", 22.0)), int(frame.tile_probe.get("room", -1))],
 		"地块五行 %s" % str(frame.tile_probe.get("elements", [])),
 		"潮汐%% 金木水火土 %s" % str(frame.tides),
 		"选中#%d HP %d | 状态 %d" % [int(data.get("id", 0)), int(data.get("hp", 0)), int(data.get("mode", 0))],
+		"类型 %s / %s" % [data.get("kind", ""), data.get("definition", "")],
 		"体温 %.2f | 精力 %d | 饥饿 %d" % [float(data.get("temperature", 0)), int(data.get("energy", 0)), int(data.get("hunger", 0))],
 		"单位五行 %s" % str(data.get("elements", [])),
-		"携带 %d | 药物 %d" % [int(data.get("cargo", 0)), int(data.get("potions", 0))],
-		"来源 %d (T 切换选中静态源)" % selected_source,
-		"左键选择；右键命令玩家#1移动", "S 停止，J 工作，A 攻击，E 喝药", "B 墙 / G 门 / Delete 拆除(选中格)", "空格暂停；1/2/4 倍速；F 跟随", "方向键平移；滚轮缩放", _last_receipt])
+		"库存 %s" % str(data.get("inventory", {})),
+		"行动 %s" % str(data.get("action", {})),
+		"左键选择；右键命令玩家#1移动", "S 停止，J 工作，A 攻击，E 喝药", "N 建造 / B 墙 / G 门 / Delete 拆除", "空格暂停；1/2/4 倍速；F 跟随", "方向键平移；滚轮缩放", _last_receipt])
 	hud.text = "\n".join(lines)
 
 
@@ -215,19 +258,24 @@ func _unhandled_input(event: InputEvent) -> void:
 			camera.zoom = Vector2.ONE * clampf(camera.zoom.x * (1.15 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.15), 0.1, 2.0)
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			selected = 0
-			var best: float = 1.0
+			var best: float = 0.16
 			for index: int in frame.positions.size():
-				var distance: float = point.distance_squared_to(_displayed(index + 1))
+				var id: int = frame.ids[index]
+				if id == 0:
+					continue
+				var distance: float = point.distance_squared_to(_displayed(id))
 				if distance < best:
 					best = distance
-					selected = index + 1
+					selected = id
 			selected_tile = Terrain.index(cell) if cell.x >= 0 and cell.y >= 0 and cell.x < Terrain.SIZE and cell.y < Terrain.SIZE else -1
+			if selected == 0 and object_canvas.by_tile.has(selected_tile):
+				selected = object_canvas.by_tile[selected_tile][0]
 			selected_source = frame.terrain.source_cells.find(selected_tile)
 			runner.inspect(selected, selected_tile)
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			var tile: int = Terrain.index(cell) if cell.x >= 0 and cell.y >= 0 and cell.x < Terrain.SIZE and cell.y < Terrain.SIZE else -1
 			if tile >= 0 and frame.terrain.blocked[tile] == 0:
-				_pending_move = runner.send({"kind": "move", "actor": 1, "tile": tile})
+				_pending_move = _send({"kind": "move", "actor": 1, "tile": tile})
 				if _pending_move > 0:
 					_target = Vector2(cell) + Vector2(0.5, 0.5)
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -237,35 +285,61 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_2: _button("2×")
 			KEY_4: _button("4×")
 			KEY_F: _button("F 跟随")
-			KEY_S: runner.send({"kind": "stop", "actor": 1})
+			KEY_S: _send({"kind": "stop", "actor": 1})
 			KEY_J: _button("恢复工作")
 			KEY_E: _button("喝药")
 			KEY_A: _button("攻击选中")
-			KEY_T: runner.send({"kind": "source", "actor": 1, "target": selected_source})
-			KEY_B: runner.send({"kind": "build", "actor": 1, "tile": selected_tile, "structure": 1})
-			KEY_G: runner.send({"kind": "build", "actor": 1, "tile": selected_tile, "structure": 2})
-			KEY_DELETE: runner.send({"kind": "build", "actor": 1, "tile": selected_tile, "structure": 0})
+			KEY_T: _send({"kind": "source", "actor": 1, "target": selected_source})
+			KEY_B: _send({"kind": "construct", "actor": 1, "tile": selected_tile, "definition": "wood_wall"})
+			KEY_G: _send({"kind": "construct", "actor": 1, "tile": selected_tile, "definition": "wood_door"})
+			KEY_N: _button("N 施工")
+			KEY_DELETE: _button("拆除")
+			KEY_R: _button("R 拿取")
+			KEY_Q: _button("Q 放入")
+			KEY_D: _button("D 丢下")
+			KEY_F5: _button("F5 保存")
+			KEY_F9: _button("F9 读取")
 
 
 func _button(text: String) -> void:
+	if frame == null:
+		return
 	match text:
 		"暂停/继续": paused = not paused
 		"1×": speed = 1.0
 		"2×": speed = 2.0
 		"4×": speed = 4.0
 		"F 跟随": following = not following
-		"恢复工作": runner.send({"kind": "work", "actor": 1})
-		"喝药": runner.send({"kind": "heal", "actor": 1})
-		"攻击选中": runner.send({"kind": "attack", "actor": 1, "target": selected})
+		"恢复工作": _send({"kind": "work", "actor": 1})
+		"喝药": _send({"kind": "heal", "actor": 1})
+		"攻击选中": _send({"kind": "attack", "actor": 1, "target": selected})
+		"R 拿取": _send({"kind": "take", "actor": 1, "target": selected, "item": _item, "amount": 10, "epoch": frame.epoch})
+		"Q 放入": _send({"kind": "put", "actor": 1, "target": selected, "item": _item, "amount": 10, "epoch": frame.epoch})
+		"D 丢下": _send({"kind": "drop", "actor": 1, "item": _item, "amount": 10, "epoch": frame.epoch})
+		"F5 保存": _send({"kind": "save", "epoch": frame.epoch})
+		"F9 读取": _send({"kind": "load", "epoch": frame.epoch})
+		"N 施工": _send({"kind": "construct", "actor": 1, "tile": selected_tile, "definition": _build_definition, "epoch": frame.epoch})
+		"继续施工": _send({"kind": "continue_build", "actor": 1, "target": selected})
+		"拆除": _send({"kind": "demolish", "actor": 1, "target": selected})
+		"休息": _send({"kind": "rest", "actor": 1, "target": selected})
+		"进食": _send({"kind": "eat", "actor": 1, "target": selected})
+		"烹饪": _send({"kind": "cook", "actor": 1, "target": selected})
 	if text in ["暂停/继续", "1×", "2×", "4×"]:
 		runner.control(paused, speed)
+
+
+func _send(command: Dictionary) -> int:
+	if frame == null:
+		return 0
+	command.epoch = frame.epoch
+	return runner.send(command)
 
 
 func _draw() -> void:
 	if frame == null:
 		return
 	draw_arc(_displayed(1) * TILE, 15, 0, TAU, 24, Color.GOLD, 2.0)
-	if selected > 0:
+	if frame.actor_slots.has(selected):
 		draw_arc(_displayed(selected) * TILE, 18, 0, TAU, 24, Color.CYAN, 2.0)
 	elif selected_tile >= 0:
 		draw_rect(Rect2(Vector2(Terrain.cell(selected_tile)) * TILE, Vector2.ONE * TILE), Color.CYAN, false, 2.0)

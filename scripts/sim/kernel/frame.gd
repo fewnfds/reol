@@ -6,12 +6,17 @@ class Pose extends RefCounted:
 	var world_ms: int
 	var completed_usec: int
 	var positions := PackedVector2Array()
+	var ids := PackedInt64Array()
 
 var sequence: int
 var world_ms: int
 var published_usec: int
 var speed: float
 var paused: bool
+var epoch: int = 1
+var ids := PackedInt64Array()
+var actor_slots: Dictionary = {}
+var objects: Dictionary = {}
 var positions := PackedVector2Array()
 var history: Array[RefCounted] = []
 var health := PackedInt32Array()

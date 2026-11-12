@@ -7,6 +7,7 @@ const CHANNELS: int = 7 # heat, cold, metal, wood, water, fire, earth
 const RADIUS: int = 8
 const BUCKET: int = 16
 const BUCKETS: int = Terrain.SIZE / BUCKET
+const STATE_FIELDS: Array = ["source_cells", "source_channels", "source_strengths", "enabled", "mobile_units", "room_temperature", "tides", "revision", "updates"]
 var terrain: RefCounted
 var field := PackedInt32Array()
 var source_cells := PackedInt32Array()
@@ -14,7 +15,7 @@ var source_channels := PackedInt32Array()
 var source_strengths := PackedInt32Array()
 var enabled := PackedByteArray()
 var mobile_cells := PackedInt32Array()
-var mobile_units := PackedInt32Array()
+var mobile_units := PackedInt64Array()
 var heads := PackedInt32Array()
 var links := PackedInt32Array()
 var room_temperature := PackedFloat32Array()
@@ -85,13 +86,17 @@ func contribution(origin: Vector2i, receiver: Vector2i, strength: int) -> int:
 	return roundi(value)
 
 
-func update(now: int, pages: Array[RefCounted]) -> void:
+func update(now: int, pages: Array[RefCounted], actor_slots: Dictionary = {}) -> void:
 	heads.fill(-1)
 	for source: int in mobile_units.size():
-		var id: int = mobile_units[source] - 1
+		var id: int = int(actor_slots.get(mobile_units[source], mobile_units[source] - 1))
+		if id < 0 or id / 256 >= pages.size():
+			mobile_cells[source] = -1
+			links[source] = -1
+			continue
 		var page: RefCounted = pages[id / 256]
 		var row: int = id % 256
-		if page.health[row] <= 0:
+		if row >= page.ids.size() or page.ids[row] != mobile_units[source] or page.health[row] <= 0:
 			mobile_cells[source] = -1
 			links[source] = -1
 			continue

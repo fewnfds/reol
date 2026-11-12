@@ -28,12 +28,6 @@ func _draw() -> void:
 		draw_rect(rect, color)
 		if terrain.blocked[tile] != 0:
 			draw_line(rect.position, rect.end - Vector2(0, rect.size.y), Color(0.62, 0.61, 0.57), 3.0)
-	for tile: int in terrain.resources:
-		var point: Vector2 = Terrain.center(tile) * TILE
-		draw_circle(point, 9.0, Color(0.24, 0.58, 0.3))
-		draw_line(point, point - Vector2(0, 18), Color(0.4, 0.68, 0.3), 5.0)
-	for tile: int in terrain.depots:
-		draw_rect(Rect2(Vector2(Terrain.cell(tile)) * TILE + Vector2(2, 2), Vector2(28, 28)), Color(0.76, 0.56, 0.2))
 	for source: int in terrain.source_cells.size():
 		var color: Color = SOURCE_COLORS[terrain.source_channels[source]]
 		draw_circle(Terrain.center(terrain.source_cells[source]) * TILE, 5.0, color)

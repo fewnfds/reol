@@ -2,6 +2,7 @@ extends RefCounted
 ## Authoritative tile facts. Navigation contexts are private to execution lanes.
 
 const SIZE: int = 512
+const STATE_FIELDS: Array = ["blocked", "enclosures", "rooms", "structures", "room_cells", "resources", "depots", "revision", "source_cells", "source_channels"]
 var blocked := PackedByteArray()
 var enclosures := PackedByteArray() # Doors divide rooms but remain walkable.
 var rooms := PackedInt32Array()
@@ -43,7 +44,7 @@ func initialize(room_count: int = 50, resource_count: int = 200) -> void:
 			used[tile] = true
 			resources.append(tile)
 	for id: int in 8:
-		depots.append(index(Vector2i(177 + id * 11, 269)))
+		depots.append(index(Vector2i(180 + (id % 4) * 25, 194 + (id / 4) * 45)))
 
 
 static func index(cell: Vector2i) -> int:

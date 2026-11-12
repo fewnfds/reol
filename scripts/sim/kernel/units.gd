@@ -4,9 +4,13 @@ extends RefCounted
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const PAGE_SIZE: int = 256
 const WALK_SPEED: float = 5.0
-enum Mode { RESOURCE, HARVEST, DEPOT, REST, MANUAL, IDLE, DEAD }
+enum Mode { RESOURCE, HARVEST, REST, MANUAL, IDLE, DEAD, APPROACH, ACTION, FREE, EXPLORE }
 
-var first_id: int
+const STATE_FIELDS: Array = ["ids", "positions", "targets", "modes", "health", "energy", "hunger", "body_heat",
+	"exposure", "elements", "due_ms", "route_cursors", "routes", "source_ids",
+	"moved_distance", "path_requests", "path_failures"]
+
+var ids := PackedInt64Array()
 var positions := PackedVector2Array()
 var targets := PackedInt32Array()
 var modes := PackedByteArray()
@@ -19,7 +23,6 @@ var elements := PackedInt32Array()
 var potions := PackedInt32Array()
 var cargo := PackedInt32Array()
 var source_ids := PackedInt32Array()
-var depot_ids := PackedInt32Array()
 var due_ms := PackedInt64Array()
 var route_cursors := PackedInt32Array()
 var routes: Array[PackedInt32Array] = []
@@ -35,30 +38,35 @@ var end_ms: int
 
 
 func initialize(first: int, count: int, ground: RefCounted) -> void:
-	first_id = first
 	terrain = ground
 	for row: int in count:
 		var id: int = first + row
 		var start: int = terrain.nearest_open(Terrain.index(Vector2i(171 + posmod(id * 7, 91), 171 + posmod(id * 13, 91))))
-		positions.append(Terrain.center(start))
-		var source: int = posmod(id * 37, terrain.resources.size())
-		source_ids.append(source)
-		depot_ids.append(id % terrain.depots.size())
-		targets.append(terrain.resources[source])
-		modes.append(Mode.RESOURCE)
-		health.append(100)
-		energy.append(10000)
-		hunger.append(10000)
-		body_heat.append(22.0)
-		potions.append(3)
-		cargo.append(0)
-		due_ms.append(0)
-		route_cursors.append(0)
-		routes.append(PackedInt32Array())
-	if first_id == 1:
+		add_row(id, start)
+	if first == 1:
 		modes[0] = Mode.IDLE
-	exposure.resize(count * 7)
-	elements.resize(count * 5)
+
+
+func add_row(id: int, tile: int) -> int:
+	var row: int = ids.size()
+	ids.append(id)
+	positions.append(Terrain.center(tile))
+	var source: int = posmod(id * 37, terrain.resources.size())
+	source_ids.append(source)
+	targets.append(terrain.resources[source])
+	modes.append(Mode.RESOURCE)
+	health.append(100)
+	energy.append(10000)
+	hunger.append(10000)
+	body_heat.append(22.0)
+	potions.append(0)
+	cargo.append(0)
+	due_ms.append(0)
+	route_cursors.append(0)
+	routes.append(PackedInt32Array())
+	exposure.resize(ids.size() * 7)
+	elements.resize(ids.size() * 5)
+	return row
 
 
 func move_to(row: int, target: int, mode: int) -> void:
@@ -73,9 +81,9 @@ func advance(graph: AStarGrid2D, path_cache: Dictionary) -> void:
 	failures.clear()
 	for row: int in positions.size():
 		var mode: int = modes[row]
-		if mode == Mode.DEAD:
+		if mode == Mode.DEAD or mode == Mode.FREE:
 			continue
-		if mode == Mode.HARVEST or mode == Mode.REST:
+		if mode == Mode.HARVEST or mode == Mode.REST or mode == Mode.ACTION:
 			if due_ms[row] <= end_ms:
 				ready.append(row)
 				ready.append(due_ms[row])
@@ -133,7 +141,7 @@ func sample_environment(seconds: float = 1.0) -> void:
 	environmental_deaths.clear()
 	var alpha: float = 1.0 - exp(-seconds / 30.0)
 	for row: int in positions.size():
-		if modes[row] == Mode.DEAD:
+		if modes[row] == Mode.DEAD or modes[row] == Mode.FREE:
 			continue
 		var tile: int = Terrain.index(Vector2i(positions[row]))
 		environment.sample_raw(tile, exposure, row * 7)

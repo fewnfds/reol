@@ -7,6 +7,11 @@ const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Units = preload("res://scripts/sim/kernel/units.gd")
 const Fields = preload("res://scripts/sim/kernel/environment.gd")
 const Batch = preload("res://scripts/sim/execution/batch_execution.gd")
+const Objects = preload("res://scripts/sim/kernel/objects.gd")
+const State = preload("res://scripts/sim/kernel/state.gd")
+const Facilities = preload("res://scripts/sim/kernel/facilities.gd")
+const Livelihood = preload("res://scripts/sim/kernel/livelihood.gd")
+const STATE_FIELDS: Array = ["elapsed_ms", "actor_count", "initial_material", "harvested", "deliveries", "failed_harvests", "steps", "deaths", "attacks", "heals", "attack_due", "topology_revision", "source_objects", "depot_objects", "reservations", "actions"]
 
 class Lane extends RefCounted:
 	var pages: Array[RefCounted] = []
@@ -30,12 +35,25 @@ var terrain := Terrain.new()
 var environment := Fields.new()
 var pages: Array[RefCounted] = []
 var lanes: Array[RefCounted] = []
-var quantities := PackedInt32Array()
-var reservations := PackedInt32Array()
+var objects := Objects.new()
+var facilities := Facilities.new()
+var livelihood := Livelihood.new()
+var actor_slots: Dictionary = {} # External identity -> stable internal body slot.
+var source_objects := PackedInt64Array()
+var depot_objects := PackedInt64Array()
+var reservations: Dictionary = {} # Target identity -> actor identity, owner only.
+var actions: Dictionary = {}
+var free_slots := PackedInt32Array()
 var elapsed_ms: int = 0
 var actor_count: int
 var workers: int
-var stored: int = 0
+var requested_workers: int = -1
+var stored: int:
+	get:
+		var count: int = 0
+		for id: int in depot_objects:
+			count += objects.amount(id, "wood")
+		return count
 var initial_material: int = 0
 var harvested: int = 0
 var deliveries: int = 0
@@ -52,6 +70,8 @@ var heals: int = 0
 var attack_due := PackedInt64Array()
 var topology_revision: int = 0
 var outcomes: Array[Dictionary] = []
+var _topology_edits: Dictionary = {}
+var topology_usec: int = 0
 
 
 func initialize(count: int = 1000, requested_workers: int = 4) -> void:
@@ -60,27 +80,57 @@ func initialize(count: int = 1000, requested_workers: int = 4) -> void:
 	environment.initialize(terrain, count)
 	terrain.source_cells = environment.source_cells.duplicate()
 	terrain.source_channels = environment.source_channels.duplicate()
-	quantities.resize(terrain.resources.size())
-	quantities.fill(1000)
-	reservations.resize(quantities.size())
 	attack_due.resize(count)
-	initial_material = quantities.size() * 1000
+	for slot: int in count:
+		var id: int = objects.create("actor", "human")
+		objects.add(id, "potion", 3)
+		actor_slots[id] = slot
+	for tile: int in terrain.resources:
+		var id: int = objects.create("resource", "wood", tile)
+		objects.add(id, "wood", 1000)
+		source_objects.append(id)
+	for tile: int in terrain.depots:
+		depot_objects.append(objects.create("chest", "wood_chest", tile))
+	for tile: int in terrain.structures:
+		if terrain.enclosures[tile] != 0:
+			objects.create("wall" if terrain.blocked[tile] != 0 else "door", "wood_wall" if terrain.blocked[tile] != 0 else "wood_door", tile)
+	initial_material = objects.total("wood")
+	var pile: int = objects.create("pile", "wood", Terrain.index(Vector2i(178, 186)))
+	objects.transfer(source_objects[0], pile, "wood", 50)
+	objects.create("chest", "wood_chest", Terrain.index(Vector2i(176, 186)), 100)
 	for first: int in range(0, count, Units.PAGE_SIZE):
 		var page := Units.new()
 		page.initialize(first + 1, mini(Units.PAGE_SIZE, count - first), terrain)
 		page.environment = environment
+		page.potions.fill(3)
 		pages.append(page)
+	configure_lanes(requested_workers)
+	environment.update(0, pages, actor_slots)
+	for page: RefCounted in pages:
+		page.sample_environment(0.0)
+	topology_revision = terrain.revision
+	if count < 1000:
+		pages[0].positions[0] = Terrain.center(Terrain.index(Vector2i(177, 188)))
+	facilities.seed_fixture(self, "long_bed", Terrain.index(Vector2i(176, 182)))
+	var stove: int = facilities.seed_fixture(self, "cook_stove", Terrain.index(Vector2i(174, 185)))
+	objects.add(stove, "meal", 30)
+	var supplies: int = objects.by_tile[Terrain.index(Vector2i(176, 186))][0]
+	objects.add(supplies, "grain", 30)
+	objects.add(supplies, "water", 30)
+	flush_topology()
+	livelihood.initialize(self)
+
+
+func configure_lanes(requested_workers: int) -> void:
+	self.requested_workers = requested_workers
 	workers = Batch.resolve_workers(requested_workers, pages.size())
+	lanes.clear()
 	for lane_id: int in maxi(1, workers):
 		var lane := Lane.new()
 		lane.graph = terrain.navigation()
 		lanes.append(lane)
-	for id: int in pages.size():
-		lanes[id % lanes.size()].pages.append(pages[id])
-	environment.update(0, pages)
-	for page: RefCounted in pages:
-		page.sample_environment(0.0)
-	topology_revision = terrain.revision
+	for index: int in pages.size():
+		lanes[index % lanes.size()].pages.append(pages[index])
 
 
 func step() -> void:
@@ -96,27 +146,35 @@ func step() -> void:
 	# Only contenders reach this stage; ordinary in-transit rows are not scanned.
 	var effect_start: int = Time.get_ticks_usec()
 	var events := PackedInt64Array()
+	var stride: int = attack_due.size() + 1
 	for page: RefCounted in pages:
 		for row: int in page.failures:
-			release(page.first_id + row)
+			var id: int = page.ids[row]
+			release(id)
 			if page.modes[row] == Units.Mode.MANUAL:
 				page.modes[row] = Units.Mode.IDLE
-				outcomes.append({"kind": "path_failed", "actor": page.first_id + row, "at_ms": end})
+				outcomes.append({"kind": "path_failed", "actor": id, "at_ms": end})
+			elif page.modes[row] == Units.Mode.APPROACH:
+				page.modes[row] = Units.Mode.IDLE
+				if objects.records[id].get("autonomous", false):
+					livelihood.after_action(self, id, end)
+				outcomes.append({"kind": "path_failed", "actor": id, "at_ms": end})
 			else:
-				if page.cargo[row] > 0:
-					page.depot_ids[row] = (page.depot_ids[row] + 1) % terrain.depots.size()
 				page.modes[row] = Units.Mode.REST
 				page.due_ms[row] = end + 1000
 		for entry: int in range(0, page.ready.size(), 2):
-			events.append(page.ready[entry + 1] * 65536 + page.first_id + page.ready[entry])
+			var slot: int = actor_slots[page.ids[page.ready[entry]]]
+			events.append(clampi(page.ready[entry + 1] - elapsed_ms, 0, 50) * stride + slot)
 	events.sort() # Arrival/due time first; stable ID breaks simultaneous ties.
 	for event: int in events:
-		settle(int(event % 65536), int(event / 65536))
+		var slot: int = event % stride
+		settle(pages[slot / Units.PAGE_SIZE].ids[slot % Units.PAGE_SIZE], elapsed_ms + int(event / stride))
+	flush_topology()
 	effects_usec += Time.get_ticks_usec() - effect_start
 	if end % 1000 == 0:
 		# Periodic end-of-step effects cannot erase an earlier arrival/due effect.
 		var env_start: int = Time.get_ticks_usec()
-		environment.update(end, pages)
+		environment.update(end, pages, actor_slots)
 		for lane: RefCounted in lanes:
 			lane.sampling = true
 		var sampling := Batch.new()
@@ -126,7 +184,7 @@ func step() -> void:
 			lane.sampling = false
 		for page: RefCounted in pages:
 			for row: int in page.environmental_deaths:
-				kill(page.first_id + row, end)
+				kill(page.ids[row], end)
 		environment_usec += Time.get_ticks_usec() - env_start
 	elapsed_ms = end
 	steps += 1
@@ -136,74 +194,78 @@ func step() -> void:
 
 
 func settle(id: int, at: int) -> void:
-	var page: RefCounted = pages[(id - 1) / Units.PAGE_SIZE]
-	var row: int = (id - 1) % Units.PAGE_SIZE
+	if not actor_slots.has(id):
+		return
+	var slot: int = actor_slots[id]
+	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
+	var row: int = slot % Units.PAGE_SIZE
 	var mode: int = page.modes[row]
 	var source: int = page.source_ids[row]
+	var target: int = source_objects[source]
 	if page.health[row] <= 0:
 		kill(id, at)
 	elif mode == Units.Mode.RESOURCE:
-		if reservations[source] == 0 and quantities[source] > 0:
-			reservations[source] = id
+		if not reservations.has(target) and objects.amount(target, "wood") > 0:
+			reservations[target] = id
 			page.modes[row] = Units.Mode.HARVEST
 			page.due_ms[row] = at + 500
 		else:
 			page.modes[row] = Units.Mode.REST
 			page.due_ms[row] = at + 250
 	elif mode == Units.Mode.HARVEST:
-		if reservations[source] == id and quantities[source] > 0:
-			reservations[source] = 0
-			quantities[source] -= 1
-			page.cargo[row] += 1
+		if reservations.get(target, 0) == id and objects.transfer(target, id, "wood", 1) > 0:
+			reservations.erase(target)
+			_sync_inventory(id)
 			harvested += 1
-			page.move_to(row, terrain.depots[page.depot_ids[row]], Units.Mode.DEPOT)
+			livelihood.remember(self, id, target, at)
+			livelihood.think(self, id, at)
 		else:
+			if reservations.get(target, 0) == id:
+				reservations.erase(target)
 			failed_harvests += 1
 			page.modes[row] = Units.Mode.REST
 			page.due_ms[row] = at + 1000
-	elif mode == Units.Mode.DEPOT:
-		stored += page.cargo[row]
-		page.cargo[row] = 0
-		deliveries += 1
-		page.energy[row] = mini(10000, page.energy[row] + 100)
-		page.modes[row] = Units.Mode.REST
-		page.due_ms[row] = at + 250
 	elif mode == Units.Mode.REST:
 		resume_work(id)
 	elif mode == Units.Mode.MANUAL:
 		page.modes[row] = Units.Mode.IDLE
 		outcomes.append({"kind": "arrived", "actor": id, "at_ms": at})
+	elif mode == Units.Mode.APPROACH or mode == Units.Mode.ACTION:
+		settle_action(id, at)
+	elif mode == Units.Mode.EXPLORE:
+		livelihood.observe(self, id, at)
+		livelihood.think(self, id, at)
 
 
 func resume_work(id: int) -> void:
-	var page: RefCounted = pages[(id - 1) / Units.PAGE_SIZE]
-	var row: int = (id - 1) % Units.PAGE_SIZE
-	if page.cargo[row] > 0:
-		page.move_to(row, terrain.depots[page.depot_ids[row]], Units.Mode.DEPOT)
+	livelihood.think(self, id, elapsed_ms)
+
+
+func release(id: int, at: int = -1) -> void:
+	if not actor_slots.has(id):
 		return
-	var source: int = page.source_ids[row]
-	for attempt: int in quantities.size():
-		source = (source + 37) % quantities.size()
-		if quantities[source] > 0:
-			page.source_ids[row] = source
-			page.move_to(row, terrain.resources[source], Units.Mode.RESOURCE)
-			return
-	page.modes[row] = Units.Mode.IDLE
-
-
-func release(id: int) -> void:
-	var page: RefCounted = pages[(id - 1) / Units.PAGE_SIZE]
-	var source: int = page.source_ids[(id - 1) % Units.PAGE_SIZE]
-	if reservations[source] == id:
-		reservations[source] = 0
+	var slot: int = actor_slots[id]
+	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
+	var target: int = source_objects[page.source_ids[slot % Units.PAGE_SIZE]]
+	if reservations.get(target, 0) == id:
+		reservations.erase(target)
+	if actions.has(id):
+		target = actions[id].target
+		if reservations.get(target, 0) == id:
+			reservations.erase(target)
+		facilities.interrupt(self, actions[id], at if at >= 0 else elapsed_ms)
+		actions.erase(id)
 
 
 func kill(id: int, at: int = -1) -> void:
-	var page: RefCounted = pages[(id - 1) / Units.PAGE_SIZE]
-	var row: int = (id - 1) % Units.PAGE_SIZE
+	if not actor_slots.has(id):
+		return
+	var slot: int = actor_slots[id]
+	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
+	var row: int = slot % Units.PAGE_SIZE
 	if page.modes[row] == Units.Mode.DEAD:
 		return
-	release(id)
+	release(id, at)
 	page.health[row] = 0
 	page.modes[row] = Units.Mode.DEAD
 	environment.remove_mobile(id)
@@ -215,10 +277,11 @@ func kill(id: int, at: int = -1) -> void:
 func command(input: Dictionary) -> Dictionary:
 	var receipt: Dictionary = {"seq": input.get("seq", 0), "kind": input.get("kind", ""), "at_ms": elapsed_ms, "ok": false, "reason": "invalid"}
 	var id: int = int(input.get("actor", 1))
-	if id < 1 or id > actor_count:
+	if not actor_slots.has(id):
 		return receipt
-	var page: RefCounted = pages[(id - 1) / Units.PAGE_SIZE]
-	var row: int = (id - 1) % Units.PAGE_SIZE
+	var slot: int = actor_slots[id]
+	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
+	var row: int = slot % Units.PAGE_SIZE
 	if page.health[row] <= 0:
 		receipt.reason = "dead"
 		return receipt
@@ -229,30 +292,36 @@ func command(input: Dictionary) -> Dictionary:
 				receipt.reason = "blocked"
 				return receipt
 			release(id)
+			objects.records[id].autonomous = false
 			page.move_to(row, tile, Units.Mode.MANUAL)
 		"stop":
 			release(id)
 			page.modes[row] = Units.Mode.IDLE
+			objects.records[id].autonomous = false
 		"work":
 			release(id)
-			resume_work(id)
+			objects.records[id].autonomous = true
+			livelihood.observe(self, id, elapsed_ms)
+			livelihood.think(self, id, elapsed_ms)
 		"heal":
-			if page.potions[row] <= 0 or page.health[row] >= 100:
+			if objects.amount(id, "potion") <= 0 or page.health[row] >= 100:
 				receipt.reason = "no_potion_or_full"
 				return receipt
-			page.potions[row] -= 1
+			objects.add(id, "potion", -1)
+			_sync_inventory(id)
 			page.health[row] = mini(100, page.health[row] + 40)
 			heals += 1
 		"attack":
 			var target: int = int(input.get("target", 0))
-			if target < 1 or target > actor_count or target == id:
+			if not actor_slots.has(target) or target == id:
 				return receipt
-			var victim: RefCounted = pages[(target - 1) / Units.PAGE_SIZE]
-			var other: int = (target - 1) % Units.PAGE_SIZE
-			if victim.health[other] <= 0 or page.positions[row].distance_to(victim.positions[other]) > 2.0 or attack_due[id - 1] > elapsed_ms:
+			var other_slot: int = actor_slots[target]
+			var victim: RefCounted = pages[other_slot / Units.PAGE_SIZE]
+			var other: int = other_slot % Units.PAGE_SIZE
+			if victim.health[other] <= 0 or page.positions[row].distance_to(victim.positions[other]) > 2.0 or attack_due[slot] > elapsed_ms:
 				receipt.reason = "out_of_reach_or_cooldown"
 				return receipt
-			attack_due[id - 1] = elapsed_ms + 500
+			attack_due[slot] = elapsed_ms + 500
 			victim.health[other] = maxi(0, victim.health[other] - 25)
 			attacks += 1
 			if victim.health[other] == 0:
@@ -263,6 +332,39 @@ func command(input: Dictionary) -> Dictionary:
 				return receipt
 			environment.enabled[source] = 1 - environment.enabled[source]
 			environment.rebuild_static()
+		"take", "put":
+			var reason: String = begin_transfer(id, input)
+			if reason != "accepted":
+				receipt.reason = reason
+				return receipt
+		"construct":
+			var result: Dictionary = facilities.blueprint(self, id, str(input.get("definition", "wood_wall")), int(input.get("tile", -1)))
+			if result.reason != "accepted":
+				receipt.reason = result.reason
+				return receipt
+			var reason: String = begin_interaction(id, {"kind": "construct", "target": result.target})
+			if reason != "accepted":
+				receipt.reason = reason
+				return receipt
+		"rest", "eat", "cook", "continue_build", "demolish":
+			var action: Dictionary = input.duplicate()
+			if action.kind == "continue_build":
+				action.kind = "construct"
+			var reason: String = begin_interaction(id, action)
+			if reason != "accepted":
+				receipt.reason = reason
+				return receipt
+		"drop":
+			var item: String = str(input.get("item", "wood"))
+			var count: int = mini(int(input.get("amount", 10)), objects.amount(id, item))
+			if count <= 0:
+				receipt.reason = "empty"
+				return receipt
+			release(id)
+			page.modes[row] = Units.Mode.IDLE
+			var pile: int = objects.create("pile", item, Terrain.index(Vector2i(page.positions[row])))
+			objects.transfer(id, pile, item, count)
+			_sync_inventory(id)
 		"build":
 			var tile: int = int(input.get("tile", -1))
 			var kind: int = int(input.get("structure", 1))
@@ -273,37 +375,16 @@ func command(input: Dictionary) -> Dictionary:
 					receipt.reason = "reserved_ground"
 					return receipt
 				for body: RefCounted in pages:
-					for position: Vector2 in body.positions:
-						if Terrain.index(Vector2i(position)) == tile:
+					for local: int in body.ids.size():
+						if body.ids[local] > 0 and Terrain.index(Vector2i(body.positions[local])) == tile:
 							receipt.reason = "occupied"
 							return receipt
-			var was_blocked: bool = terrain.blocked[tile] != 0
-			var old_rooms: PackedInt32Array = terrain.rooms.duplicate()
-			var old_heat: PackedFloat32Array = environment.room_temperature
-			terrain.change_structure(tile, kind)
-			for lane: RefCounted in lanes:
-				lane.graph.set_point_solid(Terrain.cell(tile), kind == 1)
-				lane.paths.clear()
-			if kind == 1 and not was_blocked:
-				for body: RefCounted in pages:
-					for local: int in body.routes.size():
-						var route: PackedInt32Array = body.routes[local]
-						for cursor: int in range(body.route_cursors[local], route.size()):
-							if route[cursor] == tile:
-								body.routes[local] = PackedInt32Array()
-								body.route_cursors[local] = 0
-								break
-			var next_heat := PackedFloat32Array()
-			for room: PackedInt32Array in terrain.room_cells:
-				var total: float = 0.0
-				for member: int in room:
-					var before: int = old_rooms[member]
-					total += old_heat[before] if before >= 0 else 22.0
-				next_heat.append(total / room.size())
-			environment.room_temperature = next_heat
-			if was_blocked != (kind == 1):
-				environment.rebuild_static()
-			topology_revision = terrain.revision
+			for object: int in objects.by_tile.get(tile, []).duplicate():
+				if objects.records[object].kind in ["wall", "door"]:
+					facilities.demolish(self, object)
+			if kind > 0:
+				objects.create("wall" if kind == 1 else "door", "wood_wall" if kind == 1 else "wood_door", tile)
+			queue_structure(tile, kind == 1, kind > 0, kind == 0)
 		_:
 			return receipt
 	receipt.ok = true
@@ -312,21 +393,21 @@ func command(input: Dictionary) -> Dictionary:
 
 
 func counters() -> Dictionary:
-	var material: int = stored
+	var material: int = objects.total("wood")
 	var cargo_total: int = 0
 	var distance: float = 0.0
 	var paths: int = 0
 	var failed_paths: int = 0
-	for amount: int in quantities:
-		material += amount
+	var alive: int = 0
 	for page: RefCounted in pages:
 		distance += page.moved_distance
 		paths += page.path_requests
 		failed_paths += page.path_failures
 		for amount: int in page.cargo:
 			cargo_total += amount
-	material += cargo_total
-	return {"world_ms": elapsed_ms, "actors": actor_count, "alive": actor_count - deaths, "workers": workers,
+		for hp: int in page.health:
+			alive += int(hp > 0)
+	return {"world_ms": elapsed_ms, "actors": actor_count, "alive": alive, "workers": workers,
 		"steps": steps, "step_usec": step_usec, "maximum_step_usec": maximum_step_usec,
 		"moved_cells": distance, "path_requests": paths, "path_failures": failed_paths,
 		"harvested": harvested, "deliveries": deliveries, "stored": stored, "cargo": cargo_total,
@@ -335,4 +416,272 @@ func counters() -> Dictionary:
 		"environment_usec": environment_usec, "units_usec": units_usec, "effects_usec": effects_usec,
 		"environment_updates": environment.updates, "rooms": terrain.room_cells.size(),
 		"structures": terrain.structures.size(), "static_sources": environment.source_cells.size(),
-		"mobile_sources": environment.mobile_units.size()}
+		"mobile_sources": environment.mobile_units.size(), "objects": objects.records.size(), "transfers": objects.transfers,
+		"decisions": livelihood.decisions, "observations": livelihood.observations, "decision_usec": livelihood.decision_usec, "observe_usec": livelihood.observe_usec, "topology_usec": topology_usec,
+		"facility_completions": facilities.completed.duplicate()}
+
+
+func _sync_inventory(id: int) -> void:
+	var slot: int = actor_slots[id]
+	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
+	var row: int = slot % Units.PAGE_SIZE
+	page.cargo[row] = objects.amount(id, "wood") # Display summaries, not inventory authority.
+	page.potions[row] = objects.amount(id, "potion")
+
+
+func begin_transfer(id: int, input: Dictionary) -> String:
+	var target: int = int(input.get("target", 0))
+	if not objects.records.has(target) or objects.records[target].kind not in ["chest", "pile", "resource"]:
+		return "invalid_target"
+	var kind: String = input.kind
+	var item: String = str(input.get("item", "wood"))
+	var count: int = int(input.get("amount", 10))
+	var source: int = target if kind == "take" else id
+	if count <= 0 or (kind == "put" and objects.amount(source, item) <= 0):
+		return "empty"
+	return begin_interaction(id, {"kind": kind, "target": target, "item": item, "amount": count})
+
+
+func begin_interaction(id: int, input: Dictionary) -> String:
+	var target: int = int(input.get("target", 0))
+	if not objects.records.has(target) or objects.records[target].tile < 0:
+		return "invalid_target"
+	if input.kind not in ["take", "put", "demolish"] and not facilities.available(self, input):
+		return "unavailable"
+	var exclusive: bool = input.kind not in ["take", "put", "eat"]
+	if exclusive and reservations.has(target) and reservations[target] != id:
+		return "target_busy"
+	var slot: int = actor_slots[id]
+	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
+	var row: int = slot % Units.PAGE_SIZE
+	var tile: int = facilities.interaction_tile(self, target, page.positions[row])
+	if tile < 0:
+		return "no_operation_place"
+	release(id)
+	actions[id] = input.duplicate(true)
+	if exclusive:
+		reservations[target] = id
+	page.move_to(row, tile, Units.Mode.APPROACH)
+	return "accepted"
+
+
+func settle_action(id: int, at: int) -> void:
+	var slot: int = actor_slots[id]
+	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
+	var row: int = slot % Units.PAGE_SIZE
+	if not actions.has(id):
+		page.modes[row] = Units.Mode.IDLE
+		return
+	var action: Dictionary = actions[id]
+	var target: int = action.target
+	if not objects.records.has(target):
+		var autonomous: bool = action.get("autonomous", false)
+		release(id)
+		page.modes[row] = Units.Mode.IDLE
+		outcomes.append({"kind": "target_gone", "actor": id, "at_ms": at})
+		if autonomous:
+			livelihood.after_action(self, id, at, target)
+		return
+	if page.modes[row] == Units.Mode.APPROACH:
+		var exclusive: bool = action.kind not in ["take", "put", "eat"]
+		if exclusive and reservations.has(target) and reservations[target] != id:
+			if action.get("autonomous", false):
+				release(id)
+				livelihood.after_action(self, id, at, target)
+				return
+			page.modes[row] = Units.Mode.ACTION
+			page.due_ms[row] = at + 250
+			action["waiting"] = true
+			return
+		if exclusive:
+			reservations[target] = id
+		page.modes[row] = Units.Mode.ACTION
+		action["started_ms"] = at
+		page.due_ms[row] = at + facilities.duration(self, action)
+		return
+	if action.get("waiting", false):
+		action.erase("waiting")
+		page.modes[row] = Units.Mode.APPROACH
+		settle_action(id, at)
+		return
+	var in_range: bool = false
+	for tile: int in objects.records[target].get("cells", PackedInt32Array([objects.records[target].tile])):
+		if page.positions[row].distance_to(Terrain.center(tile)) <= 1.5:
+			in_range = true
+	if not in_range:
+		release(id)
+		page.modes[row] = Units.Mode.IDLE
+		outcomes.append({"kind": "out_of_reach", "actor": id, "at_ms": at})
+		return
+	if action.kind not in ["take", "put"]:
+		var reason: String
+		if action.kind == "demolish":
+			reason = "completed" if facilities.demolish(self, target) else "failed"
+		else:
+			reason = facilities.finish(self, id, action, at)
+		if reason == "occupied" and action.kind == "construct":
+			objects.records[target].remaining_ms = 1
+			action.started_ms = at
+			page.due_ms[row] = at + 250
+			return
+		if objects.records.has(target) and action.kind == "construct":
+			action.erase("started_ms") # Completion/cannot-build is not an extra work interval.
+		var autonomous: bool = action.get("autonomous", false)
+		release(id)
+		page.modes[row] = Units.Mode.IDLE
+		outcomes.append({"kind": reason, "actor": id, "at_ms": at})
+		if autonomous:
+			livelihood.after_action(self, id, at, target)
+		return
+	var source: int = target if action.kind == "take" else id
+	var destination: int = id if action.kind == "take" else target
+	var amount: int = objects.transfer(source, destination, action.item, action.amount)
+	if objects.records.get(source, {}).get("kind", "") == "pile":
+		objects.remove_empty(source)
+	var autonomous: bool = action.get("autonomous", false)
+	_sync_inventory(id)
+	release(id)
+	page.modes[row] = Units.Mode.IDLE
+	outcomes.append({"kind": "transferred" if amount > 0 else "empty_or_full", "actor": id, "at_ms": at, "amount": amount})
+	if autonomous:
+		if action.kind == "put" and amount > 0:
+			deliveries += 1
+		livelihood.after_action(self, id, at, target)
+
+
+func describe(id: int) -> Dictionary:
+	if not objects.records.has(id):
+		return {}
+	var result: Dictionary = State.copy(objects.records[id])
+	if actor_slots.has(id):
+		var slot: int = actor_slots[id]
+		var page: RefCounted = pages[slot / Units.PAGE_SIZE]
+		var row: int = slot % Units.PAGE_SIZE
+		result.merge({"hp": page.health[row], "energy": page.energy[row], "hunger": page.hunger[row],
+			"temperature": page.body_heat[row], "elements": page.elements.slice(row * 5, row * 5 + 5),
+			"cargo": page.cargo[row], "potions": page.potions[row], "mode": page.modes[row], "position": page.positions[row]}, true)
+		result["action"] = State.copy(actions.get(id, {}))
+	return result
+
+
+func queue_structure(tile: int, solid: bool, enclosed: bool, removing: bool = false) -> void:
+	if not _topology_edits.has(tile):
+		_topology_edits[tile] = {"solid": terrain.blocked[tile] != 0, "enclosed": terrain.enclosures[tile] != 0}
+	terrain.blocked[tile] = int(solid)
+	terrain.enclosures[tile] = int(enclosed)
+	if removing:
+		terrain.structures.erase(tile)
+	elif not terrain.structures.has(tile):
+		terrain.structures.append(tile)
+
+
+func flush_topology() -> void:
+	if _topology_edits.is_empty():
+		return
+	var started: int = Time.get_ticks_usec()
+	var room_dirty: bool = false
+	var field_dirty: bool = false
+	var blockers: Dictionary = {}
+	for tile: int in _topology_edits:
+		room_dirty = room_dirty or _topology_edits[tile].enclosed != (terrain.enclosures[tile] != 0)
+		if _topology_edits[tile].solid != (terrain.blocked[tile] != 0):
+			for lane: RefCounted in lanes:
+				lane.graph.set_point_solid(Terrain.cell(tile), terrain.blocked[tile] != 0)
+				lane.paths.clear()
+			if terrain.blocked[tile] != 0:
+				blockers[tile] = true
+			for source: int in environment.source_cells:
+				if (Terrain.cell(source) - Terrain.cell(tile)).length_squared() < environment.RADIUS * environment.RADIUS:
+					field_dirty = true
+	if not blockers.is_empty():
+		for page: RefCounted in pages:
+			for row: int in page.routes.size():
+				for cursor: int in range(page.route_cursors[row], page.routes[row].size()):
+					if blockers.has(page.routes[row][cursor]):
+						page.routes[row] = PackedInt32Array()
+						page.route_cursors[row] = 0
+						break
+	if room_dirty:
+		var previous_rooms: PackedInt32Array = terrain.rooms.duplicate()
+		var previous_heat: PackedFloat32Array = environment.room_temperature
+		terrain.rebuild_rooms()
+		var heat := PackedFloat32Array()
+		for room: PackedInt32Array in terrain.room_cells:
+			var sum: float = 0
+			for tile: int in room:
+				var before: int = previous_rooms[tile]
+				sum += previous_heat[before] if before >= 0 else 22.0
+			heat.append(sum / room.size())
+		environment.room_temperature = heat
+	if field_dirty:
+		environment.rebuild_static()
+	terrain.revision += 1
+	topology_revision = terrain.revision
+	_topology_edits.clear()
+	topology_usec += Time.get_ticks_usec() - started
+
+
+func spawn_actor(tile: int) -> int:
+	if tile < 0 or tile >= terrain.blocked.size() or terrain.blocked[tile] != 0:
+		return 0
+	var id: int = objects.create("actor", "human")
+	var slot: int
+	var page: RefCounted
+	var row: int
+	if not free_slots.is_empty():
+		slot = free_slots[-1]
+		free_slots.resize(free_slots.size() - 1)
+		page = pages[slot / Units.PAGE_SIZE]
+		row = slot % Units.PAGE_SIZE
+		page.ids[row] = id
+		page.positions[row] = Terrain.center(tile)
+		page.health[row] = 100
+		page.energy[row] = 10000
+		page.hunger[row] = 10000
+		page.body_heat[row] = 22.0
+		page.cargo[row] = 0
+		page.potions[row] = 0
+		page.routes[row] = PackedInt32Array()
+		page.route_cursors[row] = 0
+		page.due_ms[row] = 0
+		attack_due[slot] = 0
+	else:
+		slot = attack_due.size()
+		if pages.is_empty() or pages.back().ids.size() == Units.PAGE_SIZE:
+			page = Units.new()
+			page.terrain = terrain
+			page.environment = environment
+			pages.append(page)
+			configure_lanes(requested_workers)
+		else:
+			page = pages.back()
+		row = page.add_row(id, tile)
+		attack_due.append(0)
+	page.modes[row] = Units.Mode.IDLE
+	actor_slots[id] = slot
+	actor_count += 1
+	return id
+
+
+func remove_actor(id: int) -> bool:
+	if id == 1 or not actor_slots.has(id):
+		return false
+	var slot: int = actor_slots[id]
+	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
+	var row: int = slot % Units.PAGE_SIZE
+	release(id)
+	environment.remove_mobile(id)
+	if objects.count_inventory(id) > 0:
+		var pile: int = objects.create("pile", "remains", Terrain.index(Vector2i(page.positions[row])))
+		for item: String in objects.records[id].inventory.keys():
+			objects.transfer(id, pile, item, objects.amount(id, item))
+	objects.remove_empty(id)
+	actor_slots.erase(id)
+	page.ids[row] = 0
+	page.health[row] = 0
+	page.cargo[row] = 0
+	page.potions[row] = 0
+	page.modes[row] = Units.Mode.FREE
+	free_slots.append(slot)
+	actor_count -= 1
+	return true

@@ -12,6 +12,7 @@ var _buffer := PackedFloat32Array()
 
 
 func configure(count: int) -> void:
+	_colors.clear()
 	var appearance: RefCounted = Appearance.shared()
 	_shader.shader = SHADER
 	for layer: String in ["body", "robe", "detail"]:
@@ -40,11 +41,16 @@ func configure(count: int) -> void:
 	multimesh.custom_aabb = AABB(Vector3(0, 0, -1), Vector3(512 * TILE, 512 * TILE, 2))
 
 
-func adopt(frame: RefCounted, previous: PackedVector2Array, current_points: PackedVector2Array) -> void:
+func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted) -> void:
+	if multimesh.instance_count != frame.positions.size():
+		configure(frame.positions.size())
 	var buffer: PackedFloat32Array = _buffer
 	for index: int in frame.positions.size():
-		var current: Vector2 = current_points[index] * TILE
-		var from: Vector2 = previous[index] * TILE
+		var id: int = frame.ids[index]
+		var same_current: bool = index < current_pose.ids.size() and current_pose.ids[index] == id
+		var same_previous: bool = index < previous.ids.size() and previous.ids[index] == id
+		var current: Vector2 = (current_pose.positions[index] if same_current else frame.positions[index]) * TILE
+		var from: Vector2 = previous.positions[index] * TILE if same_current and same_previous else current
 		var delta: Vector2 = current - from
 		if not delta.is_zero_approx():
 			_directions[index] = Appearance.direction_index(delta, _directions[index], 5.0)
@@ -56,6 +62,7 @@ func adopt(frame: RefCounted, previous: PackedVector2Array, current_points: Pack
 		buffer[offset + 8] = color.r
 		buffer[offset + 9] = color.g
 		buffer[offset + 10] = color.b
+		buffer[offset + 11] = 1.0 if id > 0 else 0.0
 		buffer[offset + 12] = from.x
 		buffer[offset + 13] = from.y
 		buffer[offset + 14] = _directions[index]
