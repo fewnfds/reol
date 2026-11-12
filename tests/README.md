@@ -1,14 +1,5 @@
-# 短检查
+# 当前短检查
 
-旧260组测试及其Python工具回归已退役，旧实现保存在Git历史。当前不运行CI或完整回归。
+`python tools/godot.py test`运行`kernel_smoke.gd`；边界与覆盖范围只查[验证方式](../docs/engineering/workflow/testing.md)。旧全玩法测试和CI已退役。
 
-```powershell
-python tools/godot.py test
-python tools/godot.py test --suite actor_batch
-python tools/godot.py test --list-suites
-python tests/tool_smoke.py
-```
-
-`smoke.gd`按`--suite`选择最小检查：结算顺序和续算、CPU批一致、库存守恒、忙碌输入、呈现工作、共享空间串并行一致，以及五行的整秒采样/分钟百分比/局部存读。`--suite elements`还覆盖同刻多源候选、局部重建游标和稀疏远距变化。默认测试进程上限15秒，不装配完整游戏世界、不推进数小时、不扫描全库或旧档。新检出先按需`python tools/godot.py import`。
-
-`tool_smoke.py`仅检查包装器的正常退出、首错停止和超时，通常数秒完成。两者都不代表规模性能；性能开发使用[普通Demo测量](../docs/engineering/workflow/testing.md)。开发存档只维护当前格式，不再保留历史fixture；相关存读检查现场构造当前世界。
+`tool_smoke.py`只在修改Python进程启动/超时时使用。性能用真实release短窗口，不用smoke通过数量代表容量。

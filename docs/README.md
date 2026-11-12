@@ -16,7 +16,7 @@
 | 当前做什么框架、先后取舍、性能目标 | [唯一主计划](plans/foundation-priorities.md) | 当前计划；不自动授权执行 |
 | 引擎/存档版本、有效测量、性能是否达标 | [BASELINE](status/baseline.md) | 已核实事实与证据索引 |
 | 能玩什么、键位、未实现玩法 | [FEATURES](status/features.md) | 当前能力；不重复测量和计划 |
-| 七个领域谁负责、跨域影响、原owner在哪 | [领域职责](engineering/architecture/05-framework-domains.md)、[owner定位](engineering/architecture/02-owners.md) | 逻辑边界 / 当前代码索引 |
+| 七个领域谁负责、跨域影响、原owner在哪 | [领域职责](engineering/architecture/05-framework-domains.md)、[当前实现](engineering/architecture.md) | 逻辑边界 / 当前代码索引 |
 | 新计算接入、时间/事件、空间/行动、环境/植物、存读接口 | [工程接口地图](engineering/README.md) | 实现参考；可重构 |
 | 数据定义、开局、内容装配 | [data](../data/README.md) | 数据入口与实际清单 |
 | 尚未采用的工程/外观方案 | [specs](specs/README.md) | 候选；未实现不算事实 |
@@ -27,6 +27,6 @@
 
 ## 查找已有内容
 
-先用上表选择目录，再用中文概念、English类名及[术语映射](engineering/terminology.md)搜索。例如`rg -n "存档|候选|restore" docs/engineering scripts/persistence`；列文件用`rg --files docs/engineering design/rules`。默认搜索不含archive，追溯时显式`rg --no-ignore "关键词" docs/archive`。
+先用上表选择目录，再用中文概念、English类名搜索。例如`rg -n "存档|候选|restore" docs/engineering scripts/sim/kernel`；列文件用`rg --files docs/engineering design/rules`。默认搜索不含archive，追溯时显式`rg --no-ignore "关键词" docs/archive`。
 
 没有必要维护另一份全文件目录、总进度或MEMORY副本。文档重叠时按上表保留正文，别名只作链接；事实与意图冲突分别说明，不靠“最后改的文件”决定谁正确。

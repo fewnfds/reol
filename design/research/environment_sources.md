@@ -1,5 +1,8 @@
 # 环境、热源与空间机制的参考核查
 
+> 重建说明（2026-11-12）：本页引用的旧代码起点已退役，历史链接固定到重建前提交；它们不是现行实现。当前状态查[工程入口](../../docs/engineering/README.md)。
+
+
 > 研究资料：记录来源与适用限制，不授予引入依赖或改变规则的权限。
 
 调研：2026-11-03。服务于[世界环境方案](../proposals/environment.md)，重点核查环境如何进入生活、生产、行旅和空间改造。本文是研究与取舍记录，实施与验收状态以[BASELINE](../../docs/status/baseline.md)为准；不因资料中存在某项机制就声称 Reol 已实现。
@@ -88,7 +91,7 @@ ACS 商店的 “View the manual” 链接本轮实际导向社区 Fandom，不�
 
 ## 4. 与本轮 E2 代码的边界
 
-调研时的工作树包含 [当时的SimLocalHeat](https://github.com/fewnfds/reol/blob/7006ce1/scripts/sim/local_heat.gd)、[原器物系统](../../scripts/sim/artifacts.gd)的 `warm` 动作和[施工接缝](../../scripts/sim/construction.gd)。当时的有限目标是：实际完成释热时扣原温石的一份储能，把一份正余热留在实际空间，再由墙门/覆盖影响传递与散失。煮饭、烘药和释热竞争原器物储能。
+调研时的工作树包含 [当时的SimLocalHeat](https://github.com/fewnfds/reol/blob/7006ce1/scripts/sim/local_heat.gd)、[原器物系统](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/artifacts.gd)的 `warm` 动作和[施工接缝](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/construction.gd)。当时的有限目标是：实际完成释热时扣原温石的一份储能，把一份正余热留在实际空间，再由墙门/覆盖影响传递与散失。煮饭、烘药和释热竞争原器物储能。
 
 该次调研中的 `SimLocalHeat` 模拟的是**相对原室外背景的正余热**，不是绝对热力学。实现内用规则能量单位记输入、局地存量和对外损失，不把器物 charge、温度和灵气直接当同单位相加。调研时没有持续携带辐射、全材料比热/相变、完整气液或五行场；门墙参数与房屋几何也是最小抽象。
 

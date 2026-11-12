@@ -1,5 +1,8 @@
 # 完整游戏的参考取舍与素材路线：素材与代码生成
 
+> 重建说明（2026-11-12）：本页引用的旧代码起点已退役，历史链接固定到重建前提交；它们不是现行实现。当前状态查[工程入口](../../../docs/engineering/README.md)。
+
+
 > 研究资料：记录来源与适用限制，不授予引入依赖或改变规则的权限。
 
 > 研究与来源记录：参考与建议不自动成为游戏规则或依赖。
@@ -42,10 +45,10 @@
 
 本轮实际读过的现有表现代码：
 
-- [PawnVisuals](../../../scripts/entities/pawn_visuals.gd)：衣襟、发髻、地影和选中标记，共用绘制人物；不拥有身体状态。
-- [FacilityVisuals](../../../scripts/world/facility_visuals.gd)：井、药圃、山门与建筑的几何剪影。
-- [TerrainVisuals](../../../scripts/world/terrain_visuals.gd)：稳定变体和小型地表图集。
-- [ReolUITheme](../../../scripts/ui/reol_ui_theme.gd)：颜色、文字、按钮和面板的共用样式。
+- [PawnVisuals](https://github.com/fewnfds/reol/blob/a493bf0/scripts/entities/pawn_visuals.gd)：衣襟、发髻、地影和选中标记，共用绘制人物；不拥有身体状态。
+- [FacilityVisuals](https://github.com/fewnfds/reol/blob/a493bf0/scripts/world/facility_visuals.gd)：井、药圃、山门与建筑的几何剪影。
+- [TerrainVisuals](https://github.com/fewnfds/reol/blob/a493bf0/scripts/world/terrain_visuals.gd)：稳定变体和小型地表图集。
+- [ReolUITheme](https://github.com/fewnfds/reol/blob/a493bf0/scripts/ui/reol_ui_theme.gd)：颜色、文字、按钮和面板的共用样式。
 
 推荐延续它们的职责：纯模拟只输出状态；表现层决定衣着、动作、材质和特效。换精灵不得改库存、人物 ID、格子占用、命中判定或权限。
 

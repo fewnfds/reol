@@ -22,10 +22,10 @@ ENTRY_FILES = (
     "docs/plans/roadmap.md", "docs/plans/foundation-priorities.md",
     "docs/DOCUMENTATION.md", "design/vision.md", "design/rules/README.md",
     "design/README.md", "assets/README.md", "data/README.md",
-    "scripts/README.md", "tests/README.md", "tests/smoke.gd",
+    "scripts/README.md", "tests/README.md", "tests/kernel_smoke.gd",
 )
 ROLE_DIRECTORIES = (
-    "scripts/sim", "scripts/runtime", "scripts/persistence",
+    "scripts/sim/kernel", "scripts/presentation",
     "data/definitions", "data/scenarios",
     "design/rules", "design/systems", "design/research", "docs/plans",
     "docs/status", "docs/engineering", "docs/specs", "docs/archive",
@@ -163,7 +163,7 @@ def audit_code(root: Path) -> list[str]:
         edges[path] = (references & sources.keys()) - {path}
         if path.startswith("scripts/sim/"):
             for target in sorted(edges[path]):
-                if target.startswith(("scripts/runtime/", "scripts/entities/", "scripts/world/", "scripts/ui/")):
+                if target.startswith(("scripts/presentation/", "scripts/entities/")):
                     notes.append(f"REVIEW simulation depends on presentation: {path} -> {target}")
     # All checked-in scenes are deliberate entries, including the temporary
     # crowd scene. Tests and autoloads are separate from ordinary gameplay.

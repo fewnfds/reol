@@ -293,7 +293,7 @@ def cmd_doctor(_args: argparse.Namespace) -> int:
         ("project.godot", ROOT / "project.godot"),
         (".godot/ import cache", ROOT / ".godot"),
         ("addons/godot_ai", ROOT / "addons" / "godot_ai" / "plugin.cfg"),
-        ("tests/smoke.gd", ROOT / "tests" / "smoke.gd"),
+        ("tests/kernel_smoke.gd", ROOT / "tests" / "kernel_smoke.gd"),
         (".agents/skills", ROOT / ".agents" / "skills"),
         (".codex/config.toml", ROOT / ".codex" / "config.toml"),
     ]
@@ -341,11 +341,7 @@ def cmd_test(args: argparse.Namespace) -> int:
     if godot is None:
         return 1
     command = [str(godot), "--headless", "--path", str(ROOT),
-               "--script", "res://tests/smoke.gd", "--"]
-    for suite in args.suite:
-        command.extend(["--suite", suite])
-    if args.list_suites:
-        command.append("--list-suites")
+               "--script", "res://tests/kernel_smoke.gd"]
     return _run(command, "smoke", timeout=args.timeout)
 
 
@@ -414,8 +410,6 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("version", help="print the Godot version").set_defaults(func=cmd_version)
     sub.add_parser("import", help="headless import resources").set_defaults(func=cmd_import)
     test = sub.add_parser("test", help="run the small local smoke checks; old full check/CI retired")
-    test.add_argument("--suite", action="append", default=[], choices=("settlement", "actor_batch", "inventory", "input", "presentation", "spatial", "elements"))
-    test.add_argument("--list-suites", action="store_true")
     test.add_argument("--timeout", type=_short_timeout, default=15, metavar="SECONDS")
     test.set_defaults(func=cmd_test)
 

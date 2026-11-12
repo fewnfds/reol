@@ -2,7 +2,7 @@
 
 > 研究资料：记录来源与适用限制，不授予引入依赖或改变规则的权限。
 
-核对日期：2026-11-09。本文记录公开资料能支持的工程判断，不推测闭源游戏内部实现。采用合同见[事件执行](../../docs/engineering/event-contract.md)，建设仍归[唯一主计划](../../docs/plans/foundation-priorities.md)。
+核对日期：2026-11-09。本文记录公开资料能支持的工程判断，不推测闭源游戏内部实现。采用合同见[事件执行](../../docs/engineering/architecture.md)，建设仍归[唯一主计划](../../docs/plans/foundation-priorities.md)。
 
 ## 成熟项目提供的边界
 

@@ -1,18 +1,39 @@
-# 当前运行装配
+# 当前运行架构
 
-类型：实现参考。职责查[领域划分](architecture/05-framework-domains.md)，稳定技术/硬件边界查[constraints](constraints.md)，目标与当前结果分别查[主计划](../plans/foundation-priorities.md)和[BASELINE](../status/baseline.md)。
+重建后的运行链为：Godot输入/画面 → 命令邮箱 → 自主模拟线程 → 独占页CPU批 → 共享效果结算 → 不可变显示快照。正式场景只有 `scenes/main.tscn`，不提供旧慢后端回退。
 
-```text
-Main / 场景装配
-  输入与UI → runtime适配 → sim状态、规则和过程
-                  ↓              ↓
-             已提交视图      data定义与开局
-                  ↘ persistence文件/候选恢复
-```
+## 状态和职责
 
-当前业务时钟为`GameClock`，共同结算由`RegionalSimulation`装配的`SimSettlementKernel`推进；身体批计算用`SimBatchExecution`，结果由原领域采用。Godot负责SceneTree、呈现、资源及适用的原生几何/线程能力。普通环境对象为`SimWorldEnvironmentFields`，内部来源候选已接入常驻GPU服务；当前路径和CPU回退见[环境合同](world-environment-contract.md)。新局只走`WorldOpening`，联合候选由`WorldSessionSnapshot`和`RegionalSnapshot`恢复。
+| 入口 | 唯一负责的内容 |
+|---|---|
+| `scripts/sim/kernel/terrain.gd` | 512²地块、墙/可穿行门、围合、原生AStarGrid装配；显示副本完全脱离原数组 |
+| `scripts/sim/kernel/units.gd` | 每页256行的身体热数据、50ms沿路移动、需求/环境采样；每页在一个lane内独占写入 |
+| `scripts/sim/kernel/world.gd` | 共享库存、工作预约、命令校验、伤害/治疗/死亡、行动完成和结构变化；批完成后仲裁共享效果 |
+| `scripts/sim/kernel/environment.gd` | 静态7通道max场、携带源空间桶、接收者/房间响应、五行百分比潮汐 |
+| `scripts/sim/kernel/runner.gd` | 一个专用模拟Thread、自身单调时钟、倍率/暂停、命令与回执、显示发布与关停 |
+| `scripts/sim/kernel/frame.gd` | 已提交事实的脱离副本；发布后不写，消费者可保留旧帧 |
+| `scripts/sim/execution/batch_execution.gd` | 对Godot现成WorkerThreadPool的一次group任务与join；不建立每域线程池 |
+| `scripts/presentation/` | 主线程的UI、选择、相机、静态画布及MultiMesh/着色器呈现；只读Frame，不持有原World |
+| `scripts/entities/humanoid_appearance.gd` | 已有八方向人物资源清单与只读外观解释 |
 
-- [依赖方向](architecture/01-dependencies.md)解释代码层；[owner表](architecture/02-owners.md)定位状态来源，不表示每域需要一个Node或同一巨型对象。
-- [时间/空间/呈现](architecture/03-time-space-presentation.md)定位连续身体和已提交视图。
-- [存读管线](architecture/04-persistence.md)说明独立候选、领域登记和文件边界。
-- 具体算法接口按[工程地图](README.md)查询。调用链、数据布局和class均可重写，存在接口不证明规模性能已达标。
+当前人口是固定分页名册，数字ID不复用；运行时生成/删除尚未恢复。地图与开局布局在Terrain初始化，属于容量切片，不声称已经恢复原开放世界装配器。定义/素材与运行实例分离；旧JSON内容保留供以后有选择迁移，目前只有人物外观清单被读取。
+
+## 一步怎样结算
+
+Runner按照自己的单调时钟积累所选倍率的时间需求；无需主线程发起下一步。每个50ms步之前接收已排队命令，按受理序处理，返回可靠回执。命令可在暂停中执行，暂停不推进世界时间。
+
+World先将不重叠身体页交给lanes。lane私有AStarGrid和路径缓存，读取同一环境输入；运动/需求写入自己的页，跨单位资源效果只产出到达/到期记录。join后按到达/到期毫秒、稳定ID处理预约、扣减、携带、交付和死亡，整秒到期时再以步末位置更新环境桶/房间并批采样需求/热伤害，避免期末伤害吞掉更早的行动；最后提交步时钟。已提交后果不依赖画面是否显示过它。
+
+普通跨格没有全域事件屏障。动作衔接量化到50ms步，下一段从下步开始，不能宣传为与原逐毫秒模型完全等价。同批命令由队列顺序确定，不能用worker完成顺序决定攻击/治疗。持续移动不触发全村目击、库存知识克隆或画布全量重建。
+
+## 显示和通知
+
+每次发布新Frame时将必要身体列、选中目标详情和小型统计复制成脱离值；短Mutex只交换latest引用和通知队列。生产者之后不写已发布容器，不依赖GDScript PackedArray自动隔离别名，也不循环复用仍被消费者持有的槽位。
+
+画面只取最新Frame；可以跳过中间显示状态。命令回执、到达/失败和死亡通知走独立队列，消费一次，不能随被覆盖的Frame丢弃。玩家命令入口有在途上限，包含未收取回执。静态地块画布只在结构版本变化后重建；单位只在采用新显示Frame时上传MultiMesh，保留短段已提交位置历史，GPU在显示时刻相邻的两步间插值，高倍率跳过多个逻辑步也不把两端直连穿过拐角。选择与跟随读取相同显示坐标。
+
+## 当前模型的简化与扩展
+
+空地不保留移动源经过后的热历史；人物和房间各自承载温度惯性。静态场只在来源/结构变化时重建，移动源每个环境周期更新空间桶并在实际接收者处解析max，避免清除旧最大值引发全片重算。场的数值与采样政策查[运行与精度](simulation-pacing.md)，能力删减查FEATURES。
+
+低频新能力可以是World的普通局部记录/函数；只有密集且独立的数据才进入身体页批处理。现有kernel不是必须套用的万能ECS。恢复复杂内容前先明确谁写事实、何时被唤醒、工作量随规模怎样增长；不要恢复逐帧借还原世界、普通走路全域广播或每域一线程。

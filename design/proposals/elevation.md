@@ -1,5 +1,8 @@
 # 连续俯视世界的高度、表现与空间边界
 
+> 重建说明（2026-11-12）：本页引用的旧代码起点已退役，历史链接固定到重建前提交；它们不是现行实现。当前状态查[工程入口](../../docs/engineering/README.md)。
+
+
 > 后续研究与候选：世界基础先使用平面地块，高差、多层和特殊空间不是前置条件。此页的模型、参数和比较均须另行验证；已确认边界见[世界与时间](../rules/world.md)。
 
 案例和 Godot 候选证据见[高度与拓扑研究](../research/elevation_and_world_topology.md)。
@@ -16,11 +19,11 @@
 
 | 范围 | 实际代码 | 当前不足 |
 |---|---|---|
-| 唯一地表高度 | [WorldMapData](../../scripts/sim/world_map_data.gd)每格0..3，水0、岩至少2 | 基底静态，无地形改造存档，不是多层体积 |
-| 高度表现 | [ReolWorld](../../scripts/world/world.gd)分层上移16px，[CliffChunk](../../scripts/world/cliff_chunk.gd)画南向暗崖条 | 非完整坡面/遮挡/自动崖角；高度上移可能与拾取/FOW不同步，须实机核对 |
+| 唯一地表高度 | [WorldMapData](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/world_map_data.gd)每格0..3，水0、岩至少2 | 基底静态，无地形改造存档，不是多层体积 |
+| 高度表现 | [ReolWorld](https://github.com/fewnfds/reol/blob/a493bf0/scripts/world/world.gd)分层上移16px，[CliffChunk](https://github.com/fewnfds/reol/blob/a493bf0/scripts/world/cliff_chunk.gd)画南向暗崖条 | 非完整坡面/遮挡/自动崖角；高度上移可能与拾取/FOW不同步，须实机核对 |
 | 移动与体型 | 地形只限制相邻高度差≤1，大兽另检占地/落差 | 无明确崖壁/坡道连接，同样一阶高差都可走；地面视觉高度切格改变，须补连续坡面投影 |
 | 感知与战斗 | FOW用地面级+飞行级和更高地形简化遮挡；冲突感知限制同高，射线用固定level | 不是跨坡射击，地面/飞行/眼高缺统一单位与查询 |
-| 热与气候 | [SimWorldEnvironmentFields](../../scripts/sim/world_environment_fields.gd)管理室外温度与五行环境影响，气候按预设区域曲线 | 不查坡面高程或空气高度，不因真实海拔自动变冷 |
+| 热与气候 | [SimWorldEnvironmentFields](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/world_environment_fields.gd)管理室外温度与五行环境影响，气候按预设区域曲线 | 不查坡面高程或空气高度，不因真实海拔自动变冷 |
 | 结构与点选 | 工地有平整/支撑判断；自然地块尝试逆投影，人物有选择中心 | 固定z值、各自拾取，无共用的地表/崖面/对象选取优先；不是完全未做点选 |
 
 上述来自只读代码，不声称已观察到具体画面错误，也不以字段存在当作高度系统验收。

@@ -1,5 +1,8 @@
 # 类RimWorld模拟游戏：基础架构对照
 
+> 重建说明（2026-11-12）：本页引用的旧代码起点已退役，历史链接固定到重建前提交；它们不是现行实现。当前状态查[工程入口](../../docs/engineering/README.md)。
+
+
 > 研究资料：记录来源与适用限制，不授予引入依赖或改变规则的权限。
 
 研究更新：2026-11-09。本轮实读Factorio开发者日志、Cataclysm:DDA官方开发文档及Tarn Adams的模拟原则；2026-11-07的Mod教程、视频页面和代码核查保留为原证据。下方历史代码表基于`b3ae3399d24e01975d231cd000c0af342740070b`，不代表当前缺口。本文记录来源与推论，不代表商业游戏内部源码审计、教学项目的生产成熟度或Reol实现验收。领域职责见[顶层框架](../../docs/engineering/architecture/05-framework-domains.md)，建设依赖和出口只在[基础建设计划](../../docs/plans/foundation-priorities.md)维护。
@@ -50,15 +53,15 @@ Project Porcupine社区代码默认GPLv3，非代码资产默认CC BY-NC-SA；�
 
 | 位置 | 实际核对 | 架构含义 |
 |---|---|---|
-| [ReolContentDB](../../scripts/data/content_db.gd)、[ReolContentBundle](../../scripts/data/content_bundle.gd) | 已有定义加载、内容绑定及digest，定义与运行事实分开 | 继续扩展现有内容路径；新增已有能力的内容应尽量无需更改机制分支 |
-| [SimWorldObjectQuery.capture](../../scripts/sim/world_object_query.gd) | 明确只捕获调用者提供的引用，结果是历史快照；地面与结构另有局部索引 | 补各原域的局部候选和变化接缝，组合成有界实时查询；无需重建一个持有全部状态的对象库 |
-| [SimObjectLifecycle](../../scripts/sim/object_lifecycle.gd)、[SimGroundPlacements](../../scripts/sim/ground_placements.gd) | 受管physical器物、同账本材料已有事务；committed通知及revision只覆盖相应地面域 | 向建筑/植物扩展时明确原owner的初始化、空间进入/离开、终止和恢复接缝，不误用局部revision代表全世界 |
-| [SimConstruction.valid_definitions / register_site](../../scripts/sim/construction.gd) | 校验器固定四种wood类型；已有工地时拒绝新登记，项目绑定sect_yard；原材料与施工阶段真实存在 | 主要扩展点是结构定义、工地/实例和几何的一般化；保留原库存、材料与工时，不用另造演示施工器 |
-| [SimActionExecutor](../../scripts/sim/action_executor.gd)、[object_actions.gd](../../scripts/sim/object_actions.gd)、[SimConstruction](../../scripts/sim/construction.gd) | 生活动作、耗时取放和施工分别维护过程；已有travel、预约、截止、中断等基础，但并非覆盖全部域的共同协议 | 提炼可复用的过程接缝和结果语义；领域继续提交各自效果，不必换成一个包办所有业务的执行器 |
-| [SimLandResources](../../scripts/sim/land_resources.gd)、[SimWorldObjectQuery](../../scripts/sim/world_object_query.gd) | 自然资源保留原库存和生长/采出账；查询明确标记independent_plant=false | 完整植物实例是实质缺口，应接入共同空间/环境/行动；不能只加树木画面或再复制一份产量 |
-| [RegionalSimulation](../../scripts/sim/regional_simulation.gd)、[WorldRestoreFactory](../../scripts/persistence/world_restore_factory.gd) | 已有共同整数毫秒、明确有序阶段、欠算与独立候选恢复；初始化/恢复仍显式装配领域 | 保留确定次序与失败原子性；随真实新领域补接装配，不按脚本长度或教程风格全面改造调度器 |
+| [ReolContentDB](https://github.com/fewnfds/reol/blob/a493bf0/scripts/data/content_db.gd)、[ReolContentBundle](https://github.com/fewnfds/reol/blob/a493bf0/scripts/data/content_bundle.gd) | 已有定义加载、内容绑定及digest，定义与运行事实分开 | 继续扩展现有内容路径；新增已有能力的内容应尽量无需更改机制分支 |
+| [SimWorldObjectQuery.capture](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/world_object_query.gd) | 明确只捕获调用者提供的引用，结果是历史快照；地面与结构另有局部索引 | 补各原域的局部候选和变化接缝，组合成有界实时查询；无需重建一个持有全部状态的对象库 |
+| [SimObjectLifecycle](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/object_lifecycle.gd)、[SimGroundPlacements](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/ground_placements.gd) | 受管physical器物、同账本材料已有事务；committed通知及revision只覆盖相应地面域 | 向建筑/植物扩展时明确原owner的初始化、空间进入/离开、终止和恢复接缝，不误用局部revision代表全世界 |
+| [SimConstruction.valid_definitions / register_site](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/construction.gd) | 校验器固定四种wood类型；已有工地时拒绝新登记，项目绑定sect_yard；原材料与施工阶段真实存在 | 主要扩展点是结构定义、工地/实例和几何的一般化；保留原库存、材料与工时，不用另造演示施工器 |
+| [SimActionExecutor](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/action_executor.gd)、[object_actions.gd](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/object_actions.gd)、[SimConstruction](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/construction.gd) | 生活动作、耗时取放和施工分别维护过程；已有travel、预约、截止、中断等基础，但并非覆盖全部域的共同协议 | 提炼可复用的过程接缝和结果语义；领域继续提交各自效果，不必换成一个包办所有业务的执行器 |
+| [SimLandResources](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/land_resources.gd)、[SimWorldObjectQuery](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/world_object_query.gd) | 自然资源保留原库存和生长/采出账；查询明确标记independent_plant=false | 完整植物实例是实质缺口，应接入共同空间/环境/行动；不能只加树木画面或再复制一份产量 |
+| [RegionalSimulation](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/regional_simulation.gd)、[WorldRestoreFactory](https://github.com/fewnfds/reol/blob/a493bf0/scripts/persistence/world_restore_factory.gd) | 已有共同整数毫秒、明确有序阶段、欠算与独立候选恢复；初始化/恢复仍显式装配领域 | 保留确定次序与失败原子性；随真实新领域补接装配，不按脚本长度或教程风格全面改造调度器 |
 
-现有纯sim与runtime/UI分离、原状态唯一、共同时间及候选恢复方向合理。没有外部证据要求换引擎、把连续身体位置改成整格，或强行合并器物/数量/植物的原状态；位置精度继续沿[空间研究](spatial_models.md)和[当前架构](../../docs/engineering/architecture/03-time-space-presentation.md)单独评估。
+现有纯sim与runtime/UI分离、原状态唯一、共同时间及候选恢复方向合理。没有外部证据要求换引擎、把连续身体位置改成整格，或强行合并器物/数量/植物的原状态；位置精度继续沿[空间研究](spatial_models.md)和[当前架构](../../docs/engineering/architecture.md)单独评估。
 
 ## 可直接查看的教程
 
@@ -76,4 +79,4 @@ Project Porcupine社区代码默认GPLv3，非代码资产默认CC BY-NC-SA；�
 
 [Project Porcupine的Furniture源码](https://github.com/TeamPorcupine/ProjectPorcupine/blob/master/Assets/Scripts/Models/Buildable/Furniture.cs)把墙、门、沙发等已安装对象放在共同可建造模型中，具有多格尺寸、朝向、能力组件和HealthSystem。[Cataclysm:DDA的家具数据文档](https://github.com/CleverRaven/Cataclysm-DDA/blob/master/doc/JSON/JSON_INFO.md)分别表达储液、工作台、照明、收起、破坏等条件；它的terrain/furniture和creatures不是同一个对象模型，说明共同接口不要求全部继承人物。
 
-对Reol的采用是共同引用、原owner及按需能力：墙和家具可受击，主动攻击另由实际攻击能力实现；操作位和设施关系支持桌椅/工作台，容器引用原库存。围合、覆盖、通行、视线、环境阻隔分别提供事实。房间和用途不自动生产物品或授予知识，静态家具没有无用的人物AI或持续更新。这里只分析结构，不复制GPL源码或第三方资产；具体工程行为见[建筑合同](../../docs/engineering/construction-contract.md)。
+对Reol的采用是共同引用、原owner及按需能力：墙和家具可受击，主动攻击另由实际攻击能力实现；操作位和设施关系支持桌椅/工作台，容器引用原库存。围合、覆盖、通行、视线、环境阻隔分别提供事实。房间和用途不自动生产物品或授予知识，静态家具没有无用的人物AI或持续更新。这里只分析结构，不复制GPL源码或第三方资产；具体工程行为见[建筑合同](../../docs/engineering/architecture.md)。
