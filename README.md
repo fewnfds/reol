@@ -1,6 +1,8 @@
 # Reol
 
-GDScript / 2D正交俯视的修仙模拟世界。当前已重建基础运行内核，以自主模拟、真实倍率与多核批处理为基础，保留一个可操作的千人采集/搬运与环境切片。
+GDScript / 2D正交俯视的修仙模拟世界。当前在自主模拟、多核批处理的新内核上恢复了实物、建筑生活、环境植物、战斗、交往修行和有限地区的代表性闭环。
+
+开发期双击[开发试玩.cmd](开发试玩.cmd)直接运行源码；修改后重启即可，无需导出。运行方式见[命令说明](docs/engineering/tooling/usage.md)。
 
 新接手先读[HANDOFF](docs/status/handoff.md)，按[记忆地图](docs/README.md)找当前领域；[AGENTS](AGENTS.md)仅是短入口。
 

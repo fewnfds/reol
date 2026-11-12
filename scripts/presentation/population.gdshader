@@ -28,7 +28,9 @@ void vertex() {
 }
 
 void fragment() {
-	vec2 uv = UV / vec2(40.0, 8.0) + atlas_offset;
+	// QuadMesh is Y-up; the 2D canvas and atlas images are Y-down. Flip only
+	// the local frame UV, keeping its atlas row and anatomical left/right.
+	vec2 uv = vec2(UV.x, 1.0 - UV.y) / vec2(40.0, 8.0) + atlas_offset;
 	vec4 result = texture(body, uv);
 	result = over(result, texture(robe, uv) * tint);
 	result = over(result, texture(detail, uv));
