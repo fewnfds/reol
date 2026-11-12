@@ -10,6 +10,7 @@
 *.zip
 
 # Local tooling
+.local/advisor/
 .venv/
 __pycache__/
 *.pyc
