@@ -4,7 +4,7 @@ GDScript / 2D正交俯视的修仙模拟世界。当前在自主模拟、多核�
 
 开发期双击[开发试玩.cmd](开发试玩.cmd)直接运行源码；修改后重启即可，无需导出。运行方式见[命令说明](docs/engineering/tooling/usage.md)。
 
-新接手先读[HANDOFF](docs/status/handoff.md)，按[记忆地图](docs/README.md)找当前领域；[AGENTS](AGENTS.md)仅是短入口。
+按主题查[记忆地图](docs/README.md)；未完任务见[HANDOFF](docs/status/handoff.md)，agent入口为[AGENTS](AGENTS.md)。
 
 - [可玩能力、键位和明确未迁回的玩法](docs/status/features.md)
 - [实际性能与构建](docs/status/baseline.md)

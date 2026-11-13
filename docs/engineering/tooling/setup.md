@@ -23,7 +23,7 @@ Godot AI的用户级域过滤可能同时影响其他项目。恢复`csg/gridmap
 
 ## skills怎样维护
 
-项目自有入口为`reol-project`、`godot-verify`、`godot-sim-architecture`、`open-world-2d`、`colony-sim-systems`和`spec-driven-game-dev`；其余是有来源记录的通用方法。两类都按任务选择，不要求逐个读取。自有技能的正文只留方法/链接，长期事实改原领域文档，发现目录本身也有上下文成本。
+项目自有入口为`godot-verify`、`godot-sim-architecture`、`open-world-2d`、`colony-sim-systems`和`spec-driven-game-dev`；其余是有来源记录的通用方法。技能按具体任务选用，项目导航由AGENTS和文档地图提供。
 
 若新增方法确实跨任务复用，先改已有技能；只有触发与产物独立时才新建。第三方样例中的职业、属性面板、CI或验证配方不是Reol的全局规则。宿主/system/plugin缓存由官方入口维护，不手改。
 

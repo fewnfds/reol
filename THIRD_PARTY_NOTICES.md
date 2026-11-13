@@ -21,9 +21,9 @@
 - 许可证：**Apache-2.0**
 - 固定 commit：`19d93f97c9c1ea0f8b306e77aa81e0d3e352d3e9`
 - 许可证原文：`docs/third-party/awesome-gamedev-agent-skills-LICENSE`
-- 上游归属原文：`docs/third-party/awesome-gamedev-agent-skills-NOTICE`（与上述固定commit对应，2026-11-04补齐；未升级技能）
-- 分发形式：选取以下技能的 `SKILL.md` 及附带资源放在 `.agents/skills/`（2026-11-02 从 `.opencode/skills/` 迁移；上游版本不变）。
-- 本地修订（2026-11-04）：仅精简以下 31 项技能的 `SKILL.md` frontmatter 中 `description`，明确触发范围；技能名称、正文及附带资源保持固定 commit 的内容。更新时须保留或重新审查这些本地元数据修订。
+- 上游归属原文：`docs/third-party/awesome-gamedev-agent-skills-NOTICE`，对应上述固定commit。
+- 分发形式：选取以下技能的 `SKILL.md` 及附带资源放在 `.agents/skills/`。
+- 本地修订：收窄技能description；`godot-gdscript-headless-testing`已改为本项目短检查排错指引。其余上游正文与资源按固定commit追溯，本地差异由Git维护。
 
 ### 已选取
 
@@ -48,11 +48,7 @@ Unity/Unreal/其他引擎、C#/多人、平台跳跃、卡牌、视觉小说、�
 
 ### 更新
 
-1. 固定拟采用的上游commit，保留当前版本。
-2. 比较旧pin、本地修订与新pin，逐项检查选中技能及附带资源。
-3. 按需合并 `.agents/skills/` 对应目录，保留本地项目修订、LICENSE和适用NOTICE；不整库覆盖。
-4. 更新本文件的 commit。
-5. 验证技能发现/路由、相对引用和文档结构；只有工具/游戏行为也变更时，执行相应产品验证。当前维护流程见[基础设施维护](docs/engineering/tooling/setup.md)。
+维护方法见[工具配置与维护](docs/engineering/tooling/setup.md)；本页只登记采用版本、许可和本地修订。
 
 ---
 
@@ -64,8 +60,8 @@ Unity/Unreal/其他引擎、C#/多人、平台跳跃、卡牌、视觉小说、�
 - 许可证原文：`docs/third-party/godot-ai-LICENSE`
 - 分发形式：`addons/godot_ai/`（随仓库提供）
 - 用途：编辑器内 MCP 工具（场景树、脚本、运行、日志、截图、输入模拟等）
-- 更新记录：2026-11-04经官方`script/v4-release verify/install`闭编辑器流程校验签名、身份、完整清单后整树安装；插件源文件未作本地修补，旧树与本机配置备份不入库。平时优先dock的签名更新，不手动混覆盖。
-- 注意：插件运行在编辑器权限下；实际工作流与限制见后续维护记录。
+- 本地修订：插件源文件未作修改。
+- 配置与更新方法：[工具配置与维护](docs/engineering/tooling/setup.md)。
 
 ---
 
@@ -108,13 +104,7 @@ Unity/Unreal/其他引擎、C#/多人、平台跳跃、卡牌、视觉小说、�
 
 ## 7. 素材
 
-当前仓库**没有**引入第三方美术/音频素材（只有 Godot 默认 `icon.svg`）。
-引入素材时：
-
-1. 放到 `assets/third_party/<pack>/`。
-2. 附 `LICENSE` 和 `SOURCE.md`（作者/链接/日期/修改）。
-3. 更新本文件。
-4. 检查是否允许商用/再分发。
+已采用Kenney Tiny Town、Tiny Farm、Tiny Dungeon的CC0切片。生成素材、程序绘制素材及第三方资源的完整清单和权利边界见[素材来源](assets/README.md#来源与权利记录)，各包保留原始许可与SOURCE记录。
 
 ---
 
