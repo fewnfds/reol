@@ -2,6 +2,7 @@ extends RefCounted
 ## Presentation vocabulary for the current commands, not a second rule engine.
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Art = preload("res://scripts/presentation/art.gd")
+const Items = preload("res://scripts/sim/kernel/items.gd")
 static var buildings: Dictionary = {}
 static var plants: Dictionary = {}
 static var items: Dictionary = {}
@@ -15,8 +16,10 @@ static func load_definitions() -> void:
 static func title(data: Dictionary) -> String:
 	load_definitions()
 	var key: String = str(data.get("definition", ""))
-	var definition: Dictionary = buildings.get(key, plants.get(key, items.get(key, {})))
-	return str(data.get("name", definition.get("label", key))) + " #%d" % int(data.get("id", 0))
+	var item_key: String = Items.definition(key) if Items.valid(key) else key
+	var definition: Dictionary = buildings.get(key, plants.get(key, items.get(item_key, {})))
+	var quality: String = " Q%d" % Items.quality(key) if definition.has("slot") else ""
+	return str(data.get("name", definition.get("label", key))) + quality + " #%d" % int(data.get("id", 0))
 
 static func observed(frame: RefCounted, id: int, use_fog: bool) -> Dictionary:
 	if id == 0: return {}

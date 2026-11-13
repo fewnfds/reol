@@ -66,6 +66,10 @@ func tick(delta: float) -> void:
 	if not tool.is_empty(): queue_redraw()
 
 func _input(event: InputEvent) -> void:
+	if ui.inventory.visible and event is InputEventMouseButton and event.pressed:
+		var focused: Control = get_viewport().gui_get_focus_owner()
+		if focused is LineEdit and not focused.get_global_rect().has_point(event.position):
+			get_viewport().gui_release_focus()
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE and not event.pressed:
 		_pan_drag = false # Release can land on GUI instead of the world.
 	if external_modal(): return
@@ -141,10 +145,11 @@ func action(kind: String, payload: Dictionary) -> void:
 			cancel_tool()
 			ui.toggle_drawer({"build_menu": "build", "plant_menu": "plant"}.get(kind, kind))
 		"close_drawer": ui.toggle_drawer(ui._drawer_name)
-		"inventory": ui.open_stock("drop", 1)
+		"inventory": ui.open_bag(1)
+		"inspect_bag": ui.open_bag(int(payload.get("subject", 1)))
 		"take", "put", "drop": ui.open_stock(kind, 1 if kind == "drop" else target)
-		"stock_commit": ui.commit_stock()
 		"stock_send": _send(payload)
+		"unequip": _send({"kind": "unequip", "slot": str(payload.slot)})
 		"trade": ui.open_simple("trade")
 		"trade_commit":
 			_send({"kind": "trade", "target": target, "give_item": "potion", "give_amount": 1, "want_item": "breath_manual", "want_amount": 1})

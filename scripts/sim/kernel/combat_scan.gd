@@ -4,6 +4,7 @@ extends RefCounted
 
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Batch = preload("res://scripts/sim/execution/batch_execution.gd")
+const Equipment = preload("res://scripts/sim/kernel/equipment.gd")
 const BUCKET: float = 8.0
 const CHUNK_SIZE: int = 64
 const PARALLEL_MIN: int = 128
@@ -180,7 +181,7 @@ func observe(world: RefCounted, orders: Dictionary, now: int, unreachable: Dicti
 		var limit: float = 0.0
 		var hold: bool = not order.is_empty() and order.kind == "hold"
 		if hold:
-			limit = 9.0 if order.ranged else 1.7
+			limit = Equipment.RANGED_RANGE if order.ranged else Equipment.MELEE_RANGE
 		if not order.is_empty():
 			if order.target > 0:
 				# Static targets are checked by the owner through their footprint.
@@ -190,7 +191,7 @@ func observe(world: RefCounted, orders: Dictionary, now: int, unreachable: Dicti
 				if ids[target] == 0:
 					continue
 			elif now >= int(order.scan_ms):
-				limit = (9.0 if order.ranged else 1.7) if order.kind == "hold" else float(world.objects.records[id].get("alert_range", 12.0))
+				limit = (Equipment.RANGED_RANGE if order.ranged else Equipment.MELEE_RANGE) if order.kind == "hold" else float(world.objects.records[id].get("alert_range", 12.0))
 				order.scan_ms = now + DISCOVERY_STEPS * 50
 			else:
 				continue

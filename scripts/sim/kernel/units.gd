@@ -2,8 +2,9 @@ extends RefCounted
 ## A page owns its hot columns; only its assigned lane writes them during a step.
 
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
+const Equipment = preload("res://scripts/sim/kernel/equipment.gd")
 const PAGE_SIZE: int = 256
-const WALK_SPEED: float = 5.0
+const WALK_SPEED: float = Equipment.BASE.speed
 const MAX_TOLERANCE: float = 100.0
 const THERMAL_DAMAGE_PER_SECOND: float = 1.0
 const TOLERANCE_REGEN_PER_SECOND: float = 1.0
@@ -20,6 +21,11 @@ var modes := PackedByteArray()
 var flight := PackedByteArray()
 var radii := PackedFloat32Array()
 var health := PackedInt32Array()
+var max_health := PackedInt32Array() # Derived stats, rebuilt rather than saved.
+var melee_damage := PackedInt32Array()
+var ranged_damage := PackedInt32Array()
+var armor := PackedInt32Array()
+var move_speed := PackedFloat32Array()
 var tolerance := PackedFloat32Array()
 var thermal_carry := PackedFloat32Array()
 var energy := PackedInt32Array()
@@ -63,7 +69,12 @@ func add_row(id: int, tile: int) -> int:
 	source_ids.append(source)
 	targets.append(Terrain.center(terrain.resources[source]))
 	modes.append(Mode.RESOURCE)
-	health.append(100)
+	health.append(int(Equipment.BASE.max_hp))
+	max_health.append(int(Equipment.BASE.max_hp))
+	melee_damage.append(int(Equipment.BASE.melee))
+	ranged_damage.append(int(Equipment.BASE.ranged))
+	armor.append(int(Equipment.BASE.armor))
+	move_speed.append(WALK_SPEED)
 	tolerance.append(MAX_TOLERANCE)
 	thermal_carry.append(0.0)
 	flight.append(0)
@@ -79,6 +90,14 @@ func add_row(id: int, tile: int) -> int:
 	exposure.resize(ids.size() * 7)
 	elements.resize(ids.size() * 5)
 	return row
+
+
+func resize_stats() -> void:
+	for field: String in ["max_health", "melee_damage", "ranged_damage", "armor", "move_speed"]:
+		if get(field).size() != ids.size():
+			var column: Variant = get(field)
+			column.resize(ids.size())
+			set(field, column)
 
 
 func move_to(row: int, target: Vector2, mode: int) -> void:
@@ -114,7 +133,8 @@ func advance(navigation: RefCounted) -> void:
 				failures.append(row)
 				continue
 		var point: Vector2 = positions[row]
-		var available: float = WALK_SPEED * 0.05
+		var speed: float = move_speed[row]
+		var available: float = speed * 0.05
 		var cursor: int = route_cursors[row]
 		var knots := PackedVector3Array()
 		while available > 0.00001 and cursor < route.size():
@@ -125,7 +145,7 @@ func advance(navigation: RefCounted) -> void:
 				available -= distance
 				cursor += 1
 				if available > 0.00001 and distance > 0.00001:
-					knots.append(Vector3(point.x, point.y, 1.0 - available / (WALK_SPEED * 0.05)))
+					knots.append(Vector3(point.x, point.y, 1.0 - available / (speed * 0.05)))
 			else:
 				point = point.move_toward(next, available)
 				available = 0.0
@@ -134,12 +154,12 @@ func advance(navigation: RefCounted) -> void:
 			path.append_array(knots)
 			path.append(Vector3(point.x, point.y, 1.0))
 			motion[row] = path
-		moved_distance += WALK_SPEED * 0.05 - available
+		moved_distance += speed * 0.05 - available
 		positions[row] = point
 		route_cursors[row] = cursor
 		if cursor >= route.size():
 			ready.append(row)
-			ready.append(end_ms - roundi(available / WALK_SPEED * 1000.0))
+			ready.append(end_ms - roundi(available / speed * 1000.0))
 
 
 func sample_environment(seconds: float = 1.0) -> void:

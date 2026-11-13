@@ -20,6 +20,7 @@ const Sight = preload("res://scripts/sim/kernel/sight.gd")
 const Regions = preload("res://scripts/sim/kernel/regions.gd")
 const PersonEvents = preload("res://scripts/sim/kernel/person_events.gd")
 const STATE_FIELDS: Array = ["elapsed_ms", "actor_count", "initial_material", "harvested", "deliveries", "failed_harvests", "steps", "deaths", "attacks", "heals", "attack_due", "topology_revision", "source_objects", "depot_objects", "reservations", "actions"]
+const Equipment = preload("res://scripts/sim/kernel/equipment.gd")
 
 class Lane extends RefCounted:
 	var pages: Array[RefCounted] = []
@@ -135,6 +136,11 @@ func initialize(count: int = 1000, requested_workers: int = 4, stress_environmen
 	var supplies: int = objects.by_tile[Terrain.index(Vector2i(176, 186))][0]
 	objects.add(supplies, "grain", 30)
 	objects.add(supplies, "water", 30)
+	# Temporary playable equipment samples; ordinary NPCs need no gear scan.
+	for item: String in ["iron_sword", "iron_sword@2", "short_bow", "cloth_robe", "travel_boots", "jade_charm@3"]:
+		objects.add(1, item, 1)
+	objects.add(supplies, "cloth_robe@2", 1)
+	objects.add(supplies, "travel_boots@2", 1)
 	flush_topology()
 	livelihood.initialize(self)
 	nature.initialize(self)
@@ -433,14 +439,24 @@ func _command(input: Dictionary) -> Dictionary:
 			livelihood.observe(self, id, elapsed_ms)
 			livelihood.think(self, id, elapsed_ms)
 		"heal":
-			if objects.amount(id, "potion") <= 0 or page.health[row] >= 100:
+			if objects.amount(id, "potion") <= 0 or page.health[row] >= page.max_health[row]:
 				receipt.reason = "no_potion_or_full"
 				return receipt
 			objects.add(id, "potion", -1)
 			_sync_inventory(id)
-			page.health[row] = mini(100, page.health[row] + 40)
+			page.health[row] = mini(page.max_health[row], page.health[row] + 40)
 			heals += 1
 			emit({"kind": "healed", "actor": id, "at_ms": elapsed_ms})
+		"equip", "unequip":
+			var item: String = str(input.get("item", ""))
+			var gear_slot: String = str(input.get("slot", ""))
+			var reason: String = objects.equip(id, item) if input.kind == "equip" else objects.unequip(id, gear_slot)
+			receipt.ok = reason in ["equipped", "unequipped"]
+			receipt.reason = reason
+			if receipt.ok:
+				Equipment.rebuild(self, id)
+				emit({"kind": reason, "actor": id, "item": item, "slot": gear_slot, "at_ms": elapsed_ms})
+			return receipt
 		"attack":
 			var target: int = int(input.get("target", 0))
 			if not actor_slots.has(target) or target == id:
@@ -448,7 +464,7 @@ func _command(input: Dictionary) -> Dictionary:
 			var other_slot: int = actor_slots[target]
 			var victim: RefCounted = pages[other_slot / Units.PAGE_SIZE]
 			var other: int = other_slot % Units.PAGE_SIZE
-			if victim.health[other] <= 0 or page.positions[row].distance_to(victim.positions[other]) > 2.0 or attack_due[slot] > elapsed_ms:
+			if victim.health[other] <= 0 or page.positions[row].distance_to(victim.positions[other]) > Equipment.MELEE_RANGE + page.radii[row] - 0.35 or attack_due[slot] > elapsed_ms:
 				receipt.reason = "out_of_reach_or_cooldown"
 				return receipt
 			sight.sync(self)
@@ -457,8 +473,8 @@ func _command(input: Dictionary) -> Dictionary:
 				return receipt
 			release(id)
 			page.modes[row] = Units.Mode.IDLE
-			attack_due[slot] = elapsed_ms + 600
-			combat.damage(self, id, target, 25, elapsed_ms, (page.positions[row] - victim.positions[other]).normalized())
+			attack_due[slot] = elapsed_ms + Equipment.MELEE_COOLDOWN_MS
+			combat.damage(self, id, target, page.melee_damage[row], elapsed_ms, (page.positions[row] - victim.positions[other]).normalized())
 			if objects.records[id].get("autonomous", false):
 				livelihood.after_action(self, id, elapsed_ms)
 		"source":
@@ -580,6 +596,12 @@ func counters() -> Dictionary:
 	var paths: int = 0
 	var failed_paths: int = 0
 	var alive: int = 0
+	var modes := PackedInt32Array()
+	modes.resize(Units.Mode.size())
+	var stationary_combatants: int = 0
+	for actor: int in combat.orders:
+		var slot: int = actor_slots[actor]
+		stationary_combatants += int(pages[slot / 256].modes[slot % 256] == Units.Mode.IDLE)
 	var navigation_geometry: int = 0
 	var navigation_search: int = 0
 	var navigation_direct: int = 0
@@ -599,7 +621,8 @@ func counters() -> Dictionary:
 			cargo_total += amount
 		for hp: int in page.health:
 			alive += int(hp > 0)
-	return {"world_ms": elapsed_ms, "actors": actor_count, "alive": alive, "workers": workers,
+		for mode: int in page.modes: modes[mode] += 1
+	return {"world_ms": elapsed_ms, "actors": actor_count, "alive": alive, "workers": workers, "mode_counts": modes, "stationary_combatants": stationary_combatants,
 		"steps": steps, "step_usec": step_usec, "maximum_step_usec": maximum_step_usec,
 		"moved_cells": distance, "path_requests": paths, "path_failures": failed_paths,
 		"navigation_geometry_usec": navigation_geometry, "navigation_search_usec": navigation_search,
@@ -788,6 +811,7 @@ func describe(id: int) -> Dictionary:
 		result["destination"] = page.targets[row]
 		result["route_preview"] = page.routes[row].slice(page.route_cursors[row], mini(page.routes[row].size(), page.route_cursors[row] + 64)) if page.modes[row] in [Units.Mode.RESOURCE, Units.Mode.MANUAL, Units.Mode.APPROACH, Units.Mode.EXPLORE, Units.Mode.COMBAT_MOVE] else PackedVector2Array()
 		result["sight_range"] = sight.range_for(self, id)
+		result["stats"] = Equipment.view(page, row)
 	return result
 
 
@@ -908,6 +932,7 @@ func spawn_actor(tile: int) -> int:
 		attack_due.append(0)
 	page.modes[row] = Units.Mode.IDLE
 	actor_slots[id] = slot
+	Equipment.rebuild(self, id)
 	actor_count += 1
 	return id
 
@@ -921,8 +946,9 @@ func remove_actor(id: int) -> bool:
 	release(id)
 	forget_target(id)
 	environment.remove_mobile(id)
-	if objects.count_inventory(id) > 0:
+	if objects.count_inventory(id) > 0 or not objects.records[id].equipment.is_empty():
 		var pile: int = objects.create("pile", "remains", Terrain.index(Vector2i(page.positions[row])))
+		for gear_slot: String in objects.records[id].equipment.keys(): objects.unequip(id, gear_slot, pile)
 		for item: String in objects.records[id].inventory.keys():
 			objects.transfer(id, pile, item, objects.amount(id, item))
 	objects.remove_empty(id)

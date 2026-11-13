@@ -3,6 +3,7 @@ extends RefCounted
 ## Actor positions stay in body pages; these records do not duplicate them.
 const STATE_FIELDS: Array = ["records", "next_id"]
 const Sight = preload("res://scripts/sim/kernel/sight.gd")
+const Items = preload("res://scripts/sim/kernel/items.gd")
 
 var next_id: int = 1
 var records: Dictionary = {}
@@ -16,9 +17,7 @@ var definitions: Dictionary = {}
 
 
 func _init() -> void:
-	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/items.json"))
-	if parsed is Dictionary:
-		definitions = parsed
+	definitions = Items.load_definitions()
 
 
 func create(kind: String, definition: String, tile: int = -1, capacity: int = -1) -> int:
@@ -28,6 +27,8 @@ func create(kind: String, definition: String, tile: int = -1, capacity: int = -1
 		"inventory": {}, "capacity": capacity, "sight_range": Sight.DEFAULT_RANGE if kind == "actor" else 0.0}
 	if kind != "actor":
 		records[id].hp = 100
+	else:
+		records[id]["equipment"] = {}
 	if tile >= 0:
 		if not by_tile.has(tile):
 			by_tile[tile] = []
@@ -52,8 +53,14 @@ func count_inventory(id: int) -> int:
 func add(id: int, item: String, count: int) -> void:
 	if count == 0:
 		return
+	if not records.has(id) or not Items.valid(item):
+		push_error("Invalid inventory delta: %d %s" % [id, item])
+		return
 	var inventory: Dictionary = records[id].inventory
 	var next: int = int(inventory.get(item, 0)) + count
+	if next < 0:
+		push_error("Negative inventory delta: %d %s" % [id, item])
+		return
 	if next == 0:
 		inventory.erase(item)
 	else:
@@ -63,7 +70,7 @@ func add(id: int, item: String, count: int) -> void:
 
 
 func transfer(source: int, target: int, item: String, requested: int) -> int:
-	if not definitions.has(item) or source == target or requested <= 0 or not records.has(source) or not records.has(target):
+	if not Items.valid(item) or source == target or requested <= 0 or not records.has(source) or not records.has(target):
 		return 0
 	var count: int = mini(requested, amount(source, item))
 	var capacity: int = records[target].capacity
@@ -78,7 +85,7 @@ func transfer(source: int, target: int, item: String, requested: int) -> int:
 
 
 func remove_empty(id: int) -> bool:
-	if not records.has(id) or count_inventory(id) != 0 or not records[id].get("materials", {}).is_empty():
+	if not records.has(id) or count_inventory(id) != 0 or not records[id].get("materials", {}).is_empty() or not records[id].get("equipment", {}).is_empty():
 		return false
 	for tile: int in records[id].get("cells", PackedInt32Array([records[id].tile])):
 		if by_tile.has(tile):
@@ -92,7 +99,7 @@ func remove_empty(id: int) -> bool:
 
 
 func exchange(a: int, b: int, give: String, given: int, want: String, wanted: int) -> bool:
-	if a == b or not records.has(a) or not records.has(b) or given <= 0 or wanted <= 0 or amount(a, give) < given or amount(b, want) < wanted:
+	if not Items.valid(give) or not Items.valid(want) or a == b or not records.has(a) or not records.has(b) or given <= 0 or wanted <= 0 or amount(a, give) < given or amount(b, want) < wanted:
 		return false
 	if (records[a].capacity >= 0 and count_inventory(a) - given + wanted > records[a].capacity) or (records[b].capacity >= 0 and count_inventory(b) - wanted + given > records[b].capacity):
 		return false
@@ -104,6 +111,38 @@ func exchange(a: int, b: int, give: String, given: int, want: String, wanted: in
 	add(a, want, wanted)
 	transfers += 2
 	return true
+
+
+func equip(id: int, item: String) -> String:
+	if not Items.valid(item) or not records.has(id) or records[id].kind != "actor" or amount(id, item) <= 0:
+		return "empty"
+	var slot: String = str(Items.spec(item).get("slot", ""))
+	if not Items.SLOTS.has(slot): return "not_equipment"
+	var record: Dictionary = records[id]
+	var previous: String = str(record.equipment.get(slot, ""))
+	var final_count: int = count_inventory(id) - 1 + int(not previous.is_empty())
+	if record.capacity >= 0 and final_count > record.capacity: return "no_capacity"
+	# All validation precedes mutation. Equipped items stay in the same audit total.
+	add(id, item, -1)
+	totals[item] = int(totals.get(item, 0)) + 1
+	if not previous.is_empty():
+		add(id, previous, 1)
+		totals[previous] -= 1
+	record.equipment[slot] = item
+	return "equipped"
+
+
+func unequip(id: int, slot: String, destination: int = 0) -> String:
+	if not records.has(id) or not records[id].get("equipment", {}).has(slot): return "empty"
+	if destination == 0: destination = id
+	if not records.has(destination): return "invalid_target"
+	if records[destination].capacity >= 0 and count_inventory(destination) >= records[destination].capacity: return "no_capacity"
+	var item: String = records[id].equipment[slot]
+	records[id].equipment.erase(slot)
+	add(destination, item, 1)
+	totals[item] -= 1
+	if destination != id: records[id]["inventory_revision"] = int(records[id].get("inventory_revision", 0)) + 1
+	return "unequipped"
 
 
 func reindex(id: int, cells: PackedInt32Array) -> void:
@@ -133,6 +172,7 @@ func audit_total(item: String) -> int:
 	for id: int in records:
 		count += amount(id, item)
 		count += int(records[id].get("materials", {}).get(item, 0))
+		for equipped: String in records[id].get("equipment", {}).values(): count += int(equipped == item)
 	return count
 
 

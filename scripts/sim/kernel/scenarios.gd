@@ -17,6 +17,8 @@ static func mixed(world: RefCounted) -> void:
 		var index: int = (actor - 1) % 50
 		page.positions[row] = Vector2(265.5 + index % 10, 182.5 + index / 10 + team * 8)
 		page.health[row] = 10000 # Explicit stress fixture, not normal HP balance.
+		world.objects.records[actor]["base_stats"] = {"max_hp": 10000.0}
+		world.Equipment.rebuild(world, actor)
 		world.objects.records[actor].autonomous = false
 		world.objects.records[actor]["side"] = team
 		world.combat.begin(world, actor, "pursue", actor + 50 if actor <= 50 else actor - 50, Vector2(-1, -1), actor % 3 != 0)
@@ -44,3 +46,30 @@ static func mixed(world: RefCounted) -> void:
 		world.objects.add(target, "breath_manual", 1)
 		world.command({"kind": "trade", "actor": actor, "target": target})
 	world.perception.update(world, world.elapsed_ms, true)
+
+
+static func capacity(world: RefCounted) -> void:
+	# capacity-v1: same mixed world and algorithms, explicitly durable starting
+	# actors/supplies so the measured work cannot disappear through death/famine.
+	mixed(world)
+	for actor: int in world.actor_slots:
+		var slot: int = world.actor_slots[actor]
+		var page: RefCounted = world.pages[slot / 256]
+		var row: int = slot % 256
+		world.objects.records[actor]["base_stats"] = {"max_hp": 1000000.0}
+		world.Equipment.rebuild(world, actor)
+		page.health[row] = page.max_health[row]
+		page.energy[row] = 1000000
+		page.hunger[row] = 1000000
+		if actor % 10 == 0:
+			world.objects.add(actor, "iron_sword@2", 1)
+			world.command({"kind": "equip", "actor": actor, "item": "iron_sword@2"})
+		if actor % 10 == 1:
+			world.objects.add(actor, "travel_boots", 1)
+			world.command({"kind": "equip", "actor": actor, "item": "travel_boots"})
+	var supply: int = maxi(1000, ceili(float(world.actor_count) * 2000 / world.source_objects.size()))
+	for source: int in world.source_objects:
+		world.objects.add(source, "wood", supply - world.objects.amount(source, "wood"))
+	world.initial_material = world.objects.total("wood")
+	for record: Dictionary in world.objects.records.values():
+		if record.kind == "blueprint": record.remaining_ms = 1000000

@@ -75,6 +75,7 @@ func _run() -> void:
 	_nature_cycle()
 	preload("res://tests/feature_smoke.gd").run(check)
 	preload("res://tests/sight_smoke.gd").run(check)
+	preload("res://tests/equipment_smoke.gd").run(check)
 	await _disk_restart()
 	_thread_boundary()
 	print("KERNEL_SMOKE errors=", _errors)
@@ -138,6 +139,13 @@ func _disk_restart() -> void:
 		check(false, "Save test runner never started")
 		first.close()
 		return
+	first.send({"kind": "equip", "item": "iron_sword@2"})
+	var equipped: bool = false
+	while not equipped and Time.get_ticks_usec() < deadline:
+		await process_frame
+		var result: Dictionary = first.poll()
+		equipped = result.frame != null and result.frame.player.equipment.get("weapon", "") == "iron_sword@2"
+	check(equipped, "Disk fixture could not equip")
 	for attempt: int in 4:
 		var saved_seq: int = first.send({"kind": "save", "path": path})
 		var receipts: Array = []
@@ -159,6 +167,7 @@ func _disk_restart() -> void:
 			loaded = receipt.ok and receipt.reason == "loaded"
 		if loaded:
 			check(result.frame.counters.actors == 4 and result.frame.paused, "New runner did not adopt saved population")
+			check(result.frame.player.equipment.get("weapon", "") == "iron_sword@2" and result.frame.player.stats.melee == 38, "Disk restart did not rebuild equipment stats")
 	second.close()
 	check(loaded, "A fresh runner could not resume the disk save")
 

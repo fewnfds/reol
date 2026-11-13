@@ -4,6 +4,7 @@ extends RefCounted
 
 const State = preload("res://scripts/sim/kernel/state.gd")
 const Units = preload("res://scripts/sim/kernel/units.gd")
+const Items = preload("res://scripts/sim/kernel/items.gd")
 const ACTIONS: Array[String] = ["talk", "trade", "request_help", "learn", "study", "practice"]
 var completed: Dictionary = {}
 
@@ -82,7 +83,7 @@ func finish(world: RefCounted, actor: int, action: Dictionary, now: int) -> Stri
 			var want: String = str(action.get("want_item", "breath_manual"))
 			var given: int = int(action.get("give_amount", 1))
 			var wanted: int = int(action.get("want_amount", 1))
-			if not world.objects.definitions.has(give) or not world.objects.definitions.has(want) or given <= 0 or wanted <= 0:
+			if not Items.valid(give) or not Items.valid(want) or given <= 0 or wanted <= 0:
 				return "invalid_offer"
 			var value: Dictionary = {"wood": 1, "grain": 2, "water": 2, "meal": 5, "potion": 12, "breath_manual": 10}
 			if given * int(value.get(give, 1)) < wanted * int(value.get(want, 1)):
@@ -154,9 +155,9 @@ func use_ability(world: RefCounted, actor: int) -> String:
 	var slot: int = world.actor_slots[actor]
 	var page: RefCounted = world.pages[slot / 256]
 	var row: int = slot % 256
-	if int(rec.get("qi", 0)) < 20 or page.energy[row] < 500 or page.health[row] >= 100:
+	if int(rec.get("qi", 0)) < 20 or page.energy[row] < 500 or page.health[row] >= page.max_health[row]:
 		return "insufficient_qi_energy_or_full"
 	rec.qi -= 20
 	page.energy[row] -= 500
-	page.health[row] = mini(100, page.health[row] + 25)
+	page.health[row] = mini(page.max_health[row], page.health[row] + 25)
 	return "ability_used"

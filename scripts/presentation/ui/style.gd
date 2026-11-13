@@ -49,6 +49,10 @@ static func label(parent: Node, text: String = "") -> Label:
 static func icon(key: String) -> Texture2D:
 	if _icons.has(key): return _icons[key]
 	var paths: Dictionary = {
+		"bow": "M5 3q20 9 0 18L12 12zM3 12h18m-4-4 4 4-4 4",
+		"robe": "M8 3h8l6 7-5 3v9H7v-9l-5-3zM8 3l4 7 4-7M12 10v12",
+		"boots": "M4 3h6v12l4 2v5H3v-7zM14 3h6v12l3 2v5h-7",
+		"charm": "M10 2h4v5M12 6l8 7-8 9-8-9zM9 13h6M12 10v6",
 		"move": "M4 12h15m-6-6 6 6-6 6", "attack": "m5 19 14-14m-5 0h5v5M4 15l5 5",
 		"stop": "M6 6h12v12H6z", "hold": "M12 3 4 7v6c0 4 8 8 8 8s8-4 8-8V7z",
 		"work": "m4 5 15 15m-2-17 4 4-7 7-4-4z", "bag": "M4 8h16v13H4zM8 8V4h8v4",

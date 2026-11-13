@@ -37,6 +37,7 @@ var _pending: int = 0 # Admission also counts receipts not yet collected.
 var _count: int
 var _workers: int
 var _mixed: bool = false
+var _capacity: bool = false
 # These fields are used exclusively by the simulation thread.
 var _world: RefCounted
 var _terrain_view: RefCounted
@@ -57,10 +58,11 @@ var _io := SessionIO.new()
 var _epoch: int = 1
 
 
-func start(count: int = 1000, workers: int = -1, speed: float = 1.0, mixed: bool = false) -> Error:
+func start(count: int = 1000, workers: int = -1, speed: float = 1.0, mixed: bool = false, capacity: bool = false) -> Error:
 	_count = clampi(count, 1, 60000)
 	_workers = workers
 	_mixed = mixed
+	_capacity = capacity
 	_speed = clampf(speed, 0.25, 16.0)
 	return _thread.start(_run)
 
@@ -144,8 +146,10 @@ func _notify_io() -> void:
 
 func _run() -> void:
 	_world = World.new()
-	_world.initialize(_count, _workers, _mixed)
-	if _mixed:
+	_world.initialize(_count, _workers, _mixed or _capacity)
+	if _capacity:
+		Scenarios.capacity(_world)
+	elif _mixed:
 		Scenarios.mixed(_world)
 	_terrain_view = _world.terrain.detached()
 	_mutex.lock()

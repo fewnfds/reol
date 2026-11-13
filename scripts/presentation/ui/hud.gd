@@ -8,6 +8,9 @@ const Minimap = preload("res://scripts/presentation/ui/minimap.gd")
 const Art = preload("res://scripts/presentation/art.gd")
 const Units = preload("res://scripts/sim/kernel/units.gd")
 const EventText = preload("res://scripts/presentation/ui/event_text.gd")
+const Items = preload("res://scripts/sim/kernel/items.gd")
+const CharacterPanel = preload("res://scripts/presentation/ui/character_panel.gd")
+const InventoryPanel = preload("res://scripts/presentation/ui/inventory_panel.gd")
 const BASE_SCALE: float = 0.5
 var ui_percent: int = 100
 var minimap := Minimap.new()
@@ -51,17 +54,12 @@ var _modal := ColorRect.new()
 var _modal_panel: PanelContainer
 var _modal_body := VBoxContainer.new()
 var _modal_kind: String = ""
-var _amount: SpinBox
-var _stock_items: ItemList
-var _stock_values: Label
-var _stock_kind: String = ""
-var _stock_target: int = 0
-var _stock_epoch: int = 0
-var _stock_keys: Array = []
-var _accept: Button
+var inventory := InventoryPanel.new()
+var character: Control
+var _character_id: int = 1
+var _use_fog: bool = true
 var _scale_input: SpinBox
 var _events: RichTextLabel
-var _event_signature: String = ""
 var _context_panel: PanelContainer
 var _context_body := VBoxContainer.new()
 var _context: Dictionary = {}
@@ -150,6 +148,9 @@ func _ready() -> void:
 	_rotate_button = _button(_notice, "rotate_take", "N", "rotate")
 	_rotate_button.hide()
 	_receipt = Style.label(_notice)
+	add_child(inventory)
+	inventory.requested.connect(func(action: String, payload: Dictionary): requested.emit(action, payload))
+	inventory.visibility_changed.connect(_layout)
 	_build_modal()
 	_context_panel = _panel(self, Control.PRESET_TOP_LEFT, Vector4(0, 0, 220, 40))
 	_context_panel.add_child(_context_body)
@@ -232,9 +233,19 @@ func _layout() -> void:
 		_map_panel.offset_bottom = -72
 	_notice.offset_left = -180
 	_notice.offset_right = 180
+	_drawer_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	_drawer_panel.position = Vector2(8, 92)
+	_drawer_panel.size = Vector2(360, maxf(200, minf(560, size.y - 232)))
+	inventory.position = Vector2(380 if width >= 1100 and not _drawer_name.is_empty() else 8, 92)
+	var dual: bool = inventory.target_id > 0 and width - inventory.position.x >= 740
+	inventory.layout_columns(dual)
+	inventory.size = Vector2(710 if dual else 360, maxf(280, minf(560, size.y - 232)))
+	if width < 1100 and inventory.visible: _drawer_panel.hide()
+	else: _drawer_panel.visible = not _drawer_name.is_empty()
 
 func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: float, following: bool, ranged: bool, help_target: int) -> void:
 	_frame = frame
+	_use_fog = use_fog
 	_selected = selected
 	_help_target = help_target
 	_target = Actions.observed(frame, selected, use_fog)
@@ -248,7 +259,7 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 	var tide_text := PackedStringArray()
 	for i: int in mini(frame.tides.size(), 5): tide_text.append("%s %d%%" % [["金", "木", "水", "火", "土"][i], frame.tides[i]])
 	set_text(_tides, "   ".join(tide_text))
-	set_text(_player_values, "#1  HP %d  耐受 %.0f/%.0f  精力 %d  饥饿 %d" % [int(player.get("hp", 0)), float(player.get("tolerance", 0)), float(player.get("max_tolerance", 100)), int(player.get("energy", 0)), int(player.get("hunger", 0))])
+	set_text(_player_values, "#1  HP %d/%d  耐受 %.0f/%.0f  精力 %d  饥饿 %d" % [int(player.get("hp", 0)), int(player.get("stats", {}).get("max_hp", 100)), float(player.get("tolerance", 0)), float(player.get("max_tolerance", 100)), int(player.get("energy", 0)), int(player.get("hunger", 0))])
 	var action: Dictionary = player.get("action", {})
 	var current: String = action_name(str(action.get("kind", "")))
 	if action.is_empty(): current = "移动" if int(player.get("mode", 4)) in [0, 3, 6, 9, 10] else "—"
@@ -261,7 +272,7 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 		_progress.value = clampf(float(frame.world_ms - start) / maxi(1, int(player.get("due_ms", start)) - start), 0.0, 1.0)
 	var dead: bool = int(player.get("hp", 0)) <= 0
 	for key: String in _player_buttons: _player_buttons[key].disabled = dead
-	_player_buttons.heal.disabled = dead or int(player.get("hp", 0)) >= 100 or int(player.get("inventory", {}).get("potion", 0)) <= 0
+	_player_buttons.heal.disabled = dead or int(player.get("hp", 0)) >= int(player.get("stats", {}).get("max_hp", 100)) or int(player.get("inventory", {}).get("potion", 0)) <= 0
 	_player_buttons.ability.disabled = dead or not player.get("abilities", {}).get("wood_mend", false)
 	_follow.modulate = Style.GOLD if following else Color.WHITE
 	_ranged.modulate = Style.GOLD if ranged else Color.WHITE
@@ -287,7 +298,7 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 		if _target.has("remaining_ms"): rows.append("%.1fs" % (int(_target.remaining_ms) / 1000.0))
 		if _target.has("inventory"):
 			var stock := PackedStringArray()
-			for key: String in _target.inventory: stock.append("%s %d" % [Actions.items.get(key, {}).get("label", key), _target.inventory[key]])
+			for key: String in _target.inventory: stock.append("%s Q%d %d" % [Items.label(key), Items.quality(key), _target.inventory[key]])
 			if not stock.is_empty(): rows.append("  ".join(stock).left(90))
 		set_text(_inspect_values, "\n".join(rows))
 	var commands: Array[Dictionary] = Actions.for_target(_target, player, help_target)
@@ -299,8 +310,9 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 			var button: Button = _button(_commands, spec.id, spec.text, spec.icon, {"target": selected})
 			button.disabled = not spec.enabled
 	if not _drawer_name.is_empty(): _refresh_drawer()
-	if _drawer_name == "character": _refresh_events()
-	if _modal_kind in ["take", "put", "drop"]: _refresh_stock()
+	if _drawer_name == "character" and is_instance_valid(character):
+		character.refresh(Actions.observed(frame, _character_id, use_fog))
+	inventory.refresh(frame, use_fog)
 	if Time.get_ticks_msec() > _tooltip_until: set_text(_receipt, "")
 
 func show_tool(glyph: String, caption: String = "", locked: bool = false) -> void:
@@ -338,16 +350,18 @@ static func action_name(kind: String) -> String:
 
 
 func toggle_drawer(kind: String) -> void:
+	if kind == "character" and _drawer_name != kind:
+		_character_id = int(_target.id) if _target.get("kind", "") == "actor" and not _target.get("memory", false) else 1
+		if size.x < 1100: inventory.hide()
 	_drawer_name = "" if _drawer_name == kind else kind
 	_drawer_panel.visible = not _drawer_name.is_empty()
 	_drawer_signature = ""
-	_event_signature = ""
 	if _frame != null: _refresh_drawer()
+	_layout()
 
 func _refresh_drawer() -> void:
 	var signature: String = _drawer_name + str(_frame.player.get("inventory", {})) + str(_frame.player.get("methods", {})) + str(_frame.player.get("practice", 0))
-	var subject: Dictionary = _target if _target.get("kind", "") == "actor" and not _target.get("memory", false) else _frame.player
-	if _drawer_name == "character": signature += "#%d:%d" % [int(subject.get("id", 1)), int(subject.get("qi", 0))]
+	if _drawer_name == "character": signature = "character#%d" % _character_id
 	if signature == _drawer_signature: return
 	_drawer_signature = signature
 	_clear(_drawer_body)
@@ -373,21 +387,12 @@ func _refresh_drawer() -> void:
 			cost.modulate = Color.WHITE if int(inventory.get(item, 0)) >= amount else Style.DANGER
 			grid.columns = 2
 	elif _drawer_name == "character":
-		Style.label(_drawer_body, "#%d" % int(subject.get("id", 1)))
-		_button(grid, "unused", "属性", "lock").disabled = true
-		if int(subject.get("id", 1)) == 1:
-			_button(grid, "inventory", "背包", "bag")
-			_button(grid, "study", "读书", "book").disabled = int(inventory.get("breath_manual", 0)) <= 0
-			_button(grid, "ability", "回春", "plant").disabled = not _frame.player.get("abilities", {}).get("wood_mend", false)
-			Style.label(_drawer_body, "灵气 %d   修行 %d" % [int(subject.get("qi", 0)), int(subject.get("practice", 0))])
-			Style.label(_drawer_body, str(subject.get("methods", {}).keys()))
-		Style.label(_drawer_body, "事件")
-		_events = RichTextLabel.new()
-		_events.custom_minimum_size = Vector2(304, 260)
-		_events.scroll_following = true
-		_events.selection_enabled = true
-		_drawer_body.add_child(_events)
-		_event_signature = ""
+		character = CharacterPanel.new()
+		character.subject_id = _character_id
+		_drawer_body.add_child(character)
+		character.requested.connect(func(action: String, payload: Dictionary): requested.emit(action, payload))
+		character.refresh(Actions.observed(_frame, _character_id, _use_fog))
+		_events = character.events
 	elif _drawer_name == "travel":
 		for i: int in 3: _button(grid, "journey", ["谷地", "寒林", "旱地"][i], "map", {"region": i})
 	elif _drawer_name == "dev":
@@ -397,15 +402,6 @@ func _refresh_drawer() -> void:
 		_button(grid, "source_overlay", "场源标记", "eye")
 		_button(grid, "gallery", "图鉴 F8", "book")
 		_button(grid, "debug", "F12", "gear")
-
-func _refresh_events() -> void:
-	var subject: Dictionary = _target if _target.get("kind", "") == "actor" and not _target.get("memory", false) else _frame.player
-	var signature: String = "%d:%d" % [int(subject.get("id", 1)), int(subject.get("events_version", 0))]
-	if signature == _event_signature or not is_instance_valid(_events): return
-	_event_signature = signature
-	var lines := PackedStringArray()
-	for event: Dictionary in subject.get("events", []): lines.append(EventText.line(event))
-	_events.text = "\n".join(lines)
 
 func _build_modal() -> void:
 	add_child(_modal)
@@ -421,77 +417,15 @@ func _build_modal() -> void:
 	_modal.hide()
 
 func open_stock(kind: String, target: int) -> void:
-	_stock_kind = kind
-	_stock_target = target
-	_stock_epoch = _frame.epoch
-	_modal_kind = kind
-	_stock_keys = []
-	_clear(_modal_body)
-	var row := HBoxContainer.new()
-	_modal_body.add_child(row)
-	Style.label(row, "#1" if kind == "drop" else "#1 ⇄ #%d" % target).size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_button(row, "close_modal", "", "close")
-	_stock_items = ItemList.new()
-	_stock_items.custom_minimum_size.y = 112
-	_stock_items.fixed_icon_size = Vector2i(24,24)
-	_stock_items.item_selected.connect(func(_index: int): _refresh_stock())
-	_modal_body.add_child(_stock_items)
-	_stock_values = Style.label(_modal_body)
-	_amount = SpinBox.new()
-	_amount.min_value = 1
-	_amount.max_value = 99999
-	_amount.value = 1
-	_modal_body.add_child(_amount)
-	var amounts := HBoxContainer.new()
-	_modal_body.add_child(amounts)
-	for amount: String in ["1", "½", "全部"]:
-		var button := Button.new()
-		button.text = amount
-		button.pressed.connect(func(): _amount.value = 1 if amount == "1" else (maxi(1, int(_amount.max_value) / 2) if amount == "½" else _amount.max_value))
-		amounts.add_child(button)
-	_accept = _button(_modal_body, "stock_commit", action_name(kind) if kind != "drop" else "丢下", kind)
-	_refresh_stock()
-	_modal.show()
-	_amount.get_line_edit().grab_focus()
+	inventory.open(_frame, "bag" if kind == "drop" else kind, 1, 0 if kind == "drop" else target)
+	_layout()
+	inventory.amount.get_line_edit().grab_focus()
 
-func _refresh_stock() -> void:
-	if _frame.epoch != _stock_epoch: close_modal(); return
-	var target: Dictionary = Actions.observed(_frame, _stock_target, true)
-	var player: Dictionary = _frame.player.get("inventory", {})
-	var other: Dictionary = target.get("inventory", {}) if not target.get("memory", false) else {}
-	var source: Dictionary = other if _stock_kind == "take" else player
-	var keys: Array = source.keys()
-	keys.sort()
-	if keys != _stock_keys:
-		var selected: int = _stock_index()
-		var previous: String = str(_stock_keys[selected]) if selected >= 0 and selected < _stock_keys.size() else ""
-		_stock_keys = keys
-		_stock_items.clear()
-		for key: String in keys: _stock_items.add_item(str(Actions.items.get(key, {}).get("label", key)), Art.icon(Actions.art_key(key)))
-		if not keys.is_empty(): _stock_items.select(keys.find(previous) if keys.has(previous) else 0)
-	var index: int = _stock_index()
-	var chosen: String = str(keys[index]) if index >= 0 and index < keys.size() else ""
-	var available: int = int(source.get(chosen, 0))
-	var destination: Dictionary = _frame.player if _stock_kind == "take" else target
-	var capacity: int = int(destination.get("capacity", -1))
-	if _stock_kind != "drop" and capacity >= 0:
-		var used: int = 0
-		for count: int in destination.get("inventory", {}).values(): used += count
-		available = mini(available, maxi(0, capacity - used))
-	set_text(_stock_values, "#1  %d       #%d  %s" % [int(player.get(chosen, 0)), _stock_target, str(other.get(chosen, "—"))])
-	_amount.max_value = maxi(1, available)
-	_accept.disabled = available <= 0 or int(_frame.player.get("hp", 0)) <= 0 or (_stock_kind != "drop" and (target.is_empty() or target.get("memory", false)))
-
-func commit_stock() -> void:
-	_amount.apply()
-	var selected: int = _stock_index()
-	if _accept.disabled or selected < 0: return
-	requested.emit("stock_send", {"kind": _stock_kind, "target": _stock_target, "item": _stock_keys[selected], "amount": int(_amount.value), "epoch": _stock_epoch})
-	close_modal()
-
-func _stock_index() -> int:
-	var selected: PackedInt32Array = _stock_items.get_selected_items()
-	return selected[0] if not selected.is_empty() else -1
+func open_bag(subject: int = 1) -> void:
+	if inventory.visible and inventory.subject_id == subject and inventory.target_id == 0:
+		inventory.hide()
+	else: inventory.open(_frame, "bag", subject)
+	_layout()
 
 func open_simple(kind: String) -> void:
 	_modal_kind = kind
@@ -551,6 +485,10 @@ func close_layer() -> bool:
 	if _context_panel.visible:
 		close_context()
 		return true
+	if inventory.visible:
+		inventory.hide()
+		_layout()
+		return true
 	if not _drawer_name.is_empty():
 		toggle_drawer(_drawer_name)
 		return true
@@ -559,6 +497,7 @@ func close_layer() -> bool:
 func reset_session() -> void:
 	close_context()
 	close_modal()
+	inventory.hide()
 	set_text(_probe, "—")
 	_drawer_name = ""
 	_drawer_panel.hide()

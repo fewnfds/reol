@@ -6,6 +6,7 @@ const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Units = preload("res://scripts/sim/kernel/units.gd")
 const Scan = preload("res://scripts/sim/kernel/combat_scan.gd")
 const Motion = preload("res://scripts/sim/kernel/motion.gd")
+const Equipment = preload("res://scripts/sim/kernel/equipment.gd")
 const CONTACT_MEMORY_MS: int = 5000
 const STATE_FIELDS: Array = ["orders", "bolts", "next_bolt", "shots", "hits", "resumed", "unreachable"]
 var orders: Dictionary = {}
@@ -169,15 +170,15 @@ func _advance_order(world: RefCounted, actor: int, now: int, impacts: Array[Dict
 	var ignored := PackedInt32Array()
 	if observed != null and not world.actor_slots.has(order.target):
 		ignored = world.objects.records[order.target].get("cells", PackedInt32Array([world.objects.records[order.target].tile]))
-	var range_cells: float = 9.0 if order.ranged else 1.7
+	var range_cells: float = Equipment.RANGED_RANGE if order.ranged else Equipment.MELEE_RANGE
 	if observed != null and origin.distance_to(target_position) <= range_cells + page.radii[row] - 0.35 and Terrain.blocking_fraction(world.terrain.blocked, origin, target_position, ignored) < 0:
 		page.modes[row] = Units.Mode.IDLE
 		if now >= world.attack_due[slot]:
-			world.attack_due[slot] = now + (900 if order.ranged else 600)
+			world.attack_due[slot] = now + (Equipment.RANGED_COOLDOWN_MS if order.ranged else Equipment.MELEE_COOLDOWN_MS)
 			if order.ranged:
-				launch(actor, origin, target_position, now)
+				launch(actor, origin, target_position, now, page.ranged_damage[row])
 			else:
-				impacts.append({"actor": actor, "target": order.target, "damage": 25, "order": 0, "incoming": (origin - target_position).normalized()})
+				impacts.append({"actor": actor, "target": order.target, "damage": page.melee_damage[row], "order": 0, "incoming": (origin - target_position).normalized()})
 	elif order.kind == "hold":
 		_drop_contact(world, actor, now)
 	elif now >= int(order.repath_ms):
@@ -230,9 +231,9 @@ func blocked(world: RefCounted, actor: int, now: int) -> void:
 	_drop_contact(world, actor, now)
 
 
-func launch(actor: int, origin: Vector2, destination: Vector2, now: int) -> void:
+func launch(actor: int, origin: Vector2, destination: Vector2, now: int, damage_amount: int = 20) -> void:
 	bolts[next_bolt] = {"actor": actor, "position": origin, "velocity": origin.direction_to(destination) * 22.0,
-		"damage": 20, "expire_ms": now + 2000}
+		"damage": damage_amount, "expire_ms": now + 2000}
 	next_bolt += 1
 	shots += 1
 
@@ -247,7 +248,7 @@ func damage(world: RefCounted, actor: int, target: int, amount: int, now: int, i
 		var slot: int = world.actor_slots[target]
 		var page: RefCounted = world.pages[slot / 256]
 		var row: int = slot % 256
-		applied = mini(page.health[row], maxi(1, amount - int(rec.get("armor", 0))))
+		applied = mini(page.health[row], maxi(1, amount - page.armor[row]))
 		page.health[row] -= applied
 		world.attacks += 1
 		world.emit({"kind": "hit", "actor": actor, "target": target, "damage": applied, "at_ms": now})

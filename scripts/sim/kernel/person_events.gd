@@ -90,7 +90,7 @@ func command(input: Dictionary, receipt: Dictionary) -> void:
 		record(actor, {"kind": "placed", "action": action, "target": receipt.target, "at_ms": receipt.at_ms})
 	if not receipt.ok:
 		record(actor, {"kind": "rejected", "action": action, "reason": receipt.reason, "at_ms": receipt.at_ms})
-	elif action not in ["heal", "ability", "attack"]:
+	elif action not in ["heal", "ability", "attack", "equip", "unequip"]:
 		record(actor, {"kind": "order", "action": action, "target": int(input.get("target", 0)), "at_ms": receipt.at_ms})
 
 func rebuild(now: int) -> bool:

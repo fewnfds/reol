@@ -5,6 +5,8 @@ extends RefCounted
 const World = preload("res://scripts/sim/kernel/world.gd")
 const Units = preload("res://scripts/sim/kernel/units.gd")
 const State = preload("res://scripts/sim/kernel/state.gd")
+const Items = preload("res://scripts/sim/kernel/items.gd")
+const Equipment = preload("res://scripts/sim/kernel/equipment.gd")
 
 
 static func capture(world: RefCounted) -> Dictionary:
@@ -54,6 +56,10 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 		slot += page.ids.size()
 	if slot == 0 or slot > 60000 or world.attack_due.size() != slot or world.actor_slots.size() != world.actor_count:
 		return null
+	for id: int in world.actor_slots:
+		Equipment.rebuild(world, id, false)
+		var body_slot: int = world.actor_slots[id]
+		if world.pages[body_slot / 256].health[body_slot % 256] > world.pages[body_slot / 256].max_health[body_slot % 256]: return null
 	for index: int in range(0, world.pages.size() - 1):
 		if world.pages[index].ids.size() != Units.PAGE_SIZE:
 			return null
@@ -122,6 +128,10 @@ static func _objects_valid(world: RefCounted) -> bool:
 			return false
 		if record.kind == "actor" and tile != -1:
 			return false
+		if record.kind == "actor":
+			if not Equipment.valid_record(record): return false
+			for equipped: String in record.equipment.values():
+				world.objects.totals[equipped] = int(world.objects.totals.get(equipped, 0)) + 1
 		if record.has("facing") and (not record.facing is int or record.facing < 0 or record.facing > 3):
 			return false
 		if (not record.get("sight_range") is float and not record.get("sight_range") is int) or not is_finite(float(record.sight_range)) or record.sight_range < 0 or record.sight_range > world.terrain.SIZE * 2.0:
@@ -131,7 +141,7 @@ static func _objects_valid(world: RefCounted) -> bool:
 				return false
 			for item: Variant in contents:
 				var count: Variant = contents[item]
-				if not item is String or not world.objects.definitions.has(item) or not count is int or count < 0:
+				if not item is String or not Items.valid(item) or not count is int or count < 0:
 					return false
 				world.objects.totals[item] = int(world.objects.totals.get(item, 0)) + count
 		if record.capacity >= 0 and world.objects.count_inventory(id) > record.capacity:
@@ -202,7 +212,7 @@ static func _processes_valid(world: RefCounted) -> bool:
 		var action: Variant = world.actions[actor]
 		if not world.actor_slots.has(actor) or not action is Dictionary or not action.get("kind") is String or action.kind not in ["take", "put", "construct", "rest", "cook", "eat", "demolish", "sow", "tend", "gather", "cut", "uproot", "talk", "trade", "request_help", "learn", "study", "practice"] or not action.get("target") is int or not world.objects.records.has(action.target):
 			return false
-		if action.kind in ["take", "put"] and (not action.get("item") is String or not action.get("amount") is int or action.amount <= 0):
+		if action.kind in ["take", "put"] and (not action.get("item") is String or not Items.valid(action.item) or not action.get("amount") is int or action.amount <= 0):
 			return false
 	return true
 

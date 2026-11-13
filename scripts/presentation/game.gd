@@ -41,6 +41,10 @@ var _workers: int = -1
 var _fps: int = 120
 var _duration: float = 0.0
 var _mixed: bool = false
+var _capacity: bool = false
+var _activity_samples: Array[float] = []
+var _mid_at: int = 0
+var _mid_counters: Dictionary = {}
 var _fog_mode: int = -1
 var _warmup: float = 3.0
 var _metrics_path: String = ""
@@ -53,6 +57,7 @@ var _frame_times := PackedFloat64Array()
 var _process_times := PackedFloat64Array()
 var _adoption_times := PackedFloat64Array()
 var _gpu_times := PackedFloat64Array()
+var _render_cpu_times := PackedFloat64Array()
 var _previous_usec: int = 0
 var _hud_next: int = 0
 var _probe_next: int = 0
@@ -93,6 +98,7 @@ func _ready() -> void:
 			"metrics": _metrics_path = part[1]
 			"screenshot": _screenshot_path = part[1]
 			"mixed": _mixed = part[1] == "true"
+			"capacity": _capacity = part[1] == "true"
 			"fog": _fog_mode = int(part[1] == "true")
 	Engine.max_fps = _fps
 	fog_enabled = _fog_mode == 1 if _fog_mode >= 0 else _actors < 1000 # Developer overview can show all actors.
@@ -112,8 +118,8 @@ func _ready() -> void:
 	add_child(camera)
 	add_child(atmosphere)
 	add_child(art_gallery)
-	camera.position = (Vector2(220, 220) if _actors >= 1000 else Vector2(178, 186)) * TILE
-	camera.zoom = Vector2.ONE * (0.21 if _actors >= 1000 else 0.9)
+	camera.position = (Vector2(220, 220) if _actors >= 1000 or _capacity else Vector2(178, 186)) * TILE
+	camera.zoom = Vector2.ONE * (0.21 if _actors >= 1000 or _capacity else 0.9)
 	camera.position_smoothing_enabled = false
 	var layer := CanvasLayer.new()
 	layer.layer = 2
@@ -126,7 +132,7 @@ func _ready() -> void:
 	controls.z_index = 5
 	add_child(controls)
 	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
-	if runner.start(_actors, _workers, speed, _mixed) != OK:
+	if runner.start(_actors, _workers, speed, _mixed, _capacity) != OK:
 		push_error("Simulation thread could not start")
 		get_tree().quit(1)
 
@@ -137,6 +143,10 @@ func _process(delta: float) -> void:
 	var next: RefCounted = mailbox.frame
 	if next != null:
 		action_effects.adopt(next, mailbox.outcomes, fog_enabled)
+		if _capture_at > 0:
+			var counts: Variant = next.counters.mode_counts
+			var busy: int = int(counts[0]) + int(counts[1]) + int(counts[3]) + int(counts[6]) + int(counts[7]) + int(counts[9]) + int(counts[10]) + int(next.counters.stationary_combatants)
+			_activity_samples.append(float(busy) / maxi(1, int(next.counters.actors)))
 	for receipt: Dictionary in mailbox.receipts:
 		_last_receipt = "%s #%d @%d: %s" % [receipt.kind, receipt.seq, receipt.at_ms, receipt.reason]
 		ui.feedback(("→ " if receipt.reason == "accepted" else ("✓ " if receipt.ok else "× ")) + Hud.action_name(receipt.kind), receipt.ok)
@@ -238,6 +248,7 @@ func _process(delta: float) -> void:
 			_frame_times.append((begin - _previous_usec) / 1000.0)
 		_process_times.append((Time.get_ticks_usec() - begin) / 1000.0)
 		_gpu_times.append(RenderingServer.viewport_get_measured_render_time_gpu(get_viewport().get_viewport_rid()))
+		_render_cpu_times.append(RenderingServer.viewport_get_measured_render_time_cpu(get_viewport().get_viewport_rid()) + RenderingServer.get_frame_setup_time_cpu())
 	_previous_usec = begin
 
 
@@ -344,6 +355,9 @@ func _capture(now: int) -> void:
 			print("KERNEL_CAPTURE_STARTED")
 		return
 	if now - _capture_at < _duration * 1000000.0:
+		if _mid_at == 0 and now - _capture_at >= _duration * 500000.0:
+			_mid_at = now
+			_mid_counters = frame.counters.duplicate(true)
 		return
 	_duration = 0.0
 	var report: Dictionary = frame.counters.duplicate(true)
@@ -353,14 +367,31 @@ func _capture(now: int) -> void:
 	report.requested_speed = speed
 	report.fps_limit = _fps
 	report.mixed = _mixed
+	report.scenario = "capacity-v1" if _capacity else ("mixed" if _mixed else "ordinary")
+	report.activity_fraction = _percentiles(_activity_samples)
+	report.camera = {"position": [camera.position.x, camera.position.y], "zoom": camera.zoom.x}
+	report.ui_open = {"drawer": ui._drawer_name, "inventory": ui.inventory.visible}
+	report.segments = []
+	if _mid_at > 0:
+		for index: int in 2:
+			var before: Dictionary = _capture_counters if index == 0 else _mid_counters
+			var after: Dictionary = _mid_counters if index == 0 else frame.counters
+			var wall: float = ((_mid_at - _capture_at) if index == 0 else (now - _mid_at)) / 1000000.0
+			report.segments.append({"actual_speed": (int(after.world_ms) - int(before.world_ms)) / 1000.0 / wall,
+				"moved_cells": float(after.moved_cells) - float(before.moved_cells), "hits": int(after.hits) - int(before.hits),
+				"deliveries": int(after.deliveries) - int(before.deliveries), "alive": after.alive})
 	report.renderer = RenderingServer.get_video_adapter_name()
 	report.release = not OS.is_debug_build()
 	report.frame_ms = _percentiles(_frame_times)
 	report.process_ms = _percentiles(_process_times)
 	report.adoption_ms = _percentiles(_adoption_times)
 	report.gpu_ms = _percentiles(_gpu_times)
+	report.render_cpu_ms = _percentiles(_render_cpu_times)
 	var measured_steps: int = int(report.steps) - int(_capture_counters.steps)
 	report.step_ms = _percentiles(report.step_window_usec.slice(-measured_steps) if measured_steps > 0 else [], 0.001)
+	report.step_percentile_samples = mini(measured_steps, report.step_window_usec.size())
+	report.measured_steps = measured_steps
+	report.step_mean_ms = (int(report.step_usec) - int(_capture_counters.step_usec)) / 1000.0 / maxi(1, measured_steps)
 	report.start_frame_age_usec = _capture_age_usec
 	report.finish_frame_age_usec = now - frame.published_usec
 	report.erase("step_window_usec")
@@ -383,7 +414,7 @@ func _capture(now: int) -> void:
 	print("KERNEL_RESULT ", JSON.stringify(report))
 	if not _screenshot_path.is_empty():
 		get_viewport().get_texture().get_image().save_png(_screenshot_path)
-	get_tree().quit(0 if report.deliveries_delta > 0 else 1)
+	get_tree().quit(0 if report.world_delta_ms > 0 and report.moved_cells_delta > 0 and report.material == report.initial_material else 1)
 
 
 func _percentiles(values: Variant, scale: float = 1.0) -> Dictionary:

@@ -49,5 +49,20 @@
   },
   "breath_manual": {
     "label": "吐纳手抄本"
+  },
+  "iron_sword": {
+    "label": "铁剑", "slot": "weapon", "icon": "attack", "stats": {"melee": 10}
+  },
+  "short_bow": {
+    "label": "短弓", "slot": "weapon", "icon": "bow", "stats": {"ranged": 8}
+  },
+  "cloth_robe": {
+    "label": "布衣", "slot": "body", "icon": "robe", "stats": {"armor": 3, "max_hp": 20}
+  },
+  "travel_boots": {
+    "label": "布靴", "slot": "feet", "icon": "boots", "stats": {"speed": 1}
+  },
+  "jade_charm": {
+    "label": "玉佩", "slot": "charm", "icon": "charm", "stats": {"max_hp": 10}
   }
 }
