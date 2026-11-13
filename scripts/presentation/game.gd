@@ -249,16 +249,16 @@ func _displayed(id: int) -> Vector2:
 
 
 func _update_probe() -> void:
-	var screen: Vector2 = get_viewport().get_mouse_position()
 	var point: Vector2 = get_global_mouse_position() / TILE
-	var cell := Vector2i(point.floor())
 	var tile: int = Interaction.tile_at(point)
 	var valid: bool = tile >= 0 and not controls.external_modal() and get_viewport().gui_get_hovered_control() == null
 	if valid and fog_enabled: valid = frame.perception.tiles[tile] != 0
 	if valid and tile != _probe_tile:
 		_probe_tile = tile
 		runner.inspect(selected, tile)
-	ui.probe(frame, cell, screen, valid)
+	var sampled_tile: int = int(frame.tile_probe.get("tile", -1))
+	var sampled_visible: bool = sampled_tile >= 0 and (not fog_enabled or frame.perception.tiles[sampled_tile] != 0)
+	ui.probe(frame, valid and sampled_visible)
 
 func _update_hud() -> void:
 	ui.refresh(frame, selected, fog_enabled, _actual_speed, following, controls.ranged, controls.help_target)

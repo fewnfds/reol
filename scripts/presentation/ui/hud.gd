@@ -315,13 +315,14 @@ func feedback(text: String, ok: bool) -> void:
 	_receipt.modulate = Style.TEAL if ok else Style.DANGER
 	_tooltip_until = Time.get_ticks_msec() + 3500
 
-func probe(frame: RefCounted, point: Vector2i, _at: Vector2, valid: bool) -> void:
+func probe(frame: RefCounted, valid: bool) -> void:
 	_probe_panel.visible = not blocks_world()
 	if not _probe_panel.visible or not valid: return
 	var data: Dictionary = frame.tile_probe
-	if int(data.get("tile", -1)) != point.y * 512 + point.x:
-		set_text(_probe, "(%d,%d)   —" % [point.x, point.y])
-		return
+	if data.is_empty(): return
+	# Show the completed sample as a whole while the next query is in flight.
+	var tile: int = data.tile
+	var point := Vector2i(tile % 512, tile / 512)
 	set_text(_probe, "(%d,%d)   %.2f°C   #%d\n环境 %.1f  热 +%d  冷 −%d\n%s / %d / %d\n%s" % [point.x, point.y, float(data.get("temperature", 0)), int(data.get("room", -1)), float(data.get("ambient", 0)), int(data.get("heat", 0)), int(data.get("cold", 0)), str(data.get("substrate", "")), int(data.get("cover", 0)), int(data.get("flooring", 0)), elements(data.get("elements", []))])
 
 static func elements(values: Variant) -> String:
@@ -558,6 +559,7 @@ func close_layer() -> bool:
 func reset_session() -> void:
 	close_context()
 	close_modal()
+	set_text(_probe, "—")
 	_drawer_name = ""
 	_drawer_panel.hide()
 	_command_signature = ""
