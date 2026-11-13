@@ -19,7 +19,7 @@ var _preview_ok: bool = false
 var _preview_tile: int = -1
 var _preview_sequence: int = -1
 var _point := Vector2.ZERO
-const KEYS: Dictionary = {"pause": KEY_SPACE, "speed1": KEY_1, "speed2": KEY_2, "speed4": KEY_4,
+const KEYS: Dictionary = {"pause": KEY_SPACE, "speed1": KEY_1, "speed2": KEY_2, "speed4": KEY_4, "speed8": KEY_8,
 	"follow": KEY_F, "stop": KEY_S, "work": KEY_J, "heal": KEY_E, "attack_move": KEY_A,
 	"hold": KEY_H, "build_menu": KEY_B, "inventory": KEY_I, "move_tool": KEY_M,
 	"rotate_take": KEY_R, "put": KEY_Q, "drop": KEY_D, "demolish_tool": KEY_DELETE,
@@ -131,8 +131,8 @@ func action(kind: String, payload: Dictionary) -> void:
 		"pause":
 			host.paused = not host.paused
 			host.runner.control(host.paused, host.speed)
-		"speed", "speed1", "speed2", "speed4":
-			host.speed = float(payload.get("speed", {"speed1": 1, "speed2": 2, "speed4": 4}.get(kind, 1)))
+		"speed", "speed1", "speed2", "speed4", "speed8":
+			host.speed = float(payload.get("speed", {"speed1": 1, "speed2": 2, "speed4": 4, "speed8": 8}.get(kind, 1)))
 			host.runner.control(host.paused, host.speed)
 		"follow": host.following = not host.following
 		"ranged": ranged = not ranged

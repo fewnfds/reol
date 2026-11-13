@@ -50,6 +50,8 @@ var _object_revision: int = -1
 var _object_view: Dictionary = {}
 var _actor_view: Dictionary = {}
 var _perception_revision: int = -1
+var _sight_revision: int = -1
+var _loss_view := PackedByteArray()
 var _perception_view: Dictionary = {}
 var _io := SessionIO.new()
 var _epoch: int = 1
@@ -197,6 +199,7 @@ func _run() -> void:
 					_poses.clear()
 					_object_revision = -1
 					_perception_revision = -1
+					_sight_revision = -1
 					_terrain_view = _world.terrain.detached()
 					_steps_cost.clear()
 					_worker_ids.clear()
@@ -316,9 +319,13 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 			_side_view[slot] = int(_world.objects.records.get(frame.ids[slot], {}).get("side", 0))
 	frame.objects = _object_view
 	frame.sides = _side_view
+	if _sight_revision != _world.sight.revision:
+		_sight_revision = _world.sight.revision
+		_loss_view = _world.sight.smooth_loss.to_byte_array()
 	if _perception_revision != _world.perception.revision:
 		_perception_revision = _world.perception.revision
 		_perception_view = {"revision": _perception_revision, "tiles": _world.perception.tiles.duplicate(),
+			"loss_revision": _sight_revision, "loss": _loss_view,
 			"softness": _world.perception.softness.duplicate(), "explored": _world.perception.explored.duplicate(), "ground": _world.perception.ground.duplicate(),
 			"memories": _world.State.copy(_world.perception.memories)}
 	frame.perception = _perception_view

@@ -79,7 +79,7 @@ func _ready() -> void:
 	_clock = Style.label(first)
 	_clock.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_pause = _button(first, "pause", "", "pause")
-	for value: int in [1, 2, 4]:
+	for value: int in [1, 2, 4, 8, 16]:
 		_speed_buttons[value] = _button(first, "speed", "%d×" % value, "", {"speed": value})
 	_performance = Style.label(first)
 	_button(first, "save", "", "save")

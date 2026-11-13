@@ -211,6 +211,8 @@ func _process(delta: float) -> void:
 		if _capture_at > 0:
 			_adoption_times.append((Time.get_ticks_usec() - adopt_start) / 1000.0)
 	population.interpolate(alpha, int(render_ms))
+	if fog_enabled:
+		fog.follow_view(newer.at(frame.actor_slots[1], _render_previous[frame.actor_slots[1]], alpha), float(frame.player.get("sight_range", 0.0)))
 	atmosphere.adopt(frame, render_ms)
 	action_effects.advance(int(render_ms), fog_enabled)
 	if following:

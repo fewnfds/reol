@@ -62,6 +62,11 @@ func run() -> void:
 	if game.frame == null: game.queue_free(); await settle(); quit(1); return
 	await settle(8)
 	game.ui.apply_scale(100, false)
+	await settle(4)
+	for value: int in [8, 16, 1]:
+		click(game.ui._speed_buttons[value].get_global_rect().get_center())
+		await settle(4)
+		check(game.frame.speed == value and game.frame.paused, "Acceleration button %d failed or unpaused the world: %s" % [value, str(game.frame.speed)])
 	var known_chest: int = 0
 	for id: int in game.object_canvas.objects:
 		var rec: Dictionary = game.object_canvas.objects[id]
@@ -83,7 +88,7 @@ func run() -> void:
 	var before_mode: int = int(game.frame.player.mode)
 	var before_speed: float = game.speed
 	var before_paused: bool = game.paused
-	for code: Key in [KEY_1,KEY_2,KEY_4,KEY_SPACE,KEY_S,KEY_B,KEY_DELETE]: key(code)
+	for code: Key in [KEY_1,KEY_2,KEY_4,KEY_8,KEY_SPACE,KEY_S,KEY_B,KEY_DELETE]: key(code)
 	await settle(4)
 	check(game.speed == before_speed and game.paused == before_paused and int(game.frame.player.mode) == before_mode, "Quantity entry leaked world keys")
 	await capture("inventory")
