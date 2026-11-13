@@ -1,0 +1,91 @@
+{
+  "format": "reol-performance-baseline-v1",
+  "scenario": "capacity-v1",
+  "recorded": "2026-11-13T22:26:28+0800",
+  "source_commit": "02958cc",
+  "pack_sha256": "3cf0aac527d8a02ca283d087948728958e2a4ba3dd9b75076e5b4b16470d4147",
+  "hardware": {
+    "cpu": "13th Gen Intel(R) Core(TM) i5-13600KF",
+    "logical_cpus": 20,
+    "renderer": "NVIDIA GeForce RTX 5060 Ti"
+  },
+  "config": {
+    "fps": 60,
+    "workers": -1,
+    "fog": false,
+    "camera": {
+      "position": [
+        7040.0,
+        7040.0
+      ],
+      "zoom": 0.209999993443489
+    }
+  },
+  "samples": [
+    {
+      "speed": 1,
+      "actors": 4600,
+      "next_failed_actors": 4700,
+      "seconds": 25,
+      "actual_speed": 1.00133427292199,
+      "step_mean_ms": 45.1967025948104,
+      "process_mean_ms": 3.88289066666667,
+      "gpu_mean_ms": 0.272141332695882,
+      "frame_mean_ms": 16.6777473333333,
+      "frame_p99_ms": 31.517,
+      "evidence": "logs/capacity-20261113-shipped/001-1x-4600-confirm.json"
+    },
+    {
+      "speed": 2,
+      "actors": 2000,
+      "next_failed_actors": 2100,
+      "seconds": 25,
+      "actual_speed": 1.98075798551276,
+      "step_mean_ms": 22.8264954591322,
+      "process_mean_ms": 3.84289673550966,
+      "gpu_mean_ms": 0.161654896557649,
+      "frame_mean_ms": 16.6660339773482,
+      "frame_p99_ms": 20.85,
+      "evidence": "logs/capacity-20261113-shipped/008-2x-2000-confirm.json"
+    },
+    {
+      "speed": 4,
+      "actors": 900,
+      "next_failed_actors": 1000,
+      "seconds": 25,
+      "actual_speed": 3.99949359735241,
+      "step_mean_ms": 10.4827416291854,
+      "process_mean_ms": 3.12957894736842,
+      "gpu_mean_ms": 0.123502998228751,
+      "frame_mean_ms": 16.6659733510991,
+      "frame_p99_ms": 16.857,
+      "evidence": "logs/capacity-20261113-shipped/013-4x-900-confirm.json"
+    },
+    {
+      "speed": 8,
+      "actors": 400,
+      "next_failed_actors": 500,
+      "seconds": 25,
+      "actual_speed": 8.00115066260641,
+      "step_mean_ms": 4.83178241319011,
+      "process_mean_ms": 2.10687249666222,
+      "gpu_mean_ms": 0.0737917227160748,
+      "frame_mean_ms": 16.6990313751667,
+      "frame_p99_ms": 16.788,
+      "evidence": "logs/capacity-20261113-shipped/017-8x-400-confirm.json"
+    },
+    {
+      "speed": 16,
+      "actors": 200,
+      "next_failed_actors": 300,
+      "seconds": 25,
+      "actual_speed": 15.9999731368346,
+      "step_mean_ms": 2.33346233603998,
+      "process_mean_ms": 1.66860026648901,
+      "gpu_mean_ms": 0.105391739277562,
+      "frame_mean_ms": 16.6659620253164,
+      "frame_p99_ms": 16.723,
+      "evidence": "logs/capacity-20261113-shipped/018-16x-200-confirm.json"
+    }
+  ]
+}

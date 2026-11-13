@@ -5,7 +5,7 @@
 
 > 研究资料：记录来源与适用限制，不授予引入依赖或改变规则的权限。
 
-研究更新：2026-11-09。本轮实读Factorio开发者日志、Cataclysm:DDA官方开发文档及Tarn Adams的模拟原则；2026-11-07的Mod教程、视频页面和代码核查保留为原证据。下方历史代码表基于`b3ae3399d24e01975d231cd000c0af342740070b`，不代表当前缺口。本文记录来源与推论，不代表商业游戏内部源码审计、教学项目的生产成熟度或Reol实现验收。领域职责见[顶层框架](../../docs/engineering/architecture/05-framework-domains.md)，建设依赖和出口只在[基础建设计划](../../docs/plans/foundation-priorities.md)维护。
+研究更新：2026-11-09。本轮实读Factorio开发者日志、Cataclysm:DDA官方开发文档及Tarn Adams的模拟原则；2026-11-07的Mod教程和视频页面保留为参考。旧代码核查基于`b3ae3399d24e01975d231cd000c0af342740070b`，不代表当前缺口。本文记录来源与推论，不代表商业游戏内部源码审计、教学项目的生产成熟度或Reol实现验收。领域职责见[顶层框架](../../docs/engineering/architecture/05-framework-domains.md)，建设依赖和出口只在[基础建设计划](../../docs/plans/foundation-priorities.md)维护。
 
 ## 可核实的参考
 
@@ -45,23 +45,7 @@ Project Porcupine社区代码默认GPLv3，非代码资产默认CC BY-NC-SA；�
 2. **能力组合不等于万能对象或完整ECS。** 同类机制可由定义复用，新的机制仍由代码实现。共同引用、能力查询和生命周期通知可以适配不同原owner，不要求把所有状态搬进同一Dictionary或给每株草分配Node。
 3. **地图包含多种事实。** 地表、对象占地、屋面、区域指定和派生围合分别维护；空间查询组合它们。容器中的对象仍存在，离开地图与销毁应有不同语义；查询索引只持可重建投影。
 4. **行动基础从早期就参与建设。** 建造、采集等过程需要接近、预约、耗时、复核和清理。先以已有取放/施工形成可复用合同，再让新领域接入；完整运动、特殊穿行和复杂策略可继续扩展。
-5. **环境按游戏语义选择模型。** 可借鉴房间聚合和拓扑通知，同时保留Reol已确认的室外局部来源、残留及五行语义。成熟作品的简化不是必须照搬的约束；风水利用真实布局/材料/环境，具体规则由本项目决定。
-
-## 历史代码核查：2026-11-07
-
-下表只描述`b3ae3399`当时的边界，保留改造依据。后续建筑与结算工作已改变部分结论，尤其“四种wood、单工地”和“尚无共同过程合同”不能再次登记为当前缺口。当前范围及待验能力只查[功能范围](../../docs/status/features.md)与[HANDOFF](../../docs/status/handoff.md)。
-
-| 位置 | 实际核对 | 架构含义 |
-|---|---|---|
-| [ReolContentDB](https://github.com/fewnfds/reol/blob/a493bf0/scripts/data/content_db.gd)、[ReolContentBundle](https://github.com/fewnfds/reol/blob/a493bf0/scripts/data/content_bundle.gd) | 已有定义加载、内容绑定及digest，定义与运行事实分开 | 继续扩展现有内容路径；新增已有能力的内容应尽量无需更改机制分支 |
-| [SimWorldObjectQuery.capture](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/world_object_query.gd) | 明确只捕获调用者提供的引用，结果是历史快照；地面与结构另有局部索引 | 补各原域的局部候选和变化接缝，组合成有界实时查询；无需重建一个持有全部状态的对象库 |
-| [SimObjectLifecycle](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/object_lifecycle.gd)、[SimGroundPlacements](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/ground_placements.gd) | 受管physical器物、同账本材料已有事务；committed通知及revision只覆盖相应地面域 | 向建筑/植物扩展时明确原owner的初始化、空间进入/离开、终止和恢复接缝，不误用局部revision代表全世界 |
-| [SimConstruction.valid_definitions / register_site](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/construction.gd) | 校验器固定四种wood类型；已有工地时拒绝新登记，项目绑定sect_yard；原材料与施工阶段真实存在 | 主要扩展点是结构定义、工地/实例和几何的一般化；保留原库存、材料与工时，不用另造演示施工器 |
-| [SimActionExecutor](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/action_executor.gd)、[object_actions.gd](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/object_actions.gd)、[SimConstruction](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/construction.gd) | 生活动作、耗时取放和施工分别维护过程；已有travel、预约、截止、中断等基础，但并非覆盖全部域的共同协议 | 提炼可复用的过程接缝和结果语义；领域继续提交各自效果，不必换成一个包办所有业务的执行器 |
-| [SimLandResources](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/land_resources.gd)、[SimWorldObjectQuery](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/world_object_query.gd) | 自然资源保留原库存和生长/采出账；查询明确标记independent_plant=false | 完整植物实例是实质缺口，应接入共同空间/环境/行动；不能只加树木画面或再复制一份产量 |
-| [RegionalSimulation](https://github.com/fewnfds/reol/blob/a493bf0/scripts/sim/regional_simulation.gd)、[WorldRestoreFactory](https://github.com/fewnfds/reol/blob/a493bf0/scripts/persistence/world_restore_factory.gd) | 已有共同整数毫秒、明确有序阶段、欠算与独立候选恢复；初始化/恢复仍显式装配领域 | 保留确定次序与失败原子性；随真实新领域补接装配，不按脚本长度或教程风格全面改造调度器 |
-
-现有纯sim与runtime/UI分离、原状态唯一、共同时间及候选恢复方向合理。没有外部证据要求换引擎、把连续身体位置改成整格，或强行合并器物/数量/植物的原状态；位置精度继续沿[空间研究](spatial_models.md)和[当前架构](../../docs/engineering/architecture.md)单独评估。
+5. **环境按游戏语义选择模型。** 可借鉴房间聚合和拓扑通知，同时保留Reol已确认的室外局部来源及五行语义。成熟作品的简化不是必须照搬的约束；风水利用真实布局/材料/环境，具体规则由本项目决定。
 
 ## 可直接查看的教程
 

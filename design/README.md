@@ -21,5 +21,6 @@
 - 架构/执行：[模拟游戏结构](research/colony_sim_architecture.md)、[大型模拟优化](research/large_simulation_optimization.md)、[事件](research/simulation_events.md)。当前采用的执行取舍集中在[计算接入](../docs/engineering/execution-batches.md)。
 - 空间/自然：[空间模型](research/spatial_models.md)、[体型净空](research/unit_footprint_and_clearance.md)、[自然与场所](research/natural_world_workplace_sources.md)、[环境来源](research/environment_sources.md)、[世界生成](research/world_engine_references.md)。
 - 玩法/资源：[社会研究](research/social_interaction_game_references.md)、[战斗](research/combat_and_character_references.md)、[资源候选](research/godot_resource_candidates.md)、[八方向](research/eight_direction_sources.md)。
+- 补充学习：[系统沙盒](research/emergent_sandbox_world_references.md)、[Godot与Unity对照](research/godot_for_unity.md)。
 
 研究保留来源日期与证据限制；作品机制不证明其内部实现，公开代码/插件不等于已采用依赖。其余来源通过[记忆地图](../docs/README.md)按需找，不把它们当当前架构或实施队列。

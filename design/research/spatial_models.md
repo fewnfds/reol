@@ -2,9 +2,9 @@
 
 > 研究资料：记录来源与适用限制，不授予引入依赖或改变规则的权限。
 
-核读日期：2026-11-05。本页回应用户撤回“全对象格位置权威、移动动画纯视觉”的临时结论；是竞品研究及技术建议，不是新的实施授权。方格地形、一实体一份状态和可多格占地仍沿[既定规则](../rules/objects-and-interaction.md)；单位坐标及环境采样精度待选。
+核读日期：2026-11-05。本页回应用户撤回“全对象格位置权威、移动动画纯视觉”的临时结论；是竞品研究及技术建议，不是新的实施授权。方格地形、一实体一份状态和可多格占地仍沿[既定规则](../rules/objects-and-interaction.md)；当时的坐标候选保留供比较。
 
-本页保留研究完成时的备选与建议；用户随后授权开发者自主选型，当前采用方式见[调度方案](https://github.com/fewnfds/reol/blob/8c3deaa972f932e999167b61ea6b166b928cfe5f/docs/plans/environment-object-loop/scheduling.md)，实际执行包见[接续](../../docs/status/handoff.md)。
+当前连续移动与采样精度分别见[架构](../../docs/engineering/architecture.md#连续移动与共同导航)和[运行与精度](../../docs/engineering/simulation-pacing.md)；以下建议不代表待执行任务。
 
 ## 研究结论
 

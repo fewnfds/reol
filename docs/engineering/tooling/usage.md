@@ -44,22 +44,22 @@ python tools/benchmark.py --actors 1000 --speed 4 --fps 60 --workers 0
 
 直接运行exe可附`-- --actors=1000 --speed=4 --fps=60 --mixed=true --fog=true`；有界采样加`--duration=15 --warmup=3 --metrics=绝对路径`。同构建窗口串行跑，避免争用设备。headless只验证规则/CPU，不证明真实FPS。
 
-## 自动容量搜索
+## 功能性能对照
 
 ```powershell
 python tools/capacity.py
-python tools/capacity.py --speeds 8 16 --resolution 50 --out logs/capacity-high-rates
-python tools/capacity.py --seed-report logs/前次目录/summary.json --out logs/capacity-new-build
+python tools/capacity.py --speeds 4 16 --max-trials 1
+python tools/capacity.py --baseline logs/performance-前次目录/summary.json
 ```
 
-程序自动跑1×/2×/4×/8×/16×，每个倍率指数增加人数探边，再二分并以独立更长窗口确认通过/不通过区间；不是手工不断轮询。只使用同一exe/pck的真实release窗口，窗口串行，期间换包会停止；每个子进程有短的装配/采样超时，退出或中断清理自己启动的进程。`--help`查看人口范围、分辨率、采样/确认时长、帧率和判据，默认搜索可配置上限，不把到达配置上限说成已测到硬件极限。
+入口沿用capacity.py，现已改为轻量历史对照，不再指数探边/二分/长窗确认。默认读取已入库的[performance.json](../../status/performance.json)，在历史同人数运行；正常结果就停止，可疑成本增加只复核一次，不能满速才粗略降档，单倍率至多3个窗口。--speeds选择相关倍率，--max-trials可以进一步减量；--seconds默认沿历史样本时长。策略只在[开发循环](../workflow/testing.md#性能回归)维护。
 
-`--seed-report`只把旧报告中的人数当作候选起点，两端都在当前构建重新长窗测量，不继承任何通过结果。适合改版后的边界复核或失效试验后的重新取样，避免从最小人数重复整段探边。实际迷雾/镜头与预期配置不符时窗口直接作废，不能继续混用不同视图的人数结果。
+每次使用同一exe/pck的真实release窗口串行测量，期间换包就停止。报告保留同人数的步均、主线程/GPU耗时与帧时变化百分比、实际倍率和粗略通过人数；历史上限只作参考，不声称重新测到了精确极限。硬件、人数、视图、worker、采样时长不同会标记不可直接比较。改变场景内容或实际工作量时仍需人工说明，工具无法保证不同版本负载完全等价。
 
-`capacity-v1`固定全视图与镜头，沿原混合场景初始化充足生命/需求/木料和长施工，防止高倍速下减员或任务耗尽。固定战斗/施工群，其余继续个人观察、探索、采运，部分人物穿戴样例装备；人数不表示所有人同时战斗。忙碌比例统计移动/工作与原地战斗，不把原地攻击者当成闲置。零死亡、资源守恒和活动下限是有效负载检查，失效窗口单独报错，不伪装成人数不达标。
+capacity-v1固定全视图与镜头，初始化充足生命/需求/木料和长施工；100名交战者与20名施工请求者以外的单位继续自主生活，约两成穿戴装备。检查零死亡、资源守恒及活动量，避免靠减员/闲置伪装性能；失效采样计入次数且不自动重试。
 
-同一窗口分别评估满倍率与流畅档：全窗及前后半窗的实际/请求比值、无新增追赶需求截断；流畅档再加平均FPS及帧时P99。门槛可在CLI调整，实际值随`summary.json`保存；它是明确的工程容差，不是宣称精确锁帧或普遍极值。结果实时增量写入新建目录的`summary.json`、`report.md`和每窗JSON/日志/CPU样本，中断仍保留已经完成的结果，不覆盖旧测量。独立机器/负载和长局需另测；自动报告的两种区间不等于全部单位都在玩家视野内的战斗极限。
+成本提示阈值和世界流速/画面判据可用--help查看并按任务调整；成本增加提示需要结合功能价值权衡。summary.json、report.md和每窗JSON/日志/CPU样本写在忽略的logs新目录，中断仍保留结果，子进程有超时并清理自身。可显式把一次完成的新summary作为后续--baseline；默认历史不会悄悄被退化结果覆盖。接受的新基线才更新唯一数值原件，BASELINE只维护解释与证据入口。
 
-`step_mean_ms`由全窗累计成本差得到；`step_ms`分位数仍是原有有界尾部窗口，报告用`step_percentile_samples/measured_steps`标明覆盖率，不为统计扩大每步复制量。额外记录分段流速/交付/伤害、活动比例、镜头、打开窗口和原生渲染CPU/GPU时间；这些诊断不改变结算频率。单独一窗可用`benchmark.py --capacity`，搜索结果只归[BASELINE](../../status/baseline.md)。
+step_mean_ms由全窗累计成本差得到；step_ms分位数仍是有界尾部窗口。单独一窗可用benchmark.py --capacity；headless不能证明真实FPS，不因纯文档/工具改动重跑全部游戏倍率。
 
 短检查默认15秒进程上限，无旧分片、长回归或`check`命令；策略见[验证方式](../workflow/testing.md)。

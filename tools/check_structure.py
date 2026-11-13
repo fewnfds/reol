@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ENTRY_FILES = (
     "project.godot", "README.md", "AGENTS.md", "docs/README.md",
     "docs/status/handoff.md", "docs/status/baseline.md", "docs/status/features.md",
-    "docs/engineering/project-structure.md", "docs/engineering/architecture.md",
+    "docs/engineering/architecture.md", "docs/status/performance.json",
     "docs/plans/roadmap.md", "docs/plans/foundation-priorities.md",
     "docs/DOCUMENTATION.md", "design/vision.md", "design/rules/README.md",
     "design/README.md", "assets/README.md", "data/README.md",
@@ -28,7 +28,7 @@ ROLE_DIRECTORIES = (
     "scripts/sim/kernel", "scripts/presentation",
     "data/definitions", "data/scenarios",
     "design/rules", "design/systems", "design/research", "docs/plans",
-    "docs/status", "docs/engineering", "docs/specs", "docs/archive",
+    "docs/status", "docs/engineering", "docs/archive",
 )
 LINK = re.compile(
     r"!?\[[^\]\n]*\]\(\s*(?:<(?P<angle>[^>\n]+)>|"
@@ -143,6 +143,7 @@ def audit_code(root: Path) -> list[str]:
         for path in (root / folder).rglob("*")
         if path.is_file() and path.suffix in {".gd", ".tscn", ".tres"}
     }
+    sources["project.godot"] = (root / "project.godot").read_text(encoding="utf-8-sig")
     classes: dict[str, str] = {}
     notes: list[str] = []
     for path, source in sources.items():
@@ -165,9 +166,8 @@ def audit_code(root: Path) -> list[str]:
             for target in sorted(edges[path]):
                 if target.startswith(("scripts/presentation/", "scripts/entities/")):
                     notes.append(f"REVIEW simulation depends on presentation: {path} -> {target}")
-    # All checked-in scenes are deliberate entries, including the temporary
-    # crowd scene. Tests and autoloads are separate from ordinary gameplay.
-    roots = {path for path in sources if path.startswith(("scenes/", "tests/", "scripts/autoload/"))}
+    # Project settings declare autoloads as well as the main scene.
+    roots = {"project.godot"} | {path for path in sources if path.startswith(("scenes/", "tests/"))}
     visited: set[str] = set()
     pending = list(roots)
     while pending:
