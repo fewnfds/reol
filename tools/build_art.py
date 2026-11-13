@@ -217,6 +217,10 @@ class Pack:
         self.entries: dict = {}
 
     def add(self, key: str, image: Image.Image, label: str = "", category: str = "objects", state: str = "ready", source: str = "authored", anchor: tuple[int, int] = (32, 52), footprint: tuple[int, int] | None = None) -> None:
+        if footprint:
+            # Flat fixtures are authored around (32,32), at 32px per cell.
+            # Moving both source and world pivot south preserves exact coverage.
+            anchor = (32, 32 + footprint[1] * 16)
         if image.size != (64, 64):
             image = image.crop(image.getbbox())
             image.thumbnail((56,48),Image.Resampling.NEAREST)
@@ -252,7 +256,7 @@ def world() -> dict:
             for facing in range(4):
                 rotated = art.rotate(-90*facing, resample=Image.Resampling.NEAREST, center=(32,32))
                 occupied = footprint[::-1] if facing % 2 else footprint
-                pack.add(WORLD_KEYS[i] if facing == 0 else f"{WORLD_KEYS[i]}_{facing}", rotated, WORLD_LABELS[i]+f" · {['N','E','S','W'][facing]}", anchor=(32,32), footprint=occupied)
+                pack.add(WORLD_KEYS[i] if facing == 0 else f"{WORLD_KEYS[i]}_{facing}", rotated, WORLD_LABELS[i]+f" · {['N','E','S','W'][facing]}", footprint=occupied)
             continue
         maximum = (30, 30) if i not in [0, 1, 2] else (30, 38)
         image = pixelize(image, maximum)
@@ -262,7 +266,7 @@ def world() -> dict:
     art, footprint = fixture("long_bed")
     for facing in range(4):
         rotated = art.rotate(-90*facing, resample=Image.Resampling.NEAREST, center=(32,32))
-        pack.add("long_bed" if facing == 0 else f"long_bed_{facing}",rotated,"长床 · "+['N','E','S','W'][facing],anchor=(32,32),footprint=footprint[::-1] if facing%2 else footprint)
+        pack.add("long_bed" if facing == 0 else f"long_bed_{facing}",rotated,"长床 · "+['N','E','S','W'][facing],footprint=footprint[::-1] if facing%2 else footprint)
     for i, image in enumerate(cells(SOURCE / "fauna.png", 4, 4)):
         small = pixelize(image, (24, 28))
         pack.add(FAUNA[i], small.resize((small.width * 2, small.height * 2), Image.Resampling.NEAREST), FAUNA_LABELS[i], category="creatures", state="reserve", source="generated:fauna")
@@ -279,13 +283,13 @@ def world() -> dict:
             pack.add(f"{name}_{stage}", image, label=f"{plant_names[name]['label']} · {stages[stage]}", category="plants", source="generated:plants")
     # Walls cover their entire blocked cell; no half-cell offset or extrusion.
     for mask in range(16):
-        pack.add(f"wall_{mask}", wall(mask), category="structures", anchor=(32,32), footprint=(1,1))
+        pack.add(f"wall_{mask}", wall(mask), category="structures", footprint=(1,1))
     for vertical in [False,True]:
-        pack.add("door_v" if vertical else "door", door(vertical), "东西通路" if vertical else "南北通路",category="structures",anchor=(32,32),footprint=(1,1))
+        pack.add("door_v" if vertical else "door", door(vertical), "东西通路" if vertical else "南北通路",category="structures",footprint=(1,1))
     im=blank(64);d=ImageDraw.Draw(im)
     d.rectangle((16,16,47,47),fill="#5e7c89")
     for y in range(18,48,6):d.line((16,y,47,y),fill="#a6bac1")
-    pack.add("roof", im, "屋顶层",category="structures",anchor=(32,32),footprint=(1,1))
+    pack.add("roof", im, "屋顶层",category="structures",footprint=(1,1))
     items = {"wood": ("tiny-town", 106), "stone": ("tiny-farm", 89), "grain": ("tiny-farm", 32), "herb": ("tiny-farm", 29), "potion": ("tiny-dungeon", 116), "fruit": ("tiny-farm", 41), "sword": ("tiny-dungeon", 105), "bow": ("tiny-town", 118), "hoe": ("tiny-farm", 87), "staff": ("tiny-dungeon", 127)}
     for name, (source, index) in items.items():
         image = Image.open(THIRD / source / f"tile_{index:04d}.png").convert("RGBA")
@@ -396,7 +400,7 @@ def terrain() -> dict:
 
 def main() -> None:
     OUT.mkdir(exist_ok=True)
-    manifest = {"schema": 1, "name": "Jade Valley temporary pixel pack", "date": "2026-11-12", "world": {"texture": "res://assets/art/world.png", "cell_size": 64, "columns": 8}, "characters": actors(), "entries": world(), "terrain": terrain()}
+    manifest = {"schema": 1, "name": "Jade Valley temporary pixel pack", "date": "2026-11-12", "placement": "footprint-bottom-centre", "world": {"texture": "res://assets/art/world.png", "cell_size": 64, "columns": 8}, "characters": actors(), "entries": world(), "terrain": terrain()}
     for name in ["actors.png", "world.png", "terrain.png"]:
         manifest.setdefault("sha256", {})[name] = hashlib.sha256((OUT / name).read_bytes()).hexdigest()
     (OUT / "catalog.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

@@ -1,6 +1,6 @@
 # 当前运行基线
 
-更新：2026-11-13。本页首先记录当前任意角度移动的正式包与证据，后续章节保留前轮对照，不作为当前地图数量或待办。实际能力/键位查[FEATURES](features.md)，运行边界查[架构](../engineering/architecture.md)，咨询取舍查[研究](../../design/research/large_simulation_optimization.md)。
+更新：2026-11-13。本页首先记录当前底部锚点调整的正式包与证据，后续章节保留前轮对照，不作为当前地图数量或待办。实际能力/键位查[FEATURES](features.md)，运行边界查[架构](../engineering/architecture.md)，咨询取舍查[研究](../../design/research/large_simulation_optimization.md)。
 
 ## 构建与环境
 
@@ -9,9 +9,26 @@
 - 正式入口`scenes/main.tscn`，试玩包`build/windows/reol-demo.exe`和同目录pck；默认24人，压力开局仍是同一后端。存档范围只看compatibility。
 - exe是引擎模板，单独exe哈希不能识别游戏代码，按各节PCK哈希固定窗口。当前包见下面首节；六段恢复前的`817b2660204f1192faca04824b5d43d8db97fc6f2907f5dbce4086b2bdd8df82`只对应文末历史表。
 
-前轮人物UV与树形图元修复证据在`logs/sprite-orientation-20261112/`和`logs/tree-orientation-20261112/`；单位视野阶段曾单独导出`build/sight-candidate/reol-demo.exe`。这些均为历史对照，当前`build/windows`只以下面首节的连续移动包为准，源码试玩仍走usage入口。
+前轮人物UV与树形图元修复证据在`logs/sprite-orientation-20261112/`和`logs/tree-orientation-20261112/`；单位视野阶段曾单独导出`build/sight-candidate/reol-demo.exe`。这些均为历史对照，当前`build/windows`只以下面首节的底部锚点包为准，源码试玩仍走usage入口。
 
-## 当前：任意角度连续移动
+## 当前：瓦片底部中央锚点
+
+2026-11-13按用户最新要求统一显示接地点，正式`build/windows/reol-demo.exe`及pck已重建；PCK SHA256：`7e610d36f297697192ad375b522b0c7d1e4b77ec127fa5d4575a31c7cc270ea7`。源码与正式包共用原连续移动/世界算法，没有修改kernel或存档格式。锚点与坐标对应只维护在[assets](../../assets/README.md#坐标占地与接地点)。
+
+GPU近景核对单格树木/人物、四向两格长床、箱、邻接墙/横纵门、地板与静态迷雾缓存：脚点落在占地底边中点，墙/平铺家具仍覆盖原占格；两格高素材的y=64锚点未被6bit截断。119个平铺素材pivot和全部246项打包参数通过核对，三张atlas逐字节哈希与修改前相同，只改生成器与锚点元数据，未重画/裁掉源素材。
+
+实际源码GPU输入核对P/F、精确鼠标脚点、S停止、拾取/镜头及路线一致。转弯/提前停步的5个时间点像素位移与CPU轨迹相符（误差0像素），没有跨格取整。探针、输入和最终包日志无错误/警告，结构审查0错误；首次临时网格探针缩进错误已修，失败日志保留。这是相关视觉验证，没有再跑整套旧业务回归。
+
+同本机13600KF/5060Ti、D3D12、1280×720，3秒预热；本轮测量时另有用户的源码试玩进程运行（16:03启动），未主动关闭。因此以下用于确认当前可运行表现，**不是隔离的成本/加速对照**，也不能将步时差全部归因于锚点调整。
+
+| 同最终包窗口 | 实际倍率 | 帧P99 / 最大 ms | 步均 / P99 / 最大 ms |
+|---|---|---|---|
+| 1000人混合全图，4×/60FPS，10秒 | 3.9985× | 16.798 / 17.053 | 9.283 / 15.135 / 19.680 |
+| 24人迷雾，1×/120FPS，5秒 | 0.9984× | 8.394 / 8.677 | 0.464 / 2.692 / 2.701 |
+
+材料均200000、无过载需求截断。证据留忽略的`logs/bottom-anchor-20261113/`：`depth-and-walls.png`/`whole-frozen-objects.png`/`wall-neighbour-refresh.png`、`gpu-motion.json`及逐时刻图像、`input-play.json/log`、`asset-qa.json`、`verified-mixed.json`/`verified-play.json/png`及日志/CPU采样、`export-console.log`。下节连续移动基准是前轮包，不能当成本包的隔离对照。
+
+## 前轮：任意角度连续移动
 
 正式`build/windows/reol-demo.exe`及pck已重建，PCK SHA256：`f79cb9d036cb5105443a766003f77c238677249901768fb7830838db40825858`。两个图形窗口同包、串行运行；报告Git为23aa22f后的本轮dirty工作树，随后随main提交。最终运行代码与导出之后仅维护状态文档，没有把中间候选包当作最终容量证据。
 

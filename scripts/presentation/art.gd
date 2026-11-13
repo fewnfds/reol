@@ -5,8 +5,24 @@ const WORLD = preload("res://assets/art/world.png")
 const ACTORS = preload("res://assets/art/actors.png")
 const GROUND = preload("res://assets/art/terrain.png")
 const Clip = preload("res://scripts/sim/kernel/frame.gd").Visual
+const TILE: float = 32.0
+const BODY_FOOT_OFFSET := Vector2(0.0, 0.5)
 static var _catalog: Dictionary = {}
 static var _icons: Dictionary = {}
+
+
+static func body_foot(position: Vector2) -> Vector2:
+	# Logical positions stay continuous. A cell-centred body is drawn with its
+	# feet at the cell's bottom centre, without snapping as it crosses cells.
+	return position + BODY_FOOT_OFFSET
+
+
+static func body_position(foot: Vector2) -> Vector2:
+	return foot - BODY_FOOT_OFFSET
+
+
+static func footprint_foot(extent: Rect2i) -> Vector2:
+	return Vector2(extent.position.x + extent.size.x * 0.5, extent.end.y)
 
 
 static func catalog() -> Dictionary:

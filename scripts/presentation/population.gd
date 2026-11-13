@@ -4,7 +4,7 @@ extends MultiMeshInstance2D
 
 const Art = preload("res://scripts/presentation/art.gd")
 const SHADER = preload("res://scripts/presentation/population.gdshader")
-const TILE: float = 32.0
+const TILE: float = Art.TILE
 var _shader := ShaderMaterial.new()
 var _directions := PackedInt32Array()
 var _colors: Array[Color] = []
@@ -75,7 +75,8 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted) ->
 			_motion_headers[slot] = header + 1
 			values.append_array(PackedFloat32Array([float(header + 1), float(knots.size()), 0.0, 0.0]))
 			for point: Vector3 in knots:
-				values.append_array(PackedFloat32Array([point.x * TILE, point.y * TILE, point.z, 0.0]))
+				var foot: Vector2 = Art.body_foot(Vector2(point.x, point.y)) * TILE
+				values.append_array(PackedFloat32Array([foot.x, foot.y, point.z, 0.0]))
 		var width: int = mini(1024, maxi(1, values.size() / 4))
 		var height: int = maxi(1, ceili(float(values.size()) / 4 / width))
 		values.resize(width * height * 4)
@@ -90,8 +91,8 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted) ->
 		var id: int = frame.ids[index]
 		var same_current: bool = index < current_pose.ids.size() and current_pose.ids[index] == id
 		var same_previous: bool = index < previous.ids.size() and previous.ids[index] == id
-		var current: Vector2 = (current_pose.positions[index] if same_current else frame.positions[index]) * TILE
-		var from: Vector2 = previous.positions[index] * TILE if same_current and same_previous else current
+		var current: Vector2 = Art.body_foot(current_pose.positions[index] if same_current else frame.positions[index]) * TILE
+		var from: Vector2 = Art.body_foot(previous.positions[index]) * TILE if same_current and same_previous else current
 		var delta: Vector2 = current - from
 		if _identities[index] != id:
 			_directions[index] = 4

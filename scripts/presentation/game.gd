@@ -12,7 +12,7 @@ const Art = preload("res://scripts/presentation/art.gd")
 const Atmosphere = preload("res://scripts/presentation/atmosphere.gd")
 const ActionEffects = preload("res://scripts/presentation/action_effects.gd")
 const ArtGallery = preload("res://scripts/presentation/art_gallery.gd")
-const TILE: float = 32.0
+const TILE: float = Art.TILE
 var runner := Runner.new()
 var population := Population.new()
 var ground := Ground.new()
@@ -247,7 +247,7 @@ func _process(delta: float) -> void:
 		if receipt.seq == _pending_move and not receipt.ok:
 			_target = Vector2(-1, -1)
 		elif receipt.seq == _pending_move and receipt.has("position"):
-			_target = receipt.position
+			_target = Art.body_foot(receipt.position)
 	for outcome: Dictionary in mailbox.outcomes:
 		if next != null and outcome.get("epoch", next.epoch) != next.epoch:
 			continue
@@ -343,8 +343,8 @@ func _displayed(id: int) -> Vector2:
 	if slot < 0:
 		return Vector2.ZERO
 	if slot >= _render_current.size() or slot >= _render_previous.size() or _render_older.ids[slot] != id or _render_pose == null or _render_pose.ids[slot] != id:
-		return frame.positions[slot]
-	return _render_pose.at(slot, _render_previous[slot], alpha)
+		return Art.body_foot(frame.positions[slot])
+	return Art.body_foot(_render_pose.at(slot, _render_previous[slot], alpha))
 
 
 func _update_hud() -> void:
@@ -399,7 +399,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			if _attack_cursor:
 				_attack_cursor = false
-				_send({"kind": "attack_move", "position": point, "ranged": _ranged})
+				_send({"kind": "attack_move", "position": Art.body_position(point), "ranged": _ranged})
 				return
 			var previous_selected: int = selected
 			selected = 0
@@ -430,7 +430,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			var tile: int = Terrain.index(cell) if cell.x >= 0 and cell.y >= 0 and cell.x < Terrain.SIZE and cell.y < Terrain.SIZE else -1
 			if tile >= 0:
-				_pending_move = _send({"kind": "move", "actor": 1, "position": point})
+				_pending_move = _send({"kind": "move", "actor": 1, "position": Art.body_position(point)})
 				if _pending_move > 0:
 					_target = point
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -546,11 +546,12 @@ func _draw() -> void:
 	if _show_path and frame.actor_slots.has(selected) and (not fog_enabled or frame.visible[frame.actor_slots[selected]] != 0) and frame.inspected.get("id", 0) == selected:
 		var points := PackedVector2Array([_displayed(selected) * TILE])
 		for point: Vector2 in frame.inspected.get("route_preview", PackedVector2Array()):
-			points.append(point * TILE)
+			points.append(Art.body_foot(point) * TILE)
 		if points.size() > 1: draw_polyline(points, Color(0.3, 0.9, 1.0, 0.65), 1.5)
 	for index: int in frame.projectiles.size():
-		var point: Vector2 = frame.projectiles[index]
-		if not fog_enabled or _visible_point(point):
+		var position: Vector2 = frame.projectiles[index]
+		var point: Vector2 = Art.body_foot(position)
+		if not fog_enabled or _visible_point(position):
 			var direction: Vector2 = frame.projectile_velocities[index].normalized()
 			draw_line(point * TILE - direction * 9, point * TILE + direction * 4, Color(0.88, 0.78, 0.56), 2)
 			draw_line(point * TILE + direction * 4, point * TILE + direction.rotated(0.45) * -2, Color(0.85, 0.94, 0.90), 2)
@@ -560,7 +561,7 @@ func _draw() -> void:
 			continue
 		if fog_enabled and frame.perception.tiles[frame.mobile_cells[source]] == 0:
 			continue
-		draw_arc(Terrain.center(frame.mobile_cells[source]) * TILE, 10, 0, TAU, 12, Ground.SOURCE_COLORS[source % 7], 1.5)
+		draw_arc(Art.body_foot(Terrain.center(frame.mobile_cells[source])) * TILE, 10, 0, TAU, 12, Ground.SOURCE_COLORS[source % 7], 1.5)
 
 
 func _visible_point(point: Vector2) -> bool:

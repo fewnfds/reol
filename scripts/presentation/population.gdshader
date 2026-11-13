@@ -29,7 +29,8 @@ void vertex() {
     special = 0.0;
     tint = COLOR;
     if (scenery > 0.5) {
-        anchor = vec2(float((flags >> 11) & 63), float((flags >> 17) & 63));
+        // Y uses seven bits: a two-cell fixture's south pivot can be y=64.
+        anchor = vec2(float((flags >> 11) & 63), float((flags >> 17) & 127));
         int slot = int(INSTANCE_CUSTOM.z);
         atlas_offset = vec2(float(slot % 8), float(slot / 8)) * 64.0;
         state = 0;

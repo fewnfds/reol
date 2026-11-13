@@ -2,6 +2,7 @@
   "schema": 1,
   "name": "Jade Valley temporary pixel pack",
   "date": "2026-11-12",
+  "placement": "footprint-bottom-centre",
   "world": {
     "texture": "res://assets/art/world.png",
     "cell_size": 64,
@@ -289,7 +290,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "储物箱 · N",
       "category": "objects",
@@ -310,7 +311,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "储物箱 · E",
       "category": "objects",
@@ -331,7 +332,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "储物箱 · S",
       "category": "objects",
@@ -352,7 +353,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "储物箱 · W",
       "category": "objects",
@@ -373,7 +374,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "床 · N",
       "category": "objects",
@@ -394,7 +395,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "床 · E",
       "category": "objects",
@@ -415,7 +416,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "床 · S",
       "category": "objects",
@@ -436,7 +437,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "床 · W",
       "category": "objects",
@@ -457,7 +458,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "桌 · N",
       "category": "objects",
@@ -478,7 +479,7 @@
       ],
       "anchor": [
         32,
-        32
+        64
       ],
       "label": "桌 · E",
       "category": "objects",
@@ -499,7 +500,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "桌 · S",
       "category": "objects",
@@ -520,7 +521,7 @@
       ],
       "anchor": [
         32,
-        32
+        64
       ],
       "label": "桌 · W",
       "category": "objects",
@@ -541,7 +542,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "椅 · N",
       "category": "objects",
@@ -562,7 +563,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "椅 · E",
       "category": "objects",
@@ -583,7 +584,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "椅 · S",
       "category": "objects",
@@ -604,7 +605,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "椅 · W",
       "category": "objects",
@@ -625,7 +626,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "灶台 · N",
       "category": "objects",
@@ -646,7 +647,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "灶台 · E",
       "category": "objects",
@@ -667,7 +668,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "灶台 · S",
       "category": "objects",
@@ -688,7 +689,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "灶台 · W",
       "category": "objects",
@@ -709,7 +710,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "工作台 · N",
       "category": "objects",
@@ -730,7 +731,7 @@
       ],
       "anchor": [
         32,
-        32
+        64
       ],
       "label": "工作台 · E",
       "category": "objects",
@@ -751,7 +752,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "工作台 · S",
       "category": "objects",
@@ -772,7 +773,7 @@
       ],
       "anchor": [
         32,
-        32
+        64
       ],
       "label": "工作台 · W",
       "category": "objects",
@@ -793,7 +794,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "炉 · N",
       "category": "objects",
@@ -814,7 +815,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "炉 · E",
       "category": "objects",
@@ -835,7 +836,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "炉 · S",
       "category": "objects",
@@ -856,7 +857,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "炉 · W",
       "category": "objects",
@@ -877,7 +878,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "花盆 · N",
       "category": "objects",
@@ -898,7 +899,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "花盆 · E",
       "category": "objects",
@@ -919,7 +920,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "花盆 · S",
       "category": "objects",
@@ -940,7 +941,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "花盆 · W",
       "category": "objects",
@@ -961,7 +962,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "墙样稿 · N",
       "category": "objects",
@@ -982,7 +983,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "墙样稿 · E",
       "category": "objects",
@@ -1003,7 +1004,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "墙样稿 · S",
       "category": "objects",
@@ -1024,7 +1025,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "墙样稿 · W",
       "category": "objects",
@@ -1045,7 +1046,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "门样稿 · N",
       "category": "objects",
@@ -1066,7 +1067,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "门样稿 · E",
       "category": "objects",
@@ -1087,7 +1088,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "门样稿 · S",
       "category": "objects",
@@ -1108,7 +1109,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "门样稿 · W",
       "category": "objects",
@@ -1129,7 +1130,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "窗 · N",
       "category": "objects",
@@ -1150,7 +1151,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "窗 · E",
       "category": "objects",
@@ -1171,7 +1172,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "窗 · S",
       "category": "objects",
@@ -1192,7 +1193,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "窗 · W",
       "category": "objects",
@@ -1213,7 +1214,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "屋面样稿 · N",
       "category": "objects",
@@ -1234,7 +1235,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "屋面样稿 · E",
       "category": "objects",
@@ -1255,7 +1256,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "屋面样稿 · S",
       "category": "objects",
@@ -1276,7 +1277,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "屋面样稿 · W",
       "category": "objects",
@@ -1297,7 +1298,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "井 · N",
       "category": "objects",
@@ -1318,7 +1319,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "井 · E",
       "category": "objects",
@@ -1339,7 +1340,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "井 · S",
       "category": "objects",
@@ -1360,7 +1361,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "井 · W",
       "category": "objects",
@@ -1381,7 +1382,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "水缸 · N",
       "category": "objects",
@@ -1402,7 +1403,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "水缸 · E",
       "category": "objects",
@@ -1423,7 +1424,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "水缸 · S",
       "category": "objects",
@@ -1444,7 +1445,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "水缸 · W",
       "category": "objects",
@@ -1465,7 +1466,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "篝火 · N",
       "category": "objects",
@@ -1486,7 +1487,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "篝火 · E",
       "category": "objects",
@@ -1507,7 +1508,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "篝火 · S",
       "category": "objects",
@@ -1528,7 +1529,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "篝火 · W",
       "category": "objects",
@@ -1549,7 +1550,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "墓 · N",
       "category": "objects",
@@ -1570,7 +1571,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "墓 · E",
       "category": "objects",
@@ -1591,7 +1592,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "墓 · S",
       "category": "objects",
@@ -1612,7 +1613,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "墓 · W",
       "category": "objects",
@@ -1633,7 +1634,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "蒲团 · N",
       "category": "objects",
@@ -1654,7 +1655,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "蒲团 · E",
       "category": "objects",
@@ -1675,7 +1676,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "蒲团 · S",
       "category": "objects",
@@ -1696,7 +1697,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "蒲团 · W",
       "category": "objects",
@@ -1717,7 +1718,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "香炉 · N",
       "category": "objects",
@@ -1738,7 +1739,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "香炉 · E",
       "category": "objects",
@@ -1759,7 +1760,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "香炉 · S",
       "category": "objects",
@@ -1780,7 +1781,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "香炉 · W",
       "category": "objects",
@@ -1801,7 +1802,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "书柜 · N",
       "category": "objects",
@@ -1822,7 +1823,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "书柜 · E",
       "category": "objects",
@@ -1843,7 +1844,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "书柜 · S",
       "category": "objects",
@@ -1864,7 +1865,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "书柜 · W",
       "category": "objects",
@@ -1885,7 +1886,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "灯 · N",
       "category": "objects",
@@ -1906,7 +1907,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "灯 · E",
       "category": "objects",
@@ -1927,7 +1928,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "灯 · S",
       "category": "objects",
@@ -1948,7 +1949,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "灯 · W",
       "category": "objects",
@@ -1969,7 +1970,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "炼丹炉 · N",
       "category": "objects",
@@ -1990,7 +1991,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "炼丹炉 · E",
       "category": "objects",
@@ -2011,7 +2012,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "炼丹炉 · S",
       "category": "objects",
@@ -2032,7 +2033,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "炼丹炉 · W",
       "category": "objects",
@@ -2053,7 +2054,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "织机 · N",
       "category": "objects",
@@ -2074,7 +2075,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "织机 · E",
       "category": "objects",
@@ -2095,7 +2096,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "织机 · S",
       "category": "objects",
@@ -2116,7 +2117,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "织机 · W",
       "category": "objects",
@@ -2137,7 +2138,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "屏风 · N",
       "category": "objects",
@@ -2158,7 +2159,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "屏风 · E",
       "category": "objects",
@@ -2179,7 +2180,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "屏风 · S",
       "category": "objects",
@@ -2200,7 +2201,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "屏风 · W",
       "category": "objects",
@@ -2221,7 +2222,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "棋盘 · N",
       "category": "objects",
@@ -2242,7 +2243,7 @@
       ],
       "anchor": [
         32,
-        32
+        64
       ],
       "label": "棋盘 · E",
       "category": "objects",
@@ -2263,7 +2264,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "棋盘 · S",
       "category": "objects",
@@ -2284,7 +2285,7 @@
       ],
       "anchor": [
         32,
-        32
+        64
       ],
       "label": "棋盘 · W",
       "category": "objects",
@@ -2305,7 +2306,7 @@
       ],
       "anchor": [
         32,
-        32
+        64
       ],
       "label": "长床 · N",
       "category": "objects",
@@ -2326,7 +2327,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "长床 · E",
       "category": "objects",
@@ -2347,7 +2348,7 @@
       ],
       "anchor": [
         32,
-        32
+        64
       ],
       "label": "长床 · S",
       "category": "objects",
@@ -2368,7 +2369,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "长床 · W",
       "category": "objects",
@@ -3171,7 +3172,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "wall_0",
       "category": "structures",
@@ -3192,7 +3193,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "wall_1",
       "category": "structures",
@@ -3213,7 +3214,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "wall_2",
       "category": "structures",
@@ -3234,7 +3235,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "wall_3",
       "category": "structures",
@@ -3255,7 +3256,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "wall_4",
       "category": "structures",
@@ -3276,7 +3277,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "wall_5",
       "category": "structures",
@@ -3297,7 +3298,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "wall_6",
       "category": "structures",
@@ -3318,7 +3319,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "wall_7",
       "category": "structures",
@@ -3339,7 +3340,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "wall_8",
       "category": "structures",
@@ -3360,7 +3361,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "wall_9",
       "category": "structures",
@@ -3381,7 +3382,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "wall_10",
       "category": "structures",
@@ -3402,7 +3403,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "wall_11",
       "category": "structures",
@@ -3423,7 +3424,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "wall_12",
       "category": "structures",
@@ -3444,7 +3445,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "wall_13",
       "category": "structures",
@@ -3465,7 +3466,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "wall_14",
       "category": "structures",
@@ -3486,7 +3487,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "wall_15",
       "category": "structures",
@@ -3507,7 +3508,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "南北通路",
       "category": "structures",
@@ -3528,7 +3529,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "东西通路",
       "category": "structures",
@@ -3549,7 +3550,7 @@
       ],
       "anchor": [
         32,
-        32
+        48
       ],
       "label": "屋顶层",
       "category": "structures",

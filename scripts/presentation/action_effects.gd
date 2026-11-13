@@ -1,7 +1,7 @@
 extends Node2D
 ## Bounded visual aftermath of committed outcomes. No damage or targeting rules.
 const Art = preload("res://scripts/presentation/art.gd")
-const TILE: float = 32.0
+const TILE: float = Art.TILE
 const LIMIT: int = 96
 var _effects: Array[Dictionary] = []
 var _frame: RefCounted
@@ -48,5 +48,5 @@ func _draw() -> void:
 		if age < 0:
 			continue
 		var frame: int = clampi(age / 115, 0, 3)
-		var point: Vector2 = effect.position * TILE + Vector2(0, -10 - age * 0.012)
+		var point: Vector2 = Art.body_foot(effect.position) * TILE + Vector2(0, -10 - age * 0.012)
 		draw_texture_rect_region(Art.WORLD, Rect2(point - Vector2(24, 42), Vector2(48, 48)), Art.region("fx_%s_%d" % [effect.kind, frame]))

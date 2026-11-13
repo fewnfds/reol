@@ -3,7 +3,7 @@ extends Node2D
 ## The same buffer drives sprites and bounded ground contact on the GPU.
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Art = preload("res://scripts/presentation/art.gd")
-const TILE: float = 32.0
+const TILE: float = Art.TILE
 var objects: Dictionary = {}
 var by_tile: Dictionary = {}
 const ORDER_STRIDE: int = 1048576
@@ -50,9 +50,9 @@ func adopt(value: Dictionary) -> void:
         var extent := Rect2i(Terrain.cell(rec.tile), Vector2i.ONE)
         for tile: int in rec.get("cells", PackedInt32Array([rec.tile])):
             extent = extent.merge(Rect2i(Terrain.cell(tile), Vector2i.ONE))
-        # Placement, ground contact and shadow share the footprint centre.
-        # Height belongs to the sprite anchor; it is never a half-cell offset.
-        var point: Vector2 = (Vector2(extent.position) + Vector2(extent.size) * 0.5) * TILE
+        # All sprites pivot at the footprint's bottom centre. Flat fixtures use
+        # the corresponding source pivot, so their occupied pixels do not shift.
+        var point: Vector2 = Art.footprint_foot(extent) * TILE
         var scale_value := Vector2(0.65, 0.65)
         var tall: bool = rec.kind == "resource" or (rec.kind == "plant" and rec.definition == "old_tree")
         if tall:
@@ -81,7 +81,7 @@ func adopt(value: Dictionary) -> void:
         var anchor: Array = source.anchor
         var sway: int = int(tall and int(rec.get("stage", 2)) not in [3, 4] and not (rec.kind == "resource" and int(rec.get("vegetation_level", 3)) < 3))
         buffer[offset + 15] = 128 + sway * 256 + special * 512 + int(anchor[0]) * 2048 + int(anchor[1]) * 131072
-        var depth: int = int((extent.end.y * TILE if source.has("footprint") else point.y) * 256.0) + (1 << 26 if rec.get("layer", "") == "roof" else 0)
+        var depth: int = int(point.y * 256.0) + (1 << 26 if rec.get("layer", "") == "roof" else 0)
         order.append(float(depth * ORDER_STRIDE + index))
     order.sort()
     revision += 1
