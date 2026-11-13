@@ -1,6 +1,6 @@
 # 大型模拟运行框架：一手研究与本轮裁决
 
-研究更新：2026-11-12。这里记录可核查来源、适用边界与顾问取舍；不是第二计划。当前接口、能力与实测分别只查[架构](../../docs/engineering/architecture.md)、[FEATURES](../../docs/status/features.md)、[BASELINE](../../docs/status/baseline.md)。旧实现由Git的a493bf0追溯。
+研究更新：2026-11-13。这里记录可核查来源、适用边界与顾问取舍；不是第二计划。当前接口、能力与实测分别只查[架构](../../docs/engineering/architecture.md)、[FEATURES](../../docs/status/features.md)、[BASELINE](../../docs/status/baseline.md)。旧实现由Git的a493bf0追溯。
 
 ## 本轮先证实了什么
 
@@ -187,3 +187,23 @@ Godot 4.7的[RenderingDevice](https://docs.godotengine.org/en/4.7/classes/class_
 采用原始局部顶点构造素材像素、天气反向采样位移、按实际留白分列、占地中心接地、整格墙和有界接触影。家具改为程序原创轴对齐顶视四向，多格旋转同步原对象的占地/外观/存读；没有把生成的斜透视图旋转90度当新方向。原始素材保留追溯，未新增外部包。[Godot CanvasItem shader文档](https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/canvas_item_shader.html)及变换接口经Context7核对；Kenney和LPC Wooden Furniture检索只供选型，具体来源归assets。
 
 没有照搬顾问的放大窗口伪“连通域切分”（仍可能取错邻居）、含内缩边的伪整格墙、“零成本/固定指令数”承诺或对所有LPC合图的笼统许可判断。其基于文本称plants为1024宽，实际PNG也是1536宽；视觉源图优先。其max风摆示例在四顶点quad插值下仍会挪动根部，实际改为绕根线性切变。雨/飘絮的双时刻真实GPU截图、八向运动/四向床、近景接地与同包负载的证据只归BASELINE；不把原咨询再复制成约束。
+
+### 任意角度移动：方案核查，尚未实现
+
+2026-11-13用户反馈只能横竖行走，要求类似RTS的任意角度移动，并与顾问讨论方案。方格用于地形/建筑不等于单位只能四向或八向；八向素材也只量化显示朝向。当前限制来自三个真实环节：`terrain.navigation()`显式禁用斜向并用Manhattan距离；鼠标命令先丢弃小数落点；`Units.advance()`虽然持有连续位置，却逐个走整数路线的格心。仅改diagonal_mode、把get_id_path换成get_point_path，或在显示端画曲线均不满足要求。
+
+本次已向本机Argon-search提交约14.8万字符的产品背景和实际代码，thinking:high、非流式、98304输出预算。中转以账号需验证的PERMISSION_DENIED/account_unavailable失败，没有返回顾问意见；不能写成顾问已认可下列结论。原请求/错误及独立核对留忽略的`free-angle-movement-20261113`咨询与runs。以下是独立源码/公开资料核查，实施顺序只维护[主计划](../../docs/plans/foundation-priorities.md#待实施方案任意角度移动与共同导航)。
+
+| 来源 | 能确认的经验 | 对本项目的意义 |
+|---|---|---|
+| [Red Blob格网优化](https://www.redblobgames.com/pathfinding/grids/algorithms.html)、[Theta*原作者论文入口](https://idm-lab.org/bib/abstracts/Koen10r.html) | 格网可用于搜索，输出路径不必沿格边；事后拉直不保证欧氏全局最短，Theta*也不能笼统等同最优路径 | 任意角行走可先用原生通路搜索配几何合法的直线段；是否需换搜索算法由路径品质/成本反例判断 |
+| [0 A.D.当前可读接口](https://github.com/0ad/0ad/blob/master/source/simulation2/components/ICmpPathfinder.h)、[2012年设计解释](https://www.indiedb.com/games/0-ad/news/the-pathfinding-saga-continues) | 长距离格图、短距离精确路径、点/圆/方形目标、异步请求身份与移动检查分开 | 采用职责分离，不把旧文中的导航格细分数量变成我们的参数，也不宣称Warcraft/StarCraft闭源内部相同 |
+| [GridStringPulling文档](https://arongranberg.com/astar/documentation/stable/gridstringpulling.html) | 成熟库支持格图路径拉直，和navmesh funnel概念相似而算法不同 | 可借鉴公开原理，不引入Unity依赖，也不把任意删节点或Bezier曲线冒充合法路径 |
+| Godot [AStarGrid2D](https://docs.godotengine.org/en/4.7/classes/class_astargrid2d.html)、[线程安全](https://docs.godotengine.org/en/4.7/tutorials/performance/thread_safe_apis.html) | 原生格图支持无切角斜向，单张AStarGrid不能并发搜索；NavigationServer2D支持并行查询 | 格图候选保留lane私有上下文；NavServer候选也可不建每人节点，不因多核现状否决原生导航 |
+| Godot [导航性能](https://docs.godotengine.org/en/4.7/tutorials/navigation/navigation_optimizing_performance.html)、[烘焙](https://docs.godotengine.org/en/4.7/tutorials/navigation/navigation_using_navigationmeshes.html)、[地图同步](https://docs.godotengine.org/en/4.7/classes/class_navigationserver2d.html) | 网格复杂度取决于多边形/边数，不可达搜索可能很贵；纯数组几何能后台烘焙，地图更新默认在物理帧同步，force_update涉及服务器锁及队列刷新 | 原生navmesh是有竞争力的候选，不能凭直觉说一定慢；但动态墙、不同半径和自主模拟时钟仍需显式衔接，不能把每格navmesh或每步force_update当捷径 |
+
+当前首选是原生AStarGrid提供通路、带身体净空的直线段路线与连续跟随，先用原生NavServer小原型反证其适用性。首选依据是现有可建造格地形、增量阻挡与lane执行边界契合，不是必须保留旧类。若大体型/窄道需不断细分格网或叠补丁才能满足，或同负载品质/端到端成本明显不如NavServer，直接换导航表示；不强制走完格网改造再承认失败。Theta*/Polyanya、自建可见图和flow field保留为有具体证据时的专项候选，不同时建立多套生产后端。
+
+实现不可漏掉的边界：连续起点/终点及同格不同落点、非格心改令、按身体半径检查整条线段、局部不可达终点的明确反馈、追击最后所见及作业操作位、路线缓存不串角色端点、动态新墙命中长线段中部、存读与身份/命令版本。现有大体型整数净空图比实际0.9格半径保守，可能拒绝几何上能通过的两格宽通路，不能原样当精确解。基础步跨拐点时显示插值与弹道的起末直线近似也须核对，不能只看一张截图说移动成立。
+
+性能方面先走可达直线快路、按事件求路/失效、缓存共享通路而端点单独连接，保留CPU池和批量绘制。平滑需有界的几何检查，不用所有路点两两试探；请求数量预算也不能限制单次不可达原生搜索的最坏耗时，需单独测量。低优先级NPC求路可分批等待，已在有效路线上者继续移动；不能丢命令或让陈旧异步结果覆盖新指令。GPU继续显示插值，不为稀疏寻路强行增加回读。完整避让/推挤/编队不作为本轮任意角移动的前置条件。
