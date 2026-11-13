@@ -4,6 +4,7 @@ global uniform float art_sun_strength;
 global uniform float art_time;
 uniform sampler2D world_atlas : source_color, filter_nearest, repeat_disable;
 uniform sampler2D visible_map : filter_nearest, repeat_disable;
+uniform sampler2D motion_map : filter_nearest, repeat_disable;
 uniform bool use_fog = false;
 uniform float alpha = 1.0;
 uniform float world_ms = 0.0;
@@ -16,6 +17,10 @@ varying flat float known;
 varying flat float special;
 varying vec4 tint;
 varying vec2 sprite_pixel;
+vec4 motion_value(int index) {
+    int width = textureSize(motion_map, 0).x;
+    return texelFetch(motion_map, ivec2(index % width, index / width), 0);
+}
 void vertex() {
     int flags = int(INSTANCE_CUSTOM.w);
     body_flags = flags;
@@ -43,10 +48,24 @@ void vertex() {
         sprite_pixel = VERTEX * 48.0 + vec2(24.0);
         VERTEX = sprite_pixel - anchor;
         if ((flags & 2) != 0) { VERTEX *= 1.6; }
-        VERTEX += (INSTANCE_CUSTOM.xy - MODEL_MATRIX[3].xy) * (1.0 - alpha);
+        vec2 displayed = mix(INSTANCE_CUSTOM.xy, MODEL_MATRIX[3].xy, alpha);
+        int header = int(INSTANCE_CUSTOM.z) / 8 - 1;
+        if (header >= 0) {
+            vec4 info = motion_value(header);
+            vec4 a = motion_value(int(info.x));
+            for (int i = 1; i < int(info.y); i++) {
+                vec4 b = motion_value(int(info.x) + i);
+                if (alpha <= b.z) {
+                    displayed = mix(a.xy, b.xy, clamp((alpha-a.z)/max(0.000001,b.z-a.z),0.0,1.0));
+                    break;
+                }
+                a = b;
+            }
+        }
+        VERTEX += displayed - MODEL_MATRIX[3].xy;
         int frame = int(mod(world_ms + float((flags >> 8) & 15) * 83.0, state == 0 ? 1600.0 : 900.0) / (state == 0 ? 400.0 : 225.0));
         if (state == 14 || (state == 2 && (flags & 1) == 0)) { frame = 0; }
-        atlas_offset = vec2(INSTANCE_CUSTOM.z * 4.0 + float(frame), float(state)) * 48.0;
+        atlas_offset = vec2(float(int(INSTANCE_CUSTOM.z) % 8) * 4.0 + float(frame), float(state)) * 48.0;
     }
 }
 vec4 sample_sprite(sampler2D actors, vec2 pixel) {

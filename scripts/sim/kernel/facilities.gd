@@ -30,33 +30,46 @@ func footprint(definition: String, tile: int, facing: int = 0) -> PackedInt32Arr
 	return result
 
 
-func interaction_tile(world: RefCounted, target: int, origin: Vector2 = Vector2(-1, -1)) -> int:
+func in_range(world: RefCounted, target: int, origin: Vector2, radius: float) -> bool:
+	var record: Dictionary = world.objects.records[target]
+	if world.actor_slots.has(target):
+		var point: Vector2 = world.combat.position(world, target)
+		return origin.distance_to(point) <= 1.5 + radius - 0.35 and Terrain.blocking_fraction(world.terrain.blocked, origin, point) < 0
+	var members: PackedInt32Array = record.get("cells", PackedInt32Array([record.tile]))
+	for member: int in members:
+		var low := Vector2(Terrain.cell(member))
+		var closest := origin.clamp(low, low + Vector2.ONE)
+		if origin.distance_to(closest) <= 1.0 + radius and Terrain.blocking_fraction(world.terrain.blocked, origin, closest, members) < 0:
+			return true
+	return false
+
+
+func interaction_point(world: RefCounted, target: int, origin: Vector2, radius: float = 0.35, flying: bool = false) -> Vector2:
 	var record: Dictionary = world.objects.records[target]
 	var tile: int = record.tile
+	if in_range(world, target, origin, radius) and world.terrain.can_stand(origin, radius, flying):
+		return origin
 	if world.actor_slots.has(target):
-		return world.terrain.nearest_open(Terrain.index(Vector2i(world.combat.position(world, target))))
-	if record.kind in ["pile", "resource", "chest"] and world.terrain.blocked[tile] == 0:
-		return tile
+		return world.terrain.project_point(world.combat.position(world, target), radius, flying)
 	var members: PackedInt32Array = record.get("cells", PackedInt32Array([tile]))
-	var candidates: Array[int] = []
+	var candidates: Array[Vector2] = []
 	for member: int in members:
-		var point: Vector2i = Terrain.cell(member)
-		for delta: Vector2i in [Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP]:
-			var next: Vector2i = point + delta
-			if next.x >= 0 and next.y >= 0 and next.x < Terrain.SIZE and next.y < Terrain.SIZE:
-				var candidate: int = Terrain.index(next)
-				if not members.has(candidate) and world.terrain.blocked[candidate] == 0 and not candidates.has(candidate):
-					candidates.append(candidate)
-	if origin.x < 0:
-		return candidates[0] if not candidates.is_empty() else -1
-	candidates.sort_custom(func(a: int, b: int): return Terrain.center(a).distance_squared_to(origin) < Terrain.center(b).distance_squared_to(origin))
-	var start := Vector2i(origin)
-	for candidate: int in candidates:
-		# Search from the operation side: an isolated pocket fails cheaply. This
-		# is cold action admission, never a per-body/per-step path search.
-		if not world.lanes[0].graph.get_id_path(Terrain.cell(candidate), start).is_empty():
-			return candidate
-	return -1
+		var low := Vector2(Terrain.cell(member))
+		var high := low + Vector2.ONE
+		if world.terrain.blocked[member] == 0:
+			candidates.append(world.terrain.project_point(Terrain.center(member), radius, flying))
+		var gap: float = radius + 0.01
+		candidates.append(Vector2(clampf(origin.x, low.x, high.x), low.y - gap))
+		candidates.append(Vector2(clampf(origin.x, low.x, high.x), high.y + gap))
+		candidates.append(Vector2(low.x - gap, clampf(origin.y, low.y, high.y)))
+		candidates.append(Vector2(high.x + gap, clampf(origin.y, low.y, high.y)))
+	candidates.sort_custom(func(a: Vector2, b: Vector2): return a.distance_squared_to(origin) < b.distance_squared_to(origin))
+	for candidate: Vector2 in candidates:
+		if world.terrain.can_stand(candidate, radius, flying) and in_range(world, target, candidate, radius):
+			var nav: RefCounted = world.lanes[0].navigation
+			if not nav.plan(origin, candidate, radius, flying).is_empty() or nav.deferred:
+				return candidate
+	return Vector2(-1, -1)
 
 
 func blueprint(world: RefCounted, actor: int, definition: String, tile: int, facing: int = 0) -> Dictionary:
@@ -175,8 +188,10 @@ func finish(world: RefCounted, actor: int, action: Dictionary, at: int) -> Strin
 			if spec.get("facts", {}).get("movement_blocked", false):
 				for body: RefCounted in world.pages:
 					for index: int in body.ids.size():
-						if body.ids[index] > 0 and cells.has(Terrain.index(Vector2i(body.positions[index]))):
-							return "occupied"
+						if body.ids[index] > 0 and body.flight[index] == 0:
+							for member: int in cells:
+								if world._body_overlaps_tile(body.positions[index], body.radii[index], member):
+									return "occupied"
 			record.kind = str(spec.kind)
 			record["materials"] = record.inventory
 			record.inventory = {}

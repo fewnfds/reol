@@ -8,15 +8,14 @@ enum Mode { RESOURCE, HARVEST, REST, MANUAL, IDLE, DEAD, APPROACH, ACTION, FREE,
 
 const STATE_FIELDS: Array = ["ids", "positions", "targets", "modes", "health", "energy", "hunger", "body_heat",
 	"exposure", "elements", "due_ms", "route_cursors", "routes", "source_ids",
-	"flight", "radii", "moved_distance", "path_requests", "path_failures"]
+	"flight", "radii", "moved_distance", "path_failures"]
 
 var ids := PackedInt64Array()
 var positions := PackedVector2Array()
-var targets := PackedInt32Array()
+var targets := PackedVector2Array()
 var modes := PackedByteArray()
 var flight := PackedByteArray()
 var radii := PackedFloat32Array()
-var has_large: bool = false # Derived navigation capability, not another position.
 var health := PackedInt32Array()
 var energy := PackedInt32Array()
 var hunger := PackedInt32Array()
@@ -28,12 +27,12 @@ var cargo := PackedInt32Array()
 var source_ids := PackedInt32Array()
 var due_ms := PackedInt64Array()
 var route_cursors := PackedInt32Array()
-var routes: Array[PackedInt32Array] = []
+var routes: Array[PackedVector2Array] = []
+var motion: Dictionary = {} # Sparse timed knots for this step, shared by collision/display.
 var ready := PackedInt64Array() # local row, exact arrival/due time
 var failures := PackedInt32Array()
 var environmental_deaths := PackedInt32Array()
 var moved_distance: float = 0.0
-var path_requests: int = 0
 var path_failures: int = 0
 var environment: RefCounted
 var terrain: RefCounted
@@ -56,7 +55,7 @@ func add_row(id: int, tile: int) -> int:
 	positions.append(Terrain.center(tile))
 	var source: int = posmod(id * 37, terrain.resources.size())
 	source_ids.append(source)
-	targets.append(terrain.resources[source])
+	targets.append(Terrain.center(terrain.resources[source]))
 	modes.append(Mode.RESOURCE)
 	health.append(100)
 	flight.append(0)
@@ -68,22 +67,23 @@ func add_row(id: int, tile: int) -> int:
 	cargo.append(0)
 	due_ms.append(0)
 	route_cursors.append(0)
-	routes.append(PackedInt32Array())
+	routes.append(PackedVector2Array())
 	exposure.resize(ids.size() * 7)
 	elements.resize(ids.size() * 5)
 	return row
 
 
-func move_to(row: int, target: int, mode: int) -> void:
+func move_to(row: int, target: Vector2, mode: int) -> void:
 	targets[row] = target
 	modes[row] = mode
-	routes[row] = PackedInt32Array()
+	routes[row] = PackedVector2Array()
 	route_cursors[row] = 0
 
 
-func advance(graph: AStarGrid2D, path_cache: Dictionary, large_graph: AStarGrid2D = null) -> void:
+func advance(navigation: RefCounted) -> void:
 	ready.clear()
 	failures.clear()
+	motion = {}
 	for row: int in positions.size():
 		var mode: int = modes[row]
 		if mode == Mode.DEAD or mode == Mode.FREE:
@@ -95,51 +95,38 @@ func advance(graph: AStarGrid2D, path_cache: Dictionary, large_graph: AStarGrid2
 			continue
 		if mode == Mode.IDLE:
 			continue
-		var route: PackedInt32Array = routes[row]
+		var route: PackedVector2Array = routes[row]
 		if route.is_empty():
-			var start: int = Terrain.index(Vector2i(positions[row]))
-			var key: int = start + targets[row] * Terrain.SIZE * Terrain.SIZE + int(radii[row] > 0.5) * 68719476736 + int(flight[row] > 0) * 137438953472
-			if path_cache.has(key):
-				route = path_cache[key]
-			else:
-				path_requests += 1
-				route = PackedInt32Array() # A cached empty route is also immutable.
-				var navigation: AStarGrid2D = large_graph if radii[row] > 0.5 and large_graph != null else graph
-				var destination: int = targets[row]
-				if flight[row] == 0 and radii[row] > 0.5 and navigation.is_point_solid(Terrain.cell(destination)):
-					destination = terrain.nearest_open(destination, 1)
-				var path: Array[Vector2i] = [Terrain.cell(destination)] if flight[row] > 0 else navigation.get_id_path(Terrain.cell(start), Terrain.cell(destination))
-				for tile: Vector2i in path:
-					route.append(Terrain.index(tile))
-				if path_cache.size() >= 4096:
-					path_cache.clear()
-				path_cache[key] = route
+			route = navigation.plan(positions[row], targets[row], radii[row], flight[row] > 0)
 			routes[row] = route
 			route_cursors[row] = 0
-			if route.size() > 1:
-				var first: Vector2 = Terrain.center(route[0])
-				var direction: Vector2 = Terrain.center(route[1]) - first
-				var offset: Vector2 = positions[row] - first
-				if is_zero_approx(offset.cross(direction)) and offset.dot(direction) > 0.0:
-					route_cursors[row] = 1
 			if route.is_empty():
+				if navigation.deferred: continue
 				path_failures += 1
 				failures.append(row)
 				continue
 		var point: Vector2 = positions[row]
 		var available: float = WALK_SPEED * 0.05
 		var cursor: int = route_cursors[row]
+		var knots := PackedVector3Array()
 		while available > 0.00001 and cursor < route.size():
-			var next: Vector2 = Terrain.center(route[cursor])
+			var next: Vector2 = route[cursor]
 			var distance: float = point.distance_to(next)
 			if distance <= available:
 				point = next
 				available -= distance
 				cursor += 1
+				if available > 0.00001 and distance > 0.00001:
+					knots.append(Vector3(point.x, point.y, 1.0 - available / (WALK_SPEED * 0.05)))
 			else:
 				point = point.move_toward(next, available)
 				available = 0.0
-		moved_distance += positions[row].distance_to(point)
+		if not knots.is_empty():
+			var path := PackedVector3Array([Vector3(positions[row].x, positions[row].y, 0.0)])
+			path.append_array(knots)
+			path.append(Vector3(point.x, point.y, 1.0))
+			motion[row] = path
+		moved_distance += WALK_SPEED * 0.05 - available
 		positions[row] = point
 		route_cursors[row] = cursor
 		if cursor >= route.size():

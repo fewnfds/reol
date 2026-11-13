@@ -30,7 +30,7 @@ static func run(check: Callable) -> void:
 	w.flush_topology()
 	w.perception.update(w, w.elapsed_ms, true)
 	check.call(w.sight.observed_position(w, 1, 2) != null and w.perception.tiles[Terrain.index(Vector2i(153, 150))] != 0, "Player map and unit sight disagree about a visible target behind a wall")
-	w.combat.begin(w, 1, "pursue", 2, -1, true)
+	w.combat.begin(w, 1, "pursue", 2, Vector2(-1, -1), true)
 	w.step()
 	check.call(w.combat.shots == 0 and w.combat.repaths > 0, "Seeing through range loss allowed an arrow through a solid wall")
 	# Change only vision, while standing still: no geometry edit may be needed.
@@ -49,7 +49,7 @@ static func run(check: Callable) -> void:
 	page.positions[1] = Vector2(300.5, 300.5)
 	for step: int in 6:
 		w.step()
-	check.call(w.combat.orders[1].last_seen_pos == last_seen and page.targets[0] == Terrain.index(Vector2i(last_seen)), "Losing sight leaked the target's new real position into pursuit")
+	check.call(w.combat.orders[1].last_seen_pos == last_seen and page.targets[0].is_equal_approx(last_seen), "Losing sight leaked the target's new real position into pursuit")
 	var saved: RefCounted = Persistence.candidate(Persistence.capture(w), 0)
 	check.call(saved != null and saved.combat.orders[1].last_seen_pos == last_seen and saved.objects.records[1].sight_range == 24.0, "Save/load lost a frozen combat contact or personal sight")
 	page.positions[0] = Terrain.center(Terrain.index(Vector2i(last_seen)))
@@ -62,7 +62,7 @@ static func run(check: Callable) -> void:
 	page.positions[1] = Vector2(160.5, 150.5)
 	w.objects.records[2]["ranged"] = true
 	w.combat.damage(w, 1, 2, 1, w.elapsed_ms, Vector2.RIGHT)
-	check.call(w.combat.orders[2].target == 0 and w.combat.orders[2].ranged and w.combat.orders[2].destination == Terrain.index(Vector2i(166, 150)), "Blind retaliation leaked the hidden shooter or lost the defender's ranged mode")
+	check.call(w.combat.orders[2].target == 0 and w.combat.orders[2].ranged and w.combat.orders[2].destination == Vector2(166.5, 150.5), "Blind retaliation leaked the hidden shooter or lost the defender's ranged mode")
 	# A working person with no combat order must still discover a local threat.
 	w.release(2)
 	w.objects.records[2].sight_range = 24.0
@@ -96,7 +96,7 @@ static func run(check: Callable) -> void:
 	page.positions[2] = Vector2(146.5, 156.5)
 	w.objects.records[2].side = 1
 	w.objects.records[3].side = 1
-	w.combat.begin(w, 1, "hold", 0, -1, true)
+	w.combat.begin(w, 1, "hold", 0, Vector2(-1, -1), true)
 	for step: int in 4:
 		w.step()
 	check.call(w.combat.orders[1].target == 3, "Stationary guard locked a blocked target instead of a clear target")

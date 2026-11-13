@@ -296,6 +296,11 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 		pose.completed_usec = Time.get_ticks_usec()
 		pose.positions = frame.positions # Detached once, immutable in both owners.
 		pose.ids = frame.ids
+		var offset: int = 0
+		for page: RefCounted in _world.pages:
+			for row: int in page.motion:
+				pose.motion[offset + row] = page.motion[row] # Immutable after this step.
+			offset += page.ids.size()
 		_poses.append(pose)
 		if _poses.size() > 8:
 			_poses.pop_front()

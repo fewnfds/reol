@@ -17,6 +17,9 @@ var fog_enabled: bool = false
 var actor_count: int = 0
 var _scenery: Node2D
 var _scenery_revision: int = -1
+var _motion_texture: ImageTexture
+var _motion_pose: RefCounted
+var _motion_headers: Dictionary = {}
 const ORDER_STRIDE: int = 1048576
 
 
@@ -62,6 +65,26 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted) ->
 		_identities.fill(0)
 		_hurt_until.fill(0)
 		_directions.fill(4)
+	if _motion_pose != current_pose:
+		_motion_pose = current_pose
+		_motion_headers = {}
+		var values := PackedFloat32Array()
+		for slot: int in current_pose.motion:
+			var knots: PackedVector3Array = current_pose.motion[slot]
+			var header: int = values.size() / 4
+			_motion_headers[slot] = header + 1
+			values.append_array(PackedFloat32Array([float(header + 1), float(knots.size()), 0.0, 0.0]))
+			for point: Vector3 in knots:
+				values.append_array(PackedFloat32Array([point.x * TILE, point.y * TILE, point.z, 0.0]))
+		var width: int = mini(1024, maxi(1, values.size() / 4))
+		var height: int = maxi(1, ceili(float(values.size()) / 4 / width))
+		values.resize(width * height * 4)
+		var image := Image.create_from_data(width, height, false, Image.FORMAT_RGBAF, values.to_byte_array())
+		if _motion_texture == null or _motion_texture.get_width() != width or _motion_texture.get_height() != height:
+			_motion_texture = ImageTexture.create_from_image(image)
+			_shader.set_shader_parameter("motion_map", _motion_texture)
+		else:
+			_motion_texture.update(image)
 	var buffer: PackedFloat32Array = _buffer
 	for index: int in frame.positions.size():
 		var id: int = frame.ids[index]
@@ -86,7 +109,8 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted) ->
 		buffer[offset + 11] = 1.0 if id > 0 and (not fog_enabled or id == 1 or (index < frame.visible.size() and frame.visible[index] != 0)) else 0.0
 		buffer[offset + 12] = from.x
 		buffer[offset + 13] = from.y
-		buffer[offset + 14] = _directions[index]
+		var motion_header: int = int(_motion_headers.get(index, 0)) if same_current and same_previous else 0
+		buffer[offset + 14] = _directions[index] + motion_header * 8
 		var clip: int = frame.visuals[index] if index < frame.visuals.size() else Art.Clip.IDLE
 		if _identities[index] == id and frame.health[index] < _health[index]:
 			_hurt_until[index] = frame.world_ms + 180

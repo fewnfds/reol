@@ -5,10 +5,15 @@ extends RefCounted
 enum Visual { IDLE, WALK, CARRY, HARVEST, BUILD, CRAFT, MELEE, SHOOT, HURT, REST, EAT, READ, MEDITATE, FLY, DEAD, WATER }
 
 class Pose extends RefCounted:
+	const Motion = preload("res://scripts/sim/kernel/motion.gd")
 	var world_ms: int
 	var completed_usec: int
 	var positions := PackedVector2Array()
 	var ids := PackedInt64Array()
+	var motion: Dictionary = {}
+
+	func at(slot: int, before: Vector2, alpha: float) -> Vector2:
+		return Motion.sample(motion[slot], alpha) if motion.has(slot) else before.lerp(positions[slot], alpha)
 
 var projectiles := PackedVector2Array()
 var projectile_velocities := PackedVector2Array()

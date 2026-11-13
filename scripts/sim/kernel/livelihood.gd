@@ -143,16 +143,16 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 		# No known useful site: take a short walk and observe at the destination.
 		var point: Vector2i = Vector2i(page.positions[row]) + Vector2i(8 if (id + at / 1000) % 2 == 0 else -8, 5)
 		point = point.clamp(Vector2i(1, 1), Vector2i(510, 510))
-		page.move_to(row, world.terrain.nearest_open(Terrain.index(point)), Units.Mode.EXPLORE)
+		_walk_to_site(world, id, world.terrain.nearest_open(Terrain.index(point)), Units.Mode.EXPLORE, at)
 		return
 	if not world.objects.records.has(chosen):
-		page.move_to(row, world.terrain.nearest_open(clues[chosen].tile), Units.Mode.EXPLORE)
+		_walk_to_site(world, id, world.terrain.nearest_open(clues[chosen].tile), Units.Mode.EXPLORE, at)
 		return
 	if kind == "harvest":
 		var source: int = world.source_objects.find(chosen)
 		if source >= 0:
 			page.source_ids[row] = source
-			page.move_to(row, clues[chosen].tile, Units.Mode.RESOURCE)
+			_walk_to_site(world, id, clues[chosen].tile, Units.Mode.RESOURCE, at)
 			return
 	var reason: String
 	if kind == "put":
@@ -163,6 +163,17 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 		world.actions[id]["autonomous"] = true
 	else:
 		after_action(world, id, at)
+
+
+func _walk_to_site(world: RefCounted, id: int, tile: int, mode: int, at: int) -> void:
+	var slot: int = world.actor_slots[id]
+	var page: RefCounted = world.pages[slot / 256]
+	var row: int = slot % 256
+	var point: Vector2 = world.terrain.project_point(Terrain.center(tile), page.radii[row], page.flight[row] > 0)
+	if point.x < 0:
+		after_action(world, id, at)
+	else:
+		page.move_to(row, point, mode)
 
 
 func after_action(world: RefCounted, id: int, at: int, target: int = 0) -> void:

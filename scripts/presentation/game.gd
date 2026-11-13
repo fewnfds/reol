@@ -74,6 +74,7 @@ var _actual_speed: float = 0.0
 var _item: String = "wood"
 var _build_definition: String = "wood_wall"
 var _build_facing: int = 0 # N/E/S/W on the square ground plane.
+var _show_path: bool = false
 var _plant_definition: String = "perennial_herb"
 var _help_target: int = 0
 var _ranged: bool = false
@@ -245,6 +246,8 @@ func _process(delta: float) -> void:
 		print("COMMAND_RESULT ", JSON.stringify(receipt))
 		if receipt.seq == _pending_move and not receipt.ok:
 			_target = Vector2(-1, -1)
+		elif receipt.seq == _pending_move and receipt.has("position"):
+			_target = receipt.position
 	for outcome: Dictionary in mailbox.outcomes:
 		if next != null and outcome.get("epoch", next.epoch) != next.epoch:
 			continue
@@ -341,7 +344,7 @@ func _displayed(id: int) -> Vector2:
 		return Vector2.ZERO
 	if slot >= _render_current.size() or slot >= _render_previous.size() or _render_older.ids[slot] != id or _render_pose == null or _render_pose.ids[slot] != id:
 		return frame.positions[slot]
-	return _render_previous[slot].lerp(_render_current[slot], alpha)
+	return _render_pose.at(slot, _render_previous[slot], alpha)
 
 
 func _update_hud() -> void:
@@ -371,6 +374,7 @@ func _update_hud() -> void:
 		"选中#%d HP %d | 状态 %d" % [int(data.get("id", 0)), int(data.get("hp", 0)), int(data.get("mode", 0))],
 		"类型 %s / %s" % [data.get("kind", ""), data.get("definition", "")],
 		"身体: 飞行 %d / 半径 %.2f" % [int(data.get("flight", 0)), float(data.get("radius", 0))],
+		"坐标 %s / 目的地 %s" % [str(data.get("position", "")), str(data.get("destination", ""))],
 		"视距 %.2f 格" % float(data.get("sight_range", 0)),
 		"体温 %.2f | 精力 %d | 饥饿 %d" % [float(data.get("temperature", 0)), int(data.get("energy", 0)), int(data.get("hunger", 0))],
 		"单位五行 %s" % str(data.get("elements", [])),
@@ -378,7 +382,7 @@ func _update_hud() -> void:
 		"库存 %s" % str(data.get("inventory", {})),
 		"行动 %s" % str(data.get("action", {})),
 		"生长 %d / 阶段 %d / 速率 %d / 伤害时长 %d" % [int(data.get("growth_ms", 0)), int(data.get("stage", -1)), int(data.get("rate", 0)), int(data.get("injury_ms", 0))],
-		"左键选择；右键命令玩家#1移动", "S 停止，J 工作，A 攻击，E 喝药", "N 建造 / B 墙 / G 门 / Delete 拆除", "空格暂停；1/2/4 倍速；F 跟随", "方向键平移；滚轮缩放", "F8 素材图鉴；F12 调试", _last_receipt])
+		"左键选择；右键命令玩家#1移动", "S 停止，J 工作，A 攻击，E 喝药", "N 建造 / B 墙 / G 门 / Delete 拆除", "空格暂停；1/2/4 倍速；F 跟随", "方向键平移；滚轮缩放；P 路线", "F8 素材图鉴；F12 调试", _last_receipt])
 	hud.text = "\n".join(lines)
 
 
@@ -395,7 +399,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			if _attack_cursor:
 				_attack_cursor = false
-				_send({"kind": "attack_move", "tile": Terrain.index(cell), "ranged": _ranged})
+				_send({"kind": "attack_move", "position": point, "ranged": _ranged})
 				return
 			var previous_selected: int = selected
 			selected = 0
@@ -426,9 +430,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			var tile: int = Terrain.index(cell) if cell.x >= 0 and cell.y >= 0 and cell.x < Terrain.SIZE and cell.y < Terrain.SIZE else -1
 			if tile >= 0:
-				_pending_move = _send({"kind": "move", "actor": 1, "tile": tile})
+				_pending_move = _send({"kind": "move", "actor": 1, "position": point})
 				if _pending_move > 0:
-					_target = Vector2(cell) + Vector2(0.5, 0.5)
+					_target = point
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
 			KEY_SPACE: _button("暂停/继续")
@@ -437,6 +441,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_4: _button("4×")
 			KEY_F: _button("F 跟随")
 			KEY_S: _send({"kind": "stop", "actor": 1})
+			KEY_P: _show_path = not _show_path
 			KEY_J: _button("恢复工作")
 			KEY_E: _button("喝药")
 			KEY_A: _button("A 攻移")
@@ -538,6 +543,11 @@ func _draw() -> void:
 		draw_rect(Rect2(Vector2(Terrain.cell(selected_tile)) * TILE, Vector2.ONE * TILE), Color.CYAN, false, 2.0)
 	if _target.x >= 0:
 		draw_circle(_target * TILE, 5, Color.GOLD)
+	if _show_path and frame.actor_slots.has(selected) and (not fog_enabled or frame.visible[frame.actor_slots[selected]] != 0) and frame.inspected.get("id", 0) == selected:
+		var points := PackedVector2Array([_displayed(selected) * TILE])
+		for point: Vector2 in frame.inspected.get("route_preview", PackedVector2Array()):
+			points.append(point * TILE)
+		if points.size() > 1: draw_polyline(points, Color(0.3, 0.9, 1.0, 0.65), 1.5)
 	for index: int in frame.projectiles.size():
 		var point: Vector2 = frame.projectiles[index]
 		if not fog_enabled or _visible_point(point):

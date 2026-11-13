@@ -19,7 +19,7 @@ static func mixed(world: RefCounted) -> void:
 		page.health[row] = 10000 # Explicit stress fixture, not normal HP balance.
 		world.objects.records[actor].autonomous = false
 		world.objects.records[actor]["side"] = team
-		world.combat.begin(world, actor, "pursue", actor + 50 if actor <= 50 else actor - 50, -1, actor % 3 != 0)
+		world.combat.begin(world, actor, "pursue", actor + 50 if actor <= 50 else actor - 50, Vector2(-1, -1), actor % 3 != 0)
 	for index: int in 20:
 		var actor: int = index + 101
 		var slot: int = world.actor_slots[actor]

@@ -88,6 +88,10 @@ static func trace_cells(from: Vector2, to: Vector2) -> PackedInt32Array:
 		result.append(index(tile))
 		if tile == finish:
 			break
+		if tile.x == finish.x:
+			next.x = INF
+		if tile.y == finish.y:
+			next.y = INF
 		if is_equal_approx(next.x, next.y):
 			for side: Vector2i in [tile + Vector2i(direction.x, 0), tile + Vector2i(0, direction.y)]:
 				if side.x >= 0 and side.y >= 0 and side.x < SIZE and side.y < SIZE:
@@ -103,25 +107,18 @@ static func trace_cells(from: Vector2, to: Vector2) -> PackedInt32Array:
 	return result
 
 
-func nearest_open(id: int, clearance: int = 0) -> int:
-	if id >= 0 and id < blocked.size() and fits(cell(id), clearance):
+func nearest_open(id: int) -> int:
+	# Cold tile placement only. Continuous body clearance belongs to can_stand.
+	if id >= 0 and id < blocked.size() and blocked[id] == 0:
 		return id
 	var point: Vector2i = cell(clampi(id, 0, blocked.size() - 1))
 	for radius: int in range(1, 9):
 		for y: int in range(maxi(0, point.y - radius), mini(SIZE, point.y + radius + 1)):
 			for x: int in range(maxi(0, point.x - radius), mini(SIZE, point.x + radius + 1)):
 				var next: int = y * SIZE + x
-				if fits(Vector2i(x, y), clearance):
+				if blocked[next] == 0:
 					return next
 	return -1
-
-
-func fits(point: Vector2i, clearance: int) -> bool:
-	for y: int in range(point.y - clearance, point.y + clearance + 1):
-		for x: int in range(point.x - clearance, point.x + clearance + 1):
-			if x < 0 or y < 0 or x >= SIZE or y >= SIZE or blocked[y * SIZE + x] != 0:
-				return false
-	return true
 
 
 func substrate(tile: int) -> String:
@@ -166,21 +163,102 @@ func moisture(tile: int) -> int:
 	return 55
 
 
-func navigation(clearance: int = 0) -> AStarGrid2D:
-	var graph := AStarGrid2D.new()
-	graph.region = Rect2i(0, 0, SIZE, SIZE)
-	graph.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER
-	graph.default_compute_heuristic = AStarGrid2D.HEURISTIC_MANHATTAN
-	graph.default_estimate_heuristic = AStarGrid2D.HEURISTIC_MANHATTAN
-	graph.update()
-	for id: int in structures:
-		if blocked[id] != 0:
-			for y: int in range(-clearance, clearance + 1):
-				for x: int in range(-clearance, clearance + 1):
-					var point: Vector2i = cell(id) + Vector2i(x, y)
-					if graph.is_in_boundsv(point):
-						graph.set_point_solid(point)
-	return graph
+func can_stand(point: Vector2, radius: float, flying: bool = false) -> bool:
+	if not point.is_finite() or point.x < radius or point.y < radius or point.x > SIZE - radius or point.y > SIZE - radius:
+		return false
+	if flying:
+		return true
+	var low := Vector2i((point - Vector2.ONE * radius).floor())
+	var high := Vector2i((point + Vector2.ONE * radius - Vector2.ONE * 0.00001).floor())
+	for y: int in range(low.y, high.y + 1):
+		for x: int in range(low.x, high.x + 1):
+			if blocked[index(Vector2i(x, y))] != 0:
+				return false
+	return true
+
+
+static func segment_hits_box(from: Vector2, to: Vector2, low: Vector2, high: Vector2) -> bool:
+	# Slab clipping, including tangency. Rect2 has no script segment method.
+	var delta := to - from
+	var enter: float = 0.0
+	var leave: float = 1.0
+	for axis: int in 2:
+		if absf(delta[axis]) < 0.000001:
+			if from[axis] < low[axis] or from[axis] > high[axis]:
+				return false
+		else:
+			var a: float = (low[axis] - from[axis]) / delta[axis]
+			var b: float = (high[axis] - from[axis]) / delta[axis]
+			enter = maxf(enter, minf(a, b))
+			leave = minf(leave, maxf(a, b))
+			if enter > leave:
+				return false
+	return true
+
+
+func segment_clear(from: Vector2, to: Vector2, radius: float, flying: bool = false) -> bool:
+	if not can_stand(from, radius, flying) or not can_stand(to, radius, flying):
+		return false
+	if flying:
+		return true
+	# Visit a thin corridor, never the area of a long diagonal's bounding box.
+	var tile := Vector2i(from.floor())
+	var finish := Vector2i(to.floor())
+	var delta := to - from
+	var direction := Vector2i(signf(delta.x), signf(delta.y))
+	var stride := Vector2(absf(1.0 / delta.x) if delta.x != 0 else INF, absf(1.0 / delta.y) if delta.y != 0 else INF)
+	var next := Vector2((tile.x + (1 if direction.x > 0 else 0) - from.x) / delta.x if delta.x != 0 else INF,
+		(tile.y + (1 if direction.y > 0 else 0) - from.y) / delta.y if delta.y != 0 else INF)
+	var extent: int = ceili(radius)
+	while true:
+		for y: int in range(maxi(0, tile.y - extent), mini(SIZE, tile.y + extent + 1)):
+			for x: int in range(maxi(0, tile.x - extent), mini(SIZE, tile.x + extent + 1)):
+				if blocked[y * SIZE + x] != 0 and segment_hits_box(from, to, Vector2(x - radius + 0.00001, y - radius + 0.00001), Vector2(x + 1 + radius - 0.00001, y + 1 + radius - 0.00001)):
+					return false
+		if tile == finish:
+			return true
+		if tile.x == finish.x:
+			next.x = INF
+		if tile.y == finish.y:
+			next.y = INF
+		if next.x < next.y:
+			tile.x += direction.x
+			next.x += stride.x
+		else:
+			tile.y += direction.y
+			next.y += stride.y
+	return true
+
+
+func project_point(point: Vector2, radius: float, flying: bool = false) -> Vector2:
+	if not point.is_finite():
+		return Vector2(-1, -1)
+	var result := point.clamp(Vector2.ONE * radius, Vector2.ONE * (SIZE - radius))
+	if can_stand(result, radius, flying):
+		return result
+	# Project onto nearby expanded faces/corners; every candidate is validated.
+	# No iterative pushes that may oscillate or return an overlapping point.
+	var xs: Array[float] = [result.x]
+	var ys: Array[float] = [result.y]
+	var base_cell := Vector2i(result.floor())
+	for y: int in range(maxi(0, base_cell.y - 2), mini(SIZE, base_cell.y + 3)):
+		for x: int in range(maxi(0, base_cell.x - 2), mini(SIZE, base_cell.x + 3)):
+			if blocked[y * SIZE + x] == 0:
+				continue
+			xs.append(x - radius - 0.001)
+			xs.append(x + 1 + radius + 0.001)
+			ys.append(y - radius - 0.001)
+			ys.append(y + 1 + radius + 0.001)
+	var best := Vector2(-1, -1)
+	var distance: float = INF
+	for x: float in xs:
+		for y: float in ys:
+			var candidate := Vector2(x, y)
+			var d: float = candidate.distance_squared_to(point)
+			if d < distance and d <= 4.0 and can_stand(candidate, radius, flying):
+				distance = d
+				best = candidate
+	return best
 
 
 func detached() -> RefCounted:

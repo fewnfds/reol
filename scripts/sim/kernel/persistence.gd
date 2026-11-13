@@ -41,7 +41,7 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 			return null
 		# Validate typed routes before Array.assign; malformed files cannot assert.
 		for route: Variant in value.routes:
-			if not route is PackedInt32Array:
+			if not route is PackedVector2Array:
 				return null
 		State.apply(page, Units.STATE_FIELDS, value)
 		page.cargo.resize(page.ids.size())
@@ -167,17 +167,16 @@ static func _page_valid(page: RefCounted, world: RefCounted, start: int) -> bool
 			return false
 		if not page.positions[row].is_finite() or page.positions[row].x < 0 or page.positions[row].y < 0 or page.positions[row].x >= world.terrain.SIZE or page.positions[row].y >= world.terrain.SIZE or not is_finite(page.body_heat[row]):
 			return false
-		if page.modes[row] > Units.Mode.COMBAT_MOVE or page.modes[row] == Units.Mode.FREE or page.health[row] < 0 or page.energy[row] < 0 or page.hunger[row] < 0 or page.source_ids[row] < 0 or page.source_ids[row] >= world.source_objects.size() or page.targets[row] < 0 or page.targets[row] >= world.terrain.blocked.size():
+		if page.modes[row] > Units.Mode.COMBAT_MOVE or page.modes[row] == Units.Mode.FREE or page.health[row] < 0 or page.energy[row] < 0 or page.hunger[row] < 0 or page.source_ids[row] < 0 or page.source_ids[row] >= world.source_objects.size() or not page.targets[row].is_finite() or page.targets[row].x < 0 or page.targets[row].y < 0 or page.targets[row].x >= world.terrain.SIZE or page.targets[row].y >= world.terrain.SIZE:
 			return false
 		if page.route_cursors[row] < 0 or page.route_cursors[row] > page.routes[row].size():
 			return false
-		for tile: int in page.routes[row]:
-			if tile < 0 or tile >= world.terrain.blocked.size():
+		for point: Vector2 in page.routes[row]:
+			if not point.is_finite() or point.x < 0 or point.y < 0 or point.x >= world.terrain.SIZE or point.y >= world.terrain.SIZE:
 				return false
 		world.actor_slots[id] = start + row
 		if not is_finite(page.radii[row]) or page.radii[row] < 0.1 or page.radii[row] > 1.0 or page.flight[row] > 1:
 			return false
-		page.has_large = page.has_large or page.radii[row] > 0.5
 		page.cargo[row] = world.objects.amount(id, "wood")
 		page.potions[row] = world.objects.amount(id, "potion")
 	return true

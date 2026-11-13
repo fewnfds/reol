@@ -5,6 +5,7 @@ extends RefCounted
 
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Units = preload("res://scripts/sim/kernel/units.gd")
+const Navigation = preload("res://scripts/sim/kernel/navigation.gd")
 const Fields = preload("res://scripts/sim/kernel/environment.gd")
 const Batch = preload("res://scripts/sim/execution/batch_execution.gd")
 const Objects = preload("res://scripts/sim/kernel/objects.gd")
@@ -21,12 +22,10 @@ const STATE_FIELDS: Array = ["elapsed_ms", "actor_count", "initial_material", "h
 
 class Lane extends RefCounted:
 	var pages: Array[RefCounted] = []
-	var graph: AStarGrid2D
-	var paths: Dictionary = {}
+	var navigation: RefCounted
 	var work_usec: int = 0
 	var thread_id: int
 	var sampling: bool = false
-	var large_graph: AStarGrid2D
 
 	func run() -> void:
 		var start: int = Time.get_ticks_usec()
@@ -35,9 +34,7 @@ class Lane extends RefCounted:
 			if sampling:
 				page.sample_environment()
 			else:
-				if large_graph == null and page.has_large:
-					large_graph = page.terrain.navigation(1)
-				page.advance(graph, paths, large_graph)
+				page.advance(navigation)
 		work_usec += Time.get_ticks_usec() - start
 
 var terrain := Terrain.new()
@@ -149,7 +146,7 @@ func initialize(count: int = 1000, requested_workers: int = 4) -> void:
 			page.positions[slot % 256] = Terrain.center(Terrain.index(Vector2i(177 + count - actor, 168)))
 			objects.records[actor]["side"] = 1
 			objects.records[actor].autonomous = false
-			combat.begin(self, actor, "hold", 0, -1, actor % 2 == 0)
+			combat.begin(self, actor, "hold", 0, Vector2(-1, -1), actor % 2 == 0)
 	perception.update(self, 0, true)
 
 
@@ -165,7 +162,7 @@ func configure_lanes(requested_workers: int) -> void:
 	lanes.clear()
 	for lane_id: int in maxi(1, workers):
 		var lane := Lane.new()
-		lane.graph = terrain.navigation()
+		lane.navigation = Navigation.new(terrain)
 		lanes.append(lane)
 	for index: int in pages.size():
 		lanes[index % lanes.size()].pages.append(pages[index])
@@ -174,6 +171,8 @@ func configure_lanes(requested_workers: int) -> void:
 func step() -> void:
 	var start: int = Time.get_ticks_usec()
 	var end: int = elapsed_ms + 50
+	for lane: RefCounted in lanes:
+		lane.navigation.begin_step()
 	combat.before_motion(self)
 	for page: RefCounted in pages:
 		page.end_ms = end
@@ -296,6 +295,9 @@ func release(id: int, at: int = -1) -> void:
 	combat.orders.erase(id)
 	var slot: int = actor_slots[id]
 	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
+	page.routes[slot % Units.PAGE_SIZE] = PackedVector2Array()
+	page.route_cursors[slot % Units.PAGE_SIZE] = 0
+	page.targets[slot % Units.PAGE_SIZE] = page.positions[slot % Units.PAGE_SIZE]
 	var target: int = source_objects[page.source_ids[slot % Units.PAGE_SIZE]]
 	if reservations.get(target, 0) == id:
 		reservations.erase(target)
@@ -361,13 +363,13 @@ func command(input: Dictionary) -> Dictionary:
 			var tile: int = regions.destination(int(input.get("region", 0)))
 			if tile < 0:
 				return receipt
-			tile = terrain.nearest_open(tile, int(page.radii[row] > 0.5 and page.flight[row] == 0))
-			if tile < 0:
+			var point: Vector2 = terrain.project_point(Terrain.center(tile), page.radii[row], page.flight[row] > 0)
+			if point.x < 0:
 				receipt.reason = "destination_blocked"
 				return receipt
 			release(id)
 			objects.records[id].autonomous = false
-			page.move_to(row, tile, Units.Mode.MANUAL)
+			page.move_to(row, point, Units.Mode.MANUAL)
 		"ability":
 			var reason: String = society.use_ability(self, id)
 			receipt.ok = reason == "ability_used"
@@ -376,33 +378,36 @@ func command(input: Dictionary) -> Dictionary:
 				outcomes.append({"kind": "ability_used", "actor": id, "at_ms": elapsed_ms})
 			return receipt
 		"pursue", "attack_move", "hold":
-			var destination: int = int(input.get("tile", -1))
-			if input.kind == "attack_move" and (destination < 0 or destination >= terrain.blocked.size() or terrain.blocked[destination] != 0):
+			var destination := Vector2(-1, -1)
+			if input.kind == "attack_move":
+				destination = _command_point(input, page, row)
+			if input.kind == "attack_move" and destination.x < 0:
 				receipt.reason = "blocked"
 				return receipt
 			var reason: String = combat.begin(self, id, input.kind, int(input.get("target", 0)), destination, input.get("ranged", false))
 			if reason != "accepted":
 				receipt.reason = reason
 				return receipt
+			if input.kind == "attack_move": receipt["position"] = destination
 		"body":
-			var clearance: int = 1 if input.get("large", false) else 0
+			var radius: float = 0.9 if input.get("large", false) else 0.35
 			var flight: int = clampi(int(input.get("flight", 0)), 0, 1)
-			if flight == 0 and not terrain.fits(Vector2i(page.positions[row]), clearance):
+			if not terrain.can_stand(page.positions[row], radius, flight > 0):
 				receipt.reason = "body_does_not_fit_here"
 				return receipt
 			release(id)
 			page.flight[row] = flight
-			page.radii[row] = 0.9 if input.get("large", false) else 0.35
-			page.has_large = page.has_large or clearance > 0
+			page.radii[row] = radius
 			page.modes[row] = Units.Mode.IDLE
 		"move":
-			var tile: int = int(input.get("tile", -1))
-			if tile < 0 or tile >= terrain.blocked.size() or (terrain.blocked[tile] != 0 and page.flight[row] == 0):
+			var point: Vector2 = _command_point(input, page, row)
+			if point.x < 0:
 				receipt.reason = "blocked"
 				return receipt
 			release(id)
 			objects.records[id].autonomous = false
-			page.move_to(row, tile, Units.Mode.MANUAL)
+			page.move_to(row, point, Units.Mode.MANUAL)
+			receipt["position"] = point
 		"stop":
 			release(id)
 			page.modes[row] = Units.Mode.IDLE
@@ -514,7 +519,7 @@ func command(input: Dictionary) -> Dictionary:
 					return receipt
 				for body: RefCounted in pages:
 					for local: int in body.ids.size():
-						if body.ids[local] > 0 and Terrain.index(Vector2i(body.positions[local])) == tile:
+						if body.ids[local] > 0 and body.flight[local] == 0 and _body_overlaps_tile(body.positions[local], body.radii[local], tile):
 							receipt.reason = "occupied"
 							return receipt
 			for object: int in objects.by_tile.get(tile, []).duplicate():
@@ -530,6 +535,25 @@ func command(input: Dictionary) -> Dictionary:
 	return receipt
 
 
+func _command_point(input: Dictionary, page: RefCounted, row: int) -> Vector2:
+	var point := Vector2(-1, -1)
+	if input.has("position"):
+		if not input.position is Vector2: return point
+		point = input.position
+	else:
+		var tile: int = int(input.get("tile", -1))
+		if tile >= 0 and tile < terrain.blocked.size(): point = Terrain.center(tile)
+	if not point.is_finite() or point.x < 0 or point.y < 0 or point.x >= Terrain.SIZE or point.y >= Terrain.SIZE:
+		return Vector2(-1, -1)
+	return terrain.project_point(point, page.radii[row], page.flight[row] > 0)
+
+
+static func _body_overlaps_tile(point: Vector2, radius: float, tile: int) -> bool:
+	var low := Vector2(Terrain.cell(tile))
+	# The same conservative square footprint as motion clearance.
+	return point.x + radius > low.x and point.x - radius < low.x + 1 and point.y + radius > low.y and point.y - radius < low.y + 1
+
+
 func counters() -> Dictionary:
 	var material: int = objects.total("wood")
 	var cargo_total: int = 0
@@ -537,9 +561,20 @@ func counters() -> Dictionary:
 	var paths: int = 0
 	var failed_paths: int = 0
 	var alive: int = 0
+	var navigation_geometry: int = 0
+	var navigation_search: int = 0
+	var navigation_direct: int = 0
+	var navigation_cached: int = 0
+	var navigation_waits: int = 0
+	for lane: RefCounted in lanes:
+		navigation_geometry += lane.navigation.geometry_usec
+		navigation_search += lane.navigation.search_usec
+		navigation_direct += lane.navigation.direct
+		navigation_cached += lane.navigation.cache_hits
+		navigation_waits += lane.navigation.waits
+		paths += lane.navigation.searches
 	for page: RefCounted in pages:
 		distance += page.moved_distance
-		paths += page.path_requests
 		failed_paths += page.path_failures
 		for amount: int in page.cargo:
 			cargo_total += amount
@@ -548,6 +583,9 @@ func counters() -> Dictionary:
 	return {"world_ms": elapsed_ms, "actors": actor_count, "alive": alive, "workers": workers,
 		"steps": steps, "step_usec": step_usec, "maximum_step_usec": maximum_step_usec,
 		"moved_cells": distance, "path_requests": paths, "path_failures": failed_paths,
+		"navigation_geometry_usec": navigation_geometry, "navigation_search_usec": navigation_search,
+		"navigation_direct": navigation_direct, "navigation_cached": navigation_cached,
+		"navigation_waits": navigation_waits,
 		"harvested": harvested, "deliveries": deliveries, "stored": stored, "cargo": cargo_total,
 		"material": material, "initial_material": initial_material,
 		"failed_harvests": failed_harvests, "deaths": deaths, "attacks": attacks, "heals": heals,
@@ -603,8 +641,8 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 	var slot: int = actor_slots[id]
 	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
 	var row: int = slot % Units.PAGE_SIZE
-	var tile: int = facilities.interaction_tile(self, target, page.positions[row])
-	if tile < 0:
+	var point: Vector2 = facilities.interaction_point(self, target, page.positions[row], page.radii[row], page.flight[row] > 0)
+	if point.x < 0:
 		return "no_operation_place"
 	release(id)
 	actions[id] = input.duplicate(true)
@@ -612,7 +650,7 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 		reservations[target] = id
 	if input.kind in Society.ACTIONS and reservations.get(target, 0) == id:
 		society.invite(self, id, actions[id])
-	page.move_to(row, tile, Units.Mode.APPROACH)
+	page.move_to(row, point, Units.Mode.APPROACH)
 	return "accepted"
 
 
@@ -633,14 +671,7 @@ func settle_action(id: int, at: int) -> void:
 		if autonomous:
 			livelihood.after_action(self, id, at, target)
 		return
-	var in_range: bool = false
-	var target_cells: PackedInt32Array = objects.records[target].get("cells", PackedInt32Array([objects.records[target].tile]))
-	if actor_slots.has(target):
-		target_cells = PackedInt32Array([Terrain.index(Vector2i(combat.position(self, target)))])
-	for tile: int in target_cells:
-		if page.positions[row].distance_to(Terrain.center(tile)) <= 1.5:
-			in_range = true
-	if not in_range:
+	if not facilities.in_range(self, target, page.positions[row], page.radii[row]):
 		var autonomous: bool = action.get("autonomous", false)
 		release(id, at)
 		page.modes[row] = Units.Mode.IDLE
@@ -731,6 +762,8 @@ func describe(id: int) -> Dictionary:
 		result["action"] = State.copy(actions.get(id, combat.orders.get(id, {})))
 		result["flight"] = page.flight[row]
 		result["radius"] = page.radii[row]
+		result["destination"] = page.targets[row]
+		result["route_preview"] = page.routes[row].slice(page.route_cursors[row], mini(page.routes[row].size(), page.route_cursors[row] + 64)) if page.modes[row] in [Units.Mode.RESOURCE, Units.Mode.MANUAL, Units.Mode.APPROACH, Units.Mode.EXPLORE, Units.Mode.COMBAT_MOVE] else PackedVector2Array()
 		result["sight_range"] = sight.range_for(self, id)
 	return result
 
@@ -753,26 +786,42 @@ func flush_topology() -> void:
 	var room_dirty: bool = false
 	var field_dirty: bool = false
 	var blockers: Dictionary = {}
+	var changed := PackedInt32Array()
 	for tile: int in _topology_edits:
 		room_dirty = room_dirty or _topology_edits[tile].enclosed != (terrain.enclosures[tile] != 0)
 		if _topology_edits[tile].solid != (terrain.blocked[tile] != 0):
-			for lane: RefCounted in lanes:
-				lane.graph.set_point_solid(Terrain.cell(tile), terrain.blocked[tile] != 0)
-				lane.paths.clear()
-				lane.large_graph = null
+			changed.append(tile)
 			if terrain.blocked[tile] != 0:
 				blockers[tile] = true
 			for source: int in environment.source_cells:
 				if (Terrain.cell(source) - Terrain.cell(tile)).length_squared() < environment.RADIUS * environment.RADIUS:
 					field_dirty = true
+	if not changed.is_empty():
+		for lane: RefCounted in lanes:
+			lane.navigation.changed(changed)
 	if not blockers.is_empty():
+		var dirty := Rect2(Vector2(Terrain.cell(blockers.keys()[0])), Vector2.ONE)
+		for tile: int in blockers:
+			dirty = dirty.merge(Rect2(Vector2(Terrain.cell(tile)), Vector2.ONE))
 		for page: RefCounted in pages:
 			for row: int in page.routes.size():
+				if page.flight[row] > 0: continue
+				var from: Vector2 = page.positions[row]
+				var radius: float = page.radii[row]
 				for cursor: int in range(page.route_cursors[row], page.routes[row].size()):
-					if blockers.has(page.routes[row][cursor]):
-						page.routes[row] = PackedInt32Array()
+					var to: Vector2 = page.routes[row][cursor]
+					var affected: bool = false
+					if Terrain.segment_hits_box(from, to, dirty.position - Vector2.ONE * radius, dirty.end + Vector2.ONE * radius):
+						for tile: int in blockers:
+							var low := Vector2(Terrain.cell(tile)) - Vector2.ONE * radius
+							if Terrain.segment_hits_box(from, to, low, low + Vector2.ONE * (1.0 + radius * 2)):
+								affected = true
+								break
+					if affected:
+						page.routes[row] = PackedVector2Array()
 						page.route_cursors[row] = 0
 						break
+					from = to
 	if room_dirty:
 		var previous_rooms: PackedInt32Array = terrain.rooms.duplicate()
 		var previous_heat: PackedFloat32Array = environment.room_temperature
@@ -815,7 +864,8 @@ func spawn_actor(tile: int) -> int:
 		page.radii[row] = 0.35
 		page.cargo[row] = 0
 		page.potions[row] = 0
-		page.routes[row] = PackedInt32Array()
+		page.targets[row] = page.positions[row]
+		page.routes[row] = PackedVector2Array()
 		page.route_cursors[row] = 0
 		page.due_ms[row] = 0
 		attack_due[slot] = 0

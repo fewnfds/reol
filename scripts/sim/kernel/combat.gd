@@ -5,6 +5,7 @@ extends RefCounted
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Units = preload("res://scripts/sim/kernel/units.gd")
 const Scan = preload("res://scripts/sim/kernel/combat_scan.gd")
+const Motion = preload("res://scripts/sim/kernel/motion.gd")
 const CONTACT_MEMORY_MS: int = 5000
 const STATE_FIELDS: Array = ["orders", "bolts", "next_bolt", "shots", "hits", "resumed", "unreachable"]
 var orders: Dictionary = {}
@@ -44,7 +45,7 @@ func alive(world: RefCounted, id: int) -> bool:
 	return int(world.objects.records[id].get("hp", 0)) > 0
 
 
-func begin(world: RefCounted, actor: int, kind: String, target: int = 0, destination: int = -1, ranged: bool = false, at: int = -1) -> String:
+func begin(world: RefCounted, actor: int, kind: String, target: int = 0, destination: Vector2 = Vector2(-1, -1), ranged: bool = false, at: int = -1) -> String:
 	if not alive(world, actor) or (target > 0 and (target == actor or not alive(world, target))):
 		return "invalid_target"
 	world.sight.sync(world)
@@ -61,6 +62,7 @@ func begin(world: RefCounted, actor: int, kind: String, target: int = 0, destina
 	orders[actor] = {"kind": kind, "target": target, "destination": destination, "anchor": position(world, actor),
 		"ranged": ranged, "scan_ms": now + (actor % Scan.DISCOVERY_STEPS) * 50, "repath_ms": 0,
 		"resume": automatic, "last_tile": -1, "search_tile": -1,
+		"last_goal": Vector2(-1, -1),
 		"last_seen_pos": observed if observed != null else Vector2(-1, -1), "last_seen_ms": now if observed != null else -1}
 	return "accepted"
 
@@ -83,7 +85,7 @@ func step(world: RefCounted, now: int) -> void:
 	scan.observe(world, orders, now, unreachable)
 	for actor: int in scan.contacts:
 		if not orders.has(actor) and actor != 1 and alive(world, actor) and world.objects.records[actor].get("autonomous", false):
-			begin(world, actor, "pursue", scan.ids[scan.contacts[actor]], -1, world.objects.records[actor].get("ranged", false), now)
+			begin(world, actor, "pursue", scan.ids[scan.contacts[actor]], Vector2(-1, -1), world.objects.records[actor].get("ranged", false), now)
 	var impacts: Array[Dictionary] = []
 	for bolt_id: int in bolts.keys():
 		var bolt: Dictionary = bolts[bolt_id]
@@ -98,7 +100,8 @@ func step(world: RefCounted, now: int) -> void:
 			var current: Vector2 = position(world, target)
 			var before: Vector2 = previous[slot / 256][slot % 256] if not previous.is_empty() else current
 			var radius: float = world.pages[slot / 256].radii[slot % 256] + 0.08
-			var fraction: float = 0.0 if (from - before).length_squared() <= radius * radius else Geometry2D.segment_intersects_circle(from - before, to - current, Vector2.ZERO, radius)
+			var page: RefCounted = world.pages[slot / 256]
+			var fraction: float = Motion.hit_fraction(from, to, before, current, radius, page.motion.get(slot % 256, PackedVector3Array()))
 			if fraction >= 0 and (first < 0 or fraction < first):
 				first = fraction
 				hit = target
@@ -146,8 +149,8 @@ func _advance_order(world: RefCounted, actor: int, now: int, impacts: Array[Dict
 		# a telepathic notification; the observer still follows its old clue.
 		observed = world.sight.observed_position(world, actor, order.target)
 	if order.target == 0:
-		if order.destination >= 0:
-			if origin.distance_to(Terrain.center(order.destination)) < 0.4:
+		if order.destination.x >= 0:
+			if origin.distance_to(order.destination) < 0.001:
 				finish(world, actor, now)
 			elif page.modes[row] != Units.Mode.COMBAT_MOVE:
 				page.move_to(row, order.destination, Units.Mode.COMBAT_MOVE)
@@ -178,20 +181,18 @@ func _advance_order(world: RefCounted, actor: int, now: int, impacts: Array[Dict
 	elif order.kind == "hold":
 		_drop_contact(world, actor, now)
 	elif now >= int(order.repath_ms):
-		var clearance: int = int(page.radii[row] > 0.5 and page.flight[row] == 0)
-		var tile: int = world.terrain.nearest_open(Terrain.index(Vector2i(target_position)), clearance)
+		var goal: Vector2 = world.terrain.project_point(target_position, page.radii[row], page.flight[row] > 0)
 		if observed != null and not world.actor_slots.has(order.target):
-			tile = world.facilities.interaction_tile(world, order.target, origin)
-			if tile >= 0 and clearance > 0:
-				tile = world.terrain.nearest_open(tile, clearance)
-		if tile < 0 or origin.distance_to(Terrain.center(tile)) < 0.4:
+			goal = world.facilities.interaction_point(world, order.target, origin, page.radii[row], page.flight[row] > 0)
+		if goal.x < 0 or origin.distance_to(goal) < 0.001:
 			blocked(world, actor, now)
 			return
 		if observed == null:
-			order.search_tile = tile
-		if tile != order.last_tile or page.modes[row] != Units.Mode.COMBAT_MOVE:
-			page.move_to(row, tile, Units.Mode.COMBAT_MOVE)
-			order.last_tile = tile
+			order.search_tile = Terrain.index(Vector2i(goal))
+		if goal.distance_squared_to(order.last_goal) >= 0.0625 or page.modes[row] != Units.Mode.COMBAT_MOVE:
+			page.move_to(row, goal, Units.Mode.COMBAT_MOVE)
+			order.last_tile = Terrain.index(Vector2i(goal))
+			order.last_goal = goal
 			repaths += 1
 		order.repath_ms = now + 300
 
@@ -211,6 +212,11 @@ func _drop_contact(world: RefCounted, actor: int, now: int) -> void:
 
 func blocked(world: RefCounted, actor: int, now: int) -> void:
 	var order: Dictionary = orders[actor]
+	if order.target == 0:
+		# A failed destination ends attack-move. Retrying the same destination
+		# every step is neither threat discovery nor a new player request.
+		finish(world, actor, now)
+		return
 	var slot: int = world.actor_slots[actor]
 	var page: RefCounted = world.pages[slot / 256]
 	var row: int = slot % 256
@@ -248,15 +254,15 @@ func damage(world: RefCounted, actor: int, target: int, amount: int, now: int, i
 			world.sight.sync(world)
 			var ranged: bool = world.objects.records[target].get("ranged", false)
 			if alive(world, actor) and world.sight.observed_position(world, target, actor) != null:
-				begin(world, target, "pursue", actor, -1, ranged, now)
+				begin(world, target, "pursue", actor, Vector2(-1, -1), ranged, now)
 			elif not incoming.is_zero_approx():
 				# The actual incoming trajectory is a direction clue, not the
 				# hidden shooter's identity, current position or launch location.
 				var hint: Vector2 = position(world, target) + incoming * 6.0
 				hint = hint.clamp(Vector2.ZERO, Vector2.ONE * (Terrain.SIZE - 0.001))
-				var tile: int = world.terrain.nearest_open(Terrain.index(Vector2i(hint)), int(page.radii[row] > 0.5 and page.flight[row] == 0))
-				if tile >= 0:
-					begin(world, target, "attack_move", 0, tile, ranged, now)
+				var goal: Vector2 = world.terrain.project_point(hint, page.radii[row], page.flight[row] > 0)
+				if goal.x >= 0:
+					begin(world, target, "attack_move", 0, goal, ranged, now)
 	else:
 		rec.hp = maxi(0, int(rec.hp) - maxi(1, amount - int(world.facilities.definitions.get(rec.definition, {}).get("armor", 0))))
 		if rec.hp <= 0:
@@ -271,12 +277,16 @@ func valid(world: RefCounted) -> bool:
 		var rec: Dictionary = orders[id]
 		if not rec.get("target") is int or rec.target < 0 or not rec.get("anchor") is Vector2 or not rec.anchor.is_finite() or not rec.get("last_seen_pos") is Vector2 or not rec.last_seen_pos.is_finite() or not rec.get("last_seen_ms") is int or not rec.get("kind") is String or rec.kind not in ["pursue", "hold", "attack_move"]:
 			return false
-		for field: String in ["scan_ms", "repath_ms", "destination", "last_tile", "search_tile"]:
+		if not rec.get("destination") is Vector2 or not rec.destination.is_finite() or not rec.get("last_goal") is Vector2 or not rec.last_goal.is_finite():
+			return false
+		if rec.destination != Vector2(-1, -1) and (rec.destination.x < 0 or rec.destination.y < 0 or rec.destination.x >= Terrain.SIZE or rec.destination.y >= Terrain.SIZE):
+			return false
+		for field: String in ["scan_ms", "repath_ms", "last_tile", "search_tile"]:
 			if not rec.get(field) is int:
 				return false
 		if not rec.get("ranged") is bool or not rec.get("resume") is bool or rec.last_seen_ms < -1 or rec.last_seen_ms > world.elapsed_ms or rec.scan_ms < 0 or rec.repath_ms < 0:
 			return false
-		for tile: int in [rec.destination, rec.last_tile, rec.search_tile]:
+		for tile: int in [rec.last_tile, rec.search_tile]:
 			if tile < -1 or tile >= world.terrain.blocked.size():
 				return false
 	for actor: Variant in unreachable:
