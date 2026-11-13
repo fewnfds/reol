@@ -1,6 +1,6 @@
 # 当前接续
 
-更新：2026-11-13。可用UI、交互与地形小地图已实施、review并重建正式试玩包；任意角度移动、底部锚点及此前release成果保留。Git状态优先，不在此重复登记提交号。
+更新：2026-11-13。UI体验反馈、个人事件、冷热耐受及普通场源修复已实施、review并重建正式试玩包；此前可玩功能与高速内核保留。Git状态优先，不在此重复登记提交号。
 
 ## 新接手入口
 
@@ -13,19 +13,21 @@
 
 ## 当前停点
 
-用户确认方案后已完成RTS/MOBA指挥与环世界式对象操作的首版UI。界面只用按钮、图标、状态与数值表达，不添加备注、副标题和面板解释；属性/装备仍未定，不伪造多控、队列或物流。实际操作只维护在FEATURES，[主计划](../plans/foundation-priorities.md#已交付可用的ui与交互)已改为交付状态。
+首版RTS/MOBA指挥与环世界式对象操作之后，本轮已完成固定地块探针、命令台贴底、缩小默认UI与数字缩放确认、中文人物事件，以及先耐受后HP的冷热缓冲。黄圈是主控、青蓝圈是选中，彩色移动场源圈改为DEV显示；界面只保留按钮、图标、状态和数值。能力与参数分别只查FEATURES和simulation-pacing，[主计划](../plans/foundation-priorities.md#已交付可用的ui与交互)已更新交付状态。
 
-新入口在`scripts/presentation/ui/`：HUD、交互、命令词汇和分层小地图各有职责，见[架构](../engineering/architecture.md#交互与小地图)。小地图复用地形/迷雾纹理、缓存静物并降频整理可见人物点，不增加第二相机。建造/种植是单次放置并开工，回执区分已创建对象与后续行动受理；普通详情不泄露迷雾后的实时库存。
+新入口在`scripts/presentation/ui/`：HUD、交互、中文事件显示、命令适用与分层小地图各有职责，见[架构](../engineering/architecture.md#交互与小地图)。人物事实沿World.emit进入有界冷记录，不另造结算引擎；worker只写独占身体页。UI独立缩放，不改相机，物资列表已改内嵌ItemList以保持一致比例。
 
-源码与正式`build/windows/reol-demo.exe`/pck均已更新。图形UI短探针与kernel smoke通过；正式包千人4×/普通120FPS窗口及未定位帧尖峰、显示/隐藏HUD对照、验证范围见BASELINE首节。后续从实际试玩反馈选择主题，不将短窗当长局保证。
+原`(207,195)`冷源已由修改前探针定位为随机压力场源混入普通局；普通局不再装配随机静态/移动源，Regions两个无实体演示源也删除。地区背景、天气和真实植物排放保留；混合压力局显式启用原随机源。身体冷热耐受没有扩展为战斗护盾或完整抗性系统。
 
-本机顾问布局/交互/交付三题与实施补充两题均已收齐。并发隔离one-shot的说明已写入`.local/advisor/README.md`，取舍留`.local/advisor/consultations/ui-interaction-20261113/review.md`及原runs；没有待收取请求，不上传程序、凭据或问答。
+源码与正式`build/windows/reol-demo.exe`/pck均已更新。kernel、按需体验/图形UI短检查通过；同最终包千人4×/60FPS与普通120FPS窗口、前轮未定位帧尖峰和验证范围见BASELINE首节。后续从实际试玩反馈选择主题，不将短窗当长局保证。
 
-共同导航、地块分层与世界呈现仍由原架构页解释；周期/近似只查[运行与精度](../engineering/simulation-pacing.md)，素材接地点只查[assets](../../assets/README.md)，当前存档格式只查[compatibility](../engineering/compatibility.md)。本轮没有新增玩法、改存档格式或恢复旧运行后端。
+本机顾问客户端已落实同一提示词双模型并发、各一次非流式且失败不重试，说明只维护在`.local/advisor/README.md`。本题两答均已完整收取并核查，取舍留`.local/advisor/consultations/ui-experience-20261113/review.md`及原runs；没有待收取请求，不上传程序、凭据或问答。
+
+共同导航、地块分层与世界呈现仍由原架构页解释；周期/近似与耐受只查[运行与精度](../engineering/simulation-pacing.md)，素材接地点只查[assets](../../assets/README.md)，本轮新增身体/日志原状态后的当前存档支持只查[compatibility](../engineering/compatibility.md)。旧档保留，本版需新开局，没有恢复旧运行后端。
 
 源码入口是根`开发试玩.cmd`，需重开进程读取最新脚本；独立exe/pck只代表导出时快照，不热读源码。实际键位、完成范围和限制分别维护于FEATURES/BASELINE，不再附加第二份继续开发清单。后续按用户试玩反馈选择主题，不自动恢复旧CI或继续无限优化。
 
-此前“世界仍运行但玩家不动”从快速档确认#1 HP0/DEAD；现有独立提示、F12诊断和倒地精灵保留，旧档最后伤害来源仍不能由旧日志确定。未主动关闭用户旧游戏或改写原档；诊断只查[运行与测量](../engineering/tooling/usage.md)。
+此前“世界仍运行但玩家不动”从快速档确认#1 HP0/DEAD；独立提示、F12诊断和倒地精灵保留，旧档最后伤害来源仍不能由旧日志确定，不能倒推为已证实冻死。本轮开始记录真实伤害与死因。未主动关闭用户旧游戏或改写原档；诊断只查[运行与测量](../engineering/tooling/usage.md)。
 
 ## 已交付背景
 

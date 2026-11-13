@@ -41,12 +41,12 @@ var rng_state: int:
 	set(value): rng.state = value
 
 
-func initialize(ground: RefCounted, actor_count: int) -> void:
+func initialize(ground: RefCounted, actor_count: int, stress_sources: bool = false) -> void:
 	terrain = ground
 	rng.seed = 730177
 	field.resize(Terrain.SIZE * Terrain.SIZE * CHANNELS)
 	var used: Dictionary = {}
-	while source_cells.size() < 96:
+	while stress_sources and source_cells.size() < 96:
 		var tile: int = terrain.nearest_open(Terrain.index(Vector2i(rng.randi_range(174, 262), rng.randi_range(174, 262))))
 		if used.has(tile):
 			continue
@@ -56,7 +56,7 @@ func initialize(ground: RefCounted, actor_count: int) -> void:
 		source_channels.append(id % CHANNELS)
 		source_strengths.append(50 + posmod(id * 13, 120))
 		enabled.append(1)
-	for id: int in mini(32, maxi(0, actor_count - 1)):
+	for id: int in (mini(32, maxi(0, actor_count - 1)) if stress_sources else 0):
 		mobile_units.append(id + 2)
 		mobile_cells.append(0)
 		links.append(-1)

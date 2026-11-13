@@ -34,6 +34,7 @@ func _ready() -> void:
 	_badge.add_theme_font_override("font", font)
 	_badge.focus_mode = Control.FOCUS_NONE
 	_badge.pressed.connect(toggle)
+	_badge.resized.connect(func(): _badge.pivot_offset = _badge.size)
 	add_child(_panel)
 	_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_panel.anchor_left = 0.3
@@ -74,6 +75,10 @@ func _ready() -> void:
 
 func attach(provider: Callable) -> void:
 	_provider = provider
+
+func set_ui_scale(factor: float) -> void:
+	_badge.pivot_offset = _badge.size
+	_badge.scale = Vector2.ONE * factor
 
 
 func is_open() -> bool:

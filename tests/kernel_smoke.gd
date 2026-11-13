@@ -244,13 +244,14 @@ func _nature_cycle() -> void:
 
 func _same_step_causality() -> void:
 	var world := World.new()
-	world.initialize(3, 0)
+	world.initialize(3, 0, true) # This death/cleanup counterexample needs a mobile fixture.
 	var page: RefCounted = world.pages[0]
 	var source: int = page.source_ids[1]
 	var tile: int = world.terrain.resources[source]
 	page.positions[1] = Terrain.center(tile)
 	page.health[1] = 1
 	page.body_heat[1] = 500.0
+	page.tolerance[1] = 0.0
 	page.modes[1] = 1 # HARVEST due before the end-of-step thermal effect.
 	page.due_ms[1] = 960
 	world.reservations[world.source_objects[source]] = 2

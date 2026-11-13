@@ -142,7 +142,7 @@ func _notify_io() -> void:
 
 func _run() -> void:
 	_world = World.new()
-	_world.initialize(_count, _workers)
+	_world.initialize(_count, _workers, _mixed)
 	if _mixed:
 		Scenarios.mixed(_world)
 	_terrain_view = _world.terrain.detached()
@@ -347,6 +347,7 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 		for channel: int in 5:
 			elements.append(_world.environment.element(probe, values, 0, channel))
 		frame.tile_probe = {"tile": probe, "temperature": _world.environment.temperature_at(probe, values, 0),
+			"ambient": _world.environment.ambient_at(probe), "heat": values[0], "cold": values[1],
 			"elements": elements, "room": _world.terrain.rooms[probe], "blocked": _world.terrain.blocked[probe],
 			"substrate": _world.terrain.substrate(probe), "cover": _world.terrain.cover[probe], "flooring": _world.terrain.flooring[probe]}
 	_snapshot_usec += Time.get_ticks_usec() - start

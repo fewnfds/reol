@@ -1,6 +1,6 @@
 # 当前运行基线
 
-更新：2026-11-13。本页首先记录当前UI/交互正式包与证据，后续章节保留前轮对照，不作为当前地图数量或待办。实际能力/键位查[FEATURES](features.md)，运行边界查[架构](../engineering/architecture.md)，本轮UI咨询取舍见[主计划](../plans/foundation-priorities.md#已交付可用的ui与交互)。
+更新：2026-11-13。本页首先记录UI体验、个人事件与冷热耐受的当前正式包，后续章节保留前轮对照，不作为当前地图数量或待办。实际能力/键位查[FEATURES](features.md)，运行边界查[架构](../engineering/architecture.md)，本轮咨询取舍见[主计划](../plans/foundation-priorities.md#已交付可用的ui与交互)。
 
 ## 构建与环境
 
@@ -9,9 +9,28 @@
 - 正式入口`scenes/main.tscn`，试玩包`build/windows/reol-demo.exe`和同目录pck；默认24人，压力开局仍是同一后端。存档范围只看compatibility。
 - exe是引擎模板，单独exe哈希不能识别游戏代码，按各节PCK哈希固定窗口。当前包见下面首节；六段恢复前的`817b2660204f1192faca04824b5d43d8db97fc6f2907f5dbce4086b2bdd8df82`只对应文末历史表。
 
-前轮人物UV与树形图元修复证据在`logs/sprite-orientation-20261112/`和`logs/tree-orientation-20261112/`；单位视野阶段曾单独导出`build/sight-candidate/reol-demo.exe`。这些均为历史对照，当前`build/windows`只以下面首节的UI交付包为准，源码试玩仍走usage入口。
+前轮人物UV与树形图元修复证据在`logs/sprite-orientation-20261112/`和`logs/tree-orientation-20261112/`；单位视野阶段曾单独导出`build/sight-candidate/reol-demo.exe`。这些均为历史对照，当前`build/windows`只以下面首节的交付包为准，源码试玩仍走usage入口。
 
-## 当前：可用UI、交互与地形小地图
+## 当前：UI体验、个人事件与冷热耐受
+
+2026-11-13正式`build/windows/reol-demo.exe`及pck已重建，PCK SHA256：`11f9253586a0b89a67c19d6a767fc63e99a2a087c55bf4ec1b612b375cc4b828`。测量报告基于上一轮UI提交后的dirty工作树，随后随本轮main提交；最后导出后仅维护文档，没有再改运行代码。当前存档支持已随新增原状态更新，见compatibility。
+
+同开发机13600KF/5060Ti、D3D12、1280×720，串行窗口，均预热3秒。千人混合4×/60FPS采样10秒，包含持续战斗、材料施工、50房间、451株植物、98静态/32移动来源；普通24人迷雾1×/120FPS采样5秒，只有真实植物的2个静态来源、没有移动压力源。普通与压力配置仍共用内核，并非减掉普通局的真实天气/植物算法。
+
+| 同最终包窗口 | 实际倍率 | 帧均 / P99 / 最大 ms | 步均 / P99 / 最大 ms |
+|---|---|---|---|
+| 1000人混合，4×/60FPS | 4.0035× | 16.666 / 16.747 / 16.893 | 9.571 / 15.620 / 18.448 |
+| 24人迷雾，1×/120FPS | 0.9984× | 8.333 / 8.388 / 8.837 | 0.511 / 1.626 / 2.581 |
+
+两窗材料均200000、无过载需求截断；主线程process均值分别3.077/0.163ms，GPU均值0.097/0.078ms。期末存活978/22人，普通局仍有敌对NPC战斗，不能将冷热保护说成所有人物不会死亡。相对前轮UI包增加了耐受与有界事实记录，同时删了两个地区演示源且改变生存过程，工作内容有差异；这里只确认当前仍达到千人约4×/60FPS，不把短窗差值当纯算法收益或零成本。前轮未定位的帧尖峰仍保留于下一节，没有据当前好窗宣称全部修复。
+
+冷源根因探针在修改前确认`(207,195)`为背景22°C、热3、冷59，最终−34°C；主要冷贡献来自`(212,198)`的随机压力源。普通初始化不再注入这些压力源，Regions另外两个无实体演示源也删除；地区背景仍由原ambient_at提供。新开局同格的短规则检查为22°C；这是指定开局/天气时刻，不承诺今后天气与实体不能改变温度。
+
+最终kernel smoke为`KERNEL_SMOKE errors=0`。按需`experience_smoke.gd`为`errors=[]`，覆盖残耐受/余数、安全恢复、危险不回充、战斗直扣HP、真实命中/死亡顺序、有界合并/冻结视图、环绕恢复和非法耐受候选拒绝。最终图形`ui_smoke.gd`为`errors=[]`，核对ItemList数量选择、输入不串世界键、连续落点/小地图、旋转/实际扣料、隐藏库存、人物中文事件、会话重置、两种分辨率与百分比输入/确认/钳位，未写用户偏好；没有冒充全玩法人工游玩。import、导出及结构审查通过，没有恢复旧长回归。
+
+证据留忽略的`logs/ui-experience-20261113/`：最终`final-mixed.json`、`final-play.json/png`及各自日志/CPU样本，`source-before.log`、`rules-verified.log`、`ui-shipped.log`、`export-shipped.log`；最后kernel日志为`logs/smoke-20261113-192159-210445900.log`。较早`shipped-*`与其PCK只作本轮中间记录，不冒充最终包。图形截图在`logs/ui-smoke/`，本机双模型原问答/取舍在`.local/advisor/`且均已收齐。目标低配、长局与更多内容组合仍未验证。
+
+## 前轮：可用UI、交互与地形小地图
 
 2026-11-13正式`build/windows/reol-demo.exe`及pck已重建，PCK SHA256：`e891d70dfbb780871574b9a7a487afcd22a7c3609de30bf6027ab64f1ab62de0`。报告中的Git为底部锚点提交后的dirty工作树，随后随本轮main提交；最后导出后仅维护文档/测量，没有再改运行代码。UI职责与缓存机制见架构，实际键位与能力见FEATURES，本页不重复交互清单。
 

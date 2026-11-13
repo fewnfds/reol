@@ -8,7 +8,7 @@
 |---|---|
 | `scripts/sim/kernel/terrain.gd` | 有限地块的自然基底/装饰地被/人工地板、生境准入、结构/围合、连续身体与线段净空、目标投影 |
 | `scripts/sim/kernel/navigation.gd` | lane私有的原生AStarGrid通路、连续起终点连接与拉直、版本缓存和请求分批 |
-| `scripts/sim/kernel/units.gd` | 每页256行身体热列、沿路运动、到达/到期、需求与环境接收；一页只由一个lane写入 |
+| `scripts/sim/kernel/units.gd` | 每页256行身体热列、沿路运动、到达/到期、需求、环境接收与冷热耐受；一页只由一个lane写入 |
 | `scripts/sim/kernel/motion.gd` | 本步带时间折线的采样与分段相对扫掠，供显示和投射物共用 |
 | `scripts/sim/kernel/world.gd` | 世界组合根、命令/通用行动、预约、共享效果顺序、生命周期与结构提交 |
 | `scripts/sim/kernel/objects.gd` | 单调身份、静态位置索引、定义/分类库存、转移与原子交换；不逐步空转所有对象 |
@@ -17,6 +17,7 @@
 | `combat.gd` | 活跃战斗订单、最后所见、投射物扫掠与步末伤害；感知与攻击通路分别校验 |
 | `combat_scan.gd` | 脱离的身体空间索引、分散威胁发现与目标复核；查询按观察者批交现有CPU池，owner采用 |
 | `society.gd` | 接触结果、线索传播、真实交易、临时承诺、方法/修行/能力；状态留在原人物/植物记录 |
+| `person_events.gd` | 已提交个人事实的有界冷记录、连续冷热损耗合并与缓存脱离视图；不驱动结算或人物决策 |
 | `sight.gd` | 全单位共用的距离/平滑环境损耗查询；只读常用格线表与长半径后备，无共享写缓存 |
 | `perception.gd` | 玩家当前格图、探索/最后所见地表、静态记忆与人物显隐；NPC不读取这张玩家地图 |
 | `regions.gd`、`scenarios.gd` | 同一世界的有限地区冷装配/旅行落点；可选混合压力开局，不提供另一套模拟算法 |
@@ -70,9 +71,13 @@ Frame包含必要身体列、静态外观版本、玩家格图/记忆、选中�
 
 画面可跳过中间Frame，可靠命令回执/到达/失败/死亡走独立队列。命令在途上限包含未收回执。Pose随位置保留身份；槽位换人不串插值，读档提升epoch并重置显示历史、拒绝旧会话命令。
 
+`World.emit()`复用原outcomes队列，同时将可归属人物的真实后果交给`PersonEvents`；命令受理另记，不能当成到达或行动完成。个人记录有全局预算，容量与UI入口只查FEATURES；只为主角/当前详情构造缓存的深拷贝视图，后续损耗合并不修改已发布Frame。日志随原领域存读，不是第二事件引擎、录像或全局广播总线；worker不写共享日志。
+
 ### 交互与小地图
 
-`presentation/game.gd`协调原会话/渲染；`presentation/ui/hud.gd`持有原生Control布局、窗口与脱离数值视图；`interaction.gd`统一InputMap、拾取、相机/当前工具和命令分派；`actions.gd`只提供已有命令的名称/适用按钮，不取代领域判定。按钮和热键共用一条入口，世界输入在GUI未处理事件中执行；模态焦点另阻止Input持续轮询。地面命令走既有脚点逆转换，小地图地理坐标直接使用逻辑位置；建造才按格取整。读档epoch重置工具、菜单与数量窗口。
+`presentation/game.gd`协调原会话/渲染；`presentation/ui/hud.gd`持有原生Control布局、窗口与脱离数值视图；`interaction.gd`统一InputMap、拾取、相机/当前工具和命令分派；`actions.gd`提供已有命令的适用按钮，`event_text.gd`集中命令/事件的中文显示，不取代领域判定。按钮和热键共用一条入口，世界输入在GUI未处理事件中执行；模态焦点另阻止Input持续轮询。地面命令走既有脚点逆转换，小地图地理坐标直接使用逻辑位置；建造才按格取整。读档epoch重置工具、菜单、数量窗口和旧人物记录显示。
+
+UI缩放只作用于HUD父Control，逻辑尺寸按视口/比例计算，菜单位置使用同一逆变换；不修改Window缩放或世界相机。物资选择使用内嵌ItemList，避免原生弹出Window绕过父Control缩放。界面偏好在本机ConfigFile中，与世界存档分离；范围、基准与探针刷新率只查FEATURES。
 
 普通详情先检查当下可见性，离场静物只读`perception.memories`，不展示`inspected`中的隐藏库存；动作结果与完整诊断仍沿独立通知/F12。当前行动用`started_ms/due_ms`展示真实进度，命令受理不等于完成。`construct/plant`回执携带已创建目标与`placed`，后续接近失败不隐去已扣料事实；没有第二套施工/行动队列。
 

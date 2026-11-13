@@ -18,6 +18,7 @@ const Society = preload("res://scripts/sim/kernel/society.gd")
 const Perception = preload("res://scripts/sim/kernel/perception.gd")
 const Sight = preload("res://scripts/sim/kernel/sight.gd")
 const Regions = preload("res://scripts/sim/kernel/regions.gd")
+const PersonEvents = preload("res://scripts/sim/kernel/person_events.gd")
 const STATE_FIELDS: Array = ["elapsed_ms", "actor_count", "initial_material", "harvested", "deliveries", "failed_harvests", "steps", "deaths", "attacks", "heals", "attack_due", "topology_revision", "source_objects", "depot_objects", "reservations", "actions"]
 
 class Lane extends RefCounted:
@@ -50,6 +51,7 @@ var society := Society.new()
 var perception := Perception.new()
 var sight := Sight.new() # Derived shared geometry; observation state is separate.
 var regions := Regions.new()
+var person_events := PersonEvents.new()
 var actor_slots: Dictionary = {} # External identity -> stable internal body slot.
 var source_objects := PackedInt64Array()
 var depot_objects := PackedInt64Array()
@@ -86,10 +88,10 @@ var _topology_edits: Dictionary = {}
 var topology_usec: int = 0
 
 
-func initialize(count: int = 1000, requested_workers: int = 4) -> void:
+func initialize(count: int = 1000, requested_workers: int = 4, stress_environment: bool = false) -> void:
 	actor_count = count
 	terrain.initialize()
-	environment.initialize(terrain, count)
+	environment.initialize(terrain, count, stress_environment)
 	terrain.source_cells = environment.source_cells.duplicate()
 	terrain.source_channels = environment.source_channels.duplicate()
 	attack_due.resize(count)
@@ -153,7 +155,11 @@ func initialize(count: int = 1000, requested_workers: int = 4) -> void:
 func state_owners() -> Dictionary:
 	# The concrete composition root lists real domains; field selection belongs
 	# to each owner. New domains do not require a new serializer implementation.
-	return {"world": self, "terrain": terrain, "objects": objects, "environment": environment, "nature": nature, "combat": combat, "perception": perception, "regions": regions}
+	return {"world": self, "terrain": terrain, "objects": objects, "environment": environment, "nature": nature, "combat": combat, "perception": perception, "regions": regions, "person_events": person_events}
+
+func emit(event: Dictionary) -> void:
+	outcomes.append(event)
+	person_events.accept(event, actor_slots)
 
 
 func configure_lanes(requested_workers: int) -> void:
@@ -191,17 +197,17 @@ func step() -> void:
 			if combat.orders.has(id):
 				# Do not interrupt work every discovery interval for an unreachable contact.
 				combat.blocked(self, id, end)
-				outcomes.append({"kind": "path_failed", "actor": id, "at_ms": end})
+				emit({"kind": "path_failed", "actor": id, "at_ms": end})
 				continue
 			release(id, end)
 			if page.modes[row] == Units.Mode.MANUAL:
 				page.modes[row] = Units.Mode.IDLE
-				outcomes.append({"kind": "path_failed", "actor": id, "at_ms": end})
+				emit({"kind": "path_failed", "actor": id, "at_ms": end})
 			elif page.modes[row] == Units.Mode.APPROACH:
 				page.modes[row] = Units.Mode.IDLE
 				if objects.records[id].get("autonomous", false):
 					livelihood.after_action(self, id, end)
-				outcomes.append({"kind": "path_failed", "actor": id, "at_ms": end})
+				emit({"kind": "path_failed", "actor": id, "at_ms": end})
 			else:
 				page.modes[row] = Units.Mode.REST
 				page.due_ms[row] = end + 1000
@@ -228,8 +234,10 @@ func step() -> void:
 		for lane: RefCounted in lanes:
 			lane.sampling = false
 		for page: RefCounted in pages:
+			for event: Dictionary in page.environmental_events:
+				emit(event)
 			for row: int in page.environmental_deaths:
-				kill(page.ids[row], end)
+				kill(page.ids[row], end, "cold" if page.body_heat[row] < 0.0 else "heat")
 		environment_usec += Time.get_ticks_usec() - env_start
 	elapsed_ms = end
 	perception.update(self, end)
@@ -275,7 +283,7 @@ func settle(id: int, at: int) -> void:
 		resume_work(id, at)
 	elif mode == Units.Mode.MANUAL:
 		page.modes[row] = Units.Mode.IDLE
-		outcomes.append({"kind": "arrived", "actor": id, "at_ms": at})
+		emit({"kind": "arrived", "actor": id, "at_ms": at})
 	elif mode == Units.Mode.APPROACH or mode == Units.Mode.ACTION:
 		settle_action(id, at)
 	elif mode == Units.Mode.EXPLORE:
@@ -311,7 +319,7 @@ func release(id: int, at: int = -1) -> void:
 		society.interrupt(self, action, at if at >= 0 else elapsed_ms)
 
 
-func kill(id: int, at: int = -1) -> void:
+func kill(id: int, at: int = -1, cause: String = "") -> void:
 	if not actor_slots.has(id):
 		return
 	var slot: int = actor_slots[id]
@@ -323,11 +331,13 @@ func kill(id: int, at: int = -1) -> void:
 	forget_target(id, at)
 	objects.records[id].erase("commitment")
 	page.health[row] = 0
+	page.tolerance[row] = 0.0
+	page.thermal_carry[row] = 0.0
 	page.modes[row] = Units.Mode.DEAD
 	environment.remove_mobile(id)
 	# A corpse retains its cargo. Death cannot erase or duplicate materials.
 	deaths += 1
-	outcomes.append({"kind": "death", "actor": id, "at_ms": at if at >= 0 else elapsed_ms})
+	emit({"kind": "death", "actor": id, "at_ms": at if at >= 0 else elapsed_ms, "cause": cause})
 
 
 func forget_target(target: int, at: int = -1) -> void:
@@ -346,6 +356,11 @@ func forget_target(target: int, at: int = -1) -> void:
 
 
 func command(input: Dictionary) -> Dictionary:
+	var receipt: Dictionary = _command(input)
+	if actor_slots.has(int(input.get("actor", 1))): person_events.command(input, receipt)
+	return receipt
+
+func _command(input: Dictionary) -> Dictionary:
 	var receipt: Dictionary = {"seq": input.get("seq", 0), "kind": input.get("kind", ""), "at_ms": elapsed_ms, "ok": false, "reason": "invalid"}
 	var id: int = int(input.get("actor", 1))
 	if not actor_slots.has(id):
@@ -375,7 +390,7 @@ func command(input: Dictionary) -> Dictionary:
 			receipt.ok = reason == "ability_used"
 			receipt.reason = reason
 			if receipt.ok:
-				outcomes.append({"kind": "ability_used", "actor": id, "at_ms": elapsed_ms})
+				emit({"kind": "ability_used", "actor": id, "at_ms": elapsed_ms})
 			return receipt
 		"pursue", "attack_move", "hold":
 			var destination := Vector2(-1, -1)
@@ -425,7 +440,7 @@ func command(input: Dictionary) -> Dictionary:
 			_sync_inventory(id)
 			page.health[row] = mini(100, page.health[row] + 40)
 			heals += 1
-			outcomes.append({"kind": "healed", "actor": id, "at_ms": elapsed_ms})
+			emit({"kind": "healed", "actor": id, "at_ms": elapsed_ms})
 		"attack":
 			var target: int = int(input.get("target", 0))
 			if not actor_slots.has(target) or target == id:
@@ -671,7 +686,7 @@ func settle_action(id: int, at: int) -> void:
 		var autonomous: bool = action.get("autonomous", false)
 		release(id, at)
 		page.modes[row] = Units.Mode.IDLE
-		outcomes.append({"kind": "target_gone", "actor": id, "at_ms": at})
+		emit({"kind": "target_gone", "actor": id, "at_ms": at})
 		if autonomous:
 			livelihood.after_action(self, id, at, target)
 		return
@@ -679,7 +694,7 @@ func settle_action(id: int, at: int) -> void:
 		var autonomous: bool = action.get("autonomous", false)
 		release(id, at)
 		page.modes[row] = Units.Mode.IDLE
-		outcomes.append({"kind": "out_of_reach", "actor": id, "at_ms": at})
+		emit({"kind": "out_of_reach", "actor": id, "at_ms": at})
 		if autonomous:
 			livelihood.after_action(self, id, at, target)
 		return
@@ -732,7 +747,7 @@ func settle_action(id: int, at: int) -> void:
 		var autonomous: bool = action.get("autonomous", false)
 		release(id, at)
 		page.modes[row] = Units.Mode.IDLE
-		outcomes.append({"kind": reason, "actor": id, "at_ms": at})
+		emit({"kind": reason, "actor": id, "target": target, "action": action.kind, "at_ms": at})
 		if autonomous:
 			livelihood.after_action(self, id, at, target)
 		return
@@ -745,7 +760,7 @@ func settle_action(id: int, at: int) -> void:
 	_sync_inventory(id)
 	release(id, at)
 	page.modes[row] = Units.Mode.IDLE
-	outcomes.append({"kind": "transferred" if amount > 0 else "empty_or_full", "actor": id, "at_ms": at, "amount": amount})
+	emit({"kind": "transferred" if amount > 0 else "empty_or_full", "actor": id, "target": target, "action": action.kind, "item": action.item, "at_ms": at, "amount": amount})
 	if autonomous:
 		if action.kind == "put" and amount > 0:
 			deliveries += 1
@@ -761,10 +776,13 @@ func describe(id: int) -> Dictionary:
 		var page: RefCounted = pages[slot / Units.PAGE_SIZE]
 		var row: int = slot % Units.PAGE_SIZE
 		result.merge({"hp": page.health[row], "energy": page.energy[row], "hunger": page.hunger[row],
+			"tolerance": page.tolerance[row], "max_tolerance": Units.MAX_TOLERANCE,
 			"temperature": page.body_heat[row], "elements": page.elements.slice(row * 5, row * 5 + 5),
 			"cargo": page.cargo[row], "potions": page.potions[row], "mode": page.modes[row], "position": page.positions[row]}, true)
 		result["action"] = State.copy(actions.get(id, combat.orders.get(id, {})))
 		result["due_ms"] = page.due_ms[row]
+		result["events"] = person_events.view(id)
+		result["events_version"] = person_events.version(id)
 		result["flight"] = page.flight[row]
 		result["radius"] = page.radii[row]
 		result["destination"] = page.targets[row]
@@ -862,6 +880,8 @@ func spawn_actor(tile: int) -> int:
 		page.ids[row] = id
 		page.positions[row] = Terrain.center(tile)
 		page.health[row] = 100
+		page.tolerance[row] = Units.MAX_TOLERANCE
+		page.thermal_carry[row] = 0.0
 		page.energy[row] = 10000
 		page.hunger[row] = 10000
 		page.body_heat[row] = 22.0

@@ -73,6 +73,8 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 		return null
 	if not world.regions.valid(world):
 		return null
+	if not world.person_events.rebuild(world.elapsed_ms):
+		return null
 	if not world.perception.rebuild(world):
 		return null
 	world.configure_lanes(workers)
@@ -153,7 +155,7 @@ static func _page_valid(page: RefCounted, world: RefCounted, start: int) -> bool
 	var count: int = page.ids.size()
 	if count < 1 or count > Units.PAGE_SIZE:
 		return false
-	for field: String in ["positions", "targets", "modes", "health", "energy", "hunger", "body_heat", "flight", "radii", "potions", "cargo", "source_ids", "due_ms", "route_cursors", "routes"]:
+	for field: String in ["positions", "targets", "modes", "health", "energy", "hunger", "body_heat", "tolerance", "thermal_carry", "flight", "radii", "potions", "cargo", "source_ids", "due_ms", "route_cursors", "routes"]:
 		if page.get(field).size() != count:
 			return false
 	if page.elements.size() != count * 5 or page.exposure.size() != count * 7:
@@ -166,6 +168,8 @@ static func _page_valid(page: RefCounted, world: RefCounted, start: int) -> bool
 		if not world.objects.records.has(id) or world.objects.records[id].kind != "actor" or world.actor_slots.has(id):
 			return false
 		if not page.positions[row].is_finite() or page.positions[row].x < 0 or page.positions[row].y < 0 or page.positions[row].x >= world.terrain.SIZE or page.positions[row].y >= world.terrain.SIZE or not is_finite(page.body_heat[row]):
+			return false
+		if not is_finite(page.tolerance[row]) or page.tolerance[row] < 0 or page.tolerance[row] > Units.MAX_TOLERANCE or not is_finite(page.thermal_carry[row]) or page.thermal_carry[row] < 0 or page.thermal_carry[row] >= 1.0:
 			return false
 		if page.modes[row] > Units.Mode.COMBAT_MOVE or page.modes[row] == Units.Mode.FREE or page.health[row] < 0 or page.energy[row] < 0 or page.hunger[row] < 0 or page.source_ids[row] < 0 or page.source_ids[row] >= world.source_objects.size() or not page.targets[row].is_finite() or page.targets[row].x < 0 or page.targets[row].y < 0 or page.targets[row].x >= world.terrain.SIZE or page.targets[row].y >= world.terrain.SIZE:
 			return false

@@ -141,7 +141,7 @@ static func run(check: Callable) -> void:
 	if task > 0:
 		check.call(w.objects.records[task].kind == "wall", "Old-region promised work froze while player traveled")
 	check.call(w.environment.ambient_at(Terrain.index(Vector2i(310, 195))) < w.environment.ambient_at(Terrain.index(Vector2i(175, 185))) and w.objects.audit_total("wood") == w.objects.total("wood"), "Regions had no actual environment difference or broke material accounting")
-	var regional_source: int = w.environment.source_cells.find(Terrain.index(Vector2i(314, 194)))
+	var regional_source: int = w.environment.add_source(Terrain.index(Vector2i(314, 194)), 1, 12)
 	var source_enabled: int = w.environment.enabled[regional_source]
 	check.call(w.command({"kind": "source", "tile": Terrain.index(Vector2i(314, 194))}).ok and w.environment.enabled[regional_source] != source_enabled, "Source control confused render marker order with source identity")
 	# Switching attack commands must not grant a second, separate cooldown.

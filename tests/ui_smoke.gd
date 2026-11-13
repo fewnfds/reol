@@ -61,6 +61,7 @@ func run() -> void:
 	check(game.frame != null, "UI runner did not publish")
 	if game.frame == null: game.queue_free(); await settle(); quit(1); return
 	await settle(8)
+	game.ui.apply_scale(100, false)
 	var known_chest: int = 0
 	for id: int in game.object_canvas.objects:
 		var rec: Dictionary = game.object_canvas.objects[id]
@@ -86,6 +87,11 @@ func run() -> void:
 	await settle(4)
 	check(game.speed == before_speed and game.paused == before_paused and int(game.frame.player.mode) == before_mode, "Quantity entry leaked world keys")
 	await capture("inventory")
+	click(game.ui._stock_items.get_global_transform_with_canvas() * game.ui._stock_items.get_item_rect(1).get_center())
+	await settle(3)
+	check(game.ui._stock_index() == 1, "Scaled inventory list could not select an item")
+	await capture("inventory-list")
+	game.ui._stock_items.select(0)
 	key(KEY_ESCAPE)
 	await settle()
 	check(game.ui.modal_kind().is_empty(), "Escape failed to cancel quantity entry")
@@ -147,7 +153,7 @@ func run() -> void:
 	var old_target: Vector2 = game.frame.player.destination
 	var local := Vector2(40,40)
 	var expected: Vector2 = game.ui.minimap.world_point(local)
-	click(game.ui.minimap.global_position + local)
+	click(game.ui.minimap.get_global_transform_with_canvas() * local)
 	await settle()
 	check(not game.following and game.camera.position.distance_to(Art.body_foot(expected)*32) < 0.01 and game.frame.player.destination == old_target, "Minimap camera click leaked to the world")
 	await capture("minimap")
@@ -189,11 +195,46 @@ func run() -> void:
 	await settle(8)
 	await capture("layout-1080")
 	root.size = Vector2i(1280,720)
-	root.content_scale_factor = 1.25
+	var world_transform: Transform2D = game.get_canvas_transform()
+	game.ui.apply_scale(125, false)
 	await settle(8)
 	await capture("layout-scaled")
 	check(game.ui._player_buttons.stop.get_global_rect().end.x < game.ui.size.x, "UI scaling pushed player actions off screen")
-	root.content_scale_factor = 1.0
+	check(game.get_canvas_transform().is_equal_approx(world_transform), "UI scaling changed world pixels")
+	for percent: int in [50, 200]:
+		game.ui.apply_scale(percent, false)
+		await settle(8)
+		check(game.ui.ui_percent == percent, "UI numeric scale was not applied")
+		check(game.ui._player_buttons.stop.get_global_rect().end.y <= root.get_visible_rect().size.y, "UI commands fell below the viewport")
+		check(not game.ui._player_buttons.stop.get_global_rect().intersects(game.ui._map_panel.get_global_rect()), "Minimap covered the command dock")
+		await capture("scale-%d" % percent)
+	game.ui.apply_scale(100, false)
+	game.controls.action("character", {})
+	await settle(5)
+	check(is_instance_valid(game.ui._events) and game.ui._events.text.contains("拿取"), "Character drawer lacked localized actual events")
+	await capture("person-events")
+	game.controls.action("close_drawer", {})
+	# Exercise the actual numeric form without overwriting the user's preferences.
+	game.ui.requested.disconnect(game.controls.action)
+	var form_handler: Callable = func(kind: String, payload: Dictionary):
+		if kind == "ui_scale_commit": game.ui.commit_scale()
+		elif kind == "ui_scale": game.ui.apply_scale(int(payload.percent), false)
+	game.ui.requested.connect(form_handler)
+	game.ui.open_simple("settings")
+	await settle(3)
+	var confirm: Button
+	for node: Node in game.ui._modal_body.get_children():
+		if node is Button and node.text == "确认": confirm = node
+	for value: int in [175,300,20]:
+		game.ui._scale_input.get_line_edit().text = str(value)
+		click(confirm.get_global_rect().get_center())
+		await settle(3)
+		check(game.ui.ui_percent == clampi(value,50,200), "Scale form ignored unsubmitted text or its limits")
+	await capture("settings")
+	game.ui.close_modal()
+	game.ui.requested.disconnect(form_handler)
+	game.ui.requested.connect(game.controls.action)
+	game.ui.apply_scale(100, false)
 	print("UI_SMOKE ",JSON.stringify({"errors":errors,"minimap_rebuilds":game.ui.minimap.rebuilds,"minimap_usec":game.ui.minimap.work_usec}))
 	game.queue_free()
 	await settle(3)

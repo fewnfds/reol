@@ -55,6 +55,7 @@ var _adoption_times := PackedFloat64Array()
 var _gpu_times := PackedFloat64Array()
 var _previous_usec: int = 0
 var _hud_next: int = 0
+var _probe_next: int = 0
 var _probe_tile: int = -1
 var _last_receipt: String = ""
 var _target := Vector2(-1, -1)
@@ -71,6 +72,7 @@ var _speed_at: int = 0
 var _speed_world: int = 0
 var _actual_speed: float = 0.0
 var _show_path: bool = false
+var _show_sources: bool = false
 
 
 func _ready() -> void:
@@ -117,6 +119,9 @@ func _ready() -> void:
 	layer.layer = 2
 	add_child(layer)
 	layer.add_child(ui)
+	if _debug_console != null:
+		ui.scale_applied.connect(_debug_console.set_ui_scale)
+		_debug_console.set_ui_scale(ui.scale.x)
 	controls.configure(self, ui)
 	controls.z_index = 5
 	add_child(controls)
@@ -212,6 +217,9 @@ func _process(delta: float) -> void:
 		camera.position = _displayed(1) * TILE
 	controls.tick(delta)
 	atmosphere.view(fog.visibility, object_canvas.shelter, fog_enabled)
+	if begin >= _probe_next:
+		_update_probe()
+		_probe_next = begin + 50000
 	if begin >= _hud_next:
 		_update_hud()
 		_hud_next = begin + 100000
@@ -240,7 +248,7 @@ func _displayed(id: int) -> Vector2:
 	return Art.body_foot(_render_pose.at(slot, _render_previous[slot], alpha))
 
 
-func _update_hud() -> void:
+func _update_probe() -> void:
 	var screen: Vector2 = get_viewport().get_mouse_position()
 	var point: Vector2 = get_global_mouse_position() / TILE
 	var cell := Vector2i(point.floor())
@@ -250,8 +258,10 @@ func _update_hud() -> void:
 	if valid and tile != _probe_tile:
 		_probe_tile = tile
 		runner.inspect(selected, tile)
-	ui.refresh(frame, selected, fog_enabled, _actual_speed, following, controls.ranged, controls.help_target)
 	ui.probe(frame, cell, screen, valid)
+
+func _update_hud() -> void:
+	ui.refresh(frame, selected, fog_enabled, _actual_speed, following, controls.ranged, controls.help_target)
 	var view_size: Vector2 = get_viewport_rect().size / camera.zoom / TILE
 	var camera_rect := Rect2(camera.position / TILE - Art.BODY_FOOT_OFFSET - view_size * 0.5, view_size)
 	ui.minimap.adopt(frame, ground.material, fog, fog_enabled, camera_rect)
@@ -307,6 +317,7 @@ func _draw() -> void:
 			draw_line(point * TILE - direction * 9, point * TILE + direction * 4, Color(0.88, 0.78, 0.56), 2)
 			draw_line(point * TILE + direction * 4, point * TILE + direction.rotated(0.45) * -2, Color(0.85, 0.94, 0.90), 2)
 			draw_line(point * TILE + direction * 4, point * TILE + direction.rotated(-0.45) * -2, Color(0.85, 0.94, 0.90), 2)
+	if not _show_sources: return
 	for source: int in frame.mobile_cells.size():
 		if frame.mobile_cells[source] < 0:
 			continue

@@ -12,6 +12,8 @@
 
 多控、征召、编队/群体避让、生产订单、区域任务、跨仓自动备料和完整人物/装备界面仍属未定/未做玩法。本轮不以这些大项阻塞可玩交互，也不将首版临时布局变成后续必须遵守的产品约束。出口是可操作试玩，不自动开启下一轮UI或性能工程。
 
+本次试玩反馈已接入：固定地块探针、贴底/百分比缩放、人物中文事件与冷热耐受；随机压力场源与普通开局分离，地区无实体演示源删除。能力/容量以FEATURES为准，结算语义归simulation-pacing，不另开UI、事件或抗性路线图。两个不同模型使用同一份冻结材料并发咨询并收齐正文，客户端与说明已更新在忽略的本机目录；数值、缺陷和性能判断经源码/实测筛选，不以顾问一致意见作审批。
+
 本机先并发布局/交互/交付三个隔离one-shot，再补充小地图与无说明文字交互两题，均收齐正文并结合源码核查。采纳双焦点、上下文操作和分层地图；拒绝未测性能保证、固定控件数量、把全部UI说成零后台改动、猜测闭源实现和提前增加新玩法。咨询方式已补入本机顾问说明，原问答/核查留忽略目录，不是第二份主计划。
 
 参考依据：
@@ -20,6 +22,7 @@
 - [Riot输入系统说明](https://www.leagueoflegends.com/en-ph/news/dev/dev-wasds-ranked-release/)与[Ludeon官方教程资料](https://github.com/Ludeon/RimWorld-ChineseSimplified/blob/master/Core/DefInjected/ConceptDef/Concepts_NotedSelfshow.xml)、社区[界面](https://rimworldwiki.com/wiki/User_interface)/[操作](https://rimworldwiki.com/wiki/Controls)说明：区分选择、操作、工具和工作，不照搬未实现玩法。
 - [0 A.D.小地图源码](https://github.com/0ad/0ad/blob/master/source/graphics/MiniMapTexture.cpp)、[OpenRA地图控件](https://github.com/OpenRA/OpenRA/blob/bleed/OpenRA.Mods.Common/Widgets/RadarWidget.cs)：借鉴地形缓存、迷雾与动态实体分层，未复制源码或新增依赖。[WoW社区提取工具](https://github.com/Marlamin/WoWTools.Minimaps)展示其地图纹理瓦片拼接，只作为公开资源结构参考，不臆称知道客户端全部渲染实现。
 - Godot官方[Control](https://github.com/godotengine/godot-docs/blob/4.7/classes/class_control.rst)与[输入传播](https://github.com/godotengine/godot-docs/blob/4.7/tutorials/inputs/inputevent.rst)：使用原生GUI、InputMap和焦点；accept_event不阻止全局Input轮询。
+- 本次耐受参考[Blizzard的Protoss护盾说明](https://classic.battle.net/scc/protoss/bstrat.shtml)的分层吸收/可恢复思路，不照搬其数值或战斗规则；人物事件参考[CDDA消息源码](https://github.com/CleverRaven/Cataclysm-DDA/blob/master/src/messages.cpp)的连续消息合并和有界保留，未声称复现RimWorld闭源日志。缩放结合Godot官方[CanvasLayer](https://docs.godotengine.org/en/stable/classes/class_canvaslayer.html)与[多分辨率](https://docs.godotengine.org/en/stable/tutorials/rendering/multiple_resolutions.html)分离界面/世界坐标。
 
 ## 已交付背景：在高速内核上恢复可玩功能
 

@@ -162,7 +162,8 @@ func action(kind: String, payload: Dictionary) -> void:
 		"settings": ui.open_simple("settings")
 		"close_settings": ui.open_simple("pause")
 		"ui_scale":
-			get_window().content_scale_factor = float(payload.scale)
+			ui.apply_scale(int(payload.percent))
+		"ui_scale_commit": ui.commit_scale()
 		"place_build", "place_plant":
 			tool = "build" if kind == "place_build" else "plant"
 			definition = payload.definition
@@ -199,6 +200,7 @@ func action(kind: String, payload: Dictionary) -> void:
 		"gallery": host.art_gallery.toggle()
 		"debug":
 			if host._debug_console != null: host._debug_console.toggle()
+		"source_overlay": host._show_sources = not host._show_sources
 		"source": _send({"kind": "source", "tile": host.selected_tile})
 		"journey":
 			host.following = true

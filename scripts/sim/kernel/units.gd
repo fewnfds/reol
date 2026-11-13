@@ -4,10 +4,13 @@ extends RefCounted
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const PAGE_SIZE: int = 256
 const WALK_SPEED: float = 5.0
+const MAX_TOLERANCE: float = 100.0
+const THERMAL_DAMAGE_PER_SECOND: float = 1.0
+const TOLERANCE_REGEN_PER_SECOND: float = 1.0
 enum Mode { RESOURCE, HARVEST, REST, MANUAL, IDLE, DEAD, APPROACH, ACTION, FREE, EXPLORE, COMBAT_MOVE }
 
 const STATE_FIELDS: Array = ["ids", "positions", "targets", "modes", "health", "energy", "hunger", "body_heat",
-	"exposure", "elements", "due_ms", "route_cursors", "routes", "source_ids",
+	"exposure", "elements", "due_ms", "route_cursors", "routes", "source_ids", "tolerance", "thermal_carry",
 	"flight", "radii", "moved_distance", "path_failures"]
 
 var ids := PackedInt64Array()
@@ -17,6 +20,8 @@ var modes := PackedByteArray()
 var flight := PackedByteArray()
 var radii := PackedFloat32Array()
 var health := PackedInt32Array()
+var tolerance := PackedFloat32Array()
+var thermal_carry := PackedFloat32Array()
 var energy := PackedInt32Array()
 var hunger := PackedInt32Array()
 var body_heat := PackedFloat32Array()
@@ -32,6 +37,7 @@ var motion: Dictionary = {} # Sparse timed knots for this step, shared by collis
 var ready := PackedInt64Array() # local row, exact arrival/due time
 var failures := PackedInt32Array()
 var environmental_deaths := PackedInt32Array()
+var environmental_events: Array[Dictionary] = []
 var moved_distance: float = 0.0
 var path_failures: int = 0
 var environment: RefCounted
@@ -58,6 +64,8 @@ func add_row(id: int, tile: int) -> int:
 	targets.append(Terrain.center(terrain.resources[source]))
 	modes.append(Mode.RESOURCE)
 	health.append(100)
+	tolerance.append(MAX_TOLERANCE)
+	thermal_carry.append(0.0)
 	flight.append(0)
 	radii.append(0.35)
 	energy.append(10000)
@@ -136,18 +144,36 @@ func advance(navigation: RefCounted) -> void:
 
 func sample_environment(seconds: float = 1.0) -> void:
 	environmental_deaths.clear()
+	environmental_events.clear()
 	var alpha: float = 1.0 - exp(-seconds / 30.0)
 	for row: int in positions.size():
 		if modes[row] == Mode.DEAD or modes[row] == Mode.FREE:
 			continue
 		var tile: int = Terrain.index(Vector2i(positions[row]))
 		environment.sample_raw(tile, exposure, row * 7)
-		body_heat[row] = lerpf(body_heat[row], environment.temperature_at(tile, exposure, row * 7), alpha)
+		var ambient: float = environment.temperature_at(tile, exposure, row * 7)
+		body_heat[row] = lerpf(body_heat[row], ambient, alpha)
 		for channel: int in 5:
 			elements[row * 5 + channel] = environment.element(tile, exposure, row * 7, channel)
 		hunger[row] = maxi(0, hunger[row] - roundi(2 * seconds))
 		energy[row] = maxi(0, energy[row] - roundi((3 + absf(body_heat[row] - 22.0)) * seconds))
 		if seconds > 0.0 and (body_heat[row] > 80.0 or body_heat[row] < 0.0):
-			health[row] = maxi(0, health[row] - 1)
+			var before: float = tolerance[row]
+			var absorbed: float = minf(tolerance[row], seconds * THERMAL_DAMAGE_PER_SECOND)
+			tolerance[row] = maxf(0.0, tolerance[row] - absorbed)
+			var residual: float = maxf(0.0, seconds * THERMAL_DAMAGE_PER_SECOND - absorbed) + thermal_carry[row]
+			var damage: int = mini(health[row], int(floor(residual + 0.000001)))
+			thermal_carry[row] = maxf(0.0, residual - floor(residual + 0.000001))
+			health[row] -= damage
+			environmental_events.append({"kind": "thermal_hit", "actor": ids[row], "at_ms": end_ms,
+				"cause": "cold" if body_heat[row] < 0.0 else "heat", "absorbed": absorbed, "damage": damage,
+				"tolerance": tolerance[row], "hp": health[row], "temperature": body_heat[row]})
+			if before > 0.0 and tolerance[row] <= 0.0:
+				environmental_events.append({"kind": "tolerance_exhausted", "actor": ids[row], "at_ms": end_ms})
+		elif seconds > 0.0 and body_heat[row] >= 5.0 and body_heat[row] <= 75.0 and ambient >= 0.0 and ambient <= 80.0:
+			var before: float = tolerance[row]
+			tolerance[row] = minf(MAX_TOLERANCE, before + seconds * TOLERANCE_REGEN_PER_SECOND)
+			if before < MAX_TOLERANCE and tolerance[row] == MAX_TOLERANCE:
+				environmental_events.append({"kind": "tolerance_restored", "actor": ids[row], "at_ms": end_ms})
 		if health[row] <= 0:
 			environmental_deaths.append(row)

@@ -1,11 +1,15 @@
 extends Control
 ## Native HUD. Values come from detached frames; actions leave through one signal.
 signal requested(action: String, payload: Dictionary)
+signal scale_applied(factor: float)
 const Style = preload("res://scripts/presentation/ui/style.gd")
 const Actions = preload("res://scripts/presentation/ui/actions.gd")
 const Minimap = preload("res://scripts/presentation/ui/minimap.gd")
 const Art = preload("res://scripts/presentation/art.gd")
 const Units = preload("res://scripts/sim/kernel/units.gd")
+const EventText = preload("res://scripts/presentation/ui/event_text.gd")
+const BASE_SCALE: float = 0.5
+var ui_percent: int = 100
 var minimap := Minimap.new()
 var _top := VBoxContainer.new()
 var _clock: Label
@@ -48,13 +52,16 @@ var _modal_panel: PanelContainer
 var _modal_body := VBoxContainer.new()
 var _modal_kind: String = ""
 var _amount: SpinBox
-var _stock_items: OptionButton
+var _stock_items: ItemList
 var _stock_values: Label
 var _stock_kind: String = ""
 var _stock_target: int = 0
 var _stock_epoch: int = 0
 var _stock_keys: Array = []
 var _accept: Button
+var _scale_input: SpinBox
+var _events: RichTextLabel
+var _event_signature: String = ""
 var _context_panel: PanelContainer
 var _context_body := VBoxContainer.new()
 var _context: Dictionary = {}
@@ -62,7 +69,7 @@ var _tooltip_until: int = 0
 
 func _ready() -> void:
 	Actions.load_definitions()
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	theme = Style.theme()
 	var top_panel: PanelContainer = _panel(self, Control.PRESET_TOP_WIDE, Vector4(8, 8, -8, 78))
@@ -79,7 +86,7 @@ func _ready() -> void:
 	_button(first, "load", "", "load")
 	_button(first, "pause_menu", "", "menu")
 	_tides = Style.label(_top)
-	var dock: PanelContainer = _panel(self, Control.PRESET_CENTER_BOTTOM, Vector4(-292, -174, 292, -54))
+	var dock: PanelContainer = _panel(self, Control.PRESET_CENTER_BOTTOM, Vector4(-292, -128, 292, -8))
 	dock.add_theme_stylebox_override("panel", Style.box(Color("18251ff2"), Style.GOLD))
 	var dock_body := VBoxContainer.new()
 	dock.add_child(dock_body)
@@ -95,7 +102,7 @@ func _ready() -> void:
 		_player_buttons[row[0]] = _button(combat, row[0], row[1], row[2])
 	_ranged = _button(combat, "ranged", "弓", "target")
 	_follow = _button(combat, "follow", "F", "eye")
-	_inspect_panel = _panel(self, Control.PRESET_BOTTOM_LEFT, Vector4(8, -350, 330, -54))
+	_inspect_panel = _panel(self, Control.PRESET_BOTTOM_LEFT, Vector4(8, -450, 330, -135))
 	_inspect_panel.add_theme_stylebox_override("panel", Style.box(Color("18251ff2"), Style.TEAL))
 	_inspect_panel.add_child(_inspect_body)
 	_inspect_title = Style.label(_inspect_body)
@@ -105,19 +112,20 @@ func _ready() -> void:
 	_inspect_values.custom_minimum_size.x = 286
 	_commands.columns = 3
 	_inspect_body.add_child(_commands)
-	_drawer_panel = _panel(self, Control.PRESET_BOTTOM_LEFT, Vector4(8, -460, 354, -54))
+	_drawer_panel = _panel(self, Control.PRESET_BOTTOM_LEFT, Vector4(8, -546, 354, -135))
 	var drawer_scroll := ScrollContainer.new()
 	drawer_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_drawer_panel.add_child(drawer_scroll)
 	_drawer_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	drawer_scroll.add_child(_drawer_body)
 	_drawer_panel.hide()
-	var toolbar: PanelContainer = _panel(self, Control.PRESET_BOTTOM_LEFT, Vector4(8, -48, 700, -8))
-	var tabs := HBoxContainer.new()
+	var toolbar: PanelContainer = _panel(self, Control.PRESET_BOTTOM_LEFT, Vector4(8, -126, 330, -8))
+	var tabs := GridContainer.new()
+	tabs.columns = 2
 	toolbar.add_child(tabs)
 	for row: Array in [["build_menu", "营造 B", "build"], ["plant_menu", "种植", "plant"], ["inventory", "背包 I", "bag"], ["character", "人物", "person"], ["travel", "地区", "map"], ["dev", "DEV", "gear"]]:
 		_button(tabs, row[0], row[1], row[2])
-	_map_panel = _panel(self, Control.PRESET_BOTTOM_RIGHT, Vector4(-226, -288, -8, -54))
+	_map_panel = _panel(self, Control.PRESET_BOTTOM_RIGHT, Vector4(-226, -306, -8, -72))
 	var map_body := VBoxContainer.new()
 	_map_panel.add_child(map_body)
 	minimap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -130,9 +138,9 @@ func _ready() -> void:
 	_map_in = _button(map_tools, "map_in", "+")
 	minimap.camera_requested.connect(func(point: Vector2): requested.emit("camera", {"position": point}))
 	minimap.move_requested.connect(func(point: Vector2): requested.emit("map_move", {"position": point}))
-	_probe_panel = _panel(self, Control.PRESET_TOP_LEFT, Vector4(0, 0, 324, 94))
+	_probe_panel = _panel(self, Control.PRESET_TOP_RIGHT, Vector4(-370, 94, -8, 222))
 	_probe_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_probe = Style.label(_probe_panel)
+	_probe = Style.label(_probe_panel, "—")
 	_notice.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_notice)
 	_notice.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
@@ -147,7 +155,26 @@ func _ready() -> void:
 	_context_panel.add_child(_context_body)
 	_context_panel.hide()
 	get_viewport().size_changed.connect(_layout)
+	var config := ConfigFile.new()
+	if config.load("user://interface.cfg") == OK: ui_percent = clampi(int(config.get_value("ui", "percent", 100)), 50, 200)
+	apply_scale(ui_percent, false)
+
+func apply_scale(percent: int, persist: bool = true) -> void:
+	ui_percent = clampi(percent, 50, 200)
+	scale = Vector2.ONE * BASE_SCALE * ui_percent / 100.0
 	_layout()
+	scale_applied.emit(scale.x)
+	if persist:
+		var config := ConfigFile.new()
+		config.set_value("ui", "percent", ui_percent)
+		config.save("user://interface.cfg")
+
+func screen_to_ui(point: Vector2) -> Vector2:
+	return get_global_transform_with_canvas().affine_inverse() * point
+
+func commit_scale() -> void:
+	_scale_input.apply()
+	requested.emit("ui_scale", {"percent": int(_scale_input.value)})
 
 func _panel(parent: Node, preset: int, offsets: Vector4) -> PanelContainer:
 	var result := PanelContainer.new()
@@ -175,29 +202,34 @@ func _clear(parent: Node) -> void:
 		child.queue_free()
 
 func _layout() -> void:
-	var width: float = get_viewport_rect().size.x
+	size = get_viewport_rect().size / scale
+	var width: float = size.x
 	var dock_width: float = minf(584, maxf(490, width - 590))
 	var dock: Control = _player_values.get_parent().get_parent()
 	dock.offset_left = -dock_width * 0.5
 	dock.offset_right = dock_width * 0.5
 	if width < 1220:
+		_probe_panel.offset_top = 340
+		_probe_panel.offset_bottom = 468
 		_inspect_panel.anchor_top = 0
 		_inspect_panel.anchor_bottom = 0
 		_inspect_panel.offset_top = 92
-		_inspect_panel.offset_bottom = maxf(270, size.y - 190)
+		_inspect_panel.offset_bottom = maxf(270, size.y - 140)
 		_map_panel.anchor_top = 0
 		_map_panel.anchor_bottom = 0
 		_map_panel.offset_top = 94
 		_map_panel.offset_bottom = 328
 	else:
+		_probe_panel.offset_top = 94
+		_probe_panel.offset_bottom = 222
 		_inspect_panel.anchor_top = 1
 		_inspect_panel.anchor_bottom = 1
-		_inspect_panel.offset_top = -350
-		_inspect_panel.offset_bottom = -54
+		_inspect_panel.offset_top = -450
+		_inspect_panel.offset_bottom = -135
 		_map_panel.anchor_top = 1
 		_map_panel.anchor_bottom = 1
-		_map_panel.offset_top = -288
-		_map_panel.offset_bottom = -54
+		_map_panel.offset_top = -306
+		_map_panel.offset_bottom = -72
 	_notice.offset_left = -180
 	_notice.offset_right = 180
 
@@ -216,7 +248,7 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 	var tide_text := PackedStringArray()
 	for i: int in mini(frame.tides.size(), 5): tide_text.append("%s %d%%" % [["金", "木", "水", "火", "土"][i], frame.tides[i]])
 	set_text(_tides, "   ".join(tide_text))
-	set_text(_player_values, "#1   HP %d/100   精力 %d   饥饿 %d" % [int(player.get("hp", 0)), int(player.get("energy", 0)), int(player.get("hunger", 0))])
+	set_text(_player_values, "#1  HP %d  耐受 %.0f/%.0f  精力 %d  饥饿 %d" % [int(player.get("hp", 0)), float(player.get("tolerance", 0)), float(player.get("max_tolerance", 100)), int(player.get("energy", 0)), int(player.get("hunger", 0))])
 	var action: Dictionary = player.get("action", {})
 	var current: String = action_name(str(action.get("kind", "")))
 	if action.is_empty(): current = "移动" if int(player.get("mode", 4)) in [0, 3, 6, 9, 10] else "—"
@@ -244,6 +276,7 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 		set_text(_inspect_title, ("◷ " if _target.get("memory", false) else "") + Actions.title(_target))
 		var rows := PackedStringArray()
 		if _target.has("hp"): rows.append("HP %d   %s" % [int(_target.hp), str(_target.get("mode", ""))])
+		if _target.has("tolerance"): rows.append("耐受 %.1f / %.0f" % [float(_target.tolerance), float(_target.max_tolerance)])
 		if _target.has("position"):
 			var point: Vector2 = _target.position
 			rows.append("(%.2f, %.2f)   视距 %.1f" % [point.x, point.y, float(_target.get("sight_range", 0))])
@@ -266,6 +299,7 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 			var button: Button = _button(_commands, spec.id, spec.text, spec.icon, {"target": selected})
 			button.disabled = not spec.enabled
 	if not _drawer_name.is_empty(): _refresh_drawer()
+	if _drawer_name == "character": _refresh_events()
 	if _modal_kind in ["take", "put", "drop"]: _refresh_stock()
 	if Time.get_ticks_msec() > _tooltip_until: set_text(_receipt, "")
 
@@ -281,13 +315,14 @@ func feedback(text: String, ok: bool) -> void:
 	_receipt.modulate = Style.TEAL if ok else Style.DANGER
 	_tooltip_until = Time.get_ticks_msec() + 3500
 
-func probe(frame: RefCounted, point: Vector2i, at: Vector2, valid: bool) -> void:
-	_probe_panel.visible = valid and not blocks_world()
-	if not _probe_panel.visible: return
+func probe(frame: RefCounted, point: Vector2i, _at: Vector2, valid: bool) -> void:
+	_probe_panel.visible = not blocks_world()
+	if not _probe_panel.visible or not valid: return
 	var data: Dictionary = frame.tile_probe
-	if int(data.get("tile", -1)) != point.y * 512 + point.x: return
-	set_text(_probe, "(%d,%d)   %.2f°C   #%d\n%s / %d / %d\n%s" % [point.x, point.y, float(data.get("temperature", 0)), int(data.get("room", -1)), str(data.get("substrate", "")), int(data.get("cover", 0)), int(data.get("flooring", 0)), elements(data.get("elements", []))])
-	_probe_panel.position = (at + Vector2(20, 24)).clamp(Vector2(4, 90), size - _probe_panel.size - Vector2(6, 6))
+	if int(data.get("tile", -1)) != point.y * 512 + point.x:
+		set_text(_probe, "(%d,%d)   —" % [point.x, point.y])
+		return
+	set_text(_probe, "(%d,%d)   %.2f°C   #%d\n环境 %.1f  热 +%d  冷 −%d\n%s / %d / %d\n%s" % [point.x, point.y, float(data.get("temperature", 0)), int(data.get("room", -1)), float(data.get("ambient", 0)), int(data.get("heat", 0)), int(data.get("cold", 0)), str(data.get("substrate", "")), int(data.get("cover", 0)), int(data.get("flooring", 0)), elements(data.get("elements", []))])
 
 static func elements(values: Variant) -> String:
 	var output := PackedStringArray()
@@ -298,16 +333,20 @@ static func set_text(label: Label, text: String) -> void:
 	if label.text != text: label.text = text
 
 static func action_name(kind: String) -> String:
-	return str({"construct": "施工", "continue_build": "施工", "take": "拿取", "put": "放入", "rest": "休息", "cook": "烹饪", "eat": "进食", "sow": "播种", "tend": "照料", "gather": "采收", "cut": "砍伐", "uproot": "拔除", "demolish": "拆除", "talk": "交谈", "trade": "交换", "learn": "请教", "study": "读书", "practice": "修行", "request_help": "协作", "pursue": "追击", "attack_move": "攻移", "hold": "驻守"}.get(kind, "—"))
+	return "—" if kind.is_empty() else EventText.name(kind)
+
 
 func toggle_drawer(kind: String) -> void:
 	_drawer_name = "" if _drawer_name == kind else kind
 	_drawer_panel.visible = not _drawer_name.is_empty()
 	_drawer_signature = ""
+	_event_signature = ""
 	if _frame != null: _refresh_drawer()
 
 func _refresh_drawer() -> void:
 	var signature: String = _drawer_name + str(_frame.player.get("inventory", {})) + str(_frame.player.get("methods", {})) + str(_frame.player.get("practice", 0))
+	var subject: Dictionary = _target if _target.get("kind", "") == "actor" and not _target.get("memory", false) else _frame.player
+	if _drawer_name == "character": signature += "#%d:%d" % [int(subject.get("id", 1)), int(subject.get("qi", 0))]
 	if signature == _drawer_signature: return
 	_drawer_signature = signature
 	_clear(_drawer_body)
@@ -333,20 +372,39 @@ func _refresh_drawer() -> void:
 			cost.modulate = Color.WHITE if int(inventory.get(item, 0)) >= amount else Style.DANGER
 			grid.columns = 2
 	elif _drawer_name == "character":
+		Style.label(_drawer_body, "#%d" % int(subject.get("id", 1)))
 		_button(grid, "unused", "属性", "lock").disabled = true
-		_button(grid, "inventory", "背包", "bag")
-		_button(grid, "study", "读书", "book").disabled = int(inventory.get("breath_manual", 0)) <= 0
-		_button(grid, "ability", "回春", "plant").disabled = not _frame.player.get("abilities", {}).get("wood_mend", false)
-		Style.label(_drawer_body, "灵气 %d   修行 %d" % [int(_frame.player.get("qi", 0)), int(_frame.player.get("practice", 0))])
-		Style.label(_drawer_body, str(_frame.player.get("methods", {}).keys()))
+		if int(subject.get("id", 1)) == 1:
+			_button(grid, "inventory", "背包", "bag")
+			_button(grid, "study", "读书", "book").disabled = int(inventory.get("breath_manual", 0)) <= 0
+			_button(grid, "ability", "回春", "plant").disabled = not _frame.player.get("abilities", {}).get("wood_mend", false)
+			Style.label(_drawer_body, "灵气 %d   修行 %d" % [int(subject.get("qi", 0)), int(subject.get("practice", 0))])
+			Style.label(_drawer_body, str(subject.get("methods", {}).keys()))
+		Style.label(_drawer_body, "事件")
+		_events = RichTextLabel.new()
+		_events.custom_minimum_size = Vector2(304, 260)
+		_events.scroll_following = true
+		_events.selection_enabled = true
+		_drawer_body.add_child(_events)
+		_event_signature = ""
 	elif _drawer_name == "travel":
 		for i: int in 3: _button(grid, "journey", ["谷地", "寒林", "旱地"][i], "map", {"region": i})
 	elif _drawer_name == "dev":
 		for i: int in 5: _button(grid, "weather", ["自动", "晴", "雨", "寒风", "热浪"][i], "", {"weather": i - 1})
 		for i: int in 3: _button(grid, "body", ["普通", "飞行", "大体型"][i], "person", {"flight": int(i == 1), "large": i == 2})
 		_button(grid, "source", "场源", "target")
+		_button(grid, "source_overlay", "场源标记", "eye")
 		_button(grid, "gallery", "图鉴 F8", "book")
 		_button(grid, "debug", "F12", "gear")
+
+func _refresh_events() -> void:
+	var subject: Dictionary = _target if _target.get("kind", "") == "actor" and not _target.get("memory", false) else _frame.player
+	var signature: String = "%d:%d" % [int(subject.get("id", 1)), int(subject.get("events_version", 0))]
+	if signature == _event_signature or not is_instance_valid(_events): return
+	_event_signature = signature
+	var lines := PackedStringArray()
+	for event: Dictionary in subject.get("events", []): lines.append(EventText.line(event))
+	_events.text = "\n".join(lines)
 
 func _build_modal() -> void:
 	add_child(_modal)
@@ -372,9 +430,9 @@ func open_stock(kind: String, target: int) -> void:
 	_modal_body.add_child(row)
 	Style.label(row, "#1" if kind == "drop" else "#1 ⇄ #%d" % target).size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_button(row, "close_modal", "", "close")
-	_stock_items = OptionButton.new()
-	_stock_items.custom_minimum_size.y = 42
-	_stock_items.add_theme_constant_override("icon_max_width", 30)
+	_stock_items = ItemList.new()
+	_stock_items.custom_minimum_size.y = 112
+	_stock_items.fixed_icon_size = Vector2i(24,24)
 	_stock_items.item_selected.connect(func(_index: int): _refresh_stock())
 	_modal_body.add_child(_stock_items)
 	_stock_values = Style.label(_modal_body)
@@ -404,12 +462,14 @@ func _refresh_stock() -> void:
 	var keys: Array = source.keys()
 	keys.sort()
 	if keys != _stock_keys:
-		var previous: String = str(_stock_keys[_stock_items.selected]) if _stock_items.selected >= 0 and _stock_items.selected < _stock_keys.size() else ""
+		var selected: int = _stock_index()
+		var previous: String = str(_stock_keys[selected]) if selected >= 0 and selected < _stock_keys.size() else ""
 		_stock_keys = keys
 		_stock_items.clear()
-		for key: String in keys: _stock_items.add_icon_item(Art.icon(Actions.art_key(key)), str(Actions.items.get(key, {}).get("label", key)))
-		if keys.has(previous): _stock_items.select(keys.find(previous))
-	var chosen: String = str(keys[_stock_items.selected]) if _stock_items.selected >= 0 and _stock_items.selected < keys.size() else ""
+		for key: String in keys: _stock_items.add_item(str(Actions.items.get(key, {}).get("label", key)), Art.icon(Actions.art_key(key)))
+		if not keys.is_empty(): _stock_items.select(keys.find(previous) if keys.has(previous) else 0)
+	var index: int = _stock_index()
+	var chosen: String = str(keys[index]) if index >= 0 and index < keys.size() else ""
 	var available: int = int(source.get(chosen, 0))
 	var destination: Dictionary = _frame.player if _stock_kind == "take" else target
 	var capacity: int = int(destination.get("capacity", -1))
@@ -423,9 +483,14 @@ func _refresh_stock() -> void:
 
 func commit_stock() -> void:
 	_amount.apply()
-	if _accept.disabled or _stock_items.selected < 0: return
-	requested.emit("stock_send", {"kind": _stock_kind, "target": _stock_target, "item": _stock_keys[_stock_items.selected], "amount": int(_amount.value), "epoch": _stock_epoch})
+	var selected: int = _stock_index()
+	if _accept.disabled or selected < 0: return
+	requested.emit("stock_send", {"kind": _stock_kind, "target": _stock_target, "item": _stock_keys[selected], "amount": int(_amount.value), "epoch": _stock_epoch})
 	close_modal()
+
+func _stock_index() -> int:
+	var selected: PackedInt32Array = _stock_items.get_selected_items()
+	return selected[0] if not selected.is_empty() else -1
 
 func open_simple(kind: String) -> void:
 	_modal_kind = kind
@@ -441,7 +506,15 @@ func open_simple(kind: String) -> void:
 		_button(_modal_body, "trade_commit", "交换", "link", {"target": _selected}).disabled = int(_frame.player.get("inventory", {}).get("potion", 0)) < 1
 		_button(_modal_body, "close_modal", "", "close")
 	elif kind == "settings":
-		for amount: int in [90, 100, 110, 125]: _button(_modal_body, "ui_scale", "UI %d%%" % amount, "", {"scale": amount / 100.0})
+		Style.label(_modal_body, "UI")
+		_scale_input = SpinBox.new()
+		_scale_input.min_value = 50
+		_scale_input.max_value = 200
+		_scale_input.step = 1
+		_scale_input.value = ui_percent
+		_scale_input.suffix = "%"
+		_modal_body.add_child(_scale_input)
+		_button(_modal_body, "ui_scale_commit", "确认", "check")
 		_button(_modal_body, "close_settings", "", "close")
 	_modal.show()
 
@@ -458,7 +531,7 @@ func context_menu(data: Dictionary, at: Vector2, payload: Dictionary) -> void:
 		button.disabled = not spec.enabled
 	_button(_context_body, "context_move", "移动 M", "move", payload)
 	_context_panel.size = Vector2(220, 0)
-	_context_panel.position = at.clamp(Vector2(0, 84), size - Vector2(224, 350))
+	_context_panel.position = screen_to_ui(at).clamp(Vector2(0, 84), size - Vector2(224, 350))
 	_context_panel.show()
 
 func close_context() -> void:

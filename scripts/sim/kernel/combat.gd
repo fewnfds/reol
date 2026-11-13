@@ -242,14 +242,17 @@ func damage(world: RefCounted, actor: int, target: int, amount: int, now: int, i
 		return
 	hits += 1
 	var rec: Dictionary = world.objects.records[target]
+	var applied: int
 	if world.actor_slots.has(target):
 		var slot: int = world.actor_slots[target]
 		var page: RefCounted = world.pages[slot / 256]
 		var row: int = slot % 256
-		page.health[row] = maxi(0, page.health[row] - maxi(1, amount - int(rec.get("armor", 0))))
+		applied = mini(page.health[row], maxi(1, amount - int(rec.get("armor", 0))))
+		page.health[row] -= applied
 		world.attacks += 1
+		world.emit({"kind": "hit", "actor": actor, "target": target, "damage": applied, "at_ms": now})
 		if page.health[row] <= 0:
-			world.kill(target, now)
+			world.kill(target, now, "combat")
 		elif not orders.has(target) and target != 1:
 			world.sight.sync(world)
 			var ranged: bool = world.objects.records[target].get("ranged", false)
@@ -264,10 +267,11 @@ func damage(world: RefCounted, actor: int, target: int, amount: int, now: int, i
 				if goal.x >= 0:
 					begin(world, target, "attack_move", 0, goal, ranged, now)
 	else:
-		rec.hp = maxi(0, int(rec.hp) - maxi(1, amount - int(world.facilities.definitions.get(rec.definition, {}).get("armor", 0))))
+		applied = mini(int(rec.hp), maxi(1, amount - int(world.facilities.definitions.get(rec.definition, {}).get("armor", 0))))
+		rec.hp -= applied
+		world.emit({"kind": "hit", "actor": actor, "target": target, "damage": applied, "at_ms": now})
 		if rec.hp <= 0:
 			world.facilities.demolish(world, target, now)
-	world.outcomes.append({"kind": "hit", "actor": actor, "target": target, "damage": amount, "at_ms": now})
 
 
 func valid(world: RefCounted) -> bool:

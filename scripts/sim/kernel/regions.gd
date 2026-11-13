@@ -31,9 +31,7 @@ func initialize(world: RefCounted) -> void:
 			world.terrain.resources.append(site)
 			var plant_tile: int = Terrain.index(DESTINATIONS[region] + Vector2i(4 + local * 2, -3))
 			world.nature.create(world, "perennial_herb" if region == 1 else "desert_thorn", plant_tile, false, true)
-		var source: int = world.environment.add_source(tile + 5, 1 if region == 1 else 0, 12)
-		world.terrain.source_cells.append(world.environment.source_cells[source])
-		world.terrain.source_channels.append(world.environment.source_channels[source])
+		# Regional climate already comes from ambient_at(); no invisible test emitter.
 	if world.actor_count >= 24:
 		for offset: int in 4:
 			var actor: int = world.actor_count - 4 - offset
