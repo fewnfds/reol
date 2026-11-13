@@ -2,9 +2,11 @@ shader_type canvas_item;
 global uniform vec2 art_sun;
 global uniform float art_sun_strength;
 global uniform float art_time;
+global uniform vec4 art_ambient;
 uniform sampler2D world_atlas : source_color, filter_nearest, repeat_disable;
 uniform sampler2D visible_map : filter_nearest, repeat_disable;
 uniform sampler2D motion_map : filter_nearest, repeat_disable;
+uniform sampler2D fog_mask : filter_linear, repeat_disable;
 uniform bool use_fog = false;
 uniform float alpha = 1.0;
 uniform float world_ms = 0.0;
@@ -96,8 +98,15 @@ void fragment() {
     float a = body.a + shadow * (1.0-body.a);
     vec3 color = (body.rgb*body.a + vec3(0.10,0.16,0.20)*shadow*(1.0-body.a))/max(a,0.001);
     if (special > 0.5) { color += body.rgb*(0.08+0.06*sin(art_time*3.0)*known); }
-    // One known object stays whole over ground fog, including its canopy.
-    // Only detached last-observed descriptors reach this batch.
-    if (scenery > 0.5) { color = mix(mix(vec3(0.015,0.022,0.03),color,0.45),color,known); }
+    // Ground fixtures sample the same continuous mask as terrain. Tall crowns
+    // retain whole-object memory; all sprites keep the original painter order.
+    if (scenery > 0.5 && use_fog) {
+        if ((body_flags & 1) != 0) {
+            // CanvasModulate applies after this shader. Keep fully covered
+            // fixtures the same fog colour at night as the unshaded overlay.
+            vec3 fog_color = vec3(0.015,0.022,0.03) / max(art_ambient.rgb, vec3(0.001));
+            color = mix(color, fog_color, texture(fog_mask, SCREEN_UV).r);
+        } else { color = mix(mix(vec3(0.015,0.022,0.03),color,0.45),color,known); }
+    }
     COLOR = vec4(color,a*tint.a);
 }

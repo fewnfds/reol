@@ -11,12 +11,17 @@ var buffer := PackedFloat32Array()
 var order := PackedFloat64Array()
 var revision: int = 0
 var shelter: ImageTexture
+var _source: Dictionary = {}
+var _fringe: Dictionary = {}
 
 
-func adopt(value: Dictionary) -> void:
-    if is_same(objects, value):
+func adopt(value: Dictionary, fringe: Dictionary = {}) -> void:
+    if is_same(_source, value) and (is_same(_fringe, fringe) or (_fringe.is_empty() and fringe.is_empty())):
         return
-    objects = value
+    _source = value
+    _fringe = fringe
+    objects = value if fringe.is_empty() else value.duplicate()
+    if not fringe.is_empty(): objects.merge(fringe, false)
     by_tile = {}
     for id: int in objects:
         for tile: int in objects[id].get("cells", PackedInt32Array([objects[id].tile])):
@@ -80,7 +85,9 @@ func adopt(value: Dictionary) -> void:
         buffer[offset + 14] = int(source.slot)
         var anchor: Array = source.anchor
         var sway: int = int(tall and int(rec.get("stage", 2)) not in [3, 4] and not (rec.kind == "resource" and int(rec.get("vegetation_level", 3)) < 3))
-        buffer[offset + 15] = 128 + sway * 256 + special * 512 + int(anchor[0]) * 2048 + int(anchor[1]) * 131072
+        var ground_fog: int = int(not tall and rec.get("layer", "") != "roof")
+        # Low bit is free for scenery; bits 9-10 already encode special effects.
+        buffer[offset + 15] = 128 + ground_fog + sway * 256 + special * 512 + int(anchor[0]) * 2048 + int(anchor[1]) * 131072
         var depth: int = int(point.y * 256.0) + (1 << 26 if rec.get("layer", "") == "roof" else 0)
         order.append(float(depth * ORDER_STRIDE + index))
     order.sort()

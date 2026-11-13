@@ -46,8 +46,8 @@ python tools/godot.py import
 家具为轴对齐顶视图，基准方向朝上，四向绕占地中心转动；没有把等轴测斜图旋转90度冒充四向。床用头端、箱用开口、椅用面对方向区分。多格图块按catalog的原始footprint适配实际占地，避免把单格斜图拉成长床。自然树木无需为朝向复制四份。
 
 - `scripts/presentation/art.gd`：图集/图标读取与八向解释；`frame.gd.Visual`是共同显示代码，Runner从真实行动发布，不让模拟依赖美术脚本。
-- `objects_canvas.gd`：按观察描述符准备完整静态精灵、底边中点和邻接墙/门变体，采用catalog锚点/footprint；与人物共用显示脚点深度排序。只在描述符变化时重建，屋顶遮雨掩码一并更新。
-- `population.gd`及shader：人物与静态物合为同一MultiMesh。由原始局部顶点构造图片像素，不依赖QuadMesh的UV上下约定，不给Control重复套翻转。GPU插值、动作、图集/接触影与整物记忆明暗共用批次。
+- `objects_canvas.gd`：按观察与临时外围描述符准备完整静态精灵、底边中点和邻接墙/门变体，采用catalog锚点/footprint；与人物共用显示脚点深度排序。只在描述符变化时重建，屋顶遮雨掩码一并更新。
+- `population.gd`及shader：人物与静态物合为同一MultiMesh。由原始局部顶点构造图片像素，不依赖QuadMesh的UV上下约定，不给Control重复套翻转。GPU插值、动作、图集/接触影共用批次；墙门/矮物复用地面柔边纹理，树冠与屋顶保留整物记忆明暗。
 - `terrain_canvas.gd`、`atmosphere.gd`与shader：地面图集、原有迷雾纹理、Godot CanvasModulate、单屏天气和有界太阳短影。没有每格/每人灯、粒子节点或新结算引擎。
 - `action_effects.gd`：可靠结果的有界显示；`art_gallery.gd`：F8按需预览，关闭不更新预览帧。
 - 运行纹理使用nearest、无mipmap、lossless。导出包含catalog，排除源稿、联系表、第三方原切片和已退役的旧人形技术样本；源码保留来源可重建。

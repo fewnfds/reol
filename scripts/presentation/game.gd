@@ -59,6 +59,7 @@ var _adoption_times := PackedFloat64Array()
 var _gpu_times := PackedFloat64Array()
 var _render_cpu_times := PackedFloat64Array()
 var _previous_usec: int = 0
+var _mask_was_updated: bool = false
 var _hud_next: int = 0
 var _probe_next: int = 0
 var _probe_tile: int = -1
@@ -139,6 +140,8 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	var begin: int = Time.get_ticks_usec()
+	var mask_gpu: float = RenderingServer.viewport_get_measured_render_time_gpu(fog.mask.get_viewport_rid()) if _capture_at > 0 and _mask_was_updated else 0.0
+	var mask_cpu: float = RenderingServer.viewport_get_measured_render_time_cpu(fog.mask.get_viewport_rid()) if _capture_at > 0 and _mask_was_updated else 0.0
 	var mailbox: Dictionary = runner.poll()
 	var next: RefCounted = mailbox.frame
 	if next != null:
@@ -188,7 +191,8 @@ func _process(delta: float) -> void:
 		frame = next
 		if int(frame.player.get("hp", 0)) <= 0 and not controls.tool.is_empty(): controls.cancel_tool()
 		ground.adopt(frame.terrain, frame.perception)
-		object_canvas.adopt(frame.perception.memories if fog_enabled else frame.objects)
+		if fog_enabled: object_canvas.adopt(frame.perception.memories, frame.perception.get("fringe", {}))
+		else: object_canvas.adopt(frame.objects)
 		if fog_enabled:
 			fog.adopt(frame)
 			ground.visibility(fog.visibility)
@@ -211,7 +215,7 @@ func _process(delta: float) -> void:
 	_render_previous = older.positions
 	_render_current = newer.positions
 	_render_older = older
-	var scenery_changed: bool = population.scenery(object_canvas, fog.visibility)
+	var scenery_changed: bool = population.scenery(object_canvas, fog.visibility, fog.mask.get_texture())
 	if scenery_changed or _render_pose != newer or (frame.paused and _render_frame != frame) or population.actor_count != frame.positions.size() or (_render_frame != null and not is_same(_render_frame.actor_slots, frame.actor_slots)):
 		var adopt_start: int = Time.get_ticks_usec()
 		population.adopt(frame, older, newer)
@@ -228,6 +232,9 @@ func _process(delta: float) -> void:
 	if following:
 		camera.position = _displayed(1) * TILE
 	controls.tick(delta)
+	if fog_enabled:
+		camera.force_update_scroll()
+		_mask_was_updated = fog.sync_mask()
 	atmosphere.view(fog.visibility, object_canvas.shelter, fog_enabled)
 	if begin >= _probe_next:
 		_update_probe()
@@ -247,8 +254,8 @@ func _process(delta: float) -> void:
 		if _previous_usec > 0:
 			_frame_times.append((begin - _previous_usec) / 1000.0)
 		_process_times.append((Time.get_ticks_usec() - begin) / 1000.0)
-		_gpu_times.append(RenderingServer.viewport_get_measured_render_time_gpu(get_viewport().get_viewport_rid()))
-		_render_cpu_times.append(RenderingServer.viewport_get_measured_render_time_cpu(get_viewport().get_viewport_rid()) + RenderingServer.get_frame_setup_time_cpu())
+		_gpu_times.append(RenderingServer.viewport_get_measured_render_time_gpu(get_viewport().get_viewport_rid()) + mask_gpu)
+		_render_cpu_times.append(RenderingServer.viewport_get_measured_render_time_cpu(get_viewport().get_viewport_rid()) + mask_cpu + RenderingServer.get_frame_setup_time_cpu())
 	_previous_usec = begin
 
 

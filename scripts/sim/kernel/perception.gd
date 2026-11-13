@@ -4,9 +4,11 @@ extends RefCounted
 
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const STATE_FIELDS: Array = ["memories", "explored", "ground", "next_ms", "previous"]
+const GROUND_PADDING: int = 2 # Extra cached terrain, never logical sight or exploration.
 var memories: Dictionary = {}
+var fringe: Dictionary = {} # Render-only ground fixtures outside logical sight; not saved knowledge.
 var explored := PackedByteArray()
-var ground := PackedByteArray() # Last observed terrain appearance, not live terrain.
+var ground := PackedByteArray() # Last observed appearance plus hidden edge padding.
 var tiles := PackedByteArray() # Current logical player visibility; derived, not saved.
 var softness := PackedByteArray() # Continuous visual range margin, never authority or a separate sight simulation.
 var seen_tiles := PackedInt32Array()
@@ -20,6 +22,7 @@ var _view_range: float = -1.0
 var _sight_revision: int = -1
 var _layout_seen: int = -1
 var _ground_revision: int = -1
+var _ground_rows := PackedInt32Array() # Derived first/last supported x per row.
 
 
 func _init() -> void:
@@ -27,6 +30,7 @@ func _init() -> void:
 	ground.resize(explored.size())
 	tiles.resize(explored.size())
 	softness.resize(explored.size())
+	_ground_rows.resize(Terrain.SIZE * 2)
 
 
 func rebuild(world: RefCounted) -> bool:
@@ -41,7 +45,10 @@ func rebuild(world: RefCounted) -> bool:
 			if tile < 0 or tile >= explored.size():
 				return false
 	world.sight.sync(world)
+	_view_origin = -1
 	update_tiles(world)
+	cache_ground_padding(world)
+	cache_static(world, false)
 	update_visible(world)
 	revision += 1
 	return true
@@ -63,18 +70,9 @@ func update(world: RefCounted, now: int, force: bool = false) -> void:
 		for tile: int in seen_tiles:
 			explored[tile] = maxi(explored[tile], softness[tile])
 			ground[tile] = world.terrain.surface_at(tile)
-		var nearby: Array[int] = world.objects.nearby(previous, _view_range)
-		for id: int in memories.keys():
-			var current: Dictionary = world.objects.records.get(id, {})
-			if observes(memories[id]) and (current.is_empty() or current.tile != memories[id].tile or current.get("cells", PackedInt32Array([current.tile])) != memories[id].cells):
-				memories.erase(id)
-		for id: int in nearby:
-			var rec: Dictionary = world.objects.records[id]
-			if not observes(rec):
-				continue
-			memories[id] = {"id": id, "kind": rec.kind, "definition": rec.definition, "tile": rec.tile,
-				"cells": rec.get("cells", PackedInt32Array([rec.tile])).duplicate(), "layer": rec.get("layer", "ground"),
-				"stage": rec.get("stage", -1), "vegetation_level": rec.get("vegetation_level", 3), "sapient": rec.get("sapient", false), "facing": rec.get("facing", 0)}
+		if view_changed:
+			cache_ground_padding(world)
+		cache_static(world, true)
 		_layout_seen = world.objects.layout_revision
 		revision += 1
 	work_usec += Time.get_ticks_usec() - started
@@ -102,8 +100,11 @@ func update_tiles(world: RefCounted) -> bool:
 	tiles.fill(0)
 	softness.fill(0)
 	seen_tiles.clear()
+	_ground_rows.fill(-1)
 	var radius: int = mini(Terrain.SIZE, ceili(sight_range + world.sight.FEATHER))
 	for y: int in range(maxi(0, cell.y - radius), mini(Terrain.SIZE, cell.y + radius + 1)):
+		var first: int = -1
+		var last: int = -1
 		for x: int in range(maxi(0, cell.x - radius), mini(Terrain.SIZE, cell.x + radius + 1)):
 			var tile: int = y * Terrain.SIZE + x
 			var weight: float = world.sight.strength(index, tile, sight_range)
@@ -112,7 +113,66 @@ func update_tiles(world: RefCounted) -> bool:
 				tiles[tile] = 255
 			if weight > 0.0:
 				seen_tiles.append(tile)
+				if first < 0: first = x
+				last = x
+		_ground_rows[y * 2] = first
+		_ground_rows[y * 2 + 1] = last
 	return true
+
+
+func cache_ground_padding(world: RefCounted) -> void:
+	# Expand row spans gathered by the existing sight pass. A conservative
+	# envelope also covers gaps between ray samples, without more sight queries.
+	var cell: Vector2i = Terrain.cell(_view_origin)
+	var radius: int = mini(Terrain.SIZE, ceili(_view_range + world.sight.FEATHER) + GROUND_PADDING)
+	var observed_rows := _ground_rows.duplicate()
+	for y: int in range(maxi(0, cell.y - radius), mini(Terrain.SIZE, cell.y + radius + 1)):
+		var first: int = Terrain.SIZE
+		var last: int = -1
+		for row: int in range(maxi(0, y - GROUND_PADDING), mini(Terrain.SIZE, y + GROUND_PADDING + 1)):
+			if observed_rows[row * 2] >= 0:
+				first = mini(first, observed_rows[row * 2])
+				last = maxi(last, observed_rows[row * 2 + 1])
+		if last < 0: continue
+		_ground_rows[y * 2] = maxi(0, first - GROUND_PADDING)
+		_ground_rows[y * 2 + 1] = mini(Terrain.SIZE - 1, last + GROUND_PADDING)
+		var start: int = y * Terrain.SIZE + _ground_rows[y * 2]
+		var end: int = y * Terrain.SIZE + _ground_rows[y * 2 + 1] + 1
+		for tile: int in range(start, end):
+			# Never refresh an old memory from outside the observed cells.
+			if ground[tile] == 0:
+				ground[tile] = world.terrain.surface_at(tile)
+
+
+func cache_static(world: RefCounted, refresh: bool) -> void:
+	fringe = {}
+	if refresh:
+		for id: int in memories.keys():
+			var current: Dictionary = world.objects.records.get(id, {})
+			if observes(memories[id]) and (current.is_empty() or current.tile != memories[id].tile or current.get("cells", PackedInt32Array([current.tile])) != memories[id].cells):
+				memories.erase(id)
+	var radius: float = _view_range + world.sight.FEATHER + GROUND_PADDING + 1.0
+	for id: int in world.objects.nearby(Terrain.center(_view_origin), radius):
+		var rec: Dictionary = world.objects.records[id]
+		var current: bool = refresh and observes(rec)
+		if not current:
+			if memories.has(id) or rec.kind in ["resource", "floor"] or (rec.kind == "plant" and rec.definition == "old_tree") or rec.get("layer", "") == "roof": continue
+			var prepared: bool = prepares(rec.tile)
+			for tile: int in rec.get("cells", PackedInt32Array()):
+				prepared = prepared or prepares(tile)
+			if not prepared: continue
+		var descriptor: Dictionary = {"id": id, "kind": rec.kind, "definition": rec.definition, "tile": rec.tile,
+			"cells": rec.get("cells", PackedInt32Array([rec.tile])).duplicate(), "layer": rec.get("layer", "ground"),
+			"stage": rec.get("stage", -1), "vegetation_level": rec.get("vegetation_level", 3), "sapient": rec.get("sapient", false), "facing": rec.get("facing", 0)}
+		if current: memories[id] = descriptor
+		else: fringe[id] = descriptor
+
+
+func prepares(tile: int) -> bool:
+	if tile < 0 or tile >= ground.size(): return false
+	var row: int = tile / Terrain.SIZE * 2
+	var x: int = tile % Terrain.SIZE
+	return _ground_rows[row] >= 0 and x >= _ground_rows[row] and x <= _ground_rows[row + 1]
 
 
 func observes(rec: Dictionary) -> bool:

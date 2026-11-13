@@ -42,6 +42,7 @@ func adopt(frame: RefCounted, at_ms: float) -> void:
 	elif _weather_mode == 2:
 		color *= Color(0.85, 0.94, 1.0)
 	_ambient.color = color
+	RenderingServer.global_shader_parameter_set("art_ambient", Vector4(color.r, color.g, color.b, color.a))
 	RenderingServer.global_shader_parameter_set("art_time", fmod(at_ms / 1000.0, 7200.0))
 	RenderingServer.global_shader_parameter_set("art_sun", Vector2(cos((phase - 0.25) * TAU) * 0.48, 0.14 + day * 0.04))
 	RenderingServer.global_shader_parameter_set("art_sun_strength", day * (0.35 if _weather_mode == 1 else 1.0))

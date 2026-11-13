@@ -306,6 +306,7 @@ func pick(point: Vector2, include_flat: bool = true) -> Array[int]:
 		if distance < best: best = distance; nearest = id
 	if nearest > 0: result.append(nearest)
 	for id: int in host.object_canvas.by_tile.get(tile_at(point), []):
+		if host.fog_enabled and not host.frame.perception.memories.has(id): continue
 		var rec: Dictionary = host.object_canvas.objects[id]
 		if not include_flat and rec.get("layer", "ground") in ["floor", "roof"]: continue
 		if not result.has(id): result.append(id)

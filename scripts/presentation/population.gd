@@ -134,10 +134,11 @@ func interpolate(alpha: float, at_ms: int) -> void:
 	_shader.set_shader_parameter(&"world_ms", float(posmod(at_ms, 14400)))
 
 
-func scenery(value: Node2D, visibility: Texture2D) -> bool:
+func scenery(value: Node2D, visibility: Texture2D, fog_mask: Texture2D = null) -> bool:
 	_scenery = value
 	_shader.set_shader_parameter("visible_map", visibility)
 	_shader.set_shader_parameter("use_fog", fog_enabled)
+	_shader.set_shader_parameter("fog_mask", fog_mask)
 	var changed: bool = _scenery_revision != value.revision
 	_scenery_revision = value.revision
 	return changed

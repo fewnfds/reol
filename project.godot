@@ -39,6 +39,10 @@ rendering_device/driver.windows="d3d12"
 
 [shader_globals]
 
+art_ambient={
+"type": "vec4",
+"value": Vector4(1, 1, 1, 1)
+}
 art_sun={
 "type": "vec2",
 "value": Vector2(0.1, 0.15)

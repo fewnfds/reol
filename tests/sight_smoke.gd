@@ -139,3 +139,21 @@ static func run(check: Callable) -> void:
 	for step: int in 4:
 		w.step()
 	check.call(w.combat.orders.has(4) and w.combat.orders[4].target == 3, "Moving into a new reachable position left an enemy permanently blacklisted")
+	# Terrain padding supports a continuous display without granting knowledge.
+	w.release(1)
+	page.positions[0] = Vector2(50.5, 50.5)
+	w.objects.records[1].sight_range = 4.0
+	w.perception.update(w, w.elapsed_ms, true)
+	var padded_tile: int = Terrain.index(Vector2i(57, 50))
+	var padded_object: int = w.objects.create("chest", "wood_chest", padded_tile)
+	page.positions[1] = Terrain.center(padded_tile)
+	w.perception.update(w, w.elapsed_ms, true)
+	check.call(w.perception.ground[padded_tile] != 0 and w.perception.explored[padded_tile] == 0 and w.perception.tiles[padded_tile] == 0 and w.perception.visible[1] == 0 and not w.perception.memories.has(padded_object), "Terrain padding revealed exploration, a static object or a live actor")
+	check.call(w.perception.fringe.has(padded_object), "An edge fixture was not prepared behind the continuous fog")
+	var padded_ground: int = w.perception.ground[padded_tile]
+	w.terrain.set_floor(padded_tile, true)
+	w.terrain.revision += 1
+	w.perception.update(w, w.elapsed_ms, true)
+	saved = Persistence.candidate(Persistence.capture(w), 0)
+	check.call(w.perception.ground[padded_tile] == padded_ground and saved != null and saved.perception.ground[padded_tile] == padded_ground and saved.perception.explored[padded_tile] == 0, "Padding or save/load refreshed an unseen terrain memory")
+	check.call(saved != null and saved.perception.fringe.has(padded_object) and not saved.perception.memories.has(padded_object), "Save/load promoted render-only scenery into personal knowledge or lost its display")

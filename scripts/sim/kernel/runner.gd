@@ -331,7 +331,7 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 		_perception_view = {"revision": _perception_revision, "tiles": _world.perception.tiles.duplicate(),
 			"loss_revision": _sight_revision, "loss": _loss_view,
 			"softness": _world.perception.softness.duplicate(), "explored": _world.perception.explored.duplicate(), "ground": _world.perception.ground.duplicate(),
-			"memories": _world.State.copy(_world.perception.memories)}
+			"memories": _world.State.copy(_world.perception.memories), "fringe": _world.State.copy(_world.perception.fringe)}
 	frame.perception = _perception_view
 	frame.visible = _world.perception.visible.duplicate()
 	frame.actor_slots = _actor_view
