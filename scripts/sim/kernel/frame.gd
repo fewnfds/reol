@@ -31,6 +31,7 @@ var visible := PackedByteArray()
 var positions := PackedVector2Array()
 var history: Array[RefCounted] = []
 var health := PackedInt32Array()
+var sides := PackedByteArray()
 var modes := PackedByteArray()
 var flight := PackedByteArray()
 var radii := PackedFloat32Array()

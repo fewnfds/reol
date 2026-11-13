@@ -26,11 +26,11 @@ func _ready() -> void:
 	font.font_names = PackedStringArray(["Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC"])
 	add_child(_badge)
 	_badge.text = "F12 调试"
-	_badge.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	_badge.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	_badge.offset_left = -230
 	_badge.offset_right = -12
-	_badge.offset_top = 12
-	_badge.offset_bottom = 44
+	_badge.offset_top = -44
+	_badge.offset_bottom = -12
 	_badge.add_theme_font_override("font", font)
 	_badge.focus_mode = Control.FOCUS_NONE
 	_badge.pressed.connect(toggle)

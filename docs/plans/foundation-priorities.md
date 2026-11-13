@@ -2,7 +2,26 @@
 
 当前授权/接续见[HANDOFF](../status/handoff.md)，实际能力与测量分别见[FEATURES](../status/features.md)、[BASELINE](../status/baseline.md)。本页安排工作，不复制接口和实验过程。
 
-## 本轮阶段：在高速内核上恢复可玩功能
+## 已交付：可用的UI与交互
+
+2026-11-13按用户确认方案实施。当前UI沿用#1操作者，采用常驻主角台、独立对象详情/情境命令、分类营造/种植/人物/地区抽屉、数量窗口与地形小地图。只用按钮名称、图标、高亮、禁用和真实数值表达，不加入备注、副标题或面板解释；未定人物属性用锁定入口占位，背包只接现有物资。
+
+三个体验段已合并提供：基础观察/指挥/SL；真实数量取放、设施与单次营造/种植；现有社交/示例交换、协作/修行/旅行、小地图和DEV归位。实际键位/完整能力只维护在[FEATURES](../status/features.md)，实现职责只维护在[架构](../engineering/architecture.md#交互与小地图)，同包测量与失败范围只查[BASELINE](../status/baseline.md)。
+
+实施时收敛了原候选范围：建造与种植均为单次放置并发起行动，不做连续放置蓝图/Shift队列，避免无物流/工作分配时产生假自动施工；已创建对象与行动受理分别反馈，原有扣料/资源规则保持。进度显示当前真实行动和剩余时间，不新增全局命令追踪平台。小地图采用已有瓦片/迷雾纹理、静物剪影缓存与可见单位点，而非第二相机重绘场景。
+
+多控、征召、编队/群体避让、生产订单、区域任务、跨仓自动备料和完整人物/装备界面仍属未定/未做玩法。本轮不以这些大项阻塞可玩交互，也不将首版临时布局变成后续必须遵守的产品约束。出口是可操作试玩，不自动开启下一轮UI或性能工程。
+
+本机先并发布局/交互/交付三个隔离one-shot，再补充小地图与无说明文字交互两题，均收齐正文并结合源码核查。采纳双焦点、上下文操作和分层地图；拒绝未测性能保证、固定控件数量、把全部UI说成零后台改动、猜测闭源实现和提前增加新玩法。咨询方式已补入本机顾问说明，原问答/核查留忽略目录，不是第二份主计划。
+
+参考依据：
+
+- [Blizzard RTS入门](https://news.blizzard.com/en-us/article/23229495/finding-the-fun-real-time-strategy-games-for-beginners)、[魔兽3单位命令](https://classic.battle.net/war3/basics/unitcommands.shtml)、[星际2特殊控制](https://news.blizzard.com/en-us/article/4552955/game-guide-special-control)：借鉴即时命令、热键与命令栏，不宣称已具备编队/队列。
+- [Riot输入系统说明](https://www.leagueoflegends.com/en-ph/news/dev/dev-wasds-ranked-release/)与[Ludeon官方教程资料](https://github.com/Ludeon/RimWorld-ChineseSimplified/blob/master/Core/DefInjected/ConceptDef/Concepts_NotedSelfshow.xml)、社区[界面](https://rimworldwiki.com/wiki/User_interface)/[操作](https://rimworldwiki.com/wiki/Controls)说明：区分选择、操作、工具和工作，不照搬未实现玩法。
+- [0 A.D.小地图源码](https://github.com/0ad/0ad/blob/master/source/graphics/MiniMapTexture.cpp)、[OpenRA地图控件](https://github.com/OpenRA/OpenRA/blob/bleed/OpenRA.Mods.Common/Widgets/RadarWidget.cs)：借鉴地形缓存、迷雾与动态实体分层，未复制源码或新增依赖。[WoW社区提取工具](https://github.com/Marlamin/WoWTools.Minimaps)展示其地图纹理瓦片拼接，只作为公开资源结构参考，不臆称知道客户端全部渲染实现。
+- Godot官方[Control](https://github.com/godotengine/godot-docs/blob/4.7/classes/class_control.rst)与[输入传播](https://github.com/godotengine/godot-docs/blob/4.7/tutorials/inputs/inputevent.rst)：使用原生GUI、InputMap和焦点；accept_event不阻止全局Input轮询。
+
+## 已交付背景：在高速内核上恢复可玩功能
 
 2026-11-12用户要求继续添加功能：体验可以接近旧版，后端可完全重构。基础运行框架重建已完成，成果与删减只看FEATURES、BASELINE；不再把继续优化或恢复旧代码当成开发主线。下表保留本轮交付顺序与边界，已实现范围以FEATURES为准。
 
@@ -25,7 +44,7 @@
 
 左选右移、停止、相机跟随、对象数值和可操作反馈随首段维护；攻击移动/驻守随战斗扩展。每完成一段就更新正式试玩包供用户反馈，不等全部功能完工。现有已验证的移动、倍率、环境和基础战斗不因排到后段而重新删除。
 
-## 本轮出口与后续
+## 功能恢复出口与边界
 
 六段共同接到同一世界、通用行动与当前会话存读。植物/环境、战斗/身体、交谈/真实交易/协作/修行、感知/冻结记忆与有限地区旅行已接回；未迁回完整内容没有包装成完成。最终review、release重建、真实千人1×/2×/4×及持续战斗/施工窗口、独立进程续接的结果归BASELINE。
 
@@ -48,7 +67,7 @@
 - 接入：人物动作/死亡、静态地物与物品、植物阶段、昼夜/天气/短影、F8素材图鉴已接入；最终短反例、同负载release对照和重建已完成，证据只查BASELINE。
 - 出口：真实显示可以区分行动与死亡、原有迷雾记忆保持，新增素材不使千人4×/60FPS大幅回退；review、必要短检查和最终包测量均已完成，本阶段随main提交交付。没有为预备动物/家具编造新玩法。
 
-## 当前试玩反馈：地块环境、图块与柔和视野
+## 已完成试玩反馈：地块环境、图块与柔和视野
 
 2026-11-13按用户截图与反馈修复，范围沿既有Terrain/Nature/Facilities/感知和呈现职责落地，不创建另一套地块引擎或视野结算器。
 

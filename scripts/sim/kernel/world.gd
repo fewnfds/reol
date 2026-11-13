@@ -470,6 +470,8 @@ func command(input: Dictionary) -> Dictionary:
 			if result.reason != "accepted":
 				receipt.reason = result.reason
 				return receipt
+			receipt["target"] = result.target
+			receipt["placed"] = true
 			var reason: String = begin_interaction(id, {"kind": "construct", "target": result.target})
 			if reason != "accepted":
 				receipt.reason = reason
@@ -479,6 +481,8 @@ func command(input: Dictionary) -> Dictionary:
 			if result.reason != "accepted":
 				receipt.reason = result.reason
 				return receipt
+			receipt["target"] = result.target
+			receipt["placed"] = true
 			var reason: String = begin_interaction(id, {"kind": "sow", "target": result.target})
 			if reason != "accepted":
 				receipt.reason = reason
@@ -760,6 +764,7 @@ func describe(id: int) -> Dictionary:
 			"temperature": page.body_heat[row], "elements": page.elements.slice(row * 5, row * 5 + 5),
 			"cargo": page.cargo[row], "potions": page.potions[row], "mode": page.modes[row], "position": page.positions[row]}, true)
 		result["action"] = State.copy(actions.get(id, combat.orders.get(id, {})))
+		result["due_ms"] = page.due_ms[row]
 		result["flight"] = page.flight[row]
 		result["radius"] = page.radii[row]
 		result["destination"] = page.targets[row]

@@ -12,6 +12,8 @@ const Art = preload("res://scripts/presentation/art.gd")
 const Atmosphere = preload("res://scripts/presentation/atmosphere.gd")
 const ActionEffects = preload("res://scripts/presentation/action_effects.gd")
 const ArtGallery = preload("res://scripts/presentation/art_gallery.gd")
+const Hud = preload("res://scripts/presentation/ui/hud.gd")
+const Interaction = preload("res://scripts/presentation/ui/interaction.gd")
 const TILE: float = Art.TILE
 var runner := Runner.new()
 var population := Population.new()
@@ -23,11 +25,8 @@ var action_effects := ActionEffects.new()
 var art_gallery := ArtGallery.new()
 var fog_enabled: bool = true
 var camera := Camera2D.new()
-var hud := Label.new()
-var readout := Label.new()
-var _state_notice := Label.new()
-var _pause_button: Button
-var _feedback := Label.new()
+var ui := Hud.new()
+var controls := Interaction.new()
 var _debug_console: Node
 var frame: RefCounted
 var selected: int = 1
@@ -71,14 +70,7 @@ var _capture_adoptions: int = 0
 var _speed_at: int = 0
 var _speed_world: int = 0
 var _actual_speed: float = 0.0
-var _item: String = "wood"
-var _build_definition: String = "wood_wall"
-var _build_facing: int = 0 # N/E/S/W on the square ground plane.
 var _show_path: bool = false
-var _plant_definition: String = "perennial_herb"
-var _help_target: int = 0
-var _ranged: bool = false
-var _attack_cursor: bool = false
 
 
 func _ready() -> void:
@@ -124,109 +116,10 @@ func _ready() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 2
 	add_child(layer)
-	var panel := PanelContainer.new()
-	panel.position = Vector2(12, 12)
-	panel.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
-	panel.offset_left = 12
-	panel.offset_top = 12
-	panel.offset_right = 342
-	panel.offset_bottom = -12
-	layer.add_child(panel)
-	var body := VBoxContainer.new()
-	panel.add_child(body)
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	var layout := VBoxContainer.new()
-	scroll.add_child(layout)
-	var font := SystemFont.new()
-	font.font_names = PackedStringArray(["Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC"])
-	body.add_theme_font_override("font", font)
-	body.add_theme_font_size_override("font_size", 13)
-	layer.add_child(_state_notice)
-	_state_notice.add_theme_font_override("font", font)
-	_state_notice.add_theme_font_size_override("font_size", 24)
-	_state_notice.add_theme_color_override("font_color", Color.GOLD)
-	_state_notice.add_theme_color_override("font_shadow_color", Color.BLACK)
-	_state_notice.add_theme_constant_override("shadow_offset_x", 2)
-	_state_notice.add_theme_constant_override("shadow_offset_y", 2)
-	_state_notice.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_state_notice.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	_state_notice.offset_left = -300
-	_state_notice.offset_right = 300
-	_state_notice.offset_top = 12
-	_state_notice.offset_bottom = 48
-	_state_notice.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_state_notice.visible = false
-	readout.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	readout.custom_minimum_size = Vector2(315, 0)
-	readout.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	body.add_child(readout)
-	_feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_feedback.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	body.add_child(_feedback)
-	body.add_child(scroll)
-	hud.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hud.custom_minimum_size = Vector2(315, 0)
-	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for group: Array in [["暂停/继续", "1×", "2×", "4×"], ["F 跟随", "恢复工作", "喝药", "攻击选中"], ["R 拿取", "Q 放入", "D 丢下"], ["N 施工", "继续施工", "拆除"], ["休息", "进食", "烹饪"], ["种植", "续播", "照料", "采收", "砍伐", "拔除"], ["交谈", "交换", "请教", "读书"], ["修行", "回春", "记为任务", "请协作"], ["F5 保存", "F9 读取"]]:
-		var row := HBoxContainer.new()
-		layout.add_child(row)
-		for text: String in group:
-			var button := Button.new()
-			button.text = text
-			button.pressed.connect(_button.bind(text))
-			row.add_child(button)
-			if text == "暂停/继续":
-				_pause_button = button
-				_pause_button.text = "暂停"
-	var item_choice := OptionButton.new()
-	item_choice.add_theme_constant_override("icon_max_width", 24)
-	for item: String in ["wood", "stone", "grain", "water", "meal", "herb", "potion"]:
-		item_choice.add_icon_item(Art.icon("item_" + item), item)
-	item_choice.get_popup().max_size = Vector2i(300, 400)
-	item_choice.item_selected.connect(func(index: int): _item = item_choice.get_item_text(index))
-	layout.add_child(item_choice)
-	var build_choice := OptionButton.new()
-	for definition: String in ["wood_wall", "wood_door", "long_bed", "wood_chest", "cook_stove", "wood_table", "wood_chair", "wood_roof", "planter", "wood_floor"]:
-		build_choice.add_item(definition)
-	build_choice.item_selected.connect(func(index: int): _build_definition = build_choice.get_item_text(index))
-	layout.add_child(build_choice)
-	var facing_choice := OptionButton.new()
-	for direction: String in ["北 N", "东 E", "南 S", "西 W"]:
-		facing_choice.add_item("建造朝向: " + direction)
-	facing_choice.item_selected.connect(func(index: int): _build_facing = index)
-	layout.add_child(facing_choice)
-	var plant_choice := OptionButton.new()
-	for definition: String in ["perennial_herb", "annual_grass", "fire_herb", "lotus", "desert_thorn", "old_tree"]:
-		plant_choice.add_item(definition)
-	plant_choice.item_selected.connect(func(index: int): _plant_definition = plant_choice.get_item_text(index))
-	layout.add_child(plant_choice)
-	var weather_choice := OptionButton.new()
-	for label: String in ["天气: 自动", "晴", "雨", "寒风", "热浪"]:
-		weather_choice.add_item(label)
-	weather_choice.item_selected.connect(func(index: int): _send({"kind": "weather", "weather": index - 1}))
-	layout.add_child(weather_choice)
-	var combat_row := HBoxContainer.new()
-	layout.add_child(combat_row)
-	for label: String in ["A 攻移", "H 驻守", "追击", "弓/近战"]:
-		var button := Button.new()
-		button.text = label
-		button.pressed.connect(_button.bind(label))
-		combat_row.add_child(button)
-	var travel_row := HBoxContainer.new()
-	layout.add_child(travel_row)
-	for label: String in ["回谷地", "去寒林", "去旱地"]:
-		var button := Button.new()
-		button.text = label
-		button.pressed.connect(_button.bind(label))
-		travel_row.add_child(button)
-	var body_choice := OptionButton.new()
-	for label: String in ["身体: 普通", "飞行", "大体型"]:
-		body_choice.add_item(label)
-	body_choice.item_selected.connect(func(index: int): _send({"kind": "body", "flight": int(index == 1), "large": index == 2}))
-	layout.add_child(body_choice)
-	layout.add_child(hud)
+	layer.add_child(ui)
+	controls.configure(self, ui)
+	controls.z_index = 5
+	add_child(controls)
 	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 	if runner.start(_actors, _workers, speed, _mixed) != OK:
 		push_error("Simulation thread could not start")
@@ -241,8 +134,10 @@ func _process(delta: float) -> void:
 		action_effects.adopt(next, mailbox.outcomes, fog_enabled)
 	for receipt: Dictionary in mailbox.receipts:
 		_last_receipt = "%s #%d @%d: %s" % [receipt.kind, receipt.seq, receipt.at_ms, receipt.reason]
-		_feedback.text = _last_receipt
-		_feedback.modulate = Color.WHITE if receipt.ok else Color(1.0, 0.45, 0.4)
+		ui.feedback(("→ " if receipt.reason == "accepted" else ("✓ " if receipt.ok else "× ")) + Hud.action_name(receipt.kind), receipt.ok)
+		if receipt.get("placed", false):
+			selected = int(receipt.target)
+			runner.inspect(selected, _probe_tile)
 		print("COMMAND_RESULT ", JSON.stringify(receipt))
 		if receipt.seq == _pending_move and not receipt.ok:
 			_target = Vector2(-1, -1)
@@ -254,14 +149,16 @@ func _process(delta: float) -> void:
 		if outcome.actor != 1 and int(outcome.get("target", 0)) != 1:
 			continue # NPC traffic must not bury the player's command feedback.
 		_last_receipt = "%s #%d @%d" % [outcome.kind, outcome.actor, outcome.at_ms]
-		_feedback.text = _last_receipt
+		if outcome.kind in ["completed", "transferred", "path_failed", "death", "empty_or_full"]:
+			ui.feedback("✓" if outcome.kind in ["completed", "transferred"] else "×", outcome.kind in ["completed", "transferred"])
 		print("PLAYER_OUTCOME ", JSON.stringify(outcome))
 		if outcome.actor == 1 and outcome.kind in ["arrived", "path_failed", "death"]:
 			_target = Vector2(-1, -1)
 	if next == null:
-		readout.text = "正在构建新内核…"
+		ui.show_tool("gear")
 		return
 	if frame != next:
+		if frame == null: ui.show_tool("")
 		if frame == null or frame.epoch != next.epoch or frame.paused != next.paused or frame.speed != next.speed:
 			print("SESSION_STATE ", JSON.stringify({"epoch": next.epoch, "world_ms": next.world_ms, "paused": next.paused, "speed": next.speed}))
 		if frame != null and frame.epoch != next.epoch:
@@ -272,11 +169,9 @@ func _process(delta: float) -> void:
 			_pending_move = 0
 			_target = Vector2(-1, -1)
 			_speed_at = 0
+			controls.reset_session()
 		frame = next
-		var dead: bool = not frame.player.is_empty() and int(frame.player.get("hp", 0)) <= 0
-		_state_notice.visible = frame.paused or dead
-		_state_notice.text = "玩家#1已死亡 · 无法执行行动" + (" | 已暂停" if frame.paused else "") if dead else "已暂停 · 空格继续"
-		_pause_button.text = "继续" if frame.paused else "暂停"
+		if int(frame.player.get("hp", 0)) <= 0 and not controls.tool.is_empty(): controls.cancel_tool()
 		ground.adopt(frame.terrain, frame.perception)
 		object_canvas.adopt(frame.perception.memories if fog_enabled else frame.objects)
 		if fog_enabled:
@@ -315,9 +210,7 @@ func _process(delta: float) -> void:
 	action_effects.advance(int(render_ms), fog_enabled)
 	if following:
 		camera.position = _displayed(1) * TILE
-	elif not art_gallery.is_open() and (_debug_console == null or not _debug_console.is_open()):
-		var pan := Vector2(float(Input.is_key_pressed(KEY_RIGHT)) - float(Input.is_key_pressed(KEY_LEFT)), float(Input.is_key_pressed(KEY_DOWN)) - float(Input.is_key_pressed(KEY_UP)))
-		camera.position += pan.normalized() * delta * 800.0 / camera.zoom.x
+	controls.tick(delta)
 	atmosphere.view(fog.visibility, object_canvas.shelter, fog_enabled)
 	if begin >= _hud_next:
 		_update_hud()
@@ -348,162 +241,20 @@ func _displayed(id: int) -> Vector2:
 
 
 func _update_hud() -> void:
-	var mouse: Vector2i = Vector2i((get_global_mouse_position() / TILE).floor())
-	var tile: int = Terrain.index(mouse) if mouse.x >= 0 and mouse.y >= 0 and mouse.x < Terrain.SIZE and mouse.y < Terrain.SIZE else -1
-	if tile != _probe_tile:
+	var screen: Vector2 = get_viewport().get_mouse_position()
+	var point: Vector2 = get_global_mouse_position() / TILE
+	var cell := Vector2i(point.floor())
+	var tile: int = Interaction.tile_at(point)
+	var valid: bool = tile >= 0 and not controls.external_modal() and get_viewport().gui_get_hovered_control() == null
+	if valid and fog_enabled: valid = frame.perception.tiles[tile] != 0
+	if valid and tile != _probe_tile:
 		_probe_tile = tile
 		runner.inspect(selected, tile)
-	var stats: Dictionary = frame.counters
-	var data: Dictionary = frame.inspected
-	var player: Dictionary = frame.player
-	_feedback.text = _last_receipt
-	readout.text = "\n".join(PackedStringArray(["Reol · 功能重构试玩", "FPS %d | 世界 %.2fs | 请求 %.1f×" % [Engine.get_frames_per_second(), frame.world_ms / 1000.0, frame.speed],
-		"实速 %.3f× | %s" % [_actual_speed, "已暂停（空格继续）" if frame.paused else "运行中"],
-		"玩家#1 HP %d | %s" % [int(player.get("hp", 0)), str(Units.Mode.find_key(int(player.get("mode", Units.Mode.FREE))))],
-		"单位 %d | worker %d | 房间 %d" % [stats.actors, stats.workers, stats.rooms],
-		"采集 %d / 入库 %d / 材料 %d" % [stats.harvested, stats.stored, stats.material],
-		"鼠标格 (%d,%d) | 选中格 %d" % [mouse.x, mouse.y, selected_tile],
-		"地块温度 %.2f°C | 房间 %d" % [float(frame.tile_probe.get("temperature", 22.0)), int(frame.tile_probe.get("room", -1))],
-		"基底 %s | 地被 %d | 地板 %d" % [frame.tile_probe.get("substrate", ""), int(frame.tile_probe.get("cover", 0)), int(frame.tile_probe.get("flooring", 0))],
-		"地块五行 %s" % str(frame.tile_probe.get("elements", [])),
-		"潮汐%% 金木水火土 %s" % str(frame.tides)]))
-	var lines := PackedStringArray([
-		"历法/天气 %s" % str(stats.get("calendar", {})),
-		"植物 %d / 采收 %d" % [int(stats.get("plants", 0)), int(stats.get("plant_collections", 0))],
-		"交战 %d / 弹道 %d / 命中 %d / 远程 %s" % [int(stats.get("combatants", 0)), int(stats.get("projectiles", 0)), int(stats.get("hits", 0)), str(_ranged)],
-		"选中#%d HP %d | 状态 %d" % [int(data.get("id", 0)), int(data.get("hp", 0)), int(data.get("mode", 0))],
-		"类型 %s / %s" % [data.get("kind", ""), data.get("definition", "")],
-		"身体: 飞行 %d / 半径 %.2f" % [int(data.get("flight", 0)), float(data.get("radius", 0))],
-		"坐标 %s / 目的地 %s" % [str(data.get("position", "")), str(data.get("destination", ""))],
-		"视距 %.2f 格" % float(data.get("sight_range", 0)),
-		"体温 %.2f | 精力 %d | 饥饿 %d" % [float(data.get("temperature", 0)), int(data.get("energy", 0)), int(data.get("hunger", 0))],
-		"单位五行 %s" % str(data.get("elements", [])),
-		"灵气 %d / 修行 %s / 方法 %s / 能力 %s" % [int(data.get("qi", 0)), str(data.get("practice", 0)), str(data.get("methods", {})), str(data.get("abilities", {}))],
-		"库存 %s" % str(data.get("inventory", {})),
-		"行动 %s" % str(data.get("action", {})),
-		"生长 %d / 阶段 %d / 速率 %d / 伤害时长 %d" % [int(data.get("growth_ms", 0)), int(data.get("stage", -1)), int(data.get("rate", 0)), int(data.get("injury_ms", 0))],
-		"左键选择；右键命令玩家#1移动", "S 停止，J 工作，A 攻击，E 喝药", "N 建造 / B 墙 / G 门 / Delete 拆除", "空格暂停；1/2/4 倍速；F 跟随", "方向键平移；滚轮缩放；P 路线", "F8 素材图鉴；F12 调试", _last_receipt])
-	hud.text = "\n".join(lines)
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if frame == null:
-		return
-	if (art_gallery.is_open() or (_debug_console != null and _debug_console.is_open())) and event is InputEventKey:
-		return
-	if event is InputEventMouseButton and event.pressed:
-		var point: Vector2 = get_canvas_transform().affine_inverse() * event.position / TILE
-		var cell := Vector2i(point.floor())
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			camera.zoom = Vector2.ONE * clampf(camera.zoom.x * (1.15 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.15), 0.1, 2.0)
-		elif event.button_index == MOUSE_BUTTON_LEFT:
-			if _attack_cursor:
-				_attack_cursor = false
-				_send({"kind": "attack_move", "position": Art.body_position(point), "ranged": _ranged})
-				return
-			var previous_selected: int = selected
-			selected = 0
-			var best: float = INF
-			for index: int in frame.positions.size():
-				var id: int = frame.ids[index]
-				if id == 0:
-					continue
-				if fog_enabled and id != 1 and (index >= frame.visible.size() or frame.visible[index] == 0):
-					continue
-				var body_scale: float = 1.6 if frame.radii[index] > 0.5 else 1.0
-				var dead: bool = frame.health[index] <= 0
-				var lift: float = 6.0 * body_scale if frame.flight[index] != 0 and not dead else 0.0
-				var visual: Vector2 = _displayed(id) - Vector2(0, lift / TILE)
-				var relative: Vector2 = point - visual
-				var bounds := Rect2(Vector2(-0.6, -0.85), Vector2(1.2, 1.0)) if dead else Rect2(Vector2(-0.45, -1.15), Vector2(0.9, 1.3))
-				if not Rect2(bounds.position * body_scale, bounds.size * body_scale).has_point(relative):
-					continue
-				var distance: float = relative.distance_squared_to(Vector2(0, -0.5 * body_scale))
-				if distance < best:
-					best = distance
-					selected = id
-			selected_tile = Terrain.index(cell) if cell.x >= 0 and cell.y >= 0 and cell.x < Terrain.SIZE and cell.y < Terrain.SIZE else -1
-			if selected == 0 and object_canvas.by_tile.has(selected_tile):
-				var candidates: Array = object_canvas.by_tile[selected_tile]
-				selected = candidates[(candidates.find(previous_selected) + 1) % candidates.size()]
-			runner.inspect(selected, selected_tile)
-		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			var tile: int = Terrain.index(cell) if cell.x >= 0 and cell.y >= 0 and cell.x < Terrain.SIZE and cell.y < Terrain.SIZE else -1
-			if tile >= 0:
-				_pending_move = _send({"kind": "move", "actor": 1, "position": Art.body_position(point)})
-				if _pending_move > 0:
-					_target = point
-	if event is InputEventKey and event.pressed and not event.echo:
-		match event.keycode:
-			KEY_SPACE: _button("暂停/继续")
-			KEY_1: _button("1×")
-			KEY_2: _button("2×")
-			KEY_4: _button("4×")
-			KEY_F: _button("F 跟随")
-			KEY_S: _send({"kind": "stop", "actor": 1})
-			KEY_P: _show_path = not _show_path
-			KEY_J: _button("恢复工作")
-			KEY_E: _button("喝药")
-			KEY_A: _button("A 攻移")
-			KEY_H: _button("H 驻守")
-			KEY_T: _send({"kind": "source", "actor": 1, "tile": selected_tile})
-			KEY_B: _send({"kind": "construct", "actor": 1, "tile": selected_tile, "definition": "wood_wall"})
-			KEY_G: _send({"kind": "construct", "actor": 1, "tile": selected_tile, "definition": "wood_door", "facing": _build_facing})
-			KEY_N: _button("N 施工")
-			KEY_DELETE: _button("拆除")
-			KEY_R: _button("R 拿取")
-			KEY_Q: _button("Q 放入")
-			KEY_D: _button("D 丢下")
-			KEY_F5: _button("F5 保存")
-			KEY_F9: _button("F9 读取")
-
-
-func _button(text: String) -> void:
-	if frame == null:
-		return
-	match text:
-		"暂停/继续": paused = not paused
-		"1×": speed = 1.0
-		"2×": speed = 2.0
-		"4×": speed = 4.0
-		"F 跟随": following = not following
-		"恢复工作": _send({"kind": "work", "actor": 1})
-		"喝药": _send({"kind": "heal", "actor": 1})
-		"攻击选中": _send({"kind": "attack", "actor": 1, "target": selected})
-		"R 拿取": _send({"kind": "take", "actor": 1, "target": selected, "item": _item, "amount": 10, "epoch": frame.epoch})
-		"Q 放入": _send({"kind": "put", "actor": 1, "target": selected, "item": _item, "amount": 10, "epoch": frame.epoch})
-		"D 丢下": _send({"kind": "drop", "actor": 1, "item": _item, "amount": 10, "epoch": frame.epoch})
-		"F5 保存": _send({"kind": "save", "epoch": frame.epoch})
-		"F9 读取": _send({"kind": "load", "epoch": frame.epoch})
-		"N 施工": _send({"kind": "construct", "actor": 1, "tile": selected_tile, "definition": _build_definition, "facing": _build_facing, "epoch": frame.epoch})
-		"继续施工": _send({"kind": "continue_build", "actor": 1, "target": selected})
-		"拆除": _send({"kind": "demolish", "actor": 1, "target": selected})
-		"休息": _send({"kind": "rest", "actor": 1, "target": selected})
-		"进食": _send({"kind": "eat", "actor": 1, "target": selected})
-		"烹饪": _send({"kind": "cook", "actor": 1, "target": selected})
-		"种植": _send({"kind": "plant", "tile": selected_tile, "definition": _plant_definition})
-		"照料": _send({"kind": "tend", "target": selected})
-		"采收": _send({"kind": "gather", "target": selected})
-		"砍伐": _send({"kind": "cut", "target": selected})
-		"续播": _send({"kind": "sow", "target": selected})
-		"交谈": _send({"kind": "talk", "target": selected})
-		"交换": _send({"kind": "trade", "target": selected, "give_item": "potion", "give_amount": 1, "want_item": "breath_manual", "want_amount": 1})
-		"请教": _send({"kind": "learn", "target": selected})
-		"读书": _send({"kind": "study", "target": 1})
-		"修行": _send({"kind": "practice", "target": selected})
-		"回春": _send({"kind": "ability"})
-		"记为任务": _help_target = selected
-		"请协作": _send({"kind": "request_help", "target": selected, "task_target": _help_target})
-		"拔除": _send({"kind": "uproot", "target": selected})
-		"A 攻移": _attack_cursor = true
-		"H 驻守": _send({"kind": "hold", "ranged": _ranged})
-		"追击": _send({"kind": "pursue", "target": selected, "ranged": _ranged})
-		"弓/近战": _ranged = not _ranged
-		"回谷地", "去寒林", "去旱地":
-			following = true
-			_send({"kind": "journey", "region": ["回谷地", "去寒林", "去旱地"].find(text)})
-	if text in ["暂停/继续", "1×", "2×", "4×"]:
-		runner.control(paused, speed)
+	ui.refresh(frame, selected, fog_enabled, _actual_speed, following, controls.ranged, controls.help_target)
+	ui.probe(frame, cell, screen, valid)
+	var view_size: Vector2 = get_viewport_rect().size / camera.zoom / TILE
+	var camera_rect := Rect2(camera.position / TILE - Art.BODY_FOOT_OFFSET - view_size * 0.5, view_size)
+	ui.minimap.adopt(frame, ground.material, fog, fog_enabled, camera_rect)
 
 
 func _send(command: Dictionary) -> int:
@@ -514,8 +265,7 @@ func _send(command: Dictionary) -> int:
 	print("PLAYER_COMMAND seq=%d %s" % [seq, JSON.stringify(command)])
 	if seq == 0:
 		_last_receipt = "指令未入队：队列已满或会话关闭"
-		_feedback.text = _last_receipt
-		_feedback.modulate = Color(1.0, 0.45, 0.4)
+		ui.feedback("×", false)
 	return seq
 
 
@@ -529,7 +279,8 @@ func diagnostics() -> Dictionary:
 	if frame != null:
 		result.merge({"epoch": frame.epoch, "sequence": frame.sequence, "world_ms": frame.world_ms, "paused": frame.paused,
 			"speed": frame.speed, "frame_age_ms": (Time.get_ticks_usec() - frame.published_usec) / 1000.0,
-			"player": frame.player, "inspected": frame.inspected})
+			"player": frame.player, "inspected": frame.inspected, "counters": frame.counters,
+			"tool": controls.tool, "minimap_usec": ui.minimap.work_usec})
 	return result
 
 
@@ -574,6 +325,7 @@ func _capture(now: int) -> void:
 			_capture_at = now
 			_capture_world = frame.world_ms
 			_capture_counters = frame.counters.duplicate(true)
+			_capture_counters["minimap_usec"] = ui.minimap.work_usec
 			_capture_age_usec = now - frame.published_usec
 			_capture_adoptions = _adoptions
 			print("KERNEL_CAPTURE_STARTED")
@@ -606,6 +358,9 @@ func _capture(now: int) -> void:
 	report.visible_instances = frame.visible.count(1) if fog_enabled else frame.counters.actors
 	report.adopted_frames = _adoptions
 	report.adopted_frames_delta = _adoptions - _capture_adoptions
+	report.minimap_usec = ui.minimap.work_usec
+	report.minimap_usec_delta = ui.minimap.work_usec - int(_capture_counters.get("minimap_usec", 0))
+	report.minimap_rebuilds = ui.minimap.rebuilds
 	if not _metrics_path.is_empty():
 		var file := FileAccess.open(_metrics_path, FileAccess.WRITE)
 		if file != null:

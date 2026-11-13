@@ -23,6 +23,7 @@ var _wake := Semaphore.new()
 var _wake_pending: bool = false
 var _commands: Array[Dictionary] = []
 var _receipts: Array[Dictionary] = []
+var _side_view := PackedByteArray()
 var _ready_receipts: Array[Dictionary] = [] # Owner-only until the matching Frame publishes.
 var _outcomes: Array[Dictionary] = []
 var _latest: RefCounted
@@ -309,7 +310,12 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 		_object_revision = _world.objects.layout_revision
 		_object_view = _world.objects.layout()
 		_actor_view = _world.actor_slots.duplicate()
+		_side_view = PackedByteArray() # Previous Frames retain their immutable column.
+		_side_view.resize(frame.ids.size())
+		for slot: int in frame.ids.size():
+			_side_view[slot] = int(_world.objects.records.get(frame.ids[slot], {}).get("side", 0))
 	frame.objects = _object_view
+	frame.sides = _side_view
 	if _perception_revision != _world.perception.revision:
 		_perception_revision = _world.perception.revision
 		_perception_view = {"revision": _perception_revision, "tiles": _world.perception.tiles.duplicate(),

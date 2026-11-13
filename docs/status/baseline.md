@@ -1,6 +1,6 @@
 # 当前运行基线
 
-更新：2026-11-13。本页首先记录当前底部锚点调整的正式包与证据，后续章节保留前轮对照，不作为当前地图数量或待办。实际能力/键位查[FEATURES](features.md)，运行边界查[架构](../engineering/architecture.md)，咨询取舍查[研究](../../design/research/large_simulation_optimization.md)。
+更新：2026-11-13。本页首先记录当前UI/交互正式包与证据，后续章节保留前轮对照，不作为当前地图数量或待办。实际能力/键位查[FEATURES](features.md)，运行边界查[架构](../engineering/architecture.md)，本轮UI咨询取舍见[主计划](../plans/foundation-priorities.md#已交付可用的ui与交互)。
 
 ## 构建与环境
 
@@ -9,9 +9,29 @@
 - 正式入口`scenes/main.tscn`，试玩包`build/windows/reol-demo.exe`和同目录pck；默认24人，压力开局仍是同一后端。存档范围只看compatibility。
 - exe是引擎模板，单独exe哈希不能识别游戏代码，按各节PCK哈希固定窗口。当前包见下面首节；六段恢复前的`817b2660204f1192faca04824b5d43d8db97fc6f2907f5dbce4086b2bdd8df82`只对应文末历史表。
 
-前轮人物UV与树形图元修复证据在`logs/sprite-orientation-20261112/`和`logs/tree-orientation-20261112/`；单位视野阶段曾单独导出`build/sight-candidate/reol-demo.exe`。这些均为历史对照，当前`build/windows`只以下面首节的底部锚点包为准，源码试玩仍走usage入口。
+前轮人物UV与树形图元修复证据在`logs/sprite-orientation-20261112/`和`logs/tree-orientation-20261112/`；单位视野阶段曾单独导出`build/sight-candidate/reol-demo.exe`。这些均为历史对照，当前`build/windows`只以下面首节的UI交付包为准，源码试玩仍走usage入口。
 
-## 当前：瓦片底部中央锚点
+## 当前：可用UI、交互与地形小地图
+
+2026-11-13正式`build/windows/reol-demo.exe`及pck已重建，PCK SHA256：`e891d70dfbb780871574b9a7a487afcd22a7c3609de30bf6027ab64f1ab62de0`。报告中的Git为底部锚点提交后的dirty工作树，随后随本轮main提交；最后导出后仅维护文档/测量，没有再改运行代码。UI职责与缓存机制见架构，实际键位与能力见FEATURES，本页不重复交互清单。
+
+同开发机13600KF/5060Ti、D3D12、1280×720，3秒预热；千人混合4×/60FPS采样10秒，普通24人迷雾1×/120FPS采样5秒。千人仍启用持续交战、真实材料施工、50房间与451株植物等原混合负载；窗口串行运行。旧正式包为下节历史所述底部锚点包，不能据短窗差值承诺稳定成本或长期性能。
+
+| 窗口 | 实际倍率 | 帧均 / P99 / 最大 ms | 步均 / P99 ms |
+|---|---|---|---|
+| 修改前正式包，1000人混合，4×/60FPS | 3.9985× | 16.666 / 16.710 / 20.200 | 9.373 / 15.052 |
+| 最终UI包，1000人混合，4×/60FPS | 4.0035× | 16.666 / 17.986 / 20.844 | 8.975 / 14.304 |
+| 同最终UI包，24人迷雾，1×/120FPS | 0.9984× | 8.333 / 8.411 / 8.902 | 0.451 / 1.692 |
+
+材料均200000，无过载需求截断。千人主线程process均值3.054→3.016ms，GPU均值0.080→0.110ms；不同短窗不是隔离的UI成本对照，不能据差值宣称免费或加速，当前仍达到约4×/平均60FPS。最终千人窗小地图CPU整理累计24.341ms/10.016秒，摊到约600帧为0.041ms/帧；这个计时不含完整GUI绘制和GPU成本，**不是小地图总成本**。该稳态窗静物图重建1次，不代表移动探索/拆建也零重建。
+
+异常保留：中间正式导出`verified-mixed.json`实速4.0045×，帧P99/最大39.516/59.791ms；收尾修正前的普通窗`final-play.json`实速0.9980×，帧均/P99/最大11.756/28.618/55.229ms，其PCK为`a5173623a79ebdd3bbd3da1a4a0281cc4da7aa9ef3b86c1274da4b912686ab1a`。同旧包`final-play-repeat.json`得到120FPS短窗，不覆盖异常。随后同源码临时入口做一次有界显示/隐藏HUD对照：帧P99分别8.377/8.395ms，GPU均值0.078/0.052ms；只说明该对照窗隐藏HUD未改善帧间隔，没有定位所有尖峰，也未证明外部原因。收尾补了阵营快照独立性和中键释放后重新导出，上表两窗均为最后同包测量，不声称这两个小修已解决所有尖峰或全程锁帧。
+
+验证范围：import与导出成功；本轮kernel smoke首次15秒上限超时，随后一次30秒上限运行返回`KERNEL_SMOKE errors=0`，没有扩大旧回归。收尾后重新运行图形`ui_smoke.gd`，最终`errors=[]`，覆盖真实GUI数量输入不串世界键、取消/模态、连续落点/小地图坐标、旋转、实际取4木料后扣3建蓝图并选中施工、隐藏库存、会话重置及1280×720/1920×1080/125%UI缩放；最终日志无脚本错误或警告。首次UI探针点击落在底栏而非世界点的失败保留，修正测试点后通过，不称为已完整手动游玩。
+
+证据在忽略的`logs/ui-implementation-20261113/`：`before.json`、最终`review-mixed.json`/`review-play.json/png`、`ui-review.log`、`review-export.log`；较早`final-mixed.json`/`final-play[-repeat].json/png`/`verified-mixed.json`、`isolation-visible.json`/`isolation-hidden.json`及原UI截图也保留。按需图形检查的当前截图写`logs/ui-smoke/`；kernel日志为`logs/smoke-20261113-171916-981211400.log`。目标低配、长局和更密集内容组合未测，没有恢复旧CI或继续无限优化。
+
+## 前轮：瓦片底部中央锚点
 
 2026-11-13按用户最新要求统一显示接地点，正式`build/windows/reol-demo.exe`及pck已重建；PCK SHA256：`7e610d36f297697192ad375b522b0c7d1e4b77ec127fa5d4575a31c7cc270ea7`。源码与正式包共用原连续移动/世界算法，没有修改kernel或存档格式。锚点与坐标对应只维护在[assets](../../assets/README.md#坐标占地与接地点)。
 
