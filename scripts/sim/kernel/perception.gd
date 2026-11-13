@@ -74,7 +74,7 @@ func update(world: RefCounted, now: int, force: bool = false) -> void:
 				continue
 			memories[id] = {"id": id, "kind": rec.kind, "definition": rec.definition, "tile": rec.tile,
 				"cells": rec.get("cells", PackedInt32Array([rec.tile])).duplicate(), "layer": rec.get("layer", "ground"),
-				"stage": rec.get("stage", -1), "vegetation_level": rec.get("vegetation_level", 3), "sapient": rec.get("sapient", false)}
+				"stage": rec.get("stage", -1), "vegetation_level": rec.get("vegetation_level", 3), "sapient": rec.get("sapient", false), "facing": rec.get("facing", 0)}
 		_layout_seen = world.objects.layout_revision
 		revision += 1
 	work_usec += Time.get_ticks_usec() - started

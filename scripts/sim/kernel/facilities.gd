@@ -13,16 +13,19 @@ func _init() -> void:
 		definitions = parsed.get("types", {})
 
 
-func footprint(definition: String, tile: int) -> PackedInt32Array:
+func footprint(definition: String, tile: int, facing: int = 0) -> PackedInt32Array:
 	var result := PackedInt32Array()
 	if not definitions.has(definition) or tile < 0 or tile >= Terrain.SIZE * Terrain.SIZE:
 		return result
-	var size: Array = definitions[definition].size
+	var dimensions: Array = definitions[definition].size
+	var size := Vector2i(int(dimensions[0]), int(dimensions[1]))
+	if facing % 2 != 0:
+		size = Vector2i(size.y, size.x)
 	var origin: Vector2i = Terrain.cell(tile)
-	if origin.x + int(size[0]) > Terrain.SIZE or origin.y + int(size[1]) > Terrain.SIZE:
+	if origin.x + size.x > Terrain.SIZE or origin.y + size.y > Terrain.SIZE:
 		return result
-	for y: int in int(size[1]):
-		for x: int in int(size[0]):
+	for y: int in size.y:
+		for x: int in size.x:
 			result.append(tile + y * Terrain.SIZE + x)
 	return result
 
@@ -56,8 +59,9 @@ func interaction_tile(world: RefCounted, target: int, origin: Vector2 = Vector2(
 	return -1
 
 
-func blueprint(world: RefCounted, actor: int, definition: String, tile: int) -> Dictionary:
-	var cells: PackedInt32Array = footprint(definition, tile)
+func blueprint(world: RefCounted, actor: int, definition: String, tile: int, facing: int = 0) -> Dictionary:
+	facing = posmod(facing, 4)
+	var cells: PackedInt32Array = footprint(definition, tile, facing)
 	if cells.is_empty():
 		return {"reason": "invalid_definition_or_tile"}
 	var spec: Dictionary = definitions[definition]
@@ -71,6 +75,7 @@ func blueprint(world: RefCounted, actor: int, definition: String, tile: int) -> 
 		return {"reason": "missing_materials"}
 	var id: int = world.objects.create("blueprint", definition, tile)
 	var record: Dictionary = world.objects.records[id]
+	record["facing"] = facing
 	record["layer"] = layer
 	record["remaining_ms"] = int(spec.work_ms)
 	record["max_hp"] = int(spec.max_hp)

@@ -52,3 +52,12 @@ static func run(w: RefCounted, check: Callable) -> void:
 	grain = w.objects.total("grain") + 2
 	check.call(w.nature.finish(w, 1, {"kind": "uproot", "target": plant}, w.elapsed_ms) == "completed" and not w.objects.records.has(plant) and w.objects.audit_total("grain") == grain, "A full backpack prevented clearing or lost/duplicated its product")
 	w.objects.records[1].capacity = capacity
+	var bed_tile: int = Terrain.index(Vector2i(145, 140))
+	check.call(w.facilities.footprint("long_bed", bed_tile, 1) == PackedInt32Array([bed_tile, bed_tile + 1]) and w.facilities.footprint("long_bed", bed_tile, 2) == PackedInt32Array([bed_tile, bed_tile + Terrain.SIZE]), "Cardinal rotation did not rotate the multi-cell footprint")
+	w.objects.transfer(w.source_objects[0], 1, "wood", 8)
+	var bed: Dictionary = w.facilities.blueprint(w, 1, "long_bed", bed_tile, 1)
+	check.call(bed.get("target", 0) > 0, "A rotated fixture blueprint could not be created")
+	if bed.get("target", 0) > 0:
+		check.call(w.facilities.finish(w, 1, {"kind": "construct", "target": bed.target}, w.elapsed_ms) == "completed" and w.objects.layout()[bed.target].facing == 1, "Completion or detached layout lost fixture orientation")
+		saved = Persistence.candidate(Persistence.capture(w), 0)
+		check.call(saved != null and saved.objects.records[bed.target].facing == 1 and saved.objects.records[bed.target].cells == PackedInt32Array([bed_tile,bed_tile+1]), "Save/load lost fixture orientation or its rotated occupancy")

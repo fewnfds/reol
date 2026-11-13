@@ -73,6 +73,7 @@ var _speed_world: int = 0
 var _actual_speed: float = 0.0
 var _item: String = "wood"
 var _build_definition: String = "wood_wall"
+var _build_facing: int = 0 # N/E/S/W on the square ground plane.
 var _plant_definition: String = "perennial_herb"
 var _help_target: int = 0
 var _ranged: bool = false
@@ -190,6 +191,11 @@ func _ready() -> void:
 		build_choice.add_item(definition)
 	build_choice.item_selected.connect(func(index: int): _build_definition = build_choice.get_item_text(index))
 	layout.add_child(build_choice)
+	var facing_choice := OptionButton.new()
+	for direction: String in ["北 N", "东 E", "南 S", "西 W"]:
+		facing_choice.add_item("建造朝向: " + direction)
+	facing_choice.item_selected.connect(func(index: int): _build_facing = index)
+	layout.add_child(facing_choice)
 	var plant_choice := OptionButton.new()
 	for definition: String in ["perennial_herb", "annual_grass", "fire_herb", "lotus", "desert_thorn", "old_tree"]:
 		plant_choice.add_item(definition)
@@ -437,7 +443,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_H: _button("H 驻守")
 			KEY_T: _send({"kind": "source", "actor": 1, "tile": selected_tile})
 			KEY_B: _send({"kind": "construct", "actor": 1, "tile": selected_tile, "definition": "wood_wall"})
-			KEY_G: _send({"kind": "construct", "actor": 1, "tile": selected_tile, "definition": "wood_door"})
+			KEY_G: _send({"kind": "construct", "actor": 1, "tile": selected_tile, "definition": "wood_door", "facing": _build_facing})
 			KEY_N: _button("N 施工")
 			KEY_DELETE: _button("拆除")
 			KEY_R: _button("R 拿取")
@@ -464,7 +470,7 @@ func _button(text: String) -> void:
 		"D 丢下": _send({"kind": "drop", "actor": 1, "item": _item, "amount": 10, "epoch": frame.epoch})
 		"F5 保存": _send({"kind": "save", "epoch": frame.epoch})
 		"F9 读取": _send({"kind": "load", "epoch": frame.epoch})
-		"N 施工": _send({"kind": "construct", "actor": 1, "tile": selected_tile, "definition": _build_definition, "epoch": frame.epoch})
+		"N 施工": _send({"kind": "construct", "actor": 1, "tile": selected_tile, "definition": _build_definition, "facing": _build_facing, "epoch": frame.epoch})
 		"继续施工": _send({"kind": "continue_build", "actor": 1, "target": selected})
 		"拆除": _send({"kind": "demolish", "actor": 1, "target": selected})
 		"休息": _send({"kind": "rest", "actor": 1, "target": selected})

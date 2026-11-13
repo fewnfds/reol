@@ -153,7 +153,7 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
       "label": "阔叶树",
       "category": "objects",
@@ -170,7 +170,7 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
       "label": "松树",
       "category": "objects",
@@ -187,7 +187,7 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
       "label": "枯树",
       "category": "objects",
@@ -204,7 +204,7 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
       "label": "树桩",
       "category": "objects",
@@ -221,7 +221,7 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
       "label": "矿石",
       "category": "objects",
@@ -238,7 +238,7 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
       "label": "花灌木",
       "category": "objects",
@@ -255,7 +255,7 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
       "label": "沙生刺",
       "category": "objects",
@@ -272,7 +272,7 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
       "label": "荷花",
       "category": "objects",
@@ -289,14 +289,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "储物箱",
+      "label": "储物箱 · N",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "bed": {
+    "chest_1": {
       "slot": 9,
       "rect": [
         64,
@@ -306,14 +310,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "床",
+      "label": "储物箱 · E",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "table": {
+    "chest_2": {
       "slot": 10,
       "rect": [
         128,
@@ -323,14 +331,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "桌",
+      "label": "储物箱 · S",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "chair": {
+    "chest_3": {
       "slot": 11,
       "rect": [
         192,
@@ -340,14 +352,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "椅",
+      "label": "储物箱 · W",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "stove": {
+    "bed": {
       "slot": 12,
       "rect": [
         256,
@@ -357,14 +373,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "灶台",
+      "label": "床 · N",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "workbench": {
+    "bed_1": {
       "slot": 13,
       "rect": [
         320,
@@ -374,14 +394,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "工作台",
+      "label": "床 · E",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "furnace": {
+    "bed_2": {
       "slot": 14,
       "rect": [
         384,
@@ -391,14 +415,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "炉",
+      "label": "床 · S",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "planter": {
+    "bed_3": {
       "slot": 15,
       "rect": [
         448,
@@ -408,14 +436,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "花盆",
+      "label": "床 · W",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "wall_preview": {
+    "table": {
       "slot": 16,
       "rect": [
         0,
@@ -425,14 +457,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "墙样稿",
+      "label": "桌 · N",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        2,
+        1
+      ]
     },
-    "door_preview": {
+    "table_1": {
       "slot": 17,
       "rect": [
         64,
@@ -442,14 +478,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "门样稿",
+      "label": "桌 · E",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
     },
-    "window": {
+    "table_2": {
       "slot": 18,
       "rect": [
         128,
@@ -459,14 +499,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "窗",
+      "label": "桌 · S",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        2,
+        1
+      ]
     },
-    "roof_preview": {
+    "table_3": {
       "slot": 19,
       "rect": [
         192,
@@ -476,14 +520,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "屋面样稿",
+      "label": "桌 · W",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
     },
-    "well": {
+    "chair": {
       "slot": 20,
       "rect": [
         256,
@@ -493,14 +541,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "井",
+      "label": "椅 · N",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "water_jar": {
+    "chair_1": {
       "slot": 21,
       "rect": [
         320,
@@ -510,14 +562,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "水缸",
+      "label": "椅 · E",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "campfire": {
+    "chair_2": {
       "slot": 22,
       "rect": [
         384,
@@ -527,14 +583,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "篝火",
+      "label": "椅 · S",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "grave": {
+    "chair_3": {
       "slot": 23,
       "rect": [
         448,
@@ -544,14 +604,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "墓",
+      "label": "椅 · W",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "cushion": {
+    "stove": {
       "slot": 24,
       "rect": [
         0,
@@ -561,14 +625,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "蒲团",
+      "label": "灶台 · N",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "incense": {
+    "stove_1": {
       "slot": 25,
       "rect": [
         64,
@@ -578,14 +646,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "香炉",
+      "label": "灶台 · E",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "bookcase": {
+    "stove_2": {
       "slot": 26,
       "rect": [
         128,
@@ -595,14 +667,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "书柜",
+      "label": "灶台 · S",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "lantern": {
+    "stove_3": {
       "slot": 27,
       "rect": [
         192,
@@ -612,14 +688,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "灯",
+      "label": "灶台 · W",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "alchemy": {
+    "workbench": {
       "slot": 28,
       "rect": [
         256,
@@ -629,14 +709,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "炼丹炉",
+      "label": "工作台 · N",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        2,
+        1
+      ]
     },
-    "loom": {
+    "workbench_1": {
       "slot": 29,
       "rect": [
         320,
@@ -646,14 +730,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "织机",
+      "label": "工作台 · E",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
     },
-    "screen": {
+    "workbench_2": {
       "slot": 30,
       "rect": [
         384,
@@ -663,14 +751,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "屏风",
+      "label": "工作台 · S",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        2,
+        1
+      ]
     },
-    "go_board": {
+    "workbench_3": {
       "slot": 31,
       "rect": [
         448,
@@ -680,14 +772,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "棋盘",
+      "label": "工作台 · W",
       "category": "objects",
       "state": "ready",
-      "source": "generated:world"
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
     },
-    "chicken": {
+    "furnace": {
       "slot": 32,
       "rect": [
         0,
@@ -697,14 +793,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "鸡",
-      "category": "creatures",
-      "state": "reserve",
-      "source": "generated:fauna"
+      "label": "炉 · N",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "rabbit": {
+    "furnace_1": {
       "slot": 33,
       "rect": [
         64,
@@ -714,14 +814,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "兔",
-      "category": "creatures",
-      "state": "reserve",
-      "source": "generated:fauna"
+      "label": "炉 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "sheep": {
+    "furnace_2": {
       "slot": 34,
       "rect": [
         128,
@@ -731,14 +835,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "羊",
-      "category": "creatures",
-      "state": "reserve",
-      "source": "generated:fauna"
+      "label": "炉 · S",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "cow": {
+    "furnace_3": {
       "slot": 35,
       "rect": [
         192,
@@ -748,14 +856,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "牛",
-      "category": "creatures",
-      "state": "reserve",
-      "source": "generated:fauna"
+      "label": "炉 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "boar": {
+    "planter": {
       "slot": 36,
       "rect": [
         256,
@@ -765,14 +877,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "野猪",
-      "category": "creatures",
-      "state": "reserve",
-      "source": "generated:fauna"
+      "label": "花盆 · N",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fox": {
+    "planter_1": {
       "slot": 37,
       "rect": [
         320,
@@ -782,14 +898,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "狐",
-      "category": "creatures",
-      "state": "reserve",
-      "source": "generated:fauna"
+      "label": "花盆 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "wolf": {
+    "planter_2": {
       "slot": 38,
       "rect": [
         384,
@@ -799,14 +919,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "狼",
-      "category": "creatures",
-      "state": "reserve",
-      "source": "generated:fauna"
+      "label": "花盆 · S",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "deer": {
+    "planter_3": {
       "slot": 39,
       "rect": [
         448,
@@ -816,14 +940,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "鹿",
-      "category": "creatures",
-      "state": "reserve",
-      "source": "generated:fauna"
+      "label": "花盆 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "crane": {
+    "wall_preview": {
       "slot": 40,
       "rect": [
         0,
@@ -833,14 +961,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "鹤",
-      "category": "creatures",
-      "state": "reserve",
-      "source": "generated:fauna"
+      "label": "墙样稿 · N",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "butterfly": {
+    "wall_preview_1": {
       "slot": 41,
       "rect": [
         64,
@@ -850,14 +982,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "蝶",
-      "category": "creatures",
-      "state": "reserve",
-      "source": "generated:fauna"
+      "label": "墙样稿 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "slime": {
+    "wall_preview_2": {
       "slot": 42,
       "rect": [
         128,
@@ -867,14 +1003,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "玉液怪",
-      "category": "creatures",
-      "state": "reserve",
-      "source": "generated:fauna"
+      "label": "墙样稿 · S",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "ghost": {
+    "wall_preview_3": {
       "slot": 43,
       "rect": [
         192,
@@ -884,14 +1024,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "灵体",
-      "category": "creatures",
-      "state": "reserve",
-      "source": "generated:fauna"
+      "label": "墙样稿 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "tree_spirit": {
+    "door_preview": {
       "slot": 44,
       "rect": [
         256,
@@ -901,14 +1045,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "树精",
-      "category": "creatures",
-      "state": "reserve",
-      "source": "generated:fauna"
+      "label": "门样稿 · N",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "golem": {
+    "door_preview_1": {
       "slot": 45,
       "rect": [
         320,
@@ -918,14 +1066,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "石傀儡",
-      "category": "creatures",
-      "state": "reserve",
-      "source": "generated:fauna"
+      "label": "门样稿 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "demon": {
+    "door_preview_2": {
       "slot": 46,
       "rect": [
         384,
@@ -935,14 +1087,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "小妖",
-      "category": "creatures",
-      "state": "reserve",
-      "source": "generated:fauna"
+      "label": "门样稿 · S",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "flying_sword": {
+    "door_preview_3": {
       "slot": 47,
       "rect": [
         448,
@@ -952,14 +1108,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "飞剑",
-      "category": "creatures",
-      "state": "reserve",
-      "source": "generated:fauna"
+      "label": "门样稿 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "perennial_herb_0": {
+    "window": {
       "slot": 48,
       "rect": [
         0,
@@ -969,14 +1129,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "野药 · 播种",
-      "category": "plants",
+      "label": "窗 · N",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "perennial_herb_1": {
+    "window_1": {
       "slot": 49,
       "rect": [
         64,
@@ -986,14 +1150,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "野药 · 幼苗",
-      "category": "plants",
+      "label": "窗 · E",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "perennial_herb_2": {
+    "window_2": {
       "slot": 50,
       "rect": [
         128,
@@ -1003,14 +1171,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "野药 · 成熟",
-      "category": "plants",
+      "label": "窗 · S",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "perennial_herb_3": {
+    "window_3": {
       "slot": 51,
       "rect": [
         192,
@@ -1020,14 +1192,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "野药 · 残株",
-      "category": "plants",
+      "label": "窗 · W",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "perennial_herb_4": {
+    "roof_preview": {
       "slot": 52,
       "rect": [
         256,
@@ -1037,14 +1213,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "野药 · 枯萎",
-      "category": "plants",
+      "label": "屋面样稿 · N",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "annual_grass_0": {
+    "roof_preview_1": {
       "slot": 53,
       "rect": [
         320,
@@ -1054,14 +1234,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "野稗 · 播种",
-      "category": "plants",
+      "label": "屋面样稿 · E",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "annual_grass_1": {
+    "roof_preview_2": {
       "slot": 54,
       "rect": [
         384,
@@ -1071,14 +1255,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "野稗 · 幼苗",
-      "category": "plants",
+      "label": "屋面样稿 · S",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "annual_grass_2": {
+    "roof_preview_3": {
       "slot": 55,
       "rect": [
         448,
@@ -1088,14 +1276,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "野稗 · 成熟",
-      "category": "plants",
+      "label": "屋面样稿 · W",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "annual_grass_3": {
+    "well": {
       "slot": 56,
       "rect": [
         0,
@@ -1105,14 +1297,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "野稗 · 残株",
-      "category": "plants",
+      "label": "井 · N",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "annual_grass_4": {
+    "well_1": {
       "slot": 57,
       "rect": [
         64,
@@ -1122,14 +1318,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "野稗 · 枯萎",
-      "category": "plants",
+      "label": "井 · E",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fire_herb_0": {
+    "well_2": {
       "slot": 58,
       "rect": [
         128,
@@ -1139,14 +1339,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "赤焰草 · 播种",
-      "category": "plants",
+      "label": "井 · S",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fire_herb_1": {
+    "well_3": {
       "slot": 59,
       "rect": [
         192,
@@ -1156,14 +1360,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "赤焰草 · 幼苗",
-      "category": "plants",
+      "label": "井 · W",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fire_herb_2": {
+    "water_jar": {
       "slot": 60,
       "rect": [
         256,
@@ -1173,14 +1381,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "赤焰草 · 成熟",
-      "category": "plants",
+      "label": "水缸 · N",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fire_herb_3": {
+    "water_jar_1": {
       "slot": 61,
       "rect": [
         320,
@@ -1190,14 +1402,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "赤焰草 · 残株",
-      "category": "plants",
+      "label": "水缸 · E",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fire_herb_4": {
+    "water_jar_2": {
       "slot": 62,
       "rect": [
         384,
@@ -1207,14 +1423,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "赤焰草 · 枯萎",
-      "category": "plants",
+      "label": "水缸 · S",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "lotus_0": {
+    "water_jar_3": {
       "slot": 63,
       "rect": [
         448,
@@ -1224,14 +1444,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "荷花 · 播种",
-      "category": "plants",
+      "label": "水缸 · W",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "lotus_1": {
+    "campfire": {
       "slot": 64,
       "rect": [
         0,
@@ -1241,14 +1465,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "荷花 · 幼苗",
-      "category": "plants",
+      "label": "篝火 · N",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "lotus_2": {
+    "campfire_1": {
       "slot": 65,
       "rect": [
         64,
@@ -1258,14 +1486,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "荷花 · 成熟",
-      "category": "plants",
+      "label": "篝火 · E",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "lotus_3": {
+    "campfire_2": {
       "slot": 66,
       "rect": [
         128,
@@ -1275,14 +1507,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "荷花 · 残株",
-      "category": "plants",
+      "label": "篝火 · S",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "lotus_4": {
+    "campfire_3": {
       "slot": 67,
       "rect": [
         192,
@@ -1292,14 +1528,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "荷花 · 枯萎",
-      "category": "plants",
+      "label": "篝火 · W",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "desert_thorn_0": {
+    "grave": {
       "slot": 68,
       "rect": [
         256,
@@ -1309,14 +1549,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "骆驼刺 · 播种",
-      "category": "plants",
+      "label": "墓 · N",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "desert_thorn_1": {
+    "grave_1": {
       "slot": 69,
       "rect": [
         320,
@@ -1326,14 +1570,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "骆驼刺 · 幼苗",
-      "category": "plants",
+      "label": "墓 · E",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "desert_thorn_2": {
+    "grave_2": {
       "slot": 70,
       "rect": [
         384,
@@ -1343,14 +1591,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "骆驼刺 · 成熟",
-      "category": "plants",
+      "label": "墓 · S",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "desert_thorn_3": {
+    "grave_3": {
       "slot": 71,
       "rect": [
         448,
@@ -1360,14 +1612,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "骆驼刺 · 残株",
-      "category": "plants",
+      "label": "墓 · W",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "desert_thorn_4": {
+    "cushion": {
       "slot": 72,
       "rect": [
         0,
@@ -1377,14 +1633,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "骆驼刺 · 枯萎",
-      "category": "plants",
+      "label": "蒲团 · N",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "old_tree_0": {
+    "cushion_1": {
       "slot": 73,
       "rect": [
         64,
@@ -1394,14 +1654,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "古树 · 播种",
-      "category": "plants",
+      "label": "蒲团 · E",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "old_tree_1": {
+    "cushion_2": {
       "slot": 74,
       "rect": [
         128,
@@ -1411,14 +1675,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "古树 · 幼苗",
-      "category": "plants",
+      "label": "蒲团 · S",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "old_tree_2": {
+    "cushion_3": {
       "slot": 75,
       "rect": [
         192,
@@ -1428,14 +1696,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "古树 · 成熟",
-      "category": "plants",
+      "label": "蒲团 · W",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "old_tree_3": {
+    "incense": {
       "slot": 76,
       "rect": [
         256,
@@ -1445,14 +1717,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "古树 · 残株",
-      "category": "plants",
+      "label": "香炉 · N",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "old_tree_4": {
+    "incense_1": {
       "slot": 77,
       "rect": [
         320,
@@ -1462,14 +1738,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "古树 · 枯萎",
-      "category": "plants",
+      "label": "香炉 · E",
+      "category": "objects",
       "state": "ready",
-      "source": "generated:plants"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "wall_0": {
+    "incense_2": {
       "slot": 78,
       "rect": [
         384,
@@ -1479,14 +1759,18 @@
       ],
       "anchor": [
         32,
-        48
+        32
       ],
-      "label": "wall_0",
-      "category": "structures",
+      "label": "香炉 · S",
+      "category": "objects",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "wall_1": {
+    "incense_3": {
       "slot": 79,
       "rect": [
         448,
@@ -1496,14 +1780,18 @@
       ],
       "anchor": [
         32,
-        48
+        32
       ],
-      "label": "wall_1",
-      "category": "structures",
+      "label": "香炉 · W",
+      "category": "objects",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "wall_2": {
+    "bookcase": {
       "slot": 80,
       "rect": [
         0,
@@ -1513,14 +1801,18 @@
       ],
       "anchor": [
         32,
-        48
+        32
       ],
-      "label": "wall_2",
-      "category": "structures",
+      "label": "书柜 · N",
+      "category": "objects",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "wall_3": {
+    "bookcase_1": {
       "slot": 81,
       "rect": [
         64,
@@ -1530,14 +1822,18 @@
       ],
       "anchor": [
         32,
-        48
+        32
       ],
-      "label": "wall_3",
-      "category": "structures",
+      "label": "书柜 · E",
+      "category": "objects",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "wall_4": {
+    "bookcase_2": {
       "slot": 82,
       "rect": [
         128,
@@ -1547,14 +1843,18 @@
       ],
       "anchor": [
         32,
-        48
+        32
       ],
-      "label": "wall_4",
-      "category": "structures",
+      "label": "书柜 · S",
+      "category": "objects",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "wall_5": {
+    "bookcase_3": {
       "slot": 83,
       "rect": [
         192,
@@ -1564,14 +1864,18 @@
       ],
       "anchor": [
         32,
-        48
+        32
       ],
-      "label": "wall_5",
-      "category": "structures",
+      "label": "书柜 · W",
+      "category": "objects",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "wall_6": {
+    "lantern": {
       "slot": 84,
       "rect": [
         256,
@@ -1581,14 +1885,18 @@
       ],
       "anchor": [
         32,
-        48
+        32
       ],
-      "label": "wall_6",
-      "category": "structures",
+      "label": "灯 · N",
+      "category": "objects",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "wall_7": {
+    "lantern_1": {
       "slot": 85,
       "rect": [
         320,
@@ -1598,14 +1906,18 @@
       ],
       "anchor": [
         32,
-        48
+        32
       ],
-      "label": "wall_7",
-      "category": "structures",
+      "label": "灯 · E",
+      "category": "objects",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "wall_8": {
+    "lantern_2": {
       "slot": 86,
       "rect": [
         384,
@@ -1615,14 +1927,18 @@
       ],
       "anchor": [
         32,
-        48
+        32
       ],
-      "label": "wall_8",
-      "category": "structures",
+      "label": "灯 · S",
+      "category": "objects",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "wall_9": {
+    "lantern_3": {
       "slot": 87,
       "rect": [
         448,
@@ -1632,14 +1948,18 @@
       ],
       "anchor": [
         32,
-        48
+        32
       ],
-      "label": "wall_9",
-      "category": "structures",
+      "label": "灯 · W",
+      "category": "objects",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "wall_10": {
+    "alchemy": {
       "slot": 88,
       "rect": [
         0,
@@ -1649,14 +1969,18 @@
       ],
       "anchor": [
         32,
-        48
+        32
       ],
-      "label": "wall_10",
-      "category": "structures",
+      "label": "炼丹炉 · N",
+      "category": "objects",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "wall_11": {
+    "alchemy_1": {
       "slot": 89,
       "rect": [
         64,
@@ -1666,14 +1990,18 @@
       ],
       "anchor": [
         32,
-        48
+        32
       ],
-      "label": "wall_11",
-      "category": "structures",
+      "label": "炼丹炉 · E",
+      "category": "objects",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "wall_12": {
+    "alchemy_2": {
       "slot": 90,
       "rect": [
         128,
@@ -1683,14 +2011,18 @@
       ],
       "anchor": [
         32,
-        48
+        32
       ],
-      "label": "wall_12",
-      "category": "structures",
+      "label": "炼丹炉 · S",
+      "category": "objects",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "wall_13": {
+    "alchemy_3": {
       "slot": 91,
       "rect": [
         192,
@@ -1700,14 +2032,18 @@
       ],
       "anchor": [
         32,
-        48
+        32
       ],
-      "label": "wall_13",
-      "category": "structures",
+      "label": "炼丹炉 · W",
+      "category": "objects",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "wall_14": {
+    "loom": {
       "slot": 92,
       "rect": [
         256,
@@ -1717,14 +2053,18 @@
       ],
       "anchor": [
         32,
-        48
+        32
       ],
-      "label": "wall_14",
-      "category": "structures",
+      "label": "织机 · N",
+      "category": "objects",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "wall_15": {
+    "loom_1": {
       "slot": 93,
       "rect": [
         320,
@@ -1734,14 +2074,18 @@
       ],
       "anchor": [
         32,
-        48
+        32
       ],
-      "label": "wall_15",
-      "category": "structures",
+      "label": "织机 · E",
+      "category": "objects",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "door": {
+    "loom_2": {
       "slot": 94,
       "rect": [
         384,
@@ -1751,14 +2095,18 @@
       ],
       "anchor": [
         32,
-        48
+        32
       ],
-      "label": "东西门廊",
-      "category": "structures",
+      "label": "织机 · S",
+      "category": "objects",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "door_v": {
+    "loom_3": {
       "slot": 95,
       "rect": [
         448,
@@ -1768,14 +2116,18 @@
       ],
       "anchor": [
         32,
-        48
+        32
       ],
-      "label": "南北门廊",
-      "category": "structures",
+      "label": "织机 · W",
+      "category": "objects",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "roof": {
+    "screen": {
       "slot": 96,
       "rect": [
         0,
@@ -1785,14 +2137,18 @@
       ],
       "anchor": [
         32,
-        48
+        32
       ],
-      "label": "屋顶层",
-      "category": "structures",
+      "label": "屏风 · N",
+      "category": "objects",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "item_wood": {
+    "screen_1": {
       "slot": 97,
       "rect": [
         64,
@@ -1802,14 +2158,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "item_wood",
-      "category": "items",
+      "label": "屏风 · E",
+      "category": "objects",
       "state": "ready",
-      "source": "kenney:tiny-town/0106"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "item_stone": {
+    "screen_2": {
       "slot": 98,
       "rect": [
         128,
@@ -1819,14 +2179,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "item_stone",
-      "category": "items",
+      "label": "屏风 · S",
+      "category": "objects",
       "state": "ready",
-      "source": "kenney:tiny-farm/0089"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "item_grain": {
+    "screen_3": {
       "slot": 99,
       "rect": [
         192,
@@ -1836,14 +2200,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "item_grain",
-      "category": "items",
+      "label": "屏风 · W",
+      "category": "objects",
       "state": "ready",
-      "source": "kenney:tiny-farm/0032"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "item_herb": {
+    "go_board": {
       "slot": 100,
       "rect": [
         256,
@@ -1853,14 +2221,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "item_herb",
-      "category": "items",
+      "label": "棋盘 · N",
+      "category": "objects",
       "state": "ready",
-      "source": "kenney:tiny-farm/0029"
+      "source": "authored",
+      "footprint": [
+        2,
+        1
+      ]
     },
-    "item_potion": {
+    "go_board_1": {
       "slot": 101,
       "rect": [
         320,
@@ -1870,14 +2242,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "item_potion",
-      "category": "items",
+      "label": "棋盘 · E",
+      "category": "objects",
       "state": "ready",
-      "source": "kenney:tiny-dungeon/0116"
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
     },
-    "item_fruit": {
+    "go_board_2": {
       "slot": 102,
       "rect": [
         384,
@@ -1887,14 +2263,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "item_fruit",
-      "category": "items",
+      "label": "棋盘 · S",
+      "category": "objects",
       "state": "ready",
-      "source": "kenney:tiny-farm/0041"
+      "source": "authored",
+      "footprint": [
+        2,
+        1
+      ]
     },
-    "item_sword": {
+    "go_board_3": {
       "slot": 103,
       "rect": [
         448,
@@ -1904,14 +2284,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "item_sword",
-      "category": "items",
+      "label": "棋盘 · W",
+      "category": "objects",
       "state": "ready",
-      "source": "kenney:tiny-dungeon/0105"
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
     },
-    "item_bow": {
+    "long_bed": {
       "slot": 104,
       "rect": [
         0,
@@ -1921,14 +2305,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "item_bow",
-      "category": "items",
+      "label": "长床 · N",
+      "category": "objects",
       "state": "ready",
-      "source": "kenney:tiny-town/0118"
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
     },
-    "item_hoe": {
+    "long_bed_1": {
       "slot": 105,
       "rect": [
         64,
@@ -1938,14 +2326,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "item_hoe",
-      "category": "items",
+      "label": "长床 · E",
+      "category": "objects",
       "state": "ready",
-      "source": "kenney:tiny-farm/0087"
+      "source": "authored",
+      "footprint": [
+        2,
+        1
+      ]
     },
-    "item_staff": {
+    "long_bed_2": {
       "slot": 106,
       "rect": [
         128,
@@ -1955,14 +2347,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "item_staff",
-      "category": "items",
+      "label": "长床 · S",
+      "category": "objects",
       "state": "ready",
-      "source": "kenney:tiny-dungeon/0127"
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
     },
-    "item_shield": {
+    "long_bed_3": {
       "slot": 107,
       "rect": [
         192,
@@ -1972,14 +2368,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "item_shield",
-      "category": "items",
-      "state": "reserve",
-      "source": "authored"
+      "label": "长床 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        2,
+        1
+      ]
     },
-    "item_arrow": {
+    "chicken": {
       "slot": 108,
       "rect": [
         256,
@@ -1989,14 +2389,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_arrow",
-      "category": "items",
+      "label": "鸡",
+      "category": "creatures",
       "state": "reserve",
-      "source": "authored"
+      "source": "generated:fauna"
     },
-    "item_water": {
+    "rabbit": {
       "slot": 109,
       "rect": [
         320,
@@ -2006,14 +2406,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_water",
-      "category": "items",
-      "state": "ready",
-      "source": "authored"
+      "label": "兔",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
     },
-    "item_watering_can": {
+    "sheep": {
       "slot": 110,
       "rect": [
         384,
@@ -2023,14 +2423,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_watering_can",
-      "category": "items",
+      "label": "羊",
+      "category": "creatures",
       "state": "reserve",
-      "source": "authored"
+      "source": "generated:fauna"
     },
-    "item_robe": {
+    "cow": {
       "slot": 111,
       "rect": [
         448,
@@ -2040,14 +2440,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_robe",
-      "category": "items",
+      "label": "牛",
+      "category": "creatures",
       "state": "reserve",
-      "source": "authored"
+      "source": "generated:fauna"
     },
-    "item_armor": {
+    "boar": {
       "slot": 112,
       "rect": [
         0,
@@ -2057,14 +2457,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_armor",
-      "category": "items",
+      "label": "野猪",
+      "category": "creatures",
       "state": "reserve",
-      "source": "authored"
+      "source": "generated:fauna"
     },
-    "item_boots": {
+    "fox": {
       "slot": 113,
       "rect": [
         64,
@@ -2074,14 +2474,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_boots",
-      "category": "items",
+      "label": "狐",
+      "category": "creatures",
       "state": "reserve",
-      "source": "authored"
+      "source": "generated:fauna"
     },
-    "item_hat": {
+    "wolf": {
       "slot": 114,
       "rect": [
         128,
@@ -2091,14 +2491,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_hat",
-      "category": "items",
+      "label": "狼",
+      "category": "creatures",
       "state": "reserve",
-      "source": "authored"
+      "source": "generated:fauna"
     },
-    "item_talisman": {
+    "deer": {
       "slot": 115,
       "rect": [
         192,
@@ -2108,14 +2508,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_talisman",
-      "category": "items",
+      "label": "鹿",
+      "category": "creatures",
       "state": "reserve",
-      "source": "authored"
+      "source": "generated:fauna"
     },
-    "item_spirit_stone": {
+    "crane": {
       "slot": 116,
       "rect": [
         256,
@@ -2125,14 +2525,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_spirit_stone",
-      "category": "items",
+      "label": "鹤",
+      "category": "creatures",
       "state": "reserve",
-      "source": "authored"
+      "source": "generated:fauna"
     },
-    "item_egg": {
+    "butterfly": {
       "slot": 117,
       "rect": [
         320,
@@ -2142,14 +2542,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_egg",
-      "category": "items",
+      "label": "蝶",
+      "category": "creatures",
       "state": "reserve",
-      "source": "authored"
+      "source": "generated:fauna"
     },
-    "item_fish": {
+    "slime": {
       "slot": 118,
       "rect": [
         384,
@@ -2159,14 +2559,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_fish",
-      "category": "items",
+      "label": "玉液怪",
+      "category": "creatures",
       "state": "reserve",
-      "source": "authored"
+      "source": "generated:fauna"
     },
-    "item_meal": {
+    "ghost": {
       "slot": 119,
       "rect": [
         448,
@@ -2176,14 +2576,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_meal",
-      "category": "items",
-      "state": "ready",
-      "source": "authored"
+      "label": "灵体",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
     },
-    "item_dried_herb": {
+    "tree_spirit": {
       "slot": 120,
       "rect": [
         0,
@@ -2193,14 +2593,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_dried_herb",
-      "category": "items",
-      "state": "ready",
-      "source": "authored"
+      "label": "树精",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
     },
-    "item_fiber": {
+    "golem": {
       "slot": 121,
       "rect": [
         64,
@@ -2210,14 +2610,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_fiber",
-      "category": "items",
-      "state": "ready",
-      "source": "authored"
+      "label": "石傀儡",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
     },
-    "item_lotus_seed": {
+    "demon": {
       "slot": 122,
       "rect": [
         128,
@@ -2227,14 +2627,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_lotus_seed",
-      "category": "items",
-      "state": "ready",
-      "source": "authored"
+      "label": "小妖",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
     },
-    "item_lotus_root": {
+    "flying_sword": {
       "slot": 123,
       "rect": [
         192,
@@ -2244,14 +2644,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_lotus_root",
-      "category": "items",
-      "state": "ready",
-      "source": "authored"
+      "label": "飞剑",
+      "category": "creatures",
+      "state": "reserve",
+      "source": "generated:fauna"
     },
-    "item_breath_manual": {
+    "perennial_herb_0": {
       "slot": 124,
       "rect": [
         256,
@@ -2261,14 +2661,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_breath_manual",
-      "category": "items",
+      "label": "野药 · 播种",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "item_axe": {
+    "perennial_herb_1": {
       "slot": 125,
       "rect": [
         320,
@@ -2278,14 +2678,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_axe",
-      "category": "items",
-      "state": "reserve",
-      "source": "authored"
+      "label": "野药 · 幼苗",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
     },
-    "item_pickaxe": {
+    "perennial_herb_2": {
       "slot": 126,
       "rect": [
         384,
@@ -2295,14 +2695,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_pickaxe",
-      "category": "items",
-      "state": "reserve",
-      "source": "authored"
+      "label": "野药 · 成熟",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
     },
-    "item_shovel": {
+    "perennial_herb_3": {
       "slot": 127,
       "rect": [
         448,
@@ -2312,14 +2712,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_shovel",
-      "category": "items",
-      "state": "reserve",
-      "source": "authored"
+      "label": "野药 · 残株",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
     },
-    "item_spear": {
+    "perennial_herb_4": {
       "slot": 128,
       "rect": [
         0,
@@ -2329,14 +2729,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_spear",
-      "category": "items",
-      "state": "reserve",
-      "source": "authored"
+      "label": "野药 · 枯萎",
+      "category": "plants",
+      "state": "ready",
+      "source": "generated:plants"
     },
-    "item_bundle": {
+    "annual_grass_0": {
       "slot": 129,
       "rect": [
         64,
@@ -2346,14 +2746,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "item_bundle",
-      "category": "items",
+      "label": "野稗 · 播种",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_fire_0": {
+    "annual_grass_1": {
       "slot": 130,
       "rect": [
         128,
@@ -2363,14 +2763,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_fire_0",
-      "category": "effects",
+      "label": "野稗 · 幼苗",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_fire_1": {
+    "annual_grass_2": {
       "slot": 131,
       "rect": [
         192,
@@ -2380,14 +2780,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_fire_1",
-      "category": "effects",
+      "label": "野稗 · 成熟",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_fire_2": {
+    "annual_grass_3": {
       "slot": 132,
       "rect": [
         256,
@@ -2397,14 +2797,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_fire_2",
-      "category": "effects",
+      "label": "野稗 · 残株",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_fire_3": {
+    "annual_grass_4": {
       "slot": 133,
       "rect": [
         320,
@@ -2414,14 +2814,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_fire_3",
-      "category": "effects",
+      "label": "野稗 · 枯萎",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_ice_0": {
+    "fire_herb_0": {
       "slot": 134,
       "rect": [
         384,
@@ -2431,14 +2831,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_ice_0",
-      "category": "effects",
+      "label": "赤焰草 · 播种",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_ice_1": {
+    "fire_herb_1": {
       "slot": 135,
       "rect": [
         448,
@@ -2448,14 +2848,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_ice_1",
-      "category": "effects",
+      "label": "赤焰草 · 幼苗",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_ice_2": {
+    "fire_herb_2": {
       "slot": 136,
       "rect": [
         0,
@@ -2465,14 +2865,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_ice_2",
-      "category": "effects",
+      "label": "赤焰草 · 成熟",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_ice_3": {
+    "fire_herb_3": {
       "slot": 137,
       "rect": [
         64,
@@ -2482,14 +2882,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_ice_3",
-      "category": "effects",
+      "label": "赤焰草 · 残株",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_heal_0": {
+    "fire_herb_4": {
       "slot": 138,
       "rect": [
         128,
@@ -2499,14 +2899,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_heal_0",
-      "category": "effects",
+      "label": "赤焰草 · 枯萎",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_heal_1": {
+    "lotus_0": {
       "slot": 139,
       "rect": [
         192,
@@ -2516,14 +2916,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_heal_1",
-      "category": "effects",
+      "label": "荷花 · 播种",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_heal_2": {
+    "lotus_1": {
       "slot": 140,
       "rect": [
         256,
@@ -2533,14 +2933,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_heal_2",
-      "category": "effects",
+      "label": "荷花 · 幼苗",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_heal_3": {
+    "lotus_2": {
       "slot": 141,
       "rect": [
         320,
@@ -2550,14 +2950,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_heal_3",
-      "category": "effects",
+      "label": "荷花 · 成熟",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_hit_0": {
+    "lotus_3": {
       "slot": 142,
       "rect": [
         384,
@@ -2567,14 +2967,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_hit_0",
-      "category": "effects",
+      "label": "荷花 · 残株",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_hit_1": {
+    "lotus_4": {
       "slot": 143,
       "rect": [
         448,
@@ -2584,14 +2984,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_hit_1",
-      "category": "effects",
+      "label": "荷花 · 枯萎",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_hit_2": {
+    "desert_thorn_0": {
       "slot": 144,
       "rect": [
         0,
@@ -2601,14 +3001,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_hit_2",
-      "category": "effects",
+      "label": "骆驼刺 · 播种",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_hit_3": {
+    "desert_thorn_1": {
       "slot": 145,
       "rect": [
         64,
@@ -2618,14 +3018,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_hit_3",
-      "category": "effects",
+      "label": "骆驼刺 · 幼苗",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_qi_0": {
+    "desert_thorn_2": {
       "slot": 146,
       "rect": [
         128,
@@ -2635,14 +3035,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_qi_0",
-      "category": "effects",
+      "label": "骆驼刺 · 成熟",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_qi_1": {
+    "desert_thorn_3": {
       "slot": 147,
       "rect": [
         192,
@@ -2652,14 +3052,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_qi_1",
-      "category": "effects",
+      "label": "骆驼刺 · 残株",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_qi_2": {
+    "desert_thorn_4": {
       "slot": 148,
       "rect": [
         256,
@@ -2669,14 +3069,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_qi_2",
-      "category": "effects",
+      "label": "骆驼刺 · 枯萎",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_qi_3": {
+    "old_tree_0": {
       "slot": 149,
       "rect": [
         320,
@@ -2686,14 +3086,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_qi_3",
-      "category": "effects",
+      "label": "古树 · 播种",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_dust_0": {
+    "old_tree_1": {
       "slot": 150,
       "rect": [
         384,
@@ -2703,14 +3103,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_dust_0",
-      "category": "effects",
+      "label": "古树 · 幼苗",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_dust_1": {
+    "old_tree_2": {
       "slot": 151,
       "rect": [
         448,
@@ -2720,14 +3120,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_dust_1",
-      "category": "effects",
+      "label": "古树 · 成熟",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_dust_2": {
+    "old_tree_3": {
       "slot": 152,
       "rect": [
         0,
@@ -2737,14 +3137,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_dust_2",
-      "category": "effects",
+      "label": "古树 · 残株",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_dust_3": {
+    "old_tree_4": {
       "slot": 153,
       "rect": [
         64,
@@ -2754,14 +3154,14 @@
       ],
       "anchor": [
         32,
-        56
+        52
       ],
-      "label": "fx_dust_3",
-      "category": "effects",
+      "label": "古树 · 枯萎",
+      "category": "plants",
       "state": "ready",
-      "source": "authored"
+      "source": "generated:plants"
     },
-    "fx_metal_0": {
+    "wall_0": {
       "slot": 154,
       "rect": [
         128,
@@ -2771,14 +3171,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "fx_metal_0",
-      "category": "effects",
+      "label": "wall_0",
+      "category": "structures",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fx_metal_1": {
+    "wall_1": {
       "slot": 155,
       "rect": [
         192,
@@ -2788,14 +3192,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "fx_metal_1",
-      "category": "effects",
+      "label": "wall_1",
+      "category": "structures",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fx_metal_2": {
+    "wall_2": {
       "slot": 156,
       "rect": [
         256,
@@ -2805,14 +3213,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "fx_metal_2",
-      "category": "effects",
+      "label": "wall_2",
+      "category": "structures",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fx_metal_3": {
+    "wall_3": {
       "slot": 157,
       "rect": [
         320,
@@ -2822,14 +3234,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "fx_metal_3",
-      "category": "effects",
+      "label": "wall_3",
+      "category": "structures",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fx_wood_0": {
+    "wall_4": {
       "slot": 158,
       "rect": [
         384,
@@ -2839,14 +3255,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "fx_wood_0",
-      "category": "effects",
+      "label": "wall_4",
+      "category": "structures",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fx_wood_1": {
+    "wall_5": {
       "slot": 159,
       "rect": [
         448,
@@ -2856,14 +3276,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "fx_wood_1",
-      "category": "effects",
+      "label": "wall_5",
+      "category": "structures",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fx_wood_2": {
+    "wall_6": {
       "slot": 160,
       "rect": [
         0,
@@ -2873,14 +3297,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "fx_wood_2",
-      "category": "effects",
+      "label": "wall_6",
+      "category": "structures",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fx_wood_3": {
+    "wall_7": {
       "slot": 161,
       "rect": [
         64,
@@ -2890,14 +3318,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "fx_wood_3",
-      "category": "effects",
+      "label": "wall_7",
+      "category": "structures",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fx_water_0": {
+    "wall_8": {
       "slot": 162,
       "rect": [
         128,
@@ -2907,14 +3339,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "fx_water_0",
-      "category": "effects",
+      "label": "wall_8",
+      "category": "structures",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fx_water_1": {
+    "wall_9": {
       "slot": 163,
       "rect": [
         192,
@@ -2924,14 +3360,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "fx_water_1",
-      "category": "effects",
+      "label": "wall_9",
+      "category": "structures",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fx_water_2": {
+    "wall_10": {
       "slot": 164,
       "rect": [
         256,
@@ -2941,14 +3381,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "fx_water_2",
-      "category": "effects",
+      "label": "wall_10",
+      "category": "structures",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fx_water_3": {
+    "wall_11": {
       "slot": 165,
       "rect": [
         320,
@@ -2958,14 +3402,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "fx_water_3",
-      "category": "effects",
+      "label": "wall_11",
+      "category": "structures",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fx_earth_0": {
+    "wall_12": {
       "slot": 166,
       "rect": [
         384,
@@ -2975,14 +3423,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "fx_earth_0",
-      "category": "effects",
+      "label": "wall_12",
+      "category": "structures",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fx_earth_1": {
+    "wall_13": {
       "slot": 167,
       "rect": [
         448,
@@ -2992,14 +3444,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "fx_earth_1",
-      "category": "effects",
+      "label": "wall_13",
+      "category": "structures",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fx_earth_2": {
+    "wall_14": {
       "slot": 168,
       "rect": [
         0,
@@ -3009,14 +3465,18 @@
       ],
       "anchor": [
         32,
-        56
+        32
       ],
-      "label": "fx_earth_2",
-      "category": "effects",
+      "label": "wall_14",
+      "category": "structures",
       "state": "ready",
-      "source": "authored"
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     },
-    "fx_earth_3": {
+    "wall_15": {
       "slot": 169,
       "rect": [
         64,
@@ -3026,7 +3486,1315 @@
       ],
       "anchor": [
         32,
-        56
+        32
+      ],
+      "label": "wall_15",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "door": {
+      "slot": 170,
+      "rect": [
+        128,
+        1344,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        32
+      ],
+      "label": "南北通路",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "door_v": {
+      "slot": 171,
+      "rect": [
+        192,
+        1344,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        32
+      ],
+      "label": "东西通路",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "roof": {
+      "slot": 172,
+      "rect": [
+        256,
+        1344,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        32
+      ],
+      "label": "屋顶层",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "item_wood": {
+      "slot": 173,
+      "rect": [
+        320,
+        1344,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_wood",
+      "category": "items",
+      "state": "ready",
+      "source": "kenney:tiny-town/0106"
+    },
+    "item_stone": {
+      "slot": 174,
+      "rect": [
+        384,
+        1344,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_stone",
+      "category": "items",
+      "state": "ready",
+      "source": "kenney:tiny-farm/0089"
+    },
+    "item_grain": {
+      "slot": 175,
+      "rect": [
+        448,
+        1344,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_grain",
+      "category": "items",
+      "state": "ready",
+      "source": "kenney:tiny-farm/0032"
+    },
+    "item_herb": {
+      "slot": 176,
+      "rect": [
+        0,
+        1408,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_herb",
+      "category": "items",
+      "state": "ready",
+      "source": "kenney:tiny-farm/0029"
+    },
+    "item_potion": {
+      "slot": 177,
+      "rect": [
+        64,
+        1408,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_potion",
+      "category": "items",
+      "state": "ready",
+      "source": "kenney:tiny-dungeon/0116"
+    },
+    "item_fruit": {
+      "slot": 178,
+      "rect": [
+        128,
+        1408,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_fruit",
+      "category": "items",
+      "state": "ready",
+      "source": "kenney:tiny-farm/0041"
+    },
+    "item_sword": {
+      "slot": 179,
+      "rect": [
+        192,
+        1408,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_sword",
+      "category": "items",
+      "state": "ready",
+      "source": "kenney:tiny-dungeon/0105"
+    },
+    "item_bow": {
+      "slot": 180,
+      "rect": [
+        256,
+        1408,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_bow",
+      "category": "items",
+      "state": "ready",
+      "source": "kenney:tiny-town/0118"
+    },
+    "item_hoe": {
+      "slot": 181,
+      "rect": [
+        320,
+        1408,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_hoe",
+      "category": "items",
+      "state": "ready",
+      "source": "kenney:tiny-farm/0087"
+    },
+    "item_staff": {
+      "slot": 182,
+      "rect": [
+        384,
+        1408,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_staff",
+      "category": "items",
+      "state": "ready",
+      "source": "kenney:tiny-dungeon/0127"
+    },
+    "item_shield": {
+      "slot": 183,
+      "rect": [
+        448,
+        1408,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_shield",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_arrow": {
+      "slot": 184,
+      "rect": [
+        0,
+        1472,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_arrow",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_water": {
+      "slot": 185,
+      "rect": [
+        64,
+        1472,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_water",
+      "category": "items",
+      "state": "ready",
+      "source": "authored"
+    },
+    "item_watering_can": {
+      "slot": 186,
+      "rect": [
+        128,
+        1472,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_watering_can",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_robe": {
+      "slot": 187,
+      "rect": [
+        192,
+        1472,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_robe",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_armor": {
+      "slot": 188,
+      "rect": [
+        256,
+        1472,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_armor",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_boots": {
+      "slot": 189,
+      "rect": [
+        320,
+        1472,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_boots",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_hat": {
+      "slot": 190,
+      "rect": [
+        384,
+        1472,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_hat",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_talisman": {
+      "slot": 191,
+      "rect": [
+        448,
+        1472,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_talisman",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_spirit_stone": {
+      "slot": 192,
+      "rect": [
+        0,
+        1536,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_spirit_stone",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_egg": {
+      "slot": 193,
+      "rect": [
+        64,
+        1536,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_egg",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_fish": {
+      "slot": 194,
+      "rect": [
+        128,
+        1536,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_fish",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_meal": {
+      "slot": 195,
+      "rect": [
+        192,
+        1536,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_meal",
+      "category": "items",
+      "state": "ready",
+      "source": "authored"
+    },
+    "item_dried_herb": {
+      "slot": 196,
+      "rect": [
+        256,
+        1536,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_dried_herb",
+      "category": "items",
+      "state": "ready",
+      "source": "authored"
+    },
+    "item_fiber": {
+      "slot": 197,
+      "rect": [
+        320,
+        1536,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_fiber",
+      "category": "items",
+      "state": "ready",
+      "source": "authored"
+    },
+    "item_lotus_seed": {
+      "slot": 198,
+      "rect": [
+        384,
+        1536,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_lotus_seed",
+      "category": "items",
+      "state": "ready",
+      "source": "authored"
+    },
+    "item_lotus_root": {
+      "slot": 199,
+      "rect": [
+        448,
+        1536,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_lotus_root",
+      "category": "items",
+      "state": "ready",
+      "source": "authored"
+    },
+    "item_breath_manual": {
+      "slot": 200,
+      "rect": [
+        0,
+        1600,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_breath_manual",
+      "category": "items",
+      "state": "ready",
+      "source": "authored"
+    },
+    "item_axe": {
+      "slot": 201,
+      "rect": [
+        64,
+        1600,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_axe",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_pickaxe": {
+      "slot": 202,
+      "rect": [
+        128,
+        1600,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_pickaxe",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_shovel": {
+      "slot": 203,
+      "rect": [
+        192,
+        1600,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_shovel",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_spear": {
+      "slot": 204,
+      "rect": [
+        256,
+        1600,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_spear",
+      "category": "items",
+      "state": "reserve",
+      "source": "authored"
+    },
+    "item_bundle": {
+      "slot": 205,
+      "rect": [
+        320,
+        1600,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "item_bundle",
+      "category": "items",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_fire_0": {
+      "slot": 206,
+      "rect": [
+        384,
+        1600,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_fire_0",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_fire_1": {
+      "slot": 207,
+      "rect": [
+        448,
+        1600,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_fire_1",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_fire_2": {
+      "slot": 208,
+      "rect": [
+        0,
+        1664,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_fire_2",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_fire_3": {
+      "slot": 209,
+      "rect": [
+        64,
+        1664,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_fire_3",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_ice_0": {
+      "slot": 210,
+      "rect": [
+        128,
+        1664,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_ice_0",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_ice_1": {
+      "slot": 211,
+      "rect": [
+        192,
+        1664,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_ice_1",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_ice_2": {
+      "slot": 212,
+      "rect": [
+        256,
+        1664,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_ice_2",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_ice_3": {
+      "slot": 213,
+      "rect": [
+        320,
+        1664,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_ice_3",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_heal_0": {
+      "slot": 214,
+      "rect": [
+        384,
+        1664,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_heal_0",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_heal_1": {
+      "slot": 215,
+      "rect": [
+        448,
+        1664,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_heal_1",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_heal_2": {
+      "slot": 216,
+      "rect": [
+        0,
+        1728,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_heal_2",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_heal_3": {
+      "slot": 217,
+      "rect": [
+        64,
+        1728,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_heal_3",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_hit_0": {
+      "slot": 218,
+      "rect": [
+        128,
+        1728,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_hit_0",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_hit_1": {
+      "slot": 219,
+      "rect": [
+        192,
+        1728,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_hit_1",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_hit_2": {
+      "slot": 220,
+      "rect": [
+        256,
+        1728,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_hit_2",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_hit_3": {
+      "slot": 221,
+      "rect": [
+        320,
+        1728,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_hit_3",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_qi_0": {
+      "slot": 222,
+      "rect": [
+        384,
+        1728,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_qi_0",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_qi_1": {
+      "slot": 223,
+      "rect": [
+        448,
+        1728,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_qi_1",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_qi_2": {
+      "slot": 224,
+      "rect": [
+        0,
+        1792,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_qi_2",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_qi_3": {
+      "slot": 225,
+      "rect": [
+        64,
+        1792,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_qi_3",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_dust_0": {
+      "slot": 226,
+      "rect": [
+        128,
+        1792,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_dust_0",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_dust_1": {
+      "slot": 227,
+      "rect": [
+        192,
+        1792,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_dust_1",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_dust_2": {
+      "slot": 228,
+      "rect": [
+        256,
+        1792,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_dust_2",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_dust_3": {
+      "slot": 229,
+      "rect": [
+        320,
+        1792,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_dust_3",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_metal_0": {
+      "slot": 230,
+      "rect": [
+        384,
+        1792,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_metal_0",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_metal_1": {
+      "slot": 231,
+      "rect": [
+        448,
+        1792,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_metal_1",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_metal_2": {
+      "slot": 232,
+      "rect": [
+        0,
+        1856,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_metal_2",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_metal_3": {
+      "slot": 233,
+      "rect": [
+        64,
+        1856,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_metal_3",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_wood_0": {
+      "slot": 234,
+      "rect": [
+        128,
+        1856,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_wood_0",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_wood_1": {
+      "slot": 235,
+      "rect": [
+        192,
+        1856,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_wood_1",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_wood_2": {
+      "slot": 236,
+      "rect": [
+        256,
+        1856,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_wood_2",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_wood_3": {
+      "slot": 237,
+      "rect": [
+        320,
+        1856,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_wood_3",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_water_0": {
+      "slot": 238,
+      "rect": [
+        384,
+        1856,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_water_0",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_water_1": {
+      "slot": 239,
+      "rect": [
+        448,
+        1856,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_water_1",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_water_2": {
+      "slot": 240,
+      "rect": [
+        0,
+        1920,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_water_2",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_water_3": {
+      "slot": 241,
+      "rect": [
+        64,
+        1920,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_water_3",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_earth_0": {
+      "slot": 242,
+      "rect": [
+        128,
+        1920,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_earth_0",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_earth_1": {
+      "slot": 243,
+      "rect": [
+        192,
+        1920,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_earth_1",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_earth_2": {
+      "slot": 244,
+      "rect": [
+        256,
+        1920,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
+      ],
+      "label": "fx_earth_2",
+      "category": "effects",
+      "state": "ready",
+      "source": "authored"
+    },
+    "fx_earth_3": {
+      "slot": 245,
+      "rect": [
+        320,
+        1920,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        52
       ],
       "label": "fx_earth_3",
       "category": "effects",
@@ -3052,7 +4820,7 @@
   },
   "sha256": {
     "actors.png": "399aee8374e60273c958ed6aeb17844d126ad0ba97ebebb00558e3aad1dcd5e9",
-    "world.png": "2fa51e9bd1f7c1df382e8b7ee36bd5c60323c17dacdf7f3694ee5fe0c58ccfd0",
+    "world.png": "d8ab38a2ebf625f9726b2d5dd9aa4a5e467678756554f6e6432491288f383c2c",
     "terrain.png": "ec803c9e7a280020e07af16932c06df6fa35c315cfd201a591452d12fdd8ec18"
   }
 }

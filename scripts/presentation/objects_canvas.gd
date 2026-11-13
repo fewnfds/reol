@@ -1,6 +1,6 @@
 extends Node2D
 ## Rebuild a static atlas batch only when immutable observed descriptors change.
-## The same buffer drives sprites and bounded solar projections on the GPU.
+## The same buffer drives sprites and bounded ground contact on the GPU.
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Art = preload("res://scripts/presentation/art.gd")
 const TILE: float = 32.0
@@ -50,15 +50,16 @@ func adopt(value: Dictionary) -> void:
         var extent := Rect2i(Terrain.cell(rec.tile), Vector2i.ONE)
         for tile: int in rec.get("cells", PackedInt32Array([rec.tile])):
             extent = extent.merge(Rect2i(Terrain.cell(tile), Vector2i.ONE))
-        var point: Vector2 = Vector2(extent.position.x + extent.size.x * 0.5, extent.end.y) * TILE
+        # Placement, ground contact and shadow share the footprint centre.
+        # Height belongs to the sprite anchor; it is never a half-cell offset.
+        var point: Vector2 = (Vector2(extent.position) + Vector2(extent.size) * 0.5) * TILE
         var scale_value := Vector2(0.65, 0.65)
         var tall: bool = rec.kind == "resource" or (rec.kind == "plant" and rec.definition == "old_tree")
         if tall:
             scale_value = Vector2.ONE * (1.2 if rec.kind == "resource" else 1.0)
-        elif rec.kind in ["wall", "door", "roof"] or (rec.kind == "blueprint" and rec.definition in ["wood_wall", "wood_door", "wood_roof", "wood_floor"]):
-            scale_value = Vector2.ONE
-        elif extent.size != Vector2i.ONE:
-            scale_value = Vector2(maxf(0.65, extent.size.x * TILE / 54.0), maxf(0.65, extent.size.y * TILE / 48.0))
+        if source.has("footprint"):
+            var art_cells: Array = source.footprint
+            scale_value = Vector2(float(extent.size.x) / int(art_cells[0]), float(extent.size.y) / int(art_cells[1]))
         var color := Color.WHITE
         if rec.kind == "blueprint": color = Color(0.45, 0.95, 1.0, 0.50)
         if rec.get("layer", "") == "roof": color.a = 0.24
@@ -80,7 +81,7 @@ func adopt(value: Dictionary) -> void:
         var anchor: Array = source.anchor
         var sway: int = int(tall and int(rec.get("stage", 2)) not in [3, 4] and not (rec.kind == "resource" and int(rec.get("vegetation_level", 3)) < 3))
         buffer[offset + 15] = 128 + sway * 256 + special * 512 + int(anchor[0]) * 2048 + int(anchor[1]) * 131072
-        var depth: int = int(point.y * 256.0) + (1 << 26 if rec.get("layer", "") == "roof" else 0)
+        var depth: int = int((extent.end.y * TILE if source.has("footprint") else point.y) * 256.0) + (1 << 26 if rec.get("layer", "") == "roof" else 0)
         order.append(float(depth * ORDER_STRIDE + index))
     order.sort()
     revision += 1
@@ -106,7 +107,7 @@ func _key(rec: Dictionary) -> String:
                 if cell.x < 0 or cell.y < 0 or cell.x >= 512 or cell.y >= 512: continue
                 for id: int in by_tile.get(Terrain.index(cell), []):
                     if objects[id].kind == "wall": return "door_v"
-            return "door"
+            return "door_v" if int(rec.get("facing", 0)) % 2 == 1 else "door"
         "resource":
             var level: int = int(rec.get("vegetation_level", 3))
             return "item_wood" if level == 0 else ("stump" if level == 2 else ("pine" if rec.tile % 3 == 0 else "oak"))
@@ -116,9 +117,17 @@ func _key(rec: Dictionary) -> String:
             if rec.definition == "old_tree":
                 return "tree_spirit" if rec.get("sapient", false) and stage == 2 else "old_tree_%d" % stage
             return "%s_%d" % [rec.definition, stage]
-        "chest": return "chest"
+        "chest": return _facing_key("chest", rec)
         "pile": return "item_" + rec.definition if Art.catalog().entries.has("item_" + rec.definition) else "item_bundle"
     # A pending floor uses the same flat, tile-sized preview as a roof; the
     # completed floor is drawn in the ground atlas, never as a furniture icon.
-    var mapping: Dictionary = {"wood_wall": "wall_0", "wood_door": "door", "wood_bed": "bed", "long_bed": "bed", "wood_chest": "chest", "cook_stove": "stove", "wood_table": "table", "wood_chair": "chair", "wood_roof": "roof", "wood_floor": "roof", "planter": "planter"}
-    return str(mapping.get(rec.definition, "workbench"))
+    var mapping: Dictionary = {"wood_wall": "wall_0", "wood_door": "door", "wood_bed": "bed", "long_bed": "long_bed", "wood_chest": "chest", "cook_stove": "stove", "wood_table": "table", "wood_chair": "chair", "wood_roof": "roof", "wood_floor": "roof", "planter": "planter"}
+    return _facing_key(str(mapping.get(rec.definition, "workbench")), rec)
+
+
+func _facing_key(key: String, rec: Dictionary) -> String:
+    var facing: int = int(rec.get("facing", 0))
+    if key == "door":
+        return "door_v" if facing % 2 == 1 else "door"
+    var variant: String = "%s_%d" % [key, facing]
+    return variant if facing > 0 and Art.catalog().entries.has(variant) else key

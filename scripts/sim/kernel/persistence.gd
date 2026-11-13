@@ -120,6 +120,8 @@ static func _objects_valid(world: RefCounted) -> bool:
 			return false
 		if record.kind == "actor" and tile != -1:
 			return false
+		if record.has("facing") and (not record.facing is int or record.facing < 0 or record.facing > 3):
+			return false
 		if (not record.get("sight_range") is float and not record.get("sight_range") is int) or not is_finite(float(record.sight_range)) or record.sight_range < 0 or record.sight_range > world.terrain.SIZE * 2.0:
 			return false
 		for contents: Variant in [record.inventory, record.get("materials", {})]:

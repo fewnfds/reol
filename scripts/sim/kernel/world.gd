@@ -461,7 +461,7 @@ func command(input: Dictionary) -> Dictionary:
 				receipt.reason = reason
 				return receipt
 		"construct":
-			var result: Dictionary = facilities.blueprint(self, id, str(input.get("definition", "wood_wall")), int(input.get("tile", -1)))
+			var result: Dictionary = facilities.blueprint(self, id, str(input.get("definition", "wood_wall")), int(input.get("tile", -1)), int(input.get("facing", 0)))
 			if result.reason != "accepted":
 				receipt.reason = result.reason
 				return receipt
