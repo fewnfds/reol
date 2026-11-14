@@ -31,9 +31,9 @@ func _run() -> void:
 		quit(1)
 		return
 	var request_usec: int = Time.get_ticks_usec()
-	var command: Dictionary = {"kind": "stop", "actor": 1, "_trace": {"request_usec": request_usec}}
+	var command: Dictionary = {"kind": "interrupt", "actor": 1, "_trace": {"request_usec": request_usec}}
 	var traced: int = runner.send(command)
-	var plain: int = runner.send({"kind": "stop", "actor": 1})
+	var plain: int = runner.send({"kind": "interrupt", "actor": 1})
 	var receipts: Array[Dictionary] = []
 	while receipts.size() < 2 and Time.get_ticks_usec() < deadline:
 		await process_frame

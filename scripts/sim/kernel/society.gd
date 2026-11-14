@@ -40,7 +40,7 @@ func invite(world: RefCounted, actor: int, action: Dictionary) -> void:
 		return
 	var slot: int = world.actor_slots[target]
 	var page: RefCounted = world.pages[slot / 256]
-	if world.actions.has(target) or world.combat.orders.has(target) or page.health[slot % 256] < 30:
+	if world.actions.has(target) or world.combat.engagements.has(target) or world.combat.states.has(target) or page.health[slot % 256] < 30:
 		return # A busy/unwilling partner need not stop; contact can fail normally.
 	action["partner_waiting"] = true
 	action["partner_resume"] = world.objects.records[target].get("autonomous", false)
@@ -54,7 +54,7 @@ func interrupt(world: RefCounted, action: Dictionary, now: int) -> void:
 	var slot: int = world.actor_slots[action.target]
 	var page: RefCounted = world.pages[slot / 256]
 	# Never overwrite a newer player command or a defensive combat response.
-	if action.get("partner_resume", false) and world.objects.records[action.target].get("autonomous", false) and page.health[slot % 256] > 0 and page.modes[slot % 256] == Units.Mode.IDLE and not world.actions.has(action.target) and not world.combat.orders.has(action.target):
+	if action.get("partner_resume", false) and world.objects.records[action.target].get("autonomous", false) and page.health[slot % 256] > 0 and page.modes[slot % 256] == Units.Mode.IDLE and not world.actions.has(action.target) and not world.combat.engagements.has(action.target):
 		world.livelihood.after_action(world, action.target, now)
 
 

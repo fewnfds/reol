@@ -24,7 +24,11 @@ def check_response_capture(directory: Path) -> None:
     with patch.object(sys, "argv", argv), patch.object(benchmark, "capture", return_value={"capture_exit_code": 0}) as capture:
         assert benchmark.main() == 0
         assert capture.call_args.kwargs["response_probe"] is True
-    for incompatible in [["--mixed"], ["--capacity"], ["--speed", "2"]]:
+        assert capture.call_args.kwargs["sim_hz"] == 60
+    with patch.object(sys, "argv", argv[:-1] + ["--sim-hz", "100", "--combat-lab"]), patch.object(benchmark, "capture", return_value={"capture_exit_code": 0}) as capture:
+        assert benchmark.main() == 0
+        assert capture.call_args.kwargs["sim_hz"] == 100 and capture.call_args.kwargs["combat_lab"]
+    for incompatible in [["--mixed"], ["--capacity"], ["--combat-lab"], ["--speed", "2"]]:
         with patch.object(sys, "argv", argv + incompatible), redirect_stderr(io.StringIO()):
             try:
                 benchmark.main()
@@ -50,13 +54,13 @@ def check_performance_budget(directory: Path) -> None:
     baseline.write_text(json.dumps({"format": "reol-performance-baseline-v1", "scenario": "capacity-v1",
                                    "hardware": host, "config": config, "samples": samples}), encoding="utf-8")
     original = baseline.read_bytes()
-    for case in ["normal", "overload", "cost", "different_window", "invalid"]:
+    for case in ["normal", "overload", "cost", "different_window", "different_combat", "different_hz", "invalid"]:
         calls = []
 
         def capture(**kw):
             calls.append((kw["speed"], kw["actors"]))
             actual = kw["speed"] * (.6 if case == "overload" else 1)
-            return {"capture_exit_code": int(case == "invalid"), "release": True, "scenario": "capacity-v1",
+            return {"capture_exit_code": int(case == "invalid"), "release": True, "scenario": "capacity-act-v1" if case == "different_combat" else "capacity-v1", "sim_hz": 60 if case in ["different_combat", "different_hz"] else 20,
                     "fog": False, "camera": config["camera"], "renderer": host["renderer"],
                     "actors": kw["actors"], "alive": kw["actors"], "requested_speed": kw["speed"],
                     "actual_speed": actual, "wall_seconds": kw["seconds"], "world_delta_ms": 1000,
@@ -73,12 +77,12 @@ def check_performance_budget(directory: Path) -> None:
             check = capacity.Check(args)
             check.run()
         expected = {"normal": "acceptable", "overload": "capacity_regressed", "cost": "review_cost",
-                    "different_window": "not_comparable", "invalid": "invalid"}[case]
+                    "different_window": "not_comparable", "different_combat": "not_comparable", "different_hz": "not_comparable", "invalid": "invalid"}[case]
         for sample, result in zip(samples, check.result["results"]):
             per_speed = [count for speed, count in calls if speed == sample["speed"]]
             assert per_speed[0] == sample["actors"] and len(per_speed) <= 3
             assert result["verdict"] == expected
-            if case in ["normal", "different_window", "invalid"]:
+            if case in ["normal", "different_window", "different_combat", "different_hz", "invalid"]:
                 assert len(per_speed) == 1
         assert baseline.read_bytes() == original  # Never silently rebase a regression.
         if case not in ["invalid", "overload"]:

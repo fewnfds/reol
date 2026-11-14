@@ -30,7 +30,7 @@ static func run(check: Callable) -> void:
 	w.flush_topology()
 	w.perception.update(w, w.elapsed_ms, true)
 	check.call(w.sight.observed_position(w, 1, 2) != null and w.perception.tiles[Terrain.index(Vector2i(153, 150))] != 0, "Player map and unit sight disagree about a visible target behind a wall")
-	w.combat.begin(w, 1, "pursue", 2, Vector2(-1, -1), true)
+	w.combat.engage(w, 1, 2, Vector2(-1, -1), true)
 	w.step()
 	check.call(w.combat.shots == 0 and w.combat.repaths > 0, "Seeing through range loss allowed an arrow through a solid wall")
 	# Change only vision, while standing still: no geometry edit may be needed.
@@ -43,26 +43,27 @@ static func run(check: Callable) -> void:
 	w.release(1)
 	page.positions[0] = Vector2(146.5, 150.5)
 	page.positions[1] = Vector2(153.95, 150.95)
-	w.combat.begin(w, 1, "pursue", 2)
+	w.combat.engage(w, 1, 2)
 	w.step()
-	var last_seen: Vector2 = w.combat.orders[1].last_seen_pos
+	var last_seen: Vector2 = w.combat.engagements[1].last_seen_pos
 	page.positions[1] = Vector2(300.5, 300.5)
 	for step: int in 6:
 		w.step()
-	check.call(w.combat.orders[1].last_seen_pos == last_seen and page.targets[0].is_equal_approx(last_seen), "Losing sight leaked the target's new real position into pursuit")
+	check.call(w.combat.engagements[1].last_seen_pos == last_seen and page.targets[0].is_equal_approx(last_seen), "Losing sight leaked the target's new real position into pursuit")
 	var saved: RefCounted = Persistence.candidate(Persistence.capture(w), 0)
-	check.call(saved != null and saved.combat.orders[1].last_seen_pos == last_seen and saved.objects.records[1].sight_range == 24.0, "Save/load lost a frozen combat contact or personal sight")
+	check.call(saved != null and saved.combat.engagements[1].last_seen_pos == last_seen and saved.objects.records[1].sight_range == 24.0, "Save/load lost a frozen combat contact or personal sight")
 	page.positions[0] = Terrain.center(Terrain.index(Vector2i(last_seen)))
 	w.step()
-	check.call(not w.combat.orders.has(1) and w.combat.begin(w, 1, "pursue", 2) == "target_not_visible", "A lost contact stayed locked or an unseen target received a fresh pursuit")
+	check.call(not w.combat.engagements.has(1) and w.combat.engage(w, 1, 2) == "target_not_visible", "A lost contact stayed locked or an unseen target received a fresh pursuit")
 	# Blind projectile damage gives a direction clue, never a hidden actor ID.
 	w.release(2)
 	w.objects.records[2].sight_range = 2.0
 	page.positions[0] = Vector2(170.5, 150.5)
 	page.positions[1] = Vector2(160.5, 150.5)
-	w.objects.records[2]["ranged"] = true
+	w.objects.add(2, "short_bow", 1)
+	w.command({"kind": "equip", "actor": 2, "item": "short_bow"})
 	w.combat.damage(w, 1, 2, 1, w.elapsed_ms, Vector2.RIGHT)
-	check.call(w.combat.orders[2].target == 0 and w.combat.orders[2].ranged and w.combat.orders[2].destination == Vector2(166.5, 150.5), "Blind retaliation leaked the hidden shooter or lost the defender's ranged mode")
+	check.call(w.combat.engagements[2].target == 0 and w.combat.engagements[2].ranged and w.combat.engagements[2].destination == Vector2(166.5, 150.5), "Blind retaliation leaked the hidden shooter or lost the defender's ranged mode")
 	# A working person with no combat order must still discover a local threat.
 	w.release(2)
 	w.objects.records[2].sight_range = 24.0
@@ -74,7 +75,7 @@ static func run(check: Callable) -> void:
 	page.due_ms[1] = w.elapsed_ms + 10000
 	for step: int in 4:
 		w.step()
-	check.call(w.combat.orders.has(2) and w.combat.orders[2].target == 3, "A peaceful worker could not discover its first nearby threat")
+	check.call(w.combat.engagements.has(2) and w.combat.engagements[2].target == 3, "A peaceful worker could not discover its first nearby threat")
 	# Geometry invalidates while stationary; multi-cell objects expose visible cells.
 	w.release(1)
 	page.positions[0] = Vector2(146.5, 150.5)
@@ -96,21 +97,18 @@ static func run(check: Callable) -> void:
 	page.positions[2] = Vector2(146.5, 156.5)
 	w.objects.records[2].side = 1
 	w.objects.records[3].side = 1
-	w.combat.begin(w, 1, "hold", 0, Vector2(-1, -1), true)
-	for step: int in 4:
-		w.step()
-	check.call(w.combat.orders[1].target == 3, "Stationary guard locked a blocked target instead of a clear target")
+	check.call(not w.command({"kind": "hold"}).ok, "Retired guard command remains")
 	w.release(1)
 	w.facilities.demolish(w, wall_id)
 	w.flush_topology()
-	w.combat.begin(w, 1, "pursue", 2)
-	var contact: Vector2 = w.combat.orders[1].last_seen_pos
+	w.combat.engage(w, 1, 2)
+	var contact: Vector2 = w.combat.engagements[1].last_seen_pos
 	page.positions[1] = Vector2(300.5, 300.5)
 	w.kill(2)
 	w.remove_actor(2)
 	var replacement: int = w.spawn_actor(Terrain.index(Vector2i(301, 301)))
 	w.step()
-	check.call(w.combat.orders.has(1) and w.combat.orders[1].target == 2 and w.combat.orders[1].last_seen_pos == contact and replacement != 2, "Hidden destruction or reused body slot leaked truth into a frozen contact")
+	check.call(w.combat.engagements.has(1) and w.combat.engagements[1].target == 2 and w.combat.engagements[1].last_seen_pos == contact and replacement != 2, "Hidden destruction or reused body slot leaked truth into a frozen contact")
 	w.release(1)
 	# A sealed target must not interrupt the same peaceful worker every 200ms.
 	page.positions[3] = Vector2(152.5, 154.5)
@@ -126,11 +124,11 @@ static func run(check: Callable) -> void:
 	w.flush_topology()
 	for step: int in 10:
 		w.step()
-	check.call(not w.combat.orders.has(4) and w.objects.records[4].get("threat_scan_after", 0) > w.elapsed_ms, "Unreachable visible enemy kept interrupting peaceful work")
+	check.call(not w.combat.engagements.has(4) and w.objects.records[4].get("threat_scan_after", 0) > w.elapsed_ms, "Unreachable visible enemy kept interrupting peaceful work")
 	var paths: int = w.combat.repaths
 	for step: int in 50:
 		w.step()
-	check.call(not w.combat.orders.has(4) and w.combat.repaths == paths and Persistence.candidate(Persistence.capture(w), 0) != null, "Known unreachable contact retried after cooldown or could not survive save/load")
+	check.call(not w.combat.engagements.has(4) and w.combat.repaths == paths and Persistence.candidate(Persistence.capture(w), 0) != null, "Known unreachable contact retried after cooldown or could not survive save/load")
 	w.release(4)
 	page.positions[3] = Vector2(152.5, 154.5)
 	page.positions[2] = Vector2(158.5, 154.5)
@@ -138,7 +136,7 @@ static func run(check: Callable) -> void:
 	page.due_ms[3] = w.elapsed_ms + 10000
 	for step: int in 4:
 		w.step()
-	check.call(w.combat.orders.has(4) and w.combat.orders[4].target == 3, "Moving into a new reachable position left an enemy permanently blacklisted")
+	check.call(w.combat.engagements.has(4) and w.combat.engagements[4].target == 3, "Moving into a new reachable position left an enemy permanently blacklisted")
 	# Terrain padding supports a continuous display without granting knowledge.
 	w.release(1)
 	page.positions[0] = Vector2(50.5, 50.5)

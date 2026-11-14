@@ -10,7 +10,11 @@ var tool: String = ""
 var definition: String = ""
 var facing: int = 0
 var help_target: int = 0
-var ranged: bool = false
+var direct: bool = true
+var _held: Dictionary = {}
+var _primary_down: bool = false
+var _last_drive: Dictionary = {}
+var _aim := Vector2.RIGHT
 var _pan_drag: bool = false
 var _resume_paused: bool = false
 var _pending_context: Dictionary = {}
@@ -19,10 +23,9 @@ var _preview_ok: bool = false
 var _preview_tile: int = -1
 var _preview_sequence: int = -1
 var _point := Vector2.ZERO
-const KEYS: Dictionary = {"pause": KEY_SPACE, "speed1": KEY_1, "speed2": KEY_2, "speed4": KEY_4, "speed8": KEY_8,
-	"follow": KEY_F, "stop": KEY_S, "work": KEY_J, "heal": KEY_E, "attack_move": KEY_A,
-	"hold": KEY_H, "build_menu": KEY_B, "inventory": KEY_I, "move_tool": KEY_M,
-	"rotate_take": KEY_R, "put": KEY_Q, "drop": KEY_D, "demolish_tool": KEY_DELETE,
+const KEYS: Dictionary = {"context": KEY_TAB, "interact": KEY_F, "work": KEY_J, "heal": KEY_R, "ability": KEY_Q,
+	"build_menu": KEY_B, "inventory": KEY_I, "equip_sword": KEY_1, "equip_bow": KEY_2,
+	"rotate_take": KEY_R, "demolish_tool": KEY_DELETE,
 	"save": KEY_F5, "load": KEY_F9, "path": KEY_P,
 	"pan_left": KEY_LEFT, "pan_right": KEY_RIGHT, "pan_up": KEY_UP, "pan_down": KEY_DOWN}
 
@@ -36,16 +39,39 @@ func configure(game: Node2D, hud: Control) -> void:
 		var event := InputEventKey.new()
 		event.physical_keycode = KEYS[name_key]
 		if not InputMap.action_has_event(input_name, event): InputMap.action_add_event(input_name, event)
+	for spec: Array in [["left", KEY_A], ["right", KEY_D], ["up", KEY_W], ["down", KEY_S], ["step", KEY_SPACE]]:
+		var name_key: String = "act_" + spec[0]
+		if not InputMap.has_action(name_key): InputMap.add_action(name_key)
+		var event := InputEventKey.new()
+		event.physical_keycode = spec[1]
+		if not InputMap.action_has_event(name_key, event): InputMap.action_add_event(name_key, event)
+	for spec: Array in [["primary", MOUSE_BUTTON_LEFT], ["skill", MOUSE_BUTTON_RIGHT]]:
+		var name_key: String = "act_" + spec[0]
+		if not InputMap.has_action(name_key): InputMap.add_action(name_key)
+		var event := InputEventMouseButton.new()
+		event.button_index = spec[1]
+		if not InputMap.action_has_event(name_key, event): InputMap.action_add_event(name_key, event)
 
 func external_modal() -> bool:
 	return host.art_gallery.is_open() or (host._debug_console != null and host._debug_console.is_open())
 
 func locked() -> bool:
 	var focused: Control = get_viewport().gui_get_focus_owner()
-	return external_modal() or ui.blocks_world() or focused is LineEdit or focused is TextEdit
+	return external_modal() or ui.blocks_world() or ui.inventory.visible or focused is LineEdit or focused is TextEdit
 
 func tick(delta: float) -> void:
 	if host.frame == null: return
+	if locked() or host.paused or not direct or not tool.is_empty():
+		clear_direct()
+	else:
+		var point: Vector2 = host.get_global_mouse_position() / Art.TILE
+		var aim: Vector2 = point - host._displayed(1)
+		if aim.length_squared() > 0.04: _aim = aim.normalized()
+		var drive: Dictionary = {"enabled": true, "move": move_vector(), "aim": _aim, "primary": _primary_down}
+		if drive != _last_drive:
+			host.runner.drive(drive)
+			_last_drive = drive
+	queue_redraw()
 	if not _pending_context.is_empty():
 		if _pending_context.epoch != host.frame.epoch:
 			_pending_context = {}
@@ -66,6 +92,9 @@ func tick(delta: float) -> void:
 	if not tool.is_empty(): queue_redraw()
 
 func _input(event: InputEvent) -> void:
+	for key: String in ["left", "right", "up", "down"]:
+		if event.is_action_released("act_" + key): _held.erase(key)
+	if event.is_action_released("act_primary"): _primary_down = false
 	if ui.inventory.visible and event is InputEventMouseButton and event.pressed:
 		var focused: Control = get_viewport().gui_get_focus_owner()
 		if focused is LineEdit and not focused.get_global_rect().has_point(event.position):
@@ -82,8 +111,6 @@ func _input(event: InputEvent) -> void:
 			cancel_tool()
 		elif ui.close_layer():
 			pass
-		elif host.selected != 0:
-			_select(0, -1)
 		else:
 			action("pause_menu", {})
 		get_viewport().set_input_as_handled()
@@ -94,6 +121,22 @@ func _input(event: InputEvent) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if host.frame == null or external_modal(): return
+	if direct and not locked() and not host.paused and tool.is_empty():
+		for key: String in ["left", "right", "up", "down"]:
+			if event.is_action_pressed("act_" + key) and not event.is_echo():
+				_held[key] = true
+				get_viewport().set_input_as_handled()
+				return
+		for button: String in ["primary", "skill", "step"]:
+			if event.is_action_pressed("act_" + button) and not event.is_echo():
+				if button == "primary": _primary_down = true
+				# Capture direction on the edge, including a click before the next tick.
+				var pointer: Vector2 = host.get_global_mouse_position() / Art.TILE
+				if event is InputEventMouseButton: pointer = host.get_canvas_transform().affine_inverse() * event.position / Art.TILE
+				if pointer.distance_squared_to(host._displayed(1)) > 0.04: _aim = host._displayed(1).direction_to(pointer)
+				_send({"kind": "action", "button": button, "aim": _aim, "move": move_vector()})
+				get_viewport().set_input_as_handled()
+				return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE:
 		_pan_drag = event.pressed and not locked()
 		if _pan_drag: host.following = false
@@ -109,7 +152,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			host.camera.zoom = Vector2.ONE * clampf(host.camera.zoom.x * (1.15 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.15), 0.1, 2.0)
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			if not tool.is_empty(): cancel_tool()
-			else: _right_click(point, event.position)
+			elif not direct: _right_click(point, event.position)
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			if not tool.is_empty(): _confirm_tool(point)
 			else:
@@ -121,6 +164,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed and not event.echo:
 		for key: String in KEYS:
 			if key.begins_with("pan_"): continue
+			if key in ["rotate_take", "work", "demolish_tool"] and direct: continue
+			if key == "heal" and not direct: continue
 			if event.is_action_pressed("game_" + key):
 				action(key, {})
 				get_viewport().set_input_as_handled()
@@ -132,6 +177,34 @@ func action(kind: String, payload: Dictionary) -> void:
 	if payload.has("epoch") and int(payload.epoch) != host.frame.epoch: return
 	if ui._context_panel.visible: ui.close_context()
 	match kind:
+		"context":
+			clear_direct()
+			direct = not direct
+			cancel_tool()
+			ui.feedback("ACT操作" if direct else "交互／营造：Tab返回ACT", true)
+		"interact":
+			clear_direct()
+			var nearest: int = 0
+			var distance: float = 2.5
+			var candidates: Array = host.frame.objects.keys() + host.frame.actor_slots.keys()
+			for id: int in candidates:
+				if id == 1: continue
+				var point: Vector2
+				if host.frame.actor_slots.has(id):
+					var slot: int = host.frame.actor_slots[id]
+					if host.frame.health[slot] <= 0 or (host.fog_enabled and host.frame.visible[slot] == 0): continue
+					point = host._displayed(id)
+				else:
+					var data: Dictionary = host.frame.perception.memories.get(id, {}) if host.fog_enabled else host.frame.objects[id]
+					if data.is_empty() or data.kind in ["wall", "door", "floor", "roof"]: continue
+					if host.fog_enabled and not _visible_object(data): continue
+					point = Art.body_foot(Terrain.center(int(data.tile)))
+				var current: float = host._displayed(1).distance_to(point)
+				if current < distance: distance = current; nearest = id
+			if nearest > 0:
+				_select(nearest, -1)
+				_pending_context = {"target": nearest, "screen": get_viewport_rect().size * 0.5, "epoch": host.frame.epoch}
+		"equip_sword", "equip_bow": _send({"kind": "equip", "item": "iron_sword" if kind == "equip_sword" else "short_bow"})
 		"pause":
 			host.paused = not host.paused
 			host.runner.control(host.paused, host.speed)
@@ -139,15 +212,22 @@ func action(kind: String, payload: Dictionary) -> void:
 			host.speed = float(payload.get("speed", {"speed1": 1, "speed2": 2, "speed4": 4, "speed8": 8}.get(kind, 1)))
 			host.runner.control(host.paused, host.speed)
 		"follow": host.following = not host.following
-		"ranged": ranged = not ranged
 		"path": host._show_path = not host._show_path
 		"build_menu", "plant_menu", "character", "travel", "dev":
+			clear_direct()
+			if kind in ["build_menu", "plant_menu"]: direct = false
 			cancel_tool()
 			ui.toggle_drawer({"build_menu": "build", "plant_menu": "plant"}.get(kind, kind))
 		"close_drawer": ui.toggle_drawer(ui._drawer_name)
-		"inventory": ui.open_bag(1)
-		"inspect_bag": ui.open_bag(int(payload.get("subject", 1)))
-		"take", "put", "drop": ui.open_stock(kind, 1 if kind == "drop" else target)
+		"inventory":
+			clear_direct()
+			ui.open_bag(1)
+		"inspect_bag":
+			clear_direct()
+			ui.open_bag(int(payload.get("subject", 1)))
+		"take", "put", "drop":
+			clear_direct()
+			ui.open_stock(kind, 1 if kind == "drop" else target)
 		"stock_send": _send(payload)
 		"unequip": _send({"kind": "unequip", "slot": str(payload.slot)})
 		"trade": ui.open_simple("trade")
@@ -170,14 +250,16 @@ func action(kind: String, payload: Dictionary) -> void:
 			ui.apply_scale(int(payload.percent))
 		"ui_scale_commit": ui.commit_scale()
 		"place_build", "place_plant":
+			direct = false
 			tool = "build" if kind == "place_build" else "plant"
 			definition = payload.definition
 			_preview_sequence = -1
 			ui.toggle_drawer(ui._drawer_name)
 			ui.show_tool("build" if tool == "build" else "plant", Actions.buildings.get(definition, Actions.plants.get(definition, {})).get("label", ""))
-		"move_tool", "attack_move", "demolish_tool":
-			tool = {"move_tool": "move", "attack_move": "attack", "demolish_tool": "demolish"}[kind]
-			ui.show_tool({"move": "move", "attack": "attack", "demolish": "close"}[tool])
+		"demolish_tool":
+			direct = false
+			tool = "demolish"
+			ui.show_tool("close")
 		"rotate_take":
 			if tool == "build":
 				facing = (facing + 1) % 4
@@ -185,18 +267,17 @@ func action(kind: String, payload: Dictionary) -> void:
 				_preview_sequence = -1
 			else: ui.open_stock("take", target)
 		"request_worker":
+			direct = false
 			help_target = target
 			tool = "worker"
 			ui.show_tool("link", "#%d" % target)
 		"request_help": _send({"kind": kind, "target": target, "task_target": help_target})
-		"pursue", "hold": _send({"kind": kind, "target": target if kind == "pursue" else 0, "ranged": ranged})
-		"context_move": _move(payload.position)
 		"camera":
 			host.following = false
 			host.camera.position = Art.body_foot(payload.position) * Art.TILE
 		"map_move":
-			if not tool.is_empty(): cancel_tool()
-			elif not ui.blocks_world(): _move(Art.body_foot(payload.position))
+			host.following = false
+			host.camera.position = Art.body_foot(payload.position) * Art.TILE
 		"map_out", "map_in":
 			ui.minimap.span = clampf(ui.minimap.span * (1.333333 if kind == "map_out" else 0.75), 32.0, 512.0)
 			ui.minimap._apply_view()
@@ -214,7 +295,9 @@ func action(kind: String, payload: Dictionary) -> void:
 			var command: Dictionary = payload.duplicate()
 			command.kind = kind
 			_send(command)
-		"stop", "work", "heal", "ability", "save", "load": _send({"kind": kind})
+		"work", "heal", "ability", "save", "load":
+			clear_direct()
+			_send({"kind": kind})
 		"study": _send({"kind": kind, "target": 1})
 		"continue_build", "demolish", "rest", "eat", "cook", "sow", "tend", "gather", "cut", "uproot", "talk", "learn", "practice":
 			_send({"kind": kind, "target": target})
@@ -232,25 +315,21 @@ func _send(command: Dictionary) -> int:
 			return 0
 	return host._send(command)
 
+func _visible_object(data: Dictionary) -> bool:
+	for tile: int in data.get("cells", PackedInt32Array([int(data.tile)])):
+		if host.frame.perception.tiles[tile] != 0: return true
+	return false
+
 func _select(id: int, tile: int) -> void:
 	host.selected = id
 	host.selected_tile = tile
 	host.runner.inspect(id, host._probe_tile)
 	host._hud_next = 0
 
-func _move(point: Vector2) -> void:
-	if tile_at(point) < 0: return
-	host._pending_move = _send({"kind": "move", "position": Art.body_position(point)})
-	if host._pending_move > 0: host._target = point
-
 func _right_click(point: Vector2, screen: Vector2) -> void:
 	var candidates: Array[int] = pick(point, false)
-	if candidates.is_empty(): _move(point); return
+	if candidates.is_empty(): return
 	var target: int = candidates[0]
-	var slot: int = int(host.frame.actor_slots.get(target, -1))
-	if slot >= 0 and target != 1 and host.frame.sides[slot] != int(host.frame.player.get("side", 0)):
-		_send({"kind": "pursue", "target": target, "ranged": ranged})
-		return
 	_select(target, tile_at(point))
 	_pending_context = {"target": target, "position": point, "screen": screen, "epoch": host.frame.epoch}
 
@@ -258,10 +337,6 @@ func _confirm_tool(point: Vector2) -> void:
 	var candidates: Array[int] = pick(point, false)
 	var target: int = candidates[0] if not candidates.is_empty() else 0
 	match tool:
-		"move": _move(point)
-		"attack":
-			if host.frame.actor_slots.has(target) and target != 1: _send({"kind": "pursue", "target": target, "ranged": ranged})
-			else: _send({"kind": "attack_move", "position": Art.body_position(point), "ranged": ranged})
 		"build", "plant":
 			_update_preview(tile_at(point))
 			if not _preview_ok: return
@@ -282,10 +357,24 @@ func cancel_tool() -> void:
 	queue_redraw()
 
 func reset_session() -> void:
+	clear_direct()
 	cancel_tool()
 	help_target = 0
 	_pan_drag = false
 	ui.reset_session()
+
+func move_vector() -> Vector2:
+	return Vector2(float(_held.has("right")) - float(_held.has("left")), float(_held.has("down")) - float(_held.has("up"))).limit_length(1.0)
+
+func clear_direct() -> void:
+	_held.clear()
+	_primary_down = false
+	if _last_drive != {"enabled": false}:
+		host.runner.drive({"enabled": false})
+		_last_drive = {"enabled": false}
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT and host != null: clear_direct()
 
 func pick(point: Vector2, include_flat: bool = true) -> Array[int]:
 	var result: Array[int] = []
@@ -351,6 +440,9 @@ func _update_preview(tile: int) -> void:
 				if not spec.get("substrates", []).has(substrate) or (not has_pot and (surface & 8) != 0) or (has_pot and spec.get("blocks", false)): _preview_ok = false
 
 func _draw() -> void:
+	if direct and host.frame != null and not locked() and not host.paused and tool.is_empty():
+		var pointer: Vector2 = get_global_mouse_position()
+		draw_arc(pointer, 4.0 / host.camera.zoom.x, 0, TAU, 16, Style.GOLD, 1.0 / host.camera.zoom.x)
 	if tool.is_empty() or host.frame == null or locked(): return
 	var color: Color = Style.TEAL if _preview_ok else Style.DANGER
 	if tool in ["build", "plant"]:
@@ -364,4 +456,4 @@ func _draw() -> void:
 			draw_line(point, point + direction, color, 3.0)
 			draw_circle(point + direction, 3, color)
 	else:
-		draw_arc(_point * Art.TILE, 10, 0, TAU, 16, Style.DANGER if tool in ["attack", "demolish"] else Style.TEAL, 2.0)
+		draw_arc(_point * Art.TILE, 10, 0, TAU, 16, Style.DANGER if tool == "demolish" else Style.TEAL, 2.0)

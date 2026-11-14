@@ -8,11 +8,11 @@ const WALK_SPEED: float = Equipment.BASE.speed
 const MAX_TOLERANCE: float = 100.0
 const THERMAL_DAMAGE_PER_SECOND: float = 1.0
 const TOLERANCE_REGEN_PER_SECOND: float = 1.0
-enum Mode { RESOURCE, HARVEST, REST, MANUAL, IDLE, DEAD, APPROACH, ACTION, FREE, EXPLORE, COMBAT_MOVE }
+enum Mode { RESOURCE, HARVEST, REST, MANUAL, IDLE, DEAD, APPROACH, ACTION, FREE, EXPLORE, COMBAT_MOVE, DIRECT }
 
 const STATE_FIELDS: Array = ["ids", "positions", "targets", "modes", "health", "energy", "hunger", "body_heat",
 	"exposure", "elements", "due_ms", "route_cursors", "routes", "source_ids", "tolerance", "thermal_carry",
-	"flight", "radii", "moved_distance", "path_failures"]
+	"flight", "radii", "aims", "moved_distance", "path_failures"]
 
 var ids := PackedInt64Array()
 var positions := PackedVector2Array()
@@ -20,6 +20,8 @@ var targets := PackedVector2Array()
 var modes := PackedByteArray()
 var flight := PackedByteArray()
 var radii := PackedFloat32Array()
+var aims := PackedVector2Array()
+var direct_velocities := PackedVector2Array() # Prepared by owner, consumed by the same body integrator.
 var health := PackedInt32Array()
 var max_health := PackedInt32Array() # Derived stats, rebuilt rather than saved.
 var melee_damage := PackedInt32Array()
@@ -49,6 +51,7 @@ var path_failures: int = 0
 var environment: RefCounted
 var terrain: RefCounted
 var end_ms: int
+var delta_ms: int = 50
 
 
 func initialize(first: int, count: int, ground: RefCounted) -> void:
@@ -79,6 +82,8 @@ func add_row(id: int, tile: int) -> int:
 	thermal_carry.append(0.0)
 	flight.append(0)
 	radii.append(0.35)
+	aims.append(Vector2.RIGHT)
+	direct_velocities.append(Vector2.ZERO)
 	energy.append(10000)
 	hunger.append(10000)
 	body_heat.append(22.0)
@@ -115,6 +120,9 @@ func advance(navigation: RefCounted) -> void:
 		var mode: int = modes[row]
 		if mode == Mode.DEAD or mode == Mode.FREE:
 			continue
+		if mode == Mode.DIRECT:
+			advance_direct(row)
+			continue
 		if mode == Mode.HARVEST or mode == Mode.REST or mode == Mode.ACTION:
 			if due_ms[row] <= end_ms:
 				ready.append(row)
@@ -133,8 +141,9 @@ func advance(navigation: RefCounted) -> void:
 				failures.append(row)
 				continue
 		var point: Vector2 = positions[row]
+		if cursor_direction(row).length_squared() > 0.000001: aims[row] = cursor_direction(row)
 		var speed: float = move_speed[row]
-		var available: float = speed * 0.05
+		var available: float = speed * delta_ms / 1000.0
 		var cursor: int = route_cursors[row]
 		var knots := PackedVector3Array()
 		while available > 0.00001 and cursor < route.size():
@@ -145,7 +154,7 @@ func advance(navigation: RefCounted) -> void:
 				available -= distance
 				cursor += 1
 				if available > 0.00001 and distance > 0.00001:
-					knots.append(Vector3(point.x, point.y, 1.0 - available / (speed * 0.05)))
+					knots.append(Vector3(point.x, point.y, 1.0 - available / (speed * delta_ms / 1000.0)))
 			else:
 				point = point.move_toward(next, available)
 				available = 0.0
@@ -154,12 +163,47 @@ func advance(navigation: RefCounted) -> void:
 			path.append_array(knots)
 			path.append(Vector3(point.x, point.y, 1.0))
 			motion[row] = path
-		moved_distance += speed * 0.05 - available
+		moved_distance += speed * delta_ms / 1000.0 - available
 		positions[row] = point
 		route_cursors[row] = cursor
 		if cursor >= route.size():
 			ready.append(row)
 			ready.append(end_ms - roundi(available / speed * 1000.0))
+
+
+func _clear_fraction(from: Vector2, to: Vector2, row: int) -> float:
+	if terrain.segment_clear(from, to, radii[row], flight[row] > 0): return 1.0
+	var low: float = 0.0
+	var high: float = 1.0
+	for iteration: int in 12:
+		var middle: float = (low + high) * 0.5
+		if terrain.segment_clear(from, from.lerp(to, middle), radii[row], flight[row] > 0): low = middle
+		else: high = middle
+	return low
+
+
+func cursor_direction(row: int) -> Vector2:
+	var cursor: int = route_cursors[row]
+	return positions[row].direction_to(routes[row][cursor]) if cursor < routes[row].size() else Vector2.ZERO
+
+
+func advance_direct(row: int) -> void:
+	var from: Vector2 = positions[row]
+	var movement: Vector2 = direct_velocities[row] * delta_ms / 1000.0
+	if movement.is_zero_approx(): return
+	var fraction: float = _clear_fraction(from, from + movement, row)
+	var corner: Vector2 = from + movement * fraction
+	var point: Vector2 = corner
+	if fraction < 1.0:
+		var rest: Vector2 = movement * (1.0 - fraction)
+		var x: Vector2 = Vector2(rest.x, 0)
+		var y: Vector2 = Vector2(0, rest.y)
+		x *= _clear_fraction(corner, corner + x, row)
+		y *= _clear_fraction(corner, corner + y, row)
+		point += x if x.length_squared() >= y.length_squared() else y
+		motion[row] = PackedVector3Array([Vector3(from.x, from.y, 0), Vector3(corner.x, corner.y, fraction), Vector3(point.x, point.y, 1)])
+	positions[row] = point
+	moved_distance += from.distance_to(corner) + corner.distance_to(point)
 
 
 func sample_environment(seconds: float = 1.0) -> void:

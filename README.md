@@ -2,7 +2,7 @@
 
 GDScript / 2D正交俯视的修仙模拟世界。当前在自主模拟、多核批处理的新内核上恢复了实物、建筑生活、环境植物、战斗、交往修行和有限地区的代表性闭环。
 
-开发期双击[开发试玩.cmd](开发试玩.cmd)直接运行源码；修改后重启即可，无需导出。运行方式见[命令说明](docs/engineering/tooling/usage.md)。
+ACT灰盒双击[ACT试玩.cmd](ACT试玩.cmd)，普通生活开局双击[开发试玩.cmd](开发试玩.cmd)；两者直接运行同一源码后端。修改后重启即可，无需导出。运行方式见[命令说明](docs/engineering/tooling/usage.md)。
 
 按主题查[记忆地图](docs/README.md)；未完任务见[HANDOFF](docs/status/handoff.md)，agent入口为[AGENTS](AGENTS.md)。
 

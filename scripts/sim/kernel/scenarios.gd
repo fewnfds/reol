@@ -5,6 +5,37 @@ extends RefCounted
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 
 
+static func combat_lab(world: RefCounted) -> void:
+	# Developer starting fixture; uses the same bodies, executor and save boundary.
+	for actor: int in world.actor_slots:
+		world.objects.records[actor].erase("combatant")
+	world.release(1)
+	world.objects.records[1].autonomous = false
+	world.pages[0].modes[0] = world.Units.Mode.IDLE
+	world.pages[0].positions[0] = Vector2(144.5, 150.5)
+	for index: int in mini(3, world.actor_count - 1):
+		var actor: int = world.actor_count - index
+		var slot: int = world.actor_slots[actor]
+		var page: RefCounted = world.pages[slot / 256]
+		var row: int = slot % 256
+		world.release(actor)
+		page.positions[row] = Vector2(151.5 + index * 2, 150.5 + (index - 1) * 4)
+		page.modes[row] = world.Units.Mode.IDLE
+		var person: Dictionary = world.objects.records[actor]
+		person.side = 1
+		person.autonomous = false
+		person.combatant = true
+		person.name = "射手" if index == 2 else ("重剑客" if index == 1 else "剑客")
+		person["heavy"] = index == 1
+		var weapon: String = "short_bow" if index == 2 else "iron_sword"
+		if not person.equipment.is_empty():
+			world.objects.unequip(actor, "weapon")
+		world.objects.add(actor, weapon, 1)
+		world.objects.equip(actor, weapon)
+		world.Equipment.rebuild(world, actor)
+	world.perception.update(world, world.elapsed_ms, true)
+
+
 static func mixed(world: RefCounted) -> void:
 	if world.actor_count < 150:
 		return
@@ -21,7 +52,11 @@ static func mixed(world: RefCounted) -> void:
 		world.Equipment.rebuild(world, actor)
 		world.objects.records[actor].autonomous = false
 		world.objects.records[actor]["side"] = team
-		world.combat.begin(world, actor, "pursue", actor + 50 if actor <= 50 else actor - 50, Vector2(-1, -1), actor % 3 != 0)
+		var weapon: String = "short_bow" if actor % 3 != 0 else "iron_sword"
+		world.objects.add(actor, weapon, 1)
+		world.objects.equip(actor, weapon)
+		world.Equipment.rebuild(world, actor)
+		world.combat.engage(world, actor, actor + 50 if actor <= 50 else actor - 50, Vector2(-1, -1), actor % 3 != 0)
 	for index: int in 20:
 		var actor: int = index + 101
 		var slot: int = world.actor_slots[actor]
@@ -49,7 +84,7 @@ static func mixed(world: RefCounted) -> void:
 
 
 static func capacity(world: RefCounted) -> void:
-	# capacity-v1: same mixed world and algorithms, explicitly durable starting
+	# capacity-act-v1: ACT abilities, explicitly durable starting
 	# actors/supplies so the measured work cannot disappear through death/famine.
 	mixed(world)
 	for actor: int in world.actor_slots:

@@ -15,6 +15,8 @@ const ArtGallery = preload("res://scripts/presentation/art_gallery.gd")
 const Hud = preload("res://scripts/presentation/ui/hud.gd")
 const Interaction = preload("res://scripts/presentation/ui/interaction.gd")
 const ResponseProbe = preload("res://scripts/presentation/response_probe.gd")
+const ActionDefs = preload("res://scripts/sim/kernel/action_defs.gd")
+const CombatAudio = preload("res://scripts/presentation/combat_audio.gd")
 const TILE: float = Art.TILE
 var runner := Runner.new()
 var population := Population.new()
@@ -28,11 +30,12 @@ var fog_enabled: bool = true
 var camera := Camera2D.new()
 var ui := Hud.new()
 var controls := Interaction.new()
+var combat_audio := CombatAudio.new()
 var _debug_console: Node
 var frame: RefCounted
 var selected: int = 1
 var selected_tile: int = -1
-var following: bool = false
+var following: bool = true
 var paused: bool = false
 var speed: float = 1.0
 var render_ms: float = 0.0
@@ -81,6 +84,8 @@ var _actual_speed: float = 0.0
 var _show_path: bool = false
 var _show_sources: bool = false
 var _response_probe: RefCounted
+var _sim_hz: int = 60
+var _combat_lab: bool = false
 
 
 func _ready() -> void:
@@ -103,12 +108,16 @@ func _ready() -> void:
 			"mixed": _mixed = part[1] == "true"
 			"capacity": _capacity = part[1] == "true"
 			"fog": _fog_mode = int(part[1] == "true")
+			"sim-hz": _sim_hz = int(part[1]) if int(part[1]) in [20, 60, 100] else 60
+			"combat-lab": _combat_lab = part[1] == "true"
 			"response-probe":
 				if part[1] == "true": _response_probe = ResponseProbe.new()
-	if _response_probe != null and (_duration <= 0.0 or _mixed or _capacity or speed != 1.0):
+	if _response_probe != null and (_duration <= 0.0 or _mixed or _capacity or _combat_lab or speed != 1.0):
 		push_error("Response probe requires a bounded ordinary capture at 1x")
 		get_tree().quit(1)
 		return
+	# Captures retain the historical fixed view; ordinary play follows the body.
+	if _duration > 0.0: following = false
 	Engine.max_fps = _fps
 	fog_enabled = _fog_mode == 1 if _fog_mode >= 0 else _actors < 1000 # Developer overview can show all actors.
 	population.fog_enabled = fog_enabled
@@ -121,6 +130,7 @@ func _ready() -> void:
 	add_child(population)
 	action_effects.z_index = 2
 	add_child(action_effects)
+	add_child(combat_audio)
 	add_child(fog)
 	fog.visible = fog_enabled
 	population.configure(_actors)
@@ -129,6 +139,9 @@ func _ready() -> void:
 	add_child(art_gallery)
 	camera.position = (Vector2(220, 220) if _actors >= 1000 or _capacity else Vector2(178, 186)) * TILE
 	camera.zoom = Vector2.ONE * (0.21 if _actors >= 1000 or _capacity else 0.9)
+	if _combat_lab:
+		camera.position = Art.body_foot(Vector2(144.5, 150.5)) * TILE
+		camera.zoom = Vector2.ONE * 0.9
 	camera.position_smoothing_enabled = false
 	var layer := CanvasLayer.new()
 	layer.layer = 2
@@ -141,7 +154,7 @@ func _ready() -> void:
 	controls.z_index = 5
 	add_child(controls)
 	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
-	if runner.start(_actors, _workers, speed, _mixed, _capacity) != OK:
+	if runner.start(_actors, _workers, speed, _mixed, _capacity, _sim_hz, _combat_lab) != OK:
 		push_error("Simulation thread could not start")
 		get_tree().quit(1)
 
@@ -154,6 +167,7 @@ func _process(delta: float) -> void:
 	var next: RefCounted = mailbox.frame
 	if next != null:
 		action_effects.adopt(next, mailbox.outcomes, fog_enabled)
+		combat_audio.adopt(next, mailbox.outcomes, fog_enabled)
 		if _capture_at > 0:
 			var counts: Variant = next.counters.mode_counts
 			var busy: int = int(counts[0]) + int(counts[1]) + int(counts[3]) + int(counts[6]) + int(counts[7]) + int(counts[9]) + int(counts[10]) + int(next.counters.stationary_combatants)
@@ -189,7 +203,7 @@ func _process(delta: float) -> void:
 		if frame == null or frame.epoch != next.epoch or frame.paused != next.paused or frame.speed != next.speed:
 			print("SESSION_STATE ", JSON.stringify({"epoch": next.epoch, "world_ms": next.world_ms, "paused": next.paused, "speed": next.speed}))
 		if frame != null and frame.epoch != next.epoch:
-			render_ms = maxf(0, next.world_ms - 50)
+			render_ms = maxf(0, next.world_ms - next.interpolation_ms)
 			_render_pose = null
 			selected = 1
 			selected_tile = -1
@@ -209,7 +223,7 @@ func _process(delta: float) -> void:
 		_ready_at = begin
 		print("KERNEL_READY actors=", _actors, " workers=", frame.counters.workers)
 	var newest: RefCounted = frame.history.back()
-	var target_ms: float = newest.world_ms + (begin - newest.completed_usec) / 1000.0 * frame.speed - 50.0
+	var target_ms: float = newest.world_ms + (begin - newest.completed_usec) / 1000.0 * frame.speed - frame.interpolation_ms
 	render_ms = clampf(maxf(render_ms, target_ms), frame.history[0].world_ms, frame.world_ms)
 	if frame.paused:
 		render_ms = frame.world_ms
@@ -227,7 +241,7 @@ func _process(delta: float) -> void:
 	var scenery_changed: bool = population.scenery(object_canvas, fog.visibility, fog.mask.get_texture())
 	if scenery_changed or _render_pose != newer or (frame.paused and _render_frame != frame) or population.actor_count != frame.positions.size() or (_render_frame != null and not is_same(_render_frame.actor_slots, frame.actor_slots)):
 		var adopt_start: int = Time.get_ticks_usec()
-		population.adopt(frame, older, newer)
+		population.adopt(frame, older, newer, _actions_at(newer), int(render_ms))
 		_render_pose = newer
 		_render_frame = frame
 		_adoptions += 1
@@ -238,6 +252,7 @@ func _process(delta: float) -> void:
 		fog.follow_view(newer.at(frame.actor_slots[1], _render_previous[frame.actor_slots[1]], alpha), float(frame.player.get("sight_range", 0.0)))
 	atmosphere.adopt(frame, render_ms)
 	action_effects.advance(int(render_ms), fog_enabled)
+	combat_audio.advance(int(render_ms))
 	if following:
 		camera.position = _displayed(1) * TILE
 	controls.tick(delta)
@@ -278,6 +293,14 @@ func _displayed(id: int) -> Vector2:
 	return Art.body_foot(_render_pose.at(slot, _render_previous[slot], alpha))
 
 
+func _actions_at(pose: RefCounted) -> Dictionary:
+	if frame.paused: return frame.combat
+	var result: Dictionary = {}
+	for segment: Dictionary in pose.action_segments:
+		if render_ms >= int(segment.from_ms) and render_ms < int(segment.until_ms): result[segment.actor] = segment
+	return result
+
+
 func _update_probe() -> void:
 	var point: Vector2 = get_global_mouse_position() / TILE
 	var tile: int = Interaction.tile_at(point)
@@ -291,7 +314,7 @@ func _update_probe() -> void:
 	ui.probe(frame, valid and sampled_visible)
 
 func _update_hud() -> void:
-	ui.refresh(frame, selected, fog_enabled, _actual_speed, following, controls.ranged, controls.help_target)
+	ui.refresh(frame, selected, fog_enabled, _actual_speed, following, controls.help_target, controls.direct)
 	var view_size: Vector2 = get_viewport_rect().size / camera.zoom / TILE
 	var camera_rect := Rect2(camera.position / TILE - Art.BODY_FOOT_OFFSET - view_size * 0.5, view_size)
 	ui.minimap.adopt(frame, ground.material, fog, fog_enabled, camera_rect)
@@ -328,6 +351,31 @@ func _draw() -> void:
 	if frame == null:
 		return
 	draw_arc(_displayed(1) * TILE, 15, 0, TAU, 24, Color.GOLD, 2.0)
+	var actions: Dictionary = _actions_at(_render_pose) if _render_pose != null else {}
+	for actor: int in actions:
+		var slot: int = int(frame.actor_slots.get(actor, -1))
+		if slot < 0 or (fog_enabled and frame.visible[slot] == 0): continue
+		var state: Dictionary = actions[actor]
+		if render_ms < int(state.started_ms) or render_ms >= int(state.end_ms): continue
+		var def: Dictionary = ActionDefs.ACTIONS[state.kind]
+		var origin: Vector2 = _displayed(actor) * TILE
+		var direction: Vector2 = state.direction
+		var active: bool = render_ms >= int(state.active_ms) and render_ms < int(state.recovery_ms)
+		var color := Color("f9d384") if actor == 1 else Color("ff7868")
+		if def.has("reach"):
+			var polygon: PackedVector2Array = ActionDefs.sector(def, direction)
+			for index: int in polygon.size(): polygon[index] = origin + polygon[index] * TILE
+			draw_colored_polygon(polygon, Color(color, 0.30 if active else 0.07))
+			if active:
+				var progress: float = clampf(float(render_ms - int(state.active_ms)) / int(def.active), 0, 1)
+				var tip: Vector2 = origin + direction.rotated(lerpf(-float(def.angle), float(def.angle), progress)) * float(def.reach) * TILE
+				draw_line(origin + direction * 6, tip, Color("fff3c2"), 4.5 if state.kind in ["slash_3", "cleave"] else 3.0, true)
+			else:
+				draw_arc(origin, float(def.reach) * TILE, direction.angle() - float(def.angle), direction.angle() + float(def.angle), 18, Color(color, 0.6), 1.4, true)
+		elif state.kind != "step":
+			draw_line(origin, origin + direction * 42, Color(color, 0.8), 2.0, true)
+		else:
+			draw_line(origin - direction * 22, origin, Color(color, 0.6), 5.0, true)
 	if frame.actor_slots.has(selected) and (not fog_enabled or frame.visible[frame.actor_slots[selected]] != 0):
 		draw_arc(_displayed(selected) * TILE, 18, 0, TAU, 24, Color.CYAN, 2.0)
 	elif selected_tile >= 0:
@@ -339,14 +387,25 @@ func _draw() -> void:
 		for point: Vector2 in frame.inspected.get("route_preview", PackedVector2Array()):
 			points.append(Art.body_foot(point) * TILE)
 		if points.size() > 1: draw_polyline(points, Color(0.3, 0.9, 1.0, 0.65), 1.5)
-	for index: int in frame.projectiles.size():
-		var position: Vector2 = frame.projectiles[index]
-		var point: Vector2 = Art.body_foot(position)
-		if not fog_enabled or _visible_point(position):
-			var direction: Vector2 = frame.projectile_velocities[index].normalized()
-			draw_line(point * TILE - direction * 9, point * TILE + direction * 4, Color(0.88, 0.78, 0.56), 2)
-			draw_line(point * TILE + direction * 4, point * TILE + direction.rotated(0.45) * -2, Color(0.85, 0.94, 0.90), 2)
-			draw_line(point * TILE + direction * 4, point * TILE + direction.rotated(-0.45) * -2, Color(0.85, 0.94, 0.90), 2)
+	var friendly := PackedVector2Array()
+	var hostile := PackedVector2Array()
+	if _render_pose != null:
+		for segment: Dictionary in _render_pose.projectile_segments:
+			if render_ms < int(segment.start_ms) or render_ms > int(segment.end_ms): continue
+			var weight: float = clampf((render_ms - int(segment.start_ms)) / maxi(1, int(segment.end_ms) - int(segment.start_ms)), 0, 1)
+			var position: Vector2 = Vector2(segment.from).lerp(segment.to, weight)
+			if fog_enabled and not _visible_point(position): continue
+			var point: Vector2 = Art.body_foot(position) * TILE
+			var direction: Vector2 = Vector2(segment.from).direction_to(segment.to)
+			var target: PackedVector2Array = friendly if segment.actor == 1 else hostile
+			target.append(point - direction * 9)
+			target.append(point + direction * 3)
+			if segment.actor == 1: friendly = target
+			else: hostile = target
+	if not friendly.is_empty(): draw_multiline(friendly, Color("9fddd4"), 3.4, true)
+	if not hostile.is_empty():
+		draw_multiline(hostile, Color("38152b"), 6.8, true)
+		draw_multiline(hostile, Color("ff9986"), 4.0, true)
 	if not _show_sources: return
 	for source: int in frame.mobile_cells.size():
 		if frame.mobile_cells[source] < 0:
@@ -384,7 +443,9 @@ func _capture(now: int) -> void:
 	report.requested_speed = speed
 	report.fps_limit = _fps
 	report.mixed = _mixed
-	report.scenario = "capacity-v1" if _capacity else ("mixed" if _mixed else "ordinary")
+	report.sim_hz = _sim_hz
+	report.combat_lab = _combat_lab
+	report.scenario = "capacity-act-v1" if _capacity else ("combat-lab-v1" if _combat_lab else ("mixed-act-v1" if _mixed else "ordinary"))
 	report.activity_fraction = _percentiles(_activity_samples)
 	report.camera = {"position": [camera.position.x, camera.position.y], "zoom": camera.zoom.x}
 	report.ui_open = {"drawer": ui._drawer_name, "inventory": ui.inventory.visible}
@@ -412,7 +473,7 @@ func _capture(now: int) -> void:
 	report.start_frame_age_usec = _capture_age_usec
 	report.finish_frame_age_usec = now - frame.published_usec
 	report.erase("step_window_usec")
-	for key: String in ["steps", "moved_cells", "harvested", "deliveries", "step_usec", "environment_usec", "units_usec", "effects_usec", "snapshot_usec", "overload_demand_usec", "path_requests", "path_failures", "nature_usec", "combat_usec", "shots", "hits", "plant_collections", "plant_evaluations", "perception_usec", "sight_observers", "sight_candidates", "sight_queries", "sight_index_usec", "sight_batch_usec", "sight_parallel_batches", "sight_sync_usec", "sight_rebuilds"]:
+	for key: String in ["steps", "moved_cells", "harvested", "deliveries", "step_usec", "environment_usec", "units_usec", "effects_usec", "snapshot_usec", "overload_demand_usec", "path_requests", "path_failures", "nature_usec", "combat_usec", "combat_prepare_usec", "combat_resolve_usec", "combat_collect_usec", "combat_damage_usec", "combat_slices", "melee_candidates", "melee_tests", "shots", "hits", "plant_collections", "plant_evaluations", "perception_usec", "sight_observers", "sight_candidates", "sight_queries", "sight_index_usec", "sight_batch_usec", "sight_parallel_batches", "sight_sync_usec", "sight_rebuilds"]:
 		report[key + "_delta"] = float(report[key]) - float(_capture_counters[key])
 	report.instance_slots = population.actor_count
 	report.fog = fog_enabled

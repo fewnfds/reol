@@ -38,7 +38,7 @@ var _rotate_button: Button
 var _receipt: Label
 var _pause: Button
 var _follow: Button
-var _ranged: Button
+var _weapon: Label
 var _map_in: Button
 var _map_out: Button
 var _map_follow: Button
@@ -85,6 +85,7 @@ func _ready() -> void:
 	_button(first, "pause_menu", "", "menu")
 	_tides = Style.label(_top)
 	var dock: PanelContainer = _panel(self, Control.PRESET_CENTER_BOTTOM, Vector4(-292, -128, 292, -8))
+	dock.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	dock.add_theme_stylebox_override("panel", Style.box(Color("18251ff2"), Style.GOLD))
 	var dock_body := VBoxContainer.new()
 	dock.add_child(dock_body)
@@ -96,10 +97,11 @@ func _ready() -> void:
 	dock_body.add_child(_progress)
 	var combat := HBoxContainer.new()
 	dock_body.add_child(combat)
-	for row: Array in [["move_tool", "M", "move"], ["attack_move", "A", "attack"], ["stop", "S", "stop"], ["hold", "H", "hold"], ["work", "J", "work"], ["heal", "E", "potion"], ["ability", "", "plant"]]:
+	for row: Array in [["context", "Tab 交互", "target"], ["interact", "F", "take"], ["heal", "R", "potion"], ["ability", "Q", "plant"], ["equip_sword", "1 剑", "attack"], ["equip_bow", "2 弓", "target"]]:
 		_player_buttons[row[0]] = _button(combat, row[0], row[1], row[2])
-	_ranged = _button(combat, "ranged", "弓", "target")
-	_follow = _button(combat, "follow", "F", "eye")
+	_weapon = Style.label(dock_body, "WASD移动 · 鼠标瞄准 · 左键攻击 · 右键武器技 · 空格闪步")
+	_weapon.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_follow = _button(combat, "follow", "视角", "eye")
 	_inspect_panel = _panel(self, Control.PRESET_BOTTOM_LEFT, Vector4(8, -450, 330, -135))
 	_inspect_panel.add_theme_stylebox_override("panel", Style.box(Color("18251ff2"), Style.TEAL))
 	_inspect_panel.add_child(_inspect_body)
@@ -243,7 +245,7 @@ func _layout() -> void:
 	if width < 1100 and inventory.visible: _drawer_panel.hide()
 	else: _drawer_panel.visible = not _drawer_name.is_empty()
 
-func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: float, following: bool, ranged: bool, help_target: int) -> void:
+func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: float, following: bool, help_target: int, direct: bool = true) -> void:
 	_frame = frame
 	_use_fog = use_fog
 	_selected = selected
@@ -269,14 +271,18 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 	_progress.visible = action.has("started_ms")
 	if _progress.visible:
 		var start: int = action.started_ms
-		_progress.value = clampf(float(frame.world_ms - start) / maxi(1, int(player.get("due_ms", start)) - start), 0.0, 1.0)
+		var finish: int = int(frame.combat[1].end_ms) if frame.combat.has(1) else int(player.get("due_ms", start))
+		_progress.value = clampf(float(frame.world_ms - start) / maxi(1, finish - start), 0.0, 1.0)
 	var dead: bool = int(player.get("hp", 0)) <= 0
 	for key: String in _player_buttons: _player_buttons[key].disabled = dead
 	_player_buttons.heal.disabled = dead or int(player.get("hp", 0)) >= int(player.get("stats", {}).get("max_hp", 100)) or int(player.get("inventory", {}).get("potion", 0)) <= 0
 	_player_buttons.ability.disabled = dead or not player.get("abilities", {}).get("wood_mend", false)
 	_follow.modulate = Style.GOLD if following else Color.WHITE
-	_ranged.modulate = Style.GOLD if ranged else Color.WHITE
-	_ranged.text = "弓" if ranged else "剑"
+	var weapon: String = str(player.get("equipment", {}).get("weapon", ""))
+	var step_left: float = maxf(0, int(frame.cooldowns.get("step", 0)) - frame.world_ms) / 1000.0
+	var skill_left: float = maxf(0, int(frame.cooldowns.get("skill", 0)) - frame.world_ms) / 1000.0
+	_player_buttons.context.text = "Tab 交互" if direct else "Tab ACT"
+	set_text(_weapon, ("ACT · %s · WASD移动 鼠标瞄准 左键%s · 右键武器技 %.1fs · 空格闪步 %.1fs" % ["弓" if weapon.begins_with("short_bow") else ("剑" if not weapon.is_empty() else "徒手"), "按住连射" if weapon.begins_with("short_bow") else "三连", skill_left, step_left]) if direct else "交互／营造 · 左键选择 · 右键对象菜单 · Tab返回ACT")
 	_map_out.disabled = minimap.span >= 512.0
 	_map_in.disabled = minimap.span <= 32.0
 	_map_follow.modulate = Style.GOLD if minimap.follow_player else Color.WHITE
@@ -464,7 +470,6 @@ func context_menu(data: Dictionary, at: Vector2, payload: Dictionary) -> void:
 	for spec: Dictionary in Actions.for_target(data, _frame.player, _help_target):
 		var button: Button = _button(_context_body, spec.id, spec.text, spec.icon, payload)
 		button.disabled = not spec.enabled
-	_button(_context_body, "context_move", "移动 M", "move", payload)
 	_context_panel.size = Vector2(220, 0)
 	_context_panel.position = screen_to_ui(at).clamp(Vector2(0, 84), size - Vector2(224, 350))
 	_context_panel.show()

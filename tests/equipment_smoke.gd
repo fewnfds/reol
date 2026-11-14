@@ -9,15 +9,17 @@ static func run(check: Callable) -> void:
 	w.initialize(4, 0)
 	var page: RefCounted = w.pages[0]
 	for actor: int in range(1, 5):
-		w.command({"kind":"stop", "actor":actor})
+		w.command({"kind":"interrupt", "actor":actor})
 		page.positions[actor - 1] = Vector2(145.5 + actor, 145.5)
+	w.command({"kind":"unequip", "slot":"weapon"})
 	var bag_size: int = w.objects.count_inventory(1)
 	w.objects.records[1].capacity = bag_size
 	check.call(w.command({"kind":"equip", "item":"iron_sword"}).ok, "Normal gear could not equip")
 	check.call(w.command({"kind":"equip", "item":"iron_sword@2"}).ok, "Full-count-capacity swap was not atomic")
 	check.call(w.objects.amount(1, "iron_sword") == 1 and w.objects.amount(1, "iron_sword@2") == 0 and page.melee_damage[0] == 38, "Swap duplicated location or did not cache quality stats")
 	check.call(w.objects.total("iron_sword@2") == 1 and w.objects.audit_total("iron_sword@2") == 1, "Equipping broke material accounting")
-	w.command({"kind":"attack", "target":2})
+	w.combat.damage(w, 1, 2, page.melee_damage[0], w.elapsed_ms)
+	w.release(2)
 	check.call(page.health[1] == 62, "Actual attack ignored equipment damage")
 	w.objects.add(1, "wood", 1)
 	var before: Dictionary = w.objects.records[1].duplicate(true)
@@ -29,6 +31,8 @@ static func run(check: Callable) -> void:
 	check.call(page.health[0] == 120, "Potion did not honor gear max HP")
 	w.combat.damage(w, 2, 1, 20, w.elapsed_ms)
 	check.call(page.health[0] == 103, "Actual damage ignored cached armor")
+	check.call(not w.command({"kind":"unequip", "slot":"body"}).ok, "Recent damage did not lock combat gear")
+	w.step(1500)
 	w.command({"kind":"unequip", "slot":"body"})
 	check.call(page.health[0] == 100 and page.max_health[0] == 100, "Max HP removal was not clamped")
 	w.command({"kind":"equip", "item":"travel_boots"})

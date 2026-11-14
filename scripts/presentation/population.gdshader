@@ -67,6 +67,7 @@ void vertex() {
         }
         VERTEX += displayed - MODEL_MATRIX[3].xy;
         int frame = int(mod(world_ms + float((flags >> 8) & 15) * 83.0, state == 0 ? 1600.0 : 900.0) / (state == 0 ? 400.0 : 225.0));
+        if ((flags & 4096) != 0) { frame = (flags >> 13) & 3; }
         if (state == 14 || (state == 2 && (flags & 1) == 0)) { frame = 0; }
         atlas_offset = vec2(float(int(INSTANCE_CUSTOM.z) % 8) * 4.0 + float(frame), float(state)) * 48.0;
     }

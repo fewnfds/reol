@@ -52,8 +52,8 @@ static func for_target(data: Dictionary, player: Dictionary, help_target: int) -
 	var alive: bool = int(player.get("hp", 0)) > 0
 	var capabilities: Dictionary = buildings.get(definition, {}).get("capabilities", {})
 	if kind in ["pile", "chest", "resource"]:
-		result.append(command("take", "拿取 R", "take", alive and not data.get("inventory", {}).is_empty()))
-		result.append(command("put", "放入 Q", "put", alive and not player.get("inventory", {}).is_empty()))
+		result.append(command("take", "拿取", "take", alive and not data.get("inventory", {}).is_empty()))
+		result.append(command("put", "放入", "put", alive and not player.get("inventory", {}).is_empty()))
 	if kind in ["chest", "workbench", "furniture", "pile"] and int(data.get("inventory", {}).get("meal", 0)) > 0:
 		result.append(command("eat", "进食", "potion", alive))
 	if kind == "blueprint":
@@ -79,7 +79,6 @@ static func for_target(data: Dictionary, player: Dictionary, help_target: int) -
 			result.append(command(row[0], row[1], row[2], alive))
 		if kind == "actor":
 			result.append(command("request_help", "协作", "work", alive and help_target > 0))
-			result.append(command("pursue", "攻击", "attack", alive))
 	if kind not in ["actor", "plant", "resource", "pile", "depot"]:
 		result.append(command("demolish", "拆除", "close", alive))
 	return result

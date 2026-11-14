@@ -38,22 +38,24 @@ static func run(check: Callable) -> void:
 	page.positions[3] = Vector2(152.5, 150.5)
 	page.health[0] = 25
 	page.health[3] = 25
-	w.combat.begin(w, 1, "pursue", 4)
-	w.combat.begin(w, 4, "pursue", 1)
-	w.step()
+	w.combat.request(w, 1, "primary", Vector2.RIGHT)
+	w.combat.request(w, 4, "primary", Vector2.LEFT)
+	w.step(71)
 	check.call(page.health[0] == 0 and page.health[3] == 0, "Same-boundary committed strikes did not allow mutual death")
 	# Restore the tiny fixture's participants for independent social scenarios.
 	for row: int in [0, 1, 3]:
 		page.health[row] = 100
 		page.modes[row] = 4
-	w.combat.orders.clear()
+	w.combat.engagements.clear()
+	w.combat.status.clear()
+	w.combat.states.clear()
 	# A stop issued after agreeing to wait must survive the inviter's cancel.
 	w.objects.records[2].autonomous = true
 	page.positions[0] = Vector2(176.5, 187.5)
 	page.positions[1] = Vector2(177.5, 187.5)
 	w.command({"kind": "talk", "target": 2})
-	w.command({"kind": "stop", "actor": 2})
-	w.command({"kind": "stop", "actor": 1})
+	w.command({"kind": "interrupt", "actor": 2})
+	w.command({"kind": "interrupt", "actor": 1})
 	check.call(page.modes[1] == 4 and not w.objects.records[2].autonomous, "Canceling invitation overwrote a newer stop")
 	page.positions[0] = Vector2(176.5, 187.5)
 	page.positions[1] = Vector2(177.5, 187.5)
@@ -144,17 +146,6 @@ static func run(check: Callable) -> void:
 	var regional_source: int = w.environment.add_source(Terrain.index(Vector2i(314, 194)), 1, 12)
 	var source_enabled: int = w.environment.enabled[regional_source]
 	check.call(w.command({"kind": "source", "tile": Terrain.index(Vector2i(314, 194))}).ok and w.environment.enabled[regional_source] != source_enabled, "Source control confused render marker order with source identity")
-	# Switching attack commands must not grant a second, separate cooldown.
-	w.release(1)
-	w.release(4)
-	page.positions[0] = Vector2(155.5, 151.5)
-	page.positions[3] = Vector2(156.5, 151.5)
-	page.health[0] = 100
-	page.health[3] = 100
-	page.modes[0] = 4
-	page.modes[3] = 4
-	check.call(w.command({"kind": "attack", "target": 4}).ok, "Immediate melee command failed")
-	w.combat.begin(w, 1, "pursue", 4)
-	w.step()
-	check.call(page.health[3] == 75, "Switching to pursuit bypassed the shared attack cooldown")
+	# The old instant-hit/pursuit commands cannot bypass the action executor.
+	check.call(not w.command({"kind": "attack", "target": 4}).ok and not w.command({"kind": "pursue", "target": 4}).ok, "Retired attack API still accepted")
 	preload("res://tests/tile_smoke.gd").run(w, check)

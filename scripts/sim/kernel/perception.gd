@@ -79,7 +79,7 @@ func update(world: RefCounted, now: int, force: bool = false) -> void:
 
 
 func update_visible(world: RefCounted) -> void:
-	visible.resize(world.attack_due.size())
+	visible.resize(world.body_count)
 	visible.fill(0)
 	for page: RefCounted in world.pages:
 		for row: int in page.ids.size():

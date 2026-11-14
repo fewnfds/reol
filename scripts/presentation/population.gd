@@ -57,7 +57,7 @@ func configure(count: int) -> void:
 	multimesh.custom_aabb = AABB(Vector3(0, 0, -1), Vector3(512 * TILE, 512 * TILE, 2))
 
 
-func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted) -> void:
+func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted, actions: Dictionary = {}, at_ms: int = 0) -> void:
 	if actor_count != frame.positions.size():
 		configure(frame.positions.size())
 	if _epoch != frame.epoch:
@@ -97,8 +97,9 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted) ->
 		if _identities[index] != id:
 			_directions[index] = 4
 			_hurt_until[index] = 0
-		if not delta.is_zero_approx():
-			_directions[index] = Art.facing(delta, _directions[index])
+		if index < frame.aims.size():
+			var direction: Vector2 = actions[id].direction if actions.has(id) and actions[id].kind != "step" else frame.aims[index]
+			_directions[index] = Art.facing(direction, _directions[index])
 		var offset: int = index * 16
 		# Native 2D transform = two padded rows (8 floats), then RGBA/custom.
 		buffer[offset + 3] = current.x
@@ -113,6 +114,8 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted) ->
 		var motion_header: int = int(_motion_headers.get(index, 0)) if same_current and same_previous else 0
 		buffer[offset + 14] = _directions[index] + motion_header * 8
 		var clip: int = frame.visuals[index] if index < frame.visuals.size() else Art.Clip.IDLE
+		if clip in [Art.Clip.MELEE, Art.Clip.SHOOT]: clip = Art.Clip.IDLE
+		if actions.has(id) and actions[id].kind != "step": clip = Art.Clip.SHOOT if actions[id].kind in ["shot", "fan"] else Art.Clip.MELEE
 		if _identities[index] == id and frame.health[index] < _health[index]:
 			_hurt_until[index] = frame.world_ms + 180
 		_identities[index] = id
@@ -126,6 +129,10 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted) ->
 		elif not delta.is_zero_approx() and clip in [Art.Clip.IDLE, Art.Clip.WALK]:
 			clip = Art.Clip.WALK
 		buffer[offset + 15] = float(int(not delta.is_zero_approx()) + int(frame.radii[index] > 0.5) * 2 + int(frame.flight[index] > 0) * 4 + clip * 8 + int(id % 11) * 256)
+		if actions.has(id) and clip in [Art.Clip.MELEE, Art.Clip.SHOOT]:
+			var state: Dictionary = actions[id]
+			var keyframe: int = clampi(int(float(at_ms - int(state.started_ms)) / maxi(1, int(state.end_ms) - int(state.started_ms)) * 4), 0, 3)
+			buffer[offset + 15] += 4096 + keyframe * 8192
 	_compose(buffer)
 
 

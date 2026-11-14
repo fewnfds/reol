@@ -75,7 +75,7 @@ static func _world_cases(check: Callable) -> void:
 	world.command({"kind": "move", "position": Vector2(40.17, 35.23)})
 	world.step()
 	var stopped: Vector2 = page.positions[0]
-	world.command({"kind": "stop"})
+	world.command({"kind": "interrupt"})
 	world.step()
 	check.call(page.positions[0] == stopped and not stopped.is_equal_approx(Terrain.center(Terrain.index(Vector2i(stopped)))) and page.routes[0].is_empty(), "Stop snapped the body to a cell centre or retained a route")
 	var changed := Vector2(29.17, 32.91)
@@ -105,7 +105,7 @@ static func _world_cases(check: Callable) -> void:
 	for point: Vector2 in page.routes[0]:
 		check.call(world.terrain.segment_clear(from, point, page.radii[0]), "Replanned route crossed a new wall")
 		from = point
-	world.command({"kind": "stop"})
+	world.command({"kind": "interrupt"})
 	page.positions[0] = Vector2(48.8, 40.5)
 	var neighbour: int = Terrain.index(Vector2i(49, 40))
 	check.call(not world.command({"kind": "build", "tile": neighbour}).ok, "A wall was built through a body centred in the next tile")
@@ -142,13 +142,13 @@ static func _world_cases(check: Callable) -> void:
 	check.call(nav.plan(Vector2(57, 62), Vector2(62, 62), 0.35).is_empty() and not nav.deferred, "A closed room was reachable")
 	page.flight[0] = 0
 	page.positions[0] = Vector2(57, 62)
-	world.command({"kind": "attack_move", "position": Vector2(62, 62)})
+	world.command({"kind": "move", "position": Vector2(62, 62)})
 	world.outcomes.clear()
 	for step: int in 4: world.step()
 	var failed: int = 0
 	for event: Dictionary in world.outcomes:
 		if event.kind == "path_failed": failed += 1
-	check.call(not world.combat.orders.has(1) and failed == 1, "Unreachable attack-move retried the same failed destination forever")
+	check.call(page.modes[0] == world.Units.Mode.IDLE and failed == 1, "Unreachable route retried the same failed destination forever")
 	world.queue_structure(Terrain.index(Vector2i(60, 62)), false, false, true)
 	world.flush_topology()
 	check.call(not nav.plan(Vector2(57, 62), Vector2(62, 62), 0.35).is_empty(), "Removing a wall retained a stale unreachable component")

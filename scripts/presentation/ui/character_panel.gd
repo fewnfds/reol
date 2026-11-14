@@ -85,10 +85,9 @@ func refresh(subject: Dictionary) -> void:
 			_gear.add_child(button)
 	if not known: return
 	var stats: Dictionary = subject.get("stats", {})
-	_stats.text = "HP %d / %d\n耐受 %.1f / %.0f\n近战 %d / %.0fms / %.1f\n远程 %d / %.0fms / %.1f\n防御 %d   移速 %.2f\n精力 %d   饥饿 %d\n%.2f°C" % [
+	_stats.text = "HP %d / %d\n耐受 %.1f / %.0f\n近战基础 %d   远程基础 %d\n防御 %d   移速 %.2f\n精力 %d   饥饿 %d\n%.2f°C" % [
 		int(subject.hp), int(stats.get("max_hp", 100)), float(subject.tolerance), float(subject.max_tolerance),
-		int(stats.get("melee", 0)), float(stats.get("melee_cooldown_ms", 0)), float(stats.get("melee_range", 0)),
-		int(stats.get("ranged", 0)), float(stats.get("ranged_cooldown_ms", 0)), float(stats.get("ranged_range", 0)),
+		int(stats.get("melee", 0)), int(stats.get("ranged", 0)),
 		int(stats.get("armor", 0)), float(stats.get("speed", 0)), int(subject.energy), int(subject.hunger), float(subject.temperature)]
 	_practice.text = "灵气 %d\n修行 %d\n%s" % [int(subject.get("qi", 0)), int(subject.get("practice", 0)), str(subject.get("methods", {}).keys())]
 	_study.disabled = subject_id != 1 or int(subject.hp) <= 0 or int(subject.inventory.get("breath_manual", 0)) <= 0

@@ -62,6 +62,7 @@ func run() -> void:
 	if game.frame == null: game.queue_free(); await settle(); quit(1); return
 	await settle(8)
 	game.ui.apply_scale(100, false)
+	game.controls.action("context", {})
 	await settle(4)
 	for value: int in [8, 16, 1]:
 		click(game.ui._speed_buttons[value].get_global_rect().get_center())
@@ -79,7 +80,7 @@ func run() -> void:
 	await capture("context")
 	var context_point := Vector2.ZERO
 	for button: Node in game.ui._context_body.get_children():
-		if button is Button and button.text == "拿取 R": context_point = button.get_global_rect().get_center()
+		if button is Button and button.text == "拿取": context_point = button.get_global_rect().get_center()
 	check(not context_point.is_zero_approx(), "Chest take action absent")
 	click(context_point)
 	await settle()
@@ -112,28 +113,22 @@ func run() -> void:
 	click(game.ui.inventory._take.get_global_rect().get_center())
 	await settle(8)
 	check(str(game.frame.player.action.get("kind", "")) == "take" and int(game.frame.player.action.get("amount", 0)) == 2, "Quantity button did not submit exactly two items")
-	game.controls.action("stop", {})
+	game.runner.send({"kind": "interrupt"})
 	game.ui.inventory.hide()
 	root.gui_release_focus()
 	await settle(6)
-	# Attack tool cancellation cannot additionally move the protagonist.
+	# Interaction mode has no RTS attack/move tool or ground pursuit.
 	key(KEY_A)
 	await settle()
-	check(game.controls.tool == "attack", "A did not select attack tool")
-	var previous_seq: int = game._pending_move
+	check(game.controls.tool.is_empty() and game.controls.move_vector().is_zero_approx(), "Context mode retained an RTS attack tool")
+	var previous_destination: Vector2 = game.frame.player.destination
 	click(screen(Vector2(174.3,188.7)), MOUSE_BUTTON_RIGHT)
 	await settle()
-	check(game.controls.tool.is_empty() and game._pending_move == previous_seq, "Right cancel also sent movement")
-	# Continuous main-map and mini-map coordinates must preserve the foot inverse.
-	game.controls.action("move_tool", {})
-	var goal := Vector2(171.37,189.83)
-	click(screen(goal))
-	await settle(8)
-	check(game.frame.player.destination.distance_to(Art.body_position(goal)) < 0.001, "Mouse destination was snapped or offset")
+	check(game.frame.player.destination == previous_destination, "Empty-ground context click moved the player")
 	var map_point := Vector2(179.37,189.83)
 	game.controls.action("map_move", {"position":map_point})
 	await settle(8)
-	check(game.frame.player.destination.distance_to(map_point) < 0.001, "Minimap added the foot offset twice")
+	check(not game.following and game.camera.position.distance_to(Art.body_foot(map_point) * Art.TILE) < 0.001 and game.frame.player.destination == previous_destination, "Minimap right click issued a player route")
 	# Building preview is visual state; rotation and cancel cannot commit a building.
 	key(KEY_B)
 	await settle()
@@ -200,7 +195,7 @@ func run() -> void:
 		check(int(game.frame.player.inventory.get("wood",0)) == 1 and str(game.frame.inspected.get("kind","")) == "blueprint", "Placement did not select the real paid blueprint")
 		await create_timer(0.9).timeout
 		await capture("construction")
-		game.controls.action("stop", {})
+		game.runner.send({"kind": "interrupt"})
 		game.controls.action("pause", {})
 		await settle(6)
 	# Resizing and UI scaling must keep the player commands accessible.
@@ -212,14 +207,15 @@ func run() -> void:
 	game.ui.apply_scale(125, false)
 	await settle(8)
 	await capture("layout-scaled")
-	check(game.ui._player_buttons.stop.get_global_rect().end.x < game.ui.size.x, "UI scaling pushed player actions off screen")
+	check(game.ui._player_buttons.context.get_global_rect().end.x < game.ui.size.x, "UI scaling pushed player actions off screen")
 	check(game.get_canvas_transform().is_equal_approx(world_transform), "UI scaling changed world pixels")
 	for percent: int in [50, 200]:
 		game.ui.apply_scale(percent, false)
 		await settle(8)
 		check(game.ui.ui_percent == percent, "UI numeric scale was not applied")
-		check(game.ui._player_buttons.stop.get_global_rect().end.y <= root.get_visible_rect().size.y, "UI commands fell below the viewport")
-		check(not game.ui._player_buttons.stop.get_global_rect().intersects(game.ui._map_panel.get_global_rect()), "Minimap covered the command dock")
+		check((game.ui._weapon.get_global_transform_with_canvas() * game.ui._weapon.size).y <= root.get_visible_rect().size.y, "Combat hints fell below the viewport")
+		check(game.ui._player_buttons.context.get_global_rect().end.y <= root.get_visible_rect().size.y, "UI commands fell below the viewport")
+		check(not game.ui._player_buttons.context.get_global_rect().intersects(game.ui._map_panel.get_global_rect()), "Minimap covered the command dock")
 		await capture("scale-%d" % percent)
 	game.ui.apply_scale(100, false)
 	game.controls._select(1, -1)
@@ -244,7 +240,7 @@ func run() -> void:
 	var outside_goal := Vector2(172.3, 190.7)
 	click(screen(outside_goal), MOUSE_BUTTON_RIGHT)
 	await settle(8)
-	check(game.ui.inventory.visible and game.frame.player.destination.distance_to(Art.body_position(outside_goal)) < 0.001, "Leaving bag numeric entry did not restore world mouse control")
+	check(game.ui.inventory.visible and game.controls.move_vector().is_zero_approx() and not game.ui._context_panel.visible, "Open inventory leaked world input")
 	for percent: int in [50, 200]:
 		game.ui.apply_scale(percent, false)
 		await settle(6)

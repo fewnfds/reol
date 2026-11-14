@@ -3,10 +3,6 @@ extends RefCounted
 ## Called by the owner on spawn, equipment changes and restore, never per tick.
 const Items = preload("res://scripts/sim/kernel/items.gd")
 const BASE: Dictionary = {"max_hp": 100.0, "melee": 25.0, "ranged": 20.0, "armor": 0.0, "speed": 5.0}
-const MELEE_RANGE: float = 1.7
-const RANGED_RANGE: float = 9.0
-const MELEE_COOLDOWN_MS: int = 600
-const RANGED_COOLDOWN_MS: int = 900
 
 static func values(record: Dictionary) -> Dictionary:
 	var result: Dictionary = BASE.duplicate()
@@ -45,5 +41,4 @@ static func rebuild(world: RefCounted, id: int, clamp_health: bool = true) -> vo
 
 static func view(page: RefCounted, row: int) -> Dictionary:
 	return {"max_hp": page.max_health[row], "melee": page.melee_damage[row], "ranged": page.ranged_damage[row],
-		"armor": page.armor[row], "speed": page.move_speed[row], "melee_range": MELEE_RANGE, "ranged_range": RANGED_RANGE,
-		"melee_cooldown_ms": MELEE_COOLDOWN_MS, "ranged_cooldown_ms": RANGED_COOLDOWN_MS}
+		"armor": page.armor[row], "speed": page.move_speed[row]}

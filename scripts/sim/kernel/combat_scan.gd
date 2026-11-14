@@ -5,7 +5,7 @@ extends RefCounted
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Batch = preload("res://scripts/sim/execution/batch_execution.gd")
 const Equipment = preload("res://scripts/sim/kernel/equipment.gd")
-const BUCKET: float = 8.0
+const BUCKET: float = 4.0
 const CHUNK_SIZE: int = 64
 const PARALLEL_MIN: int = 128
 const DISCOVERY_STEPS: int = 4 # 200 world ms, staggered over the 50ms base step.
@@ -105,6 +105,7 @@ var batch_usec: int = 0
 var parallel_batches: int = 0
 var observer_count: int = 0
 var thread_ids: Dictionary = {}
+var sweep_padding: float = 0.0
 
 
 func bucket(point: Vector2) -> Vector2i:
@@ -114,11 +115,14 @@ func bucket(point: Vector2) -> Vector2i:
 func index(world: RefCounted) -> void:
 	var started: int = Time.get_ticks_usec()
 	positions.clear()
+	sweep_padding = 0.0
 	ids.clear()
 	for group: RefCounted in side_groups.values():
 		group.heads.fill(-1)
 	sides_present.clear()
 	for page: RefCounted in world.pages:
+		for row: int in page.ids.size():
+			sweep_padding = maxf(sweep_padding, maxf(page.move_speed[row], page.direct_velocities[row].length()) * page.delta_ms / 1000.0)
 		positions.append_array(page.positions)
 		ids.append_array(page.ids)
 	sides.resize(ids.size())
@@ -179,9 +183,6 @@ func observe(world: RefCounted, orders: Dictionary, now: int, unreachable: Dicti
 		var order: Dictionary = orders.get(id, {})
 		var target: int = -1
 		var limit: float = 0.0
-		var hold: bool = not order.is_empty() and order.kind == "hold"
-		if hold:
-			limit = Equipment.RANGED_RANGE if order.ranged else Equipment.MELEE_RANGE
 		if not order.is_empty():
 			if order.target > 0:
 				# Static targets are checked by the owner through their footprint.
@@ -191,11 +192,11 @@ func observe(world: RefCounted, orders: Dictionary, now: int, unreachable: Dicti
 				if ids[target] == 0:
 					continue
 			elif now >= int(order.scan_ms):
-				limit = (Equipment.RANGED_RANGE if order.ranged else Equipment.MELEE_RANGE) if order.kind == "hold" else float(world.objects.records[id].get("alert_range", 12.0))
+				limit = float(world.objects.records[id].get("alert_range", 12.0))
 				order.scan_ms = now + DISCOVERY_STEPS * 50
 			else:
 				continue
-		elif sides_present.size() > 1 and slot % DISCOVERY_STEPS == phase and id != 1 and world.objects.records[id].get("autonomous", false) and now >= int(world.objects.records[id].get("threat_scan_after", 0)):
+		elif sides_present.size() > 1 and slot % DISCOVERY_STEPS == phase and id != 1 and (world.objects.records[id].get("autonomous", false) or world.objects.records[id].get("combatant", false)) and now >= int(world.objects.records[id].get("threat_scan_after", 0)):
 			limit = float(world.objects.records[id].get("alert_range", 12.0))
 		else:
 			continue
@@ -203,7 +204,7 @@ func observe(world: RefCounted, orders: Dictionary, now: int, unreachable: Dicti
 		tracking.append(target)
 		ranges.append(world.sight.range_for(world, id))
 		limits.append(limit)
-		stationary.append(int(hold))
+		stationary.append(0)
 		var memory: Dictionary = unreachable.get(id, {})
 		var page: RefCounted = world.pages[slot / 256]
 		if target < 0 and memory.get("topology", -1) == world.terrain.revision and memory.get("flight", -1) == page.flight[slot % 256] and memory.get("large") == (page.radii[slot % 256] > 0.5):

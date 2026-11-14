@@ -32,7 +32,7 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 			return null
 	for key: String in owners:
 		State.apply(owners[key], owners[key].STATE_FIELDS, data.domains[key])
-	if not _terrain_valid(world.terrain) or world.elapsed_ms < 0 or world.elapsed_ms % 50 != 0:
+	if not _terrain_valid(world.terrain) or world.elapsed_ms < 0:
 		return null
 	if not _objects_valid(world):
 		return null
@@ -48,13 +48,14 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 		State.apply(page, Units.STATE_FIELDS, value)
 		page.cargo.resize(page.ids.size())
 		page.potions.resize(page.ids.size())
+		page.direct_velocities.resize(page.ids.size())
 		if not _page_valid(page, world, slot):
 			return null
 		page.terrain = world.terrain
 		page.environment = world.environment
 		world.pages.append(page)
 		slot += page.ids.size()
-	if slot == 0 or slot > 60000 or world.attack_due.size() != slot or world.actor_slots.size() != world.actor_count:
+	if slot == 0 or slot > 60000 or world.body_count != slot or world.actor_slots.size() != world.actor_count:
 		return null
 	for id: int in world.actor_slots:
 		Equipment.rebuild(world, id, false)
@@ -165,7 +166,7 @@ static func _page_valid(page: RefCounted, world: RefCounted, start: int) -> bool
 	var count: int = page.ids.size()
 	if count < 1 or count > Units.PAGE_SIZE:
 		return false
-	for field: String in ["positions", "targets", "modes", "health", "energy", "hunger", "body_heat", "tolerance", "thermal_carry", "flight", "radii", "potions", "cargo", "source_ids", "due_ms", "route_cursors", "routes"]:
+	for field: String in ["positions", "targets", "modes", "health", "energy", "hunger", "body_heat", "tolerance", "thermal_carry", "flight", "radii", "aims", "potions", "cargo", "source_ids", "due_ms", "route_cursors", "routes"]:
 		if page.get(field).size() != count:
 			return false
 	if page.elements.size() != count * 5 or page.exposure.size() != count * 7:
@@ -181,7 +182,7 @@ static func _page_valid(page: RefCounted, world: RefCounted, start: int) -> bool
 			return false
 		if not is_finite(page.tolerance[row]) or page.tolerance[row] < 0 or page.tolerance[row] > Units.MAX_TOLERANCE or not is_finite(page.thermal_carry[row]) or page.thermal_carry[row] < 0 or page.thermal_carry[row] >= 1.0:
 			return false
-		if page.modes[row] > Units.Mode.COMBAT_MOVE or page.modes[row] == Units.Mode.FREE or page.health[row] < 0 or page.energy[row] < 0 or page.hunger[row] < 0 or page.source_ids[row] < 0 or page.source_ids[row] >= world.source_objects.size() or not page.targets[row].is_finite() or page.targets[row].x < 0 or page.targets[row].y < 0 or page.targets[row].x >= world.terrain.SIZE or page.targets[row].y >= world.terrain.SIZE:
+		if page.modes[row] > Units.Mode.DIRECT or page.modes[row] == Units.Mode.FREE or page.health[row] < 0 or page.energy[row] < 0 or page.hunger[row] < 0 or page.source_ids[row] < 0 or page.source_ids[row] >= world.source_objects.size() or not page.targets[row].is_finite() or page.targets[row].x < 0 or page.targets[row].y < 0 or page.targets[row].x >= world.terrain.SIZE or page.targets[row].y >= world.terrain.SIZE or not page.aims[row].is_finite() or absf(page.aims[row].length() - 1.0) > 0.01:
 			return false
 		if page.route_cursors[row] < 0 or page.route_cursors[row] > page.routes[row].size():
 			return false

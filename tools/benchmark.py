@@ -16,7 +16,7 @@ from cpu_sample import ProcessSample
 def capture(*, binary: Path, actors: int, speed: float, fps: int, workers: int,
             seconds: int, gpu_index: int, output: Path, fog: bool = False,
             mixed: bool = False, capacity: bool = False, screenshot: bool = False,
-            response_probe: bool = False) -> dict:
+            response_probe: bool = False, sim_hz: int = 60, combat_lab: bool = False) -> dict:
     """One owned real-window process, bounded lifetime, no concurrent GPU runs."""
     binary, output = binary.resolve(), output.resolve()
     if output.exists():
@@ -25,6 +25,9 @@ def capture(*, binary: Path, actors: int, speed: float, fps: int, workers: int,
     command = [str(binary), "--gpu-index", str(gpu_index), "--resolution", "1280x720", "--",
                f"--actors={actors}", f"--speed={speed}", f"--fps={fps}",
                f"--workers={workers}", f"--duration={seconds}", "--warmup=3", f"--metrics={output}"]
+    command.append(f"--sim-hz={sim_hz}")
+    if combat_lab:
+        command.append("--combat-lab=true")
     if screenshot:
         command.append(f"--screenshot={output.with_suffix('.png')}")
     if mixed:
@@ -83,18 +86,20 @@ def main() -> int:
     parser.add_argument("--screenshot", action="store_true")
     parser.add_argument("--fog", action="store_true", help="player fog view instead of full developer overview")
     parser.add_argument("--mixed", action="store_true", help="100 fighters, 20 material builds and contact exchanges")
-    parser.add_argument("--capacity", action="store_true", help="durable mixed capacity-v1 starting fixture")
+    parser.add_argument("--capacity", action="store_true", help="durable mixed capacity-act-v1 starting fixture")
     parser.add_argument("--response-probe", action="store_true", help="bounded synthetic move request to CPU display response; ordinary scene only")
+    parser.add_argument("--sim-hz", type=int, choices=[20, 60, 100], default=60)
+    parser.add_argument("--combat-lab", action="store_true", help="three nearby ACT enemies in the same World")
     args = parser.parse_args()
     if not args.binary.is_file() or not 5 <= args.seconds <= 60 or not 1 <= args.actors <= 60000 or not .25 <= args.speed <= 16 or not 10 <= args.fps <= 240 or not -1 <= args.workers <= 64:
         parser.error("existing release binary; 1..60000 actors; .25..16 speed; 5..60 seconds; 10..240 FPS; -1..64 workers")
-    if args.response_probe and (args.mixed or args.capacity or args.speed != 1):
+    if args.response_probe and (args.mixed or args.capacity or args.combat_lab or args.speed != 1):
         parser.error("--response-probe requires the ordinary scene at 1x, not mixed/capacity fixtures")
     output = (args.out or godot.ROOT / "logs" / f"kernel-{args.actors}-{args.speed:g}x-{args.fps}-{time.strftime('%Y%m%d-%H%M%S')}.json").resolve()
     result = capture(binary=args.binary, actors=args.actors, speed=args.speed, fps=args.fps,
                      workers=args.workers, seconds=args.seconds, gpu_index=args.gpu_index,
                      output=output, fog=args.fog, mixed=args.mixed, capacity=args.capacity, screenshot=args.screenshot,
-                     response_probe=args.response_probe)
+                     response_probe=args.response_probe, sim_hz=args.sim_hz, combat_lab=args.combat_lab)
     print(json.dumps({key: result.get(key) for key in ["actors", "workers", "requested_speed", "actual_speed", "fps_limit", "frame_ms", "step_ms", "deliveries_delta", "material", "overload_demand_usec_delta"]}, ensure_ascii=False), flush=True)
     print(output, flush=True)
     return int(result["capture_exit_code"])

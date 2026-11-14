@@ -1,10 +1,12 @@
 # 当前接续
 
-当前主题是近远双路线的ACT＋弹幕战斗改版，当前进入主计划P0，已加入显式开启的合成移动响应测点并测完旧20Hz基线，尚未改变模拟频率或实现WASD/连招。设计与候选参数在[改版规格](../../design/systems/combat_framework/act_and_barrage.md)，来源/基线在[专题研究](../../design/research/act_barrage_references.md)，工作包只维护在[主计划](../plans/foundation-priorities.md)。
+ACT＋弹幕首个可操作灰盒已接入正常World，旧A攻击移动、S停止、H警戒、点击追击与射击模式切换已移除。源码入口为根目录[ACT试玩.cmd](../../ACT试玩.cmd)与[开发试玩.cmd](../../开发试玩.cmd)，能力/键位只维护在[FEATURES](features.md)。完整方案仍按[主计划](../plans/foundation-priorities.md)推进，不能把灰盒交付写成P0～P7全部完成。
 
-下一实现入口仍为P0：核查50ms/0.05与按步分组假设，做60Hz统一心跳＋到期慢域候选，再与旧链路同负载比较，补小型高频姿态发布、直接移动/瞄准与移动弹相位。已完成的两窗只说明普通背景未出现明显响应恶化，不证明新ACT负载达标。用户允许实测必要时牺牲次要世界精度/频率，边界只查规格9.3；未测不预先缩图。之后按主计划进入单剑灰盒与远程循环。
+下一动作：先交付当前可玩版本，让用户实际体验剑/弓的移动、出招、接敌与脱离，再依据反馈收敛动画、音画和敌人节奏。用户已明确性能测试到此为止，不要求本轮达到900人压力标准，不再以此延迟试玩。密集交战的候选/几何瓶颈和100/500活跃弹验收保留为后续事项，只有目标玩法确受影响时再推进；不自动扩测。P0/P3/P7的未完成出口见主计划。
 
-测量入口为benchmark.py的`--response-probe`；原件在`logs/act-p0-response-20261114/`，隔离构建在`build/windows/act-p0/`，均不入库。正式试玩包没有覆盖；正式构建状态仍见BASELINE。
+源码/短检查与真实图形输入已验证；音效只验证合成占位流和播放器触发，尚未做主观混音/正式听感AB。测试日志与测量事实只查[BASELINE](baseline.md)和[专题研究](../../design/research/act_barrage_references.md#13-60hz灰盒与密集交战实测)。存档仅支持format8，默认新的act-quicksave.reol；旧文件保留。
+
+ACT独立release在`build/windows/act-preview/`，当前测量原件在`logs/act-preview-20261114/`、图形截图在`logs/act-ui/`；旧20Hz包和原正式Demo未覆盖，均不入库。用户允许有证据时让次要世界精度为战斗让步，边界见改版规格9.3；本次尚未实现远区LOD或战斗粗算。
 
 ## 找当前信息
 

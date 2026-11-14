@@ -8,7 +8,7 @@ const Persistence = preload("res://scripts/sim/kernel/persistence.gd")
 const SessionIO = preload("res://scripts/sim/kernel/session_io.gd")
 const Scenarios = preload("res://scripts/sim/kernel/scenarios.gd")
 const MAX_PENDING: int = 4096
-const STEP_USEC: int = 50000
+const DEFAULT_HZ: int = 60
 const MAX_DEBT_USEC: float = 1000000.0
 const ACTION_VISUALS: Dictionary = {
 	"construct": Frame.Visual.BUILD, "continue_build": Frame.Visual.BUILD, "demolish": Frame.Visual.BUILD,
@@ -38,6 +38,12 @@ var _count: int
 var _workers: int
 var _mixed: bool = false
 var _capacity: bool = false
+var _sim_hz: int = DEFAULT_HZ
+var _combat_lab: bool = false
+var _drive: Dictionary = {}
+var _slow_frame: RefCounted
+var _slow_selected: int = -1
+var _slow_probe: int = -2
 # These fields are used exclusively by the simulation thread.
 var _world: RefCounted
 var _terrain_view: RefCounted
@@ -58,11 +64,13 @@ var _io := SessionIO.new()
 var _epoch: int = 1
 
 
-func start(count: int = 1000, workers: int = -1, speed: float = 1.0, mixed: bool = false, capacity: bool = false) -> Error:
+func start(count: int = 1000, workers: int = -1, speed: float = 1.0, mixed: bool = false, capacity: bool = false, sim_hz: int = DEFAULT_HZ, combat_lab: bool = false) -> Error:
 	_count = clampi(count, 1, 60000)
 	_workers = workers
 	_mixed = mixed
 	_capacity = capacity
+	_sim_hz = sim_hz if sim_hz in [20, 60, 100] else DEFAULT_HZ
+	_combat_lab = combat_lab
 	_speed = clampf(speed, 0.25, 16.0)
 	return _thread.start(_run)
 
@@ -83,6 +91,15 @@ func send(value: Dictionary) -> int:
 	_notify_locked()
 	_mutex.unlock()
 	return command.seq
+
+
+func drive(value: Dictionary) -> void:
+	# Continuous intent has one overwrite slot, never a growing mouse-event queue.
+	_mutex.lock()
+	_drive = value.duplicate(true)
+	_drive.epoch = _latest.epoch if _latest != null else 1
+	_notify_locked()
+	_mutex.unlock()
 
 
 func control(paused: bool, speed: float) -> void:
@@ -153,6 +170,7 @@ func _run() -> void:
 		Scenarios.capacity(_world)
 	elif _mixed:
 		Scenarios.mixed(_world)
+	if _combat_lab: Scenarios.combat_lab(_world)
 	_terrain_view = _world.terrain.detached()
 	_mutex.lock()
 	var paused: bool = _paused
@@ -163,6 +181,7 @@ func _run() -> void:
 	_publish(paused, speed, selected, probe)
 	var last: int = Time.get_ticks_usec()
 	var debt: float = 0.0
+	var tick: int = 0
 	while true:
 		var now: int = Time.get_ticks_usec()
 		if not paused:
@@ -178,6 +197,8 @@ func _run() -> void:
 		var next_probe: int = _probe
 		var commands: Array[Dictionary] = _commands
 		_commands = []
+		var drive_input: Dictionary = _drive
+		_drive = {}
 		_mutex.unlock()
 		if closing:
 			# Shutdown cancels unexecuted admissions with receipts, rather than
@@ -190,6 +211,7 @@ func _run() -> void:
 		paused = next_paused
 		if paused:
 			debt = 0.0
+			_world.combat.set_control(_world, {"enabled": false})
 		speed = next_speed
 		selected = next_selected
 		probe = next_probe
@@ -209,6 +231,8 @@ func _run() -> void:
 					_terrain_view = _world.terrain.detached()
 					_steps_cost.clear()
 					_worker_ids.clear()
+					_slow_frame = null
+					drive_input = {}
 					debt = 0.0
 					last = Time.get_ticks_usec()
 					io_result.reason = "loaded"
@@ -226,6 +250,8 @@ func _run() -> void:
 				trace.received_usec = Time.get_ticks_usec()
 			if command.get("epoch", _epoch) != _epoch:
 				replies.append({"seq": command.seq, "kind": command.get("kind", ""), "at_ms": _world.elapsed_ms, "ok": false, "reason": "session_changed"})
+			elif paused and command.get("kind", "") == "action":
+				replies.append({"seq": command.seq, "kind": "action", "at_ms": _world.elapsed_ms, "ok": false, "reason": "paused"})
 			elif command.get("kind", "") in ["save", "load"]:
 				var state: Dictionary = {}
 				if command.kind == "save" and not _io.busy:
@@ -238,6 +264,8 @@ func _run() -> void:
 			if not trace.is_empty() and replies.size() > reply_count:
 				trace.applied_usec = Time.get_ticks_usec()
 				replies.back().trace = trace
+		if not paused and not drive_input.is_empty() and drive_input.epoch == _epoch:
+			_world.combat.set_control(_world, drive_input)
 		_world.flush_topology()
 		if _terrain_view.revision != _world.terrain.revision:
 			_terrain_view = _world.terrain.detached()
@@ -246,15 +274,18 @@ func _run() -> void:
 		if debt > MAX_DEBT_USEC:
 			_overload_usec += debt - MAX_DEBT_USEC
 			debt = MAX_DEBT_USEC # Time demand is capped; no committed effect is dropped.
-		if not paused and debt >= STEP_USEC:
+		var delta_ms: int = (tick + 1) * 1000 / _sim_hz - tick * 1000 / _sim_hz
+		var step_usec: int = delta_ms * 1000
+		if not paused and debt >= step_usec:
 			var begin: int = Time.get_ticks_usec()
-			_world.step()
+			_world.step(delta_ms)
+			tick += 1
 			_steps_cost.append(Time.get_ticks_usec() - begin)
 			if _steps_cost.size() > 4096:
 				_steps_cost = _steps_cost.slice(2048)
 			for lane: RefCounted in _world.lanes:
 				_worker_ids[lane.thread_id] = true
-			debt -= STEP_USEC
+			debt -= step_usec
 			_publish(paused, speed, selected, probe)
 		elif changed:
 			_publish(paused, speed, selected, probe)
@@ -262,7 +293,7 @@ func _run() -> void:
 			_wake.wait()
 		else:
 			# Godot Semaphore has no timed wait. Sleep rather than busy-spin.
-			OS.delay_usec(clampi(int((STEP_USEC - debt) / speed), 100, 2000))
+			OS.delay_usec(clampi(int((step_usec - debt) / speed), 100, 2000))
 	# Complete an admitted cold I/O job once even when closing the session.
 	_io.close()
 	var final_io: Dictionary = _io.poll()
@@ -281,6 +312,9 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 	frame.world_ms = _world.elapsed_ms
 	frame.speed = speed
 	frame.paused = paused
+	frame.interpolation_ms = 1000.0 / _sim_hz
+	frame.combat = _world.combat.view()
+	frame.cooldowns = _world.State.copy(_world.combat.cooldowns.get(1, {}))
 	for page: RefCounted in _world.pages:
 		frame.ids.append_array(page.ids)
 		frame.positions.append_array(page.positions)
@@ -288,90 +322,93 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 		frame.modes.append_array(page.modes)
 		frame.flight.append_array(page.flight)
 		frame.radii.append_array(page.radii)
+		frame.aims.append_array(page.aims)
 		var base: int = frame.visuals.size()
 		frame.visuals.resize(base + page.ids.size())
 		for row: int in page.ids.size():
 			# Small display codes, not a presentation dependency in simulation.
-			if page.modes[row] == World.Units.Mode.IDLE and _world.attack_due[base + row] > frame.world_ms:
-				frame.visuals[base + row] = Frame.Visual.MELEE # Includes one-shot manual attacks without a combat order.
-			elif page.modes[row] == World.Units.Mode.HARVEST:
-				frame.visuals[base + row] = Frame.Visual.HARVEST
-			elif page.cargo[row] > 0:
-				frame.visuals[base + row] = Frame.Visual.CARRY
+			if frame.combat.has(page.ids[row]):
+				frame.visuals[base + row] = Frame.Visual.SHOOT if frame.combat[page.ids[row]].kind in ["shot", "fan"] else Frame.Visual.MELEE
+			elif page.modes[row] == World.Units.Mode.HARVEST: frame.visuals[base + row] = Frame.Visual.HARVEST
+			elif page.cargo[row] > 0: frame.visuals[base + row] = Frame.Visual.CARRY
 	for id: int in _world.actions:
 		if not _world.actor_slots.has(id):
 			continue
 		var slot: int = _world.actor_slots[id]
 		if frame.modes[slot] == World.Units.Mode.ACTION:
 			frame.visuals[slot] = ACTION_VISUALS.get(_world.actions[id].kind, Frame.Visual.IDLE)
-	for id: int in _world.combat.orders:
-		if _world.actor_slots.has(id):
-			var slot: int = _world.actor_slots[id]
-			if frame.modes[slot] == World.Units.Mode.IDLE and _world.attack_due[slot] > frame.world_ms:
-				frame.visuals[slot] = Frame.Visual.SHOOT if _world.combat.orders[id].ranged else Frame.Visual.MELEE
 	if _poses.is_empty() or _poses.back().world_ms != frame.world_ms:
 		var pose := Frame.Pose.new()
 		pose.world_ms = frame.world_ms
 		pose.completed_usec = Time.get_ticks_usec()
 		pose.positions = frame.positions # Detached once, immutable in both owners.
 		pose.ids = frame.ids
+		pose.projectile_segments = _world.combat.projectile_segments
+		pose.action_segments = _world.combat.action_segments
 		var offset: int = 0
 		for page: RefCounted in _world.pages:
 			for row: int in page.motion:
 				pose.motion[offset + row] = page.motion[row] # Immutable after this step.
 			offset += page.ids.size()
 		_poses.append(pose)
-		if _poses.size() > 8:
+		while _poses.size() > 2 and _poses[1].world_ms < frame.world_ms - 100:
 			_poses.pop_front()
 	frame.history = _poses.duplicate()
-	if _object_revision != _world.objects.layout_revision:
-		_object_revision = _world.objects.layout_revision
-		_object_view = _world.objects.layout()
-		_actor_view = _world.actor_slots.duplicate()
-		_side_view = PackedByteArray() # Previous Frames retain their immutable column.
-		_side_view.resize(frame.ids.size())
-		for slot: int in frame.ids.size():
-			_side_view[slot] = int(_world.objects.records.get(frame.ids[slot], {}).get("side", 0))
-	frame.objects = _object_view
-	frame.sides = _side_view
-	if _sight_revision != _world.sight.revision:
-		_sight_revision = _world.sight.revision
-		_loss_view = _world.sight.smooth_loss.to_byte_array()
-	if _perception_revision != _world.perception.revision:
-		_perception_revision = _world.perception.revision
-		_perception_view = {"revision": _perception_revision, "tiles": _world.perception.tiles.duplicate(),
-			"loss_revision": _sight_revision, "loss": _loss_view,
-			"softness": _world.perception.softness.duplicate(), "explored": _world.perception.explored.duplicate(), "ground": _world.perception.ground.duplicate(),
-			"memories": _world.State.copy(_world.perception.memories), "fringe": _world.State.copy(_world.perception.fringe)}
-	frame.perception = _perception_view
-	frame.visible = _world.perception.visible.duplicate()
-	frame.actor_slots = _actor_view
-	for bolt: Dictionary in _world.combat.bolts.values():
-		frame.projectiles.append(bolt.position)
-		frame.projectile_velocities.append(bolt.velocity)
-	frame.inspected = _world.describe(selected)
-	frame.player = frame.inspected if selected == 1 else _world.describe(1)
-	frame.counters = _world.counters()
-	frame.counters.snapshot_usec = _snapshot_usec
-	frame.counters.overload_demand_usec = _overload_usec
-	frame.counters.worker_thread_ids = _worker_ids.keys()
-	frame.counters.step_window_usec = _steps_cost.duplicate()
-	frame.tides = _world.environment.tides.duplicate()
-	frame.mobile_cells = _world.environment.mobile_cells.duplicate()
-	frame.source_enabled = _world.environment.enabled.duplicate()
-	frame.room_temperature = _world.environment.room_temperature.duplicate()
-	frame.terrain = _terrain_view
-	if probe >= 0 and probe < _world.terrain.blocked.size():
-		var values := PackedInt32Array()
-		values.resize(7)
-		_world.environment.sample_raw(probe, values, 0)
-		var elements := PackedInt32Array()
-		for channel: int in 5:
-			elements.append(_world.environment.element(probe, values, 0, channel))
-		frame.tile_probe = {"tile": probe, "temperature": _world.environment.temperature_at(probe, values, 0),
-			"ambient": _world.environment.ambient_at(probe), "heat": values[0], "cold": values[1],
-			"elements": elements, "room": _world.terrain.rooms[probe], "blocked": _world.terrain.blocked[probe],
-			"substrate": _world.terrain.substrate(probe), "cover": _world.terrain.cover[probe], "flooring": _world.terrain.flooring[probe]}
+	var full: bool = _slow_frame == null or frame.world_ms - _slow_frame.world_ms >= 100 or selected != _slow_selected or probe != _slow_probe or _object_revision != _world.objects.layout_revision or not _ready_receipts.is_empty() or not _world.outcomes.is_empty()
+	if full:
+		if _object_revision != _world.objects.layout_revision:
+			_object_revision = _world.objects.layout_revision
+			_object_view = _world.objects.layout()
+			_actor_view = _world.actor_slots.duplicate()
+			_side_view = PackedByteArray() # Previous Frames retain their immutable column.
+			_side_view.resize(frame.ids.size())
+			for slot: int in frame.ids.size():
+				_side_view[slot] = int(_world.objects.records.get(frame.ids[slot], {}).get("side", 0))
+		frame.objects = _object_view
+		frame.sides = _side_view
+		if _sight_revision != _world.sight.revision:
+			_sight_revision = _world.sight.revision
+			_loss_view = _world.sight.smooth_loss.to_byte_array()
+		if _perception_revision != _world.perception.revision:
+			_perception_revision = _world.perception.revision
+			_perception_view = {"revision": _perception_revision, "tiles": _world.perception.tiles.duplicate(),
+				"loss_revision": _sight_revision, "loss": _loss_view,
+				"softness": _world.perception.softness.duplicate(), "explored": _world.perception.explored.duplicate(), "ground": _world.perception.ground.duplicate(),
+				"memories": _world.State.copy(_world.perception.memories), "fringe": _world.State.copy(_world.perception.fringe)}
+		frame.perception = _perception_view
+		frame.visible = _world.perception.visible.duplicate()
+		frame.actor_slots = _actor_view
+		for bolt: Dictionary in _world.combat.bolts.values():
+			frame.projectiles.append(bolt.position)
+			frame.projectile_velocities.append(bolt.velocity)
+		frame.inspected = _world.describe(selected)
+		frame.player = frame.inspected if selected == 1 else _world.describe(1)
+		frame.counters = _world.counters()
+		frame.counters.snapshot_usec = _snapshot_usec
+		frame.counters.overload_demand_usec = _overload_usec
+		frame.counters.worker_thread_ids = _worker_ids.keys()
+		frame.counters.step_window_usec = _steps_cost.duplicate()
+		frame.tides = _world.environment.tides.duplicate()
+		frame.mobile_cells = _world.environment.mobile_cells.duplicate()
+		frame.source_enabled = _world.environment.enabled.duplicate()
+		frame.room_temperature = _world.environment.room_temperature.duplicate()
+		frame.terrain = _terrain_view
+		if probe >= 0 and probe < _world.terrain.blocked.size():
+			var values := PackedInt32Array()
+			values.resize(7)
+			_world.environment.sample_raw(probe, values, 0)
+			var elements := PackedInt32Array()
+			for channel: int in 5:
+				elements.append(_world.environment.element(probe, values, 0, channel))
+			frame.tile_probe = {"tile": probe, "temperature": _world.environment.temperature_at(probe, values, 0),
+				"ambient": _world.environment.ambient_at(probe), "heat": values[0], "cold": values[1],
+				"elements": elements, "room": _world.terrain.rooms[probe], "blocked": _world.terrain.blocked[probe],
+				"substrate": _world.terrain.substrate(probe), "cover": _world.terrain.cover[probe], "flooring": _world.terrain.flooring[probe]}
+		_slow_frame = frame
+		_slow_selected = selected
+		_slow_probe = probe
+	else:
+		for field: String in Frame.SLOW_FIELDS: frame.set(field, _slow_frame.get(field))
 	_snapshot_usec += Time.get_ticks_usec() - start
 	frame.published_usec = Time.get_ticks_usec()
 	_mutex.lock()

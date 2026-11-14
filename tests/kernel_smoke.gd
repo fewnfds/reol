@@ -26,6 +26,8 @@ func _run() -> void:
 	for step: int in 120:
 		serial.step()
 		parallel.step()
+		# Observe a full second and a real delivery in both lane configurations.
+		if step >= 19 and serial.stored > 0 and parallel.stored > 0: break
 	# Request queues scale with active lanes. Worker counts may change when a
 	# request starts; check physical/resource invariants rather than a full replay.
 	for world: RefCounted in [serial, parallel]:
@@ -38,17 +40,17 @@ func _run() -> void:
 	page.positions[1] = page.positions[0]
 	page.health[1] = 20
 	check(serial.command({"kind": "heal", "actor": 2}).ok, "Heal rejected")
-	check(serial.command({"kind": "attack", "actor": 1, "target": 2}).ok and page.health[1] == 35, "Heal before hit did not survive")
-	serial.attack_due[0] = 0
+	serial.combat.damage(serial, 1, 2, 25, serial.elapsed_ms)
+	check(page.health[1] == 35, "Heal before hit did not survive")
 	page.health[1] = 20
-	serial.command({"kind": "attack", "actor": 1, "target": 2})
+	serial.combat.damage(serial, 1, 2, 25, serial.elapsed_ms)
 	check(not serial.command({"kind": "heal", "actor": 2}).ok and page.health[1] == 0, "Hit before heal resurrected dead unit")
 	var deaths: int = serial.deaths
 	serial.kill(2)
 	check(serial.deaths == deaths, "Death was committed twice")
 	serial.reservations[serial.source_objects[page.source_ids[2]]] = 3
 	page.modes[2] = 1
-	serial.command({"kind": "stop", "actor": 3})
+	serial.command({"kind": "interrupt", "actor": 3})
 	check(not serial.reservations.has(serial.source_objects[page.source_ids[2]]), "Cancel leaked a reservation")
 	var door: int = Terrain.index(Vector2i(182, 184))
 	check(serial.terrain.blocked[door] == 0 and serial.terrain.enclosures[door] == 1, "Door must be walkable and enclose a room")
@@ -104,7 +106,7 @@ func _inventory_session() -> void:
 	check(world.environment.rng.randi() == loaded.environment.rng.randi(), "Restored random stream lost its seed/state")
 	check(snapshot.domains.objects.records[1].inventory.get("wood", 0) == 0, "Captured inventory aliases the live world")
 	loaded.command({"kind": "put", "actor": 1, "target": chest, "amount": 7})
-	loaded.command({"kind": "stop", "actor": 1})
+	loaded.command({"kind": "interrupt", "actor": 1})
 	check(loaded.objects.amount(1, "wood") == 7 and not loaded.actions.has(1), "Cancel erased committed goods")
 	page = loaded.pages[0]
 	page.positions[0] = Terrain.center(loaded.objects.records[chest].tile)
@@ -185,7 +187,7 @@ func _build_and_live() -> void:
 	world.objects.records[target].remaining_ms = 500
 	for step: int in 4:
 		world.step()
-	world.command({"kind": "stop", "actor": 1})
+	world.command({"kind": "interrupt", "actor": 1})
 	var remaining: int = world.objects.records[target].remaining_ms
 	check(remaining > 0 and remaining < 500 and world.objects.amount(target, "wood") == 8, "Interrupted construction lost material or paid work")
 	check(world.command({"kind": "continue_build", "target": target}).ok, "Construction could not resume")
@@ -314,13 +316,13 @@ func _thread_boundary() -> void:
 	frame = runner.poll().frame
 	check(frame.paused, "Pause was not adopted at a boundary")
 	var paused_at: int = frame.world_ms
-	var command: int = runner.send({"kind": "stop", "actor": 1})
+	var command: int = runner.send({"kind": "interrupt", "actor": 1})
 	OS.delay_msec(40)
 	var result: Dictionary = runner.poll()
 	check(result.frame.world_ms == paused_at, "Paused clock continued advancing")
 	check(result.receipts.size() == 1 and result.receipts[0].seq == command, "Paused command receipt missing or duplicated")
 	check(runner.poll().receipts.is_empty(), "Receipt replayed after consumption")
-	var admitted: int = runner.send({"kind": "stop", "actor": 1})
+	var admitted: int = runner.send({"kind": "interrupt", "actor": 1})
 	runner.close()
 	var closing: Dictionary = runner.poll()
 	check(closing.receipts.size() == 1 and closing.receipts[0].seq == admitted, "Shutdown silently lost an admitted command")

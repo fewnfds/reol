@@ -27,7 +27,7 @@ def hardware() -> dict:
 
 def load_reference(path: Path) -> dict:
     data = json.loads(path.read_text(encoding="utf-8"))
-    if data.get("format") not in {"reol-performance-baseline-v1", "reol-performance-check-v1"} or data.get("scenario") != "capacity-v1":
+    if data.get("format") not in {"reol-performance-baseline-v1", "reol-performance-check-v1"} or data.get("scenario") not in {"capacity-v1", "capacity-act-v1"}:
         raise ValueError("Expected a portable baseline or a completed feature-check summary")
     if data.get("status", "complete") != "complete" or not data.get("samples"):
         raise ValueError("Reference must contain completed, usable measured samples")
@@ -57,7 +57,7 @@ def classify(report: dict, args: argparse.Namespace) -> dict:
     reasons = []
     if report.get("capture_exit_code", 1) or not report.get("release"):
         reasons.append("capture_failed_or_not_release")
-    if report.get("scenario") != "capacity-v1" or report.get("fog") is not False or not capacity_view(report.get("camera")):
+    if report.get("scenario") not in {"capacity-v1", "capacity-act-v1"} or report.get("fog") is not False or not capacity_view(report.get("camera")):
         reasons.append("workload_or_view_changed")
     for name in ["actual_speed", "requested_speed", "actors", "wall_seconds", "world_delta_ms", "moved_cells_delta", "step_mean_ms"]:
         value = report.get(name)
@@ -95,10 +95,11 @@ class Check:
         self.out = args.out.resolve()
         self.out.mkdir(parents=True, exist_ok=False)
         self.identities = {p: hashlib.sha256(p.read_bytes()).hexdigest() for p in [args.binary, args.binary.with_suffix(".pck")]}
-        self.result = {"format": "reol-performance-check-v1", "status": "running", "scenario": "capacity-v1",
+        self._workload = None
+        self.result = {"format": "reol-performance-check-v1", "status": "running", "scenario": "capacity-act-v1",
                        "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "baseline": str(args.baseline),
                        "pack_sha256": self.identities[args.binary.with_suffix(".pck")], "hardware": hardware(),
-                       "config": {"fps": args.fps, "workers": args.workers, "fog": False,
+                       "config": {"fps": args.fps, "workers": args.workers, "fog": False, "sim_hz": 60,
                                   "camera": {"zoom": .21, "position": [7040, 7040]}},
                        "criteria": {key: str(value) if isinstance(value, Path) else value for key, value in vars(args).items()},
                        "trials": [], "results": [], "samples": []}
@@ -123,6 +124,9 @@ class Check:
         (self.out / "report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     def compare(self, sample: dict, reference: dict, renderer: str) -> dict:
+        if (self.result["scenario"] != self.reference["scenario"]
+                or self.result["config"]["sim_hz"] != self.reference["config"].get("sim_hz", 20)):
+            return {"comparable": False, "reason": "scenario_or_sim_hz_changed"}
         same_host = all(self.result["hardware"].get(key) == self.reference["hardware"].get(key) for key in ["cpu", "logical_cpus"])
         if (not same_host or renderer != self.reference["hardware"].get("renderer")
                 or any(self.result["config"][key] != self.reference["config"].get(key) for key in ["fps", "workers", "fog"])
@@ -149,6 +153,11 @@ class Check:
             check = {"valid": False, "reasons": ["requested_configuration_mismatch"]}
         trial = {"speed": speed, "actors": actors, "file": name + ".json", "classification": check}
         if check["valid"]:
+            workload = (report["scenario"], report.get("sim_hz", 20))
+            if self._workload is not None and workload != self._workload:
+                raise RuntimeError("Scenario or simulation frequency changed during the check")
+            self._workload = workload
+            self.result["scenario"], self.result["config"]["sim_hz"] = workload
             trial["metrics"] = metrics(report, seconds)
             trial["comparison"] = self.compare(trial["metrics"], self.points[speed], report["renderer"])
             self.result["hardware"]["renderer"] = report["renderer"]
