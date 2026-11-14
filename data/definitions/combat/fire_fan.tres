@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="CombatAbilityDef" load_steps=7 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/ability_def.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/delivery_def.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/effect_def.gd" id="3"]
+
+[sub_resource type="Resource" id="Delivery"]
+script = ExtResource("2")
+kind = "projectile"
+count = 7
+spread = 0.13
+radius = 0.17
+speed = 12.0
+lifetime_ms = 1500
+target_filter = "hostile"
+
+[sub_resource type="Resource" id="Effect0"]
+script = ExtResource("3")
+kind = "damage"
+magnitude = 0.8
+
+[sub_resource type="Resource" id="Effect1"]
+script = ExtResource("3")
+kind = "dot"
+status_id = "burn"
+magnitude = 0.16
+duration_ms = 2200
+period_ms = 550
+
+[resource]
+script = ExtResource("1")
+id = "fire_fan"
+title = "焰扇"
+description = ""
+windup = 150
+active = 1
+recovery = 230
+move = 0.7
+stat = "ranged"
+repeat_held = false
+cooldown = 2400
+free_move = 0.7
+tint = Color(1.0, 0.4627450980392157, 0.27058823529411763, 1)
+delivery = SubResource("Delivery")
+effects = Array[ExtResource("3")]([SubResource("Effect0"), SubResource("Effect1")])

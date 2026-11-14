@@ -5,7 +5,7 @@ extends RefCounted
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 
 
-static func combat_lab(world: RefCounted, mode: String = "light") -> void:
+static func combat_lab(world: RefCounted, mode: String = "light", loadout: String = "sword") -> void:
 	# Developer starting fixture; uses the same bodies, executor and save boundary.
 	for actor: int in world.actor_slots:
 		world.objects.records[actor].erase("combatant")
@@ -13,6 +13,11 @@ static func combat_lab(world: RefCounted, mode: String = "light") -> void:
 	world.release(1)
 	world.objects.records[1].autonomous = false
 	world.objects.records[1]["practice_mode"] = mode
+	world.objects.records[1]["ability_loadout"] = loadout
+	var profile: Dictionary = world.combat.Defs.LOADOUTS[loadout]
+	world.objects.unequip(1, "weapon")
+	world.objects.equip(1, profile.equipment)
+	world.Equipment.rebuild(world, 1)
 	world.pages[0].modes[0] = world.Units.Mode.IDLE
 	world.pages[0].positions[0] = Vector2(144.5, 150.5)
 	# A small calibration route in this same persistent world: wall, one-cell door, L corner.
@@ -38,7 +43,7 @@ static func combat_lab(world: RefCounted, mode: String = "light") -> void:
 		person["combat_style"] = "trained"
 		person["alert_range"] = 8.0
 		person.name = "射手" if index == 2 else ("重剑客" if index == 1 else "剑客")
-		person["heavy"] = index == 1
+		person["ability_loadout"] = ["light", "heavy", "archer"][index]
 		var weapon: String = "short_bow" if index == 2 else "iron_sword"
 		if not person.equipment.is_empty():
 			world.objects.unequip(actor, "weapon")

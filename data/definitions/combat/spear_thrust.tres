@@ -1,0 +1,42 @@
+[gd_resource type="Resource" script_class="CombatAbilityDef" load_steps=7 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/ability_def.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/delivery_def.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/effect_def.gd" id="3"]
+
+[sub_resource type="Resource" id="Delivery"]
+script = ExtResource("2")
+kind = "melee"
+reach = 2.65
+half_angle = 0.23
+
+[sub_resource type="Resource" id="Effect0"]
+script = ExtResource("3")
+kind = "damage"
+magnitude = 1.25
+
+[sub_resource type="Resource" id="Effect1"]
+script = ExtResource("3")
+kind = "control"
+duration_ms = 130
+push = 0.18
+punish_ms = 0
+
+[resource]
+script = ExtResource("1")
+id = "spear_thrust"
+title = "长锋刺"
+description = "窄角长距离，刺出时前踏；侧面是弱点。"
+windup = 110
+active = 70
+recovery = 190
+move = 0.55
+stat = "melee"
+repeat_held = false
+lunge = 0.22
+lunge_from = 70
+lunge_to = 140
+step_hit = 210
+step_miss = 280
+free_move = 0.55
+delivery = SubResource("Delivery")
+effects = Array[ExtResource("3")]([SubResource("Effect0"), SubResource("Effect1")])

@@ -28,6 +28,7 @@ var melee_damage := PackedInt32Array()
 var ranged_damage := PackedInt32Array()
 var armor := PackedInt32Array()
 var move_speed := PackedFloat32Array()
+var move_scales := PackedFloat32Array() # Derived timed-effect multipliers, not save state.
 var tolerance := PackedFloat32Array()
 var thermal_carry := PackedFloat32Array()
 var energy := PackedInt32Array()
@@ -78,6 +79,7 @@ func add_row(id: int, tile: int) -> int:
 	ranged_damage.append(int(Equipment.BASE.ranged))
 	armor.append(int(Equipment.BASE.armor))
 	move_speed.append(WALK_SPEED)
+	move_scales.append(1.0)
 	tolerance.append(MAX_TOLERANCE)
 	thermal_carry.append(0.0)
 	flight.append(0)
@@ -98,7 +100,7 @@ func add_row(id: int, tile: int) -> int:
 
 
 func resize_stats() -> void:
-	for field: String in ["max_health", "melee_damage", "ranged_damage", "armor", "move_speed"]:
+	for field: String in ["max_health", "melee_damage", "ranged_damage", "armor", "move_speed", "move_scales"]:
 		if get(field).size() != ids.size():
 			var column: Variant = get(field)
 			column.resize(ids.size())
@@ -142,7 +144,7 @@ func advance(navigation: RefCounted) -> void:
 				continue
 		var point: Vector2 = positions[row]
 		if cursor_direction(row).length_squared() > 0.000001: aims[row] = cursor_direction(row)
-		var speed: float = move_speed[row]
+		var speed: float = move_speed[row] * move_scales[row]
 		var available: float = speed * delta_ms / 1000.0
 		var cursor: int = route_cursors[row]
 		var knots := PackedVector3Array()

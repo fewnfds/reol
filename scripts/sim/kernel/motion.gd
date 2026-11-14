@@ -23,6 +23,21 @@ static func hit_fraction(from: Vector2, to: Vector2, before: Vector2, current: V
 			return lerpf(a.z, b.z, fraction)
 	return -1.0
 
+static func circles_hit(from: Vector2, to: Vector2, path: PackedVector3Array, before: Vector2, current: Vector2, knots: PackedVector3Array, radius: float) -> float:
+	if path.is_empty(): return hit_fraction(from, to, before, current, radius, knots)
+	var times: Array[float] = [0.0, 1.0]
+	for points: PackedVector3Array in [path, knots]:
+		for point: Vector3 in points:
+			if point.z > 0 and point.z < 1: times.append(point.z)
+	times.sort()
+	for index: int in range(1, times.size()):
+		var low: float = times[index - 1]
+		var high: float = times[index]
+		if high <= low: continue
+		var hit: float = _hit(at(from, to, path, low) - at(before, current, knots, low), at(from, to, path, high) - at(before, current, knots, high), radius)
+		if hit >= 0: return lerpf(low, high, hit)
+	return -1.0
+
 
 static func _hit(from: Vector2, to: Vector2, radius: float) -> float:
 	return 0.0 if from.length_squared() <= radius * radius else Geometry2D.segment_intersects_circle(from, to, Vector2.ZERO, radius)

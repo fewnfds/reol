@@ -76,8 +76,9 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 	environment.links.resize(environment.mobile_units.size())
 	environment.rebuild_static()
 	environment.index_mobile(world.pages, world.actor_slots)
-	if not world.nature.rebuild(world) or not world.combat.valid(world):
+	if not world.nature.rebuild(world) or not world.combat.valid(world) or not world.effects.valid(world) or not world.areas.valid(world) or not world.implements.valid(world):
 		return null
+	world.effects.prepare(world, world.elapsed_ms)
 	if not world.regions.valid(world):
 		return null
 	if not world.person_events.rebuild(world.elapsed_ms):

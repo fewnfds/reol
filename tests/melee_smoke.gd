@@ -103,7 +103,7 @@ func projectiles() -> void:
 func reactions() -> void:
 	var w: RefCounted = fixture()
 	w.objects.records[2]["combat_style"] = "trained"
-	w.objects.records[2]["heavy"] = true
+	w.objects.records[2]["ability_loadout"] = "heavy"
 	w.combat.request(w, 2, "primary", Vector2.LEFT)
 	var ready: int = w.combat.status[2].ready_ms
 	var hit: Dictionary = w.combat.damage(w, 1, 2, 1, 0, Vector2.LEFT, 1, 200, 0.35, {"heavy_hit": true, "action": "slash_3"})
@@ -178,7 +178,7 @@ func late_contacts() -> void:
 	dead.pages[0].positions[1] = dead.pages[0].positions[0] + Vector2(1.0, 0)
 	dead.pages[0].health[1] = 1
 	dead.objects.records[2]["combat_style"] = "trained"
-	dead.objects.records[2]["heavy"] = true
+	dead.objects.records[2]["ability_loadout"] = "heavy"
 	dead.combat.request(dead, 2, "primary", Vector2.LEFT)
 	dead.combat.launch(1, dead.pages[0].positions[0], dead.pages[0].positions[1], 0)
 	advance(dead, 32)

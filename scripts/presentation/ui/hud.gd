@@ -13,6 +13,7 @@ const CharacterPanel = preload("res://scripts/presentation/ui/character_panel.gd
 const InventoryPanel = preload("res://scripts/presentation/ui/inventory_panel.gd")
 const Bindings = preload("res://scripts/presentation/ui/input_bindings.gd")
 const InputSettings = preload("res://scripts/presentation/ui/input_settings.gd")
+const CombatDefs = preload("res://scripts/sim/kernel/action_defs.gd")
 const BASE_SCALE: float = 0.5
 var ui_percent: int = 100
 var minimap := Minimap.new()
@@ -72,6 +73,8 @@ var _direct: bool = true
 var feedback_settings: RefCounted
 var _practice_bar := HBoxContainer.new()
 var _practice_hint: Label
+var _loadout_choice := OptionButton.new()
+var _loadout_ids: Array[String] = []
 
 func _ready() -> void:
 	Actions.load_definitions()
@@ -94,6 +97,15 @@ func _ready() -> void:
 	_tides = Style.label(_top)
 	_top.add_child(_practice_bar)
 	for row: Array in [["轻敌", "light"], ["重敌", "heavy"], ["混战", "mixed"]]: _button(_practice_bar, "combat_practice", row[0] + " · 重练", "", {"mode": row[1]})
+	_practice_bar.add_child(_loadout_choice)
+	_loadout_choice.focus_mode = Control.FOCUS_NONE
+	_loadout_choice.tooltip_text = "选择技能范例并新开练习世界；不会覆盖存档。"
+	for profile: Dictionary in CombatDefs.LOADOUTS.values():
+		if not profile.playable: continue
+		_loadout_ids.append(profile.id)
+		_loadout_choice.add_item(profile.title)
+	_loadout_choice.item_selected.connect(func(index: int):
+		if _frame != null: requested.emit("combat_practice", {"loadout": _loadout_ids[index], "mode": _frame.practice_mode}))
 	_practice_hint = Style.label(_practice_bar, "")
 	_practice_bar.hide()
 	var dock: PanelContainer = _panel(self, Control.PRESET_CENTER_BOTTOM, Vector4(-292, -128, 292, -8))
@@ -236,12 +248,19 @@ func refresh_bindings() -> void:
 func _refresh_control_hints() -> void:
 	if bindings == null or _frame == null: return
 	var weapon: String = str(_frame.player.get("equipment", {}).get("weapon", ""))
-	var step_left: float = maxf(0, int(_frame.cooldowns.get("step", 0)) - _frame.world_ms) / 1000.0
-	var skill_left: float = maxf(0, int(_frame.cooldowns.get("skill", 0)) - _frame.world_ms) / 1000.0
+	var profile: Dictionary = _frame.loadout
+	var primary: Dictionary = CombatDefs.ACTIONS[profile.primary]
+	var skill: Dictionary = CombatDefs.ACTIONS[profile.skill]
+	var step_left: float = maxf(0, int(_frame.cooldowns.get(CombatDefs.ACTIONS[profile.step].cd_group, 0)) - _frame.world_ms) / 1000.0
+	var skill_left: float = maxf(0, int(_frame.cooldowns.get(skill.cd_group, 0)) - _frame.world_ms) / 1000.0
 	_player_buttons.context.text = "%s %s" % [bindings.hint("game_context"), "交互" if _direct else "ACT"]
 	var movement := PackedStringArray()
 	for id: String in ["act_up", "act_left", "act_down", "act_right"]: movement.append(bindings.hint(id))
-	set_text(_weapon, ("ACT · %s · %s移动 鼠标瞄准 · %s%s · %s武器技 %.1fs · %s闪步 %.1fs" % ["弓" if weapon.begins_with("short_bow") else ("剑" if not weapon.is_empty() else "徒手"), "/".join(movement), bindings.hint("act_primary"), "按住连射" if weapon.begins_with("short_bow") else "三连", bindings.hint("act_skill"), skill_left, bindings.hint("act_step"), step_left]) if _direct else "交互／营造 · 左键选择 · 右键对象菜单 · %s返回ACT" % bindings.hint("game_context"))
+	var info: String = "%s%s · %s%s %.1fs · %s闪步 %.1fs" % [bindings.hint("act_primary"), primary.title + ("（按住）" if primary.repeat else ""), bindings.hint("act_skill"), skill.title, skill_left, bindings.hint("act_step"), step_left]
+	var description: String = str(profile.description)
+	for value: Dictionary in _frame.implements.values():
+		if value.owner == 1: description += "  飞剑 %d/%d · %s" % [value.hp, CombatDefs.ACTIONS[value.ability].delivery.durability, {"stowed": "已回收", "outbound": "派出中", "returning": "返航中", "dropped": "受阻在外，靠近后召回", "broken": "损毁，重练可重新体验"}.get(value.phase, value.phase)]
+	set_text(_weapon, ("%s · %s\n%s" % [profile.title, info, description]) if _direct else "交互／营造 · 左键选择 · 右键对象菜单 · %s返回ACT" % bindings.hint("game_context"))
 
 func _clear(parent: Node) -> void:
 	for child: Node in parent.get_children():
@@ -298,7 +317,10 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 	_target = Actions.observed(frame, selected, use_fog)
 	var player: Dictionary = frame.player
 	_practice_bar.visible = not frame.practice_mode.is_empty()
-	if _practice_bar.visible: set_text(_practice_hint, "P2 · 轻击确认进退，重击抓收招 · 重练会新开练习世界")
+	if _practice_bar.visible:
+		set_text(_practice_hint, "切换范例／重练将新开世界")
+		var index: int = _loadout_ids.find(frame.loadout.id)
+		if index >= 0 and _loadout_choice.selected != index: _loadout_choice.select(index)
 	var calendar: Dictionary = frame.counters.get("calendar", {})
 	set_text(_clock, "%s %s  %.1fs" % [str(calendar.get("season", "")), str(calendar.get("weather", "")), frame.world_ms / 1000.0])
 	set_text(_performance, "FPS %d  %.2f / %.0f×" % [Engine.get_frames_per_second(), actual_speed, frame.speed])

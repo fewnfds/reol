@@ -1,15 +1,20 @@
 extends RefCounted
 ## Presentation classification, never used to settle an attack.
+const Defs = preload("res://scripts/sim/kernel/action_defs.gd")
 static func key(event: Dictionary) -> String:
 	return "%s:%s:%s:%s:%s:%s" % [event.get("epoch", 0), event.actor, event.get("activation", 0), event.get("target", 0), event.kind, event.at_ms]
 
 static func tone(event: Dictionary) -> String:
 	match str(event.kind):
-		"action_started": return "warning" if str(event.get("action", "")).begins_with("enemy_") else ""
+		"action_started": return "warning" if int(Defs.ACTIONS.get(event.get("action", ""), {}).get("post", 0)) > 0 else ""
 		"action_active":
-			if event.get("action") in ["shot", "fan", "enemy_shot"]: return "shot"
-			if event.get("action") == "step": return "step"
-			return "swing_heavy" if event.get("action") in ["slash_3", "cleave", "enemy_heavy"] else "swish"
+			var def: Dictionary = Defs.ACTIONS.get(event.get("action", ""), {})
+			if def.is_empty(): return ""
+			if def.stat == "ranged": return "shot"
+			if def.delivery.kind == "evade": return "step"
+			return "swing_heavy" if def.heavy_hit else "swish"
+		"area_trigger": return "heavy"
+		"implement_hit": return "armor"
 		"hit":
 			if event.get("target") == 1: return "hurt"
 			if event.get("armored", false): return "armor"

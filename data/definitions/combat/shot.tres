@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="CombatAbilityDef" load_steps=6 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/ability_def.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/delivery_def.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/effect_def.gd" id="3"]
+
+[sub_resource type="Resource" id="Delivery"]
+script = ExtResource("2")
+kind = "projectile"
+reach = 1.55
+half_angle = 1.0
+count = 1
+speed = 22.0
+
+[sub_resource type="Resource" id="Effect0"]
+script = ExtResource("3")
+kind = "damage"
+magnitude = 1.0
+
+[resource]
+script = ExtResource("1")
+id = "shot"
+windup = 160
+active = 1
+recovery = 220
+move = 0.8
+title = "射箭"
+stat = "ranged"
+repeat_held = true
+cooldown_group = "shot"
+description = "按住持续射箭，实体箭会碰及旁人。"
+free_move = 0.8
+delivery = SubResource("Delivery")
+effects = Array[ExtResource("3")]([SubResource("Effect0")])

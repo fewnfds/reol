@@ -1,0 +1,50 @@
+[gd_resource type="Resource" script_class="CombatAbilityDef" load_steps=7 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/ability_def.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/delivery_def.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/effect_def.gd" id="3"]
+
+[sub_resource type="Resource" id="Delivery"]
+script = ExtResource("2")
+kind = "melee"
+reach = 1.65
+half_angle = 1.1
+count = 1
+speed = 22.0
+
+[sub_resource type="Resource" id="Effect0"]
+script = ExtResource("3")
+kind = "damage"
+magnitude = 1.1
+
+[sub_resource type="Resource" id="Effect1"]
+script = ExtResource("3")
+kind = "control"
+duration_ms = 110
+push = 0.16
+punish_ms = 0
+
+[resource]
+script = ExtResource("1")
+id = "slash_2"
+windup = 80
+active = 70
+recovery = 170
+move = 0.3
+free_at = 220
+free_move = 0.75
+lunge = 0.18
+lunge_from = 50
+lunge_to = 120
+next_hit = 220
+next_miss = 280
+step_hit = 0
+step_miss = 190
+skill_hit = 190
+skill_miss = 240
+title = "回斩"
+stat = "melee"
+repeat_held = false
+cooldown_group = "slash_2"
+next_action = "slash_3"
+delivery = SubResource("Delivery")
+effects = Array[ExtResource("3")]([SubResource("Effect0"), SubResource("Effect1")])

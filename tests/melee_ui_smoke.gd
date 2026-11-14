@@ -32,6 +32,10 @@ func aim(id: int) -> Vector2:
 
 func mouse(button: MouseButton, pressed: bool, point: Vector2) -> void:
 	Input.warp_mouse(point)
+	var motion := InputEventMouseMotion.new()
+	motion.position = point
+	Input.parse_input_event(motion)
+	await process_frame
 	var event := InputEventMouseButton.new()
 	event.button_index = button
 	event.position = point
@@ -208,6 +212,8 @@ func _run() -> void:
 	current_scene = game
 	root.grab_focus()
 	if not await until(func(): return game.frame != null): check(false, "Melee game never ready"); quit(1); return
+	game.runner.send({"kind": "combat_practice", "mode": "light", "loadout": "sword"})
+	check(await until(func(): return game.frame.loadout.id == "sword" and game.frame.practice_mode == "light"), "Sword fixture unavailable")
 	await capture("start")
 	await light_fight()
 	await heavy_fight()

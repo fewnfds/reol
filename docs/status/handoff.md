@@ -1,16 +1,16 @@
 # 当前接续
 
-ACT＋弹幕改版已交付P0试玩底座、P1直接操控与P2单剑战斗测试包。旧A攻击移动、S停止、H警戒、点击追击与射击模式切换已移除；A/S保留WASD移动语义。当前能力/键位只查[FEATURES](features.md)，构建与规则/GUI/短窗原件只查[BASELINE](baseline.md)。
+ACT＋弹幕改版已交付P0试玩底座、P1直接操控、P2单剑切片，以及P3原生技能框架/八套范例。旧A攻击移动、S停止、H警戒、点击追击与射击模式开关已移除；A/S保留WASD语义。当前能力/键位只查[FEATURES](features.md)，构建与规则/GUI/短窗证据只查[BASELINE](baseline.md)。
 
-用户已授权完成P2并在实现后与顾问审查，由开发者核实取舍。本包已完成，独立程序在`build/windows/act-p2/`。日常入口已合并为根目录唯一的[启动.cmd](../../启动.cmd)：选1源码战斗、选2源码普通世界、选3当前成品战斗、选4编辑器；移除了根目录旧双入口与构建内重复的阶段脚本，后续不按阶段新增启动文件。顶栏可分别重开轻敌、重敌或混战，死亡也可重练；重练新开整个练习世界，不写存档。format9默认`user://act-p2-quicksave.reol`，P1程序/档和旧档保留。
+用户本轮授权先实现框架并多做技能范例，开发疑点与本机顾问讨论；当前已完成，独立包在`build/windows/act-p3/`。根目录唯一[启动.cmd](../../启动.cmd)：选1源码战斗、选2源码普通世界、选3当前P3成品、选4编辑器。默认火术＋混战，顶栏可切剑/弓/枪/火/冰/雷/毒/御剑和轻敌/重敌/混战；切换新开整个练习世界，不写存档，死亡也可重练。format10默认`user://act-p3-quicksave.reol`，P1/P2程序与旧档保留。
 
-P2实现帧表/缓冲/受击/敌人/反馈只维护在[规格](../../design/systems/combat_framework/act_and_barrage.md)第3/4/5/8节；实施范围与十分钟试玩路线见[主计划](../plans/foundation-priorities.md#p2方案先交付一把有性格的剑)。两位顾问实现静态审查及取舍见[研究](../../design/research/act_barrage_references.md#p2实现审查与交付取舍)，原件留本机`.local/advisor/p2-implementation-20261115/`。不采用让失衡绕过控制预算/必定额外延长原收招的建议；没有新增倒地起身、累计破势条或攻击者权威卡肉。
+P2帧表/受击/反馈在[规格](../../design/systems/combat_framework/act_and_barrage.md)第3/4/5/8节。P3编辑方式、机制语义与后续新增机制接缝在第10节；实施状态在[主计划P3](../plans/foundation-priorities.md#p3方案技能制作与远程样例同步推进)。资源集中`data/definitions/combat/`，类型在`scripts/sim/definitions/combat/`；`combat.gd`保动作与统一HP提交，新弹体帮助模块、`combat_effects.gd`、`combat_areas.gd`、`implements.gd`按机制分工，仍在唯一World中运行。
 
-用户随后提出普通弹体、实体飞剑/回旋器、无弹道攻击，以及减速/持续伤害、散射/追踪，并要求和顾问研究可复用战斗框架、插件与Godot原生制作方式。选型研究已完成：建议原生Resource编辑＋校验为脱离值快照＋扩展原World执行器，编辑层优先隔离试用YARD；没有安装产品插件或改写战斗代码。下一实施建议见[主计划P3](../plans/foundation-priorities.md#p3方案技能制作与远程样例同步推进)，制作/版本合同见[规格10.1](../../design/systems/combat_framework/act_and_barrage.md#101-定义施放和表现的接入合同)，来源与顾问核查见[研究4.1](../../design/research/act_barrage_references.md#41-可复用技能框架与内容编辑工具)。本轮止于研究与方案，尚未执行P3；不要把候选技能/编辑器记为已有能力。
+原生Inspector现有阶段/范围预览、字段校验和“工具→Reol 战斗技能库”入口。保存内容后必须关闭并重新运行游戏，练习重置不重载定义；逻辑签名不符的旧档拒载并保留。没有安装YARD或第三方战斗运行时，没有万能脚本图/任意触发链。飞剑是独立器物领域里的唯一绑定练习件，已闭合去回程、耐久、掉落/损毁及恢复，普通背包转赠/拾取/维修经济尚无入口。
 
-双顾问完整原答、固定上游源码/许可快照及Godot4.7.2原生Resource隔离小试原件在`.local/advisor/combat-authoring-20261115/`；小试通过定义保存/重载及值隔离，不代表插件GUI/导出或Reol集成验收。现有整身八向动作和程序合成音仍占位，主观听感/混音、目标低配机/长局未验收。P1完整改键GUI本轮受系统游标定位失败影响未取得新通过，排查证据与其他已通过范围见BASELINE，不把旧记录算作本轮通过。
+双顾问选型/上游核查原件在`.local/advisor/combat-authoring-20261115/`，本轮实现与生命周期审查在`.local/advisor/combat-framework-implementation-20261115/`；采纳/拒绝见[研究](../../design/research/act_barrage_references.md#p3实现与生命周期审查)。规则/新技能GUI/P2 GUI/真实Inspector/最终release已验证；图形测试的偏好与测试档已清理。正式后退/侧移/施法素材、混音、主观手感/平衡、目标低配机和长局仍未验收。
 
-用户明确性能检查适量即可，先看成品；本包只做24人最终release短窗，未追加900人或100/500弹门槛。512²地图、生活/环境/植物精度保持，只有目标玩法确受影响才定位成本并考虑必要让步；尚无远区LOD/粗算。
+用户明确性能检查适量、先看成品；只做24人最终release短窗，不追加900人或100/500弹门槛。512²地图与生活/环境/植物精度保持，尚无远区LOD/粗算。当前没有待完成的P3实施项；下一步先根据八套范例的试玩反馈选武器风格/敌人节奏或确有需要的新机制，不自动扩成所有职业和技能。
 
 ## 找当前信息
 

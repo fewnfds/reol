@@ -16,6 +16,7 @@ const Hud = preload("res://scripts/presentation/ui/hud.gd")
 const Interaction = preload("res://scripts/presentation/ui/interaction.gd")
 const ResponseProbe = preload("res://scripts/presentation/response_probe.gd")
 const ActionDefs = preload("res://scripts/sim/kernel/action_defs.gd")
+const CombatShapes = preload("res://scripts/presentation/combat_shapes.gd")
 const CombatAudio = preload("res://scripts/presentation/combat_audio.gd")
 const FeedbackSettings = preload("res://scripts/presentation/feedback_settings.gd")
 const TILE: float = Art.TILE
@@ -32,6 +33,7 @@ var camera := Camera2D.new()
 var ui := Hud.new()
 var controls := Interaction.new()
 var combat_audio := CombatAudio.new()
+var combat_shapes := CombatShapes.new()
 var feedback := FeedbackSettings.new()
 var _debug_console: Node
 var frame: RefCounted
@@ -137,6 +139,7 @@ func _ready() -> void:
 	add_child(action_effects)
 	population.feedback = action_effects
 	add_child(combat_audio)
+	add_child(combat_shapes)
 	add_child(fog)
 	fog.visible = fog_enabled
 	population.configure(_actors)
@@ -261,6 +264,7 @@ func _process(delta: float) -> void:
 	atmosphere.adopt(frame, render_ms)
 	action_effects.advance(int(render_ms), fog_enabled)
 	combat_audio.advance(int(render_ms))
+	combat_shapes.advance(frame, _render_pose, int(render_ms), fog_enabled, controls.pointer_world(get_viewport().get_mouse_position()) - Art.BODY_FOOT_OFFSET, controls.direct and not controls.locked() and not frame.paused)
 	action_effects.flash = feedback.flash
 	action_effects.shake = feedback.shake
 	combat_audio.volume = feedback.volume
@@ -380,7 +384,7 @@ func _draw_control_direction(origin: Vector2, actions: Dictionary) -> void:
 		var normal := Vector2(-_display_move.y, _display_move.x)
 		draw_polyline(PackedVector2Array([origin + _display_move * 8 + normal * 3, origin + _display_move * 12, origin + _display_move * 8 - normal * 3]), Color("80c5bf"), 1.5, true)
 	var action: Dictionary = actions.get(1, {})
-	if not action.is_empty() and action.kind != "step" and render_ms >= int(action.started_ms) and render_ms < int(action.end_ms):
+	if not action.is_empty() and not ActionDefs.is_evade(action.kind) and render_ms >= int(action.started_ms) and render_ms < int(action.end_ms):
 		var angle: float = Vector2(action.direction).angle()
 		draw_arc(origin, 15, angle - 0.42, angle + 0.42, 10, Color("ffb45f"), 3.2, true)
 
@@ -405,7 +409,7 @@ func _draw() -> void:
 			var polygon: PackedVector2Array = ActionDefs.sector(def, direction)
 			for index: int in polygon.size(): polygon[index] = origin + polygon[index] * TILE
 			var winding: bool = render_ms < int(state.active_ms)
-			var enemy: bool = str(state.kind).begins_with("enemy_")
+			var enemy: bool = int(def.post) > 0
 			if enemy and winding:
 				var warning: float = clampf((render_ms - int(state.started_ms)) / maxi(1, int(state.active_ms) - int(state.started_ms)), 0, 1)
 				draw_colored_polygon(polygon, Color(color, 0.05 + warning * 0.13))
@@ -414,12 +418,12 @@ func _draw() -> void:
 			if active:
 				var progress: float = clampf(float(render_ms - int(state.active_ms)) / int(def.active), 0, 1)
 				var tip: Vector2 = origin + direction.rotated(lerpf(-float(def.angle), float(def.angle), progress)) * float(def.reach) * TILE
-				draw_line(origin + direction * 6, tip, Color("fff3c2"), 4.5 if state.kind in ["slash_3", "cleave"] else 3.0, true)
+				draw_line(origin + direction * 6, tip, Color("fff3c2"), 4.5 if def.heavy_hit else 3.0, true)
 			elif winding and not enemy:
 				draw_arc(origin, 19, direction.angle() - 0.3, direction.angle() + 0.3, 8, Color(color, 0.5), 2, true)
 			if bool(def.get("steady", false)) and render_ms < int(state.recovery_ms):
 				draw_arc(origin, 18, -2.8, -0.35, 16, Color("edbe67"), 3.0, true)
-		elif state.kind != "step":
+		elif not ActionDefs.is_evade(state.kind):
 			if render_ms < int(state.recovery_ms): draw_line(origin, origin + direction * (22 if actor == 1 else 80), Color(color, 0.8), 2.0, true)
 		else:
 			draw_line(origin - direction * 22, origin, Color(color, 0.6), 5.0, true)
@@ -438,7 +442,7 @@ func _draw() -> void:
 		var slot: int = frame.actor_slots[id]
 		if frame.health[slot] <= 0 or (fog_enabled and id != 1 and frame.visible[slot] == 0): continue
 		var value: Dictionary = frame.reactions[id]
-		if value.get("heavy", false) and not value.get("punished", false) and render_ms >= int(value.get("recovery_from", 0)) and render_ms < int(value.get("recovery_until", 0)):
+		if value.get("punishable", false) and not value.get("punished", false) and render_ms >= int(value.get("recovery_from", 0)) and render_ms < int(value.get("recovery_until", 0)):
 			var point: Vector2 = _displayed(id) * TILE
 			for side: float in [-1.0, 1.0]:
 				draw_polyline(PackedVector2Array([point + Vector2(side * 23, -7), point + Vector2(side * 18, 0), point + Vector2(side * 23, 7)]), Color("b1e5e3"), 1.8, true)
@@ -455,25 +459,6 @@ func _draw() -> void:
 		for point: Vector2 in frame.inspected.get("route_preview", PackedVector2Array()):
 			points.append(Art.body_foot(point) * TILE)
 		if points.size() > 1: draw_polyline(points, Color(0.3, 0.9, 1.0, 0.65), 1.5)
-	var friendly := PackedVector2Array()
-	var hostile := PackedVector2Array()
-	if _render_pose != null:
-		for segment: Dictionary in _render_pose.projectile_segments:
-			if render_ms < int(segment.start_ms) or render_ms > int(segment.end_ms): continue
-			var weight: float = clampf((render_ms - int(segment.start_ms)) / maxi(1, int(segment.end_ms) - int(segment.start_ms)), 0, 1)
-			var position: Vector2 = Vector2(segment.from).lerp(segment.to, weight)
-			if fog_enabled and not _visible_point(position): continue
-			var point: Vector2 = Art.body_foot(position) * TILE
-			var direction: Vector2 = Vector2(segment.from).direction_to(segment.to)
-			var target: PackedVector2Array = friendly if segment.actor == 1 else hostile
-			target.append(point - direction * 9)
-			target.append(point + direction * 3)
-			if segment.actor == 1: friendly = target
-			else: hostile = target
-	if not friendly.is_empty(): draw_multiline(friendly, Color("9fddd4"), 3.4, true)
-	if not hostile.is_empty():
-		draw_multiline(hostile, Color("38152b"), 6.8, true)
-		draw_multiline(hostile, Color("ff9986"), 4.0, true)
 	if not _show_sources: return
 	for source: int in frame.mobile_cells.size():
 		if frame.mobile_cells[source] < 0:

@@ -3,7 +3,7 @@ setlocal
 chcp 65001 >nul
 pushd "%~dp0"
 set "launch_code=0"
-set "current_build=build\windows\act-p2\reol-act.exe"
+set "current_build=build\windows\act-p3\reol-act.exe"
 
 echo.
 echo  Reol

@@ -63,7 +63,7 @@ func tick(delta: float) -> void:
 	else:
 		_blocked = false
 		_update_aim(get_viewport().get_mouse_position())
-		var drive: Dictionary = {"enabled": true, "move": move_vector(), "aim": _aim, "primary": _primary_down}
+		var drive: Dictionary = {"enabled": true, "move": move_vector(), "aim": _aim, "primary": _primary_down, "point": pointer_world(get_viewport().get_mouse_position()) - Art.BODY_FOOT_OFFSET}
 		if drive != _last_drive:
 			host.runner.drive(drive)
 			_last_drive = drive
@@ -140,7 +140,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				if button == "primary": _primary_down = true
 				# Capture direction on the edge, including a click before the next tick.
 				_update_aim(event.position if event is InputEventMouseButton else get_viewport().get_mouse_position())
-				_send({"kind": "action", "button": button, "aim": _aim, "move": move_vector()})
+				_send({"kind": "action", "button": button, "aim": _aim, "move": move_vector(), "point": pointer_world(event.position if event is InputEventMouseButton else get_viewport().get_mouse_position()) - Art.BODY_FOOT_OFFSET})
 				get_viewport().set_input_as_handled()
 				return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE:
@@ -218,7 +218,9 @@ func action(kind: String, payload: Dictionary) -> void:
 		"equip_sword", "equip_bow": _send({"kind": "equip", "item": "iron_sword" if kind == "equip_sword" else "short_bow"})
 		"combat_practice":
 			clear_direct()
-			_send({"kind": "combat_practice", "mode": payload.get("mode", "light")})
+			var command: Dictionary = {"kind": "combat_practice", "mode": payload.get("mode", host.frame.practice_mode)}
+			if payload.has("loadout"): command.loadout = payload.loadout
+			_send(command)
 		"pause":
 			clear_direct()
 			host.paused = not host.paused

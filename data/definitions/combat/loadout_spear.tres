@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CombatLoadoutDef" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/loadout_def.gd" id="1"]
+[resource]
+script = ExtResource("1")
+id = "spear"
+title = "长锋"
+description = "窄角长刺与大范围扫击，留意侧翼。"
+primary = "spear_thrust"
+skill = "spear_sweep"
+equipment = "iron_sword"
+engage_range = 2.5
+playable = true

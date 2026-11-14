@@ -94,7 +94,7 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted, ac
 		if _identities[index] != id:
 			_directions[index] = 4
 		if index < frame.aims.size():
-			var direction: Vector2 = actions[id].direction if actions.has(id) and actions[id].kind != "step" else frame.aims[index]
+			var direction: Vector2 = actions[id].direction if actions.has(id) and actions[id].visual != "evade" else frame.aims[index]
 			_directions[index] = Art.facing(direction, _directions[index])
 		var offset: int = index * 16
 		# Native 2D transform = two padded rows (8 floats), then RGBA/custom.
@@ -112,7 +112,7 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted, ac
 		buffer[offset + 14] = _directions[index] + motion_header * 8
 		var clip: int = frame.visuals[index] if index < frame.visuals.size() else Art.Clip.IDLE
 		if clip in [Art.Clip.MELEE, Art.Clip.SHOOT]: clip = Art.Clip.IDLE
-		if actions.has(id) and actions[id].kind != "step": clip = Art.Clip.SHOOT if actions[id].kind in ["shot", "fan", "enemy_shot"] else Art.Clip.MELEE
+		if actions.has(id) and actions[id].visual != "evade": clip = Art.Clip.SHOOT if actions[id].visual == "shoot" else Art.Clip.MELEE
 		var hurt: bool = hurts.has(id)
 		if frame.paused or at_ms >= frame.world_ms:
 			var reaction: Dictionary = frame.reactions.get(id, {})

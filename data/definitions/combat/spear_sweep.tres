@@ -1,0 +1,40 @@
+[gd_resource type="Resource" script_class="CombatAbilityDef" load_steps=7 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/ability_def.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/delivery_def.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/effect_def.gd" id="3"]
+
+[sub_resource type="Resource" id="Delivery"]
+script = ExtResource("2")
+kind = "melee"
+reach = 2.3
+half_angle = 1.6
+
+[sub_resource type="Resource" id="Effect0"]
+script = ExtResource("3")
+kind = "damage"
+magnitude = 1.5
+
+[sub_resource type="Resource" id="Effect1"]
+script = ExtResource("3")
+kind = "control"
+duration_ms = 210
+push = 0.55
+punish_ms = 300
+
+[resource]
+script = ExtResource("1")
+id = "spear_sweep"
+title = "退身扫"
+description = ""
+windup = 170
+active = 90
+recovery = 250
+move = 0.3
+stat = "melee"
+repeat_held = false
+cooldown = 2200
+step_hit = 330
+step_miss = 390
+free_move = 0.3
+delivery = SubResource("Delivery")
+effects = Array[ExtResource("3")]([SubResource("Effect0"), SubResource("Effect1")])

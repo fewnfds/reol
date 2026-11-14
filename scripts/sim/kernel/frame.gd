@@ -14,6 +14,7 @@ class Pose extends RefCounted:
 	var projectile_segments: Array[Dictionary] = []
 	var action_segments: Array[Dictionary] = []
 	var reaction_segments: Array[Dictionary] = []
+	var implement_segments: Array[Dictionary] = []
 
 	func at(slot: int, before: Vector2, alpha: float) -> Vector2:
 		return Motion.sample(motion[slot], alpha) if motion.has(slot) else before.lerp(positions[slot], alpha)
@@ -29,6 +30,10 @@ var interpolation_ms: float = 1000.0 / 60.0
 var aims := PackedVector2Array()
 var combat: Dictionary = {}
 var cooldowns: Dictionary = {}
+var loadout: Dictionary = {}
+var areas: Dictionary = {}
+var implements: Dictionary = {}
+var effects: Dictionary = {}
 var reactions: Dictionary = {}
 var practice_mode: String = ""
 const SLOW_FIELDS: Array[String] = ["objects", "sides", "perception", "visible", "actor_slots", "inspected", "player", "counters", "tides", "mobile_cells", "source_enabled", "room_temperature", "terrain", "tile_probe"]

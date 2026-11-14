@@ -1,0 +1,42 @@
+[gd_resource type="Resource" script_class="CombatAbilityDef" load_steps=7 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/ability_def.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/delivery_def.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/effect_def.gd" id="3"]
+
+[sub_resource type="Resource" id="Delivery"]
+script = ExtResource("2")
+kind = "area"
+target = "point"
+radius = 1.05
+max_range = 8.0
+delay_ms = 420
+target_filter = "hostile"
+
+[sub_resource type="Resource" id="Effect0"]
+script = ExtResource("3")
+kind = "damage"
+magnitude = 1.8
+
+[sub_resource type="Resource" id="Effect1"]
+script = ExtResource("3")
+kind = "control"
+duration_ms = 160
+push = 0.0
+punish_ms = 0
+
+[resource]
+script = ExtResource("1")
+id = "thunder_strike"
+title = "落雷"
+description = "鼠标落点预警后落雷；墙后/不可见落点拒绝，射程外自动夹到边界。"
+windup = 90
+active = 1
+recovery = 300
+move = 1.0
+stat = "ranged"
+repeat_held = false
+cooldown = 600
+free_move = 1.0
+tint = Color(0.7686274509803922, 0.7411764705882353, 1.0, 1)
+delivery = SubResource("Delivery")
+effects = Array[ExtResource("3")]([SubResource("Effect0"), SubResource("Effect1")])

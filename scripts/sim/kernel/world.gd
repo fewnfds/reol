@@ -13,6 +13,9 @@ const State = preload("res://scripts/sim/kernel/state.gd")
 const Facilities = preload("res://scripts/sim/kernel/facilities.gd")
 const Livelihood = preload("res://scripts/sim/kernel/livelihood.gd")
 const Nature = preload("res://scripts/sim/kernel/nature.gd")
+const Effects = preload("res://scripts/sim/kernel/combat_effects.gd")
+const Areas = preload("res://scripts/sim/kernel/combat_areas.gd")
+const Implements = preload("res://scripts/sim/kernel/implements.gd")
 const Combat = preload("res://scripts/sim/kernel/combat.gd")
 const Society = preload("res://scripts/sim/kernel/society.gd")
 const Perception = preload("res://scripts/sim/kernel/perception.gd")
@@ -48,6 +51,9 @@ var facilities := Facilities.new()
 var livelihood := Livelihood.new()
 var nature := Nature.new()
 var combat := Combat.new()
+var effects := Effects.new()
+var areas := Areas.new()
+var implements := Implements.new()
 var society := Society.new()
 var perception := Perception.new()
 var sight := Sight.new() # Derived shared geometry; observation state is separate.
@@ -168,7 +174,7 @@ func initialize(count: int = 1000, requested_workers: int = 4, stress_environmen
 func state_owners() -> Dictionary:
 	# The concrete composition root lists real domains; field selection belongs
 	# to each owner. New domains do not require a new serializer implementation.
-	return {"world": self, "terrain": terrain, "objects": objects, "environment": environment, "nature": nature, "combat": combat, "perception": perception, "regions": regions, "person_events": person_events}
+	return {"world": self, "terrain": terrain, "objects": objects, "environment": environment, "nature": nature, "combat": combat, "effects": effects, "areas": areas, "implements": implements, "perception": perception, "regions": regions, "person_events": person_events}
 
 func emit(event: Dictionary) -> void:
 	outcomes.append(event)
@@ -194,14 +200,19 @@ func step(milliseconds: int = 50) -> void:
 	combat.projectile_segments = []
 	combat.action_segments = []
 	combat.reaction_segments = []
+	implements.segments = []
 	var origins: Array[PackedVector2Array] = []
 	var traces: Array[Dictionary] = []
 	for page: RefCounted in pages:
 		origins.append(page.positions.duplicate())
 		traces.append({})
 	while elapsed_ms < end:
+		effects.prepare(self, elapsed_ms)
 		combat.prepare(self, elapsed_ms)
 		var boundary: int = combat.next_boundary(elapsed_ms, mini(end, (elapsed_ms / 50 + 1) * 50))
+		boundary = effects.next_boundary(elapsed_ms, boundary)
+		boundary = areas.next_boundary(elapsed_ms, boundary)
+		boundary = implements.next_boundary(elapsed_ms, boundary)
 		var before: int = elapsed_ms
 		_advance_interval(boundary)
 		for index: int in pages.size():
@@ -379,6 +390,8 @@ func kill(id: int, at: int = -1, cause: String = "") -> void:
 	var row: int = slot % Units.PAGE_SIZE
 	if page.modes[row] == Units.Mode.DEAD:
 		return
+	implements.drop_owner(self, id, at if at >= 0 else elapsed_ms)
+	effects.remove_target(id)
 	release(id, at)
 	forget_target(id, at)
 	objects.records[id].erase("commitment")
@@ -451,7 +464,7 @@ func _command(input: Dictionary) -> Dictionary:
 				emit({"kind": "ability_used", "actor": id, "at_ms": elapsed_ms})
 			return receipt
 		"action":
-			var reason: String = combat.request(self, id, str(input.get("button", "primary")), input.get("aim", page.aims[row]), input.get("move", Vector2.ZERO))
+			var reason: String = combat.request(self, id, str(input.get("button", "primary")), input.get("aim", page.aims[row]), input.get("move", Vector2.ZERO), -1, input.get("point", Vector2(-1, -1)))
 			receipt.ok = reason in ["started", "buffered"]
 			receipt.reason = reason
 			return receipt
@@ -973,6 +986,8 @@ func remove_actor(id: int) -> bool:
 	var slot: int = actor_slots[id]
 	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
 	var row: int = slot % Units.PAGE_SIZE
+	implements.drop_owner(self, id, elapsed_ms)
+	effects.remove_target(id)
 	release(id)
 	forget_target(id)
 	environment.remove_mobile(id)

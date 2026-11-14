@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="CombatAbilityDef" load_steps=6 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/ability_def.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/delivery_def.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/effect_def.gd" id="3"]
+
+[sub_resource type="Resource" id="Delivery"]
+script = ExtResource("2")
+kind = "implement"
+speed = 12.0
+radius = 0.18
+max_range = 7.0
+lifetime_ms = 1200
+durability = 60
+contact_ms = 350
+target_filter = "hostile"
+
+[sub_resource type="Resource" id="Effect0"]
+script = ExtResource("3")
+kind = "damage"
+magnitude = 1.0
+
+[resource]
+script = ExtResource("1")
+id = "sword_dispatch"
+title = "御剑"
+description = "派出同一把飞剑贯穿后返航；再点左键可提前召回，右键立即召回。受损耐久保留。"
+windup = 110
+active = 1
+recovery = 190
+move = 1.0
+stat = "ranged"
+repeat_held = false
+cooldown = 400
+free_move = 1.0
+tint = Color(0.6627450980392157, 0.8941176470588236, 0.8392156862745098, 1)
+delivery = SubResource("Delivery")
+effects = Array[ExtResource("3")]([SubResource("Effect0")])

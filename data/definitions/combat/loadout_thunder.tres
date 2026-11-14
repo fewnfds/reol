@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CombatLoadoutDef" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/loadout_def.gd" id="1"]
+[resource]
+script = ExtResource("1")
+id = "thunder"
+title = "雷法"
+description = "鼠标落点释放，预警后生效；右键持续雷池。"
+primary = "thunder_strike"
+skill = "thunder_field"
+equipment = "short_bow"
+engage_range = 8.0
+playable = true

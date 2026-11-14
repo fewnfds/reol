@@ -25,9 +25,19 @@ python tools/godot.py export --preset "Windows Demo" --output build/windows/reol
 
 源码运行共用`tools/godot.py`，修改后关闭窗口、再次启动即可读取最新脚本和shader；F5保存、重开后F9读取可以接续当前格式会话。维护脚本归`tools/`，生成的程序与说明归`build/windows/`；不为P1/P2等阶段新增启动文件，当前成品路径集中在`启动.cmd`的`current_build`变量。
 
-ACT测试入口相当于`python tools/godot.py run -- --combat-lab=true`：同一512²世界保留后台生活，默认在玩家附近启用一名轻剑客；顶栏可重开单轻敌、单重敌或轻重敌＋射手混战，重练会替换整个练习世界且不写存档。WASD、鼠标瞄准、左键三连/持弓连射、右键武器技、空格闪步；1/2战前换真装备，Tab交互／营造，F附近交互。技能参数以`action_defs.gd`为准，动画/声音仍是占位。
+ACT测试入口相当于`python tools/godot.py run -- --combat-lab=true`：同一512²世界保留后台生活，默认火术＋轻重敌/射手混战；顶栏可切八套范例或单轻敌/单重敌。切换会替换整个练习世界且不写存档。WASD、鼠标瞄准、左键主攻击、右键技能、空格闪步；Tab交互／营造，F附近交互。普通世界1/2换真剑/真弓，练习范例由下拉框赋予，不随换装自动改为另一范例。
 
-最新独立ACT包为`build/windows/act-p2/reol-act.exe`＋同目录pck，通过根目录启动菜单选3进入测试开局；直接运行exe为普通生活开局。独立分发时的命令为`reol-act.exe -- --combat-lab=true`；Esc→设置调整音量/震动/闪光，键位设置改键。测试场在同一世界补了L形墙和单格门。P1包、旧`act-preview`、正式包与P0基线包保留程序文件；重复的阶段启动脚本已移除。默认F5/F9使用新format9的`act-p2-quicksave.reol`，不会覆盖P1默认档。
+最新独立ACT包为`build/windows/act-p3/reol-act.exe`＋同目录pck，通过根目录启动菜单选3进入测试开局；直接运行exe为普通生活开局。独立分发时的命令为`reol-act.exe -- --combat-lab=true`；Esc→设置调整音量/震动/闪光和键位。P1/P2、旧预览和正式包保留，默认F5/F9使用format10的`act-p3-quicksave.reol`，不覆盖旧档。
+
+技能制作从`data/definitions/combat/library.tres`与其引用的`.tres`进入，编辑器“工具→Reol 战斗技能库”可直达；技能Inspector有阶段/范围预览和字段校验。保存后关闭并重新运行游戏采用新定义，重练不重载；配置字段与制作流程见[规格10](../../../design/systems/combat_framework/act_and_barrage.md#101-定义施放和表现的接入合同)。短检查命令示例（`GODOT_EXE`为实际引擎路径）：
+
+```powershell
+& $env:GODOT_EXE --headless --path . --script tests/abilities_smoke.gd
+& $env:GODOT_EXE --path . --script tests/abilities_ui_smoke.gd
+& $env:GODOT_EXE --editor --path . --scene res://tests/combat_authoring_editor.tscn -- --combat-authoring-check
+```
+
+编辑器检查使用一次性编辑进程并自动退出，未带最后的测试参数时测试场景不会运行检查。截图和日志仍归`logs/`；这些命令不新增启动CMD。
 
 现有导出exe/pck是生成当时的快照，不会自动读取源码修改。开发试玩以源码入口为准，只有需要独立分发或release性能测量时才重新导出。这个入口不承诺在运行中热替换持有世界的线程与状态。
 

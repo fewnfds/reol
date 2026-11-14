@@ -1,6 +1,7 @@
 extends RefCounted
 ## Rebuildable hot stats; inventory/equipment source facts belong to Objects.
 ## Called by the owner on spawn, equipment changes and restore, never per tick.
+const Defs = preload("res://scripts/sim/kernel/action_defs.gd")
 const Items = preload("res://scripts/sim/kernel/items.gd")
 const BASE: Dictionary = {"max_hp": 100.0, "melee": 25.0, "ranged": 20.0, "armor": 0.0, "speed": 5.0}
 
@@ -15,7 +16,7 @@ static func values(record: Dictionary) -> Dictionary:
 	return result
 
 static func valid_record(record: Dictionary) -> bool:
-	if record.has("heavy") and not record.heavy is bool: return false
+	if record.has("ability_loadout") and not Defs.LOADOUTS.has(record.ability_loadout): return false
 	if record.get("combat_style", "") not in ["", "trained"]: return false
 	if record.get("practice_mode", "") not in ["", "light", "heavy", "mixed"]: return false
 	var equipment: Variant = record.get("equipment")
@@ -40,6 +41,7 @@ static func rebuild(world: RefCounted, id: int, clamp_health: bool = true) -> vo
 	page.ranged_damage[row] = stats.ranged
 	page.armor[row] = stats.armor
 	page.move_speed[row] = stats.speed
+	page.move_scales[row] = 1.0
 	if clamp_health: page.health[row] = mini(page.health[row], page.max_health[row])
 
 static func view(page: RefCounted, row: int) -> Dictionary:

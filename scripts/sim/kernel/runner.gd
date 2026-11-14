@@ -67,6 +67,9 @@ var _epoch: int = 1
 
 
 func start(count: int = 1000, workers: int = -1, speed: float = 1.0, mixed: bool = false, capacity: bool = false, sim_hz: int = DEFAULT_HZ, combat_lab: bool = false) -> Error:
+	if not World.Combat.Defs.ERRORS.is_empty():
+		push_error("Combat catalog: " + "; ".join(World.Combat.Defs.ERRORS))
+		return ERR_INVALID_DATA
 	_count = clampi(count, 1, 60000)
 	_workers = workers
 	_mixed = mixed
@@ -197,7 +200,7 @@ func _run() -> void:
 		Scenarios.capacity(_world)
 	elif _mixed:
 		Scenarios.mixed(_world)
-	if _combat_lab: Scenarios.combat_lab(_world)
+	if _combat_lab: Scenarios.combat_lab(_world, "mixed", "fire")
 	_terrain_view = _world.terrain.detached()
 	_mutex.lock()
 	var paused: bool = _paused
@@ -295,12 +298,13 @@ func _run() -> void:
 					replies.append({"seq": command.seq, "kind": command.kind, "at_ms": _world.elapsed_ms, "ok": false, "reason": "io_busy_or_failed"})
 			elif command.get("kind", "") == "combat_practice":
 				var mode: String = str(command.get("mode", "light"))
-				if not _combat_lab or mode not in ["light", "heavy", "mixed"] or _io.busy:
+				var loadout: String = str(command.get("loadout", _world.combat.profile(_world, 1).id))
+				if not _combat_lab or mode not in ["light", "heavy", "mixed"] or not _world.combat.Defs.LOADOUTS.has(loadout) or not _world.combat.Defs.LOADOUTS.get(loadout, {}).get("playable", false) or _io.busy:
 					replies.append({"seq": command.seq, "kind": "combat_practice", "at_ms": _world.elapsed_ms, "ok": false, "reason": "practice_unavailable"})
 				else:
 					_world = World.new()
 					_world.initialize(_count, _workers)
-					Scenarios.combat_lab(_world, mode)
+					Scenarios.combat_lab(_world, mode, loadout)
 					_epoch += 1
 					_poses.clear()
 					_object_revision = -1
@@ -371,13 +375,17 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 	frame.reactions = {}
 	for actor: int in _world.combat.status:
 		frame.reactions[actor] = _world.combat.status[actor].duplicate(true)
-		frame.reactions[actor]["heavy"] = bool(_world.objects.records[actor].get("heavy", false))
+		frame.reactions[actor]["heavy"] = bool(_world.combat.status[actor].get("punishable", false))
 	frame.epoch = _epoch
 	frame.world_ms = _world.elapsed_ms
 	frame.speed = speed
 	frame.paused = paused
 	frame.interpolation_ms = 1000.0 / _sim_hz
 	frame.combat = _world.combat.view()
+	frame.loadout = _world.State.copy(_world.combat.profile(_world, 1))
+	frame.areas = _world.State.copy(_world.areas.records)
+	frame.implements = _world.State.copy(_world.implements.records)
+	frame.effects = _world.State.copy(_world.effects.records)
 	frame.cooldowns = _world.State.copy(_world.combat.cooldowns.get(1, {}))
 	for page: RefCounted in _world.pages:
 		frame.ids.append_array(page.ids)
@@ -393,7 +401,7 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 		for row: int in page.ids.size():
 			# Small display codes, not a presentation dependency in simulation.
 			if frame.combat.has(page.ids[row]):
-				frame.visuals[base + row] = Frame.Visual.SHOOT if frame.combat[page.ids[row]].kind in ["shot", "fan"] else Frame.Visual.MELEE
+				frame.visuals[base + row] = Frame.Visual.SHOOT if frame.combat[page.ids[row]].visual == "shoot" else Frame.Visual.MELEE
 			elif page.modes[row] == World.Units.Mode.HARVEST: frame.visuals[base + row] = Frame.Visual.HARVEST
 			elif page.cargo[row] > 0: frame.visuals[base + row] = Frame.Visual.CARRY
 	for id: int in _world.actions:
@@ -411,6 +419,7 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 		pose.projectile_segments = _world.combat.projectile_segments
 		pose.action_segments = _world.combat.action_segments
 		pose.reaction_segments = _world.combat.reaction_segments
+		pose.implement_segments = _world.implements.segments
 		var offset: int = 0
 		for page: RefCounted in _world.pages:
 			for row: int in page.motion:

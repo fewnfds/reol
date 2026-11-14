@@ -6,7 +6,7 @@
 
 Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+，1280×720，无VSync。正式入口scenes/main.tscn，独立包build/windows/reol-demo.exe及同目录pck；源码试玩和导出快照的差别见[usage](../engineering/tooling/usage.md)。
 
-当前源码与`build/windows/act-p2/reol-act.exe`＋pck为P2单剑战斗测试版，统一由根目录启动.cmd选择源码战斗或当前成品进入单轻敌/单重敌/混战练习。PCK SHA256为`0f0512ac669a73c1100118b294bc5d4fd874cacd4ef925d52e35a87e9ecf4284`，exe为`3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf`；最终导出为`logs/export-20261115-022510-442628800.log`，真实D3D12/RTX3060运行证据见下文P2。P1包仍在`build/windows/act-p1/`，PCK原指纹`973fdce5a942df39af16bdb2293023edeb18dd39ce9e188da487991ab96bf33f`已核对未变；旧P0预览、正式Demo与20Hz包保留。
+当前源码与`build/windows/act-p3/reol-act.exe`＋pck为P3技能框架/八套范例测试版，由根目录启动.cmd选择源码或成品；默认火术＋混战，顶栏切范例或单轻敌/单重敌。PCK SHA256为`ed1bfaf4276be3c0026dec46f91b4f788bf946b0ba293c0845f8e8e5fd7729ca`，exe为`3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf`，导出日志`logs/export-20261115-045851-853343100.log`。P2/P1包与旧预览保留；P2 PCK原指纹`0f0512ac669a73c1100118b294bc5d4fd874cacd4ef925d52e35a87e9ecf4284`及P1的`973fdce5a942df39af16bdb2293023edeb18dd39ce9e188da487991ab96bf33f`已核对未变。
 
 原正式人物/装备/背包版由02958cc提交对应，PCK指纹、开发机与各倍率历史样本统一记录在[performance.json](performance.json)。它是工具可直接读取的数值原件，包含实际倍率而非倍率达成比例；本机原始报告在logs/capacity-20261113-shipped/。不要求新机器拥有这些日志才能接手。
 
@@ -62,6 +62,21 @@ P2采用同一512²世界与默认24人，不降低后台生活精度，不追�
 双顾问实现审查均完整返回，原件在`.local/advisor/p2-implementation-20261115/review/`，采用/拒绝依据见[研究](../../design/research/act_barrage_references.md#p2实现审查与交付取舍)。顾问只做附件静态审查，未实际操作或听评游戏。
 
 失败与边界：早期新GUI走查在重敌2.1格外直接挥剑，属于操作脚本未进身；修成真实WASD接近后通过，未扩大剑范围。初版混战射手距离超过警戒范围，已调整出生位置；死亡后的通用输入限制原先挡住重练，已修正并实机验证。P1完整`control_ui_smoke.gd`本轮未取得通过：脚本要求系统游标停在(616,314)，实际游标多次落在窗口外/其他位置（`logs/p2-controls-ui-20261115-021632-160430300.log`等）；当时镜头offset=0、焦点=true、无模态，尚未证明游戏转换错误。临时诊断未留入测试，也未降低方向断言；P2的实际点击瞄准、震动转换反例及输入规则分别通过。未重做原生Alt-Tab、目标低配机、长局或主观混音验收。
+
+### P3框架与范例验证
+
+2026-11-15完成原生Resource作者层、World四类过程与八套范例；图形检查串行运行于D3D12/RTX3060。仍为512²地图/24人，没有降低生活/环境/植物精度，没有新增人口或弹量压测。
+
+| 检查 | 证据与范围 |
+|---|---|
+| 原内核/ACT/输入/近战 | `logs/smoke-20261115-044819-430503600.log`与`logs/p3-act-rules.log`、`p3-control-rules.log`、`p3-melee-rules.log`完整退出，errors=0；验证原World恢复/装备/生活，以及迁为资源后的P2规则 |
+| 框架规则与时序 | `logs/p3-abilities-rules.log`完整退出errors=0：资源值隔离、缺失子资源/非法时序/签名、多人CD/激活、散射/减速/DoT/追踪、区域/器物恢复、死亡/移除；续期端点、同区间碎剑不吞后弹、接回不漏早接触、墙阻/重合与非法候选反例通过 |
+| 新技能真实GUI | `logs/abilities-ui-p3.log`：原生下拉框八套选择、鼠标左右键命中/技能启动/状态发布；落雷预警及飞剑返航中的实际文件保存恢复保持原状态。`logs/abilities-ui/`火扇、雷预警、追踪/状态与飞剑截图已观察 |
+| P2图形回归 | `logs/melee-ui-p3.log`完整通过：轻敌三连、重敌稳固/闪避/失衡、实际保存、200%UI、反馈/死亡后重练；未以新范例取代原单剑流程 |
+| 原生Inspector | `logs/combat-authoring-editor.log`：实际编辑器中的预览布局、字段校验、非法时序提示通过；`logs/combat-authoring-editor.png`已观察。插件为项目自有轻量Inspector增强，YARD等未安装 |
+| 最终release短窗 | `logs/p3-release-final.json`及同名log/png，最终包在24人/默认火术混战/迷雾、60FPS、1×、3秒预热＋5秒采样下约1.000×，帧p99约17.08ms，步均约0.570ms，零过载需求。没有操作玩家，发生1次死亡；不是持续主动施法/密弹容量或同负载性能对照，不替换performance.json |
+
+双顾问实现与生命周期静态审查均完整返回，原件在`.local/advisor/combat-framework-implementation-20261115/review/`及`lifecycle-review/`；采用/拒绝依据见[研究](../../design/research/act_barrage_references.md#p3实现与生命周期审查)。顾问未执行代码或操作游戏。早期载荷失败为`Dictionary.merge`未覆盖默认值，已修；耐久反例原先混入敌人反击，已分离生命周期与真实受损。早期GUI重练失败为合成点击未更新鼠标悬停，补实际移动事件后通过，未改宽玩法断言。
 
 ## 已知限制
 
