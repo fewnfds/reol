@@ -71,6 +71,8 @@ func send(value: Dictionary) -> int:
 	if _pending >= MAX_PENDING or _closing:
 		return 0
 	var command: Dictionary = value.duplicate(true)
+	if command.has("_trace"):
+		command._trace.enqueued_usec = Time.get_ticks_usec()
 	command.seq = _next_seq
 	_next_seq += 1
 	_pending += 1
@@ -216,6 +218,12 @@ func _run() -> void:
 			replies.append({"seq": io_command.seq, "kind": io_command.kind, "at_ms": _world.elapsed_ms, "ok": io_result.ok, "reason": io_result.reason})
 			changed = true
 		for command: Dictionary in commands:
+			# Diagnostic envelope belongs to Runner, never to a world action/save.
+			var trace: Dictionary = command.get("_trace", {})
+			command.erase("_trace")
+			var reply_count: int = replies.size()
+			if not trace.is_empty():
+				trace.received_usec = Time.get_ticks_usec()
 			if command.get("epoch", _epoch) != _epoch:
 				replies.append({"seq": command.seq, "kind": command.get("kind", ""), "at_ms": _world.elapsed_ms, "ok": false, "reason": "session_changed"})
 			elif command.get("kind", "") in ["save", "load"]:
@@ -227,6 +235,9 @@ func _run() -> void:
 					replies.append({"seq": command.seq, "kind": command.kind, "at_ms": _world.elapsed_ms, "ok": false, "reason": "io_busy_or_failed"})
 			else:
 				replies.append(_world.command(command))
+			if not trace.is_empty() and replies.size() > reply_count:
+				trace.applied_usec = Time.get_ticks_usec()
+				replies.back().trace = trace
 		_world.flush_topology()
 		if _terrain_view.revision != _world.terrain.revision:
 			_terrain_view = _world.terrain.detached()
@@ -367,6 +378,10 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 	for outcome: Dictionary in _world.outcomes:
 		outcome.epoch = _epoch
 	_outcomes.append_array(_world.outcomes)
+	for receipt: Dictionary in _ready_receipts:
+		if receipt.has("trace"):
+			receipt.trace.published_usec = Time.get_ticks_usec()
+			receipt.trace.frame_sequence = frame.sequence
 	_receipts.append_array(_ready_receipts)
 	_ready_receipts.clear()
 	_latest = frame

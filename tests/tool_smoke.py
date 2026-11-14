@@ -1,6 +1,6 @@
 """A few seconds to check process exits and watchdogs; no test framework."""
 
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from argparse import Namespace
 import io
 import json
@@ -13,6 +13,25 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 import godot
 import capacity
+import benchmark
+
+
+def check_response_capture(directory: Path) -> None:
+    """Response samples must be explicit and cannot masquerade as capacity-v1."""
+    binary = directory / "response-demo.exe"
+    binary.write_bytes(b"engine")
+    argv = ["benchmark.py", "--binary", str(binary), "--actors", "24", "--speed", "1", "--response-probe"]
+    with patch.object(sys, "argv", argv), patch.object(benchmark, "capture", return_value={"capture_exit_code": 0}) as capture:
+        assert benchmark.main() == 0
+        assert capture.call_args.kwargs["response_probe"] is True
+    for incompatible in [["--mixed"], ["--capacity"], ["--speed", "2"]]:
+        with patch.object(sys, "argv", argv + incompatible), redirect_stderr(io.StringIO()):
+            try:
+                benchmark.main()
+            except SystemExit as error:
+                assert error.code == 2
+            else:
+                raise AssertionError("Response probe accepted an incompatible historical fixture")
 
 
 def check_performance_budget(directory: Path) -> None:
@@ -80,6 +99,7 @@ def main() -> None:
                 assert godot._run([sys.executable, "-c", "import time; time.sleep(10)"], "timeout", timeout=.2) == 124
                 assert "timed out" in next(Path(directory).glob("timeout-*.log")).read_text()
                 check_performance_budget(Path(directory))
+                check_response_capture(Path(directory))
         finally:
             godot.LOG_DIR = original
     print(f"Tool smoke passed in {time.monotonic() - started:.3f}s")

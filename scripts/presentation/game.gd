@@ -14,6 +14,7 @@ const ActionEffects = preload("res://scripts/presentation/action_effects.gd")
 const ArtGallery = preload("res://scripts/presentation/art_gallery.gd")
 const Hud = preload("res://scripts/presentation/ui/hud.gd")
 const Interaction = preload("res://scripts/presentation/ui/interaction.gd")
+const ResponseProbe = preload("res://scripts/presentation/response_probe.gd")
 const TILE: float = Art.TILE
 var runner := Runner.new()
 var population := Population.new()
@@ -79,6 +80,7 @@ var _speed_world: int = 0
 var _actual_speed: float = 0.0
 var _show_path: bool = false
 var _show_sources: bool = false
+var _response_probe: RefCounted
 
 
 func _ready() -> void:
@@ -101,6 +103,12 @@ func _ready() -> void:
 			"mixed": _mixed = part[1] == "true"
 			"capacity": _capacity = part[1] == "true"
 			"fog": _fog_mode = int(part[1] == "true")
+			"response-probe":
+				if part[1] == "true": _response_probe = ResponseProbe.new()
+	if _response_probe != null and (_duration <= 0.0 or _mixed or _capacity or speed != 1.0):
+		push_error("Response probe requires a bounded ordinary capture at 1x")
+		get_tree().quit(1)
+		return
 	Engine.max_fps = _fps
 	fog_enabled = _fog_mode == 1 if _fog_mode >= 0 else _actors < 1000 # Developer overview can show all actors.
 	population.fog_enabled = fog_enabled
@@ -151,6 +159,7 @@ func _process(delta: float) -> void:
 			var busy: int = int(counts[0]) + int(counts[1]) + int(counts[3]) + int(counts[6]) + int(counts[7]) + int(counts[9]) + int(counts[10]) + int(next.counters.stationary_combatants)
 			_activity_samples.append(float(busy) / maxi(1, int(next.counters.actors)))
 	for receipt: Dictionary in mailbox.receipts:
+		if _response_probe != null: _response_probe.accept(receipt, Time.get_ticks_usec())
 		_last_receipt = "%s #%d @%d: %s" % [receipt.kind, receipt.seq, receipt.at_ms, receipt.reason]
 		ui.feedback(("→ " if receipt.reason == "accepted" else ("✓ " if receipt.ok else "× ")) + Hud.action_name(receipt.kind), receipt.ok)
 		if receipt.get("placed", false):
@@ -249,6 +258,7 @@ func _process(delta: float) -> void:
 		_speed_world = frame.world_ms
 	queue_redraw()
 	if _duration > 0.0:
+		if _response_probe != null and _capture_at > 0: _response_probe.tick(self, Time.get_ticks_usec())
 		_capture(begin)
 	if _capture_at > 0:
 		if _previous_usec > 0:
@@ -412,6 +422,9 @@ func _capture(now: int) -> void:
 	report.minimap_usec = ui.minimap.work_usec
 	report.minimap_usec_delta = ui.minimap.work_usec - int(_capture_counters.get("minimap_usec", 0))
 	report.minimap_rebuilds = ui.minimap.rebuilds
+	if _response_probe != null:
+		report.scenario = "synthetic-move-response-v1"
+		report.response_chain = _response_probe.report(_percentiles)
 	if not _metrics_path.is_empty():
 		var file := FileAccess.open(_metrics_path, FileAccess.WRITE)
 		if file != null:
@@ -421,7 +434,10 @@ func _capture(now: int) -> void:
 	print("KERNEL_RESULT ", JSON.stringify(report))
 	if not _screenshot_path.is_empty():
 		get_viewport().get_texture().get_image().save_png(_screenshot_path)
-	get_tree().quit(0 if report.world_delta_ms > 0 and report.moved_cells_delta > 0 and report.material == report.initial_material else 1)
+	var valid: bool = report.world_delta_ms > 0 and report.moved_cells_delta > 0 and report.material == report.initial_material
+	if _response_probe != null:
+		valid = valid and report.response_chain.sample_count > 0 and report.response_chain.failures.is_empty()
+	get_tree().quit(0 if valid else 1)
 
 
 func _percentiles(values: Variant, scale: float = 1.0) -> Dictionary:

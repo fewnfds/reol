@@ -22,6 +22,8 @@ Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+�
 
 ## 已知限制
 
+- ACT改版P0已取得旧20Hz合成移动响应短窗，测量口径、构建哈希与结果见[专题研究](../../design/research/act_barrage_references.md#12-p0旧链路的合成移动基线)；它不是高频ACT验证，也不替换上述capacity-v1已接受基线。独立测量构建未覆盖正式包。
+- 普通主场景在Godot4.7.2 headless的着色器编译路径报`custom_samplers`错误；单独调用未改动的`Population.configure(1)`亦可复现，原件为`logs/headless-population-probe-20261114-150332-37276200.log`。本次Runner/工具短检查与真实D3D12普通启动、两次release图形测量通过；不把普通场景headless启动写成通过，也不据此改动正常渲染。
 - 满帧率不等于满世界倍率；高倍速首先可能达到模拟吞吐上限。降低渲染帧率不能保证解除模拟瓶颈。
 - 既有移动/探索过程曾出现帧时尖峰，不能据静止玩家的好窗宣称所有场景锁帧。
 - 目标16GB/RTX3060整机、长局、极密战斗/拆建、远区LOD未由上述样本验证。

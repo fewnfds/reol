@@ -15,7 +15,8 @@ from cpu_sample import ProcessSample
 
 def capture(*, binary: Path, actors: int, speed: float, fps: int, workers: int,
             seconds: int, gpu_index: int, output: Path, fog: bool = False,
-            mixed: bool = False, capacity: bool = False, screenshot: bool = False) -> dict:
+            mixed: bool = False, capacity: bool = False, screenshot: bool = False,
+            response_probe: bool = False) -> dict:
     """One owned real-window process, bounded lifetime, no concurrent GPU runs."""
     binary, output = binary.resolve(), output.resolve()
     if output.exists():
@@ -30,6 +31,8 @@ def capture(*, binary: Path, actors: int, speed: float, fps: int, workers: int,
         command.append("--mixed=true")
     if capacity:
         command.append("--capacity=true")
+    if response_probe:
+        command.append("--response-probe=true")
     # A false flag must be explicit too: Game's ordinary-start default varies
     # at 1000 actors. Capacity comparisons must not inherit that transition.
     command.append("--fog=true" if fog else "--fog=false")
@@ -81,13 +84,17 @@ def main() -> int:
     parser.add_argument("--fog", action="store_true", help="player fog view instead of full developer overview")
     parser.add_argument("--mixed", action="store_true", help="100 fighters, 20 material builds and contact exchanges")
     parser.add_argument("--capacity", action="store_true", help="durable mixed capacity-v1 starting fixture")
+    parser.add_argument("--response-probe", action="store_true", help="bounded synthetic move request to CPU display response; ordinary scene only")
     args = parser.parse_args()
     if not args.binary.is_file() or not 5 <= args.seconds <= 60 or not 1 <= args.actors <= 60000 or not .25 <= args.speed <= 16 or not 10 <= args.fps <= 240 or not -1 <= args.workers <= 64:
         parser.error("existing release binary; 1..60000 actors; .25..16 speed; 5..60 seconds; 10..240 FPS; -1..64 workers")
+    if args.response_probe and (args.mixed or args.capacity or args.speed != 1):
+        parser.error("--response-probe requires the ordinary scene at 1x, not mixed/capacity fixtures")
     output = (args.out or godot.ROOT / "logs" / f"kernel-{args.actors}-{args.speed:g}x-{args.fps}-{time.strftime('%Y%m%d-%H%M%S')}.json").resolve()
     result = capture(binary=args.binary, actors=args.actors, speed=args.speed, fps=args.fps,
                      workers=args.workers, seconds=args.seconds, gpu_index=args.gpu_index,
-                     output=output, fog=args.fog, mixed=args.mixed, capacity=args.capacity, screenshot=args.screenshot)
+                     output=output, fog=args.fog, mixed=args.mixed, capacity=args.capacity, screenshot=args.screenshot,
+                     response_probe=args.response_probe)
     print(json.dumps({key: result.get(key) for key in ["actors", "workers", "requested_speed", "actual_speed", "fps_limit", "frame_ms", "step_ms", "deliveries_delta", "material", "overload_demand_usec_delta"]}, ensure_ascii=False), flush=True)
     print(output, flush=True)
     return int(result["capture_exit_code"])

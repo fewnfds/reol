@@ -9,3 +9,5 @@
 `equipment_smoke.gd`由kernel短检查调用，覆盖满包换装/卸下原子性、真实伤害/护甲/移速、发射后换装、品质转移、派生缓存恢复、非法槽位拒绝和身体槽位重用；原磁盘续接反例同时核对穿戴。功能性能对照独立使用[capacity入口](../docs/engineering/tooling/usage.md#功能性能对照)，不加入默认测试。
 
 `experience_smoke.gd`按需单独运行，针对普通/压力场源分离、冷热耐受/小数余量、危险中禁止恢复、战斗不吃耐受、死亡顺序、有界个人日志与存读做短反例，不扩大kernel默认套件。
+
+`response_smoke.gd`按需单独运行，核对Runner诊断信封的时间先后、回执绑定/只消费一次与原请求不被修改，不加入默认kernel套件。真实窗口的合成移动响应测量见[响应链实验](../docs/engineering/tooling/usage.md#响应链实验)；短检查不证明操作手感或显示器延迟。

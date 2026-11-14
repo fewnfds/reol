@@ -1,6 +1,10 @@
 # 当前接续
 
-当前没有进行中的实现任务，后续从用户试玩反馈选题。正式试玩包与源码状态见BASELINE。
+当前主题是近远双路线的ACT＋弹幕战斗改版，当前进入主计划P0，已加入显式开启的合成移动响应测点并测完旧20Hz基线，尚未改变模拟频率或实现WASD/连招。设计与候选参数在[改版规格](../../design/systems/combat_framework/act_and_barrage.md)，来源/基线在[专题研究](../../design/research/act_barrage_references.md)，工作包只维护在[主计划](../plans/foundation-priorities.md)。
+
+下一实现入口仍为P0：核查50ms/0.05与按步分组假设，做60Hz统一心跳＋到期慢域候选，再与旧链路同负载比较，补小型高频姿态发布、直接移动/瞄准与移动弹相位。已完成的两窗只说明普通背景未出现明显响应恶化，不证明新ACT负载达标。用户允许实测必要时牺牲次要世界精度/频率，边界只查规格9.3；未测不预先缩图。之后按主计划进入单剑灰盒与远程循环。
+
+测量入口为benchmark.py的`--response-probe`；原件在`logs/act-p0-response-20261114/`，隔离构建在`build/windows/act-p0/`，均不入库。正式试玩包没有覆盖；正式构建状态仍见BASELINE。
 
 ## 找当前信息
 

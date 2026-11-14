@@ -62,4 +62,20 @@ capacity-v1固定全视图与镜头，初始化充足生命/需求/木料和长�
 
 step_mean_ms由全窗累计成本差得到；step_ms分位数仍是有界尾部窗口。单独一窗可用benchmark.py --capacity；headless不能证明真实FPS，不因纯文档/工具改动重跑全部游戏倍率。
 
+## 响应链实验
+
+P0使用显式开启的合成移动请求，沿真实Runner邮箱、运动提交与原显示插值测量。先导出隔离release，保留正式试玩包：
+
+```powershell
+python tools/godot.py export --preset "Windows Demo" --output build/windows/act-p0/reol-response.exe
+python tools/benchmark.py --binary build/windows/act-p0/reol-response.exe --actors 1 --speed 1 --fps 60 --seconds 25 --fog --response-probe --out logs/response-minimum.json
+python tools/benchmark.py --binary build/windows/act-p0/reol-response.exe --actors 24 --speed 1 --fps 60 --seconds 25 --fog --response-probe --out logs/response-ordinary.json
+```
+
+两个窗口串行运行，地图/镜头/迷雾设置相同，正常世界仍有生活与既有警戒者。该开关只接受1×、有时限的普通开局，不与mixed/capacity混用；自动让本次新局的玩家在合法半格路段往返，不保存，不用于操作用户已有会话。报告单列`synthetic-move-response-v1`，不能拿它替换capacity-v1历史样本。
+
+`response_chain`保存最多128次请求的明细、失败与分位数：请求→Runner开始处理、命令应用返回、回执发布、首次运动姿态提交、首次显示采样变化。命令应用返回只说明路线请求成立，不等于身体已经移动；运动姿态测点取现有`Pose.completed_usec`，包含构造姿态前的部分快照准备，不是独立的World内部提交计时。诊断信封在Runner内剥离，不进入世界动作或存档。每次等前一段结束再发起，变换发起间隔以减少与50ms/显示帧的固定相位重合。
+
+显示测点使用人物原显示采样器、0.5屏幕像素位移阈值，表示CPU已经准备该姿态；不包含真实设备输入、GPU提交/显示器扫描，也不代表连招或闪避启动。`observed_pose_publish_interval_ms`是主线程看到的新姿态对应发布间隔，可能跳过未采用的中间帧，不冒充所有权威提交的完整间隔。长时间未采用导致首个运动姿态超出历史窗口时标记失败，不能以较晚姿态冒充首次提交。窗口末尾未完成请求单独标记，失败不进入成功分位数。用于判断旧链与候选高频链的相对变化，真实键鼠手感仍须图形试玩。
+
 短检查默认15秒进程上限，无旧分片、长回归或`check`命令；策略见[验证方式](../workflow/testing.md)。
