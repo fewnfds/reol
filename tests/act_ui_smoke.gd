@@ -37,6 +37,8 @@ func player_shots() -> int:
 
 func _run() -> void:
 	game = Game.new()
+	game.controls.bindings.config_path = "user://act-ui-smoke-controls.cfg"
+	DirAccess.remove_absolute(game.controls.bindings.config_path)
 	root.add_child(game)
 	current_scene = game
 	var deadline: int = Time.get_ticks_usec() + 2000000
@@ -63,6 +65,7 @@ func _run() -> void:
 	game.controls._notification(Node.NOTIFICATION_WM_WINDOW_FOCUS_OUT)
 	await create_timer(0.06).timeout
 	check(game.controls.move_vector() == Vector2.ZERO, "Focus loss retained held movement")
+	game.controls._notification(Node.NOTIFICATION_WM_WINDOW_FOCUS_IN)
 	await key(KEY_S, false)
 	game.ui.show()
 	await key(KEY_TAB, true)

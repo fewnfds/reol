@@ -1,12 +1,12 @@
 # 当前运行基线
 
-更新：2026-11-14。本页只保留当前构建、有效证据和已知限制。能力查[FEATURES](features.md)，运行接口查[架构](../engineering/architecture.md)。
+更新：2026-11-15。本页只保留当前构建、有效证据和已知限制。能力查[FEATURES](features.md)，运行接口查[架构](../engineering/architecture.md)。
 
 ## 当前构建
 
 Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+，1280×720，无VSync。正式入口scenes/main.tscn，独立包build/windows/reol-demo.exe及同目录pck；源码试玩和导出快照的差别见[usage](../engineering/tooling/usage.md)。
 
-当前源码与`build/windows/act-preview/reol-act.exe`＋pck为ACT灰盒，根目录ACT试玩.cmd进入近身测试开局；交付PCK SHA256为`8d47ddbaae92071e42218de176255376c891aa05277bf80a7ea7ae02c1097ffb`，release图形启动已通过（`logs/act-release-startup-20261114-161040-663913600.log`为最后规则小修前的启动证据，最终规则短检查和导出另通过）。旧正式Demo与旧20Hz测量包保留。它们的行为、存档路径与格式不能混用，键位见FEATURES。
+当前源码与`build/windows/act-p1/reol-act.exe`＋pck为P1直接操控版，根目录ACT试玩.cmd或包内P1练习场.cmd进入测试开局。交付PCK SHA256为`973fdce5a942df39af16bdb2293023edeb18dd39ce9e188da487991ab96bf33f`，exe为`3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf`；导出与真实D3D12/RTX3060启动通过，日志为`logs/export-20261115-002753-56823800.log`、`logs/p1-release-startup-20261115-002819-139226100.log`。旧P0预览包`act-preview`、正式Demo与20Hz测量包保留；行为/格式不混用，键位见FEATURES。
 
 原正式人物/装备/背包版由02958cc提交对应，PCK指纹、开发机与各倍率历史样本统一记录在[performance.json](performance.json)。它是工具可直接读取的数值原件，包含实际倍率而非倍率达成比例；本机原始报告在logs/capacity-20261113-shipped/。不要求新机器拥有这些日志才能接手。
 
@@ -25,6 +25,24 @@ Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+�
 ACT灰盒的kernel、ACT规则/候选恢复、response诊断、Python工具与两套真实GUI短检查已通过；最新日志分别为`logs/smoke-20261114-160910-240530800.log`、`logs/act-smoke-20261114-161148-601761200.log`、`logs/response-smoke-20261114-155854-491160600.log`、`logs/ui-smoke-20261114-160242-124340500.log`、`logs/act-ui-smoke-20261114-160310-562676900.log`，图形截图在`logs/act-ui/`。这证明相关流程可执行，不证明主观手感或音频混音完成。一次全套规则打印0错误后仍因总时长超过15秒失败；分段诊断在14.37秒结束规则，余下退出超过时限，日志为`logs/smoke-20261114-160532-347803600.log`和`logs/kernel-profile-20261114-160815-422258600.log`。保留15秒上限，把最前面的512人双配置固定6秒推进改为至少1秒且两者均已完成真实交付后结束，所有既有断言保留；上述最新完整进程退出通过。
 
 60Hz普通24人25秒窗保持约1×、帧p99 16.80ms，合成移动到CPU显示准备p95 18.72ms；900人ACT高密交战复核后仍只有约0.748×，没有通过规模验收。方法、构建哈希和失败细节只维护在[专题研究1.3](../../design/research/act_barrage_references.md#13-60hz灰盒与密集交战实测)，不替换历史performance.json。新压力场景标为capacity-act-v1，工具阻止与旧capacity-v1或不同心跳的步均直接比较。
+
+### P1直接操控验证
+
+P1没有新增人口/弹量性能测量，没有改地图规模、植物/环境精度或权威身体半径。2026-11-15完成以下相关检查，图形进程串行运行在D3D12/RTX3060：
+
+| 检查 | 证据与范围 |
+|---|---|
+| 输入/配置/空间规则 | `logs/control-smoke-20261115-001845-668905600.log`：改键冲突/安全交换/配置重载/损坏回退、旧代次拒绝、玩家与NPC缓冲恢复边界、单格门/墙角/快速身体扫掠通过 |
+| 实际GUI改键与方向 | `logs/control-ui-smoke-20261115-002503-641881700.log`：点击设置控件、Shift反复捕获/释放、确认交换、键鼠互绑、失焦清捕获、重新启动保持配置/恢复默认、UI比例200%与960×540窗口、自由镜头/不同缩放瞄准、锁向分离通过；截图在`logs/control-ui/` |
+| 既有ACT及生活UI | `logs/act-ui-smoke-20261115-002712-81284000.log`与`logs/ui-smoke-20261115-002301-99752000.log`：剑弓/闪步/持续输入、背包取放/营造/旋转/换装等仍通过 |
+| 共同规则和回执 | `logs/smoke-20261115-002122-510040500.log`、`logs/act-smoke-20261115-002112-949364600.log`与`logs/response-smoke-20261115-002112-949377500.log`完整退出通过 |
+| 图形空间走查 | `logs/space-walk-20261115-002222-536248600.log`：实际输入贴墙停止、侧滑至单格门后通过、L角阻挡与非法自拿取拒绝；`lab-wall/door/corner.png`已观察 |
+| 两路线接敌/脱离 | `logs/p1-lab-slice-20261115-002946-215880700.log`：同一24人测试开局，剑两段实际命中后向左闪步脱离，弓命中后向左闪步脱离；两次末尾玩家HP100。`lab-sword.png`、`lab-bow-exit.png`已观察。不是完整遭遇平衡或持续十分钟人工手感验收 |
+| Windows原生切窗 | `logs/p1-native-focus-20261115-002004.log`：由本机Win32扫描码/鼠标输入持弓移动，发送真实Alt-Tab失焦并在外松键，再切回；收到原生焦点通知，持续状态清零，无自动续走/续射。该项为源码图形进程，release普通启动另单独验证 |
+
+两位顾问对候选源码各完成一份静态审查，原件在`.local/advisor/p1-implementation-20261115/review/`。采纳了晚到失能值会擦掉新缓冲、修饰键捕获释放身份、模态逐层返回、失焦清捕获、可缩放滚动区、无目标F不急停与锁向显示边界等建议；未把顾问的“无风险”结论当运行证据。持续十分钟的人类手感与正式动画/混音仍留给后续试玩，不冒充已验收。
+
+失败/修正记录：首次headless主场景仍命中既有`custom_samplers`问题，并发现新增键位标签API不支持headless，后者已作降级；日志`logs/run-20261115-000037-491329600.log`。图形测试的早期鼠标/窗口断言混用了未稳定相机与物理窗口/逻辑视口，已改为等待真实窗口与对应坐标，未放松玩法断言。原生输入脚本首次使用虚拟键而非扫描码未触发Godot物理键映射，切窗检查因此失败，改用扫描码后取得上述通过结果。早期练习场脚本把受害者个人日志中的actor当作攻击者且过早出刀，已改为真实敌人HP下降和命中回执核验；这些失败均保留在同目录日志。
 
 ## 已知限制
 

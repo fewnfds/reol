@@ -11,6 +11,8 @@ const EventText = preload("res://scripts/presentation/ui/event_text.gd")
 const Items = preload("res://scripts/sim/kernel/items.gd")
 const CharacterPanel = preload("res://scripts/presentation/ui/character_panel.gd")
 const InventoryPanel = preload("res://scripts/presentation/ui/inventory_panel.gd")
+const Bindings = preload("res://scripts/presentation/ui/input_bindings.gd")
+const InputSettings = preload("res://scripts/presentation/ui/input_settings.gd")
 const BASE_SCALE: float = 0.5
 var ui_percent: int = 100
 var minimap := Minimap.new()
@@ -64,6 +66,9 @@ var _context_panel: PanelContainer
 var _context_body := VBoxContainer.new()
 var _context: Dictionary = {}
 var _tooltip_until: int = 0
+var bindings: RefCounted
+var binding_editor: VBoxContainer
+var _direct: bool = true
 
 func _ready() -> void:
 	Actions.load_definitions()
@@ -97,7 +102,7 @@ func _ready() -> void:
 	dock_body.add_child(_progress)
 	var combat := HBoxContainer.new()
 	dock_body.add_child(combat)
-	for row: Array in [["context", "Tab 交互", "target"], ["interact", "F", "take"], ["heal", "R", "potion"], ["ability", "Q", "plant"], ["equip_sword", "1 剑", "attack"], ["equip_bow", "2 弓", "target"]]:
+	for row: Array in [["context", "交互", "target"], ["interact", "", "take"], ["heal", "", "potion"], ["ability", "", "plant"], ["equip_sword", "剑", "attack"], ["equip_bow", "弓", "target"]]:
 		_player_buttons[row[0]] = _button(combat, row[0], row[1], row[2])
 	_weapon = Style.label(dock_body, "WASD移动 · 鼠标瞄准 · 左键攻击 · 右键武器技 · 空格闪步")
 	_weapon.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -123,7 +128,7 @@ func _ready() -> void:
 	var tabs := GridContainer.new()
 	tabs.columns = 2
 	toolbar.add_child(tabs)
-	for row: Array in [["build_menu", "营造 B", "build"], ["plant_menu", "种植", "plant"], ["inventory", "背包 I", "bag"], ["character", "人物", "person"], ["travel", "地区", "map"], ["dev", "DEV", "gear"]]:
+	for row: Array in [["build_menu", "营造", "build"], ["plant_menu", "种植", "plant"], ["inventory", "背包", "bag"], ["character", "人物", "person"], ["travel", "地区", "map"], ["dev", "DEV", "gear"]]:
 		_button(tabs, row[0], row[1], row[2])
 	_map_panel = _panel(self, Control.PRESET_BOTTOM_RIGHT, Vector4(-226, -306, -8, -72))
 	var map_body := VBoxContainer.new()
@@ -195,9 +200,41 @@ func _button(parent: Node, action: String, text: String = "", glyph: String = ""
 	if not glyph.is_empty(): value.icon = Style.icon(glyph)
 	value.custom_minimum_size = Vector2(36, 32)
 	value.focus_mode = Control.FOCUS_NONE
+	if not Bindings.spec_for("game_" + action).is_empty():
+		value.set_meta("shortcut_action", "game_" + action)
+		value.set_meta("shortcut_caption", text)
+		value.set_meta("shortcut_in_text", not (action == "rotate_take" and text == "N"))
+		_refresh_button(value)
 	value.pressed.connect(func(): requested.emit(action, payload))
 	parent.add_child(value)
 	return value
+
+func set_bindings(source: RefCounted) -> void:
+	bindings = source
+	bindings.changed.connect(refresh_bindings)
+	refresh_bindings()
+
+func _refresh_button(button: Button) -> void:
+	if bindings == null or not button.has_meta("shortcut_action"): return
+	var id: String = button.get_meta("shortcut_action")
+	var hint: String = bindings.hint(id)
+	if button.get_meta("shortcut_in_text", true):
+		button.text = (hint + " " + str(button.get_meta("shortcut_caption", ""))).strip_edges()
+	button.tooltip_text = "%s · %s" % [Bindings.action_label(id), hint]
+
+func refresh_bindings() -> void:
+	for child: Node in find_children("*", "Button", true, false): _refresh_button(child)
+	_refresh_control_hints()
+
+func _refresh_control_hints() -> void:
+	if bindings == null or _frame == null: return
+	var weapon: String = str(_frame.player.get("equipment", {}).get("weapon", ""))
+	var step_left: float = maxf(0, int(_frame.cooldowns.get("step", 0)) - _frame.world_ms) / 1000.0
+	var skill_left: float = maxf(0, int(_frame.cooldowns.get("skill", 0)) - _frame.world_ms) / 1000.0
+	_player_buttons.context.text = "%s %s" % [bindings.hint("game_context"), "交互" if _direct else "ACT"]
+	var movement := PackedStringArray()
+	for id: String in ["act_up", "act_left", "act_down", "act_right"]: movement.append(bindings.hint(id))
+	set_text(_weapon, ("ACT · %s · %s移动 鼠标瞄准 · %s%s · %s武器技 %.1fs · %s闪步 %.1fs" % ["弓" if weapon.begins_with("short_bow") else ("剑" if not weapon.is_empty() else "徒手"), "/".join(movement), bindings.hint("act_primary"), "按住连射" if weapon.begins_with("short_bow") else "三连", bindings.hint("act_skill"), skill_left, bindings.hint("act_step"), step_left]) if _direct else "交互／营造 · 左键选择 · 右键对象菜单 · %s返回ACT" % bindings.hint("game_context"))
 
 func _clear(parent: Node) -> void:
 	for child: Node in parent.get_children():
@@ -206,6 +243,7 @@ func _clear(parent: Node) -> void:
 
 func _layout() -> void:
 	size = get_viewport_rect().size / scale
+	if _modal_panel != null: _layout_modal()
 	var width: float = size.x
 	var dock_width: float = minf(584, maxf(490, width - 590))
 	var dock: Control = _player_values.get_parent().get_parent()
@@ -278,11 +316,8 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 	_player_buttons.heal.disabled = dead or int(player.get("hp", 0)) >= int(player.get("stats", {}).get("max_hp", 100)) or int(player.get("inventory", {}).get("potion", 0)) <= 0
 	_player_buttons.ability.disabled = dead or not player.get("abilities", {}).get("wood_mend", false)
 	_follow.modulate = Style.GOLD if following else Color.WHITE
-	var weapon: String = str(player.get("equipment", {}).get("weapon", ""))
-	var step_left: float = maxf(0, int(frame.cooldowns.get("step", 0)) - frame.world_ms) / 1000.0
-	var skill_left: float = maxf(0, int(frame.cooldowns.get("skill", 0)) - frame.world_ms) / 1000.0
-	_player_buttons.context.text = "Tab 交互" if direct else "Tab ACT"
-	set_text(_weapon, ("ACT · %s · WASD移动 鼠标瞄准 左键%s · 右键武器技 %.1fs · 空格闪步 %.1fs" % ["弓" if weapon.begins_with("short_bow") else ("剑" if not weapon.is_empty() else "徒手"), "按住连射" if weapon.begins_with("short_bow") else "三连", skill_left, step_left]) if direct else "交互／营造 · 左键选择 · 右键对象菜单 · Tab返回ACT")
+	_direct = direct
+	_refresh_control_hints()
 	_map_out.disabled = minimap.span >= 512.0
 	_map_in.disabled = minimap.span <= 32.0
 	_map_follow.modulate = Style.GOLD if minimap.follow_player else Color.WHITE
@@ -418,7 +453,7 @@ func _build_modal() -> void:
 	_modal_panel.add_child(_modal_body)
 	_modal.gui_input.connect(func(event: InputEvent):
 		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
-			requested.emit("close_modal", {})
+			requested.emit({"bindings": "close_bindings", "settings": "close_settings"}.get(_modal_kind, "close_modal"), {})
 			_modal.accept_event())
 	_modal.hide()
 
@@ -435,9 +470,10 @@ func open_bag(subject: int = 1) -> void:
 
 func open_simple(kind: String) -> void:
 	_modal_kind = kind
+	binding_editor = null
 	_clear(_modal_body)
 	if kind == "pause":
-		for row: Array in [["resume", "继续", "play"], ["save", "保存 F5", "save"], ["load", "读取 F9", "load"], ["settings", "设置", "gear"]]: _button(_modal_body, row[0], row[1], row[2])
+		for row: Array in [["resume", "继续", "play"], ["save", "保存", "save"], ["load", "读取", "load"], ["settings", "设置", "gear"]]: _button(_modal_body, row[0], row[1], row[2])
 	elif kind == "trade":
 		var row := HBoxContainer.new()
 		_modal_body.add_child(row)
@@ -456,10 +492,29 @@ func open_simple(kind: String) -> void:
 		_scale_input.suffix = "%"
 		_modal_body.add_child(_scale_input)
 		_button(_modal_body, "ui_scale_commit", "确认", "check")
+		_button(_modal_body, "bindings", "键位设置", "gear")
 		_button(_modal_body, "close_settings", "", "close")
+	elif kind == "bindings":
+		binding_editor = InputSettings.new()
+		_modal_body.add_child(binding_editor)
+		binding_editor.configure(bindings, maxf(120, minf(760, size.y - 64) - 186))
+		binding_editor.back_requested.connect(func(): requested.emit("close_bindings", {}))
+	_layout_modal()
 	_modal.show()
 
+func _layout_modal() -> void:
+	var extent := Vector2(520, 380)
+	if _modal_kind == "bindings": extent = Vector2(minf(820, size.x - 48), minf(760, size.y - 64))
+	_modal_panel.offset_left = -extent.x * 0.5
+	_modal_panel.offset_right = extent.x * 0.5
+	_modal_panel.offset_top = -extent.y * 0.5
+	_modal_panel.offset_bottom = extent.y * 0.5
+
 func close_modal() -> void:
+	if binding_editor != null:
+		binding_editor.cancel_capture()
+		binding_editor = null
+	_clear(_modal_body)
 	_modal.hide()
 	_modal_kind = ""
 	get_viewport().gui_release_focus()

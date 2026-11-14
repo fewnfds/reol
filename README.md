@@ -4,6 +4,8 @@ GDScript / 2D正交俯视的修仙模拟世界。当前在自主模拟、多核�
 
 ACT灰盒双击[ACT试玩.cmd](ACT试玩.cmd)，普通生活开局双击[开发试玩.cmd](开发试玩.cmd)；两者直接运行同一源码后端。修改后重启即可，无需导出。运行方式见[命令说明](docs/engineering/tooling/usage.md)。
 
+P1已接入键鼠改键、输入切换清理和主角方向提示；Esc→设置→键位设置。最新独立包在`build/windows/act-p1/`，双击其中`P1练习场.cmd`。
+
 按主题查[记忆地图](docs/README.md)；未完任务见[HANDOFF](docs/status/handoff.md)，agent入口为[AGENTS](AGENTS.md)。
 
 - [可玩能力、键位和明确未迁回的玩法](docs/status/features.md)

@@ -4,6 +4,8 @@ const Actions = preload("res://scripts/presentation/ui/actions.gd")
 const Art = preload("res://scripts/presentation/art.gd")
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Style = preload("res://scripts/presentation/ui/style.gd")
+const Bindings = preload("res://scripts/presentation/ui/input_bindings.gd")
+var bindings := Bindings.new()
 var host: Node2D
 var ui: Control
 var tool: String = ""
@@ -23,34 +25,28 @@ var _preview_ok: bool = false
 var _preview_tile: int = -1
 var _preview_sequence: int = -1
 var _point := Vector2.ZERO
-const KEYS: Dictionary = {"context": KEY_TAB, "interact": KEY_F, "work": KEY_J, "heal": KEY_R, "ability": KEY_Q,
-	"build_menu": KEY_B, "inventory": KEY_I, "equip_sword": KEY_1, "equip_bow": KEY_2,
-	"rotate_take": KEY_R, "demolish_tool": KEY_DELETE,
-	"save": KEY_F5, "load": KEY_F9, "path": KEY_P,
-	"pan_left": KEY_LEFT, "pan_right": KEY_RIGHT, "pan_up": KEY_UP, "pan_down": KEY_DOWN}
+var _blocked: bool = true
+var _focused: bool = true
 
 func configure(game: Node2D, hud: Control) -> void:
 	host = game
 	ui = hud
 	ui.requested.connect(action)
-	for name_key: String in KEYS:
-		var input_name: String = "game_" + name_key
-		if not InputMap.has_action(input_name): InputMap.add_action(input_name)
-		var event := InputEventKey.new()
-		event.physical_keycode = KEYS[name_key]
-		if not InputMap.action_has_event(input_name, event): InputMap.action_add_event(input_name, event)
-	for spec: Array in [["left", KEY_A], ["right", KEY_D], ["up", KEY_W], ["down", KEY_S], ["step", KEY_SPACE]]:
-		var name_key: String = "act_" + spec[0]
-		if not InputMap.has_action(name_key): InputMap.add_action(name_key)
-		var event := InputEventKey.new()
-		event.physical_keycode = spec[1]
-		if not InputMap.action_has_event(name_key, event): InputMap.action_add_event(name_key, event)
-	for spec: Array in [["primary", MOUSE_BUTTON_LEFT], ["skill", MOUSE_BUTTON_RIGHT]]:
-		var name_key: String = "act_" + spec[0]
-		if not InputMap.has_action(name_key): InputMap.add_action(name_key)
-		var event := InputEventMouseButton.new()
-		event.button_index = spec[1]
-		if not InputMap.action_has_event(name_key, event): InputMap.action_add_event(name_key, event)
+	bindings.install()
+	ui.set_bindings(bindings)
+	bindings.changed.connect(_bindings_changed)
+	if not bindings.notice.is_empty(): ui.feedback(bindings.notice, false)
+
+func _bindings_changed() -> void:
+	clear_direct()
+	host._hud_next = 0
+
+func pointer_world(screen: Vector2) -> Vector2:
+	return (host.get_canvas_transform().affine_inverse() * screen) / Art.TILE
+
+func _update_aim(screen: Vector2) -> void:
+	var direction: Vector2 = pointer_world(screen) - host._displayed(1)
+	if direction.length_squared() > 0.04: _aim = direction.normalized()
 
 func external_modal() -> bool:
 	return host.art_gallery.is_open() or (host._debug_console != null and host._debug_console.is_open())
@@ -61,12 +57,11 @@ func locked() -> bool:
 
 func tick(delta: float) -> void:
 	if host.frame == null: return
-	if locked() or host.paused or not direct or not tool.is_empty():
-		clear_direct()
+	if locked() or host.paused or not direct or not tool.is_empty() or not _focused:
+		if not _blocked: clear_direct()
 	else:
-		var point: Vector2 = host.get_global_mouse_position() / Art.TILE
-		var aim: Vector2 = point - host._displayed(1)
-		if aim.length_squared() > 0.04: _aim = aim.normalized()
+		_blocked = false
+		_update_aim(get_viewport().get_mouse_position())
 		var drive: Dictionary = {"enabled": true, "move": move_vector(), "aim": _aim, "primary": _primary_down}
 		if drive != _last_drive:
 			host.runner.drive(drive)
@@ -81,9 +76,9 @@ func tick(delta: float) -> void:
 				ui.context_menu(data, _pending_context.screen, _pending_context)
 				_pending_context = {}
 	if not host.following and not locked():
-		var pan: Vector2 = Input.get_vector("game_pan_left", "game_pan_right", "game_pan_up", "game_pan_down")
+		var pan: Vector2 = Vector2(float(_held.has("pan_right")) - float(_held.has("pan_left")), float(_held.has("pan_down")) - float(_held.has("pan_up"))).limit_length(1.0)
 		host.camera.position += pan * delta * 800.0 / host.camera.zoom.x
-	_point = host.get_global_mouse_position() / Art.TILE
+	_point = pointer_world(get_viewport().get_mouse_position())
 	var tile: int = tile_at(_point)
 	if tool in ["build", "plant"] and (tile != _preview_tile or _preview_sequence != host.frame.sequence):
 		_preview_sequence = host.frame.sequence
@@ -92,8 +87,13 @@ func tick(delta: float) -> void:
 	if not tool.is_empty(): queue_redraw()
 
 func _input(event: InputEvent) -> void:
+	if external_modal() and ui.binding_editor != null: ui.binding_editor.focus_lost()
+	if ui.binding_editor != null and ui.binding_editor.consume(event):
+		get_viewport().set_input_as_handled()
+		return
 	for key: String in ["left", "right", "up", "down"]:
 		if event.is_action_released("act_" + key): _held.erase(key)
+		if event.is_action_released("game_pan_" + key): _held.erase("pan_" + key)
 	if event.is_action_released("act_primary"): _primary_down = false
 	if ui.inventory.visible and event is InputEventMouseButton and event.pressed:
 		var focused: Control = get_viewport().gui_get_focus_owner()
@@ -103,7 +103,13 @@ func _input(event: InputEvent) -> void:
 		_pan_drag = false # Release can land on GUI instead of the world.
 	if external_modal(): return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		if ui.modal_kind() != "":
+		if ui.binding_editor != null and ui.binding_editor.escape():
+			pass
+		elif ui.modal_kind() == "bindings":
+			action("close_bindings", {})
+		elif ui.modal_kind() == "settings":
+			action("close_settings", {})
+		elif ui.modal_kind() != "":
 			action("close_modal", {})
 		elif ui._context_panel.visible:
 			ui.close_context()
@@ -120,7 +126,8 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if host.frame == null or external_modal(): return
+	if host.frame == null or external_modal() or not _focused: return
+	if event is InputEventWithModifiers and (event.alt_pressed or event.ctrl_pressed or event.meta_pressed): return
 	if direct and not locked() and not host.paused and tool.is_empty():
 		for key: String in ["left", "right", "up", "down"]:
 			if event.is_action_pressed("act_" + key) and not event.is_echo():
@@ -131,9 +138,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			if event.is_action_pressed("act_" + button) and not event.is_echo():
 				if button == "primary": _primary_down = true
 				# Capture direction on the edge, including a click before the next tick.
-				var pointer: Vector2 = host.get_global_mouse_position() / Art.TILE
-				if event is InputEventMouseButton: pointer = host.get_canvas_transform().affine_inverse() * event.position / Art.TILE
-				if pointer.distance_squared_to(host._displayed(1)) > 0.04: _aim = host._displayed(1).direction_to(pointer)
+				_update_aim(event.position if event is InputEventMouseButton else get_viewport().get_mouse_position())
 				_send({"kind": "action", "button": button, "aim": _aim, "move": move_vector()})
 				get_viewport().set_input_as_handled()
 				return
@@ -143,17 +148,31 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if locked(): return
+	if event.is_pressed() and not event.is_echo():
+		for spec: Dictionary in Bindings.SPECS:
+			var id: String = spec.id
+			if not id.begins_with("game_") or not Bindings.active(id, direct): continue
+			if host.paused and id in ["game_heal", "game_ability"]: continue
+			if event.is_action_pressed(id):
+				if id.begins_with("game_pan_"): _held[id.trim_prefix("game_")] = true
+				else: action(id.trim_prefix("game_"), {})
+				get_viewport().set_input_as_handled()
+				return
+		if event is InputEventKey and event.physical_keycode == KEY_P:
+			action("path", {})
+			get_viewport().set_input_as_handled()
+			return
 	if event is InputEventMouseMotion and _pan_drag:
 		host.camera.position -= event.relative / host.camera.zoom
 		return
 	if event is InputEventMouseButton and event.pressed:
-		var point: Vector2 = host.get_canvas_transform().affine_inverse() * event.position / Art.TILE
+		var point: Vector2 = pointer_world(event.position)
 		if event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
 			host.camera.zoom = Vector2.ONE * clampf(host.camera.zoom.x * (1.15 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.15), 0.1, 2.0)
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			if not tool.is_empty(): cancel_tool()
 			elif not direct: _right_click(point, event.position)
-		elif event.button_index == MOUSE_BUTTON_LEFT:
+		elif event.button_index == MOUSE_BUTTON_LEFT and (not direct or not tool.is_empty()):
 			if not tool.is_empty(): _confirm_tool(point)
 			else:
 				var candidates: Array[int] = pick(point)
@@ -161,15 +180,6 @@ func _unhandled_input(event: InputEvent) -> void:
 				if not candidates.is_empty(): id = candidates[(candidates.find(host.selected) + 1) % candidates.size()]
 				_select(id, tile_at(point))
 		get_viewport().set_input_as_handled()
-	elif event is InputEventKey and event.pressed and not event.echo:
-		for key: String in KEYS:
-			if key.begins_with("pan_"): continue
-			if key in ["rotate_take", "work", "demolish_tool"] and direct: continue
-			if key == "heal" and not direct: continue
-			if event.is_action_pressed("game_" + key):
-				action(key, {})
-				get_viewport().set_input_as_handled()
-				break
 
 func action(kind: String, payload: Dictionary) -> void:
 	if host.frame == null: return
@@ -181,9 +191,8 @@ func action(kind: String, payload: Dictionary) -> void:
 			clear_direct()
 			direct = not direct
 			cancel_tool()
-			ui.feedback("ACT操作" if direct else "交互／营造：Tab返回ACT", true)
+			ui.feedback("ACT操作" if direct else "交互／营造：%s返回ACT" % bindings.hint("game_context"), true)
 		"interact":
-			clear_direct()
 			var nearest: int = 0
 			var distance: float = 2.5
 			var candidates: Array = host.frame.objects.keys() + host.frame.actor_slots.keys()
@@ -202,10 +211,12 @@ func action(kind: String, payload: Dictionary) -> void:
 				var current: float = host._displayed(1).distance_to(point)
 				if current < distance: distance = current; nearest = id
 			if nearest > 0:
+				clear_direct()
 				_select(nearest, -1)
 				_pending_context = {"target": nearest, "screen": get_viewport_rect().size * 0.5, "epoch": host.frame.epoch}
 		"equip_sword", "equip_bow": _send({"kind": "equip", "item": "iron_sword" if kind == "equip_sword" else "short_bow"})
 		"pause":
+			clear_direct()
 			host.paused = not host.paused
 			host.runner.control(host.paused, host.speed)
 		"speed", "speed1", "speed2", "speed4", "speed8":
@@ -235,16 +246,23 @@ func action(kind: String, payload: Dictionary) -> void:
 			_send({"kind": "trade", "target": target, "give_item": "potion", "give_amount": 1, "want_item": "breath_manual", "want_amount": 1})
 			ui.close_modal()
 		"pause_menu":
+			clear_direct()
 			_resume_paused = host.paused
 			host.paused = true
 			host.runner.control(true, host.speed)
 			ui.open_simple("pause")
 		"resume", "close_modal":
-			if ui.modal_kind() in ["pause", "settings"]:
+			if ui.modal_kind() in ["pause", "settings", "bindings"]:
 				host.paused = _resume_paused
 				host.runner.control(host.paused, host.speed)
 			ui.close_modal()
-		"settings": ui.open_simple("settings")
+		"settings":
+			clear_direct()
+			ui.open_simple("settings")
+		"bindings":
+			clear_direct()
+			ui.open_simple("bindings")
+		"close_bindings": ui.open_simple("settings")
 		"close_settings": ui.open_simple("pause")
 		"ui_scale":
 			ui.apply_scale(int(payload.percent))
@@ -265,7 +283,12 @@ func action(kind: String, payload: Dictionary) -> void:
 				facing = (facing + 1) % 4
 				ui._rotate_button.text = ["N", "E", "S", "W"][facing]
 				_preview_sequence = -1
-			else: ui.open_stock("take", target)
+			else:
+				var observed: Dictionary = Actions.observed(host.frame, target, host.fog_enabled)
+				for spec: Dictionary in Actions.for_target(observed, host.frame.player, help_target):
+					if spec.id == "take" and spec.enabled:
+						action("take", {"target": target})
+						break
 		"request_worker":
 			direct = false
 			help_target = target
@@ -295,9 +318,10 @@ func action(kind: String, payload: Dictionary) -> void:
 			var command: Dictionary = payload.duplicate()
 			command.kind = kind
 			_send(command)
-		"work", "heal", "ability", "save", "load":
+		"work", "save", "load":
 			clear_direct()
 			_send({"kind": kind})
+		"heal", "ability": _send({"kind": kind})
 		"study": _send({"kind": kind, "target": 1})
 		"continue_build", "demolish", "rest", "eat", "cook", "sow", "tend", "gather", "cut", "uproot", "talk", "learn", "practice":
 			_send({"kind": kind, "target": target})
@@ -369,12 +393,18 @@ func move_vector() -> Vector2:
 func clear_direct() -> void:
 	_held.clear()
 	_primary_down = false
-	if _last_drive != {"enabled": false}:
-		host.runner.drive({"enabled": false})
-		_last_drive = {"enabled": false}
+	_blocked = true
+	host.runner.invalidate_control()
+	_last_drive = {"enabled": false}
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT and host != null: clear_direct()
+	if host == null: return
+	if what in [NOTIFICATION_WM_WINDOW_FOCUS_OUT, NOTIFICATION_APPLICATION_FOCUS_OUT] and _focused:
+		_focused = false
+		_pan_drag = false
+		if ui.binding_editor != null: ui.binding_editor.focus_lost()
+		clear_direct()
+	elif what in [NOTIFICATION_WM_WINDOW_FOCUS_IN, NOTIFICATION_APPLICATION_FOCUS_IN]: _focused = true
 
 func pick(point: Vector2, include_flat: bool = true) -> Array[int]:
 	var result: Array[int] = []

@@ -13,6 +13,12 @@ static func combat_lab(world: RefCounted) -> void:
 	world.objects.records[1].autonomous = false
 	world.pages[0].modes[0] = world.Units.Mode.IDLE
 	world.pages[0].positions[0] = Vector2(144.5, 150.5)
+	# A small calibration route in this same persistent world: wall, one-cell door, L corner.
+	for x: int in range(137, 147):
+		world.command({"kind": "build", "tile": Terrain.index(Vector2i(x, 147)), "structure": 2 if x == 142 else 1})
+	for y: int in range(143, 147):
+		world.command({"kind": "build", "tile": Terrain.index(Vector2i(137, y)), "structure": 1})
+	world.flush_topology()
 	for index: int in mini(3, world.actor_count - 1):
 		var actor: int = world.actor_count - index
 		var slot: int = world.actor_slots[actor]

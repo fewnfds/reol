@@ -86,6 +86,9 @@ var _show_sources: bool = false
 var _response_probe: RefCounted
 var _sim_hz: int = 60
 var _combat_lab: bool = false
+var _last_direction_epoch: int = -1
+var _last_displayed_player := Vector2.INF
+var _display_move := Vector2.ZERO
 
 
 func _ready() -> void:
@@ -255,6 +258,8 @@ func _process(delta: float) -> void:
 	combat_audio.advance(int(render_ms))
 	if following:
 		camera.position = _displayed(1) * TILE
+	camera.force_update_scroll() # Mouse conversion uses this displayed camera, even without fog.
+	_update_direction_marker()
 	controls.tick(delta)
 	if fog_enabled:
 		camera.force_update_scroll()
@@ -294,7 +299,7 @@ func _displayed(id: int) -> Vector2:
 
 
 func _actions_at(pose: RefCounted) -> Dictionary:
-	if frame.paused: return frame.combat
+	if frame.paused or render_ms >= frame.world_ms: return frame.combat
 	var result: Dictionary = {}
 	for segment: Dictionary in pose.action_segments:
 		if render_ms >= int(segment.from_ms) and render_ms < int(segment.until_ms): result[segment.actor] = segment
@@ -347,11 +352,36 @@ func diagnostics() -> Dictionary:
 	return result
 
 
+func _update_direction_marker() -> void:
+	var position: Vector2 = _displayed(1)
+	_display_move = Vector2.ZERO
+	if _last_direction_epoch == frame.epoch and _last_displayed_player.is_finite() and not frame.paused:
+		var movement: Vector2 = position - _last_displayed_player
+		if movement.length_squared() > 0.00000001 and movement.length_squared() < 1.0: _display_move = movement.normalized()
+	_last_displayed_player = position
+	_last_direction_epoch = frame.epoch
+
+
+func _draw_control_direction(origin: Vector2, actions: Dictionary) -> void:
+	if not controls.direct or controls.locked() or frame.paused or int(frame.player.get("hp", 0)) <= 0: return
+	var aim: Vector2 = controls._aim
+	var side := Vector2(-aim.y, aim.x)
+	draw_colored_polygon(PackedVector2Array([origin + aim * 24, origin + aim * 17 + side * 3, origin + aim * 17 - side * 3]), Color("e8ddb1"))
+	if not _display_move.is_zero_approx() and _display_move.dot(aim) < 0.7:
+		var normal := Vector2(-_display_move.y, _display_move.x)
+		draw_polyline(PackedVector2Array([origin + _display_move * 8 + normal * 3, origin + _display_move * 12, origin + _display_move * 8 - normal * 3]), Color("80c5bf"), 1.5, true)
+	var action: Dictionary = actions.get(1, {})
+	if not action.is_empty() and action.kind != "step" and render_ms >= int(action.started_ms) and render_ms < int(action.end_ms):
+		var angle: float = Vector2(action.direction).angle()
+		draw_arc(origin, 15, angle - 0.42, angle + 0.42, 10, Color("ffb45f"), 3.2, true)
+
+
 func _draw() -> void:
 	if frame == null:
 		return
 	draw_arc(_displayed(1) * TILE, 15, 0, TAU, 24, Color.GOLD, 2.0)
 	var actions: Dictionary = _actions_at(_render_pose) if _render_pose != null else {}
+	_draw_control_direction(_displayed(1) * TILE, actions)
 	for actor: int in actions:
 		var slot: int = int(frame.actor_slots.get(actor, -1))
 		if slot < 0 or (fog_enabled and frame.visible[slot] == 0): continue
@@ -373,7 +403,7 @@ func _draw() -> void:
 			else:
 				draw_arc(origin, float(def.reach) * TILE, direction.angle() - float(def.angle), direction.angle() + float(def.angle), 18, Color(color, 0.6), 1.4, true)
 		elif state.kind != "step":
-			draw_line(origin, origin + direction * 42, Color(color, 0.8), 2.0, true)
+			draw_line(origin, origin + direction * (22 if actor == 1 else 42), Color(color, 0.8), 2.0, true)
 		else:
 			draw_line(origin - direction * 22, origin, Color(color, 0.6), 5.0, true)
 	if frame.actor_slots.has(selected) and (not fog_enabled or frame.visible[frame.actor_slots[selected]] != 0):

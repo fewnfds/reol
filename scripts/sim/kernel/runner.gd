@@ -41,6 +41,8 @@ var _capacity: bool = false
 var _sim_hz: int = DEFAULT_HZ
 var _combat_lab: bool = false
 var _drive: Dictionary = {}
+var _control_generation: int = 0 # Mutex-protected input lifetime, independent of session epoch.
+var _adopted_control_generation: int = 0 # Owner-only.
 var _slow_frame: RefCounted
 var _slow_selected: int = -1
 var _slow_probe: int = -2
@@ -87,6 +89,7 @@ func send(value: Dictionary) -> int:
 	_mutex.lock()
 	if not command.has("epoch"):
 		command.epoch = _latest.epoch if _latest != null else 1
+	if command.get("kind", "") == "action": command.control_generation = _control_generation
 	_commands.append(command)
 	_notify_locked()
 	_mutex.unlock()
@@ -98,8 +101,32 @@ func drive(value: Dictionary) -> void:
 	_mutex.lock()
 	_drive = value.duplicate(true)
 	_drive.epoch = _latest.epoch if _latest != null else 1
+	_drive.control_generation = _control_generation
 	_notify_locked()
 	_mutex.unlock()
+
+
+func invalidate_control() -> void:
+	# This fact survives a later drive overwrite, including UI open/close in one frame.
+	_mutex.lock()
+	_control_generation += 1
+	_drive = {} # Generation adoption clears old state before admitting fresh edges.
+	_notify_locked()
+	_mutex.unlock()
+
+
+func _apply_direct_action(command: Dictionary) -> Dictionary:
+	# Linearize input invalidation against the short action-start commit, not World.step/I/O.
+	_mutex.lock()
+	var reply: Dictionary
+	if int(command.get("control_generation", -1)) != _control_generation:
+		reply = {"seq": command.seq, "kind": "action", "at_ms": _world.elapsed_ms, "ok": false, "reason": "input_canceled"}
+	elif _paused:
+		reply = {"seq": command.seq, "kind": "action", "at_ms": _world.elapsed_ms, "ok": false, "reason": "paused"}
+	else:
+		reply = _world.command(command)
+	_mutex.unlock()
+	return reply
 
 
 func control(paused: bool, speed: float) -> void:
@@ -199,6 +226,7 @@ func _run() -> void:
 		_commands = []
 		var drive_input: Dictionary = _drive
 		_drive = {}
+		var control_generation: int = _control_generation
 		_mutex.unlock()
 		if closing:
 			# Shutdown cancels unexecuted admissions with receipts, rather than
@@ -208,6 +236,9 @@ func _run() -> void:
 			_publish(true, speed, selected, probe)
 			break
 		var changed: bool = paused != next_paused or speed != next_speed or selected != next_selected or probe != next_probe or not commands.is_empty()
+		if control_generation != _adopted_control_generation:
+			_world.combat.set_control(_world, {"enabled": false})
+			_adopted_control_generation = control_generation
 		paused = next_paused
 		if paused:
 			debt = 0.0
@@ -223,6 +254,7 @@ func _run() -> void:
 				var candidate: RefCounted = io_result.candidate
 				if candidate != null:
 					_world = candidate
+					_world.combat.set_control(_world, {"enabled": false})
 					_epoch += 1
 					_poses.clear()
 					_object_revision = -1
@@ -252,6 +284,8 @@ func _run() -> void:
 				replies.append({"seq": command.seq, "kind": command.get("kind", ""), "at_ms": _world.elapsed_ms, "ok": false, "reason": "session_changed"})
 			elif paused and command.get("kind", "") == "action":
 				replies.append({"seq": command.seq, "kind": "action", "at_ms": _world.elapsed_ms, "ok": false, "reason": "paused"})
+			elif command.get("kind", "") == "action":
+				replies.append(_apply_direct_action(command))
 			elif command.get("kind", "") in ["save", "load"]:
 				var state: Dictionary = {}
 				if command.kind == "save" and not _io.busy:
@@ -264,7 +298,12 @@ func _run() -> void:
 			if not trace.is_empty() and replies.size() > reply_count:
 				trace.applied_usec = Time.get_ticks_usec()
 				replies.back().trace = trace
-		if not paused and not drive_input.is_empty() and drive_input.epoch == _epoch:
+		_mutex.lock()
+		var still_current: bool = control_generation == _control_generation
+		_mutex.unlock()
+		if not still_current:
+			_world.combat.set_control(_world, {"enabled": false})
+		elif not paused and not drive_input.is_empty() and drive_input.epoch == _epoch:
 			_world.combat.set_control(_world, drive_input)
 		_world.flush_topology()
 		if _terrain_view.revision != _world.terrain.revision:

@@ -61,6 +61,7 @@ func set_control(world: RefCounted, input: Dictionary) -> void:
 	var row: int = slot % 256
 	if not input.get("enabled", false):
 		controls.erase(actor)
+		if states.has(actor): states[actor].buffer = {}
 		if page.modes[row] == Units.Mode.DIRECT and not states.has(actor): page.modes[row] = Units.Mode.IDLE
 		page.direct_velocities[row] = Vector2.ZERO
 		return

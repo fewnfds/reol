@@ -18,7 +18,7 @@ python tools/godot.py export --preset "Windows Demo" --output build/windows/reol
 
 ACT测试入口相当于`python tools/godot.py run -- --combat-lab=true`：同一512²世界保留后台生活，在玩家附近放剑客、重剑客和弓手。WASD、鼠标瞄准、左键三连/持弓连射、右键武器技、空格闪步；1/2战前换真装备，Tab交互／营造，F附近交互。技能参数以`action_defs.gd`为准，动画/声音仍是占位。
 
-独立ACT预览包为`build/windows/act-preview/reol-act.exe`＋同目录pck；加`-- --combat-lab=true`进入相同测试开局。它与旧正式包、旧P0基线包分开。
+最新独立ACT包为`build/windows/act-p1/reol-act.exe`＋同目录pck，双击同目录`P1练习场.cmd`进入测试开局。命令为`reol-act.exe -- --combat-lab=true`；Esc→设置→键位设置改键。测试场在同一世界补了L形墙和单格门。旧`act-preview`、正式包与P0基线包保留。
 
 现有导出exe/pck是生成当时的快照，不会自动读取源码修改。开发试玩以源码入口为准，只有需要独立分发或release性能测量时才重新导出。这个入口不承诺在运行中热替换持有世界的线程与状态。
 
