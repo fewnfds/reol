@@ -1,6 +1,6 @@
 # ACT＋弹幕改版：源码、顾问与成熟方案研究
 
-核查日期：2026-11-14～15。性质：**研究取舍＋灰盒实施测量＋P2方案评审**。玩法与调参只见[改版规格](../systems/combat_framework/act_and_barrage.md)，实施次序只见[主计划](../../docs/plans/foundation-priorities.md)。用户已选择近远双路线；《鬼谷八荒》作为用户所写“硅谷八荒”的暂定对应。
+核查日期：2026-11-14～15。性质：**研究取舍＋灰盒实施测量＋P2评审＋技能制作工具选型**。玩法与调参只见[改版规格](../systems/combat_framework/act_and_barrage.md)，实施次序只见[主计划](../../docs/plans/foundation-priorities.md)。用户已选择近远双路线；《鬼谷八荒》作为用户所写“硅谷八荒”的暂定对应。
 
 本次直接检查现有源码、官方/开发者网页、官方演讲讲义和开源README/部分源码；没有把参考游戏逐一试玩测帧，也没有把插件装进Reol测性能。原作机制、开源能力、Reol推导与待测参数分开记录。
 
@@ -128,9 +128,39 @@
 | [PerfBullets](https://github.com/Moonzel/Godot-PerfBullets) | MIT、C++ GDExtension＋MultiMesh，README声明4.1/4.2、Mobile/Forward+ | 研究批渲染/池化；不能称纯GDScript即插即用，4.7兼容未验证。没有实测瓶颈前不增加原生依赖 |
 | [GDQuest A-RPG demo](https://github.com/gdquest-demos/godot-make-pro-2d-games) | MIT源码，README明确Godot3.1；三连剑、两种怪、三阶段Boss、模块化命中/伤害源及完整小循环 | **最贴近三连原型的可读样本**，主要借设计/组织方式。它的旧API、节点式身体/伤害与当前页式World不同，不能整套复制 |
 
-上述MIT按作者仓库/官方条目标示核查，不表示商用美术/音频自动具有相同许可；本次没有下载或纳入第三方代码/资产。正式选依赖时应固定commit、检查具体LICENSE与资产声明、跑目标Godot版本，并先做Reol同负载对照。
+上述MIT按作者仓库/官方条目标示核查，不表示商用美术/音频自动具有相同许可；没有把第三方代码/资产纳入产品。正式选依赖时应固定commit、检查具体LICENSE与资产声明，并验证目标Godot版本；涉及运行时成本时才做相关负载对照。
 
 没有新增行为树/技能树插件：当前四种敌人的观察/决定可以复用原扫描与少量显式状态；动作执行器先稳定，AI组织方式以后按复杂度选择，不把插件多等同于架构成熟。
+
+### 4.1 可复用技能框架与内容编辑工具
+
+用户希望持续制作技能实例，因此另行检查了下列上游的README、许可、版本记录和关键源码。**以下是2026-11-15的来源快照与接入判断，没有在Reol安装这些插件，也没有完成插件GUI、导出或存读适配实测。** 发布标签与所读主分支不是同一个版本时分别注明，不把README的“production-ready”当项目验收。
+
+| 候选与固定源码快照 | 核查到的能力、依赖与维护线索 | 对Reol的取舍 |
+|---|---|---|
+| [GodotGAS](https://github.com/yulrun/godot-gas/tree/466b877d368c9fb817586992756fc8e8bbc4f67d) | GDScript；README含完整MIT许可；要求4.6+，插件与最新发布均标v1.1.2，2026-10仍有推送。`GameplayEffect`为Resource；Dashboard管理Tags/Cues及属性脚本生成。源码`GameplayAbility`为Node，ASC的`_process`推进持续/周期效果，技能执行可用await任务 | 效果定义、叠层与属性聚合值得参考；Dashboard并非完整技能行为编辑器。整包接入仍须适配身体页、共同时间、效果提交和纯值恢复，不能仅改HP入口就交付 |
+| [LiGameAcademy / godot_ability_system](https://github.com/LiGameAcademy/godot_ability_system/tree/362fa1df1586ef0f39e1bd516398df26b241bc0c) | MIT、GDScript；README写4.5+，当前plugin.cfg描述4.7、版本0.0.1，未找到GitHub正式release，2026-10有推送。定义是Resource，组合Features与资源化行为树；`GameplayAbilityInstance.update(delta)`是显式更新接口，但默认组件仍在`_process`调度，实例持`owner: Node` | **运行时插件中值得优先做适配小试的候选**，因为定义/实例已分离且可显式推进。仍需检查目标接口、状态组件、行为树进度与存读，当前证据不足以认定薄适配即可。没有核实到专用技能节点图编辑器 |
+| [OctoD旧GGS](https://github.com/OctoD/godot-gameplay-systems/tree/9349931cc7a5f3cb748c7f820b4073f2e31fc981) / [拆分Abilities](https://github.com/OctoD/godot-gameplay-abilities/tree/6d1ce71df494c97a84b8647e979c283d9962b624) | 均MIT。旧版GDScript，最新release0.20.5；README提示重写并建议新项目考虑拆分版。新Abilities是C++ GDExtension，最新release1.0.0rc1，2026-01有推送；Ability资源＋RuntimeAbility＋AbilityContainer，源码默认物理帧回调tick | 定义/运行实例的分工可参考；新版增加二进制构建/分发成本，旧版存在API迁移预期。两者都不是现有World的直接替代品，不默认引入 |
+| [Forge for Godot](https://github.com/gamesmiths-guild/forge-godot/tree/56c55837919b852d502254569978fa0f01664ab6) | MIT、C#；最新releasev0.5.0，主分支2026-11仍更新，当前README要求Godot4.7+ .NET和.NET8 SDK。资源化属性/效果/技能、Tags工具与Statescript状态图；核心Forge自称引擎无关，Godot适配`ForgeEntity`默认在`_Process/_PhysicsProcess`更新 | **图形技能制作与规则/表现拆分的较完整参考**。核心可独立推进是优点，但当前项目接入须增加.NET与桥接，不能因图上无需写C#就称无C#依赖；本轮不选作运行时 |
+| [Pandora](https://github.com/bitbrain/pandora/tree/fa48e30e6609ecd6dbd9edf25e0a26f64deb26a0) | MIT、GDScript，核查godot-4.x分支；plugin.cfg为1.0-alpha11-dev，2026-08有推送，README明确仍alpha、未生产就绪。提供分类/属性传播的RPG数据编辑器，以及定义实例化/序列化API | 接近“物体编辑器”，但**不是技能执行器**。引入其数据格式、单例与实例模型仍需到World的转换；目前只参考分类与覆写的编辑体验 |
+| [YARD](https://github.com/elliotfontaine/yard-godot/tree/613ebfb67f71288e64b901cd47446552450e5d7a) | 插件代码MIT、GDScript；README标4.4+，[最新releasev1.3.2](https://github.com/elliotfontaine/yard-godot/releases/tag/v1.3.2)为2026-11-09，所读主分支已有后续改动，plugin.cfg仍写1.3.0。表格编辑原生资源，Registry存ID/UID映射，提供目录扫描、索引和下拉选择；源码还有运行期查询API及导出插件 | **优先试用的编辑辅助候选**，可避免自制全部表格UI。技能本体继续继承原生Resource；Registry不进入权威战斗状态。它不是纯编辑器零依赖：Registry类型、ID提示与导出索引若被采用，卸载前要替换；复杂嵌套效果仍宜用Inspector |
+
+版本/推送日期只证明对应公开记录存在，不证明质量或4.7.2兼容。YARD插件许可见[addons/yard/LICENSE](https://github.com/elliotfontaine/yard-godot/blob/613ebfb67f71288e64b901cd47446552450e5d7a/addons/yard/LICENSE)；仓库示例部分素材另有许可，不能把整个示例包当MIT素材库。
+
+源码接缝的直接证据包括：[GodotGAS效果tick](https://github.com/yulrun/godot-gas/blob/466b877d368c9fb817586992756fc8e8bbc4f67d/GodotGAS/components/ability_system_component.gd)、[LiGame默认调度](https://github.com/LiGameAcademy/godot_ability_system/blob/362fa1df1586ef0f39e1bd516398df26b241bc0c/scripts/components/gameplay_ability_component.gd)、[Forge适配节点](https://github.com/gamesmiths-guild/forge-godot/blob/56c55837919b852d502254569978fa0f01664ab6/addons/forge/nodes/ForgeEntity.cs)和[YARD Registry](https://github.com/elliotfontaine/yard-godot/blob/613ebfb67f71288e64b901cd47446552450e5d7a/addons/yard/registry.gd)。节点式运行并非天然不可适配，显式tick/引擎无关核心也是实际优点；本项目还要恢复全场接触顺序、唯一状态与候选World，因此当前判断是**不先整包替换执行器**，而非宣布这些插件不能制作ACT。
+
+### 4.2 原生技术的实际边界与小试
+
+| 原生能力与官方依据 | 可用于制作的部分 | 仍需项目实现的部分 |
+|---|---|---|
+| [Resource](https://docs.godotengine.org/en/4.7/tutorials/scripting/resources.html)、[导出属性](https://docs.godotengine.org/en/4.7/tutorials/scripting/gdscript/gdscript_exports.html) | 自定义类型、分组/枚举/范围、类型化效果数组、嵌套资源、`.tres`保存；已有基础属性编辑UI | 技能阶段、目标资格、CD/成本、叠层规则、组合执行和跨字段校验。共享资源不替每次施放保管CD/命中表；`resource_local_to_scene`也不替无场景的World自动创建实例 |
+| [Inspector扩展](https://docs.godotengine.org/en/4.7/tutorials/plugins/editor/inspector_plugins.html)、[编辑器插件](https://docs.godotengine.org/en/4.7/tutorials/plugins/editor/making_plugins.html)、[@tool](https://docs.godotengine.org/en/4.7/tutorials/plugins/running_code_in_the_editor.html) | 可在Godot内增加错误定位、阶段条、范围预览与试玩入口 | 控件、撤销/重做与预览接线仍要写；不承诺几十行即得到可靠完整编辑器。真实命中试玩继续用现有World |
+| [Curve](https://docs.godotengine.org/en/4.7/classes/class_curve.html)、AnimationPlayer/AnimationTree、PackedScene | 曲线编辑、动画、音效/粒子预制体与表现同步 | 曲线在装载边界转为数值采样；动画/场景用于表现，不回调另扣HP。它们不是本项目的规则时钟，这是Reol架构取舍 |
+| [GraphEdit](https://docs.godotengine.org/en/4.7/classes/class_graphedit.html) | 原生画布、节点、连线操作信号 | 图的语义、校验、保存、编译与执行器均需实现。先证明阶段/效果列表不足，再为真实分支需要加图 |
+
+[官方线程说明](https://docs.godotengine.org/en/4.7/tutorials/performance/thread_safe_apis.html)允许跨线程持有资源引用，但不支持多线程修改同一资源；活动场景树也非线程安全。**Resource→脱离纯值快照是Reol的隔离选择，不是Godot禁止一切跨线程资源读取。** 只冻结顶层Dictionary不能自动保护所有嵌套数组/字典；定义快照必须脱离编辑对象，嵌套可变容器也要受保护。
+
+本机隔离试验使用Godot4.7.2，原件在`.local/advisor/combat-authoring-20261115/native-probe/`。一份`.tres`含两个类型化效果子资源，五项导出字段可由编辑属性元数据识别；定义保存/重载、路径缓存共享、转换后的嵌套值隔离、两个施放状态隔离及纯值二进制往返均通过。**没有用这个小试冒充完整Inspector操作、线程集成、Reol战斗存读或YARD兼容验证。** 源码/许可快照与元数据在同题`sources/`，不纳入产品依赖。
 
 ## 5. 顾问咨询与开发者核查
 
@@ -247,6 +277,22 @@ P1工程包、相关规则/GUI与原生Alt-Tab检查现已完成，具体原件�
 
 P2据此完成单剑可重练切片并导出独立包。主观上仍重点观察第三刀价值、推步对走位的影响与无攻击者停顿的重量；正式动画和成套远程循环没有随本次工程检查自动完成。
 
+### 可复用技能制作评审与核查取舍
+
+本机双顾问Hydrogen/Argon均完整返回，原件在`.local/advisor/combat-authoring-20261115/review/`。提示附当前动作/战斗/存读/物品/对象源码与架构，要求公平比较整包适配、选择复用和原生扩展；两位均建议原生Resource定义＋纯值执行，编辑层按需表格。顾问公开资料主要来自检索片段，其意见经4.1～4.2的官方来源与关键源码核查后才采用。
+
+| 评审意见 | 开发者决定与理由 |
+|---|---|
+| 先制作几种机制不同的样例，让可复用部分从实际内容出现 | 采用。普通散射弹、减速追踪、落雷和派剑召回分别检验交付/运动/效果/器物过程；不预建任意技能语言。现有P2数据化与普通弹先交小包，新增机制逐步加入 |
+| 原生表单/效果列表，之后按需表格或图 | 采用。Resource小试已有正证据；制作流程与出口归规格10，YARD仍需隔离编辑/导出试用。编辑工具不能成为远程玩法迟迟不交付的理由 |
+| 运行时插件需重写70%～90%，YARD零运行时侵入/可直接卸载 | 不采用这些量化和绝对保证。没有适配实测不能给改写百分比；YARD有Registry类型/查询/导出依赖。LiGame显式update和Forge引擎无关核心是可用的接缝，不能因默认Node就说绝无接入可能 |
+| 插件兼容/版本、Issue中的共享引用BUG可直接作淘汰证据 | 只保留独立核实的当前来源。YARD最新release已是1.3.2，LiGame当前plugin.cfg写4.7，与顾问片段有差异；没有核实修复状态的Issue不写成当前必现BUG。Resource默认共享是实际风险，不代表所有候选都把CD错误存在共享定义上 |
+| 动画/Resource跨线程一律不可能或非法 | 修正。官方允许跨线程持资源引用，动画也有手动推进模式；本项目选择将规则转换为值并由World推进，是为保持owner/共同时间/恢复，不将架构选择冒充Godot禁令 |
+| 只快照结束时间即可兼容改数；坚持format9或用别名删除旧在途状态 | 不采用。取消/形状/效果也可能改义，只有时间快照不够；按项目开发兼容政策需要时换格式。首版规则签名不符明确拒载并保留会话，不能静默删除已付费攻击或在外器物 |
+| 飞剑在库存记录一份耐久，在途表另存一份 | 改为唯一身份/耐久记录与受控引用/状态转移；派出不能制造第二件。普通堆叠库存保持原模型，不为飞剑套完整人物生活AI |
+
+对推荐路线最有力的反对理由是：自建持续状态、修饰器聚合和制作界面会承担长期维护成本，成熟插件在这些通用问题上已有积累。应以少量明确的状态叠层/效果类型起步，参考已有聚合模型并针对实际组合验证，避免把所有特殊技能塞回`combat.gd`名字特判。若后续大量独特触发/分支确实使内容制作受阻，再重估图编辑或插件适配；当前没有证据值得先重写整个World来换运行时。
+
 ## 6. 尚需什么证据
 
 1. 当前60Hz的实际设备输入→权威动作→显示、完整提交间隔与严格后台隔离对照仍有证据缺口；旧20Hz合成移动基线见1.2，新60Hz观察见1.3。按用户要求，这些不再阻塞P0收口或P1，不自动追加测量。
@@ -254,5 +300,6 @@ P2据此完成单剑可重练切片并导出独立包。主观上仍重点观察
 3. 三种地形下弹幕安全通道是否可达，以及近战出招承诺后是否有可行脱身方案。
 4. 一套八向/分层角色在后退/侧移/斜移/施法中的实际连贯性，再决定正式制作量。
 5. 声/停顿/震动AB、选定战斗负载回正常世界的成本、中途存读和世界生活接续。
+6. 技能资源在Godot内“编辑→校验/预览→真实施放→中途恢复”的制作闭环；原生定义小试已通过，但完整制作体验、YARD编辑/导出与同模板多角色的World集成尚未实施。
 
-这五项比继续增加参考游戏名单或先设计一百个技能更能决定方案是否成立。
+下一步证据来自实际制作与试玩；不继续靠增加参考名单或预列大量技能证明框架成立。
