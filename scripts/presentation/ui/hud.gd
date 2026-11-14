@@ -69,6 +69,9 @@ var _tooltip_until: int = 0
 var bindings: RefCounted
 var binding_editor: VBoxContainer
 var _direct: bool = true
+var feedback_settings: RefCounted
+var _practice_bar := HBoxContainer.new()
+var _practice_hint: Label
 
 func _ready() -> void:
 	Actions.load_definitions()
@@ -89,6 +92,10 @@ func _ready() -> void:
 	_button(first, "load", "", "load")
 	_button(first, "pause_menu", "", "menu")
 	_tides = Style.label(_top)
+	_top.add_child(_practice_bar)
+	for row: Array in [["轻敌", "light"], ["重敌", "heavy"], ["混战", "mixed"]]: _button(_practice_bar, "combat_practice", row[0] + " · 重练", "", {"mode": row[1]})
+	_practice_hint = Style.label(_practice_bar, "")
+	_practice_bar.hide()
 	var dock: PanelContainer = _panel(self, Control.PRESET_CENTER_BOTTOM, Vector4(-292, -128, 292, -8))
 	dock.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	dock.add_theme_stylebox_override("panel", Style.box(Color("18251ff2"), Style.GOLD))
@@ -290,6 +297,8 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 	_help_target = help_target
 	_target = Actions.observed(frame, selected, use_fog)
 	var player: Dictionary = frame.player
+	_practice_bar.visible = not frame.practice_mode.is_empty()
+	if _practice_bar.visible: set_text(_practice_hint, "P2 · 轻击确认进退，重击抓收招 · 重练会新开练习世界")
 	var calendar: Dictionary = frame.counters.get("calendar", {})
 	set_text(_clock, "%s %s  %.1fs" % [str(calendar.get("season", "")), str(calendar.get("weather", "")), frame.world_ms / 1000.0])
 	set_text(_performance, "FPS %d  %.2f / %.0f×" % [Engine.get_frames_per_second(), actual_speed, frame.speed])
@@ -493,6 +502,20 @@ func open_simple(kind: String) -> void:
 		_modal_body.add_child(_scale_input)
 		_button(_modal_body, "ui_scale_commit", "确认", "check")
 		_button(_modal_body, "bindings", "键位设置", "gear")
+		if feedback_settings != null:
+			for spec: Array in [["volume", "战斗音量"], ["shake", "镜头震动"], ["flash", "命中闪光"]]:
+				var row := HBoxContainer.new()
+				_modal_body.add_child(row)
+				Style.label(row, spec[1]).custom_minimum_size.x = 120
+				var slider := HSlider.new()
+				slider.name = "feedback_" + spec[0]
+				slider.min_value = 0
+				slider.max_value = 100
+				slider.step = 5
+				slider.value = float(feedback_settings.get(spec[0])) * 100
+				slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				row.add_child(slider)
+				slider.value_changed.connect(_feedback_changed.bind(str(spec[0])))
 		_button(_modal_body, "close_settings", "", "close")
 	elif kind == "bindings":
 		binding_editor = InputSettings.new()
@@ -504,11 +527,16 @@ func open_simple(kind: String) -> void:
 
 func _layout_modal() -> void:
 	var extent := Vector2(520, 380)
+	if _modal_kind == "settings": extent.y = minf(570, size.y - 40)
 	if _modal_kind == "bindings": extent = Vector2(minf(820, size.x - 48), minf(760, size.y - 64))
 	_modal_panel.offset_left = -extent.x * 0.5
 	_modal_panel.offset_right = extent.x * 0.5
 	_modal_panel.offset_top = -extent.y * 0.5
 	_modal_panel.offset_bottom = extent.y * 0.5
+
+func _feedback_changed(value: float, key: String) -> void:
+	feedback_settings.set(key, value / 100.0)
+	if feedback_settings.save_settings() != OK: feedback("反馈设置未能保存", false)
 
 func close_modal() -> void:
 	if binding_editor != null:

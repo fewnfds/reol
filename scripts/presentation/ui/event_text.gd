@@ -6,6 +6,7 @@ const NAMES: Dictionary = {"save": "保存", "load": "读取", "move": "移动",
 const REASONS: Dictionary = {"action_committed": "当前动作尚不能取消", "cooldown": "技能冷却中", "in_combat": "战斗中暂不能换装", "stunned": "受击硬直中", "paused": "世界已暂停", "dead": "人物已死亡", "empty": "物资不足", "empty_or_full": "物资不足或容器已满", "target_busy": "目标被占用", "target_gone": "目标已消失", "out_of_reach": "超出交互范围", "no_operation_place": "没有可用操作位", "not_available_for_contact": "不满足交往条件", "unavailable": "条件未满足", "not_a_plant": "目标不是植物", "invalid_target": "目标无效", "invalid": "条件不符", "occupied": "位置被占用", "no_potion_or_full": "无药物或生命已满", "out_of_reach_or_cooldown": "超出范围或冷却中", "target_not_visible_or_blocked": "目标不可见或被阻挡", "missing_material": "材料不足", "insufficient_material": "材料不足", "wrong_substrate": "生境不符", "no_capacity": "容量不足", "blocked": "路径阻挡"}
 
 static func name(action: String) -> String:
+	if action == "combat_practice": return "重开练习"
 	if action == "equip": return "装备"
 	if action == "unequip": return "卸下"
 	if action.begins_with("slash_") or action in ["shot", "cleave", "fan", "step"]: return action_name(action)
@@ -23,6 +24,7 @@ static func line(event: Dictionary) -> String:
 		"tolerance_exhausted": text = "耐受耗尽"
 		"hit": text = "受到攻击  HP −%d" % int(event.damage)
 		"hit_dealt": text = "攻击命中  −%d" % int(event.damage)
+		"evaded": text = "闪步避过攻击"
 		"death": text = "%s死亡" % str({"cold": "冻伤导致", "heat": "热伤导致", "combat": "战斗导致"}.get(event.get("cause", ""), ""))
 		"action_started": text = "开始%s" % action_name(str(event.action))
 		"action_active": text = "%s生效" % action_name(str(event.action))
@@ -43,4 +45,4 @@ static func line(event: Dictionary) -> String:
 	return ("[%.1f–%.1fs] " % [start, finish] if start != finish else "[%.1fs] " % finish) + text
 
 static func action_name(kind: String) -> String:
-	return str({"slash_1": "斩击一段", "slash_2": "斩击二段", "slash_3": "斩击终结", "shot": "射击", "cleave": "重斩", "fan": "扇形箭", "step": "闪步"}.get(kind, "招式"))
+	return str({"slash_1": "斩击一段", "slash_2": "斩击二段", "slash_3": "斩击终结", "shot": "射击", "cleave": "重斩", "fan": "扇形箭", "step": "闪步", "enemy_light": "横斩", "enemy_heavy": "蓄力重劈", "enemy_shot": "瞄准射击"}.get(kind, "招式"))

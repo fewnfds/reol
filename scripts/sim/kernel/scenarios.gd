@@ -5,12 +5,14 @@ extends RefCounted
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 
 
-static func combat_lab(world: RefCounted) -> void:
+static func combat_lab(world: RefCounted, mode: String = "light") -> void:
 	# Developer starting fixture; uses the same bodies, executor and save boundary.
 	for actor: int in world.actor_slots:
 		world.objects.records[actor].erase("combatant")
+		world.objects.records[actor].side = 0
 	world.release(1)
 	world.objects.records[1].autonomous = false
+	world.objects.records[1]["practice_mode"] = mode
 	world.pages[0].modes[0] = world.Units.Mode.IDLE
 	world.pages[0].positions[0] = Vector2(144.5, 150.5)
 	# A small calibration route in this same persistent world: wall, one-cell door, L corner.
@@ -25,12 +27,16 @@ static func combat_lab(world: RefCounted) -> void:
 		var page: RefCounted = world.pages[slot / 256]
 		var row: int = slot % 256
 		world.release(actor)
-		page.positions[row] = Vector2(151.5 + index * 2, 150.5 + (index - 1) * 4)
+		var active: bool = mode == "mixed" or (mode == "light" and index == 0) or (mode == "heavy" and index == 1)
+		page.positions[row] = [Vector2(150.5, 150.5), Vector2(151.5, 152.5), Vector2(151.5, 153.5)][index] if active else Vector2(180.5 + index * 2, 150.5)
+		if mode == "heavy" and active: page.positions[row] = Vector2(150.5, 150.5)
 		page.modes[row] = world.Units.Mode.IDLE
 		var person: Dictionary = world.objects.records[actor]
-		person.side = 1
+		person.side = 1 if active else 0
 		person.autonomous = false
-		person.combatant = true
+		person.combatant = active
+		person["combat_style"] = "trained"
+		person["alert_range"] = 8.0
 		person.name = "射手" if index == 2 else ("重剑客" if index == 1 else "剑客")
 		person["heavy"] = index == 1
 		var weapon: String = "short_bow" if index == 2 else "iron_sword"
@@ -39,6 +45,9 @@ static func combat_lab(world: RefCounted) -> void:
 		world.objects.add(actor, weapon, 1)
 		world.objects.equip(actor, weapon)
 		world.Equipment.rebuild(world, actor)
+		person["base_stats"] = {"max_hp": [120.0, 220.0, 70.0][index], "speed": [3.6, 2.8, 3.4][index], "armor": 2.0 if index == 1 else 0.0}
+		world.Equipment.rebuild(world, actor)
+		page.health[row] = page.max_health[row]
 	world.perception.update(world, world.elapsed_ms, true)
 
 

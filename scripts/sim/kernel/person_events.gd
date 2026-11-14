@@ -80,8 +80,15 @@ func accept(event: Dictionary, actors: Dictionary) -> void:
 			# Taking a hit conveys damage, not the identity of a hidden attacker.
 			record(target, {"kind": "hit", "damage": event.damage, "at_ms": event.at_ms})
 		if actors.has(actor): record(actor, {"kind": "hit_dealt", "damage": event.damage, "at_ms": event.at_ms})
+	elif event.kind == "evaded":
+		var target: int = int(event.get("target", 0))
+		if actors.has(target): record(target, {"kind": "evaded", "at_ms": event.at_ms})
 	elif actors.has(actor):
-		record(actor, event)
+		# Rendering outcomes can carry contact vectors; the personal fact ring is scalar.
+		var fact: Dictionary = {}
+		for key: String in event:
+			if typeof(event[key]) in [TYPE_STRING, TYPE_INT, TYPE_FLOAT, TYPE_BOOL]: fact[key] = event[key]
+		record(actor, fact)
 
 func command(input: Dictionary, receipt: Dictionary) -> void:
 	var actor: int = int(input.get("actor", 1))

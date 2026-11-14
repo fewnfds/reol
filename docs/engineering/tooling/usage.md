@@ -16,9 +16,9 @@ python tools/godot.py export --preset "Windows Demo" --output build/windows/reol
 
 战斗用[ACT试玩.cmd](../../../ACT试玩.cmd)，普通开局用[开发试玩.cmd](../../../开发试玩.cmd)，或执行上面的`python tools/godot.py run`，直接从源码启动，不经过导出。修改后关闭窗口、再次启动即可读取最新脚本和shader；F5保存、重开后F9读取可以接续当前格式会话。
 
-ACT测试入口相当于`python tools/godot.py run -- --combat-lab=true`：同一512²世界保留后台生活，在玩家附近放剑客、重剑客和弓手。WASD、鼠标瞄准、左键三连/持弓连射、右键武器技、空格闪步；1/2战前换真装备，Tab交互／营造，F附近交互。技能参数以`action_defs.gd`为准，动画/声音仍是占位。
+ACT测试入口相当于`python tools/godot.py run -- --combat-lab=true`：同一512²世界保留后台生活，默认在玩家附近启用一名轻剑客；顶栏可重开单轻敌、单重敌或轻重敌＋射手混战，重练会替换整个练习世界且不写存档。WASD、鼠标瞄准、左键三连/持弓连射、右键武器技、空格闪步；1/2战前换真装备，Tab交互／营造，F附近交互。技能参数以`action_defs.gd`为准，动画/声音仍是占位。
 
-最新独立ACT包为`build/windows/act-p1/reol-act.exe`＋同目录pck，双击同目录`P1练习场.cmd`进入测试开局。命令为`reol-act.exe -- --combat-lab=true`；Esc→设置→键位设置改键。测试场在同一世界补了L形墙和单格门。旧`act-preview`、正式包与P0基线包保留。
+最新独立ACT包为`build/windows/act-p2/reol-act.exe`＋同目录pck，双击同目录`P2练习场.cmd`进入测试开局。命令为`reol-act.exe -- --combat-lab=true`；Esc→设置调整音量/震动/闪光，键位设置改键。测试场在同一世界补了L形墙和单格门。P1包、旧`act-preview`、正式包与P0基线包保留。默认F5/F9使用新format9的`act-p2-quicksave.reol`，不会覆盖P1默认档。
 
 现有导出exe/pck是生成当时的快照，不会自动读取源码修改。开发试玩以源码入口为准，只有需要独立分发或release性能测量时才重新导出。这个入口不承诺在运行中热替换持有世界的线程与状态。
 

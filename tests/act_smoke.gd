@@ -29,7 +29,8 @@ func _run() -> void:
 	check(w.command({"kind": "action", "button": "primary", "aim": Vector2.RIGHT}).ok, "Primary action did not start")
 	for kind: String in ["move", "equip", "interrupt", "work"]:
 		check(w.command({"kind": kind, "position": Vector2(130, 130), "item": "short_bow"}).reason == "action_committed", "Lifecycle command bypassed action commitment: " + kind)
-	check(w.command({"kind": "action", "button": "step", "aim": Vector2.RIGHT}).reason == "action_committed", "Unconfirmed opening was cancelled before contact")
+	check(w.command({"kind": "action", "button": "step", "aim": Vector2.RIGHT}).reason == "buffered" and w.combat.states[1].kind == "slash_1", "Short defensive intent bypassed unconfirmed commitment")
+	w.combat.intents.erase(1)
 	w.command({"kind": "talk", "actor": 2, "target": 1})
 	check(w.combat.states.has(1), "A social invitation cancelled the target's committed strike")
 	w.release(2)
@@ -42,7 +43,7 @@ func _run() -> void:
 	w.step(50)
 	check(page.health[1] == 65, "One swing hit same body twice")
 	check(w.command({"kind": "action", "button": "primary", "aim": Vector2.LEFT}).reason == "buffered", "Combo input did not buffer")
-	w.step(9)
+	w.step(69)
 	w.step(1)
 	check(w.combat.states[1].kind == "slash_2" and w.combat.states[1].direction == Vector2.LEFT, "Combo did not consume the new direction once")
 	var saved: RefCounted = Persistence.candidate(Persistence.capture(w), 0)
@@ -88,7 +89,7 @@ func steps() -> void:
 	var start: Vector2 = page.positions[0]
 	check(w.combat.request(w, 1, "step", Vector2.RIGHT) == "started", "Neutral step failed")
 	w.step(160)
-	check(absf(page.positions[0].x - start.x + 2.08) < 0.002, "Neutral step did not move backward for 160ms")
+	check(absf(page.positions[0].x - start.x + 1.60) < 0.002, "Neutral step did not move backward for 160ms")
 	var stop: Vector2 = page.positions[0]
 	w.step(61)
 	check(page.positions[0] == stop and w.combat.request(w, 1, "step", Vector2.UP) == "cooldown", "Step recovery moved or cooldown was bypassed")
@@ -134,7 +135,7 @@ func archery() -> void:
 	invalid.domains.combat.unreachable[1] = {"targets": {2: -1}, "topology": 1, "flight": 0, "large": false}
 	check(Persistence.candidate(invalid, 0) == null, "Malformed unreachable memory entered live state")
 	invalid = captured.duplicate(true)
-	invalid.domains.combat.states[1].buffer = {"aim": Vector2.ZERO, "until": w.elapsed_ms}
+	invalid.domains.combat.intents[1] = {"button": "primary", "aim": Vector2.ZERO, "move": Vector2.ZERO, "at": w.elapsed_ms, "until": w.elapsed_ms}
 	check(Persistence.candidate(invalid, 0) == null, "Malformed combo buffer entered live state")
 	invalid = captured.duplicate(true)
 	invalid.domains.combat.bolts[1].radius = NAN

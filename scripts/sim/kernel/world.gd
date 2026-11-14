@@ -157,6 +157,7 @@ func initialize(count: int = 1000, requested_workers: int = 4, stress_environmen
 			objects.records[actor]["side"] = 1
 			objects.records[actor].autonomous = false
 			objects.records[actor]["combatant"] = true
+			objects.records[actor]["combat_style"] = "trained"
 			var weapon: String = "short_bow" if actor % 2 == 0 else "iron_sword"
 			objects.add(actor, weapon, 1)
 			objects.equip(actor, weapon)
@@ -192,6 +193,7 @@ func step(milliseconds: int = 50) -> void:
 	var end: int = begin + milliseconds
 	combat.projectile_segments = []
 	combat.action_segments = []
+	combat.reaction_segments = []
 	var origins: Array[PackedVector2Array] = []
 	var traces: Array[Dictionary] = []
 	for page: RefCounted in pages:
@@ -349,6 +351,8 @@ func release(id: int, at: int = -1) -> void:
 	combat.engagements.erase(id)
 	combat.states.erase(id)
 	combat.controls.erase(id)
+	combat.intents.erase(id)
+	combat.chains.erase(id)
 	var slot: int = actor_slots[id]
 	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
 	page.routes[slot % Units.PAGE_SIZE] = PackedVector2Array()
@@ -419,7 +423,7 @@ func _command(input: Dictionary) -> Dictionary:
 	if page.health[row] <= 0:
 		receipt.reason = "dead"
 		return receipt
-	if elapsed_ms < int(combat.status.get(id, {}).get("stun_until", 0)) and input.get("kind", "") not in ["heal", "ability", "save", "load"]:
+	if elapsed_ms < int(combat.status.get(id, {}).get("stun_until", 0)) and input.get("kind", "") not in ["action", "heal", "ability", "save", "load"]:
 		receipt.reason = "stunned"
 		return receipt
 	if combat.states.has(id) and elapsed_ms < combat.Defs.end_ms(combat.states[id]) and input.get("kind", "") not in ["action", "heal", "ability", "save", "load"]:
@@ -499,6 +503,8 @@ func _command(input: Dictionary) -> Dictionary:
 			receipt.reason = reason
 			if receipt.ok:
 				Equipment.rebuild(self, id)
+				combat.chains.erase(id)
+				combat.intents.erase(id)
 				emit({"kind": reason, "actor": id, "item": item, "slot": gear_slot, "at_ms": elapsed_ms})
 			return receipt
 		"source":

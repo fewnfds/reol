@@ -1,25 +1,23 @@
 # 当前接续
 
-ACT＋弹幕首个可操作灰盒已接入正常World，旧A攻击移动、S停止、H警戒、点击追击与射击模式切换已移除。源码入口为根目录[ACT试玩.cmd](../../ACT试玩.cmd)与[开发试玩.cmd](../../开发试玩.cmd)，能力/键位只维护在[FEATURES](features.md)。完整方案仍按[主计划](../plans/foundation-priorities.md)推进，不能把灰盒交付写成P0～P7全部完成。
+ACT＋弹幕改版已交付P0试玩底座、P1直接操控与P2单剑战斗测试包。旧A攻击移动、S停止、H警戒、点击追击与射击模式切换已移除；A/S保留WASD移动语义。当前能力/键位只查[FEATURES](features.md)，构建与规则/GUI/短窗原件只查[BASELINE](baseline.md)。
 
-P0按试玩范围收口，P1已完成输入生命周期、键鼠改键闭环、瞄准/空间一致和贴地方向提示；新独立包在`build/windows/act-p1/`，源码入口不变。能力与键位见FEATURES，原生Alt-Tab、规则/GUI与导出证据见BASELINE。用户试过P1，认为内容简单、尚不足以判断战斗风格；本轮仅要求与顾问敲定P2方案，**P2尚未开工，等待方案评审**。
+用户已授权完成P2并在实现后与顾问审查，由开发者核实取舍。本包已完成，独立包在`build/windows/act-p2/`，入口为`P2练习场.cmd`；根目录[ACT试玩.cmd](../../ACT试玩.cmd)读取最新源码，[开发试玩.cmd](../../开发试玩.cmd)进入普通生活开局。顶栏可分别重开轻敌、重敌或混战，死亡也可重练；重练新开整个练习世界，不写存档。format9默认`user://act-p2-quicksave.reol`，P1档/包和旧档保留。
 
-P2方案已写入[主计划](../plans/foundation-priorities.md#p2方案先交付一把有性格的剑)：先做小步进身/确认进退的单剑，分层受击、轻重敌节奏、短闪步避伤与可信音画；默认不加倒地起身、累计破势条和攻击者权威卡肉。帧表/缓冲/受击/敌人/反馈只维护在[规格](../../design/systems/combat_framework/act_and_barrage.md)第3/4/5/8节，都是拟实施默认，不代表现有能力。双顾问两轮四份完整静态回答与开发者核查见[研究](../../design/research/act_barrage_references.md#p2风格与规则收敛评审)，原件留本机`.local/advisor/p2-plan-20261115/`。若用户同意开工，先P2-A/B形成可玩剑战，不跳到P3或以最终美术为前置；P3远程循环与P7正式动画尚未收敛。
+P2实现帧表/缓冲/受击/敌人/反馈只维护在[规格](../../design/systems/combat_framework/act_and_barrage.md)第3/4/5/8节；实施范围与十分钟试玩路线见[主计划](../plans/foundation-priorities.md#p2方案先交付一把有性格的剑)。两位顾问实现静态审查及取舍见[研究](../../design/research/act_barrage_references.md#p2实现审查与交付取舍)，原件留本机`.local/advisor/p2-implementation-20261115/`。不采用让失衡绕过控制预算/必定额外延长原收招的建议；没有新增倒地起身、累计破势条或攻击者权威卡肉。
 
-用户已停止扩展性能测试，不要求900人或100/500弹达标；只有目标玩法确受影响才再查成本。完整硬件延迟/权威提交间隔和高压规模仍为非阻塞证据缺口，P1没有新增性能测量或远区LOD。
+接下来先收集用户对第三刀价值、推步是否抢走走位及重击重量的反馈，再决定P2参数修订或收敛P3独立远程循环；尚未授权直接扩建武器库或跳到正式全套动画。现有整身八向动作和程序合成音仍占位，主观听感/混音、目标低配机/长局未验收。P1完整改键GUI本轮受系统游标定位失败影响未取得新通过，排查证据与其他已通过范围见BASELINE，不把旧记录算作本轮通过。
 
-源码/短检查与真实图形输入已验证；音效只验证合成占位流和播放器触发，尚未做主观混音/正式听感AB。测试日志与测量事实只查[BASELINE](baseline.md)和[专题研究](../../design/research/act_barrage_references.md#13-60hz灰盒与密集交战实测)。存档仅支持format8，默认新的act-quicksave.reol；旧文件保留。
-
-旧ACT预览包`build/windows/act-preview/`、20Hz包和原正式Demo未覆盖，均不入库。P1截图在`logs/control-ui/`，P0测量原件保留在`logs/act-preview-20261114/`。用户允许有证据时让次要世界精度为战斗让步，边界见改版规格9.3；尚未实现远区LOD或战斗粗算。
+用户明确性能检查适量即可，先看成品；本包只做24人最终release短窗，未追加900人或100/500弹门槛。512²地图、生活/环境/植物精度保持，只有目标玩法确受影响才定位成本并考虑必要让步；尚无远区LOD/粗算。
 
 ## 找当前信息
 
 - 能玩什么、键位和缺口：[FEATURES](features.md)。
-- 正式构建与已接受测量：[BASELINE](baseline.md)；数值原件：[performance.json](performance.json)。
+- 当前构建、实测及失败边界：[BASELINE](baseline.md)；历史数值原件：[performance.json](performance.json)。
 - 状态owner与调用边界：[架构](../engineering/architecture.md)；实施方向：[主计划](../plans/foundation-priorities.md)。
-- 每轮怎样开发/验证/交接：[开发循环](../engineering/workflow/testing.md)；工具语法：[usage](../engineering/tooling/usage.md)。
+- 开发/验证：[开发循环](../engineering/workflow/testing.md)；工具语法：[usage](../engineering/tooling/usage.md)。
 
 ## 受保护内容
 
 - 保留分支codex/field-contest及已有工作分支、stash 424f956d280fb390d17e1f6dd879f3614b51a430。
-- 用户存档、凭据、原始素材与第三方addon；本机问答、日志和构建产物不入库。
+- 用户自己的AGENTS.md改动、存档、凭据、原始素材与第三方addon；本机问答、日志和构建产物不入库。

@@ -81,14 +81,14 @@ func binding_cases() -> void:
 func buffer_cases() -> RefCounted:
 	var world: RefCounted = fixture()
 	for actor: int in [1, 2]: world.combat.request(world, actor, "primary", Vector2.RIGHT)
-	world.step(110)
+	world.step(130)
 	for actor: int in [1, 2]: check(world.combat.request(world, actor, "primary", Vector2.LEFT) == "buffered", "Fixture did not buffer next swing")
 	var restored: RefCounted = Persistence.candidate(Persistence.capture(world), 0)
 	check(restored != null, "Buffered save candidate failed")
 	if restored != null:
 		world.combat.set_control(world, {"enabled": false})
-		check(world.combat.states[1].buffer.is_empty() and not world.combat.states[2].buffer.is_empty(), "Input clear removed a committed action or NPC buffer")
-		world.step(30)
+		check(not world.combat.intents.has(1) and world.combat.intents.has(2), "Input clear removed a committed action or NPC buffer")
+		world.step(111)
 		check(world.combat.states[1].kind == "slash_1" and world.combat.states[2].kind == "slash_2", "UI clear replayed player combo or canceled NPC combo")
 	return restored
 
@@ -152,7 +152,7 @@ func runner_cases(saved: RefCounted) -> void:
 		check(loaded.get("reason") == "loaded" and _frame.epoch > 1, "Buffered candidate did not load")
 		runner.control(false, 1)
 		var deadline: int = Time.get_ticks_usec() + 1000000
-		while _frame.world_ms < 150 and Time.get_ticks_usec() < deadline:
+		while _frame.world_ms < 250 and Time.get_ticks_usec() < deadline:
 			await process_frame
 			pump(runner)
 		check(_frame.combat.get(1, {}).get("kind") == "slash_1" and _frame.combat.get(2, {}).get("kind") == "slash_2", "Load replayed player buffer or erased NPC committed state")

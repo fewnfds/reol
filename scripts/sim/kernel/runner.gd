@@ -293,6 +293,26 @@ func _run() -> void:
 					state = Persistence.capture(_world)
 				if not _io.submit(command, state, _notify_io, _workers):
 					replies.append({"seq": command.seq, "kind": command.kind, "at_ms": _world.elapsed_ms, "ok": false, "reason": "io_busy_or_failed"})
+			elif command.get("kind", "") == "combat_practice":
+				var mode: String = str(command.get("mode", "light"))
+				if not _combat_lab or mode not in ["light", "heavy", "mixed"] or _io.busy:
+					replies.append({"seq": command.seq, "kind": "combat_practice", "at_ms": _world.elapsed_ms, "ok": false, "reason": "practice_unavailable"})
+				else:
+					_world = World.new()
+					_world.initialize(_count, _workers)
+					Scenarios.combat_lab(_world, mode)
+					_epoch += 1
+					_poses.clear()
+					_object_revision = -1
+					_perception_revision = -1
+					_sight_revision = -1
+					_terrain_view = _world.terrain.detached()
+					_slow_frame = null
+					drive_input = {}
+					debt = 0.0
+					last = Time.get_ticks_usec()
+					tick = 0
+					replies.append({"seq": command.seq, "kind": "combat_practice", "at_ms": 0, "ok": true, "reason": "practice_ready"})
 			else:
 				replies.append(_world.command(command))
 			if not trace.is_empty() and replies.size() > reply_count:
@@ -347,6 +367,11 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 	var frame := Frame.new()
 	_sequence += 1
 	frame.sequence = _sequence
+	frame.practice_mode = str(_world.objects.records[1].get("practice_mode", "")) if _combat_lab else ""
+	frame.reactions = {}
+	for actor: int in _world.combat.status:
+		frame.reactions[actor] = _world.combat.status[actor].duplicate(true)
+		frame.reactions[actor]["heavy"] = bool(_world.objects.records[actor].get("heavy", false))
 	frame.epoch = _epoch
 	frame.world_ms = _world.elapsed_ms
 	frame.speed = speed
@@ -358,6 +383,7 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 		frame.ids.append_array(page.ids)
 		frame.positions.append_array(page.positions)
 		frame.health.append_array(page.health)
+		frame.max_health.append_array(page.max_health)
 		frame.modes.append_array(page.modes)
 		frame.flight.append_array(page.flight)
 		frame.radii.append_array(page.radii)
@@ -384,6 +410,7 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 		pose.ids = frame.ids
 		pose.projectile_segments = _world.combat.projectile_segments
 		pose.action_segments = _world.combat.action_segments
+		pose.reaction_segments = _world.combat.reaction_segments
 		var offset: int = 0
 		for page: RefCounted in _world.pages:
 			for row: int in page.motion:

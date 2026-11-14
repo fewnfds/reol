@@ -9,11 +9,10 @@ var _shader := ShaderMaterial.new()
 var _directions := PackedInt32Array()
 var _colors: Array[Color] = []
 var _buffer := PackedFloat32Array()
-var _health := PackedInt32Array()
 var _identities := PackedInt64Array()
-var _hurt_until := PackedInt64Array()
 var _epoch: int = -1
 var fog_enabled: bool = false
+var feedback: Node2D
 var actor_count: int = 0
 var _scenery: Node2D
 var _scenery_revision: int = -1
@@ -42,12 +41,8 @@ func configure(count: int) -> void:
 	_directions.resize(count)
 	_directions.fill(4)
 	_buffer.resize(count * 16)
-	_health.resize(count)
 	_identities.resize(count)
-	_hurt_until.resize(count)
-	_health.fill(0)
 	_identities.fill(0)
-	_hurt_until.fill(0)
 	for index: int in count:
 		_buffer[index * 16] = 1.0
 		_buffer[index * 16 + 5] = 1.0
@@ -63,7 +58,6 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted, ac
 	if _epoch != frame.epoch:
 		_epoch = frame.epoch
 		_identities.fill(0)
-		_hurt_until.fill(0)
 		_directions.fill(4)
 	if _motion_pose != current_pose:
 		_motion_pose = current_pose
@@ -87,6 +81,9 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted, ac
 		else:
 			_motion_texture.update(image)
 	var buffer: PackedFloat32Array = _buffer
+	var hurts: Dictionary = {}
+	for reaction: Dictionary in current_pose.reaction_segments:
+		if at_ms >= int(reaction.stun_from) and at_ms < int(reaction.stun_until) and at_ms >= int(reaction.from_ms) and at_ms < int(reaction.until_ms): hurts[reaction.actor] = true
 	for index: int in frame.positions.size():
 		var id: int = frame.ids[index]
 		var same_current: bool = index < current_pose.ids.size() and current_pose.ids[index] == id
@@ -96,7 +93,6 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted, ac
 		var delta: Vector2 = current - from
 		if _identities[index] != id:
 			_directions[index] = 4
-			_hurt_until[index] = 0
 		if index < frame.aims.size():
 			var direction: Vector2 = actions[id].direction if actions.has(id) and actions[id].kind != "step" else frame.aims[index]
 			_directions[index] = Art.facing(direction, _directions[index])
@@ -105,6 +101,7 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted, ac
 		buffer[offset + 3] = current.x
 		buffer[offset + 7] = current.y
 		var color: Color = _colors[index]
+		if feedback != null: color *= feedback.tint(id, at_ms)
 		buffer[offset + 8] = color.r
 		buffer[offset + 9] = color.g
 		buffer[offset + 10] = color.b
@@ -115,14 +112,15 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted, ac
 		buffer[offset + 14] = _directions[index] + motion_header * 8
 		var clip: int = frame.visuals[index] if index < frame.visuals.size() else Art.Clip.IDLE
 		if clip in [Art.Clip.MELEE, Art.Clip.SHOOT]: clip = Art.Clip.IDLE
-		if actions.has(id) and actions[id].kind != "step": clip = Art.Clip.SHOOT if actions[id].kind in ["shot", "fan"] else Art.Clip.MELEE
-		if _identities[index] == id and frame.health[index] < _health[index]:
-			_hurt_until[index] = frame.world_ms + 180
+		if actions.has(id) and actions[id].kind != "step": clip = Art.Clip.SHOOT if actions[id].kind in ["shot", "fan", "enemy_shot"] else Art.Clip.MELEE
+		var hurt: bool = hurts.has(id)
+		if frame.paused or at_ms >= frame.world_ms:
+			var reaction: Dictionary = frame.reactions.get(id, {})
+			hurt = at_ms >= int(reaction.get("stun_from", 0)) and at_ms < int(reaction.get("stun_until", 0))
 		_identities[index] = id
-		_health[index] = frame.health[index]
 		if frame.health[index] <= 0:
 			clip = Art.Clip.DEAD
-		elif _hurt_until[index] > frame.world_ms:
+		elif hurt:
 			clip = Art.Clip.HURT
 		elif frame.flight[index] > 0 and clip in [Art.Clip.IDLE, Art.Clip.WALK]:
 			clip = Art.Clip.FLY
@@ -131,7 +129,9 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted, ac
 		buffer[offset + 15] = float(int(not delta.is_zero_approx()) + int(frame.radii[index] > 0.5) * 2 + int(frame.flight[index] > 0) * 4 + clip * 8 + int(id % 11) * 256)
 		if actions.has(id) and clip in [Art.Clip.MELEE, Art.Clip.SHOOT]:
 			var state: Dictionary = actions[id]
-			var keyframe: int = clampi(int(float(at_ms - int(state.started_ms)) / maxi(1, int(state.end_ms) - int(state.started_ms)) * 4), 0, 3)
+			var keyframe: int = 0
+			if at_ms >= int(state.recovery_ms): keyframe = 3
+			elif at_ms >= int(state.active_ms): keyframe = 1 + clampi(int(float(at_ms - int(state.active_ms)) / maxi(1, int(state.recovery_ms) - int(state.active_ms)) * 2), 0, 1)
 			buffer[offset + 15] += 4096 + keyframe * 8192
 	_compose(buffer)
 

@@ -2,7 +2,7 @@ extends RefCounted
 ## One cold I/O job at a time. Receives detached values, never the live world.
 ## Only the simulation owner adopts a loaded candidate.
 
-const FORMAT: String = "reol-world-8"
+const FORMAT: String = "reol-world-9"
 const Persistence = preload("res://scripts/sim/kernel/persistence.gd")
 const MAX_BYTES: int = 268435456
 var _thread := Thread.new()
@@ -43,7 +43,7 @@ func close() -> void:
 
 
 func _run(command: Dictionary, state: Dictionary, workers: int) -> void:
-	var path: String = str(command.get("path", "user://act-quicksave.reol"))
+	var path: String = str(command.get("path", "user://act-p2-quicksave.reol"))
 	var result: Dictionary = {"command": command, "ok": false, "reason": "io_failed"}
 	if command.kind == "save":
 		var temporary: String = path + ".tmp"

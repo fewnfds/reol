@@ -15,6 +15,9 @@ static func values(record: Dictionary) -> Dictionary:
 	return result
 
 static func valid_record(record: Dictionary) -> bool:
+	if record.has("heavy") and not record.heavy is bool: return false
+	if record.get("combat_style", "") not in ["", "trained"]: return false
+	if record.get("practice_mode", "") not in ["", "light", "heavy", "mixed"]: return false
 	var equipment: Variant = record.get("equipment")
 	var base: Variant = record.get("base_stats", {})
 	if not equipment is Dictionary or not base is Dictionary: return false

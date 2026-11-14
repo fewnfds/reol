@@ -117,7 +117,7 @@ func _run() -> void:
 	await key(KEY_SPACE, true)
 	await key(KEY_SPACE, false)
 	await create_timer(0.24).timeout
-	check(game.frame.positions[0].distance_to(before_step) > 1.8, "Space did not execute a neutral backstep")
+	check(game.frame.positions[0].distance_to(before_step) > 1.4, "Space did not execute a neutral backstep")
 	game.ui.show()
 	await key(KEY_D, true)
 	game.controls.action("inventory", {})

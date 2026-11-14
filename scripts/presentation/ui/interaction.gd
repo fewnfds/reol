@@ -42,7 +42,8 @@ func _bindings_changed() -> void:
 	host._hud_next = 0
 
 func pointer_world(screen: Vector2) -> Vector2:
-	return (host.get_canvas_transform().affine_inverse() * screen) / Art.TILE
+	# Camera shake is an output offset, excluded explicitly from every aim sample.
+	return (host.get_canvas_transform().affine_inverse() * screen - host.camera.offset) / Art.TILE
 
 func _update_aim(screen: Vector2) -> void:
 	var direction: Vector2 = pointer_world(screen) - host._displayed(1)
@@ -215,6 +216,9 @@ func action(kind: String, payload: Dictionary) -> void:
 				_select(nearest, -1)
 				_pending_context = {"target": nearest, "screen": get_viewport_rect().size * 0.5, "epoch": host.frame.epoch}
 		"equip_sword", "equip_bow": _send({"kind": "equip", "item": "iron_sword" if kind == "equip_sword" else "short_bow"})
+		"combat_practice":
+			clear_direct()
+			_send({"kind": "combat_practice", "mode": payload.get("mode", "light")})
 		"pause":
 			clear_direct()
 			host.paused = not host.paused
@@ -328,7 +332,7 @@ func action(kind: String, payload: Dictionary) -> void:
 	host._hud_next = 0
 
 func _send(command: Dictionary) -> int:
-	if command.get("kind", "") not in ["save", "load"] and int(host.frame.player.get("hp", 0)) <= 0:
+	if command.get("kind", "") not in ["save", "load", "combat_practice"] and int(host.frame.player.get("hp", 0)) <= 0:
 		ui.feedback("HP 0", false)
 		return 0
 	var target: int = int(command.get("target", 0))

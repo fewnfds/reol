@@ -17,6 +17,7 @@ const Interaction = preload("res://scripts/presentation/ui/interaction.gd")
 const ResponseProbe = preload("res://scripts/presentation/response_probe.gd")
 const ActionDefs = preload("res://scripts/sim/kernel/action_defs.gd")
 const CombatAudio = preload("res://scripts/presentation/combat_audio.gd")
+const FeedbackSettings = preload("res://scripts/presentation/feedback_settings.gd")
 const TILE: float = Art.TILE
 var runner := Runner.new()
 var population := Population.new()
@@ -31,6 +32,7 @@ var camera := Camera2D.new()
 var ui := Hud.new()
 var controls := Interaction.new()
 var combat_audio := CombatAudio.new()
+var feedback := FeedbackSettings.new()
 var _debug_console: Node
 var frame: RefCounted
 var selected: int = 1
@@ -133,6 +135,7 @@ func _ready() -> void:
 	add_child(population)
 	action_effects.z_index = 2
 	add_child(action_effects)
+	population.feedback = action_effects
 	add_child(combat_audio)
 	add_child(fog)
 	fog.visible = fog_enabled
@@ -154,6 +157,8 @@ func _ready() -> void:
 		ui.scale_applied.connect(_debug_console.set_ui_scale)
 		_debug_console.set_ui_scale(ui.scale.x)
 	controls.configure(self, ui)
+	feedback.load_settings()
+	ui.feedback_settings = feedback
 	controls.z_index = 5
 	add_child(controls)
 	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
@@ -256,8 +261,12 @@ func _process(delta: float) -> void:
 	atmosphere.adopt(frame, render_ms)
 	action_effects.advance(int(render_ms), fog_enabled)
 	combat_audio.advance(int(render_ms))
+	action_effects.flash = feedback.flash
+	action_effects.shake = feedback.shake
+	combat_audio.volume = feedback.volume
 	if following:
 		camera.position = _displayed(1) * TILE
+	camera.offset = action_effects.camera_offset() / camera.zoom
 	camera.force_update_scroll() # Mouse conversion uses this displayed camera, even without fog.
 	_update_direction_marker()
 	controls.tick(delta)
@@ -395,17 +404,46 @@ func _draw() -> void:
 		if def.has("reach"):
 			var polygon: PackedVector2Array = ActionDefs.sector(def, direction)
 			for index: int in polygon.size(): polygon[index] = origin + polygon[index] * TILE
-			draw_colored_polygon(polygon, Color(color, 0.30 if active else 0.07))
+			var winding: bool = render_ms < int(state.active_ms)
+			var enemy: bool = str(state.kind).begins_with("enemy_")
+			if enemy and winding:
+				var warning: float = clampf((render_ms - int(state.started_ms)) / maxi(1, int(state.active_ms) - int(state.started_ms)), 0, 1)
+				draw_colored_polygon(polygon, Color(color, 0.05 + warning * 0.13))
+				draw_arc(origin, float(def.reach) * TILE, direction.angle() - float(def.angle), direction.angle() - float(def.angle) + warning * float(def.angle) * 2, 20, Color(color, 0.9), 2.0, true)
+			elif active: draw_colored_polygon(polygon, Color(color, 0.25))
 			if active:
 				var progress: float = clampf(float(render_ms - int(state.active_ms)) / int(def.active), 0, 1)
 				var tip: Vector2 = origin + direction.rotated(lerpf(-float(def.angle), float(def.angle), progress)) * float(def.reach) * TILE
 				draw_line(origin + direction * 6, tip, Color("fff3c2"), 4.5 if state.kind in ["slash_3", "cleave"] else 3.0, true)
-			else:
-				draw_arc(origin, float(def.reach) * TILE, direction.angle() - float(def.angle), direction.angle() + float(def.angle), 18, Color(color, 0.6), 1.4, true)
+			elif winding and not enemy:
+				draw_arc(origin, 19, direction.angle() - 0.3, direction.angle() + 0.3, 8, Color(color, 0.5), 2, true)
+			if bool(def.get("steady", false)) and render_ms < int(state.recovery_ms):
+				draw_arc(origin, 18, -2.8, -0.35, 16, Color("edbe67"), 3.0, true)
 		elif state.kind != "step":
-			draw_line(origin, origin + direction * (22 if actor == 1 else 42), Color(color, 0.8), 2.0, true)
+			if render_ms < int(state.recovery_ms): draw_line(origin, origin + direction * (22 if actor == 1 else 80), Color(color, 0.8), 2.0, true)
 		else:
 			draw_line(origin - direction * 22, origin, Color(color, 0.6), 5.0, true)
+			if render_ms < int(state.started_ms) + ActionDefs.EVADE_MS: draw_arc(origin, 13, 0, TAU, 18, Color("b1e5e3"), 1.8, true)
+	# Visible local health/anti-control cues; no hidden enemy values are revealed.
+	if not frame.practice_mode.is_empty():
+		for id: int in frame.actor_slots:
+			var slot: int = frame.actor_slots[id]
+			if id == 1 or frame.sides[slot] != 1 or frame.health[slot] <= 0 or (fog_enabled and frame.visible[slot] == 0): continue
+			var point: Vector2 = _displayed(id) * TILE + Vector2(0, -43)
+			var max_hp: float = maxf(1, frame.max_health[slot])
+			draw_line(point - Vector2(16, 0), point + Vector2(16, 0), Color("292523"), 4)
+			draw_line(point - Vector2(16, 0), point - Vector2(16, 0) + Vector2(32 * clampf(frame.health[slot] / max_hp, 0, 1), 0), Color("df8b70"), 3)
+	for id: int in frame.reactions:
+		if not frame.actor_slots.has(id): continue
+		var slot: int = frame.actor_slots[id]
+		if frame.health[slot] <= 0 or (fog_enabled and id != 1 and frame.visible[slot] == 0): continue
+		var value: Dictionary = frame.reactions[id]
+		if value.get("heavy", false) and not value.get("punished", false) and render_ms >= int(value.get("recovery_from", 0)) and render_ms < int(value.get("recovery_until", 0)):
+			var point: Vector2 = _displayed(id) * TILE
+			for side: float in [-1.0, 1.0]:
+				draw_polyline(PackedVector2Array([point + Vector2(side * 23, -7), point + Vector2(side * 18, 0), point + Vector2(side * 23, 7)]), Color("b1e5e3"), 1.8, true)
+		if int(value.get("stun_used", 0)) > ActionDefs.CONTROL_BUDGET_MS - 40 and render_ms >= int(value.get("guard_from", 0)) and render_ms < int(value.get("stun_window", 0)) + ActionDefs.CONTROL_WINDOW_MS:
+			draw_arc(_displayed(id) * TILE, 13, 0.2, 2.9, 12, Color("91a9d2"), 1.5, true)
 	if frame.actor_slots.has(selected) and (not fog_enabled or frame.visible[frame.actor_slots[selected]] != 0):
 		draw_arc(_displayed(selected) * TILE, 18, 0, TAU, 24, Color.CYAN, 2.0)
 	elif selected_tile >= 0:
