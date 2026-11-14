@@ -2,9 +2,9 @@
 
 GDScript / 2D正交俯视的修仙模拟世界。当前在自主模拟、多核批处理的新内核上恢复了实物、建筑生活、环境植物、战斗、交往修行和有限地区的代表性闭环。
 
-ACT灰盒双击[ACT试玩.cmd](ACT试玩.cmd)，普通生活开局双击[开发试玩.cmd](开发试玩.cmd)；两者直接运行同一源码后端。修改后重启即可，无需导出。运行方式见[命令说明](docs/engineering/tooling/usage.md)。
+双击根目录唯一的[启动.cmd](启动.cmd)，选择战斗试玩、普通世界、当前成品包或Godot编辑器。源码试玩修改后重启即可，无需导出；当前成品包是已验证的导出快照。运行方式见[命令说明](docs/engineering/tooling/usage.md)。
 
-P1已接入键鼠改键、输入切换清理和主角方向提示；Esc→设置→键位设置。最新独立包在`build/windows/act-p1/`，双击其中`P1练习场.cmd`。
+P2单剑切片已接入三连节奏、闪步避伤、轻重敌与混战重练；Esc→设置可改键、调整战斗反馈。当前成品在`build/windows/act-p2/`，统一由启动菜单进入；旧构建只归档程序文件，不再各放启动脚本。
 
 按主题查[记忆地图](docs/README.md)；未完任务见[HANDOFF](docs/status/handoff.md)，agent入口为[AGENTS](AGENTS.md)。
 

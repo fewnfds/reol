@@ -2,7 +2,7 @@
 
 ACT＋弹幕改版已交付P0试玩底座、P1直接操控与P2单剑战斗测试包。旧A攻击移动、S停止、H警戒、点击追击与射击模式切换已移除；A/S保留WASD移动语义。当前能力/键位只查[FEATURES](features.md)，构建与规则/GUI/短窗原件只查[BASELINE](baseline.md)。
 
-用户已授权完成P2并在实现后与顾问审查，由开发者核实取舍。本包已完成，独立包在`build/windows/act-p2/`，入口为`P2练习场.cmd`；根目录[ACT试玩.cmd](../../ACT试玩.cmd)读取最新源码，[开发试玩.cmd](../../开发试玩.cmd)进入普通生活开局。顶栏可分别重开轻敌、重敌或混战，死亡也可重练；重练新开整个练习世界，不写存档。format9默认`user://act-p2-quicksave.reol`，P1档/包和旧档保留。
+用户已授权完成P2并在实现后与顾问审查，由开发者核实取舍。本包已完成，独立程序在`build/windows/act-p2/`。日常入口已合并为根目录唯一的[启动.cmd](../../启动.cmd)：选1源码战斗、选2源码普通世界、选3当前成品战斗、选4编辑器；移除了根目录旧双入口与构建内重复的阶段脚本，后续不按阶段新增启动文件。顶栏可分别重开轻敌、重敌或混战，死亡也可重练；重练新开整个练习世界，不写存档。format9默认`user://act-p2-quicksave.reol`，P1程序/档和旧档保留。
 
 P2实现帧表/缓冲/受击/敌人/反馈只维护在[规格](../../design/systems/combat_framework/act_and_barrage.md)第3/4/5/8节；实施范围与十分钟试玩路线见[主计划](../plans/foundation-priorities.md#p2方案先交付一把有性格的剑)。两位顾问实现静态审查及取舍见[研究](../../design/research/act_barrage_references.md#p2实现审查与交付取舍)，原件留本机`.local/advisor/p2-implementation-20261115/`。不采用让失衡绕过控制预算/必定额外延长原收招的建议；没有新增倒地起身、累计破势条或攻击者权威卡肉。
 

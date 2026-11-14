@@ -6,7 +6,7 @@
 
 Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+，1280×720，无VSync。正式入口scenes/main.tscn，独立包build/windows/reol-demo.exe及同目录pck；源码试玩和导出快照的差别见[usage](../engineering/tooling/usage.md)。
 
-当前源码与`build/windows/act-p2/reol-act.exe`＋pck为P2单剑战斗测试版，根目录ACT试玩.cmd或包内P2练习场.cmd进入单轻敌/单重敌/混战练习。PCK SHA256为`0f0512ac669a73c1100118b294bc5d4fd874cacd4ef925d52e35a87e9ecf4284`，exe为`3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf`；最终导出为`logs/export-20261115-022510-442628800.log`，真实D3D12/RTX3060运行证据见下文P2。P1包仍在`build/windows/act-p1/`，PCK原指纹`973fdce5a942df39af16bdb2293023edeb18dd39ce9e188da487991ab96bf33f`已核对未变；旧P0预览、正式Demo与20Hz包保留。
+当前源码与`build/windows/act-p2/reol-act.exe`＋pck为P2单剑战斗测试版，统一由根目录启动.cmd选择源码战斗或当前成品进入单轻敌/单重敌/混战练习。PCK SHA256为`0f0512ac669a73c1100118b294bc5d4fd874cacd4ef925d52e35a87e9ecf4284`，exe为`3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf`；最终导出为`logs/export-20261115-022510-442628800.log`，真实D3D12/RTX3060运行证据见下文P2。P1包仍在`build/windows/act-p1/`，PCK原指纹`973fdce5a942df39af16bdb2293023edeb18dd39ce9e188da487991ab96bf33f`已核对未变；旧P0预览、正式Demo与20Hz包保留。
 
 原正式人物/装备/背包版由02958cc提交对应，PCK指纹、开发机与各倍率历史样本统一记录在[performance.json](performance.json)。它是工具可直接读取的数值原件，包含实际倍率而非倍率达成比例；本机原始报告在logs/capacity-20261113-shipped/。不要求新机器拥有这些日志才能接手。
 
