@@ -113,6 +113,8 @@ var _commit_ms: int = -1
 var _motion_begin: int = 0
 var _motion_end: int = 0
 var topology_usec: int = 0
+var preparation_usec: int = 0 # Outer preparation only; nested combat/index timers are separate.
+var intervals: int = 0
 
 
 func initialize(count: int = 1000, requested_workers: int = 4, stress_environment: bool = false) -> void:
@@ -231,6 +233,7 @@ func step(milliseconds: int = 50) -> void:
 		origin_ids.append(page.ids.duplicate())
 		traces.append({})
 	while elapsed_ms < end:
+		var preparing: int = Time.get_ticks_usec()
 		entities.prepare(self, elapsed_ms)
 		reactions.prepare(self, elapsed_ms)
 		pools.prepare(self, elapsed_ms)
@@ -238,6 +241,7 @@ func step(milliseconds: int = 50) -> void:
 		effects.prepare(self, elapsed_ms)
 		combat.prepare(self, elapsed_ms)
 		implements.prepare(self, elapsed_ms)
+		preparation_usec += Time.get_ticks_usec() - preparing
 		var boundary: int = combat.next_boundary(elapsed_ms, mini(end, (elapsed_ms / 50 + 1) * 50))
 		boundary = effects.next_boundary(elapsed_ms, boundary)
 		boundary = defense.next_boundary(elapsed_ms, boundary)
@@ -249,31 +253,35 @@ func step(milliseconds: int = 50) -> void:
 		_advance_interval(boundary)
 		for index: int in pages.size():
 			var page: RefCounted = pages[index]
+			var positions: PackedVector2Array = page.positions
+			var ids: PackedInt64Array = page.ids
+			var motion: Dictionary = page.motion
+			var trace: Dictionary = traces[index] if index < traces.size() else {}
 			if index >= origins.size():
-				origins.append(page.positions.duplicate())
+				origins.append(positions.duplicate())
 				origin_ids.append(PackedInt64Array())
-				traces.append({})
+				traces.append(trace)
 			var previous_ids: PackedInt64Array = origin_ids[index]
 			var previous_origins: PackedVector2Array = origins[index]
 			var count: int = previous_ids.size()
-			previous_ids.resize(page.ids.size())
-			previous_origins.resize(page.ids.size())
-			for row: int in page.ids.size():
-				if row >= count or previous_ids[row] != page.ids[row]:
-					previous_ids[row] = page.ids[row]
-					previous_origins[row] = combat.previous[index][row] if index < combat.previous.size() and row < combat.previous[index].size() else page.positions[row]
-					traces[index].erase(row)
-				origins[index] = previous_origins
-				origin_ids[index] = previous_ids
-				if not traces[index].has(row) and page.positions[row].is_equal_approx(origins[index][row]): continue
-				if not traces[index].has(row): traces[index][row] = PackedVector3Array([Vector3(origins[index][row].x, origins[index][row].y, 0)])
-				var knots: PackedVector3Array = traces[index][row]
-				if page.motion.has(row):
-					for point: Vector3 in page.motion[row]:
+			previous_ids.resize(ids.size())
+			previous_origins.resize(ids.size())
+			for row: int in ids.size():
+				if row >= count or previous_ids[row] != ids[row]:
+					previous_ids[row] = ids[row]
+					previous_origins[row] = combat.previous[index][row] if index < combat.previous.size() and row < combat.previous[index].size() else positions[row]
+					trace.erase(row)
+				if not trace.has(row) and positions[row].is_equal_approx(previous_origins[row]): continue
+				if not trace.has(row): trace[row] = PackedVector3Array([Vector3(previous_origins[row].x, previous_origins[row].y, 0)])
+				var knots: PackedVector3Array = trace[row]
+				if motion.has(row):
+					for point: Vector3 in motion[row]:
 						if point.z <= 0: continue
 						knots.append(Vector3(point.x, point.y, (before - begin + point.z * (boundary - before)) / milliseconds))
-				else: knots.append(Vector3(page.positions[row].x, page.positions[row].y, float(boundary - begin) / milliseconds))
-				traces[index][row] = knots
+				else: knots.append(Vector3(positions[row].x, positions[row].y, float(boundary - begin) / milliseconds))
+				trace[row] = knots
+			origins[index] = previous_origins
+			origin_ids[index] = previous_ids
 	for index: int in pages.size():
 		pages[index].motion = {}
 		for row: int in traces[index]:
@@ -285,6 +293,7 @@ func step(milliseconds: int = 50) -> void:
 
 
 func _advance_interval(end: int) -> void:
+	intervals += 1
 	var delta_ms: int = end - elapsed_ms
 	for lane: RefCounted in lanes:
 		lane.navigation.begin_step()
@@ -1202,6 +1211,7 @@ func remove_actor(id: int, at: int = -1) -> bool:
 	combat.status.erase(id)
 	page.ids[row] = 0
 	page.health[row] = 0
+	page.move_scales[row] = 1.0
 	page.cargo[row] = 0
 	page.potions[row] = 0
 	page.modes[row] = Units.Mode.FREE

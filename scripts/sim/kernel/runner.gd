@@ -46,6 +46,8 @@ var _adopted_control_generation: int = 0 # Owner-only.
 var _slow_frame: RefCounted
 var _slow_selected: int = -1
 var _slow_probe: int = -2
+var _inspected_view: Dictionary = {}
+var _player_view: Dictionary = {}
 # These fields are used exclusively by the simulation thread.
 var _world: RefCounted
 var _terrain_view: RefCounted
@@ -64,9 +66,11 @@ var _loss_view := PackedByteArray()
 var _perception_view: Dictionary = {}
 var _io := SessionIO.new()
 var _epoch: int = 1
+var _combat_probe: RefCounted
+var _full_publications: int = 0
 
 
-func start(count: int = 1000, workers: int = -1, speed: float = 1.0, mixed: bool = false, capacity: bool = false, sim_hz: int = DEFAULT_HZ, combat_lab: bool = false) -> Error:
+func start(count: int = 1000, workers: int = -1, speed: float = 1.0, mixed: bool = false, capacity: bool = false, sim_hz: int = DEFAULT_HZ, combat_lab: bool = false, combat_probe: bool = false) -> Error:
 	if not World.Combat.Defs.ERRORS.is_empty():
 		push_error("Combat catalog: " + "; ".join(World.Combat.Defs.ERRORS))
 		return ERR_INVALID_DATA
@@ -76,6 +80,7 @@ func start(count: int = 1000, workers: int = -1, speed: float = 1.0, mixed: bool
 	_capacity = capacity
 	_sim_hz = sim_hz if sim_hz in [20, 60, 100] else DEFAULT_HZ
 	_combat_lab = combat_lab
+	if combat_probe: _combat_probe = preload("res://scripts/sim/diagnostics/combat_probe.gd").new()
 	_speed = clampf(speed, 0.25, 16.0)
 	return _thread.start(_run)
 
@@ -200,7 +205,8 @@ func _run() -> void:
 		Scenarios.capacity(_world)
 	elif _mixed:
 		Scenarios.mixed(_world)
-	if _combat_lab: Scenarios.combat_lab(_world, "mixed", "bloodblade")
+	if _combat_probe != null: _combat_probe.setup(_world)
+	elif _combat_lab: Scenarios.combat_lab(_world, "mixed", "bloodblade")
 	_terrain_view = _world.terrain.detached()
 	_mutex.lock()
 	var paused: bool = _paused
@@ -340,6 +346,7 @@ func _run() -> void:
 		var delta_ms: int = (tick + 1) * 1000 / _sim_hz - tick * 1000 / _sim_hz
 		var step_usec: int = delta_ms * 1000
 		if not paused and debt >= step_usec:
+			if _combat_probe != null: _combat_probe.advance(_world)
 			var begin: int = Time.get_ticks_usec()
 			_world.step(delta_ms)
 			tick += 1
@@ -382,7 +389,7 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 	frame.paused = paused
 	frame.interpolation_ms = 1000.0 / _sim_hz
 	frame.combat = _world.combat.view()
-	frame.loadout = _world.State.copy(_world.combat.profile(_world, 1))
+	frame.loadout = _world.combat.profile(_world, 1) # Recursively read-only compiled definition.
 	frame.areas = _world.State.copy(_world.areas.records)
 	frame.implements = _world.State.copy(_world.implements.records)
 	frame.effects = _world.State.copy(_world.effects.records)
@@ -437,8 +444,22 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 		while _poses.size() > 2 and _poses[1].world_ms < frame.world_ms - 100:
 			_poses.pop_front()
 	frame.history = _poses.duplicate()
-	var full: bool = _slow_frame == null or frame.world_ms - _slow_frame.world_ms >= 100 or selected != _slow_selected or probe != _slow_probe or _object_revision != _world.objects.layout_revision or not _ready_receipts.is_empty() or not _world.outcomes.is_empty()
+	# Reliable notifications refresh details immediately, without rebuilding all
+	# statistics/environment views. Layout and inspection changes remain immediate.
+	var management_changed: bool = false
+	for receipt: Dictionary in _ready_receipts:
+		if receipt.kind != "action": management_changed = true; break
+	var full: bool = paused or management_changed or _slow_frame == null or frame.world_ms - _slow_frame.world_ms >= 100 or selected != _slow_selected or probe != _slow_probe or _object_revision != _world.objects.layout_revision or _terrain_view.revision != _slow_frame.terrain.revision
+	if full or not _ready_receipts.is_empty() or not _world.outcomes.is_empty():
+		_inspected_view = _world.describe(selected)
+		_player_view = _inspected_view if selected == 1 else _world.describe(1)
+	frame.inspected = _inspected_view
+	frame.player = _player_view
+	for bolt: Dictionary in _world.combat.bolts.values():
+		frame.projectiles.append(bolt.position)
+		frame.projectile_velocities.append(bolt.velocity)
 	if full:
+		_full_publications += 1
 		if _object_revision != _world.objects.layout_revision:
 			_object_revision = _world.objects.layout_revision
 			_object_view = _world.objects.layout()
@@ -461,11 +482,6 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 		frame.perception = _perception_view
 		frame.visible = _world.perception.visible.duplicate()
 		frame.actor_slots = _actor_view
-		for bolt: Dictionary in _world.combat.bolts.values():
-			frame.projectiles.append(bolt.position)
-			frame.projectile_velocities.append(bolt.velocity)
-		frame.inspected = _world.describe(selected)
-		frame.player = frame.inspected if selected == 1 else _world.describe(1)
 		frame.counters = _world.counters()
 		frame.counters.snapshot_usec = _snapshot_usec
 		frame.counters.overload_demand_usec = _overload_usec
@@ -493,6 +509,10 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 	else:
 		for field: String in Frame.SLOW_FIELDS: frame.set(field, _slow_frame.get(field))
 	_snapshot_usec += Time.get_ticks_usec() - start
+	if _combat_probe != null:
+		frame.profile = _combat_probe.report(_world)
+		frame.profile["snapshot_usec"] = _snapshot_usec
+		frame.profile["full_publications"] = _full_publications
 	frame.published_usec = Time.get_ticks_usec()
 	_mutex.lock()
 	for outcome: Dictionary in _world.outcomes:

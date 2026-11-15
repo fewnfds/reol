@@ -6,6 +6,10 @@ const STATE_FIELDS: Array = ["records", "next_id"]
 var records: Dictionary = {}
 var next_id: int = 1
 var dirty: Dictionary = {}
+var _movement_dirty: Dictionary = {} # Derived rows, invalidated by status/equipment changes.
+
+func invalidate_movement(actor: int) -> void:
+	_movement_dirty[actor] = true
 
 func apply(world: RefCounted, target: int, source: int, activation: int, ability: String, now: int, amount: int) -> void:
 	apply_bundle(world, target, source, activation, ability, Defs.ACTIONS[ability].payload, now, amount)
@@ -61,6 +65,7 @@ func add(world: RefCounted, target: int, source: int, activation: int, ability: 
 				world.reactions.submit(world, {"event": "stack_max", "actor": source, "target": target, "at_ms": now, "activation": activation, "action": ability, "damage": amount, "position": world.position_at(target, now), "lineage": lineage, "side": old.side, "power": old.power}, old.get("rules", []))
 		old.damage = maxi(int(old.damage), maxi(0, roundi(amount * float(spec.magnitude))))
 		dirty[target] = true
+		if spec.kind in ["slow", "haste", "root"]: invalidate_movement(target)
 		if spec.kind == "modifier": flush_dirty(world)
 		return found # Renewal preserves cadence and causality.
 	var until: int = now + int(spec.duration_ms)
@@ -76,6 +81,7 @@ func add(world: RefCounted, target: int, source: int, activation: int, ability: 
 		"born_ms": now, "until_ms": until, "next_ms": now + int(spec.period_ms), "period_ms": int(spec.period_ms), "magnitude": float(spec.magnitude),
 		"rules": Defs.ACTIONS.get(ability, {}).get("reactions", []), "damage": maxi(0, roundi(amount * float(spec.magnitude))), "stacks": 1, "spec": spec.duplicate(true), "lineage": lineage.duplicate(true)}
 	dirty[target] = true
+	if spec.kind in ["slow", "haste", "root"]: invalidate_movement(target)
 	if spec.kind == "modifier": flush_dirty(world)
 	world.emit({"kind": "status_added", "actor": source, "target": target, "status": spec.id, "at_ms": now})
 	return id
@@ -91,6 +97,7 @@ func remove(world: RefCounted, id: int, reason: String, now: int) -> void:
 	records.erase(id)
 	world.entities.forget_status(id)
 	dirty[entry.target] = true
+	if entry.kind in ["slow", "haste", "root"]: invalidate_movement(entry.target)
 	if entry.kind == "stun" and reason == "dispelled":
 		var until: int = maxi(now, int(world.combat.status.get(entry.target, {}).get("hit_stun_until", 0)))
 		for other: Dictionary in records.values():
@@ -135,14 +142,26 @@ func expire(world: RefCounted, now: int) -> void:
 
 func prepare(world: RefCounted, now: int) -> void:
 	expire(world, now)
-	for page: RefCounted in world.pages: page.move_scales.fill(1.0)
+	if _movement_dirty.is_empty(): return
+	for actor: int in _movement_dirty.keys():
+		if not world.actor_slots.has(actor):
+			_movement_dirty.erase(actor)
+			continue
+		var slot: int = world.actor_slots[actor]
+		world.pages[slot / 256].move_scales[slot % 256] = 1.0
+	# One source-order pass for all dirty targets, preserving float32 writes.
 	for entry: Dictionary in records.values():
+		if not _movement_dirty.has(entry.target): continue
 		var slot: int = world.actor_slots[entry.target]
 		var page: RefCounted = world.pages[slot / 256]
-		if entry.kind in ["slow", "haste"]: page.move_scales[slot % 256] *= pow(float(entry.magnitude), int(entry.stacks))
-		elif entry.kind == "root": page.move_scales[slot % 256] = 0.0
-	for page: RefCounted in world.pages:
-		for row: int in page.move_scales.size(): page.move_scales[row] = clampf(page.move_scales[row], 0.0, 3.0)
+		var row: int = slot % 256
+		if entry.kind in ["slow", "haste"]: page.move_scales[row] *= pow(float(entry.magnitude), int(entry.stacks))
+		elif entry.kind == "root": page.move_scales[row] = 0.0
+	for actor: int in _movement_dirty:
+		var slot: int = world.actor_slots[actor]
+		var scales: PackedFloat32Array = world.pages[slot / 256].move_scales
+		scales[slot % 256] = clampf(scales[slot % 256], 0.0, 3.0)
+	_movement_dirty.clear()
 
 func collect(world: RefCounted, now: int) -> Array[Dictionary]:
 	var impacts: Array[Dictionary] = []
@@ -159,6 +178,7 @@ func remove_target(actor: int) -> void:
 	for id: int in records.keys():
 		if records[id].target == actor: records.erase(id)
 	dirty.erase(actor)
+	invalidate_movement(actor)
 
 func valid(world: RefCounted) -> bool:
 	if next_id < 1: return false

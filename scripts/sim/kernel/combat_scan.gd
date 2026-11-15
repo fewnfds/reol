@@ -101,6 +101,8 @@ var contacts: Dictionary = {} # Observer identity -> observed target slot.
 var candidates: int = 0
 var queries: int = 0
 var index_usec: int = 0
+var index_calls: int = 0
+var index_rebuilds: int = 0
 var batch_usec: int = 0
 var parallel_batches: int = 0
 var observer_count: int = 0
@@ -113,6 +115,8 @@ func bucket(point: Vector2) -> Vector2i:
 
 
 func index(world: RefCounted) -> void:
+	index_calls += 1
+	index_rebuilds += 1
 	var started: int = Time.get_ticks_usec()
 	positions.clear()
 	sweep_padding = 0.0
@@ -121,8 +125,6 @@ func index(world: RefCounted) -> void:
 		group.heads.fill(-1)
 	sides_present.clear()
 	for page: RefCounted in world.pages:
-		for row: int in page.ids.size():
-			sweep_padding = maxf(sweep_padding, maxf(page.move_speed[row] * page.move_scales[row], page.direct_velocities[row].length()) * page.delta_ms / 1000.0)
 		positions.append_array(page.positions)
 		ids.append_array(page.ids)
 	sides.resize(ids.size())
@@ -131,24 +133,36 @@ func index(world: RefCounted) -> void:
 	blocked = world.terrain.blocked
 	var base: int = 0
 	for page: RefCounted in world.pages:
-		for row: int in page.ids.size():
+		# Read each hot column once, then do one typed row pass. These aliases are
+		# owner-only reads and are discarded before any worker can write a page.
+		var page_ids: PackedInt64Array = page.ids
+		var page_positions: PackedVector2Array = page.positions
+		var health: PackedInt32Array = page.health
+		var speed: PackedFloat32Array = page.move_speed
+		var scales: PackedFloat32Array = page.move_scales
+		var velocities: PackedVector2Array = page.direct_velocities
+		var max_speed: float = 0.0
+		for row: int in page_ids.size():
+			max_speed = maxf(max_speed, maxf(speed[row] * scales[row], velocities[row].length()))
 			var slot: int = base + row
-			var id: int = ids[slot]
-			if id <= 0 or page.health[row] <= 0:
+			var id: int = page_ids[row]
+			if id <= 0 or health[row] <= 0:
 				ids[slot] = 0
 				continue
 			var side: int = int(world.objects.records[id].get("side", 0))
 			sides[slot] = side
 			sides_present[side] = true
-			tiles[slot] = Terrain.index(Vector2i(positions[slot].floor()))
-			var key: Vector2i = bucket(positions[slot])
+			var point: Vector2 = page_positions[row]
+			tiles[slot] = Terrain.index(Vector2i(point.floor()))
+			var key: Vector2i = bucket(point)
 			if not side_groups.has(side):
 				side_groups[side] = SideIndex.new(side)
 			var group: RefCounted = side_groups[side]
 			var cell: int = key.y * WIDTH + key.x
 			links[slot] = group.heads[cell]
 			group.heads[cell] = slot
-		base += page.ids.size()
+		sweep_padding = maxf(sweep_padding, max_speed * page.delta_ms / 1000.0)
+		base += page_ids.size()
 	groups.assign(side_groups.values())
 	index_usec += Time.get_ticks_usec() - started
 

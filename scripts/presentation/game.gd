@@ -90,6 +90,8 @@ var _show_sources: bool = false
 var _response_probe: RefCounted
 var _sim_hz: int = 60
 var _combat_lab: bool = false
+var _combat_probe: bool = false
+var _profile_before: Dictionary = {}
 var _last_direction_epoch: int = -1
 var _last_displayed_player := Vector2.INF
 var _display_move := Vector2.ZERO
@@ -117,8 +119,14 @@ func _ready() -> void:
 			"fog": _fog_mode = int(part[1] == "true")
 			"sim-hz": _sim_hz = int(part[1]) if int(part[1]) in [20, 60, 100] else 60
 			"combat-lab": _combat_lab = part[1] == "true"
+			"combat-probe": _combat_probe = part[1] == "true"
 			"response-probe":
 				if part[1] == "true": _response_probe = ResponseProbe.new()
+	if _combat_probe and (_duration <= 0.0 or _actors < 4 or _mixed or _capacity or speed != 1.0):
+		push_error("Combat probe requires a bounded capture at 1x with at least four actors")
+		get_tree().quit(1)
+		return
+	if _combat_probe: _combat_lab = true
 	if _response_probe != null and (_duration <= 0.0 or _mixed or _capacity or _combat_lab or speed != 1.0):
 		push_error("Response probe requires a bounded ordinary capture at 1x")
 		get_tree().quit(1)
@@ -165,7 +173,7 @@ func _ready() -> void:
 	controls.z_index = 5
 	add_child(controls)
 	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
-	if runner.start(_actors, _workers, speed, _mixed, _capacity, _sim_hz, _combat_lab) != OK:
+	if runner.start(_actors, _workers, speed, _mixed, _capacity, _sim_hz, _combat_lab, _combat_probe) != OK:
 		push_error("Simulation thread could not start")
 		get_tree().quit(1)
 
@@ -480,6 +488,7 @@ func _capture(now: int) -> void:
 			_capture_at = now
 			_capture_world = frame.world_ms
 			_capture_counters = frame.counters.duplicate(true)
+			_profile_before = frame.profile.duplicate(true)
 			_capture_counters["minimap_usec"] = ui.minimap.work_usec
 			_capture_age_usec = now - frame.published_usec
 			_capture_adoptions = _adoptions
@@ -504,6 +513,11 @@ func _capture(now: int) -> void:
 	report.activity_fraction = _percentiles(_activity_samples)
 	report.camera = {"position": [camera.position.x, camera.position.y], "zoom": camera.zoom.x}
 	report.ui_open = {"drawer": ui._drawer_name, "inventory": ui.inventory.visible}
+	if _combat_probe:
+		report.scenario = "framework-combat-v1"
+		report.profile = frame.profile.duplicate(true)
+		for field: String in _profile_before:
+			if frame.profile[field] is int and not field.begins_with("peak_"): report.profile[field + "_delta"] = int(frame.profile[field]) - int(_profile_before[field])
 	report.segments = []
 	if _mid_at > 0:
 		for index: int in 2:

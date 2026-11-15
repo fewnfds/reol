@@ -45,6 +45,7 @@ static func rebuild(world: RefCounted, id: int, clamp_health: bool = true) -> vo
 	page.armor[row] = stats.armor
 	page.move_speed[row] = stats.speed
 	page.move_scales[row] = 1.0
+	world.effects.invalidate_movement(id)
 	if clamp_health: page.health[row] = mini(page.health[row], page.max_health[row])
 
 static func view(page: RefCounted, row: int) -> Dictionary:
