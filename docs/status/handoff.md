@@ -6,7 +6,7 @@
 
 ## 下一主题
 
-建议从[主计划](../plans/foundation-priorities.md#下一阶段候选)的P5敌人节奏与公平弹幕收敛范围；尚未开工，不按旧P5～P7清单自动续做。存读、共同世界和生活中断已经接入，新机制随改动补对应边界，不再从零整合。
+用户明确将新增预警系统后置；P5建议聚焦[NPC战斗决策与节奏](../plans/foundation-priorities.md#下一阶段候选)，利用现有能力改善距离、技能选择和局部出手配合，尚未开始实现。弹幕新花型/精英不作为默认清单，不按旧P5～P7计划自动续做。存读、共同世界和生活中断已经接入，新机制随改动补对应边界，不再从零整合。
 
 扩展先判断配置、局部脚本、共享机制或新领域，沿[实际owner](../engineering/architecture.md)修改。公共合同归[行动与作用](../../design/systems/action_effect_framework.md)，战斗合同归[ACT规格](../../design/systems/combat_framework/act_and_barrage.md)。用户类比和顾问建议不自动成为类名、功能或验收断言；根AGENTS要求提炼意图并核查证据。
 
