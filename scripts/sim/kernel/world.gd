@@ -11,6 +11,7 @@ const Batch = preload("res://scripts/sim/execution/batch_execution.gd")
 const Objects = preload("res://scripts/sim/kernel/objects.gd")
 const State = preload("res://scripts/sim/kernel/state.gd")
 const Facilities = preload("res://scripts/sim/kernel/facilities.gd")
+const Decisions = preload("res://scripts/sim/kernel/decisions.gd")
 const Livelihood = preload("res://scripts/sim/kernel/livelihood.gd")
 const Nature = preload("res://scripts/sim/kernel/nature.gd")
 const DomainOps = preload("res://scripts/sim/kernel/domain_effects.gd")
@@ -56,6 +57,7 @@ var lanes: Array[RefCounted] = []
 var objects := Objects.new()
 var facilities := Facilities.new()
 var livelihood := Livelihood.new()
+var decisions := Decisions.new()
 var nature := Nature.new()
 var combat := Combat.new()
 var effects := Effects.new()
@@ -198,7 +200,7 @@ func initialize(count: int = 1000, requested_workers: int = 4, stress_environmen
 func state_owners() -> Dictionary:
 	# The concrete composition root lists real domains; field selection belongs
 	# to each owner. New domains do not require a new serializer implementation.
-	return {"world": self, "terrain": terrain, "objects": objects, "environment": environment, "nature": nature, "combat": combat, "effects": effects, "areas": areas, "implements": implements, "perception": perception, "regions": regions, "person_events": person_events, "society": society, "pools": pools, "defense": defense, "reactions": reactions, "entities": entities}
+	return {"world": self, "terrain": terrain, "objects": objects, "environment": environment, "nature": nature, "combat": combat, "effects": effects, "areas": areas, "implements": implements, "perception": perception, "regions": regions, "person_events": person_events, "society": society, "pools": pools, "defense": defense, "reactions": reactions, "entities": entities, "decisions": decisions}
 
 func emit(event: Dictionary) -> void:
 	outcomes.append(event)
@@ -249,6 +251,7 @@ func step(milliseconds: int = 50) -> void:
 		boundary = areas.next_boundary(elapsed_ms, boundary)
 		boundary = implements.next_boundary(elapsed_ms, boundary)
 		boundary = work_boundary(elapsed_ms, boundary)
+		boundary = decisions.next_boundary(elapsed_ms, boundary)
 		var before: int = elapsed_ms
 		_advance_interval(boundary)
 		for index: int in pages.size():
@@ -341,7 +344,8 @@ func _advance_interval(end: int) -> void:
 			lane.sampling = false
 		for page: RefCounted in pages:
 			for event: Dictionary in page.environmental_events:
-				emit(event)
+				if event.kind == "needs_changed": decisions.wake(self, event.actor, end, "needs_changed")
+				else: emit(event)
 			for row: int in page.environmental_deaths:
 				kill(page.ids[row], end, "cold" if page.body_heat[row] < 0.0 else "heat")
 		environment_usec += Time.get_ticks_usec() - env_start
@@ -489,6 +493,7 @@ func end_run(id: int, at: int = -1, reason: String = "replaced") -> void:
 	if actor_slots.has(id):
 		var slot: int = actor_slots[id]
 		pages[slot / 256].modes[slot % 256] = Units.Mode.IDLE
+	decisions.ended(self, id, binding, at if at >= 0 else operation_time(), reason)
 	emit({"kind": "action_ended", "actor": id, "domain": binding.domain, "run_id": binding.run_id, "reason": reason, "at_ms": at if at >= 0 else operation_time()})
 
 func clear_navigation(id: int) -> void:
@@ -503,13 +508,14 @@ func clear_navigation(id: int) -> void:
 
 func clear_input(id: int) -> void:
 	combat.controls.erase(id)
-	combat.intents.erase(id)
+	combat.discard_intent(self, id, operation_time())
 
 func release(id: int, at: int = -1) -> void:
 	# Explicit full command/death reset; ordinary run completion uses end_run.
 	end_run(id, at)
 	combat.chains.erase(id)
 	combat.engagements.erase(id)
+	decisions.released(id)
 	clear_navigation(id)
 	clear_input(id)
 
@@ -529,6 +535,7 @@ func adopt_work(id: int, at: int) -> bool:
 	work_runs[id] = next_run
 	next_run += 1
 	gate.bind(id, "work", work_runs[id])
+	decisions.track_host(self, id)
 	return true
 
 
@@ -555,6 +562,7 @@ func kill(id: int, at: int = -1, cause: String = "") -> void:
 	page.modes[row] = Units.Mode.DEAD
 	environment.remove_mobile(id)
 	# A corpse retains its cargo. Death cannot erase or duplicate materials.
+	decisions.forget(id)
 	deaths += 1
 	emit({"kind": "death", "actor": id, "at_ms": at if at >= 0 else operation_time(), "cause": cause})
 
@@ -566,7 +574,7 @@ func forget_target(target: int, at: int = -1) -> void:
 	for actor: int in actions.keys():
 		if not actions.has(actor) or _finishing.get(actor) == actions[actor].run_id: continue
 		if actions[actor].target == target:
-			var automatic: bool = actions[actor].get("autonomous", false)
+			var automatic: bool = objects.records[actor].get("autonomous", false) and not decisions.records.get(actor, {}).get("manual", false)
 			release(actor, now)
 			var slot: int = actor_slots[actor]
 			pages[slot / Units.PAGE_SIZE].modes[slot % Units.PAGE_SIZE] = Units.Mode.IDLE
@@ -616,6 +624,7 @@ func _command(input: Dictionary) -> Dictionary:
 				return receipt
 			release(id)
 			objects.records[id].autonomous = false
+			decisions.suspend(self, id)
 			adopt_work(id, elapsed_ms)
 			page.move_to(row, point, Units.Mode.MANUAL)
 		"ability":
@@ -627,6 +636,7 @@ func _command(input: Dictionary) -> Dictionary:
 			return receipt
 		"action":
 			var reason: String = combat.request(self, id, str(input.get("button", "primary")), input.get("aim", page.aims[row]), input.get("move", Vector2.ZERO), -1, input.get("point", Vector2(-1, -1)), int(input.get("target", 0)))
+			if reason in ["started", "buffered"]: decisions.suspend(self, id)
 			receipt.ok = reason in ["started", "buffered"]
 			receipt.reason = reason
 			return receipt
@@ -640,6 +650,7 @@ func _command(input: Dictionary) -> Dictionary:
 			page.flight[row] = flight
 			page.radii[row] = radius
 			page.modes[row] = Units.Mode.IDLE
+			if objects.records[id].get("autonomous", false): livelihood.after_action(self, id, elapsed_ms)
 		"move":
 			var point: Vector2 = _command_point(input, page, row)
 			if point.x < 0:
@@ -647,6 +658,7 @@ func _command(input: Dictionary) -> Dictionary:
 				return receipt
 			release(id)
 			objects.records[id].autonomous = false
+			decisions.suspend(self, id)
 			adopt_work(id, elapsed_ms)
 			page.move_to(row, point, Units.Mode.MANUAL)
 			receipt["position"] = point
@@ -654,6 +666,7 @@ func _command(input: Dictionary) -> Dictionary:
 			release(id)
 			page.modes[row] = Units.Mode.IDLE
 			objects.records[id].autonomous = false
+			decisions.suspend(self, id)
 		"work":
 			if objects.records[id].get("body_profile", "human") != "human":
 				receipt.ok = false
@@ -661,8 +674,10 @@ func _command(input: Dictionary) -> Dictionary:
 				return receipt
 			release(id)
 			objects.records[id].autonomous = true
+			decisions.resume(self, id, elapsed_ms)
 			livelihood.observe(self, id, elapsed_ms)
 			livelihood.think(self, id, elapsed_ms)
+			decisions.prepare(self, elapsed_ms)
 		"heal":
 			if objects.amount(id, "potion") <= 0 or page.health[row] >= page.max_health[row]:
 				receipt.reason = "no_potion_or_full"
@@ -684,7 +699,7 @@ func _command(input: Dictionary) -> Dictionary:
 			if receipt.ok:
 				Equipment.rebuild(self, id)
 				combat.chains.erase(id)
-				combat.intents.erase(id)
+				combat.discard_intent(self, id, elapsed_ms)
 				emit({"kind": reason, "actor": id, "item": item, "slot": gear_slot, "at_ms": elapsed_ms})
 			return receipt
 		"source":
@@ -749,6 +764,7 @@ func _command(input: Dictionary) -> Dictionary:
 			var pile: int = objects.create("pile", item, Terrain.index(Vector2i(page.positions[row])))
 			objects.transfer(id, pile, item, count)
 			_sync_inventory(id)
+			if objects.records[id].get("autonomous", false): livelihood.after_action(self, id, elapsed_ms)
 		"build":
 			var tile: int = int(input.get("tile", -1))
 			var kind: int = int(input.get("structure", 1))
@@ -846,7 +862,7 @@ func counters() -> Dictionary:
 		"structures": terrain.structures.size(), "static_sources": environment.source_cells.size(),
 		"mobile_sources": environment.mobile_units.size(), "objects": objects.records.size(), "transfers": objects.transfers,
 		"decisions": livelihood.decisions, "observations": livelihood.observations, "decision_usec": livelihood.decision_usec, "observe_usec": livelihood.observe_usec, "topology_usec": topology_usec,
-		"facility_completions": facilities.completed.duplicate(), "plants": nature.ids.size(), "plant_evaluations": nature.evaluations, "plant_transitions": nature.transitions, "plant_collections": nature.collections, "nature_usec": nature.work_usec, "calendar": environment.calendar(), "combatants": combat.engagements.size(), "projectiles": combat.bolts.size(), "shots": combat.shots, "hits": combat.hits, "combat_usec": combat.work_usec, "combat_prepare_usec": combat.prepare_usec, "combat_resolve_usec": combat.resolve_usec, "combat_collect_usec": combat.collect_usec, "combat_damage_usec": combat.damage_usec, "combat_slices": combat.slices, "melee_candidates": combat.melee_candidates, "melee_tests": combat.melee_tests, "combat_repaths": combat.repaths, "combat_resumed": combat.resumed,
+		"facility_completions": facilities.completed.duplicate(), "plants": nature.ids.size(), "plant_evaluations": nature.evaluations, "plant_transitions": nature.transitions, "plant_collections": nature.collections, "nature_usec": nature.work_usec, "calendar": environment.calendar(), "unit_decisions": decisions.evaluations, "unit_decision_usec": decisions.work_usec, "combatants": combat.engagements.size(), "projectiles": combat.bolts.size(), "shots": combat.shots, "hits": combat.hits, "combat_usec": combat.work_usec, "combat_prepare_usec": combat.prepare_usec, "combat_resolve_usec": combat.resolve_usec, "combat_collect_usec": combat.collect_usec, "combat_damage_usec": combat.damage_usec, "combat_slices": combat.slices, "melee_candidates": combat.melee_candidates, "melee_tests": combat.melee_tests, "combat_repaths": combat.repaths, "combat_resumed": combat.resumed,
 		"perception_usec": perception.work_usec, "sight_observers": combat.scan.observer_count,
 		"sight_candidates": combat.scan.candidates, "sight_queries": combat.scan.queries,
 		"sight_index_usec": combat.scan.index_usec, "sight_batch_usec": combat.scan.batch_usec,
@@ -912,6 +928,7 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 	if input.kind in Society.ACTIONS and reservations.get(target, 0) == id:
 		society.invite(self, id, actions[id])
 	page.move_to(row, point, Units.Mode.APPROACH)
+	decisions.track_host(self, id)
 	return "accepted"
 
 
@@ -1032,6 +1049,7 @@ func describe(id: int) -> Dictionary:
 		result["due_ms"] = page.due_ms[row]
 		result["events"] = person_events.view(id)
 		result["events_version"] = person_events.version(id)
+		result["decision"] = decisions.describe(id)
 		result["flight"] = page.flight[row]
 		result["radius"] = page.radii[row]
 		result["destination"] = page.targets[row]
@@ -1202,6 +1220,7 @@ func remove_actor(id: int, at: int = -1) -> bool:
 		for item: String in objects.records[id].inventory.keys():
 			objects.transfer(id, pile, item, objects.amount(id, item))
 	objects.remove_empty(id)
+	decisions.forget(id)
 	actor_slots.erase(id)
 	pools.records.erase(id)
 	defense.guards.erase(id)

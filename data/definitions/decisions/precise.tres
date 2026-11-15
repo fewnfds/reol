@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="UnitDecisionPolicy" load_steps=6 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/decisions/policy_def.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/decisions/rule_def.gd" id="2"]
+
+[sub_resource type="Resource" id="Primary"]
+script = ExtResource("2")
+action = "cast"
+button = "primary"
+min_distance = 1.0
+max_distance = 8.0
+
+[sub_resource type="Resource" id="Skill"]
+script = ExtResource("2")
+action = "cast"
+button = "skill"
+min_distance = 5.0
+max_distance = 8.0
+interval_ms = 2400
+weight = 1.2
+
+[sub_resource type="Resource" id="Position"]
+script = ExtResource("2")
+action = "keep_range"
+
+[resource]
+script = ExtResource("1")
+id = "precise"
+title = "射程评分范例"
+evaluator = "range_score"
+preferred_min = 4.5
+preferred_max = 6.5
+rules = Array[ExtResource("2")]([SubResource("Primary"), SubResource("Skill"), SubResource("Position")])

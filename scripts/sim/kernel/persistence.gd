@@ -84,6 +84,7 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 	if not world.nature.rebuild(world) or not world.combat.valid(world) or not world.effects.valid(world) or not world.areas.valid(world) or not world.implements.valid(world):
 		return null
 	if not world.gate.rebuild(world) or not world.pools.valid(world) or not world.defense.valid(world) or not world.reactions.valid(world) or not world.entities.valid(world): return null
+	if not world.decisions.valid(world): return null
 	world.effects.prepare(world, world.elapsed_ms)
 	if not world.regions.valid(world):
 		return null

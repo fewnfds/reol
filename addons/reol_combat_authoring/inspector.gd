@@ -6,7 +6,7 @@ const Validation = preload("res://addons/reol_combat_authoring/validation.gd")
 func _can_handle(object: Object) -> bool:
 	if not object is Resource or not object.has_method("errors") and not object.has_method("compile"): return false
 	var script: Script = object.get_script()
-	return script != null and (script.resource_path.begins_with("res://scripts/sim/definitions/actions/") or script.resource_path.begins_with("res://scripts/sim/definitions/combat/"))
+	return script != null and (script.resource_path.begins_with("res://scripts/sim/definitions/actions/") or script.resource_path.begins_with("res://scripts/sim/definitions/combat/") or script.resource_path.begins_with("res://scripts/sim/definitions/decisions/"))
 func _parse_begin(object: Object) -> void:
 	if object is Ability:
 		var preview := Preview.new()

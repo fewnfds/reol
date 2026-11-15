@@ -398,6 +398,7 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 		frame.entities[id]["position"] = _world.combat.position(_world, id)
 		frame.entities[id]["hp"] = int(_world.objects.records[id].get("hp", 0))
 	frame.action_trace = _world.reactions.trace.duplicate(true)
+	frame.decision_trace = _world.decisions.trace.duplicate(true)
 	frame.pools = _world.State.copy(_world.pools.records.get(1, {}))
 	frame.shields = _world.State.copy(_world.defense.shields)
 	frame.guards = _world.State.copy(_world.defense.guards)

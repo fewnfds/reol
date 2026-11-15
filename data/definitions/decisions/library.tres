@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="UnitDecisionLibrary" load_steps=10 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/decisions/library.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/decisions/policy_def.gd" id="policy_type"]
+[ext_resource type="Resource" path="res://data/definitions/decisions/precise.tres" id="precise"]
+[ext_resource type="Resource" path="res://data/definitions/decisions/resident.tres" id="2"]
+[ext_resource type="Resource" path="res://data/definitions/decisions/basic.tres" id="3"]
+[ext_resource type="Resource" path="res://data/definitions/decisions/cautious.tres" id="4"]
+[ext_resource type="Resource" path="res://data/definitions/decisions/pressure.tres" id="5"]
+[ext_resource type="Resource" path="res://data/definitions/decisions/heavy.tres" id="6"]
+[ext_resource type="Resource" path="res://data/definitions/decisions/ranged.tres" id="7"]
+
+[resource]
+script = ExtResource("1")
+policies = Array[ExtResource("policy_type")]([ExtResource("2"), ExtResource("3"), ExtResource("4"), ExtResource("5"), ExtResource("6"), ExtResource("7"), ExtResource("precise")])

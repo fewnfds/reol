@@ -8,10 +8,10 @@ python tools/godot.py import
 python tools/godot.py run
 python tools/godot.py test
 python tools/godot.py test --suite equipment
-python tools/godot.py export --preset "Windows Demo" --output build/windows/act-p4/reol-act.exe
+python tools/godot.py export --preset "Windows Demo" --output build/windows/act-p5/reol-act.exe
 ```
 
-`run`和新导出的Windows Demo均进入同一内核，默认24人普通开局，每次启动新局；F5/F9主动保存/加载当前格式。当前成品入口为`build/windows/act-p4/reol-act.exe`及同目录pck，键位/试玩路线查[FEATURES](../../status/features.md)。
+`run`和新导出的Windows Demo均进入同一内核，默认24人普通开局，每次启动新局；F5/F9主动保存/加载当前格式。当前成品入口为`build/windows/act-p5/reol-act.exe`及同目录pck，键位/试玩路线查[FEATURES](../../status/features.md)。
 
 ## 开发期直接试玩
 
@@ -28,15 +28,19 @@ python tools/godot.py export --preset "Windows Demo" --output build/windows/act-
 
 ACT测试入口相当于`python tools/godot.py run -- --combat-lab=true`：同一512²世界保留后台生活，默认血刃＋轻重敌/射手混战；顶栏可切近远组合和基础范例或单轻敌/单重敌。切换会替换整个练习世界且不写存档。WASD、鼠标瞄准、左键主攻击、右键技能、E/C额外主动槽、空格闪步；Tab交互／营造，F附近交互。普通世界1/2换真剑/真弓，练习范例由下拉框赋予，不随换装自动改为另一范例。
 
-最新独立ACT包为`build/windows/act-p4/reol-act.exe`＋同目录pck，通过根目录启动菜单选3进入测试开局；直接运行exe为普通生活开局。独立分发时的命令为`reol-act.exe -- --combat-lab=true`；Esc→设置调整音量/震动/闪光和键位。P1/P2/P3、旧预览和正式包保留，默认F5/F9使用format11的`act-p4-quicksave.reol`，不覆盖旧档。
+最新独立ACT包为`build/windows/act-p5/reol-act.exe`＋同目录pck，通过根目录启动菜单选3进入测试开局；直接运行exe为普通生活开局。独立分发时的命令为`reol-act.exe -- --combat-lab=true`；Esc→设置调整音量/震动/闪光和键位。P1/P2/P3/P4、旧预览和正式包保留，默认F5/F9使用format12的`act-p5-quicksave.reol`，不覆盖旧档。
 
 技能制作从`data/definitions/combat/library.tres`与其引用的`.tres`进入，编辑器“工具→Reol 战斗技能库”可直达；技能Inspector有阶段/范围预览，共同Resource有字段/引用校验与引用跳转。保存后关闭并重新运行游戏采用新定义，重练不重载；配置字段与制作流程见[规格10](../../../design/systems/combat_framework/act_and_barrage.md#101-定义施放和表现的接入合同)。短检查命令示例（`GODOT_EXE`为实际引擎路径）：
 
 ```powershell
+& $env:GODOT_EXE --headless --path . --script tests/decisions_smoke.gd
+& $env:GODOT_EXE --path . --script tests/decisions_ui_smoke.gd
 & $env:GODOT_EXE --headless --path . --script tests/action_combinations_smoke.gd
 & $env:GODOT_EXE --path . --script tests/action_combinations_ui_smoke.gd
 & $env:GODOT_EXE --editor --path . --scene res://tests/combat_authoring_editor.tscn -- --combat-authoring-check
 ```
+
+单位策略制作从`data/definitions/decisions/library.tres`进入，编辑器“工具→Reol 单位策略库”可直达，Policy/Rule沿同一Inspector校验与跳转；[绑定与扩展合同](../../../design/systems/unit_decision_framework.md#5-制作与绑定)。F12输入`decisions`查看最近选择、选中/玩家的模式、任务与拒绝；只读诊断不执行任意脚本。
 
 DEV可选开启“反应追踪”，再F12输入`actions`读取最近64条采用规则；默认关闭，读档/重练清空，不进存档。
 
@@ -46,7 +50,7 @@ DEV可选开启“反应追踪”，再F12输入`actions`读取最近64条采用
 
 `logs/run-*.log`保留本次源码试玩输出，包括引擎错误、`SESSION_STATE`（实际暂停/倍率/会话切换）、`PLAYER_COMMAND`（指令与入队序号）、`COMMAND_RESULT`（接受或拒绝原因）和`PLAYER_OUTCOME`（玩家相关到达、失败、受击、死亡等结果）。不逐帧记录或打印全部NPC行为；游戏未关闭也可读取当前日志。原生引擎日志另在`%APPDATA%/Godot/app_userdata/reol/logs/godot.log`。
 
-F12、右下角诊断条或DEV入口打开独立面板，Esc关闭。面板用Godot原生`Logger`接收主线程/后台线程的错误、警告和普通输出，错误附可取得的脚本位置与调用栈；无需编辑器连接。显示玩家本人HP/行动/位置、世界时间/暂停、模拟线程存活、快照年龄、在途/待受理指令、最近回执和当前UI焦点。`dead`、`blocked`等业务拒绝的完整原因在`COMMAND_RESULT`日志查看；普通UI用短暂叉号反馈。控制台支持`help/status/actions/errors/log/export`，只查看诊断；打开时世界继续运行，输入文字不会触发游戏键盘命令。
+F12、右下角诊断条或DEV入口打开独立面板，Esc关闭。面板用Godot原生`Logger`接收主线程/后台线程的错误、警告和普通输出，错误附可取得的脚本位置与调用栈；无需编辑器连接。显示玩家本人HP/行动/位置、世界时间/暂停、模拟线程存活、快照年龄、在途/待受理指令、最近回执和当前UI焦点。`dead`、`blocked`等业务拒绝的完整原因在`COMMAND_RESULT`日志查看；普通UI用短暂叉号反馈。控制台支持`help/status/actions/decisions/errors/log/export`，只查看诊断；打开时世界继续运行，输入文字不会触发游戏键盘命令。
 
 “导出诊断”将当前状态和最近512条日志写入`%APPDATA%/Godot/app_userdata/reol/diagnostics/reol-*.json`，也可复制到剪贴板；不覆盖存档。窗口最多显示最近120条匹配记录，计数是本次进程累计值，完整引擎输出仍查原日志。关闭面板时只低频更新计数；回调只写有界缓存，不在模拟线程处理UI/文件。捕获从autoload进入后开始，无法收取更早的引擎启动信息；脚本在注册前就解析失败时仍需查引擎文件日志。已有独立运行进程不能热装此面板，重开源码试玩才生效。
 
@@ -62,7 +66,7 @@ python tools/benchmark.py --actors 24 --speed 1 --fps 120 --screenshot
 python tools/benchmark.py --actors 1000 --speed 4 --fps 60 --workers 0
 ```
 
-采样器使用已导出的release，默认当前成品`build/windows/act-p4/reol-act.exe`，`--binary PATH`可固定构建。3秒运行预热，默认采样20秒，可用`--seconds`设5..60秒；装配/预热不计世界倍率。记录实际世界推进、步数/帧时、路径与交付、战斗/植物、材料审计、GPU绘制、线程及有界CPU/内存采样。CPU采样含装配，不能把整进程CPU秒直接当测量窗计算。
+采样器使用已导出的release，默认当前成品`build/windows/act-p5/reol-act.exe`，`--binary PATH`可固定构建。3秒运行预热，默认采样20秒，可用`--seconds`设5..60秒；装配/预热不计世界倍率。记录实际世界推进、步数/帧时、路径与交付、战斗/植物、材料审计、GPU绘制、线程及有界CPU/内存采样。CPU采样含装配，不能把整进程CPU秒直接当测量窗计算。
 
 新源码默认`--sim-hz 60`，20/100只供对照；JSON记录实际配置。`--combat-lab`选上述测试开局，不能与响应探针混用，普通与压力场景不混算。采样保持固定镜头，日常试玩默认跟随玩家。
 
@@ -92,7 +96,7 @@ step_mean_ms由全窗累计成本差得到；step_ms分位数仍是有界尾部�
 
 ### 基础框架的持续战斗归因
 
-`python tools/benchmark.py --binary build/windows/act-p4/reol-act.exe --actors 24 --speed 1 --fps 60 --workers -1 --seconds 5 --gpu-index 0 --fog --combat-probe --out logs/framework-capture.json`显式开启`framework-combat-v1`。只允许有界1×、至少4人，不与mixed/capacity/response混用；普通启动不启用。原P4星焰控制/动作在同一World中推进，三敌和玩家有明示耐久覆盖，后台正常生活。v1开局保留默认血刃到星焰的配置过渡，固定比较场景；不读取或保存用户世界。它不是手动输入延迟测量，也不与capacity标签混算。
+`python tools/benchmark.py --binary build/windows/act-p5/reol-act.exe --actors 24 --speed 1 --fps 60 --workers -1 --seconds 5 --gpu-index 0 --fog --combat-probe --out logs/framework-capture.json`显式开启`framework-combat-v1`。只允许有界1×、至少4人，不与mixed/capacity/response混用；普通启动不启用。原P4星焰控制/动作在同一World中推进，三敌和玩家有明示耐久覆盖，后台正常生活。v1开局保留默认血刃到星焰的配置过渡，固定比较场景；不读取或保存用户世界。它不是手动输入延迟测量，也不与capacity标签混算。
 
 报告`profile`含外层准备、身体、共同提交、环境/观察及全步累计，还有嵌套索引与发布计时、细段/索引/full次数。外层剩余可由全步减去互斥分项得到，索引子计时不能再相加。峰值仅为自开局在主步边界的观察，不是细段内或单独采样窗最大值；不输出峰值差。快profile与慢counters的边界可能相差几步，原值保留，不能据命中差1次判定规则改变。参考实现的固定步结果比较只用于本次改动，未设永久确定性门禁。
 

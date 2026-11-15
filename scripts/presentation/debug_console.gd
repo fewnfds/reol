@@ -65,9 +65,9 @@ func _ready() -> void:
 	_output.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_child(_output)
 	_feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_feedback.text = "F12/Esc关闭；help、status、errors、log、export；只查看诊断，不执行游戏脚本。"
+	_feedback.text = "F12/Esc关闭；help、status、decisions、errors、log、export；只查看诊断，不执行游戏脚本。"
 	body.add_child(_feedback)
-	_command.placeholder_text = "输入 help、status、errors、log 或 export"
+	_command.placeholder_text = "输入 help、status、decisions、errors、log 或 export"
 	_command.text_submitted.connect(_submit)
 	body.add_child(_command)
 	_panel.hide()
@@ -173,7 +173,12 @@ func _action(title: String) -> void:
 func _submit(text: String) -> void:
 	_command.clear()
 	match text.strip_edges().to_lower():
-		"help": _feedback.text = "status 查看最新状态；actions 查看DEV开启的反应追踪；errors 仅错误/警告；log 全部记录；export 导出JSON。"
+		"help": _feedback.text = "status 查看最新状态；actions 查看DEV反应追踪；decisions 查看单位决策；errors 仅错误/警告；log 全部记录；export 导出JSON。"
+		"decisions":
+			var snapshot: Dictionary = _session()
+			_output.text = JSON.stringify({"recent": snapshot.get("decision_trace", []), "selected": snapshot.get("inspected", {}).get("decision", {}), "player": snapshot.get("player", {}).get("decision", {})}, "\t")
+			_feedback.text = "最近选择与当前任务；诊断信息不进入单位认识。"
+			_rendered_seq = journal.summary().sequence
 		"actions":
 			_output.text = JSON.stringify(_session().get("action_trace", []), "\t")
 			_rendered_seq = journal.summary().sequence

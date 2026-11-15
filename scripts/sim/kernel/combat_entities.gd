@@ -96,18 +96,8 @@ func prepare(world: RefCounted, now: int) -> void:
 		if now >= int(entry.until_ms) or not world.combat.alive(world, entry.owner) or not world.combat.alive(world, id): remove(world, id, now); continue
 		var spec: Dictionary = Defs.ACTIONS[entry.ability].entity
 		if world.actor_slots.has(id):
-			var point: Vector2 = world.combat.position(world, id)
 			var home: Vector2 = world.combat.position(world, entry.owner) if spec.stance == "follow" else Vector2(entry.anchor)
-			var slot: int = world.actor_slots[id]
-			var page: RefCounted = world.pages[slot / 256]
-			if point.distance_to(home) > 10:
-				world.combat.finish(world, id, now)
-				world.objects.records[id]["threat_scan_after"] = now + 1000
-			var immobile: bool = now < int(world.combat.status.get(id, {}).get("stun_until", 0)) or world.effects.has_kind(id, "root", now)
-			if not immobile and not world.combat.states.has(id) and not world.combat.engagements.has(id):
-				var goal: Vector2 = world.terrain.project_point(home, page.radii[slot % 256], page.flight[slot % 256] > 0)
-				if point.distance_to(home) > 2.5 and goal.x >= 0 and (page.modes[slot % 256] != world.Units.Mode.COMBAT_MOVE or page.targets[slot % 256].distance_to(goal) > 1): page.move_to(slot % 256, goal, world.Units.Mode.COMBAT_MOVE)
-				elif point.distance_to(home) <= 2.5: page.modes[slot % 256] = world.Units.Mode.IDLE
+			world.decisions.follow(world, id, home, now)
 		if now < int(entry.next_ms): continue
 		entry.next_ms += int(spec.period)
 		if float(spec.radius) <= 0: continue

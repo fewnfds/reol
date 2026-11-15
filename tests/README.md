@@ -50,3 +50,8 @@ P4 GUI截图归`logs/abilities-ui/p4-*`，独立测试档/偏好自动清理。�
 `framework_smoke.gd`按需核对移速变化缓存的到期/换装/恢复、多目标重建与槽复用；索引的当前位置/阵营/死亡/扫掠dt和负查询边界；通知只交付一次、旧Frame不可变、非full弹信息、身体布局匹配、暂停管理命令/环境刷新及只读配置。它不加入默认kernel套件。
 
 `python tools/check_structure.py --audit-code`核当前文档链接/标题锚点、原生Resource/场景字面路径与UID；静态可达图包含data与项目Inspector插件，不把仅由.tres引用的类型当死代码。它仍不能证明动态引用或运行语义。
+
+
+`decisions_smoke.gd`按需独立检查P5：政策编译/只读/参数与个体隔离、采集—威胁—重选、预约和已交付物资、陈旧run、连段/合法取消与中途恢复、射手回退/拉距、重敌承诺、受信评分实际出招、休眠和需求阈值、手动交接、失败退避、移动通道恢复、被困逃离、buffer作废、单次居民命令/目标消失/即时操作、召唤限额与序列失败/外部替换、坏schema/唤醒配对拒载。约7秒，不加入默认kernel；保持15秒watchdog。
+
+`decisions_ui_smoke.gd`以真实图形/键鼠检查三类策略输出、原生练习切换、交战中实际文件存读、独立记忆与手动移动/出招；截图`logs/decisions-ui/`，独立档/偏好自动清理。原生Inspector检查另覆盖Policy/Library/评分范例及坏距离带，截图`logs/decisions-authoring-editor.png`；编辑器截图使用显式force_draw，避免等不到后台窗口绘制信号。它们不代表主观手感、完整Boss或长局验收。

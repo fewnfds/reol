@@ -4,7 +4,7 @@ GDScript / Godot 4.7的2D正交俯视修仙模拟世界。当前支持自主世�
 
 双击根目录唯一的[启动.cmd](启动.cmd)，选择战斗试玩、普通世界、当前成品包或Godot编辑器。源码试玩修改后重启即可，无需导出；当前成品包是已验证的导出快照。运行方式见[命令说明](docs/engineering/tooling/usage.md)。
 
-P4通用行动基座已接入近战血刃、远程星焰行者与多种机制范例；技能由原生Resource制作，支持状态/资源/防御、有界反应、召唤与自主器物。当前成品在`build/windows/act-p4/`，统一由启动菜单进入；Esc→设置可改键、调整战斗反馈。框架完成到P4，后续敌人编排与正式内容见[主计划](docs/plans/foundation-priorities.md)。
+当前框架完成到P5：P4的近战血刃、远程星焰与机制范例继续保留，新增跨生活/工作/战斗的共同决策、可制作策略和独立任务；轻敌连段、重敌收招、射手拉距。技能与策略沿Godot原生Resource/Inspector制作。当前成品在`build/windows/act-p5/`，统一由启动菜单进入；Esc→设置改键与战斗反馈。阶段边界及下一主题见[主计划](docs/plans/foundation-priorities.md)。
 
 按主题查[记忆地图](docs/README.md)；未完任务见[HANDOFF](docs/status/handoff.md)，agent入口为[AGENTS](AGENTS.md)。
 

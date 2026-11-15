@@ -16,10 +16,10 @@ func initialize(world: RefCounted) -> void:
 			var id: int = page.ids[row]
 			world.objects.records[id]["known"] = {}
 			if id != 1:
+				world.objects.records[id]["autonomous"] = true
 				world.adopt_work(id, 0)
 				page.modes[row] = Units.Mode.REST
 				page.due_ms[row] = 50 + (id % 20) * 50
-				world.objects.records[id]["autonomous"] = true
 				if id % 20 == 2:
 					world.objects.add(id, "grain", 4)
 					world.objects.add(id, "water", 2)
@@ -78,13 +78,17 @@ func remember(world: RefCounted, id: int, target: int, at: int) -> void:
 
 
 func think(world: RefCounted, id: int, at: int) -> void:
+	world.decisions.wake(world, id, at, "life_ready")
+
+
+func choose(world: RefCounted, id: int, at: int) -> void:
 	var started: int = Time.get_ticks_usec()
 	_think(world, id, at)
 	decision_usec += Time.get_ticks_usec() - started
 
 
 func _think(world: RefCounted, id: int, at: int) -> void:
-	if not world.gate.check(world, id, at).is_empty(): return
+	if world.decisions.in_combat(id) or not world.gate.check(world, id, at).is_empty(): return
 	decisions += 1
 	var person: Dictionary = world.objects.records[id]
 	var slot: int = world.actor_slots[id]
@@ -135,7 +139,7 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 		if candidate.is_empty():
 			continue
 		var score: float = page.positions[row].distance_squared_to(Terrain.center(clue.tile)) + priority
-		if candidate not in ["put", "eat"] and world.reservations.has(target) and page.positions[row].distance_squared_to(Terrain.center(clue.tile)) <= 24.0 * 24.0:
+		if candidate not in ["put", "eat"] and world.sight.sees(page.positions[row], clue.tile, world.sight.range_for(world, id)) and world.reservations.has(target):
 			continue
 		if score < best:
 			chosen = target
@@ -146,6 +150,10 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 		var point: Vector2i = Vector2i(page.positions[row]) + Vector2i(8 if (id + at / 1000) % 2 == 0 else -8, 5)
 		point = point.clamp(Vector2i(1, 1), Vector2i(510, 510))
 		_walk_to_site(world, id, world.terrain.nearest_open(Terrain.index(point)), Units.Mode.EXPLORE, at)
+		return
+	if not world.sight.sees(page.positions[row], clues[chosen].tile, world.sight.range_for(world, id)):
+		# Approach remembered evidence before consulting current facility state.
+		_walk_to_site(world, id, world.terrain.nearest_open(clues[chosen].tile), Units.Mode.EXPLORE, at)
 		return
 	if not world.objects.records.has(chosen):
 		_walk_to_site(world, id, world.terrain.nearest_open(clues[chosen].tile), Units.Mode.EXPLORE, at)
@@ -165,7 +173,7 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 	if reason == "accepted":
 		world.actions[id]["autonomous"] = true
 	else:
-		after_action(world, id, at)
+		after_action(world, id, at, chosen)
 
 
 func _walk_to_site(world: RefCounted, id: int, tile: int, mode: int, at: int) -> void:
@@ -177,16 +185,10 @@ func _walk_to_site(world: RefCounted, id: int, tile: int, mode: int, at: int) ->
 		after_action(world, id, at)
 	else:
 		if world.adopt_work(id, at): page.move_to(row, point, mode)
+		else: after_action(world, id, at)
 
 
 func after_action(world: RefCounted, id: int, at: int, target: int = 0) -> void:
-	if not world.adopt_work(id, at): return
-	var slot: int = world.actor_slots[id]
-	var page: RefCounted = world.pages[slot / 256]
-	var row: int = slot % 256
-	if target > 0:
-		remember(world, id, target, at)
-	if world.objects.records[id].get("observe_due", 0) <= at:
-		observe(world, id, at)
-	page.modes[row] = Units.Mode.REST
-	page.due_ms[row] = at + 500 + (id % 10) * 50
+	if not world.actor_slots.has(id) or not world.combat.alive(world, id): return
+	if target > 0: remember(world, id, target, at)
+	world.decisions.wake(world, id, at, "life_result", 500 + (id % 10) * 50)

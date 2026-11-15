@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="UnitDecisionPolicy" load_steps=5 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/decisions/policy_def.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/decisions/rule_def.gd" id="2"]
+
+[sub_resource type="Resource" id="Rule0"]
+script = ExtResource("2")
+action = "cast"
+button = "primary"
+
+[sub_resource type="Resource" id="Rule1"]
+script = ExtResource("2")
+action = "approach"
+
+[resource]
+script = ExtResource("1")
+id = "cautious"
+title = "谨慎避险"
+threat_response = "flee"
+rules = Array[ExtResource("2")]([SubResource("Rule0"),SubResource("Rule1")])

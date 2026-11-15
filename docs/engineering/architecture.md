@@ -15,8 +15,9 @@
 | `scripts/sim/kernel/objects.gd` | 单调身份、静态位置索引、分类库存与穿戴位置、转移/原子交换与换装；不逐步空转所有对象 |
 | `items.gd`、`equipment.gd` | 物品定义/品质堆键的唯一解释，以及按源状态重建的身体属性热列；没有第二份物品实例账本 |
 | `facilities.gd`、`livelihood.gd` | 组合占地/蓝图/设施效果与个人线索驱动的稀疏生活决策，复用身体到期/到达 |
+| `decisions.gd`、`decision_defs.gd`、`decision_rules.gd` | 跨生活/战斗/逃离/跟随的策略绑定、独立任务、手动交接、唤醒与自主输入；只读政策与受信求值器，原宿主负责执行 |
 | `environment.gd`、`nature.gd` | 历法/天气、静态max场/移动来源索引、房间响应；分组植物采样/生长/产物/宿主与来源 |
-| `scripts/sim/definitions/{actions,combat}/`、`data/definitions/{actions,combat}/`、`action_defs.gd` | 原生Resource作者数据、库引用/字段校验、递归只读值与规则内容签名；制作与在飞载荷共用作用校验，CD/在途实例不写回资源 |
+| `scripts/sim/definitions/{actions,combat,decisions}/`、`data/definitions/{actions,combat,decisions}/`、`action_defs.gd` | 原生Resource作者数据、库引用/字段校验、递归只读值与规则内容签名；制作与在飞载荷共用作用校验，CD/在途实例不写回资源 |
 | `combat.gd`、`combat_projectiles.gd` | 玩家/NPC共用动作、AI最后所见、阶段/取消/缓冲/分组CD、扇区/弹体扫掠及统一HP提交；弹表仍归Combat，帮助模块按机制计算，不按技能名称分支 |
 | `combat_effects.gd`、`combat_areas.gd`、`implements.gd` | 分别持有限时状态/层数/周期/修饰来源、已交付预警/周期圆区、独立器物的身份/归属/耐久/部署；同属World共同时间与候选恢复，器物不占村民身体页 |
 | `resource_pools.gd`、`combat_defense.gd` | 稀疏蓝/怒池与回复余量；盾实例、方向/时段格挡。HP、精力、qi、实物仍归原owner |
@@ -77,6 +78,8 @@ Runner按单调墙钟累积所选倍率的时间需求，不等主线程派发�
 战斗接触只在看见目标时刷新位置/时间；失联后追最后所见，到达或超时放弃，隐藏死亡不直接清空接触。盲区受击可沿真实弹道来向搜索，不取得隐藏射手位置。不可达AI接敌记住目标失败位置，地形、目标位置或自身通行能力变化后再尝试，避免长工作反复被同一失败接触打断。发现威胁的范围、个人视距、武器有效距离和物理命中是不同概念；原玩家警戒/追击指令不再存在。当前敌我仍按side区分，未实现完整阵营关系。
 
 静态物不每步空转，普通跨格不触发全域屏障或全村目击。个人观察仅复制可见局部事实，库存版本未变不重复构造；交谈传播历史线索，不查询全局最新值。社交邀约、施工协作和生活恢复仍走通用接近/预约/耗时合同；取消先移除行动记录再回调，不能覆盖后来收到的停止命令。具体精度与近似只查[运行与精度](simulation-pacing.md)。
+
+P5将接触发现和开始交战分开：发现仅记忆/唤醒，共同Decisions在合法prepare边界决定自卫、逃离或忽略。生活由事件/到期唤醒，战斗按策略周期；持续移动输入和任务关联原host/run。原run结束直接反馈，诊断日志不驱动选择。职责、制作与恢复合同归[单位决策](../../design/systems/unit_decision_framework.md)。
 
 ## 显示、通知和存读
 

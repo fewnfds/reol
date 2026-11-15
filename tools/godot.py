@@ -10,7 +10,7 @@ Examples:
     python tools/godot.py run --headless --quit-after 120
     python tools/godot.py editor
     python tools/godot.py test --suite equipment
-    python tools/godot.py export --preset "Windows Demo" --output build/windows/act-p4/reol-act.exe
+    python tools/godot.py export --preset "Windows Demo" --output build/windows/act-p5/reol-act.exe
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LOG_DIR = ROOT / "logs"
-DEFAULT_BINARY = ROOT / "build/windows/act-p4/reol-act.exe"
+DEFAULT_BINARY = ROOT / "build/windows/act-p5/reol-act.exe"
 
 EXE_SUFFIXES = {".exe", ".bin", ""}
 

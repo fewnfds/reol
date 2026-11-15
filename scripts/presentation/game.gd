@@ -370,7 +370,7 @@ func diagnostics() -> Dictionary:
 	if frame != null:
 		result.merge({"epoch": frame.epoch, "sequence": frame.sequence, "world_ms": frame.world_ms, "paused": frame.paused,
 			"speed": frame.speed, "frame_age_ms": (Time.get_ticks_usec() - frame.published_usec) / 1000.0,
-			"player": frame.player, "inspected": frame.inspected, "counters": frame.counters, "action_trace": frame.action_trace,
+			"player": frame.player, "inspected": frame.inspected, "counters": frame.counters, "action_trace": frame.action_trace, "decision_trace": frame.decision_trace,
 			"tool": controls.tool, "minimap_usec": ui.minimap.work_usec})
 	return result
 
@@ -538,7 +538,7 @@ func _capture(now: int) -> void:
 	report.start_frame_age_usec = _capture_age_usec
 	report.finish_frame_age_usec = now - frame.published_usec
 	report.erase("step_window_usec")
-	for key: String in ["steps", "moved_cells", "harvested", "deliveries", "step_usec", "environment_usec", "units_usec", "effects_usec", "snapshot_usec", "overload_demand_usec", "path_requests", "path_failures", "nature_usec", "combat_usec", "combat_prepare_usec", "combat_resolve_usec", "combat_collect_usec", "combat_damage_usec", "combat_slices", "melee_candidates", "melee_tests", "shots", "hits", "plant_collections", "plant_evaluations", "perception_usec", "sight_observers", "sight_candidates", "sight_queries", "sight_index_usec", "sight_batch_usec", "sight_parallel_batches", "sight_sync_usec", "sight_rebuilds"]:
+	for key: String in ["steps", "moved_cells", "harvested", "deliveries", "step_usec", "environment_usec", "units_usec", "effects_usec", "snapshot_usec", "overload_demand_usec", "path_requests", "path_failures", "nature_usec", "combat_usec", "combat_prepare_usec", "combat_resolve_usec", "combat_collect_usec", "combat_damage_usec", "combat_slices", "melee_candidates", "melee_tests", "shots", "hits", "plant_collections", "plant_evaluations", "perception_usec", "sight_observers", "sight_candidates", "sight_queries", "sight_index_usec", "sight_batch_usec", "sight_parallel_batches", "sight_sync_usec", "sight_rebuilds", "unit_decisions", "unit_decision_usec"]:
 		report[key + "_delta"] = float(report[key]) - float(_capture_counters[key])
 	report.instance_slots = population.actor_count
 	report.fog = fog_enabled

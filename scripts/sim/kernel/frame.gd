@@ -37,6 +37,7 @@ var effects: Dictionary = {}
 var pools: Dictionary = {}
 var entities: Dictionary = {}
 var action_trace: Array = []
+var decision_trace: Array = []
 var shields: Dictionary = {}
 var guards: Dictionary = {}
 var reactions: Dictionary = {}

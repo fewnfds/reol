@@ -7,6 +7,11 @@ func _initialize() -> void: call_deferred("_run")
 func check(ok: bool, message: String) -> void:
 	if not ok: errors += 1; push_error(message)
 
+func until(test: Callable, milliseconds: int = 600) -> bool:
+	var deadline: int = Time.get_ticks_msec() + milliseconds
+	while not test.call() and Time.get_ticks_msec() < deadline: await process_frame
+	return test.call()
+
 func key(code: Key, pressed: bool) -> void:
 	var event := InputEventKey.new()
 	event.physical_keycode = code
@@ -98,7 +103,7 @@ func _run() -> void:
 	await create_timer(0.15).timeout
 	await mouse(MOUSE_BUTTON_RIGHT, true, point)
 	await mouse(MOUSE_BUTTON_RIGHT, false, point)
-	check(game.frame.combat.get(1, {}).get("kind") == "cleave" and game.frame.cooldowns.get("skill", 0) > game.frame.world_ms, "Right mouse did not start a cooldown weapon skill")
+	check(await until(func(): return game.frame.combat.get(1, {}).get("kind") == "cleave" and game.frame.cooldowns.get("skill", 0) > game.frame.world_ms), "Right mouse did not start a cooldown weapon skill")
 	await create_timer(0.6).timeout
 	await key(KEY_2, true)
 	await key(KEY_2, false)

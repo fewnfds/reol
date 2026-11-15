@@ -166,7 +166,7 @@ func late_contacts() -> void:
 	brain.pages[0].positions[1] = brain.pages[0].positions[0] + Vector2(1.5, 0)
 	brain.objects.records[2]["combat_style"] = "trained"
 	brain.combat.engage(brain, 2, 1)
-	brain.combat.engagements[2].react_ms = 120
+	brain.decisions.records[2].ready_ms = 145
 	advance(brain, 123)
 	var restored: RefCounted = Persistence.candidate(Persistence.capture(brain), 0)
 	check(restored != null, "NPC decision phase did not restore")

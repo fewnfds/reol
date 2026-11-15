@@ -43,14 +43,16 @@ static func combat_lab(world: RefCounted, mode: String = "light", loadout: Strin
 		person["combat_style"] = "trained"
 		person["alert_range"] = 8.0
 		person.name = "射手" if index == 2 else ("重剑客" if index == 1 else "剑客")
-		person["ability_loadout"] = ["light", "heavy", "archer"][index]
+		person["ability_loadout"] = ["sword", "heavy", "archer"][index]
+		world.decisions.bind(world, actor, ["pressure", "heavy", "ranged"][index])
+		world.decisions.records[actor].manual = false
 		var weapon: String = "short_bow" if index == 2 else "iron_sword"
 		if not person.equipment.is_empty():
 			world.objects.unequip(actor, "weapon")
 		world.objects.add(actor, weapon, 1)
 		world.objects.equip(actor, weapon)
 		world.Equipment.rebuild(world, actor)
-		person["base_stats"] = {"max_hp": [120.0, 220.0, 70.0][index], "speed": [3.6, 2.8, 3.4][index], "armor": 2.0 if index == 1 else 0.0}
+		person["base_stats"] = {"max_hp": [120.0, 220.0, 70.0][index], "speed": [3.6, 2.8, 3.4][index], "armor": 2.0 if index == 1 else 0.0, "melee": 10.0 if index == 0 else 20.0}
 		world.Equipment.rebuild(world, actor)
 		page.health[row] = page.max_health[row]
 	if loadout == "tender":

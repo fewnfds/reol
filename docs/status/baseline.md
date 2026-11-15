@@ -1,46 +1,57 @@
 # 当前构建与验证
 
-更新：2026-11-15。当前能力归[FEATURES](features.md)，状态归属归[架构](../engineering/architecture.md)，下一主题归[主计划](../plans/foundation-priorities.md)。本页保留当前证据，不维护历轮施工日志。
+更新：2026-11-15。能力归[FEATURES](features.md)，状态归属归[架构](../engineering/architecture.md)，阶段归[主计划](../plans/foundation-priorities.md)。本页保存当前证据，完整历史由Git追溯。
 
 ## 当前构建
 
-Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+，1280×720。正式入口为`scenes/main.tscn`。当前是经过基础框架优化与项目整理的P4试玩版，根目录[启动.cmd](../../启动.cmd)选3运行`build/windows/act-p4/reol-act.exe`及同目录pck；源码入口和独立快照的区别见[usage](../engineering/tooling/usage.md)。
+Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+，1280×720。正式入口`scenes/main.tscn`。当前为P5共同单位决策试玩版；根目录[启动.cmd](../../启动.cmd)选3运行`build/windows/act-p5/reol-act.exe`＋同目录pck，选1为最新源码战斗、选2为普通世界。
 
 | 项目 | 当前值 |
 |---|---|
 | exe SHA256 | `3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf` |
-| PCK SHA256 | `7e639d64c2848d7c0c41a1166fa78a8f8f197536c3985d577d06a37524af2e56` |
+| PCK SHA256 | `af806ddac1b890f78cf814f6cfc0481ec63d4e504f5b457c998b107857239410` |
 | 战斗规则签名 | `04042c8edd9719b61192e5932f02a6346dfd643f280714a330d8e8f3e063a928` |
-| 内容目录 | 40动作、24配置，公共Resource和ACT Resource共用原生制作工具 |
-| 存档 | reol-world-11；默认`user://act-p4-quicksave.reol` |
+| 决策签名 | `6c536ed02eafd75d319b6b1ac664ccd7ca3e4235b66139aae125fb732efca332` |
+| 内容 | 40动作、24配置、7套Policy；原生Resource/Inspector制作 |
+| 存档 | reol-world-12；默认`user://act-p5-quicksave.reol` |
 
-本轮不改合法内容签名或格式，整理前有效P4混合过程可恢复。旧缺来源快照的开发档仍拒载，原档和备份保留。整理前成品归档在`build/windows/act-p4/archive/project-before-20261115-1755/`；源码/构建/日志与本机档案分开，生成物不入库。
+P5新增决策布局/签名，不迁移P4 format11开发档；旧包、原档及备份保留，不覆盖。exe是相同Godot模板，游戏变更主要在PCK；只核exe哈希不足以识别游戏版本。生成物/日志/本机咨询不入库。运行和制作入口归[usage](../engineering/tooling/usage.md)。
 
-## 本轮审查与验证
+## P5实施与验证
 
-清除236个退役文件，包括未读取的旧JSON/开局/兼容库、退役人形样本与生成器、重复战斗提案、旧内核QA/工具报告和无引用的CombatEffectDef兼容别名；当前素材源稿、有效Resource与第三方许可保留。公共合同和战斗规格按源码收敛，删除把点击操作、未实现触发链、盾优先级/掩码、任意条件类型等当作现状的表述。旧内容由[Git历史](../archive/README.md)追溯。
+共同Decisions接入原生活/工作、战斗、逃离及临时身体跟随；策略模板和个体参数/任务分开，保存待唤醒与持续自主输入。原host/run提交实际后果；发现威胁不先停工，手动明确交接，有限序列允许原合法取消。轻敌闪步三连、重敌承诺/收招和射手拉距共用执行器。
 
-修正了制作/恢复校验分叉：Resource拒绝的超额格挡比例可以进入在飞弹体候选。`ActionEffectDef.valid_values`现在显式核字段类型并复用Resource.errors，冷加载构造临时Resource，热命中不构造。合法载荷通过；超额格挡、零防御时长、非法状态标识和坏嵌套状态整份拒载，活世界不变。复现日志为`logs/review-payload-before-20261115-174109-613414200.log`。
+两轮双顾问均完整返回，原件在`.local/advisor/p5-implementation-20261115/stage-1/`与`stage-2/`；代码取舍归[研究](../../design/research/action_editor_references.md#84-p5实施复核)。按实际反例修复退避早醒、旧run/序列、buffer失效、手动/合作抢权、目标消失失醒、需求原因合并丢失、远处旧设施线索、移动/跟随交接及恢复校验。顾问不替代运行证据。
 
-顾问复核后补齐实际宿主的阶段校验，拒绝当前不会执行的作用配置；emit的弹/区域模板政策在制作与恢复共用，生成入口也先拒绝非支持类型。另修复零前摇技能从缓冲启动时晚交付/漏交付，复现为`logs/review-zero-windup-before-20261115-180500-10942500.log`；在原身体循环内交付新启动动作，direct仍走同刻桶。最终`logs/review-abilities-final-20261115-180514-58127700.log`与`logs/review-reactions-final-20261115-180514-58203900.log`均完整退出、errors=0，覆盖缓冲召剑只在启动时刻交付一次、合法反应恢复与坏模板/阶段拒载。
-
-| 验证 | 结果与证据 |
+| 验证 | 结果与本机证据 |
 |---|---|
-| 原生导入/工具/结构 | Godot import、Python工具短检查及语法检查通过；结构检查覆盖92份当前文档和207个Godot源文件/资源，含标题锚点、字面引用、UID和项目Inspector资源边；无缺失或静态不可达提示 |
-| 干净检出 | 本轮代码在无本机`.godot`缓存、无私有顾问入口的detached工作树重新导入，结构/工具检查、默认kernel和abilities全部正常退出；原日志复制为`logs/project-review-clean-{import,kernel,abilities}.log`。验证后移除一次性工作树，保留证据 |
-| 默认kernel与独立专题 | `logs/smoke-kernel-20261115-174648-66843600.log`约8.5秒完整退出，KERNEL_SMOKE errors=0。features/sight/equipment分别正常退出，日志为`logs/smoke-{features,sight,equipment}-20261115-1747*.log`；原断言保留，均沿原15秒watchdog |
-| 制作/载荷/在途 | `logs/review-abilities-20261115-174141-33666200.log`：原生定义、八套范例、弹/区/状态/器物及新增坏载荷拒载通过 |
-| 相关领域规则 | ACT、CONTROL、MELEE、ACTION_FOUNDATION、DOMAINS、RESOURCES、REACTIONS、SPATIAL、COMBINATIONS、FRAMEWORK、EXPERIENCE、RESPONSE分别通过；原日志`logs/review-*-20261115-1749*.log`与1750段，索引`logs/project-review-rules.json` |
-| P4真实GUI | 最终`logs/project-review-p4-ui-pointer-fixed-20261115-180933-288443000.log`，D3D12/RTX3060；两套组合、左右键/近战E/C、分裂/传播/脚本、狼/图腾/双剑和四次实际文件存读通过，ACTION_COMBINATIONS_UI_SMOKE errors=0。位置技能用不落盘的临时原生鼠标侧键映射，结束恢复，未冒充键盘指针自动化；`logs/abilities-ui/p4-*`截图已观察 |
-| 普通生活GUI | `logs/project-review-life-ui-20261115-175304-869936600.log`：取放、施工/取消、真换装/卸下、人物/背包/缩放与迷雾相关界面通过，UI_SMOKE errors为空 |
-| 原生Inspector | 最终`logs/project-review-authoring-final-20261115-181000-327581800.log`，实际编辑器的资源/引用/预览/错误定位检查通过，COMBAT_AUTHORING_EDITOR errors=0；插件连接关闭提示不作为游戏脚本错误 |
-| 实际导出PCK恢复 | 最终导出`logs/export-20261115-181040-104622200.log`；`logs/project-review-pack-restore-final-20261115-181100-391184000.log`使用当前成品PCK恢复整理前原始混合fixture，弹、区、状态、器物、池、防御、反应、实体及HP后续相同，40/24签名一致。独立exe真实图形启动/180帧正常退出见`logs/project-review-release-final-20261115-181101-662456600.log`，无脚本/引擎错误 |
+| P5规则/恢复 | `p5-decisions-final-20261115-214152-62338800.log`，约8秒完整退出，DECISIONS_SMOKE errors=0。覆盖策略隔离、采集—威胁—重选、合法取消、序列中途恢复/失败/替换、手动、需求/失效目标、陈旧认识、buffer/跟随、坏候选拒载，详见[tests](../../tests/README.md) |
+| 原核心/相关专题 | `smoke-kernel-20261115-214225-204690400.log`，KERNEL_SMOKE errors=0；features/sight/control分别为`smoke-features-20261115-214225-206210700.log`、`smoke-sight-20261115-214254-296888900.log`、`p5-control-20261115-214225-187397700.log`，均完整退出。ACT为`p5-act-20261115-213633-353163200.log` |
+| P4相关执行 | MELEE、SPATIAL、ABILITIES最终检查均完整退出、errors=0：`p5-melee-final-20261115-214530-944672800.log`、`p5-spatial-final-20261115-214530-984891100.log`、`p5-abilities-final-20261115-214530-944118800.log`。未把其他无关专题自动串成长矩阵 |
+| P5真实GUI | `p5-decisions-ui-final-20261115-214324-197734800.log`，DECISIONS_UI_SMOKE errors=0。原生练习切换、三类敌人出招、交战中实际文件存读、任务/参数保留、F12 decisions和读取后闪步/移动/出招通过；截图`logs/decisions-ui/`已观察 |
+| 原ACT/生活GUI | `p5-act-ui-final-20261115-213736-509279300.log`，ACT_UI_SMOKE errors=0；`p5-life-ui-20261115-213038-470796600.log`，UI_SMOKE errors为空，覆盖普通取放、施工/取消、换装/卸下、人物/背包/迷雾界面；截图沿原目录 |
+| 原生Inspector | `p5-authoring-20261115-213023-105014300.log`，COMBAT_AUTHORING_EDITOR errors=0。Policy/Library/规则引用及评分范例可编辑，坏距离字段提示有效；`logs/decisions-authoring-editor.png`已观察。第三方插件退出连接提示不当作游戏错误 |
+| 导出包恢复 | `export-20261115-214413-827156200.log`完成；`p5-source-fixture-20261115-214346-408258000.log`生成同一P5混战/在途fixture，源码与PCK分别恢复并推进到1601ms，`p5-pack-restore-final-20261115-214418-862917500.log`完整持久状态一致，P5_PACK_RESTORE errors=0 |
+| 结构/工具 | `check_structure.py --audit-code`为93份当前文档、224个Godot源文件、15个注册类，0错误；Python tool_smoke通过。新Resource与UID已导入；最终提交前再核diff和结构 |
 
-旧默认kernel把多个专题串行塞进一个15秒入口，曾在打印0错误后退出超时；本轮拆成可选择的独立入口，不放宽上限或删除断言。另一次误把RefCounted的tile模块用`--script`独立启动而超时，日志保留为失败；该模块已由features入口执行通过，未重跑求绿。短检查调用关系见[tests](../../tests/README.md)。
+过程中的失败保留，未作为通过计数：首次metrics重名/同步work交接见2105段；早期新测试的父helper清接触及只看瞬时移动字段见2107段，随后修正fixture/观察合同。原生Inspector曾等待后台窗口不产生的`frame_post_draw`而超时，日志`p5-authoring-20261115-212357-71911400.log`、212602与212714段；改为显式force_draw后完整退出，未放宽时间上限。
 
-最终GUI首次复查的`logs/project-review-p4-ui-final-20261115-180702-937557600.log`失败：合成运动未移动Window实际读取的系统指针，E的位置请求落墙并被`target_blocked`拒绝。短探针证实parse_input_event不改变系统鼠标；修改测试的指向输入方式后才通过上述最终窗，没有改游戏目标校验来迁就测试。失败日志保留。
+GUI失败`p5-decisions-ui-20261115-212318-460585800.log`显示攻击实际启动后立刻被打断；`p5-decisions-ui-final-20261115-214254-283248300.log`是在硬直中请求被合法拒绝。测试改为核启动事实并先闪步拉开，未修改战斗准入迁就测试。原ACT GUI在`p5-act-ui-20261115-213719-761847800.log`将合法buffer误当立即启动，改为等待真实启动/CD，后续通过。最终陈旧线索测试隔离原人物已知候选并在选择边界核意图，后续不可达由原导航反馈，不能将地图寻路失败说成查询隐藏库存。
 
-本轮静态双顾问复核原件留`.local/advisor/project-review-20261115/`，结论由源码和反例裁决，不替代运行证据。没有开展新的性能容量测量，也没有启动P5。
+首次源码/PCK探针误用不存在的`World.Scenarios`已修正；之后全状态对比差异仅在恢复会重建的`environment.revision`和`perception.next_ms`。最终比较两端分别恢复同一候选后的完整状态，不以源码未恢复世界与恢复世界的缓存版本差异冒充游戏结果不同；原失败日志`p5-source-fixture-20261115-213806-424182500.log`、`p5-pack-restore-20261115-213825-479112000.log`及213841段保留。
+
+## P5相关性能短窗
+
+i5-13600KF/RTX3060，D3D12，1280×720，玩家迷雾，1×，60FPS限帧，3秒预热＋5秒采样。仍为同World的持续星焰动作/耐久三敌与后台生活；P5敌人/生活选择已改变，**不与旧P4窗直接作纯算法提速百分比**。24人串行、512人两页/两worker，真实图形串行测量。
+
+| 人数 | 全窗步均 | 步p99 | 帧p99 | 实际世界流速 | 交付/命中 |
+|---|---|---|---|---|---|
+| 24 | 1.174ms | 3.139ms | 16.878ms | 1.0001× | 23/69 |
+| 512 | 8.517ms | 14.097ms | 16.867ms | 1.0001× | 409/59 |
+
+证据`logs/p5-final-{24,512}.json/.log/.cpu.json/.png`。两窗无脚本/引擎错误、无死亡、木料守恒、零过载；5秒内协调求值324/1528次，累计46.668/414.056ms。它包含生活候选等嵌套成本，不是单个规则解释器耗时。早一版P5的`logs/p5-release-*`因后续因果修复重导出后复测，各人数共两次，未挑最佳窗。
+
+这些短窗说明当前选定负载仍有可玩余量，不证明密弹极限、所有倍率、长局、主观手感或目标16GB整机。世界512²、近场60Hz和现有慢域精度保持，没有为P5降世界精度或新增LOD。
 
 ## 基础框架优化交付
 

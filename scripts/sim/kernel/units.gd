@@ -229,8 +229,12 @@ func sample_environment(seconds: float = 1.0) -> void:
 		body_heat[row] = lerpf(body_heat[row], ambient, alpha)
 		for channel: int in 5:
 			elements[row * 5 + channel] = environment.element(tile, exposure, row * 7, channel)
+		var hunger_before: int = hunger[row]
+		var energy_before: int = energy[row]
 		hunger[row] = maxi(0, hunger[row] - roundi(2 * seconds))
 		energy[row] = maxi(0, energy[row] - roundi((3 + absf(body_heat[row] - 22.0)) * seconds))
+		if (hunger_before >= 4000 and hunger[row] < 4000) or (energy_before >= 4000 and energy[row] < 4000):
+			environmental_events.append({"kind": "needs_changed", "actor": ids[row], "at_ms": end_ms})
 		if seconds > 0.0 and (body_heat[row] > 80.0 or body_heat[row] < 0.0):
 			var before: float = tolerance[row]
 			var absorbed: float = minf(tolerance[row], seconds * THERMAL_DAMAGE_PER_SECOND)

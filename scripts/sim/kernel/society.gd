@@ -40,9 +40,10 @@ func invite(world: RefCounted, actor: int, action: Dictionary) -> void:
 	var target: int = action.target
 	if target == 1 or target == actor or not world.actor_slots.has(target) or action.kind not in ["talk", "trade", "learn", "request_help"]:
 		return
+	if world.decisions.records.get(target, {}).get("manual", false): return
 	var slot: int = world.actor_slots[target]
 	var page: RefCounted = world.pages[slot / 256]
-	if world.combat.controls.has(target) or (not world.objects.records[target].get("autonomous", false) and world.work_runs.has(target)) or not world.gate.check(world, target, world.operation_time()).is_empty() or world.actions.has(target) or world.combat.engagements.has(target) or world.combat.states.has(target) or page.health[slot % 256] < 30:
+	if world.combat.controls.has(target) or (not world.objects.records[target].get("autonomous", false) and world.work_runs.has(target)) or not world.gate.check(world, target, world.operation_time()).is_empty() or world.actions.has(target) or world.decisions.in_combat(target) or world.combat.states.has(target) or page.health[slot % 256] < 30:
 		return # A busy/unwilling partner need not stop; contact can fail normally.
 	action["partner_waiting"] = true
 	action["partner_resume"] = world.objects.records[target].get("autonomous", false)
@@ -63,7 +64,7 @@ func interrupt(world: RefCounted, action: Dictionary, now: int) -> void:
 	var slot: int = world.actor_slots[action.target]
 	var page: RefCounted = world.pages[slot / 256]
 	# Never overwrite a newer player command or a defensive combat response.
-	if action.get("partner_resume", false) and world.objects.records[action.target].get("autonomous", false) and page.health[slot % 256] > 0 and page.modes[slot % 256] == Units.Mode.IDLE and not world.actions.has(action.target) and not world.combat.engagements.has(action.target):
+	if action.get("partner_resume", false) and world.objects.records[action.target].get("autonomous", false) and page.health[slot % 256] > 0 and page.modes[slot % 256] == Units.Mode.IDLE and not world.actions.has(action.target) and not world.decisions.in_combat(action.target):
 		world.livelihood.after_action(world, action.target, now)
 
 
@@ -109,7 +110,7 @@ func finish(world: RefCounted, actor: int, action: Dictionary, now: int) -> Stri
 				world._sync_inventory(action.target)
 		"request_help":
 			var target: int = int(action.get("task_target", 0))
-			if not world.actor_slots.has(action.target) or other.has("commitment"):
+			if not world.actor_slots.has(action.target) or other.has("commitment") or world.decisions.records.get(action.target, {}).get("manual", false):
 				return "refused_busy_or_body"
 			if world.objects.records.get(target, {}).get("kind", "") != "blueprint":
 				return "invalid_task"

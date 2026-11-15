@@ -3,7 +3,9 @@ extends Node
 ## Open the companion scene in a disposable editor; checks the real Inspector.
 var errors: int = 0
 func _ready() -> void:
-	if Engine.is_editor_hint() and OS.get_cmdline_user_args().has("--combat-authoring-check"): call_deferred("_run")
+	if Engine.is_editor_hint() and OS.get_cmdline_user_args().has("--combat-authoring-check"):
+		print("COMBAT_AUTHORING_EDITOR begin")
+		call_deferred("_run")
 func check(ok: bool, message: String) -> void:
 	if not ok: errors += 1; push_error(message)
 func preview(script_name: String = "preview") -> Control:
@@ -14,6 +16,7 @@ func frames() -> void:
 	for index: int in 12: await get_tree().process_frame
 func _run() -> void:
 	await frames()
+	print("COMBAT_AUTHORING_EDITOR inspector ready")
 	var definition: Resource = load("res://data/definitions/combat/fire_bolt.tres")
 	EditorInterface.edit_resource(definition)
 	await frames()
@@ -33,7 +36,8 @@ func _run() -> void:
 		for button: Node in control.get_children():
 			if button is Button: button.pressed.emit()
 		check(control._validation.text.contains("timing"), "Invalid Resource has no field-level diagnostic")
-	for path: String in ["res://data/definitions/actions/frost_marks.tres", "res://data/definitions/actions/blood_feed.tres", "res://data/definitions/combat/loadout_barrage.tres"]:
+	for path: String in ["res://data/definitions/actions/frost_marks.tres", "res://data/definitions/actions/blood_feed.tres", "res://data/definitions/combat/loadout_barrage.tres", "res://data/definitions/decisions/library.tres", "res://data/definitions/decisions/pressure.tres", "res://data/definitions/decisions/precise.tres"]:
+		print("COMBAT_AUTHORING_EDITOR checking ", path)
 		EditorInterface.edit_resource(load(path))
 		await frames()
 		var panel: Control = preview("validation")
@@ -60,6 +64,16 @@ func _run() -> void:
 	await frames()
 	panel = preview("validation")
 	if panel != null: check(panel._messages.text.contains("entity.loadout"), "Nested ability id was accepted as a companion profile")
+	var bad_policy: Resource = load("res://data/definitions/decisions/ranged.tres").duplicate_deep(Resource.DEEP_DUPLICATE_ALL)
+	bad_policy.preferred_min = 9.0
+	EditorInterface.edit_resource(bad_policy)
+	await frames()
+	panel = preview("validation")
+	if panel != null: check(panel._messages.text.contains("distance"), "Policy distance has no native field diagnostic")
+	EditorInterface.edit_resource(load("res://data/definitions/decisions/pressure.tres"))
+	await frames()
+	RenderingServer.force_draw(false)
+	EditorInterface.get_base_control().get_viewport().get_texture().get_image().save_png("res://logs/decisions-authoring-editor.png")
 	EditorInterface.edit_resource(load("res://data/definitions/combat/loadout_barrage.tres"))
 	await frames()
 	EditorInterface.edit_resource(definition)
@@ -68,7 +82,7 @@ func _run() -> void:
 	if control != null:
 		for button: Node in control.get_children():
 			if button is Button: button.pressed.emit()
-	await RenderingServer.frame_post_draw
+	RenderingServer.force_draw(false)
 	EditorInterface.get_base_control().get_viewport().get_texture().get_image().save_png("res://logs/combat-authoring-editor.png")
 	print("COMBAT_AUTHORING_EDITOR errors=", errors)
 	get_tree().quit(0 if errors == 0 else 1)
