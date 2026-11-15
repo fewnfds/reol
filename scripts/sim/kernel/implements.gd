@@ -79,7 +79,7 @@ func collect(world: RefCounted, start: int, now: int, melee: Array[int]) -> Arra
 			if value.phase not in ["broken", "dropped"]: drop_owner(world, value.owner, start)
 			continue
 		if value.phase not in ["outbound", "returning"]: continue
-		var def: Dictionary = Defs.ACTIONS[value.ability]
+		var def: Dictionary = Defs.ACTIONS[value.ability].merged(world.combat.Payload.summary(Defs.ACTIONS[value.ability].payload), true)
 		var delivery: Dictionary = def.delivery
 		if start >= int(value.return_ms): value.phase = "returning"
 		var from: Vector2 = value.position
@@ -124,7 +124,7 @@ func collect(world: RefCounted, start: int, now: int, melee: Array[int]) -> Arra
 			value.touch[target] = at + int(delivery.contact_ms)
 			impacts.append({"actor": value.owner, "target": target, "activation": value.activation, "source_implement": id,
 				"at_ms": at, "damage": value.damage, "incoming": -direction, "stun": def.stun, "push": def.push,
-				"group_ms": 0, "evadable": true, "position": Motion.at(from, to, path, fraction), "action": value.ability, "payload": value.ability})
+				"group_ms": 0, "evadable": true, "position": Motion.at(from, to, path, fraction), "action": value.ability, "payload": def.payload})
 		# Enemy attacks use the same swept target, but never give this object a villager AI.
 		for attacker: int in melee:
 			var action: Dictionary = world.combat.states[attacker]

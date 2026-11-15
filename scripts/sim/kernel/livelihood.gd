@@ -16,6 +16,7 @@ func initialize(world: RefCounted) -> void:
 			var id: int = page.ids[row]
 			world.objects.records[id]["known"] = {}
 			if id != 1:
+				world.adopt_work(id, 0)
 				page.modes[row] = Units.Mode.REST
 				page.due_ms[row] = 50 + (id % 20) * 50
 				world.objects.records[id]["autonomous"] = true
@@ -83,6 +84,7 @@ func think(world: RefCounted, id: int, at: int) -> void:
 
 
 func _think(world: RefCounted, id: int, at: int) -> void:
+	if not world.gate.check(world, id, at).is_empty(): return
 	decisions += 1
 	var person: Dictionary = world.objects.records[id]
 	var slot: int = world.actor_slots[id]
@@ -151,6 +153,7 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 	if kind == "harvest":
 		var source: int = world.source_objects.find(chosen)
 		if source >= 0:
+			world.end_run(id, at)
 			page.source_ids[row] = source
 			_walk_to_site(world, id, clues[chosen].tile, Units.Mode.RESOURCE, at)
 			return
@@ -173,10 +176,11 @@ func _walk_to_site(world: RefCounted, id: int, tile: int, mode: int, at: int) ->
 	if point.x < 0:
 		after_action(world, id, at)
 	else:
-		page.move_to(row, point, mode)
+		if world.adopt_work(id, at): page.move_to(row, point, mode)
 
 
 func after_action(world: RefCounted, id: int, at: int, target: int = 0) -> void:
+	if not world.adopt_work(id, at): return
 	var slot: int = world.actor_slots[id]
 	var page: RefCounted = world.pages[slot / 256]
 	var row: int = slot % 256

@@ -53,6 +53,11 @@ static func combat_lab(world: RefCounted, mode: String = "light", loadout: Strin
 		person["base_stats"] = {"max_hp": [120.0, 220.0, 70.0][index], "speed": [3.6, 2.8, 3.4][index], "armor": 2.0 if index == 1 else 0.0}
 		world.Equipment.rebuild(world, actor)
 		page.health[row] = page.max_health[row]
+	if loadout == "tender":
+		var plant: int = world.nature.create(world, "perennial_herb", Terrain.index(Vector2i(145, 152)), false, true)
+		if plant > 0:
+			world.objects.records[plant]["name"] = "照料练习药草"
+			world.objects.records[plant].injury_ms = 90000
 	world.perception.update(world, world.elapsed_ms, true)
 
 

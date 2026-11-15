@@ -1,7 +1,9 @@
-[gd_resource type="Resource" script_class="CombatAbilityDef" load_steps=7 format=3]
+[gd_resource type="Resource" script_class="CombatAbilityDef" load_steps=9 format=3]
 [ext_resource type="Script" path="res://scripts/sim/definitions/combat/ability_def.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/sim/definitions/combat/delivery_def.gd" id="2"]
-[ext_resource type="Script" path="res://scripts/sim/definitions/combat/effect_def.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_def.gd" id="3"]
+
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_bundle_def.gd" id="bundle_type"]
 
 [sub_resource type="Resource" id="Delivery"]
 script = ExtResource("2")
@@ -24,6 +26,10 @@ duration_ms = 160
 push = 0.0
 punish_ms = 0
 
+[sub_resource type="Resource" id="Bundle"]
+script = ExtResource("bundle_type")
+effects = Array[ExtResource("3")]([SubResource("Effect0"), SubResource("Effect1")])
+
 [resource]
 script = ExtResource("1")
 id = "thunder_strike"
@@ -39,4 +45,4 @@ cooldown = 600
 free_move = 1.0
 tint = Color(0.7686274509803922, 0.7411764705882353, 1.0, 1)
 delivery = SubResource("Delivery")
-effects = Array[ExtResource("3")]([SubResource("Effect0"), SubResource("Effect1")])
+bundle = SubResource("Bundle")

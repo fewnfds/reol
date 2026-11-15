@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="CombatAbilityDef" load_steps=8 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/ability_def.gd" id="ability"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/delivery_def.gd" id="delivery"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_def.gd" id="effect"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_bundle_def.gd" id="bundle"]
+
+[sub_resource type="Resource" id="Delivery"]
+script = ExtResource("delivery")
+kind = "direct"
+target = "object"
+max_range = 7.0
+
+[sub_resource type="Resource" id="Effect0"]
+script = ExtResource("effect")
+kind = "domain"
+stage = "activation"
+operation = "tend"
+
+[sub_resource type="Resource" id="Bundle"]
+script = ExtResource("bundle")
+effects = Array[ExtResource("effect")]([SubResource("Effect0")])
+
+[resource]
+script = ExtResource("ability")
+id = "water_tend"
+title = "引水术"
+windup = 280
+active = 1
+recovery = 180
+cooldown = 700
+move = 0.5
+description = "选择活植物后右键施放；有效照料时消耗1份水，与手工照料共用领域规则。"
+delivery = SubResource("Delivery")
+bundle = SubResource("Bundle")

@@ -51,20 +51,57 @@
     "label": "吐纳手抄本"
   },
   "iron_sword": {
-    "label": "铁剑", "slot": "weapon", "icon": "attack", "stats": {"melee": 10},
-    "combat_loadout": "sword", "ai_loadout": "light"
+    "label": "铁剑",
+    "slot": "weapon",
+    "icon": "attack",
+    "stats": {
+      "melee": 10
+    },
+    "combat_loadout": "sword",
+    "ai_loadout": "light"
   },
   "short_bow": {
-    "label": "短弓", "slot": "weapon", "icon": "bow", "stats": {"ranged": 8},
-    "combat_loadout": "bow", "ai_loadout": "archer"
+    "label": "短弓",
+    "slot": "weapon",
+    "icon": "bow",
+    "stats": {
+      "ranged": 8
+    },
+    "combat_loadout": "bow",
+    "ai_loadout": "archer"
   },
   "cloth_robe": {
-    "label": "布衣", "slot": "body", "icon": "robe", "stats": {"armor": 3, "max_hp": 20}
+    "label": "布衣",
+    "slot": "body",
+    "icon": "robe",
+    "stats": {
+      "armor": 3,
+      "max_hp": 20
+    }
   },
   "travel_boots": {
-    "label": "布靴", "slot": "feet", "icon": "boots", "stats": {"speed": 1}
+    "label": "布靴",
+    "slot": "feet",
+    "icon": "boots",
+    "stats": {
+      "speed": 1
+    }
   },
   "jade_charm": {
-    "label": "玉佩", "slot": "charm", "icon": "charm", "stats": {"max_hp": 10}
+    "label": "玉佩",
+    "slot": "charm",
+    "icon": "charm",
+    "stats": {
+      "max_hp": 10
+    }
+  },
+  "willow_staff": {
+    "label": "引水法杖",
+    "slot": "weapon",
+    "stats": {
+      "ranged": 8
+    },
+    "combat_loadout": "tender",
+    "ai_loadout": "archer"
   }
 }

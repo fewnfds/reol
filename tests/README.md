@@ -21,3 +21,5 @@
 `abilities_smoke.gd`验证P3递归只读定义、独立资源变体/非法时序、规则签名拒载、多人CD与激活隔离、散射/追踪与失视退化、减速/DoT和预警/区域/飞剑中途恢复；覆盖来源死亡、目标移除、到期半开区间、到期前续期当拍跳伤、飞剑损毁不吞后到弹、接回不抹早到攻击、墙阻/重合回收和非法弹状态拒绝。约数秒，按需运行，不加入默认kernel套件。
 
 `abilities_ui_smoke.gd`继承图形输入辅助，通过原生下拉框和真实鼠标/键盘选择八套范例并施放左右键；检查状态/弹体发布、落雷预警和飞剑返航中的实际文件保存/恢复。截图在`logs/abilities-ui/`；独立测试档和偏好结束后清理。`combat_authoring_editor.tscn`在一次性Godot编辑器中加`-- --combat-authoring-check`运行，验证真实Inspector插件、范围/阶段布局与合法/非法资源提示，截图`logs/combat-authoring-editor.png`并自动退出；未带该参数时不会自动执行。具体命令见[usage](../docs/engineering/tooling/usage.md#开发期直接试玩)。
+
+`action_foundation_smoke.gd`核对公共门禁、陈旧run通知、正常收招后的续段、一次终止、坏载荷/幽灵预约拒载；`action_domains_smoke.gd`核对工作/伤害先后、新生短到期、手工/ACT照料消费/恢复。`action_domains_ui_smoke.gd`以原生配置选择和真实右键验证选定植物的ACT交付；截图仍归`logs/abilities-ui/`。按需运行，不扩大默认kernel套件。

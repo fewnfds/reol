@@ -140,7 +140,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				if button == "primary": _primary_down = true
 				# Capture direction on the edge, including a click before the next tick.
 				_update_aim(event.position if event is InputEventMouseButton else get_viewport().get_mouse_position())
-				_send({"kind": "action", "button": button, "aim": _aim, "move": move_vector(), "point": pointer_world(event.position if event is InputEventMouseButton else get_viewport().get_mouse_position()) - Art.BODY_FOOT_OFFSET})
+				_send({"kind": "action", "button": button, "target": host.selected, "aim": _aim, "move": move_vector(), "point": pointer_world(event.position if event is InputEventMouseButton else get_viewport().get_mouse_position()) - Art.BODY_FOOT_OFFSET})
 				get_viewport().set_input_as_handled()
 				return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE:

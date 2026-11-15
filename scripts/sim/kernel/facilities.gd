@@ -33,7 +33,7 @@ func footprint(definition: String, tile: int, facing: int = 0) -> PackedInt32Arr
 func in_range(world: RefCounted, target: int, origin: Vector2, radius: float) -> bool:
 	var record: Dictionary = world.objects.records[target]
 	if world.actor_slots.has(target):
-		var point: Vector2 = world.combat.position(world, target)
+		var point: Vector2 = world.position_at(target)
 		return origin.distance_to(point) <= 1.5 + radius - 0.35 and Terrain.blocking_fraction(world.terrain.blocked, origin, point) < 0
 	var members: PackedInt32Array = record.get("cells", PackedInt32Array([record.tile]))
 	for member: int in members:
@@ -50,7 +50,7 @@ func interaction_point(world: RefCounted, target: int, origin: Vector2, radius: 
 	if in_range(world, target, origin, radius) and world.terrain.can_stand(origin, radius, flying):
 		return origin
 	if world.actor_slots.has(target):
-		return world.terrain.project_point(world.combat.position(world, target), radius, flying)
+		return world.terrain.project_point(world.position_at(target), radius, flying)
 	var members: PackedInt32Array = record.get("cells", PackedInt32Array([tile]))
 	var candidates: Array[Vector2] = []
 	for member: int in members:

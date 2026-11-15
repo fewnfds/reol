@@ -2,7 +2,7 @@
 class_name CombatAbilityDef
 extends Resource
 const Delivery = preload("res://scripts/sim/definitions/combat/delivery_def.gd")
-const Effect = preload("res://scripts/sim/definitions/combat/effect_def.gd")
+const Bundle = preload("res://scripts/sim/definitions/actions/effect_bundle_def.gd")
 @export_group("Identity")
 @export var id: String = ""
 @export var title: String = ""
@@ -44,7 +44,7 @@ const Effect = preload("res://scripts/sim/definitions/combat/effect_def.gd")
 @export_range(0, 5000) var post: int = 0
 @export_group("Delivery and Effects")
 @export var delivery: Delivery
-@export var effects: Array[Effect] = []
+@export var bundle: Bundle = Bundle.new()
 
 func values() -> Dictionary:
 	var data: Dictionary = {"id": id, "title": title, "description": description, "tint": tint.to_html(), "stat": stat,
@@ -53,18 +53,10 @@ func values() -> Dictionary:
 		"cost_item": cost_item, "cost_amount": cost_amount, "move": move, "free_move": free_move, "free_at": free_at,
 		"lunge": lunge, "lunge_from": lunge_from, "lunge_to": lunge_to, "evade_ms": evade_ms,
 		"next": next_action, "chain_ms": chain_ms, "steady": steady, "punishable": punishable, "post": post,
-		"delivery": delivery.values() if delivery != null else {}, "effects": [], "damage": 0.0, "stun": 0, "push": 0.0, "punish_ms": 0}
+		"delivery": delivery.values() if delivery != null else {}, "payload": bundle.values() if bundle != null else []}
 	var end: int = windup + active + recovery
 	for field: String in ["next_hit", "next_miss", "skill_hit", "skill_miss", "step_hit", "step_miss"]:
 		data[field] = get(field) if int(get(field)) >= 0 else end
-	for effect: Effect in effects:
-		data.effects.append(effect.values())
-		if effect.kind == "damage": data.damage = effect.magnitude
-		if effect.kind == "control":
-			data.stun = effect.duration_ms
-			data.push = effect.push
-			data.punish_ms = effect.punish_ms
-	data.heavy_hit = data.punish_ms > 0
 	if delivery != null and delivery.kind == "melee":
 		data.reach = delivery.reach
 		data.angle = delivery.half_angle
@@ -88,15 +80,7 @@ func errors() -> PackedStringArray:
 	if delivery == null: result.append("delivery: required")
 	else:
 		for error: String in delivery.errors(): result.append("delivery." + error)
-	var once: Dictionary = {}
-	for index: int in effects.size():
-		var effect: Effect = effects[index]
-		if effect == null: result.append("effects[%d]: missing resource" % index); continue
-		for error: String in effect.errors(): result.append("effects[%d].%s" % [index, error])
-		if effect.kind in ["damage", "control"] and once.has(effect.kind): result.append("effects: duplicate " + effect.kind)
-		if effect.kind in ["slow", "dot"]:
-			var key: String = effect.kind + ":" + effect.status_id
-			if once.has(key): result.append("effects: duplicate " + key)
-			once[key] = true
-		once[effect.kind] = true
+	if bundle == null: result.append("bundle: required")
+	else:
+		for error: String in bundle.errors(): result.append("bundle." + error)
 	return result

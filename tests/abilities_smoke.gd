@@ -40,7 +40,7 @@ func same_after_restore(w: RefCounted, until: int, label: String) -> void:
 
 func catalog() -> void:
 	check(Defs.ERRORS.is_empty() and Defs.ACTIONS.size() >= 22, "Catalog missing examples: " + str(Defs.ERRORS))
-	check(Defs.ACTIONS.is_read_only() and Defs.ACTIONS.fire_bolt.delivery.is_read_only() and Defs.ACTIONS.fire_bolt.effects.is_read_only(), "Nested catalog is mutable")
+	check(Defs.ACTIONS.is_read_only() and Defs.ACTIONS.fire_bolt.delivery.is_read_only() and Defs.ACTIONS.fire_bolt.payload.is_read_only(), "Nested catalog is mutable")
 	var original: Resource = load("res://data/definitions/combat/fire_bolt.tres")
 	var copy: Resource = original.duplicate_deep(Resource.DEEP_DUPLICATE_ALL)
 	copy.id = "new_fire_variant"
@@ -50,7 +50,7 @@ func catalog() -> void:
 	copy.windup = -1
 	check(not copy.errors().is_empty(), "Illegal timing accepted")
 	var invalid_library: Resource = Defs.LIBRARY.duplicate_deep(Resource.DEEP_DUPLICATE_ALL)
-	invalid_library.abilities[0].effects.append(null)
+	invalid_library.abilities[0].bundle.effects.append(null)
 	invalid_library.abilities[0].delivery = null
 	var rejected: Dictionary = invalid_library.compile()
 	check(not rejected.errors.is_empty() and rejected.actions.is_empty(), "Missing nested resource crashed or compiled")
@@ -209,6 +209,7 @@ func periodic_refresh() -> void:
 	var hp: int = w.pages[0].health[1]
 	w.combat.launch(1, Vector2(122.15, 120.5), Vector2(125, 120.5), 2150, 20, 1, 20)
 	w.combat.bolts.values()[0].ability = "fire_bolt"
+	w.combat.bolts.values()[0].payload = Defs.ACTIONS.fire_bolt.payload
 	w.step(50) # Contact at 2195 renews the old excluded tick at 2200.
 	check(w.pages[0].health[1] == hp - 22 and w.effects.records.values()[0].next_ms == 2750, "Expiry-slice refresh lost or delayed a periodic tick")
 	check(Persistence.candidate(Persistence.capture(w), 0) != null, "Refreshed endpoint rejected a valid save")

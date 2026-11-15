@@ -6,6 +6,8 @@ const State = preload("res://scripts/sim/kernel/state.gd")
 const Units = preload("res://scripts/sim/kernel/units.gd")
 const Items = preload("res://scripts/sim/kernel/items.gd")
 const ACTIONS: Array[String] = ["talk", "trade", "request_help", "learn", "study", "practice"]
+const STATE_FIELDS: Array = ["waits"]
+var waits: Dictionary = {} # Partner participation belongs to this interaction host.
 var completed: Dictionary = {}
 
 
@@ -40,17 +42,24 @@ func invite(world: RefCounted, actor: int, action: Dictionary) -> void:
 		return
 	var slot: int = world.actor_slots[target]
 	var page: RefCounted = world.pages[slot / 256]
-	if world.actions.has(target) or world.combat.engagements.has(target) or world.combat.states.has(target) or page.health[slot % 256] < 30:
+	if not world.gate.check(world, target, world.operation_time()).is_empty() or world.actions.has(target) or world.combat.engagements.has(target) or world.combat.states.has(target) or page.health[slot % 256] < 30:
 		return # A busy/unwilling partner need not stop; contact can fail normally.
 	action["partner_waiting"] = true
 	action["partner_resume"] = world.objects.records[target].get("autonomous", false)
 	world.release(target)
 	page.modes[slot % 256] = Units.Mode.IDLE
+	waits[target] = {"actor": actor, "owner_run": action.run_id, "run_id": world.next_run}
+	world.next_run += 1
+	world.gate.bind(target, "partner", waits[target].run_id)
 
 
 func interrupt(world: RefCounted, action: Dictionary, now: int) -> void:
 	if not action.get("partner_waiting", false) or not world.actor_slots.has(action.target):
 		return
+	var wait: Dictionary = waits.get(action.target, {})
+	if wait.is_empty() or wait.owner_run != action.get("run_id"): return
+	if not world.gate.unbind(action.target, "partner", wait.run_id): return
+	waits.erase(action.target)
 	var slot: int = world.actor_slots[action.target]
 	var page: RefCounted = world.pages[slot / 256]
 	# Never overwrite a newer player command or a defensive combat response.

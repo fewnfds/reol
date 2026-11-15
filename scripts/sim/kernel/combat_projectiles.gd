@@ -49,10 +49,10 @@ static func collect(combat: RefCounted, world: RefCounted, start: int, now: int)
 		for order: int in contacts.size():
 			var contact: Dictionary = contacts[order]
 			var at: int = start + roundi((until - start) * float(contact.fraction))
-			var payload: Dictionary = Defs.ACTIONS.get(bolt.ability, {})
+			var payload: Dictionary = combat.Payload.summary(bolt.payload)
 			impacts.append({"actor": bolt.actor, "target": contact.target, "implement_target": contact.implement, "bolt_id": id, "contact_order": order,
 				"damage": bolt.damage, "activation": bolt.activation, "at_ms": at, "incoming": -Vector2(bolt.velocity).normalized(),
-				"stun": payload.get("stun", 0), "push": payload.get("push", 0.0), "payload": bolt.ability, "group_ms": payload.get("group_ms", 280),
+				"stun": payload.get("stun", 0), "push": payload.get("push", 0.0), "payload": bolt.payload, "group_ms": bolt.group_ms, "heavy_hit": payload.heavy_hit, "punish_ms": payload.punish_ms,
 				"position": contact.position, "action": bolt.ability if not bolt.ability.is_empty() else "bolt"})
 		if first >= 0:
 			var object_target: int = 0

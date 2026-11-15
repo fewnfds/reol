@@ -19,7 +19,7 @@ func compile() -> Dictionary:
 		if not problems.is_empty(): continue # Never compile a missing delivery/effect.
 		if ability.cost_amount > 0 and not Items.valid(ability.cost_item): errors.append(ability.id + ".cost_item: unknown item")
 		if actions.has(ability.id): errors.append("duplicate ability: " + ability.id)
-		for effect: Resource in ability.effects:
+		for effect: Resource in ability.bundle.effects:
 			if effect == null or effect.kind != "dot": continue
 			if status_periods.has(effect.status_id) and status_periods[effect.status_id] != effect.period_ms: errors.append(ability.id + ": dot status_id must use one shared period: " + effect.status_id)
 			status_periods[effect.status_id] = effect.period_ms

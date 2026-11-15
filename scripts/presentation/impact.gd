@@ -12,7 +12,7 @@ static func tone(event: Dictionary) -> String:
 			if def.is_empty(): return ""
 			if def.stat == "ranged": return "shot"
 			if def.delivery.kind == "evade": return "step"
-			return "swing_heavy" if def.heavy_hit else "swish"
+			return "swing_heavy" if preload("res://scripts/sim/kernel/effect_payload.gd").summary(def.payload).heavy_hit else "swish"
 		"area_trigger": return "heavy"
 		"implement_hit": return "armor"
 		"hit":

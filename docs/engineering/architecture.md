@@ -10,6 +10,7 @@
 | `scripts/sim/kernel/navigation.gd` | lane私有的原生AStarGrid通路、连续起终点连接与拉直、版本缓存和请求分批 |
 | `scripts/sim/kernel/units.gd` | 每页256行身体热列、独立瞄准、直接扫掠/沿路运动、到达/到期、需求、环境接收与冷热耐受；一页只由一个lane写入 |
 | `scripts/sim/kernel/motion.gd` | 本步带时间折线的采样与分段相对扫掠，供显示和投射物共用 |
+| `action_gate.gd`、`action_costs.gd`、`domain_effects.gd` | 派生占用索引、起手成本与具名领域操作；阶段/截止/已付款仍归宿主 |
 | `scripts/sim/kernel/world.gd` | 世界组合根、命令/通用行动、预约、共享效果顺序、生命周期与结构提交 |
 | `scripts/sim/kernel/objects.gd` | 单调身份、静态位置索引、分类库存与穿戴位置、转移/原子交换与换装；不逐步空转所有对象 |
 | `items.gd`、`equipment.gd` | 物品定义/品质堆键的唯一解释，以及按源状态重建的身体属性热列；没有第二份物品实例账本 |
@@ -107,3 +108,5 @@ UI缩放只作用于HUD父Control，逻辑尺寸按视口/比例计算，菜单�
 `World.state_owners()`列出实际领域，每个owner维护自己的`STATE_FIELDS`，通用捕获/恢复循环不随每个玩法重写。对象状态、在途过程和随机流保存；索引、导航、场缓存、锁和Frame重建。候选只重建观察缓存，不刷新保存的离场记忆。完整格式与支持范围查[存档现状](compatibility.md)。
 
 低频新功能可以用普通局部记录/函数，密集独立计算再选页批；kernel不是万能ECS。地区当前共用一个有限世界，一直真实推进，不把旅行入口称为已具备无限地图或分块LOD。
+
+P4-A将工作到达/失败/到期与战斗接触按`at_ms`共同采用；候选携带域/run、模式及运动代次。工作用事件时刻轨迹复核。动作/交互/旧采集分别保留宿主；伙伴等待归Society。有限效果Resource归`definitions/actions`，ACT交付仍归combat定义；弹体直接携有限载荷而非靠动作名定位效果。

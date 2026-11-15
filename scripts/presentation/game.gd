@@ -418,7 +418,7 @@ func _draw() -> void:
 			if active:
 				var progress: float = clampf(float(render_ms - int(state.active_ms)) / int(def.active), 0, 1)
 				var tip: Vector2 = origin + direction.rotated(lerpf(-float(def.angle), float(def.angle), progress)) * float(def.reach) * TILE
-				draw_line(origin + direction * 6, tip, Color("fff3c2"), 4.5 if def.heavy_hit else 3.0, true)
+				draw_line(origin + direction * 6, tip, Color("fff3c2"), 4.5 if preload("res://scripts/sim/kernel/effect_payload.gd").summary(def.payload).heavy_hit else 3.0, true)
 			elif winding and not enemy:
 				draw_arc(origin, 19, direction.angle() - 0.3, direction.angle() + 0.3, 8, Color(color, 0.5), 2, true)
 			if bool(def.get("steady", false)) and render_ms < int(state.recovery_ms):

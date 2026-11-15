@@ -1,7 +1,9 @@
-[gd_resource type="Resource" script_class="CombatAbilityDef" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="CombatAbilityDef" load_steps=8 format=3]
 [ext_resource type="Script" path="res://scripts/sim/definitions/combat/ability_def.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/sim/definitions/combat/delivery_def.gd" id="2"]
-[ext_resource type="Script" path="res://scripts/sim/definitions/combat/effect_def.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_def.gd" id="3"]
+
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_bundle_def.gd" id="bundle_type"]
 
 [sub_resource type="Resource" id="Delivery"]
 script = ExtResource("2")
@@ -15,6 +17,10 @@ speed = 22.0
 script = ExtResource("3")
 kind = "damage"
 magnitude = 0.8
+
+[sub_resource type="Resource" id="Bundle"]
+script = ExtResource("bundle_type")
+effects = Array[ExtResource("3")]([SubResource("Effect0")])
 
 [resource]
 script = ExtResource("1")
@@ -30,4 +36,4 @@ repeat_held = true
 cooldown_group = "skill"
 free_move = 0.6
 delivery = SubResource("Delivery")
-effects = Array[ExtResource("3")]([SubResource("Effect0")])
+bundle = SubResource("Bundle")

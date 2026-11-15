@@ -7,8 +7,14 @@ var records: Dictionary = {}
 var next_id: int = 1
 
 func apply(world: RefCounted, target: int, source: int, activation: int, ability: String, now: int, amount: int) -> void:
-	if not world.combat.alive(world, target) or not world.actor_slots.has(target): return
-	for spec: Dictionary in Defs.ACTIONS[ability].effects:
+	apply_bundle(world, target, source, activation, ability, Defs.ACTIONS[ability].payload, now, amount)
+
+func apply_bundle(world: RefCounted, target: int, source: int, activation: int, ability: String, bundle: Array, now: int, amount: int) -> void:
+	for spec: Dictionary in bundle:
+		if spec.kind == "domain":
+			world.DomainOps.commit(world, source, target, spec.operation, now)
+			continue
+		if not world.combat.alive(world, target) or not world.actor_slots.has(target): continue
 		if spec.kind not in ["slow", "dot"]: continue
 		var found: int = 0
 		for id: int in records:

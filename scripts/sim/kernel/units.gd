@@ -11,7 +11,7 @@ const TOLERANCE_REGEN_PER_SECOND: float = 1.0
 enum Mode { RESOURCE, HARVEST, REST, MANUAL, IDLE, DEAD, APPROACH, ACTION, FREE, EXPLORE, COMBAT_MOVE, DIRECT }
 
 const STATE_FIELDS: Array = ["ids", "positions", "targets", "modes", "health", "energy", "hunger", "body_heat",
-	"exposure", "elements", "due_ms", "route_cursors", "routes", "source_ids", "tolerance", "thermal_carry",
+	"exposure", "elements", "due_ms", "route_cursors", "route_versions", "routes", "source_ids", "tolerance", "thermal_carry",
 	"flight", "radii", "aims", "moved_distance", "path_failures"]
 
 var ids := PackedInt64Array()
@@ -41,6 +41,7 @@ var cargo := PackedInt32Array()
 var source_ids := PackedInt32Array()
 var due_ms := PackedInt64Array()
 var route_cursors := PackedInt32Array()
+var route_versions := PackedInt64Array()
 var routes: Array[PackedVector2Array] = []
 var motion: Dictionary = {} # Sparse timed knots for this step, shared by collision/display.
 var ready := PackedInt64Array() # local row, exact arrival/due time
@@ -93,6 +94,7 @@ func add_row(id: int, tile: int) -> int:
 	cargo.append(0)
 	due_ms.append(0)
 	route_cursors.append(0)
+	route_versions.append(0)
 	routes.append(PackedVector2Array())
 	exposure.resize(ids.size() * 7)
 	elements.resize(ids.size() * 5)
@@ -108,6 +110,7 @@ func resize_stats() -> void:
 
 
 func move_to(row: int, target: Vector2, mode: int) -> void:
+	route_versions[row] += 1
 	targets[row] = target
 	modes[row] = mode
 	routes[row] = PackedVector2Array()
@@ -160,6 +163,8 @@ func advance(navigation: RefCounted) -> void:
 			else:
 				point = point.move_toward(next, available)
 				available = 0.0
+		if available > 0.00001 and speed > 0:
+			knots.append(Vector3(point.x, point.y, 1.0 - available / (speed * delta_ms / 1000.0)))
 		if not knots.is_empty():
 			var path := PackedVector3Array([Vector3(positions[row].x, positions[row].y, 0.0)])
 			path.append_array(knots)

@@ -230,6 +230,22 @@ func _sync(world: RefCounted, id: int) -> void:
 	world.objects.layout_revision += 1
 
 
+func tend_check(world: RefCounted, actor: int, target: int) -> String:
+	var rec: Dictionary = world.objects.records.get(target, {})
+	if rec.get("kind") != "plant" or rec.get("stage") not in [Stage.SPROUT, Stage.MATURE, Stage.STUMP]: return "not_living_plant"
+	if world.objects.amount(actor, "water") < 1: return "missing_water"
+	return ""
+
+func tend(world: RefCounted, actor: int, target: int, _now: int) -> String:
+	var reason: String = tend_check(world, actor, target)
+	if not reason.is_empty(): return reason
+	var rec: Dictionary = world.objects.records[target]
+	world.objects.add(actor, "water", -1)
+	if rec.host > 0 and world.objects.records.has(rec.host): world.objects.records[rec.host]["water"] = 80
+	rec.injury_ms = maxi(0, int(rec.injury_ms) - 60000)
+	world._sync_inventory(actor)
+	return "completed"
+
 func finish(world: RefCounted, actor: int, action: Dictionary, now: int) -> String:
 	var rec: Dictionary = world.objects.records[action.target]
 	if rec.kind == "resource":
@@ -253,14 +269,7 @@ func finish(world: RefCounted, actor: int, action: Dictionary, now: int) -> Stri
 			rec.last_ms = now
 			world.objects.layout_revision += 1
 		"tend":
-			if rec.stage not in [Stage.SPROUT, Stage.MATURE, Stage.STUMP]:
-				return "not_living_plant"
-			if world.objects.amount(actor, "water") < 1:
-				return "missing_water"
-			world.objects.add(actor, "water", -1)
-			if rec.host > 0 and world.objects.records.has(rec.host):
-				world.objects.records[rec.host]["water"] = 80
-			rec.injury_ms = maxi(0, int(rec.injury_ms) - 60000)
+			return world.DomainOps.commit(world, actor, action.target, "tend", now).reason
 		"gather":
 			if rec.stage != Stage.MATURE:
 				return "not_mature"

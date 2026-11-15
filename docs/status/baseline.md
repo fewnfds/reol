@@ -89,3 +89,7 @@ P2采用同一512²世界与默认24人，不降低后台生活精度，不追�
 ## 历史追溯
 
 历轮版本、失败实验、方向/素材/导航/视野对照均可从[整理前基线](https://github.com/fewnfds/reol/blob/02958cc/docs/status/baseline.md)和本机logs追溯。更早调查见[archive](../archive/README.md)；旧报告里的“当前”“下一步”不产生任务。
+
+### P4-A实施证据（尚非P4成品）
+
+A1：ACT/MELEE/ABILITIES/ACTION_FOUNDATION/KERNEL短检查通过；原八套GUI与文件存读通过（`logs/p4-a1-ui.log`）。A2：ACTION_DOMAINS/KERNEL通过，较早致死取消较晚交付、较早交付不被较晚死亡抹除、新生短工期本段提交、手工/ACT照料水守恒和中途恢复成立。引水法杖通过真实右键GUI（`logs/p4-a2-ui.log`、`logs/abilities-ui/p4-tending*.png`）。顾问A1两份完成，已核查修正自然收招连段、弹组字段、坏载荷/预约恢复等。B～E未实施，未生成P4导出；现有P3独立包保留。

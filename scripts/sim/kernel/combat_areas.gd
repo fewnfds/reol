@@ -24,7 +24,7 @@ func collect(world: RefCounted, now: int) -> Array[Dictionary]:
 	var impacts: Array[Dictionary] = []
 	for id: int in records.keys():
 		var value: Dictionary = records[id]
-		var def: Dictionary = Defs.ACTIONS[value.ability]
+		var def: Dictionary = Defs.ACTIONS[value.ability].merged(world.combat.Payload.summary(Defs.ACTIONS[value.ability].payload), true)
 		var delivery: Dictionary = def.delivery
 		if value.finished and now > int(value.expire_ms) + 160: records.erase(id); continue
 		if value.finished or now < int(value.next_ms): continue
@@ -38,7 +38,7 @@ func collect(world: RefCounted, now: int) -> Array[Dictionary]:
 			if delivery.walls and Terrain.blocking_fraction(world.terrain.blocked, value.position, point) >= 0: continue
 			impacts.append({"actor": value.actor, "target": target, "activation": value.activation, "at_ms": at,
 				"damage": value.damage, "stun": def.stun, "push": def.push, "incoming": (value.position - point).normalized(),
-				"position": point, "action": value.ability, "payload": value.ability, "evadable": true,
+				"position": point, "action": value.ability, "payload": def.payload, "evadable": true,
 				"group_ms": mini(int(def.group_ms), int(delivery.period)), "heavy_hit": def.heavy_hit, "punish_ms": def.punish_ms})
 		world.emit({"kind": "area_trigger", "actor": value.actor, "activation": value.activation, "area": id, "action": value.ability, "position": value.position, "at_ms": at})
 		value.next_ms += int(delivery.period)

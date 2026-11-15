@@ -78,6 +78,7 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 	environment.index_mobile(world.pages, world.actor_slots)
 	if not world.nature.rebuild(world) or not world.combat.valid(world) or not world.effects.valid(world) or not world.areas.valid(world) or not world.implements.valid(world):
 		return null
+	if not world.gate.rebuild(world): return null
 	world.effects.prepare(world, world.elapsed_ms)
 	if not world.regions.valid(world):
 		return null
@@ -167,7 +168,7 @@ static func _page_valid(page: RefCounted, world: RefCounted, start: int) -> bool
 	var count: int = page.ids.size()
 	if count < 1 or count > Units.PAGE_SIZE:
 		return false
-	for field: String in ["positions", "targets", "modes", "health", "energy", "hunger", "body_heat", "tolerance", "thermal_carry", "flight", "radii", "aims", "potions", "cargo", "source_ids", "due_ms", "route_cursors", "routes"]:
+	for field: String in ["positions", "targets", "modes", "health", "energy", "hunger", "body_heat", "tolerance", "thermal_carry", "flight", "radii", "aims", "potions", "cargo", "source_ids", "due_ms", "route_cursors", "route_versions", "routes"]:
 		if page.get(field).size() != count:
 			return false
 	if page.elements.size() != count * 5 or page.exposure.size() != count * 7:

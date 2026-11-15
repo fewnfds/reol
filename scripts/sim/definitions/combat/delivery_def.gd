@@ -2,12 +2,12 @@
 class_name CombatDeliveryDef
 extends Resource
 ## How an action reaches the world; different skills reuse the same delivery.
-@export_enum("melee", "projectile", "area", "evade", "implement", "recall") var kind: String = "melee"
+@export_enum("melee", "projectile", "area", "evade", "implement", "recall", "direct") var kind: String = "melee"
 @export_group("Shape and Target")
 @export_range(0.0, 20.0) var reach: float = 1.55
 @export_range(0.01, 3.141593) var half_angle: float = 1.0
 @export_range(0.02, 5.0) var radius: float = 0.1
-@export_enum("direction", "point", "self") var target: String = "direction"
+@export_enum("direction", "point", "self", "object") var target: String = "direction"
 @export_range(0.0, 30.0) var max_range: float = 8.0
 @export var blocked_by_walls: bool = true
 @export_enum("physical", "hostile", "self") var target_filter: String = "physical"
@@ -34,8 +34,8 @@ func values() -> Dictionary:
 
 func errors() -> PackedStringArray:
 	var result := PackedStringArray()
-	if kind not in ["melee", "projectile", "area", "evade", "implement", "recall"]: result.append("kind: unknown delivery")
-	if target not in ["direction", "point", "self"] or target_filter not in ["physical", "hostile", "self"]: result.append("target/filter: unknown policy")
+	if kind not in ["melee", "projectile", "area", "evade", "implement", "recall", "direct"]: result.append("kind: unknown delivery")
+	if target not in ["direction", "point", "self", "object"] or target_filter not in ["physical", "hostile", "self"]: result.append("target/filter: unknown policy")
 	for field: String in ["reach", "half_angle", "radius", "max_range", "spread", "speed", "backward_speed", "turn_rate"]:
 		if not is_finite(get(field)) or float(get(field)) < 0: result.append(field + ": must be finite and nonnegative")
 	if reach > 20 or half_angle <= 0 or half_angle > PI or radius < 0.02 or radius > 5 or max_range > 30 or speed <= 0 or speed > 60 or spread > TAU or turn_rate > 12: result.append("geometry/motion: out of range")

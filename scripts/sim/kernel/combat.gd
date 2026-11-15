@@ -7,6 +7,8 @@ const Motion = preload("res://scripts/sim/kernel/motion.gd")
 const Defs = preload("res://scripts/sim/kernel/action_defs.gd")
 const Projectiles = preload("res://scripts/sim/kernel/combat_projectiles.gd")
 const Items = preload("res://scripts/sim/kernel/items.gd")
+const Costs = preload("res://scripts/sim/kernel/action_costs.gd")
+const Payload = preload("res://scripts/sim/kernel/effect_payload.gd")
 const CONTACT_MEMORY_MS: int = 5000
 const STATE_FIELDS: Array = ["engagements", "states", "cooldowns", "chains", "status", "intents", "bolts", "next_bolt", "next_activation", "shots", "hits", "resumed", "unreachable", "_brain_bucket", "catalog_signature"]
 var catalog_signature: String = Defs.SIGNATURE
@@ -108,16 +110,16 @@ func set_control(world: RefCounted, input: Dictionary) -> void:
 func _priority(button: String) -> int:
 	return {"primary": 1, "skill": 2, "step": 3}.get(button, 0)
 
-func _buffer(actor: int, button: String, aim: Vector2, movement: Vector2, now: int, boundary: int, cooldown_boundary: int = -1, cd_key: String = "", point: Vector2 = Vector2(-1, -1)) -> String:
+func _buffer(actor: int, button: String, aim: Vector2, movement: Vector2, now: int, boundary: int, cooldown_boundary: int = -1, cd_key: String = "", point: Vector2 = Vector2(-1, -1), target_id: int = 0) -> String:
 	var span: int = Defs.STEP_BUFFER_MS if button == "step" else Defs.BUFFER_MS
 	if boundary - now > span: return "action_committed"
 	if int(cooldowns.get(actor, {}).get(cd_key, 0)) > (boundary if cooldown_boundary < 0 else cooldown_boundary): return "cooldown"
 	var old: Dictionary = intents.get(actor, {})
 	if old.is_empty() or now > int(old.until) or _priority(button) >= _priority(old.button):
-		intents[actor] = {"button": button, "aim": aim, "move": movement, "at": now, "until": now + span, "point": point}
+		intents[actor] = {"button": button, "aim": aim, "move": movement, "at": now, "until": now + span, "point": point, "target_id": target_id}
 	return "buffered"
 
-func request(world: RefCounted, actor: int, button: String, aim: Vector2, movement: Vector2 = Vector2.ZERO, at: int = -1, point: Vector2 = Vector2(-1, -1)) -> String:
+func request(world: RefCounted, actor: int, button: String, aim: Vector2, movement: Vector2 = Vector2.ZERO, at: int = -1, point: Vector2 = Vector2(-1, -1), target_id: int = 0) -> String:
 	var now: int = world.elapsed_ms if at < 0 else at
 	if not alive(world, actor) or not aim.is_finite() or not movement.is_finite(): return "invalid_action"
 	var slot: int = world.actor_slots[actor]
@@ -132,7 +134,7 @@ func request(world: RefCounted, actor: int, button: String, aim: Vector2, moveme
 	var cd_key: String = def.cd_group
 	var stun_end: int = int(status.get(actor, {}).get("stun_until", 0))
 	if now < stun_end:
-		return _buffer(actor, button, aim, movement, now, stun_end, -1, cd_key, point) if button == "step" and stun_end - now <= Defs.STEP_BUFFER_MS else "stunned"
+		return _buffer(actor, button, aim, movement, now, stun_end, -1, cd_key, point, target_id) if button == "step" and stun_end - now <= Defs.STEP_BUFFER_MS else "stunned"
 	var pending: Dictionary = intents.get(actor, {})
 	if not pending.is_empty() and now <= int(pending.until) and _priority(button) < _priority(pending.button): return "buffered"
 	if states.has(actor):
@@ -145,12 +147,16 @@ func request(world: RefCounted, actor: int, button: String, aim: Vector2, moveme
 				var confirmed: Dictionary = current.merged({"confirmed": true}, true)
 				earliest = maxi(now, maxi(Defs.active_ms(current), Defs.cancel_ms(confirmed, button)))
 			var span: int = Defs.STEP_BUFFER_MS if button == "step" else Defs.BUFFER_MS
-			return _buffer(actor, button, aim, movement, now, earliest, maxi(earliest, mini(cancel_at, now + span)), cd_key, point)
+			return _buffer(actor, button, aim, movement, now, earliest, maxi(earliest, mini(cancel_at, now + span)), cd_key, point, target_id)
 	var due: Dictionary = cooldowns.get(actor, {})
 	if now < int(due.get(cd_key, 0)): return "cooldown"
 	var delivery: Dictionary = def.delivery
 	var origin: Vector2 = position(world, actor)
-	if delivery.target == "self": point = origin
+	if delivery.target == "object":
+		var reason: String = direct_check(world, actor, target_id, def, now)
+		if not reason.is_empty(): return reason
+		point = position(world, target_id)
+	elif delivery.target == "self": point = origin
 	elif delivery.target == "point":
 		if not _point_valid(point) or point.x < 0: return "invalid_target"
 		point = origin + (point - origin).limit_length(float(delivery.range))
@@ -163,11 +169,13 @@ func request(world: RefCounted, actor: int, button: String, aim: Vector2, moveme
 	if delivery.kind == "implement":
 		var reason: String = world.implements.readiness(actor, kind)
 		if not reason.is_empty(): return reason
-	if int(def.cost_amount) > 0 and world.objects.amount(actor, def.cost_item) < int(def.cost_amount): return "insufficient_resource"
-	if int(def.cost_amount) > 0:
-		world.objects.add(actor, def.cost_item, -int(def.cost_amount))
-		world._sync_inventory(actor)
-	if world.actions.has(actor) or page.modes[row] in [Units.Mode.RESOURCE, Units.Mode.HARVEST, Units.Mode.REST, Units.Mode.MANUAL, Units.Mode.APPROACH, Units.Mode.ACTION, Units.Mode.EXPLORE]: world.release(actor, now)
+	var costs: Array = Costs.from_action(def)
+	var cost_reason: String = Costs.check(world, actor, costs)
+	if not cost_reason.is_empty(): return cost_reason
+	world.end_run(actor, now)
+	world.clear_navigation(actor)
+	if not world.gate.check(world, actor, now, button).is_empty(): return "action_committed"
+	if not Costs.pay(world, actor, costs): return "insufficient_resource"
 	if actor == 1: world.objects.records[actor].autonomous = false
 	page.routes[row] = PackedVector2Array()
 	page.route_cursors[row] = 0
@@ -176,9 +184,10 @@ func request(world: RefCounted, actor: int, button: String, aim: Vector2, moveme
 	page.aims[row] = aim
 	var direction: Vector2 = movement.normalized() if Defs.is_evade(kind) and not movement.is_zero_approx() else (-aim if Defs.is_evade(kind) else aim)
 	states[actor] = {"kind": kind, "started_ms": now, "direction": direction, "aim": aim,
-		"point": point, "activation": next_activation, "hit": {}, "fired": false, "confirmed": false,
+		"point": point, "target_id": target_id, "activation": next_activation, "hit": {}, "fired": false, "confirmed": false,
 		"step_speed": float(delivery.speed if not movement.is_zero_approx() else delivery.backward_speed),
-		"damage": roundi((page.ranged_damage[row] if def.stat == "ranged" else page.melee_damage[row]) * float(def.damage))}
+		"damage": roundi((page.ranged_damage[row] if def.stat == "ranged" else page.melee_damage[row]) * float(Payload.summary(def.payload).damage))}
+	world.gate.bind(actor, "combat", states[actor].activation)
 	intents.erase(actor)
 	if status.has(actor): status[actor]["push_until"] = now # A legal new action owns its displacement.
 	next_activation += 1
@@ -228,7 +237,7 @@ func prepare(world: RefCounted, now: int) -> void:
 	for actor: int in states.keys():
 		var state: Dictionary = states[actor]
 		if now >= Defs.end_ms(state):
-			states.erase(actor)
+			world.end_run(actor, now, "completed")
 			var slot: int = world.actor_slots[actor]
 			world.pages[slot / 256].modes[slot % 256] = Units.Mode.IDLE
 			continue
@@ -242,7 +251,7 @@ func prepare(world: RefCounted, now: int) -> void:
 		if now < int(status.get(actor, {}).get("stun_until", 0)): continue
 		if states.has(actor) and now < Defs.cancel_ms(states[actor], intent.button): continue
 		intents.erase(actor)
-		request(world, actor, intent.button, intent.aim, intent.move, now, intent.get("point", Vector2(-1, -1)))
+		request(world, actor, intent.button, intent.aim, intent.move, now, intent.get("point", Vector2(-1, -1)), int(intent.get("target_id", 0)))
 	if _brain_bucket != now / 50:
 		_brain_bucket = now / 50
 		_think(world, now)
@@ -300,7 +309,7 @@ func _deliver(world: RefCounted, actor: int, state: Dictionary, now: int) -> voi
 				var direction: Vector2 = state.direction.rotated((index - (int(delivery.count) - 1) * 0.5) * float(delivery.spread))
 				launch(actor, origin, origin + direction, now, state.damage, state.activation, float(delivery.speed))
 				var bolt: Dictionary = bolts[next_bolt - 1]
-				bolt.merge({"ability": state.kind, "radius": float(delivery.radius), "expire_ms": now + int(delivery.life), "side": side,
+				bolt.merge({"ability": state.kind, "payload": def.payload, "group_ms": int(def.group_ms), "radius": float(delivery.radius), "expire_ms": now + int(delivery.life), "side": side,
 					"filter": delivery.filter, "turn": float(delivery.turn), "target": 0, "pierce": int(delivery.pierce), "walls": delivery.walls, "steered_ms": now, "next_steer": now + 50}, true)
 				if float(delivery.turn) > 0:
 					world.sight.sync(world)
@@ -311,9 +320,25 @@ func _deliver(world: RefCounted, actor: int, state: Dictionary, now: int) -> voi
 						if seen == null: continue
 						var angle: float = absf(direction.angle_to(origin.direction_to(seen)))
 						if angle < best: best = angle; bolt.target = target
+		"direct":
+			if direct_check(world, actor, int(state.target_id), def, now).is_empty(): world.effects.apply_bundle(world, state.target_id, actor, state.activation, state.kind, def.payload, now, state.damage)
 		"area": world.areas.create(actor, state, now, side)
 		"implement": world.implements.dispatch(world, actor, state, now)
 		"recall": world.implements.recall(world, actor)
+
+func direct_check(world: RefCounted, actor: int, target: int, definition: Dictionary, _now: int) -> String:
+	if not world.objects.records.has(target): return "invalid_target"
+	var origin: Vector2 = world.position_at(actor)
+	var point: Vector2 = world.position_at(target)
+	if origin.distance_to(point) > float(definition.delivery.range): return "out_of_reach"
+	world.sight.sync(world)
+	if not world.sight.sees_object(origin, world.objects.records[target], world.sight.range_for(world, actor)): return "target_not_visible"
+	if definition.delivery.walls and Terrain.blocking_fraction(world.terrain.blocked, origin, point) >= 0: return "target_blocked"
+	for effect: Dictionary in definition.payload:
+		if effect.kind != "domain": continue
+		var reason: String = world.DomainOps.check(world, actor, target, effect.operation)
+		if not reason.is_empty(): return reason
+	return ""
 
 func _lunge(world: RefCounted, actor: int, state: Dictionary, speed: float) -> Vector2:
 	var origin: Vector2 = position(world, actor)
@@ -330,10 +355,10 @@ func _lunge(world: RefCounted, actor: int, state: Dictionary, speed: float) -> V
 
 func before_motion(world: RefCounted) -> void:
 	previous.clear()
-	if bolts.is_empty() and states.is_empty() and world.implements.records.is_empty(): return
+	if bolts.is_empty() and states.is_empty() and world.implements.records.is_empty() and world.actions.is_empty() and world.work_runs.is_empty(): return
 	for page: RefCounted in world.pages: previous.append(page.positions.duplicate())
 
-func step(world: RefCounted, start: int, now: int) -> void:
+func step(world: RefCounted, start: int, now: int, world_events: Array[Dictionary] = []) -> void:
 	var started: int = Time.get_ticks_usec()
 	slices += 1
 	var actions: Dictionary = view()
@@ -345,17 +370,17 @@ func step(world: RefCounted, start: int, now: int) -> void:
 	for actor: int in states:
 		var state: Dictionary = states[actor]
 		if start >= Defs.active_ms(state) and start < Defs.recovery_ms(state) and Defs.ACTIONS[state.kind].has("reach"): melee.append(actor)
-	if bolts.is_empty() and melee.is_empty() and world.areas.records.is_empty() and world.effects.records.is_empty() and world.implements.records.is_empty():
+	if world_events.is_empty() and bolts.is_empty() and melee.is_empty() and world.areas.records.is_empty() and world.effects.records.is_empty() and world.implements.records.is_empty():
 		_record_reactions(start, now)
 		return
 	scan.index(world)
-	var impacts: Array[Dictionary] = []
+	var impacts: Array[Dictionary] = world_events.duplicate()
 	impacts.append_array(world.areas.collect(world, now))
 	impacts.append_array(world.implements.collect(world, start, now, melee))
 	impacts.append_array(Projectiles.collect(self, world, start, now))
 	for actor: int in melee:
 		var state: Dictionary = states[actor]
-		var def: Dictionary = Defs.ACTIONS[state.kind]
+		var def: Dictionary = Defs.ACTIONS[state.kind].merged(Payload.summary(Defs.ACTIONS[state.kind].payload), true)
 		var origin: Vector2 = position(world, actor)
 		var own_slot: int = world.actor_slots[actor]
 		var before_origin: Vector2 = previous[own_slot / 256][own_slot % 256]
@@ -382,7 +407,7 @@ func step(world: RefCounted, start: int, now: int) -> void:
 			if Terrain.blocking_fraction(world.terrain.blocked, source, contact) >= 0: continue
 			impacts.append({"actor": actor, "target": target, "damage": state.damage, "activation": state.activation,
 				"at_ms": start + roundi((now - start) * fraction), "incoming": (source - contact).normalized(), "stun": def.stun, "push": def.push, "melee": true,
-				"action": state.kind, "position": contact, "heavy_hit": def.heavy_hit, "punish_ms": def.punish_ms, "payload": state.kind, "evadable": true, "group_ms": def.group_ms})
+				"action": state.kind, "position": contact, "heavy_hit": def.heavy_hit, "punish_ms": def.punish_ms, "payload": def.payload, "evadable": true, "group_ms": def.group_ms})
 	impacts.sort_custom(_impact_before)
 	var collected: int = Time.get_ticks_usec()
 	collect_usec += collected - started
@@ -403,8 +428,10 @@ func step(world: RefCounted, start: int, now: int) -> void:
 		var end: int = index + 1
 		while end < impacts.size() and impacts[end].at_ms == impacts[index].at_ms: end += 1
 		var accepted: Array[Dictionary] = []
+		var work: Array[Dictionary] = []
 		for entry: int in range(index, end):
 			var impact: Dictionary = impacts[entry]
+			if impact.has("event"): work.append(impact); continue
 			if not impact.get("melee", false) or (alive(world, impact.actor) and states.get(impact.actor, {}).get("activation") == impact.activation): accepted.append(impact)
 		# Equal-time contacts trade; an earlier death/stagger cancels later melee.
 		for impact: Dictionary in accepted:
@@ -421,11 +448,20 @@ func step(world: RefCounted, start: int, now: int) -> void:
 					states[impact.actor].confirmed = true
 				continue
 			var result: Dictionary = damage(world, impact.actor, impact.target, impact.damage, impact.at_ms, impact.incoming, impact.activation, impact.stun, impact.push, impact)
-			if result.get("contact", false) and not str(impact.get("payload", "")).is_empty():
-				world.effects.apply(world, impact.target, impact.actor, impact.activation, impact.payload, impact.at_ms, impact.damage)
+			if result.get("contact", false) and not impact.get("payload", []).is_empty():
+				world.effects.apply_bundle(world, impact.target, impact.actor, impact.activation, impact.get("action", ""), impact.payload, impact.at_ms, impact.damage)
 			if impact.get("melee", false) and states.get(impact.actor, {}).get("activation") == impact.activation:
 				states[impact.actor].hit[impact.target] = true
 				if result.get("damage", 0) > 0: states[impact.actor].confirmed = true
+		var appended: bool = false
+		for event: Dictionary in work:
+			var successors: Array[Dictionary] = world.commit_work_event(event, now)
+			if not successors.is_empty(): impacts.append_array(successors); appended = true
+		if appended:
+			var tail: Array[Dictionary] = impacts.slice(end)
+			tail.sort_custom(_impact_before)
+			impacts.resize(end)
+			impacts.append_array(tail)
 		index = end
 	Projectiles.finish(self, now)
 	_record_reactions(start, now)
@@ -452,7 +488,7 @@ func _cut_action(actor: int, at: int) -> void:
 func launch(actor: int, origin: Vector2, destination: Vector2, now: int, amount: int = 20, activation: int = 0, speed: float = 22.0) -> void:
 	if origin.is_equal_approx(destination): return
 	bolts[next_bolt] = {"actor": actor, "position": origin, "velocity": origin.direction_to(destination) * speed,
-		"ability": "", "side": -1, "filter": "physical", "turn": 0.0, "target": 0, "pierce": 0, "walls": true, "steered_ms": now, "next_steer": now + 50, "damage": amount, "radius": 0.10, "born_ms": now, "expire_ms": now + 2000, "activation": activation if activation > 0 else -next_bolt, "passed": {}}
+		"ability": "", "payload": [], "group_ms": 280, "side": -1, "filter": "physical", "turn": 0.0, "target": 0, "pierce": 0, "walls": true, "steered_ms": now, "next_steer": now + 50, "damage": amount, "radius": 0.10, "born_ms": now, "expire_ms": now + 2000, "activation": activation if activation > 0 else -next_bolt, "passed": {}}
 	next_bolt += 1
 	shots += 1
 
@@ -493,7 +529,7 @@ func damage(world: RefCounted, actor: int, target: int, amount: int, now: int, i
 		if not armored and stun_ms > 0:
 			var desired: int = stun_ms
 			if value.get("punishable", false) and context.get("heavy_hit", false) and now >= int(value.get("recovery_from", 0)) and now < int(value.get("recovery_until", 0)) and not value.get("punished", false):
-				desired = int(context.get("punish_ms", Defs.ACTIONS.get(context.get("action", ""), {}).get("punish_ms", 260)))
+				desired = int(context.get("punish_ms", 260))
 				value.punished = true
 				off_balance = true
 			var previous_end: int = maxi(now, int(value.get("stun_until", 0)))
@@ -507,7 +543,7 @@ func damage(world: RefCounted, actor: int, target: int, amount: int, now: int, i
 			if push > 0 and not incoming.is_zero_approx():
 				value.push_until = now + 120
 				value.push = -incoming * minf(push, 1.0) / 0.120
-			states.erase(target)
+			world.end_run(target, now, "interrupted")
 			_cut_action(target, now)
 			intents.erase(target)
 			chains.erase(target)
@@ -544,12 +580,8 @@ func engage(world: RefCounted, actor: int, target: int = 0, destination: Vector2
 	var automatic: bool = world.objects.records[actor].get("autonomous", false)
 	# Engagement changes preserve an already committed action and hit reaction.
 	var state: Dictionary = states.get(actor, {})
-	var intent: Dictionary = intents.get(actor, {})
-	var chain: Dictionary = chains.get(actor, {})
-	world.release(actor, now)
-	if not state.is_empty(): states[actor] = state
-	if not intent.is_empty(): intents[actor] = intent
-	if not chain.is_empty(): chains[actor] = chain
+	if state.is_empty(): world.end_run(actor, now)
+	world.clear_navigation(actor)
 	engagements[actor] = {"target": target, "destination": destination, "ranged": use_bow,
 		"scan_ms": now + (actor % Scan.DISCOVERY_STEPS) * 50, "repath_ms": 0, "react_ms": now + 220,
 		"resume": automatic, "last_goal": Vector2(-1, -1), "last_seen_pos": observed if observed != null else Vector2(-1, -1),
@@ -660,6 +692,7 @@ func valid(world: RefCounted) -> bool:
 		if not actor is int or not world.actor_slots.has(actor) or not alive(world, actor) or world.actions.has(actor) or not state is Dictionary or not Defs.ACTIONS.has(state.get("kind")): return false
 		if not _direction_valid(state.get("direction")) or not _direction_valid(state.get("aim")): return false
 		if not state.get("started_ms") is int or state.started_ms < 0 or state.started_ms > world.elapsed_ms or not state.get("activation") is int or state.activation <= 0 or state.activation >= next_activation: return false
+		if not state.get("target_id") is int or state.target_id < 0 or state.target_id >= world.objects.next_id: return false
 		if not state.get("point") is Vector2 or not state.point.is_finite(): return false
 		if Defs.ACTIONS[state.kind].delivery.target != "direction" and (not _point_valid(state.point) or state.point.x < 0): return false
 		if not state.get("hit") is Dictionary or not state.get("damage") is int or not state.get("fired") is bool or not state.get("confirmed") is bool: return false
@@ -698,6 +731,7 @@ func valid(world: RefCounted) -> bool:
 	for id: Variant in bolts:
 		var bolt: Variant = bolts[id]
 		if not id is int or id <= 0 or id >= next_bolt or not bolt is Dictionary: return false
+		if not Payload.valid(bolt.get("payload")) or not bolt.get("group_ms") is int or bolt.group_ms < 0 or bolt.group_ms > 5000: return false
 		if not bolt.get("position") is Vector2 or not bolt.position.is_finite() or not bolt.get("velocity") is Vector2 or not bolt.velocity.is_finite(): return false
 		for field: String in ["actor", "damage", "born_ms", "expire_ms", "activation"]:
 			if not bolt.get(field) is int: return false
