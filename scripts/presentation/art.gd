@@ -17,10 +17,6 @@ static func body_foot(position: Vector2) -> Vector2:
 	return position + BODY_FOOT_OFFSET
 
 
-static func body_position(foot: Vector2) -> Vector2:
-	return foot - BODY_FOOT_OFFSET
-
-
 static func footprint_foot(extent: Rect2i) -> Vector2:
 	return Vector2(extent.position.x + extent.size.x * 0.5, extent.end.y)
 

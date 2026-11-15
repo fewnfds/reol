@@ -231,7 +231,7 @@ static func valid_rule(rule: Variant) -> bool:
 	for field: String in ["id", "event", "mode", "recipient", "template", "script_id", "chance", "every", "interval_ms", "delay_ms", "count", "spread", "radius", "scale", "health_leech", "chain_limit", "max_depth", "status_id", "consume_delivery"]:
 		if not rule.has(field) or typeof(rule[field]) != typeof(definition.get(field)): return false
 		definition.set(field, rule[field])
-	return definition.errors().is_empty() and preload("res://scripts/sim/kernel/effect_payload.gd").valid(rule.get("bundle")) and (rule.mode not in ["emit", "request"] or Defs.ACTIONS.has(rule.template))
+	return definition.errors().is_empty() and preload("res://scripts/sim/kernel/effect_payload.gd").valid(rule.get("bundle"), "contact") and definition.template_error(rule, Defs.ACTIONS).is_empty()
 
 func valid(world: RefCounted) -> bool:
 	if next_chain < 1: return false

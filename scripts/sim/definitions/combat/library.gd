@@ -3,6 +3,7 @@ class_name CombatLibrary
 extends Resource
 const Ability = preload("res://scripts/sim/definitions/combat/ability_def.gd")
 const Loadout = preload("res://scripts/sim/definitions/combat/loadout_def.gd")
+const Reaction = preload("res://scripts/sim/definitions/actions/reaction_def.gd")
 const Items = preload("res://scripts/sim/kernel/items.gd")
 @export var abilities: Array[Ability] = []
 @export var loadouts: Array[Loadout] = []
@@ -22,8 +23,8 @@ func compile() -> Dictionary:
 		actions[ability.id] = ability.values()
 	for key: String in actions:
 		for rule: Dictionary in actions[key].reactions:
-			if rule.mode in ["emit", "request"] and not actions.has(rule.template): errors.append(key + ".reactions: unknown template " + rule.template)
-			elif rule.mode == "emit" and actions[rule.template].delivery.kind not in ["projectile", "area"]: errors.append(key + ".reactions: emit requires projectile/area; use request for a full action")
+			var problem: String = Reaction.template_error(rule, actions)
+			if not problem.is_empty(): errors.append(key + ".reactions: " + problem)
 		var emitter: String = str(actions[key].delivery.get("emitter", ""))
 		if not emitter.is_empty() and (not actions.has(emitter) or actions[emitter].delivery.kind != "projectile"): errors.append(key + ".delivery.emitter: expected projectile template")
 		var next: String = actions[key].next
@@ -47,8 +48,8 @@ func compile() -> Dictionary:
 		if profile == null: continue
 		for rule: Resource in profile.reactions:
 			if rule == null: continue
-			if rule.mode in ["emit", "request"] and not actions.has(rule.template): errors.append(profile.id + ".reactions: unknown template " + rule.template)
-			elif rule.mode == "emit" and actions[rule.template].delivery.kind not in ["projectile", "area"]: errors.append(profile.id + ".reactions: emit requires projectile/area")
+			var problem: String = Reaction.template_error(rule.values(), actions)
+			if not problem.is_empty(): errors.append(profile.id + ".reactions: " + problem)
 	for item_id: String in Items.load_definitions():
 		var item: Dictionary = Items.spec(item_id)
 		for field: String in ["combat_loadout", "ai_loadout"]:

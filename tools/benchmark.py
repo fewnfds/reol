@@ -78,7 +78,7 @@ def capture(*, binary: Path, actors: int, speed: float, fps: int, workers: int,
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--binary", type=Path, default=godot.ROOT / "build/windows/reol-demo.exe")
+    parser.add_argument("--binary", type=Path, default=godot.DEFAULT_BINARY)
     parser.add_argument("--actors", type=int, default=1000)
     parser.add_argument("--speed", type=float, default=4)
     parser.add_argument("--fps", type=int, default=60)

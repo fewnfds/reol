@@ -317,6 +317,12 @@ func prepare(world: RefCounted, now: int) -> void:
 		var velocity: Vector2 = movement * page.move_speed[row] * page.move_scales[row]
 		if not state.is_empty():
 			var def: Dictionary = Defs.ACTIONS[state.kind]
+			# Buffered/AI/held requests can start after the first activation pass.
+			# Direct effects retain their chronological contact-wave settlement.
+			if not state.fired and now >= Defs.active_ms(state) and def.delivery.kind != "direct":
+				state.fired = true
+				_deliver(world, actor, state, now)
+				world.emit({"kind": "action_active", "actor": actor, "action": state.kind, "activation": state.activation, "at_ms": now, "position": position(world, actor)})
 			var age: int = now - int(state.started_ms)
 			velocity *= float(def.get("free_move", def.move)) if age >= int(def.get("free_at", 100000)) else float(def.move)
 			if def.has("lunge") and age >= int(def.lunge_from) and age < int(def.lunge_to):
@@ -405,6 +411,7 @@ func spawn_template(world: RefCounted, actor: int, template: String, origin: Vec
 	if not Defs.ACTIONS.has(template) or not direction.is_finite() or direction.is_zero_approx(): return []
 	direction = direction.normalized()
 	var definition: Dictionary = Defs.ACTIONS[template]
+	if definition.delivery.kind not in ["projectile", "area"]: return []
 	var power: Vector2i = source.power if source.has("power") else source_power(world, actor)
 	var amount: int = power.y if definition.stat == "ranged" else power.x
 	var first: int = next_bolt
@@ -925,7 +932,7 @@ func valid(world: RefCounted) -> bool:
 		if not bolt.get("timers") is Dictionary: return false
 		for key: Variant in bolt.timers:
 			if not key is String or bolt.timers[key] != true: return false
-		if not Payload.valid(bolt.get("payload")) or not bolt.get("group_ms") is int or bolt.group_ms < 0 or bolt.group_ms > 5000: return false
+		if not Payload.valid(bolt.get("payload"), "contact") or not bolt.get("group_ms") is int or bolt.group_ms < 0 or bolt.group_ms > 5000: return false
 		if not bolt.get("position") is Vector2 or not bolt.position.is_finite() or not bolt.get("velocity") is Vector2 or not bolt.velocity.is_finite(): return false
 		for field: String in ["actor", "damage", "born_ms", "expire_ms", "activation"]:
 			if not bolt.get(field) is int: return false

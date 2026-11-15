@@ -9,7 +9,8 @@ Examples:
     python tools/godot.py test
     python tools/godot.py run --headless --quit-after 120
     python tools/godot.py editor
-    python tools/godot.py export --preset "Windows Desktop" --output build/windows/reol.exe
+    python tools/godot.py test --suite equipment
+    python tools/godot.py export --preset "Windows Demo" --output build/windows/act-p4/reol-act.exe
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LOG_DIR = ROOT / "logs"
+DEFAULT_BINARY = ROOT / "build/windows/act-p4/reol-act.exe"
 
 EXE_SUFFIXES = {".exe", ".bin", ""}
 
@@ -341,8 +343,8 @@ def cmd_test(args: argparse.Namespace) -> int:
     if godot is None:
         return 1
     command = [str(godot), "--headless", "--path", str(ROOT),
-               "--script", "res://tests/kernel_smoke.gd"]
-    return _run(command, "smoke", timeout=args.timeout)
+               "--script", "res://tests/kernel_smoke.gd", "--", f"--suite={args.suite}"]
+    return _run(command, f"smoke-{args.suite}", timeout=args.timeout)
 
 
 def cmd_run(args: argparse.Namespace) -> int:
@@ -411,6 +413,8 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("import", help="headless import resources").set_defaults(func=cmd_import)
     test = sub.add_parser("test", help="run the small local smoke checks; old full check/CI retired")
     test.add_argument("--timeout", type=_short_timeout, default=15, metavar="SECONDS")
+    test.add_argument("--suite", choices=("kernel", "features", "sight", "equipment"), default="kernel",
+                      help="select one bounded topic; assertions are not duplicated across suites")
     test.set_defaults(func=cmd_test)
 
     run = sub.add_parser("run", help="run the project")

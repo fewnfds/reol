@@ -31,7 +31,7 @@ func errors() -> PackedStringArray:
 	if not id.is_valid_identifier() or event not in ["hit", "damaged", "killed", "blocked", "shield_broken", "gathered", "timer", "expired", "stack_max"] or mode not in ["bundle", "emit", "request", "spread", "script"] or recipient not in ["source", "target"]: result.append("reaction: invalid identity/event/mode/recipient")
 	if bundle == null: result.append("bundle: required")
 	else:
-		for error: String in bundle.errors(): result.append(error)
+		for error: String in bundle.errors("contact"): result.append(error)
 	if every < 1 or every > 100 or interval_ms < 0 or interval_ms > 60000 or delay_ms < 0 or delay_ms > 15000 or count < 1 or count > 16 or chain_limit < 1 or chain_limit > 32 or max_depth < 1 or max_depth > 6: result.append("reaction: invalid limits")
 	for pair: Array in [[chance, 1.0], [spread, TAU], [radius, 20.0], [scale, 5.0], [health_leech, 1.0]]:
 		if not is_finite(pair[0]) or pair[0] < 0 or pair[0] > pair[1]: result.append("reaction: invalid probability/geometry/scale")
@@ -39,3 +39,10 @@ func errors() -> PackedStringArray:
 	if mode == "script" and script_id != "owned_marks": result.append("script_id: unregistered trusted script")
 	if mode == "spread" and status_id.is_empty(): result.append("status_id: required")
 	return result
+
+## The same template policy applies to authoring and restored reaction rules.
+static func template_error(rule: Dictionary, actions: Dictionary) -> String:
+	if rule.mode not in ["emit", "request"]: return ""
+	if not actions.has(rule.template): return "unknown template " + rule.template
+	if rule.mode == "emit" and actions[rule.template].delivery.kind not in ["projectile", "area"]: return "emit requires projectile/area; use request for a full action"
+	return ""

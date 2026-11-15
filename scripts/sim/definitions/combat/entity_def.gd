@@ -25,7 +25,10 @@ func errors() -> PackedStringArray:
 	if not is_finite(speed) or speed <= 0 or speed > 20 or not is_finite(aura_radius) or aura_radius < 0 or aura_radius > 10 or period_ms < 50 or period_ms > 5000: result.append("entity: invalid movement/aura/period")
 	for bundle: Bundle in [aura, pulse]:
 		if bundle == null: result.append("entity: required bundle"); continue
-		for error: String in bundle.errors(): result.append(error)
+		for error: String in bundle.errors("contact"): result.append(error)
+	if pulse != null:
+		for effect: Resource in pulse.effects:
+			if effect != null and effect.kind in ["damage", "control"]: result.append("pulse: host does not settle damage/control")
 	if aura != null:
 		for effect: Resource in aura.effects:
 			if effect != null and (effect.kind != "status" or effect.status == null or effect.status.kind not in ["modifier", "haste", "slow"]): result.append("aura: use persistent modifier/haste/slow status; put other effects in pulse")

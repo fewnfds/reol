@@ -75,7 +75,7 @@ var source_objects := PackedInt64Array()
 var depot_objects := PackedInt64Array()
 var reservations: Dictionary = {} # Target identity -> actor identity, owner only.
 var actions: Dictionary = {}
-var work_runs: Dictionary = {} # Legacy work host owns only its persistent identity.
+var work_runs: Dictionary = {} # Body-work host owns its persistent run identity.
 var next_run: int = 1
 var gate := Gate.new()
 var free_slots := PackedInt32Array()
@@ -514,7 +514,7 @@ func release(id: int, at: int = -1) -> void:
 	clear_input(id)
 
 func ensure_work_binding(id: int) -> void:
-	# Adapter for legacy body work (including fixture/old owner entry points).
+	# Bind current body work when an internal/fixture entry has set its mode directly.
 	if gate.bindings.has(id) or not actor_slots.has(id): return
 	var slot: int = actor_slots[id]
 	if pages[slot / 256].modes[slot % 256] not in [Units.Mode.RESOURCE, Units.Mode.HARVEST, Units.Mode.REST, Units.Mode.MANUAL, Units.Mode.EXPLORE]: return

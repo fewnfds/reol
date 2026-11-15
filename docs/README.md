@@ -17,8 +17,8 @@
 | 游戏愿景、候选机制与研究来源 | [design](../design/README.md)、[产品层次](plans/roadmap.md) | 愿景 / 候选 / 研究 |
 | 当前怎样开发和验证、运行/测量命令 | [开发循环](engineering/workflow/testing.md)、[命令](engineering/tooling/usage.md) | 当前方法 / 工具语法 |
 | MCP配置、插件/技能来源、升级与恢复 | [tooling/setup](engineering/tooling/setup.md) | 按工具故障或更新需求读取 |
-| 过去为何这样做、旧报告/截图/提示词 | [archive](archive/README.md) | 历史，不产生当前要求 |
+| 过去为何这样做、旧报告/截图/提示词 | [历史入口](archive/README.md) | 退役报告由Git追溯；保留的制作原件不产生当前要求 |
 
 ## 查找已有内容
 
-可按概念或代码标识搜索，例如`rg -n "存档|restore" docs/engineering scripts/sim/kernel`。archive是历史，追溯时显式`rg --no-ignore "关键词" docs/archive`。
+可按概念或代码标识搜索，例如`rg -n "存档|restore" docs/engineering scripts/sim/kernel`。退役报告从历史入口给出的固定Git版本取回；保留的制作资料按需用`rg --no-ignore "关键词" docs/archive`搜索。

@@ -54,7 +54,6 @@ static func icon(key: String) -> Texture2D:
 		"boots": "M4 3h6v12l4 2v5H3v-7zM14 3h6v12l3 2v5h-7",
 		"charm": "M10 2h4v5M12 6l8 7-8 9-8-9zM9 13h6M12 10v6",
 		"move": "M4 12h15m-6-6 6 6-6 6", "attack": "m5 19 14-14m-5 0h5v5M4 15l5 5",
-		"stop": "M6 6h12v12H6z", "hold": "M12 3 4 7v6c0 4 8 8 8 8s8-4 8-8V7z",
 		"work": "m4 5 15 15m-2-17 4 4-7 7-4-4z", "bag": "M4 8h16v13H4zM8 8V4h8v4",
 		"person": "M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0M4 21c0-9 16-9 16 0",
 		"plant": "M12 21V9M12 14C2 14 3 4 3 4s9 0 9 10M12 11C12 3 21 3 21 3s0 8-9 8",

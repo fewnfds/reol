@@ -4,8 +4,6 @@ extends RefCounted
 ## a validated commit stage may lend disjoint original fields, with a join before
 ## any observer runs. Never live SceneTree or concurrently shared writes.
 
-const DEFAULT_WORKERS: int = 4
-
 class WorkGroup extends RefCounted:
 	var chunks: Array[RefCounted] = []
 

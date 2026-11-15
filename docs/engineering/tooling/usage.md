@@ -7,10 +7,11 @@ python tools/godot.py doctor
 python tools/godot.py import
 python tools/godot.py run
 python tools/godot.py test
-python tools/godot.py export --preset "Windows Demo" --output build/windows/reol-demo.exe
+python tools/godot.py test --suite equipment
+python tools/godot.py export --preset "Windows Demo" --output build/windows/act-p4/reol-act.exe
 ```
 
-`run`和Windows Demo均进入同一内核，默认24人普通开局，每次启动新局；F5/F9主动保存/加载当前格式。包为`build/windows/reol-demo.exe`及同目录pck，键位/试玩路线查[FEATURES](../../status/features.md)。
+`run`和新导出的Windows Demo均进入同一内核，默认24人普通开局，每次启动新局；F5/F9主动保存/加载当前格式。当前成品入口为`build/windows/act-p4/reol-act.exe`及同目录pck，键位/试玩路线查[FEATURES](../../status/features.md)。
 
 ## 开发期直接试玩
 
@@ -61,7 +62,7 @@ python tools/benchmark.py --actors 24 --speed 1 --fps 120 --screenshot
 python tools/benchmark.py --actors 1000 --speed 4 --fps 60 --workers 0
 ```
 
-采样器使用已导出的release，默认`build/windows/reol-demo.exe`，`--binary PATH`可固定构建。3秒运行预热，默认采样20秒，可用`--seconds`设5..60秒；装配/预热不计世界倍率。记录实际世界推进、步数/帧时、路径与交付、战斗/植物、材料审计、GPU绘制、线程及有界CPU/内存采样。CPU采样含装配，不能把整进程CPU秒直接当测量窗计算。
+采样器使用已导出的release，默认当前成品`build/windows/act-p4/reol-act.exe`，`--binary PATH`可固定构建。3秒运行预热，默认采样20秒，可用`--seconds`设5..60秒；装配/预热不计世界倍率。记录实际世界推进、步数/帧时、路径与交付、战斗/植物、材料审计、GPU绘制、线程及有界CPU/内存采样。CPU采样含装配，不能把整进程CPU秒直接当测量窗计算。
 
 新源码默认`--sim-hz 60`，20/100只供对照；JSON记录实际配置。`--combat-lab`选上述测试开局，不能与响应探针混用，普通与压力场景不混算。采样保持固定镜头，日常试玩默认跟随玩家。
 
@@ -97,12 +98,12 @@ step_mean_ms由全窗累计成本差得到；step_ms分位数仍是有界尾部�
 
 ## 响应链实验
 
-P0使用显式开启的合成移动请求，沿真实Runner邮箱、运动提交与原显示插值测量。先导出隔离release，保留正式试玩包：
+可选探针使用显式开启的合成移动请求，沿真实Runner邮箱、运动提交与原显示插值测量。先导出隔离release，保留正式试玩包：
 
 ```powershell
-python tools/godot.py export --preset "Windows Demo" --output build/windows/act-p0/reol-response.exe
-python tools/benchmark.py --binary build/windows/act-p0/reol-response.exe --actors 1 --speed 1 --fps 60 --seconds 25 --fog --response-probe --out logs/response-minimum.json
-python tools/benchmark.py --binary build/windows/act-p0/reol-response.exe --actors 24 --speed 1 --fps 60 --seconds 25 --fog --response-probe --out logs/response-ordinary.json
+python tools/godot.py export --preset "Windows Demo" --output build/windows/response-probe/reol-response.exe
+python tools/benchmark.py --binary build/windows/response-probe/reol-response.exe --actors 1 --speed 1 --fps 60 --seconds 25 --fog --response-probe --out logs/response-minimum.json
+python tools/benchmark.py --binary build/windows/response-probe/reol-response.exe --actors 24 --speed 1 --fps 60 --seconds 25 --fog --response-probe --out logs/response-ordinary.json
 ```
 
 两个窗口串行运行，地图/镜头/迷雾设置相同，正常世界仍有生活与按真实武器接敌的NPC。该开关只接受1×、有时限的普通开局，不与mixed/capacity/combat-lab混用；自动让本次新局的玩家在合法半格路段往返，不保存，不用于操作用户已有会话。报告单列`synthetic-move-response-v1`，不能拿它替换capacity-v1历史样本。
@@ -112,3 +113,7 @@ python tools/benchmark.py --binary build/windows/act-p0/reol-response.exe --acto
 显示测点使用人物原显示采样器、0.5屏幕像素位移阈值，表示CPU已经准备该姿态；不包含真实设备输入、GPU提交/显示器扫描，也不代表连招或闪避启动。`observed_pose_publish_interval_ms`是主线程看到的新姿态对应发布间隔，可能跳过未采用的中间帧，不冒充所有权威提交的完整间隔。长时间未采用导致首个运动姿态超出历史窗口时标记失败，不能以较晚姿态冒充首次提交。窗口末尾未完成请求单独标记，失败不进入成功分位数。用于判断旧链与候选高频链的相对变化，真实键鼠手感仍须图形试玩。
 
 短检查默认15秒进程上限，无旧分片、长回归或`check`命令；策略见[验证方式](../workflow/testing.md)。
+
+## 按主题短检查
+
+`test`默认只跑kernel核心；`--suite features`、`--suite sight`、`--suite equipment`分别运行原有专题，同样使用15秒上限。完整检查地图见[tests](../../../tests/README.md)，按改动选用，不自动串成长矩阵。

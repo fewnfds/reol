@@ -19,6 +19,20 @@ func check(ok: bool, message: String) -> void:
 
 
 func _run() -> void:
+	var suite: String = "kernel"
+	for argument: String in OS.get_cmdline_user_args():
+		if argument.begins_with("--suite="): suite = argument.trim_prefix("--suite=")
+	match suite:
+		"kernel": await _kernel()
+		"features": preload("res://tests/feature_smoke.gd").run(check)
+		"sight": preload("res://tests/sight_smoke.gd").run(check)
+		"equipment": preload("res://tests/equipment_smoke.gd").run(check)
+		_: check(false, "Unknown short-check suite: " + suite)
+	print(suite.to_upper(), "_SMOKE errors=", _errors)
+	quit(0 if _errors == 0 else 1)
+
+
+func _kernel() -> void:
 	var serial := World.new()
 	serial.initialize(512, 0)
 	var parallel := World.new()
@@ -75,13 +89,8 @@ func _run() -> void:
 	_inventory_session()
 	_build_and_live()
 	_nature_cycle()
-	preload("res://tests/feature_smoke.gd").run(check)
-	preload("res://tests/sight_smoke.gd").run(check)
-	preload("res://tests/equipment_smoke.gd").run(check)
 	await _disk_restart()
 	_thread_boundary()
-	print("KERNEL_SMOKE errors=", _errors)
-	quit(0 if _errors == 0 else 1)
 
 
 func _inventory_session() -> void:

@@ -16,7 +16,7 @@
 | `items.gd`、`equipment.gd` | 物品定义/品质堆键的唯一解释，以及按源状态重建的身体属性热列；没有第二份物品实例账本 |
 | `facilities.gd`、`livelihood.gd` | 组合占地/蓝图/设施效果与个人线索驱动的稀疏生活决策，复用身体到期/到达 |
 | `environment.gd`、`nature.gd` | 历法/天气、静态max场/移动来源索引、房间响应；分组植物采样/生长/产物/宿主与来源 |
-| `scripts/sim/definitions/combat/`、`data/definitions/combat/`、`action_defs.gd` | 原生Resource作者数据、库引用/字段校验、递归只读值与规则内容签名；CD/在途实例不写回资源 |
+| `scripts/sim/definitions/{actions,combat}/`、`data/definitions/{actions,combat}/`、`action_defs.gd` | 原生Resource作者数据、库引用/字段校验、递归只读值与规则内容签名；制作与在飞载荷共用作用校验，CD/在途实例不写回资源 |
 | `combat.gd`、`combat_projectiles.gd` | 玩家/NPC共用动作、AI最后所见、阶段/取消/缓冲/分组CD、扇区/弹体扫掠及统一HP提交；弹表仍归Combat，帮助模块按机制计算，不按技能名称分支 |
 | `combat_effects.gd`、`combat_areas.gd`、`implements.gd` | 分别持有限时状态/层数/周期/修饰来源、已交付预警/周期圆区、独立器物的身份/归属/耐久/部署；同属World共同时间与候选恢复，器物不占村民身体页 |
 | `resource_pools.gd`、`combat_defense.gd` | 稀疏蓝/怒池与回复余量；盾实例、方向/时段格挡。HP、精力、qi、实物仍归原owner |
@@ -34,7 +34,7 @@
 | `scripts/presentation/` | 主线程UI/输入/相机/选择、静态画布、GPU迷雾与MultiMesh显示，只读Frame |
 | `scripts/presentation/art.gd` | 当前临时视觉包的图集、图标与八向读取；覆盖/来源唯一查[assets](../../assets/README.md) |
 
-表中省略目录的脚本均在`scripts/sim/kernel/`。外部身份不复用，身体槽位可以回收；`actor_slots`只在owner映射到页行。worker不查询库存/对象字典，cargo/potions是变化时同步的工作摘要。植物、箱、家具和墙没有移动页；活的植物增加能力仍保留原身份。对象视距由共用字段承载，移动人物默认有感知，普通静态物默认0；静态感知查询不要求占身体页，目前自动战斗仍只调度移动人物。定义/开局/实例分开，不因保留旧JSON就启用其旧后端。
+表中省略目录的脚本均在`scripts/sim/kernel/`。外部身份不复用，身体槽位可以回收；`actor_slots`只在owner映射到页行。worker不查询库存/对象字典，cargo/potions是变化时同步的工作摘要。植物、箱、家具和墙没有移动页；活的植物增加能力仍保留原身份。对象视距由共用字段承载，移动人物默认有感知，普通静态物默认0；静态感知查询不要求占身体页，目前自动战斗仍只调度移动人物。定义/开局/实例分开；内容入口见[data](../../data/README.md)，退役JSON不再保留为迁移占位。
 
 ### 库存、装备与派生属性
 

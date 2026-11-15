@@ -5,7 +5,7 @@ description: 排查Reol短headless检查的错误退出、挂起、异步或导�
 
 # Headless短检查排错
 
-验证范围和命令沿[开发循环](../../../docs/engineering/workflow/testing.md)与[usage](../../../docs/engineering/tooling/usage.md)；本技能不创建CI或新增回归流程。现有入口为`tests/smoke.gd`和`tools/godot.py`，通常直接修相关检查即可。
+验证范围和命令沿[开发循环](../../../docs/engineering/workflow/testing.md)与[usage](../../../docs/engineering/tooling/usage.md)；本技能不创建CI或新增回归流程。现有入口为`tests/kernel_smoke.gd`和`tools/godot.py test`，其他专题按[检查地图](../../../tests/README.md)选择，通常直接修相关检查即可。
 
 - 新class、资源或移动路径不被识别时按需import；不在每轮测试前重复导入。
 - `push_error()`和GDScript运行错误不自动让进程非零退出。SceneTree检查显式`quit(1)`；每项返回bool并核对true，防止异常中断被当成通过。启动器同时识别错误输出。

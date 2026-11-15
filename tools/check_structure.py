@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Read-only checks for current links, resource paths and optional code ownership.
 
-This supplements the existing Godot scene/UID checker; it does not parse scenes
-or promise to resolve computed resource paths or Markdown heading anchors.
-Archived documents keep their historical paths and are excluded deliberately.
+Checks local links/heading anchors and literal Godot resource paths. Static
+reachability includes native Resource references and the project's editor plugin;
+computed paths still require review. Historical production notes are excluded.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ ENTRY_FILES = (
 )
 ROLE_DIRECTORIES = (
     "scripts/sim/kernel", "scripts/presentation",
-    "data/definitions", "data/scenarios",
+    "data/definitions", "scripts/sim/definitions/actions", "scripts/sim/definitions/combat",
     "design/rules", "design/systems", "design/research", "docs/plans",
     "docs/status", "docs/engineering", "docs/archive",
 )
@@ -42,6 +42,31 @@ GD_TOKEN = re.compile(r'''\#[^\n]*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*' ''', re.X
 # These are runtime outputs, not checked-in Godot source assets. In a fresh
 # checkout the directory itself may not exist until a test writes its output.
 GENERATED_RESOURCE_ROOTS = frozenset({"logs"})
+SOURCE_FOLDERS = ("scripts", "scenes", "tests", "data/definitions", "addons/reol_combat_authoring")
+SOURCE_SUFFIXES = frozenset({".gd", ".gdshader", ".tscn", ".tres", ".cfg"})
+
+
+def heading_anchors(path: Path) -> set[str]:
+    """GitHub-style ATX heading slugs, including duplicate-heading suffixes."""
+    counts: dict[str, int] = {}
+    anchors: set[str] = set()
+    fence = ""
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
+        marker = re.match(r"^ {0,3}(`{3,}|~{3,})", line)
+        if marker:
+            char = marker.group(1)[0]
+            fence = "" if fence == char else char if not fence else fence
+            continue
+        match = re.match(r"^ {0,3}#{1,6}\s+(.+?)\s*#*\s*$", line)
+        if fence or not match:
+            continue
+        title = re.sub(r"!?\[([^\]]+)\]\([^)]*\)", r"\1", match.group(1))
+        title = re.sub(r"<[^>]+>", "", title)
+        slug = re.sub(r"[^\w -]", "", title.lower()).replace(" ", "-")
+        duplicate = counts.get(slug, 0)
+        counts[slug] = duplicate + 1
+        anchors.add(f"{slug}-{duplicate}" if duplicate else slug)
+    return anchors
 
 
 def _without_code(text: str) -> str:
@@ -73,13 +98,19 @@ def check_markdown(path: Path, root: Path) -> list[str]:
             target = match.group("angle") or match.group("plain")
             target = re.sub(r"\\([() ])", r"\1", target)
             parsed = urlsplit(target)
-            if parsed.scheme or parsed.netloc or not parsed.path:
+            if parsed.scheme or parsed.netloc:
                 continue
             local = unquote(parsed.path)
-            destination = root / local.lstrip("/") if local.startswith("/") else path.parent / local
+            destination = path if not local else root / local.lstrip("/") if local.startswith("/") else path.parent / local
+            line = text.count("\n", 0, match.start()) + 1
             if not destination.exists():
-                line = text.count("\n", 0, match.start()) + 1
+                # AGENTS may point to optional, ignored machine-local tooling.
+                # A fresh checkout must not require the user's private files.
+                if destination.resolve().is_relative_to((root / ".local").resolve()):
+                    continue
                 issues.append(f"{path.relative_to(root).as_posix()}:{line}: missing Markdown target {target}")
+            elif parsed.fragment and destination.suffix.lower() == ".md" and unquote(parsed.fragment) not in heading_anchors(destination):
+                issues.append(f"{path.relative_to(root).as_posix()}:{line}: missing Markdown heading {target}")
     return issues
 
 
@@ -106,6 +137,13 @@ def check_script(path: Path, root: Path) -> list[str]:
     return issues
 
 
+def project_sources(root: Path) -> list[Path]:
+    return sorted({root / "project.godot"} | {
+        path for folder in SOURCE_FOLDERS for path in (root / folder).rglob("*")
+        if path.is_file() and path.suffix in SOURCE_SUFFIXES
+    })
+
+
 def check_project(root: Path) -> tuple[list[str], int, int]:
     issues: list[str] = []
     for name in ENTRY_FILES:
@@ -123,12 +161,16 @@ def check_project(root: Path) -> tuple[list[str], int, int]:
     for name in ("assets", "data", "scripts", "tests"):
         if (root / name / "README.md").is_file():
             documents.add(root / name / "README.md")
-    scripts = sorted(path for name in ("scripts", "tests") for path in (root / name).rglob("*.gd"))
+    sources = project_sources(root)
     for path in sorted(documents):
         issues.extend(check_markdown(path, root))
-    for path in scripts:
+    for path in sources:
         issues.extend(check_script(path, root))
-    return issues, len(documents), len(scripts)
+    for folder in ("scripts", "tests", "addons/reol_combat_authoring"):
+        for uid in (root / folder).rglob("*.uid"):
+            if not uid.with_suffix("").is_file():
+                issues.append(f"{uid.relative_to(root).as_posix()}: orphan UID")
+    return issues, len(documents), len(sources)
 
 
 def audit_code(root: Path) -> list[str]:
@@ -137,13 +179,8 @@ def audit_code(root: Path) -> list[str]:
     This is deliberately not a dead-code deletion tool or a CI gate. Registered
     classes and literal resources provide a conservative, explainable graph.
     """
-    sources = {
-        path.relative_to(root).as_posix(): path.read_text(encoding="utf-8-sig")
-        for folder in ("scripts", "scenes", "tests")
-        for path in (root / folder).rglob("*")
-        if path.is_file() and path.suffix in {".gd", ".tscn", ".tres"}
-    }
-    sources["project.godot"] = (root / "project.godot").read_text(encoding="utf-8-sig")
+    sources = {path.relative_to(root).as_posix(): path.read_text(encoding="utf-8-sig")
+               for path in project_sources(root)}
     classes: dict[str, str] = {}
     notes: list[str] = []
     for path, source in sources.items():
@@ -161,6 +198,9 @@ def audit_code(root: Path) -> list[str]:
         words = set(re.findall(r"\b\w+\b", text))
         references = {classes[name] for name in words & classes.keys()}
         references.update(re.findall(r'res://([^"\s)]+)', text))
+        if path.endswith("/plugin.cfg"):
+            references.update((PurePosixPath(path).parent / script).as_posix()
+                              for script in re.findall(r'^script\s*=\s*"([^"]+)"', source, re.M))
         edges[path] = (references & sources.keys()) - {path}
         if path.startswith("scripts/sim/"):
             for target in sorted(edges[path]):
@@ -201,7 +241,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR {issue}")
     for note in notes:
         print(note)
-    print(f"Structure: {document_count} current documents, {script_count} scripts, {len(issues)} errors; archive excluded")
+    print(f"Structure: {document_count} current documents, {script_count} Godot sources, {len(issues)} errors; historical production notes excluded")
     return 1 if issues else 0
 
 

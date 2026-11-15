@@ -20,8 +20,10 @@ func values() -> Dictionary:
 	return {"status": status.values() if status != null else {}, "amount": amount, "pool": pool, "operation": operation, "stage": stage, "kind": kind, "id": status_id, "magnitude": magnitude, "duration_ms": duration_ms,
 		"period_ms": period_ms, "push": push, "punish_ms": punish_ms}
 
-func errors() -> PackedStringArray:
+func errors(required_stage: String = "") -> PackedStringArray:
 	var result := PackedStringArray()
+	if not required_stage.is_empty() and stage != required_stage: result.append("stage: host requires " + required_stage)
+	if required_stage == "activation" and kind in ["damage", "control"]: result.append("kind: activation host does not settle damage/control")
 	if amount < 0 or amount > 1000000: result.append("amount: out of range")
 	if kind == "status":
 		if status == null: result.append("status: required")
@@ -35,7 +37,24 @@ func errors() -> PackedStringArray:
 	if not is_finite(magnitude) or magnitude < 0.0 or magnitude > 20.0: result.append("magnitude: must be finite, 0..20")
 	if duration_ms < 0 or duration_ms > 60000 or period_ms < 0 or period_ms > 10000: result.append("duration/period: out of range")
 	if not is_finite(push) or push < 0 or push > 1 or punish_ms < 0 or punish_ms > 1000: result.append("control: invalid push/punish")
-	if kind in ["slow", "dot"] and (not status_id.is_valid_identifier() or duration_ms <= 0): result.append("status: valid identifier and positive duration required")
+	if kind in ["slow", "dot"] and (not status_id.is_valid_identifier() or status_id.length() > 64 or duration_ms <= 0): result.append("status: valid identifier up to 64 characters and positive duration required")
 	if kind == "slow" and (magnitude <= 0 or magnitude > 1): result.append("slow: multiplier must be (0,1]")
 	if kind == "dot" and (period_ms < 50 or period_ms > duration_ms): result.append("dot: period must be 50..duration")
 	return result
+
+## Snapshot payloads use the same constraints as Inspector resources. This is
+## a cold load boundary; no Resources are constructed by the per-hit path.
+static func valid_values(spec: Dictionary, required_stage: String = "") -> bool:
+	var definition := ActionEffectDef.new()
+	for field: String in ["amount", "pool", "operation", "stage", "kind", "status_id", "magnitude", "duration_ms", "period_ms", "push", "punish_ms"]:
+		var key: String = "id" if field == "status_id" else field
+		if not spec.has(key) or typeof(spec[key]) != typeof(definition.get(field)): return false
+		definition.set(field, spec[key])
+	if not spec.get("status") is Dictionary: return false
+	if definition.kind == "status":
+		var status_definition := Status.new()
+		for field: String in status_definition.values():
+			if not spec.status.has(field) or typeof(spec.status[field]) != typeof(status_definition.get(field)): return false
+			status_definition.set(field, spec.status[field])
+		definition.status = status_definition
+	return definition.errors(required_stage).is_empty()

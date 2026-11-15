@@ -280,18 +280,6 @@ func detached() -> RefCounted:
 	return value
 
 
-func change_structure(tile: int, kind: int) -> void:
-	blocked[tile] = int(kind == 1)
-	enclosures[tile] = int(kind == 1 or kind == 2)
-	var existing: int = structures.find(tile)
-	if kind == 0 and existing >= 0:
-		structures.remove_at(existing)
-	elif kind != 0 and existing < 0:
-		structures.append(tile)
-	rebuild_rooms()
-	revision += 1
-
-
 func rebuild_rooms() -> void:
 	rooms.fill(-1)
 	room_cells.clear()

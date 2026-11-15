@@ -58,4 +58,4 @@ python tools/godot.py import
 
 影子是与根部相接的解析椭圆加小幅太阳方向偏移，不再压缩一整棵树的轮廓到几像素后出现断层；不做物理长影/动态灯。树摆使用绕接地点的线性切变，根部固定。前后排序按新姿态采用时近似，屋顶最后画。生物预备仅单姿，完整八向动作/尸体在启用相应玩法时再补。音效、音乐、全套技能与最终UI皮肤不属于本次交付范围。
 
-旧[humanoid_sample](characters/humanoid_sample/README.md)只保留原创源资产与重建工具供追溯，已不被当前场景读取；旧提示词不形成后续开发任务。
+退役人形技术样本、旧清单与专用生成器已删除，可从[整理前版本](https://github.com/fewnfds/reol/tree/bd1971c/assets/characters/humanoid_sample)追溯。当前图集、源素材、来源记录和`tools/build_art.py`继续保留；旧提示词不形成后续开发任务。

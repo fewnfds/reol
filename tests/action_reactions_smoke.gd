@@ -170,6 +170,35 @@ func source_snapshots() -> void:
 			advance(saved, 500)
 			check(plague.effects.records == saved.effects.records and plague.pages[0].health == saved.pages[0].health, "Propagation faction changed after restore")
 
+func restored_rule_contract() -> void:
+	var w: RefCounted = fixture()
+	var rule := Reaction.new()
+	rule.id = "restored_emission"
+	rule.mode = "emit"
+	rule.template = "fire_bolt"
+	w.reactions.submit(w, {"event": "hit", "actor": 1, "target": 2, "at_ms": 0, "damage": 1, "position": w.pages[0].positions[1]}, [rule.values()])
+	var original: Dictionary = Persistence.capture(w)
+	check(Persistence.candidate(original, 0) != null, "Legal pending emission failed to restore")
+	for mode: String in ["template", "scope"]:
+		var data: Dictionary = original.duplicate(true)
+		var restored_rule: Dictionary = data.domains.reactions.pending[0].rules[0]
+		if mode == "template": restored_rule.template = "blink"
+		else:
+			var effect := Effect.new()
+			effect.kind = "heal"
+			effect.stage = "activation"
+			restored_rule.mode = "bundle"
+			restored_rule.bundle = [effect.values()]
+		check(Persistence.candidate(data, 0) == null, "Unsupported restored reaction was adopted: " + mode)
+	check(Persistence.capture(w) == original, "Rejected reaction changed the live world")
+	var activation_counter: int = w.combat.next_activation
+	check(w.combat.spawn_template(w, 1, "blink", w.pages[0].positions[0], Vector2.RIGHT, 0, 1.0, {}).is_empty() and w.combat.next_activation == activation_counter, "Emission bypassed full-action admission")
+	var unsupported := Effect.new()
+	unsupported.kind = "heal"
+	unsupported.stage = "activation"
+	rule.bundle.effects.append(unsupported)
+	check(not rule.errors().is_empty(), "Reaction authoring accepted an unreachable activation effect")
+
 func _run() -> void:
 	splitting()
 	combinations()
@@ -177,5 +206,6 @@ func _run() -> void:
 	ordering_and_extension()
 	zero_direction_producer()
 	source_snapshots()
+	restored_rule_contract()
 	print("ACTION_REACTIONS_SMOKE errors=", errors)
 	quit(0 if errors == 0 else 1)

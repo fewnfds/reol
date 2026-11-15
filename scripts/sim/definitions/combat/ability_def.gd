@@ -107,5 +107,11 @@ func errors() -> PackedStringArray:
 		for error: String in delivery.errors(): result.append("delivery." + error)
 	if bundle == null: result.append("bundle: required")
 	else:
-		for error: String in bundle.errors(): result.append("bundle." + error)
+		# These are host capabilities, not an arbitrary per-stage effect graph.
+		var scope: String = ""
+		if delivery != null:
+			if delivery.kind in ["direct", "blink"]: scope = "activation"
+			elif delivery.kind in ["melee", "projectile", "area", "implement"]: scope = "contact"
+			elif not bundle.effects.is_empty(): result.append("bundle: this delivery has no effect host")
+		for error: String in bundle.errors(scope): result.append("bundle." + error)
 	return result

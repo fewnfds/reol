@@ -14,6 +14,45 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 import godot
 import capacity
 import benchmark
+import check_structure
+
+
+def check_short_suites() -> None:
+    """Topic selection must reach Godot without bypassing the same watchdog."""
+    for suite in ("kernel", "features", "sight", "equipment"):
+        args = godot.build_parser().parse_args(["test", "--suite", suite])
+        with patch.object(godot, "_require_godot", return_value=Path("godot.exe")), patch.object(godot, "_run", return_value=7) as run:
+            assert godot.cmd_test(args) == 7
+            assert run.call_args.args[0][-2:] == ["--", f"--suite={suite}"]
+            assert run.call_args.kwargs["timeout"] == 15
+    with redirect_stderr(io.StringIO()):
+        try:
+            godot.build_parser().parse_args(["test", "--suite", "unknown"])
+        except SystemExit as error:
+            assert error.code == 2
+        else:
+            raise AssertionError("Unknown suite silently skipped checks")
+
+
+def check_resource_and_document_paths(directory: Path) -> None:
+    """A native Resource edge is live code; a missing section is a broken link."""
+    root = directory / "structure"
+    for folder in ("scripts", "scenes", "data/definitions"):
+        (root / folder).mkdir(parents=True, exist_ok=True)
+    (root / "project.godot").write_text('run/main_scene="res://scenes/main.tscn"\n', encoding="utf-8")
+    (root / "scenes/main.tscn").write_text('[ext_resource path="res://data/definitions/pool.tres"]\n', encoding="utf-8")
+    (root / "data/definitions/pool.tres").write_text('[ext_resource path="res://scripts/pool.gd"]\n', encoding="utf-8")
+    (root / "scripts/pool.gd").write_text("extends Resource\n", encoding="utf-8")
+    (root / "scripts/pool.gd.uid").write_text("uid://example\n", encoding="utf-8")
+    assert not any("no static entry path" in note for note in check_structure.audit_code(root))
+    target = root / "target.md"
+    target.write_text("# 当前能力\n## 状态、属性与资源\n## 当前能力\n", encoding="utf-8")
+    entry = root / "entry.md"
+    entry.write_text("[valid](target.md#状态属性与资源)\n[duplicate](target.md#当前能力-1)\n[broken](target.md#已删除的进度)\n[optional local](.local/advisor/README.md)\n", encoding="utf-8")
+    issues = check_structure.check_markdown(entry, root)
+    assert len(issues) == 1 and "已删除的进度" in issues[0]
+    (root / "scripts/pool.gd").write_text('const Bad = preload("res://scripts/deleted.gd")\n', encoding="utf-8")
+    assert check_structure.check_script(root / "scripts/pool.gd", root)
 
 
 def check_response_capture(directory: Path) -> None:
@@ -104,6 +143,8 @@ def main() -> None:
                 assert "timed out" in next(Path(directory).glob("timeout-*.log")).read_text()
                 check_performance_budget(Path(directory))
                 check_response_capture(Path(directory))
+                check_short_suites()
+                check_resource_and_document_paths(Path(directory))
         finally:
             godot.LOG_DIR = original
     print(f"Tool smoke passed in {time.monotonic() - started:.3f}s")

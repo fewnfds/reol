@@ -56,6 +56,20 @@ func catalog() -> void:
 	invalid_status.duration_ms = 1000
 	invalid_status.period_ms = 500
 	check(not invalid_status.errors().is_empty(), "Legacy status accepted an id that persistence rejects")
+	var invalid_scope: Resource = original.duplicate_deep(Resource.DEEP_DUPLICATE_ALL)
+	var activation_effect: Resource = preload("res://scripts/sim/definitions/actions/effect_def.gd").new()
+	activation_effect.kind = "shield"
+	activation_effect.stage = "activation"
+	activation_effect.amount = 10
+	activation_effect.duration_ms = 1000
+	invalid_scope.bundle.effects.append(activation_effect)
+	check(not invalid_scope.errors().is_empty(), "Projectile accepted an activation effect it cannot execute")
+	invalid_scope = load("res://data/definitions/combat/guard_stance.tres").duplicate_deep(Resource.DEEP_DUPLICATE_ALL)
+	invalid_scope.bundle.effects[0].stage = "contact"
+	check(not invalid_scope.errors().is_empty(), "Direct host accepted an unreachable contact effect")
+	invalid_scope.bundle.effects[0].stage = "activation"
+	invalid_scope.bundle.effects[0].kind = "damage"
+	check(not invalid_scope.errors().is_empty(), "Direct host accepted damage outside the combat settlement path")
 	var invalid_library: Resource = Defs.LIBRARY.duplicate_deep(Resource.DEEP_DUPLICATE_ALL)
 	invalid_library.abilities[0].bundle.effects.append(null)
 	invalid_library.abilities[0].delivery = null
@@ -127,6 +141,18 @@ func areas_and_implements() -> void:
 	dead.combat.damage(dead, 2, 1, 10000, dead.elapsed_ms)
 	advance(dead, 700)
 	check(dead.pages[0].health[1] < 2000, "Caster death deleted committed area")
+
+func zero_windup_buffer() -> void:
+	var w: RefCounted = fixture("flying_sword")
+	w.combat.request(w, 1, "primary", Vector2.RIGHT)
+	advance(w, 220)
+	check(w.combat.request(w, 1, "skill", Vector2.RIGHT) == "buffered", "Recall fixture did not use the input buffer")
+	advance(w, 301)
+	w.step(1)
+	check(w.combat.states.get(1, {}).get("kind") == "sword_recall" and w.combat.states[1].fired, "Buffered zero-windup recall missed its activation boundary")
+	check(w.implements.records.values()[0].phase in ["returning", "stowed"], "Buffered recall did not change the actual implement")
+	var active: Array = w.outcomes.filter(func(event: Dictionary): return event.kind == "action_active" and event.action == "sword_recall")
+	check(active.size() == 1 and active[0].at_ms == 301, "Buffered recall did not deliver exactly once at its start time")
 
 func boundaries() -> void:
 	var w: RefCounted = fixture("fire")
@@ -236,12 +262,39 @@ func periodic_refresh() -> void:
 	check(w.pages[0].health[1] == hp - 22 and w.effects.records.values()[0].next_ms == 2750, "Expiry-slice refresh lost or delayed a periodic tick")
 	check(Persistence.candidate(Persistence.capture(w), 0) != null, "Refreshed endpoint rejected a valid save")
 
+func payload_restore_validation() -> void:
+	var w: RefCounted = fixture("fire")
+	w.combat.request(w, 1, "primary", Vector2.RIGHT)
+	advance(w, 110)
+	var original: Dictionary = Persistence.capture(w)
+	var effect: Resource = preload("res://scripts/sim/definitions/actions/effect_def.gd").new()
+	effect.kind = "guard"
+	effect.duration_ms = 500
+	effect.magnitude = 0.5
+	var valid: Dictionary = original.duplicate(true)
+	valid.domains.combat.bolts.values()[0].payload = [effect.values()]
+	check(Persistence.candidate(valid, 0) != null, "Legal detached defense payload rejected")
+	for mode: String in ["guard_fraction", "guard_expiry", "status_identifier", "nested_status"]:
+		var data: Dictionary = valid.duplicate(true)
+		var payload: Dictionary = data.domains.combat.bolts.values()[0].payload[0]
+		match mode:
+			"guard_fraction": payload.magnitude = 2.0
+			"guard_expiry": payload.duration_ms = 0
+			"status_identifier":
+				payload.kind = "dot"; payload.id = "invalid status id"; payload.period_ms = 100
+			"nested_status":
+				payload.kind = "status"; payload.status = {"kind": "stun"}
+		check(Persistence.candidate(data, 0) == null, "Invalid detached payload adopted: " + mode)
+	check(Persistence.capture(w) == original, "Rejected payload changed the live world")
+
 func _run() -> void:
 	catalog()
 	ranged_statuses()
 	areas_and_implements()
+	zero_windup_buffer()
 	boundaries()
 	implement_contacts()
 	periodic_refresh()
+	payload_restore_validation()
 	print("ABILITIES_SMOKE errors=", errors)
 	quit(0 if errors == 0 else 1)

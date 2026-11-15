@@ -478,10 +478,6 @@ func _draw() -> void:
 		draw_arc(Art.body_foot(Terrain.center(frame.mobile_cells[source])) * TILE, 10, 0, TAU, 12, Ground.SOURCE_COLORS[source % 7], 1.5)
 
 
-func _visible_point(point: Vector2) -> bool:
-	return point.x >= 0 and point.y >= 0 and point.x < Terrain.SIZE and point.y < Terrain.SIZE and frame.perception.tiles[Terrain.index(Vector2i(point))] != 0
-
-
 func _capture(now: int) -> void:
 	if _capture_at == 0:
 		if now - _ready_at >= _warmup * 1000000.0:

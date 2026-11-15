@@ -4,13 +4,28 @@ func tap(code: Key) -> void:
 	await key(code, true)
 	await key(code, false)
 
-func point_key(code: Key, point: Vector2) -> void:
-	# Feed the pointer and keyboard edge together. OS cursor warping may be
-	# superseded before the next frame, while mouse clicks carry their own point.
-	var motion := InputEventMouseMotion.new()
-	motion.position = point
-	Input.parse_input_event(motion)
-	await tap(code)
+func point_slot(action_id: String, point: Vector2) -> void:
+	# Native keyboard slots are covered in melee_route. For point-cast checks,
+	# use a temporary supported mouse binding: synthetic motion cannot move
+	# the OS cursor that a Window polls when handling a keyboard edge.
+	var bindings: RefCounted = game.controls.bindings
+	var previous: Dictionary = bindings.values.duplicate(true)
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_XBUTTON2
+	event.position = point
+	event.pressed = true
+	var proposal: Dictionary = bindings.propose(action_id, event)
+	check(proposal.get("ok", false), "Point-cast binding could not be proposed")
+	if not proposal.get("ok", false): return
+	check(bindings.commit(proposal.candidate, false) == OK, "Point-cast binding could not be installed")
+	Input.parse_input_event(event)
+	await process_frame
+	await process_frame
+	var release: InputEventMouseButton = event.duplicate()
+	release.pressed = false
+	Input.parse_input_event(release)
+	await process_frame
+	check(bindings.commit(previous, false) == OK, "Point-cast binding was not restored")
 
 func save_p4(label: String) -> void:
 	game.controls.action("pause_menu", {})
@@ -62,14 +77,14 @@ func ranged_route() -> void:
 	check(await until(func(): return not game.frame.areas.is_empty(), 1200), "Ember contact did not produce field")
 	await capture("p4-barrage-ember")
 	await create_timer(0.25).timeout
-	await point_key(KEY_E, await aim(24))
-	check(await until(func(): return game.frame.cooldowns.has("frost_bind"), 500), "E did not activate area control")
+	await point_slot("act_skill2", await aim(24))
+	check(await until(func(): return game.frame.cooldowns.has("frost_bind"), 500), "Point-bound slot did not activate area control")
 	await create_timer(0.40).timeout
 	await aim(1)
 	var position: Vector2 = game.frame.positions[0]
 	var screen: Vector2 = game.get_canvas_transform() * ((game._displayed(1) + Vector2(0, 2)) * game.TILE + game.camera.offset)
-	await point_key(KEY_C, screen)
-	check(await until(func(): return game.frame.positions[0].distance_to(position) > 1, 500), "C did not blink to cursor")
+	await point_slot("act_skill3", screen)
+	check(await until(func(): return game.frame.positions[0].distance_to(position) > 1, 500), "Point-bound slot did not blink to cursor")
 	await capture("p4-barrage-control-blink")
 	await save_p4("barrage")
 
@@ -86,8 +101,7 @@ func mechanisms() -> void:
 	await attack(MOUSE_BUTTON_RIGHT, 24)
 	check(await until(func(): return not game.frame.entities.is_empty(), 600), "Summon body not published")
 	await create_timer(0.40).timeout
-	await aim(1)
-	await tap(KEY_E)
+	await point_slot("act_skill2", await aim(1))
 	check(await until(func(): return game.frame.entities.size() == 2, 600), "Totem slot not published")
 	await create_timer(0.60).timeout
 	await capture("p4-wolf-totem-aura")

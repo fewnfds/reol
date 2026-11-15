@@ -222,7 +222,7 @@ class Check:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--binary", type=Path, default=godot.ROOT / "build/windows/reol-demo.exe")
+    parser.add_argument("--binary", type=Path, default=godot.DEFAULT_BINARY)
     parser.add_argument("--baseline", type=Path, default=godot.ROOT / "docs/status/performance.json")
     parser.add_argument("--out", type=Path, default=godot.ROOT / "logs" / ("performance-" + time.strftime("%Y%m%d-%H%M%S")))
     parser.add_argument("--speeds", type=int, nargs="+", choices=[1, 2, 4, 8, 16], default=[1, 2, 4, 8, 16])
