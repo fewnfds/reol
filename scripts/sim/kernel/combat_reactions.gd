@@ -30,6 +30,8 @@ func submit(world: RefCounted, event: Dictionary, local_rules: Array = []) -> vo
 	if not event.has("damage"): event.damage = 0
 	if not event.has("target"): event.target = 0
 	if not event.has("activation"): event.activation = 0
+	if not event.has("side"): event["side"] = int(world.objects.records.get(event.actor, {}).get("side", 0))
+	if not event.has("power"): event["power"] = world.combat.source_power(world, event.actor)
 	var direction: Vector2 = event.get("direction", Vector2.ZERO)
 	if direction.is_zero_approx() and world.objects.records.has(event.actor) and world.objects.records.has(event.target):
 		direction = world.position_at(event.target, int(event.at_ms)) - world.position_at(event.actor, int(event.at_ms))
@@ -54,6 +56,7 @@ func damage_result(world: RefCounted, result: Dictionary, context: Dictionary) -
 		hurt.actor = result.target
 		hurt.target = result.actor
 		hurt.direction = -Vector2(event.direction)
+		hurt.erase("side"); hurt.erase("power") # The defender is a new attack source.
 		submit(world, hurt)
 	if int(result.blocked) > 0:
 		var blocked: Dictionary = event.duplicate(true)
@@ -61,6 +64,7 @@ func damage_result(world: RefCounted, result: Dictionary, context: Dictionary) -
 		blocked.actor = result.target
 		blocked.target = result.actor
 		blocked.direction = -Vector2(event.direction)
+		blocked.erase("side"); blocked.erase("power")
 		submit(world, blocked)
 	for entry: Dictionary in result.broken:
 		var broken: Dictionary = event.duplicate(true)
@@ -68,6 +72,7 @@ func damage_result(world: RefCounted, result: Dictionary, context: Dictionary) -
 		broken.actor = result.target
 		broken.target = result.actor
 		broken.direction = -Vector2(event.direction)
+		broken.erase("side"); broken.erase("power")
 		submit(world, broken)
 	if result.fatal:
 		var killed: Dictionary = event.duplicate(true)
@@ -79,6 +84,8 @@ func damage_result(world: RefCounted, result: Dictionary, context: Dictionary) -
 			death.actor = entry.source
 			death.activation = entry.activation
 			death.lineage = entry.lineage if not entry.lineage.is_empty() else event.lineage
+			death["side"] = entry.side
+			death["power"] = entry.power
 			death["dying_status"] = entry.duplicate(true)
 			submit(world, death, entry.get("rules", []))
 
@@ -134,7 +141,7 @@ func resolve(world: RefCounted, interval_start: int, interval_end: int) -> Array
 						if int(chain.remaining) <= 0: break
 						chain.remaining -= 1
 						var direction: Vector2 = Vector2(event.get("direction", Vector2.RIGHT)).rotated((number - (int(rule.count) - 1) * 0.5) * float(rule.spread))
-						spawned.append_array(world.combat.spawn_template(world, event.actor, rule.template, event.position, direction, event.at_ms, float(rule.scale), child, int(event.get("target", 0)), activation))
+						spawned.append_array(world.combat.spawn_template(world, event.actor, rule.template, event.position, direction, event.at_ms, float(rule.scale), child, int(event.get("target", 0)), activation, event))
 				"spread": _spread(world, event, rule, child)
 				"script":
 					if not script_states.has(key): script_states[key] = Marks.initial_state()
@@ -151,13 +158,10 @@ func _bundle(world: RefCounted, event: Dictionary, target: int, bundle: Array, l
 	var result: Array[Dictionary] = []
 	var summary: Dictionary = world.combat.Payload.summary(bundle)
 	if float(summary.damage) > 0:
-		var amount: int = 20
-		if world.actor_slots.has(event.actor):
-			var slot: int = world.actor_slots[event.actor]
-			amount = world.pages[slot / 256].ranged_damage[slot % 256]
+		var amount: int = event.power.y
 		result.append({"actor": event.actor, "target": target, "at_ms": event.at_ms, "activation": int(event.get("activation", 0)), "damage": roundi(amount * float(summary.damage)),
-			"stun": summary.stun, "push": summary.push, "incoming": -Vector2(event.get("direction", Vector2.RIGHT)), "group_ms": 0, "lineage": lineage, "rules": [], "payload": bundle, "action": event.get("action", ""), "position": world.position_at(target, event.at_ms)})
-	else: world.effects.apply_bundle(world, target, event.actor, int(event.get("activation", 0)), event.get("action", ""), bundle, event.at_ms, int(event.get("damage", 0)), "contact", lineage)
+			"stun": summary.stun, "push": summary.push, "incoming": -Vector2(event.get("direction", Vector2.RIGHT)), "group_ms": 0, "lineage": lineage, "rules": [], "payload": bundle, "action": event.get("action", ""), "position": world.position_at(target, event.at_ms), "side": event.side, "power": event.power})
+	else: world.effects.apply_bundle(world, target, event.actor, int(event.get("activation", 0)), event.get("action", ""), bundle, event.at_ms, int(event.get("damage", 0)), "contact", lineage, false, event)
 	return result
 
 func _spread(world: RefCounted, event: Dictionary, rule: Dictionary, lineage: Dictionary) -> void:
@@ -178,7 +182,7 @@ func _spread(world: RefCounted, event: Dictionary, rule: Dictionary, lineage: Di
 		visited[target] = true
 		chain.remaining -= 1
 		count += 1
-		world.effects.add(world, target, entry.source, entry.activation, entry.ability, spec, event.at_ms, roundi(float(entry.damage) / maxf(0.001, float(entry.magnitude))), lineage)
+		world.effects.add(world, target, entry.source, entry.activation, entry.ability, spec, event.at_ms, roundi(float(entry.damage) / maxf(0.001, float(entry.magnitude))), lineage, entry)
 
 func prepare(world: RefCounted, now: int) -> void:
 	var due: Array[Dictionary] = requests
@@ -270,6 +274,7 @@ func valid(world: RefCounted) -> bool:
 	return true
 
 func valid_event(event: Dictionary, world: RefCounted) -> bool:
+	if not world.combat.valid_source(event): return false
 	if event.get("event") not in ["hit", "damaged", "killed", "blocked", "shield_broken", "gathered", "timer", "expired", "stack_max"]: return false
 	for key: String in ["actor", "target", "activation", "at_ms", "damage"]:
 		if not event.get(key) is int: return false
@@ -279,6 +284,7 @@ func valid_event(event: Dictionary, world: RefCounted) -> bool:
 	if event.has("dying_status"):
 		var entry: Variant = event.dying_status
 		if not entry is Dictionary or not entry.get("spec") is Dictionary or not world.effects.valid_spec(entry.spec): return false
+		if not world.combat.valid_source(entry): return false
 		for key: String in ["source", "target", "activation", "side", "until_ms", "damage"]:
 			if not entry.get(key) is int: return false
 		if not entry.get("magnitude") is float or entry.magnitude <= 0 or entry.get("status_id") != entry.spec.id: return false

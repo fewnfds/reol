@@ -10,7 +10,7 @@ var dirty: Dictionary = {}
 func apply(world: RefCounted, target: int, source: int, activation: int, ability: String, now: int, amount: int) -> void:
 	apply_bundle(world, target, source, activation, ability, Defs.ACTIONS[ability].payload, now, amount)
 
-func apply_bundle(world: RefCounted, target: int, source: int, activation: int, ability: String, bundle: Array, now: int, damage: int, scope: String = "contact", lineage: Dictionary = {}, control_blocked: bool = false) -> void:
+func apply_bundle(world: RefCounted, target: int, source: int, activation: int, ability: String, bundle: Array, now: int, damage: int, scope: String = "contact", lineage: Dictionary = {}, control_blocked: bool = false, source_context: Dictionary = {}) -> void:
 	for spec: Dictionary in bundle:
 		if spec.get("stage", "contact") != scope: continue
 		if control_blocked and (spec.kind in ["slow", "control"] or (spec.kind == "status" and spec.status.kind in ["stun", "root", "slow"])): continue
@@ -23,8 +23,8 @@ func apply_bundle(world: RefCounted, target: int, source: int, activation: int, 
 				var legacy: Dictionary = {"id": spec.id, "kind": spec.kind, "magnitude": spec.magnitude, "duration_ms": spec.duration_ms, "period_ms": spec.period_ms, "stacking": "refresh", "max_stacks": 1, "max_instances": 8, "attribute": "armor", "modifier": "add", "dispellable": true, "isolation": "source"}
 				for rule: Dictionary in Defs.ACTIONS.get(ability, {}).get("reactions", []):
 					if rule.mode == "spread" and rule.status_id == spec.id: legacy.isolation = "chain"
-				add(world, target, source, activation, ability, legacy, now, damage, lineage)
-			"status": add(world, target, source, activation, ability, spec.status, now, damage, lineage)
+				add(world, target, source, activation, ability, legacy, now, damage, lineage, source_context)
+			"status": add(world, target, source, activation, ability, spec.status, now, damage, lineage, source_context)
 			"heal": world.combat.heal(world, source, target, int(spec.amount), now)
 			"resource": world.pools.gain(world, target, spec.pool, int(spec.amount), now)
 			"shield": world.defense.shield(world, source, target, int(spec.amount), now + int(spec.duration_ms), now)
@@ -36,7 +36,7 @@ func apply_bundle(world: RefCounted, target: int, source: int, activation: int, 
 				for id: int in records.keys():
 					if records[id].target == target and records[id].spec.dispellable: remove(world, id, "dispelled", now)
 
-func add(world: RefCounted, target: int, source: int, activation: int, ability: String, spec: Dictionary, now: int, amount: int, lineage: Dictionary = {}) -> int:
+func add(world: RefCounted, target: int, source: int, activation: int, ability: String, spec: Dictionary, now: int, amount: int, lineage: Dictionary = {}, source_context: Dictionary = {}) -> int:
 	if not world.actor_slots.has(target) or not world.combat.alive(world, target): return 0
 	if not Defs.ACTIONS.has(ability): ability = ""
 	activation = maxi(0, activation)
@@ -58,7 +58,7 @@ func add(world: RefCounted, target: int, source: int, activation: int, ability: 
 			var previous: int = old.stacks
 			old.stacks = mini(int(spec.max_stacks), int(old.stacks) + 1)
 			if previous < int(spec.max_stacks) and old.stacks == int(spec.max_stacks):
-				world.reactions.submit(world, {"event": "stack_max", "actor": source, "target": target, "at_ms": now, "activation": activation, "action": ability, "damage": amount, "position": world.position_at(target, now), "lineage": lineage}, old.get("rules", []))
+				world.reactions.submit(world, {"event": "stack_max", "actor": source, "target": target, "at_ms": now, "activation": activation, "action": ability, "damage": amount, "position": world.position_at(target, now), "lineage": lineage, "side": old.side, "power": old.power}, old.get("rules", []))
 		old.damage = maxi(int(old.damage), maxi(0, roundi(amount * float(spec.magnitude))))
 		dirty[target] = true
 		if spec.kind == "modifier": flush_dirty(world)
@@ -72,7 +72,8 @@ func add(world: RefCounted, target: int, source: int, activation: int, ability: 
 	var id: int = next_id
 	next_id += 1
 	records[id] = {"source": source, "target": target, "activation": activation, "ability": ability, "kind": spec.kind, "status_id": spec.id,
-		"side": int(world.objects.records.get(source, {}).get("side", 0)), "born_ms": now, "until_ms": until, "next_ms": now + int(spec.period_ms), "period_ms": int(spec.period_ms), "magnitude": float(spec.magnitude),
+		"side": int(source_context.side) if source_context.has("side") else int(world.objects.records.get(source, {}).get("side", 0)), "power": source_context.power if source_context.has("power") else world.combat.source_power(world, source),
+		"born_ms": now, "until_ms": until, "next_ms": now + int(spec.period_ms), "period_ms": int(spec.period_ms), "magnitude": float(spec.magnitude),
 		"rules": Defs.ACTIONS.get(ability, {}).get("reactions", []), "damage": maxi(0, roundi(amount * float(spec.magnitude))), "stacks": 1, "spec": spec.duplicate(true), "lineage": lineage.duplicate(true)}
 	dirty[target] = true
 	if spec.kind == "modifier": flush_dirty(world)
@@ -150,7 +151,7 @@ func collect(world: RefCounted, now: int) -> Array[Dictionary]:
 		while int(entry.next_ms) <= now and int(entry.next_ms) < int(entry.until_ms):
 			impacts.append({"actor": entry.source, "target": entry.target, "activation": entry.activation, "at_ms": entry.next_ms,
 				"damage": int(entry.damage) * int(entry.stacks), "incoming": Vector2.ZERO, "stun": 0, "push": 0.0, "group_ms": 0, "periodic": true,
-				"position": world.position_at(entry.target, entry.next_ms), "action": entry.ability, "lineage": entry.lineage, "rules": entry.rules})
+				"position": world.position_at(entry.target, entry.next_ms), "action": entry.ability, "lineage": entry.lineage, "rules": entry.rules, "side": entry.side, "power": entry.power})
 			entry.next_ms += int(entry.period_ms)
 	return impacts
 
@@ -166,6 +167,7 @@ func valid(world: RefCounted) -> bool:
 	for id: Variant in records:
 		var entry: Variant = records[id]
 		if not id is int or id < 1 or id >= next_id or not entry is Dictionary: return false
+		if not world.combat.valid_source(entry): return false
 		for key: String in ["source", "target", "activation", "side", "born_ms", "until_ms", "next_ms", "period_ms", "damage", "stacks"]:
 			if not entry.get(key) is int: return false
 		if not world.actor_slots.has(entry.target) or entry.source < 1 or entry.source >= world.objects.next_id or not entry.get("ability") is String or (not entry.ability.is_empty() and not Defs.ACTIONS.has(entry.ability)): return false

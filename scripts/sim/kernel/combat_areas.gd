@@ -10,7 +10,7 @@ var queued: Dictionary = {} # Transient collection index, rebuilt per spatial in
 func create(actor: int, state: Dictionary, at: int, side: int) -> void:
 	var delivery: Dictionary = Defs.ACTIONS[state.kind].delivery
 	records[next_id] = {"id": next_id, "actor": actor, "activation": state.activation, "ability": state.kind,
-		"lineage": state.get("lineage", {}), "rules": Defs.ACTIONS[state.kind].reactions, "position": state.point, "damage": state.damage, "side": side, "born_ms": at,
+		"lineage": state.get("lineage", {}), "rules": Defs.ACTIONS[state.kind].reactions, "position": state.point, "damage": state.damage, "side": side, "power": state.power, "born_ms": at,
 		"trigger_ms": at + int(delivery.delay), "next_ms": at + int(delivery.delay),
 		"expire_ms": at + int(delivery.delay) + int(delivery.duration), "finished": false}
 	next_id += 1
@@ -47,13 +47,13 @@ func pulse(world: RefCounted, id: int, at: int) -> Array[Dictionary]:
 		if delivery.walls and Terrain.blocking_fraction(world.terrain.blocked, value.position, point) >= 0: continue
 		impacts.append({"actor": value.actor, "target": target, "activation": value.activation, "at_ms": at,
 			"damage": value.damage, "stun": def.stun, "push": def.push, "incoming": (value.position - point).normalized(),
-			"lineage": value.get("lineage", {}), "rules": value.get("rules", []), "position": point, "action": value.ability, "payload": def.payload, "evadable": true,
+			"lineage": value.get("lineage", {}), "rules": value.get("rules", []), "position": point, "action": value.ability, "payload": def.payload, "evadable": true, "side": value.side, "power": value.power,
 			"group_ms": mini(int(def.group_ms), int(delivery.period)), "heavy_hit": def.heavy_hit, "punish_ms": def.punish_ms})
 	for target: int in world.combat.receivers(world, value.position - Vector2.ONE * (float(delivery.radius) + 0.5), value.position + Vector2.ONE * (float(delivery.radius) + 0.5), value.actor, delivery.filter, value.side):
 		var point: Vector2 = world.combat.position(world, target)
 		if point.distance_to(value.position) > float(delivery.radius) + 0.4 or (delivery.walls and Terrain.blocking_fraction(world.terrain.blocked, value.position, point) >= 0): continue
 		impacts.append({"actor": value.actor, "target": target, "activation": value.activation, "at_ms": at, "damage": value.damage, "stun": def.stun, "push": def.push, "incoming": Vector2.ZERO, "position": point,
-			"action": value.ability, "payload": def.payload, "rules": value.rules, "lineage": value.lineage, "group_ms": mini(int(def.group_ms), int(delivery.period))})
+			"action": value.ability, "payload": def.payload, "rules": value.rules, "lineage": value.lineage, "group_ms": mini(int(def.group_ms), int(delivery.period)), "side": value.side, "power": value.power})
 	world.emit({"kind": "area_trigger", "actor": value.actor, "activation": value.activation, "area": id, "action": value.ability, "position": value.position, "at_ms": at})
 	value.next_ms += int(delivery.period)
 	value.finished = int(delivery.duration) == 0 or int(value.next_ms) >= int(value.expire_ms)
@@ -64,6 +64,7 @@ func valid(world: RefCounted) -> bool:
 	for id: Variant in records:
 		var value: Variant = records[id]
 		if not id is int or id < 1 or id >= next_id or not value is Dictionary or value.get("id") != id: return false
+		if not world.combat.valid_source(value): return false
 		if not Defs.ACTIONS.has(value.get("ability")) or Defs.ACTIONS[value.ability].delivery.kind != "area": return false
 		for key: String in ["actor", "activation", "damage", "side", "born_ms", "trigger_ms", "next_ms", "expire_ms"]:
 			if not value.get(key) is int: return false

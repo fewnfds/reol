@@ -8,6 +8,7 @@ const CONTROL_WINDOW_MS: int = 1200
 const CONTROL_BUDGET_MS: int = 400
 const MAX_HIT_GROUP_MS: int = 5000
 const MAX_STATUS_AHEAD_MS: int = 20000 # Three <=5s phases plus <=5s post commitment.
+const RUNTIME_VERSION: int = 2 # Committed source side/power survives removed bodies.
 static var _compiled: Dictionary = LIBRARY.compile()
 static var ERRORS: PackedStringArray = _compiled.errors
 static var ACTIONS: Dictionary = _freeze(_compiled.actions)
@@ -30,7 +31,7 @@ static func _signature() -> String:
 	var profiles: Dictionary = LOADOUTS.duplicate(true)
 	for profile: Dictionary in profiles.values():
 		for key: String in ["title", "description"]: profile.erase(key)
-	return JSON.stringify({"abilities": logic, "loadouts": profiles, "scripts": preload("res://scripts/sim/kernel/reaction_scripts/owned_marks.gd").LOGIC_VERSION, "meal": preload("res://data/definitions/actions/meal_effect.tres").values()}, "", true).sha256_text()
+	return JSON.stringify({"runtime": RUNTIME_VERSION, "abilities": logic, "loadouts": profiles, "scripts": preload("res://scripts/sim/kernel/reaction_scripts/owned_marks.gd").LOGIC_VERSION, "meal": preload("res://data/definitions/actions/meal_effect.tres").values()}, "", true).sha256_text()
 
 static func is_shot(kind: String) -> bool:
 	return ACTIONS[kind].delivery.kind == "projectile"

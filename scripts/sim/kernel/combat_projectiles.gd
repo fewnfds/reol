@@ -83,7 +83,7 @@ static func collect(combat: RefCounted, world: RefCounted, start: int, now: int,
 			var at: int = segment_start + roundi((until - segment_start) * float(contact.fraction))
 			var payload: Dictionary = combat.Payload.summary(bolt.payload)
 			impacts.append({"actor": bolt.actor, "target": contact.target, "implement_target": contact.implement, "bolt_id": id, "contact_order": order,
-				"lineage": bolt.get("lineage", {}), "rules": bolt.get("rules", []), "damage": bolt.damage, "activation": bolt.activation, "at_ms": at, "incoming": -Vector2(bolt.velocity).normalized(),
+				"lineage": bolt.get("lineage", {}), "rules": bolt.get("rules", []), "damage": bolt.damage, "activation": bolt.activation, "at_ms": at, "incoming": -Vector2(bolt.velocity).normalized(), "side": bolt.side, "power": bolt.power,
 				"stun": payload.get("stun", 0), "push": payload.get("push", 0.0), "payload": bolt.payload, "group_ms": bolt.group_ms, "heavy_hit": payload.heavy_hit, "punish_ms": payload.punish_ms,
 				"position": contact.position, "delivery_position": from.lerp(to, float(contact.fraction)), "action": bolt.ability if not bolt.ability.is_empty() else "bolt"})
 		if first >= 0:
@@ -92,7 +92,7 @@ static func collect(combat: RefCounted, world: RefCounted, start: int, now: int,
 				if world.objects.records[object].kind in ["wall", "door"]:
 					object_target = object
 					break
-			impacts.append({"actor": bolt.actor, "target": object_target, "bolt_id": id, "contact_order": contacts.size(), "bolt_wall": true, "damage": bolt.damage, "activation": bolt.activation, "at_ms": segment_start + roundi((until - segment_start) * first), "incoming": -Vector2(bolt.velocity).normalized(), "stun": 0, "push": 0.0, "position": from.lerp(to, first), "action": "bolt"})
+			impacts.append({"actor": bolt.actor, "target": object_target, "bolt_id": id, "contact_order": contacts.size(), "bolt_wall": true, "damage": bolt.damage, "activation": bolt.activation, "at_ms": segment_start + roundi((until - segment_start) * first), "incoming": -Vector2(bolt.velocity).normalized(), "stun": 0, "push": 0.0, "position": from.lerp(to, first), "action": "bolt", "side": bolt.side, "power": bolt.power})
 		var at: int = segment_start + roundi((until - segment_start) * (first if first >= 0 else 1.0))
 		combat.projectile_segments.append({"id": id, "actor": bolt.actor, "from": from, "to": from.lerp(to, first) if first >= 0 else to,
 			"start_ms": segment_start, "end_ms": at, "radius": bolt.radius, "ability": bolt.ability})
@@ -100,7 +100,7 @@ static func collect(combat: RefCounted, world: RefCounted, start: int, now: int,
 			var trigger: int = int(bolt.born_ms) + int(rule.delay_ms) if rule.event == "timer" else int(bolt.expire_ms)
 			if rule.event not in ["timer", "expired"] or bolt.timers.has(rule.id) or trigger > now or trigger < segment_start: continue
 			impacts.append({"event": "projectile_reaction", "actor": bolt.actor, "target": 0, "bolt_id": id, "at_ms": trigger,
-				"activation": bolt.activation, "action": bolt.ability, "damage": bolt.damage, "position": from + Vector2(bolt.velocity) * (trigger - segment_start) / 1000.0, "direction": Vector2(bolt.velocity).normalized(), "lineage": bolt.lineage, "rule": rule})
+				"activation": bolt.activation, "action": bolt.ability, "damage": bolt.damage, "position": from + Vector2(bolt.velocity) * (trigger - segment_start) / 1000.0, "direction": Vector2(bolt.velocity).normalized(), "lineage": bolt.lineage, "rule": rule, "side": bolt.side, "power": bolt.power})
 		bolt.position = from.lerp(to, first) if first >= 0 else to
 	return impacts
 

@@ -109,11 +109,73 @@ func zero_direction_producer() -> void:
 	w.step(1)
 	check(not w.combat.bolts.is_empty() and w.combat.bolts.values()[0].velocity.length_squared() > 0, "Center contact consumed a producer rule but emitted no directional child")
 
+func source_snapshots() -> void:
+	# A body can be removed and its slot reused while its committed attack lives.
+	var timed: RefCounted = fixture("stars")
+	timed.objects.records[2]["ability_loadout"] = "stars"
+	timed.pages[0].positions[1] = Vector2(120.5, 120.5)
+	for row: int in [0, 2, 3]: timed.pages[0].positions[row] = Vector2(140.5, 120.5 + row * 3)
+	timed.combat.request(timed, 2, "skill", Vector2.RIGHT)
+	advance(timed, 100)
+	timed.objects.records[2].base_stats["ranged"] = 80.0
+	timed.Equipment.rebuild(timed, 2)
+	advance(timed, 200)
+	check(timed.combat.bolts.size() == 1 and timed.combat.bolts.values()[0].damage == 56, "Attack did not sample source power at actual delivery")
+	timed.remove_actor(2)
+	var replacement: int = timed.spawn_actor(125 * 512 + 120)
+	timed.objects.records[replacement]["side"] = 0
+	timed.objects.records[replacement]["base_stats"] = {"ranged": 5.0}
+	timed.Equipment.rebuild(timed, replacement)
+	timed.objects.records[replacement].autonomous = false
+	check(timed.actor_slots[replacement] == 1, "Fixture did not reuse the removed source slot")
+	var restored: RefCounted = Persistence.candidate(Persistence.capture(timed), 0)
+	check(restored != null, "In-flight removed-source snapshot was rejected")
+	advance(timed, 360)
+	check(timed.combat.bolts.size() == 5, "Removed producer cancelled committed timer split")
+	for bolt: Dictionary in timed.combat.bolts.values():
+		check(bolt.actor == 2 and bolt.side == 1 and bolt.damage == 28 and bolt.power == Vector2i(25, 80), "Split sampled removed/reused source or default power")
+	if restored != null:
+		advance(restored, 360)
+		check(timed.combat.bolts == restored.combat.bolts, "Source snapshot changed after restore")
+	var corrupt: Dictionary = Persistence.capture(timed)
+	corrupt.domains.combat.bolts.values()[0].power = Vector2(-1, 80)
+	check(Persistence.candidate(corrupt, 0) == null, "Invalid source-power snapshot was adopted")
+	var counter: RefCounted = fixture()
+	var hit: Dictionary = counter.combat.damage(counter, 1, 2, 1, 0)
+	counter.reactions.damage_result(counter, hit, {"side": 0, "power": Vector2i(25, 80)})
+	check(counter.reactions.pending.any(func(event: Dictionary): return event.event == "damaged" and event.side == 1 and event.power == Vector2i(25, 20)), "Defender reaction inherited the attacker's source snapshot")
+	for remove_at: int in [110, 300]:
+		var plague: RefCounted = fixture("plague")
+		plague.objects.records[2]["ability_loadout"] = "plague"
+		plague.objects.records[3]["side"] = 0
+		plague.pages[0].positions[0] = Vector2(123.5, 120.5)
+		plague.pages[0].positions[1] = Vector2(120.5, 120.5)
+		plague.pages[0].positions[2] = Vector2(125.5, 120.5)
+		plague.pages[0].positions[3] = Vector2(127.0, 120.5)
+		plague.combat.request(plague, 2, "primary", Vector2.RIGHT)
+		advance(plague, remove_at)
+		plague.remove_actor(2)
+		advance(plague, 300)
+		check(plague.effects.records.values().any(func(entry: Dictionary): return entry.target == 1 and entry.side == 1), "Impact after source removal lost status faction")
+		plague.combat.launch(4, Vector2(124.3, 120.5), Vector2(123.5, 120.5), 300, 10000)
+		advance(plague, 400)
+		check(plague.effects.records.values().any(func(entry: Dictionary): return entry.target == 3 and entry.side == 1), "Spread lost original source faction")
+		var saved: RefCounted = Persistence.candidate(Persistence.capture(plague), 0)
+		check(saved != null, "Removed-source propagation failed to restore")
+		plague.combat.launch(1, Vector2(124.5, 120.5), Vector2(125.5, 120.5), 400, 10000)
+		advance(plague, 500)
+		check(not plague.combat.alive(plague, 3) and not plague.effects.records.values().any(func(entry: Dictionary): return entry.target == 4), "Second spread infected the removed source's ally")
+		if saved != null:
+			saved.combat.launch(1, Vector2(124.5, 120.5), Vector2(125.5, 120.5), 400, 10000)
+			advance(saved, 500)
+			check(plague.effects.records == saved.effects.records and plague.pages[0].health == saved.pages[0].health, "Propagation faction changed after restore")
+
 func _run() -> void:
 	splitting()
 	combinations()
 	bounded_and_script()
 	ordering_and_extension()
 	zero_direction_producer()
+	source_snapshots()
 	print("ACTION_REACTIONS_SMOKE errors=", errors)
 	quit(0 if errors == 0 else 1)

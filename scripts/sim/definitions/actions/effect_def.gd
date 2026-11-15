@@ -35,7 +35,7 @@ func errors() -> PackedStringArray:
 	if not is_finite(magnitude) or magnitude < 0.0 or magnitude > 20.0: result.append("magnitude: must be finite, 0..20")
 	if duration_ms < 0 or duration_ms > 60000 or period_ms < 0 or period_ms > 10000: result.append("duration/period: out of range")
 	if not is_finite(push) or push < 0 or push > 1 or punish_ms < 0 or punish_ms > 1000: result.append("control: invalid push/punish")
-	if kind in ["slow", "dot"] and (status_id.is_empty() or duration_ms <= 0): result.append("status: id and duration required")
+	if kind in ["slow", "dot"] and (not status_id.is_valid_identifier() or duration_ms <= 0): result.append("status: valid identifier and positive duration required")
 	if kind == "slow" and (magnitude <= 0 or magnitude > 1): result.append("slow: multiplier must be (0,1]")
 	if kind == "dot" and (period_ms < 50 or period_ms > duration_ms): result.append("dot: period must be 50..duration")
 	return result

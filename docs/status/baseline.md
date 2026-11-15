@@ -6,7 +6,7 @@
 
 Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+，1280×720，无VSync。正式入口scenes/main.tscn；当前P4成品为build/windows/act-p4/reol-act.exe及同目录pck，源码试玩和导出快照的差别见[usage](../engineering/tooling/usage.md)。
 
-当前源码与`build/windows/act-p4/reol-act.exe`＋pck为P4通用行动基座/近远组合测试版，由根目录启动.cmd选择源码或成品；默认血刃＋混战，顶栏切星焰行者、机制范例或单轻敌/单重敌。PCK SHA256为`299b268f94222ab90e0f083a7a48d45e08280b52f986235d80e6dd755c2de17b`，exe为`3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf`，导出日志`logs/export-20261115-151508-276815800.log`。源码/导出目录签名均为`0c60732eb82a53ede245512645824a67e9edd18287fefe448ba4cf6cc1569808`，40动作/24配置。F5/F9默认format11的`act-p4-quicksave.reol`；P1/P2/P3包和旧档保留。
+当前源码与`build/windows/act-p4/reol-act.exe`＋pck为P4通用行动基座/近远组合测试版，由根目录启动.cmd选择源码或成品；默认血刃＋混战，顶栏切星焰行者、机制范例或单轻敌/单重敌。审查修正版PCK SHA256为`8607ecc200ee8be03984d5b3acc3803be00fdc4656e3a0340cf4500132fe02a3`，exe为`3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf`，导出日志`logs/export-20261115-154753-710121100.log`。源码/导出目录签名均为`04042c8edd9719b61192e5932f02a6346dfd643f280714a330d8e8f3e063a928`，40动作/24配置。F5/F9默认format11的`act-p4-quicksave.reol`；不含来源快照的审查前开发档因签名不同拒载并保留，需新开局。审查前P4程序归档于`build/windows/act-p4/archive/pre-review-f1c5344/`，P1/P2/P3包和旧档保留。
 
 原正式人物/装备/背包版由02958cc提交对应，PCK指纹、开发机与各倍率历史样本统一记录在[performance.json](performance.json)。它是工具可直接读取的数值原件，包含实际倍率而非倍率达成比例；本机原始报告在logs/capacity-20261113-shipped/。不要求新机器拥有这些日志才能接手。
 
@@ -92,13 +92,23 @@ P2采用同一512²世界与默认24人，不降低后台生活精度，不追�
 | 原生制作 | `logs/p4-authoring-final.log`，COMBAT_AUTHORING_EDITOR errors=0：真实Inspector中的Status/Reaction/Loadout字段、引用导航和缺失模板诊断；原Ability阶段/范围预览保留。追踪默认关闭，DEV开启后F12 `actions`最多64条 |
 | 既有规则 | KERNEL/ACT/MELEE/CONTROL/ABILITIES已通过；内核最新完整退出日志为`logs/smoke-20261115-151536-33645300.log`，近战、键位和跨域为`logs/p4-melee-final.log`、`logs/p4-control-rules.log`、`logs/p4-a2-final-rules.log`，定义为`logs/p4-abilities-final.log`。新增槽保旧改键，损坏旧绑定按类型回退，无中途SCRIPT ERROR |
 | 导出一致性 | `logs/p4-source-catalog.log`与`logs/p4-pack-restore.log`：40动作/24配置签名一致；用Godot加载实际导出PCK，源码保存的在飞弹/传播/双盾/灵狼/图腾/双剑在途候选被接受，推进后8个相关域状态与HP一致。独立release模板不支持外部`--script`，初次该调用落入主场景并命中已知headless渲染问题，已停止自有进程，不计为通过 |
-| 成品真实短窗 | `logs/p4-release-shipped.json`及同名log/png，24人/默认血刃混战/迷雾、60FPS、1×、3秒预热＋5秒采样，实际约1.000×，帧p99约16.86ms，步均约0.498ms，零过载；无引擎/脚本错误。未操作玩家，发生1次死亡，不是持续施法/密弹容量或同负载算法对照，不替换performance.json |
+| 审查前成品真实短窗 | `logs/p4-release-shipped.json`及同名log/png，对应归档P4初版，24人/默认血刃混战/迷雾、60FPS、1×、3秒预热＋5秒采样，实际约1.000×，帧p99约16.86ms，步均约0.498ms，零过载；无引擎/脚本错误。未操作玩家，发生1次死亡，不是持续施法/密弹容量或同负载算法对照，不替换performance.json |
 
 各小阶段均发送实际实现给本机双顾问，A1/A2/B/C/D/E每轮两份答复均已完成核查；原件和开发者裁决见[研究](../../design/research/action_editor_references.md#p4实施审查裁决)。顾问未操作或听评游戏。
 
 修正记录：最终顾问复核补上受控随从周期、定义持有反应的器物/实体恢复、零方向派生、合法取消清旧惩戒、移除身体清未启动请求、旧选中对象不可见时的方向动作与嵌套引用/DoT周期检查，均有相关反例。一次并行运行的kernel打印0错误但进程超过15秒，记录为失败（`logs/smoke-20261115-151439-426778600.log`）；随后同一15秒上限完整退出通过，没有延长超时或删减断言。零方向新反例首版误读弹体字段`direction`，实际为`velocity`，修正测试后无SCRIPT ERROR。GUI首轮重选同一配置不发选择信号、守势收招中回元正确被拒，调整测试等候真实空闲后全程通过，未放宽动作门禁。早期反应结果方向/死亡重复提交、未来区域/新弹索敌、双端残段、无效器物槽封锁、地图边缘和光环移除已按实际反例修复。状态增加每来源/目标/定义的有限实例上限；脚本改显式逻辑版本参与签名，避免导出依赖`.gd`原文。
 
 当前实际范围：属性add/multiply、原护甲、四种状态合并策略与有限控制；未做完整抗性/暴击/伤害转换/词缀、加层不刷新、WoW式完整递减表、随从指挥UI或器物经济。正式动画/混音、平衡/主观手感、目标低配整机/长局与极密弹幕仍待后续。通过工程/交互检查不等于上述体验已验收。
+
+### P4主线合并审查
+
+审查复现并修正三项问题：来源身体移除后，传播状态重新读取阵营会回退为0，下一代可能误传盟友；定时/命中派生重新采样当前源属性或默认20，导致分裂威力随换装/移除改变；旧式slow/dot允许含空格的状态标识，制作成功后运行状态却无法通过恢复校验。已交付弹/区/状态/器物现在保留阵营和近远两项攻击快照，反应沿用；受伤/格挡反击切到防守者快照，完整新行动及自主生产另行采样。起手到实际交付间的属性变化在交付时采用。运行合同版本进入签名，旧候选拒载而不猜属性。
+
+`logs/review-action_reactions_smoke-final.log`覆盖来源在命中前/后移除、身体槽复用、定时分裂、两代传播、反击归因及恢复/坏快照拒载；`logs/review-abilities_smoke-final.log`覆盖定义/在途状态及非法标识。资源、空间、近远组合、近战、ACT、共同门禁/跨域及键位相关短检查通过，日志为`logs/review-resources.log`、`logs/review-spatial.log`和`logs/review-*_smoke.log`；内核完整退出通过，`logs/smoke-20261115-154432-779540600.log`。来源槽复用反例初版错误构造无Entity宿主的companion而被合法拒载，改用正常出生身体后通过；初次失败保留于`logs/review-reactions-snapshots.log`。
+
+`logs/review-p4-ui.log`在RTX3060真实D3D12进程完成两条组合、机制范例和四次实际文件存读，ACTION_COMBINATIONS_UI_SMOKE errors=0，相关截图已观察。`logs/review-source-catalog.log`与`logs/review-pack-restore.log`验证实际修正版PCK签名和源码一致，源码保存的混合过程在包中恢复后，弹、区、状态、器物、池、防御、反应、实体及HP与源码继续运行一致。`logs/review-release-launch.log`为独立修正版exe的24人战斗开局/180帧正常退出，无脚本/引擎错误；本次没有新增性能容量测量，不用旧包短窗声称修正版性能已复测。
+
+待结合用户字幕和真实负载定位的成本入口是`effects.prepare`逐空间小段遍历状态/身体、`reactions.prepare`跨宿主引用扫描、`Runner._publish`完整快照深复制及空间索引重复准备。它们是静态审查线索，本轮没有按猜测改调度、降世界精度或展开P5。
 
 ## 已知限制
 

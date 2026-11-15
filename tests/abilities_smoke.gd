@@ -50,6 +50,12 @@ func catalog() -> void:
 	check(copy.errors().is_empty() and copy.values().delivery.count == 4 and Defs.ACTIONS.fire_bolt.delivery.count == 1, "Independent resource variant corrupted original")
 	copy.windup = -1
 	check(not copy.errors().is_empty(), "Illegal timing accepted")
+	var invalid_status: Resource = preload("res://scripts/sim/definitions/actions/effect_def.gd").new()
+	invalid_status.kind = "dot"
+	invalid_status.status_id = "invalid status id"
+	invalid_status.duration_ms = 1000
+	invalid_status.period_ms = 500
+	check(not invalid_status.errors().is_empty(), "Legacy status accepted an id that persistence rejects")
 	var invalid_library: Resource = Defs.LIBRARY.duplicate_deep(Resource.DEEP_DUPLICATE_ALL)
 	invalid_library.abilities[0].bundle.effects.append(null)
 	invalid_library.abilities[0].delivery = null

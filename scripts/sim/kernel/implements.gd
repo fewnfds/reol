@@ -44,7 +44,7 @@ func dispatch(world: RefCounted, actor: int, state: Dictionary, at: int) -> void
 		if value.phase == "broken": continue
 		value.erase("stopped_ms")
 		value.merge({"phase": {"orbit": "orbiting", "hover": "hovering"}.get(delivery.deployment, "outbound"), "position": world.combat.position(world, actor), "direction": state.direction,
-			"activation": state.activation, "damage": state.damage, "side": int(world.objects.records[actor].get("side", 0)), "lineage": state.get("lineage", {}),
+			"activation": state.activation, "damage": state.damage, "side": state.side, "power": state.power, "lineage": state.get("lineage", {}),
 			"hover": (world.combat.position(world, actor) + Vector2(state.direction) * 2.5).clamp(Vector2.ONE * 0.35, Vector2.ONE * 511.65), "next_emit": at + int(delivery.emit_period), "depart_ms": at, "return_ms": at + int(delivery.life), "touch": {}}, true)
 
 func prepare(world: RefCounted, now: int) -> void:
@@ -165,7 +165,7 @@ func collect(world: RefCounted, start: int, now: int, melee: Array[int]) -> Arra
 			if fraction < 0 or at >= active_until or at < int(value.touch.get(target, 0)): continue
 			value.touch[target] = at + int(delivery.contact_ms)
 			impacts.append({"actor": value.owner, "target": target, "activation": value.activation, "source_implement": id,
-				"at_ms": at, "damage": value.damage, "incoming": -direction, "stun": def.stun, "push": def.push,
+				"at_ms": at, "damage": value.damage, "incoming": -direction, "stun": def.stun, "push": def.push, "side": value.side, "power": value.power,
 				"group_ms": 0, "evadable": true, "position": Motion.at(from, to, path, fraction), "action": value.ability, "payload": def.payload, "lineage": value.lineage, "rules": def.reactions})
 		# Enemy attacks use the same swept target, but never give this object a villager AI.
 		for target: int in world.combat.receivers(world, from.min(to) - Vector2.ONE, from.max(to) + Vector2.ONE, value.owner, delivery.filter, value.side):
@@ -175,11 +175,11 @@ func collect(world: RefCounted, start: int, now: int, melee: Array[int]) -> Arra
 			if fraction < 0 or at >= active_until or at < int(value.touch.get(target, 0)): continue
 			value.touch[target] = at + int(delivery.contact_ms)
 			impacts.append({"actor": value.owner, "target": target, "activation": value.activation, "source_implement": id, "at_ms": at, "damage": value.damage,
-				"incoming": -direction, "stun": def.stun, "push": def.push, "group_ms": 0, "position": point, "action": value.ability, "payload": def.payload, "lineage": value.lineage, "rules": def.reactions})
+				"incoming": -direction, "stun": def.stun, "push": def.push, "group_ms": 0, "position": point, "action": value.ability, "payload": def.payload, "lineage": value.lineage, "rules": def.reactions, "side": value.side, "power": value.power})
 		for attacker: int in melee:
 			var action: Dictionary = world.combat.states[attacker]
 			var other: Dictionary = Defs.ACTIONS[action.kind]
-			if not world.combat.eligible(world, attacker, value.owner, other.delivery.filter, int(world.objects.records[attacker].get("side", 0))): continue
+			if not world.combat.eligible(world, attacker, value.owner, other.delivery.filter, action.side): continue
 			if action.hit.get("implement:%d" % id, false): continue
 			var slot: int = world.actor_slots[attacker]
 			var page: RefCounted = world.pages[slot / 256]
@@ -205,6 +205,7 @@ func valid(world: RefCounted) -> bool:
 	for id: Variant in records:
 		var value: Variant = records[id]
 		if not id is int or id < 1 or id >= next_id or not value is Dictionary or value.get("id") != id: return false
+		if not world.combat.valid_source(value): return false
 		if not value.get("owner") is int or value.owner < 1 or value.owner >= world.objects.next_id or not Defs.ACTIONS.has(value.get("ability")): return false
 		var delivery: Dictionary = Defs.ACTIONS[value.ability].delivery
 		if delivery.kind != "implement" or not value.get("hp") is int or value.hp < 0 or value.hp > delivery.durability: return false
