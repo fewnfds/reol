@@ -1,6 +1,6 @@
 # ACT＋弹幕改版：源码、顾问与成熟方案研究
 
-核查日期：2026-11-14～15。性质：**研究取舍＋灰盒实施测量＋P2评审＋技能制作工具选型**。玩法与调参只见[改版规格](../systems/combat_framework/act_and_barrage.md)，实施次序只见[主计划](../../docs/plans/foundation-priorities.md)。用户已选择近远双路线；《鬼谷八荒》作为用户所写“硅谷八荒”的暂定对应。
+核查日期：2026-11-14～15。性质：**研究取舍＋灰盒实施测量＋P2评审＋技能制作工具选型＋P4战斗基座研究**。玩法与调参只见[改版规格](../systems/combat_framework/act_and_barrage.md)，实施次序只见[主计划](../../docs/plans/foundation-priorities.md)。用户已选择近远双路线；《鬼谷八荒》作为用户所写“硅谷八荒”的暂定对应。
 
 本次直接检查现有源码、官方/开发者网页、官方演讲讲义和开源README/部分源码；没有把参考游戏逐一试玩测帧，也没有把插件装进Reol测性能。原作机制、开源能力、Reol推导与待测参数分开记录。
 
@@ -309,6 +309,56 @@ P2据此完成单剑可重练切片并导出独立包。主观上仍重点观察
 
 采用的原生编辑增强已在真实Godot Inspector里观察并验证，导出包实际启动；YARD没有安装，不再把隔离Resource小试当完整编辑集成的唯一证据。飞剑当前是绑定练习件的唯一记录，尚无普通背包转赠/维修经济；程序几何、整身素材与合成音仍占位。规则/GUI/构建与短窗原件统一见BASELINE，主观手感和平衡仍需玩家试玩。
 
+### P4公开机制与源码研究
+
+2026-11-15从P3提交`d7f7459`检查机制接缝。P3已有原生定义/值编译/签名、动作相位、弹/区/减速/DoT与独立飞剑；缺口集中在载荷仍绑定动作名、单交付、效果种类有限，以及没有独立属性聚合、战斗池、结算结果/触发合同和召唤身体能力。结论是扩现有框架的组合能力，不是全部推倒重写。
+
+用户列出的五款游戏提供丰富的公开玩法与技术资料。本轮没有取得可直接嵌入Godot的这五款商业游戏官方战斗内核；实际核查分为**官方规则/静态数据、社区引擎源码、构筑工具源码**。社区实现不冒充原厂内部架构，技能JSON不等于权威执行逻辑。
+
+| 参考与本轮直接核查材料 | 能支持的取舍 | 适用边界 |
+|---|---|---|
+| GGG官方[Heist技能改版说明](https://www.pathofexile.com/forum/view-thread/2934377)，2020 | 文中明确分裂与其他弹行为有先后，持续风暴有并存上限；支持显式行为顺序和生产数量规则 | 历史版本设计，不把当年优先级/数值写成所有现行技能的通则，也不推测内部源码 |
+| GGG官方[Game Mechanics Q&A Part2](https://www.pathofexile.com/forum/view-thread/3130696/filter-account-type/staff)，2021 | 分开每次命中的格挡、部分技能每次施放的随机范围；动画速度和独立激活频率不天然同步 | 支持明确采样/随机/频率作用域，不能直接照抄整套PoE触发和吸血规则 |
+| WoW官方[德鲁伊职业页](https://worldofwarcraft.blizzard.com/en-us/game/classes/druid) | 官方列健康、法力、怒、能量等不同资源；同一资源接口可服务不同玩法 | 只说明玩法存在，不证明官方服务器的池存储结构；Reol不要求所有角色同时拥有这些条 |
+| Riot官方[Data Dragon说明](https://developer.riotgames.com/docs/lol#data-dragon)与固定版本[Anivia 14.24.1 JSON](https://ddragon.leagueoflegends.com/cdn/14.24.1/data/en_US/champion/Anivia.json) | 实际读取飞球沿途伤害/减速、爆炸眩晕、状态条件增伤与持续冰暴的组合描述；可参考数据与显示文案分离 | Data Dragon明确是静态数据与素材，没有暴露服务器的碰撞/触发执行器；示例使用固定旧版本 |
+| Riot工程[Unified Clock](https://www.riotgames.com/en/news/determinism-league-legends-unified-clock)，2017 | 统一游戏时钟、时间表示与暂停语义能减少分叉与转换错误 | 历史工程经验，不照搬其模拟频率/联网时钟，也不宣称Reol具备Chronobreak |
+| Blizzard经典[Archmage资料](https://classic.battle.net/war3/human/units/archmage.shtml) | 同一英雄包含持续范围伤害、可驱散召唤物、回蓝光环和传送；说明这些应作为可复用能力组合 | 官方玩法资料，不是War3引擎源码；不采用马甲单位代放法术的旧引擎技巧 |
+| 腾讯官方[王昭君技能页](https://pvp.qq.com/web201605/herodetail/152.shtml) | 实读护盾受伤附冰冷、破盾爆炸、第三次普攻变化、持续暴风雪及刷新护盾；支持按事件原因组合效果 | 只借组合结构，不搬版本数值；护盾/霸体/吸血等跨游戏规则不视为通用真理 |
+| [TrinityCore `Unit.h`](https://github.com/TrinityCore/TrinityCore/blob/bc47ca8fe5b4a8f20272bbc0847217653cc95dc9/src/server/game/Entities/Unit/Unit.h#L443)、[Aura处理器](https://github.com/TrinityCore/TrinityCore/blob/bc47ca8fe5b4a8f20272bbc0847217653cc95dc9/src/server/game/Spells/Auras/SpellAuraEffects.cpp#L51)、[TemporarySummon](https://github.com/TrinityCore/TrinityCore/blob/bc47ca8fe5b4a8f20272bbc0847217653cc95dc9/src/server/game/Entities/Creature/TemporarySummon.cpp#L29) | `DamageInfo/HealInfo/ProcEventInfo`区分吸收、抵抗、格挡与有效治疗；有限效果handler；召唤归属/寿命/消散分开 | 社区WoW实现，非Blizzard源码；3.3.5分支快照`bc47ca8`，文件头与[COPYING](https://github.com/TrinityCore/TrinityCore/blob/bc47ca8fe5b4a8f20272bbc0847217653cc95dc9/COPYING)为GPL-2.0-or-later。本轮只研究结构，没有移植代码 |
+| PoB Community [`ModDB.lua`](https://github.com/PathOfBuildingCommunity/PathOfBuilding/blob/6d1d39837b0d5b0f4a3ede05d06b7594bdbcc556/src/Classes/ModDB.lua#L136)、[`CalcTools.lua`](https://github.com/PathOfBuildingCommunity/PathOfBuilding/blob/6d1d39837b0d5b0f4a3ede05d06b7594bdbcc556/src/Modules/CalcTools.lua#L15) | 实读按名称/类型/标签/来源筛选的求和与乘算，支持从源修饰集合重建属性，避免增删次序污染 | 构筑计算器，不负责连续空间/实时ACT；dev快照`6d1d398`，[LICENSE.md](https://github.com/PathOfBuildingCommunity/PathOfBuilding/blob/6d1d39837b0d5b0f4a3ede05d06b7594bdbcc556/LICENSE.md)主体MIT，另列依赖条款；本轮未复制实现 |
+| Warsmash [`humanUnitActives.json`](https://github.com/Retera/WarsmashModEngine/blob/f9e0aeed4be372d6016519d0e97b384aa873f374/core/assets/abilityBehaviors/humanUnitActives.json#L17)、`CUnit.java/CUnitAttack.java`与README | 实读阶段动作数组、类型化条件、非叠加属性buff；支持有限原语＋数据拓扑，并提醒不要把资源扩成冗长脚本语言 | 社区War3引擎；main快照`f9e0aee`，当前[LICENSE](https://github.com/Retera/WarsmashModEngine/blob/f9e0aeed4be372d6016519d0e97b384aa873f374/LICENSE)为AGPL-3.0，README明确撤回旧MIT说明；本轮不引入Java运行时/原作资源 |
+| Epic官方[GAS属性与效果](https://dev.epicgames.com/documentation/en-us/unreal-engine/gameplay-attributes-and-gameplay-effects-for-the-gameplay-ability-system-in-unreal-engine?application_version=5.2) | 属性、效果定义/实例、持续/周期、标签要求、叠层与表现分离可借鉴；数据不能表达时有明确代码扩展口 | 使用5.2文档作概念参考；不搬ASC对象树、UObject、预测/复制模型，不替换Reol的World/存档 |
+| Godot 4.7原生[类型化Resource导出](https://github.com/godotengine/godot-docs/blob/4.7/tutorials/scripting/gdscript/gdscript_exports.rst)、[Inspector插件](https://github.com/godotengine/godot-docs/blob/4.7/tutorials/plugins/editor/inspector_plugins.rst)、[GraphEdit](https://github.com/godotengine/godot-docs/blob/4.7/classes/class_graphedit.rst) | 原生资源数组与Inspector足以继续制作类型化定义；GraphEdit是图界面，连接请求本身不执行战斗逻辑 | Context7核对4.7文档。P4延续原生制作，图编辑后置；Godot本身不禁止资源跨线程，值编译是本项目选择 |
+
+源码通过`git ls-remote`取得分支SHA，再按该SHA下载选定文件并记录哈希；未克隆编译这些引擎。GitHub API首次采集因限流失败，随后原始文件路径成功取回；不存在“API失败仍当读过源码”的情况。官方腾讯/Blizzard页有工具抓取限制，使用直接HTTP实际取回HTML/JSON核对。原件与URL/哈希清单留`.local/advisor/p4-combat-foundation-20261115/sources/`，不入库、不新增依赖。
+
+插件选型沿用4.1的已核查结果：此次没有重装或重测Godot战斗插件。决定继续原生Resource＋World的原因是已有运行资产及当前接入成本；不是声称所有插件都不可适配。现成框架可提供聚合/状态/标签的设计参考，未来若确有制作瓶颈再局部评估，不为了通用名义引入第二份HP、生命周期或节点时钟。
+
+### P4三轮双顾问收敛与开发者裁决
+
+2026-11-15通过本机入口进行三轮递进咨询，每轮同一份冻结提示词/附件分别交Hydrogen与Argon，**六份回答均完整返回**。第一轮比较继续分域、有限效果/触发组合和外部运行时，顾问包含联网研究；第二轮提交独立核查证据、纠错及具体的时序/预算候选，第三轮再提交完整方案与Motion/Scan/Projectile/Area/Units源码做反例审查。后两轮明确为附件静态审查，没有额外联网、运行代码或试玩。
+
+原始提示、附件冻结、状态、回答与来源原件留`.local/advisor/p4-combat-foundation-20261115/round1`、`round2`、`round3`，临时候选留同一忽略目录。结论不是按票数决定；最终合同归规格13，施工与可观察出口归主计划P4。这里保留影响判断的证据与拒绝理由。
+
+| 争点 / 顾问建议 | 开发者核查与最终取舍 |
+|---|---|
+| 继续加字段，或完整换成GAS/可视脚本引擎 | 选择现有领域＋独立载荷/结果＋有限触发组合。P3原生资产可延用，`payload`绑定动作名、同动作只交付一次等是真实限制；先解决接口，不重建第二份人物/时钟 |
+| 前摇起手采样是bug；DoT重复扣甲；同刻近战不能互杀 | 撤回。`request`采样是既有策略；`effects.apply`收到未扣甲raw，每跳扣一次；同刻近战先固定accepted，后续只查目标活着，现有可以交换。P4交付采样是新政策，结算重构依据未来组合需求，不虚构旧bug |
+| 把`next_ms < until_ms`改成`<=`“补末跳” | 不采用。半开寿命为已明确策略，恰到期不跳；到期前真实续期才延长旧实例。精确边界重施是新实例，不因顾问习惯额外增加伤害 |
+| 所有新弹/爆炸都排到下一运动段，或所有位移都回滚到精确接触 | 两种极端均不采用。子弹/瞬爆按当刻轨迹做局部查询，身体跃迁/新身体/反应持续场在固定网格交付；避免死亡爆炸累计帧延迟，也避免全世界回滚。成本与手感仍待小样，不接受“只需30/100行”的保证 |
+| 触发瞬移只删旧位置候选，新落点等下一帧，另赠短无敌 | 不采用。边界前身体仍可被打死，交付后从新位置真实受击；保命能力要显式定义。边界同刻旧段接触先闭合，再做新交付，直接消除未定项 |
+| 局部扫掠只截出生到段末，沿用现有`impact.position`和查询框 | 补全。需双端截到到期、处理段末出生；当前角色命中position是目标中心，分裂需父弹轨迹点；Scan宽搜漏乘寻路加速、半径上界和历史位置需一起核查。静态/器物不能只走actor索引 |
+| 给同刻支援统一最高优先级，或所有治疗都留到最后 | 选择直接支援与基础包按稳定键排序、0血锁入待死亡；结果驱动吸血/回盾统一次级波次。保留明示的同时刻决胜，不宣称尾刀/抢盾或所有HP对ID交换无关；有序效果不能越过死亡阶段 |
+| 所有控制沿P2的400ms池；或新状态可独立刷新控制记录 | 不采用。短受击硬直承接P2；主动眩晕、定身与强制位移分类处理，样例验证跨控制轮换仍有脱控机会。具体阈值留内容调优，不照抄原作常数 |
+| 直接调用`spawn_actor`就获得轻量召唤；立即回收死亡行 | 不采用这一保证。出生/冷热/生活/人口/死亡/移除均有人类假设，需能力过滤；死亡事实先锁定，几何引用安全后再回收。新增身体/扩页/复用行也必须接World轨迹与显示出生断点 |
+| 永久生产者每次射击都可新开root | 仅合法自主行动/正周期可新开攻击链；受事件/命令追加的发射仍继承触发链，替换/到期不默认再召唤。最终控制者数量组与创建代数防止跨生产者洗白 |
+| 同源刷新总是换新传播链；不同链合并取更小预算即可 | 不采用隐式换链/拼链。续期保原链，独立施加/显式替换才建新链，单实例仅一条链；旧在途后代仍有原引用。周期伤害先按来源或独立实例，拒绝来源/预算未定义的多链合并 |
+| B包先做完整吸血/格挡反击/满层定身，C再做触发 | 修正阶段依赖。B先做直接资源/防御/状态小样与最小多槽/HUD，C再接结果触发组合；避免临时硬编码后重写。AI缺资/受控反馈在B处理，不拖到召唤包 |
+| 编译器证明所有触发图停机；先造属性依赖图/全量事件溯源 | 不采用。编译查结构与有限边界，运行时共享配额收敛复杂回路；单趟属性重建、当前活跃过程与按需诊断即可，完整图语言与历史日志平台后置 |
+| 限制单段≤17ms就保证任意step切分全世界长期完全等价；必须跑极端负载 | 不作保证。Runner当前快进多跑固定步；World长step入口仍需明确战斗上界。只验证直接先后/恢复及相关短窗，不升级为全局严格同未来或人口/弹量KPI |
+
+最终仍需试验的是局部派生扫掠的成本、身体反应延后的实际体验、控制保护参数，以及多机制混合后的可读性。顾问未实机验证，正式方案也未开始实施；不将其一致判断写成性能或手感已通过。
+
 ## 6. 尚需什么证据
 
 1. 当前60Hz的实际设备输入→权威动作→显示、完整提交间隔与严格后台隔离对照仍有证据缺口；旧20Hz合成移动基线见1.2，新60Hz观察见1.3。按用户要求，这些不再阻塞P0收口或P1，不自动追加测量。
@@ -317,5 +367,6 @@ P2据此完成单剑可重练切片并导出独立包。主观上仍重点观察
 4. 一套八向/分层角色在后退/侧移/斜移/施法中的实际连贯性，再决定正式制作量。
 5. 声/停顿/震动AB、选定战斗负载回正常世界的成本、中途存读和世界生活接续。
 6. 原生Resource/Inspector、同模板多角色、八套真实施放/中途恢复与导出已通过；仍需大量实际内容制作反馈，判断横向表格是否值得引入。YARD编辑/导出没有试用，任意分支技能和器物经济没有实现。
+7. P4基座已形成三轮评审后的待实施方案；需按A～E实际验证结算/边界、资源/状态、派生预算、召唤过滤与组合试玩。现有资料与静态审查不能代替这些出口。
 
 下一步证据来自实际制作与试玩；不继续靠增加参考名单或预列大量技能证明框架成立。
