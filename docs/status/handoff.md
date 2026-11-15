@@ -8,6 +8,8 @@
 
 用户明确将新增预警系统后置；P5建议聚焦[NPC战斗决策与节奏](../plans/foundation-priorities.md#下一阶段候选)，利用现有能力改善距离、技能选择和局部出手配合，尚未开始实现。弹幕新花型/精英不作为默认清单，不按旧P5～P7计划自动续做。存读、共同世界和生活中断已经接入，新机制随改动补对应边界，不再从零整合。
 
+新增方向是单位可绑定的策略程序，支持模板、个体参数与独立记忆；双顾问和公开案例核查见[研究](../../design/research/action_editor_references.md#8-可编排单位策略p5研究未实施)。候选路线是共同观察/意图接口加Resource规则制作，先验证三类战斗风格；普通游戏无需展示编程界面，未开始制作图编辑器或运行时策略层。
+
 扩展先判断配置、局部脚本、共享机制或新领域，沿[实际owner](../engineering/architecture.md)修改。公共合同归[行动与作用](../../design/systems/action_effect_framework.md)，战斗合同归[ACT规格](../../design/systems/combat_framework/act_and_barrage.md)。用户类比和顾问建议不自动成为类名、功能或验收断言；根AGENTS要求提炼意图并核查证据。
 
 ## 当前边界

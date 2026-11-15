@@ -124,3 +124,42 @@ E整合审查两份完整答复均已核查，原件在同目录`e/review/`。�
 未照抄的结论：实体精确到期已在`World._advance_interval`末尾清理，现有到期恢复反例通过，未将`<=`放宽为`<`；状态寿命最小1ms，非50ms，末段光环不因短寿命天然非法；额外槽明确映射到skill窗口，不需重复加入相同唤醒时刻。普通缓冲允许等待命中回怒/回蓝，未因静态预查费用丢掉合法未来输入。静态受体不具身体动作能力，由共同门禁拒绝完整请求；不将它的所有反应配置一律禁止。器物实际发射前按需重建索敌索引，恢复也重建缓存。
 
 最后相关规则、真实GUI/Inspector、源码→导出PCK在途恢复和独立exe短窗已完成；实际结果与失败记录归BASELINE。没有移植外部商业游戏代码或增加第三方战斗运行时。
+
+## 8. 可编排单位策略：P5研究，未实施
+
+用户提出开发者、模组/创造模式玩家及AI作者可制作行为程序并附加给单位；普通玩法不必提供编程界面。这个方向表达的是策略可替换与单位差异，不预先指定行为树、脚本语言、智力属性或自走棋玩法。AI可以是策略制作者，不要求运行时大模型参与决策。实施范围仍只归[主计划](../../docs/plans/foundation-priorities.md#下一阶段候选)，新增预警系统继续后置。
+
+### 8.1 本轮核查的公开来源
+
+| 来源 | 已核查事实 | 对当前项目的参考价值 |
+|---|---|---|
+| [Gladiabots官网](https://gladiabots.com/)及[开发者Steam介绍](https://store.steampowered.com/app/871930/GLADIABOTS__AI_Combat_Arena/) | 玩家构造机器人AI并观察竞技场执行；提供无需编程知识的组合和沙盒测试。官网wiki本轮不可访问，未据其推断精确节点调度 | 参考制作→运行→观察→修改的循环，不声称有原厂开源代码或照搬其竞技玩法 |
+| EA官方[Dragon Age: Origins PC手册](https://eaassets-a.akamaihd.net/eahelp/manuals/dragon-age-origins-manuals_PC.pdf)，Combat Tactics | 从上到下检查条件并执行对应动作；可排序、保存策略，并另有距离/追击等一般行为偏好 | 条件—动作优先级表可以作为低代码入口，无须先制作大图编辑器；规则顺序和运行任务的关系仍需自行定义 |
+| Screeps官方[介绍](https://docs.screeps.com/introduction.html)及[CPU限制](https://docs.screeps.com/cpu-limit.html) | 脚本驱动单位自主反应；脚本执行与计划行动分阶段，服务器有执行时限 | 借鉴查询/意图接口和成本边界，不引入其联机模式、CPU收费或声称GDScript具有相同强制中断能力 |
+| Godot4.7官方[Resource](https://github.com/godotengine/godot-docs/blob/4.7/tutorials/scripting/resources.rst)、[GraphEdit](https://github.com/godotengine/godot-docs/blob/4.7/classes/class_graphedit.rst)、[线程安全](https://github.com/godotengine/godot-docs/blob/4.7/tutorials/performance/thread_safe_apis.rst) | 资源按路径共享缓存；GraphEdit提供图形交互但不执行图逻辑；活动SceneTree不支持从工作线程直接操作，共享Resource不能被多线程随意改写 | 原生Resource/Inspector继续作作者工具；图形编辑与模拟执行分开，单位状态不写共享模板 |
+| [Beehave仓库](https://github.com/bitbrain/beehave/tree/godot-4.x) | MIT、GDScript行为树，主要在SceneTree中组合节点；README列Godot4分支和版本选择 | 有现成编辑/调试方式，但当前无每单位Node的模拟不能直接照接；没有在Reol运行或比较其性能 |
+| [LimboAI仓库](https://github.com/limbonaut/limboai)、原始[BehaviorTree](https://github.com/limbonaut/limboai/blob/master/doc_classes/BehaviorTree.xml)与[BTInstance](https://github.com/limbonaut/limboai/blob/master/doc_classes/BTInstance.xml) | MIT代码、C++模块/GDExtension；定义为Resource、实例为RefCounted，实例化接口仍接agent/owner Node。README列1.8.x对应Godot4.7模块/4.6+扩展 | 不能误称其所有任务都是SceneTree节点，也不是纯GDScript依赖。采用需要适配线程/agent/存读，版本表不是本项目兼容测试 |
+
+以上为2026-11-15本轮实际打开的官网/手册/仓库资料；移动分支仅代表阅读时内容，不是项目锁定依赖。未安装插件，未对第三方编辑器或运行时做性能实验。
+
+### 8.2 当前落点与建议
+
+当前事实：`combat.gd._think`在原50ms自主思考节拍内读取本人感知，靠近已观察位置并请求primary；Combat同时还负责动作与伤害，不能把整类都替换为策略脚本。生活选择归Livelihood，临时随从的跟随入口另在Entities，直接控制另有持续输入。当前没有可挂接的通用行为程序或控制权仲裁平台。
+
+建议先确定“本人观察与记忆→策略选择→行动意图→原执行准入”的接口，再选择首个制作形式：
+
+- 查询给本人生命/资源、实际可知目标及有限局部候选和结果，不交出活World引用；脚本中的目标身份不是可随时查询全图真相的授权。
+- 程序定义/参数可以共享，每单位独立保存目标、当前决策任务、记忆和必要的下次思考时刻。已有动作run、CD、已付成本仍归原宿主，行为任务结束/放弃不等于取消已承诺动作。
+- 手动控制、战斗策略与生活策略先有明确交接。移动、瞄准和出招可以同时存在，各控制通道需要明确采用来源；不把“一个思考结果”误解为每拍只能移动或出招。首版只接战斗，不让多个策略每帧争抢身体，也不把普通手动移动命令直接当AI移动API而顺带改掉autonomous/工作状态。
+- 规则表、行为树、Utility评分和受信GDScript都是不同制作/选择方式，不必同时实现。首个低代码入口可用Resource/Inspector组合少量条件—动作优先级规则；复杂局部策略可用显式注册的项目脚本，沿同一接口执行。等真实多步行为需要再扩树/序列，不先造全能VM。
+- 规则表须说明重评优先级、正在执行的任务如何继续、拒绝后何时重选；不能每拍重启奔跑或出招。高优先级规则还需检查行动可用性，冷却/费用不足时继续选择其他合法候选，最终提交仍走原门禁。距离带与必要的任务持续条件避免反复进退。允许声明式程序采用有界节点/候选/步骤，查询本身也要有界。受信GDScript的API约束与事后计时不构成安全沙盒，也不能终止任意无限循环；外来低代码数据和受信代码分开处理。项目内Resource可作制作入口，未来外部导入需先校验纯数据，不能把任意Resource或Script直接加载当作隔离机制。
+- 沿共同World时间调度，保留现有战斗执行频率；思考按到期/相关事件选择活跃单位，不默认每身体每帧遍历整树。CPU预算是工程成本控制，不直接定义游戏里的智力。程序/参数版本与声明的单位记忆进入对应恢复校验，不保存Callable、World引用或执行中的GDScript调用栈。
+- 先做两三种策略和可查看的选择/拒绝原因，验证同程序两单位的状态隔离、失视/目标消失、硬控/承诺、手动接管和在途存读。可视化拖拽编辑器、公开任意脚本沙盒和全生活AI重构不自动进入P5。
+
+以上为候选设计，不构成已实现能力或全部必须建设的类型清单。
+
+### 8.3 顾问核查与裁决
+
+本机双顾问均完整返回，原答、问题及源码附件留`.local/advisor/behavior-programs-20261115/`。采纳共同窄接口、规则数据与受信代码分层、定义与独立记忆分离、可用性预检和选择追踪；按实际风格需要补少量空间行动，不先建设全能运行时或可视图工具。行为树可作为后续制作形式，当前不装插件；这不是第三方性能差或不能适配的实测结论。
+
+没有采纳示例中的固定规则数、记忆槽数、毫秒预算、手动宽限期与升级数量门槛；这些未由项目需要或测量证明。无逐单位Node是现有实现方式，Resource仍需明确只读和线程归属；二者不写成不可改变的产品约束。沿用已有接触记忆与占用索引，不把ActionGate误写成已完成的控制来源仲裁系统。对隐藏目标的死亡事件仍按本人实际可知信息处理，不能因为宿主知道死亡就提前让策略得知。

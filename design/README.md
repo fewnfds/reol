@@ -11,7 +11,7 @@
 | 身体、多生命与人生 | [众生](systems/beings_and_lifeways.md)、[有限转生](systems/rebirth_and_new_lives.md) |
 | 认识、器物与学习 | [人物理解](systems/perception_and_understanding.md)、[器物与创造](systems/knowledge_artifacts_and_invention.md)、[修行](systems/cultivation_and_learning.md) |
 | 社会、交互与组织 | [社会系统](systems/social_system.md)、[有限服务](systems/settlement_services.md) |
-| 技能、工具与交互的共用执行 | [行动与作用框架](systems/action_effect_framework.md)（P4候选，未实施） |
+| 技能、工具与交互的共用执行 | [行动与作用框架](systems/action_effect_framework.md)（P4已实现合同） |
 | 动作、外观与物品 | [战斗](systems/combat_framework.md)、[衣着与持物](systems/appearance_and_possessions.md) |
 | 环境与后置空间候选 | [环境](proposals/environment.md)、[高低差](proposals/elevation.md) |
 
