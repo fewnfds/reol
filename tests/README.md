@@ -35,3 +35,5 @@ P4新增检查按改动选用，不加入默认kernel长矩阵：
 | `action_combinations_ui_smoke.gd` | 真实键鼠左右键/E/C、原生配置切换、多槽HUD、两条组合及机制显示、四种实际文件存读、旧选中对象不可见仍可出招 |
 
 P4 GUI截图归`logs/abilities-ui/p4-*`，独立测试档/偏好自动清理。`combat_authoring_editor.tscn`另覆盖共同Status/Reaction/Loadout Resource校验、缺失template和嵌套/跨类型引用提示，不只验证Ability预览；定义规则还验证坏Loadout短路与原生DoT周期一致性。通过这些检查不等于正式手感、长局或密弹容量验收。
+
+`framework_smoke.gd`按需核对移速变化缓存的到期/换装/恢复、多目标重建与槽复用；索引的当前位置/阵营/死亡/扫掠dt和负查询边界；通知只交付一次、旧Frame不可变、非full弹信息、身体布局匹配、暂停管理命令/环境刷新及只读配置。它不加入默认kernel套件。P4 GUI点目标按键同时注入指针事件，避免OS鼠标位置在warp后被实际桌面移动覆盖；仍走正常键盘输入和命令路径。

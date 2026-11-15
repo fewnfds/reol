@@ -89,6 +89,12 @@ python tools/capacity.py --baseline logs/performance-前次目录/summary.json
 
 step_mean_ms由全窗累计成本差得到；step_ms分位数仍是有界尾部窗口。单独一窗可用benchmark.py --capacity；headless不能证明真实FPS，不因纯文档/工具改动重跑全部游戏倍率。
 
+### 基础框架的持续战斗归因
+
+`python tools/benchmark.py --binary build/windows/act-p4/reol-act.exe --actors 24 --speed 1 --fps 60 --workers -1 --seconds 5 --gpu-index 0 --fog --combat-probe --out logs/framework-capture.json`显式开启`framework-combat-v1`。只允许有界1×、至少4人，不与mixed/capacity/response混用；普通启动不启用。原P4星焰控制/动作在同一World中推进，三敌和玩家有明示耐久覆盖，后台正常生活。v1开局保留默认血刃到星焰的配置过渡，固定比较场景；不读取或保存用户世界。它不是手动输入延迟测量，也不与capacity标签混算。
+
+报告`profile`含外层准备、身体、共同提交、环境/观察及全步累计，还有嵌套索引与发布计时、细段/索引/full次数。外层剩余可由全步减去互斥分项得到，索引子计时不能再相加。峰值仅为自开局在主步边界的观察，不是细段内或单独采样窗最大值；不输出峰值差。快profile与慢counters的边界可能相差几步，原值保留，不能据命中差1次判定规则改变。参考实现的固定步结果比较只用于本次改动，未设永久确定性门禁。
+
 ## 响应链实验
 
 P0使用显式开启的合成移动请求，沿真实Runner邮箱、运动提交与原显示插值测量。先导出隔离release，保留正式试玩包：

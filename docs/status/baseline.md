@@ -6,7 +6,7 @@
 
 Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+，1280×720，无VSync。正式入口scenes/main.tscn；当前P4成品为build/windows/act-p4/reol-act.exe及同目录pck，源码试玩和导出快照的差别见[usage](../engineering/tooling/usage.md)。
 
-当前源码与`build/windows/act-p4/reol-act.exe`＋pck为P4通用行动基座/近远组合测试版，由根目录启动.cmd选择源码或成品；默认血刃＋混战，顶栏切星焰行者、机制范例或单轻敌/单重敌。审查修正版PCK SHA256为`8607ecc200ee8be03984d5b3acc3803be00fdc4656e3a0340cf4500132fe02a3`，exe为`3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf`，导出日志`logs/export-20261115-154753-710121100.log`。源码/导出目录签名均为`04042c8edd9719b61192e5932f02a6346dfd643f280714a330d8e8f3e063a928`，40动作/24配置。F5/F9默认format11的`act-p4-quicksave.reol`；不含来源快照的审查前开发档因签名不同拒载并保留，需新开局。审查前P4程序归档于`build/windows/act-p4/archive/pre-review-f1c5344/`，P1/P2/P3包和旧档保留。
+当前源码与`build/windows/act-p4/reol-act.exe`＋pck为基础框架优化后的P4测试版，由根目录启动.cmd选择源码或成品；默认血刃＋混战，顶栏切星焰行者、机制范例或单轻敌/单重敌。当前PCK SHA256为`bbc0b8cba166b1e91cdbd5c9fae8a4b1fe30e9f660d7380a806365a0a8f03346`，exe为`3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf`，导出日志`logs/export-20261115-165136-2276100.log`。源码/实际PCK签名均为`04042c8edd9719b61192e5932f02a6346dfd643f280714a330d8e8f3e063a928`，40动作/24配置。F5/F9默认format11的`act-p4-quicksave.reol`；本次未改规则签名或格式，优化前有效P4状态可恢复；更早缺来源快照的开发档仍拒载并保留。优化前审查包PCK为`8607ecc200ee8be03984d5b3acc3803be00fdc4656e3a0340cf4500132fe02a3`，归档于`build/windows/act-p4/archive/framework-before-20261115-1655/`；更早审查前包、P1/P2/P3包和旧档保留。
 
 原正式人物/装备/背包版由02958cc提交对应，PCK指纹、开发机与各倍率历史样本统一记录在[performance.json](performance.json)。它是工具可直接读取的数值原件，包含实际倍率而非倍率达成比例；本机原始报告在logs/capacity-20261113-shipped/。不要求新机器拥有这些日志才能接手。
 
@@ -108,13 +108,38 @@ P2采用同一512²世界与默认24人，不降低后台生活精度，不追�
 
 `logs/review-p4-ui.log`在RTX3060真实D3D12进程完成两条组合、机制范例和四次实际文件存读，ACTION_COMBINATIONS_UI_SMOKE errors=0，相关截图已观察。`logs/review-source-catalog.log`与`logs/review-pack-restore.log`验证实际修正版PCK签名和源码一致，源码保存的混合过程在包中恢复后，弹、区、状态、器物、池、防御、反应、实体及HP与源码继续运行一致。`logs/review-release-launch.log`为独立修正版exe的24人战斗开局/180帧正常退出，无脚本/引擎错误；合并审查当时没有新增性能容量测量，随后同日的框架研究短窗见下节。
 
-待结合用户字幕和真实负载定位的成本入口是`effects.prepare`逐空间小段遍历状态/身体、`reactions.prepare`跨宿主引用扫描、`Runner._publish`完整快照深复制及空间索引重复准备。它们是静态审查线索，本轮没有按猜测改调度、降世界精度或展开P5。
+审查当时记录的成本入口为`effects.prepare`、`reactions.prepare`、`Runner._publish`及空间索引；后续框架优化的实际范围与证据见下节，没有展开P5。
 
 ### 框架优化前的相关短窗
 
-2026-11-15收到RTS视频字幕后，对当前修正版PCK做1次release短窗；运行代码、PCK签名与指纹均未变化。i5-13600KF、RTX3060/D3D12、1280×720、512²/24人/默认血刃混战/迷雾、1×60FPS、workers0，3秒预热＋5秒采样。`logs/framework-release-24.json/.log/.cpu.json/.png`完整退出，无脚本/引擎错误：实际1.0001×、帧p99 16.81ms，World.step均约0.50ms，发布累计70.357ms/300步（约0.235ms/步），viewport GPU均约0.079ms，零过载。统计窗口与逐步样本均值存在取样边界差，保留原值，不制造精确统一数。
+2026-11-15收到RTS视频字幕后，对当时审查修正版PCK做1次release短窗，尚未改运行代码。i5-13600KF、RTX3060/D3D12、1280×720、512²/24人/默认血刃混战/迷雾、1×60FPS、workers0，3秒预热＋5秒采样。`logs/framework-release-24.json/.log/.cpu.json/.png`完整退出，无脚本/引擎错误：实际1.0001×、帧p99 16.81ms，World.step均约0.50ms，发布累计70.357ms/300步（约0.235ms/步），viewport GPU均约0.079ms，零过载。统计窗口与逐步样本均值存在取样边界差，保留原值，不制造精确统一数。
 
-玩家未操作，发生1次死亡，窗口有9次命中、23次交付；只能说明现普通近场加后台的短窗，不证明持续施法/密弹容量。未与其他显卡或火术负载计算提速，不替换performance.json。新增CPU归因和整数运算微基准的条件、结果与限制归[研究](../../design/research/large_simulation_optimization.md#rts性能视频字幕核查)；headless归因不当作FPS证据，尚未实施优化，因此没有改动前后收益结论。
+玩家未操作，发生1次死亡，窗口有9次命中、23次交付；只能说明现普通近场加后台的短窗，不证明持续施法/密弹容量。未与其他显卡或火术负载计算提速，不替换performance.json。新增CPU归因和整数运算微基准的条件、结果与限制归[研究](../../design/research/large_simulation_optimization.md#rts性能视频字幕核查)；headless归因不当作FPS证据。
+
+### 基础框架优化交付
+
+实现提交`fe4fdcf`，范围归[架构](../engineering/architecture.md)，选型/顾问裁决归[研究](../../design/research/large_simulation_optimization.md#godot原生能力与本轮实施取舍)。512²地图、60Hz和现有世界精度保持；没有几何版本缓存、流场/LOD、每格人数截断或新技能。当前独立包由`build/windows/framework-final/`复制到原P4入口，exe/pck与上述指纹一致。
+
+同i5-13600KF/RTX3060/D3D12/1280×720/迷雾/1×60FPS限帧、3秒预热＋5秒采样，`framework-combat-v1`使用同一World中的星焰连发/焰种/控制与耐久三敌，后台正常生活。24人一页自动串行，512人两页自动两worker。前测为原算法加相同诊断，后测为最终代码；每档各一次最终对照，中间补丁窗另留记录，不择最好窗作最终值。
+
+| 人数 | 模拟步均，前 → 最终 | 步p99，前 → 最终 | 帧p99，前 → 最终 | 实际流速，前 → 最终 |
+|---|---|---|---|---|
+| 24 | 1.161 → 0.752ms | 5.394 → 2.236ms | 16.742 → 16.709ms | 1.0001× → 1.0001× |
+| 512 | 9.182 → 8.341ms | 15.884 → 14.533ms | 16.859 → 16.720ms | 1.0001× → 0.9967× |
+
+证据为`logs/framework-{before,final}-{24,512}.json/.log/.cpu.json/.png`，均完整退出、无引擎/脚本错误、资源守恒和零过载需求；不替换performance.json。步均用全窗累计差，分位数用样本窗，两种均值不强行统一。主线程process均值24人为0.864→0.642ms、512人为3.060→2.586ms；GPU未改算法，窗间波动不当作提速。512人最终发布累计200.232ms，对照194.554ms，没有总发布成本下降结论；full次数301→62，减少慢统计被通知带动，但动态状态/身体复制仍存在。索引子计时累计787.874→658.091ms。24人索引调用/细段530/465保持，512人为1692/1592→1685/1585，变化来自世界时间采样端点，并非主动减少真实细段。
+
+24人模拟步均约低35%、512人约低9%只是这两次短窗的观察，不是所有玩法保证。中间补丁窗512人为7.94ms，最终为8.34ms，说明单窗波动；帧尾不能据此承诺改善。峰值只在开局以来主步边界观察到10弹/4状态，包含实际施放尝试被承诺/CD拒绝的过程，不证明密弹容量或人工输入延迟。命中/交付差几次与慢统计/采样边界不齐，规则等价另验，不用活动量变化证明优化。
+
+`logs/framework-final-normal.json/.log/.cpu.json/.png`在实际P4入口另核默认24人血刃混战：世界0.9999×，帧p99 16.812ms，步均约0.503ms，主线程process约0.524ms，发布累计42.572ms/299统计步，零过载，无错误；玩家无操作，不作为持续战斗窗。
+
+相关验证与限制：
+
+- `logs/framework-final-equivalence.log`：临时reference子类保留优化前World.step/Effects.prepare/Scan.index，24/512人各360个固定16/17ms步，逐步outcomes、move_scales、motion一致，最终全部持久域/页一致。只针对这次变更，不作为全游戏长期确定性约束。
+- `logs/framework-smoke-final.log`：到期/换装/多目标/恢复/槽复用、当前几何/阵营/死亡/dt、通知只消费一次/旧Frame不可变/布局/暂停管理命令通过。资源、空间、跨域、反应及原P3相关检查见`logs/framework-final-action_resources_smoke.log`、`framework-spatial.log`、`framework-domains.log`、`framework-reactions.log`、`framework-abilities.log`；Python工具短检查通过。
+- `logs/framework-ui-final.log`与最终代码的`framework-delivery-ui.log`：真实D3D12下原生键鼠/配置选择、血刃/星焰、分裂/传播/召唤/光环/双剑、四次文件存读通过，截图`logs/abilities-ui/p4-*`已观察。首轮点目标键盘因OS鼠标位置在warp后被覆盖，合法返回target_blocked；测试补同刻指针事件后通过，没有放宽目标/地形判定。首版新反例伪造不完整hit事件触发脚本错误，改用真实damage路径；暂停反例先误用source命令字段，改为合法tile目标后通过，失败日志保留。
+- `logs/framework-final-source-restore.log`与`framework-final-pack-restore.log`：源码和实际导出PCK的40动作/24配置签名相同，源码保存的弹/状态/传播/盾/狼/图腾/双剑混合过程在PCK恢复后继续结果一致；`framework-old-state-restore.log`另以新PCK恢复优化前保留的原始fixture并继续相同结果，未改格式或规则签名。
+- 通用kernel在15秒入口多次打印0错误但退出超时，`logs/framework-kernel.log`、`framework-kernel-console.log`和`framework-kernel-final.log`仍记失败；阶段计时副本`framework-kernel-timed.log`曾在相同15秒上限内完整退出、定位到套件总时间接近上限，没有延长上限或删除断言。最终相关独立检查已完成；不能把默认整合入口写成稳定通过。普通场景headless初探仍出现下述已知custom_samplers错误，不能因进程0退出记为通过；本轮容量和GUI证据均来自真实D3D12。
 
 ## 已知限制
 
