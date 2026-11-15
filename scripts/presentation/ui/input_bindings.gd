@@ -11,6 +11,8 @@ const SPECS: Array[Dictionary] = [
 	{"id": "act_right", "label": "向右移动", "key": KEY_D, "contexts": ACT},
 	{"id": "act_primary", "label": "主攻击", "mouse": MOUSE_BUTTON_LEFT, "contexts": ACT},
 	{"id": "act_skill", "label": "武器技", "mouse": MOUSE_BUTTON_RIGHT, "contexts": ACT},
+	{"id": "act_skill2", "label": "主动技能二", "key": KEY_E, "contexts": ACT},
+	{"id": "act_skill3", "label": "主动技能三", "key": KEY_C, "contexts": ACT},
 	{"id": "act_step", "label": "闪步／后撤", "key": KEY_SPACE, "contexts": ACT},
 	{"id": "game_heal", "label": "用药", "key": KEY_R, "contexts": ACT},
 	{"id": "game_ability", "label": "已学能力", "key": KEY_Q, "contexts": ACT},
@@ -74,8 +76,8 @@ static func valid_binding(value: Variant) -> bool:
 	if value.get("kind") == "key": return value.code > 0 and value.code < KEY_SPECIAL * 2 and (value.code & KEY_MODIFIER_MASK) == 0
 	return value.get("kind") == "mouse" and value.code in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT, MOUSE_BUTTON_XBUTTON1, MOUSE_BUTTON_XBUTTON2]
 
-static func same(a: Dictionary, b: Dictionary) -> bool:
-	return a.get("kind") == b.get("kind") and a.get("code") == b.get("code")
+static func same(a: Variant, b: Variant) -> bool:
+	return a is Dictionary and b is Dictionary and a.get("kind") == b.get("kind") and a.get("code") == b.get("code")
 
 static func conflicts(id: String, value: Dictionary, table: Dictionary) -> Array[String]:
 	var result: Array[String] = []
@@ -114,6 +116,12 @@ func install() -> void:
 		var candidate: Dictionary = defaults()
 		for spec: Dictionary in SPECS:
 			if config.has_section_key("actions", spec.id): candidate[spec.id] = config.get_value("actions", spec.id)
+		# New optional slots must not discard older custom movement/attack keys.
+		for id: String in ["act_skill2", "act_skill3"]:
+			if config.has_section_key("actions", id): continue
+			for code: Key in [KEY_E, KEY_C, KEY_V, KEY_X, KEY_T, KEY_Y, KEY_U, KEY_O, KEY_K]:
+				var proposed: Dictionary = {"kind": "key", "code": code}
+				if conflicts(id, proposed, candidate).is_empty(): candidate[id] = proposed; break
 		if int(config.get_value("controls", "version", 0)) == 1 and validate(candidate).is_empty(): values = candidate
 		else: notice = "键位配置无效，已使用默认键位"
 	elif error != ERR_FILE_NOT_FOUND: notice = "无法读取键位配置，已使用默认键位"

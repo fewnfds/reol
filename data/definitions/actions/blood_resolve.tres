@@ -1,0 +1,21 @@
+[gd_resource type="Resource" load_steps=6 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/reaction_def.gd" id="type"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_def.gd" id="effect"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_bundle_def.gd" id="bundle"]
+[sub_resource type="Resource" id="Effect0"]
+script = ExtResource("effect")
+kind = "resource"
+pool = "rage"
+amount = 4
+[sub_resource type="Resource" id="Bundle"]
+script = ExtResource("bundle")
+effects = Array[ExtResource("effect")]([SubResource("Effect0")])
+[resource]
+script = ExtResource("type")
+id = "blood_resolve"
+event = "damaged"
+mode = "bundle"
+health_leech = 0.0
+chain_limit = 16
+max_depth = 3
+bundle = SubResource("Bundle")

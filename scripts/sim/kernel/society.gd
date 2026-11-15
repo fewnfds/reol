@@ -38,11 +38,11 @@ func available(world: RefCounted, actor: int, action: Dictionary) -> bool:
 
 func invite(world: RefCounted, actor: int, action: Dictionary) -> void:
 	var target: int = action.target
-	if target == actor or not world.actor_slots.has(target) or action.kind not in ["talk", "trade", "learn", "request_help"]:
+	if target == 1 or target == actor or not world.actor_slots.has(target) or action.kind not in ["talk", "trade", "learn", "request_help"]:
 		return
 	var slot: int = world.actor_slots[target]
 	var page: RefCounted = world.pages[slot / 256]
-	if not world.gate.check(world, target, world.operation_time()).is_empty() or world.actions.has(target) or world.combat.engagements.has(target) or world.combat.states.has(target) or page.health[slot % 256] < 30:
+	if world.combat.controls.has(target) or (not world.objects.records[target].get("autonomous", false) and world.work_runs.has(target)) or not world.gate.check(world, target, world.operation_time()).is_empty() or world.actions.has(target) or world.combat.engagements.has(target) or world.combat.states.has(target) or page.health[slot % 256] < 30:
 		return # A busy/unwilling partner need not stop; contact can fail normally.
 	action["partner_waiting"] = true
 	action["partner_resume"] = world.objects.records[target].get("autonomous", false)
@@ -124,6 +124,7 @@ func finish(world: RefCounted, actor: int, action: Dictionary, now: int) -> Stri
 			world.livelihood.remember(world, action.target, target, now)
 			other.autonomous = true
 			action["partner_resume"] = true
+			if not waits.has(action.target) and world.gate.current(action.target).is_empty() and world.gate.check(world, action.target, now).is_empty(): world.livelihood.after_action(world, action.target, now)
 		"learn", "study":
 			if action.kind == "learn" and not other.get("methods", {}).has("wood_breath"):
 				return "teacher_does_not_know"

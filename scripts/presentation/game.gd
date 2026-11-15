@@ -233,6 +233,8 @@ func _process(delta: float) -> void:
 	if _ready_at == 0:
 		_ready_at = begin
 		print("KERNEL_READY actors=", _actors, " workers=", frame.counters.workers)
+		var catalog: Script = preload("res://scripts/sim/kernel/action_defs.gd")
+		print("ACTION_CATALOG abilities=", catalog.ACTIONS.size(), " loadouts=", catalog.LOADOUTS.size(), " signature=", catalog.SIGNATURE)
 	var newest: RefCounted = frame.history.back()
 	var target_ms: float = newest.world_ms + (begin - newest.completed_usec) / 1000.0 * frame.speed - frame.interpolation_ms
 	render_ms = clampf(maxf(render_ms, target_ms), frame.history[0].world_ms, frame.world_ms)
@@ -360,7 +362,7 @@ func diagnostics() -> Dictionary:
 	if frame != null:
 		result.merge({"epoch": frame.epoch, "sequence": frame.sequence, "world_ms": frame.world_ms, "paused": frame.paused,
 			"speed": frame.speed, "frame_age_ms": (Time.get_ticks_usec() - frame.published_usec) / 1000.0,
-			"player": frame.player, "inspected": frame.inspected, "counters": frame.counters,
+			"player": frame.player, "inspected": frame.inspected, "counters": frame.counters, "action_trace": frame.action_trace,
 			"tool": controls.tool, "minimap_usec": ui.minimap.work_usec})
 	return result
 

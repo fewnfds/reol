@@ -7,7 +7,7 @@
 ## 主题索引
 
 - **[近远双路线改版规格](combat_framework/act_and_barrage.md)**：操作/八向动画、判定/三连/取消、主动/弹幕、手感、时间/数据落点与验收。
-- [行动与作用框架](action_effect_framework.md)：P4上提的公共行动、条件、作用与反应；战斗是其应用，尚未实施。
+- [行动与作用框架](action_effect_framework.md)：P4已落地的公共行动、条件、作用与反应；实现范围与工程证据归FEATURES/BASELINE，战斗是其中一种应用。
 - [实施规划](../../docs/plans/foundation-priorities.md)、[源码核查与成熟方案研究](../research/act_barrage_references.md)。
 - [行动与指令](combat_framework/action.md)
 - [走位、资源与招式](combat_framework/tactics.md)

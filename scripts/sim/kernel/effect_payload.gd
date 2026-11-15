@@ -15,7 +15,9 @@ static func summary(bundle: Array, stage: String = "contact") -> Dictionary:
 static func valid(bundle: Variant) -> bool:
 	if not bundle is Array or bundle.size() > 16: return false
 	for spec: Variant in bundle:
-		if not spec is Dictionary or spec.get("stage") not in ["activation", "contact"] or spec.get("kind") not in ["damage", "control", "slow", "dot", "domain"]: return false
+		if not spec is Dictionary or spec.get("stage") not in ["activation", "contact"] or spec.get("kind") not in ["damage", "control", "slow", "dot", "domain", "status", "heal", "shield", "guard", "resource", "dispel"]: return false
+		if not spec.get("amount") is int or spec.amount < 0 or spec.amount > 1000000 or not spec.get("pool") is String: return false
+		if spec.kind == "status" and (not spec.get("status") is Dictionary or not preload("res://scripts/sim/kernel/combat_effects.gd").valid_spec(spec.status)): return false
 		if spec.kind == "domain" and spec.get("operation") != "tend": return false
 		if not spec.get("id") is String or spec.id.length() > 64: return false
 		for key: String in ["magnitude", "push"]:

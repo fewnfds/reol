@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="CombatAbilityDef" load_steps=8 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/ability_def.gd" id="ability"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/delivery_def.gd" id="delivery"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_def.gd" id="effect"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_bundle_def.gd" id="bundle"]
+
+[sub_resource type="Resource" id="Delivery"]
+script = ExtResource("delivery")
+kind = "projectile"
+speed = 18.0
+lifetime_ms = 500
+radius = 0.09
+target_filter = "hostile"
+
+[sub_resource type="Resource" id="Effect0"]
+script = ExtResource("effect")
+kind = "damage"
+magnitude = 0.35
+
+[sub_resource type="Resource" id="Bundle"]
+script = ExtResource("bundle")
+effects = Array[ExtResource("effect")]([SubResource("Effect0")])
+
+[resource]
+script = ExtResource("ability")
+id = "star_fragment"
+title = "裂星碎片"
+windup = 0
+active = 1
+recovery = 0
+stat = "ranged"
+hit_group_ms = 0
+delivery = SubResource("Delivery")
+bundle = SubResource("Bundle")

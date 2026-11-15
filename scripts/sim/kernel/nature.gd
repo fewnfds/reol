@@ -277,6 +277,7 @@ func finish(world: RefCounted, actor: int, action: Dictionary, now: int) -> Stri
 			if moved <= 0:
 				return "no_product_or_full"
 			collections += moved
+			world.reactions.submit(world, {"event": "gathered", "actor": actor, "target": action.target, "at_ms": now, "amount": moved, "activation": 0, "position": world.position_at(actor, now)})
 		"cut", "uproot":
 			if action.kind == "cut" and rec.stage != Stage.MATURE:
 				return "not_mature"

@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="CombatAbilityDef" load_steps=9 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/ability_def.gd" id="ability"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/delivery_def.gd" id="delivery"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_def.gd" id="effect"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_bundle_def.gd" id="bundle"]
+
+[sub_resource type="Resource" id="Delivery"]
+script = ExtResource("delivery")
+kind = "area"
+target = "point"
+target_filter = "hostile"
+radius = 1.7
+delay_ms = 1
+duration_ms = 1400
+period_ms = 350
+
+[sub_resource type="Resource" id="Effect0"]
+script = ExtResource("effect")
+kind = "damage"
+magnitude = 0.35
+
+[sub_resource type="Resource" id="Effect1"]
+script = ExtResource("effect")
+kind = "dot"
+status_id = "ember_burn"
+magnitude = 0.12
+duration_ms = 1800
+period_ms = 450
+
+[sub_resource type="Resource" id="Bundle"]
+script = ExtResource("bundle")
+effects = Array[ExtResource("effect")]([SubResource("Effect0"), SubResource("Effect1")])
+
+[resource]
+script = ExtResource("ability")
+id = "ember_field"
+title = "焰种火区"
+windup = 0
+active = 1
+recovery = 0
+stat = "ranged"
+delivery = SubResource("Delivery")
+bundle = SubResource("Bundle")

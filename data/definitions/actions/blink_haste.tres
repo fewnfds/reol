@@ -1,0 +1,8 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/status_def.gd" id="type"]
+[resource]
+script = ExtResource("type")
+id = "blink_haste"
+kind = "haste"
+magnitude = 1.3
+duration_ms = 850

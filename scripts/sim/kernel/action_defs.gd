@@ -30,7 +30,7 @@ static func _signature() -> String:
 	var profiles: Dictionary = LOADOUTS.duplicate(true)
 	for profile: Dictionary in profiles.values():
 		for key: String in ["title", "description"]: profile.erase(key)
-	return JSON.stringify({"abilities": logic, "loadouts": profiles}, "", true).sha256_text()
+	return JSON.stringify({"abilities": logic, "loadouts": profiles, "scripts": preload("res://scripts/sim/kernel/reaction_scripts/owned_marks.gd").LOGIC_VERSION, "meal": preload("res://data/definitions/actions/meal_effect.tres").values()}, "", true).sha256_text()
 
 static func is_shot(kind: String) -> bool:
 	return ACTIONS[kind].delivery.kind == "projectile"
@@ -40,7 +40,7 @@ static func is_evade(kind: String) -> bool:
 
 static func cancel_ms(state: Dictionary, button: String) -> int:
 	var def: Dictionary = ACTIONS[state.kind]
-	var prefix: String = "next" if button == "primary" else button
+	var prefix: String = "next" if button == "primary" else "skill" if button in ["skill2", "skill3"] else button
 	return int(state.started_ms) + int(def[prefix + ("_hit" if state.confirmed else "_miss")])
 
 static func evading(state: Dictionary, at: int) -> bool:

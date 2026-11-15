@@ -4,9 +4,9 @@
 
 ## 当前构建
 
-Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+，1280×720，无VSync。正式入口scenes/main.tscn，独立包build/windows/reol-demo.exe及同目录pck；源码试玩和导出快照的差别见[usage](../engineering/tooling/usage.md)。
+Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+，1280×720，无VSync。正式入口scenes/main.tscn；当前P4成品为build/windows/act-p4/reol-act.exe及同目录pck，源码试玩和导出快照的差别见[usage](../engineering/tooling/usage.md)。
 
-当前源码与`build/windows/act-p3/reol-act.exe`＋pck为P3技能框架/八套范例测试版，由根目录启动.cmd选择源码或成品；默认火术＋混战，顶栏切范例或单轻敌/单重敌。PCK SHA256为`ed1bfaf4276be3c0026dec46f91b4f788bf946b0ba293c0845f8e8e5fd7729ca`，exe为`3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf`，导出日志`logs/export-20261115-045851-853343100.log`。P2/P1包与旧预览保留；P2 PCK原指纹`0f0512ac669a73c1100118b294bc5d4fd874cacd4ef925d52e35a87e9ecf4284`及P1的`973fdce5a942df39af16bdb2293023edeb18dd39ce9e188da487991ab96bf33f`已核对未变。
+当前源码与`build/windows/act-p4/reol-act.exe`＋pck为P4通用行动基座/近远组合测试版，由根目录启动.cmd选择源码或成品；默认血刃＋混战，顶栏切星焰行者、机制范例或单轻敌/单重敌。PCK SHA256为`299b268f94222ab90e0f083a7a48d45e08280b52f986235d80e6dd755c2de17b`，exe为`3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf`，导出日志`logs/export-20261115-151508-276815800.log`。源码/导出目录签名均为`0c60732eb82a53ede245512645824a67e9edd18287fefe448ba4cf6cc1569808`，40动作/24配置。F5/F9默认format11的`act-p4-quicksave.reol`；P1/P2/P3包和旧档保留。
 
 原正式人物/装备/背包版由02958cc提交对应，PCK指纹、开发机与各倍率历史样本统一记录在[performance.json](performance.json)。它是工具可直接读取的数值原件，包含实际倍率而非倍率达成比例；本机原始报告在logs/capacity-20261113-shipped/。不要求新机器拥有这些日志才能接手。
 
@@ -78,6 +78,28 @@ P2采用同一512²世界与默认24人，不降低后台生活精度，不追�
 
 双顾问实现与生命周期静态审查均完整返回，原件在`.local/advisor/combat-framework-implementation-20261115/review/`及`lifecycle-review/`；采用/拒绝依据见[研究](../../design/research/act_barrage_references.md#p3实现与生命周期审查)。顾问未执行代码或操作游戏。早期载荷失败为`Dictionary.merge`未覆盖默认值，已修；耐久反例原先混入敌人反击，已分离生命周期与真实受损。早期GUI重练失败为合成点击未更新鼠标悬停，补实际移动事件后通过，未改宽玩法断言。
 
+### P4通用基座与组合试玩验证
+
+2026-11-15完成A1/A2～E及独立包；原World唯一持有状态，512²地图、后台生活/环境/植物精度保持。GUI/编辑器检查在D3D12/RTX3060运行；下列成品短窗为RTX5060Ti，不能直接与旧硬件/火术负载计算算法成本变化。
+
+| 检查 | 证据与范围 |
+|---|---|
+| 公共准入与跨域 | A1 ACT/MELEE/ABILITIES/ACTION_FOUNDATION/KERNEL和原八套真实GUI/存读通过，`logs/p4-a1-ui.log`；A2 `logs/p4-a2-final-rules.log`验证更早死亡取消较晚交付、较早提交不被较晚死亡抹除、新生短工作、身份/模式/轨迹与水守恒。`logs/p4-a2-ui.log`实际选择植物并用右键引水，与手工同源提交 |
+| 属性/成本/状态/防御 | `logs/p4-resources-final.log`，ACTION_RESOURCES_SMOKE errors=0：多池原子成本、重建、同刻盾/格挡/吸血、半开周期与料理；`logs/p4-b-ui.log`实际技能/池/状态和文件存读 |
+| 有界反应与脚本 | `logs/p4-reactions-final.log`，ACTION_REACTIONS_SMOKE errors=0：分裂残段、兄弟共享预算、传播、寒印、完整请求FIFO/不污染缓冲/失败无先扣、两目标标记脚本与坏lineage拒载 |
+| 空间/实体/器物 | `logs/p4-spatial-final.log`，ACTION_SPATIAL_SMOKE errors=0：瞬移落点/定身、静态受体、召唤隔离、光环精确到期/主人死亡、地图边缘、单件损坏与跨页身体；`logs/p4-combinations-final.log`验证两条完整循环与混合宿主未来恢复 |
+| 整合实际GUI | `logs/p4-e-ui-final.log`，ACTION_COMBINATIONS_UI_SMOKE errors=0：原生下拉选择、RMB/E/C、血刃/星焰、分裂/传播/脚本、狼与图腾/双飞剑，以及四种真实文件保存恢复；`logs/abilities-ui/p4-*.png`已观察。偏好和独立测试档已清理 |
+| 原生制作 | `logs/p4-authoring-final.log`，COMBAT_AUTHORING_EDITOR errors=0：真实Inspector中的Status/Reaction/Loadout字段、引用导航和缺失模板诊断；原Ability阶段/范围预览保留。追踪默认关闭，DEV开启后F12 `actions`最多64条 |
+| 既有规则 | KERNEL/ACT/MELEE/CONTROL/ABILITIES已通过；内核最新完整退出日志为`logs/smoke-20261115-151536-33645300.log`，近战、键位和跨域为`logs/p4-melee-final.log`、`logs/p4-control-rules.log`、`logs/p4-a2-final-rules.log`，定义为`logs/p4-abilities-final.log`。新增槽保旧改键，损坏旧绑定按类型回退，无中途SCRIPT ERROR |
+| 导出一致性 | `logs/p4-source-catalog.log`与`logs/p4-pack-restore.log`：40动作/24配置签名一致；用Godot加载实际导出PCK，源码保存的在飞弹/传播/双盾/灵狼/图腾/双剑在途候选被接受，推进后8个相关域状态与HP一致。独立release模板不支持外部`--script`，初次该调用落入主场景并命中已知headless渲染问题，已停止自有进程，不计为通过 |
+| 成品真实短窗 | `logs/p4-release-shipped.json`及同名log/png，24人/默认血刃混战/迷雾、60FPS、1×、3秒预热＋5秒采样，实际约1.000×，帧p99约16.86ms，步均约0.498ms，零过载；无引擎/脚本错误。未操作玩家，发生1次死亡，不是持续施法/密弹容量或同负载算法对照，不替换performance.json |
+
+各小阶段均发送实际实现给本机双顾问，A1/A2/B/C/D/E每轮两份答复均已完成核查；原件和开发者裁决见[研究](../../design/research/action_editor_references.md#p4实施审查裁决)。顾问未操作或听评游戏。
+
+修正记录：最终顾问复核补上受控随从周期、定义持有反应的器物/实体恢复、零方向派生、合法取消清旧惩戒、移除身体清未启动请求、旧选中对象不可见时的方向动作与嵌套引用/DoT周期检查，均有相关反例。一次并行运行的kernel打印0错误但进程超过15秒，记录为失败（`logs/smoke-20261115-151439-426778600.log`）；随后同一15秒上限完整退出通过，没有延长超时或删减断言。零方向新反例首版误读弹体字段`direction`，实际为`velocity`，修正测试后无SCRIPT ERROR。GUI首轮重选同一配置不发选择信号、守势收招中回元正确被拒，调整测试等候真实空闲后全程通过，未放宽动作门禁。早期反应结果方向/死亡重复提交、未来区域/新弹索敌、双端残段、无效器物槽封锁、地图边缘和光环移除已按实际反例修复。状态增加每来源/目标/定义的有限实例上限；脚本改显式逻辑版本参与签名，避免导出依赖`.gd`原文。
+
+当前实际范围：属性add/multiply、原护甲、四种状态合并策略与有限控制；未做完整抗性/暴击/伤害转换/词缀、加层不刷新、WoW式完整递减表、随从指挥UI或器物经济。正式动画/混音、平衡/主观手感、目标低配整机/长局与极密弹幕仍待后续。通过工程/交互检查不等于上述体验已验收。
+
 ## 已知限制
 
 - ACT当前为灰盒，正式后撤/侧移素材、密集弹幕与目标低配机/长局未验收；900人压力档仍过载。高频帧与旧20Hz基线的有限观察见专题研究，不把普通24人达标推成大规模已经支持。
@@ -89,7 +111,3 @@ P2采用同一512²世界与默认24人，不降低后台生活精度，不追�
 ## 历史追溯
 
 历轮版本、失败实验、方向/素材/导航/视野对照均可从[整理前基线](https://github.com/fewnfds/reol/blob/02958cc/docs/status/baseline.md)和本机logs追溯。更早调查见[archive](../archive/README.md)；旧报告里的“当前”“下一步”不产生任务。
-
-### P4-A实施证据（尚非P4成品）
-
-A1：ACT/MELEE/ABILITIES/ACTION_FOUNDATION/KERNEL短检查通过；原八套GUI与文件存读通过（`logs/p4-a1-ui.log`）。A2：ACTION_DOMAINS/KERNEL通过，较早致死取消较晚交付、较早交付不被较晚死亡抹除、新生短工期本段提交、手工/ACT照料水守恒和中途恢复成立。引水法杖通过真实右键GUI（`logs/p4-a2-ui.log`、`logs/abilities-ui/p4-tending*.png`）。顾问A1两份完成，已核查修正自然收招连段、弹组字段、坏载荷/预约恢复等。B～E未实施，未生成P4导出；现有P3独立包保留。

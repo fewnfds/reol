@@ -1,6 +1,6 @@
 # 通用行动与作用框架
 
-**候选方案，尚未实施。** 本页定义战斗、工具使用、采集、制造和交互可以共用的执行合同。施工顺序只维护于[主计划P4](../../docs/plans/foundation-priorities.md#p4方案通用行动基座与战斗组合)，战斗特有的结算、接触时序与样例仍归[ACT规格第13节](combat_framework/act_and_barrage.md#13-p4通用战斗基座方案未实施)。当前代码与写入者查[运行架构](../../docs/engineering/architecture.md)，不能把以下设计当成已实现接口。
+**P4已实现，本文为采用的执行合同。** 本页定义战斗、工具使用、采集、制造和交互可以共用的执行合同。施工顺序只维护于[主计划P4](../../docs/plans/foundation-priorities.md#p4方案通用行动基座与战斗组合)，战斗特有的结算、接触时序与样例仍归[ACT规格第13节](combat_framework/act_and_barrage.md#13-p4通用战斗基座)。当前代码与写入者查[运行架构](../../docs/engineering/architecture.md)，概念角色不要求有同名类；实际入口见本页末的实现映射。
 
 ## 1. 要统一什么
 
@@ -122,7 +122,7 @@ flowchart TD
   调用 ModifyPool(受益人, energy, 配置量)，遵守规则CD/次数
 ```
 
-前两个动作共用的水/植物规则只写一次，**实物水都在有效照料提交时消费**，动画、距离、时间策略不同；水不足则拒绝，取消未交付不赠补水。P3既有动作的起手付费不因这个新样例改变。最后一个使用实际采集结果组合既有资源操作，随P4-C接入。
+前两个动作共用的水/植物规则只写一次，**实物水都在有效照料提交时消费**，动画、距离、时间策略不同；水不足则拒绝，取消未交付不赠补水。P3既有动作的起手付费不因这个新样例改变。最后一个已使用实际采集结果组合既有资源操作，由P4-C接入。
 
 ## 4. 身份、能力、上下文与查询
 
@@ -308,3 +308,21 @@ A2的跨域提交需把交互到期/到达与战斗接触按真实发生时间�
 P4-A分两片：先完成公共合同与P3战斗迁移，再接现有交互和照料法术；每片可运行，随后继续原P4-B～E的状态、触发、实体和战斗组合。具体范围、短反例与交付只列[主计划](../../docs/plans/foundation-priorities.md#p4方案通用行动基座与战斗组合)。
 
 判断依据是：同一原语确实被不同系统调用；同一门禁阻止生活命令绕过战斗承诺；物资/进度/成本在取消和恢复时不丢不重；原八套ACT/弹幕仍可玩；新增常规组合主要改定义，特殊算法能通过既有宿主的脚本扩展而不修改主循环。若只是增加转发包装、出现双份运行事实、制作时必须理解所有内核细节，应收窄或调整接口。资料和静态顾问评审都不能代替实施后的试玩与验证。
+
+## 13. P4实现映射与制作出口
+
+| 能力 | 当前唯一入口/宿主 |
+|---|---|
+| 共同准入、占用交接、取消 | `kernel/action_gate.gd`派生索引；ACT `combat.states`、World `actions/work_runs`、Society `waits`各持原状态，`end_run/clear_navigation/clear_input/release`分工 |
+| 多成本、有限领域作用 | `action_costs.gd`归并别名、全量检查后扣款；`domain_effects.gd`调用Nature既有照料提交，水有效提交才消费 |
+| 作者定义 | `definitions/actions`的Effect/Bundle/Cost/Pool/Status/Reaction Resource；ACT Ability/Delivery/Loadout/Entity仍在`definitions/combat` |
+| 状态、属性、池、防御 | `combat_effects.gd`来源实例/节拍/增删与重建；`resource_pools.gd`蓝/怒，HP/精力/qi保原owner；`combat_defense.gd`盾与方向/时段格挡 |
+| 结果反应 | `combat_reactions.gd`只收实际结果，传播/分裂/完整动作请求共用有界链；采集回能使用同一处理器，World.emit继续只输出 |
+| 空间、生产与实体 | Combat/Projectiles/Areas/Implements/Entities按原机制推进；身体profile隔离人口/生活，静物受体不占身体页 |
+| 专用脚本 | `reaction_scripts/owned_marks.gd`在原Reaction宿主内实现本次激活的有限标记引爆，声明状态校验和逻辑版本，无任意脚本执行入口 |
+
+新增常规技能：在Godot复制既有`.tres`，修改交付与有限效果/反应，登记`library.tres`，配置Loadout的primary/skill/skill2/skill3/step。Inspector“校验定义与引用”定位字段，引用按钮可继续编辑状态/子弹模板/配置；保存后关闭并重开试玩采用。DEV反应追踪默认关闭，F12 `actions`/`export`读取脱离的最近64条采用规则；不保存诊断缓冲。
+
+当前状态策略为refresh、stack并刷新、replace、independent，source/chain/activation隔离；每来源/目标/状态另有max_instances上限。属性为`(基础＋装备＋add之和)×multiply各项之积`，尚无独立increased组、跨属性公式或完整伤害转换。通用结算保既有护甲公式，暴击/抗性/伤害通道待真实内容需要时再扩；不把参考游戏的全部数值体系算入已完成能力。控制样例的眩晕承接P2累计预算，霜缚用有限寿命与重触发间隔；未做完整WoW式递减分类表。
+
+工程完成证据、可玩配置和导出分别归BASELINE/FEATURES，不以文中抽象概念代替实测。当前手工与引水、料理与战斗状态、采集与战斗回能均为真实跨域复用；矿业、自动物流、无人炉整套经济仍不是本包新增玩法。

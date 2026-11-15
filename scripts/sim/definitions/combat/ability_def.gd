@@ -1,7 +1,12 @@
 @tool
 class_name CombatAbilityDef
 extends Resource
+const Reaction = preload("res://scripts/sim/definitions/actions/reaction_def.gd")
+@export var reactions: Array[Reaction] = []
 const Delivery = preload("res://scripts/sim/definitions/combat/delivery_def.gd")
+const Entity = preload("res://scripts/sim/definitions/combat/entity_def.gd")
+@export var entity: Entity
+const Cost = preload("res://scripts/sim/definitions/actions/cost_def.gd")
 const Bundle = preload("res://scripts/sim/definitions/actions/effect_bundle_def.gd")
 @export_group("Identity")
 @export var id: String = ""
@@ -19,8 +24,7 @@ const Bundle = preload("res://scripts/sim/definitions/actions/effect_bundle_def.
 @export_range(0, 5000) var lock: int = 0
 @export_range(0, 60000) var cooldown: int = 0
 @export var cooldown_group: String = ""
-@export var cost_item: String = ""
-@export_range(0, 100) var cost_amount: int = 0
+@export var costs: Array[Cost] = []
 @export_group("Movement")
 @export_range(0.0, 2.0) var move: float = 0.4
 @export_range(0.0, 2.0) var free_move: float = 0.4
@@ -46,14 +50,19 @@ const Bundle = preload("res://scripts/sim/definitions/actions/effect_bundle_def.
 @export var delivery: Delivery
 @export var bundle: Bundle = Bundle.new()
 
+func _reaction_values() -> Array:
+	var result: Array = []
+	for rule: Reaction in reactions: result.append(rule.values())
+	return result
+
 func values() -> Dictionary:
-	var data: Dictionary = {"id": id, "title": title, "description": description, "tint": tint.to_html(), "stat": stat,
+	var data: Dictionary = {"reactions": _reaction_values(), "id": id, "title": title, "description": description, "tint": tint.to_html(), "stat": stat,
 		"repeat": repeat_held, "group_ms": hit_group_ms, "windup": windup, "active": active, "recovery": recovery, "lock": lock,
 		"cooldown": cooldown, "cd_group": cooldown_group if not cooldown_group.is_empty() else id,
-		"cost_item": cost_item, "cost_amount": cost_amount, "move": move, "free_move": free_move, "free_at": free_at,
+		"costs": _cost_values(), "move": move, "free_move": free_move, "free_at": free_at,
 		"lunge": lunge, "lunge_from": lunge_from, "lunge_to": lunge_to, "evade_ms": evade_ms,
 		"next": next_action, "chain_ms": chain_ms, "steady": steady, "punishable": punishable, "post": post,
-		"delivery": delivery.values() if delivery != null else {}, "payload": bundle.values() if bundle != null else []}
+		"entity": entity.values() if entity != null else {}, "delivery": delivery.values() if delivery != null else {}, "payload": bundle.values() if bundle != null else []}
 	var end: int = windup + active + recovery
 	for field: String in ["next_hit", "next_miss", "skill_hit", "skill_miss", "step_hit", "step_miss"]:
 		data[field] = get(field) if int(get(field)) >= 0 else end
@@ -62,14 +71,26 @@ func values() -> Dictionary:
 		data.angle = delivery.half_angle
 	return data
 
+func _cost_values() -> Array:
+	var result: Array = []
+	for cost: Cost in costs: result.append(cost.values())
+	return result
+
 func errors() -> PackedStringArray:
 	var result := PackedStringArray()
+	if reactions.size() > 8: result.append("reactions: at most 8")
+	for rule: Reaction in reactions:
+		if rule == null: result.append("reactions: required resource"); continue
+		for error: String in rule.errors(): result.append("reactions." + error)
 	if not id.is_valid_identifier() or title.is_empty(): result.append("id/title: valid id and title required")
 	if stat not in ["melee", "ranged"]: result.append("stat: unknown stat")
 	if hit_group_ms < 0 or hit_group_ms > 5000: result.append("hit_group_ms: must be 0..5000")
 	if windup < 0 or windup > 5000 or active < 1 or active > 5000 or recovery < 0 or recovery > 5000 or lock < 0 or lock > windup: result.append("timing: invalid phases/lock")
 	if cooldown < 0 or cooldown > 60000 or post < 0 or post > 5000: result.append("cooldown/post: out of range")
-	if cost_amount < 0 or cost_amount > 100 or (cost_amount > 0 and cost_item.is_empty()): result.append("cost: item and amount required")
+	if costs.size() > 8: result.append("costs: at most 8")
+	for index: int in costs.size():
+		if costs[index] == null: result.append("costs[%d]: required" % index); continue
+		for error: String in costs[index].errors(): result.append("costs[%d].%s" % [index, error])
 	for field: String in ["move", "free_move", "lunge"]:
 		if not is_finite(get(field)) or float(get(field)) < 0 or float(get(field)) > 3: result.append(field + ": out of range")
 	if lunge > 0 and (lunge_from < 0 or lunge_to <= lunge_from or lunge_to > windup + active + recovery): result.append("lunge: invalid interval")
@@ -77,6 +98,10 @@ func errors() -> PackedStringArray:
 	if evade_ms < 0 or evade_ms > active or chain_ms < 0 or chain_ms > 1000: result.append("evade/chain: invalid duration")
 	for field: String in ["next_hit", "next_miss", "skill_hit", "skill_miss", "step_hit", "step_miss"]:
 		if int(get(field)) < -1 or int(get(field)) > windup + active + recovery: result.append(field + ": outside action")
+	if delivery != null and delivery.kind == "entity":
+		if entity == null: result.append("entity: required")
+		else:
+			for error: String in entity.errors(): result.append(error)
 	if delivery == null: result.append("delivery: required")
 	else:
 		for error: String in delivery.errors(): result.append("delivery." + error)

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CombatLoadoutDef" load_steps=4 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/loadout_def.gd" id="loadout"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/pool_def.gd" id="pool_type"]
+[ext_resource type="Resource" path="res://data/definitions/actions/mana.tres" id="p_mana"]
+[resource]
+script = ExtResource("loadout")
+id = "sequence"
+title = "序印法杖"
+primary = "mark_piercer"
+skill = "frost_bind"
+equipment = "willow_staff"
+engage_range = 7.0
+description = "专用脚本范例：穿透同一排两名敌人，引爆本次命中的印记。"
+pools = Array[ExtResource("pool_type")]([ExtResource("p_mana")])

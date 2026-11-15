@@ -1,0 +1,42 @@
+[gd_resource type="Resource" script_class="CombatAbilityDef" load_steps=11 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/ability_def.gd" id="ability"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/delivery_def.gd" id="delivery"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_def.gd" id="effect"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_bundle_def.gd" id="bundle"]
+[ext_resource type="Resource" path="res://data/definitions/actions/blink_haste.tres" id="haste"]
+
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/cost_def.gd" id="p4cost"]
+[sub_resource type="Resource" id="Delivery"]
+script = ExtResource("delivery")
+kind = "blink"
+target = "point"
+max_range = 5.0
+
+[sub_resource type="Resource" id="Effect0"]
+script = ExtResource("effect")
+kind = "status"
+status = ExtResource("haste")
+stage = "activation"
+
+[sub_resource type="Resource" id="Bundle"]
+script = ExtResource("bundle")
+effects = Array[ExtResource("effect")]([SubResource("Effect0")])
+
+[sub_resource type="Resource" id="P4Cost"]
+script = ExtResource("p4cost")
+kind = "pool"
+id = "mana"
+amount = 12
+
+[resource]
+script = ExtResource("ability")
+id = "blink"
+title = "折跃"
+windup = 45
+active = 1
+recovery = 95
+cooldown = 1300
+description = "向鼠标落点瞬移，随后短暂加速；不附加无敌，定身时不可用。"
+delivery = SubResource("Delivery")
+bundle = SubResource("Bundle")
+costs = Array[ExtResource("p4cost")]([SubResource("P4Cost")])

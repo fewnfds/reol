@@ -1,0 +1,19 @@
+[gd_resource type="Resource" load_steps=6 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/reaction_def.gd" id="type"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_def.gd" id="effect"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_bundle_def.gd" id="bundle"]
+[sub_resource type="Resource" id="Effect0"]
+script = ExtResource("effect")
+kind = "resource"
+pool = "mana"
+amount = 8
+[sub_resource type="Resource" id="Bundle"]
+script = ExtResource("bundle")
+effects = Array[ExtResource("effect")]([SubResource("Effect0")])
+[resource]
+script = ExtResource("type")
+id = "gather_mana"
+event = "gathered"
+mode = "bundle"
+chain_limit = 4
+bundle = SubResource("Bundle")

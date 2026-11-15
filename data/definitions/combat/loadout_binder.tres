@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CombatLoadoutDef" load_steps=4 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/loadout_def.gd" id="loadout"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/pool_def.gd" id="pool_type"]
+[ext_resource type="Resource" path="res://data/definitions/actions/mana.tres" id="pool_mana"]
+[resource]
+script = ExtResource("loadout")
+id = "binder"
+title = "霜缚法杖"
+primary = "frost_marks"
+skill = "frost_bind"
+equipment = "willow_staff"
+engage_range = 7.0
+description = "左键追踪寒星；右键鼠标落点霜缚，消耗蓝量。定身与眩晕分离。"
+pools = Array[ExtResource("pool_type")]([ExtResource("pool_mana")])

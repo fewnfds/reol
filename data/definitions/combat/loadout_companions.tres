@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="CombatLoadoutDef" load_steps=4 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/loadout_def.gd" id="loadout"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/pool_def.gd" id="pool_type"]
+[ext_resource type="Resource" path="res://data/definitions/actions/mana.tres" id="p_mana"]
+[resource]
+script = ExtResource("loadout")
+id = "companions"
+title = "灵狼契约"
+primary = "frost_marks"
+skill = "wolf_call"
+equipment = "willow_staff"
+step = "blink"
+engage_range = 7.0
+description = "右键鼠标落点召狼，独立跟战；空格向鼠标折跃。"
+pools = Array[ExtResource("pool_type")]([ExtResource("p_mana")])
+skill2 = "radiant_totem"
+skill3 = "renewal"

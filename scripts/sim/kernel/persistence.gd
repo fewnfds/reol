@@ -55,8 +55,13 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 		page.environment = world.environment
 		world.pages.append(page)
 		slot += page.ids.size()
-	if slot == 0 or slot > 60000 or world.body_count != slot or world.actor_slots.size() != world.actor_count:
+	if slot == 0 or slot > 60000 or world.body_count != slot:
 		return null
+	var population: int = 0
+	for actor: int in world.actor_slots:
+		if world.objects.records[actor].get("body_profile", "human") == "human": population += 1
+	if population != world.actor_count: return null
+	if not world.pools.valid(world) or not world.effects.valid(world): return null
 	for id: int in world.actor_slots:
 		Equipment.rebuild(world, id, false)
 		var body_slot: int = world.actor_slots[id]
@@ -78,7 +83,7 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 	environment.index_mobile(world.pages, world.actor_slots)
 	if not world.nature.rebuild(world) or not world.combat.valid(world) or not world.effects.valid(world) or not world.areas.valid(world) or not world.implements.valid(world):
 		return null
-	if not world.gate.rebuild(world): return null
+	if not world.gate.rebuild(world) or not world.pools.valid(world) or not world.defense.valid(world) or not world.reactions.valid(world) or not world.entities.valid(world): return null
 	world.effects.prepare(world, world.elapsed_ms)
 	if not world.regions.valid(world):
 		return null
@@ -87,6 +92,7 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 	if not world.perception.rebuild(world):
 		return null
 	world.configure_lanes(workers)
+	world.combat.scan.index(world)
 	return world
 
 
@@ -209,11 +215,11 @@ static func _processes_valid(world: RefCounted) -> bool:
 		if not world.objects.records.has(id) or world.objects.records[id].kind != "chest":
 			return false
 	for target: Variant in world.reservations:
-		if not world.objects.records.has(target) or not world.actor_slots.has(world.reservations[target]):
+		if not target is int or not world.reservations[target] is int or not world.objects.records.has(target) or not world.actor_slots.has(world.reservations[target]):
 			return false
 	for actor: Variant in world.actions:
 		var action: Variant = world.actions[actor]
-		if not world.actor_slots.has(actor) or not action is Dictionary or not action.get("kind") is String or action.kind not in ["take", "put", "construct", "rest", "cook", "eat", "demolish", "sow", "tend", "gather", "cut", "uproot", "talk", "trade", "request_help", "learn", "study", "practice"] or not action.get("target") is int or not world.objects.records.has(action.target):
+		if not actor is int or not world.actor_slots.has(actor) or not action is Dictionary or not action.get("kind") is String or action.kind not in ["take", "put", "construct", "rest", "cook", "eat", "demolish", "sow", "tend", "gather", "cut", "uproot", "talk", "trade", "request_help", "learn", "study", "practice"] or not action.get("target") is int or not world.objects.records.has(action.target):
 			return false
 		if action.kind in ["take", "put"] and (not action.get("item") is String or not Items.valid(action.item) or not action.get("amount") is int or action.amount <= 0):
 			return false

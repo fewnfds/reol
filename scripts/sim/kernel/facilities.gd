@@ -190,7 +190,7 @@ func finish(world: RefCounted, actor: int, action: Dictionary, at: int) -> Strin
 					for index: int in body.ids.size():
 						if body.ids[index] > 0 and body.flight[index] == 0:
 							for member: int in cells:
-								if world._body_overlaps_tile(body.positions[index], body.radii[index], member):
+								if world._body_overlaps_tile(world.position_at(body.ids[index], at), body.radii[index], member):
 									return "occupied"
 			record.kind = str(spec.kind)
 			record["materials"] = record.inventory
@@ -211,9 +211,11 @@ func finish(world: RefCounted, actor: int, action: Dictionary, at: int) -> Strin
 				return "no_food"
 			world.objects.add(action.target, "meal", -1)
 			page.hunger[row] = mini(10000, page.hunger[row] + 3000)
+			world.effects.apply_bundle(world, actor, actor, 0, "", preload("res://data/definitions/actions/meal_effect.tres").values(), at, 0, "activation")
 		"cook":
 			if world.objects.amount(actor, "grain") < 2 or world.objects.amount(actor, "water") < 1:
 				return "missing_ingredients"
+			if record.capacity >= 0 and world.objects.count_inventory(action.target) + 3 > record.capacity: return "no_output_capacity"
 			world.objects.add(actor, "grain", -2)
 			world.objects.add(actor, "water", -1)
 			world.objects.add(action.target, "meal", 3)

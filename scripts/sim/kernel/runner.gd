@@ -200,7 +200,7 @@ func _run() -> void:
 		Scenarios.capacity(_world)
 	elif _mixed:
 		Scenarios.mixed(_world)
-	if _combat_lab: Scenarios.combat_lab(_world, "mixed", "fire")
+	if _combat_lab: Scenarios.combat_lab(_world, "mixed", "bloodblade")
 	_terrain_view = _world.terrain.detached()
 	_mutex.lock()
 	var paused: bool = _paused
@@ -386,6 +386,14 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 	frame.areas = _world.State.copy(_world.areas.records)
 	frame.implements = _world.State.copy(_world.implements.records)
 	frame.effects = _world.State.copy(_world.effects.records)
+	frame.entities = _world.State.copy(_world.entities.records)
+	for id: int in frame.entities:
+		frame.entities[id]["position"] = _world.combat.position(_world, id)
+		frame.entities[id]["hp"] = int(_world.objects.records[id].get("hp", 0))
+	frame.action_trace = _world.reactions.trace.duplicate(true)
+	frame.pools = _world.State.copy(_world.pools.records.get(1, {}))
+	frame.shields = _world.State.copy(_world.defense.shields)
+	frame.guards = _world.State.copy(_world.defense.guards)
 	frame.cooldowns = _world.State.copy(_world.combat.cooldowns.get(1, {}))
 	for page: RefCounted in _world.pages:
 		frame.ids.append_array(page.ids)

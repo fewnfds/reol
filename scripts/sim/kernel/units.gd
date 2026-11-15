@@ -23,6 +23,7 @@ var radii := PackedFloat32Array()
 var aims := PackedVector2Array()
 var direct_velocities := PackedVector2Array() # Prepared by owner, consumed by the same body integrator.
 var health := PackedInt32Array()
+var needs_enabled := PackedByteArray() # Derived body-profile capability.
 var max_health := PackedInt32Array() # Derived stats, rebuilt rather than saved.
 var melee_damage := PackedInt32Array()
 var ranged_damage := PackedInt32Array()
@@ -76,6 +77,7 @@ func add_row(id: int, tile: int) -> int:
 	modes.append(Mode.RESOURCE)
 	health.append(int(Equipment.BASE.max_hp))
 	max_health.append(int(Equipment.BASE.max_hp))
+	needs_enabled.append(1)
 	melee_damage.append(int(Equipment.BASE.melee))
 	ranged_damage.append(int(Equipment.BASE.ranged))
 	armor.append(int(Equipment.BASE.armor))
@@ -102,6 +104,7 @@ func add_row(id: int, tile: int) -> int:
 
 
 func resize_stats() -> void:
+	if needs_enabled.size() != ids.size(): needs_enabled.resize(ids.size())
 	for field: String in ["max_health", "melee_damage", "ranged_damage", "armor", "move_speed", "move_scales"]:
 		if get(field).size() != ids.size():
 			var column: Variant = get(field)
@@ -175,7 +178,7 @@ func advance(navigation: RefCounted) -> void:
 		route_cursors[row] = cursor
 		if cursor >= route.size():
 			ready.append(row)
-			ready.append(end_ms - roundi(available / speed * 1000.0))
+			ready.append(end_ms - roundi(available / speed * 1000.0) if speed > 0 else end_ms)
 
 
 func _clear_fraction(from: Vector2, to: Vector2, row: int) -> float:
@@ -218,7 +221,7 @@ func sample_environment(seconds: float = 1.0) -> void:
 	environmental_events.clear()
 	var alpha: float = 1.0 - exp(-seconds / 30.0)
 	for row: int in positions.size():
-		if modes[row] == Mode.DEAD or modes[row] == Mode.FREE:
+		if modes[row] == Mode.DEAD or modes[row] == Mode.FREE or needs_enabled[row] == 0:
 			continue
 		var tile: int = Terrain.index(Vector2i(positions[row]))
 		environment.sample_raw(tile, exposure, row * 7)

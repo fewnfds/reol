@@ -75,6 +75,7 @@ var _practice_bar := HBoxContainer.new()
 var _practice_hint: Label
 var _loadout_choice := OptionButton.new()
 var _loadout_ids: Array[String] = []
+var _skill_slots: Dictionary = {}
 
 func _ready() -> void:
 	Actions.load_definitions()
@@ -125,6 +126,24 @@ func _ready() -> void:
 		_player_buttons[row[0]] = _button(combat, row[0], row[1], row[2])
 	_weapon = Style.label(dock_body, "WASD移动 · 鼠标瞄准 · 左键攻击 · 右键武器技 · 空格闪步")
 	_weapon.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var skill_row := HBoxContainer.new()
+	dock_body.add_child(skill_row)
+	for slot: String in ["skill", "skill2", "skill3", "step"]:
+		var panel := PanelContainer.new()
+		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		panel.add_theme_stylebox_override("panel", Style.box(Color("26362e"), Style.TEAL))
+		skill_row.add_child(panel)
+		var content := VBoxContainer.new()
+		panel.add_child(content)
+		var title: Label = Style.label(content)
+		title.add_theme_font_size_override("font_size", 12)
+		var bar := ProgressBar.new()
+		bar.custom_minimum_size.y = 3
+		bar.max_value = 1.0
+		bar.show_percentage = false
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		content.add_child(bar)
+		_skill_slots[slot] = {"panel": panel, "title": title, "bar": bar}
 	_follow = _button(combat, "follow", "视角", "eye")
 	_inspect_panel = _panel(self, Control.PRESET_BOTTOM_LEFT, Vector4(8, -450, 330, -135))
 	_inspect_panel.add_theme_stylebox_override("panel", Style.box(Color("18251ff2"), Style.TEAL))
@@ -250,16 +269,39 @@ func _refresh_control_hints() -> void:
 	var weapon: String = str(_frame.player.get("equipment", {}).get("weapon", ""))
 	var profile: Dictionary = _frame.loadout
 	var primary: Dictionary = CombatDefs.ACTIONS[profile.primary]
-	var skill: Dictionary = CombatDefs.ACTIONS[profile.skill]
-	var step_left: float = maxf(0, int(_frame.cooldowns.get(CombatDefs.ACTIONS[profile.step].cd_group, 0)) - _frame.world_ms) / 1000.0
-	var skill_left: float = maxf(0, int(_frame.cooldowns.get(skill.cd_group, 0)) - _frame.world_ms) / 1000.0
 	_player_buttons.context.text = "%s %s" % [bindings.hint("game_context"), "交互" if _direct else "ACT"]
 	var movement := PackedStringArray()
 	for id: String in ["act_up", "act_left", "act_down", "act_right"]: movement.append(bindings.hint(id))
-	var info: String = "%s%s · %s%s %.1fs · %s闪步 %.1fs" % [bindings.hint("act_primary"), primary.title + ("（按住）" if primary.repeat else ""), bindings.hint("act_skill"), skill.title, skill_left, bindings.hint("act_step"), step_left]
+	var info: String = "%s%s" % [bindings.hint("act_primary"), primary.title + ("（按住）" if primary.repeat else "")]
+	for slot: String in _skill_slots:
+		var view: Dictionary = _skill_slots[slot]
+		var kind: String = profile.get(slot, "")
+		view.panel.visible = _direct and not kind.is_empty()
+		if kind.is_empty(): continue
+		var definition: Dictionary = CombatDefs.ACTIONS[kind]
+		var left: int = maxi(0, int(_frame.cooldowns.get(definition.cd_group, 0)) - _frame.world_ms)
+		var costs := PackedStringArray()
+		var affordable: bool = true
+		for cost: Dictionary in definition.costs:
+			costs.append("%d%s" % [cost.amount, {"mana": "蓝", "rage": "怒"}.get(cost.id, cost.id)])
+			if cost.kind == "pool" and cost.id in ["mana", "rage"] and int(_frame.pools.get(cost.id, {}).get("current", 0)) < cost.amount: affordable = false
+		var state: String = "%.1fs" % (left / 1000.0) if left > 0 else (" / ".join(costs) if affordable else "资源不足")
+		set_text(view.title, "%s %s\n%s" % [bindings.hint("act_" + slot), definition.title, state if not state.is_empty() else "就绪"])
+		view.title.modulate = Color("c2c9bd") if left > 0 else Color("ffbc91") if not affordable else Color.WHITE
+		view.panel.tooltip_text = "%s\n%s\n消耗：%s · 冷却 %.1fs" % [definition.title, definition.description, " / ".join(costs) if not costs.is_empty() else "无", int(definition.cooldown) / 1000.0]
+		view.bar.value = 1.0 - float(left) / maxi(1, int(definition.cooldown))
 	var description: String = str(profile.description)
+	var resources := PackedStringArray()
+	for key: String in _frame.pools:
+		var pool: Dictionary = _frame.pools[key]
+		resources.append("%s %d/%d" % [{"mana": "蓝", "rage": "怒"}.get(key, key), pool.current, pool.maximum])
+	var shield: int = 0
+	for value: Dictionary in _frame.shields.values():
+		if value.target == 1 and _frame.world_ms < value.until_ms: shield += int(value.amount)
+	if shield > 0: resources.append("盾 %d" % shield)
+	if not resources.is_empty(): info += " · " + " / ".join(resources)
 	for value: Dictionary in _frame.implements.values():
-		if value.owner == 1: description += "  飞剑 %d/%d · %s" % [value.hp, CombatDefs.ACTIONS[value.ability].delivery.durability, {"stowed": "已回收", "outbound": "派出中", "returning": "返航中", "dropped": "受阻在外，靠近后召回", "broken": "损毁，重练可重新体验"}.get(value.phase, value.phase)]
+		if value.owner == 1: description += "  飞剑 %d/%d · %s" % [value.hp, CombatDefs.ACTIONS[value.ability].delivery.durability, {"stowed": "已回收", "outbound": "派出中", "orbiting": "环绕", "hovering": "驻留", "returning": "返航中", "dropped": "受阻在外，靠近后召回", "broken": "损毁，重练可重新体验"}.get(value.phase, value.phase)]
 	set_text(_weapon, ("%s · %s\n%s" % [profile.title, info, description]) if _direct else "交互／营造 · 左键选择 · 右键对象菜单 · %s返回ACT" % bindings.hint("game_context"))
 
 func _clear(parent: Node) -> void:
@@ -474,6 +516,7 @@ func _refresh_drawer() -> void:
 		_button(grid, "source_overlay", "场源标记", "eye")
 		_button(grid, "gallery", "图鉴 F8", "book")
 		_button(grid, "debug", "F12", "gear")
+		_button(grid, "action_trace", "反应追踪 开／关", "gear")
 
 func _build_modal() -> void:
 	add_child(_modal)

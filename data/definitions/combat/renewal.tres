@@ -1,0 +1,41 @@
+[gd_resource type="Resource" script_class="CombatAbilityDef" load_steps=10 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/ability_def.gd" id="ability"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/delivery_def.gd" id="delivery"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_def.gd" id="effect"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_bundle_def.gd" id="bundle"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/cost_def.gd" id="cost"]
+
+
+[sub_resource type="Resource" id="Delivery"]
+script = ExtResource("delivery")
+kind = "direct"
+target = "self"
+
+[sub_resource type="Resource" id="Effect0"]
+script = ExtResource("effect")
+kind = "heal"
+stage = "activation"
+amount = 30
+
+[sub_resource type="Resource" id="Bundle"]
+script = ExtResource("bundle")
+effects = Array[ExtResource("effect")]([SubResource("Effect0")])
+
+[sub_resource type="Resource" id="Cost0"]
+script = ExtResource("cost")
+kind = "pool"
+id = "mana"
+amount = 25
+
+[resource]
+script = ExtResource("ability")
+id = "renewal"
+title = "回元"
+windup = 90
+active = 1
+recovery = 150
+cooldown = 2000
+description = "恢复实际缺损的生命；已判定死亡不能被后续治疗救回。"
+delivery = SubResource("Delivery")
+bundle = SubResource("Bundle")
+costs = Array[ExtResource("cost")]([SubResource("Cost0")])

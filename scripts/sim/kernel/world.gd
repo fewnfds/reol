@@ -15,6 +15,10 @@ const Livelihood = preload("res://scripts/sim/kernel/livelihood.gd")
 const Nature = preload("res://scripts/sim/kernel/nature.gd")
 const DomainOps = preload("res://scripts/sim/kernel/domain_effects.gd")
 const Effects = preload("res://scripts/sim/kernel/combat_effects.gd")
+const Entities = preload("res://scripts/sim/kernel/combat_entities.gd")
+const Reactions = preload("res://scripts/sim/kernel/combat_reactions.gd")
+const Pools = preload("res://scripts/sim/kernel/resource_pools.gd")
+const Defense = preload("res://scripts/sim/kernel/combat_defense.gd")
 const Areas = preload("res://scripts/sim/kernel/combat_areas.gd")
 const Implements = preload("res://scripts/sim/kernel/implements.gd")
 const Motion = preload("res://scripts/sim/kernel/motion.gd")
@@ -55,6 +59,10 @@ var livelihood := Livelihood.new()
 var nature := Nature.new()
 var combat := Combat.new()
 var effects := Effects.new()
+var entities := Entities.new()
+var reactions := Reactions.new()
+var pools := Pools.new()
+var defense := Defense.new()
 var areas := Areas.new()
 var implements := Implements.new()
 var society := Society.new()
@@ -100,6 +108,7 @@ var topology_revision: int = 0
 var outcomes: Array[Dictionary] = []
 var _topology_edits: Dictionary = {}
 var _spatial_edits: Array[Dictionary] = []
+var _finishing: Dictionary = {}
 var _commit_ms: int = -1
 var _motion_begin: int = 0
 var _motion_end: int = 0
@@ -187,7 +196,7 @@ func initialize(count: int = 1000, requested_workers: int = 4, stress_environmen
 func state_owners() -> Dictionary:
 	# The concrete composition root lists real domains; field selection belongs
 	# to each owner. New domains do not require a new serializer implementation.
-	return {"world": self, "terrain": terrain, "objects": objects, "environment": environment, "nature": nature, "combat": combat, "effects": effects, "areas": areas, "implements": implements, "perception": perception, "regions": regions, "person_events": person_events, "society": society}
+	return {"world": self, "terrain": terrain, "objects": objects, "environment": environment, "nature": nature, "combat": combat, "effects": effects, "areas": areas, "implements": implements, "perception": perception, "regions": regions, "person_events": person_events, "society": society, "pools": pools, "defense": defense, "reactions": reactions, "entities": entities}
 
 func emit(event: Dictionary) -> void:
 	outcomes.append(event)
@@ -215,15 +224,24 @@ func step(milliseconds: int = 50) -> void:
 	combat.reaction_segments = []
 	implements.segments = []
 	var origins: Array[PackedVector2Array] = []
+	var origin_ids: Array[PackedInt64Array] = []
 	var traces: Array[Dictionary] = []
 	for page: RefCounted in pages:
 		origins.append(page.positions.duplicate())
+		origin_ids.append(page.ids.duplicate())
 		traces.append({})
 	while elapsed_ms < end:
+		entities.prepare(self, elapsed_ms)
+		reactions.prepare(self, elapsed_ms)
+		pools.prepare(self, elapsed_ms)
+		defense.prepare(self, elapsed_ms)
 		effects.prepare(self, elapsed_ms)
 		combat.prepare(self, elapsed_ms)
+		implements.prepare(self, elapsed_ms)
 		var boundary: int = combat.next_boundary(elapsed_ms, mini(end, (elapsed_ms / 50 + 1) * 50))
 		boundary = effects.next_boundary(elapsed_ms, boundary)
+		boundary = defense.next_boundary(elapsed_ms, boundary)
+		boundary = entities.next_boundary(elapsed_ms, boundary)
 		boundary = areas.next_boundary(elapsed_ms, boundary)
 		boundary = implements.next_boundary(elapsed_ms, boundary)
 		boundary = work_boundary(elapsed_ms, boundary)
@@ -231,7 +249,22 @@ func step(milliseconds: int = 50) -> void:
 		_advance_interval(boundary)
 		for index: int in pages.size():
 			var page: RefCounted = pages[index]
+			if index >= origins.size():
+				origins.append(page.positions.duplicate())
+				origin_ids.append(PackedInt64Array())
+				traces.append({})
+			var previous_ids: PackedInt64Array = origin_ids[index]
+			var previous_origins: PackedVector2Array = origins[index]
+			var count: int = previous_ids.size()
+			previous_ids.resize(page.ids.size())
+			previous_origins.resize(page.ids.size())
 			for row: int in page.ids.size():
+				if row >= count or previous_ids[row] != page.ids[row]:
+					previous_ids[row] = page.ids[row]
+					previous_origins[row] = combat.previous[index][row] if index < combat.previous.size() and row < combat.previous[index].size() else page.positions[row]
+					traces[index].erase(row)
+				origins[index] = previous_origins
+				origin_ids[index] = previous_ids
 				if not traces[index].has(row) and page.positions[row].is_equal_approx(origins[index][row]): continue
 				if not traces[index].has(row): traces[index][row] = PackedVector3Array([Vector3(origins[index][row].x, origins[index][row].y, 0)])
 				var knots: PackedVector3Array = traces[index][row]
@@ -282,6 +315,7 @@ func _advance_interval(end: int) -> void:
 			events.append({"event": "world_ready", "actor": id, "at_ms": clampi(page.ready[entry + 1], elapsed_ms, end), "expected": gate.current(id), "mode": page.modes[row], "route_version": page.route_versions[row]})
 	combat.step(self, elapsed_ms, end, events)
 	_commit_ms = -1
+	_commit_ms = end
 	if end % 50 == 0: nature.pulse(self, end)
 	flush_topology()
 	effects_usec += Time.get_ticks_usec() - effect_start
@@ -302,6 +336,12 @@ func _advance_interval(end: int) -> void:
 			for row: int in page.environmental_deaths:
 				kill(page.ids[row], end, "cold" if page.body_heat[row] < 0.0 else "heat")
 		environment_usec += Time.get_ticks_usec() - env_start
+	_commit_ms = end
+	pools.prepare(self, end)
+	entities.expire(self, end)
+	effects.expire(self, end)
+	defense.prepare(self, end)
+	_commit_ms = -1
 	elapsed_ms = end
 	perception.update(self, end)
 
@@ -314,6 +354,7 @@ func position_at(id: int, at: int = -1) -> Vector2:
 	var time: int = operation_time() if at < 0 else at
 	if not actor_slots.has(id) or combat.previous.is_empty() or _motion_end <= _motion_begin or time < _motion_begin or time > _motion_end: return point
 	var slot: int = actor_slots[id]
+	if slot / 256 >= combat.previous.size() or slot % 256 >= combat.previous[slot / 256].size(): return point
 	return Motion.at(combat.previous[slot / 256][slot % 256], point, pages[slot / 256].motion.get(slot % 256, PackedVector3Array()), float(time - _motion_begin) / (_motion_end - _motion_begin))
 
 func work_boundary(now: int, end: int) -> int:
@@ -379,6 +420,7 @@ func settle(id: int, at: int, expected: Variant = null) -> void:
 			reservations.erase(target)
 			_sync_inventory(id)
 			harvested += 1
+			reactions.submit(self, {"event": "gathered", "actor": id, "target": target, "at_ms": at, "amount": 1, "activation": 0, "position": position_at(id, at)})
 			livelihood.remember(self, id, target, at)
 			end_run(id, at, "completed")
 			livelihood.think(self, id, at)
@@ -472,6 +514,7 @@ func ensure_work_binding(id: int) -> void:
 	gate.bind(id, "work", work_runs[id])
 
 func adopt_work(id: int, at: int) -> bool:
+	if objects.records.get(id, {}).get("body_profile", "human") != "human": return false
 	if not gate.check(self, id, at).is_empty(): return false
 	end_run(id, at)
 	work_runs[id] = next_run
@@ -488,8 +531,12 @@ func kill(id: int, at: int = -1, cause: String = "") -> void:
 	var row: int = slot % Units.PAGE_SIZE
 	if page.modes[row] == Units.Mode.DEAD:
 		return
+	page.health[row] = 0 # Mark unavailable before participant/target callbacks.
 	implements.drop_owner(self, id, at if at >= 0 else operation_time())
+	entities.forget_member(self, id, at if at >= 0 else operation_time())
+	entities.drop_owner(self, id, at if at >= 0 else operation_time())
 	effects.remove_target(id)
+	defense.remove_target(id)
 	release(id, at)
 	forget_target(id, at)
 	objects.records[id].erase("commitment")
@@ -508,7 +555,7 @@ func forget_target(target: int, at: int = -1) -> void:
 	# Rare structural deletion cleans cold dependents immediately, including
 	# save-between-removal-and-arrival. No per-step scan for missing objects.
 	for actor: int in actions.keys():
-		if not actions.has(actor): continue
+		if not actions.has(actor) or _finishing.get(actor) == actions[actor].run_id: continue
 		if actions[actor].target == target:
 			var automatic: bool = actions[actor].get("autonomous", false)
 			release(actor, now)
@@ -526,6 +573,12 @@ func command(input: Dictionary) -> Dictionary:
 
 func _command(input: Dictionary) -> Dictionary:
 	var receipt: Dictionary = {"seq": input.get("seq", 0), "kind": input.get("kind", ""), "at_ms": elapsed_ms, "ok": false, "reason": "invalid"}
+	if input.get("kind") == "action_trace":
+		reactions.tracing = not reactions.tracing
+		if not reactions.tracing: reactions.trace.clear()
+		receipt.ok = true
+		receipt.reason = "trace_enabled" if reactions.tracing else "trace_disabled"
+		return receipt
 	var id: int = int(input.get("actor", 1))
 	if not actor_slots.has(id):
 		return receipt
@@ -593,6 +646,10 @@ func _command(input: Dictionary) -> Dictionary:
 			page.modes[row] = Units.Mode.IDLE
 			objects.records[id].autonomous = false
 		"work":
+			if objects.records[id].get("body_profile", "human") != "human":
+				receipt.ok = false
+				receipt.reason = "body_cannot_work"
+				return receipt
 			release(id)
 			objects.records[id].autonomous = true
 			livelihood.observe(self, id, elapsed_ms)
@@ -603,7 +660,7 @@ func _command(input: Dictionary) -> Dictionary:
 				return receipt
 			objects.add(id, "potion", -1)
 			_sync_inventory(id)
-			page.health[row] = mini(page.max_health[row], page.health[row] + 40)
+			combat.heal(self, id, id, 40, elapsed_ms)
 			heals += 1
 			emit({"kind": "healed", "actor": id, "at_ms": elapsed_ms})
 		"equip", "unequip":
@@ -763,8 +820,8 @@ func counters() -> Dictionary:
 		failed_paths += page.path_failures
 		for amount: int in page.cargo:
 			cargo_total += amount
-		for hp: int in page.health:
-			alive += int(hp > 0)
+		for row: int in page.health.size():
+			alive += int(page.health[row] > 0 and page.needs_enabled[row] != 0)
 		for mode: int in page.modes: modes[mode] += 1
 	return {"world_ms": elapsed_ms, "actors": actor_count, "alive": alive, "workers": workers, "mode_counts": modes, "stationary_combatants": stationary_combatants,
 		"steps": steps, "step_usec": step_usec, "maximum_step_usec": maximum_step_usec,
@@ -810,6 +867,7 @@ func begin_transfer(id: int, input: Dictionary) -> String:
 
 
 func begin_interaction(id: int, input: Dictionary) -> String:
+	if objects.records.get(id, {}).get("body_profile", "human") != "human": return "body_has_no_work_capability"
 	var admission: String = gate.check(self, id, operation_time())
 	if not admission.is_empty(): return admission
 	var target: int = int(input.get("target", 0))
@@ -907,6 +965,7 @@ func settle_action(id: int, at: int) -> void:
 		return
 	if action.kind not in ["take", "put"]:
 		var reason: String
+		_finishing[id] = action.run_id
 		if action.kind == "demolish":
 			reason = "completed" if facilities.demolish(self, target, at) else "failed"
 		elif action.kind in Nature.ACTIONS:
@@ -915,6 +974,7 @@ func settle_action(id: int, at: int) -> void:
 			reason = society.finish(self, id, action, at)
 		else:
 			reason = facilities.finish(self, id, action, at)
+		_finishing.erase(id)
 		if reason == "occupied" and action.kind == "construct":
 			objects.records[target].remaining_ms = 1
 			action.started_ms = at
@@ -969,11 +1029,13 @@ func describe(id: int) -> Dictionary:
 		result["route_preview"] = page.routes[row].slice(page.route_cursors[row], mini(page.routes[row].size(), page.route_cursors[row] + 64)) if page.modes[row] in [Units.Mode.RESOURCE, Units.Mode.MANUAL, Units.Mode.APPROACH, Units.Mode.EXPLORE, Units.Mode.COMBAT_MOVE] else PackedVector2Array()
 		result["sight_range"] = sight.range_for(self, id)
 		result["stats"] = Equipment.view(page, row)
+		result["pools"] = State.copy(pools.records.get(id, {}))
+		result["shield"] = defense.total(id, elapsed_ms)
 	return result
 
 
 func queue_structure(tile: int, solid: bool, enclosed: bool, removing: bool = false) -> void:
-	if _commit_ms >= 0 and _commit_ms < _motion_end:
+	if _commit_ms >= 0 and _commit_ms <= _motion_end:
 		_spatial_edits.append({"tile": tile, "solid": solid, "enclosed": enclosed, "removing": removing})
 		return
 	if not _topology_edits.has(tile):
@@ -989,7 +1051,10 @@ func queue_structure(tile: int, solid: bool, enclosed: bool, removing: bool = fa
 func flush_topology() -> void:
 	var pending: Array[Dictionary] = _spatial_edits
 	_spatial_edits = []
+	var commit: int = _commit_ms
+	_commit_ms = -1
 	for edit: Dictionary in pending: queue_structure(edit.tile, edit.solid, edit.enclosed, edit.removing)
+	_commit_ms = commit
 	if _topology_edits.is_empty():
 		return
 	var started: int = Time.get_ticks_usec()
@@ -1052,10 +1117,11 @@ func flush_topology() -> void:
 	topology_usec += Time.get_ticks_usec() - started
 
 
-func spawn_actor(tile: int) -> int:
+func spawn_actor(tile: int, body_profile: String = "human") -> int:
 	if tile < 0 or tile >= terrain.blocked.size() or terrain.blocked[tile] != 0:
 		return 0
 	var id: int = objects.create("actor", "human")
+	objects.records[id]["body_profile"] = body_profile
 	var slot: int
 	var page: RefCounted
 	var row: int
@@ -1082,6 +1148,9 @@ func spawn_actor(tile: int) -> int:
 		page.routes[row] = PackedVector2Array()
 		page.route_cursors[row] = 0
 		page.due_ms[row] = 0
+		page.motion.erase(row)
+		for index: int in 5: page.elements[row * 5 + index] = 0
+		for index: int in 7: page.exposure[row * 7 + index] = 0
 	else:
 		slot = body_count
 		if pages.is_empty() or pages.back().ids.size() == Units.PAGE_SIZE:
@@ -1096,18 +1165,25 @@ func spawn_actor(tile: int) -> int:
 	page.modes[row] = Units.Mode.IDLE
 	actor_slots[id] = slot
 	Equipment.rebuild(self, id)
-	actor_count += 1
+	if body_profile == "human": actor_count += 1
 	return id
 
 
-func remove_actor(id: int) -> bool:
+func remove_actor(id: int, at: int = -1) -> bool:
+	if at < 0: at = operation_time()
+	var population: bool = objects.records.get(id, {}).get("body_profile", "human") == "human"
 	if id == 1 or not actor_slots.has(id):
 		return false
 	var slot: int = actor_slots[id]
 	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
 	var row: int = slot % Units.PAGE_SIZE
-	implements.drop_owner(self, id, elapsed_ms)
+	page.health[row] = 0 # Removal callbacks must not read a live participant.
+	reactions.forget_actor(id)
+	implements.drop_owner(self, id, at)
+	entities.forget_member(self, id, at)
+	entities.drop_owner(self, id, at)
 	effects.remove_target(id)
+	defense.remove_target(id)
 	release(id)
 	forget_target(id)
 	environment.remove_mobile(id)
@@ -1118,6 +1194,8 @@ func remove_actor(id: int) -> bool:
 			objects.transfer(id, pile, item, objects.amount(id, item))
 	objects.remove_empty(id)
 	actor_slots.erase(id)
+	pools.records.erase(id)
+	defense.guards.erase(id)
 	combat.unreachable.erase(id)
 	combat.cooldowns.erase(id)
 	combat.chains.erase(id)
@@ -1128,5 +1206,5 @@ func remove_actor(id: int) -> bool:
 	page.potions[row] = 0
 	page.modes[row] = Units.Mode.FREE
 	free_slots.append(slot)
-	actor_count -= 1
+	if population: actor_count -= 1
 	return true

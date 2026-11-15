@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CombatLoadoutDef" load_steps=4 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/loadout_def.gd" id="loadout"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/pool_def.gd" id="pool_type"]
+[ext_resource type="Resource" path="res://data/definitions/actions/mana.tres" id="p_mana"]
+[resource]
+script = ExtResource("loadout")
+id = "plague"
+title = "瘟疫法杖"
+primary = "plague_needle"
+skill = "venom_pool"
+equipment = "willow_staff"
+engage_range = 7.0
+description = "左键瘟疫印记；右键毒潭。击倒被标记者传播，不能无限续期。"
+pools = Array[ExtResource("pool_type")]([ExtResource("p_mana")])

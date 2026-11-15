@@ -23,3 +23,15 @@
 `abilities_ui_smoke.gd`继承图形输入辅助，通过原生下拉框和真实鼠标/键盘选择八套范例并施放左右键；检查状态/弹体发布、落雷预警和飞剑返航中的实际文件保存/恢复。截图在`logs/abilities-ui/`；独立测试档和偏好结束后清理。`combat_authoring_editor.tscn`在一次性Godot编辑器中加`-- --combat-authoring-check`运行，验证真实Inspector插件、范围/阶段布局与合法/非法资源提示，截图`logs/combat-authoring-editor.png`并自动退出；未带该参数时不会自动执行。具体命令见[usage](../docs/engineering/tooling/usage.md#开发期直接试玩)。
 
 `action_foundation_smoke.gd`核对公共门禁、陈旧run通知、正常收招后的续段、一次终止、坏载荷/幽灵预约拒载；`action_domains_smoke.gd`核对工作/伤害先后、新生短到期、手工/ACT照料消费/恢复。`action_domains_ui_smoke.gd`以原生配置选择和真实右键验证选定植物的ACT交付；截图仍归`logs/abilities-ui/`。按需运行，不扩大默认kernel套件。
+
+P4新增检查按改动选用，不加入默认kernel长矩阵：
+
+| 检查 | 必要反例 |
+|---|---|
+| `action_resources_smoke.gd` | 资源别名/多成本原子性、修饰重建、盾/格挡/真实吸血、同刻姿态和半开到期 |
+| `action_reactions_smoke.gd` | 命中/定时分裂残段、兄弟共享预算、死亡传播、跨施法满层、两目标标记脚本与在途恢复、完整动作FIFO/不污染缓冲、零方向接触派生、坏lineage拒载 |
+| `action_spatial_smoke.gd` | 召唤独立感知/人口需求隔离、图腾光环/可破坏受体、瞬移无隐藏避伤、双器物回收不修复；精确到期/主人死亡/单槽损坏/地图边缘与身体页扩容；受控随从周期、定义持有规则恢复、移除身体清未启动请求 |
+| `action_combinations_smoke.gd` | 血刃获怒→耗怒→守势/回元、远程四槽；弹/传播/双盾/狼/图腾/双剑共存恢复后结果一致；合法取消后不继承旧惩戒窗口 |
+| `action_combinations_ui_smoke.gd` | 真实键鼠左右键/E/C、原生配置切换、多槽HUD、两条组合及机制显示、四种实际文件存读、旧选中对象不可见仍可出招 |
+
+P4 GUI截图归`logs/abilities-ui/p4-*`，独立测试档/偏好自动清理。`combat_authoring_editor.tscn`另覆盖共同Status/Reaction/Loadout Resource校验、缺失template和嵌套/跨类型引用提示，不只验证Ability预览；定义规则还验证坏Loadout短路与原生DoT周期一致性。通过这些检查不等于正式手感、长局或密弹容量验收。

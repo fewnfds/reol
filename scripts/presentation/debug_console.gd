@@ -173,7 +173,10 @@ func _action(title: String) -> void:
 func _submit(text: String) -> void:
 	_command.clear()
 	match text.strip_edges().to_lower():
-		"help": _feedback.text = "status 查看最新状态；errors 仅错误/警告；log 全部记录；export 导出JSON。"
+		"help": _feedback.text = "status 查看最新状态；actions 查看DEV开启的反应追踪；errors 仅错误/警告；log 全部记录；export 导出JSON。"
+		"actions":
+			_output.text = JSON.stringify(_session().get("action_trace", []), "\t")
+			_rendered_seq = journal.summary().sequence
 		"status": _feedback.text = JSON.stringify(_snapshot().session)
 		"errors", "log":
 			_errors_only.button_pressed = text.strip_edges().to_lower() == "errors"

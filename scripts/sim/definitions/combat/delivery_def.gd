@@ -2,7 +2,7 @@
 class_name CombatDeliveryDef
 extends Resource
 ## How an action reaches the world; different skills reuse the same delivery.
-@export_enum("melee", "projectile", "area", "evade", "implement", "recall", "direct") var kind: String = "melee"
+@export_enum("melee", "projectile", "area", "evade", "implement", "recall", "direct", "blink", "entity") var kind: String = "melee"
 @export_group("Shape and Target")
 @export_range(0.0, 20.0) var reach: float = 1.55
 @export_range(0.01, 3.141593) var half_angle: float = 1.0
@@ -20,6 +20,11 @@ extends Resource
 @export_range(0.0, 12.0) var turn_rate: float = 0.0
 @export_range(0, 8) var pierce: int = 0
 @export_group("Area / Implement")
+@export_enum("travel", "orbit", "hover") var deployment: String = "travel"
+@export_range(1, 3) var instances: int = 1
+@export_range(0.5, 3.0) var orbit_radius: float = 1.5
+@export var emitter: String = ""
+@export_range(100, 5000) var emit_period_ms: int = 550
 @export_range(0, 5000) var delay_ms: int = 450
 @export_range(0, 10000) var duration_ms: int = 0
 @export_range(50, 5000) var period_ms: int = 500
@@ -27,14 +32,15 @@ extends Resource
 @export_range(100, 3000) var contact_ms: int = 350
 
 func values() -> Dictionary:
-	return {"kind": kind, "reach": reach, "angle": half_angle, "radius": radius, "target": target,
+	return {"deployment": deployment, "instances": instances, "orbit_radius": orbit_radius, "emitter": emitter, "emit_period": emit_period_ms, "kind": kind, "reach": reach, "angle": half_angle, "radius": radius, "target": target,
 		"range": max_range, "walls": blocked_by_walls, "filter": target_filter, "count": count, "spread": spread,
 		"speed": speed, "backward_speed": backward_speed, "life": lifetime_ms, "turn": turn_rate, "pierce": pierce, "delay": delay_ms,
 		"duration": duration_ms, "period": period_ms, "durability": durability, "contact_ms": contact_ms}
 
 func errors() -> PackedStringArray:
 	var result := PackedStringArray()
-	if kind not in ["melee", "projectile", "area", "evade", "implement", "recall", "direct"]: result.append("kind: unknown delivery")
+	if deployment not in ["travel", "orbit", "hover"] or instances < 1 or instances > 3 or not is_finite(orbit_radius) or orbit_radius < 0.5 or orbit_radius > 3 or emit_period_ms < 100 or emit_period_ms > 5000: result.append("implement: invalid deployment/slots/emitter period")
+	if kind not in ["melee", "projectile", "area", "evade", "implement", "recall", "direct", "blink", "entity"]: result.append("kind: unknown delivery")
 	if target not in ["direction", "point", "self", "object"] or target_filter not in ["physical", "hostile", "self"]: result.append("target/filter: unknown policy")
 	for field: String in ["reach", "half_angle", "radius", "max_range", "spread", "speed", "backward_speed", "turn_rate"]:
 		if not is_finite(get(field)) or float(get(field)) < 0: result.append(field + ": must be finite and nonnegative")

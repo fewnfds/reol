@@ -10,12 +10,16 @@ static func tone(event: Dictionary) -> String:
 		"action_active":
 			var def: Dictionary = Defs.ACTIONS.get(event.get("action", ""), {})
 			if def.is_empty(): return ""
+			if def.delivery.kind == "blink": return "step"
+			if def.delivery.kind == "direct": return "armor" if def.payload.any(func(effect: Dictionary): return effect.kind in ["guard", "shield"]) else "evade"
+			if def.delivery.kind == "entity": return "evade"
 			if def.stat == "ranged": return "shot"
 			if def.delivery.kind == "evade": return "step"
 			return "swing_heavy" if preload("res://scripts/sim/kernel/effect_payload.gd").summary(def.payload).heavy_hit else "swish"
 		"area_trigger": return "heavy"
 		"implement_hit": return "armor"
 		"hit":
+			if event.get("guarded", false) or int(event.get("blocked", 0)) > 0 or (int(event.get("absorbed", 0)) > 0 and int(event.get("damage", 0)) == 0): return "armor"
 			if event.get("target") == 1: return "hurt"
 			if event.get("armored", false): return "armor"
 			if event.get("off_balance", false): return "break"

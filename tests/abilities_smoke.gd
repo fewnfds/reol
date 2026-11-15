@@ -21,6 +21,7 @@ func fixture(profile: String = "fire") -> RefCounted:
 		w.Equipment.rebuild(w, id)
 		w.pages[0].health[id - 1] = 2000
 	w.objects.records[1]["ability_loadout"] = profile
+	w.Equipment.rebuild(w, 1)
 	return w
 func advance(w: RefCounted, until: int, passive: bool = true) -> void:
 	while w.elapsed_ms < until:
@@ -54,6 +55,21 @@ func catalog() -> void:
 	invalid_library.abilities[0].delivery = null
 	var rejected: Dictionary = invalid_library.compile()
 	check(not rejected.errors.is_empty() and rejected.actions.is_empty(), "Missing nested resource crashed or compiled")
+	invalid_library = Defs.LIBRARY.duplicate_deep(Resource.DEEP_DUPLICATE_ALL)
+	invalid_library.loadouts[0].reactions.append(null)
+	rejected = invalid_library.compile()
+	check(not rejected.errors.is_empty() and rejected.actions.is_empty(), "Missing loadout reaction crashed or compiled")
+	invalid_library = Defs.LIBRARY.duplicate_deep(Resource.DEEP_DUPLICATE_ALL)
+	for index: int in 2:
+		var status: Resource = preload("res://scripts/sim/definitions/actions/status_def.gd").new()
+		status.id = "nested_period_contract"
+		status.kind = "dot"
+		status.period_ms = 100 + index * 100
+		var effect: Resource = preload("res://scripts/sim/definitions/actions/effect_def.gd").new()
+		effect.kind = "status"
+		effect.status = status
+		invalid_library.abilities[index].bundle.effects.append(effect)
+	check(str(invalid_library.compile().errors).contains("shared period"), "Native nested DoT definitions used incompatible periods")
 	var w: RefCounted = fixture()
 	var data: Dictionary = Persistence.capture(w)
 	data.domains.combat.catalog_signature = "different-content"

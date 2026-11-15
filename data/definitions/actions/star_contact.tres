@@ -1,0 +1,18 @@
+[gd_resource type="Resource" load_steps=5 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/reaction_def.gd" id="type"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_def.gd" id="effect"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_bundle_def.gd" id="bundle"]
+[sub_resource type="Resource" id="Bundle"]
+script = ExtResource("bundle")
+effects = Array[ExtResource("effect")]([])
+[resource]
+script = ExtResource("type")
+id = "star_contact"
+event = "hit"
+mode = "emit"
+template = "star_fragment"
+count = 3
+spread = 0.55
+chain_limit = 1
+max_depth = 2
+bundle = SubResource("Bundle")

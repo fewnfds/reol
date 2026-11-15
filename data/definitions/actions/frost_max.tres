@@ -1,0 +1,21 @@
+[gd_resource type="Resource" load_steps=7 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/reaction_def.gd" id="rule"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_def.gd" id="effect"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_bundle_def.gd" id="bundle"]
+[ext_resource type="Resource" path="res://data/definitions/actions/frost_bind.tres" id="root"]
+[sub_resource type="Resource" id="Effect"]
+script = ExtResource("effect")
+kind = "status"
+status = ExtResource("root")
+[sub_resource type="Resource" id="Bundle"]
+script = ExtResource("bundle")
+effects = Array[ExtResource("effect")]([SubResource("Effect")])
+[resource]
+script = ExtResource("rule")
+id = "frost_max"
+event = "stack_max"
+mode = "bundle"
+recipient = "target"
+chain_limit = 2
+interval_ms = 1500
+bundle = SubResource("Bundle")

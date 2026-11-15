@@ -1,0 +1,51 @@
+[gd_resource type="Resource" script_class="CombatAbilityDef" load_steps=12 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/ability_def.gd" id="ability"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/delivery_def.gd" id="delivery"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_def.gd" id="effect"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_bundle_def.gd" id="bundle"]
+[ext_resource type="Resource" path="res://data/definitions/actions/frost_bind.tres" id="status_bind"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/cost_def.gd" id="cost"]
+
+
+
+[sub_resource type="Resource" id="Delivery"]
+script = ExtResource("delivery")
+kind = "area"
+target = "point"
+target_filter = "hostile"
+radius = 2.2
+delay_ms = 200
+
+[sub_resource type="Resource" id="Effect0"]
+script = ExtResource("effect")
+kind = "damage"
+magnitude = 0.3
+
+[sub_resource type="Resource" id="Effect1"]
+script = ExtResource("effect")
+kind = "status"
+status = ExtResource("status_bind")
+
+[sub_resource type="Resource" id="Bundle"]
+script = ExtResource("bundle")
+effects = Array[ExtResource("effect")]([SubResource("Effect0"), SubResource("Effect1")])
+
+[sub_resource type="Resource" id="Cost0"]
+script = ExtResource("cost")
+kind = "pool"
+id = "mana"
+amount = 24
+
+[resource]
+script = ExtResource("ability")
+id = "frost_bind"
+title = "霜缚"
+windup = 120
+active = 1
+recovery = 170
+cooldown = 1900
+stat = "ranged"
+description = "落点预警后定身900ms。定身限制移动，目标仍可原地攻击。"
+delivery = SubResource("Delivery")
+bundle = SubResource("Bundle")
+costs = Array[ExtResource("cost")]([SubResource("Cost0")])

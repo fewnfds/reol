@@ -1,0 +1,10 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/status_def.gd" id="type"]
+[resource]
+script = ExtResource("type")
+id = "meal_fortitude"
+kind = "modifier"
+duration_ms = 20000
+magnitude = 3.0
+attribute = "armor"
+modifier = "add"

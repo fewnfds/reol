@@ -25,17 +25,19 @@ python tools/godot.py export --preset "Windows Demo" --output build/windows/reol
 
 源码运行共用`tools/godot.py`，修改后关闭窗口、再次启动即可读取最新脚本和shader；F5保存、重开后F9读取可以接续当前格式会话。维护脚本归`tools/`，生成的程序与说明归`build/windows/`；不为P1/P2等阶段新增启动文件，当前成品路径集中在`启动.cmd`的`current_build`变量。
 
-ACT测试入口相当于`python tools/godot.py run -- --combat-lab=true`：同一512²世界保留后台生活，默认火术＋轻重敌/射手混战；顶栏可切八套范例或单轻敌/单重敌。切换会替换整个练习世界且不写存档。WASD、鼠标瞄准、左键主攻击、右键技能、空格闪步；Tab交互／营造，F附近交互。普通世界1/2换真剑/真弓，练习范例由下拉框赋予，不随换装自动改为另一范例。
+ACT测试入口相当于`python tools/godot.py run -- --combat-lab=true`：同一512²世界保留后台生活，默认血刃＋轻重敌/射手混战；顶栏可切近远组合和基础范例或单轻敌/单重敌。切换会替换整个练习世界且不写存档。WASD、鼠标瞄准、左键主攻击、右键技能、E/C额外主动槽、空格闪步；Tab交互／营造，F附近交互。普通世界1/2换真剑/真弓，练习范例由下拉框赋予，不随换装自动改为另一范例。
 
-最新独立ACT包为`build/windows/act-p3/reol-act.exe`＋同目录pck，通过根目录启动菜单选3进入测试开局；直接运行exe为普通生活开局。独立分发时的命令为`reol-act.exe -- --combat-lab=true`；Esc→设置调整音量/震动/闪光和键位。P1/P2、旧预览和正式包保留，默认F5/F9使用format10的`act-p3-quicksave.reol`，不覆盖旧档。
+最新独立ACT包为`build/windows/act-p4/reol-act.exe`＋同目录pck，通过根目录启动菜单选3进入测试开局；直接运行exe为普通生活开局。独立分发时的命令为`reol-act.exe -- --combat-lab=true`；Esc→设置调整音量/震动/闪光和键位。P1/P2/P3、旧预览和正式包保留，默认F5/F9使用format11的`act-p4-quicksave.reol`，不覆盖旧档。
 
-技能制作从`data/definitions/combat/library.tres`与其引用的`.tres`进入，编辑器“工具→Reol 战斗技能库”可直达；技能Inspector有阶段/范围预览和字段校验。保存后关闭并重新运行游戏采用新定义，重练不重载；配置字段与制作流程见[规格10](../../../design/systems/combat_framework/act_and_barrage.md#101-定义施放和表现的接入合同)。短检查命令示例（`GODOT_EXE`为实际引擎路径）：
+技能制作从`data/definitions/combat/library.tres`与其引用的`.tres`进入，编辑器“工具→Reol 战斗技能库”可直达；技能Inspector有阶段/范围预览，共同Resource有字段/引用校验与引用跳转。保存后关闭并重新运行游戏采用新定义，重练不重载；配置字段与制作流程见[规格10](../../../design/systems/combat_framework/act_and_barrage.md#101-定义施放和表现的接入合同)。短检查命令示例（`GODOT_EXE`为实际引擎路径）：
 
 ```powershell
-& $env:GODOT_EXE --headless --path . --script tests/abilities_smoke.gd
-& $env:GODOT_EXE --path . --script tests/abilities_ui_smoke.gd
+& $env:GODOT_EXE --headless --path . --script tests/action_combinations_smoke.gd
+& $env:GODOT_EXE --path . --script tests/action_combinations_ui_smoke.gd
 & $env:GODOT_EXE --editor --path . --scene res://tests/combat_authoring_editor.tscn -- --combat-authoring-check
 ```
+
+DEV可选开启“反应追踪”，再F12输入`actions`读取最近64条采用规则；默认关闭，读档/重练清空，不进存档。
 
 编辑器检查使用一次性编辑进程并自动退出，未带最后的测试参数时测试场景不会运行检查。截图和日志仍归`logs/`；这些命令不新增启动CMD。
 
@@ -43,7 +45,7 @@ ACT测试入口相当于`python tools/godot.py run -- --combat-lab=true`：同�
 
 `logs/run-*.log`保留本次源码试玩输出，包括引擎错误、`SESSION_STATE`（实际暂停/倍率/会话切换）、`PLAYER_COMMAND`（指令与入队序号）、`COMMAND_RESULT`（接受或拒绝原因）和`PLAYER_OUTCOME`（玩家相关到达、失败、受击、死亡等结果）。不逐帧记录或打印全部NPC行为；游戏未关闭也可读取当前日志。原生引擎日志另在`%APPDATA%/Godot/app_userdata/reol/logs/godot.log`。
 
-F12、右下角诊断条或DEV入口打开独立面板，Esc关闭。面板用Godot原生`Logger`接收主线程/后台线程的错误、警告和普通输出，错误附可取得的脚本位置与调用栈；无需编辑器连接。显示玩家本人HP/行动/位置、世界时间/暂停、模拟线程存活、快照年龄、在途/待受理指令、最近回执和当前UI焦点。`dead`、`blocked`等业务拒绝的完整原因在`COMMAND_RESULT`日志查看；普通UI用短暂叉号反馈。控制台支持`help/status/errors/log/export`，只查看诊断；打开时世界继续运行，输入文字不会触发游戏键盘命令。
+F12、右下角诊断条或DEV入口打开独立面板，Esc关闭。面板用Godot原生`Logger`接收主线程/后台线程的错误、警告和普通输出，错误附可取得的脚本位置与调用栈；无需编辑器连接。显示玩家本人HP/行动/位置、世界时间/暂停、模拟线程存活、快照年龄、在途/待受理指令、最近回执和当前UI焦点。`dead`、`blocked`等业务拒绝的完整原因在`COMMAND_RESULT`日志查看；普通UI用短暂叉号反馈。控制台支持`help/status/actions/errors/log/export`，只查看诊断；打开时世界继续运行，输入文字不会触发游戏键盘命令。
 
 “导出诊断”将当前状态和最近512条日志写入`%APPDATA%/Godot/app_userdata/reol/diagnostics/reol-*.json`，也可复制到剪贴板；不覆盖存档。窗口最多显示最近120条匹配记录，计数是本次进程累计值，完整引擎输出仍查原日志。关闭面板时只低频更新计数；回调只写有界缓存，不在模拟线程处理UI/文件。捕获从autoload进入后开始，无法收取更早的引擎启动信息；脚本在注册前就解析失败时仍需查引擎文件日志。已有独立运行进程不能热装此面板，重开源码试玩才生效。
 

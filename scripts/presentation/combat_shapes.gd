@@ -10,6 +10,9 @@ var fog: bool = true
 var target_point := Vector2.ZERO
 var show_target: bool = false
 
+func friendly(actor: int) -> bool:
+	return actor == 1 or (frame.actor_slots.has(actor) and frame.actor_slots.has(1) and frame.sides[frame.actor_slots[actor]] == frame.sides[frame.actor_slots[1]])
+
 func advance(current: RefCounted, history: RefCounted, at: int, use_fog: bool, point: Vector2, aiming: bool) -> void:
 	frame = current
 	pose = history
@@ -25,6 +28,42 @@ func visible_point(point: Vector2) -> bool:
 
 func _draw() -> void:
 	if frame == null: return
+	for id: int in frame.entities:
+		var entity: Dictionary = frame.entities[id]
+		if now < int(entity.born_ms) or now >= int(entity.until_ms): continue
+		var def: Dictionary = Defs.ACTIONS[entity.ability]
+		var point: Vector2
+		var hp: int
+		var direction := Vector2.RIGHT
+		if frame.actor_slots.has(id):
+			var slot: int = frame.actor_slots[id]
+			point = frame.positions[slot]
+			hp = frame.health[slot]
+			direction = frame.aims[slot]
+			if pose != null and pose.ids.size() > slot and pose.ids[slot] == id: point = pose.positions[slot]
+		else:
+			point = entity.position
+			hp = int(entity.hp)
+		if not visible_point(point): continue
+		var center: Vector2 = Art.body_foot(point) * Art.TILE
+		var color := Color(def.tint)
+		if def.entity.body == "companion":
+			var side := Vector2(-direction.y, direction.x)
+			draw_circle(center, 11, Color(color, 0.12))
+			draw_colored_polygon(PackedVector2Array([center + direction * 14, center + direction * 3 + side * 7, center - direction * 11 + side * 6, center - direction * 9 - side * 6, center + direction * 3 - side * 7]), color)
+			draw_line(center - direction * 8, center - direction * 19 - side * 4, color, 3, true)
+			for sign_value: int in [-1, 1]:
+				draw_line(center + direction * 3 + side * sign_value * 3, center + direction * 8 + side * sign_value * 10, color, 2, true)
+				draw_line(center - direction * 7 + side * sign_value * 3, center - direction * 13 + side * sign_value * 10, color, 2, true)
+		else:
+			var radius: float = float(def.entity.radius) * Art.TILE
+			draw_circle(center, radius, Color(color, 0.035))
+			draw_arc(center, radius, 0, TAU, 48, Color(color, 0.25), 1, true)
+			draw_line(center, center + Vector2(0, -26), color, 5, true)
+			draw_colored_polygon(PackedVector2Array([center + Vector2(0, -36), center + Vector2(9, -25), center + Vector2(0, -16), center + Vector2(-9, -25)]), color)
+			draw_arc(center, 14, 0, TAU, 28, color, 2, true)
+		draw_line(center + Vector2(-14, 13), center + Vector2(14, 13), Color("25372f"), 3)
+		draw_line(center + Vector2(-14, 13), center + Vector2(-14 + 28.0 * hp / int(def.entity.max_hp), 13), color, 2)
 	if show_target and not frame.loadout.is_empty() and frame.actor_slots.has(1):
 		var def: Dictionary = Defs.ACTIONS[frame.loadout.primary]
 		if def.delivery.target == "point":
@@ -38,7 +77,7 @@ func _draw() -> void:
 		var def: Dictionary = Defs.ACTIONS[value.ability]
 		var center: Vector2 = Art.body_foot(value.position) * Art.TILE
 		var radius: float = float(def.delivery.radius) * Art.TILE
-		var color := Color(def.tint) if value.actor == 1 else Color("ff8c7c")
+		var color := Color(def.tint) if friendly(value.actor) else Color("ff8c7c")
 		if now < int(value.trigger_ms):
 			var weight: float = clampf(float(now - int(value.born_ms)) / maxi(1, int(value.trigger_ms) - int(value.born_ms)), 0, 1)
 			draw_circle(center, radius, Color(color, 0.06))
@@ -69,9 +108,9 @@ func _draw() -> void:
 			var point: Vector2 = Art.body_foot(position) * Art.TILE
 			var direction: Vector2 = Vector2(segment.from).direction_to(segment.to)
 			var def: Dictionary = Defs.ACTIONS.get(segment.get("ability", ""), {})
-			var color := Color(def.get("tint", "9fddd4")) if segment.actor == 1 else Color("ff9986")
+			var color := Color(def.get("tint", "9fddd4")) if friendly(segment.actor) else Color("ff9986")
 			var radius: float = maxf(2.0, float(segment.radius) * Art.TILE)
-			if segment.actor != 1: draw_circle(point, radius + 1.6, Color("38152b"))
+			if not friendly(segment.actor): draw_circle(point, radius + 1.6, Color("38152b"))
 			draw_line(point - direction * (radius + 8), point, Color(color, 0.45), radius, true)
 			draw_circle(point, radius, color)
 			draw_circle(point + direction * radius * 0.35, maxf(1, radius * 0.35), Color("eef5df"))
@@ -99,5 +138,18 @@ func _draw() -> void:
 		if now < int(value.born_ms) or now >= int(value.until_ms) or not frame.actor_slots.has(value.target): continue
 		var point: Vector2 = frame.positions[frame.actor_slots[value.target]]
 		if not visible_point(point): continue
-		var color := Color("8edcec") if value.kind == "slow" else Color("e6a869")
+		var color := Color("8edcec") if value.kind in ["slow", "root"] else Color("bcdfa0") if value.kind in ["modifier", "haste"] else Color("e6a869")
 		draw_arc(Art.body_foot(point) * Art.TILE, 11, 0.2, 2.9, 16, Color(color, 0.85), 2, true)
+		if value.kind == "root":
+			var foot: Vector2 = Art.body_foot(point) * Art.TILE
+			draw_line(foot + Vector2(-9, -5), foot + Vector2(9, 5), color, 2, true)
+			draw_line(foot + Vector2(9, -5), foot + Vector2(-9, 5), color, 2, true)
+	for value: Dictionary in frame.shields.values():
+		if now < int(value.born_ms) or now >= int(value.until_ms) or not frame.actor_slots.has(value.target): continue
+		var point: Vector2 = frame.positions[frame.actor_slots[value.target]]
+		if visible_point(point): draw_arc(Art.body_foot(point) * Art.TILE + Vector2(0, -10), 18, 0, TAU, 32, Color("8fbde5b0"), 1.8, true)
+	for actor: int in frame.guards:
+		var value: Dictionary = frame.guards[actor]
+		if now < int(value.born_ms) or now >= int(value.until_ms) or not frame.actor_slots.has(actor): continue
+		var point: Vector2 = frame.positions[frame.actor_slots[actor]]
+		if visible_point(point): draw_arc(Art.body_foot(point) * Art.TILE, 24, Vector2(value.direction).angle() - value.half_angle, Vector2(value.direction).angle() + value.half_angle, 20, Color("f3d58f"), 3, true)

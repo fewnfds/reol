@@ -1,4 +1,14 @@
 extends RefCounted
+
+static func subpath(from: Vector2, to: Vector2, knots: PackedVector3Array, low: float, high: float = 1.0) -> PackedVector3Array:
+	var result := PackedVector3Array()
+	var first: Vector2 = at(from, to, knots, low)
+	result.append(Vector3(first.x, first.y, 0))
+	for point: Vector3 in knots:
+		if point.z > low and point.z < high: result.append(Vector3(point.x, point.y, (point.z - low) / maxf(0.000001, high - low)))
+	var last: Vector2 = at(from, to, knots, high)
+	result.append(Vector3(last.x, last.y, 1))
+	return result
 ## A step's sparse timed polyline. Normal straight motion needs no knots.
 
 static func sample(knots: PackedVector3Array, alpha: float) -> Vector2:
@@ -112,6 +122,16 @@ static func shape_hit(source_before: Vector2, source: Vector2, source_knots: Pac
 static func wall_hit(terrain: RefCounted, from: Vector2, to: Vector2, radius: float) -> Dictionary:
 	var first: float = -1.0
 	var tile: int = -1
+	# The finite world edge is a collision boundary too. Cell traversal only
+	# visits in-map cells and cannot otherwise catch a flying implement leaving it.
+	for axis: int in 2:
+		var low: float = radius
+		var high: float = float(terrain.SIZE) - radius - 0.0001
+		var hit: float = -1.0
+		if from[axis] < low or from[axis] > high: hit = 0.0
+		elif to[axis] < low: hit = (low - from[axis]) / (to[axis] - from[axis])
+		elif to[axis] > high: hit = (high - from[axis]) / (to[axis] - from[axis])
+		if hit >= 0 and (first < 0 or hit < first): first = hit
 	var visited: Dictionary = {}
 	var padding: int = ceili(radius)
 	for center: int in terrain.trace_cells(from, to):

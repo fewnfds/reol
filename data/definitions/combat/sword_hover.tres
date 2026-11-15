@@ -1,0 +1,41 @@
+[gd_resource type="Resource" script_class="CombatAbilityDef" load_steps=8 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/ability_def.gd" id="ability"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/delivery_def.gd" id="delivery"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_def.gd" id="effect"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_bundle_def.gd" id="bundle"]
+
+[sub_resource type="Resource" id="Delivery"]
+script = ExtResource("delivery")
+kind = "implement"
+deployment = "hover"
+instances = 1
+emitter = "star_fragment"
+emit_period_ms = 400
+speed = 10.0
+radius = 0.2
+target_filter = "hostile"
+durability = 70
+lifetime_ms = 15000
+contact_ms = 450
+
+[sub_resource type="Resource" id="Effect0"]
+script = ExtResource("effect")
+kind = "damage"
+magnitude = 0.6
+
+[sub_resource type="Resource" id="Bundle"]
+script = ExtResource("bundle")
+effects = Array[ExtResource("effect")]([SubResource("Effect0")])
+
+[resource]
+script = ExtResource("ability")
+id = "sword_hover"
+title = "悬剑"
+windup = 140
+active = 1
+recovery = 200
+cooldown = 900
+stat = "ranged"
+description = "独立耐久器物悬停于前方位置并按主人视野自动射击。"
+delivery = SubResource("Delivery")
+bundle = SubResource("Bundle")

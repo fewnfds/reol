@@ -1,0 +1,68 @@
+[gd_resource type="Resource" script_class="CombatAbilityDef" load_steps=17 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/ability_def.gd" id="ability"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/delivery_def.gd" id="delivery"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_def.gd" id="effect"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_bundle_def.gd" id="bundle"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/combat/entity_def.gd" id="entity_type"]
+[ext_resource type="Resource" path="res://data/definitions/actions/totem_armor.tres" id="armor"]
+
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/cost_def.gd" id="p4cost"]
+[sub_resource type="Resource" id="Delivery"]
+script = ExtResource("delivery")
+kind = "entity"
+target = "point"
+max_range = 4.5
+
+[sub_resource type="Resource" id="Bundle"]
+script = ExtResource("bundle")
+effects = Array[ExtResource("effect")]([])
+
+[sub_resource type="Resource" id="Armor"]
+script = ExtResource("effect")
+kind = "status"
+status = ExtResource("armor")
+[sub_resource type="Resource" id="Heal"]
+script = ExtResource("effect")
+kind = "heal"
+amount = 3
+[sub_resource type="Resource" id="Mana"]
+script = ExtResource("effect")
+kind = "resource"
+pool = "mana"
+amount = 4
+[sub_resource type="Resource" id="Aura"]
+script = ExtResource("bundle")
+effects = Array[ExtResource("effect")]([SubResource("Armor")])
+[sub_resource type="Resource" id="Pulse"]
+script = ExtResource("bundle")
+effects = Array[ExtResource("effect")]([SubResource("Heal"), SubResource("Mana")])
+[sub_resource type="Resource" id="Entity"]
+script = ExtResource("entity_type")
+body = "static"
+group = "totem"
+limit = 2
+lifetime_ms = 10000
+max_hp = 70
+aura_radius = 3.5
+period_ms = 500
+aura = SubResource("Aura")
+pulse = SubResource("Pulse")
+[sub_resource type="Resource" id="P4Cost"]
+script = ExtResource("p4cost")
+kind = "pool"
+id = "mana"
+amount = 30
+
+[resource]
+script = ExtResource("ability")
+id = "radiant_totem"
+title = "辉光图腾"
+windup = 200
+active = 1
+recovery = 160
+cooldown = 2800
+description = "可破坏图腾；附近同伴获得护甲、周期治疗和回蓝。离开或毁掉图腾只撤其贡献。"
+delivery = SubResource("Delivery")
+bundle = SubResource("Bundle")
+entity = SubResource("Entity")
+costs = Array[ExtResource("p4cost")]([SubResource("P4Cost")])

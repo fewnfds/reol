@@ -135,7 +135,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				_held[key] = true
 				get_viewport().set_input_as_handled()
 				return
-		for button: String in ["primary", "skill", "step"]:
+		for button: String in ["primary", "skill", "skill2", "skill3", "step"]:
 			if event.is_action_pressed("act_" + button) and not event.is_echo():
 				if button == "primary": _primary_down = true
 				# Capture direction on the edge, including a click before the next tick.
@@ -324,7 +324,7 @@ func action(kind: String, payload: Dictionary) -> void:
 			var command: Dictionary = payload.duplicate()
 			command.kind = kind
 			_send(command)
-		"work", "save", "load":
+		"work", "save", "load", "action_trace":
 			clear_direct()
 			_send({"kind": kind})
 		"heal", "ability": _send({"kind": kind})
@@ -341,8 +341,10 @@ func _send(command: Dictionary) -> int:
 	if target > 0 and host.fog_enabled:
 		var known: Dictionary = Actions.observed(host.frame, target, true)
 		if known.is_empty() or known.get("memory", false):
-			ui.feedback("⊘", false)
-			return 0
+			if command.kind == "action": command["target"] = 0
+			else:
+				ui.feedback("⊘", false)
+				return 0
 	return host._send(command)
 
 func _visible_object(data: Dictionary) -> bool:

@@ -122,7 +122,7 @@ func index(world: RefCounted) -> void:
 	sides_present.clear()
 	for page: RefCounted in world.pages:
 		for row: int in page.ids.size():
-			sweep_padding = maxf(sweep_padding, maxf(page.move_speed[row], page.direct_velocities[row].length()) * page.delta_ms / 1000.0)
+			sweep_padding = maxf(sweep_padding, maxf(page.move_speed[row] * page.move_scales[row], page.direct_velocities[row].length()) * page.delta_ms / 1000.0)
 		positions.append_array(page.positions)
 		ids.append_array(page.ids)
 	sides.resize(ids.size())

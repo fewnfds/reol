@@ -1,0 +1,18 @@
+[gd_resource type="Resource" load_steps=6 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_bundle_def.gd" id="bundle"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_def.gd" id="effect"]
+[ext_resource type="Resource" path="res://data/definitions/actions/meal_fortitude.tres" id="fortitude"]
+[sub_resource type="Resource" id="Buff"]
+script = ExtResource("effect")
+kind = "status"
+stage = "activation"
+status = ExtResource("fortitude")
+[sub_resource type="Resource" id="Restore"]
+script = ExtResource("effect")
+kind = "resource"
+stage = "activation"
+pool = "mana"
+amount = 20
+[resource]
+script = ExtResource("bundle")
+effects = Array[ExtResource("effect")]([SubResource("Buff"), SubResource("Restore")])

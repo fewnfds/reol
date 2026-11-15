@@ -20,7 +20,7 @@ func segment_at(id: int, at: int) -> Dictionary:
 	return {}
 
 func active_at(id: int, at: int) -> bool:
-	if not records.has(id) or at > int(records[id].get("stopped_ms", 9223372036854775807)): return false
+	if not records.has(id) or int(records[id].hp) <= 0 or at > int(records[id].get("stopped_ms", 9223372036854775807)): return false
 	var segment: Dictionary = segment_at(id, at)
 	return not segment.is_empty() and at < int(segment.active_until)
 
@@ -30,21 +30,52 @@ func _stop(value: Dictionary, at: int) -> void:
 	value["stopped_ms"] = at
 
 func dispatch(world: RefCounted, actor: int, state: Dictionary, at: int) -> void:
-	var id: int = owned(actor, state.kind)
-	if id > 0 and records[id].phase != "stowed": recall(world, actor); return
 	var delivery: Dictionary = Defs.ACTIONS[state.kind].delivery
-	if id == 0:
-		id = next_id
-		next_id += 1
-		records[id] = {"id": id, "owner": actor, "ability": state.kind, "hp": int(delivery.durability), "phase": "stowed"}
-	var value: Dictionary = records[id]
-	value.erase("stopped_ms")
-	value.merge({"phase": "outbound", "position": world.combat.position(world, actor), "direction": state.direction,
-		"activation": state.activation, "damage": state.damage, "side": int(world.objects.records[actor].get("side", 0)),
-		"depart_ms": at, "return_ms": at + int(delivery.life), "touch": {}}, true)
+	var existing: Dictionary = {}
+	for id: int in records:
+		if records[id].owner == actor and records[id].ability == state.kind: existing[records[id].slot] = id
+	if existing.values().any(func(id: int): return records[id].phase not in ["stowed", "broken"]): recall(world, actor, state.kind); return
+	for index: int in int(delivery.instances):
+		var id: int = existing.get(index, next_id)
+		if not records.has(id):
+			next_id += 1
+			records[id] = {"id": id, "slot": index, "owner": actor, "ability": state.kind, "hp": int(delivery.durability), "phase": "stowed"}
+		var value: Dictionary = records[id]
+		if value.phase == "broken": continue
+		value.erase("stopped_ms")
+		value.merge({"phase": {"orbit": "orbiting", "hover": "hovering"}.get(delivery.deployment, "outbound"), "position": world.combat.position(world, actor), "direction": state.direction,
+			"activation": state.activation, "damage": state.damage, "side": int(world.objects.records[actor].get("side", 0)), "lineage": state.get("lineage", {}),
+			"hover": (world.combat.position(world, actor) + Vector2(state.direction) * 2.5).clamp(Vector2.ONE * 0.35, Vector2.ONE * 511.65), "next_emit": at + int(delivery.emit_period), "depart_ms": at, "return_ms": at + int(delivery.life), "touch": {}}, true)
 
-func recall(world: RefCounted, actor: int) -> void:
+func prepare(world: RefCounted, now: int) -> void:
+	var indexed: bool = false
 	for value: Dictionary in records.values():
+		if value.phase not in ["orbiting", "hovering"] or now < int(value.next_emit) or not world.combat.alive(world, value.owner): continue
+		var delivery: Dictionary = Defs.ACTIONS[value.ability].delivery
+		value.next_emit += int(delivery.emit_period)
+		if str(delivery.emitter).is_empty(): continue
+		if not indexed:
+			world.combat.scan.index(world)
+			indexed = true
+		world.sight.sync(world)
+		var target: int = 0
+		var distance: float = 8.0
+		for other: int in world.combat.scan.nearby(value.position - Vector2.ONE * 8, value.position + Vector2.ONE * 8):
+			if not world.combat.eligible(world, value.owner, other, "hostile", value.side): continue
+			var seen: Variant = world.sight.observed_position(world, value.owner, other)
+			if seen == null or Terrain_los(world, value.position, seen): continue
+			var span: float = Vector2(value.position).distance_to(seen)
+			if span < distance: distance = span; target = other
+		if target == 0: continue
+		var lineage: Dictionary = world.reactions.root(value.owner, value.activation)
+		world.combat.spawn_template(world, value.owner, delivery.emitter, value.position, Vector2(value.position).direction_to(world.combat.position(world, target)), now, 1.0, lineage)
+
+func Terrain_los(world: RefCounted, from: Vector2, to: Vector2) -> bool:
+	return preload("res://scripts/sim/kernel/terrain.gd").blocking_fraction(world.terrain.blocked, from, to) >= 0
+
+func recall(world: RefCounted, actor: int, ability: String = "") -> void:
+	for value: Dictionary in records.values():
+		if not ability.is_empty() and value.ability != ability: continue
 		if value.owner != actor or value.phase in ["broken", "stowed"] or not world.combat.alive(world, actor): continue
 		value.erase("stopped_ms")
 		var radius: float = float(Defs.ACTIONS[value.ability].delivery.radius)
@@ -62,13 +93,19 @@ func drop_owner(world: RefCounted, actor: int, at: int) -> void:
 		value["stopped_ms"] = at
 
 func readiness(actor: int, ability: String) -> String:
-	var id: int = owned(actor, ability)
-	if id > 0 and records[id].phase == "broken": return "implement_broken"
+	var total: int = 0
+	var broken: int = 0
+	for entry: Dictionary in records.values():
+		if entry.owner != actor or entry.ability != ability: continue
+		total += 1
+		if entry.phase == "broken": broken += 1
+	if total > 0 and broken == total: return "implement_broken"
 	return ""
 
 func next_boundary(now: int, end: int) -> int:
 	for value: Dictionary in records.values():
 		if value.phase == "outbound" and int(value.return_ms) > now: end = mini(end, int(value.return_ms))
+		if value.phase in ["orbiting", "hovering"] and int(value.next_emit) > now: end = mini(end, int(value.next_emit))
 	return end
 
 func collect(world: RefCounted, start: int, now: int, melee: Array[int]) -> Array[Dictionary]:
@@ -78,10 +115,10 @@ func collect(world: RefCounted, start: int, now: int, melee: Array[int]) -> Arra
 		if not world.combat.alive(world, value.owner):
 			if value.phase not in ["broken", "dropped"]: drop_owner(world, value.owner, start)
 			continue
-		if value.phase not in ["outbound", "returning"]: continue
+		if value.phase not in ["outbound", "returning", "orbiting", "hovering"]: continue
 		var def: Dictionary = Defs.ACTIONS[value.ability].merged(world.combat.Payload.summary(Defs.ACTIONS[value.ability].payload), true)
 		var delivery: Dictionary = def.delivery
-		if start >= int(value.return_ms): value.phase = "returning"
+		if value.phase == "outbound" and start >= int(value.return_ms): value.phase = "returning"
 		var from: Vector2 = value.position
 		var home: Vector2 = world.combat.position(world, value.owner)
 		var owner_slot: int = world.actor_slots[value.owner]
@@ -91,6 +128,11 @@ func collect(world: RefCounted, start: int, now: int, melee: Array[int]) -> Arra
 		if direction.is_zero_approx(): direction = value.direction
 		var distance: float = float(delivery.speed) * (now - start) / 1000.0
 		var to: Vector2 = from + direction * distance
+		if value.phase in ["orbiting", "hovering"]:
+			var angle: float = float(now - int(value.depart_ms)) / 1000.0 * 2.2 + float(value.slot) * TAU / int(delivery.instances)
+			var desired: Vector2 = home + Vector2.from_angle(angle) * float(delivery.orbit_radius) if value.phase == "orbiting" else Vector2(value.hover)
+			to = from.move_toward(desired, distance)
+			if not from.is_equal_approx(to): direction = from.direction_to(to)
 		var wall: Dictionary = Motion.wall_hit(world.terrain, from, to, float(delivery.radius))
 		var caught: bool = false
 		var halt: float = 1.0
@@ -112,7 +154,7 @@ func collect(world: RefCounted, start: int, now: int, melee: Array[int]) -> Arra
 		value.position = to
 		value.direction = direction
 		segments.append({"id": id, "from": from, "to": to, "knots": path, "start_ms": start, "end_ms": now, "active_until": active_until})
-		for target: int in world.combat.scan.nearby(from.min(to) - Vector2.ONE * 2, from.max(to) + Vector2.ONE * 2):
+		for target: int in world.combat.scan.nearby(from.min(to) - Vector2.ONE * (2 + world.combat.scan.sweep_padding), from.max(to) + Vector2.ONE * (2 + world.combat.scan.sweep_padding)):
 			if not world.combat.eligible(world, value.owner, target, delivery.filter, value.side): continue
 			var slot: int = world.actor_slots[target]
 			var page: RefCounted = world.pages[slot / 256]
@@ -124,8 +166,16 @@ func collect(world: RefCounted, start: int, now: int, melee: Array[int]) -> Arra
 			value.touch[target] = at + int(delivery.contact_ms)
 			impacts.append({"actor": value.owner, "target": target, "activation": value.activation, "source_implement": id,
 				"at_ms": at, "damage": value.damage, "incoming": -direction, "stun": def.stun, "push": def.push,
-				"group_ms": 0, "evadable": true, "position": Motion.at(from, to, path, fraction), "action": value.ability, "payload": def.payload})
+				"group_ms": 0, "evadable": true, "position": Motion.at(from, to, path, fraction), "action": value.ability, "payload": def.payload, "lineage": value.lineage, "rules": def.reactions})
 		# Enemy attacks use the same swept target, but never give this object a villager AI.
+		for target: int in world.combat.receivers(world, from.min(to) - Vector2.ONE, from.max(to) + Vector2.ONE, value.owner, delivery.filter, value.side):
+			var point: Vector2 = world.combat.position(world, target)
+			var fraction: float = Motion.circles_hit(from, to, path, point, point, PackedVector3Array(), 0.4 + float(delivery.radius))
+			var at: int = start + roundi((now - start) * fraction)
+			if fraction < 0 or at >= active_until or at < int(value.touch.get(target, 0)): continue
+			value.touch[target] = at + int(delivery.contact_ms)
+			impacts.append({"actor": value.owner, "target": target, "activation": value.activation, "source_implement": id, "at_ms": at, "damage": value.damage,
+				"incoming": -direction, "stun": def.stun, "push": def.push, "group_ms": 0, "position": point, "action": value.ability, "payload": def.payload, "lineage": value.lineage, "rules": def.reactions})
 		for attacker: int in melee:
 			var action: Dictionary = world.combat.states[attacker]
 			var other: Dictionary = Defs.ACTIONS[action.kind]
@@ -158,14 +208,16 @@ func valid(world: RefCounted) -> bool:
 		if not value.get("owner") is int or value.owner < 1 or value.owner >= world.objects.next_id or not Defs.ACTIONS.has(value.get("ability")): return false
 		var delivery: Dictionary = Defs.ACTIONS[value.ability].delivery
 		if delivery.kind != "implement" or not value.get("hp") is int or value.hp < 0 or value.hp > delivery.durability: return false
-		if value.get("phase") not in ["stowed", "outbound", "returning", "dropped", "broken"] or (value.hp == 0) != (value.phase == "broken"): return false
-		var key: String = "%s:%s" % [value.owner, value.ability]
+		if value.get("phase") not in ["stowed", "outbound", "returning", "dropped", "broken", "orbiting", "hovering"] or (value.hp == 0) != (value.phase == "broken"): return false
+		if value.phase not in ["dropped", "broken"] and not world.actor_slots.has(value.owner): return false
+		var key: String = "%s:%s:%s" % [value.owner, value.ability, value.get("slot", 0)]
 		if unique.has(key): return false
 		unique[key] = true
 		if not world.combat._point_valid(value.get("position")) or value.position.x < 0 or not world.combat._direction_valid(value.get("direction")): return false
 		for field: String in ["activation", "damage", "depart_ms", "return_ms", "side"]:
 			if not value.get(field) is int: return false
 		if value.activation < 1 or value.activation >= world.combat.next_activation or value.damage < 0 or value.depart_ms < 0 or value.depart_ms > world.elapsed_ms or value.return_ms != value.depart_ms + int(delivery.life): return false
+		if not value.get("slot") is int or value.slot < 0 or value.slot >= int(delivery.instances) or not value.get("next_emit") is int or value.next_emit < value.depart_ms or not world.combat._point_valid(value.get("hover")): return false
 		if not value.get("touch") is Dictionary: return false
 		if value.has("stopped_ms") and (not value.stopped_ms is int or value.stopped_ms < 0 or value.stopped_ms > world.elapsed_ms): return false
 		for target: Variant in value.touch:

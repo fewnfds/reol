@@ -16,6 +16,7 @@ static func values(record: Dictionary) -> Dictionary:
 	return result
 
 static func valid_record(record: Dictionary) -> bool:
+	if record.get("body_profile", "human") not in ["human", "companion"]: return false
 	if record.has("ability_loadout") and not Defs.LOADOUTS.has(record.ability_loadout): return false
 	if record.get("combat_style", "") not in ["", "trained"]: return false
 	if record.get("practice_mode", "") not in ["", "light", "heavy", "mixed"]: return false
@@ -35,7 +36,9 @@ static func rebuild(world: RefCounted, id: int, clamp_health: bool = true) -> vo
 	var page: RefCounted = world.pages[slot / 256]
 	var row: int = slot % 256
 	page.resize_stats()
-	var stats: Dictionary = values(world.objects.records[id])
+	page.needs_enabled[row] = 0 if world.objects.records[id].get("body_profile", "human") == "companion" else 1
+	var stats: Dictionary = world.effects.modify(values(world.objects.records[id]), id, world.operation_time())
+	if clamp_health: world.pools.configure(id, world.combat.profile(world, id).get("pools", []), world.operation_time())
 	page.max_health[row] = stats.max_hp
 	page.melee_damage[row] = stats.melee
 	page.ranged_damage[row] = stats.ranged

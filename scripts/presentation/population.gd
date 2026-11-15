@@ -106,6 +106,7 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted, ac
 		buffer[offset + 9] = color.g
 		buffer[offset + 10] = color.b
 		buffer[offset + 11] = 1.0 if id > 0 and (not fog_enabled or id == 1 or (index < frame.visible.size() and frame.visible[index] != 0)) else 0.0
+		if frame.entities.has(id): buffer[offset + 11] = 0.0 # Companion glyph is drawn by CombatShapes.
 		buffer[offset + 12] = from.x
 		buffer[offset + 13] = from.y
 		var motion_header: int = int(_motion_headers.get(index, 0)) if same_current and same_previous else 0

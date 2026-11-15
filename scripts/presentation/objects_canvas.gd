@@ -29,7 +29,7 @@ func adopt(value: Dictionary, fringe: Dictionary = {}) -> void:
             by_tile[tile].append(id)
     var ids: Array = []
     for id: int in objects:
-        if objects[id].kind != "floor": ids.append(id)
+        if objects[id].kind not in ["floor", "combat_object"]: ids.append(id)
     ids.sort_custom(func(a: int, b: int):
         var roof_a: bool = objects[a].get("layer", "") == "roof"
         var roof_b: bool = objects[b].get("layer", "") == "roof"

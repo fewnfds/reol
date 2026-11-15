@@ -5,11 +5,12 @@ const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const STATE_FIELDS: Array = ["records", "next_id"]
 var records: Dictionary = {}
 var next_id: int = 1
+var queued: Dictionary = {} # Transient collection index, rebuilt per spatial interval.
 
 func create(actor: int, state: Dictionary, at: int, side: int) -> void:
 	var delivery: Dictionary = Defs.ACTIONS[state.kind].delivery
 	records[next_id] = {"id": next_id, "actor": actor, "activation": state.activation, "ability": state.kind,
-		"position": state.point, "damage": state.damage, "side": side, "born_ms": at,
+		"lineage": state.get("lineage", {}), "rules": Defs.ACTIONS[state.kind].reactions, "position": state.point, "damage": state.damage, "side": side, "born_ms": at,
 		"trigger_ms": at + int(delivery.delay), "next_ms": at + int(delivery.delay),
 		"expire_ms": at + int(delivery.delay) + int(delivery.duration), "finished": false}
 	next_id += 1
@@ -20,29 +21,42 @@ func next_boundary(now: int, end: int) -> int:
 			if at > now: end = mini(end, at)
 	return end
 
-func collect(world: RefCounted, now: int) -> Array[Dictionary]:
-	var impacts: Array[Dictionary] = []
+func collect(_world: RefCounted, now: int) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
 	for id: int in records.keys():
 		var value: Dictionary = records[id]
-		var def: Dictionary = Defs.ACTIONS[value.ability].merged(world.combat.Payload.summary(Defs.ACTIONS[value.ability].payload), true)
-		var delivery: Dictionary = def.delivery
 		if value.finished and now > int(value.expire_ms) + 160: records.erase(id); continue
-		if value.finished or now < int(value.next_ms): continue
-		var at: int = value.next_ms
-		for target: int in world.combat.scan.nearby(value.position - Vector2.ONE * (float(delivery.radius) + 1), value.position + Vector2.ONE * (float(delivery.radius) + 1)):
-			if not world.combat.eligible(world, value.actor, target, delivery.filter, value.side): continue
-			var slot: int = world.actor_slots[target]
-			var point: Vector2 = world.pages[slot / 256].positions[slot % 256]
-			var radius: float = world.pages[slot / 256].radii[slot % 256]
-			if point.distance_to(value.position) > float(delivery.radius) + radius: continue
-			if delivery.walls and Terrain.blocking_fraction(world.terrain.blocked, value.position, point) >= 0: continue
-			impacts.append({"actor": value.actor, "target": target, "activation": value.activation, "at_ms": at,
-				"damage": value.damage, "stun": def.stun, "push": def.push, "incoming": (value.position - point).normalized(),
-				"position": point, "action": value.ability, "payload": def.payload, "evadable": true,
-				"group_ms": mini(int(def.group_ms), int(delivery.period)), "heavy_hit": def.heavy_hit, "punish_ms": def.punish_ms})
-		world.emit({"kind": "area_trigger", "actor": value.actor, "activation": value.activation, "area": id, "action": value.ability, "position": value.position, "at_ms": at})
-		value.next_ms += int(delivery.period)
-		value.finished = int(delivery.duration) == 0 or int(value.next_ms) >= int(value.expire_ms)
+		if value.finished or now < int(value.next_ms) or queued.get(id, -1) == value.next_ms: continue
+		queued[id] = value.next_ms
+		result.append({"event": "area_pulse", "area_id": id, "actor": value.actor, "at_ms": value.next_ms})
+	return result
+
+func pulse(world: RefCounted, id: int, at: int) -> Array[Dictionary]:
+	var impacts: Array[Dictionary] = []
+	if not records.has(id): return impacts
+	var value: Dictionary = records[id]
+	if value.finished or value.next_ms != at: return impacts
+	var def: Dictionary = Defs.ACTIONS[value.ability].merged(world.combat.Payload.summary(Defs.ACTIONS[value.ability].payload), true)
+	var delivery: Dictionary = def.delivery
+	for target: int in world.combat.scan.nearby(value.position - Vector2.ONE * (float(delivery.radius) + 1 + world.combat.scan.sweep_padding), value.position + Vector2.ONE * (float(delivery.radius) + 1 + world.combat.scan.sweep_padding)):
+		if not world.combat.eligible(world, value.actor, target, delivery.filter, value.side): continue
+		var slot: int = world.actor_slots[target]
+		var point: Vector2 = world.position_at(target, at)
+		var radius: float = world.pages[slot / 256].radii[slot % 256]
+		if point.distance_to(value.position) > float(delivery.radius) + radius: continue
+		if delivery.walls and Terrain.blocking_fraction(world.terrain.blocked, value.position, point) >= 0: continue
+		impacts.append({"actor": value.actor, "target": target, "activation": value.activation, "at_ms": at,
+			"damage": value.damage, "stun": def.stun, "push": def.push, "incoming": (value.position - point).normalized(),
+			"lineage": value.get("lineage", {}), "rules": value.get("rules", []), "position": point, "action": value.ability, "payload": def.payload, "evadable": true,
+			"group_ms": mini(int(def.group_ms), int(delivery.period)), "heavy_hit": def.heavy_hit, "punish_ms": def.punish_ms})
+	for target: int in world.combat.receivers(world, value.position - Vector2.ONE * (float(delivery.radius) + 0.5), value.position + Vector2.ONE * (float(delivery.radius) + 0.5), value.actor, delivery.filter, value.side):
+		var point: Vector2 = world.combat.position(world, target)
+		if point.distance_to(value.position) > float(delivery.radius) + 0.4 or (delivery.walls and Terrain.blocking_fraction(world.terrain.blocked, value.position, point) >= 0): continue
+		impacts.append({"actor": value.actor, "target": target, "activation": value.activation, "at_ms": at, "damage": value.damage, "stun": def.stun, "push": def.push, "incoming": Vector2.ZERO, "position": point,
+			"action": value.ability, "payload": def.payload, "rules": value.rules, "lineage": value.lineage, "group_ms": mini(int(def.group_ms), int(delivery.period))})
+	world.emit({"kind": "area_trigger", "actor": value.actor, "activation": value.activation, "area": id, "action": value.ability, "position": value.position, "at_ms": at})
+	value.next_ms += int(delivery.period)
+	value.finished = int(delivery.duration) == 0 or int(value.next_ms) >= int(value.expire_ms)
 	return impacts
 
 func valid(world: RefCounted) -> bool:

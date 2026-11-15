@@ -1,0 +1,18 @@
+[gd_resource type="Resource" load_steps=5 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/reaction_def.gd" id="type"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_def.gd" id="effect"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_bundle_def.gd" id="bundle"]
+[sub_resource type="Resource" id="Bundle"]
+script = ExtResource("bundle")
+effects = Array[ExtResource("effect")]([])
+[resource]
+script = ExtResource("type")
+id = "plague_spread"
+event = "killed"
+mode = "spread"
+status_id = "plague"
+count = 3
+radius = 3.5
+chain_limit = 8
+max_depth = 4
+bundle = SubResource("Bundle")
