@@ -455,6 +455,7 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 		_inspected_view = _world.describe(selected)
 		_player_view = _inspected_view if selected == 1 else _world.describe(1)
 	frame.inspected = _inspected_view
+	frame.inspected_id = selected
 	frame.player = _player_view
 	for bolt: Dictionary in _world.combat.bolts.values():
 		frame.projectiles.append(bolt.position)

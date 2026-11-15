@@ -154,9 +154,13 @@ func advance(navigation: RefCounted) -> void:
 		var available: float = speed * delta_ms / 1000.0
 		var cursor: int = route_cursors[row]
 		var knots := PackedVector3Array()
-		while available > 0.00001 and cursor < route.size():
+		while cursor < route.size():
 			var next: Vector2 = route[cursor]
 			var distance: float = point.distance_to(next)
+			if distance <= 0.00001:
+				cursor += 1
+				continue
+			if available <= 0.00001: break
 			if distance <= available:
 				point = next
 				available -= distance

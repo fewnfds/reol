@@ -354,6 +354,7 @@ func _layout() -> void:
 func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: float, following: bool, help_target: int, direct: bool = true) -> void:
 	_frame = frame
 	_use_fog = use_fog
+	if _selected != selected: selection_changed(selected)
 	_selected = selected
 	_help_target = help_target
 	_target = Actions.observed(frame, selected, use_fog)
@@ -409,6 +410,8 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 		if _target.has("temperature"): rows.append("%.2f°C" % float(_target.temperature))
 		if _target.has("elements"): rows.append(elements(_target.elements))
 		if _target.has("growth_ms"): rows.append("生长 %.1fs   阶段 %d   速率 %d" % [int(_target.growth_ms) / 1000.0, int(_target.stage), int(_target.get("rate", 0))])
+		if _target.get("kind", "") == "blueprint": rows.append("施工中／已停工" if _target.get("construction_started", false) else "待开工")
+		if not _target.get("work_cells", {}).is_empty(): rows.append("操作位已标出；需留出通路")
 		if _target.has("remaining_ms"): rows.append("%.1fs" % (int(_target.remaining_ms) / 1000.0))
 		if _target.has("inventory"):
 			var stock := PackedStringArray()
@@ -466,8 +469,8 @@ static func action_name(kind: String) -> String:
 func toggle_drawer(kind: String) -> void:
 	if kind == "character" and _drawer_name != kind:
 		_character_id = int(_target.id) if _target.get("kind", "") == "actor" and not _target.get("memory", false) else 1
-		if size.x < 1100: inventory.hide()
 	_drawer_name = "" if _drawer_name == kind else kind
+	if not _drawer_name.is_empty() and size.x < 1100: inventory.hide()
 	_drawer_panel.visible = not _drawer_name.is_empty()
 	_drawer_signature = ""
 	if _frame != null: _refresh_drawer()
@@ -613,9 +616,13 @@ func close_modal() -> void:
 	get_viewport().gui_release_focus()
 
 func context_menu(data: Dictionary, at: Vector2, payload: Dictionary) -> void:
+	var commands: Array[Dictionary] = Actions.for_target(data, _frame.player, _help_target)
+	if commands.is_empty():
+		close_context()
+		return
 	_context = payload.duplicate()
 	_clear(_context_body)
-	for spec: Dictionary in Actions.for_target(data, _frame.player, _help_target):
+	for spec: Dictionary in commands:
 		var button: Button = _button(_context_body, spec.id, spec.text, spec.icon, payload)
 		button.disabled = not spec.enabled
 	_context_panel.size = Vector2(220, 0)
@@ -624,6 +631,15 @@ func context_menu(data: Dictionary, at: Vector2, payload: Dictionary) -> void:
 
 func close_context() -> void:
 	_context_panel.hide()
+
+func selection_changed(id: int) -> void:
+	# Non-player detail panels share the owner's single inspection request.
+	if inventory.visible and ((inventory.target_id > 0 and inventory.target_id != id) or (inventory.subject_id != 1 and inventory.subject_id != id)):
+		inventory.hide()
+	if _drawer_name == "character" and _character_id != 1 and _character_id != id:
+		_drawer_name = ""
+		_drawer_panel.hide()
+	_layout()
 
 func blocks_world() -> bool:
 	return _modal.visible or _context_panel.visible

@@ -19,7 +19,7 @@ func choose(id: String) -> void:
 	check(await until(func(): return game.frame.epoch > epoch and game.frame.loadout.id == id), "Native selection did not adopt " + id)
 
 func save_lifetime(label: String) -> void:
-	game.controls.action("pause_menu", {})
+	game.controls.action("pause", {})
 	check(await until(func(): return game.frame.paused), label + ": pause missing")
 	var areas: Dictionary = game.frame.areas.duplicate(true)
 	var implements: Dictionary = game.frame.implements.duplicate(true)

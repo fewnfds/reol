@@ -163,7 +163,7 @@ func cache_static(world: RefCounted, refresh: bool) -> void:
 			if not prepared: continue
 		var descriptor: Dictionary = {"id": id, "kind": rec.kind, "definition": rec.definition, "tile": rec.tile,
 			"cells": rec.get("cells", PackedInt32Array([rec.tile])).duplicate(), "layer": rec.get("layer", "ground"),
-			"stage": rec.get("stage", -1), "vegetation_level": rec.get("vegetation_level", 3), "sapient": rec.get("sapient", false), "facing": rec.get("facing", 0)}
+			"stage": rec.get("stage", -1), "vegetation_level": rec.get("vegetation_level", 3), "sapient": rec.get("sapient", false), "facing": rec.get("facing", 0), "construction_started": rec.get("construction_started", false)}
 		if current: memories[id] = descriptor
 		else: fringe[id] = descriptor
 

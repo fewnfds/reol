@@ -153,7 +153,7 @@ func death_and_reset() -> void:
 	check(game.frame.player.hp == 100, "A dead player could not restart practice")
 
 func save_and_restore() -> void:
-	game.controls.action("pause_menu", {})
+	game.controls.action("pause", {})
 	check(await until(func(): return game.frame.paused), "Combat save never paused")
 	var saved_ms: int = game.frame.world_ms
 	var health: PackedInt32Array = game.frame.health.duplicate()

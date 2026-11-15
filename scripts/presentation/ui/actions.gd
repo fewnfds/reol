@@ -21,16 +21,19 @@ static func title(data: Dictionary) -> String:
 	var quality: String = " Q%d" % Items.quality(key) if definition.has("slot") else ""
 	return str(data.get("name", definition.get("label", key))) + quality + " #%d" % int(data.get("id", 0))
 
+static func visible(frame: RefCounted, id: int, use_fog: bool) -> bool:
+	if id == 1: return true
+	if frame.actor_slots.has(id):
+		return not use_fog or frame.visible[frame.actor_slots[id]] != 0
+	if not use_fog: return frame.objects.has(id)
+	var memory: Dictionary = frame.perception.get("memories", {}).get(id, {})
+	for tile: int in memory.get("cells", PackedInt32Array()):
+		if frame.perception.tiles[tile] != 0: return true
+	return false
+
 static func observed(frame: RefCounted, id: int, use_fog: bool) -> Dictionary:
 	if id == 0: return {}
-	var current: bool = id == 1 or not use_fog
-	if frame.actor_slots.has(id):
-		current = current or frame.visible[frame.actor_slots[id]] != 0
-	else:
-		var memory: Dictionary = frame.perception.get("memories", {}).get(id, {})
-		for tile: int in memory.get("cells", PackedInt32Array()):
-			if frame.perception.tiles[tile] != 0: current = true
-	if current:
+	if visible(frame, id, use_fog):
 		var value: Dictionary = frame.player if id == 1 else frame.inspected
 		return value if int(value.get("id", 0)) == id else {}
 	var old: Dictionary = frame.perception.get("memories", {}).get(id, {})

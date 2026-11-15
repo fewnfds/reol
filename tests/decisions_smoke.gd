@@ -276,6 +276,40 @@ func edge_handoffs() -> void:
 	follower.decisions.prepare(follower, 0)
 	check(not follower.combat.intents.has(2) and follower.decisions.records[2].mode == "follow", "Leash break retained a buffer or lost follow control")
 
+func sequence_loses_target() -> void:
+	var w: RefCounted = fixture()
+	setup_actor(w, 2, "sword", "pressure")
+	w.pages[0].positions[1] = w.pages[0].positions[0] + Vector2(3.5, 0)
+	w.combat.engage(w, 2, 1)
+	advance(w, 301)
+	check(w.decisions.records[2].task.get("kind", "") == "sequence" and w.combat.states.has(2), "Lost-target fixture did not reach an admitted sequence action")
+	var binding: Dictionary = w.gate.current(2).duplicate()
+	var activation: int = w.combat.next_activation
+	w.pages[0].positions[0] += Vector2(60, 0)
+	advance(w, 351)
+	check(w.decisions.records[2].task.is_empty(), "Lost visibility kept future sequence steps")
+	check(w.gate.current(2) == binding, "Lost visibility cancelled an already admitted strike")
+	advance(w, 1001)
+	check(w.combat.next_activation == activation, "Lost target still triggered a later sequence attack")
+	check(Persistence.candidate(Persistence.capture(w), 0) != null, "Lost-target sequence cleanup broke restore")
+
+func ordinary_world_restoration() -> void:
+	# Keep the normal world fixture: its enemies actually finish paths before
+	# switching to tactical steering, unlike stationary combat-only fixtures.
+	var w := World.new()
+	w.initialize(24, 0)
+	while w.elapsed_ms < 1000: w.step(100)
+	for page: RefCounted in w.pages:
+		for row: int in page.ids.size():
+			check(page.route_cursors[row] <= page.routes[row].size(), "Tactical steering retained a cursor beyond its cleared route")
+	var restored: RefCounted = Persistence.candidate(Persistence.capture(w), 0)
+	check(restored != null, "Ordinary world's route-to-steering handoff rejected its own save")
+	if restored == null: return
+	advance(w, 1200)
+	advance(restored, 1200)
+	check(w.pages[0].positions == restored.pages[0].positions and w.pages[0].health == restored.pages[0].health, "Ordinary world movement or damage changed after restore")
+	check(w.decisions.records == restored.decisions.records, "Ordinary world task state changed after restore")
+
 func _run() -> void:
 	authoring()
 	living_handoff()
@@ -283,5 +317,7 @@ func _run() -> void:
 	feedback_and_boundaries()
 	sleep_and_manual()
 	edge_handoffs()
+	sequence_loses_target()
+	ordinary_world_restoration()
 	print("DECISIONS_SMOKE errors=", errors)
 	quit(0 if errors == 0 else 1)

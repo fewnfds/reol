@@ -60,6 +60,7 @@ var flight := PackedByteArray()
 var radii := PackedFloat32Array()
 var visuals := PackedByteArray() # Detached action presentation; never used by settlement.
 var inspected: Dictionary = {}
+var inspected_id: int = 0 # Acknowledges an inspection even when the target no longer exists.
 var player: Dictionary = {} # Always present independently of selection/scroll position.
 var counters: Dictionary = {}
 var tides := PackedInt32Array()

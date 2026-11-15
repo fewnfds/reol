@@ -118,7 +118,7 @@ func _inventory_session() -> void:
 	loaded.command({"kind": "interrupt", "actor": 1})
 	check(loaded.objects.amount(1, "wood") == 7 and not loaded.actions.has(1), "Cancel erased committed goods")
 	page = loaded.pages[0]
-	page.positions[0] = Terrain.center(loaded.objects.records[chest].tile)
+	page.positions[0] = loaded.facilities.interaction_point(loaded, chest, page.positions[0], page.radii[0], false, "put")
 	loaded.command({"kind": "put", "actor": 1, "target": chest, "amount": 7})
 	for step: int in 8:
 		loaded.step()
@@ -190,7 +190,7 @@ func _build_and_live() -> void:
 	world._sync_inventory(1)
 	var tile: int = Terrain.index(Vector2i(160, 170))
 	var page: RefCounted = world.pages[0]
-	page.positions[0] = Terrain.center(tile - 1)
+	page.positions[0] = Terrain.center(tile)
 	check(world.command({"kind": "construct", "definition": "long_bed", "tile": tile}).ok, "Multicell blueprint rejected")
 	var target: int = world.actions[1].target
 	world.objects.records[target].remaining_ms = 500
@@ -217,7 +217,7 @@ func _build_and_live() -> void:
 	var stove: int = world.objects.by_tile[Terrain.index(Vector2i(174, 185))][0]
 	world.objects.add(1, "grain", 2)
 	world.objects.add(1, "water", 1)
-	page.positions[0] = world.facilities.interaction_point(world, stove, page.positions[0])
+	page.positions[0] = world.facilities.interaction_point(world, stove, page.positions[0], 0.35, false, "cook")
 	var meals: int = world.objects.amount(stove, "meal")
 	var grain: int = world.objects.amount(1, "grain")
 	check(world.command({"kind": "cook", "target": stove}).ok, "Cooking rejected")

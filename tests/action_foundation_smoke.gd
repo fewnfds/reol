@@ -3,7 +3,7 @@ extends "res://tests/abilities_smoke.gd"
 func admission() -> void:
 	var w: RefCounted = fixture("bow")
 	var source: int = w.source_objects[0]
-	w.pages[0].positions[0] = w.Terrain.center(w.objects.records[source].tile) + Vector2(1.0, 0)
+	w.pages[0].positions[0] = w.Terrain.center(w.objects.records[source].tile)
 	check(w.begin_interaction(1, {"kind": "take", "target": source, "item": "wood", "amount": 1}) == "accepted", "Real work not admitted")
 	var before: Dictionary = w.gate.current(1)
 	w.combat.cooldowns[1] = {"shot": 1000}

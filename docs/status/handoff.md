@@ -1,25 +1,22 @@
 # 当前接续
 
-**战斗框架完成到P5：共同单位决策与持续任务已接入生活、工作、战斗和随从。** 本轮交付main并推送origin（GitHub），实际同步以Git指针为准。没有待补P4施工或必须续跑的极限压测。
+## 当前停点
 
-根目录唯一[启动.cmd](../../启动.cmd)：选1源码战斗，选2源码普通世界，选3独立P5成品，选4编辑器。当前包`build/windows/act-p5/reol-act.exe`与同目录pck，生成物不入库。F5/F9用format12的`act-p5-quicksave.reol`；旧P4包、旧档/备份保留，不自动迁移。键位查[FEATURES](features.md)，构建/实测查[BASELINE](baseline.md)。
+作业位置和本轮代码审查修复已完成。战斗框架保持P5，不自动推进P6、预警系统、完整物流或锻造玩法。下一主题等待用户选择；六类确认未修问题的触发、源码及本机复现证据归[问题清单](issues.md)，不能把它们当成已解决，也不要把顾问未核实的推断继续登记为事实。
 
-## 已交付与下一主题
+- 实现合同与配置示例：[空间与施工](../../design/systems/construction_and_space/places.md#作业位置与在制外观)；产品规则：[对象与交互](../../design/rules/objects-and-interaction.md)。植物本格、实体完整占地四邻、操作专用工位四向旋转；灶台已配置单侧工位。
+- 实际开工取得实体占地，被活地面身体占用时等待且不耗工时；中断保留半成品、碰撞和劳动，续建不重复付材料。现有材料仍在放蓝图时从背包转移，不冒充自动运输。
+- 构建/验证及本轮已修项归[BASELINE](baseline.md)，能力与键位归[FEATURES](features.md)。普通世界、P5战斗和施工真实GUI/文件恢复检查通过，源码与导出PCK施工续接状态一致；一个512人短窗无错误且实速约1×。这些不代替长局、极密弹幕或主观手感验收。
+- 根目录唯一[启动.cmd](../../启动.cmd)：选1源码战斗，选2源码普通世界，选3独立P5成品，选4编辑器。包为`build/windows/act-p5/reol-act.exe`＋同目录pck；F5/F9使用format13的`user://act-p5-quicksave-v13.reol`。旧format12及更早开发档/备份保留、不覆盖、不迁移。
+- 本轮交付归`main`；提交/同步版本以`git status`及`main`/`origin/main`指针为准。成品、咨询、探针和日志不入库。
 
-P5以共同Decisions协调策略绑定、独立参数/任务、手动交接、唤醒与自主输入。生活沿原候选/宿主；战斗用原生规则/有限序列和受信评分脚本。轻敌连段、重敌承诺/收招、射手拉距；采集→威胁应对→脱离后重选已验证。制作/绑定归[单位决策合同](../../design/systems/unit_decision_framework.md)，咨询裁决归[研究](../../design/research/action_editor_references.md#8-可编排单位策略p5研究与实施)。
+## 后续边界
 
-日常事件/到期，战斗默认50ms，运动/结算仍60Hz及细分边界。发现只更新线索，交接由原gate准入；强制受击/死亡原时刻清理。任务引用原run，原owner处理占用/费用/效果。存读保留任务、唤醒与自主输入；诊断不参与决策。F12输入`decisions`看选择和当前任务。
+原P5以共同Decisions协调策略绑定、独立参数/任务、手动交接、唤醒与自主输入；制作合同归[单位决策](../../design/systems/unit_decision_framework.md)。生活事件/到期唤醒，战斗默认50ms决策，运动与结算仍60Hz/精确边界。共同执行器的owner、run、费用、预约和结果不另建第二份。
 
-下一主题等用户试玩反馈再选，不自动续做P6/P7。新增预警系统明确后置。图编辑器、公开任意脚本、运行时LLM、全生活数据化、完整Boss和新弹幕花型未作为P5交付要求。
+扩展沿[实际owner](../engineering/architecture.md)，先判断配置、局部脚本、共享机制或新领域。用户口语、游戏类比与顾问意见只用于提炼意图，正式概念/代码/验证按根AGENTS校正。正式动作、混音、主观手感与平衡、完整构筑和长局仍待选题。没有为本轮降低世界精度或引入LOD、人群避让、流场。
 
-扩展沿[实际owner](../engineering/architecture.md)，先判断配置、局部脚本、共享机制或新领域。公共合同归[行动与作用](../../design/systems/action_effect_framework.md)，战斗归[ACT规格](../../design/systems/combat_framework/act_and_barrage.md)。用户类比与顾问意见不自动成为术语/功能/验收断言，按根AGENTS核查意图与证据。
+## 本机资料与受保护工作
 
-## 当前边界
-
-两条近远组合、机制范例和三类敌人可玩；正式动作/混音、主观手感/平衡、完整构筑与长局仍待选题。地图512²、近场60Hz；未为P5降低世界精度，没有远区LOD、人群避让或流场。相关性能短窗及限制查BASELINE。
-
-## 受保护工作
-
-- 本机顾问资料、凭据、存档、素材源稿及第三方addon不覆盖。
-- 保留工作分支，尤其`codex/field-contest`及stash `424f956d280fb390d17e1f6dd879f3614b51a430`。
-- 临时探针/咨询归`.local/`，日志归`logs/`，成品归`build/`，不新增根目录启动脚本。
+- 审查/作业位置咨询归`.local/advisor/review-20261115/`，复现探针归`.local/review-20261115/`；日志归`logs/`，生成包归`build/`，不新增根目录启动脚本。采用的事实保存在主题正文与BASELINE，原答不入库。
+- 保留本机顾问凭据、存档、素材源稿和第三方addon；保留工作分支`codex/field-contest`及stash `424f956d280fb390d17e1f6dd879f3614b51a430`。

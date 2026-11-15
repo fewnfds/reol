@@ -52,7 +52,9 @@ func policy(world: RefCounted, actor: int) -> Dictionary:
 func wake(world: RefCounted, actor: int, at: int, reason: String, delay: int = 0) -> void:
 	if not world.actor_slots.has(actor) or not world.combat.alive(world, actor): return
 	var entry: Dictionary = _record(world, actor)
-	if reason == "needs_changed": entry.life_dirty = true
+	if reason == "needs_changed":
+		if entry.manual or not _life_preemptible(world, actor): return
+		entry.life_dirty = true
 	var due: int = at + maxi(0, delay)
 	if reason in ["life_result", "await_commitment"]: due = ((due + 49) / 50) * 50
 	if reason == "life_result" and str(wakeups.get(actor, "")).begins_with("execution_") and not in_combat(actor):
@@ -69,7 +71,9 @@ func in_combat(actor: int) -> bool:
 
 func suspend(world: RefCounted, actor: int) -> void:
 	var entry: Dictionary = _record(world, actor)
+	world.objects.records[actor].erase("commitment")
 	entry.manual = true
+	entry.life_dirty = false
 	entry.mode = "manual"
 	entry.task.clear()
 	entry.next_ms = -1
@@ -81,6 +85,7 @@ func suspend(world: RefCounted, actor: int) -> void:
 func resume(world: RefCounted, actor: int, at: int) -> void:
 	var entry: Dictionary = _record(world, actor)
 	entry.manual = false
+	entry.life_dirty = false
 	entry.mode = "idle"
 	wake(world, actor, at, "resume")
 
@@ -93,6 +98,7 @@ func forget(actor: int) -> void:
 func released(actor: int) -> void:
 	if not records.has(actor): return
 	records[actor].task.clear()
+	records[actor].life_dirty = false
 	records[actor].mode = "idle" if not records[actor].manual else "manual"
 	records[actor].next_ms = -1
 	wakeups.erase(actor)
@@ -108,6 +114,11 @@ func track_host(world: RefCounted, actor: int) -> void:
 	if binding.is_empty() or entry.task.get("binding", {}) == binding: return
 	entry.mode = "life"
 	entry.task = {"id": _id(), "kind": "host", "binding": binding, "result": "", "waiting": "running"}
+
+func _life_preemptible(world: RefCounted, actor: int) -> bool:
+	if not world.objects.records[actor].get("autonomous", false): return false
+	if world.gate.current(actor).get("domain", "") == "partner": return false
+	return not world.actions.has(actor) or bool(world.actions[actor].get("autonomous", false))
 
 func notice(world: RefCounted, actor: int, at: int, hit: bool = false) -> void:
 	var entry: Dictionary = _record(world, actor)
@@ -204,7 +215,9 @@ func prepare(world: RefCounted, now: int) -> void:
 		entry.next_ms = -1
 		var reason: String = str(wakeups.get(actor, "due"))
 		wakeups.erase(actor)
-		if entry.manual: continue
+		if entry.manual:
+			entry.life_dirty = false
+			continue
 		evaluations += 1
 		var spec: Dictionary = policy(world, actor)
 		var contact: Dictionary = world.combat.engagements.get(actor, {})
@@ -229,11 +242,12 @@ func prepare(world: RefCounted, now: int) -> void:
 			if not world.gate.check(world, actor, now).is_empty():
 				wake(world, actor, now, "await_commitment", 100); continue
 			if entry.life_dirty:
-				_submitting = actor
-				world.end_run(actor, now, "preempted")
-				world.clear_navigation(actor)
-				_submitting = 0
 				entry.life_dirty = false
+				if _life_preemptible(world, actor):
+					_submitting = actor
+					world.end_run(actor, now, "preempted")
+					world.clear_navigation(actor)
+					_submitting = 0
 			if world.gate.current(actor).is_empty():
 				entry.mode = "life"
 				world.livelihood.choose(world, actor, now)
@@ -241,6 +255,7 @@ func prepare(world: RefCounted, now: int) -> void:
 				track_host(world, actor)
 				_record_trace(actor, now, entry, -1, "life_selected")
 		else:
+			entry.life_dirty = false
 			if entry.mode != "follow": entry.mode = "idle"
 			entry.task.clear()
 		entry.last_reason = reason
@@ -276,6 +291,7 @@ func _ready_reason(world: RefCounted, actor: int, button: String, now: int) -> S
 
 func _combat(world: RefCounted, actor: int, entry: Dictionary, spec: Dictionary, now: int) -> void:
 	var combat: RefCounted = world.combat
+	if entry.task.get("kind", "") == "sequence" and now >= int(entry.task.deadline_ms): entry.task.clear()
 	var contact: Dictionary = combat.engagements[actor]
 	var origin: Vector2 = combat.position(world, actor)
 	var observed: Variant = world.sight.observed_position(world, actor, contact.target) if contact.target > 0 else null
@@ -307,6 +323,8 @@ func _combat(world: RefCounted, actor: int, entry: Dictionary, spec: Dictionary,
 		else: _move(world, actor, entry, escape, now, false)
 		return
 	if observed == null or not clear:
+		# Abandon future steps; an already admitted strike keeps its own commitment.
+		if entry.task.get("kind", "") == "sequence": entry.task.clear()
 		_move(world, actor, entry, goal, now, observed == null)
 		return
 	var desired_min: float = spec.min
@@ -366,6 +384,7 @@ func _cast(world: RefCounted, actor: int, entry: Dictionary, button: String, goa
 		entry.task = {"id": _id(), "kind": "host", "binding": {}, "result": "", "waiting": ""}
 	if result == "started":
 		entry.task["binding"] = world.gate.current(actor)
+		entry.task["button"] = button
 		entry.task["result"] = ""
 		entry.task["waiting"] = "running"
 	elif result == "buffered":
@@ -409,7 +428,7 @@ func _steer(world: RefCounted, actor: int, direction: Vector2) -> void:
 	if world.combat.states.has(actor): return
 	var slot: int = world.actor_slots[actor]
 	var page: RefCounted = world.pages[slot / 256]
-	page.routes[slot % 256] = PackedVector2Array()
+	world.clear_navigation(actor)
 	page.modes[slot % 256] = Units.Mode.IDLE if direction.is_zero_approx() else Units.Mode.DIRECT
 
 func _retreat_point(world: RefCounted, actor: int, toward: Vector2) -> Vector2:

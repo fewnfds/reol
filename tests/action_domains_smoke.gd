@@ -3,7 +3,7 @@ extends "res://tests/abilities_smoke.gd"
 func timed_transfer(hit_at: int, due: int) -> RefCounted:
 	var w: RefCounted = fixture()
 	var source: int = w.source_objects[0]
-	w.pages[0].positions[0] = w.Terrain.center(w.objects.records[source].tile) + Vector2(1, 0)
+	w.pages[0].positions[0] = w.Terrain.center(w.objects.records[source].tile)
 	check(w.begin_transfer(1, {"kind": "take", "target": source, "item": "wood", "amount": 1}) == "accepted", "Transfer not admitted")
 	w.settle(1, 0)
 	w.pages[0].due_ms[0] = due
@@ -20,7 +20,7 @@ func chronological() -> void:
 	check(not later.combat.alive(later, 1) and later.objects.amount(1, "wood") == 1, "Later death erased an earlier delivery")
 	var newborn: RefCounted = fixture()
 	var target: int = newborn.source_objects[0]
-	newborn.pages[0].positions[0] = newborn.Terrain.center(newborn.objects.records[target].tile) + Vector2(1, 0)
+	newborn.pages[0].positions[0] = newborn.Terrain.center(newborn.objects.records[target].tile)
 	newborn.begin_transfer(1, {"kind": "take", "target": target, "item": "wood", "amount": 1})
 	newborn.step(400)
 	check(newborn.objects.amount(1, "wood") == 1 and not newborn.actions.has(1), "Arrival-created process deadline missed its interval")
@@ -34,7 +34,7 @@ func tending() -> void:
 	w.pages[0].positions[0] = Vector2(121.5, 122.5)
 	var water: int = w.objects.amount(1, "water")
 	check(w.begin_interaction(1, {"kind": "tend", "target": target}) == "accepted", "Manual tending rejected")
-	w.step(1600)
+	w.step(1900) # Enter the plant's own work cell before its 1500ms labour.
 	check(w.objects.amount(1, "water") == water - 1 and w.objects.records[target].injury_ms < 35000, "Manual domain operation did not conserve water")
 	w.objects.records[target].injury_ms = 90000
 	check(w.combat.request(w, 1, "skill", Vector2.RIGHT, Vector2.ZERO, -1, Vector2(-1, -1), target) == "started", "Selected-plant ACT tending rejected")

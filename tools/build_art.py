@@ -12,7 +12,7 @@ import math
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageOps
-from pixel_fixtures import fixture, wall, door
+from pixel_fixtures import fixture, wall, door, construction
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "assets/art"
@@ -371,6 +371,10 @@ def world() -> dict:
                 d.polygon([(25, 39), (30, 21 - frame * 2), (33, 29), (38, 17 + frame), (40, 39)], fill=colors[0])
                 d.rectangle((31, 32, 35, 39), fill=colors[1])
             pack.add(f"fx_{family}_{frame}", im, category="effects")
+    # Modular unfinished timber frames cover any footprint without stretching
+    # single-cell art or adding one node/texture per work site.
+    for mask in range(16):
+        pack.add(f"construction_{mask}", construction(mask), "施工半成品", footprint=(1, 1))
     pack.save()
     return pack.entries
 

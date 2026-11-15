@@ -223,7 +223,7 @@ func _sync(world: RefCounted, id: int) -> void:
 		if solid:
 			for page: RefCounted in world.pages:
 				for row: int in page.positions.size():
-					if page.ids[row] > 0 and page.health[row] > 0 and Terrain.index(Vector2i(page.positions[row])) == rec.tile:
+					if page.ids[row] > 0 and page.health[row] > 0 and page.flight[row] == 0 and world._body_overlaps_tile(page.positions[row], page.radii[row], rec.tile):
 						solid = false
 		rec["pending_block"] = active and not solid
 		world.queue_structure(rec.tile, solid, false, not solid)

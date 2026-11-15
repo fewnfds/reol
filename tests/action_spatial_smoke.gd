@@ -31,6 +31,36 @@ func auras_and_receiver() -> void:
 	advance(w, 1400)
 	check(not w.entities.records.has(id) and not w.objects.records.has(id), "Projectile could not destroy a static receiver")
 
+func wide_projectile_receiver() -> void:
+	var w: RefCounted = fixture()
+	var target: int = w.objects.create("combat_object", "radiant_totem", w.Terrain.index(Vector2i(121, 122)))
+	w.objects.records[target]["combat_receiver"] = true
+	w.objects.records[target]["side"] = 1
+	w.combat.launch(1, Vector2(118.5, 120.5), Vector2(130.5, 120.5), 0, 20)
+	var bolt: Dictionary = w.combat.bolts.values()[0]
+	bolt.radius = 2.0
+	bolt.walls = false
+	advance(w, 110)
+	check(w.objects.records[target].hp == 80, "Wide projectile missed a static receiver overlapping its swept volume")
+
+func multi_status_aura_cleanup() -> void:
+	var original: Dictionary = Defs.ACTIONS
+	var variants: Dictionary = original.duplicate(true)
+	var second: Dictionary = variants.radiant_totem.entity.aura[0].duplicate(true)
+	second.status.id = "aura_second_armor"
+	second.status.magnitude = 5.0
+	variants.radiant_totem.entity.aura.append(second)
+	Defs.ACTIONS = variants
+	var w: RefCounted = fixture("totems")
+	w.combat.request(w, 1, "skill", Vector2.RIGHT, Vector2.ZERO, -1, Vector2(121.5, 121.5))
+	advance(w, 750)
+	check(w.pages[0].armor[0] == 8 and w.effects.records.size() == 2, "Multi-status aura fixture lost a contribution")
+	w.pages[0].positions[0] += Vector2(8, 0)
+	advance(w, 1250)
+	check(w.pages[0].armor[0] == 0 and w.effects.records.is_empty(), "Leaving multi-status aura skipped a source contribution")
+	check(Persistence.candidate(Persistence.capture(w), 0) != null, "Multi-status aura cleanup could not restore")
+	Defs.ACTIONS = original
+
 func blink_and_implements() -> void:
 	var w: RefCounted = fixture("companions")
 	var origin: Vector2 = w.pages[0].positions[0]
@@ -126,6 +156,8 @@ func controlled_and_defined_reactions() -> void:
 func _run() -> void:
 	companions()
 	auras_and_receiver()
+	wide_projectile_receiver()
+	multi_status_aura_cleanup()
 	blink_and_implements()
 	lifecycle_edges()
 	controlled_and_defined_reactions()

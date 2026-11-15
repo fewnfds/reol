@@ -73,6 +73,8 @@ func remember(world: RefCounted, id: int, target: int, at: int) -> void:
 	clue["kind"] = record.kind
 	clue["definition"] = record.definition
 	clue["tile"] = record.tile
+	clue["capacity"] = record.capacity
+	clue["stage"] = int(record.get("stage", -1))
 	clue["seen_ms"] = at
 	person.known[target] = clue
 
@@ -108,6 +110,8 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 		elif page.hunger[row] >= 2500 and page.energy[row] >= 2000:
 			if world.begin_interaction(id, {"kind": "construct", "target": target, "autonomous": true}) == "accepted":
 				return
+			after_action(world, id, at, target)
+			return
 	var clues: Dictionary = person.known
 	var chosen: int = 0
 	var kind: String = ""
@@ -129,15 +133,19 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 			candidate = "cook"
 			priority = -1500
 		elif page.cargo[row] > 0 and clue.kind == "chest":
+			var occupied: int = 0
+			for count: int in clue.inventory.values(): occupied += count
+			if int(clue.get("capacity", -1)) >= 0 and occupied >= int(clue.capacity): continue
 			candidate = "put"
 			priority = -1000
-		elif clue.kind == "plant" and not clue.inventory.is_empty():
+		elif clue.kind == "plant" and int(clue.get("stage", -1)) == world.nature.Stage.MATURE and not clue.inventory.is_empty():
 			candidate = "gather"
 			priority = -700
 		elif page.cargo[row] == 0 and clue.kind == "resource" and int(clue.inventory.get("wood", 0)) > 0:
 			candidate = "harvest"
 		if candidate.is_empty():
 			continue
+		if person.has("commitment") and candidate not in ["eat", "rest"]: continue
 		var score: float = page.positions[row].distance_squared_to(Terrain.center(clue.tile)) + priority
 		if candidate not in ["put", "eat"] and world.sight.sees(page.positions[row], clue.tile, world.sight.range_for(world, id)) and world.reservations.has(target):
 			continue
@@ -146,6 +154,9 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 			best = score
 			kind = candidate
 	if chosen == 0:
+		if person.has("commitment"):
+			after_action(world, id, at)
+			return
 		# No known useful site: take a short walk and observe at the destination.
 		var point: Vector2i = Vector2i(page.positions[row]) + Vector2i(8 if (id + at / 1000) % 2 == 0 else -8, 5)
 		point = point.clamp(Vector2i(1, 1), Vector2i(510, 510))
@@ -161,9 +172,14 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 	if kind == "harvest":
 		var source: int = world.source_objects.find(chosen)
 		if source >= 0:
+			var point: Vector2 = world.facilities.interaction_point(world, chosen, page.positions[row], page.radii[row], page.flight[row] > 0, "harvest")
+			if point.x < 0:
+				after_action(world, id, at, chosen)
+				return
 			world.end_run(id, at)
 			page.source_ids[row] = source
-			_walk_to_site(world, id, clues[chosen].tile, Units.Mode.RESOURCE, at)
+			if world.adopt_work(id, at): page.move_to(row, point, Units.Mode.RESOURCE)
+			else: after_action(world, id, at, chosen)
 			return
 	var reason: String
 	if kind == "put":

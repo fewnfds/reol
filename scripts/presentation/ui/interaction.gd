@@ -5,6 +5,7 @@ const Art = preload("res://scripts/presentation/art.gd")
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Style = preload("res://scripts/presentation/ui/style.gd")
 const Bindings = preload("res://scripts/presentation/ui/input_bindings.gd")
+const Positions = preload("res://scripts/sim/kernel/work_positions.gd")
 var bindings := Bindings.new()
 var host: Node2D
 var ui: Control
@@ -69,13 +70,12 @@ func tick(delta: float) -> void:
 			_last_drive = drive
 	queue_redraw()
 	if not _pending_context.is_empty():
-		if _pending_context.epoch != host.frame.epoch:
+		if _pending_context.epoch != host.frame.epoch or _pending_context.target != host.selected or external_modal() or ui.blocks_world() or ui.inventory.visible:
 			_pending_context = {}
-		else:
+		elif host.frame.inspected_id == int(_pending_context.target):
 			var data: Dictionary = Actions.observed(host.frame, _pending_context.target, host.fog_enabled)
-			if not data.is_empty():
-				ui.context_menu(data, _pending_context.screen, _pending_context)
-				_pending_context = {}
+			ui.context_menu(data, _pending_context.screen, _pending_context)
+			_pending_context = {}
 	if not host.following and not locked():
 		var pan: Vector2 = Vector2(float(_held.has("pan_right")) - float(_held.has("pan_left")), float(_held.has("pan_down")) - float(_held.has("pan_up"))).limit_length(1.0)
 		host.camera.position += pan * delta * 800.0 / host.camera.zoom.x
@@ -148,6 +148,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _pan_drag: host.following = false
 		get_viewport().set_input_as_handled()
 		return
+	var focused: Control = get_viewport().gui_get_focus_owner()
+	if ui.inventory.visible and not ui.blocks_world() and not (focused is LineEdit or focused is TextEdit) and event.is_action_pressed("game_inventory") and not event.is_echo():
+		action("inventory", {})
+		get_viewport().set_input_as_handled()
+		return
 	if locked(): return
 	if event.is_pressed() and not event.is_echo():
 		for spec: Dictionary in Bindings.SPECS:
@@ -155,7 +160,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			if not id.begins_with("game_") or not Bindings.active(id, direct): continue
 			if host.paused and id in ["game_heal", "game_ability"]: continue
 			if event.is_action_pressed(id):
-				if id.begins_with("game_pan_"): _held[id.trim_prefix("game_")] = true
+				if id.begins_with("game_pan_"):
+					host.following = false
+					_held[id.trim_prefix("game_")] = true
 				else: action(id.trim_prefix("game_"), {})
 				get_viewport().set_input_as_handled()
 				return
@@ -186,6 +193,7 @@ func action(kind: String, payload: Dictionary) -> void:
 	if host.frame == null: return
 	var target: int = int(payload.get("target", host.selected))
 	if payload.has("epoch") and int(payload.epoch) != host.frame.epoch: return
+	_pending_context = {}
 	if ui._context_panel.visible: ui.close_context()
 	match kind:
 		"context":
@@ -339,8 +347,7 @@ func _send(command: Dictionary) -> int:
 		return 0
 	var target: int = int(command.get("target", 0))
 	if target > 0 and host.fog_enabled:
-		var known: Dictionary = Actions.observed(host.frame, target, true)
-		if known.is_empty() or known.get("memory", false):
+		if not Actions.visible(host.frame, target, true):
 			if command.kind == "action": command["target"] = 0
 			else:
 				ui.feedback("⊘", false)
@@ -353,6 +360,9 @@ func _visible_object(data: Dictionary) -> bool:
 	return false
 
 func _select(id: int, tile: int) -> void:
+	_pending_context = {}
+	ui.close_context()
+	ui.selection_changed(id)
 	host.selected = id
 	host.selected_tile = tile
 	host.runner.inspect(id, host._probe_tile)
@@ -366,7 +376,7 @@ func _right_click(point: Vector2, screen: Vector2) -> void:
 	_pending_context = {"target": target, "position": point, "screen": screen, "epoch": host.frame.epoch}
 
 func _confirm_tool(point: Vector2) -> void:
-	var candidates: Array[int] = pick(point, false)
+	var candidates: Array[int] = pick(point, tool == "demolish")
 	var target: int = candidates[0] if not candidates.is_empty() else 0
 	match tool:
 		"build", "plant":
@@ -374,7 +384,16 @@ func _confirm_tool(point: Vector2) -> void:
 			if not _preview_ok: return
 			_send({"kind": "construct" if tool == "build" else "plant", "definition": definition, "tile": tile_at(point), "facing": facing})
 		"demolish":
-			if target == 0 or host.frame.actor_slots.has(target): return
+			target = 0
+			var flat: int = 0
+			for id: int in candidates:
+				var data: Dictionary = host.object_canvas.objects.get(id, {})
+				if data.is_empty() or data.kind in ["plant", "resource", "pile", "depot"]: continue
+				if data.get("layer", "ground") in ["floor", "roof"]:
+					if flat == 0: flat = id
+				else: target = id; break
+			if target == 0: target = flat
+			if target == 0: return
 			_send({"kind": "demolish", "target": target})
 		"worker":
 			if target == 0 or target == 1 or not host.frame.actor_slots.has(target): return
@@ -391,6 +410,9 @@ func cancel_tool() -> void:
 func reset_session() -> void:
 	clear_direct()
 	cancel_tool()
+	if ui.modal_kind() in ["pause", "settings", "bindings"]:
+		host.paused = _resume_paused
+		host.runner.control(host.paused, host.speed)
 	help_target = 0
 	_pan_drag = false
 	ui.reset_session()
@@ -478,6 +500,9 @@ func _update_preview(tile: int) -> void:
 				if not spec.get("substrates", []).has(substrate) or (not has_pot and (surface & 8) != 0) or (has_pot and spec.get("blocks", false)): _preview_ok = false
 
 func _draw() -> void:
+	if host.frame != null and not direct:
+		var data: Dictionary = Actions.observed(host.frame, host.selected, host.fog_enabled)
+		for cells: PackedInt32Array in data.get("work_cells", {}).values(): _draw_work_cells(cells)
 	if direct and host.frame != null and not locked() and not host.paused and tool.is_empty():
 		var pointer: Vector2 = get_global_mouse_position()
 		draw_arc(pointer, 4.0 / host.camera.zoom.x, 0, TAU, 16, Style.GOLD, 1.0 / host.camera.zoom.x)
@@ -493,5 +518,17 @@ func _draw() -> void:
 			var direction: Vector2 = Vector2.UP.rotated(facing * PI * 0.5) * 13
 			draw_line(point, point + direction, color, 3.0)
 			draw_circle(point + direction, 3, color)
+			if tool == "build":
+				var spec: Dictionary = Actions.buildings.get(definition, {})
+				var record: Dictionary = {"tile": _preview_cells[0], "cells": _preview_cells, "facing": facing}
+				for operation: String in spec.get("work_positions", {}):
+					_draw_work_cells(Positions.layout(record, spec, operation, bool(spec.get("facts", {}).get("movement_blocked", false))))
 	else:
 		draw_arc(_point * Art.TILE, 10, 0, TAU, 16, Style.DANGER if tool == "demolish" else Style.TEAL, 2.0)
+
+func _draw_work_cells(cells: PackedInt32Array) -> void:
+	for tile: int in cells:
+		var rect := Rect2(Vector2(Terrain.cell(tile)) * Art.TILE + Vector2.ONE * 4, Vector2.ONE * (Art.TILE - 8))
+		draw_rect(rect, Color(Style.GOLD, 0.12))
+		draw_rect(rect, Style.GOLD, false, 1.5)
+		draw_circle(Terrain.center(tile) * Art.TILE, 3, Style.GOLD)

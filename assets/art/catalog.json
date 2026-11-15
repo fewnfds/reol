@@ -4801,6 +4801,342 @@
       "category": "effects",
       "state": "ready",
       "source": "authored"
+    },
+    "construction_0": {
+      "slot": 246,
+      "rect": [
+        384,
+        1920,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        48
+      ],
+      "label": "施工半成品",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "construction_1": {
+      "slot": 247,
+      "rect": [
+        448,
+        1920,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        48
+      ],
+      "label": "施工半成品",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "construction_2": {
+      "slot": 248,
+      "rect": [
+        0,
+        1984,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        48
+      ],
+      "label": "施工半成品",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "construction_3": {
+      "slot": 249,
+      "rect": [
+        64,
+        1984,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        48
+      ],
+      "label": "施工半成品",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "construction_4": {
+      "slot": 250,
+      "rect": [
+        128,
+        1984,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        48
+      ],
+      "label": "施工半成品",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "construction_5": {
+      "slot": 251,
+      "rect": [
+        192,
+        1984,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        48
+      ],
+      "label": "施工半成品",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "construction_6": {
+      "slot": 252,
+      "rect": [
+        256,
+        1984,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        48
+      ],
+      "label": "施工半成品",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "construction_7": {
+      "slot": 253,
+      "rect": [
+        320,
+        1984,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        48
+      ],
+      "label": "施工半成品",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "construction_8": {
+      "slot": 254,
+      "rect": [
+        384,
+        1984,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        48
+      ],
+      "label": "施工半成品",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "construction_9": {
+      "slot": 255,
+      "rect": [
+        448,
+        1984,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        48
+      ],
+      "label": "施工半成品",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "construction_10": {
+      "slot": 256,
+      "rect": [
+        0,
+        2048,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        48
+      ],
+      "label": "施工半成品",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "construction_11": {
+      "slot": 257,
+      "rect": [
+        64,
+        2048,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        48
+      ],
+      "label": "施工半成品",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "construction_12": {
+      "slot": 258,
+      "rect": [
+        128,
+        2048,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        48
+      ],
+      "label": "施工半成品",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "construction_13": {
+      "slot": 259,
+      "rect": [
+        192,
+        2048,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        48
+      ],
+      "label": "施工半成品",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "construction_14": {
+      "slot": 260,
+      "rect": [
+        256,
+        2048,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        48
+      ],
+      "label": "施工半成品",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "construction_15": {
+      "slot": 261,
+      "rect": [
+        320,
+        2048,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        48
+      ],
+      "label": "施工半成品",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
     }
   },
   "terrain": {
@@ -4821,7 +5157,7 @@
   },
   "sha256": {
     "actors.png": "399aee8374e60273c958ed6aeb17844d126ad0ba97ebebb00558e3aad1dcd5e9",
-    "world.png": "d8ab38a2ebf625f9726b2d5dd9aa4a5e467678756554f6e6432491288f383c2c",
+    "world.png": "28756e24398d4facf0d337ae6157f9ad77d57802f3a03ea7f16af3901af95728",
     "terrain.png": "ec803c9e7a280020e07af16932c06df6fa35c315cfd201a591452d12fdd8ec18"
   }
 }

@@ -183,7 +183,7 @@ func layout() -> Dictionary:
 		if record.tile >= 0:
 			result[id] = {"id": id, "kind": record.kind, "definition": record.definition, "tile": record.tile,
 				"cells": record.get("cells", PackedInt32Array([record.tile])).duplicate(), "layer": record.get("layer", "ground"),
-				"stage": record.get("stage", -1), "vegetation_level": record.get("vegetation_level", 3), "sapient": record.get("sapient", false), "facing": record.get("facing", 0)}
+				"stage": record.get("stage", -1), "vegetation_level": record.get("vegetation_level", 3), "sapient": record.get("sapient", false), "facing": record.get("facing", 0), "construction_started": record.get("construction_started", false)}
 	return result
 
 

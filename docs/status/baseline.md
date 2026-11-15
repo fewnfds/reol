@@ -4,20 +4,48 @@
 
 ## 当前构建
 
-Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+，1280×720。正式入口`scenes/main.tscn`。当前为P5共同单位决策试玩版；根目录[启动.cmd](../../启动.cmd)选3运行`build/windows/act-p5/reol-act.exe`＋同目录pck，选1为最新源码战斗、选2为普通世界。
+Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+，1280×720。正式入口`scenes/main.tscn`。当前为P5试玩版加作业位置与本轮审查修复；根目录[启动.cmd](../../启动.cmd)选3运行`build/windows/act-p5/reol-act.exe`＋同目录pck，选1为最新源码战斗、选2为普通世界。
 
 | 项目 | 当前值 |
 |---|---|
 | exe SHA256 | `3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf` |
-| PCK SHA256 | `af806ddac1b890f78cf814f6cfc0481ec63d4e504f5b457c998b107857239410` |
+| PCK SHA256 | `2abd74f663e9fae4d31aaa6041188c2024d08b188fba74566105e405fb5b4963` |
 | 战斗规则签名 | `04042c8edd9719b61192e5932f02a6346dfd643f280714a330d8e8f3e063a928` |
 | 决策签名 | `6c536ed02eafd75d319b6b1ac664ccd7ca3e4235b66139aae125fb732efca332` |
 | 内容 | 40动作、24配置、7套Policy；原生Resource/Inspector制作 |
-| 存档 | reol-world-12；默认`user://act-p5-quicksave.reol` |
+| 存档 | reol-world-13；默认`user://act-p5-quicksave-v13.reol` |
 
-P5新增决策布局/签名，不迁移P4 format11开发档；旧包、原档及备份保留，不覆盖。exe是相同Godot模板，游戏变更主要在PCK；只核exe哈希不足以识别游戏版本。生成物/日志/本机咨询不入库。运行和制作入口归[usage](../engineering/tooling/usage.md)。
+作业位置新增施工阶段布局，不迁移format12及更早开发档；原档及备份保留，不覆盖。exe是相同Godot模板，游戏变更主要在PCK；只核exe哈希不足以识别游戏版本。生成物/日志/本机咨询不入库。运行和制作入口归[usage](../engineering/tooling/usage.md)。
+
+## 作业位置与审查交付
+
+作业位置的配置、旋转和施工状态合同见[空间与施工](../../design/systems/construction_and_space/places.md#作业位置与在制外观)。本格、完整占地四邻和指定工位共用接近/到场校验；灶台已有单侧烹饪工位。已开工蓝图取得实体阻挡，中断、等待、存读与续建沿原行动和库存。16种模块在现有静物批次中拼接施工架，未新增逐对象节点或第二份占地原状态。
+
+审查结合本地源码/隔离反例及世界、战斗、会话的双顾问意见；作业位置另由顾问与独立代理复核。顾问指出的多人排队施工失效已实测修复，另修复未开工多格蓝图的大身体角点站位遗漏。没有把静态建议直接当作事实。**仍有六类已复现的旧问题未修，完整触发条件与证据归[问题清单](issues.md)**；本轮不是全游戏无缺陷声明。
+
+| 本轮修复范围 | 结果 |
+|---|---|
+| 世界/生活 | 战术接管清理旧路线游标，普通世界正常存档恢复；成熟树检查实际身体半径；生活跳过已知满箱/未成熟植物；新手动指令清旧协作，忙碌协助不落入无关工作；需求不抢断单次手动工作或社会伙伴；自建蓝图保留制作者记忆；定身不妨碍已到位操作 |
+| 战斗机制 | 光环退出不漏删多个状态；大弹体/器物不漏静态受体；反击弹不排除攻击者；追踪跳过已穿过目标；嵌套状态反应在同一有界因果波内处理；零前摇直接交付进入正确接触阶段；失视放弃后续序列，保留已承诺动作 |
+| 界面/会话 | 空菜单不锁输入、背包快捷键可关闭、平移可退出跟随、窄屏抽屉可见；目标可见性与是否已查看详情分开；切换选择/epoch清旧面板；地板可拆；菜单读档恢复进入前暂停状态 |
+| 作业与施工 | 四向工位/盆栽宿主/大身体净空、占地等待不耗工时、开工阻挡不提前围合、中断和恢复不重复材料/劳动；多人施工不重新开启成品或污染正常存档 |
+
+| 验证 | 本机证据 |
+|---|---|
+| 最终核心/作业 | `smoke-kernel-20261115-232302-371277100.log`，KERNEL_SMOKE errors=0；`work-positions-final-20261115-232158-933296500.log`，WORK_POSITIONS_SMOKE errors=0，含等待中/施工中恢复、多人竞争、大身体角点和寻路预算反例 |
+| 决策/生活/跨域 | `work-final-decisions-20261115-231921-240994300.log`、`work-livelihood-20261115-230803-580151600.log`、`work-domains-20261115-231056-777000200.log`均完整退出、errors=0；features为`smoke-features-20261115-230803-591821900.log` |
+| 相关战斗与框架 | `work-final-action_reactions-20261115-231750-316838200.log`、`work-final-action_spatial-20261115-231756-680192600.log`、`work-final-action_resources-20261115-231802-16873100.log`及同前缀的control/framework/action_foundation检查，均errors=0；未自动串成长局矩阵 |
+| 真实GUI/磁盘 | `work-final-work_positions-ui-20261115-231829-121538900.log`、`work-final-ui_session-ui-20261115-231833-145389200.log`、`work-final-decisions-ui-20261115-231836-144608100.log`、`work-final-ui-ui-20261115-231843-446489900.log`均通过；施工架/金色工位/完成后详情截图`logs/work-positions-ui/`已实际观察 |
+| 导出与恢复 | `export-20261115-232258-177923700.log`完成；`work-source-fixture-20261115-232321-375074500.log`从施工中生成候选，`work-pack-restore-20261115-232322-645719500.log`以Godot工具读取实际PCK、恢复并推进，完整持久状态与源码一致，WORK_PACK_RESTORE errors=0；release真实运行另见下方短窗 |
+| 结构 | `check_structure.py --audit-code`核94份当前文档、229个Godot源文件、15个注册类，0错误；新脚本UID已导入，最终diff无空白错误 |
+
+源包恢复探针先误用不允许路径覆盖的release模板`--main-pack`，明确失败并保留`work-pack-restore-20261115-232118-182733700.log`；后改为Godot工具显式载入实际PCK，不把失败算通过。新增竞争测试曾有错误变量/属性名，修正fixture后再通过，失败日志保留。
+
+本轮成品只测一个512人、1×、60FPS限帧、3秒预热＋5秒采样窗口，条件沿P5的`framework-combat-v1`、迷雾、RTX3060/D3D12/1280×720、两worker。`logs/work-final-512.json/.log/.cpu.json`记录：全窗步均7.993ms、步p99 15.903ms、帧p99 16.702ms、实速0.9999×，406次交付/57次命中，零过载、无脚本/引擎错误、木材守恒。峰值14弹/4状态；没有密弹极限或纯算法提速结论。测量在提交前完成，JSON的Git字段为旧HEAD＋dirty，包哈希与上表一致。
 
 ## P5实施与验证
+
+以下为原P5交付时的历史有效检查；当前包的更新证据在上节。
 
 共同Decisions接入原生活/工作、战斗、逃离及临时身体跟随；策略模板和个体参数/任务分开，保存待唤醒与持续自主输入。原host/run提交实际后果；发现威胁不先停工，手动明确交接，有限序列允许原合法取消。轻敌闪步三连、重敌承诺/收招和射手拉距共用执行器。
 

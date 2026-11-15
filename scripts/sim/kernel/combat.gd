@@ -131,7 +131,7 @@ func set_control(world: RefCounted, input: Dictionary) -> void:
 	if not movement.is_zero_approx() and (states.has(actor) or world.gate.check(world, actor, world.elapsed_ms).is_empty()):
 		world.objects.records[actor].autonomous = false
 		world.decisions.suspend(world, actor)
-		page.routes[row] = PackedVector2Array()
+		world.clear_navigation(actor)
 		page.modes[row] = Units.Mode.DIRECT
 
 func _priority(button: String) -> int:
@@ -293,7 +293,7 @@ func prepare(world: RefCounted, now: int) -> void:
 			var slot: int = world.actor_slots[actor]
 			world.pages[slot / 256].modes[slot % 256] = Units.Mode.IDLE
 			continue
-		if not state.fired and now >= Defs.active_ms(state):
+		if not state.fired and now >= Defs.active_ms(state) and Defs.ACTIONS[state.kind].delivery.kind != "direct":
 			state.fired = true
 			_deliver(world, actor, state, now)
 			world.emit({"kind": "action_active", "actor": actor, "action": state.kind, "activation": state.activation, "at_ms": now, "position": position(world, actor)})
@@ -440,7 +440,9 @@ func spawn_template(world: RefCounted, actor: int, template: String, origin: Vec
 	var ids: Array = []
 	for id: int in range(first, next_bolt):
 		ids.append(id)
-		if exclude > 0: bolts[id].passed[exclude] = true
+		if exclude > 0:
+			bolts[id].passed[exclude] = true
+			if bolts[id].target == exclude: bolts[id].target = 0
 	return ids
 
 func _lunge(world: RefCounted, actor: int, state: Dictionary, speed: float) -> Vector2:

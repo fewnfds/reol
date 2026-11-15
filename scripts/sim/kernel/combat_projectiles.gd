@@ -5,12 +5,13 @@ const Defs = preload("res://scripts/sim/kernel/action_defs.gd")
 
 static func acquire(combat: RefCounted, world: RefCounted, bolt: Dictionary) -> void:
 	if not combat.alive(world, bolt.actor): return
+	combat.scan.index(world)
 	world.sight.sync(world)
 	var origin: Vector2 = bolt.position
 	var direction: Vector2 = Vector2(bolt.velocity).normalized()
 	var best: float = 0.8
 	for target: int in combat.scan.nearby(origin - Vector2.ONE * 12, origin + Vector2.ONE * 12):
-		if not combat.eligible(world, bolt.actor, target, bolt.filter, bolt.side): continue
+		if bolt.passed.has(target) or not combat.eligible(world, bolt.actor, target, bolt.filter, bolt.side): continue
 		var seen: Variant = world.sight.observed_position(world, bolt.actor, target)
 		if seen == null: continue
 		var angle: float = absf(direction.angle_to(origin.direction_to(seen)))
@@ -22,6 +23,7 @@ static func steer(combat: RefCounted, world: RefCounted, now: int) -> void:
 		var dt: float = (int(bolt.next_steer) - int(bolt.steered_ms)) / 1000.0
 		bolt.steered_ms = bolt.next_steer
 		bolt.next_steer += 50
+		if bolt.passed.has(bolt.target): bolt.target = 0
 		if int(bolt.target) == 0: acquire(combat, world, bolt)
 		if not combat.alive(world, bolt.actor) or not combat.alive(world, bolt.target): continue
 		world.sight.sync(world)
@@ -58,7 +60,8 @@ static func collect(combat: RefCounted, world: RefCounted, start: int, now: int,
 			var finish: Vector2 = Vector2(clipped[-1].x, clipped[-1].y)
 			var fraction: float = Motion.hit_fraction(from, to, begin, finish, page.radii[row] + float(bolt.radius), clipped)
 			if fraction >= 0 and (first < 0 or fraction < first): contacts.append({"target": target, "fraction": fraction, "implement": 0, "position": Motion.at(begin, finish, clipped, fraction)})
-		for target: int in combat.receivers(world, from.min(to) - Vector2.ONE, from.max(to) + Vector2.ONE, bolt.actor, bolt.filter, bolt.side):
+		var receiver_pad: Vector2 = Vector2.ONE * (float(bolt.radius) + 0.4)
+		for target: int in combat.receivers(world, from.min(to) - receiver_pad, from.max(to) + receiver_pad, bolt.actor, bolt.filter, bolt.side):
 			if bolt.passed.has(target): continue
 			var point: Vector2 = combat.position(world, target)
 			var fraction: float = Motion.hit_fraction(from, to, point, point, 0.4 + float(bolt.radius), PackedVector3Array())

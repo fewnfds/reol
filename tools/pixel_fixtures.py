@@ -112,6 +112,24 @@ def wall(mask: int) -> Image.Image:
     return image
 
 
+def construction(mask: int) -> Image.Image:
+    """One tile of a joined timber frame; neighbour bits match wall masks."""
+    image = Image.new("RGBA", (64, 64))
+    d = ImageDraw.Draw(image)
+    d.rectangle((17, 17, 46, 46), fill="#655542")
+    for y in [22, 30, 38]:
+        d.line((19, y, 44, y), fill=WOOD, width=3)
+    for bit, a, b in [(1,(17,17),(46,17)),(2,(46,17),(46,46)),(4,(17,46),(46,46)),(8,(17,17),(17,46))]:
+        if not mask & bit:
+            d.line((*a, *b), fill=INK, width=4)
+            d.line((*a, *b), fill=LIGHT, width=2)
+    d.line((22, 40, 40, 22), fill=INK, width=5)
+    d.line((22, 40, 40, 22), fill=LIGHT, width=3)
+    d.rectangle((23, 20, 26, 26), fill=SLATE, outline=INK)
+    d.rectangle((37, 36, 43, 40), fill=CREAM, outline=INK)
+    return image
+
+
 def door(vertical: bool) -> Image.Image:
     image = Image.new("RGBA", (64,64))
     d = ImageDraw.Draw(image)

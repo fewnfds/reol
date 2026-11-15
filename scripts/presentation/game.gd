@@ -196,8 +196,7 @@ func _process(delta: float) -> void:
 		_last_receipt = "%s #%d @%d: %s" % [receipt.kind, receipt.seq, receipt.at_ms, receipt.reason]
 		ui.feedback(("→ " if receipt.reason == "accepted" else ("✓ " if receipt.ok else "× ")) + Hud.action_name(receipt.kind), receipt.ok)
 		if receipt.get("placed", false):
-			selected = int(receipt.target)
-			runner.inspect(selected, _probe_tile)
+			controls._select(int(receipt.target), -1)
 		print("COMMAND_RESULT ", JSON.stringify(receipt))
 		if receipt.seq == _pending_move and not receipt.ok:
 			_target = Vector2(-1, -1)
@@ -226,6 +225,8 @@ func _process(delta: float) -> void:
 			_render_pose = null
 			selected = 1
 			selected_tile = -1
+			_probe_tile = -1
+			runner.inspect(1, -1)
 			_pending_move = 0
 			_target = Vector2(-1, -1)
 			_speed_at = 0

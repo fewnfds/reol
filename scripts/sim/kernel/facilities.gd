@@ -3,6 +3,7 @@ extends RefCounted
 ## approach/reservation/timer/cancel contract, not a separate construction clock.
 
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
+const Positions = preload("res://scripts/sim/kernel/work_positions.gd")
 var definitions: Dictionary = {}
 var completed: Dictionary = {}
 
@@ -11,6 +12,11 @@ func _init() -> void:
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/construction.json"))
 	if parsed is Dictionary:
 		definitions = parsed.get("types", {})
+		for key: String in definitions.keys():
+			var errors: PackedStringArray = Positions.errors(definitions[key].get("work_positions", {}))
+			if not errors.is_empty():
+				push_error(key + ": " + str(errors))
+				definitions.erase(key)
 
 
 func footprint(definition: String, tile: int, facing: int = 0) -> PackedInt32Array:
@@ -30,46 +36,43 @@ func footprint(definition: String, tile: int, facing: int = 0) -> PackedInt32Arr
 	return result
 
 
-func in_range(world: RefCounted, target: int, origin: Vector2, radius: float) -> bool:
-	var record: Dictionary = world.objects.records[target]
+func in_range(world: RefCounted, target: int, origin: Vector2, radius: float, operation: String = "", flying: bool = false) -> bool:
 	if world.actor_slots.has(target):
 		var point: Vector2 = world.position_at(target)
 		return origin.distance_to(point) <= 1.5 + radius - 0.35 and Terrain.blocking_fraction(world.terrain.blocked, origin, point) < 0
-	var members: PackedInt32Array = record.get("cells", PackedInt32Array([record.tile]))
-	for member: int in members:
-		var low := Vector2(Terrain.cell(member))
-		var closest := origin.clamp(low, low + Vector2.ONE)
-		if origin.distance_to(closest) <= 1.0 + radius and Terrain.blocking_fraction(world.terrain.blocked, origin, closest, members) < 0:
-			return true
-	return false
+	return Positions.permits(world, target, operation, origin, radius, flying)
 
 
-func interaction_point(world: RefCounted, target: int, origin: Vector2, radius: float = 0.35, flying: bool = false) -> Vector2:
-	var record: Dictionary = world.objects.records[target]
-	var tile: int = record.tile
-	if in_range(world, target, origin, radius) and world.terrain.can_stand(origin, radius, flying):
-		return origin
+func interaction_point(world: RefCounted, target: int, origin: Vector2, radius: float = 0.35, flying: bool = false, operation: String = "") -> Vector2:
+	if in_range(world, target, origin, radius, operation, flying): return origin
 	if world.actor_slots.has(target):
 		return world.terrain.project_point(world.position_at(target), radius, flying)
-	var members: PackedInt32Array = record.get("cells", PackedInt32Array([tile]))
-	var candidates: Array[Vector2] = []
-	for member: int in members:
-		var low := Vector2(Terrain.cell(member))
-		var high := low + Vector2.ONE
-		if world.terrain.blocked[member] == 0:
-			candidates.append(world.terrain.project_point(Terrain.center(member), radius, flying))
-		var gap: float = radius + 0.01
-		candidates.append(Vector2(clampf(origin.x, low.x, high.x), low.y - gap))
-		candidates.append(Vector2(clampf(origin.x, low.x, high.x), high.y + gap))
-		candidates.append(Vector2(low.x - gap, clampf(origin.y, low.y, high.y)))
-		candidates.append(Vector2(high.x + gap, clampf(origin.y, low.y, high.y)))
-	candidates.sort_custom(func(a: Vector2, b: Vector2): return a.distance_squared_to(origin) < b.distance_squared_to(origin))
+	var candidates: Array[Vector2] = Positions.candidates(world, target, operation, origin, radius, flying)
 	for candidate: Vector2 in candidates:
-		if world.terrain.can_stand(candidate, radius, flying) and in_range(world, target, candidate, radius):
-			var nav: RefCounted = world.lanes[0].navigation
-			if not nav.plan(origin, candidate, radius, flying).is_empty() or nav.deferred:
-				return candidate
-	return Vector2(-1, -1)
+		if world.terrain.segment_clear(origin, candidate, radius, flying): return candidate
+	var deferred := Vector2(-1, -1)
+	var nav: RefCounted = world.lanes[0].navigation
+	for candidate: Vector2 in candidates:
+		if not nav.plan(origin, candidate, radius, flying).is_empty(): return candidate
+		if nav.deferred and deferred.x < 0: deferred = candidate
+	return deferred
+
+
+func start_construction(world: RefCounted, target: int, at: int) -> String:
+	var record: Dictionary = world.objects.records.get(target, {})
+	if record.get("kind", "") != "blueprint": return "unavailable"
+	if record.get("construction_started", false): return "started"
+	var spec: Dictionary = definitions[record.definition]
+	if spec.get("facts", {}).get("movement_blocked", false):
+		for body: RefCounted in world.pages:
+			for row: int in body.ids.size():
+				if body.ids[row] <= 0 or body.health[row] <= 0 or body.flight[row] != 0: continue
+				for member: int in record.cells:
+					if world._body_overlaps_tile(world.position_at(body.ids[row], at), body.radii[row], member): return "occupied"
+		for member: int in record.cells: world.queue_structure(member, true, false)
+	record["construction_started"] = true
+	world.objects.layout_revision += 1
+	return "started"
 
 
 func blueprint(world: RefCounted, actor: int, definition: String, tile: int, facing: int = 0) -> Dictionary:
@@ -91,10 +94,12 @@ func blueprint(world: RefCounted, actor: int, definition: String, tile: int, fac
 	record["facing"] = facing
 	record["layer"] = layer
 	record["remaining_ms"] = int(spec.work_ms)
+	record["construction_started"] = false
 	record["max_hp"] = int(spec.max_hp)
 	world.objects.reindex(id, cells)
 	world.objects.transfer(actor, id, item, amount)
 	world._sync_inventory(actor)
+	world.livelihood.remember(world, actor, id, world.operation_time())
 	return {"reason": "accepted", "target": id}
 
 
@@ -128,15 +133,16 @@ func duration(world: RefCounted, action: Dictionary) -> int:
 	return 300
 
 
-func seed_fixture(world: RefCounted, definition: String, tile: int) -> int:
+func seed_fixture(world: RefCounted, definition: String, tile: int, facing: int = 0) -> int:
 	var spec: Dictionary = definitions[definition]
 	var kind: String = "chest" if spec.get("capabilities", {}).has("storage") else str(spec.kind)
 	var id: int = world.objects.create(kind, definition, tile)
 	var record: Dictionary = world.objects.records[id]
+	record["facing"] = posmod(facing, 4)
 	record.hp = int(spec.max_hp)
 	record["max_hp"] = int(spec.max_hp)
 	record["layer"] = spec.get("layer", "ground")
-	world.objects.reindex(id, footprint(definition, tile))
+	world.objects.reindex(id, footprint(definition, tile, facing))
 	world.objects.transfer(world.source_objects[0], id, str(spec.item), int(spec.amount))
 	record["materials"] = record.inventory
 	record.inventory = {}
@@ -162,6 +168,7 @@ func interrupt(world: RefCounted, action: Dictionary, now: int) -> void:
 	if action.kind not in ["construct", "sow"] or not action.has("started_ms") or not world.objects.records.has(action.target):
 		return
 	var record: Dictionary = world.objects.records[action.target]
+	if action.kind == "construct" and record.kind != "blueprint": return
 	record.remaining_ms = maxi(1, int(record.remaining_ms) - maxi(0, now - int(action.started_ms)))
 
 
@@ -188,7 +195,7 @@ func finish(world: RefCounted, actor: int, action: Dictionary, at: int) -> Strin
 			if spec.get("facts", {}).get("movement_blocked", false):
 				for body: RefCounted in world.pages:
 					for index: int in body.ids.size():
-						if body.ids[index] > 0 and body.flight[index] == 0:
+						if body.ids[index] > 0 and body.health[index] > 0 and body.flight[index] == 0:
 							for member: int in cells:
 								if world._body_overlaps_tile(world.position_at(body.ids[index], at), body.radii[index], member):
 									return "occupied"
@@ -200,6 +207,7 @@ func finish(world: RefCounted, actor: int, action: Dictionary, at: int) -> Strin
 				record.capacity = int(spec.capabilities.storage.capacity)
 			record.hp = int(spec.max_hp)
 			record.erase("remaining_ms")
+			record.erase("construction_started")
 			if record.get("layer", "ground") not in ["roof", "floor"]:
 				for member: int in cells:
 					world.queue_structure(member, bool(spec.facts.get("movement_blocked", false)), bool(spec.facts.get("enclosure_boundary", false)))
@@ -256,7 +264,7 @@ func demolish(world: RefCounted, target: int, at: int = -1) -> bool:
 			world.objects.totals[item] -= count
 		record.erase("materials")
 	var spec: Dictionary = definitions.get(record.definition, {})
-	if record.kind != "blueprint" and record.get("layer", "ground") != "roof" and (spec.get("facts", {}).get("movement_blocked", false) or spec.get("facts", {}).get("enclosure_boundary", false)):
+	if (record.kind != "blueprint" or record.get("construction_started", false)) and record.get("layer", "ground") != "roof" and (spec.get("facts", {}).get("movement_blocked", false) or spec.get("facts", {}).get("enclosure_boundary", false)):
 		for tile: int in record.get("cells", PackedInt32Array([record.tile])):
 			world.queue_structure(tile, false, false, true)
 	return world.objects.remove_empty(target)

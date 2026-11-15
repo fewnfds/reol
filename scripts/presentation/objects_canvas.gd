@@ -27,13 +27,29 @@ func adopt(value: Dictionary, fringe: Dictionary = {}) -> void:
         for tile: int in objects[id].get("cells", PackedInt32Array([objects[id].tile])):
             if not by_tile.has(tile): by_tile[tile] = []
             by_tile[tile].append(id)
-    var ids: Array = []
+    var sprites: Array[Dictionary] = []
     for id: int in objects:
-        if objects[id].kind not in ["floor", "combat_object"]: ids.append(id)
-    ids.sort_custom(func(a: int, b: int):
-        var roof_a: bool = objects[a].get("layer", "") == "roof"
-        var roof_b: bool = objects[b].get("layer", "") == "roof"
-        return not roof_a if roof_a != roof_b else objects[a].tile < objects[b].tile)
+        var rec: Dictionary = objects[id]
+        if rec.kind in ["floor", "combat_object"]: continue
+        if rec.kind == "blueprint" and rec.get("construction_started", false):
+            var members: PackedInt32Array = rec.get("cells", PackedInt32Array([rec.tile]))
+            for tile: int in members:
+                var mask: int = 0
+                var cell: Vector2i = Terrain.cell(tile)
+                var directions: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
+                for side: int in 4:
+                    var neighbour: Vector2i = cell + directions[side]
+                    if neighbour.x >= 0 and neighbour.y >= 0 and neighbour.x < 512 and neighbour.y < 512 and members.has(Terrain.index(neighbour)): mask |= 1 << side
+                var part: Dictionary = rec.duplicate()
+                part.tile = tile
+                part.cells = PackedInt32Array([tile])
+                part["construction_mask"] = mask
+                sprites.append(part)
+        else: sprites.append(rec)
+    sprites.sort_custom(func(a: Dictionary, b: Dictionary):
+        var roof_a: bool = a.get("layer", "") == "roof"
+        var roof_b: bool = b.get("layer", "") == "roof"
+        return not roof_a if roof_a != roof_b else a.tile < b.tile)
     var covered := PackedByteArray()
     covered.resize(512 * 512)
     for rec: Dictionary in objects.values():
@@ -46,10 +62,10 @@ func adopt(value: Dictionary, fringe: Dictionary = {}) -> void:
     else:
         shelter.update(image)
     buffer = PackedFloat32Array()
-    buffer.resize(ids.size() * 16)
+    buffer.resize(sprites.size() * 16)
     order = PackedFloat64Array()
-    for index: int in ids.size():
-        var rec: Dictionary = objects[ids[index]]
+    for index: int in sprites.size():
+        var rec: Dictionary = sprites[index]
         var key: String = _key(rec)
         var source: Dictionary = Art.catalog().entries.get(key, Art.catalog().entries.rock)
         var extent := Rect2i(Terrain.cell(rec.tile), Vector2i.ONE)
@@ -66,8 +82,8 @@ func adopt(value: Dictionary, fringe: Dictionary = {}) -> void:
             var art_cells: Array = source.footprint
             scale_value = Vector2(float(extent.size.x) / int(art_cells[0]), float(extent.size.y) / int(art_cells[1]))
         var color := Color.WHITE
-        if rec.kind == "blueprint": color = Color(0.45, 0.95, 1.0, 0.50)
-        if rec.get("layer", "") == "roof": color.a = 0.24
+        if rec.kind == "blueprint" and not rec.get("construction_started", false): color = Color(0.45, 0.95, 1.0, 0.50)
+        if rec.kind == "roof": color.a = 0.24
         var special: int = 0
         if rec.kind == "plant" and rec.definition == "fire_herb" and int(rec.get("stage", 0)) == 2: special = 1
         if rec.get("sapient", false): special = 2
@@ -94,6 +110,7 @@ func adopt(value: Dictionary, fringe: Dictionary = {}) -> void:
     revision += 1
 
 func _key(rec: Dictionary) -> String:
+    if rec.has("construction_mask"): return "construction_%d" % int(rec.construction_mask)
     match rec.kind:
         "wall":
             var mask: int = 0

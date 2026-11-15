@@ -421,7 +421,11 @@ func settle(id: int, at: int, expected: Variant = null) -> void:
 	if page.health[row] <= 0:
 		kill(id, at)
 	elif mode == Units.Mode.RESOURCE:
-		if not reservations.has(target) and objects.amount(target, "wood") > 0:
+		if not facilities.in_range(self, target, position_at(id, at), page.radii[row], "harvest", page.flight[row] > 0):
+			end_run(id, at, "out_of_reach")
+			clear_navigation(id)
+			livelihood.after_action(self, id, at, target)
+		elif not reservations.has(target) and objects.amount(target, "wood") > 0:
 			reservations[target] = id
 			page.modes[row] = Units.Mode.HARVEST
 			page.due_ms[row] = at + 500
@@ -429,7 +433,7 @@ func settle(id: int, at: int, expected: Variant = null) -> void:
 			page.modes[row] = Units.Mode.REST
 			page.due_ms[row] = at + 250
 	elif mode == Units.Mode.HARVEST:
-		if reservations.get(target, 0) == id and objects.transfer(target, id, "wood", 1) > 0:
+		if reservations.get(target, 0) == id and facilities.in_range(self, target, position_at(id, at), page.radii[row], "harvest", page.flight[row] > 0) and objects.transfer(target, id, "wood", 1) > 0:
 			reservations.erase(target)
 			_sync_inventory(id)
 			harvested += 1
@@ -673,6 +677,7 @@ func _command(input: Dictionary) -> Dictionary:
 				receipt.reason = "body_cannot_work"
 				return receipt
 			release(id)
+			objects.records[id].erase("commitment")
 			objects.records[id].autonomous = true
 			decisions.resume(self, id, elapsed_ms)
 			livelihood.observe(self, id, elapsed_ms)
@@ -886,8 +891,11 @@ func begin_transfer(id: int, input: Dictionary) -> String:
 	var item: String = str(input.get("item", "wood"))
 	var count: int = int(input.get("amount", 10))
 	var source: int = target if kind == "take" else id
-	if count <= 0 or (kind == "put" and objects.amount(source, item) <= 0):
+	if count <= 0 or objects.amount(source, item) <= 0:
 		return "empty"
+	var destination: int = id if kind == "take" else target
+	if objects.records[destination].capacity >= 0 and objects.count_inventory(destination) >= objects.records[destination].capacity:
+		return "full"
 	return begin_interaction(id, {"kind": kind, "target": target, "item": item, "amount": count})
 
 
@@ -906,6 +914,8 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 		return "invalid_target"
 	if input.kind in Nature.ACTIONS and objects.records[target].kind != "plant" and not (objects.records[target].kind == "resource" and input.kind in ["cut", "uproot"]):
 		return "not_a_plant"
+	if input.kind == "gather" and int(objects.records[target].get("stage", -1)) != Nature.Stage.MATURE:
+		return "not_mature"
 	if input.kind == "tend":
 		var reason: String = DomainOps.check(self, id, target, "tend")
 		if not reason.is_empty(): return reason
@@ -915,7 +925,7 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 	var slot: int = actor_slots[id]
 	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
 	var row: int = slot % Units.PAGE_SIZE
-	var point: Vector2 = facilities.interaction_point(self, target, page.positions[row], page.radii[row], page.flight[row] > 0)
+	var point: Vector2 = facilities.interaction_point(self, target, page.positions[row], page.radii[row], page.flight[row] > 0, input.kind)
 	if point.x < 0:
 		return "no_operation_place"
 	release(id)
@@ -941,16 +951,17 @@ func settle_action(id: int, at: int) -> void:
 		return
 	var action: Dictionary = actions[id]
 	var target: int = action.target
-	if not objects.records.has(target) or (actor_slots.has(target) and not combat.alive(self, target)):
+	var stale_construction: bool = action.kind == "construct" and objects.records.get(target, {}).get("kind", "") != "blueprint"
+	if not objects.records.has(target) or (actor_slots.has(target) and not combat.alive(self, target)) or stale_construction:
 		var autonomous: bool = action.get("autonomous", false)
 		end_run(id, at, "completed")
 		clear_navigation(id)
 		page.modes[row] = Units.Mode.IDLE
-		emit({"kind": "target_gone", "actor": id, "at_ms": at})
+		emit({"kind": "unavailable" if stale_construction else "target_gone", "actor": id, "at_ms": at})
 		if autonomous:
 			livelihood.after_action(self, id, at, target)
 		return
-	if not facilities.in_range(self, target, position_at(id, at), page.radii[row]):
+	if not facilities.in_range(self, target, position_at(id, at), page.radii[row], action.kind, page.flight[row] > 0):
 		var autonomous: bool = action.get("autonomous", false)
 		end_run(id, at, "completed")
 		clear_navigation(id)
@@ -973,10 +984,25 @@ func settle_action(id: int, at: int) -> void:
 			return
 		if exclusive:
 			reservations[target] = id
+		if action.kind == "construct":
+			# Navigation for this slice has already run. Acquire the footprint at
+			# its endpoint so no precomputed later movement can enter a new solid.
+			if at < _motion_end:
+				page.modes[row] = Units.Mode.ACTION
+				page.due_ms[row] = _motion_end
+				action["waiting"] = true
+				return
+			if facilities.start_construction(self, target, at) != "started":
+				page.modes[row] = Units.Mode.ACTION
+				page.due_ms[row] = at + 250
+				action["waiting"] = true
+				return
 		if action.kind in Society.ACTIONS and not action.get("partner_waiting", false):
 			society.invite(self, id, action)
 		page.modes[row] = Units.Mode.ACTION
 		action["started_ms"] = at
+		var facing: Vector2 = position_at(id, at).direction_to(combat.position(self, target))
+		if not facing.is_zero_approx(): page.aims[row] = facing
 		var duration: int = facilities.duration(self, action)
 		if action.kind in Nature.ACTIONS:
 			duration = int(objects.records[target].remaining_ms) if action.kind == "sow" else 1500
@@ -1037,6 +1063,11 @@ func describe(id: int) -> Dictionary:
 	if not objects.records.has(id):
 		return {}
 	var result: Dictionary = State.copy(objects.records[id])
+	if result.tile >= 0:
+		var spec: Dictionary = facilities.definitions.get(result.definition, {})
+		result["work_cells"] = {}
+		for operation: String in spec.get("work_positions", {}):
+			result.work_cells[operation] = facilities.Positions.cells(self, id, operation)
 	if actor_slots.has(id):
 		var slot: int = actor_slots[id]
 		var page: RefCounted = pages[slot / Units.PAGE_SIZE]

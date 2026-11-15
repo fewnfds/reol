@@ -144,6 +144,10 @@ static func _objects_valid(world: RefCounted) -> bool:
 				world.objects.totals[equipped] = int(world.objects.totals.get(equipped, 0)) + 1
 		if record.has("facing") and (not record.facing is int or record.facing < 0 or record.facing > 3):
 			return false
+		if record.kind == "blueprint" or record.has("construction_started"):
+			if not record.get("construction_started") is bool or record.kind != "blueprint" or tile < 0: return false
+			if not world.facilities.definitions.has(record.definition): return false
+			if not record.get("remaining_ms") is int or record.remaining_ms < 1: return false
 		if (not record.get("sight_range") is float and not record.get("sight_range") is int) or not is_finite(float(record.sight_range)) or record.sight_range < 0 or record.sight_range > world.terrain.SIZE * 2.0:
 			return false
 		for contents: Variant in [record.inventory, record.get("materials", {})]:
@@ -168,6 +172,11 @@ static func _objects_valid(world: RefCounted) -> bool:
 					world.objects.by_tile[member] = []
 				world.objects.by_tile[member].append(id)
 				world.objects._index_bucket(id, member)
+			if record.kind == "blueprint":
+				if members != world.facilities.footprint(record.definition, tile, int(record.get("facing", 0))): return false
+				if record.construction_started and world.facilities.definitions[record.definition].facts.get("movement_blocked", false):
+					for member: int in members:
+						if world.terrain.blocked[member] == 0: return false
 	return true
 
 

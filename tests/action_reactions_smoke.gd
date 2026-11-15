@@ -1,5 +1,6 @@
 extends "res://tests/abilities_smoke.gd"
 const Reaction = preload("res://scripts/sim/definitions/actions/reaction_def.gd")
+const Status = preload("res://scripts/sim/definitions/actions/status_def.gd")
 const Effect = preload("res://scripts/sim/definitions/actions/effect_def.gd")
 func splitting() -> void:
 	var w: RefCounted = fixture("stars")
@@ -199,7 +200,84 @@ func restored_rule_contract() -> void:
 	rule.bundle.effects.append(unsupported)
 	check(not rule.errors().is_empty(), "Reaction authoring accepted an unreachable activation effect")
 
+func nested_and_projectile_edges() -> void:
+	var original: Dictionary = Defs.ACTIONS
+	var profiles: Dictionary = Defs.LOADOUTS
+	var variants: Dictionary = original.duplicate(true)
+	var mark := Status.new()
+	mark.id = "nested_stack_mark"
+	mark.kind = "modifier"
+	mark.attribute = "armor"
+	mark.magnitude = 1.0
+	mark.stacking = "stack"
+	mark.max_stacks = 2
+	var effect := Effect.new()
+	effect.kind = "status"
+	effect.status = mark
+	var on_hit := Reaction.new()
+	on_hit.id = "nested_add_mark"
+	on_hit.mode = "bundle"
+	on_hit.recipient = "target"
+	on_hit.bundle.effects.append(effect)
+	var on_max := Reaction.new()
+	on_max.id = "nested_shield"
+	on_max.event = "stack_max"
+	on_max.mode = "bundle"
+	on_max.recipient = "target"
+	var shield := Effect.new()
+	shield.kind = "shield"
+	shield.amount = 7
+	shield.duration_ms = 500
+	on_max.bundle.effects.append(shield)
+	variants.fire_bolt.reactions = [on_hit.values(), on_max.values()]
+	Defs.ACTIONS = variants
+	var w: RefCounted = fixture()
+	w.effects.add(w, 2, 1, 0, "fire_bolt", mark.values(), 0, 20, w.reactions.root(1, 0))
+	w.reactions.submit(w, {"event": "hit", "actor": 1, "target": 2, "at_ms": 0, "position": w.pages[0].positions[1], "action": "fire_bolt", "damage": 1}, [on_hit.values()])
+	w.reactions.resolve(w, 0, 0)
+	check(w.reactions.pending.is_empty() and w.defense.total(2, 0) == 7, "Nested stack_max reaction escaped its chronological wave")
+	Defs.ACTIONS = original
+	var counter := Reaction.new()
+	counter.id = "counter_projectile"
+	counter.event = "damaged"
+	counter.mode = "emit"
+	counter.template = "fire_bolt"
+	var loadouts: Dictionary = profiles.duplicate(true)
+	loadouts.sword.reactions = [counter.values()]
+	Defs.LOADOUTS = loadouts
+	var c: RefCounted = fixture("sword")
+	c.pages[0].positions[1] = Vector2(123.5, 120.5)
+	var context: Dictionary = {"action": "fire_bolt", "incoming": Vector2.RIGHT, "position": c.pages[0].positions[0]}
+	var damage: Dictionary = c.combat.damage(c, 2, 1, 20, 0, Vector2.RIGHT, 0, 0, 0.0, context)
+	c.reactions.damage_result(c, damage, context)
+	c.reactions.resolve(c, 0, 0)
+	check(not c.combat.bolts.is_empty(), "Counterattack failed to emit")
+	if not c.combat.bolts.is_empty():
+		check(not c.combat.bolts.values()[0].passed.has(2), "Counterattack excluded the attacker from collision")
+	advance(c, 220)
+	check(c.pages[0].health[1] < 2000, "Counterattack projectile could not damage its attacker")
+	Defs.LOADOUTS = profiles
+	var h: RefCounted = fixture("frost")
+	h.combat.scan.index(h)
+	h.combat.spawn_template(h, 1, "frost_seeker", h.pages[0].positions[0], Vector2.RIGHT, 0, 1.0, h.reactions.root(1, 0), 2)
+	var homing: Dictionary = h.combat.bolts.values()[0]
+	h.combat.Projectiles.steer(h.combat, h, 50)
+	check(homing.target != 2, "Homing child locked onto a recipient it cannot hit")
+	var zero: Dictionary = original.duplicate(true)
+	zero.guard_stance.windup = 0
+	Defs.ACTIONS = zero
+	var g: RefCounted = fixture("guardian")
+	g.combat.request(g, 1, "skill", Vector2.RIGHT)
+	g.combat.prepare(g, 0)
+	check(not g.combat.states[1].fired and g.defense.total(1, 0) == 0, "Zero-windup direct effect bypassed contact-wave settlement")
+	advance(g, 16)
+	check(g.combat.states[1].fired and g.defense.total(1, 16) == 32, "Zero-windup direct effect failed to settle once in its contact wave")
+	advance(g, 32)
+	check(g.defense.total(1, 32) == 32, "Direct effect was delivered twice")
+	Defs.ACTIONS = original
+
 func _run() -> void:
+	nested_and_projectile_edges()
 	splitting()
 	combinations()
 	bounded_and_script()

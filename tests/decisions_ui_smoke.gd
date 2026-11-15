@@ -36,7 +36,7 @@ func _run() -> void:
 	await capture("mixed-ranged")
 	game.controls._select(22, -1)
 	check(await until(func(): return game.frame.inspected.get("decision", {}).get("policy", "") == "ranged"), "Selected actor strategy was not published")
-	game.controls.action("pause_menu", {})
+	game.controls.action("pause", {})
 	check(await until(func(): return game.frame.paused), "Pause failed")
 	var saved: Dictionary = game.frame.inspected.decision.duplicate(true)
 	var hp: PackedInt32Array = game.frame.health.duplicate()
@@ -48,6 +48,8 @@ func _run() -> void:
 	game.runner.send({"kind": "load", "path": path})
 	check(await until(func(): return game.frame.epoch > epoch, 4000), "P5 disk load failed")
 	check(game.frame.world_ms == world_ms and game.frame.health == hp, "File restore advanced combat while paused")
+	game.controls._select(22, -1)
+	check(await until(func(): return game.frame.inspected.get("id", 0) == 22), "Restored NPC inspection was not acknowledged")
 	var adopted: Dictionary = game.frame.inspected.get("decision", {}).duplicate(true)
 	saved.erase("choice")
 	adopted.erase("choice") # Diagnostic caches are intentionally rebuilt.

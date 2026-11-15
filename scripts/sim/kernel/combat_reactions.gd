@@ -91,9 +91,18 @@ func damage_result(world: RefCounted, result: Dictionary, context: Dictionary) -
 
 func resolve(world: RefCounted, interval_start: int, interval_end: int) -> Array[Dictionary]:
 	var impacts: Array[Dictionary] = []
-	var events: Array[Dictionary] = pending
-	pending = []
 	var spawned: Array = []
+	# Status-only results can submit another bounded rule (for example stack_max).
+	# Drain it before advancing the chronological wave; budget/depth stay shared.
+	while not pending.is_empty():
+		var events: Array[Dictionary] = pending
+		pending = []
+		_resolve_events(world, events, spawned, impacts)
+	if not spawned.is_empty(): impacts.append_array(world.combat.Projectiles.collect(world.combat, world, interval_start, interval_end, spawned))
+	impacts.append_array(world.areas.collect(world, interval_end))
+	return impacts
+
+func _resolve_events(world: RefCounted, events: Array[Dictionary], spawned: Array, impacts: Array[Dictionary]) -> void:
 	for event: Dictionary in events:
 		var lineage: Dictionary = event.lineage
 		if not valid_lineage(lineage) or not chains.has(lineage.chain): continue
@@ -137,11 +146,12 @@ func resolve(world: RefCounted, interval_start: int, interval_end: int) -> Array
 				"emit":
 					var activation: int = world.combat.next_activation
 					world.combat.next_activation += 1
+					var excluded: int = 0 if event.event in ["damaged", "blocked", "shield_broken"] else int(event.get("target", 0))
 					for number: int in int(rule.count):
 						if int(chain.remaining) <= 0: break
 						chain.remaining -= 1
 						var direction: Vector2 = Vector2(event.get("direction", Vector2.RIGHT)).rotated((number - (int(rule.count) - 1) * 0.5) * float(rule.spread))
-						spawned.append_array(world.combat.spawn_template(world, event.actor, rule.template, event.position, direction, event.at_ms, float(rule.scale), child, int(event.get("target", 0)), activation, event))
+						spawned.append_array(world.combat.spawn_template(world, event.actor, rule.template, event.position, direction, event.at_ms, float(rule.scale), child, excluded, activation, event))
 				"spread": _spread(world, event, rule, child)
 				"script":
 					if not script_states.has(key): script_states[key] = Marks.initial_state()
@@ -149,11 +159,6 @@ func resolve(world: RefCounted, interval_start: int, interval_end: int) -> Array
 						if int(chain.remaining) <= 0: break
 						chain.remaining -= 1
 						impacts.append_array(_bundle(world, event, target, rule.bundle, child))
-	if not spawned.is_empty(): impacts.append_array(world.combat.Projectiles.collect(world.combat, world, interval_start, interval_end, spawned))
-	# Newly emitted areas own delay/period deadlines and can settle within the residual segment.
-	impacts.append_array(world.areas.collect(world, interval_end))
-	return impacts
-
 func _bundle(world: RefCounted, event: Dictionary, target: int, bundle: Array, lineage: Dictionary) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	var summary: Dictionary = world.combat.Payload.summary(bundle)

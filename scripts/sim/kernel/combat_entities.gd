@@ -52,7 +52,7 @@ func create(world: RefCounted, owner: int, state: Dictionary, at: int) -> int:
 func forget_member(world: RefCounted, actor: int, at: int) -> void:
 	for entry: Dictionary in records.values():
 		if not entry.members.has(actor): continue
-		for status: int in entry.members[actor]: world.effects.remove(world, status, "target_removed", at)
+		for status: int in entry.members[actor].duplicate(): world.effects.remove(world, status, "target_removed", at)
 		entry.members.erase(actor)
 
 func drop_owner(world: RefCounted, owner: int, at: int) -> void:
@@ -119,7 +119,8 @@ func prepare(world: RefCounted, now: int) -> void:
 			world.effects.apply_bundle(world, actor, id, entry.activation, entry.ability, spec.pulse, now, 0, "contact", entry.lineage)
 		for actor: int in entry.members.keys():
 			if inside.has(actor): continue
-			for status: int in entry.members[actor]: world.effects.remove(world, status, "left_aura", now)
+			# Removal notifies forget_status(), which edits the live membership array.
+			for status: int in entry.members[actor].duplicate(): world.effects.remove(world, status, "left_aura", now)
 			entry.members.erase(actor)
 
 func valid(world: RefCounted) -> bool:

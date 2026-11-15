@@ -28,7 +28,7 @@ func point_slot(action_id: String, point: Vector2) -> void:
 	check(bindings.commit(previous, false) == OK, "Point-cast binding was not restored")
 
 func save_p4(label: String) -> void:
-	game.controls.action("pause_menu", {})
+	game.controls.action("pause", {})
 	check(await until(func(): return game.frame.paused), label + ": pause missing")
 	var saved: Dictionary = {}
 	for field: String in ["health", "pools", "shields", "guards", "effects", "areas", "implements", "entities"]: saved[field] = game.frame.get(field).duplicate(true) if game.frame.get(field) is Dictionary else game.frame.get(field).duplicate()

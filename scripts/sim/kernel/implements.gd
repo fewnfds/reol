@@ -168,7 +168,8 @@ func collect(world: RefCounted, start: int, now: int, melee: Array[int]) -> Arra
 				"at_ms": at, "damage": value.damage, "incoming": -direction, "stun": def.stun, "push": def.push, "side": value.side, "power": value.power,
 				"group_ms": 0, "evadable": true, "position": Motion.at(from, to, path, fraction), "action": value.ability, "payload": def.payload, "lineage": value.lineage, "rules": def.reactions})
 		# Enemy attacks use the same swept target, but never give this object a villager AI.
-		for target: int in world.combat.receivers(world, from.min(to) - Vector2.ONE, from.max(to) + Vector2.ONE, value.owner, delivery.filter, value.side):
+		var receiver_pad: Vector2 = Vector2.ONE * (float(delivery.radius) + 0.4)
+		for target: int in world.combat.receivers(world, from.min(to) - receiver_pad, from.max(to) + receiver_pad, value.owner, delivery.filter, value.side):
 			var point: Vector2 = world.combat.position(world, target)
 			var fraction: float = Motion.circles_hit(from, to, path, point, point, PackedVector3Array(), 0.4 + float(delivery.radius))
 			var at: int = start + roundi((now - start) * fraction)

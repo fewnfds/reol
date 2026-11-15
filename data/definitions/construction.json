@@ -421,6 +421,17 @@
         "contents_elements": 10000,
         "contents_light": 10000,
         "room_tau_ms": 180000
+      },
+      "work_positions": {
+        "cook": {
+          "mode": "stations",
+          "cells": [
+            [
+              0,
+              1
+            ]
+          ]
+        }
       }
     },
     "wood_window": {
