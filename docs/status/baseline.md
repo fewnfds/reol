@@ -106,9 +106,15 @@ P2采用同一512²世界与默认24人，不降低后台生活精度，不追�
 
 `logs/review-action_reactions_smoke-final.log`覆盖来源在命中前/后移除、身体槽复用、定时分裂、两代传播、反击归因及恢复/坏快照拒载；`logs/review-abilities_smoke-final.log`覆盖定义/在途状态及非法标识。资源、空间、近远组合、近战、ACT、共同门禁/跨域及键位相关短检查通过，日志为`logs/review-resources.log`、`logs/review-spatial.log`和`logs/review-*_smoke.log`；内核完整退出通过，`logs/smoke-20261115-154432-779540600.log`。来源槽复用反例初版错误构造无Entity宿主的companion而被合法拒载，改用正常出生身体后通过；初次失败保留于`logs/review-reactions-snapshots.log`。
 
-`logs/review-p4-ui.log`在RTX3060真实D3D12进程完成两条组合、机制范例和四次实际文件存读，ACTION_COMBINATIONS_UI_SMOKE errors=0，相关截图已观察。`logs/review-source-catalog.log`与`logs/review-pack-restore.log`验证实际修正版PCK签名和源码一致，源码保存的混合过程在包中恢复后，弹、区、状态、器物、池、防御、反应、实体及HP与源码继续运行一致。`logs/review-release-launch.log`为独立修正版exe的24人战斗开局/180帧正常退出，无脚本/引擎错误；本次没有新增性能容量测量，不用旧包短窗声称修正版性能已复测。
+`logs/review-p4-ui.log`在RTX3060真实D3D12进程完成两条组合、机制范例和四次实际文件存读，ACTION_COMBINATIONS_UI_SMOKE errors=0，相关截图已观察。`logs/review-source-catalog.log`与`logs/review-pack-restore.log`验证实际修正版PCK签名和源码一致，源码保存的混合过程在包中恢复后，弹、区、状态、器物、池、防御、反应、实体及HP与源码继续运行一致。`logs/review-release-launch.log`为独立修正版exe的24人战斗开局/180帧正常退出，无脚本/引擎错误；合并审查当时没有新增性能容量测量，随后同日的框架研究短窗见下节。
 
 待结合用户字幕和真实负载定位的成本入口是`effects.prepare`逐空间小段遍历状态/身体、`reactions.prepare`跨宿主引用扫描、`Runner._publish`完整快照深复制及空间索引重复准备。它们是静态审查线索，本轮没有按猜测改调度、降世界精度或展开P5。
+
+### 框架优化前的相关短窗
+
+2026-11-15收到RTS视频字幕后，对当前修正版PCK做1次release短窗；运行代码、PCK签名与指纹均未变化。i5-13600KF、RTX3060/D3D12、1280×720、512²/24人/默认血刃混战/迷雾、1×60FPS、workers0，3秒预热＋5秒采样。`logs/framework-release-24.json/.log/.cpu.json/.png`完整退出，无脚本/引擎错误：实际1.0001×、帧p99 16.81ms，World.step均约0.50ms，发布累计70.357ms/300步（约0.235ms/步），viewport GPU均约0.079ms，零过载。统计窗口与逐步样本均值存在取样边界差，保留原值，不制造精确统一数。
+
+玩家未操作，发生1次死亡，窗口有9次命中、23次交付；只能说明现普通近场加后台的短窗，不证明持续施法/密弹容量。未与其他显卡或火术负载计算提速，不替换performance.json。新增CPU归因和整数运算微基准的条件、结果与限制归[研究](../../design/research/large_simulation_optimization.md#rts性能视频字幕核查)；headless归因不当作FPS证据，尚未实施优化，因此没有改动前后收益结论。
 
 ## 已知限制
 
