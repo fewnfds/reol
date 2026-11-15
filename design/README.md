@@ -12,6 +12,7 @@
 | 认识、器物与学习 | [人物理解](systems/perception_and_understanding.md)、[器物与创造](systems/knowledge_artifacts_and_invention.md)、[修行](systems/cultivation_and_learning.md) |
 | 社会、交互与组织 | [社会系统](systems/social_system.md)、[有限服务](systems/settlement_services.md) |
 | 技能、工具与交互的共用执行 | [行动与作用框架](systems/action_effect_framework.md)（P4已实现合同） |
+| 单位目的、策略与持续任务 | [单位决策框架](systems/unit_decision_framework.md)（P5候选，未实施） |
 | 动作、外观与物品 | [战斗](systems/combat_framework.md)、[衣着与持物](systems/appearance_and_possessions.md) |
 | 环境与后置空间候选 | [环境](proposals/environment.md)、[高低差](proposals/elevation.md) |
 

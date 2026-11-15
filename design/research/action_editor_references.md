@@ -139,27 +139,32 @@ E整合审查两份完整答复均已核查，原件在同目录`e/review/`。�
 | Godot4.7官方[Resource](https://github.com/godotengine/godot-docs/blob/4.7/tutorials/scripting/resources.rst)、[GraphEdit](https://github.com/godotengine/godot-docs/blob/4.7/classes/class_graphedit.rst)、[线程安全](https://github.com/godotengine/godot-docs/blob/4.7/tutorials/performance/thread_safe_apis.rst) | 资源按路径共享缓存；GraphEdit提供图形交互但不执行图逻辑；活动SceneTree不支持从工作线程直接操作，共享Resource不能被多线程随意改写 | 原生Resource/Inspector继续作作者工具；图形编辑与模拟执行分开，单位状态不写共享模板 |
 | [Beehave仓库](https://github.com/bitbrain/beehave/tree/godot-4.x) | MIT、GDScript行为树，主要在SceneTree中组合节点；README列Godot4分支和版本选择 | 有现成编辑/调试方式，但当前无每单位Node的模拟不能直接照接；没有在Reol运行或比较其性能 |
 | [LimboAI仓库](https://github.com/limbonaut/limboai)、原始[BehaviorTree](https://github.com/limbonaut/limboai/blob/master/doc_classes/BehaviorTree.xml)与[BTInstance](https://github.com/limbonaut/limboai/blob/master/doc_classes/BTInstance.xml) | MIT代码、C++模块/GDExtension；定义为Resource、实例为RefCounted，实例化接口仍接agent/owner Node。README列1.8.x对应Godot4.7模块/4.6+扩展 | 不能误称其所有任务都是SceneTree节点，也不是纯GDScript依赖。采用需要适配线程/agent/存读，版本表不是本项目兼容测试 |
+| RimWorld社区[AI教程](https://github.com/CBornholdt/RimWorld-AI-Tutorial/wiki/Part-1---Introduction)与[修补任务教程](https://rimworldwiki.com/wiki/Modding_Tutorials/Code_MendingJob) | 社区资料区分ThinkTree的工作选择、Job、JobDriver与Toil；修补范例明确演示预约、前往、持续处理与失败 | 参考选择与任务推进分离及实际预约；商业游戏并非官方开源，不据教程推断全部版本的调度细节。Ludeon旧论坛教程本轮403，未当已读证据 |
+| Epic官方[StateTree Overview](https://dev.epicgames.com/documentation/en-us/unreal-engine/overview-of-state-tree-in-unreal-engine) | 层级选择与显式转换结合，选中路径上状态激活，状态内可运行多个任务；选择可按转换触发 | 借鉴分层上下文、持续任务与并行意图，不移植UE运行时或把其性能宣传当Reol测量 |
+| Jeff Orkin的GDC2006论文[Three States and a Plan](https://www.gamedevs.org/uploads/three-states-plan-ai-of-fear.pdf) | 原作者描述F.E.A.R.用A*规划行动前置/效果链，底层执行状态保持简明；规划预测与耗时执行有接缝 | 说明选择/规划可与执行分开，不能据此断言本项目也只需三个状态；要动态推导前置链时才评估规划器 |
+| OpenRA原仓库[Activity.cs](https://github.com/OpenRA/OpenRA/blob/bleed/OpenRA.Game/Activities/Activity.cs)及[原始文件](https://raw.githubusercontent.com/OpenRA/OpenRA/bleed/OpenRA.Game/Activities/Activity.cs) | GPLv3或更新版；持续活动有子活动、后续队列和显式取消状态，清理后才结束 | 参考任务组合与取消生命周期，不复制C#实现、引入运行时依赖或声称全项目架构完全相同 |
+| Godot4.7官方[WorkerThreadPool](https://github.com/godotengine/godot-docs/blob/4.7/classes/class_workerthreadpool.rst) | 原生池可分发批工作，文档提示计算过轻时可能负收益 | 共用原生工具，但决策是否分批并行需有准备/采用成本证据；不默认一个单位一个线程任务 |
 
 以上为2026-11-15本轮实际打开的官网/手册/仓库资料；移动分支仅代表阅读时内容，不是项目锁定依赖。未安装插件，未对第三方编辑器或运行时做性能实验。
 
 ### 8.2 当前落点与建议
 
-当前事实：`combat.gd._think`在原50ms自主思考节拍内读取本人感知，靠近已观察位置并请求primary；Combat同时还负责动作与伤害，不能把整类都替换为策略脚本。生活选择归Livelihood，临时随从的跟随入口另在Entities，直接控制另有持续输入。当前没有可挂接的通用行为程序或控制权仲裁平台。
+当前事实：`combat.gd._think`在原50ms自主思考节拍内读取本人感知，靠近已观察位置并请求primary；Combat同时还负责动作与伤害，不能把整类都替换为策略脚本。生活选择归Livelihood，临时随从的跟随入口另在Entities，直接控制另有持续输入。当前没有可挂接的通用行为程序或控制来源协调能力。
 
-建议先确定“本人观察与记忆→策略选择→行动意图→原执行准入”的接口，再选择首个制作形式：
+用户进一步希望共同决策覆盖生活、工作与战斗。已有领域划分本就将认识/自主选择和行动/交互分开；因此建议建立共同上下文、选择/交接与持续任务接缝，领域策略通过它调用原执行。详细候选合同只维护在[单位决策与持续任务](../systems/unit_decision_framework.md)，不沿用“P5只接战斗、其他决策以后再说”的范围。
 
-- 查询给本人生命/资源、实际可知目标及有限局部候选和结果，不交出活World引用；脚本中的目标身份不是可随时查询全图真相的授权。
-- 程序定义/参数可以共享，每单位独立保存目标、当前决策任务、记忆和必要的下次思考时刻。已有动作run、CD、已付成本仍归原宿主，行为任务结束/放弃不等于取消已承诺动作。
-- 手动控制、战斗策略与生活策略先有明确交接。移动、瞄准和出招可以同时存在，各控制通道需要明确采用来源；不把“一个思考结果”误解为每拍只能移动或出招。首版只接战斗，不让多个策略每帧争抢身体，也不把普通手动移动命令直接当AI移动API而顺带改掉autonomous/工作状态。
-- 规则表、行为树、Utility评分和受信GDScript都是不同制作/选择方式，不必同时实现。首个低代码入口可用Resource/Inspector组合少量条件—动作优先级规则；复杂局部策略可用显式注册的项目脚本，沿同一接口执行。等真实多步行为需要再扩树/序列，不先造全能VM。
-- 规则表须说明重评优先级、正在执行的任务如何继续、拒绝后何时重选；不能每拍重启奔跑或出招。高优先级规则还需检查行动可用性，冷却/费用不足时继续选择其他合法候选，最终提交仍走原门禁。距离带与必要的任务持续条件避免反复进退。允许声明式程序采用有界节点/候选/步骤，查询本身也要有界。受信GDScript的API约束与事后计时不构成安全沙盒，也不能终止任意无限循环；外来低代码数据和受信代码分开处理。项目内Resource可作制作入口，未来外部导入需先校验纯数据，不能把任意Resource或Script直接加载当作隔离机制。
-- 沿共同World时间调度，保留现有战斗执行频率；思考按到期/相关事件选择活跃单位，不默认每身体每帧遍历整树。CPU预算是工程成本控制，不直接定义游戏里的智力。程序/参数版本与声明的单位记忆进入对应恢复校验，不保存Callable、World引用或执行中的GDScript调用栈。
-- 先做两三种策略和可查看的选择/拒绝原因，验证同程序两单位的状态隔离、失视/目标消失、硬控/承诺、手动接管和在途存读。可视化拖拽编辑器、公开任意脚本沙盒和全生活AI重构不自动进入P5。
+| 路线 | 采用判断与限制 |
+|---|---|
+| 只统一领域函数签名/回调 | 改动小，但不足以解决威胁出现后工作、自卫和逃离由谁选择，也难复用任务交接 |
+| 共同协调与持续任务，领域策略保留 | 当前推荐；可接既有生活评分与战斗规则，复用任务生命周期。代价是需要分清高层换目标和局部任务调整，并提供诊断；不能自动推导未配置的长前置依赖链 |
+| 通用BT/StateTree/Utility或GOAP/HTN平台 | 这些算法也能局部、稀疏运行并复用原宿主，并不天然破坏相位或必然性能差；当前内容尚未证明完整平台的建设成本合理，按后续真实编排/规划缺口再评估 |
 
-以上为候选设计，不构成已实现能力或全部必须建设的类型清单。
+World工作/交互到期与Combat.finish存在直接回交Livelihood，engage又混合发现后追击、终止工作和接触记忆。P5需要拆清实际责任；不是只包一层名字，也不是冻结所有旧字段归属。World区间内工作successors与战斗按时刻合并，统一唤醒不能粗暴改成区间末全量重评。现有工作到期与重新思考到期应共享时间接缝而不是争用同一个字段。
 
 ### 8.3 顾问核查与裁决
 
-本机双顾问均完整返回，原答、问题及源码附件留`.local/advisor/behavior-programs-20261115/`。采纳共同窄接口、规则数据与受信代码分层、定义与独立记忆分离、可用性预检和选择追踪；按实际风格需要补少量空间行动，不先建设全能运行时或可视图工具。行为树可作为后续制作形式，当前不装插件；这不是第三方性能差或不能适配的实测结论。
+最初战斗策略咨询留`.local/advisor/behavior-programs-20261115/`；扩大范围后两轮双顾问均完整返回，问题、附件和四份原答留`.local/advisor/unit-decision-architecture-20261115/round-1/`与`round-2/`。采纳共同协调与领域策略分离、定义与独立记忆分离、有界查询/规则制作、持续任务与原执行身份分开及选择追踪。第二轮专门用源码反例核查第一轮建议，不将多答一致当证据。
 
-没有采纳示例中的固定规则数、记忆槽数、毫秒预算、手动宽限期与升级数量门槛；这些未由项目需要或测量证明。无逐单位Node是现有实现方式，Resource仍需明确只读和线程归属；二者不写成不可改变的产品约束。沿用已有接触记忆与占用索引，不把ActionGate误写成已完成的控制来源仲裁系统。对隐藏目标的死亡事件仍按本人实际可知信息处理，不能因为宿主知道死亡就提前让策略得知。
+裁决：仅发现威胁不应提前终止工作，但受击造成的强制打断/死亡必须按原时刻立即处理，没有照抄“受击只标脏不做清理”。保留原过程在区间内的结算与后继，只将确需重新选择的部分接入共同唤醒；工作到期与思考到期分别表示。既有工作直接适配，不重造一份靠近/预约/读条状态机；受理、缓冲与完成分开，缓冲失效应结束等待。任务也可按命中确认或合法取消窗口续招，没有采纳“只有动作终态才允许推进所有任务”的绝对表述。
+
+没有采用示例中的固定规则数、记忆槽数、毫秒预算、手动宽限期与算法升级数量门槛。无逐单位Node是现有实现方式，Resource仍需明确只读和线程归属；不把ActionGate写成已完成的控制来源仲裁，不用诊断事件驱动权威选择。对隐藏目标的死亡仍按本人实际可知信息处理。现有BT/规划器也可稀疏运行，不声称它们必慢或破坏相位；当前未安装插件，也未做本方案的运行时性能实验。
