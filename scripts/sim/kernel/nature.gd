@@ -35,14 +35,27 @@ func rebuild(world: RefCounted) -> bool:
 			return false
 		seen[id] = true
 		var rec: Dictionary = world.objects.records[id]
-		if rec.kind != "plant" or not definitions.has(rec.definition) or not rec.get("stage") is int or rec.stage < 0 or rec.stage > Stage.WITHERED or not rec.get("growth_ms") is int or rec.growth_ms < 0 or not rec.get("last_ms") is int or rec.last_ms > world.elapsed_ms or not rec.get("sources") is PackedInt32Array:
+		if rec.kind != "plant" or not definitions.has(rec.definition) or rec.tile < 0 or not rec.get("host") is int or rec.host < 0 or not rec.get("stage") is int or rec.stage < 0 or rec.stage > Stage.WITHERED or not rec.get("growth_ms") is int or rec.growth_ms < 0 or not rec.get("last_ms") is int or rec.last_ms > world.elapsed_ms or not rec.get("sources") is PackedInt32Array:
 			return false
 		for source: int in rec.sources:
 			if source < 0 or source >= world.environment.source_cells.size() or world.environment.free_sources.has(source):
 				return false
-		if rec.host > 0 and world.objects.records.get(rec.host, {}).get("guest", 0) != id:
-			return false
+		if rec.host > 0:
+			var host: Dictionary = world.objects.records.get(rec.host, {})
+			var cultivation: Dictionary = world.facilities.definitions.get(host.get("definition", ""), {}).get("capabilities", {}).get("cultivation", {})
+			if host.is_empty() or host.kind == "blueprint" or cultivation.is_empty() or not host.get("guest") is int or host.guest != id: return false
+			if not host.get("cells", PackedInt32Array([host.tile])).has(rec.tile) or bool(definitions[rec.definition].blocks) or not definitions[rec.definition].substrates.has(cultivation.substrate): return false
 		cohorts[id % GROUPS].append(id)
+	# Validate the reverse edge too: an empty planter may have guest=0, while a
+	# positive guest must be an indexed plant actually hosted by this facility.
+	for host_id: int in world.objects.records:
+		var host: Dictionary = world.objects.records[host_id]
+		if host.kind == "plant" and not seen.has(host_id): return false
+		if not host.has("guest"): continue
+		if not host.guest is int or host.guest < 0: return false
+		if host.guest == 0: continue
+		var cultivation: Dictionary = world.facilities.definitions.get(host.definition, {}).get("capabilities", {}).get("cultivation", {})
+		if host.kind == "blueprint" or cultivation.is_empty() or not seen.has(host.guest) or world.objects.records[host.guest].host != host_id: return false
 	return true
 
 

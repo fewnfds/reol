@@ -51,10 +51,10 @@ func adopt(frame: RefCounted, outcomes: Array, fog: bool) -> void:
 		_seen.clear()
 		for voice: AudioStreamPlayer in _voices: voice.stop()
 	for event: Dictionary in outcomes:
-		if int(event.get("epoch", frame.epoch)) != frame.epoch or not Impact.visible(frame, event, fog): continue
 		var kind: String = Impact.tone(event)
+		if kind.is_empty() or int(event.get("epoch", frame.epoch)) != frame.epoch or not Impact.visible(frame, event, fog): continue
 		var key: String = Impact.key(event)
-		if kind.is_empty() or _seen.has(key): continue
+		if _seen.has(key): continue
 		_seen[key] = event.at_ms
 		if _pending.size() >= 64: _pending.pop_front()
 		var layer: String = "contact" if event.kind == "hit" and kind != "hurt" else kind

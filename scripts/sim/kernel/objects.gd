@@ -84,8 +84,13 @@ func transfer(source: int, target: int, item: String, requested: int) -> int:
 	return count
 
 
+func can_remove(id: int) -> bool:
+	return records.has(id) and count_inventory(id) == 0 and records[id].get("materials", {}).is_empty() and records[id].get("equipment", {}).is_empty()
+
+
 func remove_empty(id: int) -> bool:
-	if not records.has(id) or count_inventory(id) != 0 or not records[id].get("materials", {}).is_empty() or not records[id].get("equipment", {}).is_empty():
+	# Low-level identity/index operation. World.remove_static owns facility cleanup.
+	if not can_remove(id):
 		return false
 	for tile: int in records[id].get("cells", PackedInt32Array([records[id].tile])):
 		if by_tile.has(tile):

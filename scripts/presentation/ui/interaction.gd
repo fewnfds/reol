@@ -6,6 +6,7 @@ const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Style = preload("res://scripts/presentation/ui/style.gd")
 const Bindings = preload("res://scripts/presentation/ui/input_bindings.gd")
 const Positions = preload("res://scripts/sim/kernel/work_positions.gd")
+const Facilities = preload("res://scripts/sim/kernel/facilities.gd")
 var bindings := Bindings.new()
 var host: Node2D
 var ui: Control
@@ -476,6 +477,16 @@ func _update_preview(tile: int) -> void:
 	var stock: Dictionary = host.frame.player.get("inventory", {})
 	var item: String = str(spec.get("item", "")) if tool == "build" else str(spec.get("product", {}).get("item", ""))
 	_preview_ok = int(stock.get(item, 0)) >= int(spec.get("amount", 1))
+	if tool == "build":
+		_preview_cells = Facilities.placed_cells(spec, tile, facing)
+		if _preview_cells.is_empty(): _preview_ok = false; return
+		for member: int in _preview_cells:
+			if host.fog_enabled and host.frame.perception.tiles[member] == 0: _preview_ok = false; continue
+			var surface: int = host.frame.perception.ground[member] if host.fog_enabled else host.frame.terrain.surface_at(member)
+			var occupants: Array[Dictionary] = []
+			for id: int in host.object_canvas.by_tile.get(member, []): occupants.append(host.object_canvas.objects[id])
+			if Facilities.placement_at(str(spec.get("layer", "ground")), surface, occupants, Actions.plants) != "accepted": _preview_ok = false
+		return
 	for y: int in extent.y:
 		for x: int in extent.x:
 			var current: int = tile_at(Vector2(cell + Vector2i(x, y)))
@@ -483,18 +494,11 @@ func _update_preview(tile: int) -> void:
 			_preview_cells.append(current)
 			if host.fog_enabled and host.frame.perception.tiles[current] == 0: _preview_ok = false; continue
 			var surface: int = host.frame.perception.ground[current] if host.fog_enabled else host.frame.terrain.surface_at(current)
-			var layer: String = str(spec.get("layer", "ground"))
 			var has_pot: bool = false
 			for id: int in host.object_canvas.by_tile.get(current, []):
 				var rec: Dictionary = host.object_canvas.objects[id]
-				var other_layer: String = str(rec.get("layer", "ground"))
 				if tool == "plant" and rec.definition == "planter": has_pot = true; continue
 				if tool == "plant" and rec.kind not in ["floor", "roof", "pile"]: _preview_ok = false
-				if tool == "build":
-					var vegetation: int = int(Actions.plants.get(rec.definition, {}).get("vegetation_level", 0)) if rec.kind == "plant" else (int(rec.get("vegetation_level", 3)) if rec.kind == "resource" else 0)
-					if layer == "floor" and vegetation >= 2: _preview_ok = false
-					elif rec.kind != "pile" and other_layer == layer: _preview_ok = false
-			if tool == "build" and layer == "floor" and ((surface & 7) == 3 or (surface & 8) != 0): _preview_ok = false
 			if tool == "plant":
 				var substrate: String = "soil" if has_pot else str({1: "soil", 2: "sand", 3: "water", 4: "soil"}.get(surface & 7, ""))
 				if not spec.get("substrates", []).has(substrate) or (not has_pot and (surface & 8) != 0) or (has_pot and spec.get("blocks", false)): _preview_ok = false

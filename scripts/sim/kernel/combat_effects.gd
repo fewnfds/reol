@@ -7,6 +7,7 @@ var records: Dictionary = {}
 var next_id: int = 1
 var dirty: Dictionary = {}
 var _movement_dirty: Dictionary = {} # Derived rows, invalidated by status/equipment changes.
+var _suppression: Dictionary = {} # Derived recipient tag unions, bounded by their next change.
 
 func invalidate_movement(actor: int) -> void:
 	_movement_dirty[actor] = true
@@ -24,7 +25,7 @@ func apply_bundle(world: RefCounted, target: int, source: int, activation: int, 
 		if not world.combat.alive(world, target): continue
 		match str(spec.kind):
 			"slow", "dot":
-				var legacy: Dictionary = {"id": spec.id, "kind": spec.kind, "magnitude": spec.magnitude, "duration_ms": spec.duration_ms, "period_ms": spec.period_ms, "stacking": "refresh", "max_stacks": 1, "max_instances": 8, "attribute": "armor", "modifier": "add", "dispellable": true, "isolation": "source"}
+				var legacy: Dictionary = {"id": spec.id, "kind": spec.kind, "magnitude": spec.magnitude, "duration_ms": spec.duration_ms, "period_ms": spec.period_ms, "stacking": "refresh", "max_stacks": 1, "max_instances": 8, "attribute": "armor", "modifier": "add", "dispellable": true, "isolation": "source", "tags": PackedStringArray(), "suppressed_tags": PackedStringArray()}
 				for rule: Dictionary in Defs.ACTIONS.get(ability, {}).get("reactions", []):
 					if rule.mode == "spread" and rule.status_id == spec.id: legacy.isolation = "chain"
 				add(world, target, source, activation, ability, legacy, now, damage, lineage, source_context)
@@ -38,24 +39,33 @@ func apply_bundle(world: RefCounted, target: int, source: int, activation: int, 
 					world.defense.guard(world, target, float(spec.magnitude), int(spec.duration_ms), now, world.pages[slot / 256].aims[slot % 256])
 			"dispel":
 				for id: int in records.keys():
-					if records[id].target == target and records[id].spec.dispellable: remove(world, id, "dispelled", now)
+					if records[id].target == target and records[id].lifetime == "recipient" and records[id].spec.dispellable: remove(world, id, "dispelled", now)
 
 func add(world: RefCounted, target: int, source: int, activation: int, ability: String, spec: Dictionary, now: int, amount: int, lineage: Dictionary = {}, source_context: Dictionary = {}) -> int:
 	if not world.actor_slots.has(target) or not world.combat.alive(world, target): return 0
 	if not Defs.ACTIONS.has(ability): ability = ""
 	activation = maxi(0, activation)
+	var contribution: String = str(source_context.get("contribution", ""))
+	var lifetime: String = str(source_context.get("lifetime", "recipient"))
 	var found: int = 0
 	var independent_count: int = 0
 	for id: int in records:
 		var old: Dictionary = records[id]
 		if old.target == target and old.source == source and old.status_id == spec.id and now < int(old.until_ms): independent_count += 1
-		if now < int(old.until_ms) and old.target == target and old.source == source and old.status_id == spec.id and (spec.isolation == "source" or (spec.isolation == "chain" and old.get("lineage", {}).get("chain", 0) == lineage.get("chain", 0)) or (spec.isolation == "activation" and old.activation == activation)) and spec.stacking != "independent": found = id; break
+		if now < int(old.until_ms) and old.target == target and old.source == source and old.status_id == spec.id and old.contribution == contribution and old.lifetime == lifetime and (spec.isolation == "source" or (spec.isolation == "chain" and old.get("lineage", {}).get("chain", 0) == lineage.get("chain", 0)) or (spec.isolation == "activation" and old.activation == activation)) and spec.stacking != "independent": found = id; break
 	if spec.stacking == "independent" and independent_count >= int(spec.max_stacks): return 0
 	if found == 0 and independent_count >= int(spec.max_instances): return 0
-	if found > 0 and spec.stacking == "replace" and spec.kind != "stun": remove(world, found, "replaced", now); found = 0
-	if found > 0 and spec.kind != "stun":
+	var until: int = now + int(spec.duration_ms)
+	if spec.kind == "stun":
+		var result: Dictionary = world.combat.damage(world, source, target, 0, now, Vector2.ZERO, 0, int(spec.duration_ms), 0.0, {"periodic": true, "group_ms": 0, "status_control": true, "control_suppressed": _tags_blocked(target, spec.tags, now)})
+		if not world.actor_slots.has(target) or not world.combat.alive(world, target): return 0
+		# Admission shares the control budget, but each instance owns its deadline.
+		until = int(result.get("control_until", now))
+		if until <= now: return found
+	if found > 0 and spec.stacking == "replace": remove(world, found, "replaced", now); found = 0
+	if found > 0:
 		var old: Dictionary = records[found]
-		old.until_ms = maxi(int(old.until_ms), now + int(spec.duration_ms))
+		old.until_ms = maxi(int(old.until_ms), until)
 		old.magnitude = minf(float(old.magnitude), float(spec.magnitude)) if spec.kind == "slow" else maxf(float(old.magnitude), float(spec.magnitude))
 		old.spec.magnitude = old.magnitude
 		if spec.stacking == "stack":
@@ -64,46 +74,76 @@ func add(world: RefCounted, target: int, source: int, activation: int, ability: 
 			if previous < int(spec.max_stacks) and old.stacks == int(spec.max_stacks):
 				world.reactions.submit(world, {"event": "stack_max", "actor": source, "target": target, "at_ms": now, "activation": activation, "action": ability, "damage": amount, "position": world.position_at(target, now), "lineage": lineage, "side": old.side, "power": old.power}, old.get("rules", []))
 		old.damage = maxi(int(old.damage), maxi(0, roundi(amount * float(spec.magnitude))))
-		dirty[target] = true
-		if spec.kind in ["slow", "haste", "root"]: invalidate_movement(target)
-		if spec.kind == "modifier": flush_dirty(world)
+		_changed(world, target, spec.kind, now)
 		return found # Renewal preserves cadence and causality.
-	var until: int = now + int(spec.duration_ms)
-	if spec.kind == "stun":
-		var result: Dictionary = world.combat.damage(world, source, target, 0, now, Vector2.ZERO, 0, int(spec.duration_ms), 0.0, {"periodic": true, "group_ms": 0, "status_control": true})
-		until = now + int(result.get("stun_ms", 0))
-		if until <= now: return found
-		if found > 0: remove(world, found, "replaced", now)
 	var id: int = next_id
 	next_id += 1
 	records[id] = {"source": source, "target": target, "activation": activation, "ability": ability, "kind": spec.kind, "status_id": spec.id,
+		"contribution": contribution, "lifetime": lifetime,
 		"side": int(source_context.side) if source_context.has("side") else int(world.objects.records.get(source, {}).get("side", 0)), "power": source_context.power if source_context.has("power") else world.combat.source_power(world, source),
 		"born_ms": now, "until_ms": until, "next_ms": now + int(spec.period_ms), "period_ms": int(spec.period_ms), "magnitude": float(spec.magnitude),
-		"rules": Defs.ACTIONS.get(ability, {}).get("reactions", []), "damage": maxi(0, roundi(amount * float(spec.magnitude))), "stacks": 1, "spec": spec.duplicate(true), "lineage": lineage.duplicate(true)}
-	dirty[target] = true
-	if spec.kind in ["slow", "haste", "root"]: invalidate_movement(target)
-	if spec.kind == "modifier": flush_dirty(world)
+		"rules": Defs.ACTIONS.get(ability, {}).get("reactions", []), "cause": source_context.get("cause", {}).duplicate(true), "damage": maxi(0, roundi(amount * float(spec.magnitude))), "stacks": 1, "spec": spec.duplicate(true), "lineage": lineage.duplicate(true)}
+	_changed(world, target, spec.kind, now)
 	world.emit({"kind": "status_added", "actor": source, "target": target, "status": spec.id, "at_ms": now})
 	return id
 
 func has_kind(target: int, kind: String, now: int) -> bool:
 	for entry: Dictionary in records.values():
-		if entry.target == target and entry.kind == kind and now >= int(entry.born_ms) and now < int(entry.until_ms): return true
+		if entry.target == target and entry.kind == kind and effective(entry, now): return true
 	return false
+
+func effective(entry: Dictionary, now: int) -> bool:
+	return now >= int(entry.born_ms) and now < int(entry.until_ms) and (entry.kind == "suppression" or not _tags_blocked(entry.target, entry.spec.tags, now))
+
+func active_at(id: int, now: int) -> bool:
+	return records.has(id) and effective(records[id], now)
+
+func _tags_blocked(target: int, tags: PackedStringArray, now: int) -> bool:
+	if tags.is_empty(): return false
+	var cached: Dictionary = _suppression.get(target, {})
+	if cached.is_empty() or now < int(cached.at_ms) or now >= int(cached.until_ms):
+		var blocked: Dictionary = {}
+		var until: int = 9223372036854775807
+		for entry: Dictionary in records.values():
+			if entry.target != target or entry.kind != "suppression": continue
+			if now < int(entry.born_ms): until = mini(until, int(entry.born_ms))
+			elif now < int(entry.until_ms):
+				until = mini(until, int(entry.until_ms))
+				for tag: String in entry.spec.suppressed_tags: blocked[tag] = true
+		cached = {"at_ms": now, "until_ms": until, "tags": blocked}
+		_suppression[target] = cached
+	for tag: String in tags:
+		if cached.tags.has(tag): return true
+	return false
+
+func _changed(world: RefCounted, target: int, kind: String, now: int) -> void:
+	dirty[target] = true
+	if kind in ["slow", "haste", "root", "suppression"]: invalidate_movement(target)
+	if kind == "suppression": _suppression.erase(target)
+	if kind in ["stun", "suppression"]: world.combat.sync_stun(world, target, now)
+	if kind in ["modifier", "suppression"]: flush_dirty(world)
+
+func stun_until(target: int, now: int) -> int:
+	var until: int = now
+	for entry: Dictionary in records.values():
+		if entry.target == target and entry.kind == "stun" and effective(entry, now): until = maxi(until, int(entry.until_ms))
+	return until
+
+func stun_source(target: int, now: int) -> int:
+	var source: int = 0
+	var until: int = now
+	for entry: Dictionary in records.values():
+		if entry.target == target and entry.kind == "stun" and int(entry.until_ms) > until and effective(entry, now):
+			source = entry.source
+			until = entry.until_ms
+	return source
 
 func remove(world: RefCounted, id: int, reason: String, now: int) -> void:
 	if not records.has(id): return
 	var entry: Dictionary = records[id]
 	records.erase(id)
 	world.entities.forget_status(id)
-	dirty[entry.target] = true
-	if entry.kind in ["slow", "haste", "root"]: invalidate_movement(entry.target)
-	if entry.kind == "stun" and reason == "dispelled":
-		var until: int = maxi(now, int(world.combat.status.get(entry.target, {}).get("hit_stun_until", 0)))
-		for other: Dictionary in records.values():
-			if other.target == entry.target and other.kind == "stun": until = maxi(until, int(other.until_ms))
-		if world.combat.status.has(entry.target): world.combat.status[entry.target].stun_until = until
-	if entry.kind == "modifier": flush_dirty(world)
+	_changed(world, entry.target, entry.kind, now)
 	world.emit({"kind": "status_removed", "actor": entry.source, "target": entry.target, "status": entry.status_id, "reason": reason, "at_ms": now})
 
 func modify(base: Dictionary, target: int, at: int) -> Dictionary:
@@ -113,7 +153,7 @@ func modify(base: Dictionary, target: int, at: int) -> Dictionary:
 	ids.sort()
 	for id: int in ids:
 		var entry: Dictionary = records[id]
-		if entry.target != target or entry.kind != "modifier" or at < int(entry.born_ms) or at >= int(entry.until_ms): continue
+		if entry.target != target or entry.kind != "modifier" or not effective(entry, at): continue
 		var key: String = entry.spec.attribute
 		if entry.spec.modifier == "add": additions[key] = float(additions.get(key, 0)) + float(entry.magnitude) * int(entry.stacks)
 		else: factors[key] = float(factors.get(key, 1)) * pow(float(entry.magnitude), int(entry.stacks))
@@ -152,6 +192,7 @@ func prepare(world: RefCounted, now: int) -> void:
 	# One source-order pass for all dirty targets, preserving float32 writes.
 	for entry: Dictionary in records.values():
 		if not _movement_dirty.has(entry.target): continue
+		if not effective(entry, now): continue
 		var slot: int = world.actor_slots[entry.target]
 		var page: RefCounted = world.pages[slot / 256]
 		var row: int = slot % 256
@@ -165,32 +206,46 @@ func prepare(world: RefCounted, now: int) -> void:
 
 func collect(world: RefCounted, now: int) -> Array[Dictionary]:
 	var impacts: Array[Dictionary] = []
-	for entry: Dictionary in records.values():
+	for id: int in records:
+		var entry: Dictionary = records[id]
 		if entry.kind != "dot": continue
 		while int(entry.next_ms) <= now and int(entry.next_ms) < int(entry.until_ms):
-			impacts.append({"actor": entry.source, "target": entry.target, "activation": entry.activation, "at_ms": entry.next_ms,
+			# Admission happens after equal-time direct effects. A suppression or
+			# cleanse in that wave must be observed without replaying missed ticks.
+			impacts.append({"actor": entry.source, "target": entry.target, "activation": entry.activation, "at_ms": entry.next_ms, "source_effect": id,
 				"damage": int(entry.damage) * int(entry.stacks), "incoming": Vector2.ZERO, "stun": 0, "push": 0.0, "group_ms": 0, "periodic": true,
-				"position": world.position_at(entry.target, entry.next_ms), "action": entry.ability, "lineage": entry.lineage, "rules": entry.rules, "side": entry.side, "power": entry.power})
+				"position": world.position_at(entry.target, entry.next_ms), "action": entry.ability, "cause": entry.cause.duplicate(true), "lineage": entry.lineage, "rules": entry.rules, "side": entry.side, "power": entry.power})
 			entry.next_ms += int(entry.period_ms)
 	return impacts
 
-func remove_target(actor: int) -> void:
+func remove_target(world: RefCounted, actor: int, now: int) -> void:
 	for id: int in records.keys():
 		if records[id].target == actor: records.erase(id)
 	dirty.erase(actor)
+	_suppression.erase(actor)
 	invalidate_movement(actor)
+	world.combat.sync_stun(world, actor, now)
+
+func remove_source(world: RefCounted, source: int, now: int) -> void:
+	for id: int in records.keys():
+		if records[id].source == source and records[id].lifetime == "source": remove(world, id, "source_removed", now)
 
 func valid(world: RefCounted) -> bool:
 	if next_id < 1: return false
 	var groups: Dictionary = {}
 	var unique: Dictionary = {}
+	var controls: Dictionary = {}
 	for id: Variant in records:
 		var entry: Variant = records[id]
 		if not id is int or id < 1 or id >= next_id or not entry is Dictionary: return false
 		if not world.combat.valid_source(entry): return false
+		if not world.reactions.valid_cause(entry.get("cause"), world): return false
+		if not entry.get("contribution") is String or entry.contribution.length() > 64 or (not entry.contribution.is_empty() and not entry.contribution.is_valid_identifier()): return false
+		if entry.get("lifetime") not in ["recipient", "source"]: return false
 		for key: String in ["source", "target", "activation", "side", "born_ms", "until_ms", "next_ms", "period_ms", "damage", "stacks"]:
 			if not entry.get(key) is int: return false
 		if not world.actor_slots.has(entry.target) or entry.source < 1 or entry.source >= world.objects.next_id or not entry.get("ability") is String or (not entry.ability.is_empty() and not Defs.ACTIONS.has(entry.ability)): return false
+		if entry.lifetime == "source" and (not world.objects.records.has(entry.source) or (world.actor_slots.has(entry.source) and not world.combat.alive(world, entry.source))): return false
 		if not entry.get("spec") is Dictionary or not entry.get("lineage") is Dictionary or not valid_spec(entry.spec): return false
 		if entry.get("kind") != entry.spec.kind or entry.get("status_id") != entry.spec.id or entry.get("magnitude") != entry.spec.magnitude: return false
 		if entry.born_ms < 0 or entry.born_ms > world.elapsed_ms or entry.until_ms <= entry.born_ms or entry.until_ms > world.elapsed_ms + 60000 or entry.activation < 0 or entry.activation >= world.combat.next_activation or entry.damage < 0 or entry.damage > 10000000 or entry.stacks < 1 or entry.stacks > entry.spec.max_stacks: return false
@@ -199,15 +254,25 @@ func valid(world: RefCounted) -> bool:
 		groups[key] = int(groups.get(key, 0)) + 1
 		if groups[key] > int(entry.spec.max_instances): return false
 		if entry.spec.stacking != "independent":
+			key += ":" + entry.lifetime + ":" + entry.contribution
 			if entry.spec.isolation == "chain": key += ":c%d" % int(entry.lineage.get("chain", 0))
 			elif entry.spec.isolation == "activation": key += ":a%d" % entry.activation
 			if unique.has(key): return false
 			unique[key] = true
+	for entry: Dictionary in records.values():
+		if entry.kind == "stun" and effective(entry, world.elapsed_ms): controls[entry.target] = maxi(int(controls.get(entry.target, world.elapsed_ms)), int(entry.until_ms))
+	for target: int in controls:
+		if not world.combat.status.has(target): return false
+	for target: Variant in world.combat.status:
+		var value: Variant = world.combat.status[target]
+		if not target is int or not value is Dictionary or not value.get("hit_stun_until", 0) is int or not value.get("stun_until", 0) is int: return false
+		var expected: int = maxi(int(controls.get(target, world.elapsed_ms)), int(value.get("hit_stun_until", 0)))
+		if maxi(world.elapsed_ms, int(value.get("stun_until", 0))) != expected: return false
 	return true
 
 static func valid_spec(spec: Dictionary) -> bool:
 	var definition := StatusDef.new()
-	for field: String in ["id", "kind", "duration_ms", "period_ms", "magnitude", "stacking", "max_stacks", "max_instances", "attribute", "modifier", "dispellable", "isolation"]:
+	for field: String in ["id", "kind", "duration_ms", "period_ms", "magnitude", "stacking", "max_stacks", "max_instances", "attribute", "modifier", "dispellable", "isolation", "tags", "suppressed_tags"]:
 		if not spec.has(field) or typeof(spec[field]) != typeof(definition.get(field)): return false
 		definition.set(field, spec[field])
 	return definition.errors().is_empty()

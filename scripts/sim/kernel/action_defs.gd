@@ -8,7 +8,7 @@ const CONTROL_WINDOW_MS: int = 1200
 const CONTROL_BUDGET_MS: int = 400
 const MAX_HIT_GROUP_MS: int = 5000
 const MAX_STATUS_AHEAD_MS: int = 20000 # Three <=5s phases plus <=5s post commitment.
-const RUNTIME_VERSION: int = 2 # Committed source side/power survives removed bodies.
+const RUNTIME_VERSION: int = 3 # Source-owned contributions, suppression and chronological commits.
 static var _compiled: Dictionary = LIBRARY.compile()
 static var ERRORS: PackedStringArray = _compiled.errors
 static var ACTIONS: Dictionary = _freeze(_compiled.actions)

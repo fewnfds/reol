@@ -148,7 +148,7 @@ func late_contacts() -> void:
 	early.combat.request(early, 1, "step", Vector2.RIGHT)
 	early.pages[0].positions[1] = early.pages[0].positions[0] + Vector2(1.0, 0)
 	advance(early, 151)
-	check(early.combat.states[1].kind == "slash_1" and not early.combat.intents.has(1), "An early confirm retained an action just to wait out its cooldown")
+	check(early.combat.states[1].kind == "step" and early.combat.states[1].started_ms == 150, "Hit-confirm consumed a valid buffer before its cooldown gate opened")
 	var combo_late: RefCounted = fixture()
 	combo_late.combat.request(combo_late, 1, "primary", Vector2.RIGHT)
 	advance(combo_late, 80)

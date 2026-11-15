@@ -257,7 +257,15 @@ func request(world: RefCounted, actor: int, button: String, aim: Vector2, moveme
 	world.emit({"kind": "action_started", "actor": actor, "action": kind, "activation": states[actor].activation, "at_ms": now, "position": position(world, actor)})
 	return "started"
 
-func next_boundary(now: int, end: int) -> int:
+func intent_ready_at(world: RefCounted, actor: int, intent: Dictionary, now: int) -> int:
+	# An accepted buffer retains its original lifetime while independent gates
+	# converge. This query is shared by scheduling and consumption.
+	var ready: int = maxi(now, int(status.get(actor, {}).get("stun_until", 0)))
+	if states.has(actor): ready = maxi(ready, Defs.cancel_ms(states[actor], intent.button))
+	var kind: String = ability(world, actor, intent.button, now)
+	return maxi(ready, int(cooldowns.get(actor, {}).get(Defs.ACTIONS[kind].cd_group, 0)))
+
+func next_boundary(world: RefCounted, now: int, end: int) -> int:
 	var result: int = end
 	for state: Dictionary in states.values():
 		var def: Dictionary = Defs.ACTIONS[state.kind]
@@ -272,8 +280,9 @@ func next_boundary(now: int, end: int) -> int:
 		for key: String in ["stun_until", "push_until", "ready_ms"]:
 			var boundary: int = int(value.get(key, 0))
 			if boundary > now: result = mini(result, boundary)
-	for intent: Dictionary in intents.values():
-		for boundary: int in [int(intent.until), int(intent.until) + 1]:
+	for actor: int in intents:
+		var intent: Dictionary = intents[actor]
+		for boundary: int in [intent_ready_at(world, actor, intent, now), int(intent.until), int(intent.until) + 1]:
 			if boundary > now: result = mini(result, boundary)
 	for bolt: Dictionary in bolts.values():
 		if int(bolt.expire_ms) > now: result = mini(result, int(bolt.expire_ms))
@@ -303,11 +312,9 @@ func prepare(world: RefCounted, now: int) -> void:
 			intents.erase(actor)
 			world.decisions.buffer_ended(world, actor, intent.button, now)
 			continue
-		if now < int(status.get(actor, {}).get("stun_until", 0)): continue
-		if states.has(actor) and now < Defs.cancel_ms(states[actor], intent.button): continue
-		intents.erase(actor)
+		if now < intent_ready_at(world, actor, intent, now): continue
 		var buffered_result: String = request(world, actor, intent.button, intent.aim, intent.move, now, intent.get("point", Vector2(-1, -1)), int(intent.get("target_id", 0)))
-		if buffered_result not in ["started", "buffered"]: world.decisions.buffer_ended(world, actor, intent.button, now)
+		if buffered_result not in ["started", "buffered"]: discard_intent(world, actor, now)
 	if _brain_bucket != now / 50:
 		_brain_bucket = now / 50
 		_think(world, now)
@@ -358,6 +365,20 @@ func prepare(world: RefCounted, now: int) -> void:
 
 func _status(actor: int) -> Dictionary:
 	return status.get(actor, {"groups": {}, "stun_window": 0, "stun_used": 0})
+
+func sync_stun(world: RefCounted, target: int, now: int) -> void:
+	if not status.has(target): return
+	var value: Dictionary = status[target]
+	var previous: int = int(value.get("stun_until", 0))
+	value.stun_until = maxi(now, maxi(int(value.get("hit_stun_until", 0)), world.effects.stun_until(target, now)))
+	if previous <= now and value.stun_until > now and alive(world, target):
+		value["stun_from"] = now
+		_queue_interruption(target, world.effects.stun_source(target, now), now, Vector2.ZERO, int(value.stun_until) - now, world.gate.current(target).get("domain", "") in ["work", "interaction", "partner"])
+		if not _settling: _close_wave(world)
+
+func _queue_interruption(target: int, actor: int, at: int, incoming: Vector2, duration: int, work: bool) -> void:
+	var previous: Dictionary = _interruptions.get(target, {})
+	_interruptions[target] = {"at_ms": at, "actor": actor, "incoming": incoming if not incoming.is_zero_approx() else previous.get("incoming", Vector2.ZERO), "duration": maxi(duration, int(previous.get("duration", 0))), "work": work or previous.get("work", false)}
 
 func _cooldown_group(key: String) -> bool:
 	for def: Dictionary in Defs.ACTIONS.values():
@@ -558,11 +579,13 @@ func step(world: RefCounted, start: int, now: int, world_events: Array[Dictionar
 		var work: Array[Dictionary] = []
 		var directs: Array[Dictionary] = []
 		var deliveries: Array[Dictionary] = []
+		var implement_events: Array[Dictionary] = []
 		for entry: int in range(index, end):
 			var impact: Dictionary = impacts[entry]
 			if impact.get("event") == "reaction_flush": continue
 			if impact.get("event") == "projectile_reaction": deliveries.append(impact); continue
 			if impact.get("event") == "direct_activation": directs.append(impact); continue
+			if impact.get("event") in ["implement_transition", "implement_motion"]: implement_events.append(impact); continue
 			if impact.get("event") == "area_pulse":
 				accepted.append_array(world.areas.pulse(world, impact.area_id, impact.at_ms))
 				continue
@@ -583,11 +606,11 @@ func step(world: RefCounted, start: int, now: int, world_events: Array[Dictionar
 			_deliver(world, event.actor, state, event.at_ms)
 			world.emit({"kind": "action_active", "actor": event.actor, "action": state.kind, "activation": state.activation, "at_ms": event.at_ms, "position": world.position_at(event.actor)})
 		for impact: Dictionary in accepted:
+			if impact.get("source_effect", 0) > 0 and not world.effects.active_at(impact.source_effect, impact.at_ms): continue
 			if impact.get("bolt_id", 0) > 0 and not Projectiles.accept(self, world, impact): continue
 			if impact.get("bolt_wall", false) and impact.target == 0: continue
 			if impact.get("source_implement", 0) > 0:
-				var implement: Dictionary = world.implements.records[impact.source_implement]
-				if impact.at_ms > int(implement.get("stopped_ms", 9223372036854775807)): continue
+				if not world.implements.accept_contact(impact.source_implement, impact.target, impact.at_ms): continue
 			if impact.get("implement_target", 0) > 0:
 				if not world.implements.active_at(impact.implement_target, impact.at_ms): continue
 				world.implements.hit(world, impact.implement_target, impact.damage, impact.at_ms)
@@ -603,6 +626,7 @@ func step(world: RefCounted, start: int, now: int, world_events: Array[Dictionar
 				states[impact.actor].hit[impact.target] = true
 				if result.get("damage", 0) > 0: states[impact.actor].confirmed = true
 		_close_wave(world)
+		for event: Dictionary in implement_events: world.implements.commit(event)
 		for event: Dictionary in deliveries:
 			if not bolts.has(event.bolt_id): continue
 			var bolt: Dictionary = bolts[event.bolt_id]
@@ -661,6 +685,8 @@ func damage(world: RefCounted, actor: int, target: int, amount: int, now: int, i
 		return {"evaded": true}
 	var applied: int
 	var duration: int = 0
+	var control_until: int = now
+	var control_suppressed: bool = bool(context.get("status_control", false)) and bool(context.get("control_suppressed", false))
 	var armored: bool = false
 	var off_balance: bool = false
 	var rec: Dictionary = world.objects.records[target]
@@ -685,7 +711,7 @@ func damage(world: RefCounted, actor: int, target: int, amount: int, now: int, i
 		if defense.guarded: stun_ms = 0; push = 0.0
 		applied = mini(page.health[row], int(defense.remaining))
 		page.health[row] -= applied
-		var work_interrupted: bool = not context.get("periodic", false) and (world.actions.has(target) or world.work_runs.has(target) or world.society.waits.has(target))
+		var work_interrupted: bool = not control_suppressed and not context.get("periodic", false) and (world.actions.has(target) or world.work_runs.has(target) or world.society.waits.has(target))
 		var target_state: Dictionary = action_snapshot(target)
 		var steady: bool = not target_state.is_empty() and bool(Defs.ACTIONS[target_state.kind].get("steady", false)) and now < Defs.recovery_ms(target_state)
 		if now >= int(value.stun_window) + Defs.CONTROL_WINDOW_MS or int(value.stun_used) == 0:
@@ -701,20 +727,20 @@ func damage(world: RefCounted, actor: int, target: int, amount: int, now: int, i
 				off_balance = true
 			var previous_end: int = maxi(now, int(value.get("stun_until", 0)))
 			var addition: int = mini(maxi(0, now + desired - previous_end), remaining)
+			control_until = mini(now + desired, previous_end + addition)
 			value.stun_used += addition
 			if remaining >= 40 and Defs.CONTROL_BUDGET_MS - int(value.stun_used) < 40: value.guard_from = now
-			duration = maxi(0, previous_end + addition - now)
+			duration = 0 if control_suppressed else maxi(0, previous_end + addition - now)
 		if duration > 0:
 			value.stun_from = now
 			value.stun_until = now + duration
-			if not context.get("status_control", false): value.hit_stun_until = maxi(int(value.get("hit_stun_until", 0)), now + duration)
+			if not context.get("status_control", false): value.hit_stun_until = maxi(int(value.get("hit_stun_until", 0)), control_until)
 			if push > 0 and not incoming.is_zero_approx():
 				value.push_until = now + 120
 				value.push = -incoming * minf(push, 1.0) / 0.120
-			value.ready_ms = maxi(int(value.get("ready_ms", 0)), now + duration + 180)
-		if not context.get("periodic", false) or duration > 0 or page.health[row] <= 0:
-			var previous_request: Dictionary = _interruptions.get(target, {})
-			_interruptions[target] = {"at_ms": now, "actor": actor, "incoming": incoming, "duration": maxi(duration, int(previous_request.get("duration", 0))), "work": work_interrupted or previous_request.get("work", false)}
+			if not context.get("status_control", false): value.ready_ms = maxi(int(value.get("ready_ms", 0)), control_until + 180)
+		if (not context.get("status_control", false) and not context.get("periodic", false)) or duration > 0 or page.health[row] <= 0:
+			_queue_interruption(target, actor, now, incoming, duration, work_interrupted)
 		status[target] = value
 		if not context.get("status_control", false):
 			world.attacks += 1
@@ -730,7 +756,7 @@ func damage(world: RefCounted, actor: int, target: int, amount: int, now: int, i
 			if world.entities.records.has(target): world.entities.remove(world, target, now)
 			else: world.facilities.demolish(world, target, now)
 	if not context.get("status_control", false): hits += 1
-	return {"kind": "damage", "contact": true, "actor": actor, "target": target, "at_ms": now, "activation": activation, "damage": applied, "guarded": context.get("guarded", false), "blocked": context.get("blocked", 0), "absorbed": context.get("absorbed", 0), "broken": context.get("broken", []), "fatal": not alive(world, target), "stun_ms": duration, "armored": armored, "off_balance": off_balance}
+	return {"kind": "damage", "contact": true, "actor": actor, "target": target, "at_ms": now, "activation": activation, "damage": applied, "guarded": context.get("guarded", false), "blocked": context.get("blocked", 0), "absorbed": context.get("absorbed", 0), "broken": context.get("broken", []), "fatal": not alive(world, target), "stun_ms": duration, "control_until": control_until, "armored": armored, "off_balance": off_balance}
 
 func action_snapshot(actor: int) -> Dictionary:
 	return _frozen_states.get(actor, {}) if _settling else states.get(actor, {})

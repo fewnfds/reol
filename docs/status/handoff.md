@@ -2,13 +2,15 @@
 
 ## 当前停点
 
-作业位置和本轮代码审查修复已完成。战斗框架保持P5，不自动推进P6、预警系统、完整物流或锻造玩法。下一主题等待用户选择；六类确认未修问题的触发、源码及本机复现证据归[问题清单](issues.md)，不能把它们当成已解决，也不要把顾问未核实的推断继续登记为事实。
+最新授权：用户要求非产品决策自主解决、以顶层领域合同修复；2026-11-15确认另一并行审查对话停止，其方案只作参考，以本轮整合为准。9项确认缺陷和1项光环规则缺口已逐项处理，原编号与关闭条件归[问题清单](issues.md)；共同边界及范围归[主计划](../plans/foundation-priorities.md#审查后的框架整改方案)。不再沿用并行分析稿“只写方案、光环待定、尚未实施”的停点。
 
-- 实现合同与配置示例：[空间与施工](../../design/systems/construction_and_space/places.md#作业位置与在制外观)；产品规则：[对象与交互](../../design/rules/objects-and-interaction.md)。植物本格、实体完整占地四邻、操作专用工位四向旋转；灶台已配置单侧工位。
-- 实际开工取得实体占地，被活地面身体占用时等待且不耗工时；中断保留半成品、碰撞和劳动，续建不重复付材料。现有材料仍在放蓝图时从背包转移，不冒充自动运输。
-- 构建/验证及本轮已修项归[BASELINE](baseline.md)，能力与键位归[FEATURES](features.md)。普通世界、P5战斗和施工真实GUI/文件恢复检查通过，源码与导出PCK施工续接状态一致；一个512人短窗无错误且实速约1×。这些不代替长局、极密弹幕或主观手感验收。
-- 根目录唯一[启动.cmd](../../启动.cmd)：选1源码战斗，选2源码普通世界，选3独立P5成品，选4编辑器。包为`build/windows/act-p5/reol-act.exe`＋同目录pck；F5/F9使用format13的`user://act-p5-quicksave-v13.reol`。旧format12及更早开发档/备份保留、不覆盖、不迁移。
-- 本轮交付归`main`；提交/同步版本以`git status`及`main`/`origin/main`指针为准。成品、咨询、探针和日志不入库。
+实际修正覆盖显式设施装配/移除/恢复、共用放置判断、有限执行失败反馈、多门槛缓冲、器物候选按时刻采用、效果归因/平面cause、独立控制贡献及标签压制、通知演出主体。普通驱散不移除外部光环；来源死亡撤自己的source贡献；压制改变有效性、保留原期限。当前压制覆盖Effects持续状态，不宣称瞬时治疗/护盾等全域禁用均已完成。
+
+当前为P5加作业位置与审查合同修复，不自动推进P6、预警系统、完整物流或锻造玩法。当前包、最终检查和短窗口的准确证据统一见[BASELINE](baseline.md)；能力/键位见[FEATURES](features.md)。main与origin/main以实际Git指针为准，生成包/日志/本机咨询不入库。
+
+- 作业位置合同见[空间与施工](../../design/systems/construction_and_space/places.md#作业位置与在制外观)：植物本格、实体完整占地四邻、专用工位四向旋转；灶台已有单侧工位。开工取得实体占地，有活地面身体则等待且不耗工时；中断保留半成品和劳动，续建不重复材料。
+- 材料仍在放蓝图时从背包转移，不冒充自动运输。操作位置从定义和占地派生，不维护第二份位置真值。
+- 根目录唯一[启动.cmd](../../启动.cmd)：选1源码战斗、2源码普通世界、3独立P5成品、4编辑器。包为`build/windows/act-p5/reol-act.exe`与同目录pck；F5/F9使用format14的`user://act-p5-quicksave-v14.reol`，旧format13及更早开发档和备份保留，不覆盖或迁移。
 
 ## 后续边界
 
@@ -18,5 +20,7 @@
 
 ## 本机资料与受保护工作
 
-- 审查/作业位置咨询归`.local/advisor/review-20261115/`，复现探针归`.local/review-20261115/`；日志归`logs/`，生成包归`build/`，不新增根目录启动脚本。采用的事实保存在主题正文与BASELINE，原答不入库。
+- 本轮双顾问咨询归`.local/advisor/framework-contracts-20261115/`，审查/作业位置咨询归`.local/advisor/review-20261115/`，复现探针归`.local/review-20261115/`；日志归`logs/`，生成包归`build/`，不新增根目录启动脚本。采用的事实保存在主题正文与BASELINE，原答不入库。
 - 保留本机顾问凭据、存档、素材源稿和第三方addon；保留工作分支`codex/field-contest`及stash `424f956d280fb390d17e1f6dd879f3614b51a430`。
+
+另一个独立设计工作对`design/README.md`、`design/research/social_interaction_game_references.md`和`design/research/npc_personality_and_emotion.md`的本地改动受保护，不混入本轮实现提交。

@@ -116,7 +116,7 @@ static func _terrain_valid(terrain: RefCounted) -> bool:
 		for tile: int in cells:
 			if tile < 0 or tile >= size:
 				return false
-	if terrain.resources.is_empty() or terrain.depots.is_empty():
+	if terrain.resources.is_empty():
 		return false
 	for room: int in terrain.rooms:
 		if room < -1 or room >= terrain.room_cells.size():
@@ -177,6 +177,15 @@ static func _objects_valid(world: RefCounted) -> bool:
 				if record.construction_started and world.facilities.definitions[record.definition].facts.get("movement_blocked", false):
 					for member: int in members:
 						if world.terrain.blocked[member] == 0: return false
+			elif world.facilities.definitions.has(record.definition):
+				var spec: Dictionary = world.facilities.definitions[record.definition]
+				var kind: String = "chest" if spec.get("capabilities", {}).has("storage") else str(spec.kind)
+				if record.kind != kind or record.get("layer", "ground") != spec.get("layer", "ground") or members != world.facilities.footprint(record.definition, tile, int(record.get("facing", 0))): return false
+				for member: int in members:
+					if record.get("layer", "ground") == "floor":
+						if world.terrain.flooring[member] == 0: return false
+					elif record.get("layer", "ground") != "roof":
+						if (world.terrain.blocked[member] != 0) != bool(spec.facts.get("movement_blocked", false)) or (world.terrain.enclosures[member] != 0) != bool(spec.facts.get("enclosure_boundary", false)): return false
 	return true
 
 
@@ -221,9 +230,17 @@ static func _processes_valid(world: RefCounted) -> bool:
 	for id: int in world.source_objects:
 		if not world.objects.records.has(id) or world.objects.records[id].kind != "resource":
 			return false
-	for id: int in world.depot_objects:
-		if not world.objects.records.has(id) or world.objects.records[id].kind != "chest":
+	var depots: Dictionary = {}
+	var depot_tiles: Dictionary = {}
+	for index: int in world.depot_objects.size():
+		var id: int = world.depot_objects[index]
+		var tile: int = world.terrain.depots[index]
+		if depots.has(id) or depot_tiles.has(tile) or not world.objects.records.has(id) or world.objects.records[id].kind != "chest" or world.objects.records[id].tile != tile:
 			return false
+		depots[id] = true
+		depot_tiles[tile] = true
+	for id: int in world.objects.records:
+		if world.objects.records[id].kind == "chest" and int(world.objects.records[id].tile) >= 0 and not depots.has(id): return false
 	for target: Variant in world.reservations:
 		if not target is int or not world.reservations[target] is int or not world.objects.records.has(target) or not world.actor_slots.has(world.reservations[target]):
 			return false

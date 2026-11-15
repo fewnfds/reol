@@ -1,10 +1,52 @@
 extends "res://tests/abilities_ui_smoke.gd"
 ## Native input, selectors, multi-slot HUD and real file restore for P4.
+func native_input_ready() -> bool:
+	await RenderingServer.frame_post_draw
+	root.grab_focus()
+	var ready: bool = await until(func(): return root.has_focus() and game.controls._focused, 700)
+	check(ready, "P4 UI window did not acquire native input focus")
+	return ready
+
+func choose(id: String) -> void:
+	if not await native_input_ready(): quit(1); return
+	var epoch: int = game.frame.epoch
+	await click(game.ui._loadout_choice)
+	var popup: PopupMenu = game.ui._loadout_choice.get_popup()
+	check(popup.visible, "Native loadout selector did not open")
+	await RenderingServer.frame_post_draw
+	popup.grab_focus()
+	check(await until(func(): return popup.has_focus(), 700), "Loadout popup did not acquire native input focus")
+	popup.set_focused_item(game.ui._loadout_ids.find(id))
+	await key(KEY_ENTER, true)
+	await key(KEY_ENTER, false)
+	check(await until(func(): return game.frame.epoch > epoch and game.frame.loadout.id == id), "Native selection did not adopt " + id)
+	await manual_target()
+
+func key(code: Key, pressed: bool) -> void:
+	var event := InputEventKey.new()
+	event.physical_keycode = code
+	event.keycode = code
+	event.pressed = pressed
+	var popup: PopupMenu = game.ui._loadout_choice.get_popup()
+	# Native popups have their own Window ID. Default ID 0 addresses the root.
+	if popup.visible: event.window_id = popup.get_window_id()
+	Input.parse_input_event(event)
+	await process_frame
+	await process_frame
+
+func manual_target() -> void:
+	# P4 verifies authored mechanics against a normal 120 HP target. Suspend its
+	# policy through the public manual-order boundary; P5 separately tests combat AI.
+	var seq: int = game.runner.send({"kind": "interrupt", "actor": 24})
+	check(await until(func(): return game._last_receipt.contains("interrupt #%d " % seq) and game._last_receipt.ends_with(": accepted")), "P4 target did not accept manual control")
+
 func tap(code: Key) -> void:
+	if not await native_input_ready(): quit(1); return
 	await key(code, true)
 	await key(code, false)
 
 func point_slot(action_id: String, point: Vector2) -> void:
+	if not await native_input_ready(): quit(1); return
 	# Native keyboard slots are covered in melee_route. For point-cast checks,
 	# use a temporary supported mouse binding: synthetic motion cannot move
 	# the OS cursor that a Window polls when handling a keyboard edge.
@@ -48,6 +90,7 @@ func save_p4(label: String) -> void:
 func melee_route() -> void:
 	if game.frame.loadout.id != "bloodblade": await choose("bloodblade")
 	check(game.ui._skill_slots.skill2.panel.visible and game.ui._skill_slots.skill3.panel.visible, "Extra action slots not visible")
+	game.runner.send({"kind": "move", "actor": 24, "position": game.frame.positions[0] + Vector2(1.4, 0)})
 	check(await until(func(): return game.frame.positions[0].distance_to(game.frame.positions[23]) < 1.6, 3000), "Melee approach missing")
 	for strike: int in 3:
 		await attack(MOUSE_BUTTON_LEFT, 24)
@@ -130,10 +173,12 @@ func _run() -> void:
 	game.feedback.config_path = "user://p4-combinations-ui-feedback.cfg"
 	root.add_child(game)
 	current_scene = game
-	root.grab_focus()
 	if not await until(func(): return game.frame != null): check(false, "P4 lab never ready"); quit(1); return
+	var epoch: int = game.frame.epoch
 	game.runner.send({"kind": "combat_practice", "mode": "light", "loadout": "bloodblade"})
-	await until(func(): return game.frame.practice_mode == "light")
+	check(await until(func(): return game.frame.epoch > epoch and game.frame.loadout.id == "bloodblade"), "Bloodblade fixture unavailable")
+	if not await native_input_ready(): quit(1); return
+	await manual_target()
 	await melee_route()
 	await ranged_route()
 	await mechanisms()

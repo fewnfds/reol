@@ -85,7 +85,9 @@ func expire(world: RefCounted, now: int) -> void:
 
 func forget_status(id: int) -> void:
 	for entry: Dictionary in records.values():
-		for ids: Array in entry.members.values(): ids.erase(id)
+		for ids: Array in entry.members.values():
+			for slot: int in ids.size():
+				if ids[slot] == id: ids[slot] = 0
 
 func prepare(world: RefCounted, now: int) -> void:
 	expire(world, now)
@@ -108,18 +110,21 @@ func prepare(world: RefCounted, now: int) -> void:
 			if world.combat.position(world, actor).distance_to(origin) > float(spec.radius) or Terrain.blocking_fraction(world.terrain.blocked, origin, world.combat.position(world, actor)) >= 0: continue
 			inside[actor] = true
 			if not entry.members.has(actor):
-				var status_ids: Array = []
-				for effect: Dictionary in spec.aura:
-					if effect.kind == "status":
-						var status: Dictionary = effect.status.duplicate(true)
-						status.duration_ms = maxi(1, int(entry.until_ms) - now)
-						var status_id: int = world.effects.add(world, actor, id, entry.activation, entry.ability, status, now, 0, entry.lineage)
-						if status_id > 0: status_ids.append(status_id)
-				entry.members[actor] = status_ids
+				var slots: Array = []
+				slots.resize(spec.aura.size())
+				slots.fill(0)
+				entry.members[actor] = slots
+			var contributions: Array = entry.members[actor]
+			for slot: int in spec.aura.size():
+				if int(contributions[slot]) > 0: continue
+				var effect: Dictionary = spec.aura[slot]
+				var status: Dictionary = effect.status.duplicate(true)
+				status.duration_ms = maxi(1, int(entry.until_ms) - now)
+				contributions[slot] = world.effects.add(world, actor, id, entry.activation, entry.ability, status, now, 0, entry.lineage, {"contribution": "aura_%d" % slot, "lifetime": "source"})
 			world.effects.apply_bundle(world, actor, id, entry.activation, entry.ability, spec.pulse, now, 0, "contact", entry.lineage)
 		for actor: int in entry.members.keys():
 			if inside.has(actor): continue
-			# Removal notifies forget_status(), which edits the live membership array.
+			# Removing a contribution clears its slot through forget_status().
 			for status: int in entry.members[actor].duplicate(): world.effects.remove(world, status, "left_aura", now)
 			entry.members.erase(actor)
 
@@ -143,9 +148,22 @@ func valid(world: RefCounted) -> bool:
 		groups[key] = int(groups.get(key, 0)) + 1
 		if groups[key] > int(spec.limit): return false
 		for actor: Variant in entry.members:
-			if not actor is int or not world.actor_slots.has(actor) or not entry.members[actor] is Array: return false
-			for status: Variant in entry.members[actor]:
-				if not status is int or not world.effects.records.has(status) or world.effects.records[status].target != actor or world.effects.records[status].source != id: return false
+			if not actor is int or not world.actor_slots.has(actor) or not entry.members[actor] is Array or entry.members[actor].size() != spec.aura.size(): return false
+			for slot: int in spec.aura.size():
+				var status: Variant = entry.members[actor][slot]
+				if not status is int or status < 0: return false
+				if status == 0: continue # An absent contribution is repaired at the next pulse.
+				if not world.effects.records.has(status): return false
+				var effect: Dictionary = world.effects.records[status]
+				if effect.target != actor or effect.source != id or effect.ability != entry.ability or effect.activation != entry.activation or effect.lifetime != "source" or effect.contribution != "aura_%d" % slot or effect.status_id != spec.aura[slot].status.id: return false
 	for actor: int in world.actor_slots:
 		if world.objects.records[actor].get("body_profile") == "companion" and not records.has(actor): return false
+	for status: int in world.effects.records:
+		var effect: Dictionary = world.effects.records[status]
+		if not records.has(effect.source) or not effect.contribution.begins_with("aura_"): continue
+		var slots: Array = records[effect.source].members.get(effect.target, [])
+		var slot_text: String = effect.contribution.trim_prefix("aura_")
+		if not slot_text.is_valid_int(): return false
+		var slot: int = int(slot_text)
+		if slot < 0 or slot >= slots.size() or slots[slot] != status: return false
 	return true

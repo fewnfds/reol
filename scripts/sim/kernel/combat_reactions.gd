@@ -51,29 +51,11 @@ func damage_result(world: RefCounted, result: Dictionary, context: Dictionary) -
 	event.lineage = ensure(event)
 	submit(world, event, context.get("rules", []))
 	if int(result.damage) > 0:
-		var hurt: Dictionary = event.duplicate(true)
-		hurt.event = "damaged"
-		hurt.actor = result.target
-		hurt.target = result.actor
-		hurt.direction = -Vector2(event.direction)
-		hurt.erase("side"); hurt.erase("power") # The defender is a new attack source.
-		submit(world, hurt)
+		submit(world, _defender_event(event, "damaged"))
 	if int(result.blocked) > 0:
-		var blocked: Dictionary = event.duplicate(true)
-		blocked.event = "blocked"
-		blocked.actor = result.target
-		blocked.target = result.actor
-		blocked.direction = -Vector2(event.direction)
-		blocked.erase("side"); blocked.erase("power")
-		submit(world, blocked)
+		submit(world, _defender_event(event, "blocked"))
 	for entry: Dictionary in result.broken:
-		var broken: Dictionary = event.duplicate(true)
-		broken.event = "shield_broken"
-		broken.actor = result.target
-		broken.target = result.actor
-		broken.direction = -Vector2(event.direction)
-		broken.erase("side"); broken.erase("power")
-		submit(world, broken)
+		submit(world, _defender_event(event, "shield_broken"))
 	if result.fatal:
 		var killed: Dictionary = event.duplicate(true)
 		killed.event = "killed"
@@ -81,13 +63,33 @@ func damage_result(world: RefCounted, result: Dictionary, context: Dictionary) -
 		for entry: Dictionary in world.effects.records.values():
 			if entry.target != result.target: continue
 			var death: Dictionary = killed.duplicate(true)
+			death["cause"] = cause_of(killed)
 			death.actor = entry.source
 			death.activation = entry.activation
+			death["action"] = entry.ability
 			death.lineage = entry.lineage if not entry.lineage.is_empty() else event.lineage
 			death["side"] = entry.side
 			death["power"] = entry.power
 			death["dying_status"] = entry.duplicate(true)
 			submit(world, death, entry.get("rules", []))
+
+func _defender_event(attack: Dictionary, kind: String) -> Dictionary:
+	var response: Dictionary = attack.duplicate(true)
+	# A triggering attack is evidence, not ownership of the defender's effect.
+	# Keep only one flat cause; repeated reactions cannot grow a nested history.
+	response["cause"] = cause_of(attack)
+	response.event = kind
+	response.actor = attack.target
+	response.target = attack.actor
+	response.direction = -Vector2(attack.direction)
+	response["action"] = ""
+	response.activation = 0 # A passive response has no body-action activation.
+	response.erase("side"); response.erase("power")
+	return response
+
+func cause_of(event: Dictionary) -> Dictionary:
+	return {"event": event.event, "actor": event.actor, "target": event.target,
+		"action": str(event.get("action", "")), "activation": int(event.get("activation", 0)), "at_ms": event.at_ms}
 
 func resolve(world: RefCounted, interval_start: int, interval_end: int) -> Array[Dictionary]:
 	var impacts: Array[Dictionary] = []
@@ -165,7 +167,7 @@ func _bundle(world: RefCounted, event: Dictionary, target: int, bundle: Array, l
 	if float(summary.damage) > 0:
 		var amount: int = event.power.y
 		result.append({"actor": event.actor, "target": target, "at_ms": event.at_ms, "activation": int(event.get("activation", 0)), "damage": roundi(amount * float(summary.damage)),
-			"stun": summary.stun, "push": summary.push, "incoming": -Vector2(event.get("direction", Vector2.RIGHT)), "group_ms": 0, "lineage": lineage, "rules": [], "payload": bundle, "action": event.get("action", ""), "position": world.position_at(target, event.at_ms), "side": event.side, "power": event.power})
+			"stun": summary.stun, "push": summary.push, "incoming": -Vector2(event.get("direction", Vector2.RIGHT)), "group_ms": 0, "lineage": lineage, "rules": [], "payload": bundle, "action": event.get("action", ""), "cause": event.get("cause", {}).duplicate(true), "position": world.position_at(target, event.at_ms), "side": event.side, "power": event.power})
 	else: world.effects.apply_bundle(world, target, event.actor, int(event.get("activation", 0)), event.get("action", ""), bundle, event.at_ms, int(event.get("damage", 0)), "contact", lineage, false, event)
 	return result
 
@@ -280,6 +282,7 @@ func valid(world: RefCounted) -> bool:
 
 func valid_event(event: Dictionary, world: RefCounted) -> bool:
 	if not world.combat.valid_source(event): return false
+	if not valid_cause(event.get("cause", {}), world): return false
 	if event.get("event") not in ["hit", "damaged", "killed", "blocked", "shield_broken", "gathered", "timer", "expired", "stack_max"]: return false
 	for key: String in ["actor", "target", "activation", "at_ms", "damage"]:
 		if not event.get(key) is int: return false
@@ -294,3 +297,13 @@ func valid_event(event: Dictionary, world: RefCounted) -> bool:
 			if not entry.get(key) is int: return false
 		if not entry.get("magnitude") is float or entry.magnitude <= 0 or entry.get("status_id") != entry.spec.id: return false
 	return true
+
+func valid_cause(cause: Variant, world: RefCounted) -> bool:
+	if not cause is Dictionary: return false
+	if cause.is_empty(): return true
+	if cause.size() != 6 or cause.get("event") not in ["hit", "damaged", "killed", "blocked", "shield_broken", "gathered", "timer", "expired", "stack_max"]: return false
+	for key: String in ["actor", "target", "activation", "at_ms"]:
+		if not cause.get(key) is int: return false
+	if cause.actor < 1 or cause.actor >= world.objects.next_id or cause.target < 0 or cause.target >= world.objects.next_id or cause.at_ms < 0 or cause.at_ms > world.elapsed_ms: return false
+	if cause.activation < -world.combat.next_bolt or cause.activation >= world.combat.next_activation: return false
+	return cause.get("action") is String and (cause.action.is_empty() or Defs.ACTIONS.has(cause.action))

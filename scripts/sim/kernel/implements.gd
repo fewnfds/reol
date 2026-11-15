@@ -29,6 +29,25 @@ func _stop(value: Dictionary, at: int) -> void:
 	if not segment.is_empty(): value.position = Motion.at(segment.from, segment.to, segment.knots, clampf(float(at - int(segment.start_ms)) / maxi(1, int(segment.end_ms) - int(segment.start_ms)), 0, 1))
 	value["stopped_ms"] = at
 
+func accept_contact(id: int, target: int, at: int) -> bool:
+	if not active_at(id, at): return false
+	var value: Dictionary = records[id]
+	if at < int(value.touch.get(target, 0)): return false
+	value.touch[target] = at + int(Defs.ACTIONS[value.ability].delivery.contact_ms)
+	return true
+
+func commit(event: Dictionary) -> void:
+	# Collection predicts a segment. Only the chronological owner may adopt its
+	# endpoint/phase, after earlier damage/death has had a chance to stop it.
+	var value: Dictionary = records.get(event.implement_id, {})
+	if value.is_empty() or value.activation != event.activation or value.phase in ["broken", "dropped", "stowed"]: return
+	if event.at_ms > int(value.get("stopped_ms", 9223372036854775807)): return
+	value.position = event.position
+	value.direction = event.direction
+	if event.has("phase"):
+		value.phase = event.phase
+		if event.phase in ["dropped", "stowed"]: _stop(value, event.at_ms)
+
 func dispatch(world: RefCounted, actor: int, state: Dictionary, at: int) -> void:
 	var delivery: Dictionary = Defs.ACTIONS[state.kind].delivery
 	var existing: Dictionary = {}
@@ -87,8 +106,8 @@ func drop_owner(world: RefCounted, actor: int, at: int) -> void:
 	for value: Dictionary in records.values():
 		if value.owner != actor or value.phase in ["broken", "dropped"]: continue
 		var segment: Dictionary = segment_at(value.id, at)
-		if not segment.is_empty() and at < int(segment.active_until): _stop(value, at)
-		elif value.phase == "stowed": value.position = world.combat.position(world, actor)
+		if value.phase == "stowed": value.position = world.combat.position(world, actor)
+		elif not segment.is_empty(): _stop(value, at)
 		value.phase = "dropped"
 		value["stopped_ms"] = at
 
@@ -118,42 +137,47 @@ func collect(world: RefCounted, start: int, now: int, melee: Array[int]) -> Arra
 		if value.phase not in ["outbound", "returning", "orbiting", "hovering"]: continue
 		var def: Dictionary = Defs.ACTIONS[value.ability].merged(world.combat.Payload.summary(Defs.ACTIONS[value.ability].payload), true)
 		var delivery: Dictionary = def.delivery
-		if value.phase == "outbound" and start >= int(value.return_ms): value.phase = "returning"
+		var phase: String = "returning" if value.phase == "outbound" and start >= int(value.return_ms) else str(value.phase)
 		var from: Vector2 = value.position
 		var home: Vector2 = world.combat.position(world, value.owner)
 		var owner_slot: int = world.actor_slots[value.owner]
 		var owner_page: RefCounted = world.pages[owner_slot / 256]
 		var home_before: Vector2 = world.combat.previous[owner_slot / 256][owner_slot % 256]
-		var direction: Vector2 = from.direction_to(home) if value.phase == "returning" else value.direction
+		var direction: Vector2 = from.direction_to(home) if phase == "returning" else value.direction
 		if direction.is_zero_approx(): direction = value.direction
 		var distance: float = float(delivery.speed) * (now - start) / 1000.0
 		var to: Vector2 = from + direction * distance
-		if value.phase in ["orbiting", "hovering"]:
+		if phase in ["orbiting", "hovering"]:
 			var angle: float = float(now - int(value.depart_ms)) / 1000.0 * 2.2 + float(value.slot) * TAU / int(delivery.instances)
-			var desired: Vector2 = home + Vector2.from_angle(angle) * float(delivery.orbit_radius) if value.phase == "orbiting" else Vector2(value.hover)
+			var desired: Vector2 = home + Vector2.from_angle(angle) * float(delivery.orbit_radius) if phase == "orbiting" else Vector2(value.hover)
 			to = from.move_toward(desired, distance)
 			if not from.is_equal_approx(to): direction = from.direction_to(to)
 		var wall: Dictionary = Motion.wall_hit(world.terrain, from, to, float(delivery.radius))
 		var caught: bool = false
 		var halt: float = 1.0
 		var active_until: int = now + 1
-		if value.phase == "returning":
+		var transition: String = ""
+		if phase == "returning":
 			var catch_fraction: float = Motion.hit_fraction(from, to, home_before, home, 0.45, owner_page.motion.get(owner_slot % 256, PackedVector3Array()))
 			if catch_fraction >= 0 and (wall.fraction < 0 or catch_fraction < float(wall.fraction)):
 				halt = catch_fraction
 				caught = true
+				transition = "stowed"
 				active_until = start + roundi((now - start) * halt)
 		if not caught and wall.fraction >= 0:
 			halt = maxf(0, float(wall.fraction) - 0.002 / maxf(0.001, distance))
-			if value.phase == "returning": active_until = start + roundi((now - start) * halt)
-			value.phase = "dropped" if value.phase == "returning" else "returning"
+			if phase == "returning": active_until = start + roundi((now - start) * halt)
+			transition = "dropped" if phase == "returning" else "returning"
 		to = from.lerp(to, halt)
 		var path := PackedVector3Array()
 		if halt < 1:
 			path = PackedVector3Array([Vector3(from.x, from.y, 0), Vector3(to.x, to.y, halt), Vector3(to.x, to.y, 1)])
-		value.position = to
-		value.direction = direction
 		segments.append({"id": id, "from": from, "to": to, "knots": path, "start_ms": start, "end_ms": now, "active_until": active_until})
+		impacts.append({"event": "implement_motion", "actor": value.owner, "implement_id": id, "activation": value.activation, "position": to, "direction": direction, "at_ms": now})
+		if not transition.is_empty():
+			impacts.append({"event": "implement_transition", "actor": value.owner, "implement_id": id, "activation": value.activation, "position": to, "direction": direction, "phase": transition, "at_ms": start + roundi((now - start) * halt)})
+		elif phase != value.phase:
+			impacts.append({"event": "implement_transition", "actor": value.owner, "implement_id": id, "activation": value.activation, "position": from, "direction": direction, "phase": phase, "at_ms": start})
 		for target: int in world.combat.scan.nearby(from.min(to) - Vector2.ONE * (2 + world.combat.scan.sweep_padding), from.max(to) + Vector2.ONE * (2 + world.combat.scan.sweep_padding)):
 			if not world.combat.eligible(world, value.owner, target, delivery.filter, value.side): continue
 			var slot: int = world.actor_slots[target]
@@ -163,7 +187,6 @@ func collect(world: RefCounted, start: int, now: int, melee: Array[int]) -> Arra
 			var fraction: float = Motion.circles_hit(from, to, path, before, page.positions[row], page.motion.get(row, PackedVector3Array()), page.radii[row] + float(delivery.radius))
 			var at: int = start + roundi((now - start) * fraction)
 			if fraction < 0 or at >= active_until or at < int(value.touch.get(target, 0)): continue
-			value.touch[target] = at + int(delivery.contact_ms)
 			impacts.append({"actor": value.owner, "target": target, "activation": value.activation, "source_implement": id,
 				"at_ms": at, "damage": value.damage, "incoming": -direction, "stun": def.stun, "push": def.push, "side": value.side, "power": value.power,
 				"group_ms": 0, "evadable": true, "position": Motion.at(from, to, path, fraction), "action": value.ability, "payload": def.payload, "lineage": value.lineage, "rules": def.reactions})
@@ -174,7 +197,6 @@ func collect(world: RefCounted, start: int, now: int, melee: Array[int]) -> Arra
 			var fraction: float = Motion.circles_hit(from, to, path, point, point, PackedVector3Array(), 0.4 + float(delivery.radius))
 			var at: int = start + roundi((now - start) * fraction)
 			if fraction < 0 or at >= active_until or at < int(value.touch.get(target, 0)): continue
-			value.touch[target] = at + int(delivery.contact_ms)
 			impacts.append({"actor": value.owner, "target": target, "activation": value.activation, "source_implement": id, "at_ms": at, "damage": value.damage,
 				"incoming": -direction, "stun": def.stun, "push": def.push, "group_ms": 0, "position": point, "action": value.ability, "payload": def.payload, "lineage": value.lineage, "rules": def.reactions, "side": value.side, "power": value.power})
 		for attacker: int in melee:
@@ -190,7 +212,6 @@ func collect(world: RefCounted, start: int, now: int, melee: Array[int]) -> Arra
 			if Motion.wall_hit(world.terrain, world.combat.position(world, attacker), contact, 0.0).fraction >= 0: continue
 			impacts.append({"actor": attacker, "target": 0, "implement_target": id, "damage": action.damage,
 				"activation": action.activation, "at_ms": start + roundi((now - start) * fraction), "melee": true})
-		if caught: value.phase = "stowed"
 	return impacts
 
 func hit(world: RefCounted, id: int, amount: int, at: int) -> void:

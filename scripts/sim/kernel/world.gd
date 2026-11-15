@@ -133,19 +133,20 @@ func initialize(count: int = 1000, requested_workers: int = 4, stress_environmen
 		var id: int = objects.create("resource", "wood", tile)
 		objects.add(id, "wood", 1000)
 		source_objects.append(id)
-	for tile: int in terrain.depots:
-		depot_objects.append(objects.create("chest", "wood_chest", tile))
+	var initial_depots: PackedInt32Array = terrain.depots.duplicate()
+	terrain.depots.clear()
+	for tile: int in initial_depots:
+		facilities.create_completed(self, "wood_chest", tile, 0, -1)
 	for tile: int in terrain.structures:
 		if terrain.enclosures[tile] != 0:
-			objects.create("wall" if terrain.blocked[tile] != 0 else "door", "wood_wall" if terrain.blocked[tile] != 0 else "wood_door", tile)
+			facilities.create_completed(self, "wood_wall" if terrain.blocked[tile] != 0 else "wood_door", tile)
 	for tile: int in terrain.flooring.size():
 		if terrain.flooring[tile] != 0:
-			var id: int = objects.create("floor", "wood_floor", tile)
-			objects.records[id]["layer"] = "floor"
+			facilities.create_completed(self, "wood_floor", tile)
 	initial_material = objects.total("wood")
 	var pile: int = objects.create("pile", "wood", Terrain.index(Vector2i(178, 186)))
 	objects.transfer(source_objects[0], pile, "wood", 50)
-	objects.create("chest", "wood_chest", Terrain.index(Vector2i(176, 186)), 100)
+	facilities.create_completed(self, "wood_chest", Terrain.index(Vector2i(176, 186)), 0, 100)
 	for first: int in range(0, count, Units.PAGE_SIZE):
 		var page := Units.new()
 		page.initialize(first + 1, mini(Units.PAGE_SIZE, count - first), terrain)
@@ -203,6 +204,7 @@ func state_owners() -> Dictionary:
 	return {"world": self, "terrain": terrain, "objects": objects, "environment": environment, "nature": nature, "combat": combat, "effects": effects, "areas": areas, "implements": implements, "perception": perception, "regions": regions, "person_events": person_events, "society": society, "pools": pools, "defense": defense, "reactions": reactions, "entities": entities, "decisions": decisions}
 
 func emit(event: Dictionary) -> void:
+	event = preload("res://scripts/sim/kernel/outcome.gd").envelope(event, operation_time())
 	outcomes.append(event)
 	person_events.accept(event, actor_slots)
 
@@ -244,7 +246,7 @@ func step(milliseconds: int = 50) -> void:
 		combat.prepare(self, elapsed_ms)
 		implements.prepare(self, elapsed_ms)
 		preparation_usec += Time.get_ticks_usec() - preparing
-		var boundary: int = combat.next_boundary(elapsed_ms, mini(end, (elapsed_ms / 50 + 1) * 50))
+		var boundary: int = combat.next_boundary(self, elapsed_ms, mini(end, (elapsed_ms / 50 + 1) * 50))
 		boundary = effects.next_boundary(elapsed_ms, boundary)
 		boundary = defense.next_boundary(elapsed_ms, boundary)
 		boundary = entities.next_boundary(elapsed_ms, boundary)
@@ -396,6 +398,7 @@ func commit_work_event(event: Dictionary, end: int) -> Array[Dictionary]:
 		if page.modes[row] == Units.Mode.COMBAT_MOVE and combat.engagements.has(id): combat.blocked(self, id, at)
 		else:
 			var automatic: bool = objects.records[id].get("autonomous", false)
+			end_run(id, at, "path_failed")
 			release(id, at)
 			page.modes[row] = Units.Mode.IDLE
 			if automatic: livelihood.after_action(self, id, at)
@@ -439,12 +442,14 @@ func settle(id: int, at: int, expected: Variant = null) -> void:
 			harvested += 1
 			reactions.submit(self, {"event": "gathered", "actor": id, "target": target, "at_ms": at, "amount": 1, "activation": 0, "position": position_at(id, at)})
 			livelihood.remember(self, id, target, at)
+			decisions.result(self, id, "harvest", target, "completed", at)
 			end_run(id, at, "completed")
 			livelihood.think(self, id, at)
 		else:
 			if reservations.get(target, 0) == id:
 				reservations.erase(target)
 			failed_harvests += 1
+			end_run(id, at, "out_of_reach" if not facilities.in_range(self, target, position_at(id, at), page.radii[row], "harvest", page.flight[row] > 0) else "empty")
 			page.modes[row] = Units.Mode.REST
 			page.due_ms[row] = at + 1000
 	elif mode == Units.Mode.REST:
@@ -555,7 +560,7 @@ func kill(id: int, at: int = -1, cause: String = "") -> void:
 	implements.drop_owner(self, id, at if at >= 0 else operation_time())
 	entities.forget_member(self, id, at if at >= 0 else operation_time())
 	entities.drop_owner(self, id, at if at >= 0 else operation_time())
-	effects.remove_target(id)
+	effects.remove_target(self, id, at if at >= 0 else operation_time())
 	defense.remove_target(id)
 	release(id, at)
 	forget_target(id, at)
@@ -573,18 +578,40 @@ func kill(id: int, at: int = -1, cause: String = "") -> void:
 
 func forget_target(target: int, at: int = -1) -> void:
 	var now: int = at if at >= 0 else operation_time()
+	effects.remove_source(self, target, now)
 	# Rare structural deletion cleans cold dependents immediately, including
 	# save-between-removal-and-arrival. No per-step scan for missing objects.
 	for actor: int in actions.keys():
 		if not actions.has(actor) or _finishing.get(actor) == actions[actor].run_id: continue
 		if actions[actor].target == target:
 			var automatic: bool = objects.records[actor].get("autonomous", false) and not decisions.records.get(actor, {}).get("manual", false)
+			end_run(actor, now, "target_gone")
 			release(actor, now)
 			var slot: int = actor_slots[actor]
 			pages[slot / Units.PAGE_SIZE].modes[slot % Units.PAGE_SIZE] = Units.Mode.IDLE
 			if automatic:
 				livelihood.after_action(self, actor, now)
 	reservations.erase(target)
+
+
+func register_depot(id: int) -> void:
+	if depot_objects.has(id): return
+	depot_objects.append(id)
+	terrain.depots.append(int(objects.records[id].tile))
+
+
+func remove_static(id: int, at: int = -1) -> bool:
+	# Cross-domain removal is explicit; Objects only erases identity and indexes.
+	var record: Dictionary = objects.records.get(id, {})
+	if record.is_empty() or int(record.tile) < 0 or record.kind in ["actor", "plant", "resource"] or not objects.can_remove(id): return false
+	forget_target(id, at)
+	facilities.uninstall(self, record)
+	var depot: int = depot_objects.find(id)
+	if depot >= 0:
+		depot_objects.remove_at(depot)
+		terrain.depots.remove_at(depot)
+	regions.forget(id)
+	return objects.remove_empty(id)
 
 
 func command(input: Dictionary) -> Dictionary:
@@ -792,7 +819,7 @@ func _command(input: Dictionary) -> Dictionary:
 				if objects.records[object].kind in ["wall", "door"]:
 					facilities.demolish(self, object)
 			if kind > 0:
-				objects.create("wall" if kind == 1 else "door", "wood_wall" if kind == 1 else "wood_door", tile)
+				facilities.create_completed(self, "wood_wall" if kind == 1 else "wood_door", tile)
 			queue_structure(tile, kind == 1, kind > 0, kind == 0)
 		_:
 			return receipt
@@ -954,19 +981,19 @@ func settle_action(id: int, at: int) -> void:
 	var stale_construction: bool = action.kind == "construct" and objects.records.get(target, {}).get("kind", "") != "blueprint"
 	if not objects.records.has(target) or (actor_slots.has(target) and not combat.alive(self, target)) or stale_construction:
 		var autonomous: bool = action.get("autonomous", false)
-		end_run(id, at, "completed")
+		end_run(id, at, "unavailable" if stale_construction else "target_gone")
 		clear_navigation(id)
 		page.modes[row] = Units.Mode.IDLE
-		emit({"kind": "unavailable" if stale_construction else "target_gone", "actor": id, "at_ms": at})
+		emit({"kind": "unavailable" if stale_construction else "target_gone", "actor": id, "target": target, "action": action.kind, "at_ms": at})
 		if autonomous:
 			livelihood.after_action(self, id, at, target)
 		return
 	if not facilities.in_range(self, target, position_at(id, at), page.radii[row], action.kind, page.flight[row] > 0):
 		var autonomous: bool = action.get("autonomous", false)
-		end_run(id, at, "completed")
+		end_run(id, at, "out_of_reach")
 		clear_navigation(id)
 		page.modes[row] = Units.Mode.IDLE
-		emit({"kind": "out_of_reach", "actor": id, "at_ms": at})
+		emit({"kind": "out_of_reach", "actor": id, "target": target, "action": action.kind, "at_ms": at})
 		if autonomous:
 			livelihood.after_action(self, id, at, target)
 		return
@@ -974,7 +1001,7 @@ func settle_action(id: int, at: int) -> void:
 		var exclusive: bool = action.kind not in ["take", "put", "eat"]
 		if exclusive and reservations.has(target) and reservations[target] != id:
 			if action.get("autonomous", false):
-				end_run(id, at, "completed")
+				end_run(id, at, "target_busy")
 				clear_navigation(id)
 				livelihood.after_action(self, id, at, target)
 				return
@@ -1035,7 +1062,8 @@ func settle_action(id: int, at: int) -> void:
 		if objects.records.has(target) and action.kind == "construct":
 			action.erase("started_ms") # Completion/cannot-build is not an extra work interval.
 		var autonomous: bool = action.get("autonomous", false)
-		end_run(id, at, "completed")
+		decisions.result(self, id, action.kind, target, reason, at)
+		end_run(id, at, reason)
 		clear_navigation(id)
 		page.modes[row] = Units.Mode.IDLE
 		emit({"kind": reason, "actor": id, "target": target, "action": action.kind, "at_ms": at})
@@ -1046,10 +1074,13 @@ func settle_action(id: int, at: int) -> void:
 	var destination: int = id if action.kind == "take" else target
 	var amount: int = objects.transfer(source, destination, action.item, action.amount)
 	if objects.records.get(source, {}).get("kind", "") == "pile":
-		objects.remove_empty(source)
+		_finishing[id] = action.run_id
+		remove_static(source, at)
+		_finishing.erase(id)
 	var autonomous: bool = action.get("autonomous", false)
 	_sync_inventory(id)
-	end_run(id, at, "completed")
+	decisions.result(self, id, action.kind, target, "transferred" if amount > 0 else "empty_or_full", at)
+	end_run(id, at, "transferred" if amount > 0 else "empty_or_full")
 	clear_navigation(id)
 	page.modes[row] = Units.Mode.IDLE
 	emit({"kind": "transferred" if amount > 0 else "empty_or_full", "actor": id, "target": target, "action": action.kind, "item": action.item, "at_ms": at, "amount": amount})
@@ -1240,10 +1271,10 @@ func remove_actor(id: int, at: int = -1) -> bool:
 	implements.drop_owner(self, id, at)
 	entities.forget_member(self, id, at)
 	entities.drop_owner(self, id, at)
-	effects.remove_target(id)
+	effects.remove_target(self, id, at)
 	defense.remove_target(id)
-	release(id)
-	forget_target(id)
+	release(id, at)
+	forget_target(id, at)
 	environment.remove_mobile(id)
 	if objects.count_inventory(id) > 0 or not objects.records[id].equipment.is_empty():
 		var pile: int = objects.create("pile", "remains", Terrain.index(Vector2i(page.positions[row])))

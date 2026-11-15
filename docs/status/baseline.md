@@ -1,6 +1,6 @@
 # 当前构建与验证
 
-更新：2026-11-15。能力归[FEATURES](features.md)，状态归属归[架构](../engineering/architecture.md)，阶段归[主计划](../plans/foundation-priorities.md)。本页保存当前证据，完整历史由Git追溯。
+更新：2026-11-16。能力归[FEATURES](features.md)，状态归属归[架构](../engineering/architecture.md)，阶段归[主计划](../plans/foundation-priorities.md)。本页保存当前证据，完整历史由Git追溯。
 
 ## 当前构建
 
@@ -9,19 +9,42 @@ Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+�
 | 项目 | 当前值 |
 |---|---|
 | exe SHA256 | `3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf` |
-| PCK SHA256 | `2abd74f663e9fae4d31aaa6041188c2024d08b188fba74566105e405fb5b4963` |
-| 战斗规则签名 | `04042c8edd9719b61192e5932f02a6346dfd643f280714a330d8e8f3e063a928` |
-| 决策签名 | `6c536ed02eafd75d319b6b1ac664ccd7ca3e4235b66139aae125fb732efca332` |
+| PCK SHA256 | `afc3dee9db3947865f96db4e247229f2fffdb80a469a081c5b332deb707694f7` |
+| 战斗规则签名 | `ed0a331b1a1ed0796a88f58ccad86c0677bbf29b327e0cb977a99ed567f53c8e` |
+| 决策签名 | `9bb014cebdfdb4196146e2288f25e0cc274e364e34cac2f28d26597fcf06e5cd` |
 | 内容 | 40动作、24配置、7套Policy；原生Resource/Inspector制作 |
-| 存档 | reol-world-13；默认`user://act-p5-quicksave-v13.reol` |
+| 存档 | reol-world-14；默认`user://act-p5-quicksave-v14.reol` |
 
-作业位置新增施工阶段布局，不迁移format12及更早开发档；原档及备份保留，不覆盖。exe是相同Godot模板，游戏变更主要在PCK；只核exe哈希不足以识别游戏版本。生成物/日志/本机咨询不入库。运行和制作入口归[usage](../engineering/tooling/usage.md)。
+来源贡献/控制聚合、决策反馈与设施登记更新布局，不迁移format13及更早开发档；原档及备份保留，不覆盖。exe是相同Godot模板，游戏变更主要在PCK；只核exe哈希不足以识别游戏版本。生成物/日志/本机咨询不入库。运行和制作入口归[usage](../engineering/tooling/usage.md)。
 
-## 作业位置与审查交付
+## 本轮框架合同交付
+
+两个并行审查的同一批发现已归并为一份问题账和主计划，9项确认缺陷与1项光环规则缺口已处理。当前代码沿原owner修正设施装配/删除、空间准入、执行反馈、缓冲就绪、候选采用、来源/原因、独立控制与标签压制、表现通知。详细规则只维护在[公共行动](../../design/systems/action_effect_framework.md)、[单位决策](../../design/systems/unit_decision_framework.md)及[空间与施工](../../design/systems/construction_and_space/places.md)，编号与关闭条件见[问题清单](issues.md)。
+
+本轮双顾问Hydrogen/Argon完整返回，原件留`.local/advisor/framework-contracts-20261115/`，属于修复前附件的静态建议，不是本机运行验证；实际取舍归[研究](../../design/research/action_editor_references.md#9-来源贡献驱散与框架合同维护)。未引入第二调度器、通用事件广播、全图NPC知识或任意脚本沙盒。
+
+| 验证 | 最终证据与范围 |
+|---|---|
+| 来源/贡献/控制 | `logs/effect-ownership-final-20261115-234915-210327900.log`，EFFECT_OWNERSHIP_SMOKE errors=0；普通驱散保留来源贡献、压制/恢复、同刻DOT、来源/受体死亡、缺槽/坏档均有实际反例 |
+| 时序/器物 | `logs/contracts-action-boundaries-ready-20261115-234908-337605800.log`，ACTION_TIMING_SMOKE errors=0；真实命中缓冲等待CD及截止边界、NPC恢复、收集不提前提交、较早/同刻/较晚死亡和接回落点 |
+| 决策反馈 | `logs/feedback-commitment-memory-20261115-233957-512526000.log`及`feedback-decisions-final-20261115-234111-700915300.log`均errors=0；不可达近目标换选、即时/异步原因、个人观察/期限、手动绕过及承诺/中途恢复 |
+| 设施生命周期 | `logs/facility-cultivation-final-20261115-234911-622289300.log`，FACILITY_LIFECYCLE_SMOKE errors=0；开局/地区/施工箱空间、拆空登记/存读、纯放置、盆栽双向关系与12类坏档拒载 |
+| 原核心和相关专题 | `contracts-final-kernel-20261115-234926-160767200.log`、`contracts-final-decisions-20261115-234926-162640100.log`、`contracts-final-action_domains-20261115-234926-162567700.log`、`contracts-final-framework-20261115-235011-628793800.log`、`contracts-final-control-20261115-235011-636685700.log`均errors=0；features/sight为`smoke-{features,sight}-20261115-235011-*`；原melee/abilities及`ownership-final-{action_reactions,action_spatial,action_combinations}_smoke-20261115-234704-*`亦通过 |
+| 真实GUI与文件 | `contracts-final-outcome_ui-20261115-235048-517330700.log`、`contracts-final-ui_session-20261115-235053-22562700.log`、`contracts-final-work_positions_ui-20261115-235056-567990700.log`、`decisions-focus-fix-20261115-235519-661204700.log`均errors=0；覆盖真实破盾、取放反馈、施工续建、暂停文件恢复、策略与原生输入。截图沿原目录，已实际观察 |
+| 完整组合GUI | `contracts-combinations-ui-complete-20261116-000145-883542000.log`，ACTION_COMBINATIONS_UI_SMOKE errors=0；血刃三连/怒气E/盾/C、远程控制/瞬移、分裂/传播/序列、狼/图腾/光环/双器物、4次文件恢复及陈旧选择。靶子由合法手动命令暂停自主政策，不改变HP/技能数值；NPC挑战另由P5 GUI核验 |
+| 导出与源码等价 | `export-20261115-235941-258357300.log`成功；`contracts-source-fixture-20261115-235744-705363100.log`构造施工/来源状态/压制/stun/失败记忆/器物，Godot工具读取实际PCK后的`contracts-pack-restore-20261115-235953-524318200.log`恢复并推进至1601ms，完整持久状态一致，CONTRACTS_PACK_RESTORE errors=0 |
+
+源码规则/专题保留15秒上限。完整组合GUI因原生窗口/弹出菜单同步及多次文件交付超过15秒，最终在单次20秒上限内完整通过；没有修改默认kernel限时。前期失败/超时日志保留：首次feature误用RefCounted模块为--script后改用正式suite；器物测试将连续几何终点误当整数毫秒落点后按实际时刻修正；GUI先确认原生窗口焦点与popup Window ID，再保持原生输入/实际结果断言。旧P4靶子任其执行P5三连会中断范例演示，故通过已有手动交接隔离技能检查，不改生产AI。失败不算作通过。
+
+当前成品只测一次512人、1×、60FPS、3秒预热＋5秒采样，`logs/contracts-final-512.json/.log/.cpu.json`记录：全窗步均7.961ms、样本步p99 14.760ms、帧p99 16.739ms、实速0.99991×，405次交付/57次命中，零过载、木材守恒、无脚本/引擎错误；峰值14弹/4状态。i5-13600KF/RTX3060、D3D12/1280×720、迷雾、两worker，仍为同World的framework-combat-v1。开局箱碰撞及失败选项修正改变了工作负载，不作纯算法提速百分比；这不证明长局或极密弹上限。测量在提交前进行，JSON仍记旧HEAD加dirty，包哈希与上表一致。
+
+结构/链接审计与最终差异空白检查通过，新脚本UID已导入；生成物不入库。本轮没有仍未处理的上述确认缺陷，未检验的主观手感、正式音画、完整平衡和密弹长局仍保留为产品验证范围。
+
+## 前次作业位置与审查交付（历史）
 
 作业位置的配置、旋转和施工状态合同见[空间与施工](../../design/systems/construction_and_space/places.md#作业位置与在制外观)。本格、完整占地四邻和指定工位共用接近/到场校验；灶台已有单侧烹饪工位。已开工蓝图取得实体阻挡，中断、等待、存读与续建沿原行动和库存。16种模块在现有静物批次中拼接施工架，未新增逐对象节点或第二份占地原状态。
 
-审查结合本地源码/隔离反例及世界、战斗、会话的双顾问意见；作业位置另由顾问与独立代理复核。顾问指出的多人排队施工失效已实测修复，另修复未开工多格蓝图的大身体角点站位遗漏。没有把静态建议直接当作事实。**仍有六类已复现的旧问题未修，完整触发条件与证据归[问题清单](issues.md)**；本轮不是全游戏无缺陷声明。
+审查结合本地源码/隔离反例及世界、战斗、会话的双顾问意见；作业位置另由顾问与独立代理复核。顾问指出的多人排队施工失效已实测修复，另修复未开工多格蓝图的大身体角点站位遗漏。没有把静态建议直接当作事实。当时遗留的确认问题已纳入本轮合同整改并逐项关闭，完整触发与当前处理归[问题清单](issues.md)；历史检查不替代当前验证。
 
 | 本轮修复范围 | 结果 |
 |---|---|

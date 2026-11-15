@@ -1,8 +1,9 @@
 extends RefCounted
 ## Presentation classification, never used to settle an attack.
 const Defs = preload("res://scripts/sim/kernel/action_defs.gd")
+const Outcome = preload("res://scripts/sim/kernel/outcome.gd")
 static func key(event: Dictionary) -> String:
-	return "%s:%s:%s:%s:%s:%s" % [event.get("epoch", 0), event.actor, event.get("activation", 0), event.get("target", 0), event.kind, event.at_ms]
+	return "%s:%s:%s:%s:%s:%s" % [event.get("epoch", 0), event.get("actor", 0), event.get("activation", 0), event.get("target", 0), event.kind, event.at_ms]
 
 static func tone(event: Dictionary) -> String:
 	match str(event.kind):
@@ -29,7 +30,12 @@ static func tone(event: Dictionary) -> String:
 	return ""
 
 static func visible(frame: RefCounted, event: Dictionary, fog: bool) -> bool:
-	var id: int = int(event.get("target", event.actor)) if event.kind in ["hit", "evaded"] else int(event.actor)
+	var id: int = subject(event)
 	var slot: int = int(frame.actor_slots.get(id, -1))
-	if slot < 0 or (fog and id != 1 and frame.visible[slot] == 0): return false
+	if slot < 0 or not frame.actor_slots.has(1) or (fog and id != 1 and frame.visible[slot] == 0): return false
 	return frame.positions[slot].distance_to(frame.positions[frame.actor_slots[1]]) <= 22.0
+
+static func subject(event: Dictionary) -> int:
+	# Inventory targets remain storage facts; transfer feedback belongs to the
+	# worker. Other aftermath follows its affected body rather than its source.
+	return int(event.get("actor", 0)) if event.kind in ["action_started", "action_active", "area_trigger", "implement_hit", "transferred"] else Outcome.subject(event)

@@ -22,12 +22,12 @@ func adopt(frame: RefCounted, outcomes: Array, fog_enabled: bool) -> void:
 		_epoch = frame.epoch
 		_now = -1
 	for event: Dictionary in outcomes:
-		if int(event.get("epoch", frame.epoch)) != frame.epoch or not Impact.visible(frame, event, fog_enabled): continue
 		if event.kind not in ["hit", "evaded", "death", "transferred", "ability_used", "healed"]: continue
+		if int(event.get("epoch", frame.epoch)) != frame.epoch or not Impact.visible(frame, event, fog_enabled): continue
 		var key: String = Impact.key(event)
 		if _seen.has(key): continue
 		_seen[key] = event.at_ms
-		var id: int = int(event.get("target", event.actor)) if event.kind in ["hit", "evaded"] else int(event.actor)
+		var id: int = Impact.subject(event)
 		var slot: int = int(frame.actor_slots.get(id, -1))
 		var point: Vector2 = event.get("position", frame.positions[slot])
 		var tone: String = Impact.tone(event)

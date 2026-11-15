@@ -143,8 +143,9 @@ static func run(check: Callable) -> void:
 	w.objects.records[1].sight_range = 4.0
 	w.perception.update(w, w.elapsed_ms, true)
 	var padded_tile: int = Terrain.index(Vector2i(57, 50))
-	var padded_object: int = w.objects.create("chest", "wood_chest", padded_tile)
-	page.positions[1] = Terrain.center(padded_tile)
+	var padded_object: int = w.facilities.create_completed(w, "wood_chest", padded_tile)
+	w.flush_topology()
+	page.positions[1] = Terrain.center(padded_tile) + Vector2(0, 1)
 	w.perception.update(w, w.elapsed_ms, true)
 	check.call(w.perception.ground[padded_tile] != 0 and w.perception.explored[padded_tile] == 0 and w.perception.tiles[padded_tile] == 0 and w.perception.visible[1] == 0 and not w.perception.memories.has(padded_object), "Terrain padding revealed exploration, a static object or a live actor")
 	check.call(w.perception.fringe.has(padded_object), "An edge fixture was not prepared behind the continuous fog")

@@ -5,5 +5,6 @@
 - [HANDOFF](handoff.md)：当前授权/停点、必要未完成项和受保护工作。完成或改变方向时覆盖旧状态。
 - [BASELINE](baseline.md)：当前构建、测量解释和来源；[performance.json](performance.json)是唯一历史数值原件。
 - [FEATURES](features.md)：现有操作能力，子页按玩法查询，不复制性能表或任务队列。
+- [问题清单](issues.md)：已确认问题的当前处理状态、触发条件和关闭证据；不等于全项目无缺陷。
 
 旧technical-status与branches已并入以上入口，不再分别维护同义总表；实际Git指针仍以Git为准。历史结果只在[archive](../archive/README.md)查，稳定约束只在[constraints](../engineering/constraints.md)维护。

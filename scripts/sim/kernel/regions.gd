@@ -13,13 +13,10 @@ var landmarks := PackedInt64Array()
 func initialize(world: RefCounted) -> void:
 	for region: int in 3:
 		var tile: int = Terrain.index(DESTINATIONS[region])
-		var id: int = world.objects.create("landmark", LABELS[region], tile)
-		landmarks.append(id)
+		create_landmark(world, LABELS[region], tile)
 		if region == 0:
 			continue
-		var chest: int = world.objects.create("chest", "wood_chest", tile + 2)
-		world.depot_objects.append(chest)
-		world.terrain.depots.append(tile + 2)
+		var chest: int = world.facilities.create_completed(world, "wood_chest", tile + 2, 0, -1)
 		world.objects.add(chest, "meal", 20)
 		for local: int in 6:
 			var site: int = Terrain.index(DESTINATIONS[region] + Vector2i(4 + local * 2, 3 + local % 3))
@@ -48,10 +45,23 @@ func destination(region: int) -> int:
 	return Terrain.index(DESTINATIONS[region]) if region >= 0 and region < DESTINATIONS.size() else -1
 
 
+func create_landmark(world: RefCounted, definition: String, tile: int) -> int:
+	var id: int = world.objects.create("landmark", definition, tile)
+	landmarks.append(id)
+	return id
+
+
+func forget(id: int) -> void:
+	var index: int = landmarks.find(id)
+	if index >= 0: landmarks.remove_at(index)
+
+
 func valid(world: RefCounted) -> bool:
-	if landmarks.size() != DESTINATIONS.size():
-		return false
+	var seen: Dictionary = {}
 	for id: int in landmarks:
-		if world.objects.records.get(id, {}).get("kind", "") != "landmark":
+		if seen.has(id) or world.objects.records.get(id, {}).get("kind", "") != "landmark" or int(world.objects.records[id].tile) < 0:
 			return false
+		seen[id] = true
+	for id: int in world.objects.records:
+		if world.objects.records[id].kind == "landmark" and not seen.has(id): return false
 	return true

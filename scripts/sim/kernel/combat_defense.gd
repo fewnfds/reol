@@ -17,7 +17,7 @@ func guard(world: RefCounted, actor: int, fraction: float, duration: int, at: in
 func prepare(world: RefCounted, now: int) -> void:
 	for id: int in shields.keys():
 		if now >= int(shields[id].until_ms) or not world.combat.alive(world, shields[id].target):
-			world.emit({"kind": "shield_removed", "target": shields[id].target, "at_ms": now, "reason": "expired" if now >= int(shields[id].until_ms) else "death"})
+			world.emit({"kind": "shield_removed", "actor": shields[id].source, "target": shields[id].target, "shield": id, "at_ms": now, "reason": "expired" if now >= int(shields[id].until_ms) else "death"})
 			shields.erase(id)
 	for actor: int in guards.keys():
 		if now >= int(guards[actor].until_ms) or not world.combat.alive(world, actor): guards.erase(actor)
@@ -46,7 +46,7 @@ func absorb(world: RefCounted, target: int, amount: int, incoming: Vector2, now:
 		if entry.amount == 0:
 			result.broken.append(entry.duplicate(true))
 			shields.erase(id)
-			world.emit({"kind": "shield_removed", "target": target, "at_ms": now, "reason": "broken"})
+			world.emit({"kind": "shield_removed", "actor": entry.source, "target": target, "shield": id, "at_ms": now, "reason": "broken"})
 	return result
 
 func total(target: int, at: int) -> int:

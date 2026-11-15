@@ -33,6 +33,14 @@
 
 `abilities_smoke.gd`验证P3递归只读定义、独立资源变体/非法时序、规则签名拒载、多人CD与激活隔离、散射/追踪与失视退化、减速/DoT和预警/区域/飞剑中途恢复；覆盖来源死亡、目标移除、到期半开区间、到期前续期当拍跳伤、飞剑损毁不吞后到弹、接回不抹早到攻击、墙阻/重合回收和非法弹状态拒绝；制作/恢复载荷共用校验，非法格挡比例/时长、状态标识和嵌套状态整份拒载，宿主不支持的效果阶段拒绝编译，零前摇缓冲召剑在启动时刻只交付一次。按需运行，不加入默认kernel套件。
 
+`action_timing_smoke.gd`核对真实铁剑命中后缓冲等待CD、恰在原截止时刻启动、挥空过期及NPC中途恢复；另验器物收集不提前采用状态、早死截断后命中、死亡同撞墙与先落地/接回再死亡的落点。
+
+`effect_ownership_smoke.gd`核对防御效果自身归因与平面cause、长短控制的独立期限/移除回算、光环固定模板槽与成员撤销、普通驱散保留source贡献、来源消失只撤依赖贡献、显式标签压制/恢复、同毫秒DoT与压制顺序，以及坏类型/聚合拒载。
+
+`facility_lifecycle_smoke.gd`核对开局/地区/人工设施的碰撞、容量/物资不重复、共用放置规则、受控删除与登记拆空后恢复；覆盖地板/实体同格、取空堆的自身run、盆栽双向宿主/索引及坏档拒载。
+
+`outcome_ui_smoke.gd`在真实图形进程核护盾到期/破盾通知、无来源但作用于玩家的结果、未知通知安全忽略，以及真实取放物资的操作者特效。它不把所有通知target都当作身体，也不证明全部特效已经完成美术验收。
+
 `abilities_ui_smoke.gd`继承图形输入辅助，通过原生下拉框和真实鼠标/键盘选择八套范例并施放左右键；检查状态/弹体发布、落雷预警和飞剑返航中的实际文件保存/恢复。截图在`logs/abilities-ui/`；独立测试档和偏好结束后清理。`combat_authoring_editor.tscn`在一次性Godot编辑器中加`-- --combat-authoring-check`运行，验证真实Inspector插件、范围/阶段布局与合法/非法资源提示，截图`logs/combat-authoring-editor.png`并自动退出；未带该参数时不会自动执行。具体命令见[usage](../docs/engineering/tooling/usage.md#开发期直接试玩)。
 
 `action_foundation_smoke.gd`核对公共门禁、陈旧run通知、正常收招后的续段、一次终止、坏载荷/幽灵预约拒载；`action_domains_smoke.gd`核对工作/伤害先后、新生短到期、手工/ACT照料消费/恢复。`action_domains_ui_smoke.gd`以原生配置选择和真实右键验证选定植物的ACT交付；截图仍归`logs/abilities-ui/`。按需运行，不扩大默认kernel套件。
@@ -47,7 +55,7 @@ P4新增检查按改动选用，不加入默认kernel长矩阵：
 | `action_combinations_smoke.gd` | 血刃获怒→耗怒→守势/回元、远程四槽；弹/传播/双盾/狼/图腾/双剑共存恢复后结果一致；合法取消后不继承旧惩戒窗口 |
 | `action_combinations_ui_smoke.gd` | 真实键鼠左右键/E/C、原生配置切换、多槽HUD、两条组合及机制显示、四种实际文件存读、旧选中对象不可见仍可出招 |
 
-P4 GUI截图归`logs/abilities-ui/p4-*`，独立测试档/偏好自动清理。近战路线检查原生E/C；指向位置的技能用临时原生鼠标侧键映射，执行后恢复原映射且不写偏好。合成MouseMotion不会移动Window读取的系统鼠标，不能把注入成功冒充系统指针已到目标。`combat_authoring_editor.tscn`另覆盖共同Status/Reaction/Loadout Resource校验、缺失template和嵌套/跨类型引用提示，不只验证Ability预览；定义规则还验证坏Loadout短路与原生DoT周期一致性。通过这些检查不等于正式手感、长局或密弹容量验收。
+P4 GUI截图归`logs/abilities-ui/p4-*`，独立测试档/偏好自动清理。组合GUI用已有手动指令暂停靶子政策，保留原HP/技能/物资规则；NPC三类挑战另由P5 GUI核验。窗口激活与原生popup分别确认焦点，合成键发往实际Window ID；完整组合含多次文件交付，可单次20秒上限执行，默认kernel仍15秒。近战路线检查原生E/C；指向位置的技能用临时原生鼠标侧键映射，执行后恢复原映射且不写偏好。合成MouseMotion不会移动Window读取的系统鼠标，不能把注入成功冒充系统指针已到目标。`combat_authoring_editor.tscn`另覆盖共同Status/Reaction/Loadout Resource校验、缺失template和嵌套/跨类型引用提示，不只验证Ability预览；定义规则还验证坏Loadout短路与原生DoT周期一致性。通过这些检查不等于正式手感、长局或密弹容量验收。
 
 `framework_smoke.gd`按需核对移速变化缓存的到期/换装/恢复、多目标重建与槽复用；索引的当前位置/阵营/死亡/扫掠dt和负查询边界；通知只交付一次、旧Frame不可变、非full弹信息、身体布局匹配、暂停管理命令/环境刷新及只读配置。它不加入默认kernel套件。
 
@@ -55,6 +63,8 @@ P4 GUI截图归`logs/abilities-ui/p4-*`，独立测试档/偏好自动清理。�
 
 
 `decisions_smoke.gd`按需独立检查P5：政策编译/只读/参数与个体隔离、采集—威胁—重选、预约和已交付物资、陈旧run、连段/合法取消与中途恢复、射手回退/拉距、重敌承诺、受信评分实际出招、休眠和需求阈值、手动交接、失败退避、移动通道恢复、被困逃离、buffer作废、单次居民命令/目标消失/即时操作、召唤限额与序列失败/外部替换、坏schema/唤醒配对拒载。约7秒，不加入默认kernel；保持15秒watchdog。
+
+`decision_feedback_smoke.gd`按需核对通用执行反馈：即时拒绝及记忆目标探索的异步寻路失败保留操作/目标，实际改选可达设施并交付；失败和在途任务中途恢复、人物/操作隔离、16条上限、期限/坏数据拒载、真完成清理及手动绕过。另核对未变化的观察时间与隐藏库存/全图地形版本不清失败，新观察和期限允许重试；施工承诺等待不反复规划、可见空位置当场证伪且不更新远处人物。约4秒，不加入默认kernel，保留15秒退出上限。
 
 `decisions_ui_smoke.gd`以真实图形/键鼠检查三类策略输出、原生练习切换、交战中实际文件存读、独立记忆与手动移动/出招；截图`logs/decisions-ui/`，独立档/偏好自动清理。原生Inspector检查另覆盖Policy/Library/评分范例及坏距离带，截图`logs/decisions-authoring-editor.png`；编辑器截图使用显式force_draw，避免等不到后台窗口绘制信号。它们不代表主观手感、完整Boss或长局验收。
 

@@ -7,7 +7,11 @@ const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Units = preload("res://scripts/sim/kernel/units.gd")
 const State = preload("res://scripts/sim/kernel/state.gd")
 const STATE_FIELDS: Array = ["records", "wakeups", "movement", "next_task", "catalog_signature"]
-const RECORD_FIELDS: Array = ["policy", "params", "manual", "mode", "next_ms", "task", "rule_due", "hit_ms", "ready_ms", "repath_ms", "follow_ms", "last_goal", "last_reason", "life_dirty"]
+const RECORD_FIELDS: Array = ["policy", "params", "manual", "mode", "next_ms", "task", "rule_due", "hit_ms", "ready_ms", "repath_ms", "follow_ms", "last_goal", "last_reason", "life_dirty", "feedback"]
+const FEEDBACK_LIMIT: int = 16
+const FEEDBACK_LONG_MS: int = 5000
+const FEEDBACK_SHORT_MS: int = 1500
+const EVIDENCE_FIELDS: Array = ["kind", "definition", "tile", "inventory_revision", "capacity", "stage"]
 var records: Dictionary = {}
 var wakeups: Dictionary = {} # Reliable owner facts awaiting the next safe preparation.
 var next_task: int = 1
@@ -24,7 +28,7 @@ func _record(world: RefCounted, actor: int) -> Dictionary:
 		var person: Dictionary = world.objects.records[actor]
 		var policy: String = "resident" if person.get("autonomous", false) else "basic"
 		records[actor] = {"policy": policy, "params": {}, "manual": false, "mode": "idle", "next_ms": -1,
-			"task": {}, "rule_due": {}, "hit_ms": -1, "ready_ms": 0, "repath_ms": 0, "follow_ms": 0, "last_goal": Vector2(-1, -1), "last_reason": "idle", "life_dirty": false}
+			"task": {}, "rule_due": {}, "hit_ms": -1, "ready_ms": 0, "repath_ms": 0, "follow_ms": 0, "last_goal": Vector2(-1, -1), "last_reason": "idle", "life_dirty": false, "feedback": []}
 	return records[actor]
 
 func bind(world: RefCounted, actor: int, policy: String, parameters: Dictionary = {}) -> String:
@@ -104,16 +108,64 @@ func released(actor: int) -> void:
 	wakeups.erase(actor)
 	movement.erase(actor)
 
-func track_host(world: RefCounted, actor: int) -> void:
+func track_host(world: RefCounted, actor: int, operation: String = "", target: int = 0, approach: bool = false) -> void:
 	# Both an autonomous choice and a one-off order to an autonomous resident
 	# can await the existing host. Manual control remains explicitly suspended.
 	if not world.objects.records[actor].get("autonomous", false): return
 	var entry: Dictionary = _record(world, actor)
 	if entry.manual: return
 	var binding: Dictionary = world.gate.current(actor)
-	if binding.is_empty() or entry.task.get("binding", {}) == binding: return
+	if binding.is_empty(): return
+	if operation.is_empty() and binding.domain == "interaction":
+		var action: Dictionary = world.actions.get(actor, {})
+		operation = str(action.get("kind", ""))
+		target = int(action.get("target", 0))
+	if entry.task.get("binding", {}) == binding:
+		if not operation.is_empty() and target > 0:
+			entry.task["operation"] = operation
+			entry.task["target"] = target
+			entry.task["approach"] = approach
+		return
 	entry.mode = "life"
 	entry.task = {"id": _id(), "kind": "host", "binding": binding, "result": "", "waiting": "running"}
+	if not operation.is_empty() and target > 0:
+		entry.task["operation"] = operation
+		entry.task["target"] = target
+		entry.task["approach"] = approach
+
+func _evidence(world: RefCounted, actor: int, target: int) -> Dictionary:
+	# Personal observations only. A remote world edit cannot invalidate a refusal.
+	var clue: Dictionary = world.objects.records[actor].get("known", {}).get(target, {})
+	var result: Dictionary = {}
+	for field: String in EVIDENCE_FIELDS:
+		if clue.has(field): result[field] = clue[field]
+	return result
+
+func _prune_feedback(world: RefCounted, actor: int, at: int) -> void:
+	var failures: Array = records[actor].feedback
+	for index: int in range(failures.size() - 1, -1, -1):
+		var failure: Dictionary = failures[index]
+		if at >= int(failure.until_ms) or failure.evidence != _evidence(world, actor, failure.target): failures.remove_at(index)
+
+func retry_allowed(world: RefCounted, actor: int, operation: String, target: int, at: int) -> bool:
+	var entry: Dictionary = _record(world, actor)
+	_prune_feedback(world, actor, at)
+	for failure: Dictionary in entry.feedback:
+		if failure.operation == operation and failure.target == target: return false
+	return true
+
+func result(world: RefCounted, actor: int, operation: String, target: int, reason: String, at: int) -> void:
+	if operation.is_empty() or target <= 0 or not world.actor_slots.has(actor) or not world.combat.alive(world, actor): return
+	var entry: Dictionary = _record(world, actor)
+	_prune_feedback(world, actor, at)
+	var succeeded: bool = reason in ["completed", "transferred", "arrived"]
+	if not succeeded and reason in ["accepted", "started", "buffered", "replaced", "preempted", "interrupted", "partner_left", "cancelled", "action_committed", "stunned", "recovery", "rooted", "intent_pending"]: return
+	for index: int in range(entry.feedback.size() - 1, -1, -1):
+		if entry.feedback[index].operation == operation and entry.feedback[index].target == target: entry.feedback.remove_at(index)
+	if succeeded: return
+	var span: int = FEEDBACK_LONG_MS if reason in ["path_failed", "no_operation_place", "out_of_reach", "target_gone", "invalid_target", "unavailable"] else FEEDBACK_SHORT_MS
+	entry.feedback.append({"operation": operation, "target": target, "reason": reason, "at_ms": at, "until_ms": at + span, "evidence": _evidence(world, actor, target)})
+	if entry.feedback.size() > FEEDBACK_LIMIT: entry.feedback.pop_front()
 
 func _life_preemptible(world: RefCounted, actor: int) -> bool:
 	if not world.objects.records[actor].get("autonomous", false): return false
@@ -136,6 +188,8 @@ func ended(world: RefCounted, actor: int, binding: Dictionary, at: int, reason: 
 	var entry: Dictionary = records[actor]
 	var task: Dictionary = entry.task
 	if task.get("binding", {}) == binding and not binding.is_empty():
+		if task.has("operation") and (reason != "completed" or not task.get("approach", false)):
+			result(world, actor, task.operation, task.target, reason, at)
 		task.binding = {}
 		task.result = reason
 		if task.get("kind") == "host" or (_submitting != actor and reason != "completed"): task.clear()
@@ -471,6 +525,30 @@ func describe(actor: int) -> Dictionary:
 	result["choice"] = State.copy(latest.get(actor, {}))
 	return result
 
+func _feedback_valid(world: RefCounted, value: Variant) -> bool:
+	if not value is Array or value.size() > FEEDBACK_LIMIT: return false
+	var seen: Dictionary = {}
+	for failure: Variant in value:
+		if not failure is Dictionary or failure.size() != 6: return false
+		for field: Variant in failure:
+			if field not in ["operation", "target", "reason", "at_ms", "until_ms", "evidence"]: return false
+		if not failure.get("operation") is String or not failure.operation.is_valid_identifier() or failure.operation.length() > 64: return false
+		if not failure.get("target") is int or failure.target <= 0 or failure.target >= world.objects.next_id: return false
+		if not failure.get("reason") is String or not failure.reason.is_valid_identifier() or failure.reason.length() > 80: return false
+		if not failure.get("at_ms") is int or failure.at_ms < 0 or failure.at_ms > world.elapsed_ms: return false
+		if not failure.get("until_ms") is int or failure.until_ms - failure.at_ms not in [FEEDBACK_LONG_MS, FEEDBACK_SHORT_MS]: return false
+		if not failure.get("evidence") is Dictionary: return false
+		for field: Variant in failure.evidence:
+			if field not in EVIDENCE_FIELDS: return false
+			var fact: Variant = failure.evidence[field]
+			if field in ["kind", "definition"]:
+				if not fact is String or fact.length() > 128: return false
+			elif not fact is int or fact < -1 or fact > 2147483647: return false
+		var key: String = "%s:%d" % [failure.operation, failure.target]
+		if seen.has(key): return false
+		seen[key] = true
+	return true
+
 func valid(world: RefCounted) -> bool:
 	if catalog_signature != Defs.SIGNATURE or not Defs.ERRORS.is_empty() or next_task < 1: return false
 	var ids: Dictionary = {}
@@ -485,6 +563,7 @@ func valid(world: RefCounted) -> bool:
 		if spec.min > spec.max: return false
 		if not entry.get("manual") is bool or entry.get("mode") not in ["idle", "manual", "life", "fight", "flee", "follow"]: return false
 		if not entry.get("life_dirty") is bool: return false
+		if not _feedback_valid(world, entry.get("feedback")): return false
 		if entry.manual != (entry.mode == "manual"): return false
 		if in_combat(actor) and not world.combat.engagements.has(actor): return false
 		for field: String in ["next_ms", "hit_ms", "ready_ms", "repath_ms", "follow_ms"]:
@@ -502,6 +581,13 @@ func valid(world: RefCounted) -> bool:
 		if task.get("kind") not in ["host", "sequence"] or not task.get("binding") is Dictionary or not task.get("result") is String or task.get("waiting") not in ["", "running", "buffered"]: return false
 		if not task.binding.is_empty() and not world.gate.matches(actor, task.binding): return false
 		var fields: Array = ["id", "kind", "binding", "result", "waiting", "button"] if task.kind == "host" else ["id", "kind", "binding", "result", "waiting", "button", "steps", "index", "deadline_ms"]
+		if task.has("operation") or task.has("target") or task.has("approach"):
+			if task.kind != "host" or not task.get("operation") is String or not task.operation.is_valid_identifier() or task.operation.length() > 64: return false
+			if not task.get("target") is int or task.target <= 0 or task.target >= world.objects.next_id or not task.get("approach") is bool: return false
+			if task.binding.get("domain", "") == "interaction":
+				var action: Dictionary = world.actions.get(actor, {})
+				if task.target != action.get("target") or task.operation != action.get("kind") or task.approach: return false
+			fields.append_array(["operation", "target", "approach"])
 		for key: Variant in task:
 			if key not in fields: return false
 		if task.waiting == "buffered":

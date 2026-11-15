@@ -4,6 +4,7 @@
 script = ExtResource("type")
 id = "totem_armor"
 kind = "modifier"
+tags = PackedStringArray("beneficial")
 magnitude = 3.0
 attribute = "armor"
 duration_ms = 12000

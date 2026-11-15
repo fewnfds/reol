@@ -9,6 +9,14 @@ func capture(name_key: String) -> void:
 func acted(actor: int, kinds: Array) -> bool:
 	return game.frame.combat.get(actor, {}).get("kind", "") in kinds
 
+func native_input_ready() -> bool:
+	# Startup/window activation is asynchronous; injected keys still obey native focus.
+	await RenderingServer.frame_post_draw
+	root.grab_focus()
+	var ready: bool = await until(func(): return root.has_focus() and game.controls._focused, 700)
+	check(ready, "Decision UI window did not acquire native input focus")
+	return ready
+
 func _run() -> void:
 	game = Game.new()
 	game._combat_lab = true
@@ -17,12 +25,13 @@ func _run() -> void:
 	game.feedback.config_path = "user://p5-decisions-ui-feedback.cfg"
 	root.add_child(game)
 	current_scene = game
-	root.grab_focus()
 	if not await until(func(): return game.frame != null): check(false, "P5 lab never ready"); quit(1); return
+	if not await native_input_ready(): quit(1); return
 	await reset("light")
 	check(await until(func(): return acted(24, ["slash_1", "slash_2", "slash_3"]), 3000), "Pressure policy never executed a real combination")
 	check(game.frame.decision_trace.any(func(entry: Dictionary): return entry.actor == 24 and entry.result == "sequence"), "Pressure sequence not published in detached diagnostics")
 	await capture("light-pressure")
+	if not await native_input_ready(): quit(1); return
 	await key(KEY_A, true)
 	await key(KEY_SPACE, true)
 	await key(KEY_SPACE, false)
@@ -68,6 +77,7 @@ func _run() -> void:
 	await key(KEY_F12, true)
 	await key(KEY_F12, false)
 	game.controls.action("pause", {})
+	if not await native_input_ready(): quit(1); return
 	await key(KEY_A, true)
 	await key(KEY_SPACE, true)
 	await key(KEY_SPACE, false)
