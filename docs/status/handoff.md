@@ -10,9 +10,11 @@ P2帧表/受击/反馈在[规格](../../design/systems/combat_framework/act_and_
 
 双顾问选型/上游核查原件在`.local/advisor/combat-authoring-20261115/`，本轮实现与生命周期审查在`.local/advisor/combat-framework-implementation-20261115/`；采纳/拒绝见[研究](../../design/research/act_barrage_references.md#p3实现与生命周期审查)。规则/新技能GUI/P2 GUI/真实Inspector/最终release已验证；图形测试的偏好与测试档已清理。正式后退/侧移/施法素材、混音、主观手感/平衡、目标低配机和长局仍未验收。
 
-本轮用户要求扩展P4通用战斗基座并多轮咨询，**方案已完成，P4未实施**。[主计划P4](../plans/foundation-priorities.md#p4方案通用战斗基座与组合样例)安排A共同结算/目标合同→B属性/池/状态/防御→C触发/分裂/传播→D位移/召唤/自主器物→E整合交付；约十类机制样例与近远两套组合。详细合同归[规格第13节](../../design/systems/combat_framework/act_and_barrage.md#13-p4通用战斗基座方案未实施)。收到实施指示后从A接续，不再从资料搜集起步。
+用户把P4方向进一步上提为全游戏可引用的行动/条件/作用/反应能力，例为采矿、工具与技能共用执行。**当前仍是方案，P4未实施。** [主计划P4](../plans/foundation-priorities.md#p4方案通用行动基座与战斗组合)安排A1公共行动/作用合同＋P3战斗迁移→A2所选交互/参与者适配＋照料法术跨域小样→B公共属性/池/状态/防御＋料理增益→C触发/分裂/传播→D位移/召唤/自主器物→E整合交付。原十类战斗样例与近远两套组合保留；不先重写全部生活，也不顺便实现完整矿业/天气燃烧。
 
-三轮双顾问六份完整答复与独立取回的官方/社区源码原件留`.local/advisor/p4-combat-foundation-20261115/`；采用/拒绝与SHA/许可归[研究](../../design/research/act_barrage_references.md#p4三轮双顾问收敛与开发者裁决)。核心取舍为原生Resource＋有限效果/触发组合、唯一状态owner、子弹/瞬爆局部查询、身体空间变化明确边界；不引入第三方战斗运行时，不赠隐藏无敌，不承诺任意step全世界同未来。
+公共合同唯一归[行动与作用框架](../../design/systems/action_effect_framework.md)，战斗特有合同归[规格13](../../design/systems/combat_framework/act_and_barrage.md#13-p4通用战斗基座方案未实施)。公共运行头＋策略状态、类型化领域操作、小提交与结果/反应复用，原owner/批量计算/共同时间保留。收到实施指示从A1接续，不再重新收集一般资料。
+
+本轮三轮双顾问六份完整答复，以及War3/SC2官方编辑器资料、War3Net社区源码与哈希原件留`.local/advisor/universal-actions-20261115/`，裁决归[编辑器研究](../../design/research/action_editor_references.md)。此前战斗三轮双顾问原件仍在`.local/advisor/p4-combat-foundation-20261115/`，取舍归[战斗研究](../../design/research/act_barrage_references.md#p4三轮双顾问收敛与开发者裁决)。不引入第三方运行时，不赠隐藏无敌，不承诺任意step全世界同未来；P3起手成本/CD与既有生活物资/进度语义先保留。
 
 用户明确性能检查适量、先看成品；当前只做过24人release短窗，不追加900人或100/500弹门槛。512²地图与生活/环境/植物精度保持，尚无远区LOD/粗算；P4也只按真实瓶颈决定世界精度让步。本轮只改方案/研究/接续文档，未改游戏代码或生成P4构建，P3成品仍是当前试玩入口。
 

@@ -11,6 +11,7 @@
 | 身体、多生命与人生 | [众生](systems/beings_and_lifeways.md)、[有限转生](systems/rebirth_and_new_lives.md) |
 | 认识、器物与学习 | [人物理解](systems/perception_and_understanding.md)、[器物与创造](systems/knowledge_artifacts_and_invention.md)、[修行](systems/cultivation_and_learning.md) |
 | 社会、交互与组织 | [社会系统](systems/social_system.md)、[有限服务](systems/settlement_services.md) |
+| 技能、工具与交互的共用执行 | [行动与作用框架](systems/action_effect_framework.md)（P4候选，未实施） |
 | 动作、外观与物品 | [战斗](systems/combat_framework.md)、[衣着与持物](systems/appearance_and_possessions.md) |
 | 环境与后置空间候选 | [环境](proposals/environment.md)、[高低差](proposals/elevation.md) |
 
@@ -18,7 +19,7 @@
 
 ## 参考来源
 
-- 架构/执行：[模拟游戏结构](research/colony_sim_architecture.md)、[大型模拟优化](research/large_simulation_optimization.md)、[事件](research/simulation_events.md)。当前采用的执行取舍集中在[计算接入](../docs/engineering/execution-batches.md)。
+- 架构/执行：[模拟游戏结构](research/colony_sim_architecture.md)、[大型模拟优化](research/large_simulation_optimization.md)、[事件](research/simulation_events.md)、[War3/SC2编辑器与公共能力层](research/action_editor_references.md)。当前采用的执行取舍集中在[计算接入](../docs/engineering/execution-batches.md)。
 - 空间/自然：[空间模型](research/spatial_models.md)、[体型净空](research/unit_footprint_and_clearance.md)、[自然与场所](research/natural_world_workplace_sources.md)、[环境来源](research/environment_sources.md)、[世界生成](research/world_engine_references.md)。
 - 玩法/资源：[社会研究](research/social_interaction_game_references.md)、[战斗/人物](research/combat_and_character_references.md)、[ACT与弹幕](research/act_barrage_references.md)、[资源候选](research/godot_resource_candidates.md)、[八方向](research/eight_direction_sources.md)。
 - 补充学习：[系统沙盒](research/emergent_sandbox_world_references.md)、[Godot与Unity对照](research/godot_for_unity.md)。
