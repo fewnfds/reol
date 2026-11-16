@@ -2,6 +2,8 @@
 
 ## 当前停点
 
+工作区整理（2026-11-16）：独立设计工作留下的[NPC人格、意愿与情绪研究](../../design/research/npc_personality_and_emotion.md)及两个索引已纳入版本管理；内容仍为研究和候选，没有对应的未提交游戏实现。当前停在P5及后续修复完成处，未启动下一阶段；建议次序归[主计划](../plans/foundation-priorities.md#下一阶段候选)。
+
 当前显示为固定斜俯视、原生Camera2D直接绘制（2026-11-16）。用户反馈整屏形变使竖直像素边周期性横移；真实nearest/linear/2倍渲染对比与双顾问复核后，撤除透视shader、离屏世界纹理、设置/F7/偏好字段。保留二维斜视素材、分部排序、主角遮挡淡化和统一输入转换；只有原迷雾mask仍用SubViewport。旧本地偏好中的view项被安全忽略，保存设置后清除；World/format14/目录签名未改。正确性、成品和采样取舍证据归[BASELINE](baseline.md#固定斜俯视与原生二维显示)，技术边界归[纯二维显示](../engineering/architecture.md#纯二维显示)，素材归[assets](../../assets/README.md)。三维与透视探索均已撤除，不沿用上一轮F7可开的停点。
 
 最新试玩修复（2026-11-16）：贴墙直接移动返回已验证的落点，修复斜向平砍微穿墙后卡死、地图边界索引，支持旧微小接触重叠的有限脱离；人物逻辑位置与显示脚点对齐，地面物品/蓝图、实体/身体、屋顶分层排序。新专题与真实GUI通过，原移动/平砍/交互/作业回归通过；最新包与短窗证据归BASELINE。仍支持format14和原目录签名，未移动旧存档坐标或降低世界精度。
@@ -26,5 +28,3 @@
 
 - 透视采样取舍归`.local/advisor/view-sampling-20261116/`，纯二维复审归`.local/advisor/view-2d-final-20261116/`，此前合同双顾问咨询归`.local/advisor/framework-contracts-20261115/`，审查/作业位置咨询归`.local/advisor/review-20261115/`，复现探针归`.local/review-20261115/`；日志归`logs/`，生成包归`build/`，不新增根目录启动脚本。采用的事实保存在主题正文与BASELINE，原答不入库。
 - 保留本机顾问凭据、存档、素材源稿和第三方addon；保留工作分支`codex/field-contest`及stash `424f956d280fb390d17e1f6dd879f3614b51a430`。
-
-另一个独立设计工作对`design/README.md`、`design/research/social_interaction_game_references.md`和`design/research/npc_personality_and_emotion.md`的本地改动受保护，不混入本轮实现提交。
