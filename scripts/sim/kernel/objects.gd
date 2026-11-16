@@ -89,32 +89,36 @@ func add(id: int, item: String, count: int, right: Dictionary = {}) -> void:
 		_insert(records[id].stock, item, batch)
 	_refresh(id)
 
-func consume(id: int, required: Dictionary, filter: Dictionary) -> bool:
+func consume(id: int, required: Dictionary, filter: Dictionary, field: String = "stock") -> bool:
 	if not records.has(id): return false
+	if field not in ["stock", "work_stock"]: return false
+	var contents: Dictionary = records[id].get(field, {})
 	for item: String in required:
-		if not Items.valid(item) or int(required[item]) <= 0 or amount(id, item, filter) < int(required[item]): return false
-	for item: String in required: _extract(records[id].stock, item, int(required[item]), filter)
+		if not Items.valid(item) or int(required[item]) <= 0 or Stock.count(contents, item, filter) < int(required[item]): return false
+	for item: String in required: _extract(contents, item, int(required[item]), filter)
 	_refresh(id)
 	return true
 
 
-func transfer(source: int, target: int, item: String, requested: int, filter: Dictionary = {}, replacement: Dictionary = {}, source_field: String = "stock") -> int:
+func transfer(source: int, target: int, item: String, requested: int, filter: Dictionary = {}, replacement: Dictionary = {}, source_field: String = "stock", target_field: String = "stock") -> int:
 	if not Items.valid(item) or source == target or requested <= 0 or not records.has(source) or not records.has(target):
 		return 0
-	if source_field not in ["stock", "materials"]: return 0
+	if source_field not in ["stock", "materials", "work_stock"] or target_field not in ["stock", "work_stock"]: return 0
 	var contents: Dictionary = records[source].get(source_field, {})
+	var destination: Dictionary = records[target].get(target_field, {})
 	var count: int = mini(requested, Stock.count(contents, item, filter))
 	var capacity: int = records[target].capacity
-	if capacity >= 0:
+	if target_field == "stock" and capacity >= 0:
 		count = mini(count, maxi(0, capacity - count_inventory(target)))
 	if count <= 0:
 		return 0
 	var selected: Array = _select(contents, item, count, filter)
 	if not replacement.is_empty():
 		for batch: Dictionary in selected: batch.merge(Stock.attribution(replacement), true)
-	if not _fits(records[target].stock, item, selected): return 0
+	if not _fits(destination, item, selected): return 0
 	_extract(contents, item, count, filter)
-	for batch: Dictionary in selected: _insert(records[target].stock, item, batch)
+	for batch: Dictionary in selected: _insert(destination, item, batch)
+	records[target][target_field] = destination
 	_refresh(source)
 	_refresh(target)
 	transfers += 1
@@ -233,6 +237,7 @@ func _refresh(id: int, changed: bool = true) -> void:
 	_summaries[id] = Stock.summary(records[id].stock)
 	var held: Dictionary = _summaries[id].duplicate()
 	for item: String in records[id].get("materials", {}): held[item] = int(held.get(item, 0)) + Stock.count(records[id].materials, item)
+	for item: String in records[id].get("work_stock", {}): held[item] = int(held.get(item, 0)) + Stock.count(records[id].work_stock, item)
 	for gear: Dictionary in records[id].get("equipment", {}).values(): held[gear.item] = int(held.get(gear.item, 0)) + 1
 	_held_totals[id] = held
 	for item: String in held: totals[item] = int(totals.get(item, 0)) + int(held[item])
@@ -240,7 +245,16 @@ func _refresh(id: int, changed: bool = true) -> void:
 
 
 func can_remove(id: int) -> bool:
-	return records.has(id) and count_inventory(id) == 0 and records[id].get("materials", {}).is_empty() and records[id].get("equipment", {}).is_empty()
+	return records.has(id) and count_inventory(id) == 0 and records[id].get("materials", {}).is_empty() and records[id].get("work_stock", {}).is_empty() and records[id].get("equipment", {}).is_empty()
+
+func can_consolidate(id: int, fields: Array) -> bool:
+	var combined: Dictionary = {}
+	for field: String in fields:
+		for item: String in records[id].get(field, {}):
+			var batches: Array = records[id][field][item]
+			if not _fits(combined, item, batches): return false
+			for batch: Dictionary in batches: _insert(combined, item, batch)
+	return true
 
 
 func remove_empty(id: int) -> bool:
@@ -355,6 +369,7 @@ func audit_total(item: String) -> int:
 	for id: int in records:
 		count += Stock.count(records[id].stock, item) # Audit source quantities independently of caches.
 		count += Stock.count(records[id].get("materials", {}), item)
+		count += Stock.count(records[id].get("work_stock", {}), item)
 		for equipped: Dictionary in records[id].get("equipment", {}).values(): count += int(equipped.item == item)
 	return count
 

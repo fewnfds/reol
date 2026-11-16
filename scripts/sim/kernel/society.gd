@@ -27,6 +27,7 @@ func initialize(world: RefCounted) -> void:
 	teacher["name"] = "旅居修士"
 	Growth.seed(teacher, "wood_breath", 0)
 	Growth.seed(teacher, "cooking", 0)
+	Growth.seed(teacher, "herbalism", 0)
 	world.objects.add(2, "breath_manual", 1)
 	world.objects.add(2, "meal", 4)
 	world.livelihood.observe(world, 2, 0)

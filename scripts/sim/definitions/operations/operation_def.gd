@@ -5,7 +5,8 @@ const Target = preload("res://scripts/sim/definitions/operations/target_rule.gd"
 const Cost = preload("res://scripts/sim/definitions/actions/cost_def.gd")
 const Bundle = preload("res://scripts/sim/definitions/actions/effect_bundle_def.gd")
 const Form = preload("res://scripts/sim/definitions/beings/form_def.gd")
-const HANDLERS: Dictionary = {"transfer": ["take", "put"], "facility": ["construct", "rest", "cook", "eat", "demolish"],
+const Recipe = preload("res://scripts/sim/definitions/production/recipe_def.gd")
+const HANDLERS: Dictionary = {"transfer": ["take", "put"], "facility": ["construct", "rest", "craft", "eat", "demolish", "collect_source"],
 	"nature": ["sow", "tend", "gather", "cut", "uproot"], "society": ["talk", "trade", "request_help", "learn", "study", "practice"],
 	"instant": ["self_effect"], "work_source": ["harvest"]}
 @export var id: String = ""
@@ -25,24 +26,30 @@ const HANDLERS: Dictionary = {"transfer": ["take", "put"], "facility": ["constru
 @export var required_ability: String = ""
 @export var learning_method: String = ""
 @export_range(0, 100000) var learning_points: int = 0
-## Practical work may consume mastery independently of awarding learning.
-@export var duration_method: String = ""
 @export var injured: bool = false
 @export var actor_inventory: bool = false
 @export var help_target: bool = false
 @export var costs: Array[Cost] = []
 @export var effects: Bundle
+@export var recipe: Recipe
 
 func values() -> Dictionary:
 	var rules: Array = []
 	for target: Target in targets: rules.append(target.values())
 	var payments: Array = []
 	for cost: Cost in costs: payments.append(cost.values())
-	return {"id": id, "title": title, "icon": icon, "command_alias": command_alias, "executor": executor, "handler": handler,
+	var result: Dictionary = {"id": id, "title": title, "icon": icon, "command_alias": command_alias, "executor": executor, "handler": handler,
 		"required_capabilities": Array(required_capabilities), "targets": rules, "duration_ms": duration_ms, "exclusive": exclusive,
 		"target_menu": target_menu, "required_items": required_items.duplicate(), "required_method": required_method,
-		"required_ability": required_ability, "learning_method": learning_method, "learning_points": learning_points, "duration_method": duration_method, "injured": injured, "actor_inventory": actor_inventory, "help_target": help_target,
-		"costs": payments, "effects": effects.values() if effects != null else []}
+		"required_ability": required_ability, "learning_method": learning_method, "learning_points": learning_points, "duration_method": "", "injured": injured, "actor_inventory": actor_inventory, "help_target": help_target,
+		"costs": payments, "effects": effects.values() if effects != null else [], "recipe": recipe.values() if recipe != null else {}}
+	if recipe != null:
+		result.required_items = recipe.inputs.duplicate()
+		result.learning_method = recipe.method
+		result.learning_points = recipe.practice_points
+		result.duration_method = recipe.method
+		if preload("res://scripts/sim/kernel/growth_defs.gd").METHODS.get(recipe.method, {}).get("requires_introduction", false): result.required_method = recipe.method
+	return result
 
 func errors() -> PackedStringArray:
 	var result := PackedStringArray()
@@ -54,7 +61,13 @@ func errors() -> PackedStringArray:
 	if id in ["action_trace", "journey", "ability", "action", "body", "move", "interrupt", "work", "heal", "equip", "unequip", "source", "plant", "weather", "drop", "build", "save", "load", "combat_practice", "continue_build"]: result.append("id: reserved command")
 	if not HANDLERS.get(executor, []).has(handler): result.append("executor/handler: unsupported domain operation")
 	if duration_ms < -1 or duration_ms > 300000 or ((duration_ms == 0) != (executor == "instant")): result.append("duration: unsupported host")
-	if (duration_ms == -1) != (handler in ["construct", "sow"]): result.append("remaining labor: requires construct/sow host")
+	if (duration_ms == -1) != (handler in ["construct", "sow", "craft"]): result.append("remaining labor: requires a persistent work carrier")
+	if (handler == "craft") != (recipe != null): result.append("craft: requires a recipe")
+	if recipe != null:
+		result.append_array(recipe.errors())
+		if executor != "facility" or not exclusive or not required_items.is_empty() or not required_method.is_empty() or not learning_method.is_empty() or learning_points != 0: result.append("recipe: shared requirements must come from its definition")
+		for cost: Cost in recipe.costs:
+			if cost != null and (cost.kind == "energy" or (cost.kind == "pool" and cost.id == "energy")) and not required_capabilities.has("metabolism"): result.append("recipe: body energy requires metabolism")
 	if executor == "work_source" and id != "harvest": result.append("work source: only the current harvest host is registered")
 	if executor == "work_source" and (target_menu or not exclusive): result.append("work source: legacy host requires exclusive work and no direct menu")
 	if executor == "instant" and exclusive: result.append("instant: cannot own a timed occupation")
@@ -65,13 +78,12 @@ func errors() -> PackedStringArray:
 	var growth: Script = preload("res://scripts/sim/kernel/growth_defs.gd")
 	if not required_method.is_empty() and not growth.METHODS.has(required_method): result.append("required method: unknown")
 	if learning_method.is_empty() != (learning_points == 0) or learning_points < 0 or learning_points > 100000: result.append("learning: inconsistent method/points")
-	if not learning_method.is_empty() and (not growth.METHODS.has(learning_method) or handler not in ["learn", "study", "practice", "cook"]): result.append("learning: unsupported method/consumer")
+	if not learning_method.is_empty() and (not growth.METHODS.has(learning_method) or handler not in ["learn", "study", "practice"]): result.append("learning: unsupported method/consumer")
 	if handler in ["learn", "study", "practice"] and learning_method.is_empty(): result.append("learning: method required")
 	if handler == "practice" and required_method != learning_method: result.append("practice: admission method must match practiced method")
 	if handler == "practice" and growth.METHODS.has(learning_method) and (growth.METHODS[learning_method].energy_cost > 0 or growth.METHODS[learning_method].satiety_cost > 0) and not required_capabilities.has("metabolism"): result.append("practice: body costs require metabolism")
-	if handler in ["cook", "practice"] and growth.METHODS.has(learning_method) and growth.METHODS[learning_method].requires_introduction and required_method != learning_method: result.append("learning: practical consumer must require introduction")
+	if handler == "practice" and growth.METHODS.has(learning_method) and growth.METHODS[learning_method].requires_introduction and required_method != learning_method: result.append("learning: practical consumer must require introduction")
 	if handler == "study" and growth.METHODS.has(learning_method) and growth.METHODS[learning_method].study_item.is_empty(): result.append("study: method has no readable source")
-	if not duration_method.is_empty() and (not growth.METHODS.has(duration_method) or handler != "cook"): result.append("duration method: requires known method and practical work consumer")
 	for capability: String in required_capabilities:
 		if not Form.CAPABILITIES.has(capability): result.append("capability: unknown")
 	if targets.is_empty() or targets.size() > 6: result.append("targets: require 1..6 alternatives")

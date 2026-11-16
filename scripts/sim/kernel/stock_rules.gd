@@ -53,7 +53,7 @@ static func valid(contents: Variant, next_id: int) -> bool:
 	return true
 
 static func access_reason(actor: Dictionary, target: Dictionary, handler: String) -> String:
-	if handler not in ["take", "put", "eat", "cook", "rest", "construct", "demolish", "sow", "tend", "gather", "cut", "uproot", "harvest"]: return ""
+	if handler not in ["take", "put", "eat", "craft", "collect_source", "rest", "construct", "demolish", "sow", "tend", "gather", "cut", "uproot", "harvest"]: return ""
 	for dependency: Dictionary in target.get("access_dependencies", {}).get(handler, []):
 		var reason: String = access_reason(actor, dependency, dependency.operation)
 		if not reason.is_empty(): return reason
@@ -63,7 +63,7 @@ static func access_reason(actor: Dictionary, target: Dictionary, handler: String
 	# consuming somebody's property still needs their own recognized permission.
 	if owner > 0 and owner != actor.get("id", 0) and handler != "construct" and handler not in actor.get("task_access", {}).get(int(target.get("id", 0)), []): return "not_authorized"
 	if organization > 0:
-		var purpose: String = "cultivate" if handler in ["sow", "tend", "gather", "cut", "uproot", "harvest"] else handler
+		var purpose: String = "cultivate" if handler in ["sow", "tend", "gather", "cut", "uproot", "harvest"] else (str(target.get("processing_purpose", "")) if handler == "craft" else ("supply" if handler == "collect_source" else handler))
 		if handler == "put" and organization in actor.get("returns", []): return ""
 		if purpose not in actor.get("permissions", {}).get(organization, []): return "not_authorized"
 	return ""

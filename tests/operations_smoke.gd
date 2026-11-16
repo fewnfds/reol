@@ -159,7 +159,8 @@ func arrival_and_restore() -> void:
 	w.objects.records[2].autonomous = false
 	var stove: int = w.facilities.create_completed(w, "cook_stove", w.Terrain.index(Vector2i(130, 130)))
 	w.objects.add(stove, "meal", 1)
-	check(w.begin_interaction(1, {"kind": "eat", "target": stove}) == "accepted", "In-flight meal fixture refused")
+	var meal_reason: String = w.begin_interaction(1, {"kind": "eat", "target": stove})
+	check(meal_reason == "accepted", "In-flight meal fixture refused: " + meal_reason)
 	w.objects.add(stove, "meal", -1)
 	loaded = Persistence.candidate(Persistence.capture(w), 0)
 	check(loaded != null, "Remote stock change invalidated a legitimate in-flight activity")

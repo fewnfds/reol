@@ -30,7 +30,7 @@ const Perception = preload("res://scripts/sim/kernel/perception.gd")
 const Sight = preload("res://scripts/sim/kernel/sight.gd")
 const Regions = preload("res://scripts/sim/kernel/regions.gd")
 const PersonEvents = preload("res://scripts/sim/kernel/person_events.gd")
-const STATE_FIELDS: Array = ["elapsed_ms", "actor_count", "initial_material", "harvested", "deliveries", "failed_harvests", "steps", "deaths", "attacks", "heals", "topology_revision", "source_objects", "depot_objects", "reservations", "actions", "work_runs", "next_run"]
+const STATE_FIELDS: Array = ["elapsed_ms", "actor_count", "initial_material", "harvested", "deliveries", "failed_harvests", "steps", "deaths", "attacks", "heals", "topology_revision", "source_objects", "depot_objects", "reservations", "actions", "work_runs", "next_run", "next_process"]
 const Beings = preload("res://scripts/sim/kernel/being_defs.gd")
 const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const OperationQuery = preload("res://scripts/sim/kernel/operation_query.gd")
@@ -38,6 +38,7 @@ const Costs = preload("res://scripts/sim/kernel/action_costs.gd")
 const ActivityResults = preload("res://scripts/sim/kernel/activity_results.gd")
 const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const Institutions = preload("res://scripts/sim/kernel/institutions.gd")
+const Production = preload("res://scripts/sim/kernel/production.gd")
 const Equipment = preload("res://scripts/sim/kernel/equipment.gd")
 
 class Lane extends RefCounted:
@@ -88,6 +89,7 @@ var reservations: Dictionary = {} # Target identity -> actor identity, owner onl
 var actions: Dictionary = {}
 var work_runs: Dictionary = {} # Body-work host owns its persistent run identity.
 var next_run: int = 1
+var next_process: int = 1
 var gate := Gate.new()
 var free_slots := PackedInt32Array()
 var elapsed_ms: int = 0
@@ -181,6 +183,7 @@ func initialize(count: int = 1000, requested_workers: int = 4, stress_environmen
 		pages[0].positions[0] = Terrain.center(Terrain.index(Vector2i(177, 188)))
 	facilities.seed_fixture(self, "long_bed", Terrain.index(Vector2i(176, 182)))
 	var stove: int = facilities.seed_fixture(self, "cook_stove", Terrain.index(Vector2i(174, 185)))
+	facilities.seed_fixture(self, "water_well", Terrain.index(Vector2i(168, 176)))
 	objects.add(stove, "meal", 30)
 	var supplies: int = objects.by_tile[Terrain.index(Vector2i(176, 186))][0]
 	objects.add(supplies, "grain", 30)
@@ -353,6 +356,7 @@ func _advance_interval(end: int) -> void:
 	flush_topology()
 	effects_usec += Time.get_ticks_usec() - effect_start
 	if end % 1000 == 0:
+		facilities.Sources.pulse(self, end)
 		# Periodic end-of-step effects cannot erase an earlier arrival/due effect.
 		var env_start: int = Time.get_ticks_usec()
 		environment.update(end, pages, actor_slots)
@@ -1048,6 +1052,7 @@ func operation_actor(id: int) -> Dictionary:
 	var slot: int = actor_slots[id]
 	var page: RefCounted = pages[slot / 256]
 	return {"id": id, "hp": page.health[slot % 256], "max_hp": page.max_health[slot % 256], "energy": page.energy[slot % 256],
+		"at_ms": operation_time(),
 		"qi": int(record.get("qi", 0)), "inventory": objects.usable_summary(id), "methods": State.copy(record.get("methods", {})),
 		"carried": objects.inventory_summary(id), "readable": institutions.readable(self, id), "bundles": institutions.bundles(self, id), "permissions": institutions.permissions(id), "returns": institutions.returns(self, id),
 		"task_access": {int(record.commitment.target): ["construct"]} if record.get("commitment", {}).get("kind") == "construct" else {},
@@ -1059,6 +1064,7 @@ func operation_target(id: int) -> Dictionary:
 	var result: Dictionary = {"id": id, "kind": record.kind, "definition": record.definition, "tile": record.tile,
 		"inventory": objects.goods_summary(id, actor_slots.has(id) and not combat.alive(self, id)), "owner": int(record.owner), "organization": int(record.organization), "capacity": record.capacity, "sapient": record.get("sapient", false), "guest": int(record.get("guest", 0))}
 	result["access_dependencies"] = facilities.access_dependencies(self, id)
+	result["process"] = Production.view(record)
 	if record.has("stage"): result["stage"] = record.stage
 	if actor_slots.has(id):
 		var slot: int = actor_slots[id]
@@ -1121,6 +1127,9 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 		return "no_operation_place"
 	release(id)
 	actions[id] = input.duplicate(true)
+	if not operation.recipe.is_empty():
+		actions[id]["expected_process"] = int(objects.records[target].get("process", {}).get("id", 0))
+		actions[id]["expected_run"] = int(actions.get(reservations.get(target, 0), {}).get("run_id", 0)) if actions[id].expected_process == 0 else 0
 	actions[id]["run_id"] = next_run
 	actions[id]["participants"] = [id]
 	next_run += 1
@@ -1188,6 +1197,14 @@ func settle_action(id: int, at: int) -> void:
 			return
 		if exclusive:
 			reservations[target] = id
+		if not operation.recipe.is_empty():
+			var production_reason: String = Production.start(self, id, action, at)
+			if production_reason != "started":
+				var autonomous: bool = action.get("autonomous", false)
+				end_run(id, at, production_reason, ActivityResults.refused(production_reason))
+				clear_navigation(id)
+				if autonomous: livelihood.after_action(self, id, at, target)
+				return
 		if handler == "construct":
 			# Navigation for this slice has already run. Acquire the footprint at
 			# its endpoint so no precomputed later movement can enter a new solid.
@@ -1217,7 +1234,10 @@ func settle_action(id: int, at: int) -> void:
 		var facing: Vector2 = position_at(id, at).direction_to(combat.position(self, target))
 		if not facing.is_zero_approx(): page.aims[row] = facing
 		var duration: int = operation.duration_ms if operation.duration_ms >= 0 else maxi(1, int(objects.records[target].get("remaining_ms", 1)))
-		page.due_ms[row] = at + Growth.duration_ms(objects.records[id], operation, duration)
+		if not operation.recipe.is_empty(): duration = int(objects.records[target].process.remaining_ms)
+		action["base_work_ms"] = duration
+		action["scheduled_ms"] = Growth.duration_ms(objects.records[id], operation, duration)
+		page.due_ms[row] = at + int(action.scheduled_ms)
 		return
 	if action.get("waiting", false):
 		action.erase("waiting")
@@ -1264,6 +1284,7 @@ func settle_action(id: int, at: int) -> void:
 	var source: int = target if handler == "take" else id
 	var destination: int = id if handler == "take" else target
 	var transferred: Dictionary = institutions.move_goods(self, id, target, action.item, action.amount, handler, action, at)
+	if actor_slots.has(source) and source != id: _sync_inventory(source)
 	var amount: int = int(transferred.facts.get("amount", 0))
 	if objects.records.get(source, {}).get("kind", "") == "pile":
 		_finishing[id] = action.run_id
@@ -1287,6 +1308,13 @@ func describe(id: int) -> Dictionary:
 	var result: Dictionary = State.copy(objects.records[id])
 	result.erase("stock")
 	result.erase("materials")
+	result.erase("work_stock")
+	result["process"] = Production.view(objects.records[id], actions.get(reservations.get(id, 0), {}), elapsed_ms)
+	if objects.records[id].has("work_stock"): result["work_inventory"] = objects.Stock.summary(objects.records[id].work_stock)
+	if not objects.records[id].get("work_stock", {}).is_empty():
+		var right: Dictionary = objects.Stock.attribution(objects.records[id].work_stock.values()[0][0])
+		result["work_attribution"] = {"owner": right.owner, "organization": right.organization, "organization_name": str(institutions.organizations.get(int(right.organization), {}).get("name", ""))}
+	result["at_ms"] = elapsed_ms
 	result["inventory"] = objects.inventory_summary(id)
 	result["access_dependencies"] = facilities.access_dependencies(self, id)
 	if actor_slots.has(id) and not combat.alive(self, id): result.inventory = objects.goods_summary(id, true)

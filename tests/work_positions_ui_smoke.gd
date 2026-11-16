@@ -56,7 +56,7 @@ func _run() -> void:
 	game.camera.force_update_scroll()
 	game.controls._select(stove, -1)
 	check(await until(func(): return game.ui._target.get("id", 0) == stove), "Cooking station detail not published")
-	check(game.ui._target.work_cells.cook.size() == 1, "Single cooking cell absent from detached UI")
+	check(game.ui._target.work_cells.craft.size() == 1, "Single cooking cell absent from detached UI")
 	check(Art.catalog().entries.has("construction_0") and Art.catalog().entries.has("construction_15"), "Joined unfinished sprites missing from runtime atlas")
 	for site: int in sites:
 		check(game.frame.perception.memories.get(site, {}).get("construction_started", false), "Observed unfinished stage lost during file restore")

@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="LearnedMethodDef" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/growth/method_def.gd" id="method"]
+[resource]
+script = ExtResource("method")
+id = "herbalism"
+title = "草药煎制"
+requires_introduction = true
+mastered_duration_scale = 0.75

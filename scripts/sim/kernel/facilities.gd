@@ -8,8 +8,12 @@ const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const Query = preload("res://scripts/sim/kernel/operation_query.gd")
 const Results = preload("res://scripts/sim/kernel/activity_results.gd")
 const Growth = preload("res://scripts/sim/kernel/growth.gd")
+const Production = preload("res://scripts/sim/kernel/production.gd")
+const Labor = preload("res://scripts/sim/kernel/labor_progress.gd")
+const Sources = preload("res://scripts/sim/kernel/stock_sources.gd")
 var definitions: Dictionary = {}
 var completed: Dictionary = {}
+var sources := PackedInt64Array() # Derived from completed carriers, never a second stock.
 
 
 func _init() -> void:
@@ -17,6 +21,7 @@ func _init() -> void:
 		definitions = Query.BUILDINGS.duplicate(true)
 		for key: String in definitions.keys():
 			var errors: PackedStringArray = Positions.errors(definitions[key].get("work_positions", {}))
+			errors.append_array(Sources.errors(definitions[key]))
 			if not errors.is_empty():
 				push_error(key + ": " + str(errors))
 				definitions.erase(key)
@@ -135,9 +140,13 @@ func access_dependencies(world: RefCounted, target: int) -> Dictionary:
 				if plant.kind == "plant" and int(plant.get("host", 0)) == 0: plants.append({"id": id, "owner": plant.owner, "organization": plant.organization, "operation": "uproot"})
 		result["construct"] = plants
 	var guest: int = int(record.get("guest", 0))
+	if not record.get("work_stock", {}).is_empty():
+		var right: Dictionary = world.objects.Stock.attribution(record.work_stock.values()[0][0])
+		result["demolish"] = [{"id": target, "owner": right.owner, "organization": right.organization, "operation": "demolish"}]
 	if guest > 0 and world.objects.records.has(guest):
 		var plant: Dictionary = world.objects.records[guest]
-		result["demolish"] = [{"id": guest, "owner": plant.owner, "organization": plant.organization, "operation": "uproot"}]
+		if not result.has("demolish"): result["demolish"] = []
+		result.demolish.append({"id": guest, "owner": plant.owner, "organization": plant.organization, "operation": "uproot"})
 	return result
 
 
@@ -192,12 +201,15 @@ func install(world: RefCounted, id: int, capacity: int = -2) -> void:
 	if record.kind == "chest":
 		record.capacity = int(spec.capabilities.storage.capacity) if capacity == -2 else capacity
 		world.register_depot(id)
+	Sources.install(world, id)
 	for member: int in record.cells:
 		if record.layer == "floor": world.terrain.set_floor(member, true)
 		elif record.layer != "roof": world.queue_structure(member, bool(spec.facts.get("movement_blocked", false)), bool(spec.facts.get("enclosure_boundary", false)))
 
 
 func uninstall(world: RefCounted, record: Dictionary) -> void:
+	var source_index: int = sources.find(int(record.id))
+	if source_index >= 0: sources.remove_at(source_index)
 	if record.kind == "floor":
 		for tile: int in record.get("cells", PackedInt32Array([record.tile])): world.terrain.set_floor(tile, false)
 	var spec: Dictionary = definitions.get(record.definition, {})
@@ -221,6 +233,7 @@ func available(world: RefCounted, action: Dictionary, actor: int = 1) -> bool:
 
 
 func interrupt(world: RefCounted, action: Dictionary, now: int) -> Dictionary:
+	if action.kind == "craft": return Production.interrupt(world, action, now)
 	if action.kind not in ["construct", "sow"] or not world.objects.records.has(action.target):
 		return {}
 	var record: Dictionary = world.objects.records[action.target]
@@ -228,7 +241,7 @@ func interrupt(world: RefCounted, action: Dictionary, now: int) -> Dictionary:
 	if action.kind == "sow" and record.get("stage", -1) != world.nature.Stage.SEEDING: return {}
 	if not action.has("started_ms"): return {"worked_ms": 0, "remaining_ms": int(record.remaining_ms)}
 	# The last quantum belongs to successful completion, never to a canceled run.
-	var worked: int = mini(maxi(0, int(record.remaining_ms) - 1), maxi(0, now - int(action.started_ms)))
+	var worked: int = Labor.credited(int(action.get("base_work_ms", record.remaining_ms)), int(action.get("scheduled_ms", record.remaining_ms)), now - int(action.started_ms))
 	record.remaining_ms -= worked
 	return {"worked_ms": worked, "remaining_ms": record.remaining_ms}
 
@@ -239,6 +252,18 @@ func finish(world: RefCounted, actor: int, action: Dictionary, at: int) -> Strin
 func commit(world: RefCounted, actor: int, action: Dictionary, at: int) -> Dictionary:
 	if not available(world, action, actor):
 		return Results.refused("unavailable")
+	if action.kind == "craft":
+		var outcome: Dictionary = Production.commit(world, actor, action, at)
+		if outcome.status == "completed" and outcome.facts.stage == "completed":
+			var operation: String = str(action.get("operation_id", action.kind))
+			completed[operation] = int(completed.get(operation, 0)) + 1
+		return outcome
+	if action.kind == "collect_source":
+		var outcome: Dictionary = Sources.collect(world, actor, action.target, at)
+		if outcome.status == "completed":
+			var operation: String = str(action.get("operation_id", action.kind))
+			completed[operation] = int(completed.get(operation, 0)) + 1
+		return outcome
 	var record: Dictionary = world.objects.records[action.target]
 	var spec: Dictionary = definitions.get(record.definition, {})
 	var facts: Dictionary = {}
@@ -286,14 +311,6 @@ func commit(world: RefCounted, actor: int, action: Dictionary, at: int) -> Dicti
 			page.hunger[row] = mini(10000, before + 3000)
 			facts = {"consumed": {"meal": 1}, "hunger_restored": page.hunger[row] - before}
 			world.effects.apply_bundle(world, actor, actor, 0, "", preload("res://data/definitions/actions/meal_effect.tres").values(), at, 0, "activation")
-		"cook":
-			var ingredients: Dictionary = Operations.OPERATIONS[action.get("operation_id", action.kind)].required_items
-			var conversion: Dictionary = world.institutions.convert(world, actor, action.target, ingredients, {"meal": 3}, "cook", at)
-			if conversion.status != "completed": return conversion
-			world._sync_inventory(actor)
-			facts = conversion.facts
-			var operation: Dictionary = Operations.OPERATIONS[action.get("operation_id", action.kind)]
-			if not operation.learning_method.is_empty(): facts["learning"] = Growth.advance(world.objects.records[actor], operation.learning_method, operation.learning_points, "practice", 0, at)
 	completed[action.kind] = int(completed.get(action.kind, 0)) + 1
 	return Results.completed(facts)
 
@@ -323,6 +340,7 @@ func demolish_result(world: RefCounted, target: int, at: int = -1, actor: int = 
 		record["vegetation_level"] = 0
 		world.objects.layout_revision += 1
 		return Results.completed({"vegetation_level": 0})
+	if not world.objects.can_consolidate(target, ["stock", "materials", "work_stock"]): return Results.refused("salvage_capacity")
 	world.forget_target(target, at)
 	if record.kind == "plant":
 		world.nature.remove(world, target, at)
@@ -331,12 +349,15 @@ func demolish_result(world: RefCounted, target: int, at: int = -1, actor: int = 
 		world.nature.remove(world, guest, at)
 	var pile: int = 0
 	var salvage: Dictionary = {}
-	if world.objects.count_inventory(target) > 0 or not record.get("materials", {}).is_empty():
+	if world.objects.count_inventory(target) > 0 or not record.get("materials", {}).is_empty() or not record.get("work_stock", {}).is_empty():
 		pile = world.objects.create("pile", "salvage", record.tile)
 		for item: String in world.objects.inventory_summary(target):
 			salvage[item] = world.objects.transfer(target, pile, item, world.objects.amount(target, item))
-		for item: String in record.get("materials", {}).keys():
-			var count: int = world.objects.transfer(target, pile, item, world.objects.Stock.count(record.materials, item), {}, {}, "materials")
-			salvage[item] = int(salvage.get(item, 0)) + count
-		record.erase("materials")
+		for field: String in ["materials", "work_stock"]:
+			for item: String in record.get(field, {}).keys():
+				var count: int = world.objects.transfer(target, pile, item, world.objects.Stock.count(record[field], item), {}, {}, field)
+				salvage[item] = int(salvage.get(item, 0)) + count
+			assert(record.get(field, {}).is_empty())
+			record.erase(field)
+	record.erase("process")
 	return Results.completed({"removed": target, "definition": record.definition, "salvage_pile": pile, "salvage": salvage}) if world.remove_static(target, at) else Results.refused("failed")

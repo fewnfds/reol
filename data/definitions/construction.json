@@ -393,7 +393,8 @@
       "capabilities": {
         "workbench": {
           "recipes": [
-            "cook_rations"
+            "cook_rations",
+            "brew_potion"
           ]
         }
       },
@@ -423,7 +424,7 @@
         "room_tau_ms": 180000
       },
       "work_positions": {
-        "cook": {
+        "craft": {
           "mode": "stations",
           "cells": [
             [
@@ -651,6 +652,57 @@
         "enclosure_boundary": false
       },
       "capabilities": {}
+    },
+    "water_well": {
+      "label": "汲水井",
+      "kind": "source",
+      "item": "wood",
+      "amount": 6,
+      "work_ms": 180000,
+      "demolish_ms": 60000,
+      "salvage": 3,
+      "door": false,
+      "layer": "ground",
+      "size": [
+        1,
+        1
+      ],
+      "perception_cost": 1,
+      "facts": {
+        "movement_blocked": true,
+        "enclosure_boundary": false,
+        "thermal_barrier": false,
+        "light_blocked": false,
+        "wall_connection": false,
+        "roof_support": false
+      },
+      "max_hp": 100,
+      "armor": 2,
+      "capabilities": {
+        "stock_source": {
+          "item": "water",
+          "capacity": 24,
+          "period_ms": 15000,
+          "amount": 1,
+          "pickup_amount": 4
+        }
+      },
+      "slots": [],
+      "environment": {
+        "source": "",
+        "thermal": 10000,
+        "elements": 10000,
+        "light": 10000,
+        "contents_thermal": 10000,
+        "contents_elements": 10000,
+        "contents_light": 10000,
+        "room_tau_ms": 180000
+      },
+      "work_positions": {
+        "default": {
+          "mode": "adjacent"
+        }
+      }
     }
   }
 }

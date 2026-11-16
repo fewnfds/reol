@@ -79,6 +79,8 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 			return null
 	if not _processes_valid(world):
 		return null
+	if not world.Production.valid(world): return null
+	if not world.facilities.Sources.rebuild(world): return null
 	var environment: RefCounted = world.environment
 	if not _environment_valid(environment, world):
 		return null
@@ -161,7 +163,7 @@ static func _objects_valid(world: RefCounted) -> bool:
 			if not record.get("remaining_ms") is int or record.remaining_ms < 1: return false
 		if (not record.get("sight_range") is float and not record.get("sight_range") is int) or not is_finite(float(record.sight_range)) or record.sight_range < 0 or record.sight_range > world.terrain.SIZE * 2.0:
 			return false
-		for contents: Variant in [record.get("stock"), record.get("materials", {})]:
+		for contents: Variant in [record.get("stock"), record.get("materials", {}), record.get("work_stock", {})]:
 			if not world.objects.Stock.valid(contents, world.objects.next_id): return false
 		world.objects._refresh(id, false)
 		if record.capacity >= 0 and world.objects.count_inventory(id) > record.capacity:

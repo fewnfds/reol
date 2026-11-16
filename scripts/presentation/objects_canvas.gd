@@ -159,7 +159,7 @@ func _key(rec: Dictionary) -> String:
         "pile": return "item_" + rec.definition if Art.catalog().entries.has("item_" + rec.definition) else "item_bundle"
     # A pending floor uses the ground-level material preview; completed floors
     # are drawn in the terrain atlas, never as raised furniture or roofing.
-    var mapping: Dictionary = {"wood_wall": "wall_0", "wood_door": "door", "wood_bed": "bed", "long_bed": "long_bed", "wood_chest": "chest", "cook_stove": "stove", "wood_table": "table", "wood_chair": "chair", "wood_roof": "roof", "wood_floor": "roof_preview", "planter": "planter", "wood_screen": "screen", "wood_window": "window", "stone_wall": "wall_0", "desk_chair": "chair"}
+    var mapping: Dictionary = {"wood_wall": "wall_0", "wood_door": "door", "wood_bed": "bed", "long_bed": "long_bed", "wood_chest": "chest", "cook_stove": "stove", "wood_table": "table", "wood_chair": "chair", "wood_roof": "roof", "wood_floor": "roof_preview", "planter": "planter", "water_well": "planter", "wood_screen": "screen", "wood_window": "window", "stone_wall": "wall_0", "desk_chair": "chair"}
     return _facing_key(str(mapping.get(rec.definition, "workbench")), rec)
 
 

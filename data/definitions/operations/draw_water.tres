@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="OperationDef" load_steps=4 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/operations/operation_def.gd" id="op"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/operations/target_rule.gd" id="target"]
+[sub_resource type="Resource" id="Source"]
+script = ExtResource("target")
+facility_capability = "stock_source"
+target_item = "water"
+[resource]
+script = ExtResource("op")
+id = "draw_water"
+title = "汲水"
+icon = "water"
+executor = "facility"
+handler = "collect_source"
+required_capabilities = PackedStringArray("work")
+duration_ms = 1000
+targets = Array[ExtResource("target")]([SubResource("Source")])

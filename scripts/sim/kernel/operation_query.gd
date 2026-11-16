@@ -4,6 +4,7 @@ const Defs = preload("res://scripts/sim/kernel/operation_defs.gd")
 const Costs = preload("res://scripts/sim/kernel/action_costs.gd")
 const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const Stock = preload("res://scripts/sim/kernel/stock_rules.gd")
+const Production = preload("res://scripts/sim/kernel/production.gd")
 static var BUILDINGS: Dictionary = Defs.freeze(JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/construction.json")).types)
 
 static func evaluate(operation: Dictionary, actor: Dictionary, target: Dictionary, context: Dictionary = {}, buildings: Dictionary = {}) -> Dictionary:
@@ -11,13 +12,19 @@ static func evaluate(operation: Dictionary, actor: Dictionary, target: Dictionar
 	var result: Dictionary = {"applicable": false, "ready": false, "reason": "invalid_target", "unknown": []}
 	for rule: Dictionary in operation.targets:
 		if not _matches(rule, actor, target, buildings): continue
+		if not operation.recipe.is_empty() and operation.recipe.id not in buildings.get(target.get("definition", ""), {}).get("capabilities", {}).get(operation.recipe.facility_capability, {}).get("recipes", []): continue
 		result.applicable = true
 		var unknown: Array = []
 		var reason: String = _target_reason(rule, target, unknown)
 		var inputs: Dictionary = context.duplicate()
 		inputs["organization"] = int(target.get("organization", 0))
-		if reason.is_empty(): reason = Stock.access_reason(actor, target, operation.handler)
+		var access_target: Dictionary = target
+		if not operation.recipe.is_empty():
+			access_target = target.duplicate()
+			access_target["processing_purpose"] = operation.recipe.purpose
+		if reason.is_empty(): reason = Stock.access_reason(actor, access_target, operation.handler)
 		if reason.is_empty(): reason = readiness(operation, actor, inputs)
+		if reason.is_empty() and not operation.recipe.is_empty(): reason = Production.readiness(operation, actor, target, buildings)
 		if reason.is_empty() and not unknown.is_empty(): reason = "unknown_target_state"
 		result.reason = reason
 		result.unknown = unknown
@@ -75,8 +82,9 @@ static func readiness(operation: Dictionary, actor: Dictionary, context: Diction
 	if not actor.get("admission_reason", "").is_empty(): return actor.admission_reason
 	for capability: String in operation.required_capabilities:
 		if not actor.get("body_capabilities", {}).get(capability, false): return "body_has_no_%s_capability" % capability
-	if operation.handler in ["cook", "tend"]:
-		var purpose: String = "cook" if operation.handler == "cook" else "cultivate"
+	if not operation.recipe.is_empty(): pass # Target-aware material/WIP checks follow shared actor admission.
+	elif operation.handler == "tend":
+		var purpose: String = "cultivate"
 		if not operation.required_items.is_empty() and Stock.input_group(actor, operation.required_items, purpose, int(context.get("organization", 0))).is_empty(): return "missing_items"
 	else:
 		for item: String in operation.required_items:

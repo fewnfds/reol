@@ -5,8 +5,8 @@ const Stock = preload("res://scripts/sim/kernel/stock_rules.gd")
 const Items = preload("res://scripts/sim/kernel/items.gd")
 const Results = preload("res://scripts/sim/kernel/activity_results.gd")
 const STATE_FIELDS: Array = ["next_organization", "organizations", "memberships", "next_entrust", "entrustments", "accounts"]
-const PURPOSES: Array[String] = ["take", "put", "eat", "rest", "cook", "construct", "demolish", "cultivate", "equip", "study", "supply"]
-const ISSUE_PURPOSES: Array[String] = ["cook", "construct", "cultivate", "equip", "study", "supply"]
+const PURPOSES: Array[String] = ["take", "put", "eat", "rest", "cook", "produce", "construct", "demolish", "cultivate", "equip", "study", "supply"]
+const ISSUE_PURPOSES: Array[String] = ["cook", "produce", "construct", "cultivate", "equip", "study", "supply"]
 const COUNTERS: Array[String] = ["issued", "consumed", "produced", "delivered", "returned", "donated"]
 var next_organization: int = 1
 var organizations: Dictionary = {}
@@ -29,6 +29,14 @@ func admit(world: RefCounted, organization: int, actor: int, grants: Array) -> b
 	for purpose: Variant in grants:
 		if purpose not in PURPOSES or grants.count(purpose) != 1: return false
 	memberships[organization][actor] = grants.duplicate()
+	var action: Dictionary = world.actions.get(actor, {})
+	if not action.is_empty() and not Stock.access_reason(world.operation_actor(actor), world.operation_target(action.target), world.Operations.OPERATIONS[action.kind].handler).is_empty():
+		# Purpose for a recipe is carried by the same target view used by Query.
+		var query: Dictionary = world.OperationQuery.evaluate(world.Operations.OPERATIONS[action.kind], world.operation_actor(actor), world.operation_target(action.target), {}, world.facilities.definitions)
+		if query.reason == "not_authorized":
+			world.end_run(actor, world.operation_time(), "not_authorized", Results.refused("not_authorized"))
+			world.clear_navigation(actor)
+			if world.objects.records[actor].get("autonomous", false): world.livelihood.after_action(world, actor, world.operation_time())
 	return true
 
 func permits(actor: int, organization: int, purpose: String) -> bool:
@@ -77,6 +85,7 @@ func returns(world: RefCounted, actor: int) -> Array:
 	return result
 
 func equipment_right(world: RefCounted, actor: int, item: String) -> Dictionary:
+	if world.objects.amount(actor, item, Stock.right(actor)) > 0: return Stock.right(actor)
 	for bundle: Dictionary in bundles(world, actor):
 		if int(bundle.items.get(item, 0)) > 0 and (bundle.owner == actor or bundle.purpose == "equip"): return Stock.attribution(bundle)
 	return {}
@@ -203,24 +212,21 @@ func consumed(right: Dictionary, inputs: Dictionary, now: int) -> void:
 	for item: String in inputs: _add(entrustments[right.entrust].consumed, item, int(inputs[item]))
 	_close(right.entrust, now)
 
-func acquire_yield(world: RefCounted, actor: int, target: int, item: String, count: int, now: int) -> int:
+func acquire_yield(world: RefCounted, actor: int, target: int, item: String, count: int, now: int, purpose: String = "cultivate") -> int:
 	var object: Dictionary = world.objects.records[target]
 	if object.owner == 0 and object.organization == 0: return world.objects.claim(target, actor, item, count)
 	if object.owner == actor: return world.objects.transfer(target, actor, item, count, Stock.right(actor))
-	if object.organization <= 0 or not permits(actor, object.organization, "cultivate"): return 0
-	var id: int = _mandate(actor, object.organization, "cultivate", now)
+	if object.organization <= 0 or not permits(actor, object.organization, purpose): return 0
+	var id: int = _mandate(actor, object.organization, purpose, now)
 	var moved: int = world.objects.transfer(target, actor, item, count, Stock.right(0, object.organization), Stock.right(0, object.organization, id))
 	_add(entrustments[id].issued, item, moved)
 	_close(id, now, moved > 0)
 	return moved
 
-func convert(world: RefCounted, actor: int, target: int, inputs: Dictionary, outputs: Dictionary, purpose: String, now: int) -> Dictionary:
-	var organization: int = int(world.objects.records[target].organization)
-	var right: Dictionary = input_right(world, actor, inputs, purpose, organization)
-	if right.is_empty(): return Results.refused("missing_authorized_ingredients")
-	var output_right: Dictionary = Stock.right(actor) if organization == 0 else Stock.right(0, organization)
+func convert_at(world: RefCounted, target: int, inputs: Dictionary, outputs: Dictionary, right: Dictionary, now: int, field: String) -> Dictionary:
+	var output_right: Dictionary = Stock.right(int(right.owner), int(right.organization))
 	if not world.objects.can_receive(target, outputs, output_right): return Results.refused("no_output_capacity")
-	if not world.objects.consume(actor, inputs, right): return Results.refused("missing_authorized_ingredients")
+	if not world.objects.consume(target, inputs, right, field): return Results.refused("missing_authorized_ingredients")
 	var mandate: Dictionary = entrustments.get(int(right.entrust), {})
 	for item: String in outputs: world.objects.add(target, item, int(outputs[item]), output_right)
 	if not mandate.is_empty():
@@ -277,13 +283,13 @@ func valid(world: RefCounted) -> bool:
 		var object: Dictionary = world.objects.records[target]
 		if object.organization > 0 and not organizations.has(object.organization): return false
 		var material: Array = []
-		for field: String in ["stock", "materials"]:
+		for field: String in ["stock", "materials", "work_stock"]:
 			for batches: Array in object.get(field, {}).values(): material.append_array(batches)
 		for gear: Dictionary in object.get("equipment", {}).values(): material.append(gear)
 		for batch: Dictionary in material:
 			if batch.organization > 0 and not organizations.has(batch.organization): return false
 		# Preserve the item key when validating actual outstanding quantities.
-		for field: String in ["stock", "materials"]:
+		for field: String in ["stock", "materials", "work_stock"]:
 			for item: String in object.get(field, {}):
 				for batch: Dictionary in object[field][item]:
 					if not _outstanding(outstanding, batch, item, int(batch.count)): return false

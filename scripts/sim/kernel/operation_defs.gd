@@ -29,6 +29,7 @@ static func signature(operations: Dictionary) -> String:
 	var rules: Dictionary = operations.duplicate(true)
 	for operation: Dictionary in rules.values():
 		for key: String in ["title", "icon", "target_menu", "command_alias"]: operation.erase(key)
+		if not operation.recipe.is_empty(): operation.recipe.erase("title")
 	return JSON.stringify({"version": 1, "operations": rules}, "", true).sha256_text()
 
 static func capability_reason(record: Dictionary, operation: String) -> String:

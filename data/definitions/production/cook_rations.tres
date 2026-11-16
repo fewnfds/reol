@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ProductionRecipeDef" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/production/recipe_def.gd" id="recipe"]
+[resource]
+script = ExtResource("recipe")
+id = "cook_rations"
+title = "谷饭"
+inputs = Dictionary[String, int]({"grain": 2, "water": 1})
+outputs = Dictionary[String, int]({"meal": 3})
+work_ms = 4000
+method = "cooking"
+practice_points = 125

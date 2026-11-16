@@ -21,6 +21,10 @@
 
 `custody_smoke.gd`核公私同包/拆合/保权、满包交换/费用、共同授权、公料烹饪/中断恢复/退料、撤权后返还、旧公物搬回不记新供给、明确捐赠、施工材料回收和死亡遗物历史引用，以及规范批次/未结责任坏档。`custody_ui_smoke.gd`从独立真实档进入原Game，通过原生用途表单取公粮并观察背包自有/受托量；截图归`logs/custody-ui/`，不改用户档和偏好。两者不代表在制生产或百人自主供养已完成。
 
+`production_smoke.gd`按需核标准劳动与熟练工时、实际入锅/换人/死亡/中断/恢复、静置释放占用与人工收取、费用和出料阻塞、旧过程不能重复生产、保权拆除、有限水源回补及规范过程拒载；同机制配方变体仍走原World。`custody_smoke.gd`另核公料在制换人后原领料责任闭合。`production_ui_smoke.gd`用原Game正常按钮完成请教、煎药、静置实际文件存读、收药及取尽井水；详情支持滚动，截图归`logs/production-ui/`，档与偏好独立清理。不代表完整自主计划或百人源耗已成立。
+
+`production_authority_smoke.gd`补公料静置/收药中断与满仓、原领料人死亡/撤权/无权者拒绝、原炉体及受托在制回收归库、饱和批次拒拆、在途预约前驱与等待请求不重开、中立炉台他人私料保护。它与生命周期专题分开以保持短退出窗口，不加入默认套件。
+
 `navigation_smoke.gd`由kernel调用，`tile_smoke.gd`复用features的世界；它们和feature/sight/equipment一样是RefCounted模块，不直接用Godot的`--script`启动。其余SceneTree专题按下面的范围选用。
 
 `tool_smoke.py`在修改Python运行或性能工具时使用，核对进程退出/超时、历史复用、单倍率次数上限及不可比条件，不启动游戏。性能用真实release短窗口，不用smoke通过数量代表容量。

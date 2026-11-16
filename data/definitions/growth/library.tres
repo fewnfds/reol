@@ -1,11 +1,12 @@
-[gd_resource type="Resource" script_class="GrowthLibrary" load_steps=7 format=3]
+[gd_resource type="Resource" script_class="GrowthLibrary" load_steps=8 format=3]
 [ext_resource type="Script" path="res://scripts/sim/definitions/growth/library.gd" id="library"]
 [ext_resource type="Script" path="res://scripts/sim/definitions/growth/method_def.gd" id="method"]
 [ext_resource type="Script" path="res://scripts/sim/definitions/growth/condition_def.gd" id="condition"]
 [ext_resource type="Resource" path="res://data/definitions/growth/wood_breath.tres" id="wood"]
 [ext_resource type="Resource" path="res://data/definitions/growth/cooking.tres" id="cooking"]
 [ext_resource type="Resource" path="res://data/definitions/growth/thermal_strain.tres" id="thermal"]
+[ext_resource type="Resource" path="res://data/definitions/growth/herbalism.tres" id="herbal"]
 [resource]
 script = ExtResource("library")
-methods = Array[ExtResource("method")]([ExtResource("wood"), ExtResource("cooking")])
+methods = Array[ExtResource("method")]([ExtResource("wood"), ExtResource("cooking"), ExtResource("herbal")])
 conditions = Array[ExtResource("condition")]([ExtResource("thermal")])

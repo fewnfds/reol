@@ -25,6 +25,7 @@ var _player_values: Label
 var _action_values: Label
 var _progress := ProgressBar.new()
 var _inspect_panel: PanelContainer
+var _inspect_scroll := ScrollContainer.new()
 var _inspect_body := VBoxContainer.new()
 var _inspect_title: Label
 var _inspect_values: Label
@@ -147,7 +148,10 @@ func _ready() -> void:
 	_follow = _button(combat, "follow", "视角", "eye")
 	_inspect_panel = _panel(self, Control.PRESET_BOTTOM_LEFT, Vector4(8, -450, 330, -135))
 	_inspect_panel.add_theme_stylebox_override("panel", Style.box(Color("18251ff2"), Style.TEAL))
-	_inspect_panel.add_child(_inspect_body)
+	_inspect_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_inspect_panel.add_child(_inspect_scroll)
+	_inspect_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_inspect_scroll.add_child(_inspect_body)
 	_inspect_title = Style.label(_inspect_body)
 	_inspect_title.add_theme_color_override("font_color", Style.TEAL)
 	_inspect_values = Style.label(_inspect_body)
@@ -198,7 +202,11 @@ func _ready() -> void:
 	inventory.visibility_changed.connect(_layout)
 	_build_modal()
 	_context_panel = _panel(self, Control.PRESET_TOP_LEFT, Vector4(0, 0, 220, 40))
-	_context_panel.add_child(_context_body)
+	var context_scroll := ScrollContainer.new()
+	context_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_context_panel.add_child(context_scroll)
+	_context_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	context_scroll.add_child(_context_body)
 	_context_panel.hide()
 	get_viewport().size_changed.connect(_layout)
 	var config := ConfigFile.new()
@@ -387,7 +395,7 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 		_progress.value = clampf(float(frame.world_ms - start) / maxi(1, finish - start), 0.0, 1.0)
 	var dead: bool = int(player.get("hp", 0)) <= 0
 	for key: String in _player_buttons: _player_buttons[key].disabled = dead
-	_player_buttons.heal.disabled = dead or int(player.get("hp", 0)) >= int(player.get("stats", {}).get("max_hp", 100)) or int(player.get("inventory", {}).get("potion", 0)) <= 0
+	_player_buttons.heal.disabled = dead or int(player.get("hp", 0)) >= int(player.get("stats", {}).get("max_hp", 100)) or int(player.get("usable_inventory", {}).get("potion", 0)) <= 0
 	_player_buttons.ability.disabled = not Actions.self_ready(player, "wood_mend")
 	_follow.modulate = Style.GOLD if following else Color.WHITE
 	_direct = direct
@@ -413,6 +421,21 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 		if _target.get("kind", "") == "blueprint": rows.append("施工中／已停工" if _target.get("construction_started", false) else "待开工")
 		if not _target.get("work_cells", {}).is_empty(): rows.append("操作位已标出；需留出通路")
 		if _target.has("remaining_ms"): rows.append("%.1fs" % (int(_target.remaining_ms) / 1000.0))
+		var process: Dictionary = _target.get("process", {})
+		if not process.is_empty():
+			var recipe: Dictionary = Actions.Operations.OPERATIONS[process.operation].recipe
+			var phase: String = {"work": "加工", "passive": "静置", "finish": "收取"}.get(process.stage, process.stage)
+			rows.append("%s · %s" % [recipe.title, phase])
+			if process.stage == "passive":
+				var remaining: int = maxi(0, int(process.ready_ms) - int(_target.get("at_ms", 0)))
+				rows.append("静置完成，可收取" if remaining == 0 else "静置还需 %.1fs" % (remaining / 1000.0))
+			else: rows.append("剩余标准劳动 %.1fs" % (int(process.remaining_ms) / 1000.0))
+			var right: Dictionary = _target.get("work_attribution", {})
+			if right.get("organization", 0) > 0: rows.append("本批归属：%s公物" % right.get("organization_name", "宗门"))
+			elif right.get("owner", 0) > 0: rows.append("本批归属：#%d私产" % int(right.owner))
+			var work: Array[String] = []
+			for key: String in _target.get("work_inventory", {}): work.append("%s %d" % [Items.label(key), int(_target.work_inventory[key])])
+			rows.append("在制原料：" + "  ".join(work))
 		if _target.has("inventory"):
 			var stock := PackedStringArray()
 			for key: String in _target.inventory: stock.append("%s Q%d %d" % [Items.label(key), Items.quality(key), _target.inventory[key]])
@@ -426,6 +449,10 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 		for spec: Dictionary in commands:
 			var button: Button = _button(_commands, spec.id, spec.text, spec.icon, {"target": selected})
 			button.disabled = not spec.enabled
+			button.tooltip_text = spec.get("hint", "")
+	if _context_panel.visible:
+		if _context.get("target", 0) != _target.get("id", -1) or _target.get("memory", false): close_context()
+		else: _context_buttons(Actions.for_target(_target, player, help_target), _context)
 	if not _drawer_name.is_empty(): _refresh_drawer()
 	if _drawer_name == "character" and is_instance_valid(character):
 		character.refresh(Actions.observed(frame, _character_id, use_fog))
@@ -489,7 +516,7 @@ func _refresh_drawer() -> void:
 	var grid := GridContainer.new()
 	grid.columns = 2
 	_drawer_body.add_child(grid)
-	var inventory: Dictionary = _frame.player.get("inventory", {})
+	var inventory: Dictionary = _frame.player.get("usable_inventory", {})
 	if _drawer_name in ["build", "plant"]:
 		var definitions: Dictionary = Actions.buildings if _drawer_name == "build" else Actions.plants
 		for key: String in definitions:
@@ -557,7 +584,7 @@ func open_simple(kind: String) -> void:
 		_button(row, "unused", "药物 ×1", "potion").disabled = true
 		Style.label(row, "⇄")
 		_button(row, "unused", "吐纳秘籍 ×1", "book").disabled = true
-		_button(_modal_body, "trade_commit", "交换", "link", {"target": _selected}).disabled = int(_frame.player.get("inventory", {}).get("potion", 0)) < 1
+		_button(_modal_body, "trade_commit", "交换", "link", {"target": _selected}).disabled = int(_frame.player.get("usable_inventory", {}).get("potion", 0)) < 1
 		_button(_modal_body, "close_modal", "", "close")
 	elif kind == "settings":
 		Style.label(_modal_body, "UI")
@@ -621,18 +648,27 @@ func context_menu(data: Dictionary, at: Vector2, payload: Dictionary) -> void:
 		close_context()
 		return
 	_context = payload.duplicate()
+	_context_panel.remove_meta("commands")
+	_context_buttons(commands, payload)
+	var height: float = minf(maxf(80, _context_body.get_combined_minimum_size().y + 16), maxf(80, minf(480, size.y - 100)))
+	_context_panel.size = Vector2(220, height)
+	_context_panel.position = screen_to_ui(at).clamp(Vector2(0, 84), (size - _context_panel.size - Vector2(4, 4)).max(Vector2(0, 84)))
+	_context_panel.show()
+
+func _context_buttons(commands: Array[Dictionary], payload: Dictionary) -> void:
+	if _context_panel.get_meta("commands", "") == str(commands): return
+	_context_panel.set_meta("commands", str(commands))
 	_clear(_context_body)
 	for spec: Dictionary in commands:
 		var button: Button = _button(_context_body, spec.id, spec.text, spec.icon, payload)
 		button.disabled = not spec.enabled
-	_context_panel.size = Vector2(220, 0)
-	_context_panel.position = screen_to_ui(at).clamp(Vector2(0, 84), size - Vector2(224, 350))
-	_context_panel.show()
+		button.tooltip_text = spec.get("hint", "")
 
 func close_context() -> void:
 	_context_panel.hide()
 
 func selection_changed(id: int) -> void:
+	_inspect_scroll.scroll_vertical = 0
 	# Non-player detail panels share the owner's single inspection request.
 	if inventory.visible and ((inventory.target_id > 0 and inventory.target_id != id) or (inventory.subject_id != 1 and inventory.subject_id != id)):
 		inventory.hide()

@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="OperationDef" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/definitions/operations/operation_def.gd" id="op"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/operations/target_rule.gd" id="target"]
+
+[ext_resource type="Resource" path="res://data/definitions/production/brew_potion.tres" id="recipe"]
+
+[sub_resource type="Resource" id="Target0"]
+script = ExtResource("target")
+facility_capability = "workbench"
+
+[resource]
+script = ExtResource("op")
+id = "brew"
+title = "煎制伤药"
+icon = "work"
+executor = "facility"
+handler = "craft"
+recipe = ExtResource("recipe")
+required_capabilities = PackedStringArray("work", "metabolism")
+duration_ms = -1
+targets = Array[ExtResource("target")]([SubResource("Target0")])

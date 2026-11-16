@@ -32,7 +32,7 @@ var _target: Dictionary = {}
 var _purpose := OptionButton.new()
 var _donate := CheckButton.new()
 var _purpose_signature: String = ""
-const PURPOSE_TITLES: Dictionary = {"cook": "烹饪", "construct": "施工", "cultivate": "种植养护", "equip": "配用装备", "study": "借阅", "supply": "搬运供给"}
+const PURPOSE_TITLES: Dictionary = {"cook": "炊事", "produce": "加工炼制", "construct": "施工", "cultivate": "种植养护", "equip": "配用装备", "study": "借阅", "supply": "搬运供给"}
 
 func _ready() -> void:
 	add_child(_body)

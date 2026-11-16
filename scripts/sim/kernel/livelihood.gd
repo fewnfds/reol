@@ -85,6 +85,7 @@ func remember(world: RefCounted, id: int, target: int, at: int) -> void:
 	clue["seen_ms"] = at
 	clue["id"] = target
 	clue["sapient"] = record.get("sapient", false)
+	clue["process"] = world.Production.view(record)
 	if record.kind == "actor":
 		var slot: int = world.actor_slots[target]
 		clue["hp"] = world.pages[slot / 256].health[slot % 256]
@@ -148,7 +149,7 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 		var available: Dictionary = {}
 		for option: String in Query.options(clue):
 			var handler: String = Operations.OPERATIONS[option].handler
-			if handler not in ["eat", "rest", "construct", "cook", "put", "gather", "harvest"] or available.has(handler): continue
+			if handler not in ["eat", "rest", "construct", "craft", "put", "gather", "harvest"] or available.has(handler): continue
 			if Query.evaluate(Operations.OPERATIONS[option], actor_view, clue).ready: available[handler] = option
 		if page.hunger[row] < 4000 and available.has("eat"):
 			candidate = available.eat
@@ -159,8 +160,8 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 		elif available.has("construct"):
 			candidate = available.construct
 			priority = -2000
-		elif page.cargo[row] == 0 and available.has("cook"):
-			candidate = available.cook
+		elif page.cargo[row] == 0 and available.has("craft"):
+			candidate = available.craft
 			priority = -1500
 		elif page.cargo[row] > 0 and clue.kind == "chest" and available.has("put"):
 			candidate = available.put

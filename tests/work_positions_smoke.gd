@@ -24,9 +24,9 @@ func geometry() -> void:
 		w.flush_topology()
 		var offsets: Array[Vector2i] = [Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, -1), Vector2i(1, 1)]
 		var expected: int = w.Terrain.index(Vector2i(140 + facing * 5, 124) + offsets[facing])
-		check(Positions.cells(w, stove, "cook") == PackedInt32Array([expected]), "Named station did not rotate with the full footprint: %d" % facing)
+		check(Positions.cells(w, stove, "craft") == PackedInt32Array([expected]), "Named station did not rotate with the full footprint: %d" % facing)
 		check(Positions.cells(w, stove, "construct").size() == 6, "Cooking station leaked into construction access")
-		check(w.facilities.in_range(w, stove, w.Terrain.center(expected), 0.35, "cook"), "Rotated cooking station was unusable")
+		check(w.facilities.in_range(w, stove, w.Terrain.center(expected), 0.35, "craft"), "Rotated cooking station was unusable")
 	var definition: Dictionary = w.facilities.definitions.cook_stove.duplicate(true)
 	definition.work_positions = {"forge": {"mode": "stations", "cells": [[0, 1]]}}
 	w.facilities.definitions["test_forge"] = definition
