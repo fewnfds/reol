@@ -9,6 +9,11 @@ static var BUILDINGS: Dictionary = Defs.freeze(JSON.parse_string(FileAccess.get_
 
 static func evaluate(operation: Dictionary, actor: Dictionary, target: Dictionary, context: Dictionary = {}, buildings: Dictionary = {}) -> Dictionary:
 	if buildings.is_empty(): buildings = BUILDINGS
+	if actor.get("id", 0) == target.get("id", -1) and target.get("kind") == "actor":
+		# Self-targeted inventory requirements mean goods available for personal
+		# use. Physical custody alone must not advertise an entrusted meal as food.
+		target = target.duplicate()
+		target["inventory"] = actor.get("usable_inventory", actor.get("inventory", {}))
 	var result: Dictionary = {"applicable": false, "ready": false, "reason": "invalid_target", "unknown": []}
 	for rule: Dictionary in operation.targets:
 		if not _matches(rule, actor, target, buildings): continue
@@ -16,6 +21,7 @@ static func evaluate(operation: Dictionary, actor: Dictionary, target: Dictionar
 		result.applicable = true
 		var unknown: Array = []
 		var reason: String = _target_reason(rule, target, unknown)
+		if reason.is_empty() and operation.handler == "eat" and target.has("inventory") and Stock.known_quantity(actor, target, "meal", "eat") <= 0: reason = "no_food"
 		var inputs: Dictionary = context.duplicate()
 		inputs["organization"] = int(target.get("organization", 0))
 		var access_target: Dictionary = target

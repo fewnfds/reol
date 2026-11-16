@@ -81,3 +81,18 @@ static func input_group(actor: Dictionary, required: Dictionary, purpose: String
 			if int(bundle.items.get(item, 0)) < int(required[item]): enough = false; break
 		if enough: return attribution(bundle)
 	return {}
+
+static func input_purpose(operation: Dictionary) -> String:
+	if not operation.get("recipe", {}).is_empty(): return str(operation.recipe.purpose)
+	if operation.handler in ["sow", "tend"]: return "cultivate"
+	return "construct" if operation.handler == "construct" else ""
+
+static func known_quantity(actor: Dictionary, target: Dictionary, item: String, handler: String, organization: int = -1) -> int:
+	if not target.has("contents"): return int(target.get("inventory", {}).get(item, 0)) if organization < 0 or int(target.get("organization", 0)) == organization else 0
+	var result: int = 0
+	for group: Dictionary in target.contents.get(item, []):
+		if organization >= 0 and int(group.organization) != organization: continue
+		if group.owner == int(actor.get("id", 0)) and not group.entrusted: result += int(group.count)
+		elif group.owner == 0 and group.organization == 0 and not group.entrusted: result += int(group.count)
+		elif group.organization > 0 and not group.entrusted and ("take" if handler == "take" else handler) in actor.get("permissions", {}).get(int(group.organization), []): result += int(group.count)
+	return result

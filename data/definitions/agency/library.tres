@@ -1,0 +1,117 @@
+[gd_resource type="Resource" script_class="LifeGoalLibrary" load_steps=18 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/definitions/agency/library.gd" id="library"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/agency/goal_def.gd" id="goal"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/agency/approach_def.gd" id="approach"]
+
+[sub_resource type="Resource" id="Eat"]
+script = ExtResource("approach")
+id = "eat"
+title = "取用熟食"
+handler = "eat"
+targets = "either"
+
+[sub_resource type="Resource" id="PrepareFood"]
+script = ExtResource("approach")
+id = "prepare_food"
+title = "备料烹食"
+pattern = "produce"
+product = "meal"
+confidence = 0.85
+
+[sub_resource type="Resource" id="Rest"]
+script = ExtResource("approach")
+id = "rest"
+title = "安歇休养"
+handler = "rest"
+
+[sub_resource type="Resource" id="Develop"]
+script = ExtResource("approach")
+id = "develop"
+title = "求学与实践"
+pattern = "develop"
+
+[sub_resource type="Resource" id="Deliver"]
+script = ExtResource("approach")
+id = "deliver"
+title = "筹集并交付"
+pattern = "deliver"
+
+[sub_resource type="Resource" id="Perform"]
+script = ExtResource("approach")
+id = "perform"
+title = "办理具体事项"
+targets = "goal"
+
+[sub_resource type="Resource" id="Return"]
+script = ExtResource("approach")
+id = "return"
+title = "归还受托结余"
+pattern = "return"
+
+[sub_resource type="Resource" id="Fed"]
+script = ExtResource("goal")
+id = "sustenance"
+title = "维持饮食"
+metric = "hunger"
+comfort = 7000
+emergency = 1800
+approaches = PackedStringArray("eat", "prepare_food")
+
+[sub_resource type="Resource" id="Rested"]
+script = ExtResource("goal")
+id = "rested"
+title = "保持精力"
+metric = "energy"
+comfort = 7500
+emergency = 1600
+approaches = PackedStringArray("rest")
+
+[sub_resource type="Resource" id="Recovery"]
+script = ExtResource("goal")
+id = "recovery"
+title = "调养体况"
+driver = "recovery"
+weight = 0.8
+approaches = PackedStringArray("rest")
+
+[sub_resource type="Resource" id="Development"]
+script = ExtResource("goal")
+id = "development"
+title = "精进本领"
+driver = "development"
+weight = 0.38
+disposition = "curiosity"
+approaches = PackedStringArray("develop")
+
+[sub_resource type="Resource" id="Delivery"]
+script = ExtResource("goal")
+id = "delivery"
+title = "筹办物资"
+driver = "delivery"
+weight = 0.4
+disposition = "dutifulness"
+approaches = PackedStringArray("deliver")
+
+[sub_resource type="Resource" id="Operation"]
+script = ExtResource("goal")
+id = "operation"
+title = "履行约定"
+driver = "operation"
+weight = 0.5
+disposition = "dutifulness"
+approaches = PackedStringArray("perform")
+
+[sub_resource type="Resource" id="Custody"]
+script = ExtResource("goal")
+id = "custody"
+title = "清理受托结余"
+driver = "custody"
+weight = 0.3
+disposition = "dutifulness"
+approaches = PackedStringArray("return")
+
+[resource]
+script = ExtResource("library")
+goals = Array[ExtResource("goal")]([SubResource("Fed"), SubResource("Rested"), SubResource("Recovery"), SubResource("Development"), SubResource("Delivery"), SubResource("Operation"), SubResource("Custody")])
+approaches = Array[ExtResource("approach")]([SubResource("Eat"), SubResource("PrepareFood"), SubResource("Rest"), SubResource("Develop"), SubResource("Deliver"), SubResource("Perform"), SubResource("Return")])

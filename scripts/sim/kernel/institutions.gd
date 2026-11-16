@@ -37,6 +37,7 @@ func admit(world: RefCounted, organization: int, actor: int, grants: Array) -> b
 			world.end_run(actor, world.operation_time(), "not_authorized", Results.refused("not_authorized"))
 			world.clear_navigation(actor)
 			if world.objects.records[actor].get("autonomous", false): world.livelihood.after_action(world, actor, world.operation_time())
+	if world.objects.records[actor].get("autonomous", false): world.decisions.wake(world, actor, world.operation_time(), "permissions_changed")
 	return true
 
 func permits(actor: int, organization: int, purpose: String) -> bool:
@@ -82,6 +83,18 @@ func returns(world: RefCounted, actor: int) -> Array:
 	var result: Array = []
 	for right: Dictionary in world.objects.groups(actor):
 		if right.entrust > 0 and entrustments.has(right.entrust) and not result.has(right.organization): result.append(right.organization)
+	return result
+
+func return_bundles(world: RefCounted, actor: int) -> Array:
+	# Knowing what one carries does not grant permission to use it. Revoked
+	# mandates are deliberately present here so their physical stock can return.
+	var result: Array = []
+	for right: Dictionary in world.objects.groups(actor):
+		if right.entrust <= 0 or not entrustments.has(right.entrust): continue
+		var bundle: Dictionary = right.duplicate()
+		bundle["purpose"] = str(entrustments[right.entrust].purpose)
+		bundle["items"] = world.objects.inventory_summary(actor, right)
+		result.append(bundle)
 	return result
 
 func equipment_right(world: RefCounted, actor: int, item: String) -> Dictionary:
@@ -135,6 +148,8 @@ func move_goods(world: RefCounted, actor: int, target: int, item: String, reques
 	var amount: int = 0
 	var mandates: Array = []
 	var reason: String = "no_authorized_goods"
+	var returned: int = 0
+	var supply_returned: int = 0
 	var corpse: bool = handler == "take" and world.actor_slots.has(source) and not world.combat.alive(world, source)
 	var candidates: Array = world.objects.groups(source, corpse)
 	var destination_org: int = int(world.objects.records[target].organization)
@@ -172,6 +187,7 @@ func move_goods(world: RefCounted, actor: int, target: int, item: String, reques
 				elif mandate.is_empty() or mandate.organization != right.organization: continue
 			else: continue
 		else:
+			if not str(context.get("purpose", "")).is_empty() and mandate.get("purpose", "") != context.purpose: continue
 			if context.get("donate", false) and right != Stock.right(actor): continue
 			if organization > 0 and not permits(actor, organization, "put") and not (right.organization == organization and right.entrust > 0): continue
 			if right == Stock.right(actor):
@@ -191,13 +207,15 @@ func move_goods(world: RefCounted, actor: int, target: int, item: String, reques
 			if created > 0: _close(created, now, false)
 			continue
 		amount += moved
+		if accounting == "returned": returned += moved
+		if accounting == "returned" and mandate.purpose == "supply": supply_returned += moved
 		if accounting == "donated": _add(_account(organization, actor).donated, item, moved)
 		elif not accounting.is_empty():
 			_add(mandate[accounting], item, moved)
 			mandate.updated_ms = now
 			if not mandates.has(mandate.id): mandates.append(mandate.id)
 			_close(mandate.id, now)
-	return Results.completed({"item": item, "requested": requested, "amount": amount, "source": source, "destination": destination, "entrustments": mandates}, "transferred") if amount > 0 else Results.refused(reason)
+	return Results.completed({"item": item, "requested": requested, "amount": amount, "returned": returned, "supply_returned": supply_returned, "source": source, "destination": destination, "entrustments": mandates}, "transferred") if amount > 0 else Results.refused(reason)
 
 func consume_at(world: RefCounted, actor: int, target: int, item: String, count: int, purpose: String) -> bool:
 	for right: Dictionary in world.objects.groups(target):

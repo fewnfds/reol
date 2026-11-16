@@ -6,7 +6,7 @@ const EVALUATORS: Dictionary = {"rules": preload("res://scripts/sim/kernel/decis
 static var _compiled: Dictionary = Library.compile()
 static var ERRORS: PackedStringArray = _compiled.errors
 static var POLICIES: Dictionary = Actions._freeze(_compiled.policies)
-static var SIGNATURE: String = JSON.stringify({"version": 4, "policies": POLICIES, "scripts": {"range_score": EVALUATORS.range_score.LOGIC_VERSION}}, "", true).sha256_text()
+static var SIGNATURE: String = JSON.stringify({"version": 5, "policies": POLICIES, "scripts": {"range_score": EVALUATORS.range_score.LOGIC_VERSION}}, "", true).sha256_text()
 
 static func parameters_valid(params: Dictionary) -> bool:
 	for key: Variant in params:

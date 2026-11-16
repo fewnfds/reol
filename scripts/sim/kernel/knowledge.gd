@@ -58,7 +58,7 @@ func _store(world: RefCounted, actor: int, value: Dictionary, origin: String, ob
 		# Better provenance or a newer mobile sighting can refresh metadata without
 		# inventing a changed observation (and clearing an unrelated retry delay).
 		var improved: bool = origin == "heard" and (hops < int(old.hops) or (value.kind == "actor" and seen > int(old.seen_ms)))
-		old.merge({"origin": origin, "observer": observer, "source": source, "seen_ms": seen, "received_ms": at, "hops": hops}, true)
+		if origin != "heard" or improved: old.merge({"origin": origin, "observer": observer, "source": source, "seen_ms": seen, "received_ms": at, "hops": hops}, true)
 		if origin != "heard": old.merge({"absent_ms": -1, "absent_tile": -1}, true)
 		return _merge_teachings(actor, target, teachings) or improved
 	var revision: int = _revision(actor) if changed else int(old.revision)
@@ -72,7 +72,7 @@ func _store(world: RefCounted, actor: int, value: Dictionary, origin: String, ob
 		var rank: int = 100
 		for id: int in subjects:
 			if focus and id == target: continue
-			if id == world.actions.get(actor, {}).get("target", 0) or id == world.objects.records[actor].get("commitment", {}).get("target", 0) or id == world.decisions.records.get(actor, {}).get("task", {}).get("target", 0): continue
+			if id == world.actions.get(actor, {}).get("target", 0) or id == world.objects.records[actor].get("commitment", {}).get("target", 0) or id == world.decisions.records.get(actor, {}).get("task", {}).get("target", 0) or world.livelihood.protects(actor, id): continue
 			var candidate: Dictionary = subjects[id]
 			var priority: int = 0 if candidate.view.tile < 0 else (1 if candidate.view.kind == "pile" else (2 if candidate.view.kind == "actor" else (4 if candidate.origin == "seed" else 3)))
 			if not candidate.teachings.is_empty(): priority = 6
@@ -114,7 +114,7 @@ static func _public_value(supplied: Dictionary) -> Dictionary:
 	value.erase("guest")
 	if value.kind == "actor":
 		value.hp = 1 if int(value.get("hp", 1)) > 0 else 0
-		for field: String in ["inventory", "capacity", "process", "access_dependencies"]: value.erase(field)
+		for field: String in ["inventory", "capacity", "process", "access_dependencies", "contents"]: value.erase(field)
 	return value
 
 func _snapshot(world: RefCounted, target: int) -> Dictionary:
@@ -143,6 +143,7 @@ func observe(world: RefCounted, actor: int, at: int) -> void:
 	var started: int = Time.get_ticks_usec()
 	var entry: Dictionary = record(actor)
 	world.sight.sync(world)
+	var previous_revision: int = entry.next_revision
 	var position: Vector2 = world.combat.position(world, actor)
 	var radius: float = world.sight.range_for(world, actor)
 	var checked: Dictionary = {}
@@ -163,6 +164,8 @@ func observe(world: RefCounted, actor: int, at: int) -> void:
 		var tile: int = entry.subjects[target].view.tile
 		if not checked.has(target) and tile >= 0 and world.sight.sees(position, tile, radius): refresh(world, actor, target, at)
 	entry.due_ms = at + OBSERVATION_MS
+	if entry.next_revision != previous_revision and world.objects.records[actor].get("autonomous", false) and world.combat.alive(world, actor) and not world.decisions.records.get(actor, {}).get("manual", false) and world.gate.current(actor).is_empty() and not world.decisions.in_combat(actor):
+		world.decisions.wake(world, actor, at, "knowledge_observed", 50 + actor % 10 * 50)
 	observations += 1
 	observe_usec += Time.get_ticks_usec() - started
 
@@ -318,13 +321,13 @@ static func _valid_teaching(account: Variant, actor: int, next_id: int, now: int
 
 static func _valid_view(value: Dictionary, target: int, next_id: int, now: int) -> bool:
 	for field: Variant in value:
-		if field not in ["id", "kind", "definition", "tile", "capacity", "owner", "organization", "sapient", "hp", "inventory", "stage", "process", "access_dependencies"]: return false
+		if field not in ["id", "kind", "definition", "tile", "capacity", "owner", "organization", "sapient", "hp", "inventory", "stage", "process", "access_dependencies", "contents"]: return false
 	if not value.get("id") is int or value.id != target or not value.get("kind") is String or value.kind.is_empty() or value.kind.length() > 64 or not value.get("definition") is String or value.definition.is_empty() or value.definition.length() > 128: return false
 	if not value.get("tile") is int or value.tile < -1 or value.tile >= Terrain.SIZE * Terrain.SIZE or not value.get("sapient") is bool: return false
 	if not value.get("owner") is int or value.owner < 0 or value.owner >= next_id or not value.get("organization") is int or value.organization < 0 or (value.owner > 0 and value.organization > 0): return false
 	if value.kind == "actor":
 		if value.has("hp") and (not value.hp is int or value.hp not in [0, 1]): return false
-		for private_field: String in ["inventory", "capacity", "process", "access_dependencies"]:
+		for private_field: String in ["inventory", "capacity", "process", "access_dependencies", "contents"]:
 			if value.has(private_field): return false
 	else:
 		if value.has("capacity") and (not value.capacity is int or value.capacity < -1 or value.capacity > 1000000000): return false
@@ -332,12 +335,25 @@ static func _valid_view(value: Dictionary, target: int, next_id: int, now: int) 
 			if not value.inventory is Dictionary or value.inventory.size() > 256: return false
 			for item: Variant in value.inventory:
 				if not item is String or not Items.valid(item) or not value.inventory[item] is int or value.inventory[item] <= 0 or value.inventory[item] > 1000000000: return false
+		if value.has("contents"):
+			if not value.contents is Dictionary or value.contents.size() > 256 or not value.has("inventory") or value.contents.keys().size() != value.inventory.keys().size(): return false
+			for item: Variant in value.contents:
+				if not item is String or not value.inventory.has(item) or not value.contents[item] is Array or value.contents[item].is_empty() or value.contents[item].size() > 256: return false
+				var total: int = 0
+				var seen: Dictionary = {}
+				for group: Variant in value.contents[item]:
+					if not group is Dictionary or group.size() != 4 or not group.get("owner") is int or group.owner < 0 or group.owner >= next_id or not group.get("organization") is int or group.organization < 0 or (group.owner > 0 and group.organization > 0) or not group.get("entrusted") is bool or not group.get("count") is int or group.count <= 0 or group.count > 1000000000: return false
+					var key: String = "%d:%d:%s" % [group.owner, group.organization, str(group.entrusted)]
+					if seen.has(key): return false
+					seen[key] = true; total += int(group.count)
+				if total != value.inventory[item]: return false
 	if value.has("stage") and (not value.stage is int or value.stage < 0 or value.stage > 100): return false
 	if value.has("process"):
 		if not value.process is Dictionary: return false
 		var process: Dictionary = value.process
 		if not process.is_empty():
-			if process.size() != 5 or not process.get("id") is int or process.id <= 0 or not process.get("operation") is String or Operations.OPERATIONS.get(process.operation, {}).get("recipe", {}).is_empty(): return false
+			if process.size() != 7 or not process.get("id") is int or process.id <= 0 or not process.get("operation") is String or Operations.OPERATIONS.get(process.operation, {}).get("recipe", {}).is_empty(): return false
+			if not process.get("output_owner") is int or process.output_owner < 0 or process.output_owner >= next_id or not process.get("output_organization") is int or process.output_organization < 0 or (process.output_owner > 0 and process.output_organization > 0): return false
 			if process.get("stage") not in ["work", "passive", "finish"] or not process.get("remaining_ms") is int or process.remaining_ms < 0 or process.remaining_ms > 300000 or not process.get("ready_ms") is int or process.ready_ms < 0 or process.ready_ms > now + 86400000: return false
 	if value.has("access_dependencies"):
 		if not value.access_dependencies is Dictionary or value.access_dependencies.size() > 2: return false

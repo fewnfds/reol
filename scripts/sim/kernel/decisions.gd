@@ -186,6 +186,7 @@ func ended(world: RefCounted, actor: int, binding: Dictionary, at: int, reason: 
 	var entry: Dictionary = records[actor]
 	var task: Dictionary = entry.task
 	if task.get("binding", {}) == binding and not binding.is_empty():
+		world.livelihood.task_ended(actor, int(task.id))
 		if activity.is_empty() and task.has("operation") and (reason != "completed" or not task.get("approach", false)):
 			result(world, actor, task.operation, task.target, reason, at, str(activity.get("status", "")))
 		task.binding = {}
@@ -295,7 +296,7 @@ func prepare(world: RefCounted, now: int) -> void:
 				wake(world, actor, now, "await_commitment", 100); continue
 			if entry.life_dirty:
 				entry.life_dirty = false
-				if _life_preemptible(world, actor):
+				if _life_preemptible(world, actor) and world.livelihood.should_preempt(world, actor, now):
 					_submitting = actor
 					world.end_run(actor, now, "preempted", {}, false)
 					world.clear_navigation(actor)

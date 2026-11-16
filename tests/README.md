@@ -29,6 +29,8 @@
 
 `knowledge_boundaries_smoke.gd`补旧位置反证不误杀异地目击、技术取消不洗拒教、真实非视觉教学回执、人物目击不刷新教学来源/时间/跳数、两跳求助不挂幽灵承诺、远方不可达承诺遵守原退避、删除直接来源与目标仍可恢复、线索洪泛保护近期反证/教学、首次发现尸体且排除普通战斗目标、行走/手动宿主未完也能观察。它们不代表T08目的或百人供养已经交付。
 
+`agency_food_smoke.gd`核缺料精确取物/开锅/打断与恢复/续锅进食、自身背包与玩家共同规则；`agency_learning_smoke.gd`核真实拒教后取书/读书/实践。`agency_boundaries_smoke.gd`核交付/倾向差异/紧急抢占/预算和坏档，`agency_custody_smoke.gd`核公料换用途/撤权归还/短忙不退料重领，`agency_failures_smoke.gd`核拥挤时自身候选、私人饭归属、无饭不无谓抢占、instant完成与不可见旧址退避。分别短运行，不组合为默认长回归。`agency_ui_smoke.gd`通过原Game、真实文件与原生按钮观察NPC自主读书；私有目的仅F12决策诊断显示，普通人物页不透露。它们不是百人宗门供养或图形性能验收。
+
 `navigation_smoke.gd`由kernel调用，`tile_smoke.gd`复用features的世界；它们和feature/sight/equipment一样是RefCounted模块，不直接用Godot的`--script`启动。其余SceneTree专题按下面的范围选用。
 
 `tool_smoke.py`在修改Python运行或性能工具时使用，核对进程退出/超时、历史复用、单倍率次数上限及不可比条件，不启动游戏。性能用真实release短窗口，不用smoke通过数量代表容量。

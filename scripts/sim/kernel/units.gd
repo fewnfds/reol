@@ -3,6 +3,7 @@ extends RefCounted
 
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Equipment = preload("res://scripts/sim/kernel/equipment.gd")
+const LifeDefs = preload("res://scripts/sim/kernel/agency_defs.gd")
 const PAGE_SIZE: int = 256
 const WALK_SPEED: float = Equipment.BASE.speed
 const MAX_TOLERANCE: float = 100.0
@@ -247,7 +248,7 @@ func sample_environment(seconds: float = 1.0) -> void:
 			hunger[row] = maxi(0, hunger[row] - roundi(2 * seconds))
 			var thermal_cost: float = absf(body_heat[row] - 22.0) if environment_enabled[row] != 0 else 0.0
 			energy[row] = maxi(0, energy[row] - roundi((3 + thermal_cost) * seconds))
-			if (hunger_before >= 4000 and hunger[row] < 4000) or (energy_before >= 4000 and energy[row] < 4000):
+			if LifeDefs.crossed_need("hunger", hunger_before, hunger[row]) or LifeDefs.crossed_need("energy", energy_before, energy[row]):
 				environmental_events.append({"kind": "needs_changed", "actor": ids[row], "at_ms": end_ms})
 		if environment_enabled[row] == 0: continue
 		if seconds > 0.0 and (body_heat[row] > 80.0 or body_heat[row] < 0.0):

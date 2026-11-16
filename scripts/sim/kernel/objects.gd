@@ -161,6 +161,21 @@ func goods_summary(id: int, worn: bool = false) -> Dictionary:
 		for gear: Dictionary in records.get(id, {}).get("equipment", {}).values(): result[gear.item] = int(result.get(gear.item, 0)) + 1
 	return result
 
+func public_contents(id: int) -> Dictionary:
+	# Observable attribution of a static store's contents, detached from custody
+	# mandates. A public workshop can hold somebody's privately owned output.
+	var result: Dictionary = {}
+	for item: String in records.get(id, {}).get("stock", {}):
+		result[item] = []
+		for batch: Dictionary in records[id].stock[item]:
+			var group: Dictionary = {"owner": int(batch.owner), "organization": int(batch.organization), "entrusted": int(batch.entrust) > 0, "count": int(batch.count)}
+			var merged: bool = false
+			for entry: Dictionary in result[item]:
+				if entry.owner == group.owner and entry.organization == group.organization and entry.entrusted == group.entrusted:
+					entry.count += int(group.count); merged = true; break
+			if not merged: result[item].append(group)
+	return result
+
 func goods_amount(id: int, item: String, filter: Dictionary, worn: bool = false) -> int:
 	var result: int = amount(id, item, filter)
 	if worn:

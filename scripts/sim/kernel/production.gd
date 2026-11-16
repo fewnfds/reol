@@ -34,7 +34,10 @@ static func view(record: Dictionary, action: Dictionary = {}, at: int = 0) -> Di
 	var remaining: int = int(process.remaining_ms)
 	if _matches(record, action) and action.has("started_ms"):
 		remaining = int(action.base_work_ms) - mini(int(action.base_work_ms), maxi(0, at - int(action.started_ms)) * int(action.base_work_ms) / int(action.scheduled_ms))
-	return {"id": process.id, "operation": process.operation, "stage": process.stage, "remaining_ms": remaining, "ready_ms": process.ready_ms}
+	var inputs: Array = record.get("work_stock", {}).values()
+	var right: Dictionary = inputs[0][0] if not inputs.is_empty() and not inputs[0].is_empty() else {}
+	return {"id": process.id, "operation": process.operation, "stage": process.stage, "remaining_ms": remaining, "ready_ms": process.ready_ms,
+		"output_owner": int(right.get("owner", 0)), "output_organization": int(right.get("organization", 0))}
 
 static func start(world: RefCounted, actor: int, action: Dictionary, at: int) -> String:
 	var operation: Dictionary = world.Operations.OPERATIONS[action.kind]

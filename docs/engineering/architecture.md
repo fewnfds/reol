@@ -20,7 +20,7 @@
 | `scripts/sim/kernel/objects.gd` | 单调身份、静态位置索引、分类库存与穿戴位置、转移/原子交换与换装；不逐步空转所有对象 |
 | `stock_rules.gd`、`institutions.gd` | 规范批次的纯归属/选料与最低组织/成员许可、稳定受托及实际办理历史；实物仍Objects唯一持有，接触宿主仍Society |
 | `items.gd`、`equipment.gd` | 物品定义/品质堆键的唯一解释，以及按源状态重建的身体属性热列；没有第二份物品实例账本 |
-| `facilities.gd`、`livelihood.gd` | 组合占地/蓝图/设施效果与消费个人认识的稀疏生活选择，复用身体到期/到达；持久目的仍在后续任务实施 |
+| `facilities.gd`、`livelihood.gd` | 设施宿主与个人持久目的分别持原状态；Livelihood管理目标/采用方法/倾向/评价和本人有界预算，复用P5唯一任务/到期/到达；`agency_planner.gd`只展开当前一步，不存执行游标或预期物资 |
 | `knowledge.gd` | 个人物理认识、独立教学证据与有限操作经历；真实观察/回执/转述、来源/时效/特定位置反证及有界记忆，不复制他人私有状态或玩家地图 |
 | `decisions.gd`、`decision_defs.gd`、`decision_rules.gd` | 跨生活/战斗/逃离/跟随的策略绑定、独立任务、手动交接、唤醒与自主输入；只读政策与受信求值器，原宿主负责执行 |
 | `environment.gd`、`nature.gd` | 历法/天气、静态max场/移动来源索引、房间响应；分组植物采样/生长/产物/宿主与来源 |

@@ -4,7 +4,15 @@
 
 ## 宗门共享基座实施（源码）
 
-T01～T07主体能力、共同操作、持续活动、成长/体况、规范物资/最低授权、生产与在制及本人认识已完成开工/收尾咨询、独立核查及相关整改。T08实施中尚未交付。当前源码格式为format20/`user://sect-quicksave-v20.reol`及相关定义签名；下列独立P5包尚未重导，仍为format14，不能混用文件。
+T01～T08主体能力、共同操作、持续活动、成长/体况、规范物资/最低授权、生产与在制、本人认识及持久目的/有限方法已完成开工/收尾咨询、独立核查及相关整改。当前源码格式为format21/`user://sect-quicksave-v21.reol`及相关定义签名；下列独立P5包尚未重导，仍为format14，不能混用文件。百人宗门完整循环尚未交付。
+
+T08实际链路：`agency-food-provenance-final-20261117-041916-665049400.log`、`agency-learning-reviewed-20261117-041831-631963300.log`、`agency-boundaries-restoration-20261117-040714-140914500.log`、`agency-public-busy-persistence-20261117-041818-286732600.log`均errors=0。缺料精确拿2粮1水后开锅，手动中断/存读沿原锅续作；拒教后取书/读书/实践；倾向差异与严重需要抢占；公料先退还再按用途领取，设施短忙不退料重领。目标及采用方法不复制原run游标、物资或锅内进度。
+
+T08追加收尾：`agency-refinement-material-probe-20261117-043243-916861800.log` errors=0，真实未观测退料箱→观察→归库、组织箱内私人书→取回→学习、无水时两目的不反复退领粮。首次新夹具把初始化已有transfers算入本次，已改为场景计数差、保留实际物量/学习断言。`agency-refinement-food-20261117-043300-285419000.log`、`agency-refinement-goals-20261117-043300-286717300.log`、`agency-refinement-custody-20261117-043108-938732700.log`和`agency-refinement-feedback-20261117-043153-34079700.log`均errors=0。
+
+T08整改后`agency-known-rights-regression-20261117-042349-624384600.log` errors=0，真实认识/传播原消费者回归；公开容器库存保留可知权属，人物私有库存不外泄。`agency-production-process-group-20261117-040613-501402700.log`、`agency-production-source-short-20261117-040906-866639100.log`及`agency-production-invalid-state-20261117-040934-962010100.log`分别通过原生产断言；原聚合超过15秒，未扩大上限或写成聚合全绿。
+
+T08原生GUI：`agency-native-private-diagnostics-20261117-042325-232398100.log` errors=0，D3D12真实Game文件进入/存读/人物页与修行页原生点击，F12原生输入`decisions`显示选择目标诊断，普通页不透私有动机，继续运行后NPC实际读书有理解进展；`logs/agency-ui/learning-purpose.png`已实看。规模短样本100人、5008ms模拟/wall813ms、239次选择、规划506612μs/121次观察204595μs、单人预算最大64、候选valid=true；不同活动窗不能算纯算法百分比，也不是净供养或GUI帧率验收。旧kernel间歇计时失败仍未关闭。
 
 | 本次检查 | 证据与边界 |
 |---|---|

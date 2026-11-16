@@ -176,8 +176,8 @@ func _submit(text: String) -> void:
 		"help": _feedback.text = "status 查看最新状态；actions 查看DEV反应追踪；decisions 查看单位决策；errors 仅错误/警告；log 全部记录；export 导出JSON。"
 		"decisions":
 			var snapshot: Dictionary = _session()
-			_output.text = JSON.stringify({"recent": snapshot.get("decision_trace", []), "selected": snapshot.get("inspected", {}).get("decision", {}), "player": snapshot.get("player", {}).get("decision", {})}, "\t")
-			_feedback.text = "最近选择与当前任务；诊断信息不进入单位认识。"
+			_output.text = JSON.stringify({"recent": snapshot.get("decision_trace", []), "selected": snapshot.get("inspected", {}).get("decision", {}), "selected_agency": snapshot.get("inspected", {}).get("agency", {}), "player": snapshot.get("player", {}).get("decision", {}), "player_agency": snapshot.get("player", {}).get("agency", {})}, "\t")
+			_feedback.text = "最近选择、个人目的与当前任务；诊断信息不进入单位认识。"
 			_rendered_seq = journal.summary().sequence
 		"actions":
 			_output.text = JSON.stringify(_session().get("action_trace", []), "\t")

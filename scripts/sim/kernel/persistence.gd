@@ -97,6 +97,7 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 	if not world.gate.rebuild(world) or not world.pools.valid(world) or not world.defense.valid(world) or not world.reactions.valid(world) or not world.entities.valid(world): return null
 	if not world.activity_results.rebuild(world): return null
 	if not world.decisions.valid(world): return null
+	if not world.livelihood.valid(world): return null
 	world.effects.prepare(world, world.elapsed_ms)
 	if not world.regions.valid(world):
 		return null
@@ -262,6 +263,7 @@ static func _processes_valid(world: RefCounted) -> bool:
 		if operation.executor == "transfer" and (not action.get("item") is String or not Items.valid(action.item) or not action.get("amount") is int or action.amount <= 0):
 			return false
 		if operation.executor == "transfer" and not world.institutions.transfer_context_valid(action): return false
+		if operation.handler in ["gather", "collect_source"] and action.has("amount") and (not action.amount is int or action.amount <= 0 or action.amount > 10000): return false
 		if not Operations.capability_reason(world.objects.records[actor], action.kind).is_empty(): return false
 		if not operation.required_method.is_empty() and not Growth.introduced(world.objects.records[actor], operation.required_method): return false
 		if not operation.required_ability.is_empty() and not Growth.abilities(world.objects.records[actor]).get(operation.required_ability, false): return false

@@ -142,6 +142,9 @@ func initialize(count: int = 1000, requested_workers: int = 4, stress_environmen
 	if not Growth.Defs.ERRORS.is_empty():
 		push_error("Invalid growth definitions: " + str(Growth.Defs.ERRORS))
 		return
+	if not livelihood.Defs.ERRORS.is_empty():
+		push_error("Invalid agency definitions: " + str(livelihood.Defs.ERRORS))
+		return
 	actor_count = count
 	terrain.initialize()
 	environment.initialize(terrain, count, stress_environment)
@@ -226,7 +229,7 @@ func initialize(count: int = 1000, requested_workers: int = 4, stress_environmen
 func state_owners() -> Dictionary:
 	# The concrete composition root lists real domains; field selection belongs
 	# to each owner. New domains do not require a new serializer implementation.
-	return {"world": self, "terrain": terrain, "objects": objects, "environment": environment, "nature": nature, "combat": combat, "effects": effects, "areas": areas, "implements": implements, "perception": perception, "regions": regions, "person_events": person_events, "activity_results": activity_results, "society": society, "institutions": institutions, "knowledge": knowledge, "pools": pools, "defense": defense, "reactions": reactions, "entities": entities, "decisions": decisions}
+	return {"world": self, "terrain": terrain, "objects": objects, "environment": environment, "nature": nature, "combat": combat, "effects": effects, "areas": areas, "implements": implements, "perception": perception, "regions": regions, "person_events": person_events, "activity_results": activity_results, "society": society, "institutions": institutions, "knowledge": knowledge, "livelihood": livelihood, "pools": pools, "defense": defense, "reactions": reactions, "entities": entities, "decisions": decisions}
 
 func emit(event: Dictionary) -> void:
 	event = preload("res://scripts/sim/kernel/outcome.gd").envelope(event, operation_time())
@@ -500,6 +503,7 @@ func settle(id: int, at: int, expected: Variant = null) -> void:
 	elif mode == Units.Mode.APPROACH or mode == Units.Mode.ACTION:
 		settle_action(id, at)
 	elif mode == Units.Mode.EXPLORE:
+		livelihood.arrived(self, id, at)
 		end_run(id, at, "completed")
 		knowledge.observe(self, id, at)
 		livelihood.think(self, id, at)
@@ -558,6 +562,7 @@ func end_run(id: int, at: int = -1, reason: String = "replaced", outcome: Dictio
 	# Evidence is committed before either participant is awakened. Partner waits
 	# never publish a second result for the same shared activity.
 	if not interaction.is_empty(): society.interrupt(self, interaction, now)
+	livelihood.outcome(self, id, binding, result, now, reason)
 	decisions.ended(self, id, binding, now, reason, result)
 	if resume and resume_partner and objects.records[id].get("autonomous", false) and combat.alive(self, id) and not decisions.records.get(id, {}).get("manual", false) and not decisions.in_combat(id):
 		livelihood.after_action(self, id, now)
@@ -673,6 +678,7 @@ func kill(id: int, at: int = -1, cause: String = "") -> void:
 	environment.remove_mobile(id)
 	# A corpse retains its cargo. Death cannot erase or duplicate materials.
 	decisions.forget(id)
+	livelihood.forget(id)
 	deaths += 1
 	emit({"kind": "death", "actor": id, "at_ms": at if at >= 0 else operation_time(), "cause": cause})
 
@@ -1071,6 +1077,7 @@ func operation_target(id: int) -> Dictionary:
 		"inventory": objects.goods_summary(id, actor_slots.has(id) and not combat.alive(self, id)), "owner": int(record.owner), "organization": int(record.organization), "capacity": record.capacity, "sapient": record.get("sapient", false), "guest": int(record.get("guest", 0))}
 	result["access_dependencies"] = facilities.access_dependencies(self, id)
 	result["process"] = Production.view(record)
+	if record.kind != "actor": result["contents"] = objects.public_contents(id)
 	if record.has("stage"): result["stage"] = record.stage
 	if actor_slots.has(id):
 		var slot: int = actor_slots[id]
@@ -1104,6 +1111,7 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 	var operation: Dictionary = Operations.OPERATIONS.get(input.get("kind", ""), {})
 	if operation.is_empty(): return "unknown_operation"
 	if operation.executor in ["instant", "work_source"]: return "unsupported_host"
+	if operation.handler in ["gather", "collect_source"] and input.has("amount") and (not input.amount is int or input.amount <= 0 or input.amount > 10000): return "invalid_amount"
 	var capability_reason: String = Operations.capability_reason(objects.records.get(id, {}), str(input.kind))
 	if not capability_reason.is_empty(): return capability_reason
 	var admission: String = gate.check(self, id, operation_time())
@@ -1347,6 +1355,7 @@ func describe(id: int) -> Dictionary:
 		result["events"] = person_events.view(id)
 		result["events_version"] = person_events.version(id)
 		result["decision"] = decisions.describe(id)
+		result["agency"] = livelihood.describe(id)
 		result["flight"] = page.flight[row]
 		result["radius"] = page.radii[row]
 		result["destination"] = page.targets[row]
@@ -1568,6 +1577,7 @@ func remove_actor(id: int, at: int = -1) -> bool:
 	objects.remove_empty(id)
 	knowledge.records.erase(id)
 	decisions.forget(id)
+	livelihood.forget(id)
 	actor_slots.erase(id)
 	pools.records.erase(id)
 	defense.guards.erase(id)
