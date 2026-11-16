@@ -5,6 +5,7 @@ const Items = preload("res://scripts/sim/kernel/items.gd")
 const Style = preload("res://scripts/presentation/ui/style.gd")
 const Grid = preload("res://scripts/presentation/ui/item_grid.gd")
 const EventText = preload("res://scripts/presentation/ui/event_text.gd")
+const Growth = preload("res://scripts/sim/kernel/growth.gd")
 var subject_id: int = 1
 var events: RichTextLabel
 var _stats: Label
@@ -42,6 +43,7 @@ func _ready() -> void:
 	practice.name = "修行"
 	_tabs.add_child(practice)
 	_practice = Style.label(practice)
+	_practice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_study = Button.new()
 	_study.focus_mode = Control.FOCUS_NONE
 	_study.text = "读书"
@@ -92,7 +94,13 @@ func refresh(subject: Dictionary) -> void:
 		int(subject.hp), int(stats.get("max_hp", 100)), float(subject.tolerance), float(subject.max_tolerance),
 		int(stats.get("melee", 0)), int(stats.get("ranged", 0)),
 		int(stats.get("armor", 0)), float(stats.get("speed", 0)), int(subject.energy), int(subject.hunger), float(subject.temperature)]
-	_practice.text = "灵气 %d\n修行 %d\n%s" % [int(subject.get("qi", 0)), int(subject.get("practice", 0)), str(subject.get("methods", {}).keys())]
+	var lines := PackedStringArray(["灵力 %d / 3000" % int(subject.get("qi", 0)), "体魄 %d · 悟性 %d" % [Growth.aptitude(subject, "physique"), Growth.aptitude(subject, "comprehension")]])
+	for method: String in subject.get("methods", {}):
+		var entry: Dictionary = subject.methods[method]
+		var spec: Dictionary = Growth.Defs.METHODS[method]
+		lines.append("%s\n理解 %d/%d · 实践 %d/%d" % [spec.title, entry.understanding, spec.introduction_points, entry.progress, spec.mastery_points])
+	for condition: String in subject.get("conditions", {}): lines.append("%s · 休养 %d/%d" % [Growth.Defs.CONDITIONS[condition].title, subject.conditions[condition].recovery, Growth.Defs.CONDITIONS[condition].recovery_needed])
+	_practice.text = "\n".join(lines)
 	var activity: Dictionary = subject.get("activity", {})
 	var operation: String = str(activity.get("operation", ""))
 	var phase: String = str({"approaching": "前往", "waiting": "等待", "acting": "进行", "partner_waiting": "应邀等候", "traveling": "赶路", "exploring": "探查", "combat": "战斗", "working": "活动"}.get(activity.get("phase", ""), "空闲"))
@@ -102,6 +110,6 @@ func refresh(subject: Dictionary) -> void:
 	var version: String = "%d:%d" % [subject_id, int(subject.get("events_version", 0))]
 	if version != _event_signature:
 		_event_signature = version
-		var lines := PackedStringArray()
-		for event: Dictionary in subject.get("events", []): lines.append(EventText.line(event))
-		events.text = "\n".join(lines)
+		var event_lines := PackedStringArray()
+		for event: Dictionary in subject.get("events", []): event_lines.append(EventText.line(event))
+		events.text = "\n".join(event_lines)

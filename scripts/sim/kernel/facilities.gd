@@ -7,6 +7,7 @@ const Positions = preload("res://scripts/sim/kernel/work_positions.gd")
 const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const Query = preload("res://scripts/sim/kernel/operation_query.gd")
 const Results = preload("res://scripts/sim/kernel/activity_results.gd")
+const Growth = preload("res://scripts/sim/kernel/growth.gd")
 var definitions: Dictionary = {}
 var completed: Dictionary = {}
 
@@ -241,8 +242,11 @@ func commit(world: RefCounted, actor: int, action: Dictionary, at: int) -> Dicti
 			install(world, action.target)
 		"rest":
 			var before: int = page.energy[row]
-			page.energy[row] = mini(10000, before + 2000)
+			page.energy[row] = mini(10000, before + roundi(2000 * Growth.rest_scale(world.objects.records[actor])))
 			facts = {"energy_restored": page.energy[row] - before}
+			if page.body_heat[row] >= 5.0 and page.body_heat[row] <= 40.0:
+				facts["condition_recovery"] = Growth.recover_rest(world.objects.records[actor])
+				if not facts.condition_recovery.is_empty(): world.Equipment.rebuild(world, actor)
 		"eat":
 			if world.objects.amount(action.target, "meal") <= 0:
 				return Results.refused("no_food")
@@ -260,6 +264,8 @@ func commit(world: RefCounted, actor: int, action: Dictionary, at: int) -> Dicti
 			world.objects.add(action.target, "meal", 3)
 			world._sync_inventory(actor)
 			facts = {"consumed": ingredients.duplicate(), "produced": {"meal": 3}, "destination": action.target}
+			var operation: Dictionary = Operations.OPERATIONS[action.get("operation_id", action.kind)]
+			if not operation.learning_method.is_empty(): facts["learning"] = Growth.advance(world.objects.records[actor], operation.learning_method, operation.learning_points, "practice", 0, at)
 	completed[action.kind] = int(completed.get(action.kind, 0)) + 1
 	return Results.completed(facts)
 

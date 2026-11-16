@@ -87,7 +87,7 @@ static func run(check: Callable) -> void:
 			w.step()
 	page.health[0] = 50
 	check.call(w.command({"kind": "ability"}).ok and page.health[0] == 75 and w.objects.records[tree].qi < 1000, "Practice did not use stored qi and unlock a real ability")
-	var practice_before: int = w.objects.records[1].practice
+	var practice_before: int = w.objects.records[1].methods.wood_breath.progress
 	w.command({"kind": "practice", "target": tree})
 	w.step()
 	w.objects.records[tree].hp = 0
@@ -95,7 +95,7 @@ static func run(check: Callable) -> void:
 	var remaining_qi: int = w.objects.records[tree].qi
 	for step: int in 70:
 		w.step()
-	check.call(w.objects.records[1].practice == practice_before and w.objects.records[tree].qi == remaining_qi, "A withered tree still granted an in-flight practice reward")
+	check.call(w.objects.records[1].methods.wood_breath.progress == practice_before and w.objects.records[tree].qi == remaining_qi, "A withered tree still granted an in-flight practice reward")
 	var site: Dictionary = w.facilities.blueprint(w, 1, "wood_wall", Terrain.index(Vector2i(160, 173)))
 	if site.get("target", 0) == 0:
 		w.objects.transfer(w.source_objects[0], 1, "wood", 10)
@@ -108,7 +108,7 @@ static func run(check: Callable) -> void:
 		check.call(w.society.finish(w, 1, action, w.elapsed_ms) == "completed" and w.objects.records[task].kind == "blueprint" and not w.reservations.has(task), "Accepted promise fabricated completed construction")
 		w.livelihood.think(w, 5, w.elapsed_ms)
 	var saved: RefCounted = Persistence.candidate(Persistence.capture(w), 0)
-	check.call(saved != null and saved.objects.records[1].get("abilities", {}).has("wood_mend"), "Integrated domains could not resume from a candidate")
+	check.call(saved != null and saved.describe(1).abilities.has("wood_mend"), "Integrated domains could not resume from a candidate")
 	var memory_tile: int = Terrain.index(Vector2i(175, 179))
 	var object: int = w.objects.create("chest", "wood_chest", memory_tile)
 	w.perception.update(w, w.elapsed_ms, true)

@@ -2,6 +2,7 @@ extends RefCounted
 ## Pure queries consume detached personal observations. Never accept a World.
 const Defs = preload("res://scripts/sim/kernel/operation_defs.gd")
 const Costs = preload("res://scripts/sim/kernel/action_costs.gd")
+const Growth = preload("res://scripts/sim/kernel/growth.gd")
 static var BUILDINGS: Dictionary = Defs.freeze(JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/construction.json")).types)
 
 static func evaluate(operation: Dictionary, actor: Dictionary, target: Dictionary, context: Dictionary = {}, buildings: Dictionary = {}) -> Dictionary:
@@ -71,7 +72,9 @@ static func readiness(operation: Dictionary, actor: Dictionary, context: Diction
 		if not actor.get("body_capabilities", {}).get(capability, false): return "body_has_no_%s_capability" % capability
 	for item: String in operation.required_items:
 		if int(actor.get("inventory", {}).get(item, 0)) < int(operation.required_items[item]): return "missing_items"
-	if not operation.required_method.is_empty() and not actor.get("methods", {}).has(operation.required_method): return "method_not_known"
+	if not operation.required_method.is_empty() and not Growth.introduced(actor, operation.required_method): return "method_not_known"
+	if operation.handler in ["learn", "study"] and int(actor.get("methods", {}).get(operation.learning_method, {}).get("understanding", 0)) >= int(Growth.Defs.METHODS[operation.learning_method].introduction_points): return "already_understood"
+	if operation.handler == "study" and not operation.get("learning_method", "").is_empty() and int(actor.get("inventory", {}).get(Growth.Defs.METHODS[operation.learning_method].study_item, 0)) <= 0: return "missing_book"
 	if not operation.required_ability.is_empty() and not actor.get("abilities", {}).get(operation.required_ability, false): return "ability_not_mastered"
 	if operation.injured and int(actor.hp) >= int(actor.get("max_hp", actor.get("stats", {}).get("max_hp", actor.hp))): return "full_health"
 	if operation.actor_inventory and actor.get("inventory", {}).is_empty(): return "empty"

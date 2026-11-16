@@ -477,7 +477,7 @@ func toggle_drawer(kind: String) -> void:
 	_layout()
 
 func _refresh_drawer() -> void:
-	var signature: String = _drawer_name + str(_frame.player.get("inventory", {})) + str(_frame.player.get("methods", {})) + str(_frame.player.get("practice", 0))
+	var signature: String = _drawer_name + str(_frame.player.get("inventory", {})) + str(_frame.player.get("methods", {})) + str(_frame.player.get("conditions", {}))
 	if _drawer_name == "character": signature = "character#%d" % _character_id
 	if signature == _drawer_signature: return
 	_drawer_signature = signature

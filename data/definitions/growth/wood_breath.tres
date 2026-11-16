@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="LearnedMethodDef" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/growth/method_def.gd" id="method"]
+[resource]
+script = ExtResource("method")
+id = "wood_breath"
+title = "木息法"
+study_item = "breath_manual"
+unlocks = PackedStringArray("wood_mend")
+source_qi_cost = 100
+qi_gain = 60
+energy_cost = 300
+satiety_cost = 100

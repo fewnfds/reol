@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="PersistentConditionDef" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/growth/condition_def.gd" id="condition"]
+[resource]
+script = ExtResource("condition")
+id = "thermal_strain"
+title = "寒热失调"
+causes = PackedStringArray("cold", "heat")
+speed_scale = 0.9
+learning_scale = 0.8

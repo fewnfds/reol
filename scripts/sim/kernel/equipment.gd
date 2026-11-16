@@ -3,6 +3,7 @@ extends RefCounted
 ## Called by the owner on spawn, equipment changes and restore, never per tick.
 const Defs = preload("res://scripts/sim/kernel/action_defs.gd")
 const Beings = preload("res://scripts/sim/kernel/being_defs.gd")
+const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const Items = preload("res://scripts/sim/kernel/items.gd")
 const BASE: Dictionary = {"max_hp": 100.0, "melee": 25.0, "ranged": 20.0, "armor": 0.0, "speed": 5.0}
 
@@ -10,6 +11,7 @@ static func values(record: Dictionary) -> Dictionary:
 	var result: Dictionary = BASE.duplicate()
 	# Explicit base overrides are also useful for a disclosed pressure fixture.
 	result.merge(record.get("base_stats", {}), true)
+	Growth.modify_stats(record, result)
 	for key: String in record.get("equipment", {}).values():
 		var bonus: Dictionary = Items.bonuses(key)
 		for stat: String in bonus: result[stat] += bonus[stat]

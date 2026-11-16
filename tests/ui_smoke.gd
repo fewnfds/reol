@@ -258,6 +258,10 @@ func run() -> void:
 	game.ui.inventory.bag.select("potion")
 	check(game.ui.inventory._use.disabled and game.ui.inventory._equip.disabled and game.ui.inventory._drop.disabled, "NPC bag inspection granted control")
 	await capture("npc-readonly")
+	game.ui.character._tabs.current_tab = 1
+	await settle(4)
+	check(game.ui.character._practice.text.contains("木息法") and game.ui.character._practice.text.contains("炊事") and game.ui.character._study.disabled, "NPC mastery view lacked real methods or granted player control")
+	await capture("npc-learning")
 	game.ui.inventory.hide()
 	game.controls.action("close_drawer", {})
 	# Exercise the actual numeric form without overwriting the user's preferences.

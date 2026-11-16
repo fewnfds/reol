@@ -36,6 +36,7 @@ const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const OperationQuery = preload("res://scripts/sim/kernel/operation_query.gd")
 const Costs = preload("res://scripts/sim/kernel/action_costs.gd")
 const ActivityResults = preload("res://scripts/sim/kernel/activity_results.gd")
+const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const Equipment = preload("res://scripts/sim/kernel/equipment.gd")
 
 class Lane extends RefCounted:
@@ -131,6 +132,9 @@ func initialize(count: int = 1000, requested_workers: int = 4, stress_environmen
 		return
 	if not Operations.ERRORS.is_empty():
 		push_error("Invalid operation definitions: " + str(Operations.ERRORS))
+		return
+	if not Growth.Defs.ERRORS.is_empty():
+		push_error("Invalid growth definitions: " + str(Growth.Defs.ERRORS))
 		return
 	actor_count = count
 	terrain.initialize()
@@ -360,7 +364,12 @@ func _advance_interval(end: int) -> void:
 		for page: RefCounted in pages:
 			for event: Dictionary in page.environmental_events:
 				if event.kind == "needs_changed": decisions.wake(self, event.actor, end, "needs_changed")
-				else: emit(event)
+				else:
+					if event.kind == "thermal_hit" and int(event.damage) > 0 and combat.alive(self, event.actor):
+						if Growth.apply_condition(objects.records[event.actor], "thermal_strain", event.cause, end):
+							Equipment.rebuild(self, event.actor)
+							if objects.records[event.actor].get("autonomous", false): decisions.wake(self, event.actor, end, "condition_changed")
+					emit(event)
 			for row: int in page.environmental_deaths:
 				kill(page.ids[row], end, "cold" if page.body_heat[row] < 0.0 else "heat")
 		environment_usec += Time.get_ticks_usec() - env_start
@@ -587,6 +596,16 @@ func adopt_motion(id: int, at: int) -> bool:
 	next_run += 1
 	gate.bind(id, "work", work_runs[id])
 	decisions.track_host(self, id)
+	return true
+
+func set_aptitudes(id: int, values: Dictionary) -> bool:
+	if not actor_slots.has(id) or not combat.alive(self, id): return false
+	var candidate: Dictionary = objects.records[id].duplicate()
+	candidate["aptitudes"] = values.duplicate()
+	if not Growth.valid_record(candidate, objects.next_id, operation_time()): return false
+	objects.records[id]["aptitudes"] = values.duplicate()
+	Equipment.rebuild(self, id)
+	if objects.records[id].get("autonomous", false): decisions.wake(self, id, operation_time(), "aptitudes_changed")
 	return true
 
 func set_capability_overrides(id: int, changes: Dictionary) -> bool:
@@ -1024,8 +1043,8 @@ func operation_actor(id: int) -> Dictionary:
 	var slot: int = actor_slots[id]
 	var page: RefCounted = pages[slot / 256]
 	return {"id": id, "hp": page.health[slot % 256], "max_hp": page.max_health[slot % 256], "energy": page.energy[slot % 256],
-		"qi": int(record.get("qi", 0)), "inventory": record.inventory.duplicate(), "methods": record.get("methods", {}).duplicate(),
-		"abilities": record.get("abilities", {}).duplicate(), "body_capabilities": Beings.capabilities(record), "pools": State.copy(pools.records.get(id, {})), "admission_reason": gate.check(self, id, operation_time())}
+		"qi": int(record.get("qi", 0)), "inventory": record.inventory.duplicate(), "methods": State.copy(record.get("methods", {})),
+		"abilities": Growth.abilities(record), "body_capabilities": Beings.capabilities(record), "pools": State.copy(pools.records.get(id, {})), "admission_reason": gate.check(self, id, operation_time())}
 
 func operation_target(id: int) -> Dictionary:
 	if not objects.records.has(id): return {}
@@ -1075,7 +1094,7 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(target), {"help_target": int(input.get("task_target", 0))}, facilities.definitions)
 	if not query.ready: return query.reason
 	if operation.executor == "transfer" and (not input.get("item") is String or not preload("res://scripts/sim/kernel/items.gd").valid(input.item) or not input.get("amount") is int or input.amount <= 0): return "invalid_transfer"
-	if operation.executor == "society" and not society.available(self, id, Operations.domain_action(input)):
+	if operation.executor == "society" and not society.contact_reason(self, Operations.domain_action(input)).is_empty():
 		return "not_available_for_contact"
 	if objects.records[target].tile < 0 and operation.executor != "society":
 		return "invalid_target"
@@ -1118,17 +1137,19 @@ func settle_action(id: int, at: int) -> void:
 	var handler: String = operation.handler
 	var target: int = action.target
 	var stale_construction: bool = handler == "construct" and objects.records.get(target, {}).get("kind", "") != "blueprint"
-	var unavailable_contact: bool = objects.records.has(target) and operation.executor == "society" and not society.available(self, id, Operations.domain_action(action))
-	if not objects.records.has(target) or (actor_slots.has(target) and not combat.alive(self, target)) or stale_construction or unavailable_contact:
+	if not objects.records.has(target) or (actor_slots.has(target) and not combat.alive(self, target)) or stale_construction:
 		var autonomous: bool = action.get("autonomous", false)
-		end_run(id, at, "unavailable" if stale_construction or unavailable_contact else "target_gone")
+		end_run(id, at, "unavailable" if stale_construction else "target_gone")
 		clear_navigation(id)
 		page.modes[row] = Units.Mode.IDLE
-		emit({"kind": "unavailable" if stale_construction or unavailable_contact else "target_gone", "actor": id, "target": target, "action": action.kind, "at_ms": at})
+		emit({"kind": "unavailable" if stale_construction else "target_gone", "actor": id, "target": target, "action": action.kind, "at_ms": at})
 		if autonomous:
 			livelihood.after_action(self, id, at, target)
 		return
 	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(target), {"help_target": int(action.get("task_target", 0))}, facilities.definitions)
+	if query.ready and operation.executor == "society":
+		query.reason = society.contact_reason(self, Operations.domain_action(action))
+		query.ready = query.reason.is_empty()
 	if not query.ready:
 		var autonomous: bool = action.get("autonomous", false)
 		end_run(id, at, query.reason, ActivityResults.refused(query.reason))
@@ -1187,7 +1208,7 @@ func settle_action(id: int, at: int) -> void:
 		var facing: Vector2 = position_at(id, at).direction_to(combat.position(self, target))
 		if not facing.is_zero_approx(): page.aims[row] = facing
 		var duration: int = operation.duration_ms if operation.duration_ms >= 0 else maxi(1, int(objects.records[target].get("remaining_ms", 1)))
-		page.due_ms[row] = at + duration
+		page.due_ms[row] = at + Growth.duration_ms(objects.records[id], operation, duration)
 		return
 	if action.get("waiting", false):
 		action.erase("waiting")
@@ -1283,6 +1304,8 @@ func describe(id: int) -> Dictionary:
 		result["admission_reason"] = gate.check(self, id, operation_time())
 		result["activity"] = activity_view(id)
 		result["activity_results"] = activity_results.view(id)
+		result["abilities"] = Growth.abilities(objects.records[id])
+		result["aptitudes"] = {"physique": Growth.aptitude(objects.records[id], "physique"), "comprehension": Growth.aptitude(objects.records[id], "comprehension")}
 		result["pools"] = State.copy(pools.records.get(id, {}))
 		result["shield"] = defense.total(id, elapsed_ms)
 	return result

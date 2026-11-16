@@ -23,6 +23,10 @@ const HANDLERS: Dictionary = {"transfer": ["take", "put"], "facility": ["constru
 @export var required_items: Dictionary[String, int] = {}
 @export var required_method: String = ""
 @export var required_ability: String = ""
+@export var learning_method: String = ""
+@export_range(0, 100000) var learning_points: int = 0
+## Practical work may consume mastery independently of awarding learning.
+@export var duration_method: String = ""
 @export var injured: bool = false
 @export var actor_inventory: bool = false
 @export var help_target: bool = false
@@ -37,7 +41,7 @@ func values() -> Dictionary:
 	return {"id": id, "title": title, "icon": icon, "command_alias": command_alias, "executor": executor, "handler": handler,
 		"required_capabilities": Array(required_capabilities), "targets": rules, "duration_ms": duration_ms, "exclusive": exclusive,
 		"target_menu": target_menu, "required_items": required_items.duplicate(), "required_method": required_method,
-		"required_ability": required_ability, "injured": injured, "actor_inventory": actor_inventory, "help_target": help_target,
+		"required_ability": required_ability, "learning_method": learning_method, "learning_points": learning_points, "duration_method": duration_method, "injured": injured, "actor_inventory": actor_inventory, "help_target": help_target,
 		"costs": payments, "effects": effects.values() if effects != null else []}
 
 func errors() -> PackedStringArray:
@@ -58,6 +62,16 @@ func errors() -> PackedStringArray:
 	if help_target != (handler == "request_help"): result.append("help target: requires request_help adapter")
 	for key: String in [required_method, required_ability]:
 		if not key.is_empty() and not key.is_valid_identifier(): result.append("identifier: invalid")
+	var growth: Script = preload("res://scripts/sim/kernel/growth_defs.gd")
+	if not required_method.is_empty() and not growth.METHODS.has(required_method): result.append("required method: unknown")
+	if learning_method.is_empty() != (learning_points == 0) or learning_points < 0 or learning_points > 100000: result.append("learning: inconsistent method/points")
+	if not learning_method.is_empty() and (not growth.METHODS.has(learning_method) or handler not in ["learn", "study", "practice", "cook"]): result.append("learning: unsupported method/consumer")
+	if handler in ["learn", "study", "practice"] and learning_method.is_empty(): result.append("learning: method required")
+	if handler == "practice" and required_method != learning_method: result.append("practice: admission method must match practiced method")
+	if handler == "practice" and growth.METHODS.has(learning_method) and (growth.METHODS[learning_method].energy_cost > 0 or growth.METHODS[learning_method].satiety_cost > 0) and not required_capabilities.has("metabolism"): result.append("practice: body costs require metabolism")
+	if handler in ["cook", "practice"] and growth.METHODS.has(learning_method) and growth.METHODS[learning_method].requires_introduction and required_method != learning_method: result.append("learning: practical consumer must require introduction")
+	if handler == "study" and growth.METHODS.has(learning_method) and growth.METHODS[learning_method].study_item.is_empty(): result.append("study: method has no readable source")
+	if not duration_method.is_empty() and (not growth.METHODS.has(duration_method) or handler != "cook"): result.append("duration method: requires known method and practical work consumer")
 	for capability: String in required_capabilities:
 		if not Form.CAPABILITIES.has(capability): result.append("capability: unknown")
 	if targets.is_empty() or targets.size() > 6: result.append("targets: require 1..6 alternatives")

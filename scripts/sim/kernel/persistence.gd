@@ -9,10 +9,11 @@ const Items = preload("res://scripts/sim/kernel/items.gd")
 const Beings = preload("res://scripts/sim/kernel/being_defs.gd")
 const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const Equipment = preload("res://scripts/sim/kernel/equipment.gd")
+const Growth = preload("res://scripts/sim/kernel/growth.gd")
 
 
 static func capture(world: RefCounted) -> Dictionary:
-	var result: Dictionary = {"domains": {}, "pages": [], "being_signature": Beings.SIGNATURE, "operation_signature": Operations.SIGNATURE}
+	var result: Dictionary = {"domains": {}, "pages": [], "being_signature": Beings.SIGNATURE, "operation_signature": Operations.SIGNATURE, "growth_signature": Growth.Defs.SIGNATURE}
 	for key: String in world.state_owners():
 		var owner: RefCounted = world.state_owners()[key]
 		result.domains[key] = State.capture(owner, owner.STATE_FIELDS)
@@ -24,6 +25,7 @@ static func capture(world: RefCounted) -> Dictionary:
 static func candidate(data: Dictionary, workers: int) -> RefCounted:
 	if not Beings.ERRORS.is_empty() or data.get("being_signature") != Beings.SIGNATURE: return null
 	if not Operations.ERRORS.is_empty() or data.get("operation_signature") != Operations.SIGNATURE: return null
+	if not Growth.Defs.ERRORS.is_empty() or data.get("growth_signature") != Growth.Defs.SIGNATURE: return null
 	if not data.get("domains") is Dictionary or not data.get("pages") is Array:
 		return null
 	var world := World.new()
@@ -139,6 +141,7 @@ static func _objects_valid(world: RefCounted) -> bool:
 			return false
 		if record.kind != "actor" and not record.get("hp") is int:
 			return false
+		if not Growth.valid_record(record, world.objects.next_id, world.elapsed_ms): return false
 		var tile: int = record.tile
 		if tile < -1 or tile >= world.terrain.blocked.size():
 			return false
@@ -259,6 +262,8 @@ static func _processes_valid(world: RefCounted) -> bool:
 		if operation.executor == "transfer" and (not action.get("item") is String or not Items.valid(action.item) or not action.get("amount") is int or action.amount <= 0):
 			return false
 		if not Operations.capability_reason(world.objects.records[actor], action.kind).is_empty(): return false
+		if not operation.required_method.is_empty() and not Growth.introduced(world.objects.records[actor], operation.required_method): return false
+		if not operation.required_ability.is_empty() and not Growth.abilities(world.objects.records[actor]).get(operation.required_ability, false): return false
 	return true
 
 

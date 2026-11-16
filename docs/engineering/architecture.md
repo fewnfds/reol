@@ -2,7 +2,7 @@
 
 运行链：Godot输入/画面 → 命令邮箱 → 自主模拟线程 → 独占页CPU批 → owner共享效果 → 不可变显示快照。正式场景只有`scenes/main.tscn`，没有旧慢后端回退。当前能力与测量分别查[FEATURES](../status/features.md)、[BASELINE](../status/baseline.md)。
 
-自主宗门需要补充的共享职责与源码缺口归[框架审查](architecture/foundation-audit.md)，尚未实施；本页只索引当前代码，不把目标架构写成已有能力。
+自主宗门需要补充的共享职责与原源码缺口归[框架审查](architecture/foundation-audit.md)，逐项状态归[实施任务表](../plans/foundation-priorities.md#百人宗门实施任务表)；本页只索引当前代码，不把目标架构写成已有能力。
 
 ## 状态和职责
 
@@ -15,6 +15,7 @@
 | `action_gate.gd`、`action_costs.gd`、`domain_effects.gd` | 派生占用索引、起手成本与具名领域操作；阶段/截止/已付款仍归宿主 |
 | `being_defs.gd`、`operation_defs.gd`、`operation_query.gd` | 主体能力与共同操作的冻结定义、按本人/已知目标的纯查询；静态适用与当前就绪分别表达，现场owner复核 |
 | `activity_results.gd` | 持续交互/采木及瞬时操作的有界实际结果；原host退绑后唯一发布，索引派生重建，历史不重放 |
+| `growth_defs.gd`、`growth.gd` | 原生本领/持续条件定义与规范慢状态规则；Objects保留素质、理解/实践和首次来源/体况，派生已解锁能力并在变化时重建热列，无独立时钟/身份表 |
 | `scripts/sim/kernel/world.gd` | 世界组合根、命令/通用行动、预约、共享效果顺序、生命周期与结构提交 |
 | `scripts/sim/kernel/objects.gd` | 单调身份、静态位置索引、分类库存与穿戴位置、转移/原子交换与换装；不逐步空转所有对象 |
 | `items.gd`、`equipment.gd` | 物品定义/品质堆键的唯一解释，以及按源状态重建的身体属性热列；没有第二份物品实例账本 |

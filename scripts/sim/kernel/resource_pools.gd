@@ -1,6 +1,7 @@
 extends RefCounted
 ## Optional actor pools. Health, body energy, qi and inventory keep existing owners.
 const STATE_FIELDS: Array = ["records"]
+const QI_MAXIMUM: int = 3000
 var records: Dictionary = {}
 
 func configure(actor: int, specs: Array, now: int) -> void:
@@ -44,7 +45,7 @@ func gain(world: RefCounted, actor: int, key: String, amount: int, at: int) -> i
 		return world.pages[slot / 256].energy[slot % 256] - before
 	if key == "qi":
 		var before: int = int(world.objects.records[actor].get("qi", 0))
-		world.objects.records[actor]["qi"] = clampi(before + amount, 0, 3000)
+		world.objects.records[actor]["qi"] = clampi(before + amount, 0, QI_MAXIMUM)
 		return int(world.objects.records[actor].qi) - before
 	return change(actor, key, amount)
 

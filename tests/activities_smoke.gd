@@ -90,7 +90,7 @@ func social_participation() -> void:
 	if tree > 0:
 		tree_world.objects.records[tree].stage = tree_world.nature.Stage.MATURE
 		tree_world.objects.records[tree].sapient = true
-		tree_world.objects.records[tree]["methods"] = {"wood_breath": {"teacher": 0, "learned_ms": 0}}
+		tree_world.Growth.seed(tree_world.objects.records[tree], "wood_breath", 0)
 		tree_world.pages[0].positions[0] = Vector2(123.5, 124.5)
 		check(tree_world.begin_interaction(1, {"kind": "learn", "target": tree}) == "accepted", "Static sapient teacher was mistaken for an unavailable body")
 		advance(tree_world, 1300)

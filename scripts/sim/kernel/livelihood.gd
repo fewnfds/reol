@@ -7,6 +7,7 @@ const Units = preload("res://scripts/sim/kernel/units.gd")
 const Beings = preload("res://scripts/sim/kernel/being_defs.gd")
 const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const Query = preload("res://scripts/sim/kernel/operation_query.gd")
+const Growth = preload("res://scripts/sim/kernel/growth.gd")
 var decisions: int = 0
 var observations: int = 0
 var decision_usec: int = 0
@@ -150,7 +151,7 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 		if page.hunger[row] < 4000 and available.has("eat"):
 			candidate = available.eat
 			priority = -10000
-		elif page.energy[row] < 4000 and available.has("rest"):
+		elif (page.energy[row] < 4000 or (Growth.needs_rest(person) and page.body_heat[row] >= 5.0 and page.body_heat[row] <= 40.0)) and available.has("rest"):
 			candidate = available.rest
 			priority = -9000
 		elif available.has("construct"):

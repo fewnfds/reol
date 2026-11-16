@@ -5,6 +5,7 @@ extends RefCounted
 
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Results = preload("res://scripts/sim/kernel/activity_results.gd")
+const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const PULSE_MS: int = 5000
 const GROUPS: int = PULSE_MS / 50
 const STATE_FIELDS: Array = ["ids", "evaluations", "transitions", "collections"]
@@ -209,7 +210,7 @@ func evaluate(world: RefCounted, id: int, now: int) -> void:
 		rec["qi"] = mini(3000, int(rec.get("qi", 0)) + dt / 1000)
 		if not rec.sapient and int(rec.age_ms) >= 30000 and world.environment.element(rec.tile, probe, 0, 1) >= 100 and world.environment.rng.randi_range(0, 7) == 0:
 			rec.sapient = true
-			rec["methods"] = {"wood_breath": {"teacher": 0, "learned_ms": now}}
+			Growth.seed(rec, "wood_breath", now)
 			world.objects.layout_revision += 1
 	var heat: float = world.environment.temperature_at(rec.tile, probe, 0)
 	var water: int = world.terrain.moisture(rec.tile) + (15 if world.environment.weather == 1 else 0)
