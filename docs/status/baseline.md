@@ -4,7 +4,7 @@
 
 ## 宗门共享基座实施（源码）
 
-T01～T06主体能力、共同操作、持续活动、成长/体况、规范物资/最低授权及生产与在制已完成开工/收尾咨询、独立核查及相关整改。T07实施中尚未交付。T06提交格式为format19/`user://sect-quicksave-v19.reol`及主体/操作/成长定义签名；下列独立P5包尚未重导，仍为format14，不能混用这两套文件。
+T01～T07主体能力、共同操作、持续活动、成长/体况、规范物资/最低授权、生产与在制及本人认识已完成开工/收尾咨询、独立核查及相关整改。T08实施中尚未交付。当前源码格式为format20/`user://sect-quicksave-v20.reol`及相关定义签名；下列独立P5包尚未重导，仍为format14，不能混用文件。
 
 | 本次检查 | 证据与边界 |
 |---|---|
@@ -51,6 +51,12 @@ T06原生GUI：`production-native-ui-complete-20261117-025737-309228000.log` err
 T06收尾双答均完整返回、通读整改。`production-reviewed-boundaries-20261117-030819-881494100.log`及`production-final-contract-20261117-031559-480867400.log` errors=0，补非整秒完工水源合法保存与坏源状态、溢出贡献/空过程/坏时刻安全拒绝、死者不新获实践、128压缩保近期劳动人。`production-public-passive-20261117-031006-90008600.log`、`production-precursor-permission-20261117-031517-880295700.log` errors=0，覆盖公料静置原人死亡/无权者拒绝、收药中断及堵塞、真实炉体+在制物保权拆除并还库闭责、回收组饱和拒拆不损物、跨在途等待者中断接手/完工不重开、撤权时停止记工及中立设施内他人私料保护。`production-source-consumption-20261117-030119-164899500.log`另走真实井水→烹饪→进食。
 
 UI整改后`production-ui-reviewed-hints-20261117-031006-89986900.log` errors=0，静置禁用原因与成熟待收提示由原生详情消费；原工位GUI`stations-ui-production-20261117-030546-55073200.log`通过。`smoke-features-20261117-031038-556896100.log`、`smoke-equipment-20261117-031041-800431400.log`通过；结构100文档/307源/0错误（含尚未接完的T07代码），不替代其运行验证。kernel旧计时问题仍未关闭。
+
+T07认识专题：`knowledge-final-provenance-20261117-034848-587300900.log` errors=0，覆盖真实交谈改变生活选址并实际进食、特定教师拒绝/新教学证据、有限跳数/来源升级、本人私有信息不外泄、异地/远方死亡与删除历史恢复、坏来源/时刻/旧known拒载。`knowledge-final-admission-20261117-034252-900373700.log` errors=0，覆盖盲学/拒绝后取消、独立教学来源、异地反证、远不可达求助退避、尸体可见但不进战斗、旅行中观察、满128条高优认识时新无地点教师及施工承诺仍合法准入和恢复。
+
+T07原消费者：`knowledge-final-feedback-20261117-033459-153261800.log`、`knowledge-final-activities-20261117-033756-211486000.log`、`knowledge-final-livelihood-20261117-034055-659850500.log`均errors=0。原decisions聚合超过15秒，未放宽watchdog/断言；原函数分组`knowledge-final-decision-policy-20261117-034358-913707900.log`及`knowledge-final-decision-lifecycle-20261117-034433-198371600.log`均errors=0，不写成聚合一次全绿。`knowledge-existing-native-ui-20261117-032601-868741600.log` errors=0，真实原生请教/煎药/静置、实际文件存读、收取/汲水。
+
+T07规模边界：`knowledge-100-final-scope-20261117-033422-865862800.log`普通World100人、5秒模拟、wall1016ms，124次观察累计159ms，3509条主体认识、每人最多70，恢复valid=true；仅为短headless样本，不是GUI帧率或百人持续供养验收。旧kernel计时问题仍未关闭。最后整理进一步只检查可见旧址反证、不重复刷新已查主体，未把顾问推测百分比写成性能收益。
 
 ## 当前构建
 

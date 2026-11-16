@@ -9,9 +9,9 @@ func resident(w: RefCounted, targets: Array) -> void:
 	w.objects.add(2, "wood", 1)
 	w._sync_inventory(2)
 	w.objects.records[2].autonomous = true
-	w.objects.records[2].known = {}
-	w.objects.records[2].observe_due = 60000
-	for target: int in targets: w.livelihood.remember(w, 2, target, 0)
+	w.knowledge.record(2).subjects = {}
+	w.knowledge.record(2).due_ms = 5000
+	for target: int in targets: w.knowledge.seed(w, 2, w.operation_target(target), 0)
 	w.decisions.resume(w, 2, 0)
 
 func failure_for(w: RefCounted, actor: int, operation: String, target: int) -> Dictionary:
@@ -68,16 +68,16 @@ func evidence_and_bounds() -> void:
 	var w: RefCounted = fixture()
 	var target: int = w.facilities.seed_fixture(w, "wood_chest", w.Terrain.index(Vector2i(124, 120)))
 	w.flush_topology()
-	w.livelihood.remember(w, 2, target, 0)
+	w.knowledge.seed(w, 2, w.operation_target(target), 0)
 	w.decisions.result(w, 2, "forge", target, "path_failed", 0)
 	check(not w.decisions.retry_allowed(w, 2, "forge", target, 0), "Generic operation failure was not retained")
 	check(w.decisions.retry_allowed(w, 3, "forge", target, 0) and w.decisions.retry_allowed(w, 2, "inspect", target, 0), "Failure leaked between actors or operations")
-	w.livelihood.remember(w, 2, target, 10)
+	w.knowledge.refresh(w, 2, target, 0)
 	check(not w.decisions.retry_allowed(w, 2, "forge", target, 10), "Unchanged observation timestamp erased structural failure")
 	w.objects.add(target, "wood", 1)
 	w.terrain.revision += 1
 	check(not w.decisions.retry_allowed(w, 2, "forge", target, 20), "Hidden inventory or global terrain revision cleared personal failure")
-	w.livelihood.remember(w, 2, target, 20)
+	w.knowledge.refresh(w, 2, target, 0)
 	check(w.decisions.retry_allowed(w, 2, "forge", target, 20), "Meaningful newly observed evidence did not reopen the target")
 	w.decisions.result(w, 2, "forge", target, "path_failed", 0)
 	check(not w.decisions.retry_allowed(w, 2, "forge", target, 4999) and w.decisions.retry_allowed(w, 2, "forge", target, 5000), "Structural failure became a permanent blacklist or expired too early")
@@ -125,7 +125,7 @@ func commitment_and_disproved_memory() -> void:
 	advance(w, 4000)
 	check(failure_for(w, 2, "construct", target).get("at_ms") == 0 and not w.actions.has(2), "Commitment bypassed structural refusal and repeatedly planned the same blocked site")
 	check(w.objects.records[2].get("commitment", {}).get("target") == target, "Temporary inability silently cancelled a construction promise")
-	w.objects.records[2].known[target].seen_ms = 4000
+	w.knowledge.records[2].subjects[target].seen_ms = 4000
 	w.decisions.result(w, 2, "construct", target, "accepted", 4000)
 	check(not failure_for(w, 2, "construct", target).is_empty(), "Admission cleared failure before any work completed")
 	var memory: RefCounted = fixture()
@@ -133,13 +133,13 @@ func commitment_and_disproved_memory() -> void:
 	memory.objects.add(missing, "meal", 1)
 	resident(memory, [missing])
 	memory.pages[0].hunger[1] = 3000
-	memory.livelihood.remember(memory, 3, missing, 0)
+	memory.knowledge.seed(memory, 3, memory.operation_target(missing), 0)
 	memory.pages[0].positions[2] = Vector2(180.5, 180.5)
 	memory.objects.transfer(missing, 1, "meal", 1)
 	memory.objects.remove_empty(missing)
 	memory.decisions.prepare(memory, 0)
-	check(not memory.objects.records[2].known.has(missing), "Visible absence left a disproved personal clue until the next observation sweep")
-	check(memory.objects.records[3].known.has(missing), "Another actor learned a remote disappearance without observation")
+	check(memory.knowledge.view(2, missing, memory.elapsed_ms).tile < 0, "Visible absence left a disproved personal clue until the next observation sweep")
+	check(memory.knowledge.view(3, missing, memory.elapsed_ms).tile >= 0, "Another actor learned a remote disappearance without observation")
 	check(memory.decisions.records[2].task.get("target", 0) != missing, "Disproved clue still produced a remembered-goal exploration task")
 
 func _run() -> void:

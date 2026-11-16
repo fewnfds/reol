@@ -30,7 +30,7 @@ func initialize(world: RefCounted) -> void:
 	Growth.seed(teacher, "herbalism", 0)
 	world.objects.add(2, "breath_manual", 1)
 	world.objects.add(2, "meal", 4)
-	world.livelihood.observe(world, 2, 0)
+	world.knowledge.observe(world, 2, 0)
 
 
 func available(world: RefCounted, actor: int, action: Dictionary) -> bool:
@@ -117,18 +117,10 @@ func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dict
 	var facts: Dictionary = {}
 	match handler:
 		"talk":
-			if not person.has("known"):
-				person["known"] = {}
-			for subject: int in other.get("known", {}):
-				var clue: Dictionary = other.known[subject]
-				if not person.known.has(subject) or int(person.known[subject].seen_ms) < int(clue.seen_ms):
-					var copy: Dictionary = State.copy(clue)
-					copy["source"] = action.target
-					copy["hops"] = int(clue.get("hops", 0)) + 1
-					person.known[subject] = copy
-					_count(action.kind)
-					return Results.completed({"subject": subject, "source": action.target, "hops": copy.hops}, "shared_clue")
-			return Results.refused("no_new_clue")
+			var shared: Dictionary = world.knowledge.share(world, action.target, actor, now)
+			if shared.is_empty(): return Results.refused("no_new_clue")
+			_count(action.kind)
+			return Results.completed(shared, "shared_clue")
 		"trade":
 			var give: String = str(action.get("give_item", "potion"))
 			var want: String = str(action.get("want_item", "breath_manual"))
@@ -151,21 +143,24 @@ func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dict
 				world._sync_inventory(action.target)
 			facts = {"given": {give: given}, "received": {want: wanted}, "counterparty": action.target}
 		"request_help":
+			if action.target == 1: return Results.refused("player_controlled")
 			var target: int = int(action.get("task_target", 0))
 			if not Beings.has(other, "work"): return Results.refused("refused_capability")
 			if not world.actor_slots.has(action.target) or other.has("commitment") or world.decisions.records.get(action.target, {}).get("manual", false):
 				return Results.refused("refused_busy_or_body")
-			if world.objects.records.get(target, {}).get("kind", "") != "blueprint":
-				return Results.refused("invalid_task")
-			if not person.get("known", {}).has(target) and world.combat.position(world, actor).distance_to(world.combat.position(world, target)) > 24:
-				return Results.refused("unknown_task")
+			world.knowledge.refresh(world, actor, target, now)
+			var clue: Dictionary = world.knowledge.view(actor, target, now)
+			if clue.is_empty(): return Results.refused("unknown_task")
+			if clue.kind != "blueprint" or clue.tile < 0: return Results.refused("invalid_task")
 			var other_slot: int = world.actor_slots[action.target]
 			var other_page: RefCounted = world.pages[other_slot / 256]
 			if Beings.has(other, "metabolism") and (other_page.hunger[other_slot % 256] < 3000 or other_page.energy[other_slot % 256] < 2500):
 				return Results.refused("refused_need")
+			world.knowledge.deliver(world, action.target, actor, target, now, true)
+			var understood: Dictionary = world.knowledge.view(action.target, target, now)
+			if understood.is_empty() or understood.kind != "blueprint" or understood.tile < 0: return Results.refused("task_not_understood")
 			other["commitment"] = {"kind": "construct", "target": target, "requester": actor, "expires_ms": now + 300000,
 				"was_autonomous": other.get("autonomous", false)}
-			world.livelihood.remember(world, action.target, target, now)
 			other.autonomous = true
 			facts = {"accepted_kind": "construct", "task_target": target, "expires_ms": now + 300000}
 			action["partner_resume"] = true

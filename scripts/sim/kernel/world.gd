@@ -39,6 +39,7 @@ const ActivityResults = preload("res://scripts/sim/kernel/activity_results.gd")
 const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const Institutions = preload("res://scripts/sim/kernel/institutions.gd")
 const Production = preload("res://scripts/sim/kernel/production.gd")
+const Knowledge = preload("res://scripts/sim/kernel/knowledge.gd")
 const Equipment = preload("res://scripts/sim/kernel/equipment.gd")
 
 class Lane extends RefCounted:
@@ -90,6 +91,7 @@ var actions: Dictionary = {}
 var work_runs: Dictionary = {} # Body-work host owns its persistent run identity.
 var next_run: int = 1
 var next_process: int = 1
+var knowledge := Knowledge.new()
 var gate := Gate.new()
 var free_slots := PackedInt32Array()
 var elapsed_ms: int = 0
@@ -218,12 +220,13 @@ func initialize(count: int = 1000, requested_workers: int = 4, stress_environmen
 			objects.equip(actor, weapon)
 			Equipment.rebuild(self, actor)
 	perception.update(self, 0, true)
+	knowledge.observe(self, 1, 0)
 
 
 func state_owners() -> Dictionary:
 	# The concrete composition root lists real domains; field selection belongs
 	# to each owner. New domains do not require a new serializer implementation.
-	return {"world": self, "terrain": terrain, "objects": objects, "environment": environment, "nature": nature, "combat": combat, "effects": effects, "areas": areas, "implements": implements, "perception": perception, "regions": regions, "person_events": person_events, "activity_results": activity_results, "society": society, "institutions": institutions, "pools": pools, "defense": defense, "reactions": reactions, "entities": entities, "decisions": decisions}
+	return {"world": self, "terrain": terrain, "objects": objects, "environment": environment, "nature": nature, "combat": combat, "effects": effects, "areas": areas, "implements": implements, "perception": perception, "regions": regions, "person_events": person_events, "activity_results": activity_results, "society": society, "institutions": institutions, "knowledge": knowledge, "pools": pools, "defense": defense, "reactions": reactions, "entities": entities, "decisions": decisions}
 
 func emit(event: Dictionary) -> void:
 	event = preload("res://scripts/sim/kernel/outcome.gd").envelope(event, operation_time())
@@ -387,6 +390,7 @@ func _advance_interval(end: int) -> void:
 	_commit_ms = -1
 	elapsed_ms = end
 	perception.update(self, end)
+	if end % 1000 == 0: knowledge.pulse(self, end)
 
 
 func operation_time() -> int:
@@ -476,7 +480,7 @@ func settle(id: int, at: int, expected: Variant = null) -> void:
 			_sync_inventory(id)
 			harvested += 1
 			reactions.submit(self, {"event": "gathered", "actor": id, "target": target, "at_ms": at, "amount": 1, "activation": 0, "position": position_at(id, at)})
-			livelihood.remember(self, id, target, at)
+			knowledge.refresh(self, id, target, at)
 			end_run(id, at, "completed", ActivityResults.completed({"item": "wood", "amount": 1, "source": target, "destination": id}))
 			livelihood.think(self, id, at)
 		else:
@@ -497,7 +501,7 @@ func settle(id: int, at: int, expected: Variant = null) -> void:
 		settle_action(id, at)
 	elif mode == Units.Mode.EXPLORE:
 		end_run(id, at, "completed")
-		livelihood.observe(self, id, at)
+		knowledge.observe(self, id, at)
 		livelihood.think(self, id, at)
 	elif mode == Units.Mode.COMBAT_MOVE:
 		page.modes[row] = Units.Mode.IDLE
@@ -528,6 +532,7 @@ func end_run(id: int, at: int = -1, reason: String = "replaced", outcome: Dictio
 			if reservations.get(action.target, 0) == id: reservations.erase(action.target)
 			var final: Dictionary = State.copy(outcome) if not outcome.is_empty() else ActivityResults.interrupted(reason)
 			if final.status != "completed": final.facts.merge(facilities.interrupt(self, Operations.domain_action(action), now), true)
+			knowledge.outcome(self, id, action.kind, action.target, final.status, final.reason, now, action.has("started_ms"))
 			if int(action.get("worked_ms", 0)) > 0: final.facts["worked_ms"] = int(final.facts.get("worked_ms", 0)) + int(action.worked_ms)
 			result = activity_results.record(binding.run_id, action.kind, id, action.target, action.get("participants", [id]), now, final)
 		"partner":
@@ -545,6 +550,7 @@ func end_run(id: int, at: int = -1, reason: String = "replaced", outcome: Dictio
 				if reservations.get(target, 0) == id: reservations.erase(target)
 				if pages[slot / 256].modes[slot % 256] in [Units.Mode.RESOURCE, Units.Mode.HARVEST]:
 					var final: Dictionary = outcome if not outcome.is_empty() else ActivityResults.interrupted(reason)
+					knowledge.outcome(self, id, "harvest", target, final.status, final.reason, now, pages[slot / 256].modes[slot % 256] == Units.Mode.HARVEST)
 					result = activity_results.record(binding.run_id, "harvest", id, target, [id], now, final)
 	if actor_slots.has(id):
 		var slot: int = actor_slots[id]
@@ -811,7 +817,7 @@ func _command(input: Dictionary) -> Dictionary:
 			objects.records[id].erase("commitment")
 			objects.records[id].autonomous = true
 			decisions.resume(self, id, elapsed_ms)
-			livelihood.observe(self, id, elapsed_ms)
+			knowledge.observe(self, id, elapsed_ms)
 			livelihood.think(self, id, elapsed_ms)
 			decisions.prepare(self, elapsed_ms)
 		"heal":
@@ -1003,7 +1009,7 @@ func counters() -> Dictionary:
 		"environment_updates": environment.updates, "rooms": terrain.room_cells.size(),
 		"structures": terrain.structures.size(), "static_sources": environment.source_cells.size(),
 		"mobile_sources": environment.mobile_units.size(), "objects": objects.records.size(), "transfers": objects.transfers,
-		"decisions": livelihood.decisions, "observations": livelihood.observations, "decision_usec": livelihood.decision_usec, "observe_usec": livelihood.observe_usec, "topology_usec": topology_usec,
+		"decisions": livelihood.decisions, "observations": knowledge.observations, "decision_usec": livelihood.decision_usec, "observe_usec": knowledge.observe_usec, "topology_usec": topology_usec,
 		"facility_completions": facilities.completed.duplicate(), "plants": nature.ids.size(), "plant_evaluations": nature.evaluations, "plant_transitions": nature.transitions, "plant_collections": nature.collections, "nature_usec": nature.work_usec, "calendar": environment.calendar(), "unit_decisions": decisions.evaluations, "unit_decision_usec": decisions.work_usec, "combatants": combat.engagements.size(), "projectiles": combat.bolts.size(), "shots": combat.shots, "hits": combat.hits, "combat_usec": combat.work_usec, "combat_prepare_usec": combat.prepare_usec, "combat_resolve_usec": combat.resolve_usec, "combat_collect_usec": combat.collect_usec, "combat_damage_usec": combat.damage_usec, "combat_slices": combat.slices, "melee_candidates": combat.melee_candidates, "melee_tests": combat.melee_tests, "combat_repaths": combat.repaths, "combat_resumed": combat.resumed,
 		"perception_usec": perception.work_usec, "sight_observers": combat.scan.observer_count,
 		"sight_candidates": combat.scan.candidates, "sight_queries": combat.scan.queries,
@@ -1560,6 +1566,7 @@ func remove_actor(id: int, at: int = -1) -> bool:
 		for item: String in objects.inventory_summary(id):
 			objects.transfer(id, pile, item, objects.amount(id, item))
 	objects.remove_empty(id)
+	knowledge.records.erase(id)
 	decisions.forget(id)
 	actor_slots.erase(id)
 	pools.records.erase(id)

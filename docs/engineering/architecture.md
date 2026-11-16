@@ -20,7 +20,8 @@
 | `scripts/sim/kernel/objects.gd` | 单调身份、静态位置索引、分类库存与穿戴位置、转移/原子交换与换装；不逐步空转所有对象 |
 | `stock_rules.gd`、`institutions.gd` | 规范批次的纯归属/选料与最低组织/成员许可、稳定受托及实际办理历史；实物仍Objects唯一持有，接触宿主仍Society |
 | `items.gd`、`equipment.gd` | 物品定义/品质堆键的唯一解释，以及按源状态重建的身体属性热列；没有第二份物品实例账本 |
-| `facilities.gd`、`livelihood.gd` | 组合占地/蓝图/设施效果与个人线索驱动的稀疏生活决策，复用身体到期/到达 |
+| `facilities.gd`、`livelihood.gd` | 组合占地/蓝图/设施效果与消费个人认识的稀疏生活选择，复用身体到期/到达；持久目的仍在后续任务实施 |
+| `knowledge.gd` | 个人物理认识、独立教学证据与有限操作经历；真实观察/回执/转述、来源/时效/特定位置反证及有界记忆，不复制他人私有状态或玩家地图 |
 | `decisions.gd`、`decision_defs.gd`、`decision_rules.gd` | 跨生活/战斗/逃离/跟随的策略绑定、独立任务、手动交接、唤醒与自主输入；只读政策与受信求值器，原宿主负责执行 |
 | `environment.gd`、`nature.gd` | 历法/天气、静态max场/移动来源索引、房间响应；分组植物采样/生长/产物/宿主与来源 |
 | `scripts/sim/definitions/`、`data/definitions/`、`action_defs.gd` | 原生Resource作者数据、库引用/字段校验、递归只读值与规则内容签名；战斗、主体与操作分别编译；制作与在飞载荷共用作用校验，CD/在途实例不写回资源 |
@@ -29,8 +30,8 @@
 | `resource_pools.gd`、`combat_defense.gd` | 稀疏蓝/怒池与回复余量；盾实例、方向/时段格挡。HP、精力、qi、实物仍归原owner |
 | `combat_reactions.gd`、`reaction_scripts/owned_marks.gd` | 实际结果的局部规则、共享链预算/访问集、ICD/计数/完整行动候选；受信脚本状态由宿主保存 |
 | `combat_entities.gd` | 临时身体/静态生产者的主人、寿命、数量组与光环成员；身体/HP/空间仍用Units/Objects，临时身体不计村民人口 |
-| `combat_scan.gd` | 脱离的身体空间索引、分散威胁发现与目标复核；查询按观察者批交现有CPU池，owner采用 |
-| `society.gd` | 接触结果、线索传播、真实交易、临时承诺、方法/修行/能力；状态留在原人物/植物记录 |
+| `combat_scan.gd` | 脱离的身体空间索引、分散威胁发现与目标复核；查询按观察者批交现有CPU池，owner采用；同次物理行遍历附带稀疏尸体桶，仅观察查询可选纳入 |
+| `society.gd` | 原接触宿主的回应、实际交易、临时施工承诺、学习/修行提交；认识传播转交Knowledge，成长与物资转交各自owner |
 | `person_events.gd` | 已提交个人事实的有界冷记录、连续冷热损耗合并与缓存脱离视图；不驱动结算或人物决策 |
 | `sight.gd` | 全单位共用的距离/平滑环境损耗查询；只读常用格线表与长半径后备，无共享写缓存 |
 | `perception.gd` | 玩家当前格图、探索/最后所见地表、静态记忆与人物显隐；NPC不读取这张玩家地图 |

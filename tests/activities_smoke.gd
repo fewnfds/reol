@@ -99,9 +99,10 @@ func social_participation() -> void:
 func clue_feedback_and_progress() -> void:
 	var w: RefCounted = peaceful()
 	w.pages[0].positions[2] = Vector2(123.5, 121.5)
-	w.objects.records[2]["known"] = {}
-	w.objects.records[3]["known"] = {}
-	w.livelihood.remember(w, 2, w.source_objects[0], 0)
+	w.knowledge.record(2).subjects = {}
+	w.knowledge.record(3).subjects = {}
+	w.knowledge.seed(w, 2, w.operation_target(w.source_objects[0]), 0)
+	w.objects.records[3].sight_range = 2.0
 	w.objects.records[3].autonomous = true
 	w.decisions.resume(w, 3, 0)
 	check(w.begin_interaction(3, {"kind": "talk", "target": 2}) == "accepted", "Clue-sharing fixture failed")

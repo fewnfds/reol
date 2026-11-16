@@ -4,9 +4,9 @@ const Status = preload("res://scripts/sim/definitions/actions/status_def.gd")
 func decide(w: RefCounted, targets: Array) -> void:
 	var person: Dictionary = w.objects.records[2]
 	person.autonomous = true
-	person.known = {}
-	person.observe_due = 5000
-	for target: int in targets: w.livelihood.remember(w, 2, target, 0)
+	w.knowledge.record(2).subjects = {}
+	w.knowledge.record(2).due_ms = 5000
+	for target: int in targets: w.knowledge.seed(w, 2, w.operation_target(target), 0)
 	w.decisions.resume(w, 2, 0)
 	w.decisions.prepare(w, 0)
 

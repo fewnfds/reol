@@ -248,16 +248,16 @@ func edge_handoffs() -> void:
 	var memory: RefCounted = fixture()
 	var stove: int = memory.objects.create("furniture", "cook_stove", memory.Terrain.index(Vector2i(122, 120)))
 	memory.objects.add(stove, "meal", 1)
-	memory.livelihood.remember(memory, 2, stove, 0)
-	memory.objects.records[2].known = {stove: memory.objects.records[2].known[stove]}
+	memory.knowledge.seed(memory, 2, memory.operation_target(stove), 0)
+	memory.knowledge.record(2).subjects = {stove: memory.knowledge.records[2].subjects[stove]}
 	memory.objects.add(stove, "meal", -1)
 	memory.pages[0].positions[1] = Vector2(180.5, 180.5)
 	memory.pages[0].hunger[1] = 3000
 	memory.objects.records[2].autonomous = true
-	memory.objects.records[2].observe_due = 5000
+	memory.knowledge.record(2).due_ms = 5000
 	memory.decisions.resume(memory, 2, 0)
 	memory.decisions.prepare(memory, 0)
-	check(memory.pages[0].modes[1] == memory.Units.Mode.EXPLORE and memory.work_runs.has(2) and memory.objects.records[2].known[stove].inventory.get("meal") == 1, "Unseen stale evidence queried live availability instead of approaching to observe")
+	check(memory.pages[0].modes[1] == memory.Units.Mode.EXPLORE and memory.work_runs.has(2) and memory.knowledge.view(2, stove, memory.elapsed_ms).inventory.get("meal") == 1, "Unseen stale evidence queried live availability instead of approaching to observe")
 	var dirty: RefCounted = fixture()
 	dirty.objects.records[2].autonomous = true
 	dirty.adopt_work(2, 0)

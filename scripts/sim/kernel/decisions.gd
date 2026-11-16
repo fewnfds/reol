@@ -11,7 +11,7 @@ const RECORD_FIELDS: Array = ["policy", "params", "manual", "mode", "next_ms", "
 const FEEDBACK_LIMIT: int = 16
 const FEEDBACK_LONG_MS: int = 5000
 const FEEDBACK_SHORT_MS: int = 1500
-const EVIDENCE_FIELDS: Array = ["kind", "definition", "tile", "inventory_revision", "capacity", "stage"]
+const EVIDENCE_FIELDS: Array = ["revision"]
 var records: Dictionary = {}
 var wakeups: Dictionary = {} # Reliable owner facts awaiting the next safe preparation.
 var next_task: int = 1
@@ -135,11 +135,7 @@ func track_host(world: RefCounted, actor: int, operation: String = "", target: i
 
 func _evidence(world: RefCounted, actor: int, target: int) -> Dictionary:
 	# Personal observations only. A remote world edit cannot invalidate a refusal.
-	var clue: Dictionary = world.objects.records[actor].get("known", {}).get(target, {})
-	var result: Dictionary = {}
-	for field: String in EVIDENCE_FIELDS:
-		if clue.has(field): result[field] = clue[field]
-	return result
+	return world.knowledge.evidence(actor, target)
 
 func _prune_feedback(world: RefCounted, actor: int, at: int) -> void:
 	var failures: Array = records[actor].feedback
@@ -148,6 +144,7 @@ func _prune_feedback(world: RefCounted, actor: int, at: int) -> void:
 		if at >= int(failure.until_ms) or failure.evidence != _evidence(world, actor, failure.target): failures.remove_at(index)
 
 func retry_allowed(world: RefCounted, actor: int, operation: String, target: int, at: int) -> bool:
+	if not world.knowledge.can_attempt(actor, operation, target, at): return false
 	var entry: Dictionary = _record(world, actor)
 	_prune_feedback(world, actor, at)
 	for failure: Dictionary in entry.feedback:
@@ -185,10 +182,11 @@ func focus(world: RefCounted, actor: int, at: int) -> void:
 
 func ended(world: RefCounted, actor: int, binding: Dictionary, at: int, reason: String, activity: Dictionary = {}) -> void:
 	if not records.has(actor): return
+	if not activity.is_empty(): result(world, actor, activity.operation, activity.target, activity.reason, at, activity.status)
 	var entry: Dictionary = records[actor]
 	var task: Dictionary = entry.task
 	if task.get("binding", {}) == binding and not binding.is_empty():
-		if task.has("operation") and (reason != "completed" or not task.get("approach", false)):
+		if activity.is_empty() and task.has("operation") and (reason != "completed" or not task.get("approach", false)):
 			result(world, actor, task.operation, task.target, reason, at, str(activity.get("status", "")))
 		task.binding = {}
 		task.result = reason
@@ -541,9 +539,7 @@ func _feedback_valid(world: RefCounted, value: Variant) -> bool:
 		for field: Variant in failure.evidence:
 			if field not in EVIDENCE_FIELDS: return false
 			var fact: Variant = failure.evidence[field]
-			if field in ["kind", "definition"]:
-				if not fact is String or fact.length() > 128: return false
-			elif not fact is int or fact < -1 or fact > 2147483647: return false
+			if not fact is int or fact < 1 or fact > 999999999999: return false
 		var key: String = "%s:%d" % [failure.operation, failure.target]
 		if seen.has(key): return false
 		seen[key] = true

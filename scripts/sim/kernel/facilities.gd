@@ -118,7 +118,7 @@ func blueprint(world: RefCounted, actor: int, definition: String, tile: int, fac
 	world.objects.reindex(id, cells)
 	world.objects.transfer(actor, id, item, amount, right)
 	world._sync_inventory(actor)
-	world.livelihood.remember(world, actor, id, world.operation_time())
+	world.knowledge.created(world, actor, id, world.operation_time())
 	return {"reason": "accepted", "target": id}
 
 func clearing_reason(world: RefCounted, actor: int, cells: PackedInt32Array) -> String:

@@ -81,6 +81,7 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 		return null
 	if not world.Production.valid(world): return null
 	if not world.facilities.Sources.rebuild(world): return null
+	if not world.knowledge.valid(world): return null
 	var environment: RefCounted = world.environment
 	if not _environment_valid(environment, world):
 		return null
@@ -140,7 +141,7 @@ static func _objects_valid(world: RefCounted) -> bool:
 		var record: Variant = world.objects.records[id]
 		if not id is int or id <= 0 or id >= world.objects.next_id or not record is Dictionary:
 			return false
-		if record.get("id") != id or not record.get("kind") is String or not record.get("definition") is String or record.has("inventory") or not record.get("capacity") is int or not record.get("tile") is int:
+		if record.get("id") != id or not record.get("kind") is String or not record.get("definition") is String or record.has("inventory") or record.has("known") or record.has("observe_due") or not record.get("capacity") is int or not record.get("tile") is int:
 			return false
 		if not record.get("owner") is int or record.owner < 0 or record.owner >= world.objects.next_id or not record.get("organization") is int or record.organization < 0 or (record.owner > 0 and record.organization > 0): return false
 		if record.kind != "actor" and not record.get("hp") is int:

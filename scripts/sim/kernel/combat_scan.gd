@@ -87,6 +87,7 @@ var sides := PackedInt32Array()
 var tiles := PackedInt32Array()
 var side_groups: Dictionary = {} # Side -> dense bucket heads; allies skip as a group.
 var groups: Array[RefCounted] = [] # Stable iteration view shared by query workers.
+var corpses: Dictionary = {} # Optional perception candidates, never combat targets.
 var links := PackedInt32Array()
 var blocked := PackedByteArray() # Stable until the owner joins this batch.
 var sides_present: Dictionary = {}
@@ -119,6 +120,7 @@ func index(world: RefCounted) -> void:
 	index_rebuilds += 1
 	var started: int = Time.get_ticks_usec()
 	positions.clear()
+	corpses.clear()
 	sweep_padding = 0.0
 	ids.clear()
 	for group: RefCounted in side_groups.values():
@@ -147,6 +149,10 @@ func index(world: RefCounted) -> void:
 			var slot: int = base + row
 			var id: int = page_ids[row]
 			if id <= 0 or health[row] <= 0:
+				if id > 0:
+					var corpse_cell: Vector2i = bucket(page_positions[row])
+					if not corpses.has(corpse_cell): corpses[corpse_cell] = []
+					corpses[corpse_cell].append(id)
 				ids[slot] = 0
 				continue
 			var side: int = int(world.objects.records[id].get("side", 0))
@@ -167,7 +173,7 @@ func index(world: RefCounted) -> void:
 	index_usec += Time.get_ticks_usec() - started
 
 
-func nearby(low: Vector2, high: Vector2) -> Array[int]:
+func nearby(low: Vector2, high: Vector2, include_corpses: bool = false) -> Array[int]:
 	var result: Array[int] = []
 	var first: Vector2i = bucket(low)
 	var last: Vector2i = bucket(high)
@@ -178,6 +184,10 @@ func nearby(low: Vector2, high: Vector2) -> Array[int]:
 				while slot >= 0:
 					result.append(ids[slot])
 					slot = links[slot]
+	if include_corpses and not corpses.is_empty():
+		for y: int in range(maxi(0, first.y), mini(WIDTH - 1, last.y) + 1):
+			for x: int in range(maxi(0, first.x), mini(WIDTH - 1, last.x) + 1):
+				for id: int in corpses.get(Vector2i(x, y), []): result.append(id)
 	return result
 
 
