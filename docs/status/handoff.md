@@ -2,6 +2,8 @@
 
 ## 当前停点
 
+显示改造采用纯二维路线（2026-11-16）：已撤除工作区的Camera3D/几何/精灵卡片探索，原探索没有独立Git分支，未删除无关历史分支。保留有用的统一坐标反解与分部遮挡思路，现由Camera2D、独立二维世界视口及一次画面合成实现。墙/门/家具/施工架已更新斜视测试素材；F7临时对比轻微远近变形，默认关闭，设置可保存。正确性、成品与短窗证据归[BASELINE](baseline.md)，技术边界归[纯二维显示](../engineering/architecture.md#纯二维显示)，素材制作归[assets](../../assets/README.md)。不恢复三维路线，不把将来的全场景八方向视角当作已实现。
+
 最新试玩修复（2026-11-16）：贴墙直接移动返回已验证的落点，修复斜向平砍微穿墙后卡死、地图边界索引，支持旧微小接触重叠的有限脱离；人物逻辑位置与显示脚点对齐，地面物品/蓝图、实体/身体、屋顶分层排序。新专题与真实GUI通过，原移动/平砍/交互/作业回归通过；最新包与短窗证据归BASELINE。仍支持format14和原目录签名，未移动旧存档坐标或降低世界精度。
 
 最新授权：用户要求非产品决策自主解决、以顶层领域合同修复；2026-11-15确认另一并行审查对话停止，其方案只作参考，以本轮整合为准。9项确认缺陷和1项光环规则缺口已逐项处理，原编号与关闭条件归[问题清单](issues.md)；共同边界及范围归[主计划](../plans/foundation-priorities.md#审查后的框架整改方案)。不再沿用并行分析稿“只写方案、光环待定、尚未实施”的停点。
@@ -22,7 +24,7 @@
 
 ## 本机资料与受保护工作
 
-- 本轮双顾问咨询归`.local/advisor/framework-contracts-20261115/`，审查/作业位置咨询归`.local/advisor/review-20261115/`，复现探针归`.local/review-20261115/`；日志归`logs/`，生成包归`build/`，不新增根目录启动脚本。采用的事实保存在主题正文与BASELINE，原答不入库。
+- 纯二维复审归`.local/advisor/view-2d-final-20261116/`，此前合同双顾问咨询归`.local/advisor/framework-contracts-20261115/`，审查/作业位置咨询归`.local/advisor/review-20261115/`，复现探针归`.local/review-20261115/`；日志归`logs/`，生成包归`build/`，不新增根目录启动脚本。采用的事实保存在主题正文与BASELINE，原答不入库。
 - 保留本机顾问凭据、存档、素材源稿和第三方addon；保留工作分支`codex/field-contest`及stash `424f956d280fb390d17e1f6dd879f3614b51a430`。
 
 另一个独立设计工作对`design/README.md`、`design/research/social_interaction_game_references.md`和`design/research/npc_personality_and_emotion.md`的本地改动受保护，不混入本轮实现提交。

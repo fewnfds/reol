@@ -45,7 +45,7 @@ func _bindings_changed() -> void:
 
 func pointer_world(screen: Vector2) -> Vector2:
 	# Camera shake is an output offset, excluded explicitly from every aim sample.
-	return (host.get_canvas_transform().affine_inverse() * screen - host.camera.offset) / Art.TILE
+	return host.view.ground(screen) / Art.TILE
 
 func _update_aim(screen: Vector2) -> void:
 	var direction: Vector2 = pointer_world(screen) - host._displayed(1)
@@ -69,7 +69,6 @@ func tick(delta: float) -> void:
 		if drive != _last_drive:
 			host.runner.drive(drive)
 			_last_drive = drive
-	queue_redraw()
 	if not _pending_context.is_empty():
 		if _pending_context.epoch != host.frame.epoch or _pending_context.target != host.selected or external_modal() or ui.blocks_world() or ui.inventory.visible:
 			_pending_context = {}
@@ -79,14 +78,13 @@ func tick(delta: float) -> void:
 			_pending_context = {}
 	if not host.following and not locked():
 		var pan: Vector2 = Vector2(float(_held.has("pan_right")) - float(_held.has("pan_left")), float(_held.has("pan_down")) - float(_held.has("pan_up"))).limit_length(1.0)
-		host.camera.position += pan * delta * 800.0 / host.camera.zoom.x
+		host.view.pan_pixels(pan * delta * 800.0)
 	_point = pointer_world(get_viewport().get_mouse_position())
 	var tile: int = tile_at(_point)
 	if tool in ["build", "plant"] and (tile != _preview_tile or _preview_sequence != host.frame.sequence):
 		_preview_sequence = host.frame.sequence
 		_preview_tile = tile
 		_update_preview(tile)
-	if not tool.is_empty(): queue_redraw()
 
 func _input(event: InputEvent) -> void:
 	if external_modal() and ui.binding_editor != null: ui.binding_editor.focus_lost()
@@ -104,6 +102,12 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE and not event.pressed:
 		_pan_drag = false # Release can land on GUI instead of the world.
 	if external_modal(): return
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F7:
+		host.feedback.view_warp = 0.0 if host.feedback.view_warp > 0 else 1.0
+		host.sync_view()
+		ui.feedback("远近变形：" + ("轻微" if host.feedback.view_warp > 0 else "关闭"), true)
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
 		if ui.binding_editor != null and ui.binding_editor.escape():
 			pass
@@ -172,12 +176,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 	if event is InputEventMouseMotion and _pan_drag:
-		host.camera.position -= event.relative / host.camera.zoom
+		host.camera.position += (pointer_world(event.position - event.relative) - pointer_world(event.position)) * Art.TILE
+		host.camera.force_update_scroll()
 		return
 	if event is InputEventMouseButton and event.pressed:
 		var point: Vector2 = pointer_world(event.position)
 		if event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
 			host.camera.zoom = Vector2.ONE * clampf(host.camera.zoom.x * (1.15 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.15), 0.1, 2.0)
+			host.camera.force_update_scroll()
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			if not tool.is_empty(): cancel_tool()
 			elif not direct: _right_click(point, event.position)
@@ -197,6 +203,7 @@ func action(kind: String, payload: Dictionary) -> void:
 	_pending_context = {}
 	if ui._context_panel.visible: ui.close_context()
 	match kind:
+		"view_settings": host.sync_view()
 		"context":
 			clear_direct()
 			direct = not direct
@@ -313,9 +320,11 @@ func action(kind: String, payload: Dictionary) -> void:
 		"camera":
 			host.following = false
 			host.camera.position = Art.body_foot(payload.position) * Art.TILE
+			host.camera.force_update_scroll()
 		"map_move":
 			host.following = false
 			host.camera.position = Art.body_foot(payload.position) * Art.TILE
+			host.camera.force_update_scroll()
 		"map_out", "map_in":
 			ui.minimap.span = clampf(ui.minimap.span * (1.333333 if kind == "map_out" else 0.75), 32.0, 512.0)
 			ui.minimap._apply_view()
@@ -406,7 +415,6 @@ func cancel_tool() -> void:
 	_preview_cells.clear()
 	_pending_context = {}
 	ui.show_tool("")
-	queue_redraw()
 
 func reset_session() -> void:
 	clear_direct()
@@ -438,28 +446,16 @@ func _notification(what: int) -> void:
 	elif what in [NOTIFICATION_WM_WINDOW_FOCUS_IN, NOTIFICATION_APPLICATION_FOCUS_IN]: _focused = true
 
 func pick(point: Vector2, include_flat: bool = true) -> Array[int]:
-	var result: Array[int] = []
-	var best: float = INF
-	var nearest: int = 0
-	for slot: int in host.frame.ids.size():
-		var id: int = host.frame.ids[slot]
-		if id == 0 or (not include_flat and id == 1) or (host.fog_enabled and host.frame.visible[slot] == 0): continue
-		var scale_value: float = 1.6 if host.frame.radii[slot] > 0.5 else 1.0
-		var foot: Vector2 = host._displayed(id)
-		var dead: bool = host.frame.health[slot] <= 0
-		if not include_flat and dead: continue
-		if host.frame.flight[slot] != 0 and not dead: foot.y -= 6.0 * scale_value / Art.TILE
-		var relative: Vector2 = point - foot
-		var bounds := Rect2(Vector2(-0.6, -0.85), Vector2(1.2, 1.0)) if dead else Rect2(Vector2(-0.45, -1.15), Vector2(0.9, 1.3))
-		if not Rect2(bounds.position * scale_value, bounds.size * scale_value).has_point(relative): continue
-		var distance: float = relative.distance_squared_to(Vector2(0, -0.5 * scale_value))
-		if distance < best: best = distance; nearest = id
-	if nearest > 0: result.append(nearest)
-	for id: int in host.object_canvas.by_tile.get(tile_at(point), []):
-		if host.fog_enabled and not host.frame.perception.memories.has(id): continue
-		var rec: Dictionary = host.object_canvas.objects[id]
-		if not include_flat and rec.get("layer", "ground") in ["floor", "roof"]: continue
+	# Visual selection follows shaken pixels; skill/placement ground stays stable.
+	var visual_point: Vector2 = point*Art.TILE+host.camera.offset
+	var result: Array[int] = host.combat_shapes.pick(visual_point)
+	for id: int in preload("res://scripts/presentation/visual_pick.gd").hits(host, visual_point, include_flat):
 		if not result.has(id): result.append(id)
+	# Floors have no sprite; retain intentional ground selection beneath bodies.
+	if include_flat:
+		for id: int in host.object_canvas.by_tile.get(tile_at(point), []):
+			if host.fog_enabled and not host.frame.perception.memories.has(id): continue
+			if host.object_canvas.objects[id].kind == "floor" and not result.has(id): result.append(id)
 	return result
 
 static func tile_at(point: Vector2) -> int:
@@ -503,36 +499,36 @@ func _update_preview(tile: int) -> void:
 				var substrate: String = "soil" if has_pot else str({1: "soil", 2: "sand", 3: "water", 4: "soil"}.get(surface & 7, ""))
 				if not spec.get("substrates", []).has(substrate) or (not has_pot and (surface & 8) != 0) or (has_pot and spec.get("blocks", false)): _preview_ok = false
 
-func _draw() -> void:
+func paint_world(canvas: Node2D) -> void:
 	if host.frame != null and not direct:
 		var data: Dictionary = Actions.observed(host.frame, host.selected, host.fog_enabled)
-		for cells: PackedInt32Array in data.get("work_cells", {}).values(): _draw_work_cells(cells)
+		for cells: PackedInt32Array in data.get("work_cells", {}).values(): _draw_work_cells(canvas, cells)
 	if direct and host.frame != null and not locked() and not host.paused and tool.is_empty():
-		var pointer: Vector2 = get_global_mouse_position()
-		draw_arc(pointer, 4.0 / host.camera.zoom.x, 0, TAU, 16, Style.GOLD, 1.0 / host.camera.zoom.x)
+		var pointer: Vector2 = pointer_world(get_viewport().get_mouse_position()) * Art.TILE
+		canvas.draw_arc(pointer, 4.0 / host.camera.zoom.x, 0, TAU, 16, Style.GOLD, 1.0 / host.camera.zoom.x)
 	if tool.is_empty() or host.frame == null or locked(): return
 	var color: Color = Style.TEAL if _preview_ok else Style.DANGER
 	if tool in ["build", "plant"]:
 		for tile: int in _preview_cells:
 			var rect := Rect2(Vector2(Terrain.cell(tile)) * Art.TILE, Vector2.ONE * Art.TILE)
-			draw_rect(rect, Color(color, 0.22))
-			draw_rect(rect, color, false, 2.0)
+			canvas.draw_rect(rect, Color(color, 0.22))
+			canvas.draw_rect(rect, color, false, 2.0)
 		if not _preview_cells.is_empty():
 			var point: Vector2 = Terrain.center(_preview_cells[0]) * Art.TILE
 			var direction: Vector2 = Vector2.UP.rotated(facing * PI * 0.5) * 13
-			draw_line(point, point + direction, color, 3.0)
-			draw_circle(point + direction, 3, color)
+			canvas.draw_line(point, point + direction, color, 3.0)
+			canvas.draw_circle(point + direction, 3, color)
 			if tool == "build":
 				var spec: Dictionary = Actions.buildings.get(definition, {})
 				var record: Dictionary = {"tile": _preview_cells[0], "cells": _preview_cells, "facing": facing}
 				for operation: String in spec.get("work_positions", {}):
-					_draw_work_cells(Positions.layout(record, spec, operation, bool(spec.get("facts", {}).get("movement_blocked", false))))
+					_draw_work_cells(canvas, Positions.layout(record, spec, operation, bool(spec.get("facts", {}).get("movement_blocked", false))))
 	else:
-		draw_arc(_point * Art.TILE, 10, 0, TAU, 16, Style.DANGER if tool == "demolish" else Style.TEAL, 2.0)
+		canvas.draw_arc(_point * Art.TILE, 10, 0, TAU, 16, Style.DANGER if tool == "demolish" else Style.TEAL, 2.0)
 
-func _draw_work_cells(cells: PackedInt32Array) -> void:
+func _draw_work_cells(canvas: Node2D, cells: PackedInt32Array) -> void:
 	for tile: int in cells:
 		var rect := Rect2(Vector2(Terrain.cell(tile)) * Art.TILE + Vector2.ONE * 4, Vector2.ONE * (Art.TILE - 8))
-		draw_rect(rect, Color(Style.GOLD, 0.12))
-		draw_rect(rect, Style.GOLD, false, 1.5)
-		draw_circle(Terrain.center(tile) * Art.TILE, 3, Style.GOLD)
+		canvas.draw_rect(rect, Color(Style.GOLD, 0.12))
+		canvas.draw_rect(rect, Style.GOLD, false, 1.5)
+		canvas.draw_circle(Terrain.center(tile) * Art.TILE, 3, Style.GOLD)

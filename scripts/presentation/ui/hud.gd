@@ -571,7 +571,7 @@ func open_simple(kind: String) -> void:
 		_button(_modal_body, "ui_scale_commit", "确认", "check")
 		_button(_modal_body, "bindings", "键位设置", "gear")
 		if feedback_settings != null:
-			for spec: Array in [["volume", "战斗音量"], ["shake", "镜头震动"], ["flash", "命中闪光"]]:
+			for spec: Array in [["volume", "战斗音量"], ["shake", "镜头震动"], ["flash", "命中闪光"], ["view_warp", "远近变形"]]:
 				var row := HBoxContainer.new()
 				_modal_body.add_child(row)
 				Style.label(row, spec[1]).custom_minimum_size.x = 120
@@ -604,6 +604,7 @@ func _layout_modal() -> void:
 
 func _feedback_changed(value: float, key: String) -> void:
 	feedback_settings.set(key, value / 100.0)
+	if key == "view_warp": requested.emit("view_settings", {})
 	if feedback_settings.save_settings() != OK: feedback("反馈设置未能保存", false)
 
 func close_modal() -> void:

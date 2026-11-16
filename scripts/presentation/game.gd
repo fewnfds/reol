@@ -19,6 +19,8 @@ const ActionDefs = preload("res://scripts/sim/kernel/action_defs.gd")
 const CombatShapes = preload("res://scripts/presentation/combat_shapes.gd")
 const CombatAudio = preload("res://scripts/presentation/combat_audio.gd")
 const FeedbackSettings = preload("res://scripts/presentation/feedback_settings.gd")
+const ViewRig = preload("res://scripts/presentation/view_rig.gd")
+const WorldOverlay = preload("res://scripts/presentation/world_overlay.gd")
 const TILE: float = Art.TILE
 var runner := Runner.new()
 var population := Population.new()
@@ -29,7 +31,11 @@ var atmosphere := Atmosphere.new()
 var action_effects := ActionEffects.new()
 var art_gallery := ArtGallery.new()
 var fog_enabled: bool = true
-var camera := Camera2D.new()
+var view := ViewRig.new()
+var camera: Camera2D = view.camera
+var world_overlay := WorldOverlay.new()
+var tool_overlay := WorldOverlay.new()
+var _view_override: float = -1.0
 var ui := Hud.new()
 var controls := Interaction.new()
 var combat_audio := CombatAudio.new()
@@ -106,6 +112,7 @@ func _ready() -> void:
 		if part.size() != 2:
 			continue
 		match part[0]:
+			"view-warp": _view_override = clampf(float(part[1]), 0, 1)
 			"actors": _actors = clampi(int(part[1]), 1, 60000)
 			"workers": _workers = clampi(int(part[1]), -1, 64)
 			"speed": speed = clampf(float(part[1]), 0.25, 16.0)
@@ -135,24 +142,24 @@ func _ready() -> void:
 	if _duration > 0.0: following = false
 	Engine.max_fps = _fps
 	fog_enabled = _fog_mode == 1 if _fog_mode >= 0 else _actors < 1000 # Developer overview can show all actors.
+	add_child(view)
 	population.fog_enabled = fog_enabled
 	ground.use_memory = fog_enabled
 	ground.z_index = -10
 	population.z_index = -1
-	add_child(ground)
+	view.world.add_child(ground)
 	object_canvas.z_index = -5
-	add_child(object_canvas)
-	add_child(population)
+	view.world.add_child(object_canvas)
+	view.world.add_child(population)
 	action_effects.z_index = 2
-	add_child(action_effects)
+	view.world.add_child(action_effects)
 	population.feedback = action_effects
 	add_child(combat_audio)
-	add_child(combat_shapes)
-	add_child(fog)
+	view.world.add_child(combat_shapes)
+	view.world.add_child(fog)
 	fog.visible = fog_enabled
 	population.configure(_actors)
-	add_child(camera)
-	add_child(atmosphere)
+	view.world.add_child(atmosphere)
 	add_child(art_gallery)
 	camera.position = (Vector2(220, 220) if _actors >= 1000 or _capacity else Vector2(178, 186)) * TILE
 	camera.zoom = Vector2.ONE * (0.21 if _actors >= 1000 or _capacity else 0.9)
@@ -169,8 +176,14 @@ func _ready() -> void:
 		_debug_console.set_ui_scale(ui.scale.x)
 	controls.configure(self, ui)
 	feedback.load_settings()
+	if _view_override >= 0.0: feedback.view_warp = _view_override
+	sync_view()
+	world_overlay.paint = _paint_world
+	view.world.add_child(world_overlay)
+	tool_overlay.z_index = 5
+	tool_overlay.paint = controls.paint_world
+	view.world.add_child(tool_overlay)
 	ui.feedback_settings = feedback
-	controls.z_index = 5
 	add_child(controls)
 	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 	if runner.start(_actors, _workers, speed, _mixed, _capacity, _sim_hz, _combat_lab, _combat_probe) != OK:
@@ -178,8 +191,14 @@ func _ready() -> void:
 		get_tree().quit(1)
 
 
+func sync_view() -> void:
+	view.strength = feedback.view_warp * ViewRig.MAX_STRENGTH
+	view.sync()
+
+
 func _process(delta: float) -> void:
 	var begin: int = Time.get_ticks_usec()
+	sync_view()
 	var mask_gpu: float = RenderingServer.viewport_get_measured_render_time_gpu(fog.mask.get_viewport_rid()) if _capture_at > 0 and _mask_was_updated else 0.0
 	var mask_cpu: float = RenderingServer.viewport_get_measured_render_time_cpu(fog.mask.get_viewport_rid()) if _capture_at > 0 and _mask_was_updated else 0.0
 	var mailbox: Dictionary = runner.poll()
@@ -270,12 +289,12 @@ func _process(delta: float) -> void:
 		if _capture_at > 0:
 			_adoption_times.append((Time.get_ticks_usec() - adopt_start) / 1000.0)
 	population.interpolate(alpha, int(render_ms))
+	population._shader.set_shader_parameter("controlled_foot", _displayed(1) * TILE)
 	if fog_enabled:
 		fog.follow_view(newer.at(frame.actor_slots[1], _render_previous[frame.actor_slots[1]], alpha), float(frame.player.get("sight_range", 0.0)))
 	atmosphere.adopt(frame, render_ms)
 	action_effects.advance(int(render_ms), fog_enabled)
 	combat_audio.advance(int(render_ms))
-	combat_shapes.advance(frame, _render_pose, int(render_ms), fog_enabled, controls.pointer_world(get_viewport().get_mouse_position()) - Art.BODY_FOOT_OFFSET, controls.direct and not controls.locked() and not frame.paused)
 	action_effects.flash = feedback.flash
 	action_effects.shake = feedback.shake
 	combat_audio.volume = feedback.volume
@@ -285,6 +304,7 @@ func _process(delta: float) -> void:
 	camera.force_update_scroll() # Mouse conversion uses this displayed camera, even without fog.
 	_update_direction_marker()
 	controls.tick(delta)
+	combat_shapes.advance(frame, _render_pose, int(render_ms), fog_enabled, controls.pointer_world(get_viewport().get_mouse_position()) - Art.BODY_FOOT_OFFSET, controls.direct and not controls.locked() and not frame.paused)
 	if fog_enabled:
 		camera.force_update_scroll()
 		_mask_was_updated = fog.sync_mask()
@@ -300,7 +320,8 @@ func _process(delta: float) -> void:
 			_actual_speed = (frame.world_ms - _speed_world) * 1000.0 / (begin - _speed_at)
 		_speed_at = begin
 		_speed_world = frame.world_ms
-	queue_redraw()
+	world_overlay.queue_redraw()
+	tool_overlay.queue_redraw()
 	if _duration > 0.0:
 		if _response_probe != null and _capture_at > 0: _response_probe.tick(self, Time.get_ticks_usec())
 		_capture(begin)
@@ -308,8 +329,8 @@ func _process(delta: float) -> void:
 		if _previous_usec > 0:
 			_frame_times.append((begin - _previous_usec) / 1000.0)
 		_process_times.append((Time.get_ticks_usec() - begin) / 1000.0)
-		_gpu_times.append(RenderingServer.viewport_get_measured_render_time_gpu(get_viewport().get_viewport_rid()) + mask_gpu)
-		_render_cpu_times.append(RenderingServer.viewport_get_measured_render_time_cpu(get_viewport().get_viewport_rid()) + mask_cpu + RenderingServer.get_frame_setup_time_cpu())
+		_gpu_times.append(RenderingServer.viewport_get_measured_render_time_gpu(get_viewport().get_viewport_rid()) + mask_gpu + RenderingServer.viewport_get_measured_render_time_gpu(view.viewport.get_viewport_rid()))
+		_render_cpu_times.append(RenderingServer.viewport_get_measured_render_time_cpu(get_viewport().get_viewport_rid()) + mask_cpu + RenderingServer.viewport_get_measured_render_time_cpu(view.viewport.get_viewport_rid()) + RenderingServer.get_frame_setup_time_cpu())
 	_previous_usec = begin
 
 
@@ -331,7 +352,7 @@ func _actions_at(pose: RefCounted) -> Dictionary:
 
 
 func _update_probe() -> void:
-	var point: Vector2 = get_global_mouse_position() / TILE
+	var point: Vector2 = controls.pointer_world(get_viewport().get_mouse_position())
 	var tile: int = Interaction.tile_at(point)
 	var valid: bool = tile >= 0 and not controls.external_modal() and get_viewport().gui_get_hovered_control() == null
 	if valid and fog_enabled: valid = frame.perception.tiles[tile] != 0
@@ -344,8 +365,8 @@ func _update_probe() -> void:
 
 func _update_hud() -> void:
 	ui.refresh(frame, selected, fog_enabled, _actual_speed, following, controls.help_target, controls.direct)
-	var view_size: Vector2 = get_viewport_rect().size / camera.zoom / TILE
-	var camera_rect := Rect2(camera.position / TILE - Art.BODY_FOOT_OFFSET - view_size * 0.5, view_size)
+	var visible_world: Rect2 = view.visible_rect()
+	var camera_rect := Rect2(visible_world.position / TILE, visible_world.size / TILE)
 	ui.minimap.adopt(frame, ground.material, fog, fog_enabled, camera_rect)
 
 
@@ -386,26 +407,26 @@ func _update_direction_marker() -> void:
 	_last_direction_epoch = frame.epoch
 
 
-func _draw_control_direction(origin: Vector2, actions: Dictionary) -> void:
+func _draw_control_direction(canvas: Node2D, origin: Vector2, actions: Dictionary) -> void:
 	if not controls.direct or controls.locked() or frame.paused or int(frame.player.get("hp", 0)) <= 0: return
 	var aim: Vector2 = controls._aim
 	var side := Vector2(-aim.y, aim.x)
-	draw_colored_polygon(PackedVector2Array([origin + aim * 24, origin + aim * 17 + side * 3, origin + aim * 17 - side * 3]), Color("e8ddb1"))
+	canvas.draw_colored_polygon(PackedVector2Array([origin + aim * 24, origin + aim * 17 + side * 3, origin + aim * 17 - side * 3]), Color("e8ddb1"))
 	if not _display_move.is_zero_approx() and _display_move.dot(aim) < 0.7:
 		var normal := Vector2(-_display_move.y, _display_move.x)
-		draw_polyline(PackedVector2Array([origin + _display_move * 8 + normal * 3, origin + _display_move * 12, origin + _display_move * 8 - normal * 3]), Color("80c5bf"), 1.5, true)
+		canvas.draw_polyline(PackedVector2Array([origin + _display_move * 8 + normal * 3, origin + _display_move * 12, origin + _display_move * 8 - normal * 3]), Color("80c5bf"), 1.5, true)
 	var action: Dictionary = actions.get(1, {})
 	if not action.is_empty() and not ActionDefs.is_evade(action.kind) and render_ms >= int(action.started_ms) and render_ms < int(action.end_ms):
 		var angle: float = Vector2(action.direction).angle()
-		draw_arc(origin, 15, angle - 0.42, angle + 0.42, 10, Color("ffb45f"), 3.2, true)
+		canvas.draw_arc(origin, 15, angle - 0.42, angle + 0.42, 10, Color("ffb45f"), 3.2, true)
 
 
-func _draw() -> void:
+func _paint_world(canvas: Node2D) -> void:
 	if frame == null:
 		return
-	draw_arc(_displayed(1) * TILE, 15, 0, TAU, 24, Color.GOLD, 2.0)
+	canvas.draw_arc(_displayed(1) * TILE, 15, 0, TAU, 24, Color.GOLD, 2.0)
 	var actions: Dictionary = _actions_at(_render_pose) if _render_pose != null else {}
-	_draw_control_direction(_displayed(1) * TILE, actions)
+	_draw_control_direction(canvas, _displayed(1) * TILE, actions)
 	for actor: int in actions:
 		var slot: int = int(frame.actor_slots.get(actor, -1))
 		if slot < 0 or (fog_enabled and frame.visible[slot] == 0): continue
@@ -423,22 +444,22 @@ func _draw() -> void:
 			var enemy: bool = int(def.post) > 0
 			if enemy and winding:
 				var warning: float = clampf((render_ms - int(state.started_ms)) / maxi(1, int(state.active_ms) - int(state.started_ms)), 0, 1)
-				draw_colored_polygon(polygon, Color(color, 0.05 + warning * 0.13))
-				draw_arc(origin, float(def.reach) * TILE, direction.angle() - float(def.angle), direction.angle() - float(def.angle) + warning * float(def.angle) * 2, 20, Color(color, 0.9), 2.0, true)
-			elif active: draw_colored_polygon(polygon, Color(color, 0.25))
+				canvas.draw_colored_polygon(polygon, Color(color, 0.05 + warning * 0.13))
+				canvas.draw_arc(origin, float(def.reach) * TILE, direction.angle() - float(def.angle), direction.angle() - float(def.angle) + warning * float(def.angle) * 2, 20, Color(color, 0.9), 2.0, true)
+			elif active: canvas.draw_colored_polygon(polygon, Color(color, 0.25))
 			if active:
 				var progress: float = clampf(float(render_ms - int(state.active_ms)) / int(def.active), 0, 1)
 				var tip: Vector2 = origin + direction.rotated(lerpf(-float(def.angle), float(def.angle), progress)) * float(def.reach) * TILE
-				draw_line(origin + direction * 6, tip, Color("fff3c2"), 4.5 if preload("res://scripts/sim/kernel/effect_payload.gd").summary(def.payload).heavy_hit else 3.0, true)
+				canvas.draw_line(origin + direction * 6, tip, Color("fff3c2"), 4.5 if preload("res://scripts/sim/kernel/effect_payload.gd").summary(def.payload).heavy_hit else 3.0, true)
 			elif winding and not enemy:
-				draw_arc(origin, 19, direction.angle() - 0.3, direction.angle() + 0.3, 8, Color(color, 0.5), 2, true)
+				canvas.draw_arc(origin, 19, direction.angle() - 0.3, direction.angle() + 0.3, 8, Color(color, 0.5), 2, true)
 			if bool(def.get("steady", false)) and render_ms < int(state.recovery_ms):
-				draw_arc(origin, 18, -2.8, -0.35, 16, Color("edbe67"), 3.0, true)
+				canvas.draw_arc(origin, 18, -2.8, -0.35, 16, Color("edbe67"), 3.0, true)
 		elif not ActionDefs.is_evade(state.kind):
-			if render_ms < int(state.recovery_ms): draw_line(origin, origin + direction * (22 if actor == 1 else 80), Color(color, 0.8), 2.0, true)
+			if render_ms < int(state.recovery_ms): canvas.draw_line(origin, origin + direction * (22 if actor == 1 else 80), Color(color, 0.8), 2.0, true)
 		else:
-			draw_line(origin - direction * 22, origin, Color(color, 0.6), 5.0, true)
-			if render_ms < int(state.started_ms) + ActionDefs.EVADE_MS: draw_arc(origin, 13, 0, TAU, 18, Color("b1e5e3"), 1.8, true)
+			canvas.draw_line(origin - direction * 22, origin, Color(color, 0.6), 5.0, true)
+			if render_ms < int(state.started_ms) + ActionDefs.EVADE_MS: canvas.draw_arc(origin, 13, 0, TAU, 18, Color("b1e5e3"), 1.8, true)
 	# Visible local health/anti-control cues; no hidden enemy values are revealed.
 	if not frame.practice_mode.is_empty():
 		for id: int in frame.actor_slots:
@@ -446,8 +467,8 @@ func _draw() -> void:
 			if id == 1 or frame.sides[slot] != 1 or frame.health[slot] <= 0 or (fog_enabled and frame.visible[slot] == 0): continue
 			var point: Vector2 = _displayed(id) * TILE + Vector2(0, -43)
 			var max_hp: float = maxf(1, frame.max_health[slot])
-			draw_line(point - Vector2(16, 0), point + Vector2(16, 0), Color("292523"), 4)
-			draw_line(point - Vector2(16, 0), point - Vector2(16, 0) + Vector2(32 * clampf(frame.health[slot] / max_hp, 0, 1), 0), Color("df8b70"), 3)
+			canvas.draw_line(point - Vector2(16, 0), point + Vector2(16, 0), Color("292523"), 4)
+			canvas.draw_line(point - Vector2(16, 0), point - Vector2(16, 0) + Vector2(32 * clampf(frame.health[slot] / max_hp, 0, 1), 0), Color("df8b70"), 3)
 	for id: int in frame.reactions:
 		if not frame.actor_slots.has(id): continue
 		var slot: int = frame.actor_slots[id]
@@ -456,27 +477,27 @@ func _draw() -> void:
 		if value.get("punishable", false) and not value.get("punished", false) and render_ms >= int(value.get("recovery_from", 0)) and render_ms < int(value.get("recovery_until", 0)):
 			var point: Vector2 = _displayed(id) * TILE
 			for side: float in [-1.0, 1.0]:
-				draw_polyline(PackedVector2Array([point + Vector2(side * 23, -7), point + Vector2(side * 18, 0), point + Vector2(side * 23, 7)]), Color("b1e5e3"), 1.8, true)
+				canvas.draw_polyline(PackedVector2Array([point + Vector2(side * 23, -7), point + Vector2(side * 18, 0), point + Vector2(side * 23, 7)]), Color("b1e5e3"), 1.8, true)
 		if int(value.get("stun_used", 0)) > ActionDefs.CONTROL_BUDGET_MS - 40 and render_ms >= int(value.get("guard_from", 0)) and render_ms < int(value.get("stun_window", 0)) + ActionDefs.CONTROL_WINDOW_MS:
-			draw_arc(_displayed(id) * TILE, 13, 0.2, 2.9, 12, Color("91a9d2"), 1.5, true)
+			canvas.draw_arc(_displayed(id) * TILE, 13, 0.2, 2.9, 12, Color("91a9d2"), 1.5, true)
 	if frame.actor_slots.has(selected) and (not fog_enabled or frame.visible[frame.actor_slots[selected]] != 0):
-		draw_arc(_displayed(selected) * TILE, 18, 0, TAU, 24, Color.CYAN, 2.0)
+		canvas.draw_arc(_displayed(selected) * TILE, 18, 0, TAU, 24, Color.CYAN, 2.0)
 	elif selected_tile >= 0:
-		draw_rect(Rect2(Vector2(Terrain.cell(selected_tile)) * TILE, Vector2.ONE * TILE), Color.CYAN, false, 2.0)
+		canvas.draw_rect(Rect2(Vector2(Terrain.cell(selected_tile)) * TILE, Vector2.ONE * TILE), Color.CYAN, false, 2.0)
 	if _target.x >= 0:
-		draw_circle(_target * TILE, 5, Color.GOLD)
+		canvas.draw_circle(_target * TILE, 5, Color.GOLD)
 	if _show_path and frame.actor_slots.has(selected) and (not fog_enabled or frame.visible[frame.actor_slots[selected]] != 0) and frame.inspected.get("id", 0) == selected:
 		var points := PackedVector2Array([_displayed(selected) * TILE])
 		for point: Vector2 in frame.inspected.get("route_preview", PackedVector2Array()):
 			points.append(Art.body_foot(point) * TILE)
-		if points.size() > 1: draw_polyline(points, Color(0.3, 0.9, 1.0, 0.65), 1.5)
+		if points.size() > 1: canvas.draw_polyline(points, Color(0.3, 0.9, 1.0, 0.65), 1.5)
 	if not _show_sources: return
 	for source: int in frame.mobile_cells.size():
 		if frame.mobile_cells[source] < 0:
 			continue
 		if fog_enabled and frame.perception.tiles[frame.mobile_cells[source]] == 0:
 			continue
-		draw_arc(Art.body_foot(Terrain.center(frame.mobile_cells[source])) * TILE, 10, 0, TAU, 12, Ground.SOURCE_COLORS[source % 7], 1.5)
+		canvas.draw_arc(Art.body_foot(Terrain.center(frame.mobile_cells[source])) * TILE, 10, 0, TAU, 12, Ground.SOURCE_COLORS[source % 7], 1.5)
 
 
 func _capture(now: int) -> void:
@@ -508,6 +529,8 @@ func _capture(now: int) -> void:
 	report.combat_lab = _combat_lab
 	report.scenario = "capacity-act-v1" if _capacity else ("combat-lab-v1" if _combat_lab else ("mixed-act-v1" if _mixed else "ordinary"))
 	report.activity_fraction = _percentiles(_activity_samples)
+	report.view_warp = feedback.view_warp
+	report.world_viewport = [view.viewport.size.x, view.viewport.size.y]
 	report.camera = {"position": [camera.position.x, camera.position.y], "zoom": camera.zoom.x}
 	report.ui_open = {"drawer": ui._drawer_name, "inventory": ui.inventory.visible}
 	if _combat_probe:

@@ -8,6 +8,7 @@ uniform sampler2D visible_map : filter_nearest, repeat_disable;
 uniform sampler2D motion_map : filter_nearest, repeat_disable;
 uniform sampler2D fog_mask : filter_linear, repeat_disable;
 uniform bool use_fog = false;
+uniform vec2 controlled_foot = vec2(-1000.0);
 uniform float alpha = 1.0;
 uniform float world_ms = 0.0;
 varying flat vec2 atlas_offset;
@@ -18,6 +19,8 @@ varying flat float scenery;
 varying flat float known;
 varying flat float special;
 varying vec4 tint;
+varying vec2 world_pixel;
+varying flat float foot_y;
 varying vec2 sprite_pixel;
 vec4 motion_value(int index) {
     int width = textureSize(motion_map, 0).x;
@@ -71,6 +74,8 @@ void vertex() {
         if (state == 14 || (state == 2 && (flags & 1) == 0)) { frame = 0; }
         atlas_offset = vec2(float(int(INSTANCE_CUSTOM.z) % 8) * 4.0 + float(frame), float(state)) * 48.0;
     }
+    world_pixel = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy;
+    foot_y = MODEL_MATRIX[3].y;
 }
 vec4 sample_sprite(sampler2D actors, vec2 pixel) {
     float cell = scenery > 0.5 ? 64.0 : 48.0;
@@ -95,7 +100,7 @@ void fragment() {
     vec2 drift = art_sun * 7.0;
     float solar = 1.0 - smoothstep(0.45, 1.0, length((ground - drift) / (spread + vec2(2.0, 0.5))));
     float shadow = max(contact * 0.22, solar * art_sun_strength * 0.16);
-    if (scenery > 0.5 && tint.a < 0.9) { shadow = 0.0; }
+    if (scenery > 0.5 && (tint.a < 0.9 || (body_flags & 4) != 0)) { shadow = 0.0; }
     float a = body.a + shadow * (1.0-body.a);
     vec3 color = (body.rgb*body.a + vec3(0.10,0.16,0.20)*shadow*(1.0-body.a))/max(a,0.001);
     if (special > 0.5) { color += body.rgb*(0.08+0.06*sin(art_time*3.0)*known); }
@@ -109,5 +114,12 @@ void fragment() {
             color = mix(color, fog_color, texture(fog_mask, SCREEN_UV).r);
         } else { color = mix(mix(vec3(0.015,0.022,0.03),color,0.45),color,known); }
     }
-    COLOR = vec4(color,a*tint.a);
+    // A local soft cutaway keeps the controlled body legible behind tall art.
+    // It changes pixels only, never occupied space, collision or knowledge.
+    float opacity = 1.0;
+    if (scenery > 0.5 && (body_flags & 2) != 0 && foot_y > controlled_foot.y) {
+        float body_distance = length((world_pixel - controlled_foot - vec2(0.0,-18.0)) / vec2(20.0,28.0));
+        opacity = mix(0.3, 1.0, smoothstep(0.65,1.1,body_distance));
+    }
+    COLOR = vec4(color,a*tint.a*opacity);
 }

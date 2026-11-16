@@ -43,7 +43,7 @@ func click(at: Vector2, button: MouseButton = MOUSE_BUTTON_LEFT) -> void:
 	Input.parse_input_event(event)
 
 func screen(point: Vector2) -> Vector2:
-	return game.get_canvas_transform() * (point * Art.TILE)
+	return game.view.project(point * Art.TILE)
 
 func capture(name_key: String) -> void:
 	if DisplayServer.get_name() == "headless": return
@@ -203,12 +203,12 @@ func run() -> void:
 	await settle(8)
 	await capture("layout-1080")
 	root.size = Vector2i(1280,720)
-	var world_transform: Transform2D = game.get_canvas_transform()
+	var world_transform: Transform2D = game.view.viewport.canvas_transform
 	game.ui.apply_scale(125, false)
 	await settle(8)
 	await capture("layout-scaled")
 	check(game.ui._player_buttons.context.get_global_rect().end.x < game.ui.size.x, "UI scaling pushed player actions off screen")
-	check(game.get_canvas_transform().is_equal_approx(world_transform), "UI scaling changed world pixels")
+	check(game.view.viewport.canvas_transform.is_equal_approx(world_transform), "UI scaling changed world pixels")
 	for percent: int in [50, 200]:
 		game.ui.apply_scale(percent, false)
 		await settle(8)

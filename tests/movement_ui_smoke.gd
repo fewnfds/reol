@@ -80,7 +80,7 @@ func _run() -> void:
 	game.controls.action("pause", {})
 	check(await until(func(): return not game.frame.paused), "Movement GUI did not resume")
 	for strike: int in 3:
-		var point: Vector2 = game.get_canvas_transform() * (Vector2(122.0, 120.5) * Art.TILE)
+		var point: Vector2 = game.view.project(Vector2(122.0,120.5)*Art.TILE)
 		await mouse(MOUSE_BUTTON_LEFT, true, point)
 		await mouse(MOUSE_BUTTON_LEFT, false, point)
 		await create_timer(0.31).timeout

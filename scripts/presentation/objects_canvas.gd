@@ -9,6 +9,7 @@ var by_tile: Dictionary = {}
 const ORDER_STRIDE: int = 1048576
 var buffer := PackedFloat32Array()
 var order := PackedFloat64Array()
+var identities := PackedInt64Array()
 var revision: int = 0
 var shelter: ImageTexture
 var _source: Dictionary = {}
@@ -46,6 +47,19 @@ func adopt(value: Dictionary, fringe: Dictionary = {}) -> void:
                 part["construction_mask"] = mask
                 sprites.append(part)
         else: sprites.append(rec)
+    var visual_parts: Array[Dictionary] = []
+    for rec: Dictionary in sprites:
+        var key: String = str(rec.get("art_key", _key(rec)))
+        var source: Dictionary = Art.catalog().entries.get(key, Art.catalog().entries.rock)
+        for part: Dictionary in source.get("parts", [{"key":key, "offset":[0,0], "depth":0}]):
+            var visual: Dictionary = rec.duplicate()
+            visual["art_key"] = part.key
+            visual["part_offset"] = Vector2(part.offset[0], part.offset[1])
+            visual["part_depth"] = float(part.depth)
+            visual["contact_shadow"] = bool(part.get("contact_shadow", source.get("contact_shadow", true)))
+            if part.has("occluder") or source.has("occluder"): visual["occluder"] = bool(part.get("occluder",source.get("occluder",false)))
+            visual_parts.append(visual)
+    sprites = visual_parts
     sprites.sort_custom(func(a: Dictionary, b: Dictionary):
         var roof_a: bool = a.get("layer", "") == "roof"
         var roof_b: bool = b.get("layer", "") == "roof"
@@ -64,29 +78,32 @@ func adopt(value: Dictionary, fringe: Dictionary = {}) -> void:
     buffer = PackedFloat32Array()
     buffer.resize(sprites.size() * 16)
     order = PackedFloat64Array()
+    identities = PackedInt64Array()
     for index: int in sprites.size():
         var rec: Dictionary = sprites[index]
-        var key: String = _key(rec)
+        var key: String = str(rec.get("art_key", _key(rec)))
         var source: Dictionary = Art.catalog().entries.get(key, Art.catalog().entries.rock)
         var extent := Rect2i(Terrain.cell(rec.tile), Vector2i.ONE)
         for tile: int in rec.get("cells", PackedInt32Array([rec.tile])):
             extent = extent.merge(Rect2i(Terrain.cell(tile), Vector2i.ONE))
-        # All sprites pivot at the footprint's bottom centre. Flat fixtures use
-        # the corresponding source pivot, so their occupied pixels do not shift.
+        # Art parts place their own pivot/depth relative to the shared footprint.
         var point: Vector2 = Art.footprint_foot(extent) * TILE
         var scale_value := Vector2(0.65, 0.65)
-        var tall: bool = rec.kind == "resource" or (rec.kind == "plant" and rec.definition == "old_tree")
+        var tall: bool = (rec.kind == "resource" and int(rec.get("vegetation_level", 3)) >= 3) or (rec.kind == "plant" and rec.definition == "old_tree" and int(rec.get("stage", 0)) in [2,4])
         if tall:
             scale_value = Vector2.ONE * (1.2 if rec.kind == "resource" else 1.0)
         if source.has("footprint"):
             var art_cells: Array = source.footprint
             scale_value = Vector2(float(extent.size.x) / int(art_cells[0]), float(extent.size.y) / int(art_cells[1]))
+        var sort_y: float = point.y + float(rec.get("part_depth", 0.0)) * scale_value.y
+        point += Vector2(rec.get("part_offset", Vector2.ZERO)) * scale_value
         var color := Color.WHITE
         if rec.kind == "blueprint" and not rec.get("construction_started", false): color = Color(0.45, 0.95, 1.0, 0.50)
         if rec.kind == "roof": color.a = 0.24
         var special: int = 0
         if rec.kind == "plant" and rec.definition == "fire_herb" and int(rec.get("stage", 0)) == 2: special = 1
         if rec.get("sapient", false): special = 2
+        identities.append(int(rec.id))
         var offset: int = index * 16
         buffer[offset] = scale_value.x
         buffer[offset + 3] = point.x
@@ -103,11 +120,12 @@ func adopt(value: Dictionary, fringe: Dictionary = {}) -> void:
         var sway: int = int(tall and int(rec.get("stage", 2)) not in [3, 4] and not (rec.kind == "resource" and int(rec.get("vegetation_level", 3)) < 3))
         var ground_fog: int = int(not tall and rec.get("layer", "") != "roof")
         # Low bit is free for scenery; bits 9-10 already encode special effects.
-        buffer[offset + 15] = 128 + ground_fog + sway * 256 + special * 512 + int(anchor[0]) * 2048 + int(anchor[1]) * 131072
+        var occluder: int = int(rec.kind != "blueprint" and bool(rec.get("occluder", tall)))
+        buffer[offset + 15] = 128 + occluder * 2 + int(not rec.get("contact_shadow", true)) * 4 + ground_fog + sway * 256 + special * 512 + int(anchor[0]) * 2048 + int(anchor[1]) * 131072
         var plane: Art.DrawPlane = Art.DrawPlane.BODY
         if rec.kind == "pile" or (rec.kind == "blueprint" and not rec.get("construction_started", false)): plane = Art.DrawPlane.GROUND
         elif rec.get("layer", "") == "roof": plane = Art.DrawPlane.ROOF
-        var depth: int = Art.depth(point.y, plane)
+        var depth: int = Art.depth(sort_y, plane)
         order.append(float(depth * ORDER_STRIDE + index))
     order.sort()
     revision += 1
@@ -127,14 +145,7 @@ func _key(rec: Dictionary) -> String:
                         mask |= 1 << side
                         break
             return "wall_%d" % mask
-        "door":
-            var point: Vector2i = Terrain.cell(rec.tile)
-            for delta: Vector2i in [Vector2i.UP, Vector2i.DOWN]:
-                var cell: Vector2i = point + delta
-                if cell.x < 0 or cell.y < 0 or cell.x >= 512 or cell.y >= 512: continue
-                for id: int in by_tile.get(Terrain.index(cell), []):
-                    if objects[id].kind == "wall": return "door_v"
-            return "door_v" if int(rec.get("facing", 0)) % 2 == 1 else "door"
+        "door": return _door_key(rec)
         "resource":
             var level: int = int(rec.get("vegetation_level", 3))
             return "item_wood" if level == 0 else ("stump" if level == 2 else ("pine" if rec.tile % 3 == 0 else "oak"))
@@ -146,15 +157,31 @@ func _key(rec: Dictionary) -> String:
             return "%s_%d" % [rec.definition, stage]
         "chest": return _facing_key("chest", rec)
         "pile": return "item_" + rec.definition if Art.catalog().entries.has("item_" + rec.definition) else "item_bundle"
-    # A pending floor uses the same flat, tile-sized preview as a roof; the
-    # completed floor is drawn in the ground atlas, never as a furniture icon.
-    var mapping: Dictionary = {"wood_wall": "wall_0", "wood_door": "door", "wood_bed": "bed", "long_bed": "long_bed", "wood_chest": "chest", "cook_stove": "stove", "wood_table": "table", "wood_chair": "chair", "wood_roof": "roof", "wood_floor": "roof", "planter": "planter"}
+    # A pending floor uses the ground-level material preview; completed floors
+    # are drawn in the terrain atlas, never as raised furniture or roofing.
+    var mapping: Dictionary = {"wood_wall": "wall_0", "wood_door": "door", "wood_bed": "bed", "long_bed": "long_bed", "wood_chest": "chest", "cook_stove": "stove", "wood_table": "table", "wood_chair": "chair", "wood_roof": "roof", "wood_floor": "roof_preview", "planter": "planter", "wood_screen": "screen", "wood_window": "window", "stone_wall": "wall_0", "desk_chair": "chair"}
     return _facing_key(str(mapping.get(rec.definition, "workbench")), rec)
 
 
 func _facing_key(key: String, rec: Dictionary) -> String:
     var facing: int = int(rec.get("facing", 0))
     if key == "door":
-        return "door_v" if facing % 2 == 1 else "door"
+        return _door_key(rec)
     var variant: String = "%s_%d" % [key, facing]
     return variant if facing > 0 and Art.catalog().entries.has(variant) else key
+
+
+func _door_key(rec: Dictionary) -> String:
+    var point: Vector2i = Terrain.cell(rec.tile)
+    var horizontal: bool = false
+    var vertical: bool = false
+    for delta: Vector2i in [Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]:
+        var cell: Vector2i = point + delta
+        if cell.x < 0 or cell.y < 0 or cell.x >= 512 or cell.y >= 512: continue
+        for id: int in by_tile.get(Terrain.index(cell), []):
+            if objects[id].kind != "wall": continue
+            if delta.x == 0: vertical = true
+            else: horizontal = true
+    # Ambiguous junctions preserve the author's explicit facing.
+    if vertical != horizontal: return "door_v" if vertical else "door"
+    return "door_v" if int(rec.get("facing",0)) % 2 == 1 else "door"

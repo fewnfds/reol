@@ -290,7 +290,7 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "储物箱 · N",
       "category": "objects",
@@ -299,7 +299,8 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
     "chest_1": {
       "slot": 9,
@@ -311,7 +312,7 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "储物箱 · E",
       "category": "objects",
@@ -320,7 +321,8 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
     "chest_2": {
       "slot": 10,
@@ -332,7 +334,7 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "储物箱 · S",
       "category": "objects",
@@ -341,7 +343,8 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
     "chest_3": {
       "slot": 11,
@@ -353,7 +356,7 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "储物箱 · W",
       "category": "objects",
@@ -362,7 +365,8 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
     "bed": {
       "slot": 12,
@@ -374,7 +378,7 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "床 · N",
       "category": "objects",
@@ -383,7 +387,8 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
     "bed_1": {
       "slot": 13,
@@ -395,7 +400,7 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "床 · E",
       "category": "objects",
@@ -404,7 +409,8 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
     "bed_2": {
       "slot": 14,
@@ -416,7 +422,7 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "床 · S",
       "category": "objects",
@@ -425,7 +431,8 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
     "bed_3": {
       "slot": 15,
@@ -437,7 +444,7 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "床 · W",
       "category": "objects",
@@ -446,7 +453,8 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
     "table": {
       "slot": 16,
@@ -458,7 +466,7 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "桌 · N",
       "category": "objects",
@@ -467,7 +475,8 @@
       "footprint": [
         2,
         1
-      ]
+      ],
+      "occluder": false
     },
     "table_1": {
       "slot": 17,
@@ -479,7 +488,70 @@
       ],
       "anchor": [
         32,
+        56
+      ],
+      "label": "桌 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ],
+      "occluder": false,
+      "parts": [
+        {
+          "key": "table_1_part0",
+          "offset": [
+            0,
+            -32
+          ],
+          "depth": -32,
+          "contact_shadow": false
+        },
+        {
+          "key": "table_1_part1",
+          "offset": [
+            0,
+            0
+          ],
+          "depth": 0,
+          "contact_shadow": true
+        }
+      ]
+    },
+    "table_1_part0": {
+      "slot": 18,
+      "rect": [
+        128,
+        128,
+        64,
         64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "桌 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
+    },
+    "table_1_part1": {
+      "slot": 19,
+      "rect": [
+        192,
+        128,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
       ],
       "label": "桌 · E",
       "category": "objects",
@@ -491,16 +563,16 @@
       ]
     },
     "table_2": {
-      "slot": 18,
+      "slot": 20,
       "rect": [
-        128,
+        256,
         128,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "桌 · S",
       "category": "objects",
@@ -509,19 +581,83 @@
       "footprint": [
         2,
         1
-      ]
+      ],
+      "occluder": false
     },
     "table_3": {
-      "slot": 19,
+      "slot": 21,
       "rect": [
-        192,
+        320,
         128,
         64,
         64
       ],
       "anchor": [
         32,
+        56
+      ],
+      "label": "桌 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ],
+      "occluder": false,
+      "parts": [
+        {
+          "key": "table_3_part0",
+          "offset": [
+            0,
+            -32
+          ],
+          "depth": -32,
+          "contact_shadow": false
+        },
+        {
+          "key": "table_3_part1",
+          "offset": [
+            0,
+            0
+          ],
+          "depth": 0,
+          "contact_shadow": true
+        }
+      ]
+    },
+    "table_3_part0": {
+      "slot": 22,
+      "rect": [
+        384,
+        128,
+        64,
         64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "桌 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
+    },
+    "table_3_part1": {
+      "slot": 23,
+      "rect": [
+        448,
+        128,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
       ],
       "label": "桌 · W",
       "category": "objects",
@@ -533,90 +669,6 @@
       ]
     },
     "chair": {
-      "slot": 20,
-      "rect": [
-        256,
-        128,
-        64,
-        64
-      ],
-      "anchor": [
-        32,
-        48
-      ],
-      "label": "椅 · N",
-      "category": "objects",
-      "state": "ready",
-      "source": "authored",
-      "footprint": [
-        1,
-        1
-      ]
-    },
-    "chair_1": {
-      "slot": 21,
-      "rect": [
-        320,
-        128,
-        64,
-        64
-      ],
-      "anchor": [
-        32,
-        48
-      ],
-      "label": "椅 · E",
-      "category": "objects",
-      "state": "ready",
-      "source": "authored",
-      "footprint": [
-        1,
-        1
-      ]
-    },
-    "chair_2": {
-      "slot": 22,
-      "rect": [
-        384,
-        128,
-        64,
-        64
-      ],
-      "anchor": [
-        32,
-        48
-      ],
-      "label": "椅 · S",
-      "category": "objects",
-      "state": "ready",
-      "source": "authored",
-      "footprint": [
-        1,
-        1
-      ]
-    },
-    "chair_3": {
-      "slot": 23,
-      "rect": [
-        448,
-        128,
-        64,
-        64
-      ],
-      "anchor": [
-        32,
-        48
-      ],
-      "label": "椅 · W",
-      "category": "objects",
-      "state": "ready",
-      "source": "authored",
-      "footprint": [
-        1,
-        1
-      ]
-    },
-    "stove": {
       "slot": 24,
       "rect": [
         0,
@@ -626,18 +678,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "灶台 · N",
+      "label": "椅 · N",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "stove_1": {
+    "chair_1": {
       "slot": 25,
       "rect": [
         64,
@@ -647,18 +700,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "灶台 · E",
+      "label": "椅 · E",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "stove_2": {
+    "chair_2": {
       "slot": 26,
       "rect": [
         128,
@@ -668,18 +722,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "灶台 · S",
+      "label": "椅 · S",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "stove_3": {
+    "chair_3": {
       "slot": 27,
       "rect": [
         192,
@@ -689,18 +744,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "灶台 · W",
+      "label": "椅 · W",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "workbench": {
+    "stove": {
       "slot": 28,
       "rect": [
         256,
@@ -710,18 +766,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "工作台 · N",
+      "label": "灶台 · N",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         2,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "workbench_1": {
+    "stove_1": {
       "slot": 29,
       "rect": [
         320,
@@ -731,7 +788,282 @@
       ],
       "anchor": [
         32,
+        56
+      ],
+      "label": "灶台 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ],
+      "occluder": false,
+      "parts": [
+        {
+          "key": "stove_1_part0",
+          "offset": [
+            0,
+            -32
+          ],
+          "depth": -32,
+          "contact_shadow": false
+        },
+        {
+          "key": "stove_1_part1",
+          "offset": [
+            0,
+            0
+          ],
+          "depth": 0,
+          "contact_shadow": true
+        }
+      ]
+    },
+    "stove_1_part0": {
+      "slot": 30,
+      "rect": [
+        384,
+        192,
+        64,
         64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "灶台 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
+    },
+    "stove_1_part1": {
+      "slot": 31,
+      "rect": [
+        448,
+        192,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "灶台 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
+    },
+    "stove_2": {
+      "slot": 32,
+      "rect": [
+        0,
+        256,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "灶台 · S",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        2,
+        1
+      ],
+      "occluder": false
+    },
+    "stove_3": {
+      "slot": 33,
+      "rect": [
+        64,
+        256,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "灶台 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ],
+      "occluder": false,
+      "parts": [
+        {
+          "key": "stove_3_part0",
+          "offset": [
+            0,
+            -32
+          ],
+          "depth": -32,
+          "contact_shadow": false
+        },
+        {
+          "key": "stove_3_part1",
+          "offset": [
+            0,
+            0
+          ],
+          "depth": 0,
+          "contact_shadow": true
+        }
+      ]
+    },
+    "stove_3_part0": {
+      "slot": 34,
+      "rect": [
+        128,
+        256,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "灶台 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
+    },
+    "stove_3_part1": {
+      "slot": 35,
+      "rect": [
+        192,
+        256,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "灶台 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
+    },
+    "workbench": {
+      "slot": 36,
+      "rect": [
+        256,
+        256,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "工作台 · N",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        2,
+        1
+      ],
+      "occluder": false
+    },
+    "workbench_1": {
+      "slot": 37,
+      "rect": [
+        320,
+        256,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "工作台 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ],
+      "occluder": false,
+      "parts": [
+        {
+          "key": "workbench_1_part0",
+          "offset": [
+            0,
+            -32
+          ],
+          "depth": -32,
+          "contact_shadow": false
+        },
+        {
+          "key": "workbench_1_part1",
+          "offset": [
+            0,
+            0
+          ],
+          "depth": 0,
+          "contact_shadow": true
+        }
+      ]
+    },
+    "workbench_1_part0": {
+      "slot": 38,
+      "rect": [
+        384,
+        256,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "工作台 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
+    },
+    "workbench_1_part1": {
+      "slot": 39,
+      "rect": [
+        448,
+        256,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
       ],
       "label": "工作台 · E",
       "category": "objects",
@@ -743,16 +1075,16 @@
       ]
     },
     "workbench_2": {
-      "slot": 30,
+      "slot": 40,
       "rect": [
-        384,
-        192,
+        0,
+        320,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "工作台 · S",
       "category": "objects",
@@ -761,19 +1093,83 @@
       "footprint": [
         2,
         1
-      ]
+      ],
+      "occluder": false
     },
     "workbench_3": {
-      "slot": 31,
+      "slot": 41,
       "rect": [
-        448,
-        192,
+        64,
+        320,
         64,
         64
       ],
       "anchor": [
         32,
+        56
+      ],
+      "label": "工作台 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ],
+      "occluder": false,
+      "parts": [
+        {
+          "key": "workbench_3_part0",
+          "offset": [
+            0,
+            -32
+          ],
+          "depth": -32,
+          "contact_shadow": false
+        },
+        {
+          "key": "workbench_3_part1",
+          "offset": [
+            0,
+            0
+          ],
+          "depth": 0,
+          "contact_shadow": true
+        }
+      ]
+    },
+    "workbench_3_part0": {
+      "slot": 42,
+      "rect": [
+        128,
+        320,
+        64,
         64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "工作台 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
+    },
+    "workbench_3_part1": {
+      "slot": 43,
+      "rect": [
+        192,
+        320,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
       ],
       "label": "工作台 · W",
       "category": "objects",
@@ -785,258 +1181,6 @@
       ]
     },
     "furnace": {
-      "slot": 32,
-      "rect": [
-        0,
-        256,
-        64,
-        64
-      ],
-      "anchor": [
-        32,
-        48
-      ],
-      "label": "炉 · N",
-      "category": "objects",
-      "state": "ready",
-      "source": "authored",
-      "footprint": [
-        1,
-        1
-      ]
-    },
-    "furnace_1": {
-      "slot": 33,
-      "rect": [
-        64,
-        256,
-        64,
-        64
-      ],
-      "anchor": [
-        32,
-        48
-      ],
-      "label": "炉 · E",
-      "category": "objects",
-      "state": "ready",
-      "source": "authored",
-      "footprint": [
-        1,
-        1
-      ]
-    },
-    "furnace_2": {
-      "slot": 34,
-      "rect": [
-        128,
-        256,
-        64,
-        64
-      ],
-      "anchor": [
-        32,
-        48
-      ],
-      "label": "炉 · S",
-      "category": "objects",
-      "state": "ready",
-      "source": "authored",
-      "footprint": [
-        1,
-        1
-      ]
-    },
-    "furnace_3": {
-      "slot": 35,
-      "rect": [
-        192,
-        256,
-        64,
-        64
-      ],
-      "anchor": [
-        32,
-        48
-      ],
-      "label": "炉 · W",
-      "category": "objects",
-      "state": "ready",
-      "source": "authored",
-      "footprint": [
-        1,
-        1
-      ]
-    },
-    "planter": {
-      "slot": 36,
-      "rect": [
-        256,
-        256,
-        64,
-        64
-      ],
-      "anchor": [
-        32,
-        48
-      ],
-      "label": "花盆 · N",
-      "category": "objects",
-      "state": "ready",
-      "source": "authored",
-      "footprint": [
-        1,
-        1
-      ]
-    },
-    "planter_1": {
-      "slot": 37,
-      "rect": [
-        320,
-        256,
-        64,
-        64
-      ],
-      "anchor": [
-        32,
-        48
-      ],
-      "label": "花盆 · E",
-      "category": "objects",
-      "state": "ready",
-      "source": "authored",
-      "footprint": [
-        1,
-        1
-      ]
-    },
-    "planter_2": {
-      "slot": 38,
-      "rect": [
-        384,
-        256,
-        64,
-        64
-      ],
-      "anchor": [
-        32,
-        48
-      ],
-      "label": "花盆 · S",
-      "category": "objects",
-      "state": "ready",
-      "source": "authored",
-      "footprint": [
-        1,
-        1
-      ]
-    },
-    "planter_3": {
-      "slot": 39,
-      "rect": [
-        448,
-        256,
-        64,
-        64
-      ],
-      "anchor": [
-        32,
-        48
-      ],
-      "label": "花盆 · W",
-      "category": "objects",
-      "state": "ready",
-      "source": "authored",
-      "footprint": [
-        1,
-        1
-      ]
-    },
-    "wall_preview": {
-      "slot": 40,
-      "rect": [
-        0,
-        320,
-        64,
-        64
-      ],
-      "anchor": [
-        32,
-        48
-      ],
-      "label": "墙样稿 · N",
-      "category": "objects",
-      "state": "ready",
-      "source": "authored",
-      "footprint": [
-        1,
-        1
-      ]
-    },
-    "wall_preview_1": {
-      "slot": 41,
-      "rect": [
-        64,
-        320,
-        64,
-        64
-      ],
-      "anchor": [
-        32,
-        48
-      ],
-      "label": "墙样稿 · E",
-      "category": "objects",
-      "state": "ready",
-      "source": "authored",
-      "footprint": [
-        1,
-        1
-      ]
-    },
-    "wall_preview_2": {
-      "slot": 42,
-      "rect": [
-        128,
-        320,
-        64,
-        64
-      ],
-      "anchor": [
-        32,
-        48
-      ],
-      "label": "墙样稿 · S",
-      "category": "objects",
-      "state": "ready",
-      "source": "authored",
-      "footprint": [
-        1,
-        1
-      ]
-    },
-    "wall_preview_3": {
-      "slot": 43,
-      "rect": [
-        192,
-        320,
-        64,
-        64
-      ],
-      "anchor": [
-        32,
-        48
-      ],
-      "label": "墙样稿 · W",
-      "category": "objects",
-      "state": "ready",
-      "source": "authored",
-      "footprint": [
-        1,
-        1
-      ]
-    },
-    "door_preview": {
       "slot": 44,
       "rect": [
         256,
@@ -1046,18 +1190,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "门样稿 · N",
+      "label": "炉 · N",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "door_preview_1": {
+    "furnace_1": {
       "slot": 45,
       "rect": [
         320,
@@ -1067,18 +1212,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "门样稿 · E",
+      "label": "炉 · E",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "door_preview_2": {
+    "furnace_2": {
       "slot": 46,
       "rect": [
         384,
@@ -1088,18 +1234,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "门样稿 · S",
+      "label": "炉 · S",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "door_preview_3": {
+    "furnace_3": {
       "slot": 47,
       "rect": [
         448,
@@ -1109,18 +1256,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "门样稿 · W",
+      "label": "炉 · W",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "window": {
+    "planter": {
       "slot": 48,
       "rect": [
         0,
@@ -1130,18 +1278,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "窗 · N",
+      "label": "花盆 · N",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "window_1": {
+    "planter_1": {
       "slot": 49,
       "rect": [
         64,
@@ -1151,18 +1300,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "窗 · E",
+      "label": "花盆 · E",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "window_2": {
+    "planter_2": {
       "slot": 50,
       "rect": [
         128,
@@ -1172,18 +1322,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "窗 · S",
+      "label": "花盆 · S",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "window_3": {
+    "planter_3": {
       "slot": 51,
       "rect": [
         192,
@@ -1193,18 +1344,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "窗 · W",
+      "label": "花盆 · W",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "roof_preview": {
+    "wall_preview": {
       "slot": 52,
       "rect": [
         256,
@@ -1214,18 +1366,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "屋面样稿 · N",
+      "label": "墙样稿 · N",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "roof_preview_1": {
+    "wall_preview_1": {
       "slot": 53,
       "rect": [
         320,
@@ -1235,18 +1388,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "屋面样稿 · E",
+      "label": "墙样稿 · E",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "roof_preview_2": {
+    "wall_preview_2": {
       "slot": 54,
       "rect": [
         384,
@@ -1256,18 +1410,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "屋面样稿 · S",
+      "label": "墙样稿 · S",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "roof_preview_3": {
+    "wall_preview_3": {
       "slot": 55,
       "rect": [
         448,
@@ -1277,18 +1432,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "屋面样稿 · W",
+      "label": "墙样稿 · W",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "well": {
+    "door_preview": {
       "slot": 56,
       "rect": [
         0,
@@ -1298,18 +1454,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "井 · N",
+      "label": "门样稿 · N",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "well_1": {
+    "door_preview_1": {
       "slot": 57,
       "rect": [
         64,
@@ -1319,18 +1476,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "井 · E",
+      "label": "门样稿 · E",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "well_2": {
+    "door_preview_2": {
       "slot": 58,
       "rect": [
         128,
@@ -1340,18 +1498,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "井 · S",
+      "label": "门样稿 · S",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "well_3": {
+    "door_preview_3": {
       "slot": 59,
       "rect": [
         192,
@@ -1361,18 +1520,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "井 · W",
+      "label": "门样稿 · W",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "water_jar": {
+    "window": {
       "slot": 60,
       "rect": [
         256,
@@ -1382,18 +1542,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "水缸 · N",
+      "label": "窗 · N",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "water_jar_1": {
+    "window_1": {
       "slot": 61,
       "rect": [
         320,
@@ -1403,18 +1564,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "水缸 · E",
+      "label": "窗 · E",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "water_jar_2": {
+    "window_2": {
       "slot": 62,
       "rect": [
         384,
@@ -1424,18 +1586,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "水缸 · S",
+      "label": "窗 · S",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "water_jar_3": {
+    "window_3": {
       "slot": 63,
       "rect": [
         448,
@@ -1445,18 +1608,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "水缸 · W",
+      "label": "窗 · W",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "campfire": {
+    "roof_preview": {
       "slot": 64,
       "rect": [
         0,
@@ -1466,18 +1630,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "篝火 · N",
+      "label": "屋面样稿 · N",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "campfire_1": {
+    "roof_preview_1": {
       "slot": 65,
       "rect": [
         64,
@@ -1487,18 +1652,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "篝火 · E",
+      "label": "屋面样稿 · E",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "campfire_2": {
+    "roof_preview_2": {
       "slot": 66,
       "rect": [
         128,
@@ -1508,18 +1674,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "篝火 · S",
+      "label": "屋面样稿 · S",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "campfire_3": {
+    "roof_preview_3": {
       "slot": 67,
       "rect": [
         192,
@@ -1529,18 +1696,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "篝火 · W",
+      "label": "屋面样稿 · W",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "grave": {
+    "well": {
       "slot": 68,
       "rect": [
         256,
@@ -1550,18 +1718,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "墓 · N",
+      "label": "井 · N",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "grave_1": {
+    "well_1": {
       "slot": 69,
       "rect": [
         320,
@@ -1571,18 +1740,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "墓 · E",
+      "label": "井 · E",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "grave_2": {
+    "well_2": {
       "slot": 70,
       "rect": [
         384,
@@ -1592,18 +1762,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "墓 · S",
+      "label": "井 · S",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "grave_3": {
+    "well_3": {
       "slot": 71,
       "rect": [
         448,
@@ -1613,18 +1784,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "墓 · W",
+      "label": "井 · W",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "cushion": {
+    "water_jar": {
       "slot": 72,
       "rect": [
         0,
@@ -1634,18 +1806,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "蒲团 · N",
+      "label": "水缸 · N",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "cushion_1": {
+    "water_jar_1": {
       "slot": 73,
       "rect": [
         64,
@@ -1655,18 +1828,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "蒲团 · E",
+      "label": "水缸 · E",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "cushion_2": {
+    "water_jar_2": {
       "slot": 74,
       "rect": [
         128,
@@ -1676,18 +1850,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "蒲团 · S",
+      "label": "水缸 · S",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "cushion_3": {
+    "water_jar_3": {
       "slot": 75,
       "rect": [
         192,
@@ -1697,18 +1872,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "蒲团 · W",
+      "label": "水缸 · W",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "incense": {
+    "campfire": {
       "slot": 76,
       "rect": [
         256,
@@ -1718,18 +1894,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "香炉 · N",
+      "label": "篝火 · N",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "incense_1": {
+    "campfire_1": {
       "slot": 77,
       "rect": [
         320,
@@ -1739,18 +1916,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "香炉 · E",
+      "label": "篝火 · E",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "incense_2": {
+    "campfire_2": {
       "slot": 78,
       "rect": [
         384,
@@ -1760,18 +1938,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "香炉 · S",
+      "label": "篝火 · S",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "incense_3": {
+    "campfire_3": {
       "slot": 79,
       "rect": [
         448,
@@ -1781,18 +1960,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "香炉 · W",
+      "label": "篝火 · W",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "bookcase": {
+    "grave": {
       "slot": 80,
       "rect": [
         0,
@@ -1802,18 +1982,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "书柜 · N",
+      "label": "墓 · N",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true
     },
-    "bookcase_1": {
+    "grave_1": {
       "slot": 81,
       "rect": [
         64,
@@ -1823,18 +2004,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "书柜 · E",
+      "label": "墓 · E",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true
     },
-    "bookcase_2": {
+    "grave_2": {
       "slot": 82,
       "rect": [
         128,
@@ -1844,18 +2026,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "书柜 · S",
+      "label": "墓 · S",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true
     },
-    "bookcase_3": {
+    "grave_3": {
       "slot": 83,
       "rect": [
         192,
@@ -1865,18 +2048,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "书柜 · W",
+      "label": "墓 · W",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true
     },
-    "lantern": {
+    "cushion": {
       "slot": 84,
       "rect": [
         256,
@@ -1886,18 +2070,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "灯 · N",
+      "label": "蒲团 · N",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "lantern_1": {
+    "cushion_1": {
       "slot": 85,
       "rect": [
         320,
@@ -1907,18 +2092,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "灯 · E",
+      "label": "蒲团 · E",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "lantern_2": {
+    "cushion_2": {
       "slot": 86,
       "rect": [
         384,
@@ -1928,18 +2114,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "灯 · S",
+      "label": "蒲团 · S",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "lantern_3": {
+    "cushion_3": {
       "slot": 87,
       "rect": [
         448,
@@ -1949,18 +2136,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "灯 · W",
+      "label": "蒲团 · W",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "alchemy": {
+    "incense": {
       "slot": 88,
       "rect": [
         0,
@@ -1970,18 +2158,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "炼丹炉 · N",
+      "label": "香炉 · N",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "alchemy_1": {
+    "incense_1": {
       "slot": 89,
       "rect": [
         64,
@@ -1991,18 +2180,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "炼丹炉 · E",
+      "label": "香炉 · E",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "alchemy_2": {
+    "incense_2": {
       "slot": 90,
       "rect": [
         128,
@@ -2012,18 +2202,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "炼丹炉 · S",
+      "label": "香炉 · S",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "alchemy_3": {
+    "incense_3": {
       "slot": 91,
       "rect": [
         192,
@@ -2033,18 +2224,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "炼丹炉 · W",
+      "label": "香炉 · W",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "loom": {
+    "bookcase": {
       "slot": 92,
       "rect": [
         256,
@@ -2054,18 +2246,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "织机 · N",
+      "label": "书柜 · N",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true
     },
-    "loom_1": {
+    "bookcase_1": {
       "slot": 93,
       "rect": [
         320,
@@ -2075,18 +2268,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "织机 · E",
+      "label": "书柜 · E",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true
     },
-    "loom_2": {
+    "bookcase_2": {
       "slot": 94,
       "rect": [
         384,
@@ -2096,18 +2290,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "织机 · S",
+      "label": "书柜 · S",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true
     },
-    "loom_3": {
+    "bookcase_3": {
       "slot": 95,
       "rect": [
         448,
@@ -2117,18 +2312,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "织机 · W",
+      "label": "书柜 · W",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true
     },
-    "screen": {
+    "lantern": {
       "slot": 96,
       "rect": [
         0,
@@ -2138,18 +2334,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "屏风 · N",
+      "label": "灯 · N",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true
     },
-    "screen_1": {
+    "lantern_1": {
       "slot": 97,
       "rect": [
         64,
@@ -2159,18 +2356,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "屏风 · E",
+      "label": "灯 · E",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true
     },
-    "screen_2": {
+    "lantern_2": {
       "slot": 98,
       "rect": [
         128,
@@ -2180,18 +2378,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "屏风 · S",
+      "label": "灯 · S",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true
     },
-    "screen_3": {
+    "lantern_3": {
       "slot": 99,
       "rect": [
         192,
@@ -2201,18 +2400,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "屏风 · W",
+      "label": "灯 · W",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true
     },
-    "go_board": {
+    "alchemy": {
       "slot": 100,
       "rect": [
         256,
@@ -2222,18 +2422,19 @@
       ],
       "anchor": [
         32,
-        48
+        56
       ],
-      "label": "棋盘 · N",
+      "label": "炼丹炉 · N",
       "category": "objects",
       "state": "ready",
       "source": "authored",
       "footprint": [
-        2,
+        1,
         1
-      ]
+      ],
+      "occluder": false
     },
-    "go_board_1": {
+    "alchemy_1": {
       "slot": 101,
       "rect": [
         320,
@@ -2243,7 +2444,458 @@
       ],
       "anchor": [
         32,
+        56
+      ],
+      "label": "炼丹炉 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ],
+      "occluder": false
+    },
+    "alchemy_2": {
+      "slot": 102,
+      "rect": [
+        384,
+        768,
+        64,
         64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "炼丹炉 · S",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ],
+      "occluder": false
+    },
+    "alchemy_3": {
+      "slot": 103,
+      "rect": [
+        448,
+        768,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "炼丹炉 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ],
+      "occluder": false
+    },
+    "loom": {
+      "slot": 104,
+      "rect": [
+        0,
+        832,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "织机 · N",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ],
+      "occluder": false
+    },
+    "loom_1": {
+      "slot": 105,
+      "rect": [
+        64,
+        832,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "织机 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ],
+      "occluder": false
+    },
+    "loom_2": {
+      "slot": 106,
+      "rect": [
+        128,
+        832,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "织机 · S",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ],
+      "occluder": false
+    },
+    "loom_3": {
+      "slot": 107,
+      "rect": [
+        192,
+        832,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "织机 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ],
+      "occluder": false
+    },
+    "screen": {
+      "slot": 108,
+      "rect": [
+        256,
+        832,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "屏风 · N",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        2,
+        1
+      ],
+      "occluder": true
+    },
+    "screen_1": {
+      "slot": 109,
+      "rect": [
+        320,
+        832,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "屏风 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ],
+      "occluder": true,
+      "parts": [
+        {
+          "key": "screen_1_part0",
+          "offset": [
+            0,
+            -32
+          ],
+          "depth": -32,
+          "contact_shadow": false
+        },
+        {
+          "key": "screen_1_part1",
+          "offset": [
+            0,
+            0
+          ],
+          "depth": 0,
+          "contact_shadow": true
+        }
+      ]
+    },
+    "screen_1_part0": {
+      "slot": 110,
+      "rect": [
+        384,
+        832,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "屏风 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
+    },
+    "screen_1_part1": {
+      "slot": 111,
+      "rect": [
+        448,
+        832,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "屏风 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
+    },
+    "screen_2": {
+      "slot": 112,
+      "rect": [
+        0,
+        896,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "屏风 · S",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        2,
+        1
+      ],
+      "occluder": true
+    },
+    "screen_3": {
+      "slot": 113,
+      "rect": [
+        64,
+        896,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "屏风 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ],
+      "occluder": true,
+      "parts": [
+        {
+          "key": "screen_3_part0",
+          "offset": [
+            0,
+            -32
+          ],
+          "depth": -32,
+          "contact_shadow": false
+        },
+        {
+          "key": "screen_3_part1",
+          "offset": [
+            0,
+            0
+          ],
+          "depth": 0,
+          "contact_shadow": true
+        }
+      ]
+    },
+    "screen_3_part0": {
+      "slot": 114,
+      "rect": [
+        128,
+        896,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "屏风 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
+    },
+    "screen_3_part1": {
+      "slot": 115,
+      "rect": [
+        192,
+        896,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "屏风 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
+    },
+    "go_board": {
+      "slot": 116,
+      "rect": [
+        256,
+        896,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "棋盘 · N",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        2,
+        1
+      ],
+      "occluder": false
+    },
+    "go_board_1": {
+      "slot": 117,
+      "rect": [
+        320,
+        896,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "棋盘 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ],
+      "occluder": false,
+      "parts": [
+        {
+          "key": "go_board_1_part0",
+          "offset": [
+            0,
+            -32
+          ],
+          "depth": -32,
+          "contact_shadow": false
+        },
+        {
+          "key": "go_board_1_part1",
+          "offset": [
+            0,
+            0
+          ],
+          "depth": 0,
+          "contact_shadow": true
+        }
+      ]
+    },
+    "go_board_1_part0": {
+      "slot": 118,
+      "rect": [
+        384,
+        896,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "棋盘 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
+    },
+    "go_board_1_part1": {
+      "slot": 119,
+      "rect": [
+        448,
+        896,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
       ],
       "label": "棋盘 · E",
       "category": "objects",
@@ -2255,16 +2907,16 @@
       ]
     },
     "go_board_2": {
-      "slot": 102,
+      "slot": 120,
       "rect": [
-        384,
-        768,
+        0,
+        960,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "棋盘 · S",
       "category": "objects",
@@ -2273,19 +2925,83 @@
       "footprint": [
         2,
         1
-      ]
+      ],
+      "occluder": false
     },
     "go_board_3": {
-      "slot": 103,
+      "slot": 121,
       "rect": [
-        448,
-        768,
+        64,
+        960,
         64,
         64
       ],
       "anchor": [
         32,
+        56
+      ],
+      "label": "棋盘 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ],
+      "occluder": false,
+      "parts": [
+        {
+          "key": "go_board_3_part0",
+          "offset": [
+            0,
+            -32
+          ],
+          "depth": -32,
+          "contact_shadow": false
+        },
+        {
+          "key": "go_board_3_part1",
+          "offset": [
+            0,
+            0
+          ],
+          "depth": 0,
+          "contact_shadow": true
+        }
+      ]
+    },
+    "go_board_3_part0": {
+      "slot": 122,
+      "rect": [
+        128,
+        960,
+        64,
         64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "棋盘 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
+    },
+    "go_board_3_part1": {
+      "slot": 123,
+      "rect": [
+        192,
+        960,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
       ],
       "label": "棋盘 · W",
       "category": "objects",
@@ -2297,16 +3013,79 @@
       ]
     },
     "long_bed": {
-      "slot": 104,
+      "slot": 124,
       "rect": [
-        0,
-        832,
+        256,
+        960,
         64,
         64
       ],
       "anchor": [
         32,
+        56
+      ],
+      "label": "长床 · N",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ],
+      "occluder": false,
+      "parts": [
+        {
+          "key": "long_bed_part0",
+          "offset": [
+            0,
+            -32
+          ],
+          "depth": -32,
+          "contact_shadow": false
+        },
+        {
+          "key": "long_bed_part1",
+          "offset": [
+            0,
+            0
+          ],
+          "depth": 0,
+          "contact_shadow": true
+        }
+      ]
+    },
+    "long_bed_part0": {
+      "slot": 125,
+      "rect": [
+        320,
+        960,
+        64,
         64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "长床 · N",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
+    },
+    "long_bed_part1": {
+      "slot": 126,
+      "rect": [
+        384,
+        960,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
       ],
       "label": "长床 · N",
       "category": "objects",
@@ -2318,16 +3097,16 @@
       ]
     },
     "long_bed_1": {
-      "slot": 105,
+      "slot": 127,
       "rect": [
-        64,
-        832,
+        448,
+        960,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "长床 · E",
       "category": "objects",
@@ -2336,19 +3115,83 @@
       "footprint": [
         2,
         1
-      ]
+      ],
+      "occluder": false
     },
     "long_bed_2": {
-      "slot": 106,
+      "slot": 128,
       "rect": [
-        128,
-        832,
+        0,
+        1024,
         64,
         64
       ],
       "anchor": [
         32,
+        56
+      ],
+      "label": "长床 · S",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ],
+      "occluder": false,
+      "parts": [
+        {
+          "key": "long_bed_2_part0",
+          "offset": [
+            0,
+            -32
+          ],
+          "depth": -32,
+          "contact_shadow": false
+        },
+        {
+          "key": "long_bed_2_part1",
+          "offset": [
+            0,
+            0
+          ],
+          "depth": 0,
+          "contact_shadow": true
+        }
+      ]
+    },
+    "long_bed_2_part0": {
+      "slot": 129,
+      "rect": [
+        64,
+        1024,
+        64,
         64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "长床 · S",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
+    },
+    "long_bed_2_part1": {
+      "slot": 130,
+      "rect": [
+        128,
+        1024,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
       ],
       "label": "长床 · S",
       "category": "objects",
@@ -2360,16 +3203,16 @@
       ]
     },
     "long_bed_3": {
-      "slot": 107,
+      "slot": 131,
       "rect": [
         192,
-        832,
+        1024,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "长床 · W",
       "category": "objects",
@@ -2378,13 +3221,14 @@
       "footprint": [
         2,
         1
-      ]
+      ],
+      "occluder": false
     },
     "chicken": {
-      "slot": 108,
+      "slot": 132,
       "rect": [
         256,
-        832,
+        1024,
         64,
         64
       ],
@@ -2398,10 +3242,10 @@
       "source": "generated:fauna"
     },
     "rabbit": {
-      "slot": 109,
+      "slot": 133,
       "rect": [
         320,
-        832,
+        1024,
         64,
         64
       ],
@@ -2415,10 +3259,10 @@
       "source": "generated:fauna"
     },
     "sheep": {
-      "slot": 110,
+      "slot": 134,
       "rect": [
         384,
-        832,
+        1024,
         64,
         64
       ],
@@ -2432,10 +3276,10 @@
       "source": "generated:fauna"
     },
     "cow": {
-      "slot": 111,
+      "slot": 135,
       "rect": [
         448,
-        832,
+        1024,
         64,
         64
       ],
@@ -2449,10 +3293,10 @@
       "source": "generated:fauna"
     },
     "boar": {
-      "slot": 112,
+      "slot": 136,
       "rect": [
         0,
-        896,
+        1088,
         64,
         64
       ],
@@ -2466,10 +3310,10 @@
       "source": "generated:fauna"
     },
     "fox": {
-      "slot": 113,
+      "slot": 137,
       "rect": [
         64,
-        896,
+        1088,
         64,
         64
       ],
@@ -2483,10 +3327,10 @@
       "source": "generated:fauna"
     },
     "wolf": {
-      "slot": 114,
+      "slot": 138,
       "rect": [
         128,
-        896,
+        1088,
         64,
         64
       ],
@@ -2500,10 +3344,10 @@
       "source": "generated:fauna"
     },
     "deer": {
-      "slot": 115,
+      "slot": 139,
       "rect": [
         192,
-        896,
+        1088,
         64,
         64
       ],
@@ -2517,10 +3361,10 @@
       "source": "generated:fauna"
     },
     "crane": {
-      "slot": 116,
+      "slot": 140,
       "rect": [
         256,
-        896,
+        1088,
         64,
         64
       ],
@@ -2534,10 +3378,10 @@
       "source": "generated:fauna"
     },
     "butterfly": {
-      "slot": 117,
+      "slot": 141,
       "rect": [
         320,
-        896,
+        1088,
         64,
         64
       ],
@@ -2551,10 +3395,10 @@
       "source": "generated:fauna"
     },
     "slime": {
-      "slot": 118,
+      "slot": 142,
       "rect": [
         384,
-        896,
+        1088,
         64,
         64
       ],
@@ -2568,10 +3412,10 @@
       "source": "generated:fauna"
     },
     "ghost": {
-      "slot": 119,
+      "slot": 143,
       "rect": [
         448,
-        896,
+        1088,
         64,
         64
       ],
@@ -2585,10 +3429,10 @@
       "source": "generated:fauna"
     },
     "tree_spirit": {
-      "slot": 120,
+      "slot": 144,
       "rect": [
         0,
-        960,
+        1152,
         64,
         64
       ],
@@ -2602,10 +3446,10 @@
       "source": "generated:fauna"
     },
     "golem": {
-      "slot": 121,
+      "slot": 145,
       "rect": [
         64,
-        960,
+        1152,
         64,
         64
       ],
@@ -2619,10 +3463,10 @@
       "source": "generated:fauna"
     },
     "demon": {
-      "slot": 122,
+      "slot": 146,
       "rect": [
         128,
-        960,
+        1152,
         64,
         64
       ],
@@ -2636,10 +3480,10 @@
       "source": "generated:fauna"
     },
     "flying_sword": {
-      "slot": 123,
+      "slot": 147,
       "rect": [
         192,
-        960,
+        1152,
         64,
         64
       ],
@@ -2653,10 +3497,10 @@
       "source": "generated:fauna"
     },
     "perennial_herb_0": {
-      "slot": 124,
+      "slot": 148,
       "rect": [
         256,
-        960,
+        1152,
         64,
         64
       ],
@@ -2670,10 +3514,10 @@
       "source": "generated:plants"
     },
     "perennial_herb_1": {
-      "slot": 125,
+      "slot": 149,
       "rect": [
         320,
-        960,
+        1152,
         64,
         64
       ],
@@ -2687,10 +3531,10 @@
       "source": "generated:plants"
     },
     "perennial_herb_2": {
-      "slot": 126,
+      "slot": 150,
       "rect": [
         384,
-        960,
+        1152,
         64,
         64
       ],
@@ -2704,10 +3548,10 @@
       "source": "generated:plants"
     },
     "perennial_herb_3": {
-      "slot": 127,
+      "slot": 151,
       "rect": [
         448,
-        960,
+        1152,
         64,
         64
       ],
@@ -2721,10 +3565,10 @@
       "source": "generated:plants"
     },
     "perennial_herb_4": {
-      "slot": 128,
+      "slot": 152,
       "rect": [
         0,
-        1024,
+        1216,
         64,
         64
       ],
@@ -2738,10 +3582,10 @@
       "source": "generated:plants"
     },
     "annual_grass_0": {
-      "slot": 129,
+      "slot": 153,
       "rect": [
         64,
-        1024,
+        1216,
         64,
         64
       ],
@@ -2755,10 +3599,10 @@
       "source": "generated:plants"
     },
     "annual_grass_1": {
-      "slot": 130,
+      "slot": 154,
       "rect": [
         128,
-        1024,
+        1216,
         64,
         64
       ],
@@ -2772,10 +3616,10 @@
       "source": "generated:plants"
     },
     "annual_grass_2": {
-      "slot": 131,
+      "slot": 155,
       "rect": [
         192,
-        1024,
+        1216,
         64,
         64
       ],
@@ -2789,10 +3633,10 @@
       "source": "generated:plants"
     },
     "annual_grass_3": {
-      "slot": 132,
+      "slot": 156,
       "rect": [
         256,
-        1024,
+        1216,
         64,
         64
       ],
@@ -2806,10 +3650,10 @@
       "source": "generated:plants"
     },
     "annual_grass_4": {
-      "slot": 133,
+      "slot": 157,
       "rect": [
         320,
-        1024,
+        1216,
         64,
         64
       ],
@@ -2823,10 +3667,10 @@
       "source": "generated:plants"
     },
     "fire_herb_0": {
-      "slot": 134,
+      "slot": 158,
       "rect": [
         384,
-        1024,
+        1216,
         64,
         64
       ],
@@ -2840,10 +3684,10 @@
       "source": "generated:plants"
     },
     "fire_herb_1": {
-      "slot": 135,
+      "slot": 159,
       "rect": [
         448,
-        1024,
+        1216,
         64,
         64
       ],
@@ -2857,10 +3701,10 @@
       "source": "generated:plants"
     },
     "fire_herb_2": {
-      "slot": 136,
+      "slot": 160,
       "rect": [
         0,
-        1088,
+        1280,
         64,
         64
       ],
@@ -2874,10 +3718,10 @@
       "source": "generated:plants"
     },
     "fire_herb_3": {
-      "slot": 137,
+      "slot": 161,
       "rect": [
         64,
-        1088,
+        1280,
         64,
         64
       ],
@@ -2891,10 +3735,10 @@
       "source": "generated:plants"
     },
     "fire_herb_4": {
-      "slot": 138,
+      "slot": 162,
       "rect": [
         128,
-        1088,
+        1280,
         64,
         64
       ],
@@ -2908,10 +3752,10 @@
       "source": "generated:plants"
     },
     "lotus_0": {
-      "slot": 139,
+      "slot": 163,
       "rect": [
         192,
-        1088,
+        1280,
         64,
         64
       ],
@@ -2925,10 +3769,10 @@
       "source": "generated:plants"
     },
     "lotus_1": {
-      "slot": 140,
+      "slot": 164,
       "rect": [
         256,
-        1088,
+        1280,
         64,
         64
       ],
@@ -2942,10 +3786,10 @@
       "source": "generated:plants"
     },
     "lotus_2": {
-      "slot": 141,
+      "slot": 165,
       "rect": [
         320,
-        1088,
+        1280,
         64,
         64
       ],
@@ -2959,10 +3803,10 @@
       "source": "generated:plants"
     },
     "lotus_3": {
-      "slot": 142,
+      "slot": 166,
       "rect": [
         384,
-        1088,
+        1280,
         64,
         64
       ],
@@ -2976,10 +3820,10 @@
       "source": "generated:plants"
     },
     "lotus_4": {
-      "slot": 143,
+      "slot": 167,
       "rect": [
         448,
-        1088,
+        1280,
         64,
         64
       ],
@@ -2993,10 +3837,10 @@
       "source": "generated:plants"
     },
     "desert_thorn_0": {
-      "slot": 144,
+      "slot": 168,
       "rect": [
         0,
-        1152,
+        1344,
         64,
         64
       ],
@@ -3010,10 +3854,10 @@
       "source": "generated:plants"
     },
     "desert_thorn_1": {
-      "slot": 145,
+      "slot": 169,
       "rect": [
         64,
-        1152,
+        1344,
         64,
         64
       ],
@@ -3027,10 +3871,10 @@
       "source": "generated:plants"
     },
     "desert_thorn_2": {
-      "slot": 146,
+      "slot": 170,
       "rect": [
         128,
-        1152,
+        1344,
         64,
         64
       ],
@@ -3044,10 +3888,10 @@
       "source": "generated:plants"
     },
     "desert_thorn_3": {
-      "slot": 147,
+      "slot": 171,
       "rect": [
         192,
-        1152,
+        1344,
         64,
         64
       ],
@@ -3061,10 +3905,10 @@
       "source": "generated:plants"
     },
     "desert_thorn_4": {
-      "slot": 148,
+      "slot": 172,
       "rect": [
         256,
-        1152,
+        1344,
         64,
         64
       ],
@@ -3078,10 +3922,10 @@
       "source": "generated:plants"
     },
     "old_tree_0": {
-      "slot": 149,
+      "slot": 173,
       "rect": [
         320,
-        1152,
+        1344,
         64,
         64
       ],
@@ -3095,10 +3939,10 @@
       "source": "generated:plants"
     },
     "old_tree_1": {
-      "slot": 150,
+      "slot": 174,
       "rect": [
         384,
-        1152,
+        1344,
         64,
         64
       ],
@@ -3112,10 +3956,10 @@
       "source": "generated:plants"
     },
     "old_tree_2": {
-      "slot": 151,
+      "slot": 175,
       "rect": [
         448,
-        1152,
+        1344,
         64,
         64
       ],
@@ -3129,10 +3973,10 @@
       "source": "generated:plants"
     },
     "old_tree_3": {
-      "slot": 152,
+      "slot": 176,
       "rect": [
         0,
-        1216,
+        1408,
         64,
         64
       ],
@@ -3146,10 +3990,10 @@
       "source": "generated:plants"
     },
     "old_tree_4": {
-      "slot": 153,
+      "slot": 177,
       "rect": [
         64,
-        1216,
+        1408,
         64,
         64
       ],
@@ -3163,16 +4007,16 @@
       "source": "generated:plants"
     },
     "wall_0": {
-      "slot": 154,
+      "slot": 178,
       "rect": [
         128,
-        1216,
+        1408,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "wall_0",
       "category": "structures",
@@ -3181,19 +4025,21 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true,
+      "contact_shadow": false
     },
     "wall_1": {
-      "slot": 155,
+      "slot": 179,
       "rect": [
         192,
-        1216,
+        1408,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "wall_1",
       "category": "structures",
@@ -3202,19 +4048,21 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true,
+      "contact_shadow": false
     },
     "wall_2": {
-      "slot": 156,
+      "slot": 180,
       "rect": [
         256,
-        1216,
+        1408,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "wall_2",
       "category": "structures",
@@ -3223,19 +4071,21 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true,
+      "contact_shadow": false
     },
     "wall_3": {
-      "slot": 157,
+      "slot": 181,
       "rect": [
         320,
-        1216,
+        1408,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "wall_3",
       "category": "structures",
@@ -3244,19 +4094,21 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true,
+      "contact_shadow": false
     },
     "wall_4": {
-      "slot": 158,
+      "slot": 182,
       "rect": [
         384,
-        1216,
+        1408,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "wall_4",
       "category": "structures",
@@ -3265,19 +4117,21 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true,
+      "contact_shadow": false
     },
     "wall_5": {
-      "slot": 159,
+      "slot": 183,
       "rect": [
         448,
-        1216,
+        1408,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "wall_5",
       "category": "structures",
@@ -3286,19 +4140,21 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true,
+      "contact_shadow": false
     },
     "wall_6": {
-      "slot": 160,
+      "slot": 184,
       "rect": [
         0,
-        1280,
+        1472,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "wall_6",
       "category": "structures",
@@ -3307,19 +4163,21 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true,
+      "contact_shadow": false
     },
     "wall_7": {
-      "slot": 161,
+      "slot": 185,
       "rect": [
         64,
-        1280,
+        1472,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "wall_7",
       "category": "structures",
@@ -3328,19 +4186,21 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true,
+      "contact_shadow": false
     },
     "wall_8": {
-      "slot": 162,
+      "slot": 186,
       "rect": [
         128,
-        1280,
+        1472,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "wall_8",
       "category": "structures",
@@ -3349,19 +4209,21 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true,
+      "contact_shadow": false
     },
     "wall_9": {
-      "slot": 163,
+      "slot": 187,
       "rect": [
         192,
-        1280,
+        1472,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "wall_9",
       "category": "structures",
@@ -3370,19 +4232,21 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true,
+      "contact_shadow": false
     },
     "wall_10": {
-      "slot": 164,
+      "slot": 188,
       "rect": [
         256,
-        1280,
+        1472,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "wall_10",
       "category": "structures",
@@ -3391,19 +4255,21 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true,
+      "contact_shadow": false
     },
     "wall_11": {
-      "slot": 165,
+      "slot": 189,
       "rect": [
         320,
-        1280,
+        1472,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "wall_11",
       "category": "structures",
@@ -3412,19 +4278,21 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true,
+      "contact_shadow": false
     },
     "wall_12": {
-      "slot": 166,
+      "slot": 190,
       "rect": [
         384,
-        1280,
+        1472,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "wall_12",
       "category": "structures",
@@ -3433,19 +4301,21 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true,
+      "contact_shadow": false
     },
     "wall_13": {
-      "slot": 167,
+      "slot": 191,
       "rect": [
         448,
-        1280,
+        1472,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "wall_13",
       "category": "structures",
@@ -3454,19 +4324,21 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true,
+      "contact_shadow": false
     },
     "wall_14": {
-      "slot": 168,
+      "slot": 192,
       "rect": [
         0,
-        1344,
+        1536,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "wall_14",
       "category": "structures",
@@ -3475,19 +4347,21 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true,
+      "contact_shadow": false
     },
     "wall_15": {
-      "slot": 169,
+      "slot": 193,
       "rect": [
         64,
-        1344,
+        1536,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "wall_15",
       "category": "structures",
@@ -3496,19 +4370,21 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true,
+      "contact_shadow": false
     },
     "door": {
-      "slot": 170,
+      "slot": 194,
       "rect": [
         128,
-        1344,
+        1536,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "南北通路",
       "category": "structures",
@@ -3517,21 +4393,83 @@
       "footprint": [
         1,
         1
-      ]
+      ],
+      "occluder": true
     },
     "door_v": {
-      "slot": 171,
+      "slot": 195,
       "rect": [
         192,
-        1344,
+        1536,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "东西通路",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ],
+      "occluder": true,
+      "parts": [
+        {
+          "key": "door_v_back",
+          "offset": [
+            0,
+            -32
+          ],
+          "depth": -32
+        },
+        {
+          "key": "door_v_front",
+          "offset": [
+            0,
+            0
+          ],
+          "depth": 0
+        }
+      ]
+    },
+    "door_v_back": {
+      "slot": 196,
+      "rect": [
+        256,
+        1536,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        24
+      ],
+      "label": "door_v_back",
+      "category": "structures",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "door_v_front": {
+      "slot": 197,
+      "rect": [
+        320,
+        1536,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "door_v_front",
       "category": "structures",
       "state": "ready",
       "source": "authored",
@@ -3541,16 +4479,16 @@
       ]
     },
     "roof": {
-      "slot": 172,
+      "slot": 198,
       "rect": [
-        256,
-        1344,
+        384,
+        1536,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "屋顶层",
       "category": "structures",
@@ -3562,10 +4500,10 @@
       ]
     },
     "item_wood": {
-      "slot": 173,
+      "slot": 199,
       "rect": [
-        320,
-        1344,
+        448,
+        1536,
         64,
         64
       ],
@@ -3579,10 +4517,10 @@
       "source": "kenney:tiny-town/0106"
     },
     "item_stone": {
-      "slot": 174,
+      "slot": 200,
       "rect": [
-        384,
-        1344,
+        0,
+        1600,
         64,
         64
       ],
@@ -3596,10 +4534,10 @@
       "source": "kenney:tiny-farm/0089"
     },
     "item_grain": {
-      "slot": 175,
+      "slot": 201,
       "rect": [
-        448,
-        1344,
+        64,
+        1600,
         64,
         64
       ],
@@ -3613,10 +4551,10 @@
       "source": "kenney:tiny-farm/0032"
     },
     "item_herb": {
-      "slot": 176,
+      "slot": 202,
       "rect": [
-        0,
-        1408,
+        128,
+        1600,
         64,
         64
       ],
@@ -3630,10 +4568,10 @@
       "source": "kenney:tiny-farm/0029"
     },
     "item_potion": {
-      "slot": 177,
+      "slot": 203,
       "rect": [
-        64,
-        1408,
+        192,
+        1600,
         64,
         64
       ],
@@ -3647,10 +4585,10 @@
       "source": "kenney:tiny-dungeon/0116"
     },
     "item_fruit": {
-      "slot": 178,
+      "slot": 204,
       "rect": [
-        128,
-        1408,
+        256,
+        1600,
         64,
         64
       ],
@@ -3664,10 +4602,10 @@
       "source": "kenney:tiny-farm/0041"
     },
     "item_sword": {
-      "slot": 179,
+      "slot": 205,
       "rect": [
-        192,
-        1408,
+        320,
+        1600,
         64,
         64
       ],
@@ -3681,10 +4619,10 @@
       "source": "kenney:tiny-dungeon/0105"
     },
     "item_bow": {
-      "slot": 180,
+      "slot": 206,
       "rect": [
-        256,
-        1408,
+        384,
+        1600,
         64,
         64
       ],
@@ -3698,10 +4636,10 @@
       "source": "kenney:tiny-town/0118"
     },
     "item_hoe": {
-      "slot": 181,
+      "slot": 207,
       "rect": [
-        320,
-        1408,
+        448,
+        1600,
         64,
         64
       ],
@@ -3715,10 +4653,10 @@
       "source": "kenney:tiny-farm/0087"
     },
     "item_staff": {
-      "slot": 182,
+      "slot": 208,
       "rect": [
-        384,
-        1408,
+        0,
+        1664,
         64,
         64
       ],
@@ -3732,10 +4670,10 @@
       "source": "kenney:tiny-dungeon/0127"
     },
     "item_shield": {
-      "slot": 183,
+      "slot": 209,
       "rect": [
-        448,
-        1408,
+        64,
+        1664,
         64,
         64
       ],
@@ -3749,10 +4687,10 @@
       "source": "authored"
     },
     "item_arrow": {
-      "slot": 184,
+      "slot": 210,
       "rect": [
-        0,
-        1472,
+        128,
+        1664,
         64,
         64
       ],
@@ -3766,10 +4704,10 @@
       "source": "authored"
     },
     "item_water": {
-      "slot": 185,
+      "slot": 211,
       "rect": [
-        64,
-        1472,
+        192,
+        1664,
         64,
         64
       ],
@@ -3783,10 +4721,10 @@
       "source": "authored"
     },
     "item_watering_can": {
-      "slot": 186,
+      "slot": 212,
       "rect": [
-        128,
-        1472,
+        256,
+        1664,
         64,
         64
       ],
@@ -3800,10 +4738,10 @@
       "source": "authored"
     },
     "item_robe": {
-      "slot": 187,
+      "slot": 213,
       "rect": [
-        192,
-        1472,
+        320,
+        1664,
         64,
         64
       ],
@@ -3817,10 +4755,10 @@
       "source": "authored"
     },
     "item_armor": {
-      "slot": 188,
+      "slot": 214,
       "rect": [
-        256,
-        1472,
+        384,
+        1664,
         64,
         64
       ],
@@ -3834,10 +4772,10 @@
       "source": "authored"
     },
     "item_boots": {
-      "slot": 189,
+      "slot": 215,
       "rect": [
-        320,
-        1472,
+        448,
+        1664,
         64,
         64
       ],
@@ -3851,10 +4789,10 @@
       "source": "authored"
     },
     "item_hat": {
-      "slot": 190,
+      "slot": 216,
       "rect": [
-        384,
-        1472,
+        0,
+        1728,
         64,
         64
       ],
@@ -3868,10 +4806,10 @@
       "source": "authored"
     },
     "item_talisman": {
-      "slot": 191,
+      "slot": 217,
       "rect": [
-        448,
-        1472,
+        64,
+        1728,
         64,
         64
       ],
@@ -3885,10 +4823,10 @@
       "source": "authored"
     },
     "item_spirit_stone": {
-      "slot": 192,
+      "slot": 218,
       "rect": [
-        0,
-        1536,
+        128,
+        1728,
         64,
         64
       ],
@@ -3902,10 +4840,10 @@
       "source": "authored"
     },
     "item_egg": {
-      "slot": 193,
+      "slot": 219,
       "rect": [
-        64,
-        1536,
+        192,
+        1728,
         64,
         64
       ],
@@ -3919,10 +4857,10 @@
       "source": "authored"
     },
     "item_fish": {
-      "slot": 194,
+      "slot": 220,
       "rect": [
-        128,
-        1536,
+        256,
+        1728,
         64,
         64
       ],
@@ -3936,10 +4874,10 @@
       "source": "authored"
     },
     "item_meal": {
-      "slot": 195,
+      "slot": 221,
       "rect": [
-        192,
-        1536,
+        320,
+        1728,
         64,
         64
       ],
@@ -3953,10 +4891,10 @@
       "source": "authored"
     },
     "item_dried_herb": {
-      "slot": 196,
+      "slot": 222,
       "rect": [
-        256,
-        1536,
+        384,
+        1728,
         64,
         64
       ],
@@ -3970,10 +4908,10 @@
       "source": "authored"
     },
     "item_fiber": {
-      "slot": 197,
+      "slot": 223,
       "rect": [
-        320,
-        1536,
+        448,
+        1728,
         64,
         64
       ],
@@ -3987,10 +4925,10 @@
       "source": "authored"
     },
     "item_lotus_seed": {
-      "slot": 198,
+      "slot": 224,
       "rect": [
-        384,
-        1536,
+        0,
+        1792,
         64,
         64
       ],
@@ -4004,10 +4942,10 @@
       "source": "authored"
     },
     "item_lotus_root": {
-      "slot": 199,
+      "slot": 225,
       "rect": [
-        448,
-        1536,
+        64,
+        1792,
         64,
         64
       ],
@@ -4021,10 +4959,10 @@
       "source": "authored"
     },
     "item_breath_manual": {
-      "slot": 200,
+      "slot": 226,
       "rect": [
-        0,
-        1600,
+        128,
+        1792,
         64,
         64
       ],
@@ -4038,10 +4976,10 @@
       "source": "authored"
     },
     "item_axe": {
-      "slot": 201,
+      "slot": 227,
       "rect": [
-        64,
-        1600,
+        192,
+        1792,
         64,
         64
       ],
@@ -4055,10 +4993,10 @@
       "source": "authored"
     },
     "item_pickaxe": {
-      "slot": 202,
+      "slot": 228,
       "rect": [
-        128,
-        1600,
+        256,
+        1792,
         64,
         64
       ],
@@ -4072,10 +5010,10 @@
       "source": "authored"
     },
     "item_shovel": {
-      "slot": 203,
+      "slot": 229,
       "rect": [
-        192,
-        1600,
+        320,
+        1792,
         64,
         64
       ],
@@ -4089,10 +5027,10 @@
       "source": "authored"
     },
     "item_spear": {
-      "slot": 204,
+      "slot": 230,
       "rect": [
-        256,
-        1600,
+        384,
+        1792,
         64,
         64
       ],
@@ -4106,10 +5044,10 @@
       "source": "authored"
     },
     "item_bundle": {
-      "slot": 205,
+      "slot": 231,
       "rect": [
-        320,
-        1600,
+        448,
+        1792,
         64,
         64
       ],
@@ -4123,10 +5061,10 @@
       "source": "authored"
     },
     "fx_fire_0": {
-      "slot": 206,
+      "slot": 232,
       "rect": [
-        384,
-        1600,
+        0,
+        1856,
         64,
         64
       ],
@@ -4140,10 +5078,10 @@
       "source": "authored"
     },
     "fx_fire_1": {
-      "slot": 207,
+      "slot": 233,
       "rect": [
-        448,
-        1600,
+        64,
+        1856,
         64,
         64
       ],
@@ -4157,10 +5095,10 @@
       "source": "authored"
     },
     "fx_fire_2": {
-      "slot": 208,
+      "slot": 234,
       "rect": [
-        0,
-        1664,
+        128,
+        1856,
         64,
         64
       ],
@@ -4174,10 +5112,10 @@
       "source": "authored"
     },
     "fx_fire_3": {
-      "slot": 209,
+      "slot": 235,
       "rect": [
-        64,
-        1664,
+        192,
+        1856,
         64,
         64
       ],
@@ -4191,10 +5129,10 @@
       "source": "authored"
     },
     "fx_ice_0": {
-      "slot": 210,
+      "slot": 236,
       "rect": [
-        128,
-        1664,
+        256,
+        1856,
         64,
         64
       ],
@@ -4208,10 +5146,10 @@
       "source": "authored"
     },
     "fx_ice_1": {
-      "slot": 211,
+      "slot": 237,
       "rect": [
-        192,
-        1664,
+        320,
+        1856,
         64,
         64
       ],
@@ -4225,10 +5163,10 @@
       "source": "authored"
     },
     "fx_ice_2": {
-      "slot": 212,
+      "slot": 238,
       "rect": [
-        256,
-        1664,
+        384,
+        1856,
         64,
         64
       ],
@@ -4242,10 +5180,10 @@
       "source": "authored"
     },
     "fx_ice_3": {
-      "slot": 213,
+      "slot": 239,
       "rect": [
-        320,
-        1664,
+        448,
+        1856,
         64,
         64
       ],
@@ -4259,10 +5197,10 @@
       "source": "authored"
     },
     "fx_heal_0": {
-      "slot": 214,
+      "slot": 240,
       "rect": [
-        384,
-        1664,
+        0,
+        1920,
         64,
         64
       ],
@@ -4276,10 +5214,10 @@
       "source": "authored"
     },
     "fx_heal_1": {
-      "slot": 215,
+      "slot": 241,
       "rect": [
-        448,
-        1664,
+        64,
+        1920,
         64,
         64
       ],
@@ -4293,10 +5231,10 @@
       "source": "authored"
     },
     "fx_heal_2": {
-      "slot": 216,
+      "slot": 242,
       "rect": [
-        0,
-        1728,
+        128,
+        1920,
         64,
         64
       ],
@@ -4310,10 +5248,10 @@
       "source": "authored"
     },
     "fx_heal_3": {
-      "slot": 217,
+      "slot": 243,
       "rect": [
-        64,
-        1728,
+        192,
+        1920,
         64,
         64
       ],
@@ -4327,10 +5265,10 @@
       "source": "authored"
     },
     "fx_hit_0": {
-      "slot": 218,
+      "slot": 244,
       "rect": [
-        128,
-        1728,
+        256,
+        1920,
         64,
         64
       ],
@@ -4344,10 +5282,10 @@
       "source": "authored"
     },
     "fx_hit_1": {
-      "slot": 219,
+      "slot": 245,
       "rect": [
-        192,
-        1728,
+        320,
+        1920,
         64,
         64
       ],
@@ -4361,10 +5299,10 @@
       "source": "authored"
     },
     "fx_hit_2": {
-      "slot": 220,
+      "slot": 246,
       "rect": [
-        256,
-        1728,
+        384,
+        1920,
         64,
         64
       ],
@@ -4378,10 +5316,10 @@
       "source": "authored"
     },
     "fx_hit_3": {
-      "slot": 221,
+      "slot": 247,
       "rect": [
-        320,
-        1728,
+        448,
+        1920,
         64,
         64
       ],
@@ -4395,10 +5333,10 @@
       "source": "authored"
     },
     "fx_qi_0": {
-      "slot": 222,
+      "slot": 248,
       "rect": [
-        384,
-        1728,
+        0,
+        1984,
         64,
         64
       ],
@@ -4412,10 +5350,10 @@
       "source": "authored"
     },
     "fx_qi_1": {
-      "slot": 223,
+      "slot": 249,
       "rect": [
-        448,
-        1728,
+        64,
+        1984,
         64,
         64
       ],
@@ -4429,10 +5367,10 @@
       "source": "authored"
     },
     "fx_qi_2": {
-      "slot": 224,
+      "slot": 250,
       "rect": [
-        0,
-        1792,
+        128,
+        1984,
         64,
         64
       ],
@@ -4446,10 +5384,10 @@
       "source": "authored"
     },
     "fx_qi_3": {
-      "slot": 225,
+      "slot": 251,
       "rect": [
-        64,
-        1792,
+        192,
+        1984,
         64,
         64
       ],
@@ -4463,10 +5401,10 @@
       "source": "authored"
     },
     "fx_dust_0": {
-      "slot": 226,
+      "slot": 252,
       "rect": [
-        128,
-        1792,
+        256,
+        1984,
         64,
         64
       ],
@@ -4480,10 +5418,10 @@
       "source": "authored"
     },
     "fx_dust_1": {
-      "slot": 227,
+      "slot": 253,
       "rect": [
-        192,
-        1792,
+        320,
+        1984,
         64,
         64
       ],
@@ -4497,10 +5435,10 @@
       "source": "authored"
     },
     "fx_dust_2": {
-      "slot": 228,
+      "slot": 254,
       "rect": [
-        256,
-        1792,
+        384,
+        1984,
         64,
         64
       ],
@@ -4514,10 +5452,10 @@
       "source": "authored"
     },
     "fx_dust_3": {
-      "slot": 229,
+      "slot": 255,
       "rect": [
-        320,
-        1792,
+        448,
+        1984,
         64,
         64
       ],
@@ -4531,10 +5469,10 @@
       "source": "authored"
     },
     "fx_metal_0": {
-      "slot": 230,
+      "slot": 256,
       "rect": [
-        384,
-        1792,
+        0,
+        2048,
         64,
         64
       ],
@@ -4548,10 +5486,10 @@
       "source": "authored"
     },
     "fx_metal_1": {
-      "slot": 231,
+      "slot": 257,
       "rect": [
-        448,
-        1792,
+        64,
+        2048,
         64,
         64
       ],
@@ -4565,10 +5503,10 @@
       "source": "authored"
     },
     "fx_metal_2": {
-      "slot": 232,
+      "slot": 258,
       "rect": [
-        0,
-        1856,
+        128,
+        2048,
         64,
         64
       ],
@@ -4582,10 +5520,10 @@
       "source": "authored"
     },
     "fx_metal_3": {
-      "slot": 233,
+      "slot": 259,
       "rect": [
-        64,
-        1856,
+        192,
+        2048,
         64,
         64
       ],
@@ -4599,10 +5537,10 @@
       "source": "authored"
     },
     "fx_wood_0": {
-      "slot": 234,
+      "slot": 260,
       "rect": [
-        128,
-        1856,
+        256,
+        2048,
         64,
         64
       ],
@@ -4616,10 +5554,10 @@
       "source": "authored"
     },
     "fx_wood_1": {
-      "slot": 235,
+      "slot": 261,
       "rect": [
-        192,
-        1856,
+        320,
+        2048,
         64,
         64
       ],
@@ -4633,10 +5571,10 @@
       "source": "authored"
     },
     "fx_wood_2": {
-      "slot": 236,
+      "slot": 262,
       "rect": [
-        256,
-        1856,
+        384,
+        2048,
         64,
         64
       ],
@@ -4650,10 +5588,10 @@
       "source": "authored"
     },
     "fx_wood_3": {
-      "slot": 237,
+      "slot": 263,
       "rect": [
-        320,
-        1856,
+        448,
+        2048,
         64,
         64
       ],
@@ -4667,10 +5605,10 @@
       "source": "authored"
     },
     "fx_water_0": {
-      "slot": 238,
+      "slot": 264,
       "rect": [
-        384,
-        1856,
+        0,
+        2112,
         64,
         64
       ],
@@ -4684,10 +5622,10 @@
       "source": "authored"
     },
     "fx_water_1": {
-      "slot": 239,
+      "slot": 265,
       "rect": [
-        448,
-        1856,
+        64,
+        2112,
         64,
         64
       ],
@@ -4701,10 +5639,10 @@
       "source": "authored"
     },
     "fx_water_2": {
-      "slot": 240,
+      "slot": 266,
       "rect": [
-        0,
-        1920,
+        128,
+        2112,
         64,
         64
       ],
@@ -4718,10 +5656,10 @@
       "source": "authored"
     },
     "fx_water_3": {
-      "slot": 241,
+      "slot": 267,
       "rect": [
-        64,
-        1920,
+        192,
+        2112,
         64,
         64
       ],
@@ -4735,10 +5673,10 @@
       "source": "authored"
     },
     "fx_earth_0": {
-      "slot": 242,
+      "slot": 268,
       "rect": [
-        128,
-        1920,
+        256,
+        2112,
         64,
         64
       ],
@@ -4752,10 +5690,10 @@
       "source": "authored"
     },
     "fx_earth_1": {
-      "slot": 243,
+      "slot": 269,
       "rect": [
-        192,
-        1920,
+        320,
+        2112,
         64,
         64
       ],
@@ -4769,10 +5707,10 @@
       "source": "authored"
     },
     "fx_earth_2": {
-      "slot": 244,
+      "slot": 270,
       "rect": [
-        256,
-        1920,
+        384,
+        2112,
         64,
         64
       ],
@@ -4786,10 +5724,10 @@
       "source": "authored"
     },
     "fx_earth_3": {
-      "slot": 245,
+      "slot": 271,
       "rect": [
-        320,
-        1920,
+        448,
+        2112,
         64,
         64
       ],
@@ -4803,16 +5741,16 @@
       "source": "authored"
     },
     "construction_0": {
-      "slot": 246,
+      "slot": 272,
       "rect": [
-        384,
-        1920,
+        0,
+        2176,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "施工半成品",
       "category": "objects",
@@ -4824,16 +5762,16 @@
       ]
     },
     "construction_1": {
-      "slot": 247,
+      "slot": 273,
       "rect": [
-        448,
-        1920,
+        64,
+        2176,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "施工半成品",
       "category": "objects",
@@ -4845,16 +5783,16 @@
       ]
     },
     "construction_2": {
-      "slot": 248,
+      "slot": 274,
       "rect": [
-        0,
-        1984,
+        128,
+        2176,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "施工半成品",
       "category": "objects",
@@ -4866,16 +5804,16 @@
       ]
     },
     "construction_3": {
-      "slot": 249,
+      "slot": 275,
       "rect": [
-        64,
-        1984,
+        192,
+        2176,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "施工半成品",
       "category": "objects",
@@ -4887,16 +5825,16 @@
       ]
     },
     "construction_4": {
-      "slot": 250,
+      "slot": 276,
       "rect": [
-        128,
-        1984,
+        256,
+        2176,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "施工半成品",
       "category": "objects",
@@ -4908,16 +5846,16 @@
       ]
     },
     "construction_5": {
-      "slot": 251,
+      "slot": 277,
       "rect": [
-        192,
-        1984,
+        320,
+        2176,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "施工半成品",
       "category": "objects",
@@ -4929,16 +5867,16 @@
       ]
     },
     "construction_6": {
-      "slot": 252,
+      "slot": 278,
       "rect": [
-        256,
-        1984,
+        384,
+        2176,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "施工半成品",
       "category": "objects",
@@ -4950,16 +5888,16 @@
       ]
     },
     "construction_7": {
-      "slot": 253,
+      "slot": 279,
       "rect": [
-        320,
-        1984,
+        448,
+        2176,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "施工半成品",
       "category": "objects",
@@ -4971,16 +5909,16 @@
       ]
     },
     "construction_8": {
-      "slot": 254,
+      "slot": 280,
       "rect": [
-        384,
-        1984,
+        0,
+        2240,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "施工半成品",
       "category": "objects",
@@ -4992,16 +5930,16 @@
       ]
     },
     "construction_9": {
-      "slot": 255,
+      "slot": 281,
       "rect": [
-        448,
-        1984,
+        64,
+        2240,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "施工半成品",
       "category": "objects",
@@ -5013,16 +5951,16 @@
       ]
     },
     "construction_10": {
-      "slot": 256,
+      "slot": 282,
       "rect": [
-        0,
-        2048,
+        128,
+        2240,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "施工半成品",
       "category": "objects",
@@ -5034,16 +5972,16 @@
       ]
     },
     "construction_11": {
-      "slot": 257,
+      "slot": 283,
       "rect": [
-        64,
-        2048,
+        192,
+        2240,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "施工半成品",
       "category": "objects",
@@ -5055,16 +5993,16 @@
       ]
     },
     "construction_12": {
-      "slot": 258,
+      "slot": 284,
       "rect": [
-        128,
-        2048,
+        256,
+        2240,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "施工半成品",
       "category": "objects",
@@ -5076,16 +6014,16 @@
       ]
     },
     "construction_13": {
-      "slot": 259,
+      "slot": 285,
       "rect": [
-        192,
-        2048,
+        320,
+        2240,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "施工半成品",
       "category": "objects",
@@ -5097,16 +6035,16 @@
       ]
     },
     "construction_14": {
-      "slot": 260,
+      "slot": 286,
       "rect": [
-        256,
-        2048,
+        384,
+        2240,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "施工半成品",
       "category": "objects",
@@ -5118,16 +6056,16 @@
       ]
     },
     "construction_15": {
-      "slot": 261,
+      "slot": 287,
       "rect": [
-        320,
-        2048,
+        448,
+        2240,
         64,
         64
       ],
       "anchor": [
         32,
-        48
+        56
       ],
       "label": "施工半成品",
       "category": "objects",
@@ -5157,7 +6095,7 @@
   },
   "sha256": {
     "actors.png": "399aee8374e60273c958ed6aeb17844d126ad0ba97ebebb00558e3aad1dcd5e9",
-    "world.png": "28756e24398d4facf0d337ae6157f9ad77d57802f3a03ea7f16af3901af95728",
+    "world.png": "1c991475bd35f2dc9ce7d4c0196d550d38c707e509079b3b5f26ad6eec0ff13c",
     "terrain.png": "ec803c9e7a280020e07af16932c06df6fa35c315cfd201a591452d12fdd8ec18"
   }
 }

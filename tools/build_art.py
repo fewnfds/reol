@@ -12,7 +12,7 @@ import math
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageOps
-from pixel_fixtures import fixture, wall, door, construction
+from pixel_fixtures import fixture, fixture_height, wall, door, construction
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "assets/art"
@@ -216,11 +216,9 @@ class Pack:
         self.images: list[Image.Image] = []
         self.entries: dict = {}
 
-    def add(self, key: str, image: Image.Image, label: str = "", category: str = "objects", state: str = "ready", source: str = "authored", anchor: tuple[int, int] = (32, 52), footprint: tuple[int, int] | None = None) -> None:
-        if footprint:
-            # Flat fixtures are authored around (32,32), at 32px per cell.
-            # Moving both source and world pivot south preserves exact coverage.
-            anchor = (32, 32 + footprint[1] * 16)
+    def add(self, key: str, image: Image.Image, label: str = "", category: str = "objects", state: str = "ready", source: str = "authored", anchor: tuple[int, int] = (32, 52), footprint: tuple[int, int] | None = None, occluder: bool | None = None) -> None:
+        if footprint and anchor == (32,52):
+            anchor = (32, 56) # One row of oblique ground plus visual height above it.
         if image.size != (64, 64):
             image = image.crop(image.getbbox())
             image.thumbnail((56,48),Image.Resampling.NEAREST)
@@ -232,6 +230,30 @@ class Pack:
         self.images.append(image)
         self.entries[key] = {"slot": slot, "rect": [slot % 8 * 64, slot // 8 * 64, 64, 64], "anchor": list(anchor), "label": label or key, "category": category, "state": state, "source": source}
         if footprint:self.entries[key]["footprint"] = list(footprint)
+        if occluder is not None:self.entries[key]["occluder"] = occluder
+
+    def fixture(self, key: str, label: str, kind: str, facing: int) -> None:
+        image, footprint = fixture(kind, facing)
+        if footprint[1] == 1:
+            canvas = Image.new("RGBA", (64,64)); canvas.alpha_composite(image)
+            self.add(key, canvas, label, footprint=footprint, occluder=fixture_height(kind)>18)
+            return
+        # Large art is sliced into ground rows. Each visual part has its own
+        # south-edge depth, while gameplay retains a single object/footprint.
+        preview = Image.new("RGBA", (64,64))
+        thumb = image.copy(); thumb.thumbnail((56,56), Image.Resampling.NEAREST)
+        preview.alpha_composite(thumb, ((64-thumb.width)//2, 56-thumb.height))
+        self.add(key, preview, label, footprint=footprint, occluder=fixture_height(kind)>18)
+        parts = []
+        for row in range(footprint[1]):
+            top = 0 if row == 0 else 24 + row*32
+            bottom = 24 + (row+1)*32
+            piece = Image.new("RGBA", (64,64))
+            piece.alpha_composite(image.crop((0, top, 64, bottom)), (0, 56-(bottom-top)))
+            name = f"{key}_part{row}"
+            self.add(name, piece, label, footprint=footprint)
+            parts.append({"key":name, "offset":[0, (row+1-footprint[1])*32], "depth":(row+1-footprint[1])*32, "contact_shadow":row == footprint[1]-1})
+        self.entries[key]["parts"] = parts
 
     def save(self) -> None:
         atlas = Image.new("RGBA", (512, math.ceil(len(self.images) / 8) * 64))
@@ -252,21 +274,16 @@ def world() -> dict:
     generated = cells(SOURCE / "world.png", 8, 4, gutters=True)
     for i, image in enumerate(generated):
         if i >= 8:
-            art, footprint = fixture(WORLD_KEYS[i])
             for facing in range(4):
-                rotated = art.rotate(-90*facing, resample=Image.Resampling.NEAREST, center=(32,32))
-                occupied = footprint[::-1] if facing % 2 else footprint
-                pack.add(WORLD_KEYS[i] if facing == 0 else f"{WORLD_KEYS[i]}_{facing}", rotated, WORLD_LABELS[i]+f" · {['N','E','S','W'][facing]}", footprint=occupied)
+                pack.fixture(WORLD_KEYS[i] if facing == 0 else f"{WORLD_KEYS[i]}_{facing}", WORLD_LABELS[i]+f" · {['N','E','S','W'][facing]}", WORLD_KEYS[i], facing)
             continue
         maximum = (30, 30) if i not in [0, 1, 2] else (30, 38)
         image = pixelize(image, maximum)
         image = image.resize((image.width * 2, image.height * 2), Image.Resampling.NEAREST)
         image.thumbnail((56,48),Image.Resampling.NEAREST)
         pack.add(WORLD_KEYS[i], image, WORLD_LABELS[i], source="generated:world")
-    art, footprint = fixture("long_bed")
     for facing in range(4):
-        rotated = art.rotate(-90*facing, resample=Image.Resampling.NEAREST, center=(32,32))
-        pack.add("long_bed" if facing == 0 else f"long_bed_{facing}",rotated,"长床 · "+['N','E','S','W'][facing],footprint=footprint[::-1] if facing%2 else footprint)
+        pack.fixture("long_bed" if facing == 0 else f"long_bed_{facing}", "长床 · "+['N','E','S','W'][facing], "long_bed", facing)
     for i, image in enumerate(cells(SOURCE / "fauna.png", 4, 4)):
         small = pixelize(image, (24, 28))
         pack.add(FAUNA[i], small.resize((small.width * 2, small.height * 2), Image.Resampling.NEAREST), FAUNA_LABELS[i], category="creatures", state="reserve", source="generated:fauna")
@@ -281,14 +298,20 @@ def world() -> dict:
             image = image.resize((image.width*2, image.height*2), Image.Resampling.NEAREST)
             image.thumbnail((56,48),Image.Resampling.NEAREST)
             pack.add(f"{name}_{stage}", image, label=f"{plant_names[name]['label']} · {stages[stage]}", category="plants", source="generated:plants")
-    # Walls cover their entire blocked cell; no half-cell offset or extrusion.
+    # Raised front faces share the unchanged square collision footprint.
     for mask in range(16):
-        pack.add(f"wall_{mask}", wall(mask), category="structures", footprint=(1,1))
+        pack.add(f"wall_{mask}", wall(mask), category="structures", footprint=(1,1), occluder=True)
+        pack.entries[f"wall_{mask}"]["contact_shadow"] = False
     for vertical in [False,True]:
-        pack.add("door_v" if vertical else "door", door(vertical), "东西通路" if vertical else "南北通路",category="structures",footprint=(1,1))
+        pack.add("door_v" if vertical else "door", door(vertical), "东西通路" if vertical else "南北通路",category="structures",footprint=(1,1),occluder=True)
+    for part in ["back", "front"]:
+        pack.add("door_v_"+part, door(True,part), category="structures", footprint=(1,1), anchor=(32,24) if part=="back" else (32,56))
+    pack.entries["door_v"]["parts"] = [
+        {"key":"door_v_back", "offset":[0,-32], "depth":-32},
+        {"key":"door_v_front", "offset":[0,0], "depth":0}]
     im=blank(64);d=ImageDraw.Draw(im)
-    d.rectangle((16,16,47,47),fill="#5e7c89")
-    for y in range(18,48,6):d.line((16,y,47,y),fill="#a6bac1")
+    d.rectangle((16,4,47,35),fill="#5e7c89")
+    for y in range(6,36,6):d.line((16,y,47,y),fill="#a6bac1")
     pack.add("roof", im, "屋顶层",category="structures",footprint=(1,1))
     items = {"wood": ("tiny-town", 106), "stone": ("tiny-farm", 89), "grain": ("tiny-farm", 32), "herb": ("tiny-farm", 29), "potion": ("tiny-dungeon", 116), "fruit": ("tiny-farm", 41), "sword": ("tiny-dungeon", 105), "bow": ("tiny-town", 118), "hoe": ("tiny-farm", 87), "staff": ("tiny-dungeon", 127)}
     for name, (source, index) in items.items():

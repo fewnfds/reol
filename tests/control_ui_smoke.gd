@@ -55,15 +55,18 @@ func launch() -> void:
 	game.controls.bindings.config_path = PROFILE
 	root.add_child(game)
 	current_scene = game
+	await RenderingServer.frame_post_draw
 	root.grab_focus()
-	await create_timer(0.06).timeout
+	var focus_until: int = Time.get_ticks_usec()+700000
+	while (not root.has_focus() or not game.controls._focused) and Time.get_ticks_usec()<focus_until: await process_frame
+	check(root.has_focus() and game.controls._focused,"Control window did not acquire focus")
 	var deadline: int = Time.get_ticks_usec() + 2000000
 	while game.frame == null and Time.get_ticks_usec() < deadline: await process_frame
 	check(game.frame != null, "Control game never ready")
 
 func aim(direction: Vector2) -> void:
 	game.camera.force_update_scroll()
-	var screen: Vector2 = game.get_canvas_transform() * ((game._displayed(1) + direction * 3) * game.TILE)
+	var screen: Vector2 = game.view.project((game._displayed(1) + direction * 3) * game.TILE, false)
 	Input.warp_mouse(screen)
 	await create_timer(0.08).timeout
 
@@ -81,8 +84,9 @@ func directions() -> void:
 	await process_frame
 	await aim(Vector2.UP)
 	await key(KEY_S, true)
-	await create_timer(0.12).timeout
-	check(game._display_move.dot(Vector2.DOWN) > 0.99 and game.controls._aim.dot(Vector2.UP) > 0.9, "Backpedal coupled movement and aim")
+	var moved_until: int = Time.get_ticks_usec()+500000
+	while game._display_move.dot(Vector2.DOWN)<0.99 and Time.get_ticks_usec()<moved_until: await process_frame
+	check(game._display_move.dot(Vector2.DOWN) > 0.99 and game.controls._aim.dot(Vector2.UP) > 0.9, "Backpedal coupled movement and aim: move=%s aim=%s held=%s focused=%s" % [game._display_move,game.controls._aim,game.controls._held,game.controls._focused])
 	await capture("backpedal")
 	await key(KEY_S, false)
 	await aim(Vector2.RIGHT)
@@ -92,7 +96,7 @@ func directions() -> void:
 	await key(KEY_W, false)
 	await create_timer(0.04).timeout
 	var before: Vector2 = game.controls._aim
-	Input.warp_mouse(game.get_canvas_transform() * (game._displayed(1) * game.TILE))
+	Input.warp_mouse(game.view.project(game._displayed(1) * game.TILE, false))
 	await process_frame
 	await process_frame
 	check(game.controls._aim.dot(before) > 0.9999, "Center deadzone reset aim: %s -> %s" % [before, game.controls._aim])
@@ -113,7 +117,7 @@ func settings() -> void:
 	await click(editor._buttons.act_primary)
 	await tap(KEY_K)
 	check(game.controls.bindings.values.act_primary.code == KEY_K and game.runner._next_seq == sequence, "Captured attack key leaked into world or failed to bind")
-	check(game.ui._weapon.text.contains("K三连"), "HUD did not follow primary binding")
+	check(game.ui._weapon.text.contains("K") and game.ui._weapon.text.contains(preload("res://scripts/sim/kernel/action_defs.gd").ACTIONS[game.frame.loadout.primary].title), "HUD did not follow primary binding")
 	await click(editor._buttons.act_step)
 	await tap(KEY_SHIFT)
 	check(game.controls.bindings.values.act_step.code == KEY_SHIFT, "UI could not bind standalone Shift")
@@ -199,13 +203,13 @@ func _run() -> void:
 	await process_frame
 	await launch()
 	check(game.controls.bindings.values.act_primary.code == KEY_K and game.controls.bindings.values.act_step.code == KEY_SHIFT and game.controls.bindings.values.game_interact.kind == "mouse", "Game restart did not preserve key/mouse preferences")
-	check(game.ui._weapon.text.contains("K三连"), "Restarted HUD showed default keys")
+	check(game.ui._weapon.text.contains("K") and game.ui._weapon.text.contains(preload("res://scripts/sim/kernel/action_defs.gd").ACTIONS[game.frame.loadout.primary].title), "Restarted HUD showed default keys")
 	game.controls.action("pause_menu", {})
 	game.controls.action("settings", {})
 	game.controls.action("bindings", {})
 	await process_frame
 	await click(named_button("恢复默认"))
-	check(game.controls.bindings.values == Bindings.defaults() and game.ui._weapon.text.contains("左键三连"), "Restore defaults left stale inputs or HUD")
+	check(game.controls.bindings.values == Bindings.defaults() and game.ui._weapon.text.contains("左键") and game.ui._weapon.text.contains(preload("res://scripts/sim/kernel/action_defs.gd").ACTIONS[game.frame.loadout.primary].title), "Restore defaults left stale inputs or HUD")
 	await capture("defaults")
 	game.queue_free()
 	await process_frame

@@ -125,7 +125,7 @@ func ranged_route() -> void:
 	await create_timer(0.40).timeout
 	await aim(1)
 	var position: Vector2 = game.frame.positions[0]
-	var screen: Vector2 = game.get_canvas_transform() * ((game._displayed(1) + Vector2(0, 2)) * game.TILE + game.camera.offset)
+	var screen: Vector2 = game.view.project((game._displayed(1) + Vector2(0, 2)) * game.TILE, false)
 	await point_slot("act_skill3", screen)
 	check(await until(func(): return game.frame.positions[0].distance_to(position) > 1, 500), "Point-bound slot did not blink to cursor")
 	await capture("p4-barrage-control-blink")
@@ -147,6 +147,10 @@ func mechanisms() -> void:
 	await point_slot("act_skill2", await aim(1))
 	check(await until(func(): return game.frame.entities.size() == 2, 600), "Totem slot not published")
 	await create_timer(0.60).timeout
+	for entity: int in game.frame.entities:
+		var glyph: Dictionary = game.combat_shapes._entity_at(entity)
+		var point: Vector2 = glyph.point + (Vector2.ZERO if glyph.definition.entity.body == "companion" else Vector2(0,-25.0/game.TILE))
+		check(game.controls.pick(point).has(entity),"Visible summon glyph lost its selection path")
 	await capture("p4-wolf-totem-aura")
 	await save_p4("entities-aura")
 	await choose("sword_array")

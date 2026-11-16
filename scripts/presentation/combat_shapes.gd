@@ -26,31 +26,59 @@ func visible_point(point: Vector2) -> bool:
 	if point.x < 0 or point.y < 0 or point.x >= 512 or point.y >= 512: return false
 	return not fog or frame.perception.tiles[int(point.y) * 512 + int(point.x)] != 0
 
+func _entity_at(id: int) -> Dictionary:
+	var entity: Dictionary = frame.entities[id]
+	if now < int(entity.born_ms) or now >= int(entity.until_ms): return {}
+	var def: Dictionary = Defs.ACTIONS[entity.ability]
+	var point: Vector2
+	var hp: int
+	var direction := Vector2.RIGHT
+	if frame.actor_slots.has(id):
+		var slot: int = frame.actor_slots[id]
+		point = frame.positions[slot]
+		hp = frame.health[slot]
+		direction = frame.aims[slot]
+		if pose != null and pose.ids.size() > slot and pose.ids[slot] == id: point = pose.positions[slot]
+	else:
+		point = entity.position
+		hp = int(entity.hp)
+	if not visible_point(point): return {}
+	return {"definition":def,"point":point,"hp":hp,"direction":direction}
+
+static func _companion_polygon(center: Vector2, direction: Vector2) -> PackedVector2Array:
+	var side := Vector2(-direction.y,direction.x)
+	return PackedVector2Array([center+direction*14,center+direction*3+side*7,center-direction*11+side*6,center-direction*9-side*6,center+direction*3-side*7])
+
+static func _totem_polygon(center: Vector2) -> PackedVector2Array:
+	return PackedVector2Array([center+Vector2(0,-36),center+Vector2(9,-25),center+Vector2(0,-16),center+Vector2(-9,-25)])
+
+func pick(pixel: Vector2) -> Array[int]:
+	var result: Array[int] = []
+	if frame == null: return result
+	for id: int in frame.entities:
+		var glyph: Dictionary = _entity_at(id)
+		if glyph.is_empty(): continue
+		var center: Vector2 = Art.body_foot(glyph.point)*Art.TILE
+		var shape: PackedVector2Array = _companion_polygon(center,glyph.direction) if glyph.definition.entity.body == "companion" else _totem_polygon(center)
+		var stem: bool = glyph.definition.entity.body != "companion" and Rect2(center+Vector2(-3,-26),Vector2(6,26)).has_point(pixel)
+		if stem or Geometry2D.is_point_in_polygon(pixel,shape): result.push_front(id)
+	return result
+
 func _draw() -> void:
 	if frame == null: return
 	for id: int in frame.entities:
-		var entity: Dictionary = frame.entities[id]
-		if now < int(entity.born_ms) or now >= int(entity.until_ms): continue
-		var def: Dictionary = Defs.ACTIONS[entity.ability]
-		var point: Vector2
-		var hp: int
-		var direction := Vector2.RIGHT
-		if frame.actor_slots.has(id):
-			var slot: int = frame.actor_slots[id]
-			point = frame.positions[slot]
-			hp = frame.health[slot]
-			direction = frame.aims[slot]
-			if pose != null and pose.ids.size() > slot and pose.ids[slot] == id: point = pose.positions[slot]
-		else:
-			point = entity.position
-			hp = int(entity.hp)
-		if not visible_point(point): continue
+		var glyph: Dictionary = _entity_at(id)
+		if glyph.is_empty(): continue
+		var def: Dictionary = glyph.definition
+		var point: Vector2 = glyph.point
+		var hp: int = glyph.hp
+		var direction: Vector2 = glyph.direction
 		var center: Vector2 = Art.body_foot(point) * Art.TILE
 		var color := Color(def.tint)
 		if def.entity.body == "companion":
 			var side := Vector2(-direction.y, direction.x)
 			draw_circle(center, 11, Color(color, 0.12))
-			draw_colored_polygon(PackedVector2Array([center + direction * 14, center + direction * 3 + side * 7, center - direction * 11 + side * 6, center - direction * 9 - side * 6, center + direction * 3 - side * 7]), color)
+			draw_colored_polygon(_companion_polygon(center,direction),color)
 			draw_line(center - direction * 8, center - direction * 19 - side * 4, color, 3, true)
 			for sign_value: int in [-1, 1]:
 				draw_line(center + direction * 3 + side * sign_value * 3, center + direction * 8 + side * sign_value * 10, color, 2, true)
@@ -60,7 +88,7 @@ func _draw() -> void:
 			draw_circle(center, radius, Color(color, 0.035))
 			draw_arc(center, radius, 0, TAU, 48, Color(color, 0.25), 1, true)
 			draw_line(center, center + Vector2(0, -26), color, 5, true)
-			draw_colored_polygon(PackedVector2Array([center + Vector2(0, -36), center + Vector2(9, -25), center + Vector2(0, -16), center + Vector2(-9, -25)]), color)
+			draw_colored_polygon(_totem_polygon(center),color)
 			draw_arc(center, 14, 0, TAU, 28, color, 2, true)
 		draw_line(center + Vector2(-14, 13), center + Vector2(14, 13), Color("25372f"), 3)
 		draw_line(center + Vector2(-14, 13), center + Vector2(-14 + 28.0 * hp / int(def.entity.max_hp), 13), color, 2)

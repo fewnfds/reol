@@ -25,7 +25,7 @@ func key(code: Key, pressed: bool) -> void:
 
 func aim(id: int) -> Vector2:
 	game.camera.force_update_scroll()
-	var point: Vector2 = game.get_canvas_transform() * (game._displayed(id) * game.TILE + game.camera.offset)
+	var point: Vector2 = game.view.project(game._displayed(id) * game.TILE, false)
 	Input.warp_mouse(point)
 	await process_frame
 	return point
