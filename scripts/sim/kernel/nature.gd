@@ -149,14 +149,24 @@ func seed_item(definition: String) -> String:
 	return str(definitions[definition].product.item)
 
 
-func plant_site(world: RefCounted, actor: int, definition: String, tile: int) -> Dictionary:
-	if not definitions.has(definition) or world.objects.amount(actor, seed_item(definition)) <= 0:
+func plant_site(world: RefCounted, actor: int, definition: String, tile: int, organization: int = 0) -> Dictionary:
+	if not definitions.has(definition): return {"reason": "missing_seed"}
+	if organization > 0 and not world.institutions.permits(actor, organization, "cultivate"): return {"reason": "not_authorized"}
+	var right: Dictionary = world.institutions.input_right(world, actor, {seed_item(definition): 1}, "cultivate", organization)
+	if right.is_empty():
 		return {"reason": "missing_seed"}
 	var place: Dictionary = can_plant(world, definition, tile)
 	if not place.ok:
 		return {"reason": place.reason}
+	if int(place.host) > 0:
+		var access: String = world.objects.Stock.access_reason(world.operation_actor(actor), world.operation_target(place.host), "sow")
+		if not access.is_empty(): return {"reason": access}
+		var host: Dictionary = world.objects.records[place.host]
+		if int(host.organization) != organization or (host.owner > 0 and host.owner != actor): return {"reason": "incompatible_cultivation_title"}
 	var id: int = create(world, definition, tile, true)
-	world.objects.transfer(actor, id, seed_item(definition), 1)
+	world.objects.records[id].owner = right.owner
+	world.objects.records[id].organization = right.organization
+	world.objects.transfer(actor, id, seed_item(definition), 1, right)
 	world._sync_inventory(actor)
 	return {"reason": "accepted", "target": id}
 
@@ -251,7 +261,9 @@ func _sync(world: RefCounted, id: int) -> void:
 func tend_check(world: RefCounted, actor: int, target: int) -> String:
 	var rec: Dictionary = world.objects.records.get(target, {})
 	if rec.get("kind") != "plant" or rec.get("stage") not in [Stage.SPROUT, Stage.MATURE, Stage.STUMP]: return "not_living_plant"
-	if world.objects.amount(actor, "water") < 1: return "missing_water"
+	var access: String = world.objects.Stock.access_reason(world.operation_actor(actor), world.operation_target(target), "tend")
+	if not access.is_empty(): return access
+	if world.institutions.input_right(world, actor, {"water": 1}, "cultivate", int(rec.organization)).is_empty(): return "missing_water"
 	return ""
 
 func tend(world: RefCounted, actor: int, target: int, _now: int) -> Dictionary:
@@ -259,7 +271,9 @@ func tend(world: RefCounted, actor: int, target: int, _now: int) -> Dictionary:
 	if not reason.is_empty(): return Results.refused(reason)
 	var rec: Dictionary = world.objects.records[target]
 	var before: int = rec.injury_ms
-	world.objects.add(actor, "water", -1)
+	var right: Dictionary = world.institutions.input_right(world, actor, {"water": 1}, "cultivate", int(rec.organization))
+	world.objects.consume(actor, {"water": 1}, right)
+	world.institutions.consumed(right, {"water": 1}, world.operation_time())
 	if rec.host > 0 and world.objects.records.has(rec.host): world.objects.records[rec.host]["water"] = 80
 	rec.injury_ms = maxi(0, int(rec.injury_ms) - 60000)
 	world._sync_inventory(actor)
@@ -288,6 +302,7 @@ func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dict
 			if rec.stage != Stage.SEEDING or world.objects.amount(action.target, seed_item(rec.definition)) < 1:
 				return Results.refused("no_seed_site")
 			facts.merge({"consumed": {seed_item(rec.definition): 1}, "worked_ms": int(rec.remaining_ms), "remaining_ms": 0, "stage": Stage.SPROUT})
+			facts["entrustments"] = world.institutions.complete_asset(world, action.target, "stock", now)
 			world.objects.add(action.target, seed_item(rec.definition), -1)
 			rec.stage = Stage.SPROUT
 			rec.last_ms = now
@@ -299,7 +314,7 @@ func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dict
 		"gather":
 			if rec.stage != Stage.MATURE:
 				return Results.refused("not_mature")
-			var moved: int = world.objects.transfer(action.target, actor, str(spec.product.item), int(spec.product.capacity))
+			var moved: int = world.institutions.acquire_yield(world, actor, action.target, str(spec.product.item), int(spec.product.capacity), now)
 			if moved <= 0:
 				return Results.refused("no_product_or_full")
 			facts.merge({"item": str(spec.product.item), "amount": moved, "source": action.target, "destination": actor})
@@ -312,15 +327,15 @@ func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dict
 				world.objects.add(action.target, str(spec.body_product.item), int(spec.body_product.amount))
 				facts["produced"] = {str(spec.body_product.item): int(spec.body_product.amount)}
 			var received: Dictionary = {}
-			for item: String in rec.inventory.keys():
-				var amount: int = world.objects.transfer(action.target, actor, item, world.objects.amount(action.target, item))
+			for item: String in world.objects.inventory_summary(action.target):
+				var amount: int = world.institutions.acquire_yield(world, actor, action.target, item, world.objects.amount(action.target, item), now)
 				if amount > 0: received[item] = amount
 			facts["received"] = received
 			if world.objects.count_inventory(action.target) > 0:
 				var pile: int = world.objects.create("pile", "plant_remains", rec.tile)
 				facts["remains_pile"] = pile
 				var remains: Dictionary = {}
-				for item: String in rec.inventory.keys():
+				for item: String in world.objects.inventory_summary(action.target):
 					remains[item] = world.objects.transfer(action.target, pile, item, world.objects.amount(action.target, item))
 				facts["remains"] = remains
 			if action.kind == "cut" and bool(spec.regrow) and rec.stage != Stage.WITHERED:
@@ -348,6 +363,6 @@ func remove(world: RefCounted, id: int, at: int = -1) -> void:
 	cohorts[id % GROUPS].erase(id)
 	if world.objects.count_inventory(id) > 0:
 		var pile: int = world.objects.create("pile", "plant_remains", rec.tile)
-		for item: String in rec.inventory.keys():
+		for item: String in world.objects.inventory_summary(id):
 			world.objects.transfer(id, pile, item, world.objects.amount(id, item))
 	world.objects.remove_empty(id)

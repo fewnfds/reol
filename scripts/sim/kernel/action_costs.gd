@@ -21,7 +21,7 @@ static func available(world: RefCounted, actor: int, key: String) -> int:
 
 static func view(world: RefCounted, actor: int) -> Dictionary:
 	var record: Dictionary = world.objects.records.get(actor, {})
-	var result: Dictionary = {"inventory": record.get("inventory", {}), "qi": int(record.get("qi", 0)), "pools": world.pools.records.get(actor, {})}
+	var result: Dictionary = {"inventory": world.objects.usable_summary(actor), "qi": int(record.get("qi", 0)), "pools": world.pools.records.get(actor, {})}
 	var slot: int = world.actor_slots.get(actor, -1)
 	if slot >= 0:
 		result["hp"] = world.pages[slot / 256].health[slot % 256]
@@ -32,7 +32,7 @@ static func available_view(actor: Dictionary, key: String) -> int:
 	var kind: String = key.get_slice(":", 0)
 	var name_key: String = key.get_slice(":", 1)
 	match kind:
-		"item": return int(actor.get("inventory", {}).get(name_key, 0))
+		"item": return int(actor.get("usable_inventory", actor.get("inventory", {})).get(name_key, 0))
 		"pool": return int(actor.get("pools", {}).get(name_key, {}).get("current", 0))
 		"health": return maxi(0, int(actor.hp) - 1) if actor.has("hp") else -1
 		"energy": return int(actor.get("energy", -1)) if actor.get("body_capabilities", {"metabolism": true}).get("metabolism", false) else -1
@@ -57,7 +57,7 @@ static func pay(world: RefCounted, actor: int, costs: Array) -> bool:
 	for key: String in totals:
 		var amount: int = totals[key]
 		match key.get_slice(":", 0):
-			"item": world.objects.add(actor, key.get_slice(":", 1), -amount)
+			"item": world.objects.consume(actor, {key.get_slice(":", 1): amount}, world.objects.spending_right(actor))
 			"pool": world.pools.change(actor, key.get_slice(":", 1), -amount)
 			"health": world.pages[slot / 256].health[slot % 256] -= amount
 			"energy": world.pages[slot / 256].energy[slot % 256] -= amount

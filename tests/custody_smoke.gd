@@ -1,0 +1,290 @@
+extends "res://tests/activities_smoke.gd"
+const Stock = preload("res://scripts/sim/kernel/stock_rules.gd")
+const Costs = preload("res://scripts/sim/kernel/action_costs.gd")
+
+func organization(w: RefCounted, members: Array = [1, 3]) -> int:
+	var id: int = w.institutions.create("青禾宗")
+	for actor: int in members: check(w.institutions.admit(w, id, actor, Array(w.institutions.PURPOSES)), "Organization fixture failed")
+	return id
+
+func facility(w: RefCounted, definition: String, x: int, y: int, org: int) -> int:
+	var id: int = w.facilities.create_completed(w, definition, w.Terrain.index(Vector2i(x, y)))
+	w.objects.records[id].organization = org
+	w.flush_topology()
+	return id
+
+func clear_private(w: RefCounted, actor: int, item: String) -> void:
+	var count: int = w.objects.amount(actor, item, Stock.right(actor))
+	if count > 0: check(w.objects.consume(actor, {item: count}, Stock.right(actor)), "Could not clear personal fixture input")
+
+func carry(w: RefCounted, actor: int, target: int, item: String, count: int, kind: String, purpose: String = "") -> void:
+	var reason: String = w.begin_transfer(actor, {"kind": kind, "target": target, "item": item, "amount": count, "purpose": purpose})
+	check(reason == "accepted", "Real transfer refused: " + reason)
+	advance(w, w.elapsed_ms + 500)
+	check(latest(w, actor).status == "completed" and latest(w, actor).facts.get("amount") == count, "Real transfer did not commit requested authorized quantity: " + str(latest(w, actor)))
+
+func batch_and_transactions() -> void:
+	var w: RefCounted = peaceful()
+	var org: int = organization(w)
+	clear_private(w, 1, "grain")
+	w.objects.add(1, "grain", 2)
+	w.objects.add(1, "grain", 4, Stock.right(0, org))
+	check(w.objects.amount(1, "grain") == 6 and w.objects.usable_summary(1).grain == 2 and w.objects.records[1].stock.grain.size() == 2 and not w.objects.records[1].has("inventory"), "Mixed custody lost attribution or duplicated canonical quantities")
+	var pile: int = w.objects.create("pile", "grain", w.Terrain.index(Vector2i(124, 124)))
+	check(w.objects.transfer(1, pile, "grain", 3, Stock.right(0, org)) == 3 and w.objects.amount(pile, "grain", Stock.right(0, org)) == 3, "Physical transfer silently retitled goods")
+	var view: Dictionary = w.objects.inventory_summary(1)
+	view.grain = 9000
+	check(w.objects.amount(1, "grain") == 3, "Detached inventory summary mutated stock")
+	w.objects.records[1].capacity = w.objects.count_inventory(1)
+	w.objects.records[3].capacity = w.objects.count_inventory(3)
+	clear_private(w, 3, "grain")
+	w.objects.add(3, "water", 2)
+	w.objects.records[3].capacity = w.objects.count_inventory(3)
+	check(w.objects.exchange(1, 3, "grain", 2, "water", 2, Stock.right(1), Stock.right(3), true), "Two full bags could not exchange legitimate personal goods")
+	check(w.objects.amount(3, "grain", Stock.right(3)) == 2 and w.objects.amount(1, "grain", Stock.right(0, org)) == 1, "Trade transferred entrusted/public material or failed to transfer personal title")
+	var before: Dictionary = Persistence.capture(w)
+	check(not Costs.pay(w, 1, [{"kind": "item", "id": "grain", "amount": 1}, {"kind": "qi", "id": "", "amount": 1}]) and w.objects.records[1].stock == before.domains.objects.records[1].stock, "Personal cost spent somebody else's material or partially paid")
+	check(Persistence.candidate(before, 0) != null, "Mixed batch state failed legal restore")
+	var bad: Dictionary = Persistence.capture(w)
+	bad.domains.objects.records[pile].stock.grain.append(bad.domains.objects.records[pile].stock.grain[0].duplicate())
+	check(Persistence.candidate(bad, 0) == null, "Duplicate equivalent batch restored instead of canonical merge")
+	bad = Persistence.capture(w)
+	bad.domains.objects.records[pile].stock.grain[0].organization = 999
+	check(Persistence.candidate(bad, 0) == null, "Unknown organization restored on physical goods")
+
+func public_processing_and_returns() -> void:
+	var w: RefCounted = peaceful()
+	var org: int = organization(w, [1])
+	var chest: int = facility(w, "wood_chest", 124, 124, org)
+	var stove: int = facility(w, "cook_stove", 128, 124, org)
+	for item: String in ["grain", "water"]:
+		clear_private(w, 1, item)
+		w.objects.add(1, item, 1)
+	w.objects.add(chest, "grain", 4, Stock.right(0, org))
+	w.objects.add(chest, "water", 2, Stock.right(0, org))
+	w.objects.add(chest, "meal", 3, Stock.right(0, org))
+	check(w.begin_transfer(3, {"kind": "take", "target": chest, "item": "grain", "amount": 1, "purpose": "cook"}) == "not_authorized", "Nonmember could take organizational materials")
+	var button_query: Dictionary = w.OperationQuery.evaluate(w.Operations.OPERATIONS.take, w.describe(3), w.operation_target(chest))
+	check(not button_query.ready and button_query.reason == "not_authorized", "Detached query and actual authority disagreed on public access")
+	w.pages[0].positions[0] = Vector2(123.5, 124.5)
+	check(w.begin_transfer(1, {"kind": "take", "target": chest, "item": "grain", "amount": 1}) == "accepted", "Missing-purpose request could not reach authoritative selection")
+	advance(w, 500)
+	check(latest(w, 1).reason == "purpose_required" and w.institutions.entrustments.is_empty(), "Public pickup invented a purpose or leaked an empty mandate")
+	carry(w, 1, chest, "grain", 4, "take", "cook")
+	carry(w, 1, chest, "water", 2, "take", "cook")
+	var id: int = w.institutions.entrustments.keys()[0]
+	var right: Dictionary = Stock.right(0, org, id)
+	check(w.institutions.entrustments.size() == 1 and w.objects.amount(1, "grain", right) == 4 and w.objects.usable_summary(1).grain == 1, "Separate ingredient pickups failed to share purpose while preserving private stock")
+	var snapshot: Dictionary = Persistence.capture(w)
+	var bad: Dictionary = snapshot.duplicate(true)
+	bad.domains.institutions.entrustments[id].issued.grain += 1
+	check(Persistence.candidate(bad, 0) == null, "Responsibility account disagreed with actual unresolved stock but restored")
+	var limited: RefCounted = Persistence.candidate(snapshot, 0)
+	check(limited != null, "Public custody fixture did not restore")
+	if limited != null:
+		limited.objects.consume(1, {"grain": 3}, right)
+		limited.institutions.consumed(right, {"grain": 3}, limited.elapsed_ms)
+		check(limited.objects.amount(1, "grain") == 2 and limited.begin_interaction(1, {"kind": "cook", "target": stove}) == "missing_items", "Private and entrusted fragments silently combined into public recipe inputs")
+	w.pages[0].positions[0] = Vector2(128.5, 125.5)
+	check(w.begin_interaction(1, {"kind": "cook", "target": stove}) == "accepted", "Authorized public cook refused")
+	advance(w, w.elapsed_ms + 4200)
+	check(w.objects.amount(stove, "meal", Stock.right(0, org)) == 3 and w.institutions.entrustments[id].consumed == {"grain": 2, "water": 1} and w.institutions.entrustments[id].delivered == {"meal": 3}, "Cook failed true input/output/delivery accounting")
+	check(w.objects.amount(1, "grain", right) == 2 and w.objects.amount(1, "grain", Stock.right(1)) == 1, "Public cooking took private ingredients")
+	w.begin_interaction(1, {"kind": "cook", "target": stove})
+	advance(w, w.elapsed_ms + 500)
+	w.end_run(1, w.elapsed_ms, "preempted")
+	var restored: RefCounted = Persistence.candidate(Persistence.capture(w), 0)
+	check(restored != null and restored.objects.amount(1, "grain", right) == 2 and restored.institutions.entrustments[id].consumed.grain == 2, "Interrupted public work repeated material cost or lost its unresolved mandate")
+	if restored == null: return
+	w = restored
+	w.institutions.admit(w, org, 1, [])
+	check(w.begin_interaction(1, {"kind": "cook", "target": stove}) == "not_authorized", "Revoked processor retained active authority from old material custody")
+	w.pages[0].positions[0] = Vector2(123.5, 124.5)
+	carry(w, 1, chest, "grain", 2, "put")
+	carry(w, 1, chest, "water", 1, "put")
+	check(w.institutions.entrustments.is_empty() and w.institutions.accounts[org][1].produced == {"meal": 3} and w.institutions.accounts[org][1].returned == {"grain": 2, "water": 1}, "Returning surplus failed to close actual responsibility")
+	w.institutions.admit(w, org, 1, Array(w.institutions.PURPOSES))
+	carry(w, 1, chest, "meal", 3, "take", "supply")
+	carry(w, 1, chest, "meal", 3, "put")
+	check(w.institutions.entrustments.is_empty() and w.institutions.accounts[org][1].produced == {"meal": 3} and w.institutions.accounts[org][1].delivered == {"meal": 3}, "Moving old public goods invented new production or supply credit")
+	check(Persistence.candidate(Persistence.capture(w), 0) != null, "Closed mandate/account state did not restore")
+	w.objects.add(1, "grain", 2)
+	var private: int = w.objects.amount(1, "grain", Stock.right(1))
+	carry(w, 1, chest, "grain", 1, "put")
+	check(w.objects.amount(chest, "grain", Stock.right(1)) == 1 and w.objects.amount(1, "grain", Stock.right(1)) == private - 1, "Depositing personal material silently donated title")
+	var donated: Dictionary = w.institutions.move_goods(w, 1, chest, "grain", 1, "put", {"donate": true}, w.elapsed_ms)
+	check(donated.status == "completed" and w.institutions.accounts[org][1].donated.grain == 1, "Explicit donation lacked actual title/evidence")
+
+func asset_and_death_custody() -> void:
+	var w: RefCounted = peaceful()
+	var org: int = organization(w)
+	var chest: int = facility(w, "wood_chest", 124, 124, org)
+	w.objects.add(chest, "wood", 10, Stock.right(0, org))
+	w.pages[0].positions[0] = Vector2(123.5, 124.5)
+	carry(w, 1, chest, "wood", 6, "take", "construct")
+	var id: int = w.institutions.entrustments.keys()[0]
+	var right: Dictionary = Stock.right(0, org, id)
+	var site: Dictionary = w.facilities.blueprint(w, 1, "wood_wall", w.Terrain.index(Vector2i(128, 126)), 0, org)
+	check(site.reason == "accepted", "Entrusted public blueprint refused")
+	if site.reason != "accepted": return
+	var target: int = site.target
+	w.objects.records[target].remaining_ms = 1000
+	w.pages[0].positions[2] = Vector2(127.5, 126.5)
+	check(w.begin_interaction(3, {"kind": "construct", "target": target}) == "accepted", "Authorized replacement builder refused")
+	advance(w, w.elapsed_ms + 1200)
+	check(w.objects.Stock.count(w.objects.records[target].materials, "wood", Stock.right(0, org)) == 3, "Construction lost material title or retained an already consumed entrustment")
+	var wood: int = w.objects.audit_total("wood")
+	var result: Dictionary = w.facilities.demolish_result(w, target, w.elapsed_ms)
+	check(result.status == "completed" and w.objects.amount(int(result.facts.salvage_pile), "wood", Stock.right(0, org)) == 3 and w.objects.audit_total("wood") == wood and w.objects.total("wood") == wood, "Demolishing public body laundered or minted salvage")
+	w.objects.transfer(1, 3, "wood", 3, right)
+	w.objects.add(3, "iron_sword@2", 1)
+	check(w.command({"kind": "equip", "actor": 3, "item": "iron_sword@2"}).ok, "Death worn-item fixture refused")
+	check(w.remove_actor(3), "Custodian removal refused")
+	var pile: int = 0
+	for object: int in w.objects.records:
+		if w.objects.records[object].definition == "remains": pile = object
+	check(pile > 0 and w.objects.amount(pile, "wood", right) == 3 and w.objects.amount(pile, "iron_sword@2", Stock.right(3)) == 1, "Death/removal changed the owner or entrusted purpose")
+	check(Persistence.candidate(Persistence.capture(w), 0) != null, "Historical dead owner invalidated real belongings")
+	w.pages[0].positions[0] = Vector2(127.5, 126.5)
+	carry(w, 1, pile, "wood", 3, "take")
+	w.pages[0].positions[0] = Vector2(123.5, 124.5)
+	carry(w, 1, chest, "wood", 3, "put")
+	check(w.institutions.entrustments.is_empty() and w.institutions.accounts[org][1].consumed.wood == 3 and w.institutions.accounts[org][1].returned.wood == 3, "Recovery by another custodian broke the original unresolved responsibility")
+
+func issued_gear_and_cultivation() -> void:
+	var w: RefCounted = peaceful()
+	var org: int = organization(w)
+	var chest: int = facility(w, "wood_chest", 124, 124, org)
+	var title: Dictionary = Stock.right(0, org)
+	for item: String in ["iron_sword@2", "grain", "water"]: w.objects.add(chest, item, 2, title)
+	w.pages[0].positions[0] = Vector2(123.5, 124.5)
+	carry(w, 1, chest, "iron_sword@2", 1, "take", "equip")
+	var id: int = w.institutions.entrustments.keys()[0]
+	var right: Dictionary = Stock.right(0, org, id)
+	# Same item can have private and issued slices. Remove only the personal
+	# copy so this actual swap must preserve the borrowed slice's provenance.
+	clear_private(w, 1, "iron_sword@2")
+	w.objects.records[1].capacity = w.objects.count_inventory(1)
+	check(w.command({"kind": "equip", "item": "iron_sword@2"}).ok and w.objects.records[1].equipment.weapon.entrust == id, "Issued equipment could not be used by its declared purpose")
+	check(w.command({"kind": "equip", "item": "short_bow"}).ok and w.objects.amount(1, "iron_sword@2", right) == 1 and w.objects.audit_total("iron_sword@2") == w.objects.total("iron_sword@2"), "Full bag swap lost issued equipment attribution")
+	w.objects.records[1].capacity = -1
+	carry(w, 1, chest, "iron_sword@2", 1, "put")
+	check(not w.institutions.entrustments.has(id), "Returning worn-then-swapped gear failed to close its original issue")
+	carry(w, 1, chest, "grain", 1, "take", "cultivate")
+	carry(w, 1, chest, "water", 1, "take", "cultivate")
+	var site: Dictionary = w.nature.plant_site(w, 1, "annual_grass", w.Terrain.index(Vector2i(128, 128)), org)
+	check(site.reason == "accepted", "Authorized public planting failed")
+	if site.reason != "accepted": return
+	var plant: int = site.target
+	w.objects.records[plant].remaining_ms = 100
+	w.pages[0].positions[0] = Vector2(128.5, 128.5)
+	check(w.begin_interaction(1, {"kind": "sow", "target": plant}) == "accepted", "Public sowing refused")
+	advance(w, w.elapsed_ms + 300)
+	check(w.objects.records[plant].organization == org and w.objects.amount(plant, "grain") == 0, "Sowing failed to keep public cultivation title while consuming the actual seed")
+	check(w.nature.tend(w, 1, plant, w.elapsed_ms).status == "completed" and w.institutions.entrustments.is_empty(), "Public plant care consumed somebody's private water or failed to close real issue")
+	w.objects.records[plant].stage = w.nature.Stage.MATURE
+	w.objects.add(plant, "grain", 2)
+	check(w.begin_interaction(3, {"kind": "gather", "target": plant}) == "accepted", "Authorized public harvester refused")
+	w.pages[0].positions[2] = Vector2(128.5, 128.5)
+	advance(w, w.elapsed_ms + 1700)
+	check(w.objects.amount(3, "grain", {"owner": 0, "organization": org}) == 2 and w.objects.amount(3, "grain", Stock.right(3)) == 0, "Cultivated public yield was laundered into the harvester's property")
+	check(Persistence.candidate(Persistence.capture(w), 0) != null, "Equipment/cultivation actual consumption left inconsistent stock/mandate state")
+
+func reviewed_boundaries() -> void:
+	var w: RefCounted = peaceful()
+	var org: int = organization(w)
+	var chest: int = facility(w, "wood_chest", 124, 124, org)
+	w.objects.add(chest, "wood", 4, Stock.right(0, org))
+	w.objects.add(chest, "iron_sword@2", 1, Stock.right(0, org))
+	w.pages[0].positions[0] = Vector2(123.5, 124.5)
+	carry(w, 1, chest, "wood", 2, "take", "construct")
+	carry(w, 1, chest, "iron_sword@2", 1, "take", "equip")
+	clear_private(w, 1, "iron_sword@2")
+	w.command({"kind": "equip", "item": "iron_sword@2"})
+	w.institutions.admit(w, org, 1, [])
+	var before: int = w.objects.amount(chest, "grain")
+	check(w.begin_transfer(1, {"kind": "put", "target": chest, "item": "grain", "amount": 1}) == "accepted", "Return-only interface did not permit authoritative group review")
+	advance(w, w.elapsed_ms + 500)
+	check(latest(w, 1).reason == "no_authorized_goods" and w.objects.amount(chest, "grain") == before, "Return-only permission smuggled private material into a closed public warehouse")
+	w.kill(1, w.elapsed_ms)
+	check(w.objects.amount(1, "wood") == 2 and w.objects.records[1].equipment.weapon.entrust > 0, "Death prematurely erased or retitled retained possessions")
+	w.institutions.admit(w, org, 3, ["put", "supply"])
+	w.pages[0].positions[2] = Vector2(123.5, 124.5)
+	carry(w, 3, 1, "wood", 2, "take")
+	carry(w, 3, 1, "iron_sword@2", 1, "take")
+	check(w.objects.records[1].equipment.is_empty(), "Legal corpse recovery copied worn gear without removing its original location")
+	w.institutions.admit(w, org, 3, ["put", "supply", "equip"])
+	check(w.command({"kind": "equip", "actor": 3, "item": "iron_sword@2"}).reason == "no_authorized_equipment", "Return-only recovery was silently treated as a new equipment issue")
+	carry(w, 3, chest, "wood", 2, "put")
+	carry(w, 3, chest, "iron_sword@2", 1, "put")
+	check(w.institutions.entrustments.is_empty() and Persistence.candidate(Persistence.capture(w), 0) != null, "Normal kill/recovery left a locked responsibility or unreadable corpse")
+	var other: RefCounted = peaceful()
+	var other_org: int = organization(other)
+	var pot: int = facility(other, "planter", 126, 126, other_org)
+	other.objects.add(4, "grain", 1)
+	check(other.nature.plant_site(other, 4, "annual_grass", other.objects.records[pot].tile).reason == "not_authorized", "Private seeds bypassed the actual planter's access policy")
+	var plant: int = other.nature.create(other, "annual_grass", other.Terrain.index(Vector2i(128, 128)))
+	other.objects.records[plant].owner = 3
+	other.objects.claim(other.source_objects[0], 1, "wood", 8)
+	check(other.facilities.blueprint(other, 1, "wood_floor", other.objects.records[plant].tile).reason == "not_authorized", "Floor construction bypassed authorization to clear another person's living plant")
+	var site: Dictionary = other.facilities.blueprint(other, 1, "wood_wall", other.Terrain.index(Vector2i(130, 128)))
+	check(site.reason == "accepted", "Multi-material salvage fixture failed")
+	if site.reason == "accepted":
+		other.objects.add(site.target, "stone", 2, Stock.right(1))
+		other.objects.install_materials(site.target)
+		other.facilities.install(other, site.target)
+		other.objects.records[site.target].erase("remaining_ms")
+		other.objects.records[site.target].erase("construction_started")
+		var wood: int = other.objects.audit_total("wood")
+		var stone: int = other.objects.audit_total("stone")
+		var result: Dictionary = other.facilities.demolish_result(other, site.target, other.elapsed_ms)
+		check(result.status == "completed" and other.objects.amount(result.facts.salvage_pile, "stone") == 2 and other.objects.audit_total("wood") == wood and other.objects.audit_total("stone") == stone and other.objects.total("stone") == stone, "Removing material keys while iterating lost multi-item salvage")
+	var private_grain: int = other.objects.amount(1, "grain", Stock.right(1))
+	other.objects.add(1, "grain", 2, Stock.right(0, other_org))
+	check(other.command({"kind": "drop", "item": "grain", "amount": 1}).ok and other.objects.amount(1, "grain", Stock.right(1)) == private_grain - 1 and other.objects.amount(1, "grain", Stock.right(0, other_org)) == 2, "Ordinary drop discarded entrusted/public stock ahead of one's own goods")
+	clear_private(other, 1, "grain")
+	var operation: Dictionary = other.Operations.OPERATIONS.wood_mend.duplicate(true)
+	operation.required_ability = ""
+	operation.injured = false
+	operation.costs = [{"kind": "item", "id": "grain", "amount": 1}]
+	check(not other.OperationQuery.evaluate(operation, other.describe(1), other.operation_target(1)).ready and not Costs.pay(other, 1, operation.costs), "UI query and authoritative costs disagreed on public goods as personal payment")
+
+func mixed_issue_and_guest() -> void:
+	var w: RefCounted = peaceful()
+	var org: int = organization(w)
+	var chest: int = facility(w, "wood_chest", 124, 124, org)
+	# Deliberately insert a private right before the public one in another item.
+	w.objects.add(chest, "wood", 1, Stock.right(1))
+	w.objects.add(chest, "grain", 2, Stock.right(1))
+	w.objects.add(chest, "grain", 4, Stock.right(0, org))
+	w.pages[0].positions[0] = Vector2(123.5, 124.5)
+	carry(w, 1, chest, "grain", 2, "take", "cook")
+	check(w.objects.amount(chest, "grain", Stock.right(1)) == 2 and w.objects.amount(1, "grain", {"organization": org}) == 2, "Declared public issue silently retrieved a private deposit")
+	var pile: int = w.objects.create("pile", "salvage", w.Terrain.index(Vector2i(123, 124)))
+	w.objects.add(pile, "wood", 2, Stock.right(0, org))
+	check(w.describe(pile).stock_organizations == [org], "Ground public salvage did not expose its issue organization to the native form")
+	carry(w, 1, pile, "wood", 2, "take", "supply")
+	carry(w, 1, chest, "wood", 2, "put")
+	var pot: int = w.facilities.create_completed(w, "planter", w.Terrain.index(Vector2i(127, 126)))
+	var site: Dictionary = w.nature.plant_site(w, 1, "annual_grass", w.objects.records[pot].tile)
+	check(site.reason == "accepted", "Neutral planter failed private cultivation")
+	if site.reason == "accepted":
+		var before: Dictionary = Persistence.capture(w)
+		check(w.facilities.demolish_result(w, pot, w.elapsed_ms, 3).reason == "not_authorized" and w.objects.records.has(site.target) and w.objects.records[pot].guest == site.target and Persistence.capture(w) == before, "Dismantling a neutral host bypassed the living guest's title")
+		check(not w.OperationQuery.evaluate(w.Operations.OPERATIONS.demolish, w.describe(3), w.describe(pot)).ready and w.begin_interaction(3, {"kind": "demolish", "target": pot}) == "not_authorized", "Native query and authoritative entry disagreed on collateral removal")
+	var plant: int = w.nature.create(w, "annual_grass", w.Terrain.index(Vector2i(130, 126)))
+	w.objects.records[plant].owner = 1
+	w.objects.claim(w.source_objects[0], 1, "wood", 4)
+	var floor_site: Dictionary = w.facilities.blueprint(w, 1, "wood_floor", w.objects.records[plant].tile)
+	check(floor_site.reason == "accepted" and w.begin_interaction(3, {"kind": "construct", "target": floor_site.get("target", 0)}) == "not_authorized", "Floor replacement ignored the affected plant until labor had already finished")
+	check(Persistence.candidate(Persistence.capture(w), 0) != null, "Mixed issue/guest rules left unreadable custody state")
+
+func _run() -> void:
+	batch_and_transactions()
+	public_processing_and_returns()
+	asset_and_death_custody()
+	issued_gear_and_cultivation()
+	reviewed_boundaries()
+	mixed_issue_and_guest()
+	print("CUSTODY_SMOKE errors=", errors)
+	quit(0 if errors == 0 else 1)

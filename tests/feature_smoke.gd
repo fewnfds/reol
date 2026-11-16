@@ -98,7 +98,7 @@ static func run(check: Callable) -> void:
 	check.call(w.objects.records[1].methods.wood_breath.progress == practice_before and w.objects.records[tree].qi == remaining_qi, "A withered tree still granted an in-flight practice reward")
 	var site: Dictionary = w.facilities.blueprint(w, 1, "wood_wall", Terrain.index(Vector2i(160, 173)))
 	if site.get("target", 0) == 0:
-		w.objects.transfer(w.source_objects[0], 1, "wood", 10)
+		w.objects.claim(w.source_objects[0], 1, "wood", 10)
 		site = w.facilities.blueprint(w, 1, "wood_wall", Terrain.index(Vector2i(160, 173)))
 	var task: int = int(site.get("target", 0))
 	check.call(task > 0, "Could not create a physical cooperation task")

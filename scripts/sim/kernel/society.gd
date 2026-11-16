@@ -141,9 +141,9 @@ func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dict
 			if world.actor_slots.has(action.target):
 				var other_slot: int = world.actor_slots[action.target]
 				var other_page: RefCounted = world.pages[other_slot / 256]
-				if want == "potion" and other_page.health[other_slot % 256] < 60 and world.objects.amount(action.target, want) <= wanted:
+				if want == "potion" and other_page.health[other_slot % 256] < 60 and world.objects.amount(action.target, want, world.objects.Stock.right(action.target)) <= wanted:
 					return Results.refused("refused_need")
-			if not world.objects.exchange(actor, action.target, give, given, want, wanted):
+			if not world.objects.exchange(actor, action.target, give, given, want, wanted, world.objects.Stock.right(actor), world.objects.Stock.right(action.target), true):
 				return Results.refused("missing_items_or_capacity")
 			world._sync_inventory(actor)
 			if world.actor_slots.has(action.target):
@@ -174,7 +174,7 @@ func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dict
 			var spec: Dictionary = Growth.Defs.METHODS[method]
 			if handler == "learn" and not Growth.mastered(other, method):
 				return Results.refused("teacher_does_not_know")
-			if handler == "study" and world.objects.amount(actor, spec.study_item) <= 0:
+			if handler == "study" and int(world.institutions.readable(world, actor).get(spec.study_item, 0)) <= 0:
 				return Results.refused("missing_book")
 			if int(person.get("methods", {}).get(method, {}).get("understanding", 0)) >= int(spec.introduction_points): return Results.refused("already_understood")
 			facts = Growth.advance(person, method, Operations.OPERATIONS[operation_id].learning_points, handler, action.target if handler == "learn" else 0, now, spec.study_item if handler == "study" else "")

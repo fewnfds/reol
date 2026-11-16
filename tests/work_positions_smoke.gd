@@ -54,7 +54,7 @@ func operation() -> void:
 
 func construction() -> void:
 	var w: RefCounted = fixture()
-	w.objects.transfer(w.source_objects[0], 1, "wood", 20)
+	w.objects.claim(w.source_objects[0], 1, "wood", 20)
 	var placed: Dictionary = w.facilities.blueprint(w, 1, "wood_table", w.Terrain.index(Vector2i(124, 123)))
 	check(placed.reason == "accepted", "Construction fixture failed")
 	if placed.reason != "accepted": return
@@ -106,7 +106,7 @@ func construction() -> void:
 
 func competing_builders() -> void:
 	var w: RefCounted = fixture()
-	w.objects.transfer(w.source_objects[0], 1, "wood", 20)
+	w.objects.claim(w.source_objects[0], 1, "wood", 20)
 	var target: int = w.facilities.blueprint(w, 1, "wood_table", w.Terrain.index(Vector2i(124, 123))).target
 	w.objects.records[target].remaining_ms = 500
 	w.pages[0].positions[0] = Vector2(123.5, 123.5)
@@ -136,7 +136,7 @@ func budgeted_approach() -> void:
 
 func large_body_future_footprint() -> void:
 	var w: RefCounted = fixture()
-	w.objects.transfer(w.source_objects[0], 1, "wood", 20)
+	w.objects.claim(w.source_objects[0], 1, "wood", 20)
 	var target: int = w.facilities.blueprint(w, 1, "wood_table", w.Terrain.index(Vector2i(132, 124))).target
 	w.queue_structure(w.Terrain.index(Vector2i(134, 122)), true, false)
 	w.flush_topology()

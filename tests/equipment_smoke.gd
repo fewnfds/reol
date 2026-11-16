@@ -23,7 +23,7 @@ static func run(check: Callable) -> void:
 	check.call(page.health[1] == 62, "Actual attack ignored equipment damage")
 	w.objects.add(1, "wood", 1)
 	var before: Dictionary = w.objects.records[1].duplicate(true)
-	check.call(not w.command({"kind":"unequip", "slot":"weapon"}).ok and w.objects.records[1].equipment == before.equipment and w.objects.records[1].inventory == before.inventory, "Failed full-bag unequip partially committed")
+	check.call(not w.command({"kind":"unequip", "slot":"weapon"}).ok and w.objects.records[1].equipment == before.equipment and w.objects.records[1].stock == before.stock, "Failed full-bag unequip partially committed")
 	w.objects.add(1, "wood", -1)
 	check.call(w.command({"kind":"unequip", "slot":"weapon"}).ok and page.melee_damage[0] == 25, "Unequip left stale attack stats")
 	check.call(w.command({"kind":"equip", "item":"cloth_robe"}).ok and page.max_health[0] == 120 and page.health[0] == 100, "HP gear healed on equip or ignored max HP")
@@ -51,7 +51,7 @@ static func run(check: Callable) -> void:
 	w.command({"kind":"equip", "actor":2, "item":"cloth_robe@2"})
 	var state: Dictionary = Persistence.capture(w)
 	var loaded: RefCounted = Persistence.candidate(state, 0)
-	check.call(loaded != null and loaded.pages[0].move_speed[0] == 6.0 and loaded.pages[0].armor[1] == 4 and loaded.objects.records[2].equipment.get("body", "") == "cloth_robe@2", "Restore did not rebuild gear-derived stats")
+	check.call(loaded != null and loaded.pages[0].move_speed[0] == 6.0 and loaded.pages[0].armor[1] == 4 and loaded.objects.equipment_summary(2).get("body", "") == "cloth_robe@2", "Restore did not rebuild gear-derived stats")
 	if loaded != null:
 		var robes: int = loaded.objects.audit_total("cloth_robe@2")
 		check.call(loaded.remove_actor(2) and loaded.objects.audit_total("cloth_robe@2") == robes, "Actor removal discarded worn gear")
@@ -59,4 +59,4 @@ static func run(check: Callable) -> void:
 		var slot: int = loaded.actor_slots[born]
 		check.call(loaded.pages[slot / 256].armor[slot % 256] == 0 and loaded.pages[slot / 256].max_health[slot % 256] == 100, "Reused body kept previous gear stats")
 	state.domains.objects.records[1].equipment["feet"] = "iron_sword"
-	check.call(Persistence.candidate(state, 0) == null and w.objects.records[1].equipment.get("feet", "") == "travel_boots", "Invalid worn slot damaged live world")
+	check.call(Persistence.candidate(state, 0) == null and w.objects.equipment_summary(1).get("feet", "") == "travel_boots", "Invalid worn slot damaged live world")

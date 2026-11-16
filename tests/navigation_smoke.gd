@@ -112,7 +112,7 @@ static func _world_cases(check: Callable) -> void:
 	page.flight[0] = 1
 	check.call(world.command({"kind": "build", "tile": neighbour}).ok, "A flying body incorrectly occupied a ground wall")
 	world.flush_topology()
-	world.objects.transfer(world.source_objects[0], 1, "wood", 4)
+	world.objects.claim(world.source_objects[0], 1, "wood", 4)
 	var site: Dictionary = world.facilities.blueprint(world, 1, "wood_wall", Terrain.index(Vector2i(48, 41)))
 	check.call(site.get("reason") == "accepted", "Wall completion probe could not place its blueprint")
 	if site.has("target"):

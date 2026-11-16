@@ -29,6 +29,10 @@ var _active: String = "bag"
 var _frame: RefCounted
 var _subject: Dictionary = {}
 var _target: Dictionary = {}
+var _purpose := OptionButton.new()
+var _donate := CheckButton.new()
+var _purpose_signature: String = ""
+const PURPOSE_TITLES: Dictionary = {"cook": "烹饪", "construct": "施工", "cultivate": "种植养护", "equip": "配用装备", "study": "借阅", "supply": "搬运供给"}
 
 func _ready() -> void:
 	add_child(_body)
@@ -60,6 +64,10 @@ func _ready() -> void:
 	amount.max_value = 99999
 	amount.step = 1
 	_body.add_child(amount)
+	_purpose.tooltip_text = "从公库领料时声明用途；归还原受托物资不需要重新领用。"
+	_body.add_child(_purpose)
+	_donate.text = "将自有物资捐给所属组织"
+	_body.add_child(_donate)
 	var row := HBoxContainer.new()
 	_body.add_child(row)
 	for label: String in ["1", "½", "全部"]:
@@ -95,6 +103,8 @@ func open(frame: RefCounted, mode: String, subject: int, target: int = 0) -> voi
 		_sheets.set_tab_hidden(1, target == 0)
 		_sheets.current_tab = 1 if _active == "container" else 0
 	amount.value = 1
+	_purpose_signature = ""
+	_donate.button_pressed = false
 	show()
 	refresh(frame, true)
 
@@ -123,6 +133,25 @@ func refresh(frame: RefCounted, fog: bool) -> void:
 	_subject = Actions.observed(frame, subject_id, fog)
 	_target = Actions.observed(frame, target_id, fog)
 	if _target.get("memory", false): _target = {}
+	var org: int = int(_target.get("organization", 0))
+	var organizations: Array = _target.get("stock_organizations", []).duplicate()
+	if org > 0 and not organizations.has(org): organizations.append(org)
+	_purpose.visible = target_id > 0 and not organizations.is_empty() and subject_id == 1
+	_donate.visible = target_id > 0 and org > 0 and subject_id == 1
+	var signature: String = str(organizations) + str(_subject.get("permissions", {}))
+	if signature != _purpose_signature:
+		var selected_purpose: Variant = _purpose.get_item_metadata(_purpose.selected) if _purpose.item_count > 0 else {}
+		_purpose_signature = signature
+		_purpose.clear()
+		_purpose.add_item("普通取放／归还受托物资")
+		_purpose.set_item_metadata(0, {})
+		for organization: int in organizations:
+			for purpose: String in PURPOSE_TITLES:
+				if purpose in _subject.get("permissions", {}).get(organization, []):
+					var choice: Dictionary = {"purpose": purpose, "source_organization": organization}
+					_purpose.add_item("领用 #%d：" % organization + PURPOSE_TITLES[purpose])
+					_purpose.set_item_metadata(_purpose.item_count - 1, choice)
+					if selected_purpose == choice: _purpose.select(_purpose.item_count - 1)
 	_title.text = "#%d" % subject_id + (" ⇄ #%d" % target_id if target_id > 0 else "")
 	var used: int = 0
 	for count: int in _subject.get("inventory", {}).values(): used += count
@@ -142,14 +171,22 @@ func _refresh_controls() -> void:
 	var count: int = int(source.get("inventory", {}).get(key, 0))
 	amount.max_value = maxi(1, count)
 	_choice.text = "—" if key.is_empty() else Grid.item_tooltip(key, _subject.get("equipment", {}), _subject.get("base_stats", {}))
+	if _active == "bag" and not key.is_empty() and _subject.has("stock_rights"):
+		var own: int = 0
+		var entrusted: int = 0
+		for batch: Dictionary in _subject.stock_rights.get(key, []):
+			if batch.owner == subject_id and batch.entrust == 0: own += int(batch.count)
+			if batch.entrust > 0: entrusted += int(batch.count)
+		_choice.text += "\n自有 %d　受托 %d　其他保管 %d" % [own, entrusted, count - own - entrusted]
 	var controllable: bool = subject_id == 1 and int(_subject.get("hp", 0)) > 0
-	_equip.disabled = not controllable or _active != "bag" or count <= 0 or not Items.spec(key).has("slot")
-	_use.disabled = not controllable or _active != "bag" or count <= 0 or key not in ["potion", "breath_manual"] or (key == "potion" and int(_subject.hp) >= int(_subject.get("stats", {}).get("max_hp", 100)))
+	_equip.disabled = not controllable or _active != "bag" or count <= 0 or key not in _subject.get("equippable", []) or not Items.spec(key).has("slot")
+	var usable: bool = int(_subject.get("usable_inventory", {}).get(key, 0)) > 0 if key == "potion" else int(_subject.get("readable", {}).get(key, 0)) > 0
+	_use.disabled = not controllable or _active != "bag" or count <= 0 or not usable or key not in ["potion", "breath_manual"] or (key == "potion" and int(_subject.hp) >= int(_subject.get("stats", {}).get("max_hp", 100)))
 	_drop.disabled = not controllable or _active != "bag" or count <= 0
 	_take.visible = target_id > 0
 	_put.visible = target_id > 0
-	_take.disabled = not controllable or _active != "container" or count <= 0 or _target.is_empty() or _full(_subject)
-	_put.disabled = not controllable or _active != "bag" or count <= 0 or _target.is_empty() or _full(_target)
+	_take.disabled = not controllable or _active != "container" or count <= 0 or _target.is_empty() or _full(_subject) or not Actions.Query.evaluate(Actions.Operations.OPERATIONS.take, _subject, _target).ready
+	_put.disabled = not controllable or _active != "bag" or count <= 0 or _target.is_empty() or _full(_target) or not Actions.Query.evaluate(Actions.Operations.OPERATIONS.put, _subject, _target).ready
 
 func _full(record: Dictionary) -> bool:
 	var capacity: int = int(record.get("capacity", -1))
@@ -166,7 +203,10 @@ func _send(action: String) -> void:
 	var key: String = container.selected if _active == "container" else bag.selected
 	var payload: Dictionary = {"kind": action, "item": key, "amount": int(amount.value), "epoch": epoch}
 	if action == kind and not operation.is_empty(): payload.kind = operation
-	if action in ["take", "put"]: payload.target = target_id
+	if action in ["take", "put"]:
+		payload.target = target_id
+		if _purpose.visible and action == "take": payload.merge(_purpose.get_item_metadata(_purpose.selected))
+		if _donate.visible and action == "put": payload["donate"] = _donate.button_pressed
 	if action == "use":
 		payload.kind = "heal" if key == "potion" else "study"
 		if key == "breath_manual": payload.target = 1

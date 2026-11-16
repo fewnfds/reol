@@ -38,7 +38,7 @@ func learning_and_preserved_sources() -> void:
 	read_world.objects.add(1, "breath_manual", 1)
 	read_world.begin_interaction(1, {"kind": "study", "target": 1})
 	advance(read_world, 1200)
-	read_world.objects.transfer(1, 3, "breath_manual", 1)
+	read_world.objects.transfer(1, 3, "breath_manual", 1, read_world.objects.Stock.right(1), read_world.objects.Stock.right(3)) # Explicit fixture gift transfers title.
 	check(Growth.introduced(read_world.objects.records[1], "wood_breath") and Persistence.candidate(Persistence.capture(read_world), 0) != null, "Transferring the real manual erased understanding")
 	check(read_world.begin_interaction(3, {"kind": "study", "target": 3}) == "accepted", "In-progress lost-book fixture refused")
 	advance(read_world, read_world.elapsed_ms + 16)

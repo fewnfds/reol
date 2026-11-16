@@ -130,7 +130,7 @@ func cultivation_restore() -> void:
 func placement_contract() -> void:
 	Actions.load_definitions()
 	var w: RefCounted = fixture()
-	w.objects.transfer(w.source_objects[0], 1, "wood", 50)
+	w.objects.claim(w.source_objects[0], 1, "wood", 50)
 	var resource: int = w.source_objects[0]
 	var resource_tile: int = w.objects.records[resource].tile
 	check(w.nature.finish(w, 1, {"kind": "uproot", "target": resource}, 0) == "completed", "Clearing a resource fixture failed")

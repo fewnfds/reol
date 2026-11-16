@@ -71,7 +71,7 @@ func valid_source(value: Dictionary) -> bool:
 
 func profile(world: RefCounted, actor: int) -> Dictionary:
 	var record: Dictionary = world.objects.records[actor]
-	var key: String = str(record.get("equipment", {}).get("weapon", ""))
+	var key: String = str(record.get("equipment", {}).get("weapon", {}).get("item", ""))
 	var item: Dictionary = Items.spec(key) if not key.is_empty() else {}
 	var id: String = str(record.get("ability_loadout", ""))
 	if id.is_empty(): id = str(item.get("ai_loadout" if record.get("combat_style", "") == "trained" else "combat_loadout", "light" if record.get("combat_style", "") == "trained" else "sword"))

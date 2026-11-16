@@ -11,7 +11,7 @@ static func run(w: RefCounted, check: Callable) -> void:
 	var tile: int = Terrain.index(Vector2i(140, 140))
 	var grass: int = w.nature.create(w, "annual_grass", tile)
 	w.objects.add(grass, "grain", 2)
-	w.objects.transfer(w.source_objects[0], 1, "wood", 4)
+	w.objects.claim(w.source_objects[0], 1, "wood", 4)
 	var topology: int = w.topology_revision
 	var site: Dictionary = w.facilities.blueprint(w, 1, "wood_floor", tile)
 	check.call(site.get("target", 0) > 0 and w.objects.records.has(grass) and w.terrain.flooring[tile] == 0, "Floor blueprint cleared grass before completion")
@@ -54,7 +54,7 @@ static func run(w: RefCounted, check: Callable) -> void:
 	w.objects.records[1].capacity = capacity
 	var bed_tile: int = Terrain.index(Vector2i(145, 140))
 	check.call(w.facilities.footprint("long_bed", bed_tile, 1) == PackedInt32Array([bed_tile, bed_tile + 1]) and w.facilities.footprint("long_bed", bed_tile, 2) == PackedInt32Array([bed_tile, bed_tile + Terrain.SIZE]), "Cardinal rotation did not rotate the multi-cell footprint")
-	w.objects.transfer(w.source_objects[0], 1, "wood", 8)
+	w.objects.claim(w.source_objects[0], 1, "wood", 8)
 	var bed: Dictionary = w.facilities.blueprint(w, 1, "long_bed", bed_tile, 1)
 	check.call(bed.get("target", 0) > 0, "A rotated fixture blueprint could not be created")
 	if bed.get("target", 0) > 0:

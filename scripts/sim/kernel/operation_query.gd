@@ -3,6 +3,7 @@ extends RefCounted
 const Defs = preload("res://scripts/sim/kernel/operation_defs.gd")
 const Costs = preload("res://scripts/sim/kernel/action_costs.gd")
 const Growth = preload("res://scripts/sim/kernel/growth.gd")
+const Stock = preload("res://scripts/sim/kernel/stock_rules.gd")
 static var BUILDINGS: Dictionary = Defs.freeze(JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/construction.json")).types)
 
 static func evaluate(operation: Dictionary, actor: Dictionary, target: Dictionary, context: Dictionary = {}, buildings: Dictionary = {}) -> Dictionary:
@@ -13,7 +14,10 @@ static func evaluate(operation: Dictionary, actor: Dictionary, target: Dictionar
 		result.applicable = true
 		var unknown: Array = []
 		var reason: String = _target_reason(rule, target, unknown)
-		if reason.is_empty(): reason = readiness(operation, actor, context)
+		var inputs: Dictionary = context.duplicate()
+		inputs["organization"] = int(target.get("organization", 0))
+		if reason.is_empty(): reason = Stock.access_reason(actor, target, operation.handler)
+		if reason.is_empty(): reason = readiness(operation, actor, inputs)
 		if reason.is_empty() and not unknown.is_empty(): reason = "unknown_target_state"
 		result.reason = reason
 		result.unknown = unknown
@@ -48,7 +52,8 @@ static func _matches(rule: Dictionary, actor: Dictionary, target: Dictionary, bu
 static func _target_reason(rule: Dictionary, target: Dictionary, unknown: Array) -> String:
 	if target.get("kind") == "actor":
 		if not target.has("hp"): unknown.append("hp")
-		elif int(target.hp) <= 0: return "target_dead"
+		elif int(target.hp) <= 0 and rule.actor_state == "living": return "target_dead"
+		elif int(target.hp) > 0 and rule.actor_state == "dead": return "target_alive"
 	if not rule.stages.is_empty() or not rule.excluded_stages.is_empty():
 		if not target.has("stage"): unknown.append("stage")
 		elif (not rule.stages.is_empty() and target.stage not in rule.stages) or target.stage in rule.excluded_stages: return "wrong_stage"
@@ -70,13 +75,17 @@ static func readiness(operation: Dictionary, actor: Dictionary, context: Diction
 	if not actor.get("admission_reason", "").is_empty(): return actor.admission_reason
 	for capability: String in operation.required_capabilities:
 		if not actor.get("body_capabilities", {}).get(capability, false): return "body_has_no_%s_capability" % capability
-	for item: String in operation.required_items:
-		if int(actor.get("inventory", {}).get(item, 0)) < int(operation.required_items[item]): return "missing_items"
+	if operation.handler in ["cook", "tend"]:
+		var purpose: String = "cook" if operation.handler == "cook" else "cultivate"
+		if not operation.required_items.is_empty() and Stock.input_group(actor, operation.required_items, purpose, int(context.get("organization", 0))).is_empty(): return "missing_items"
+	else:
+		for item: String in operation.required_items:
+			if int(actor.get("usable_inventory", actor.get("inventory", {})).get(item, 0)) < int(operation.required_items[item]): return "missing_items"
 	if not operation.required_method.is_empty() and not Growth.introduced(actor, operation.required_method): return "method_not_known"
 	if operation.handler in ["learn", "study"] and int(actor.get("methods", {}).get(operation.learning_method, {}).get("understanding", 0)) >= int(Growth.Defs.METHODS[operation.learning_method].introduction_points): return "already_understood"
-	if operation.handler == "study" and not operation.get("learning_method", "").is_empty() and int(actor.get("inventory", {}).get(Growth.Defs.METHODS[operation.learning_method].study_item, 0)) <= 0: return "missing_book"
+	if operation.handler == "study" and not operation.get("learning_method", "").is_empty() and int(actor.get("readable", actor.get("inventory", {})).get(Growth.Defs.METHODS[operation.learning_method].study_item, 0)) <= 0: return "missing_book"
 	if not operation.required_ability.is_empty() and not actor.get("abilities", {}).get(operation.required_ability, false): return "ability_not_mastered"
 	if operation.injured and int(actor.hp) >= int(actor.get("max_hp", actor.get("stats", {}).get("max_hp", actor.hp))): return "full_health"
-	if operation.actor_inventory and actor.get("inventory", {}).is_empty(): return "empty"
+	if operation.actor_inventory and actor.get("carried", actor.get("inventory", {})).is_empty(): return "empty"
 	if operation.help_target and int(context.get("help_target", 0)) <= 0: return "invalid_task"
 	return Costs.check_view(actor, operation.costs) if not operation.costs.is_empty() else ""

@@ -42,6 +42,7 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 		return null
 	if not _objects_valid(world):
 		return null
+	if not world.institutions.valid(world): return null
 	var slot: int = 0
 	for value: Variant in data.pages:
 		var page := Units.new()
@@ -137,8 +138,9 @@ static func _objects_valid(world: RefCounted) -> bool:
 		var record: Variant = world.objects.records[id]
 		if not id is int or id <= 0 or id >= world.objects.next_id or not record is Dictionary:
 			return false
-		if record.get("id") != id or not record.get("kind") is String or not record.get("definition") is String or not record.get("inventory") is Dictionary or not record.get("capacity") is int or not record.get("tile") is int:
+		if record.get("id") != id or not record.get("kind") is String or not record.get("definition") is String or record.has("inventory") or not record.get("capacity") is int or not record.get("tile") is int:
 			return false
+		if not record.get("owner") is int or record.owner < 0 or record.owner >= world.objects.next_id or not record.get("organization") is int or record.organization < 0 or (record.owner > 0 and record.organization > 0): return false
 		if record.kind != "actor" and not record.get("hp") is int:
 			return false
 		if not Growth.valid_record(record, world.objects.next_id, world.elapsed_ms): return false
@@ -149,8 +151,8 @@ static func _objects_valid(world: RefCounted) -> bool:
 			return false
 		if record.kind == "actor":
 			if not Equipment.valid_record(record): return false
-			for equipped: String in record.equipment.values():
-				world.objects.totals[equipped] = int(world.objects.totals.get(equipped, 0)) + 1
+			for gear: Dictionary in record.equipment.values():
+				if not world.objects.Stock.valid_right(gear, world.objects.next_id): return false
 		if record.has("facing") and (not record.facing is int or record.facing < 0 or record.facing > 3):
 			return false
 		if record.kind == "blueprint" or record.has("construction_started"):
@@ -159,14 +161,9 @@ static func _objects_valid(world: RefCounted) -> bool:
 			if not record.get("remaining_ms") is int or record.remaining_ms < 1: return false
 		if (not record.get("sight_range") is float and not record.get("sight_range") is int) or not is_finite(float(record.sight_range)) or record.sight_range < 0 or record.sight_range > world.terrain.SIZE * 2.0:
 			return false
-		for contents: Variant in [record.inventory, record.get("materials", {})]:
-			if not contents is Dictionary:
-				return false
-			for item: Variant in contents:
-				var count: Variant = contents[item]
-				if not item is String or not Items.valid(item) or not count is int or count < 0:
-					return false
-				world.objects.totals[item] = int(world.objects.totals.get(item, 0)) + count
+		for contents: Variant in [record.get("stock"), record.get("materials", {})]:
+			if not world.objects.Stock.valid(contents, world.objects.next_id): return false
+		world.objects._refresh(id, false)
 		if record.capacity >= 0 and world.objects.count_inventory(id) > record.capacity:
 			return false
 		if tile >= 0:
@@ -261,6 +258,7 @@ static func _processes_valid(world: RefCounted) -> bool:
 		if operation.executor in ["instant", "work_source"]: return false
 		if operation.executor == "transfer" and (not action.get("item") is String or not Items.valid(action.item) or not action.get("amount") is int or action.amount <= 0):
 			return false
+		if operation.executor == "transfer" and not world.institutions.transfer_context_valid(action): return false
 		if not Operations.capability_reason(world.objects.records[actor], action.kind).is_empty(): return false
 		if not operation.required_method.is_empty() and not Growth.introduced(world.objects.records[actor], operation.required_method): return false
 		if not operation.required_ability.is_empty() and not Growth.abilities(world.objects.records[actor]).get(operation.required_ability, false): return false

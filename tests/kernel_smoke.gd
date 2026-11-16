@@ -113,7 +113,7 @@ func _inventory_session() -> void:
 		loaded.step()
 	check(world.objects.amount(1, "wood") == 7 and loaded.objects.amount(1, "wood") == 7, "In-progress take did not resume once")
 	check(world.environment.rng.randi() == loaded.environment.rng.randi(), "Restored random stream lost its seed/state")
-	check(snapshot.domains.objects.records[1].inventory.get("wood", 0) == 0, "Captured inventory aliases the live world")
+	check(snapshot.domains.objects.records[1].stock.get("wood", []).is_empty(), "Captured inventory aliases the live world")
 	loaded.command({"kind": "put", "actor": 1, "target": chest, "amount": 7})
 	loaded.command({"kind": "interrupt", "actor": 1})
 	check(loaded.objects.amount(1, "wood") == 7 and not loaded.actions.has(1), "Cancel erased committed goods")
@@ -132,7 +132,7 @@ func _inventory_session() -> void:
 	var again: RefCounted = Persistence.candidate(Persistence.capture(loaded), 0)
 	check(again != null and again.actor_slots.has(born) and not again.actor_slots.has(removed), "Spawn/remove did not survive state restore")
 	var invalid: Dictionary = Persistence.capture(loaded)
-	invalid.domains.objects.records[chest].inventory.wood = -4
+	invalid.domains.objects.records[chest].stock.wood = [{"count": -4, "owner": 0, "organization": 0, "entrust": 0, "phase": "free"}]
 	check(Persistence.candidate(invalid, 0) == null and loaded.objects.amount(chest, "wood") >= 7, "Invalid load damaged the live session")
 
 
@@ -186,7 +186,7 @@ func _disk_restart() -> void:
 func _build_and_live() -> void:
 	var world := World.new()
 	world.initialize(1, 0)
-	world.objects.transfer(world.source_objects[0], 1, "wood", 30)
+	world.objects.claim(world.source_objects[0], 1, "wood", 30)
 	world._sync_inventory(1)
 	var tile: int = Terrain.index(Vector2i(160, 170))
 	var page: RefCounted = world.pages[0]
@@ -284,7 +284,7 @@ func _same_step_causality() -> void:
 	check(page.health[1] == 0 and page.cargo[1] == 1 and world.objects.amount(world.source_objects[source], "wood") == before - 1, "End-of-step death erased an earlier harvest")
 	check(world.reservations[world.source_objects[source]] == 3, "Earlier harvest did not release reservation before another arrival")
 	check(world.environment.mobile_cells[0] == -1, "Dead source was not removed")
-	world.objects.transfer(world.source_objects[0], 1, "wood", 1)
+	world.objects.claim(world.source_objects[0], 1, "wood", 1)
 	world._sync_inventory(1)
 	world.command({"kind": "work", "actor": 1})
 	check(world.actions.get(1, {}).get("kind", "") == "put", "Restarted work ignored cargo that must be delivered")

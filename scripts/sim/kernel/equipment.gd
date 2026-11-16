@@ -12,8 +12,8 @@ static func values(record: Dictionary) -> Dictionary:
 	# Explicit base overrides are also useful for a disclosed pressure fixture.
 	result.merge(record.get("base_stats", {}), true)
 	Growth.modify_stats(record, result)
-	for key: String in record.get("equipment", {}).values():
-		var bonus: Dictionary = Items.bonuses(key)
+	for gear: Dictionary in record.get("equipment", {}).values():
+		var bonus: Dictionary = Items.bonuses(gear.item)
 		for stat: String in bonus: result[stat] += bonus[stat]
 	for stat: String in ["max_hp", "melee", "ranged", "armor"]: result[stat] = roundi(result[stat])
 	return result
@@ -27,8 +27,8 @@ static func valid_record(record: Dictionary) -> bool:
 	var base: Variant = record.get("base_stats", {})
 	if not equipment is Dictionary or not base is Dictionary: return false
 	for slot: Variant in equipment:
-		var key: Variant = equipment[slot]
-		if not slot is String or not Items.SLOTS.has(slot) or not key is String or not Items.valid(key) or Items.spec(key).get("slot", "") != slot: return false
+		var gear: Variant = equipment[slot]
+		if not slot is String or not Items.SLOTS.has(slot) or not gear is Dictionary or gear.size() != 5 or not gear.get("item") is String or not Items.valid(gear.item) or Items.spec(gear.item).get("slot", "") != slot: return false
 	for stat: Variant in base:
 		if not stat is String or not BASE.has(stat) or (not base[stat] is int and not base[stat] is float) or not is_finite(float(base[stat])): return false
 		if float(base[stat]) < (0.1 if stat == "speed" else 0.0) or float(base[stat]) > (50.0 if stat == "speed" else 1000000.0): return false

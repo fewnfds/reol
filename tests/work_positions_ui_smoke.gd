@@ -19,7 +19,7 @@ func _run() -> void:
 		w.objects.records[actor].autonomous = false
 		w.pages[0].modes[actor - 1] = w.Units.Mode.IDLE
 	w.pages[0].positions[0] = Vector2(120.5, 119.5)
-	w.objects.transfer(w.source_objects[0], 1, "wood", 40)
+	w.objects.claim(w.source_objects[0], 1, "wood", 40)
 	var sites: Array[int] = []
 	for entry: Array in [["wood_wall", 118, 120, 0], ["wood_table", 121, 120, 0], ["long_bed", 125, 120, 0], ["wood_table", 128, 120, 1]]:
 		var site: Dictionary = w.facilities.blueprint(w, 1, entry[0], w.Terrain.index(Vector2i(entry[1], entry[2])), entry[3])

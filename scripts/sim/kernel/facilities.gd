@@ -82,7 +82,7 @@ func start_construction(world: RefCounted, target: int, at: int) -> String:
 	return "started"
 
 
-func blueprint(world: RefCounted, actor: int, definition: String, tile: int, facing: int = 0) -> Dictionary:
+func blueprint(world: RefCounted, actor: int, definition: String, tile: int, facing: int = 0, organization: int = 0) -> Dictionary:
 	facing = posmod(facing, 4)
 	var cells: PackedInt32Array = footprint(definition, tile, facing)
 	if cells.is_empty():
@@ -92,9 +92,14 @@ func blueprint(world: RefCounted, actor: int, definition: String, tile: int, fac
 	var site: String = placement(world, layer, cells)
 	if site != "accepted":
 		return {"reason": site}
+	if layer == "floor":
+		var clearing: String = clearing_reason(world, actor, cells)
+		if not clearing.is_empty(): return {"reason": clearing}
 	var amount: int = int(spec.amount)
 	var item: String = str(spec.item)
-	if world.objects.amount(actor, item) < amount:
+	if organization > 0 and not world.institutions.permits(actor, organization, "construct"): return {"reason": "not_authorized"}
+	var right: Dictionary = world.institutions.input_right(world, actor, {item: amount}, "construct", organization)
+	if right.is_empty():
 		return {"reason": "missing_materials"}
 	var id: int = world.objects.create("blueprint", definition, tile)
 	var record: Dictionary = world.objects.records[id]
@@ -103,11 +108,37 @@ func blueprint(world: RefCounted, actor: int, definition: String, tile: int, fac
 	record["remaining_ms"] = int(spec.work_ms)
 	record["construction_started"] = false
 	record["max_hp"] = int(spec.max_hp)
+	record.owner = right.owner
+	record.organization = right.organization
 	world.objects.reindex(id, cells)
-	world.objects.transfer(actor, id, item, amount)
+	world.objects.transfer(actor, id, item, amount, right)
 	world._sync_inventory(actor)
 	world.livelihood.remember(world, actor, id, world.operation_time())
 	return {"reason": "accepted", "target": id}
+
+func clearing_reason(world: RefCounted, actor: int, cells: PackedInt32Array) -> String:
+	for tile: int in cells:
+		for id: int in world.objects.by_tile.get(tile, []):
+			if world.objects.records[id].kind != "plant" or int(world.objects.records[id].get("host", 0)) > 0: continue
+			var reason: String = world.objects.Stock.access_reason(world.operation_actor(actor), world.operation_target(id), "uproot")
+			if not reason.is_empty(): return reason
+	return ""
+
+func access_dependencies(world: RefCounted, target: int) -> Dictionary:
+	var record: Dictionary = world.objects.records[target]
+	var result: Dictionary = {}
+	var plants: Array = []
+	if record.kind == "blueprint" and record.get("layer", "ground") == "floor":
+		for tile: int in record.cells:
+			for id: int in world.objects.by_tile.get(tile, []):
+				var plant: Dictionary = world.objects.records[id]
+				if plant.kind == "plant" and int(plant.get("host", 0)) == 0: plants.append({"id": id, "owner": plant.owner, "organization": plant.organization, "operation": "uproot"})
+		result["construct"] = plants
+	var guest: int = int(record.get("guest", 0))
+	if guest > 0 and world.objects.records.has(guest):
+		var plant: Dictionary = world.objects.records[guest]
+		result["demolish"] = [{"id": guest, "owner": plant.owner, "organization": plant.organization, "operation": "uproot"}]
+	return result
 
 
 func placement(world: RefCounted, layer: String, cells: PackedInt32Array, ignore: int = 0) -> String:
@@ -180,8 +211,7 @@ func seed_fixture(world: RefCounted, definition: String, tile: int, facing: int 
 	if id == 0: return 0
 	var record: Dictionary = world.objects.records[id]
 	world.objects.transfer(world.source_objects[0], id, str(spec.item), int(spec.amount))
-	record["materials"] = record.inventory
-	record.inventory = {}
+	world.objects.install_materials(id)
 	return id
 
 
@@ -223,6 +253,8 @@ func commit(world: RefCounted, actor: int, action: Dictionary, at: int) -> Dicti
 				var reason: String = placement(world, "floor", cells, action.target)
 				if reason != "accepted":
 					return Results.refused(reason)
+				reason = clearing_reason(world, actor, cells)
+				if not reason.is_empty(): return Results.refused(reason)
 			if spec.get("facts", {}).get("movement_blocked", false):
 				for body: RefCounted in world.pages:
 					for index: int in body.ids.size():
@@ -235,8 +267,8 @@ func commit(world: RefCounted, actor: int, action: Dictionary, at: int) -> Dicti
 					for other: int in world.objects.by_tile.get(member, []).duplicate():
 						if world.objects.records[other].kind == "plant" and int(world.objects.records[other].get("host", 0)) == 0:
 							world.nature.remove(world, other, at)
-			record["materials"] = record.inventory
-			record.inventory = {}
+			world.objects.install_materials(action.target)
+			facts["entrustments"] = world.institutions.complete_asset(world, action.target, "materials", at)
 			record.erase("remaining_ms")
 			record.erase("construction_started")
 			install(world, action.target)
@@ -248,22 +280,18 @@ func commit(world: RefCounted, actor: int, action: Dictionary, at: int) -> Dicti
 				facts["condition_recovery"] = Growth.recover_rest(world.objects.records[actor])
 				if not facts.condition_recovery.is_empty(): world.Equipment.rebuild(world, actor)
 		"eat":
-			if world.objects.amount(action.target, "meal") <= 0:
+			if not world.institutions.consume_at(world, actor, action.target, "meal", 1, "eat"):
 				return Results.refused("no_food")
-			world.objects.add(action.target, "meal", -1)
 			var before: int = page.hunger[row]
 			page.hunger[row] = mini(10000, before + 3000)
 			facts = {"consumed": {"meal": 1}, "hunger_restored": page.hunger[row] - before}
 			world.effects.apply_bundle(world, actor, actor, 0, "", preload("res://data/definitions/actions/meal_effect.tres").values(), at, 0, "activation")
 		"cook":
 			var ingredients: Dictionary = Operations.OPERATIONS[action.get("operation_id", action.kind)].required_items
-			for item: String in ingredients:
-				if world.objects.amount(actor, item) < int(ingredients[item]): return Results.refused("missing_ingredients")
-			if record.capacity >= 0 and world.objects.count_inventory(action.target) + 3 > record.capacity: return Results.refused("no_output_capacity")
-			for item: String in ingredients: world.objects.add(actor, item, -int(ingredients[item]))
-			world.objects.add(action.target, "meal", 3)
+			var conversion: Dictionary = world.institutions.convert(world, actor, action.target, ingredients, {"meal": 3}, "cook", at)
+			if conversion.status != "completed": return conversion
 			world._sync_inventory(actor)
-			facts = {"consumed": ingredients.duplicate(), "produced": {"meal": 3}, "destination": action.target}
+			facts = conversion.facts
 			var operation: Dictionary = Operations.OPERATIONS[action.get("operation_id", action.kind)]
 			if not operation.learning_method.is_empty(): facts["learning"] = Growth.advance(world.objects.records[actor], operation.learning_method, operation.learning_points, "practice", 0, at)
 	completed[action.kind] = int(completed.get(action.kind, 0)) + 1
@@ -273,7 +301,7 @@ func commit(world: RefCounted, actor: int, action: Dictionary, at: int) -> Dicti
 func demolish(world: RefCounted, target: int, at: int = -1) -> bool:
 	return demolish_result(world, target, at).status == "completed"
 
-func demolish_result(world: RefCounted, target: int, at: int = -1) -> Dictionary:
+func demolish_result(world: RefCounted, target: int, at: int = -1, actor: int = 0) -> Dictionary:
 	if not world.objects.records.has(target):
 		return Results.refused("target_gone")
 	var record: Dictionary = world.objects.records[target]
@@ -282,6 +310,14 @@ func demolish_result(world: RefCounted, target: int, at: int = -1) -> Dictionary
 	# Equipment cannot be salvaged by this facility operation. Check before any
 	# target callbacks, guest removal or material movement can commit changes.
 	if not record.get("equipment", {}).is_empty(): return Results.refused("equipped_target")
+	var guest: int = int(record.get("guest", 0))
+	if actor > 0:
+		var actor_view: Dictionary = world.operation_actor(actor)
+		var reason: String = world.objects.Stock.access_reason(actor_view, world.operation_target(target), "demolish")
+		if not reason.is_empty(): return Results.refused(reason)
+		if guest > 0 and world.objects.records.has(guest):
+			reason = world.objects.Stock.access_reason(actor_view, world.operation_target(guest), "uproot")
+			if not reason.is_empty(): return Results.refused(reason)
 	if record.kind == "resource":
 		# Keep source identity/stock indices valid; all timber becomes loose stock.
 		record["vegetation_level"] = 0
@@ -291,20 +327,16 @@ func demolish_result(world: RefCounted, target: int, at: int = -1) -> Dictionary
 	if record.kind == "plant":
 		world.nature.remove(world, target, at)
 		return Results.completed({"removed": target, "definition": record.definition})
-	var guest: int = int(record.get("guest", 0))
 	if guest > 0 and world.objects.records.has(guest):
 		world.nature.remove(world, guest, at)
 	var pile: int = 0
 	var salvage: Dictionary = {}
 	if world.objects.count_inventory(target) > 0 or not record.get("materials", {}).is_empty():
 		pile = world.objects.create("pile", "salvage", record.tile)
-		for item: String in record.inventory.keys():
+		for item: String in world.objects.inventory_summary(target):
 			salvage[item] = world.objects.transfer(target, pile, item, world.objects.amount(target, item))
-		for item: String in record.get("materials", {}):
-			var count: int = record.materials[item]
-			# Same material moves from the structure body into loose inventory.
-			world.objects.add(pile, item, count)
-			world.objects.totals[item] -= count
+		for item: String in record.get("materials", {}).keys():
+			var count: int = world.objects.transfer(target, pile, item, world.objects.Stock.count(record.materials, item), {}, {}, "materials")
 			salvage[item] = int(salvage.get(item, 0)) + count
 		record.erase("materials")
 	return Results.completed({"removed": target, "definition": record.definition, "salvage_pile": pile, "salvage": salvage}) if world.remove_static(target, at) else Results.refused("failed")

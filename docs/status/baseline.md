@@ -4,7 +4,7 @@
 
 ## 宗门共享基座实施（源码）
 
-T01主体能力、T02共同操作、T03持续活动及T04成长/体况已完成开工/收尾双答核查及相关整改。源码存档现format17/`user://sect-quicksave-v17.reol`及主体/操作/成长定义签名；下列独立P5包尚未重导，仍为format14，不能混用这两套文件。
+T01～T05主体能力、共同操作、持续活动、成长/体况及规范物资/最低授权已完成开工/收尾咨询、独立核查及相关整改。源码存档现format18/`user://sect-quicksave-v18.reol`及主体/操作/成长定义签名；下列独立P5包尚未重导，仍为format14，不能混用这两套文件。
 
 | 本次检查 | 证据与边界 |
 |---|---|
@@ -33,6 +33,12 @@ T04实现检查：`growth-partial-recovery-restore-20261117-014340-304358000.log
 `operations-growth-consumers-20261117-014442-451297300.log`、`activities-growth-restore-20261117-014442-451317200.log`及接入后的`smoke-features-20261117-013935-163348700.log`均errors=0。`growth-ui-20261117-014626-527131700.log`真实D3D12 GUI errors=[]，已观察`logs/ui-smoke/npc-learning.png`中的中文理解/实践及NPC只读界面。双答收尾已完整核查并整改；未测百人供养/帧率成品。
 
 T04最终接缝：`growth-finish-contracts-20261117-015837-440232500.log` errors=0，新增途中丢书的精确拒绝/无理解、合法在途失书可恢复、实践精通后授课仍1000ms、坏首次来源与缺永久前提拒载、源费用超容量拒绝。`operations-growth-finish-20261117-015849-436004600.log`和`activities-growth-finish-20261117-015849-436010300.log` errors=0。先前丢书新夹具错误期待failed，且study冗余required_items先给missing_items；已核清refused状态、消除重复书本规则，失败日志保留，不以改宽断言通过。
+
+T05收尾反例：`custody-reviewed-boundaries-20261117-023008-215389600.log`、`custody-mixed-issue-guest-20261117-023259-345936300.log`均errors=0，覆盖公私混包/保权、受托工艺与退料、实际kill后的尸体物资和穿戴回收、历史保管关联、撤权退料不夹带私货、跨权花盆/铺地/盆内植物保护、多材料拆除、普通丢弃优先自有、明确领公料不混私产，以及坏批次/账实不符拒载。前次真实死亡反例揭露宿主仍要求静态tile，已沿实际身体定位修正；花盆反例原夹具缺种子先被missing_seed拒绝，补足材料后保留精确权限断言通过。不是以删除角色入口替代真实死亡验证。
+
+T05原生GUI：`custody-ground-public-ui-20261117-023312-777394900.log` errors=0，实际表单从公库和无所属组织的公物地堆分别声明组织/用途领粮，背包显示自有/受托量；仅供搬运的药水和剑不能点击使用/装备。`logs/custody-ui/public-pickup.png`已实看。`smoke-features-20261117-023349-487309100.log`、`smoke-equipment-20261117-023349-482872500.log` errors=0，结构审计100文档/293源/0错误。核心`smoke-kernel-20261117-022459-101879300.log`仍失败于旧220ms计时断言(delta550ms/最大步19.1ms)，未放宽断言，未据此宣称全部绿灯或百人闭环交付。
+
+追加收尾argon已核查，`custody-recovery-authority-20261117-023828-404264700.log` errors=0，增加回收者不能冒用他人旧装备受托、盆内植物/地板清理的共同Query与立即拒绝，合法责任/原物恢复保持；`activities-custody-final-20261117-023859-718132600.log` errors=0。追加hydrogen仍在途，未写成已核。转移上下文新增类型/用途/来源组织恢复校验。结构仍100文档/293源/0错误。
 
 ## 当前构建
 

@@ -250,7 +250,9 @@ func run() -> void:
 	game.ui.inventory.hide()
 	game.controls.action("close_drawer", {})
 	game.controls._select(2, -1)
-	await settle(8)
+	var inspect_deadline: int = Time.get_ticks_msec() + 2500
+	while game.ui._target.get("id", 0) != 2 and Time.get_ticks_msec() < inspect_deadline: await process_frame
+	check(game.ui._target.get("id", 0) == 2, "NPC detached inspection never arrived")
 	game.controls.action("character", {})
 	game.ui.open_bag(2)
 	await settle(4)

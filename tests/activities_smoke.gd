@@ -33,7 +33,7 @@ func transfers() -> void:
 
 func construction_handoff() -> void:
 	var w: RefCounted = peaceful()
-	w.objects.transfer(w.source_objects[0], 1, "wood", 4)
+	w.objects.claim(w.source_objects[0], 1, "wood", 4)
 	var placement: Dictionary = w.facilities.blueprint(w, 1, "wood_wall", w.Terrain.index(Vector2i(126, 126)))
 	check(placement.reason == "accepted", "Construction fixture failed")
 	if placement.reason != "accepted": return
@@ -80,10 +80,10 @@ func social_participation() -> void:
 	var busy: RefCounted = peaceful()
 	busy.pages[0].positions[0] = Vector2(122.5, 120.5)
 	busy.decisions.suspend(busy, 2)
-	var stock: Dictionary = busy.objects.records[2].inventory.duplicate()
+	var stock: Dictionary = busy.objects.records[2].stock.duplicate(true)
 	check(busy.begin_interaction(1, {"kind": "trade", "target": 2}) == "accepted", "Busy contact request was not accepted for on-site review")
 	advance(busy, 1200)
-	check(latest(busy, 1).reason == "target_busy" and latest(busy, 1).participants == [1] and busy.objects.records[2].inventory == stock and busy.activity_results.view(2).is_empty(), "Busy partner was traded with unilaterally")
+	check(latest(busy, 1).reason == "target_busy" and latest(busy, 1).participants == [1] and busy.objects.records[2].stock == stock and busy.activity_results.view(2).is_empty(), "Busy partner was traded with unilaterally")
 	var tree_world: RefCounted = peaceful()
 	var tree: int = tree_world.nature.create(tree_world, "old_tree", tree_world.Terrain.index(Vector2i(124, 124)))
 	check(tree > 0, "Static teacher fixture failed")
@@ -159,7 +159,7 @@ func placed_without_dispatch() -> void:
 	for offset: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
 		w.facilities.create_completed(w, "wood_wall", w.Terrain.index(cell + offset))
 	w.flush_topology()
-	w.objects.transfer(w.source_objects[0], 1, "wood", 4)
+	w.objects.claim(w.source_objects[0], 1, "wood", 4)
 	var before: int = w.objects.amount(1, "wood")
 	var receipt: Dictionary = w.command({"kind": "construct", "definition": "wood_wall", "tile": w.Terrain.index(cell)})
 	check(receipt.ok and receipt.get("placed", false) and receipt.reason == "placed_waiting" and receipt.dispatch_reason == "no_operation_place" and w.objects.records[receipt.target].kind == "blueprint" and w.objects.amount(1, "wood") == before - 3 and w.objects.amount(receipt.target, "wood") == 3, "Committed placement was reported as complete failure or refunded: " + str(receipt))
@@ -169,10 +169,10 @@ func busy_player_and_partner_handoff() -> void:
 	w.pages[0].positions[0] = Vector2(122.5, 120.5)
 	w.adopt_motion(1, 0)
 	w.pages[0].move_to(0, Vector2(124.5, 120.5), w.Units.Mode.MANUAL)
-	var stock: Dictionary = w.objects.records[1].inventory.duplicate()
+	var stock: Dictionary = w.objects.records[1].stock.duplicate(true)
 	check(w.begin_interaction(2, {"kind": "trade", "target": 1}) == "accepted", "Player contact fixture refused")
 	advance(w, 600)
-	check(latest(w, 2).get("reason") == "target_busy" and latest(w, 2).participants == [2] and stock == w.objects.records[1].inventory, "Busy player was an involuntary participant")
+	check(latest(w, 2).get("reason") == "target_busy" and latest(w, 2).participants == [2] and stock == w.objects.records[1].stock, "Busy player was an involuntary participant")
 	w.release(1)
 	w.pages[0].positions[0] = Vector2(122.5, 120.5)
 	w.objects.records[2].autonomous = true
@@ -184,7 +184,7 @@ func busy_player_and_partner_handoff() -> void:
 func occupied_completion_and_cancellation() -> void:
 	for cancel: bool in [false, true]:
 		var w: RefCounted = peaceful()
-		w.objects.transfer(w.source_objects[0], 1, "wood", 4)
+		w.objects.claim(w.source_objects[0], 1, "wood", 4)
 		var target: int = w.facilities.blueprint(w, 1, "wood_wall", w.Terrain.index(Vector2i(126, 126))).target
 		w.objects.records[target].remaining_ms = 2000
 		w.pages[0].positions[0] = Vector2(125.5, 126.5)
@@ -210,7 +210,7 @@ func occupied_completion_and_cancellation() -> void:
 
 func restore_boundaries_and_death() -> void:
 	var w: RefCounted = peaceful()
-	w.objects.transfer(w.source_objects[0], 1, "wood", 4)
+	w.objects.claim(w.source_objects[0], 1, "wood", 4)
 	var target: int = w.facilities.blueprint(w, 1, "wood_wall", w.Terrain.index(Vector2i(126, 126))).target
 	w.begin_interaction(1, {"kind": "construct", "target": target})
 	var bad: Dictionary = Persistence.capture(w)

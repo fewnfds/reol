@@ -53,7 +53,7 @@ func observe(world: RefCounted, id: int, at: int) -> void:
 			clues.erase(target)
 	for target: int in visible:
 		var rec: Dictionary = world.objects.records[target]
-		if rec.kind == "plant" and rec.inventory.is_empty() and not clues.has(target):
+		if rec.kind == "plant" and world.objects.count_inventory(target) == 0 and not clues.has(target):
 			continue # No actionable clue yet; the next observation can find fruit.
 		remember(world, id, target, at)
 	person["observe_due"] = at + 5000
@@ -72,12 +72,14 @@ func remember(world: RefCounted, id: int, target: int, at: int) -> void:
 	var clue: Dictionary = person.known.get(target, {})
 	var version: int = int(record.get("inventory_revision", 0))
 	if clue.get("inventory_revision", -1) != version:
-		clue["inventory"] = record.inventory.duplicate()
+		clue["inventory"] = world.objects.inventory_summary(target)
 		clue["inventory_revision"] = version
 	clue["kind"] = record.kind
 	clue["definition"] = record.definition
 	clue["tile"] = record.tile
 	clue["capacity"] = record.capacity
+	clue["owner"] = int(record.owner)
+	clue["organization"] = int(record.organization)
 	if record.has("stage"): clue["stage"] = record.stage
 	else: clue.erase("stage")
 	clue["seen_ms"] = at

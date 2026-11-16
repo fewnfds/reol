@@ -95,9 +95,12 @@ static func item_tooltip(key: String, equipped: Dictionary = {}, base: Dictionar
 	if not Items.SLOTS.has(slot): return lines[0]
 	var changed: Dictionary = Items.bonuses(str(equipped.get(slot, "")))
 	changed.merge(bonus, true)
-	var current: Dictionary = Equipment.values({"equipment": equipped, "base_stats": base})
-	var next_equipment: Dictionary = equipped.duplicate()
-	next_equipment[slot] = key
+	# Detached comparisons use item descriptors, never fabricate actual custody.
+	var descriptors: Dictionary = {}
+	for position: String in equipped: descriptors[position] = {"item": equipped[position]}
+	var current: Dictionary = Equipment.values({"equipment": descriptors, "base_stats": base})
+	var next_equipment: Dictionary = descriptors.duplicate()
+	next_equipment[slot] = {"item": key}
 	var next: Dictionary = Equipment.values({"equipment": next_equipment, "base_stats": base})
 	for stat: String in changed:
 		lines.append("%s  %.2f  Δ%+.2f" % [stat_name(stat), float(next[stat]), float(next[stat]) - float(current[stat])])

@@ -113,7 +113,7 @@ func manual_success_and_cancellation() -> void:
 
 func commitment_and_disproved_memory() -> void:
 	var w: RefCounted = fixture()
-	w.objects.transfer(w.source_objects[0], 1, "wood", 10)
+	w.objects.claim(w.source_objects[0], 1, "wood", 10)
 	var target: int = w.facilities.blueprint(w, 1, "wood_wall", w.Terrain.index(Vector2i(124, 120))).target
 	for y: int in range(119, 122):
 		for x: int in range(123, 126):

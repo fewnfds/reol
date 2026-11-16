@@ -28,7 +28,7 @@ func _run() -> void:
 		w.facilities.create_completed(w, "wood_wall", w.Terrain.index(Vector2i(x, 122)))
 	var pile: int = w.objects.create("pile", "wood", w.Terrain.index(Vector2i(121, 121)))
 	w.objects.transfer(w.source_objects[0], pile, "wood", 2)
-	w.objects.transfer(w.source_objects[0], 1, "wood", 20)
+	w.objects.claim(w.source_objects[0], 1, "wood", 20)
 	w.facilities.blueprint(w, 1, "wood_floor", w.Terrain.index(Vector2i(122, 121)))
 	w.flush_topology()
 	w.perception.update(w, 0, true)

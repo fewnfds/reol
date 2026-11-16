@@ -44,7 +44,7 @@ func known_sites_and_growth() -> void:
 	var commitment: RefCounted = fixture()
 	commitment.pages[0].hunger[1] = 10000
 	commitment.pages[0].energy[1] = 10000
-	commitment.objects.transfer(commitment.source_objects[0], 1, "wood", 4)
+	commitment.objects.claim(commitment.source_objects[0], 1, "wood", 4)
 	var result: Dictionary = commitment.facilities.blueprint(commitment, 1, "wood_wall", commitment.Terrain.index(Vector2i(124, 121)))
 	check(result.reason == "accepted", "Commitment blueprint fixture failed")
 	if result.reason == "accepted":
@@ -57,7 +57,7 @@ func known_sites_and_growth() -> void:
 
 func cooperation_and_control() -> void:
 	var build: RefCounted = fixture()
-	build.objects.transfer(build.source_objects[0], 1, "wood", 20)
+	build.objects.claim(build.source_objects[0], 1, "wood", 20)
 	var tile: int = build.Terrain.index(Vector2i(120, 120))
 	var result: Dictionary = build.command({"kind": "construct", "definition": "wood_wall", "tile": tile})
 	check(result.ok, "Build-on-self fixture was refused")
@@ -87,7 +87,7 @@ func cooperation_and_control() -> void:
 	var help: RefCounted = fixture()
 	help.pages[0].hunger[1] = 10000
 	help.pages[0].energy[1] = 10000
-	help.objects.transfer(help.source_objects[0], 1, "wood", 20)
+	help.objects.claim(help.source_objects[0], 1, "wood", 20)
 	var plan: Dictionary = help.facilities.blueprint(help, 1, "wood_wall", help.Terrain.index(Vector2i(124, 121)))
 	var target: int = plan.target
 	check(help.begin_interaction(1, {"kind": "construct", "target": target}) == "accepted", "Busy help fixture refused")
@@ -97,7 +97,7 @@ func cooperation_and_control() -> void:
 	var distant: RefCounted = fixture()
 	distant.pages[0].hunger[1] = 10000
 	distant.pages[0].energy[1] = 10000
-	distant.objects.transfer(distant.source_objects[0], 1, "wood", 20)
+	distant.objects.claim(distant.source_objects[0], 1, "wood", 20)
 	var far: Dictionary = distant.facilities.blueprint(distant, 1, "wood_wall", distant.Terrain.index(Vector2i(160, 120)))
 	check(distant.society.finish(distant, 1, {"kind": "request_help", "target": 2, "task_target": far.target}, 0) == "completed", "The builder forgot its own blueprint when requesting distant help")
 	var rooted: RefCounted = fixture()

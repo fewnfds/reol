@@ -106,7 +106,7 @@ func contact_and_work() -> void:
 	w.set_capability_overrides(2, {})
 	page.hunger[1] = 10000
 	page.energy[1] = 10000
-	w.objects.transfer(w.source_objects[0], 1, "wood", 4)
+	w.objects.claim(w.source_objects[0], 1, "wood", 4)
 	var plan: Dictionary = w.facilities.blueprint(w, 1, "wood_wall", w.Terrain.index(Vector2i(152, 147)))
 	check(plan.reason == "accepted", "Help fixture placement failed")
 	if plan.reason == "accepted":
