@@ -2,6 +2,9 @@ extends RefCounted
 ## Authoritative tile facts. Navigation contexts are private to execution lanes.
 
 const SIZE: int = 512
+const CONTACT_EPSILON: float = 0.00001
+# Commit short of contact by 0.032 px, well above Vector2 float32 ULPs on this map.
+const CONTACT_MARGIN: float = 0.001
 const STATE_FIELDS: Array = ["blocked", "enclosures", "rooms", "structures", "base", "cover", "flooring", "room_cells", "resources", "depots", "revision", "source_cells", "source_channels"]
 var blocked := PackedByteArray()
 var enclosures := PackedByteArray() # Doors divide rooms but remain walkable.
@@ -168,8 +171,10 @@ func can_stand(point: Vector2, radius: float, flying: bool = false) -> bool:
 		return false
 	if flying:
 		return true
-	var low := Vector2i((point - Vector2.ONE * radius).floor())
-	var high := Vector2i((point + Vector2.ONE * radius - Vector2.ONE * 0.00001).floor())
+	# Do bounds arithmetic as scalar doubles: Vector2 subtraction at x/y=512
+	# can round away epsilon and otherwise address a nonexistent row/column 512.
+	var low := Vector2i(maxi(0, floori(float(point.x) - radius + CONTACT_EPSILON)), maxi(0, floori(float(point.y) - radius + CONTACT_EPSILON)))
+	var high := Vector2i(mini(SIZE - 1, floori(float(point.x) + radius - CONTACT_EPSILON)), mini(SIZE - 1, floori(float(point.y) + radius - CONTACT_EPSILON)))
 	for y: int in range(low.y, high.y + 1):
 		for x: int in range(low.x, high.x + 1):
 			if blocked[index(Vector2i(x, y))] != 0:
@@ -213,7 +218,7 @@ func segment_clear(from: Vector2, to: Vector2, radius: float, flying: bool = fal
 	while true:
 		for y: int in range(maxi(0, tile.y - extent), mini(SIZE, tile.y + extent + 1)):
 			for x: int in range(maxi(0, tile.x - extent), mini(SIZE, tile.x + extent + 1)):
-				if blocked[y * SIZE + x] != 0 and segment_hits_box(from, to, Vector2(x - radius + 0.00001, y - radius + 0.00001), Vector2(x + 1 + radius - 0.00001, y + 1 + radius - 0.00001)):
+				if blocked[y * SIZE + x] != 0 and segment_hits_box(from, to, Vector2(x - radius + CONTACT_EPSILON, y - radius + CONTACT_EPSILON), Vector2(x + 1 + radius - CONTACT_EPSILON, y + 1 + radius - CONTACT_EPSILON)):
 					return false
 		if tile == finish:
 			return true
@@ -230,12 +235,27 @@ func segment_clear(from: Vector2, to: Vector2, radius: float, flying: bool = fal
 	return true
 
 
-func project_point(point: Vector2, radius: float, flying: bool = false) -> Vector2:
+func clip_segment(from: Vector2, to: Vector2, radius: float, flying: bool = false) -> Vector3:
+	# Return the tested endpoint together with its time fraction. Recomputing it
+	# from velocity*fraction can round across a contact that lerp had validated.
+	if segment_clear(from, to, radius, flying): return Vector3(to.x, to.y, 1.0)
+	var low: float = 0.0
+	var high: float = 1.0
+	for iteration: int in 12:
+		var middle: float = (low + high) * 0.5
+		if segment_clear(from, from.lerp(to, middle), radius, flying): low = middle
+		else: high = middle
+	var fraction: float = maxf(0.0, low - CONTACT_MARGIN / maxf(CONTACT_MARGIN, from.distance_to(to)))
+	var point: Vector2 = from.lerp(to, fraction)
+	return Vector3(point.x, point.y, fraction)
+
+
+func project_point(point: Vector2, radius: float, flying: bool = false, max_distance: float = 2.0) -> Vector2:
 	if not point.is_finite():
 		return Vector2(-1, -1)
 	var result := point.clamp(Vector2.ONE * radius, Vector2.ONE * (SIZE - radius))
 	if can_stand(result, radius, flying):
-		return result
+		return result if result.distance_squared_to(point) <= max_distance * max_distance else Vector2(-1, -1)
 	# Project onto nearby expanded faces/corners; every candidate is validated.
 	# No iterative pushes that may oscillate or return an overlapping point.
 	var xs: Array[float] = [result.x]
@@ -245,17 +265,17 @@ func project_point(point: Vector2, radius: float, flying: bool = false) -> Vecto
 		for x: int in range(maxi(0, base_cell.x - 2), mini(SIZE, base_cell.x + 3)):
 			if blocked[y * SIZE + x] == 0:
 				continue
-			xs.append(x - radius - 0.001)
-			xs.append(x + 1 + radius + 0.001)
-			ys.append(y - radius - 0.001)
-			ys.append(y + 1 + radius + 0.001)
+			xs.append(x - radius - CONTACT_MARGIN)
+			xs.append(x + 1 + radius + CONTACT_MARGIN)
+			ys.append(y - radius - CONTACT_MARGIN)
+			ys.append(y + 1 + radius + CONTACT_MARGIN)
 	var best := Vector2(-1, -1)
 	var distance: float = INF
 	for x: float in xs:
 		for y: float in ys:
 			var candidate := Vector2(x, y)
 			var d: float = candidate.distance_squared_to(point)
-			if d < distance and d <= 4.0 and can_stand(candidate, radius, flying):
+			if d < distance and d <= max_distance * max_distance and can_stand(candidate, radius, flying):
 				distance = d
 				best = candidate
 	return best

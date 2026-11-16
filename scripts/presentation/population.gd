@@ -161,7 +161,7 @@ func _compose(actors: PackedFloat32Array) -> void:
 		return
 	var order := PackedFloat64Array()
 	for index: int in actor_count:
-		order.append(float(int(actors[index * 16 + 7] * 256.0) * ORDER_STRIDE + index))
+		order.append(float(Art.depth(actors[index * 16 + 7]) * ORDER_STRIDE + index))
 	order.sort()
 	var merged := PackedFloat32Array()
 	var a: int = 0

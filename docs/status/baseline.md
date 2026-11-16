@@ -9,13 +9,29 @@ Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+�
 | 项目 | 当前值 |
 |---|---|
 | exe SHA256 | `3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf` |
-| PCK SHA256 | `afc3dee9db3947865f96db4e247229f2fffdb80a469a081c5b332deb707694f7` |
+| PCK SHA256 | `59fd41ff843faf4c2eefeee5ffc89cac27b8cf186a4bb455db45c85cbfeaf8f5` |
 | 战斗规则签名 | `ed0a331b1a1ed0796a88f58ccad86c0677bbf29b327e0cb977a99ed567f53c8e` |
 | 决策签名 | `9bb014cebdfdb4196146e2288f25e0cc274e364e34cac2f28d26597fcf06e5cd` |
 | 内容 | 40动作、24配置、7套Policy；原生Resource/Inspector制作 |
 | 存档 | reol-world-14；默认`user://act-p5-quicksave-v14.reol` |
 
 来源贡献/控制聚合、决策反馈与设施登记更新布局，不迁移format13及更早开发档；原档及备份保留，不覆盖。exe是相同Godot模板，游戏变更主要在PCK；只核exe哈希不足以识别游戏版本。生成物/日志/本机咨询不入库。运行和制作入口归[usage](../engineering/tooling/usage.md)。
+
+## 贴墙移动与地面脚点修复
+
+用户试玩报告贴墙平砍后卡死、家具南侧一格通道观感异常。本轮修正直接移动的校验/采用落点不一致，地图正边界格索引，以及显示脚点向下半格的偏移。仍使用原0.35/0.9半尺寸地面身体和完整建筑占地，没有人物逐节点物理、缩墙或第二调度器。静态物品/未开工蓝图先画，身体与实体景物共用脚点排序，成品屋顶最后画。细节见[移动精度](../engineering/simulation-pacing.md)、[素材坐标](../../assets/README.md#坐标占地与接地点)。
+
+| 验证 | 本机证据 |
+|---|---|
+| 原问题与修复对照 | `movement-diagonal-before-20261116-124125-169412900.log`固定种子1500组产生55个非法终点；同探针修复后`movement-diagonal-fixed-20261116-124334-413780700.log`为0；原边界索引异常保留在`movement-before-valid-20261116-124107-314580600.log` |
+| 移动专题 | `ground-fixed-movement-20261116-124540-641937400.log`，MOVEMENT_SMOKE errors=0；每次提交/分段合法、立即退开、微小重叠有限恢复/不穿整墙、两种身体的地图边缘、真实平砍与中途恢复、家具南侧一格通道 |
+| 相关原检查 | `ground-fixed-{control,melee}-20261116-124540-*`、`smoke-{kernel,features}-20261116-124732-*`、`ground-work-positions-20261116-124732-755451800.log`、`ground-abilities-20261116-124732-756807400.log`均errors=0；没有扩大为全库矩阵 |
+| 真实GUI | `ground-movement-order-ui-20261116-125005-886262700.log`，MOVEMENT_UI_SMOKE errors=0；原生鼠标斜向三连后键盘走过通道，检查GPU脚点与物品/蓝图/家具/身体顺序；截图`logs/movement-ui/`已观察。原普通UI和ACT GUI分别为`ground-ui-20261116-125034-68688100.log`、`ground-act_ui-20261116-125041-430977200.log`，均通过 |
+| 最新成品 | `export-20261116-125117-982174300.log`成功；`ground-source-20261116-125137-316131600.log`和实际PCK的`ground-pack-20261116-125139-3370300.log`对复合施工/状态/器物候选恢复并推进，完整状态相同。format14及两项目录签名保持，旧存档逻辑坐标不迁移 |
+
+当前release只测一个512人、1×、60FPS、两worker、迷雾、3秒预热＋5秒采样的framework-combat-v1窗口：`logs/ground-final-512.json/.log/.cpu.json`，全窗步均7.671ms、样本步p99 14.992ms、帧p99 16.692ms、实速1.00010×、405次交付/56次命中、无脚本/引擎错误、零过载、木材守恒。仍为i5-13600KF/RTX3060/D3D12/1280×720；这只排查本次修改的明显回归，不据单窗宣称提速或密弹极限。测量在提交前，JSON记录`77a8c5e`加dirty，包哈希与上表相同。
+
+顾问静态核查原件留`.local/advisor/movement-20261116/`；采纳已验证落点直接采用、标量边界、小范围旧重叠恢复和地面脚点对齐，补核地面物品层次。保留原净空查询和有限二分裁剪，没有为未测得的瓶颈重写解析扫掠器；World已在结构提交时校验/清理受影响旧路线，未采纳在每个人身上再存一份地形版本的建议。顾问对未附shader/交接入口的假设不列为已确认缺陷。首次新增家具测试误按单格估计多格桌子的范围，改用实际单格箱后验证，原失败日志保留。
 
 ## 本轮框架合同交付
 
@@ -36,7 +52,7 @@ Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+�
 
 源码规则/专题保留15秒上限。完整组合GUI因原生窗口/弹出菜单同步及多次文件交付超过15秒，最终在单次20秒上限内完整通过；没有修改默认kernel限时。前期失败/超时日志保留：首次feature误用RefCounted模块为--script后改用正式suite；器物测试将连续几何终点误当整数毫秒落点后按实际时刻修正；GUI先确认原生窗口焦点与popup Window ID，再保持原生输入/实际结果断言。旧P4靶子任其执行P5三连会中断范例演示，故通过已有手动交接隔离技能检查，不改生产AI。失败不算作通过。
 
-当前成品只测一次512人、1×、60FPS、3秒预热＋5秒采样，`logs/contracts-final-512.json/.log/.cpu.json`记录：全窗步均7.961ms、样本步p99 14.760ms、帧p99 16.739ms、实速0.99991×，405次交付/57次命中，零过载、木材守恒、无脚本/引擎错误；峰值14弹/4状态。i5-13600KF/RTX3060、D3D12/1280×720、迷雾、两worker，仍为同World的framework-combat-v1。开局箱碰撞及失败选项修正改变了工作负载，不作纯算法提速百分比；这不证明长局或极密弹上限。测量在提交前进行，JSON仍记旧HEAD加dirty，包哈希与上表一致。
+该次合同交付成品只测一次512人、1×、60FPS、3秒预热＋5秒采样，`logs/contracts-final-512.json/.log/.cpu.json`记录：全窗步均7.961ms、样本步p99 14.760ms、帧p99 16.739ms、实速0.99991×，405次交付/57次命中，零过载、木材守恒、无脚本/引擎错误；峰值14弹/4状态。i5-13600KF/RTX3060、D3D12/1280×720、迷雾、两worker，仍为同World的framework-combat-v1。开局箱碰撞及失败选项修正改变了工作负载，不作纯算法提速百分比；这不证明长局或极密弹上限。测量在提交前进行，JSON仍记旧HEAD加dirty，当时包的PCK哈希为`afc3dee9db3947865f96db4e247229f2fffdb80a469a081c5b332deb707694f7`。
 
 结构/链接审计与最终差异空白检查通过，新脚本UID已导入；生成物不入库。本轮没有仍未处理的上述确认缺陷，未检验的主观手感、正式音画、完整平衡和密弹长局仍保留为产品验证范围。
 

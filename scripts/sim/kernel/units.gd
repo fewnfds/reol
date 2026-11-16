@@ -185,17 +185,6 @@ func advance(navigation: RefCounted) -> void:
 			ready.append(end_ms - roundi(available / speed * 1000.0) if speed > 0 else end_ms)
 
 
-func _clear_fraction(from: Vector2, to: Vector2, row: int) -> float:
-	if terrain.segment_clear(from, to, radii[row], flight[row] > 0): return 1.0
-	var low: float = 0.0
-	var high: float = 1.0
-	for iteration: int in 12:
-		var middle: float = (low + high) * 0.5
-		if terrain.segment_clear(from, from.lerp(to, middle), radii[row], flight[row] > 0): low = middle
-		else: high = middle
-	return low
-
-
 func cursor_direction(row: int) -> Vector2:
 	var cursor: int = route_cursors[row]
 	return positions[row].direction_to(routes[row][cursor]) if cursor < routes[row].size() else Vector2.ZERO
@@ -205,17 +194,31 @@ func advance_direct(row: int) -> void:
 	var from: Vector2 = positions[row]
 	var movement: Vector2 = direct_velocities[row] * delta_ms / 1000.0
 	if movement.is_zero_approx(): return
-	var fraction: float = _clear_fraction(from, from + movement, row)
-	var corner: Vector2 = from + movement * fraction
+	if not terrain.can_stand(from, radii[row], flight[row] > 0):
+		# Recover only old subpixel contact overlaps, never teleport out of a wall
+		# or silently repair an arbitrary invalid spawn/load across an obstacle.
+		var recovered: Vector2 = terrain.project_point(from, radii[row], flight[row] > 0, Terrain.CONTACT_MARGIN * 4.0)
+		if recovered.x < 0: return
+		from = recovered
+	var contact: Vector3 = terrain.clip_segment(from, from + movement, radii[row], flight[row] > 0)
+	var fraction: float = contact.z
+	var corner := Vector2(contact.x, contact.y)
 	var point: Vector2 = corner
 	if fraction < 1.0:
 		var rest: Vector2 = movement * (1.0 - fraction)
 		var x: Vector2 = Vector2(rest.x, 0)
 		var y: Vector2 = Vector2(0, rest.y)
-		x *= _clear_fraction(corner, corner + x, row)
-		y *= _clear_fraction(corner, corner + y, row)
-		point += x if x.length_squared() >= y.length_squared() else y
-		motion[row] = PackedVector3Array([Vector3(from.x, from.y, 0), Vector3(corner.x, corner.y, fraction), Vector3(point.x, point.y, 1)])
+		var slide_x: Vector3 = terrain.clip_segment(corner, corner + x, radii[row], flight[row] > 0)
+		var slide_y: Vector3 = terrain.clip_segment(corner, corner + y, radii[row], flight[row] > 0)
+		var px := Vector2(slide_x.x, slide_x.y)
+		var py := Vector2(slide_y.x, slide_y.y)
+		point = px if corner.distance_squared_to(px) >= corner.distance_squared_to(py) else py
+	if fraction < 1.0 or from != positions[row]:
+		var path := PackedVector3Array([Vector3(positions[row].x, positions[row].y, 0)])
+		if from != positions[row]: path.append(Vector3(from.x, from.y, 0))
+		path.append(Vector3(corner.x, corner.y, fraction))
+		path.append(Vector3(point.x, point.y, 1))
+		motion[row] = path
 	positions[row] = point
 	moved_distance += from.distance_to(corner) + corner.distance_to(point)
 

@@ -104,7 +104,10 @@ func adopt(value: Dictionary, fringe: Dictionary = {}) -> void:
         var ground_fog: int = int(not tall and rec.get("layer", "") != "roof")
         # Low bit is free for scenery; bits 9-10 already encode special effects.
         buffer[offset + 15] = 128 + ground_fog + sway * 256 + special * 512 + int(anchor[0]) * 2048 + int(anchor[1]) * 131072
-        var depth: int = int(point.y * 256.0) + (1 << 26 if rec.get("layer", "") == "roof" else 0)
+        var plane: Art.DrawPlane = Art.DrawPlane.BODY
+        if rec.kind == "pile" or (rec.kind == "blueprint" and not rec.get("construction_started", false)): plane = Art.DrawPlane.GROUND
+        elif rec.get("layer", "") == "roof": plane = Art.DrawPlane.ROOF
+        var depth: int = Art.depth(point.y, plane)
         order.append(float(depth * ORDER_STRIDE + index))
     order.sort()
     revision += 1

@@ -6,19 +6,25 @@ const ACTORS = preload("res://assets/art/actors.png")
 const GROUND = preload("res://assets/art/terrain.png")
 const Clip = preload("res://scripts/sim/kernel/frame.gd").Visual
 const TILE: float = 32.0
-const BODY_FOOT_OFFSET := Vector2(0.0, 0.5)
+const BODY_FOOT_OFFSET := Vector2.ZERO
+enum DrawPlane { GROUND, BODY, ROOF }
+const DEPTH_STRIDE: int = 1 << 24 # Greater than the entire map's pixel-Y * 256 range.
 static var _catalog: Dictionary = {}
 static var _icons: Dictionary = {}
 
 
 static func body_foot(position: Vector2) -> Vector2:
-	# Logical positions stay continuous. A cell-centred body is drawn with its
-	# feet at the cell's bottom centre, without snapping as it crosses cells.
+	# The logical ground-contact centre is the drawn foot anchor. Sprite height
+	# extends upward and never adds occupied ground or offsets collision/picking.
 	return position + BODY_FOOT_OFFSET
 
 
 static func footprint_foot(extent: Rect2i) -> Vector2:
 	return Vector2(extent.position.x + extent.size.x * 0.5, extent.end.y)
+
+
+static func depth(pixel_y: float, plane: DrawPlane = DrawPlane.BODY) -> int:
+	return int(plane) * DEPTH_STRIDE + int(pixel_y * 256.0)
 
 
 static func catalog() -> Dictionary:
