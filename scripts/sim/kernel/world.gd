@@ -575,6 +575,7 @@ func end_run(id: int, at: int = -1, reason: String = "replaced", outcome: Dictio
 func commit_activity(run_id: int, operation: String, actor: int, target: int, participants: Array, at: int, outcome: Dictionary) -> Dictionary:
 	var result: Dictionary = activity_results.record(run_id, operation, actor, target, participants, at, outcome)
 	institutions.outcome(self, result)
+	livelihood.social_outcome(self, result)
 	return result
 
 func clear_navigation(id: int) -> void:
@@ -670,6 +671,7 @@ func kill(id: int, at: int = -1, cause: String = "") -> void:
 	if page.modes[row] == Units.Mode.DEAD:
 		return
 	page.health[row] = 0 # Mark unavailable before participant/target callbacks.
+	society.on_actor_removed(id, at if at >= 0 else operation_time())
 	implements.drop_owner(self, id, at if at >= 0 else operation_time())
 	entities.forget_member(self, id, at if at >= 0 else operation_time())
 	entities.drop_owner(self, id, at if at >= 0 else operation_time())
@@ -1606,6 +1608,7 @@ func remove_actor(id: int, at: int = -1) -> bool:
 	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
 	var row: int = slot % Units.PAGE_SIZE
 	page.health[row] = 0 # Removal callbacks must not read a live participant.
+	society.on_actor_removed(id, at)
 	reactions.forget_actor(id)
 	implements.drop_owner(self, id, at)
 	entities.forget_member(self, id, at)

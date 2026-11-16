@@ -10,6 +10,7 @@ const State = preload("res://scripts/sim/kernel/state.gd")
 const Stock = preload("res://scripts/sim/kernel/stock_rules.gd")
 const Defs = preload("res://scripts/sim/kernel/agency_defs.gd")
 const Planner = preload("res://scripts/sim/kernel/agency_planner.gd")
+const Social = preload("res://scripts/sim/kernel/agency_social.gd")
 const STATE_FIELDS: Array = ["records", "next_goal", "catalog_signature"]
 const GOAL_LIMIT: int = 16
 const APPRAISAL_LIMIT: int = 24
@@ -26,7 +27,7 @@ func record(world: RefCounted, actor: int) -> Dictionary:
 		var traits: Dictionary = {}
 		for index: int in Defs.DISPOSITIONS.size():
 			traits[Defs.DISPOSITIONS[index]] = 0.5 + float((actor * 37 + index * 71) % 101) / 100.0
-		records[actor] = {"goals": {}, "intention": {}, "dispositions": traits, "appraisals": {},
+		records[actor] = {"goals": {}, "intention": {}, "dispositions": traits, "appraisals": {}, "social_appraisals": {},
 			"budget": {"window_ms": world.operation_time(), "work": 0, "cursor": 0, "goal_cursor": 0}, "explore_ms": 0, "explore_count": 0, "idle_attempts": 0, "borrowed_autonomy": false}
 	return records[actor]
 
@@ -153,6 +154,55 @@ func _utility(goal: Dictionary, entry: Dictionary, actor: Dictionary, at: int) -
 	if value > 0.0: value += minf(0.08, float(at - int(goal.created_ms)) / 3000000.0)
 	if emergency: value += 2.0
 	return {"value": value, "emergency": emergency}
+
+func evaluate_request(world: RefCounted, actor: int, request: Dictionary, at: int) -> Dictionary:
+	# The caller supplies a delivered personal view, never objective remote state.
+	_ensure_goals(world, actor)
+	var entry: Dictionary = record(world, actor)
+	if at - int(entry.budget.window_ms) >= BUDGET_MS:
+		entry.budget.window_ms = at; entry.budget.work = 0
+	var view: Dictionary = _self_view(world, actor)
+	var context: Dictionary = {"need": 0.0, "duty": 0.0, "personal": 0.0, "emergency": false, "blocked": {},
+		"has_goal_room": entry.goals.size() < GOAL_LIMIT or entry.goals.values().any(func(goal: Dictionary): return goal.state != "active"),
+		"dispositions": entry.dispositions, "autonomous": world.objects.records[actor].get("autonomous", false)}
+	for goal: Dictionary in entry.goals.values():
+		if goal.state != "active": continue
+		var score: Dictionary = _utility(goal, entry, view, at)
+		var driver: String = Defs.GOALS[goal.definition].driver
+		var category: String = "need" if driver in ["resource", "recovery"] else ("duty" if driver in ["responsibility", "duty", "custody", "reporting"] else "personal")
+		context[category] = maxf(float(context[category]), float(score.value))
+		context.emergency = context.emergency or bool(score.emergency)
+	var slot: int = world.actor_slots[actor]
+	var temperature: float = world.pages[slot / 256].body_heat[slot % 256]
+	context.emergency = context.emergency or float(view.hp) / maxi(1, int(view.max_hp)) <= 0.3 or (view.body_capabilities.environment and (temperature < 5.0 or temperature > 40.0))
+	for key: String in view.operation_failures:
+		if view.operation_failures[key] in ["path_failed", "out_of_reach", "no_operation_place"]: context.blocked[key] = true
+	for key: String in entry.appraisals:
+		var failure: Dictionary = entry.appraisals[key]
+		if failure.until_ms > at and failure.reason in ["path_failed", "out_of_reach", "no_operation_place"] and int(world.knowledge.evidence(actor, int(failure.target)).get("revision", 0)) == failure.revision: context.blocked[key] = true
+	var own_target: Dictionary = world.operation_target(actor)
+	own_target.inventory = view.inventory.duplicate()
+	var result: Dictionary = Social.judge(view, own_target, world.knowledge.known(actor, at), request,
+		entry.social_appraisals.get(int(request.issuer), {}), context, world.combat.position(world, actor), entry.budget, at)
+	entry.budget.cursor = (int(entry.budget.cursor) + 17) % 128
+	latest[actor] = {"at_ms": at, "request": int(request.id), "request_evaluation": State.copy(result), "work": int(entry.budget.work)}
+	return result
+
+func social_outcome(world: RefCounted, result: Dictionary) -> void:
+	if result.is_empty() or result.status != "completed": return
+	var handler: String = Operations.OPERATIONS[result.operation].handler
+	if handler in ["talk", "trade", "learn"] and result.target in result.participants:
+		_note_social(world, int(result.actor), int(result.target), result, handler == "learn" and int(result.facts.get("points_gained", 0)) > 0)
+		_note_social(world, int(result.target), int(result.actor), result)
+	# Only a physically witnessed, actually credited result is personal support.
+	# A distant Share callback, a mere acceptance or a later finished building
+	# does not identify a benefactor to an observer.
+	for witness: Dictionary in world.society.support_witnesses(world, result):
+		_note_social(world, int(witness.actor), int(witness.peer), result, true)
+
+func _note_social(world: RefCounted, actor: int, peer: int, result: Dictionary, support: bool = false) -> void:
+	if actor == peer or not world.actor_slots.has(actor) or not world.combat.alive(world, actor): return
+	Social.experienced(record(world, actor).social_appraisals, peer, result, support)
 
 func should_preempt(world: RefCounted, actor: int, at: int) -> bool:
 	if not records.has(actor): return true

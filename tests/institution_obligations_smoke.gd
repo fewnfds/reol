@@ -32,6 +32,7 @@ func construction_pause_death_and_deadline() -> void:
 	w.objects.add(1, "wood", 3, Stock.right(1))
 	move_actor(w, 1, Vector2(123.5, 120.5)); move_actor(w, 2, Vector2(124.5, 120.5))
 	w.pages[0].energy[1] = 10000; w.pages[0].hunger[1] = 10000
+	w.livelihood.records.erase(2) # This handoff fixture asks a free, willing helper.
 	var site: Dictionary = w.facilities.blueprint(w, 1, "wood_wall", w.Terrain.index(Vector2i(127, 122)))
 	check(site.reason == "accepted", "Formal help blueprint fixture failed")
 	if site.reason != "accepted": return
@@ -41,7 +42,7 @@ func construction_pause_death_and_deadline() -> void:
 	w.settle_action(1, 0)
 	advance(w, 1800)
 	var result: Dictionary = w.activity_results.view(1).back()
-	check(result.operation == "request_help" and result.status == "completed" and result.facts.has("share"), "Actual help contact never accepted a normative share")
+	check(result.operation == "request_help" and result.reason == "accepted_share" and int(result.facts.get("share", 0)) > 0, "Actual help contact never accepted a normative share")
 	if not result.facts.has("share"): return
 	var share: int = result.facts.share
 	var matter: int = result.facts.matter

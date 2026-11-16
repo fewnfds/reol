@@ -16,11 +16,11 @@ static func _base_view(owner: RefCounted, actor: int) -> Dictionary:
 	# A delegated execution permission cannot mint another delegation.
 	return {"id": actor, "permissions": owner.permissions(actor), "scope_grants": Access.scope_grants(owner, actor)}
 
-static func _items(world: RefCounted, matter: Dictionary) -> Array:
+static func _items(matter: Dictionary, target: Dictionary) -> Array:
 	if matter.kind == "delivery": return [matter.item]
 	var operation: Dictionary = Operations.OPERATIONS[matter.operation]
 	var result: Array = operation.required_items.keys()
-	var context: Dictionary = Query.stock_context(operation, world.objects.records.get(matter.target, {}))
+	var context: Dictionary = Query.stock_context(operation, target)
 	if not str(context.get("item", "")).is_empty() and context.item not in result: result.append(context.item)
 	for item: String in context.get("recipe_items", []):
 		if item not in result: result.append(item)
@@ -33,18 +33,22 @@ static func _grant(organization: int, targets: Array, purposes: Array, items: Ar
 	return {"organization": organization, "targets": targets.duplicate(), "purposes": purposes.duplicate(), "items": items.duplicate(), "all_items": false}
 
 static func _terms_grants(world: RefCounted, matter: Dictionary) -> Array:
+	return terms_grants(matter, world.objects.records, world.facilities.definitions)
+
+static func terms_grants(matter: Dictionary, targets: Dictionary, buildings: Dictionary = {}) -> Array:
+	if buildings.is_empty(): buildings = Query.BUILDINGS
 	if matter.organization <= 0: return []
-	var items: Array = _items(world, matter)
+	var items: Array = _items(matter, targets.get(matter.target, {}))
 	var operation: Dictionary = Operations.OPERATIONS.get(matter.operation, {})
 	var purpose: String = "supply" if matter.kind == "delivery" else (str(operation.recipe.purpose) if not operation.recipe.is_empty() else ("cultivate" if operation.handler in ["sow", "tend", "gather", "cut", "uproot", "harvest"] else str(operation.handler)))
 	var result: Array = [_grant(matter.organization, [matter.target], ["put"] if matter.kind == "delivery" else [purpose], items)]
 	var source_items: Array = items if matter.kind == "delivery" else operation.required_items.keys()
 	for source: int in matter.sources:
-		var record: Dictionary = world.objects.records.get(source, {})
+		var record: Dictionary = targets.get(source, {})
 		# Vanished references remain contractual history, not a new location or
 		# an implicit permission on a replacement object.
 		if record.is_empty(): continue
-		var handler: String = "supply" if world.facilities.definitions.get(record.definition, {}).get("capabilities", {}).has("stock_source") else ("cultivate" if record.kind in ["resource", "plant"] else "take")
+		var handler: String = "supply" if buildings.get(record.definition, {}).get("capabilities", {}).has("stock_source") else ("cultivate" if record.kind in ["resource", "plant"] else "take")
 		if not source_items.is_empty(): result.append(_grant(matter.organization, [source], [handler, purpose] if handler != purpose else [purpose], source_items))
 	return result
 
@@ -128,6 +132,11 @@ static func occupied(owner: RefCounted, matter: Dictionary) -> int:
 		count += int(share.quota) if share.state == "accepted" else int(share.fulfilled)
 	return count
 
+static func construction_assigned(owner: RefCounted, target: int) -> bool:
+	for matter: Dictionary in owner.matters.values():
+		if matter.state == "active" and matter.operation == "construct" and matter.target == target and occupied(owner, matter) > 0: return true
+	return false
+
 static func accept(owner: RefCounted, world: RefCounted, actor: int, id: int, quota: int = 0, temporary: bool = false) -> int:
 	if not owner.matters.has(id) or not world.actor_slots.has(actor) or not world.combat.alive(world, actor): return 0
 	var matter: Dictionary = owner.matters[id]
@@ -137,6 +146,7 @@ static func accept(owner: RefCounted, world: RefCounted, actor: int, id: int, qu
 	var existing: Array = shares_for(owner, actor)
 	for share: Dictionary in existing:
 		if share.matter == id: return share.id
+	if matter.operation == "construct" and construction_assigned(owner, int(matter.target)): return 0
 	if existing.size() >= PERSON_LIMIT: return 0
 	var available: int = int(matter.total) - occupied(owner, matter)
 	if quota == 0: quota = mini(int(matter.quota), available)
@@ -184,7 +194,7 @@ static func _can_manage(owner: RefCounted, world: RefCounted, actor: int, matter
 	if not owner.memberships.get(matter.organization, {}).has(actor): return false
 	var place: Dictionary = {"id": matter.target, "organization": matter.organization}
 	var view: Dictionary = _base_view(owner, actor)
-	var items: Array = _items(world, matter)
+	var items: Array = _items(matter, world.objects.records.get(matter.target, {}))
 	if delegating:
 		for grant: Dictionary in _terms_grants(world, matter):
 			for target: int in grant.targets:
@@ -205,7 +215,7 @@ static func release(owner: RefCounted, world: RefCounted, actor: int, id: int) -
 	if actor != share.actor and not _can_manage(owner, world, actor, owner.matters[share.matter]): return false
 	share.state = "released"
 	_unindex_active(owner, share)
-	world.livelihood.share_closed(world, share, false)
+	_notify_closed(world, share, false)
 	owner.reconcile(world, share.actor)
 	return true
 
@@ -214,18 +224,26 @@ static func cancel(owner: RefCounted, world: RefCounted, actor: int, id: int) ->
 	owner.matters[id].state = "cancelled"
 	for share: Dictionary in shares_in(owner, id):
 		if share.state == "accepted":
-			share.state = "released"; _unindex_active(owner, share); world.livelihood.share_closed(world, share, false); owner.reconcile(world, share.actor)
+			share.state = "released"; _unindex_active(owner, share); _notify_closed(world, share, false); owner.reconcile(world, share.actor)
+	world.society.on_matter_closed(world, id)
 	return true
 
 static func revise(owner: RefCounted, world: RefCounted, actor: int, id: int, total: int, quota: int, deadline: int) -> bool:
 	if not owner.matters.has(id): return false
 	var matter: Dictionary = owner.matters[id]
+	if matter.operation == "construct" and total != 1: return false
 	if matter.state != "active" or not _can_manage(owner, world, actor, matter, true) or total < occupied(owner, matter) or total < 1 or total > 1000000 or quota < 1 or quota > total or (deadline != 0 and deadline < world.operation_time()): return false
 	matter.merge({"total": total, "quota": quota, "deadline_ms": deadline, "version": int(matter.version) + 1}, true)
 	var fulfilled: int = matter.archived
 	for share: Dictionary in shares_in(owner, id): fulfilled += int(share.fulfilled)
-	if fulfilled == total: matter.state = "completed"
+	if fulfilled == total:
+		matter.state = "completed"
+		world.society.on_matter_closed(world, id)
 	return true
+
+static func _notify_closed(world: RefCounted, share: Dictionary, completed: bool) -> void:
+	world.society.on_share_closed(world, share, completed)
+	world.livelihood.share_closed(world, share, completed)
 
 static func _credit(owner: RefCounted, world: RefCounted, share: Dictionary, amount: int, result: Dictionary) -> int:
 	if result.id <= share.last_result_id or share.state != "accepted": return 0
@@ -236,12 +254,13 @@ static func _credit(owner: RefCounted, world: RefCounted, share: Dictionary, amo
 	if share.fulfilled == share.quota:
 		share.state = "completed"
 		_unindex_active(owner, share)
-		world.livelihood.share_closed(world, share, true)
+		_notify_closed(world, share, true)
 		owner.reconcile(world, share.actor)
 	return count
 
 static func outcome(owner: RefCounted, world: RefCounted, result: Dictionary) -> void:
 	if result.is_empty() or result.status != "completed" or result.reason == "process_waiting": return
+	if result.operation == "construct": world.society.Requests.construction_completed(world.society, int(result.target), int(result.at_ms))
 	var actors: Array = [result.actor]
 	for labor: Dictionary in result.facts.get("labor", []):
 		if labor.worked_ms > 0 and labor.actor not in actors: actors.append(int(labor.actor))
@@ -293,7 +312,8 @@ static func outcome(owner: RefCounted, world: RefCounted, result: Dictionary) ->
 			matter.state = "satisfied"
 			for share: Dictionary in shares_in(owner, int(matter.id)):
 				if share.state == "accepted":
-					share.state = "released"; _unindex_active(owner, share); world.livelihood.share_closed(world, share, false); owner.reconcile(world, share.actor)
+					share.state = "released"; _unindex_active(owner, share); _notify_closed(world, share, false); owner.reconcile(world, share.actor)
+		if matter.state != "active": world.society.on_matter_closed(world, id)
 
 static func compact(owner: RefCounted, world: RefCounted) -> void:
 	if owner.matters.size() < MATTER_LIMIT and owner.shares.size() < SHARE_LIMIT: return
@@ -302,7 +322,7 @@ static func compact(owner: RefCounted, world: RefCounted) -> void:
 		var share: Dictionary = owner.shares[id]
 		if share.state == "accepted" or owner.matters[share.matter].state != "active": continue
 		if owner.Channels.retains_share(owner, share): continue
-		world.livelihood.share_closed(world, share, share.state == "completed")
+		_notify_closed(world, share, share.state == "completed")
 		owner.matters[share.matter].archived += int(share.fulfilled)
 		_erase_share(owner, share)
 	for id: int in owner.matters.keys():
@@ -316,7 +336,7 @@ static func compact(owner: RefCounted, world: RefCounted) -> void:
 		ledger[matter.state] += 1
 		ledger[matter.kind] += int(matter.archived)
 		for share: Dictionary in shares_in(owner, id):
-			world.livelihood.share_closed(world, share, share.state == "completed")
+			_notify_closed(world, share, share.state == "completed")
 			ledger[matter.kind] += int(share.fulfilled)
 			_erase_share(owner, share)
 		owner.matters.erase(id)
@@ -373,8 +393,12 @@ static func valid(owner: RefCounted, world: RefCounted) -> bool:
 		for share: Dictionary in active:
 			if seen.has(share.matter): return false
 			seen[share.matter] = true
+	var construction_allocations: Dictionary = {}
 	for matter: Dictionary in owner.matters.values():
 		if occupied(owner, matter) > matter.total: return false
+		if matter.state == "active" and matter.operation == "construct" and occupied(owner, matter) > 0:
+			if construction_allocations.has(matter.target): return false
+			construction_allocations[matter.target] = true
 		var fulfilled: int = matter.archived
 		for share: Dictionary in shares_in(owner, int(matter.id)): fulfilled += int(share.fulfilled)
 		if (matter.state == "completed") != (fulfilled == matter.total): return false

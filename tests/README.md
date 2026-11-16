@@ -33,6 +33,8 @@
 
 `institution_duties_smoke.gd`与`institution_channels_smoke.gd`核现场职责的真实发布、读案、受理、生产/配送、回报、重复周期和恢复；`institution_duty_recovery_smoke.gd`核来源耗尽、受阻释放、缺席到期和换任；`institution_channel_edges_smoke.gd`核旧缓存争抢、条款伪造、旧案现场结案、告示容量、双用途材料/饥饿抢占和有限记忆；`institution_duty_distance_smoke.gd`核远源复检与删除来源回报；`institution_channels_ui_smoke.gd`在真实窗口核查阅→受理→领物→中途存读→配送→回报→撤回告示。它们共同证明T09c链路，不代表T09d联系、T10教学、T11供养或百人装配。
 
+`society_state_smoke.gd`核相识、实际送达、拒绝/延期、时间零/惰性过期和坏档；加`-- --lifecycle`核真实履行、第三方满足和死亡保留责任。`society_boundaries_smoke.gd`核条款修订、份额别名和历史压缩；加`-- --capacity`核一人向50人当面委托与联系人保护，加`-- --cooldown`核冷却容量恢复。分别独立短运行；这些是T09d-1内核证据，正常求助/个人判断与GUI闭环仍按后续小项验证。
+
 `navigation_smoke.gd`由kernel调用，`tile_smoke.gd`复用features的世界；它们和feature/sight/equipment一样是RefCounted模块，不直接用Godot的`--script`启动。其余SceneTree专题按下面的范围选用。
 
 `tool_smoke.py`在修改Python运行或性能工具时使用，核对进程退出/超时、历史复用、单倍率次数上限及不可比条件，不启动游戏。性能用真实release短窗口，不用smoke通过数量代表容量。
@@ -108,3 +110,7 @@ P4 GUI截图归`logs/abilities-ui/p4-*`，独立测试档/偏好自动清理。�
 `institution_access_smoke.gd`按需核岗位Resource/定点与物品授权、真实领料/撤职留锅换人接续、指定床资格与现场预约分离、改安排中断与隐私、窄退料及坏范围/签名拒载；另走无宽权NPC自主备料烹饪。`institution_access_ui_smoke.gd`用真实Game文件与原生表单领公粮、查看禁用专用床并实际存读，截图归`logs/institution-ui/`。它们不代表组织职责/事项或百人供养已经交付。
 
 事项相关短检查按实际变化独立选用：`institution_matters_smoke.gd`核多人部分交付、已受条款不被修订改写、当面托付→自主备料实际生产及植物按声明用途采送；`institution_obligations_smoke.gd`核原库往返/私人寄放/错用途余料不计、重放不能转记另一份额、施工暂停存读/恢复、超期和死者责任不暗重发；`institution_production_shares_smoke.gd`核静置/他人收尾、不丢受托、近期证据淘汰后的进度及共同采木用途/恢复；`institution_matters_bounds_smoke.gd`核512事项/4096份额容量与闭合引用；`institution_matters_review_smoke.gd`核跨处用途拒绝、已知满仓/工位消失退料、非本源批次及释放后下调总额恢复；`institution_matters_handoffs_smoke.gd`核过期求助显式再办、原采木撤权/收尾重入和临时自主探索取消。`institution_matters_ui_smoke.gd`在真实Game原生点施工协作/选择助手、文件存读并沿原工地完工，截图仍归`logs/institution-ui/`。它们不能代替T09c自主职责/现场通道或最终百人供养。
+
+`society_recovery_smoke.gd`默认核迟到的事项关闭；`-- --death / --construction / --removed / --accepted / --bad / --strict / --allocation / --proposals / --origins / --archives / --labor`各为独立短运行，覆盖旧冷却锚点、移除后完工保责任、接受跨回应窗、回复与Share起源/取消原因坏档、跨事项施工分配与无主地提案、真实归档/同源工位和死者生前劳动的延迟核销。`society_judgment_smoke.gd`默认核实际本人判答后施工/目击支持，`-- --remote / --needs / --exchanges / --influence`分别核远方归因隔离、饥困/预算/手动/玩家、经历/水位/坏档/死亡，以及实际交流影响同一个请求。挂起/延期后的正常UI仍待后续小项，不能以直接内核调用替代成品交互验收。
+
+`society_judgment_smoke.gd -- --scope / --defer / --teaching / --memory`独立核窄授权/配方估算/非成员、单次有因延期、真实交易与教学受益，以及25次真实交谈后的有界重要经历保留。默认模式清空助手木料，证明私人蓝图沿原预付材料建造，不另开自动运输合同。

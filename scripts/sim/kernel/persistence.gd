@@ -98,6 +98,7 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 	if not world.activity_results.rebuild(world): return null
 	if not world.decisions.valid(world): return null
 	if not world.livelihood.valid(world): return null
+	if not world.society.valid(world): return null
 	world.effects.prepare(world, world.elapsed_ms)
 	if not world.regions.valid(world):
 		return null

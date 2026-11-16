@@ -3,6 +3,7 @@ extends RefCounted
 const Defs = preload("res://scripts/sim/kernel/agency_defs.gd")
 const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const Planner = preload("res://scripts/sim/kernel/agency_planner.gd")
+const Social = preload("res://scripts/sim/kernel/agency_social.gd")
 
 static func valid(owner: RefCounted, world: RefCounted) -> bool:
 	if not Defs.ERRORS.is_empty() or owner.catalog_signature != Defs.SIGNATURE or owner.next_goal < 1 or owner.records.size() > world.actor_slots.size(): return false
@@ -10,7 +11,14 @@ static func valid(owner: RefCounted, world: RefCounted) -> bool:
 	for actor: Variant in owner.records:
 		if not actor is int or not world.actor_slots.has(actor) or not world.combat.alive(world, actor): return false
 		var entry: Variant = owner.records[actor]
-		if not entry is Dictionary or entry.size() != 9 or not entry.get("borrowed_autonomy") is bool or not entry.get("goals") is Dictionary or entry.goals.size() > owner.GOAL_LIMIT or not entry.get("intention") is Dictionary or not entry.get("appraisals") is Dictionary or entry.appraisals.size() > owner.APPRAISAL_LIMIT: return false
+		if not entry is Dictionary or entry.size() != 10 or not entry.get("borrowed_autonomy") is bool or not entry.get("goals") is Dictionary or entry.goals.size() > owner.GOAL_LIMIT or not entry.get("intention") is Dictionary or not entry.get("appraisals") is Dictionary or entry.appraisals.size() > owner.APPRAISAL_LIMIT: return false
+		if not entry.get("social_appraisals") is Dictionary or entry.social_appraisals.size() > Social.LIMIT: return false
+		for peer: Variant in entry.social_appraisals:
+			var impression: Variant = entry.social_appraisals[peer]
+			if not peer is int or peer < 1 or peer >= world.objects.next_id or peer == actor or not impression is Dictionary or impression.size() != 4: return false
+			for field: String in ["exchanges", "support", "last_result", "at_ms"]:
+				if not impression.get(field) is int: return false
+			if impression.exchanges < 1 or impression.exchanges > Social.COUNT_LIMIT or impression.support < 0 or impression.support > impression.exchanges or impression.last_result < 1 or impression.last_result >= world.activity_results.next_id or impression.at_ms < 0 or impression.at_ms > world.elapsed_ms: return false
 		if not entry.get("dispositions") is Dictionary or entry.dispositions.size() != Defs.DISPOSITIONS.size(): return false
 		for key: Variant in entry.dispositions:
 			if key not in Defs.DISPOSITIONS or not (entry.dispositions[key] is int or entry.dispositions[key] is float) or not is_finite(float(entry.dispositions[key])) or entry.dispositions[key] < 0 or entry.dispositions[key] > 2: return false

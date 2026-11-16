@@ -54,6 +54,7 @@ func interrupted_refusal_and_actual_contact() -> void:
 
 func help_delivery_and_remote_failure() -> void:
 	var w: RefCounted = peaceful()
+	move_actor(w, 3, w.combat.position(w, 1) + Vector2(1, 0))
 	w.objects.claim(w.source_objects[0], 1, "wood", 8)
 	var target: int = w.facilities.blueprint(w, 1, "wood_wall", w.Terrain.index(Vector2i(160, 120))).target
 	w.knowledge.records.clear()
@@ -61,19 +62,23 @@ func help_delivery_and_remote_failure() -> void:
 	check(w.knowledge.deliver(w, 4, 2, target, 0) and w.knowledge.deliver(w, 1, 4, target, 0), "Two-hop request fixture failed")
 	var refusal: Dictionary = w.society.commit(w, 1, {"kind": "request_help", "target": 3, "task_target": target}, 0)
 	check(refusal.reason == "task_not_understood" and w.institutions.Matters.shares_for(w.institutions, 3).is_empty(), "Unreceived task produced a ghost responsibility")
-	check(w.society.commit(w, 2, {"kind": "request_help", "target": 1, "task_target": target}, 0).reason == "player_controlled" and not w.objects.records[1].autonomous, "NPC request seized the player")
-	w.knowledge.created(w, 1, target, 0)
+	check(not w.objects.records[1].autonomous and w.institutions.Matters.shares_for(w.institutions, 1).is_empty(), "A request created a player responsibility without explicit response")
+	advance(w, 30001) # A new explanation cannot bypass the first real refusal.
+	w.livelihood.records.erase(3)
+	w.pages[0].energy[2] = 10000; w.pages[0].hunger[2] = 10000
+	w.knowledge.created(w, 1, target, w.elapsed_ms)
 	for y: int in range(118, 123):
 		for x: int in range(158, 163):
 			if x in [158, 162] or y in [118, 122]: w.queue_structure(w.Terrain.index(Vector2i(x, y)), true, false)
 	w.flush_topology()
 	w.objects.records[3].sight_range = 2.0
-	check(w.society.commit(w, 1, {"kind": "request_help", "target": 3, "task_target": target}, 0).status == "completed", "Direct task explanation failed")
-	w.decisions.resume(w, 3, 0)
-	w.decisions.prepare(w, 0)
-	advance(w, 3000)
+	check(w.society.commit(w, 1, {"kind": "request_help", "target": 3, "task_target": target}, w.elapsed_ms).reason == "accepted_share", "Direct task explanation failed")
+	var began: int = w.elapsed_ms
+	w.decisions.resume(w, 3, began)
+	w.decisions.prepare(w, began)
+	advance(w, began + 3000)
 	var failures: Array = w.decisions.records[3].feedback
-	check(failures.size() == 1 and failures[0].reason == "path_failed" and failures[0].at_ms < 100, "Remote construction promise bypassed path retry delay")
+	check(failures.size() == 1 and failures[0].reason == "path_failed" and failures[0].at_ms < began + 100, "Remote construction promise bypassed path retry delay")
 	check(not w.institutions.Matters.shares_for(w.institutions, 3).is_empty() and not w.actions.has(3), "Temporary path failure erased a responsibility or retained an action")
 
 func protected_evidence_and_history() -> void:
@@ -130,7 +135,10 @@ func full_memory_and_identity_only_delivery() -> void:
 	check(heard.tile == -1 and not heard.has("hp") and heard.teaches.wood_breath == 0 and w.knowledge.record(4).subjects.size() == Knowledge.SUBJECT_LIMIT, "Identity-only capability message invented a current location/body or grew without bound")
 	w.objects.claim(w.source_objects[0], 1, "wood", 4)
 	var target: int = w.facilities.blueprint(w, 1, "wood_wall", w.Terrain.index(Vector2i(160, 120))).target
-	check(w.society.commit(w, 1, {"kind": "request_help", "target": 4, "task_target": target}, 0).status == "completed" and w.operation_actor(4).task_access.has(target), "Full memory rejected an explicitly discussed task before obligation protection applied")
+	move_actor(w, 4, w.combat.position(w, 1) + Vector2(1, 0))
+	w.livelihood.records.erase(4)
+	w.pages[0].energy[3] = 10000; w.pages[0].hunger[3] = 10000
+	check(w.society.commit(w, 1, {"kind": "request_help", "target": 4, "task_target": target}, 0).reason == "accepted_share" and w.operation_actor(4).task_access.has(target), "Full memory rejected an explicitly discussed task before obligation protection applied")
 	check(Persistence.candidate(Persistence.capture(w), 0) != null, "Atomic knowledge admission failed restore")
 
 func _run() -> void:

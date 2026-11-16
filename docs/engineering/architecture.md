@@ -20,7 +20,7 @@
 | `scripts/sim/kernel/objects.gd` | 单调身份、静态位置索引、分类库存与穿戴位置、转移/原子交换与换装；不逐步空转所有对象 |
 | `stock_rules.gd` | 规范批次纯归属/选料与同处用途准入；实物仍Objects唯一持有，社会授权及受托历史归Institutions |
 | `items.gd`、`equipment.gd` | 物品定义/品质堆键的唯一解释，以及按源状态重建的身体属性热列；没有第二份物品实例账本 |
-| `facilities.gd`、`livelihood.gd` | 设施宿主与个人持久目的分别持原状态；Livelihood管理目标/采用方法/倾向/评价和本人有界预算，复用P5唯一任务/到期/到达；`agency_planner.gd`只展开当前一步，不存执行游标或预期物资 |
+| `facilities.gd`、`livelihood.gd` | 设施宿主与个人持久目的分别持原状态；Livelihood管理目标/采用方法/倾向、操作退避与私人社会经历、本人有界预算，复用P5唯一任务/到期/到达；`agency_planner.gd`只展开当前一步，不存执行游标或预期物资 |
 | `knowledge.gd` | 个人物理认识、独立教学证据与有限操作经历；真实观察/回执/转述、来源/时效/特定位置反证及有界记忆，不复制他人私有状态或玩家地图 |
 | `decisions.gd`、`decision_defs.gd`、`decision_rules.gd` | 跨生活/战斗/逃离/跟随的策略绑定、独立任务、手动交接、唤醒与自主输入；只读政策与受信求值器，原宿主负责执行 |
 | `environment.gd`、`nature.gd` | 历法/天气、静态max场/移动来源索引、房间响应；分组植物采样/生长/产物/宿主与来源 |
@@ -32,7 +32,7 @@
 | `combat_entities.gd` | 临时身体/静态生产者的主人、寿命、数量组与光环成员；身体/HP/空间仍用Units/Objects，临时身体不计村民人口 |
 | `combat_scan.gd` | 脱离的身体空间索引、分散威胁发现与目标复核；查询按观察者批交现有CPU池，owner采用；同次物理行遍历附带稀疏尸体桶，仅观察查询可选纳入 |
 | `institutions.gd`、`institution_access.gd`、`institution_matters.gd` | 组织/成员、范围任职/服务资格、受托责任及事项/份额规范状态；规则帮助模块不另持真值，活跃按人及全部按事项索引均派生重建 |
-| `society.gd` | 原接触宿主的回应、实际交易、正式事项当面托付、学习/修行提交；认识传播转交Knowledge，成长与物资转交各自owner |
+| `society.gd`、`society_contacts.gd`、`society_requests.gd` | 原接触宿主、稀疏相识与已送达请求/最后答复；帮助模块不另持真值。真实交易/学习/修行提交转交原owner，接受请求引用Institutions份额；正常当面请求已由本人纯判断`agency_social.gd`消费；挂起/延期后的正常回应仍按T09d接线 |
 | `person_events.gd` | 已提交个人事实的有界冷记录、连续冷热损耗合并与缓存脱离视图；不驱动结算或人物决策 |
 | `sight.gd` | 全单位共用的距离/平滑环境损耗查询；只读常用格线表与长半径后备，无共享写缓存 |
 | `perception.gd` | 玩家当前格图、探索/最后所见地表、静态记忆与人物显隐；NPC不读取这张玩家地图 |
