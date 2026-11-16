@@ -75,7 +75,6 @@ func in_combat(actor: int) -> bool:
 
 func suspend(world: RefCounted, actor: int) -> void:
 	var entry: Dictionary = _record(world, actor)
-	world.objects.records[actor].erase("commitment")
 	entry.manual = true
 	entry.life_dirty = false
 	entry.mode = "manual"

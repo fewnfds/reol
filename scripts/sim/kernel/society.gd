@@ -1,5 +1,5 @@
 extends RefCounted
-## Contact outcomes and personal commitments, not a global relationship scan.
+## Contact and participation. Institutions owns the accepted obligations.
 ## Learning, physical possessions, practiced skill and stored qi are distinct.
 
 const State = preload("res://scripts/sim/kernel/state.gd")
@@ -44,7 +44,7 @@ func availability_reason(world: RefCounted, actor: int, action: Dictionary) -> S
 
 func contact_reason(world: RefCounted, action: Dictionary) -> String:
 	var operation: Dictionary = Operations.OPERATIONS[action.get("operation_id", action.kind)]
-	if operation.handler in ["talk", "trade", "request_help", "learn"] and world.actor_slots.has(action.target):
+	if operation.handler in ["talk", "trade", "request_help", "offer_matter", "learn"] and world.actor_slots.has(action.target):
 		if not Beings.has(world.objects.records[action.target], "contact"): return "not_available_for_contact"
 	return ""
 
@@ -53,7 +53,7 @@ func invite(world: RefCounted, actor: int, action: Dictionary) -> void:
 	if not available(world, actor, action): return
 	var target: int = action.target
 	var handler: String = Operations.OPERATIONS.get(action.get("operation_id", action.kind), {}).get("handler", "")
-	if target == 1 or target == actor or not world.actor_slots.has(target) or handler not in ["talk", "trade", "learn", "request_help"]:
+	if target == 1 or target == actor or not world.actor_slots.has(target) or handler not in ["talk", "trade", "learn", "request_help", "offer_matter"]:
 		return
 	if world.decisions.records.get(target, {}).get("manual", false): return
 	if waits.has(target): return # Another host owns this partner; invitation cannot steal it.
@@ -85,7 +85,7 @@ func interrupt(world: RefCounted, action: Dictionary, now: int) -> void:
 
 func participation_reason(world: RefCounted, actor: int, action: Dictionary, now: int) -> String:
 	var handler: String = Operations.OPERATIONS[action.kind].handler
-	if handler not in ["talk", "trade", "request_help", "learn"]: return ""
+	if handler not in ["talk", "trade", "request_help", "offer_matter", "learn"]: return ""
 	if not world.actor_slots.has(action.target): return ""
 	if action.target == 1:
 		# Contact does not seize the player's input. Presence and actual capacity
@@ -96,7 +96,7 @@ func participation_reason(world: RefCounted, actor: int, action: Dictionary, now
 
 func participants(actor: int, action: Dictionary) -> Array:
 	var handler: String = Operations.OPERATIONS[action.kind].handler
-	return [actor, action.target] if handler in ["talk", "trade", "request_help", "learn"] and action.target != actor else [actor]
+	return [actor, action.target] if handler in ["talk", "trade", "request_help", "offer_matter", "learn"] and action.target != actor else [actor]
 
 
 func finish(world: RefCounted, actor: int, action: Dictionary, now: int) -> String:
@@ -146,7 +146,7 @@ func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dict
 			if action.target == 1: return Results.refused("player_controlled")
 			var target: int = int(action.get("task_target", 0))
 			if not Beings.has(other, "work"): return Results.refused("refused_capability")
-			if not world.actor_slots.has(action.target) or other.has("commitment") or world.decisions.records.get(action.target, {}).get("manual", false):
+			if not world.actor_slots.has(action.target) or world.decisions.records.get(action.target, {}).get("manual", false):
 				return Results.refused("refused_busy_or_body")
 			world.knowledge.refresh(world, actor, target, now)
 			var clue: Dictionary = world.knowledge.view(actor, target, now)
@@ -159,12 +159,25 @@ func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dict
 			world.knowledge.deliver(world, action.target, actor, target, now, true)
 			var understood: Dictionary = world.knowledge.view(action.target, target, now)
 			if understood.is_empty() or understood.kind != "blueprint" or understood.tile < 0: return Results.refused("task_not_understood")
-			other["commitment"] = {"kind": "construct", "target": target, "requester": actor, "expires_ms": now + 300000,
-				"was_autonomous": other.get("autonomous", false)}
-			other.autonomous = true
-			facts = {"accepted_kind": "construct", "task_target": target, "expires_ms": now + 300000}
+			var matter: int = 0
+			for entry: Dictionary in world.institutions.matters.values():
+				if entry.issuer == actor and entry.target == target and entry.kind == "operation" and entry.operation == "construct" and entry.state == "active" and (entry.deadline_ms == 0 or entry.deadline_ms > now): matter = entry.id; break
+			# An elapsed default deadline forbids new acceptance; an existing
+			# responsibility stays allocated until explicitly settled or released.
+			for entry: Dictionary in world.institutions.matters.values():
+				if entry.issuer == actor and entry.target == target and entry.operation == "construct" and entry.state == "active" and world.institutions.Matters.occupied(world.institutions, entry) > 0: return Results.refused("already_assigned")
+			var created: bool = matter == 0
+			if matter == 0: matter = world.institutions.create_matter(world, actor, {"kind": "operation", "organization": int(clue.get("organization", 0)), "target": target, "operation": "construct", "deadline_ms": now + 300000})
+			if matter == 0: return Results.refused("cannot_commission")
+			var share: int = world.institutions.accept_share(world, action.target, matter, 1, true)
+			if share == 0:
+				if created: world.institutions.cancel_matter(world, actor, matter)
+				return Results.refused("cannot_accept_share")
+			facts = {"accepted_kind": "construct", "task_target": target, "matter": matter, "share": share, "expires_ms": now + 300000}
 			action["partner_resume"] = true
 			if not waits.has(action.target) and world.gate.current(action.target).is_empty() and world.gate.check(world, action.target, now).is_empty(): world.livelihood.after_action(world, action.target, now)
+		"offer_matter":
+			return offer_matter(world, actor, action, now)
 		"learn", "study":
 			var method: String = Operations.OPERATIONS[operation_id].learning_method
 			var spec: Dictionary = Growth.Defs.METHODS[method]
@@ -193,6 +206,25 @@ func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dict
 				"energy_spent": int(spec.energy_cost), "hunger_spent": int(spec.satiety_cost)})
 	_count(action.kind)
 	return Results.completed(facts)
+
+func offer_matter(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dictionary:
+	if not action.get("matter") is int or not action.get("quota", 0) is int or action.target == 1 or not world.actor_slots.has(action.target): return Results.refused("invalid_matter_offer")
+	var matter: Dictionary = world.institutions.matters.get(int(action.matter), {})
+	if matter.is_empty() or matter.state != "active" or not world.institutions.Matters._can_manage(world.institutions, world, actor, matter, true): return Results.refused("cannot_commission")
+	if world.decisions.records.get(action.target, {}).get("manual", false): return Results.refused("refused_busy_or_body")
+	var required: String = "put" if matter.kind == "delivery" else matter.operation
+	if not Operations.capability_reason(world.objects.records[action.target], required).is_empty(): return Results.refused("refused_capability")
+	var slot: int = world.actor_slots[action.target]
+	if Beings.has(world.objects.records[action.target], "metabolism") and (world.pages[slot / 256].hunger[slot % 256] < 3000 or world.pages[slot / 256].energy[slot % 256] < 2500): return Results.refused("refused_need")
+	for target: int in [matter.target] + matter.sources:
+		if int(world.knowledge.view(actor, target, now).get("tile", -1)) < 0: return Results.refused("unknown_task")
+		world.knowledge.deliver(world, action.target, actor, target, now, true)
+	for target: int in [matter.target] + matter.sources:
+		if int(world.knowledge.view(action.target, target, now).get("tile", -1)) < 0: return Results.refused("terms_not_understood")
+	var share: int = world.institutions.accept_share(world, action.target, matter.id, int(action.get("quota", 0)), true)
+	if share == 0: return Results.refused("cannot_accept_share")
+	action["partner_resume"] = true
+	return Results.completed({"matter": int(matter.id), "share": share, "counterparty": int(action.target)}, "accepted_share")
 
 
 func _count(kind: String) -> void:

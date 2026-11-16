@@ -60,7 +60,7 @@ func help_delivery_and_remote_failure() -> void:
 	w.knowledge.seed(w, 2, w.operation_target(target))
 	check(w.knowledge.deliver(w, 4, 2, target, 0) and w.knowledge.deliver(w, 1, 4, target, 0), "Two-hop request fixture failed")
 	var refusal: Dictionary = w.society.commit(w, 1, {"kind": "request_help", "target": 3, "task_target": target}, 0)
-	check(refusal.reason == "task_not_understood" and not w.objects.records[3].has("commitment"), "Unreceived task produced a ghost promise")
+	check(refusal.reason == "task_not_understood" and w.institutions.Matters.shares_for(w.institutions, 3).is_empty(), "Unreceived task produced a ghost responsibility")
 	check(w.society.commit(w, 2, {"kind": "request_help", "target": 1, "task_target": target}, 0).reason == "player_controlled" and not w.objects.records[1].autonomous, "NPC request seized the player")
 	w.knowledge.created(w, 1, target, 0)
 	for y: int in range(118, 123):
@@ -74,7 +74,7 @@ func help_delivery_and_remote_failure() -> void:
 	advance(w, 3000)
 	var failures: Array = w.decisions.records[3].feedback
 	check(failures.size() == 1 and failures[0].reason == "path_failed" and failures[0].at_ms < 100, "Remote construction promise bypassed path retry delay")
-	check(w.objects.records[3].has("commitment") and not w.actions.has(3), "Temporary path failure erased a promise or retained an action")
+	check(not w.institutions.Matters.shares_for(w.institutions, 3).is_empty() and not w.actions.has(3), "Temporary path failure erased a responsibility or retained an action")
 
 func protected_evidence_and_history() -> void:
 	var w: RefCounted = peaceful()
@@ -130,7 +130,7 @@ func full_memory_and_identity_only_delivery() -> void:
 	check(heard.tile == -1 and not heard.has("hp") and heard.teaches.wood_breath == 0 and w.knowledge.record(4).subjects.size() == Knowledge.SUBJECT_LIMIT, "Identity-only capability message invented a current location/body or grew without bound")
 	w.objects.claim(w.source_objects[0], 1, "wood", 4)
 	var target: int = w.facilities.blueprint(w, 1, "wood_wall", w.Terrain.index(Vector2i(160, 120))).target
-	check(w.society.commit(w, 1, {"kind": "request_help", "target": 4, "task_target": target}, 0).status == "completed" and w.objects.records[4].get("commitment", {}).get("target") == target, "Full memory rejected an explicitly discussed task before promise protection applied")
+	check(w.society.commit(w, 1, {"kind": "request_help", "target": 4, "task_target": target}, 0).status == "completed" and w.operation_actor(4).task_access.has(target), "Full memory rejected an explicitly discussed task before obligation protection applied")
 	check(Persistence.candidate(Persistence.capture(w), 0) != null, "Atomic knowledge admission failed restore")
 
 func _run() -> void:

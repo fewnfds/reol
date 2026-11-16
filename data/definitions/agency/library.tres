@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="LifeGoalLibrary" load_steps=18 format=3]
+[gd_resource type="Resource" script_class="LifeGoalLibrary" load_steps=20 format=3]
 
 [ext_resource type="Script" path="res://scripts/sim/definitions/agency/library.gd" id="library"]
 [ext_resource type="Script" path="res://scripts/sim/definitions/agency/goal_def.gd" id="goal"]
@@ -111,7 +111,22 @@ weight = 0.3
 disposition = "dutifulness"
 approaches = PackedStringArray("return")
 
+[sub_resource type="Resource" id="ResponsibilityApproach"]
+script = ExtResource("approach")
+id = "fulfill_share"
+title = "办理已接受份额"
+pattern = "responsibility"
+
+[sub_resource type="Resource" id="Responsibility"]
+script = ExtResource("goal")
+id = "matter_share"
+title = "履行责任"
+driver = "responsibility"
+weight = 0.6
+disposition = "dutifulness"
+approaches = PackedStringArray("fulfill_share")
+
 [resource]
 script = ExtResource("library")
-goals = Array[ExtResource("goal")]([SubResource("Fed"), SubResource("Rested"), SubResource("Recovery"), SubResource("Development"), SubResource("Delivery"), SubResource("Operation"), SubResource("Custody")])
-approaches = Array[ExtResource("approach")]([SubResource("Eat"), SubResource("PrepareFood"), SubResource("Rest"), SubResource("Develop"), SubResource("Deliver"), SubResource("Perform"), SubResource("Return")])
+goals = Array[ExtResource("goal")]([SubResource("Fed"), SubResource("Rested"), SubResource("Recovery"), SubResource("Development"), SubResource("Delivery"), SubResource("Operation"), SubResource("Custody"), SubResource("Responsibility")])
+approaches = Array[ExtResource("approach")]([SubResource("Eat"), SubResource("PrepareFood"), SubResource("Rest"), SubResource("Develop"), SubResource("Deliver"), SubResource("Perform"), SubResource("Return"), SubResource("ResponsibilityApproach")])

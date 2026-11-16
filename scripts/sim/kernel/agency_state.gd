@@ -10,7 +10,7 @@ static func valid(owner: RefCounted, world: RefCounted) -> bool:
 	for actor: Variant in owner.records:
 		if not actor is int or not world.actor_slots.has(actor) or not world.combat.alive(world, actor): return false
 		var entry: Variant = owner.records[actor]
-		if not entry is Dictionary or entry.size() != 8 or not entry.get("goals") is Dictionary or entry.goals.size() > owner.GOAL_LIMIT or not entry.get("intention") is Dictionary or not entry.get("appraisals") is Dictionary or entry.appraisals.size() > owner.APPRAISAL_LIMIT: return false
+		if not entry is Dictionary or entry.size() != 9 or not entry.get("borrowed_autonomy") is bool or not entry.get("goals") is Dictionary or entry.goals.size() > owner.GOAL_LIMIT or not entry.get("intention") is Dictionary or not entry.get("appraisals") is Dictionary or entry.appraisals.size() > owner.APPRAISAL_LIMIT: return false
 		if not entry.get("dispositions") is Dictionary or entry.dispositions.size() != Defs.DISPOSITIONS.size(): return false
 		for key: Variant in entry.dispositions:
 			if key not in Defs.DISPOSITIONS or not (entry.dispositions[key] is int or entry.dispositions[key] is float) or not is_finite(float(entry.dispositions[key])) or entry.dispositions[key] < 0 or entry.dispositions[key] > 2: return false
@@ -29,6 +29,11 @@ static func valid(owner: RefCounted, world: RefCounted) -> bool:
 			if int(goal.params.get("organization", 0)) > 0 and not world.institutions.organizations.has(goal.params.organization): return false
 			if Defs.GOALS[goal.definition].driver == "delivery" and goal.state == "active" and goal.progress >= goal.params.amount: return false
 			if not goal.get("method") is Dictionary or not _method_valid(goal.method, goal, world): return false
+			if Defs.GOALS[goal.definition].driver == "responsibility":
+				if goal.params.matter >= world.institutions.next_matter or goal.params.share >= world.institutions.next_share: return false
+				if goal.state == "active":
+					var share: Dictionary = world.institutions.shares.get(int(goal.params.share), {})
+					if share.get("actor") != actor or share.get("matter") != goal.params.matter or share.get("state") != "accepted": return false
 		var intention: Dictionary = entry.intention
 		if not intention.is_empty():
 			if intention.size() != 6 or not intention.get("goal") is int or not entry.goals.has(intention.goal) or not intention.get("approach") is String or intention.approach not in Defs.GOALS[entry.goals[intention.goal].definition].approaches: return false
@@ -40,6 +45,14 @@ static func valid(owner: RefCounted, world: RefCounted) -> bool:
 			if not key is String or not account is Dictionary or account.size() != 7 or not account.get("operation") is String or (account.operation != "inspect" and not Operations.OPERATIONS.has(account.operation)) or not account.get("target") is int or account.target <= 0 or account.target >= world.objects.next_id or key != "%s:%d" % [account.operation, account.target]: return false
 			if not account.get("reason") is String or not account.reason.is_valid_identifier() or not account.get("failures") is int or account.failures < 1 or account.failures > 6: return false
 			if not account.get("at_ms") is int or account.at_ms < 0 or account.at_ms > world.elapsed_ms or not account.get("until_ms") is int or account.until_ms <= account.at_ms or account.until_ms > account.at_ms + 60000 or not account.get("revision") is int or account.revision < 0: return false
+	# A living obligor must have exactly one reference, including while manual.
+	# Historical/dead obligors need no writable personal-purpose record.
+	for share: Dictionary in world.institutions.shares.values():
+		if share.state != "accepted" or not world.combat.alive(world, int(share.actor)): continue
+		var count: int = 0
+		for goal: Dictionary in owner.records.get(int(share.actor), {}).get("goals", {}).values():
+			if goal.state == "active" and Defs.GOALS[goal.definition].driver == "responsibility" and goal.params.share == share.id: count += 1
+		if count != 1: return false
 	return true
 
 static func _method_valid(method: Dictionary, goal: Dictionary, world: RefCounted) -> bool:

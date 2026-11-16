@@ -124,7 +124,7 @@ func commitment_and_disproved_memory() -> void:
 	w.decisions.prepare(w, 0)
 	advance(w, 4000)
 	check(failure_for(w, 2, "construct", target).get("at_ms") == 0 and not w.actions.has(2), "Commitment bypassed structural refusal and repeatedly planned the same blocked site")
-	check(w.objects.records[2].get("commitment", {}).get("target") == target, "Temporary inability silently cancelled a construction promise")
+	check(not w.institutions.Matters.shares_for(w.institutions, 2).is_empty() and w.operation_actor(2).task_access.has(target), "Temporary inability silently cancelled a construction responsibility")
 	w.knowledge.records[2].subjects[target].seen_ms = 4000
 	w.decisions.result(w, 2, "construct", target, "accepted", 4000)
 	check(not failure_for(w, 2, "construct", target).is_empty(), "Admission cleared failure before any work completed")
@@ -133,12 +133,15 @@ func commitment_and_disproved_memory() -> void:
 	memory.objects.add(missing, "meal", 1)
 	resident(memory, [missing])
 	memory.pages[0].hunger[1] = 3000
+	# The teacher's real carried meals are a valid closer choice. Remove them
+	# here so this case actually tries the remembered disappearing food site.
+	memory.objects.add(2, "meal", -memory.objects.amount(2, "meal"))
 	memory.knowledge.seed(memory, 3, memory.operation_target(missing), 0)
 	memory.pages[0].positions[2] = Vector2(180.5, 180.5)
 	memory.objects.transfer(missing, 1, "meal", 1)
 	memory.objects.remove_empty(missing)
 	memory.decisions.prepare(memory, 0)
-	check(memory.knowledge.view(2, missing, memory.elapsed_ms).tile < 0, "Visible absence left a disproved personal clue until the next observation sweep")
+	check(memory.knowledge.view(2, missing, memory.elapsed_ms).tile < 0, "Visible absence left a disproved personal clue until the next observation sweep: " + str({"choice": memory.livelihood.describe(2), "binding": memory.gate.current(2), "clue": memory.knowledge.view(2, missing, memory.elapsed_ms)}))
 	check(memory.knowledge.view(3, missing, memory.elapsed_ms).tile >= 0, "Another actor learned a remote disappearance without observation")
 	check(memory.decisions.records[2].task.get("target", 0) != missing, "Disproved clue still produced a remembered-goal exploration task")
 

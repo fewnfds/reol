@@ -253,6 +253,9 @@ func edge_handoffs() -> void:
 	memory.objects.add(stove, "meal", -1)
 	memory.pages[0].positions[1] = Vector2(180.5, 180.5)
 	memory.pages[0].hunger[1] = 3000
+	# The original teacher now carries food. This case needs remembered food
+	# to be the only known meal, otherwise eating from one's bag is correct.
+	memory.objects.add(2, "meal", -memory.objects.amount(2, "meal"))
 	memory.objects.records[2].autonomous = true
 	memory.knowledge.record(2).due_ms = 5000
 	memory.decisions.resume(memory, 2, 0)

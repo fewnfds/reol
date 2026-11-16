@@ -34,11 +34,14 @@ func rebuild(world: RefCounted) -> bool:
 	if world.next_run < 1: return false
 	var seen: Dictionary = {}
 	for actor: Variant in world.work_runs:
-		var run: Variant = world.work_runs[actor]
+		var host: Variant = world.work_runs[actor]
+		if not host is Dictionary or host.size() != 2 or not host.get("run_id") is int or not host.get("purpose") is String or (not host.purpose.is_empty() and host.purpose not in world.institutions.ISSUE_PURPOSES): return false
+		var run: Variant = host.run_id
 		if not actor is int or not world.actor_slots.has(actor) or not run is int or run < 1 or run >= world.next_run or seen.has(run): return false
 		if not world.combat.alive(world, actor): return false
 		var slot: int = world.actor_slots[actor]
 		if world.pages[slot / 256].modes[slot % 256] in [world.Units.Mode.RESOURCE, world.Units.Mode.HARVEST] and not Beings.has(world.objects.records[actor], "work"): return false
+		if world.pages[slot / 256].modes[slot % 256] in [world.Units.Mode.RESOURCE, world.Units.Mode.HARVEST] and host.purpose.is_empty(): return false
 		if world.pages[slot / 256].modes[slot % 256] not in [world.Units.Mode.RESOURCE, world.Units.Mode.HARVEST, world.Units.Mode.REST, world.Units.Mode.MANUAL, world.Units.Mode.EXPLORE]: return false
 		seen[run] = true
 		bind(actor, "work", run)
@@ -85,4 +88,5 @@ func rebuild(world: RefCounted) -> bool:
 	for actor: int in world.actor_slots:
 		var slot: int = world.actor_slots[actor]
 		if world.pages[slot / 256].modes[slot % 256] in [world.Units.Mode.APPROACH, world.Units.Mode.ACTION] and not world.actions.has(actor): return false
+		if world.pages[slot / 256].modes[slot % 256] in [world.Units.Mode.RESOURCE, world.Units.Mode.HARVEST, world.Units.Mode.REST, world.Units.Mode.MANUAL, world.Units.Mode.EXPLORE] and not world.work_runs.has(actor): return false
 	return true

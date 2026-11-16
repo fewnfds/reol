@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="OperationLibrary" load_steps=27 format=3]
+[gd_resource type="Resource" script_class="OperationLibrary" load_steps=28 format=3]
 [ext_resource type="Script" path="res://scripts/sim/definitions/operations/library.gd" id="library"]
 [ext_resource type="Script" path="res://scripts/sim/definitions/operations/operation_def.gd" id="op"]
 [ext_resource type="Resource" path="res://data/definitions/operations/take.tres" id="o0"]
@@ -25,7 +25,8 @@
 [ext_resource type="Resource" path="res://data/definitions/operations/brew.tres" id="brew"]
 [ext_resource type="Resource" path="res://data/definitions/operations/learn_herbalism.tres" id="learn_herbalism"]
 [ext_resource type="Resource" path="res://data/definitions/operations/draw_water.tres" id="draw"]
+[ext_resource type="Resource" path="res://data/definitions/operations/offer_matter.tres" id="offer"]
 [resource]
 script = ExtResource("library")
 required_ids = PackedStringArray("construct", "sow", "wood_mend", "take", "put")
-operations = Array[ExtResource("op")]([ExtResource("o0"), ExtResource("o1"), ExtResource("o2"), ExtResource("o3"), ExtResource("o4"), ExtResource("o5"), ExtResource("o6"), ExtResource("o7"), ExtResource("o8"), ExtResource("o9"), ExtResource("o10"), ExtResource("o11"), ExtResource("o12"), ExtResource("o13"), ExtResource("o14"), ExtResource("o15"), ExtResource("o16"), ExtResource("o17"), ExtResource("o18"), ExtResource("o19"), ExtResource("o20"), ExtResource("brew"), ExtResource("learn_herbalism"), ExtResource("draw")])
+operations = Array[ExtResource("op")]([ExtResource("o0"), ExtResource("o1"), ExtResource("o2"), ExtResource("o3"), ExtResource("o4"), ExtResource("o5"), ExtResource("o6"), ExtResource("o7"), ExtResource("o8"), ExtResource("o9"), ExtResource("o10"), ExtResource("o11"), ExtResource("o12"), ExtResource("o13"), ExtResource("o14"), ExtResource("o15"), ExtResource("o16"), ExtResource("o17"), ExtResource("o18"), ExtResource("o19"), ExtResource("o20"), ExtResource("brew"), ExtResource("learn_herbalism"), ExtResource("draw"), ExtResource("offer")])

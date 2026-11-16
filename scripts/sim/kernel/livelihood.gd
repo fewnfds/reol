@@ -27,22 +27,27 @@ func record(world: RefCounted, actor: int) -> Dictionary:
 		for index: int in Defs.DISPOSITIONS.size():
 			traits[Defs.DISPOSITIONS[index]] = 0.5 + float((actor * 37 + index * 71) % 101) / 100.0
 		records[actor] = {"goals": {}, "intention": {}, "dispositions": traits, "appraisals": {},
-			"budget": {"window_ms": world.operation_time(), "work": 0, "cursor": 0, "goal_cursor": 0}, "explore_ms": 0, "explore_count": 0, "idle_attempts": 0}
+			"budget": {"window_ms": world.operation_time(), "work": 0, "cursor": 0, "goal_cursor": 0}, "explore_ms": 0, "explore_count": 0, "idle_attempts": 0, "borrowed_autonomy": false}
 	return records[actor]
 
 func add_goal(world: RefCounted, actor: int, definition: String, params: Dictionary = {}, source: int = 0) -> int:
 	if not world.actor_slots.has(actor) or not world.combat.alive(world, actor) or not Defs.GOALS.has(definition) or not _params_valid(definition, params, world.objects.next_id): return 0
 	if int(params.get("organization", 0)) > 0 and not world.institutions.organizations.has(params.organization): return 0
 	if source < 0 or source >= world.objects.next_id: return 0
+	if Defs.GOALS[definition].driver == "responsibility":
+		var share: Dictionary = world.institutions.shares.get(int(params.share), {})
+		if share.get("actor") != actor or share.get("matter") != params.matter or share.get("state") != "accepted": return 0
 	var entry: Dictionary = record(world, actor)
 	for goal: Dictionary in entry.goals.values():
+		if Defs.GOALS[definition].driver == "responsibility" and Defs.GOALS[goal.definition].driver == "responsibility" and goal.params.share == params.share and goal.state == "active": return int(goal.id)
 		if goal.definition == definition and goal.params == params and goal.source == source and goal.state == "active": return int(goal.id)
 	if entry.goals.size() >= GOAL_LIMIT:
 		var victim: int = 0
 		for id: int in entry.goals:
-			if entry.goals[id].state != "active" and (victim == 0 or id < victim) and entry.intention.get("goal", 0) != id: victim = id
+			if entry.goals[id].state != "active" and (victim == 0 or id < victim): victim = id
 		if victim == 0: return 0
 		entry.goals.erase(victim)
+		if entry.intention.get("goal", 0) == victim: entry.intention = {}
 	var id: int = next_goal
 	next_goal += 1
 	entry.goals[id] = {"id": id, "definition": definition, "params": State.copy(params), "source": source,
@@ -85,7 +90,7 @@ func _ensure_goals(world: RefCounted, actor: int) -> void:
 	if Beings.has(person, "work"): add_goal(world, actor, "custody")
 
 func think(world: RefCounted, id: int, at: int) -> void:
-	world.decisions.wake(world, id, at, "life_ready")
+	if world.objects.records.get(id, {}).get("autonomous", false): world.decisions.wake(world, id, at, "life_ready")
 
 func choose(world: RefCounted, id: int, at: int) -> void:
 	var started: int = Time.get_ticks_usec()
@@ -114,6 +119,7 @@ func _utility(goal: Dictionary, entry: Dictionary, actor: Dictionary, at: int) -
 		"recovery": value = 0.65 if actor.recovering else 0.0
 		"development": value = 0.0 if Growth.mastered(actor, goal.params.method) else 1.0
 		"delivery", "operation": value = 1.0
+		"responsibility": value = 1.0 if actor.get("responsibilities", {}).has(int(goal.params.share)) else 0.0
 		"custody": value = 1.0 if not actor.returns.is_empty() else 0.0
 	value *= float(spec.weight)
 	if not spec.disposition.is_empty(): value *= float(entry.dispositions[spec.disposition])
@@ -158,15 +164,9 @@ func _blocked(world: RefCounted, id: int, entry: Dictionary, at: int) -> Diction
 
 func _refresh_goals(world: RefCounted, actor: int, entry: Dictionary, at: int) -> void:
 	var person: Dictionary = world.objects.records[actor]
-	var promise: Dictionary = person.get("commitment", {})
-	if not promise.is_empty():
-		var clue: Dictionary = world.knowledge.view(actor, promise.target, at)
-		if at >= int(promise.expires_ms) or not Beings.has(person, "work") or clue.is_empty() or clue.tile < 0 or clue.kind != "blueprint":
-			person.autonomous = promise.was_autonomous
-			person.erase("commitment")
-		else: add_goal(world, actor, "operation", {"operation": promise.kind, "target": int(promise.target), "expires_ms": int(promise.expires_ms)}, int(promise.requester))
 	for goal: Dictionary in entry.goals.values():
 		if goal.state != "active": continue
+		if Defs.GOALS[goal.definition].driver == "responsibility": continue # Institutions alone closes social obligations.
 		var completed: bool = Defs.GOALS[goal.definition].driver == "development" and Growth.mastered(person, goal.params.method)
 		var expired: bool = int(goal.params.get("expires_ms", at + 1)) <= at
 		var fixed: int = int(goal.params.get("target", 0))
@@ -183,7 +183,7 @@ func _refresh_goals(world: RefCounted, actor: int, entry: Dictionary, at: int) -
 			if entry.intention.get("goal") == goal.id: entry.intention.task_id = 0
 
 func _think(world: RefCounted, id: int, at: int) -> void:
-	if world.decisions.in_combat(id) or not world.gate.current(id).is_empty() or not world.gate.check(world, id, at).is_empty(): return
+	if not world.objects.records.get(id, {}).get("autonomous", false) or world.decisions.in_combat(id) or not world.gate.current(id).is_empty() or not world.gate.check(world, id, at).is_empty(): return
 	decisions += 1
 	_ensure_goals(world, id)
 	var entry: Dictionary = record(world, id)
@@ -264,15 +264,12 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 			after_action(world, id, at); return # A last-seen tile cannot track a departed person.
 		var input: Dictionary = step.input.duplicate(true)
 		input["autonomous"] = true
-		var operation: Dictionary = Operations.OPERATIONS[input.kind]
-		if operation.executor == "work_source": _work_source(world, id, target, at)
-		else:
-			var reason: String = world.execute_operation(id, input)
-			if reason not in ["accepted", "completed"]: _rejected(world, id, input.kind, target, reason, at)
-			elif reason == "completed":
-				var goal: Dictionary = entry.goals[best.goal]
-				if Defs.GOALS[goal.definition].driver == "operation" and goal.params.operation == input.kind and goal.params.target == target: goal.state = "completed"; goal.closed_ms = at
-				after_action(world, id, at, target)
+		var reason: String = world.execute_operation(id, input)
+		if reason not in ["accepted", "completed"]: _rejected(world, id, input.kind, target, reason, at)
+		elif reason == "completed":
+			var goal: Dictionary = entry.goals[best.goal]
+			if Defs.GOALS[goal.definition].driver == "operation" and goal.params.operation == input.kind and goal.params.target == target: goal.state = "completed"; goal.closed_ms = at
+			after_action(world, id, at, target)
 	entry.intention.task_id = int(world.decisions.records.get(id, {}).get("task", {}).get("id", 0)) if entry.goals[best.goal].state == "active" else 0
 
 func _preference(entry: Dictionary, actor: Dictionary, clues: Dictionary, at: int) -> Dictionary:
@@ -280,12 +277,16 @@ func _preference(entry: Dictionary, actor: Dictionary, clues: Dictionary, at: in
 	result["retained"] = {}
 	for goal: Dictionary in entry.goals.values():
 		if goal.state == "active" and not goal.method.is_empty() and _utility(goal, entry, actor, at).value > 0.01:
-			result.retained.merge(_retained(goal, goal.method, clues))
+			result.retained.merge(_retained(goal, goal.method, clues, actor))
 	return result
 
-func _retained(goal: Dictionary, choice: Dictionary, clues: Dictionary) -> Dictionary:
+func _retained(goal: Dictionary, choice: Dictionary, clues: Dictionary, actor: Dictionary) -> Dictionary:
 	var result: Dictionary = {}
 	var operation: Dictionary = Operations.OPERATIONS.get(choice.operation, {})
+	var anchor: Dictionary = clues.get(choice.anchor, {})
+	# Keep prerequisites while the known method remains usable, not after its
+	# actual site is known to be gone. Missing one ingredient alone is temporary.
+	if choice.anchor != actor.id and int(anchor.get("tile", -1)) < 0: return result
 	if not operation.is_empty():
 		var organization: int = int(clues.get(choice.anchor, {}).get("organization", 0))
 		var inputs: Dictionary = operation.recipe.inputs if not operation.recipe.is_empty() else operation.required_items
@@ -298,7 +299,41 @@ func _retained(goal: Dictionary, choice: Dictionary, clues: Dictionary) -> Dicti
 		for clue: Dictionary in clues.values(): organizations[int(clue.get("organization", 0))] = true
 		for organization: int in organizations: result["%d:study:%s" % [organization, book]] = true
 	if Defs.GOALS[goal.definition].driver == "delivery": result["%d:supply:%s" % [int(goal.params.get("organization", 0)), goal.params.item]] = true
+	if Defs.GOALS[goal.definition].driver == "responsibility":
+		var terms: Dictionary = actor.get("responsibilities", {}).get(int(goal.params.share), {})
+		if terms.get("kind") == "delivery":
+			if not Stock.access_reason(actor, anchor, "put", {"item": terms.item, "purpose": "supply"}).is_empty() or (int(anchor.get("capacity", -1)) >= 0 and int(anchor.get("inventory", {}).values().reduce(func(a: int, b: int): return a + b, 0)) >= int(anchor.capacity)): return result
+			for origin: int in terms.sources: result["%d:supply:%s:%d" % [int(terms.organization), terms.item, origin]] = true
 	return result
+
+func share_closed(world: RefCounted, share: Dictionary, completed: bool) -> void:
+	var entry: Dictionary = records.get(int(share.actor), {})
+	if entry.is_empty(): return
+	for goal: Dictionary in entry.goals.values():
+		if Defs.GOALS[goal.definition].driver != "responsibility" or goal.params.share != share.id or goal.state != "active": continue
+		goal.state = "completed" if completed else "cancelled"
+		goal.closed_ms = world.operation_time()
+		if entry.intention.get("goal") == goal.id:
+			var task: Dictionary = world.decisions.records.get(int(share.actor), {}).get("task", {})
+			var binding: Dictionary = world.gate.current(int(share.actor))
+			if entry.intention.task_id > 0 and task.get("id") == entry.intention.task_id and not binding.is_empty() and task.get("binding", {}) == binding and world._finishing.get(int(share.actor)) != binding.run_id:
+				world.end_run(int(share.actor), world.operation_time(), "cancelled")
+				world.clear_navigation(int(share.actor))
+			entry.intention.task_id = 0
+	reconcile_autonomy(world, int(share.actor))
+
+func reconcile_autonomy(world: RefCounted, actor: int) -> void:
+	var entry: Dictionary = records.get(actor, {})
+	if entry.get("borrowed_autonomy", false) and world.objects.records.has(actor) and (not Beings.has(world.objects.records[actor], "work") or world.institutions.Matters.shares_for(world.institutions, actor).is_empty()):
+		world.objects.records[actor].autonomous = false
+		entry.borrowed_autonomy = false
+		var binding: Dictionary = world.gate.current(actor)
+		var decision: Dictionary = world.decisions.records.get(actor, {})
+		if world.actor_slots.has(actor) and not decision.get("manual", false) and binding.get("domain") == "work" and decision.get("task", {}).get("binding", {}) == binding:
+			var slot: int = world.actor_slots[actor]
+			if world.pages[slot / 256].modes[slot % 256] == Units.Mode.EXPLORE:
+				world.end_run(actor, world.operation_time(), "cancelled")
+				world.clear_navigation(actor)
 
 func task_ended(actor: int, task_id: int) -> void:
 	var intention: Dictionary = records.get(actor, {}).get("intention", {})
@@ -317,20 +352,6 @@ func _idle(world: RefCounted, id: int, at: int, searching: bool) -> void:
 	elif searching: world.decisions.wake(world, id, at, "life_result", delay)
 	# Satisfied people need no aimless one-second life polling. The shared need
 	# thresholds, new knowledge, conditions and new goals already wake P5.
-
-func _work_source(world: RefCounted, id: int, target: int, at: int) -> void:
-	var source: int = world.source_objects.find(target)
-	if source < 0: _rejected(world, id, "harvest", target, "target_gone", at); return
-	var slot: int = world.actor_slots[id]
-	var page: RefCounted = world.pages[slot / 256]
-	var row: int = slot % 256
-	var point: Vector2 = world.facilities.interaction_point(world, target, page.positions[row], page.radii[row], page.flight[row] > 0, "harvest")
-	if point.x < 0: _rejected(world, id, "harvest", target, "no_operation_place", at); return
-	if world.adopt_work(id, at):
-		page.source_ids[row] = source
-		page.move_to(row, point, Units.Mode.RESOURCE)
-		world.decisions.track_host(world, id, "harvest", target)
-	else: after_action(world, id, at)
 
 func _walk_to_site(world: RefCounted, id: int, tile: int, at: int, operation: String = "", target: int = 0) -> void:
 	var slot: int = world.actor_slots[id]
@@ -384,7 +405,10 @@ func outcome(world: RefCounted, actor: int, binding: Dictionary, result: Diction
 		if int(goal.params.get("target", 0)) > 0 and destination != int(goal.params.target): return
 		if int(world.objects.records.get(destination, {}).get("organization", 0)) != int(goal.params.get("organization", 0)): return
 		var fulfilled: int = int(result.facts.get("amount", 0))
-		if int(goal.params.get("organization", 0)) > 0: fulfilled -= int(result.facts.get("returned", 0)) - int(result.facts.get("supply_returned", 0))
+		if int(goal.params.get("organization", 0)) > 0:
+			fulfilled = 0
+			for line: Dictionary in result.facts.get("deliveries", []):
+				if line.organization == goal.params.organization and line.origin != destination: fulfilled += int(line.amount)
 		goal.progress = mini(int(goal.params.amount), int(goal.progress) + maxi(0, fulfilled))
 		if goal.progress >= goal.params.amount:
 			if goal.params.get("repeat", false): goal.progress = 0
@@ -393,7 +417,7 @@ func outcome(world: RefCounted, actor: int, binding: Dictionary, result: Diction
 		goal.state = "completed"; goal.closed_ms = at
 
 func after_action(world: RefCounted, id: int, at: int, target: int = 0) -> void:
-	if not world.actor_slots.has(id) or not world.combat.alive(world, id): return
+	if not world.actor_slots.has(id) or not world.combat.alive(world, id) or not world.objects.records[id].get("autonomous", false): return
 	if target > 0: world.knowledge.refresh(world, id, target, at)
 	world.decisions.wake(world, id, at, "life_result", 500 + (id % 10) * 50)
 
@@ -412,16 +436,21 @@ func arrived(world: RefCounted, actor: int, at: int) -> void:
 		world.decisions.result(world, actor, str(task.get("operation", "inspect")), target, "not_observed", at)
 	elif tile >= 0: world.knowledge.refresh(world, actor, target, at)
 
-func protects(actor: int, target: int) -> bool:
+func protects(world: RefCounted, actor: int, target: int) -> bool:
 	var entry: Dictionary = records.get(actor, {})
 	if entry.get("intention", {}).get("anchor", 0) == target and entry.get("goals", {}).get(entry.intention.get("goal", 0), {}).get("state") == "active": return true
 	for goal: Dictionary in entry.get("goals", {}).values():
 		if goal.state == "active" and goal.params.get("target", 0) == target: return true
+	for terms: Dictionary in world.institutions.Matters.views(world.institutions, world, actor).values():
+		if terms.target == target or target in terms.sources: return true
 	return false
 
 static func _params_valid(definition: String, params: Dictionary, next_id: int) -> bool:
 	var permitted: Array = []
 	match Defs.GOALS[definition].driver:
+		"responsibility":
+			permitted = ["matter", "share"]
+			if params.size() != 2 or not params.get("matter") is int or params.matter < 1 or not params.get("share") is int or params.share < 1: return false
 		"development":
 			permitted = ["method"]
 			if not params.get("method") is String or not Growth.Defs.METHODS.has(params.method): return false

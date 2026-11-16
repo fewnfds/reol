@@ -119,7 +119,7 @@ func contact_and_work() -> void:
 		var material: int = w.objects.audit_total("wood")
 		var remaining: int = w.objects.records[target].remaining_ms
 		w.set_capability_overrides(2, {"work": false})
-		check(not w.objects.records[2].has("commitment") and not w.objects.records[2].autonomous and not w.actions.has(2) and w.objects.records[target].remaining_ms < remaining, "Capability loss did not restore temporary helper state or retain labor")
+		check(not w.objects.records[2].has("commitment") and not w.institutions.Matters.shares_for(w.institutions, 2).is_empty() and not w.objects.records[2].autonomous and not w.actions.has(2) and w.objects.records[target].remaining_ms < remaining, "Capability loss did not stop temporary help while retaining its obligation and actual labor")
 		page.positions[0] = Vector2(151.5, 147.5)
 		check(w.begin_interaction(1, {"kind": "construct", "target": target}) == "accepted", "Replacement builder could not reuse the site")
 		w.step(4500)

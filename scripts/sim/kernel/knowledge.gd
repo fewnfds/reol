@@ -72,7 +72,7 @@ func _store(world: RefCounted, actor: int, value: Dictionary, origin: String, ob
 		var rank: int = 100
 		for id: int in subjects:
 			if focus and id == target: continue
-			if id == world.actions.get(actor, {}).get("target", 0) or id == world.objects.records[actor].get("commitment", {}).get("target", 0) or id == world.decisions.records.get(actor, {}).get("task", {}).get("target", 0) or world.livelihood.protects(actor, id): continue
+			if id == world.actions.get(actor, {}).get("target", 0) or id == world.decisions.records.get(actor, {}).get("task", {}).get("target", 0) or world.livelihood.protects(world, actor, id): continue
 			var candidate: Dictionary = subjects[id]
 			var priority: int = 0 if candidate.view.tile < 0 else (1 if candidate.view.kind == "pile" else (2 if candidate.view.kind == "actor" else (4 if candidate.origin == "seed" else 3)))
 			if not candidate.teachings.is_empty(): priority = 6

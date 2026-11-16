@@ -49,7 +49,7 @@ func known_sites_and_growth() -> void:
 	check(result.reason == "accepted", "Commitment blueprint fixture failed")
 	if result.reason == "accepted":
 		var offer: String = commitment.society.finish(commitment, 1, {"kind": "request_help", "target": 2, "task_target": result.target}, 0)
-		check(offer == "completed" and commitment.objects.records[2].has("commitment"), "Real help request failed")
+		check(offer == "completed" and not commitment.institutions.Matters.shares_for(commitment.institutions, 2).is_empty(), "Real help request failed")
 		commitment.command({"kind": "interrupt", "actor": 2})
 		commitment.facilities.demolish(commitment, result.target)
 		commitment.command({"kind": "work", "actor": 2})

@@ -319,7 +319,7 @@ func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dict
 		"gather":
 			if rec.stage != Stage.MATURE:
 				return Results.refused("not_mature")
-			var moved: int = world.institutions.acquire_yield(world, actor, action.target, str(spec.product.item), mini(int(spec.product.capacity), int(action.get("amount", spec.product.capacity))), now)
+			var moved: int = world.institutions.acquire_yield(world, actor, action.target, str(spec.product.item), mini(int(spec.product.capacity), int(action.get("amount", spec.product.capacity))), now, str(action.get("purpose", "cultivate")))
 			if moved <= 0:
 				return Results.refused("no_product_or_full")
 			facts.merge({"item": str(spec.product.item), "amount": moved, "source": action.target, "destination": actor})

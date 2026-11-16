@@ -3,7 +3,7 @@ extends RefCounted
 const FIELDS: Array[String] = ["owner", "organization", "entrust", "phase"]
 const MAX_COUNT: int = 1000000000
 const MAX_GROUPS: int = 256
-const PURPOSES: Array[String] = ["take", "put", "eat", "rest", "cook", "produce", "construct", "demolish", "cultivate", "equip", "study", "supply"]
+const PURPOSES: Array[String] = ["take", "put", "eat", "rest", "cook", "produce", "construct", "demolish", "cultivate", "equip", "study", "supply", "commission"]
 const ISSUE_PURPOSES: Array[String] = ["cook", "produce", "construct", "cultivate", "equip", "study", "supply"]
 
 static func permits_purpose(actor: Dictionary, organization: int, purpose: String, item: String = "") -> bool:
@@ -19,6 +19,14 @@ static func permits_at(actor: Dictionary, target: Dictionary, purpose: String, i
 	for grant: Dictionary in actor.get("scope_grants", []):
 		if grant.organization == organization and int(target.get("id", 0)) in grant.targets and purpose in grant.purposes and (item.is_empty() or grant.all_items or item in grant.items): return true
 	return false
+
+static func permits_issue(actor: Dictionary, target: Dictionary, organization: int, purpose: String, item: String) -> bool:
+	# Carrying a purpose elsewhere never authorizes issuing it at this store.
+	# Loose recovered stock retains its mandate; its carrier needs only the
+	# separate carrying qualification, not a fabricated grant on the corpse.
+	if int(target.get("organization", 0)) <= 0: return permits_purpose(actor, organization, purpose, item)
+	var place: Dictionary = target.duplicate(); place.organization = organization
+	return permits_at(actor, place, purpose, item)
 
 static func right(owner: int = 0, organization: int = 0, entrust: int = 0, phase: String = "") -> Dictionary:
 	return {"owner": owner, "organization": organization, "entrust": entrust, "phase": ("free" if entrust == 0 else "issued") if phase.is_empty() else phase}
@@ -88,7 +96,7 @@ static func access_reason(actor: Dictionary, target: Dictionary, handler: String
 		if not permits_at(actor, target, purpose, item): return "not_authorized"
 		for material: String in context.get("recipe_items", []):
 			if not permits_at(actor, target, purpose, material): return "not_authorized"
-	if handler == "take" and not str(context.get("purpose", "")).is_empty() and int(context.get("source_organization", organization)) > 0 and not permits_purpose(actor, int(context.get("source_organization", organization)), context.purpose, str(context.get("item", ""))): return "not_authorized"
+	if handler == "take" and not str(context.get("purpose", "")).is_empty() and int(context.get("source_organization", organization)) > 0 and not permits_issue(actor, target, int(context.get("source_organization", organization)), context.purpose, str(context.get("item", ""))): return "not_authorized"
 	return ""
 
 static func input_group(actor: Dictionary, required: Dictionary, purpose: String, organization: int = 0) -> Dictionary:

@@ -4,7 +4,7 @@ extends Resource
 ## A finite way of pursuing a goal. Actual actions remain Operations/hosts.
 @export var id: String = ""
 @export var title: String = ""
-@export_enum("perform", "produce", "develop", "deliver", "return") var pattern: String = "perform"
+@export_enum("perform", "produce", "develop", "deliver", "return", "responsibility") var pattern: String = "perform"
 @export var handler: String = ""
 @export var product: String = ""
 @export_enum("self", "known", "either", "goal") var targets: String = "known"
@@ -18,7 +18,7 @@ func values() -> Dictionary:
 func errors() -> PackedStringArray:
 	var result := PackedStringArray()
 	if not id.is_valid_identifier() or title.is_empty(): result.append("approach id/title: required")
-	if pattern not in ["perform", "produce", "develop", "deliver", "return"]: result.append("approach pattern: unsupported")
+	if pattern not in ["perform", "produce", "develop", "deliver", "return", "responsibility"]: result.append("approach pattern: unsupported")
 	if targets not in ["self", "known", "either", "goal"]: result.append("approach target source: unsupported")
 	if not is_finite(confidence) or confidence < 0.1 or confidence > 1.0: result.append("approach confidence: out of range")
 	if pattern == "perform" and not handler.is_valid_identifier() and not (handler.is_empty() and targets == "goal"): result.append("perform: handler or explicit goal operation required")

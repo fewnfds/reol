@@ -38,9 +38,17 @@ static func evaluate(operation: Dictionary, actor: Dictionary, target: Dictionar
 static func access_reason(operation: Dictionary, actor: Dictionary, target: Dictionary, context: Dictionary = {}, buildings: Dictionary = {}) -> String:
 	if buildings.is_empty(): buildings = BUILDINGS
 	var place: Dictionary = target.duplicate()
+	if not operation.recipe.is_empty(): place["processing_purpose"] = operation.recipe.purpose
+	var inputs: Dictionary = stock_context(operation, target, context, buildings)
+	if operation.handler in ["gather", "collect_source", "harvest"] and context.has("purpose"):
+		if not context.purpose is String or context.purpose not in Stock.ISSUE_PURPOSES: return "invalid_purpose"
+		if not Stock.permits_at(actor, target, context.purpose, str(inputs.get("item", ""))): return "not_authorized"
+	return Stock.access_reason(actor, place, operation.handler, inputs)
+
+static func stock_context(operation: Dictionary, target: Dictionary, context: Dictionary = {}, buildings: Dictionary = {}) -> Dictionary:
+	if buildings.is_empty(): buildings = BUILDINGS
 	var inputs: Dictionary = context.duplicate()
 	if not operation.recipe.is_empty():
-		place["processing_purpose"] = operation.recipe.purpose
 		inputs["recipe_items"] = operation.recipe.inputs.keys()
 		for item: String in operation.recipe.outputs:
 			if item not in inputs.recipe_items: inputs.recipe_items.append(item)
@@ -55,7 +63,7 @@ static func access_reason(operation: Dictionary, actor: Dictionary, target: Dict
 		var plant: Dictionary = PLANTS.get(target.get("definition", ""), {})
 		for product: String in ["product", "body_product"]:
 			if plant.has(product) and plant[product].item not in inputs.recipe_items: inputs.recipe_items.append(plant[product].item)
-	return Stock.access_reason(actor, place, operation.handler, inputs)
+	return inputs
 
 static func candidates(actor: Dictionary, target: Dictionary, context: Dictionary = {}) -> Dictionary:
 	var result: Dictionary = {}

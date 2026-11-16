@@ -40,10 +40,15 @@ static func pulse(world: RefCounted, at: int) -> void:
 			world.objects.add(id, source.item, count)
 			record.source_generated += count
 
-static func collect(world: RefCounted, actor: int, target: int, at: int, requested: int = 2147483647) -> Dictionary:
+static func collect(world: RefCounted, actor: int, target: int, at: int, requested: int = 2147483647, purpose: String = "supply") -> Dictionary:
+	if not world.actor_slots.has(actor) or not world.combat.alive(world, actor) or not world.objects.records.has(target): return world.ActivityResults.refused("dead_or_missing")
 	var record: Dictionary = world.objects.records[target]
 	var source: Dictionary = spec(world.facilities.definitions[record.definition])
-	var moved: int = world.institutions.acquire_yield(world, actor, target, source.item, mini(int(source.pickup_amount), requested), at, "supply")
+	var view: Dictionary = world.operation_actor(actor)
+	var place: Dictionary = world.operation_target(target)
+	if source.is_empty() or purpose not in world.institutions.ISSUE_PURPOSES: return world.ActivityResults.refused("invalid_purpose")
+	if not world.objects.Stock.access_reason(view, place, "collect_source", {"item": source.item}).is_empty() or not world.objects.Stock.permits_at(view, place, purpose, str(source.item)): return world.ActivityResults.refused("not_authorized")
+	var moved: int = world.institutions.acquire_yield(world, actor, target, source.item, mini(int(source.pickup_amount), requested), at, purpose)
 	world._sync_inventory(actor)
 	return world.ActivityResults.completed({"item": source.item, "amount": moved, "source": target, "destination": actor}, "collected") if moved > 0 else world.ActivityResults.refused("empty_or_full")
 

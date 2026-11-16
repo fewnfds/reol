@@ -104,3 +104,5 @@ P4 GUI截图归`logs/abilities-ui/p4-*`，独立测试档/偏好自动清理。�
 `view_ui_smoke.gd`在真实窗口核对世界直接绘制、斜视分部素材、墙体伸出占地的alpha拾取、同深度选择、震动下视觉选择；覆盖多种窗口/缩放的原生坐标反解、震动不改瞄准、实际系统指针、暂停平移/迷雾、奇数与1366×768窗口的竖直像素边逐行稳定、旧形变偏好忽略/清除。截图`logs/view-ui/`；普通非整数缩放的采样特性不等于透视切变。原移动、控制、普通UI、作业与P4组合图形检查继续使用共同ViewRig定位输入。
 
 `institution_access_smoke.gd`按需核岗位Resource/定点与物品授权、真实领料/撤职留锅换人接续、指定床资格与现场预约分离、改安排中断与隐私、窄退料及坏范围/签名拒载；另走无宽权NPC自主备料烹饪。`institution_access_ui_smoke.gd`用真实Game文件与原生表单领公粮、查看禁用专用床并实际存读，截图归`logs/institution-ui/`。它们不代表组织职责/事项或百人供养已经交付。
+
+事项相关短检查按实际变化独立选用：`institution_matters_smoke.gd`核多人部分交付、已受条款不被修订改写、当面托付→自主备料实际生产及植物按声明用途采送；`institution_obligations_smoke.gd`核原库往返/私人寄放/错用途余料不计、重放不能转记另一份额、施工暂停存读/恢复、超期和死者责任不暗重发；`institution_production_shares_smoke.gd`核静置/他人收尾、不丢受托、近期证据淘汰后的进度及共同采木用途/恢复；`institution_matters_bounds_smoke.gd`核512事项/4096份额容量与闭合引用；`institution_matters_review_smoke.gd`核跨处用途拒绝、已知满仓/工位消失退料、非本源批次及释放后下调总额恢复；`institution_matters_handoffs_smoke.gd`核过期求助显式再办、原采木撤权/收尾重入和临时自主探索取消。`institution_matters_ui_smoke.gd`在真实Game原生点施工协作/选择助手、文件存读并沿原工地完工，截图仍归`logs/institution-ui/`。它们不能代替T09c自主职责/现场通道或最终百人供养。

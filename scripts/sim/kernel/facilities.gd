@@ -259,7 +259,7 @@ func commit(world: RefCounted, actor: int, action: Dictionary, at: int) -> Dicti
 			completed[operation] = int(completed.get(operation, 0)) + 1
 		return outcome
 	if action.kind == "collect_source":
-		var outcome: Dictionary = Sources.collect(world, actor, action.target, at, int(action.get("amount", 2147483647)))
+		var outcome: Dictionary = Sources.collect(world, actor, action.target, at, int(action.get("amount", 2147483647)), str(action.get("purpose", "supply")))
 		if outcome.status == "completed":
 			var operation: String = str(action.get("operation_id", action.kind))
 			completed[operation] = int(completed.get(operation, 0)) + 1

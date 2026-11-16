@@ -462,7 +462,7 @@ func settle(id: int, at: int, expected: Variant = null) -> void:
 	if page.health[row] <= 0:
 		kill(id, at)
 	elif mode == Units.Mode.RESOURCE:
-		var query: Dictionary = OperationQuery.evaluate(Operations.OPERATIONS.harvest, operation_actor(id), operation_target(target))
+		var query: Dictionary = OperationQuery.evaluate(Operations.OPERATIONS.harvest, operation_actor(id), operation_target(target), {"purpose": work_runs[id].purpose})
 		if not query.ready:
 			end_run(id, at, query.reason, ActivityResults.refused(query.reason))
 			clear_navigation(id)
@@ -479,9 +479,9 @@ func settle(id: int, at: int, expected: Variant = null) -> void:
 			page.modes[row] = Units.Mode.REST
 			page.due_ms[row] = at + 250
 	elif mode == Units.Mode.HARVEST:
-		var query: Dictionary = OperationQuery.evaluate(Operations.OPERATIONS.harvest, operation_actor(id), operation_target(target))
+		var query: Dictionary = OperationQuery.evaluate(Operations.OPERATIONS.harvest, operation_actor(id), operation_target(target), {"purpose": work_runs[id].purpose})
 		var in_range: bool = facilities.in_range(self, target, position_at(id, at), page.radii[row], "harvest", page.flight[row] > 0)
-		if query.ready and reservations.get(target, 0) == id and in_range and institutions.acquire_yield(self, id, target, "wood", 1, at) > 0:
+		if query.ready and reservations.get(target, 0) == id and in_range and institutions.acquire_yield(self, id, target, "wood", 1, at, str(work_runs[id].purpose)) > 0:
 			reservations.erase(target)
 			_sync_inventory(id)
 			harvested += 1
@@ -541,7 +541,7 @@ func end_run(id: int, at: int = -1, reason: String = "replaced", outcome: Dictio
 			if final.status != "completed": final.facts.merge(facilities.interrupt(self, Operations.domain_action(action), now), true)
 			knowledge.outcome(self, id, action.kind, action.target, final.status, final.reason, now, action.has("started_ms"))
 			if int(action.get("worked_ms", 0)) > 0: final.facts["worked_ms"] = int(final.facts.get("worked_ms", 0)) + int(action.worked_ms)
-			result = activity_results.record(binding.run_id, action.kind, id, action.target, action.get("participants", [id]), now, final)
+			result = commit_activity(binding.run_id, action.kind, id, action.target, action.get("participants", [id]), now, final)
 		"partner":
 			var wait: Dictionary = society.waits[id]
 			resume_partner = actions.get(wait.actor, {}).get("partner_resume", false)
@@ -558,7 +558,7 @@ func end_run(id: int, at: int = -1, reason: String = "replaced", outcome: Dictio
 				if pages[slot / 256].modes[slot % 256] in [Units.Mode.RESOURCE, Units.Mode.HARVEST]:
 					var final: Dictionary = outcome if not outcome.is_empty() else ActivityResults.interrupted(reason)
 					knowledge.outcome(self, id, "harvest", target, final.status, final.reason, now, pages[slot / 256].modes[slot % 256] == Units.Mode.HARVEST)
-					result = activity_results.record(binding.run_id, "harvest", id, target, [id], now, final)
+					result = commit_activity(binding.run_id, "harvest", id, target, [id], now, final)
 	if actor_slots.has(id):
 		var slot: int = actor_slots[id]
 		pages[slot / 256].modes[slot % 256] = Units.Mode.IDLE
@@ -570,6 +570,11 @@ func end_run(id: int, at: int = -1, reason: String = "replaced", outcome: Dictio
 	if resume and resume_partner and objects.records[id].get("autonomous", false) and combat.alive(self, id) and not decisions.records.get(id, {}).get("manual", false) and not decisions.in_combat(id):
 		livelihood.after_action(self, id, now)
 	emit({"kind": "action_ended", "actor": id, "domain": binding.domain, "run_id": binding.run_id, "result_id": int(result.get("id", 0)), "reason": reason, "at_ms": now})
+	return result
+
+func commit_activity(run_id: int, operation: String, actor: int, target: int, participants: Array, at: int, outcome: Dictionary) -> Dictionary:
+	var result: Dictionary = activity_results.record(run_id, operation, actor, target, participants, at, outcome)
+	institutions.outcome(self, result)
 	return result
 
 func clear_navigation(id: int) -> void:
@@ -600,21 +605,22 @@ func ensure_work_binding(id: int) -> void:
 	if gate.bindings.has(id) or not actor_slots.has(id): return
 	var slot: int = actor_slots[id]
 	if pages[slot / 256].modes[slot % 256] not in [Units.Mode.RESOURCE, Units.Mode.HARVEST, Units.Mode.REST, Units.Mode.MANUAL, Units.Mode.EXPLORE]: return
-	work_runs[id] = next_run
+	work_runs[id] = {"run_id": next_run, "purpose": "cultivate" if pages[slot / 256].modes[slot % 256] in [Units.Mode.RESOURCE, Units.Mode.HARVEST] else ""}
 	next_run += 1
-	gate.bind(id, "work", work_runs[id])
+	gate.bind(id, "work", work_runs[id].run_id)
 
-func adopt_work(id: int, at: int) -> bool:
-	if not Beings.has(objects.records.get(id, {}), "work"): return false
-	return adopt_motion(id, at)
+func adopt_work(id: int, at: int, purpose: String = "cultivate") -> bool:
+	if not Beings.has(objects.records.get(id, {}), "work") or purpose not in institutions.ISSUE_PURPOSES or not adopt_motion(id, at): return false
+	work_runs[id].purpose = purpose
+	return true
 
 func adopt_motion(id: int, at: int) -> bool:
 	# The legacy work host also owns walking; motion does not require labor.
 	if not gate.check(self, id, at).is_empty(): return false
 	end_run(id, at)
-	work_runs[id] = next_run
+	work_runs[id] = {"run_id": next_run, "purpose": ""}
 	next_run += 1
-	gate.bind(id, "work", work_runs[id])
+	gate.bind(id, "work", work_runs[id].run_id)
 	decisions.track_host(self, id)
 	return true
 
@@ -647,9 +653,7 @@ func set_capability_overrides(id: int, changes: Dictionary) -> bool:
 	elif binding.get("domain") == "work":
 		var slot: int = actor_slots[id]
 		invalid = pages[slot / 256].modes[slot % 256] in [Units.Mode.RESOURCE, Units.Mode.HARVEST] and not Beings.has(candidate, "work")
-	if not Beings.has(candidate, "work") and objects.records[id].has("commitment"):
-		objects.records[id].autonomous = objects.records[id].commitment.get("was_autonomous", false)
-		objects.records[id].erase("commitment")
+	livelihood.reconcile_autonomy(self, id)
 	if invalid:
 		end_run(id, operation_time(), "capability_lost")
 		clear_navigation(id)
@@ -673,7 +677,6 @@ func kill(id: int, at: int = -1, cause: String = "") -> void:
 	defense.remove_target(id)
 	release(id, at, "actor_dead")
 	forget_target(id, at)
-	objects.records[id].erase("commitment")
 	page.health[row] = 0
 	page.tolerance[row] = 0.0
 	page.thermal_carry[row] = 0.0
@@ -824,7 +827,7 @@ func _command(input: Dictionary) -> Dictionary:
 				receipt.reason = "body_cannot_work"
 				return receipt
 			release(id)
-			objects.records[id].erase("commitment")
+			if livelihood.records.has(id): livelihood.records[id].borrowed_autonomy = false
 			objects.records[id].autonomous = true
 			decisions.resume(self, id, elapsed_ms)
 			knowledge.observe(self, id, elapsed_ms)
@@ -1075,7 +1078,6 @@ func operation_actor(id: int) -> Dictionary:
 		"at_ms": operation_time(),
 		"qi": int(record.get("qi", 0)), "inventory": objects.usable_summary(id), "methods": State.copy(record.get("methods", {})),
 		"carried": objects.inventory_summary(id), "readable": institutions.readable(self, id, available), "bundles": available, "returns": institutions.returns(self, id),
-		"task_access": {int(record.commitment.target): ["construct"]} if record.get("commitment", {}).get("kind") == "construct" else {},
 		"abilities": Growth.abilities(record), "body_capabilities": Beings.capabilities(record), "pools": State.copy(pools.records.get(id, {})), "admission_reason": gate.check(self, id, operation_time())}
 	result.merge(access, true)
 	return result
@@ -1099,7 +1101,7 @@ func execute_operation(id: int, input: Dictionary) -> String:
 	var operation: Dictionary = Operations.OPERATIONS.get(input.get("kind", ""), {})
 	if operation.is_empty(): return "unknown_operation"
 	if operation.executor == "transfer": return begin_transfer(id, input)
-	if operation.executor == "work_source": return "unsupported_host"
+	if operation.executor == "work_source": return begin_source_work(id, input)
 	if operation.executor != "instant": return begin_interaction(id, input)
 	var admission: String = gate.check(self, id, operation_time())
 	if not admission.is_empty(): return admission
@@ -1112,9 +1114,28 @@ func execute_operation(id: int, input: Dictionary) -> String:
 	effects.apply_bundle(self, id, id, activation, "", operation.effects, operation_time(), 0, "activation")
 	var run_id: int = next_run
 	next_run += 1
-	activity_results.record(run_id, operation.id, id, id, [id], operation_time(), ActivityResults.completed({"activation": activation, "paid": Costs.normalized(operation.costs)}))
+	commit_activity(run_id, operation.id, id, id, [id], operation_time(), ActivityResults.completed({"activation": activation, "paid": Costs.normalized(operation.costs)}))
 	emit({"kind": "operation_completed", "actor": id, "target": id, "operation": operation.id, "activation": activation, "at_ms": operation_time()})
 	return "completed"
+
+func begin_source_work(id: int, input: Dictionary) -> String:
+	if not actor_slots.has(id) or not combat.alive(self, id): return "dead"
+	var target: int = int(input.get("target", 0))
+	var source: int = source_objects.find(target)
+	if source < 0: return "target_gone"
+	var context: Dictionary = {"purpose": input.get("purpose", "cultivate")}
+	var query: Dictionary = OperationQuery.evaluate(Operations.OPERATIONS.harvest, operation_actor(id), operation_target(target), context)
+	if not query.ready: return query.reason
+	var slot: int = actor_slots[id]
+	var page: RefCounted = pages[slot / 256]
+	var row: int = slot % 256
+	var point: Vector2 = facilities.interaction_point(self, target, page.positions[row], page.radii[row], page.flight[row] > 0, "harvest")
+	if point.x < 0: return "no_operation_place"
+	if not adopt_work(id, operation_time(), str(context.purpose)): return "not_ready"
+	page.source_ids[row] = source
+	page.move_to(row, point, Units.Mode.RESOURCE)
+	decisions.track_host(self, id, "harvest", target)
+	return "accepted"
 
 
 func begin_interaction(id: int, input: Dictionary) -> String:
@@ -1122,6 +1143,7 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 	var operation: Dictionary = Operations.OPERATIONS.get(input.get("kind", ""), {})
 	if operation.is_empty(): return "unknown_operation"
 	if operation.executor in ["instant", "work_source"]: return "unsupported_host"
+	if operation.handler == "offer_matter" and (not input.get("matter") is int or input.matter < 1 or not institutions.matters.has(input.matter) or not input.get("quota", 0) is int or input.get("quota", 0) < 0): return "invalid_matter_offer"
 	if operation.handler in ["gather", "collect_source"] and input.has("amount") and (not input.amount is int or input.amount <= 0 or input.amount > 10000): return "invalid_amount"
 	var capability_reason: String = Operations.capability_reason(objects.records.get(id, {}), str(input.kind))
 	if not capability_reason.is_empty(): return capability_reason
@@ -1393,7 +1415,6 @@ func describe(id: int) -> Dictionary:
 		result["readable"] = institutions.readable(self, id, available)
 		result.merge(access, true)
 		result["returns"] = institutions.returns(self, id)
-		result["task_access"] = {int(result.commitment.target): ["construct"]} if result.get("commitment", {}).get("kind") == "construct" else {}
 		result["bundles"] = available
 		result["equippable"] = []
 		for bundle: Dictionary in result.bundles:

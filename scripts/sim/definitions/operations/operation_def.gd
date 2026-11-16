@@ -7,7 +7,7 @@ const Bundle = preload("res://scripts/sim/definitions/actions/effect_bundle_def.
 const Form = preload("res://scripts/sim/definitions/beings/form_def.gd")
 const Recipe = preload("res://scripts/sim/definitions/production/recipe_def.gd")
 const HANDLERS: Dictionary = {"transfer": ["take", "put"], "facility": ["construct", "rest", "craft", "eat", "demolish", "collect_source"],
-	"nature": ["sow", "tend", "gather", "cut", "uproot"], "society": ["talk", "trade", "request_help", "learn", "study", "practice"],
+	"nature": ["sow", "tend", "gather", "cut", "uproot"], "society": ["talk", "trade", "request_help", "offer_matter", "learn", "study", "practice"],
 	"instant": ["self_effect"], "work_source": ["harvest"]}
 @export var id: String = ""
 @export var title: String = ""

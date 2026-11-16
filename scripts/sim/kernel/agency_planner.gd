@@ -1,6 +1,7 @@
 extends RefCounted
 ## Bounded, one-step planning over detached self/known views. Only the caller's
 ## planning budget changes; hosts still own paths, reservations and actual work.
+const Defs = preload("res://scripts/sim/kernel/agency_defs.gd")
 const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const Query = preload("res://scripts/sim/kernel/operation_query.gd")
 const Growth = preload("res://scripts/sim/kernel/growth.gd")
@@ -19,6 +20,8 @@ var budget: Dictionary
 var preferred: Dictionary
 var slice_limit: int
 var ordered_targets: Array = []
+var source_scope: Array = []
+var sources_restricted: bool = false
 
 func configure(self_view: Dictionary, own_target: Dictionary, clues: Dictionary, refusals: Dictionary, point: Vector2, at: int, work_budget: Dictionary, intention: Dictionary) -> void:
 	actor = self_view; self_target = own_target; known = clues; blocked = refusals
@@ -72,13 +75,29 @@ func _targets(source: String, goal: Dictionary) -> Array:
 
 func candidates(goal: Dictionary, approach: Dictionary, allowance: int = 32) -> Array:
 	slice_limit = mini(WORK_LIMIT, int(budget.work) + allowance)
+	source_scope = []
+	sources_restricted = false
 	match approach.pattern:
+		"responsibility":
+			var terms: Dictionary = actor.get("responsibilities", {}).get(int(goal.params.share), {})
+			if terms.is_empty(): return []
+			var projected: Dictionary = project(goal, actor)
+			source_scope = terms.sources.duplicate()
+			sources_restricted = true
+			if terms.kind == "delivery": return _delivery(projected, [])
+			return _perform(projected, {"targets": "goal", "handler": "", "prerequisites": true}, [])
 		"perform": return _perform(goal, approach, [])
 		"produce": return _produce(goal, str(approach.product), [])
 		"develop": return _develop(goal, str(goal.params.method), [])
 		"deliver": return _delivery(goal, [])
 		"return": return _returns(goal, [])
 	return []
+
+static func project(goal: Dictionary, view: Dictionary) -> Dictionary:
+	if Defs.GOALS[goal.definition].driver != "responsibility": return goal
+	var terms: Dictionary = view.get("responsibilities", {}).get(int(goal.params.share), {})
+	if terms.is_empty(): return {"params": {}, "progress": 0}
+	return {"params": {"operation": terms.operation, "target": terms.target, "item": terms.item, "amount": terms.remaining, "organization": terms.organization}, "progress": 0}
 
 func _option(step: Dictionary, operation: String, target: int) -> Dictionary:
 	if step.is_empty(): return {}
@@ -143,12 +162,15 @@ func _acquire(item: String, count: int, organization: int, purpose: String, chai
 	var next: Array = chain + [key]
 	if organization != 0:
 		for bundle: Dictionary in actor.bundles:
-			if int(bundle.organization) > 0 and (organization < 0 or bundle.organization == organization) and bundle.purpose != purpose and int(bundle.items.get(item, 0)) > 0:
-				if not excluded.is_empty() and preferred.get("retained", {}).has("%d:%s:%s" % [int(bundle.organization), bundle.purpose, item]): return {}
-				var deposited: Dictionary = _deposit(item, int(bundle.items[item]), int(bundle.organization), 0, next)
+			var wrong_origin: bool = purpose == "supply" and sources_restricted and int(bundle.get("origin", 0)) not in source_scope
+			if int(bundle.organization) > 0 and (organization < 0 or bundle.organization == organization) and (bundle.purpose != purpose or wrong_origin) and int(bundle.items.get(item, 0)) > 0:
+				if not excluded.is_empty() and _retains(bundle, item): return {}
+				var origins: Variant = [int(bundle.origin)] if bundle.purpose == "supply" else null
+				var deposited: Dictionary = _deposit(item, int(bundle.items[item]), int(bundle.organization), 0, next, bundle.purpose, origins)
 				return deposited # No legal middle store: do not gather more unusable stock.
 	var choices: Array = []
 	for target: Dictionary in _targets("known", {}):
+		if sources_restricted and target.id not in source_scope: continue
 		if target.id in excluded: continue
 		var target_org: int = int(target.get("organization", 0))
 		if organization >= 0 and target_org != organization and not target.has("contents"): continue
@@ -164,7 +186,6 @@ func _acquire(item: String, count: int, organization: int, purpose: String, chai
 			var stock_org: int = _take_origin(target, item, organization, purpose) if operation.handler == "take" else target_org
 			if operation.handler == "take" and stock_org < 0: continue
 			if operation.handler != "take" and organization >= 0 and target_org != organization: continue
-			if target_org > 0 and purpose not in ["supply", "cultivate"] and operation.handler != "take" and _deposit(item, 1, target_org, 0, next).is_empty(): continue
 			# Harvest/gather must yield the wanted item; a source collection's
 			# configured item is read from the same immutable facility catalog.
 			if operation.handler == "collect_source" and Query.BUILDINGS.get(target.definition, {}).get("capabilities", {}).get("stock_source", {}).get("item", "") != item: continue
@@ -178,6 +199,7 @@ func _acquire(item: String, count: int, organization: int, purpose: String, chai
 				if product.get("item", "") != item: continue
 			var context: Dictionary = {"item": item}
 			if operation.handler == "take" and stock_org > 0: context.merge({"purpose": purpose, "source_organization": stock_org})
+			if operation.handler in ["gather", "collect_source", "harvest"] and target_org > 0 and not purpose.is_empty(): context["purpose"] = purpose
 			var step: Dictionary = _resolve(operation, target, next, false, context)
 			if step.is_empty(): continue
 			if operation.handler == "take":
@@ -201,11 +223,11 @@ func _take_origin(target: Dictionary, item: String, organization: int, purpose: 
 			if not origins.has(int(group.organization)): origins.append(int(group.organization))
 		if not target.has("contents") and not origins.has(int(target.get("organization", 0))): origins.append(int(target.organization))
 	for origin: int in origins:
-		if origin > 0 and not Stock.permits_purpose(actor, origin, purpose, item): continue
+		if origin > 0 and not Stock.permits_issue(actor, target, origin, purpose, item): continue
 		if Stock.known_quantity(actor, target, item, "take", origin) > 0: return origin
 	return -1
 
-func _deposit(item: String, count: int, organization: int, destination: int, chain: Array, purpose: String = "") -> Dictionary:
+func _deposit(item: String, count: int, organization: int, destination: int, chain: Array, purpose: String = "", origins: Variant = null) -> Dictionary:
 	var choices: Array = []
 	for target: Dictionary in _targets("known", {}):
 		if int(target.get("organization", 0)) != organization or (destination > 0 and target.id != destination): continue
@@ -217,6 +239,7 @@ func _deposit(item: String, count: int, organization: int, destination: int, cha
 			if step.is_empty(): continue
 			step.input.merge({"item": item, "amount": count}, true)
 			if not purpose.is_empty(): step.input["purpose"] = purpose
+			if origins != null: step.input["origins"] = origins.duplicate()
 			choices.append(_option(step, id, target.id))
 			if int(budget.work) >= slice_limit: return _best(choices).get("step", {})
 	return _best(choices).get("step", {})
@@ -263,12 +286,20 @@ func _delivery(goal: Dictionary, chain: Array) -> Array:
 	var item: String = goal.params.item
 	var remaining: int = maxi(0, int(goal.params.amount) - int(goal.progress))
 	var organization: int = int(goal.params.get("organization", 0))
+	var destination: int = int(goal.params.get("target", 0))
+	if destination > 0:
+		var place: Dictionary = known.get(destination, {})
+		if int(place.get("tile", -1)) < 0 or _denied("put", destination) or not Stock.access_reason(actor, place, "put", {"item": item, "purpose": "supply"}).is_empty(): return []
+		if not place.has("inventory"):
+			var inspect: Dictionary = _inspect(place)
+			return [_option(inspect, "put", destination)] if not inspect.is_empty() else []
+		if int(place.get("capacity", -1)) >= 0 and int(place.inventory.values().reduce(func(a: int, b: int): return a + b, 0)) >= int(place.capacity): return []
 	if preferred.get("retained", {}).has("%d::%s" % [organization, item]): return []
 	var held: int = 0
 	for bundle: Dictionary in actor.bundles:
-		if int(bundle.organization) == organization and (organization == 0 or bundle.purpose == "supply"): held += int(bundle.items.get(item, 0))
+		if int(bundle.organization) == organization and (organization == 0 or (bundle.purpose == "supply" and int(bundle.get("origin", 0)) != int(goal.params.get("target", 0)) and (source_scope.is_empty() or int(bundle.get("origin", 0)) in source_scope))): held += int(bundle.items.get(item, 0))
 	if held > 0:
-		var step: Dictionary = _deposit(item, mini(remaining, held), organization, int(goal.params.get("target", 0)), chain, "supply" if organization > 0 else "")
+		var step: Dictionary = _deposit(item, mini(remaining, held), organization, int(goal.params.get("target", 0)), chain, "supply" if organization > 0 else "", source_scope if sources_restricted else null)
 		return [_option(step, "put", int(step.input.target))] if not step.is_empty() else []
 	# Never fulfil a supply purpose by withdrawing and redepositing its own
 	# destination's stock. An unspecified destination means any legal store.
@@ -285,10 +316,15 @@ func _returns(goal: Dictionary, chain: Array) -> Array:
 	for bundle: Dictionary in actor.return_bundles:
 		if int(bundle.entrust) <= 0: continue
 		for item: String in bundle.items:
-			if Stock.permits_purpose(actor, int(bundle.organization), bundle.purpose, item) and preferred.get("retained", {}).has("%d:%s:%s" % [int(bundle.organization), bundle.purpose, item]): continue
-			var step: Dictionary = _deposit(item, int(bundle.items[item]), int(bundle.organization), 0, chain, bundle.purpose)
+			if Stock.permits_purpose(actor, int(bundle.organization), bundle.purpose, item) and _retains(bundle, item): continue
+			var origins: Variant = [int(bundle.origin)] if bundle.purpose == "supply" and int(bundle.get("origin", 0)) > 0 else null
+			var step: Dictionary = _deposit(item, int(bundle.items[item]), int(bundle.organization), 0, chain, bundle.purpose, origins)
 			if not step.is_empty(): result.append(_option(step, "put", int(step.input.target)))
 	return result
+
+func _retains(bundle: Dictionary, item: String) -> bool:
+	var key: String = "%d:%s:%s" % [int(bundle.organization), bundle.purpose, item]
+	return preferred.get("retained", {}).has(key) or (bundle.purpose == "supply" and preferred.get("retained", {}).has(key + ":%d" % int(bundle.get("origin", 0))))
 
 static func _best(options: Array) -> Dictionary:
 	var result: Dictionary = {}
