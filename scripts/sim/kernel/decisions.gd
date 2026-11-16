@@ -38,7 +38,7 @@ func bind(world: RefCounted, actor: int, policy: String, parameters: Dictionary 
 	if not world.gate.check(world, actor, world.operation_time()).is_empty(): return "action_committed"
 	var entry: Dictionary = _record(world, actor)
 	_submitting = actor
-	world.end_run(actor, world.operation_time(), "preempted")
+	world.end_run(actor, world.operation_time(), "preempted", {}, false)
 	world.clear_navigation(actor)
 	_submitting = 0
 	movement.erase(actor)
@@ -154,11 +154,11 @@ func retry_allowed(world: RefCounted, actor: int, operation: String, target: int
 		if failure.operation == operation and failure.target == target: return false
 	return true
 
-func result(world: RefCounted, actor: int, operation: String, target: int, reason: String, at: int) -> void:
+func result(world: RefCounted, actor: int, operation: String, target: int, reason: String, at: int, status: String = "") -> void:
 	if operation.is_empty() or target <= 0 or not world.actor_slots.has(actor) or not world.combat.alive(world, actor): return
 	var entry: Dictionary = _record(world, actor)
 	_prune_feedback(world, actor, at)
-	var succeeded: bool = reason in ["completed", "transferred", "arrived"]
+	var succeeded: bool = status == "completed" if not status.is_empty() else reason in ["completed", "transferred", "arrived"]
 	if not succeeded and reason in ["accepted", "started", "buffered", "replaced", "preempted", "interrupted", "partner_left", "cancelled", "action_committed", "stunned", "recovery", "rooted", "intent_pending"]: return
 	for index: int in range(entry.feedback.size() - 1, -1, -1):
 		if entry.feedback[index].operation == operation and entry.feedback[index].target == target: entry.feedback.remove_at(index)
@@ -183,13 +183,13 @@ func focus(world: RefCounted, actor: int, at: int) -> void:
 	if entry.manual: return
 	_enter(world, actor, entry, "fight", at)
 
-func ended(world: RefCounted, actor: int, binding: Dictionary, at: int, reason: String) -> void:
+func ended(world: RefCounted, actor: int, binding: Dictionary, at: int, reason: String, activity: Dictionary = {}) -> void:
 	if not records.has(actor): return
 	var entry: Dictionary = records[actor]
 	var task: Dictionary = entry.task
 	if task.get("binding", {}) == binding and not binding.is_empty():
 		if task.has("operation") and (reason != "completed" or not task.get("approach", false)):
-			result(world, actor, task.operation, task.target, reason, at)
+			result(world, actor, task.operation, task.target, reason, at, str(activity.get("status", "")))
 		task.binding = {}
 		task.result = reason
 		if task.get("kind") == "host" or (_submitting != actor and reason != "completed"): task.clear()
@@ -225,7 +225,7 @@ func _enter(world: RefCounted, actor: int, entry: Dictionary, mode: String, now:
 	if entry.mode == mode: return true
 	if not world.gate.check(world, actor, now).is_empty(): return false
 	_submitting = actor
-	world.end_run(actor, now, "preempted")
+	world.end_run(actor, now, "preempted", {}, false)
 	world.clear_navigation(actor)
 	_submitting = 0
 	entry.mode = mode
@@ -299,7 +299,7 @@ func prepare(world: RefCounted, now: int) -> void:
 				entry.life_dirty = false
 				if _life_preemptible(world, actor):
 					_submitting = actor
-					world.end_run(actor, now, "preempted")
+					world.end_run(actor, now, "preempted", {}, false)
 					world.clear_navigation(actor)
 					_submitting = 0
 			if world.gate.current(actor).is_empty():

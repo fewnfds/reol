@@ -26,6 +26,8 @@ func shared_rules() -> void:
 	check(w.begin_interaction(1, {"kind": "demolish", "target": pile}) == "invalid_target" and w.gate.current(1) == original, "Invalid target cancelled existing labor")
 	advance(w, 4500)
 	check(w.objects.amount(stove, "meal") == 3 and w.objects.amount(1, "grain") == 0, "Shared definition did not reach real cooking output")
+	var actual: Array = w.activity_results.view(1)
+	check(not actual.is_empty() and actual.back().facts.consumed == {"grain": 2, "water": 1} and actual.back().facts.produced == {"meal": 3}, "Cooking result invented inputs or omitted real outputs")
 	var remembered: Dictionary = w.operation_target(stove)
 	w.objects.add(stove, "meal", -3)
 	check(Query.evaluate(Operations.OPERATIONS.eat, w.operation_actor(1), remembered).ready and w.begin_interaction(1, {"kind": "eat", "target": stove}) == "no_food", "Query consulted hidden inventory or owner trusted stale evidence")
@@ -129,6 +131,10 @@ func arrival_and_restore() -> void:
 	var source: int = w.source_objects[0]
 	check(w.begin_transfer(1, {"kind": "take", "target": source, "item": "wood", "amount": 1}) == "accepted", "Transfer restore fixture failed")
 	var data: Dictionary = Persistence.capture(w)
+	for invalid: String in ["harvest", "wood_mend", "no_such_operation"]:
+		var corrupted: Dictionary = data.duplicate(true)
+		corrupted.domains.world.actions[1].kind = invalid
+		check(Persistence.candidate(corrupted, 0) == null, "Invalid operation host bypassed pre-Gate restore validation")
 	data.domains.world.actions[1].target = 2
 	var loaded: RefCounted = Persistence.candidate(data, 0)
 	check(loaded != null, "Current in-flight target is not a restore-time availability test")

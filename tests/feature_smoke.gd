@@ -57,6 +57,9 @@ static func run(check: Callable) -> void:
 	w.command({"kind": "interrupt", "actor": 2})
 	w.command({"kind": "interrupt", "actor": 1})
 	check.call(page.modes[1] == 4 and not w.objects.records[2].autonomous, "Canceling invitation overwrote a newer stop")
+	# A deliberately stopped participant must be released before the independent
+	# teaching scenario; busy/manual contacts no longer complete unilaterally.
+	w.decisions.resume(w, 2, w.elapsed_ms)
 	page.positions[0] = Vector2(176.5, 187.5)
 	page.positions[1] = Vector2(177.5, 187.5)
 	check.call(not w.command({"kind": "ability"}).ok, "Unknown method granted a usable ability")

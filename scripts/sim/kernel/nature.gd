@@ -4,6 +4,7 @@ extends RefCounted
 ## up to PULSE_MS to affect a plant; brief moving influences can be missed.
 
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
+const Results = preload("res://scripts/sim/kernel/activity_results.gd")
 const PULSE_MS: int = 5000
 const GROUPS: int = PULSE_MS / 50
 const STATE_FIELDS: Array = ["ids", "evaluations", "transitions", "collections"]
@@ -36,6 +37,8 @@ func rebuild(world: RefCounted) -> bool:
 		var rec: Dictionary = world.objects.records[id]
 		if rec.kind != "plant" or not definitions.has(rec.definition) or rec.tile < 0 or not rec.get("host") is int or rec.host < 0 or not rec.get("stage") is int or rec.stage < 0 or rec.stage > Stage.WITHERED or not rec.get("growth_ms") is int or rec.growth_ms < 0 or not rec.get("last_ms") is int or rec.last_ms > world.elapsed_ms or not rec.get("sources") is PackedInt32Array:
 			return false
+		if (rec.stage == Stage.SEEDING) != rec.has("remaining_ms"): return false
+		if rec.has("remaining_ms") and (not rec.remaining_ms is int or rec.remaining_ms < 1): return false
 		for source: int in rec.sources:
 			if source < 0 or source >= world.environment.source_cells.size() or world.environment.free_sources.has(source):
 				return false
@@ -124,7 +127,8 @@ func create(world: RefCounted, definition: String, tile: int, seeding: bool = fa
 	rec.merge({"layer": "plant", "stage": Stage.SEEDING if seeding else Stage.SPROUT,
 		"growth_ms": 0, "product_ms": 0, "age_ms": 0, "injury_ms": 0, "last_ms": world.elapsed_ms,
 		"rate": 1000, "adverse": false, "host": place.host, "sources": PackedInt32Array(),
-		"remaining_ms": 1500, "hp": int(spec.max_hp), "max_hp": int(spec.max_hp), "sapient": false}, true)
+		"hp": int(spec.max_hp), "max_hp": int(spec.max_hp), "sapient": false}, true)
+	if seeding: rec["remaining_ms"] = 1500
 	if place.host > 0:
 		world.objects.records[place.host]["guest"] = id
 	ids.append(id)
@@ -152,6 +156,7 @@ func plant_site(world: RefCounted, actor: int, definition: String, tile: int) ->
 		return {"reason": place.reason}
 	var id: int = create(world, definition, tile, true)
 	world.objects.transfer(actor, id, seed_item(definition), 1)
+	world._sync_inventory(actor)
 	return {"reason": "accepted", "target": id}
 
 
@@ -248,69 +253,87 @@ func tend_check(world: RefCounted, actor: int, target: int) -> String:
 	if world.objects.amount(actor, "water") < 1: return "missing_water"
 	return ""
 
-func tend(world: RefCounted, actor: int, target: int, _now: int) -> String:
+func tend(world: RefCounted, actor: int, target: int, _now: int) -> Dictionary:
 	var reason: String = tend_check(world, actor, target)
-	if not reason.is_empty(): return reason
+	if not reason.is_empty(): return Results.refused(reason)
 	var rec: Dictionary = world.objects.records[target]
+	var before: int = rec.injury_ms
 	world.objects.add(actor, "water", -1)
 	if rec.host > 0 and world.objects.records.has(rec.host): world.objects.records[rec.host]["water"] = 80
 	rec.injury_ms = maxi(0, int(rec.injury_ms) - 60000)
 	world._sync_inventory(actor)
-	return "completed"
+	return Results.completed({"consumed": {"water": 1}, "injury_recovered_ms": before - int(rec.injury_ms)})
 
 func finish(world: RefCounted, actor: int, action: Dictionary, now: int) -> String:
+	return commit(world, actor, action, now).reason
+
+func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dictionary:
 	var rec: Dictionary = world.objects.records[action.target]
+	var facts: Dictionary = {"definition": rec.definition}
 	if rec.kind == "resource":
 		if action.kind not in ["cut", "uproot"]:
-			return "not_a_growing_plant"
+			return Results.refused("not_a_growing_plant")
 		var level: int = vegetation_level(rec)
 		if level == 0 or (action.kind == "cut" and level < 3):
-			return "already_cleared_or_cut"
+			return Results.refused("already_cleared_or_cut")
 		rec["vegetation_level"] = 2 if action.kind == "cut" else 0
 		# These resource fixtures already contain all their timber. Clearing
 		# changes the plant body into a stump/loose stock without minting wood.
 		world.objects.layout_revision += 1
-		return "completed"
+		return Results.completed({"vegetation_level": rec.vegetation_level})
 	var spec: Dictionary = definitions[rec.definition]
 	match action.kind:
 		"sow":
 			if rec.stage != Stage.SEEDING or world.objects.amount(action.target, seed_item(rec.definition)) < 1:
-				return "no_seed_site"
+				return Results.refused("no_seed_site")
+			facts.merge({"consumed": {seed_item(rec.definition): 1}, "worked_ms": int(rec.remaining_ms), "remaining_ms": 0, "stage": Stage.SPROUT})
 			world.objects.add(action.target, seed_item(rec.definition), -1)
 			rec.stage = Stage.SPROUT
 			rec.last_ms = now
+			rec.erase("remaining_ms")
 			world.objects.layout_revision += 1
 		"tend":
-			return world.DomainOps.commit(world, actor, action.target, "tend", now).reason
+			var result: Dictionary = world.DomainOps.commit(world, actor, action.target, "tend", now)
+			return Results.completed(result.facts) if result.ok else Results.refused(result.reason)
 		"gather":
 			if rec.stage != Stage.MATURE:
-				return "not_mature"
+				return Results.refused("not_mature")
 			var moved: int = world.objects.transfer(action.target, actor, str(spec.product.item), int(spec.product.capacity))
 			if moved <= 0:
-				return "no_product_or_full"
+				return Results.refused("no_product_or_full")
+			facts.merge({"item": str(spec.product.item), "amount": moved, "source": action.target, "destination": actor})
 			collections += moved
 			world.reactions.submit(world, {"event": "gathered", "actor": actor, "target": action.target, "at_ms": now, "amount": moved, "activation": 0, "position": world.position_at(actor, now)})
 		"cut", "uproot":
 			if action.kind == "cut" and rec.stage != Stage.MATURE:
-				return "not_mature"
+				return Results.refused("not_mature")
 			if rec.stage == Stage.MATURE:
 				world.objects.add(action.target, str(spec.body_product.item), int(spec.body_product.amount))
+				facts["produced"] = {str(spec.body_product.item): int(spec.body_product.amount)}
+			var received: Dictionary = {}
 			for item: String in rec.inventory.keys():
-				world.objects.transfer(action.target, actor, item, world.objects.amount(action.target, item))
+				var amount: int = world.objects.transfer(action.target, actor, item, world.objects.amount(action.target, item))
+				if amount > 0: received[item] = amount
+			facts["received"] = received
 			if world.objects.count_inventory(action.target) > 0:
 				var pile: int = world.objects.create("pile", "plant_remains", rec.tile)
+				facts["remains_pile"] = pile
+				var remains: Dictionary = {}
 				for item: String in rec.inventory.keys():
-					world.objects.transfer(action.target, pile, item, world.objects.amount(action.target, item))
+					remains[item] = world.objects.transfer(action.target, pile, item, world.objects.amount(action.target, item))
+				facts["remains"] = remains
 			if action.kind == "cut" and bool(spec.regrow) and rec.stage != Stage.WITHERED:
 				rec.stage = Stage.STUMP
 				rec.growth_ms = 0
 				rec.product_ms = 0
 				rec.sapient = false
+				facts["stage"] = Stage.STUMP
 				_sync(world, action.target)
 			else:
+				facts["removed"] = action.target
 				remove(world, action.target, now)
 	world._sync_inventory(actor)
-	return "completed"
+	return Results.completed(facts)
 
 
 func remove(world: RefCounted, id: int, at: int = -1) -> void:

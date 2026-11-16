@@ -13,13 +13,15 @@
 | `scripts/sim/kernel/units.gd` | 每页256行身体热列、独立瞄准、直接扫掠/沿路运动、到达/到期、需求、环境接收与冷热耐受；一页只由一个lane写入 |
 | `scripts/sim/kernel/motion.gd` | 本步带时间折线的采样与分段相对扫掠，供显示和投射物共用 |
 | `action_gate.gd`、`action_costs.gd`、`domain_effects.gd` | 派生占用索引、起手成本与具名领域操作；阶段/截止/已付款仍归宿主 |
+| `being_defs.gd`、`operation_defs.gd`、`operation_query.gd` | 主体能力与共同操作的冻结定义、按本人/已知目标的纯查询；静态适用与当前就绪分别表达，现场owner复核 |
+| `activity_results.gd` | 持续交互/采木及瞬时操作的有界实际结果；原host退绑后唯一发布，索引派生重建，历史不重放 |
 | `scripts/sim/kernel/world.gd` | 世界组合根、命令/通用行动、预约、共享效果顺序、生命周期与结构提交 |
 | `scripts/sim/kernel/objects.gd` | 单调身份、静态位置索引、分类库存与穿戴位置、转移/原子交换与换装；不逐步空转所有对象 |
 | `items.gd`、`equipment.gd` | 物品定义/品质堆键的唯一解释，以及按源状态重建的身体属性热列；没有第二份物品实例账本 |
 | `facilities.gd`、`livelihood.gd` | 组合占地/蓝图/设施效果与个人线索驱动的稀疏生活决策，复用身体到期/到达 |
 | `decisions.gd`、`decision_defs.gd`、`decision_rules.gd` | 跨生活/战斗/逃离/跟随的策略绑定、独立任务、手动交接、唤醒与自主输入；只读政策与受信求值器，原宿主负责执行 |
 | `environment.gd`、`nature.gd` | 历法/天气、静态max场/移动来源索引、房间响应；分组植物采样/生长/产物/宿主与来源 |
-| `scripts/sim/definitions/{actions,combat,decisions}/`、`data/definitions/{actions,combat,decisions}/`、`action_defs.gd` | 原生Resource作者数据、库引用/字段校验、递归只读值与规则内容签名；制作与在飞载荷共用作用校验，CD/在途实例不写回资源 |
+| `scripts/sim/definitions/`、`data/definitions/`、`action_defs.gd` | 原生Resource作者数据、库引用/字段校验、递归只读值与规则内容签名；战斗、主体与操作分别编译；制作与在飞载荷共用作用校验，CD/在途实例不写回资源 |
 | `combat.gd`、`combat_projectiles.gd` | 玩家/NPC共用动作、AI最后所见、阶段/取消/缓冲/分组CD、扇区/弹体扫掠及统一HP提交；弹表仍归Combat，帮助模块按机制计算，不按技能名称分支 |
 | `combat_effects.gd`、`combat_areas.gd`、`implements.gd` | 分别持有限时状态/层数/周期/修饰来源、已交付预警/周期圆区、独立器物的身份/归属/耐久/部署；同属World共同时间与候选恢复，器物不占村民身体页 |
 | `resource_pools.gd`、`combat_defense.gd` | 稀疏蓝/怒池与回复余量；盾实例、方向/时段格挡。HP、精力、qi、实物仍归原owner |
@@ -97,6 +99,8 @@ P5将接触发现和开始交战分开：发现仅记忆/唤醒，共同Decision
 画面可跳过中间Frame，可靠命令回执/到达/失败/死亡走独立队列。命令在途上限包含未收回执。Pose随位置保留身份；槽位换人不串插值，读档提升epoch并重置显示历史、拒绝旧会话命令。
 
 `World.emit()`复用原outcomes队列，同时将可归属人物的真实后果交给`PersonEvents`；命令受理另记，不能当成到达或行动完成。个人记录有全局预算，容量与UI入口只查FEATURES；只为主角/当前详情构造缓存的深拷贝视图，后续损耗合并不修改已发布Frame。日志随原领域存读，不是第二事件引擎、录像或全局广播总线；worker不写共享日志。
+
+活动的实际结果另归`ActivityResults`，原宿主提交点提供真实量、工时与学习依据；`end_run`一次退绑后保存，再通知P5/伙伴。阶段与运行身份仍归原actions/页，库存与工地不迁入历史；共享结果按实际参加者投影。索引可重建，有界历史不能承担物资、跨run目标或已发奖励的唯一真值，详见[活动合同](../../design/systems/action_effect_framework.md#301-持续活动与实际结果)。
 
 ### 交互与小地图
 

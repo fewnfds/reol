@@ -6,6 +6,7 @@ const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Positions = preload("res://scripts/sim/kernel/work_positions.gd")
 const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const Query = preload("res://scripts/sim/kernel/operation_query.gd")
+const Results = preload("res://scripts/sim/kernel/activity_results.gd")
 var definitions: Dictionary = {}
 var completed: Dictionary = {}
 
@@ -188,91 +189,116 @@ func available(world: RefCounted, action: Dictionary, actor: int = 1) -> bool:
 	return not operation.is_empty() and Query.evaluate(operation, world.operation_actor(actor), world.operation_target(action.target), {}, definitions).ready
 
 
-func interrupt(world: RefCounted, action: Dictionary, now: int) -> void:
-	if action.kind not in ["construct", "sow"] or not action.has("started_ms") or not world.objects.records.has(action.target):
-		return
+func interrupt(world: RefCounted, action: Dictionary, now: int) -> Dictionary:
+	if action.kind not in ["construct", "sow"] or not world.objects.records.has(action.target):
+		return {}
 	var record: Dictionary = world.objects.records[action.target]
-	if action.kind == "construct" and record.kind != "blueprint": return
-	record.remaining_ms = maxi(1, int(record.remaining_ms) - maxi(0, now - int(action.started_ms)))
+	if action.kind == "construct" and record.kind != "blueprint": return {}
+	if action.kind == "sow" and record.get("stage", -1) != world.nature.Stage.SEEDING: return {}
+	if not action.has("started_ms"): return {"worked_ms": 0, "remaining_ms": int(record.remaining_ms)}
+	# The last quantum belongs to successful completion, never to a canceled run.
+	var worked: int = mini(maxi(0, int(record.remaining_ms) - 1), maxi(0, now - int(action.started_ms)))
+	record.remaining_ms -= worked
+	return {"worked_ms": worked, "remaining_ms": record.remaining_ms}
 
 
 func finish(world: RefCounted, actor: int, action: Dictionary, at: int) -> String:
+	return commit(world, actor, action, at).reason
+
+func commit(world: RefCounted, actor: int, action: Dictionary, at: int) -> Dictionary:
 	if not available(world, action, actor):
-		return "unavailable"
+		return Results.refused("unavailable")
 	var record: Dictionary = world.objects.records[action.target]
 	var spec: Dictionary = definitions.get(record.definition, {})
+	var facts: Dictionary = {}
 	var slot: int = world.actor_slots[actor]
 	var page: RefCounted = world.pages[slot / 256]
 	var row: int = slot % 256
 	match action.kind:
 		"construct":
+			facts = {"definition": record.definition, "worked_ms": int(record.remaining_ms), "remaining_ms": 0}
 			var cells: PackedInt32Array = record.cells
 			if record.get("layer", "ground") == "floor":
 				var reason: String = placement(world, "floor", cells, action.target)
 				if reason != "accepted":
-					return reason
-				for member: int in cells:
-					for other: int in world.objects.by_tile.get(member, []).duplicate():
-						if world.objects.records[other].kind == "plant" and int(world.objects.records[other].get("host", 0)) == 0:
-							world.nature.remove(world, other, at)
-					world.terrain.set_floor(member, true)
+					return Results.refused(reason)
 			if spec.get("facts", {}).get("movement_blocked", false):
 				for body: RefCounted in world.pages:
 					for index: int in body.ids.size():
 						if body.ids[index] > 0 and body.health[index] > 0 and body.flight[index] == 0:
 							for member: int in cells:
 								if world._body_overlaps_tile(world.position_at(body.ids[index], at), body.radii[index], member):
-									return "occupied"
+									return Results.refused("occupied")
+			if record.get("layer", "ground") == "floor":
+				for member: int in cells:
+					for other: int in world.objects.by_tile.get(member, []).duplicate():
+						if world.objects.records[other].kind == "plant" and int(world.objects.records[other].get("host", 0)) == 0:
+							world.nature.remove(world, other, at)
 			record["materials"] = record.inventory
 			record.inventory = {}
 			record.erase("remaining_ms")
 			record.erase("construction_started")
 			install(world, action.target)
-		"rest": page.energy[row] = mini(10000, page.energy[row] + 2000)
+		"rest":
+			var before: int = page.energy[row]
+			page.energy[row] = mini(10000, before + 2000)
+			facts = {"energy_restored": page.energy[row] - before}
 		"eat":
 			if world.objects.amount(action.target, "meal") <= 0:
-				return "no_food"
+				return Results.refused("no_food")
 			world.objects.add(action.target, "meal", -1)
-			page.hunger[row] = mini(10000, page.hunger[row] + 3000)
+			var before: int = page.hunger[row]
+			page.hunger[row] = mini(10000, before + 3000)
+			facts = {"consumed": {"meal": 1}, "hunger_restored": page.hunger[row] - before}
 			world.effects.apply_bundle(world, actor, actor, 0, "", preload("res://data/definitions/actions/meal_effect.tres").values(), at, 0, "activation")
 		"cook":
 			var ingredients: Dictionary = Operations.OPERATIONS[action.get("operation_id", action.kind)].required_items
 			for item: String in ingredients:
-				if world.objects.amount(actor, item) < int(ingredients[item]): return "missing_ingredients"
-			if record.capacity >= 0 and world.objects.count_inventory(action.target) + 3 > record.capacity: return "no_output_capacity"
+				if world.objects.amount(actor, item) < int(ingredients[item]): return Results.refused("missing_ingredients")
+			if record.capacity >= 0 and world.objects.count_inventory(action.target) + 3 > record.capacity: return Results.refused("no_output_capacity")
 			for item: String in ingredients: world.objects.add(actor, item, -int(ingredients[item]))
 			world.objects.add(action.target, "meal", 3)
+			world._sync_inventory(actor)
+			facts = {"consumed": ingredients.duplicate(), "produced": {"meal": 3}, "destination": action.target}
 	completed[action.kind] = int(completed.get(action.kind, 0)) + 1
-	return "completed"
+	return Results.completed(facts)
 
 
 func demolish(world: RefCounted, target: int, at: int = -1) -> bool:
+	return demolish_result(world, target, at).status == "completed"
+
+func demolish_result(world: RefCounted, target: int, at: int = -1) -> Dictionary:
 	if not world.objects.records.has(target):
-		return false
+		return Results.refused("target_gone")
 	var record: Dictionary = world.objects.records[target]
 	if record.tile < 0:
-		return false
+		return Results.refused("invalid_target")
+	# Equipment cannot be salvaged by this facility operation. Check before any
+	# target callbacks, guest removal or material movement can commit changes.
+	if not record.get("equipment", {}).is_empty(): return Results.refused("equipped_target")
 	if record.kind == "resource":
 		# Keep source identity/stock indices valid; all timber becomes loose stock.
 		record["vegetation_level"] = 0
 		world.objects.layout_revision += 1
-		return true
+		return Results.completed({"vegetation_level": 0})
 	world.forget_target(target, at)
 	if record.kind == "plant":
 		world.nature.remove(world, target, at)
-		return true
+		return Results.completed({"removed": target, "definition": record.definition})
 	var guest: int = int(record.get("guest", 0))
 	if guest > 0 and world.objects.records.has(guest):
 		world.nature.remove(world, guest, at)
 	var pile: int = 0
+	var salvage: Dictionary = {}
 	if world.objects.count_inventory(target) > 0 or not record.get("materials", {}).is_empty():
 		pile = world.objects.create("pile", "salvage", record.tile)
 		for item: String in record.inventory.keys():
-			world.objects.transfer(target, pile, item, world.objects.amount(target, item))
+			salvage[item] = world.objects.transfer(target, pile, item, world.objects.amount(target, item))
 		for item: String in record.get("materials", {}):
 			var count: int = record.materials[item]
 			# Same material moves from the structure body into loose inventory.
 			world.objects.add(pile, item, count)
 			world.objects.totals[item] -= count
+			salvage[item] = int(salvage.get(item, 0)) + count
 		record.erase("materials")
-	return world.remove_static(target, at)
+	return Results.completed({"removed": target, "definition": record.definition, "salvage_pile": pile, "salvage": salvage}) if world.remove_static(target, at) else Results.refused("failed")

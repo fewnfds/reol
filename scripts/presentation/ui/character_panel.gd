@@ -8,6 +8,7 @@ const EventText = preload("res://scripts/presentation/ui/event_text.gd")
 var subject_id: int = 1
 var events: RichTextLabel
 var _stats: Label
+var _activity: Label
 var _practice: Label
 var _gear := GridContainer.new()
 var _study: Button
@@ -36,6 +37,7 @@ func _ready() -> void:
 	_gear.columns = 2
 	body.add_child(_gear)
 	_stats = Style.label(body)
+	_activity = Style.label(body)
 	var practice := VBoxContainer.new()
 	practice.name = "修行"
 	_tabs.add_child(practice)
@@ -61,6 +63,7 @@ func refresh(subject: Dictionary) -> void:
 	if not known:
 		_event_signature = ""
 		_stats.text = "⊘ #%d" % subject_id
+		_activity.text = ""
 		_practice.text = "⊘"
 		events.text = ""
 		_study.disabled = true
@@ -90,6 +93,10 @@ func refresh(subject: Dictionary) -> void:
 		int(stats.get("melee", 0)), int(stats.get("ranged", 0)),
 		int(stats.get("armor", 0)), float(stats.get("speed", 0)), int(subject.energy), int(subject.hunger), float(subject.temperature)]
 	_practice.text = "灵气 %d\n修行 %d\n%s" % [int(subject.get("qi", 0)), int(subject.get("practice", 0)), str(subject.get("methods", {}).keys())]
+	var activity: Dictionary = subject.get("activity", {})
+	var operation: String = str(activity.get("operation", ""))
+	var phase: String = str({"approaching": "前往", "waiting": "等待", "acting": "进行", "partner_waiting": "应邀等候", "traveling": "赶路", "exploring": "探查", "combat": "战斗", "working": "活动"}.get(activity.get("phase", ""), "空闲"))
+	_activity.text = "%s%s" % [phase, " · " + str(EventText.Actions.Operations.OPERATIONS[operation].title) if EventText.Actions.Operations.OPERATIONS.has(operation) else ""]
 	_study.disabled = subject_id != 1 or not preload("res://scripts/presentation/ui/actions.gd").self_ready(subject, "study")
 	_ability.disabled = subject_id != 1 or not preload("res://scripts/presentation/ui/actions.gd").self_ready(subject, "wood_mend")
 	var version: String = "%d:%d" % [subject_id, int(subject.get("events_version", 0))]

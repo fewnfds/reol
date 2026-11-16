@@ -51,6 +51,12 @@ func rebuild(world: RefCounted) -> bool:
 		for key: String in ["waiting", "autonomous", "partner_waiting", "partner_resume"]:
 			if world.actions[actor].has(key) and not world.actions[actor][key] is bool: return false
 		if world.actions[actor].has("started_ms") and (not world.actions[actor].started_ms is int or world.actions[actor].started_ms < 0 or world.actions[actor].started_ms > world.elapsed_ms): return false
+		var action: Dictionary = world.actions[actor]
+		if action.has("started_ms") and (world.pages[slot / 256].modes[slot % 256] != world.Units.Mode.ACTION or action.get("waiting", false)): return false
+		if not action.get("participants") is Array or action.participants.is_empty() or action.participants.size() > 2 or action.participants[0] != actor: return false
+		if action.participants.size() == 2 and (action.participants[1] != action.target or action.target == actor or Operations.OPERATIONS[action.kind].executor != "society" or not action.has("started_ms")): return false
+		if action.participants.size() == 2 and action.target != 1 and world.actor_slots.has(action.target) and not action.get("partner_waiting", false): return false
+		if action.has("worked_ms") and (not action.worked_ms is int or action.worked_ms < 0): return false
 		seen[run] = true
 		bind(actor, "interaction", run)
 	for actor: int in world.combat.states:

@@ -15,6 +15,8 @@
 
 `operations_smoke.gd`按需单独核对共同查询/UI/owner要求、真实烹饪、未知/非法目标拒绝不污染run、过时和缺失观察、规则签名/重名/递归冻结、同机制Resource变体直接执行；另验木愈实际多费用/P4归因、被控和动作承诺拒绝、普通run保留及恢复。它不证明完整配方、多人课程或人生目标已实现。
 
+`activities_smoke.gd`按需运行，核原World中的实际部分拿取/同刻取空、施工中断换人和中途恢复、未到场/忙方/伙伴死亡/静止教师、线索成功反馈、播种完工与采木失败、共享结果按人/全局淘汰及活run与历史互斥、放置和派工回执。结果纯存储的边界另用有界历史反例；不把施工接续当作加工在制已完成。
+
 `navigation_smoke.gd`由kernel调用，`tile_smoke.gd`复用features的世界；它们和feature/sight/equipment一样是RefCounted模块，不直接用Godot的`--script`启动。其余SceneTree专题按下面的范围选用。
 
 `tool_smoke.py`在修改Python运行或性能工具时使用，核对进程退出/超时、历史复用、单倍率次数上限及不可比条件，不启动游戏。性能用真实release短窗口，不用smoke通过数量代表容量。

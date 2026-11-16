@@ -348,7 +348,7 @@ func action(kind: String, payload: Dictionary) -> void:
 				if operation.executor == "transfer":
 					clear_direct()
 					ui.open_stock(kind, target)
-				else: _send({"kind": kind, "target": target, "task_target": help_target})
+				else: _send({"kind": kind, "target": 1 if operation.executor == "instant" else target, "task_target": help_target})
 	host._hud_next = 0
 
 func _send(command: Dictionary) -> int:
