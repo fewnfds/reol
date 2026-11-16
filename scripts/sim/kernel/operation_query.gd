@@ -6,6 +6,7 @@ const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const Stock = preload("res://scripts/sim/kernel/stock_rules.gd")
 const Production = preload("res://scripts/sim/kernel/production.gd")
 static var BUILDINGS: Dictionary = Defs.freeze(JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/construction.json")).types)
+static var PLANTS: Dictionary = Defs.freeze(JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/plants.json")).types)
 
 static func evaluate(operation: Dictionary, actor: Dictionary, target: Dictionary, context: Dictionary = {}, buildings: Dictionary = {}) -> Dictionary:
 	if buildings.is_empty(): buildings = BUILDINGS
@@ -24,11 +25,7 @@ static func evaluate(operation: Dictionary, actor: Dictionary, target: Dictionar
 		if reason.is_empty() and operation.handler == "eat" and target.has("inventory") and Stock.known_quantity(actor, target, "meal", "eat") <= 0: reason = "no_food"
 		var inputs: Dictionary = context.duplicate()
 		inputs["organization"] = int(target.get("organization", 0))
-		var access_target: Dictionary = target
-		if not operation.recipe.is_empty():
-			access_target = target.duplicate()
-			access_target["processing_purpose"] = operation.recipe.purpose
-		if reason.is_empty(): reason = Stock.access_reason(actor, access_target, operation.handler)
+		if reason.is_empty(): reason = access_reason(operation, actor, target, context, buildings)
 		if reason.is_empty(): reason = readiness(operation, actor, inputs)
 		if reason.is_empty() and not operation.recipe.is_empty(): reason = Production.readiness(operation, actor, target, buildings)
 		if reason.is_empty() and not unknown.is_empty(): reason = "unknown_target_state"
@@ -37,6 +34,28 @@ static func evaluate(operation: Dictionary, actor: Dictionary, target: Dictionar
 		result.ready = reason.is_empty()
 		if result.ready: break
 	return result
+
+static func access_reason(operation: Dictionary, actor: Dictionary, target: Dictionary, context: Dictionary = {}, buildings: Dictionary = {}) -> String:
+	if buildings.is_empty(): buildings = BUILDINGS
+	var place: Dictionary = target.duplicate()
+	var inputs: Dictionary = context.duplicate()
+	if not operation.recipe.is_empty():
+		place["processing_purpose"] = operation.recipe.purpose
+		inputs["recipe_items"] = operation.recipe.inputs.keys()
+		for item: String in operation.recipe.outputs:
+			if item not in inputs.recipe_items: inputs.recipe_items.append(item)
+	if not inputs.has("item"):
+		if operation.handler == "eat": inputs["item"] = "meal"
+		elif operation.handler == "tend": inputs["item"] = "water"
+		elif operation.handler == "collect_source": inputs["item"] = str(buildings.get(target.get("definition", ""), {}).get("capabilities", {}).get("stock_source", {}).get("item", ""))
+		elif operation.handler == "harvest" or (operation.handler in ["cut", "uproot"] and target.get("kind") == "resource"): inputs["item"] = "wood"
+		elif operation.handler in ["sow", "gather"]: inputs["item"] = str(PLANTS.get(target.get("definition", ""), {}).get("product", {}).get("item", ""))
+	if operation.handler in ["cut", "uproot"]:
+		inputs["recipe_items"] = []
+		var plant: Dictionary = PLANTS.get(target.get("definition", ""), {})
+		for product: String in ["product", "body_product"]:
+			if plant.has(product) and plant[product].item not in inputs.recipe_items: inputs.recipe_items.append(plant[product].item)
+	return Stock.access_reason(actor, place, operation.handler, inputs)
 
 static func candidates(actor: Dictionary, target: Dictionary, context: Dictionary = {}) -> Dictionary:
 	var result: Dictionary = {}

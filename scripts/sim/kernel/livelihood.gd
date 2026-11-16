@@ -98,7 +98,6 @@ func _self_view(world: RefCounted, actor: int) -> Dictionary:
 	var page: RefCounted = world.pages[slot / 256]
 	view["hunger"] = page.hunger[slot % 256]
 	view["speed"] = page.move_speed[slot % 256]
-	view["return_bundles"] = world.institutions.return_bundles(world, actor)
 	view["recovering"] = Growth.needs_rest(world.objects.records[actor]) and page.body_heat[slot % 256] >= 5.0 and page.body_heat[slot % 256] <= 40.0
 	return view
 

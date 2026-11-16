@@ -1,0 +1,115 @@
+extends RefCounted
+## Appointment/service rules operate on Institutions' state, never a second owner.
+const Defs = preload("res://scripts/sim/kernel/institution_defs.gd")
+const Stock = preload("res://scripts/sim/kernel/stock_rules.gd")
+const SERVICES: Array[String] = ["rest", "eat"]
+const LIMIT: int = 4096
+
+static func scope_grants(owner: RefCounted, actor: int) -> Array:
+	var result: Array = []
+	for appointment: Dictionary in owner.appointments.values():
+		if not appointment.active or appointment.actor != actor: continue
+		var role: Dictionary = Defs.ROLES[appointment.role]
+		result.append({"organization": appointment.organization, "targets": appointment.targets.duplicate(), "purposes": role.purposes, "items": role.items, "all_items": role.all_items})
+	return result
+
+static func service_targets(owner: RefCounted, actor: int) -> Dictionary:
+	var result: Dictionary = {}
+	for target: int in owner.services:
+		for purpose: String in owner.services[target]:
+			var rule: Dictionary = owner.services[target][purpose]
+			if actor in rule.actors or (rule.members and owner.memberships.get(rule.organization, {}).has(actor)):
+				if not result.has(purpose): result[purpose] = []
+				result[purpose].append(target)
+	return result
+
+static func service_flags(owner: RefCounted, target: int) -> Dictionary:
+	var result: Dictionary = {}
+	for purpose: String in owner.services.get(target, {}): result[purpose] = true
+	return result
+
+static func _targets_valid(world: RefCounted, organization: int, targets: Array, active: bool) -> bool:
+	if targets.is_empty() or targets.size() > 128: return false
+	for target: Variant in targets:
+		if not target is int or target <= 0 or target >= world.objects.next_id or targets.count(target) != 1: return false
+		if active:
+			var record: Dictionary = world.objects.records.get(target, {})
+			if record.is_empty() or record.kind == "actor" or record.organization != organization or record.owner != 0: return false
+	return true
+
+static func appoint(owner: RefCounted, world: RefCounted, organization: int, actor: int, role: String, targets: Array) -> int:
+	if owner.appointments.size() >= LIMIT or not owner.memberships.get(organization, {}).has(actor) or not world.actor_slots.has(actor) or not world.combat.alive(world, actor) or not Defs.ROLES.has(role) or not _targets_valid(world, organization, targets, true): return 0
+	for appointment: Dictionary in owner.appointments.values():
+		if appointment.active and appointment.organization == organization and appointment.actor == actor and appointment.role == role and appointment.targets == targets: return appointment.id
+	var id: int = owner.next_appointment
+	owner.next_appointment += 1
+	owner.appointments[id] = {"id": id, "organization": organization, "actor": actor, "role": role, "targets": targets.duplicate(), "active": true, "since_ms": world.operation_time()}
+	owner.reconcile(world, actor)
+	return id
+
+static func revoke(owner: RefCounted, world: RefCounted, appointment: int) -> bool:
+	if not owner.appointments.has(appointment) or not owner.appointments[appointment].active: return false
+	owner.appointments[appointment].active = false
+	owner.reconcile(world, int(owner.appointments[appointment].actor))
+	return true
+
+static func _service_supported(world: RefCounted, target: int, purpose: String) -> bool:
+	var record: Dictionary = world.objects.records.get(target, {})
+	if record.is_empty() or record.kind in ["actor", "blueprint"] or record.organization <= 0 or record.owner != 0: return false
+	var capabilities: Dictionary = world.facilities.definitions.get(record.definition, {}).get("capabilities", {})
+	return capabilities.has("rest") if purpose == "rest" else (purpose == "eat" and (capabilities.has("storage") or capabilities.has("workbench")))
+
+static func arrange(owner: RefCounted, world: RefCounted, target: int, purpose: String, actors: Array, members: bool) -> bool:
+	if not _service_supported(world, target, purpose) or actors.size() > 256 or (members and not actors.is_empty()) or (not members and actors.is_empty()): return false
+	var organization: int = world.objects.records[target].organization
+	for actor: Variant in actors:
+		if not actor is int or not world.actor_slots.has(actor) or not world.combat.alive(world, actor) or not owner.memberships[organization].has(actor) or actors.count(actor) != 1: return false
+	var previous: Dictionary = owner.services.get(target, {}).get(purpose, {}).duplicate()
+	if not owner.services.has(target): owner.services[target] = {}
+	owner.services[target][purpose] = {"organization": organization, "actors": actors.duplicate(), "members": members}
+	_service_changed(owner, world, target, previous, owner.services[target][purpose])
+	return true
+
+static func clear_service(owner: RefCounted, world: RefCounted, target: int, purpose: String) -> bool:
+	if not owner.services.get(target, {}).has(purpose): return false
+	var previous: Dictionary = owner.services[target][purpose].duplicate()
+	owner.services[target].erase(purpose)
+	if owner.services[target].is_empty(): owner.services.erase(target)
+	_service_changed(owner, world, target, previous, {})
+	return true
+
+static func _service_changed(owner: RefCounted, world: RefCounted, target: int, previous: Dictionary, current: Dictionary) -> void:
+	var organization: int = world.objects.records[target].organization
+	for actor: int in owner.memberships[organization]:
+		# Newly available access merits reconsideration. Losing an unused bed
+		# does not force every unrelated resident to replan their current work.
+		if current.is_empty() or current.get("members", false) or actor in previous.get("actors", []) or actor in current.get("actors", []) or world.actions.get(actor, {}).get("target", 0) == target:
+			owner.reconcile(world, actor, target)
+
+static func forget_target(owner: RefCounted, world: RefCounted, target: int) -> void:
+	owner.services.erase(target)
+	for appointment: Dictionary in owner.appointments.values():
+		if not appointment.active or target not in appointment.targets: continue
+		appointment.targets.erase(target)
+		if appointment.targets.is_empty():
+			appointment.active = false
+			appointment.targets = [target] # Keep the historical scope; no active grant.
+		owner.reconcile(world, appointment.actor)
+
+static func valid(owner: RefCounted, world: RefCounted) -> bool:
+	if not Defs.ERRORS.is_empty() or owner.catalog_signature != Defs.SIGNATURE or owner.next_appointment < 1 or owner.next_appointment > 999999999999 or owner.appointments.size() > LIMIT or owner.services.size() > LIMIT: return false
+	for id: Variant in owner.appointments:
+		var entry: Variant = owner.appointments[id]
+		if not id is int or id < 1 or id >= owner.next_appointment or not entry is Dictionary or entry.size() != 7 or not entry.get("id") is int or entry.id != id or not entry.get("organization") is int or not owner.organizations.has(entry.organization): return false
+		if not entry.get("actor") is int or entry.actor < 1 or entry.actor >= world.objects.next_id or not owner.memberships[entry.organization].has(entry.actor) or not entry.get("role") is String or not Defs.ROLES.has(entry.role) or not entry.get("active") is bool: return false
+		if not entry.get("targets") is Array or not _targets_valid(world, entry.organization, entry.targets, entry.active) or not entry.get("since_ms") is int or entry.since_ms < 0 or entry.since_ms > world.elapsed_ms: return false
+	for target: Variant in owner.services:
+		if not target is int or not owner.services[target] is Dictionary or owner.services[target].is_empty() or owner.services[target].size() > SERVICES.size(): return false
+		for purpose: Variant in owner.services[target]:
+			if not purpose is String or purpose not in SERVICES or not _service_supported(world, target, purpose): return false
+			var rule: Variant = owner.services[target][purpose]
+			if not rule is Dictionary or rule.size() != 3 or not rule.get("organization") is int or not owner.organizations.has(rule.organization) or not owner.memberships.get(rule.organization) is Dictionary or rule.organization != world.objects.records[target].organization or not rule.get("actors") is Array or rule.actors.size() > 256 or not rule.get("members") is bool: return false
+			if (rule.members and not rule.actors.is_empty()) or (not rule.members and rule.actors.is_empty()): return false
+			for actor: Variant in rule.actors:
+				if not actor is int or actor < 1 or actor >= world.objects.next_id or not owner.memberships[rule.organization].has(actor) or rule.actors.count(actor) != 1: return false
+	return true

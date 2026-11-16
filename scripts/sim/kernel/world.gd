@@ -145,6 +145,9 @@ func initialize(count: int = 1000, requested_workers: int = 4, stress_environmen
 	if not livelihood.Defs.ERRORS.is_empty():
 		push_error("Invalid agency definitions: " + str(livelihood.Defs.ERRORS))
 		return
+	if not institutions.Defs.ERRORS.is_empty():
+		push_error("Invalid institution definitions: " + str(institutions.Defs.ERRORS))
+		return
 	actor_count = count
 	terrain.initialize()
 	environment.initialize(terrain, count, stress_environment)
@@ -698,6 +701,7 @@ func forget_target(target: int, at: int = -1) -> void:
 			pages[slot / Units.PAGE_SIZE].modes[slot % Units.PAGE_SIZE] = Units.Mode.IDLE
 			if automatic:
 				livelihood.after_action(self, actor, now)
+	institutions.Access.forget_target(institutions, self, target)
 	reservations.erase(target)
 
 
@@ -1042,7 +1046,9 @@ func begin_transfer(id: int, input: Dictionary) -> String:
 	var admission: String = gate.check(self, id, operation_time())
 	if not admission.is_empty(): return admission
 	var target: int = int(input.get("target", 0))
-	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(target))
+	var context: Dictionary = input.duplicate()
+	context["item"] = input.get("item", "wood")
+	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(target), context)
 	if not query.ready: return query.reason
 	var kind: String = operation.handler
 	var item: String = str(input.get("item", "wood"))
@@ -1060,15 +1066,19 @@ func begin_transfer(id: int, input: Dictionary) -> String:
 
 func operation_actor(id: int) -> Dictionary:
 	if not actor_slots.has(id): return {}
+	var access: Dictionary = institutions.access_view(self, id)
+	var available: Array = institutions.bundles(self, id, access)
 	var record: Dictionary = objects.records[id]
 	var slot: int = actor_slots[id]
 	var page: RefCounted = pages[slot / 256]
-	return {"id": id, "hp": page.health[slot % 256], "max_hp": page.max_health[slot % 256], "energy": page.energy[slot % 256],
+	var result: Dictionary = {"id": id, "hp": page.health[slot % 256], "max_hp": page.max_health[slot % 256], "energy": page.energy[slot % 256],
 		"at_ms": operation_time(),
 		"qi": int(record.get("qi", 0)), "inventory": objects.usable_summary(id), "methods": State.copy(record.get("methods", {})),
-		"carried": objects.inventory_summary(id), "readable": institutions.readable(self, id), "bundles": institutions.bundles(self, id), "permissions": institutions.permissions(id), "returns": institutions.returns(self, id),
+		"carried": objects.inventory_summary(id), "readable": institutions.readable(self, id, available), "bundles": available, "returns": institutions.returns(self, id),
 		"task_access": {int(record.commitment.target): ["construct"]} if record.get("commitment", {}).get("kind") == "construct" else {},
 		"abilities": Growth.abilities(record), "body_capabilities": Beings.capabilities(record), "pools": State.copy(pools.records.get(id, {})), "admission_reason": gate.check(self, id, operation_time())}
+	result.merge(access, true)
+	return result
 
 func operation_target(id: int) -> Dictionary:
 	if not objects.records.has(id): return {}
@@ -1077,6 +1087,7 @@ func operation_target(id: int) -> Dictionary:
 		"inventory": objects.goods_summary(id, actor_slots.has(id) and not combat.alive(self, id)), "owner": int(record.owner), "organization": int(record.organization), "capacity": record.capacity, "sapient": record.get("sapient", false), "guest": int(record.get("guest", 0))}
 	result["access_dependencies"] = facilities.access_dependencies(self, id)
 	result["process"] = Production.view(record)
+	if record.kind != "actor": result["services"] = institutions.Access.service_flags(institutions, id)
 	if record.kind != "actor": result["contents"] = objects.public_contents(id)
 	if record.has("stage"): result["stage"] = record.stage
 	if actor_slots.has(id):
@@ -1119,7 +1130,9 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 	var target: int = int(input.get("target", 0))
 	if not objects.records.has(target):
 		return "invalid_target"
-	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(target), {"help_target": int(input.get("task_target", 0))}, facilities.definitions)
+	var context: Dictionary = input.duplicate()
+	context["help_target"] = int(input.get("task_target", 0))
+	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(target), context, facilities.definitions)
 	if not query.ready: return query.reason
 	if operation.executor == "transfer" and (not input.get("item") is String or not preload("res://scripts/sim/kernel/items.gd").valid(input.item) or not input.get("amount") is int or input.amount <= 0): return "invalid_transfer"
 	if operation.executor == "transfer" and not institutions.transfer_context_valid(input): return "invalid_transfer_context"
@@ -1178,7 +1191,9 @@ func settle_action(id: int, at: int) -> void:
 		if autonomous:
 			livelihood.after_action(self, id, at, target)
 		return
-	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(target), {"help_target": int(action.get("task_target", 0))}, facilities.definitions)
+	var context: Dictionary = action.duplicate()
+	context["help_target"] = int(action.get("task_target", 0))
+	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(target), context, facilities.definitions)
 	if query.ready and operation.executor == "society":
 		query.reason = society.contact_reason(self, Operations.domain_action(action))
 		query.ready = query.reason.is_empty()
@@ -1331,6 +1346,7 @@ func describe(id: int) -> Dictionary:
 	result["at_ms"] = elapsed_ms
 	result["inventory"] = objects.inventory_summary(id)
 	result["access_dependencies"] = facilities.access_dependencies(self, id)
+	if result.kind != "actor": result["services"] = institutions.Access.service_flags(institutions, id)
 	if actor_slots.has(id) and not combat.alive(self, id): result.inventory = objects.goods_summary(id, true)
 	result["stock_organizations"] = []
 	for right: Dictionary in objects.groups(id, actor_slots.has(id) and not combat.alive(self, id)):
@@ -1372,11 +1388,13 @@ func describe(id: int) -> Dictionary:
 		result["shield"] = defense.total(id, elapsed_ms)
 		result["usable_inventory"] = objects.usable_summary(id)
 		result["carried"] = objects.inventory_summary(id)
-		result["readable"] = institutions.readable(self, id)
-		result["permissions"] = institutions.permissions(id)
+		var access: Dictionary = institutions.access_view(self, id)
+		var available: Array = institutions.bundles(self, id, access)
+		result["readable"] = institutions.readable(self, id, available)
+		result.merge(access, true)
 		result["returns"] = institutions.returns(self, id)
 		result["task_access"] = {int(result.commitment.target): ["construct"]} if result.get("commitment", {}).get("kind") == "construct" else {}
-		result["bundles"] = institutions.bundles(self, id)
+		result["bundles"] = available
 		result["equippable"] = []
 		for bundle: Dictionary in result.bundles:
 			if bundle.owner == id or bundle.purpose == "equip":

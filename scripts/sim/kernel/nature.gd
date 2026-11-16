@@ -150,6 +150,7 @@ func seed_item(definition: String) -> String:
 
 
 func plant_site(world: RefCounted, actor: int, definition: String, tile: int, organization: int = 0) -> Dictionary:
+	if not world.actor_slots.has(actor) or not world.combat.alive(world, actor): return {"reason": "dead"}
 	if not definitions.has(definition): return {"reason": "missing_seed"}
 	if organization > 0 and not world.institutions.permits(actor, organization, "cultivate"): return {"reason": "not_authorized"}
 	var right: Dictionary = world.institutions.input_right(world, actor, {seed_item(definition): 1}, "cultivate", organization)
@@ -159,7 +160,7 @@ func plant_site(world: RefCounted, actor: int, definition: String, tile: int, or
 	if not place.ok:
 		return {"reason": place.reason}
 	if int(place.host) > 0:
-		var access: String = world.objects.Stock.access_reason(world.operation_actor(actor), world.operation_target(place.host), "sow")
+		var access: String = world.objects.Stock.access_reason(world.operation_actor(actor), world.operation_target(place.host), "sow", {"item": seed_item(definition)})
 		if not access.is_empty(): return {"reason": access}
 		var host: Dictionary = world.objects.records[place.host]
 		if int(host.organization) != organization or (host.owner > 0 and host.owner != actor): return {"reason": "incompatible_cultivation_title"}
@@ -259,9 +260,10 @@ func _sync(world: RefCounted, id: int) -> void:
 
 
 func tend_check(world: RefCounted, actor: int, target: int) -> String:
+	if not world.actor_slots.has(actor) or not world.combat.alive(world, actor): return "dead"
 	var rec: Dictionary = world.objects.records.get(target, {})
 	if rec.get("kind") != "plant" or rec.get("stage") not in [Stage.SPROUT, Stage.MATURE, Stage.STUMP]: return "not_living_plant"
-	var access: String = world.objects.Stock.access_reason(world.operation_actor(actor), world.operation_target(target), "tend")
+	var access: String = world.objects.Stock.access_reason(world.operation_actor(actor), world.operation_target(target), "tend", {"item": "water"})
 	if not access.is_empty(): return access
 	if world.institutions.input_right(world, actor, {"water": 1}, "cultivate", int(rec.organization)).is_empty(): return "missing_water"
 	return ""
@@ -283,6 +285,9 @@ func finish(world: RefCounted, actor: int, action: Dictionary, now: int) -> Stri
 	return commit(world, actor, action, now).reason
 
 func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dictionary:
+	if not world.actor_slots.has(actor) or not world.combat.alive(world, actor) or not world.objects.records.has(action.target): return Results.refused("dead_or_missing")
+	var access: String = world.OperationQuery.access_reason(world.Operations.OPERATIONS[action.kind], world.operation_actor(actor), world.operation_target(action.target), action)
+	if not access.is_empty(): return Results.refused(access)
 	var rec: Dictionary = world.objects.records[action.target]
 	var facts: Dictionary = {"definition": rec.definition}
 	if rec.kind == "resource":

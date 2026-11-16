@@ -3,6 +3,22 @@ extends RefCounted
 const FIELDS: Array[String] = ["owner", "organization", "entrust", "phase"]
 const MAX_COUNT: int = 1000000000
 const MAX_GROUPS: int = 256
+const PURPOSES: Array[String] = ["take", "put", "eat", "rest", "cook", "produce", "construct", "demolish", "cultivate", "equip", "study", "supply"]
+const ISSUE_PURPOSES: Array[String] = ["cook", "produce", "construct", "cultivate", "equip", "study", "supply"]
+
+static func permits_purpose(actor: Dictionary, organization: int, purpose: String, item: String = "") -> bool:
+	if purpose in actor.get("permissions", {}).get(organization, []): return true
+	for grant: Dictionary in actor.get("scope_grants", []):
+		if grant.organization == organization and not grant.targets.is_empty() and purpose in grant.purposes and (item.is_empty() or grant.all_items or item in grant.items): return true
+	return false
+
+static func permits_at(actor: Dictionary, target: Dictionary, purpose: String, item: String = "") -> bool:
+	var organization: int = int(target.get("organization", 0))
+	if organization <= 0: return true
+	if purpose in actor.get("permissions", {}).get(organization, []): return true
+	for grant: Dictionary in actor.get("scope_grants", []):
+		if grant.organization == organization and int(target.get("id", 0)) in grant.targets and purpose in grant.purposes and (item.is_empty() or grant.all_items or item in grant.items): return true
+	return false
 
 static func right(owner: int = 0, organization: int = 0, entrust: int = 0, phase: String = "") -> Dictionary:
 	return {"owner": owner, "organization": organization, "entrust": entrust, "phase": ("free" if entrust == 0 else "issued") if phase.is_empty() else phase}
@@ -52,20 +68,27 @@ static func valid(contents: Variant, next_id: int) -> bool:
 		if total > MAX_COUNT: return false
 	return true
 
-static func access_reason(actor: Dictionary, target: Dictionary, handler: String) -> String:
+static func access_reason(actor: Dictionary, target: Dictionary, handler: String, context: Dictionary = {}) -> String:
 	if handler not in ["take", "put", "eat", "craft", "collect_source", "rest", "construct", "demolish", "sow", "tend", "gather", "cut", "uproot", "harvest"]: return ""
 	for dependency: Dictionary in target.get("access_dependencies", {}).get(handler, []):
 		var reason: String = access_reason(actor, dependency, dependency.operation)
 		if not reason.is_empty(): return reason
 	var owner: int = int(target.get("owner", 0))
 	var organization: int = int(target.get("organization", 0))
+	if target.get("services", {}).get(handler, false) and int(target.get("id", 0)) not in actor.get("service_targets", {}).get(handler, []): return "not_authorized"
 	# An open private worksite accepts donated labor; modifying/dismantling or
 	# consuming somebody's property still needs their own recognized permission.
 	if owner > 0 and owner != actor.get("id", 0) and handler != "construct" and handler not in actor.get("task_access", {}).get(int(target.get("id", 0)), []): return "not_authorized"
 	if organization > 0:
 		var purpose: String = "cultivate" if handler in ["sow", "tend", "gather", "cut", "uproot", "harvest"] else (str(target.get("processing_purpose", "")) if handler == "craft" else ("supply" if handler == "collect_source" else handler))
-		if handler == "put" and organization in actor.get("returns", []): return ""
-		if purpose not in actor.get("permissions", {}).get(organization, []): return "not_authorized"
+		var item: String = str(context.get("item", ""))
+		if handler == "put" and target.get("kind") == "chest" and not context.get("donate", false):
+			for bundle: Dictionary in actor.get("return_bundles", []):
+				if int(bundle.organization) == organization and (str(context.get("purpose", "")).is_empty() or context.purpose == bundle.purpose) and (item.is_empty() or int(bundle.items.get(item, 0)) > 0): return ""
+		if not permits_at(actor, target, purpose, item): return "not_authorized"
+		for material: String in context.get("recipe_items", []):
+			if not permits_at(actor, target, purpose, material): return "not_authorized"
+	if handler == "take" and not str(context.get("purpose", "")).is_empty() and int(context.get("source_organization", organization)) > 0 and not permits_purpose(actor, int(context.get("source_organization", organization)), context.purpose, str(context.get("item", ""))): return "not_authorized"
 	return ""
 
 static func input_group(actor: Dictionary, required: Dictionary, purpose: String, organization: int = 0) -> Dictionary:
@@ -88,11 +111,14 @@ static func input_purpose(operation: Dictionary) -> String:
 	return "construct" if operation.handler == "construct" else ""
 
 static func known_quantity(actor: Dictionary, target: Dictionary, item: String, handler: String, organization: int = -1) -> int:
+	if not access_reason(actor, target, handler, {"item": item}).is_empty(): return 0
 	if not target.has("contents"): return int(target.get("inventory", {}).get(item, 0)) if organization < 0 or int(target.get("organization", 0)) == organization else 0
 	var result: int = 0
 	for group: Dictionary in target.contents.get(item, []):
 		if organization >= 0 and int(group.organization) != organization: continue
 		if group.owner == int(actor.get("id", 0)) and not group.entrusted: result += int(group.count)
 		elif group.owner == 0 and group.organization == 0 and not group.entrusted: result += int(group.count)
-		elif group.organization > 0 and not group.entrusted and ("take" if handler == "take" else handler) in actor.get("permissions", {}).get(int(group.organization), []): result += int(group.count)
+		elif group.organization > 0 and not group.entrusted:
+			var place: Dictionary = target.duplicate(); place.organization = int(group.organization)
+			if permits_at(actor, place, "take" if handler == "take" else handler, item): result += int(group.count)
 	return result

@@ -114,7 +114,7 @@ static func _public_value(supplied: Dictionary) -> Dictionary:
 	value.erase("guest")
 	if value.kind == "actor":
 		value.hp = 1 if int(value.get("hp", 1)) > 0 else 0
-		for field: String in ["inventory", "capacity", "process", "access_dependencies", "contents"]: value.erase(field)
+		for field: String in ["inventory", "capacity", "process", "access_dependencies", "contents", "services"]: value.erase(field)
 	return value
 
 func _snapshot(world: RefCounted, target: int) -> Dictionary:
@@ -321,15 +321,19 @@ static func _valid_teaching(account: Variant, actor: int, next_id: int, now: int
 
 static func _valid_view(value: Dictionary, target: int, next_id: int, now: int) -> bool:
 	for field: Variant in value:
-		if field not in ["id", "kind", "definition", "tile", "capacity", "owner", "organization", "sapient", "hp", "inventory", "stage", "process", "access_dependencies", "contents"]: return false
+		if field not in ["id", "kind", "definition", "tile", "capacity", "owner", "organization", "sapient", "hp", "inventory", "stage", "process", "access_dependencies", "contents", "services"]: return false
 	if not value.get("id") is int or value.id != target or not value.get("kind") is String or value.kind.is_empty() or value.kind.length() > 64 or not value.get("definition") is String or value.definition.is_empty() or value.definition.length() > 128: return false
 	if not value.get("tile") is int or value.tile < -1 or value.tile >= Terrain.SIZE * Terrain.SIZE or not value.get("sapient") is bool: return false
 	if not value.get("owner") is int or value.owner < 0 or value.owner >= next_id or not value.get("organization") is int or value.organization < 0 or (value.owner > 0 and value.organization > 0): return false
 	if value.kind == "actor":
 		if value.has("hp") and (not value.hp is int or value.hp not in [0, 1]): return false
-		for private_field: String in ["inventory", "capacity", "process", "access_dependencies", "contents"]:
+		for private_field: String in ["inventory", "capacity", "process", "access_dependencies", "contents", "services"]:
 			if value.has(private_field): return false
 	else:
+		if value.has("services"):
+			if not value.services is Dictionary or value.services.size() > 2: return false
+			for service: Variant in value.services:
+				if service not in ["rest", "eat"] or not value.services[service] is bool or not value.services[service]: return false
 		if value.has("capacity") and (not value.capacity is int or value.capacity < -1 or value.capacity > 1000000000): return false
 		if value.has("inventory"):
 			if not value.inventory is Dictionary or value.inventory.size() > 256: return false

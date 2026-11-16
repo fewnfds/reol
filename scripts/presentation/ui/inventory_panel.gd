@@ -138,7 +138,7 @@ func refresh(frame: RefCounted, fog: bool) -> void:
 	if org > 0 and not organizations.has(org): organizations.append(org)
 	_purpose.visible = target_id > 0 and not organizations.is_empty() and subject_id == 1
 	_donate.visible = target_id > 0 and org > 0 and subject_id == 1
-	var signature: String = str(organizations) + str(_subject.get("permissions", {}))
+	var signature: String = str(organizations) + str(_subject.get("permissions", {})) + str(_subject.get("scope_grants", []))
 	if signature != _purpose_signature:
 		var selected_purpose: Variant = _purpose.get_item_metadata(_purpose.selected) if _purpose.item_count > 0 else {}
 		_purpose_signature = signature
@@ -147,7 +147,7 @@ func refresh(frame: RefCounted, fog: bool) -> void:
 		_purpose.set_item_metadata(0, {})
 		for organization: int in organizations:
 			for purpose: String in PURPOSE_TITLES:
-				if purpose in _subject.get("permissions", {}).get(organization, []):
+				if preload("res://scripts/sim/kernel/stock_rules.gd").permits_purpose(_subject, organization, purpose):
 					var choice: Dictionary = {"purpose": purpose, "source_organization": organization}
 					_purpose.add_item("领用 #%d：" % organization + PURPOSE_TITLES[purpose])
 					_purpose.set_item_metadata(_purpose.item_count - 1, choice)
@@ -185,8 +185,10 @@ func _refresh_controls() -> void:
 	_drop.disabled = not controllable or _active != "bag" or count <= 0
 	_take.visible = target_id > 0
 	_put.visible = target_id > 0
-	_take.disabled = not controllable or _active != "container" or count <= 0 or _target.is_empty() or _full(_subject) or not Actions.Query.evaluate(Actions.Operations.OPERATIONS.take, _subject, _target).ready
-	_put.disabled = not controllable or _active != "bag" or count <= 0 or _target.is_empty() or _full(_target) or not Actions.Query.evaluate(Actions.Operations.OPERATIONS.put, _subject, _target).ready
+	var take_context: Dictionary = {"item": key}
+	if _purpose.visible and _purpose.item_count > 0: take_context.merge(_purpose.get_item_metadata(_purpose.selected))
+	_take.disabled = not controllable or _active != "container" or count <= 0 or _target.is_empty() or _full(_subject) or not Actions.Query.evaluate(Actions.Operations.OPERATIONS.take, _subject, _target, take_context).ready
+	_put.disabled = not controllable or _active != "bag" or count <= 0 or _target.is_empty() or _full(_target) or not Actions.Query.evaluate(Actions.Operations.OPERATIONS.put, _subject, _target, {"item": key, "donate": _donate.button_pressed}).ready
 
 func _full(record: Dictionary) -> bool:
 	var capacity: int = int(record.get("capacity", -1))

@@ -97,12 +97,12 @@ func _perform(goal: Dictionary, approach: Dictionary, chain: Array) -> Array:
 			if int(budget.work) >= slice_limit: return result
 	return result
 
-func _resolve(operation: Dictionary, target: Dictionary, chain: Array, prerequisites: bool = true) -> Dictionary:
+func _resolve(operation: Dictionary, target: Dictionary, chain: Array, prerequisites: bool = true, context: Dictionary = {}) -> Dictionary:
 	var key: String = "%s:%d" % [operation.id, target.id]
 	if chain.size() >= DEPTH_LIMIT or key in chain or _denied(operation.id, target.id) or not _spend(): return {}
-	var query: Dictionary = Query.evaluate(operation, actor, target)
+	var query: Dictionary = Query.evaluate(operation, actor, target, context)
 	if not query.applicable: return {}
-	if query.ready: return _step(operation, target)
+	if query.ready: return _step(operation, target, context)
 	if query.reason == "unknown_target_state": return _inspect(target)
 	if query.reason == "unattended_in_progress":
 		return {"kind": "wait", "input": {"target": int(target.id)}, "until_ms": int(target.process.ready_ms), "estimate_ms": maxi(0, int(target.process.ready_ms) - at_ms), "confidence": 0.95}
@@ -176,7 +176,9 @@ func _acquire(item: String, count: int, organization: int, purpose: String, chai
 			if operation.handler == "gather":
 				var product: Dictionary = PLANTS.get(target.definition, {}).get("product", {})
 				if product.get("item", "") != item: continue
-			var step: Dictionary = _resolve(operation, target, next, false)
+			var context: Dictionary = {"item": item}
+			if operation.handler == "take" and stock_org > 0: context.merge({"purpose": purpose, "source_organization": stock_org})
+			var step: Dictionary = _resolve(operation, target, next, false, context)
 			if step.is_empty(): continue
 			if operation.handler == "take":
 				step.input["item"] = item
@@ -199,7 +201,7 @@ func _take_origin(target: Dictionary, item: String, organization: int, purpose: 
 			if not origins.has(int(group.organization)): origins.append(int(group.organization))
 		if not target.has("contents") and not origins.has(int(target.get("organization", 0))): origins.append(int(target.organization))
 	for origin: int in origins:
-		if origin > 0 and purpose not in actor.permissions.get(origin, []): continue
+		if origin > 0 and not Stock.permits_purpose(actor, origin, purpose, item): continue
 		if Stock.known_quantity(actor, target, item, "take", origin) > 0: return origin
 	return -1
 
@@ -211,7 +213,7 @@ func _deposit(item: String, count: int, organization: int, destination: int, cha
 		for id: String in Query.options(target):
 			var operation: Dictionary = Operations.OPERATIONS[id]
 			if operation.handler != "put": continue
-			var step: Dictionary = _resolve(operation, target, chain, false)
+			var step: Dictionary = _resolve(operation, target, chain, false, {"item": item, "purpose": purpose})
 			if step.is_empty(): continue
 			step.input.merge({"item": item, "amount": count}, true)
 			if not purpose.is_empty(): step.input["purpose"] = purpose
@@ -283,8 +285,8 @@ func _returns(goal: Dictionary, chain: Array) -> Array:
 	for bundle: Dictionary in actor.return_bundles:
 		if int(bundle.entrust) <= 0: continue
 		for item: String in bundle.items:
-			if bundle.purpose in actor.permissions.get(int(bundle.organization), []) and preferred.get("retained", {}).has("%d:%s:%s" % [int(bundle.organization), bundle.purpose, item]): continue
-			var step: Dictionary = _deposit(item, int(bundle.items[item]), int(bundle.organization), 0, chain)
+			if Stock.permits_purpose(actor, int(bundle.organization), bundle.purpose, item) and preferred.get("retained", {}).has("%d:%s:%s" % [int(bundle.organization), bundle.purpose, item]): continue
+			var step: Dictionary = _deposit(item, int(bundle.items[item]), int(bundle.organization), 0, chain, bundle.purpose)
 			if not step.is_empty(): result.append(_option(step, "put", int(step.input.target)))
 	return result
 

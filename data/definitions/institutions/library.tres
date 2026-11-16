@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="InstitutionLibrary" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/definitions/institutions/library.gd" id="lib"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/institutions/role_def.gd" id="role"]
+
+[sub_resource type="Resource" id="Cook"]
+script = ExtResource("role")
+id = "kitchen_craft"
+title = "炊事"
+purposes = PackedStringArray("take", "put", "cook")
+stock_items = PackedStringArray("grain", "water", "meal")
+
+[sub_resource type="Resource" id="Supply"]
+script = ExtResource("role")
+id = "provisioning"
+title = "供给"
+purposes = PackedStringArray("take", "put", "supply", "cultivate")
+stock_items = PackedStringArray("grain", "water", "wood", "herb", "meal")
+
+[sub_resource type="Resource" id="Steward"]
+script = ExtResource("role")
+id = "storekeeping"
+title = "库务"
+purposes = PackedStringArray("take", "put", "supply")
+all_items = true
+
+[sub_resource type="Resource" id="Tending"]
+script = ExtResource("role")
+id = "plant_care"
+title = "养护"
+purposes = PackedStringArray("take", "put", "cultivate")
+stock_items = PackedStringArray("water")
+
+[resource]
+script = ExtResource("lib")
+roles = Array[ExtResource("role")]([SubResource("Cook"), SubResource("Supply"), SubResource("Steward"), SubResource("Tending")])
