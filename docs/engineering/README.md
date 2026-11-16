@@ -6,6 +6,7 @@
 |---|---|
 | 当前状态、写入者、线程与显示边界 | [运行架构](architecture.md) |
 | 逻辑领域的长期归属 | [领域职责](architecture/05-framework-domains.md) |
+| 自主宗门所需的共享能力缺口与迁移边界 | [共享框架审查](architecture/foundation-audit.md)，仅审查、未实施 |
 | 新计算如何选择直接调用、分频、CPU批或GPU | [计算接入](execution-batches.md) |
 | 共同时间、倍率、过载与精度 | [运行与精度](simulation-pacing.md) |
 | 产品与数据边界 | [constraints](constraints.md) |

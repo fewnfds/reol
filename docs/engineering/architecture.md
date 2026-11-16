@@ -2,6 +2,8 @@
 
 运行链：Godot输入/画面 → 命令邮箱 → 自主模拟线程 → 独占页CPU批 → owner共享效果 → 不可变显示快照。正式场景只有`scenes/main.tscn`，没有旧慢后端回退。当前能力与测量分别查[FEATURES](../status/features.md)、[BASELINE](../status/baseline.md)。
 
+自主宗门需要补充的共享职责与源码缺口归[框架审查](architecture/foundation-audit.md)，尚未实施；本页只索引当前代码，不把目标架构写成已有能力。
+
 ## 状态和职责
 
 | 入口 | 唯一负责的内容 |

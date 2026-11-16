@@ -4,11 +4,13 @@
 
 最新方向：用户暂缓战斗打磨，先建立修仙角色与单宗门的基础，再验证本地约百人的宗门自主运转。NPC像其他持续参与世界的玩家，有住处、工作、职位/责任范围、个人目的、关系与经历。共同工作流整合生活、学习修行、个人评价与协作，NPC自主及彼此协调优先，玩家指令简化。不同生命按能力组成；近似网游不表示联网，远区代算、门派外交/攻伐和完整婚育/轮回后置。用户列举的属性、羁绊、ERP/OA是表达方向，不是全项施工要求。
 
-本轮完成基础研究、正式设计与实施准备，**未改运行时，未开始自主生命层或百人宗门实现**。数值/资源/本领归[角色基础](../../design/systems/beings_and_lifeways/character_state.md)，关系/职务/事项归[社会系统](../../design/systems/social_system.md)，传承、供养、制度样本与实际参数边界归[宗门生活](../../design/systems/sect_life.md)，来源/顾问筛选归[基础研究](../../design/research/sect_foundation_sources.md)。共同工作流仍归[自主生命](../../design/systems/beings_and_lifeways/agency.md)，A～D依赖与验收只归[主计划](../plans/foundation-priorities.md#下一阶段候选)。
+角色/宗门研究与设计已完成，本轮继续完成源码架构review，**未改运行时代码，未开始自主生命层、共享框架扩展或百人宗门实现**。用户当前要求先审查，不立即施工；不能把具体小功能做成独立demo。共享缺口、源码依据、顾问取舍和迁移边界归[框架审查](../engineering/architecture/foundation-audit.md)，[领域职责](../engineering/architecture/05-framework-domains.md)已补清生命成长与社会组织，但不表示这些机制已实现。
 
-下一施工入口仍是A：用现有身体/库存/动作，使小样本维持生活并推进一个可保存的学习目的，有限方法按实际资源/反馈重入，再接两人的受理/拒绝与真实供给/教学。B组织与C生活成长交错，D完成百人组装；不是先填完所有属性、装备栏、容器和ERP。素质候选体魄/筋力/灵巧/悟性随真实消费者落地；情绪/怒气、健康/HP、功德/气运、贡献历史/可支取额度分别处理。公私物资按必要同质批次与受托用途区分，不逐粒实例化；一对一教学先贯通。资源语义/访问合同可统一，实际owner按需要演进，mana范例与format14不因本设计改写。普通新字段不自动回填旧档。
+下一施工方向为共享主体能力/操作查询和原活动合同，迁移现有交互/术法等不同消费者，再把认识/持久目的/掌握接P5；社会事项、公私物资、在制生产和真实教学交错接入，最后同World组装约百人。唯一建设顺序与出口归[主计划](../plans/foundation-priorities.md#下一阶段候选)。小规模检查只验证公共接缝，既不交付另一套生活demo，也不要求先写完通用ERP、全物种/全容器平台；目前停在审查结果，尚无运行时实施。
 
-首个宗门以传承与修行共同体检验个人目的和相互需要；真实来源、供给、老师/场所时间和学习后的做法变化必须接起来。现有开局房间、床灶和演示库存不是宗门链，P5不等于生命动机/情绪已完成。产消算术只作基线，饱足/库存/满蓄灵气不能遮蔽循环；接近预约、旧信息竞争、教师缺席与公私混料是待实现验证问题，不是已证实百人必崩。旧封魂戒指、主兼修/心神4点、六阶段/12节点、跨区运粮人等仍为候选，不恢复成当前必做。
+数值/资源/本领归[角色基础](../../design/systems/beings_and_lifeways/character_state.md)，关系/职务/事项归[社会系统](../../design/systems/social_system.md)，传承/供养和实际参数边界归[宗门生活](../../design/systems/sect_life.md)，基础来源归[宗门研究](../../design/research/sect_foundation_sources.md)，共同工作流归[自主生命](../../design/systems/beings_and_lifeways/agency.md)。这些都是设计；P5已有的是任务/交接/唤醒，不等于人生动机或组织已经存在。体魄/筋力/灵巧/悟性随真实消费者接入，情绪/怒气、健康/HP、功德/气运、贡献/额度分别处理；当前mana范例、format14及旧存档不因文档修订变化。
+
+审查保留原World/Runner、稳定身份、页计算、P4/P5、空间/作业位、Resource/Frame/候选恢复。不重造线程池/事件总线/执行后端，不把所有资料全部归入Combat、Effects、Pools或Objects。take/put/eat无独占锁不等于并发错误；现有suspend清临时施工承诺符合旧合同；未来必须扩持久目标/社会责任，但不能把尚未实现的问题登记成已复现bug。所有性能、活锁和新教学/加工效果仍待实际实现验证。
 
 当前显示为固定斜俯视、原生Camera2D直接绘制（2026-11-16）。用户反馈整屏形变使竖直像素边周期性横移；真实nearest/linear/2倍渲染对比与双顾问复核后，撤除透视shader、离屏世界纹理、设置/F7/偏好字段。保留二维斜视素材、分部排序、主角遮挡淡化和统一输入转换；只有原迷雾mask仍用SubViewport。旧本地偏好中的view项被安全忽略，保存设置后清除；World/format14/目录签名未改。正确性、成品和采样取舍证据归[BASELINE](baseline.md#固定斜俯视与原生二维显示)，技术边界归[纯二维显示](../engineering/architecture.md#纯二维显示)，素材归[assets](../../assets/README.md)。三维与透视探索均已撤除，不沿用上一轮F7可开的停点。
 
@@ -35,4 +37,5 @@
 - 透视采样取舍归`.local/advisor/view-sampling-20261116/`，纯二维复审归`.local/advisor/view-2d-final-20261116/`，此前合同双顾问咨询归`.local/advisor/framework-contracts-20261115/`，审查/作业位置咨询归`.local/advisor/review-20261115/`，复现探针归`.local/review-20261115/`；日志归`logs/`，生成包归`build/`，不新增根目录启动脚本。采用的事实保存在主题正文与BASELINE，原答不入库。
 - 自主基座原双顾问答复留`.local/advisor/agency-foundation-20261116/round-1/`；本轮宗门咨询留`.local/advisor/sect-autonomy-20261116/`：首轮hydrogen完整返回，第二轮初次代理失败，用户恢复代理后`round-2-retry/`两份均完整返回并已通读。采用/未采用及核查边界归agency正文；已补评价尺度/余量、事项份额、物资重入/失败反馈与恢复关联，不将固定档位/排序/步骤数、三天运行或库存倍数、独门职位/全实体通信、推测的性能指标恢复为规则。
 - 角色/宗门基础研究与算术留`.local/advisor/sect-foundation-20261116/`；咨询状态、采用/拒绝与独立来源只归[基础研究](../../design/research/sect_foundation_sources.md)。顾问没有运行本机，小说/案例不增添术法能力；当前引水与手工共用养护/耗水，木愈是自疗HP，不自动治疗他人、持续旧伤或家具。
+- 框架审查原件留`.local/advisor/framework-audit-20261116/`：两轮双模型均完整返回，四份已通读，采用/拒绝和独立来源归[审查正文](../engineering/architecture/foundation-audit.md)。第二轮补清了方法/P5不重复游标、跨run共同活动的提交依据、生产复用生命周期、历史/认知引用可失效；未接入任何运行机制，也未测百人性能。
 - 保留本机顾问凭据、存档、素材源稿和第三方addon；保留工作分支`codex/field-contest`及stash `424f956d280fb390d17e1f6dd879f3614b51a430`。

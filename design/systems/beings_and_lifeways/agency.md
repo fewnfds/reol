@@ -1,6 +1,6 @@
 # 自主生命：个人动机、行动与共同生活
 
-性质：依据用户目标提出的架构方案，**尚未实现**。P5已实现的协调/任务合同归[单位决策](../unit_decision_framework.md)，身体与主体概念归[身体与身份](bodies.md)，数值/资源/能力归[角色基础](character_state.md)，关系与组织记录归[社会系统](../social_system.md)，首个共同体的传承/供养/制度样本归[宗门生活](../sect_life.md)，人格与情绪模型的来源比较归[NPC研究](../../research/npc_personality_and_emotion.md)。实施次序与阶段出口只归[主计划](../../../docs/plans/foundation-priorities.md#下一阶段候选)。下文的结构名称是职责示意，不表示仓库已有相应类。
+性质：依据用户目标提出的架构方案，**尚未实现**。P5已实现的协调/任务合同归[单位决策](../unit_decision_framework.md)，身体与主体概念归[身体与身份](bodies.md)，数值/资源/能力归[角色基础](character_state.md)，关系与组织记录归[社会系统](../social_system.md)，首个共同体的传承/供养/制度样本归[宗门生活](../sect_life.md)，人格与情绪模型的来源比较归[NPC研究](../../research/npc_personality_and_emotion.md)。源码层面的共享能力缺口与迁移边界归[框架审查](../../../docs/engineering/architecture/foundation-audit.md)；实施次序与阶段出口只归[主计划](../../../docs/plans/foundation-priorities.md#下一阶段候选)。先补共享职责并迁移正常运行路径，不把小规模玩法样本当独立demo交付。下文的结构名称是职责示意，不表示仓库已有相应类。
 
 ## 1. 产品目标与首轮范围
 
