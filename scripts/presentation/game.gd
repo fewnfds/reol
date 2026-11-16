@@ -35,7 +35,6 @@ var view := ViewRig.new()
 var camera: Camera2D = view.camera
 var world_overlay := WorldOverlay.new()
 var tool_overlay := WorldOverlay.new()
-var _view_override: float = -1.0
 var ui := Hud.new()
 var controls := Interaction.new()
 var combat_audio := CombatAudio.new()
@@ -112,7 +111,6 @@ func _ready() -> void:
 		if part.size() != 2:
 			continue
 		match part[0]:
-			"view-warp": _view_override = clampf(float(part[1]), 0, 1)
 			"actors": _actors = clampi(int(part[1]), 1, 60000)
 			"workers": _workers = clampi(int(part[1]), -1, 64)
 			"speed": speed = clampf(float(part[1]), 0.25, 16.0)
@@ -176,8 +174,7 @@ func _ready() -> void:
 		_debug_console.set_ui_scale(ui.scale.x)
 	controls.configure(self, ui)
 	feedback.load_settings()
-	if _view_override >= 0.0: feedback.view_warp = _view_override
-	sync_view()
+	view.sync()
 	world_overlay.paint = _paint_world
 	view.world.add_child(world_overlay)
 	tool_overlay.z_index = 5
@@ -191,14 +188,9 @@ func _ready() -> void:
 		get_tree().quit(1)
 
 
-func sync_view() -> void:
-	view.strength = feedback.view_warp * ViewRig.MAX_STRENGTH
-	view.sync()
-
-
 func _process(delta: float) -> void:
 	var begin: int = Time.get_ticks_usec()
-	sync_view()
+	view.sync()
 	var mask_gpu: float = RenderingServer.viewport_get_measured_render_time_gpu(fog.mask.get_viewport_rid()) if _capture_at > 0 and _mask_was_updated else 0.0
 	var mask_cpu: float = RenderingServer.viewport_get_measured_render_time_cpu(fog.mask.get_viewport_rid()) if _capture_at > 0 and _mask_was_updated else 0.0
 	var mailbox: Dictionary = runner.poll()
@@ -329,8 +321,8 @@ func _process(delta: float) -> void:
 		if _previous_usec > 0:
 			_frame_times.append((begin - _previous_usec) / 1000.0)
 		_process_times.append((Time.get_ticks_usec() - begin) / 1000.0)
-		_gpu_times.append(RenderingServer.viewport_get_measured_render_time_gpu(get_viewport().get_viewport_rid()) + mask_gpu + RenderingServer.viewport_get_measured_render_time_gpu(view.viewport.get_viewport_rid()))
-		_render_cpu_times.append(RenderingServer.viewport_get_measured_render_time_cpu(get_viewport().get_viewport_rid()) + mask_cpu + RenderingServer.viewport_get_measured_render_time_cpu(view.viewport.get_viewport_rid()) + RenderingServer.get_frame_setup_time_cpu())
+		_gpu_times.append(RenderingServer.viewport_get_measured_render_time_gpu(get_viewport().get_viewport_rid()) + mask_gpu)
+		_render_cpu_times.append(RenderingServer.viewport_get_measured_render_time_cpu(get_viewport().get_viewport_rid()) + mask_cpu + RenderingServer.get_frame_setup_time_cpu())
 	_previous_usec = begin
 
 
@@ -529,8 +521,7 @@ func _capture(now: int) -> void:
 	report.combat_lab = _combat_lab
 	report.scenario = "capacity-act-v1" if _capacity else ("combat-lab-v1" if _combat_lab else ("mixed-act-v1" if _mixed else "ordinary"))
 	report.activity_fraction = _percentiles(_activity_samples)
-	report.view_warp = feedback.view_warp
-	report.world_viewport = [view.viewport.size.x, view.viewport.size.y]
+	report.presentation = "native-2d"
 	report.camera = {"position": [camera.position.x, camera.position.y], "zoom": camera.zoom.x}
 	report.ui_open = {"drawer": ui._drawer_name, "inventory": ui.inventory.visible}
 	if _combat_probe:

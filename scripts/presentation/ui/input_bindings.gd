@@ -37,7 +37,6 @@ const RESERVED: Array[Dictionary] = [
 	{"label": "系统切窗", "kind": "key", "code": KEY_ALT, "contexts": GLOBAL},
 	{"label": "系统菜单", "kind": "key", "code": KEY_META, "contexts": GLOBAL},
 	{"label": "DEV路线", "kind": "key", "code": KEY_P, "contexts": GLOBAL},
-	{"label": "远近变形对比", "kind": "key", "code": KEY_F7, "contexts": GLOBAL},
 	{"label": "素材图鉴", "kind": "key", "code": KEY_F8, "contexts": GLOBAL},
 	{"label": "诊断面板", "kind": "key", "code": KEY_F12, "contexts": GLOBAL},
 	{"label": "交互选择／工具确认", "kind": "mouse", "code": MOUSE_BUTTON_LEFT, "contexts": INTERACT},

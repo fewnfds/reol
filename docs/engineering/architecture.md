@@ -130,10 +130,10 @@ Effects以显式生命周期区分受体定时状态和来源维持贡献；光�
 
 ## 纯二维显示
 
-`presentation/view_rig.gd`持有独立World2D、禁用3D的SubViewport与Camera2D。原有地面、混合MultiMesh、迷雾、天气、战斗特效和世界标记在其中绘制一次；Window只显示这张纹理与原生界面。`world_overlay.gd`让场景与交互适配器的世界绘图仍使用Godot CanvasItem，而输入/菜单保持根Window。没有每人物Node、Camera3D、三维网格或素材建模流程。
+`presentation/view_rig.gd`持有普通Node2D世界根与Camera2D，直接在原生Window视口绘制。地面、混合MultiMesh、迷雾、天气、战斗特效与世界标记保留原层次；UI仍在独立CanvasLayer。世界根显式使用nearest过滤，不引入运行时三维、整幅图像透视变形、离屏世界纹理或二次合成pass。`world_overlay.gd`复用CanvasItem绘制，输入/菜单仍由根Window处理。
 
-轻微远近效果是对整幅世界图像的一次单应变换：中心归一化坐标`F(p)=p/(1-k*p.y)`，反解`q/(1+k*q.y)`，当前`k`限制为0..0.04。默认关闭，设置调强度，F7临时对比。它保留二维画面的既有遮挡，不会补画物品侧面；边缘精灵会轻微拉伸/切变。即使强度为零，也有中间纹理与合成pass的成本。开启时源视口按逆映射四角范围并加每边2px采样余量扩大，尺寸差保持偶数以对齐中心像素；关闭时使用原尺寸。不复制世界或固定超采样。
+统一`project/ground/visible_rect/pan_pixels`接口使用Godot原生canvas变换。屏幕坐标与输入一致，使用Window逻辑视口单位；物理截图像素需经原生`get_stretch_transform()`换算。技能、放置与探针排除震动；视觉拾取补回输出震动，按同一图集alpha/脚点/动画帧筛选，程序召唤物共用绘制与选择几何。小地图取屏幕四角对应的地面矩形，迷雾mask和天气读取当前原生视口的尺寸/变换。采集渲染耗时只累计主视口与实际更新的迷雾mask，避免重复统计已移除的世界视口。
 
-ViewRig的屏幕坐标与Godot输入一致，使用Window逻辑视口单位；读取物理截图像素时需计入原生`get_stretch_transform()`。所有世界/屏幕转换归ViewRig；技能、放置与探针使用排除震动的地面反解，视觉拾取补回输出震动并按同一图集alpha/脚点/动画帧筛选；程序绘制的召唤物共用绘制与选择的几何，不能因角色atlas隐藏就失去选择入口。小地图使用反解四角的外接矩形。迷雾/天气读取世界视口自身的尺寸与canvas变换，不套Window尺寸；诊断渲染耗时包含Window、世界和实际更新的迷雾mask。二维素材的分部、锚点与四向制作合同归[assets](../../assets/README.md#坐标占地与接地点)。
+整幅透视形变曾将轴对齐像素边缘倾斜，最近邻产生周期性1px台阶；线性过滤可柔化但会混色，超采样增加渲染面积也不能恢复原来的竖直几何。依据用户视觉反馈、真实图形对比与顾问复核，已撤除该效果及设置/F7入口。保留素材内固有的高度与分部遮挡；不把普通非整数缩放的像素宽度差异称为透视，也不把坐标反解正确当作视觉质量合格。对比与验证证据归[BASELINE](../status/baseline.md#固定斜俯视与原生二维显示)。
 
-Godot提供Camera2D、SubViewport/World2D、CanvasItem、CanvasModulate与MultiMesh；项目只负责统一投影/反解、部件排序及知识边界。机制依据：[二维变换](https://docs.godotengine.org/en/4.7/tutorials/2d/2d_transforms.html)、[SubViewport](https://docs.godotengine.org/en/4.7/classes/class_subviewport.html)、[自定义后处理](https://docs.godotengine.org/en/4.7/tutorials/shaders/custom_postprocessing.html)。这不是可旋转八方向的全图镜头；已有八向人物与四向家具不等于全场景已有八套视角。
+Godot提供Camera2D、CanvasItem、CanvasModulate与MultiMesh；项目只维护共同坐标适配、部件排序及知识边界。原有迷雾mask仍使用独立SubViewport，这不是全世界离屏渲染。机制依据：[二维变换](https://docs.godotengine.org/en/4.7/tutorials/2d/2d_transforms.html)、[二维抗锯齿](https://docs.godotengine.org/en/4.7/tutorials/2d/2d_antialiasing.html)。已有八向人物与四向家具不等于全场景已有可旋转的八套视角；素材合同归[assets](../../assets/README.md#坐标占地与接地点)。

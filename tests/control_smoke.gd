@@ -56,6 +56,7 @@ func binding_cases() -> void:
 	check(pair.has("swap") and Bindings.validate(pair.swap).is_empty(), "Safe two-key movement swap rejected")
 	check(not source.propose("act_up", key(KEY_ESCAPE)).ok, "Escape exit was bindable")
 	check(not source.propose("act_up", key(KEY_ALT)).ok, "System Alt could accidentally bind during task switching")
+	check(source.propose("act_primary", key(KEY_F7)).ok,"Retired display shortcut still reserves F7")
 	var proposal: Dictionary = source.propose("act_primary", key(KEY_K))
 	check(proposal.ok and source.commit(proposal.candidate) == OK, "Primary keyboard rebind did not save")
 	var reloaded := Bindings.new()

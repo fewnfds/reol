@@ -102,12 +102,6 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE and not event.pressed:
 		_pan_drag = false # Release can land on GUI instead of the world.
 	if external_modal(): return
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F7:
-		host.feedback.view_warp = 0.0 if host.feedback.view_warp > 0 else 1.0
-		host.sync_view()
-		ui.feedback("远近变形：" + ("轻微" if host.feedback.view_warp > 0 else "关闭"), true)
-		get_viewport().set_input_as_handled()
-		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
 		if ui.binding_editor != null and ui.binding_editor.escape():
 			pass
@@ -203,7 +197,6 @@ func action(kind: String, payload: Dictionary) -> void:
 	_pending_context = {}
 	if ui._context_panel.visible: ui.close_context()
 	match kind:
-		"view_settings": host.sync_view()
 		"context":
 			clear_direct()
 			direct = not direct

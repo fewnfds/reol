@@ -9,7 +9,7 @@ Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+�
 | 项目 | 当前值 |
 |---|---|
 | exe SHA256 | `3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf` |
-| PCK SHA256 | `588696259ee570ba5524a8922e4964fb79eb037dbdaf705e07b1429e39007763` |
+| PCK SHA256 | `33623c5a59c15cfcab014b795877ad8190f1d551f4ae2eeff325a91d04f7d83a` |
 | 战斗规则签名 | `ed0a331b1a1ed0796a88f58ccad86c0677bbf29b327e0cb977a99ed567f53c8e` |
 | 决策签名 | `9bb014cebdfdb4196146e2288f25e0cc274e364e34cac2f28d26597fcf06e5cd` |
 | 内容 | 40动作、24配置、7套Policy；原生Resource/Inspector制作 |
@@ -17,23 +17,20 @@ Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+�
 
 来源贡献/控制聚合、决策反馈与设施登记更新布局，不迁移format13及更早开发档；原档及备份保留，不覆盖。exe是相同Godot模板，游戏变更主要在PCK；只核exe哈希不足以识别游戏版本。生成物/日志/本机咨询不入库。运行和制作入口归[usage](../engineering/tooling/usage.md)。
 
-## 纯二维斜视显示
+## 固定斜俯视与原生二维显示
 
-已撤除未提交的三维探索；该探索没有独立Git分支。当前为Camera2D、独立二维世界视口、一次画面合成，默认关闭远近变形，F7临时对比，设置可保存强度。墙/家具/施工架用二维斜视测试图，多格家具和门可分部排序；统一鼠标反解、可见精灵alpha选择与主角遮挡淡化。实现归[显示架构](../engineering/architecture.md#纯二维显示)，美术合同归[assets](../../assets/README.md)。
+用户反馈开启整屏形变后，竖直贴图边缘周期性横移1px。此前坐标反解/奇偶对齐检查通过，只能证明映射正确，不能证明画面质量合格。本轮已删除透视shader、世界离屏纹理/二次合成、设置滑条与F7入口，世界直接由原生Camera2D绘制；旧偏好的view项被忽略，重新保存设置时清除。保留二维斜视测试素材、分部排序、可见精灵alpha选择、主角遮挡淡化和统一坐标转换。原有迷雾mask仍用独立SubViewport。实现归[显示架构](../engineering/architecture.md#纯二维显示)，素材合同归[assets](../../assets/README.md)。
+
+真实nearest、linear及2倍渲染对比见`logs/view-sampling/comparison.png`；最近邻的微斜线产生台阶，线性过滤柔化描边，超采样增加渲染面积也不能恢复原来的竖直几何。双顾问完整返回，原件留`.local/advisor/view-sampling-20261116/round-1/`，均建议按当前像素美术与制作范围撤除。采纳该取舍及原生过滤、stretch/震动输入、迷雾与测量RID复核建议；不把局部精灵缩放不可行或精确性能倍数当作普遍结论。普通非整数缩放的像素宽度差异不等同于本次横向台阶。
 
 | 验证 | 本机证据 |
 |---|---|
-| 真实二维显示 | `view-delivery-final-view_ui_smoke-20261116-161458-682047800.log`，VIEW_UI_SMOKE errors=0；变形0/1、缩放、四角反解、震动不改技能落点、伸出占地的alpha拾取、同深度前景优先、奇数/1366×768窗口的实际合成像素、原生鼠标、暂停平移/缩放/迷雾、同帧F7与设置入口；截图`logs/view-ui/`已观察 |
-| 移动与控制 | `view-floor-final-movement_ui_smoke-20261116-161937-913613400.log`、`view-delivery-control_ui_smoke-20261116-160731-616686100.log`均errors=0；贴墙三连/南侧单格通行、脚点和批次顺序、自由镜头瞄准/后退/侧移、原生改键/窗口/UI缩放 |
-| 普通交互、施工、P4 | `view-floor-final-ui_smoke-20261116-161942-152261900.log`、`view-final-work_positions_ui_smoke-20261116-155706-314492700.log`、`view-delivery-final-action_combinations_ui_smoke-20261116-161501-254476500.log`均通过；真键鼠、物资、续建、多槽组合/召唤/光环/器物及实际文件恢复。施工先于最后局部显示修正，普通交互/显示/控制与完整P4组合已另复核；组合检查补验灵狼/图腾的可见图形选择 |
-| 核心与原规则 | `smoke-kernel-20261116-160825-796292800.log`、`view-core-control_smoke-20261116-160835-959365000.log`、`view-core-movement_smoke-20261116-160837-962036700.log`均errors=0；没有改变World/身体/动作定义、format14或两项目录签名 |
-| 当前独立包 | `view-delivery-export-cli.log`为最后导出记录；`view-delivery-source-20261116-160940-696152900.log`与实际PCK的`view-pack-delivery-20261116-162043-306766700.log`恢复施工/来源状态/器物并推进，完整持久状态一致 |
+| 原生显示与实际像素 | `native-view-final-20261116-180521-627253700.log`，VIEW_UI_SMOKE errors=0；根视口直绘、分部/alpha选择、四种窗口含奇数尺寸、三档缩放、震动不改瞄准、真实光标/暂停平移/迷雾与旧偏好清理；离中心竖边逐行核对同一像素列，截图`logs/view-ui/native-*.png`已观察 |
+| 移动与控制 | `native-movement_ui_smoke-20261116-180615-624780100.log`、`native-control_ui_smoke-20261116-180619-851367200.log`均errors=0；贴墙三连、单格通行、显示脚点、自由镜头瞄准与原生改键/窗口/UI缩放；`native-control-20261116-180625-803610600.log`另核F7不再保留占用 |
+| 普通交互、施工、P4 | `native-ui_smoke-20261116-180624-469727800.log`、`native-work_positions_ui_smoke-20261116-180631-420477500.log`、`native-action_combinations_ui_smoke-20261116-180635-288353200.log`均errors=0；真键鼠选择、物资/续建、组合技能/召唤/光环/器物及文件恢复 |
+| 当前独立包 | `export-20261116-180811-303649100.log`成功；`native-pack-restore-20261116-180852-82788600.log`从实际PCK恢复原源码的施工/来源状态/器物样本并推进，完整持久状态相同。World、身体/动作定义、format14和两项目录签名未改 |
 
-目标机i5-13600KF/RTX3060、D3D12、1280×720、512人、两worker、1×、60FPS、迷雾、framework-combat-v1，3秒预热＋5秒采样。探索期关/开各一个窗口（`view-final-512-{off,on}.json`）均约60FPS、实速1×，此时额外边距仍为24px，包哈希`c4e837636f9fb57f5276320eae5c5dc0aa7ca55824d2b7a1262b676cc6cd62de`。最终将关闭模式源纹理恢复原尺寸，开启只留2px采样余量并对齐像素奇偶；收尾前成品以开启效果复核一次，`logs/view-delivery-512-on.json/.log/.cpu.json`：全窗步均7.971ms、样本步p99 17.125ms、帧p99 16.821ms、GPU均0.621ms/p99 2.266ms、主线程处理均2.703ms、实速0.99991×，404次交付/57次命中、无脚本/引擎错误、零过载、木材守恒，世界纹理1338×754。
-
-此前二维基线`ground-final-512.json`的GPU均0.361ms、主线程均2.403ms、帧p99 16.692ms。当前多一次世界纹理合成且素材/部件工作量不同，单次窗口有抖动；有额外成本，但本负载保留60FPS余量，不作纯算法提升或密弹上限结论。最终测量在提交前，JSON记`b836126`加dirty；测量PCK为`5c06bd0e086d2af1845490f96858747f1ced6fd0a0649aad8b7d44d723d7ea2b`，最后的低矮物淡化配置、门分叉朝向、召唤物选择及地板平面预览修正另做GUI/导出核查，没有追加性能窗口。默认关闭仍有中间纹理pass成本，不宣称零开销。
-
-双顾问源码/附图复审均完整返回，原件归`.local/advisor/view-2d-final-20261116/`。采纳墙顶接缝、部件阴影/锚点、同深度选择、记忆树摆、即时输入矩阵、采样边距/像素奇偶与辅助形状更新顺序的具体问题。边缘fringe显示不代表取得交互知识，保持只有memories中的对象可选；预备素材不等于已启用建筑，椅背与朝向由实际坐姿判断，不把顾问建议自动记成缺陷。木床实际为1×1且Pillow旋转对称实验无1px偏移，未采纳两项错误推断。低矮物淡化改由源条目/部件声明，补核程序召唤物选择；原有采用姿态排序/动作相位近似仍保留，没有为了未测瓶颈改成逐帧全量重排。测试最初误把物理截图像素当Window逻辑坐标，按原生stretch矩阵校正后通过；孤立瞬间移动/指针读数改为有界等待实际输入结果，原失败日志保留。
+最新release只测一个512人、1×、60FPS、两worker、迷雾、3秒预热＋5秒采样的framework-combat-v1窗口：`logs/native-final-512.json/.log/.cpu.json`及截图。目标机i5-13600KF/RTX3060、D3D12、1280×720；帧p99 16.836ms、采样步均8.038ms/p99 17.633ms、GPU均0.456ms/p99 1.803ms、主线程process均3.231ms、实速0.99991×，405次交付/57次命中、无脚本/引擎错误、零过载、木材守恒。已撤除额外世界合成pass，单窗结果只排查明显回归，不宣称精确提速或密弹容量；测量在提交前，JSON记录`8f1739f`加dirty，包哈希同本页当前构建。
 
 ## 贴墙移动与地面脚点修复
 

@@ -1,5 +1,5 @@
 extends "res://tests/abilities_ui_smoke.gd"
-## Real 2D framebuffer, reversible warp, picking and paused viewport changes.
+## Native 2D drawing, stable vertical pixel edges, selection and viewport changes.
 const World = preload("res://scripts/sim/kernel/world.gd")
 const Persistence = preload("res://scripts/sim/kernel/persistence.gd")
 const Session = preload("res://scripts/sim/kernel/session_io.gd")
@@ -45,6 +45,11 @@ func _run() -> void:
 	game.controls.bindings.config_path = "user://view-ui-controls.cfg"
 	game.paused = true
 	game.runner.control(true,1)
+	# Old local display preferences must not re-enable the retired effect.
+	var legacy := ConfigFile.new()
+	legacy.set_value("combat","volume",0.35)
+	legacy.set_value("view","warp",1.0)
+	legacy.save(game.feedback.config_path)
 	root.add_child(game)
 	current_scene = game
 	if not await until(func():return game.frame != null): check(false,"2D view not ready");quit(1);return
@@ -57,77 +62,75 @@ func _run() -> void:
 	await RenderingServer.frame_post_draw
 	root.grab_focus()
 	check(await until(func():return root.has_focus() and game.controls._focused,700),"View window has no input focus")
-	check(game.view.viewport.disable_3d and game.view.world is Node2D,"World display is not pure 2D")
+	check(root.disable_3d and game.view.world.get_viewport() == root,"World is not using the native 2D viewport")
+	check(game.view.find_children("*","SubViewport",true,false).size() == 1,"World has an intermediate render target besides the fog mask")
 	check(Art.catalog().entries.long_bed.parts.size() == 2,"Long fixture lacks independently sorted parts")
 	var parts: int = 0
 	for id: int in game.object_canvas.identities:
 		if id == long_bed: parts += 1
 	check(parts == 2,"Multi-cell object did not expand its visual parts")
+	check(is_equal_approx(game.feedback.volume,0.35),"Legacy display preference discarded the combat setting")
 	game.ui.hide()
-	for amount: float in [0.0,1.0]:
-		game.feedback.view_warp = amount
+	await capture("native-oblique")
+	check(game.controls.pick(Vector2(118.5,121.6)).has(wall),"Wall art extending above its occupied cell cannot be selected")
+	check(not game.controls.pick(Vector2(117.8,121.6)).has(wall),"Transparent sprite area swallowed selection")
+	var overlapping: Array[int] = game.controls.pick(game._displayed(4)+Vector2(0,-22.0/Art.TILE))
+	check(not overlapping.is_empty() and overlapping[0] == 4,"Equal-depth picking did not choose the last drawn body")
+	var window_before: Vector2i = root.size
+	var before: int = game.frame.world_ms
+	for window_size: Vector2i in [Vector2i(1280,720),Vector2i(1281,721),Vector2i(1366,768),Vector2i(960,540)]:
+		root.size = window_size
 		await process_frame
 		await process_frame
-		await capture("oblique-"+str(int(amount)))
-		check(game.controls.pick(Vector2(118.5,121.6)).has(wall),"Wall art extending above its occupied cell cannot be selected")
-		check(not game.controls.pick(Vector2(117.8,121.6)).has(wall),"Transparent sprite area swallowed selection")
-		var overlapping: Array[int] = game.controls.pick(game._displayed(4)+Vector2(0,-22.0/Art.TILE))
-		check(not overlapping.is_empty() and overlapping[0] == 4,"Equal-depth picking did not choose the last drawn body")
-		for zoom: float in [0.45,1.7]:
+		var size: Vector2 = root.get_visible_rect().size
+		for zoom: float in [0.45,1.0,1.7]:
 			game.camera.zoom = Vector2.ONE*zoom
 			game.view.sync()
-			for screen: Vector2 in [Vector2.ZERO,Vector2(1279,0),Vector2(1279,719),Vector2(0,719),Vector2(640,360),Vector2(1010,590)]:
+			for screen: Vector2 in [Vector2.ZERO,Vector2(size.x-1,0),size-Vector2.ONE,Vector2(0,size.y-1),size*0.5]:
 				var point: Vector2 = game.view.ground(screen)
-				check(game.view.project(point,false).distance_to(screen)<0.02,"Warp inverse drifted at an edge")
-				var source: Vector2 = game.view.viewport.canvas_transform*point
-				check(Rect2(Vector2.ZERO,Vector2(game.view.viewport.size)).has_point(source),"Warp exposed outside the source viewport")
-			var stable: Vector2 = game.view.ground(Vector2(940,530))
+				check(game.view.project(point,false).distance_to(screen)<0.02,"Native screen inverse drifted at an edge")
+				check(absf(game.view.project(point+Vector2(0,100),false).x-screen.x)<0.02,"Vertical world edge became slanted")
+			var stable: Vector2 = game.view.ground(size*0.7)
 			game.camera.offset = Vector2(8,-6)/game.camera.zoom
 			game.view.sync()
-			check(game.view.ground(Vector2(940,530)).distance_to(stable)<0.003,"Camera shake changed skill targeting")
+			check(game.view.ground(size*0.7).distance_to(stable)<0.003,"Camera shake changed skill targeting")
 			var drawn_wall: Vector2 = game.view.project(Vector2(118.5,121.6)*Art.TILE)
 			check(game.controls.pick(game.controls.pointer_world(drawn_wall)).has(wall),"Sprite selection missed a shaken visual")
 			game.camera.offset = Vector2.ZERO
+			game.view.sync()
 		game.camera.zoom = Vector2.ONE*1.7
 		game.view.sync()
 		var foot: Vector2 = game._displayed(1)*Art.TILE
 		var mouse_at: Vector2 = game.view.project(foot+Vector2(60,30),false)
-		Input.warp_mouse(mouse_at)
-		check(await until(func():return root.get_mouse_position().distance_to(mouse_at)<1.1,500),"Native cursor did not arrive at target")
+		root.warp_mouse(mouse_at)
+		check(await until(func():return root.get_mouse_position().distance_to(mouse_at)<1.1,500),"Native cursor did not arrive: window=%s logical=%s actual=%s target=%s scale=%s" % [root.size,size,root.get_mouse_position(),mouse_at,root.get_stretch_transform()])
 		game.controls._update_aim(root.get_mouse_position())
-		check(game.controls._aim.dot(Vector2(60,30).normalized())>0.999,"Native pointer aim diverged under the warp: wanted=%s actual=%s aim=%s k=%s canvas=%s" % [mouse_at,root.get_mouse_position(),game.controls._aim,game.view.strength,game.view.viewport.canvas_transform])
-		check(game.fog.mask.size.x == ceili(game.view.viewport.size.x*0.5),"Fog mask missed the expanded viewport")
-	# Check actual composite pixels at odd/even window sizes, not only CPU math.
-	for window_size: Vector2i in [Vector2i(1281,721),Vector2i(1366,768)]:
-		root.size = window_size
-		for amount: float in [0.0,1.0]:
-			game.feedback.view_warp = amount
-			game.sync_view()
-			await process_frame
-			await RenderingServer.frame_post_draw
-			var displayed: Image = root.get_texture().get_image()
-			var source: Image = game.view.viewport.get_texture().get_image()
-			var output_size: Vector2 = game.view._size
-			check((game.view.viewport.size.x-int(output_size.x))%2 == 0 and (game.view.viewport.size.y-int(output_size.y))%2 == 0,"Centred source has mismatched pixel parity")
-			for pixel: Vector2i in [Vector2i(210,180),Vector2i(470,320),Vector2i(810,380),Vector2i(950,610)]:
-				var logical: Vector2 = root.get_stretch_transform().affine_inverse()*(Vector2(pixel)+Vector2.ONE*0.5)
-				var q: Vector2 = logical/(output_size*0.5)-Vector2.ONE
-				var src: Vector2 = game.view.unwarp(q,game.view.strength)*output_size*0.5+Vector2(game.view.viewport.size)*0.5
-				var actual: Color = displayed.get_pixelv(pixel)
-				var expected: Color = source.get_pixelv(Vector2i(src.floor()))
-				check(absf(actual.r-expected.r)+absf(actual.g-expected.g)+absf(actual.b-expected.b)<0.015,"Framebuffer disagrees: window=%s root=%s source=%s output=%s pixel=%s src=%s got=%s want=%s transform=%s" % [window_size,displayed.get_size(),source.get_size(),output_size,pixel,src,actual,expected,root.get_stretch_transform()])
-	var toggle := InputEventKey.new()
-	toggle.keycode = KEY_F7
-	toggle.physical_keycode = KEY_F7
-	toggle.pressed = true
-	Input.parse_input_event(toggle)
-	check(is_equal_approx(game.view.strength, game.feedback.view_warp*game.ViewRig.MAX_STRENGTH),"F7 used a stale inverse until the next process")
-	var before: int = game.frame.world_ms
-	var size_before: Vector2i = root.size
-	root.size = Vector2i(960,540)
-	await process_frame
-	await process_frame
-	check(game.view._output.size == root.get_visible_rect().size,"Resize left stale output dimensions")
+		check(game.controls._aim.dot(Vector2(60,30).normalized())>0.999,"Native pointer aim diverged after resizing")
+		await process_frame
+		check(game.fog.mask.size == Vector2i((size*0.5).ceil()),"Fog mask missed the native viewport size")
+		# A hard vertical edge rendered off-centre must occupy the same columns
+		# on every row. This catches the user's periodic 1px horizontal staircase.
+		var anchor: Vector2 = game.view.ground(Vector2(size.x*0.8,100),true)
+		var marker := Polygon2D.new()
+		marker.polygon = PackedVector2Array([anchor,anchor+Vector2(3,0),anchor+Vector2(3,70),anchor+Vector2(0,70)])
+		marker.color = Color.MAGENTA
+		marker.z_index = 4095
+		game.view.world.add_child(marker)
+		await process_frame
+		await RenderingServer.frame_post_draw
+		var bitmap: Image = root.get_texture().get_image()
+		var start: Vector2 = root.get_stretch_transform()*game.view.project(anchor)
+		var end: Vector2 = root.get_stretch_transform()*game.view.project(anchor+Vector2(3,70))
+		var first_column: int = -1
+		for y: int in range(ceili(start.y)+3,floori(end.y)-3):
+			var found: int = -1
+			for x: int in range(floori(start.x)-2,ceili(end.x)+2):
+				var color: Color = bitmap.get_pixel(x,y)
+				if color.r>color.g*2 and color.b>color.g*2: found=x;break
+			if first_column == -1: first_column=found
+			check(found >= 0 and found == first_column,"Native vertical pixel edge stepped sideways")
+		marker.queue_free()
+		await process_frame
 	game.view.pan_pixels(Vector2(120,60))
 	await process_frame
 	check(game.frame.world_ms == before,"Paused view changes advanced the simulation")
@@ -135,9 +138,12 @@ func _run() -> void:
 	game.controls.action("pause_menu",{})
 	game.controls.action("settings",{})
 	await process_frame
-	check(game.ui._modal_body.find_child("feedback_view_warp",true,false) != null,"Warp setting missing from native settings")
-	await capture("settings-resized")
-	root.size = size_before
+	check(game.ui._modal_body.find_child("feedback_view_warp",true,false) == null,"Retired display setting remains in the UI")
+	check(game.feedback.save_settings() == OK,"Combat preferences could not save")
+	var saved := ConfigFile.new()
+	check(saved.load(game.feedback.config_path) == OK and not saved.has_section("view"),"Saving preferences retained the retired display setting")
+	await capture("native-settings-resized")
+	root.size = window_before
 	game.queue_free()
 	await process_frame
 	await process_frame
