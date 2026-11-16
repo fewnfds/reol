@@ -7,5 +7,5 @@
 ## 主题索引
 
 - [身体与身份](beings_and_lifeways/bodies.md)
-- [自主角色：生命能力、目的与受托行动](beings_and_lifeways/agency.md)：共同自主基座的架构候选，区分生命组成、个人目标、情绪与指挥；不是已实现合同。
+- [自主生命：个人动机、行动与共同生活](beings_and_lifeways/agency.md)：共同工作流与本地百人宗门的架构方案，NPC自主及彼此协调优先；不是已实现合同。
 - [生命与生活处境](beings_and_lifeways/lifeways.md)
