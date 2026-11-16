@@ -2,6 +2,8 @@
 
 性质：面向本地宗门与自主生命的设计方案，**尚未实现这些新增模型**。已有字段与演进接缝见文末。用户举例说明想表达的人物丰富度，不等于必须逐项新增属性；本页采用的中文名是项目设计用语，不冒充统一的修仙设定。
 
+T01已接入主体能力，以下其余成长设计仍待实施：`data/definitions/beings/library.tres`显式注册形态，编译后由`BeingDefs`查询work/contact/metabolism/environment；个体只存稀疏覆盖，`World.set_capability_overrides`在变更时重建热列并终止失去资格的原run。工傀可劳动但无代谢/环境响应，原召唤形态保持原无劳动/无需求。形态不决定临时召唤寿命或组织成员资格。无移动身体的实物/qi费用可安全检查/支付，身体费用和移动过程明确拒绝；这尚不是静止主体的完整自主支持。
+
 共同工作流归[自主生命](agency.md)，学习过程归[修行与学习](../cultivation_and_learning/learning.md)，关系与职务归[社会系统](../social_system.md)，首个宗门的运转样本归[宗门生活](../sect_life.md)。实施顺序只归[主计划](../../../docs/plans/foundation-priorities.md#下一阶段候选)。
 
 ## 一个人不是一张总属性表

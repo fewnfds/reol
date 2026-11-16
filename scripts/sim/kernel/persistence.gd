@@ -6,11 +6,13 @@ const World = preload("res://scripts/sim/kernel/world.gd")
 const Units = preload("res://scripts/sim/kernel/units.gd")
 const State = preload("res://scripts/sim/kernel/state.gd")
 const Items = preload("res://scripts/sim/kernel/items.gd")
+const Beings = preload("res://scripts/sim/kernel/being_defs.gd")
+const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const Equipment = preload("res://scripts/sim/kernel/equipment.gd")
 
 
 static func capture(world: RefCounted) -> Dictionary:
-	var result: Dictionary = {"domains": {}, "pages": []}
+	var result: Dictionary = {"domains": {}, "pages": [], "being_signature": Beings.SIGNATURE, "operation_signature": Operations.SIGNATURE}
 	for key: String in world.state_owners():
 		var owner: RefCounted = world.state_owners()[key]
 		result.domains[key] = State.capture(owner, owner.STATE_FIELDS)
@@ -20,6 +22,8 @@ static func capture(world: RefCounted) -> Dictionary:
 
 
 static func candidate(data: Dictionary, workers: int) -> RefCounted:
+	if not Beings.ERRORS.is_empty() or data.get("being_signature") != Beings.SIGNATURE: return null
+	if not Operations.ERRORS.is_empty() or data.get("operation_signature") != Operations.SIGNATURE: return null
 	if not data.get("domains") is Dictionary or not data.get("pages") is Array:
 		return null
 	var world := World.new()
@@ -46,6 +50,7 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 			if not route is PackedVector2Array:
 				return null
 		State.apply(page, Units.STATE_FIELDS, value)
+		page.resize_stats() # A page may contain only free slots after removals.
 		page.cargo.resize(page.ids.size())
 		page.potions.resize(page.ids.size())
 		page.direct_velocities.resize(page.ids.size())
@@ -59,7 +64,7 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 		return null
 	var population: int = 0
 	for actor: int in world.actor_slots:
-		if world.objects.records[actor].get("body_profile", "human") == "human": population += 1
+		if Beings.population_member(world.objects.records[actor]): population += 1
 	if population != world.actor_count: return null
 	if not world.pools.valid(world) or not world.effects.valid(world): return null
 	for id: int in world.actor_slots:
@@ -246,10 +251,13 @@ static func _processes_valid(world: RefCounted) -> bool:
 			return false
 	for actor: Variant in world.actions:
 		var action: Variant = world.actions[actor]
-		if not actor is int or not world.actor_slots.has(actor) or not action is Dictionary or not action.get("kind") is String or action.kind not in ["take", "put", "construct", "rest", "cook", "eat", "demolish", "sow", "tend", "gather", "cut", "uproot", "talk", "trade", "request_help", "learn", "study", "practice"] or not action.get("target") is int or not world.objects.records.has(action.target):
+		if not actor is int or not world.actor_slots.has(actor) or not action is Dictionary or not action.get("kind") is String or not Operations.OPERATIONS.has(action.kind) or not action.get("target") is int or not world.objects.records.has(action.target):
 			return false
-		if action.kind in ["take", "put"] and (not action.get("item") is String or not Items.valid(action.item) or not action.get("amount") is int or action.amount <= 0):
+		var operation: Dictionary = Operations.OPERATIONS[action.kind]
+		if operation.executor in ["instant", "work_source"]: return false
+		if operation.executor == "transfer" and (not action.get("item") is String or not Items.valid(action.item) or not action.get("amount") is int or action.amount <= 0):
 			return false
+		if not Operations.capability_reason(world.objects.records[actor], action.kind).is_empty(): return false
 	return true
 
 

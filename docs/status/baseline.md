@@ -1,8 +1,28 @@
 # 当前构建与验证
 
-更新：2026-11-16。能力归[FEATURES](features.md)，状态归属归[架构](../engineering/architecture.md)，阶段归[主计划](../plans/foundation-priorities.md)。本页保存当前证据，完整历史由Git追溯。
+更新：2026-11-17。能力归[FEATURES](features.md)，状态归属归[架构](../engineering/architecture.md)，阶段归[主计划](../plans/foundation-priorities.md)。本页保存当前证据，完整历史由Git追溯。
+
+## 宗门共享基座实施（源码）
+
+T01主体能力与T02共同操作已完成开工/收尾双答核查及相关整改；T02接20Resource/纯查询/权威准入及木愈P4。源码存档为format15/`user://sect-quicksave-v15.reol`并增加主体/操作定义签名；下列独立P5包尚未重导，仍为format14，不能混用这两套文件。
+
+| 本次检查 | 证据与边界 |
+|---|---|
+| T01整改与T02联动 | `being-operations-integration-20261117-004907-716660600.log` errors=0，未加入和已加入伙伴失能、真实在途中途存读/现场拒绝、临时帮工原自主态/换人续工及采木释放 |
+| 共同操作 | `operations-final-20261117-005356-111842600.log` errors=0；不同实际消费者、规则变体执行、多费用/被控承诺、真实归因、隐藏观察和拒绝保原run |
+| 原操作/正常GUI | `smoke-features-20261117-005435-887605400.log`、`operations-work-positions-20261117-005103-890278300.log`、`operations-livelihood-20261117-005103-873542500.log`通过；`operations-ui-20261117-005131-586521700.log` errors[]，真实菜单/取物/施工/换装，`logs/ui-smoke/npc-readonly.png`已观察 |
+| 主体能力 | `being-capabilities-20261117-002747-554460200.log` errors=0；实际非人取放、代谢/环境、变更中断、源/签名/进行中资格、常驻召唤形态、槽复用和静物费用边界 |
+| 原真实消费者 | `smoke-features-20261117-002709-782975100.log`、`spatial-capabilities-20261117-002757-148446100.log`、`smoke-equipment-20261117-003242-235510700.log`均errors=0；原社会/修行、临时召唤/光环/空间、装备/恢复 |
+| 核心检查 | `smoke-kernel-20261117-003325-490823400.log` errors=0，保留15秒上限与原计时断言；修改前及修改后先前运行曾超时或失败于“220ms禁止画面轮询时应推进650ms”。只给错误信息补实际delta/序号/步耗时，未放宽条件；两次独立同负载探针均推进866ms。失败有间歇性，根因尚未定，不以最后一次通过掩盖 |
+| 结构 | `check_structure.py --audit-code`：100文档、249 Godot源、0错误；不代表运行规模或界面体验 |
+
+本项尚未引入目的/组织/生产新模型，也未测百人宗门闭环或图形性能；不能用以上检查替代最终交付。
+
+T02核心同一断言再失败：`smoke-kernel-20261117-005155-384976400.log`实际delta450ms/最大单步51.5ms。随后独立100人4×同窗探针推进850/900/2000ms（220/220/500ms），`operations-indexed-thread-probe-20261117-005305-352651500.log`最大步8.7ms；查询按目标类型派生索引减少无关求值。单窗口/短探针不证明根因或精确性能改善，保留整组失败事实。
 
 ## 当前构建
+
+T02收尾追加反例：`operations-variant-final-20261117-010710-927522700.log` errors=0，覆盖新运输定义/实际grain交付、半边伙伴档拒绝、直接中断伙伴自主唤醒、合法在途目标变化可恢复且到场拒绝。`capabilities-operation-final-20261117-010604-965599800.log`、`smoke-features-20261117-010409-895802400.log`均errors=0；真实`operations-ui-final-20261117-010557-460283800.log` errors=[]，已观察生成截图。结构审计100文档/276源/0错误；不将这些短检查宣称百人闭环或性能验收。
 
 Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+，1280×720。正式入口`scenes/main.tscn`。当前为P5试玩版加作业位置、合同/碰撞修复与纯二维斜视显示；根目录[启动.cmd](../../启动.cmd)选3运行`build/windows/act-p5/reol-act.exe`＋同目录pck，选1为最新源码战斗、选2为普通世界。
 

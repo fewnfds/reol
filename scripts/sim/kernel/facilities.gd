@@ -4,14 +4,15 @@ extends RefCounted
 
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Positions = preload("res://scripts/sim/kernel/work_positions.gd")
+const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
+const Query = preload("res://scripts/sim/kernel/operation_query.gd")
 var definitions: Dictionary = {}
 var completed: Dictionary = {}
 
 
 func _init() -> void:
-	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/construction.json"))
-	if parsed is Dictionary:
-		definitions = parsed.get("types", {})
+	if not Query.BUILDINGS.is_empty():
+		definitions = Query.BUILDINGS.duplicate(true)
 		for key: String in definitions.keys():
 			var errors: PackedStringArray = Positions.errors(definitions[key].get("work_positions", {}))
 			if not errors.is_empty():
@@ -171,16 +172,6 @@ func uninstall(world: RefCounted, record: Dictionary) -> void:
 		for tile: int in record.get("cells", PackedInt32Array([record.tile])): world.queue_structure(tile, false, false, true)
 
 
-func duration(world: RefCounted, action: Dictionary) -> int:
-	var record: Dictionary = world.objects.records[action.target]
-	match action.kind:
-		"construct": return maxi(1, int(record.get("remaining_ms", 1)))
-		"rest": return 2000
-		"eat": return 1000
-		"cook": return 4000
-	return 300
-
-
 func seed_fixture(world: RefCounted, definition: String, tile: int, facing: int = 0) -> int:
 	var spec: Dictionary = definitions[definition]
 	var id: int = create_completed(world, definition, tile, facing)
@@ -192,15 +183,9 @@ func seed_fixture(world: RefCounted, definition: String, tile: int, facing: int 
 	return id
 
 
-func available(world: RefCounted, action: Dictionary) -> bool:
-	var record: Dictionary = world.objects.records[action.target]
-	var spec: Dictionary = definitions.get(record.definition, {})
-	match action.kind:
-		"construct": return record.kind == "blueprint"
-		"rest": return spec.get("capabilities", {}).has("rest") and record.kind != "blueprint"
-		"cook": return spec.get("capabilities", {}).has("workbench") and record.kind != "blueprint"
-		"eat": return record.kind in ["chest", "workbench", "pile", "furniture"]
-	return false
+func available(world: RefCounted, action: Dictionary, actor: int = 1) -> bool:
+	var operation: Dictionary = Operations.OPERATIONS.get(action.get("operation_id", action.kind), {})
+	return not operation.is_empty() and Query.evaluate(operation, world.operation_actor(actor), world.operation_target(action.target), {}, definitions).ready
 
 
 func interrupt(world: RefCounted, action: Dictionary, now: int) -> void:
@@ -212,7 +197,7 @@ func interrupt(world: RefCounted, action: Dictionary, now: int) -> void:
 
 
 func finish(world: RefCounted, actor: int, action: Dictionary, at: int) -> String:
-	if not available(world, action):
+	if not available(world, action, actor):
 		return "unavailable"
 	var record: Dictionary = world.objects.records[action.target]
 	var spec: Dictionary = definitions.get(record.definition, {})
@@ -251,11 +236,11 @@ func finish(world: RefCounted, actor: int, action: Dictionary, at: int) -> Strin
 			page.hunger[row] = mini(10000, page.hunger[row] + 3000)
 			world.effects.apply_bundle(world, actor, actor, 0, "", preload("res://data/definitions/actions/meal_effect.tres").values(), at, 0, "activation")
 		"cook":
-			if world.objects.amount(actor, "grain") < 2 or world.objects.amount(actor, "water") < 1:
-				return "missing_ingredients"
+			var ingredients: Dictionary = Operations.OPERATIONS[action.get("operation_id", action.kind)].required_items
+			for item: String in ingredients:
+				if world.objects.amount(actor, item) < int(ingredients[item]): return "missing_ingredients"
 			if record.capacity >= 0 and world.objects.count_inventory(action.target) + 3 > record.capacity: return "no_output_capacity"
-			world.objects.add(actor, "grain", -2)
-			world.objects.add(actor, "water", -1)
+			for item: String in ingredients: world.objects.add(actor, item, -int(ingredients[item]))
 			world.objects.add(action.target, "meal", 3)
 	completed[action.kind] = int(completed.get(action.kind, 0)) + 1
 	return "completed"

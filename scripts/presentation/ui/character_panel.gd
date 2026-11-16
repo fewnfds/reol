@@ -90,8 +90,8 @@ func refresh(subject: Dictionary) -> void:
 		int(stats.get("melee", 0)), int(stats.get("ranged", 0)),
 		int(stats.get("armor", 0)), float(stats.get("speed", 0)), int(subject.energy), int(subject.hunger), float(subject.temperature)]
 	_practice.text = "灵气 %d\n修行 %d\n%s" % [int(subject.get("qi", 0)), int(subject.get("practice", 0)), str(subject.get("methods", {}).keys())]
-	_study.disabled = subject_id != 1 or int(subject.hp) <= 0 or int(subject.inventory.get("breath_manual", 0)) <= 0
-	_ability.disabled = subject_id != 1 or int(subject.hp) <= 0 or not subject.get("abilities", {}).get("wood_mend", false)
+	_study.disabled = subject_id != 1 or not preload("res://scripts/presentation/ui/actions.gd").self_ready(subject, "study")
+	_ability.disabled = subject_id != 1 or not preload("res://scripts/presentation/ui/actions.gd").self_ready(subject, "wood_mend")
 	var version: String = "%d:%d" % [subject_id, int(subject.get("events_version", 0))]
 	if version != _event_signature:
 		_event_signature = version

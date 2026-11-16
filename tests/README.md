@@ -11,6 +11,10 @@
 
 每次选择一个相关专题，不自动串起全部检查。失败退出码、引擎错误和超时都视为失败；验证强度查[开发循环](../docs/engineering/workflow/testing.md)。
 
+`being_capabilities_smoke.gd`按需单独运行，核非人实际取放、代谢/环境隔离、个体接触差异、资格变更中断、与劳动无关的手动移动、源状态/规则签名及进行中资格拒载、常驻召唤形态与槽复用、静物实物/qi及身体费用边界。原临时召唤生命周期沿`action_spatial_smoke.gd`验证。
+
+`operations_smoke.gd`按需单独核对共同查询/UI/owner要求、真实烹饪、未知/非法目标拒绝不污染run、过时和缺失观察、规则签名/重名/递归冻结、同机制Resource变体直接执行；另验木愈实际多费用/P4归因、被控和动作承诺拒绝、普通run保留及恢复。它不证明完整配方、多人课程或人生目标已实现。
+
 `navigation_smoke.gd`由kernel调用，`tile_smoke.gd`复用features的世界；它们和feature/sight/equipment一样是RefCounted模块，不直接用Godot的`--script`启动。其余SceneTree专题按下面的范围选用。
 
 `tool_smoke.py`在修改Python运行或性能工具时使用，核对进程退出/超时、历史复用、单倍率次数上限及不可比条件，不启动游戏。性能用真实release短窗口，不用smoke通过数量代表容量。

@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="OperationDef" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/definitions/operations/operation_def.gd" id="op"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/operations/target_rule.gd" id="target"]
+
+[sub_resource type="Resource" id="Target0"]
+script = ExtResource("target")
+kinds = PackedStringArray("resource")
+
+[sub_resource type="Resource" id="Target1"]
+script = ExtResource("target")
+kinds = PackedStringArray("plant")
+definitions = PackedStringArray("old_tree")
+
+[resource]
+script = ExtResource("op")
+id = "cut"
+title = "砍伐"
+icon = "work"
+executor = "nature"
+handler = "cut"
+required_capabilities = PackedStringArray("work")
+duration_ms = 1500
+targets = Array[ExtResource("target")]([SubResource("Target0"), SubResource("Target1")])

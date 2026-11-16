@@ -388,7 +388,7 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 	var dead: bool = int(player.get("hp", 0)) <= 0
 	for key: String in _player_buttons: _player_buttons[key].disabled = dead
 	_player_buttons.heal.disabled = dead or int(player.get("hp", 0)) >= int(player.get("stats", {}).get("max_hp", 100)) or int(player.get("inventory", {}).get("potion", 0)) <= 0
-	_player_buttons.ability.disabled = dead or not player.get("abilities", {}).get("wood_mend", false)
+	_player_buttons.ability.disabled = not Actions.self_ready(player, "wood_mend")
 	_follow.modulate = Style.GOLD if following else Color.WHITE
 	_direct = direct
 	_refresh_control_hints()

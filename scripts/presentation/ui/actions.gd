@@ -3,13 +3,15 @@ extends RefCounted
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Art = preload("res://scripts/presentation/art.gd")
 const Items = preload("res://scripts/sim/kernel/items.gd")
+const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
+const Query = preload("res://scripts/sim/kernel/operation_query.gd")
 static var buildings: Dictionary = {}
 static var plants: Dictionary = {}
 static var items: Dictionary = {}
 
 static func load_definitions() -> void:
 	if not buildings.is_empty(): return
-	buildings = JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/construction.json")).types
+	buildings = Query.BUILDINGS
 	plants = JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/plants.json")).types
 	items = JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/items.json"))
 
@@ -45,45 +47,28 @@ static func observed(frame: RefCounted, id: int, use_fog: bool) -> Dictionary:
 static func command(id: String, text: String, glyph: String, enabled: bool = true) -> Dictionary:
 	return {"id": id, "text": text, "icon": glyph, "enabled": enabled}
 
+static func self_ready(actor: Dictionary, operation: String) -> bool:
+	return Query.evaluate(Operations.OPERATIONS[operation], actor, actor).ready
+
 static func for_target(data: Dictionary, player: Dictionary, help_target: int) -> Array[Dictionary]:
 	load_definitions()
 	var result: Array[Dictionary] = []
 	if data.is_empty() or data.get("memory", false): return result
-	var kind: String = str(data.get("kind", ""))
-	var definition: String = str(data.get("definition", ""))
-	var actor: int = int(data.get("id", 0))
+	for id: String in Operations.OPERATIONS:
+		var operation: Dictionary = Operations.OPERATIONS[id]
+		if not operation.target_menu: continue
+		var query: Dictionary = Query.evaluate(operation, player, data, {"help_target": help_target})
+		if not query.applicable: continue
+		var command_id: String = operation.command_alias if not operation.command_alias.is_empty() else id
+		var row: Dictionary = command(command_id, operation.title, operation.icon, query.ready)
+		row["reason"] = query.reason
+		result.append(row)
+	# These open local tools; they do not claim to execute a world operation.
 	var alive: bool = int(player.get("hp", 0)) > 0
-	var capabilities: Dictionary = buildings.get(definition, {}).get("capabilities", {})
-	if kind in ["pile", "chest", "resource"]:
-		result.append(command("take", "拿取", "take", alive and not data.get("inventory", {}).is_empty()))
-		result.append(command("put", "放入", "put", alive and not player.get("inventory", {}).is_empty()))
-	if kind in ["chest", "workbench", "furniture", "pile"] and int(data.get("inventory", {}).get("meal", 0)) > 0:
-		result.append(command("eat", "进食", "potion", alive))
-	if kind == "blueprint":
-		result.append(command("continue_build", "施工", "work", alive))
-		result.append(command("request_worker", "协作", "link", alive))
-	elif capabilities.has("rest"):
-		result.append(command("rest", "休息", "hold", alive))
-	elif capabilities.has("workbench"):
-		result.append(command("cook", "烹饪", "work", alive and int(player.get("inventory", {}).get("grain", 0)) >= 2 and int(player.get("inventory", {}).get("water", 0)) >= 1))
-	if capabilities.has("cultivation"):
+	if data.get("kind", "") == "blueprint": result.append(command("request_worker", "协作", "link", alive))
+	var capabilities: Dictionary = buildings.get(data.get("definition", ""), {}).get("capabilities", {})
+	if capabilities.has("cultivation") and data.get("kind") != "blueprint":
 		result.append(command("plant_menu", "种植", "plant", alive and int(data.get("guest", 0)) == 0))
-	if kind in ["plant", "resource"]:
-		var stage: int = int(data.get("stage", -1))
-		if kind == "plant":
-			result.append(command("sow", "播种", "plant", alive and stage == 0))
-			result.append(command("tend", "照料", "plant", alive and stage not in [0, 4]))
-			result.append(command("gather", "采收", "take", alive and stage == 2 and not data.get("inventory", {}).is_empty()))
-		if kind == "resource" or definition == "old_tree": result.append(command("cut", "砍伐", "work", alive))
-		result.append(command("uproot", "拔除", "close", alive))
-		if definition == "old_tree": result.append(command("practice", "修行", "person", alive and stage == 2))
-	if (kind == "actor" and actor != 1 and int(data.get("hp", 0)) > 0) or data.get("sapient", false):
-		for row: Array in [["talk", "交谈", "talk"], ["trade", "交换", "link"], ["learn", "请教", "book"]]:
-			result.append(command(row[0], row[1], row[2], alive))
-		if kind == "actor":
-			result.append(command("request_help", "协作", "work", alive and help_target > 0))
-	if kind not in ["actor", "plant", "resource", "pile", "depot"]:
-		result.append(command("demolish", "拆除", "close", alive))
 	return result
 
 static func art_key(definition: String) -> String:

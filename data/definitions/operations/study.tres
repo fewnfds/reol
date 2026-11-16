@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="OperationDef" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/definitions/operations/operation_def.gd" id="op"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/operations/target_rule.gd" id="target"]
+
+[sub_resource type="Resource" id="Target0"]
+script = ExtResource("target")
+kinds = PackedStringArray("actor")
+relation = "self"
+
+[resource]
+script = ExtResource("op")
+id = "study"
+title = "读书"
+icon = "book"
+executor = "society"
+handler = "study"
+required_capabilities = PackedStringArray()
+duration_ms = 1000
+target_menu = false
+required_items = Dictionary[String, int]({"breath_manual": 1})
+targets = Array[ExtResource("target")]([SubResource("Target0")])

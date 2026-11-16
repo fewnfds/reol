@@ -23,7 +23,8 @@ var radii := PackedFloat32Array()
 var aims := PackedVector2Array()
 var direct_velocities := PackedVector2Array() # Prepared by owner, consumed by the same body integrator.
 var health := PackedInt32Array()
-var needs_enabled := PackedByteArray() # Derived body-profile capability.
+var needs_enabled := PackedByteArray() # Derived metabolism capability.
+var environment_enabled := PackedByteArray() # Independent environmental response.
 var max_health := PackedInt32Array() # Derived stats, rebuilt rather than saved.
 var melee_damage := PackedInt32Array()
 var ranged_damage := PackedInt32Array()
@@ -78,6 +79,7 @@ func add_row(id: int, tile: int) -> int:
 	health.append(int(Equipment.BASE.max_hp))
 	max_health.append(int(Equipment.BASE.max_hp))
 	needs_enabled.append(1)
+	environment_enabled.append(1)
 	melee_damage.append(int(Equipment.BASE.melee))
 	ranged_damage.append(int(Equipment.BASE.ranged))
 	armor.append(int(Equipment.BASE.armor))
@@ -105,6 +107,7 @@ func add_row(id: int, tile: int) -> int:
 
 func resize_stats() -> void:
 	if needs_enabled.size() != ids.size(): needs_enabled.resize(ids.size())
+	if environment_enabled.size() != ids.size(): environment_enabled.resize(ids.size())
 	for field: String in ["max_health", "melee_damage", "ranged_damage", "armor", "move_speed", "move_scales"]:
 		if get(field).size() != ids.size():
 			var column: Variant = get(field)
@@ -228,20 +231,25 @@ func sample_environment(seconds: float = 1.0) -> void:
 	environmental_events.clear()
 	var alpha: float = 1.0 - exp(-seconds / 30.0)
 	for row: int in positions.size():
-		if modes[row] == Mode.DEAD or modes[row] == Mode.FREE or needs_enabled[row] == 0:
+		if modes[row] == Mode.DEAD or modes[row] == Mode.FREE:
 			continue
 		var tile: int = Terrain.index(Vector2i(positions[row]))
-		environment.sample_raw(tile, exposure, row * 7)
-		var ambient: float = environment.temperature_at(tile, exposure, row * 7)
-		body_heat[row] = lerpf(body_heat[row], ambient, alpha)
-		for channel: int in 5:
-			elements[row * 5 + channel] = environment.element(tile, exposure, row * 7, channel)
-		var hunger_before: int = hunger[row]
-		var energy_before: int = energy[row]
-		hunger[row] = maxi(0, hunger[row] - roundi(2 * seconds))
-		energy[row] = maxi(0, energy[row] - roundi((3 + absf(body_heat[row] - 22.0)) * seconds))
-		if (hunger_before >= 4000 and hunger[row] < 4000) or (energy_before >= 4000 and energy[row] < 4000):
-			environmental_events.append({"kind": "needs_changed", "actor": ids[row], "at_ms": end_ms})
+		var ambient: float = body_heat[row]
+		if environment_enabled[row] != 0:
+			environment.sample_raw(tile, exposure, row * 7)
+			ambient = environment.temperature_at(tile, exposure, row * 7)
+			body_heat[row] = lerpf(body_heat[row], ambient, alpha)
+			for channel: int in 5:
+				elements[row * 5 + channel] = environment.element(tile, exposure, row * 7, channel)
+		if needs_enabled[row] != 0:
+			var hunger_before: int = hunger[row]
+			var energy_before: int = energy[row]
+			hunger[row] = maxi(0, hunger[row] - roundi(2 * seconds))
+			var thermal_cost: float = absf(body_heat[row] - 22.0) if environment_enabled[row] != 0 else 0.0
+			energy[row] = maxi(0, energy[row] - roundi((3 + thermal_cost) * seconds))
+			if (hunger_before >= 4000 and hunger[row] < 4000) or (energy_before >= 4000 and energy[row] < 4000):
+				environmental_events.append({"kind": "needs_changed", "actor": ids[row], "at_ms": end_ms})
+		if environment_enabled[row] == 0: continue
 		if seconds > 0.0 and (body_heat[row] > 80.0 or body_heat[row] < 0.0):
 			var before: float = tolerance[row]
 			var absorbed: float = minf(tolerance[row], seconds * THERMAL_DAMAGE_PER_SECOND)

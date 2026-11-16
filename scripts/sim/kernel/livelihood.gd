@@ -4,6 +4,9 @@ extends RefCounted
 
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Units = preload("res://scripts/sim/kernel/units.gd")
+const Beings = preload("res://scripts/sim/kernel/being_defs.gd")
+const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
+const Query = preload("res://scripts/sim/kernel/operation_query.gd")
 var decisions: int = 0
 var observations: int = 0
 var decision_usec: int = 0
@@ -74,8 +77,14 @@ func remember(world: RefCounted, id: int, target: int, at: int) -> void:
 	clue["definition"] = record.definition
 	clue["tile"] = record.tile
 	clue["capacity"] = record.capacity
-	clue["stage"] = int(record.get("stage", -1))
+	if record.has("stage"): clue["stage"] = record.stage
+	else: clue.erase("stage")
 	clue["seen_ms"] = at
+	clue["id"] = target
+	clue["sapient"] = record.get("sapient", false)
+	if record.kind == "actor":
+		var slot: int = world.actor_slots[target]
+		clue["hp"] = world.pages[slot / 256].health[slot % 256]
 	person.known[target] = clue
 
 
@@ -99,15 +108,17 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 	if person.get("observe_due", 0) <= at:
 		observe(world, id, at)
 	var commitment: Dictionary = person.get("commitment", {})
+	var labor: bool = Beings.has(person, "work")
+	var metabolism: bool = Beings.has(person, "metabolism")
 	if not commitment.is_empty():
 		var target: int = int(commitment.target)
-		if at >= int(commitment.expires_ms) or world.objects.records.get(target, {}).get("kind", "") != "blueprint":
+		if not labor or at >= int(commitment.expires_ms) or world.objects.records.get(target, {}).get("kind", "") != "blueprint":
 			person.erase("commitment")
 			person.autonomous = commitment.get("was_autonomous", true)
 			if not person.autonomous:
 				page.modes[row] = Units.Mode.IDLE
 				return
-		elif page.hunger[row] >= 2500 and page.energy[row] >= 2000:
+		elif not metabolism or (page.hunger[row] >= 2500 and page.energy[row] >= 2000):
 			if not world.decisions.retry_allowed(world, id, "construct", target, at):
 				after_action(world, id, at)
 				return
@@ -120,8 +131,10 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 	var chosen: int = 0
 	var kind: String = ""
 	var best: float = INF
+	var actor_view: Dictionary = world.operation_actor(id)
 	for target: int in clues.keys():
 		var clue: Dictionary = clues[target]
+		if int(clue.get("tile", -1)) < 0: continue # Mobile contacts are not static work sites.
 		# Absence at a presently observed location disproves this actor's clue.
 		# Unseen locations retain their evidence until the actor actually checks.
 		if world.sight.sees(page.positions[row], clue.tile, world.sight.range_for(world, id)) and not world.objects.records.has(target):
@@ -129,41 +142,46 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 			continue
 		var candidate: String = ""
 		var priority: float = 0
-		if page.hunger[row] < 4000 and int(clue.inventory.get("meal", 0)) > 0:
-			candidate = "eat"
+		var available: Dictionary = {}
+		for option: String in Query.options(clue):
+			var handler: String = Operations.OPERATIONS[option].handler
+			if handler not in ["eat", "rest", "construct", "cook", "put", "gather", "harvest"] or available.has(handler): continue
+			if Query.evaluate(Operations.OPERATIONS[option], actor_view, clue).ready: available[handler] = option
+		if page.hunger[row] < 4000 and available.has("eat"):
+			candidate = available.eat
 			priority = -10000
-		elif page.energy[row] < 4000 and clue.definition in ["wood_bed", "long_bed"] and clue.kind != "blueprint":
-			candidate = "rest"
+		elif page.energy[row] < 4000 and available.has("rest"):
+			candidate = available.rest
 			priority = -9000
-		elif clue.kind == "blueprint":
-			candidate = "construct"
+		elif available.has("construct"):
+			candidate = available.construct
 			priority = -2000
-		elif page.cargo[row] == 0 and clue.definition == "cook_stove" and world.objects.amount(id, "grain") >= 2 and world.objects.amount(id, "water") >= 1:
-			candidate = "cook"
+		elif page.cargo[row] == 0 and available.has("cook"):
+			candidate = available.cook
 			priority = -1500
-		elif page.cargo[row] > 0 and clue.kind == "chest":
-			var occupied: int = 0
-			for count: int in clue.inventory.values(): occupied += count
-			if int(clue.get("capacity", -1)) >= 0 and occupied >= int(clue.capacity): continue
-			candidate = "put"
+		elif page.cargo[row] > 0 and clue.kind == "chest" and available.has("put"):
+			candidate = available.put
 			priority = -1000
-		elif clue.kind == "plant" and int(clue.get("stage", -1)) == world.nature.Stage.MATURE and not clue.inventory.is_empty():
-			candidate = "gather"
+		elif available.has("gather"):
+			candidate = available.gather
 			priority = -700
-		elif page.cargo[row] == 0 and clue.kind == "resource" and int(clue.inventory.get("wood", 0)) > 0:
-			candidate = "harvest"
+		elif page.cargo[row] == 0 and available.has("harvest"):
+			candidate = available.harvest
 		if candidate.is_empty():
 			continue
 		if not world.decisions.retry_allowed(world, id, candidate, target, at): continue
-		if person.has("commitment") and candidate not in ["eat", "rest"]: continue
+		if person.has("commitment") and Operations.OPERATIONS[candidate].handler not in ["eat", "rest"]: continue
 		var score: float = page.positions[row].distance_squared_to(Terrain.center(clue.tile)) + priority
-		if candidate not in ["put", "eat"] and world.sight.sees(page.positions[row], clue.tile, world.sight.range_for(world, id)) and world.reservations.has(target):
+		if Operations.OPERATIONS[candidate].exclusive and world.sight.sees(page.positions[row], clue.tile, world.sight.range_for(world, id)) and world.reservations.has(target):
 			continue
 		if score < best:
 			chosen = target
 			best = score
 			kind = candidate
 	if chosen == 0:
+		if not labor and not metabolism:
+			page.modes[row] = Units.Mode.IDLE
+			return # No current livelihood motive; do not schedule aimless searches.
 		if person.has("commitment"):
 			after_action(world, id, at)
 			return
@@ -179,7 +197,7 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 	if not world.objects.records.has(chosen):
 		_rejected(world, id, kind, chosen, "target_gone", at)
 		return
-	if kind == "harvest":
+	if Operations.OPERATIONS[kind].executor == "work_source":
 		var source: int = world.source_objects.find(chosen)
 		if source >= 0:
 			var point: Vector2 = world.facilities.interaction_point(world, chosen, page.positions[row], page.radii[row], page.flight[row] > 0, "harvest")
@@ -194,8 +212,8 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 			else: after_action(world, id, at, chosen)
 			return
 	var reason: String
-	if kind == "put":
-		reason = world.begin_transfer(id, {"kind": "put", "target": chosen, "item": "wood", "amount": page.cargo[row]})
+	if Operations.OPERATIONS[kind].handler == "put":
+		reason = world.begin_transfer(id, {"kind": kind, "target": chosen, "item": "wood", "amount": page.cargo[row]})
 	else:
 		reason = world.begin_interaction(id, {"kind": kind, "target": chosen, "autonomous": true})
 	if reason == "accepted":
@@ -212,7 +230,7 @@ func _walk_to_site(world: RefCounted, id: int, tile: int, mode: int, at: int, op
 	if point.x < 0:
 		_rejected(world, id, operation, target, "no_operation_place", at)
 	else:
-		if world.adopt_work(id, at):
+		if world.adopt_motion(id, at):
 			page.move_to(row, point, mode)
 			world.decisions.track_host(world, id, operation, target, true)
 		else: after_action(world, id, at)

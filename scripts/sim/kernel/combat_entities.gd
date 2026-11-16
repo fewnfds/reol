@@ -22,7 +22,7 @@ func create(world: RefCounted, owner: int, state: Dictionary, at: int) -> int:
 	if point.x < 0: return 0
 	var id: int
 	if spec.body == "companion":
-		id = world.spawn_actor(Terrain.index(Vector2i(point)), "companion")
+		id = world.spawn_actor(Terrain.index(Vector2i(point)), "companion", "summoned")
 		if id == 0: return 0
 		var rec: Dictionary = world.objects.records[id]
 		rec["ability_loadout"] = spec.loadout
@@ -136,7 +136,7 @@ func valid(world: RefCounted) -> bool:
 		for key: String in ["owner", "root_owner", "born_ms", "until_ms", "next_ms", "activation"]:
 			if not entry.get(key) is int: return false
 		if entry.owner <= 0 or entry.owner >= world.objects.next_id or entry.root_owner <= 0 or entry.root_owner >= world.objects.next_id or entry.born_ms < 0 or entry.born_ms > world.elapsed_ms or entry.until_ms <= entry.born_ms or entry.until_ms > world.elapsed_ms + 60000 or entry.next_ms < entry.born_ms or entry.activation < 1 or entry.activation >= world.combat.next_activation or not entry.get("members") is Dictionary: return false
-		if Defs.ACTIONS[entry.ability].entity.body == "companion" and (not world.actor_slots.has(id) or world.objects.records[id].get("body_profile") != "companion"): return false
+		if Defs.ACTIONS[entry.ability].entity.body == "companion" and (not world.actor_slots.has(id) or world.objects.records[id].get("body_origin") != "summoned"): return false
 		var spec: Dictionary = Defs.ACTIONS[entry.ability].entity
 		if not world.combat._point_valid(entry.get("anchor")) or entry.anchor.x < 0: return false
 		var rec: Dictionary = world.objects.records[id]
@@ -157,7 +157,7 @@ func valid(world: RefCounted) -> bool:
 				var effect: Dictionary = world.effects.records[status]
 				if effect.target != actor or effect.source != id or effect.ability != entry.ability or effect.activation != entry.activation or effect.lifetime != "source" or effect.contribution != "aura_%d" % slot or effect.status_id != spec.aura[slot].status.id: return false
 	for actor: int in world.actor_slots:
-		if world.objects.records[actor].get("body_profile") == "companion" and not records.has(actor): return false
+		if world.objects.records[actor].get("body_origin") == "summoned" and not records.has(actor): return false
 	for status: int in world.effects.records:
 		var effect: Dictionary = world.effects.records[status]
 		if not records.has(effect.source) or not effect.contribution.begins_with("aura_"): continue

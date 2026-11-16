@@ -31,6 +31,10 @@ const Sight = preload("res://scripts/sim/kernel/sight.gd")
 const Regions = preload("res://scripts/sim/kernel/regions.gd")
 const PersonEvents = preload("res://scripts/sim/kernel/person_events.gd")
 const STATE_FIELDS: Array = ["elapsed_ms", "actor_count", "initial_material", "harvested", "deliveries", "failed_harvests", "steps", "deaths", "attacks", "heals", "topology_revision", "source_objects", "depot_objects", "reservations", "actions", "work_runs", "next_run"]
+const Beings = preload("res://scripts/sim/kernel/being_defs.gd")
+const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
+const OperationQuery = preload("res://scripts/sim/kernel/operation_query.gd")
+const Costs = preload("res://scripts/sim/kernel/action_costs.gd")
 const Equipment = preload("res://scripts/sim/kernel/equipment.gd")
 
 class Lane extends RefCounted:
@@ -120,6 +124,12 @@ var intervals: int = 0
 
 
 func initialize(count: int = 1000, requested_workers: int = 4, stress_environment: bool = false) -> void:
+	if not Beings.ERRORS.is_empty():
+		push_error("Invalid being definitions: " + str(Beings.ERRORS))
+		return
+	if not Operations.ERRORS.is_empty():
+		push_error("Invalid operation definitions: " + str(Operations.ERRORS))
+		return
 	actor_count = count
 	terrain.initialize()
 	environment.initialize(terrain, count, stress_environment)
@@ -154,6 +164,7 @@ func initialize(count: int = 1000, requested_workers: int = 4, stress_environmen
 		page.potions.fill(3)
 		pages.append(page)
 	configure_lanes(requested_workers)
+	for id: int in actor_slots: Equipment.rebuild(self, id, false)
 	environment.update(0, pages, actor_slots)
 	for page: RefCounted in pages:
 		page.sample_environment(0.0)
@@ -424,19 +435,24 @@ func settle(id: int, at: int, expected: Variant = null) -> void:
 	if page.health[row] <= 0:
 		kill(id, at)
 	elif mode == Units.Mode.RESOURCE:
-		if not facilities.in_range(self, target, position_at(id, at), page.radii[row], "harvest", page.flight[row] > 0):
+		var query: Dictionary = OperationQuery.evaluate(Operations.OPERATIONS.harvest, operation_actor(id), operation_target(target))
+		if not query.ready:
+			end_run(id, at, query.reason)
+			clear_navigation(id)
+			livelihood.after_action(self, id, at, target)
+		elif not facilities.in_range(self, target, position_at(id, at), page.radii[row], "harvest", page.flight[row] > 0):
 			end_run(id, at, "out_of_reach")
 			clear_navigation(id)
 			livelihood.after_action(self, id, at, target)
 		elif not reservations.has(target) and objects.amount(target, "wood") > 0:
 			reservations[target] = id
 			page.modes[row] = Units.Mode.HARVEST
-			page.due_ms[row] = at + 500
+			page.due_ms[row] = at + int(Operations.OPERATIONS.harvest.duration_ms)
 		else:
 			page.modes[row] = Units.Mode.REST
 			page.due_ms[row] = at + 250
 	elif mode == Units.Mode.HARVEST:
-		if reservations.get(target, 0) == id and facilities.in_range(self, target, position_at(id, at), page.radii[row], "harvest", page.flight[row] > 0) and objects.transfer(target, id, "wood", 1) > 0:
+		if OperationQuery.evaluate(Operations.OPERATIONS.harvest, operation_actor(id), operation_target(target)).ready and reservations.get(target, 0) == id and facilities.in_range(self, target, position_at(id, at), page.radii[row], "harvest", page.flight[row] > 0) and objects.transfer(target, id, "wood", 1) > 0:
 			reservations.erase(target)
 			_sync_inventory(id)
 			harvested += 1
@@ -478,6 +494,7 @@ func end_run(id: int, at: int = -1, reason: String = "replaced") -> void:
 	var binding: Dictionary = gate.current(id)
 	if binding.is_empty(): return
 	if not gate.unbind(id, binding.domain, binding.run_id): return
+	var resume_partner: bool = false
 	match str(binding.domain):
 		"combat":
 			combat.states.erase(id)
@@ -487,12 +504,15 @@ func end_run(id: int, at: int = -1, reason: String = "replaced") -> void:
 			var action: Dictionary = actions[id]
 			actions.erase(id)
 			if reservations.get(action.target, 0) == id: reservations.erase(action.target)
-			facilities.interrupt(self, action, at if at >= 0 else operation_time())
+			facilities.interrupt(self, Operations.domain_action(action), at if at >= 0 else operation_time())
 			society.interrupt(self, action, at if at >= 0 else operation_time())
 		"partner":
 			var wait: Dictionary = society.waits[id]
+			resume_partner = actions.get(wait.actor, {}).get("partner_resume", false)
 			society.waits.erase(id)
-			if actions.get(wait.actor, {}).get("run_id") == wait.owner_run: end_run(wait.actor, at, "partner_left")
+			if actions.get(wait.actor, {}).get("run_id") == wait.owner_run:
+				end_run(wait.actor, at, "partner_left")
+				clear_navigation(wait.actor)
 		"work":
 			work_runs.erase(id)
 			if actor_slots.has(id):
@@ -503,6 +523,8 @@ func end_run(id: int, at: int = -1, reason: String = "replaced") -> void:
 		var slot: int = actor_slots[id]
 		pages[slot / 256].modes[slot % 256] = Units.Mode.IDLE
 	decisions.ended(self, id, binding, at if at >= 0 else operation_time(), reason)
+	if resume_partner and objects.records[id].get("autonomous", false) and combat.alive(self, id) and not decisions.records.get(id, {}).get("manual", false) and not decisions.in_combat(id):
+		livelihood.after_action(self, id, at if at >= 0 else operation_time())
 	emit({"kind": "action_ended", "actor": id, "domain": binding.domain, "run_id": binding.run_id, "reason": reason, "at_ms": at if at >= 0 else operation_time()})
 
 func clear_navigation(id: int) -> void:
@@ -538,13 +560,45 @@ func ensure_work_binding(id: int) -> void:
 	gate.bind(id, "work", work_runs[id])
 
 func adopt_work(id: int, at: int) -> bool:
-	if objects.records.get(id, {}).get("body_profile", "human") != "human": return false
+	if not Beings.has(objects.records.get(id, {}), "work"): return false
+	return adopt_motion(id, at)
+
+func adopt_motion(id: int, at: int) -> bool:
+	# The legacy work host also owns walking; motion does not require labor.
 	if not gate.check(self, id, at).is_empty(): return false
 	end_run(id, at)
 	work_runs[id] = next_run
 	next_run += 1
 	gate.bind(id, "work", work_runs[id])
 	decisions.track_host(self, id)
+	return true
+
+func set_capability_overrides(id: int, changes: Dictionary) -> bool:
+	if not actor_slots.has(id) or not combat.alive(self, id): return false
+	var candidate: Dictionary = objects.records[id].duplicate()
+	if changes.is_empty(): candidate.erase("capability_overrides")
+	else: candidate["capability_overrides"] = changes.duplicate()
+	if not Beings.valid_record(candidate): return false
+	if changes.is_empty(): objects.records[id].erase("capability_overrides")
+	else: objects.records[id]["capability_overrides"] = changes.duplicate()
+	Equipment.rebuild(self, id, false)
+	ensure_work_binding(id)
+	var binding: Dictionary = gate.current(id)
+	var invalid: bool = false
+	if binding.get("domain") == "interaction":
+		var operation: String = actions[id].kind
+		invalid = not Operations.capability_reason(candidate, operation).is_empty()
+	elif binding.get("domain") == "partner": invalid = not Beings.has(candidate, "contact")
+	elif binding.get("domain") == "work":
+		var slot: int = actor_slots[id]
+		invalid = pages[slot / 256].modes[slot % 256] in [Units.Mode.RESOURCE, Units.Mode.HARVEST] and not Beings.has(candidate, "work")
+	if not Beings.has(candidate, "work") and objects.records[id].has("commitment"):
+		objects.records[id].autonomous = objects.records[id].commitment.get("was_autonomous", false)
+		objects.records[id].erase("commitment")
+	if invalid:
+		end_run(id, operation_time(), "capability_lost")
+		clear_navigation(id)
+	if objects.records[id].get("autonomous", false): decisions.wake(self, id, operation_time(), "capabilities_changed")
 	return true
 
 
@@ -636,11 +690,20 @@ func _command(input: Dictionary) -> Dictionary:
 	if page.health[row] <= 0:
 		receipt.reason = "dead"
 		return receipt
-	if elapsed_ms < int(combat.status.get(id, {}).get("stun_until", 0)) and input.get("kind", "") not in ["action", "heal", "ability", "save", "load"]:
+	if elapsed_ms < int(combat.status.get(id, {}).get("stun_until", 0)) and input.get("kind", "") not in ["action", "heal", "save", "load"]:
 		receipt.reason = "stunned"
 		return receipt
-	if combat.states.has(id) and elapsed_ms < combat.Defs.end_ms(combat.states[id]) and input.get("kind", "") not in ["action", "heal", "ability", "save", "load"]:
+	if combat.states.has(id) and elapsed_ms < combat.Defs.end_ms(combat.states[id]) and input.get("kind", "") not in ["action", "heal", "save", "load"]:
 		receipt.reason = "action_committed"
+		return receipt
+	var operation_id: String = str(input.get("kind", ""))
+	if operation_id == "continue_build": operation_id = "construct"
+	if Operations.OPERATIONS.has(operation_id) and input.get("kind") not in ["construct", "take", "put"]:
+		var request: Dictionary = input.duplicate()
+		request.kind = operation_id
+		var reason: String = execute_operation(id, request)
+		receipt.ok = reason in ["accepted", "completed"]
+		receipt.reason = reason
 		return receipt
 	match str(input.get("kind", "")):
 		"journey":
@@ -656,12 +719,12 @@ func _command(input: Dictionary) -> Dictionary:
 			release(id)
 			objects.records[id].autonomous = false
 			decisions.suspend(self, id)
-			adopt_work(id, elapsed_ms)
+			adopt_motion(id, elapsed_ms)
 			page.move_to(row, point, Units.Mode.MANUAL)
 		"ability":
-			var reason: String = society.use_ability(self, id)
-			receipt.ok = reason == "ability_used"
-			receipt.reason = reason
+			var reason: String = execute_operation(id, {"kind": "wood_mend", "target": id})
+			receipt.ok = reason == "completed"
+			receipt.reason = "ability_used" if receipt.ok else reason
 			if receipt.ok:
 				emit({"kind": "ability_used", "actor": id, "at_ms": elapsed_ms})
 			return receipt
@@ -690,7 +753,7 @@ func _command(input: Dictionary) -> Dictionary:
 			release(id)
 			objects.records[id].autonomous = false
 			decisions.suspend(self, id)
-			adopt_work(id, elapsed_ms)
+			adopt_motion(id, elapsed_ms)
 			page.move_to(row, point, Units.Mode.MANUAL)
 			receipt["position"] = point
 		"interrupt":
@@ -699,7 +762,7 @@ func _command(input: Dictionary) -> Dictionary:
 			objects.records[id].autonomous = false
 			decisions.suspend(self, id)
 		"work":
-			if objects.records[id].get("body_profile", "human") != "human":
+			if not Beings.has(objects.records[id], "work"):
 				receipt.ok = false
 				receipt.reason = "body_cannot_work"
 				return receipt
@@ -754,6 +817,10 @@ func _command(input: Dictionary) -> Dictionary:
 				receipt.reason = reason
 				return receipt
 		"construct":
+			var actor_reason: String = OperationQuery.readiness(Operations.OPERATIONS.construct, operation_actor(id))
+			if not actor_reason.is_empty():
+				receipt.reason = actor_reason
+				return receipt
 			var result: Dictionary = facilities.blueprint(self, id, str(input.get("definition", "wood_wall")), int(input.get("tile", -1)), int(input.get("facing", 0)))
 			if result.reason != "accepted":
 				receipt.reason = result.reason
@@ -765,6 +832,10 @@ func _command(input: Dictionary) -> Dictionary:
 				receipt.reason = reason
 				return receipt
 		"plant":
+			var actor_reason: String = OperationQuery.readiness(Operations.OPERATIONS.sow, operation_actor(id))
+			if not actor_reason.is_empty():
+				receipt.reason = actor_reason
+				return receipt
 			var result: Dictionary = nature.plant_site(self, id, str(input.get("definition", "perennial_herb")), int(input.get("tile", -1)))
 			if result.reason != "accepted":
 				receipt.reason = result.reason
@@ -777,14 +848,6 @@ func _command(input: Dictionary) -> Dictionary:
 				return receipt
 		"weather":
 			environment.weather_override = clampi(int(input.get("weather", -1)), -1, 3)
-		"talk", "trade", "request_help", "learn", "study", "practice", "sow", "tend", "gather", "cut", "uproot", "rest", "eat", "cook", "continue_build", "demolish":
-			var action: Dictionary = input.duplicate()
-			if action.kind == "continue_build":
-				action.kind = "construct"
-			var reason: String = begin_interaction(id, action)
-			if reason != "accepted":
-				receipt.reason = reason
-				return receipt
 		"drop":
 			var item: String = str(input.get("item", "wood"))
 			var count: int = mini(int(input.get("amount", 10)), objects.amount(id, item))
@@ -878,7 +941,7 @@ func counters() -> Dictionary:
 		for amount: int in page.cargo:
 			cargo_total += amount
 		for row: int in page.health.size():
-			alive += int(page.health[row] > 0 and page.needs_enabled[row] != 0)
+			alive += int(page.ids[row] > 0 and page.health[row] > 0 and Beings.population_member(objects.records[page.ids[row]]))
 		for mode: int in page.modes: modes[mode] += 1
 	return {"world_ms": elapsed_ms, "actors": actor_count, "alive": alive, "workers": workers, "mode_counts": modes, "stationary_combatants": stationary_combatants,
 		"steps": steps, "step_usec": step_usec, "maximum_step_usec": maximum_step_usec,
@@ -903,6 +966,7 @@ func counters() -> Dictionary:
 
 
 func _sync_inventory(id: int) -> void:
+	if not actor_slots.has(id): return
 	var slot: int = actor_slots[id]
 	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
 	var row: int = slot % Units.PAGE_SIZE
@@ -911,10 +975,16 @@ func _sync_inventory(id: int) -> void:
 
 
 func begin_transfer(id: int, input: Dictionary) -> String:
+	if not actor_slots.has(id): return "unsupported_carrier"
+	var operation: Dictionary = Operations.OPERATIONS.get(input.get("kind", ""), {})
+	if operation.is_empty(): return "unknown_operation"
+	if operation.executor != "transfer": return "invalid_transfer"
+	var admission: String = gate.check(self, id, operation_time())
+	if not admission.is_empty(): return admission
 	var target: int = int(input.get("target", 0))
-	if not objects.records.has(target) or objects.records[target].kind not in ["chest", "pile", "resource"]:
-		return "invalid_target"
-	var kind: String = input.kind
+	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(target))
+	if not query.ready: return query.reason
+	var kind: String = operation.handler
 	var item: String = str(input.get("item", "wood"))
 	var count: int = int(input.get("amount", 10))
 	var source: int = target if kind == "take" else id
@@ -923,36 +993,79 @@ func begin_transfer(id: int, input: Dictionary) -> String:
 	var destination: int = id if kind == "take" else target
 	if objects.records[destination].capacity >= 0 and objects.count_inventory(destination) >= objects.records[destination].capacity:
 		return "full"
-	return begin_interaction(id, {"kind": kind, "target": target, "item": item, "amount": count})
+	var request: Dictionary = input.duplicate()
+	request["item"] = item
+	request["amount"] = count
+	return begin_interaction(id, request)
+
+func operation_actor(id: int) -> Dictionary:
+	if not actor_slots.has(id): return {}
+	var record: Dictionary = objects.records[id]
+	var slot: int = actor_slots[id]
+	var page: RefCounted = pages[slot / 256]
+	return {"id": id, "hp": page.health[slot % 256], "max_hp": page.max_health[slot % 256], "energy": page.energy[slot % 256],
+		"qi": int(record.get("qi", 0)), "inventory": record.inventory.duplicate(), "methods": record.get("methods", {}).duplicate(),
+		"abilities": record.get("abilities", {}).duplicate(), "body_capabilities": Beings.capabilities(record), "pools": State.copy(pools.records.get(id, {})), "admission_reason": gate.check(self, id, operation_time())}
+
+func operation_target(id: int) -> Dictionary:
+	if not objects.records.has(id): return {}
+	var record: Dictionary = objects.records[id]
+	var result: Dictionary = {"id": id, "kind": record.kind, "definition": record.definition, "tile": record.tile,
+		"inventory": record.inventory.duplicate(), "capacity": record.capacity, "sapient": record.get("sapient", false), "guest": int(record.get("guest", 0))}
+	if record.has("stage"): result["stage"] = record.stage
+	if actor_slots.has(id):
+		var slot: int = actor_slots[id]
+		result["hp"] = pages[slot / 256].health[slot % 256]
+	return result
+
+func execute_operation(id: int, input: Dictionary) -> String:
+	var operation: Dictionary = Operations.OPERATIONS.get(input.get("kind", ""), {})
+	if operation.is_empty(): return "unknown_operation"
+	if operation.executor == "transfer": return begin_transfer(id, input)
+	if operation.executor == "work_source": return "unsupported_host"
+	if operation.executor != "instant": return begin_interaction(id, input)
+	var admission: String = gate.check(self, id, operation_time())
+	if not admission.is_empty(): return admission
+	if not input.get("target", id) is int or int(input.get("target", id)) != id: return "invalid_target"
+	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(id))
+	if not query.ready: return query.reason
+	if not Costs.pay(self, id, operation.costs): return "insufficient_resource"
+	var activation: int = combat.next_activation
+	combat.next_activation += 1
+	effects.apply_bundle(self, id, id, activation, "", operation.effects, operation_time(), 0, "activation")
+	emit({"kind": "operation_completed", "actor": id, "target": id, "operation": operation.id, "activation": activation, "at_ms": operation_time()})
+	return "completed"
 
 
 func begin_interaction(id: int, input: Dictionary) -> String:
-	if objects.records.get(id, {}).get("body_profile", "human") != "human": return "body_has_no_work_capability"
+	if not actor_slots.has(id): return "unsupported_carrier"
+	var operation: Dictionary = Operations.OPERATIONS.get(input.get("kind", ""), {})
+	if operation.is_empty(): return "unknown_operation"
+	if operation.executor in ["instant", "work_source"]: return "unsupported_host"
+	var capability_reason: String = Operations.capability_reason(objects.records.get(id, {}), str(input.kind))
+	if not capability_reason.is_empty(): return capability_reason
 	var admission: String = gate.check(self, id, operation_time())
 	if not admission.is_empty(): return admission
 	var target: int = int(input.get("target", 0))
 	if not objects.records.has(target) or (actor_slots.has(target) and not combat.alive(self, target)):
 		return "invalid_target"
-	if input.kind not in ["take", "put", "demolish"] and input.kind not in Nature.ACTIONS and input.kind not in Society.ACTIONS and not facilities.available(self, input):
-		return "unavailable"
-	if input.kind in Society.ACTIONS and not society.available(self, id, input):
+	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(target), {"help_target": int(input.get("task_target", 0))}, facilities.definitions)
+	if not query.ready: return query.reason
+	if operation.executor == "transfer" and (not input.get("item") is String or not preload("res://scripts/sim/kernel/items.gd").valid(input.item) or not input.get("amount") is int or input.amount <= 0): return "invalid_transfer"
+	if operation.executor == "society" and not society.available(self, id, Operations.domain_action(input)):
 		return "not_available_for_contact"
-	if objects.records[target].tile < 0 and input.kind not in Society.ACTIONS:
+	if objects.records[target].tile < 0 and operation.executor != "society":
 		return "invalid_target"
-	if input.kind in Nature.ACTIONS and objects.records[target].kind != "plant" and not (objects.records[target].kind == "resource" and input.kind in ["cut", "uproot"]):
-		return "not_a_plant"
-	if input.kind == "gather" and int(objects.records[target].get("stage", -1)) != Nature.Stage.MATURE:
-		return "not_mature"
-	if input.kind == "tend":
+	if operation.handler == "tend":
 		var reason: String = DomainOps.check(self, id, target, "tend")
 		if not reason.is_empty(): return reason
-	var exclusive: bool = input.kind not in ["take", "put", "eat"]
+	var exclusive: bool = operation.exclusive
 	if exclusive and reservations.has(target) and reservations[target] != id and input.get("autonomous", false):
 		return "target_busy"
 	var slot: int = actor_slots[id]
 	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
 	var row: int = slot % Units.PAGE_SIZE
-	var point: Vector2 = facilities.interaction_point(self, target, page.positions[row], page.radii[row], page.flight[row] > 0, input.kind)
+	var point: Vector2 = facilities.interaction_point(self, target, page.positions[row], page.radii[row], page.flight[row] > 0, operation.handler)
 	if point.x < 0:
 		return "no_operation_place"
 	release(id)
@@ -962,7 +1075,7 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 	gate.bind(id, "interaction", actions[id].run_id)
 	if exclusive and not reservations.has(target):
 		reservations[target] = id
-	if input.kind in Society.ACTIONS and reservations.get(target, 0) == id:
+	if operation.executor == "society" and reservations.get(target, 0) == id:
 		society.invite(self, id, actions[id])
 	page.move_to(row, point, Units.Mode.APPROACH)
 	decisions.track_host(self, id)
@@ -977,18 +1090,28 @@ func settle_action(id: int, at: int) -> void:
 		page.modes[row] = Units.Mode.IDLE
 		return
 	var action: Dictionary = actions[id]
+	var operation: Dictionary = Operations.OPERATIONS[action.kind]
+	var handler: String = operation.handler
 	var target: int = action.target
-	var stale_construction: bool = action.kind == "construct" and objects.records.get(target, {}).get("kind", "") != "blueprint"
-	if not objects.records.has(target) or (actor_slots.has(target) and not combat.alive(self, target)) or stale_construction:
+	var stale_construction: bool = handler == "construct" and objects.records.get(target, {}).get("kind", "") != "blueprint"
+	var unavailable_contact: bool = objects.records.has(target) and operation.executor == "society" and not society.available(self, id, Operations.domain_action(action))
+	if not objects.records.has(target) or (actor_slots.has(target) and not combat.alive(self, target)) or stale_construction or unavailable_contact:
 		var autonomous: bool = action.get("autonomous", false)
-		end_run(id, at, "unavailable" if stale_construction else "target_gone")
+		end_run(id, at, "unavailable" if stale_construction or unavailable_contact else "target_gone")
 		clear_navigation(id)
 		page.modes[row] = Units.Mode.IDLE
-		emit({"kind": "unavailable" if stale_construction else "target_gone", "actor": id, "target": target, "action": action.kind, "at_ms": at})
+		emit({"kind": "unavailable" if stale_construction or unavailable_contact else "target_gone", "actor": id, "target": target, "action": action.kind, "at_ms": at})
 		if autonomous:
 			livelihood.after_action(self, id, at, target)
 		return
-	if not facilities.in_range(self, target, position_at(id, at), page.radii[row], action.kind, page.flight[row] > 0):
+	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(target), {"help_target": int(action.get("task_target", 0))}, facilities.definitions)
+	if not query.ready:
+		var autonomous: bool = action.get("autonomous", false)
+		end_run(id, at, query.reason)
+		clear_navigation(id)
+		if autonomous: livelihood.after_action(self, id, at, target)
+		return
+	if not facilities.in_range(self, target, position_at(id, at), page.radii[row], handler, page.flight[row] > 0):
 		var autonomous: bool = action.get("autonomous", false)
 		end_run(id, at, "out_of_reach")
 		clear_navigation(id)
@@ -998,7 +1121,7 @@ func settle_action(id: int, at: int) -> void:
 			livelihood.after_action(self, id, at, target)
 		return
 	if page.modes[row] == Units.Mode.APPROACH:
-		var exclusive: bool = action.kind not in ["take", "put", "eat"]
+		var exclusive: bool = operation.exclusive
 		if exclusive and reservations.has(target) and reservations[target] != id:
 			if action.get("autonomous", false):
 				end_run(id, at, "target_busy")
@@ -1011,7 +1134,7 @@ func settle_action(id: int, at: int) -> void:
 			return
 		if exclusive:
 			reservations[target] = id
-		if action.kind == "construct":
+		if handler == "construct":
 			# Navigation for this slice has already run. Acquire the footprint at
 			# its endpoint so no precomputed later movement can enter a new solid.
 			if at < _motion_end:
@@ -1024,17 +1147,13 @@ func settle_action(id: int, at: int) -> void:
 				page.due_ms[row] = at + 250
 				action["waiting"] = true
 				return
-		if action.kind in Society.ACTIONS and not action.get("partner_waiting", false):
+		if operation.executor == "society" and not action.get("partner_waiting", false):
 			society.invite(self, id, action)
 		page.modes[row] = Units.Mode.ACTION
 		action["started_ms"] = at
 		var facing: Vector2 = position_at(id, at).direction_to(combat.position(self, target))
 		if not facing.is_zero_approx(): page.aims[row] = facing
-		var duration: int = facilities.duration(self, action)
-		if action.kind in Nature.ACTIONS:
-			duration = int(objects.records[target].remaining_ms) if action.kind == "sow" else 1500
-		elif action.kind in Society.ACTIONS:
-			duration = 3000 if action.kind == "practice" else 1000
+		var duration: int = operation.duration_ms if operation.duration_ms >= 0 else maxi(1, int(objects.records[target].get("remaining_ms", 1)))
 		page.due_ms[row] = at + duration
 		return
 	if action.get("waiting", false):
@@ -1042,24 +1161,24 @@ func settle_action(id: int, at: int) -> void:
 		page.modes[row] = Units.Mode.APPROACH
 		settle_action(id, at)
 		return
-	if action.kind not in ["take", "put"]:
+	if operation.executor != "transfer":
 		var reason: String
 		_finishing[id] = action.run_id
-		if action.kind == "demolish":
+		if handler == "demolish":
 			reason = "completed" if facilities.demolish(self, target, at) else "failed"
-		elif action.kind in Nature.ACTIONS:
-			reason = nature.finish(self, id, action, at)
-		elif action.kind in Society.ACTIONS:
+		elif operation.executor == "nature":
+			reason = nature.finish(self, id, Operations.domain_action(action), at)
+		elif operation.executor == "society":
 			reason = society.finish(self, id, action, at)
 		else:
-			reason = facilities.finish(self, id, action, at)
+			reason = facilities.finish(self, id, Operations.domain_action(action), at)
 		_finishing.erase(id)
-		if reason == "occupied" and action.kind == "construct":
+		if reason == "occupied" and handler == "construct":
 			objects.records[target].remaining_ms = 1
 			action.started_ms = at
 			page.due_ms[row] = at + 250
 			return
-		if objects.records.has(target) and action.kind == "construct":
+		if objects.records.has(target) and handler == "construct":
 			action.erase("started_ms") # Completion/cannot-build is not an extra work interval.
 		var autonomous: bool = action.get("autonomous", false)
 		decisions.result(self, id, action.kind, target, reason, at)
@@ -1070,8 +1189,8 @@ func settle_action(id: int, at: int) -> void:
 		if autonomous:
 			livelihood.after_action(self, id, at, target)
 		return
-	var source: int = target if action.kind == "take" else id
-	var destination: int = id if action.kind == "take" else target
+	var source: int = target if handler == "take" else id
+	var destination: int = id if handler == "take" else target
 	var amount: int = objects.transfer(source, destination, action.item, action.amount)
 	if objects.records.get(source, {}).get("kind", "") == "pile":
 		_finishing[id] = action.run_id
@@ -1085,7 +1204,7 @@ func settle_action(id: int, at: int) -> void:
 	page.modes[row] = Units.Mode.IDLE
 	emit({"kind": "transferred" if amount > 0 else "empty_or_full", "actor": id, "target": target, "action": action.kind, "item": action.item, "at_ms": at, "amount": amount})
 	if autonomous:
-		if action.kind == "put" and amount > 0:
+		if handler == "put" and amount > 0:
 			deliveries += 1
 		livelihood.after_action(self, id, at, target)
 
@@ -1118,6 +1237,8 @@ func describe(id: int) -> Dictionary:
 		result["route_preview"] = page.routes[row].slice(page.route_cursors[row], mini(page.routes[row].size(), page.route_cursors[row] + 64)) if page.modes[row] in [Units.Mode.RESOURCE, Units.Mode.MANUAL, Units.Mode.APPROACH, Units.Mode.EXPLORE, Units.Mode.COMBAT_MOVE] else PackedVector2Array()
 		result["sight_range"] = sight.range_for(self, id)
 		result["stats"] = Equipment.view(page, row)
+		result["body_capabilities"] = Beings.capabilities(objects.records[id])
+		result["admission_reason"] = gate.check(self, id, operation_time())
 		result["pools"] = State.copy(pools.records.get(id, {}))
 		result["shield"] = defense.total(id, elapsed_ms)
 	return result
@@ -1206,11 +1327,13 @@ func flush_topology() -> void:
 	topology_usec += Time.get_ticks_usec() - started
 
 
-func spawn_actor(tile: int, body_profile: String = "human") -> int:
+func spawn_actor(tile: int, body_profile: String = "human", origin: String = "independent") -> int:
+	if not Beings.ERRORS.is_empty() or not Beings.FORMS.has(body_profile) or origin not in ["independent", "summoned"]: return 0
 	if tile < 0 or tile >= terrain.blocked.size() or terrain.blocked[tile] != 0:
 		return 0
-	var id: int = objects.create("actor", "human")
+	var id: int = objects.create("actor", body_profile)
 	objects.records[id]["body_profile"] = body_profile
+	objects.records[id]["body_origin"] = origin
 	var slot: int
 	var page: RefCounted
 	var row: int
@@ -1237,6 +1360,7 @@ func spawn_actor(tile: int, body_profile: String = "human") -> int:
 		page.routes[row] = PackedVector2Array()
 		page.route_cursors[row] = 0
 		page.due_ms[row] = 0
+		page.source_ids[row] = 0
 		page.motion.erase(row)
 		for index: int in 5: page.elements[row * 5 + index] = 0
 		for index: int in 7: page.exposure[row * 7 + index] = 0
@@ -1254,13 +1378,13 @@ func spawn_actor(tile: int, body_profile: String = "human") -> int:
 	page.modes[row] = Units.Mode.IDLE
 	actor_slots[id] = slot
 	Equipment.rebuild(self, id)
-	if body_profile == "human": actor_count += 1
+	if Beings.population_member(objects.records[id]): actor_count += 1
 	return id
 
 
 func remove_actor(id: int, at: int = -1) -> bool:
 	if at < 0: at = operation_time()
-	var population: bool = objects.records.get(id, {}).get("body_profile", "human") == "human"
+	var population: bool = Beings.population_member(objects.records.get(id, {}))
 	if id == 1 or not actor_slots.has(id):
 		return false
 	var slot: int = actor_slots[id]
@@ -1292,6 +1416,8 @@ func remove_actor(id: int, at: int = -1) -> bool:
 	combat.status.erase(id)
 	page.ids[row] = 0
 	page.health[row] = 0
+	page.needs_enabled[row] = 0
+	page.environment_enabled[row] = 0
 	page.move_scales[row] = 1.0
 	page.cargo[row] = 0
 	page.potions[row] = 0

@@ -9,6 +9,7 @@ var subject_id: int = 1
 var target_id: int = 0
 var epoch: int = 0
 var kind: String = "bag"
+var operation: String = ""
 var bag := Grid.new()
 var container := Grid.new()
 var amount := SpinBox.new()
@@ -81,13 +82,15 @@ func _button(parent: Node, text: String, callback: Callable) -> Button:
 	return button
 
 func open(frame: RefCounted, mode: String, subject: int, target: int = 0) -> void:
-	kind = mode
+	var definition: Dictionary = Actions.Operations.OPERATIONS.get(mode, {})
+	operation = mode if definition.get("executor") == "transfer" else ""
+	kind = str(definition.handler) if not operation.is_empty() else mode
 	subject_id = subject
 	target_id = target
 	epoch = frame.epoch
 	bag.selected = ""
 	container.selected = ""
-	_active = "container" if mode == "take" else "bag"
+	_active = "container" if kind == "take" else "bag"
 	if not _dual:
 		_sheets.set_tab_hidden(1, target == 0)
 		_sheets.current_tab = 1 if _active == "container" else 0
@@ -162,6 +165,7 @@ func _send(action: String) -> void:
 	amount.apply()
 	var key: String = container.selected if _active == "container" else bag.selected
 	var payload: Dictionary = {"kind": action, "item": key, "amount": int(amount.value), "epoch": epoch}
+	if action == kind and not operation.is_empty(): payload.kind = operation
 	if action in ["take", "put"]: payload.target = target_id
 	if action == "use":
 		payload.kind = "heal" if key == "potion" else "study"

@@ -342,6 +342,13 @@ func action(kind: String, payload: Dictionary) -> void:
 		"study": _send({"kind": kind, "target": 1})
 		"continue_build", "demolish", "rest", "eat", "cook", "sow", "tend", "gather", "cut", "uproot", "talk", "learn", "practice":
 			_send({"kind": kind, "target": target})
+		_:
+			if Actions.Operations.OPERATIONS.has(kind):
+				var operation: Dictionary = Actions.Operations.OPERATIONS[kind]
+				if operation.executor == "transfer":
+					clear_direct()
+					ui.open_stock(kind, target)
+				else: _send({"kind": kind, "target": target, "task_target": help_target})
 	host._hud_next = 0
 
 func _send(command: Dictionary) -> int:

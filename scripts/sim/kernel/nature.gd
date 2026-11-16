@@ -6,7 +6,6 @@ extends RefCounted
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const PULSE_MS: int = 5000
 const GROUPS: int = PULSE_MS / 50
-const ACTIONS: Array[String] = ["sow", "tend", "gather", "cut", "uproot"]
 const STATE_FIELDS: Array = ["ids", "evaluations", "transitions", "collections"]
 enum Stage { SEEDING, SPROUT, MATURE, STUMP, WITHERED }
 var definitions: Dictionary = {}

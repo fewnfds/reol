@@ -5,7 +5,9 @@ extends RefCounted
 const State = preload("res://scripts/sim/kernel/state.gd")
 const Units = preload("res://scripts/sim/kernel/units.gd")
 const Items = preload("res://scripts/sim/kernel/items.gd")
-const ACTIONS: Array[String] = ["talk", "trade", "request_help", "learn", "study", "practice"]
+const Beings = preload("res://scripts/sim/kernel/being_defs.gd")
+const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
+const Query = preload("res://scripts/sim/kernel/operation_query.gd")
 const STATE_FIELDS: Array = ["waits"]
 var waits: Dictionary = {} # Partner participation belongs to this interaction host.
 var completed: Dictionary = {}
@@ -28,19 +30,22 @@ func initialize(world: RefCounted) -> void:
 
 
 func available(world: RefCounted, actor: int, action: Dictionary) -> bool:
-	var rec: Dictionary = world.objects.records[action.target]
-	if action.kind == "practice":
-		return rec.kind == "plant" and rec.definition == "old_tree" and rec.stage == world.nature.Stage.MATURE
-	if action.kind == "study":
-		return actor == action.target and world.objects.amount(actor, "breath_manual") > 0
-	return (rec.kind == "actor" and actor != action.target) or (rec.kind == "plant" and rec.get("sapient", false))
+	var operation: Dictionary = Operations.OPERATIONS.get(action.get("operation_id", action.kind), {})
+	if operation.is_empty() or not world.objects.records.has(action.target): return false
+	if not Query.evaluate(operation, world.operation_actor(actor), world.operation_target(action.target), {"help_target": int(action.get("task_target", 0))}).ready: return false
+	if operation.handler in ["talk", "trade", "request_help", "learn"] and world.actor_slots.has(action.target):
+		return Beings.has(world.objects.records[action.target], "contact")
+	return true
 
 
 func invite(world: RefCounted, actor: int, action: Dictionary) -> void:
+	if not available(world, actor, action): return
 	var target: int = action.target
-	if target == 1 or target == actor or not world.actor_slots.has(target) or action.kind not in ["talk", "trade", "learn", "request_help"]:
+	var handler: String = Operations.OPERATIONS.get(action.get("operation_id", action.kind), {}).get("handler", "")
+	if target == 1 or target == actor or not world.actor_slots.has(target) or handler not in ["talk", "trade", "learn", "request_help"]:
 		return
 	if world.decisions.records.get(target, {}).get("manual", false): return
+	if waits.has(target): return # Another host owns this partner; invitation cannot steal it.
 	var slot: int = world.actor_slots[target]
 	var page: RefCounted = world.pages[slot / 256]
 	if world.combat.controls.has(target) or (not world.objects.records[target].get("autonomous", false) and world.work_runs.has(target)) or not world.gate.check(world, target, world.operation_time()).is_empty() or world.actions.has(target) or world.decisions.in_combat(target) or world.combat.states.has(target) or page.health[slot % 256] < 30:
@@ -69,12 +74,17 @@ func interrupt(world: RefCounted, action: Dictionary, now: int) -> void:
 
 
 func finish(world: RefCounted, actor: int, action: Dictionary, now: int) -> String:
+	if not available(world, actor, action): return "unavailable"
+	var operation_id: String = action.get("operation_id", action.kind)
+	var handler: String = Operations.OPERATIONS[operation_id].handler
+	var capability_reason: String = Operations.capability_reason(world.objects.records[actor], operation_id)
+	if not capability_reason.is_empty(): return capability_reason
 	var person: Dictionary = world.objects.records[actor]
 	var other: Dictionary = world.objects.records[action.target]
 	var slot: int = world.actor_slots[actor]
 	var page: RefCounted = world.pages[slot / 256]
 	var row: int = slot % 256
-	match action.kind:
+	match handler:
 		"talk":
 			if not person.has("known"):
 				person["known"] = {}
@@ -110,6 +120,7 @@ func finish(world: RefCounted, actor: int, action: Dictionary, now: int) -> Stri
 				world._sync_inventory(action.target)
 		"request_help":
 			var target: int = int(action.get("task_target", 0))
+			if not Beings.has(other, "work"): return "refused_capability"
 			if not world.actor_slots.has(action.target) or other.has("commitment") or world.decisions.records.get(action.target, {}).get("manual", false):
 				return "refused_busy_or_body"
 			if world.objects.records.get(target, {}).get("kind", "") != "blueprint":
@@ -118,7 +129,7 @@ func finish(world: RefCounted, actor: int, action: Dictionary, now: int) -> Stri
 				return "unknown_task"
 			var other_slot: int = world.actor_slots[action.target]
 			var other_page: RefCounted = world.pages[other_slot / 256]
-			if other_page.hunger[other_slot % 256] < 3000 or other_page.energy[other_slot % 256] < 2500:
+			if Beings.has(other, "metabolism") and (other_page.hunger[other_slot % 256] < 3000 or other_page.energy[other_slot % 256] < 2500):
 				return "refused_need"
 			other["commitment"] = {"kind": "construct", "target": target, "requester": actor, "expires_ms": now + 300000,
 				"was_autonomous": other.get("autonomous", false)}
@@ -127,13 +138,13 @@ func finish(world: RefCounted, actor: int, action: Dictionary, now: int) -> Stri
 			action["partner_resume"] = true
 			if not waits.has(action.target) and world.gate.current(action.target).is_empty() and world.gate.check(world, action.target, now).is_empty(): world.livelihood.after_action(world, action.target, now)
 		"learn", "study":
-			if action.kind == "learn" and not other.get("methods", {}).has("wood_breath"):
+			if handler == "learn" and not other.get("methods", {}).has("wood_breath"):
 				return "teacher_does_not_know"
-			if action.kind == "study" and world.objects.amount(actor, "breath_manual") <= 0:
+			if handler == "study" and world.objects.amount(actor, "breath_manual") <= 0:
 				return "missing_book"
 			if not person.has("methods"):
 				person["methods"] = {}
-			person.methods["wood_breath"] = {"teacher": action.target if action.kind == "learn" else 0, "learned_ms": now}
+			person.methods["wood_breath"] = {"teacher": action.target if handler == "learn" else 0, "learned_ms": now}
 		"practice":
 			if not available(world, actor, action):
 				return "plant_not_mature"
@@ -157,18 +168,3 @@ func finish(world: RefCounted, actor: int, action: Dictionary, now: int) -> Stri
 
 func _count(kind: String) -> void:
 	completed[kind] = int(completed.get(kind, 0)) + 1
-
-
-func use_ability(world: RefCounted, actor: int) -> String:
-	var rec: Dictionary = world.objects.records[actor]
-	if not rec.get("abilities", {}).get("wood_mend", false):
-		return "ability_not_mastered"
-	var slot: int = world.actor_slots[actor]
-	var page: RefCounted = world.pages[slot / 256]
-	var row: int = slot % 256
-	if int(rec.get("qi", 0)) < 20 or page.energy[row] < 500 or page.health[row] >= page.max_health[row]:
-		return "insufficient_qi_energy_or_full"
-	rec.qi -= 20
-	page.energy[row] -= 500
-	page.health[row] = mini(page.max_health[row], page.health[row] + 25)
-	return "ability_used"

@@ -2,6 +2,7 @@ extends RefCounted
 ## Rebuildable hot stats; inventory/equipment source facts belong to Objects.
 ## Called by the owner on spawn, equipment changes and restore, never per tick.
 const Defs = preload("res://scripts/sim/kernel/action_defs.gd")
+const Beings = preload("res://scripts/sim/kernel/being_defs.gd")
 const Items = preload("res://scripts/sim/kernel/items.gd")
 const BASE: Dictionary = {"max_hp": 100.0, "melee": 25.0, "ranged": 20.0, "armor": 0.0, "speed": 5.0}
 
@@ -16,7 +17,7 @@ static func values(record: Dictionary) -> Dictionary:
 	return result
 
 static func valid_record(record: Dictionary) -> bool:
-	if record.get("body_profile", "human") not in ["human", "companion"]: return false
+	if not Beings.valid_record(record): return false
 	if record.has("ability_loadout") and not Defs.LOADOUTS.has(record.ability_loadout): return false
 	if record.get("combat_style", "") not in ["", "trained"]: return false
 	if record.get("practice_mode", "") not in ["", "light", "heavy", "mixed"]: return false
@@ -32,11 +33,13 @@ static func valid_record(record: Dictionary) -> bool:
 	return float(base.get("max_hp", 100)) >= 1
 
 static func rebuild(world: RefCounted, id: int, clamp_health: bool = true) -> void:
+	if not world.actor_slots.has(id): return
 	var slot: int = world.actor_slots[id]
 	var page: RefCounted = world.pages[slot / 256]
 	var row: int = slot % 256
 	page.resize_stats()
-	page.needs_enabled[row] = 0 if world.objects.records[id].get("body_profile", "human") == "companion" else 1
+	page.needs_enabled[row] = int(Beings.has(world.objects.records[id], "metabolism"))
+	page.environment_enabled[row] = int(Beings.has(world.objects.records[id], "environment"))
 	var stats: Dictionary = world.effects.modify(values(world.objects.records[id]), id, world.operation_time())
 	if clamp_health: world.pools.configure(id, world.combat.profile(world, id).get("pools", []), world.operation_time())
 	page.max_health[row] = stats.max_hp

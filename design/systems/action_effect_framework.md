@@ -30,7 +30,17 @@
 
 ## 3. 原生制作与有限载荷
 
-作者数据使用Godot Resource/Inspector，编译成递归只读值。当前实际类型为`ActionEffectDef`、`ActionEffectBundle`、`ActionCostDef`、`ActionPoolDef`、`ActionStatusDef`、`ActionReactionDef`；ACT专有类型仍在`definitions/combat/`。没有独立的通用ActionDef、ConditionDef、TargetQueryDef或脚本图执行器。
+作者数据使用Godot Resource/Inspector，编译成递归只读值。作用类型为`ActionEffectDef`、`ActionEffectBundle`、`ActionCostDef`、`ActionPoolDef`、`ActionStatusDef`、`ActionReactionDef`；ACT专有类型仍在`definitions/combat/`。宗门基座T02新增`OperationDef`、扁平`OperationTargetRule`及显式库，见下节；没有任意表达式条件树或脚本图执行器。
+
+### 3.0 生活操作与共同查询
+
+`data/definitions/operations/library.tres`显式注册20项既有操作，编译为冻结纯值并生成`operation_signature`。定义声明可信executor/handler、本人能力与已有本领/物品前提、有限目标OR组、时长、独占及瞬时费用/作用。UI、Livelihood候选和World权威入口共用`operation_query.gd`；查询只接脱离的本人/已知目标字典，返回适用、就绪、失败原因和未知项，不访问World或补查远处库存。缺观察不伪造为零，UI迷雾记忆不开实时按钮。候选不等于对方同意或已取得工位。
+
+后果仍归原领域：transfer、facility、nature、society、instant和work_source是明确受信宿主，handler只复用已有算法，不加载任意脚本。已知目标类型索引减少无关候选求值；NPC需求优先次序不是操作合法性，本人目的/方法待T08。旧批采木保留原页宿主；蓝图/种点空间创建仍有实际材料/地形合同，接近施工仍等本切片运动结束才锁格。
+
+木愈迁移到瞬时self_effect：掌握后付qi20与代谢精力500，经P4作用束自疗25HP；死亡、被控和战斗承诺拒绝且零支付，普通非战斗run保留。它不增加CD/施法阶段、不治疗他人或持续旧伤。每次有合法激活身份，效果仍归P4对应owner；UI自疗就绪也读同一定义。带持续承诺或异目标的新操作要接适当宿主，不能只给瞬时定义加字段冒充。
+
+原费用阶段不强并：cook仍在完成时从本人消费定义所列食材，eat消费目标实际餐食，施工放置时交材，study只检查实际书而不消耗。新的配方/在制进度在T06扩原领域，不在这里建立第二份物资。`construct`已有目标菜单别名仍为`continue_build`；同机制瞬时变体增定义即可，新的领域算法仍需原owner实现。
 
 作用种类为damage、control、slow、dot、domain、status、heal、shield、guard、resource、dispel，按activation/contact阶段解释；伤害与控制由战斗桶投影结算，其他作用交回对应owner。有限列表不是通用事务，不承诺失败回滚，也没有可配置的任意分支或跨步骤结果引用。交易、配方和照料保留具名整体提交。
 
@@ -42,7 +52,7 @@
 
 领域材料不一律提前扣除：照料在有效提交时检查并消费水，施工和交易依原领域合同处理。动作预检不保留资源、不制造物资，实际提交仍须复核。
 
-共同占用只记录owner/run。阶段、到期、已交付和剩余进度留在原宿主；终止一次，清自身预约/贡献，不撤销已经离手的攻击或已完成物资转移。移动、工作和交互命令不能绕过ACT不可取消段或硬控；现有即时药水和修行回春命令保留即时使用政策，不取得新的行动占用。
+共同占用只记录owner/run。阶段、到期、已交付和剩余进度留在原宿主；终止一次，清自身预约/贡献，不撤销已经离手的攻击或已完成物资转移。移动、工作和交互命令不能绕过ACT不可取消段或硬控。即时药水保留原使用政策；木愈也不取得新持续占用，但遵守控制和战斗承诺准入。
 
 已合法接受的下一招缓冲保留原输入与截止时刻；取消窗口提前开放不代表CD也已结束。Combat以同一`intent_ready_at`查询调度和消费，等待当前动作、控制和冷却门槛共同开放；恰在原截止时刻可启动，过期或非时间准入失败则结束并通知任务。此合同没有扩大空闲时仅因CD未好就自动排队的输入政策。
 

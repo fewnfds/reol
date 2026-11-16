@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="BeingFormLibrary" load_steps=6 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/beings/library.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/beings/form_def.gd" id="type"]
+[ext_resource type="Resource" path="res://data/definitions/beings/human.tres" id="human"]
+[ext_resource type="Resource" path="res://data/definitions/beings/companion.tres" id="companion"]
+[ext_resource type="Resource" path="res://data/definitions/beings/clockwork.tres" id="clockwork"]
+
+[resource]
+script = ExtResource("1")
+forms = Array[ExtResource("type")]([ExtResource("human"), ExtResource("companion"), ExtResource("clockwork")])

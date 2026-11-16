@@ -29,6 +29,8 @@ func create(kind: String, definition: String, tile: int = -1, capacity: int = -1
 		records[id].hp = 100
 	else:
 		records[id]["equipment"] = {}
+		records[id]["body_profile"] = definition
+		records[id]["body_origin"] = "independent"
 	if tile >= 0:
 		if not by_tile.has(tile):
 			by_tile[tile] = []

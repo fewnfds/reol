@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="OperationDef" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/definitions/operations/operation_def.gd" id="op"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/operations/target_rule.gd" id="target"]
+
+[sub_resource type="Resource" id="Target0"]
+script = ExtResource("target")
+kinds = PackedStringArray("actor")
+relation = "other"
+
+[sub_resource type="Resource" id="Target1"]
+script = ExtResource("target")
+kinds = PackedStringArray("plant")
+sapient = true
+
+[resource]
+script = ExtResource("op")
+id = "trade"
+title = "交换"
+icon = "link"
+executor = "society"
+handler = "trade"
+required_capabilities = PackedStringArray("contact")
+duration_ms = 1000
+help_target = false
+targets = Array[ExtResource("target")]([SubResource("Target0"), SubResource("Target1")])

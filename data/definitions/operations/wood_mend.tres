@@ -1,0 +1,51 @@
+[gd_resource type="Resource" script_class="OperationDef" load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/definitions/operations/operation_def.gd" id="op"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/operations/target_rule.gd" id="target"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/cost_def.gd" id="cost"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_def.gd" id="effect"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/actions/effect_bundle_def.gd" id="bundle"]
+
+[sub_resource type="Resource" id="Target0"]
+script = ExtResource("target")
+kinds = PackedStringArray("actor")
+relation = "self"
+
+[sub_resource type="Resource" id="Cost0"]
+script = ExtResource("cost")
+kind = "qi"
+id = ""
+amount = 20
+
+[sub_resource type="Resource" id="Cost1"]
+script = ExtResource("cost")
+kind = "energy"
+id = ""
+amount = 500
+
+[sub_resource type="Resource" id="Heal"]
+script = ExtResource("effect")
+kind = "heal"
+stage = "activation"
+amount = 25
+
+[sub_resource type="Resource" id="Bundle"]
+script = ExtResource("bundle")
+effects = Array[ExtResource("effect")]([SubResource("Heal")])
+
+[resource]
+script = ExtResource("op")
+id = "wood_mend"
+title = "木愈"
+icon = "potion"
+executor = "instant"
+handler = "self_effect"
+required_capabilities = PackedStringArray("metabolism")
+duration_ms = 0
+exclusive = false
+target_menu = false
+required_ability = "wood_mend"
+injured = true
+targets = Array[ExtResource("target")]([SubResource("Target0")])
+costs = Array[ExtResource("cost")]([SubResource("Cost0"), SubResource("Cost1")])
+effects = SubResource("Bundle")

@@ -71,6 +71,12 @@ var _full_publications: int = 0
 
 
 func start(count: int = 1000, workers: int = -1, speed: float = 1.0, mixed: bool = false, capacity: bool = false, sim_hz: int = DEFAULT_HZ, combat_lab: bool = false, combat_probe: bool = false) -> Error:
+	if not World.Beings.ERRORS.is_empty():
+		push_error("Being catalog: " + "; ".join(World.Beings.ERRORS))
+		return ERR_INVALID_DATA
+	if not World.Operations.ERRORS.is_empty():
+		push_error("Operation catalog: " + "; ".join(World.Operations.ERRORS))
+		return ERR_INVALID_DATA
 	if not World.Combat.Defs.ERRORS.is_empty():
 		push_error("Combat catalog: " + "; ".join(World.Combat.Defs.ERRORS))
 		return ERR_INVALID_DATA
@@ -425,7 +431,7 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 			continue
 		var slot: int = _world.actor_slots[id]
 		if frame.modes[slot] == World.Units.Mode.ACTION:
-			frame.visuals[slot] = ACTION_VISUALS.get(_world.actions[id].kind, Frame.Visual.IDLE)
+			frame.visuals[slot] = ACTION_VISUALS.get(World.Operations.OPERATIONS[_world.actions[id].kind].handler, Frame.Visual.IDLE)
 	if _poses.is_empty() or _poses.back().world_ms != frame.world_ms:
 		var pose := Frame.Pose.new()
 		pose.world_ms = frame.world_ms

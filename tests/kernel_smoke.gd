@@ -318,7 +318,7 @@ func _thread_boundary() -> void:
 	var held_time: int = held.world_ms
 	OS.delay_msec(220) # No host frame or polling: simulation must continue itself.
 	frame = runner.poll().frame
-	check(frame.world_ms - held_time >= 650, "Simulation waits for display polling")
+	check(frame.world_ms - held_time >= 650, "Simulation waits for display polling (world delta=%dms, latest sequence=%d, max step=%dus)" % [frame.world_ms - held_time, frame.sequence, int(frame.counters.get("maximum_step_usec", 0))])
 	check(held.positions == held_positions and held.world_ms == held_time, "Publishing overwrote a retained old frame")
 	runner.control(true, 4.0)
 	OS.delay_msec(30)
