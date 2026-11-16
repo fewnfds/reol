@@ -1,7 +1,9 @@
-[gd_resource type="Resource" script_class="InstitutionLibrary" load_steps=7 format=3]
+[gd_resource type="Resource" script_class="InstitutionLibrary" load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/sim/definitions/institutions/library.gd" id="lib"]
 [ext_resource type="Script" path="res://scripts/sim/definitions/institutions/role_def.gd" id="role"]
+
+[ext_resource type="Script" path="res://scripts/sim/definitions/institutions/duty_def.gd" id="duty"]
 
 [sub_resource type="Resource" id="Cook"]
 script = ExtResource("role")
@@ -31,6 +33,57 @@ title = "养护"
 purposes = PackedStringArray("take", "put", "cultivate")
 stock_items = PackedStringArray("water")
 
+[sub_resource type="Resource" id="kitchen_steward_duty"]
+script = ExtResource("duty")
+kind = "produce"
+item = "meal"
+operation = "cook"
+low = 3
+desired = 6
+quota = 3
+
+[sub_resource type="Resource" id="kitchen_steward"]
+script = ExtResource("role")
+id = "kitchen_steward"
+title = "典厨管事"
+purposes = PackedStringArray("commission", "take", "cook", "supply", "cultivate")
+stock_items = PackedStringArray("grain", "water", "meal")
+duty = SubResource("kitchen_steward_duty")
+
+[sub_resource type="Resource" id="meal_steward_duty"]
+script = ExtResource("duty")
+kind = "delivery"
+item = "meal"
+operation = ""
+low = 3
+desired = 6
+quota = 3
+
+[sub_resource type="Resource" id="meal_steward"]
+script = ExtResource("role")
+id = "meal_steward"
+title = "食堂管事"
+purposes = PackedStringArray("commission", "take", "put", "supply", "cultivate")
+stock_items = PackedStringArray("meal")
+duty = SubResource("meal_steward_duty")
+
+[sub_resource type="Resource" id="water_steward_duty"]
+script = ExtResource("duty")
+kind = "delivery"
+item = "water"
+operation = ""
+low = 2
+desired = 6
+quota = 3
+
+[sub_resource type="Resource" id="water_steward"]
+script = ExtResource("role")
+id = "water_steward"
+title = "饮水管事"
+purposes = PackedStringArray("commission", "take", "put", "supply", "cultivate")
+stock_items = PackedStringArray("water")
+duty = SubResource("water_steward_duty")
+
 [resource]
 script = ExtResource("lib")
-roles = Array[ExtResource("role")]([SubResource("Cook"), SubResource("Supply"), SubResource("Steward"), SubResource("Tending")])
+roles = Array[ExtResource("role")]([SubResource("Cook"), SubResource("Supply"), SubResource("Steward"), SubResource("Tending"), SubResource("kitchen_steward"), SubResource("meal_steward"), SubResource("water_steward")])

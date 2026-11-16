@@ -703,6 +703,46 @@
           "mode": "adjacent"
         }
       }
+    },
+    "notice_desk": {
+      "label": "告示案",
+      "kind": "table",
+      "item": "wood",
+      "amount": 6,
+      "work_ms": 180000,
+      "demolish_ms": 60000,
+      "salvage": 3,
+      "door": false,
+      "layer": "ground",
+      "size": [
+        2,
+        1
+      ],
+      "perception_cost": 1,
+      "facts": {
+        "movement_blocked": true,
+        "enclosure_boundary": false,
+        "thermal_barrier": false,
+        "light_blocked": false,
+        "wall_connection": false,
+        "roof_support": false
+      },
+      "max_hp": 100,
+      "armor": 2,
+      "capabilities": {
+        "records": {}
+      },
+      "slots": [],
+      "environment": {
+        "source": "",
+        "thermal": 10000,
+        "elements": 10000,
+        "light": 10000,
+        "contents_thermal": 10000,
+        "contents_elements": 10000,
+        "contents_light": 10000,
+        "room_tau_ms": 180000
+      }
     }
   }
 }

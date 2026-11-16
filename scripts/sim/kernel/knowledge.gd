@@ -11,12 +11,13 @@ const EXPERIENCE_LIMIT: int = 24
 const HOP_LIMIT: int = 2
 const MOBILE_FRESH_MS: int = 60000
 const OBSERVATION_MS: int = 5000
+const CHANNEL_LIMIT: int = 8
 var records: Dictionary = {}
 var observations: int = 0
 var observe_usec: int = 0
 
 func record(actor: int) -> Dictionary:
-	if not records.has(actor): records[actor] = {"due_ms": 0, "subjects": {}, "experiences": [], "next_revision": 1}
+	if not records.has(actor): records[actor] = {"due_ms": 0, "subjects": {}, "experiences": [], "next_revision": 1, "channels": {}}
 	return records[actor]
 
 func _revision(actor: int) -> int:
@@ -46,6 +47,30 @@ func evidence(actor: int, target: int) -> Dictionary:
 	var entry: Dictionary = records.get(actor, {}).get("subjects", {}).get(target, {})
 	return {} if entry.is_empty() else {"revision": int(entry.revision)}
 
+func read_channel(world: RefCounted, actor: int, channel: int, board: Dictionary, at: int) -> void:
+	var entry: Dictionary = record(actor)
+	var posts: Dictionary = {}
+	var open: bool = false
+	var self_view: Dictionary = world.operation_actor(actor)
+	for id: int in board.posts:
+		var post: Dictionary = board.posts[id]
+		posts[id] = world.institutions.Channels.post_view(post)
+		open = open or preload("res://scripts/sim/kernel/agency_institutions.gd")._actionable(self_view, posts[id], at)
+		for clue: Dictionary in post.clues:
+			var previous: Dictionary = entry.subjects.get(int(clue.view.id), {})
+			if not previous.is_empty() and (int(previous.seen_ms) >= int(clue.seen_ms) or (previous.origin != "heard" and int(previous.view.get("tile", -1)) >= 0)): continue
+			if post.issuer == actor:
+				_store(world, actor, clue.view, str(clue.origin), int(clue.observer), int(clue.source), int(clue.seen_ms), at, int(clue.hops), {}, true)
+			elif int(clue.hops) < HOP_LIMIT and int(clue.observer) != actor:
+				_store(world, actor, clue.view, "heard", int(clue.observer), int(post.issuer), int(clue.seen_ms), at, int(clue.hops) + 1, {}, true)
+	var misses: int = 0 if open and int(board.revision) != int(entry.channels.get(channel, {}).get("revision", -1)) else mini(6, int(entry.channels.get(channel, {}).get("empty_reads", 0)) + 1)
+	entry.channels[channel] = {"at_ms": at, "revision": int(board.revision), "empty_reads": misses, "posts": posts}
+	if entry.channels.size() > CHANNEL_LIMIT:
+		var victim: int = 0
+		for id: int in entry.channels:
+			if id != channel and (victim == 0 or entry.channels[id].at_ms < entry.channels[victim].at_ms): victim = id
+		if victim > 0: entry.channels.erase(victim)
+
 func _store(world: RefCounted, actor: int, value: Dictionary, origin: String, observer: int, source: int, seen: int, at: int, hops: int, teachings: Dictionary = {}, focus: bool = false) -> bool:
 	var subjects: Dictionary = record(actor).subjects
 	var target: int = value.id
@@ -67,16 +92,18 @@ func _store(world: RefCounted, actor: int, value: Dictionary, origin: String, ob
 		"absent_tile": int(old.get("absent_tile", -1)) if origin == "heard" else -1, "teachings": State.copy(old.get("teachings", {}))}
 	changed = _merge_teachings(actor, target, teachings) or changed
 	if subjects.size() > SUBJECT_LIMIT:
+		var protected: Dictionary = world.livelihood.protected_targets(world, actor)
 		var victim: int = 0
 		var oldest: int = 0
 		var rank: int = 100
 		for id: int in subjects:
 			if focus and id == target: continue
-			if id == world.actions.get(actor, {}).get("target", 0) or id == world.decisions.records.get(actor, {}).get("task", {}).get("target", 0) or world.livelihood.protects(world, actor, id): continue
+			if id == world.actions.get(actor, {}).get("target", 0) or id == world.decisions.records.get(actor, {}).get("task", {}).get("target", 0): continue
 			var candidate: Dictionary = subjects[id]
 			var priority: int = 0 if candidate.view.tile < 0 else (1 if candidate.view.kind == "pile" else (2 if candidate.view.kind == "actor" else (4 if candidate.origin == "seed" else 3)))
 			if not candidate.teachings.is_empty(): priority = 6
 			elif candidate.view.kind != "actor" and candidate.absent_ms >= 0 and at - int(candidate.absent_ms) <= 300000: priority = 5
+			if protected.has(id): priority = 8
 			if priority < rank or (priority == rank and (candidate.seen_ms < oldest or (candidate.seen_ms == oldest and id < victim))):
 				victim = id; oldest = candidate.seen_ms; rank = priority
 		if victim > 0: subjects.erase(victim)
@@ -276,7 +303,14 @@ func valid(world: RefCounted) -> bool:
 	for actor: Variant in records:
 		if not actor is int or not world.objects.records.has(actor): return false
 		var entry: Variant = records[actor]
-		if not entry is Dictionary or entry.size() != 4 or not entry.get("due_ms") is int or entry.due_ms < 0 or entry.due_ms > world.elapsed_ms + OBSERVATION_MS: return false
+		if not entry is Dictionary or entry.size() != 5 or not entry.get("due_ms") is int or entry.due_ms < 0 or entry.due_ms > world.elapsed_ms + OBSERVATION_MS: return false
+		if not entry.get("channels") is Dictionary or entry.channels.size() > CHANNEL_LIMIT: return false
+		for channel: Variant in entry.channels:
+			var account: Variant = entry.channels[channel]
+			if not channel is int or channel < 1 or channel >= world.objects.next_id or not account is Dictionary or account.size() != 4: return false
+			if not account.get("at_ms") is int or account.at_ms < 0 or account.at_ms > world.elapsed_ms or not account.get("revision") is int or account.revision < 0 or account.revision > 999999999999 or not account.get("empty_reads") is int or account.empty_reads < 0 or account.empty_reads > 6 or not account.get("posts") is Dictionary or account.posts.size() > world.institutions.Channels.POST_LIMIT: return false
+			for matter: Variant in account.posts:
+				if not matter is int or not world.institutions.Channels.public_valid(world.institutions, world, account.posts[matter]) or account.posts[matter].matter != matter: return false
 		if not entry.get("next_revision") is int or entry.next_revision < 1 or entry.next_revision > 999999999999: return false
 		if not entry.get("subjects") is Dictionary or entry.subjects.size() > SUBJECT_LIMIT: return false
 		for target: Variant in entry.subjects:
@@ -321,7 +355,10 @@ static func _valid_teaching(account: Variant, actor: int, next_id: int, now: int
 
 static func _valid_view(value: Dictionary, target: int, next_id: int, now: int) -> bool:
 	for field: Variant in value:
-		if field not in ["id", "kind", "definition", "tile", "capacity", "owner", "organization", "sapient", "hp", "inventory", "stage", "process", "access_dependencies", "contents", "services"]: return false
+		if field not in ["id", "kind", "definition", "tile", "capacity", "owner", "organization", "sapient", "hp", "inventory", "stage", "process", "access_dependencies", "contents", "services", "post_revision"]: return false
+	if value.has("post_revision"):
+		if not value.post_revision is int or value.post_revision < 0 or value.post_revision > 999999999999: return false
+		if not preload("res://scripts/sim/kernel/operation_query.gd").BUILDINGS.get(value.get("definition", ""), {}).get("capabilities", {}).has("records") or value.get("kind") in ["actor", "blueprint"]: return false
 	if not value.get("id") is int or value.id != target or not value.get("kind") is String or value.kind.is_empty() or value.kind.length() > 64 or not value.get("definition") is String or value.definition.is_empty() or value.definition.length() > 128: return false
 	if not value.get("tile") is int or value.tile < -1 or value.tile >= Terrain.SIZE * Terrain.SIZE or not value.get("sapient") is bool: return false
 	if not value.get("owner") is int or value.owner < 0 or value.owner >= next_id or not value.get("organization") is int or value.organization < 0 or (value.owner > 0 and value.organization > 0): return false

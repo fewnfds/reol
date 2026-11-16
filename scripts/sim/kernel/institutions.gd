@@ -7,7 +7,9 @@ const Results = preload("res://scripts/sim/kernel/activity_results.gd")
 const Access = preload("res://scripts/sim/kernel/institution_access.gd")
 const Defs = preload("res://scripts/sim/kernel/institution_defs.gd")
 const Matters = preload("res://scripts/sim/kernel/institution_matters.gd")
-const STATE_FIELDS: Array = ["next_organization", "organizations", "memberships", "next_entrust", "entrustments", "accounts", "next_appointment", "appointments", "services", "catalog_signature", "next_matter", "matters", "next_share", "shares", "matter_ledger"]
+const Duties = preload("res://scripts/sim/kernel/institution_duties.gd")
+const Channels = preload("res://scripts/sim/kernel/institution_channels.gd")
+const STATE_FIELDS: Array = ["next_organization", "organizations", "memberships", "next_entrust", "entrustments", "accounts", "next_appointment", "appointments", "services", "catalog_signature", "next_matter", "matters", "next_share", "shares", "matter_ledger", "channels"]
 const PURPOSES: Array[String] = Stock.PURPOSES
 const ISSUE_PURPOSES: Array[String] = Stock.ISSUE_PURPOSES
 const COUNTERS: Array[String] = ["issued", "consumed", "produced", "delivered", "returned", "donated"]
@@ -28,6 +30,8 @@ var shares: Dictionary = {}
 var matter_ledger: Dictionary = {}
 var _shares_by_actor: Dictionary = {} # Rebuilt identity index, never another progress store.
 var _shares_by_matter: Dictionary = {}
+var channels: Dictionary = {}
+var _channel_shares: Dictionary = {}
 
 func create_matter(world: RefCounted, issuer: int, spec: Dictionary) -> int:
 	return Matters.create(self, world, issuer, spec)
@@ -47,8 +51,11 @@ func revise_matter(world: RefCounted, actor: int, matter: int, total: int, quota
 func outcome(world: RefCounted, result: Dictionary) -> void:
 	Matters.outcome(self, world, result)
 
-func appoint(world: RefCounted, organization: int, actor: int, role: String, targets: Array) -> int:
-	return Access.appoint(self, world, organization, actor, role, targets)
+func appoint(world: RefCounted, organization: int, actor: int, role: String, targets: Array, duty_scope: Dictionary = {}) -> int:
+	return Access.appoint(self, world, organization, actor, role, targets, duty_scope)
+
+func commit(world: RefCounted, actor: int, action: Dictionary, at: int) -> Dictionary:
+	return Channels.commit(self, world, actor, action, at)
 
 func revoke(world: RefCounted, appointment: int) -> bool:
 	return Access.revoke(self, world, appointment)
@@ -65,7 +72,7 @@ func access_view(world: RefCounted, actor: int) -> Dictionary:
 	for bundle: Dictionary in pending:
 		if not returned.has(int(bundle.organization)): returned[int(bundle.organization)] = {}
 		for item: String in bundle.items: _add(returned[int(bundle.organization)], item, int(bundle.items[item]))
-	return {"permissions": permissions(actor), "scope_grants": Access.scope_grants(self, actor) + Matters.grants(self, world, actor), "task_access": Matters.task_access(self, actor), "responsibilities": Matters.views(self, world, actor), "service_targets": Access.service_targets(self, actor), "return_items": returned, "return_bundles": pending}
+	return {"permissions": permissions(actor), "scope_grants": Access.scope_grants(self, actor) + Matters.grants(self, world, actor), "task_access": Matters.task_access(self, actor), "responsibilities": Matters.views(self, world, actor), "duties": Duties.views(self, actor), "reports": Channels.own_receipts(self, actor, true), "channel_receipts": Channels.own_receipts(self, actor), "service_targets": Access.service_targets(self, actor), "return_items": returned, "return_bundles": pending}
 
 func reconcile(world: RefCounted, actor: int, target: int = 0) -> void:
 	if not world.actor_slots.has(actor) or not world.combat.alive(world, actor): return
@@ -373,7 +380,7 @@ func valid(world: RefCounted) -> bool:
 			if not actor is int or actor <= 0 or actor >= world.objects.next_id or not memberships[organization][actor] is Array: return false
 			for purpose: Variant in memberships[organization][actor]:
 				if purpose not in PURPOSES or memberships[organization][actor].count(purpose) != 1: return false
-	if not Access.valid(self, world) or not Matters.valid(self, world): return false
+	if not Access.valid(self, world) or not Matters.valid(self, world) or not Channels.valid(self, world): return false
 	for id: Variant in entrustments:
 		var record: Variant = entrustments[id]
 		if not id is int or id <= 0 or id >= next_entrust or not record is Dictionary or record.size() != 12 or not record.get("id") is int or record.id != id or not record.get("organization") is int or not organizations.has(record.organization) or not record.get("custodian") is int or record.custodian <= 0 or record.custodian >= world.objects.next_id or record.get("purpose") not in PURPOSES: return false

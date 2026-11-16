@@ -446,8 +446,10 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 	if signature != _command_signature:
 		_command_signature = signature
 		_clear(_commands)
+		_commands.columns = 1 if _target.has("post_revision") else 3
 		for spec: Dictionary in commands:
-			var button: Button = _button(_commands, spec.id, spec.text, spec.icon, {"target": selected})
+			var payload: Dictionary = {"target": selected}; payload.merge(spec.get("payload", {}), true)
+			var button: Button = _button(_commands, spec.id, spec.text, spec.icon, payload)
 			button.disabled = not spec.enabled
 			button.tooltip_text = spec.get("hint", "")
 	if _context_panel.visible:
@@ -660,7 +662,8 @@ func _context_buttons(commands: Array[Dictionary], payload: Dictionary) -> void:
 	_context_panel.set_meta("commands", str(commands))
 	_clear(_context_body)
 	for spec: Dictionary in commands:
-		var button: Button = _button(_context_body, spec.id, spec.text, spec.icon, payload)
+		var context: Dictionary = payload.duplicate(); context.merge(spec.get("payload", {}), true)
+		var button: Button = _button(_context_body, spec.id, spec.text, spec.icon, context)
 		button.disabled = not spec.enabled
 		button.tooltip_text = spec.get("hint", "")
 

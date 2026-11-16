@@ -263,6 +263,7 @@ static func _processes_valid(world: RefCounted) -> bool:
 		if operation.executor == "transfer" and (not action.get("item") is String or not Items.valid(action.item) or not action.get("amount") is int or action.amount <= 0):
 			return false
 		if operation.executor == "transfer" and not world.institutions.transfer_context_valid(action): return false
+		if operation.executor == "institutions" and not world.institutions.Channels.input_valid(world.institutions, action): return false
 		if operation.handler == "offer_matter" and (not action.get("matter") is int or action.matter < 1 or action.matter >= world.institutions.next_matter or not action.get("quota", 0) is int or action.get("quota", 0) < 0): return false
 		if operation.handler in ["gather", "collect_source"] and action.has("amount") and (not action.amount is int or action.amount <= 0 or action.amount > 10000): return false
 		if operation.handler in ["gather", "collect_source"] and action.has("purpose") and (not action.purpose is String or action.purpose not in world.institutions.ISSUE_PURPOSES): return false

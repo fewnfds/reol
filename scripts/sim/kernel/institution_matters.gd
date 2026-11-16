@@ -301,6 +301,7 @@ static func compact(owner: RefCounted, world: RefCounted) -> void:
 		if owner.shares.size() < SHARE_LIMIT: break
 		var share: Dictionary = owner.shares[id]
 		if share.state == "accepted" or owner.matters[share.matter].state != "active": continue
+		if owner.Channels.retains_share(owner, share): continue
 		world.livelihood.share_closed(world, share, share.state == "completed")
 		owner.matters[share.matter].archived += int(share.fulfilled)
 		_erase_share(owner, share)
@@ -308,6 +309,7 @@ static func compact(owner: RefCounted, world: RefCounted) -> void:
 		if owner.matters.size() < MATTER_LIMIT and owner.shares.size() < SHARE_LIMIT: break
 		var matter: Dictionary = owner.matters[id]
 		if matter.state == "active": continue
+		if owner.Channels.retains_matter(owner, id): continue
 		if owner.matters.size() < MATTER_LIMIT and owner._shares_by_matter.get(id, []).is_empty(): continue
 		if not owner.matter_ledger.has(matter.organization): owner.matter_ledger[matter.organization] = {"completed": 0, "cancelled": 0, "satisfied": 0, "delivery": 0, "produce": 0, "operation": 0}
 		var ledger: Dictionary = owner.matter_ledger[matter.organization]

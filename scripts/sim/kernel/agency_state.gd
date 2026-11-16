@@ -34,6 +34,9 @@ static func valid(owner: RefCounted, world: RefCounted) -> bool:
 				if goal.state == "active":
 					var share: Dictionary = world.institutions.shares.get(int(goal.params.share), {})
 					if share.get("actor") != actor or share.get("matter") != goal.params.matter or share.get("state") != "accepted": return false
+			if Defs.GOALS[goal.definition].driver == "duty":
+				if goal.params.appointment >= world.institutions.next_appointment: return false
+				if goal.state == "active" and not world.institutions.Duties.views(world.institutions, actor).has(int(goal.params.appointment)): return false
 		var intention: Dictionary = entry.intention
 		if not intention.is_empty():
 			if intention.size() != 6 or not intention.get("goal") is int or not entry.goals.has(intention.goal) or not intention.get("approach") is String or intention.approach not in Defs.GOALS[entry.goals[intention.goal].definition].approaches: return false
@@ -52,6 +55,12 @@ static func valid(owner: RefCounted, world: RefCounted) -> bool:
 		var count: int = 0
 		for goal: Dictionary in owner.records.get(int(share.actor), {}).get("goals", {}).values():
 			if goal.state == "active" and Defs.GOALS[goal.definition].driver == "responsibility" and goal.params.share == share.id: count += 1
+		if count != 1: return false
+	for appointment: Dictionary in world.institutions.appointments.values():
+		if not appointment.active or world.institutions.Defs.ROLES[appointment.role].duty.is_empty() or not world.combat.alive(world, int(appointment.actor)): continue
+		var count: int = 0
+		for goal: Dictionary in owner.records.get(int(appointment.actor), {}).get("goals", {}).values():
+			if goal.state == "active" and Defs.GOALS[goal.definition].driver == "duty" and goal.params.appointment == appointment.id: count += 1
 		if count != 1: return false
 	return true
 

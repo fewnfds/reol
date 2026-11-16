@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="LifeGoalLibrary" load_steps=20 format=3]
+[gd_resource type="Resource" script_class="LifeGoalLibrary" load_steps=26 format=3]
 
 [ext_resource type="Script" path="res://scripts/sim/definitions/agency/library.gd" id="library"]
 [ext_resource type="Script" path="res://scripts/sim/definitions/agency/goal_def.gd" id="goal"]
@@ -126,7 +126,52 @@ weight = 0.6
 disposition = "dutifulness"
 approaches = PackedStringArray("fulfill_share")
 
+[sub_resource type="Resource" id="dutyApproach"]
+script = ExtResource("approach")
+id = "duty"
+title = "履行职务"
+pattern = "duty"
+
+[sub_resource type="Resource" id="dutyGoal"]
+script = ExtResource("goal")
+id = "role_duty"
+title = "履行职务"
+driver = "duty"
+weight = 0.55
+disposition = "dutifulness"
+approaches = PackedStringArray("duty")
+
+[sub_resource type="Resource" id="serviceApproach"]
+script = ExtResource("approach")
+id = "service"
+title = "参与宗门事务"
+pattern = "service"
+
+[sub_resource type="Resource" id="serviceGoal"]
+script = ExtResource("goal")
+id = "organization_service"
+title = "参与宗门事务"
+driver = "service"
+weight = 0.32
+disposition = "dutifulness"
+approaches = PackedStringArray("service")
+
+[sub_resource type="Resource" id="reportingApproach"]
+script = ExtResource("approach")
+id = "reporting"
+title = "回报办理结果"
+pattern = "reporting"
+
+[sub_resource type="Resource" id="reportingGoal"]
+script = ExtResource("goal")
+id = "reporting"
+title = "回报办理结果"
+driver = "reporting"
+weight = 0.48
+disposition = "dutifulness"
+approaches = PackedStringArray("reporting")
+
 [resource]
 script = ExtResource("library")
-goals = Array[ExtResource("goal")]([SubResource("Fed"), SubResource("Rested"), SubResource("Recovery"), SubResource("Development"), SubResource("Delivery"), SubResource("Operation"), SubResource("Custody"), SubResource("Responsibility")])
-approaches = Array[ExtResource("approach")]([SubResource("Eat"), SubResource("PrepareFood"), SubResource("Rest"), SubResource("Develop"), SubResource("Deliver"), SubResource("Perform"), SubResource("Return"), SubResource("ResponsibilityApproach")])
+goals = Array[ExtResource("goal")]([SubResource("Fed"), SubResource("Rested"), SubResource("Recovery"), SubResource("Development"), SubResource("Delivery"), SubResource("Operation"), SubResource("Custody"), SubResource("Responsibility"), SubResource("dutyGoal"), SubResource("serviceGoal"), SubResource("reportingGoal")])
+approaches = Array[ExtResource("approach")]([SubResource("Eat"), SubResource("PrepareFood"), SubResource("Rest"), SubResource("Develop"), SubResource("Deliver"), SubResource("Perform"), SubResource("Return"), SubResource("ResponsibilityApproach"), SubResource("dutyApproach"), SubResource("serviceApproach"), SubResource("reportingApproach")])

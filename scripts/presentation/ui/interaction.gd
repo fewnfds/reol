@@ -340,6 +340,11 @@ func action(kind: String, payload: Dictionary) -> void:
 			_send({"kind": kind})
 		"heal", "ability": _send({"kind": kind})
 		"study": _send({"kind": kind, "target": 1})
+		"read_channel", "post_duty", "accept_post", "report_matter", "close_post":
+			var request: Dictionary = {"kind": kind, "target": target}
+			for field: String in ["appointment", "matter", "share", "blocked"]:
+				if payload.has(field): request[field] = payload[field]
+			_send(request)
 		"continue_build", "demolish", "rest", "eat", "cook", "sow", "tend", "gather", "cut", "uproot", "talk", "learn", "practice":
 			_send({"kind": kind, "target": target})
 		_:

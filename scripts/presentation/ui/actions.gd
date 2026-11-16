@@ -72,7 +72,44 @@ static func for_target(data: Dictionary, player: Dictionary, help_target: int) -
 	var capabilities: Dictionary = buildings.get(data.get("definition", ""), {}).get("capabilities", {})
 	if capabilities.has("cultivation") and data.get("kind") != "blueprint":
 		result.append(command("plant_menu", "种植", "plant", alive and int(data.get("guest", 0)) == 0))
+	if capabilities.has("records") and data.get("kind") != "blueprint":
+		var read: Dictionary = player.get("known_channels", {}).get(int(data.id), {})
+		for post: Dictionary in read.get("posts", {}).values():
+			if post.state == "open" and _can_close_post(player, post):
+				var close: Dictionary = command("close_post", "撤回告示 #%d" % int(post.matter), "work", alive)
+				close["payload"] = {"matter": int(post.matter)}
+				close["hint"] = "在本案撤回并释放尚未履行的责任；已交付实物与已完成劳动保留。"
+				result.append(close)
+			if post.state != "open" or post.blocked or int(post.unclaimed) <= 0 or (int(post.deadline_ms) > 0 and int(player.get("at_ms", 0)) >= int(post.deadline_ms)): continue
+			if player.get("responsibilities", {}).values().any(func(share: Dictionary): return share.matter == post.matter): continue
+			var capable: bool = preload("res://scripts/sim/kernel/agency_institutions.gd")._actionable(player, post, int(player.get("at_ms", 0)))
+			var row: Dictionary = command("accept_post", "受理 #%d · %s×%d" % [int(post.matter), Items.label(post.item), mini(int(post.quota), int(post.unclaimed))], "work", alive and capable)
+			row["payload"] = {"matter": int(post.matter)}
+			row["hint"] = "本人已读记录；到告示案签领时重新核对。待领%d，已回报%d/%d。%s" % [int(post.unclaimed), int(post.reported), int(post.total), "" if capable else "当前尚无办理所需的身体能力或技艺。"]
+			result.append(row)
+		for duty: Dictionary in player.get("duties", {}).values():
+			if duty.channel != data.id: continue
+			var row: Dictionary = command("post_duty", "履职 · " + str(duty.title), "work", alive)
+			row["payload"] = {"appointment": int(duty.appointment)}
+			row["hint"] = "按本人近期察看的库存办理；需要先到负责地点检查。"
+			result.append(row)
+		for receipt: Dictionary in player.get("channel_receipts", []):
+			if receipt.channel != data.id: continue
+			var row: Dictionary = command("report_matter", "回报 #%d · 已办%d" % [int(receipt.matter), int(receipt.fulfilled)], "work", alive)
+			row["payload"] = {"share": int(receipt.share)}
+			result.append(row)
+			if receipt.state == "accepted":
+				row = command("report_matter", "受阻释责 #%d" % int(receipt.matter), "work", alive)
+				row["payload"] = {"share": int(receipt.share), "blocked": true}
+				result.append(row)
 	return result
+
+static func _can_close_post(actor: Dictionary, post: Dictionary) -> bool:
+	var stock = preload("res://scripts/sim/kernel/stock_rules.gd")
+	var target: Dictionary = {"id": post.target, "organization": post.organization}
+	var required: Array = [post.item]
+	if post.kind == "produce": required = Operations.OPERATIONS[post.operation].recipe.inputs.keys() + Operations.OPERATIONS[post.operation].recipe.outputs.keys()
+	return required.all(func(item: String): return stock.permits_at(actor, target, "commission", item))
 
 static func reason_text(reason: String) -> String:
 	return {"": "", "method_not_known": "尚未入门这门技艺。", "missing_items": "缺少符合用途的原料。", "insufficient_resource": "自身资源不足。",
@@ -81,7 +118,7 @@ static func reason_text(reason: String) -> String:
 		"body_has_no_work_capability": "当前不能进行劳动。", "full": "存放空间已满。"}.get(reason, "当前条件尚不满足。")
 
 static func art_key(definition: String) -> String:
-	var mapping: Dictionary = {"wood_wall": "wall_0", "wood_door": "door", "wood_chest": "chest", "long_bed": "long_bed", "cook_stove": "stove", "wood_table": "table", "wood_chair": "chair", "wood_roof": "roof", "wood_floor": "roof", "planter": "planter", "water_well": "planter"}
+	var mapping: Dictionary = {"wood_wall": "wall_0", "wood_door": "door", "wood_chest": "chest", "long_bed": "long_bed", "cook_stove": "stove", "wood_table": "table", "notice_desk": "table", "wood_chair": "chair", "wood_roof": "roof", "wood_floor": "roof", "planter": "planter", "water_well": "planter"}
 	if mapping.has(definition): return mapping[definition]
 	if plants.has(definition): return definition + "_2"
 	return "item_" + definition

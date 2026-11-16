@@ -4,13 +4,17 @@
 
 ## 宗门共享基座实施（源码）
 
-T01～T08及T09a主体能力、共同操作、持续活动、成长/体况、规范物资、生产与在制、本人认识、持久目的/有限方法及范围任职/服务资格已完成开工/收尾咨询、独立核查及相关整改。当前源码格式为format23/`user://sect-quicksave-v23.reol`及相关定义签名；下列独立P5包尚未重导，仍为format14，不能混用文件。百人宗门完整循环尚未交付。
+T01～T08、T09a、T09b及T09c已完成开工/收尾顾问咨询、独立核查及相关整改。当前源码格式为format24/`user://sect-quicksave-v24.reol`及相关定义签名；下列独立P5包尚未重导，仍为format14，不能混用文件。百人宗门完整循环尚未交付。
 
 T09b开工/收尾双顾问已核查并完成相关整改。`matters-review-final-core.log`、`matters-review-final-obligations.log`、`matters-review-reserved-harvest.log`、`matters-review-historical-quota.log`、`matters-review-source-reentry.log`及`matters-review-indexed-history.log`均errors=0，覆盖部分多人/冻结条款/恢复、真实托付/生产/植物配送、配方归属、跨箱声明用途拒绝、原库往返与重放、释放后下调总额、采木实际HARVEST预约恢复/撤权/完成重入、临时帮手取消探索与512事项/4096份额历史压缩。`matters-review-existing-access.log`原范围任职/服务检查errors=0。
 
 `matters-native-reviewed.log`真实D3D12 Game原生协作→选择助手→接受责任→实际保存/加载→原地完工，errors=0；当前`logs/institution-ui/completed-formal-help.png`已实看。首次施工反例误期望180000ms内容劳动在12秒结束，已明确3000ms夹具；首次GUI点透明脚边无命令，改点可见躯干，未改拾取规则。
 
-原消费者`matters-knowledge-boundaries.log`、`matters-feedback-consumer.log`、`matters-original-livelihood.log`、`matters-activity-recovery.log`及`matters-decisions-reviewed.log`均errors=0。旧feedback与decisions的消失地点夹具中老师后来随身已有饭，实际合法先吃自己的饭、远处库存记忆未变；只在这两个反例清随身饭后保持原断言。未强迫全图扫描或放宽规则。T09c开工咨询已核，尚未交付职责渠道与百人循环，旧kernel计时失败未关闭。
+原消费者`matters-knowledge-boundaries.log`、`matters-feedback-consumer.log`、`matters-original-livelihood.log`、`matters-activity-recovery.log`及`matters-decisions-reviewed.log`均errors=0。旧feedback与decisions的消失地点夹具中老师后来随身已有饭，实际合法先吃自己的饭、远处库存记忆未变；只在这两个反例清随身饭后保持原断言。未强迫全图扫描或放宽规则。T09c收尾已完成：顾问双答均完整返回并逐条核查；职责Resource、现场告示、有限个人读案、受理、真实办理/回报、受阻释责、旧案现场结案和原生GUI/中途存读已接同一World。
+
+T09c独立证据：`logs/duties-repeat-supply-and-restore.log`、`logs/channels-local-information-and-water-reviewed.log`、`logs/duties-shortage-and-unreported-absence.log`、`logs/channels-canonical-terms-reviewed.log`、`logs/channels-race-replacement-capacity-reviewed.log`、`logs/duties-remote-reinspection-first.log`、`logs/channels-race-capacity-dual-purpose-reviewed.log`、`logs/channels-native-final.log`及`logs/duties-final-shortage-absence.log`均errors=0。新增覆盖旧缓存争抢后的现场刷新、来源/目标/条款篡改拒载、来源耗尽与删除后的实地复检、撤职换桌旧案结案、告示容量复用、在制工位不误报、双用途材料与饥饿抢占、有限个人记忆保护、原生查阅→受理→领物→存读中途配送→回报→撤回告示。`logs/channels-native-final.log`为真实D3D12窗口；已实看`logs/institution-ui/read-duty-post.png`与`logs/institution-ui/reported-duty-delivery.png`。顾问未运行本机，以上均为本机独立证据。
+
+T09c边界：仍没有跨距离口头传播/联系回应、自动继任、教学排班、多级供养配额或百人开局装配；分别留T09d、T10、T11、T12。旧kernel间歇计时失败仍公开保留，未以本项通过掩盖。
 
 T09a实际链路：`institution-scoped-npc-result-20261117-044046-977544000.log`及收尾`institution-review-completion.log`均errors=0；范围炊事者按原Planner领2粮1水烹饪3饭，撤职停工保锅/换人续作，专床不预占却限制实际休养。收尾追加私产寄放的item规划过滤、养护不能收割/拔除/播种、坏嵌套成员/float身份/未知组织安全拒载、直接死体消费拒绝，单范围拔除保真实completed且恢复合法。起初新测试错期待2饭，核原Resource为3饭后修正断言，未改配方。
 

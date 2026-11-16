@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="OperationDef" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="OperationDef" load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/sim/definitions/operations/operation_def.gd" id="op"]
 [ext_resource type="Script" path="res://scripts/sim/definitions/operations/target_rule.gd" id="target"]
@@ -15,6 +15,11 @@ relation = "other"
 actor_state = "dead"
 nonempty = true
 
+[sub_resource type="Resource" id="WorkbenchOutput"]
+script = ExtResource("target")
+facility_capability = "workbench"
+nonempty = true
+
 [resource]
 script = ExtResource("op")
 id = "take"
@@ -25,4 +30,4 @@ handler = "take"
 required_capabilities = PackedStringArray("work")
 duration_ms = 300
 exclusive = false
-targets = Array[ExtResource("target")]([SubResource("Target0"), SubResource("Corpse")])
+targets = Array[ExtResource("target")]([SubResource("Target0"), SubResource("Corpse"), SubResource("WorkbenchOutput")])

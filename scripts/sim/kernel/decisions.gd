@@ -1,4 +1,5 @@
 extends RefCounted
+const MAX_WAKE_MS: int = 3600000 # Shared sleeping calendar; tactical fields retain short bounds.
 ## Owner-side coordination; no per-agent Node or new world clock.
 const Defs = preload("res://scripts/sim/kernel/decision_defs.gd")
 const Actions = preload("res://scripts/sim/kernel/action_defs.gd")
@@ -563,7 +564,7 @@ func valid(world: RefCounted) -> bool:
 		if entry.manual != (entry.mode == "manual"): return false
 		if in_combat(actor) and not world.combat.engagements.has(actor): return false
 		for field: String in ["next_ms", "hit_ms", "ready_ms", "repath_ms", "follow_ms"]:
-			if not entry.get(field) is int or entry[field] < (-1 if field in ["next_ms", "hit_ms"] else 0) or entry[field] > world.elapsed_ms + 10000: return false
+			if not entry.get(field) is int or entry[field] < (-1 if field in ["next_ms", "hit_ms"] else 0) or entry[field] > world.elapsed_ms + (MAX_WAKE_MS if field == "next_ms" else 10000): return false
 		if entry.hit_ms > world.elapsed_ms or not entry.get("last_reason") is String or not entry.get("last_goal") is Vector2 or not entry.last_goal.is_finite(): return false
 		if entry.last_goal != Vector2(-1, -1) and (entry.last_goal.x < 0 or entry.last_goal.y < 0 or entry.last_goal.x >= Terrain.SIZE or entry.last_goal.y >= Terrain.SIZE): return false
 		if (entry.next_ms >= 0) != wakeups.has(actor): return false

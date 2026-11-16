@@ -7,6 +7,7 @@ const Query = preload("res://scripts/sim/kernel/operation_query.gd")
 const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const Stock = preload("res://scripts/sim/kernel/stock_rules.gd")
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
+const Institutions = preload("res://scripts/sim/kernel/agency_institutions.gd")
 static var PLANTS: Dictionary = Operations.freeze(JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/plants.json")).types)
 const WORK_LIMIT: int = 128
 const DEPTH_LIMIT: int = 4
@@ -78,14 +79,18 @@ func candidates(goal: Dictionary, approach: Dictionary, allowance: int = 32) -> 
 	source_scope = []
 	sources_restricted = false
 	match approach.pattern:
+		"duty": return Institutions.duty(self, goal)
+		"service": return Institutions.service(self, goal)
+		"reporting": return Institutions.reports(self)
 		"responsibility":
 			var terms: Dictionary = actor.get("responsibilities", {}).get(int(goal.params.share), {})
 			if terms.is_empty(): return []
 			var projected: Dictionary = project(goal, actor)
 			source_scope = terms.sources.duplicate()
 			sources_restricted = true
-			if terms.kind == "delivery": return _delivery(projected, [])
-			return _perform(projected, {"targets": "goal", "handler": "", "prerequisites": true}, [])
+			var options: Array = _delivery(projected, []) if terms.kind == "delivery" else _perform(projected, {"targets": "goal", "handler": "", "prerequisites": true}, [])
+			if options.is_empty() and int(budget.work) < slice_limit: return Institutions.blocked(self, terms)
+			return options
 		"perform": return _perform(goal, approach, [])
 		"produce": return _produce(goal, str(approach.product), [])
 		"develop": return _develop(goal, str(goal.params.method), [])
@@ -136,6 +141,7 @@ func _resolve(operation: Dictionary, target: Dictionary, chain: Array, prerequis
 	var inputs: Dictionary = operation.recipe.inputs if not operation.recipe.is_empty() else operation.required_items
 	var purpose: String = Stock.input_purpose(operation)
 	var organization: int = int(target.get("organization", 0))
+	if sources_restricted and Institutions.source_shortfall(self, inputs, organization, purpose, source_scope): return {}
 	var bundle: Dictionary = _input_bundle(inputs, organization, purpose)
 	var items: Array = inputs.keys(); items.sort()
 	for item: String in items:
@@ -164,7 +170,7 @@ func _acquire(item: String, count: int, organization: int, purpose: String, chai
 		for bundle: Dictionary in actor.bundles:
 			var wrong_origin: bool = purpose == "supply" and sources_restricted and int(bundle.get("origin", 0)) not in source_scope
 			if int(bundle.organization) > 0 and (organization < 0 or bundle.organization == organization) and (bundle.purpose != purpose or wrong_origin) and int(bundle.items.get(item, 0)) > 0:
-				if not excluded.is_empty() and _retains(bundle, item): return {}
+				if _retains(bundle, item): continue
 				var origins: Variant = [int(bundle.origin)] if bundle.purpose == "supply" else null
 				var deposited: Dictionary = _deposit(item, int(bundle.items[item]), int(bundle.organization), 0, next, bundle.purpose, origins)
 				return deposited # No legal middle store: do not gather more unusable stock.

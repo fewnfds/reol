@@ -8,12 +8,12 @@ const Form = preload("res://scripts/sim/definitions/beings/form_def.gd")
 const Recipe = preload("res://scripts/sim/definitions/production/recipe_def.gd")
 const HANDLERS: Dictionary = {"transfer": ["take", "put"], "facility": ["construct", "rest", "craft", "eat", "demolish", "collect_source"],
 	"nature": ["sow", "tend", "gather", "cut", "uproot"], "society": ["talk", "trade", "request_help", "offer_matter", "learn", "study", "practice"],
-	"instant": ["self_effect"], "work_source": ["harvest"]}
+	"instant": ["self_effect"], "work_source": ["harvest"], "institutions": ["read_channel", "post_duty", "accept_post", "report_matter", "close_post"]}
 @export var id: String = ""
 @export var title: String = ""
 @export var icon: String = "work"
 @export var command_alias: String = ""
-@export_enum("transfer", "facility", "nature", "society", "instant", "work_source") var executor: String = "facility"
+@export_enum("transfer", "facility", "nature", "society", "instant", "work_source", "institutions") var executor: String = "facility"
 @export var handler: String = ""
 @export var required_capabilities: PackedStringArray = []
 @export var targets: Array[Target] = []

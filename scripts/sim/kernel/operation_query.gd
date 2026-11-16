@@ -37,6 +37,10 @@ static func evaluate(operation: Dictionary, actor: Dictionary, target: Dictionar
 
 static func access_reason(operation: Dictionary, actor: Dictionary, target: Dictionary, context: Dictionary = {}, buildings: Dictionary = {}) -> String:
 	if buildings.is_empty(): buildings = BUILDINGS
+	if operation.executor == "institutions":
+		if not actor.get("permissions", {}).has(int(target.get("organization", 0))): return "not_authorized"
+		if operation.handler == "post_duty" and actor.get("duties", {}).get(int(context.get("appointment", 0)), {}).get("channel") != target.id: return "not_authorized"
+		return ""
 	var place: Dictionary = target.duplicate()
 	if not operation.recipe.is_empty(): place["processing_purpose"] = operation.recipe.purpose
 	var inputs: Dictionary = stock_context(operation, target, context, buildings)

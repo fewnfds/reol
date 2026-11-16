@@ -705,6 +705,7 @@ func forget_target(target: int, at: int = -1) -> void:
 			if automatic:
 				livelihood.after_action(self, actor, now)
 	institutions.Access.forget_target(institutions, self, target)
+	institutions.Channels.forget(institutions, target)
 	reservations.erase(target)
 
 
@@ -1091,6 +1092,7 @@ func operation_target(id: int) -> Dictionary:
 	result["process"] = Production.view(record)
 	if record.kind != "actor": result["services"] = institutions.Access.service_flags(institutions, id)
 	if record.kind != "actor": result["contents"] = objects.public_contents(id)
+	if facilities.definitions.get(record.definition, {}).get("capabilities", {}).has("records"): result.merge(institutions.Channels.metadata(institutions, id))
 	if record.has("stage"): result["stage"] = record.stage
 	if actor_slots.has(id):
 		var slot: int = actor_slots[id]
@@ -1143,6 +1145,7 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 	var operation: Dictionary = Operations.OPERATIONS.get(input.get("kind", ""), {})
 	if operation.is_empty(): return "unknown_operation"
 	if operation.executor in ["instant", "work_source"]: return "unsupported_host"
+	if operation.executor == "institutions" and not institutions.Channels.input_valid(institutions, input): return "invalid_records_operation"
 	if operation.handler == "offer_matter" and (not input.get("matter") is int or input.matter < 1 or not institutions.matters.has(input.matter) or not input.get("quota", 0) is int or input.get("quota", 0) < 0): return "invalid_matter_offer"
 	if operation.handler in ["gather", "collect_source"] and input.has("amount") and (not input.amount is int or input.amount <= 0 or input.amount > 10000): return "invalid_amount"
 	var capability_reason: String = Operations.capability_reason(objects.records.get(id, {}), str(input.kind))
@@ -1312,6 +1315,8 @@ func settle_action(id: int, at: int) -> void:
 			outcome = nature.commit(self, id, Operations.domain_action(action), at)
 		elif operation.executor == "society":
 			outcome = society.commit(self, id, action, at)
+		elif operation.executor == "institutions":
+			outcome = institutions.commit(self, id, action, at)
 		else:
 			outcome = facilities.commit(self, id, Operations.domain_action(action), at)
 		_finishing.erase(id)
@@ -1369,6 +1374,7 @@ func describe(id: int) -> Dictionary:
 	result["inventory"] = objects.inventory_summary(id)
 	result["access_dependencies"] = facilities.access_dependencies(self, id)
 	if result.kind != "actor": result["services"] = institutions.Access.service_flags(institutions, id)
+	if facilities.definitions.get(result.definition, {}).get("capabilities", {}).has("records"): result.merge(institutions.Channels.metadata(institutions, id))
 	if actor_slots.has(id) and not combat.alive(self, id): result.inventory = objects.goods_summary(id, true)
 	result["stock_organizations"] = []
 	for right: Dictionary in objects.groups(id, actor_slots.has(id) and not combat.alive(self, id)):
@@ -1415,6 +1421,7 @@ func describe(id: int) -> Dictionary:
 		result["readable"] = institutions.readable(self, id, available)
 		result.merge(access, true)
 		result["returns"] = institutions.returns(self, id)
+		result["known_channels"] = State.copy(knowledge.records.get(id, {}).get("channels", {}))
 		result["bundles"] = available
 		result["equippable"] = []
 		for bundle: Dictionary in result.bundles:

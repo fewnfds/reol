@@ -11,6 +11,7 @@ var events: RichTextLabel
 var _stats: Label
 var _activity: Label
 var _practice: Label
+var _responsibilities: Label
 var _gear := GridContainer.new()
 var _study: Button
 var _ability: Button
@@ -54,6 +55,12 @@ func _ready() -> void:
 	_ability.text = "回春"
 	_ability.pressed.connect(func(): requested.emit("ability", {}))
 	practice.add_child(_ability)
+	var social := ScrollContainer.new()
+	social.name = "职责"
+	_tabs.add_child(social)
+	_responsibilities = Style.label(social)
+	_responsibilities.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_responsibilities.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	events = RichTextLabel.new()
 	events.name = "事件"
 	events.scroll_following = true
@@ -67,6 +74,7 @@ func refresh(subject: Dictionary) -> void:
 		_stats.text = "⊘ #%d" % subject_id
 		_activity.text = ""
 		_practice.text = "⊘"
+		_responsibilities.text = "⊘"
 		events.text = ""
 		_study.disabled = true
 		_ability.disabled = true
@@ -101,6 +109,11 @@ func refresh(subject: Dictionary) -> void:
 		lines.append("%s\n理解 %d/%d · 实践 %d/%d" % [spec.title, entry.understanding, spec.introduction_points, entry.progress, spec.mastery_points])
 	for condition: String in subject.get("conditions", {}): lines.append("%s · 休养 %d/%d" % [Growth.Defs.CONDITIONS[condition].title, subject.conditions[condition].recovery, Growth.Defs.CONDITIONS[condition].recovery_needed])
 	_practice.text = "\n".join(lines)
+	var social_lines := PackedStringArray()
+	for duty: Dictionary in subject.get("duties", {}).values(): social_lines.append("%s\n负责 #%d · 告示案 #%d\n%s 库存低于%d时补至%d" % [duty.title, int(duty.target), int(duty.channel), Items.label(duty.item), int(duty.low), int(duty.desired)])
+	for share: Dictionary in subject.get("responsibilities", {}).values(): social_lines.append("事项 #%d · 剩余%d/%d\n对象 #%d%s" % [int(share.matter), int(share.remaining), int(share.quota), int(share.target), " · 已超期，仍负责任" if share.overdue else ""])
+	for receipt: Dictionary in subject.get("reports", []): social_lines.append("待回报 #%d · 已办%d · 告示案 #%d" % [int(receipt.matter), int(receipt.fulfilled), int(receipt.channel)])
+	_responsibilities.text = "\n\n".join(social_lines) if not social_lines.is_empty() else "暂无任职职责或已受事项。"
 	var activity: Dictionary = subject.get("activity", {})
 	var operation: String = str(activity.get("operation", ""))
 	var phase: String = str({"approaching": "前往", "waiting": "等待", "acting": "进行", "partner_waiting": "应邀等候", "traveling": "赶路", "exploring": "探查", "combat": "战斗", "working": "活动"}.get(activity.get("phase", ""), "空闲"))

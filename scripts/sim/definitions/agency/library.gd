@@ -28,5 +28,5 @@ func compile() -> Dictionary:
 		else: result.goals[goal.id] = goal.values()
 		for approach: String in goal.approaches:
 			if not result.approaches.has(approach): result.errors.append("unknown approach: " + approach)
-			elif result.approaches[approach].pattern not in {"resource": ["perform", "produce"], "recovery": ["perform"], "development": ["develop"], "delivery": ["deliver"], "operation": ["perform"], "custody": ["return"], "responsibility": ["responsibility"]}.get(goal.driver, []): result.errors.append("goal/approach mechanism mismatch: " + goal.id + "/" + approach)
+			elif result.approaches[approach].pattern not in {"resource": ["perform", "produce"], "recovery": ["perform"], "development": ["develop"], "delivery": ["deliver"], "operation": ["perform"], "custody": ["return"], "responsibility": ["responsibility"], "duty": ["duty"], "service": ["service"], "reporting": ["reporting"]}.get(goal.driver, []): result.errors.append("goal/approach mechanism mismatch: " + goal.id + "/" + approach)
 	return result
