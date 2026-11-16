@@ -2,6 +2,8 @@
 
 **P5已实现合同。** 生活、工作与战斗的自主选择共用协调入口，策略模板、个体参数和任务记忆分开。它属于[认识与自主选择领域](../../docs/engineering/architecture/05-framework-domains.md)，通过意图连接[公共行动与作用](action_effect_framework.md)，不统管其他领域事实。阶段范围归[主计划](../../docs/plans/foundation-priorities.md#p5交付)，选型归[研究](../research/action_editor_references.md#8-可编排单位策略p5研究与实施)，实际检查归[BASELINE](../../docs/status/baseline.md)。
 
+P5尚不是完整的自主生命模型。不同生命的能力组合、持久目的、情绪评价及受托指挥的上层设计归[自主角色](beings_and_lifeways/agency.md)，其中候选不算本页已实现事实。
+
 ## 1. 职责与入口
 
 `本人观察与记忆 → 选择目的/任务 → 行动意图 → 原宿主执行 → 可知结果唤醒`

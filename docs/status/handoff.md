@@ -2,7 +2,7 @@
 
 ## 当前停点
 
-最新取舍：用户暂缓战斗打磨，要求转看其他系统；此前建议的战斗遭遇未启动，不作为默认接续。非战斗候选与源码缺口归[主计划](../plans/foundation-priorities.md#下一阶段候选)，当前建议从施工备料与可复用物料搬运切入，尚未立项实施。
+最新方向：用户暂缓战斗打磨，明确要不同生命共用的自主角色基座，整合日常、学习修行、个人目的、情绪与对下属的指挥。此前施工备料/搬运优先建议收窄了产品方向，未实施，不再默认接续。架构候选归[自主角色](../../design/systems/beings_and_lifeways/agency.md)，阶段边界归[主计划](../plans/foundation-priorities.md#下一阶段候选)；本轮在设计/源码对照处，尚未改运行时。P5执行协调已交付，不等于完整生命动机、情绪与持久目的已实现。
 
 工作区整理（2026-11-16）：独立设计工作留下的[NPC人格、意愿与情绪研究](../../design/research/npc_personality_and_emotion.md)及两个索引已纳入版本管理；内容仍为研究和候选，没有对应的未提交游戏实现。当前停在P5及后续修复完成处，未启动下一阶段；建议次序归[主计划](../plans/foundation-priorities.md#下一阶段候选)。
 
@@ -29,4 +29,5 @@
 ## 本机资料与受保护工作
 
 - 透视采样取舍归`.local/advisor/view-sampling-20261116/`，纯二维复审归`.local/advisor/view-2d-final-20261116/`，此前合同双顾问咨询归`.local/advisor/framework-contracts-20261115/`，审查/作业位置咨询归`.local/advisor/review-20261115/`，复现探针归`.local/review-20261115/`；日志归`logs/`，生成包归`build/`，不新增根目录启动脚本。采用的事实保存在主题正文与BASELINE，原答不入库。
+- 本轮自主基座双顾问完整原答留`.local/advisor/agency-foundation-20261116/round-1/`；采用/未采用及独立核查依据归agency正文，不将顾问的认知档位、固定步骤数、服从优先级和复用百分比恢复为项目规则。
 - 保留本机顾问凭据、存档、素材源稿和第三方addon；保留工作分支`codex/field-contest`及stash `424f956d280fb390d17e1f6dd879f3614b51a430`。
