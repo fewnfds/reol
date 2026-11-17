@@ -15,7 +15,17 @@ const REASONS: Dictionary = {
 	"dead": "人物已死亡",
 	"empty": "这里暂时没有可取物品。",
 	"empty_or_full": "物资不足或容器已满",
-	"target_busy": "目标被占用",
+	"target_busy": "对方正在忙或操作位置被占用",
+	"teacher_does_not_know": "对方尚未掌握这项本领",
+	"learner_already_understood": "已理解这项入门内容，无需重复授课",
+	"partner_left": "对方已离开共同活动",
+	"replaced": "已改为其他行动",
+	"cancelled": "已取消",
+	"interrupted": "活动被打断",
+	"combat": "转入战斗",
+	"preempted": "优先处理其他事情",
+	"actor_dead": "人物已死亡",
+	"actor_removed": "人物已离开世界",
 	"target_gone": "目标已消失",
 	"out_of_reach": "超出交互范围",
 	"no_operation_place": "没有可用操作位",
@@ -69,6 +79,10 @@ const REASONS: Dictionary = {
 	"path_failed": "路途受阻，未能到达。",
 	"invalid_task": "这处工地已不能委托。",
 	"target_not_visible": "目标不在当前视野内。",
+	"shared_clue": "交谈完成，获知新线索",
+	"contact_established": "交谈完成，建立联系",
+	"transferred": "物品已转移",
+	"process_waiting": "劳动完成，转入静置",
 	"request_delivered": "请求已送达",
 	"accepted_share": "已承担约定责任",
 	"request_deferred": "约定稍后答复",
@@ -133,6 +147,14 @@ static func for_target(data: Dictionary, player: Dictionary, help_target: int) -
 		row["hint"] = reason_text(query.reason)
 		if query.ready and not operation.recipe.is_empty() and not data.get("process", {}).is_empty():
 			row.hint = "继续本批加工，无需重新投料。" if data.process.stage == "work" else "静置已完成，收取本批产物，无需重新投料。"
+		if operation.handler in ["learn", "teach"] and query.ready:
+			if operation.handler == "learn":
+				var known: bool = data.get("teaches", {}).has(operation.learning_method)
+				row.hint = "已知对方掌握；到场后仍需对方同意。" if known else "尚不知对方是否掌握，可当面询问；对方也可拒绝。"
+				if data.get("teaching_refusals", {}).has(id):
+					row.enabled = false
+					row.hint = "此前当面确认：对方尚未掌握。获知新情况或稍后可再询问。"
+			else: row.hint = "向此人传授；到场后需要对方自愿参加。"
 		result.append(row)
 	# These open local tools; they do not claim to execute a world operation.
 	var alive: bool = int(player.get("hp", 0)) > 0

@@ -29,16 +29,17 @@ static func service_flags(owner: RefCounted, target: int) -> Dictionary:
 	for purpose: String in owner.services.get(target, {}): result[purpose] = true
 	return result
 
+static func personal_place(owner: RefCounted, actor: int, target: int) -> bool:
+	for rule: Dictionary in owner.services.get(target, {}).values():
+		if not rule.members and actor in rule.actors: return true
+	return false
+
 static func known_personal_places(owner: RefCounted, actor: int, subjects: Dictionary) -> Dictionary:
-	# Retain acquired personal allocations, not every available communal place.
-	# Check only bounded known identities; never fetch a location from truth.
+	# Retain acquired personal allocations, never fetch a location from truth.
 	var result: Dictionary = {}
 	for target: int in subjects:
 		var clue: Dictionary = subjects[target]
-		if clue.origin == "heard" or int(clue.view.get("tile", -1)) < 0: continue
-		for purpose: String in owner.services.get(target, {}):
-			var rule: Dictionary = owner.services[target][purpose]
-			if not rule.members and actor in rule.actors: result[target] = true
+		if clue.origin != "heard" and int(clue.view.get("tile", -1)) >= 0 and personal_place(owner, actor, target): result[target] = true
 	return result
 
 static func _targets_valid(world: RefCounted, organization: int, targets: Array, active: bool) -> bool:

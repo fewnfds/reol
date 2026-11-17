@@ -217,6 +217,7 @@ func _process(delta: float) -> void:
 			var busy: int = int(counts[0]) + int(counts[1]) + int(counts[3]) + int(counts[6]) + int(counts[7]) + int(counts[9]) + int(counts[10]) + int(next.counters.stationary_combatants)
 			_activity_samples.append(float(busy) / maxi(1, int(next.counters.actors)))
 	for receipt: Dictionary in mailbox.receipts:
+		controls.accept_receipt(receipt)
 		if _response_probe != null: _response_probe.accept(receipt, Time.get_ticks_usec())
 		_last_receipt = "%s #%d @%d: %s" % [receipt.kind, receipt.seq, receipt.at_ms, receipt.reason]
 		ui.feedback(("→ " if receipt.reason == "accepted" else ("✓ " if receipt.ok else "× ")) + Hud.action_name(receipt.kind), receipt.ok)
@@ -312,7 +313,7 @@ func _process(delta: float) -> void:
 	camera.force_update_scroll() # Mouse conversion uses this displayed camera, even without fog.
 	_update_direction_marker()
 	controls.tick(delta)
-	combat_shapes.advance(frame, _render_pose, int(render_ms), fog_enabled, controls.pointer_world(get_viewport().get_mouse_position()) - Art.BODY_FOOT_OFFSET, controls.direct and not controls.locked() and not frame.paused)
+	combat_shapes.advance(frame, _render_pose, int(render_ms), fog_enabled, controls.pointer_world(get_viewport().get_mouse_position()) - Art.BODY_FOOT_OFFSET, controls.combat_stance and not controls.locked() and not frame.paused)
 	if fog_enabled:
 		camera.force_update_scroll()
 		_mask_was_updated = fog.sync_mask()
@@ -323,6 +324,7 @@ func _process(delta: float) -> void:
 	if begin >= _hud_next:
 		_update_hud()
 		_hud_next = begin + 100000
+	ui.advance_progress(render_ms)
 	if begin - _speed_at >= 1000000:
 		if _speed_at > 0:
 			_actual_speed = (frame.world_ms - _speed_world) * 1000.0 / (begin - _speed_at)
@@ -372,7 +374,7 @@ func _update_probe() -> void:
 	ui.probe(frame, valid and sampled_visible)
 
 func _update_hud() -> void:
-	ui.refresh(frame, selected, fog_enabled, _actual_speed, following, controls.help_target, controls.direct)
+	ui.refresh(frame, selected, fog_enabled, _actual_speed, following, controls.help_target, controls.combat_stance)
 	var visible_world: Rect2 = view.visible_rect()
 	var camera_rect := Rect2(visible_world.position / TILE, visible_world.size / TILE)
 	ui.minimap.adopt(frame, ground.material, fog, fog_enabled, camera_rect)
@@ -416,7 +418,7 @@ func _update_direction_marker() -> void:
 
 
 func _draw_control_direction(canvas: Node2D, origin: Vector2, actions: Dictionary) -> void:
-	if not controls.direct or controls.locked() or frame.paused or int(frame.player.get("hp", 0)) <= 0: return
+	if not controls.combat_stance or controls.locked() or frame.paused or int(frame.player.get("hp", 0)) <= 0: return
 	var aim: Vector2 = controls._aim
 	var side := Vector2(-aim.y, aim.x)
 	canvas.draw_colored_polygon(PackedVector2Array([origin + aim * 24, origin + aim * 17 + side * 3, origin + aim * 17 - side * 3]), Color("e8ddb1"))
@@ -433,6 +435,12 @@ func _paint_world(canvas: Node2D) -> void:
 	if frame == null:
 		return
 	canvas.draw_arc(_displayed(1) * TILE, 15, 0, TAU, 24, Color.GOLD, 2.0)
+	if frame.actor_slots.has(selected) and Hud.Actions.visible(frame, selected, fog_enabled) and int(ui._target.get("id", 0)) == selected:
+		var progress: float = Hud.ActivityText.progress(ui._target, render_ms)
+		if progress >= 0.0:
+			var origin: Vector2 = _displayed(selected) * TILE + Vector2(-12, -37)
+			canvas.draw_rect(Rect2(origin, Vector2(24, 3)), Color("252c32"))
+			canvas.draw_rect(Rect2(origin, Vector2(24 * progress, 3)), Color("78c6a1"))
 	var actions: Dictionary = _actions_at(_render_pose) if _render_pose != null else {}
 	_draw_control_direction(canvas, _displayed(1) * TILE, actions)
 	for actor: int in actions:

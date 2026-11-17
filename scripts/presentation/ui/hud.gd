@@ -3,6 +3,7 @@ extends Control
 signal requested(action: String, payload: Dictionary)
 signal scale_applied(factor: float)
 const Style = preload("res://scripts/presentation/ui/style.gd")
+const ActivityText = preload("res://scripts/presentation/ui/activity_text.gd")
 const Actions = preload("res://scripts/presentation/ui/actions.gd")
 const Minimap = preload("res://scripts/presentation/ui/minimap.gd")
 const Art = preload("res://scripts/presentation/art.gd")
@@ -29,6 +30,7 @@ var _inspect_scroll := ScrollContainer.new()
 var _inspect_body := VBoxContainer.new()
 var _inspect_title: Label
 var _inspect_values: Label
+var _inspect_progress := ProgressBar.new()
 var _commands := GridContainer.new()
 var _drawer_panel: PanelContainer
 var _drawer_body := VBoxContainer.new()
@@ -154,6 +156,10 @@ func _ready() -> void:
 	_inspect_scroll.add_child(_inspect_body)
 	_inspect_title = Style.label(_inspect_body)
 	_inspect_title.add_theme_color_override("font_color", Style.TEAL)
+	_inspect_progress.show_percentage = true
+	_inspect_progress.max_value = 1.0
+	_inspect_progress.custom_minimum_size = Vector2(0, 12)
+	_inspect_body.add_child(_inspect_progress)
 	_inspect_values = Style.label(_inspect_body)
 	_inspect_values.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_inspect_values.custom_minimum_size.x = 286
@@ -277,15 +283,20 @@ func _refresh_control_hints() -> void:
 	var weapon: String = str(_frame.player.get("equipment", {}).get("weapon", ""))
 	var profile: Dictionary = _frame.loadout
 	var primary: Dictionary = CombatDefs.ACTIONS[profile.primary]
-	_player_buttons.context.text = "%s %s" % [bindings.hint("game_context"), "交互" if _direct else "ACT"]
+	_player_buttons.context.text = "%s %s" % [bindings.hint("game_context"), "切日常" if _direct else "切战斗"]
 	var movement := PackedStringArray()
 	for id: String in ["act_up", "act_left", "act_down", "act_right"]: movement.append(bindings.hint(id))
 	var info: String = "%s%s" % [bindings.hint("act_primary"), primary.title + ("（按住）" if primary.repeat else "")]
 	for slot: String in _skill_slots:
 		var view: Dictionary = _skill_slots[slot]
 		var kind: String = profile.get(slot, "")
-		view.panel.visible = _direct and not kind.is_empty()
-		if kind.is_empty(): continue
+		view.panel.visible = _direct
+		if kind.is_empty():
+			set_text(view.title, "%s 未装配" % bindings.hint("act_" + slot))
+			view.title.modulate = Color.WHITE
+			view.panel.tooltip_text = "当前武器配置未提供此槽位；能力练习场的范例不代表本角色已拥有。"
+			view.bar.value = 0
+			continue
 		var definition: Dictionary = CombatDefs.ACTIONS[kind]
 		var left: int = maxi(0, int(_frame.cooldowns.get(definition.cd_group, 0)) - _frame.world_ms)
 		var costs := PackedStringArray()
@@ -310,7 +321,7 @@ func _refresh_control_hints() -> void:
 	if not resources.is_empty(): info += " · " + " / ".join(resources)
 	for value: Dictionary in _frame.implements.values():
 		if value.owner == 1: description += "  飞剑 %d/%d · %s" % [value.hp, CombatDefs.ACTIONS[value.ability].delivery.durability, {"stowed": "已回收", "outbound": "派出中", "orbiting": "环绕", "hovering": "驻留", "returning": "返航中", "dropped": "受阻在外，靠近后召回", "broken": "损毁，重练可重新体验"}.get(value.phase, value.phase)]
-	set_text(_weapon, ("%s · %s\n%s" % [profile.title, info, description]) if _direct else "交互／营造 · 左键选择 · 右键对象菜单 · %s返回ACT" % bindings.hint("game_context"))
+	set_text(_weapon, ("战斗 · %s · %s\n%s" % [profile.title, info, description]) if _direct else "日常 · WASD移动 · 左键选择 · 右键交互 · %s切战斗" % bindings.hint("game_context"))
 
 func _clear(parent: Node) -> void:
 	for child: Node in parent.get_children():
@@ -369,7 +380,7 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 	var player: Dictionary = frame.player
 	_practice_bar.visible = not frame.practice_mode.is_empty()
 	if _practice_bar.visible:
-		set_text(_practice_hint, "切换范例／重练将新开世界")
+		set_text(_practice_hint, "能力练习场 · 切换范例会新开练习世界")
 		var index: int = _loadout_ids.find(frame.loadout.id)
 		if index >= 0 and _loadout_choice.selected != index: _loadout_choice.select(index)
 	var calendar: Dictionary = frame.counters.get("calendar", {})
@@ -388,11 +399,6 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 	var action_target: int = int(action.get("target", 0))
 	if action_target > 0: current += " #%d" % action_target
 	set_text(_action_values, "%.1f°C   灵气 %d   %s" % [float(player.get("temperature", 0)), int(player.get("qi", 0)), current])
-	_progress.visible = action.has("started_ms")
-	if _progress.visible:
-		var start: int = action.started_ms
-		var finish: int = int(frame.combat[1].end_ms) if frame.combat.has(1) else int(player.get("due_ms", start))
-		_progress.value = clampf(float(frame.world_ms - start) / maxi(1, finish - start), 0.0, 1.0)
 	var dead: bool = int(player.get("hp", 0)) <= 0
 	for key: String in _player_buttons: _player_buttons[key].disabled = dead
 	_player_buttons.heal.disabled = dead or int(player.get("hp", 0)) >= int(player.get("stats", {}).get("max_hp", 100)) or int(player.get("usable_inventory", {}).get("potion", 0)) <= 0
@@ -409,12 +415,16 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 	if not _target.is_empty():
 		set_text(_inspect_title, ("◷ " if _target.get("memory", false) else "") + Actions.title(_target))
 		var rows := PackedStringArray()
+		if _target.get("kind") == "actor":
+			rows.append(ActivityText.summary(_target))
+			if not _target.get("public_roles", []).is_empty(): rows.append("任职：" + "、".join(_target.public_roles))
 		if _target.get("observed_other", false): rows.append(str(_target.get("appearance", "")))
 		elif _target.has("hp") and not (_target.get("memory", false) and _target.get("kind") == "actor"): rows.append("HP %d" % int(_target.hp))
 		if _target.has("tolerance"): rows.append("耐受 %.1f / %.0f" % [float(_target.tolerance), float(_target.max_tolerance)])
 		if _target.has("position"):
 			var point: Vector2 = _target.position
-			rows.append("(%.2f, %.2f)   视距 %.1f" % [point.x, point.y, float(_target.get("sight_range", 0))])
+			rows.append("(%.2f, %.2f)" % [point.x, point.y])
+			if _target.has("sight_range"): rows.append("视距 %.1f" % float(_target.sight_range))
 		if _target.has("energy"): rows.append("精力 %d   饥饿 %d" % [int(_target.energy), int(_target.hunger)])
 		if _target.has("temperature"): rows.append("%.2f°C" % float(_target.temperature))
 		if _target.has("elements"): rows.append(elements(_target.elements))
@@ -463,6 +473,7 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 	if _drawer_name == "character" and is_instance_valid(character):
 		character.refresh(Actions.observed(frame, _character_id, use_fog))
 	inventory.refresh(frame, use_fog)
+	advance_progress(frame.world_ms)
 	if Time.get_ticks_msec() > _tooltip_until: set_text(_receipt, "")
 
 func show_tool(glyph: String, caption: String = "", locked: bool = false) -> void:
@@ -715,3 +726,13 @@ func reset_session() -> void:
 	_drawer_panel.hide()
 	_command_signature = ""
 	show_tool("")
+
+func advance_progress(at: float) -> void:
+	if _frame != null:
+		if _drawer_name == "character" and is_instance_valid(character): character.advance_progress(Actions.observed(_frame, _character_id, _use_fog), at)
+		var own: float = ActivityText.progress(_frame.player, at)
+		_progress.visible = own >= 0.0
+		if own >= 0.0: _progress.value = own
+	var ratio: float = ActivityText.progress(_target, at)
+	_inspect_progress.visible = ratio >= 0.0
+	if ratio >= 0.0: _inspect_progress.value = ratio

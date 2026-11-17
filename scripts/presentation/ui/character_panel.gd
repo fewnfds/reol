@@ -4,6 +4,7 @@ signal requested(action: String, payload: Dictionary)
 const Items = preload("res://scripts/sim/kernel/items.gd")
 const Style = preload("res://scripts/presentation/ui/style.gd")
 const Grid = preload("res://scripts/presentation/ui/item_grid.gd")
+const ActivityText = preload("res://scripts/presentation/ui/activity_text.gd")
 const EventText = preload("res://scripts/presentation/ui/event_text.gd")
 const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const RequestPanel = preload("res://scripts/presentation/ui/request_panel.gd")
@@ -14,6 +15,7 @@ var _bag: Button
 var _overview: Label
 var _stats: Label
 var _activity: Label
+var activity_progress := ProgressBar.new()
 var _practice: Label
 var _responsibilities: Label
 var _gear := GridContainer.new()
@@ -46,6 +48,10 @@ func _ready() -> void:
 	_overview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_activity = Style.label(body)
 	_activity.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	activity_progress.max_value = 1.0
+	activity_progress.show_percentage = true
+	activity_progress.custom_minimum_size.y = 12
+	body.add_child(activity_progress)
 	_stats = Style.label(body)
 	_stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_gear.columns = 2
@@ -120,6 +126,7 @@ func refresh(subject: Dictionary) -> void:
 	_overview.text = (_membership_text(subject) + "\n" + _rest_text(subject)) if matching and not subject.get("pending", false) else ("正在察看…" if subject.get("pending", false) else "暂无所知。")
 	if subject.get("memory", false): _overview.text = "不在视野内；此处仅保留先前的目击信息。"
 	if not known:
+		activity_progress.hide()
 		_event_signature = ""
 		_stats.text = "不在视野内；当前状况未明。" if matching and subject.get("memory", false) else "暂无所知。"
 		_activity.text = "先前目击于 %.1f 秒" % (int(subject.get("seen_ms", 0)) / 1000.0) if subject.get("memory", false) else ""
@@ -186,20 +193,21 @@ func _refresh_self(subject: Dictionary) -> void:
 	if version != _event_signature:
 		_event_signature = version
 		var event_lines := PackedStringArray()
-		for event: Dictionary in subject.get("events", []): event_lines.append(EventText.line(event))
+		for event: Dictionary in subject.get("events", []):
+			var line: String = EventText.line(event)
+			if not line.is_empty(): event_lines.append(line)
 		events.text = "\n".join(event_lines)
 
 func _refresh_activity(subject: Dictionary) -> void:
 	if int(subject.get("hp", 0)) <= 0:
 		_activity.text = "已亡故"; return
-	var activity: Dictionary = subject.get("activity", {})
-	var operation: String = str(activity.get("operation", ""))
-	var phase: String = str({"approaching": "正在赶路", "waiting": "原地等候", "acting": "正在进行", "partner_waiting": "应邀等候", "traveling": "正在赶路", "exploring": "附近走动", "combat": "战斗", "working": "活动"}.get(activity.get("phase", ""), "原地驻足" if subject_id != 1 else ("自主安排中" if subject.get("autonomous", false) else "等待你的操作")))
-	_activity.text = "%s%s" % [phase, " · " + str(EventText.Actions.Operations.OPERATIONS[operation].title) if EventText.Actions.Operations.OPERATIONS.has(operation) else ""]
-	if activity.get("role", "") in ["teacher", "learner"]:
-		_activity.text = "共同授业 · %s · 对方 #%d" % ["传授中" if activity.role == "teacher" else "学习中", int(activity.target)]
-	elif activity.get("reason") == "awaiting_participant": _activity.text = "等待对方主动参加授业"
+	_activity.text = ActivityText.summary(subject)
 	if subject_id == 1:
 		var reason: String = str(subject.get("admission_reason", ""))
 		if not reason.is_empty(): _activity.text += "\n" + preload("res://scripts/presentation/ui/actions.gd").reason_text(reason)
 		_activity.text += "\n自主生活中；移动可切回亲自操作。" if subject.get("autonomous", false) else "\n由你亲自操作。"
+
+func advance_progress(subject: Dictionary, at: float) -> void:
+	var value: float = ActivityText.progress(subject, at)
+	activity_progress.visible = value >= 0.0
+	if value >= 0.0: activity_progress.value = value

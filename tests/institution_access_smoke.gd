@@ -10,7 +10,7 @@ func workshop(w: RefCounted, org: int, definition: String, cell: Vector2i) -> in
 func scoped_work_and_revoke() -> void:
 	var w: RefCounted = peaceful()
 	var org: int = w.institutions.create("青禾宗")
-	for actor: int in [3, 4]: w.institutions.admit(w, org, actor, []); move_actor(w, actor, Vector2(125.5, 123.5))
+	for actor: int in [3, 4]: w.institutions.admit(w, org, actor, []); move_actor(w, actor, Vector2(125.5, 127.5 - actor))
 	var chest: int = workshop(w, org, "wood_chest", Vector2i(123, 122))
 	var stove: int = workshop(w, org, "cook_stove", Vector2i(125, 122))
 	var other: int = workshop(w, org, "cook_stove", Vector2i(129, 122))
@@ -32,6 +32,9 @@ func scoped_work_and_revoke() -> void:
 	check(w.objects.records[stove].has("process") and w.objects.amount(4, "grain") == 0, "Scoped work never actually put ingredients in the pot")
 	check(w.institutions.revoke(w, a) and not w.actions.has(4) and not w.reservations.has(stove), "Revoking a role left an unauthorized running action")
 	check(w.objects.records[stove].process.remaining_ms < w.Operations.OPERATIONS.cook.recipe.work_ms and not w.objects.records[stove].work_stock.is_empty(), "Revocation lost actual labor or in-process materials")
+	# This fixture has manual bodies. The outgoing cook must vacate the single
+	# station; authority revocation itself never pushes a person elsewhere.
+	move_actor(w, 4, Vector2(124.5, 124.5))
 	check(w.begin_interaction(3, {"kind": "cook", "target": stove}) == "accepted", "Authorized replacement could not continue original pot")
 	advance(w, w.elapsed_ms + 7000)
 	check(w.objects.amount(stove, "meal") > 0 and not w.objects.records[stove].has("process"), "Replacement did not produce original attributed meals")

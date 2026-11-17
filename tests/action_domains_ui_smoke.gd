@@ -20,7 +20,7 @@ func _run() -> void:
 		game.selected = plant
 		var point: Vector2 = await aim(1)
 		point += Vector2(35, 0)
-		print("DOMAIN_UI state ",game.controls.direct," ",game.controls.locked()," ",game.controls._focused," ",point)
+		print("DOMAIN_UI state ",game.controls.combat_stance," ",game.controls.locked()," ",game.controls._focused," ",point)
 		await capture("p4-tending-before")
 		await mouse(MOUSE_BUTTON_RIGHT, true, point)
 		await mouse(MOUSE_BUTTON_RIGHT, false, point)

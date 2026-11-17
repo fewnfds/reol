@@ -3,6 +3,7 @@ extends RefCounted
 ## approach/reservation/timer/cancel contract, not a separate construction clock.
 
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
+const ServicePositions = preload("res://scripts/sim/kernel/service_positions.gd")
 const Positions = preload("res://scripts/sim/kernel/work_positions.gd")
 const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const Query = preload("res://scripts/sim/kernel/operation_query.gd")
@@ -57,11 +58,34 @@ func in_range(world: RefCounted, target: int, origin: Vector2, radius: float, op
 	return Positions.permits(world, target, operation, origin, radius, flying)
 
 
-func interaction_point(world: RefCounted, target: int, origin: Vector2, radius: float = 0.35, flying: bool = false, operation: String = "") -> Vector2:
-	if in_range(world, target, origin, radius, operation, flying): return origin
+func interaction_point(world: RefCounted, target: int, origin: Vector2, radius: float = 0.35, flying: bool = false, operation: String = "", actor: int = 0) -> Vector2:
+	if in_range(world, target, origin, radius, operation, flying):
+		if actor == 0 or not ServicePositions.uses_station(world, target): return origin
+		var occupants: Array[int] = ServicePositions.occupants(world, origin, radius, actor)
+		if occupants.is_empty(): return origin
+		ServicePositions.request_clearance(world, occupants)
 	if world.actor_slots.has(target):
-		return world.terrain.project_point(world.position_at(target), radius, flying)
+		var centre: Vector2 = world.position_at(target)
+		var slot: int = world.actor_slots[target]
+		var gap: float = radius + world.pages[slot / 256].radii[slot % 256] + 0.15
+		var direction: Vector2 = centre.direction_to(origin)
+		if direction.is_zero_approx(): direction = Vector2.RIGHT
+		var contacts: Array[Vector2] = []
+		for offset: int in 8:
+			var point: Vector2 = centre + direction.rotated(offset * TAU / 8) * gap
+			if world.terrain.can_stand(point, radius, flying) and in_range(world, target, point, radius, operation, flying) and (actor == 0 or ServicePositions.occupants(world, point, radius, actor).is_empty()): contacts.append(point)
+		return _reachable(world, origin, contacts, radius, flying)
 	var candidates: Array[Vector2] = Positions.candidates(world, target, operation, origin, radius, flying)
+	if actor > 0 and ServicePositions.uses_station(world, target):
+		var available: Array[Vector2] = []
+		for candidate: Vector2 in candidates:
+			var occupants: Array[int] = ServicePositions.occupants(world, candidate, radius, actor)
+			if occupants.is_empty(): available.append(candidate)
+			else: ServicePositions.request_clearance(world, occupants)
+		candidates = available
+	return _reachable(world, origin, candidates, radius, flying)
+
+func _reachable(world: RefCounted, origin: Vector2, candidates: Array[Vector2], radius: float, flying: bool) -> Vector2:
 	for candidate: Vector2 in candidates:
 		if world.terrain.segment_clear(origin, candidate, radius, flying): return candidate
 	var deferred := Vector2(-1, -1)
@@ -70,6 +94,13 @@ func interaction_point(world: RefCounted, target: int, origin: Vector2, radius: 
 		if not nav.plan(origin, candidate, radius, flying).is_empty(): return candidate
 		if nav.deferred and deferred.x < 0: deferred = candidate
 	return deferred
+
+func interaction_refusal(world: RefCounted, target: int, origin: Vector2, radius: float, flying: bool, operation: String, actor: int) -> String:
+	if world.actor_slots.has(target): return "target_busy"
+	if ServicePositions.uses_station(world, target):
+		for point: Vector2 in Positions.candidates(world, target, operation, origin, radius, flying):
+			if not ServicePositions.occupants(world, point, radius, actor).is_empty(): return "target_busy"
+	return "no_operation_place"
 
 
 func start_construction(world: RefCounted, target: int, at: int) -> String:
@@ -82,7 +113,9 @@ func start_construction(world: RefCounted, target: int, at: int) -> String:
 			for row: int in body.ids.size():
 				if body.ids[row] <= 0 or body.health[row] <= 0 or body.flight[row] != 0: continue
 				for member: int in record.cells:
-					if world._body_overlaps_tile(world.position_at(body.ids[row], at), body.radii[row], member): return "occupied"
+					if world._body_overlaps_tile(world.position_at(body.ids[row], at), body.radii[row], member):
+						ServicePositions.request_clearance(world, [body.ids[row]])
+						return "occupied"
 		for member: int in record.cells: world.queue_structure(member, true, false)
 	record["construction_started"] = true
 	world.objects.layout_revision += 1

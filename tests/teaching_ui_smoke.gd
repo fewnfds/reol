@@ -37,7 +37,7 @@ func _run() -> void:
 	await select_and_press(2, "请教")
 	check(await until(func(): return game.frame.player.action.get("kind") == "learn"), "Native learning button failed to express the player's participation")
 	await resume()
-	check(await until(func(): return game.frame.player.get("activity", {}).get("role") == "learner"), "Player's explicit action did not merge the NPC's offer")
+	check(await until(func(): return game.frame.player.get("activity", {}).get("role") == "learner" and game.frame.player.activity.get("phase") == "acting"), "Player's explicit action did not merge the NPC's offer")
 	await pause()
 	game.controls.action("character", {})
 	check(await until(func(): return game.ui.character != null and game.ui.character.subject_id == 2 and game.ui.character._activity.text.contains("传授中")), "Actual teacher role was absent from the normal character panel")

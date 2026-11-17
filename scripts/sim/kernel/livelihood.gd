@@ -371,7 +371,6 @@ func _think(world: RefCounted, id: int, at: int, context: Dictionary = {}) -> vo
 	decisions += 1
 	_ensure_goals(world, id)
 	var entry: Dictionary = record(world, id)
-	if world.knowledge.record(id).due_ms <= at: world.knowledge.observe(world, id, at)
 	_refresh_goals(world, id, entry, at)
 	if not world.objects.records[id].get("autonomous", false): return
 	if at - int(entry.budget.window_ms) >= BUDGET_MS:
@@ -565,6 +564,7 @@ func task_ended(actor: int, task_id: int) -> void:
 func _idle(world: RefCounted, id: int, at: int, searching: bool) -> void:
 	var entry: Dictionary = records[id]
 	entry.idle_attempts = mini(6, int(entry.idle_attempts) + 1) if searching else 0
+	if preload("res://scripts/sim/kernel/service_positions.gd").step_aside(world, id, at): return
 	var delay: int = mini(10000, 1000 * (1 << int(entry.idle_attempts)))
 	if searching and at >= int(entry.explore_ms) and (Beings.has(world.objects.records[id], "work") or Beings.has(world.objects.records[id], "metabolism")):
 		var angle: float = deg_to_rad(float((id * 97 + int(entry.explore_count) * 137) % 360))
@@ -582,6 +582,8 @@ func _walk_to_site(world: RefCounted, id: int, tile: int, at: int, operation: St
 	var row: int = slot % 256
 	var point: Vector2 = world.terrain.project_point(Terrain.center(tile), page.radii[row], page.flight[row] > 0)
 	if point.x < 0: _rejected(world, id, operation, target, "no_operation_place", at)
+	elif target == 0 and (preload("res://scripts/sim/kernel/service_positions.gd").is_service_cell(world, point) or not preload("res://scripts/sim/kernel/service_positions.gd").occupants(world, point, page.radii[row], id).is_empty()):
+		world.decisions.wake(world, id, at, "life_result", 1000)
 	elif world.adopt_motion(id, at):
 		page.move_to(row, point, Units.Mode.EXPLORE)
 		world.decisions.track_host(world, id, operation, target, true)
@@ -665,8 +667,9 @@ func arrived(world: RefCounted, actor: int, at: int) -> void:
 		world.decisions.result(world, actor, str(task.get("operation", "inspect")), target, "not_observed", at)
 	elif tile >= 0: world.knowledge.refresh(world, actor, target, at)
 
-func protected_targets(world: RefCounted, actor: int) -> Dictionary:
-	var result: Dictionary = world.institutions.Access.known_personal_places(world.institutions, actor, world.knowledge.records.get(actor, {}).get("subjects", {}))
+func protected_targets(world: RefCounted, actor: int, subjects: Dictionary = {}) -> Dictionary:
+	if subjects.is_empty(): subjects = world.knowledge.records.get(actor, {}).get("subjects", {})
+	var result: Dictionary = world.institutions.Access.known_personal_places(world.institutions, actor, subjects)
 	for request: Dictionary in world.society.Requests.views(world.society, actor, world.operation_time()):
 		if request.state in ["pending", "deferred", "accepted"]:
 			for target: int in [int(request.target)] + request.terms.sources: result[target] = true
@@ -679,7 +682,7 @@ func protected_targets(world: RefCounted, actor: int) -> Dictionary:
 	for duty: Dictionary in world.institutions.Duties.views(world.institutions, actor).values():
 		for target: int in world.institutions.Duties.targets(duty): result[target] = true
 		for site: int in duty.get("sites", []):
-			var occupant: int = int(world.knowledge.records.get(actor, {}).get("subjects", {}).get(site, {}).get("view", {}).get("occupant", 0))
+			var occupant: int = int(subjects.get(site, {}).get("view", {}).get("occupant", 0))
 			if occupant > 0: result[occupant] = true
 	for bundle: Dictionary in world.institutions.return_bundles(world, actor):
 		if bundle.purpose == "supply" and int(bundle.get("origin", 0)) > 0: result[int(bundle.origin)] = true

@@ -41,6 +41,7 @@ static func _person(frame: RefCounted, raw: Dictionary, clue: Dictionary, use_fo
 	result["hp"] = 1 if int(raw.get("hp", 0)) > 0 else 0
 	result["appearance"] = appearance(raw)
 	result["teaches"] = State.copy(clue.get("view", {}).get("teaches", {}))
+	result["teaching_refusals"] = State.copy(clue.get("teaching_refusals", {}))
 	result["activity"] = _activity(frame, raw, use_fog)
 	if int(frame.inspected_social.get("id", 0)) == int(raw.id): result.merge(State.copy(frame.inspected_social))
 	# A visible corpse can be searched through the original goods operation.
@@ -58,9 +59,9 @@ static func _activity(frame: RefCounted, raw: Dictionary, use_fog: bool) -> Dict
 	var result: Dictionary = {"phase": phase}
 	var target: int = int(activity.get("target", 0))
 	if target == 0 or target == raw.id or visible(frame, target, use_fog):
-		for field: String in ["operation", "target", "role"]:
+		for field: String in ["operation", "target", "target_label", "role", "started_ms", "due_ms"]:
 			if activity.has(field): result[field] = activity[field]
-		if target == 1 and activity.get("reason") == "awaiting_participant": result["reason"] = "awaiting_participant"
+		if activity.get("reason") in ["awaiting_participant", "target_busy", "occupied"]: result["reason"] = activity.reason
 	return result
 
 static func appearance(raw: Dictionary) -> String:

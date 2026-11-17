@@ -17,8 +17,24 @@ static func name(action: String) -> String:
 static func line(event: Dictionary) -> String:
 	var text: String
 	var action: String = name(str(event.get("action", "")))
+	var target: String = str(event.get("target_label", "#%d" % int(event.target) if int(event.get("target", 0)) > 0 else ""))
+	if not target.is_empty(): action += " · " + target
 	match str(event.kind):
-		"order": text = "%s指令已受理" % action
+		"session_started": text = "%s · %s：双方已到场，开始授业" % ["传授" if event.role == "teacher" else "请教", target]
+		"activity_result":
+			var operation: Dictionary = Actions.Operations.OPERATIONS[event.action]
+			if event.role in ["teacher", "learner"]:
+				var method: String = str(preload("res://scripts/sim/kernel/growth_defs.gd").METHODS[operation.learning_method].title)
+				action = "%s%s · %s" % ["向对方传授" if event.role == "teacher" else "向对方请教", method, target]
+			var reason: String = str(event.reason)
+			if event.status == "completed":
+				text = action + "：" + str(REASONS.get(reason, "完成")) if reason != "completed" else action + "：完成"
+				if event.has("item") and int(event.get("amount", 0)) > 0: text += " · %s ×%d" % [Items.label(str(event.item)), int(event.amount)]
+				if int(event.get("points_gained", 0)) > 0: text += " · 熟练 +%d" % int(event.points_gained)
+			else:
+				text = "%s：%s" % [action, {"refused": "未能开始", "interrupted": "已中断", "failed": "未完成"}.get(event.status, "未完成")]
+				if REASONS.has(reason) and not str(REASONS[reason]).is_empty(): text += " · " + str(REASONS[reason])
+		"order": text = "%s：指令已受理" % action
 		"rejected": text = "%s未执行：%s" % [action, str(REASONS.get(event.get("reason", ""), "条件不符"))]
 		"placed": text = "%s：已建立#%d" % ["种植点" if event.action == "plant" else "蓝图", event.target]
 		"thermal_hit": text = "%s  耐受 −%.1f  HP −%d  → %.1f / %d" % ["寒冷" if event.cause == "cold" else "过热", float(event.absorbed), int(event.damage), float(event.tolerance), int(event.hp)]
@@ -45,10 +61,7 @@ static func line(event: Dictionary) -> String:
 		"not_interested": text = "%s：对方当前有自己的安排" % action
 		"teacher_does_not_know": text = "%s：对方尚未掌握这项本领" % action
 		"target_gone", "out_of_reach", "empty_or_full": text = str(REASONS.get(event.kind, "行动未完成"))
-		_:
-			var key: String = str(event.kind)
-			var social: Dictionary = Actions.REASONS
-			text = "%s：%s" % [action, str(social.get(key, "条件未满足"))]
+		_: return ""
 	var start: float = int(event.first_ms) / 1000.0
 	var finish: float = int(event.at_ms) / 1000.0
 	return ("[%.1f–%.1fs] " % [start, finish] if start != finish else "[%.1fs] " % finish) + text

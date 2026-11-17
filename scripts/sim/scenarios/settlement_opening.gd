@@ -251,7 +251,7 @@ static func assemble(world: RefCounted, spec: Definition) -> PackedStringArray:
 					_acquaintance(world, actor, target, Array(plan.teachings.get(peer, [])))
 					_acquaintance(world, target, actor, Array(plan.teachings.get(slot, [])))
 					if not world.society.Contacts.acknowledge(world.society, world, actor, target, 0, true): errors.append("opening: acquaintance refused")
-			world.knowledge.record(actor).due_ms = 0 # First thought observes before planning.
+			world.knowledge.record(actor).due_ms = 0 # First observation joins the shared scheduled quota.
 			world.objects.records[actor].autonomous = actor != 1
 			if actor != 1: world.decisions.wake(world, actor, 0, "settled", 50 + actor % 20 * 50)
 			var point: Vector2 = world.combat.position(world, actor)

@@ -5,10 +5,10 @@ const ACT: int = 1
 const INTERACT: int = 2
 const GLOBAL: int = ACT | INTERACT
 const SPECS: Array[Dictionary] = [
-	{"id": "act_up", "label": "向上移动", "key": KEY_W, "contexts": ACT},
-	{"id": "act_down", "label": "向下移动", "key": KEY_S, "contexts": ACT},
-	{"id": "act_left", "label": "向左移动", "key": KEY_A, "contexts": ACT},
-	{"id": "act_right", "label": "向右移动", "key": KEY_D, "contexts": ACT},
+	{"id": "act_up", "label": "向上移动", "key": KEY_W, "contexts": GLOBAL},
+	{"id": "act_down", "label": "向下移动", "key": KEY_S, "contexts": GLOBAL},
+	{"id": "act_left", "label": "向左移动", "key": KEY_A, "contexts": GLOBAL},
+	{"id": "act_right", "label": "向右移动", "key": KEY_D, "contexts": GLOBAL},
 	{"id": "act_primary", "label": "主攻击", "mouse": MOUSE_BUTTON_LEFT, "contexts": ACT},
 	{"id": "act_skill", "label": "武器技", "mouse": MOUSE_BUTTON_RIGHT, "contexts": ACT},
 	{"id": "act_skill2", "label": "主动技能二", "key": KEY_E, "contexts": ACT},
@@ -16,7 +16,7 @@ const SPECS: Array[Dictionary] = [
 	{"id": "act_step", "label": "闪步／后撤", "key": KEY_SPACE, "contexts": ACT},
 	{"id": "game_heal", "label": "用药", "key": KEY_R, "contexts": ACT},
 	{"id": "game_ability", "label": "已学能力", "key": KEY_Q, "contexts": ACT},
-	{"id": "game_context", "label": "战斗／交互模式", "key": KEY_TAB, "contexts": GLOBAL},
+	{"id": "game_context", "label": "日常／战斗姿态", "key": KEY_TAB, "contexts": GLOBAL},
 	{"id": "game_interact", "label": "附近交互", "key": KEY_F, "contexts": GLOBAL},
 	{"id": "game_inventory", "label": "背包", "key": KEY_I, "contexts": GLOBAL},
 	{"id": "game_build_menu", "label": "营造", "key": KEY_B, "contexts": GLOBAL},

@@ -31,6 +31,7 @@ const Sight = preload("res://scripts/sim/kernel/sight.gd")
 const Regions = preload("res://scripts/sim/kernel/regions.gd")
 const PersonEvents = preload("res://scripts/sim/kernel/person_events.gd")
 const STATE_FIELDS: Array = ["elapsed_ms", "actor_count", "initial_material", "harvested", "deliveries", "failed_harvests", "steps", "deaths", "attacks", "heals", "topology_revision", "source_objects", "depot_objects", "reservations", "actions", "work_runs", "next_run", "next_process"]
+const ServicePositions = preload("res://scripts/sim/kernel/service_positions.gd")
 const Beings = preload("res://scripts/sim/kernel/being_defs.gd")
 const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const OperationQuery = preload("res://scripts/sim/kernel/operation_query.gd")
@@ -349,7 +350,7 @@ func _advance_interval(end: int) -> void:
 	_commit_ms = -1
 	elapsed_ms = end
 	perception.update(self, end)
-	if end % 1000 == 0: knowledge.pulse(self, end)
+	if end % 50 == 0: knowledge.pulse(self, end)
 
 
 func operation_time() -> int:
@@ -424,6 +425,8 @@ func settle(id: int, at: int, expected: Variant = null) -> void:
 			end_run(id, at, "out_of_reach")
 			clear_navigation(id)
 			livelihood.after_action(self, id, at, target)
+		elif resolve_station_arrival(id, target, "harvest", Units.Mode.RESOURCE, at):
+			pass
 		elif not reservations.has(target) and objects.amount(target, "wood") > 0:
 			reservations[target] = id
 			page.modes[row] = Units.Mode.HARVEST
@@ -484,7 +487,7 @@ func follow_contact_approaches(at: int) -> void:
 			clear_navigation(actor)
 			settle_action(actor, at)
 		elif at % 250 == 0 and sight.observed_position(self, actor, target) != null:
-			var point: Vector2 = facilities.interaction_point(self, target, page.positions[row], page.radii[row], page.flight[row] > 0, Operations.OPERATIONS[action.kind].handler)
+			var point: Vector2 = facilities.interaction_point(self, target, page.positions[row], page.radii[row], page.flight[row] > 0, Operations.OPERATIONS[action.kind].handler, actor)
 			if point.x >= 0 and point.distance_to(page.targets[row]) >= 0.5:
 				knowledge.refresh(self, actor, target, at)
 				page.move_to(row, point, Units.Mode.APPROACH)
@@ -550,6 +553,7 @@ func end_run(id: int, at: int = -1, reason: String = "replaced", outcome: Dictio
 
 func commit_activity(run_id: int, operation: String, actor: int, target: int, participants: Array, at: int, outcome: Dictionary) -> Dictionary:
 	var result: Dictionary = activity_results.record(run_id, operation, actor, target, participants, at, outcome)
+	person_events.activity(self, result)
 	institutions.outcome(self, result)
 	livelihood.social_outcome(self, result)
 	return result
@@ -709,7 +713,7 @@ func remove_static(id: int, at: int = -1) -> bool:
 
 func command(input: Dictionary) -> Dictionary:
 	var receipt: Dictionary = _command(input)
-	if actor_slots.has(int(input.get("actor", 1))): person_events.command(input, receipt)
+	if actor_slots.has(int(input.get("actor", 1))): person_events.command(input, receipt, self)
 	return receipt
 
 func _command(input: Dictionary) -> Dictionary:
@@ -1115,8 +1119,8 @@ func begin_source_work(id: int, input: Dictionary) -> String:
 	var slot: int = actor_slots[id]
 	var page: RefCounted = pages[slot / 256]
 	var row: int = slot % 256
-	var point: Vector2 = facilities.interaction_point(self, target, page.positions[row], page.radii[row], page.flight[row] > 0, "harvest")
-	if point.x < 0: return "no_operation_place"
+	var point: Vector2 = facilities.interaction_point(self, target, page.positions[row], page.radii[row], page.flight[row] > 0, "harvest", id)
+	if point.x < 0: return facilities.interaction_refusal(self, target, page.positions[row], page.radii[row], page.flight[row] > 0, "harvest", id)
 	if not adopt_work(id, operation_time(), str(context.purpose)): return "not_ready"
 	page.source_ids[row] = source
 	page.move_to(row, point, Units.Mode.RESOURCE)
@@ -1164,9 +1168,9 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 	var slot: int = actor_slots[id]
 	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
 	var row: int = slot % Units.PAGE_SIZE
-	var point: Vector2 = facilities.interaction_point(self, target, page.positions[row], page.radii[row], page.flight[row] > 0, operation.handler)
+	var point: Vector2 = facilities.interaction_point(self, target, page.positions[row], page.radii[row], page.flight[row] > 0, operation.handler, id)
 	if point.x < 0:
-		return "no_operation_place"
+		return facilities.interaction_refusal(self, target, page.positions[row], page.radii[row], page.flight[row] > 0, operation.handler, id)
 	release(id)
 	actions[id] = input.duplicate(true)
 	if not operation.recipe.is_empty():
@@ -1184,6 +1188,26 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 	decisions.track_host(self, id)
 	return "accepted"
 
+
+func resolve_station_arrival(id: int, target: int, operation: String, mode: int, at: int) -> bool:
+	if not ServicePositions.uses_station(self, target): return false
+	var slot: int = actor_slots[id]
+	var page: RefCounted = pages[slot / 256]
+	var row: int = slot % 256
+	var origin: Vector2 = position_at(id, at)
+	var occupants: Array[int] = ServicePositions.occupants(self, origin, page.radii[row], id, false)
+	if occupants.is_empty(): return false
+	ServicePositions.request_clearance(self, occupants)
+	var next: Vector2 = facilities.interaction_point(self, target, origin, page.radii[row], page.flight[row] > 0, operation, id)
+	if next.x >= 0 and next.distance_to(origin) >= 0.05:
+		page.move_to(row, next, mode)
+	else:
+		# No extra queue or persistent claim. The original refusal/backoff and
+		# idle-clearance wake handle temporary contention without overlapping work.
+		end_run(id, at, "target_busy", ActivityResults.refused("target_busy"))
+		clear_navigation(id)
+		livelihood.after_action(self, id, at, target)
+	return true
 
 func settle_action(id: int, at: int) -> void:
 	var slot: int = actor_slots[id]
@@ -1224,7 +1248,7 @@ func settle_action(id: int, at: int) -> void:
 		if page.modes[row] == Units.Mode.APPROACH and not action.has("join_until_ms") and Operations.contact_operation(str(action.kind)) and actor_slots.has(target):
 			sight.sync(self)
 			if sight.observed_position(self, id, target) != null:
-				var next: Vector2 = facilities.interaction_point(self, target, page.positions[row], page.radii[row], page.flight[row] > 0, handler)
+				var next: Vector2 = facilities.interaction_point(self, target, page.positions[row], page.radii[row], page.flight[row] > 0, handler, id)
 				if next.x >= 0 and next.distance_to(page.positions[row]) >= 0.05:
 					knowledge.refresh(self, id, target, at)
 					page.move_to(row, next, Units.Mode.APPROACH)
@@ -1237,6 +1261,7 @@ func settle_action(id: int, at: int) -> void:
 			livelihood.after_action(self, id, at, target)
 		return
 	if page.modes[row] == Units.Mode.APPROACH:
+		if resolve_station_arrival(id, target, handler, Units.Mode.APPROACH, at): return
 		var exclusive: bool = operation.exclusive
 		if society.Teaching.applies(operation):
 			var participation: String = society.Teaching.prepare(society, self, id, action, at)
@@ -1314,6 +1339,7 @@ func settle_action(id: int, at: int) -> void:
 		action["base_work_ms"] = duration
 		action["scheduled_ms"] = Growth.duration_ms(objects.records[id], operation, duration)
 		page.due_ms[row] = at + int(action.scheduled_ms)
+		person_events.session_started(self, id, action, at)
 		return
 	if action.get("waiting", false):
 		action.erase("waiting")
@@ -1454,40 +1480,53 @@ func describe(id: int) -> Dictionary:
 	return result
 
 func activity_view(id: int) -> Dictionary:
-	var binding: Dictionary = gate.current(id)
-	if binding.is_empty() or not actor_slots.has(id): return {}
+	if not actor_slots.has(id): return {}
 	var slot: int = actor_slots[id]
 	var page: RefCounted = pages[slot / 256]
 	var row: int = slot % 256
+	if page.health[row] <= 0: return {"phase": "dead"}
+	var binding: Dictionary = gate.current(id)
+	if binding.is_empty():
+		return {"phase": "traveling"} if page.modes[row] in [Units.Mode.DIRECT, Units.Mode.COMBAT_MOVE] else {}
 	var result: Dictionary = binding.duplicate()
-	result["due_ms"] = page.due_ms[row]
 	result["phase"] = "working"
 	if binding.domain == "interaction":
 		var action: Dictionary = actions[id]
 		result["operation"] = action.kind
 		result["target"] = action.target
 		result.phase = "approaching" if page.modes[row] == Units.Mode.APPROACH else ("waiting" if action.get("waiting", false) else "acting")
-		if action.has("join_reason"): result["reason"] = action.join_reason
-		if society.Teaching.applies(Operations.OPERATIONS[action.kind]) and action.has("started_ms"):
-			result["role"] = "teacher" if Operations.OPERATIONS[action.kind].handler == "teach" else "learner"
+		if result.phase == "waiting": result["reason"] = action.get("join_reason", "occupied" if Operations.OPERATIONS[action.kind].handler == "construct" and reservations.get(action.target, id) == id else "target_busy")
+		if result.phase == "acting" and action.has("started_ms"):
+			result["started_ms"] = action.started_ms
+			result["due_ms"] = page.due_ms[row]
+		if society.Teaching.applies(Operations.OPERATIONS[action.kind]): result["role"] = "teacher" if Operations.OPERATIONS[action.kind].handler == "teach" else "learner"
 	elif binding.domain == "partner":
 		result.phase = "partner_waiting"
-		var host: Dictionary = actions.get(society.waits[id].actor, {})
-		if not host.is_empty() and society.Teaching.applies(Operations.OPERATIONS[host.kind]) and host.has("started_ms"):
+		var other: int = int(society.waits[id].actor)
+		var host: Dictionary = actions.get(other, {})
+		if not host.is_empty():
 			result["operation"] = host.kind
-			result["target"] = int(society.waits[id].actor)
-			result["role"] = "learner" if Operations.OPERATIONS[host.kind].handler == "teach" else "teacher"
-			result.due_ms = activity_view(int(society.waits[id].actor)).due_ms
+			result["target"] = other
+			if host.has("started_ms") and not host.get("waiting", false):
+				result.phase = "acting"
+				result["started_ms"] = host.started_ms
+				var host_slot: int = actor_slots[other]
+				result["due_ms"] = pages[host_slot / 256].due_ms[host_slot % 256]
+			if society.Teaching.applies(Operations.OPERATIONS[host.kind]): result["role"] = "learner" if Operations.OPERATIONS[host.kind].handler == "teach" else "teacher"
 	elif binding.domain == "combat": result.phase = "combat"
 	elif binding.domain == "work":
 		match page.modes[row]:
-			Units.Mode.REST: result.phase = "waiting"
+			Units.Mode.REST: result.phase = "waiting"; result["reason"] = "target_busy"
 			Units.Mode.MANUAL: result.phase = "traveling"
 			Units.Mode.EXPLORE: result.phase = "exploring"
 			Units.Mode.RESOURCE, Units.Mode.HARVEST:
 				result.phase = "approaching" if page.modes[row] == Units.Mode.RESOURCE else "acting"
 				result["operation"] = "harvest"
 				result["target"] = source_objects[page.source_ids[row]]
+				if page.modes[row] == Units.Mode.HARVEST:
+					result["due_ms"] = page.due_ms[row]
+					result["started_ms"] = page.due_ms[row] - int(Operations.OPERATIONS.harvest.duration_ms)
+	if int(result.get("target", 0)) > 0: result["target_label"] = person_events.subject_label(self, id, int(result.target), operation_time())
 	return result
 
 

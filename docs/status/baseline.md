@@ -4,7 +4,7 @@
 
 ## 宗门试玩诊断
 
-本次只诊断并形成[整改方案](../plans/foundation-priorities.md#宗门试玩反馈整改)，游戏代码与当前成品尚未修改；待修项归[U01～U06](issues.md#宗门试玩待整改)。基线为main `51515226892de3951244add989a304cb6a545452`，Godot 4.7.2。用户入口为选3当前宗门release，后续代码定点复现使用同main的正常百人装配及真实`logs/t13-mature-checkpoint.bin`（2760000ms）。未写入用户默认存档/偏好；诊断文件、脚本与顾问原件在忽略目录，不能把下述定点探针当成用户原会话完整复现。
+本节保存修前诊断，修复结果见[下一节](#宗门试玩修复)，U01～U06状态归[问题清单](issues.md#宗门试玩整改)。基线为main `51515226892de3951244add989a304cb6a545452`，Godot 4.7.2。用户入口为选3当前宗门release，后续代码定点复现使用同main的正常百人装配及真实`logs/t13-mature-checkpoint.bin`（2760000ms）。未写入用户默认存档/偏好；诊断文件、脚本与顾问原件在忽略目录，不能把下述定点探针当成用户原会话完整复现。
 
 `logs/playtest-review-cases.json`与`playtest-review-events-and-crowding-verified-20261117-153533-870194100.log`：正常100人开局，仅把请求者移到对象旁以隔离路径因素，目标仍保留实际自主行为。向2号请教炊事50ms返回`teacher_does_not_know`，向已掌握并公开炊事的8号50ms返回`not_interested`，两者UI日志均为“行动：条件未满足”。成功从餐箱进食在1000ms产生`status_added`和`action_ended(reason=completed)`，也各误报一次“行动：条件未满足”，随后才显示“进食完成”。这证实合法拒绝与成功事件假失败并存，不推断用户当时全部失败均是同一原因。
 
@@ -25,6 +25,38 @@
 上述实际Game的12墙钟秒GUI窗另记录`logs/playtest-review-ui-timeline.json`：采到617次发布，11次发布间隔>60ms、最大166.655ms；render_ms实际增长有10次间隔>60ms、最大149.995ms。该源码窗口约120FPS，区别于既有60FPS限制的release样本，不能把headless/GUI/source/release数字混作同一基线。规律性停顿与整秒观察相符，主线程持续重绘并不能保证人物连续移动。
 
 此前release成熟短窗的约60FPS、平均0.9967×、simstep p99 68.593ms/最大130.978ms只证明所测平均吞吐与重绘，不证明没有周期停顿。T12c/T13既有GUI/三日供养通过也不覆盖此次误攻、卡片活动、终结日志和静止重叠体验。原证据保留，适用范围按此收紧。
+
+## 宗门试玩修复
+
+2026-11-17，基于main `35a0053`实施R01～R05，正常百人和能力练习仍共用原World/Combat。改动按原行动、认识、空间及展示owner落地，无新执行后端/持久队列；格式保持32。普通宗门默认/读档回日常，WASD两态共用，生活操作回日常；切态/工具/失焦/加载清未提交连续输入，已成立招式照原承诺完成。选中NPC显示可见活动/对象及真实连续作业进度，公开任职沿原社会视图，不读取私人目的。终结历史提交当时保存对象/双方角色/结果与原因，后续改名或近期结果淘汰仍可读；未知内部事件不再冒充失败。
+
+服务站位由现有身体和在途目标派生；初次作业与采木抵达重验，被后来者占住时改走同目标其他合法位置。全满明确`target_busy`沿原拒绝反馈/退避重试，几何封死仍`no_operation_place`，没有新增永久队列。散落物品并发取放与人物参与合同保留。非玩家/非手动/无活动的自主闲人可实际让出服务位，普通随机探索避开工位；跨格边缘按身体距离判阻位，施工完整占地也可唤醒闲人，人物接触点核身体可站与路径可达。让位只搜附近四圈直达空点，封闭密室可能找不到，不宣称全员运动碰撞、绕障疏散或编队。
+
+普通观察从整秒批量改为50ms边界的确定性due/身份配额，百人每边界最多2人；全部存活身体可惰性登记，不靠seed副作用。去掉规划入口同步整场观察，保到达/接触/结果即时反馈。满128先判准入再revision/复制；单次观察共享派生保护集，宿主占用者消失、候选拒入及淘汰依赖均失效，仍保本人已取得的个人床/职责与传承线索。
+
+相关规则检查均errors=0：`logs/playtest-final-{control_smoke,subject_view_smoke,personal_places_smoke}-20261117-171418-*.log`；`playtest-reviewed-activities-20261117-172341-35994000.log`、`playtest-reviewed-work-positions-20261117-172341-25266900.log`、`playtest-institution_access_smoke-review-20261117-170115-388966900.log`、`playtest-knowledge_smoke-boundary-20261117-170244-977160000.log`、`playtest-knowledge_boundaries_smoke-boundary-20261117-170244-980733100.log`、`playtest-clearance-contact-complete-20261117-172101-945815100.log`、`playtest-schedule-dependencies-20261117-170443-439580600.log`。权限检查夹具原先把两名手动工人放在同一单侧灶位，现明确让离任手动人腾空，权限/公料/劳动接续断言未削弱；认识反例隔离其明确时间证据与新增独立观察机会，来源/传播/结果断言未放宽。
+
+真实GUI `playtest-ui-alias-final-20261117-171806-389429500.log`覆盖正常100人默认日常、鼠标选择/WASD/右键菜单、Tab出招/持键切回、附近交互、工具/失焦、会话屏障及实际文件存读，含旧`continue_build`适配入口也回日常；`playtest-teaching-ui-started-20261117-170922-241210700.log`核NPC自愿邀课、玩家主动参加、实际开课双方角色/进度、暂停保存与恢复完成；均errors=0。截图`logs/sect-playtest-ui/`、`logs/teaching-ui/shared-lesson.png`已观察。成熟检查点真实Game选38号，卡片“修行中 · 青灵竹 #657”与真进度、无伪视距，截图`logs/playtest-final-reviewed-selected-npc.png`已观察。
+
+同一2760秒成熟检查点、相同约120FPS源码GUI、12墙钟秒最终采样 `playtest-reviewed-mature-ui-20261117-172128-396855100.log`与`playtest-final-reviewed-ui-timeline.json`：634次发布，>60ms间隔0次、最大58.352ms；render_ms实际增长1308次，>60ms间隔0次、最大58.402ms。修前对应窗口发布11次/render10次，最大166.655/149.995ms；首次修订中间窗仍有一次75ms发布长尾，原日志保留。这里只说明所测正常成熟负载的规律停顿已削减，不推算精确提升比例或任意负载保证。
+
+当前独立release由`logs/export-20261117-172356-939845500.log`生成，exe/pck已复制至无源码的`.local/playtest-final-package/`运行验证。收尾空间反例前的候选包实际Win32 F5保存→完全退出→F9读取成功；最终包再以原生F9、普通format32适配器载入同一2760秒成熟检查点成功。用户默认存档及bak/tmp原样恢复。D3D12/RTX3060/1280×720、60FPS限制、3秒预热+10秒窗口；前四行为收尾前候选，第五行为当前包：
+
+| 独立release窗口 | 实际倍率 | 帧p95 / p99 / 最大ms | 模拟步均 / p99 / 最大ms |
+|---|---|---|---|
+| 正常新局/实际保存 | 1.0000× | 16.692 / 16.755 / 16.854 | 5.436 / 26.115 / 42.550 |
+| 完全重启/实际读取 | 1.0017× | 16.739 / 16.933 / 17.126 | 5.673 / 31.706 / 45.643 |
+| 成熟实际读取 | 1.0010× | 16.801 / 17.255 / 122.090 | 6.646 / 28.566 / 36.347 |
+| 成熟同条件复核 | 0.9995× | 16.856 / 17.328 / 73.563 | 6.716 / 28.723 / 36.051 |
+| 最终包成熟实际读取 | 1.0001× | 16.692 / 16.710 / 16.966 | 6.575 / 30.215 / 37.853 |
+
+原件为`logs/playtest-final-package-{save,load,mature,mature-recheck,reviewed-mature}.json`及同名前缀日志（save171042、load171058、mature171310、recheck171446、reviewed-mature172415）。最终成品截图`logs/settlement-ui/playtest-final-standalone-reviewed-mature.png`已观察。前两个成熟release窗口仍出现孤立长帧，最终短窗未出现不代表消除；未定位为同一周期观察峰值，没有用平均FPS将其隐藏。本轮不追加低配/万人/三日验收。
+
+构建SHA256：exe `3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf`；pck `3878287d4359ac71e58404d9b363864720a824cfc401a6342b2418442ae5deb1`。当前包沿`build/windows/sect-foundation/`，旧P5包/格式14/旧用户档保留。源码、成品、GUI、headless成本条件分开记录。
+
+收尾实现及修订后最终双顾问答复分别位于`.local/advisor/playtest-repair-20261117/{implementation-review,final-review}/`，四份完整答复均已通读并独立核查。采纳加载UI重入屏障、日常命令退出瞄准、到场占位复核、新身体首次观察登记、批内保护失效、身份名称与进度时源统一；最终再补跨格身体阻位、接触点身体/路径校验、施工占地闲人唤醒，完成对应反例。拒绝“commit后才knowledge.outcome”（原end_run已先刷新）、“EventText无arrived/action_started分支”（完整源码有）、“after_action不检查manual”（函数自身检查）的推断。保护集依赖按完整Livelihood核查：当前任务等身份已直接入集，仅个人分配和职责宿主占用者依赖subjects；两类均已失效处理，不因片段推断改成每对象重建。全满临时拒绝/原退避与有限让位为本轮明确取舍，不采无条件推动忙工/玩家、永久重排队或全景认识快照。顾问未运行本机，关闭依据仍是实际源码和验证。
+
+额外回归中，原35a0053隔离工作树的`livelihood_smoke`同样在远距求助返回`refused_busy`，`decision_feedback_smoke`同样未满足施工承诺夹具的同意前提；均未为测试改成NPC无条件服从，两项未通过。`settlement_opening_smoke`并发及单独复核均15秒超时（`playtest-opening-isolated-20261117-171627-260718400.log`）；正常装配、真实自主运行/恢复仍另由GUI/成品与个人床检查证明。此前kernel/abilities聚合15秒超时也未被本轮专题覆盖，不宣称全库全绿。
 
 ## 宗门共享基座交付
 

@@ -95,6 +95,8 @@ func actual_talk_changes_life() -> void:
 	move_actor(w, 3, Vector2(123.5, 121.5))
 	w.objects.records[3].sight_range = 3.0
 	check(w.knowledge.refresh(w, 2, stove, 0), "Speaker did not observe real remote meal")
+	# Isolate transmission of this clue from the independent periodic observer.
+	w.knowledge.record(2).due_ms = w.knowledge.OBSERVATION_MS
 	check(w.begin_interaction(3, {"kind": "talk", "target": 2}) == "accepted", "Actual conversation not accepted")
 	w.settle_action(3, 0)
 	advance(w, 1100)

@@ -15,6 +15,10 @@ const CHANNEL_LIMIT: int = 8
 var records: Dictionary = {}
 var observations: int = 0
 var observe_usec: int = 0
+# Transient, scoped to one owner's serial observation, never a saved second truth.
+var _batch_actor: int = 0
+var _protected: Dictionary = {}
+var _protection_dirty: bool = true
 
 func record(actor: int) -> Dictionary:
 	if not records.has(actor): records[actor] = {"due_ms": 0, "subjects": {}, "experiences": [], "next_revision": 1, "channels": {}}
@@ -51,7 +55,11 @@ func account_view(actor: int, target: int, at: int) -> Dictionary:
 	# The presentation reads already acquired evidence. Inspecting a panel does
 	# not observe the world, renew a location or create a new memory.
 	var entry: Dictionary = records.get(actor, {}).get("subjects", {}).get(target, {})
-	return {} if entry.is_empty() else {"view": view(actor, target, at), "seen_ms": int(entry.seen_ms), "origin": str(entry.origin)}
+	if entry.is_empty(): return {}
+	var refused: Dictionary = {}
+	for experience: Dictionary in records.get(actor, {}).get("experiences", []):
+		if experience.target == target and not can_attempt(actor, experience.operation, target, at): refused[experience.operation] = experience.reason
+	return {"view": view(actor, target, at), "seen_ms": int(entry.seen_ms), "origin": str(entry.origin), "teaching_refusals": refused}
 
 func read_channel(world: RefCounted, actor: int, channel: int, board: Dictionary, at: int) -> void:
 	var entry: Dictionary = record(actor)
@@ -81,6 +89,7 @@ func _store(world: RefCounted, actor: int, value: Dictionary, origin: String, ob
 	var subjects: Dictionary = record(actor).subjects
 	var target: int = value.id
 	var old: Dictionary = subjects.get(target, {})
+	if _batch_actor == actor and (world.institutions.Access.personal_place(world.institutions, actor, target) or value.has("occupant") or old.get("view", {}).has("occupant")): _protection_dirty = true
 	if origin == "heard" and not old.is_empty():
 		if (seen <= int(old.absent_ms) and (value.kind != "actor" or value.tile == old.absent_tile)) or seen < int(old.seen_ms): return _merge_teachings(actor, target, teachings)
 		if seen == int(old.seen_ms) and hops >= int(old.hops): return _merge_teachings(actor, target, teachings)
@@ -92,28 +101,48 @@ func _store(world: RefCounted, actor: int, value: Dictionary, origin: String, ob
 		if origin != "heard" or improved: old.merge({"origin": origin, "observer": observer, "source": source, "seen_ms": seen, "received_ms": at, "hops": hops}, true)
 		if origin != "heard": old.merge({"absent_ms": -1, "absent_tile": -1}, true)
 		return _merge_teachings(actor, target, teachings) or improved
+	# Admission precedes revision/copy: an immediately forgotten sighting is not
+	# new usable evidence and must not repeatedly wake the planner.
+	if old.is_empty() and subjects.size() >= SUBJECT_LIMIT:
+		var incoming: Dictionary = {"view": value, "origin": origin, "seen_ms": seen, "absent_ms": -1, "teachings": teachings}
+		var protected: Dictionary
+		# Include this newly acquired clue while deriving protection, exactly as
+		# the previous insert-then-prune path did, without growing the stored set.
+		if _batch_actor != actor or _protection_dirty:
+			var candidates: Dictionary = subjects.duplicate()
+			candidates[target] = incoming
+			protected = world.livelihood.protected_targets(world, actor, candidates)
+			if _batch_actor == actor: _protected = protected; _protection_dirty = false
+		else: protected = _protected
+		var victim: int = 0
+		var worst: Dictionary = incoming
+		var rank: int = _rank(incoming, target, protected, at)
+		var protect_incoming: bool = focus or target == world.actions.get(actor, {}).get("target", 0) or target == world.decisions.records.get(actor, {}).get("task", {}).get("target", 0)
+		for id: int in subjects:
+			if id == world.actions.get(actor, {}).get("target", 0) or id == world.decisions.records.get(actor, {}).get("task", {}).get("target", 0): continue
+			var candidate: Dictionary = subjects[id]
+			var priority: int = _rank(candidate, id, protected, at)
+			if (victim == 0 and protect_incoming) or priority < rank or (priority == rank and (int(candidate.seen_ms) < int(worst.seen_ms) or (candidate.seen_ms == worst.seen_ms and id < (target if victim == 0 else victim)))):
+				victim = id; worst = candidate; rank = priority
+		if victim == 0:
+			# The provisional candidate never became knowledge. Its dependencies
+			# must not remain protected during this observation batch.
+			if _batch_actor == actor and (value.has("occupant") or world.institutions.Access.personal_place(world.institutions, actor, target)): _protection_dirty = true
+			return false
+		if _batch_actor == actor and (subjects[victim].view.has("occupant") or world.institutions.Access.personal_place(world.institutions, actor, victim)): _protection_dirty = true
+		subjects.erase(victim)
 	var revision: int = _revision(actor) if changed else int(old.revision)
 	subjects[target] = {"view": State.copy(value), "origin": origin, "observer": observer, "source": source, "seen_ms": seen,
 		"received_ms": at, "hops": hops, "revision": revision, "absent_ms": int(old.get("absent_ms", -1)) if origin == "heard" else -1,
 		"absent_tile": int(old.get("absent_tile", -1)) if origin == "heard" else -1, "teachings": State.copy(old.get("teachings", {}))}
 	changed = _merge_teachings(actor, target, teachings) or changed
-	if subjects.size() > SUBJECT_LIMIT:
-		var protected: Dictionary = world.livelihood.protected_targets(world, actor)
-		var victim: int = 0
-		var oldest: int = 0
-		var rank: int = 100
-		for id: int in subjects:
-			if focus and id == target: continue
-			if id == world.actions.get(actor, {}).get("target", 0) or id == world.decisions.records.get(actor, {}).get("task", {}).get("target", 0): continue
-			var candidate: Dictionary = subjects[id]
-			var priority: int = 0 if candidate.view.tile < 0 else (1 if candidate.view.kind == "pile" else (2 if candidate.view.kind == "actor" else (4 if candidate.origin == "seed" else 3)))
-			if not candidate.teachings.is_empty(): priority = 6
-			elif candidate.view.kind != "actor" and candidate.absent_ms >= 0 and at - int(candidate.absent_ms) <= 300000: priority = 5
-			if protected.has(id): priority = 8
-			if priority < rank or (priority == rank and (candidate.seen_ms < oldest or (candidate.seen_ms == oldest and id < victim))):
-				victim = id; oldest = candidate.seen_ms; rank = priority
-		if victim > 0: subjects.erase(victim)
 	return changed and subjects.has(target)
+
+static func _rank(clue: Dictionary, id: int, protected: Dictionary, at: int) -> int:
+	if protected.has(id): return 8
+	if not clue.teachings.is_empty(): return 6
+	if clue.view.kind != "actor" and clue.absent_ms >= 0 and at - int(clue.absent_ms) <= 300000: return 5
+	return 0 if clue.view.tile < 0 else (1 if clue.view.kind == "pile" else (2 if clue.view.kind == "actor" else (4 if clue.origin == "seed" else 3)))
 
 func _teaching_evidence(actor: int, target: int, method: String, incoming: Dictionary) -> bool:
 	# Watching someone's body does not reveal their methods. Successful teaching
@@ -143,16 +172,25 @@ func seed(world: RefCounted, actor: int, value: Dictionary, at: int = -1) -> voi
 	_store(world, actor, known_value, "seed", 0, 0, at, at, 0, teachings)
 
 static func _public_value(supplied: Dictionary) -> Dictionary:
-	var value: Dictionary = State.copy(supplied)
-	value.erase("guest")
-	if value.kind == "actor":
-		value.hp = 1 if int(value.get("hp", 1)) > 0 else 0
-		for field: String in ["inventory", "capacity", "process", "access_dependencies", "contents", "services"]: value.erase(field)
+	if supplied.kind != "actor":
+		var value: Dictionary = State.copy(supplied)
+		value.erase("guest")
+		return value
+	var value: Dictionary = {}
+	for field: String in ["id", "kind", "definition", "tile", "owner", "organization", "sapient", "name"]:
+		if supplied.has(field): value[field] = supplied[field]
+	value["sapient"] = supplied.get("sapient", false)
+	value["hp"] = 1 if int(supplied.get("hp", 1)) > 0 else 0
 	return value
 
 func _snapshot(world: RefCounted, target: int) -> Dictionary:
-	var value: Dictionary = _public_value(world.operation_target(target))
-	if value.kind == "actor": value.tile = Terrain.index(Vector2i(world.combat.position(world, target).floor()))
+	if world.actor_slots.has(target):
+		var value: Dictionary = _public_value(world.objects.records[target])
+		value.tile = Terrain.index(Vector2i(world.combat.position(world, target).floor()))
+		value.hp = 1 if world.combat.alive(world, target) else 0
+		return value
+	var value: Dictionary = world.operation_target(target)
+	value.erase("guest")
 	return value
 
 func refresh(world: RefCounted, actor: int, target: int, at: int, focus: bool = false) -> bool:
@@ -165,6 +203,7 @@ func refresh(world: RefCounted, actor: int, target: int, at: int, focus: bool = 
 		return true
 	var entry: Dictionary = records.get(actor, {}).get("subjects", {}).get(target, {})
 	if not entry.is_empty() and int(entry.view.tile) >= 0 and world.sight.sees(world.combat.position(world, actor), entry.view.tile, world.sight.range_for(world, actor)):
+		if _batch_actor == actor: _protection_dirty = true
 		entry.absent_tile = entry.view.tile
 		entry.view.tile = -1
 		entry.absent_ms = at
@@ -182,12 +221,16 @@ func contacted(world: RefCounted, actor: int, target: int, at: int) -> void:
 	var object: Dictionary = world.objects.records[target]
 	var value: Dictionary = {"id": target, "kind": object.kind, "definition": object.definition, "tile": Terrain.index(Vector2i(world.combat.position(world, target).floor())),
 		"owner": int(object.owner), "organization": int(object.organization), "sapient": object.get("sapient", false)}
+	if object.has("name"): value["name"] = object.name
 	if object.kind == "actor": value["hp"] = 1 if world.combat.alive(world, target) else 0
 	_store(world, actor, value, "receipt", actor, actor, at, at, 0, {}, true)
 
 func observe(world: RefCounted, actor: int, at: int) -> void:
 	var started: int = Time.get_ticks_usec()
 	var entry: Dictionary = record(actor)
+	_batch_actor = actor
+	_protected = {}
+	_protection_dirty = true
 	world.sight.sync(world)
 	var previous_revision: int = entry.next_revision
 	var position: Vector2 = world.combat.position(world, actor)
@@ -212,14 +255,23 @@ func observe(world: RefCounted, actor: int, at: int) -> void:
 	entry.due_ms = at + OBSERVATION_MS
 	if entry.next_revision != previous_revision and world.objects.records[actor].get("autonomous", false) and world.combat.alive(world, actor) and not world.decisions.records.get(actor, {}).get("manual", false) and world.gate.current(actor).is_empty() and not world.decisions.in_combat(actor):
 		world.decisions.wake(world, actor, at, "knowledge_observed", 50 + actor % 10 * 50)
+	_batch_actor = 0
+	_protected = {}
 	observations += 1
 	observe_usec += Time.get_ticks_usec() - started
 
 func pulse(world: RefCounted, at: int) -> void:
-	# Reuse the world's existing one-second boundary. Observation is independent
-	# of choosing an activity, including during travel and willing manual rest.
-	for actor: int in records.keys():
-		if records[actor].due_ms <= at and world.actor_slots.has(actor) and world.combat.alive(world, actor): observe(world, actor, at)
+	# Use existing 50ms boundaries. Old simultaneous deadlines remain valid and
+	# drain in a deterministic bounded order, including after candidate restore.
+	var eligible: Array[int] = []
+	var living: int = 0
+	for actor: int in world.actor_slots:
+		if not world.combat.alive(world, actor): continue
+		living += 1
+		if int(record(actor).due_ms) <= at: eligible.append(actor)
+	eligible.sort_custom(func(a: int, b: int): return int(records[a].due_ms) < int(records[b].due_ms) if records[a].due_ms != records[b].due_ms else a < b)
+	var quota: int = maxi(2, ceili(float(living) * 50.0 / OBSERVATION_MS) + 1)
+	for index: int in mini(quota, eligible.size()): observe(world, eligible[index], at)
 
 func deliver(world: RefCounted, recipient: int, giver: int, target: int, at: int, focus: bool = false) -> bool:
 	var incoming: Dictionary = records.get(giver, {}).get("subjects", {}).get(target, {})
@@ -248,6 +300,7 @@ func deliver(world: RefCounted, recipient: int, giver: int, target: int, at: int
 			# live status or position. Retain only identity from the teaching account.
 			var identity: Dictionary = {"id": target, "kind": value.kind, "definition": value.definition, "tile": -1,
 				"sapient": value.sapient, "owner": value.owner, "organization": value.organization}
+			if value.has("name"): identity["name"] = value.name
 			var account: Dictionary = teachings.values()[0]
 			changed = _store(world, recipient, identity, "heard", account.observer, giver, account.seen_ms, at, account.hops, teachings, focus)
 	if changed and world.objects.records[recipient].get("autonomous", false) and world.combat.alive(world, recipient) and not world.decisions.records.get(recipient, {}).get("manual", false) and world.gate.current(recipient).is_empty() and not world.decisions.in_combat(recipient):
@@ -288,6 +341,7 @@ func outcome(world: RefCounted, actor: int, operation: String, target: int, stat
 			var object: Dictionary = world.objects.records[target]
 			var contact: Dictionary = {"id": target, "kind": object.kind, "definition": object.definition, "tile": Terrain.index(Vector2i(world.combat.position(world, target).floor())),
 				"owner": int(object.owner), "organization": int(object.organization), "sapient": object.get("sapient", false)}
+			if object.has("name"): contact["name"] = object.name
 			if object.kind == "actor": contact["hp"] = 1 if world.combat.alive(world, target) else 0
 			_store(world, actor, contact, "receipt", actor, actor, at, at, 0, {}, true)
 		elif not ((status == "completed" and experienced) or (reason == "target_gone" and records.get(actor, {}).get("subjects", {}).get(target, {}).get("absent_ms", -1) == at)): return

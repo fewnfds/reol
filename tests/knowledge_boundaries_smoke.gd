@@ -3,6 +3,9 @@ extends "res://tests/knowledge_smoke.gd"
 func location_scoped_absence() -> void:
 	var w: RefCounted = peaceful()
 	w.knowledge.records.clear()
+	# Isolate the two explicitly timed location accounts from the independent
+	# periodic schedule. A second observation at the same timestamp is not newer.
+	for actor: int in w.actor_slots: w.knowledge.record(actor).due_ms = 5000
 	move_actor(w, 1, Vector2(123.5, 120.5))
 	move_actor(w, 3, Vector2(124.5, 120.5))
 	w.knowledge.refresh(w, 1, 3, 0)

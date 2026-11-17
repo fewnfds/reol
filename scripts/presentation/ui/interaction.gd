@@ -14,7 +14,7 @@ var tool: String = ""
 var definition: String = ""
 var facing: int = 0
 var help_target: int = 0
-var direct: bool = true
+var combat_stance: bool = false
 var _held: Dictionary = {}
 var _primary_down: bool = false
 var _last_drive: Dictionary = {}
@@ -29,9 +29,11 @@ var _preview_sequence: int = -1
 var _point := Vector2.ZERO
 var _blocked: bool = true
 var _focused: bool = true
+var _session_request: int = 0
 
 func configure(game: Node2D, hud: Control) -> void:
 	host = game
+	combat_stance = host._combat_lab or host._opening == "development"
 	ui = hud
 	ui.requested.connect(action)
 	bindings.install()
@@ -60,12 +62,19 @@ func locked() -> bool:
 
 func tick(delta: float) -> void:
 	if host.frame == null: return
-	if locked() or host.paused or not direct or not tool.is_empty() or not _focused:
+	if locked() or host.paused or not _focused or _session_request > 0:
 		if not _blocked: clear_direct()
 	else:
 		_blocked = false
-		_update_aim(get_viewport().get_mouse_position())
-		var drive: Dictionary = {"enabled": true, "move": move_vector(), "aim": _aim, "primary": _primary_down, "point": pointer_world(get_viewport().get_mouse_position()) - Art.BODY_FOOT_OFFSET}
+		var movement: Vector2 = move_vector()
+		var armed: bool = combat_stance and tool.is_empty()
+		if armed: _update_aim(get_viewport().get_mouse_position())
+		elif not movement.is_zero_approx(): _aim = movement.normalized()
+		var drive: Dictionary = {"enabled": true, "move": movement, "primary": _primary_down if armed else false}
+		if armed:
+			drive["aim"] = _aim
+			drive["point"] = pointer_world(get_viewport().get_mouse_position()) - Art.BODY_FOOT_OFFSET
+		elif not movement.is_zero_approx(): drive["aim"] = _aim
 		if drive != _last_drive:
 			host.runner.drive(drive)
 			_last_drive = drive
@@ -128,12 +137,13 @@ func _input(event: InputEvent) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if host.frame == null or external_modal() or not _focused: return
 	if event is InputEventWithModifiers and (event.alt_pressed or event.ctrl_pressed or event.meta_pressed): return
-	if direct and not locked() and not host.paused and tool.is_empty():
+	if not locked() and not host.paused and _session_request == 0:
 		for key: String in ["left", "right", "up", "down"]:
 			if event.is_action_pressed("act_" + key) and not event.is_echo():
 				_held[key] = true
 				get_viewport().set_input_as_handled()
 				return
+	if combat_stance and not locked() and not host.paused and tool.is_empty() and _session_request == 0:
 		for button: String in ["primary", "skill", "skill2", "skill3", "step"]:
 			if event.is_action_pressed("act_" + button) and not event.is_echo():
 				if button == "primary": _primary_down = true
@@ -152,11 +162,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		action("inventory", {})
 		get_viewport().set_input_as_handled()
 		return
-	if locked(): return
+	if locked() or _session_request > 0: return
 	if event.is_pressed() and not event.is_echo():
 		for spec: Dictionary in Bindings.SPECS:
 			var id: String = spec.id
-			if not id.begins_with("game_") or not Bindings.active(id, direct): continue
+			if not id.begins_with("game_") or not Bindings.active(id, combat_stance): continue
 			if host.paused and id in ["game_heal", "game_ability"]: continue
 			if event.is_action_pressed(id):
 				if id.begins_with("game_pan_"):
@@ -180,8 +190,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			host.camera.force_update_scroll()
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			if not tool.is_empty(): cancel_tool()
-			elif not direct: _right_click(point, event.position)
-		elif event.button_index == MOUSE_BUTTON_LEFT and (not direct or not tool.is_empty()):
+			elif not combat_stance: _right_click(point, event.position)
+		elif event.button_index == MOUSE_BUTTON_LEFT and (not combat_stance or not tool.is_empty()):
 			if not tool.is_empty(): _confirm_tool(point)
 			else:
 				var candidates: Array[int] = pick(point)
@@ -191,7 +201,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 func action(kind: String, payload: Dictionary) -> void:
-	if host.frame == null: return
+	if host.frame == null or _session_request > 0: return
 	var target: int = int(payload.get("target", host.selected))
 	if payload.has("epoch") and int(payload.epoch) != host.frame.epoch: return
 	_pending_context = {}
@@ -199,9 +209,9 @@ func action(kind: String, payload: Dictionary) -> void:
 	match kind:
 		"context":
 			clear_direct()
-			direct = not direct
+			combat_stance = not combat_stance
 			cancel_tool()
-			ui.feedback("ACT操作" if direct else "交互／营造：%s返回ACT" % bindings.hint("game_context"), true)
+			ui.feedback("战斗 · 鼠标瞄准与出招" if combat_stance else "日常 · WASD移动，左键选择，右键交互", true)
 		"interact":
 			var nearest: int = 0
 			var distance: float = 2.5
@@ -229,7 +239,7 @@ func action(kind: String, payload: Dictionary) -> void:
 			clear_direct()
 			var command: Dictionary = {"kind": "combat_practice", "mode": payload.get("mode", host.frame.practice_mode)}
 			if payload.has("loadout"): command.loadout = payload.loadout
-			_send(command)
+			_session_request = _send(command)
 		"pause":
 			clear_direct()
 			host.paused = not host.paused
@@ -241,7 +251,7 @@ func action(kind: String, payload: Dictionary) -> void:
 		"path": host._show_path = not host._show_path
 		"build_menu", "plant_menu", "character", "travel", "dev":
 			clear_direct()
-			if kind in ["build_menu", "plant_menu"]: direct = false
+			if kind in ["build_menu", "plant_menu"]: combat_stance = false
 			cancel_tool()
 			ui.toggle_drawer({"build_menu": "build", "plant_menu": "plant"}.get(kind, kind))
 		"close_drawer": ui.toggle_drawer(ui._drawer_name)
@@ -283,14 +293,16 @@ func action(kind: String, payload: Dictionary) -> void:
 			ui.apply_scale(int(payload.percent))
 		"ui_scale_commit": ui.commit_scale()
 		"place_build", "place_plant":
-			direct = false
+			clear_direct()
+			combat_stance = false
 			tool = "build" if kind == "place_build" else "plant"
 			definition = payload.definition
 			_preview_sequence = -1
 			ui.toggle_drawer(ui._drawer_name)
 			ui.show_tool("build" if tool == "build" else "plant", Actions.buildings.get(definition, Actions.plants.get(definition, {})).get("label", ""))
 		"demolish_tool":
-			direct = false
+			clear_direct()
+			combat_stance = false
 			tool = "demolish"
 			ui.show_tool("close")
 		"rotate_take":
@@ -305,7 +317,8 @@ func action(kind: String, payload: Dictionary) -> void:
 						action("take", {"target": target})
 						break
 		"request_worker":
-			direct = false
+			clear_direct()
+			combat_stance = false
 			help_target = target
 			tool = "worker"
 			ui.show_tool("link", "#%d" % target)
@@ -343,7 +356,8 @@ func action(kind: String, payload: Dictionary) -> void:
 			_send(command)
 		"work", "save", "load", "action_trace":
 			clear_direct()
-			_send({"kind": kind})
+			var sequence: int = _send({"kind": kind})
+			if kind == "load": _session_request = sequence
 		"heal", "ability": _send({"kind": kind})
 		"study": _send({"kind": kind, "target": 1})
 		"read_channel", "post_duty", "accept_post", "report_matter", "close_post":
@@ -363,6 +377,10 @@ func action(kind: String, payload: Dictionary) -> void:
 	host._hud_next = 0
 
 func _send(command: Dictionary) -> int:
+	if _session_request > 0: return 0
+	if Actions.Operations.OPERATIONS.has(command.get("kind", "")) or command.get("kind") in ["continue_build", "work", "journey", "move"]:
+		clear_direct()
+		combat_stance = false
 	if command.get("kind", "") not in ["save", "load", "combat_practice"] and int(host.frame.player.get("hp", 0)) <= 0:
 		ui.feedback("HP 0", false)
 		return 0
@@ -431,7 +449,12 @@ func cancel_tool() -> void:
 	_pending_context = {}
 	ui.show_tool("")
 
+func accept_receipt(receipt: Dictionary) -> void:
+	if int(receipt.seq) == _session_request and receipt.get("reason") != "accepted": _session_request = 0
+
 func reset_session() -> void:
+	_session_request = 0
+	combat_stance = host._combat_lab or host._opening == "development"
 	clear_direct()
 	cancel_tool()
 	if ui.modal_kind() in ["pause", "settings", "bindings"]:
@@ -519,10 +542,10 @@ func _update_preview(tile: int) -> void:
 				if not spec.get("substrates", []).has(substrate) or (host_substrate.is_empty() and (surface & 8) != 0) or (not host_substrate.is_empty() and spec.get("blocks", false)): _preview_ok = false
 
 func paint_world(canvas: Node2D) -> void:
-	if host.frame != null and not direct:
+	if host.frame != null and not combat_stance:
 		var data: Dictionary = Actions.observed(host.frame, host.selected, host.fog_enabled)
 		for cells: PackedInt32Array in data.get("work_cells", {}).values(): _draw_work_cells(canvas, cells)
-	if direct and host.frame != null and not locked() and not host.paused and tool.is_empty():
+	if combat_stance and host.frame != null and not locked() and not host.paused and tool.is_empty():
 		var pointer: Vector2 = pointer_world(get_viewport().get_mouse_position()) * Art.TILE
 		canvas.draw_arc(pointer, 4.0 / host.camera.zoom.x, 0, TAU, 16, Style.GOLD, 1.0 / host.camera.zoom.x)
 	if tool.is_empty() or host.frame == null or locked(): return

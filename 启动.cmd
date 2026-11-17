@@ -9,11 +9,11 @@ set "legacy_combat_build=build\windows\act-p5\reol-act.exe"
 echo.
 echo  Reol
 echo  ========================================
-echo  1. 战斗试玩（最新源码）
+echo  1. 能力练习场（当前框架／范例配装）
 echo  2. 百人宗门（最新源码）
 echo  3. 百人宗门成品（无需 Godot）
 echo  4. Godot 编辑器
-echo  5. 旧 P5 战斗成品（保留旧存档）
+echo  5. 历史版本：旧 P5 战斗包（保留旧存档）
 echo  0. 退出
 echo.
 choice /C 123450 /N /M "请选择 [1-5, 0]："

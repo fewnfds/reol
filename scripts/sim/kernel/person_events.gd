@@ -1,6 +1,8 @@
 extends RefCounted
 ## Committed personal facts, bounded independently of population and play time.
 ## The player keeps a reserved history; NPC entries share a fixed-size ring.
+const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
+const Query = preload("res://scripts/sim/kernel/operation_query.gd")
 const State = preload("res://scripts/sim/kernel/state.gd")
 const PLAYER_LIMIT: int = 256
 const NPC_LIMIT: int = 64
@@ -83,22 +85,56 @@ func accept(event: Dictionary, actors: Dictionary) -> void:
 	elif event.kind == "evaded":
 		var target: int = int(event.get("target", 0))
 		if actors.has(target): record(target, {"kind": "evaded", "at_ms": event.at_ms})
-	elif actors.has(actor):
+	elif actors.has(actor) and event.kind in ["thermal_hit", "tolerance_restored", "tolerance_exhausted", "death", "action_started", "action_active", "arrived", "path_failed", "healed", "ability_used", "equipped", "unequipped"]:
 		# Rendering outcomes can carry contact vectors; the personal fact ring is scalar.
 		var fact: Dictionary = {}
 		for key: String in event:
 			if typeof(event[key]) in [TYPE_STRING, TYPE_INT, TYPE_FLOAT, TYPE_BOOL]: fact[key] = event[key]
 		record(actor, fact)
 
-func command(input: Dictionary, receipt: Dictionary) -> void:
+func command(input: Dictionary, receipt: Dictionary, world: RefCounted) -> void:
 	var actor: int = int(input.get("actor", 1))
 	var action: String = str(input.get("kind", ""))
 	if receipt.get("placed", false):
 		record(actor, {"kind": "placed", "action": action, "target": receipt.target, "at_ms": receipt.at_ms})
 	if not receipt.ok:
-		record(actor, {"kind": "rejected", "action": action, "reason": receipt.reason, "at_ms": receipt.at_ms})
+		record(actor, {"kind": "rejected", "action": action, "reason": receipt.reason, "target": int(input.get("target", 0)), "target_label": subject_label(world, actor, int(input.get("target", 0)), int(receipt.at_ms)), "at_ms": receipt.at_ms})
 	elif action not in ["heal", "ability", "action", "equip", "unequip"]:
-		record(actor, {"kind": "order", "action": action, "target": int(input.get("target", 0)), "at_ms": receipt.at_ms})
+		record(actor, {"kind": "order", "action": action, "target": int(input.get("target", 0)), "target_label": subject_label(world, actor, int(input.get("target", 0)), int(receipt.at_ms)), "at_ms": receipt.at_ms})
+
+
+static func subject_label(world: RefCounted, observer: int, target: int, at: int) -> String:
+	if target <= 0: return ""
+	var known: Dictionary = world.objects.records.get(target, {}) if observer == target else world.knowledge.view(observer, target, at)
+	var definition: String = str(known.get("definition", ""))
+	var spec: Dictionary = Query.BUILDINGS.get(definition, Query.PLANTS.get(definition, {}))
+	var label: String = str(known.get("name", spec.get("label", "")))
+	return (label + " " if not label.is_empty() else "") + "#%d" % target
+
+func activity(world: RefCounted, result: Dictionary) -> void:
+	if result.is_empty(): return
+	var operation: Dictionary = Operations.OPERATIONS[result.operation]
+	for person: int in result.participants:
+		if not world.actor_slots.has(person): continue
+		var peer: int = int(result.target) if person == int(result.actor) else int(result.actor)
+		var role: String = "actor"
+		if operation.handler in ["learn", "teach"]:
+			var teacher: int = int(result.actor) if operation.handler == "teach" else int(result.target)
+			role = "teacher" if person == teacher else "learner"
+		var event: Dictionary = {"kind": "activity_result", "action": result.operation, "run_id": result.run_id, "result_id": result.id,
+			"target": peer, "target_label": subject_label(world, person, peer, int(result.at_ms)), "role": role,
+			"status": result.status, "reason": result.reason, "at_ms": result.at_ms}
+		for field: String in ["item", "amount", "points_gained"]:
+			if typeof(result.facts.get(field)) in [TYPE_INT, TYPE_STRING]: event[field] = result.facts[field]
+		record(person, event)
+
+func session_started(world: RefCounted, actor: int, action: Dictionary, at: int) -> void:
+	if Operations.OPERATIONS[action.kind].handler not in ["learn", "teach"]: return
+	var teacher: int = actor if Operations.OPERATIONS[action.kind].handler == "teach" else int(action.target)
+	for person: int in action.get("participants", [actor]):
+		if not world.actor_slots.has(person): continue
+		var peer: int = int(action.target) if person == actor else actor
+		record(person, {"kind": "session_started", "action": action.kind, "target": peer, "target_label": subject_label(world, person, peer, at), "role": "teacher" if person == teacher else "learner", "at_ms": at})
 
 func rebuild(now: int) -> bool:
 	if player.size() > PLAYER_LIMIT or recent.size() > RECENT_LIMIT or sequence < 0 or cursor < 0 or cursor >= RECENT_LIMIT or (recent.size() < RECENT_LIMIT and cursor != recent.size()): return false
@@ -133,5 +169,8 @@ func _payload_valid(entry: Dictionary) -> bool:
 				if not entry.get(key) is int and not entry.get(key) is float: return false
 			return entry.get("cause") in ["cold", "heat"] and entry.damage >= 0 and entry.absorbed >= 0
 		"hit", "hit_dealt": return entry.get("damage") is int and entry.damage >= 0
+		"activity_result":
+			return entry.get("action") is String and Operations.OPERATIONS.has(entry.action) and entry.get("target") is int and entry.get("target_label") is String and entry.get("role") in ["actor", "teacher", "learner"] and entry.get("status") in ["completed", "refused", "interrupted", "failed"] and entry.get("reason") is String and entry.get("run_id") is int and entry.get("result_id") is int
+		"session_started": return entry.get("action") is String and entry.get("target") is int and entry.get("target_label") is String and entry.get("role") in ["teacher", "learner"]
 		"order", "rejected", "placed": return entry.get("action") is String and entry.get("target", 0) is int
 		_: return true
