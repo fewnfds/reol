@@ -2,11 +2,23 @@ extends RefCounted
 ## Canonical stack keys. Only gear has quality variants in the current demo.
 ## No individual identity until an item has individual mutable state.
 const SLOTS: Dictionary = {"weapon": "武器", "body": "衣甲", "feet": "鞋履", "charm": "饰物"}
-static var definitions: Dictionary = {}
+static var definitions: Dictionary = _definitions()
+
+static func _definitions() -> Dictionary:
+	# Loaded before any detached planner starts; no lazy shared write in workers.
+	var values: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/items.json"))
+	_freeze(values)
+	return values
+
+static func _freeze(value: Variant) -> void:
+	if value is Dictionary:
+		for child: Variant in value.values(): _freeze(child)
+		value.make_read_only()
+	elif value is Array:
+		for child: Variant in value: _freeze(child)
+		value.make_read_only()
 
 static func load_definitions() -> Dictionary:
-	if definitions.is_empty():
-		definitions = JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/items.json"))
 	return definitions
 
 static func definition(key: String) -> String:

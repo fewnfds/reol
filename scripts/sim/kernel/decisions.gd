@@ -14,8 +14,10 @@ const FEEDBACK_LIMIT: int = 16
 const FEEDBACK_LONG_MS: int = 5000
 const FEEDBACK_SHORT_MS: int = 1500
 const EVIDENCE_FIELDS: Array = ["revision"]
+const LIFE_CHANGES: Array = ["needs_changed", "request_review", "institution_review", "source_review", "goal_added", "disposition_changed", "condition_changed", "aptitudes_changed", "capabilities_changed"]
+const LIFE_RETRIES: Array = ["life_ready", "life_result", "planning_budget", "retry_due", "method_due", "resume", "policy_bound"]
 var records: Dictionary = {}
-var wakeups: Dictionary = {} # Reliable owner facts awaiting the next safe preparation.
+var wakeups: Dictionary = {} # actor -> {reason: due_ms}; independent owner timers.
 var next_task: int = 1
 var catalog_signature: String = Defs.SIGNATURE
 var movement: Dictionary = {} # Held autonomous input; saved, unlike local keyboard state.
@@ -38,6 +40,7 @@ func bind(world: RefCounted, actor: int, policy: String, parameters: Dictionary 
 	var spec: Dictionary = Defs.POLICIES[policy].merged(parameters, true)
 	if spec.min > spec.max: return "invalid_distance_band"
 	if not world.gate.check(world, actor, world.operation_time()).is_empty(): return "action_committed"
+	cancel_life(world, actor)
 	var entry: Dictionary = _record(world, actor)
 	_submitting = actor
 	world.end_run(actor, world.operation_time(), "preempted", {}, false)
@@ -58,23 +61,49 @@ func policy(world: RefCounted, actor: int) -> Dictionary:
 func wake(world: RefCounted, actor: int, at: int, reason: String, delay: int = 0) -> void:
 	if not world.actor_slots.has(actor) or not world.combat.alive(world, actor): return
 	var entry: Dictionary = _record(world, actor)
-	if reason == "needs_changed" and (entry.manual or not _life_preemptible(world, actor)): return
-	if reason in ["needs_changed", "request_review", "institution_review", "goal_added", "disposition_changed"] and not entry.manual and _life_preemptible(world, actor): entry.life_dirty = true
+	if entry.manual: return
 	var due: int = at + maxi(0, delay)
 	if reason in ["life_result", "await_commitment"]: due = ((due + 49) / 50) * 50
-	if reason == "life_result" and str(wakeups.get(actor, "")).begins_with("execution_") and not in_combat(actor):
-		entry.next_ms = due
-		wakeups[actor] = reason
-		return
-	if entry.next_ms < 0 or due < entry.next_ms:
-		entry.next_ms = due
-		wakeups[actor] = reason
-	elif due == entry.next_ms and reason not in ["tactical_due", "life_result"]: wakeups[actor] = reason
+	var timers: Dictionary = wakeups.get(actor, {})
+	if reason == "life_result" and not in_combat(actor):
+		for pending: String in timers.keys():
+			if pending.begins_with("execution_"): timers.erase(pending)
+	timers[reason] = mini(int(timers.get(reason, due)), due)
+	wakeups[actor] = timers
+	_sync_next(actor)
+	# A future appointment is not a change to today's inputs.
+	if due <= at and reason in LIFE_CHANGES: entry.life_dirty = true
+	if due <= at and reason in LIFE_CHANGES and entry.task.get("purpose", "") == "clearance": entry.task["reconsider"] = true
+
+func _sync_next(actor: int) -> void:
+	var next: int = -1
+	for due: int in wakeups.get(actor, {}).values():
+		if next < 0 or due < next: next = due
+	records[actor].next_ms = next
+	if next < 0: wakeups.erase(actor)
+
+func _take_due(actor: int, now: int) -> Array[String]:
+	var result: Array[String] = []
+	var timers: Dictionary = wakeups[actor]
+	for reason: String in timers.keys():
+		if reason in ["life_pending", "exploration_observe"]: continue # Durable work/dependency, not another stimulus.
+		if int(timers[reason]) > now: continue
+		result.append(reason)
+		timers.erase(reason)
+	_sync_next(actor)
+	return result
 
 func in_combat(actor: int) -> bool:
 	return records.get(actor, {}).get("mode", "") in ["fight", "flee"]
 
+func cancel_life(world: RefCounted, actor: int) -> void:
+	# A proposal and its issued query allowance have one lifecycle. Switching
+	# prerequisites must retire both before reporting the service item finished.
+	world.deferred.cancel("life", actor)
+	world.livelihood.cancel_plan(actor)
+
 func suspend(world: RefCounted, actor: int) -> void:
+	cancel_life(world, actor)
 	var entry: Dictionary = _record(world, actor)
 	entry.manual = true
 	entry.life_dirty = false
@@ -102,10 +131,13 @@ func forget(actor: int) -> void:
 func released(actor: int) -> void:
 	if not records.has(actor): return
 	records[actor].task.clear()
-	records[actor].life_dirty = false
+	if _submitting != actor: records[actor].life_dirty = false
 	records[actor].mode = "idle" if not records[actor].manual else "manual"
-	records[actor].next_ms = -1
-	wakeups.erase(actor)
+	if _submitting != actor:
+		var timers: Dictionary = wakeups.get(actor, {})
+		for reason: String in timers.keys():
+			if reason in ["life_pending", "exploration_observe", "life_ready", "life_result", "goal_added", "resume", "policy_bound"] or reason.begins_with("execution_"): timers.erase(reason)
+		_sync_next(actor)
 	movement.erase(actor)
 
 func track_host(world: RefCounted, actor: int, operation: String = "", target: int = 0, approach: bool = false) -> void:
@@ -122,6 +154,7 @@ func track_host(world: RefCounted, actor: int, operation: String = "", target: i
 		target = int(action.get("target", 0))
 	if entry.task.get("binding", {}) == binding:
 		if not operation.is_empty() and target > 0:
+			for key: String in ["purpose", "reconsider", "knowledge_revision"]: entry.task.erase(key)
 			entry.task["operation"] = operation
 			entry.task["target"] = target
 			entry.task["approach"] = approach
@@ -175,6 +208,14 @@ func notice(world: RefCounted, actor: int, at: int, hit: bool = false) -> void:
 	if hit: entry.hit_ms = at
 	wake(world, actor, at, "hurt" if hit else "contact")
 
+func knowledge_changed(world: RefCounted, actor: int, at: int, reason: String) -> void:
+	if not world.objects.records.get(actor, {}).get("autonomous", false) or not world.combat.alive(world, actor): return
+	var entry: Dictionary = _record(world, actor)
+	if entry.manual or in_combat(actor): return
+	var search: bool = entry.task.get("binding", {}).get("domain") == "work" and not entry.task.has("operation")
+	if world.gate.current(actor).is_empty() or search:
+		wake(world, actor, at, reason, 50 + actor % 10 * 50)
+
 func focus(world: RefCounted, actor: int, at: int) -> void:
 	# Explicit host request (summon command/fixture), distinct from discovery.
 	var entry: Dictionary = _record(world, actor)
@@ -187,13 +228,16 @@ func ended(world: RefCounted, actor: int, binding: Dictionary, at: int, reason: 
 	var entry: Dictionary = records[actor]
 	var task: Dictionary = entry.task
 	if task.get("binding", {}) == binding and not binding.is_empty():
+		var clearance: bool = clearance_quiet(world, actor) and reason == "completed"
 		world.livelihood.task_ended(actor, int(task.id))
 		if activity.is_empty() and task.has("operation") and (reason != "completed" or not task.get("approach", false)):
 			result(world, actor, task.operation, task.target, reason, at, str(activity.get("status", "")))
 		task.binding = {}
 		task.result = reason
 		if task.get("kind") == "host" or (_submitting != actor and reason != "completed"): task.clear()
-		if _submitting != actor: wake(world, actor, at, "execution_" + reason)
+		if _submitting != actor and not clearance: wake(world, actor, at, "execution_" + reason)
+	elif binding.get("domain") == "partner" and entry.life_dirty:
+		wake(world, actor, at, "life_ready")
 
 func started(actor: int, button: String, activation: int) -> void:
 	var task: Dictionary = records.get(actor, {}).get("task", {})
@@ -224,6 +268,7 @@ func contact_ended(world: RefCounted, actor: int, at: int) -> void:
 func _enter(world: RefCounted, actor: int, entry: Dictionary, mode: String, now: int) -> bool:
 	if entry.mode == mode: return true
 	if not world.gate.check(world, actor, now).is_empty(): return false
+	cancel_life(world, actor)
 	_submitting = actor
 	world.end_run(actor, now, "preempted", {}, false)
 	world.clear_navigation(actor)
@@ -236,9 +281,16 @@ func _enter(world: RefCounted, actor: int, entry: Dictionary, mode: String, now:
 
 func next_boundary(now: int, end: int) -> int:
 	for actor: int in wakeups:
-		var due: int = records[actor].next_ms
-		if due > now: end = mini(end, due)
+		if not in_combat(actor): continue
+		for reason: String in wakeups[actor]:
+			if reason not in ["tactical_due", "hurt", "contact", "contact_ended", "buffer_expired", "await_commitment"] and not reason.begins_with("execution_"): continue
+			var due: int = wakeups[actor][reason]
+			if due > now: end = mini(end, due)
 	return end
+
+func clearance_quiet(world: RefCounted, actor: int) -> bool:
+	var task: Dictionary = records.get(actor, {}).get("task", {})
+	return task.get("purpose", "") == "clearance" and not task.get("reconsider", false) and int(task.get("knowledge_revision", -1)) == int(world.knowledge.records.get(actor, {}).get("next_revision", 1))
 
 func follow(world: RefCounted, actor: int, home: Vector2, now: int) -> void:
 	var entry: Dictionary = _record(world, actor)
@@ -266,10 +318,31 @@ func prepare(world: RefCounted, now: int) -> void:
 		if not world.combat.alive(world, actor): forget(actor); continue
 		if entry.next_ms < 0: wakeups.erase(actor); continue
 		if now < int(entry.next_ms): continue
-		entry.next_ms = -1
-		var reason: String = str(wakeups.get(actor, "due"))
-		var chose_life: bool = false
-		wakeups.erase(actor)
+		var identity: String = world.deferred.key("life", actor)
+		var timers: Dictionary = wakeups[actor]
+		# Rebuild pending work once after load/admission backpressure. A queued or
+		# running request does not reevaluate this actor at each motion boundary.
+		if timers.has("life_pending") and not world.deferred.ready.has(identity) and not world.deferred.jobs.has(identity):
+			if not world.gate.current(actor).is_empty() and _life_preemptible(world, actor): entry.life_dirty = true
+			world.deferred.request("life", actor, int(timers.life_pending), 0 if entry.life_dirty else 1)
+		if timers.has("exploration_observe"):
+			world.deferred.request("observe", actor, int(timers.exploration_observe), 1)
+		var reasons: Array[String] = _take_due(actor, now)
+		if reasons.is_empty(): continue
+		# A real changed input may justify a new self-contained plan before the
+		# scan finishes. Ordinary retries cannot bypass their own prerequisite.
+		if reasons.any(func(cause: String): return cause in LIFE_CHANGES) and wakeups.has(actor):
+			wakeups[actor].erase("exploration_observe")
+			_sync_next(actor)
+		var reason: String = reasons.back()
+		if entry.task.get("purpose", "") == "clearance" and reasons.any(func(cause: String): return cause not in ["space_needed", "life_pending"]): entry.task.reconsider = true
+		for cause: String in reasons:
+			if cause in LIFE_CHANGES or cause in LIFE_RETRIES:
+				entry.life_dirty = true
+				if entry.task.get("purpose", "") == "clearance": entry.task["reconsider"] = true
+			elif cause in ["knowledge_observed", "knowledge_delivered"] and entry.task.get("binding", {}).get("domain") == "work" and not entry.task.has("operation"):
+				entry.life_dirty = true # New evidence can end an uncommitted search.
+		if world.deferred.jobs.has(world.deferred.key("life", actor)) and reasons.any(func(cause: String): return cause != "life_pending"): entry.life_dirty = true
 		if entry.manual:
 			entry.life_dirty = false
 			continue
@@ -294,30 +367,84 @@ func prepare(world: RefCounted, now: int) -> void:
 			_combat(world, actor, entry, spec, now)
 			if in_combat(actor): wake(world, actor, now, "tactical_due", int(spec.think_ms))
 		elif world.objects.records[actor].get("autonomous", false):
+			if not world.gate.current(actor).is_empty() and not _life_preemptible(world, actor):
+				entry.life_dirty = true # Host completion will resume the owed review.
+				continue
+			if wakeups.get(actor, {}).has("exploration_observe") and world.gate.current(actor).is_empty():
+				continue
+			if reasons.size() == 1 and reason == "space_needed" and not entry.life_dirty:
+				preload("res://scripts/sim/kernel/service_positions.gd").step_aside(world, actor, now)
+				entry.last_reason = reason
+				continue
 			if not world.gate.check(world, actor, now).is_empty():
 				wake(world, actor, now, "await_commitment", 100); continue
-			if entry.life_dirty:
-				entry.life_dirty = false
-				if _life_preemptible(world, actor) and world.livelihood.should_preempt(world, actor, now):
-					_submitting = actor
-					world.end_run(actor, now, "preempted", {}, false)
-					world.clear_navigation(actor)
-					_submitting = 0
-			if world.gate.current(actor).is_empty():
-				entry.mode = "life"
-				world.livelihood.choose(world, actor, now)
-				chose_life = true
-				entry.mode = "life" if world.objects.records[actor].get("autonomous", false) else "idle"
-				track_host(world, actor)
-				_record_trace(actor, now, entry, -1, "life_selected")
+			if world.gate.current(actor).is_empty() or (entry.life_dirty and _life_preemptible(world, actor)):
+				# A durable marker reconstructs this transient request after a save.
+				# The world can advance while the proposal is queued/in flight.
+				wake(world, actor, now, "life_pending")
+				world.deferred.request("life", actor, now, 0 if entry.life_dirty else 1)
 		else:
 			entry.life_dirty = false
 			if entry.mode != "follow": entry.mode = "idle"
 			entry.task.clear()
 			world.society.review_due(world, actor, now)
 		entry.last_reason = reason
-		if not chose_life: world.livelihood.schedule_reviews(world, actor, now)
+		# Independent future timers survive earlier wakes; no broad review on
+		# every tactical/execution notification just to reconstruct a calendar.
 	work_usec += Time.get_ticks_usec() - started_at
+
+func _clear_pending(actor: int) -> void:
+	if not records.has(actor): return
+	if wakeups.has(actor): wakeups[actor].erase("life_pending")
+	_sync_next(actor)
+
+func service(world: RefCounted, actor: int, now: int) -> bool:
+	var identity: String = world.deferred.key("life", actor)
+	if not records.has(actor) or not world.livelihood.can_plan(world, actor, now, false):
+		# A contact may arrive after prepare() and cancel an owed review before
+		# the policy chooses to ignore it. Keep the debt while control is autonomous.
+		if records.has(actor) and not records[actor].manual and world.objects.records.get(actor, {}).get("autonomous", false) and world.combat.alive(world, actor):
+			records[actor].life_dirty = true
+		cancel_life(world, actor)
+		_clear_pending(actor)
+		return true
+	var entry: Dictionary = records[actor]
+	if not world.gate.check(world, actor, now).is_empty():
+		# A temporary stun/commitment does not revoke the durable request.
+		wake(world, actor, now, "await_commitment", 100)
+		return false
+	if wakeups.get(actor, {}).has("exploration_observe") and world.gate.current(actor).is_empty():
+		cancel_life(world, actor)
+		world.deferred.request("observe", actor, now, 0)
+		# Observation owns the dependency and wakes life when done. Keeping this
+		# older blocked item at the queue head would starve its own prerequisite.
+		_clear_pending(actor)
+		return true
+	if world.deferred.jobs.has(identity):
+		var job: RefCounted = world.deferred.poll(identity)
+		if job == null: return false
+		_clear_pending(actor)
+		world.livelihood.complete_plan(world, actor, job, now)
+		if entry.life_dirty: wake(world, actor, now, "life_ready")
+		entry.mode = "life" if not world.gate.current(actor).is_empty() else "idle"
+		track_host(world, actor)
+		_record_trace(actor, now, entry, -1, "life_selected")
+		return true
+	if not world.gate.current(actor).is_empty() and (not entry.life_dirty or not _life_preemptible(world, actor)):
+		if not _life_preemptible(world, actor): entry.life_dirty = true
+		_clear_pending(actor)
+		return true
+	if world.deferred.retiring(identity) or not world.deferred.capacity(world.requested_workers): return false
+	var job: RefCounted = world.livelihood.prepare_plan(world, actor, now)
+	if job == null:
+		_clear_pending(actor)
+		return true
+	# Only the coordinator consumes events. End-of-step events may not yet have
+	# passed prepare(); never erase them just because a proposal starts now.
+	entry.life_dirty = false
+	wake(world, actor, now, "life_pending")
+	world.deferred.start(identity, job, world.requested_workers)
+	return false
 
 func _id() -> int:
 	var result: int = next_task
@@ -553,6 +680,21 @@ func _feedback_valid(world: RefCounted, value: Variant) -> bool:
 
 func valid(world: RefCounted) -> bool:
 	if catalog_signature != Defs.SIGNATURE or not Defs.ERRORS.is_empty() or next_task < 1: return false
+	# Current v32 single-reason saves are read once into the richer calendar.
+	# Keep every new timer in saves; projecting only the nearest would lose causes.
+	for actor: Variant in wakeups:
+		if not actor is int or not records.get(actor) is Dictionary: return false
+		if wakeups[actor] is String:
+			wakeups[actor] = {wakeups[actor]: records[actor].get("next_ms", -1)}
+		var timers: Variant = wakeups[actor]
+		if not timers is Dictionary or timers.is_empty() or timers.size() > 64: return false
+		var nearest: int = -1
+		for reason: Variant in timers:
+			if not reason is String or not reason.is_valid_identifier() or reason.length() > 80: return false
+			var due: Variant = timers[reason]
+			if not due is int or due < 0 or due > world.elapsed_ms + MAX_WAKE_MS: return false
+			if nearest < 0 or due < nearest: nearest = due
+		if records[actor].get("next_ms") != nearest: return false
 	var ids: Dictionary = {}
 	for actor: Variant in records:
 		var entry: Variant = records[actor]
@@ -583,6 +725,13 @@ func valid(world: RefCounted) -> bool:
 		if task.get("kind") not in ["host", "sequence"] or not task.get("binding") is Dictionary or not task.get("result") is String or task.get("waiting") not in ["", "running", "buffered"]: return false
 		if not task.binding.is_empty() and not world.gate.matches(actor, task.binding): return false
 		var fields: Array = ["id", "kind", "binding", "result", "waiting", "button"] if task.kind == "host" else ["id", "kind", "binding", "result", "waiting", "button", "steps", "index", "deadline_ms"]
+		if task.has("purpose"):
+			if task.kind != "host" or not task.purpose is String or task.purpose != "clearance" or task.binding.get("domain") != "work": return false
+			if task.has("operation") or task.has("target") or task.has("approach"): return false
+			if not task.get("reconsider") is bool or not task.get("knowledge_revision") is int or task.knowledge_revision < 1: return false
+			var slot: int = world.actor_slots[actor]
+			if world.pages[slot / 256].modes[slot % 256] != Units.Mode.EXPLORE: return false
+			fields.append_array(["purpose", "reconsider", "knowledge_revision"])
 		if task.has("operation") or task.has("target") or task.has("approach"):
 			if task.kind != "host" or not task.get("operation") is String or not task.operation.is_valid_identifier() or task.operation.length() > 64: return false
 			if not task.get("target") is int or task.target <= 0 or task.target >= world.objects.next_id or not task.get("approach") is bool: return false
@@ -601,8 +750,6 @@ func valid(world: RefCounted) -> bool:
 			if not task.get("deadline_ms") is int or task.deadline_ms < 0 or task.deadline_ms > world.elapsed_ms + 6000 or not task.get("button") is String: return false
 			for button: Variant in task.steps:
 				if button not in ["primary", "skill", "skill2", "skill3", "step"]: return false
-	for actor: Variant in wakeups:
-		if not actor is int or not records.has(actor) or not wakeups[actor] is String: return false
 	for actor: Variant in movement:
 		if not actor is int or not records.has(actor) or not in_combat(actor) or not movement[actor] is Vector2 or not movement[actor].is_finite() or movement[actor].length() > 1.001: return false
 	return true

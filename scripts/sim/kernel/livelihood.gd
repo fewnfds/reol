@@ -9,6 +9,7 @@ const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const State = preload("res://scripts/sim/kernel/state.gd")
 const Stock = preload("res://scripts/sim/kernel/stock_rules.gd")
 const Defs = preload("res://scripts/sim/kernel/agency_defs.gd")
+const Selection = preload("res://scripts/sim/kernel/agency_selection.gd")
 const Planner = preload("res://scripts/sim/kernel/agency_planner.gd")
 const Social = preload("res://scripts/sim/kernel/agency_social.gd")
 const STATE_FIELDS: Array = ["records", "next_goal", "catalog_signature"]
@@ -20,6 +21,9 @@ var next_goal: int = 1
 var catalog_signature: String = Defs.SIGNATURE
 var decisions: int = 0
 var decision_usec: int = 0
+var prepare_usec: int = 0
+var discarded_plans: int = 0
+var _reserved_work: Dictionary = {} # Runtime query reservations, never saved facts.
 var latest: Dictionary = {} # Diagnostic only, not restored as decision truth.
 
 func record(world: RefCounted, actor: int) -> Dictionary:
@@ -114,15 +118,16 @@ func think(world: RefCounted, id: int, at: int) -> void:
 	if world.objects.records.get(id, {}).get("autonomous", false) and not world.decisions.records.get(id, {}).get("manual", false): world.decisions.wake(world, id, at, "life_ready")
 
 func choose(world: RefCounted, id: int, at: int) -> void:
-	var started: int = Time.get_ticks_usec()
-	var context: Dictionary = {}
-	_think(world, id, at, context)
-	schedule_reviews(world, id, at, context)
-	decision_usec += Time.get_ticks_usec() - started
+	# Explicit synchronous caller; production uses the same job through Deferred.
+	var identity: String = world.deferred.key("life", id)
+	if world.deferred.ready.has(identity) or world.deferred.jobs.has(identity): return
+	var job: RefCounted = prepare_plan(world, id, at)
+	if job == null: return
+	job.run()
+	complete_plan(world, id, job, at)
 
 func schedule_reviews(world: RefCounted, actor: int, at: int, context: Dictionary = {}) -> void:
-	# The original scheduler retains only the nearest wake. Re-derive later
-	# reviews after execution adoption or an earlier wake, including while busy.
+	# Independent appointments are derived from current personal state.
 	if not world.combat.alive(world, actor) or not world.objects.records[actor].get("autonomous", false) or world.decisions.records.get(actor, {}).get("manual", false): return
 	if context.is_empty() and not Growth.has_qi_method(world.objects.records[actor]) and world.society._requests_by_actor.get(actor, []).is_empty() and world.institutions.Duties.views(world.institutions, actor).is_empty() and world.knowledge.records.get(actor, {}).get("channels", {}).is_empty(): return
 	var view: Dictionary = context.actor if context.has("actor") else _self_view(world, actor)
@@ -176,34 +181,7 @@ func _self_view(world: RefCounted, actor: int) -> Dictionary:
 	return view
 
 func _utility(goal: Dictionary, entry: Dictionary, actor: Dictionary, at: int) -> Dictionary:
-	var spec: Dictionary = Defs.GOALS[goal.definition]
-	var value: float = 0.0
-	var emergency: bool = false
-	match spec.driver:
-		"resource":
-			if spec.metric in ["hunger", "energy"] and not actor.body_capabilities.get("metabolism", false): return {"value": 0.0, "emergency": false}
-			if spec.metric == "qi" and not Growth.has_qi_method(actor): return {"value": 0.0, "emergency": false}
-			if actor.body_capabilities.get("metabolism", false) and (int(actor.hunger) < int(spec.min_satiety) or int(actor.energy) < int(spec.min_energy)): return {"value": 0.0, "emergency": false}
-			var current: int = Defs.resource_value(actor, str(spec.metric))
-			value = pow(clampf(float(int(spec.comfort) - current) / int(spec.comfort), 0.0, 1.0), float(spec.exponent))
-			emergency = int(spec.emergency) >= 0 and current <= int(spec.emergency)
-		"recovery": value = 0.65 if actor.recovering else 0.0
-		"development": value = 0.0 if Growth.mastered(actor, goal.params.method) else 1.0
-		"delivery", "operation", "instruction": value = 1.0
-		"responsibility": value = 1.0 if actor.get("responsibilities", {}).has(int(goal.params.share)) else 0.0
-		"duty": value = 1.0 if actor.get("duties", {}).has(int(goal.params.appointment)) else 0.0
-		"service": value = 1.0 if actor.get("permissions", {}).has(int(goal.params.organization)) and actor.get("responsibilities", {}).is_empty() else 0.0
-		"reporting": value = 1.0 if not actor.get("reports", []).is_empty() else 0.0
-		"responses":
-			for request: Dictionary in actor.get("requests", []):
-				var time: int = Planner.Contacts.due(request, int(actor.id), actor.get("responsibilities", {}))
-				if time >= 0 and time <= at: value = maxf(value, 1.0 + minf(0.5, float(at - time) / 30000.0))
-		"custody": value = 1.0 if not actor.returns.is_empty() else 0.0
-	value *= float(spec.weight)
-	if not spec.disposition.is_empty(): value *= float(entry.dispositions[spec.disposition])
-	if value > 0.0: value += minf(0.08, float(at - int(goal.created_ms)) / 3000000.0)
-	if emergency: value += 2.0
-	return {"value": value, "emergency": emergency}
+	return Selection.utility(goal, entry, actor, at)
 
 func evaluate_request(world: RefCounted, actor: int, request: Dictionary, at: int) -> Dictionary:
 	# The caller supplies a delivered personal view, never objective remote state.
@@ -233,14 +211,19 @@ func evaluate_request(world: RefCounted, actor: int, request: Dictionary, at: in
 		if failure.until_ms > at and failure.reason in ["path_failed", "out_of_reach", "no_operation_place"] and int(world.knowledge.evidence(actor, int(failure.target)).get("revision", 0)) == failure.revision: context.blocked[key] = true
 	var own_target: Dictionary = world.operation_target(actor)
 	own_target.inventory = view.inventory.duplicate()
+	var social_budget: Dictionary = entry.budget.duplicate()
+	if _reserved_work.get(actor, {}).get("window_ms", -1) == int(entry.budget.window_ms): social_budget.work += int(_reserved_work[actor].amount)
+	var prior_work: int = int(social_budget.work)
 	var result: Dictionary = Social.judge(view, own_target, world.knowledge.known(actor, at), request,
-		entry.social_appraisals.get(int(request.issuer), {}), context, world.combat.position(world, actor), entry.budget, at)
+		entry.social_appraisals.get(int(request.issuer), {}), context, world.combat.position(world, actor), social_budget, at)
+	entry.budget.work = mini(Planner.WORK_LIMIT, int(entry.budget.work) + int(social_budget.work) - prior_work)
 	entry.budget.cursor = (int(entry.budget.cursor) + 17) % 128
 	latest[actor] = {"at_ms": at, "request": int(request.id), "request_evaluation": State.copy(result), "work": int(entry.budget.work)}
 	return result
 
 func social_outcome(world: RefCounted, result: Dictionary) -> void:
 	if result.is_empty() or result.status != "completed": return
+	_complete_operation_goals(int(result.actor), result, int(result.at_ms))
 	var handler: String = Operations.OPERATIONS[result.operation].handler
 	if handler in ["learn", "teach"] and int(result.facts.get("points_gained", 0)) > 0:
 		_note_social(world, int(result.facts.learner), int(result.facts.teacher), result, true)
@@ -298,40 +281,7 @@ func teaching_consent(world: RefCounted, actor: int, peer: int, method: String, 
 	return ""
 
 static func learning_method(goal: Dictionary, actor: Dictionary) -> String:
-	var driver: String = Defs.GOALS[goal.definition].driver
-	if driver in ["development", "instruction"]: return str(goal.params.method)
-	var operation: String = str(actor.get("responsibilities", {}).get(int(goal.params.share), {}).get("operation", "")) if driver == "responsibility" else str(goal.params.get("operation", ""))
-	var spec: Dictionary = Operations.OPERATIONS.get(operation, {})
-	return str(spec.get("required_method", "")) if not str(spec.get("required_method", "")).is_empty() else str(spec.get("learning_method", ""))
-
-func should_preempt(world: RefCounted, actor: int, at: int) -> bool:
-	if not records.has(actor): return true
-	var entry: Dictionary = records[actor]
-	var view: Dictionary = _self_view(world, actor)
-	var current: Dictionary = entry.goals.get(entry.intention.get("goal", 0), {})
-	var current_score: float = float(_utility(current, entry, view, at).value) if int(entry.intention.get("task_id", 0)) > 0 and not current.is_empty() and current.state == "active" else 0.0
-	if at - int(entry.budget.window_ms) >= BUDGET_MS:
-		entry.budget.window_ms = at; entry.budget.work = 0
-	var self_target: Dictionary = world.operation_target(actor)
-	self_target.inventory = view.inventory.duplicate()
-	var planner := Planner.new()
-	var clues: Dictionary = world.knowledge.known(actor, at)
-	planner.configure(view, self_target, clues, _blocked(world, actor, entry, at), world.combat.position(world, actor), at, entry.budget, _preference(entry, view, clues, at))
-	for goal: Dictionary in entry.goals.values():
-		if goal.state != "active": continue
-		var score: Dictionary = _utility(goal, entry, view, at)
-		if score.value <= current_score + 0.12 or (not score.emergency and score.value < 0.25): continue
-		for approach: String in Defs.GOALS[goal.definition].approaches:
-			var allowance: int = mini(16, Planner.WORK_LIMIT - 32 - int(entry.budget.work))
-			if allowance <= 0:
-				# A dirty life event has not been evaluated, rather than evaluated
-				# false. Keep it on the original calendar for the next work window.
-				world.decisions.records[actor].life_dirty = true
-				world.decisions.wake(world, actor, at, "planning_budget", maxi(1, int(entry.budget.window_ms) + BUDGET_MS - at))
-				return false
-			for option: Dictionary in planner.candidates(goal, Defs.APPROACHES[approach], allowance):
-				if option.step.kind != "wait": return true
-	return false
+	return Selection.learning_method(goal, actor)
 
 func _blocked(world: RefCounted, id: int, entry: Dictionary, at: int) -> Dictionary:
 	var blocked: Dictionary = {}
@@ -366,163 +316,149 @@ func _refresh_goals(world: RefCounted, actor: int, entry: Dictionary, at: int) -
 			goal.closed_ms = at
 			if entry.intention.get("goal") == goal.id: entry.intention.task_id = 0
 
-func _think(world: RefCounted, id: int, at: int, context: Dictionary = {}) -> void:
-	if not world.objects.records.get(id, {}).get("autonomous", false) or world.decisions.in_combat(id) or not world.gate.current(id).is_empty() or not world.gate.check(world, id, at).is_empty(): return
-	decisions += 1
+func can_plan(world: RefCounted, id: int, at: int, check_gate: bool = true) -> bool:
+	return world.actor_slots.has(id) and world.combat.alive(world, id) and world.objects.records[id].get("autonomous", false) and not world.decisions.records.get(id, {}).get("manual", false) and not world.decisions.in_combat(id) and not world.combat.engagements.has(id) and (not check_gate or world.gate.check(world, id, at).is_empty())
+
+func cancel_plan(actor: int) -> void:
+	# Aborting forfeits this allocation in its original window. Otherwise repeated
+	# cancel/restart could issue unlimited queries while old workers still finish.
+	var hold: Dictionary = _reserved_work.get(actor, {})
+	var entry: Dictionary = records.get(actor, {})
+	if not hold.is_empty() and not entry.is_empty() and int(entry.budget.window_ms) == int(hold.window_ms):
+		entry.budget.work = mini(Planner.WORK_LIMIT, int(entry.budget.work) + int(hold.amount))
+	_reserved_work.erase(actor)
+
+func prepare_plan(world: RefCounted, id: int, at: int) -> RefCounted:
+	if _reserved_work.has(id): return null # One detached proposal per person.
+	if not can_plan(world, id, at): return null
+	if not world.gate.current(id).is_empty() and not world.decisions._life_preemptible(world, id): return null
+	var began: int = Time.get_ticks_usec()
 	_ensure_goals(world, id)
 	var entry: Dictionary = record(world, id)
 	_refresh_goals(world, id, entry, at)
-	if not world.objects.records[id].get("autonomous", false): return
+	if not can_plan(world, id, at): return null
 	if at - int(entry.budget.window_ms) >= BUDGET_MS:
-		entry.budget.window_ms = at
-		entry.budget.work = 0
-	if int(entry.budget.work) >= Planner.WORK_LIMIT:
-		world.decisions.wake(world, id, at, "planning_budget", maxi(1, int(entry.budget.window_ms) + BUDGET_MS - at)); return
-	var actor: Dictionary = _self_view(world, id)
+		entry.budget.window_ms = at; entry.budget.work = 0
+	var actor: Dictionary = State.copy(_self_view(world, id))
+	var limit: int = Planner.WORK_LIMIT - (17 if Planner.Contacts.judgment_due(actor, at) else 0)
+	if int(entry.budget.work) >= limit:
+		world.decisions.wake(world, id, at, "planning_budget", maxi(1, int(entry.budget.window_ms) + BUDGET_MS - at))
+		return null
 	var clues: Dictionary = world.knowledge.known(id, at)
-	context["actor"] = actor; context["clues"] = clues
-	var self_target: Dictionary = world.operation_target(id)
+	var self_target: Dictionary = State.copy(world.operation_target(id))
 	self_target.inventory = actor.inventory.duplicate()
-	var blocked: Dictionary = _blocked(world, id, entry, at)
-	var ordered: Array = []
-	for goal: Dictionary in entry.goals.values():
-		if goal.state == "active":
-			var score: Dictionary = _utility(goal, entry, actor, at)
-			# The authored comfort threshold defines whether a need exists. A
-			# second utility cutoff strands small deficits with no later wake.
-			if score.value > 0.0: ordered.append({"goal": goal, "utility": score})
-	ordered.sort_custom(func(a: Dictionary, b: Dictionary): return a.utility.value > b.utility.value if not is_equal_approx(a.utility.value, b.utility.value) else a.goal.id < b.goal.id)
-	var allowance: int = maxi(4, mini(32, Planner.WORK_LIMIT / maxi(1, ordered.reduce(func(sum: int, value: Dictionary): return sum + Defs.GOALS[value.goal.definition].approaches.size(), 0))))
-	# Emergency needs are always sampled first. Other purposes rotate when a
-	# large authored catalog consumes the query budget before every purpose fits.
-	var urgent: Array = ordered.filter(func(value: Dictionary): return value.utility.emergency)
-	var replying: bool = Planner.Contacts.judgment_due(actor, at)
-	var protected: Array = ordered.filter(func(value: Dictionary): return not value.utility.emergency and replying and Defs.GOALS[value.goal.definition].driver == "responses")
-	var ordinary: Array = ordered.filter(func(value: Dictionary): return not value.utility.emergency and value not in protected)
-	if not ordinary.is_empty():
-		var offset: int = int(entry.budget.goal_cursor) % ordinary.size()
-		ordinary = ordinary.slice(offset) + ordinary.slice(0, offset)
-	ordered = urgent + protected + ordinary
-	var planner := Planner.new()
-	var preference: Dictionary = _preference(entry, actor, clues, at)
-	planner.configure(actor, self_target, clues, blocked, world.combat.position(world, id), at, entry.budget, preference)
-	# A pending judgment shares this bounded budget with planning. Keep one probe
-	# available when a received request is due, even in a large purpose catalog.
-	var planning_limit: int = Planner.WORK_LIMIT - (17 if Planner.Contacts.judgment_due(actor, at) else 0)
-	if int(entry.budget.work) >= planning_limit:
-		world.decisions.wake(world, id, at, "planning_budget", maxi(1, int(entry.budget.window_ms) + BUDGET_MS - at)); return
-	var best: Dictionary = {}
-	var choices: Array = []
-	var examined: int = 0
-	for candidate: Dictionary in ordered:
-		if int(entry.budget.work) >= planning_limit: break
-		examined += 1
-		for approach_id: String in Defs.GOALS[candidate.goal.definition].approaches:
-			var approach: Dictionary = Defs.APPROACHES[approach_id]
-			for option: Dictionary in planner.candidates(candidate.goal, approach, mini(allowance, planning_limit - int(entry.budget.work))):
-				var score: float = float(candidate.utility.value) * (0.55 + 0.45 * float(option.step.confidence) * float(approach.confidence)) - minf(0.12, float(option.step.estimate_ms) / 200000.0)
-				if option.step.get("social", false): score += 0.04 * (float(entry.dispositions.sociability) - 1.0)
-				if entry.intention.get("goal") == candidate.goal.id and entry.intention.get("approach") == approach_id and entry.intention.get("anchor") == option.anchor and entry.intention.get("operation") == option.operation:
-					score += 0.05 * float(entry.dispositions.persistence)
-				var decision: Dictionary = {"goal": candidate.goal.id, "approach": approach_id, "anchor": option.anchor, "operation": option.operation,
-					"score": score, "utility": candidate.utility.value, "emergency": candidate.utility.emergency, "step": option.step}
-				if choices.size() < 12: choices.append(State.copy(decision))
-				if best.is_empty() or score > float(best.score): best = decision
-			if int(entry.budget.work) >= planning_limit: break
-		if int(entry.budget.work) >= planning_limit: break
+	var retry: int = at + 10001
+	for failure: Dictionary in world.decisions.records[id].feedback:
+		if failure.until_ms > at: retry = mini(retry, int(failure.until_ms))
+	for account: Dictionary in entry.appraisals.values():
+		if account.until_ms > at: retry = mini(retry, int(account.until_ms))
+	var job := Selection.new()
+	job.input = {"actor": actor, "clues": clues, "self_target": self_target, "blocked": _blocked(world, id, entry, at),
+		"entry": {"goals": State.copy(entry.goals), "dispositions": entry.dispositions.duplicate(), "intention": State.copy(entry.intention), "budget": entry.budget.duplicate()},
+		"position": world.combat.position(world, id), "at_ms": at, "binding": world.gate.current(id), "limit": limit, "retry_at": retry,
+		"reserved": limit - int(entry.budget.work), "initial_work": int(entry.budget.work)}
+	# Reserve queries outside saved facts. Intervening social judgments see the
+	# hold; loading discards it and reconstructs the durable pending request.
+	_reserved_work[id] = {"window_ms": int(entry.budget.window_ms), "amount": limit - int(entry.budget.work)}
+	decisions += 1
+	prepare_usec += Time.get_ticks_usec() - began
+	return job
+
+func complete_plan(world: RefCounted, id: int, job: RefCounted, at: int) -> void:
+	var began: int = Time.get_ticks_usec()
+	var entry: Dictionary = records.get(id, {})
+	if entry.is_empty(): return
+	var packet: Dictionary = job.input
+	var result: Dictionary = job.result
+	_reserved_work.erase(id)
+	if int(entry.budget.window_ms) == int(packet.entry.budget.window_ms):
+		entry.budget.work = mini(Planner.WORK_LIMIT, int(entry.budget.work) + int(result.used))
+	if not can_plan(world, id, at): discarded_plans += 1; return
+	var current: Dictionary = world.gate.current(id)
+	if current != packet.binding:
+		discarded_plans += 1
+		think(world, id, at)
+		schedule_reviews(world, id, at)
+		return
+	if not current.is_empty() and not world.decisions._life_preemptible(world, id): discarded_plans += 1; return
+	_refresh_goals(world, id, entry, at)
 	entry.budget.cursor = (int(entry.budget.cursor) + 17) % 128
-	if int(entry.budget.work) >= planning_limit and not ordinary.is_empty(): entry.budget.goal_cursor = (int(entry.budget.goal_cursor) + maxi(1, examined - urgent.size())) % GOAL_LIMIT
-	latest[id] = {"at_ms": at, "choices": choices, "chosen": State.copy(best), "work": entry.budget.work}
+	entry.budget.goal_cursor = (int(entry.budget.goal_cursor) + int(result.goal_cursor_delta)) % GOAL_LIMIT
+	var best: Dictionary = result.best
+	latest[id] = {"at_ms": at, "sampled_ms": packet.at_ms, "choices": result.choices, "chosen": best.duplicate(true), "work": entry.budget.work}
 	if best.is_empty():
-		if int(entry.budget.work) >= planning_limit:
-			world.decisions.wake(world, id, at, "planning_budget", maxi(1, int(entry.budget.window_ms) + BUDGET_MS - at)); return
-		var retry_at: int = at + 10001
-		for failure: Dictionary in world.decisions.records[id].feedback:
-			if failure.until_ms > at: retry_at = mini(retry_at, int(failure.until_ms))
-		for account: Dictionary in entry.appraisals.values():
-			if account.until_ms > at: retry_at = mini(retry_at, int(account.until_ms))
-		if retry_at <= at + 10000:
-			world.decisions.wake(world, id, at, "retry_due", maxi(50, retry_at - at)); return
-		var searching: bool = false
-		for candidate: Dictionary in ordered:
-			var driver: String = Defs.GOALS[candidate.goal.definition].driver
-			if driver == "resource" and Defs.GOALS[candidate.goal.definition].metric in ["hp", "qi"]: continue
-			if driver == "development" and Growth.introduced(actor, candidate.goal.params.method) and int(Growth.Defs.METHODS[candidate.goal.params.method].source_qi_cost) > 0 and clues.values().any(func(place: Dictionary): return int(place.get("tile", -1)) >= 0 and int(place.get("source_qi_band", -1)) >= 0): continue
-			if driver not in ["duty", "service", "reporting", "responses"]:
-				var target: int = int(Planner.project(candidate.goal, actor).params.get("target", 0))
-				if not Planner.known_dead(clues.get(target, {})): searching = true
-			elif driver == "service" and not clues.values().any(func(value: Dictionary): return value.has("post_revision") and int(value.get("organization", 0)) == int(candidate.goal.params.organization)): searching = true
-			elif driver == "duty":
-				var policy: Dictionary = actor.duties[int(candidate.goal.params.appointment)]
-				if Planner.Institutions.Duties.targets(policy).any(func(target: int): return not clues.has(target)): searching = true
-		_idle(world, id, at, searching); return
-	entry.intention = {"goal": best.goal, "approach": best.approach, "anchor": best.anchor, "operation": best.operation,
-		"selected_ms": at, "task_id": 0}
-	entry.goals[best.goal].method = {"approach": best.approach, "operation": best.operation, "anchor": best.anchor, "selected_ms": at}
+		if result.hit_limit:
+			world.decisions.wake(world, id, at, "planning_budget", maxi(1, int(entry.budget.window_ms) + BUDGET_MS - at))
+		elif current.is_empty():
+			if int(packet.retry_at) <= int(packet.at_ms) + 10000:
+				world.decisions.wake(world, id, at, "retry_due", maxi(50, int(packet.retry_at) - at))
+			else: _idle(world, id, at, bool(result.searching))
+	else:
+		var goal: Dictionary = entry.goals.get(int(best.goal), {})
+		if goal.is_empty() or goal.state != "active" or goal.params != packet.entry.goals[best.goal].params:
+			discarded_plans += 1
+			think(world, id, at)
+		else:
+			var view: Dictionary = _self_view(world, id)
+			var score: Dictionary = _utility(goal, entry, view, at)
+			var previous: Dictionary = entry.goals.get(int(entry.intention.get("goal", 0)), {})
+			var previous_score: float = float(_utility(previous, entry, view, at).value) if not previous.is_empty() and previous.state == "active" and int(entry.intention.get("task_id", 0)) > 0 else 0.0
+			if score.value <= 0 or (not current.is_empty() and previous_score > 0 and (score.value <= previous_score + 0.12 or (not score.emergency and score.value < 0.25))):
+				discarded_plans += 1
+				if current.is_empty(): think(world, id, at)
+			else: _adopt_choice(world, id, best, at)
+	schedule_reviews(world, id, at)
+	decision_usec += Time.get_ticks_usec() - began
+
+func _adopt_choice(world: RefCounted, id: int, best: Dictionary, at: int) -> void:
+	var entry: Dictionary = records[id]
+	var before: Dictionary = entry.intention
+	var binding: Dictionary = world.gate.current(id)
 	var step: Dictionary = best.step
+	if not binding.is_empty() and step.kind == "wait": return
+	entry.intention = {"goal": best.goal, "approach": best.approach, "anchor": best.anchor, "operation": best.operation, "selected_ms": at, "task_id": 0}
 	if step.kind == "wait":
-		world.decisions.wake(world, id, at, "method_due", maxi(100, mini(10000, int(step.until_ms) - at))); return
+		world.decisions.wake(world, id, at, "method_due", maxi(100, mini(10000, int(step.until_ms) - at)))
+		return
 	var target: int = int(step.input.target)
-	if step.kind == "inspect" or (target != id and not world.sight.sees(world.combat.position(world, id), int(clues.get(target, {}).get("tile", -1)), world.sight.range_for(world, id))):
-		var tile: int = int(clues.get(target, {}).get("tile", -1))
-		if tile >= 0: _walk_to_site(world, id, world.terrain.nearest_open(tile), at, str(step.input.get("kind", "inspect")), target)
-		else: _idle(world, id, at, true)
+	var clue: Dictionary = world.knowledge.view(id, target, at)
+	var accepted: bool = false
+	world.decisions._submitting = id
+	if step.kind == "inspect" or (target != id and not world.sight.sees(world.combat.position(world, id), int(clue.get("tile", -1)), world.sight.range_for(world, id))):
+		var tile: int = int(clue.get("tile", -1))
+		if tile >= 0:
+			_walk_to_site(world, id, world.terrain.nearest_open(tile), at, str(step.input.get("kind", "inspect")), target)
+			accepted = world.gate.current(id) != binding and not world.gate.current(id).is_empty()
+		elif binding.is_empty(): _idle(world, id, at, true)
 	else:
 		if target != id and not world.knowledge.refresh(world, id, target, at):
-			after_action(world, id, at); return # A last-seen tile cannot track a departed person.
-		var input: Dictionary = step.input.duplicate(true)
-		input["autonomous"] = true
-		var reason: String = world.execute_operation(id, input)
-		if reason not in ["accepted", "completed"]: _rejected(world, id, input.kind, target, reason, at)
-		elif reason == "completed":
-			var goal: Dictionary = entry.goals[best.goal]
-			if Defs.GOALS[goal.definition].driver == "operation" and goal.params.operation == input.kind and goal.params.target == target: goal.state = "completed"; goal.closed_ms = at
-			after_action(world, id, at, target)
-	entry.intention.task_id = int(world.decisions.records.get(id, {}).get("task", {}).get("id", 0)) if entry.goals[best.goal].state == "active" else 0
+			after_action(world, id, at)
+		else:
+			var input: Dictionary = step.input.duplicate(true)
+			input["autonomous"] = true
+			# Hosts validate current resources/authority/station BEFORE replacing the
+			# current host. A rejected stale proposal must not cancel useful work.
+			var reason: String = world.execute_operation(id, input)
+			accepted = reason in ["accepted", "completed"]
+			if not accepted: _rejected(world, id, input.kind, target, reason, at)
+			elif reason == "completed":
+				if not binding.is_empty() and world.gate.matches(id, binding):
+					world.end_run(id, at, "preempted", {}, false)
+					world.clear_navigation(id)
+				var goal: Dictionary = entry.goals[best.goal]
+				if Defs.GOALS[goal.definition].driver == "operation" and goal.params.operation == input.kind and goal.params.target == target: goal.state = "completed"; goal.closed_ms = at
+				after_action(world, id, at, target)
+	world.decisions._submitting = 0
+	if accepted:
+		entry.goals[best.goal].method = {"approach": best.approach, "operation": best.operation, "anchor": best.anchor, "selected_ms": at}
+		entry.intention.task_id = int(world.decisions.records.get(id, {}).get("task", {}).get("id", 0)) if entry.goals[best.goal].state == "active" else 0
+	else: entry.intention = before
 
 func _preference(entry: Dictionary, actor: Dictionary, clues: Dictionary, at: int) -> Dictionary:
-	var result: Dictionary = entry.intention.duplicate(true)
-	result["retained"] = {}
-	for goal: Dictionary in entry.goals.values():
-		if goal.state == "active" and _utility(goal, entry, actor, at).value > 0.0:
-			result.retained.merge(_retained(goal, goal.method, clues, actor))
-	return result
+	return Selection.preference(entry, actor, clues, at)
 
 func _retained(goal: Dictionary, choice: Dictionary, clues: Dictionary, actor: Dictionary) -> Dictionary:
-	var result: Dictionary = {}
-	if Defs.GOALS[goal.definition].driver == "duty":
-		var policy: Dictionary = actor.get("duties", {}).get(int(goal.params.appointment), {})
-		if policy.get("kind") == "cultivation": return Planner.Institutions.Cultivation.retained(policy, actor, clues)
-	# Self-study is useful independently of a former teacher's last-seen site.
-	var method: String = learning_method(goal, actor)
-	if not method.is_empty() and not Growth.introduced(actor, method):
-		var book: String = Growth.Defs.METHODS[method].study_item
-		var organizations: Dictionary = {0: true}
-		for clue: Dictionary in clues.values(): organizations[int(clue.get("organization", 0))] = true
-		for bundle: Dictionary in actor.get("bundles", []): organizations[int(bundle.organization)] = true
-		for organization: int in organizations: result["%d:study:%s" % [organization, book]] = true
-	var operation: Dictionary = Operations.OPERATIONS.get(choice.get("operation", ""), {})
-	var anchor: Dictionary = clues.get(int(choice.get("anchor", 0)), {})
-	# Keep prerequisites while the known method remains usable, not after its
-	# actual site is known to be gone. Missing one ingredient alone is temporary.
-	if choice.is_empty() or (choice.anchor != actor.id and int(anchor.get("tile", -1)) < 0): return result
-	if not operation.is_empty():
-		var organization: int = int(clues.get(choice.anchor, {}).get("organization", 0))
-		var inputs: Dictionary = operation.recipe.inputs if not operation.recipe.is_empty() else operation.required_items
-		var purpose: String = Stock.input_purpose(operation)
-		for item: String in inputs: result["%d:%s:%s" % [organization, purpose, item]] = true
-	if Defs.GOALS[goal.definition].driver == "delivery": result["%d:supply:%s" % [int(goal.params.get("organization", 0)), goal.params.item]] = true
-	if Defs.GOALS[goal.definition].driver == "responsibility":
-		var terms: Dictionary = actor.get("responsibilities", {}).get(int(goal.params.share), {})
-		var place: Dictionary = clues.get(int(terms.get("target", 0)), {})
-		if int(place.get("tile", -1)) < 0: return result
-		if terms.get("kind") == "delivery":
-			if not Stock.access_reason(actor, place, "put", {"item": terms.item, "purpose": "supply"}).is_empty() or (int(place.get("capacity", -1)) >= 0 and int(place.get("inventory", {}).values().reduce(func(a: int, b: int): return a + b, 0)) >= int(place.capacity)): return result
-			for origin: int in terms.sources: result["%d:supply:%s:%d" % [int(terms.organization), terms.item, origin]] = true
-		elif terms.get("kind") == "produce":
-			var recipe: Dictionary = Operations.OPERATIONS[terms.operation].recipe
-			for item: String in recipe.inputs: result["%d:%s:%s" % [int(terms.organization), recipe.purpose, item]] = true
-	return result
+	return Selection.retained(goal, choice, clues, actor)
 
 func share_closed(world: RefCounted, share: Dictionary, completed: bool) -> void:
 	var entry: Dictionary = records.get(int(share.actor), {})
@@ -563,8 +499,14 @@ func task_ended(actor: int, task_id: int) -> void:
 
 func _idle(world: RefCounted, id: int, at: int, searching: bool) -> void:
 	var entry: Dictionary = records[id]
+	if searching and int(world.knowledge.record(id).due_ms) <= at:
+		# An empty proposal is not evidence that this location has nothing useful.
+		# Finish the already due look before committing to blind exploration.
+		world.decisions.wake(world, id, at, "exploration_observe")
+		world.deferred.request("observe", id, int(world.knowledge.records[id].due_ms), 0)
+		return
 	entry.idle_attempts = mini(6, int(entry.idle_attempts) + 1) if searching else 0
-	if preload("res://scripts/sim/kernel/service_positions.gd").step_aside(world, id, at): return
+	if preload("res://scripts/sim/kernel/service_positions.gd").step_aside(world, id, at, not searching): return
 	var delay: int = mini(10000, 1000 * (1 << int(entry.idle_attempts)))
 	if searching and at >= int(entry.explore_ms) and (Beings.has(world.objects.records[id], "work") or Beings.has(world.objects.records[id], "metabolism")):
 		var angle: float = deg_to_rad(float((id * 97 + int(entry.explore_count) * 137) % 360))
@@ -647,12 +589,21 @@ func outcome(world: RefCounted, actor: int, binding: Dictionary, result: Diction
 	if Defs.GOALS[goal.definition].driver == "operation" and result.operation == goal.params.operation and result.target == goal.params.target and result.reason != "process_waiting":
 		goal.state = "completed"; goal.closed_ms = at
 
+func _complete_operation_goals(actor: int, result: Dictionary, at: int) -> void:
+	# Actual completion, including an instant self-operation, can satisfy an
+	# explicit purpose while another need selected the identical operation.
+	if result.reason == "process_waiting": return
+	for goal: Dictionary in records.get(actor, {}).get("goals", {}).values():
+		if goal.state == "active" and Defs.GOALS[goal.definition].driver == "operation" and goal.params.operation == result.operation and goal.params.target == result.target:
+			goal.state = "completed"; goal.closed_ms = at
+
 func after_action(world: RefCounted, id: int, at: int, target: int = 0) -> void:
 	if not world.actor_slots.has(id) or not world.combat.alive(world, id) or not world.objects.records[id].get("autonomous", false) or world.decisions.records.get(id, {}).get("manual", false): return
 	if target > 0: world.knowledge.refresh(world, id, target, at)
 	world.decisions.wake(world, id, at, "life_result", 500 + (id % 10) * 50)
 
 func forget(actor: int) -> void:
+	_reserved_work.erase(actor)
 	records.erase(actor); latest.erase(actor)
 
 func arrived(world: RefCounted, actor: int, at: int) -> void:

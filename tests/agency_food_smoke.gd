@@ -24,7 +24,7 @@ func food_prerequisites_and_reentry() -> void:
 	w.pages[0].hunger[1] = 1500
 	w.pages[0].energy[1] = 10000
 	resident(w, 2, [chest, stove])
-	w.decisions.prepare(w, 0)
+	decide(w, 0)
 	check(w.actions.get(2, {}).get("kind") == "take", "Hungry actor did not start real missing-ingredient transfer")
 	var limit: int = 15000
 	while w.elapsed_ms < limit and not w.objects.records[stove].has("process"): advance(w, w.elapsed_ms + 50)
@@ -55,7 +55,7 @@ func self_food_and_player_parity() -> void:
 	check(w.objects.amount(1, "meal") == 0 and w.pages[0].hunger[0] > 3900, "Self food operation did not consume real private meal")
 	w.objects.add(2, "meal", 1 - w.objects.amount(2, "meal")); w.pages[0].hunger[1] = 1500
 	resident(w, 2, [])
-	w.decisions.prepare(w, w.elapsed_ms)
+	decide(w, w.elapsed_ms)
 	check(w.actions.get(2, {}).get("kind") == "eat" and w.actions[2].target == 2, "Autonomous actor ignored its actual carried meal")
 	advance(w, w.elapsed_ms + 1200)
 	check(w.objects.amount(2, "meal") == 0 and w.pages[0].hunger[1] > 4400, "Autonomous self eating bypassed actual consumption")

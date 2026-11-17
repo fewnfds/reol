@@ -8,7 +8,7 @@ func delivery_and_budget() -> void:
  w.objects.add(pile,"wood",3);w.objects.add(chest,"wood",7);w.flush_topology()
  resident(w,4,[pile,chest])
  var goal: int = w.livelihood.add_goal(w,4,"delivery",{"item":"wood","amount":3,"target":chest})
- w.decisions.prepare(w,0)
+ decide(w, 0)
  check(w.actions.get(4,{}).get("target")==pile,"Supply goal withdrew stock from its own destination")
  var spent: int = w.livelihood.records[4].budget.work
  w.livelihood.add_goal(w,4,"development",{"method":"wood_breath"})
@@ -31,11 +31,11 @@ func dispositions_and_emergency() -> void:
   w.livelihood.add_goal(w,actor,"delivery",{"item":"wood","amount":1,"target":chest})
  w.livelihood.set_dispositions(w,3,{"curiosity":2.0,"dutifulness":0.1,"sociability":0.0})
  w.livelihood.set_dispositions(w,4,{"curiosity":0.1,"dutifulness":2.0,"sociability":0.0})
- w.decisions.prepare(w,0)
+ decide(w, 0)
  check(w.actions.get(3,{}).get("kind")=="study" and w.actions.get(4,{}).get("kind")=="put","Relevant dispositions did not change a real same-situation action")
  var original_goal: int = w.livelihood.records[3].intention.goal
  w.pages[0].hunger[2]=500
- w.decisions.wake(w,3,0,"needs_changed");w.decisions.prepare(w,0)
+ w.decisions.wake(w,3,0,"needs_changed");decide(w, 0)
  check(w.actions.get(3,{}).get("kind")=="eat" and w.livelihood.records[3].goals[original_goal].state=="active","Emergency hunger did not legally interrupt while preserving the longer purpose")
  check(Persistence.candidate(Persistence.capture(w),0)!=null,"Emergency handoff lost the single host/restoration contract")
 

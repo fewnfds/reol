@@ -37,10 +37,12 @@ func _kernel() -> void:
 	serial.initialize(512, 0)
 	var parallel := World.new()
 	parallel.initialize(512, 4)
+	for world: RefCounted in [serial, parallel]: _courier(world)
 	for step: int in 120:
 		serial.step()
 		parallel.step()
-		# Observe a full second and a real delivery in both lane configurations.
+		# Body lanes plus an actual autonomous delivery. Discovery/planning latency
+		# is covered separately; a newborn observer need not scan a whole radius now.
 		if step >= 19 and serial.stored > 0 and parallel.stored > 0: break
 	# Request queues scale with active lanes. Worker counts may change when a
 	# request starts; check physical/resource invariants rather than a full replay.
@@ -91,6 +93,17 @@ func _kernel() -> void:
 	_nature_cycle()
 	await _disk_restart()
 	_thread_boundary()
+
+func _courier(world: RefCounted) -> void:
+	# Explicit scenario knowledge and actual existing goods, never synthetic yield.
+	var actor: int = 10
+	var chest: int = world.depot_objects[0]
+	var slot: int = world.actor_slots[actor]
+	var page: RefCounted = world.pages[slot / 256]
+	page.positions[slot % 256] = world.facilities.interaction_point(world, chest, page.positions[slot % 256], page.radii[slot % 256], false, "put", actor)
+	world.objects.claim(world.source_objects[0], actor, "wood", 4)
+	world._sync_inventory(actor)
+	world.knowledge.seed(world, actor, world.operation_target(chest), 0)
 
 
 func _inventory_session() -> void:
@@ -217,14 +230,17 @@ func _build_and_live() -> void:
 	var stove: int = world.objects.by_tile[Terrain.index(Vector2i(174, 185))][0]
 	world.objects.add(1, "grain", 2)
 	world.objects.add(1, "water", 1)
-	page.positions[0] = world.facilities.interaction_point(world, stove, page.positions[0], 0.35, false, "cook")
+	page.positions[0] = world.facilities.interaction_point(world, stove, page.positions[0], 0.35, false, world.Operations.OPERATIONS.cook.handler, 1)
 	var meals: int = world.objects.amount(stove, "meal")
 	var grain: int = world.objects.amount(1, "grain")
 	check(world.command({"kind": "cook", "target": stove}).ok, "Cooking rejected")
-	for step: int in 84:
-		world.step()
+	world.step()
+	check(world.actions.get(1, {}).has("started_ms"), "Cook never began actual labor at its work position")
+	var finish: int = page.due_ms[0] + 50
+	while world.elapsed_ms < finish: world.step(mini(50, finish - world.elapsed_ms))
 	check(world.objects.amount(stove, "meal") == meals + 3 and world.objects.amount(1, "grain") == grain - 2, "Cooking did not consume real ingredients once")
 	page.hunger[0] = 500
+	page.positions[0] = world.facilities.interaction_point(world, stove, page.positions[0], page.radii[0], false, "eat", 1)
 	world.command({"kind": "eat", "target": stove})
 	for step: int in 24:
 		world.step()
@@ -266,6 +282,9 @@ func _nature_cycle() -> void:
 func _same_step_causality() -> void:
 	var world := World.new()
 	world.initialize(3, 0, true) # This death/cleanup counterexample needs a mobile fixture.
+	for actor: int in [2, 3]:
+		world.release(actor)
+		world.objects.records[actor].autonomous = false
 	var page: RefCounted = world.pages[0]
 	var source: int = page.source_ids[1]
 	var tile: int = world.terrain.resources[source]
@@ -283,11 +302,17 @@ func _same_step_causality() -> void:
 	var before: int = world.objects.amount(world.source_objects[source], "wood")
 	world.step()
 	check(page.health[1] == 0 and page.cargo[1] == 1 and world.objects.amount(world.source_objects[source], "wood") == before - 1, "End-of-step death erased an earlier harvest")
-	check(world.reservations[world.source_objects[source]] == 3, "Earlier harvest did not release reservation before another arrival")
+	# A completed worker still occupies its physical station until it leaves.
+	# The chronological guarantee is release, not overlap by the next worker.
+	check(world.reservations.get(world.source_objects[source], 0) != 2, "Earlier harvest retained the dead worker's reservation")
 	check(world.environment.mobile_cells[0] == -1, "Dead source was not removed")
 	world.objects.claim(world.source_objects[0], 1, "wood", 1)
 	world._sync_inventory(1)
+	world.livelihood.add_goal(world, 1, "delivery", {"item": "wood", "amount": 1, "repeat": false})
 	world.command({"kind": "work", "actor": 1})
+	for piece: int in 128:
+		world.service_deferred()
+		if world.actions.get(1, {}).get("kind", "") == "put": break
 	check(world.actions.get(1, {}).get("kind", "") == "put", "Restarted work ignored cargo that must be delivered")
 	var old: float = world.environment.room_temperature[0]
 	world.environment.room_temperature[0] = 67.0

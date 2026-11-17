@@ -8,6 +8,7 @@ const Units = preload("res://scripts/sim/kernel/units.gd")
 const Navigation = preload("res://scripts/sim/kernel/navigation.gd")
 const Fields = preload("res://scripts/sim/kernel/environment.gd")
 const Batch = preload("res://scripts/sim/execution/batch_execution.gd")
+const Deferred = preload("res://scripts/sim/execution/deferred_work.gd")
 const Objects = preload("res://scripts/sim/kernel/objects.gd")
 const State = preload("res://scripts/sim/kernel/state.gd")
 const Facilities = preload("res://scripts/sim/kernel/facilities.gd")
@@ -70,6 +71,7 @@ var objects := Objects.new()
 var facilities := Facilities.new()
 var livelihood := Livelihood.new()
 var decisions := Decisions.new()
+var deferred := Deferred.new() # Rebuildable work only; no saved second world.
 var nature := Nature.new()
 var combat := Combat.new()
 var effects := Effects.new()
@@ -272,10 +274,45 @@ func step(milliseconds: int = 50) -> void:
 		pages[index].motion = {}
 		for row: int in traces[index]:
 			if traces[index][row].size() > 2: pages[index].motion[row] = traces[index][row]
+	service_deferred()
 	steps += 1
 	var cost: int = Time.get_ticks_usec() - start
 	step_usec += cost
 	maximum_step_usec = maxi(maximum_step_usec, cost)
+
+func service_deferred() -> void:
+	# Critical body batches have joined. No soft completion is a prerequisite
+	# for publishing this step; domains commit only currently valid candidates.
+	var began: int = Time.get_ticks_usec()
+	deferred.collect_retired()
+	deferred.starts_in_step = 0
+	# At most two background jobs. Completion collection cannot compete with an
+	# older backlog for admission; never join an unfinished soft job.
+	for identity: String in deferred.jobs.keys():
+		var handle: Dictionary = deferred.jobs[identity]
+		if int(handle.task) < 0: continue
+		if decisions.service(self, int(handle.actor), elapsed_ms): deferred.finished += 1
+	var served: Dictionary = {}
+	for piece: int in Deferred.STEP_PIECES:
+		if requested_workers != 0 and piece > 0 and Time.get_ticks_usec() - began >= Deferred.STEP_USEC: break
+		var starts: int = mini(16, maxi(Deferred.STEP_STARTS, ceili(float(actor_count) / 64.0)))
+		var paused_domains: Dictionary = {"life": true} if not deferred.capacity(requested_workers) or deferred.starts_in_step >= starts else {}
+		var item: Dictionary = deferred.take(elapsed_ms, served, paused_domains)
+		if item.is_empty(): break
+		served[item.key] = int(served.get(item.key, 0)) + 1
+		var started: int = Time.get_ticks_usec()
+		var done: bool = true
+		match item.domain:
+			"life": done = decisions.service(self, int(item.actor), elapsed_ms)
+			"observe": done = knowledge.service(self, int(item.actor), elapsed_ms)
+		deferred.maximum_piece_usec = maxi(deferred.maximum_piece_usec, Time.get_ticks_usec() - started)
+		if done: deferred.finished += 1
+		else:
+			var asynchronous: bool = int(deferred.jobs.get(item.key, {}).get("task", -1)) >= 0
+			if not asynchronous:
+				var blocked: bool = item.domain == "life" and (not deferred.jobs.has(item.key) or not gate.check(self, int(item.actor), elapsed_ms).is_empty())
+				deferred.again(item, elapsed_ms + (1 if blocked else 0))
+	deferred.work_usec += Time.get_ticks_usec() - began
 
 
 func _advance_interval(end: int) -> void:
@@ -462,10 +499,14 @@ func settle(id: int, at: int, expected: Variant = null) -> void:
 	elif mode == Units.Mode.APPROACH or mode == Units.Mode.ACTION:
 		settle_action(id, at)
 	elif mode == Units.Mode.EXPLORE:
-		livelihood.arrived(self, id, at)
-		end_run(id, at, "completed")
-		knowledge.observe(self, id, at)
-		livelihood.think(self, id, at)
+		var clearance: bool = decisions.clearance_quiet(self, id)
+		var exploring: bool = decisions.records.get(id, {}).get("task", {}).get("purpose", "") != "clearance" and int(decisions.records.get(id, {}).get("task", {}).get("target", 0)) == 0
+		if not clearance: livelihood.arrived(self, id, at)
+		end_run(id, at, "completed", {}, not clearance)
+		if not clearance:
+			knowledge.request(id, at)
+			if exploring: decisions.wake(self, id, at, "exploration_observe")
+			else: livelihood.think(self, id, at)
 	elif mode == Units.Mode.COMBAT_MOVE:
 		page.modes[row] = Units.Mode.IDLE
 
@@ -574,6 +615,8 @@ func clear_input(id: int) -> void:
 
 func release(id: int, at: int = -1, reason: String = "replaced") -> void:
 	# Explicit full command/death reset; ordinary run completion uses end_run.
+	if decisions._submitting != id:
+		decisions.cancel_life(self, id)
 	end_run(id, at, reason, {}, false)
 	combat.chains.erase(id)
 	combat.engagements.erase(id)
@@ -665,6 +708,8 @@ func kill(id: int, at: int = -1, cause: String = "") -> void:
 	page.modes[row] = Units.Mode.DEAD
 	environment.remove_mobile(id)
 	# A corpse retains its cargo. Death cannot erase or duplicate materials.
+	deferred.cancel_actor(id)
+	knowledge.stop(id)
 	decisions.forget(id)
 	livelihood.forget(id)
 	deaths += 1
@@ -813,7 +858,7 @@ func _command(input: Dictionary) -> Dictionary:
 			if livelihood.records.has(id): livelihood.records[id].borrowed_autonomy = false
 			objects.records[id].autonomous = true
 			decisions.resume(self, id, elapsed_ms)
-			knowledge.observe(self, id, elapsed_ms)
+			knowledge.request(id, elapsed_ms)
 			livelihood.think(self, id, elapsed_ms)
 			decisions.prepare(self, elapsed_ms)
 		"heal":
@@ -1005,7 +1050,7 @@ func counters() -> Dictionary:
 		"environment_updates": environment.updates, "rooms": terrain.room_cells.size(),
 		"structures": terrain.structures.size(), "static_sources": environment.source_cells.size(),
 		"mobile_sources": environment.mobile_units.size(), "objects": objects.records.size(), "transfers": objects.transfers,
-		"decisions": livelihood.decisions, "observations": knowledge.observations, "decision_usec": livelihood.decision_usec, "observe_usec": knowledge.observe_usec, "topology_usec": topology_usec,
+		"decisions": livelihood.decisions, "observations": knowledge.observations, "decision_usec": livelihood.decision_usec, "decision_prepare_usec": livelihood.prepare_usec, "discarded_plans": livelihood.discarded_plans, "deferred": deferred.describe(), "observe_usec": knowledge.observe_usec, "topology_usec": topology_usec,
 		"facility_completions": facilities.completed.duplicate(), "plants": nature.ids.size(), "plant_evaluations": nature.evaluations, "plant_transitions": nature.transitions, "plant_collections": nature.collections, "nature_usec": nature.work_usec, "calendar": environment.calendar(), "unit_decisions": decisions.evaluations, "unit_decision_usec": decisions.work_usec, "combatants": combat.engagements.size(), "projectiles": combat.bolts.size(), "shots": combat.shots, "hits": combat.hits, "combat_usec": combat.work_usec, "combat_prepare_usec": combat.prepare_usec, "combat_resolve_usec": combat.resolve_usec, "combat_collect_usec": combat.collect_usec, "combat_damage_usec": combat.damage_usec, "combat_slices": combat.slices, "melee_candidates": combat.melee_candidates, "melee_tests": combat.melee_tests, "combat_repaths": combat.repaths, "combat_resumed": combat.resumed,
 		"perception_usec": perception.work_usec, "sight_observers": combat.scan.observer_count,
 		"sight_candidates": combat.scan.candidates, "sight_queries": combat.scan.queries,
@@ -1694,6 +1739,8 @@ func remove_actor(id: int, at: int = -1) -> bool:
 			objects.transfer(id, pile, item, objects.amount(id, item))
 	objects.remove_empty(id)
 	knowledge.records.erase(id)
+	knowledge.stop(id)
+	deferred.cancel_actor(id)
 	decisions.forget(id)
 	livelihood.forget(id)
 	actor_slots.erase(id)

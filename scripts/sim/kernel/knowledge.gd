@@ -19,6 +19,8 @@ var observe_usec: int = 0
 var _batch_actor: int = 0
 var _protected: Dictionary = {}
 var _protection_dirty: bool = true
+var _scans: Dictionary = {} # Transient cursor; overdue persisted due_ms rebuilds it.
+const SCAN_TARGETS: int = 4
 
 func record(actor: int) -> Dictionary:
 	if not records.has(actor): records[actor] = {"due_ms": 0, "subjects": {}, "experiences": [], "next_revision": 1, "channels": {}}
@@ -253,8 +255,7 @@ func observe(world: RefCounted, actor: int, at: int) -> void:
 		var tile: int = entry.subjects[target].view.tile
 		if not checked.has(target) and tile >= 0 and world.sight.sees(position, tile, radius): refresh(world, actor, target, at)
 	entry.due_ms = at + OBSERVATION_MS
-	if entry.next_revision != previous_revision and world.objects.records[actor].get("autonomous", false) and world.combat.alive(world, actor) and not world.decisions.records.get(actor, {}).get("manual", false) and world.gate.current(actor).is_empty() and not world.decisions.in_combat(actor):
-		world.decisions.wake(world, actor, at, "knowledge_observed", 50 + actor % 10 * 50)
+	if entry.next_revision != previous_revision: world.decisions.knowledge_changed(world, actor, at, "knowledge_observed")
 	_batch_actor = 0
 	_protected = {}
 	observations += 1
@@ -268,10 +269,77 @@ func pulse(world: RefCounted, at: int) -> void:
 	for actor: int in world.actor_slots:
 		if not world.combat.alive(world, actor): continue
 		living += 1
-		if int(record(actor).due_ms) <= at: eligible.append(actor)
+		if int(record(actor).due_ms) <= at and not _scans.has(actor) and not world.deferred.ready.has(world.deferred.key("observe", actor)): eligible.append(actor)
 	eligible.sort_custom(func(a: int, b: int): return int(records[a].due_ms) < int(records[b].due_ms) if records[a].due_ms != records[b].due_ms else a < b)
 	var quota: int = maxi(2, ceili(float(living) * 50.0 / OBSERVATION_MS) + 1)
-	for index: int in mini(quota, eligible.size()): observe(world, eligible[index], at)
+	for index: int in mini(quota, eligible.size()):
+		world.deferred.request("observe", eligible[index], int(records[eligible[index]].due_ms), 2)
+
+func service(world: RefCounted, actor: int, at: int) -> bool:
+	if not world.actor_slots.has(actor) or not world.combat.alive(world, actor):
+		_scans.erase(actor)
+		return true
+	var began: int = Time.get_ticks_usec()
+	var entry: Dictionary = record(actor)
+	if not _scans.has(actor):
+		world.sight.sync(world)
+		if int(entry.due_ms) > at:
+			_finish_wait(world, actor, at) # A direct observation may have already met this dependency.
+			return true
+		var position: Vector2 = world.combat.position(world, actor)
+		var radius: float = world.sight.range_for(world, actor)
+		var targets: Dictionary = {}
+		for target: int in world.objects.nearby(position, radius, false): targets[target] = true
+		var nearby: Array = world.combat.scan.nearby(position - Vector2.ONE * radius, position + Vector2.ONE * radius, true) if not world.combat.scan.ids.is_empty() else world.actor_slots.keys()
+		for target: int in nearby:
+			if target != actor: targets[target] = true
+		# Missing remembered subjects need a real look at their old location.
+		# Enumeration conveys no information; each refresh still checks visibility.
+		for target: int in entry.subjects:
+			var tile: int = entry.subjects[target].view.tile
+			if tile >= 0 and world.sight.sees(position, tile, radius): targets[target] = true
+		_scans[actor] = {"targets": targets.keys(), "cursor": 0, "revision": int(entry.next_revision)}
+		observe_usec += Time.get_ticks_usec() - began
+		return false
+	var scan: Dictionary = _scans[actor]
+	var previous_revision: int = int(entry.next_revision)
+	_batch_actor = actor; _protected = {}; _protection_dirty = true
+	for item: int in SCAN_TARGETS:
+		if int(scan.cursor) >= scan.targets.size(): break
+		var target: int = scan.targets[scan.cursor]
+		scan.cursor += 1
+		var value: Dictionary = world.objects.records.get(target, {})
+		if value.get("kind") == "plant" and int(value.get("host", 0)) == 0 and world.objects.count_inventory(target) == 0 and not entry.subjects.has(target) and not value.get("sapient", false) and not preload("res://scripts/sim/kernel/nature_defs.gd").DEFINITIONS[value.definition].has("stored_qi"): continue
+		refresh(world, actor, target, at)
+	_batch_actor = 0; _protected = {}
+	# Each acquired piece carries its own durable wake. A save between pieces
+	# must not turn already-learned information into a permanently missed event.
+	if entry.next_revision != previous_revision: world.decisions.knowledge_changed(world, actor, at, "knowledge_observed")
+	var done: bool = int(scan.cursor) >= scan.targets.size()
+	if done:
+		entry.due_ms = at + OBSERVATION_MS
+		_scans.erase(actor)
+		observations += 1
+		_finish_wait(world, actor, at)
+	observe_usec += Time.get_ticks_usec() - began
+	return done
+
+func _finish_wait(world: RefCounted, actor: int, at: int) -> void:
+	var timers: Dictionary = world.decisions.wakeups.get(actor, {})
+	if not timers.has("exploration_observe"): return
+	timers.erase("exploration_observe")
+	world.decisions._sync_next(actor)
+	world.livelihood.think(world, actor, at)
+
+func request(actor: int, at: int) -> void:
+	# Arrivals request ordinary coverage; direct target/contact receipts remain
+	# immediate. No nested whole-radius observation during a work commit.
+	var entry: Dictionary = record(actor)
+	entry.due_ms = mini(int(entry.due_ms), at)
+	_scans.erase(actor) # A new arrival must enumerate its new location.
+
+func stop(actor: int) -> void:
+	_scans.erase(actor) # Death/removal must also retire the rebuildable cursor.
 
 func deliver(world: RefCounted, recipient: int, giver: int, target: int, at: int, focus: bool = false) -> bool:
 	var incoming: Dictionary = records.get(giver, {}).get("subjects", {}).get(target, {})
@@ -303,8 +371,7 @@ func deliver(world: RefCounted, recipient: int, giver: int, target: int, at: int
 			if value.has("name"): identity["name"] = value.name
 			var account: Dictionary = teachings.values()[0]
 			changed = _store(world, recipient, identity, "heard", account.observer, giver, account.seen_ms, at, account.hops, teachings, focus)
-	if changed and world.objects.records[recipient].get("autonomous", false) and world.combat.alive(world, recipient) and not world.decisions.records.get(recipient, {}).get("manual", false) and world.gate.current(recipient).is_empty() and not world.decisions.in_combat(recipient):
-		world.decisions.wake(world, recipient, at, "knowledge_delivered", 50 + (recipient % 10) * 50)
+	if changed: world.decisions.knowledge_changed(world, recipient, at, "knowledge_delivered")
 	return changed
 
 func share(world: RefCounted, giver: int, recipient: int, at: int) -> Dictionary:

@@ -12,6 +12,7 @@ static func _source_qi_steps() -> Array:
 		var cost: int = int(method.source_qi_cost)
 		if cost > 0 and cost not in result: result.append(cost)
 	result.sort()
+	result.make_read_only()
 	return result
 
 static func source_qi_band(amount: int) -> int:

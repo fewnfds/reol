@@ -2,9 +2,40 @@
 
 更新：2026-11-17。能力归[FEATURES](features.md)，状态归属归[架构](../engineering/architecture.md)，阶段归[主计划](../plans/foundation-priorities.md)。本页保存当前证据，完整历史由Git追溯。
 
+## 跨步调度与后台规划
+
+2026-11-17，沿原World/Runner实施，日常纯选择进入有限后台任务、普通观察分片，保一个事实写入者与关键提交顺序。实现合同归[执行方式](../engineering/execution-batches.md#跨步服务与后台提案)，阶段咨询/取舍归[主计划](../plans/foundation-priorities.md#调度与计算依赖审查)。下节保留修前诊断，不能将其“未实施”状态沿用为当前停点。
+
+同机真实release对照：i5-13600KF、RTX3060、D3D12、1280×720、60FPS，3秒运行预热＋10秒采样，原生F9加载同一2760000ms普通百人存档，固定镜头/迷雾，100人全活；用户原档在finally恢复。不是编辑器/headless性能，也不是合成战斗压力场景。
+
+| 条件 | 步均ms | 步p99 / 最大ms | 画面p99 / 最大ms | 实际世界倍率 | 交付 / 移动格 / 活动均值 |
+|---|---|---|---|---|---|
+| 修前宗门包 | 6.538 | 29.365 / 39.685 | 16.758 / 16.989 | 1.00007× | 3 / 1185.62 / 0.25849 |
+| 当前包，默认有限后台 | 4.419 | 8.107 / 12.479 | 16.712 / 16.756 | 0.99997× | 2 / 1173.69 / 0.26231 |
+| 同核心workers0串行对照，小修前 | 5.908 | 16.484 / 23.381 | 16.963 / 17.073 | 0.99997× | 3 / 1244.68 / 0.27666 |
+
+原始JSON为`logs/scheduling-before-package-reviewed-mature.json`、`scheduling-final-package-async-reviewed-final-mature.json`、`scheduling-final-package-serial-reviewed-mature.json`。串行对照早于最后的重复提案/元数据/观察前驱及取消生命周期修订，纯选择核心相同；本机另保中间包数据，不用较好的一窗替换最终包。不同计算完成时间会改变后续选择，本表是相同起点/条件的实际成本及活动量比较，不是锁步工作量完全相同或固定硬件外收益保证。
+
+当前窗完成取水1、休养7，修前1/6；移动及活动均值相近，未靠NPC停工/减员降低耗时。默认后台从本次加载后累计（含预热）启动340、完成339，真实worker ID不等于身体页worker统计；100人一页的`workers=0`字段只表示身体页无并行，不代表没有后台规划。普通完整扫描159次，末ready54/运行1，最大等待3467世界毫秒、最长服务片3510µs；软服务允许秒级等待，单片可超约3ms预算，不承诺50ms或硬截止。串行模式没有墙钟截断，不能仅比任务数推断后台失败。
+
+最终包原生F5保存→退出→新进程F9读取通过：`logs/scheduling-final-package-async-reviewed-{save,load}-20261117-{191842,191857}.log`，两窗世界约1×、100人全活，原用户save/bak/tmp恢复。无源码运行目录仅复制exe/pck；实际导出日志`logs/export-20261117-191817-455466900.log`。当前路径仍是启动菜单3的`build/windows/sect-foundation/reol-sect.exe`＋同目录pck；exe SHA256 `3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf`，pck `2251d684897b028f3e144c86437db892841746a41da015fe204107e8749d7fd2`。生成包不入Git。
+
+真实原生Game观察：`logs/scheduling-post-review-ui-20261117-192027-281407500.log`从同成熟检查点选38号，活动卡片显示“修行中·青灵竹#657”和12%真进度，截图`logs/scheduling-reviewed-selected-npc.png`已实际查看。12墙钟秒的采用/显示推进记录`logs/scheduling-reviewed-ui-timeline.json`：718次新Frame采用，最大观察间隔33.335ms；1435次render_ms增长，最大41.726ms（含最初启动等待），两者超过60ms均0。这里量的是主线程观察，不是每次owner发布完整时序，也不证明任意长局零卡顿。
+
+最终相关短检查：`logs/scheduling-post-review-final-20261117-191729-132503100.log`约7.6秒、`smoke-kernel-20261117-191432-451881900.log`约7.9秒，均errors=0且保原15秒上限/650ms线程断言。取消修订后的`logs/scheduling-reviewed-decisions-20261117-191803-30305300.log`及`scheduling-reviewed-act-20261117-191813-41110900.log`通过。生活食物/边界/失败、knowledge_schedule/knowledge_boundaries相关检查也通过，日志为`scheduling-{food-final,agency-boundaries-final,agency-failures-final,knowledge-calendar,knowledge-boundaries}-20261117-*`；未据此宣布全库全绿。结构核100文档/417源/0错误。
+
+kernel原预约缺key、cook/eat断言已在未改d127ec6隔离基线独立复现（`logs/scheduling-baseline-causality-cooking-20261117-184613-189383700.log`），随后按真实作业位置/劳动截止校正；同拍收获夹具隔离无关自主，核原预约释放与期末死亡顺序。512串/并行段只给其中一个courier现场认识及从现有世界转出的4木料，仍核真实交付/净空/守恒；不能将它描述为512人自治吞吐达标。规则夹具用有限service完成提案，不把“prepare一调用立即有选择”恢复成运行合同。
+
+明确未解决的规模边界：512人全陌生development冷启动6模拟秒探针`logs/scheduling-observe-first-work-20261117-185240-314967700.log`仍0交付、ready841/最大等待6000ms（162规划、4完整扫描、32cargo，守恒成立）。本轮未追加其吞吐硬指标或长测；植物/整秒环境/部分路径与快照仍同步，后续应按实际热点处理。此前abilities聚合超时和其他旧意愿前提失败未重验收，不由本轮局部通过覆盖。
+
+开工、三次阶段交流及最终review/整改复审双模型完整回答均已独立核查，原件在本机`.local/advisor/scheduling-implementation-20261117/`。最后两份答复未提出剩余必修项，要求的原act/decisions与重导复验均已完成；顾问原答不入库，也不作为本机运行证据。
+
+最终review实际补出两项反例：`scheduling-arrival-counterexample-20261117-191208-111247500.log`复现未完串行提案到达后留下孤儿job；现统一取消出口成对退役任务/预留，串行及信号量挂起后台两模式均恢复观察/真实进食。`scheduling-ignore-stable-goals-counterexample-20261117-191641-447133600.log`仅撤保债逻辑后复现受支持ignore策略丢失忙host的需求review；修后实际吃饭。该夹具只替换合法策略数据，当前stock resident自卫；初期误传不可用response个体参数的失败不当缺陷证据。未采顾问“所有尖峰已消除/输出完全等价”的扩大结论，不将低端线程抢占的猜测当作本机事实。
+
+
 ## 调度与计算依赖审查
 
-2026-11-17，只读诊断main `97c60b5`，未改生产代码/存档/导出包。用户要求判断周期轮询与“必须算完才发布”的结构缺口。当前已有50ms分层/配额和事件唤醒，但日常到期评价、完整普通观察、新路径等仍在同步调用链，详见[候选演进](../plans/foundation-priorities.md#调度与计算依赖审查)。上一轮成熟GUI短窗通过只覆盖该窗口的集中观察削峰，不能据此断言其他同步慢域已解决。
+本节是实施前的历史诊断：2026-11-17只读核查main `97c60b5`，当时未改生产代码/存档/导出包。用户要求判断周期轮询与“必须算完才发布”的结构缺口。当前已有50ms分层/配额和事件唤醒，但日常到期评价、完整普通观察、新路径等仍在同步调用链，演进及当前状态见[实施取舍](../plans/foundation-priorities.md#调度与计算依赖审查)。上一轮成熟GUI短窗通过只覆盖该窗口的集中观察削峰，不能据此断言其他同步慢域已解决。
 
 本次无画面、workers=0、正常100人，新开及真实2760000ms检查点各推进12模拟秒（720个60Hz外步），用现有owner微秒累计计数器作差，未覆盖生产方法：
 
@@ -23,7 +54,7 @@
 
 这些是headless/source定点诊断；独立release前一轮同成熟短窗模拟步最大37.853ms、实际约1倍，条件不同，不能把118/128ms称为当前成品每帧耗时。两次细计时绝对成本也有差异，不推算固定加速倍数；本轮未重跑图形倍率/长局矩阵。新诊断、源码选段和咨询输入留`.local/scheduling-audit-20261117/`及`.local/advisor/scheduling-audit-20261117/`。
 
-顾问两轮各询双模型：首轮hydrogen完整、argon返回503；第二轮两份完整，三份完整原答均已审阅。采用与拒绝的判断及独立核查的公开来源归[方案](../plans/foundation-priorities.md#顾问复核与公开参考)，原答不是代码/性能事实的替代。
+诊断时顾问两轮各询双模型：首轮hydrogen完整、argon返回503；第二轮两份完整，三份完整原答均已审阅。公开来源归[主计划](../plans/foundation-priorities.md#公开参考)；实施阶段咨询与当前采用/拒绝另见本页顶部和主计划，原答不是代码/性能事实的替代。
 
 ## 宗门试玩诊断
 
@@ -79,7 +110,7 @@
 
 收尾实现及修订后最终双顾问答复分别位于`.local/advisor/playtest-repair-20261117/{implementation-review,final-review}/`，四份完整答复均已通读并独立核查。采纳加载UI重入屏障、日常命令退出瞄准、到场占位复核、新身体首次观察登记、批内保护失效、身份名称与进度时源统一；最终再补跨格身体阻位、接触点身体/路径校验、施工占地闲人唤醒，完成对应反例。拒绝“commit后才knowledge.outcome”（原end_run已先刷新）、“EventText无arrived/action_started分支”（完整源码有）、“after_action不检查manual”（函数自身检查）的推断。保护集依赖按完整Livelihood核查：当前任务等身份已直接入集，仅个人分配和职责宿主占用者依赖subjects；两类均已失效处理，不因片段推断改成每对象重建。全满临时拒绝/原退避与有限让位为本轮明确取舍，不采无条件推动忙工/玩家、永久重排队或全景认识快照。顾问未运行本机，关闭依据仍是实际源码和验证。
 
-额外回归中，原35a0053隔离工作树的`livelihood_smoke`同样在远距求助返回`refused_busy`，`decision_feedback_smoke`同样未满足施工承诺夹具的同意前提；均未为测试改成NPC无条件服从，两项未通过。`settlement_opening_smoke`并发及单独复核均15秒超时（`playtest-opening-isolated-20261117-171627-260718400.log`）；正常装配、真实自主运行/恢复仍另由GUI/成品与个人床检查证明。此前kernel/abilities聚合15秒超时也未被本轮专题覆盖，不宣称全库全绿。
+额外回归中，原35a0053隔离工作树的`livelihood_smoke`同样在远距求助返回`refused_busy`，`decision_feedback_smoke`同样未满足施工承诺夹具的同意前提；均未为测试改成NPC无条件服从，两项未通过。`settlement_opening_smoke`并发及单独复核均15秒超时（`playtest-opening-isolated-20261117-171627-260718400.log`）；正常装配、真实自主运行/恢复仍另由GUI/成品与个人床检查证明。当时kernel/abilities聚合15秒超时未被试玩专题覆盖；kernel当前状态见本页顶部跨步调度证据，abilities仍未重新验收。
 
 ## 宗门共享基座交付
 

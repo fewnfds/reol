@@ -291,6 +291,7 @@ func _run() -> void:
 			if io_result.ok and io_command.kind == "load":
 				var candidate: RefCounted = io_result.candidate
 				if candidate != null:
+					_world.deferred.close()
 					_world = candidate
 					_world.combat.set_control(_world, {"enabled": false})
 					_epoch += 1
@@ -337,6 +338,7 @@ func _run() -> void:
 				if not _combat_lab or mode not in ["light", "heavy", "mixed"] or not _world.combat.Defs.LOADOUTS.has(loadout) or not _world.combat.Defs.LOADOUTS.get(loadout, {}).get("playable", false) or _io.busy:
 					replies.append({"seq": command.seq, "kind": "combat_practice", "at_ms": _world.elapsed_ms, "ok": false, "reason": "practice_unavailable"})
 				else:
+					_world.deferred.close()
 					_world = World.new()
 					_world.initialize(_count, _workers)
 					Scenarios.combat_lab(_world, mode, loadout)
@@ -397,6 +399,7 @@ func _run() -> void:
 			# Godot Semaphore has no timed wait. Sleep rather than busy-spin.
 			OS.delay_usec(clampi(int((step_usec - debt) / speed), 100, 2000))
 	# Complete an admitted cold I/O job once even when closing the session.
+	_world.deferred.close()
 	_io.close()
 	var final_io: Dictionary = _io.poll()
 	if not final_io.is_empty():

@@ -53,7 +53,7 @@ static func is_service_cell(world: RefCounted, point: Vector2, radius: float = S
 				if point.distance_squared_to(Terrain.center(tile)) < minimum * minimum: return true
 	return false
 
-static func step_aside(world: RefCounted, actor: int, at: int) -> bool:
+static func step_aside(world: RefCounted, actor: int, at: int, quiet: bool = true) -> bool:
 	if not idle_actor(world, actor): return false
 	var slot: int = world.actor_slots[actor]
 	var page: RefCounted = world.pages[slot / 256]
@@ -79,5 +79,7 @@ static func step_aside(world: RefCounted, actor: int, at: int) -> bool:
 				if not world.adopt_motion(actor, at): return false
 				page.move_to(row, point, world.Units.Mode.EXPLORE)
 				world.decisions.track_host(world, actor)
+				if quiet:
+					world.decisions.records[actor].task.merge({"purpose": "clearance", "reconsider": false, "knowledge_revision": int(world.knowledge.records.get(actor, {}).get("next_revision", 1))})
 				return true
 	return false

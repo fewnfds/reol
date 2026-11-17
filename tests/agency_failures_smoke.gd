@@ -14,7 +14,7 @@ func crowded_self_and_private_food() -> void:
   w.knowledge.seed(w,4,contact,0)
  w.livelihood.add_goal(w,4,"development",{"method":"wood_breath"})
  w.livelihood.record(w,4).budget.cursor=32
- w.decisions.prepare(w,0)
+ decide(w, 0)
  check(w.actions.get(4,{}).get("kind")=="study","Crowded rotating candidates starved an immediately usable carried book")
  w.command({"kind":"interrupt","actor":4})
  check(w.execute_operation(4,{"kind":"eat","target":stove})=="no_food","Public cooker advertised another person's private output as edible")
@@ -27,10 +27,10 @@ func no_food_no_pointless_preempt() -> void:
  var chest: int=w.facilities.create_completed(w,"wood_chest",w.Terrain.index(Vector2i(125,122)))
  w.objects.add(4,"wood",1)
  resident(w,4,[chest]);w.livelihood.add_goal(w,4,"delivery",{"item":"wood","amount":1,"target":chest})
- w.decisions.prepare(w,0)
+ decide(w, 0)
  var original: Dictionary=w.gate.current(4)
  w.pages[0].hunger[3]=1000
- w.decisions.wake(w,4,0,"needs_changed");w.decisions.prepare(w,0)
+ w.decisions.wake(w,4,0,"needs_changed");decide(w, 0)
  check(w.gate.current(4)==original and w.actions.get(4,{}).get("kind")=="put","Unavailable food aim pointlessly interrupted useful current work")
  check(w.livelihood.Defs.crossed_need("hunger",1801,1800),"Emergency threshold failed to produce another legal need wake")
 
@@ -41,7 +41,7 @@ func instant_and_obscured_inspection() -> void:
  w.pages[0].health[1]=1000
  w.pools.gain(w,2,"qi",500,0)
  var goal: int=w.livelihood.add_goal(w,2,"operation",{"operation":"wood_mend","target":2})
- w.decisions.prepare(w,0)
+ decide(w, 0)
  check(w.livelihood.records[2].goals[goal].state=="completed" and w.pages[0].health[1]>1000,"Instant operation did not settle its real personal purpose")
  check(w.decisions.wakeups.has(2),"Instant success silently stopped autonomous life")
  var other: RefCounted=peaceful()

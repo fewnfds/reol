@@ -8,6 +8,14 @@ var errors: int = 0
 func _initialize() -> void: call_deferred("_run")
 func check(ok: bool, message: String) -> void:
 	if not ok: errors += 1; push_error(message)
+func decide(w: RefCounted, at: int) -> void:
+	# Rule tests await the finite pure planner, rather than assuming that waking
+	# a person synchronously chooses a new life action. No world-time advance.
+	w.decisions.prepare(w, at)
+	for attempt: int in 128:
+		w.service_deferred()
+		if w.deferred.jobs.is_empty() and not w.deferred.ready.values().any(func(item: Dictionary): return item.domain == "life"): return
+	check(false, "Finite personal proposal failed to finish in the rule fixture")
 func fixture(profile: String = "fire") -> RefCounted:
 	var w := World.new()
 	w.initialize(4, 0)
