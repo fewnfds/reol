@@ -53,7 +53,7 @@
 - 许可证：**MIT**
 - 分发形式：**不随仓库分发**；运行时由 `npx` 安装。
 - 用途：无头启动、运行项目、抓调试输出、建场景。
-- 配置：Codex 用 `tools/setup_codex.py` 生成 `.codex/config.toml` → `mcp_servers.godot` → `tools/mcp/godot_mcp.py`；旧 `opencode.json` 为 OpenCode 保留。
+- 配置：Codex 用 `tools/setup_codex.py` 生成 `.codex/config.toml` → `mcp_servers.godot` → `tools/mcp/godot_mcp.py`，默认关闭、作为备用；项目不再分发OpenCode专属配置。
 
 ---
 

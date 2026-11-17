@@ -19,6 +19,8 @@ Godot、插件、技能/工具各有采用版本；实际引擎只登记在[BASE
 
 项目`.codex/config.toml`是忽略的本机覆盖，可配置Context7、备用godot及工具过滤。用户级配置保存官方Godot AI认证条目和其他项目的连接；不要将原文件/备份上传仓库。`tools/setup_codex.py`只管理其声明支持的条目，保留已有自定义；`--check`是配置核对，不证明握手。
 
+项目不再维护OpenCode专属配置或技能目录。共享`.agents/skills/`仍服务当前开发；Coding-Solo包装器仍由Codex备用配置引用。Godot AI第三方整包自带多客户端适配，其中的OpenCode模块由插件注册器引用，不按项目遗留配置拆删；个人全局客户端配置不属项目清理范围。
+
 Godot AI的用户级域过滤可能同时影响其他项目。恢复`csg/gridmap/testing`等域时从官方dock调整并重新Configure，核对本项目客户端过滤和新会话；不为修Reol擅自改变其他项目配置。旧attach失效或返回`NEW_CLIENT_SESSION_REQUIRED`时按实际提示重连，不重复使用坏handle。
 
 ## skills怎样维护
