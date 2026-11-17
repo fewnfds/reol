@@ -12,6 +12,7 @@ const Contacts = preload("res://scripts/sim/kernel/agency_contacts.gd")
 static var PLANTS: Dictionary = Operations.freeze(JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/plants.json")).types)
 const WORK_LIMIT: int = 128
 const DEPTH_LIMIT: int = 4
+const SOURCE_REVIEW_MS: int = 60000
 var actor: Dictionary
 var self_target: Dictionary
 var known: Dictionary
@@ -120,24 +121,31 @@ func _option(step: Dictionary, operation: String, target: int) -> Dictionary:
 
 func _perform(goal: Dictionary, approach: Dictionary, chain: Array) -> Array:
 	var result: Array = []
+	var metric: String = str(Defs.GOALS.get(goal.get("definition", ""), {}).get("metric", ""))
 	var required: String = str(goal.params.get("operation", "")) if approach.targets == "goal" else ""
 	for target: Dictionary in _targets(approach.targets, goal):
 		for id: String in Query.options(target):
 			if not required.is_empty() and id != required: continue
 			var operation: Dictionary = Operations.OPERATIONS[id]
 			if required.is_empty() and operation.handler != approach.handler: continue
+			if not metric.is_empty() and operation.handler in ["practice", "self_effect"] and not Defs.restores(operation, metric): continue
 			var step: Dictionary = _resolve(operation, target, chain, bool(approach.prerequisites))
 			if not step.is_empty(): result.append(_option(step, id, target.id))
 			if int(budget.work) >= slice_limit: return result
 	return result
 
 func _resolve(operation: Dictionary, target: Dictionary, chain: Array, prerequisites: bool = true, context: Dictionary = {}) -> Dictionary:
+	if operation.handler == "practice" and int(Growth.Defs.METHODS[operation.learning_method].source_qi_cost) > 0 and target.get("kind") == "plant" and not PLANTS.get(target.get("definition", ""), {}).has("stored_qi"): return {}
 	var key: String = "%s:%d" % [operation.id, target.id]
 	if chain.size() >= DEPTH_LIMIT or key in chain or _denied(operation.id, target.id) or not _spend(): return {}
 	var query: Dictionary = Query.evaluate(operation, actor, target, context)
 	if not query.applicable: return {}
 	if query.ready: return _step(operation, target, context)
 	if query.reason == "unknown_target_state": return _inspect(target)
+	if query.reason == "insufficient_stored_qi":
+		var seen: int = int(actor.get("observations", {}).get(int(target.id), {}).get("at_ms", at_ms))
+		if at_ms - seen >= SOURCE_REVIEW_MS: return _inspect(target, "stale_source_qi")
+		return {}
 	if query.reason == "unattended_in_progress":
 		return {"kind": "wait", "input": {"target": int(target.id)}, "until_ms": int(target.process.ready_ms), "estimate_ms": maxi(0, int(target.process.ready_ms) - at_ms), "confidence": 0.95}
 	if not prerequisites: return {}
@@ -315,6 +323,20 @@ func _instruct(goal: Dictionary) -> Array:
 
 static func known_dead(target: Dictionary) -> bool:
 	return target.get("kind") == "actor" and int(target.get("hp", 1)) <= 0
+
+static func source_review_due(actor: Dictionary, clues: Dictionary, at: int) -> int:
+	if not Growth.has_qi_method(actor): return -1
+	var unfinished: bool = actor.get("methods", {}).keys().any(func(method: String): return Growth.introduced(actor, method) and not Growth.mastered(actor, method) and int(Growth.Defs.METHODS[method].source_qi_cost) > 0)
+	if not unfinished and int(actor.get("qi", 0)) >= int(Defs.GOALS.qi_reserve.comfort): return -1
+	var due: int = at + SOURCE_REVIEW_MS
+	var any_source: bool = false
+	for place: Dictionary in clues.values():
+		if int(place.get("tile", -1)) < 0 or int(place.get("source_qi_band", -1)) < 0: continue
+		any_source = true
+		var seen: int = int(actor.get("observations", {}).get(int(place.id), {}).get("at_ms", at))
+		var review: int = seen + SOURCE_REVIEW_MS
+		due = mini(due, review if review > at else at + SOURCE_REVIEW_MS)
+	return due if any_source else -1
 
 func _develop(goal: Dictionary, method: String, chain: Array) -> Array:
 	var result: Array = []

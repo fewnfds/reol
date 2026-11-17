@@ -51,16 +51,24 @@ static func check_view(actor: Dictionary, costs: Array) -> String:
 	return ""
 
 static func pay(world: RefCounted, actor: int, costs: Array) -> bool:
-	if not check(world, actor, costs).is_empty(): return false
+	if not world.objects.records.has(actor): return false
+	if costs.is_empty(): return true
+	var own: Dictionary = view(world, actor)
+	if not check_view(own, costs).is_empty(): return false
 	var slot: int = world.actor_slots.get(actor, -1)
 	var totals: Dictionary = normalized(costs)
+	var changed: Array = []
 	for key: String in totals:
 		var amount: int = totals[key]
+		var before: int = available_view(own, key)
 		match key.get_slice(":", 0):
 			"item": world.objects.consume(actor, {key.get_slice(":", 1): amount}, world.objects.spending_right(actor))
 			"pool": world.pools.change(actor, key.get_slice(":", 1), -amount)
 			"health": world.pages[slot / 256].health[slot % 256] -= amount
 			"energy": world.pages[slot / 256].energy[slot % 256] -= amount
 			"qi": world.objects.records[actor].qi -= amount
+		var metric: String = key.get_slice(":", 0)
+		if metric in ["qi", "energy", "health"]: changed.append({"metric": "hp" if metric == "health" else metric, "before": before + (1 if metric == "health" else 0), "after": before - amount + (1 if metric == "health" else 0)})
 	world._sync_inventory(actor)
+	for change: Dictionary in changed: world.livelihood.resource_changed(world, actor, change.metric, change.before, change.after, world.operation_time())
 	return true

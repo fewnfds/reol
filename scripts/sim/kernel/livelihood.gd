@@ -90,6 +90,8 @@ func _ensure_goals(world: RefCounted, actor: int) -> void:
 	if Beings.has(person, "metabolism"):
 		add_goal(world, actor, "sustenance")
 		add_goal(world, actor, "rested")
+	add_goal(world, actor, "vitality")
+	add_goal(world, actor, "qi_reserve")
 	if Beings.has(person, "environment"): add_goal(world, actor, "recovery")
 	if Beings.has(person, "work"): add_goal(world, actor, "custody")
 	if Beings.has(person, "contact"):
@@ -109,7 +111,7 @@ func reconcile_duties(world: RefCounted, actor: int) -> bool:
 	return true
 
 func think(world: RefCounted, id: int, at: int) -> void:
-	if world.objects.records.get(id, {}).get("autonomous", false): world.decisions.wake(world, id, at, "life_ready")
+	if world.objects.records.get(id, {}).get("autonomous", false) and not world.decisions.records.get(id, {}).get("manual", false): world.decisions.wake(world, id, at, "life_ready")
 
 func choose(world: RefCounted, id: int, at: int) -> void:
 	var started: int = Time.get_ticks_usec()
@@ -122,7 +124,7 @@ func schedule_reviews(world: RefCounted, actor: int, at: int, context: Dictionar
 	# The original scheduler retains only the nearest wake. Re-derive later
 	# reviews after execution adoption or an earlier wake, including while busy.
 	if not world.combat.alive(world, actor) or not world.objects.records[actor].get("autonomous", false) or world.decisions.records.get(actor, {}).get("manual", false): return
-	if context.is_empty() and world.society._requests_by_actor.get(actor, []).is_empty() and world.institutions.Duties.views(world.institutions, actor).is_empty() and world.knowledge.records.get(actor, {}).get("channels", {}).is_empty(): return
+	if context.is_empty() and not Growth.has_qi_method(world.objects.records[actor]) and world.society._requests_by_actor.get(actor, []).is_empty() and world.institutions.Duties.views(world.institutions, actor).is_empty() and world.knowledge.records.get(actor, {}).get("channels", {}).is_empty(): return
 	var view: Dictionary = context.actor if context.has("actor") else _self_view(world, actor)
 	var clues: Dictionary = context.clues if context.has("clues") else world.knowledge.known(actor, at)
 	var due: int = Planner.Contacts.next_due(view, at)
@@ -137,6 +139,16 @@ func schedule_reviews(world: RefCounted, actor: int, at: int, context: Dictionar
 	if due > at: world.decisions.wake(world, actor, at, "request_review", due - at)
 	due = Planner.Institutions.next_due(view, clues, at)
 	if due > at: world.decisions.wake(world, actor, at, "institution_review", due - at)
+	due = Planner.source_review_due(view, clues, at)
+	if due > at: world.decisions.wake(world, actor, at, "source_review", due - at)
+
+func resource_changed(world: RefCounted, actor: int, metric: String, before: int, after: int, at: int) -> void:
+	if before == after or metric not in ["qi", "hp", "energy"] or not world.actor_slots.has(actor) or not world.combat.alive(world, actor) or not world.objects.records[actor].get("autonomous", false) or world.decisions.records.get(actor, {}).get("manual", false): return
+	# Self-commits already have a single result/after_action wake. Never plan
+	# synchronously inside payment or treatment; external changes wake later.
+	if world._finishing.has(actor) or world.instant_actor == actor: return
+	if after > before and not world.gate.current(actor).is_empty(): return
+	world.decisions.wake(world, actor, at, "needs_changed", 50)
 
 func _self_view(world: RefCounted, actor: int) -> Dictionary:
 	var view: Dictionary = world.operation_actor(actor)
@@ -169,10 +181,12 @@ func _utility(goal: Dictionary, entry: Dictionary, actor: Dictionary, at: int) -
 	var emergency: bool = false
 	match spec.driver:
 		"resource":
-			if not actor.body_capabilities.get("metabolism", false): return {"value": 0.0, "emergency": false}
-			var current: int = int(actor[spec.metric])
+			if spec.metric in ["hunger", "energy"] and not actor.body_capabilities.get("metabolism", false): return {"value": 0.0, "emergency": false}
+			if spec.metric == "qi" and not Growth.has_qi_method(actor): return {"value": 0.0, "emergency": false}
+			if actor.body_capabilities.get("metabolism", false) and (int(actor.hunger) < int(spec.min_satiety) or int(actor.energy) < int(spec.min_energy)): return {"value": 0.0, "emergency": false}
+			var current: int = Defs.resource_value(actor, str(spec.metric))
 			value = pow(clampf(float(int(spec.comfort) - current) / int(spec.comfort), 0.0, 1.0), float(spec.exponent))
-			emergency = current <= int(spec.emergency)
+			emergency = int(spec.emergency) >= 0 and current <= int(spec.emergency)
 		"recovery": value = 0.65 if actor.recovering else 0.0
 		"development": value = 0.0 if Growth.mastered(actor, goal.params.method) else 1.0
 		"delivery", "operation", "instruction": value = 1.0
@@ -205,7 +219,7 @@ func evaluate_request(world: RefCounted, actor: int, request: Dictionary, at: in
 		if goal.state != "active": continue
 		var score: Dictionary = _utility(goal, entry, view, at)
 		var driver: String = Defs.GOALS[goal.definition].driver
-		var category: String = "need" if driver in ["resource", "recovery"] else ("duty" if driver in ["responsibility", "duty", "custody", "reporting"] else "personal")
+		var category: String = "need" if Defs.is_need(Defs.GOALS[goal.definition]) else ("duty" if driver in ["responsibility", "duty", "custody", "reporting"] else "personal")
 		if driver == "responses": continue # Responding to this same request is not another burden.
 		context[category] = maxf(float(context[category]), float(score.value))
 		context.emergency = context.emergency or bool(score.emergency)
@@ -264,7 +278,7 @@ func teaching_consent(world: RefCounted, actor: int, peer: int, method: String, 
 		var spec: Dictionary = Defs.GOALS[goal.definition]
 		var score: Dictionary = _utility(goal, entry, view, at)
 		if spec.driver == "duty" and not Planner.Institutions.review_due(view, view.duties.get(int(goal.params.appointment), {}), at, clues): continue
-		if spec.driver in ["resource", "recovery"]:
+		if Defs.is_need(spec):
 			if score.emergency: return "refused_need"
 			need = maxf(need, float(score.value))
 		elif (not teaching and learning_method(goal, view) == method and not Growth.mastered(view, method)) or (teaching and spec.driver == "instruction" and goal.params.method == method and goal.params.target == peer):
@@ -375,7 +389,9 @@ func _think(world: RefCounted, id: int, at: int, context: Dictionary = {}) -> vo
 	for goal: Dictionary in entry.goals.values():
 		if goal.state == "active":
 			var score: Dictionary = _utility(goal, entry, actor, at)
-			if score.value > 0.01: ordered.append({"goal": goal, "utility": score})
+			# The authored comfort threshold defines whether a need exists. A
+			# second utility cutoff strands small deficits with no later wake.
+			if score.value > 0.0: ordered.append({"goal": goal, "utility": score})
 	ordered.sort_custom(func(a: Dictionary, b: Dictionary): return a.utility.value > b.utility.value if not is_equal_approx(a.utility.value, b.utility.value) else a.goal.id < b.goal.id)
 	var allowance: int = maxi(4, mini(32, Planner.WORK_LIMIT / maxi(1, ordered.reduce(func(sum: int, value: Dictionary): return sum + Defs.GOALS[value.goal.definition].approaches.size(), 0))))
 	# Emergency needs are always sampled first. Other purposes rotate when a
@@ -431,6 +447,8 @@ func _think(world: RefCounted, id: int, at: int, context: Dictionary = {}) -> vo
 		var searching: bool = false
 		for candidate: Dictionary in ordered:
 			var driver: String = Defs.GOALS[candidate.goal.definition].driver
+			if driver == "resource" and Defs.GOALS[candidate.goal.definition].metric in ["hp", "qi"]: continue
+			if driver == "development" and Growth.introduced(actor, candidate.goal.params.method) and int(Growth.Defs.METHODS[candidate.goal.params.method].source_qi_cost) > 0 and clues.values().any(func(place: Dictionary): return int(place.get("tile", -1)) >= 0 and int(place.get("source_qi_band", -1)) >= 0): continue
 			if driver not in ["duty", "service", "reporting", "responses"]:
 				var target: int = int(Planner.project(candidate.goal, actor).params.get("target", 0))
 				if not Planner.known_dead(clues.get(target, {})): searching = true
@@ -467,7 +485,7 @@ func _preference(entry: Dictionary, actor: Dictionary, clues: Dictionary, at: in
 	var result: Dictionary = entry.intention.duplicate(true)
 	result["retained"] = {}
 	for goal: Dictionary in entry.goals.values():
-		if goal.state == "active" and _utility(goal, entry, actor, at).value > 0.01:
+		if goal.state == "active" and _utility(goal, entry, actor, at).value > 0.0:
 			result.retained.merge(_retained(goal, goal.method, clues, actor))
 	return result
 
@@ -628,7 +646,7 @@ func outcome(world: RefCounted, actor: int, binding: Dictionary, result: Diction
 		goal.state = "completed"; goal.closed_ms = at
 
 func after_action(world: RefCounted, id: int, at: int, target: int = 0) -> void:
-	if not world.actor_slots.has(id) or not world.combat.alive(world, id) or not world.objects.records[id].get("autonomous", false): return
+	if not world.actor_slots.has(id) or not world.combat.alive(world, id) or not world.objects.records[id].get("autonomous", false) or world.decisions.records.get(id, {}).get("manual", false): return
 	if target > 0: world.knowledge.refresh(world, id, target, at)
 	world.decisions.wake(world, id, at, "life_result", 500 + (id % 10) * 50)
 

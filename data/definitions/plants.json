@@ -130,7 +130,11 @@
       "blocks": true,
       "canopy": 6500,
       "sapient": true,
-      "vegetation_level": 3
+      "vegetation_level": 3,
+      "stored_qi": {
+        "capacity": 3000,
+        "regen_per_second": 1
+      }
     },
     "lotus": {
       "label": "荷花",
@@ -312,6 +316,54 @@
       "sapient": false,
       "vegetation_level": 1,
       "art_base": "annual_grass"
+    },
+    "spirit_bamboo": {
+      "label": "青灵竹",
+      "life": "perennial",
+      "mature_ms": 600000,
+      "flower_ms": 172800000,
+      "fruit_ms": 259200000,
+      "lifespan_ms": 31536000000,
+      "regrow": true,
+      "substrates": [
+        "soil",
+        "sand"
+      ],
+      "temperature": [
+        50,
+        350,
+        -150,
+        550
+      ],
+      "seasons": [
+        "春",
+        "夏",
+        "秋"
+      ],
+      "water_min": 10,
+      "water_max": 90,
+      "light_min": 100,
+      "max_hp": 120,
+      "injury_ms": 86400000,
+      "product": {
+        "item": "fruit",
+        "capacity": 6,
+        "period_ms": 86400000
+      },
+      "body_product": {
+        "item": "wood",
+        "amount": 8
+      },
+      "source": "ordinary_plant",
+      "blocks": false,
+      "canopy": 2500,
+      "sapient": false,
+      "vegetation_level": 3,
+      "stored_qi": {
+        "capacity": 1200,
+        "regen_per_second": 2
+      },
+      "art_base": "old_tree"
     }
   }
 }

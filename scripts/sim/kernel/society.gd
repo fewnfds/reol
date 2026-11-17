@@ -238,14 +238,14 @@ func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dict
 		"practice":
 			var method: String = Operations.OPERATIONS[operation_id].learning_method
 			var spec: Dictionary = Growth.Defs.METHODS[method]
-			if not Growth.introduced(person, method):
-				return Results.refused("method_not_known")
-			if page.energy[row] < maxi(800, int(spec.energy_cost)) or page.hunger[row] < maxi(800, int(spec.satiety_cost)) or page.body_heat[row] < 0 or page.body_heat[row] > 50:
-				return Results.refused("body_not_ready")
+			if other.kind == "plant": world.nature.evaluate(world, action.target, now)
+			var readiness: String = Growth.practice_readiness(world.operation_actor(actor), method)
+			if not readiness.is_empty(): return Results.refused(readiness)
 			var qi: int = int(other.get("qi", 0))
 			if qi < int(spec.source_qi_cost):
 				return Results.refused("insufficient_stored_qi")
 			other["qi"] = qi - int(spec.source_qi_cost) # Stored source, not ambient influence.
+			if Growth.source_qi_band(qi) != Growth.source_qi_band(int(other.qi)): world.objects.layout_revision += 1
 			page.energy[row] -= int(spec.energy_cost)
 			page.hunger[row] -= int(spec.satiety_cost)
 			facts = Growth.advance(person, method, Operations.OPERATIONS[operation_id].learning_points, "practice", 0, now)

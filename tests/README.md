@@ -1,5 +1,7 @@
 # 当前短检查
 
+`qi_sources_smoke.gd`核有限灵植非整秒积累、成熟跨界、满额余数、阶段/容量坏档、共同修行准入和真实实践。`qi_agency_smoke.gd`核自主补灵/真实伤害自疗后再补、空源恢复/换源、微小缺口、满灵未精通的远方复查、来源移除及手动中断恢复；`qi_refinement_smoke.gd`核小需求保留公料、普通技艺探索、外部临时指派后回归自主及资源字段owner；`qi_ui_smoke.gd`在正常原生Game读取修行中文件、人物修行页与玩家满额按钮禁用。不是百人装配或性能验收。
+
 `cultivation_duties_smoke.gd`核同World自主田务、稳定宿主跨株授权、两种作物、真实公井用途、满仓继续照料、撤职退料、空源恢复和受阻畦改选。`cultivation_duties_ui_smoke.gd`以正常Game人物页查看NPC任职/活动，实际文件存读后由NPC继续播种；截图在`logs/cultivation-ui/`。
 
 `sect_provisioning_smoke.gd`按需核三实际游戏日的来源→田务→公库→烹饪→送餐→进食/休养，并中途候选恢复及全部粮/水/餐核账；约43秒是小规模逻辑夹具时间，不属于默认短检查，不代表正常百人装配或图形性能。设施完成统计按操作ID（如`draw_water`），handler不是结果ID；有界近期结果不能当作长期计数。

@@ -6,7 +6,6 @@
 [sub_resource type="Resource" id="Target0"]
 script = ExtResource("target")
 kinds = PackedStringArray("plant")
-definitions = PackedStringArray("old_tree")
 stages = PackedInt32Array(2)
 
 [resource]

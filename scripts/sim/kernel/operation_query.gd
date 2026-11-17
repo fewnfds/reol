@@ -29,6 +29,10 @@ static func evaluate(operation: Dictionary, actor: Dictionary, target: Dictionar
 			elif not PLANTS[operation.plant_definition].substrates.has(Cultivation.spec(buildings[target.definition]).substrate) or PLANTS[operation.plant_definition].blocks: reason = "wrong_substrate"
 			else: reason = Cultivation.title_reason(int(actor.get("id", 0)), target, int(target.get("organization", 0)))
 		if reason.is_empty() and operation.handler == "tend": reason = Cultivation.care_reason(target)
+		if reason.is_empty() and operation.handler == "practice" and int(Growth.Defs.METHODS[operation.learning_method].source_qi_cost) > 0:
+			if not target.has("source_qi_band"): reason = "unknown_target_state"
+			elif int(target.source_qi_band) < 0: reason = "not_a_qi_source"
+			elif int(target.source_qi_band) < int(Growth.Defs.METHODS[operation.learning_method].source_qi_cost): reason = "insufficient_stored_qi"
 		if reason.is_empty() and operation.handler == "eat" and target.has("inventory") and Stock.known_quantity(actor, target, "meal", "eat") <= 0: reason = "no_food"
 		var inputs: Dictionary = context.duplicate()
 		inputs["organization"] = int(target.get("organization", 0))
@@ -136,6 +140,9 @@ static func readiness(operation: Dictionary, actor: Dictionary, context: Diction
 			if int(actor.get("usable_inventory", actor.get("inventory", {})).get(item, 0)) < int(operation.required_items[item]): return "missing_items"
 	if not operation.required_method.is_empty() and not Growth.introduced(actor, operation.required_method): return "method_not_known"
 	if operation.handler == "teach" and not Growth.mastered(actor, operation.learning_method): return "method_not_mastered"
+	if operation.handler == "practice":
+		var reason: String = Growth.practice_readiness(actor, operation.learning_method)
+		if not reason.is_empty(): return reason
 	if operation.handler in ["learn", "study"] and int(actor.get("methods", {}).get(operation.learning_method, {}).get("understanding", 0)) >= int(Growth.Defs.METHODS[operation.learning_method].introduction_points): return "already_understood"
 	if operation.handler == "study" and not operation.get("learning_method", "").is_empty() and int(actor.get("readable", actor.get("inventory", {})).get(Growth.Defs.METHODS[operation.learning_method].study_item, 0)) <= 0: return "missing_book"
 	if not operation.required_ability.is_empty() and not actor.get("abilities", {}).get(operation.required_ability, false): return "ability_not_mastered"

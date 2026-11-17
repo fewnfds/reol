@@ -42,10 +42,12 @@ func gain(world: RefCounted, actor: int, key: String, amount: int, at: int) -> i
 	if key == "energy":
 		var before: int = world.pages[slot / 256].energy[slot % 256]
 		world.pages[slot / 256].energy[slot % 256] = clampi(before + amount, 0, 10000)
+		world.livelihood.resource_changed(world, actor, key, before, world.pages[slot / 256].energy[slot % 256], at)
 		return world.pages[slot / 256].energy[slot % 256] - before
 	if key == "qi":
 		var before: int = int(world.objects.records[actor].get("qi", 0))
 		world.objects.records[actor]["qi"] = clampi(before + amount, 0, QI_MAXIMUM)
+		world.livelihood.resource_changed(world, actor, key, before, int(world.objects.records[actor].qi), at)
 		return int(world.objects.records[actor].qi) - before
 	return change(actor, key, amount)
 

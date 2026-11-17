@@ -22,6 +22,9 @@ static func _errors(definitions: Dictionary) -> PackedStringArray:
 	for id: String in definitions:
 		var plant: Dictionary = definitions[id]
 		if not id.is_valid_identifier() or plant.get("life") not in ["annual", "perennial"] or not plant.get("sapient") is bool or not plant.get("blocks") is bool or not plant.get("regrow") is bool: result.append(id + ": invalid identity/life")
+		if plant.has("stored_qi"):
+			var source: Variant = plant.stored_qi
+			if not source is Dictionary or source.size() != 2 or not _integer(source.get("capacity"), 1, 3000) or not _integer(source.get("regen_per_second"), 0, 1000): result.append(id + ": invalid stored qi source")
 		for field: String in ["mature_ms", "lifespan_ms", "injury_ms", "max_hp"]:
 			if not _integer(plant.get(field), 1, 999999999999): result.append(id + ": invalid " + field)
 		if not plant.get("substrates") is Array or plant.substrates.is_empty(): result.append(id + ": missing substrates")

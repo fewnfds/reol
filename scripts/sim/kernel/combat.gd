@@ -711,6 +711,7 @@ func damage(world: RefCounted, actor: int, target: int, amount: int, now: int, i
 		if defense.guarded: stun_ms = 0; push = 0.0
 		applied = mini(page.health[row], int(defense.remaining))
 		page.health[row] -= applied
+		if applied > 0: world.livelihood.resource_changed(world, target, "hp", page.health[row] + applied, page.health[row], now)
 		var work_interrupted: bool = not control_suppressed and not context.get("periodic", false) and (world.actions.has(target) or world.work_runs.has(target) or world.society.waits.has(target))
 		var target_state: Dictionary = action_snapshot(target)
 		var steady: bool = not target_state.is_empty() and bool(Defs.ACTIONS[target_state.kind].get("steady", false)) and now < Defs.recovery_ms(target_state)
@@ -808,6 +809,7 @@ func heal(world: RefCounted, actor: int, target: int, amount: int, at: int) -> D
 		var page: RefCounted = world.pages[slot / 256]
 		actual = mini(maxi(0, amount), int(page.max_health[slot % 256]) - int(page.health[slot % 256]))
 		page.health[slot % 256] += actual
+		if actual > 0: world.livelihood.resource_changed(world, target, "hp", page.health[slot % 256] - actual, page.health[slot % 256], at)
 	if actual > 0: world.emit({"kind": "healed", "actor": actor, "target": target, "amount": actual, "at_ms": at})
 	return {"kind": "heal", "actor": actor, "target": target, "amount": actual, "at_ms": at}
 

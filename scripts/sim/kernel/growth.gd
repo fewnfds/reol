@@ -4,6 +4,37 @@ const Defs = preload("res://scripts/sim/kernel/growth_defs.gd")
 const Beings = preload("res://scripts/sim/kernel/being_defs.gd")
 const SOURCES: Array[String] = ["scenario", "learn", "study", "practice"]
 const APTITUDES: Array[String] = ["physique", "comprehension"]
+static var SOURCE_QI_STEPS: Array = _source_qi_steps()
+
+static func _source_qi_steps() -> Array:
+	var result: Array = []
+	for method: Dictionary in Defs.METHODS.values():
+		var cost: int = int(method.source_qi_cost)
+		if cost > 0 and cost not in result: result.append(cost)
+	result.sort()
+	return result
+
+static func source_qi_band(amount: int) -> int:
+	var result: int = 0
+	for cost: int in SOURCE_QI_STEPS:
+		if amount < cost: break
+		result = cost
+	return result
+
+static func has_qi_method(record: Dictionary) -> bool:
+	for method: String in record.get("methods", {}):
+		if introduced(record, method) and int(Defs.METHODS[method].qi_gain) > 0: return true
+	return false
+
+static func practice_readiness(actor: Dictionary, method: String) -> String:
+	var spec: Dictionary = Defs.METHODS[method]
+	if not introduced(actor, method): return "method_not_known"
+	if mastered(actor, method):
+		if int(spec.qi_gain) <= 0: return "already_mastered"
+		if int(actor.get("qi", 0)) >= preload("res://scripts/sim/kernel/resource_pools.gd").QI_MAXIMUM: return "qi_full"
+	if actor.get("body_capabilities", {}).get("metabolism", false) and (int(actor.get("energy", 0)) < maxi(800, int(spec.energy_cost)) or int(actor.get("hunger", 0)) < maxi(800, int(spec.satiety_cost))): return "body_not_ready"
+	if actor.get("body_capabilities", {}).get("environment", false) and (float(actor.get("temperature", 22.0)) < 0.0 or float(actor.get("temperature", 22.0)) > 50.0): return "body_not_ready"
+	return ""
 
 static func aptitude(record: Dictionary, key: String) -> int:
 	return int(record.get("aptitudes", {}).get(key, 10))
@@ -95,7 +126,11 @@ static func recover_rest(record: Dictionary) -> Dictionary:
 
 static func valid_record(record: Dictionary, next_id: int, now: int) -> bool:
 	if not Defs.ERRORS.is_empty() or record.has("practice"): return false
-	if record.has("qi") and (not record.qi is int or record.qi < 0 or record.qi > preload("res://scripts/sim/kernel/resource_pools.gd").QI_MAXIMUM): return false
+	if record.has("qi_carry") and record.kind != "plant": return false
+	if record.has("qi"):
+		if record.kind not in ["actor", "plant"] or not record.qi is int or record.qi < 0: return false
+		# Nature owns each species' reservoir capacity and fractional state.
+		if record.kind == "actor" and record.qi > preload("res://scripts/sim/kernel/resource_pools.gd").QI_MAXIMUM: return false
 	if record.has("aptitudes"):
 		if record.kind != "actor" or not record.aptitudes is Dictionary: return false
 		for key: Variant in record.aptitudes:

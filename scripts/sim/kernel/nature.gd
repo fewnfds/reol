@@ -10,7 +10,7 @@ const Defs = preload("res://scripts/sim/kernel/nature_defs.gd")
 const Cultivation = preload("res://scripts/sim/kernel/cultivation.gd")
 const PULSE_MS: int = 5000
 const GROUPS: int = PULSE_MS / 50
-const STATE_FIELDS: Array = ["ids", "evaluations", "transitions", "collections", "generated_items"]
+const STATE_FIELDS: Array = ["ids", "evaluations", "transitions", "collections", "generated_items", "generated_qi"]
 enum Stage { SEEDING, SPROUT, MATURE, STUMP, WITHERED }
 var definitions: Dictionary = {}
 var ids := PackedInt64Array()
@@ -19,6 +19,7 @@ var evaluations: int = 0
 var transitions: int = 0
 var collections: int = 0
 var generated_items: Dictionary = {} # Source evidence; Objects remains the only stock.
+var generated_qi: int = 0
 var work_usec: int = 0
 var probe := PackedInt32Array()
 
@@ -31,7 +32,7 @@ func _init() -> void:
 
 
 func rebuild(world: RefCounted) -> bool:
-	if not Defs.ERRORS.is_empty() or evaluations < 0 or transitions < 0 or collections < 0 or generated_items.size() > 256: return false
+	if not Defs.ERRORS.is_empty() or evaluations < 0 or transitions < 0 or collections < 0 or generated_qi < 0 or generated_qi > 999999999999 or generated_items.size() > 256: return false
 	for item: Variant in generated_items:
 		if not item is String or not Defs.Items.valid(item) or not generated_items[item] is int or generated_items[item] <= 0 or generated_items[item] > 999999999999: return false
 	var seen: Dictionary = {}
@@ -45,6 +46,14 @@ func rebuild(world: RefCounted) -> bool:
 		if rec.kind != "plant" or not definitions.has(rec.definition) or rec.tile < 0 or not rec.get("host") is int or rec.host < 0 or not rec.get("stage") is int or rec.stage < 0 or rec.stage > Stage.WITHERED or not rec.get("last_ms") is int or rec.last_ms < 0 or rec.last_ms > world.elapsed_ms or not rec.get("sources") is PackedInt32Array:
 			return false
 		var spec: Dictionary = definitions[rec.definition]
+		var reservoir: Dictionary = spec.get("stored_qi", {})
+		if rec.sapient and (not bool(spec.sapient) or rec.stage != Stage.MATURE): return false
+		if reservoir.is_empty():
+			if rec.has("qi") or rec.has("qi_carry"): return false
+		else:
+			if not rec.get("qi") is int or rec.qi < 0 or rec.qi > int(reservoir.capacity) or not rec.get("qi_carry") is int or rec.qi_carry < 0 or rec.qi_carry >= 1000: return false
+			if rec.stage != Stage.MATURE and (rec.qi != 0 or rec.qi_carry != 0): return false
+			if rec.qi == int(reservoir.capacity) and rec.qi_carry != 0: return false
 		for field: String in ["growth_ms", "product_ms", "age_ms", "injury_ms"]:
 			if not rec.get(field) is int or rec[field] < 0 or rec[field] > 999999999999: return false
 		if rec.growth_ms > int(spec.mature_ms) or rec.product_ms >= int(spec.product.period_ms) or not rec.get("rate") is int or rec.rate not in [0, 1000] or not rec.get("adverse") is bool: return false
@@ -161,6 +170,7 @@ func create(world: RefCounted, definition: String, tile: int, seeding: bool = fa
 		"rate": 0, "adverse": false, "host": place.host, "sources": PackedInt32Array(),
 		"hp": int(spec.max_hp), "max_hp": int(spec.max_hp), "sapient": false}, true)
 	if seeding: rec["remaining_ms"] = 1500
+	if spec.has("stored_qi"): rec.merge({"qi": 0, "qi_carry": 0})
 	if place.host > 0:
 		world.objects.records[place.host]["guest"] = id
 		rec.owner = int(world.objects.records[place.host].owner)
@@ -239,6 +249,7 @@ func evaluate(world: RefCounted, id: int, now: int) -> void:
 		rec.stage = Stage.WITHERED
 		rec.hp = 0
 		rec.sapient = false
+		if rec.has("qi"): rec.qi = 0; rec.qi_carry = 0
 		_sync(world, id)
 		return
 	var previous: int = rec.stage
@@ -261,8 +272,20 @@ func evaluate(world: RefCounted, id: int, now: int) -> void:
 				_generated(str(spec.product.item), amount)
 			rec.product_ms = int(rec.product_ms) % period if amount < space else 0
 	world.environment.sample_raw(rec.tile, probe, 0)
+	if rec.stage == Stage.MATURE and spec.has("stored_qi"):
+		# Only time actually spent mature contributes. Full sources discard
+		# fractional carry; spending first settles the preceding interval.
+		var source: Dictionary = spec.stored_qi
+		var before: int = int(rec.qi)
+		var active_ms: int = dt if previous == Stage.MATURE else maxi(0, dt - growing)
+		if before < int(source.capacity):
+			var total: int = int(rec.qi_carry) + active_ms * int(source.regen_per_second)
+			rec.qi = mini(int(source.capacity), before + total / 1000)
+			rec.qi_carry = total % 1000 if rec.qi < int(source.capacity) else 0
+			generated_qi += int(rec.qi) - before
+		else: rec.qi_carry = 0
+		if Growth.source_qi_band(before) != Growth.source_qi_band(int(rec.qi)): world.objects.layout_revision += 1
 	if rec.stage == Stage.MATURE and bool(spec.sapient):
-		rec["qi"] = mini(3000, int(rec.get("qi", 0)) + dt / 1000)
 		if not rec.sapient and int(rec.age_ms) >= 30000 and world.environment.element(rec.tile, probe, 0, 1) >= 100 and world.environment.rng.randi_range(0, 7) == 0:
 			rec.sapient = true
 			Growth.seed(rec, "wood_breath", now)
@@ -296,7 +319,7 @@ func public_state(world: RefCounted, id: int) -> Dictionary:
 		if record.host > 0:
 			var host: Dictionary = world.objects.records[record.host]
 			band = Cultivation.water_band(int(host.water), Cultivation.limit(world.facilities.definitions[host.definition], definitions[record.definition]))
-		return {"host": record.host, "injured": int(record.injury_ms) > 0, "water_band": band}
+		return {"host": record.host, "injured": int(record.injury_ms) > 0, "water_band": band, "source_qi_band": Growth.source_qi_band(int(record.get("qi", 0))) if definitions[record.definition].has("stored_qi") and record.stage == Stage.MATURE else -1}
 	if record.kind != "blueprint" and not Cultivation.spec(world.facilities.definitions.get(record.definition, {})).is_empty(): return {"occupant": int(record.guest)}
 	return {}
 
@@ -434,6 +457,7 @@ func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dict
 				rec.growth_ms = 0
 				rec.product_ms = 0
 				rec.sapient = false
+				if rec.has("qi"): rec.qi = 0; rec.qi_carry = 0
 				facts["stage"] = Stage.STUMP
 				_sync(world, action.target)
 			else:

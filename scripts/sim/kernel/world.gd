@@ -41,6 +41,7 @@ const Institutions = preload("res://scripts/sim/kernel/institutions.gd")
 const Production = preload("res://scripts/sim/kernel/production.gd")
 const Knowledge = preload("res://scripts/sim/kernel/knowledge.gd")
 const Equipment = preload("res://scripts/sim/kernel/equipment.gd")
+var instant_actor: int = 0 # Transient commit guard; never another action host.
 
 class Lane extends RefCounted:
 	var pages: Array[RefCounted] = []
@@ -1104,6 +1105,7 @@ func operation_actor(id: int) -> Dictionary:
 	var slot: int = actor_slots[id]
 	var page: RefCounted = pages[slot / 256]
 	var result: Dictionary = {"id": id, "hp": page.health[slot % 256], "max_hp": page.max_health[slot % 256], "energy": page.energy[slot % 256],
+		"hunger": page.hunger[slot % 256], "temperature": page.body_heat[slot % 256],
 		"at_ms": operation_time(),
 		"qi": int(record.get("qi", 0)), "inventory": objects.usable_summary(id), "methods": State.copy(record.get("methods", {})),
 		"carried": objects.inventory_summary(id), "readable": institutions.readable(self, id, available), "bundles": available, "returns": institutions.returns(self, id),
@@ -1139,7 +1141,8 @@ func execute_operation(id: int, input: Dictionary) -> String:
 	if not input.get("target", id) is int or int(input.get("target", id)) != id: return "invalid_target"
 	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(id))
 	if not query.ready: return query.reason
-	if not Costs.pay(self, id, operation.costs): return "insufficient_resource"
+	instant_actor = id
+	if not Costs.pay(self, id, operation.costs): instant_actor = 0; return "insufficient_resource"
 	var activation: int = combat.next_activation
 	combat.next_activation += 1
 	effects.apply_bundle(self, id, id, activation, "", operation.effects, operation_time(), 0, "activation")
@@ -1147,6 +1150,8 @@ func execute_operation(id: int, input: Dictionary) -> String:
 	next_run += 1
 	commit_activity(run_id, operation.id, id, id, [id], operation_time(), ActivityResults.completed({"activation": activation, "paid": Costs.normalized(operation.costs)}))
 	emit({"kind": "operation_completed", "actor": id, "target": id, "operation": operation.id, "activation": activation, "at_ms": operation_time()})
+	instant_actor = 0
+	if not input.get("autonomous", false) and objects.records[id].get("autonomous", false) and not decisions.records.get(id, {}).get("manual", false): livelihood.after_action(self, id, operation_time(), id)
 	return "completed"
 
 func begin_source_work(id: int, input: Dictionary) -> String:
@@ -1191,6 +1196,7 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 		return "invalid_target"
 	var context: Dictionary = input.duplicate()
 	context["help_target"] = int(input.get("task_target", 0))
+	if operation.handler == "practice" and objects.records[target].kind == "plant": nature.evaluate(self, target, operation_time())
 	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(target), context, facilities.definitions)
 	if not query.ready: return query.reason
 	if operation.executor == "transfer" and (not input.get("item") is String or not preload("res://scripts/sim/kernel/items.gd").valid(input.item) or not input.get("amount") is int or input.amount <= 0): return "invalid_transfer"
@@ -1237,12 +1243,14 @@ func settle_action(id: int, at: int) -> void:
 		page.modes[row] = Units.Mode.IDLE
 		return
 	var action: Dictionary = actions[id]
+	# Resumption follows the person's controller, independently of who issued
+	# this single activity. Explicit manual control still remains suspended.
+	var autonomous: bool = objects.records[id].get("autonomous", false) and not decisions.records.get(id, {}).get("manual", false)
 	var operation: Dictionary = Operations.OPERATIONS[action.kind]
 	var handler: String = operation.handler
 	var target: int = action.target
 	var stale_construction: bool = handler == "construct" and objects.records.get(target, {}).get("kind", "") != "blueprint"
 	if not objects.records.has(target) or (handler != "take" and actor_slots.has(target) and not combat.alive(self, target)) or stale_construction:
-		var autonomous: bool = action.get("autonomous", false)
 		end_run(id, at, "unavailable" if stale_construction else "target_gone")
 		clear_navigation(id)
 		page.modes[row] = Units.Mode.IDLE
@@ -1252,12 +1260,12 @@ func settle_action(id: int, at: int) -> void:
 		return
 	var context: Dictionary = action.duplicate()
 	context["help_target"] = int(action.get("task_target", 0))
+	if handler == "practice" and objects.records[target].kind == "plant": nature.evaluate(self, target, at)
 	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(target), context, facilities.definitions)
 	if query.ready and operation.executor == "society":
 		query.reason = society.contact_reason(self, Operations.domain_action(action))
 		query.ready = query.reason.is_empty()
 	if not query.ready:
-		var autonomous: bool = action.get("autonomous", false)
 		end_run(id, at, query.reason, ActivityResults.refused(query.reason))
 		clear_navigation(id)
 		if autonomous: livelihood.after_action(self, id, at, target)
@@ -1271,7 +1279,6 @@ func settle_action(id: int, at: int) -> void:
 					knowledge.refresh(self, id, target, at)
 					page.move_to(row, next, Units.Mode.APPROACH)
 					return
-		var autonomous: bool = action.get("autonomous", false)
 		end_run(id, at, "out_of_reach")
 		clear_navigation(id)
 		page.modes[row] = Units.Mode.IDLE
@@ -1287,7 +1294,6 @@ func settle_action(id: int, at: int) -> void:
 				# This is an actual on-site discovery, not successful teaching.
 				society.Contacts.acknowledge(society, self, id, target, at)
 				var result: Dictionary = society.Teaching.result(self, id, action, at, true)
-				var autonomous: bool = action.get("autonomous", false)
 				end_run(id, at, participation, result)
 				clear_navigation(id)
 				if autonomous: livelihood.after_action(self, id, at, target)
@@ -1301,7 +1307,6 @@ func settle_action(id: int, at: int) -> void:
 					page.due_ms[row] = mini(at + society.Teaching.RETRY_MS, int(action.join_until_ms))
 					return
 			if not participation.is_empty():
-				var autonomous: bool = action.get("autonomous", false)
 				end_run(id, at, participation, ActivityResults.refused(participation))
 				clear_navigation(id)
 				if autonomous: livelihood.after_action(self, id, at, target)
@@ -1323,7 +1328,6 @@ func settle_action(id: int, at: int) -> void:
 		if not operation.recipe.is_empty():
 			var production_reason: String = Production.start(self, id, action, at)
 			if production_reason != "started":
-				var autonomous: bool = action.get("autonomous", false)
 				end_run(id, at, production_reason, ActivityResults.refused(production_reason))
 				clear_navigation(id)
 				if autonomous: livelihood.after_action(self, id, at, target)
@@ -1346,7 +1350,6 @@ func settle_action(id: int, at: int) -> void:
 		if operation.executor == "society":
 			var participation: String = society.participation_reason(self, id, action, at)
 			if not participation.is_empty():
-				var autonomous: bool = action.get("autonomous", false)
 				end_run(id, at, participation, ActivityResults.refused(participation))
 				clear_navigation(id)
 				if autonomous: livelihood.after_action(self, id, at, target)
@@ -1372,7 +1375,6 @@ func settle_action(id: int, at: int) -> void:
 		if operation.executor == "society":
 			var participation: String = society.participation_reason(self, id, action, at)
 			if not participation.is_empty():
-				var autonomous: bool = action.get("autonomous", false)
 				end_run(id, at, participation, ActivityResults.refused(participation))
 				clear_navigation(id)
 				if autonomous: livelihood.after_action(self, id, at, target)
@@ -1398,7 +1400,6 @@ func settle_action(id: int, at: int) -> void:
 			page.due_ms[row] = at + 250
 			return
 		var reason: String = outcome.reason
-		var autonomous: bool = action.get("autonomous", false)
 		end_run(id, at, reason, outcome)
 		clear_navigation(id)
 		page.modes[row] = Units.Mode.IDLE
@@ -1415,7 +1416,6 @@ func settle_action(id: int, at: int) -> void:
 		_finishing[id] = action.run_id
 		remove_static(source, at)
 		_finishing.erase(id)
-	var autonomous: bool = action.get("autonomous", false)
 	_sync_inventory(id)
 	end_run(id, at, transferred.reason, transferred)
 	clear_navigation(id)
