@@ -125,6 +125,9 @@ func constrained_learning_feedback() -> void:
 	check(not w.knowledge.can_attempt(1, "learn", 3, w.elapsed_ms), "Unrelated new observation cleared specific teaching refusal")
 	Growth.seed(w.objects.records[3], "wood_breath", w.elapsed_ms)
 	move_actor(w, 4, Vector2(123.5, 120.5))
+	# The evidence case needs an agreed lesson. Mastery alone no longer obliges
+	# a teacher to accept another person's unsolicited request (T10 consent).
+	check(w.begin_interaction(3, {"kind": "teach_wood_breath", "target": 4}) == "accepted", "Teacher could not express agreement to the evidence lesson")
 	check(w.begin_interaction(4, {"kind": "learn", "target": 3}) == "accepted", "Later positive teaching evidence fixture refused")
 	w.settle_action(4, w.elapsed_ms)
 	advance(w, 2200)

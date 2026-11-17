@@ -4,28 +4,30 @@
 
 最新方向：用户暂缓战斗打磨，先建立修仙角色与单宗门的基础，再验证本地约百人的宗门自主运转。NPC像其他持续参与世界的玩家，有住处、工作、职位/责任范围、个人目的、关系与经历。共同工作流整合生活、学习修行、个人评价与协作，NPC自主及彼此协调优先，玩家指令简化。不同生命按能力组成；近似网游不表示联网，远区代算、门派外交/攻伐和完整婚育/轮回后置。用户列举的属性、羁绊、ERP/OA是表达方向，不是全项施工要求。
 
-角色/宗门研究与架构review完成。2026-11-17用户已授权长程实施，已创建active goal：在原main/同World实现可试玩的百人宗门自主运转。**每个小任务开工和收尾都须顾问深度交流、独立核查及实际验证；不能以方案或小demo宣布完成。** 拆分与当前状态唯一归[实施任务表](../plans/foundation-priorities.md#百人宗门实施任务表)，源码缺口沿[框架审查](../engineering/architecture/foundation-audit.md)。
+本轮研究、架构review与长程实施已完成：原main/同World已有可试玩的百人宗门。**T01～T13每个小任务均完成开工/收尾顾问交流、独立核查及实际验证，不以方案或独立demo代替正常产品。** 拆分与完成边界唯一归[实施任务表](../plans/foundation-priorities.md#百人宗门实施任务表)，实施前的源码缺口及演进理由沿[框架审查](../engineering/architecture/foundation-audit.md)。
 
-T01～T11c已完成逐项开工/收尾双顾问、独立核查、实际消费者/反例和相关原生GUI/文件验证；具体采用与证据归实施任务表及BASELINE，提交以Git指针为准。T11c最新提交`ecfaa0c`。T12a已完成正常百人Resource装配、开发夹具隔离及0/20秒/正常main文件验证；`12a-finish/`双答已完整核查，已整改占位探索/环境采样、同组设施服务扩大、作业位/封屋、初始公开授课与设施认识等接缝；`12a-refinement/`双答已完整核查；最终冷激活/导航延后/恢复续跑及正常GUI文件通过，提交以Git指针为准。源码现format32，保留31档。T12b开工咨询`12b-start/`等待中：首次正常长测900墙钟秒超时，最后完整快照在1200游戏秒，尚未取得首粮，不能据此说持续供养或性能通过。T12c正常反馈和T13综合成品未完成，旧kernel计时失败仍保留，不放宽断言；goal仍active。
+正常百人GUI、个人/他人信息边界、当面协作、实际文件存读与当前可见性已复验。旧长测实际发现个人床从128条认识中挤出导致精力归零，在3240秒主动停止并保留失败。修正只保已取得非传闻位置的明确个人分配；正常窗口从原120秒真实检查点续至3600秒（3游戏日）、errors=0，五项核账和99人个体终态/每秒采样精力、全部个人床已独立恢复核验。`12b-13-final-evidence/`两份完整结束答复均已核查，T12b/T13已完成；具体证据和边界归BASELINE，最终提交以main/Git实际指针为准。
 
-数值/资源/本领归[角色基础](../../design/systems/beings_and_lifeways/character_state.md)，关系/职务/事项归[社会系统](../../design/systems/social_system.md)，传承/供养和实际参数边界归[宗门生活](../../design/systems/sect_life.md)，基础来源归[宗门研究](../../design/research/sect_foundation_sources.md)，共同工作流归[自主生命](../../design/systems/beings_and_lifeways/agency.md)。T01～T09已接当前基座，教学/供养按任务表收尾推进，P5任务/交接/唤醒本身不等于人生动机或组织。体魄/悟性已有消费者，筋力/灵巧未落空字段；情绪/怒气、健康/HP、功德/气运、贡献/额度分别处理。源码现format32及新默认文件，旧31及更早开发档、独立P5包和旧档保留，mana范例未变。
+连续测试已正常结束，无待续长测进程。检查点`logs/t12b-personal-memory-cycle.bin`保留完整原审计历史，未赠物或补认识。正常百人作业者死亡后在制劳动/公料/文件恢复/自主接续与实际供养通过；独立release原生F5保存、退出重启F9加载，以及真实2760秒成熟期检查点图形短窗均通过。原kernel与abilities聚合仍各15秒超时，未放宽退出或旧650ms断言。功能施工和审查已收尾，下一步依据用户试玩反馈选题；不自动扩长测、远区或新战斗阶段。
 
-审查保留原World/Runner、稳定身份、页计算、P4/P5、空间/作业位、Resource/Frame/候选恢复。不重造线程池/事件总线/执行后端，不把所有资料全部归入Combat、Effects、Pools或Objects。take/put/eat无独占锁不等于并发错误；现有suspend清临时施工承诺符合旧合同；未来必须扩持久目标/社会责任，但不能把尚未实现的问题登记成已复现bug。所有性能、活锁和新教学/加工效果仍待实际实现验证。
+数值/资源/本领归[角色基础](../../design/systems/beings_and_lifeways/character_state.md)，关系/职务/事项归[社会系统](../../design/systems/social_system.md)，传承/供养和实际参数边界归[宗门生活](../../design/systems/sect_life.md)，基础来源归[宗门研究](../../design/research/sect_foundation_sources.md)，共同工作流归[自主生命](../../design/systems/beings_and_lifeways/agency.md)。T01～T13已接当前基座，教学/供养与正常百人消费者均已验证，P5任务/交接/唤醒本身不等于人生动机或组织。体魄/悟性已有消费者，筋力/灵巧未落空字段；情绪/怒气、健康/HP、功德/气运、贡献/额度分别处理。源码现format32及新默认文件，旧31及更早开发档、独立P5包和旧档保留，mana范例未变。
 
-当前显示为固定斜俯视、原生Camera2D直接绘制（2026-11-16）。用户反馈整屏形变使竖直像素边周期性横移；真实nearest/linear/2倍渲染对比与双顾问复核后，撤除透视shader、离屏世界纹理、设置/F7/偏好字段。保留二维斜视素材、分部排序、主角遮挡淡化和统一输入转换；只有原迷雾mask仍用SubViewport。旧本地偏好中的view项被安全忽略，保存设置后清除；World/format14/目录签名未改。正确性、成品和采样取舍证据归[BASELINE](baseline.md#固定斜俯视与原生二维显示)，技术边界归[纯二维显示](../engineering/architecture.md#纯二维显示)，素材归[assets](../../assets/README.md)。三维与透视探索均已撤除，不沿用上一轮F7可开的停点。
+本轮沿原World/Runner、稳定身份、页计算、P4/P5、空间/作业位、Resource/Frame与候选恢复扩展，已接持久目的、社会责任和真实生产/教学消费者。不重造线程池、事件总线或执行后端，不把所有事实集中进Combat/Effects/Pools/Objects。原审查指出take/put/eat无独占锁本身不等于并发错误、suspend清临时施工承诺符合旧合同；具体修正及实际验证分别沿任务表与BASELINE，不把旧静态疑点当作当前缺陷。
 
-最新试玩修复（2026-11-16）：贴墙直接移动返回已验证的落点，修复斜向平砍微穿墙后卡死、地图边界索引，支持旧微小接触重叠的有限脱离；人物逻辑位置与显示脚点对齐，地面物品/蓝图、实体/身体、屋顶分层排序。新专题与真实GUI通过，原移动/平砍/交互/作业回归通过；最新包与短窗证据归BASELINE。仍支持format14和原目录签名，未移动旧存档坐标或降低世界精度。
+当前显示为固定斜俯视、原生Camera2D直接绘制（2026-11-16）。用户反馈整屏形变使竖直像素边周期性横移；真实nearest/linear/2倍渲染对比与双顾问复核后，撤除透视shader、离屏世界纹理、设置/F7/偏好字段。保留二维斜视素材、分部排序、主角遮挡淡化和统一输入转换；只有原迷雾mask仍用SubViewport。旧本地偏好中的view项被安全忽略，保存设置后清除；当前源码/宗门包使用format32，旧P5独立包使用format14，现行/旧决策签名分别归BASELINE。正确性、成品和采样取舍证据归[BASELINE](baseline.md#固定斜俯视与原生二维显示)，技术边界归[纯二维显示](../engineering/architecture.md#纯二维显示)，素材归[assets](../../assets/README.md)。三维与透视探索均已撤除，不沿用上一轮F7可开的停点。
+
+最新试玩修复（2026-11-16）：贴墙直接移动返回已验证的落点，修复斜向平砍微穿墙后卡死、地图边界索引，支持旧微小接触重叠的有限脱离；人物逻辑位置与显示脚点对齐，地面物品/蓝图、实体/身体、屋顶分层排序。新专题与真实GUI通过，原移动/平砍/交互/作业回归通过；最新包与短窗证据归BASELINE。源码/宗门包为format32，旧P5包继续format14；未移动旧存档坐标或降低世界精度。
 
 最新授权：用户要求非产品决策自主解决、以顶层领域合同修复；2026-11-15确认另一并行审查对话停止，其方案只作参考，以本轮整合为准。9项确认缺陷和1项光环规则缺口已逐项处理，原编号与关闭条件归[问题清单](issues.md)；共同边界及范围归[主计划](../plans/foundation-priorities.md#审查后的框架整改方案)。不再沿用并行分析稿“只写方案、光环待定、尚未实施”的停点。
 
 实际修正覆盖显式设施装配/移除/恢复、共用放置判断、有限执行失败反馈、多门槛缓冲、器物候选按时刻采用、效果归因/平面cause、独立控制贡献及标签压制、通知演出主体。普通驱散不移除外部光环；来源死亡撤自己的source贡献；压制改变有效性、保留原期限。当前压制覆盖Effects持续状态，不宣称瞬时治疗/护盾等全域禁用均已完成。
 
-当前为P5加作业位置与审查合同修复，不自动推进P6、预警系统、完整物流或锻造玩法。当前包、最终检查和短窗口的准确证据统一见[BASELINE](baseline.md)；能力/键位见[FEATURES](features.md)。main与origin/main以实际Git指针为准，生成包/日志/本机咨询不入库。
+百人宗门本轮T01～T13已完成；不自动推进P6、预警系统、完整物流或锻造玩法。当前包、最终检查和短窗口的准确证据统一见[BASELINE](baseline.md)；能力/键位见[FEATURES](features.md)。main与origin/main以实际Git指针为准，生成包/日志/本机咨询不入库。
 
 - T09c现场职责合同：`InstitutionDutyDef`只配置delivery/produce策略，Appointment绑定`target/sources/channel`；`Institutions.channels`保现场条款、最小位置线索、签领与明确回报，`Knowledge.channels`保本人读案快照。公告不读取远方库存/死活/实际fulfilled，受理仍核规范Share；来源复检、旧案结案、容量和条款完整性由同一World入口处理。
 - 作业位置合同见[空间与施工](../../design/systems/construction_and_space/places.md#作业位置与在制外观)：植物本格、实体完整占地四邻、专用工位四向旋转；灶台已有单侧工位。开工取得实体占地，有活地面身体则等待且不耗工时；中断保留半成品和劳动，续建不重复材料。
 - 材料仍在放蓝图时从背包转移，不冒充自动运输。操作位置从定义和占地派生，不维护第二份位置真值。
-- 根目录唯一[启动.cmd](../../启动.cmd)：选1源码战斗、2源码百人宗门、3独立P5成品、4编辑器。包为`build/windows/act-p5/reol-act.exe`与同目录pck；源码F5/F9现format32的`user://sect-quicksave-v32.reol`，包仍使用format14的`user://act-p5-quicksave-v14.reol`，旧开发档及备份保留，不覆盖或迁移。
+- 根目录唯一[启动.cmd](../../启动.cmd)：选1源码战斗、2源码百人宗门、3当前宗门成品、4编辑器、5旧P5战斗包。当前包为`build/windows/sect-foundation/reol-sect.exe`与同目录pck，和源码均用format32的`user://sect-quicksave-v32.reol`；旧P5包保留`build/windows/act-p5/reol-act.exe`及format14的`user://act-p5-quicksave-v14.reol`，旧开发档及备份保留。
 
 ## 后续边界
 

@@ -220,6 +220,7 @@ func _process(delta: float) -> void:
 		if _response_probe != null: _response_probe.accept(receipt, Time.get_ticks_usec())
 		_last_receipt = "%s #%d @%d: %s" % [receipt.kind, receipt.seq, receipt.at_ms, receipt.reason]
 		ui.feedback(("→ " if receipt.reason == "accepted" else ("✓ " if receipt.ok else "× ")) + Hud.action_name(receipt.kind), receipt.ok)
+		if not receipt.ok: ui.feedback(Hud.action_name(receipt.kind) + "：" + Hud.Actions.reason_text(str(receipt.reason)), false)
 		if receipt.reason == "placed_waiting": ui.feedback("已放置，等待作业：" + str(preload("res://scripts/presentation/ui/event_text.gd").REASONS.get(receipt.get("dispatch_reason", ""), "暂未开工")), true)
 		if receipt.get("placed", false):
 			controls._select(int(receipt.target), -1)

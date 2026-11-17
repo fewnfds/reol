@@ -237,6 +237,12 @@ static func assemble(world: RefCounted, spec: Definition) -> PackedStringArray:
 				for field: String in ["inventory", "contents", "process"]: value.erase(field)
 				world.knowledge.seed(world, actor, value, 0)
 			for profile: Resource in spec.resident_profiles:
+				# Explicit public instruction is local sect knowledge, including for
+				# the player. It does not disclose a teacher's other methods.
+				if not profile.public_teachings.is_empty():
+					for teacher_slot: int in profile.slots:
+						var teacher: int = district * spec.residents_per_district + teacher_slot + 1
+						if teacher != actor: _acquaintance(world, actor, teacher, Array(profile.public_teachings))
 				if slot not in profile.slots: continue
 				var peers: Array = Array(profile.instruction_targets)
 				if profile.mentor_slot >= 0: peers.append(profile.mentor_slot)

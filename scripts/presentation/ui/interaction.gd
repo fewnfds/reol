@@ -402,7 +402,9 @@ func _confirm_tool(point: Vector2) -> void:
 	match tool:
 		"build", "plant":
 			_update_preview(tile_at(point))
-			if not _preview_ok: return
+			if not _preview_ok:
+				ui.feedback("无法放置：请检查材料、地面与占地。", false)
+				return
 			_send({"kind": "construct" if tool == "build" else "plant", "definition": definition, "tile": tile_at(point), "facing": facing})
 		"demolish":
 			target = 0
@@ -417,7 +419,9 @@ func _confirm_tool(point: Vector2) -> void:
 			if target == 0: return
 			_send({"kind": "demolish", "target": target})
 		"worker":
-			if target == 0 or target == 1 or not host.frame.actor_slots.has(target): return
+			if target == 0 or target == 1 or not host.frame.actor_slots.has(target):
+				ui.feedback("请选择视野内的其他人物；右键取消协作。", false)
+				return
 			_send({"kind": "request_help", "target": target, "task_target": help_target})
 	cancel_tool()
 

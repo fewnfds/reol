@@ -47,6 +47,12 @@ func evidence(actor: int, target: int) -> Dictionary:
 	var entry: Dictionary = records.get(actor, {}).get("subjects", {}).get(target, {})
 	return {} if entry.is_empty() else {"revision": int(entry.revision)}
 
+func account_view(actor: int, target: int, at: int) -> Dictionary:
+	# The presentation reads already acquired evidence. Inspecting a panel does
+	# not observe the world, renew a location or create a new memory.
+	var entry: Dictionary = records.get(actor, {}).get("subjects", {}).get(target, {})
+	return {} if entry.is_empty() else {"view": view(actor, target, at), "seen_ms": int(entry.seen_ms), "origin": str(entry.origin)}
+
 func read_channel(world: RefCounted, actor: int, channel: int, board: Dictionary, at: int) -> void:
 	var entry: Dictionary = record(actor)
 	var posts: Dictionary = {}
@@ -374,7 +380,8 @@ static func _valid_teaching(account: Variant, actor: int, next_id: int, now: int
 
 static func _valid_view(value: Dictionary, target: int, next_id: int, now: int) -> bool:
 	for field: Variant in value:
-		if field not in ["id", "kind", "definition", "tile", "capacity", "owner", "organization", "sapient", "hp", "inventory", "stage", "process", "access_dependencies", "contents", "services", "post_revision", "host", "occupant", "injured", "water_band", "source_qi_band"]: return false
+		if field not in ["id", "kind", "definition", "name", "tile", "capacity", "owner", "organization", "sapient", "hp", "inventory", "stage", "process", "access_dependencies", "contents", "services", "post_revision", "host", "occupant", "injured", "water_band", "source_qi_band"]: return false
+	if value.has("name") and (not value.name is String or value.name.length() > 256): return false
 	if value.has("source_qi_band") and (value.get("kind") != "plant" or not value.source_qi_band is int or (value.source_qi_band not in [-1, 0] and value.source_qi_band not in Growth.SOURCE_QI_STEPS)): return false
 	for reference: String in ["host", "occupant"]:
 		if value.has(reference) and (not value[reference] is int or value[reference] < 0 or value[reference] >= next_id): return false

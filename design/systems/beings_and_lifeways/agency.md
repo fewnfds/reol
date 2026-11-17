@@ -1,6 +1,6 @@
 # 自主生命：个人动机、行动与共同生活
 
-性质：自主生命的目标架构；T01～T08共享基座已接入并完成局部验证，职责现场通道已接入；组织供养、教学与百人装配仍在实施。P5已实现的协调/任务合同归[单位决策](../unit_decision_framework.md)，身体与主体概念归[身体与身份](bodies.md)，数值/资源/能力归[角色基础](character_state.md)，关系与组织记录归[社会系统](../social_system.md)，首个共同体的传承/供养/制度样本归[宗门生活](../sect_life.md)，人格与情绪模型的来源比较归[NPC研究](../../research/npc_personality_and_emotion.md)。源码缺口归[框架审查](../../../docs/engineering/architecture/foundation-audit.md)；当前实施状态与出口只归[主计划](../../../docs/plans/foundation-priorities.md#百人宗门实施任务表)。先补共享职责并迁移正常运行路径，不把小规模玩法样本当独立demo交付；候选职责名称不表示已有对应类。
+性质：自主生命的目标架构及当前接入合同。共同能力/活动、本人认识/目的、组织协作、供养、共同教学与持续修持已接正常百人main；具体完成与验证范围沿[实施任务表](../../../docs/plans/foundation-priorities.md#百人宗门实施任务表)及[BASELINE](../../../docs/status/baseline.md)。P5协调/任务合同归[单位决策](../unit_decision_framework.md)，身体与主体概念归[身体与身份](bodies.md)，数值/资源/能力归[角色基础](character_state.md)，关系与组织记录归[社会系统](../social_system.md)，首个共同体的传承/供养/制度样本归[宗门生活](../sect_life.md)，人格与情绪模型的来源比较归[NPC研究](../../research/npc_personality_and_emotion.md)。实施前的源码缺口与演进理由归[框架审查](../../../docs/engineering/architecture/foundation-audit.md)。下文长期职责不全是当前能力，候选名称不表示已有对应类。
 
 ## 1. 产品目标与首轮范围
 

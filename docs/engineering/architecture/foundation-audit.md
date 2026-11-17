@@ -1,8 +1,8 @@
 # 宗门自主模拟所需的共享框架审查
 
-审查基线：`main`的`edb08712109b684447e3f55366707c12d986a9d5`，始于2026-11-16。依据现有运行链、领域源码、作者定义、界面和恢复入口作静态审查，并参考公开开发资料与顾问反例。**本轮只审查和修订设计，没有修改运行时代码，没有新增场景，也未验证未来百人宗门的运行或性能。**
+实施前审查基线：`main`的`edb08712109b684447e3f55366707c12d986a9d5`，始于2026-11-16。本文保留当时运行链、领域源码、作者定义、界面和恢复入口的缺口与演进理由，参考公开开发资料与顾问反例。**该次静态审查本身没有验证百人宗门；随后各项实现和验证已分别记录在[实施任务表](../../plans/foundation-priorities.md#百人宗门实施任务表)及[BASELINE](../../status/baseline.md)。下文的原缺口不等于当前未完成项。**
 
-本文维护能力缺口、源码依据与演进理由；逻辑职责归[领域职责](05-framework-domains.md)，建设顺序与出口只归[主计划](../../plans/foundation-priorities.md#下一阶段候选)。人物、社会、宗门的玩法语义分别沿[角色基础](../../../design/systems/beings_and_lifeways/character_state.md)、[社会系统](../../../design/systems/social_system.md)、[宗门生活](../../../design/systems/sect_life.md)，不在此复制功能表。
+本文维护能力缺口、源码依据与演进理由；逻辑职责归[领域职责](05-framework-domains.md)，建设顺序与出口只归[主计划](../../plans/foundation-priorities.md#宗门共享基座)。人物、社会、宗门的玩法语义分别沿[角色基础](../../../design/systems/beings_and_lifeways/character_state.md)、[社会系统](../../../design/systems/social_system.md)、[宗门生活](../../../design/systems/sect_life.md)，不在此复制功能表。
 
 ## 结论与应保留的基座
 

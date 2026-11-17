@@ -9,6 +9,9 @@ const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const RequestPanel = preload("res://scripts/presentation/ui/request_panel.gd")
 var subject_id: int = 1
 var events: RichTextLabel
+var _header: Label
+var _bag: Button
+var _overview: Label
 var _stats: Label
 var _activity: Label
 var _practice: Label
@@ -22,39 +25,44 @@ var _tabs := TabContainer.new()
 var _requests: VBoxContainer
 
 func _ready() -> void:
+	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var head := HBoxContainer.new()
 	add_child(head)
-	var name_label: Label = Style.label(head, "#%d" % subject_id)
-	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var bag := Button.new()
-	bag.focus_mode = Control.FOCUS_NONE
-	bag.text = "背包"
-	bag.icon = Style.icon("bag")
-	head.add_child(bag)
-	bag.pressed.connect(func(): requested.emit("inspect_bag", {"subject": subject_id}))
+	_header = Style.label(head, "#%d" % subject_id)
+	_header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_header.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_bag = Button.new()
+	_bag.focus_mode = Control.FOCUS_NONE
+	_bag.text = "背包"
+	_bag.icon = Style.icon("bag")
+	head.add_child(_bag)
+	_bag.pressed.connect(func(): requested.emit("inspect_bag", {"subject": subject_id}))
 	add_child(_tabs)
-	_tabs.custom_minimum_size = Vector2(324, 368)
+	_tabs.custom_minimum_size = Vector2(324, 180)
+	_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_tabs.get_tab_bar().focus_mode = Control.FOCUS_NONE
-	var body := VBoxContainer.new()
-	body.name = "装备"
-	_tabs.add_child(body)
+	var body: VBoxContainer = _page("概览")
+	_overview = Style.label(body)
+	_overview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_activity = Style.label(body)
+	_activity.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_stats = Style.label(body)
+	_stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_gear.columns = 2
 	body.add_child(_gear)
-	_stats = Style.label(body)
-	_activity = Style.label(body)
-	var practice := VBoxContainer.new()
-	practice.name = "修行"
-	_tabs.add_child(practice)
+	var practice: VBoxContainer = _page("修行")
 	_practice = Style.label(practice)
 	_practice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_study = Button.new()
 	_study.focus_mode = Control.FOCUS_NONE
 	_study.text = "读书"
+	_study.visible = subject_id == 1
 	_study.pressed.connect(func(): requested.emit("study", {}))
 	practice.add_child(_study)
 	_ability = Button.new()
 	_ability.focus_mode = Control.FOCUS_NONE
 	_ability.text = "回春"
+	_ability.visible = subject_id == 1
 	_ability.pressed.connect(func(): requested.emit("ability", {}))
 	practice.add_child(_ability)
 	var social := ScrollContainer.new()
@@ -77,14 +85,46 @@ func _ready() -> void:
 	events.selection_enabled = true
 	_tabs.add_child(events)
 
+func _page(title: String) -> VBoxContainer:
+	var scroll := ScrollContainer.new()
+	scroll.name = title
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_tabs.add_child(scroll)
+	var body := VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(body)
+	return body
+
+func _rest_text(subject: Dictionary) -> String:
+	var places := PackedStringArray()
+	for id: int in subject.get("service_targets", {}).get("rest", []): places.append("床榻 #%d" % id)
+	return "可用休养处：" + "、".join(places) if not places.is_empty() else "休养处：尚未获知或分配"
+
+func _known_teachings(subject: Dictionary) -> String:
+	var lines := PackedStringArray()
+	for method: String in subject.get("teaches", {}):
+		if Growth.Defs.METHODS.has(method): lines.append(str(Growth.Defs.METHODS[method].title))
+	return "已知可传授：\n" + "\n".join(lines) if not lines.is_empty() else "尚未获知所传本领。"
+
+func _membership_text(subject: Dictionary) -> String:
+	var titles := PackedStringArray()
+	for membership: Dictionary in subject.get("memberships", []): titles.append(str(membership.name))
+	return "所属：" + "、".join(titles) if not titles.is_empty() else "所属：尚未获知" if subject.get("observed_other", false) or subject.get("memory", false) else "暂无所属宗门"
+
 func refresh(subject: Dictionary) -> void:
-	var known: bool = int(subject.get("id", 0)) == subject_id and not subject.get("memory", false)
+	var matching: bool = int(subject.get("id", 0)) == subject_id
+	var known: bool = matching and not subject.get("memory", false) and not subject.get("pending", false)
+	_header.text = "%s #%d%s" % [str(subject.get("name", "")), subject_id, " · 本人" if subject_id == 1 else (" · 先前所知" if subject.get("memory", false) else "")]
+	_bag.visible = subject_id == 1
+	_bag.disabled = not known
+	_overview.text = (_membership_text(subject) + "\n" + _rest_text(subject)) if matching and not subject.get("pending", false) else ("正在察看…" if subject.get("pending", false) else "暂无所知。")
+	if subject.get("memory", false): _overview.text = "不在视野内；此处仅保留先前的目击信息。"
 	if not known:
 		_event_signature = ""
-		_stats.text = "⊘ #%d" % subject_id
-		_activity.text = ""
-		_practice.text = "⊘"
-		_responsibilities.text = "⊘"
+		_stats.text = "不在视野内；当前状况未明。" if matching and subject.get("memory", false) else "暂无所知。"
+		_activity.text = "先前目击于 %.1f 秒" % (int(subject.get("seen_ms", 0)) / 1000.0) if subject.get("memory", false) else ""
+		_practice.text = _known_teachings(subject) if matching else "暂无所知。"
+		_responsibilities.text = "当前任职与办理状态尚未核实。"
 		events.text = ""
 		_study.disabled = true
 		_ability.disabled = true
@@ -103,11 +143,23 @@ func refresh(subject: Dictionary) -> void:
 			button.icon = Style.icon("lock") if key.is_empty() else Grid.item_icon(key)
 			button.custom_minimum_size = Vector2(150, 62)
 			button.disabled = not known or subject_id != 1 or key.is_empty() or int(subject.get("hp", 0)) <= 0
-			button.tooltip_text = "卸下" if key.is_empty() else "卸下\n" + Grid.item_tooltip(key)
+			button.tooltip_text = ("空槽位" if key.is_empty() else Grid.item_tooltip(key)) if subject_id != 1 else ("空槽位" if key.is_empty() else "卸下\n" + Grid.item_tooltip(key))
 			button.pressed.connect(func(): requested.emit("unequip", {"slot": slot}))
 			_gear.add_child(button)
 	if not known: return
 	if _requests != null: _requests.refresh(subject)
+	if subject_id != 1:
+		_stats.text = str(subject.get("appearance", "当前状况未明。"))
+		_practice.text = _known_teachings(subject)
+		var public_roles: Array = subject.get("public_roles", [])
+		_responsibilities.text = _rest_text(subject) + "\n\n" + ("任职：\n" + "\n".join(public_roles) if not public_roles.is_empty() else "暂无已知任职。")
+		events.text = "暂无可知记录。"
+		_study.disabled = true; _ability.disabled = true
+	else:
+		_refresh_self(subject)
+	_refresh_activity(subject)
+
+func _refresh_self(subject: Dictionary) -> void:
 	var stats: Dictionary = subject.get("stats", {})
 	_stats.text = "HP %d / %d\n耐受 %.1f / %.0f\n近战基础 %d   远程基础 %d\n防御 %d   移速 %.2f\n精力 %d   饥饿 %d\n%.2f°C" % [
 		int(subject.hp), int(stats.get("max_hp", 100)), float(subject.tolerance), float(subject.max_tolerance),
@@ -127,19 +179,27 @@ func refresh(subject: Dictionary) -> void:
 		else: social_lines.append("%s\n负责 #%d · 告示案 #%d\n%s 库存低于%d时补至%d" % [duty.title, int(duty.target), int(duty.channel), Items.label(duty.item), int(duty.low), int(duty.desired)])
 	for share: Dictionary in subject.get("responsibilities", {}).values(): social_lines.append("事项 #%d · 剩余%d/%d\n对象 #%d%s" % [int(share.matter), int(share.remaining), int(share.quota), int(share.target), " · 已超期，仍负责任" if share.overdue else ""])
 	for receipt: Dictionary in subject.get("reports", []): social_lines.append("待回报 #%d · 已办%d · 告示案 #%d" % [int(receipt.matter), int(receipt.fulfilled), int(receipt.channel)])
-	_responsibilities.text = "\n\n".join(social_lines) if not social_lines.is_empty() else "暂无任职职责或已受事项。"
-	var activity: Dictionary = subject.get("activity", {})
-	var operation: String = str(activity.get("operation", ""))
-	var phase: String = str({"approaching": "前往", "waiting": "等待", "acting": "进行", "partner_waiting": "应邀等候", "traveling": "赶路", "exploring": "探查", "combat": "战斗", "working": "活动"}.get(activity.get("phase", ""), "空闲"))
-	_activity.text = "%s%s" % [phase, " · " + str(EventText.Actions.Operations.OPERATIONS[operation].title) if EventText.Actions.Operations.OPERATIONS.has(operation) else ""]
-	if activity.get("role", "") in ["teacher", "learner"]:
-		_activity.text = "共同授业 · %s · 对方 #%d" % ["传授中" if activity.role == "teacher" else "学习中", int(activity.target)]
-	elif activity.get("reason") == "awaiting_participant": _activity.text = "等待对方主动参加授业"
-	_study.disabled = subject_id != 1 or not preload("res://scripts/presentation/ui/actions.gd").self_ready(subject, "study")
-	_ability.disabled = subject_id != 1 or not preload("res://scripts/presentation/ui/actions.gd").self_ready(subject, "wood_mend")
-	var version: String = "%d:%d" % [subject_id, int(subject.get("events_version", 0))]
+	_responsibilities.text = _rest_text(subject) + "\n\n" + ("\n\n".join(social_lines) if not social_lines.is_empty() else "暂无任职职责或已受事项。")
+	_study.disabled = not preload("res://scripts/presentation/ui/actions.gd").self_ready(subject, "study")
+	_ability.disabled = not preload("res://scripts/presentation/ui/actions.gd").self_ready(subject, "wood_mend")
+	var version: String = "%d:%d:%d" % [subject_id, int(subject.get("view_epoch", 0)), int(subject.get("events_version", 0))]
 	if version != _event_signature:
 		_event_signature = version
 		var event_lines := PackedStringArray()
 		for event: Dictionary in subject.get("events", []): event_lines.append(EventText.line(event))
 		events.text = "\n".join(event_lines)
+
+func _refresh_activity(subject: Dictionary) -> void:
+	if int(subject.get("hp", 0)) <= 0:
+		_activity.text = "已亡故"; return
+	var activity: Dictionary = subject.get("activity", {})
+	var operation: String = str(activity.get("operation", ""))
+	var phase: String = str({"approaching": "正在赶路", "waiting": "原地等候", "acting": "正在进行", "partner_waiting": "应邀等候", "traveling": "正在赶路", "exploring": "附近走动", "combat": "战斗", "working": "活动"}.get(activity.get("phase", ""), "原地驻足" if subject_id != 1 else ("自主安排中" if subject.get("autonomous", false) else "等待你的操作")))
+	_activity.text = "%s%s" % [phase, " · " + str(EventText.Actions.Operations.OPERATIONS[operation].title) if EventText.Actions.Operations.OPERATIONS.has(operation) else ""]
+	if activity.get("role", "") in ["teacher", "learner"]:
+		_activity.text = "共同授业 · %s · 对方 #%d" % ["传授中" if activity.role == "teacher" else "学习中", int(activity.target)]
+	elif activity.get("reason") == "awaiting_participant": _activity.text = "等待对方主动参加授业"
+	if subject_id == 1:
+		var reason: String = str(subject.get("admission_reason", ""))
+		if not reason.is_empty(): _activity.text += "\n" + preload("res://scripts/presentation/ui/actions.gd").reason_text(reason)
+		_activity.text += "\n自主生活中；移动可切回亲自操作。" if subject.get("autonomous", false) else "\n由你亲自操作。"

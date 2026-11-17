@@ -16,9 +16,35 @@ static func _inspect(p: RefCounted, target: Dictionary) -> Array:
 	var step: Dictionary = p._inspect(target)
 	return [p._option(step, "", int(target.get("id", 0)))] if not step.is_empty() else []
 
-static func _fresh(p: RefCounted, target: int, period: int) -> bool:
-	var account: Dictionary = p.actor.get("observations", {}).get(target, {})
-	return account.get("direct", false) and p.at_ms - int(account.get("at_ms", -period)) < period
+static func _observed(actor: Dictionary, target: int) -> int:
+	var observation: Dictionary = actor.get("observations", {}).get(target, {})
+	return int(observation.get("at_ms", -1)) if observation.get("direct", false) else -1
+
+static func _channel_review(actor: Dictionary, board: Dictionary, at: int, period: int) -> Dictionary:
+	var read: Dictionary = actor.get("known_channels", {}).get(int(board.get("id", 0)), {})
+	if read.is_empty(): return {"step": "read_channel", "due_ms": at}
+	var observed: int = _observed(actor, int(board.id))
+	# Personal evidence revisions are not the carrier's content revision. A
+	# newer read also supersedes an older sighting; rumours never renew a visit.
+	if observed >= int(read.at_ms) and int(board.get("post_revision", -1)) > int(read.revision):
+		return {"step": "read_channel", "due_ms": at}
+	var last: int = int(read.at_ms)
+	if int(board.get("post_revision", -1)) == int(read.revision): last = maxi(last, observed)
+	var due: int = last + period
+	return {"step": "inspect" if at >= due else "", "due_ms": due}
+
+static func _matches(post: Dictionary, policy: Dictionary) -> bool:
+	return post.organization == policy.organization and post.kind == policy.kind and post.target == policy.target and post.item == policy.item and post.operation == policy.operation
+
+static func _open_posts(actor: Dictionary, policy: Dictionary) -> Array:
+	var posts: Array = []
+	for account: Dictionary in actor.get("known_channels", {}).values():
+		for post: Dictionary in account.posts.values():
+			if post.state == "open" and _matches(post, policy): posts.append(post)
+	return posts
+
+static func _service_period(read: Dictionary) -> int:
+	return mini(60000, 5000 * (1 << int(read.get("empty_reads", 0))))
 
 static func _full(target: Dictionary) -> bool:
 	return int(target.get("capacity", -1)) >= 0 and int(target.get("inventory", {}).values().reduce(func(a: int, b: int): return a + b, 0)) >= int(target.capacity)
@@ -34,56 +60,63 @@ static func duty(p: RefCounted, goal: Dictionary) -> Array:
 	var policy: Dictionary = p.actor.get("duties", {}).get(int(goal.params.appointment), {})
 	if policy.is_empty(): return []
 	if policy.kind == "cultivation": return Cultivation.next(p, policy)
-	var target: Dictionary = p.known.get(int(policy.target), {})
-	if int(target.get("tile", -1)) < 0: return []
+	var step: Dictionary = _duty_step(p.actor, policy, p.known, p.at_ms)
+	if step.is_empty(): return []
+	var target: Dictionary = p.known.get(int(step.target), {})
+	if step.kind == "inspect": return _inspect(p, target)
+	return _execute(p, str(step.kind), target, step.get("input", {}))
+
+static func _duty_step(actor: Dictionary, policy: Dictionary, known: Dictionary, at: int) -> Dictionary:
+	var target: Dictionary = known.get(int(policy.target), {})
+	if int(target.get("tile", -1)) < 0: return {}
 	# Inspect sources first, so the destination observation is still recent on
 	# arriving at the records desk. Existing notices do not require a new source.
 	var known_open: bool = false
 	var last_closed: int = -1
-	for account: Dictionary in p.actor.get("known_channels", {}).values():
+	for account: Dictionary in actor.get("known_channels", {}).values():
 		for post: Dictionary in account.posts.values():
-			if post.organization != policy.organization or post.kind != policy.kind or post.target != policy.target or post.item != policy.item or post.operation != policy.operation: continue
+			if not _matches(post, policy): continue
 			if post.state == "open": known_open = true
 			else: last_closed = maxi(last_closed, int(post.closed_ms))
-	var needs_sources: bool = not target.has("inventory") or Stock.known_quantity(p.actor, target, str(policy.item), "take", int(policy.organization)) < int(policy.low)
+	var needs_sources: bool = not target.has("inventory") or Stock.known_quantity(actor, target, str(policy.item), "take", int(policy.organization)) < int(policy.low)
 	if not known_open and needs_sources:
 		for source: int in policy.sources:
-			var place: Dictionary = p.known.get(source, {})
-			if int(place.get("tile", -1)) < 0: return []
-			if not place.has("inventory") or not _fresh(p, source, int(policy.review_ms)) or int(p.actor.observations.get(source, {}).get("at_ms", -1)) < last_closed: return _inspect(p, place)
-	if not target.has("inventory") or not _fresh(p, int(policy.target), int(policy.review_ms)) or int(p.actor.observations.get(int(policy.target), {}).get("at_ms", -1)) < last_closed: return _inspect(p, target)
-	var board: Dictionary = p.known.get(int(policy.channel), {})
-	var read: Dictionary = p.actor.get("known_channels", {}).get(int(policy.channel), {})
-	if read.is_empty() or int(board.get("post_revision", 0)) != int(read.get("revision", -1)) or p.at_ms - int(read.at_ms) >= int(policy.review_ms): return _execute(p, "read_channel", board)
-	var count: int = Stock.known_quantity(p.actor, target, str(policy.item), "take", int(policy.organization))
-	for channel: int in p.actor.get("known_channels", {}):
-		for post: Dictionary in p.actor.known_channels[channel].posts.values():
-			if post.state != "open" or post.organization != policy.organization or post.kind != policy.kind or post.target != policy.target or post.item != policy.item or post.operation != policy.operation: continue
-			if count >= int(policy.desired) or post.blocked or int(post.reported) >= int(post.total) or (int(post.deadline_ms) > 0 and p.at_ms >= int(post.deadline_ms)):
-				return _execute(p, "close_post", p.known.get(channel, {}), {"matter": int(post.matter)})
-			return [] # The locally recorded matter is still being handled.
-	if count >= int(policy.low): return []
-	if policy.kind == "delivery" and _full(target): return []
-	if policy.kind == "produce" and not target.get("process", {}).is_empty(): return []
-	for source: int in policy.sources:
-		var place: Dictionary = p.known.get(source, {})
-		if int(place.get("tile", -1)) < 0: return []
-		if not place.has("inventory") or not _fresh(p, source, int(policy.review_ms)): return _inspect(p, place)
-	if not Duties.sources_ready(policy, p.actor, p.known): return []
-	return _execute(p, "post_duty", board, {"appointment": int(policy.appointment)})
+			var place: Dictionary = known.get(source, {})
+			if int(place.get("tile", -1)) < 0: return {}
+			if _needs_inspection(actor, place, at, int(policy.review_ms), last_closed): return {"kind": "inspect", "target": source}
+	if _needs_inspection(actor, target, at, int(policy.review_ms), last_closed): return {"kind": "inspect", "target": int(policy.target)}
+	var count: int = Stock.known_quantity(actor, target, str(policy.item), "take", int(policy.organization))
+	if not known_open and count >= int(policy.low): return {}
+	var board: Dictionary = known.get(int(policy.channel), {})
+	if int(board.get("tile", -1)) < 0: return {}
+	var review: Dictionary = _channel_review(actor, board, at, int(policy.review_ms))
+	if not str(review.step).is_empty(): return {"kind": review.step, "target": int(board.id)}
+	for channel: int in actor.get("known_channels", {}):
+		for post: Dictionary in actor.known_channels[channel].posts.values():
+			if post.state != "open" or not _matches(post, policy): continue
+			if count >= int(policy.desired) or post.blocked or int(post.reported) >= int(post.total) or (int(post.deadline_ms) > 0 and at >= int(post.deadline_ms)):
+				return {"kind": "close_post", "target": channel, "input": {"matter": int(post.matter)}} if int(known.get(channel, {}).get("tile", -1)) >= 0 else {}
+			return {} # The locally recorded matter is still being handled.
+	if count >= int(policy.low) or (policy.kind == "delivery" and _full(target)) or (policy.kind == "produce" and not target.get("process", {}).is_empty()): return {}
+	if not Duties.sources_ready(policy, actor, known): return {}
+	return {"kind": "post_duty", "target": int(board.id), "input": {"appointment": int(policy.appointment)}}
+
+static func _needs_inspection(actor: Dictionary, place: Dictionary, at: int, period: int, after: int) -> bool:
+	var seen: int = _observed(actor, int(place.id))
+	return not place.has("inventory") or seen < 0 or at >= seen + period or seen < after
 
 static func service(p: RefCounted, goal: Dictionary) -> Array:
 	if not p.actor.get("responsibilities", {}).is_empty(): return []
 	for board: Dictionary in p.ordered_targets:
 		if int(board.get("organization", 0)) != int(goal.params.organization) or not board.has("post_revision") or not p._spend(): continue
 		var read: Dictionary = p.actor.get("known_channels", {}).get(int(board.id), {})
-		if read.is_empty() or int(read.revision) != int(board.post_revision): return _execute(p, "read_channel", board)
+		var review: Dictionary = _channel_review(p.actor, board, p.at_ms, _service_period(read))
+		if review.step == "read_channel": return _execute(p, "read_channel", board)
 		if not read.is_empty():
 			for post: Dictionary in read.posts.values():
 				if not _actionable(p.actor, post, p.at_ms): continue
 				return _execute(p, "accept_post", board, {"matter": int(post.matter)})
-		var due: int = int(read.get("at_ms", -60000)) + mini(60000, 5000 * (1 << int(read.get("empty_reads", 0))))
-		if p.at_ms >= due and not _fresh(p, int(board.id), 10000): return _execute(p, "read_channel", board)
+		if review.step == "inspect": return _inspect(p, board)
 	return []
 
 static func reports(p: RefCounted) -> Array:
@@ -138,28 +171,27 @@ static func next_due(actor: Dictionary, clues: Dictionary, at: int) -> int:
 				var review: int = observed + int(policy.review_ms)
 				due = mini(due, review if review > at else at + int(policy.review_ms))
 			continue
-		var observed: int = int(actor.get("observations", {}).get(int(policy.target), {}).get("at_ms", at))
+		var observed: int = _observed(actor, int(policy.target))
 		var review: int = observed + int(policy.review_ms)
 		due = mini(due, review if review > at else at + int(policy.review_ms))
 		var account: Dictionary = actor.get("known_channels", {}).get(int(policy.channel), {})
-		review = int(account.get("at_ms", at)) + int(policy.review_ms)
-		due = mini(due, review if review > at else at + int(policy.review_ms))
+		var target: Dictionary = clues.get(int(policy.target), {})
+		if not _open_posts(actor, policy).is_empty() or not target.has("inventory") or Stock.known_quantity(actor, target, str(policy.item), "take", int(policy.organization)) < int(policy.low):
+			var board: Dictionary = clues.get(int(policy.channel), {})
+			if not board.is_empty():
+				review = int(_channel_review(actor, board, at, int(policy.review_ms)).due_ms)
+				due = mini(due, review if review > at else at + int(policy.review_ms))
 		for post: Dictionary in account.get("posts", {}).values():
 			if post.state == "open" and int(post.deadline_ms) > at: due = mini(due, int(post.deadline_ms))
 	for board: Dictionary in clues.values():
-		if not board.has("post_revision") or not actor.get("permissions", {}).has(int(board.get("organization", 0))): continue
+		if not actor.get("responsibilities", {}).is_empty() or int(board.get("tile", -1)) < 0 or not board.has("post_revision") or not actor.get("permissions", {}).has(int(board.get("organization", 0))): continue
 		var read: Dictionary = actor.get("known_channels", {}).get(int(board.id), {})
-		if not read.is_empty() and not _recent_observation(actor, int(board.id), at): due = mini(due, maxi(at + 1000, int(read.at_ms) + mini(60000, 5000 * (1 << int(read.empty_reads)))))
+		var period: int = _service_period(read)
+		var review: int = int(_channel_review(actor, board, at, period).due_ms)
+		due = mini(due, review if review > at else at + period)
 	return due if due <= at + 3600000 else -1
 
 static func review_due(actor: Dictionary, policy: Dictionary, at: int, clues: Dictionary = {}) -> bool:
 	if policy.is_empty(): return false
 	if policy.kind == "cultivation": return Cultivation.needs_review(actor, policy, at, clues)
-	var observed: int = int(actor.get("observations", {}).get(int(policy.target), {}).get("at_ms", -1))
-	var account: Dictionary = actor.get("known_channels", {}).get(int(policy.channel), {})
-	if observed < 0 or account.is_empty() or at >= observed + int(policy.review_ms) or at >= int(account.at_ms) + int(policy.review_ms): return true
-	return account.get("posts", {}).values().any(func(post: Dictionary): return post.state == "open" and (post.blocked or int(post.reported) >= int(post.total) or (int(post.deadline_ms) > 0 and int(post.deadline_ms) <= at)))
-
-static func _recent_observation(actor: Dictionary, target: int, at: int) -> bool:
-	var observation: Dictionary = actor.get("observations", {}).get(target, {})
-	return observation.get("direct", false) and at - int(observation.get("at_ms", -10000)) < 10000
+	return not _duty_step(actor, policy, clues, at).is_empty()

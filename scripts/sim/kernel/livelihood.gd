@@ -666,7 +666,7 @@ func arrived(world: RefCounted, actor: int, at: int) -> void:
 	elif tile >= 0: world.knowledge.refresh(world, actor, target, at)
 
 func protected_targets(world: RefCounted, actor: int) -> Dictionary:
-	var result: Dictionary = {}
+	var result: Dictionary = world.institutions.Access.known_personal_places(world.institutions, actor, world.knowledge.records.get(actor, {}).get("subjects", {}))
 	for request: Dictionary in world.society.Requests.views(world.society, actor, world.operation_time()):
 		if request.state in ["pending", "deferred", "accepted"]:
 			for target: int in [int(request.target)] + request.terms.sources: result[target] = true

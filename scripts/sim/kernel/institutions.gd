@@ -66,13 +66,34 @@ func arrange_service(world: RefCounted, target: int, purpose: String, actors: Ar
 func clear_service(world: RefCounted, target: int, purpose: String) -> bool:
 	return Access.clear_service(self, world, target, purpose)
 
+func membership_view(actor: int) -> Array:
+	var result: Array = []
+	for organization: int in memberships:
+		if memberships[organization].has(actor): result.append({"organization": organization, "name": str(organizations[organization].name)})
+	return result
+
+func public_profile(observer: int, actor: int) -> Dictionary:
+	# Membership is not asset ownership. In this first sect, appointments and
+	# allocated rest places are public to fellow members of that organization.
+	var shared: Array = []
+	var result: Dictionary = {"id": actor, "memberships": [], "public_roles": [], "service_targets": {"rest": []}}
+	for entry: Dictionary in membership_view(actor):
+		if memberships[entry.organization].has(observer):
+			shared.append(int(entry.organization)); result.memberships.append(entry)
+	for duty: Dictionary in Duties.views(self, actor).values():
+		if duty.organization in shared: result.public_roles.append(str(duty.title))
+	for target: int in services:
+		var rule: Dictionary = services[target].get("rest", {})
+		if not rule.is_empty() and rule.organization in shared and (actor in rule.actors or rule.members): result.service_targets.rest.append(target)
+	return result
+
 func access_view(world: RefCounted, actor: int) -> Dictionary:
 	var returned: Dictionary = {}
 	var pending: Array = return_bundles(world, actor)
 	for bundle: Dictionary in pending:
 		if not returned.has(int(bundle.organization)): returned[int(bundle.organization)] = {}
 		for item: String in bundle.items: _add(returned[int(bundle.organization)], item, int(bundle.items[item]))
-	return {"permissions": permissions(actor), "scope_grants": Access.scope_grants(self, actor) + Matters.grants(self, world, actor), "task_access": Matters.task_access(self, actor), "responsibilities": Matters.views(self, world, actor), "duties": Duties.views(self, actor), "reports": Channels.own_receipts(self, actor, true), "channel_receipts": Channels.own_receipts(self, actor), "service_targets": Access.service_targets(self, actor), "return_items": returned, "return_bundles": pending}
+	return {"memberships": membership_view(actor), "permissions": permissions(actor), "scope_grants": Access.scope_grants(self, actor) + Matters.grants(self, world, actor), "task_access": Matters.task_access(self, actor), "responsibilities": Matters.views(self, world, actor), "duties": Duties.views(self, actor), "reports": Channels.own_receipts(self, actor, true), "channel_receipts": Channels.own_receipts(self, actor), "service_targets": Access.service_targets(self, actor), "return_items": returned, "return_bundles": pending}
 
 func reconcile(world: RefCounted, actor: int, target: int = 0) -> void:
 	if not world.actor_slots.has(actor) or not world.combat.alive(world, actor): return

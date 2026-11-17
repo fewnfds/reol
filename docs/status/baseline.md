@@ -2,7 +2,23 @@
 
 更新：2026-11-17。能力归[FEATURES](features.md)，状态归属归[架构](../engineering/architecture.md)，阶段归[主计划](../plans/foundation-priorities.md)。本页保存当前证据，完整历史由Git追溯。
 
-## 宗门共享基座实施（源码）
+## 宗门共享基座交付
+
+T12c已完成开工/收尾双顾问与整改复核。`logs/t12c-final-normal-gui-20261117-125250-150492700.log`、`t12c-final-native-cooperation-20261117-125307-799726900.log`、`t12c-final-incoming-request-20261117-125344-54728900.log`均errors=0：正常100人main、公共身份/职责/个人床、本人/他人隐私边界、5秒实际运行与文件存读、1280×720/125%滚动界面、真实采木8→付料1→当面求助→同门自主完工→当面结清，以及玩家收到请求、延期中保存恢复再接受。截图`logs/settlement-ui/normal-collaboration-{select,accepted,fulfilled}.png`、`settlement-normal-{character,restored}.png`已实际查看。
+
+共有State使用Godot原生`duplicate(true)`，并用实际类型/嵌套/packed隔离及世界恢复核验；不宣称固定提速。告示读取与直接观察分别按内容修订/时效计算，职责、教学意愿与唤醒共用判断，避免反复读取未变化告示。普通观察沿SubjectView白名单；成员身份来自Institutions.memberships，人物不被当作机构资产。`t12c-latest-visibility-owner-boundary-20261117-125004-866379600.log`核离场旧线索、异步选择、共享组织与另一组织隐私、当前身体可见性和旧Frame隔离，`t13-publication-framework-final-20261117-130058-235835800.log`核原可靠结果发布，均errors=0。
+
+T12b个人设施遗忘已实际定位：旧连续运行中个别居民的个人床被128条认识淘汰，精力最终归零；旧运行在3240000ms主动停止，未通过。修正只保护已获得位置且非传闻的明确个人分配，不新增位置/容量或补回遗忘。`t12b-personal-places-all-residents-20261117-130129-959234900.log`核全部99人的初始床认识、有界周转/撤权/传闻/失效/公共反例及真实自主休养和恢复，errors=0。`t12b-checkpoint-acquired-place-audit-20261117-130047-687247000.log`实读原120秒起点和修正续跑1320秒检查点，二者全部99人均有受保护个人床；未往旧快照注入认识。
+
+正常三游戏日窗口`logs/t12b-protected-places-cycle-20261117-124837-785324100.log`已完整到3600000ms、正常退出、errors=0；从真实普通开局120秒检查点续跑，保留最初审计历史，617/1650秒实际候选恢复，期间无补料/补认识/持续注单或强制劳动。共48播种、80照料、214采收、71烹饪、270进食、1921休养、648实践，另有真实16学习/4传授，四院均有完整源耗/职责/成长消费者。粮初48＋自然224＝末82＋消耗190；餐初128＋71×3＝末71＋消耗270；水初0＋自然344＝末193＋消耗151。来源灵气初8000＋自然57552＝末752＋耗64800，本人实际增灵38880；五项逐窗与终态审计通过。这里的粮总量包含真实植株未采产物，并非全在粮仓。
+
+`logs/t12b-final-energy-and-source-audit-20261117-133723-839508500.log`在同一最终文件上用最新测试直接恢复、不再推进，核99人全活/终饱食>1800/终精力及各人每秒采样最低精力>0、分院工作流和最终候选恢复，errors=0。`t12b-final-personal-place-audit-20261117-134353-701031800.log`独立恢复直接核全部99人个人床仍已知、缺失0，97人当前有128条认识、99人都有体征采样；末饱食最低6999、精力最低7476。1秒采样最低饱食为61号5725（末8457）；最低精力为82号1260（末9084），不是用平均库存掩盖个体失败。还直接核自然水344、井内水192、末来源灵气752与本人灵气38880；分院常规物品统计的差额2粮/1水在灶台2313的工序39中，全World核账包含该work_stock。手动玩家由玩家负责维持，不列入99名自主居民验收。该窗口验证本地重复运行，不证明全年、低配或所有灾害均能自动恢复。
+
+T13正常整合反例`logs/t13-normal-disruption-real-consumption-20261117-125851-595796300.log` errors=0：正常百人自主开锅后，作业者4死亡，原过程1保留公料与实际劳动，真实文件恢复后由5自主接完，55200ms前有人真实进食；未强制接手或改变耗时。初次失败测试错误地要求在餐箱尚充足时仍必须送餐，诊断证实原锅已完成且就地食用，改为核真实供养去向，未改变产品规则。不将死亡后规范责任仍保留误判成复活或自动继任；完整继任仍在范围外。
+
+当前release导出`logs/export-20261117-125738-228058900.log`生成`build/windows/sect-foundation/reol-sect.exe`＋pck。复制两文件至无源码临时目录，以实际Win32 F5保存、完全退出再启动F9读取，`logs/t13-package-{save,load}-20261117-{130021,130036}.log`均成功，epoch提升，原用户档/备份保留。两次D3D12/RTX3060/1280×720、60FPS限制、3秒预热+10秒短窗，实际1.000×，帧时p95约16.69ms、步均约4.10/4.14ms。另以普通format32存档适配器载入同一真实2760秒长测检查点，独立release原生F9读取成功：`logs/t13-package-mature-20261117-132610.log`、`t13-package-mature.json`的10秒窗实际0.997×，帧时p95/p99为16.69/16.96ms、步均4.81ms、步p99/最大68.59/130.98ms；截图`logs/settlement-ui/standalone-mature.png`已实看。当时后台逻辑长测仍在运行，短窗不能证明满速、低配、全年或更大人口。外部`--script`在release未按开发探针运行而30秒退出超时的尝试保留，未作为成功证据。最终实际证据的双顾问答复已完整核查，T12b/T13按既定边界完成；采用/拒绝意见归主计划。
+
+本轮相关短检查、正常GUI/文件、实际中断恢复与独立包通过；既有`python tools/godot.py test`（`logs/smoke-kernel-20261117-124228-85909000.log`）及`abilities_smoke.gd`（`t13-original-barrage-restoration-20261117-130732-274453600.log`）仍各15秒超时，均为未通过。kernel定点停在512人初始工作循环，没有据此声称发布链或弹幕功能已证实损坏；未放宽默认退出与原650ms断言，不宣称全库全绿。
 
 T12a正常宗门装配已完成开工、收尾与整改复核双顾问独立核查。原生Resource一次性装配进入同一main/Runner/World，开发赠物/固定老师/木材与敌人留在开发入口；正常100人（玩家1＋99自主）、四院食宿/田务与成员协作使用原owner。源码现format32/`user://sect-quicksave-v32.reol`，旧31档和独立P5旧包保留；制作入口归[宗门生活](../../design/systems/sect_life.md#当前正常开局的制作入口)。
 
@@ -10,7 +26,7 @@ T12a正常宗门装配已完成开工、收尾与整改复核双顾问独立核�
 
 最终原生D3D12 `logs/t12a-final-native-activation-reviewed-20261117-114116-890236100.log`从正常main直接开100人，无夹具读档，人物修行页、实际5秒运行、文件保存/加载及100人/无赠物通过，errors=0；`logs/cultivation-ui/settlement-normal-{start,restored}.png`已实际查看。原ACT `t12a-original-act-consumer-20261117-113424-356277000.log`、有限灵源`t12a-original-qi-sources-20261117-113841-560930700.log`均errors=0。原kernel `smoke-kernel-20261117-113352-167355300.log`仍15秒超时，没有放宽退出或旧计时断言，不能说全库通过。
 
-正常首次持续长测`logs/t12a-normal-first-full-source-cycle-20261117-111729-379442400.log`在900墙钟秒超时，**未通过**。最后完整快照为1200游戏秒：32播种、8锅、98进食、546休养、264实践及真实教学，初48粮被种植/8锅消耗，尚54餐/192水/0粮，无自产粮；自主居民末饱食最坏6964、精力最坏2284。617秒实际候选恢复后继续，诊断耗时从恢复点重计，不能当全程性能。此运行冻结于最终冷启动/公开方法整改前，且光照有效期限制首成熟；它只提供T12b竞争与成本线索，不是百人持续供养、正式平衡或图形性能证明。T12b/12c和T13尚未交付。
+正常首次持续长测`logs/t12a-normal-first-full-source-cycle-20261117-111729-379442400.log`在900墙钟秒超时，**未通过**。最后完整快照为1200游戏秒：32播种、8锅、98进食、546休养、264实践及真实教学，初48粮被种植/8锅消耗，尚54餐/192水/0粮，无自产粮；自主居民末饱食最坏6964、精力最坏2284。617秒实际候选恢复后继续，诊断耗时从恢复点重计，不能当全程性能。此运行冻结于最终冷启动/公开方法整改前，且光照有效期限制首成熟；它只提供T12b竞争与成本线索，不是百人持续供养、正式平衡或图形性能证明。该段是最终冷启动前的历史失败证据，不能覆盖当前T12b/T12c/T13已完成的独立证据。
 
 T11c持续修持已接原resource目的、共同Query/提交与自然来源，开工/设计/收尾及整改复核双答均已完整独立核查。`logs/t11c-reviewed-final-agency-20261117-110044-803115500.log`实际核精通后2940/2990/2999补到3000停止、真实伤害后两次木愈相隔至少500ms并再补、全部实际灵植生成/耗源核账、空源改用第二种灵植、离场空源恢复后再到场、满灵未精通仍复查、未引介/低温饱不乱练、来源移除零收益、手动中断存读不被接管而恢复自主再练一次；errors=0。`t11c-final-sources-reviewed-schema-20261117-110109-918267400.log`核400ms积分、满源余数、成熟跨界、未开智无果灵植可观察、阶段/容量/余数坏档与共同实践准入，errors=0。
 
@@ -26,7 +42,7 @@ T11b已完成开工/收尾及整改复核双顾问核查。`logs/t11b-delivery-a
 
 原生D3D12 Game最终`logs/t11b-reviewed-native-20261117-103140-158775900.log`实际加载自主播种中状态，正常人物页显示活动/任职，保存再读后NPC自己完成播种且未占玩家宿主；errors=0，截图`logs/cultivation-ui/autonomous-field-{role,completed}.png`已实际查看。首次GUI真实揭露人物页按单点库存职责读取田务，已按分型修复；最初测试未防未开工action无started_ms，以及误用handler当操作ID、双田路程窗太短的失败保留，未改游戏成本/速度迁就测试。三昼夜整改后复核`t11b-reviewed-source-cycle-20261117-102418-50522900.log`再次核全部真实源/配方/消耗，errors=0，逻辑墙钟42451ms；不冒充图形或百人证明。暂持反例初期曾把已播1种的源库存写死9，改用拦截时实际源库存加实际归还5；保留归还量、服务仓隔离及恢复断言。
 
-T01～T10已完成开工/收尾顾问咨询、独立核查及相关整改；下列独立P5包尚未重导，仍为format14，不能与当前源码格式混用文件。百人宗门完整循环尚未交付。
+这是T10时期的历史整理段；T11a～c、T12a/c及当前宗门包已在本页上方更新，旧P5包仍保留format14，当前宗门源码/包使用format32。
 
 
 T11a已完成：开工`11a-start/`与收尾`11a-finish/`双答均已完整核查，相关整改与独立验证完成。采用整畦占用检查/统一锚点、非植物提交安全拒绝、私有栽培权属的共同前置判断，以及过湿单独档位并拒绝无效浇水；稳定宿主派生授权归已开工咨询的T11b，不临时把新植物ID注入所有任职。
@@ -133,18 +149,21 @@ T07规模边界：`knowledge-100-final-scope-20261117-033422-865862800.log`普�
 
 T02收尾追加反例：`operations-variant-final-20261117-010710-927522700.log` errors=0，覆盖新运输定义/实际grain交付、半边伙伴档拒绝、直接中断伙伴自主唤醒、合法在途目标变化可恢复且到场拒绝。`capabilities-operation-final-20261117-010604-965599800.log`、`smoke-features-20261117-010409-895802400.log`均errors=0；真实`operations-ui-final-20261117-010557-460283800.log` errors=[]，已观察生成截图。结构审计100文档/276源/0错误；不将这些短检查宣称百人闭环或性能验收。
 
-Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+，1280×720。正式入口`scenes/main.tscn`。当前为P5试玩版加作业位置、合同/碰撞修复与纯二维斜视显示；根目录[启动.cmd](../../启动.cmd)选3运行`build/windows/act-p5/reol-act.exe`＋同目录pck，选1为最新源码战斗、选2为普通世界。
+Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+，1280×720。正式入口`scenes/main.tscn`。当前源码与宗门包是P5决策基座上的百人宗门试玩，加作业位置、合同/碰撞修复与纯二维斜视显示；根目录[启动.cmd](../../启动.cmd)选1源码战斗、2源码百人宗门、3运行`build/windows/sect-foundation/reol-sect.exe`＋同目录pck、4编辑器、5旧P5战斗包。
 
 | 项目 | 当前值 |
 |---|---|
-| exe SHA256 | `3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf` |
-| PCK SHA256 | `33623c5a59c15cfcab014b795877ad8190f1d551f4ae2eeff325a91d04f7d83a` |
+| 当前宗门 exe SHA256 | `3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf` |
+| 当前宗门 PCK SHA256 | `6126d5772cce6f2ecac9843dd1256854ac8333966055c7d0ea0e2b2613c86b53` |
+| 旧P5战斗包 exe / PCK | `3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf` / `33623c5a59c15cfcab014b795877ad8190f1d551f4ae2eeff325a91d04f7d83a` |
 | 战斗规则签名 | `ed0a331b1a1ed0796a88f58ccad86c0677bbf29b327e0cb977a99ed567f53c8e` |
-| 决策签名 | `9bb014cebdfdb4196146e2288f25e0cc274e364e34cac2f28d26597fcf06e5cd` |
-| 内容 | 40动作、24配置、7套Policy；原生Resource/Inspector制作 |
-| 存档 | reol-world-14；默认`user://act-p5-quicksave-v14.reol` |
+| 当前决策签名 | `4021c209c5572312ccad01b0d93b115fd18af9aaa20be5a5d228f4c1be4ba40e` |
+| 旧P5包决策签名 | `9bb014cebdfdb4196146e2288f25e0cc274e364e34cac2f28d26597fcf06e5cd` |
+| 战斗内容 | 40动作、24配置、7套Policy；原生Resource/Inspector制作 |
+| 当前源码/宗门包存档 | `reol-world-32`；默认`user://sect-quicksave-v32.reol` |
+| 旧P5战斗包存档 | `reol-world-14`；默认`user://act-p5-quicksave-v14.reol` |
 
-来源贡献/控制聚合、决策反馈与设施登记更新布局，不迁移format13及更早开发档；原档及备份保留，不覆盖。exe是相同Godot模板，游戏变更主要在PCK；只核exe哈希不足以识别游戏版本。生成物/日志/本机咨询不入库。运行和制作入口归[usage](../engineering/tooling/usage.md)。
+当前宗门采用format32，不迁移此前开发格式；旧文件及备份保留，不覆盖。旧P5独立包继续使用其format14及独立默认文件。两包使用同一Godot模板但不同PCK；只核exe哈希不足以识别游戏版本。生成物/日志/本机咨询不入库。运行和制作入口归[usage](../engineering/tooling/usage.md)。
 
 ## 固定斜俯视与原生二维显示
 
@@ -157,7 +176,7 @@ Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+�
 | 原生显示与实际像素 | `native-view-final-20261116-180521-627253700.log`，VIEW_UI_SMOKE errors=0；根视口直绘、分部/alpha选择、四种窗口含奇数尺寸、三档缩放、震动不改瞄准、真实光标/暂停平移/迷雾与旧偏好清理；离中心竖边逐行核对同一像素列，截图`logs/view-ui/native-*.png`已观察 |
 | 移动与控制 | `native-movement_ui_smoke-20261116-180615-624780100.log`、`native-control_ui_smoke-20261116-180619-851367200.log`均errors=0；贴墙三连、单格通行、显示脚点、自由镜头瞄准与原生改键/窗口/UI缩放；`native-control-20261116-180625-803610600.log`另核F7不再保留占用 |
 | 普通交互、施工、P4 | `native-ui_smoke-20261116-180624-469727800.log`、`native-work_positions_ui_smoke-20261116-180631-420477500.log`、`native-action_combinations_ui_smoke-20261116-180635-288353200.log`均errors=0；真键鼠选择、物资/续建、组合技能/召唤/光环/器物及文件恢复 |
-| 当前独立包 | `export-20261116-180811-303649100.log`成功；`native-pack-restore-20261116-180852-82788600.log`从实际PCK恢复原源码的施工/来源状态/器物样本并推进，完整持久状态相同。World、身体/动作定义、format14和两项目录签名未改 |
+| 当时独立包 | `export-20261116-180811-303649100.log`成功；`native-pack-restore-20261116-180852-82788600.log`从实际PCK恢复原源码的施工/来源状态/器物样本并推进，完整持久状态相同。当次World、身体/动作定义、format14和两项目录签名未改 |
 
 最新release只测一个512人、1×、60FPS、两worker、迷雾、3秒预热＋5秒采样的framework-combat-v1窗口：`logs/native-final-512.json/.log/.cpu.json`及截图。目标机i5-13600KF/RTX3060、D3D12、1280×720；帧p99 16.836ms、采样步均8.038ms/p99 17.633ms、GPU均0.456ms/p99 1.803ms、主线程process均3.231ms、实速0.99991×，405次交付/57次命中、无脚本/引擎错误、零过载、木材守恒。已撤除额外世界合成pass，单窗结果只排查明显回归，不宣称精确提速或密弹容量；测量在提交前，JSON记录`8f1739f`加dirty，包哈希同本页当前构建。
 
@@ -171,7 +190,7 @@ Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+�
 | 移动专题 | `ground-fixed-movement-20261116-124540-641937400.log`，MOVEMENT_SMOKE errors=0；每次提交/分段合法、立即退开、微小重叠有限恢复/不穿整墙、两种身体的地图边缘、真实平砍与中途恢复、家具南侧一格通道 |
 | 相关原检查 | `ground-fixed-{control,melee}-20261116-124540-*`、`smoke-{kernel,features}-20261116-124732-*`、`ground-work-positions-20261116-124732-755451800.log`、`ground-abilities-20261116-124732-756807400.log`均errors=0；没有扩大为全库矩阵 |
 | 真实GUI | `ground-movement-order-ui-20261116-125005-886262700.log`，MOVEMENT_UI_SMOKE errors=0；原生鼠标斜向三连后键盘走过通道，检查GPU脚点与物品/蓝图/家具/身体顺序；截图`logs/movement-ui/`已观察。原普通UI和ACT GUI分别为`ground-ui-20261116-125034-68688100.log`、`ground-act_ui-20261116-125041-430977200.log`，均通过 |
-| 最新成品 | `export-20261116-125117-982174300.log`成功；`ground-source-20261116-125137-316131600.log`和实际PCK的`ground-pack-20261116-125139-3370300.log`对复合施工/状态/器物候选恢复并推进，完整状态相同。format14及两项目录签名保持，旧存档逻辑坐标不迁移 |
+| 当时成品 | `export-20261116-125117-982174300.log`成功；`ground-source-20261116-125137-316131600.log`和实际PCK的`ground-pack-20261116-125139-3370300.log`对复合施工/状态/器物候选恢复并推进，完整状态相同。当次format14及两项目录签名保持，旧存档逻辑坐标不迁移 |
 
 该次二维基线release只测一个512人、1×、60FPS、两worker、迷雾、3秒预热＋5秒采样的framework-combat-v1窗口：`logs/ground-final-512.json/.log/.cpu.json`，全窗步均7.671ms、样本步p99 14.992ms、帧p99 16.692ms、实速1.00010×、405次交付/56次命中、无脚本/引擎错误、零过载、木材守恒。仍为i5-13600KF/RTX3060/D3D12/1280×720；这只排查本次修改的明显回归，不据单窗宣称提速或密弹极限。测量在提交前，JSON记录`77a8c5e`加dirty，包哈希为`59fd41ff843faf4c2eefeee5ffc89cac27b8cf186a4bb455db45c85cbfeaf8f5`。
 

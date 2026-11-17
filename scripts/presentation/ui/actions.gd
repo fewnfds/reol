@@ -5,6 +5,88 @@ const Art = preload("res://scripts/presentation/art.gd")
 const Items = preload("res://scripts/sim/kernel/items.gd")
 const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const Query = preload("res://scripts/sim/kernel/operation_query.gd")
+const SubjectView = preload("res://scripts/presentation/ui/subject_view.gd")
+const REASONS: Dictionary = {
+	"action_committed": "当前动作尚不能取消",
+	"cooldown": "技能冷却中",
+	"in_combat": "战斗中暂不能换装",
+	"stunned": "受击硬直中",
+	"paused": "世界已暂停",
+	"dead": "人物已死亡",
+	"empty": "这里暂时没有可取物品。",
+	"empty_or_full": "物资不足或容器已满",
+	"target_busy": "目标被占用",
+	"target_gone": "目标已消失",
+	"out_of_reach": "超出交互范围",
+	"no_operation_place": "没有可用操作位",
+	"not_available_for_contact": "不满足交往条件",
+	"unavailable": "条件未满足",
+	"not_a_plant": "目标不是植物",
+	"invalid_target": "目标无效",
+	"invalid": "条件不符",
+	"occupied": "栽培位置已有植物。",
+	"no_potion_or_full": "无药物或生命已满",
+	"out_of_reach_or_cooldown": "超出范围或冷却中",
+	"target_not_visible_or_blocked": "目标不可见或被阻挡",
+	"missing_material": "材料不足",
+	"insufficient_material": "材料不足",
+	"wrong_substrate": "栽培基质不适合这种植物。",
+	"no_capacity": "容量不足",
+	"blocked": "路径阻挡",
+	"": "",
+	"method_not_known": "尚未掌握所需技艺",
+	"missing_items": "缺少符合用途的原料。",
+	"insufficient_resource": "自身资源不足。",
+	"unattended_in_progress": "本批仍在静置，完成后可收取。",
+	"in_process_conflict": "设施正在加工另一配方。",
+	"no_output_capacity": "成品存放空间不足。",
+	"no_food": "这里没有餐食。",
+	"not_authorized": "尚未获得此项使用许可。",
+	"already_understood": "已经理解这项入门内容。",
+	"method_not_mastered": "熟练掌握后才能传授。",
+	"awaiting_participant": "等待对方主动参加。",
+	"not_interested": "对方当前有自己的安排。",
+	"not_needed": "植物健康且无需补水。",
+	"water_excess": "基质过湿，当前照料不能排水。",
+	"incompatible_cultivation_title": "不能用自己的种子占用他人的栽培位置。",
+	"body_has_no_work_capability": "当前不能进行劳动。",
+	"full": "存放空间已满。",
+	"use_matter_offer": "此为宗门事项，需要通过事项委托。",
+	"already_assigned": "此处已有同门承担施工。",
+	"already_requested": "已送达这项请求，请等待或当面核对。",
+	"request_on_cooldown": "对方刚刚回应过，请稍后再协商。",
+	"too_many_requests": "当前来往约定过多，请先办结已有约定。",
+	"cannot_commission": "无权委托此项事务。",
+	"unknown_task": "尚未获知所托事务的地点。",
+	"contact_not_completed": "尚未完成当面接触。",
+	"peer_not_observed": "当前未见到对方。",
+	"refused_capability": "缺少所需行动能力",
+	"task_not_understood": "尚不清楚如何办理此事。",
+	"matter_expired": "事项已过办理期限。",
+	"no_open_share": "这份责任已由他人领受。",
+	"post_unavailable": "这条告示已不能领受。",
+	"cannot_accept_share": "目前没有可领受的份额。",
+	"path_failed": "路途受阻，未能到达。",
+	"invalid_task": "这处工地已不能委托。",
+	"target_not_visible": "目标不在当前视野内。",
+	"request_delivered": "请求已送达",
+	"accepted_share": "已承担约定责任",
+	"request_deferred": "约定稍后答复",
+	"deferred_need": "先处理生活需要",
+	"deferred_busy": "暂有其他事务",
+	"request_refused": "对方未接受",
+	"refused_need": "当前生活或身体需要优先",
+	"refused_busy": "其他目的或责任优先",
+	"request_expired": "未在约定时间内答复",
+	"share_completed": "责任已经履行",
+	"share_released": "责任已经解除",
+	"matter_closed": "事项已经结束",
+	"task_satisfied": "此处已完成施工",
+	"request_unavailable": "这次约定已无法继续",
+	"no_known_method": "目前不知道如何办理",
+	"refused_deadline": "预计来不及完成",
+	"awaiting_response": "尚未收到答复"
+}
 static var buildings: Dictionary = {}
 static var plants: Dictionary = {}
 static var items: Dictionary = {}
@@ -16,6 +98,7 @@ static func load_definitions() -> void:
 	items = JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/items.json"))
 
 static func title(data: Dictionary) -> String:
+	if data.get("pending", false): return "正在察看 #%d…" % int(data.get("id", 0))
 	load_definitions()
 	var key: String = str(data.get("definition", ""))
 	var item_key: String = Items.definition(key) if Items.valid(key) else key
@@ -24,25 +107,10 @@ static func title(data: Dictionary) -> String:
 	return str(data.get("name", definition.get("label", key))) + quality + " #%d" % int(data.get("id", 0))
 
 static func visible(frame: RefCounted, id: int, use_fog: bool) -> bool:
-	if id == 1: return true
-	if frame.actor_slots.has(id):
-		return not use_fog or frame.visible[frame.actor_slots[id]] != 0
-	if not use_fog: return frame.objects.has(id)
-	var memory: Dictionary = frame.perception.get("memories", {}).get(id, {})
-	for tile: int in memory.get("cells", PackedInt32Array()):
-		if frame.perception.tiles[tile] != 0: return true
-	return false
+	return SubjectView.visible(frame, id, use_fog)
 
 static func observed(frame: RefCounted, id: int, use_fog: bool) -> Dictionary:
-	if id == 0: return {}
-	if visible(frame, id, use_fog):
-		var value: Dictionary = frame.player if id == 1 else frame.inspected
-		return value if int(value.get("id", 0)) == id else {}
-	var old: Dictionary = frame.perception.get("memories", {}).get(id, {})
-	if old.is_empty(): return {}
-	var result: Dictionary = old.duplicate()
-	result["memory"] = true
-	return result
+	return SubjectView.observed(frame, id, use_fog)
 
 static func command(id: String, text: String, glyph: String, enabled: bool = true) -> Dictionary:
 	return {"id": id, "text": text, "icon": glyph, "enabled": enabled}
@@ -53,7 +121,7 @@ static func self_ready(actor: Dictionary, operation: String) -> bool:
 static func for_target(data: Dictionary, player: Dictionary, help_target: int) -> Array[Dictionary]:
 	load_definitions()
 	var result: Array[Dictionary] = []
-	if data.is_empty() or data.get("memory", false): return result
+	if data.is_empty() or data.get("memory", false) or data.get("pending", false): return result
 	for id: String in Operations.OPERATIONS:
 		var operation: Dictionary = Operations.OPERATIONS[id]
 		if not operation.target_menu: continue
@@ -112,13 +180,7 @@ static func _can_close_post(actor: Dictionary, post: Dictionary) -> bool:
 	return required.all(func(item: String): return stock.permits_at(actor, target, "commission", item))
 
 static func reason_text(reason: String) -> String:
-	return {"": "", "method_not_known": "尚未入门这门技艺。", "missing_items": "缺少符合用途的原料。", "insufficient_resource": "自身资源不足。",
-		"unattended_in_progress": "本批仍在静置，完成后可收取。", "in_process_conflict": "设施正在加工另一配方。", "no_output_capacity": "成品存放空间不足。",
-		"empty": "这里暂时没有可取物品。", "no_food": "这里没有餐食。", "not_authorized": "尚未获得此项使用许可。", "already_understood": "已经理解这项入门内容。",
-		"method_not_mastered": "熟练掌握后才能传授。", "awaiting_participant": "等待对方主动参加。", "not_interested": "对方当前有自己的安排。",
-		"not_needed": "植物健康且无需补水。", "occupied": "栽培位置已有植物。", "wrong_substrate": "栽培基质不适合这种植物。",
-		"water_excess": "基质过湿，当前照料不能排水。", "incompatible_cultivation_title": "不能用自己的种子占用他人的栽培位置。",
-		"body_has_no_work_capability": "当前不能进行劳动。", "full": "存放空间已满。"}.get(reason, "当前条件尚不满足。")
+	return str(REASONS.get(reason, "当前条件尚不满足。"))
 
 static func art_key(definition: String) -> String:
 	load_definitions()

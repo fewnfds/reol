@@ -409,7 +409,8 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 	if not _target.is_empty():
 		set_text(_inspect_title, ("◷ " if _target.get("memory", false) else "") + Actions.title(_target))
 		var rows := PackedStringArray()
-		if _target.has("hp"): rows.append("HP %d   %s" % [int(_target.hp), str(_target.get("mode", ""))])
+		if _target.get("observed_other", false): rows.append(str(_target.get("appearance", "")))
+		elif _target.has("hp") and not (_target.get("memory", false) and _target.get("kind") == "actor"): rows.append("HP %d" % int(_target.hp))
 		if _target.has("tolerance"): rows.append("耐受 %.1f / %.0f" % [float(_target.tolerance), float(_target.max_tolerance)])
 		if _target.has("position"):
 			var point: Vector2 = _target.position

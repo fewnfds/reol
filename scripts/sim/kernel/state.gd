@@ -4,16 +4,10 @@ extends RefCounted
 
 
 static func copy(value: Variant) -> Variant:
-	if value is Dictionary:
-		var result: Dictionary = {}
-		for key: Variant in value:
-			result[key] = copy(value[key])
-		return result
-	if value is Array:
-		var result: Array = []
-		for entry: Variant in value:
-			result.append(copy(entry))
-		return result
+	# Canonical state contains value/container data. Native deep duplication
+	# detaches nested containers without an interpreted call for every field.
+	if value is Dictionary or value is Array:
+		return value.duplicate(true)
 	if typeof(value) >= TYPE_PACKED_BYTE_ARRAY and typeof(value) <= TYPE_PACKED_VECTOR4_ARRAY:
 		return value.duplicate()
 	return value

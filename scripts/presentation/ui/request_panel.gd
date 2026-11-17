@@ -10,13 +10,13 @@ const PAGE_SIZE: int = 12
 
 func refresh(player: Dictionary) -> void:
 	var requests: Array = player.get("requests", [])
-	var signature: String = str(requests) + str(int(player.get("hp", 0)) <= 0) + str(_page)
+	var signature: String = str(requests) + str(int(player.get("hp", 0)) <= 0) + str(_page) + ":" + str(player.get("view_epoch", 0))
 	if signature == _signature: return
 	_signature = signature
 	for child: Node in get_children():
 		remove_child(child)
 		child.queue_free()
-	var hint: Label = Style.label(self, "答复需要走到对方面前。这里保留双方最后当面确认的消息。")
+	var hint: Label = Style.label(self, "这里保留双方最后当面确认的消息。接受委托后，还需实际办理；可找对方当面核对进展。")
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	if requests.is_empty(): Style.label(self, "暂无来往约定。")
 	var ordered: Array = requests.duplicate()
@@ -42,6 +42,9 @@ func refresh(player: Dictionary) -> void:
 		if not request.terms.item.is_empty(): purpose += " " + Items.label(str(request.terms.item)) + "×%d" % int(request.quota)
 		var title: Label = Style.label(self, "%s #%d · %s #%d\n%s · %s" % ["来自" if recipient else "发给", other, purpose, int(request.target), state_text(str(request.state)), reason_text(str(request.reason))])
 		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		if request.state == "accepted":
+			var pending: Label = Style.label(self, "你已承诺，需要实际办理。" if recipient else "对方已承诺；尚未收到履行答复。")
+			pending.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		if request.state not in ["pending", "deferred", "accepted"]: continue
 		if request.get("peer_known_dead", false):
 			var known: Label = Style.label(self, "本人已知对方亡故；此处保留此前的消息。")
@@ -73,7 +76,7 @@ static func _priority(request: Dictionary) -> int:
 	return 1 if request.state in ["pending", "deferred", "accepted"] else 2
 
 static func state_text(state: String) -> String:
-	return {"pending": "待答复", "deferred": "暂缓答复", "accepted": "已接受", "refused": "已拒绝", "expired": "答复期已过", "fulfilled": "已履行", "cancelled": "已结束"}.get(state, state)
+	return {"pending": "待答复", "deferred": "暂缓答复", "accepted": "已接受 · 办理中", "refused": "已拒绝", "expired": "答复期已过", "fulfilled": "已履行", "cancelled": "已结束"}.get(state, state)
 
 static func reason_text(reason: String) -> String:
-	return {"request_delivered": "请求已送达", "accepted_share": "已承担约定责任", "request_deferred": "约定稍后答复", "deferred_need": "先处理生活需要", "deferred_busy": "暂有其他事务", "request_refused": "对方未接受", "refused_need": "当前生活或身体需要优先", "refused_busy": "其他目的或责任优先", "request_expired": "未在约定时间内答复", "share_completed": "责任已经履行", "share_released": "责任已经解除", "matter_closed": "事项已经结束", "task_satisfied": "此处已完成施工", "request_unavailable": "这次约定已无法继续", "method_not_known": "尚未掌握所需技艺", "refused_capability": "缺少所需行动能力", "no_known_method": "目前不知道如何办理", "refused_deadline": "预计来不及完成", "awaiting_response": "尚未收到答复"}.get(reason, "当前条件不支持这项约定")
+	return str(preload("res://scripts/presentation/ui/actions.gd").REASONS.get(reason, "尚无进一步说明。"))

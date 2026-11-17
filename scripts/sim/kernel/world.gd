@@ -1067,6 +1067,7 @@ func operation_target(id: int) -> Dictionary:
 	var record: Dictionary = objects.records[id]
 	var result: Dictionary = {"id": id, "kind": record.kind, "definition": record.definition, "tile": record.tile,
 		"inventory": objects.goods_summary(id, actor_slots.has(id) and not combat.alive(self, id)), "owner": int(record.owner), "organization": int(record.organization), "capacity": record.capacity, "sapient": record.get("sapient", false), "guest": int(record.get("guest", 0))}
+	if record.has("name"): result["name"] = str(record.name)
 	result["access_dependencies"] = facilities.access_dependencies(self, id)
 	result["process"] = Production.view(record)
 	if record.kind != "actor": result["services"] = institutions.Access.service_flags(institutions, id)

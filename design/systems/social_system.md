@@ -127,7 +127,7 @@ T10扩充成员教学事项：`operation=teach_METHOD`的目标是组织成员�
 
 ## 本地宗门原型
 
-以下是服务于[自主生命方案](beings_and_lifeways/agency.md)的首轮候选，**尚未实现**。首个宗门的传承、供养、制度样本与资源循环归[宗门生活](sect_life.md)，本页只维护共享社会记录。先让本地约百人的宗门由成员自行运转，组织政治、完整继任/司法和复杂命令系统后置；不因本节需要职位与在办事项，就默认采用下文的Claim或SuccessionResolver原型。阶段依赖只归[主计划](../../docs/plans/foundation-priorities.md#下一阶段候选)。
+以下是服务于[自主生命方案](beings_and_lifeways/agency.md)的首轮边界。T09～T10已将成员/任职、服务资格、事项份额、现场告示、当面请求与共同教学接入原运行链，实际合同见本页前文；下文仍含尚未制作的长期扩展，不是全项完成清单。首个宗门的传承、供养、制度样本与资源循环归[宗门生活](sect_life.md)。组织政治、完整继任/司法和复杂命令系统后置，未采用Claim或SuccessionResolver原型；阶段依赖只归[实施任务表](../../docs/plans/foundation-priorities.md#百人宗门实施任务表)。
 
 ### 最少需要的共同记录
 

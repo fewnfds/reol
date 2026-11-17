@@ -49,6 +49,8 @@ var _slow_frame: RefCounted
 var _slow_selected: int = -1
 var _slow_probe: int = -2
 var _inspected_view: Dictionary = {}
+var _inspected_clue: Dictionary = {}
+var _inspected_social: Dictionary = {}
 var _player_view: Dictionary = {}
 # These fields are used exclusively by the simulation thread.
 var _world: RefCounted
@@ -363,6 +365,9 @@ func _run() -> void:
 		elif not paused and not drive_input.is_empty() and drive_input.epoch == _epoch:
 			_world.combat.set_control(_world, drive_input)
 		_world.flush_topology()
+		# Paused management may place or remove real objects without a step.
+		# Publish their current visual observation at the same world time.
+		if not commands.is_empty(): _world.perception.update(_world, _world.elapsed_ms)
 		if _terrain_view.revision != _world.terrain.revision:
 			_terrain_view = _world.terrain.detached()
 		if not replies.is_empty():
@@ -480,8 +485,13 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 	var full: bool = paused or management_changed or _slow_frame == null or frame.world_ms - _slow_frame.world_ms >= 100 or selected != _slow_selected or probe != _slow_probe or _object_revision != _world.objects.layout_revision or _terrain_view.revision != _slow_frame.terrain.revision
 	if full or not _ready_receipts.is_empty() or not _world.outcomes.is_empty():
 		_inspected_view = _world.describe(selected)
+		_inspected_clue = _world.knowledge.account_view(1, selected, _world.elapsed_ms)
+		_inspected_social = _world.institutions.public_profile(1, selected) if _world.actor_slots.has(selected) else {}
 		_player_view = _inspected_view if selected == 1 else _world.describe(1)
+		_player_view["view_epoch"] = _epoch
 	frame.inspected = _inspected_view
+	frame.inspected_clue = _inspected_clue
+	frame.inspected_social = _inspected_social
 	frame.inspected_id = selected
 	frame.player = _player_view
 	for bolt: Dictionary in _world.combat.bolts.values():
@@ -509,7 +519,6 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 				"softness": _world.perception.softness.duplicate(), "explored": _world.perception.explored.duplicate(), "ground": _world.perception.ground.duplicate(),
 				"memories": _world.State.copy(_world.perception.memories), "fringe": _world.State.copy(_world.perception.fringe)}
 		frame.perception = _perception_view
-		frame.visible = _world.perception.visible.duplicate()
 		frame.actor_slots = _actor_view
 		frame.counters = _world.counters()
 		frame.counters.snapshot_usec = _snapshot_usec
@@ -537,6 +546,9 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 		_slow_probe = probe
 	else:
 		for field: String in Frame.SLOW_FIELDS: frame.set(field, _slow_frame.get(field))
+	# Detail updates from reliable outcomes must use the same current body
+	# visibility, even between full map/statistics publications.
+	frame.visible = _world.perception.visible.duplicate()
 	_snapshot_usec += Time.get_ticks_usec() - start
 	if _combat_probe != null:
 		frame.profile = _combat_probe.report(_world)
