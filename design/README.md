@@ -12,7 +12,7 @@
 | 认识、器物与学习 | [人物理解](systems/perception_and_understanding.md)、[器物与创造](systems/knowledge_artifacts_and_invention.md)、[修行](systems/cultivation_and_learning.md) |
 | 社会、交互与组织 | [社会系统](systems/social_system.md)（关系、职务、共同事项）、[宗门生活](systems/sect_life.md)（传承、供养与制度样本）、[有限服务](systems/settlement_services.md) |
 | 技能、工具与交互的共用执行 | [行动与作用框架](systems/action_effect_framework.md)（P4已实现合同） |
-| 单位目的、策略与持续任务 | [单位决策框架](systems/unit_decision_framework.md)（P5已实现合同）、[自主生命与宗门运转](systems/beings_and_lifeways/agency.md)（上层方案，尚未实现） |
+| 单位目的、策略与持续任务 | [单位决策框架](systems/unit_decision_framework.md)（P5已实现合同）、[自主生命与宗门运转](systems/beings_and_lifeways/agency.md)（T01～T13基础已接入，长期候选不等于全部实现） |
 | 动作、外观与物品 | [战斗](systems/combat_framework.md)、[衣着与持物](systems/appearance_and_possessions.md) |
 | 环境与后置空间候选 | [环境](proposals/environment.md)、[高低差](proposals/elevation.md) |
 
@@ -24,5 +24,6 @@
 - 空间/自然：[空间模型](research/spatial_models.md)、[体型净空](research/unit_footprint_and_clearance.md)、[自然与场所](research/natural_world_workplace_sources.md)、[环境来源](research/environment_sources.md)、[世界生成](research/world_engine_references.md)。
 - 玩法/资源：[社会研究](research/social_interaction_game_references.md)、[NPC人格与情绪](research/npc_personality_and_emotion.md)（无LLM/混合架构候选）、[修仙角色与宗门基础研究](research/sect_foundation_sources.md)、[战斗/人物](research/combat_and_character_references.md)、[ACT与弹幕](research/act_barrage_references.md)、[资源候选](research/godot_resource_candidates.md)、[八方向](research/eight_direction_sources.md)。
 - 补充参考：[系统沙盒](research/emergent_sandbox_world_references.md)；Godot用法以[官方文档](https://docs.godotengine.org/en/4.7/)和实际引擎验证为准，不另维护通用引擎教程副本。
+- 开发范式：[本轮来源与取舍](research/development-paradigms.md)连接模拟体验、社会情境、因果实验、性能和作者工具；采用方法归[工程正文](../docs/engineering/simulation-methods.md)，不是另一个实施队列。
 
 研究保留来源日期与证据限制；作品机制不证明其内部实现，公开代码/插件不等于已采用依赖。其余来源通过[记忆地图](../docs/README.md)按需找，不把它们当当前架构或实施队列。

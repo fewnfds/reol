@@ -16,4 +16,6 @@ description: 设计或review Reol的Resource结构、编译目录、复制隔离
 
 只调单份已有定义数值/文案不必新建数据驱动框架或做双实例隔离反例。新增结构的验证应真正通过现有库编译并执行一例，兼顾错误输入拒绝；改变共享/复制边界时用上述双实例反例。
 
+跨配方/职责/开局装配时，复用原定义`compile/errors/values`与开局独立候选，沿实际能力/引用/空间核语义；不要另写通用`.tres`解析器。理论容量、来源依赖与实际自主可达性是不同证据，赤字或不完整传承也可能是刻意挑战，按[作者与实验边界](../../../docs/engineering/simulation-methods.md#成本与作者能力也参与取舍)处理，不将“全员自足”编成所有数据的硬约束。
+
 官方依据：[Resource](https://docs.godotengine.org/en/4.7/classes/class_resource.html)、[Dictionary复制](https://docs.godotengine.org/en/4.7/classes/class_dictionary.html#class-dictionary-method-duplicate)、[资源与线程](https://docs.godotengine.org/en/4.7/tutorials/performance/thread_safe_apis.html)。

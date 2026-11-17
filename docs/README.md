@@ -19,6 +19,7 @@
 | 数据定义、开局、内容装配 | [data](../data/README.md) | 数据入口与实际清单 |
 | 游戏愿景、候选机制与研究来源 | [design](../design/README.md)、[产品层次](plans/roadmap.md) | 愿景 / 候选 / 研究 |
 | 当前怎样开发和验证、运行/测量命令 | [开发循环](engineering/workflow/testing.md)、[命令](engineering/tooling/usage.md) | 当前方法 / 工具语法 |
+| 玩法规则、社会自治怎样验证，低美术怎样表达因果 | [模拟设计与实验方法](engineering/simulation-methods.md)、[来源与工具取舍](../design/research/development-paradigms.md) | 按需方法 / 研究，不是已实现玩法 |
 | MCP配置、插件/技能来源、升级与恢复 | [tooling/setup](engineering/tooling/setup.md) | 按工具故障或更新需求读取 |
 | 删并的33项技能是否丢约束、当前领域入口与外部替代 | [技能覆盖审查](engineering/tooling/skill-coverage.md) | 一次逐项审查及当前去向，不是每轮必读清单 |
 | 过去为何这样做、旧报告/截图/提示词 | [历史入口](archive/README.md) | 退役报告由Git追溯；保留的制作原件不产生当前要求 |

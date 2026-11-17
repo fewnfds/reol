@@ -2,11 +2,13 @@
 
 ## 当前停点
 
-随后完成OpenCode项目遗留清理：删除根`opencode.json`及空`.opencode/`目录，移除当前分发说明中的保留要求。Codex仍引用的Coding-Solo备用包装器、18项共享技能和完整Godot AI插件保留；插件内部OpenCode适配由注册器引用，不是独立残留。未修改个人全局配置或游戏代码；配置/文档/资源引用短核通过。
+本轮开发范式与基础设施对齐完成。三轮双顾问六份完整回答均已核查，最终双答无本轮阻塞项，相关提醒经源码/实际日志独立核后落实；无待续咨询进程。改动随本轮提交交付，不因此直接施工C01或新社会玩法。
 
-本轮完成33项被删skill的逐一复核及补回：上一轮36→3删减过头，访问成本总则不能替代跨领域正确性。现保留原3项并恢复/重组15项，共18个按任务选择的入口；新增领域检查涉及Resource/GDScript生命周期、UI输入、运动导航、决策、工作事务、数值、存档、生成、二维表现、音频、发布及手工空间/分支叙事。原headless指导仍并在verify，原范围收敛条款补回开发循环。不是每轮全读或机械恢复品类/跨引擎模板；长期有益的竞争/中断/失败/恢复与真实呈现检查保留。逐项价值/原覆盖/去向、4库联网比较和顾问采用纠偏归[覆盖审查](../engineering/tooling/skill-coverage.md)，当前入口与维护范式归[工具配置](../engineering/tooling/setup.md#skills怎样维护)。
+保留前次18项领域技能，新增`simulation-game-design`为19项，决策/工作/资源/验证/性能5项补窄提示。原框架、默认访问规模要求和按需加载保留；新方法归[模拟设计与实验](../engineering/simulation-methods.md)，一手来源/外部skill固定版本、采用与拒绝归[研究取舍](../../design/research/development-paradigms.md)，唯一实施状态归[主计划](../plans/foundation-priorities.md#开发范式与基础设施对齐)。没有新router、统一Practice/实验平台、运行依赖或MCP。
 
-原1262行`check_godot_project.py`原样恢复到`godot-gdscript/scripts/`，补UID/大小写/场景内部引用与连接检查；11个隔离CLI正反例、当前1022文件0错误0警告，18项skill格式、22份技能Markdown链接及项目结构/引用检查通过。两轮同题双顾问均为Hydrogen完整、Argon上游503；完整两答均核并回写，不重发。六类真实请求的应用复核属于静态选择/方案检查，未做独立新会话编码行为测试。宿主/个人技能、游戏代码、存档与当前包未改；没有待续进程，不自动实施C01。根AGENTS的写前调用链/倍率/读集合约束继续有效，技能数量/格式通过不代表今后不犯错。
+只读`tools/settlement_report.py`已接现有`NORMAL_SETTLEMENT`，15项Python数值/失败/CLI反例与真实历史29样本分窗通过；19项skill格式、23份技能Markdown链接、104文档/417 Godot源结构通过。证据与限制见[BASELINE](baseline.md#开发范式与离线工具验证)。计数/库存/前缀低点、执行结果与规划落选、编制动作与空间库存均分口径；单进程，不解析非JSON的终止final，不从累计耗时推FPS。实际应用审阅只是静态方案证据，未做独立新会话编码行为验收。游戏逻辑/数据、存档、包及个人配置未改。
+
+前次33项误删技能逐项审查和资源引用检查器恢复仍有效，具体去向/验证归[覆盖审查](../engineering/tooling/skill-coverage.md)。OpenCode项目残留已清理：根`opencode.json`及空`.opencode/`移除；Codex备用包装器、共享技能和完整Godot AI插件保留，插件内部适配由注册器引用。不能再次按“当前没用”删除领域约束或拆第三方插件。
 
 前一轮系统组合成本调研及方案仍已完成，三轮双顾问、源码纠偏、单参数读核与release短窗均已核查。此次没有实施C01等游戏性能整改，也未重导游戏包；生产代码/当前宗门包仍对应`1f28f79`。访问地图与范式归[复杂度](../engineering/simulation-costs.md)，数据/口径归[BASELINE](baseline.md#系统组合成本测量)，顺序归[主计划](../plans/foundation-priorities.md#系统组合成本审查)，未修项归[问题清单](issues.md#系统组合成本)。下一轮若要求实施，从C01调度集合/轻量诊断开始，之后C02窄本人读、C03身体/目的地局部查询、C04认识快路径，C05保全部空间消费者后收窄建桶/失效；C06按状态实际负载。不要自动进入新战斗内容。
 
@@ -30,6 +32,7 @@
 
 ## 本机证据与受保护工作
 
+- 本次范式研究/实际工具证据：`.local/paradigm-alignment-20261118/`；三轮咨询`.local/advisor/paradigm-alignment-20261118/round-{1,2,3}/`已全部结束并核查。源文/论文提取、固定HEAD与许可、Python研究依赖均留忽略目录；正式方法与研究已回对应正文。
 - 本轮诊断/咨询：`.local/scheduling-audit-20261117/`、`.local/advisor/scheduling-audit-20261117/`；实施探针/无源码包在`.local/scheduling-implementation-20261117/`，开工/阶段/最终顾问在`.local/advisor/scheduling-implementation-20261117/`。采用事实维护在主题正文，顾问原答不入库。
 - 当前复杂度研究的探针/输入：`.local/complexity-audit-20261117/`；三轮双顾问`.local/advisor/complexity-audit-20261117/round-{1,2,3}/`，完整答案已核，无自动重发。实际数据是`logs/complexity-*.json`，永久解释在BASELINE；后续不重跑全部矩阵来找上下文。
 - 开发方法/skills整改：`.local/development-practice-20261117/`保存源码样例与采用/拒绝核查，`.local/advisor/development-practice-20261117/round-{1,2}/`为双顾问原答。公开依据与review例子回原复杂度页，不把顾问对未知helper、冷校验重复或理想并行复杂度的猜测当作新源码缺陷。

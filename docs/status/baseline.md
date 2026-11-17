@@ -1,6 +1,18 @@
 # 当前构建与验证
 
-更新：2026-11-17。能力归[FEATURES](features.md)，状态归属归[架构](../engineering/architecture.md)，阶段归[主计划](../plans/foundation-priorities.md)。本页保存当前证据，完整历史由Git追溯。
+更新：2026-11-18。能力归[FEATURES](features.md)，状态归属归[架构](../engineering/architecture.md)，阶段归[主计划](../plans/foundation-priorities.md)。本页保存当前证据，完整历史由Git追溯。
+
+## 开发范式与离线工具验证
+
+2026-11-18，范式/技能/文档与离线工具改动，未改游戏逻辑、数据、存档或导出包，生产代码与宗门包仍为`1f28f79`。采用与拒绝归[研究取舍](../../design/research/development-paradigms.md)，长期方法归[模拟设计与实验](../engineering/simulation-methods.md)。
+
+`tools/test_settlement_report.py`的15项stdlib检查通过：覆盖非零起点累计差值、库存可下降、真实长间隔分母、缺墙钟/单样本、累计稀疏新键与回退、部分/错误/无终止记录、损坏/重复键/非有限JSON、缺固定字段与未分类gauge拒绝、时钟重置/混进程拒绝、院落按名称对应及居民动作/空间库存口径分离、CLI不覆盖输入/旧报告，以及坏终止计数与`USER ERROR`保留。工具退出0仅表示分析完成，报告保原终止标记、错误和未知进程退出码。
+
+真实消费已有`logs/t12b-protected-places-cycle-20261117-124837-785324100.log`：29条快照、28个相邻窗，覆盖240000→3600000ms，原日志`SMOKE errors=0`、无Godot错误行。观察区间实际新增烹饪63次（四院17/13/20/13）、修持536次、粮库存净+82、餐-59、水+73；没有把首条累计值当从0发生，也没有从动作数推工时、从累计耗时算FPS。该日志是2026-11-17的历史运行，分析不构成本轮重新通过三日、全年、512容量或体验验收；缺失的队列年龄和逐人机会不补造。报告留`.local/paradigm-alignment-20261118/`。
+
+当前19项skill格式检查与23份技能Markdown链接通过。Context7实际查询4.7线程正文成功；Godot AI实际列session成功但为0，未声称编辑器操作/截图验收。真实后续任务的技能应用审阅与顾问复核只算静态方案证据，不能证明新会话一定遵守或今后不再出现低质量代码。
+
+三轮双顾问六答完整核查；最终双答均无本轮阻塞项，原件`.local/advisor/paradigm-alignment-20261118/round-{1,2,3}/`。可选提醒经独立取舍后落实。Godot4.7.2 headless独立日志小实验刻意`push_error`再`quit(0)`，实见`ERROR:`和回溯而退出0；不是正常游戏失败，不据顾问推断声称本机必打印`USER ERROR:`，报告额外识别该前缀并有合成反例。最终结构检查104文档/417 Godot源0错误，`git diff --check`通过；没有重跑游戏长测/容量矩阵或重导包。
 
 ## 系统组合成本测量
 

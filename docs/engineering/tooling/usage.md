@@ -121,6 +121,21 @@ python tools/benchmark.py --binary build/windows/response-probe/reol-response.ex
 
 短检查默认15秒进程上限，无旧分片、长回归或`check`命令；策略见[验证方式](../workflow/testing.md)。
 
+## 宗门周期日志分析
+
+已有`settlement_cycle_smoke.gd`日志可直接离线分析，不启动游戏或读取存档：
+
+```powershell
+python -X utf8 tools/settlement_report.py logs/本次周期.log --output logs/本次周期-report.json
+python -X utf8 tools/test_settlement_report.py
+```
+
+不给`--output`时写stdout；指定输出须为新文件且父目录已存在，拒绝覆盖原日志或旧报告。输入为一个进程的`NORMAL_SETTLEMENT` JSON行及可选`wall_ms`后缀，不拼接重启日志；缺字段、损坏JSON、计数回退或时间倒退会失败。只有一条样本可保留原值，但没有可算的区间。短运行未达120000ms报告边界时可能没有快照，工具会说明无样本。
+
+`windows`按相邻实际时刻相减，`observed_span`按第一/末条相减；`actions_delta`是完成次数，`refusals_delta`还包含中断等非完成结果，不含所有规划落选原因。各院`resident_actions_delta`按居民编制归组，`spatial_items_delta`按当前坐标归组，含行人随身物，不当院落权属账本。
+
+第一条不默认为时间0，样本间缺口不补帧，`lowest_sampled_through_end`是测试自身起点/恢复点以来已有的最低采样，可能早于本次区间。终止行`final`不解析，末条快照可能早于实际停止；原`SMOKE/PARTIAL`与错误行单独保留。工具退出0仅表示分析成功，没有观测原进程退出码，也不证明长局/FPS/队列公平。`*_usec`可能嵌套/跨线程，不相加成CPU占用；比较还须人工固定构建、开局、数据/种子及步进/worker条件。当前固定metrics若新增字段，须先分类为累计计数或当前量再更新消费者。方法与限制见[实验说明](../simulation-methods.md#现有宗门日志的离线分窗)。
+
 ## 按主题短检查
 
 `test`默认只跑kernel核心；`--suite features`、`--suite sight`、`--suite equipment`分别运行原有专题，同样使用15秒上限。完整检查地图见[tests](../../../tests/README.md)，按改动选用，不自动串成长矩阵。

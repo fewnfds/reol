@@ -11,6 +11,7 @@
 | Context7 | 查询目标版本文档；可用性依实际会话，没有该工具时使用官方文档 |
 | Coding-Solo | 默认关闭的备用连接，不与主连接叠写同一编辑器 |
 | 项目skills | 按领域提供容易遗漏的约束、review方法与可靠工具；与默认编码约定、现状架构和按需API资料分工 |
+| 宗门离线报告 | `tools/settlement_report.py`消费现有周期日志，算相邻完成/拒绝/库存等变化；不增加运行期轮询、不替代真实性能采样或个人因果检查 |
 | 原生review | 可按具体需要手动使用，已有项目模型配置不意味着每包自动执行 |
 
 Godot、插件、技能/工具各有采用版本；实际引擎只登记在[BASELINE](../../status/baseline.md)，第三方pin/许可按[NOTICES](../../../THIRD_PARTY_NOTICES.md)维护。不因文档旧版本示例自动升级或安装依赖。
@@ -30,6 +31,7 @@ Godot AI的用户级域过滤可能同时影响其他项目。恢复`csg/gridmap
 | 入口 | 使用范围 / 保留的专门知识 |
 |---|---|
 | [godot-sim-architecture](../../../.agents/skills/godot-sim-architecture/SKILL.md) | 模拟功能的owner、访问形状、跨步采用与恢复；接入原框架，避免套每NPC一个Node的教程 |
+| [simulation-game-design](../../../.agents/skills/simulation-game-design/SKILL.md) | 跨系统经济/生态/社会玩法的处境取舍、反馈、低美术表达与实验；普通bug/微调/纯优化不触发 |
 | [godot-verify](../../../.agents/skills/godot-verify/SKILL.md) | 相关短验证及headless导入、异步、错误退出/挂起排错 |
 | [create-game-assets](../../../.agents/skills/create-game-assets/SKILL.md) | 纯二维斜俯视、脚点/图集接入；Pillow透明/尺寸/色数报告与联系表脚本 |
 | [godot-gdscript](../../../.agents/skills/godot-gdscript/SKILL.md) | 类型/失败边界、Node与信号/await生命周期；按需资源引用检查器 |
@@ -48,7 +50,9 @@ Godot AI的用户级域过滤可能同时影响其他项目。恢复`csg/gridmap
 | [level-design](../../../.agents/skills/level-design/SKILL.md) | 手工空间/开局的尺度、服务可用、可读性与真实试玩 |
 | [dialogue-systems](../../../.agents/skills/dialogue-systems/SKILL.md) | 触及分支叙事时的会话/选择图/一次效果；不是当前已有剧情引擎 |
 
-36→3的上一轮删减漏核了领域约束，不能认定剩余三个入口已经等效覆盖。现恢复/合并改写为18个窄入口：保留需要长期执行的检查，去掉不适用的跨引擎实现、品类剧本和重复入门样例。33项原技能逐一的价值、原覆盖缺口、最终去向与替代资料见[覆盖审查](skill-coverage.md)。原headless指导继续并入验证reference；范围收敛的防文书膨胀条款并入开发循环。
+36→3的上一轮删减漏核了领域约束，不能认定剩余三个入口已经等效覆盖。前次恢复/合并改写为18个窄入口：保留需要长期执行的检查，去掉不适用的跨引擎实现、品类剧本和重复入门样例。33项原技能逐一的价值、原覆盖缺口、最终去向与替代资料见[覆盖审查](skill-coverage.md)。原headless指导继续并入验证reference；范围收敛的防文书膨胀条款并入开发循环。
+
+本次范式对齐保留上述18项，新增缺失的`simulation-game-design`，合计19项；决策/工作/资源/验证/性能只补本领域的相关方法，不要求一起加载。新技能按pbzona的两项MIT设计指导收窄改写，来源/pin/许可见[NOTICES](../../../THIRD_PARTY_NOTICES.md)，为何不整套安装以及一手资料采用边界见[研究取舍](../../../design/research/development-paradigms.md)。详细模型与实验说明集中在[模拟方法](../simulation-methods.md)，不在每个技能复制全文。
 
 原`check_godot_project.py`恢复到`godot-gdscript/scripts/`，保持原代码与许可，按场景/资源变更调用。它与`tools/check_structure.py`互补，不能用“没有运行时代码调用方”否定开发工具；也不把两者做成每轮重复门禁。已用好/坏小项目核UID、大小写、内部引用与场景连接，仍不宣称静态工具等同Godot解析器。
 

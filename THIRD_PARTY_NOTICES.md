@@ -92,3 +92,14 @@
 ## 8. 项目自身许可证
 
 尚未选择。在发布/开源前决定（MIT / Apache-2.0 / 商业专有等）。
+
+---
+
+## 9. pbzona/godot-skills（设计指导）
+
+- 上游：https://github.com/pbzona/godot-skills
+- 固定commit：`0ad8f3c58d54580a57a1a6de3cd345a1d9376e3d`
+- 许可证：**MIT**；原文与版权声明见`docs/third-party/pbzona-godot-skills-LICENSE`。
+- 来源：`skills/game-systems-design/SKILL.md`、`skills/game-balance/SKILL.md`。
+- 当前分发：`.agents/skills/simulation-game-design/SKILL.md`；2026-11-18按Reol玩家单角色、自治社会、纯二维、原owner与按需验证重写/收窄。采用体验/规则/反馈的联系、存量流量、机会条件与证据分层；移除上游多份必交文档、全套平衡/遥测流程和泛引擎入口。
+- 只采用开发指导，不安装整库、运行依赖或第三方模拟后端；此技能的许可不改变项目游戏代码的许可证状态。其余本轮仅阅读的游戏源码/论文/工具及取舍见[研究记录](design/research/development-paradigms.md)。
