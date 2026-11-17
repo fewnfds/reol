@@ -272,7 +272,8 @@ func outcome(world: RefCounted, actor: int, operation: String, target: int, stat
 	var visible: bool = refresh(world, actor, target, at, experienced)
 	if status == "interrupted": return # The original ActivityResult already records a technical interruption.
 	if not visible:
-		if experienced and Operations.OPERATIONS[operation].handler == "learn" and world.objects.records.has(target):
+		var response: bool = reason in ["teacher_does_not_know", "refused_need", "not_interested", "learner_already_understood"] and world.society.in_contact(world, actor, target, at)
+		if (experienced or response) and Operations.OPERATIONS[operation].handler in ["learn", "teach"] and world.objects.records.has(target):
 			# Actual face-to-face learning conveys only contact identity and the
 			# specific teaching result, even when the participant has no vision.
 			var object: Dictionary = world.objects.records[target]
@@ -298,8 +299,13 @@ func outcome(world: RefCounted, actor: int, operation: String, target: int, stat
 		entry.experiences.remove_at(victim)
 	var definition: Dictionary = Operations.OPERATIONS[operation]
 	if definition.handler == "learn" and (status == "completed" or reason == "teacher_does_not_know"):
-		if status == "completed":
+		if status == "completed" and experienced:
 			_teaching_evidence(actor, target, definition.learning_method, {"origin": "receipt", "observer": actor, "source": actor, "seen_ms": at, "received_ms": at, "hops": 0})
+
+func learned(world: RefCounted, learner: int, teacher: int, method: String, at: int) -> void:
+	# Both entry directions yield the learner's same first-hand teacher evidence.
+	contacted(world, learner, teacher, at)
+	_teaching_evidence(learner, teacher, method, {"origin": "receipt", "observer": learner, "source": learner, "seen_ms": at, "received_ms": at, "hops": 0})
 
 func can_attempt(actor: int, operation: String, target: int, at: int) -> bool:
 	var definition: Dictionary = Operations.OPERATIONS.get(operation, {})

@@ -66,12 +66,12 @@ func construction_handoff() -> void:
 
 func social_participation() -> void:
 	var w: RefCounted = peaceful()
-	check(w.begin_interaction(1, {"kind": "learn", "target": 2}) == "accepted" and w.society.waits.has(2), "Invitation fixture refused")
+	check(w.begin_interaction(1, {"kind": "learn", "target": 2}) == "accepted" and not w.society.waits.has(2), "Teaching approach was refused or remotely locked its partner")
 	w.end_run(1, 0, "path_failed")
 	check(latest(w, 1).participants == [1] and w.activity_results.view(2).is_empty(), "Distant invitation became attendance: " + str(w.activity_results.records))
 	w.pages[0].positions[0] = Vector2(122.5, 120.5)
 	check(w.begin_interaction(1, {"kind": "learn", "target": 2}) == "accepted", "Actual teaching fixture refused")
-	advance(w, 16)
+	advance(w, 50)
 	check(w.actions[1].participants == [1, 2] and w.activity_view(1).phase == "acting", "In-place participation not adopted by the original host")
 	w.kill(2, w.elapsed_ms)
 	var outcome: Dictionary = latest(w, 1)
@@ -182,6 +182,7 @@ func busy_player_and_partner_handoff() -> void:
 	w.objects.records[2].autonomous = true
 	w.decisions.resume(w, 2, w.elapsed_ms)
 	check(w.begin_interaction(1, {"kind": "learn", "target": 2}) == "accepted", "Partner command fixture refused")
+	w.settle_action(1, w.elapsed_ms)
 	check(w.command({"kind": "interrupt", "actor": 2}).ok, "Partner stop failed")
 	check(not w.decisions.wakeups.has(2) and w.decisions.records[2].manual and w.society.waits.is_empty() and latest(w, 1).reason == "partner_left", "Old partner wake survived explicit manual takeover")
 

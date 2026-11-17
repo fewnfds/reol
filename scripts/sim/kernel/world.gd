@@ -357,10 +357,14 @@ func _advance_interval(end: int) -> void:
 			var row: int = page.ready[entry]
 			var id: int = page.ids[row]
 			ensure_work_binding(id)
+			# Contact may stop another moving body. Adopt it only after this
+			# motion slice, when both authoritative endpoints are current.
+			if page.modes[row] == Units.Mode.APPROACH and Operations.contact_operation(str(actions.get(id, {}).get("kind", ""))) and actor_slots.has(actions[id].target): continue
 			events.append({"event": "world_ready", "actor": id, "at_ms": clampi(page.ready[entry + 1], elapsed_ms, end), "expected": gate.current(id), "mode": page.modes[row], "route_version": page.route_versions[row]})
 	combat.step(self, elapsed_ms, end, events)
-	_commit_ms = -1
 	_commit_ms = end
+	flush_topology()
+	if end % 50 == 0: follow_contact_approaches(end)
 	if end % 50 == 0: nature.pulse(self, end)
 	flush_topology()
 	effects_usec += Time.get_ticks_usec() - effect_start
@@ -513,6 +517,28 @@ func settle(id: int, at: int, expected: Variant = null) -> void:
 	elif mode == Units.Mode.COMBAT_MOVE:
 		page.modes[row] = Units.Mode.IDLE
 
+
+func follow_contact_approaches(at: int) -> void:
+	# Adopt contact only at the completed motion boundary. Two walking people
+	# can meet along their paths; a last-seen position cannot track an unseen one.
+	sight.sync(self)
+	for actor: int in actions.keys():
+		if not actions.has(actor): continue
+		var action: Dictionary = actions[actor]
+		if not Operations.contact_operation(str(action.kind)) or not actor_slots.has(action.target): continue
+		var slot: int = actor_slots[actor]
+		var page: RefCounted = pages[slot / 256]
+		var row: int = slot % 256
+		if page.modes[row] != Units.Mode.APPROACH or not gate.check(self, actor, at).is_empty(): continue
+		var target: int = action.target
+		if facilities.in_range(self, target, position_at(actor, at), page.radii[row], Operations.OPERATIONS[action.kind].handler, page.flight[row] > 0) or page.positions[row].is_equal_approx(page.targets[row]):
+			clear_navigation(actor)
+			settle_action(actor, at)
+		elif at % 250 == 0 and sight.observed_position(self, actor, target) != null:
+			var point: Vector2 = facilities.interaction_point(self, target, page.positions[row], page.radii[row], page.flight[row] > 0, Operations.OPERATIONS[action.kind].handler)
+			if point.x >= 0 and point.distance_to(page.targets[row]) >= 0.5:
+				knowledge.refresh(self, actor, target, at)
+				page.move_to(row, point, Units.Mode.APPROACH)
 
 func resume_work(id: int, at: int = -1) -> void:
 	livelihood.think(self, id, at if at >= 0 else operation_time())
@@ -1176,7 +1202,7 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 		var reason: String = DomainOps.check(self, id, target, "tend")
 		if not reason.is_empty(): return reason
 	var exclusive: bool = operation.exclusive
-	if exclusive and reservations.has(target) and reservations[target] != id and input.get("autonomous", false):
+	if exclusive and not society.Teaching.applies(operation) and reservations.has(target) and reservations[target] != id and input.get("autonomous", false):
 		return "target_busy"
 	var slot: int = actor_slots[id]
 	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
@@ -1193,7 +1219,7 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 	actions[id]["participants"] = [id]
 	next_run += 1
 	gate.bind(id, "interaction", actions[id].run_id)
-	if exclusive and not reservations.has(target):
+	if exclusive and not society.Teaching.applies(operation) and not reservations.has(target):
 		reservations[target] = id
 	if operation.executor == "society" and reservations.get(target, 0) == id:
 		society.invite(self, id, actions[id])
@@ -1236,6 +1262,14 @@ func settle_action(id: int, at: int) -> void:
 		if autonomous: livelihood.after_action(self, id, at, target)
 		return
 	if not facilities.in_range(self, target, position_at(id, at), page.radii[row], handler, page.flight[row] > 0):
+		if page.modes[row] == Units.Mode.APPROACH and not action.has("join_until_ms") and Operations.contact_operation(str(action.kind)) and actor_slots.has(target):
+			sight.sync(self)
+			if sight.observed_position(self, id, target) != null:
+				var next: Vector2 = facilities.interaction_point(self, target, page.positions[row], page.radii[row], page.flight[row] > 0, handler)
+				if next.x >= 0 and next.distance_to(page.positions[row]) >= 0.05:
+					knowledge.refresh(self, id, target, at)
+					page.move_to(row, next, Units.Mode.APPROACH)
+					return
 		var autonomous: bool = action.get("autonomous", false)
 		end_run(id, at, "out_of_reach")
 		clear_navigation(id)
@@ -1246,6 +1280,33 @@ func settle_action(id: int, at: int) -> void:
 		return
 	if page.modes[row] == Units.Mode.APPROACH:
 		var exclusive: bool = operation.exclusive
+		if society.Teaching.applies(operation):
+			var participation: String = society.Teaching.prepare(society, self, id, action, at)
+			if participation == "learner_already_understood":
+				# This is an actual on-site discovery, not successful teaching.
+				society.Contacts.acknowledge(society, self, id, target, at)
+				var result: Dictionary = society.Teaching.result(self, id, action, at, true)
+				var autonomous: bool = action.get("autonomous", false)
+				end_run(id, at, participation, result)
+				clear_navigation(id)
+				if autonomous: livelihood.after_action(self, id, at, target)
+				return
+			if participation in ["awaiting_participant", "target_busy"]:
+				if not action.has("join_until_ms"): action["join_until_ms"] = at + society.Teaching.JOIN_MS
+				if at < int(action.join_until_ms):
+					action["join_reason"] = participation
+					action["waiting"] = true
+					page.modes[row] = Units.Mode.ACTION
+					page.due_ms[row] = mini(at + society.Teaching.RETRY_MS, int(action.join_until_ms))
+					return
+			if not participation.is_empty():
+				var autonomous: bool = action.get("autonomous", false)
+				end_run(id, at, participation, ActivityResults.refused(participation))
+				clear_navigation(id)
+				if autonomous: livelihood.after_action(self, id, at, target)
+				return
+			action.erase("join_until_ms")
+			action.erase("join_reason")
 		if exclusive and reservations.has(target) and reservations[target] != id:
 			if action.get("autonomous", false):
 				end_run(id, at, "target_busy", ActivityResults.refused("target_busy"))
@@ -1454,7 +1515,17 @@ func activity_view(id: int) -> Dictionary:
 		result["operation"] = action.kind
 		result["target"] = action.target
 		result.phase = "approaching" if page.modes[row] == Units.Mode.APPROACH else ("waiting" if action.get("waiting", false) else "acting")
-	elif binding.domain == "partner": result.phase = "partner_waiting"
+		if action.has("join_reason"): result["reason"] = action.join_reason
+		if society.Teaching.applies(Operations.OPERATIONS[action.kind]) and action.has("started_ms"):
+			result["role"] = "teacher" if Operations.OPERATIONS[action.kind].handler == "teach" else "learner"
+	elif binding.domain == "partner":
+		result.phase = "partner_waiting"
+		var host: Dictionary = actions.get(society.waits[id].actor, {})
+		if not host.is_empty() and society.Teaching.applies(Operations.OPERATIONS[host.kind]) and host.has("started_ms"):
+			result["operation"] = host.kind
+			result["target"] = int(society.waits[id].actor)
+			result["role"] = "learner" if Operations.OPERATIONS[host.kind].handler == "teach" else "teacher"
+			result.due_ms = activity_view(int(society.waits[id].actor)).due_ms
 	elif binding.domain == "combat": result.phase = "combat"
 	elif binding.domain == "work":
 		match page.modes[row]:

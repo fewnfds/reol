@@ -97,7 +97,7 @@ static func blocked(p: RefCounted, terms: Dictionary) -> Array:
 		if entry.share == terms.share: receipt = entry; break
 	if receipt.is_empty(): return []
 	var target: Dictionary = p.known.get(int(terms.target), {})
-	var stopped: bool = not target.is_empty() and int(target.get("tile", -1)) < 0
+	var stopped: bool = not target.is_empty() and (int(target.get("tile", -1)) < 0 or p.known_dead(target))
 	if terms.kind == "delivery":
 		stopped = stopped or (int(target.get("capacity", -1)) >= 0 and int(target.get("inventory", {}).values().reduce(func(a: int, b: int): return a + b, 0)) >= int(target.capacity))
 	var failure: String = str(p.actor.get("operation_failures", {}).get("%s:%d" % ["put" if terms.kind == "delivery" else str(terms.operation), int(terms.target)], ""))
@@ -143,6 +143,13 @@ static func next_due(actor: Dictionary, clues: Dictionary, at: int) -> int:
 		var read: Dictionary = actor.get("known_channels", {}).get(int(board.id), {})
 		if not read.is_empty() and not _recent_observation(actor, int(board.id), at): due = mini(due, maxi(at + 1000, int(read.at_ms) + mini(60000, 5000 * (1 << int(read.empty_reads)))))
 	return due if due <= at + 3600000 else -1
+
+static func review_due(actor: Dictionary, policy: Dictionary, at: int) -> bool:
+	if policy.is_empty(): return false
+	var observed: int = int(actor.get("observations", {}).get(int(policy.target), {}).get("at_ms", -1))
+	var account: Dictionary = actor.get("known_channels", {}).get(int(policy.channel), {})
+	if observed < 0 or account.is_empty() or at >= observed + int(policy.review_ms) or at >= int(account.at_ms) + int(policy.review_ms): return true
+	return account.get("posts", {}).values().any(func(post: Dictionary): return post.state == "open" and (post.blocked or int(post.reported) >= int(post.total) or (int(post.deadline_ms) > 0 and int(post.deadline_ms) <= at)))
 
 static func _recent_observation(actor: Dictionary, target: int, at: int) -> bool:
 	var observation: Dictionary = actor.get("observations", {}).get(target, {})

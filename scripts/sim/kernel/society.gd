@@ -12,6 +12,7 @@ const Results = preload("res://scripts/sim/kernel/activity_results.gd")
 const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const Contacts = preload("res://scripts/sim/kernel/society_contacts.gd")
 const Requests = preload("res://scripts/sim/kernel/society_requests.gd")
+const Teaching = preload("res://scripts/sim/kernel/society_teaching.gd")
 const STATE_FIELDS: Array = ["waits", "contacts", "requests", "next_request"]
 var waits: Dictionary = {} # Partner participation belongs to this interaction host.
 var contacts: Dictionary = {}
@@ -98,6 +99,7 @@ func contact_reason(world: RefCounted, action: Dictionary) -> String:
 
 
 func invite(world: RefCounted, actor: int, action: Dictionary) -> void:
+	if Teaching.applies(Operations.OPERATIONS.get(action.kind, {})): return # Negotiate only after arrival.
 	if not available(world, actor, action): return
 	var target: int = action.target
 	var handler: String = Operations.OPERATIONS.get(action.get("operation_id", action.kind), {}).get("handler", "")
@@ -109,13 +111,17 @@ func invite(world: RefCounted, actor: int, action: Dictionary) -> void:
 	var page: RefCounted = world.pages[slot / 256]
 	if world.combat.controls.has(target) or (not world.objects.records[target].get("autonomous", false) and world.work_runs.has(target)) or not world.gate.check(world, target, world.operation_time()).is_empty() or world.actions.has(target) or world.decisions.in_combat(target) or world.combat.states.has(target) or page.health[slot % 256] < 30:
 		return # A busy/unwilling partner need not stop; contact can fail normally.
+	hold_partner(world, actor, action, target)
+
+func hold_partner(world: RefCounted, actor: int, action: Dictionary, target: int) -> void:
 	action["partner_waiting"] = true
 	action["partner_resume"] = world.objects.records[target].get("autonomous", false)
 	# Joining a contact interrupts current execution, not the person's future
 	# review calendar. Full release is reserved for explicit command/death reset.
 	world.end_run(target, world.operation_time(), "interrupted", {}, false)
 	world.clear_navigation(target)
-	page.modes[slot % 256] = Units.Mode.IDLE
+	var slot: int = world.actor_slots[target]
+	world.pages[slot / 256].modes[slot % 256] = Units.Mode.IDLE
 	waits[target] = {"actor": actor, "owner_run": action.run_id, "run_id": world.next_run}
 	world.next_run += 1
 	world.gate.bind(target, "partner", waits[target].run_id)
@@ -138,6 +144,10 @@ func participation_reason(world: RefCounted, actor: int, action: Dictionary, now
 	var handler: String = Operations.OPERATIONS[action.kind].handler
 	if handler not in Operations.CONTACT_HANDLERS: return ""
 	if not world.actor_slots.has(action.target): return ""
+	if action.get("partner_waiting", false):
+		var bound: Dictionary = waits.get(action.target, {})
+		return "" if bound.get("actor") == actor and bound.get("owner_run") == action.run_id else "target_busy"
+	if Teaching.applies(Operations.OPERATIONS[action.kind]) and not action.get("partner_waiting", false): return "awaiting_participant"
 	if action.get("partner_free", false) or action.target == 1 or world.decisions.records.get(action.target, {}).get("manual", false):
 		# Contact does not seize the player's input. Presence and actual capacity
 		# to participate are rechecked at both start and commit.
@@ -208,16 +218,23 @@ func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dict
 			if not response.is_empty(): response.facts["counterparty"] = int(action.target)
 			_count(action.kind)
 			return response if not response.is_empty() else delivered
-		"learn", "study":
+		"learn", "teach":
+			var pair: Dictionary = Teaching.roles(actor, action)
+			if not Growth.mastered(world.objects.records[pair.teacher], pair.method): return Results.refused("teacher_does_not_know")
+			if int(world.objects.records[pair.learner].get("methods", {}).get(pair.method, {}).get("understanding", 0)) >= int(Growth.Defs.METHODS[pair.method].introduction_points): return Results.refused("already_understood")
+			var result: Dictionary = Teaching.result(world, actor, action, now)
+			world.knowledge.learned(world, int(pair.learner), int(pair.teacher), pair.method, now)
+			_count(action.kind)
+			return result
+		"study":
 			var method: String = Operations.OPERATIONS[operation_id].learning_method
 			var spec: Dictionary = Growth.Defs.METHODS[method]
-			if handler == "learn" and not Growth.mastered(other, method):
-				return Results.refused("teacher_does_not_know")
 			if handler == "study" and int(world.institutions.readable(world, actor).get(spec.study_item, 0)) <= 0:
 				return Results.refused("missing_book")
 			if int(person.get("methods", {}).get(method, {}).get("understanding", 0)) >= int(spec.introduction_points): return Results.refused("already_understood")
-			facts = Growth.advance(person, method, Operations.OPERATIONS[operation_id].learning_points, handler, action.target if handler == "learn" else 0, now, spec.study_item if handler == "study" else "")
-			facts["teacher"] = action.target if handler == "learn" else 0
+			facts = Growth.advance(person, method, Operations.OPERATIONS[operation_id].learning_points, handler, 0, now, spec.study_item)
+			facts["teacher"] = 0
+			facts["learner"] = actor
 		"practice":
 			var method: String = Operations.OPERATIONS[operation_id].learning_method
 			var spec: Dictionary = Growth.Defs.METHODS[method]
@@ -292,16 +309,22 @@ func judge_request(world: RefCounted, actor: int, id: int, now: int) -> Dictiona
 
 func support_witnesses(world: RefCounted, result: Dictionary) -> Array:
 	var witnesses: Array = []
-	for id: int in _requests_by_actor.get(int(result.actor), []):
-		var request: Dictionary = requests[id]
-		if request.recipient != result.actor or request.state != "fulfilled" or request.target != result.target: continue
-		var share: Dictionary = world.institutions.shares.get(int(request.share), {})
-		if int(share.get("last_result_id", 0)) != result.id: continue
-		var issuer: int = request.issuer
-		if not world.actor_slots.has(issuer) or not world.combat.alive(world, issuer): continue
-		world.sight.sync(world)
-		if world.sight.observed_position(world, issuer, int(result.actor)) == null or world.sight.observed_position(world, issuer, int(result.target)) == null: continue
-		witnesses.append({"actor": issuer, "peer": int(result.actor)})
+	var contributors: Array = [int(result.actor)]
+	var subject: int = result.target
+	if Teaching.applies(Operations.OPERATIONS[result.operation]) and int(result.facts.get("points_gained", 0)) > 0:
+		subject = int(result.facts.learner)
+		if int(result.facts.teacher) not in contributors: contributors.append(int(result.facts.teacher))
+	for contributor: int in contributors:
+		for id: int in _requests_by_actor.get(contributor, []):
+			var request: Dictionary = requests[id]
+			if request.recipient != contributor or request.state != "fulfilled" or request.target != subject: continue
+			var share: Dictionary = world.institutions.shares.get(int(request.share), {})
+			if int(share.get("last_result_id", 0)) != result.id: continue
+			var issuer: int = request.issuer
+			if not world.actor_slots.has(issuer) or not world.combat.alive(world, issuer): continue
+			world.sight.sync(world)
+			if world.sight.observed_position(world, issuer, contributor) == null or world.sight.observed_position(world, issuer, subject) == null: continue
+			witnesses.append({"actor": issuer, "peer": contributor})
 	return witnesses
 
 func _count(kind: String) -> void:

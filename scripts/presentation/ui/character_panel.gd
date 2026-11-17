@@ -129,6 +129,9 @@ func refresh(subject: Dictionary) -> void:
 	var operation: String = str(activity.get("operation", ""))
 	var phase: String = str({"approaching": "前往", "waiting": "等待", "acting": "进行", "partner_waiting": "应邀等候", "traveling": "赶路", "exploring": "探查", "combat": "战斗", "working": "活动"}.get(activity.get("phase", ""), "空闲"))
 	_activity.text = "%s%s" % [phase, " · " + str(EventText.Actions.Operations.OPERATIONS[operation].title) if EventText.Actions.Operations.OPERATIONS.has(operation) else ""]
+	if activity.get("role", "") in ["teacher", "learner"]:
+		_activity.text = "共同授业 · %s · 对方 #%d" % ["传授中" if activity.role == "teacher" else "学习中", int(activity.target)]
+	elif activity.get("reason") == "awaiting_participant": _activity.text = "等待对方主动参加授业"
 	_study.disabled = subject_id != 1 or not preload("res://scripts/presentation/ui/actions.gd").self_ready(subject, "study")
 	_ability.disabled = subject_id != 1 or not preload("res://scripts/presentation/ui/actions.gd").self_ready(subject, "wood_mend")
 	var version: String = "%d:%d" % [subject_id, int(subject.get("events_version", 0))]

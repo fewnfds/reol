@@ -137,10 +137,12 @@ static func deliver(owner: RefCounted, world: RefCounted, issuer: int, action: D
 	if owner.requests.size() >= LIMIT: return Results.refused("too_many_requests")
 	# Replacing cooled history preserves one canonical key without growing forever.
 	if previous > 0 and owner.requests.has(previous): _erase(owner, previous)
-	for subject: int in [target] + terms.sources: world.knowledge.deliver(world, recipient, issuer, subject, now, true)
 	owner.next_request += 1
 	owner.requests[request.id] = request
 	_index(owner, request)
+	# The delivered request already gives these clues a personal purpose while
+	# the following source/contact receipts compete for bounded memory.
+	for subject: int in [target] + terms.sources: world.knowledge.deliver(world, recipient, issuer, subject, now, true)
 	owner.Contacts.acknowledge(owner, world, issuer, recipient, now)
 	return Results.completed({"request": int(request.id), "counterparty": recipient}, "request_delivered")
 

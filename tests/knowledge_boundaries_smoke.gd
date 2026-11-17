@@ -138,7 +138,8 @@ func full_memory_and_identity_only_delivery() -> void:
 	move_actor(w, 4, w.combat.position(w, 1) + Vector2(1, 0))
 	w.livelihood.records.erase(4)
 	w.pages[0].energy[3] = 10000; w.pages[0].hunger[3] = 10000
-	check(w.society.commit(w, 1, {"kind": "request_help", "target": 4, "task_target": target}, 0).reason == "accepted_share" and w.operation_actor(4).task_access.has(target), "Full memory rejected an explicitly discussed task before obligation protection applied")
+	var response: Dictionary = w.society.commit(w, 1, {"kind": "request_help", "target": 4, "task_target": target}, 0)
+	check(response.reason == "accepted_share" and w.operation_actor(4).task_access.has(target), "Full memory rejected an explicitly discussed task before obligation protection applied: " + str(response))
 	check(Persistence.candidate(Persistence.capture(w), 0) != null, "Atomic knowledge admission failed restore")
 
 func _run() -> void:

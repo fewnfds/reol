@@ -127,6 +127,7 @@ static func readiness(operation: Dictionary, actor: Dictionary, context: Diction
 		for item: String in operation.required_items:
 			if int(actor.get("usable_inventory", actor.get("inventory", {})).get(item, 0)) < int(operation.required_items[item]): return "missing_items"
 	if not operation.required_method.is_empty() and not Growth.introduced(actor, operation.required_method): return "method_not_known"
+	if operation.handler == "teach" and not Growth.mastered(actor, operation.learning_method): return "method_not_mastered"
 	if operation.handler in ["learn", "study"] and int(actor.get("methods", {}).get(operation.learning_method, {}).get("understanding", 0)) >= int(Growth.Defs.METHODS[operation.learning_method].introduction_points): return "already_understood"
 	if operation.handler == "study" and not operation.get("learning_method", "").is_empty() and int(actor.get("readable", actor.get("inventory", {})).get(Growth.Defs.METHODS[operation.learning_method].study_item, 0)) <= 0: return "missing_book"
 	if not operation.required_ability.is_empty() and not actor.get("abilities", {}).get(operation.required_ability, false): return "ability_not_mastered"

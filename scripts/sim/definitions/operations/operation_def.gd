@@ -7,7 +7,7 @@ const Bundle = preload("res://scripts/sim/definitions/actions/effect_bundle_def.
 const Form = preload("res://scripts/sim/definitions/beings/form_def.gd")
 const Recipe = preload("res://scripts/sim/definitions/production/recipe_def.gd")
 const HANDLERS: Dictionary = {"transfer": ["take", "put"], "facility": ["construct", "rest", "craft", "eat", "demolish", "collect_source"],
-	"nature": ["sow", "tend", "gather", "cut", "uproot"], "society": ["talk", "trade", "request_help", "offer_matter", "respond_request", "learn", "study", "practice"],
+	"nature": ["sow", "tend", "gather", "cut", "uproot"], "society": ["talk", "trade", "request_help", "offer_matter", "respond_request", "learn", "teach", "study", "practice"],
 	"instant": ["self_effect"], "work_source": ["harvest"], "institutions": ["read_channel", "post_duty", "accept_post", "report_matter", "close_post"]}
 @export var id: String = ""
 @export var title: String = ""
@@ -78,8 +78,8 @@ func errors() -> PackedStringArray:
 	var growth: Script = preload("res://scripts/sim/kernel/growth_defs.gd")
 	if not required_method.is_empty() and not growth.METHODS.has(required_method): result.append("required method: unknown")
 	if learning_method.is_empty() != (learning_points == 0) or learning_points < 0 or learning_points > 100000: result.append("learning: inconsistent method/points")
-	if not learning_method.is_empty() and (not growth.METHODS.has(learning_method) or handler not in ["learn", "study", "practice"]): result.append("learning: unsupported method/consumer")
-	if handler in ["learn", "study", "practice"] and learning_method.is_empty(): result.append("learning: method required")
+	if not learning_method.is_empty() and (not growth.METHODS.has(learning_method) or handler not in ["learn", "teach", "study", "practice"]): result.append("learning: unsupported method/consumer")
+	if handler in ["learn", "teach", "study", "practice"] and learning_method.is_empty(): result.append("learning: method required")
 	if handler == "practice" and required_method != learning_method: result.append("practice: admission method must match practiced method")
 	if handler == "practice" and growth.METHODS.has(learning_method) and (growth.METHODS[learning_method].energy_cost > 0 or growth.METHODS[learning_method].satiety_cost > 0) and not required_capabilities.has("metabolism"): result.append("practice: body costs require metabolism")
 	if handler == "practice" and growth.METHODS.has(learning_method) and growth.METHODS[learning_method].requires_introduction and required_method != learning_method: result.append("learning: practical consumer must require introduction")

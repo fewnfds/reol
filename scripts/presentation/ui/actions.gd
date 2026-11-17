@@ -115,6 +115,7 @@ static func reason_text(reason: String) -> String:
 	return {"": "", "method_not_known": "尚未入门这门技艺。", "missing_items": "缺少符合用途的原料。", "insufficient_resource": "自身资源不足。",
 		"unattended_in_progress": "本批仍在静置，完成后可收取。", "in_process_conflict": "设施正在加工另一配方。", "no_output_capacity": "成品存放空间不足。",
 		"empty": "这里暂时没有可取物品。", "no_food": "这里没有餐食。", "not_authorized": "尚未获得此项使用许可。", "already_understood": "已经理解这项入门内容。",
+		"method_not_mastered": "熟练掌握后才能传授。", "awaiting_participant": "等待对方主动参加。", "not_interested": "对方当前有自己的安排。",
 		"body_has_no_work_capability": "当前不能进行劳动。", "full": "存放空间已满。"}.get(reason, "当前条件尚不满足。")
 
 static func art_key(definition: String) -> String:

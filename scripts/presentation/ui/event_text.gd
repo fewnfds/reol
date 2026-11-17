@@ -40,6 +40,10 @@ static func line(event: Dictionary) -> String:
 			Actions.load_definitions()
 			text = "%s完成  %s Q%d ×%d" % [action, Items.label(str(event.get("item", ""))), Items.quality(str(event.get("item", ""))), int(event.get("amount", 0))]
 		"completed": text = "%s完成" % action
+		"learner_already_understood": text = "%s：当面确认对方已理解，无需再授入门内容" % action
+		"awaiting_participant": text = "%s：对方未主动参加，本次邀请已结束" % action
+		"not_interested": text = "%s：对方当前有自己的安排" % action
+		"teacher_does_not_know": text = "%s：对方尚未掌握这项本领" % action
 		"target_gone", "out_of_reach", "empty_or_full": text = str(REASONS.get(event.kind, "行动未完成"))
 		_:
 			var key: String = str(event.kind)

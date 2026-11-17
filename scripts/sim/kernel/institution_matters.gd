@@ -12,6 +12,9 @@ const SOURCE_LIMIT: int = 32
 const PERSON_LIMIT: int = 8
 const KINDS: Array[String] = ["delivery", "produce", "operation"]
 
+static func instruction(matter: Dictionary) -> bool:
+	return matter.kind == "operation" and Operations.OPERATIONS.get(matter.get("operation", ""), {}).get("handler") == "teach"
+
 static func _base_view(owner: RefCounted, actor: int) -> Dictionary:
 	# A delegated execution permission cannot mint another delegation.
 	return {"id": actor, "permissions": owner.permissions(actor), "scope_grants": Access.scope_grants(owner, actor)}
@@ -37,7 +40,7 @@ static func _terms_grants(world: RefCounted, matter: Dictionary) -> Array:
 
 static func terms_grants(matter: Dictionary, targets: Dictionary, buildings: Dictionary = {}) -> Array:
 	if buildings.is_empty(): buildings = Query.BUILDINGS
-	if matter.organization <= 0: return []
+	if matter.organization <= 0 or instruction(matter): return [] # A person is not organizational stock.
 	var items: Array = _items(matter, targets.get(matter.target, {}))
 	var operation: Dictionary = Operations.OPERATIONS.get(matter.operation, {})
 	var purpose: String = "supply" if matter.kind == "delivery" else (str(operation.recipe.purpose) if not operation.recipe.is_empty() else ("cultivate" if operation.handler in ["sow", "tend", "gather", "cut", "uproot", "harvest"] else str(operation.handler)))
@@ -56,6 +59,8 @@ static func _authorized(owner: RefCounted, world: RefCounted, actor: int, matter
 	var target: Dictionary = world.objects.records.get(matter.target, {})
 	if target.is_empty(): return false
 	if matter.organization == 0: return matter.kind == "operation" and matter.operation == "construct" and target.kind == "blueprint" and target.owner in [0, actor] and target.organization == 0
+	if instruction(matter):
+		return target.kind == "actor" and owner.memberships.get(matter.organization, {}).has(actor) and owner.memberships[matter.organization].has(matter.target) and Stock.permits_at(_base_view(owner, actor), {"id": matter.target, "organization": matter.organization}, "commission")
 	if not owner.memberships.get(matter.organization, {}).has(actor) or target.organization != matter.organization or target.owner != 0: return false
 	var view: Dictionary = _base_view(owner, actor)
 	for source: int in matter.sources:
@@ -86,7 +91,7 @@ static func create(owner: RefCounted, world: RefCounted, issuer: int, spec: Dict
 		var clue: Dictionary = world.knowledge.view(issuer, target, world.operation_time())
 		if clue.is_empty() or int(clue.get("tile", -1)) < 0: return 0
 	if matter.kind == "delivery" and world.objects.records[matter.target].kind != "chest": return 0
-	if matter.kind != "delivery" and not Query.evaluate(Operations.OPERATIONS[matter.operation], world.operation_actor(issuer), world.operation_target(matter.target)).applicable: return 0
+	if matter.kind != "delivery" and not instruction(matter) and not Query.evaluate(Operations.OPERATIONS[matter.operation], world.operation_actor(issuer), world.operation_target(matter.target)).applicable: return 0
 	if matter.kind == "produce":
 		var operation: Dictionary = Operations.OPERATIONS[matter.operation]
 		if operation.recipe.is_empty() or not operation.recipe.outputs.has(matter.item): return 0
@@ -141,8 +146,9 @@ static func accept(owner: RefCounted, world: RefCounted, actor: int, id: int, qu
 	if not owner.matters.has(id) or not world.actor_slots.has(actor) or not world.combat.alive(world, actor): return 0
 	var matter: Dictionary = owner.matters[id]
 	if matter.state != "active" or (matter.organization > 0 and not owner.memberships[matter.organization].has(actor)) or (matter.deadline_ms > 0 and matter.deadline_ms <= world.operation_time()): return 0
+	if instruction(matter) and matter.target == actor: return 0
 	var clue: Dictionary = world.knowledge.view(actor, int(matter.target), world.operation_time())
-	if not clue.is_empty() and int(clue.get("tile", -1)) < 0: return 0
+	if not instruction(matter) and not clue.is_empty() and int(clue.get("tile", -1)) < 0: return 0
 	var existing: Array = shares_for(owner, actor)
 	for share: Dictionary in existing:
 		if share.matter == id: return share.id
@@ -232,6 +238,7 @@ static func revise(owner: RefCounted, world: RefCounted, actor: int, id: int, to
 	if not owner.matters.has(id): return false
 	var matter: Dictionary = owner.matters[id]
 	if matter.operation == "construct" and total != 1: return false
+	if instruction(matter) and (total != 1 or quota != 1): return false
 	if matter.state != "active" or not _can_manage(owner, world, actor, matter, true) or total < occupied(owner, matter) or total < 1 or total > 1000000 or quota < 1 or quota > total or (deadline != 0 and deadline < world.operation_time()): return false
 	matter.merge({"total": total, "quota": quota, "deadline_ms": deadline, "version": int(matter.version) + 1}, true)
 	var fulfilled: int = matter.archived
@@ -254,7 +261,7 @@ static func _credit(owner: RefCounted, world: RefCounted, share: Dictionary, amo
 	if share.fulfilled == share.quota:
 		share.state = "completed"
 		_unindex_active(owner, share)
-		_notify_closed(world, share, true, int(result.actor))
+		_notify_closed(world, share, true, int(result.facts.teacher) if instruction(owner.matters[share.matter]) else int(result.actor))
 		owner.reconcile(world, share.actor)
 	return count
 
@@ -262,6 +269,8 @@ static func outcome(owner: RefCounted, world: RefCounted, result: Dictionary) ->
 	if result.is_empty() or result.status != "completed" or result.reason == "process_waiting": return
 	if result.operation == "construct": world.society.Requests.construction_completed(world.society, int(result.target), int(result.at_ms), int(result.actor))
 	var actors: Array = [result.actor]
+	var teaching: bool = Operations.OPERATIONS[result.operation].handler in ["learn", "teach"] and int(result.facts.get("teacher", 0)) > 0 and int(result.facts.get("learner", 0)) > 0
+	if teaching and int(result.facts.teacher) not in actors: actors.append(int(result.facts.teacher))
 	for labor: Dictionary in result.facts.get("labor", []):
 		if labor.worked_ms > 0 and labor.actor not in actors: actors.append(int(labor.actor))
 	var remaining: Dictionary = {}
@@ -272,9 +281,22 @@ static func outcome(owner: RefCounted, world: RefCounted, result: Dictionary) ->
 			var matter: Dictionary = owner.matters[share.matter]
 			if matter.state != "active" or result.id <= share.last_result_id or result.at_ms < share.created_ms: continue
 			var key: String = "%s:%d:%s" % [matter.kind, matter.target, matter.item if matter.kind != "operation" else matter.operation]
+			if instruction(matter): key = "teaching:%d:%s" % [matter.target, Operations.OPERATIONS[matter.operation].learning_method]
 			var possible: int = 0
 			var origins: Array = []
-			if matter.kind == "delivery" and actor == result.actor and result.operation == "put" and result.target == matter.target and result.facts.get("item") == matter.item:
+			if instruction(matter):
+				if not teaching or actor != int(result.facts.teacher) or matter.target != int(result.facts.learner) or Operations.OPERATIONS[matter.operation].learning_method != result.facts.method: continue
+				if result.facts.get("understood", false):
+					if int(result.facts.get("points_gained", 0)) > 0 and int(remaining.get(key, 1)) > 0: possible = 1
+					else:
+						# The named student learned elsewhere. Resolve the real need
+						# without paying or inventing this teacher's contribution.
+						matter.state = "satisfied"
+						for obligation: Dictionary in shares_in(owner, int(matter.id)):
+							if obligation.state == "accepted":
+								obligation.state = "released"; _unindex_active(owner, obligation); _notify_closed(world, obligation, false, int(result.facts.teacher)); owner.reconcile(world, obligation.actor)
+						world.society.on_matter_closed(world, int(matter.id), int(result.facts.teacher))
+			elif matter.kind == "delivery" and actor == result.actor and result.operation == "put" and result.target == matter.target and result.facts.get("item") == matter.item:
 				for index: int in result.facts.get("deliveries", []).size():
 					var line: Dictionary = result.facts.deliveries[index]
 					if line.organization == matter.organization and line.origin != matter.target and line.origin in matter.sources:
@@ -313,7 +335,7 @@ static func outcome(owner: RefCounted, world: RefCounted, result: Dictionary) ->
 			for share: Dictionary in shares_in(owner, int(matter.id)):
 				if share.state == "accepted":
 					share.state = "released"; _unindex_active(owner, share); _notify_closed(world, share, false, int(result.actor)); owner.reconcile(world, share.actor)
-		if matter.state != "active": world.society.on_matter_closed(world, id, int(result.actor))
+		if matter.state != "active": world.society.on_matter_closed(world, id, int(result.facts.teacher) if instruction(matter) else int(result.actor))
 
 static func compact(owner: RefCounted, world: RefCounted) -> void:
 	if owner.matters.size() < MATTER_LIMIT and owner.shares.size() < SHARE_LIMIT: return
@@ -357,6 +379,7 @@ static func _matter_valid(owner: RefCounted, world: RefCounted, matter: Variant)
 	if matter.kind != "delivery" and not Operations.OPERATIONS.has(matter.operation): return false
 	if matter.kind == "produce" and (matter.organization <= 0 or Operations.OPERATIONS[matter.operation].recipe.is_empty() or not Operations.OPERATIONS[matter.operation].recipe.outputs.has(matter.item)): return false
 	if matter.kind == "operation" and (not matter.item.is_empty() or not Operations.OPERATIONS[matter.operation].recipe.is_empty() or (matter.operation == "construct" and matter.total != 1)): return false
+	if instruction(matter) and (matter.total != 1 or matter.quota != 1 or not matter.sources.is_empty()): return false
 	if matter.organization == 0 and (matter.kind != "operation" or matter.operation != "construct" or not matter.sources.is_empty()): return false
 	return true
 

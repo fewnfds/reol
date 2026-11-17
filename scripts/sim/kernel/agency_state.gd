@@ -31,6 +31,7 @@ static func valid(owner: RefCounted, world: RefCounted) -> bool:
 			if not id is int or id < 1 or id >= owner.next_goal or ids.has(id) or not goal is Dictionary or goal.size() != 9 or goal.get("id") != id or not goal.get("definition") is String or not Defs.GOALS.has(goal.definition): return false
 			ids[id] = true
 			if not goal.get("params") is Dictionary or not owner._params_valid(goal.definition, goal.params, world.objects.next_id) or not goal.get("source") is int or goal.source < 0 or goal.source >= world.objects.next_id: return false
+			if Defs.GOALS[goal.definition].driver == "instruction" and goal.params.target == actor: return false
 			if not goal.get("created_ms") is int or goal.created_ms < 0 or goal.created_ms > world.elapsed_ms or goal.get("state") not in ["active", "completed", "cancelled"] or not goal.get("closed_ms") is int: return false
 			if (goal.state == "active" and goal.closed_ms != -1) or (goal.state != "active" and (goal.closed_ms < goal.created_ms or goal.closed_ms > world.elapsed_ms)): return false
 			if not goal.get("progress") is int or goal.progress < 0 or (Defs.GOALS[goal.definition].driver != "delivery" and goal.progress != 0) or (Defs.GOALS[goal.definition].driver == "delivery" and goal.progress > goal.params.amount): return false

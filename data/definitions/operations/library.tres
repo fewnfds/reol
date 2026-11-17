@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="OperationLibrary" load_steps=34 format=3]
+[gd_resource type="Resource" script_class="OperationLibrary" load_steps=37 format=3]
 [ext_resource type="Script" path="res://scripts/sim/definitions/operations/library.gd" id="library"]
 [ext_resource type="Script" path="res://scripts/sim/definitions/operations/operation_def.gd" id="op"]
 [ext_resource type="Resource" path="res://data/definitions/operations/take.tres" id="o0"]
@@ -32,7 +32,10 @@
 [ext_resource type="Resource" path="res://data/definitions/operations/report_matter.tres" id="report_matter"]
 [ext_resource type="Resource" path="res://data/definitions/operations/close_post.tres" id="close_post"]
 [ext_resource type="Resource" path="res://data/definitions/operations/respond_request.tres" id="respond_request"]
+[ext_resource type="Resource" path="res://data/definitions/operations/teach_wood_breath.tres" id="teach_wood_breath"]
+[ext_resource type="Resource" path="res://data/definitions/operations/teach_cooking.tres" id="teach_cooking"]
+[ext_resource type="Resource" path="res://data/definitions/operations/teach_herbalism.tres" id="teach_herbalism"]
 [resource]
 script = ExtResource("library")
 required_ids = PackedStringArray("construct", "sow", "wood_mend", "take", "put")
-operations = Array[ExtResource("op")]([ExtResource("o0"), ExtResource("o1"), ExtResource("o2"), ExtResource("o3"), ExtResource("o4"), ExtResource("o5"), ExtResource("o6"), ExtResource("o7"), ExtResource("o8"), ExtResource("o9"), ExtResource("o10"), ExtResource("o11"), ExtResource("o12"), ExtResource("o13"), ExtResource("o14"), ExtResource("o15"), ExtResource("o16"), ExtResource("o17"), ExtResource("o18"), ExtResource("o19"), ExtResource("o20"), ExtResource("brew"), ExtResource("learn_herbalism"), ExtResource("draw"), ExtResource("offer"), ExtResource("read_channel"), ExtResource("post_duty"), ExtResource("accept_post"), ExtResource("report_matter"), ExtResource("close_post"), ExtResource("respond_request")])
+operations = Array[ExtResource("op")]([ExtResource("o0"), ExtResource("o1"), ExtResource("o2"), ExtResource("o3"), ExtResource("o4"), ExtResource("o5"), ExtResource("o6"), ExtResource("o7"), ExtResource("o8"), ExtResource("o9"), ExtResource("o10"), ExtResource("o11"), ExtResource("o12"), ExtResource("o13"), ExtResource("o14"), ExtResource("o15"), ExtResource("o16"), ExtResource("o17"), ExtResource("o18"), ExtResource("o19"), ExtResource("o20"), ExtResource("brew"), ExtResource("learn_herbalism"), ExtResource("draw"), ExtResource("offer"), ExtResource("read_channel"), ExtResource("post_duty"), ExtResource("accept_post"), ExtResource("report_matter"), ExtResource("close_post"), ExtResource("respond_request"), ExtResource("teach_wood_breath"), ExtResource("teach_cooking"), ExtResource("teach_herbalism")])

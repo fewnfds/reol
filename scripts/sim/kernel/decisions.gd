@@ -141,7 +141,7 @@ func _prune_feedback(world: RefCounted, actor: int, at: int) -> void:
 	var failures: Array = records[actor].feedback
 	for index: int in range(failures.size() - 1, -1, -1):
 		var failure: Dictionary = failures[index]
-		if at >= int(failure.until_ms) or (not Operations.contact_operation(str(failure.operation)) and failure.evidence != _evidence(world, actor, failure.target)): failures.remove_at(index)
+		if at >= int(failure.until_ms) or ((not Operations.contact_operation(str(failure.operation)) or failure.reason in ["out_of_reach", "path_failed", "no_operation_place"]) and failure.evidence != _evidence(world, actor, failure.target)): failures.remove_at(index)
 
 func retry_allowed(world: RefCounted, actor: int, operation: String, target: int, at: int) -> bool:
 	if not world.knowledge.can_attempt(actor, operation, target, at): return false

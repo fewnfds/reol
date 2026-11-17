@@ -81,6 +81,7 @@ func candidates(goal: Dictionary, approach: Dictionary, allowance: int = 32) -> 
 	sources_restricted = false
 	match approach.pattern:
 		"respond": return Contacts.responses(self)
+		"instruct": return _instruct(goal)
 		"seek_help": return Contacts.seek_help(self, goal)
 		"duty": return Institutions.duty(self, goal)
 		"service": return Institutions.service(self, goal)
@@ -88,6 +89,10 @@ func candidates(goal: Dictionary, approach: Dictionary, allowance: int = 32) -> 
 		"responsibility":
 			var terms: Dictionary = actor.get("responsibilities", {}).get(int(goal.params.share), {})
 			if terms.is_empty(): return []
+			var operation: Dictionary = Operations.OPERATIONS.get(terms.get("operation", ""), {})
+			if operation.get("handler") == "teach":
+				var instruction: Array = _instruct({"params": {"method": operation.learning_method, "target": terms.target}})
+				return Institutions.blocked(self, terms) if instruction.is_empty() and int(budget.work) < slice_limit else instruction
 			var projected: Dictionary = project(goal, actor)
 			source_scope = terms.sources.duplicate()
 			# An empty contractual source list grants no external sourcing. Private
@@ -139,8 +144,15 @@ func _resolve(operation: Dictionary, target: Dictionary, chain: Array, prerequis
 	var next: Array = chain + [key]
 	if query.reason == "missing_book":
 		return _acquire(str(Growth.Defs.METHODS[operation.learning_method].study_item), 1, -1, "study", next)
-	if query.reason == "method_not_known":
-		var options: Array = _develop({"params": {"method": operation.required_method}}, operation.required_method, next)
+	if query.reason in ["method_not_known", "method_not_mastered"]:
+		var method: String = operation.learning_method if query.reason == "method_not_mastered" else operation.required_method
+		# Developing oneself is not sourcing the assigned job's inputs. Any
+		# books/materials still require the person's actual independent rights.
+		var saved_scope: Array = source_scope
+		var saved_restriction: bool = sources_restricted
+		source_scope = []; sources_restricted = false
+		var options: Array = _develop({"params": {"method": method}}, method, next)
+		source_scope = saved_scope; sources_restricted = saved_restriction
 		return _best(options).get("step", {})
 	if query.reason != "missing_items": return {}
 	var inputs: Dictionary = operation.recipe.inputs if not operation.recipe.is_empty() else operation.required_items
@@ -270,11 +282,32 @@ func _produce(goal: Dictionary, item: String, chain: Array) -> Array:
 			if int(budget.work) >= slice_limit: return result
 	return result
 
+func _instruct(goal: Dictionary) -> Array:
+	if known_dead(known.get(int(goal.params.target), {})): return []
+	if not Growth.mastered(actor, goal.params.method): return _develop(goal, goal.params.method, [])
+	var result: Array = []
+	for target: Dictionary in _targets("goal", goal):
+		for id: String in Query.options(target):
+			var operation: Dictionary = Operations.OPERATIONS[id]
+			if operation.handler != "teach" or operation.learning_method != goal.params.method: continue
+			var step: Dictionary = _resolve(operation, target, [], false)
+			if not step.is_empty():
+				step["social"] = true
+				result.append(_option(step, id, int(target.id)))
+	return result
+
+static func known_dead(target: Dictionary) -> bool:
+	return target.get("kind") == "actor" and int(target.get("hp", 1)) <= 0
+
 func _develop(goal: Dictionary, method: String, chain: Array) -> Array:
 	var result: Array = []
 	if not Growth.Defs.METHODS.has(method) or Growth.mastered(actor, method): return result
 	var introduced: bool = Growth.introduced(actor, method)
-	for target: Dictionary in _targets("either", goal):
+	var targets: Array = _targets("either", goal)
+	if not introduced:
+		var teachers: Array = targets.filter(func(value: Dictionary): return value.get("teaches", {}).has(method))
+		targets = teachers + targets.filter(func(value: Dictionary): return value not in teachers)
+	for target: Dictionary in targets:
 		for id: String in Query.options(target):
 			var operation: Dictionary = Operations.OPERATIONS[id]
 			var practical: bool = operation.handler == "practice" or not operation.recipe.is_empty()

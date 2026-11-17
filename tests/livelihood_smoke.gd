@@ -44,12 +44,14 @@ func known_sites_and_growth() -> void:
 	var commitment: RefCounted = fixture()
 	commitment.pages[0].hunger[1] = 10000
 	commitment.pages[0].energy[1] = 10000
+	commitment.pages[0].positions[1] = commitment.pages[0].positions[0] + Vector2(0.8, 0)
+	commitment.livelihood.forget(2)
 	commitment.objects.claim(commitment.source_objects[0], 1, "wood", 4)
 	var result: Dictionary = commitment.facilities.blueprint(commitment, 1, "wood_wall", commitment.Terrain.index(Vector2i(124, 121)))
 	check(result.reason == "accepted", "Commitment blueprint fixture failed")
 	if result.reason == "accepted":
 		var offer: String = commitment.society.finish(commitment, 1, {"kind": "request_help", "target": 2, "task_target": result.target}, 0)
-		check(offer == "completed" and not commitment.institutions.Matters.shares_for(commitment.institutions, 2).is_empty(), "Real help request failed")
+		check(offer == "accepted_share" and not commitment.institutions.Matters.shares_for(commitment.institutions, 2).is_empty(), "Real help request failed: " + offer)
 		commitment.command({"kind": "interrupt", "actor": 2})
 		commitment.facilities.demolish(commitment, result.target)
 		commitment.command({"kind": "work", "actor": 2})
@@ -87,19 +89,25 @@ func cooperation_and_control() -> void:
 	var help: RefCounted = fixture()
 	help.pages[0].hunger[1] = 10000
 	help.pages[0].energy[1] = 10000
+	help.pages[0].positions[1] = help.pages[0].positions[0] + Vector2(0.8, 0)
+	help.livelihood.forget(2)
 	help.objects.claim(help.source_objects[0], 1, "wood", 20)
 	var plan: Dictionary = help.facilities.blueprint(help, 1, "wood_wall", help.Terrain.index(Vector2i(124, 121)))
 	var target: int = plan.target
 	check(help.begin_interaction(1, {"kind": "construct", "target": target}) == "accepted", "Busy help fixture refused")
-	check(help.society.finish(help, 1, {"kind": "request_help", "target": 2, "task_target": target}, 0) == "completed", "Busy help offer failed")
+	var offered: String = help.society.finish(help, 1, {"kind": "request_help", "target": 2, "task_target": target}, 0)
+	check(offered == "accepted_share", "Busy help offer failed: " + offered)
 	help.livelihood.choose(help, 2, 0)
 	check(help.gate.current(2).is_empty() and help.pages[0].modes[1] == help.Units.Mode.IDLE, "A busy help target sent a temporary helper into unrelated resident work")
 	var distant: RefCounted = fixture()
 	distant.pages[0].hunger[1] = 10000
 	distant.pages[0].energy[1] = 10000
+	distant.pages[0].positions[1] = distant.pages[0].positions[0] + Vector2(0.8, 0)
+	distant.livelihood.forget(2)
 	distant.objects.claim(distant.source_objects[0], 1, "wood", 20)
 	var far: Dictionary = distant.facilities.blueprint(distant, 1, "wood_wall", distant.Terrain.index(Vector2i(160, 120)))
-	check(distant.society.finish(distant, 1, {"kind": "request_help", "target": 2, "task_target": far.target}, 0) == "completed", "The builder forgot its own blueprint when requesting distant help")
+	var far_offer: String = distant.society.finish(distant, 1, {"kind": "request_help", "target": 2, "task_target": far.target}, 0)
+	check(far_offer == "accepted_share", "The builder forgot its own blueprint when requesting distant help: " + far_offer)
 	var rooted: RefCounted = fixture()
 	var nearby: int = rooted.objects.create("pile", "grain", rooted.Terrain.index(Vector2i(120, 120)))
 	rooted.objects.add(nearby, "grain", 1)
