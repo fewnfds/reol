@@ -91,7 +91,7 @@ func social_participation() -> void:
 	var tree: int = tree_world.nature.create(tree_world, "old_tree", tree_world.Terrain.index(Vector2i(124, 124)))
 	check(tree > 0, "Static teacher fixture failed")
 	if tree > 0:
-		tree_world.objects.records[tree].stage = tree_world.nature.Stage.MATURE
+		tree_world.objects.records[tree].stage = tree_world.nature.Stage.MATURE; tree_world.objects.records[tree].growth_ms = int(tree_world.nature.definitions[tree_world.objects.records[tree].definition].mature_ms)
 		tree_world.objects.records[tree].sapient = true
 		tree_world.Growth.seed(tree_world.objects.records[tree], "wood_breath", 0)
 		tree_world.pages[0].positions[0] = Vector2(123.5, 124.5)

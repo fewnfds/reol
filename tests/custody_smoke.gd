@@ -186,8 +186,9 @@ func issued_gear_and_cultivation() -> void:
 	check(w.begin_interaction(1, {"kind": "sow", "target": plant}) == "accepted", "Public sowing refused")
 	advance(w, w.elapsed_ms + 300)
 	check(w.objects.records[plant].organization == org and w.objects.amount(plant, "grain") == 0, "Sowing failed to keep public cultivation title while consuming the actual seed")
+	w.objects.records[plant].injury_ms = 60000
 	check(w.nature.tend(w, 1, plant, w.elapsed_ms).status == "completed" and w.institutions.entrustments.is_empty(), "Public plant care consumed somebody's private water or failed to close real issue")
-	w.objects.records[plant].stage = w.nature.Stage.MATURE
+	w.objects.records[plant].stage = w.nature.Stage.MATURE; w.objects.records[plant].growth_ms = int(w.nature.definitions[w.objects.records[plant].definition].mature_ms)
 	w.objects.add(plant, "grain", 2)
 	check(w.begin_interaction(3, {"kind": "gather", "target": plant}) == "accepted", "Authorized public harvester refused")
 	w.pages[0].positions[2] = Vector2(128.5, 128.5)

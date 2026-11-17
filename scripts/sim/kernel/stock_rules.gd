@@ -77,7 +77,7 @@ static func valid(contents: Variant, next_id: int) -> bool:
 	return true
 
 static func access_reason(actor: Dictionary, target: Dictionary, handler: String, context: Dictionary = {}) -> String:
-	if handler not in ["take", "put", "eat", "craft", "collect_source", "rest", "construct", "demolish", "sow", "tend", "gather", "cut", "uproot", "harvest"]: return ""
+	if handler not in ["take", "put", "eat", "craft", "collect_source", "rest", "construct", "demolish", "sow", "plant_crop", "tend", "gather", "cut", "uproot", "harvest"]: return ""
 	for dependency: Dictionary in target.get("access_dependencies", {}).get(handler, []):
 		var reason: String = access_reason(actor, dependency, dependency.operation)
 		if not reason.is_empty(): return reason
@@ -88,7 +88,7 @@ static func access_reason(actor: Dictionary, target: Dictionary, handler: String
 	# consuming somebody's property still needs their own recognized permission.
 	if owner > 0 and owner != actor.get("id", 0) and handler != "construct" and handler not in actor.get("task_access", {}).get(int(target.get("id", 0)), []): return "not_authorized"
 	if organization > 0:
-		var purpose: String = "cultivate" if handler in ["sow", "tend", "gather", "cut", "uproot", "harvest"] else (str(target.get("processing_purpose", "")) if handler == "craft" else ("supply" if handler == "collect_source" else handler))
+		var purpose: String = "cultivate" if handler in ["sow", "plant_crop", "tend", "gather", "cut", "uproot", "harvest"] else (str(target.get("processing_purpose", "")) if handler == "craft" else ("supply" if handler == "collect_source" else handler))
 		var item: String = str(context.get("item", ""))
 		if handler == "put" and target.get("kind") == "chest" and not context.get("donate", false):
 			for bundle: Dictionary in actor.get("return_bundles", []):
@@ -115,7 +115,7 @@ static func input_group(actor: Dictionary, required: Dictionary, purpose: String
 
 static func input_purpose(operation: Dictionary) -> String:
 	if not operation.get("recipe", {}).is_empty(): return str(operation.recipe.purpose)
-	if operation.handler in ["sow", "tend"]: return "cultivate"
+	if operation.handler in ["sow", "plant_crop", "tend"]: return "cultivate"
 	return "construct" if operation.handler == "construct" else ""
 
 static func known_quantity(actor: Dictionary, target: Dictionary, item: String, handler: String, organization: int = -1) -> int:

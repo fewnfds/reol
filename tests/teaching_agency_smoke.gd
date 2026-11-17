@@ -3,7 +3,7 @@ extends "res://tests/teaching_smoke.gd"
 func autonomous_transmission() -> void:
 	var w: RefCounted = lesson_world()
 	var tree: int = w.nature.create(w, "old_tree", w.Terrain.index(Vector2i(128, 123)))
-	w.objects.records[tree].stage = w.nature.Stage.MATURE
+	w.objects.records[tree].stage = w.nature.Stage.MATURE; w.objects.records[tree].growth_ms = int(w.nature.definitions[w.objects.records[tree].definition].mature_ms)
 	w.objects.records[tree].qi = 3000
 	w.nature._sync(w, tree); w.flush_topology()
 	learner(w, 3); learner(w, 4)

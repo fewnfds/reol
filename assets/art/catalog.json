@@ -4006,10 +4006,34 @@
       "state": "ready",
       "source": "generated:plants"
     },
-    "wall_0": {
+    "cultivation_bed": {
       "slot": 178,
       "rect": [
         128,
+        1408,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        64
+      ],
+      "label": "栽培畦",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        2,
+        2
+      ],
+      "occluder": false,
+      "plane": "ground",
+      "contact_shadow": false
+    },
+    "wall_0": {
+      "slot": 179,
+      "rect": [
+        192,
         1408,
         64,
         64
@@ -4030,9 +4054,9 @@
       "contact_shadow": false
     },
     "wall_1": {
-      "slot": 179,
+      "slot": 180,
       "rect": [
-        192,
+        256,
         1408,
         64,
         64
@@ -4053,9 +4077,9 @@
       "contact_shadow": false
     },
     "wall_2": {
-      "slot": 180,
+      "slot": 181,
       "rect": [
-        256,
+        320,
         1408,
         64,
         64
@@ -4076,9 +4100,9 @@
       "contact_shadow": false
     },
     "wall_3": {
-      "slot": 181,
+      "slot": 182,
       "rect": [
-        320,
+        384,
         1408,
         64,
         64
@@ -4099,9 +4123,9 @@
       "contact_shadow": false
     },
     "wall_4": {
-      "slot": 182,
+      "slot": 183,
       "rect": [
-        384,
+        448,
         1408,
         64,
         64
@@ -4122,10 +4146,10 @@
       "contact_shadow": false
     },
     "wall_5": {
-      "slot": 183,
+      "slot": 184,
       "rect": [
-        448,
-        1408,
+        0,
+        1472,
         64,
         64
       ],
@@ -4145,9 +4169,9 @@
       "contact_shadow": false
     },
     "wall_6": {
-      "slot": 184,
+      "slot": 185,
       "rect": [
-        0,
+        64,
         1472,
         64,
         64
@@ -4168,9 +4192,9 @@
       "contact_shadow": false
     },
     "wall_7": {
-      "slot": 185,
+      "slot": 186,
       "rect": [
-        64,
+        128,
         1472,
         64,
         64
@@ -4191,9 +4215,9 @@
       "contact_shadow": false
     },
     "wall_8": {
-      "slot": 186,
+      "slot": 187,
       "rect": [
-        128,
+        192,
         1472,
         64,
         64
@@ -4214,9 +4238,9 @@
       "contact_shadow": false
     },
     "wall_9": {
-      "slot": 187,
+      "slot": 188,
       "rect": [
-        192,
+        256,
         1472,
         64,
         64
@@ -4237,9 +4261,9 @@
       "contact_shadow": false
     },
     "wall_10": {
-      "slot": 188,
+      "slot": 189,
       "rect": [
-        256,
+        320,
         1472,
         64,
         64
@@ -4260,9 +4284,9 @@
       "contact_shadow": false
     },
     "wall_11": {
-      "slot": 189,
+      "slot": 190,
       "rect": [
-        320,
+        384,
         1472,
         64,
         64
@@ -4283,9 +4307,9 @@
       "contact_shadow": false
     },
     "wall_12": {
-      "slot": 190,
+      "slot": 191,
       "rect": [
-        384,
+        448,
         1472,
         64,
         64
@@ -4306,10 +4330,10 @@
       "contact_shadow": false
     },
     "wall_13": {
-      "slot": 191,
+      "slot": 192,
       "rect": [
-        448,
-        1472,
+        0,
+        1536,
         64,
         64
       ],
@@ -4329,9 +4353,9 @@
       "contact_shadow": false
     },
     "wall_14": {
-      "slot": 192,
+      "slot": 193,
       "rect": [
-        0,
+        64,
         1536,
         64,
         64
@@ -4352,9 +4376,9 @@
       "contact_shadow": false
     },
     "wall_15": {
-      "slot": 193,
+      "slot": 194,
       "rect": [
-        64,
+        128,
         1536,
         64,
         64
@@ -4375,9 +4399,9 @@
       "contact_shadow": false
     },
     "door": {
-      "slot": 194,
+      "slot": 195,
       "rect": [
-        128,
+        192,
         1536,
         64,
         64
@@ -4397,9 +4421,9 @@
       "occluder": true
     },
     "door_v": {
-      "slot": 195,
+      "slot": 196,
       "rect": [
-        192,
+        256,
         1536,
         64,
         64
@@ -4437,9 +4461,9 @@
       ]
     },
     "door_v_back": {
-      "slot": 196,
+      "slot": 197,
       "rect": [
-        256,
+        320,
         1536,
         64,
         64
@@ -4458,9 +4482,9 @@
       ]
     },
     "door_v_front": {
-      "slot": 197,
+      "slot": 198,
       "rect": [
-        320,
+        384,
         1536,
         64,
         64
@@ -4479,9 +4503,9 @@
       ]
     },
     "roof": {
-      "slot": 198,
+      "slot": 199,
       "rect": [
-        384,
+        448,
         1536,
         64,
         64
@@ -4500,10 +4524,10 @@
       ]
     },
     "item_wood": {
-      "slot": 199,
+      "slot": 200,
       "rect": [
-        448,
-        1536,
+        0,
+        1600,
         64,
         64
       ],
@@ -4517,9 +4541,9 @@
       "source": "kenney:tiny-town/0106"
     },
     "item_stone": {
-      "slot": 200,
+      "slot": 201,
       "rect": [
-        0,
+        64,
         1600,
         64,
         64
@@ -4534,9 +4558,9 @@
       "source": "kenney:tiny-farm/0089"
     },
     "item_grain": {
-      "slot": 201,
+      "slot": 202,
       "rect": [
-        64,
+        128,
         1600,
         64,
         64
@@ -4551,9 +4575,9 @@
       "source": "kenney:tiny-farm/0032"
     },
     "item_herb": {
-      "slot": 202,
+      "slot": 203,
       "rect": [
-        128,
+        192,
         1600,
         64,
         64
@@ -4568,9 +4592,9 @@
       "source": "kenney:tiny-farm/0029"
     },
     "item_potion": {
-      "slot": 203,
+      "slot": 204,
       "rect": [
-        192,
+        256,
         1600,
         64,
         64
@@ -4585,9 +4609,9 @@
       "source": "kenney:tiny-dungeon/0116"
     },
     "item_fruit": {
-      "slot": 204,
+      "slot": 205,
       "rect": [
-        256,
+        320,
         1600,
         64,
         64
@@ -4602,9 +4626,9 @@
       "source": "kenney:tiny-farm/0041"
     },
     "item_sword": {
-      "slot": 205,
+      "slot": 206,
       "rect": [
-        320,
+        384,
         1600,
         64,
         64
@@ -4619,9 +4643,9 @@
       "source": "kenney:tiny-dungeon/0105"
     },
     "item_bow": {
-      "slot": 206,
+      "slot": 207,
       "rect": [
-        384,
+        448,
         1600,
         64,
         64
@@ -4636,10 +4660,10 @@
       "source": "kenney:tiny-town/0118"
     },
     "item_hoe": {
-      "slot": 207,
+      "slot": 208,
       "rect": [
-        448,
-        1600,
+        0,
+        1664,
         64,
         64
       ],
@@ -4653,9 +4677,9 @@
       "source": "kenney:tiny-farm/0087"
     },
     "item_staff": {
-      "slot": 208,
+      "slot": 209,
       "rect": [
-        0,
+        64,
         1664,
         64,
         64
@@ -4670,9 +4694,9 @@
       "source": "kenney:tiny-dungeon/0127"
     },
     "item_shield": {
-      "slot": 209,
+      "slot": 210,
       "rect": [
-        64,
+        128,
         1664,
         64,
         64
@@ -4687,9 +4711,9 @@
       "source": "authored"
     },
     "item_arrow": {
-      "slot": 210,
+      "slot": 211,
       "rect": [
-        128,
+        192,
         1664,
         64,
         64
@@ -4704,9 +4728,9 @@
       "source": "authored"
     },
     "item_water": {
-      "slot": 211,
+      "slot": 212,
       "rect": [
-        192,
+        256,
         1664,
         64,
         64
@@ -4721,9 +4745,9 @@
       "source": "authored"
     },
     "item_watering_can": {
-      "slot": 212,
+      "slot": 213,
       "rect": [
-        256,
+        320,
         1664,
         64,
         64
@@ -4738,9 +4762,9 @@
       "source": "authored"
     },
     "item_robe": {
-      "slot": 213,
+      "slot": 214,
       "rect": [
-        320,
+        384,
         1664,
         64,
         64
@@ -4755,9 +4779,9 @@
       "source": "authored"
     },
     "item_armor": {
-      "slot": 214,
+      "slot": 215,
       "rect": [
-        384,
+        448,
         1664,
         64,
         64
@@ -4772,10 +4796,10 @@
       "source": "authored"
     },
     "item_boots": {
-      "slot": 215,
+      "slot": 216,
       "rect": [
-        448,
-        1664,
+        0,
+        1728,
         64,
         64
       ],
@@ -4789,9 +4813,9 @@
       "source": "authored"
     },
     "item_hat": {
-      "slot": 216,
+      "slot": 217,
       "rect": [
-        0,
+        64,
         1728,
         64,
         64
@@ -4806,9 +4830,9 @@
       "source": "authored"
     },
     "item_talisman": {
-      "slot": 217,
+      "slot": 218,
       "rect": [
-        64,
+        128,
         1728,
         64,
         64
@@ -4823,9 +4847,9 @@
       "source": "authored"
     },
     "item_spirit_stone": {
-      "slot": 218,
+      "slot": 219,
       "rect": [
-        128,
+        192,
         1728,
         64,
         64
@@ -4840,9 +4864,9 @@
       "source": "authored"
     },
     "item_egg": {
-      "slot": 219,
+      "slot": 220,
       "rect": [
-        192,
+        256,
         1728,
         64,
         64
@@ -4857,9 +4881,9 @@
       "source": "authored"
     },
     "item_fish": {
-      "slot": 220,
+      "slot": 221,
       "rect": [
-        256,
+        320,
         1728,
         64,
         64
@@ -4874,9 +4898,9 @@
       "source": "authored"
     },
     "item_meal": {
-      "slot": 221,
+      "slot": 222,
       "rect": [
-        320,
+        384,
         1728,
         64,
         64
@@ -4891,9 +4915,9 @@
       "source": "authored"
     },
     "item_dried_herb": {
-      "slot": 222,
+      "slot": 223,
       "rect": [
-        384,
+        448,
         1728,
         64,
         64
@@ -4908,10 +4932,10 @@
       "source": "authored"
     },
     "item_fiber": {
-      "slot": 223,
+      "slot": 224,
       "rect": [
-        448,
-        1728,
+        0,
+        1792,
         64,
         64
       ],
@@ -4925,9 +4949,9 @@
       "source": "authored"
     },
     "item_lotus_seed": {
-      "slot": 224,
+      "slot": 225,
       "rect": [
-        0,
+        64,
         1792,
         64,
         64
@@ -4942,9 +4966,9 @@
       "source": "authored"
     },
     "item_lotus_root": {
-      "slot": 225,
+      "slot": 226,
       "rect": [
-        64,
+        128,
         1792,
         64,
         64
@@ -4959,9 +4983,9 @@
       "source": "authored"
     },
     "item_breath_manual": {
-      "slot": 226,
+      "slot": 227,
       "rect": [
-        128,
+        192,
         1792,
         64,
         64
@@ -4976,9 +5000,9 @@
       "source": "authored"
     },
     "item_axe": {
-      "slot": 227,
+      "slot": 228,
       "rect": [
-        192,
+        256,
         1792,
         64,
         64
@@ -4993,9 +5017,9 @@
       "source": "authored"
     },
     "item_pickaxe": {
-      "slot": 228,
+      "slot": 229,
       "rect": [
-        256,
+        320,
         1792,
         64,
         64
@@ -5010,9 +5034,9 @@
       "source": "authored"
     },
     "item_shovel": {
-      "slot": 229,
+      "slot": 230,
       "rect": [
-        320,
+        384,
         1792,
         64,
         64
@@ -5027,9 +5051,9 @@
       "source": "authored"
     },
     "item_spear": {
-      "slot": 230,
+      "slot": 231,
       "rect": [
-        384,
+        448,
         1792,
         64,
         64
@@ -5044,10 +5068,10 @@
       "source": "authored"
     },
     "item_bundle": {
-      "slot": 231,
+      "slot": 232,
       "rect": [
-        448,
-        1792,
+        0,
+        1856,
         64,
         64
       ],
@@ -5061,9 +5085,9 @@
       "source": "authored"
     },
     "fx_fire_0": {
-      "slot": 232,
+      "slot": 233,
       "rect": [
-        0,
+        64,
         1856,
         64,
         64
@@ -5078,9 +5102,9 @@
       "source": "authored"
     },
     "fx_fire_1": {
-      "slot": 233,
+      "slot": 234,
       "rect": [
-        64,
+        128,
         1856,
         64,
         64
@@ -5095,9 +5119,9 @@
       "source": "authored"
     },
     "fx_fire_2": {
-      "slot": 234,
+      "slot": 235,
       "rect": [
-        128,
+        192,
         1856,
         64,
         64
@@ -5112,9 +5136,9 @@
       "source": "authored"
     },
     "fx_fire_3": {
-      "slot": 235,
+      "slot": 236,
       "rect": [
-        192,
+        256,
         1856,
         64,
         64
@@ -5129,9 +5153,9 @@
       "source": "authored"
     },
     "fx_ice_0": {
-      "slot": 236,
+      "slot": 237,
       "rect": [
-        256,
+        320,
         1856,
         64,
         64
@@ -5146,9 +5170,9 @@
       "source": "authored"
     },
     "fx_ice_1": {
-      "slot": 237,
+      "slot": 238,
       "rect": [
-        320,
+        384,
         1856,
         64,
         64
@@ -5163,9 +5187,9 @@
       "source": "authored"
     },
     "fx_ice_2": {
-      "slot": 238,
+      "slot": 239,
       "rect": [
-        384,
+        448,
         1856,
         64,
         64
@@ -5180,10 +5204,10 @@
       "source": "authored"
     },
     "fx_ice_3": {
-      "slot": 239,
+      "slot": 240,
       "rect": [
-        448,
-        1856,
+        0,
+        1920,
         64,
         64
       ],
@@ -5197,9 +5221,9 @@
       "source": "authored"
     },
     "fx_heal_0": {
-      "slot": 240,
+      "slot": 241,
       "rect": [
-        0,
+        64,
         1920,
         64,
         64
@@ -5214,9 +5238,9 @@
       "source": "authored"
     },
     "fx_heal_1": {
-      "slot": 241,
+      "slot": 242,
       "rect": [
-        64,
+        128,
         1920,
         64,
         64
@@ -5231,9 +5255,9 @@
       "source": "authored"
     },
     "fx_heal_2": {
-      "slot": 242,
+      "slot": 243,
       "rect": [
-        128,
+        192,
         1920,
         64,
         64
@@ -5248,9 +5272,9 @@
       "source": "authored"
     },
     "fx_heal_3": {
-      "slot": 243,
+      "slot": 244,
       "rect": [
-        192,
+        256,
         1920,
         64,
         64
@@ -5265,9 +5289,9 @@
       "source": "authored"
     },
     "fx_hit_0": {
-      "slot": 244,
+      "slot": 245,
       "rect": [
-        256,
+        320,
         1920,
         64,
         64
@@ -5282,9 +5306,9 @@
       "source": "authored"
     },
     "fx_hit_1": {
-      "slot": 245,
+      "slot": 246,
       "rect": [
-        320,
+        384,
         1920,
         64,
         64
@@ -5299,9 +5323,9 @@
       "source": "authored"
     },
     "fx_hit_2": {
-      "slot": 246,
+      "slot": 247,
       "rect": [
-        384,
+        448,
         1920,
         64,
         64
@@ -5316,10 +5340,10 @@
       "source": "authored"
     },
     "fx_hit_3": {
-      "slot": 247,
+      "slot": 248,
       "rect": [
-        448,
-        1920,
+        0,
+        1984,
         64,
         64
       ],
@@ -5333,9 +5357,9 @@
       "source": "authored"
     },
     "fx_qi_0": {
-      "slot": 248,
+      "slot": 249,
       "rect": [
-        0,
+        64,
         1984,
         64,
         64
@@ -5350,9 +5374,9 @@
       "source": "authored"
     },
     "fx_qi_1": {
-      "slot": 249,
+      "slot": 250,
       "rect": [
-        64,
+        128,
         1984,
         64,
         64
@@ -5367,9 +5391,9 @@
       "source": "authored"
     },
     "fx_qi_2": {
-      "slot": 250,
+      "slot": 251,
       "rect": [
-        128,
+        192,
         1984,
         64,
         64
@@ -5384,9 +5408,9 @@
       "source": "authored"
     },
     "fx_qi_3": {
-      "slot": 251,
+      "slot": 252,
       "rect": [
-        192,
+        256,
         1984,
         64,
         64
@@ -5401,9 +5425,9 @@
       "source": "authored"
     },
     "fx_dust_0": {
-      "slot": 252,
+      "slot": 253,
       "rect": [
-        256,
+        320,
         1984,
         64,
         64
@@ -5418,9 +5442,9 @@
       "source": "authored"
     },
     "fx_dust_1": {
-      "slot": 253,
+      "slot": 254,
       "rect": [
-        320,
+        384,
         1984,
         64,
         64
@@ -5435,9 +5459,9 @@
       "source": "authored"
     },
     "fx_dust_2": {
-      "slot": 254,
+      "slot": 255,
       "rect": [
-        384,
+        448,
         1984,
         64,
         64
@@ -5452,10 +5476,10 @@
       "source": "authored"
     },
     "fx_dust_3": {
-      "slot": 255,
+      "slot": 256,
       "rect": [
-        448,
-        1984,
+        0,
+        2048,
         64,
         64
       ],
@@ -5469,9 +5493,9 @@
       "source": "authored"
     },
     "fx_metal_0": {
-      "slot": 256,
+      "slot": 257,
       "rect": [
-        0,
+        64,
         2048,
         64,
         64
@@ -5486,9 +5510,9 @@
       "source": "authored"
     },
     "fx_metal_1": {
-      "slot": 257,
+      "slot": 258,
       "rect": [
-        64,
+        128,
         2048,
         64,
         64
@@ -5503,9 +5527,9 @@
       "source": "authored"
     },
     "fx_metal_2": {
-      "slot": 258,
+      "slot": 259,
       "rect": [
-        128,
+        192,
         2048,
         64,
         64
@@ -5520,9 +5544,9 @@
       "source": "authored"
     },
     "fx_metal_3": {
-      "slot": 259,
+      "slot": 260,
       "rect": [
-        192,
+        256,
         2048,
         64,
         64
@@ -5537,9 +5561,9 @@
       "source": "authored"
     },
     "fx_wood_0": {
-      "slot": 260,
+      "slot": 261,
       "rect": [
-        256,
+        320,
         2048,
         64,
         64
@@ -5554,9 +5578,9 @@
       "source": "authored"
     },
     "fx_wood_1": {
-      "slot": 261,
+      "slot": 262,
       "rect": [
-        320,
+        384,
         2048,
         64,
         64
@@ -5571,9 +5595,9 @@
       "source": "authored"
     },
     "fx_wood_2": {
-      "slot": 262,
+      "slot": 263,
       "rect": [
-        384,
+        448,
         2048,
         64,
         64
@@ -5588,10 +5612,10 @@
       "source": "authored"
     },
     "fx_wood_3": {
-      "slot": 263,
+      "slot": 264,
       "rect": [
-        448,
-        2048,
+        0,
+        2112,
         64,
         64
       ],
@@ -5605,9 +5629,9 @@
       "source": "authored"
     },
     "fx_water_0": {
-      "slot": 264,
+      "slot": 265,
       "rect": [
-        0,
+        64,
         2112,
         64,
         64
@@ -5622,9 +5646,9 @@
       "source": "authored"
     },
     "fx_water_1": {
-      "slot": 265,
+      "slot": 266,
       "rect": [
-        64,
+        128,
         2112,
         64,
         64
@@ -5639,9 +5663,9 @@
       "source": "authored"
     },
     "fx_water_2": {
-      "slot": 266,
+      "slot": 267,
       "rect": [
-        128,
+        192,
         2112,
         64,
         64
@@ -5656,9 +5680,9 @@
       "source": "authored"
     },
     "fx_water_3": {
-      "slot": 267,
+      "slot": 268,
       "rect": [
-        192,
+        256,
         2112,
         64,
         64
@@ -5673,9 +5697,9 @@
       "source": "authored"
     },
     "fx_earth_0": {
-      "slot": 268,
+      "slot": 269,
       "rect": [
-        256,
+        320,
         2112,
         64,
         64
@@ -5690,9 +5714,9 @@
       "source": "authored"
     },
     "fx_earth_1": {
-      "slot": 269,
+      "slot": 270,
       "rect": [
-        320,
+        384,
         2112,
         64,
         64
@@ -5707,9 +5731,9 @@
       "source": "authored"
     },
     "fx_earth_2": {
-      "slot": 270,
+      "slot": 271,
       "rect": [
-        384,
+        448,
         2112,
         64,
         64
@@ -5724,10 +5748,10 @@
       "source": "authored"
     },
     "fx_earth_3": {
-      "slot": 271,
+      "slot": 272,
       "rect": [
-        448,
-        2112,
+        0,
+        2176,
         64,
         64
       ],
@@ -5741,27 +5765,6 @@
       "source": "authored"
     },
     "construction_0": {
-      "slot": 272,
-      "rect": [
-        0,
-        2176,
-        64,
-        64
-      ],
-      "anchor": [
-        32,
-        56
-      ],
-      "label": "施工半成品",
-      "category": "objects",
-      "state": "ready",
-      "source": "authored",
-      "footprint": [
-        1,
-        1
-      ]
-    },
-    "construction_1": {
       "slot": 273,
       "rect": [
         64,
@@ -5782,7 +5785,7 @@
         1
       ]
     },
-    "construction_2": {
+    "construction_1": {
       "slot": 274,
       "rect": [
         128,
@@ -5803,7 +5806,7 @@
         1
       ]
     },
-    "construction_3": {
+    "construction_2": {
       "slot": 275,
       "rect": [
         192,
@@ -5824,7 +5827,7 @@
         1
       ]
     },
-    "construction_4": {
+    "construction_3": {
       "slot": 276,
       "rect": [
         256,
@@ -5845,7 +5848,7 @@
         1
       ]
     },
-    "construction_5": {
+    "construction_4": {
       "slot": 277,
       "rect": [
         320,
@@ -5866,7 +5869,7 @@
         1
       ]
     },
-    "construction_6": {
+    "construction_5": {
       "slot": 278,
       "rect": [
         384,
@@ -5887,7 +5890,7 @@
         1
       ]
     },
-    "construction_7": {
+    "construction_6": {
       "slot": 279,
       "rect": [
         448,
@@ -5908,7 +5911,7 @@
         1
       ]
     },
-    "construction_8": {
+    "construction_7": {
       "slot": 280,
       "rect": [
         0,
@@ -5929,7 +5932,7 @@
         1
       ]
     },
-    "construction_9": {
+    "construction_8": {
       "slot": 281,
       "rect": [
         64,
@@ -5950,7 +5953,7 @@
         1
       ]
     },
-    "construction_10": {
+    "construction_9": {
       "slot": 282,
       "rect": [
         128,
@@ -5971,7 +5974,7 @@
         1
       ]
     },
-    "construction_11": {
+    "construction_10": {
       "slot": 283,
       "rect": [
         192,
@@ -5992,7 +5995,7 @@
         1
       ]
     },
-    "construction_12": {
+    "construction_11": {
       "slot": 284,
       "rect": [
         256,
@@ -6013,7 +6016,7 @@
         1
       ]
     },
-    "construction_13": {
+    "construction_12": {
       "slot": 285,
       "rect": [
         320,
@@ -6034,7 +6037,7 @@
         1
       ]
     },
-    "construction_14": {
+    "construction_13": {
       "slot": 286,
       "rect": [
         384,
@@ -6055,11 +6058,32 @@
         1
       ]
     },
-    "construction_15": {
+    "construction_14": {
       "slot": 287,
       "rect": [
         448,
         2240,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "施工半成品",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        1
+      ]
+    },
+    "construction_15": {
+      "slot": 288,
+      "rect": [
+        0,
+        2304,
         64,
         64
       ],
@@ -6095,7 +6119,7 @@
   },
   "sha256": {
     "actors.png": "399aee8374e60273c958ed6aeb17844d126ad0ba97ebebb00558e3aad1dcd5e9",
-    "world.png": "1c991475bd35f2dc9ce7d4c0196d550d38c707e509079b3b5f26ad6eec0ff13c",
+    "world.png": "98b4d3fe8690fea17e28523ccd093d1e22df8636ac6604f4f7fff688e7122a6c",
     "terrain.png": "ec803c9e7a280020e07af16932c06df6fa35c315cfd201a591452d12fdd8ec18"
   }
 }

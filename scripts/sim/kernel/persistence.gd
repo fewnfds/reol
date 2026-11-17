@@ -10,10 +10,11 @@ const Beings = preload("res://scripts/sim/kernel/being_defs.gd")
 const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const Equipment = preload("res://scripts/sim/kernel/equipment.gd")
 const Growth = preload("res://scripts/sim/kernel/growth.gd")
+const Plants = preload("res://scripts/sim/kernel/nature_defs.gd")
 
 
 static func capture(world: RefCounted) -> Dictionary:
-	var result: Dictionary = {"domains": {}, "pages": [], "being_signature": Beings.SIGNATURE, "operation_signature": Operations.SIGNATURE, "growth_signature": Growth.Defs.SIGNATURE}
+	var result: Dictionary = {"domains": {}, "pages": [], "being_signature": Beings.SIGNATURE, "operation_signature": Operations.SIGNATURE, "growth_signature": Growth.Defs.SIGNATURE, "nature_signature": Plants.SIGNATURE}
 	for key: String in world.state_owners():
 		var owner: RefCounted = world.state_owners()[key]
 		result.domains[key] = State.capture(owner, owner.STATE_FIELDS)
@@ -26,6 +27,7 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 	if not Beings.ERRORS.is_empty() or data.get("being_signature") != Beings.SIGNATURE: return null
 	if not Operations.ERRORS.is_empty() or data.get("operation_signature") != Operations.SIGNATURE: return null
 	if not Growth.Defs.ERRORS.is_empty() or data.get("growth_signature") != Growth.Defs.SIGNATURE: return null
+	if not Plants.ERRORS.is_empty() or data.get("nature_signature") != Plants.SIGNATURE: return null
 	if not data.get("domains") is Dictionary or not data.get("pages") is Array:
 		return null
 	var world := World.new()

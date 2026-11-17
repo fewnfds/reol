@@ -5,8 +5,9 @@ const Costs = preload("res://scripts/sim/kernel/action_costs.gd")
 const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const Stock = preload("res://scripts/sim/kernel/stock_rules.gd")
 const Production = preload("res://scripts/sim/kernel/production.gd")
+const Cultivation = preload("res://scripts/sim/kernel/cultivation.gd")
 static var BUILDINGS: Dictionary = Defs.freeze(JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/construction.json")).types)
-static var PLANTS: Dictionary = Defs.freeze(JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/plants.json")).types)
+static var PLANTS: Dictionary = preload("res://scripts/sim/kernel/nature_defs.gd").DEFINITIONS
 
 static func evaluate(operation: Dictionary, actor: Dictionary, target: Dictionary, context: Dictionary = {}, buildings: Dictionary = {}) -> Dictionary:
 	if buildings.is_empty(): buildings = BUILDINGS
@@ -22,6 +23,12 @@ static func evaluate(operation: Dictionary, actor: Dictionary, target: Dictionar
 		result.applicable = true
 		var unknown: Array = []
 		var reason: String = _target_reason(rule, target, unknown)
+		if reason.is_empty() and operation.handler == "plant_crop":
+			if not target.has("occupant"): reason = "unknown_target_state"
+			elif int(target.occupant) > 0: reason = "occupied"
+			elif not PLANTS[operation.plant_definition].substrates.has(Cultivation.spec(buildings[target.definition]).substrate) or PLANTS[operation.plant_definition].blocks: reason = "wrong_substrate"
+			else: reason = Cultivation.title_reason(int(actor.get("id", 0)), target, int(target.get("organization", 0)))
+		if reason.is_empty() and operation.handler == "tend": reason = Cultivation.care_reason(target)
 		if reason.is_empty() and operation.handler == "eat" and target.has("inventory") and Stock.known_quantity(actor, target, "meal", "eat") <= 0: reason = "no_food"
 		var inputs: Dictionary = context.duplicate()
 		inputs["organization"] = int(target.get("organization", 0))
@@ -62,6 +69,7 @@ static func stock_context(operation: Dictionary, target: Dictionary, context: Di
 		elif operation.handler == "collect_source": inputs["item"] = str(buildings.get(target.get("definition", ""), {}).get("capabilities", {}).get("stock_source", {}).get("item", ""))
 		elif operation.handler == "harvest" or (operation.handler in ["cut", "uproot"] and target.get("kind") == "resource"): inputs["item"] = "wood"
 		elif operation.handler in ["sow", "gather"]: inputs["item"] = str(PLANTS.get(target.get("definition", ""), {}).get("product", {}).get("item", ""))
+		elif operation.handler == "plant_crop": inputs["item"] = str(PLANTS[operation.plant_definition].product.item)
 	if operation.handler in ["cut", "uproot"]:
 		inputs["recipe_items"] = []
 		var plant: Dictionary = PLANTS.get(target.get("definition", ""), {})
@@ -120,7 +128,7 @@ static func readiness(operation: Dictionary, actor: Dictionary, context: Diction
 	for capability: String in operation.required_capabilities:
 		if not actor.get("body_capabilities", {}).get(capability, false): return "body_has_no_%s_capability" % capability
 	if not operation.recipe.is_empty(): pass # Target-aware material/WIP checks follow shared actor admission.
-	elif operation.handler == "tend":
+	elif operation.handler in ["tend", "plant_crop"]:
 		var purpose: String = "cultivate"
 		if not operation.required_items.is_empty() and Stock.input_group(actor, operation.required_items, purpose, int(context.get("organization", 0))).is_empty(): return "missing_items"
 	else:

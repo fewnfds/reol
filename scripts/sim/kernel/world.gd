@@ -1122,6 +1122,7 @@ func operation_target(id: int) -> Dictionary:
 	if record.kind != "actor": result["contents"] = objects.public_contents(id)
 	if facilities.definitions.get(record.definition, {}).get("capabilities", {}).has("records"): result.merge(institutions.Channels.metadata(institutions, id))
 	if record.has("stage"): result["stage"] = record.stage
+	result.merge(nature.public_state(self, id))
 	if actor_slots.has(id):
 		var slot: int = actor_slots[id]
 		result["hp"] = pages[slot / 256].health[slot % 256]
@@ -1430,6 +1431,7 @@ func describe(id: int) -> Dictionary:
 	if not objects.records.has(id):
 		return {}
 	var result: Dictionary = State.copy(objects.records[id])
+	result.merge(nature.public_state(self, id))
 	result.erase("stock")
 	result.erase("materials")
 	result.erase("work_stock")

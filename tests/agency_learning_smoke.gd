@@ -5,7 +5,7 @@ func learning_changes_method() -> void:
  var chest: int = w.facilities.create_completed(w,"wood_chest",w.Terrain.index(Vector2i(127,122)))
  w.objects.add(chest,"breath_manual",1)
  var tree: int = w.nature.create(w,"old_tree",w.Terrain.index(Vector2i(129,122)))
- w.objects.records[tree].stage = w.nature.Stage.MATURE
+ w.objects.records[tree].stage = w.nature.Stage.MATURE; w.objects.records[tree].growth_ms = int(w.nature.definitions[w.objects.records[tree].definition].mature_ms)
  w.objects.records[tree].qi = 3000
  w.nature._sync(w,tree);w.flush_topology()
  w.pages[0].hunger[3]=10000;w.pages[0].energy[3]=10000

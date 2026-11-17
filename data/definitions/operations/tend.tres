@@ -16,5 +16,6 @@ icon = "plant"
 executor = "nature"
 handler = "tend"
 required_capabilities = PackedStringArray("work")
+required_items = Dictionary[String, int]({"water": 1})
 duration_ms = 1500
 targets = Array[ExtResource("target")]([SubResource("Target0")])

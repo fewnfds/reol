@@ -104,7 +104,7 @@ func reviewed_boundaries() -> void:
 	var bed: int = workshop(w, org, "wood_bed", Vector2i(127, 120))
 	var plant: int = w.nature.create(w, "perennial_herb", w.Terrain.index(Vector2i(129, 120)), false, true)
 	w.objects.records[plant].organization = org
-	w.objects.records[plant].stage = w.nature.Stage.MATURE
+	w.objects.records[plant].stage = w.nature.Stage.MATURE; w.objects.records[plant].growth_ms = int(w.nature.definitions[w.objects.records[plant].definition].mature_ms)
 	w.objects.add(plant, "herb", 1, Stock.right(0, org))
 	w.institutions.appoint(w, org, 4, "kitchen_craft", [chest])
 	w.institutions.appoint(w, org, 3, "plant_care", [plant])

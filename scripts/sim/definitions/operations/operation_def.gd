@@ -6,8 +6,9 @@ const Cost = preload("res://scripts/sim/definitions/actions/cost_def.gd")
 const Bundle = preload("res://scripts/sim/definitions/actions/effect_bundle_def.gd")
 const Form = preload("res://scripts/sim/definitions/beings/form_def.gd")
 const Recipe = preload("res://scripts/sim/definitions/production/recipe_def.gd")
+const Plants = preload("res://scripts/sim/kernel/nature_defs.gd")
 const HANDLERS: Dictionary = {"transfer": ["take", "put"], "facility": ["construct", "rest", "craft", "eat", "demolish", "collect_source"],
-	"nature": ["sow", "tend", "gather", "cut", "uproot"], "society": ["talk", "trade", "request_help", "offer_matter", "respond_request", "learn", "teach", "study", "practice"],
+	"nature": ["sow", "plant_crop", "tend", "gather", "cut", "uproot"], "society": ["talk", "trade", "request_help", "offer_matter", "respond_request", "learn", "teach", "study", "practice"],
 	"instant": ["self_effect"], "work_source": ["harvest"], "institutions": ["read_channel", "post_duty", "accept_post", "report_matter", "close_post"]}
 @export var id: String = ""
 @export var title: String = ""
@@ -22,6 +23,7 @@ const HANDLERS: Dictionary = {"transfer": ["take", "put"], "facility": ["constru
 @export var exclusive: bool = true
 @export var target_menu: bool = true
 @export var required_items: Dictionary[String, int] = {}
+@export var plant_definition: String = ""
 @export var required_method: String = ""
 @export var required_ability: String = ""
 @export var learning_method: String = ""
@@ -40,7 +42,7 @@ func values() -> Dictionary:
 	for cost: Cost in costs: payments.append(cost.values())
 	var result: Dictionary = {"id": id, "title": title, "icon": icon, "command_alias": command_alias, "executor": executor, "handler": handler,
 		"required_capabilities": Array(required_capabilities), "targets": rules, "duration_ms": duration_ms, "exclusive": exclusive,
-		"target_menu": target_menu, "required_items": required_items.duplicate(), "required_method": required_method,
+		"target_menu": target_menu, "required_items": required_items.duplicate(), "plant_definition": plant_definition, "required_method": required_method,
 		"required_ability": required_ability, "learning_method": learning_method, "learning_points": learning_points, "duration_method": "", "injured": injured, "actor_inventory": actor_inventory, "help_target": help_target,
 		"costs": payments, "effects": effects.values() if effects != null else [], "recipe": recipe.values() if recipe != null else {}}
 	if recipe != null:
@@ -49,6 +51,7 @@ func values() -> Dictionary:
 		result.learning_points = recipe.practice_points
 		result.duration_method = recipe.method
 		if preload("res://scripts/sim/kernel/growth_defs.gd").METHODS.get(recipe.method, {}).get("requires_introduction", false): result.required_method = recipe.method
+	if handler == "plant_crop" and Plants.DEFINITIONS.has(plant_definition): result.required_items = {str(Plants.DEFINITIONS[plant_definition].product.item): 1}
 	return result
 
 func errors() -> PackedStringArray:
@@ -63,6 +66,12 @@ func errors() -> PackedStringArray:
 	if duration_ms < -1 or duration_ms > 300000 or ((duration_ms == 0) != (executor == "instant")): result.append("duration: unsupported host")
 	if (duration_ms == -1) != (handler in ["construct", "sow", "craft"]): result.append("remaining labor: requires a persistent work carrier")
 	if (handler == "craft") != (recipe != null): result.append("craft: requires a recipe")
+	if (handler == "plant_crop") != (not plant_definition.is_empty()): result.append("plant: requires a plant definition")
+	if handler == "plant_crop":
+		if not Plants.ERRORS.is_empty() or not Plants.DEFINITIONS.has(plant_definition): result.append("plant: invalid content")
+		if not exclusive or duration_ms <= 0 or not required_items.is_empty(): result.append("plant: timed exclusive work with derived seed")
+		for target: Target in targets:
+			if target != null and target.facility_capability != "cultivation": result.append("plant: requires a cultivation host")
 	if recipe != null:
 		result.append_array(recipe.errors())
 		if executor != "facility" or not exclusive or not required_items.is_empty() or not required_method.is_empty() or not learning_method.is_empty() or learning_points != 0: result.append("recipe: shared requirements must come from its definition")

@@ -3,6 +3,7 @@ extends Node2D
 ## The same buffer drives sprites and bounded ground contact on the GPU.
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Art = preload("res://scripts/presentation/art.gd")
+const Definitions = preload("res://scripts/sim/kernel/operation_query.gd")
 const TILE: float = Art.TILE
 var objects: Dictionary = {}
 var by_tile: Dictionary = {}
@@ -123,7 +124,7 @@ func adopt(value: Dictionary, fringe: Dictionary = {}) -> void:
         var occluder: int = int(rec.kind != "blueprint" and bool(rec.get("occluder", tall)))
         buffer[offset + 15] = 128 + occluder * 2 + int(not rec.get("contact_shadow", true)) * 4 + ground_fog + sway * 256 + special * 512 + int(anchor[0]) * 2048 + int(anchor[1]) * 131072
         var plane: Art.DrawPlane = Art.DrawPlane.BODY
-        if rec.kind == "pile" or (rec.kind == "blueprint" and not rec.get("construction_started", false)): plane = Art.DrawPlane.GROUND
+        if source.get("plane", "") == "ground" or rec.kind == "pile" or (rec.kind == "blueprint" and not rec.get("construction_started", false)): plane = Art.DrawPlane.GROUND
         elif rec.get("layer", "") == "roof": plane = Art.DrawPlane.ROOF
         var depth: int = Art.depth(sort_y, plane)
         order.append(float(depth * ORDER_STRIDE + index))
@@ -154,13 +155,13 @@ func _key(rec: Dictionary) -> String:
             var stage: int = clampi(int(rec.get("stage", 0)), 0, 4)
             if rec.definition == "old_tree":
                 return "tree_spirit" if rec.get("sapient", false) and stage == 2 else "old_tree_%d" % stage
-            return "%s_%d" % [rec.definition, stage]
-        "chest": return _facing_key("chest", rec)
+            return "%s_%d" % [Definitions.PLANTS.get(rec.definition, {}).get("art_base", rec.definition), stage]
+        "chest": return _facing_key(str(Definitions.BUILDINGS.get(rec.definition, {}).get("art_key", "chest")), rec)
         "pile": return "item_" + rec.definition if Art.catalog().entries.has("item_" + rec.definition) else "item_bundle"
     # A pending floor uses the ground-level material preview; completed floors
     # are drawn in the terrain atlas, never as raised furniture or roofing.
     var mapping: Dictionary = {"wood_wall": "wall_0", "wood_door": "door", "wood_bed": "bed", "long_bed": "long_bed", "wood_chest": "chest", "cook_stove": "stove", "wood_table": "table", "wood_chair": "chair", "wood_roof": "roof", "wood_floor": "roof_preview", "planter": "planter", "water_well": "planter", "wood_screen": "screen", "wood_window": "window", "stone_wall": "wall_0", "desk_chair": "chair"}
-    return _facing_key(str(mapping.get(rec.definition, "workbench")), rec)
+    return _facing_key(str(Definitions.BUILDINGS.get(rec.definition, {}).get("art_key", mapping.get(rec.definition, "workbench"))), rec)
 
 
 func _facing_key(key: String, rec: Dictionary) -> String:

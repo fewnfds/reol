@@ -253,6 +253,7 @@ func _nature_cycle() -> void:
 	w.environment.release_source(other)
 	var tree: int = w.nature.create(w, "old_tree", tile)
 	w.objects.records[tree].stage = 2
+	w.objects.records[tree].growth_ms = int(w.nature.definitions.old_tree.mature_ms)
 	w.nature._sync(w, tree)
 	var before: int = w.objects.total("wood")
 	check(w.nature.finish(w, 1, {"kind": "cut", "target": tree}, 0) == "completed", "Tree cutting failed")

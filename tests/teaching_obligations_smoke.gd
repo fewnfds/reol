@@ -11,7 +11,7 @@ func preparation_uses_own_rights(borrowed: bool = false) -> void:
 	w.objects.records[chest].organization = org if borrowed else 0
 	w.objects.add(chest, "breath_manual", 1, w.objects.Stock.right(0, org) if borrowed else w.objects.Stock.right(2))
 	var tree: int = w.nature.create(w, "old_tree", w.Terrain.index(Vector2i(128, 123)))
-	w.objects.records[tree].stage = w.nature.Stage.MATURE; w.objects.records[tree].qi = 3000
+	w.objects.records[tree].stage = w.nature.Stage.MATURE; w.objects.records[tree].growth_ms = int(w.nature.definitions[w.objects.records[tree].definition].mature_ms); w.objects.records[tree].qi = 3000
 	w.nature._sync(w, tree); w.flush_topology()
 	# The future teacher is willing to learn because they themselves want to
 	# teach a fourth person, without a duplicated standalone development goal.

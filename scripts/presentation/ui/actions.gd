@@ -12,7 +12,7 @@ static var items: Dictionary = {}
 static func load_definitions() -> void:
 	if not buildings.is_empty(): return
 	buildings = Query.BUILDINGS
-	plants = JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/plants.json")).types
+	plants = Query.PLANTS
 	items = JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/items.json"))
 
 static func title(data: Dictionary) -> String:
@@ -116,10 +116,14 @@ static func reason_text(reason: String) -> String:
 		"unattended_in_progress": "本批仍在静置，完成后可收取。", "in_process_conflict": "设施正在加工另一配方。", "no_output_capacity": "成品存放空间不足。",
 		"empty": "这里暂时没有可取物品。", "no_food": "这里没有餐食。", "not_authorized": "尚未获得此项使用许可。", "already_understood": "已经理解这项入门内容。",
 		"method_not_mastered": "熟练掌握后才能传授。", "awaiting_participant": "等待对方主动参加。", "not_interested": "对方当前有自己的安排。",
+		"not_needed": "植物健康且无需补水。", "occupied": "栽培位置已有植物。", "wrong_substrate": "栽培基质不适合这种植物。",
+		"water_excess": "基质过湿，当前照料不能排水。", "incompatible_cultivation_title": "不能用自己的种子占用他人的栽培位置。",
 		"body_has_no_work_capability": "当前不能进行劳动。", "full": "存放空间已满。"}.get(reason, "当前条件尚不满足。")
 
 static func art_key(definition: String) -> String:
+	load_definitions()
+	if buildings.get(definition, {}).has("art_key"): return str(buildings[definition].art_key)
 	var mapping: Dictionary = {"wood_wall": "wall_0", "wood_door": "door", "wood_chest": "chest", "long_bed": "long_bed", "cook_stove": "stove", "wood_table": "table", "notice_desk": "table", "wood_chair": "chair", "wood_roof": "roof", "wood_floor": "roof", "planter": "planter", "water_well": "planter"}
 	if mapping.has(definition): return mapping[definition]
-	if plants.has(definition): return definition + "_2"
+	if plants.has(definition): return str(plants[definition].get("art_base", definition)) + "_2"
 	return "item_" + definition

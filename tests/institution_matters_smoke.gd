@@ -78,7 +78,9 @@ func declared_purpose_at_real_sources() -> void:
 	var f: Dictionary = commission_fixture()
 	var w: RefCounted = f.world
 	var plant: int = w.nature.create(w, "annual_grass", w.Terrain.index(Vector2i(127, 119)), false, true)
-	w.objects.records[plant].organization = f.org; w.objects.records[plant].stage = w.nature.Stage.MATURE
+	w.objects.records[plant].organization = f.org
+	w.objects.records[plant].stage = w.nature.Stage.MATURE
+	w.objects.records[plant].growth_ms = int(w.nature.definitions.annual_grass.mature_ms)
 	w.objects.add(plant, "grain", 3, Stock.right(0, f.org))
 	w.knowledge.seed(w, 1, w.operation_target(plant), 0)
 	resident(w, 4, [plant, f.destination])

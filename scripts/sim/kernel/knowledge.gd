@@ -187,7 +187,7 @@ func observe(world: RefCounted, actor: int, at: int) -> void:
 	for target: int in world.objects.nearby(position, radius, false):
 		if checked.has(target): continue
 		var value: Dictionary = world.objects.records[target]
-		if value.kind == "plant" and world.objects.count_inventory(target) == 0 and not entry.subjects.has(target) and not value.get("sapient", false): continue
+		if value.kind == "plant" and int(value.get("host", 0)) == 0 and world.objects.count_inventory(target) == 0 and not entry.subjects.has(target) and not value.get("sapient", false): continue
 		refresh(world, actor, target, at)
 		checked[target] = true
 	# Reuse the existing body index. Before the first simulation slice only,
@@ -371,7 +371,12 @@ static func _valid_teaching(account: Variant, actor: int, next_id: int, now: int
 
 static func _valid_view(value: Dictionary, target: int, next_id: int, now: int) -> bool:
 	for field: Variant in value:
-		if field not in ["id", "kind", "definition", "tile", "capacity", "owner", "organization", "sapient", "hp", "inventory", "stage", "process", "access_dependencies", "contents", "services", "post_revision"]: return false
+		if field not in ["id", "kind", "definition", "tile", "capacity", "owner", "organization", "sapient", "hp", "inventory", "stage", "process", "access_dependencies", "contents", "services", "post_revision", "host", "occupant", "injured", "water_band"]: return false
+	for reference: String in ["host", "occupant"]:
+		if value.has(reference) and (not value[reference] is int or value[reference] < 0 or value[reference] >= next_id): return false
+	if value.has("host") or value.has("injured") or value.has("water_band"):
+		if value.get("kind") != "plant" or not value.get("injured") is bool or not value.get("water_band") is int or value.water_band < -1 or value.water_band > 4 or not value.has("host"): return false
+	if value.has("occupant") and (value.get("kind") in ["actor", "plant", "blueprint"] or not preload("res://scripts/sim/kernel/operation_query.gd").BUILDINGS.get(value.get("definition", ""), {}).get("capabilities", {}).has("cultivation")): return false
 	if value.has("post_revision"):
 		if not value.post_revision is int or value.post_revision < 0 or value.post_revision > 999999999999: return false
 		if not preload("res://scripts/sim/kernel/operation_query.gd").BUILDINGS.get(value.get("definition", ""), {}).get("capabilities", {}).has("records") or value.get("kind") in ["actor", "blueprint"]: return false

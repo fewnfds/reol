@@ -6,9 +6,9 @@
 
 角色/宗门研究与架构review完成。2026-11-17用户已授权长程实施，已创建active goal：在原main/同World实现可试玩的百人宗门自主运转。**每个小任务开工和收尾都须顾问深度交流、独立核查及实际验证；不能以方案或小demo宣布完成。** 拆分与当前状态唯一归[实施任务表](../plans/foundation-priorities.md#百人宗门实施任务表)，源码缺口沿[框架审查](../engineering/architecture/foundation-audit.md)。
 
-T01～T08、T09a～T09d已完成开工/收尾顾问、独立核查与实际消费者验证；T09d最新提交`78f8404`（含-3/-4），尚未推送，以Git指针为准。T10已完成，提交以Git指针为准：已沿原行动/伙伴链完成一对一教/学、到场汇合、教师目的/正式教学责任、实际实践再传与原生GUI/文件存读。开工/收尾及`10-refinement/`双答均已完整核查；末次反例真实复现并修复运动片内合流结课越距、双手动资格漏检、无旧方法/锚点失效的借书保留、已知死亡正式责任仍探索与学生host重复事项结案消息。接触开始统一到已完成运动的50ms边界，不降低移动精度；最终定点咨询`10-final-check/`双答已完整核查，补现场等待者离开后的合法出口；未采纳在未同意前探知手动玩家资格的建议。源码format28/新默认`sect-quicksave-v28.reol`，旧27档保留。T11总开工`11-start/`双答及`11a-start/`首答已读，拆分T11a栽培物理合同、T11b自主供养田务、T11c持续修持，T11a定点开工`11a-start/`待回，尚无本项源码。T12正常百人装配、T13综合交付待前片完成。普通世界旧赠物/周期运木与固定老师仍待T12迁装配，不能据此说百人供养或性能已完成。证据归BASELINE，旧kernel计时失败仍公开保留，不放宽断言；goal仍active。
+T01～T08、T09a～T09d已完成开工/收尾顾问、独立核查与实际消费者验证；T09d最新提交`78f8404`（含-3/-4），尚未推送，以Git指针为准。T10已完成，提交以Git指针为准：已沿原行动/伙伴链完成一对一教/学、到场汇合、教师目的/正式教学责任、实际实践再传与原生GUI/文件存读。开工/收尾及`10-refinement/`双答均已完整核查；末次反例真实复现并修复运动片内合流结课越距、双手动资格漏检、无旧方法/锚点失效的借书保留、已知死亡正式责任仍探索与学生host重复事项结案消息。接触开始统一到已完成运动的50ms边界，不降低移动精度；最终定点咨询`10-final-check/`双答已完整核查，补现场等待者离开后的合法出口；未采纳在未同意前探知手动玩家资格的建议。T10交付时format28，当前T11a升29并保留旧档。T11总开工`11-start/`与定点开工`11a-start/`双答均已完整核查；拆分T11a栽培物理合同、T11b自主供养田务、T11c持续修持。T11a已完成开工/收尾双答核查及整改，反例/3昼夜来源/公田实物用途/原生GUI文件验证通过；源码format29/新默认文件，旧28档保留。T11b开工深度咨询`11b-start/`已发出，尚未开始实现。T12正常百人装配、T13综合交付待前片完成。普通世界旧赠物/周期运木与固定老师仍待T12迁装配，不能据此说百人供养或性能已完成。证据归BASELINE，旧kernel计时失败仍公开保留，不放宽断言；goal仍active。
 
-数值/资源/本领归[角色基础](../../design/systems/beings_and_lifeways/character_state.md)，关系/职务/事项归[社会系统](../../design/systems/social_system.md)，传承/供养和实际参数边界归[宗门生活](../../design/systems/sect_life.md)，基础来源归[宗门研究](../../design/research/sect_foundation_sources.md)，共同工作流归[自主生命](../../design/systems/beings_and_lifeways/agency.md)。T01～T09已接当前基座，教学/供养按任务表收尾推进，P5任务/交接/唤醒本身不等于人生动机或组织。体魄/悟性已有消费者，筋力/灵巧未落空字段；情绪/怒气、健康/HP、功德/气运、贡献/额度分别处理。源码现format28及新默认文件，旧27及更早开发档、独立P5包和旧档保留，mana范例未变。
+数值/资源/本领归[角色基础](../../design/systems/beings_and_lifeways/character_state.md)，关系/职务/事项归[社会系统](../../design/systems/social_system.md)，传承/供养和实际参数边界归[宗门生活](../../design/systems/sect_life.md)，基础来源归[宗门研究](../../design/research/sect_foundation_sources.md)，共同工作流归[自主生命](../../design/systems/beings_and_lifeways/agency.md)。T01～T09已接当前基座，教学/供养按任务表收尾推进，P5任务/交接/唤醒本身不等于人生动机或组织。体魄/悟性已有消费者，筋力/灵巧未落空字段；情绪/怒气、健康/HP、功德/气运、贡献/额度分别处理。源码现format29及新默认文件，旧28及更早开发档、独立P5包和旧档保留，mana范例未变。
 
 审查保留原World/Runner、稳定身份、页计算、P4/P5、空间/作业位、Resource/Frame/候选恢复。不重造线程池/事件总线/执行后端，不把所有资料全部归入Combat、Effects、Pools或Objects。take/put/eat无独占锁不等于并发错误；现有suspend清临时施工承诺符合旧合同；未来必须扩持久目标/社会责任，但不能把尚未实现的问题登记成已复现bug。所有性能、活锁和新教学/加工效果仍待实际实现验证。
 
@@ -25,7 +25,7 @@ T01～T08、T09a～T09d已完成开工/收尾顾问、独立核查与实际消�
 - T09c现场职责合同：`InstitutionDutyDef`只配置delivery/produce策略，Appointment绑定`target/sources/channel`；`Institutions.channels`保现场条款、最小位置线索、签领与明确回报，`Knowledge.channels`保本人读案快照。公告不读取远方库存/死活/实际fulfilled，受理仍核规范Share；来源复检、旧案结案、容量和条款完整性由同一World入口处理。
 - 作业位置合同见[空间与施工](../../design/systems/construction_and_space/places.md#作业位置与在制外观)：植物本格、实体完整占地四邻、专用工位四向旋转；灶台已有单侧工位。开工取得实体占地，有活地面身体则等待且不耗工时；中断保留半成品和劳动，续建不重复材料。
 - 材料仍在放蓝图时从背包转移，不冒充自动运输。操作位置从定义和占地派生，不维护第二份位置真值。
-- 根目录唯一[启动.cmd](../../启动.cmd)：选1源码战斗、2源码普通世界、3独立P5成品、4编辑器。包为`build/windows/act-p5/reol-act.exe`与同目录pck；源码F5/F9现format28的`user://sect-quicksave-v28.reol`，包仍使用format14的`user://act-p5-quicksave-v14.reol`，旧开发档及备份保留，不覆盖或迁移。
+- 根目录唯一[启动.cmd](../../启动.cmd)：选1源码战斗、2源码普通世界、3独立P5成品、4编辑器。包为`build/windows/act-p5/reol-act.exe`与同目录pck；源码F5/F9现format29的`user://sect-quicksave-v29.reol`，包仍使用format14的`user://act-p5-quicksave-v14.reol`，旧开发档及备份保留，不覆盖或迁移。
 
 ## 后续边界
 

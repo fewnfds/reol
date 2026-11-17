@@ -4,8 +4,16 @@
 
 ## 宗门共享基座实施（源码）
 
-T01～T10已完成开工/收尾顾问咨询、独立核查及相关整改，当前源码format28/`user://sect-quicksave-v28.reol`及相关定义签名；下列独立P5包尚未重导，仍为format14，不能混用文件。百人宗门完整循环尚未交付。
+T01～T10已完成开工/收尾顾问咨询、独立核查及相关整改，当前源码format29/`user://sect-quicksave-v29.reol`及相关定义签名；下列独立P5包尚未重导，仍为format14，不能混用文件。百人宗门完整循环尚未交付。
 
+
+T11a已完成：开工`11a-start/`与收尾`11a-finish/`双答均已完整核查，相关整改与独立验证完成。采用整畦占用检查/统一锚点、非植物提交安全拒绝、私有栽培权属的共同前置判断，以及过湿单独档位并拒绝无效浇水；稳定宿主派生授权归已开工咨询的T11b，不临时把新植物ID注入所有任职。
+
+独立证据：`logs/t11a-final-contract.log`、`t11a-source-purpose-final.log`、`t11a-advisor-refinement.log`、`t11a-cultivation-reviewed.log`核真实取消/中途恢复、种子/水/受托实物、幼苗观察、占用与权限、成熟跨界/满株余数、非法时钟/宿主/签名拒档，及多格非锚点规范化、整畦异物、屋面蓝图分层、过湿照料拒绝。新增宗门井水显式cultivate用途实际浇公田、单有用途无水源资格拒绝、满背包不创建空受托；未将两个权限合并。`t11a-source-final.log`沿原World跨3实际游戏日，未缩内容周期；无人照料2日后水1/100并停长，真实产1粮；补水/采收后第3日累计产3粮，实际新井累计28水。普通开局另有原井，2日两井各24水，总增48；按全部真实源计数核账，不把另一口井漏计为造物。此为单畦来源合同，不验收百人供养或帧时。
+
+`logs/t11a-native-refinement.log`为真实D3D12 Game：鼠标逐格点击2×2田畦4格、原生栽种按钮、进行中实际文件保存/读取、实际照料耗1水、满水禁用与原因。`logs/cultivation-ui/{sowing,watered-crop}.png`已实看；田畦用程序原创土垄地面图，避免放大花盆挡苗。依原原生显示管线，不新增三维。
+
+相关消费者`logs/t11a-operations-first.log`、`t11a-custody.log`、`t11a-access.log`、`t11a-growth.log`、`t11a-teaching.log`、`t11a-domains.log`、`t11a-activities.log`、`t11a-matters.log`、`t11a-facility-reviewed.log`通过且无脚本异常。最初growth夹具仍按16ms期待教学开始，按T10已定50ms运动完成边界改等100ms；初次批量更新成熟夹具误写表达式已修复。既有设施检查真实复现拆除操作定义漏`landmark`（且`source`同类漏登），补定义后原受控移除/登记/文件恢复通过，不新增移除后端。旧kernel计时问题仍未关闭，未宣称全库全绿。
 
 T10本机验证：`teaching-final-core.log`、`teaching-agency-final.log`、`teaching-obligations-final.log`、`teaching-busy-real-contact.log`、`teaching-partial-understanding.log`、`teaching-moving-final.log`、`teaching-manual-fixed.log`、`teaching-known-dead-fixed.log`、`teaching-borrowed-study-retention.log`、`teaching-student-host-witness.log`、`teaching-real-contact-discovery.log`、`teaching-dormant-duty.log`、`teaching-search-opportunity.log`及`teaching-duplicate-need.log`均errors=0，覆盖教/学对称、真实自修/实践/再传、低悟性多课、有限汇合、远距途中接触、双手动、目击死亡、本人意愿/无视觉拒教、岗位空闲窗口、重复事项与唯一结果/严格恢复。早期复现日志有错误，未用于验收；最终判据须核exit与SCRIPT ERROR，不能只看errors计数。
 

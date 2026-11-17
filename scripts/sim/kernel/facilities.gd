@@ -11,6 +11,7 @@ const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const Production = preload("res://scripts/sim/kernel/production.gd")
 const Labor = preload("res://scripts/sim/kernel/labor_progress.gd")
 const Sources = preload("res://scripts/sim/kernel/stock_sources.gd")
+const Cultivation = preload("res://scripts/sim/kernel/cultivation.gd")
 var definitions: Dictionary = {}
 var completed: Dictionary = {}
 var sources := PackedInt64Array() # Derived from completed carriers, never a second stock.
@@ -22,6 +23,7 @@ func _init() -> void:
 		for key: String in definitions.keys():
 			var errors: PackedStringArray = Positions.errors(definitions[key].get("work_positions", {}))
 			errors.append_array(Sources.errors(definitions[key]))
+			errors.append_array(Cultivation.errors(definitions[key]))
 			if not errors.is_empty():
 				push_error(key + ": " + str(errors))
 				definitions.erase(key)
@@ -202,6 +204,7 @@ func install(world: RefCounted, id: int, capacity: int = -2) -> void:
 		record.capacity = int(spec.capabilities.storage.capacity) if capacity == -2 else capacity
 		world.register_depot(id)
 	Sources.install(world, id)
+	Cultivation.install(record, spec)
 	for member: int in record.cells:
 		if record.layer == "floor": world.terrain.set_floor(member, true)
 		elif record.layer != "roof": world.queue_structure(member, bool(spec.facts.get("movement_blocked", false)), bool(spec.facts.get("enclosure_boundary", false)))

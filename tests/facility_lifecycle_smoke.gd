@@ -157,7 +157,8 @@ func remove_every_registration() -> void:
 		check(point.x >= 0, "Registered fixture had no demolition access")
 		if point.x < 0: continue
 		w.pages[0].positions[0] = point
-		check(w.command({"kind": "demolish", "target": target}).ok, "Normal demolition command refused a registered fixture")
+		var receipt: Dictionary = w.command({"kind": "demolish", "target": target})
+		check(receipt.ok, "Normal demolition command refused a registered fixture: " + str({"definition": w.objects.records[target].definition, "kind": w.objects.records[target].kind, "receipt": receipt}))
 		advance(w, w.elapsed_ms + 400)
 		check(not w.objects.records.has(target), "Normal demolition did not remove the registered fixture")
 	check(w.depot_objects.is_empty() and w.terrain.depots.is_empty() and w.regions.landmarks.is_empty(), "Last registered fixture could not be removed")

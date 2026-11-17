@@ -501,14 +501,18 @@ func _update_preview(tile: int) -> void:
 			_preview_cells.append(current)
 			if host.fog_enabled and host.frame.perception.tiles[current] == 0: _preview_ok = false; continue
 			var surface: int = host.frame.perception.ground[current] if host.fog_enabled else host.frame.terrain.surface_at(current)
-			var has_pot: bool = false
+			var host_substrate: String = ""
 			for id: int in host.object_canvas.by_tile.get(current, []):
 				var rec: Dictionary = host.object_canvas.objects[id]
-				if tool == "plant" and rec.definition == "planter": has_pot = true; continue
-				if tool == "plant" and rec.kind not in ["floor", "roof", "pile"]: _preview_ok = false
+				var cultivation: Dictionary = Actions.buildings.get(rec.definition, {}).get("capabilities", {}).get("cultivation", {})
+				if tool == "plant" and rec.kind != "blueprint" and not cultivation.is_empty():
+					host_substrate = str(cultivation.substrate)
+					if int(rec.get("guest", rec.get("occupant", 0))) > 0: _preview_ok = false
+					continue
+				if tool == "plant" and not Facilities.Cultivation.ignores(rec): _preview_ok = false
 			if tool == "plant":
-				var substrate: String = "soil" if has_pot else str({1: "soil", 2: "sand", 3: "water", 4: "soil"}.get(surface & 7, ""))
-				if not spec.get("substrates", []).has(substrate) or (not has_pot and (surface & 8) != 0) or (has_pot and spec.get("blocks", false)): _preview_ok = false
+				var substrate: String = host_substrate if not host_substrate.is_empty() else str({1: "soil", 2: "sand", 3: "water", 4: "soil"}.get(surface & 7, ""))
+				if not spec.get("substrates", []).has(substrate) or (host_substrate.is_empty() and (surface & 8) != 0) or (not host_substrate.is_empty() and spec.get("blocks", false)): _preview_ok = false
 
 func paint_world(canvas: Node2D) -> void:
 	if host.frame != null and not direct:

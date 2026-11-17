@@ -269,6 +269,49 @@
         }
       ],
       "vegetation_level": 1
+    },
+    "sect_grain": {
+      "label": "宿根灵稻",
+      "life": "perennial",
+      "mature_ms": 600000,
+      "flower_ms": 600000,
+      "fruit_ms": 750000,
+      "lifespan_ms": 31536000000,
+      "regrow": true,
+      "substrates": [
+        "soil"
+      ],
+      "temperature": [
+        50,
+        450,
+        -150,
+        550
+      ],
+      "seasons": [
+        "春",
+        "夏",
+        "秋"
+      ],
+      "water_min": 10,
+      "water_max": 100,
+      "light_min": 100,
+      "max_hp": 30,
+      "injury_ms": 1200000,
+      "product": {
+        "item": "grain",
+        "capacity": 12,
+        "period_ms": 150000
+      },
+      "body_product": {
+        "item": "grain",
+        "amount": 1
+      },
+      "source": "ordinary_plant",
+      "blocks": false,
+      "canopy": 1000,
+      "sapient": false,
+      "vegetation_level": 1,
+      "art_base": "annual_grass"
     }
   }
 }

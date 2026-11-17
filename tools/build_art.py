@@ -298,6 +298,15 @@ def world() -> dict:
             image = image.resize((image.width*2, image.height*2), Image.Resampling.NEAREST)
             image.thumbnail((56,48),Image.Resampling.NEAREST)
             pack.add(f"{name}_{stage}", image, label=f"{plant_names[name]['label']} · {stages[stage]}", category="plants", source="generated:plants")
+    # A cultivation carrier is flat ground, not a scaled-up colliding flowerpot.
+    bed = blank(64)
+    d = ImageDraw.Draw(bed)
+    d.rectangle((2, 2, 61, 61), fill="#74543b", outline="#4c3a30", width=2)
+    for y in [10, 25, 40, 55]:
+        d.line((5, y, 58, y), fill="#493b31", width=3)
+        d.line((5, y+3, 58, y+3), fill="#927044")
+    pack.add("cultivation_bed", bed, "栽培畦", footprint=(2, 2), anchor=(32, 64), occluder=False)
+    pack.entries["cultivation_bed"].update(plane="ground", contact_shadow=False)
     # Raised front faces share the unchanged square collision footprint.
     for mask in range(16):
         pack.add(f"wall_{mask}", wall(mask), category="structures", footprint=(1,1), occluder=True)

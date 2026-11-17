@@ -14,7 +14,7 @@ func learning_and_preserved_sources() -> void:
 	advance(w, w.elapsed_ms + 1200)
 	check(w.objects.records[1].methods.cooking.understanding == 200 and w.objects.records[1].methods.wood_breath == origin, "A second lesson changed unrelated understanding")
 	var tree: int = w.nature.create(w, "old_tree", w.Terrain.index(Vector2i(124, 124)))
-	w.objects.records[tree].stage = w.nature.Stage.MATURE
+	w.objects.records[tree].stage = w.nature.Stage.MATURE; w.objects.records[tree].growth_ms = int(w.nature.definitions[w.objects.records[tree].definition].mature_ms)
 	w.objects.records[tree]["qi"] = 1000
 	w.pages[0].positions[0] = Vector2(123.5, 124.5)
 	w.begin_interaction(1, {"kind": "practice", "target": tree})
@@ -49,8 +49,8 @@ func learning_and_preserved_sources() -> void:
 	Growth.advance(read_world.objects.records[1], "cooking", 1000, "practice", 0, read_world.elapsed_ms)
 	read_world.pages[0].positions[0] = Vector2(122.5, 120.5)
 	check(read_world.begin_interaction(1, {"kind": "learn_cooking", "target": 2}) == "accepted", "Practical mastery incorrectly implied theoretical understanding")
-	advance(read_world, read_world.elapsed_ms + 16)
-	check(read_world.pages[0].due_ms[0] - read_world.actions[1].started_ms == 1000, "Practical mastery shortened instruction instead of only declared work")
+	advance(read_world, read_world.elapsed_ms + 100) # Shared contact starts on the completed 50 ms motion boundary.
+	check(read_world.actions.get(1, {}).has("started_ms") and read_world.pages[0].due_ms[0] - int(read_world.actions[1].get("started_ms", -1)) == 1000, "Practical mastery shortened instruction instead of only declared work")
 
 func independent_craft_and_shared_costs() -> void:
 	var w: RefCounted = peaceful()
@@ -75,7 +75,7 @@ func independent_craft_and_shared_costs() -> void:
 	Growth.seed(w.objects.records[1], "wood_breath", w.elapsed_ms)
 	check(w.describe(1).abilities.has("wood_mend") and w.describe(1).abilities.has("external_grant") and not w.objects.records[1].abilities.has("wood_mend"), "Derived unlock duplicated truth or overwrote another grant")
 	var tree: int = w.nature.create(w, "old_tree", w.Terrain.index(Vector2i(124, 128)))
-	w.objects.records[tree].stage = w.nature.Stage.MATURE
+	w.objects.records[tree].stage = w.nature.Stage.MATURE; w.objects.records[tree].growth_ms = int(w.nature.definitions[w.objects.records[tree].definition].mature_ms)
 	w.objects.records[tree]["qi"] = 1000
 	w.objects.records[1]["qi"] = 2990
 	w.pages[0].positions[0] = Vector2(123.5, 128.5)

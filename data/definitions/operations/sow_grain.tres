@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="OperationDef" load_steps=4 format=3]
+[ext_resource type="Script" path="res://scripts/sim/definitions/operations/operation_def.gd" id="op"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/operations/target_rule.gd" id="target"]
+[sub_resource type="Resource" id="Target0"]
+script = ExtResource("target")
+facility_capability = "cultivation"
+[resource]
+script = ExtResource("op")
+id = "sow_grain"
+title = "栽种灵稻"
+icon = "plant"
+executor = "nature"
+handler = "plant_crop"
+plant_definition = "sect_grain"
+required_capabilities = PackedStringArray("work")
+duration_ms = 1500
+targets = Array[ExtResource("target")]([SubResource("Target0")])

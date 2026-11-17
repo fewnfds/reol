@@ -332,6 +332,7 @@ func acquire_yield(world: RefCounted, actor: int, target: int, item: String, cou
 	if object.owner == 0 and object.organization == 0: return world.objects.claim(target, actor, item, count)
 	if object.owner == actor: return world.objects.transfer(target, actor, item, count, Stock.right(actor))
 	if object.organization <= 0 or not Stock.permits_at(world.operation_actor(actor), world.operation_target(target), purpose, item): return 0
+	if world.objects.amount(target, item, Stock.right(0, object.organization)) <= 0 or not world.objects.can_receive(actor, {item: 1}, Stock.right(0, object.organization, next_entrust)): return 0
 	var id: int = _mandate(actor, object.organization, purpose, now, target if purpose == "supply" else 0)
 	var moved: int = world.objects.transfer(target, actor, item, count, Stock.right(0, object.organization), Stock.right(0, object.organization, id))
 	_add(entrustments[id].issued, item, moved)

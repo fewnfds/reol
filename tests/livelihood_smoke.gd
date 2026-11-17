@@ -23,6 +23,7 @@ func known_sites_and_growth() -> void:
 	var body: Vector2 = Vector2(low) + Vector2(-0.1, 0.5)
 	tree_world.pages[0].positions[0] = body
 	rec.stage = tree_world.nature.Stage.MATURE
+	rec.growth_ms = int(tree_world.nature.definitions.old_tree.mature_ms)
 	tree_world.nature._sync(tree_world, tree)
 	tree_world.flush_topology()
 	check(tree_world.terrain.can_stand(body, 0.35), "Maturing tree trapped a ground body overlapping its edge")
