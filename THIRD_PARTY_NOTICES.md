@@ -22,9 +22,10 @@
 - 固定 commit：`19d93f97c9c1ea0f8b306e77aa81e0d3e352d3e9`
 - 许可证原文：`docs/third-party/awesome-gamedev-agent-skills-LICENSE`
 - 上游归属原文：`docs/third-party/awesome-gamedev-agent-skills-NOTICE`，对应上述固定commit。
-- 当前分发：`.agents/skills/create-game-assets/`保留`asset_report.py`、`build_preview_sheet.py`、依赖声明及改写后的二维指导；上游headless排错指导经本地收窄后合并入`.agents/skills/godot-verify/references/troubleshooting.md`。
-- 本地修订：素材入口与`references/raster-pipeline.md`按Reol纯二维流程重写，UI元数据同步；删除三维流程、通用台账模板与其余导入技能，包括未被项目调用的`check_godot_project.py`。上述图片脚本和依赖声明未改动。原有Apache许可证及NOTICE继续保留，本地差异由Git维护。
-- 原选取的31个第三方入口不再整套分发；`godot-sim-architecture`及`godot-verify/SKILL.md`为项目自有指导，验证排错reference含上述上游派生内容。改写文件保留本地修改注记，不因合并丢失来源。
+- 当前分发：`.agents/skills/create-game-assets/`保留图片QA脚本、依赖声明和改写后的二维指导；`godot-verify/references/troubleshooting.md`含经本地收窄的headless排错；原资源引用检查器恢复到`godot-gdscript/scripts/check_godot_project.py`，其代码未修改。
+- 本地修订：2026-11-18复核前轮删减，原Godot/游戏领域指导按Reol纯二维GDScript、Packed模拟与已有owner重新编写/合并。含派生指导的入口为`godot-gdscript`、`godot-resources`、`godot-ui-input`、`godot-motion-navigation`、`godot-decision-systems`、`colony-sim-systems`、`godot-character-rules`、`dialogue-systems`、`save-systems`、`godot-world-generation`、`godot-2d-presentation`、`godot-audio`、`godot-export`、`performance-optimization`与`level-design`，各文件含本地重写/合并说明及本页链接；来源与逐项去向见[覆盖审查](docs/engineering/tooling/skill-coverage.md)。未恢复三维、跨引擎实现和品类玩法模板。
+- 原选取的31个第三方入口不再整套分发；`godot-sim-architecture`及`godot-verify/SKILL.md`为项目自有指导。图片QA脚本、依赖声明及恢复的引用检查器保持原代码；其新增隔离反例检查为本项目代码。Apache许可证及NOTICE原文继续保留，本地差异由Git维护，不因重命名/合并丢失来源。
+- 本次比较的其他skill库与官方资料仅阅读/链接，未复制其代码、安装或形成新运行依赖；不以本次检索HEAD更改上述采用pin。
 
 ### 更新
 

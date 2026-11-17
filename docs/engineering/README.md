@@ -14,5 +14,6 @@
 | 存档支持现状 | [compatibility](compatibility.md) |
 | 运行、导出、短检查与性能采样 | [工具命令](tooling/usage.md)、[验证方式](workflow/testing.md) |
 | 插件、顾问、技能配置 | [工具配置](tooling/setup.md) |
+| 技能领域覆盖、33项删并去向与替代资料 | [覆盖审查](tooling/skill-coverage.md) |
 
 实测只在[BASELINE](../status/baseline.md)，操作与缺口只在[FEATURES](../status/features.md)，施工顺序只在[主计划](../plans/foundation-priorities.md)。
