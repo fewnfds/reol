@@ -1,5 +1,7 @@
 # 当前短检查
 
+`settlement_opening_smoke.gd`核正常原生Resource的100人一次性装配、无木源合法世界、零时刻/真实活动中恢复，以及缺床/错误角色/自师承/重复种子、堵灶/封屋、同组不同服务、占位探索污染和资源隔离反例。`settlement_ui_smoke.gd`从正常main直接开100人，观察原生人物页与实际文件存读；均不是持续供养证明。`settlement_cycle_smoke.gd`按需运行正常开局的真实源耗长窗，不清夹具、不补料、不缩内容周期，核来源/转化/消耗、各院实际流程和个人最坏状态；须显式给足长检查时间，不能加入默认15秒短检查，也不能当图形帧时。
+
 `qi_sources_smoke.gd`核有限灵植非整秒积累、成熟跨界、满额余数、阶段/容量坏档、共同修行准入和真实实践。`qi_agency_smoke.gd`核自主补灵/真实伤害自疗后再补、空源恢复/换源、微小缺口、满灵未精通的远方复查、来源移除及手动中断恢复；`qi_refinement_smoke.gd`核小需求保留公料、普通技艺探索、外部临时指派后回归自主及资源字段owner；`qi_ui_smoke.gd`在正常原生Game读取修行中文件、人物修行页与玩家满额按钮禁用。不是百人装配或性能验收。
 
 `cultivation_duties_smoke.gd`核同World自主田务、稳定宿主跨株授权、两种作物、真实公井用途、满仓继续照料、撤职退料、空源恢复和受阻畦改选。`cultivation_duties_ui_smoke.gd`以正常Game人物页查看NPC任职/活动，实际文件存读后由NPC继续播种；截图在`logs/cultivation-ui/`。

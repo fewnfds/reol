@@ -52,7 +52,7 @@ func capture(name_key: String) -> void:
 	root.get_texture().get_image().save_png(CAPTURE_DIR + name_key + ".png")
 
 func run() -> void:
-	game = Game.new()
+	game = Game.new(); game._opening = "development"
 	game.runner.control(true, 1)
 	game.paused = true
 	root.add_child(game)

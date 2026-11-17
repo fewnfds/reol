@@ -28,7 +28,7 @@ func _run() -> void:
  var path: String="user://agency-ui-fixture.reol"
  var file:=FileAccess.open(path,FileAccess.WRITE)
  file.store_var({"format":SessionIO.FORMAT,"state":Persistence.capture(w)},false);file.close()
- game=Game.new();game._actors=4
+ game=Game.new(); game._opening = "development";game._actors=4
  game.controls.bindings.config_path="user://agency-ui-controls.cfg"
  game.feedback.config_path="user://agency-ui-feedback.cfg"
  game.paused=true;game.runner.control(true,1)

@@ -7,6 +7,8 @@ const Frame = preload("res://scripts/sim/kernel/frame.gd")
 const Persistence = preload("res://scripts/sim/kernel/persistence.gd")
 const SessionIO = preload("res://scripts/sim/kernel/session_io.gd")
 const Scenarios = preload("res://scripts/sim/kernel/scenarios.gd")
+const Opening = preload("res://scripts/sim/scenarios/settlement_opening.gd")
+const SETTLEMENT = preload("res://data/openings/qinghe_sect.tres")
 const MAX_PENDING: int = 4096
 const DEFAULT_HZ: int = 60
 const MAX_DEBT_USEC: float = 1000000.0
@@ -67,10 +69,12 @@ var _perception_view: Dictionary = {}
 var _io := SessionIO.new()
 var _epoch: int = 1
 var _combat_probe: RefCounted
+var _opening: String = "development"
+var _startup_error: String = "" # A failed candidate is never published/stepped.
 var _full_publications: int = 0
 
 
-func start(count: int = 1000, workers: int = -1, speed: float = 1.0, mixed: bool = false, capacity: bool = false, sim_hz: int = DEFAULT_HZ, combat_lab: bool = false, combat_probe: bool = false) -> Error:
+func start(count: int = 1000, workers: int = -1, speed: float = 1.0, mixed: bool = false, capacity: bool = false, sim_hz: int = DEFAULT_HZ, combat_lab: bool = false, combat_probe: bool = false, opening: String = "development") -> Error:
 	if not World.Beings.ERRORS.is_empty():
 		push_error("Being catalog: " + "; ".join(World.Beings.ERRORS))
 		return ERR_INVALID_DATA
@@ -80,6 +84,14 @@ func start(count: int = 1000, workers: int = -1, speed: float = 1.0, mixed: bool
 	if not World.Combat.Defs.ERRORS.is_empty():
 		push_error("Combat catalog: " + "; ".join(World.Combat.Defs.ERRORS))
 		return ERR_INVALID_DATA
+	if opening not in ["development", "sect"]: return ERR_INVALID_PARAMETER
+	if opening == "sect":
+		if mixed or capacity or combat_lab or combat_probe or count != SETTLEMENT.population(): return ERR_INVALID_PARAMETER
+		var errors: PackedStringArray = Opening.compile(SETTLEMENT).errors
+		if not errors.is_empty():
+			push_error("Opening: " + "; ".join(errors))
+			return ERR_INVALID_DATA
+	_opening = opening
 	_count = clampi(count, 1, 60000)
 	_workers = workers
 	_mixed = mixed
@@ -164,11 +176,12 @@ func poll() -> Dictionary:
 	var frame: RefCounted = _latest
 	var receipts: Array[Dictionary] = _receipts
 	var outcomes: Array[Dictionary] = _outcomes
+	var startup_error: String = _startup_error
 	_receipts = []
 	_outcomes = []
 	_mutex.unlock()
 	_pending -= receipts.size()
-	return {"frame": frame, "receipts": receipts, "outcomes": outcomes}
+	return {"frame": frame, "receipts": receipts, "outcomes": outcomes, "startup_error": startup_error}
 
 
 func close() -> void:
@@ -203,10 +216,18 @@ func _notify_io() -> void:
 	_notify_locked()
 	_mutex.unlock()
 
+func _fail_start(message: String) -> void:
+	_mutex.lock()
+	_startup_error = message
+	_mutex.unlock()
+
 
 func _run() -> void:
 	_world = World.new()
-	_world.initialize(_count, _workers, _mixed or _capacity)
+	if not _world.initialize(_count, _workers, _mixed or _capacity, "empty" if _opening == "sect" else "development"): _fail_start("World foundation initialization failed"); return
+	if _opening == "sect":
+		var errors: PackedStringArray = Opening.assemble(_world, SETTLEMENT)
+		if not errors.is_empty(): _fail_start("Opening adoption: " + "; ".join(errors)); return
 	if _capacity:
 		Scenarios.capacity(_world)
 	elif _mixed:

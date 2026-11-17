@@ -38,6 +38,7 @@
 | `sight.gd` | 全单位共用的距离/平滑环境损耗查询；只读常用格线表与长半径后备，无共享写缓存 |
 | `perception.gd` | 玩家当前格图、探索/最后所见地表、静态记忆与人物显隐；NPC不读取这张玩家地图 |
 | `regions.gd`、`scenarios.gd` | 同一世界的有限地区冷装配/旅行落点；可选混合压力开局，不提供另一套模拟算法 |
+| `scripts/sim/scenarios/`、`data/openings/` | 开发夹具与正常宗门的一次性初始装配；原生Resource预检后调用原owner，失败候选不发布，不在运行中补料/派活 |
 | `persistence.gd`、`state.gd`、`session_io.gd` | 领域显式状态捕获、候选校验/缓存重建和冷I/O；存档不是显示Frame或任意对象反射 |
 | `runner.gd`、`frame.gd` | 一个自主Thread、60Hz心跳、倍率/暂停、边沿命令/回执与覆盖式持续输入、快慢视图和只读姿态历史、采用候选与关停 |
 | `scripts/sim/execution/batch_execution.gd` | Godot WorkerThreadPool group任务与join，不建每域线程池 |

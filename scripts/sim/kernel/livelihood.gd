@@ -67,7 +67,7 @@ func set_dispositions(world: RefCounted, actor: int, changes: Dictionary) -> boo
 	if world.objects.records[actor].get("autonomous", false): world.decisions.wake(world, actor, world.operation_time(), "disposition_changed")
 	return true
 
-func initialize(world: RefCounted) -> void:
+func seed_examples(world: RefCounted) -> void:
 	for page: RefCounted in world.pages:
 		for row: int in page.ids.size():
 			var id: int = page.ids[row]

@@ -1,0 +1,206 @@
+[gd_resource type="Resource" script_class="SettlementOpeningDef" load_steps=31 format=3]
+
+[ext_resource type="Script" path="res://scripts/sim/definitions/openings/opening_def.gd" id="opening"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/openings/layout_def.gd" id="layout"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/openings/placement_def.gd" id="place"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/openings/resident_def.gd" id="resident"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/openings/appointment_def.gd" id="appointment"]
+
+[sub_resource type="Resource" id="Floor"]
+script = ExtResource("place")
+key = "floor"
+definition = "wood_floor"
+extent = Vector2i(8, 5)
+
+[sub_resource type="Resource" id="Roof"]
+script = ExtResource("place")
+key = "roof"
+definition = "wood_roof"
+extent = Vector2i(8, 5)
+
+[sub_resource type="Resource" id="NorthWall"]
+script = ExtResource("place")
+key = "walls"
+definition = "wood_wall"
+extent = Vector2i(8, 1)
+
+[sub_resource type="Resource" id="SideWall"]
+script = ExtResource("place")
+key = "walls"
+definition = "wood_wall"
+offsets = Array[Vector2i]([Vector2i(0, 1), Vector2i(7, 1)])
+extent = Vector2i(1, 3)
+
+[sub_resource type="Resource" id="SouthWall"]
+script = ExtResource("place")
+key = "walls"
+definition = "wood_wall"
+offsets = Array[Vector2i]([Vector2i(0, 4), Vector2i(1, 4), Vector2i(2, 4), Vector2i(4, 4), Vector2i(5, 4), Vector2i(6, 4), Vector2i(7, 4)])
+
+[sub_resource type="Resource" id="Door"]
+script = ExtResource("place")
+key = "doors"
+definition = "wood_door"
+offsets = Array[Vector2i]([Vector2i(3, 4)])
+
+[sub_resource type="Resource" id="Beds"]
+script = ExtResource("place")
+key = "beds"
+definition = "wood_bed"
+offsets = Array[Vector2i]([Vector2i(1, 1)])
+extent = Vector2i(5, 1)
+
+[sub_resource type="Resource" id="Dormitory"]
+script = ExtResource("layout")
+id = "dormitory"
+repeats = 5
+stride = Vector2i(0, 7)
+placements = Array[ExtResource("place")]([SubResource("Floor"), SubResource("Roof"), SubResource("NorthWall"), SubResource("SideWall"), SubResource("SouthWall"), SubResource("Door"), SubResource("Beds")])
+
+[sub_resource type="Resource" id="Store"]
+script = ExtResource("place")
+key = "grain_store"
+definition = "granary"
+offsets = Array[Vector2i]([Vector2i(14, 12)])
+stock = Dictionary[String, int]({"grain": 12})
+
+[sub_resource type="Resource" id="Well"]
+script = ExtResource("place")
+key = "wells"
+definition = "water_well"
+offsets = Array[Vector2i]([Vector2i(12, 18), Vector2i(24, 18)])
+
+[sub_resource type="Resource" id="Stoves"]
+script = ExtResource("place")
+key = "stoves"
+definition = "cook_stove"
+offsets = Array[Vector2i]([Vector2i(14, 9), Vector2i(20, 9)])
+
+[sub_resource type="Resource" id="Meals"]
+script = ExtResource("place")
+key = "meal_chests"
+definition = "wood_chest"
+offsets = Array[Vector2i]([Vector2i(17, 12), Vector2i(23, 12)])
+stock = Dictionary[String, int]({"meal": 16})
+member_food_service = true
+
+[sub_resource type="Resource" id="Board"]
+script = ExtResource("place")
+key = "board"
+definition = "notice_desk"
+offsets = Array[Vector2i]([Vector2i(19, 5)])
+
+[sub_resource type="Resource" id="Fields"]
+script = ExtResource("place")
+key = "fields"
+definition = "cultivation_bed"
+offsets = Array[Vector2i]([Vector2i(14, 21)])
+extent = Vector2i(4, 3)
+spacing = Vector2i(3, 3)
+
+[sub_resource type="Resource" id="Yard"]
+script = ExtResource("layout")
+id = "work_yard"
+placements = Array[ExtResource("place")]([SubResource("Store"), SubResource("Well"), SubResource("Stoves"), SubResource("Meals"), SubResource("Board"), SubResource("Fields")])
+
+[sub_resource type="Resource" id="Mentor"]
+script = ExtResource("resident")
+slots = PackedInt32Array(7)
+name_prefix = "传功弟子"
+mastered = PackedStringArray("wood_breath", "cooking")
+public_teachings = PackedStringArray("wood_breath", "cooking")
+instruction_targets = PackedInt32Array(8, 9)
+instruction_method = "wood_breath"
+dispositions = Dictionary[String, float]({"sociability": 1.4, "dutifulness": 0.7})
+
+[sub_resource type="Resource" id="Students"]
+script = ExtResource("resident")
+slots = PackedInt32Array(8, 9, 10, 11, 12)
+name_prefix = "求道弟子"
+development = PackedStringArray("wood_breath")
+mentor_slot = 7
+dispositions = Dictionary[String, float]({"curiosity": 1.3})
+
+[sub_resource type="Resource" id="Cooks"]
+script = ExtResource("resident")
+slots = PackedInt32Array(13, 14, 15, 16)
+name_prefix = "膳堂弟子"
+introduced = PackedStringArray("cooking")
+development = PackedStringArray("cooking")
+mentor_slot = 7
+
+[sub_resource type="Resource" id="Practitioners"]
+script = ExtResource("resident")
+slots = PackedInt32Array(17, 18, 19, 20)
+name_prefix = "修持弟子"
+introduced = PackedStringArray("wood_breath")
+development = PackedStringArray("wood_breath")
+mentor_slot = 7
+
+[sub_resource type="Resource" id="FieldFirst"]
+script = ExtResource("appointment")
+actor_slot = 1
+role = "field_cultivator"
+source_keys = PackedStringArray("grain_store", "wells")
+sites_key = "fields"
+sites_count = 6
+destination_key = "grain_store"
+
+[sub_resource type="Resource" id="FieldSecond"]
+script = ExtResource("appointment")
+actor_slot = 2
+role = "field_cultivator"
+source_keys = PackedStringArray("grain_store", "wells")
+sites_key = "fields"
+sites_start = 6
+sites_count = 6
+destination_key = "grain_store"
+
+[sub_resource type="Resource" id="KitchenFirst"]
+script = ExtResource("appointment")
+actor_slot = 3
+role = "kitchen_steward"
+target_key = "stoves"
+source_keys = PackedStringArray("grain_store", "wells")
+channel_key = "board"
+
+[sub_resource type="Resource" id="KitchenSecond"]
+script = ExtResource("appointment")
+actor_slot = 4
+role = "kitchen_steward"
+target_key = "stoves"
+target_index = 1
+source_keys = PackedStringArray("grain_store", "wells")
+channel_key = "board"
+
+[sub_resource type="Resource" id="MealsFirst"]
+script = ExtResource("appointment")
+actor_slot = 5
+role = "meal_steward"
+target_key = "meal_chests"
+source_keys = PackedStringArray("stoves")
+channel_key = "board"
+
+[sub_resource type="Resource" id="MealsSecond"]
+script = ExtResource("appointment")
+actor_slot = 6
+role = "meal_steward"
+target_key = "meal_chests"
+target_index = 1
+source_keys = PackedStringArray("stoves")
+channel_key = "board"
+
+[resource]
+script = ExtResource("opening")
+title = "青禾宗"
+district_names = PackedStringArray("东篱院", "松风院", "听雨院", "问竹院")
+district_origins = Array[Vector2i]([Vector2i(110, 115), Vector2i(149, 115), Vector2i(110, 158), Vector2i(149, 158)])
+residents_per_district = 25
+soil_areas = Array[Rect2i]([Rect2i(105, 110, 76, 85)])
+layouts = Array[ExtResource("layout")]([SubResource("Dormitory"), SubResource("Yard")])
+resident_profiles = Array[ExtResource("resident")]([SubResource("Mentor"), SubResource("Students"), SubResource("Cooks"), SubResource("Practitioners")])
+appointments = Array[ExtResource("appointment")]([SubResource("FieldFirst"), SubResource("FieldSecond"), SubResource("KitchenFirst"), SubResource("KitchenSecond"), SubResource("MealsFirst"), SubResource("MealsSecond")])
+familiar_keys = PackedStringArray("grain_store", "wells", "stoves", "meal_chests", "board")
+spawn_offsets = Array[Vector2i]([Vector2i(12, 2), Vector2i(14, 2), Vector2i(16, 2), Vector2i(18, 2), Vector2i(20, 2), Vector2i(12, 3), Vector2i(14, 3), Vector2i(16, 3), Vector2i(18, 3), Vector2i(20, 3), Vector2i(12, 4), Vector2i(14, 4), Vector2i(16, 4), Vector2i(18, 4), Vector2i(20, 4), Vector2i(12, 6), Vector2i(14, 6), Vector2i(16, 6), Vector2i(18, 6), Vector2i(20, 6), Vector2i(12, 7), Vector2i(14, 7), Vector2i(16, 7), Vector2i(18, 7), Vector2i(20, 7)])
+qi_offsets = Array[Vector2i]([Vector2i(24, 3), Vector2i(25, 6)])
+initial_source_qi = 1000

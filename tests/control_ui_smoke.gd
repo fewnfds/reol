@@ -51,7 +51,7 @@ func capture(name_key: String) -> void:
 	root.get_texture().get_image().save_png(directory + name_key + ".png")
 
 func launch() -> void:
-	game = Game.new()
+	game = Game.new(); game._opening = "development"
 	game.controls.bindings.config_path = PROFILE
 	root.add_child(game)
 	current_scene = game

@@ -41,6 +41,7 @@ const Institutions = preload("res://scripts/sim/kernel/institutions.gd")
 const Production = preload("res://scripts/sim/kernel/production.gd")
 const Knowledge = preload("res://scripts/sim/kernel/knowledge.gd")
 const Equipment = preload("res://scripts/sim/kernel/equipment.gd")
+const Development = preload("res://scripts/sim/scenarios/development_opening.gd")
 var instant_actor: int = 0 # Transient commit guard; never another action host.
 
 class Lane extends RefCounted:
@@ -133,54 +134,36 @@ var preparation_usec: int = 0 # Outer preparation only; nested combat/index time
 var intervals: int = 0
 
 
-func initialize(count: int = 1000, requested_workers: int = 4, stress_environment: bool = false) -> void:
+func initialize(count: int = 1000, requested_workers: int = 4, stress_environment: bool = false, opening: String = "development") -> bool:
 	if not Beings.ERRORS.is_empty():
 		push_error("Invalid being definitions: " + str(Beings.ERRORS))
-		return
+		return false
 	if not Operations.ERRORS.is_empty():
 		push_error("Invalid operation definitions: " + str(Operations.ERRORS))
-		return
+		return false
 	if not Growth.Defs.ERRORS.is_empty():
 		push_error("Invalid growth definitions: " + str(Growth.Defs.ERRORS))
-		return
+		return false
 	if not livelihood.Defs.ERRORS.is_empty():
 		push_error("Invalid agency definitions: " + str(livelihood.Defs.ERRORS))
-		return
+		return false
 	if not institutions.Defs.ERRORS.is_empty():
 		push_error("Invalid institution definitions: " + str(institutions.Defs.ERRORS))
-		return
+		return false
+	if opening not in ["development", "empty"] or count < 1 or count > 60000: return false
 	actor_count = count
-	terrain.initialize()
+	terrain.initialize(50 if opening == "development" else 0, 200 if opening == "development" else 0, 8 if opening == "development" else 0)
 	environment.initialize(terrain, count, stress_environment)
 	terrain.source_cells = environment.source_cells.duplicate()
 	terrain.source_channels = environment.source_channels.duplicate()
 	for slot: int in count:
 		var id: int = objects.create("actor", "human")
-		objects.add(id, "potion", 3)
 		actor_slots[id] = slot
-	for tile: int in terrain.resources:
-		var id: int = objects.create("resource", "wood", tile)
-		objects.add(id, "wood", 1000)
-		source_objects.append(id)
-	var initial_depots: PackedInt32Array = terrain.depots.duplicate()
-	terrain.depots.clear()
-	for tile: int in initial_depots:
-		facilities.create_completed(self, "wood_chest", tile, 0, -1)
-	for tile: int in terrain.structures:
-		if terrain.enclosures[tile] != 0:
-			facilities.create_completed(self, "wood_wall" if terrain.blocked[tile] != 0 else "wood_door", tile)
-	for tile: int in terrain.flooring.size():
-		if terrain.flooring[tile] != 0:
-			facilities.create_completed(self, "wood_floor", tile)
-	initial_material = objects.total("wood")
-	var pile: int = objects.create("pile", "wood", Terrain.index(Vector2i(178, 186)))
-	objects.transfer(source_objects[0], pile, "wood", 50)
-	facilities.create_completed(self, "wood_chest", Terrain.index(Vector2i(176, 186)), 0, 100)
+	if opening == "development": Development.before_bodies(self)
 	for first: int in range(0, count, Units.PAGE_SIZE):
 		var page := Units.new()
 		page.initialize(first + 1, mini(Units.PAGE_SIZE, count - first), terrain)
 		page.environment = environment
-		page.potions.fill(3)
 		pages.append(page)
 	configure_lanes(requested_workers)
 	for id: int in actor_slots: Equipment.rebuild(self, id, false)
@@ -188,46 +171,11 @@ func initialize(count: int = 1000, requested_workers: int = 4, stress_environmen
 	for page: RefCounted in pages:
 		page.sample_environment(0.0)
 	topology_revision = terrain.revision
-	if count < 1000:
-		pages[0].positions[0] = Terrain.center(Terrain.index(Vector2i(177, 188)))
-	facilities.seed_fixture(self, "long_bed", Terrain.index(Vector2i(176, 182)))
-	var stove: int = facilities.seed_fixture(self, "cook_stove", Terrain.index(Vector2i(174, 185)))
-	facilities.seed_fixture(self, "water_well", Terrain.index(Vector2i(168, 176)))
-	objects.add(stove, "meal", 30)
-	var supplies: int = objects.by_tile[Terrain.index(Vector2i(176, 186))][0]
-	objects.add(supplies, "grain", 30)
-	objects.add(supplies, "water", 30)
-	# Temporary playable equipment samples; ordinary NPCs need no gear scan.
-	for item: String in ["iron_sword", "iron_sword@2", "short_bow", "willow_staff", "cloth_robe", "travel_boots", "jade_charm@3"]:
-		objects.add(1, item, 1)
-	objects.equip(1, "iron_sword")
-	Equipment.rebuild(self, 1)
-	objects.add(supplies, "cloth_robe@2", 1)
-	objects.add(supplies, "travel_boots@2", 1)
-	flush_topology()
-	livelihood.initialize(self)
-	nature.initialize(self)
-	society.initialize(self)
-	regions.initialize(self)
-	flush_topology()
-	if count >= 24:
-		for actor: int in range(count - 3, count + 1):
-			release(actor)
-			var body_slot: int = actor_slots[actor]
-			pages[body_slot / 256].modes[body_slot % 256] = Units.Mode.IDLE
-			var slot: int = actor_slots[actor]
-			var page: RefCounted = pages[slot / 256]
-			page.positions[slot % 256] = Terrain.center(Terrain.index(Vector2i(177 + count - actor, 168)))
-			objects.records[actor]["side"] = 1
-			objects.records[actor].autonomous = false
-			objects.records[actor]["combatant"] = true
-			objects.records[actor]["combat_style"] = "trained"
-			var weapon: String = "short_bow" if actor % 2 == 0 else "iron_sword"
-			objects.add(actor, weapon, 1)
-			objects.equip(actor, weapon)
-			Equipment.rebuild(self, actor)
-	perception.update(self, 0, true)
-	knowledge.observe(self, 1, 0)
+	if opening == "development":
+		Development.after_bodies(self)
+		perception.update(self, 0, true)
+		knowledge.observe(self, 1, 0)
+	return true
 
 
 func state_owners() -> Dictionary:
@@ -463,7 +411,7 @@ func settle(id: int, at: int, expected: Variant = null) -> void:
 	var row: int = slot % Units.PAGE_SIZE
 	var mode: int = page.modes[row]
 	var source: int = page.source_ids[row]
-	var target: int = source_objects[source]
+	var target: int = source_objects[source] if source >= 0 and source < source_objects.size() else 0
 	if page.health[row] <= 0:
 		kill(id, at)
 	elif mode == Units.Mode.RESOURCE:
@@ -580,7 +528,8 @@ func end_run(id: int, at: int = -1, reason: String = "replaced", outcome: Dictio
 			work_runs.erase(id)
 			if actor_slots.has(id):
 				var slot: int = actor_slots[id]
-				var target: int = source_objects[pages[slot / 256].source_ids[slot % 256]]
+				var source: int = pages[slot / 256].source_ids[slot % 256]
+				var target: int = source_objects[source] if source >= 0 and source < source_objects.size() else 0
 				if reservations.get(target, 0) == id: reservations.erase(target)
 				if pages[slot / 256].modes[slot % 256] in [Units.Mode.RESOURCE, Units.Mode.HARVEST]:
 					var final: Dictionary = outcome if not outcome.is_empty() else ActivityResults.interrupted(reason)
@@ -1657,7 +1606,7 @@ func spawn_actor(tile: int, body_profile: String = "human", origin: String = "in
 		page.routes[row] = PackedVector2Array()
 		page.route_cursors[row] = 0
 		page.due_ms[row] = 0
-		page.source_ids[row] = 0
+		page.source_ids[row] = -1
 		page.motion.erase(row)
 		for index: int in 5: page.elements[row * 5 + index] = 0
 		for index: int in 7: page.exposure[row * 7 + index] = 0

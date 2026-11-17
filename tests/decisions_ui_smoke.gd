@@ -18,7 +18,7 @@ func native_input_ready() -> bool:
 	return ready
 
 func _run() -> void:
-	game = Game.new()
+	game = Game.new(); game._opening = "development"
 	game._combat_lab = true
 	game._fps = 60
 	game.controls.bindings.config_path = "user://p5-decisions-ui-controls.cfg"

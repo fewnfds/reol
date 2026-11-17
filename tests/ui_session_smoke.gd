@@ -8,7 +8,7 @@ func capture(name_key: String) -> void:
 	root.get_texture().get_image().save_png(directory + name_key + ".png")
 
 func _run() -> void:
-	game = Game.new()
+	game = Game.new(); game._opening = "development"
 	game._fps = 60
 	game.controls.bindings.config_path = "user://ui-session-controls.cfg"
 	game.feedback.config_path = "user://ui-session-feedback.cfg"

@@ -50,6 +50,7 @@ var speed: float = 1.0
 var render_ms: float = 0.0
 var alpha: float = 1.0
 var _actors: int = 24
+var _opening: String = "sect"
 var _workers: int = -1
 var _fps: int = 120
 var _duration: float = 0.0
@@ -103,6 +104,8 @@ var _display_move := Vector2.ZERO
 
 
 func _ready() -> void:
+	var actor_override: bool = false
+	var opening_override: String = ""
 	_debug_console = get_node_or_null("/root/DebugConsole")
 	if _debug_console != null:
 		_debug_console.attach(diagnostics)
@@ -111,7 +114,8 @@ func _ready() -> void:
 		if part.size() != 2:
 			continue
 		match part[0]:
-			"actors": _actors = clampi(int(part[1]), 1, 60000)
+			"actors": _actors = clampi(int(part[1]), 1, 60000); actor_override = true
+			"opening": opening_override = part[1]
 			"workers": _workers = clampi(int(part[1]), -1, 64)
 			"speed": speed = clampf(float(part[1]), 0.25, 16.0)
 			"fps": _fps = clampi(int(part[1]), 10, 240)
@@ -132,6 +136,10 @@ func _ready() -> void:
 		get_tree().quit(1)
 		return
 	if _combat_probe: _combat_lab = true
+	if actor_override: _opening = "development"
+	if not opening_override.is_empty(): _opening = opening_override
+	if _combat_lab or _mixed or _capacity or _response_probe != null: _opening = "development"
+	if _opening == "sect": _actors = Runner.SETTLEMENT.population()
 	if _response_probe != null and (_duration <= 0.0 or _mixed or _capacity or _combat_lab or speed != 1.0):
 		push_error("Response probe requires a bounded ordinary capture at 1x")
 		get_tree().quit(1)
@@ -161,6 +169,8 @@ func _ready() -> void:
 	add_child(art_gallery)
 	camera.position = (Vector2(220, 220) if _actors >= 1000 or _capacity else Vector2(178, 186)) * TILE
 	camera.zoom = Vector2.ONE * (0.21 if _actors >= 1000 or _capacity else 0.9)
+	if _opening == "sect":
+		camera.position = Art.body_foot(Vector2(Runner.SETTLEMENT.district_origins[0] + Runner.SETTLEMENT.spawn_offsets[0]) + Vector2.ONE * 0.5) * TILE
 	if _combat_lab:
 		camera.position = Art.body_foot(Vector2(144.5, 150.5)) * TILE
 		camera.zoom = Vector2.ONE * 0.9
@@ -183,7 +193,7 @@ func _ready() -> void:
 	ui.feedback_settings = feedback
 	add_child(controls)
 	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
-	if runner.start(_actors, _workers, speed, _mixed, _capacity, _sim_hz, _combat_lab, _combat_probe) != OK:
+	if runner.start(_actors, _workers, speed, _mixed, _capacity, _sim_hz, _combat_lab, _combat_probe, _opening) != OK:
 		push_error("Simulation thread could not start")
 		get_tree().quit(1)
 
@@ -194,6 +204,10 @@ func _process(delta: float) -> void:
 	var mask_gpu: float = RenderingServer.viewport_get_measured_render_time_gpu(fog.mask.get_viewport_rid()) if _capture_at > 0 and _mask_was_updated else 0.0
 	var mask_cpu: float = RenderingServer.viewport_get_measured_render_time_cpu(fog.mask.get_viewport_rid()) if _capture_at > 0 and _mask_was_updated else 0.0
 	var mailbox: Dictionary = runner.poll()
+	if not str(mailbox.get("startup_error", "")).is_empty():
+		push_error(mailbox.startup_error)
+		get_tree().quit(1)
+		return
 	var next: RefCounted = mailbox.frame
 	if next != null:
 		action_effects.adopt(next, mailbox.outcomes, fog_enabled)

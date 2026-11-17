@@ -95,7 +95,7 @@ func rebuild(world: RefCounted) -> bool:
 	return true
 
 
-func initialize(world: RefCounted, count: int = 512) -> void:
+func seed_examples(world: RefCounted, count: int = 512) -> void:
 	var examples: Array = [["annual_grass", Vector2i(177, 179)], ["perennial_herb", Vector2i(178, 179)],
 		["old_tree", Vector2i(175, 180)], ["lotus", Vector2i(171, 177)],
 		["desert_thorn", Vector2i(170, 183)], ["fire_herb", Vector2i(176, 179)]]

@@ -170,7 +170,7 @@ func stale_selection() -> void:
 	game.controls._select(1, -1)
 
 func _run() -> void:
-	game = Game.new()
+	game = Game.new(); game._opening = "development"
 	game._combat_lab = true
 	game._fps = 60
 	game.controls.bindings.config_path = "user://p4-combinations-ui-controls.cfg"

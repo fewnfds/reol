@@ -1,6 +1,6 @@
 extends "res://tests/abilities_ui_smoke.gd"
 func _run() -> void:
-	game = Game.new()
+	game = Game.new(); game._opening = "development"
 	game._combat_lab = true
 	game._fps = 60
 	game.controls.bindings.config_path = "user://p4-resources-ui-controls.cfg"

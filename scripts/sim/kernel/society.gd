@@ -64,7 +64,7 @@ func valid(world: RefCounted) -> bool:
 	return Requests.valid(self, world) and Contacts.valid(self, world)
 
 
-func initialize(world: RefCounted) -> void:
+func seed_examples(world: RefCounted) -> void:
 	if not world.actor_slots.has(2):
 		return
 	world.release(2)

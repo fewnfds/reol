@@ -57,7 +57,7 @@ func _run() -> void:
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	file.store_var({"format": SessionIO.FORMAT, "state": Persistence.capture(w)}, false)
 	file.close()
-	game = Game.new()
+	game = Game.new(); game._opening = "development"
 	game.controls.bindings.config_path = "user://production-ui-controls.cfg"
 	game.feedback.config_path = "user://production-ui-feedback.cfg"
 	game.paused = true

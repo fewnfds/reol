@@ -132,8 +132,6 @@ static func _terrain_valid(terrain: RefCounted) -> bool:
 		for tile: int in cells:
 			if tile < 0 or tile >= size:
 				return false
-	if terrain.resources.is_empty():
-		return false
 	for room: int in terrain.rooms:
 		if room < -1 or room >= terrain.room_cells.size():
 			return false
@@ -222,8 +220,9 @@ static func _page_valid(page: RefCounted, world: RefCounted, start: int) -> bool
 			return false
 		if not is_finite(page.tolerance[row]) or page.tolerance[row] < 0 or page.tolerance[row] > Units.MAX_TOLERANCE or not is_finite(page.thermal_carry[row]) or page.thermal_carry[row] < 0 or page.thermal_carry[row] >= 1.0:
 			return false
-		if page.modes[row] > Units.Mode.DIRECT or page.modes[row] == Units.Mode.FREE or page.health[row] < 0 or page.energy[row] < 0 or page.hunger[row] < 0 or page.source_ids[row] < 0 or page.source_ids[row] >= world.source_objects.size() or not page.targets[row].is_finite() or page.targets[row].x < 0 or page.targets[row].y < 0 or page.targets[row].x >= world.terrain.SIZE or page.targets[row].y >= world.terrain.SIZE or not page.aims[row].is_finite() or absf(page.aims[row].length() - 1.0) > 0.01:
+		if page.modes[row] > Units.Mode.DIRECT or page.modes[row] == Units.Mode.FREE or page.health[row] < 0 or page.energy[row] < 0 or page.hunger[row] < 0 or page.source_ids[row] < -1 or page.source_ids[row] >= world.source_objects.size() or not page.targets[row].is_finite() or page.targets[row].x < 0 or page.targets[row].y < 0 or page.targets[row].x >= world.terrain.SIZE or page.targets[row].y >= world.terrain.SIZE or not page.aims[row].is_finite() or absf(page.aims[row].length() - 1.0) > 0.01:
 			return false
+		if page.modes[row] in [Units.Mode.RESOURCE, Units.Mode.HARVEST] and page.source_ids[row] < 0: return false
 		if page.route_cursors[row] < 0 or page.route_cursors[row] > page.routes[row].size():
 			return false
 		for point: Vector2 in page.routes[row]:

@@ -79,7 +79,7 @@ func sample(id: String) -> void:
 	await capture(id + "-skill")
 
 func _run() -> void:
-	game = Game.new()
+	game = Game.new(); game._opening = "development"
 	game._combat_lab = true
 	game._fps = 60
 	game.controls.bindings.config_path = "user://p3-abilities-ui-controls.cfg"

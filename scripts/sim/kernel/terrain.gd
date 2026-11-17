@@ -23,7 +23,7 @@ var source_cells := PackedInt32Array()
 var source_channels := PackedInt32Array()
 
 
-func initialize(room_count: int = 50, resource_count: int = 200) -> void:
+func initialize(room_count: int = 50, resource_count: int = 200, depot_count: int = 8) -> void:
 	blocked.resize(SIZE * SIZE)
 	enclosures.resize(SIZE * SIZE)
 	rooms.resize(SIZE * SIZE)
@@ -53,7 +53,7 @@ func initialize(room_count: int = 50, resource_count: int = 200) -> void:
 					rooms[cell] = room
 					members.append(cell)
 		room_cells.append(members)
-	for id: int in 8:
+	for id: int in depot_count:
 		depots.append(index(Vector2i(180 + (id % 4) * 25, 194 + (id / 4) * 45)))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1747

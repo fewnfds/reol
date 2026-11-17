@@ -38,7 +38,7 @@ func _run() -> void:
 	var file := FileAccess.open(path,FileAccess.WRITE)
 	file.store_var({"format":Session.FORMAT,"state":Persistence.capture(w)},false)
 	file.close()
-	game = Game.new()
+	game = Game.new(); game._opening = "development"
 	game._actors = 4
 	game._fps = 60
 	game.feedback.config_path = "user://view-ui-feedback.cfg"

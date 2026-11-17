@@ -203,7 +203,7 @@ func feedback_layers() -> void:
 	probe.queue_free()
 
 func _run() -> void:
-	game = Game.new()
+	game = Game.new(); game._opening = "development"
 	game._combat_lab = true
 	game._fps = 60
 	game.controls.bindings.config_path = "user://p2-melee-ui-controls.cfg"

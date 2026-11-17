@@ -10,7 +10,7 @@ const LABELS: Array[String] = ["居住谷地", "寒林", "旱砂地"]
 var landmarks := PackedInt64Array()
 
 
-func initialize(world: RefCounted) -> void:
+func seed_examples(world: RefCounted) -> void:
 	for region: int in 3:
 		var tile: int = Terrain.index(DESTINATIONS[region])
 		create_landmark(world, LABELS[region], tile)

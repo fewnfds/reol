@@ -41,7 +41,7 @@ func player_shots() -> int:
 	return game.frame.player.get("events", []).filter(func(event: Dictionary): return event.kind == "action_active" and event.get("action") == "shot").size()
 
 func _run() -> void:
-	game = Game.new()
+	game = Game.new(); game._opening = "development"
 	game.controls.bindings.config_path = "user://act-ui-smoke-controls.cfg"
 	DirAccess.remove_absolute(game.controls.bindings.config_path)
 	root.add_child(game)

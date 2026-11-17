@@ -57,7 +57,7 @@ func transfer_feedback() -> void:
 func _run() -> void:
 	shield_events()
 	transfer_feedback()
-	game = Game.new()
+	game = Game.new(); game._opening = "development"
 	game._combat_lab = true
 	game._fps = 60
 	game.controls.bindings.config_path = "user://outcome-ui-controls.cfg"
