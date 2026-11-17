@@ -2,6 +2,30 @@
 
 更新：2026-11-17。能力归[FEATURES](features.md)，状态归属归[架构](../engineering/architecture.md)，阶段归[主计划](../plans/foundation-priorities.md)。本页保存当前证据，完整历史由Git追溯。
 
+## 宗门试玩诊断
+
+本次只诊断并形成[整改方案](../plans/foundation-priorities.md#宗门试玩反馈整改)，游戏代码与当前成品尚未修改；待修项归[U01～U06](issues.md#宗门试玩待整改)。基线为main `51515226892de3951244add989a304cb6a545452`，Godot 4.7.2。用户入口为选3当前宗门release，后续代码定点复现使用同main的正常百人装配及真实`logs/t13-mature-checkpoint.bin`（2760000ms）。未写入用户默认存档/偏好；诊断文件、脚本与顾问原件在忽略目录，不能把下述定点探针当成用户原会话完整复现。
+
+`logs/playtest-review-cases.json`与`playtest-review-events-and-crowding-verified-20261117-153533-870194100.log`：正常100人开局，仅把请求者移到对象旁以隔离路径因素，目标仍保留实际自主行为。向2号请教炊事50ms返回`teacher_does_not_know`，向已掌握并公开炊事的8号50ms返回`not_interested`，两者UI日志均为“行动：条件未满足”。成功从餐箱进食在1000ms产生`status_added`和`action_ended(reason=completed)`，也各误报一次“行动：条件未满足”，随后才显示“进食完成”。这证实合法拒绝与成功事件假失败并存，不推断用户当时全部失败均是同一原因。
+
+同成熟快照中，72/76/89/90/98号在(129.5,162.5)，邻近公告案1759(129.5,163.5)，均无活动/动作/预约且地形可站；另有1201、2317公告案旁的同点闲置，以及10号与正在practice的38号同点。`logs/playtest-review-idle-timeline.json`、`playtest-review-idle-timeline-20261117-154525-105341900.log`以原类继续12模拟秒：部分角色继续赶路/休养，72/76号在原点又读公告后闲置，10/49/99号本窗没有活动。不能据静止快照认定全员永久卡死；同一服务终点和结束后缺少让位是真实缺口。
+
+`logs/playtest-review-ui-and-presentation-gap-final-20261117-153705-619875100.log`正常退出0：真实Game加载隔离诊断存档，选中灵竹657处正在practice的38号。raw有phase/operation/target/due_ms，普通SubjectView仍有活动，选择卡片只显示外观/位置/伪填`视距0.0`，作业进度控件隐藏。截图`logs/playtest-review-selected-npc.png`已实看。初次探针错误调用不存在的`runner.stop()`，失败日志保留；改为原`runner.close()`后完成，未改生产逻辑。
+
+性能使用原60Hz外步及既有微秒计数器的单步增量，无业务改动；headless源码各跑12模拟秒，源类/方法计时类分开。下表为实际单步样本，不将不同运行条件的绝对耗时直接比为优化比例：
+
+| 样本 | 世界时刻 | 本步耗时 / 观察耗时 | 事实 |
+|---|---|---|---|
+| 成熟、原始类 | 2772000ms | 444.654 / 440.658ms | 29次观察，环境3.002ms；不是覆盖方法的探针单独制造尖峰 |
+| 成熟、轻量方法计时 | 2772000ms | 407.828 / 404.182ms | 2024次store，494次新目标满容量写入；store合计279.811ms，保护集494次合计93.295ms（嵌套成本不可相加） |
+| 全新开局、轻量方法计时 | 6000 / 11000ms | 245.103 / 306.684ms；观察240.935 / 302.154ms | 分别67/79次观察；全12秒无新目标满容量写入，量化扎堆先于淘汰压力成立 |
+
+原件`logs/playtest-review-perf-{mature-plain,mature,fresh}.json`，日志分别为`playtest-review-mature-original-counters-20261117-153747-532831200.log`、`playtest-review-mature-timeline-20261117-153318-105338100.log`、`playtest-review-fresh-timeline-20261117-153806-205502200.log`。非整秒也有独立规划长尾；不能宣称消除观察尖峰就解决所有成本，亦无GPU或“GDScript GC停止世界”的定位证据。
+
+上述实际Game的12墙钟秒GUI窗另记录`logs/playtest-review-ui-timeline.json`：采到617次发布，11次发布间隔>60ms、最大166.655ms；render_ms实际增长有10次间隔>60ms、最大149.995ms。该源码窗口约120FPS，区别于既有60FPS限制的release样本，不能把headless/GUI/source/release数字混作同一基线。规律性停顿与整秒观察相符，主线程持续重绘并不能保证人物连续移动。
+
+此前release成熟短窗的约60FPS、平均0.9967×、simstep p99 68.593ms/最大130.978ms只证明所测平均吞吐与重绘，不证明没有周期停顿。T12c/T13既有GUI/三日供养通过也不覆盖此次误攻、卡片活动、终结日志和静止重叠体验。原证据保留，适用范围按此收紧。
+
 ## 宗门共享基座交付
 
 T12c已完成开工/收尾双顾问与整改复核。`logs/t12c-final-normal-gui-20261117-125250-150492700.log`、`t12c-final-native-cooperation-20261117-125307-799726900.log`、`t12c-final-incoming-request-20261117-125344-54728900.log`均errors=0：正常100人main、公共身份/职责/个人床、本人/他人隐私边界、5秒实际运行与文件存读、1280×720/125%滚动界面、真实采木8→付料1→当面求助→同门自主完工→当面结清，以及玩家收到请求、延期中保存恢复再接受。截图`logs/settlement-ui/normal-collaboration-{select,accepted,fulfilled}.png`、`settlement-normal-{character,restored}.png`已实际查看。
