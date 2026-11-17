@@ -166,6 +166,16 @@ func created(world: RefCounted, actor: int, target: int, at: int) -> void:
 	# Creator knows their actual submitted site even when it is beyond sight.
 	_store(world, actor, _snapshot(world, target), "receipt", actor, actor, at, at, 0, {}, true)
 
+func contacted(world: RefCounted, actor: int, target: int, at: int) -> void:
+	# Called only after Society has established actual contact. Contact itself
+	# conveys identity/presence even without vision, never private abilities.
+	if not world.actor_slots.has(actor) or refresh(world, actor, target, at, true): return
+	var object: Dictionary = world.objects.records[target]
+	var value: Dictionary = {"id": target, "kind": object.kind, "definition": object.definition, "tile": Terrain.index(Vector2i(world.combat.position(world, target).floor())),
+		"owner": int(object.owner), "organization": int(object.organization), "sapient": object.get("sapient", false)}
+	if object.kind == "actor": value["hp"] = 1 if world.combat.alive(world, target) else 0
+	_store(world, actor, value, "receipt", actor, actor, at, at, 0, {}, true)
+
 func observe(world: RefCounted, actor: int, at: int) -> void:
 	var started: int = Time.get_ticks_usec()
 	var entry: Dictionary = record(actor)

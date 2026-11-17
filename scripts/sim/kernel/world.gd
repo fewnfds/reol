@@ -1149,6 +1149,11 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 	if operation.executor in ["instant", "work_source"]: return "unsupported_host"
 	if operation.executor == "institutions" and not institutions.Channels.input_valid(institutions, input): return "invalid_records_operation"
 	if operation.handler == "offer_matter" and (not input.get("matter") is int or input.matter < 1 or not institutions.matters.has(input.matter) or not input.get("quota", 0) is int or input.get("quota", 0) < 0): return "invalid_matter_offer"
+	if operation.handler == "respond_request":
+		if not society.Requests.response_input_valid(society, id, input): return "invalid_response"
+		if sight.observed_position(self, id, int(input.target)) == null: return "peer_not_observed"
+		var request: Dictionary = society.requests[int(input.request)]
+		if id == request.recipient and (id == 1 or decisions.records.get(id, {}).get("manual", false)) and not input.has("decision") and request.state in ["pending", "deferred"]: return "response_required"
 	if operation.handler in ["gather", "collect_source"] and input.has("amount") and (not input.amount is int or input.amount <= 0 or input.amount > 10000): return "invalid_amount"
 	var capability_reason: String = Operations.capability_reason(objects.records.get(id, {}), str(input.kind))
 	if not capability_reason.is_empty(): return capability_reason
@@ -1430,7 +1435,9 @@ func describe(id: int) -> Dictionary:
 			if bundle.owner == id or bundle.purpose == "equip":
 				for item: String in bundle.items:
 					if not result.equippable.has(item): result.equippable.append(item)
-		if id == 1: result["stock_rights"] = State.copy(objects.records[id].stock)
+		if id == 1:
+			result["stock_rights"] = State.copy(objects.records[id].stock)
+			result["requests"] = society.request_views(self, id, operation_time())
 	return result
 
 func activity_view(id: int) -> Dictionary:

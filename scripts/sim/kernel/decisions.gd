@@ -1,4 +1,5 @@
 extends RefCounted
+const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const MAX_WAKE_MS: int = 3600000 # Shared sleeping calendar; tactical fields retain short bounds.
 ## Owner-side coordination; no per-agent Node or new world clock.
 const Defs = preload("res://scripts/sim/kernel/decision_defs.gd")
@@ -57,9 +58,8 @@ func policy(world: RefCounted, actor: int) -> Dictionary:
 func wake(world: RefCounted, actor: int, at: int, reason: String, delay: int = 0) -> void:
 	if not world.actor_slots.has(actor) or not world.combat.alive(world, actor): return
 	var entry: Dictionary = _record(world, actor)
-	if reason == "needs_changed":
-		if entry.manual or not _life_preemptible(world, actor): return
-		entry.life_dirty = true
+	if reason == "needs_changed" and (entry.manual or not _life_preemptible(world, actor)): return
+	if reason in ["needs_changed", "request_review", "institution_review", "goal_added", "disposition_changed"] and not entry.manual and _life_preemptible(world, actor): entry.life_dirty = true
 	var due: int = at + maxi(0, delay)
 	if reason in ["life_result", "await_commitment"]: due = ((due + 49) / 50) * 50
 	if reason == "life_result" and str(wakeups.get(actor, "")).begins_with("execution_") and not in_combat(actor):
@@ -141,7 +141,7 @@ func _prune_feedback(world: RefCounted, actor: int, at: int) -> void:
 	var failures: Array = records[actor].feedback
 	for index: int in range(failures.size() - 1, -1, -1):
 		var failure: Dictionary = failures[index]
-		if at >= int(failure.until_ms) or failure.evidence != _evidence(world, actor, failure.target): failures.remove_at(index)
+		if at >= int(failure.until_ms) or (not Operations.contact_operation(str(failure.operation)) and failure.evidence != _evidence(world, actor, failure.target)): failures.remove_at(index)
 
 func retry_allowed(world: RefCounted, actor: int, operation: String, target: int, at: int) -> bool:
 	if not world.knowledge.can_attempt(actor, operation, target, at): return false
@@ -157,6 +157,7 @@ func result(world: RefCounted, actor: int, operation: String, target: int, reaso
 	_prune_feedback(world, actor, at)
 	var succeeded: bool = status == "completed" if not status.is_empty() else reason in ["completed", "transferred", "arrived"]
 	if not succeeded and reason in ["accepted", "started", "buffered", "replaced", "preempted", "interrupted", "partner_left", "cancelled", "action_committed", "stunned", "recovery", "rooted", "intent_pending"]: return
+	if reason in ["planning_budget", "response_not_due"]: return
 	for index: int in range(entry.feedback.size() - 1, -1, -1):
 		if entry.feedback[index].operation == operation and entry.feedback[index].target == target: entry.feedback.remove_at(index)
 	if succeeded: return
@@ -267,6 +268,7 @@ func prepare(world: RefCounted, now: int) -> void:
 		if now < int(entry.next_ms): continue
 		entry.next_ms = -1
 		var reason: String = str(wakeups.get(actor, "due"))
+		var chose_life: bool = false
 		wakeups.erase(actor)
 		if entry.manual:
 			entry.life_dirty = false
@@ -304,6 +306,7 @@ func prepare(world: RefCounted, now: int) -> void:
 			if world.gate.current(actor).is_empty():
 				entry.mode = "life"
 				world.livelihood.choose(world, actor, now)
+				chose_life = true
 				entry.mode = "life" if world.objects.records[actor].get("autonomous", false) else "idle"
 				track_host(world, actor)
 				_record_trace(actor, now, entry, -1, "life_selected")
@@ -311,7 +314,9 @@ func prepare(world: RefCounted, now: int) -> void:
 			entry.life_dirty = false
 			if entry.mode != "follow": entry.mode = "idle"
 			entry.task.clear()
+			world.society.review_due(world, actor, now)
 		entry.last_reason = reason
+		if not chose_life: world.livelihood.schedule_reviews(world, actor, now)
 	work_usec += Time.get_ticks_usec() - started_at
 
 func _id() -> int:

@@ -1,6 +1,11 @@
 extends RefCounted
 ## Authoring sources compiled once; no runtime reflection or script registry.
 const LIBRARY = preload("res://data/definitions/operations/library.tres")
+const CONTACT_HANDLERS: Array[String] = ["talk", "trade", "learn", "request_help", "offer_matter", "respond_request"]
+
+static func contact_operation(operation: String) -> bool:
+	return OPERATIONS.get(operation, {}).get("handler", "") in CONTACT_HANDLERS
+
 static var _compiled: Dictionary = LIBRARY.compile()
 static var ERRORS: PackedStringArray = _compiled.errors
 static var OPERATIONS: Dictionary = freeze(_compiled.operations)

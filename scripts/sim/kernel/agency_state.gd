@@ -53,7 +53,9 @@ static func valid(owner: RefCounted, world: RefCounted) -> bool:
 			if intention.task_id > 0 and (entry.goals[intention.goal].state != "active" or world.decisions.records.get(actor, {}).get("task", {}).get("id") != intention.task_id): return false
 		for key: Variant in entry.appraisals:
 			var account: Variant = entry.appraisals[key]
-			if not key is String or not account is Dictionary or account.size() != 7 or not account.get("operation") is String or (account.operation != "inspect" and not Operations.OPERATIONS.has(account.operation)) or not account.get("target") is int or account.target <= 0 or account.target >= world.objects.next_id or key != "%s:%d" % [account.operation, account.target]: return false
+			if not key is String or not account is Dictionary or account.size() != (8 if account.has("request") else 7) or not account.get("operation") is String or (account.operation != "inspect" and not Operations.OPERATIONS.has(account.operation)) or not account.get("target") is int or account.target <= 0 or account.target >= world.objects.next_id: return false
+			if account.has("request") and (not account.request is int or account.request < 1 or account.request >= world.society.next_request or account.operation != "respond_request" or account.get("reason") != "awaiting_response"): return false
+			if key != "%s:%d%s" % [account.operation, account.target, ":%d" % account.request if account.has("request") else ""]: return false
 			if not account.get("reason") is String or not account.reason.is_valid_identifier() or not account.get("failures") is int or account.failures < 1 or account.failures > 6: return false
 			if not account.get("at_ms") is int or account.at_ms < 0 or account.at_ms > world.elapsed_ms or not account.get("until_ms") is int or account.until_ms <= account.at_ms or account.until_ms > account.at_ms + 60000 or not account.get("revision") is int or account.revision < 0: return false
 	# A living obligor must have exactly one reference, including while manual.

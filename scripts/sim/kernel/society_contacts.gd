@@ -30,6 +30,9 @@ static func acknowledge(owner: RefCounted, world: RefCounted, a: int, b: int, no
 	for actor: int in [a, b]:
 		if not Beings.has(world.objects.records[actor], "contact"): return false
 	if not seeded and not owner.in_contact(world, a, b, now): return false
+	if not seeded:
+		world.knowledge.contacted(world, a, b, now)
+		world.knowledge.contacted(world, b, a, now)
 	var id: String = key(a, b)
 	if owner.contacts.has(id):
 		owner.contacts[id].last_ms = maxi(int(owner.contacts[id].last_ms), now)

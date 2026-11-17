@@ -215,7 +215,7 @@ static func release(owner: RefCounted, world: RefCounted, actor: int, id: int) -
 	if actor != share.actor and not _can_manage(owner, world, actor, owner.matters[share.matter]): return false
 	share.state = "released"
 	_unindex_active(owner, share)
-	_notify_closed(world, share, false)
+	_notify_closed(world, share, false, actor)
 	owner.reconcile(world, share.actor)
 	return true
 
@@ -224,8 +224,8 @@ static func cancel(owner: RefCounted, world: RefCounted, actor: int, id: int) ->
 	owner.matters[id].state = "cancelled"
 	for share: Dictionary in shares_in(owner, id):
 		if share.state == "accepted":
-			share.state = "released"; _unindex_active(owner, share); _notify_closed(world, share, false); owner.reconcile(world, share.actor)
-	world.society.on_matter_closed(world, id)
+			share.state = "released"; _unindex_active(owner, share); _notify_closed(world, share, false, actor); owner.reconcile(world, share.actor)
+	world.society.on_matter_closed(world, id, actor)
 	return true
 
 static func revise(owner: RefCounted, world: RefCounted, actor: int, id: int, total: int, quota: int, deadline: int) -> bool:
@@ -238,11 +238,11 @@ static func revise(owner: RefCounted, world: RefCounted, actor: int, id: int, to
 	for share: Dictionary in shares_in(owner, id): fulfilled += int(share.fulfilled)
 	if fulfilled == total:
 		matter.state = "completed"
-		world.society.on_matter_closed(world, id)
+		world.society.on_matter_closed(world, id, actor)
 	return true
 
-static func _notify_closed(world: RefCounted, share: Dictionary, completed: bool) -> void:
-	world.society.on_share_closed(world, share, completed)
+static func _notify_closed(world: RefCounted, share: Dictionary, completed: bool, actor: int = 0) -> void:
+	world.society.on_share_closed(world, share, completed, actor)
 	world.livelihood.share_closed(world, share, completed)
 
 static func _credit(owner: RefCounted, world: RefCounted, share: Dictionary, amount: int, result: Dictionary) -> int:
@@ -254,13 +254,13 @@ static func _credit(owner: RefCounted, world: RefCounted, share: Dictionary, amo
 	if share.fulfilled == share.quota:
 		share.state = "completed"
 		_unindex_active(owner, share)
-		_notify_closed(world, share, true)
+		_notify_closed(world, share, true, int(result.actor))
 		owner.reconcile(world, share.actor)
 	return count
 
 static func outcome(owner: RefCounted, world: RefCounted, result: Dictionary) -> void:
 	if result.is_empty() or result.status != "completed" or result.reason == "process_waiting": return
-	if result.operation == "construct": world.society.Requests.construction_completed(world.society, int(result.target), int(result.at_ms))
+	if result.operation == "construct": world.society.Requests.construction_completed(world.society, int(result.target), int(result.at_ms), int(result.actor))
 	var actors: Array = [result.actor]
 	for labor: Dictionary in result.facts.get("labor", []):
 		if labor.worked_ms > 0 and labor.actor not in actors: actors.append(int(labor.actor))
@@ -312,8 +312,8 @@ static func outcome(owner: RefCounted, world: RefCounted, result: Dictionary) ->
 			matter.state = "satisfied"
 			for share: Dictionary in shares_in(owner, int(matter.id)):
 				if share.state == "accepted":
-					share.state = "released"; _unindex_active(owner, share); _notify_closed(world, share, false); owner.reconcile(world, share.actor)
-		if matter.state != "active": world.society.on_matter_closed(world, id)
+					share.state = "released"; _unindex_active(owner, share); _notify_closed(world, share, false, int(result.actor)); owner.reconcile(world, share.actor)
+		if matter.state != "active": world.society.on_matter_closed(world, id, int(result.actor))
 
 static func compact(owner: RefCounted, world: RefCounted) -> void:
 	if owner.matters.size() < MATTER_LIMIT and owner.shares.size() < SHARE_LIMIT: return

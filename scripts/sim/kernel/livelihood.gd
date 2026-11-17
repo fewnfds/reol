@@ -93,6 +93,7 @@ func _ensure_goals(world: RefCounted, actor: int) -> void:
 	if Beings.has(person, "work"): add_goal(world, actor, "custody")
 	if Beings.has(person, "contact"):
 		add_goal(world, actor, "reporting")
+		add_goal(world, actor, "responses")
 		for organization: int in world.institutions.permissions(actor): add_goal(world, actor, "organization_service", {"organization": organization})
 	reconcile_duties(world, actor)
 
@@ -111,8 +112,30 @@ func think(world: RefCounted, id: int, at: int) -> void:
 
 func choose(world: RefCounted, id: int, at: int) -> void:
 	var started: int = Time.get_ticks_usec()
-	_think(world, id, at)
+	var context: Dictionary = {}
+	_think(world, id, at, context)
+	schedule_reviews(world, id, at, context)
 	decision_usec += Time.get_ticks_usec() - started
+
+func schedule_reviews(world: RefCounted, actor: int, at: int, context: Dictionary = {}) -> void:
+	# The original scheduler retains only the nearest wake. Re-derive later
+	# reviews after execution adoption or an earlier wake, including while busy.
+	if not world.combat.alive(world, actor) or not world.objects.records[actor].get("autonomous", false) or world.decisions.records.get(actor, {}).get("manual", false): return
+	if context.is_empty() and world.society._requests_by_actor.get(actor, []).is_empty() and world.institutions.Duties.views(world.institutions, actor).is_empty() and world.knowledge.records.get(actor, {}).get("channels", {}).is_empty(): return
+	var view: Dictionary = context.actor if context.has("actor") else _self_view(world, actor)
+	var clues: Dictionary = context.clues if context.has("clues") else world.knowledge.known(actor, at)
+	var due: int = Planner.Contacts.next_due(view, at)
+	for request: Dictionary in view.requests:
+		var review: int = Planner.Contacts.due(request, actor, view.responsibilities)
+		if review < 0 or review > at or int(request.get("peer_tile", -1)) < 0: continue
+		var peer: int = request.issuer if request.recipient == actor else request.recipient
+		var task: Dictionary = world.decisions.records.get(actor, {}).get("task", {})
+		if task.get("operation") == "respond_request" and task.get("target") == peer and not task.get("binding", {}).is_empty() and task.binding == world.gate.current(actor): continue
+		var retry: int = maxi(at + 1000, maxi(int(records[actor].appraisals.get("respond_request:%d" % (request.issuer if request.recipient == actor else request.recipient), {}).get("until_ms", 0)), int(view.request_retries.get(int(request.id), 0))))
+		if due < 0 or retry < due: due = retry
+	if due > at: world.decisions.wake(world, actor, at, "request_review", due - at)
+	due = Planner.Institutions.next_due(view, clues, at)
+	if due > at: world.decisions.wake(world, actor, at, "institution_review", due - at)
 
 func _self_view(world: RefCounted, actor: int) -> Dictionary:
 	var view: Dictionary = world.operation_actor(actor)
@@ -122,6 +145,12 @@ func _self_view(world: RefCounted, actor: int) -> Dictionary:
 	view["speed"] = page.move_speed[slot % 256]
 	view["recovering"] = Growth.needs_rest(world.objects.records[actor]) and page.body_heat[slot % 256] >= 5.0 and page.body_heat[slot % 256] <= 40.0
 	view["known_channels"] = State.copy(world.knowledge.records.get(actor, {}).get("channels", {}))
+	view["requests"] = world.society.request_views(world, actor, world.operation_time())
+	view["contacts"] = world.society.Contacts.views(world.society, actor)
+	view["social_appraisals"] = State.copy(record(world, actor).social_appraisals)
+	view["request_retries"] = {}
+	for account: Dictionary in records[actor].appraisals.values():
+		if account.has("request"): view.request_retries[int(account.request)] = int(account.until_ms)
 	view["observations"] = {}
 	view["operation_failures"] = {}
 	for failure: Dictionary in world.decisions.records.get(actor, {}).get("feedback", []):
@@ -148,6 +177,10 @@ func _utility(goal: Dictionary, entry: Dictionary, actor: Dictionary, at: int) -
 		"duty": value = 1.0 if actor.get("duties", {}).has(int(goal.params.appointment)) else 0.0
 		"service": value = 1.0 if actor.get("permissions", {}).has(int(goal.params.organization)) and actor.get("responsibilities", {}).is_empty() else 0.0
 		"reporting": value = 1.0 if not actor.get("reports", []).is_empty() else 0.0
+		"responses":
+			for request: Dictionary in actor.get("requests", []):
+				var time: int = Planner.Contacts.due(request, int(actor.id), actor.get("responsibilities", {}))
+				if time >= 0 and time <= at: value = maxf(value, 1.0 + minf(0.5, float(at - time) / 30000.0))
 		"custody": value = 1.0 if not actor.returns.is_empty() else 0.0
 	value *= float(spec.weight)
 	if not spec.disposition.is_empty(): value *= float(entry.dispositions[spec.disposition])
@@ -170,6 +203,7 @@ func evaluate_request(world: RefCounted, actor: int, request: Dictionary, at: in
 		var score: Dictionary = _utility(goal, entry, view, at)
 		var driver: String = Defs.GOALS[goal.definition].driver
 		var category: String = "need" if driver in ["resource", "recovery"] else ("duty" if driver in ["responsibility", "duty", "custody", "reporting"] else "personal")
+		if driver == "responses": continue # Responding to this same request is not another burden.
 		context[category] = maxf(float(context[category]), float(score.value))
 		context.emergency = context.emergency or bool(score.emergency)
 	var slot: int = world.actor_slots[actor]
@@ -209,7 +243,7 @@ func should_preempt(world: RefCounted, actor: int, at: int) -> bool:
 	var entry: Dictionary = records[actor]
 	var view: Dictionary = _self_view(world, actor)
 	var current: Dictionary = entry.goals.get(entry.intention.get("goal", 0), {})
-	var current_score: float = float(_utility(current, entry, view, at).value) if not current.is_empty() and current.state == "active" else 0.0
+	var current_score: float = float(_utility(current, entry, view, at).value) if int(entry.intention.get("task_id", 0)) > 0 and not current.is_empty() and current.state == "active" else 0.0
 	if at - int(entry.budget.window_ms) >= BUDGET_MS:
 		entry.budget.window_ms = at; entry.budget.work = 0
 	var self_target: Dictionary = world.operation_target(actor)
@@ -223,7 +257,12 @@ func should_preempt(world: RefCounted, actor: int, at: int) -> bool:
 		if score.value <= current_score + 0.12 or (not score.emergency and score.value < 0.25): continue
 		for approach: String in Defs.GOALS[goal.definition].approaches:
 			var allowance: int = mini(16, Planner.WORK_LIMIT - 32 - int(entry.budget.work))
-			if allowance <= 0: return false # Leave enough room to adopt a different method.
+			if allowance <= 0:
+				# A dirty life event has not been evaluated, rather than evaluated
+				# false. Keep it on the original calendar for the next work window.
+				world.decisions.records[actor].life_dirty = true
+				world.decisions.wake(world, actor, at, "planning_budget", maxi(1, int(entry.budget.window_ms) + BUDGET_MS - at))
+				return false
 			for option: Dictionary in planner.candidates(goal, Defs.APPROACHES[approach], allowance):
 				if option.step.kind != "wait": return true
 	return false
@@ -236,7 +275,8 @@ func _blocked(world: RefCounted, id: int, entry: Dictionary, at: int) -> Diction
 		if experience.reason == "teacher_does_not_know" and not world.knowledge.can_attempt(id, experience.operation, experience.target, at): blocked["%s:%d" % [experience.operation, experience.target]] = true
 	for key: String in entry.appraisals:
 		var account: Dictionary = entry.appraisals[key]
-		if account.until_ms > at and int(world.knowledge.evidence(id, account.target).get("revision", 0)) == account.revision: blocked[key] = true
+		if account.has("request"): continue # Waiting for this reply is not a failure to contact the person.
+		if account.until_ms > at and (Operations.contact_operation(str(account.operation)) or int(world.knowledge.evidence(id, account.target).get("revision", 0)) == account.revision): blocked[key] = true
 	return blocked
 
 func _refresh_goals(world: RefCounted, actor: int, entry: Dictionary, at: int) -> void:
@@ -259,7 +299,7 @@ func _refresh_goals(world: RefCounted, actor: int, entry: Dictionary, at: int) -
 			goal.closed_ms = at
 			if entry.intention.get("goal") == goal.id: entry.intention.task_id = 0
 
-func _think(world: RefCounted, id: int, at: int) -> void:
+func _think(world: RefCounted, id: int, at: int, context: Dictionary = {}) -> void:
 	if not world.objects.records.get(id, {}).get("autonomous", false) or world.decisions.in_combat(id) or not world.gate.current(id).is_empty() or not world.gate.check(world, id, at).is_empty(): return
 	decisions += 1
 	_ensure_goals(world, id)
@@ -274,6 +314,7 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 		world.decisions.wake(world, id, at, "planning_budget", maxi(1, int(entry.budget.window_ms) + BUDGET_MS - at)); return
 	var actor: Dictionary = _self_view(world, id)
 	var clues: Dictionary = world.knowledge.known(id, at)
+	context["actor"] = actor; context["clues"] = clues
 	var self_target: Dictionary = world.operation_target(id)
 	self_target.inventory = actor.inventory.duplicate()
 	var blocked: Dictionary = _blocked(world, id, entry, at)
@@ -287,22 +328,30 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 	# Emergency needs are always sampled first. Other purposes rotate when a
 	# large authored catalog consumes the query budget before every purpose fits.
 	var urgent: Array = ordered.filter(func(value: Dictionary): return value.utility.emergency)
-	var ordinary: Array = ordered.filter(func(value: Dictionary): return not value.utility.emergency)
+	var replying: bool = Planner.Contacts.judgment_due(actor, at)
+	var protected: Array = ordered.filter(func(value: Dictionary): return not value.utility.emergency and replying and Defs.GOALS[value.goal.definition].driver == "responses")
+	var ordinary: Array = ordered.filter(func(value: Dictionary): return not value.utility.emergency and value not in protected)
 	if not ordinary.is_empty():
 		var offset: int = int(entry.budget.goal_cursor) % ordinary.size()
 		ordinary = ordinary.slice(offset) + ordinary.slice(0, offset)
-	ordered = urgent + ordinary
+	ordered = urgent + protected + ordinary
 	var planner := Planner.new()
 	var preference: Dictionary = _preference(entry, actor, clues, at)
 	planner.configure(actor, self_target, clues, blocked, world.combat.position(world, id), at, entry.budget, preference)
+	# A pending judgment shares this bounded budget with planning. Keep one probe
+	# available when a received request is due, even in a large purpose catalog.
+	var planning_limit: int = Planner.WORK_LIMIT - (17 if Planner.Contacts.judgment_due(actor, at) else 0)
+	if int(entry.budget.work) >= planning_limit:
+		world.decisions.wake(world, id, at, "planning_budget", maxi(1, int(entry.budget.window_ms) + BUDGET_MS - at)); return
 	var best: Dictionary = {}
 	var choices: Array = []
 	var examined: int = 0
 	for candidate: Dictionary in ordered:
+		if int(entry.budget.work) >= planning_limit: break
 		examined += 1
 		for approach_id: String in Defs.GOALS[candidate.goal.definition].approaches:
 			var approach: Dictionary = Defs.APPROACHES[approach_id]
-			for option: Dictionary in planner.candidates(candidate.goal, approach, allowance):
+			for option: Dictionary in planner.candidates(candidate.goal, approach, mini(allowance, planning_limit - int(entry.budget.work))):
 				var score: float = float(candidate.utility.value) * (0.55 + 0.45 * float(option.step.confidence) * float(approach.confidence)) - minf(0.12, float(option.step.estimate_ms) / 200000.0)
 				if option.step.get("social", false): score += 0.04 * (float(entry.dispositions.sociability) - 1.0)
 				if entry.intention.get("goal") == candidate.goal.id and entry.intention.get("approach") == approach_id and entry.intention.get("anchor") == option.anchor and entry.intention.get("operation") == option.operation:
@@ -311,14 +360,14 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 					"score": score, "utility": candidate.utility.value, "emergency": candidate.utility.emergency, "step": option.step}
 				if choices.size() < 12: choices.append(State.copy(decision))
 				if best.is_empty() or score > float(best.score): best = decision
-			if int(entry.budget.work) >= Planner.WORK_LIMIT: break
-		if int(entry.budget.work) >= Planner.WORK_LIMIT: break
+			if int(entry.budget.work) >= planning_limit: break
+		if int(entry.budget.work) >= planning_limit: break
 	entry.budget.cursor = (int(entry.budget.cursor) + 17) % 128
-	if int(entry.budget.work) >= Planner.WORK_LIMIT and not ordinary.is_empty(): entry.budget.goal_cursor = (int(entry.budget.goal_cursor) + maxi(1, examined - urgent.size())) % GOAL_LIMIT
+	if int(entry.budget.work) >= planning_limit and not ordinary.is_empty(): entry.budget.goal_cursor = (int(entry.budget.goal_cursor) + maxi(1, examined - urgent.size())) % GOAL_LIMIT
 	latest[id] = {"at_ms": at, "choices": choices, "chosen": State.copy(best), "work": entry.budget.work}
-	var institution_due: int = Planner.Institutions.next_due(actor, clues, at)
-	if institution_due > at: world.decisions.wake(world, id, at, "institution_review", institution_due - at)
 	if best.is_empty():
+		if int(entry.budget.work) >= planning_limit:
+			world.decisions.wake(world, id, at, "planning_budget", maxi(1, int(entry.budget.window_ms) + BUDGET_MS - at)); return
 		var retry_at: int = at + 10001
 		for failure: Dictionary in world.decisions.records[id].feedback:
 			if failure.until_ms > at: retry_at = mini(retry_at, int(failure.until_ms))
@@ -329,7 +378,7 @@ func _think(world: RefCounted, id: int, at: int) -> void:
 		var searching: bool = false
 		for candidate: Dictionary in ordered:
 			var driver: String = Defs.GOALS[candidate.goal.definition].driver
-			if driver not in ["duty", "service", "reporting"]: searching = true
+			if driver not in ["duty", "service", "reporting", "responses"]: searching = true
 			elif driver == "service" and not clues.values().any(func(value: Dictionary): return value.has("post_revision") and int(value.get("organization", 0)) == int(candidate.goal.params.organization)): searching = true
 			elif driver == "duty":
 				var policy: Dictionary = actor.duties[int(candidate.goal.params.appointment)]
@@ -467,16 +516,22 @@ func _rejected(world: RefCounted, id: int, operation: String, target: int, reaso
 	world.decisions.result(world, id, operation, target, reason, at)
 	after_action(world, id, at)
 
-func _appraise(world: RefCounted, actor: int, operation: String, target: int, status: String, reason: String, at: int) -> void:
+func _appraise(world: RefCounted, actor: int, operation: String, target: int, status: String, reason: String, at: int, request: int = 0) -> void:
 	if not records.has(actor) or operation.is_empty() or target <= 0: return
 	var accounts: Dictionary = records[actor].appraisals
 	var key: String = "%s:%d" % [operation, target]
-	if status == "completed": accounts.erase(key); return
+	if operation == "respond_request" and request > 0:
+		var scoped: String = key + ":%d" % request
+		if status == "completed" and reason != "awaiting_response": accounts.erase(scoped)
+		if reason == "awaiting_response": key = scoped
+	if status == "completed" and reason != "awaiting_response": accounts.erase(key); return
+	if reason in ["planning_budget", "response_not_due"]: return
 	if reason in ["preempted", "interrupted", "partner_left", "cancelled", "replaced", "action_committed", "actor_dead", "actor_removed"]: return
 	var previous: Dictionary = accounts.get(key, {})
 	var failures: int = mini(6, int(previous.get("failures", 0)) + 1)
 	accounts[key] = {"operation": operation, "target": target, "reason": reason, "failures": failures, "at_ms": at,
 		"until_ms": at + mini(60000, 1500 * (1 << (failures - 1))), "revision": int(world.knowledge.evidence(actor, target).get("revision", 0))}
+	if reason == "awaiting_response" and operation == "respond_request" and request > 0: accounts[key]["request"] = request
 	if accounts.size() > APPRAISAL_LIMIT:
 		var oldest: String = str(accounts.keys()[0])
 		for item: String in accounts:
@@ -489,7 +544,7 @@ func outcome(world: RefCounted, actor: int, binding: Dictionary, result: Diction
 	if result.is_empty():
 		if task.get("binding", {}) == binding and task.has("operation") and reason != "completed": _appraise(world, actor, task.operation, int(task.target), "interrupted", reason, at)
 		return
-	_appraise(world, actor, result.operation, int(result.target), result.status, result.reason, at)
+	_appraise(world, actor, result.operation, int(result.target), result.status, result.reason, at, int(result.facts.get("request", 0)))
 	var entry: Dictionary = records[actor]
 	if result.status == "completed": entry.idle_attempts = 0
 	var intention: Dictionary = entry.intention

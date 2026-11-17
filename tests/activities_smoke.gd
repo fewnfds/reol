@@ -80,6 +80,9 @@ func social_participation() -> void:
 	var busy: RefCounted = peaceful()
 	busy.pages[0].positions[0] = Vector2(122.5, 120.5)
 	busy.decisions.suspend(busy, 2)
+	busy.adopt_work(2, 0)
+	busy.pages[0].modes[1] = busy.Units.Mode.REST
+	busy.pages[0].due_ms[1] = 10000
 	var stock: Dictionary = busy.objects.records[2].stock.duplicate(true)
 	check(busy.begin_interaction(1, {"kind": "trade", "target": 2}) == "accepted", "Busy contact request was not accepted for on-site review")
 	advance(busy, 1200)

@@ -310,6 +310,12 @@ func action(kind: String, payload: Dictionary) -> void:
 			tool = "worker"
 			ui.show_tool("link", "#%d" % target)
 		"request_help": _send({"kind": kind, "target": target, "task_target": help_target})
+		"respond_request":
+			clear_direct()
+			_send(payload)
+		"seek_request_peer":
+			clear_direct()
+			_send({"kind": "move", "tile": int(payload.tile)})
 		"camera":
 			host.following = false
 			host.camera.position = Art.body_foot(payload.position) * Art.TILE

@@ -8,6 +8,7 @@ const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const Stock = preload("res://scripts/sim/kernel/stock_rules.gd")
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Institutions = preload("res://scripts/sim/kernel/agency_institutions.gd")
+const Contacts = preload("res://scripts/sim/kernel/agency_contacts.gd")
 static var PLANTS: Dictionary = Operations.freeze(JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/plants.json")).types)
 const WORK_LIMIT: int = 128
 const DEPTH_LIMIT: int = 4
@@ -79,6 +80,8 @@ func candidates(goal: Dictionary, approach: Dictionary, allowance: int = 32) -> 
 	source_scope = []
 	sources_restricted = false
 	match approach.pattern:
+		"respond": return Contacts.responses(self)
+		"seek_help": return Contacts.seek_help(self, goal)
 		"duty": return Institutions.duty(self, goal)
 		"service": return Institutions.service(self, goal)
 		"reporting": return Institutions.reports(self)
@@ -87,6 +90,8 @@ func candidates(goal: Dictionary, approach: Dictionary, allowance: int = 32) -> 
 			if terms.is_empty(): return []
 			var projected: Dictionary = project(goal, actor)
 			source_scope = terms.sources.duplicate()
+			# An empty contractual source list grants no external sourcing. Private
+			# construction already holds prepaid materials on the blueprint.
 			sources_restricted = true
 			var options: Array = _delivery(projected, []) if terms.kind == "delivery" else _perform(projected, {"targets": "goal", "handler": "", "prerequisites": true}, [])
 			if options.is_empty() and int(budget.work) < slice_limit: return Institutions.blocked(self, terms)

@@ -36,11 +36,22 @@ func deliver_request(world: RefCounted, actor: int, action: Dictionary, now: int
 func respond(world: RefCounted, actor: int, id: int, response: String, now: int, reason: String = "") -> Dictionary:
 	return Requests.respond(self, world, actor, id, response, reason if not reason.is_empty() else ("request_deferred" if response == "defer" else "request_refused"), now)
 
-func on_share_closed(world: RefCounted, share: Dictionary, fulfilled: bool) -> void:
-	Requests.share_closed(self, share, fulfilled, world.operation_time())
+func request_views(world: RefCounted, actor: int, now: int) -> Array:
+	var views: Array = Requests.views(self, actor, now)
+	var peers: Dictionary = {}
+	for view: Dictionary in views:
+		var other: int = view.issuer if view.recipient == actor else view.recipient
+		if not peers.has(other):
+			var clue: Dictionary = world.knowledge.view(actor, other, now)
+			peers[other] = {"peer_known_dead": clue.has("hp") and int(clue.hp) <= 0, "peer_tile": int(clue.get("tile", -1)), "peer_visible": world.sight.observed_position(world, actor, other) != null}
+		view.merge(peers[other])
+	return views
 
-func on_matter_closed(world: RefCounted, matter: int) -> void:
-	Requests.matter_closed(self, matter, world.operation_time())
+func on_share_closed(world: RefCounted, share: Dictionary, fulfilled: bool, actor: int = 0) -> void:
+	Requests.share_closed(self, share, fulfilled, world.operation_time(), actor)
+
+func on_matter_closed(world: RefCounted, matter: int, actor: int = 0) -> void:
+	Requests.matter_closed(self, matter, world.operation_time(), actor)
 
 func on_actor_removed(actor: int, now: int) -> void:
 	Requests.actor_removed(self, actor, now)
@@ -81,7 +92,7 @@ func availability_reason(world: RefCounted, actor: int, action: Dictionary) -> S
 
 func contact_reason(world: RefCounted, action: Dictionary) -> String:
 	var operation: Dictionary = Operations.OPERATIONS[action.get("operation_id", action.kind)]
-	if operation.handler in ["talk", "trade", "request_help", "offer_matter", "learn"] and world.actor_slots.has(action.target):
+	if operation.handler in Operations.CONTACT_HANDLERS and world.actor_slots.has(action.target):
 		if not Beings.has(world.objects.records[action.target], "contact"): return "not_available_for_contact"
 	return ""
 
@@ -90,7 +101,7 @@ func invite(world: RefCounted, actor: int, action: Dictionary) -> void:
 	if not available(world, actor, action): return
 	var target: int = action.target
 	var handler: String = Operations.OPERATIONS.get(action.get("operation_id", action.kind), {}).get("handler", "")
-	if target == 1 or target == actor or not world.actor_slots.has(target) or handler not in ["talk", "trade", "learn", "request_help", "offer_matter"]:
+	if target == 1 or target == actor or not world.actor_slots.has(target) or handler not in Operations.CONTACT_HANDLERS:
 		return
 	if world.decisions.records.get(target, {}).get("manual", false): return
 	if waits.has(target): return # Another host owns this partner; invitation cannot steal it.
@@ -100,7 +111,10 @@ func invite(world: RefCounted, actor: int, action: Dictionary) -> void:
 		return # A busy/unwilling partner need not stop; contact can fail normally.
 	action["partner_waiting"] = true
 	action["partner_resume"] = world.objects.records[target].get("autonomous", false)
-	world.release(target)
+	# Joining a contact interrupts current execution, not the person's future
+	# review calendar. Full release is reserved for explicit command/death reset.
+	world.end_run(target, world.operation_time(), "interrupted", {}, false)
+	world.clear_navigation(target)
 	page.modes[slot % 256] = Units.Mode.IDLE
 	waits[target] = {"actor": actor, "owner_run": action.run_id, "run_id": world.next_run}
 	world.next_run += 1
@@ -122,18 +136,20 @@ func interrupt(world: RefCounted, action: Dictionary, now: int) -> void:
 
 func participation_reason(world: RefCounted, actor: int, action: Dictionary, now: int) -> String:
 	var handler: String = Operations.OPERATIONS[action.kind].handler
-	if handler not in ["talk", "trade", "request_help", "offer_matter", "learn"]: return ""
+	if handler not in Operations.CONTACT_HANDLERS: return ""
 	if not world.actor_slots.has(action.target): return ""
-	if action.target == 1 or world.decisions.records.get(action.target, {}).get("manual", false):
+	if action.get("partner_free", false) or action.target == 1 or world.decisions.records.get(action.target, {}).get("manual", false):
 		# Contact does not seize the player's input. Presence and actual capacity
 		# to participate are rechecked at both start and commit.
-		return "target_busy" if not world.gate.current(action.target).is_empty() or world.combat.controls.has(action.target) or world.combat.engagements.has(action.target) or not world.gate.check(world, action.target, now).is_empty() or world.decisions.in_combat(action.target) else ""
+		if not world.gate.current(action.target).is_empty() or world.combat.controls.has(action.target) or world.combat.engagements.has(action.target) or not world.gate.check(world, action.target, now).is_empty() or world.decisions.in_combat(action.target): return "target_busy"
+		action["partner_free"] = true # Actual participation without acquiring the other input owner.
+		return ""
 	var wait: Dictionary = waits.get(action.target, {})
 	return "" if wait.get("actor") == actor and wait.get("owner_run") == action.run_id else "target_busy"
 
 func participants(actor: int, action: Dictionary) -> Array:
 	var handler: String = Operations.OPERATIONS[action.kind].handler
-	return [actor, action.target] if handler in ["talk", "trade", "request_help", "offer_matter", "learn"] and action.target != actor else [actor]
+	return [actor, action.target] if handler in Operations.CONTACT_HANDLERS and action.target != actor else [actor]
 
 
 func finish(world: RefCounted, actor: int, action: Dictionary, now: int) -> String:
@@ -152,8 +168,9 @@ func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dict
 	var page: RefCounted = world.pages[slot / 256]
 	var row: int = slot % 256
 	var facts: Dictionary = {}
-	if handler in ["talk", "trade", "learn"]:
+	if handler in Operations.CONTACT_HANDLERS:
 		Contacts.acknowledge(self, world, actor, int(action.target), now)
+		Requests.sync_contact(self, world, actor, int(action.target), now)
 	match handler:
 		"talk":
 			var shared: Dictionary = world.knowledge.share(world, action.target, actor, now)
@@ -180,6 +197,8 @@ func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dict
 			if world.actor_slots.has(action.target):
 				world._sync_inventory(action.target)
 			facts = {"given": {give: given}, "received": {want: wanted}, "counterparty": action.target}
+		"respond_request":
+			return _respond_contact(world, actor, action, now)
 		"request_help", "offer_matter":
 			var delivered: Dictionary = Requests.deliver(self, world, actor, action, now)
 			if delivered.status != "completed": return delivered
@@ -218,6 +237,37 @@ func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dict
 	_count(action.kind)
 	return Results.completed(facts)
 
+func _respond_contact(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dictionary:
+	var id: int = int(action.request)
+	var follow: Dictionary = Requests.follow_up(self, world, actor, int(action.target), id, now)
+	if not follow.is_empty(): return follow
+	var request: Dictionary = requests.get(id, {})
+	if request.is_empty(): return Results.refused("request_unavailable")
+	var recipient: int = request.recipient
+	var manual: bool = recipient == 1 or world.decisions.records.get(recipient, {}).get("manual", false)
+	if manual:
+		if actor != recipient or not action.has("decision"): return Results.completed({"request": id, "counterparty": int(action.target)}, "awaiting_response")
+		return respond(world, actor, id, str(action.decision), now)
+	if request.state == "deferred" and now < request.review_ms: return Results.refused("response_not_due")
+	var response: Dictionary = judge_request(world, recipient, id, now)
+	if response.is_empty(): return Results.refused("planning_budget" if int(world.livelihood.record(world, recipient).budget.work) + 17 > world.livelihood.Planner.WORK_LIMIT else "response_not_due")
+	response.facts["counterparty"] = int(action.target)
+	if response.reason == "accepted_share": action["partner_resume"] = true
+	return response
+
+func review_due(world: RefCounted, actor: int, now: int) -> void:
+	# Nonautonomous residents can reconsider in place; their movement is not AI's.
+	if actor == 1 or world.decisions.records.get(actor, {}).get("manual", false) or world.decisions.in_combat(actor): return
+	for view: Dictionary in Requests.views(self, actor, now):
+		if view.recipient != actor or view.state not in ["pending", "deferred"]: continue
+		if view.state == "deferred" and now < view.review_ms:
+			world.decisions.wake(world, actor, now, "request_review", int(view.review_ms) - now); continue
+		if not world.gate.current(actor).is_empty() or not world.gate.check(world, actor, now).is_empty():
+			var due: int = int(world.activity_view(actor).get("due_ms", now + 1000))
+			world.decisions.wake(world, actor, now, "request_review", maxi(100, mini(int(view.expires_ms) - now, due - now))); continue
+		if in_contact(world, actor, int(view.issuer), now): judge_request(world, actor, int(view.id), now)
+		elif now < int(view.expires_ms): world.decisions.wake(world, actor, now, "request_review", mini(1000, int(view.expires_ms) - now))
+
 func judge_request(world: RefCounted, actor: int, id: int, now: int) -> Dictionary:
 	if actor == 1 or world.decisions.records.get(actor, {}).get("manual", false): return {}
 	var request: Dictionary = {}
@@ -226,6 +276,8 @@ func judge_request(world: RefCounted, actor: int, id: int, now: int) -> Dictiona
 	if request.is_empty() or request.recipient != actor or request.state not in ["pending", "deferred"]: return {}
 	if request.state == "deferred" and now < request.review_ms: return {}
 	if not in_contact(world, actor, int(request.issuer), now): return {}
+	var follow: Dictionary = Requests.follow_up(self, world, actor, int(request.issuer), id, now)
+	if not follow.is_empty(): return follow
 	var judgment: Dictionary = world.livelihood.evaluate_request(world, actor, request, now)
 	if judgment.decision == "wait":
 		var budget: Dictionary = world.livelihood.record(world, actor).budget

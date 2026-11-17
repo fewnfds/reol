@@ -6,6 +6,7 @@ const Style = preload("res://scripts/presentation/ui/style.gd")
 const Grid = preload("res://scripts/presentation/ui/item_grid.gd")
 const EventText = preload("res://scripts/presentation/ui/event_text.gd")
 const Growth = preload("res://scripts/sim/kernel/growth.gd")
+const RequestPanel = preload("res://scripts/presentation/ui/request_panel.gd")
 var subject_id: int = 1
 var events: RichTextLabel
 var _stats: Label
@@ -18,6 +19,7 @@ var _ability: Button
 var _equipment_signature: String = ""
 var _event_signature: String = ""
 var _tabs := TabContainer.new()
+var _requests: VBoxContainer
 
 func _ready() -> void:
 	var head := HBoxContainer.new()
@@ -61,6 +63,14 @@ func _ready() -> void:
 	_responsibilities = Style.label(social)
 	_responsibilities.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_responsibilities.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if subject_id == 1:
+		var messages := ScrollContainer.new()
+		messages.name = "约定"
+		_tabs.add_child(messages)
+		_requests = RequestPanel.new()
+		_requests.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		messages.add_child(_requests)
+		_requests.requested.connect(func(action: String, payload: Dictionary): requested.emit(action, payload))
 	events = RichTextLabel.new()
 	events.name = "事件"
 	events.scroll_following = true
@@ -97,6 +107,7 @@ func refresh(subject: Dictionary) -> void:
 			button.pressed.connect(func(): requested.emit("unequip", {"slot": slot}))
 			_gear.add_child(button)
 	if not known: return
+	if _requests != null: _requests.refresh(subject)
 	var stats: Dictionary = subject.get("stats", {})
 	_stats.text = "HP %d / %d\n耐受 %.1f / %.0f\n近战基础 %d   远程基础 %d\n防御 %d   移速 %.2f\n精力 %d   饥饿 %d\n%.2f°C" % [
 		int(subject.hp), int(stats.get("max_hp", 100)), float(subject.tolerance), float(subject.max_tolerance),
