@@ -1,4 +1,5 @@
+# Adapted from awesome-gamedev-agent-skills (Apache-2.0); modified for Reol on 2026-11-17.
 interface:
-  display_name: "Create Game Assets"
-  short_description: "Direct cohesive production-ready game art"
-  default_prompt: "Use $create-game-assets to define an art direction and build a consistent sprite set for my game."
+  display_name: "Reol 二维素材"
+  short_description: "Prepare Reol 2D sprites, anchors and atlas QA"
+  default_prompt: "Use $create-game-assets to prepare and check a consistent 2D sprite set for Reol."

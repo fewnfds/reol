@@ -2,7 +2,9 @@
 
 ## 当前停点
 
-当前系统组合成本调研及方案已完成，三轮双顾问六份完整答复、源码纠偏、单参数读核与release短窗均已核查，没有待续进程。本轮只改文档，没有实施新的性能整改，也未重导游戏包；生产代码/当前宗门包仍对应`1f28f79`。访问地图和新增能力范式归[复杂度](../engineering/simulation-costs.md)，数据/口径归[BASELINE](baseline.md#系统组合成本测量)，接续顺序归[主计划](../plans/foundation-priorities.md#系统组合成本审查)，未修项归[问题清单](issues.md#系统组合成本)。下一轮若要求实施，从C01调度集合/轻量诊断开始，之后C02窄本人读、C03身体/目的地局部查询、C04认识快路径，C05保全部空间消费者后收窄建桶/失效；C06按状态实际负载。不要自动进入新战斗内容。
+本轮已完成开发方法与项目skills整改：项目入口36→3，仅保模拟接入、验证/headless排错、二维素材，保留图片QA脚本和第三方许可，宿主/个人技能未动。根[AGENTS](../../AGENTS.md#实现与review先检查访问规模)及[开发循环](../engineering/workflow/testing.md#写前设计与代码review)把调用链/访问集合/倍率检查前置，包括既有接口接进新循环、复制/重试、索引维护及产出/积压；不是等卡了才看。维护与删并理由归[工具配置](../engineering/tooling/setup.md#skills怎样维护)。两轮双顾问四答及真实源码A～E样例review已核并修订，未做零上下文会话编码行为测试，不把文书或技能数量当作杜绝缺陷的证明。三个skill格式、五个技能文档链接、项目结构/引用及现有图集QA工具已通过；没有待续进程。
+
+前一轮系统组合成本调研及方案仍已完成，三轮双顾问、源码纠偏、单参数读核与release短窗均已核查。此次没有实施C01等游戏性能整改，也未重导游戏包；生产代码/当前宗门包仍对应`1f28f79`。访问地图与范式归[复杂度](../engineering/simulation-costs.md)，数据/口径归[BASELINE](baseline.md#系统组合成本测量)，顺序归[主计划](../plans/foundation-priorities.md#系统组合成本审查)，未修项归[问题清单](issues.md#系统组合成本)。下一轮若要求实施，从C01调度集合/轻量诊断开始，之后C02窄本人读、C03身体/目的地局部查询、C04认识快路径，C05保全部空间消费者后收窄建桶/失效；C06按状态实际负载。不要自动进入新战斗内容。
 
 关键边界：当前已有后台规划/跨步观察，不是全员每帧重新规划；积压take、个人/局部读全表、重复投影已测出增长。512开发场帧/世界准时但观察/活动低、末ready478，未计自治容量通过；不混旧20Hz4600人或成熟宗门。C01首选按域future索引与优先级小堆，保原年龄、合并、跨域机会、workers0推进、独立异步回收和未准入欠办；指标要覆盖仍未出队/未准入者。C03覆盖片内折线与同批准入、占位活体/观察尸体不同过滤，C05不能直接关掉Knowledge依赖的桶或删before_motion工作位置历史。源码已排除顾问的异步again、512硬人头上限、拒收必丢观察等推断。
 
@@ -26,5 +28,6 @@
 
 - 本轮诊断/咨询：`.local/scheduling-audit-20261117/`、`.local/advisor/scheduling-audit-20261117/`；实施探针/无源码包在`.local/scheduling-implementation-20261117/`，开工/阶段/最终顾问在`.local/advisor/scheduling-implementation-20261117/`。采用事实维护在主题正文，顾问原答不入库。
 - 当前复杂度研究的探针/输入：`.local/complexity-audit-20261117/`；三轮双顾问`.local/advisor/complexity-audit-20261117/round-{1,2,3}/`，完整答案已核，无自动重发。实际数据是`logs/complexity-*.json`，永久解释在BASELINE；后续不重跑全部矩阵来找上下文。
+- 开发方法/skills整改：`.local/development-practice-20261117/`保存源码样例与采用/拒绝核查，`.local/advisor/development-practice-20261117/round-{1,2}/`为双顾问原答。公开依据与review例子回原复杂度页，不把顾问对未知helper、冷校验重复或理想并行复杂度的猜测当作新源码缺陷。
 - 先前宗门实施咨询与原三日/扰动证据、二维显示取舍、共享合同整改的具体入口均在BASELINE/对应主题；连续长测已结束，不自动重开。
 - 保护用户当前存档、偏好、顾问凭据、素材源稿、第三方addon及历史P5包；保留工作分支`codex/field-contest`和stash `424f956d280fb390d17e1f6dd879f3614b51a430`。本轮临时baseline工作树已核路径/内容并移除，旧`.local/playtest-before`工作树保留。

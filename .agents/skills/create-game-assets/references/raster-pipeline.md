@@ -1,69 +1,19 @@
-# Raster, sprite, tile, background, and UI pipeline
+# 二维素材处理的易错点
 
-Use this reference for production 2D art and raster textures. Generated output is source material;
-dimensions, grids, alpha, anchors, and import settings remain deterministic engineering concerns.
+<!-- Adapted from awesome-gamedev-agent-skills (Apache-2.0); modified for Reol on 2026-11-17. Source and license: ../../../../THIRD_PARTY_NOTICES.md. -->
 
-## Sprites and animation
+## 切片与动作
 
-1. Approve one idle/neutral seed at the final view and approximate game scale.
-2. Lock canvas size, baseline/ground point, facing, palette, outline, proportions, and costume.
-3. For a short animation, request the whole action as one strip or sheet referenced to the seed.
-   Independent frame requests drift more. Treat the returned grid as a candidate, not exact data.
-4. Slice and normalize frames with one shared scale and one shared anchor—usually bottom-center.
-5. If frame 1 must equal a shipped idle pose, restore the exact seed after slicing.
-6. Preview as a contact sheet and in motion. Check volume, foot sliding, silhouette, and cadence.
+- 先检查真实留白和轮廓；模型返回的等分网格可能不准确，按等格裁切会截断树冠、兵器或动作。共用尺度后再打包，不按每帧包围盒分别拉伸到满格。
+- 精灵的像素脚点与运行时地面坐标分开。统一anchor，保留武器和冠幅需要的留白；多格家具先确定占地与整物锚点，再切部件，不靠扩大碰撞去匹配图高。
+- 多朝向家具先改变平面朝向，再画向上的立面，不能把已带高度的成图直接旋转。动画看运动与暂停帧，静态联系表不能揭示足滑或节奏。
+- 像素素材用最近邻和共享像素尺度；生成稿的模糊伪像素、零碎噪点及重复近似颜色需修整。调色板约束按现有风格决定，不把示例48色当全项目限制。
 
-For true pixel art, enforce a real pixel grid after generation. Remove blended pseudo-pixels,
-single-pixel noise, excess colors, banding, and inconsistent clusters. Resize only with
-nearest-neighbor unless a deliberate preprocessing pass says otherwise.
+## 导入与画面
 
-## Tiles and repeatable textures
+- Godot 4的2D过滤/重复由项目或CanvasItem设置，不是旧版图片import开关。核当前项目、MultiMesh材质与shader的真实采样；不为单图模糊擅改全局设置或像素吸附，后者可能改变已有平滑插值。
+- 不把mipmap、放大或全图形变当作自动改善像素美术的办法。图集边缘留白/扩边需与实际采样一致，在运动、缩放和邻接切片中观察渗色。
+- 图块先看3×3重复及真实邻接组合；装饰阴影不能误导碰撞含义。UI文字、数值和交互状态保持代码可读，不烘进贴图。
+- 来源记录沿[资产页](../../../../assets/README.md)维护；有来源约束时保留原许可，不复制新的模板台账。
 
-- Define tile dimensions and neighbor rules before creating art.
-- Produce a base, transitions, corners, isolated pieces, and decoration as one visual family.
-- Keep gameplay edges and collision meaning legible; decorative shadows must not imply false walls.
-- Test seamless materials in a 3×3 repeat at full size and at minified camera scale.
-- Inspect terrain combinations in the engine's autotile/terrain system, not only in a sheet.
-- Keep padding/extrusion compatible with the engine/atlas tool to prevent texture bleeding.
-
-## Backgrounds and parallax
-
-- Split sky, far, mid, near, and foreground layers according to intended parallax speed.
-- Avoid unique landmarks near horizontal seams when layers must scroll/repeat.
-- Preserve a low-contrast playfield behind characters and projectiles.
-- Keep focal detail away from HUD safe areas and critical navigation silhouettes.
-- Export layers independently with overlap so camera movement cannot expose gaps.
-
-## UI art and icons
-
-- Keep labels, numbers, dynamic copy, focus state, and accessibility text code-native.
-- Generate or draw ornament, frames, portraits, and texture—not rasterized functional text.
-- Prefer one established icon family. Simple geometric symbols should usually be SVG/vector.
-- Provide normal, hover/focus, pressed, disabled, selected, and warning states when art changes.
-- Design scalable panels as 9-slice/nine-patch assets; verify corners and borders at several sizes.
-
-## Import checkpoints
-
-**Godot 4.7:** 2D filtering and repeat are not import options. Set
-`rendering/textures/canvas_textures/default_texture_filter` to Nearest for a pixel-art project (or
-`texture_filter` on one `CanvasItem` subtree), and enable `rendering/2d/snap/snap_2d_transforms_to_pixel`
-when sprites shimmer while moving. Enable the `mipmaps/generate` import option only for non-pixel
-textures that shrink substantially; set `texture_repeat` (or the 3D material's repeat) only for
-textures designed to tile. Verify `Sprite2D`, `TileSet`, atlas regions, and animation frames in the
-editor.
-
-**Unity 6.3 LTS:** set Texture Type to Sprite (2D and UI), choose Single/Multiple correctly, set a
-consistent Pixels Per Unit, filter mode, compression, mipmaps, mesh type, and sprite slicing.
-Disable Read/Write unless runtime pixel access is actually required because it adds memory cost.
-
-**Phaser/PixiJS/web:** keep atlas metadata and image filenames stable; use nearest sampling and
-integer camera scaling for pixel art; prevent browser/CSS resizing from introducing blur; inspect
-texture bleeding under the real renderer.
-
-## Primary documentation
-
-- [Godot 4.7 Image](https://docs.godotengine.org/en/4.7/classes/class_image.html)
-- [Godot 4.7 Texture2D](https://docs.godotengine.org/en/4.7/classes/class_texture2d.html)
-- [Unity sprite import settings](https://docs.unity3d.com/Manual/texture-type-sprite.html)
-- [Phaser asset concepts](https://docs.phaser.io/phaser/concepts/loader)
-- [PixiJS Assets guide](https://pixijs.com/8.x/guides/components/assets)
+涉及未确认的引擎选项时查目标版本[CanvasItem](https://docs.godotengine.org/en/4.7/classes/class_canvasitem.html)与[Texture2D](https://docs.godotengine.org/en/4.7/classes/class_texture2d.html)，不照搬其他引擎或旧版本导入配方。

@@ -14,7 +14,7 @@
 
 ## 当前访问形状审查
 
-源码基线为`1f28f79`。下表覆盖当前运行能力与冷路径；描述的是可见实现，未测为热点的项不自动升级为施工任务。
+源码基线为`1f28f79`。下表是该版本运行能力与冷路径的诊断快照，**不是新代码应模仿的实现范式**；未测为热点的项不自动升级为施工任务。对应模块整改后更新其访问形状与证据版本，不把已修项继续写成当前缺陷。
 
 | 能力 / 原owner | 当前触发与成本形状 | 已有保护及本次判断 |
 |---|---|---|
@@ -88,6 +88,18 @@
 
 实现先沿已有World、领域owner、Deferred、Resource编译和Frame扩展。共享的是这些计算与数据访问约定，不引入万能事件解释器、每域线程池、全事实广播、另一套ECS或第二份世界。
 
+### 代码review怎样判断
+
+下表是现有源码和常见改动的审查例子，不表示热点已整改，也不要求照表为每次小改造测试。
+
+| 改动 / 实际调用范围 | review判断与足够的反证方向 |
+|---|---|
+| 候选作业点调用`ServicePositions.occupants`，内部扫全身体 | 不能只看函数很短；沿请求数和D个候选计算放大。固定附近人数、增加远处身体，核访问数；若改索引，再核在途目的地、同批准入及片内位置完整性 |
+| 本人投影调用`Access.scope_grants/service_targets`，内部扫全任命/服务 | 组织桶内仍可能有全宗门数据。增加与本人无关的任命/服务，检查单人读是否仍随总表增长；权限变更/撤销后结果必须正确 |
+| World整秒更新环境、按页调用`Units.sample_environment` | 实际受体确需采样时允许顺序批，核受体数、房间格数及局部源候选，不将整个更新武断写成恒定成本；有实测峰值再选合并/错峰，不为消除循环改为全员通知 |
+| 开局/存读对候选世界做全量校验 | 属于必要冷路径，保留完整验证与失败不替换活会话；不塞进普通tick，也不因全量遍历自动要求增量化 |
+| 只增加一个已支持的配方/技能Resource | 沿现有编译/实例机制验证实际效果即可；除非实例新开持续工作或改变访问范围，不写另一份架构成本报告 |
+
 ## 怎样验证而不追逐人数极限
 
 沿[开发循环](workflow/testing.md)选择相关短检查。算法归因用单参数微核或受控短窗；产品性能用同源码、场景/成熟度、硬件、倍率、频率、画面及后台设置的release窗口，不能把workers0的无墙钟截断路径当成正常后台模式。插桩需对照未插桩，叶函数的包装时间不当作业务成本。
@@ -110,7 +122,10 @@
 
 ## 公开依据与适用范围
 
-- [Godot通用优化](https://docs.godotengine.org/en/4.7/tutorials/performance/general_optimization.html)和[WorkerThreadPool](https://docs.godotengine.org/en/4.7/classes/class_workerthreadpool.html)：先找算法/数据热点，小任务并行可能更慢。本项目继续用Packed列、原生批操作、私有AStarGrid、线程池及MultiMesh；游戏的读集合、失效、关联和提交语义需要自己定义。
+- [Godot通用优化](https://docs.godotengine.org/en/4.7/tutorials/performance/general_optimization.html)明确区分设计阶段的算法/数据选择与实测后的局部优化；不把“避免过早优化”理解成先任意堆全局扫描。本文将这一区分落实到[写前与review](workflow/testing.md#写前设计与代码review)，收益仍需验证。
+- [Godot CPU优化](https://docs.godotengine.org/en/4.7/tutorials/performance/cpu_optimization.html)：从调用次数、函数耗时、缓存局部性判断瓶颈；profiler本身有开销，内置测量未必覆盖服务器等待。结合窄范围计数/短窗，不给每个Node加计时或凭单次计时宣称提升。
+- [Godot线程安全API](https://docs.godotengine.org/en/4.7/tutorials/performance/thread_safe_apis.html)及[WorkerThreadPool](https://docs.godotengine.org/en/4.7/classes/class_workerthreadpool.html)：活动SceneTree非线程安全，同一AStarGrid2D不能并发查询，小任务并行可能更慢。引擎的`call_deferred`不等于本项目的跨步Deferred服务，不会自动分片或转入后台。本项目继续用Packed列、私有AStarGrid、有限线程池及MultiMesh；读集合、失效与采用语义仍由游戏定义。
+- [Godot数据结构取舍](https://docs.godotengine.org/en/4.7/tutorials/best_practices/data_preferences.html)可帮助判断数组查找/搬移与字典按键访问的区别，但页面自带未更新警告且保留旧API/简化复杂度说法；不将其细节当作4.7实测或“线性遍历一律错误”的依据。
 - [Factorio FFF421](https://factorio.com/blog/post/fff-421)：闲置实体休眠、重叠覆盖用共享登记、纯读计算可并行；电网的多线程尝试也因内存吞吐限制未取得整体收益。借鉴工作集与数据依赖，不移植其数字/调度间隔。
 - [Flecs查询文档](https://www.flecs.dev/flecs/Queries.html#performance-and-caching)：缓存查询在读速度、创建、内存和维护成本之间权衡。借鉴稳定查询/关联的派生缓存，不据此要求替换当前后端。
 - [CDDA物品唤醒源码](https://github.com/CleverRaven/Cataclysm-DDA/blob/master/src/item_wakeup.cpp)：按到期与身份管理工作可作参考；把所有到期项一次处理完不是墙钟预算，不能直接当作本项目软服务实现。

@@ -1,137 +1,28 @@
 ---
 name: create-game-assets
-description: "Plan, source, generate, and validate cohesive game art, sprites, tiles, UI assets, or 3D briefs."
+description: 制作或接入Reol纯二维精灵、图块与图集时，统一斜俯视素材并核验切片、透明、脚点与实际画面；不负责玩法逻辑。
 ---
 
-# Create Game Assets
+# Reol二维素材接入
 
-Turn a game's visual intent into a consistent, engine-ready asset set. Treat image generation as
-one production tool inside a controlled pipeline, never as proof that an asset is shippable.
+<!-- Adapted from awesome-gamedev-agent-skills (Apache-2.0); modified for Reol on 2026-11-17. Source and license: ../../../THIRD_PARTY_NOTICES.md. -->
 
-## Core workflow
+先查[当前素材与重建入口](../../../assets/README.md)及相关catalog条目，不另建一份manifest。项目采用固定斜俯视二维素材、正方形逻辑地块、脚点共同排序；不是菱格等轴测，也不通过三维或整屏透视形变补救角度不合的素材。
 
-1. **Inspect before inventing.** Find existing screenshots, concept art, sprites, models, fonts,
-   import settings, camera framing, target resolution, and naming conventions. Preserve a coherent
-   existing direction unless the user asks for a redesign.
-2. **Lock the technical frame.** Record engine, 2D/3D, camera/view, native display size, asset
-   dimensions, world scale, transparency, palette, filtering, animation frames, texture budget,
-   and target platforms. Use `assets/art-direction-brief.md` as a copyable brief.
-3. **Name the visual system.** Define shape language, silhouette priorities, value structure,
-   palette roles, materials, lighting, detail density, edge treatment, and motion character. Use
-   concrete visual properties; do not substitute a living artist's name for an art direction.
-4. **Make an asset manifest.** Copy `assets/asset-manifest.json`, then list every required asset,
-   state, variant, size, pivot, collision role, source, license, and approval status. Separate
-   production assets from disposable greybox placeholders.
-5. **Approve one visual target.** Create or select a representative hero asset or small style
-   board before producing a full set. Judge it at actual game scale and against a gameplay
-   background. If the user delegated the choice, pick the strongest viable direction and record
-   the decision instead of blocking.
-6. **Produce related assets as families.** Reuse the approved target as an edit/reference input.
-   Keep palette, view, proportions, lighting, outline, and texture density invariant. Generate
-   small coherent batches; avoid unrelated one-off prompts that drift.
-7. **Normalize deterministically.** Crop, size, anchor, slice, name, compress, and check alpha with
-   ordinary image/DCC tools. Never trust generated grids, transparency, seams, pivots, topology,
-   or dimensions without inspection. Use the bundled scripts for raster QA and contact sheets.
-8. **Import with engine-native settings.** Set filtering, mipmaps, pixels-per-unit/world scale,
-   color space, compression, sprite slicing, texture types, materials, and collision deliberately.
-   Read the relevant engine skill before editing engine files.
-9. **Validate in context.** Inspect a contact sheet and the actual game at native resolution.
-   Check silhouette, scale, animation stability, seams, legibility, palette, collision fit, memory,
-   and compression artifacts. Iterate on the source asset, not only on runtime compensations.
-10. **Record provenance.** Keep the source URL/tool, license or generation note, edit history, and
-    restrictions beside the manifest. Preserve embedded provenance metadata when the pipeline can.
+- 同一组素材沿用视向、光线、比例和调色板。改动一组前先在实际游戏尺度与邻近原素材对比；只在缺少方向时做小样，不强制每次制作风格板或等用户批准。
+- 人物脚点是连续身体位置，静物锚点是占地底边中点；贴图高度不增加地面碰撞范围。多格/多部件物体沿原catalog的footprint、anchor、offset和depth接入，不凭透明画布中心定位。
+- 生成稿不能证明精确格网、真实透明或动作一致。切片、尺度、锚点和命名用确定性工具规范化；动画共用尺度和脚点，逐帧看体积、足滑、轮廓和遮挡。具体陷阱见[二维处理](references/raster-pipeline.md)。
+- 保留源图/来源、许可与实际生成记录到既有资产记录；含凭据的请求留本机。联系表和报告是检查工具，正式图集仍走已有重建器，不把QA输出当运行资源。
 
-## Choose the production path
+## 按需使用的图片检查工具
 
-| Need | Default path |
-|------|--------------|
-| Existing asset needs a controlled change | Edit the original/reference; state what must remain unchanged |
-| New 2D visual family | Approve seed → generate/source family → normalize → preview → import |
-| True pixel art | Use generated work as a draft; enforce grid, palette, clusters, and frames with pixel tools |
-| Tileable surface or tileset | Produce a small family; repair seams; test repeated 3×3 before approval |
-| UI art or icons | Keep text and interaction code-native; prefer SVG/vector for simple geometric symbols |
-| 3D model or material | Use concepts as reference; author/clean in a DCC; validate topology, UVs, scale, pivots, and LODs |
-| No generation/edit tool is available | Build the brief and manifest; source licensed assets or keep explicit greybox placeholders |
-| Audio asset | Route sound implementation and mixing to `audio-design`; still track source/license in the manifest |
+从项目根运行；尺寸和色数取实际目标，以下文件参数是占位示例：
 
-## Image-generation handoff
-
-When a capable image generation or editing tool is installed, use it for live visual creation. If
-the workspace exposes an `imagegen` skill, read and follow it for the actual generation/edit call;
-this skill owns the game-art brief, constraints, normalization, and acceptance gates.
-
-Build prompts from these blocks:
-
-```text
-ROLE/PURPOSE: production asset for [gameplay role]
-SUBJECT: [specific object/character and action]
-VIEW: [orthographic/top-down/side/three-quarter], [camera and facing]
-ART DIRECTION: [shape language], [palette roles], [materials], [edge treatment]
-GAME-SCALE READ: [silhouette and focal details that must survive at WxH]
-TECHNICAL OUTPUT: [dimensions/aspect], [transparent or scene background], [frame/slot count]
-LOCKS: preserve [identity, proportions, palette, costume, lighting, line weight]
-EXCLUDE: text, labels, mockup frames, scenery, duplicate objects, cropped edges, signatures
+```powershell
+python .agents/skills/create-game-assets/scripts/asset_report.py PATH_TO_PNG --expect-size 64x64 --require-alpha --max-colors 48 --json
+python .agents/skills/create-game-assets/scripts/build_preview_sheet.py PATH_TO_PNG_1 PATH_TO_PNG_2 --out .local/art-qa/preview.png --columns 4 --cell-size 192
 ```
 
-For edits, say both what changes and what stays fixed. Ask for transparent output through the
-tool's native transparency option when available, then verify the alpha channel—prompt wording
-alone does not guarantee transparency.
+`--require-alpha`会拒绝没有透明像素的RGBA，但不能识别所有画进图片的棋盘格或混合背景，仍需看图。联系表使用最近邻缩放和棋盘底。脚本需要Pillow，缺失时再按`scripts/requirements.txt`安装；不在每次制作时重装。
 
-## Raster QA recipes
-
-Inspect constraints and emit a machine-readable report. `--require-alpha` also fails an RGBA file
-whose every pixel is opaque, which is how a baked background or fake checkerboard shows up:
-
-```bash
-python scripts/asset_report.py assets/player-idle.png \
-  --expect-size 64x64 --require-alpha --max-colors 48 --json
-```
-
-Build a nearest-neighbor contact sheet over a checkerboard:
-
-```bash
-python scripts/build_preview_sheet.py output/player/*.png \
-  --out output/player-preview.png --columns 4 --cell-size 192
-```
-
-Run script paths relative to this skill directory, or resolve the installed skill path first.
-Both scripts require Python 3.10+ and Pillow 10–13 (Pillow 13 needs Python 3.11+). Install the
-only dependency with `python -m pip install -r scripts/requirements.txt` when it is not already
-available.
-
-## Quality gates
-
-- **Cohesion:** related assets share palette roles, line/edge treatment, view, light direction,
-  scale, and detail density.
-- **Gameplay read:** silhouettes and state changes remain clear at native resolution, in motion,
-  and over real backgrounds.
-- **Technical fit:** exact size/frame count, usable alpha, stable anchors/pivots, correct color
-  space/filtering, no clipped content, no accidental labels or baked mockup chrome.
-- **Animation:** identity, volume, proportions, costume, facing, and baseline do not drift; timing
-  and anticipation read in an in-engine preview.
-- **Tiles/backgrounds:** required edges tile without seams; repetition is tolerable; parallax
-  layers have intentional depth and no baked collision cues.
-- **3D:** transforms, scale, pivot, normals, UVs, materials, topology, rig, collision proxies,
-  LODs, and runtime format are checked rather than inferred from a render.
-- **Rights:** every shipped file has recorded provenance and terms compatible with the project.
-
-Do not call an asset production-ready from a prompt result alone. Approval requires the relevant
-technical checks plus an in-engine or native-scale visual inspection.
-
-## References
-
-- For visual-system decisions and maintaining consistency, read
-  `references/art-direction.md`.
-- For sprites, animation strips, tiles, backgrounds, UI art, and engine import settings, read
-  `references/raster-pipeline.md`.
-- For concept-to-mesh, textures, glTF/GLB, LOD, collision, and runtime validation, read
-  `references/three-d-pipeline.md`.
-- For licenses, generated-media records, and provenance, read
-  `references/provenance.md`.
-
-## Related skills
-
-- `game-ui-ux` for layout, navigation, readability, and accessible interaction.
-- `game-feel`, `shader-programming`, and `audio-design` for presentation after the source art fits.
-- Engine import/rendering skills such as `godot-tilemap`, `unity-tilemap-2d`,
-  `pixijs-rendering`, and `threejs-gltf-loading`.
+图片QA后在实际游戏入口核锚点、前后遮挡、动画、边缘及常见背景上的辨识度；单图好看或报告通过不等于接入完成。实际生成方式使用本次可用的生成工具；本技能不规定模型或调用协议。

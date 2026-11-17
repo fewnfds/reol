@@ -22,29 +22,9 @@
 - 固定 commit：`19d93f97c9c1ea0f8b306e77aa81e0d3e352d3e9`
 - 许可证原文：`docs/third-party/awesome-gamedev-agent-skills-LICENSE`
 - 上游归属原文：`docs/third-party/awesome-gamedev-agent-skills-NOTICE`，对应上述固定commit。
-- 分发形式：选取以下技能的 `SKILL.md` 及附带资源放在 `.agents/skills/`。
-- 本地修订：收窄技能description；`godot-gdscript-headless-testing`已改为本项目短检查排错指引。其余上游正文与资源按固定commit追溯，本地差异由Git维护。
-
-### 已选取
-
-**Godot（13）**
-`godot-gdscript`、`godot-nodes-scenes`、`godot-signals-groups`、`godot-2d-movement`、
-`godot-tilemap`、`godot-physics`、`godot-ui-control`、`godot-animation`、`godot-shaders`、
-`godot-resources`、`godot-audio`、`godot-export`、`godot-gdscript-headless-testing`
-
-**通用（15）**
-`create-game-assets`、`game-ai`、`ai-behavior-trees-utility-ai`、`procedural-gen`、
-`dialogue-systems`、`save-systems`、`audio-design`、`shader-programming`、`physics-tuning`、
-`level-design`、`input-systems`、`game-feel`、`game-ui-ux`、`camera-systems`、
-`performance-optimization`
-
-**类型（3）**
-`rpg`、`survival-crafting`、`roguelike`
-
-### 未选取
-
-Unity/Unreal/其他引擎、C#/多人、平台跳跃、卡牌、视觉小说、塔防、FPS、解谜、发布流程等。
-需要时再从上游复制，不要一次全装。
+- 当前分发：`.agents/skills/create-game-assets/`保留`asset_report.py`、`build_preview_sheet.py`、依赖声明及改写后的二维指导；上游headless排错指导经本地收窄后合并入`.agents/skills/godot-verify/references/troubleshooting.md`。
+- 本地修订：素材入口与`references/raster-pipeline.md`按Reol纯二维流程重写，UI元数据同步；删除三维流程、通用台账模板与其余导入技能，包括未被项目调用的`check_godot_project.py`。上述图片脚本和依赖声明未改动。原有Apache许可证及NOTICE继续保留，本地差异由Git维护。
+- 原选取的31个第三方入口不再整套分发；`godot-sim-architecture`及`godot-verify/SKILL.md`为项目自有指导，验证排错reference含上述上游派生内容。改写文件保留本地修改注记，不因合并丢失来源。
 
 ### 更新
 

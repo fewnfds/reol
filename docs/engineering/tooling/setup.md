@@ -10,10 +10,10 @@
 | Godot AI | 单个已核对项目的实时场景、运行、日志、输入与截图；用官方dock Configure生成认证attach，不猜端口或裸HTTP |
 | Context7 | 查询目标版本文档；可用性依实际会话，没有该工具时使用官方文档 |
 | Coding-Solo | 默认关闭的备用连接，不与主连接叠写同一编辑器 |
-| 项目skills | 通用技能提供方法，自有技能提供窄范围定位；不复制基础规则或当前计划 |
+| 项目skills | 仅提供Reol特有的模拟接入、验证排错与二维素材操作；不代替默认编码约定 |
 | 原生review | 可按具体需要手动使用，已有项目模型配置不意味着每包自动执行 |
 
-Godot、插件、技能/工具各有采用版本；实际引擎只登记在BASELINE，第三方pin/许可按[NOTICES](../../../THIRD_PARTY_NOTICES.md)维护。不因文档旧版本示例自动升级或安装依赖。
+Godot、插件、技能/工具各有采用版本；实际引擎只登记在[BASELINE](../../status/baseline.md)，第三方pin/许可按[NOTICES](../../../THIRD_PARTY_NOTICES.md)维护。不因文档旧版本示例自动升级或安装依赖。
 
 ## 配置在哪里
 
@@ -23,9 +23,19 @@ Godot AI的用户级域过滤可能同时影响其他项目。恢复`csg/gridmap
 
 ## skills怎样维护
 
-项目自有入口为`godot-verify`、`godot-sim-architecture`、`open-world-2d`、`colony-sim-systems`和`spec-driven-game-dev`；其余是有来源记录的通用方法。技能按具体任务选用，项目导航由AGENTS和文档地图提供。
+项目在`.agents/skills/`只维护三个入口；名称/描述供宿主选择，正文按任务需要读取，不要求每次全读。
 
-若新增方法确实跨任务复用，先改已有技能；只有触发与产物独立时才新建。第三方样例中的职业、属性面板、CI或验证配方不是Reol的全局规则。宿主/system/plugin缓存由官方入口维护，不手改。
+| 入口 | 使用范围 / 保留的专门知识 |
+|---|---|
+| [godot-sim-architecture](../../../.agents/skills/godot-sim-architecture/SKILL.md) | 模拟功能的owner、访问形状、跨步采用与恢复；接入原框架，避免套每NPC一个Node的教程 |
+| [godot-verify](../../../.agents/skills/godot-verify/SKILL.md) | 相关短验证及headless导入、异步、错误退出/挂起排错 |
+| [create-game-assets](../../../.agents/skills/create-game-assets/SKILL.md) | 纯二维斜俯视、脚点/图集接入；Pillow透明/尺寸/色数报告与联系表脚本 |
+
+原36个入口中的通用Godot API、游戏类型、跨引擎调优教程已移除；自有工作/世界接续/范围收敛提示并回模拟接入及原工程流程，headless排错并入验证技能。素材技能删除三维流程和重复台账模板，沿已有资产清单维护。原通用资源引用检查器没有仓库代码/工具调用方；当前检查由`tools/check_structure.py`及实际Godot导入/运行负责，不再分发第二个入口，两者并非完全相同的检查器。
+
+清理依据是内容适配、重复与可执行工具价值；没有使用遥测，不能据此认定某技能从未使用或导致了某个缺陷。入口减少只降低选择噪声，质量仍由[默认约定](../../../AGENTS.md#实现与review先检查访问规模)与[写前/review流程](../workflow/testing.md#写前设计与代码review)负责。
+
+新增技能前先确认：是否有跨任务复用、模型不易直接推知的项目知识或可靠工具，是否能并入已有入口；单纯API说明、目录导航或当前任务不独立建skill。新能力的API按需查目标版本官方资料。宿主/system/plugin及用户个人技能由各自官方入口维护，本次只清理项目目录。
 
 ## 更新或恢复时
 
