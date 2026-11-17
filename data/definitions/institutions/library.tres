@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="InstitutionLibrary" load_steps=14 format=3]
+[gd_resource type="Resource" script_class="InstitutionLibrary" load_steps=18 format=3]
 
 [ext_resource type="Script" path="res://scripts/sim/definitions/institutions/library.gd" id="lib"]
 [ext_resource type="Script" path="res://scripts/sim/definitions/institutions/role_def.gd" id="role"]
@@ -84,6 +84,34 @@ purposes = PackedStringArray("commission", "take", "put", "supply", "cultivate")
 stock_items = PackedStringArray("water")
 duty = SubResource("water_steward_duty")
 
+[sub_resource type="Resource" id="field_duty"]
+script = ExtResource("duty")
+kind = "cultivation"
+operation = "sow_grain"
+tend_band = 1
+
+[sub_resource type="Resource" id="field_cultivator"]
+script = ExtResource("role")
+id = "field_cultivator"
+title = "灵田照管"
+purposes = PackedStringArray("take", "put", "cultivate", "supply")
+stock_items = PackedStringArray("grain", "water")
+duty = SubResource("field_duty")
+
+[sub_resource type="Resource" id="herb_duty"]
+script = ExtResource("duty")
+kind = "cultivation"
+operation = "sow_herb"
+tend_band = 1
+
+[sub_resource type="Resource" id="herb_cultivator"]
+script = ExtResource("role")
+id = "herb_cultivator"
+title = "药圃照管"
+purposes = PackedStringArray("take", "put", "cultivate", "supply")
+stock_items = PackedStringArray("herb", "water")
+duty = SubResource("herb_duty")
+
 [resource]
 script = ExtResource("lib")
-roles = Array[ExtResource("role")]([SubResource("Cook"), SubResource("Supply"), SubResource("Steward"), SubResource("Tending"), SubResource("kitchen_steward"), SubResource("meal_steward"), SubResource("water_steward")])
+roles = Array[ExtResource("role")]([SubResource("Cook"), SubResource("Supply"), SubResource("Steward"), SubResource("Tending"), SubResource("kitchen_steward"), SubResource("meal_steward"), SubResource("water_steward"), SubResource("field_cultivator"), SubResource("herb_cultivator")])

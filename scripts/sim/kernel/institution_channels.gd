@@ -95,7 +95,7 @@ static func close_post(owner: RefCounted, world: RefCounted, actor: int, channel
 
 static func post_duty(owner: RefCounted, world: RefCounted, actor: int, channel: int, appointment: int, at: int) -> Dictionary:
 	var duty: Dictionary = owner.Duties.views(owner, actor).get(appointment, {})
-	if duty.is_empty() or duty.channel != channel: return Results.refused("not_authorized")
+	if duty.is_empty() or duty.get("channel") != channel: return Results.refused("not_authorized")
 	var knowledge: Dictionary = world.knowledge.records.get(actor, {}).get("subjects", {}).get(int(duty.target), {})
 	if knowledge.is_empty() or knowledge.origin not in ["seen", "receipt", "seed"] or not knowledge.view.has("inventory") or at - int(knowledge.seen_ms) > int(duty.review_ms): return Results.refused("inspection_required")
 	var target: Dictionary = world.knowledge.view(actor, int(duty.target), at)

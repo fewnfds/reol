@@ -27,7 +27,14 @@ func errors() -> PackedStringArray:
 		result.append_array(duty.errors())
 		var required: Array = ["commission", "take"]
 		var inputs: Array = [duty.item]
-		if duty.kind == "delivery": required.append_array(["put", "supply"])
+		if duty.kind == "cultivation":
+			required = ["cultivate", "take", "put", "supply"]
+			inputs = ["water"]
+			var operation: Dictionary = Duty.Operations.OPERATIONS.get(duty.operation, {})
+			var plant: Dictionary = preload("res://scripts/sim/kernel/nature_defs.gd").DEFINITIONS.get(operation.get("plant_definition", ""), {})
+			for product: String in ["product", "body_product"]:
+				if plant.has(product): inputs.append(plant[product].item)
+		elif duty.kind == "delivery": required.append_array(["put", "supply"])
 		else:
 			var recipe: Dictionary = Duty.Operations.OPERATIONS.get(duty.operation, {}).get("recipe", {})
 			if not recipe.is_empty(): required.append(recipe.purpose); inputs.append_array(recipe.inputs.keys())

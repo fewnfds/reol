@@ -153,6 +153,9 @@ func refresh(world: RefCounted, actor: int, target: int, at: int, focus: bool = 
 	world.sight.sync(world)
 	if world.sight.observed_position(world, actor, target) != null:
 		_store(world, actor, _snapshot(world, target), "seen", actor, actor, at, at, 0, {}, focus)
+		var guest: int = int(world.objects.records[target].get("guest", 0))
+		if guest > 0 and world.sight.observed_position(world, actor, guest) != null:
+			_store(world, actor, _snapshot(world, guest), "seen", actor, actor, at, at, 0, {}, focus)
 		return true
 	var entry: Dictionary = records.get(actor, {}).get("subjects", {}).get(target, {})
 	if not entry.is_empty() and int(entry.view.tile) >= 0 and world.sight.sees(world.combat.position(world, actor), entry.view.tile, world.sight.range_for(world, actor)):

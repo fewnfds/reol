@@ -97,7 +97,10 @@ static func forget_target(owner: RefCounted, world: RefCounted, target: int) -> 
 		appointment.targets.erase(target)
 		if not appointment.duty_scope.is_empty():
 			appointment.duty_scope.sources.erase(target)
-			if target in [appointment.duty_scope.target, appointment.duty_scope.channel] or appointment.duty_scope.sources.is_empty(): appointment.active = false
+			if appointment.duty_scope.has("sites"):
+				appointment.duty_scope.sites.erase(target)
+				if target == appointment.duty_scope.destination or appointment.duty_scope.sites.is_empty() or appointment.duty_scope.sources.is_empty(): appointment.active = false
+			elif target in [appointment.duty_scope.target, appointment.duty_scope.channel] or appointment.duty_scope.sources.is_empty(): appointment.active = false
 		if appointment.targets.is_empty():
 			appointment.active = false
 			appointment.targets = [target] # Keep the historical scope; no active grant.

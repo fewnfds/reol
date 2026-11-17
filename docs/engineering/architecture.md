@@ -32,6 +32,7 @@
 | `combat_entities.gd` | 临时身体/静态生产者的主人、寿命、数量组与光环成员；身体/HP/空间仍用Units/Objects，临时身体不计村民人口 |
 | `combat_scan.gd` | 脱离的身体空间索引、分散威胁发现与目标复核；查询按观察者批交现有CPU池，owner采用；同次物理行遍历附带稀疏尸体桶，仅观察查询可选纳入 |
 | `institutions.gd`、`institution_access.gd`、`institution_matters.gd` | 组织/成员、范围任职/服务资格、受托责任及事项/份额规范状态；规则帮助模块不另持真值，活跃按人及全部按事项索引均派生重建 |
+| `institution_duties.gd`、`agency_institutions.gd`、`cultivation_duty.gd` | 任职分型的范围/脱离视图与本人下一步方法；单点库存职责沿案牍事项，田务沿稳定多畦现场操作，均复用原Planner/行动链，不持独立队列、物量或执行时钟 |
 | `society.gd`、`society_contacts.gd`、`society_requests.gd` | 原接触宿主、稀疏相识与已送达请求/最后答复；帮助模块不另持真值。真实交易/学习/修行提交转交原owner，接受请求引用Institutions份额；正常当面请求已由本人纯判断`agency_social.gd`消费；挂起/延期后的正常回应仍按T09d接线 |
 | `person_events.gd` | 已提交个人事实的有界冷记录、连续冷热损耗合并与缓存脱离视图；不驱动结算或人物决策 |
 | `sight.gd` | 全单位共用的距离/平滑环境损耗查询；只读常用格线表与长半径后备，无共享写缓存 |

@@ -4,6 +4,7 @@ const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const Stock = preload("res://scripts/sim/kernel/stock_rules.gd")
 const Duties = preload("res://scripts/sim/kernel/institution_duties.gd")
+const Cultivation = preload("res://scripts/sim/kernel/cultivation_duty.gd")
 
 static func _execute(p: RefCounted, id: String, target: Dictionary, context: Dictionary = {}) -> Array:
 	if target.is_empty() or int(target.get("tile", -1)) < 0 or p._denied(id, int(target.id)) or not p._spend(): return []
@@ -32,6 +33,7 @@ static func _actionable(actor: Dictionary, post: Dictionary, at: int) -> bool:
 static func duty(p: RefCounted, goal: Dictionary) -> Array:
 	var policy: Dictionary = p.actor.get("duties", {}).get(int(goal.params.appointment), {})
 	if policy.is_empty(): return []
+	if policy.kind == "cultivation": return Cultivation.next(p, policy)
 	var target: Dictionary = p.known.get(int(policy.target), {})
 	if int(target.get("tile", -1)) < 0: return []
 	# Inspect sources first, so the destination observation is still recent on
@@ -114,7 +116,7 @@ static func source_shortfall(p: RefCounted, required: Dictionary, organization: 
 	for item: String in required:
 		var count: int = 0
 		for bundle: Dictionary in p.actor.bundles:
-			if int(bundle.organization) != organization or bundle.purpose != purpose or (purpose == "supply" and int(bundle.get("origin", 0)) not in sources): continue
+			if int(bundle.organization) != organization or (organization > 0 and (bundle.purpose != purpose or (purpose == "supply" and int(bundle.get("origin", 0)) not in sources))): continue
 			count += int(bundle.items.get(item, 0))
 		var complete: bool = not sources.is_empty()
 		for source: int in sources:
@@ -123,13 +125,19 @@ static func source_shortfall(p: RefCounted, required: Dictionary, organization: 
 			if int(place.get("tile", -1)) < 0: continue
 			if not place.has("inventory"): complete = false; continue
 			if purpose == "supply" and Operations.OPERATIONS.get(place.get("process", {}).get("operation", ""), {}).get("recipe", {}).get("outputs", {}).has(item): complete = false
-			count += Stock.known_quantity(p.actor, place, item, "take", organization)
+			count += Duties.source_quantity(p.actor, place, item, organization, purpose)
 		if complete and count < int(required[item]): return true
 	return false
 
 static func next_due(actor: Dictionary, clues: Dictionary, at: int) -> int:
 	var due: int = at + 3600001
 	for policy: Dictionary in actor.get("duties", {}).values():
+		if policy.kind == "cultivation":
+			for target: int in Duties.targets(policy):
+				var observed: int = int(actor.get("observations", {}).get(target, {}).get("at_ms", at))
+				var review: int = observed + int(policy.review_ms)
+				due = mini(due, review if review > at else at + int(policy.review_ms))
+			continue
 		var observed: int = int(actor.get("observations", {}).get(int(policy.target), {}).get("at_ms", at))
 		var review: int = observed + int(policy.review_ms)
 		due = mini(due, review if review > at else at + int(policy.review_ms))
@@ -144,8 +152,9 @@ static func next_due(actor: Dictionary, clues: Dictionary, at: int) -> int:
 		if not read.is_empty() and not _recent_observation(actor, int(board.id), at): due = mini(due, maxi(at + 1000, int(read.at_ms) + mini(60000, 5000 * (1 << int(read.empty_reads)))))
 	return due if due <= at + 3600000 else -1
 
-static func review_due(actor: Dictionary, policy: Dictionary, at: int) -> bool:
+static func review_due(actor: Dictionary, policy: Dictionary, at: int, clues: Dictionary = {}) -> bool:
 	if policy.is_empty(): return false
+	if policy.kind == "cultivation": return Cultivation.needs_review(actor, policy, at, clues)
 	var observed: int = int(actor.get("observations", {}).get(int(policy.target), {}).get("at_ms", -1))
 	var account: Dictionary = actor.get("known_channels", {}).get(int(policy.channel), {})
 	if observed < 0 or account.is_empty() or at >= observed + int(policy.review_ms) or at >= int(account.at_ms) + int(policy.review_ms): return true

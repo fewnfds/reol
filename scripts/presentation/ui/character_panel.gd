@@ -121,7 +121,10 @@ func refresh(subject: Dictionary) -> void:
 	for condition: String in subject.get("conditions", {}): lines.append("%s · 休养 %d/%d" % [Growth.Defs.CONDITIONS[condition].title, subject.conditions[condition].recovery, Growth.Defs.CONDITIONS[condition].recovery_needed])
 	_practice.text = "\n".join(lines)
 	var social_lines := PackedStringArray()
-	for duty: Dictionary in subject.get("duties", {}).values(): social_lines.append("%s\n负责 #%d · 告示案 #%d\n%s 库存低于%d时补至%d" % [duty.title, int(duty.target), int(duty.channel), Items.label(duty.item), int(duty.low), int(duty.desired)])
+	for duty: Dictionary in subject.get("duties", {}).values():
+		if duty.kind == "cultivation":
+			social_lines.append("%s\n照管%d处田畦 · 归入仓库 #%d\n巡田、补种、照料与采收" % [duty.title, duty.sites.size(), int(duty.destination)])
+		else: social_lines.append("%s\n负责 #%d · 告示案 #%d\n%s 库存低于%d时补至%d" % [duty.title, int(duty.target), int(duty.channel), Items.label(duty.item), int(duty.low), int(duty.desired)])
 	for share: Dictionary in subject.get("responsibilities", {}).values(): social_lines.append("事项 #%d · 剩余%d/%d\n对象 #%d%s" % [int(share.matter), int(share.remaining), int(share.quota), int(share.target), " · 已超期，仍负责任" if share.overdue else ""])
 	for receipt: Dictionary in subject.get("reports", []): social_lines.append("待回报 #%d · 已办%d · 告示案 #%d" % [int(receipt.matter), int(receipt.fulfilled), int(receipt.channel)])
 	_responsibilities.text = "\n\n".join(social_lines) if not social_lines.is_empty() else "暂无任职职责或已受事项。"

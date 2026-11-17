@@ -250,11 +250,27 @@ func _take_origin(target: Dictionary, item: String, organization: int, purpose: 
 		if Stock.known_quantity(actor, target, item, "take", origin) > 0: return origin
 	return -1
 
+func _service_item(target: Dictionary, item: String) -> bool:
+	for id: String in Query.options(target):
+		var operation: Dictionary = Operations.OPERATIONS[id]
+		if not target.get("services", {}).has(operation.handler): continue
+		for rule: Dictionary in operation.targets:
+			if rule.target_item == item and (rule.kinds.is_empty() or target.kind in rule.kinds): return true
+	return false
+
 func _deposit(item: String, count: int, organization: int, destination: int, chain: Array, purpose: String = "", origins: Variant = null) -> Dictionary:
 	var choices: Array = []
-	for target: Dictionary in _targets("known", {}):
+	var stores: Array = _targets("known", {})
+	if destination == 0:
+		# General returns prefer a material store, keeping food service capacity
+		# available. An explicit delivery still uses its contracted destination.
+		stores = stores.filter(func(place: Dictionary): return not place.get("services", {}).has("eat")) + stores.filter(func(place: Dictionary): return place.get("services", {}).has("eat"))
+	for target: Dictionary in stores:
 		if int(target.get("organization", 0)) != organization or (destination > 0 and target.id != destination): continue
 		if destination == 0 and not Query.BUILDINGS.get(target.definition, {}).get("capabilities", {}).has("storage"): continue
+		# Unspecified returns preserve a service store for its actual inputs.
+		# This is a personal drop-off choice, not a new physical storage ban.
+		if destination == 0 and not target.get("services", {}).is_empty() and not _service_item(target, item): continue
 		for id: String in Query.options(target):
 			var operation: Dictionary = Operations.OPERATIONS[id]
 			if operation.handler != "put": continue
@@ -263,6 +279,7 @@ func _deposit(item: String, count: int, organization: int, destination: int, cha
 			step.input.merge({"item": item, "amount": count}, true)
 			if not purpose.is_empty(): step.input["purpose"] = purpose
 			if origins != null: step.input["origins"] = origins.duplicate()
+			if destination == 0 and target.get("services", {}).has("eat"): step.confidence *= 0.5
 			choices.append(_option(step, id, target.id))
 			if int(budget.work) >= slice_limit: return _best(choices).get("step", {})
 	return _best(choices).get("step", {})

@@ -258,11 +258,12 @@ func teaching_consent(world: RefCounted, actor: int, peer: int, method: String, 
 	var need: float = 0.0
 	var competing: float = 0.0
 	var willing: float = (0.24 + 0.12 * float(entry.dispositions.sociability)) if teaching else 0.0
+	var clues: Dictionary = world.knowledge.known(actor, at)
 	for goal: Dictionary in entry.goals.values():
 		if goal.state != "active": continue
 		var spec: Dictionary = Defs.GOALS[goal.definition]
 		var score: Dictionary = _utility(goal, entry, view, at)
-		if spec.driver == "duty" and not Planner.Institutions.review_due(view, view.duties.get(int(goal.params.appointment), {}), at): continue
+		if spec.driver == "duty" and not Planner.Institutions.review_due(view, view.duties.get(int(goal.params.appointment), {}), at, clues): continue
 		if spec.driver in ["resource", "recovery"]:
 			if score.emergency: return "refused_need"
 			need = maxf(need, float(score.value))
@@ -436,7 +437,7 @@ func _think(world: RefCounted, id: int, at: int, context: Dictionary = {}) -> vo
 			elif driver == "service" and not clues.values().any(func(value: Dictionary): return value.has("post_revision") and int(value.get("organization", 0)) == int(candidate.goal.params.organization)): searching = true
 			elif driver == "duty":
 				var policy: Dictionary = actor.duties[int(candidate.goal.params.appointment)]
-				if ([int(policy.target), int(policy.channel)] + policy.sources).any(func(target: int): return not clues.has(target)): searching = true
+				if Planner.Institutions.Duties.targets(policy).any(func(target: int): return not clues.has(target)): searching = true
 		_idle(world, id, at, searching); return
 	entry.intention = {"goal": best.goal, "approach": best.approach, "anchor": best.anchor, "operation": best.operation,
 		"selected_ms": at, "task_id": 0}
@@ -472,6 +473,9 @@ func _preference(entry: Dictionary, actor: Dictionary, clues: Dictionary, at: in
 
 func _retained(goal: Dictionary, choice: Dictionary, clues: Dictionary, actor: Dictionary) -> Dictionary:
 	var result: Dictionary = {}
+	if Defs.GOALS[goal.definition].driver == "duty":
+		var policy: Dictionary = actor.get("duties", {}).get(int(goal.params.appointment), {})
+		if policy.get("kind") == "cultivation": return Planner.Institutions.Cultivation.retained(policy, actor, clues)
 	# Self-study is useful independently of a former teacher's last-seen site.
 	var method: String = learning_method(goal, actor)
 	if not method.is_empty() and not Growth.introduced(actor, method):
@@ -655,7 +659,12 @@ func protected_targets(world: RefCounted, actor: int) -> Dictionary:
 	for terms: Dictionary in world.institutions.Matters.views(world.institutions, world, actor).values():
 		for target: int in [int(terms.target)] + terms.sources: result[target] = true
 	for duty: Dictionary in world.institutions.Duties.views(world.institutions, actor).values():
-		for target: int in [int(duty.target), int(duty.channel)] + duty.sources: result[target] = true
+		for target: int in world.institutions.Duties.targets(duty): result[target] = true
+		for site: int in duty.get("sites", []):
+			var occupant: int = int(world.knowledge.records.get(actor, {}).get("subjects", {}).get(site, {}).get("view", {}).get("occupant", 0))
+			if occupant > 0: result[occupant] = true
+	for bundle: Dictionary in world.institutions.return_bundles(world, actor):
+		if bundle.purpose == "supply" and int(bundle.get("origin", 0)) > 0: result[int(bundle.origin)] = true
 	return result
 
 static func _params_valid(definition: String, params: Dictionary, next_id: int) -> bool:

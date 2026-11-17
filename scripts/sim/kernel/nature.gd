@@ -163,6 +163,8 @@ func create(world: RefCounted, definition: String, tile: int, seeding: bool = fa
 	if seeding: rec["remaining_ms"] = 1500
 	if place.host > 0:
 		world.objects.records[place.host]["guest"] = id
+		rec.owner = int(world.objects.records[place.host].owner)
+		rec.organization = int(world.objects.records[place.host].organization)
 		world.objects.reindex(id, world.objects.records[place.host].cells)
 	ids.append(id)
 	cohorts[id % GROUPS].append(id)
@@ -437,6 +439,7 @@ func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dict
 			else:
 				facts["removed"] = action.target
 				remove(world, action.target, now)
+				if int(rec.host) > 0: world.knowledge.refresh(world, actor, int(rec.host), now)
 	world._sync_inventory(actor)
 	return Results.completed(facts)
 
