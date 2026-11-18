@@ -15,8 +15,9 @@ func small_food_retains_public_inputs() -> void:
 	w.flush_topology(); autonomous(w, 3, [chest, stove]); w.decisions.prepare(w, 0)
 	advance(w, 20000)
 	check(int(w.facilities.completed.get("cook", 0)) == 1 and w.pages[0].hunger[2] >= 7000, "Small food need failed to retain public cooking inputs: " + str({"results": w.activity_results.view(3), "decision": w.livelihood.latest.get(3), "carried": w.objects.inventory_summary(3), "hunger": w.pages[0].hunger[2]}))
-	var returns: Array = w.activity_results.view(3).filter(func(result: Dictionary): return result.operation == "put" and result.status == "completed")
-	check(returns.is_empty(), "Small food need repeatedly returned its needed ingredients")
+	var deposits: Array = w.activity_results.view(3).filter(func(result: Dictionary): return result.operation == "put" and result.status == "completed")
+	check(deposits.any(func(result: Dictionary): return result.target == stove), "Cooking did not deposit real ingredients in the stove")
+	check(not deposits.any(func(result: Dictionary): return result.target == chest), "Small food need returned its needed ingredients to storage")
 	check(Persistence.candidate(Persistence.capture(w), 0) != null, "Small-need public cooking could not restore")
 
 func ordinary_learning_still_explores() -> void:

@@ -599,7 +599,7 @@ func end_run(id: int, at: int = -1, reason: String = "replaced", outcome: Dictio
 		pages[slot / 256].modes[slot % 256] = Units.Mode.IDLE
 	# Evidence is committed before either participant is awakened. Partner waits
 	# never publish a second result for the same shared activity.
-	if not interaction.is_empty(): society.interrupt(self, interaction, now)
+	if not interaction.is_empty(): society.end_partner(self, interaction, now, reason)
 	livelihood.outcome(self, id, binding, result, now, reason)
 	decisions.ended(self, id, binding, now, reason, result)
 	if resume and resume_partner and objects.records[id].get("autonomous", false) and combat.alive(self, id) and not decisions.records.get(id, {}).get("manual", false) and not decisions.in_combat(id):

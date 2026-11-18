@@ -265,6 +265,14 @@ func partner_resumes_owed_review() -> void:
 	check(w.begin_interaction(3, {"kind": "talk", "target": 2}) == "accepted", "Partner resume fixture could not start a conversation")
 	w.settle_action(3, 0)
 	check(w.gate.current(2).get("domain") == "partner", "Partner resume fixture never bound the actual participant")
+	# Deferred planning may see the participant already bound to this contact.
+	w.decisions.track_host(w, 2)
+	check(w.decisions.records[2].task.get("binding") == w.gate.current(2), "Fixture failed to track the active partner run")
+	w.end_run(3, 0, "interrupted")
+	check(w.gate.current(2).is_empty() and w.decisions.records[2].task.is_empty(), "Ending a contact left the participant tracking a released run")
+	check(Persistence.candidate(Persistence.capture(w), 0) != null, "Ended contact made the current world unloadable")
+	check(w.begin_interaction(3, {"kind": "talk", "target": 2}) == "accepted", "A new contact could not acquire the released participant")
+	w.settle_action(3, 0)
 	w.objects.add(2, "meal", 1 - w.objects.amount(2, "meal"))
 	w.pages[0].hunger[1] = 500
 	w.decisions.wake(w, 2, 0, "life_result", 100)

@@ -127,17 +127,14 @@ func hold_partner(world: RefCounted, actor: int, action: Dictionary, target: int
 	world.gate.bind(target, "partner", waits[target].run_id)
 
 
-func interrupt(world: RefCounted, action: Dictionary, now: int) -> void:
+func end_partner(world: RefCounted, action: Dictionary, now: int, reason: String) -> void:
 	if not action.get("partner_waiting", false) or not world.actor_slots.has(action.target):
 		return
 	var wait: Dictionary = waits.get(action.target, {})
 	if wait.is_empty() or wait.owner_run != action.get("run_id"): return
-	if not world.gate.unbind(action.target, "partner", wait.run_id): return
-	waits.erase(action.target)
-	var slot: int = world.actor_slots[action.target]
-	var page: RefCounted = world.pages[slot / 256]
-	# Never overwrite a newer player command or a defensive combat response.
-	if action.get("partner_resume", false) and world.objects.records[action.target].get("autonomous", false) and page.health[slot % 256] > 0 and page.modes[slot % 256] == Units.Mode.IDLE and not world.actions.has(action.target) and not world.decisions.in_combat(action.target):
+	if not world.gate.matches(action.target, {"domain": "partner", "run_id": wait.run_id}): return
+	world.end_run(action.target, now, reason)
+	if action.get("partner_resume", false) and not world.decisions.in_combat(action.target):
 		world.livelihood.after_action(world, action.target, now)
 
 func participation_reason(world: RefCounted, actor: int, action: Dictionary, now: int) -> String:
