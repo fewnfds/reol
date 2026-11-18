@@ -21,6 +21,7 @@ var _batch_actor: int = 0
 var _protected: Dictionary = {}
 var _protection_dirty: bool = true
 var _scans: Dictionary = {} # Transient cursor; overdue persisted due_ms rebuilds it.
+var _planning_views: Dictionary = {} # Immutable projections, rebuilt from records.
 const SCAN_TARGETS: int = 4
 
 func record(actor: int) -> Dictionary:
@@ -35,7 +36,9 @@ func _revision(actor: int) -> int:
 
 func view(actor: int, target: int, at: int) -> Dictionary:
 	var entry: Dictionary = records.get(actor, {}).get("subjects", {}).get(target, {})
-	if entry.is_empty(): return {}
+	return {} if entry.is_empty() else _project(entry, at)
+
+func _project(entry: Dictionary, at: int) -> Dictionary:
 	var result: Dictionary = State.copy(entry.view)
 	if result.kind == "actor" and at - int(entry.seen_ms) > MOBILE_FRESH_MS: result.tile = -1
 	if not entry.teachings.is_empty():
@@ -49,6 +52,45 @@ func known(actor: int, at: int, include_mobile: bool = true) -> Dictionary:
 		if not include_mobile and records[actor].subjects[target].view.kind == "actor": continue
 		result[target] = view(actor, target, at)
 	return result
+
+# Planning jobs may outlive this view's validity. Publish replacements and
+# leave every version already held by a job untouched.
+func planning_clues(actor: int, at: int) -> Dictionary:
+	var owner: Dictionary = records.get(actor, {})
+	if owner.is_empty(): return {}
+	var previous: Dictionary = _planning_views.get(actor, {})
+	var revision: int = int(owner.next_revision)
+	if previous.get("revision", -1) == revision and at >= int(previous.at) and at < int(previous.expires): return previous.clues
+	var old_versions: Dictionary = previous.get("versions", {})
+	var old_clues: Dictionary = previous.get("clues", {})
+	var versions: Dictionary = {}
+	var clues: Dictionary = {}
+	var expires: int = 9223372036854775807
+	for target: int in owner.subjects:
+		var entry: Dictionary = owner.subjects[target]
+		var expired: bool = false
+		if entry.view.kind == "actor" and int(entry.view.tile) >= 0:
+			var expiry: int = int(entry.seen_ms) + MOBILE_FRESH_MS + 1
+			expired = at >= expiry
+			if not expired: expires = mini(expires, expiry)
+		var version: int = int(entry.revision) * 2 + int(expired)
+		versions[target] = version
+		clues[target] = old_clues[target] if old_versions.get(target, -1) == version else Operations.freeze(_project(entry, at))
+	clues.make_read_only()
+	_planning_views[actor] = {"revision": revision, "at": at, "expires": expires, "versions": versions, "clues": clues}
+	return clues
+
+func review_inputs(actor: int, at: int, duty_targets: Dictionary) -> Dictionary:
+	var clues: Dictionary = {}
+	var observations: Dictionary = {}
+	var subjects: Dictionary = records.get(actor, {}).get("subjects", {})
+	for target: int in subjects:
+		var entry: Dictionary = subjects[target]
+		var raw: Dictionary = entry.view
+		if not duty_targets.has(target) and not raw.has("post_revision") and not raw.has("source_qi_band"): continue
+		clues[target] = _project(entry, at)
+		observations[target] = {"at_ms": entry.seen_ms, "direct": entry.origin != "heard"}
+	return {"clues": clues, "observations": observations}
 
 func evidence(actor: int, target: int) -> Dictionary:
 	var entry: Dictionary = records.get(actor, {}).get("subjects", {}).get(target, {})
@@ -101,7 +143,14 @@ func _store(world: RefCounted, actor: int, value: Dictionary, origin: String, ob
 		# Better provenance or a newer mobile sighting can refresh metadata without
 		# inventing a changed observation (and clearing an unrelated retry delay).
 		var improved: bool = origin == "heard" and (hops < int(old.hops) or (value.kind == "actor" and seen > int(old.seen_ms)))
-		if origin != "heard" or improved: old.merge({"origin": origin, "observer": observer, "source": source, "seen_ms": seen, "received_ms": at, "hops": hops}, true)
+		if origin != "heard" or improved:
+			# Forward refreshes may keep the earlier expiry as a conservative
+			# bound, unless a view was already sampled after that deadline.
+			if value.kind == "actor" and value.tile >= 0 and seen != int(old.seen_ms):
+				var cached: Dictionary = _planning_views.get(actor, {})
+				if not cached.is_empty() and (seen < int(old.seen_ms) or int(cached.at) - int(old.seen_ms) > MOBILE_FRESH_MS):
+					_planning_views.erase(actor)
+			old.merge({"origin": origin, "observer": observer, "source": source, "seen_ms": seen, "received_ms": at, "hops": hops}, true)
 		if origin != "heard": old.merge({"absent_ms": -1, "absent_tile": -1}, true)
 		return _merge_teachings(actor, target, teachings) or improved
 	# Admission precedes revision/copy: an immediately forgotten sighting is not
@@ -198,14 +247,18 @@ func _snapshot(world: RefCounted, target: int) -> Dictionary:
 
 func refresh(world: RefCounted, actor: int, target: int, at: int, focus: bool = false) -> bool:
 	world.sight.sync(world)
-	if world.sight.observed_position(world, actor, target) != null:
+	var eye: int = Terrain.index(Vector2i(world.combat.position(world, actor).floor()))
+	return _refresh_from(world, actor, target, at, eye, world.sight.range_for(world, actor), focus)
+
+func _refresh_from(world: RefCounted, actor: int, target: int, at: int, eye: int, radius: float, focus: bool = false) -> bool:
+	if world.sight.observable(world, eye, radius, target):
 		_store(world, actor, _snapshot(world, target), "seen", actor, actor, at, at, 0, {}, focus)
 		var guest: int = int(world.objects.records[target].get("guest", 0))
-		if guest > 0 and world.sight.observed_position(world, actor, guest) != null:
+		if guest > 0 and world.sight.observable(world, eye, radius, guest):
 			_store(world, actor, _snapshot(world, guest), "seen", actor, actor, at, at, 0, {}, focus)
 		return true
 	var entry: Dictionary = records.get(actor, {}).get("subjects", {}).get(target, {})
-	if not entry.is_empty() and int(entry.view.tile) >= 0 and world.sight.sees(world.combat.position(world, actor), entry.view.tile, world.sight.range_for(world, actor)):
+	if not entry.is_empty() and int(entry.view.tile) >= 0 and world.sight.sees_tile(eye, int(entry.view.tile), radius):
 		if _batch_actor == actor: _protection_dirty = true
 		entry.absent_tile = entry.view.tile
 		entry.view.tile = -1
@@ -237,24 +290,25 @@ func observe(world: RefCounted, actor: int, at: int) -> void:
 	world.sight.sync(world)
 	var previous_revision: int = entry.next_revision
 	var position: Vector2 = world.combat.position(world, actor)
+	var eye: int = Terrain.index(Vector2i(position.floor()))
 	var radius: float = world.sight.range_for(world, actor)
 	var checked: Dictionary = {}
 	for target: int in world.objects.nearby(position, radius, false):
 		if checked.has(target): continue
 		var value: Dictionary = world.objects.records[target]
 		if value.kind == "plant" and int(value.get("host", 0)) == 0 and world.objects.count_inventory(target) == 0 and not entry.subjects.has(target) and not value.get("sapient", false) and not preload("res://scripts/sim/kernel/nature_defs.gd").DEFINITIONS[value.definition].has("stored_qi"): continue
-		refresh(world, actor, target, at)
+		_refresh_from(world, actor, target, at, eye, radius)
 		checked[target] = true
 	# Reuse the existing body index. Before the first simulation slice only,
 	# initialization has no index yet and uses the actual initial body IDs.
 	var nearby: Array = world.combat.scan.nearby(position - Vector2.ONE * radius, position + Vector2.ONE * radius, true) if not world.combat.scan.ids.is_empty() else world.actor_slots.keys()
 	for target: int in nearby:
 		if target != actor and not checked.has(target) and world.actor_slots.has(target):
-			refresh(world, actor, target, at)
+			_refresh_from(world, actor, target, at, eye, radius)
 			checked[target] = true
 	for target: int in entry.subjects.keys():
 		var tile: int = entry.subjects[target].view.tile
-		if not checked.has(target) and tile >= 0 and world.sight.sees(position, tile, radius): refresh(world, actor, target, at)
+		if not checked.has(target) and tile >= 0 and world.sight.sees_tile(eye, tile, radius): _refresh_from(world, actor, target, at, eye, radius)
 	entry.due_ms = at + OBSERVATION_MS
 	if entry.next_revision != previous_revision: world.decisions.knowledge_changed(world, actor, at, "knowledge_observed")
 	_batch_actor = 0
@@ -288,6 +342,7 @@ func service(world: RefCounted, actor: int, at: int) -> bool:
 			_finish_wait(world, actor, at) # A direct observation may have already met this dependency.
 			return true
 		var position: Vector2 = world.combat.position(world, actor)
+		var eye: int = Terrain.index(Vector2i(position.floor()))
 		var radius: float = world.sight.range_for(world, actor)
 		var targets: Dictionary = {}
 		for target: int in world.objects.nearby(position, radius, false): targets[target] = true
@@ -298,12 +353,15 @@ func service(world: RefCounted, actor: int, at: int) -> bool:
 		# Enumeration conveys no information; each refresh still checks visibility.
 		for target: int in entry.subjects:
 			var tile: int = entry.subjects[target].view.tile
-			if tile >= 0 and world.sight.sees(position, tile, radius): targets[target] = true
+			if not targets.has(target) and tile >= 0 and world.sight.sees_tile(eye, tile, radius): targets[target] = true
 		_scans[actor] = {"targets": targets.keys(), "cursor": 0, "revision": int(entry.next_revision)}
 		observe_usec += Time.get_ticks_usec() - began
 		return false
 	var scan: Dictionary = _scans[actor]
 	var previous_revision: int = int(entry.next_revision)
+	world.sight.sync(world)
+	var eye: int = Terrain.index(Vector2i(world.combat.position(world, actor).floor()))
+	var radius: float = world.sight.range_for(world, actor)
 	_batch_actor = actor; _protected = {}; _protection_dirty = true
 	for item: int in SCAN_TARGETS:
 		if int(scan.cursor) >= scan.targets.size(): break
@@ -311,7 +369,7 @@ func service(world: RefCounted, actor: int, at: int) -> bool:
 		scan.cursor += 1
 		var value: Dictionary = world.objects.records.get(target, {})
 		if value.get("kind") == "plant" and int(value.get("host", 0)) == 0 and world.objects.count_inventory(target) == 0 and not entry.subjects.has(target) and not value.get("sapient", false) and not preload("res://scripts/sim/kernel/nature_defs.gd").DEFINITIONS[value.definition].has("stored_qi"): continue
-		refresh(world, actor, target, at)
+		_refresh_from(world, actor, target, at, eye, radius)
 	_batch_actor = 0; _protected = {}
 	# Each acquired piece carries its own durable wake. A save between pieces
 	# must not turn already-learned information into a permanently missed event.
@@ -340,7 +398,12 @@ func request(actor: int, at: int) -> void:
 	_scans.erase(actor) # A new arrival must enumerate its new location.
 
 func stop(actor: int) -> void:
-	_scans.erase(actor) # Death/removal must also retire the rebuildable cursor.
+	_scans.erase(actor)
+	_planning_views.erase(actor)
+
+func forget_actor(actor: int) -> void:
+	stop(actor)
+	records.erase(actor)
 
 func deliver(world: RefCounted, recipient: int, giver: int, target: int, at: int, focus: bool = false) -> bool:
 	var incoming: Dictionary = records.get(giver, {}).get("subjects", {}).get(target, {})

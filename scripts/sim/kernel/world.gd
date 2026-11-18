@@ -1778,8 +1778,7 @@ func remove_actor(id: int, at: int = -1) -> bool:
 		for item: String in objects.inventory_summary(id):
 			objects.transfer(id, pile, item, objects.amount(id, item))
 	objects.remove_empty(id)
-	knowledge.records.erase(id)
-	knowledge.stop(id)
+	knowledge.forget_actor(id)
 	deferred.cancel_actor(id)
 	decisions.forget(id)
 	livelihood.forget(id)

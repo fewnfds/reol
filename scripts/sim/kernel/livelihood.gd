@@ -128,12 +128,27 @@ func choose(world: RefCounted, id: int, at: int) -> void:
 	job.run()
 	complete_plan(world, id, job, at)
 
-func schedule_reviews(world: RefCounted, actor: int, at: int, context: Dictionary = {}) -> void:
-	# Independent appointments are derived from current personal state.
+func schedule_reviews(world: RefCounted, actor: int, at: int) -> void:
+	# Review deadlines depend on current private evidence and authorization.
 	if not world.combat.alive(world, actor) or not world.objects.records[actor].get("autonomous", false) or world.decisions.records.get(actor, {}).get("manual", false): return
-	if context.is_empty() and not Growth.has_qi_method(world.objects.records[actor]) and world.society._requests_by_actor.get(actor, []).is_empty() and world.institutions.Duties.views(world.institutions, actor).is_empty() and world.knowledge.records.get(actor, {}).get("channels", {}).is_empty(): return
-	var view: Dictionary = context.actor if context.has("actor") else _self_view(world, actor)
-	var clues: Dictionary = context.clues if context.has("clues") else world.knowledge.known(actor, at)
+	var person: Dictionary = world.objects.records[actor]
+	var channels: Dictionary = world.knowledge.records.get(actor, {}).get("channels", {})
+	if not Growth.has_qi_method(person) and world.society._requests_by_actor.get(actor, []).is_empty() and world.institutions.Duties.views(world.institutions, actor).is_empty() and channels.is_empty(): return
+	var view: Dictionary = world.institutions.access_view(world, actor)
+	var duty_targets: Dictionary = {}
+	for duty: Dictionary in view.duties.values():
+		var targets: Array = world.institutions.Duties.targets(duty) if duty.kind == "cultivation" else [duty.target, duty.channel]
+		for target: int in targets: duty_targets[target] = true
+	var inputs: Dictionary = world.knowledge.review_inputs(actor, at, duty_targets)
+	view["id"] = actor
+	view["methods"] = person.get("methods", {})
+	view["qi"] = int(person.get("qi", 0))
+	view["known_channels"] = channels
+	view["requests"] = world.society.request_views(world, actor, world.operation_time())
+	view["request_retries"] = _request_retries(record(world, actor))
+	view["observations"] = inputs.observations
+	world.decisions.retry_allowed(world, actor, "", 0, world.operation_time())
+	var clues: Dictionary = inputs.clues
 	var due: int = Planner.Contacts.next_due(view, at)
 	for request: Dictionary in view.requests:
 		var review: int = Planner.Contacts.due(request, actor, view.responsibilities)
@@ -157,28 +172,33 @@ func resource_changed(world: RefCounted, actor: int, metric: String, before: int
 	if after > before and not world.gate.current(actor).is_empty(): return
 	world.decisions.wake(world, actor, at, "needs_changed", 50)
 
-func _self_view(world: RefCounted, actor: int) -> Dictionary:
+func _request_retries(entry: Dictionary) -> Dictionary:
+	var retries: Dictionary = {}
+	for account: Dictionary in entry.appraisals.values():
+		if account.has("request"): retries[int(account.request)] = int(account.until_ms)
+	return retries
+
+func _utility_view(world: RefCounted, actor: int) -> Dictionary:
 	var view: Dictionary = world.operation_actor(actor)
-	# Utility outside planning only needs to know that eligible work exists.
-	view["work_offers"] = []
 	view["has_department_work"] = world.institutions.Workflow.has_work(world.institutions, world, actor)
+	view["recovering"] = Growth.needs_rest(world.objects.records[actor]) and view.temperature >= 5.0 and view.temperature <= 40.0
+	view["requests"] = world.society.request_views(world, actor, world.operation_time())
+	world.decisions.retry_allowed(world, actor, "", 0, world.operation_time())
+	return view
+
+func _self_view(world: RefCounted, actor: int) -> Dictionary:
+	var view: Dictionary = _utility_view(world, actor)
+	view["work_offers"] = []
 	view["work_shipment"] = State.copy(world.institutions.Logistics.current(world.institutions, actor))
 	var slot: int = world.actor_slots[actor]
-	var page: RefCounted = world.pages[slot / 256]
-	view["hunger"] = page.hunger[slot % 256]
-	view["temperature"] = page.body_heat[slot % 256]
-	view["speed"] = page.move_speed[slot % 256]
-	view["recovering"] = Growth.needs_rest(world.objects.records[actor]) and page.body_heat[slot % 256] >= 5.0 and page.body_heat[slot % 256] <= 40.0
+	view["speed"] = world.pages[slot / 256].move_speed[slot % 256]
 	view["known_channels"] = State.copy(world.knowledge.records.get(actor, {}).get("channels", {}))
-	view["requests"] = world.society.request_views(world, actor, world.operation_time())
 	view["contacts"] = world.society.Contacts.views(world.society, actor)
-	view["social_appraisals"] = State.copy(record(world, actor).social_appraisals)
-	view["request_retries"] = {}
-	for account: Dictionary in records[actor].appraisals.values():
-		if account.has("request"): view.request_retries[int(account.request)] = int(account.until_ms)
+	var entry: Dictionary = record(world, actor)
+	view["social_appraisals"] = State.copy(entry.social_appraisals)
+	view["request_retries"] = _request_retries(entry)
 	view["observations"] = {}
 	view["operation_failures"] = {}
-	world.decisions.retry_allowed(world, actor, "", 0, world.operation_time())
 	for failure: Dictionary in world.decisions.records.get(actor, {}).get("feedback", []):
 		if int(failure.until_ms) > world.operation_time(): view.operation_failures["%s:%d" % [failure.operation, failure.target]] = failure.reason
 	for target: int in world.knowledge.records.get(actor, {}).get("subjects", {}):
@@ -351,7 +371,7 @@ func prepare_plan(world: RefCounted, id: int, at: int) -> RefCounted:
 	if int(entry.budget.work) >= limit:
 		world.decisions.wake(world, id, at, "planning_budget", maxi(1, int(entry.budget.window_ms) + BUDGET_MS - at))
 		return null
-	var clues: Dictionary = world.knowledge.known(id, at)
+	var clues: Dictionary = world.knowledge.planning_clues(id, at)
 	var self_target: Dictionary = State.copy(world.operation_target(id))
 	self_target.inventory = actor.inventory.duplicate()
 	var retry: int = at + 10001
@@ -406,7 +426,7 @@ func complete_plan(world: RefCounted, id: int, job: RefCounted, at: int) -> void
 			discarded_plans += 1
 			think(world, id, at)
 		else:
-			var view: Dictionary = _self_view(world, id)
+			var view: Dictionary = _utility_view(world, id)
 			var score: Dictionary = _utility(goal, entry, view, at)
 			var previous: Dictionary = entry.goals.get(int(entry.intention.get("goal", 0)), {})
 			var previous_score: float = float(_utility(previous, entry, view, at).value) if not previous.is_empty() and previous.state == "active" and int(entry.intention.get("task_id", 0)) > 0 else 0.0

@@ -1,6 +1,6 @@
 ---
 name: godot-motion-navigation
-description: 修改或review Reol的连续移动、碰撞、寻路、工作位置到达和坐标转换时使用；不将Packed身体替换为逐人Godot物理节点。
+description: 修改或review Reol的连续移动、碰撞、寻路、工作位置到达和坐标转换时使用；按碰撞语义和实测规模选择身体表示。
 ---
 
 # 身体、路径与空间的一致性

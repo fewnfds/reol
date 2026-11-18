@@ -122,6 +122,18 @@ func sees_object(origin: Vector2, rec: Dictionary, sight_range: float) -> bool:
 	return false
 
 
+# Knowledge needs a yes/no observation, while aim needs the nearest visible point.
+func observable(world: RefCounted, eye: int, sight_range: float, target: int) -> bool:
+	var rec: Dictionary = world.objects.records.get(target, {})
+	if rec.is_empty(): return false
+	if world.actor_slots.has(target):
+		return sees_tile(eye, Terrain.index(Vector2i(world.combat.position(world, target).floor())), sight_range)
+	if not rec.has("cells"): return sees_tile(eye, int(rec.tile), sight_range)
+	for tile: int in rec.cells:
+		if sees_tile(eye, tile, sight_range): return true
+	return false
+
+
 func observed_position(world: RefCounted, observer: int, target: int) -> Variant:
 	if not world.objects.records.has(target):
 		return null

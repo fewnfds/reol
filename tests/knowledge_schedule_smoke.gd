@@ -31,8 +31,35 @@ func changing_dependencies() -> void:
 	w.flush_topology()
 	check(Persistence.candidate(Persistence.capture(w), 0) != null, "Changed bounded dependencies did not restore")
 
+func planning_projection_lifetime() -> void:
+	var w: RefCounted = scheduled_world()
+	var k: RefCounted = w.knowledge
+	var chest: int = w.facilities.create_completed(w, "wood_chest", w.Terrain.index(Vector2i(124, 124)))
+	w.objects.add(chest, "meal", 1)
+	k.created(w, 2, chest, 0)
+	k.created(w, 2, 3, 0)
+	var held: Dictionary = k.planning_clues(2, 0)
+	check(held == k.known(2, 0) and held.is_read_only() and held[chest].inventory.is_read_only(), "Planning received a mutable or different private projection")
+	var restored: RefCounted = Persistence.candidate(Persistence.capture(w), 0)
+	check(restored != null and restored.knowledge.planning_clues(2, 0) == held, "Planning projection did not rebuild from durable evidence")
+	w.objects.add(chest, "meal", 1)
+	check(k.planning_clues(2, 0)[chest].inventory.meal == 1 and k.planning_clues(1, 0).is_empty(), "An unseen change or another character's memory entered the planning projection")
+	k.created(w, 2, chest, 0)
+	check(k.planning_clues(2, 0)[chest].inventory.meal == 2 and held[chest].inventory.meal == 1, "Updating evidence edited a held planning job's snapshot")
+	var revision: int = k.evidence(2, 3).revision
+	k.created(w, 2, 3, 1000) # Same payload and revision, with a later expiry.
+	check(k.evidence(2, 3).revision == revision and k.planning_clues(2, k.MOBILE_FRESH_MS + 1) == k.known(2, k.MOBILE_FRESH_MS + 1), "Same-value receipt left a stale expiry")
+	var stale_at: int = k.MOBILE_FRESH_MS + 1001
+	check(k.planning_clues(2, stale_at)[3].tile < 0 and held[3].tile >= 0, "Ageing a new projection edited a held version")
+	check(k.planning_clues(2, 1000)[3].tile == held[3].tile, "An older request reused a future projection")
+	k.seed(w, 2, k.view(2, 3, 1000), 0)
+	check(k.planning_clues(2, k.MOBILE_FRESH_MS + 1)[3].tile < 0, "An earlier seed was hidden by a longer cached expiry")
+	k.forget_actor(2)
+	check(k.planning_clues(2, 0).is_empty(), "Retiring private evidence retained the cached subjects")
+
 func _run() -> void:
 	changing_dependencies()
+	planning_projection_lifetime()
 	var w: RefCounted = scheduled_world()
 	var small: RefCounted = Persistence.candidate(Persistence.capture(w), 0)
 	check(small != null, "Observation deadlines did not restore")

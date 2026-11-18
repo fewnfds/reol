@@ -107,6 +107,10 @@ func actual_talk_changes_life() -> void:
 	w.knowledge.record(3).due_ms = w.elapsed_ms + 3000
 	w.decisions.resume(w, 3, w.elapsed_ms)
 	w.decisions.prepare(w, w.elapsed_ms)
+	# Planning advances through deferred slices after prepare admits the request.
+	for slice: int in 125:
+		if w.pages[0].modes[2] == w.Units.Mode.EXPLORE: break
+		advance(w, w.elapsed_ms + 16)
 	check(w.pages[0].modes[2] == w.Units.Mode.EXPLORE and w.decisions.records[3].task.get("target") == stove, "New heard food location did not change real autonomous movement")
 	advance(w, 6500)
 	check(w.objects.amount(stove, "meal") == 0 and w.pages[0].hunger[2] > 5000, "Heard location did not lead to real meal consumption")
