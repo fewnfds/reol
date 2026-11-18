@@ -16,13 +16,14 @@ const CHANNEL_LIMIT: int = 8
 var records: Dictionary = {}
 var observations: int = 0
 var observe_usec: int = 0
-# Transient, scoped to one owner's serial observation, never a saved second truth.
+# Transient protection cache scoped to one observer's observation slice.
 var _batch_actor: int = 0
 var _protected: Dictionary = {}
 var _protection_dirty: bool = true
 var _scans: Dictionary = {} # Transient cursor; overdue persisted due_ms rebuilds it.
 var _planning_views: Dictionary = {} # Immutable projections, rebuilt from records.
-const SCAN_TARGETS: int = 4
+# Amortize queue service and eye/protection setup across nearby targets.
+const SCAN_TARGETS: int = 16
 
 func record(actor: int) -> Dictionary:
 	if not records.has(actor): records[actor] = {"due_ms": 0, "subjects": {}, "experiences": [], "next_revision": 1, "channels": {}}
@@ -169,9 +170,11 @@ func _store(world: RefCounted, actor: int, value: Dictionary, origin: String, ob
 		var victim: int = 0
 		var worst: Dictionary = incoming
 		var rank: int = _rank(incoming, target, protected, at)
-		var protect_incoming: bool = focus or target == world.actions.get(actor, {}).get("target", 0) or target == world.decisions.records.get(actor, {}).get("task", {}).get("target", 0)
+		var action_target: int = int(world.actions.get(actor, {}).get("target", 0))
+		var task_target: int = int(world.decisions.records.get(actor, {}).get("task", {}).get("target", 0))
+		var protect_incoming: bool = focus or target == action_target or target == task_target
 		for id: int in subjects:
-			if id == world.actions.get(actor, {}).get("target", 0) or id == world.decisions.records.get(actor, {}).get("task", {}).get("target", 0): continue
+			if id == action_target or id == task_target: continue
 			var candidate: Dictionary = subjects[id]
 			var priority: int = _rank(candidate, id, protected, at)
 			if (victim == 0 and protect_incoming) or priority < rank or (priority == rank and (int(candidate.seen_ms) < int(worst.seen_ms) or (candidate.seen_ms == worst.seen_ms and id < (target if victim == 0 else victim)))):

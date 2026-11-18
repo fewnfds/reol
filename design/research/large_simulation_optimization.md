@@ -6,19 +6,24 @@
 
 ## 成熟项目与引擎
 
-来源核查于2026-11-12至13；公开资料说明可借鉴的思路，不保证Reol的性能。原始研究过程由Git追溯。
+来源初查于 2026-11-12 至 13。2026-11-19 补核并行寻路、空间分区、状态复制与大型战斗资料。当前 Reol 对照见[异步观察实验](../../docs/status/baseline.md#百人宗门异步观察实验)。
 
 | 一手来源 | 可证实的设计与边界 | 借鉴范围 |
 |---|---|---|
 | Factorio [FFF70](https://www.factorio.com/blog/post/fff-70)、[FFF150](https://www.factorio.com/blog/post/fff-150) | 更新、准备、绘制有不同责任；可以减少绘制维持模拟更新，准备仍有同步条件；更新本身过载仍有UPS上限 | 消除每步等画面收取，不承诺任意负载始终维持4倍 |
-| Factorio [FFF421](https://www.factorio.com/blog/post/fff-421) | 静态/休眠对象避免每tick无用更新；具体改动的收益依赖实际对象行为 | 静态地形画布和静态环境不每步重建；不照搬其收益数字 |
+| Factorio [FFF421](https://www.factorio.com/blog/post/fff-421) | 机器人按到期更新并在画面插值，传送带读取器并行。独立电网并行因内存吞吐限制未提高整局速度 | 可并行的读计算需够厚。休眠、批量和仅在相关变化时重建可直接减少工作量 |
 | [OpenRA Game.cs](https://github.com/OpenRA/OpenRA/blob/bleed/OpenRA.Game/Game.cs)、[World.cs](https://github.com/OpenRA/OpenRA/blob/bleed/OpenRA.Game/World.cs) | LogicTick、RenderTick和世界tick职责清楚；普通游玩路径仍包含logic后必须render的约束 | 借鉴责任划分，不把它说成完全没有显示/模拟耦合的现成模板 |
 | Mindustry [AsyncCore](https://github.com/Anuken/Mindustry/blob/master/core/src/mindustry/async/AsyncCore.java)、[PhysicsProcess](https://github.com/Anuken/Mindustry/blob/master/core/src/mindustry/async/PhysicsProcess.java)、[Logic](https://github.com/Anuken/Mindustry/blob/master/core/src/mindustry/core/Logic.java) | begin/process/end有join；物理任务按不相互作用的碰撞层并行 | 按独立页/结果并行，避免每个领域一个自由推进线程 |
 | [OpenTTD 主循环](https://github.com/OpenTTD/OpenTTD/blob/master/src/openttd.cpp) | 车辆、地块、脚本等在游戏循环内各有职责/周期；不是所有东西每画面帧调用 | 保留共同时间但按领域频率唤醒，普通移动不强迫慢环境结算 |
 | [OpenRCT2 Context](https://github.com/OpenRCT2/OpenRCT2/blob/develop/src/openrct2/Context.cpp) | 游戏更新累加器可在一次绘制前执行多次更新，插值与权威位置分开 | 倍率完成更多相同步；画面只使用已提交位置，不伪造未来 |
 | Veloren [state.rs](https://github.com/veloren/veloren/blob/master/common/state/src/state.rs)、[server](https://github.com/veloren/veloren/blob/master/server/src/lib.rs) | Dispatcher调度并行系统，维护实体结构与本地事件采用有明确阶段 | 并行独占身体页，跨单位/资源效果由owner采用；不照抄其Rust/ECS开销 |
 | [Flecs Systems](https://github.com/SanderMertens/flecs/blob/master/docs/Systems.md) | staged结构变化、worker切片与immediate单线程系统有不同限制 | 不把ECS当万能提速器，不为低频业务强制表迁移/批接口 |
-| [RimWorld官方公告](https://store.steampowered.com/news/app/294100)、[Ludeon](https://ludeon.com/blog/) | 公开公告可用于核对已披露的优化范围，不能据此得知完整内部调度 | 成熟项目也会针对瓶颈重构；不能据公告推断其所有Pawn逻辑、GPU模型或照搬内部class |
+| [RimWorld 1.6](https://ludeon.com/blog/2025/06/announcing-odyssey-and-update-1-6/) | Ludeon 公布批处理多线程寻路和多线程照明，分别服务模拟与表现 | 路径搜索适合按请求分工，路径采用仍由游戏验证 |
+| [Beyond All Reason 的寻路与渲染改造](https://www.beyondallreason.info/news/groundbreaking-engine-improvements-are-live-multithreaded-pathing-and-new-renderer-deployed) | 一批路径请求并行计算，随后更新路径热度。显示另以可见性裁剪、远处图标和 GPU 实例绘制扩容 | 分开计同场寻路、权威更新与同屏显示成本。路径热度等共享输入要明确更新次序 |
+| [Folia 的区域 tick](https://docs.papermc.io/folia/reference/overview/) | Minecraft 的独立区域分别推进，相邻区域合并。跨区操作交相关区域处理 | 分散聚落适合区域职责。密集聚落需拆它内部的读、算和写 |
+| [Epic 的复制图](https://dev.epicgames.com/documentation/en-us/unreal-engine/replication-graph-in-unreal-engine)、[网络移动](https://dev.epicgames.com/documentation/unreal-engine/understanding-networked-movement-in-the-character-movement-component-for-unreal-engine) | Fortnite 示例约 100 连接、5 万复制对象，复制图按相关性复用列表。网络移动使用预测、服务器校正和插值 | 借鉴按相关集合构造视图和用已提交状态做表现，不把复制对象数换算为自主 NPC 数 |
+| [Morpheus 人群渲染](https://msquared.io/blog/morpheus-the-next-era-of-massive-gaming)、[状态频率](https://docs.msquared.io/creation/unreal-development/getting-started/networking/network-levels)、[性能条件](https://docs.msquared.io/creation/unreal-development/performance-guarantees) | Otherside 活动峰值约 7,200 人。平台按 60/30/6Hz 复制不同属性，远处使用 GPU 实例动画与简化模型。公开示例以 5,000 并发活动机器人测试客户端 30 FPS，注明配置与动作 | 同屏与同世界人数有公开技术细节。该负载是玩家行为与客户端表现，需另测每个 NPC 的观察、记忆和决策 |
+| [CCP 的 FWST-8 战报](https://www.eveonline.com/news/view/fury-at-fwst-8-battle-report) | 2020 年在同一星系有 6,557 并发角色。强化节点仍过载，战斗期间时间膨胀达到最大 | 同一热点的并发规模需同时读运行速率，服务器容量与单机完整模拟倍率分别测 |
 | Godot [线程安全](https://docs.godotengine.org/en/4.7/tutorials/performance/thread_safe_apis.html)、[WorkerThreadPool](https://docs.godotengine.org/en/4.7/classes/class_workerthreadpool.html) | 活SceneTree不能任意多线程访问；任务量不足时调度可能负收益 | 不碰场景的独占页批；引擎管理池，不自造每域线程池 |
 | Godot [PackedVector2Array](https://docs.godotengine.org/en/4.7/classes/class_packedvector2array.html)、[C++ core types](https://docs.godotengine.org/en/4.7/tutorials/scripting/cpp/core_types.html)、[cowdata.h](https://github.com/godotengine/godot/blob/4.7/core/templates/cowdata.h) | GDScript Packed数组是引用值，需要duplicate/新目标拷贝才能独立；C++容器的CoW不能证明脚本共享写安全 | 生产者新建脱离Frame，发布后不写；保留旧帧不导致槽位覆盖 |
 

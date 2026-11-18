@@ -109,6 +109,17 @@ func clearance_preserves_review() -> void:
 	advance(w, 1000)
 	check(w.livelihood.decisions > 0 or w.decisions.wakeups.get(2, {}).has("life_pending"), "Clearance completed without resuming the owed ordinary review")
 
+func local_scan_targets(w: RefCounted, start: Vector2i) -> Array[int]:
+	# Leave work after the maximum number of slices a single observer can get
+	# in one service call, even with no wall-clock budget in the serial checks.
+	var targets: Array[int] = []
+	for index: int in w.knowledge.SCAN_TARGETS * 4 + 1:
+		var tile: int = w.Terrain.index(start + Vector2i(index % 10, index / 10))
+		var target: int = w.objects.create("pile", "wood", tile)
+		w.objects.add(target, "wood", 1)
+		targets.append(target)
+	return targets
+
 func exploration_observation_resumes() -> void:
 	var w: RefCounted = peaceful()
 	resident(w, 2, [])
@@ -116,9 +127,7 @@ func exploration_observation_resumes() -> void:
 	move_actor(w, 2, Vector2(125.5, 125.5))
 	w.pages[0].hunger[1] = 500
 	w.objects.add(2, "meal", -w.objects.amount(2, "meal"))
-	for index: int in 30:
-		var target: int = w.objects.create("pile", "wood", w.Terrain.index(Vector2i(126 + index % 5, 126 + index / 5)))
-		w.objects.add(target, "wood", 1)
+	local_scan_targets(w, Vector2i(126, 126))
 	var food: int = w.objects.create("pile", "meal", w.Terrain.index(Vector2i(125, 125)))
 	w.objects.add(food, "meal", 1)
 	w.adopt_motion(2, 0)
@@ -142,9 +151,7 @@ func exploration_retires_inflight_plan() -> void:
 		move_actor(w, 2, Vector2(125.5, 125.5))
 		w.pages[0].hunger[1] = 500
 		w.objects.add(2, "meal", -w.objects.amount(2, "meal"))
-		for index: int in 30:
-			var pile: int = w.objects.create("pile", "wood", w.Terrain.index(Vector2i(127 + index % 5, 126 + index / 5)))
-			w.objects.add(pile, "wood", 1)
+		local_scan_targets(w, Vector2i(127, 126))
 		w.adopt_motion(2, 0)
 		w.pages[0].move_to(1, Vector2(126.5, 125.5), w.Units.Mode.EXPLORE)
 		var original: RefCounted = w.livelihood.prepare_plan(w, 2, 0)
@@ -282,23 +289,21 @@ func partner_resumes_owed_review() -> void:
 func incremental_observation() -> void:
 	var w: RefCounted = peaceful()
 	move_actor(w, 2, Vector2(123.5, 120.5))
-	var targets: Array[int] = []
-	for index: int in 18:
-		var target: int = w.objects.create("pile", "wood", w.Terrain.index(Vector2i(124 + index % 3, 122 + index / 3)))
-		w.objects.add(target, "wood", 1)
-		targets.append(target)
+	var targets: Array[int] = local_scan_targets(w, Vector2i(124, 122))
 	w.knowledge.records.erase(2)
 	w.deferred.request("observe", 2, 0, 2)
 	w.service_deferred()
-	check(w.knowledge._scans.has(2) and int(w.knowledge.records[2].due_ms) == 0, "Ordinary scan ran atomically instead of retaining a bounded cursor")
+	check(int(w.knowledge._scans.get(2, {}).get("cursor", 0)) > 0 and int(w.knowledge.records[2].due_ms) == 0, "Ordinary scan did not retain a partially processed cursor")
 	var restored: RefCounted = Persistence.candidate(Persistence.capture(w), 0)
 	check(restored != null and restored.knowledge._scans.is_empty() and restored.knowledge.records[2].due_ms == 0, "In-progress scan was serialized as fact or lost its due request")
+	var seen: Dictionary = w.knowledge.known(2, w.elapsed_ms)
 	move_actor(w, 2, Vector2(180.5, 180.5))
 	for attempt: int in 50:
 		w.service_deferred()
 		if not w.knowledge._scans.has(2): break
+	check(not w.knowledge._scans.has(2), "Deferred observation failed to drain after movement")
 	for target: int in targets:
-		check(not w.knowledge.records[2].subjects.has(target) or w.knowledge.records[2].subjects[target].seen_ms == 0, "Deferred scan learned hidden changes after moving away")
+		check(w.knowledge.view(2, target, w.elapsed_ms) == seen.get(target, {}), "Deferred scan learned hidden changes after moving away")
 
 func asynchronous_lifecycle() -> void:
 	var w: RefCounted = peaceful()
