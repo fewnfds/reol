@@ -6099,6 +6099,218 @@
         1,
         1
       ]
+    },
+    "granary": {
+      "slot": 289,
+      "rect": [
+        64,
+        2304,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "粮仓 · N",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        2,
+        1
+      ],
+      "occluder": false
+    },
+    "granary_1": {
+      "slot": 290,
+      "rect": [
+        128,
+        2304,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "粮仓 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ],
+      "occluder": false,
+      "parts": [
+        {
+          "key": "granary_1_part0",
+          "offset": [
+            0,
+            -32
+          ],
+          "depth": -32,
+          "contact_shadow": false
+        },
+        {
+          "key": "granary_1_part1",
+          "offset": [
+            0,
+            0
+          ],
+          "depth": 0,
+          "contact_shadow": true
+        }
+      ]
+    },
+    "granary_1_part0": {
+      "slot": 291,
+      "rect": [
+        192,
+        2304,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "粮仓 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
+    },
+    "granary_1_part1": {
+      "slot": 292,
+      "rect": [
+        256,
+        2304,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "粮仓 · E",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
+    },
+    "granary_2": {
+      "slot": 293,
+      "rect": [
+        320,
+        2304,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "粮仓 · S",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        2,
+        1
+      ],
+      "occluder": false
+    },
+    "granary_3": {
+      "slot": 294,
+      "rect": [
+        384,
+        2304,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "粮仓 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ],
+      "occluder": false,
+      "parts": [
+        {
+          "key": "granary_3_part0",
+          "offset": [
+            0,
+            -32
+          ],
+          "depth": -32,
+          "contact_shadow": false
+        },
+        {
+          "key": "granary_3_part1",
+          "offset": [
+            0,
+            0
+          ],
+          "depth": 0,
+          "contact_shadow": true
+        }
+      ]
+    },
+    "granary_3_part0": {
+      "slot": 295,
+      "rect": [
+        448,
+        2304,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "粮仓 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
+    },
+    "granary_3_part1": {
+      "slot": 296,
+      "rect": [
+        0,
+        2368,
+        64,
+        64
+      ],
+      "anchor": [
+        32,
+        56
+      ],
+      "label": "粮仓 · W",
+      "category": "objects",
+      "state": "ready",
+      "source": "authored",
+      "footprint": [
+        1,
+        2
+      ]
     }
   },
   "terrain": {
@@ -6119,7 +6331,7 @@
   },
   "sha256": {
     "actors.png": "399aee8374e60273c958ed6aeb17844d126ad0ba97ebebb00558e3aad1dcd5e9",
-    "world.png": "98b4d3fe8690fea17e28523ccd093d1e22df8636ac6604f4f7fff688e7122a6c",
+    "world.png": "f99843b5b1c1f4bfca8160bd3f5268e11250af0d4f35b3e5db74baf29ef74412",
     "terrain.png": "ec803c9e7a280020e07af16932c06df6fa35c315cfd201a591452d12fdd8ec18"
   }
 }

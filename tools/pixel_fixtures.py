@@ -16,7 +16,7 @@ SLATE = "#7d989f"
 def _surface(key: str) -> tuple[Image.Image, tuple[int, int]]:
     image = Image.new("RGBA", (64, 64))
     d = ImageDraw.Draw(image)
-    footprint = (1, 2) if key == "long_bed" else ((2, 1) if key in ["table", "workbench", "go_board", "stove", "screen"] else (1, 1))
+    footprint = (1, 2) if key == "long_bed" else ((2, 1) if key in ["table", "workbench", "go_board", "stove", "screen", "granary"] else (1, 1))
     if key in ["bed", "long_bed"]:
         top, bottom = (3, 60) if key == "long_bed" else (18, 46)
         d.rectangle((19, top, 44, bottom), fill=WOOD, outline=INK, width=2)
@@ -24,11 +24,18 @@ def _surface(key: str) -> tuple[Image.Image, tuple[int, int]]:
         d.rounded_rectangle((23, top + 4, 40, top + 10), radius=2, fill="#fff0ce", outline=INK)
         d.rectangle((22, top + 13, 41, bottom - 3), fill=TEAL, outline=INK)
         for x in [24, 38]:d.line((x, top + 15, x, bottom - 5), fill="#68aa90")
-    elif key == "chest":
-        d.rectangle((18, 22, 45, 43), fill=WOOD, outline=INK, width=2)
-        d.rectangle((20, 24, 43, 40), fill=LIGHT)
-        for x in [23, 38]:d.rectangle((x, 23, x + 2, 41), fill=SLATE, outline=INK)
-        d.line((20, 27, 43, 27), fill=INK, width=2)
+    elif key in ("chest", "granary"):
+        left, right = (2, 61) if key == "granary" else (18, 45)
+        d.rectangle((left, 16, right, 47), fill=WOOD, outline=INK)
+        d.rectangle((left + 2, 19, right - 2, 44), fill=LIGHT)
+        for y in (24, 31, 38):
+            d.line((left + 2, y, right - 2, y), fill="#a77a4e")
+        for x in (left + 5, right - 7):
+            d.rectangle((x, 18, x + 2, 45), fill=SLATE, outline="#43545c")
+        if key == "granary":
+            d.line((31, 18, 31, 45), fill="#805b40", width=2)
+            for x in (23, 38):
+                d.line((x, 33, x + 3, 33), fill=INK, width=2)
 
     elif key in ["table", "workbench", "go_board"]:
         d.rectangle((3, 19, 60, 45), fill=WOOD, outline=INK, width=2)
@@ -107,6 +114,7 @@ def fixture_height(key: str) -> int:
     height = 10
     if key in ["stove", "furnace", "alchemy", "chest", "well", "water_jar"]: height = 16
     if key in ["bookcase", "screen", "lantern", "grave"]: height = 22
+    if key in ("chest", "granary"): height = 23
     if key in ["cushion", "campfire", "incense"]: height = 4
     if key == "roof_preview": height = 0
     return height
@@ -127,10 +135,24 @@ def fixture(key: str, facing: int = 0) -> tuple[Image.Image, tuple[int, int]]:
     image.alpha_composite(surface, (0, origin - height))
     d = ImageDraw.Draw(image)
     # Front detail is authored in image space and follows the operating side.
-    if key == "chest" and facing == 0:
-        d.rectangle((19, origin + 27, 44, origin + 43), fill=WOOD, outline=INK)
-        for x in [23, 38]: d.rectangle((x, origin + 28, x + 2, origin + 42), fill=SLATE)
-        d.rectangle((30, origin + 29, 34, origin + 35), fill="#e6c665", outline=INK)
+    if key in ("chest", "granary"):
+        left, _, right, bottom = surface.getbbox()
+        front = origin + bottom - 1
+        lip = front - height + 1
+        d.rectangle((left, lip, right - 1, front), fill="#8b5d3e", outline=INK)
+        d.line((left + 1, lip + 2, right - 2, lip + 2), fill=LIGHT, width=2)
+        for y in (lip + 8, front - 5):
+            d.line((left + 2, y, right - 3, y), fill="#674831")
+        if facing % 2 == 0:
+            for x in (left + 5, right - 8):
+                d.rectangle((x, lip + 3, x + 2, front - 2), fill="#657480")
+        else:
+            for x in (left + 2, right - 5):
+                d.rectangle((x, lip + 3, x + 2, front - 2), fill="#674831")
+        if facing == 0:
+            if key == "granary":
+                d.line((31, lip + 4, 31, front - 3), fill=INK, width=2)
+            d.rectangle((29, lip + 5, 34, lip + 11), fill="#e6c665", outline=INK)
     if key == "stove" and facing == 0:
         d.rectangle((23, origin + 30, 41, origin + 43), fill=INK, outline=SLATE)
         d.polygon([(28, origin+40), (30, origin+34), (33, origin+38), (36, origin+33), (37, origin+40)], fill="#e08b48")

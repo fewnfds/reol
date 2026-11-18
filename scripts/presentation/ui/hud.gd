@@ -422,6 +422,8 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 		var rows := PackedStringArray()
 		if _target.get("kind") == "actor":
 			rows.append(ActivityText.summary(_target))
+			if _target.has("name_relation"):
+				rows.append(["中立", "同门", "下属", "敌对"][_target.name_relation])
 			if not _target.get("public_roles", []).is_empty(): rows.append("任职：" + "、".join(_target.public_roles))
 		if _target.get("observed_other", false): rows.append(str(_target.get("appearance", "")))
 		elif _target.has("hp") and not (_target.get("memory", false) and _target.get("kind") == "actor"): rows.append("HP %d" % int(_target.hp))

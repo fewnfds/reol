@@ -68,6 +68,9 @@ var _poses: Array[RefCounted] = []
 var _object_revision: int = -1
 var _object_view: Dictionary = {}
 var _actor_view: Dictionary = {}
+var _actor_labels: Dictionary = {}
+var _label_key := Vector4i(-1, -1, -1, -1)
+var _label_memberships: Array = []
 var _perception_revision: int = -1
 var _sight_revision: int = -1
 var _loss_view := PackedByteArray()
@@ -419,6 +422,36 @@ func _run() -> void:
 		_mutex.unlock()
 
 
+func _publish_actor_labels() -> Dictionary:
+	var institution: RefCounted = _world.institutions
+	# Names and sides are authored at spawn or scenario assembly. A future live
+	# identity or faction edit must also invalidate this projection at its owner.
+	var key := Vector4i(_epoch, _world.perception.actor_visibility_revision, institution.people_revision, institution.membership_revision)
+	if key == _label_key: return _actor_labels
+	if key.x != _label_key.x or key.w != _label_key.w:
+		_label_memberships = institution.membership_view(1)
+	_label_key = key
+	var labels: Dictionary = {}
+	var player_side: int = int(_world.objects.records[1].get("side", 0))
+	for actor: int in _world.perception.visible_actors:
+		var record: Dictionary = _world.objects.records.get(actor, {})
+		var label: String = str(record.get("name", ""))
+		if label.is_empty() or record.get("body_origin") == "summoned": continue
+		var relation: Frame.NameRelation = Frame.NameRelation.NEUTRAL
+		if int(record.get("side", 0)) != player_side:
+			relation = Frame.NameRelation.HOSTILE
+		elif institution.Departments.manages_person(institution, 1, actor):
+			relation = Frame.NameRelation.REPORT
+		else:
+			for membership: Dictionary in _label_memberships:
+				if institution.memberships[membership.organization].has(actor):
+					relation = Frame.NameRelation.FELLOW
+					break
+		labels[actor] = {"name": label, "relation": relation}
+	_actor_labels = labels
+	return labels
+
+
 func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 	var start: int = Time.get_ticks_usec()
 	var frame := Frame.new()
@@ -569,6 +602,7 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 	# Detail updates from reliable outcomes must use the same current body
 	# visibility, even between full map/statistics publications.
 	frame.visible = _world.perception.visible.duplicate()
+	frame.actor_labels = _publish_actor_labels()
 	_snapshot_usec += Time.get_ticks_usec() - start
 	if _combat_probe != null:
 		frame.profile = _combat_probe.report(_world)

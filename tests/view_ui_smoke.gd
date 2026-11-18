@@ -4,6 +4,7 @@ const World = preload("res://scripts/sim/kernel/world.gd")
 const Persistence = preload("res://scripts/sim/kernel/persistence.gd")
 const Session = preload("res://scripts/sim/kernel/session_io.gd")
 const Art = preload("res://scripts/presentation/art.gd")
+const Markers = preload("res://scripts/presentation/world_markers.gd")
 
 func capture(name_key: String) -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://logs/view-ui"))
@@ -12,7 +13,7 @@ func capture(name_key: String) -> void:
 
 func _run() -> void:
 	var w := World.new()
-	w.initialize(4, 0)
+	w.initialize(6, 0)
 	for actor: int in w.actor_slots:
 		w.release(actor)
 		w.objects.records[actor].autonomous = false
@@ -32,6 +33,18 @@ func _run() -> void:
 	for entry: Array in [["long_bed",118,118,0],["long_bed",120,118,1],["wood_table",122,118,0],["wood_table",124,118,1],["cook_stove",118,125,0],["cook_stove",120,125,1],["cook_stove",122,125,2],["cook_stove",124,125,3]]:
 		var id: int = w.facilities.create_completed(w,entry[0],w.Terrain.index(Vector2i(entry[1],entry[2])),entry[3])
 		if entry[0] == "long_bed" and entry[3] == 0: long_bed = id
+	var granary: int = w.facilities.create_completed(w, "granary", w.Terrain.index(Vector2i(119, 119)))
+	var vertical_store: int = w.facilities.create_completed(w, "granary", w.Terrain.index(Vector2i(125, 120)), 1)
+	w.facilities.create_completed(w, "wood_chest", w.Terrain.index(Vector2i(124, 120)))
+	w.pages[0].positions[4] = Vector2(119.5, 118.5)
+	w.pages[0].positions[5] = Vector2(120.5, 120.5)
+	w.objects.records[5]["name"] = "北侧弟子"
+	w.objects.records[6]["name"] = "南侧弟子"
+	var org: int = w.institutions.create("山门")
+	for actor: int in [1, 5, 6]: w.institutions.admit(w, org, actor, [])
+	var dept: int = w.institutions.Departments.create(w.institutions, org, "粮务")
+	w.institutions.Departments.grant(w.institutions, dept, 1, "管事", ["people"])
+	w.institutions.Departments.assign(w.institutions, dept, 5, ["haul"], [], true)
 	w.flush_topology()
 	w.perception.update(w,0,true)
 	var path: String = "user://view-ui-fixture.reol"
@@ -39,7 +52,7 @@ func _run() -> void:
 	file.store_var({"format":Session.FORMAT,"state":Persistence.capture(w)},false)
 	file.close()
 	game = Game.new(); game._opening = "development"
-	game._actors = 4
+	game._actors = 6
 	game._fps = 60
 	game.feedback.config_path = "user://view-ui-feedback.cfg"
 	game.controls.bindings.config_path = "user://view-ui-controls.cfg"
@@ -72,6 +85,18 @@ func _run() -> void:
 	check(is_equal_approx(game.feedback.volume,0.35),"Legacy display preference discarded the combat setting")
 	game.ui.hide()
 	await capture("native-oblique")
+	var art_size: Array = Art.catalog().entries.granary.footprint
+	check(Vector2i(int(art_size[0]), int(art_size[1])) == Vector2i(2, 1) and Art.catalog().entries.granary_1.parts.size() == 2, "Granary reuses a scaled chest or has no depth parts")
+	game.controls._select(granary, w.Terrain.index(Vector2i(119, 118)))
+	check(Markers.selection_rect(game) == Rect2(Vector2(119, 119) * Art.TILE, Vector2(2, 1) * Art.TILE), "Selecting overhanging art did not mark the granary's actual cells")
+	await capture("storage-occlusion")
+	game.controls._select(vertical_store, w.Terrain.index(Vector2i(125, 120)))
+	check(Markers.selection_rect(game) == Rect2(Vector2(125, 120) * Art.TILE, Vector2(1, 2) * Art.TILE), "Rotated granary marker did not rotate with the footprint")
+	check(game.controls.pick(Vector2(119.5, 118.48)).front() == granary, "The rear actor was picked through the granary lid")
+	check(game.controls.pick(Vector2(120.5, 119.82)).front() == 6, "The granary was picked through the foreground actor")
+	game.controls._select(6, -1)
+	check(Markers.selection_rect(game).get_center() == game._displayed(6) * Art.TILE, "Mobile selection marker does not track the displayed feet")
+	await capture("storage-selected-actor")
 	check(game.controls.pick(Vector2(118.5,121.6)).has(wall),"Wall art extending above its occupied cell cannot be selected")
 	check(not game.controls.pick(Vector2(117.8,121.6)).has(wall),"Transparent sprite area swallowed selection")
 	var overlapping: Array[int] = game.controls.pick(game._displayed(4)+Vector2(0,-22.0/Art.TILE))

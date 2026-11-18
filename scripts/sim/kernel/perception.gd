@@ -13,6 +13,8 @@ var tiles := PackedByteArray() # Current logical player visibility; derived, not
 var softness := PackedByteArray() # Continuous visual range margin, never authority or a separate sight simulation.
 var seen_tiles := PackedInt32Array()
 var visible := PackedByteArray()
+var visible_actors := PackedInt64Array()
+var actor_visibility_revision: int = 0
 var revision: int = 0
 var previous := Vector2(-1, -1)
 var next_ms: int = 0
@@ -81,11 +83,16 @@ func update(world: RefCounted, now: int, force: bool = false) -> void:
 func update_visible(world: RefCounted) -> void:
 	visible.resize(world.body_count)
 	visible.fill(0)
+	var actors := PackedInt64Array()
 	for page: RefCounted in world.pages:
 		for row: int in page.ids.size():
 			var id: int = page.ids[row]
 			if id > 0 and (id == 1 or tiles[Terrain.index(Vector2i(page.positions[row]))] != 0):
 				visible[world.actor_slots[id]] = 1
+				if id != 1: actors.append(id)
+	if actors != visible_actors:
+		visible_actors = actors
+		actor_visibility_revision += 1
 
 
 func update_tiles(world: RefCounted) -> bool:

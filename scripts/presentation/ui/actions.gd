@@ -132,6 +132,7 @@ static func title(data: Dictionary) -> String:
 	if data.get("pending", false): return "正在察看 #%d…" % int(data.get("id", 0))
 	load_definitions()
 	var key: String = str(data.get("definition", ""))
+	if data.get("kind") == "landmark": return "%s · 地区地标" % str(data.get("name", key))
 	var item_key: String = Items.definition(key) if Items.valid(key) else key
 	var definition: Dictionary = buildings.get(key, plants.get(key, items.get(item_key, {})))
 	var quality: String = " Q%d" % Items.quality(key) if definition.has("slot") else ""

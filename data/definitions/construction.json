@@ -123,7 +123,7 @@
       }
     },
     "wood_roof": {
-      "label": "木屋面",
+      "label": "木屋顶",
       "kind": "roof",
       "item": "wood",
       "amount": 4,
@@ -858,7 +858,7 @@
         "contents_light": 0,
         "room_tau_ms": 180000
       },
-      "art_key": "chest"
+      "art_key": "granary"
     }
   }
 }

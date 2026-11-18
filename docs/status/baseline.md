@@ -501,6 +501,10 @@ i5-13600KF/RTX3060，D3D12，1280×720，玩家迷雾，1×，60FPS限帧，3秒
 
 实际P4普通24人血刃无操作短窗`logs/framework-final-normal.json`约0.9999×、帧p99 16.812ms、步均0.503ms、主线程process均0.524ms、零过载。不能据此宣称持续施法/全部场景锁帧。
 
+## 宗门场景辨识
+
+`subject_view_smoke.gd`验证视野内姓名、同门成员关系、分组及多级授权、独立领班和撤权后更新。`departments_smoke.gd`、`department_failures_smoke.gd`与`settlement_opening_smoke.gd`通过。真实图形`sect_playtest_ui_smoke.gd`通过；`view_ui_smoke.gd`新增的仓储遮挡、前后拾取、横纵占地及人物脚点检查通过，完整套件的原生光标移位断言在本次与干净`01ebd8d`基线同样失败。由`01ebd8d`新建的百人开局状态可恢复，粮仓占地与授权显示正确。短验证日志归`logs/scene-markers-*.log`。
+
 ## 历史数值与限制
 
 [performance.json](performance.json)保留02958cc、旧20Hz的capacity-v1样本，供同负载/同条件对照，不被ACT或本轮短窗覆盖。旧900人ACT高密交战曾约0.748×，属于当时特定版本/负载，不当作当前容量断言。更早各阶段构建/失败与日志路径见[整理前基线](https://github.com/fewnfds/reol/blob/bd1971c/docs/status/baseline.md)。

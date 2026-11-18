@@ -81,7 +81,58 @@ func personal_and_observed() -> void:
 	check(runner._slow_frame == old and frame.visible[w.actor_slots[8]] == 0 and old.visible[w.actor_slots[8]] != 0, "A detail notification either mutated the held frame, forced a full map publication, or used stale body visibility")
 	check(Subject.observed(frame, 8, true).get("memory", false), "A reliable outcome exposed a currently unseen person's new details")
 
+func observed_name_relations() -> void:
+	var w := World.new()
+	check(w.initialize(10, 0, false, "empty"), "Name label fixture could not initialize")
+	var institutions: RefCounted = w.institutions
+	var org: int = institutions.create("山门")
+	var departments: Script = institutions.Departments
+	var root: int = departments.create(institutions, org, "总堂")
+	var kitchen: int = departments.create(institutions, org, "膳堂", root)
+	var workshop: int = departments.create(institutions, org, "工坊", kitchen)
+	for actor: int in range(1, 11):
+		w.objects.records[actor]["name"] = "弟子%d" % actor
+		w.pages[0].positions[actor - 1] = Vector2(110.5 + actor, 120.5)
+		if actor not in [6, 7]: institutions.admit(w, org, actor, [])
+		if actor != 8: w.perception.tiles[w.Terrain.index(Vector2i(110 + actor, 120))] = 255
+	w.objects.records[7]["side"] = 1
+	w.perception.update_visible(w)
+	departments.grant(institutions, root, 1, "掌门", ["people", "delegate"], true)
+	departments.grant(institutions, root, 2, "管事", ["people", "delegate"], true, "", 1)
+	departments.grant(institutions, kitchen, 3, "膳堂管事", ["people"], true, "", 2)
+	departments.assign(institutions, workshop, 4, ["produce"], [], true)
+	departments.grant(institutions, root, 5, "同级管事", ["people"])
+	institutions.departments[root].groups["外务"] = {"facilities": []}
+	departments.grant(institutions, root, 10, "独立领班", ["people"], false, "外务")
+	departments.assign(institutions, root, 9, [], [])
+	departments.assign(institutions, workshop, 1, ["haul"], [], true)
+	check(not departments.manages_person(institutions, 2, 1), "Inherited personnel control marked its own delegator as a subordinate in another department")
+	var runner := Runner.new()
+	runner._world = w
+	var labels: Dictionary = runner._publish_actor_labels()
+	for actor: int in [2, 3, 4]:
+		check(labels[actor].relation == Frame.NameRelation.REPORT, "A delegated manager or a worker in a descendant department lost subordinate color")
+	for actor: int in [5, 9, 10]:
+		check(labels[actor].relation == Frame.NameRelation.FELLOW, "An independent peer, empty assignment or unassigned fellow became a report")
+	check(labels[6].relation == Frame.NameRelation.NEUTRAL and labels[7].relation == Frame.NameRelation.HOSTILE, "Nonmembers were mistaken for fellows")
+	check(not labels.has(8) and not labels.has(1), "An unobserved identity entered the public name list")
+	departments.touch(institutions)
+	check(is_same(labels, runner._publish_actor_labels()), "An unrelated progress revision rebuilt visible identity data")
+	departments.grant(institutions, root, 1, "掌门", [])
+	var after: Dictionary = runner._publish_actor_labels()
+	check(after[2].relation == Frame.NameRelation.FELLOW and after[4].relation == Frame.NameRelation.FELLOW and labels[2].relation == Frame.NameRelation.REPORT, "Revocation left stale nameplates or mutated a previous Frame")
+	institutions.departments[workshop].groups["早班"] = {"facilities": []}
+	departments.grant(institutions, workshop, 1, "领班", ["people"], false, "早班")
+	departments.assign(institutions, workshop, 9, ["produce"], ["早班"])
+	departments.assign(institutions, workshop, 10, [], ["早班"])
+	after = runner._publish_actor_labels()
+	check(after[9].relation == Frame.NameRelation.REPORT and after[4].relation == Frame.NameRelation.FELLOW and after[10].relation == Frame.NameRelation.FELLOW, "A group manager did not respect active work in the assigned group")
+	w.perception.tiles[w.Terrain.index(Vector2i(112, 120))] = 0
+	w.perception.update_visible(w)
+	check(not runner._publish_actor_labels().has(2) and after.has(2), "Leaving sight did not replace the immutable name list")
+
 func _run() -> void:
 	personal_and_observed()
+	observed_name_relations()
 	print("SUBJECT_VIEW_SMOKE errors=", errors)
 	quit(0 if errors == 0 else 1)

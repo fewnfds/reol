@@ -59,6 +59,8 @@ var _work_retry: Array = [] # Known retry deadlines for still-unclaimed ready wo
 var next_department: int = 1
 var departments: Dictionary = {}
 var department_revision: int = 1
+var people_revision: int = 0 # Derived view invalidation. Progress and stock changes do not advance it.
+var membership_revision: int = 0
 var _department_index_dirty: bool = true
 var _work_departments: Dictionary = {}
 var _labor_targets: Dictionary = {} # actor -> duty -> target set, derived from assignments.
@@ -178,6 +180,7 @@ func admit(world: RefCounted, organization: int, actor: int, grants: Array) -> b
 	if not organizations.has(organization) or not world.actor_slots.has(actor): return false
 	for purpose: Variant in grants:
 		if purpose not in PURPOSES or grants.count(purpose) != 1: return false
+	if not memberships[organization].has(actor): membership_revision += 1
 	memberships[organization][actor] = grants.duplicate()
 	reconcile(world, actor)
 	return true

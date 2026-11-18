@@ -3,6 +3,7 @@ extends RefCounted
 ## A slow consumer can retain old frames without blocking simulation.
 
 enum Visual { IDLE, WALK, CARRY, HARVEST, BUILD, CRAFT, MELEE, SHOOT, HURT, REST, EAT, READ, MEDITATE, FLY, DEAD, WATER }
+enum NameRelation { NEUTRAL, FELLOW, REPORT, HOSTILE }
 
 class Pose extends RefCounted:
 	const Motion = preload("res://scripts/sim/kernel/motion.gd")
@@ -48,6 +49,7 @@ var work: Dictionary = {} # Explicitly subscribed, authorized workspace.
 var epoch: int = 1
 var ids := PackedInt64Array()
 var actor_slots: Dictionary = {}
+var actor_labels: Dictionary = {} # Observed names and relationship to the player.
 var objects: Dictionary = {}
 var perception: Dictionary = {}
 var visible := PackedByteArray()

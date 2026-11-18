@@ -40,6 +40,8 @@ static func _person(frame: RefCounted, raw: Dictionary, clue: Dictionary, use_fo
 		if raw.has(field): result[field] = State.copy(raw[field])
 	result["hp"] = 1 if int(raw.get("hp", 0)) > 0 else 0
 	result["appearance"] = appearance(raw)
+	if frame.actor_labels.has(int(raw.id)) and result.hp > 0:
+		result["name_relation"] = frame.actor_labels[int(raw.id)].relation
 	result["teaches"] = State.copy(clue.get("view", {}).get("teaches", {}))
 	result["teaching_refusals"] = State.copy(clue.get("teaching_refusals", {}))
 	result["activity"] = _activity(frame, raw, use_fog)

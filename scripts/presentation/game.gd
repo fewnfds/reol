@@ -21,6 +21,7 @@ const CombatAudio = preload("res://scripts/presentation/combat_audio.gd")
 const FeedbackSettings = preload("res://scripts/presentation/feedback_settings.gd")
 const ViewRig = preload("res://scripts/presentation/view_rig.gd")
 const WorldOverlay = preload("res://scripts/presentation/world_overlay.gd")
+const WorldMarkers = preload("res://scripts/presentation/world_markers.gd")
 const TILE: float = Art.TILE
 var runner := Runner.new()
 var population := Population.new()
@@ -35,6 +36,8 @@ var view := ViewRig.new()
 var camera: Camera2D = view.camera
 var world_overlay := WorldOverlay.new()
 var tool_overlay := WorldOverlay.new()
+var marker_overlay := WorldOverlay.new()
+var markers := WorldMarkers.new()
 var ui := Hud.new()
 var controls := Interaction.new()
 var combat_audio := CombatAudio.new()
@@ -178,7 +181,10 @@ func _ready() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 2
 	add_child(layer)
+	layer.add_child(marker_overlay)
 	layer.add_child(ui)
+	markers.font = ui.theme.default_font
+	marker_overlay.paint = markers.paint.bind(self)
 	if _debug_console != null:
 		ui.scale_applied.connect(_debug_console.set_ui_scale)
 		_debug_console.set_ui_scale(ui.scale.x)
@@ -332,6 +338,7 @@ func _process(delta: float) -> void:
 		_speed_world = frame.world_ms
 	world_overlay.queue_redraw()
 	tool_overlay.queue_redraw()
+	marker_overlay.queue_redraw()
 	if _duration > 0.0:
 		if _response_probe != null and _capture_at > 0: _response_probe.tick(self, Time.get_ticks_usec())
 		_capture(begin)
@@ -434,7 +441,6 @@ func _draw_control_direction(canvas: Node2D, origin: Vector2, actions: Dictionar
 func _paint_world(canvas: Node2D) -> void:
 	if frame == null:
 		return
-	canvas.draw_arc(_displayed(1) * TILE, 15, 0, TAU, 24, Color.GOLD, 2.0)
 	if frame.actor_slots.has(selected) and Hud.Actions.visible(frame, selected, fog_enabled) and int(ui._target.get("id", 0)) == selected:
 		var progress: float = Hud.ActivityText.progress(ui._target, render_ms)
 		if progress >= 0.0:
@@ -496,10 +502,6 @@ func _paint_world(canvas: Node2D) -> void:
 				canvas.draw_polyline(PackedVector2Array([point + Vector2(side * 23, -7), point + Vector2(side * 18, 0), point + Vector2(side * 23, 7)]), Color("b1e5e3"), 1.8, true)
 		if int(value.get("stun_used", 0)) > ActionDefs.CONTROL_BUDGET_MS - 40 and render_ms >= int(value.get("guard_from", 0)) and render_ms < int(value.get("stun_window", 0)) + ActionDefs.CONTROL_WINDOW_MS:
 			canvas.draw_arc(_displayed(id) * TILE, 13, 0.2, 2.9, 12, Color("91a9d2"), 1.5, true)
-	if frame.actor_slots.has(selected) and (not fog_enabled or frame.visible[frame.actor_slots[selected]] != 0):
-		canvas.draw_arc(_displayed(selected) * TILE, 18, 0, TAU, 24, Color.CYAN, 2.0)
-	elif selected_tile >= 0:
-		canvas.draw_rect(Rect2(Vector2(Terrain.cell(selected_tile)) * TILE, Vector2.ONE * TILE), Color.CYAN, false, 2.0)
 	if _target.x >= 0:
 		canvas.draw_circle(_target * TILE, 5, Color.GOLD)
 	if _show_path and frame.actor_slots.has(selected) and (not fog_enabled or frame.visible[frame.actor_slots[selected]] != 0) and frame.inspected.get("id", 0) == selected:

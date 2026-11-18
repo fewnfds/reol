@@ -234,16 +234,17 @@ class Pack:
 
     def fixture(self, key: str, label: str, kind: str, facing: int) -> None:
         image, footprint = fixture(kind, facing)
+        occluder = fixture_height(kind) > 18 and kind not in ("chest", "granary")
         if footprint[1] == 1:
             canvas = Image.new("RGBA", (64,64)); canvas.alpha_composite(image)
-            self.add(key, canvas, label, footprint=footprint, occluder=fixture_height(kind)>18)
+            self.add(key, canvas, label, footprint=footprint, occluder=occluder)
             return
         # Large art is sliced into ground rows. Each visual part has its own
         # south-edge depth, while gameplay retains a single object/footprint.
         preview = Image.new("RGBA", (64,64))
         thumb = image.copy(); thumb.thumbnail((56,56), Image.Resampling.NEAREST)
         preview.alpha_composite(thumb, ((64-thumb.width)//2, 56-thumb.height))
-        self.add(key, preview, label, footprint=footprint, occluder=fixture_height(kind)>18)
+        self.add(key, preview, label, footprint=footprint, occluder=occluder)
         parts = []
         for row in range(footprint[1]):
             top = 0 if row == 0 else 24 + row*32
@@ -407,6 +408,9 @@ def world() -> dict:
     # single-cell art or adding one node/texture per work site.
     for mask in range(16):
         pack.add(f"construction_{mask}", construction(mask), "施工半成品", footprint=(1, 1))
+    for facing, direction in enumerate(("N", "E", "S", "W")):
+        key = "granary" if facing == 0 else f"granary_{facing}"
+        pack.fixture(key, f"粮仓 · {direction}", "granary", facing)
     pack.save()
     return pack.entries
 

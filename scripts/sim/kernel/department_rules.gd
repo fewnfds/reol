@@ -17,6 +17,7 @@ static func create(owner: RefCounted, organization: int, title: String, parent: 
 	owner.next_department += 1
 	owner.departments[id] = {"id": id, "organization": organization, "title": title, "parent": parent, "head": 0, "facilities": [], "workers": {}, "groups": {}, "grants": {}, "revision": 1, "production": {}, "supplier": 0}
 	owner.department_revision += 1
+	owner.people_revision += 1
 	owner._department_index_dirty = true
 	return id
 
@@ -56,25 +57,30 @@ static func ensure(owner: RefCounted) -> void:
 static func changed(owner: RefCounted, department: int, structural: bool = false) -> void:
 	owner.department_revision += 1
 	if owner.departments.has(department): owner.departments[department].revision += 1
-	if structural: owner._department_index_dirty = true
+	if structural:
+		owner._department_index_dirty = true
+		owner.people_revision += 1
 	owner.Workflow.dirty(owner, department)
 
 static func touch(owner: RefCounted) -> void:
 	owner.department_revision += 1
 
 static func allowed(owner: RefCounted, actor: int, department: int, capability: String, group: String = "", inheritable: bool = false) -> bool:
+	return _authority_department(owner, actor, department, capability, group, inheritable) > 0
+
+static func _authority_department(owner: RefCounted, actor: int, department: int, capability: String, group: String, inheritable: bool = false) -> int:
 	ensure(owner)
 	var current: int = department
 	for depth: int in 16:
 		var dept: Dictionary = owner.departments.get(current, {})
-		if dept.is_empty(): return false
+		if dept.is_empty(): return 0
 		var grant: Dictionary = dept.grants.get(actor, {})
 		if capability in grant.get("capabilities", []) and (not inheritable or grant.get("descendants", false)) and (current == department or grant.get("descendants", false)):
 			var scope: String = str(grant.get("group", ""))
-			if scope.is_empty() or (current == department and not group.is_empty() and scope == group): return true
+			if scope.is_empty() or (current == department and not group.is_empty() and scope == group): return current
 		current = int(dept.parent)
 		if current == 0: break
-	return false
+	return 0
 
 static func grant(owner: RefCounted, department: int, actor: int, title: String, capabilities: Array, descendants: bool = false, group: String = "", issuer: int = 0) -> bool:
 	var dept: Dictionary = owner.departments.get(department, {})
@@ -166,6 +172,28 @@ static func can_replace_grant(owner: RefCounted, actor: int, department: int, pr
 		if issuer == 0 or seen.has(issuer): return false
 		seen[issuer] = true
 		issuer = int(_delegate_origin(owner, issuer, department).get("issuer", 0))
+	return false
+
+static func manages_person(owner: RefCounted, actor: int, subject: int) -> bool:
+	if actor == subject: return false
+	ensure(owner)
+	# Scope the lookup to the subject's current work and personnel roles.
+	for id: int in owner._work_departments.get(subject, []) + owner._management_departments.get(subject, []):
+		var department: Dictionary = owner.departments[id]
+		var grant: Dictionary = department.grants.get(subject, {})
+		var assignment: Dictionary = department.workers.get(subject, {})
+		var groups: Array
+		if "people" in grant.get("capabilities", []):
+			if not can_replace_grant(owner, actor, id, grant): continue
+			groups = [str(grant.group)]
+		else:
+			if assignment.get("duties", []).is_empty(): continue
+			groups = [""] if assignment.department_wide else assignment.groups
+		for group: String in groups:
+			var origin: int = _authority_department(owner, actor, id, "people", group)
+			if origin == 0: continue
+			var own: Dictionary = owner.departments[origin].grants[actor]
+			if not can_replace_grant(owner, subject, origin, own): return true
 	return false
 
 static func command(owner: RefCounted, world: RefCounted, actor: int, request: Dictionary) -> String:
