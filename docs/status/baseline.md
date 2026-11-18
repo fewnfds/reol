@@ -1,6 +1,52 @@
 # 当前构建与验证
 
-更新：2026-11-18。能力归[FEATURES](features.md)，状态归属归[架构](../engineering/architecture.md)，阶段归[主计划](../plans/foundation-priorities.md)。本页保存当前证据，完整历史由Git追溯。
+更新：2026-11-18。能力归[FEATURES](features.md)，状态归属归[架构](../engineering/architecture.md)，阶段归[主计划](../plans/foundation-priorities.md)。现行包与交付范围以顶部部门管理节为准；后续各节保留对应日期的阶段证据，不能用其当时构建覆盖现行包。完整历史由Git追溯。
+
+## 部门管理与生产协作
+
+2026-11-18，`codex/department-workflow`基于`cbf020a`实施，游戏源码提交`90c3968`；源码及当前独立包为format33，旧format32档和历史P5包保留。现行合同归[社会系统](../../design/systems/social_system.md#当前部门目标与运输合同)和[宗门生活](../../design/systems/sect_life.md#已接入的生产合同)，实施状态归[主计划](../plans/foundation-priorities.md#基层部门管理与生产协作)。本节记录实际验证，不把面板功能当作全年经济验收。
+
+新增部门、重叠工作组、管理能力与上下级范围沿原Institutions；生产目标使用原Matters，运输引用原公物受托。台内库存仍只有Objects.stock，批次只锁数量及净增容量；成功才转换、暂停保工时、取消清工时。正常四院的膳堂与仓务均用同一原生开局定义；日常厨房不再装配旧告示职位与领榜消费者，私人社会事项仍保留。管理命令不占身体ActionGate，玩家从掌门到员工及自定义头衔都沿同一授权规则。
+
+已通过的相关短检查：`departments_smoke`、`department_workflow_smoke`、`department_failures_smoke`、`station_space_smoke`；原台内生产、公物、权限、个人备料与社会生产份额相关回归也已通过。异常覆盖最后一份料/容量竞争、真实放台、换人/中断、暂停/取消、死亡/删除、纳管物品堆取空、旧目的地取消停步、受托货拒绝丢弃、退料无路落真实物品堆、父子目标/在制唯一核销、跨日满记录容量重试整族生成、坏档拒绝。具体原件在`.local/advisor/department-management-20261118/`；最近的规则复核为`department_failures-release-check.log`、`production_authority-release-check.log`及`department_failures_smoke-final-evidence.log`，真实GUI末次为`ui-delivery-final.log`。没有以扩大断言阈值或减少必需结果获得通过。
+
+普通工位查询改用每身体批后重建的身体/目的地网格，同批准入增量维护；精查仍核当前身份、片内位置及路径折点。`station_space_smoke`覆盖片内转折、入位/取消/死亡/删人/槽重用与恢复；尝试追加300人、实际创建244名无关远人后，局部精查候选仍为1。个人任职/显式服务改为按本人索引，组织公共服务按所属组织查询。部门候选仍可能随本部门设施交叉枚举增长；只服务脏部门、每50ms最多2个部门、个人最多8个候选，不把限预算误称为降低总复杂度。C01～C06未全部实施。
+
+真实D3D12 GUI的`department_ui_smoke`通过：正常100人主场景打开职责、下目标/绑定工位、自定义授权/普通员工权限、供料刷新保持编辑框与光标、中文物品名、1280×720/125%、ESC只关当前面板，以及真实文件存读后旧会话失效。截图在`logs/department-ui/`并已实看。`production_ui_smoke`的原生请教、煎药静置/恢复及有限井水也通过。收尾曾因重复提示字典键造成脚本编译失败，已去重并重跑真实窗口通过；失败日志保留，未将错误退出0当作成功。
+
+正常百人1800000游戏毫秒窗口修后通过：四院各累计实际生产15份、117次进食、78个已交付运单，末餐71/粮2；60000ms真实文件存读后部门配置/运单一致，跨游戏日生成新目标并保留旧锅归属。原件`autonomy-delivery.log`，`DEPARTMENT_AUTONOMY_FINISH errors=0`；收尾前`normal_final2.log`也是同结果。**日目标100只是当前开局配置，未证明每院日达100或全年供养平衡**；存量餐和暂时无饥饿不作长期自足证据。规则长窗与图形帧时是不同验证。
+
+开工、D01、D03/D04、D05及收尾均已咨询顾问，原文分别在`start/`、`d01-review/`、`d03-d04-start/`、`d05-start/`、`final-review-2/`、`closure-review/`、`closure-focused/`及`final-evidence/`；后两轮双答均完整核查并无本轮阻断项。失败模型/网络状态保留，不把双模型都返回作为事实。独立核查纠正了“删设施未清部门引用”和“配方required_items必为空”的误报：前者已在Access.forget_target处理，后者由OperationDef.values编译输入。最终判断以源码、真实回归与明确产品边界为准。
+
+最终代码按顾问边界复核了取消日单清续期字段、失效先停动作再清部门引用、拆台释放在制并将实物保权回收。修正整族续期的嵌套清理窗口、运输改目的地和生成退料点生命周期；原生短检/GUI修后再次通过。顾问对60FPS限帧下约16.7ms帧p99的解释不能替代归因，本轮不据此宣称已定位新的长帧瓶颈。
+
+核心聚合检查仍有一项**未通过**：`kernel_smoke`的100人development/4×/220ms不轮询显示窗口要求推进至少650ms，本轮两次仅566/550ms；独立干净`cbf020a`检出同条件为533ms，`baseline-kernel.log`。因此记录为已有高速吞吐边界，不能宣称kernel全通过，也没有放宽650ms或15秒上限。已修本聚合中的旧烹饪夹具，先实际放料入台再加工；相关操作/成长/作业位/社会接续夹具同批迁移，检查的消费/产物及权限条件未放宽。临时基线检出已核干净并移除，用户原工作树保留。
+
+定位性CPU探针（不是release帧时）：development100人、4请求worker、60步/1000游戏ms，墙钟276218μs，`World.step`累计275626μs；其中工位网格重建19次/8822μs、21次查询/23个精查候选。该样本不支持将旧4×吞吐失败归咎于工位网格，也不证明其余旧调度/认识成本已解决。探针归`.local/advisor/department-management-20261118/{cost_probe,station_cost}.gd`。
+
+### 当前独立构建
+
+Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+，1280×720。正式入口`scenes/main.tscn`；根目录[启动.cmd](../../启动.cmd)选3运行当前百人宗门，左下“职责”进入管理。选1为源码能力练习、2为源码宗门、4为编辑器、5为保留的历史P5包。
+
+| 项目 | 当前值 |
+|---|---|
+| 游戏源码提交 | `90c3968ca7508248db3417884a414cb2a025a699`；随后仅更新交付文档 |
+| 当前宗门包 | `build/windows/sect-foundation/reol-sect.exe`及同目录pck |
+| 当前宗门 exe SHA256 | `3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf` |
+| 当前宗门 PCK SHA256 | `8cbe5cce3661d7dd46cec9ddcbb080b8db5a700a972263f77df35b7ed93560e8` |
+| 战斗规则签名 | `ed0a331b1a1ed0796a88f58ccad86c0677bbf29b327e0cb977a99ed567f53c8e` |
+| 当前决策签名 | `4021c209c5572312ccad01b0d93b115fd18af9aaa20be5a5d228f4c1be4ba40e` |
+| 战斗内容 | 40动作、24配置、7套Policy；原生Resource/Inspector制作 |
+| 当前源码/宗门包存档 | `reol-world-33`；默认`user://sect-quicksave-v33.reol` |
+| 旧P5战斗包存档 | `reol-world-14`；默认`user://act-p5-quicksave-v14.reol` |
+| 旧P5包 exe / PCK SHA256 | `3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf` / `33623c5a59c15cfcab014b795877ad8190f1d551f4ae2eeff325a91d04f7d83a` |
+| 旧P5包决策签名 | `9bb014cebdfdb4196146e2288f25e0cc274e364e34cac2f28d26597fcf06e5cd` |
+
+最终导出日志`logs/export-20261118-141040-79147400.log`。仅exe/pck复制到不依赖源码的目录冷启，以定向Win32窗口键消息触发F5保存→退出→新进程F9读取，真实成功回执和两次100人均记录在`.local/advisor/department-management-20261118/release-{save,load}-final.log`；汇总`package-delivery-final-messages.log`为`errors=0 original_save_preserved=true`。自动化曾因系统拒绝前台焦点失败；最终改为只向自有游戏窗口投递消息，未修改游戏或门槛，失败日志保留。
+
+两窗各预热3秒＋采样10秒、1×、60FPS限帧、RTX3060，世界实速分别1.000074×/1.000074×，步均4.162/4.396ms，帧p99为16.967/16.714ms；末待办ready为3/9，running为1/0，完成后台任务分别972/984。真实活动/转移存在，无脚本错误；有限短窗不能证明队列长期稳定、4×通过或全容量上限。
+
+最终结构审计核105份当前文档、431个Godot源文件，0错误；资源/UID检查1050文件，0错误/警告；`git diff --check`通过。当前format33不迁移此前开发格式；旧文件及备份保留。两包使用同一Godot模板但不同PCK，仅exe哈希不足以识别游戏版本。生成物/日志/本机咨询不入库。以下各节保存带日期的历史证据，当时的“当前包”不覆盖本节身份。
 
 ## 开发范式与离线工具验证
 
@@ -211,7 +257,7 @@ T11b已完成开工/收尾及整改复核双顾问核查。`logs/t11b-delivery-a
 
 原生D3D12 Game最终`logs/t11b-reviewed-native-20261117-103140-158775900.log`实际加载自主播种中状态，正常人物页显示活动/任职，保存再读后NPC自己完成播种且未占玩家宿主；errors=0，截图`logs/cultivation-ui/autonomous-field-{role,completed}.png`已实际查看。首次GUI真实揭露人物页按单点库存职责读取田务，已按分型修复；最初测试未防未开工action无started_ms，以及误用handler当操作ID、双田路程窗太短的失败保留，未改游戏成本/速度迁就测试。三昼夜整改后复核`t11b-reviewed-source-cycle-20261117-102418-50522900.log`再次核全部真实源/配方/消耗，errors=0，逻辑墙钟42451ms；不冒充图形或百人证明。暂持反例初期曾把已播1种的源库存写死9，改用拦截时实际源库存加实际归还5；保留归还量、服务仓隔离及恢复断言。
 
-这是T10时期的历史整理段；T11a～c、T12a/c及当前宗门包已在本页上方更新，旧P5包仍保留format14，当前宗门源码/包使用format32。
+这是T10时期的历史整理段；当时宗门为format32。现行源码/包及旧P5格式见[当前构建](#当前独立构建)。
 
 
 T11a已完成：开工`11a-start/`与收尾`11a-finish/`双答均已完整核查，相关整改与独立验证完成。采用整畦占用检查/统一锚点、非植物提交安全拒绝、私有栽培权属的共同前置判断，以及过湿单独档位并拒绝无效浇水；稳定宿主派生授权归已开工咨询的T11b，不临时把新植物ID注入所有任职。
@@ -318,21 +364,7 @@ T07规模边界：`knowledge-100-final-scope-20261117-033422-865862800.log`普�
 
 T02收尾追加反例：`operations-variant-final-20261117-010710-927522700.log` errors=0，覆盖新运输定义/实际grain交付、半边伙伴档拒绝、直接中断伙伴自主唤醒、合法在途目标变化可恢复且到场拒绝。`capabilities-operation-final-20261117-010604-965599800.log`、`smoke-features-20261117-010409-895802400.log`均errors=0；真实`operations-ui-final-20261117-010557-460283800.log` errors=[]，已观察生成截图。结构审计100文档/276源/0错误；不将这些短检查宣称百人闭环或性能验收。
 
-Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+，1280×720。正式入口`scenes/main.tscn`。当前源码与宗门包是P5决策基座上的百人宗门试玩，加作业位置、合同/碰撞修复与纯二维斜视显示；根目录[启动.cmd](../../启动.cmd)选1源码战斗、2源码百人宗门、3运行`build/windows/sect-foundation/reol-sect.exe`＋同目录pck、4编辑器、5旧P5战斗包。
-
-| 项目 | 当前值 |
-|---|---|
-| 当前宗门 exe SHA256 | `3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf` |
-| 当前宗门 PCK SHA256 | `6126d5772cce6f2ecac9843dd1256854ac8333966055c7d0ea0e2b2613c86b53` |
-| 旧P5战斗包 exe / PCK | `3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf` / `33623c5a59c15cfcab014b795877ad8190f1d551f4ae2eeff325a91d04f7d83a` |
-| 战斗规则签名 | `ed0a331b1a1ed0796a88f58ccad86c0677bbf29b327e0cb977a99ed567f53c8e` |
-| 当前决策签名 | `4021c209c5572312ccad01b0d93b115fd18af9aaa20be5a5d228f4c1be4ba40e` |
-| 旧P5包决策签名 | `9bb014cebdfdb4196146e2288f25e0cc274e364e34cac2f28d26597fcf06e5cd` |
-| 战斗内容 | 40动作、24配置、7套Policy；原生Resource/Inspector制作 |
-| 当前源码/宗门包存档 | `reol-world-32`；默认`user://sect-quicksave-v32.reol` |
-| 旧P5战斗包存档 | `reol-world-14`；默认`user://act-p5-quicksave-v14.reol` |
-
-当前宗门采用format32，不迁移此前开发格式；旧文件及备份保留，不覆盖。旧P5独立包继续使用其format14及独立默认文件。两包使用同一Godot模板但不同PCK；只核exe哈希不足以识别游戏版本。生成物/日志/本机咨询不入库。运行和制作入口归[usage](../engineering/tooling/usage.md)。
+当前独立构建、默认存档与签名见[本页顶部](#当前独立构建)，下文保留各历史阶段的验证条件。
 
 ## 固定斜俯视与原生二维显示
 
