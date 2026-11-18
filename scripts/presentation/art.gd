@@ -7,7 +7,7 @@ const GROUND = preload("res://assets/art/terrain.png")
 const Clip = preload("res://scripts/sim/kernel/frame.gd").Visual
 const TILE: float = 32.0
 const BODY_FOOT_OFFSET := Vector2.ZERO
-enum DrawPlane { GROUND, BODY, ROOF }
+enum DrawPlane { GROUND, BODY }
 const DEPTH_STRIDE: int = 1 << 24 # Greater than the entire map's pixel-Y * 256 range.
 static var _catalog: Dictionary = {}
 static var _icons: Dictionary = {}

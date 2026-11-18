@@ -2,6 +2,7 @@ extends Node
 ## Rendering only. Solar colour/approximate shadows and weather follow committed
 ## world time. One GPU screen layer, no per-cell lights or simulation changes.
 
+const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const WeatherShader = preload("res://scripts/presentation/weather.gdshader")
 var _ambient := CanvasModulate.new()
 var _weather := ColorRect.new()
@@ -10,6 +11,8 @@ var _shade := ShaderMaterial.new()
 var _last_ms: int = -1
 var _weather_mode: int = 0
 var _epoch: int = -1
+var _shelter_key := Vector2i(-1, -1)
+var _shelter: ImageTexture
 
 
 func _ready() -> void:
@@ -24,6 +27,10 @@ func _ready() -> void:
 
 
 func adopt(frame: RefCounted, at_ms: float) -> void:
+	var shelter_key := Vector2i(frame.epoch, frame.terrain.room_revision)
+	if _shelter_key != shelter_key:
+		_shelter_key = shelter_key
+		_update_shelter(frame.terrain.room_cells)
 	var time_ms: int = int(at_ms)
 	var calendar: Dictionary = frame.counters.get("calendar", {})
 	var weather_mode: int = ["晴", "雨", "寒风", "热浪"].find(str(calendar.get("weather", "晴")))
@@ -52,7 +59,19 @@ func adopt(frame: RefCounted, at_ms: float) -> void:
 	_weather.visible = _weather_mode > 0
 
 
-func view(visibility: Texture2D, shelter: Texture2D, use_fog: bool) -> void:
+func _update_shelter(rooms: Array[PackedInt32Array]) -> void:
+	var covered := PackedByteArray()
+	covered.resize(Terrain.SIZE * Terrain.SIZE)
+	for room: PackedInt32Array in rooms:
+		for tile: int in room: covered[tile] = 255
+	var image := Image.create_from_data(Terrain.SIZE, Terrain.SIZE, false, Image.FORMAT_R8, covered)
+	if _shelter == null:
+		_shelter = ImageTexture.create_from_image(image)
+		_shade.set_shader_parameter("shelter_map", _shelter)
+	else: _shelter.update(image)
+
+
+func view(visibility: Texture2D, use_fog: bool) -> void:
 	if not _weather.visible:
 		return
 	# CanvasLayer uses screen coordinates; recover the world rectangle after the
@@ -65,5 +84,4 @@ func view(visibility: Texture2D, shelter: Texture2D, use_fog: bool) -> void:
 	_shade.set_shader_parameter("world_u", (inverse * Vector2(size.x, 0) - origin) / (512.0 * 32.0))
 	_shade.set_shader_parameter("world_v", (inverse * Vector2(0, size.y) - origin) / (512.0 * 32.0))
 	_shade.set_shader_parameter("visible_map", visibility)
-	_shade.set_shader_parameter("shelter_map", shelter)
 	_shade.set_shader_parameter("use_fog", use_fog)

@@ -4,7 +4,6 @@
   "minimum_fullness": 35,
   "minimum_energy": 30,
   "pickup_ms": 1000,
-  "roof_span": 2,
   "types": {
     "wood_wall": {
       "label": "木墙",
@@ -26,8 +25,7 @@
         "enclosure_boundary": true,
         "thermal_barrier": true,
         "light_blocked": true,
-        "wall_connection": true,
-        "roof_support": true
+        "wall_connection": true
       },
       "max_hp": 120,
       "armor": 2,
@@ -64,8 +62,7 @@
         "enclosure_boundary": true,
         "thermal_barrier": true,
         "light_blocked": true,
-        "wall_connection": true,
-        "roof_support": true
+        "wall_connection": true
       },
       "max_hp": 120,
       "armor": 2,
@@ -102,52 +99,13 @@
         "enclosure_boundary": false,
         "thermal_barrier": false,
         "light_blocked": false,
-        "wall_connection": false,
-        "roof_support": false
+        "wall_connection": false
       },
       "max_hp": 80,
       "armor": 2,
       "capabilities": {
         "rest": {}
       },
-      "slots": [],
-      "environment": {
-        "source": "",
-        "thermal": 10000,
-        "elements": 10000,
-        "light": 10000,
-        "contents_thermal": 10000,
-        "contents_elements": 10000,
-        "contents_light": 10000,
-        "room_tau_ms": 180000
-      }
-    },
-    "wood_roof": {
-      "label": "木屋顶",
-      "kind": "roof",
-      "item": "wood",
-      "amount": 4,
-      "work_ms": 180000,
-      "demolish_ms": 60000,
-      "salvage": 2,
-      "door": false,
-      "layer": "roof",
-      "size": [
-        1,
-        1
-      ],
-      "perception_cost": 0,
-      "facts": {
-        "movement_blocked": false,
-        "enclosure_boundary": false,
-        "thermal_barrier": false,
-        "light_blocked": false,
-        "wall_connection": false,
-        "roof_support": false
-      },
-      "max_hp": 80,
-      "armor": 2,
-      "capabilities": {},
       "slots": [],
       "environment": {
         "source": "",
@@ -180,8 +138,7 @@
         "enclosure_boundary": false,
         "thermal_barrier": false,
         "light_blocked": false,
-        "wall_connection": false,
-        "roof_support": false
+        "wall_connection": false
       },
       "max_hp": 100,
       "armor": 2,
@@ -220,8 +177,7 @@
         "enclosure_boundary": false,
         "thermal_barrier": false,
         "light_blocked": false,
-        "wall_connection": false,
-        "roof_support": false
+        "wall_connection": false
       },
       "max_hp": 100,
       "armor": 2,
@@ -274,8 +230,7 @@
         "enclosure_boundary": false,
         "thermal_barrier": false,
         "light_blocked": false,
-        "wall_connection": false,
-        "roof_support": false
+        "wall_connection": false
       },
       "max_hp": 100,
       "armor": 2,
@@ -328,8 +283,7 @@
         "enclosure_boundary": false,
         "thermal_barrier": false,
         "light_blocked": false,
-        "wall_connection": false,
-        "roof_support": false
+        "wall_connection": false
       },
       "max_hp": 100,
       "armor": 2,
@@ -385,8 +339,7 @@
         "enclosure_boundary": false,
         "thermal_barrier": false,
         "light_blocked": false,
-        "wall_connection": false,
-        "roof_support": false
+        "wall_connection": false
       },
       "max_hp": 100,
       "armor": 2,
@@ -458,8 +411,7 @@
         "enclosure_boundary": true,
         "thermal_barrier": true,
         "light_blocked": false,
-        "wall_connection": true,
-        "roof_support": true
+        "wall_connection": true
       },
       "max_hp": 100,
       "armor": 2,
@@ -496,8 +448,7 @@
         "enclosure_boundary": false,
         "thermal_barrier": false,
         "light_blocked": true,
-        "wall_connection": false,
-        "roof_support": false
+        "wall_connection": false
       },
       "max_hp": 100,
       "armor": 2,
@@ -534,8 +485,7 @@
         "enclosure_boundary": false,
         "thermal_barrier": false,
         "light_blocked": false,
-        "wall_connection": false,
-        "roof_support": false
+        "wall_connection": false
       },
       "max_hp": 100,
       "armor": 2,
@@ -574,8 +524,7 @@
         "enclosure_boundary": true,
         "thermal_barrier": true,
         "light_blocked": true,
-        "wall_connection": true,
-        "roof_support": true
+        "wall_connection": true
       },
       "max_hp": 200,
       "armor": 5,
@@ -612,8 +561,7 @@
         "enclosure_boundary": false,
         "thermal_barrier": false,
         "light_blocked": false,
-        "wall_connection": false,
-        "roof_support": false
+        "wall_connection": false
       },
       "max_hp": 100,
       "armor": 2,
@@ -678,8 +626,7 @@
         "enclosure_boundary": false,
         "thermal_barrier": false,
         "light_blocked": false,
-        "wall_connection": false,
-        "roof_support": false
+        "wall_connection": false
       },
       "max_hp": 100,
       "armor": 2,
@@ -729,8 +676,7 @@
         "enclosure_boundary": false,
         "thermal_barrier": false,
         "light_blocked": false,
-        "wall_connection": false,
-        "roof_support": false
+        "wall_connection": false
       },
       "max_hp": 100,
       "armor": 2,
@@ -769,8 +715,7 @@
         "enclosure_boundary": false,
         "thermal_barrier": false,
         "light_blocked": false,
-        "wall_connection": false,
-        "roof_support": false
+        "wall_connection": false
       },
       "max_hp": 100,
       "armor": 2,
@@ -822,8 +767,7 @@
         "enclosure_boundary": false,
         "thermal_barrier": false,
         "light_blocked": false,
-        "wall_connection": false,
-        "roof_support": false
+        "wall_connection": false
       },
       "max_hp": 100,
       "armor": 2,

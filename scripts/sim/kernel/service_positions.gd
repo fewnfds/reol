@@ -38,7 +38,7 @@ static func is_service_cell(world: RefCounted, point: Vector2, radius: float = S
 	var minimum: float = radius + SERVICE_RADIUS + CLEARANCE
 	for target: int in world.objects.nearby(point, 5.0, false):
 		var record: Dictionary = world.objects.records[target]
-		if record.kind in ["pile", "floor", "roof", "wall", "door"]: continue
+		if record.kind in ["pile", "floor", "wall", "door"]: continue
 		var spec: Dictionary = world.facilities.definitions.get(record.definition, {})
 		if record.kind not in ["plant", "resource", "blueprint"] and spec.get("capabilities", {}).is_empty(): continue
 		# A body just across a tile edge can still obstruct a service point.

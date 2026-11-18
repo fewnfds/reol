@@ -63,10 +63,6 @@ func planting_and_care() -> void:
 	var foreign: int = w.objects.create("furniture", "wood_chair", w.objects.records[obstructed].tile + 513)
 	check(not w.nature.can_plant(w, "sect_grain", w.objects.records[obstructed].tile).ok, "Planting expanded across a foreign non-anchor occupant")
 	w.objects.remove_empty(foreign)
-	var roof: int = w.objects.create("blueprint", "wood_roof", w.objects.records[obstructed].tile + 513)
-	w.objects.records[roof]["layer"] = "roof"
-	check(w.nature.can_plant(w, "sect_grain", w.objects.records[obstructed].tile).ok, "A roof blueprint blocked unrelated cultivation ground")
-	w.objects.remove_empty(roof)
 	check(w.nature.commit(w, 1, {"kind": "gather", "target": obstructed}, w.elapsed_ms).reason == "invalid_target", "Domain commit crashed or harvested a non-plant")
 
 func entrusted_and_interrupted() -> void:

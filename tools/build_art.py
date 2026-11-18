@@ -25,8 +25,8 @@ CREAM = "#f1dfaf"
 WOOD = "#956443"
 CLIPS = ["idle", "walk", "carry", "harvest", "build", "craft", "melee", "shoot", "hurt", "rest", "eat", "read", "meditate", "fly", "dead", "water"]
 LABELS = ["待机", "行走", "搬运", "采集/砍伐", "施工", "加工/烹饪", "近战", "弓箭", "受击", "休息", "进食", "读书/交谈", "修行", "飞行", "死亡", "浇灌"]
-WORLD_KEYS = ["oak", "pine", "dead_tree", "stump", "rock", "flower_bush", "cactus", "lotus", "chest", "bed", "table", "chair", "stove", "workbench", "furnace", "planter", "wall_preview", "door_preview", "window", "roof_preview", "well", "water_jar", "campfire", "grave", "cushion", "incense", "bookcase", "lantern", "alchemy", "loom", "screen", "go_board"]
-WORLD_LABELS = ["阔叶树", "松树", "枯树", "树桩", "矿石", "花灌木", "沙生刺", "荷花", "储物箱", "床", "桌", "椅", "灶台", "工作台", "炉", "花盆", "墙样稿", "门样稿", "窗", "屋面样稿", "井", "水缸", "篝火", "墓", "蒲团", "香炉", "书柜", "灯", "炼丹炉", "织机", "屏风", "棋盘"]
+WORLD_KEYS = ["oak", "pine", "dead_tree", "stump", "rock", "flower_bush", "cactus", "lotus", "chest", "bed", "table", "chair", "stove", "workbench", "furnace", "planter", "wall_preview", "door_preview", "window", "floor_preview", "well", "water_jar", "campfire", "grave", "cushion", "incense", "bookcase", "lantern", "alchemy", "loom", "screen", "go_board"]
+WORLD_LABELS = ["阔叶树", "松树", "枯树", "树桩", "矿石", "花灌木", "沙生刺", "荷花", "储物箱", "床", "桌", "椅", "灶台", "工作台", "炉", "花盆", "墙样稿", "门样稿", "窗", "木地板预览", "井", "水缸", "篝火", "墓", "蒲团", "香炉", "书柜", "灯", "炼丹炉", "织机", "屏风", "棋盘"]
 FAUNA = ["chicken", "rabbit", "sheep", "cow", "boar", "fox", "wolf", "deer", "crane", "butterfly", "slime", "ghost", "tree_spirit", "golem", "demon", "flying_sword"]
 FAUNA_LABELS = ["鸡", "兔", "羊", "牛", "野猪", "狐", "狼", "鹿", "鹤", "蝶", "玉液怪", "灵体", "树精", "石傀儡", "小妖", "飞剑"]
 
@@ -310,8 +310,10 @@ def world() -> dict:
     pack.entries["cultivation_bed"].update(plane="ground", contact_shadow=False)
     # Raised front faces share the unchanged square collision footprint.
     for mask in range(16):
-        pack.add(f"wall_{mask}", wall(mask), category="structures", footprint=(1,1), occluder=True)
-        pack.entries[f"wall_{mask}"]["contact_shadow"] = False
+        for prefix, eaves in [("wall", False), ("wall_eaves", True)]:
+            key = f"{prefix}_{mask}"
+            pack.add(key, wall(mask, eaves), category="structures", footprint=(1,1), occluder=True)
+            pack.entries[key]["contact_shadow"] = False
     for vertical in [False,True]:
         pack.add("door_v" if vertical else "door", door(vertical), "东西通路" if vertical else "南北通路",category="structures",footprint=(1,1),occluder=True)
     for part in ["back", "front"]:
@@ -319,10 +321,6 @@ def world() -> dict:
     pack.entries["door_v"]["parts"] = [
         {"key":"door_v_back", "offset":[0,-32], "depth":-32},
         {"key":"door_v_front", "offset":[0,0], "depth":0}]
-    im=blank(64);d=ImageDraw.Draw(im)
-    d.rectangle((16,4,47,35),fill="#5e7c89")
-    for y in range(6,36,6):d.line((16,y,47,y),fill="#a6bac1")
-    pack.add("roof", im, "屋顶层",category="structures",footprint=(1,1))
     items = {"wood": ("tiny-town", 106), "stone": ("tiny-farm", 89), "grain": ("tiny-farm", 32), "herb": ("tiny-farm", 29), "potion": ("tiny-dungeon", 116), "fruit": ("tiny-farm", 41), "sword": ("tiny-dungeon", 105), "bow": ("tiny-town", 118), "hoe": ("tiny-farm", 87), "staff": ("tiny-dungeon", 127)}
     for name, (source, index) in items.items():
         image = Image.open(THIRD / source / f"tile_{index:04d}.png").convert("RGBA")

@@ -87,7 +87,7 @@ def _surface(key: str) -> tuple[Image.Image, tuple[int, int]]:
             d.rectangle((x,23,x+17,42),fill=WOOD,outline=INK)
             d.rectangle((x+2,25,x+15,39),fill=CREAM)
             d.line((x+3,37,x+6,29),fill=TEAL)
-    elif key in ["window", "wall_preview", "door_preview", "roof_preview"]:
+    elif key in ["window", "wall_preview", "door_preview", "floor_preview"]:
         d.rectangle((16,16,47,47),fill=WOOD,outline=INK,width=2)
         if key in ["window", "door_preview"]:
             d.rectangle((21,20,42,43),fill=CREAM,outline=INK,width=2)
@@ -116,7 +116,7 @@ def fixture_height(key: str) -> int:
     if key in ["bookcase", "screen", "lantern", "grave"]: height = 22
     if key in ("chest", "granary"): height = 23
     if key in ["cushion", "campfire", "incense"]: height = 4
-    if key == "roof_preview": height = 0
+    if key == "floor_preview": height = 0
     return height
 
 
@@ -159,7 +159,7 @@ def fixture(key: str, facing: int = 0) -> tuple[Image.Image, tuple[int, int]]:
     return image, footprint
 
 
-def wall(mask: int) -> Image.Image:
+def wall(mask: int, eaves: bool = False) -> Image.Image:
     """Full square ground footprint with a 20px raised face above it."""
     image = Image.new("RGBA", (64, 64))
     d = ImageDraw.Draw(image)
@@ -176,6 +176,19 @@ def wall(mask: int) -> Image.Image:
         for y in [40,48]: d.line((16,y,47,y),fill="#cfb584")
     for bit, edge in [(1,(16,4,47,4)), (2,(47,4,47,55)), (8,(16,4,16,55))]:
         if not mask & bit: d.line(edge, fill=INK, width=1)
+    if eaves:
+        left = 16 if mask & 8 else 13
+        right = 47 if mask & 2 else 50
+        back = 4 if mask & 1 else 1
+        lip = 35 if mask & 4 else 39
+        d.rectangle((left, back, right, lip), fill="#4a6973")
+        for y in range(back + 3, lip - 2, 5):
+            d.line((left, y, right, y), fill="#79949b")
+            for x in range(20 + (y % 2) * 4, right, 8):
+                d.line((x, y, x, min(y + 3, lip)), fill="#3a535f")
+        if not mask & 4:
+            d.rectangle((left, lip - 2, right, lip), fill="#314954")
+            d.line((left, lip - 2, right, lip - 2), fill="#9baaa3")
     return image
 
 

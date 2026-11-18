@@ -73,20 +73,18 @@ func adopt(frame: RefCounted, ground_material: ShaderMaterial, fog: Node2D, use_
 func _rebuild_static() -> void:
 	var bitmap := Image.create_empty(512, 512, false, Image.FORMAT_R8)
 	# Draw layered map descriptors, not live inventories or a second scene.
-	for pass_index: int in 2:
-		for rec: Dictionary in _objects.values():
-			var kind: String = str(rec.kind)
-			if (kind == "roof") != (pass_index == 1): continue
-			var code: int = 0
-			if kind in ["wall", "roof"]: code = 1
-			elif kind == "door": code = 2
-			elif kind == "resource": code = 3 if int(rec.get("vegetation_level", 3)) >= 3 else 6
-			elif kind == "plant": code = 3 if rec.definition == "old_tree" else 6
-			elif kind == "blueprint": code = 5
-			elif kind not in ["floor", "pile"]: code = 4
-			if code == 0: continue
-			for tile: int in rec.get("cells", PackedInt32Array([rec.tile])):
-				bitmap.set_pixelv(Terrain.cell(tile), Color(float(code) / 255.0, 0, 0))
+	for rec: Dictionary in _objects.values():
+		var kind: String = str(rec.kind)
+		var code: int = 0
+		if kind == "wall": code = 1
+		elif kind == "door": code = 2
+		elif kind == "resource": code = 3 if int(rec.get("vegetation_level", 3)) >= 3 else 6
+		elif kind == "plant": code = 3 if rec.definition == "old_tree" else 6
+		elif kind == "blueprint": code = 5
+		elif kind not in ["floor", "pile"]: code = 4
+		if code == 0: continue
+		for tile: int in rec.get("cells", PackedInt32Array([rec.tile])):
+			bitmap.set_pixelv(Terrain.cell(tile), Color(float(code) / 255.0, 0, 0))
 	if _static_texture == null: _static_texture = ImageTexture.create_from_image(bitmap)
 	else: _static_texture.update(bitmap)
 	_shade.set_shader_parameter("static_map", _static_texture)

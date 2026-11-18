@@ -62,6 +62,7 @@ const REASONS: Dictionary = {
 	"blocked": "路径阻挡",
 	"": "",
 	"method_not_known": "尚未掌握所需技艺",
+	"already_has_eaves": "这面墙已装屋檐。",
 	"missing_items": "缺少符合用途的原料。",
 	"insufficient_resource": "自身资源不足。",
 	"unattended_in_progress": "本批仍在静置，完成后可收取。",
@@ -163,6 +164,8 @@ static func for_target(data: Dictionary, player: Dictionary, help_target: int) -
 		var row: Dictionary = command(command_id, operation.title, operation.icon, query.ready)
 		row["reason"] = query.reason
 		row["hint"] = reason_text(query.reason)
+		if operation.handler == "fit_eaves" and query.ready:
+			row.hint = "到墙旁施工，完工消耗木材 ×%d。" % operation.required_items.wood
 		if query.ready and not operation.recipe.is_empty() and not data.get("process", {}).is_empty():
 			row.hint = "继续本批加工，无需重新投料。" if data.process.stage == "work" else "静置已完成，收取本批产物，无需重新投料。"
 		if operation.handler in ["learn", "teach"] and query.ready:
@@ -225,7 +228,7 @@ static func reason_text(reason: String) -> String:
 static func art_key(definition: String) -> String:
 	load_definitions()
 	if buildings.get(definition, {}).has("art_key"): return str(buildings[definition].art_key)
-	var mapping: Dictionary = {"wood_wall": "wall_0", "wood_door": "door", "wood_chest": "chest", "long_bed": "long_bed", "cook_stove": "stove", "wood_table": "table", "notice_desk": "table", "wood_chair": "chair", "wood_roof": "roof", "wood_floor": "roof", "planter": "planter", "water_well": "planter"}
+	var mapping: Dictionary = {"wood_wall": "wall_0", "wood_door": "door", "wood_chest": "chest", "long_bed": "long_bed", "cook_stove": "stove", "wood_table": "table", "notice_desk": "table", "wood_chair": "chair", "wood_floor": "floor_preview", "planter": "planter", "water_well": "planter"}
 	if mapping.has(definition): return mapping[definition]
 	if plants.has(definition): return str(plants[definition].get("art_base", definition)) + "_2"
 	return "item_" + definition

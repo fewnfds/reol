@@ -323,7 +323,7 @@ func _process(delta: float) -> void:
 	if fog_enabled:
 		camera.force_update_scroll()
 		_mask_was_updated = fog.sync_mask()
-	atmosphere.view(fog.visibility, object_canvas.shelter, fog_enabled)
+	atmosphere.view(fog.visibility, fog_enabled)
 	if begin >= _probe_next:
 		_update_probe()
 		_probe_next = begin + 50000

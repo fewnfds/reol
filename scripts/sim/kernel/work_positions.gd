@@ -53,7 +53,7 @@ static func layout(record: Dictionary, spec: Dictionary, operation: String, coll
 	if record.is_empty() or int(record.tile) < 0: return result
 	var rules: Dictionary = spec.get("work_positions", {})
 	# Construction/demolition use their own access rule, never the finished bench's station.
-	var fallback: Dictionary = {} if operation in ["construct", "demolish"] else rules.get("default", {})
+	var fallback: Dictionary = {} if operation in ["construct", "demolish", "fit_eaves"] else rules.get("default", {})
 	var rule: Dictionary = rules.get(operation, fallback)
 	var mode: String = str(rule.get("mode", "adjacent" if colliding else "same"))
 	var members: PackedInt32Array = footprint(record)

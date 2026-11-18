@@ -28,6 +28,9 @@ static func evaluate(operation: Dictionary, actor: Dictionary, target: Dictionar
 			elif int(target.occupant) > 0: reason = "occupied"
 			elif not PLANTS[operation.plant_definition].substrates.has(Cultivation.spec(buildings[target.definition]).substrate) or PLANTS[operation.plant_definition].blocks: reason = "wrong_substrate"
 			else: reason = Cultivation.title_reason(int(actor.get("id", 0)), target, int(target.get("organization", 0)))
+		if reason.is_empty() and operation.handler == "fit_eaves":
+			if not target.has("eaves"): reason = "unknown_target_state"
+			elif target.eaves: reason = "already_has_eaves"
 		if reason.is_empty() and operation.handler == "tend": reason = Cultivation.care_reason(target)
 		if reason.is_empty() and operation.handler == "practice" and int(Growth.Defs.METHODS[operation.learning_method].source_qi_cost) > 0:
 			if not target.has("source_qi_band"): reason = "unknown_target_state"
@@ -67,6 +70,7 @@ static func stock_context(operation: Dictionary, target: Dictionary, context: Di
 		inputs["recipe_items"] = operation.recipe.inputs.keys()
 		for item: String in operation.recipe.outputs:
 			if item not in inputs.recipe_items: inputs.recipe_items.append(item)
+	if operation.handler == "fit_eaves": inputs["recipe_items"] = operation.required_items.keys()
 	if not inputs.has("item"):
 		if operation.handler == "eat": inputs["item"] = "meal"
 		elif operation.handler == "tend": inputs["item"] = "water"

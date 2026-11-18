@@ -225,7 +225,7 @@ func action(kind: String, payload: Dictionary) -> void:
 					point = host._displayed(id)
 				else:
 					var data: Dictionary = host.frame.perception.memories.get(id, {}) if host.fog_enabled else host.frame.objects[id]
-					if data.is_empty() or data.kind in ["wall", "door", "floor", "roof"]: continue
+					if data.is_empty() or data.kind in ["wall", "door", "floor"]: continue
 					if host.fog_enabled and not _visible_object(data): continue
 					point = Art.body_foot(Terrain.center(int(data.tile)))
 				var current: float = host._displayed(1).distance_to(point)
@@ -436,7 +436,7 @@ func _confirm_tool(point: Vector2) -> void:
 			for id: int in candidates:
 				var data: Dictionary = host.object_canvas.objects.get(id, {})
 				if data.is_empty() or data.kind in ["plant", "resource", "pile", "depot"]: continue
-				if data.get("layer", "ground") in ["floor", "roof"]:
+				if data.get("layer", "ground") == "floor":
 					if flat == 0: flat = id
 				else: target = id; break
 			if target == 0: target = flat

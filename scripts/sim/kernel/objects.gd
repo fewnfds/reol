@@ -452,6 +452,7 @@ func layout() -> Dictionary:
 			result[id] = {"id": id, "kind": record.kind, "definition": record.definition, "tile": record.tile,
 				"cells": record.get("cells", PackedInt32Array([record.tile])).duplicate(), "layer": record.get("layer", "ground"),
 				"stage": record.get("stage", -1), "vegetation_level": record.get("vegetation_level", 3), "sapient": record.get("sapient", false), "facing": record.get("facing", 0), "construction_started": record.get("construction_started", false)}
+			if record.get("eaves", false): result[id]["eaves"] = true
 	return result
 
 
@@ -467,7 +468,7 @@ func _index_bucket(id: int, tile: int) -> void:
 		buckets[bucket] = []
 	if not buckets[bucket].has(id):
 		buckets[bucket].append(id)
-	if records[id].kind not in ["wall", "door", "roof", "floor"]:
+	if records[id].kind not in ["wall", "door", "floor"]:
 		if not interaction_buckets.has(bucket):
 			interaction_buckets[bucket] = []
 		if not interaction_buckets[bucket].has(id):
@@ -500,7 +501,7 @@ func nearby(position: Vector2, radius: float, structures: bool = true) -> Array[
 					continue
 				seen[id] = true
 				var record: Dictionary = records[id]
-				if not structures and record.kind in ["wall", "door", "roof", "floor"]:
+				if not structures and record.kind in ["wall", "door", "floor"]:
 					continue
 				var tile: int = record.tile
 				var point := Vector2(tile % 512 + 0.5, tile / 512 + 0.5)

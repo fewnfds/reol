@@ -12,7 +12,6 @@ var buffer := PackedFloat32Array()
 var order := PackedFloat64Array()
 var identities := PackedInt64Array()
 var revision: int = 0
-var shelter: ImageTexture
 var _source: Dictionary = {}
 var _fringe: Dictionary = {}
 
@@ -61,21 +60,7 @@ func adopt(value: Dictionary, fringe: Dictionary = {}) -> void:
             if part.has("occluder") or source.has("occluder"): visual["occluder"] = bool(part.get("occluder",source.get("occluder",false)))
             visual_parts.append(visual)
     sprites = visual_parts
-    sprites.sort_custom(func(a: Dictionary, b: Dictionary):
-        var roof_a: bool = a.get("layer", "") == "roof"
-        var roof_b: bool = b.get("layer", "") == "roof"
-        return not roof_a if roof_a != roof_b else a.tile < b.tile)
-    var covered := PackedByteArray()
-    covered.resize(512 * 512)
-    for rec: Dictionary in objects.values():
-        if rec.kind == "roof":
-            for tile: int in rec.get("cells", PackedInt32Array([rec.tile])):
-                covered[tile] = 255
-    var image := Image.create_from_data(512, 512, false, Image.FORMAT_R8, covered)
-    if shelter == null:
-        shelter = ImageTexture.create_from_image(image)
-    else:
-        shelter.update(image)
+    sprites.sort_custom(func(a: Dictionary, b: Dictionary): return a.tile < b.tile)
     buffer = PackedFloat32Array()
     buffer.resize(sprites.size() * 16)
     order = PackedFloat64Array()
@@ -100,7 +85,6 @@ func adopt(value: Dictionary, fringe: Dictionary = {}) -> void:
         point += Vector2(rec.get("part_offset", Vector2.ZERO)) * scale_value
         var color := Color.WHITE
         if rec.kind == "blueprint" and not rec.get("construction_started", false): color = Color(0.45, 0.95, 1.0, 0.50)
-        if rec.kind == "roof": color.a = 0.24
         var special: int = 0
         if rec.kind == "plant" and rec.definition == "fire_herb" and int(rec.get("stage", 0)) == 2: special = 1
         if rec.get("sapient", false): special = 2
@@ -119,13 +103,12 @@ func adopt(value: Dictionary, fringe: Dictionary = {}) -> void:
         buffer[offset + 14] = int(source.slot)
         var anchor: Array = source.anchor
         var sway: int = int(tall and int(rec.get("stage", 2)) not in [3, 4] and not (rec.kind == "resource" and int(rec.get("vegetation_level", 3)) < 3))
-        var ground_fog: int = int(not tall and rec.get("layer", "") != "roof")
+        var ground_fog: int = int(not tall)
         # Low bit is free for scenery; bits 9-10 already encode special effects.
         var occluder: int = int(rec.kind != "blueprint" and bool(rec.get("occluder", tall)))
         buffer[offset + 15] = 128 + occluder * 2 + int(not rec.get("contact_shadow", true)) * 4 + ground_fog + sway * 256 + special * 512 + int(anchor[0]) * 2048 + int(anchor[1]) * 131072
         var plane: Art.DrawPlane = Art.DrawPlane.BODY
         if source.get("plane", "") == "ground" or rec.kind == "pile" or (rec.kind == "blueprint" and not rec.get("construction_started", false)): plane = Art.DrawPlane.GROUND
-        elif rec.get("layer", "") == "roof": plane = Art.DrawPlane.ROOF
         var depth: int = Art.depth(sort_y, plane)
         order.append(float(depth * ORDER_STRIDE + index))
     order.sort()
@@ -145,7 +128,7 @@ func _key(rec: Dictionary) -> String:
                     if objects[other].kind in ["wall", "door"]:
                         mask |= 1 << side
                         break
-            return "wall_%d" % mask
+            return ("wall_eaves_%d" if rec.get("eaves", false) else "wall_%d") % mask
         "door": return _door_key(rec)
         "resource":
             var level: int = int(rec.get("vegetation_level", 3))
@@ -159,8 +142,8 @@ func _key(rec: Dictionary) -> String:
         "chest": return _facing_key(str(Definitions.BUILDINGS.get(rec.definition, {}).get("art_key", "chest")), rec)
         "pile": return "item_" + rec.definition if Art.catalog().entries.has("item_" + rec.definition) else "item_bundle"
     # A pending floor uses the ground-level material preview; completed floors
-    # are drawn in the terrain atlas, never as raised furniture or roofing.
-    var mapping: Dictionary = {"wood_wall": "wall_0", "wood_door": "door", "wood_bed": "bed", "long_bed": "long_bed", "wood_chest": "chest", "cook_stove": "stove", "wood_table": "table", "wood_chair": "chair", "wood_roof": "roof", "wood_floor": "roof_preview", "planter": "planter", "water_well": "planter", "wood_screen": "screen", "wood_window": "window", "stone_wall": "wall_0", "desk_chair": "chair"}
+    # are drawn in the terrain atlas, never as raised furniture.
+    var mapping: Dictionary = {"wood_wall": "wall_0", "wood_door": "door", "wood_bed": "bed", "long_bed": "long_bed", "wood_chest": "chest", "cook_stove": "stove", "wood_table": "table", "wood_chair": "chair", "wood_floor": "floor_preview", "planter": "planter", "water_well": "planter", "wood_screen": "screen", "wood_window": "window", "stone_wall": "wall_0", "desk_chair": "chair"}
     return _facing_key(str(Definitions.BUILDINGS.get(rec.definition, {}).get("art_key", mapping.get(rec.definition, "workbench"))), rec)
 
 

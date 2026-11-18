@@ -163,7 +163,7 @@ func cache_static(world: RefCounted, refresh: bool) -> void:
 		var rec: Dictionary = world.objects.records[id]
 		var current: bool = refresh and observes(rec)
 		if not current:
-			if memories.has(id) or rec.kind in ["resource", "floor"] or (rec.kind == "plant" and rec.definition == "old_tree") or rec.get("layer", "") == "roof": continue
+			if memories.has(id) or rec.kind in ["resource", "floor"] or (rec.kind == "plant" and rec.definition == "old_tree"): continue
 			var prepared: bool = prepares(rec.tile)
 			for tile: int in rec.get("cells", PackedInt32Array()):
 				prepared = prepared or prepares(tile)
@@ -171,6 +171,7 @@ func cache_static(world: RefCounted, refresh: bool) -> void:
 		var descriptor: Dictionary = {"id": id, "kind": rec.kind, "definition": rec.definition, "tile": rec.tile,
 			"cells": rec.get("cells", PackedInt32Array([rec.tile])).duplicate(), "layer": rec.get("layer", "ground"),
 			"stage": rec.get("stage", -1), "vegetation_level": rec.get("vegetation_level", 3), "sapient": rec.get("sapient", false), "facing": rec.get("facing", 0), "construction_started": rec.get("construction_started", false)}
+		if rec.get("eaves", false): descriptor["eaves"] = true
 		if current: memories[id] = descriptor
 		else: fringe[id] = descriptor
 

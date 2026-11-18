@@ -13,7 +13,7 @@ const MAX_PENDING: int = 4096
 const DEFAULT_HZ: int = 60
 const MAX_DEBT_USEC: float = 1000000.0
 const ACTION_VISUALS: Dictionary = {
-	"construct": Frame.Visual.BUILD, "continue_build": Frame.Visual.BUILD, "demolish": Frame.Visual.BUILD,
+	"construct": Frame.Visual.BUILD, "continue_build": Frame.Visual.BUILD, "demolish": Frame.Visual.BUILD, "fit_eaves": Frame.Visual.BUILD,
 	"cook": Frame.Visual.CRAFT, "cut": Frame.Visual.HARVEST, "gather": Frame.Visual.HARVEST, "uproot": Frame.Visual.HARVEST,
 	"tend": Frame.Visual.WATER, "sow": Frame.Visual.WATER, "plant": Frame.Visual.WATER,
 	"rest": Frame.Visual.REST, "eat": Frame.Visual.EAT, "study": Frame.Visual.READ, "learn": Frame.Visual.READ,

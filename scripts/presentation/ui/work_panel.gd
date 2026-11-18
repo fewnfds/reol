@@ -163,6 +163,9 @@ func render() -> void:
 	update_live()
 
 func people(caps: Array) -> void:
+	var scope_title: String = "部门全域" if _scope.is_empty() else _scope
+	line(_content, "名单范围 · %s / %s · %d 人" % [_view.title, scope_title, _view.workers.size()])
+	line(_content, "地图绿名表示所有直接及间接下属。可切换上方的部门和分组查看相应名单。")
 	for worker: Dictionary in _view.workers:
 		_live["person:%d" % worker.id] = line(_content, "")
 		var controls := row()

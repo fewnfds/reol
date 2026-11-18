@@ -141,7 +141,7 @@ func placement_contract() -> void:
 	var plant: int = w.nature.create(w, "perennial_herb", w.Terrain.index(Vector2i(128, 123)))
 	check(plant > 0, "Placement vegetation fixture failed")
 	w.flush_topology()
-	var cases: Array = [["wood_wall", resource_tile, 0, true], ["wood_floor", resource_tile, 0, true], ["wood_wall", ground, 0, false], ["wood_floor", ground, 0, true], ["wood_wall", floor_tile, 0, true], ["wood_floor", floor_tile, 0, false], ["wood_roof", ground, 0, true], ["wood_wall", w.Terrain.index(Vector2i(128, 123)), 0, false], ["wood_floor", w.Terrain.index(Vector2i(128, 123)), 0, true], ["wood_table", w.Terrain.index(Vector2i(140, 123)), 1, true], ["wood_table", w.Terrain.index(Vector2i(511, 511)), 1, false]]
+	var cases: Array = [["wood_wall", resource_tile, 0, true], ["wood_floor", resource_tile, 0, true], ["wood_wall", ground, 0, false], ["wood_floor", ground, 0, true], ["wood_wall", floor_tile, 0, true], ["wood_floor", floor_tile, 0, false], ["wood_wall", w.Terrain.index(Vector2i(128, 123)), 0, false], ["wood_floor", w.Terrain.index(Vector2i(128, 123)), 0, true], ["wood_table", w.Terrain.index(Vector2i(140, 123)), 1, true], ["wood_table", w.Terrain.index(Vector2i(511, 511)), 1, false]]
 	for entry: Array in cases:
 		var cells: PackedInt32Array = w.facilities.footprint(entry[0], entry[1], entry[2])
 		var backend: bool = w.facilities.placement(w, str(w.facilities.definitions[entry[0]].get("layer", "ground")), cells) == "accepted"
@@ -180,11 +180,62 @@ func remove_every_registration() -> void:
 	w.flush_topology()
 	check(w.depot_objects == PackedInt64Array([replacement]) and Persistence.candidate(Persistence.capture(w), 0) != null, "Replacement storage depended on initial depot identities/count")
 
+func enclosure_and_eaves() -> void:
+	var w: RefCounted = fixture()
+	var centre := Vector2i(120, 124)
+	var interior: int = w.Terrain.index(centre)
+	var opening: int = w.Terrain.index(centre + Vector2i.DOWN)
+	for y: int in range(-1, 2):
+		for x: int in range(-1, 2):
+			var tile: int = w.Terrain.index(centre + Vector2i(x, y))
+			if tile not in [interior, opening]: w.facilities.create_completed(w, "wood_wall", tile)
+	w.flush_topology()
+	check(w.terrain.rooms[interior] < 0, "An open wall perimeter was sheltered")
+	var wall: int = w.facilities.create_completed(w, "stone_wall", opening)
+	w.flush_topology()
+	check(w.terrain.rooms[interior] >= 0, "An enclosed room did not get implicit shelter")
+	check(w.facilities.blueprint(w, 1, "wood_roof", interior).reason == "invalid_definition_or_tile", "Retired roof remained buildable")
+	w.pages[0].positions[0] = w.Terrain.center(opening) + Vector2.DOWN
+	w.knowledge.refresh(w, 1, wall, 0, true)
+	var wood: int = w.objects.amount(1, "wood")
+	w.objects.add(1, "wood", 2)
+	wood += 2
+	var count: int = w.objects.records.size()
+	var next_id: int = w.objects.next_id
+	var room_revision: int = w.terrain.room_revision
+	var receipt: Dictionary = w.command({"kind": "fit_eaves", "target": wall})
+	check(receipt.ok, "Wall menu command failed: " + str(receipt))
+	advance(w, w.elapsed_ms + 350)
+	check(w.objects.amount(1, "wood") == wood and not w.objects.records[wall].get("eaves", false), "Eave materials were taken before labor completed")
+	w.release(1)
+	check(w.objects.amount(1, "wood") == wood and not w.reservations.has(wall), "Interrupted eave work spent stock or kept its reservation")
+	check(w.command({"kind": "fit_eaves", "target": wall}).ok, "Restarting eave work failed")
+	var restored: RefCounted = Persistence.candidate(Persistence.capture(w), 0)
+	check(restored != null, "Eave work in flight could not be restored")
+	if restored != null:
+		advance(restored, restored.elapsed_ms + 1900)
+		check(restored.objects.amount(1, "wood") == wood - 1 and restored.objects.records[wall].get("eaves", false), "Restored eave work did not commit exactly once")
+	advance(w, w.elapsed_ms + 1900)
+	check(w.objects.records[wall].get("eaves", false) and w.objects.amount(1, "wood") == wood - 1, "Eave work did not modify the original wall and debit exactly one wood")
+	check(w.objects.records.size() == count and w.objects.next_id == next_id and w.terrain.room_revision == room_revision and w.terrain.blocked[opening] != 0, "Eaves added an entity or changed spatial topology")
+	check(not w.command({"kind": "fit_eaves", "target": wall}).ok and w.objects.amount(1, "wood") == wood - 1, "Refitting eaves spent materials")
+	var canvas := ObjectCanvas.new()
+	canvas.adopt(w.objects.layout())
+	var key: String = canvas._key(canvas.objects[wall])
+	check(key.begins_with("wall_eaves_") and canvas.Art.catalog().entries.has(key), "Completed wall failed to select a real eaves sprite")
+	canvas.free()
+	restored = Persistence.candidate(Persistence.capture(w), 0)
+	check(restored != null and restored.objects.records[wall].get("eaves", false), "Completed eaves did not survive restore")
+	check(w.facilities.demolish(w, wall), "Decorated wall could not be demolished")
+	w.flush_topology()
+	check(w.terrain.rooms[interior] < 0 and w.terrain.room_revision > room_revision, "Breaking the enclosure left a sheltered room")
+
 func _run() -> void:
 	assembly_and_validation()
 	independent_layers()
 	cultivation_restore()
 	placement_contract()
+	enclosure_and_eaves()
 	await remove_every_registration()
 	print("FACILITY_LIFECYCLE_SMOKE errors=", errors)
 	quit(0 if errors == 0 else 1)

@@ -18,7 +18,7 @@ static func hits(host: Node2D, point: Vector2, include_flat: bool) -> Array[int]
 		var id: int = scenery.identities[index]
 		if host.fog_enabled and not host.frame.perception.memories.has(id): continue
 		var rec: Dictionary = scenery.objects[id]
-		if not include_flat and rec.get("layer", "") in ["floor", "roof"]: continue
+		if not include_flat and rec.get("layer", "") == "floor": continue
 		var at: int = index * 16
 		var buffer: PackedFloat32Array = scenery.buffer
 		var flags: int = int(buffer[at+15])

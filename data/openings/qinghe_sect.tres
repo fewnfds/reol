@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="SettlementOpeningDef" load_steps=31 format=3]
+[gd_resource type="Resource" script_class="SettlementOpeningDef" load_steps=30 format=3]
 
 [ext_resource type="Script" path="res://scripts/sim/definitions/openings/opening_def.gd" id="opening"]
 [ext_resource type="Script" path="res://scripts/sim/definitions/openings/layout_def.gd" id="layout"]
@@ -13,12 +13,6 @@
 script = ExtResource("place")
 key = "floor"
 definition = "wood_floor"
-extent = Vector2i(8, 5)
-
-[sub_resource type="Resource" id="Roof"]
-script = ExtResource("place")
-key = "roof"
-definition = "wood_roof"
 extent = Vector2i(8, 5)
 
 [sub_resource type="Resource" id="NorthWall"]
@@ -58,7 +52,7 @@ script = ExtResource("layout")
 id = "dormitory"
 repeats = 5
 stride = Vector2i(0, 7)
-placements = Array[ExtResource("place")]([SubResource("Floor"), SubResource("Roof"), SubResource("NorthWall"), SubResource("SideWall"), SubResource("SouthWall"), SubResource("Door"), SubResource("Beds")])
+placements = Array[ExtResource("place")]([SubResource("Floor"), SubResource("NorthWall"), SubResource("SideWall"), SubResource("SouthWall"), SubResource("Door"), SubResource("Beds")])
 
 [sub_resource type="Resource" id="Store"]
 script = ExtResource("place")

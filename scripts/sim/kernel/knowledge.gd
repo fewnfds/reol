@@ -502,7 +502,7 @@ static func _valid_teaching(account: Variant, actor: int, next_id: int, now: int
 
 static func _valid_view(value: Dictionary, target: int, next_id: int, now: int) -> bool:
 	for field: Variant in value:
-		if field not in ["id", "kind", "definition", "name", "tile", "capacity", "reserved_capacity", "owner", "organization", "sapient", "hp", "inventory", "stage", "process", "access_dependencies", "contents", "services", "post_revision", "host", "occupant", "injured", "water_band", "source_qi_band", "work_department", "storage_policy"]: return false
+		if field not in ["id", "kind", "definition", "name", "tile", "capacity", "reserved_capacity", "owner", "organization", "sapient", "hp", "inventory", "stage", "process", "access_dependencies", "contents", "services", "post_revision", "host", "occupant", "injured", "water_band", "source_qi_band", "work_department", "storage_policy", "eaves"]: return false
 	if value.has("work_department") and (not value.work_department is int or value.work_department < 0 or value.work_department > 1000000000): return false
 	if value.has("storage_policy") and not Stock.valid_storage_policy(value.storage_policy, next_id): return false
 	if value.has("name") and (not value.name is String or value.name.length() > 256): return false
@@ -511,6 +511,7 @@ static func _valid_view(value: Dictionary, target: int, next_id: int, now: int) 
 		if value.has(reference) and (not value[reference] is int or value[reference] < 0 or value[reference] >= next_id): return false
 	if value.has("host") or value.has("injured") or value.has("water_band"):
 		if value.get("kind") != "plant" or not value.get("injured") is bool or not value.get("water_band") is int or value.water_band < -1 or value.water_band > 4 or not value.has("host"): return false
+	if value.has("eaves") and (value.get("kind") != "wall" or not value.eaves is bool): return false
 	if value.has("occupant") and (value.get("kind") in ["actor", "plant", "blueprint"] or not preload("res://scripts/sim/kernel/operation_query.gd").BUILDINGS.get(value.get("definition", ""), {}).get("capabilities", {}).has("cultivation")): return false
 	if value.has("post_revision"):
 		if not value.post_revision is int or value.post_revision < 0 or value.post_revision > 999999999999: return false

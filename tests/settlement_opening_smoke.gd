@@ -22,7 +22,8 @@ func malformed_openings() -> void:
 	bad.residents_per_district = 0; bad.spawn_offsets.clear()
 	check(not Opening.compile(bad).errors.is_empty(), "A zero-resident opening bypassed Resource range hints")
 	bad = SETUP.duplicate(true)
-	bad.layouts[0].placements[6].extent.x = 4
+	for placement: Resource in bad.layouts[0].placements:
+		if placement.definition == "wood_bed": placement.extent.x = 4
 	check(not Opening.compile(bad).errors.is_empty(), "Missing residences were silently accepted")
 	bad = SETUP.duplicate(true); bad.appointments[0].role = "imaginary_office"
 	check(not Opening.compile(bad).errors.is_empty(), "An unknown role was silently accepted")
@@ -32,7 +33,9 @@ func malformed_openings() -> void:
 	check(not Opening.compile(bad).errors.is_empty(), "A duplicate method could reach an asserting seed call")
 	bad = SETUP.duplicate(true); bad.qi_offsets.append(bad.qi_offsets[0])
 	check(not Opening.compile(bad).errors.is_empty(), "Two reservoirs could occupy the same initial point")
-	bad = SETUP.duplicate(true); bad.layouts[0].placements[2].stock["grain"] = 1
+	bad = SETUP.duplicate(true)
+	for placement: Resource in bad.layouts[0].placements:
+		if placement.definition == "wood_wall": placement.stock["grain"] = 1; break
 	check(not Opening.compile(bad).errors.is_empty(), "Initial goods were silently installed inside a wall")
 	bad = SETUP.duplicate(true)
 	var wall := preload("res://scripts/sim/definitions/openings/placement_def.gd").new()
@@ -42,7 +45,9 @@ func malformed_openings() -> void:
 	var candidate := World.new()
 	candidate.initialize(bad.population(), 0, false, "empty")
 	check(not Opening.assemble(candidate, bad).is_empty(), "A stove with its only work position blocked was silently accepted")
-	bad = SETUP.duplicate(true); bad.layouts[0].placements[5].definition = "wood_wall"
+	bad = SETUP.duplicate(true)
+	for placement: Resource in bad.layouts[0].placements:
+		if placement.definition == "wood_door": placement.definition = "wood_wall"
 	candidate = World.new(); candidate.initialize(bad.population(), 0, false, "empty")
 	check(not Opening.assemble(candidate, bad).is_empty(), "Sealed dormitories were accepted because beds had local empty cells")
 	bad = SETUP.duplicate(true)
@@ -80,6 +85,16 @@ func _run() -> void:
 	var adopted_errors: PackedStringArray = Opening.assemble(w, SETUP)
 	check(adopted_errors.is_empty(), "Normal opening could not adopt initial conditions: " + str(adopted_errors))
 	if not adopted_errors.is_empty(): quit(1); return
+	var departments: Dictionary = w.institutions.Departments.view(w.institutions, w, 1)
+	var supplies: Dictionary = departments.selected
+	var kitchen_id: int = 0
+	for department: Dictionary in departments.departments:
+		if str(department.title).ends_with("膳堂"): kitchen_id = department.id
+	var kitchen: Dictionary = w.institutions.Departments.view(w.institutions, w, 1, kitchen_id).selected
+	check(w.objects.records[7].name == "东篱院弟子07" and w.institutions.Departments.manages_person(w.institutions, 1, 7), "Named resident did not resolve to a managed subordinate")
+	check(str(supplies.title).ends_with("仓务") and supplies.workers.size() == 6 and not supplies.workers.any(func(worker: Dictionary): return worker.id == 7), "Six-person supplies roster included an unrelated kitchen worker")
+	check(kitchen_id > 0 and kitchen.workers.any(func(worker: Dictionary): return worker.id == 7), "Kitchen roster omitted the managed resident")
+	check(not w.objects.records.values().any(func(record: Dictionary): return record.kind == "roof"), "Settlement opening spawned legacy roof tiles")
 	check(w.actor_count == 100 and w.objects.total("grain") == 48 and w.objects.total("meal") == 128 and w.objects.total("potion") == 0, "Finite initial people/food or absence of developer gifts changed")
 	check(Persistence.candidate(Persistence.capture(w), 0) != null, "Normal zero-time settlement failed actual restoration")
 	check(w.knowledge.view(15, 8, 0).get("teaches", {}).has("cooking"), "A known cooking mentor was seeded with an unrelated method only")

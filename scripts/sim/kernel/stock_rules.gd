@@ -96,7 +96,7 @@ static func storage_accepts(policy: Dictionary, item: String) -> bool:
 	return tier >= int(policy.get("min_tier", 1)) and tier <= int(policy.get("max_tier", 99))
 
 static func access_reason(actor: Dictionary, target: Dictionary, handler: String, context: Dictionary = {}) -> String:
-	if handler not in ["take", "put", "eat", "craft", "collect_source", "rest", "construct", "demolish", "sow", "plant_crop", "tend", "gather", "cut", "uproot", "harvest"]: return ""
+	if handler not in ["take", "put", "eat", "craft", "collect_source", "rest", "construct", "demolish", "fit_eaves", "sow", "plant_crop", "tend", "gather", "cut", "uproot", "harvest"]: return ""
 	for dependency: Dictionary in target.get("access_dependencies", {}).get(handler, []):
 		var reason: String = access_reason(actor, dependency, dependency.operation)
 		if not reason.is_empty(): return reason
@@ -146,9 +146,10 @@ static func input_group(actor: Dictionary, required: Dictionary, purpose: String
 static func input_purpose(operation: Dictionary) -> String:
 	if not operation.get("recipe", {}).is_empty(): return str(operation.recipe.purpose)
 	if operation.handler in ["sow", "plant_crop", "tend"]: return "cultivate"
-	return "construct" if operation.handler == "construct" else ""
+	return "construct" if operation.handler in ["construct", "fit_eaves"] else ""
 
 static func handler_purpose(handler: String, target: Dictionary = {}) -> String:
+	if handler == "fit_eaves": return "construct"
 	if handler in ["sow", "plant_crop", "tend", "gather", "cut", "uproot", "harvest"]: return "cultivate"
 	if handler == "collect_source": return "supply"
 	return str(target.get("processing_purpose", "")) if handler == "craft" else handler

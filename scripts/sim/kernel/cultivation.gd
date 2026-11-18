@@ -5,7 +5,7 @@ static func spec(definition: Dictionary) -> Dictionary:
 	return definition.get("capabilities", {}).get("cultivation", {})
 
 static func ignores(record: Dictionary) -> bool:
-	return record.kind == "pile" or record.get("layer", "ground") == "roof" or (record.get("layer", "ground") == "floor" and record.kind != "blueprint")
+	return record.kind == "pile" or (record.get("layer", "ground") == "floor" and record.kind != "blueprint")
 
 static func errors(definition: Dictionary) -> PackedStringArray:
 	var value: Dictionary = spec(definition)

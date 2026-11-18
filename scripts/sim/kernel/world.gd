@@ -987,7 +987,7 @@ func _command(input: Dictionary) -> Dictionary:
 			if tile < 0 or tile >= terrain.blocked.size() or kind < 0 or kind > 2:
 				return receipt
 			for object: int in objects.by_tile.get(tile, []):
-				if objects.records[object].kind not in ["wall", "door", "pile", "floor", "roof"]:
+				if objects.records[object].kind not in ["wall", "door", "pile", "floor"]:
 					receipt.reason = "occupied"
 					return receipt
 			if kind == 1:
@@ -1156,6 +1156,7 @@ func operation_target(id: int, shipment: int = 0) -> Dictionary:
 	if record.kind != "actor": result["contents"] = objects.public_contents(id, shipment)
 	if facilities.definitions.get(record.definition, {}).get("capabilities", {}).has("records"): result.merge(institutions.Channels.metadata(institutions, id))
 	if record.has("stage"): result["stage"] = record.stage
+	if record.kind == "wall": result["eaves"] = bool(record.get("eaves", false))
 	result.merge(nature.public_state(self, id))
 	if actor_slots.has(id):
 		var slot: int = actor_slots[id]
@@ -1484,6 +1485,7 @@ func describe(id: int) -> Dictionary:
 	if not objects.records.has(id):
 		return {}
 	var result: Dictionary = State.copy(objects.records[id])
+	if result.kind == "wall": result["eaves"] = bool(result.get("eaves", false))
 	result.merge(nature.public_state(self, id))
 	result.erase("stock")
 	result.erase("materials")

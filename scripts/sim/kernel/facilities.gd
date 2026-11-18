@@ -208,7 +208,7 @@ static func placement_at(layer: String, surface: int, occupants: Array[Dictionar
 		if layer == "floor":
 			if other_layer == "floor": return "occupied"
 			if vegetation >= 2: return "clear_shrub_tree_or_stump_first"
-		elif not loose_stock and (other_layer == layer or (layer == "ground" and other_layer not in ["floor", "roof"])): return "occupied"
+		elif not loose_stock and (other_layer == layer or (layer == "ground" and other_layer != "floor")): return "occupied"
 	return "accepted"
 
 
@@ -240,7 +240,7 @@ func install(world: RefCounted, id: int, capacity: int = -2) -> void:
 	Cultivation.install(record, spec)
 	for member: int in record.cells:
 		if record.layer == "floor": world.terrain.set_floor(member, true)
-		elif record.layer != "roof": world.queue_structure(member, bool(spec.facts.get("movement_blocked", false)), bool(spec.facts.get("enclosure_boundary", false)))
+		else: world.queue_structure(member, bool(spec.facts.get("movement_blocked", false)), bool(spec.facts.get("enclosure_boundary", false)))
 
 
 func uninstall(world: RefCounted, record: Dictionary) -> void:
@@ -249,7 +249,7 @@ func uninstall(world: RefCounted, record: Dictionary) -> void:
 	if record.kind == "floor":
 		for tile: int in record.get("cells", PackedInt32Array([record.tile])): world.terrain.set_floor(tile, false)
 	var spec: Dictionary = definitions.get(record.definition, {})
-	if (record.kind != "blueprint" or record.get("construction_started", false)) and record.get("layer", "ground") not in ["floor", "roof"] and (spec.get("facts", {}).get("movement_blocked", false) or spec.get("facts", {}).get("enclosure_boundary", false)):
+	if (record.kind != "blueprint" or record.get("construction_started", false)) and record.get("layer", "ground") != "floor" and (spec.get("facts", {}).get("movement_blocked", false) or spec.get("facts", {}).get("enclosure_boundary", false)):
 		for tile: int in record.get("cells", PackedInt32Array([record.tile])): world.queue_structure(tile, false, false, true)
 
 
@@ -333,6 +333,17 @@ func commit(world: RefCounted, actor: int, action: Dictionary, at: int) -> Dicti
 			record.erase("remaining_ms")
 			record.erase("construction_started")
 			install(world, action.target)
+		"fit_eaves":
+			if record.kind != "wall": return Results.refused("invalid_target")
+			if record.get("eaves", false): return Results.refused("already_has_eaves")
+			var materials: Dictionary = Operations.OPERATIONS[action.operation_id].required_items
+			var right: Dictionary = world.institutions.input_right(world, actor, materials, "construct", int(record.organization))
+			if right.is_empty() or not world.objects.consume(actor, materials, right): return Results.refused("missing_items")
+			world.institutions.consumed(right, materials, at)
+			world._sync_inventory(actor)
+			record["eaves"] = true
+			world.objects.layout_revision += 1
+			facts = {"definition": record.definition, "eaves": true, "consumed": materials}
 		"rest":
 			var before: int = page.energy[row]
 			page.energy[row] = mini(10000, before + roundi(2000 * Growth.rest_scale(world.objects.records[actor])))

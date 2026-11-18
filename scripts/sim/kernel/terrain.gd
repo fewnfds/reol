@@ -9,6 +9,7 @@ const STATE_FIELDS: Array = ["blocked", "enclosures", "rooms", "structures", "ba
 var blocked := PackedByteArray()
 var enclosures := PackedByteArray() # Doors divide rooms but remain walkable.
 var rooms := PackedInt32Array()
+var room_revision: int = 0 # Derived publication key, scoped to this world epoch.
 var structures := PackedInt32Array()
 enum Substrate { SOIL = 1, SAND, WATER }
 enum Cover { NONE, GRASS }
@@ -286,6 +287,7 @@ func detached() -> RefCounted:
 	value.blocked = blocked.duplicate()
 	value.enclosures = enclosures.duplicate()
 	value.rooms = rooms.duplicate()
+	value.room_revision = room_revision
 	for room: PackedInt32Array in room_cells:
 		value.room_cells.append(room.duplicate())
 	value.structures = structures.duplicate()
@@ -301,6 +303,7 @@ func detached() -> RefCounted:
 
 
 func rebuild_rooms() -> void:
+	room_revision += 1
 	rooms.fill(-1)
 	room_cells.clear()
 	if structures.is_empty():

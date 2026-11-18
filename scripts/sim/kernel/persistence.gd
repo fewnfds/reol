@@ -11,6 +11,9 @@ const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const Equipment = preload("res://scripts/sim/kernel/equipment.gd")
 const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const Plants = preload("res://scripts/sim/kernel/nature_defs.gd")
+# Format 33 immediately before roof tiles were replaced by room shelter.
+const ROOF_OPERATION_SIGNATURE: String = "77abbe484dcf16ed4dff0f2c1d371bb7696b3f5e469fca3a3a08ddfa58050989"
+const RETIRED_ROOF := {"kind": "roof", "layer": "roof", "size": [1, 1], "facts": {}}
 
 
 static func capture(world: RefCounted) -> Dictionary:
@@ -25,7 +28,9 @@ static func capture(world: RefCounted) -> Dictionary:
 
 static func candidate(data: Dictionary, workers: int) -> RefCounted:
 	if not Beings.ERRORS.is_empty() or data.get("being_signature") != Beings.SIGNATURE: return null
-	if not Operations.ERRORS.is_empty() or data.get("operation_signature") != Operations.SIGNATURE: return null
+	if not Operations.ERRORS.is_empty(): return null
+	var retire_roofs: bool = data.get("operation_signature") != Operations.SIGNATURE
+	if retire_roofs and data.get("operation_signature") != ROOF_OPERATION_SIGNATURE: return null
 	if not Growth.Defs.ERRORS.is_empty() or data.get("growth_signature") != Growth.Defs.SIGNATURE: return null
 	if not Plants.ERRORS.is_empty() or data.get("nature_signature") != Plants.SIGNATURE: return null
 	if not data.get("domains") is Dictionary or not data.get("pages") is Array:
@@ -42,7 +47,9 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 		State.apply(owners[key], owners[key].STATE_FIELDS, data.domains[key])
 	if not _terrain_valid(world.terrain) or world.elapsed_ms < 0:
 		return null
-	if not _objects_valid(world):
+	var roofs: Array[int] = []
+	if retire_roofs: world.facilities.definitions["wood_roof"] = RETIRED_ROOF
+	if not _objects_valid(world, retire_roofs, roofs):
 		return null
 	if not world.institutions.valid(world, false): return null
 	var slot: int = 0
@@ -111,6 +118,19 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 		return null
 	world.institutions.Workflow.rebuild(world.institutions, world)
 	world.configure_lanes(workers)
+	if retire_roofs:
+		for id: int in roofs:
+			if world.facilities.demolish_result(world, id).status != "completed": return null
+		world.facilities.definitions.erase("wood_roof")
+		# Historical activity receipts keep their IDs. Obsolete scene views and
+		# known work targets are removed from the candidate's current projections.
+		for views: Dictionary in [world.perception.memories, world.perception.fringe]:
+			for id: int in views.keys():
+				if views[id].definition == "wood_roof": views.erase(id)
+		for entry: Dictionary in world.knowledge.records.values():
+			var subjects: Dictionary = entry.subjects
+			for id: int in subjects.keys():
+				if subjects[id].view.definition == "wood_roof": subjects.erase(id)
 	world.combat.scan.index(world)
 	return world
 
@@ -140,7 +160,7 @@ static func _terrain_valid(terrain: RefCounted) -> bool:
 	return true
 
 
-static func _objects_valid(world: RefCounted) -> bool:
+static func _objects_valid(world: RefCounted, retire_roofs: bool, roofs: Array[int]) -> bool:
 	for id: Variant in world.objects.records:
 		var record: Variant = world.objects.records[id]
 		if not id is int or id <= 0 or id >= world.objects.next_id or not record is Dictionary:
@@ -161,6 +181,10 @@ static func _objects_valid(world: RefCounted) -> bool:
 			if not Equipment.valid_record(record): return false
 			for gear: Dictionary in record.equipment.values():
 				if not world.objects.Stock.valid_right(gear, world.objects.next_id): return false
+		if record.has("eaves") and (record.kind != "wall" or not record.eaves is bool): return false
+		if record.kind == "roof" or record.definition == "wood_roof" or record.get("layer", "ground") == "roof":
+			if not retire_roofs or record.definition != "wood_roof" or record.get("layer") != "roof" or record.kind not in ["roof", "blueprint"] or tile < 0: return false
+			roofs.append(id)
 		if record.has("facing") and (not record.facing is int or record.facing < 0 or record.facing > 3):
 			return false
 		if record.kind == "blueprint" or record.has("construction_started"):

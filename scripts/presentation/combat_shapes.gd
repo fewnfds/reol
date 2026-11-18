@@ -163,15 +163,13 @@ func _draw() -> void:
 		draw_line(point - normal * 6 - direction * 6, point + normal * 6 - direction * 6, Color("d9ba7a"), 2, true)
 		draw_arc(point, 15, -PI * 0.5, -PI * 0.5 + TAU * float(value.hp) / int(Defs.ACTIONS[value.ability].delivery.durability), 24, Color(color, 0.8), 1.4, true)
 	for value: Dictionary in frame.effects.values():
-		if now < int(value.born_ms) or now >= int(value.until_ms) or not frame.actor_slots.has(value.target): continue
+		if value.kind != "root" or now < int(value.born_ms) or now >= int(value.until_ms) or not frame.actor_slots.has(value.target): continue
 		var point: Vector2 = frame.positions[frame.actor_slots[value.target]]
 		if not visible_point(point): continue
-		var color := Color("8edcec") if value.kind in ["slow", "root"] else Color("bcdfa0") if value.kind in ["modifier", "haste"] else Color("e6a869")
-		draw_arc(Art.body_foot(point) * Art.TILE, 11, 0.2, 2.9, 16, Color(color, 0.85), 2, true)
-		if value.kind == "root":
-			var foot: Vector2 = Art.body_foot(point) * Art.TILE
-			draw_line(foot + Vector2(-9, -5), foot + Vector2(9, 5), color, 2, true)
-			draw_line(foot + Vector2(9, -5), foot + Vector2(-9, 5), color, 2, true)
+		var foot: Vector2 = Art.body_foot(point) * Art.TILE
+		var color := Color("8edcec")
+		draw_line(foot + Vector2(-9, -5), foot + Vector2(9, 5), color, 2, true)
+		draw_line(foot + Vector2(9, -5), foot + Vector2(-9, 5), color, 2, true)
 	for value: Dictionary in frame.shields.values():
 		if now < int(value.born_ms) or now >= int(value.until_ms) or not frame.actor_slots.has(value.target): continue
 		var point: Vector2 = frame.positions[frame.actor_slots[value.target]]
