@@ -163,6 +163,7 @@ func mechanisms() -> void:
 func stale_selection() -> void:
 	await choose("barrage")
 	game.controls._select(2, -1)
+	check(await until(func(): return game.frame.inspected_id == 2), "Stale selection inspection never published")
 	var observed: Dictionary = game.controls.Actions.observed(game.frame, 2, true)
 	check(observed.is_empty() or observed.get("memory", false), "Stale selection fixture is still visible")
 	await tap(KEY_SPACE)

@@ -12,13 +12,7 @@ const SETTLEMENT = preload("res://data/openings/qinghe_sect.tres")
 const MAX_PENDING: int = 4096
 const DEFAULT_HZ: int = 60
 const MAX_DEBT_USEC: float = 1000000.0
-const ACTION_VISUALS: Dictionary = {
-	"construct": Frame.Visual.BUILD, "continue_build": Frame.Visual.BUILD, "demolish": Frame.Visual.BUILD, "fit_eaves": Frame.Visual.BUILD,
-	"cook": Frame.Visual.CRAFT, "cut": Frame.Visual.HARVEST, "gather": Frame.Visual.HARVEST, "uproot": Frame.Visual.HARVEST,
-	"tend": Frame.Visual.WATER, "sow": Frame.Visual.WATER, "plant": Frame.Visual.WATER,
-	"rest": Frame.Visual.REST, "eat": Frame.Visual.EAT, "study": Frame.Visual.READ, "learn": Frame.Visual.READ,
-	"talk": Frame.Visual.READ, "trade": Frame.Visual.READ, "practice": Frame.Visual.MEDITATE,
-	"take": Frame.Visual.CARRY, "put": Frame.Visual.CARRY}
+const PRESENTATION_INTERVAL_USEC: int = 6500
 var _thread := Thread.new()
 var _mutex := Mutex.new()
 var _wake := Semaphore.new()
@@ -61,6 +55,7 @@ var _work_due_usec: int = 0
 var _world: RefCounted
 var _terrain_view: RefCounted
 var _sequence: int = 0
+var _presentation_due_usec: int = 0
 var _snapshot_usec: int = 0
 var _overload_usec: float = 0.0
 var _steps_cost := PackedInt64Array()
@@ -302,7 +297,7 @@ func _run() -> void:
 					_world.deferred.close()
 					_world = candidate
 					_work_request.clear()
-					_work_view.clear()
+					_work_view = {}
 					_work_revision = -1
 					_world.combat.set_control(_world, {"enabled": false})
 					_epoch += 1
@@ -385,8 +380,6 @@ func _run() -> void:
 		# Paused management may place or remove real objects without a step.
 		# Publish their current visual observation at the same world time.
 		if not commands.is_empty(): _world.perception.update(_world, _world.elapsed_ms)
-		if _terrain_view.revision != _world.terrain.revision:
-			_terrain_view = _world.terrain.detached()
 		if not replies.is_empty():
 			_ready_receipts.append_array(replies)
 		if debt > MAX_DEBT_USEC:
@@ -405,7 +398,7 @@ func _run() -> void:
 			for lane: RefCounted in _world.lanes:
 				_worker_ids[lane.thread_id] = true
 			debt -= step_usec
-			_publish(paused, speed, selected, probe)
+			_publish_step(paused, speed, selected, probe, changed)
 		elif changed:
 			_publish(paused, speed, selected, probe)
 		elif paused:
@@ -453,9 +446,54 @@ func _publish_actor_labels() -> Dictionary:
 	return labels
 
 
-func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
+func _record_pose() -> void:
 	var start: int = Time.get_ticks_usec()
+	var pose := Frame.Pose.new()
+	pose.world_ms = _world.elapsed_ms
+	pose.completed_usec = start
+	var same_time: bool = not _poses.is_empty() and _poses.back().world_ms == pose.world_ms
+	pose.projectile_segments = _world.combat.projectile_segments
+	pose.action_segments = _world.combat.action_segments
+	pose.reaction_segments = _world.combat.reaction_segments
+	pose.implement_segments = _world.implements.segments
+	var offset: int = 0
+	for page: RefCounted in _world.pages:
+		pose.ids.append_array(page.ids)
+		pose.positions.append_array(page.positions)
+		for row: int in page.motion:
+			pose.motion[offset + row] = page.motion[row] # Immutable after this step.
+		offset += page.ids.size()
+	if same_time:
+		# Paused commands can change layout at the same world time. Retained
+		# frames keep their old pose, while the next frame uses the new columns.
+		pose.completed_usec = _poses.back().completed_usec
+		_poses[-1] = pose
+	else:
+		_poses.append(pose)
+		while _poses.size() > 2 and _poses[1].world_ms < pose.world_ms - 100:
+			_poses.pop_front()
+	_snapshot_usec += Time.get_ticks_usec() - start
+
+
+func _publish_step(paused: bool, speed: float, selected: int, probe: int, changed: bool) -> void:
+	# Keep every step's piecewise motion and timed effects even when several
+	# steps share one display publication.
+	_record_pose()
+	if (changed or not _ready_receipts.is_empty() or not _world.outcomes.is_empty()
+			or _object_revision != _world.objects.layout_revision or _terrain_view.revision != _world.terrain.revision
+			or Time.get_ticks_usec() >= _presentation_due_usec):
+		_publish(paused, speed, selected, probe, true)
+
+
+func _publish(paused: bool, speed: float, selected: int, probe: int, pose_recorded: bool = false) -> void:
+	if not pose_recorded: _record_pose()
+	var start: int = Time.get_ticks_usec()
+	_presentation_due_usec = start + PRESENTATION_INTERVAL_USEC
+	if _terrain_view.revision != _world.terrain.revision:
+		_terrain_view = _world.terrain.detached()
 	var frame := Frame.new()
+	frame.ids = _poses.back().ids
+	frame.positions = _poses.back().positions
 	_sequence += 1
 	frame.sequence = _sequence
 	frame.practice_mode = str(_world.objects.records[1].get("practice_mode", "")) if _combat_lab else ""
@@ -490,46 +528,15 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 	frame.guards = _world.State.copy(_world.defense.guards)
 	frame.cooldowns = _world.State.copy(_world.combat.cooldowns.get(1, {}))
 	for page: RefCounted in _world.pages:
-		frame.ids.append_array(page.ids)
-		frame.positions.append_array(page.positions)
 		frame.health.append_array(page.health)
 		frame.max_health.append_array(page.max_health)
 		frame.modes.append_array(page.modes)
 		frame.flight.append_array(page.flight)
 		frame.radii.append_array(page.radii)
 		frame.aims.append_array(page.aims)
-		var base: int = frame.visuals.size()
-		frame.visuals.resize(base + page.ids.size())
-		for row: int in page.ids.size():
-			# Small display codes, not a presentation dependency in simulation.
-			if frame.combat.has(page.ids[row]):
-				frame.visuals[base + row] = Frame.Visual.SHOOT if frame.combat[page.ids[row]].visual == "shoot" else Frame.Visual.MELEE
-			elif page.modes[row] == World.Units.Mode.HARVEST: frame.visuals[base + row] = Frame.Visual.HARVEST
-			elif page.cargo[row] > 0: frame.visuals[base + row] = Frame.Visual.CARRY
+		frame.cargo.append_array(page.cargo)
 	for id: int in _world.actions:
-		if not _world.actor_slots.has(id):
-			continue
-		var slot: int = _world.actor_slots[id]
-		if frame.modes[slot] == World.Units.Mode.ACTION:
-			frame.visuals[slot] = ACTION_VISUALS.get(World.Operations.OPERATIONS[_world.actions[id].kind].handler, Frame.Visual.IDLE)
-	if _poses.is_empty() or _poses.back().world_ms != frame.world_ms:
-		var pose := Frame.Pose.new()
-		pose.world_ms = frame.world_ms
-		pose.completed_usec = Time.get_ticks_usec()
-		pose.positions = frame.positions # Detached once, immutable in both owners.
-		pose.ids = frame.ids
-		pose.projectile_segments = _world.combat.projectile_segments
-		pose.action_segments = _world.combat.action_segments
-		pose.reaction_segments = _world.combat.reaction_segments
-		pose.implement_segments = _world.implements.segments
-		var offset: int = 0
-		for page: RefCounted in _world.pages:
-			for row: int in page.motion:
-				pose.motion[offset + row] = page.motion[row] # Immutable after this step.
-			offset += page.ids.size()
-		_poses.append(pose)
-		while _poses.size() > 2 and _poses[1].world_ms < frame.world_ms - 100:
-			_poses.pop_front()
+		frame.operations[id] = _world.actions[id].kind
 	frame.history = _poses.duplicate()
 	# Reliable notifications refresh details immediately, without rebuilding all
 	# statistics/environment views. Layout and inspection changes remain immediate.

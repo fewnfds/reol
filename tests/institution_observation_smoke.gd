@@ -79,7 +79,21 @@ func local_revision_and_review() -> void:
 	actor.responsibilities = {}; known[f.board].tile = -1
 	check(Coordination.next_due(actor, known, 60000) == -1, "A personally absent carrier kept scheduling fruitless visits")
 
+func planning_timestamps() -> void:
+	var fixture: Dictionary = duties_fixture()
+	var w: RefCounted = fixture.world
+	for target: int in [fixture.source, fixture.stove, fixture.board, 2]:
+		w.knowledge.created(w, 3, target, 0)
+	var before: Dictionary = w.livelihood._self_view(w, 3).observations
+	check(before.has(fixture.source) and before.has(fixture.stove) and before.has(fixture.board), "Planner omitted a duty source, destination, or board timestamp")
+	check(not before.has(2) and w.knowledge.planning_clues(3, 0).has(2), "Planner rebuilt unrelated timestamps or lost the character clue")
+	var revision: int = w.knowledge.evidence(3, fixture.board).revision
+	w.knowledge.created(w, 3, fixture.board, 25)
+	var after: Dictionary = w.livelihood._self_view(w, 3).observations
+	check(w.knowledge.evidence(3, fixture.board).revision == revision and after[fixture.board].at_ms == 25 and before[fixture.board].at_ms == 0, "Same-content observation failed to refresh the detached timestamp")
+
 func _run() -> void:
 	local_revision_and_review()
+	planning_timestamps()
 	print("INSTITUTION_OBSERVATION_SMOKE errors=", errors)
 	quit(0 if errors == 0 else 1)

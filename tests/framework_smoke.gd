@@ -76,10 +76,16 @@ func publication() -> void:
 	runner._publish(false, 1.0, 1, -1)
 	var old: RefCounted = runner.poll().frame
 	var hp: int = old.player.hp
+	runner._presentation_due_usec = Time.get_ticks_usec() + 1000000
 	w.step(17)
-	w.combat.damage(w, 2, 1, 10, 17)
-	runner._publish(false, 1.0, 1, -1)
+	runner._publish_step(false, 1.0, 1, -1, false)
+	check(runner.poll().frame == old, "Ordinary step rebuilt an unneeded display frame")
+	w.step(17)
+	w.combat.damage(w, 2, 1, 10, 34)
+	runner._publish_step(false, 1.0, 1, -1, false)
 	var packet: Dictionary = runner.poll()
+	var poses: Array = packet.frame.history
+	check(poses.size() == 3 and poses[1].world_ms == 17 and poses[2].world_ms == 34 and old.history.size() == 1, "Coalescing dropped an intermediate pose or mutated the previous frame")
 	check(runner._slow_frame == old and packet.frame.player.hp == hp - 10, "Notification forced slow statistics or delayed player details")
 	check(old.player.hp == hp and not packet.outcomes.is_empty() and runner.poll().outcomes.is_empty(), "Old frame changed or reliable outcomes duplicated")
 	w.combat.launch(1, w.pages[0].positions[0], w.pages[0].positions[1], w.elapsed_ms)
@@ -88,7 +94,8 @@ func publication() -> void:
 	var id: int = w.spawn_actor(w.Terrain.index(Vector2i(130, 120)))
 	runner._publish(false, 1.0, 1, -1)
 	var fresh: RefCounted = runner.poll().frame
-	check(fresh.actor_slots.has(id) and fresh.sides.size() == fresh.ids.size() and not old.actor_slots.has(id), "Layout changed without matching detached columns")
+	check(fresh.actor_slots.has(id) and fresh.ids[int(fresh.actor_slots[id])] == id and fresh.sides.size() == fresh.ids.size() and fresh.cargo.size() == fresh.ids.size() and not old.actor_slots.has(id), "Layout changed without matching detached columns")
+	check(fresh.history.back().ids == fresh.ids and fresh.history.back().positions == fresh.positions and not packet.frame.history.back().ids.has(id), "Same-time layout change left an old pose in the new frame or modified the retained frame")
 	check(fresh.loadout.is_read_only() and fresh.loadout == Defs.LOADOUTS.fire, "Published loadout is not the immutable definition")
 	# Paused time cannot eventually reach the ordinary 100ms refresh deadline.
 	var before: RefCounted = fresh

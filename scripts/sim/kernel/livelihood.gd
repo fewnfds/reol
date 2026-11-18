@@ -8,6 +8,7 @@ const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const State = preload("res://scripts/sim/kernel/state.gd")
 const Stock = preload("res://scripts/sim/kernel/stock_rules.gd")
+const Duties = preload("res://scripts/sim/kernel/institution_duties.gd")
 const Defs = preload("res://scripts/sim/kernel/agency_defs.gd")
 const Selection = preload("res://scripts/sim/kernel/agency_selection.gd")
 const Planner = preload("res://scripts/sim/kernel/agency_planner.gd")
@@ -135,11 +136,7 @@ func schedule_reviews(world: RefCounted, actor: int, at: int) -> void:
 	var channels: Dictionary = world.knowledge.records.get(actor, {}).get("channels", {})
 	if not Growth.has_qi_method(person) and world.society._requests_by_actor.get(actor, []).is_empty() and world.institutions.Duties.views(world.institutions, actor).is_empty() and channels.is_empty(): return
 	var view: Dictionary = world.institutions.access_view(world, actor)
-	var duty_targets: Dictionary = {}
-	for duty: Dictionary in view.duties.values():
-		var targets: Array = world.institutions.Duties.targets(duty) if duty.kind == "cultivation" else [duty.target, duty.channel]
-		for target: int in targets: duty_targets[target] = true
-	var inputs: Dictionary = world.knowledge.review_inputs(actor, at, duty_targets)
+	var inputs: Dictionary = world.knowledge.review_inputs(actor, at, _duty_targets(view.duties))
 	view["id"] = actor
 	view["methods"] = person.get("methods", {})
 	view["qi"] = int(person.get("qi", 0))
@@ -186,6 +183,12 @@ func _utility_view(world: RefCounted, actor: int) -> Dictionary:
 	world.decisions.retry_allowed(world, actor, "", 0, world.operation_time())
 	return view
 
+func _duty_targets(duties: Dictionary) -> Dictionary:
+	var targets: Dictionary = {}
+	for duty: Dictionary in duties.values():
+		for target: int in Duties.targets(duty): targets[target] = true
+	return targets
+
 func _self_view(world: RefCounted, actor: int) -> Dictionary:
 	var view: Dictionary = _utility_view(world, actor)
 	view["work_offers"] = []
@@ -197,13 +200,12 @@ func _self_view(world: RefCounted, actor: int) -> Dictionary:
 	var entry: Dictionary = record(world, actor)
 	view["social_appraisals"] = State.copy(entry.social_appraisals)
 	view["request_retries"] = _request_retries(entry)
-	view["observations"] = {}
+	var at: int = world.operation_time()
+	# Only duty, noticeboard, and qi-source reviews use observation timestamps.
+	view["observations"] = world.knowledge.review_inputs(actor, at, _duty_targets(view.duties), false).observations
 	view["operation_failures"] = {}
 	for failure: Dictionary in world.decisions.records.get(actor, {}).get("feedback", []):
-		if int(failure.until_ms) > world.operation_time(): view.operation_failures["%s:%d" % [failure.operation, failure.target]] = failure.reason
-	for target: int in world.knowledge.records.get(actor, {}).get("subjects", {}):
-		var clue: Dictionary = world.knowledge.records[actor].subjects[target]
-		view.observations[target] = {"at_ms": clue.seen_ms, "revision": clue.revision, "direct": clue.origin != "heard"}
+		if int(failure.until_ms) > at: view.operation_failures["%s:%d" % [failure.operation, failure.target]] = failure.reason
 	return view
 
 func _utility(goal: Dictionary, entry: Dictionary, actor: Dictionary, at: int) -> Dictionary:

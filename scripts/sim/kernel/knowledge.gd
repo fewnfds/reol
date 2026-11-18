@@ -81,7 +81,7 @@ func planning_clues(actor: int, at: int) -> Dictionary:
 	_planning_views[actor] = {"revision": revision, "at": at, "expires": expires, "versions": versions, "clues": clues}
 	return clues
 
-func review_inputs(actor: int, at: int, duty_targets: Dictionary) -> Dictionary:
+func review_inputs(actor: int, at: int, duty_targets: Dictionary, include_clues: bool = true) -> Dictionary:
 	var clues: Dictionary = {}
 	var observations: Dictionary = {}
 	var subjects: Dictionary = records.get(actor, {}).get("subjects", {})
@@ -89,7 +89,7 @@ func review_inputs(actor: int, at: int, duty_targets: Dictionary) -> Dictionary:
 		var entry: Dictionary = subjects[target]
 		var raw: Dictionary = entry.view
 		if not duty_targets.has(target) and not raw.has("post_revision") and not raw.has("source_qi_band"): continue
-		clues[target] = _project(entry, at)
+		if include_clues: clues[target] = _project(entry, at)
 		observations[target] = {"at_ms": entry.seen_ms, "direct": entry.origin != "heard"}
 	return {"clues": clues, "observations": observations}
 

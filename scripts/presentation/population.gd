@@ -3,6 +3,15 @@ extends MultiMeshInstance2D
 ## GPU interpolates committed positions and samples the existing eight-way atlas.
 
 const Art = preload("res://scripts/presentation/art.gd")
+const Units = preload("res://scripts/sim/kernel/units.gd")
+const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
+const OPERATION_CLIPS: Dictionary = {
+	"construct": Art.Clip.BUILD, "continue_build": Art.Clip.BUILD, "demolish": Art.Clip.BUILD, "fit_eaves": Art.Clip.BUILD,
+	"cook": Art.Clip.CRAFT, "cut": Art.Clip.HARVEST, "gather": Art.Clip.HARVEST, "uproot": Art.Clip.HARVEST,
+	"tend": Art.Clip.WATER, "sow": Art.Clip.WATER, "plant": Art.Clip.WATER,
+	"rest": Art.Clip.REST, "eat": Art.Clip.EAT, "study": Art.Clip.READ, "learn": Art.Clip.READ,
+	"talk": Art.Clip.READ, "trade": Art.Clip.READ, "practice": Art.Clip.MEDITATE,
+	"take": Art.Clip.CARRY, "put": Art.Clip.CARRY}
 const SHADER = preload("res://scripts/presentation/population.gdshader")
 const TILE: float = Art.TILE
 var _shader := ShaderMaterial.new()
@@ -111,8 +120,13 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted, ac
 		buffer[offset + 13] = from.y
 		var motion_header: int = int(_motion_headers.get(index, 0)) if same_current and same_previous else 0
 		buffer[offset + 14] = _directions[index] + motion_header * 8
-		var clip: int = frame.visuals[index] if index < frame.visuals.size() else Art.Clip.IDLE
-		if clip in [Art.Clip.MELEE, Art.Clip.SHOOT]: clip = Art.Clip.IDLE
+		var clip: int = Art.Clip.IDLE
+		var mode: int = frame.modes[index]
+		if mode == Units.Mode.ACTION and frame.operations.has(id):
+			clip = OPERATION_CLIPS.get(Operations.OPERATIONS[frame.operations[id]].handler, Art.Clip.IDLE)
+		elif not frame.combat.has(id):
+			if mode == Units.Mode.HARVEST: clip = Art.Clip.HARVEST
+			elif frame.cargo[index] > 0: clip = Art.Clip.CARRY
 		if actions.has(id) and actions[id].visual != "evade": clip = Art.Clip.SHOOT if actions[id].visual == "shoot" else Art.Clip.MELEE
 		var hurt: bool = hurts.has(id)
 		if frame.paused or at_ms >= frame.world_ms:
