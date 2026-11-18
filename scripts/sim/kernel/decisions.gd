@@ -8,6 +8,7 @@ const Costs = preload("res://scripts/sim/kernel/action_costs.gd")
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Units = preload("res://scripts/sim/kernel/units.gd")
 const State = preload("res://scripts/sim/kernel/state.gd")
+const MinTimeQueue = preload("res://scripts/sim/execution/min_time_queue.gd")
 const STATE_FIELDS: Array = ["records", "wakeups", "movement", "next_task", "catalog_signature"]
 const RECORD_FIELDS: Array = ["policy", "params", "manual", "mode", "next_ms", "task", "rule_due", "hit_ms", "ready_ms", "repath_ms", "follow_ms", "last_goal", "last_reason", "life_dirty", "feedback"]
 const FEEDBACK_LIMIT: int = 16
@@ -26,6 +27,12 @@ var latest: Dictionary = {}
 var evaluations: int = 0
 var work_usec: int = 0
 var _submitting: int = 0
+# Derived from saved timers. A held obligation needs one admission check on
+# wake, cancellation or restore. Once queued, only a real stimulus is due here.
+var _review_due := MinTimeQueue.new()
+var _recover_admission: Dictionary[int, bool] = {}
+var _tactical: Dictionary[int, bool] = {}
+var _indexed: bool = false
 
 func _record(world: RefCounted, actor: int) -> Dictionary:
 	if not records.has(actor):
@@ -70,24 +77,55 @@ func wake(world: RefCounted, actor: int, at: int, reason: String, delay: int = 0
 			if pending.begins_with("execution_"): timers.erase(pending)
 	timers[reason] = mini(int(timers.get(reason, due)), due)
 	wakeups[actor] = timers
+	if _is_hold(reason): _recover_admission[actor] = true
 	_sync_next(actor)
 	# A future appointment is not a change to today's inputs.
 	if due <= at and reason in LIFE_CHANGES: entry.life_dirty = true
 	if due <= at and reason in LIFE_CHANGES and entry.task.get("purpose", "") == "clearance": entry.task["reconsider"] = true
 
+static func _is_hold(reason: String) -> bool:
+	return reason in ["life_pending", "exploration_observe"]
+
 func _sync_next(actor: int) -> void:
 	var next: int = -1
-	for due: int in wakeups.get(actor, {}).values():
+	var review: int = -1
+	var timers: Dictionary = wakeups.get(actor, {})
+	var recover: bool = _recover_admission.has(actor)
+	for reason: String in timers:
+		var due: int = timers[reason]
 		if next < 0 or due < next: next = due
+		if (recover or not _is_hold(reason)) and (review < 0 or due < review): review = due
 	records[actor].next_ms = next
-	if next < 0: wakeups.erase(actor)
+	if next < 0:
+		wakeups.erase(actor)
+		_recover_admission.erase(actor)
+	if review >= 0: _review_due.set_time(str(actor), review)
+	else: _review_due.erase(str(actor))
+	if next >= 0 and in_combat(actor): _tactical[actor] = true
+	else: _tactical.erase(actor)
+
+func _ensure_indexed() -> void:
+	if _indexed: return
+	_indexed = true
+	_review_due.clear()
+	_recover_admission.clear()
+	_tactical.clear()
+	for actor: int in wakeups.keys():
+		var timers: Dictionary = wakeups[actor]
+		if timers.has("life_pending") or timers.has("exploration_observe"): _recover_admission[actor] = true
+		_sync_next(actor)
+
+func _forget_schedule(actor: int) -> void:
+	wakeups.erase(actor)
+	_review_due.erase(str(actor))
+	_tactical.erase(actor)
+	_recover_admission.erase(actor)
 
 func _take_due(actor: int, now: int) -> Array[String]:
 	var result: Array[String] = []
 	var timers: Dictionary = wakeups[actor]
 	for reason: String in timers.keys():
-		if reason in ["life_pending", "exploration_observe"]: continue # Durable work/dependency, not another stimulus.
-		if int(timers[reason]) > now: continue
+		if _is_hold(reason) or int(timers[reason]) > now: continue
 		result.append(reason)
 		timers.erase(reason)
 	_sync_next(actor)
@@ -101,6 +139,9 @@ func cancel_life(world: RefCounted, actor: int) -> void:
 	# prerequisites must retire both before reporting the service item finished.
 	world.deferred.cancel("life", actor)
 	world.livelihood.cancel_plan(actor)
+	if wakeups.get(actor, {}).has("life_pending"):
+		_recover_admission[actor] = true
+		_sync_next(actor)
 
 func suspend(world: RefCounted, actor: int) -> void:
 	cancel_life(world, actor)
@@ -110,7 +151,7 @@ func suspend(world: RefCounted, actor: int) -> void:
 	entry.mode = "manual"
 	entry.task.clear()
 	entry.next_ms = -1
-	wakeups.erase(actor)
+	_forget_schedule(actor)
 	movement.erase(actor)
 	world.combat.engagements.erase(actor)
 	entry.last_reason = "manual_control"
@@ -124,7 +165,7 @@ func resume(world: RefCounted, actor: int, at: int) -> void:
 
 func forget(actor: int) -> void:
 	records.erase(actor)
-	wakeups.erase(actor)
+	_forget_schedule(actor)
 	movement.erase(actor)
 	latest.erase(actor)
 
@@ -280,7 +321,8 @@ func _enter(world: RefCounted, actor: int, entry: Dictionary, mode: String, now:
 	return true
 
 func next_boundary(now: int, end: int) -> int:
-	for actor: int in wakeups:
+	_ensure_indexed()
+	for actor: int in _tactical:
 		if not in_combat(actor): continue
 		for reason: String in wakeups[actor]:
 			if reason not in ["tactical_due", "hurt", "contact", "contact_ended", "buffer_expired", "await_commitment"] and not reason.begins_with("execution_"): continue
@@ -313,20 +355,27 @@ func follow(world: RefCounted, actor: int, home: Vector2, now: int) -> void:
 
 func prepare(world: RefCounted, now: int) -> void:
 	var started_at: int = Time.get_ticks_usec()
-	for actor: int in wakeups.keys():
-		var entry: Dictionary = records[actor]
+	_ensure_indexed()
+	# An actor that becomes due after this collection enters the next
+	# preparation. Already due actors still read current timers and facts.
+	var ready: PackedInt64Array = []
+	var key: String = _review_due.first_through(now)
+	while not key.is_empty():
+		ready.append(int(key))
+		_review_due.erase(key)
+		key = _review_due.first_through(now)
+	for actor: int in ready:
+		if not wakeups.has(actor): continue
 		if not world.combat.alive(world, actor): forget(actor); continue
-		if entry.next_ms < 0: wakeups.erase(actor); continue
-		if now < int(entry.next_ms): continue
-		var identity: String = world.deferred.key("life", actor)
+		var entry: Dictionary = records[actor]
 		var timers: Dictionary = wakeups[actor]
-		# Rebuild pending work once after load/admission backpressure. A queued or
-		# running request does not reevaluate this actor at each motion boundary.
-		if timers.has("life_pending") and not world.deferred.ready.has(identity) and not world.deferred.jobs.has(identity):
-			if not world.gate.current(actor).is_empty() and _life_preemptible(world, actor): entry.life_dirty = true
-			world.deferred.request("life", actor, int(timers.life_pending), 0 if entry.life_dirty else 1)
-		if timers.has("exploration_observe"):
-			world.deferred.request("observe", actor, int(timers.exploration_observe), 1)
+		if _recover_admission.erase(actor):
+			if timers.has("life_pending"):
+				var identity: String = world.deferred.key("life", actor)
+				if not world.deferred.ready.has(identity) and not world.deferred.jobs.has(identity):
+					if not world.gate.current(actor).is_empty() and _life_preemptible(world, actor): entry.life_dirty = true
+					world.deferred.request("life", actor, int(timers.life_pending), 0 if entry.life_dirty else 1)
+			if timers.has("exploration_observe"): world.deferred.request("observe", actor, int(timers.exploration_observe), 1)
 		var reasons: Array[String] = _take_due(actor, now)
 		if reasons.is_empty(): continue
 		# A real changed input may justify a new self-contained plan before the

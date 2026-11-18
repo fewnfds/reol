@@ -8,10 +8,23 @@
 
 来源初查于 2026-11-12 至 13。2026-11-19 补核并行寻路、空间分区、状态复制与大型战斗资料。当前 Reol 对照见[异步观察实验](../../docs/status/baseline.md#百人宗门异步观察实验)。
 
+### Reol 的进程和引擎选型
+
+同进程线程可共享已发布的只读输入。单独进程可以负责计算，或成为整个模拟的权威进程，画面订阅其版本。进程间可传消息，也可映射同一段内存。共享区仍需确定发布顺序、缓冲所有权和生命周期。跨进程的规划对照在[千人短窗](../../docs/status/baseline.md#千人调度重构与进程对照)记录，测到的是当前字典经回环 TCP 的交接成本。[Windows 线程与进程](https://learn.microsoft.com/en-us/windows/desktop/ProcThread/about-processes-and-threads) · [Windows 进程间通信](https://learn.microsoft.com/en-us/windows/win32/ipc/interprocess-communications)
+
+Godot 已可用工作池并行脱离场景树的数据计算。场景树、某些引擎对象和共享容器的结构写入有各自的线程边界。GDExtension 可在进程内接原生库，沿用现有 2D 显示、输入和 UI。后续原型应批量接真实战斗局部查询、位置和接触候选，比较输入维护、候选计算、提交及实际端到端吞吐。若在相同活跃量下显示仍占关键路径，再为迁移做同负载对照。[Godot 线程安全](https://docs.godotengine.org/en/stable/tutorials/performance/thread_safe_apis.html) · [GDExtension](https://docs.godotengine.org/en/stable/engine_details/engine_api/gdextension/what_is_gdextension.html)
+
+Unity Entities 提供按组件查询与分块执行，Jobs 根据读写建立依赖，Burst 可把支持子集编译成优化的机器码。Unreal MassEntity 也提供按块存储、并行查询和延后结构变更。两条路线都要迁移热数据和游戏规则，还需重接图层顺序、迷雾、输入和 UI。资源竞争和交战同时命中的裁决仍属于游戏逻辑。[Unity 组件批处理](https://docs.unity3d.com/Packages/com.unity.entities@1.3/manual/iterating-data-ijobentity.html) · [Jobs 依赖](https://docs.unity3d.com/Packages/com.unity.entities@1.3/manual/scheduling-jobs-dependencies.html) · [Burst](https://docs.unity3d.com/Packages/com.unity.burst@1.8/manual/index.html) · [Unreal MassEntity](https://dev.epicgames.com/documentation/en-us/unreal-engine/overview-of-mass-entity-in-unreal-engine) · [Mass 并行查询](https://dev.epicgames.com/documentation/unreal-engine/API/Runtime/MassEntity/FMassEntityQuery/ParallelForEachEntityChunk)
+
+同一份库存的支取要按实际到达和授权裁决。独立仓库或远区可以分开处理。涉及双方库存的运输需协调相关所有者。普通规划、路径搜索、观察候选和画面可消费某个已发布版本，结果采用时核身份、地形、动作和资源变化。应优先解除局部交战里程碑与所有居民高频维护的耦合。是否用多个 Runner 或进程取决于它们交换哪些事实、频率及热点冲突量。
+
+### 已公开的做法
+
 | 一手来源 | 可证实的设计与边界 | 借鉴范围 |
 |---|---|---|
 | Factorio [FFF70](https://www.factorio.com/blog/post/fff-70)、[FFF150](https://www.factorio.com/blog/post/fff-150) | 更新、准备、绘制有不同责任；可以减少绘制维持模拟更新，准备仍有同步条件；更新本身过载仍有UPS上限 | 消除每步等画面收取，不承诺任意负载始终维持4倍 |
 | Factorio [FFF421](https://www.factorio.com/blog/post/fff-421) | 机器人按到期更新并在画面插值，传送带读取器并行。独立电网并行因内存吞吐限制未提高整局速度 | 可并行的读计算需够厚。休眠、批量和仅在相关变化时重建可直接减少工作量 |
+| [EVE Online 的时间膨胀](https://www.eveonline.com/news/view/introducing-time-dilation-tidi) | CCP 在 2011 年解释大规模交战时任务积压及放慢权威时钟的原因 | 同区域热点要单独测实际推进和队列年龄，分区与输出裁剪有各自适用范围 |
 | [OpenRA Game.cs](https://github.com/OpenRA/OpenRA/blob/bleed/OpenRA.Game/Game.cs)、[World.cs](https://github.com/OpenRA/OpenRA/blob/bleed/OpenRA.Game/World.cs) | LogicTick、RenderTick和世界tick职责清楚；普通游玩路径仍包含logic后必须render的约束 | 借鉴责任划分，不把它说成完全没有显示/模拟耦合的现成模板 |
 | Mindustry [AsyncCore](https://github.com/Anuken/Mindustry/blob/master/core/src/mindustry/async/AsyncCore.java)、[PhysicsProcess](https://github.com/Anuken/Mindustry/blob/master/core/src/mindustry/async/PhysicsProcess.java)、[Logic](https://github.com/Anuken/Mindustry/blob/master/core/src/mindustry/core/Logic.java) | begin/process/end有join；物理任务按不相互作用的碰撞层并行 | 按独立页/结果并行，避免每个领域一个自由推进线程 |
 | [OpenTTD 主循环](https://github.com/OpenTTD/OpenTTD/blob/master/src/openttd.cpp) | 车辆、地块、脚本等在游戏循环内各有职责/周期；不是所有东西每画面帧调用 | 保留共同时间但按领域频率唤醒，普通移动不强迫慢环境结算 |

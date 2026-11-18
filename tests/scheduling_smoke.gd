@@ -78,6 +78,20 @@ func bounded_queue() -> void:
 	for piece: int in 2: domains.append(queue.take(600, {}).domain)
 	check(domains.has("observe"), "An old planning backlog consumed the observation dependency's service turn")
 
+func large_queue_does_not_block_other_domain() -> void:
+	var queue := preload("res://scripts/sim/execution/deferred_work.gd").new()
+	for actor: int in range(1, 1601): queue.request("life", actor, 0, 0)
+	queue.request("observe", 1, 800, 2)
+	check(queue.ready.size() == 1601, "Planning backlog prevented admission of an independent observation")
+	check(queue.take(799, {}, {"life": true}).is_empty(), "Paused or future work ran before its boundary")
+	var observation: Dictionary = queue.take(800, {}, {"life": true})
+	check(observation.get("domain") == "observe", "Paused planning stranded a due observation")
+	queue.cancel("life", 1)
+	queue.request("life", 3, 799, 0)
+	var first: Dictionary = queue.take(800, {queue.key("life", 10): 4})
+	check(first.get("actor") == 100 and first.get("first_ms") == 0, "A cancelled or already-served item changed order across priority and age indices")
+	queue.close()
+
 func pending_is_not_a_stimulus() -> void:
 	var w: RefCounted = peaceful()
 	resident(w, 2, [])
@@ -166,7 +180,7 @@ func exploration_retires_inflight_plan() -> void:
 		var identity: String = w.deferred.key("life", 2)
 		w.deferred.request("life", 2, 0)
 		w.deferred.start(identity, job, workers)
-		if workers != 0: w.deferred.ready.erase(identity)
+		if workers != 0: w.deferred._remove_ready(identity)
 		w.decisions.wake(w, 2, 0, "life_pending")
 		var food: int = w.objects.create("pile", "meal", w.Terrain.index(Vector2i(126, 125)))
 		w.objects.add(food, "meal", 1)
@@ -379,6 +393,7 @@ func _run() -> void:
 	independent_timers()
 	local_clearance()
 	bounded_queue()
+	large_queue_does_not_block_other_domain()
 	pending_is_not_a_stimulus()
 	clearance_preserves_review()
 	exploration_observation_resumes()
