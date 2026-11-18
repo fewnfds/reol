@@ -13,6 +13,7 @@
 | 已确认问题、处理状态、触发条件与定位 | [问题清单](status/issues.md) | 已核实发现与关闭证据；不以记录代替验证 |
 | 领域谁负责、跨域影响、原owner在哪 | [领域职责](engineering/architecture/05-framework-domains.md)、[当前实现](engineering/architecture.md) | 逻辑边界 / 当前代码索引 |
 | 宗门自主模拟缺哪些共享框架、已有框架怎样扩 | [共享框架审查](engineering/architecture/foundation-audit.md) | 静态源码证据与演进理由，建设顺序仍归主计划 |
+| 厨房部门/管事面板、工作组、台内生产、数量预约与供料 | [基层部门管理方案](../design/proposals/department-management.md) | 当前待实施方案；步骤/状态只归主计划 |
 | 新计算接入、时间/事件、空间/行动、环境/植物、存读接口 | [工程接口地图](engineering/README.md) | 实现参考；可重构 |
 | 系统越来越慢、复杂度放大、查询/缓存/调度扩展范式 | [复杂度与扩展范式](engineering/simulation-costs.md) | 当前源码访问地图与接入约定；整改尚未实施 |
 | 当前美术素材、动作、来源、图鉴与离线重建 | [assets](../assets/README.md) | 当前素材唯一清单 |

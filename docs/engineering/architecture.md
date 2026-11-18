@@ -33,6 +33,8 @@
 | `combat_entities.gd` | 临时身体/静态生产者的主人、寿命、数量组与光环成员；身体/HP/空间仍用Units/Objects，临时身体不计村民人口 |
 | `combat_scan.gd` | 脱离的身体空间索引、分散威胁发现与目标复核；查询按观察者批交现有CPU池，owner采用；同次物理行遍历附带稀疏尸体桶，仅观察查询可选纳入 |
 | `institutions.gd`、`institution_access.gd`、`institution_matters.gd` | 组织/成员、范围任职/服务资格、受托责任及事项/份额规范状态；规则帮助模块不另持真值，活跃按人及全部按事项索引均派生重建 |
+| `department_rules.gd`、`department_orders.gd`、`department_logistics.gd`、`department_workflow.gd` | 原Institutions的部门/组/授权、matters部门目标及分配、供料请求/运输规则与相关候选；模块不另持权威库存或进度，实际动作仍经原World/ActionGate |
+| `production.gd`、`station_space.gd`、`service_positions.gd` | 设施上单批process、唯一stock输入锁和完成转换；身体/目的地派生局部候选与同刻精查，身体批后失效、同批准入增量维护，不建立第二预约 |
 | `institution_duties.gd`、`agency_institutions.gd`、`cultivation_duty.gd` | 任职分型的范围/脱离视图与本人下一步方法；单点库存职责沿案牍事项，田务沿稳定多畦现场操作，均复用原Planner/行动链，不持独立队列、物量或执行时钟 |
 | `society.gd`、`society_contacts.gd`、`society_requests.gd` | 原接触宿主、稀疏相识与已送达请求/最后答复；帮助模块不另持真值。真实交易/学习/修行提交转交原owner，接受请求引用Institutions份额；正常当面请求已由本人纯判断`agency_social.gd`消费；挂起/延期后的正常回应仍按T09d接线 |
 | `person_events.gd` | 已提交个人事实的有界冷记录、连续冷热损耗合并与缓存脱离视图；不驱动结算或人物决策 |
@@ -54,7 +56,9 @@
 
 Objects记录的`stock[item]`是按归属/用途相容合并的数量切片（`count, owner, organization, entrust, phase`），`materials`同构；`equipment[slot]`保存一件物品的`item`和同一归属描述。`phase`区分无约束、已支取原物与待交产物，避免同类输入/输出混在同责任后无法区分退料与交货。原`inventory`只作脱离聚合视图，缓存/总量/身体摘要不落第二份源数量。物理转移保权，首次自然取得、交易转权、捐赠和正式交付分别显式处理。开局与自然创生为trusted入口，人物费用、加工、搬运经共同策略选实际合法组。
 
-`Institutions`持组织、成员用途许可、岗位任职/对象与物品范围、服务资格及受托的实际issued/consumed/produced/delivered/returned历史；余额必须等于世界各保管处未结批次，不能从成品反算耗料。已结责任归入按人/物类汇总，不以有界T03日志作长期唯一依据。撤权不抹原物，仍可归还受托物；私人放进公箱仍属个人，捐赠明确转权。公料施工完工保留公有建材，拆回及死亡遗物保权；历史所有者被移除不拒合法档。服务资格是附加准入而非现场预约，公开观察不含住户名单。范围授权贯穿原UI/NPC/执行；事项/份额与闭合摘要已接Institutions，个人仅引用身份；实际提交统一经过World.commit_activity同步核销，进度不从近期日志重建。份额撤销保原物，超期/远方死亡不自动重发；已满足施工不伪记旁人劳动。职责渠道已按本人现场观察、有限发布/读案/受理/回报接入同一owner，不全知匹配人手。
+`Institutions`持组织、成员用途许可、岗位任职/对象与物品范围、部门/组/管理授权、服务资格及受托的实际issued/consumed/produced/delivered/returned历史；余额必须等于世界各保管处未结批次。部门生产目标沿matters，不创建个人Share，实际提交统一经过World.commit_activity核销；个人委托仍走原份额。供料请求受理不锁第二份货，运单通过Objects预约回调扣源可用/目的余量，take→put连续责任沿独立entrust。公料到台结运输保管，台内加工只在完成时原子转换stock，process.locked_inputs/net_growth持锁料依据。已有合法过程和原物不会因撤职或负责人缺席消失；取消在途货有真实返还，历史主体可被移除。
+
+部门配置变更按原owner重建相关按人/设施/组索引；库存写入口只标有关部门，Workflow每50ms最多服务2个dirty部门，已知日界/静置及未认领重试使用到期记录。候选按部门设施×有关来源生成，成本随该部门实际设施和需求增长，并非所有工作O(1)；认领只复核一条，不每人重建全院报表。个人有活才取最多8项候选，管理页面打开时按相关版本/500ms发布，人员/授权页才构造组织成员下拉。未完成C01/C04等全范围性能整改。
 
 `items.gd`解释定义、品质和规范键，拒绝同义写法及未支持的品质；物品槽位、图标和属性偏移由`data/definitions/items.json`提供。当前装备没有耐久/绑定/词缀等单件状态，不先给每把同质剑分配ID，也不将UI格数当容量。换装先检查最终容量再一次移入/换回；满包卸下失败不改变库存或穿戴。交换校两方最终容量后一起提交；移除人物将其穿戴和携带物一起留下。
 

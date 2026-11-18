@@ -55,8 +55,9 @@ static func scope_valid(world: RefCounted, role: String, scope: Variant, targets
 
 static func views(owner: RefCounted, actor: int) -> Dictionary:
 	var result: Dictionary = {}
-	for appointment: Dictionary in owner.appointments.values():
-		if not appointment.active or appointment.actor != actor or Defs.ROLES[appointment.role].duty.is_empty(): continue
+	for id: int in owner.Access.appointments_for(owner, actor):
+		var appointment: Dictionary = owner.appointments[id]
+		if Defs.ROLES[appointment.role].duty.is_empty(): continue
 		var value: Dictionary = Defs.ROLES[appointment.role].duty.duplicate(true)
 		value.merge(appointment.duty_scope.duplicate(true), true)
 		value.merge({"appointment": appointment.id, "organization": appointment.organization, "title": Defs.ROLES[appointment.role].title}, true)

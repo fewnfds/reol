@@ -81,6 +81,20 @@ static func valid(contents: Variant, next_id: int) -> bool:
 		if total > MAX_COUNT: return false
 	return true
 
+static func valid_storage_policy(policy: Variant, next_id: int) -> bool:
+	if not policy is Dictionary or policy.size() != 4 or not policy.get("items") is Array or not policy.get("destinations") is Array or not policy.get("min_tier") is int or not policy.get("max_tier") is int: return false
+	if policy.items.size() > 256 or policy.destinations.size() > 256 or policy.min_tier < 1 or policy.max_tier < policy.min_tier or policy.max_tier > 99: return false
+	for item: Variant in policy.items:
+		if not item is String or not preload("res://scripts/sim/kernel/items.gd").valid(item) or policy.items.count(item) != 1: return false
+	for target: Variant in policy.destinations:
+		if not target is int or target < 1 or target >= next_id or policy.destinations.count(target) != 1: return false
+	return true
+
+static func storage_accepts(policy: Dictionary, item: String) -> bool:
+	if not policy.get("items", []).is_empty() and item not in policy.items: return false
+	var tier: int = int(preload("res://scripts/sim/kernel/items.gd").spec(item).get("tier", preload("res://scripts/sim/kernel/items.gd").quality(item)))
+	return tier >= int(policy.get("min_tier", 1)) and tier <= int(policy.get("max_tier", 99))
+
 static func access_reason(actor: Dictionary, target: Dictionary, handler: String, context: Dictionary = {}) -> String:
 	if handler not in ["take", "put", "eat", "craft", "collect_source", "rest", "construct", "demolish", "sow", "plant_crop", "tend", "gather", "cut", "uproot", "harvest"]: return ""
 	for dependency: Dictionary in target.get("access_dependencies", {}).get(handler, []):
@@ -88,6 +102,17 @@ static func access_reason(actor: Dictionary, target: Dictionary, handler: String
 		if not reason.is_empty(): return reason
 	var owner: int = int(target.get("owner", 0))
 	var organization: int = int(target.get("organization", 0))
+	# Departmental production assignments narrow legacy organization-wide rights.
+	# Eating/resting and returning entrusted goods remain separate permissions.
+	var duty: String = "produce" if handler == "craft" else ("cultivate" if handler in ["sow", "plant_crop", "tend", "gather", "cut", "uproot", "harvest"] else "")
+	if int(target.get("work_department", 0)) > 0 and not duty.is_empty():
+		var site: int = int(target.get("host", target.get("id", 0)))
+		var gathering: bool = handler in ["gather", "cut", "harvest"] and actor.get("labor_targets", {}).get("gather", {}).has(site)
+		if not gathering and not actor.get("labor_targets", {}).get(duty, {}).has(site): return "not_authorized"
+	if handler == "put":
+		var item: String = str(context.get("item", ""))
+		if not item.is_empty() and not storage_accepts(target.get("storage_policy", {}), item): return "storage_rejected"
+	if handler in ["take", "collect_source"] and not target.get("storage_policy", {}).get("destinations", []).is_empty() and not str(context.get("purpose", "")).is_empty() and context.purpose != "supply": return "supply_destination_required"
 	if target.get("services", {}).get(handler, false) and int(target.get("id", 0)) not in actor.get("service_targets", {}).get(handler, []): return "not_authorized"
 	# An open private worksite accepts donated labor; modifying/dismantling or
 	# consuming somebody's property still needs their own recognized permission.
@@ -95,7 +120,7 @@ static func access_reason(actor: Dictionary, target: Dictionary, handler: String
 	if organization > 0:
 		var purpose: String = handler_purpose(handler, target)
 		var item: String = str(context.get("item", ""))
-		if handler == "put" and target.get("kind") == "chest" and not context.get("donate", false):
+		if handler == "put" and target.get("kind") in ["chest", "workbench"] and not context.get("donate", false):
 			for bundle: Dictionary in actor.get("return_bundles", []):
 				if int(bundle.organization) == organization and (str(context.get("purpose", "")).is_empty() or context.purpose == bundle.purpose) and (item.is_empty() or int(bundle.items.get(item, 0)) > 0): return ""
 		if not permits_at(actor, target, purpose, item): return "not_authorized"
@@ -134,9 +159,9 @@ static func known_quantity(actor: Dictionary, target: Dictionary, item: String, 
 	var result: int = 0
 	for group: Dictionary in target.contents.get(item, []):
 		if organization >= 0 and int(group.organization) != organization: continue
-		if group.owner == int(actor.get("id", 0)) and not group.entrusted: result += int(group.count)
-		elif group.owner == 0 and group.organization == 0 and not group.entrusted: result += int(group.count)
+		if group.owner == int(actor.get("id", 0)) and not group.entrusted: result += int(group.get("available", group.count))
+		elif group.owner == 0 and group.organization == 0 and not group.entrusted: result += int(group.get("available", group.count))
 		elif group.organization > 0 and not group.entrusted:
 			var place: Dictionary = target.duplicate(); place.organization = int(group.organization)
-			if permits_at(actor, place, handler_purpose(handler, place), item): result += int(group.count)
+			if permits_at(actor, place, handler_purpose(handler, place), item): result += int(group.get("available", group.count))
 	return result

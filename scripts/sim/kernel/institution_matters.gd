@@ -145,6 +145,7 @@ static func construction_assigned(owner: RefCounted, target: int) -> bool:
 static func accept(owner: RefCounted, world: RefCounted, actor: int, id: int, quota: int = 0, temporary: bool = false) -> int:
 	if not owner.matters.has(id) or not world.actor_slots.has(actor) or not world.combat.alive(world, actor): return 0
 	var matter: Dictionary = owner.matters[id]
+	if matter.kind == "department": return 0
 	if matter.state != "active" or (matter.organization > 0 and not owner.memberships[matter.organization].has(actor)) or (matter.deadline_ms > 0 and matter.deadline_ms <= world.operation_time()): return 0
 	if instruction(matter) and matter.target == actor: return 0
 	var clue: Dictionary = world.knowledge.view(actor, int(matter.target), world.operation_time())
@@ -350,7 +351,7 @@ static func compact(owner: RefCounted, world: RefCounted) -> void:
 	for id: int in owner.matters.keys():
 		if owner.matters.size() < MATTER_LIMIT and owner.shares.size() < SHARE_LIMIT: break
 		var matter: Dictionary = owner.matters[id]
-		if matter.state == "active": continue
+		if matter.state == "active" or matter.kind == "department": continue
 		if owner.Channels.retains_matter(owner, id): continue
 		if owner.matters.size() < MATTER_LIMIT and owner._shares_by_matter.get(id, []).is_empty(): continue
 		if not owner.matter_ledger.has(matter.organization): owner.matter_ledger[matter.organization] = {"completed": 0, "cancelled": 0, "satisfied": 0, "delivery": 0, "produce": 0, "operation": 0}
@@ -365,6 +366,7 @@ static func compact(owner: RefCounted, world: RefCounted) -> void:
 		if owner.matters.size() < MATTER_LIMIT and owner.shares.size() < SHARE_LIMIT: break
 
 static func _matter_valid(owner: RefCounted, world: RefCounted, matter: Variant) -> bool:
+	if matter is Dictionary and matter.get("kind") == "department": return owner.Orders.valid_matter(owner, world, matter)
 	if not matter is Dictionary or matter.size() != 15: return false
 	for field: String in ["id", "issuer", "organization", "target", "total", "quota", "deadline_ms", "version", "created_ms", "archived"]:
 		if not matter.get(field) is int: return false
@@ -392,6 +394,11 @@ static func valid(owner: RefCounted, world: RefCounted) -> bool:
 		var matter: Variant = owner.matters[id]
 		if not id is int or id <= previous or id >= owner.next_matter or not _matter_valid(owner, world, matter) or matter.id != id: return false
 		previous = id
+	var department_allocations: Dictionary = {}
+	for matter: Dictionary in owner.matters.values():
+		if matter.kind == "department" and matter.parent_order > 0 and matter.state != "cancelled": department_allocations[int(matter.parent_order)] = int(department_allocations.get(int(matter.parent_order), 0)) + int(matter.total)
+	for parent: int in department_allocations:
+		if int(department_allocations[parent]) > int(owner.matters[parent].total): return false
 	previous = 0
 	for id: Variant in owner.shares:
 		var share: Variant = owner.shares[id]
@@ -418,6 +425,7 @@ static func valid(owner: RefCounted, world: RefCounted) -> bool:
 			seen[share.matter] = true
 	var construction_allocations: Dictionary = {}
 	for matter: Dictionary in owner.matters.values():
+		if matter.kind == "department": continue
 		if occupied(owner, matter) > matter.total: return false
 		if matter.state == "active" and matter.operation == "construct" and occupied(owner, matter) > 0:
 			if construction_allocations.has(matter.target): return false

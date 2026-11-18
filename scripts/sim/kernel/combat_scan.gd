@@ -116,6 +116,7 @@ func bucket(point: Vector2) -> Vector2i:
 
 
 func index(world: RefCounted) -> void:
+	world.stations.invalidate()
 	index_calls += 1
 	index_rebuilds += 1
 	var started: int = Time.get_ticks_usec()

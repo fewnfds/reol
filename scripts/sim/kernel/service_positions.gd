@@ -12,17 +12,17 @@ static func uses_station(world: RefCounted, target: int) -> bool:
 
 static func occupants(world: RefCounted, point: Vector2, radius: float, actor: int, destinations: bool = true) -> Array[int]:
 	var result: Array[int] = []
-	# Destinations are already persistent in the original body pages. Reading
-	# them also sees an earlier admission in this same owner commit.
-	for page: RefCounted in world.pages:
-		for row: int in page.ids.size():
-			var other: int = page.ids[row]
-			if other == actor or page.health[row] <= 0: continue
-			var minimum: float = radius + page.radii[row] + CLEARANCE
-			if point.distance_squared_to(world.position_at(other)) < minimum * minimum:
-				result.append(other)
-			elif destinations and page.modes[row] in [world.Units.Mode.APPROACH, world.Units.Mode.RESOURCE, world.Units.Mode.EXPLORE, world.Units.Mode.MANUAL] and point.distance_squared_to(page.targets[row]) < minimum * minimum:
-				result.append(other)
+	for other: int in world.stations.nearby(world, point, radius + CLEARANCE, destinations):
+		if other == actor or not world.actor_slots.has(other): continue
+		var slot: int = int(world.actor_slots[other])
+		var page: RefCounted = world.pages[slot / 256]
+		var row: int = slot % 256
+		if page.health[row] <= 0: continue
+		var minimum: float = radius + page.radii[row] + CLEARANCE
+		if point.distance_squared_to(world.position_at(other)) < minimum * minimum:
+			result.append(other)
+		elif destinations and page.modes[row] in [world.Units.Mode.APPROACH, world.Units.Mode.RESOURCE, world.Units.Mode.EXPLORE, world.Units.Mode.MANUAL] and point.distance_squared_to(page.targets[row]) < minimum * minimum:
+			result.append(other)
 	return result
 
 static func idle_actor(world: RefCounted, actor: int) -> bool:

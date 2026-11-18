@@ -22,8 +22,11 @@ func delivery_spec(f: Dictionary, total: int = 4, quota: int = 2) -> Dictionary:
 func manual_transfer(w: RefCounted, actor: int, target: int, item: String, amount: int, handler: String, context: Dictionary = {}) -> Dictionary:
 	var request: Dictionary = {"kind": handler, "target": target, "item": item, "amount": amount}
 	request.merge(context, true)
-	var tile: int = w.objects.records[target].tile
-	move_actor(w, actor, Vector2(w.Terrain.cell(tile)) + Vector2(-0.5, 0.5))
+	var slot: int = w.actor_slots[actor]
+	var point: Vector2 = w.facilities.interaction_point(w, target, w.combat.position(w, actor), w.pages[slot / 256].radii[slot % 256], false, handler, actor)
+	check(point.x >= 0, "No empty fixture transfer station")
+	if point.x < 0: return {}
+	move_actor(w, actor, point)
 	check(w.execute_operation(actor, request) == "accepted", "Manual shared transfer was not admitted: " + str(request))
 	w.settle_action(actor, w.elapsed_ms)
 	advance(w, w.elapsed_ms + 550)

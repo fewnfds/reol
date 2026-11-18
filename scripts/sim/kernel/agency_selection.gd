@@ -88,7 +88,7 @@ func _finish() -> void:
 			var driver: String = Defs.GOALS[candidate.goal.definition].driver
 			if driver == "resource" and Defs.GOALS[candidate.goal.definition].metric in ["hp", "qi"]: continue
 			if driver == "development" and Growth.introduced(input.actor, candidate.goal.params.method) and int(Growth.Defs.METHODS[candidate.goal.params.method].source_qi_cost) > 0 and input.clues.values().any(func(place: Dictionary): return int(place.get("tile", -1)) >= 0 and int(place.get("source_qi_band", -1)) >= 0): continue
-			if driver not in ["duty", "service", "reporting", "responses"]:
+			if driver not in ["duty", "service", "reporting", "responses", "department"]:
 				var target: int = int(Planner.project(candidate.goal, input.actor).params.get("target", 0))
 				if not Planner.known_dead(input.clues.get(target, {})): searching = true
 			elif driver == "service" and not input.clues.values().any(func(value: Dictionary): return value.has("post_revision") and int(value.get("organization", 0)) == int(candidate.goal.params.organization)): searching = true
@@ -123,6 +123,7 @@ static func utility(goal: Dictionary, entry: Dictionary, actor: Dictionary, at: 
 			for request: Dictionary in actor.get("requests", []):
 				var time: int = Planner.Contacts.due(request, int(actor.id), actor.get("responsibilities", {}))
 				if time >= 0 and time <= at: value = maxf(value, 1.0 + minf(0.5, float(at - time) / 30000.0))
+		"department": value = 1.0 if actor.get("has_department_work", not actor.get("work_offers", []).is_empty()) else 0.0
 		"custody": value = 1.0 if not actor.returns.is_empty() else 0.0
 	value *= float(spec.weight)
 	if not spec.disposition.is_empty(): value *= float(entry.dispositions[spec.disposition])
@@ -158,13 +159,21 @@ static func retained(goal: Dictionary, choice: Dictionary, clues: Dictionary, ac
 		for clue: Dictionary in clues.values(): organizations[int(clue.get("organization", 0))] = true
 		for bundle: Dictionary in actor.get("bundles", []): organizations[int(bundle.organization)] = true
 		for organization: int in organizations: result["%d:study:%s" % [organization, book]] = true
-	var operation: Dictionary = Operations.OPERATIONS.get(choice.get("operation", ""), {})
-	var anchor: Dictionary = clues.get(int(choice.get("anchor", 0)), {})
+	var projected: Dictionary = Planner.project(goal, actor)
+	var operation_id: String = str(choice.get("operation", ""))
+	if operation_id.is_empty(): operation_id = str(projected.params.get("operation", ""))
+	var operation: Dictionary = Operations.OPERATIONS.get(operation_id, {})
+	var target: int = int(choice.get("anchor", 0))
+	if target <= 0: target = int(projected.params.get("target", 0))
+	var anchor: Dictionary = clues.get(target, {})
 	# Keep prerequisites while the known method remains usable, not after its
 	# actual site is known to be gone. Missing one ingredient alone is temporary.
-	if choice.is_empty() or (choice.anchor != actor.id and int(anchor.get("tile", -1)) < 0): return result
+	if target == 0 or (target != actor.id and int(anchor.get("tile", -1)) < 0): return result
 	if not operation.is_empty():
-		var organization: int = int(clues.get(choice.anchor, {}).get("organization", 0))
+		var place: Dictionary = anchor.duplicate()
+		if not operation.recipe.is_empty(): place["processing_purpose"] = str(operation.recipe.purpose)
+		if not Stock.access_reason(actor, place, str(operation.handler)).is_empty(): return result
+		var organization: int = int(anchor.get("organization", 0))
 		var inputs: Dictionary = operation.recipe.inputs if not operation.recipe.is_empty() else operation.required_items
 		var purpose: String = Stock.input_purpose(operation)
 		for item: String in inputs: result["%d:%s:%s" % [organization, purpose, item]] = true

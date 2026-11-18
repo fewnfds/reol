@@ -50,6 +50,9 @@ func busy_method_keeps_issued_material() -> void:
   for item: String in ["grain","water"]:
    var count: int=2 if item=="grain" else 1
    check(w.institutions.move_goods(w,actor,chest,item,count,"take",{"purpose":"cook"},0).status=="completed","Busy batch legitimate issue failed")
+ for item: String in ["grain","water"]:
+  check(w.institutions.move_goods(w,3,stove,item,2 if item=="grain" else 1,"put",{},0).status=="completed","Competing cook did not stock table")
+ move_actor(w,4,Vector2(125.5,125.5))
  check(w.begin_interaction(3,{"kind":"cook","target":stove})=="accepted","Competing cook did not occupy the real station")
  w.settle_action(3,0)
  resident(w,4,[chest,stove])
@@ -57,7 +60,7 @@ func busy_method_keeps_issued_material() -> void:
  var goal: int=w.livelihood.add_goal(w,4,"operation",{"operation":"cook","target":stove})
  w.decisions.prepare(w,0)
  advance(w,1100)
- check(w.objects.amount(4,"grain")==2 and w.objects.amount(chest,"grain")==0,"Brief target contention caused unneeded material return/reissue")
+ check(w.objects.amount(4,"grain")+w.objects.amount(stove,"grain")==4 and w.objects.amount(chest,"grain")==0,"Brief target contention returned or lost material instead of retaining it in bag/table: "+str({"bag":w.objects.inventory_summary(4),"table":w.objects.inventory_summary(stove),"store":w.objects.inventory_summary(chest),"action":w.actions.get(4,{}),"intent":w.livelihood.records[4].intention}))
  check(w.livelihood.records[4].goals[goal].state=="active" and Persistence.candidate(Persistence.capture(w),0)!=null,"Busy method lost its continuing purpose or recovery")
 
 func _run() -> void:

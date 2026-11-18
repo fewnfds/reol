@@ -102,6 +102,8 @@ func _ensure_goals(world: RefCounted, actor: int) -> void:
 		add_goal(world, actor, "reporting")
 		add_goal(world, actor, "responses")
 		for organization: int in world.institutions.permissions(actor): add_goal(world, actor, "organization_service", {"organization": organization})
+	world.institutions.Departments.ensure(world.institutions)
+	if world.institutions._work_departments.has(actor) or world.institutions._management_departments.has(actor): add_goal(world, actor, "department_work")
 	reconcile_duties(world, actor)
 
 func reconcile_duties(world: RefCounted, actor: int) -> bool:
@@ -157,6 +159,10 @@ func resource_changed(world: RefCounted, actor: int, metric: String, before: int
 
 func _self_view(world: RefCounted, actor: int) -> Dictionary:
 	var view: Dictionary = world.operation_actor(actor)
+	# Utility outside planning only needs to know that eligible work exists.
+	view["work_offers"] = []
+	view["has_department_work"] = world.institutions.Workflow.has_work(world.institutions, world, actor)
+	view["work_shipment"] = State.copy(world.institutions.Logistics.current(world.institutions, actor))
 	var slot: int = world.actor_slots[actor]
 	var page: RefCounted = world.pages[slot / 256]
 	view["hunger"] = page.hunger[slot % 256]
@@ -340,6 +346,7 @@ func prepare_plan(world: RefCounted, id: int, at: int) -> RefCounted:
 	if at - int(entry.budget.window_ms) >= BUDGET_MS:
 		entry.budget.window_ms = at; entry.budget.work = 0
 	var actor: Dictionary = State.copy(_self_view(world, id))
+	actor.work_offers = world.institutions.Workflow.personal(world.institutions, world, id)
 	var limit: int = Planner.WORK_LIMIT - (17 if Planner.Contacts.judgment_due(actor, at) else 0)
 	if int(entry.budget.work) >= limit:
 		world.decisions.wake(world, id, at, "planning_budget", maxi(1, int(entry.budget.window_ms) + BUDGET_MS - at))
@@ -424,7 +431,12 @@ func _adopt_choice(world: RefCounted, id: int, best: Dictionary, at: int) -> voi
 	var clue: Dictionary = world.knowledge.view(id, target, at)
 	var accepted: bool = false
 	world.decisions._submitting = id
-	if step.kind == "inspect" or (target != id and not world.sight.sees(world.combat.position(world, id), int(clue.get("tile", -1)), world.sight.range_for(world, id))):
+	if step.has("work_offer"):
+		var reason: String = world.institutions.Workflow.adopt(world.institutions, world, id, step.work_offer)
+		accepted = reason in ["accepted", "completed"]
+		if reason == "completed": after_action(world, id, at, target)
+		elif not accepted: _rejected(world, id, str(step.input.kind), target, reason, at)
+	elif step.kind == "inspect" or (target != id and not world.sight.sees(world.combat.position(world, id), int(clue.get("tile", -1)), world.sight.range_for(world, id))):
 		var tile: int = int(clue.get("tile", -1))
 		if tile >= 0:
 			_walk_to_site(world, id, world.terrain.nearest_open(tile), at, str(step.input.get("kind", "inspect")), target)
@@ -547,7 +559,7 @@ func _appraise(world: RefCounted, actor: int, operation: String, target: int, st
 		if status == "completed" and reason != "awaiting_response": accounts.erase(scoped)
 		if reason == "awaiting_response": key = scoped
 	if status == "completed" and reason != "awaiting_response": accounts.erase(key); return
-	if reason in ["planning_budget", "response_not_due"]: return
+	if reason in ["planning_budget", "response_not_due", "shipment_changed", "request_changed"]: return
 	if reason in ["preempted", "interrupted", "partner_left", "cancelled", "replaced", "joined_activity", "action_committed", "actor_dead", "actor_removed"]: return
 	var previous: Dictionary = accounts.get(key, {})
 	var failures: int = mini(6, int(previous.get("failures", 0)) + 1)

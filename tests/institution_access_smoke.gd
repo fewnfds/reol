@@ -25,13 +25,15 @@ func scoped_work_and_revoke() -> void:
 	for item: String in ["grain", "water"]:
 		check(w.institutions.move_goods(w, 4, chest, item, 2 if item == "grain" else 1, "take", {"purpose": "cook"}, 0).status == "completed", "Scoped lawful material issue failed")
 	check(not w.institutions.input_right(w, 4, {"grain": 2, "water": 1}, "cook", org).is_empty(), "Valid scoped materials became invisible in custody")
+	for item: String in ["grain", "water"]:
+		check(w.institutions.move_goods(w, 4, stove, item, 2 if item == "grain" else 1, "put", {}, 0).status == "completed", "Authorized workbench deposit refused")
 	check(w.begin_interaction(4, {"kind": "cook", "target": other}) == "not_authorized", "A purpose at one stove authorized another stove")
 	check(w.begin_interaction(4, {"kind": "cook", "target": stove}) == "accepted", "Scoped cook failed to use authorized stove")
 	w.settle_action(4, 0)
 	advance(w, 1000)
 	check(w.objects.records[stove].has("process") and w.objects.amount(4, "grain") == 0, "Scoped work never actually put ingredients in the pot")
 	check(w.institutions.revoke(w, a) and not w.actions.has(4) and not w.reservations.has(stove), "Revoking a role left an unauthorized running action")
-	check(w.objects.records[stove].process.remaining_ms < w.Operations.OPERATIONS.cook.recipe.work_ms and not w.objects.records[stove].work_stock.is_empty(), "Revocation lost actual labor or in-process materials")
+	check(w.objects.records[stove].process.remaining_ms < w.Operations.OPERATIONS.cook.recipe.work_ms and w.objects.records[stove].process.locked_inputs == {"grain": 2, "water": 1} and w.objects.amount(stove, "grain") == 2, "Revocation lost actual labor or locked inputs")
 	# This fixture has manual bodies. The outgoing cook must vacate the single
 	# station; authority revocation itself never pushes a person elsewhere.
 	move_actor(w, 4, Vector2(124.5, 124.5))

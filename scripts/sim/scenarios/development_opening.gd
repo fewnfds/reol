@@ -38,7 +38,7 @@ static func after_bodies(world: RefCounted) -> void:
 	world.facilities.seed_fixture(world, "long_bed", Terrain.index(Vector2i(176, 182)))
 	var stove: int = world.facilities.seed_fixture(world, "cook_stove", Terrain.index(Vector2i(174, 185)))
 	world.facilities.seed_fixture(world, "water_well", Terrain.index(Vector2i(168, 176)))
-	world.objects.add(stove, "meal", 30)
+	world.objects.add(stove, "meal", 3)
 	var supplies: int = world.objects.by_tile[Terrain.index(Vector2i(176, 186))][0]
 	world.objects.add(supplies, "grain", 30)
 	world.objects.add(supplies, "water", 30)

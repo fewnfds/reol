@@ -38,6 +38,8 @@ func local_records_and_explicit_reports() -> void:
 	check(share > 0 and w.institutions.Matters.occupied(w.institutions, w.institutions.matters[matter]) == 3, "On-site acceptance did not allocate a real share")
 	manual_transfer(w, 4, f.source, "grain", 2, "take", {"purpose": "cook"})
 	manual_transfer(w, 4, f.source, "water", 1, "take", {"purpose": "cook"})
+	manual_transfer(w, 4, f.stove, "grain", 2, "put", {"purpose": "cook"})
+	manual_transfer(w, 4, f.stove, "water", 1, "put", {"purpose": "cook"})
 	move_actor(w, 4, Vector2(127.5, 123.5))
 	check(w.execute_operation(4, {"kind": "cook", "target": int(f.stove)}) == "accepted", "Accepted board share did not use the actual production host")
 	w.settle_action(4, w.elapsed_ms); advance(w, w.elapsed_ms + 6000)

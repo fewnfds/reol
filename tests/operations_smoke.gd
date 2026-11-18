@@ -16,6 +16,9 @@ func shared_rules() -> void:
 		if option.id == "cook": cook = option
 	check(not cook.is_empty() and not cook.enabled and w.begin_interaction(1, {"kind": "cook", "target": stove}) == "missing_items", "UI and owner disagreed on common ingredients")
 	w.objects.add(1, "grain", 2)
+	w.institutions.move_goods(w, 1, stove, "grain", 2, "put", {}, w.elapsed_ms)
+	w.institutions.move_goods(w, 1, stove, "water", 1, "put", {}, w.elapsed_ms)
+	target = w.operation_target(stove)
 	w.pages[0].positions[0] = Vector2(124.5, 125.5)
 	check(Query.evaluate(Operations.OPERATIONS.cook, w.operation_actor(1), target).ready, "Shared query did not observe real ingredients")
 	check(w.begin_interaction(1, {"kind": "cook", "target": stove}) == "accepted", "Cooking admission failed")

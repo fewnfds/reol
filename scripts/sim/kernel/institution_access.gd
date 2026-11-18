@@ -6,17 +6,47 @@ const Duties = preload("res://scripts/sim/kernel/institution_duties.gd")
 const SERVICES: Array[String] = ["rest", "eat"]
 const LIMIT: int = 4096
 
+static func index(owner: RefCounted) -> void:
+	if not owner._access_dirty: return
+	owner._appointments_by_actor.clear()
+	owner._services_by_actor.clear()
+	owner._services_by_org.clear()
+	for id: int in owner.appointments:
+		var a: Dictionary = owner.appointments[id]
+		if not a.active: continue
+		if not owner._appointments_by_actor.has(int(a.actor)): owner._appointments_by_actor[int(a.actor)] = []
+		owner._appointments_by_actor[int(a.actor)].append(id)
+	for target: int in owner.services:
+		for purpose: String in owner.services[target]:
+			var rule: Dictionary = owner.services[target][purpose]
+			if rule.members:
+				if not owner._services_by_org.has(int(rule.organization)): owner._services_by_org[int(rule.organization)] = {}
+				owner._services_by_org[int(rule.organization)][target] = true
+			else:
+				for actor: int in rule.actors:
+					if not owner._services_by_actor.has(actor): owner._services_by_actor[actor] = {}
+					owner._services_by_actor[actor][target] = true
+	owner._access_dirty = false
+
+static func appointments_for(owner: RefCounted, actor: int) -> Array:
+	index(owner)
+	return owner._appointments_by_actor.get(actor, [])
+
 static func scope_grants(owner: RefCounted, actor: int) -> Array:
 	var result: Array = []
-	for appointment: Dictionary in owner.appointments.values():
-		if not appointment.active or appointment.actor != actor: continue
+	for id: int in appointments_for(owner, actor):
+		var appointment: Dictionary = owner.appointments[id]
 		var role: Dictionary = Defs.ROLES[appointment.role]
 		result.append({"organization": appointment.organization, "targets": appointment.targets.duplicate(), "purposes": role.purposes, "items": role.items, "all_items": role.all_items})
 	return result
 
 static func service_targets(owner: RefCounted, actor: int) -> Dictionary:
+	index(owner)
 	var result: Dictionary = {}
-	for target: int in owner.services:
+	var targets: Dictionary = owner._services_by_actor.get(actor, {}).duplicate()
+	for organization: int in owner.memberships:
+		if owner.memberships[organization].has(actor): targets.merge(owner._services_by_org.get(organization, {}))
+	for target: int in targets:
 		for purpose: String in owner.services[target]:
 			var rule: Dictionary = owner.services[target][purpose]
 			if actor in rule.actors or (rule.members and owner.memberships.get(rule.organization, {}).has(actor)):
@@ -59,6 +89,7 @@ static func appoint(owner: RefCounted, world: RefCounted, organization: int, act
 	var id: int = owner.next_appointment
 	owner.next_appointment += 1
 	owner.appointments[id] = {"id": id, "organization": organization, "actor": actor, "role": role, "targets": targets.duplicate(), "active": true, "since_ms": world.operation_time(), "duty_scope": duty_scope.duplicate(true)}
+	owner._access_dirty = true
 	if not world.livelihood.reconcile_duties(world, actor): owner.appointments.erase(id); return 0
 	owner.reconcile(world, actor)
 	return id
@@ -66,6 +97,7 @@ static func appoint(owner: RefCounted, world: RefCounted, organization: int, act
 static func revoke(owner: RefCounted, world: RefCounted, appointment: int) -> bool:
 	if not owner.appointments.has(appointment) or not owner.appointments[appointment].active: return false
 	owner.appointments[appointment].active = false
+	owner._access_dirty = true
 	world.livelihood.reconcile_duties(world, int(owner.appointments[appointment].actor))
 	owner.reconcile(world, int(owner.appointments[appointment].actor))
 	return true
@@ -84,6 +116,7 @@ static func arrange(owner: RefCounted, world: RefCounted, target: int, purpose: 
 	var previous: Dictionary = owner.services.get(target, {}).get(purpose, {}).duplicate()
 	if not owner.services.has(target): owner.services[target] = {}
 	owner.services[target][purpose] = {"organization": organization, "actors": actors.duplicate(), "members": members}
+	owner._access_dirty = true
 	_service_changed(owner, world, target, previous, owner.services[target][purpose])
 	return true
 
@@ -91,6 +124,7 @@ static func clear_service(owner: RefCounted, world: RefCounted, target: int, pur
 	if not owner.services.get(target, {}).has(purpose): return false
 	var previous: Dictionary = owner.services[target][purpose].duplicate()
 	owner.services[target].erase(purpose)
+	owner._access_dirty = true
 	if owner.services[target].is_empty(): owner.services.erase(target)
 	_service_changed(owner, world, target, previous, {})
 	return true
@@ -104,6 +138,15 @@ static func _service_changed(owner: RefCounted, world: RefCounted, target: int, 
 			owner.reconcile(world, actor, target)
 
 static func forget_target(owner: RefCounted, world: RefCounted, target: int) -> void:
+	owner.Departments.ensure(owner)
+	var department: int = int(owner._facility_department.get(target, 0))
+	if department > 0:
+		var dept: Dictionary = owner.departments[department]
+		dept.facilities.erase(target)
+		dept.production.erase(target)
+		for group: Dictionary in dept.groups.values(): group.facilities.erase(target)
+		owner.Departments.changed(owner, department, true)
+	owner._access_dirty = true
 	owner.services.erase(target)
 	for appointment: Dictionary in owner.appointments.values():
 		if not appointment.active or target not in appointment.targets: continue

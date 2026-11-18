@@ -44,7 +44,7 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 		return null
 	if not _objects_valid(world):
 		return null
-	if not world.institutions.valid(world): return null
+	if not world.institutions.valid(world, false): return null
 	var slot: int = 0
 	for value: Variant in data.pages:
 		var page := Units.new()
@@ -82,6 +82,7 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 	if not _processes_valid(world):
 		return null
 	if not world.Production.valid(world): return null
+	if not world.institutions.Logistics.valid(world.institutions, world): return null
 	if not world.facilities.Sources.rebuild(world): return null
 	if not world.knowledge.valid(world): return null
 	var environment: RefCounted = world.environment
@@ -108,6 +109,7 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 		return null
 	if not world.perception.rebuild(world):
 		return null
+	world.institutions.Workflow.rebuild(world.institutions, world)
 	world.configure_lanes(workers)
 	world.combat.scan.index(world)
 	return world
@@ -146,6 +148,7 @@ static func _objects_valid(world: RefCounted) -> bool:
 		if record.get("id") != id or not record.get("kind") is String or not record.get("definition") is String or record.has("inventory") or record.has("known") or record.has("observe_due") or not record.get("capacity") is int or not record.get("tile") is int:
 			return false
 		if not record.get("owner") is int or record.owner < 0 or record.owner >= world.objects.next_id or not record.get("organization") is int or record.organization < 0 or (record.owner > 0 and record.organization > 0): return false
+		if record.has("storage_policy") and not world.objects.Stock.valid_storage_policy(record.storage_policy, world.objects.next_id): return false
 		if record.kind != "actor" and not record.get("hp") is int:
 			return false
 		if not Growth.valid_record(record, world.objects.next_id, world.elapsed_ms): return false
@@ -166,7 +169,7 @@ static func _objects_valid(world: RefCounted) -> bool:
 			if not record.get("remaining_ms") is int or record.remaining_ms < 1: return false
 		if (not record.get("sight_range") is float and not record.get("sight_range") is int) or not is_finite(float(record.sight_range)) or record.sight_range < 0 or record.sight_range > world.terrain.SIZE * 2.0:
 			return false
-		for contents: Variant in [record.get("stock"), record.get("materials", {}), record.get("work_stock", {})]:
+		for contents: Variant in [record.get("stock"), record.get("materials", {})]:
 			if not world.objects.Stock.valid(contents, world.objects.next_id): return false
 		world.objects._refresh(id, false)
 		if record.capacity >= 0 and world.objects.count_inventory(id) > record.capacity:
@@ -190,7 +193,7 @@ static func _objects_valid(world: RefCounted) -> bool:
 						if world.terrain.blocked[member] == 0: return false
 			elif world.facilities.definitions.has(record.definition):
 				var spec: Dictionary = world.facilities.definitions[record.definition]
-				var kind: String = "chest" if spec.get("capabilities", {}).has("storage") else str(spec.kind)
+				var kind: String = str(spec.kind)
 				if record.kind != kind or record.get("layer", "ground") != spec.get("layer", "ground") or members != world.facilities.footprint(record.definition, tile, int(record.get("facing", 0))): return false
 				for member: int in members:
 					if record.get("layer", "ground") == "floor":

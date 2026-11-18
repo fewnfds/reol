@@ -9,7 +9,11 @@ const Defs = preload("res://scripts/sim/kernel/institution_defs.gd")
 const Matters = preload("res://scripts/sim/kernel/institution_matters.gd")
 const Duties = preload("res://scripts/sim/kernel/institution_duties.gd")
 const Channels = preload("res://scripts/sim/kernel/institution_channels.gd")
-const STATE_FIELDS: Array = ["next_organization", "organizations", "memberships", "next_entrust", "entrustments", "accounts", "next_appointment", "appointments", "services", "catalog_signature", "next_matter", "matters", "next_share", "shares", "matter_ledger", "channels"]
+const Departments = preload("res://scripts/sim/kernel/department_rules.gd")
+const Orders = preload("res://scripts/sim/kernel/department_orders.gd")
+const Logistics = preload("res://scripts/sim/kernel/department_logistics.gd")
+const Workflow = preload("res://scripts/sim/kernel/department_workflow.gd")
+const STATE_FIELDS: Array = ["next_organization", "organizations", "memberships", "next_entrust", "entrustments", "accounts", "next_appointment", "appointments", "services", "catalog_signature", "next_matter", "matters", "next_share", "shares", "matter_ledger", "channels", "next_department", "departments", "department_revision", "next_shipment", "shipments", "next_supply_request", "supply_requests"]
 const PURPOSES: Array[String] = Stock.PURPOSES
 const ISSUE_PURPOSES: Array[String] = Stock.ISSUE_PURPOSES
 const COUNTERS: Array[String] = ["issued", "consumed", "produced", "delivered", "returned", "donated"]
@@ -32,6 +36,52 @@ var _shares_by_actor: Dictionary = {} # Rebuilt identity index, never another pr
 var _shares_by_matter: Dictionary = {}
 var channels: Dictionary = {}
 var _channel_shares: Dictionary = {}
+var next_shipment: int = 1
+var shipments: Dictionary = {}
+var next_supply_request: int = 1
+var supply_requests: Dictionary = {}
+var _logistics_dirty: bool = true
+var _entrust_shipment: Dictionary = {}
+var _process_due: Array = []
+var _shipments_by_actor: Dictionary = {}
+var _shipments_by_source: Dictionary = {}
+var _shipments_by_target: Dictionary = {}
+var _requests_by_department: Dictionary = {}
+var _requests_by_supplier: Dictionary = {}
+var _recent_supply: Dictionary = {} # Bounded closed request references for management feedback.
+var _orders_dirty: bool = true
+var _orders_by_department: Dictionary = {}
+var _order_wip: Dictionary = {}
+var _order_due: Array = []
+var _work_dirty: Dictionary = {}
+var _work_offers: Dictionary = {}
+var _work_retry: Array = [] # Known retry deadlines for still-unclaimed ready work.
+var next_department: int = 1
+var departments: Dictionary = {}
+var department_revision: int = 1
+var _department_index_dirty: bool = true
+var _work_departments: Dictionary = {}
+var _labor_targets: Dictionary = {} # actor -> duty -> target set, derived from assignments.
+var _work_cursor: Dictionary = {} # Fair departmental wake rotation; not saved.
+var _management_departments: Dictionary = {}
+var _facility_department: Dictionary = {}
+var _department_children: Dictionary = {}
+var _access_dirty: bool = true
+var _appointments_by_actor: Dictionary = {}
+var _services_by_actor: Dictionary = {}
+var _services_by_org: Dictionary = {}
+
+func inventory_changed(target: int) -> void:
+	Workflow.stock_changed(self, target)
+
+func source_reserved(source: int, item: String, right: Dictionary, excluded: int) -> int:
+	return Logistics.source_claimed(self, source, item, right, excluded)
+
+func capacity_reserved(target: int, excluded: int) -> int:
+	return Logistics.target_claimed(self, target, excluded)
+
+func management(world: RefCounted, actor: int, request: Dictionary) -> String:
+	return Departments.command(self, world, actor, request)
 
 func create_matter(world: RefCounted, issuer: int, spec: Dictionary) -> int:
 	return Matters.create(self, world, issuer, spec)
@@ -49,6 +99,7 @@ func revise_matter(world: RefCounted, actor: int, matter: int, total: int, quota
 	return Matters.revise(self, world, actor, matter, total, quota, deadline)
 
 func outcome(world: RefCounted, result: Dictionary) -> void:
+	Orders.outcome(self, world, result)
 	Matters.outcome(self, world, result)
 
 func appoint(world: RefCounted, organization: int, actor: int, role: String, targets: Array, duty_scope: Dictionary = {}) -> int:
@@ -93,10 +144,11 @@ func access_view(world: RefCounted, actor: int) -> Dictionary:
 	for bundle: Dictionary in pending:
 		if not returned.has(int(bundle.organization)): returned[int(bundle.organization)] = {}
 		for item: String in bundle.items: _add(returned[int(bundle.organization)], item, int(bundle.items[item]))
-	return {"memberships": membership_view(actor), "permissions": permissions(actor), "scope_grants": Access.scope_grants(self, actor) + Matters.grants(self, world, actor), "task_access": Matters.task_access(self, actor), "responsibilities": Matters.views(self, world, actor), "duties": Duties.views(self, actor), "reports": Channels.own_receipts(self, actor, true), "channel_receipts": Channels.own_receipts(self, actor), "service_targets": Access.service_targets(self, actor), "return_items": returned, "return_bundles": pending}
+	return {"memberships": membership_view(actor), "permissions": permissions(actor), "scope_grants": Access.scope_grants(self, actor) + Matters.grants(self, world, actor) + Departments.grants(self, actor) + Workflow.grants(self, actor), "task_access": Matters.task_access(self, actor), "responsibilities": Matters.views(self, world, actor), "duties": Duties.views(self, actor), "reports": Channels.own_receipts(self, actor, true), "channel_receipts": Channels.own_receipts(self, actor), "service_targets": Access.service_targets(self, actor), "return_items": returned, "return_bundles": pending}
 
 func reconcile(world: RefCounted, actor: int, target: int = 0) -> void:
 	if not world.actor_slots.has(actor) or not world.combat.alive(world, actor): return
+	Logistics.reconcile_worker(self, world, actor)
 	var action: Dictionary = world.actions.get(actor, {})
 	var denied: bool = false
 	if not action.is_empty() and world._finishing.get(actor) != action.run_id and (target == 0 or action.target == target):
@@ -134,6 +186,7 @@ func permits(actor: int, organization: int, purpose: String) -> bool:
 	return purpose in memberships.get(organization, {}).get(actor, [])
 
 func transfer_context_valid(context: Dictionary) -> bool:
+	if context.has("shipment") and (not context.shipment is int or not shipments.has(context.shipment)): return false
 	if context.has("purpose") and (not context.purpose is String or (not context.purpose.is_empty() and context.purpose not in ISSUE_PURPOSES)): return false
 	if context.has("donate") and not context.donate is bool: return false
 	if context.has("source_organization") and (not context.source_organization is int or (context.source_organization != 0 and not organizations.has(context.source_organization))): return false
@@ -205,10 +258,10 @@ func equipment_right(world: RefCounted, actor: int, item: String) -> Dictionary:
 		if int(bundle.items.get(item, 0)) > 0 and (bundle.owner == actor or bundle.purpose == "equip"): return Stock.attribution(bundle)
 	return {}
 
-func _mandate(actor: int, organization: int, purpose: String, now: int, origin: int = 0) -> int:
+func _mandate(actor: int, organization: int, purpose: String, now: int, origin: int = 0, shipment: int = 0) -> int:
 	for id: int in entrustments:
 		var record: Dictionary = entrustments[id]
-		if record.custodian == actor and record.organization == organization and record.purpose == purpose and record.origin == origin: return id
+		if shipment == 0 and record.custodian == actor and record.organization == organization and record.purpose == purpose and record.origin == origin and not _entrust_shipment.has(int(record.id)): return id
 	var id: int = next_entrust
 	next_entrust += 1
 	entrustments[id] = {"id": id, "organization": organization, "custodian": actor, "purpose": purpose,
@@ -245,7 +298,12 @@ func _close(id: int, now: int, changed: bool = true) -> void:
 func move_goods(world: RefCounted, actor: int, target: int, item: String, requested: int, handler: String, context: Dictionary, now: int) -> Dictionary:
 	if not world.actor_slots.has(actor) or not world.combat.alive(world, actor) or not world.objects.records.has(target) or not Items.valid(item) or requested <= 0 or handler not in ["take", "put"] or not transfer_context_valid(context): return Results.refused("invalid_transfer_context")
 	var actor_view: Dictionary = world.operation_actor(actor)
-	var target_view: Dictionary = world.operation_target(target)
+	if handler == "put" and not Logistics.accepts(world, target, item): return Results.refused("storage_rejected")
+	var shipment_id: int = int(context.get("shipment", 0))
+	if shipment_id > 0:
+		var shipment_reason: String = Logistics.transfer_reason(self, actor, target, item, requested, handler, shipment_id)
+		if not shipment_reason.is_empty(): return Results.refused(shipment_reason)
+	var target_view: Dictionary = world.operation_target(target, shipment_id)
 	var access_context: Dictionary = context.duplicate(); access_context["item"] = item
 	var access: String = Stock.access_reason(actor_view, target_view, handler, access_context)
 	if not access.is_empty(): return Results.refused(access)
@@ -266,6 +324,11 @@ func move_goods(world: RefCounted, actor: int, target: int, item: String, reques
 		candidates.sort_custom(func(a: Dictionary, b: Dictionary): return int(a.organization != destination_org or a.entrust == 0) < int(b.organization != destination_org or b.entrust == 0))
 	for right: Dictionary in candidates:
 		if amount >= requested or mandates.size() >= 64: break
+		if handler == "put" and _entrust_shipment.has(int(right.entrust)) and int(_entrust_shipment[int(right.entrust)]) != shipment_id: continue
+		if shipment_id > 0:
+			var shipment: Dictionary = shipments[shipment_id]
+			if handler == "take" and right != shipment.right: continue
+			if handler == "put" and int(right.entrust) != int(shipment.entrust): continue
 		var replacement: Dictionary = right
 		var mandate: Dictionary = entrustments.get(int(right.entrust), {})
 		var accounting: String = ""
@@ -288,7 +351,7 @@ func move_goods(world: RefCounted, actor: int, target: int, item: String, reques
 					if purpose.is_empty(): reason = "purpose_required"; continue
 					if purpose not in ISSUE_PURPOSES: reason = "invalid_purpose"; continue
 					if not Stock.permits_issue(actor_view, target_view, int(right.organization), purpose, item): reason = "not_authorized"; continue
-					created = _mandate(actor, right.organization, purpose, now, source if purpose == "supply" else 0)
+					created = _mandate(actor, right.organization, purpose, now, source if purpose == "supply" else 0, shipment_id)
 					mandate = entrustments[created]
 					replacement = Stock.right(0, right.organization, created)
 					accounting = "issued"
@@ -297,8 +360,13 @@ func move_goods(world: RefCounted, actor: int, target: int, item: String, reques
 		else:
 			if not str(context.get("purpose", "")).is_empty() and mandate.get("purpose", "") != context.purpose: continue
 			if context.has("origins") and int(mandate.get("origin", 0)) not in context.origins: continue
+			# Manual supply uses the same source policy as automatic shipments.
+			# A contracted shipment already has its own accepted destination;
+			# its cancellation/return lifecycle owns later policy changes.
+			if shipment_id == 0 and mandate.get("purpose") == "supply" and int(mandate.get("origin", 0)) != destination and not Logistics.permits_delivery(world, int(mandate.origin), destination, item):
+				reason = "supply_destination_required"; continue
 			if context.get("donate", false) and right != Stock.right(actor): continue
-			if organization > 0 and not Stock.permits_at(actor_view, target_view, "put", item) and not (right.organization == organization and right.entrust > 0 and target_view.kind == "chest"): continue
+			if organization > 0 and not Stock.permits_at(actor_view, target_view, "put", item) and not (right.organization == organization and right.entrust > 0 and target_view.kind in ["chest", "workbench"]): continue
 			if right == Stock.right(actor):
 				if context.get("donate", false):
 					if organization <= 0 or not Stock.permits_at(actor_view, target_view, "put", item): continue
@@ -313,7 +381,7 @@ func move_goods(world: RefCounted, actor: int, target: int, item: String, reques
 			elif right != Stock.right(): continue
 		var supply_delivery: bool = accounting == "returned" and mandate.get("purpose") == "supply" and int(mandate.get("origin", 0)) != destination
 		if supply_delivery and deliveries.size() >= 16: break # Publish complete bounded evidence for every adopted transfer.
-		var moved: int = world.objects.transfer_possessions(source, destination, item, requested - amount, right, replacement, corpse)
+		var moved: int = world.objects.transfer_possessions(source, destination, item, requested - amount, right, replacement, corpse, shipment_id)
 		if moved <= 0:
 			if created > 0: _close(created, now, false)
 			continue
@@ -327,6 +395,8 @@ func move_goods(world: RefCounted, actor: int, target: int, item: String, reques
 			mandate.updated_ms = now
 			if not mandates.has(mandate.id): mandates.append(mandate.id)
 			_close(mandate.id, now)
+	if shipment_id > 0:
+		Logistics.transferred(self, world, shipment_id, handler, amount, int(mandates[0]) if not mandates.is_empty() else 0, now)
 	return Results.completed({"item": item, "requested": requested, "amount": amount, "returned": returned, "supply_returned": supply_returned, "deliveries": deliveries, "source": source, "destination": destination, "entrustments": mandates}, "transferred") if amount > 0 else Results.refused(reason)
 
 func consume_at(world: RefCounted, actor: int, target: int, item: String, count: int, purpose: String) -> bool:
@@ -362,10 +432,8 @@ func acquire_yield(world: RefCounted, actor: int, target: int, item: String, cou
 
 func convert_at(world: RefCounted, target: int, inputs: Dictionary, outputs: Dictionary, right: Dictionary, now: int, field: String) -> Dictionary:
 	var output_right: Dictionary = Stock.right(int(right.owner), int(right.organization))
-	if not world.objects.can_receive(target, outputs, output_right): return Results.refused("no_output_capacity")
-	if not world.objects.consume(target, inputs, right, field): return Results.refused("missing_authorized_ingredients")
+	if field != "stock" or not world.objects.convert(target, inputs, outputs, right, int(world.objects.records[target].get("process", {}).get("id", 0))): return Results.refused("conversion_blocked")
 	var mandate: Dictionary = entrustments.get(int(right.entrust), {})
-	for item: String in outputs: world.objects.add(target, item, int(outputs[item]), output_right)
 	if not mandate.is_empty():
 		for item: String in inputs: _add(mandate.consumed, item, int(inputs[item]))
 		for item: String in outputs:
@@ -391,7 +459,8 @@ func complete_asset(world: RefCounted, target: int, field: String, now: int) -> 
 		_close(id, now)
 	return used
 
-func valid(world: RefCounted) -> bool:
+func valid(world: RefCounted, bodies_ready: bool = true) -> bool:
+	if not Departments.valid(self, world) or (bodies_ready and not Logistics.valid(self, world)): return false
 	if next_organization < 1 or next_organization > Stock.MAX_COUNT or next_entrust < 1 or next_entrust > 999999999999: return false
 	for id: Variant in organizations:
 		if not id is int or id <= 0 or id >= next_organization or not organizations[id] is Dictionary or organizations[id].size() != 2 or not organizations[id].get("id") is int or organizations[id].id != id or not organizations[id].get("name") is String or organizations[id].name.is_empty() or organizations[id].name.length() > 80: return false
@@ -422,13 +491,13 @@ func valid(world: RefCounted) -> bool:
 		var object: Dictionary = world.objects.records[target]
 		if object.organization > 0 and not organizations.has(object.organization): return false
 		var material: Array = []
-		for field: String in ["stock", "materials", "work_stock"]:
+		for field: String in ["stock", "materials"]:
 			for batches: Array in object.get(field, {}).values(): material.append_array(batches)
 		for gear: Dictionary in object.get("equipment", {}).values(): material.append(gear)
 		for batch: Dictionary in material:
 			if batch.organization > 0 and not organizations.has(batch.organization): return false
 		# Preserve the item key when validating actual outstanding quantities.
-		for field: String in ["stock", "materials", "work_stock"]:
+		for field: String in ["stock", "materials"]:
 			for item: String in object.get(field, {}):
 				for batch: Dictionary in object[field][item]:
 					if not _outstanding(outstanding, batch, item, int(batch.count)): return false

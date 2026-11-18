@@ -5,7 +5,7 @@
 
 [sub_resource type="Resource" id="Target0"]
 script = ExtResource("target")
-kinds = PackedStringArray("pile", "chest", "resource")
+kinds = PackedStringArray("pile", "chest", "resource", "source")
 nonempty = true
 
 [sub_resource type="Resource" id="Corpse"]

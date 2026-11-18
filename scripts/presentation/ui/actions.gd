@@ -7,6 +7,23 @@ const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const Query = preload("res://scripts/sim/kernel/operation_query.gd")
 const SubjectView = preload("res://scripts/presentation/ui/subject_view.gd")
 const REASONS: Dictionary = {
+	"management_updated": "管理安排已更新",
+	"workspace_updated": "工作范围已刷新",
+	"configuration_changed": "配置已变化，已刷新；请重试",
+	"invalid_configuration": "配置无效，请核对对象、范围和数值",
+	"invalid_worker": "人员不存在、已死亡或不属于本宗",
+	"department_gone": "部门已不存在",
+	"batch_paused": "本批已暂停，需在职责面板继续",
+	"batch_cancelled": "本批已取消，原料仍在台内",
+	"process_changed": "此批次已结束或更换",
+	"production_target_met": "当前目标已达到、暂停或未配置",
+	"shipment_changed": "运输条件已变化，请重新选取工作",
+	"request_changed": "供料需求已变化",
+	"storage_rejected": "仓储规则不接收此物品或品质",
+	"entrusted_goods_cannot_be_dropped": "受托公物须交付或退回，不能当作个人物品丢弃",
+	"supply_destination_required": "此仓限定供给去向，请按供料用途领出并送往获准设施",
+	"conversion_blocked": "台内转换条件变化，原料与已做工时保留",
+
 	"action_committed": "当前动作尚不能取消",
 	"cooldown": "技能冷却中",
 	"in_combat": "战斗中暂不能换装",

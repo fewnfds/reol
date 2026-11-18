@@ -10,7 +10,7 @@ func _run() -> void:
 	initial.personal_qi = 0
 	var worker: int = 0
 	var stove: int = 0
-	while w.elapsed_ms < 40000 and worker == 0:
+	while w.elapsed_ms < 120000 and worker == 0:
 		w.step(50); account_opening(w)
 		for actor: int in w.actions:
 			var action: Dictionary = w.actions[actor]
@@ -22,14 +22,14 @@ func _run() -> void:
 	var organization: int = int(w.objects.records[stove].organization)
 	var far_actor: int = 99 if worker < 76 else 24
 	var old_clue: PackedByteArray = var_to_bytes(w.knowledge.view(far_actor, worker, w.elapsed_ms))
-	var stock: PackedByteArray = var_to_bytes(w.objects.records[stove].work_stock)
+	var stock: PackedByteArray = var_to_bytes(w.objects.records[stove].stock)
 	# The disruption is deliberate test input; ordinary life up to and after it
 	# remains the product World, institutions, knowledge and autonomous planner.
 	w.kill(worker, w.elapsed_ms, "verification")
 	account_opening(w); audit(w)
 	check(not w.actions.has(worker) and worker not in w.reservations.values(), "Dead worker retained an activity or place lock")
 	check(int(w.objects.records[stove].process.id) == process and int(w.objects.records[stove].process.remaining_ms) < 4000 and int(w.objects.records[stove].process.remaining_ms) > 0, "Worker death erased or completed unfinished shared labor")
-	check(var_to_bytes(w.objects.records[stove].work_stock) == stock and int(w.objects.records[stove].process.contributions.get(worker, 0)) > 0, "Death lost public inputs or the actual contribution")
+	check(var_to_bytes(w.objects.records[stove].stock) == stock and int(w.objects.records[stove].process.contributions.get(worker, 0)) > 0, "Death lost public inputs or the actual contribution")
 	check(var_to_bytes(w.knowledge.view(far_actor, worker, w.elapsed_ms)) == old_clue, "Remote resident learned an unobserved death")
 	var path: String = "user://settlement-disruption-fixture.bin"
 	var file := FileAccess.open(path, FileAccess.WRITE)
@@ -42,7 +42,7 @@ func _run() -> void:
 	check(restored != null, "Interrupted hundred-person shared process failed actual file restoration")
 	if restored == null: quit(1); return
 	w = restored
-	check(int(w.objects.records[stove].process.id) == process and var_to_bytes(w.objects.records[stove].work_stock) == stock, "Restoration replaced the actual batch or its attribution")
+	check(int(w.objects.records[stove].process.id) == process and var_to_bytes(w.objects.records[stove].stock) == stock, "Restoration replaced the actual batch or its attribution")
 	var successor: int = 0
 	var completed_at: int = -1
 	var delivered: bool = false

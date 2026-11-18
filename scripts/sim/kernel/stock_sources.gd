@@ -35,7 +35,7 @@ static func pulse(world: RefCounted, at: int) -> void:
 		var source: Dictionary = spec(world.facilities.definitions[record.definition])
 		var periods: int = 1 + (at - int(record.source_due_ms)) / int(source.period_ms)
 		record.source_due_ms += periods * int(source.period_ms)
-		var count: int = mini(periods * int(source.amount), int(source.capacity) - world.objects.amount(id, source.item))
+		var count: int = mini(periods * int(source.amount), world.objects.free_capacity(id))
 		if count > 0:
 			world.objects.add(id, source.item, count)
 			record.source_generated += count

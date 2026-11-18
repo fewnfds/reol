@@ -44,6 +44,7 @@ const Production = preload("res://scripts/sim/kernel/production.gd")
 const Knowledge = preload("res://scripts/sim/kernel/knowledge.gd")
 const Equipment = preload("res://scripts/sim/kernel/equipment.gd")
 const Development = preload("res://scripts/sim/scenarios/development_opening.gd")
+var stations = preload("res://scripts/sim/kernel/station_space.gd").new()
 var instant_actor: int = 0 # Transient commit guard; never another action host.
 
 class Lane extends RefCounted:
@@ -137,6 +138,11 @@ var preparation_usec: int = 0 # Outer preparation only; nested combat/index time
 var intervals: int = 0
 
 
+func _init() -> void:
+	objects.changed = institutions.inventory_changed
+	objects.source_reserved = institutions.source_reserved
+	objects.capacity_reserved = institutions.capacity_reserved
+
 func initialize(count: int = 1000, requested_workers: int = 4, stress_environment: bool = false, opening: String = "development") -> bool:
 	if not Beings.ERRORS.is_empty():
 		push_error("Invalid being definitions: " + str(Beings.ERRORS))
@@ -193,6 +199,7 @@ func emit(event: Dictionary) -> void:
 
 
 func configure_lanes(requested_workers: int) -> void:
+	for page: RefCounted in pages: page.station_changed = stations.destination_changed
 	self.requested_workers = requested_workers
 	workers = Batch.resolve_workers(requested_workers, pages.size())
 	lanes.clear()
@@ -348,6 +355,7 @@ func _advance_interval(end: int) -> void:
 			# motion slice, when both authoritative endpoints are current.
 			if page.modes[row] == Units.Mode.APPROACH and Operations.contact_operation(str(actions.get(id, {}).get("kind", ""))) and actor_slots.has(actions[id].target): continue
 			events.append({"event": "world_ready", "actor": id, "at_ms": clampi(page.ready[entry + 1], elapsed_ms, end), "expected": gate.current(id), "mode": page.modes[row], "route_version": page.route_versions[row]})
+	stations.invalidate()
 	combat.step(self, elapsed_ms, end, events)
 	_commit_ms = end
 	flush_topology()
@@ -387,7 +395,9 @@ func _advance_interval(end: int) -> void:
 	_commit_ms = -1
 	elapsed_ms = end
 	perception.update(self, end)
-	if end % 50 == 0: knowledge.pulse(self, end)
+	if end % 50 == 0:
+		institutions.Workflow.service(institutions, self, end)
+		knowledge.pulse(self, end)
 
 
 func operation_time() -> int:
@@ -556,10 +566,15 @@ func end_run(id: int, at: int = -1, reason: String = "replaced", outcome: Dictio
 			interaction = action
 			actions.erase(id)
 			if reservations.get(action.target, 0) == id: reservations.erase(action.target)
+			institutions.Departments.ensure(institutions)
+			institutions.Workflow.dirty(institutions, int(institutions._facility_department.get(int(action.target), 0)))
 			var final: Dictionary = State.copy(outcome) if not outcome.is_empty() else ActivityResults.interrupted(reason)
 			if final.status != "completed": final.facts.merge(facilities.interrupt(self, Operations.domain_action(action), now), true)
 			knowledge.outcome(self, id, action.kind, action.target, final.status, final.reason, now, action.has("started_ms"))
 			if int(action.get("worked_ms", 0)) > 0: final.facts["worked_ms"] = int(final.facts.get("worked_ms", 0)) + int(action.worked_ms)
+			if action.has("shipment"):
+				final.facts["shipment"] = action.shipment
+				if final.status != "completed": institutions.Logistics.blocked(institutions, self, int(action.shipment), str(final.reason))
 			result = commit_activity(binding.run_id, action.kind, id, action.target, action.get("participants", [id]), now, final)
 		"partner":
 			var wait: Dictionary = society.waits[id]
@@ -607,6 +622,7 @@ func clear_navigation(id: int) -> void:
 	page.route_cursors[slot % 256] = 0
 	page.route_versions[slot % 256] += 1
 	page.targets[slot % 256] = page.positions[slot % 256]
+	stations.destination_changed(id, page.positions[slot % 256], page.targets[slot % 256], page.radii[slot % 256] + 0.04)
 	page.direct_velocities[slot % 256] = Vector2.ZERO
 
 func clear_input(id: int) -> void:
@@ -731,6 +747,7 @@ func forget_target(target: int, at: int = -1) -> void:
 			pages[slot / Units.PAGE_SIZE].modes[slot % Units.PAGE_SIZE] = Units.Mode.IDLE
 			if automatic:
 				livelihood.after_action(self, actor, now)
+	institutions.Logistics.forget(institutions, self, target)
 	institutions.Access.forget_target(institutions, self, target)
 	institutions.Channels.forget(institutions, target)
 	reservations.erase(target)
@@ -777,6 +794,16 @@ func _command(input: Dictionary) -> Dictionary:
 	var row: int = slot % Units.PAGE_SIZE
 	if page.health[row] <= 0:
 		receipt.reason = "dead"
+		return receipt
+	if input.get("kind") == "management":
+		receipt.reason = institutions.management(self, id, input)
+		receipt.ok = receipt.reason == "management_updated"
+		return receipt
+	if input.get("kind") == "department_work":
+		var offer: Variant = input.get("offer")
+		if not institutions.Workflow.valid_offer(offer): return receipt
+		receipt.reason = institutions.Workflow.adopt(institutions, self, id, offer)
+		receipt.ok = receipt.reason in ["accepted", "completed"]
 		return receipt
 	if elapsed_ms < int(combat.status.get(id, {}).get("stun_until", 0)) and input.get("kind", "") not in ["action", "heal", "save", "load"]:
 		receipt.reason = "stunned"
@@ -831,6 +858,7 @@ func _command(input: Dictionary) -> Dictionary:
 			release(id)
 			page.flight[row] = flight
 			page.radii[row] = radius
+			stations.invalidate()
 			page.modes[row] = Units.Mode.IDLE
 			if objects.records[id].get("autonomous", false): livelihood.after_action(self, id, elapsed_ms)
 		"move":
@@ -943,15 +971,14 @@ func _command(input: Dictionary) -> Dictionary:
 			environment.weather_override = clampi(int(input.get("weather", -1)), -1, 3)
 		"drop":
 			var item: String = str(input.get("item", "wood"))
-			var count: int = mini(int(input.get("amount", 10)), objects.amount(id, item))
+			var count: int = mini(int(input.get("amount", 10)), objects.amount(id, item, objects.Stock.right(id)))
 			if count <= 0:
-				receipt.reason = "empty"
+				receipt.reason = "entrusted_goods_cannot_be_dropped" if objects.amount(id, item) > 0 else "empty"
 				return receipt
 			release(id)
 			page.modes[row] = Units.Mode.IDLE
 			var pile: int = objects.create("pile", item, Terrain.index(Vector2i(page.positions[row])))
-			var personal: int = objects.transfer(id, pile, item, count, objects.Stock.right(id))
-			if personal < count: objects.transfer(id, pile, item, count - personal)
+			objects.transfer(id, pile, item, count, objects.Stock.right(id))
 			_sync_inventory(id)
 			if objects.records[id].get("autonomous", false): livelihood.after_action(self, id, elapsed_ms)
 		"build":
@@ -1079,7 +1106,8 @@ func begin_transfer(id: int, input: Dictionary) -> String:
 	var target: int = int(input.get("target", 0))
 	var context: Dictionary = input.duplicate()
 	context["item"] = input.get("item", "wood")
-	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(target), context)
+	if operation.handler == "put" and not institutions.Logistics.accepts(self, target, str(context.item)): return "storage_rejected"
+	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(target, int(context.get("shipment", 0))), context)
 	if not query.ready: return query.reason
 	var kind: String = operation.handler
 	var item: String = str(input.get("item", "wood"))
@@ -1088,7 +1116,7 @@ func begin_transfer(id: int, input: Dictionary) -> String:
 	if count <= 0 or objects.goods_amount(source, item, {}, kind == "take" and actor_slots.has(source) and not combat.alive(self, source)) <= 0:
 		return "empty"
 	var destination: int = id if kind == "take" else target
-	if objects.records[destination].capacity >= 0 and objects.count_inventory(destination) >= objects.records[destination].capacity:
+	if objects.records[destination].capacity >= 0 and objects.free_capacity(destination, int(input.get("shipment", 0))) <= 0:
 		return "full"
 	var request: Dictionary = input.duplicate()
 	request["item"] = item
@@ -1109,18 +1137,23 @@ func operation_actor(id: int) -> Dictionary:
 		"carried": objects.inventory_summary(id), "readable": institutions.readable(self, id, available), "bundles": available, "returns": institutions.returns(self, id),
 		"abilities": Growth.abilities(record), "body_capabilities": Beings.capabilities(record), "pools": State.copy(pools.records.get(id, {})), "admission_reason": gate.check(self, id, operation_time())}
 	result.merge(access, true)
+	institutions.Departments.ensure(institutions)
+	result["labor_targets"] = State.copy(institutions._labor_targets.get(id, {}))
 	return result
 
-func operation_target(id: int) -> Dictionary:
+func operation_target(id: int, shipment: int = 0) -> Dictionary:
 	if not objects.records.has(id): return {}
 	var record: Dictionary = objects.records[id]
 	var result: Dictionary = {"id": id, "kind": record.kind, "definition": record.definition, "tile": record.tile,
-		"inventory": objects.goods_summary(id, actor_slots.has(id) and not combat.alive(self, id)), "owner": int(record.owner), "organization": int(record.organization), "capacity": record.capacity, "sapient": record.get("sapient", false), "guest": int(record.get("guest", 0))}
+		"inventory": objects.goods_summary(id, actor_slots.has(id) and not combat.alive(self, id)), "owner": int(record.owner), "organization": int(record.organization), "capacity": record.capacity, "reserved_capacity": objects.reserved_capacity(id, shipment), "sapient": record.get("sapient", false), "guest": int(record.get("guest", 0))}
 	if record.has("name"): result["name"] = str(record.name)
+	institutions.Departments.ensure(institutions)
+	result["work_department"] = int(institutions._facility_department.get(id, institutions._facility_department.get(int(record.get("host", 0)), 0)))
+	if record.has("storage_policy"): result["storage_policy"] = State.copy(record.storage_policy)
 	result["access_dependencies"] = facilities.access_dependencies(self, id)
 	result["process"] = Production.view(record)
 	if record.kind != "actor": result["services"] = institutions.Access.service_flags(institutions, id)
-	if record.kind != "actor": result["contents"] = objects.public_contents(id)
+	if record.kind != "actor": result["contents"] = objects.public_contents(id, shipment)
 	if facilities.definitions.get(record.definition, {}).get("capabilities", {}).has("records"): result.merge(institutions.Channels.metadata(institutions, id))
 	if record.has("stage"): result["stage"] = record.stage
 	result.merge(nature.public_state(self, id))
@@ -1159,7 +1192,7 @@ func begin_source_work(id: int, input: Dictionary) -> String:
 	var source: int = source_objects.find(target)
 	if source < 0: return "target_gone"
 	var context: Dictionary = {"purpose": input.get("purpose", "cultivate")}
-	var query: Dictionary = OperationQuery.evaluate(Operations.OPERATIONS.harvest, operation_actor(id), operation_target(target), context)
+	var query: Dictionary = OperationQuery.evaluate(Operations.OPERATIONS.harvest, operation_actor(id), operation_target(target, int(context.get("shipment", 0))), context)
 	if not query.ready: return query.reason
 	var slot: int = actor_slots[id]
 	var page: RefCounted = pages[slot / 256]
@@ -1196,7 +1229,7 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 	var context: Dictionary = input.duplicate()
 	context["help_target"] = int(input.get("task_target", 0))
 	if operation.handler == "practice" and objects.records[target].kind == "plant": nature.evaluate(self, target, operation_time())
-	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(target), context, facilities.definitions)
+	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(target, int(context.get("shipment", 0))), context, facilities.definitions)
 	if not query.ready: return query.reason
 	if operation.executor == "transfer" and (not input.get("item") is String or not preload("res://scripts/sim/kernel/items.gd").valid(input.item) or not input.get("amount") is int or input.amount <= 0): return "invalid_transfer"
 	if operation.executor == "transfer" and not institutions.transfer_context_valid(input): return "invalid_transfer_context"
@@ -1208,7 +1241,7 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 		var reason: String = DomainOps.check(self, id, target, "tend")
 		if not reason.is_empty(): return reason
 	var exclusive: bool = operation.exclusive
-	if exclusive and not society.Teaching.applies(operation) and reservations.has(target) and reservations[target] != id and input.get("autonomous", false):
+	if exclusive and not society.Teaching.applies(operation) and reservations.has(target) and reservations[target] != id and (input.get("autonomous", false) or not operation.recipe.is_empty()):
 		return "target_busy"
 	var slot: int = actor_slots[id]
 	var page: RefCounted = pages[slot / Units.PAGE_SIZE]
@@ -1220,7 +1253,6 @@ func begin_interaction(id: int, input: Dictionary) -> String:
 	actions[id] = input.duplicate(true)
 	if not operation.recipe.is_empty():
 		actions[id]["expected_process"] = int(objects.records[target].get("process", {}).get("id", 0))
-		actions[id]["expected_run"] = int(actions.get(reservations.get(target, 0), {}).get("run_id", 0)) if actions[id].expected_process == 0 else 0
 	actions[id]["run_id"] = next_run
 	actions[id]["participants"] = [id]
 	next_run += 1
@@ -1280,7 +1312,7 @@ func settle_action(id: int, at: int) -> void:
 	var context: Dictionary = action.duplicate()
 	context["help_target"] = int(action.get("task_target", 0))
 	if handler == "practice" and objects.records[target].kind == "plant": nature.evaluate(self, target, at)
-	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(target), context, facilities.definitions)
+	var query: Dictionary = OperationQuery.evaluate(operation, operation_actor(id), operation_target(target, int(context.get("shipment", 0))), context, facilities.definitions)
 	if query.ready and operation.executor == "society":
 		query.reason = society.contact_reason(self, Operations.domain_action(action))
 		query.ready = query.reason.is_empty()
@@ -1455,14 +1487,18 @@ func describe(id: int) -> Dictionary:
 	result.merge(nature.public_state(self, id))
 	result.erase("stock")
 	result.erase("materials")
-	result.erase("work_stock")
 	result["process"] = Production.view(objects.records[id], actions.get(reservations.get(id, 0), {}), elapsed_ms)
-	if objects.records[id].has("work_stock"): result["work_inventory"] = objects.Stock.summary(objects.records[id].work_stock)
-	if not objects.records[id].get("work_stock", {}).is_empty():
-		var right: Dictionary = objects.Stock.attribution(objects.records[id].work_stock.values()[0][0])
+	if objects.records[id].has("process"):
+		result["work_inventory"] = objects.records[id].process.locked_inputs.duplicate()
+		var right: Dictionary = objects.records[id].process.input_right
 		result["work_attribution"] = {"owner": right.owner, "organization": right.organization, "organization_name": str(institutions.organizations.get(int(right.organization), {}).get("name", ""))}
 	result["at_ms"] = elapsed_ms
 	result["inventory"] = objects.inventory_summary(id)
+	institutions.Departments.ensure(institutions)
+	result["work_department"] = int(institutions._facility_department.get(id, institutions._facility_department.get(int(objects.records[id].get("host", 0)), 0)))
+	if result.kind != "actor":
+		result["contents"] = objects.public_contents(id)
+		result["reserved_capacity"] = objects.reserved_capacity(id)
 	result["access_dependencies"] = facilities.access_dependencies(self, id)
 	if result.kind != "actor": result["services"] = institutions.Access.service_flags(institutions, id)
 	if facilities.definitions.get(result.definition, {}).get("capabilities", {}).has("records"): result.merge(institutions.Channels.metadata(institutions, id))
@@ -1511,6 +1547,7 @@ func describe(id: int) -> Dictionary:
 		var available: Array = institutions.bundles(self, id, access)
 		result["readable"] = institutions.readable(self, id, available)
 		result.merge(access, true)
+		result["labor_targets"] = State.copy(institutions._labor_targets.get(id, {}))
 		result["returns"] = institutions.returns(self, id)
 		result["known_channels"] = State.copy(knowledge.records.get(id, {}).get("channels", {}))
 		result["bundles"] = available
@@ -1708,6 +1745,7 @@ func spawn_actor(tile: int, body_profile: String = "human", origin: String = "in
 		row = page.add_row(id, tile)
 	page.modes[row] = Units.Mode.IDLE
 	actor_slots[id] = slot
+	stations.invalidate()
 	Equipment.rebuild(self, id)
 	if Beings.population_member(objects.records[id]): actor_count += 1
 	return id

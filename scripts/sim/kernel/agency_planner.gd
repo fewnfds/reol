@@ -81,6 +81,16 @@ func candidates(goal: Dictionary, approach: Dictionary, allowance: int = 32) -> 
 	source_scope = []
 	sources_restricted = false
 	match approach.pattern:
+		"department":
+			var result: Array = []
+			for offer: Dictionary in actor.get("work_offers", []):
+				if not _spend(): break
+				var operation: String = str(offer.get("operation", "take" if offer.kind == "transport" else "inspect"))
+				var target: int = int(offer.get("source", offer.target)) if offer.kind == "transport" else int(offer.target)
+				if _denied(operation, target): continue
+				var step: Dictionary = {"kind": "execute", "input": {"kind": operation, "target": target}, "work_offer": offer.duplicate(true), "confidence": 1.0, "estimate_ms": 0}
+				result.append(_option(step, "" if offer.kind == "management" else operation, int(offer.target)))
+			return result
 		"respond": return Contacts.responses(self)
 		"instruct": return _instruct(goal)
 		"seek_help": return Contacts.seek_help(self, goal)
@@ -166,6 +176,24 @@ func _resolve(operation: Dictionary, target: Dictionary, chain: Array, prerequis
 	var inputs: Dictionary = operation.recipe.inputs if not operation.recipe.is_empty() else operation.required_items
 	var purpose: String = Stock.input_purpose(operation)
 	var organization: int = int(target.get("organization", 0))
+	if not operation.recipe.is_empty():
+		# The workshop owns its ingredients. A personal production goal can
+		# deliver its own materials, but never silently work from the backpack.
+		var table: Dictionary = preload("res://scripts/sim/kernel/production.gd").known_inputs(actor, target, inputs)
+		var carried: Dictionary = _input_bundle(inputs, organization, purpose)
+		# Deliver carried inputs before searching for another ingredient. A
+		# temporarily unavailable first input must not hide other useful steps.
+		for item: String in inputs:
+			var deficit: int = maxi(0, int(inputs[item]) - int(table.get(item, 0)))
+			if deficit == 0 or int(carried.get(item, 0)) == 0: continue
+			var step: Dictionary = _deposit(item, mini(int(carried[item]), deficit), organization, int(target.id), next, purpose if organization > 0 else "")
+			if not step.is_empty(): return step
+		for item: String in inputs:
+			var deficit: int = maxi(0, int(inputs[item]) - int(table.get(item, 0)))
+			if deficit == 0: continue
+			var step: Dictionary = _acquire(item, deficit, organization, purpose, next, [int(target.id)])
+			if not step.is_empty(): return step
+		return {}
 	if sources_restricted and Institutions.source_shortfall(self, inputs, organization, purpose, source_scope): return {}
 	var bundle: Dictionary = _input_bundle(inputs, organization, purpose)
 	var items: Array = inputs.keys(); items.sort()
@@ -406,6 +434,7 @@ func _returns(goal: Dictionary, chain: Array) -> Array:
 	return result
 
 func _retains(bundle: Dictionary, item: String) -> bool:
+	if int(bundle.get("entrust", 0)) == int(actor.get("work_shipment", {}).get("entrust", -1)): return true
 	var key: String = "%d:%s:%s" % [int(bundle.organization), bundle.purpose, item]
 	return preferred.get("retained", {}).has(key) or (bundle.purpose == "supply" and preferred.get("retained", {}).has(key + ":%d" % int(bundle.get("origin", 0))))
 

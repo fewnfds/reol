@@ -44,6 +44,7 @@ var reactions: Dictionary = {}
 var practice_mode: String = ""
 var profile: Dictionary = {} # Opt-in developer capture, never authoritative state.
 const SLOW_FIELDS: Array[String] = ["objects", "sides", "perception", "actor_slots", "counters", "tides", "mobile_cells", "source_enabled", "room_temperature", "terrain", "tile_probe"]
+var work: Dictionary = {} # Explicitly subscribed, authorized workspace.
 var epoch: int = 1
 var ids := PackedInt64Array()
 var actor_slots: Dictionary = {}

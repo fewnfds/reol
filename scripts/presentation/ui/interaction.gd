@@ -329,6 +329,12 @@ func action(kind: String, payload: Dictionary) -> void:
 		"seek_request_peer":
 			clear_direct()
 			_send({"kind": "move", "tile": int(payload.tile)})
+		"work_panel":
+			clear_direct()
+			ui.work_panel.visible = not ui.work_panel.visible
+		"work_view", "management", "department_work":
+			if kind == "department_work": clear_direct()
+			host._send(payload if kind != "work_view" else {"kind": "work_view", "enabled": payload.get("enabled", false), "department": int(payload.get("department", 0)), "group": str(payload.get("group", "")), "page": int(payload.get("page", 0))})
 		"camera":
 			host.following = false
 			host.camera.position = Art.body_foot(payload.position) * Art.TILE

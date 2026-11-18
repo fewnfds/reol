@@ -14,7 +14,7 @@ const FEEDBACK_LIMIT: int = 16
 const FEEDBACK_LONG_MS: int = 5000
 const FEEDBACK_SHORT_MS: int = 1500
 const EVIDENCE_FIELDS: Array = ["revision"]
-const LIFE_CHANGES: Array = ["needs_changed", "request_review", "institution_review", "source_review", "goal_added", "disposition_changed", "condition_changed", "aptitudes_changed", "capabilities_changed"]
+const LIFE_CHANGES: Array = ["department_work", "needs_changed", "request_review", "institution_review", "source_review", "goal_added", "disposition_changed", "condition_changed", "aptitudes_changed", "capabilities_changed"]
 const LIFE_RETRIES: Array = ["life_ready", "life_result", "planning_budget", "retry_due", "method_due", "resume", "policy_bound"]
 var records: Dictionary = {}
 var wakeups: Dictionary = {} # actor -> {reason: due_ms}; independent owner timers.
@@ -190,7 +190,7 @@ func result(world: RefCounted, actor: int, operation: String, target: int, reaso
 	_prune_feedback(world, actor, at)
 	var succeeded: bool = status == "completed" if not status.is_empty() else reason in ["completed", "transferred", "arrived"]
 	if not succeeded and reason in ["accepted", "started", "buffered", "replaced", "preempted", "interrupted", "partner_left", "cancelled", "action_committed", "stunned", "recovery", "rooted", "intent_pending"]: return
-	if reason in ["planning_budget", "response_not_due"]: return
+	if reason in ["planning_budget", "response_not_due", "shipment_changed", "request_changed"]: return
 	for index: int in range(entry.feedback.size() - 1, -1, -1):
 		if entry.feedback[index].operation == operation and entry.feedback[index].target == target: entry.feedback.remove_at(index)
 	if succeeded: return

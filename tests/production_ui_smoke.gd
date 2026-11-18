@@ -48,10 +48,15 @@ func _run() -> void:
 	var stove: int = w.facilities.create_completed(w, "cook_stove", w.Terrain.index(Vector2i(124, 124)))
 	var well: int = w.facilities.create_completed(w, "water_well", w.Terrain.index(Vector2i(122, 124)))
 	w.objects.add(1, "herb", 2)
+	# Production consumes the table's stock, not the operator's bag.
+	check(w.objects.transfer(1, stove, "herb", 2) == 2 and w.objects.transfer(1, stove, "water", 1) == 1, "Production UI fixture failed to stock its workshop")
 	w.flush_topology()
 	while w.elapsed_ms < 15000: w.step(16)
 	w.pages[0].positions[0] = Vector2(123.5, 125.5)
 	w.pages[0].positions[1] = Vector2(123.5, 126.5)
+	for row: int in [0, 1]:
+		w.pages[0].energy[row] = 10000; w.pages[0].hunger[row] = 10000
+	w.stations.invalidate()
 	w.perception.update(w, w.elapsed_ms, true)
 	var path: String = "user://production-ui-fixture.reol"
 	var file := FileAccess.open(path, FileAccess.WRITE)

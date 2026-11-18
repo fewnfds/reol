@@ -5,11 +5,19 @@ const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 
 func at_stove(w: RefCounted, actor: int, stove: int) -> void:
 	var cell: Vector2i = w.Terrain.cell(w.objects.records[stove].tile)
+	for other: int in w.actor_slots:
+		if other != actor and not w.actions.has(other) and w.combat.position(w, other).distance_to(Vector2(cell) + Vector2(0.5, 1.5)) < 1.0:
+			var previous: int = w.actor_slots[other]
+			w.pages[previous / 256].positions[previous % 256] = Vector2(cell) + Vector2(-1.5, 1.5)
 	var slot: int = w.actor_slots[actor]
 	w.pages[slot / 256].positions[slot % 256] = Vector2(cell) + Vector2(0.5, 1.5)
 
 func start(w: RefCounted, actor: int, operation: String, stove: int) -> bool:
 	at_stove(w, actor, stove)
+	if not w.objects.records[stove].has("process"):
+		for item: String in Operations.OPERATIONS[operation].recipe.inputs:
+			var deficit: int = maxi(0, int(Operations.OPERATIONS[operation].recipe.inputs[item]) - w.objects.available_amount(stove, item))
+			if deficit > 0: w.institutions.move_goods(w, actor, stove, item, deficit, "put", {}, w.elapsed_ms)
 	var reason: String = w.begin_interaction(actor, {"kind": operation, "target": stove})
 	check(reason == "accepted", "Production admission refused: " + reason)
 	if reason != "accepted": return false
@@ -28,7 +36,7 @@ func handoff_and_identity() -> void:
 	if not start(w, 1, "cook", stove): return
 	var stale: Dictionary = Operations.domain_action(w.actions[1]).duplicate(true)
 	check(w.actions[1].base_work_ms == 4000 and w.actions[1].scheduled_ms == 3000, "Mastery did not schedule standard labor separately")
-	check(w.objects.amount(stove, "grain") == 0 and Stock.count(w.objects.records[stove].work_stock, "grain") == 2 and w.objects.audit_total("grain") == grain and w.objects.total("water") == water, "Actual input did not enter canonical WIP exactly once")
+	check(w.objects.amount(stove, "grain") == 2 and w.objects.available_amount(stove, "grain") == 0 and w.objects.audit_total("grain") == grain and w.objects.total("water") == water, "Physical workshop ingredients were consumed or remained externally available")
 	advance(w, 1500)
 	w.end_run(1, w.elapsed_ms, "preempted")
 	check(w.objects.records[stove].process.remaining_ms == 2000 and latest(w, 1).facts.worked_ms == 2000, "Half master time was not half standard work")
@@ -45,15 +53,13 @@ func handoff_and_identity() -> void:
 	check(not w.objects.records[stove].has("process") and w.objects.amount(stove, "meal", Stock.right(1)) == 3 and w.objects.audit_total("grain") == grain - 2, "Handoff changed title or failed physical conversion")
 	check(w.objects.records[3].methods.cooking.progress == 62 and latest(w, 3).facts.labor == [{"actor": 3, "worked_ms": 2000}, {"actor": 1, "worked_ms": 2000}], "Actual contribution did not determine learning/evidence")
 	check(Production.commit(w, 1, stale, w.elapsed_ms).reason == "process_changed" and w.objects.amount(stove, "meal") == 3, "Old run duplicated an already completed batch")
-	# A manual waiter must not silently open another batch after the expected one ends.
-	w.objects.add(3, "grain", 2)
-	w.objects.add(3, "water", 1)
+	# The single physical work position must refuse a second concurrent artisan.
 	if not start(w, 1, "cook", stove): return
-	at_stove(w, 3, stove)
-	check(w.begin_interaction(3, {"kind": "cook", "target": stove}) == "accepted", "Manual queued continuation fixture refused")
-	w.settle_action(3, w.elapsed_ms)
+	var slot: int = w.actor_slots[3]
+	w.pages[slot / 256].positions[slot % 256] = Vector2(123.5, 126.5)
+	check(w.begin_interaction(3, {"kind": "cook", "target": stove}) == "target_busy", "Occupied workshop admitted a second artisan")
 	advance(w, w.elapsed_ms + 3400)
-	check(not w.actions.has(3) and latest(w, 3).reason == "process_changed" and w.objects.amount(3, "grain") == 2 and w.objects.amount(stove, "meal") == 6, "Old continuation automatically consumed a new batch")
+	check(not w.actions.has(3) and w.objects.amount(stove, "meal") == 6, "Denied artisan opened a phantom batch")
 
 func passive_and_capacity() -> void:
 	var w: RefCounted = peaceful()
@@ -61,6 +67,8 @@ func passive_and_capacity() -> void:
 	Growth.seed(w.objects.records[1], "herbalism", 0, false)
 	Growth.seed(w.objects.records[3], "herbalism", 0, false)
 	w.objects.add(1, "herb", 2)
+	w.institutions.move_goods(w, 1, stove, "herb", 2, "put", {}, 0)
+	w.institutions.move_goods(w, 1, stove, "water", 1, "put", {}, 0)
 	w.pages[0].energy[0] = 99
 	var stock: Dictionary = w.objects.records[1].stock.duplicate(true)
 	check(w.begin_interaction(1, {"kind": "brew", "target": stove}) == "insufficient_resource" and not w.objects.records[stove].has("process") and w.objects.records[1].stock == stock, "Unpayable production changed input or WIP")
@@ -76,7 +84,7 @@ func passive_and_capacity() -> void:
 	var restored: RefCounted = Persistence.candidate(Persistence.capture(w), 0)
 	check(restored != null, "Passive production did not restore")
 	w.kill(1, w.elapsed_ms)
-	check(record.process.stage == "passive" and Stock.count(record.work_stock, "herb") == 2, "Worker death erased physical batch")
+	check(record.process.stage == "passive" and w.objects.amount(stove, "herb") == 2, "Worker death erased physical batch")
 	advance(w, 5500)
 	if not start(w, 3, "brew", stove): return
 	advance(w, 6100)
@@ -95,12 +103,13 @@ func blocked_output_and_salvage() -> void:
 	w.objects.records[stove].capacity = 3
 	w.objects.add(stove, "wood", 1)
 	advance(w, 4100)
-	check(latest(w, 1).reason == "no_output_capacity" and w.objects.records[stove].process.remaining_ms == 1 and Stock.count(w.objects.records[stove].work_stock, "grain") == 2, "Blocked output lost finished labor or its physical input")
+	check(latest(w, 1).reason == "no_output_capacity" and w.objects.records[stove].process.remaining_ms == 1 and w.objects.amount(stove, "grain") == 2, "Blocked output lost finished labor or its physical input: " + str(latest(w, 1)))
 	w.objects.add(stove, "wood", -1)
 	if not start(w, 3, "cook", stove): return
 	advance(w, w.elapsed_ms + 32)
 	check(w.objects.amount(stove, "meal") == 3 and not w.objects.records[stove].has("process"), "Freed output could not complete original batch")
-	w.objects.records[stove].capacity = -1
+	w.objects.records[stove].capacity = 6
+	w.institutions.move_goods(w, 1, stove, "meal", 3, "take", {}, w.elapsed_ms)
 	if not start(w, 1, "cook", stove): return
 	advance(w, w.elapsed_ms + 300)
 	var grain: int = w.objects.total("grain")
@@ -153,8 +162,8 @@ func invalid_process_and_recipe() -> void:
 		bad.domains.objects.records[stove].process[field] = {"id": 0, "stage": "no", "remaining_ms": 0, "ready_ms": 1, "contributions": {1: 2}}[field]
 		check(Persistence.candidate(bad, 0) == null, "Bad process restored: " + field)
 	var bad: Dictionary = state.duplicate(true)
-	bad.domains.objects.records[stove].work_stock.grain[0].count += 1
-	check(Persistence.candidate(bad, 0) == null, "Extra WIP ingredient bypassed recipe/account validation")
+	bad.domains.objects.records[stove].process.locked_inputs.grain += 1
+	check(Persistence.candidate(bad, 0) == null, "Malformed input lock bypassed recipe/account validation")
 	bad = state.duplicate(true)
 	bad.domains.world.actions[1].process_id += 1
 	check(Persistence.candidate(bad, 0) == null, "Mismatched process run restored")
@@ -164,7 +173,7 @@ func invalid_process_and_recipe() -> void:
 		check(Persistence.candidate(bad, 0) == null, "Malformed production action was not safely rejected: " + field)
 	bad = state.duplicate(true)
 	bad.domains.objects.records[stove].erase("process")
-	bad.domains.objects.records[stove].erase("work_stock")
+
 	bad.domains.world.actions[1].process_id = 0
 	bad.domains.world.actions[1].process_stage = ""
 	check(Persistence.candidate(bad, 0) == null, "Empty process dereferenced a nonexistent carrier")
@@ -224,7 +233,26 @@ func contribution_bound() -> void:
 	for amount: int in process.contributions.values(): total += amount
 	check(process.contributions.size() == 128 and total == 130 and process.contributions[129] == 1 and process.contributions[130] == 1 and process.contributions[0] == 3, "Contribution compression lost work or unpredictably anonymized recent workers")
 
+func pause_cancel_and_locks() -> void:
+	var w: RefCounted = peaceful()
+	var stove: int = facility(w, "cook_stove", 124, 124, 0)
+	if not start(w, 1, "cook", stove): return
+	advance(w, 1000)
+	var process: Dictionary = w.objects.records[stove].process
+	var grain: int = w.objects.audit_total("grain")
+	check(not w.objects.consume(stove, {"grain": 1}, Stock.right(1)), "Eat/consume bypassed ingredient lock")
+	check(w.objects.transfer(stove, 3, "grain", 2) == 0, "Transfer stole locked ingredients")
+	check(Production.control(w, stove, process.id, "pause", w.elapsed_ms) == "management_updated", "Pause refused")
+	var remaining: int = process.remaining_ms
+	advance(w, 3000)
+	check(process.remaining_ms == remaining and w.objects.audit_total("grain") == grain and Persistence.candidate(Persistence.capture(w), 0) != null, "Paused work advanced, consumed or failed restore")
+	check(Production.control(w, stove, process.id, "resume", w.elapsed_ms) == "management_updated", "Resume refused")
+	check(Production.control(w, stove, process.id, "cancel", w.elapsed_ms) == "management_updated", "Cancel refused")
+	check(not w.objects.records[stove].has("process") and w.objects.available_amount(stove, "grain") == 2 and w.objects.audit_total("grain") == grain and w.objects.amount(stove, "meal") == 0, "Cancel fabricated a refund, kept work or made output")
+	check(Production.control(w, stove, process.id, "cancel", w.elapsed_ms) == "process_changed", "Old process control affected a later identity")
+
 func _run() -> void:
+	pause_cancel_and_locks()
 	handoff_and_identity()
 	passive_and_capacity()
 	blocked_output_and_salvage()

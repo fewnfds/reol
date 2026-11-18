@@ -5,6 +5,7 @@ const Growth = preload("res://scripts/sim/kernel/growth.gd")
 func move_actor(w: RefCounted, actor: int, position: Vector2) -> void:
 	var slot: int = w.actor_slots[actor]
 	w.pages[slot / 256].positions[slot % 256] = position
+	w.stations.invalidate() # This fixture deliberately bypasses the motion owner.
 	w.combat.scan.index(w)
 
 func observation_and_rumor() -> void:

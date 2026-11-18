@@ -17,6 +17,44 @@ var totals: Dictionary = {}
 var definitions: Dictionary = {}
 var _summaries: Dictionary = {} # Detached aggregate caches, never source quantities.
 var _held_totals: Dictionary = {}
+var source_reserved: Callable
+var capacity_reserved: Callable
+var changed: Callable # Owner-installed relevant notification; never serialized.
+
+func locked_amount(id: int, item: String, filter: Dictionary = {}) -> int:
+	var process: Dictionary = records.get(id, {}).get("process", {})
+	return int(process.get("locked_inputs", {}).get(item, 0)) if not process.is_empty() and Stock.matches(process.get("input_right", {}), filter) else 0
+
+func available_amount(id: int, item: String, filter: Dictionary = {}, excluded: int = 0) -> int:
+	return maxi(0, amount(id, item, filter) - locked_amount(id, item, filter) - (int(source_reserved.call(id, item, filter, excluded)) if source_reserved.is_valid() else 0))
+
+func reserved_capacity(id: int, excluded: int = 0) -> int:
+	return int(records.get(id, {}).get("process", {}).get("net_growth", 0)) + (int(capacity_reserved.call(id, excluded)) if capacity_reserved.is_valid() else 0)
+
+func free_capacity(id: int, excluded: int = 0) -> int:
+	if not records.has(id): return 0
+	return Stock.MAX_COUNT if int(records[id].capacity) < 0 else maxi(0, int(records[id].capacity) - count_inventory(id) - reserved_capacity(id, excluded))
+
+func convert(id: int, inputs: Dictionary, output: Dictionary, right: Dictionary, process_id: int) -> bool:
+	if process_id <= 0 or not records.has(id) or int(records[id].get("process", {}).get("id", 0)) != process_id: return false
+	if records[id].process.locked_inputs != inputs or records[id].process.input_right != right: return false
+	var candidate: Dictionary = records[id].stock.duplicate(true)
+	for item: String in inputs:
+		if Stock.count(candidate, item, right) < int(inputs[item]): return false
+	for item: String in inputs: _extract(candidate, item, int(inputs[item]), right)
+	var output_right: Dictionary = Stock.right(int(right.owner), int(right.organization))
+	for item: String in output:
+		var batch: Dictionary = output_right.duplicate()
+		batch["count"] = int(output[item])
+		if batch.count <= 0 or not _fits(candidate, item, [batch]): return false
+		_insert(candidate, item, batch)
+	var total: int = 0
+	for item: String in candidate: total += Stock.count(candidate, item)
+	var incoming: int = int(capacity_reserved.call(id, 0)) if capacity_reserved.is_valid() else 0
+	if int(records[id].capacity) >= 0 and total + incoming > int(records[id].capacity): return false
+	records[id].stock = candidate
+	_refresh(id)
+	return true
 
 
 func _init() -> void:
@@ -80,7 +118,7 @@ func add(id: int, item: String, count: int, right: Dictionary = {}) -> void:
 	if count == 0: return
 	assert(records.has(id) and Items.valid(item))
 	if count < 0:
-		assert(amount(id, item, right) >= -count)
+		if available_amount(id, item, right) < -count: return
 		_extract(records[id].stock, item, -count, right)
 	else:
 		var batch: Dictionary = Stock.attribution(default_right(id) if right.is_empty() else right)
@@ -91,32 +129,44 @@ func add(id: int, item: String, count: int, right: Dictionary = {}) -> void:
 
 func consume(id: int, required: Dictionary, filter: Dictionary, field: String = "stock") -> bool:
 	if not records.has(id): return false
-	if field not in ["stock", "work_stock"]: return false
+	if field not in ["stock"]: return false
 	var contents: Dictionary = records[id].get(field, {})
 	for item: String in required:
-		if not Items.valid(item) or int(required[item]) <= 0 or Stock.count(contents, item, filter) < int(required[item]): return false
+		if not Items.valid(item) or int(required[item]) <= 0 or (available_amount(id, item, filter) if field == "stock" else Stock.count(contents, item, filter)) < int(required[item]): return false
 	for item: String in required: _extract(contents, item, int(required[item]), filter)
 	_refresh(id)
 	return true
 
 
-func transfer(source: int, target: int, item: String, requested: int, filter: Dictionary = {}, replacement: Dictionary = {}, source_field: String = "stock", target_field: String = "stock") -> int:
+func transfer(source: int, target: int, item: String, requested: int, filter: Dictionary = {}, replacement: Dictionary = {}, source_field: String = "stock", target_field: String = "stock", shipment: int = 0) -> int:
 	if not Items.valid(item) or source == target or requested <= 0 or not records.has(source) or not records.has(target):
 		return 0
-	if source_field not in ["stock", "materials", "work_stock"] or target_field not in ["stock", "work_stock"]: return 0
+	if source_field not in ["stock", "materials"] or target_field not in ["stock"]: return 0
 	var contents: Dictionary = records[source].get(source_field, {})
 	var destination: Dictionary = records[target].get(target_field, {})
-	var count: int = mini(requested, Stock.count(contents, item, filter))
+	var count: int = mini(requested, available_amount(source, item, filter, shipment) if source_field == "stock" else Stock.count(contents, item, filter))
 	var capacity: int = records[target].capacity
 	if target_field == "stock" and capacity >= 0:
-		count = mini(count, maxi(0, capacity - count_inventory(target)))
+		count = mini(count, free_capacity(target, shipment))
 	if count <= 0:
 		return 0
-	var selected: Array = _select(contents, item, count, filter)
+	var selected: Array = []
+	var remaining: int = count
+	for batch: Dictionary in contents.get(item, []):
+		if not Stock.matches(batch, filter): continue
+		var take: int = mini(remaining, maxi(0, int(batch.count) - (int(batch.count) - available_amount(source, item, Stock.attribution(batch), shipment) if source_field == "stock" else 0)))
+		if take > 0:
+			var copy: Dictionary = batch.duplicate()
+			copy.count = take
+			selected.append(copy)
+			remaining -= take
+		if remaining == 0: break
+	var originals: Array = selected.duplicate(true)
 	if not replacement.is_empty():
 		for batch: Dictionary in selected: batch.merge(Stock.attribution(replacement), true)
 	if not _fits(destination, item, selected): return 0
-	_extract(contents, item, count, filter)
+	# Extract precisely the selected attribution groups, excluding locked inputs.
+	for batch: Dictionary in originals: _extract(contents, item, int(batch.count), Stock.attribution(batch))
 	for batch: Dictionary in selected: _insert(destination, item, batch)
 	records[target][target_field] = destination
 	_refresh(source)
@@ -142,10 +192,15 @@ func can_receive(id: int, output: Dictionary, right: Dictionary) -> bool:
 		batch["count"] = int(output[item])
 		if not Items.valid(item) or batch.count <= 0 or not _fits(records[id].stock, item, [batch]): return false
 		count += int(batch.count)
-	return records[id].capacity < 0 or count_inventory(id) + count <= records[id].capacity
+	return records[id].capacity < 0 or count <= free_capacity(id)
 
 func retitle(id: int, field: String, filter: Dictionary, replacement: Dictionary) -> void:
 	assert(field in ["stock", "materials"])
+	if field == "stock" and source_reserved.is_valid():
+		for item: String in records[id].stock:
+			if int(source_reserved.call(id, item, filter, 0)) > 0: return
+	# Locked ingredients cannot change owner underneath their physical process.
+	if field == "stock" and not records[id].get("process", {}).is_empty(): return
 	var next: Dictionary = {}
 	for item: String in records[id].get(field, {}):
 		for batch: Dictionary in records[id][field][item]:
@@ -161,7 +216,7 @@ func goods_summary(id: int, worn: bool = false) -> Dictionary:
 		for gear: Dictionary in records.get(id, {}).get("equipment", {}).values(): result[gear.item] = int(result.get(gear.item, 0)) + 1
 	return result
 
-func public_contents(id: int) -> Dictionary:
+func public_contents(id: int, excluded: int = 0) -> Dictionary:
 	# Observable attribution of a static store's contents, detached from custody
 	# mandates. A public workshop can hold somebody's privately owned output.
 	var result: Dictionary = {}
@@ -169,10 +224,11 @@ func public_contents(id: int) -> Dictionary:
 		result[item] = []
 		for batch: Dictionary in records[id].stock[item]:
 			var group: Dictionary = {"owner": int(batch.owner), "organization": int(batch.organization), "entrusted": int(batch.entrust) > 0, "count": int(batch.count)}
+			group["available"] = available_amount(id, item, Stock.attribution(batch), excluded)
 			var merged: bool = false
 			for entry: Dictionary in result[item]:
 				if entry.owner == group.owner and entry.organization == group.organization and entry.entrusted == group.entrusted:
-					entry.count += int(group.count); merged = true; break
+					entry.count += int(group.count); entry.available += int(group.available); merged = true; break
 			if not merged: result[item].append(group)
 	return result
 
@@ -183,8 +239,8 @@ func goods_amount(id: int, item: String, filter: Dictionary, worn: bool = false)
 			if gear.item == item and Stock.matches(gear, filter): result += 1
 	return result
 
-func transfer_possessions(source: int, target: int, item: String, requested: int, filter: Dictionary, replacement: Dictionary, worn: bool = false) -> int:
-	var moved: int = transfer(source, target, item, requested, filter, replacement)
+func transfer_possessions(source: int, target: int, item: String, requested: int, filter: Dictionary, replacement: Dictionary, worn: bool = false, shipment: int = 0) -> int:
+	var moved: int = transfer(source, target, item, requested, filter, replacement, "stock", "stock", shipment)
 	if worn:
 		for slot: String in records[source].get("equipment", {}).keys():
 			if moved >= requested: break
@@ -252,15 +308,15 @@ func _refresh(id: int, changed: bool = true) -> void:
 	_summaries[id] = Stock.summary(records[id].stock)
 	var held: Dictionary = _summaries[id].duplicate()
 	for item: String in records[id].get("materials", {}): held[item] = int(held.get(item, 0)) + Stock.count(records[id].materials, item)
-	for item: String in records[id].get("work_stock", {}): held[item] = int(held.get(item, 0)) + Stock.count(records[id].work_stock, item)
 	for gear: Dictionary in records[id].get("equipment", {}).values(): held[gear.item] = int(held.get(gear.item, 0)) + 1
 	_held_totals[id] = held
 	for item: String in held: totals[item] = int(totals.get(item, 0)) + int(held[item])
 	if changed: records[id]["inventory_revision"] = int(records[id].get("inventory_revision", 0)) + 1
+	if changed and self.changed.is_valid(): self.changed.call(id)
 
 
 func can_remove(id: int) -> bool:
-	return records.has(id) and count_inventory(id) == 0 and records[id].get("materials", {}).is_empty() and records[id].get("work_stock", {}).is_empty() and records[id].get("equipment", {}).is_empty()
+	return records.has(id) and count_inventory(id) == 0 and records[id].get("materials", {}).is_empty() and records[id].get("equipment", {}).is_empty()
 
 func can_consolidate(id: int, fields: Array) -> bool:
 	var combined: Dictionary = {}
@@ -384,7 +440,6 @@ func audit_total(item: String) -> int:
 	for id: int in records:
 		count += Stock.count(records[id].stock, item) # Audit source quantities independently of caches.
 		count += Stock.count(records[id].get("materials", {}), item)
-		count += Stock.count(records[id].get("work_stock", {}), item)
 		for equipped: Dictionary in records[id].get("equipment", {}).values(): count += int(equipped.item == item)
 	return count
 

@@ -1,6 +1,7 @@
 extends RefCounted
 ## Compile once, adopt through existing owners, then leave the running world.
 ## This module never schedules work or supplies goods after initialization.
+const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const Definition = preload("res://scripts/sim/definitions/openings/opening_def.gd")
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Query = preload("res://scripts/sim/kernel/operation_query.gd")
@@ -96,6 +97,36 @@ static func compile(spec: Definition) -> Dictionary:
 			if appointment.target_index < 0 or groups.get(appointment.target_key, []).size() <= appointment.target_index or groups.get(appointment.channel_key, []).size() != 1: errors.append("opening: invalid duty target/channel")
 		else: errors.append("opening: appointment requires a defined duty")
 	var occupied: Dictionary = {}
+	var department_keys: Array[String] = []
+	var managed_keys: Array[String] = []
+	for department: Resource in spec.departments:
+		if department == null or not department.key.is_valid_identifier() or department.key in department_keys or department.title.strip_edges().is_empty() or (not department.parent_key.is_empty() and department.parent_key not in department_keys): errors.append("opening: invalid department hierarchy"); continue
+		department_keys.append(department.key)
+		if not department.supplier_key.is_empty() and department.supplier_key not in department_keys: errors.append("opening: supplier must precede consuming department")
+		if department.daily_target > 0 and (not Operations.OPERATIONS.get(department.production_operation, {}).get("recipe", {}).get("outputs", {}).has(department.production_item) or department.head_slot < 0): errors.append("opening: invalid production objective")
+		for key: String in department.storage_items:
+			if key not in department.facility_keys: errors.append("opening: stock filter outside department")
+			for item: String in department.storage_items[key]:
+				if not Items.valid(item): errors.append("opening: invalid stock filter")
+		if department.head_slot < -1 or department.head_slot >= spec.residents_per_district: errors.append("opening: invalid department head")
+		for key: String in department.facility_keys:
+			if not groups.has(key) or key in managed_keys: errors.append("opening: invalid/duplicate managed facility group")
+			managed_keys.append(key)
+		for group: String in department.groups:
+			if group.strip_edges().is_empty(): errors.append("opening: empty work group")
+			for key: String in department.groups[group]:
+				if key not in department.facility_keys: errors.append("opening: work group outside department")
+		for assignment: Resource in department.assignments:
+			if assignment == null: errors.append("opening: null work assignment"); continue
+			for slot: int in assignment.actor_slots:
+				if slot < 0 or slot >= spec.residents_per_district: errors.append("opening: invalid worker slot")
+			for duty: String in assignment.duties:
+				if duty not in preload("res://scripts/sim/kernel/department_rules.gd").DUTIES: errors.append("opening: invalid work duty")
+			for capability: String in assignment.capabilities:
+				if capability not in preload("res://scripts/sim/kernel/department_rules.gd").CAPABILITIES: errors.append("opening: invalid management capability")
+			for group: String in assignment.groups:
+				if not department.groups.has(group): errors.append("opening: unknown worker group")
+			if not assignment.authority_group.is_empty() and not department.groups.has(assignment.authority_group): errors.append("opening: unknown authority group")
 	var spawn: Dictionary = {}
 	var reservoirs: Dictionary = {}
 	for origin: Vector2i in spec.district_origins:
@@ -223,6 +254,37 @@ static func assemble(world: RefCounted, spec: Definition) -> PackedStringArray:
 			var scope: Dictionary = _scope(appointment, groups)
 			var targets: Array = world.institutions.Duties.targets(scope)
 			if world.institutions.appoint(world, org, actor, appointment.role, targets, scope) <= 0: errors.append("opening: role assignment refused")
+		var department_ids: Dictionary = {}
+		for definition: Resource in spec.departments:
+			var id: int = world.institutions.Departments.create(world.institutions, org, spec.district_names[district] + definition.title, int(department_ids.get(definition.parent_key, 0)))
+			if id <= 0: errors.append("opening: department refused"); continue
+			department_ids[definition.key] = id
+			var department: Dictionary = world.institutions.departments[id]
+			if definition.head_slot >= 0: department.head = district * spec.residents_per_district + definition.head_slot + 1
+			for key: String in definition.facility_keys:
+				for facility: int in groups[key]:
+					if not world.institutions.Departments.attach(world.institutions, world, id, facility): errors.append("opening: managed facility refused")
+			for group: String in definition.groups:
+				var facilities: Array = []
+				for key: String in definition.groups[group]: facilities.append_array(groups[key])
+				department.groups[group] = {"facilities": facilities}
+			for assignment: Resource in definition.assignments:
+				for local_slot: int in assignment.actor_slots:
+					var actor: int = district * spec.residents_per_district + local_slot + 1
+					if not world.institutions.Departments.assign(world.institutions, id, actor, Array(assignment.duties), Array(assignment.groups), assignment.groups.is_empty()): errors.append("opening: work assignment refused")
+					var issuer: int = district * spec.residents_per_district + 1 if local_slot != 0 else 0
+					if not assignment.capabilities.is_empty() and not world.institutions.Departments.grant(world.institutions, id, actor, assignment.title, Array(assignment.capabilities), assignment.descendants, assignment.authority_group, issuer): errors.append("opening: management grant refused")
+			department.supplier = int(department_ids.get(definition.supplier_key, 0))
+			for key: String in definition.storage_items:
+				for target: int in groups[key]: world.objects.records[target]["storage_policy"] = {"items": Array(definition.storage_items[key]), "min_tier": 1, "max_tier": 99, "destinations": []}
+			if definition.daily_target > 0:
+				var order: int = world.institutions.Orders.create(world.institutions, world, int(department.head), id, definition.production_operation, definition.production_item, definition.daily_target, "", 0, true)
+				if order == 0: errors.append("opening: production target refused")
+				else:
+					for target: int in department.facilities:
+						if world.objects.records[target].kind == "workbench":
+							if world.institutions.management(world, int(department.head), {"op": "configure", "department": id, "facility": target, "order": order}) != "management_updated": errors.append("opening: workbench configuration refused")
+	world.institutions.Workflow.rebuild(world.institutions, world)
 	if not errors.is_empty(): return errors
 	world.sight.sync(world)
 	for district: int in districts.size():

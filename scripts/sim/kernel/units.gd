@@ -46,6 +46,7 @@ var due_ms := PackedInt64Array()
 var route_cursors := PackedInt32Array()
 var route_versions := PackedInt64Array()
 var routes: Array[PackedVector2Array] = []
+var station_changed: Callable
 var motion: Dictionary = {} # Sparse timed knots for this step, shared by collision/display.
 var ready := PackedInt64Array() # local row, exact arrival/due time
 var failures := PackedInt32Array()
@@ -121,6 +122,7 @@ func move_to(row: int, target: Vector2, mode: int) -> void:
 	modes[row] = mode
 	routes[row] = PackedVector2Array()
 	route_cursors[row] = 0
+	if station_changed.is_valid(): station_changed.call(int(ids[row]), positions[row], target, float(radii[row]) + 0.04)
 
 
 func advance(navigation: RefCounted) -> void:

@@ -11,7 +11,7 @@ python tools/godot.py test --suite equipment
 python tools/godot.py export --preset "Windows Demo" --output build/windows/sect-foundation/reol-sect.exe
 ```
 
-`run`和新导出的Windows Demo默认进入同一100人青禾宗（玩家1＋99自主），每次启动新局；F5/F9主动保存/加载当前format32，默认`user://sect-quicksave-v32.reol`。当前成品入口为`build/windows/sect-foundation/reol-sect.exe`及同目录pck，键位/试玩路线查[FEATURES](../../status/features.md)。
+`run`和新导出的Windows Demo默认进入同一100人青禾宗（玩家1＋99自主），每次启动新局；源码F5/F9主动保存/加载format33，默认`user://sect-quicksave-v33.reol`，旧32档保留；独立包按BASELINE记录的构建采用格式。当前成品入口为`build/windows/sect-foundation/reol-sect.exe`及同目录pck，键位/试玩路线查[FEATURES](../../status/features.md)。
 
 ## 开发期直接试玩
 

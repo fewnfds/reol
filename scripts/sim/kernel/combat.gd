@@ -413,6 +413,7 @@ func _deliver(world: RefCounted, actor: int, state: Dictionary, now: int) -> voi
 			var tile: int = Terrain.index(Vector2i(state.point))
 			if not world.effects.has_kind(actor, "root", now) and origin.distance_to(state.point) <= float(delivery.range) + 0.001 and (not delivery.walls or Terrain.blocking_fraction(world.terrain.blocked, origin, state.point) < 0) and world.sight.sees(origin, tile, world.sight.range_for(world, actor)) and world.terrain.can_stand(state.point, page.radii[slot % 256], page.flight[slot % 256] > 0):
 				page.positions[slot % 256] = state.point
+				world.stations.invalidate()
 				world.emit({"kind": "blink", "actor": actor, "from": origin, "position": state.point, "at_ms": now})
 				world.effects.apply_bundle(world, actor, actor, state.activation, state.kind, def.payload, now, 0, "activation", state.get("lineage", {}), false, state)
 		"entity": world.entities.create(world, actor, state, now)

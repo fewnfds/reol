@@ -6,6 +6,7 @@ extends Resource
 const Layout = preload("res://scripts/sim/definitions/openings/layout_def.gd")
 const Resident = preload("res://scripts/sim/definitions/openings/resident_def.gd")
 const Appointment = preload("res://scripts/sim/definitions/openings/appointment_def.gd")
+const Department = preload("res://scripts/sim/definitions/openings/department_def.gd")
 @export var title: String = ""
 @export var district_names: PackedStringArray = []
 @export var district_origins: Array[Vector2i] = []
@@ -14,6 +15,7 @@ const Appointment = preload("res://scripts/sim/definitions/openings/appointment_
 @export var layouts: Array[Layout] = []
 @export var resident_profiles: Array[Resident] = []
 @export var appointments: Array[Appointment] = []
+@export var departments: Array[Department] = []
 @export var bed_key: String = "beds"
 @export var familiar_keys: PackedStringArray = []
 @export var spawn_offsets: Array[Vector2i] = []

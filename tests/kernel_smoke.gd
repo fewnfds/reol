@@ -230,15 +230,16 @@ func _build_and_live() -> void:
 	var stove: int = world.objects.by_tile[Terrain.index(Vector2i(174, 185))][0]
 	world.objects.add(1, "grain", 2)
 	world.objects.add(1, "water", 1)
+	check(world.institutions.move_goods(world, 1, stove, "grain", 2, "put", {}, world.elapsed_ms).status == "completed" and world.institutions.move_goods(world, 1, stove, "water", 1, "put", {}, world.elapsed_ms).status == "completed", "Cooking ingredients did not enter workshop stock")
 	page.positions[0] = world.facilities.interaction_point(world, stove, page.positions[0], 0.35, false, world.Operations.OPERATIONS.cook.handler, 1)
 	var meals: int = world.objects.amount(stove, "meal")
-	var grain: int = world.objects.amount(1, "grain")
+	var grain: int = world.objects.amount(stove, "grain")
 	check(world.command({"kind": "cook", "target": stove}).ok, "Cooking rejected")
 	world.step()
 	check(world.actions.get(1, {}).has("started_ms"), "Cook never began actual labor at its work position")
 	var finish: int = page.due_ms[0] + 50
 	while world.elapsed_ms < finish: world.step(mini(50, finish - world.elapsed_ms))
-	check(world.objects.amount(stove, "meal") == meals + 3 and world.objects.amount(1, "grain") == grain - 2, "Cooking did not consume real ingredients once")
+	check(world.objects.amount(stove, "meal") == meals + 3 and world.objects.amount(stove, "grain") == grain - 2, "Cooking did not consume real workshop ingredients once")
 	page.hunger[0] = 500
 	page.positions[0] = world.facilities.interaction_point(world, stove, page.positions[0], page.radii[0], false, "eat", 1)
 	world.command({"kind": "eat", "target": stove})

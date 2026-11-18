@@ -60,6 +60,7 @@ var _modal := ColorRect.new()
 var _modal_panel: PanelContainer
 var _modal_body := VBoxContainer.new()
 var _modal_kind: String = ""
+var work_panel := preload("res://scripts/presentation/ui/work_panel.gd").new()
 var inventory := InventoryPanel.new()
 var character: Control
 var _character_id: int = 1
@@ -176,7 +177,7 @@ func _ready() -> void:
 	var tabs := GridContainer.new()
 	tabs.columns = 2
 	toolbar.add_child(tabs)
-	for row: Array in [["build_menu", "营造", "build"], ["plant_menu", "种植", "plant"], ["inventory", "背包", "bag"], ["character", "人物", "person"], ["travel", "地区", "map"], ["dev", "DEV", "gear"]]:
+	for row: Array in [["build_menu", "营造", "build"], ["plant_menu", "种植", "plant"], ["inventory", "背包", "bag"], ["character", "人物", "person"], ["work_panel", "职责", "person"], ["travel", "地区", "map"], ["dev", "DEV", "gear"]]:
 		_button(tabs, row[0], row[1], row[2])
 	_map_panel = _panel(self, Control.PRESET_BOTTOM_RIGHT, Vector4(-226, -306, -8, -72))
 	var map_body := VBoxContainer.new()
@@ -203,6 +204,8 @@ func _ready() -> void:
 	_rotate_button = _button(_notice, "rotate_take", "N", "rotate")
 	_rotate_button.hide()
 	_receipt = Style.label(_notice)
+	add_child(work_panel)
+	work_panel.requested.connect(func(action: String, payload: Dictionary): requested.emit(action, payload))
 	add_child(inventory)
 	inventory.requested.connect(func(action: String, payload: Dictionary): requested.emit(action, payload))
 	inventory.visibility_changed.connect(_layout)
@@ -330,6 +333,7 @@ func _clear(parent: Node) -> void:
 
 func _layout() -> void:
 	size = get_viewport_rect().size / scale
+	work_panel.fit(size)
 	if _modal_panel != null: _layout_modal()
 	var width: float = size.x
 	var dock_width: float = minf(584, maxf(490, width - 590))
@@ -371,6 +375,7 @@ func _layout() -> void:
 	else: _drawer_panel.visible = not _drawer_name.is_empty()
 
 func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: float, following: bool, help_target: int, direct: bool = true) -> void:
+	work_panel.adopt(frame.work, frame.epoch)
 	_frame = frame
 	_use_fog = use_fog
 	if _selected != selected: selection_changed(selected)
@@ -696,12 +701,15 @@ func selection_changed(id: int) -> void:
 	_layout()
 
 func blocks_world() -> bool:
-	return _modal.visible or _context_panel.visible
+	return _modal.visible or _context_panel.visible or work_panel.visible
 
 func modal_kind() -> String:
 	return _modal_kind
 
 func close_layer() -> bool:
+	if work_panel.visible:
+		work_panel.hide()
+		return true
 	if _modal.visible:
 		requested.emit("close_modal", {})
 		return true
@@ -718,6 +726,7 @@ func close_layer() -> bool:
 	return false
 
 func reset_session() -> void:
+	work_panel.hide()
 	close_context()
 	close_modal()
 	inventory.hide()

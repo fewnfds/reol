@@ -60,6 +60,8 @@ func independent_craft_and_shared_costs() -> void:
 		stoves.append(w.facilities.create_completed(w, "cook_stove", w.Terrain.index(Vector2i(x, 124))))
 		w.objects.add(actor, "grain", 2)
 		w.objects.add(actor, "water", 1)
+		w.institutions.move_goods(w, actor, stoves.back(), "grain", 2, "put", {}, w.elapsed_ms)
+		w.institutions.move_goods(w, actor, stoves.back(), "water", 1, "put", {}, w.elapsed_ms)
 		w.pages[0].positions[actor - 1] = Vector2(x + 0.5, 125.5)
 	Growth.seed(w.objects.records[3], "cooking", 0)
 	Growth.seed(w.objects.records[3], "wood_breath", 0)

@@ -4,7 +4,7 @@ extends Resource
 ## Driver is a shared state/evaluation mechanism, never a character-specific plan.
 @export var id: String = ""
 @export var title: String = ""
-@export_enum("resource", "recovery", "development", "delivery", "operation", "custody", "responsibility", "duty", "service", "reporting", "responses", "instruction") var driver: String = "resource"
+@export_enum("resource", "recovery", "development", "delivery", "operation", "custody", "responsibility", "duty", "service", "reporting", "responses", "instruction", "department") var driver: String = "resource"
 @export var approaches: PackedStringArray = []
 @export var metric: String = ""
 @export_range(1, 10000) var comfort: int = 7000
@@ -24,7 +24,7 @@ func values() -> Dictionary:
 func errors() -> PackedStringArray:
 	var result := PackedStringArray()
 	if not id.is_valid_identifier() or title.is_empty(): result.append("goal id/title: required")
-	if driver not in ["resource", "recovery", "development", "delivery", "operation", "custody", "responsibility", "duty", "service", "reporting", "responses", "instruction"]: result.append("goal driver: unsupported")
+	if driver not in ["resource", "recovery", "development", "delivery", "operation", "custody", "responsibility", "duty", "service", "reporting", "responses", "instruction", "department"]: result.append("goal driver: unsupported")
 	if approaches.is_empty() or approaches.size() > 8: result.append("goal approaches: require 1..8")
 	for approach: String in approaches:
 		if not approach.is_valid_identifier() or approaches.count(approach) != 1: result.append("goal approach: invalid or repeated")

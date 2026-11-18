@@ -123,7 +123,7 @@ static func _target_reason(rule: Dictionary, target: Dictionary, unknown: Array)
 				elif int(target.capacity) >= 0:
 					var count: int = 0
 					for amount: int in target.inventory.values(): count += amount
-					if count >= int(target.capacity): return "full"
+					if count + int(target.get("reserved_capacity", 0)) >= int(target.capacity): return "full"
 	return ""
 
 static func readiness(operation: Dictionary, actor: Dictionary, context: Dictionary = {}) -> String:

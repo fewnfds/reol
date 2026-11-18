@@ -175,8 +175,8 @@ func access_dependencies(world: RefCounted, target: int) -> Dictionary:
 				if plant.kind == "plant" and int(plant.get("host", 0)) == 0: plants.append({"id": id, "owner": plant.owner, "organization": plant.organization, "operation": "uproot"})
 		result["construct"] = plants
 	var guest: int = int(record.get("guest", 0))
-	if not record.get("work_stock", {}).is_empty():
-		var right: Dictionary = world.objects.Stock.attribution(record.work_stock.values()[0][0])
+	if not record.get("process", {}).is_empty():
+		var right: Dictionary = record.process.input_right
 		result["demolish"] = [{"id": target, "owner": right.owner, "organization": right.organization, "operation": "demolish"}]
 	if guest > 0 and world.objects.records.has(guest):
 		var plant: Dictionary = world.objects.records[guest]
@@ -215,7 +215,7 @@ static func placement_at(layer: String, surface: int, occupants: Array[Dictionar
 func create_completed(world: RefCounted, definition: String, tile: int, facing: int = 0, capacity: int = -2) -> int:
 	if footprint(definition, tile, facing).is_empty(): return 0
 	var spec: Dictionary = definitions[definition]
-	var kind: String = "chest" if spec.get("capabilities", {}).has("storage") else str(spec.kind)
+	var kind: String = str(spec.kind)
 	var id: int = world.objects.create(kind, definition, tile)
 	world.objects.records[id]["facing"] = posmod(facing, 4)
 	install(world, id, capacity)
@@ -227,15 +227,15 @@ func install(world: RefCounted, id: int, capacity: int = -2) -> void:
 	# Seeding and construction completion share the same spatial transaction.
 	var record: Dictionary = world.objects.records[id]
 	var spec: Dictionary = definitions[record.definition]
-	record.kind = "chest" if spec.get("capabilities", {}).has("storage") else str(spec.kind)
+	record.kind = str(spec.kind)
 	record["facing"] = posmod(int(record.get("facing", 0)), 4)
 	record["layer"] = str(spec.get("layer", "ground"))
 	record.hp = int(spec.max_hp)
 	record["max_hp"] = int(spec.max_hp)
 	world.objects.reindex(id, footprint(record.definition, record.tile, record.facing))
-	if record.kind == "chest":
+	if spec.get("capabilities", {}).has("storage"):
 		record.capacity = int(spec.capabilities.storage.capacity) if capacity == -2 else capacity
-		world.register_depot(id)
+		if record.kind == "chest": world.register_depot(id)
 	Sources.install(world, id)
 	Cultivation.install(record, spec)
 	for member: int in record.cells:
@@ -376,8 +376,10 @@ func demolish_result(world: RefCounted, target: int, at: int = -1, actor: int = 
 		record["vegetation_level"] = 0
 		world.objects.layout_revision += 1
 		return Results.completed({"vegetation_level": 0})
-	if not world.objects.can_consolidate(target, ["stock", "materials", "work_stock"]): return Results.refused("salvage_capacity")
+	if not world.objects.can_consolidate(target, ["stock", "materials"]): return Results.refused("salvage_capacity")
 	world.forget_target(target, at)
+	world.institutions.Orders.release(world.institutions, record.get("process", {}))
+	record.erase("process") # Stop the real batch and unlock its unchanged ingredients.
 	if record.kind == "plant":
 		world.nature.remove(world, target, at)
 		return Results.completed({"removed": target, "definition": record.definition})
@@ -385,11 +387,11 @@ func demolish_result(world: RefCounted, target: int, at: int = -1, actor: int = 
 		world.nature.remove(world, guest, at)
 	var pile: int = 0
 	var salvage: Dictionary = {}
-	if world.objects.count_inventory(target) > 0 or not record.get("materials", {}).is_empty() or not record.get("work_stock", {}).is_empty():
+	if world.objects.count_inventory(target) > 0 or not record.get("materials", {}).is_empty():
 		pile = world.objects.create("pile", "salvage", record.tile)
 		for item: String in world.objects.inventory_summary(target):
 			salvage[item] = world.objects.transfer(target, pile, item, world.objects.amount(target, item))
-		for field: String in ["materials", "work_stock"]:
+		for field: String in ["materials"]:
 			for item: String in record.get(field, {}).keys():
 				var count: int = world.objects.transfer(target, pile, item, world.objects.Stock.count(record[field], item), {}, {}, field)
 				salvage[item] = int(salvage.get(item, 0)) + count

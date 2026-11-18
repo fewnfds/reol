@@ -396,6 +396,9 @@
             "cook_rations",
             "brew_potion"
           ]
+        },
+        "storage": {
+          "capacity": 6
         }
       },
       "slots": [

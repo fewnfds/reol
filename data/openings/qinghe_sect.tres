@@ -6,6 +6,9 @@
 [ext_resource type="Script" path="res://scripts/sim/definitions/openings/resident_def.gd" id="resident"]
 [ext_resource type="Script" path="res://scripts/sim/definitions/openings/appointment_def.gd" id="appointment"]
 
+[ext_resource type="Script" path="res://scripts/sim/definitions/openings/department_def.gd" id="department"]
+[ext_resource type="Script" path="res://scripts/sim/definitions/openings/work_assignment_def.gd" id="assignment"]
+
 [sub_resource type="Resource" id="Floor"]
 script = ExtResource("place")
 key = "floor"
@@ -156,39 +159,56 @@ sites_start = 6
 sites_count = 6
 destination_key = "grain_store"
 
-[sub_resource type="Resource" id="KitchenFirst"]
-script = ExtResource("appointment")
-actor_slot = 3
-role = "kitchen_steward"
-target_key = "stoves"
-source_keys = PackedStringArray("grain_store", "wells")
-channel_key = "board"
+[sub_resource type="Resource" id="KitchenManager"]
+script = ExtResource("assignment")
+actor_slots = PackedInt32Array(0, 3)
+duties = PackedStringArray("produce", "haul")
+title = "膳务管事"
+capabilities = PackedStringArray("view", "people", "facilities", "production", "supply", "delegate")
+descendants = true
 
-[sub_resource type="Resource" id="KitchenSecond"]
-script = ExtResource("appointment")
-actor_slot = 4
-role = "kitchen_steward"
-target_key = "stoves"
-target_index = 1
-source_keys = PackedStringArray("grain_store", "wells")
-channel_key = "board"
+[sub_resource type="Resource" id="KitchenWorkers"]
+script = ExtResource("assignment")
+actor_slots = PackedInt32Array(4, 5, 6)
+duties = PackedStringArray("produce", "haul")
+title = "膳务成员"
 
-[sub_resource type="Resource" id="MealsFirst"]
-script = ExtResource("appointment")
-actor_slot = 5
-role = "meal_steward"
-target_key = "meal_chests"
-source_keys = PackedStringArray("stoves")
-channel_key = "board"
+[sub_resource type="Resource" id="SupplyManager"]
+script = ExtResource("assignment")
+actor_slots = PackedInt32Array(0, 9)
+duties = PackedStringArray("haul")
+title = "仓务管事"
+capabilities = PackedStringArray("view", "people", "facilities", "production", "supply", "delegate")
+descendants = true
 
-[sub_resource type="Resource" id="MealsSecond"]
-script = ExtResource("appointment")
-actor_slot = 6
-role = "meal_steward"
-target_key = "meal_chests"
-target_index = 1
-source_keys = PackedStringArray("stoves")
-channel_key = "board"
+[sub_resource type="Resource" id="SupplyWorkers"]
+script = ExtResource("assignment")
+actor_slots = PackedInt32Array(13, 14, 15, 16)
+duties = PackedStringArray("haul")
+title = "仓务成员"
+
+[sub_resource type="Resource" id="SupplyDepartment"]
+script = ExtResource("department")
+key = "supplies"
+title = "仓务"
+facility_keys = PackedStringArray("grain_store", "wells")
+head_slot = 9
+assignments = Array[ExtResource("assignment")]([SubResource("SupplyManager"), SubResource("SupplyWorkers")])
+storage_items = Dictionary[String, PackedStringArray]({"grain_store": PackedStringArray("grain", "water")})
+
+[sub_resource type="Resource" id="KitchenDepartment"]
+script = ExtResource("department")
+key = "kitchen"
+title = "膳堂"
+supplier_key = "supplies"
+production_operation = "cook"
+production_item = "meal"
+daily_target = 100
+storage_items = Dictionary[String, PackedStringArray]({"meal_chests": PackedStringArray("meal")})
+facility_keys = PackedStringArray("stoves", "meal_chests")
+head_slot = 3
+assignments = Array[ExtResource("assignment")]([SubResource("KitchenManager"), SubResource("KitchenWorkers")])
+groups = Dictionary[String, PackedStringArray]({"炊事一组": PackedStringArray("stoves", "meal_chests"), "炊事二组": PackedStringArray("stoves", "meal_chests")})
 
 [resource]
 script = ExtResource("opening")
@@ -199,7 +219,8 @@ residents_per_district = 25
 soil_areas = Array[Rect2i]([Rect2i(105, 110, 76, 85)])
 layouts = Array[ExtResource("layout")]([SubResource("Dormitory"), SubResource("Yard")])
 resident_profiles = Array[ExtResource("resident")]([SubResource("Mentor"), SubResource("Students"), SubResource("Cooks"), SubResource("Practitioners")])
-appointments = Array[ExtResource("appointment")]([SubResource("FieldFirst"), SubResource("FieldSecond"), SubResource("KitchenFirst"), SubResource("KitchenSecond"), SubResource("MealsFirst"), SubResource("MealsSecond")])
+departments = Array[ExtResource("department")]([SubResource("SupplyDepartment"), SubResource("KitchenDepartment")])
+appointments = Array[ExtResource("appointment")]([SubResource("FieldFirst"), SubResource("FieldSecond")])
 familiar_keys = PackedStringArray("grain_store", "wells", "stoves", "meal_chests", "board")
 spawn_offsets = Array[Vector2i]([Vector2i(12, 2), Vector2i(14, 2), Vector2i(16, 2), Vector2i(18, 2), Vector2i(20, 2), Vector2i(12, 3), Vector2i(14, 3), Vector2i(16, 3), Vector2i(18, 3), Vector2i(20, 3), Vector2i(12, 4), Vector2i(14, 4), Vector2i(16, 4), Vector2i(18, 4), Vector2i(20, 4), Vector2i(12, 6), Vector2i(14, 6), Vector2i(16, 6), Vector2i(18, 6), Vector2i(20, 6), Vector2i(12, 7), Vector2i(14, 7), Vector2i(16, 7), Vector2i(18, 7), Vector2i(20, 7)])
 qi_offsets = Array[Vector2i]([Vector2i(24, 3), Vector2i(25, 6)])

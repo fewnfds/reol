@@ -12,6 +12,8 @@ func passive_handoff_and_cancellation() -> void:
 	var share: int = w.institutions.accept_share(w, 3, matter)
 	manual_transfer(w, 3, f.source, "herb", 2, "take", {"purpose": "produce"})
 	manual_transfer(w, 3, f.source, "water", 1, "take", {"purpose": "produce"})
+	manual_transfer(w, 3, f.stove, "herb", 2, "put", {"purpose": "produce"})
+	manual_transfer(w, 3, f.stove, "water", 1, "put", {"purpose": "produce"})
 	move_actor(w, 3, Vector2(127.5, 123.5))
 	check(w.execute_operation(3, {"kind": "brew", "target": int(f.stove)}) == "accepted", "Obligated brewer did not start real work")
 	w.settle_action(3, w.elapsed_ms)
@@ -23,6 +25,7 @@ func passive_handoff_and_cancellation() -> void:
 	w = restored
 	var ready: int = w.objects.records[f.stove].process.ready_ms
 	advance(w, ready)
+	move_actor(w, 3, Vector2(125.5, 125.5)) # The first worker must actually vacate the unique craft station.
 	move_actor(w, 4, Vector2(127.5, 123.5))
 	check(w.execute_operation(4, {"kind": "brew", "target": int(f.stove)}) == "accepted", "Other actual worker could not finish the same batch")
 	w.settle_action(4, w.elapsed_ms)

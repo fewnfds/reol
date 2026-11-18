@@ -53,6 +53,10 @@ var _inspected_clue: Dictionary = {}
 var _inspected_social: Dictionary = {}
 var _player_view: Dictionary = {}
 # These fields are used exclusively by the simulation thread.
+var _work_request: Dictionary = {}
+var _work_view: Dictionary = {}
+var _work_revision: int = -1
+var _work_due_usec: int = 0
 var _world: RefCounted
 var _terrain_view: RefCounted
 var _sequence: int = 0
@@ -293,6 +297,9 @@ func _run() -> void:
 				if candidate != null:
 					_world.deferred.close()
 					_world = candidate
+					_work_request.clear()
+					_work_view.clear()
+					_work_revision = -1
 					_world.combat.set_control(_world, {"enabled": false})
 					_epoch += 1
 					_poses.clear()
@@ -321,6 +328,10 @@ func _run() -> void:
 				trace.received_usec = Time.get_ticks_usec()
 			if command.get("epoch", _epoch) != _epoch:
 				replies.append({"seq": command.seq, "kind": command.get("kind", ""), "at_ms": _world.elapsed_ms, "ok": false, "reason": "session_changed"})
+			elif command.get("kind", "") == "work_view":
+				_work_request = command.duplicate() if command.get("enabled", false) else {}
+				_work_revision = -1
+				replies.append({"seq": command.seq, "kind": "work_view", "at_ms": _world.elapsed_ms, "ok": true, "reason": "workspace_updated"})
 			elif paused and command.get("kind", "") == "action":
 				replies.append({"seq": command.seq, "kind": "action", "at_ms": _world.elapsed_ms, "ok": false, "reason": "paused"})
 			elif command.get("kind", "") == "action":
@@ -419,6 +430,12 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 		frame.reactions[actor] = _world.combat.status[actor].duplicate(true)
 		frame.reactions[actor]["heavy"] = bool(_world.combat.status[actor].get("punishable", false))
 	frame.epoch = _epoch
+	if not _work_request.is_empty():
+		if _work_revision != _world.institutions.department_revision or Time.get_ticks_usec() >= _work_due_usec:
+			_work_revision = _world.institutions.department_revision
+			_work_view = _world.institutions.Departments.view(_world.institutions, _world, 1, int(_work_request.get("department", 0)), str(_work_request.get("group", "")), int(_work_request.get("page", 0)))
+			_work_due_usec = Time.get_ticks_usec() + 500000
+		frame.work = _work_view
 	frame.world_ms = _world.elapsed_ms
 	frame.speed = speed
 	frame.paused = paused

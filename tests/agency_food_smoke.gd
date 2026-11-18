@@ -60,9 +60,31 @@ func self_food_and_player_parity() -> void:
 	advance(w, w.elapsed_ms + 1200)
 	check(w.objects.amount(2, "meal") == 0 and w.pages[0].hunger[1] > 4400, "Autonomous self eating bypassed actual consumption")
 
+func partial_material_planning() -> void:
+	var w: RefCounted = peaceful()
+	for item: String in ["grain", "water"]: w.objects.add(2, item, -w.objects.amount(2, item))
+	var stove: int = w.facilities.create_completed(w, "cook_stove", w.Terrain.index(Vector2i(126, 122)))
+	var chest: int = w.facilities.create_completed(w, "wood_chest", w.Terrain.index(Vector2i(122, 122)))
+	w.objects.add(2, "water", 1)
+	var planner: RefCounted = preload("res://scripts/sim/kernel/agency_planner.gd").new()
+	var known: Dictionary = {stove: w.operation_target(stove), chest: w.operation_target(chest)}
+	var self_view: Dictionary = w.operation_actor(2); self_view["speed"] = w.pages[0].move_speed[1]
+	planner.configure(self_view, w.operation_target(2), known, {}, w.combat.position(w, 2), w.elapsed_ms, {"work": 0, "cursor": 0}, {})
+	var step: Dictionary = planner._resolve(w.Operations.OPERATIONS.cook, known[stove], [])
+	check(step.get("input", {}).get("kind") == "put" and step.input.item == "water" and step.input.target == stove, "Unavailable grain hid a useful carried-water delivery")
+	w.objects.add(2, "water", -1)
+	w.objects.add(chest, "water", 1)
+	known[chest] = w.operation_target(chest)
+	self_view = w.operation_actor(2); self_view["speed"] = w.pages[0].move_speed[1]
+	planner.configure(self_view, w.operation_target(2), known, {}, w.combat.position(w, 2), w.elapsed_ms, {"work": 0, "cursor": 0}, {})
+	step = planner._resolve(w.Operations.OPERATIONS.cook, known[stove], [])
+	check(step.get("input", {}).get("kind") == "take" and step.input.item == "water" and step.input.target == chest, "Unavailable first input hid another obtainable ingredient")
+	w.deferred.close()
+
 func _run() -> void:
 	check(Agency.ERRORS.is_empty(), "Invalid authored agency library: " + str(Agency.ERRORS))
 	food_prerequisites_and_reentry()
 	self_food_and_player_parity()
+	partial_material_planning()
 	print("AGENCY_FOOD_SMOKE errors=", errors)
 	quit(0 if errors == 0 else 1)

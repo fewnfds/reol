@@ -3,6 +3,7 @@ extends RefCounted
 const State = preload("res://scripts/sim/kernel/state.gd")
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Items = preload("res://scripts/sim/kernel/items.gd")
+const Stock = preload("res://scripts/sim/kernel/stock_rules.gd")
 const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const STATE_FIELDS: Array = ["records"]
@@ -501,7 +502,9 @@ static func _valid_teaching(account: Variant, actor: int, next_id: int, now: int
 
 static func _valid_view(value: Dictionary, target: int, next_id: int, now: int) -> bool:
 	for field: Variant in value:
-		if field not in ["id", "kind", "definition", "name", "tile", "capacity", "owner", "organization", "sapient", "hp", "inventory", "stage", "process", "access_dependencies", "contents", "services", "post_revision", "host", "occupant", "injured", "water_band", "source_qi_band"]: return false
+		if field not in ["id", "kind", "definition", "name", "tile", "capacity", "reserved_capacity", "owner", "organization", "sapient", "hp", "inventory", "stage", "process", "access_dependencies", "contents", "services", "post_revision", "host", "occupant", "injured", "water_band", "source_qi_band", "work_department", "storage_policy"]: return false
+	if value.has("work_department") and (not value.work_department is int or value.work_department < 0 or value.work_department > 1000000000): return false
+	if value.has("storage_policy") and not Stock.valid_storage_policy(value.storage_policy, next_id): return false
 	if value.has("name") and (not value.name is String or value.name.length() > 256): return false
 	if value.has("source_qi_band") and (value.get("kind") != "plant" or not value.source_qi_band is int or (value.source_qi_band not in [-1, 0] and value.source_qi_band not in Growth.SOURCE_QI_STEPS)): return false
 	for reference: String in ["host", "occupant"]:
@@ -525,6 +528,7 @@ static func _valid_view(value: Dictionary, target: int, next_id: int, now: int) 
 			for service: Variant in value.services:
 				if service not in ["rest", "eat"] or not value.services[service] is bool or not value.services[service]: return false
 		if value.has("capacity") and (not value.capacity is int or value.capacity < -1 or value.capacity > 1000000000): return false
+		if value.has("reserved_capacity") and (not value.reserved_capacity is int or value.reserved_capacity < 0 or value.reserved_capacity > 1000000000): return false
 		if value.has("inventory"):
 			if not value.inventory is Dictionary or value.inventory.size() > 256: return false
 			for item: Variant in value.inventory:
@@ -536,7 +540,8 @@ static func _valid_view(value: Dictionary, target: int, next_id: int, now: int) 
 				var total: int = 0
 				var seen: Dictionary = {}
 				for group: Variant in value.contents[item]:
-					if not group is Dictionary or group.size() != 4 or not group.get("owner") is int or group.owner < 0 or group.owner >= next_id or not group.get("organization") is int or group.organization < 0 or (group.owner > 0 and group.organization > 0) or not group.get("entrusted") is bool or not group.get("count") is int or group.count <= 0 or group.count > 1000000000: return false
+					if not group is Dictionary or group.size() != 5 or not group.get("owner") is int or group.owner < 0 or group.owner >= next_id or not group.get("organization") is int or group.organization < 0 or (group.owner > 0 and group.organization > 0) or not group.get("entrusted") is bool or not group.get("count") is int or group.count <= 0 or group.count > 1000000000: return false
+					if not group.get("available") is int or group.available < 0 or group.available > group.count: return false
 					var key: String = "%d:%d:%s" % [group.owner, group.organization, str(group.entrusted)]
 					if seen.has(key): return false
 					seen[key] = true; total += int(group.count)
@@ -546,7 +551,8 @@ static func _valid_view(value: Dictionary, target: int, next_id: int, now: int) 
 		if not value.process is Dictionary: return false
 		var process: Dictionary = value.process
 		if not process.is_empty():
-			if process.size() != 7 or not process.get("id") is int or process.id <= 0 or not process.get("operation") is String or Operations.OPERATIONS.get(process.operation, {}).get("recipe", {}).is_empty(): return false
+			if process.size() != 9 or not process.get("id") is int or process.id <= 0 or not process.get("operation") is String or Operations.OPERATIONS.get(process.operation, {}).get("recipe", {}).is_empty(): return false
+			if not process.get("paused") is bool or not process.get("passive_remaining_ms") is int or process.passive_remaining_ms < 0 or process.passive_remaining_ms > 300000: return false
 			if not process.get("output_owner") is int or process.output_owner < 0 or process.output_owner >= next_id or not process.get("output_organization") is int or process.output_organization < 0 or (process.output_owner > 0 and process.output_organization > 0): return false
 			if process.get("stage") not in ["work", "passive", "finish"] or not process.get("remaining_ms") is int or process.remaining_ms < 0 or process.remaining_ms > 300000 or not process.get("ready_ms") is int or process.ready_ms < 0 or process.ready_ms > now + 86400000: return false
 	if value.has("access_dependencies"):
