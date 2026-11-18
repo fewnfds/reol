@@ -26,6 +26,7 @@ var _wake_pending: bool = false
 var _commands: Array[Dictionary] = []
 var _receipts: Array[Dictionary] = []
 var _side_view := PackedByteArray()
+var _actor_sprites := PackedByteArray()
 var _ready_receipts: Array[Dictionary] = [] # Owner-only until the matching Frame publishes.
 var _outcomes: Array[Dictionary] = []
 var _latest: RefCounted
@@ -558,10 +559,15 @@ func _publish(paused: bool, speed: float, selected: int, probe: int) -> void:
 			_actor_view = _world.actor_slots.duplicate()
 			_side_view = PackedByteArray() # Previous Frames retain their immutable column.
 			_side_view.resize(frame.ids.size())
+			_actor_sprites = PackedByteArray()
+			_actor_sprites.resize(frame.ids.size())
 			for slot: int in frame.ids.size():
-				_side_view[slot] = int(_world.objects.records.get(frame.ids[slot], {}).get("side", 0))
+				var record: Dictionary = _world.objects.records.get(frame.ids[slot], {})
+				_side_view[slot] = int(record.get("side", 0))
+				_actor_sprites[slot] = int(record.get("sex", "") == "female")
 		frame.objects = _object_view
 		frame.sides = _side_view
+		frame.actor_sprites = _actor_sprites
 		if _sight_revision != _world.sight.revision:
 			_sight_revision = _world.sight.revision
 			_loss_view = _world.sight.smooth_loss.to_byte_array()

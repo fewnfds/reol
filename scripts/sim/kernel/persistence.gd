@@ -178,6 +178,8 @@ static func _objects_valid(world: RefCounted, retire_roofs: bool, roofs: Array[i
 		if record.kind == "actor" and tile != -1:
 			return false
 		if record.kind == "actor":
+			if record.has("sex") and record.sex not in ["male", "female"]: return false
+			if record.has("resident_title") and (not record.resident_title is String or record.resident_title.length() > 64): return false
 			if not Equipment.valid_record(record): return false
 			for gear: Dictionary in record.equipment.values():
 				if not world.objects.Stock.valid_right(gear, world.objects.next_id): return false

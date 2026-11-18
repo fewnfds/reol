@@ -10,6 +10,7 @@ const Items = preload("res://scripts/sim/kernel/items.gd")
 const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const Plants = preload("res://scripts/sim/kernel/nature_defs.gd")
 const Agency = preload("res://scripts/sim/kernel/agency_defs.gd")
+const Names = preload("res://scripts/sim/scenarios/resident_names.gd")
 
 static func _inside(point: Vector2i) -> bool:
 	return point.x >= 1 and point.y >= 1 and point.x < Terrain.SIZE - 1 and point.y < Terrain.SIZE - 1
@@ -67,6 +68,7 @@ static func compile(spec: Definition) -> Dictionary:
 	var teachings: Dictionary = {}
 	for profile: Resource in spec.resident_profiles:
 		if profile == null: errors.append("opening: null resident profile"); continue
+		if profile.title.length() > 64: errors.append("opening: resident title too long")
 		for slot: int in profile.slots:
 			if slot < 0 or slot >= spec.residents_per_district or residents.has(slot): errors.append("opening: duplicate/out-of-range resident profile")
 			residents[slot] = true
@@ -171,6 +173,9 @@ static func assemble(world: RefCounted, spec: Definition) -> PackedStringArray:
 	if not plan.errors.is_empty(): return plan.errors
 	if world.elapsed_ms != 0 or world.actor_count != spec.population() or world.objects.records.size() != spec.population() or not world.actor_slots.has(1) or not world.institutions.organizations.is_empty() or not world.knowledge.records.is_empty(): return PackedStringArray(["opening: requires a new empty world with the requested population"])
 	var errors := PackedStringArray()
+	var random := RandomNumberGenerator.new()
+	random.randomize()
+	var names: Dictionary = {}
 	var org: int = world.institutions.create(spec.title)
 	var districts: Array = []
 	for area: Rect2i in spec.soil_areas:
@@ -227,7 +232,11 @@ static func assemble(world: RefCounted, spec: Definition) -> PackedStringArray:
 			var row: int = body % 256
 			var person: Dictionary = world.objects.records[actor]
 			person.autonomous = false; person["side"] = 0
-			person["name"] = "%s弟子%02d" % [spec.district_names[district], slot + 1]
+			person["sex"] = "female" if random.randi_range(0, 1) == 0 else "male"
+			var personal_name: String = Names.generate(random, person.sex)
+			while names.has(personal_name): personal_name = Names.generate(random, person.sex)
+			names[personal_name] = true
+			person["name"] = personal_name
 			page.positions[row] = Vector2(spec.district_origins[district] + spec.spawn_offsets[slot]) + Vector2.ONE * 0.5
 			page.targets[row] = page.positions[row]
 			page.hunger[row] = spec.satiety_min + (actor * 137) % spec.satiety_span
@@ -238,7 +247,7 @@ static func assemble(world: RefCounted, spec: Definition) -> PackedStringArray:
 			for slot: int in profile.slots:
 				var actor: int = district * spec.residents_per_district + slot + 1
 				var person: Dictionary = world.objects.records[actor]
-				person.name = "%s%s%02d" % [spec.district_names[district], profile.name_prefix, slot + 1]
+				if not profile.title.is_empty(): person["resident_title"] = profile.title
 				for method: String in profile.mastered: Growth.seed(person, method, 0)
 				for method: String in profile.introduced: Growth.seed(person, method, 0, false)
 				if not world.livelihood.set_dispositions(world, actor, profile.dispositions): errors.append("opening: dispositions refused")

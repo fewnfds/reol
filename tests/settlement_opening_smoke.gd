@@ -91,12 +91,36 @@ func _run() -> void:
 	for department: Dictionary in departments.departments:
 		if str(department.title).ends_with("膳堂"): kitchen_id = department.id
 	var kitchen: Dictionary = w.institutions.Departments.view(w.institutions, w, 1, kitchen_id).selected
-	check(w.objects.records[7].name == "东篱院弟子07" and w.institutions.Departments.manages_person(w.institutions, 1, 7), "Named resident did not resolve to a managed subordinate")
+	check(w.institutions.Departments.manages_person(w.institutions, 1, 7), "Named resident did not resolve to a managed subordinate")
 	check(str(supplies.title).ends_with("仓务") and supplies.workers.size() == 6 and not supplies.workers.any(func(worker: Dictionary): return worker.id == 7), "Six-person supplies roster included an unrelated kitchen worker")
 	check(kitchen_id > 0 and kitchen.workers.any(func(worker: Dictionary): return worker.id == 7), "Kitchen roster omitted the managed resident")
 	check(not w.objects.records.values().any(func(record: Dictionary): return record.kind == "roof"), "Settlement opening spawned legacy roof tiles")
 	check(w.actor_count == 100 and w.objects.total("grain") == 48 and w.objects.total("meal") == 128 and w.objects.total("potion") == 0, "Finite initial people/food or absence of developer gifts changed")
-	check(Persistence.candidate(Persistence.capture(w), 0) != null, "Normal zero-time settlement failed actual restoration")
+	var names: Dictionary = {}
+	var sexes: Dictionary = {}
+	for actor: int in w.actor_slots:
+		var person: Dictionary = w.objects.records[actor]
+		var name: String = person.get("name", "")
+		check(name.length() in [2, 3, 4] and not names.has(name), "Invalid or duplicate resident name: " + name)
+		for character: String in name:
+			check(character.unicode_at(0) >= 0x4e00 and character.unicode_at(0) < 0xa000, "Resident name contains a non-Han character")
+		names[name] = true
+		sexes[person.get("sex", "")] = true
+	check(sexes.size() == 2 and sexes.has("male") and sexes.has("female"), "Normal opening lacked both character variants")
+	var saved: Dictionary = Persistence.capture(w)
+	var reopened: RefCounted = Persistence.candidate(saved, 0)
+	check(reopened != null, "Normal zero-time settlement failed actual restoration")
+	if reopened != null:
+		for actor: int in w.actor_slots:
+			var person: Dictionary = w.objects.records[actor]
+			var restored_person: Dictionary = reopened.objects.records[actor]
+			check(person.name == restored_person.name and person.sex == restored_person.sex and person.get("resident_title", "") == restored_person.get("resident_title", ""), "Restoring changed resident identity")
+	var old_record: Dictionary = saved.domains.objects.records[7]
+	old_record["name"] = "东篱院弟子07"
+	old_record.erase("sex")
+	old_record.erase("resident_title")
+	reopened = Persistence.candidate(saved, 0)
+	check(reopened != null and reopened.objects.records[7].name == "东篱院弟子07" and not reopened.objects.records[7].has("sex"), "Legacy actor identity failed restoration")
 	check(w.knowledge.view(15, 8, 0).get("teaches", {}).has("cooking"), "A known cooking mentor was seeded with an unrelated method only")
 	check(w.decisions.records[8].next_ms == 450 and w.knowledge.records[8].due_ms <= w.decisions.records[8].next_ms, "Assembly scheduled planning before final activation or first observation")
 	check(not w.knowledge.view(8, 14, 0).is_empty() and w.society.Contacts.known(w.society, 8, 14), "A mutual initial acquaintance lacked the reverse personal introduction")

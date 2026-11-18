@@ -6,6 +6,38 @@ func capture(name_key: String) -> void:
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png(directory + name_key + ".png")
 
+func gallery_preview() -> void:
+	var toolbar_button: Button
+	for button: Button in game.ui.find_children("*", "Button", true, false):
+		if button.text == "图鉴": toolbar_button = button; break
+	check(toolbar_button != null, "Normal toolbar omitted its gallery entry")
+	if toolbar_button == null: return
+	await mouse(MOUSE_BUTTON_LEFT, true, toolbar_button.get_global_rect().get_center())
+	await mouse(MOUSE_BUTTON_LEFT, false, toolbar_button.get_global_rect().get_center())
+	var gallery: CanvasLayer = game.art_gallery
+	check(gallery.is_open() and game.controls.locked(), "Toolbar did not open a modal gallery")
+	if not gallery.is_open(): return
+	var tabs: TabContainer = gallery._tabs
+	var bar: TabBar = tabs.get_tab_bar()
+	var female_point: Vector2 = bar.get_global_transform_with_canvas() * bar.get_tab_rect(1).get_center()
+	await mouse(MOUSE_BUTTON_LEFT, true, female_point)
+	await mouse(MOUSE_BUTTON_LEFT, false, female_point)
+	check(tabs.current_tab == 1 and gallery._actor_tabs[1][0].texture.region.position.y >= 768, "Female tab failed to select the female atlas rows")
+	await capture("settlement-gallery-female-%d" % game.ui.ui_percent)
+	var atlas_point: Vector2 = bar.get_global_transform_with_canvas() * bar.get_tab_rect(tabs.get_tab_count() - 1).get_center()
+	await mouse(MOUSE_BUTTON_LEFT, true, atlas_point)
+	await mouse(MOUSE_BUTTON_LEFT, false, atlas_point)
+	check(tabs.current_tab == tabs.get_tab_count() - 1 and tabs.get_current_tab_control().get_child(0).item_count == 3, "Gallery did not expose all three original atlases")
+	await key(KEY_ESCAPE, true); await key(KEY_ESCAPE, false)
+	check(not gallery.is_open() and not gallery.is_processing(), "Escape failed to close the gallery and stop its animation")
+	await key(KEY_F8, true); await key(KEY_F8, false)
+	check(gallery.is_open(), "F8 failed to reopen the gallery")
+	var close_button: Button = gallery._panel.find_children("*", "Button", true, false)[0]
+	await mouse(MOUSE_BUTTON_LEFT, true, close_button.get_global_rect().get_center())
+	await mouse(MOUSE_BUTTON_LEFT, false, close_button.get_global_rect().get_center())
+	check(not gallery.is_open(), "Clicking the gallery close button did not close it")
+
+
 func _run() -> void:
 	game = Game.new() # Product default: no developer actor count or fixture load.
 	game.controls.bindings.config_path = "user://settlement-ui-controls.cfg"
@@ -16,12 +48,15 @@ func _run() -> void:
 	if game.frame == null: game.queue_free(); quit(1); return
 	check(game.frame.ids.size() == 100 and game.frame.player.inventory.is_empty() and game.frame.practice_mode.is_empty(), "Normal main scene inherited a developer fixture")
 	await capture("settlement-normal-start")
+	await gallery_preview()
 	game.controls.action("context", {})
 	game.controls._select(8, -1)
 	check(await until(func(): return game.ui._target.get("id", 0) == 8), "Normal NPC could not be inspected")
 	game.controls.action("character", {})
 	check(await until(func(): return game.ui.character != null and game.ui.character.subject_id == 8), "Normal NPC character view did not open")
 	check(await until(func(): return game.ui.character._header.text.contains("传功弟子")), "Normal NPC detail view never refreshed")
+	var resident: Dictionary = game.frame.inspected
+	check(game.ui.character._header.text.begins_with(resident.name + " #8") and game.ui.character._header.text.contains(" · " + ("女" if resident.sex == "female" else "男")), "Detail header omitted the NPC's name or sex")
 	check(game.ui.character._header.text.contains("传功弟子") and game.ui.character._overview.text.contains("青禾宗") and game.ui.character._overview.text.contains("床榻"), "Normal fellow member lost their identity, institutional membership or assigned rest place")
 	check(not game.ui.character._bag.visible and not game.ui.character._stats.text.contains("HP") and game.ui.character.events.text == "暂无可知记录。", "Normal observation opened another person's private bag, exact vitals or personal journal")
 	var bar: TabBar = game.ui.character._tabs.get_tab_bar()
@@ -52,6 +87,7 @@ func _run() -> void:
 	await process_frame; await process_frame
 	check(game.ui.character._tabs.get_tab_bar().get_global_transform_with_canvas().origin.y < root.size.y and game.ui.character._tabs.get_child(0) is ScrollContainer, "Scaled normal character view lost accessible tabs or scrolling")
 	await capture("settlement-normal-restored")
+	await gallery_preview()
 	game.queue_free(); await process_frame; await process_frame
 	for cleanup: String in [path, path + ".bak", path + ".tmp", "user://settlement-ui-controls.cfg", "user://settlement-ui-feedback.cfg"]:
 		if FileAccess.file_exists(cleanup): DirAccess.remove_absolute(cleanup)

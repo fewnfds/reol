@@ -134,6 +134,8 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted, ac
 			if at_ms >= int(state.recovery_ms): keyframe = 3
 			elif at_ms >= int(state.active_ms): keyframe = 1 + clampi(int(float(at_ms - int(state.active_ms)) / maxi(1, int(state.recovery_ms) - int(state.active_ms)) * 2), 0, 1)
 			buffer[offset + 15] += 4096 + keyframe * 8192
+		if index < frame.actor_sprites.size() and frame.actor_sprites[index] != 0:
+			buffer[offset + 15] += Art.ACTOR_VARIANT_BIT
 	_buffer = buffer
 	_compose(buffer)
 

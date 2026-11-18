@@ -1,6 +1,12 @@
 # 当前构建与验证
 
-更新：2026-11-18。能力归[FEATURES](features.md)，状态归属归[架构](../engineering/architecture.md)，阶段归[主计划](../plans/foundation-priorities.md)。现行包与交付范围以顶部部门管理节为准；后续各节保留对应日期的阶段证据，不能用其当时构建覆盖现行包。完整历史由Git追溯。
+更新：2026-11-18。能力归[FEATURES](features.md)，状态归属归[架构](../engineering/architecture.md)，阶段归[主计划](../plans/foundation-priorities.md)。现行试玩使用[启动.cmd](../../启动.cmd)的源码入口；各节保留对应阶段的验证与构建证据。完整历史由Git追溯。
+
+## 人物姓名与素材图鉴
+
+2026-11-18，`settlement_opening_smoke`验证百人姓名唯一、姓名和男女外观存读一致、缺失新字段的旧人物记录可恢复。人物图集为1536×1536，1024格均含透明区域，原512格像素一致。D3D12下连续三次`settlement_ui_smoke`通过，覆盖1280×720及125%界面缩放的工具栏入口、女角色预览、原图集、Esc/F8、关闭按钮、人物页及5秒正常世界实际写档和读取。`view_ui_smoke`和`department_ui_smoke`通过。
+
+重复读档发现参与者行动已释放而决策仍追踪旧绑定。共享活动结束现在沿`World.end_run`释放参与者，并维持原有自主复查；`scheduling_smoke`新增反例修前拒载、修后通过。`qi_refinement_smoke`按台内库存合同区分实际放料与退库，`qi_refinement_smoke`、`activities_smoke`和`operations_smoke`均通过。核心聚合检查重跑仍见旧的4×推进断言失败（550ms，要求650ms），另一次在15秒上限内未完成，仍记为未通过。
 
 ## 部门管理与生产协作
 

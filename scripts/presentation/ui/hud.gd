@@ -66,6 +66,7 @@ var character: Control
 var _character_id: int = 1
 var _use_fog: bool = true
 var _scale_input: SpinBox
+var _toolbar: PanelContainer
 var _events: RichTextLabel
 var _context_panel: PanelContainer
 var _context_body := VBoxContainer.new()
@@ -173,12 +174,14 @@ func _ready() -> void:
 	_drawer_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	drawer_scroll.add_child(_drawer_body)
 	_drawer_panel.hide()
-	var toolbar: PanelContainer = _panel(self, Control.PRESET_BOTTOM_LEFT, Vector4(8, -126, 330, -8))
+	_toolbar = _panel(self, Control.PRESET_BOTTOM_LEFT, Vector4(8, -126, 330, -8))
+	_toolbar.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	var tabs := GridContainer.new()
 	tabs.columns = 2
-	toolbar.add_child(tabs)
-	for row: Array in [["build_menu", "营造", "build"], ["plant_menu", "种植", "plant"], ["inventory", "背包", "bag"], ["character", "人物", "person"], ["work_panel", "职责", "person"], ["travel", "地区", "map"], ["dev", "DEV", "gear"]]:
-		_button(tabs, row[0], row[1], row[2])
+	_toolbar.add_child(tabs)
+	for row: Array in [["build_menu", "营造", "build"], ["plant_menu", "种植", "plant"], ["inventory", "背包", "bag"], ["character", "人物", "person"], ["work_panel", "职责", "person"], ["travel", "地区", "map"], ["dev", "DEV", "gear"], ["gallery", "图鉴", "book"]]:
+		var button: Button = _button(tabs, row[0], row[1], row[2])
+		if row[0] == "gallery": button.tooltip_text = "素材图鉴 · F8"
 	_map_panel = _panel(self, Control.PRESET_BOTTOM_RIGHT, Vector4(-226, -306, -8, -72))
 	var map_body := VBoxContainer.new()
 	_map_panel.add_child(map_body)
@@ -336,6 +339,9 @@ func _layout() -> void:
 	work_panel.fit(size)
 	if _modal_panel != null: _layout_modal()
 	var width: float = size.x
+	var toolbar_top: float = 8.0 + _toolbar.get_combined_minimum_size().y
+	_toolbar.offset_top = -toolbar_top
+	var inspect_inset: float = toolbar_top + 9.0
 	var dock_width: float = minf(584, maxf(490, width - 590))
 	var dock: Control = _player_values.get_parent().get_parent()
 	dock.offset_left = -dock_width * 0.5
@@ -346,7 +352,7 @@ func _layout() -> void:
 		_inspect_panel.anchor_top = 0
 		_inspect_panel.anchor_bottom = 0
 		_inspect_panel.offset_top = 92
-		_inspect_panel.offset_bottom = maxf(270, size.y - 140)
+		_inspect_panel.offset_bottom = maxf(270, size.y - inspect_inset)
 		_map_panel.anchor_top = 0
 		_map_panel.anchor_bottom = 0
 		_map_panel.offset_top = 94
@@ -357,7 +363,7 @@ func _layout() -> void:
 		_inspect_panel.anchor_top = 1
 		_inspect_panel.anchor_bottom = 1
 		_inspect_panel.offset_top = -450
-		_inspect_panel.offset_bottom = -135
+		_inspect_panel.offset_bottom = -inspect_inset
 		_map_panel.anchor_top = 1
 		_map_panel.anchor_bottom = 1
 		_map_panel.offset_top = -306
@@ -568,7 +574,6 @@ func _refresh_drawer() -> void:
 		for i: int in 3: _button(grid, "body", ["普通", "飞行", "大体型"][i], "person", {"flight": int(i == 1), "large": i == 2})
 		_button(grid, "source", "场源", "target")
 		_button(grid, "source_overlay", "场源标记", "eye")
-		_button(grid, "gallery", "图鉴 F8", "book")
 		_button(grid, "debug", "F12", "gear")
 		_button(grid, "action_trace", "反应追踪 开／关", "gear")
 

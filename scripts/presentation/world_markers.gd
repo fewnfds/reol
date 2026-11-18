@@ -11,7 +11,7 @@ const NAME_COLORS: Dictionary = {
 	Relation.REPORT: Color("a7ed97"),
 	Relation.HOSTILE: Color("f96c66"),
 }
-const NAME_SIZE: int = 13
+const NAME_SIZE: int = 12
 const NAME_ZOOM: float = 0.60
 const OUTLINE := Color("182326")
 var font: Font

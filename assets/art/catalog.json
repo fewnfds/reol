@@ -16,6 +16,10 @@
       42
     ],
     "columns": 32,
+    "variants": [
+      "male",
+      "female"
+    ],
     "directions": [
       "N",
       "NE",
@@ -141,7 +145,7 @@
         "loop": true
       }
     ],
-    "note": "SW direction corrected by mirroring SE; equipment later needs authored anatomical attachment; derived action frames are temporary cutout animation."
+    "note": "SW is mirrored from SE; female sprites share the base and have authored hair, ribbons and a different robe palette."
   },
   "entries": {
     "oak": {
@@ -6677,7 +6681,7 @@
     "source": "authored"
   },
   "sha256": {
-    "actors.png": "399aee8374e60273c958ed6aeb17844d126ad0ba97ebebb00558e3aad1dcd5e9",
+    "actors.png": "e1f50fd0d1a0c53a5d467a1b1fdc2cbacb22899cc0b3db51b1120def101f0680",
     "world.png": "ba10a496a5086c0d344b1cd9aa3489bde7cea053cdc430ad05a0d165aec1a307",
     "terrain.png": "ec803c9e7a280020e07af16932c06df6fa35c315cfd201a591452d12fdd8ec18"
   }

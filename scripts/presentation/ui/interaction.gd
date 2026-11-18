@@ -110,6 +110,12 @@ func _input(event: InputEvent) -> void:
 			get_viewport().gui_release_focus()
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE and not event.pressed:
 		_pan_drag = false # Release can land on GUI instead of the world.
+	if event is InputEventKey and event.pressed and not event.echo:
+		var gallery_open: bool = host.art_gallery.is_open()
+		if (gallery_open and event.keycode in [KEY_F8, KEY_ESCAPE]) or (event.keycode == KEY_F8 and not external_modal() and not ui.blocks_world()):
+			action("gallery", {})
+			get_viewport().set_input_as_handled()
+			return
 	if external_modal(): return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
 		if ui.binding_editor != null and ui.binding_editor.escape():
@@ -348,7 +354,9 @@ func action(kind: String, payload: Dictionary) -> void:
 			ui.minimap._apply_view()
 		"map_follow": ui.minimap.follow_player = not ui.minimap.follow_player
 		"cancel_tool": cancel_tool()
-		"gallery": host.art_gallery.toggle()
+		"gallery":
+			clear_direct()
+			host.art_gallery.toggle()
 		"debug":
 			if host._debug_console != null: host._debug_console.toggle()
 		"source_overlay": host._show_sources = not host._show_sources

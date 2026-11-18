@@ -128,11 +128,39 @@ def tool(draw: ImageDraw.ImageDraw, kind: str, x: int, y: int, frame: int) -> No
         draw.polygon([(ex - 4, ey - 2), (ex + 1, ey - 4), (ex + 3, ey + 1), (ex - 3, ey + 2)], fill="#b8c6be", outline=INK)
 
 
-def actors() -> dict:
-    views = [pixelize(im, (25, 34), 24) for im in cells(SOURCE / "character.png", 4, 2)]
-    # The generated SW was another SE. Correct the facing explicitly; this is
-    # a temporary mirrored view, not an anatomical-equipment reference rig.
-    views[5] = ImageOps.mirror(views[3])
+def feminine_view(base: Image.Image, direction: int) -> Image.Image:
+    """A second silhouette on the same foot pivot and original body scale."""
+    width, height = base.size
+    image = Image.new("RGBA", (width + 6, height))
+    center = image.width // 2
+    draw = ImageDraw.Draw(image)
+    hair = "#302944"
+    ribbon = "#bd83a0"
+    # The hair and ribbon trail behind the head in side and back views.
+    offsets = [(0, 0), (-4, -1), (-5, -2), (-4, -1), (-5, 5), (4, 1), (5, 2), (4, 1)]
+    for shift in dict.fromkeys(offsets[direction]):
+        x = center + shift
+        draw.polygon([(x - 3, 9), (x + 3, 10), (x + 4, 22), (x + 1, 26), (x - 3, 22)], fill=hair, outline=INK)
+        draw.line((x, 13, x + 1, 22), fill="#5a4261")
+    robe = base.copy()
+    for y in range(17, height - 3):
+        for x in range(width):
+            r, g, b, a = robe.getpixel((x, y))
+            if a and g > r * 1.15 and g > b * 0.95 and g > 65:
+                robe.putpixel((x, y), (min(255, r + 62), max(0, g - 11), min(255, b + 31), a))
+    image.alpha_composite(robe, (3, 0))
+    draw = ImageDraw.Draw(image)
+    for shift in dict.fromkeys(offsets[direction]):
+        x = center + shift
+        draw.line((x - 3, 9, x + 2, 8), fill=ribbon, width=2)
+        draw.point((x + 1, 8), fill=CREAM)
+    if direction in [0, 1, 7]:
+        draw.polygon([(center - 2, 14), (center + 2, 14), (center + 3, 23), (center, 25), (center - 3, 22)], fill=hair, outline=INK)
+        draw.line((center, 16, center + 1, 22), fill="#5a4261")
+    return image
+
+
+def actor_frames(views: list[Image.Image]) -> Image.Image:
     atlas = Image.new("RGBA", (48 * 32, 48 * len(CLIPS)))
     for direction, base in enumerate(views):
         for action, clip in enumerate(CLIPS):
@@ -197,18 +225,32 @@ def actors() -> dict:
                     glow.putalpha(im.getchannel("A").point(lambda p: 100 if p else 0))
                     im = Image.alpha_composite(im, glow)
                 atlas.alpha_composite(im, ((direction * 4 + frame) * 48, action * 48))
+    return atlas
+
+
+def actors() -> dict:
+    views = [pixelize(im, (25, 34), 24) for im in cells(SOURCE / "character.png", 4, 2)]
+    # The generated SW was another SE. Correct the facing explicitly; this is
+    # a temporary mirrored view, not an anatomical-equipment reference rig.
+    views[5] = ImageOps.mirror(views[3])
+    variants = [actor_frames(views), actor_frames([feminine_view(base, facing) for facing, base in enumerate(views)])]
+    rows = len(CLIPS) * len(variants)
+    atlas = Image.new("RGBA", (48 * 32, 48 * rows))
+    for variant, frames in enumerate(variants):
+        atlas.alpha_composite(frames, (0, variant * 48 * len(CLIPS)))
     atlas.save(OUT / "actors.png", optimize=True)
-    sheet = Image.new("RGB", (8 * 128, len(CLIPS) * 112), "#273b38")
+    sheet = Image.new("RGB", (8 * 128, rows * 112), "#273b38")
     d = ImageDraw.Draw(sheet)
-    for action, name in enumerate(CLIPS):
+    for row in range(rows):
         for facing in range(8):
-            im = atlas.crop(((facing * 4 + 1) * 48, action * 48, (facing * 4 + 2) * 48, (action + 1) * 48)).resize((96, 96), Image.Resampling.NEAREST)
-            sheet.paste(im, (facing * 128 + 16, action * 112), im)
-        d.text((4, action * 112 + 96), name, fill=CREAM)
+            im = atlas.crop(((facing * 4 + 1) * 48, row * 48, (facing * 4 + 2) * 48, (row + 1) * 48)).resize((96, 96), Image.Resampling.NEAREST)
+            sheet.paste(im, (facing * 128 + 16, row * 112), im)
+        d.text((4, row * 112 + 96), ("male" if row < len(CLIPS) else "female") + " / " + CLIPS[row % len(CLIPS)], fill=CREAM)
     sheet.save(OUT / "actor_contact.png", optimize=True)
-    return {"texture": "res://assets/art/actors.png", "frame_size": 48, "origin": [24, 42], "columns": 32, "directions": ["N", "NE", "E", "SE", "S", "SW", "W", "NW"], "frames_per_clip": 4,
+    return {"texture": "res://assets/art/actors.png", "frame_size": 48, "origin": [24, 42], "columns": 32,
+            "variants": ["male", "female"], "directions": ["N", "NE", "E", "SE", "S", "SW", "W", "NW"], "frames_per_clip": 4,
             "clips": [{"id": clip, "label": LABELS[i], "row": i, "period_ms": 900 if clip != "idle" else 1600, "loop": clip not in ["dead", "hurt"]} for i, clip in enumerate(CLIPS)],
-            "note": "SW direction corrected by mirroring SE; equipment later needs authored anatomical attachment; derived action frames are temporary cutout animation."}
+            "note": "SW is mirrored from SE; female sprites share the base and have authored hair, ribbons and a different robe palette."}
 
 
 class Pack:
@@ -441,8 +483,8 @@ def main() -> None:
     manifest = {"schema": 1, "name": "Jade Valley temporary pixel pack", "date": "2026-11-12", "placement": "footprint-bottom-centre", "world": {"texture": "res://assets/art/world.png", "cell_size": 64, "columns": 8}, "characters": actors(), "entries": world(), "terrain": terrain()}
     for name in ["actors.png", "world.png", "terrain.png"]:
         manifest.setdefault("sha256", {})[name] = hashlib.sha256((OUT / name).read_bytes()).hexdigest()
-    (OUT / "catalog.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"Built {len(manifest['entries'])} world/item/effect sprites; {len(CLIPS)*8*4} actor frames; 32 terrain tiles")
+    (OUT / "catalog.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+    print(f"Built {len(manifest['entries'])} world/item/effect sprites; {len(manifest['characters']['variants']) * len(CLIPS) * 8 * 4} actor frames; 32 terrain tiles")
 
 
 if __name__ == "__main__":

@@ -6,11 +6,17 @@ const ACTORS = preload("res://assets/art/actors.png")
 const GROUND = preload("res://assets/art/terrain.png")
 const Clip = preload("res://scripts/sim/kernel/frame.gd").Visual
 const TILE: float = 32.0
+const ACTOR_VARIANT_BIT: int = 1 << 15 # Shared with population.gdshader.
+const ACTOR_FRAME: int = 48
 const BODY_FOOT_OFFSET := Vector2.ZERO
 enum DrawPlane { GROUND, BODY }
 const DEPTH_STRIDE: int = 1 << 24 # Greater than the entire map's pixel-Y * 256 range.
 static var _catalog: Dictionary = {}
 static var _icons: Dictionary = {}
+
+
+static func actor_region(clip: int, direction: int, keyframe: int, variant: int) -> Rect2i:
+	return Rect2i(Vector2i(direction * 4 + keyframe, clip + variant * Clip.size()) * ACTOR_FRAME, Vector2i.ONE * ACTOR_FRAME)
 
 
 static func body_foot(position: Vector2) -> Vector2:

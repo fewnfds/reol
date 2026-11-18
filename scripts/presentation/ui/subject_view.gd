@@ -36,7 +36,7 @@ static func observed(frame: RefCounted, id: int, use_fog: bool) -> Dictionary:
 
 static func _person(frame: RefCounted, raw: Dictionary, clue: Dictionary, use_fog: bool) -> Dictionary:
 	var result: Dictionary = {"observed_other": true}
-	for field: String in ["id", "kind", "definition", "name", "sapient", "position", "equipment", "tile", "at_ms"]:
+	for field: String in ["id", "kind", "definition", "name", "sex", "resident_title", "sapient", "position", "equipment", "tile", "at_ms"]:
 		if raw.has(field): result[field] = State.copy(raw[field])
 	result["hp"] = 1 if int(raw.get("hp", 0)) > 0 else 0
 	result["appearance"] = appearance(raw)

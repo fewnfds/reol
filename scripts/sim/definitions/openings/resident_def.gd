@@ -3,7 +3,7 @@ class_name OpeningResidentDef
 extends Resource
 ## Initial personal differences, not a runtime profession or forced schedule.
 @export var slots: PackedInt32Array = []
-@export var name_prefix: String = "弟子"
+@export var title: String = "弟子"
 @export var mastered: PackedStringArray = []
 @export var public_teachings: PackedStringArray = []
 @export var introduced: PackedStringArray = []

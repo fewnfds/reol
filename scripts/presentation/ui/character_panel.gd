@@ -121,6 +121,11 @@ func refresh(subject: Dictionary) -> void:
 	var matching: bool = int(subject.get("id", 0)) == subject_id
 	var known: bool = matching and not subject.get("memory", false) and not subject.get("pending", false)
 	_header.text = "%s #%d%s" % [str(subject.get("name", "")), subject_id, " · 本人" if subject_id == 1 else (" · 先前所知" if subject.get("memory", false) else "")]
+	if known:
+		var sex: String = str(subject.get("sex", ""))
+		if not sex.is_empty(): _header.text += " · " + ("女" if sex == "female" else "男")
+		var title: String = str(subject.get("resident_title", ""))
+		if not title.is_empty(): _header.text += " · " + title
 	_bag.visible = subject_id == 1
 	_bag.disabled = not known
 	_overview.text = (_membership_text(subject) + "\n" + _rest_text(subject)) if matching and not subject.get("pending", false) else ("正在察看…" if subject.get("pending", false) else "暂无所知。")

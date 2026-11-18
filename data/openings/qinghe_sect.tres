@@ -103,7 +103,7 @@ placements = Array[ExtResource("place")]([SubResource("Store"), SubResource("Wel
 [sub_resource type="Resource" id="Mentor"]
 script = ExtResource("resident")
 slots = PackedInt32Array(7)
-name_prefix = "传功弟子"
+title = "传功弟子"
 mastered = PackedStringArray("wood_breath", "cooking")
 public_teachings = PackedStringArray("wood_breath", "cooking")
 instruction_targets = PackedInt32Array(8, 9)
@@ -113,7 +113,7 @@ dispositions = Dictionary[String, float]({"sociability": 1.4, "dutifulness": 0.7
 [sub_resource type="Resource" id="Students"]
 script = ExtResource("resident")
 slots = PackedInt32Array(8, 9, 10, 11, 12)
-name_prefix = "求道弟子"
+title = "求道弟子"
 development = PackedStringArray("wood_breath")
 mentor_slot = 7
 dispositions = Dictionary[String, float]({"curiosity": 1.3})
@@ -121,7 +121,7 @@ dispositions = Dictionary[String, float]({"curiosity": 1.3})
 [sub_resource type="Resource" id="Cooks"]
 script = ExtResource("resident")
 slots = PackedInt32Array(13, 14, 15, 16)
-name_prefix = "膳堂弟子"
+title = "膳堂弟子"
 introduced = PackedStringArray("cooking")
 development = PackedStringArray("cooking")
 mentor_slot = 7
@@ -129,7 +129,7 @@ mentor_slot = 7
 [sub_resource type="Resource" id="Practitioners"]
 script = ExtResource("resident")
 slots = PackedInt32Array(17, 18, 19, 20)
-name_prefix = "修持弟子"
+title = "修持弟子"
 introduced = PackedStringArray("wood_breath")
 development = PackedStringArray("wood_breath")
 mentor_slot = 7

@@ -49,7 +49,8 @@ static func hits(host: Node2D, point: Vector2, include_flat: bool) -> Array[int]
 		if (flags & 4096) != 0: frame_index = (flags >> 13) & 3
 		if state == 14 or (state == 2 and (flags & 1) == 0): frame_index = 0
 		var direction: int = int(actors[at+14]) % 8
-		if _opaque(_actors, Vector2i(pixel.floor()) + Vector2i(direction*4+frame_index,state)*48):
+		var region: Rect2i = Art.actor_region(state, direction, frame_index, int((flags & Art.ACTOR_VARIANT_BIT) != 0))
+		if _opaque(_actors, Vector2i(pixel.floor()) + region.position):
 			candidates.append({"id":id,"key":float(Art.depth(actors[at+7])*scenery.ORDER_STRIDE+slot),"actor":true})
 	candidates.sort_custom(func(a: Dictionary, b: Dictionary): return a.key > b.key if a.key != b.key else a.actor and not b.actor)
 	var result: Array[int] = []
