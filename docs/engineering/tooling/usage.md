@@ -11,7 +11,7 @@ python tools/godot.py test --suite equipment
 python tools/godot.py export --preset "Windows Demo" --output build/windows/sect-foundation/reol-sect.exe
 ```
 
-`run`和新导出的Windows Demo默认进入同一100人青禾宗（玩家1＋99自主），每次启动新局；源码F5/F9主动保存/加载format33，默认`user://sect-quicksave-v33.reol`，旧32档保留；独立包按BASELINE记录的构建采用格式。当前成品入口为`build/windows/sect-foundation/reol-sect.exe`及同目录pck，键位/试玩路线查[FEATURES](../../status/features.md)。
+`run`和新导出的Windows Demo默认进入同一100人青禾宗（玩家1＋99自主），每次启动新局；源码F5/F9主动保存/加载format33，默认`user://sect-quicksave-v33.reol`，旧32档保留。需要独立包时按上方示例从当前源码导出，键位与试玩路线查[FEATURES](../../status/features.md)。
 
 ## 开发期直接试玩
 
@@ -21,15 +21,14 @@ python tools/godot.py export --preset "Windows Demo" --output build/windows/sect
 |---|---|
 | 1 · 能力练习场 | 当前框架与范例配装，和宗门共用Combat |
 | 2 · 百人宗门 | 运行最新源码的正常宗门开局 |
-| 3 · 百人宗门成品 | 运行当前独立宗门包，无需安装Godot |
-| 4 · Godot编辑器 | 打开当前项目编辑器 |
-| 5 · 旧P5战斗成品（历史） | 保留此前战斗快照与format14存档 |
+| 3 · Godot 编辑器 | 打开当前项目编辑器 |
+| 0 · 退出 | 关闭启动菜单 |
 
-源码运行共用`tools/godot.py`，修改后关闭窗口、再次启动即可读取最新脚本和shader；F5保存、重开后F9读取可以接续当前格式会话。维护脚本归`tools/`，生成的程序与说明归`build/windows/`；不为P1/P2等阶段新增启动文件，当前成品路径集中在`启动.cmd`的`current_build`变量。
+源码运行共用`tools/godot.py`，修改后关闭窗口、再次启动即可读取最新脚本和shader；F5保存、重开后F9读取可以接续当前格式会话。维护脚本归`tools/`，按需生成的导出包归`build/windows/`。
 
-ACT测试入口相当于`python tools/godot.py run -- --combat-lab=true`：同一512²世界保留后台生活，默认血刃＋轻重敌/射手混战；顶栏可切近远组合和基础范例或单轻敌/单重敌。切换会替换整个练习世界且不写存档。WASD、鼠标瞄准、左键主攻击、右键技能、E/C额外主动槽、空格闪步；Tab切日常／战斗，F附近交互；正常宗门默认日常，WASD仍可用，左键点选、右键对象菜单。普通世界1/2换真剑/真弓，练习范例由下拉框赋予，不随换装自动改为另一范例。
+ACT测试入口相当于`python tools/godot.py run -- --combat-lab=true`：同一512²世界保留后台生活，默认血刃＋轻重敌/射手混战；顶栏可切近远组合和基础范例或单轻敌/单重敌。切换会替换整个练习世界且不写存档。WASD、鼠标瞄准、左键主攻击、右键技能、E/C额外主动槽、空格闪步；Tab切日常／战斗，F附近交互；正常宗门默认日常，WASD仍可用，左键点选、右键对象菜单。普通世界按1/2装备铁剑或短弓，其中铁剑右键为重斩。练习场的血刃和守势剑配置右键为守势，范例由练习场顶栏选择。
 
-当前宗门包也可通过`reol-sect.exe -- --combat-lab=true`进入现行战斗练习。旧独立ACT包保留在`build/windows/act-p5/reol-act.exe`＋同目录pck，启动菜单选5；该旧包的默认档仍是format14的`act-p5-quicksave-v14.reol`。Esc→设置调整音量/震动/闪光和键位；各阶段旧包和存档不被新导出覆盖。
+历史 ACT 包是性能比较基线，位于`build/windows/act-p5/`，默认档为 format14 的`act-p5-quicksave-v14.reol`。Esc→设置可调整音量、震动、闪光和键位。
 
 技能制作从`data/definitions/combat/library.tres`与其引用的`.tres`进入，编辑器“工具→Reol 战斗技能库”可直达；技能Inspector有阶段/范围预览，共同Resource有字段/引用校验与引用跳转。保存后关闭并重新运行游戏采用新定义，重练不重载；配置字段与制作流程见[规格10](../../../design/systems/combat_framework/act_and_barrage.md#101-定义施放和表现的接入合同)。短检查命令示例（`GODOT_EXE`为实际引擎路径）：
 
@@ -69,7 +68,7 @@ python tools/benchmark.py --actors 24 --speed 1 --fps 120 --screenshot
 python tools/benchmark.py --actors 1000 --speed 4 --fps 60 --workers 0
 ```
 
-采样器使用已导出的release，默认仍固定历史ACT基线包`build/windows/act-p5/reol-act.exe`；测当前构建须显式给`--binary build/windows/sect-foundation/reol-sect.exe`。采样器的`--actors=N`选择开发负载；正常宗门窗口直接运行当前exe并给`-- --opening=sect --duration=15 --warmup=3 --fps=60 --metrics=绝对路径`，不要把两种开局混算。3秒运行预热，默认采样20秒，可用`--seconds`设5..60秒；装配/预热不计世界倍率。记录实际世界推进、步数/帧时、路径与交付、战斗/植物、材料审计、GPU绘制、线程及有界CPU/内存采样。CPU采样含装配，不能把整进程CPU秒直接当测量窗计算。
+采样器使用已导出的release，默认仍固定历史ACT基线包`build/windows/act-p5/reol-act.exe`；测当前构建时先按上方示例导出，再显式给`--binary build/windows/sect-foundation/reol-sect.exe`。采样器的`--actors=N`选择开发负载。正常宗门窗口直接运行新导出的exe并给`-- --opening=sect --duration=15 --warmup=3 --fps=60 --metrics=绝对路径`，不要把两种开局混算。3秒运行预热，默认采样20秒，可用`--seconds`设5..60秒；装配/预热不计世界倍率。记录实际世界推进、步数/帧时、路径与交付、战斗/植物、材料审计、GPU绘制、线程及有界CPU/内存采样。CPU采样含装配，不能把整进程CPU秒直接当测量窗计算。
 
 新源码默认`--sim-hz 60`，20/100只供对照；JSON记录实际配置。`--combat-lab`选上述测试开局，不能与响应探针混用，普通与压力场景不混算。采样保持固定镜头，日常试玩默认跟随玩家。
 

@@ -24,20 +24,20 @@
 
 定位性CPU探针（不是release帧时）：development100人、4请求worker、60步/1000游戏ms，墙钟276218μs，`World.step`累计275626μs；其中工位网格重建19次/8822μs、21次查询/23个精查候选。该样本不支持将旧4×吞吐失败归咎于工位网格，也不证明其余旧调度/认识成本已解决。探针归`.local/advisor/department-management-20261118/{cost_probe,station_cost}.gd`。
 
-### 当前独立构建
+### 部门管理版独立构建（历史）
 
-Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+，1280×720。正式入口`scenes/main.tscn`；根目录[启动.cmd](../../启动.cmd)选3运行当前百人宗门，左下“职责”进入管理。选1为源码能力练习、2为源码宗门、4为编辑器、5为保留的历史P5包。
+Godot 4.7.2 stable（ed1daf0bf），GDScript，Windows release，D3D12 Forward+，1280×720。当时的正式入口为`scenes/main.tscn`，左下「职责」进入管理。该宗门包已退役，以下保留构建与验证记录。现行试玩入口见[运行与测量](../engineering/tooling/usage.md)。
 
-| 项目 | 当前值 |
+| 项目 | 当时值 |
 |---|---|
 | 游戏源码提交 | `90c3968ca7508248db3417884a414cb2a025a699`；随后仅更新交付文档 |
-| 当前宗门包 | `build/windows/sect-foundation/reol-sect.exe`及同目录pck |
-| 当前宗门 exe SHA256 | `3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf` |
-| 当前宗门 PCK SHA256 | `8cbe5cce3661d7dd46cec9ddcbb080b8db5a700a972263f77df35b7ed93560e8` |
+| 当时宗门包 | `build/windows/sect-foundation/reol-sect.exe`及同目录pck |
+| 当时宗门 exe SHA256 | `3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf` |
+| 当时宗门 PCK SHA256 | `8cbe5cce3661d7dd46cec9ddcbb080b8db5a700a972263f77df35b7ed93560e8` |
 | 战斗规则签名 | `ed0a331b1a1ed0796a88f58ccad86c0677bbf29b327e0cb977a99ed567f53c8e` |
 | 当前决策签名 | `4021c209c5572312ccad01b0d93b115fd18af9aaa20be5a5d228f4c1be4ba40e` |
 | 战斗内容 | 40动作、24配置、7套Policy；原生Resource/Inspector制作 |
-| 当前源码/宗门包存档 | `reol-world-33`；默认`user://sect-quicksave-v33.reol` |
+| 当时源码/宗门包存档 | `reol-world-33`；默认`user://sect-quicksave-v33.reol` |
 | 旧P5战斗包存档 | `reol-world-14`；默认`user://act-p5-quicksave-v14.reol` |
 | 旧P5包 exe / PCK SHA256 | `3d19ee4a764e8bb153bfa7f811f98e0dfb0139c9e0c8bc6b76b93d3ed09185bf` / `33623c5a59c15cfcab014b795877ad8190f1d551f4ae2eeff325a91d04f7d83a` |
 | 旧P5包决策签名 | `9bb014cebdfdb4196146e2288f25e0cc274e364e34cac2f28d26597fcf06e5cd` |
@@ -257,7 +257,7 @@ T11b已完成开工/收尾及整改复核双顾问核查。`logs/t11b-delivery-a
 
 原生D3D12 Game最终`logs/t11b-reviewed-native-20261117-103140-158775900.log`实际加载自主播种中状态，正常人物页显示活动/任职，保存再读后NPC自己完成播种且未占玩家宿主；errors=0，截图`logs/cultivation-ui/autonomous-field-{role,completed}.png`已实际查看。首次GUI真实揭露人物页按单点库存职责读取田务，已按分型修复；最初测试未防未开工action无started_ms，以及误用handler当操作ID、双田路程窗太短的失败保留，未改游戏成本/速度迁就测试。三昼夜整改后复核`t11b-reviewed-source-cycle-20261117-102418-50522900.log`再次核全部真实源/配方/消耗，errors=0，逻辑墙钟42451ms；不冒充图形或百人证明。暂持反例初期曾把已播1种的源库存写死9，改用拦截时实际源库存加实际归还5；保留归还量、服务仓隔离及恢复断言。
 
-这是T10时期的历史整理段；当时宗门为format32。现行源码/包及旧P5格式见[当前构建](#当前独立构建)。
+这是T10时期的历史整理段；当时宗门为format32。后续导出包及旧P5格式见[部门管理版独立构建](#部门管理版独立构建历史)。
 
 
 T11a已完成：开工`11a-start/`与收尾`11a-finish/`双答均已完整核查，相关整改与独立验证完成。采用整畦占用检查/统一锚点、非植物提交安全拒绝、私有栽培权属的共同前置判断，以及过湿单独档位并拒绝无效浇水；稳定宿主派生授权归已开工咨询的T11b，不临时把新植物ID注入所有任职。
@@ -364,7 +364,7 @@ T07规模边界：`knowledge-100-final-scope-20261117-033422-865862800.log`普�
 
 T02收尾追加反例：`operations-variant-final-20261117-010710-927522700.log` errors=0，覆盖新运输定义/实际grain交付、半边伙伴档拒绝、直接中断伙伴自主唤醒、合法在途目标变化可恢复且到场拒绝。`capabilities-operation-final-20261117-010604-965599800.log`、`smoke-features-20261117-010409-895802400.log`均errors=0；真实`operations-ui-final-20261117-010557-460283800.log` errors=[]，已观察生成截图。结构审计100文档/276源/0错误；不将这些短检查宣称百人闭环或性能验收。
 
-当前独立构建、默认存档与签名见[本页顶部](#当前独立构建)，下文保留各历史阶段的验证条件。
+后续宗门构建、默认存档与签名见[部门管理版独立构建](#部门管理版独立构建历史)，下文保留各历史阶段的验证条件。
 
 ## 固定斜俯视与原生二维显示
 

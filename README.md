@@ -2,7 +2,7 @@
 
 GDScript / Godot 4.7的纯二维斜俯视修仙模拟世界。当前正常开局为青禾宗四院100人：玩家控制一人，其余99人按各自认识、需要、目的与职责自主生活。
 
-双击根目录唯一的[启动.cmd](启动.cmd)，选 **2** 运行最新源码宗门，选 **3** 运行宗门独立成品；选1保留源码战斗练习，选5保留旧P5战斗包。独立成品位于`build/windows/sect-foundation/`，exe与pck须放在一起。源码修改后重启生效；导出包是生成时快照。[运行与导出](docs/engineering/tooling/usage.md)。
+双击根目录的[启动.cmd](启动.cmd)，选 **2** 运行当前源码的百人宗门，选 **1** 打开同一源码的能力练习场，选 **3** 打开 Godot 编辑器。源码修改后重启生效。[运行与导出](docs/engineering/tooling/usage.md)。
 
 宗门的井、田、粮仓、灶台和餐箱使用真实物资。居民会耕作、照料、采收、加工、取食和休养，也会求学、授业、练习与办理已接受的事项。设施、人物起点和任职由Godot原生Resource装配，共用原World与行动框架。战斗P4机制及P5决策仍保留；阶段完成证据与限制见[主计划](docs/plans/foundation-priorities.md)和[构建验证](docs/status/baseline.md)。
 
@@ -13,7 +13,7 @@ GDScript / Godot 4.7的纯二维斜俯视修仙模拟世界。当前正常开局
 - 点同门后打开“人物”，可看外显状态、当前活动、同组织公开职责和住所。私人背包、内心目标与精确修持数值属于本人；离场人物显示已经取得的旧线索。
 - 到餐箱进食、回自己的床休养；找“传功弟子”请教，再到灵植旁练习。玩家与NPC使用相同投入与接近规则。
 - 采集材料后放蓝图，点“协作”选择同门，主角会当面请求。NPC可以拒绝；接受后还需实际办理，人物“约定”页可发起当面核对。
-- F5保存，关闭重开后F9接续。当前源码使用`sect-quicksave-v33.reol`；宗门包格式见构建验证，位于`%APPDATA%/Godot/app_userdata/reol/`；旧P5包的format14文件另存。
+- F5保存，关闭重开后F9接续。当前源码使用`sect-quicksave-v33.reol`，位于`%APPDATA%/Godot/app_userdata/reol/`。
 
 按主题查[记忆地图](docs/README.md)；未完任务见[HANDOFF](docs/status/handoff.md)，agent入口为[AGENTS](AGENTS.md)。
 
