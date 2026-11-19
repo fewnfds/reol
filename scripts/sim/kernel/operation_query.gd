@@ -6,7 +6,8 @@ const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const Stock = preload("res://scripts/sim/kernel/stock_rules.gd")
 const Production = preload("res://scripts/sim/kernel/production.gd")
 const Cultivation = preload("res://scripts/sim/kernel/cultivation.gd")
-static var BUILDINGS: Dictionary = Defs.freeze(JSON.parse_string(FileAccess.get_file_as_string("res://data/definitions/construction.json")).types)
+const Construction = preload("res://scripts/sim/kernel/construction_defs.gd")
+static var BUILDINGS: Dictionary = Construction.DEFINITIONS
 static var PLANTS: Dictionary = preload("res://scripts/sim/kernel/nature_defs.gd").DEFINITIONS
 
 static func evaluate(operation: Dictionary, actor: Dictionary, target: Dictionary, context: Dictionary = {}, buildings: Dictionary = {}) -> Dictionary:
@@ -71,6 +72,7 @@ static func stock_context(operation: Dictionary, target: Dictionary, context: Di
 		for item: String in operation.recipe.outputs:
 			if item not in inputs.recipe_items: inputs.recipe_items.append(item)
 	if operation.handler == "fit_eaves": inputs["recipe_items"] = operation.required_items.keys()
+	if operation.handler == "mine": inputs["item"] = "stone"
 	if not inputs.has("item"):
 		if operation.handler == "eat": inputs["item"] = "meal"
 		elif operation.handler == "tend": inputs["item"] = "water"
@@ -151,6 +153,7 @@ static func readiness(operation: Dictionary, actor: Dictionary, context: Diction
 	if operation.handler == "study" and not operation.get("learning_method", "").is_empty() and int(actor.get("readable", actor.get("inventory", {})).get(Growth.Defs.METHODS[operation.learning_method].study_item, 0)) <= 0: return "missing_book"
 	if not operation.required_ability.is_empty() and not actor.get("abilities", {}).get(operation.required_ability, false): return "ability_not_mastered"
 	if operation.injured and int(actor.hp) >= int(actor.get("max_hp", actor.get("stats", {}).get("max_hp", actor.hp))): return "full_health"
+	if operation.handler == "mine" and int(actor.get("free_inventory_capacity", 1)) <= 0: return "full"
 	if operation.actor_inventory and actor.get("carried", actor.get("inventory", {})).is_empty(): return "empty"
 	if operation.help_target and int(context.get("help_target", 0)) <= 0: return "invalid_task"
 	return Costs.check_view(actor, operation.costs) if not operation.costs.is_empty() else ""

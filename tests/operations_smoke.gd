@@ -171,10 +171,45 @@ func arrival_and_restore() -> void:
 		loaded.settle_action(1, loaded.elapsed_ms)
 		check(not loaded.actions.has(1) and loaded.objects.amount(stove, "meal") == 0, "Restored arrival trusted stale meal availability")
 
+func mining_work() -> void:
+	var w: RefCounted = fixture()
+	var tile: int = w.Terrain.index(Vector2i(122, 120))
+	var rock: int = w.objects.create("rock", "stone", tile, 5)
+	w.objects.add(rock, "stone", 5)
+	var mine: Dictionary = {"kind": "mine", "target": rock}
+	check(not w.command({"kind": "take", "target": rock, "item": "stone", "amount": 1}).ok, "Taking bypassed mining")
+	var carried: int = w.objects.count_inventory(1)
+	w.objects.records[1].capacity = carried
+	check(w.command(mine).reason == "full" and not w.actions.has(1), "A full pack began mining")
+	w.objects.records[1].capacity = carried + 1
+	check(w.command(mine).ok, "Mining fixture failed to start with capacity")
+	advance(w, 750)
+	check(w.actions.get(1, {}).has("started_ms"), "Mining did not reach the rock")
+	w.objects.records[1].capacity = carried
+	advance(w, 3000)
+	check(w.objects.amount(rock, "stone") == 5 and w.objects.amount(1, "stone") == 0 and not w.actions.has(1), "Mining after the pack filled lost stone or stranded the action")
+	w.objects.records[1].capacity = carried + 1
+	check(w.command(mine).ok, "Partial-capacity mining was rejected")
+	advance(w, 5000)
+	check(w.objects.amount(rock, "stone") == 4 and w.objects.amount(1, "stone", w.objects.Stock.right(1)) == 1, "Mining did not respect remaining capacity and grant personal stone")
+	w.objects.records[1].capacity = -1
+	var other: Dictionary = mine.duplicate()
+	other["actor"] = 2
+	check(w.command(mine).ok and w.command(other).ok, "Contested mining fixture failed to start")
+	advance(w, 5250)
+	check(w.actions.get(1, {}).has("started_ms") and w.actions.has(2), "Mining fixture did not reach a contested in-progress operation")
+	var loaded: RefCounted = Persistence.candidate(Persistence.capture(w), 0)
+	check(loaded != null, "In-progress mining could not be restored")
+	if loaded == null: return
+	advance(loaded, 8000)
+	check(not loaded.objects.records.has(rock) and loaded.objects.total("stone") == 5, "Resumed mining did not exhaust the rock exactly once")
+	check(not loaded.actions.has(1) and not loaded.actions.has(2) and not loaded.reservations.has(rock), "Exhausted rock left an active occupation")
+
 func _run() -> void:
 	definitions()
 	shared_rules()
 	instant_effects()
 	arrival_and_restore()
+	mining_work()
 	print("OPERATIONS_SMOKE errors=", errors)
 	quit(0 if errors == 0 else 1)

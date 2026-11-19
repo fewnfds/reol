@@ -19,6 +19,9 @@ const Department = preload("res://scripts/sim/definitions/openings/department_de
 @export var bed_key: String = "beds"
 @export var familiar_keys: PackedStringArray = []
 @export var spawn_offsets: Array[Vector2i] = []
+## Offset relative to the first district. Zero stock omits the temporary rock.
+@export var demo_stone_offset: Vector2i = Vector2i.ZERO
+@export_range(0, 1000) var demo_stone_stock: int = 0
 @export var qi_plant: String = "spirit_bamboo"
 @export var qi_offsets: Array[Vector2i] = []
 @export_range(0, 10000) var initial_source_qi: int = 0

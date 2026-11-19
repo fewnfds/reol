@@ -7,7 +7,7 @@ const Units = preload("res://scripts/sim/kernel/units.gd")
 const Operations = preload("res://scripts/sim/kernel/operation_defs.gd")
 const OPERATION_CLIPS: Dictionary = {
 	"construct": Art.Clip.BUILD, "continue_build": Art.Clip.BUILD, "demolish": Art.Clip.BUILD, "fit_eaves": Art.Clip.BUILD,
-	"cook": Art.Clip.CRAFT, "cut": Art.Clip.HARVEST, "gather": Art.Clip.HARVEST, "uproot": Art.Clip.HARVEST,
+	"cook": Art.Clip.CRAFT, "cut": Art.Clip.HARVEST, "gather": Art.Clip.HARVEST, "mine": Art.Clip.HARVEST, "uproot": Art.Clip.HARVEST,
 	"tend": Art.Clip.WATER, "sow": Art.Clip.WATER, "plant": Art.Clip.WATER,
 	"rest": Art.Clip.REST, "eat": Art.Clip.EAT, "study": Art.Clip.READ, "learn": Art.Clip.READ,
 	"talk": Art.Clip.READ, "trade": Art.Clip.READ, "practice": Art.Clip.MEDITATE}

@@ -55,7 +55,8 @@ static func layout(record: Dictionary, spec: Dictionary, operation: String, coll
 	# Construction/demolition use their own access rule, never the finished bench's station.
 	var fallback: Dictionary = {} if operation in ["construct", "demolish", "fit_eaves"] else rules.get("default", {})
 	var rule: Dictionary = rules.get(operation, fallback)
-	var mode: String = str(rule.get("mode", "adjacent" if colliding else "same"))
+	var adjacent: bool = colliding or (operation == "mine" and record.kind == "rock")
+	var mode: String = str(rule.get("mode", "adjacent" if adjacent else "same"))
 	var members: PackedInt32Array = footprint(record)
 	match mode:
 		"same": return members.duplicate()

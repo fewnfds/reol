@@ -159,7 +159,15 @@ static func compile(spec: Definition) -> Dictionary:
 		if reservoirs.has(tile) and Plants.DEFINITIONS.get(spec.qi_plant, {}).get("blocks", false): errors.append("opening: initial body inside a reservoir")
 	for tile: int in reservoirs:
 		if occupied.has("ground:%d" % tile): errors.append("opening: reservoir overlaps another district")
-	return {"errors": errors, "patterns": patterns, "groups": groups, "teachings": teachings}
+	var stone_tile: int = -1
+	if spec.demo_stone_stock < 0 or spec.demo_stone_stock > 1000:
+		errors.append("opening: invalid demo stone stock")
+	elif spec.demo_stone_stock > 0 and not spec.district_origins.is_empty():
+		var point: Vector2i = spec.district_origins[0] + spec.demo_stone_offset
+		stone_tile = Terrain.index(point)
+		if not _inside(point) or spawn.has(stone_tile) or reservoirs.has(stone_tile) or occupied.has("ground:%d" % stone_tile) or occupied.has("floor:%d" % stone_tile):
+			errors.append("opening: demo rock overlaps another placement or is outside map")
+	return {"errors": errors, "patterns": patterns, "groups": groups, "teachings": teachings, "stone_tile": stone_tile}
 
 static func _scope(appointment: Resource, groups: Dictionary) -> Dictionary:
 	var sources: Array = []
@@ -211,6 +219,13 @@ static func assemble(world: RefCounted, spec: Definition) -> PackedStringArray:
 		districts.append({"groups": groups, "food_services": food_services, "qi_sources": qi_sources, "entrypoint": Vector2(origin + spec.spawn_offsets[0]) + Vector2.ONE * 0.5})
 		world.regions.create_landmark(world, spec.district_names[district], Terrain.index(origin + spec.spawn_offsets[0]))
 	world.flush_topology()
+	if plan.stone_tile >= 0:
+		var tile: int = int(plan.stone_tile)
+		if not world.terrain.can_stand(Terrain.center(tile), 0.35): return PackedStringArray(["opening: demo rock is not on open ground"])
+		var rock: int = world.objects.create("rock", "stone", tile, spec.demo_stone_stock)
+		world.objects.records[rock]["name"] = "石块"
+		world.objects.add(rock, "stone", spec.demo_stone_stock)
+		if not _accessible(world, rock, districts[0].entrypoint, "mine"): return PackedStringArray(["opening: inaccessible demo rock"])
 	for district: Dictionary in districts:
 		var groups: Dictionary = district.groups
 		for ids: Array in groups.values():

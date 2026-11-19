@@ -450,7 +450,7 @@ func _confirm_tool(point: Vector2) -> void:
 			var flat: int = 0
 			for id: int in candidates:
 				var data: Dictionary = host.object_canvas.objects.get(id, {})
-				if data.is_empty() or data.kind in ["plant", "resource", "pile", "depot"]: continue
+				if data.is_empty() or data.kind in ["plant", "resource", "pile", "depot", "rock"]: continue
 				if data.get("layer", "ground") == "floor":
 					if flat == 0: flat = id
 				else: target = id; break
@@ -530,7 +530,7 @@ func _update_preview(tile: int) -> void:
 	var extent := Vector2i(int(dimensions[0]), int(dimensions[1]))
 	if facing % 2 == 1: extent = Vector2i(extent.y, extent.x)
 	var cell: Vector2i = Terrain.cell(tile)
-	var stock: Dictionary = host.frame.player.get("inventory", {})
+	var stock: Dictionary = host.frame.player.get("usable_inventory" if tool == "build" else "inventory", {})
 	var item: String = str(spec.get("item", "")) if tool == "build" else str(spec.get("product", {}).get("item", ""))
 	_preview_ok = int(stock.get(item, 0)) >= int(spec.get("amount", 1))
 	if tool == "build":

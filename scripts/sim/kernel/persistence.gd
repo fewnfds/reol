@@ -13,6 +13,8 @@ const Growth = preload("res://scripts/sim/kernel/growth.gd")
 const Plants = preload("res://scripts/sim/kernel/nature_defs.gd")
 # Format 33 immediately before roof tiles were replaced by room shelter.
 const ROOF_OPERATION_SIGNATURE: String = "77abbe484dcf16ed4dff0f2c1d371bb7696b3f5e469fca3a3a08ddfa58050989"
+# Format 33 after roof retirement and before the additive mining operation.
+const PRE_MINING_OPERATION_SIGNATURE: String = "d437179f23612c307659eb6bc80d5d18f614f94a57baabfdacc458f3974dac4d"
 const RETIRED_ROOF := {"kind": "roof", "layer": "roof", "size": [1, 1], "facts": {}}
 
 
@@ -28,9 +30,15 @@ static func capture(world: RefCounted) -> Dictionary:
 
 static func candidate(data: Dictionary, workers: int) -> RefCounted:
 	if not Beings.ERRORS.is_empty() or data.get("being_signature") != Beings.SIGNATURE: return null
-	if not Operations.ERRORS.is_empty(): return null
-	var retire_roofs: bool = data.get("operation_signature") != Operations.SIGNATURE
-	if retire_roofs and data.get("operation_signature") != ROOF_OPERATION_SIGNATURE: return null
+	if not Operations.ERRORS.is_empty() or not World.OperationQuery.Construction.ERRORS.is_empty(): return null
+	var signature: Variant = data.get("operation_signature")
+	var retire_roofs: bool = signature == ROOF_OPERATION_SIGNATURE
+	if signature != Operations.SIGNATURE:
+		if not retire_roofs and signature != PRE_MINING_OPERATION_SIGNATURE: return null
+		# The old catalogs are supported while the mining addition leaves existing rules intact.
+		var before_mining: Dictionary = Operations.OPERATIONS.duplicate()
+		before_mining.erase("mine")
+		if Operations.signature(before_mining) != PRE_MINING_OPERATION_SIGNATURE: return null
 	if not Growth.Defs.ERRORS.is_empty() or data.get("growth_signature") != Growth.Defs.SIGNATURE: return null
 	if not Plants.ERRORS.is_empty() or data.get("nature_signature") != Plants.SIGNATURE: return null
 	if not data.get("domains") is Dictionary or not data.get("pages") is Array:
@@ -198,6 +206,9 @@ static func _objects_valid(world: RefCounted, retire_roofs: bool, roofs: Array[i
 			return false
 		for contents: Variant in [record.get("stock"), record.get("materials", {})]:
 			if not world.objects.Stock.valid(contents, world.objects.next_id): return false
+		if record.kind == "rock":
+			if record.definition != "stone" or tile < 0 or record.capacity <= 0: return false
+			if record.stock.keys() != ["stone"] or not record.get("materials", {}).is_empty(): return false
 		world.objects._refresh(id, false)
 		if record.capacity >= 0 and world.objects.count_inventory(id) > record.capacity:
 			return false

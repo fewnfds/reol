@@ -83,8 +83,9 @@ func adopt(value: Dictionary, fringe: Dictionary = {}) -> void:
             scale_value = Vector2(float(extent.size.x) / int(art_cells[0]), float(extent.size.y) / int(art_cells[1]))
         var sort_y: float = point.y + float(rec.get("part_depth", 0.0)) * scale_value.y
         point += Vector2(rec.get("part_offset", Vector2.ZERO)) * scale_value
-        var color := Color.WHITE
-        if rec.kind == "blueprint" and not rec.get("construction_started", false): color = Color(0.45, 0.95, 1.0, 0.50)
+        var material: String = str(Definitions.BUILDINGS.get(rec.definition, {}).get("item", ""))
+        var color: Color = Color("8ab6dc") if material == "stone" else Color.WHITE
+        if rec.kind == "blueprint" and not rec.get("construction_started", false): color *= Color(0.45, 0.95, 1.0, 0.50)
         var special: int = 0
         if rec.kind == "plant" and rec.definition == "fire_herb" and int(rec.get("stage", 0)) == 2: special = 1
         if rec.get("sapient", false): special = 2
@@ -130,6 +131,7 @@ func _key(rec: Dictionary) -> String:
                         break
             return ("wall_eaves_%d" if rec.get("eaves", false) else "wall_%d") % mask
         "door": return _door_key(rec)
+        "rock": return "rock"
         "resource":
             var level: int = int(rec.get("vegetation_level", 3))
             return "item_wood" if level == 0 else ("stump" if level == 2 else ("pine" if rec.tile % 3 == 0 else "oak"))

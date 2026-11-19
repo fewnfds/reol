@@ -150,6 +150,9 @@ func initialize(count: int = 1000, requested_workers: int = 4, stress_environmen
 	if not Operations.ERRORS.is_empty():
 		push_error("Invalid operation definitions: " + str(Operations.ERRORS))
 		return false
+	if not OperationQuery.Construction.ERRORS.is_empty():
+		push_error("Invalid construction definitions: " + str(OperationQuery.Construction.ERRORS))
+		return false
 	if not Growth.Defs.ERRORS.is_empty():
 		push_error("Invalid growth definitions: " + str(Growth.Defs.ERRORS))
 		return false
@@ -1135,6 +1138,7 @@ func operation_actor(id: int) -> Dictionary:
 		"qi": int(record.get("qi", 0)), "inventory": objects.usable_summary(id), "methods": State.copy(record.get("methods", {})),
 		"carried": objects.inventory_summary(id), "readable": institutions.readable(self, id, available), "bundles": available, "returns": institutions.returns(self, id),
 		"abilities": Growth.abilities(record), "body_capabilities": Beings.capabilities(record), "pools": State.copy(pools.records.get(id, {})), "admission_reason": gate.check(self, id, operation_time())}
+	if record.capacity >= 0: result["free_inventory_capacity"] = objects.free_capacity(id)
 	result.merge(access, true)
 	institutions.Departments.ensure(institutions)
 	result["labor_targets"] = State.copy(institutions._labor_targets.get(id, {}))
@@ -1544,6 +1548,7 @@ func describe(id: int) -> Dictionary:
 		result["shield"] = defense.total(id, elapsed_ms)
 		result["usable_inventory"] = objects.usable_summary(id)
 		result["carried"] = objects.inventory_summary(id)
+		if result.capacity >= 0: result["free_inventory_capacity"] = objects.free_capacity(id)
 		var access: Dictionary = institutions.access_view(self, id)
 		var available: Array = institutions.bundles(self, id, access)
 		result["readable"] = institutions.readable(self, id, available)

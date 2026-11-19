@@ -1,808 +1,951 @@
 {
-  "version": 4,
-  "check_ms": 60000,
-  "minimum_fullness": 35,
-  "minimum_energy": 30,
-  "pickup_ms": 1000,
-  "types": {
-    "wood_wall": {
-      "label": "木墙",
-      "kind": "wall",
-      "item": "wood",
-      "amount": 3,
-      "work_ms": 180000,
-      "demolish_ms": 60000,
-      "salvage": 2,
-      "door": false,
-      "layer": "ground",
-      "size": [
-        1,
-        1
-      ],
-      "perception_cost": 3,
-      "facts": {
-        "movement_blocked": true,
-        "enclosure_boundary": true,
-        "thermal_barrier": true,
-        "light_blocked": true,
-        "wall_connection": true
-      },
-      "max_hp": 120,
-      "armor": 2,
-      "capabilities": {},
-      "slots": [],
-      "environment": {
-        "source": "",
-        "thermal": 2000,
-        "elements": 8000,
-        "light": 0,
-        "contents_thermal": 10000,
-        "contents_elements": 10000,
-        "contents_light": 10000,
-        "room_tau_ms": 180000
-      }
-    },
-    "wood_door": {
-      "label": "木门",
-      "kind": "door",
-      "item": "wood",
-      "amount": 4,
-      "work_ms": 240000,
-      "demolish_ms": 60000,
-      "salvage": 2,
-      "door": true,
-      "layer": "ground",
-      "size": [
-        1,
-        1
-      ],
-      "perception_cost": 1,
-      "facts": {
-        "movement_blocked": false,
-        "enclosure_boundary": true,
-        "thermal_barrier": true,
-        "light_blocked": true,
-        "wall_connection": true
-      },
-      "max_hp": 120,
-      "armor": 2,
-      "capabilities": {},
-      "slots": [],
-      "environment": {
-        "source": "",
-        "thermal": 2000,
-        "elements": 8000,
-        "light": 0,
-        "contents_thermal": 10000,
-        "contents_elements": 10000,
-        "contents_light": 10000,
-        "room_tau_ms": 180000
-      }
-    },
-    "wood_bed": {
-      "label": "木床",
-      "kind": "bed",
-      "item": "wood",
-      "amount": 5,
-      "work_ms": 180000,
-      "demolish_ms": 60000,
-      "salvage": 2,
-      "door": false,
-      "layer": "ground",
-      "size": [
-        1,
-        1
-      ],
-      "perception_cost": 1,
-      "facts": {
-        "movement_blocked": false,
-        "enclosure_boundary": false,
-        "thermal_barrier": false,
-        "light_blocked": false,
-        "wall_connection": false
-      },
-      "max_hp": 80,
-      "armor": 2,
-      "capabilities": {
-        "rest": {}
-      },
-      "slots": [],
-      "environment": {
-        "source": "",
-        "thermal": 10000,
-        "elements": 10000,
-        "light": 10000,
-        "contents_thermal": 10000,
-        "contents_elements": 10000,
-        "contents_light": 10000,
-        "room_tau_ms": 180000
-      }
-    },
-    "wood_table": {
-      "label": "木桌",
-      "kind": "table",
-      "item": "wood",
-      "amount": 6,
-      "work_ms": 180000,
-      "demolish_ms": 60000,
-      "salvage": 3,
-      "door": false,
-      "layer": "ground",
-      "size": [
-        2,
-        1
-      ],
-      "perception_cost": 1,
-      "facts": {
-        "movement_blocked": true,
-        "enclosure_boundary": false,
-        "thermal_barrier": false,
-        "light_blocked": false,
-        "wall_connection": false
-      },
-      "max_hp": 100,
-      "armor": 2,
-      "capabilities": {
-        "surface": {}
-      },
-      "slots": [],
-      "environment": {
-        "source": "",
-        "thermal": 10000,
-        "elements": 10000,
-        "light": 10000,
-        "contents_thermal": 10000,
-        "contents_elements": 10000,
-        "contents_light": 10000,
-        "room_tau_ms": 180000
-      }
-    },
-    "wood_chair": {
-      "label": "木椅",
-      "kind": "chair",
-      "item": "wood",
-      "amount": 4,
-      "work_ms": 180000,
-      "demolish_ms": 60000,
-      "salvage": 2,
-      "door": false,
-      "layer": "ground",
-      "size": [
-        1,
-        1
-      ],
-      "perception_cost": 1,
-      "facts": {
-        "movement_blocked": false,
-        "enclosure_boundary": false,
-        "thermal_barrier": false,
-        "light_blocked": false,
-        "wall_connection": false
-      },
-      "max_hp": 100,
-      "armor": 2,
-      "capabilities": {
-        "seat": {}
-      },
-      "slots": [
-        {
-          "id": "seat",
-          "capability": "seat",
-          "cell": [
-            0,
-            0
-          ],
-          "facing": [
-            0,
-            -1
-          ],
-          "requires": ""
-        }
-      ],
-      "environment": {
-        "source": "",
-        "thermal": 10000,
-        "elements": 10000,
-        "light": 10000,
-        "contents_thermal": 10000,
-        "contents_elements": 10000,
-        "contents_light": 10000,
-        "room_tau_ms": 180000
-      }
-    },
-    "desk_chair": {
-      "label": "书案座椅",
-      "kind": "chair",
-      "item": "wood",
-      "amount": 4,
-      "work_ms": 180000,
-      "demolish_ms": 60000,
-      "salvage": 2,
-      "door": false,
-      "layer": "ground",
-      "size": [
-        1,
-        1
-      ],
-      "perception_cost": 1,
-      "facts": {
-        "movement_blocked": false,
-        "enclosure_boundary": false,
-        "thermal_barrier": false,
-        "light_blocked": false,
-        "wall_connection": false
-      },
-      "max_hp": 100,
-      "armor": 2,
-      "capabilities": {
-        "seat": {}
-      },
-      "slots": [
-        {
-          "id": "seat",
-          "capability": "seat",
-          "cell": [
-            0,
-            0
-          ],
-          "facing": [
-            0,
-            -1
-          ],
-          "requires": "surface"
-        }
-      ],
-      "environment": {
-        "source": "",
-        "thermal": 10000,
-        "elements": 10000,
-        "light": 10000,
-        "contents_thermal": 10000,
-        "contents_elements": 10000,
-        "contents_light": 10000,
-        "room_tau_ms": 180000
-      }
-    },
-    "wood_chest": {
-      "label": "储藏箱",
-      "kind": "chest",
-      "item": "wood",
-      "amount": 4,
-      "work_ms": 180000,
-      "demolish_ms": 60000,
-      "salvage": 2,
-      "door": false,
-      "layer": "ground",
-      "size": [
-        1,
-        1
-      ],
-      "perception_cost": 1,
-      "facts": {
-        "movement_blocked": true,
-        "enclosure_boundary": false,
-        "thermal_barrier": false,
-        "light_blocked": false,
-        "wall_connection": false
-      },
-      "max_hp": 100,
-      "armor": 2,
-      "capabilities": {
-        "storage": {
-          "capacity": 24,
-          "items": []
-        }
-      },
-      "slots": [
-        {
-          "id": "front",
-          "capability": "storage",
-          "cell": [
-            0,
-            1
-          ],
-          "facing": [
-            0,
-            -1
-          ],
-          "requires": ""
-        }
-      ],
-      "environment": {
-        "source": "",
-        "thermal": 10000,
-        "elements": 10000,
-        "light": 10000,
-        "contents_thermal": 2500,
-        "contents_elements": 5000,
-        "contents_light": 0,
-        "room_tau_ms": 180000
-      }
-    },
-    "cook_stove": {
-      "label": "灶台",
-      "kind": "workbench",
-      "item": "wood",
-      "amount": 8,
-      "work_ms": 180000,
-      "demolish_ms": 60000,
-      "salvage": 4,
-      "door": false,
-      "layer": "ground",
-      "size": [
-        2,
-        1
-      ],
-      "perception_cost": 1,
-      "facts": {
-        "movement_blocked": true,
-        "enclosure_boundary": false,
-        "thermal_barrier": false,
-        "light_blocked": false,
-        "wall_connection": false
-      },
-      "max_hp": 100,
-      "armor": 2,
-      "capabilities": {
-        "workbench": {
-          "recipes": [
-            "cook_rations",
-            "brew_potion"
-          ]
+  "materials": {
+    "wood": "木",
+    "stone": "石"
+  },
+  "objects": {
+    "wall": {
+      "category": "建筑",
+      "subcategory": "结构",
+      "label": "墙",
+      "properties": {
+        "kind": "wall",
+        "work_ms": 180000,
+        "demolish_ms": 60000,
+        "salvage": 2,
+        "door": false,
+        "layer": "ground",
+        "size": [
+          1,
+          1
+        ],
+        "perception_cost": 3,
+        "facts": {
+          "movement_blocked": true,
+          "enclosure_boundary": true,
+          "thermal_barrier": true,
+          "light_blocked": true,
+          "wall_connection": true
         },
-        "storage": {
-          "capacity": 6
+        "max_hp": 120,
+        "armor": 2,
+        "capabilities": {},
+        "slots": [],
+        "environment": {
+          "source": "",
+          "thermal": 2000,
+          "elements": 8000,
+          "light": 0,
+          "contents_thermal": 10000,
+          "contents_elements": 10000,
+          "contents_light": 10000,
+          "room_tau_ms": 180000
         }
       },
-      "slots": [
-        {
-          "id": "front",
-          "capability": "workbench",
-          "cell": [
-            0,
-            1
-          ],
-          "facing": [
-            0,
-            -1
-          ],
-          "requires": ""
+      "variants": {
+        "wood": {
+          "id": "wood_wall",
+          "label": "木墙",
+          "amount": 3
+        },
+        "stone": {
+          "id": "stone_wall",
+          "label": "石墙",
+          "amount": 4,
+          "overrides": {
+            "perception_cost": 4,
+            "max_hp": 200,
+            "armor": 5,
+            "environment": {
+              "source": "",
+              "thermal": 1000,
+              "elements": 5000,
+              "light": 0,
+              "contents_thermal": 10000,
+              "contents_elements": 10000,
+              "contents_light": 10000,
+              "room_tau_ms": 300000
+            }
+          }
         }
-      ],
-      "environment": {
-        "source": "",
-        "thermal": 10000,
-        "elements": 10000,
-        "light": 10000,
-        "contents_thermal": 10000,
-        "contents_elements": 10000,
-        "contents_light": 10000,
-        "room_tau_ms": 180000
+      }
+    },
+    "door": {
+      "category": "建筑",
+      "subcategory": "结构",
+      "label": "门",
+      "properties": {
+        "kind": "door",
+        "work_ms": 240000,
+        "demolish_ms": 60000,
+        "salvage": 2,
+        "door": true,
+        "layer": "ground",
+        "size": [
+          1,
+          1
+        ],
+        "perception_cost": 1,
+        "facts": {
+          "movement_blocked": false,
+          "enclosure_boundary": true,
+          "thermal_barrier": true,
+          "light_blocked": true,
+          "wall_connection": true
+        },
+        "max_hp": 120,
+        "armor": 2,
+        "capabilities": {},
+        "slots": [],
+        "environment": {
+          "source": "",
+          "thermal": 2000,
+          "elements": 8000,
+          "light": 0,
+          "contents_thermal": 10000,
+          "contents_elements": 10000,
+          "contents_light": 10000,
+          "room_tau_ms": 180000
+        }
       },
-      "work_positions": {
-        "craft": {
-          "mode": "stations",
-          "cells": [
-            [
+      "variants": {
+        "wood": {
+          "id": "wood_door",
+          "label": "木门",
+          "amount": 4
+        }
+      }
+    },
+    "window": {
+      "category": "建筑",
+      "subcategory": "结构",
+      "label": "窗",
+      "properties": {
+        "kind": "window",
+        "work_ms": 180000,
+        "demolish_ms": 60000,
+        "salvage": 2,
+        "door": false,
+        "layer": "ground",
+        "size": [
+          1,
+          1
+        ],
+        "perception_cost": 1,
+        "facts": {
+          "movement_blocked": true,
+          "enclosure_boundary": true,
+          "thermal_barrier": true,
+          "light_blocked": false,
+          "wall_connection": true
+        },
+        "max_hp": 100,
+        "armor": 2,
+        "capabilities": {},
+        "slots": [],
+        "environment": {
+          "source": "",
+          "thermal": 2000,
+          "elements": 8000,
+          "light": 6000,
+          "contents_thermal": 10000,
+          "contents_elements": 10000,
+          "contents_light": 10000,
+          "room_tau_ms": 180000
+        }
+      },
+      "variants": {
+        "wood": {
+          "id": "wood_window",
+          "label": "木窗",
+          "amount": 4
+        }
+      }
+    },
+    "floor": {
+      "category": "建筑",
+      "subcategory": "结构",
+      "label": "地板",
+      "properties": {
+        "kind": "floor",
+        "layer": "floor",
+        "work_ms": 1000,
+        "max_hp": 100,
+        "size": [
+          1,
+          1
+        ],
+        "perception_cost": 0,
+        "facts": {
+          "movement_blocked": false,
+          "enclosure_boundary": false
+        },
+        "capabilities": {}
+      },
+      "variants": {
+        "wood": {
+          "id": "wood_floor",
+          "label": "木地板",
+          "amount": 1
+        }
+      }
+    },
+    "stove": {
+      "category": "建筑",
+      "subcategory": "工作",
+      "label": "灶台",
+      "properties": {
+        "kind": "workbench",
+        "work_ms": 180000,
+        "demolish_ms": 60000,
+        "salvage": 4,
+        "door": false,
+        "layer": "ground",
+        "size": [
+          2,
+          1
+        ],
+        "perception_cost": 1,
+        "facts": {
+          "movement_blocked": true,
+          "enclosure_boundary": false,
+          "thermal_barrier": false,
+          "light_blocked": false,
+          "wall_connection": false
+        },
+        "max_hp": 100,
+        "armor": 2,
+        "capabilities": {
+          "workbench": {
+            "recipes": [
+              "cook_rations",
+              "brew_potion"
+            ]
+          },
+          "storage": {
+            "capacity": 6
+          }
+        },
+        "slots": [
+          {
+            "id": "front",
+            "capability": "workbench",
+            "cell": [
               0,
               1
+            ],
+            "facing": [
+              0,
+              -1
+            ],
+            "requires": ""
+          }
+        ],
+        "environment": {
+          "source": "",
+          "thermal": 10000,
+          "elements": 10000,
+          "light": 10000,
+          "contents_thermal": 10000,
+          "contents_elements": 10000,
+          "contents_light": 10000,
+          "room_tau_ms": 180000
+        },
+        "work_positions": {
+          "craft": {
+            "mode": "stations",
+            "cells": [
+              [
+                0,
+                1
+              ]
             ]
-          ]
+          }
+        }
+      },
+      "variants": {
+        "wood": {
+          "id": "cook_stove",
+          "label": "灶台",
+          "amount": 8
         }
       }
     },
-    "wood_window": {
-      "label": "木窗",
-      "kind": "window",
-      "item": "wood",
-      "amount": 4,
-      "work_ms": 180000,
-      "demolish_ms": 60000,
-      "salvage": 2,
-      "door": false,
-      "layer": "ground",
-      "size": [
-        1,
-        1
-      ],
-      "perception_cost": 1,
-      "facts": {
-        "movement_blocked": true,
-        "enclosure_boundary": true,
-        "thermal_barrier": true,
-        "light_blocked": false,
-        "wall_connection": true
-      },
-      "max_hp": 100,
-      "armor": 2,
-      "capabilities": {},
-      "slots": [],
-      "environment": {
-        "source": "",
-        "thermal": 2000,
-        "elements": 8000,
-        "light": 6000,
-        "contents_thermal": 10000,
-        "contents_elements": 10000,
-        "contents_light": 10000,
-        "room_tau_ms": 180000
-      }
-    },
-    "wood_screen": {
-      "label": "屏风",
-      "kind": "screen",
-      "item": "wood",
-      "amount": 4,
-      "work_ms": 180000,
-      "demolish_ms": 60000,
-      "salvage": 2,
-      "door": false,
-      "layer": "ground",
-      "size": [
-        2,
-        1
-      ],
-      "perception_cost": 2,
-      "facts": {
-        "movement_blocked": true,
-        "enclosure_boundary": false,
-        "thermal_barrier": false,
-        "light_blocked": true,
-        "wall_connection": false
-      },
-      "max_hp": 100,
-      "armor": 2,
-      "capabilities": {},
-      "slots": [],
-      "environment": {
-        "source": "",
-        "thermal": 10000,
-        "elements": 10000,
-        "light": 0,
-        "contents_thermal": 10000,
-        "contents_elements": 10000,
-        "contents_light": 10000,
-        "room_tau_ms": 180000
-      }
-    },
-    "long_bed": {
-      "label": "长木床",
-      "kind": "bed",
-      "item": "wood",
-      "amount": 8,
-      "work_ms": 180000,
-      "demolish_ms": 60000,
-      "salvage": 4,
-      "door": false,
-      "layer": "ground",
-      "size": [
-        1,
-        2
-      ],
-      "perception_cost": 1,
-      "facts": {
-        "movement_blocked": false,
-        "enclosure_boundary": false,
-        "thermal_barrier": false,
-        "light_blocked": false,
-        "wall_connection": false
-      },
-      "max_hp": 100,
-      "armor": 2,
-      "capabilities": {
-        "rest": {}
-      },
-      "slots": [],
-      "environment": {
-        "source": "",
-        "thermal": 10000,
-        "elements": 10000,
-        "light": 10000,
-        "contents_thermal": 10000,
-        "contents_elements": 10000,
-        "contents_light": 10000,
-        "room_tau_ms": 180000
-      }
-    },
-    "stone_wall": {
-      "label": "石墙",
-      "kind": "wall",
-      "item": "stone",
-      "amount": 4,
-      "work_ms": 180000,
-      "demolish_ms": 60000,
-      "salvage": 2,
-      "door": false,
-      "layer": "ground",
-      "size": [
-        1,
-        1
-      ],
-      "perception_cost": 4,
-      "facts": {
-        "movement_blocked": true,
-        "enclosure_boundary": true,
-        "thermal_barrier": true,
-        "light_blocked": true,
-        "wall_connection": true
-      },
-      "max_hp": 200,
-      "armor": 5,
-      "capabilities": {},
-      "slots": [],
-      "environment": {
-        "source": "",
-        "thermal": 1000,
-        "elements": 5000,
-        "light": 0,
-        "contents_thermal": 10000,
-        "contents_elements": 10000,
-        "contents_light": 10000,
-        "room_tau_ms": 300000
-      }
-    },
-    "planter": {
-      "label": "花盆",
-      "kind": "furniture",
-      "item": "wood",
-      "amount": 6,
-      "work_ms": 180000,
-      "demolish_ms": 60000,
-      "salvage": 3,
-      "door": false,
-      "layer": "ground",
-      "size": [
-        1,
-        1
-      ],
-      "perception_cost": 1,
-      "facts": {
-        "movement_blocked": true,
-        "enclosure_boundary": false,
-        "thermal_barrier": false,
-        "light_blocked": false,
-        "wall_connection": false
-      },
-      "max_hp": 100,
-      "armor": 2,
-      "capabilities": {
-        "cultivation": {
-          "substrate": "soil",
-          "water_capacity": 100,
-          "initial_water": 80,
-          "root_capacity": 1,
-          "water_decay_ms": 30000,
-          "water_per_item": 40
+    "well": {
+      "category": "建筑",
+      "subcategory": "工作",
+      "label": "井",
+      "properties": {
+        "kind": "source",
+        "work_ms": 180000,
+        "demolish_ms": 60000,
+        "salvage": 3,
+        "door": false,
+        "layer": "ground",
+        "size": [
+          1,
+          1
+        ],
+        "perception_cost": 1,
+        "facts": {
+          "movement_blocked": true,
+          "enclosure_boundary": false,
+          "thermal_barrier": false,
+          "light_blocked": false,
+          "wall_connection": false
+        },
+        "max_hp": 100,
+        "armor": 2,
+        "capabilities": {
+          "stock_source": {
+            "item": "water",
+            "capacity": 24,
+            "period_ms": 15000,
+            "amount": 1,
+            "pickup_amount": 4
+          }
+        },
+        "slots": [],
+        "environment": {
+          "source": "",
+          "thermal": 10000,
+          "elements": 10000,
+          "light": 10000,
+          "contents_thermal": 10000,
+          "contents_elements": 10000,
+          "contents_light": 10000,
+          "room_tau_ms": 180000
+        },
+        "work_positions": {
+          "default": {
+            "mode": "adjacent"
+          }
         }
       },
-      "slots": [],
-      "environment": {
-        "source": "",
-        "thermal": 10000,
-        "elements": 10000,
-        "light": 10000,
-        "contents_thermal": 10000,
-        "contents_elements": 10000,
-        "contents_light": 10000,
-        "room_tau_ms": 180000
-      }
-    },
-    "wood_floor": {
-      "label": "木地板",
-      "kind": "floor",
-      "layer": "floor",
-      "item": "wood",
-      "amount": 1,
-      "work_ms": 1000,
-      "max_hp": 100,
-      "size": [
-        1,
-        1
-      ],
-      "perception_cost": 0,
-      "facts": {
-        "movement_blocked": false,
-        "enclosure_boundary": false
-      },
-      "capabilities": {}
-    },
-    "water_well": {
-      "label": "汲水井",
-      "kind": "source",
-      "item": "wood",
-      "amount": 6,
-      "work_ms": 180000,
-      "demolish_ms": 60000,
-      "salvage": 3,
-      "door": false,
-      "layer": "ground",
-      "size": [
-        1,
-        1
-      ],
-      "perception_cost": 1,
-      "facts": {
-        "movement_blocked": true,
-        "enclosure_boundary": false,
-        "thermal_barrier": false,
-        "light_blocked": false,
-        "wall_connection": false
-      },
-      "max_hp": 100,
-      "armor": 2,
-      "capabilities": {
-        "stock_source": {
-          "item": "water",
-          "capacity": 24,
-          "period_ms": 15000,
-          "amount": 1,
-          "pickup_amount": 4
+      "variants": {
+        "wood": {
+          "id": "water_well",
+          "label": "汲水井",
+          "amount": 6
         }
-      },
-      "slots": [],
-      "environment": {
-        "source": "",
-        "thermal": 10000,
-        "elements": 10000,
-        "light": 10000,
-        "contents_thermal": 10000,
-        "contents_elements": 10000,
-        "contents_light": 10000,
-        "room_tau_ms": 180000
-      },
-      "work_positions": {
-        "default": {
-          "mode": "adjacent"
-        }
-      }
-    },
-    "notice_desk": {
-      "label": "告示案",
-      "kind": "table",
-      "item": "wood",
-      "amount": 6,
-      "work_ms": 180000,
-      "demolish_ms": 60000,
-      "salvage": 3,
-      "door": false,
-      "layer": "ground",
-      "size": [
-        2,
-        1
-      ],
-      "perception_cost": 1,
-      "facts": {
-        "movement_blocked": true,
-        "enclosure_boundary": false,
-        "thermal_barrier": false,
-        "light_blocked": false,
-        "wall_connection": false
-      },
-      "max_hp": 100,
-      "armor": 2,
-      "capabilities": {
-        "records": {}
-      },
-      "slots": [],
-      "environment": {
-        "source": "",
-        "thermal": 10000,
-        "elements": 10000,
-        "light": 10000,
-        "contents_thermal": 10000,
-        "contents_elements": 10000,
-        "contents_light": 10000,
-        "room_tau_ms": 180000
       }
     },
     "cultivation_bed": {
+      "category": "建筑",
+      "subcategory": "工作",
       "label": "栽培畦",
-      "kind": "furniture",
-      "item": "wood",
-      "amount": 8,
-      "work_ms": 30000,
-      "demolish_ms": 60000,
-      "salvage": 4,
-      "door": false,
-      "layer": "ground",
-      "size": [
-        2,
-        2
-      ],
-      "perception_cost": 1,
-      "facts": {
-        "movement_blocked": false,
-        "enclosure_boundary": false,
-        "thermal_barrier": false,
-        "light_blocked": false,
-        "wall_connection": false
-      },
-      "max_hp": 100,
-      "armor": 2,
-      "capabilities": {
-        "cultivation": {
-          "substrate": "soil",
-          "water_capacity": 100,
-          "initial_water": 80,
-          "root_capacity": 1,
-          "water_decay_ms": 30000,
-          "water_per_item": 40
+      "properties": {
+        "kind": "furniture",
+        "work_ms": 30000,
+        "demolish_ms": 60000,
+        "salvage": 4,
+        "door": false,
+        "layer": "ground",
+        "size": [
+          2,
+          2
+        ],
+        "perception_cost": 1,
+        "facts": {
+          "movement_blocked": false,
+          "enclosure_boundary": false,
+          "thermal_barrier": false,
+          "light_blocked": false,
+          "wall_connection": false
+        },
+        "max_hp": 100,
+        "armor": 2,
+        "capabilities": {
+          "cultivation": {
+            "substrate": "soil",
+            "water_capacity": 100,
+            "initial_water": 80,
+            "root_capacity": 1,
+            "water_decay_ms": 30000,
+            "water_per_item": 40
+          }
+        },
+        "slots": [],
+        "environment": {
+          "source": "",
+          "thermal": 10000,
+          "elements": 10000,
+          "light": 10000,
+          "contents_thermal": 10000,
+          "contents_elements": 10000,
+          "contents_light": 10000,
+          "room_tau_ms": 180000
+        },
+        "art_key": "cultivation_bed",
+        "work_positions": {
+          "default": {
+            "mode": "same"
+          }
         }
       },
-      "slots": [],
-      "environment": {
-        "source": "",
-        "thermal": 10000,
-        "elements": 10000,
-        "light": 10000,
-        "contents_thermal": 10000,
-        "contents_elements": 10000,
-        "contents_light": 10000,
-        "room_tau_ms": 180000
-      },
-      "art_key": "cultivation_bed",
-      "work_positions": {
-        "default": {
-          "mode": "same"
+      "variants": {
+        "wood": {
+          "id": "cultivation_bed",
+          "label": "栽培畦",
+          "amount": 8
         }
       }
     },
     "granary": {
+      "category": "建筑",
+      "subcategory": "仓储",
       "label": "粮仓",
-      "kind": "chest",
-      "item": "wood",
-      "amount": 12,
-      "work_ms": 45000,
-      "demolish_ms": 60000,
-      "salvage": 6,
-      "door": false,
-      "layer": "ground",
-      "size": [
-        2,
-        1
-      ],
-      "perception_cost": 1,
-      "facts": {
-        "movement_blocked": true,
-        "enclosure_boundary": false,
-        "thermal_barrier": false,
-        "light_blocked": false,
-        "wall_connection": false
+      "properties": {
+        "kind": "chest",
+        "work_ms": 45000,
+        "demolish_ms": 60000,
+        "salvage": 6,
+        "door": false,
+        "layer": "ground",
+        "size": [
+          2,
+          1
+        ],
+        "perception_cost": 1,
+        "facts": {
+          "movement_blocked": true,
+          "enclosure_boundary": false,
+          "thermal_barrier": false,
+          "light_blocked": false,
+          "wall_connection": false
+        },
+        "max_hp": 100,
+        "armor": 2,
+        "capabilities": {
+          "storage": {
+            "capacity": 96,
+            "items": []
+          }
+        },
+        "slots": [
+          {
+            "id": "front",
+            "capability": "storage",
+            "cell": [
+              0,
+              1
+            ],
+            "facing": [
+              0,
+              -1
+            ],
+            "requires": ""
+          }
+        ],
+        "environment": {
+          "source": "",
+          "thermal": 10000,
+          "elements": 10000,
+          "light": 10000,
+          "contents_thermal": 2500,
+          "contents_elements": 5000,
+          "contents_light": 0,
+          "room_tau_ms": 180000
+        },
+        "art_key": "granary"
       },
-      "max_hp": 100,
-      "armor": 2,
-      "capabilities": {
-        "storage": {
-          "capacity": 96,
-          "items": []
+      "variants": {
+        "wood": {
+          "id": "granary",
+          "label": "粮仓",
+          "amount": 12
+        }
+      }
+    },
+    "bed": {
+      "category": "家具",
+      "subcategory": "起居",
+      "label": "床",
+      "properties": {
+        "kind": "bed",
+        "work_ms": 180000,
+        "demolish_ms": 60000,
+        "salvage": 2,
+        "door": false,
+        "layer": "ground",
+        "size": [
+          1,
+          1
+        ],
+        "perception_cost": 1,
+        "facts": {
+          "movement_blocked": false,
+          "enclosure_boundary": false,
+          "thermal_barrier": false,
+          "light_blocked": false,
+          "wall_connection": false
+        },
+        "max_hp": 80,
+        "armor": 2,
+        "capabilities": {
+          "rest": {}
+        },
+        "slots": [],
+        "environment": {
+          "source": "",
+          "thermal": 10000,
+          "elements": 10000,
+          "light": 10000,
+          "contents_thermal": 10000,
+          "contents_elements": 10000,
+          "contents_light": 10000,
+          "room_tau_ms": 180000
         }
       },
-      "slots": [
-        {
-          "id": "front",
-          "capability": "storage",
-          "cell": [
-            0,
-            1
-          ],
-          "facing": [
-            0,
-            -1
-          ],
-          "requires": ""
+      "variants": {
+        "wood": {
+          "id": "wood_bed",
+          "label": "木床",
+          "amount": 5
+        },
+        "stone": {
+          "id": "stone_bed",
+          "label": "石床",
+          "amount": 6,
+          "overrides": {
+            "art_key": "bed"
+          }
         }
-      ],
-      "environment": {
-        "source": "",
-        "thermal": 10000,
-        "elements": 10000,
-        "light": 10000,
-        "contents_thermal": 2500,
-        "contents_elements": 5000,
-        "contents_light": 0,
-        "room_tau_ms": 180000
+      }
+    },
+    "long_bed": {
+      "category": "家具",
+      "subcategory": "起居",
+      "label": "长床",
+      "properties": {
+        "kind": "bed",
+        "work_ms": 180000,
+        "demolish_ms": 60000,
+        "salvage": 4,
+        "door": false,
+        "layer": "ground",
+        "size": [
+          1,
+          2
+        ],
+        "perception_cost": 1,
+        "facts": {
+          "movement_blocked": false,
+          "enclosure_boundary": false,
+          "thermal_barrier": false,
+          "light_blocked": false,
+          "wall_connection": false
+        },
+        "max_hp": 100,
+        "armor": 2,
+        "capabilities": {
+          "rest": {}
+        },
+        "slots": [],
+        "environment": {
+          "source": "",
+          "thermal": 10000,
+          "elements": 10000,
+          "light": 10000,
+          "contents_thermal": 10000,
+          "contents_elements": 10000,
+          "contents_light": 10000,
+          "room_tau_ms": 180000
+        }
       },
-      "art_key": "granary"
+      "variants": {
+        "wood": {
+          "id": "long_bed",
+          "label": "长木床",
+          "amount": 8
+        }
+      }
+    },
+    "table": {
+      "category": "家具",
+      "subcategory": "起居",
+      "label": "桌",
+      "properties": {
+        "kind": "table",
+        "work_ms": 180000,
+        "demolish_ms": 60000,
+        "salvage": 3,
+        "door": false,
+        "layer": "ground",
+        "size": [
+          2,
+          1
+        ],
+        "perception_cost": 1,
+        "facts": {
+          "movement_blocked": true,
+          "enclosure_boundary": false,
+          "thermal_barrier": false,
+          "light_blocked": false,
+          "wall_connection": false
+        },
+        "max_hp": 100,
+        "armor": 2,
+        "capabilities": {
+          "surface": {}
+        },
+        "slots": [],
+        "environment": {
+          "source": "",
+          "thermal": 10000,
+          "elements": 10000,
+          "light": 10000,
+          "contents_thermal": 10000,
+          "contents_elements": 10000,
+          "contents_light": 10000,
+          "room_tau_ms": 180000
+        }
+      },
+      "variants": {
+        "wood": {
+          "id": "wood_table",
+          "label": "木桌",
+          "amount": 6
+        }
+      }
+    },
+    "chair": {
+      "category": "家具",
+      "subcategory": "起居",
+      "label": "椅",
+      "properties": {
+        "kind": "chair",
+        "work_ms": 180000,
+        "demolish_ms": 60000,
+        "salvage": 2,
+        "door": false,
+        "layer": "ground",
+        "size": [
+          1,
+          1
+        ],
+        "perception_cost": 1,
+        "facts": {
+          "movement_blocked": false,
+          "enclosure_boundary": false,
+          "thermal_barrier": false,
+          "light_blocked": false,
+          "wall_connection": false
+        },
+        "max_hp": 100,
+        "armor": 2,
+        "capabilities": {
+          "seat": {}
+        },
+        "slots": [
+          {
+            "id": "seat",
+            "capability": "seat",
+            "cell": [
+              0,
+              0
+            ],
+            "facing": [
+              0,
+              -1
+            ],
+            "requires": ""
+          }
+        ],
+        "environment": {
+          "source": "",
+          "thermal": 10000,
+          "elements": 10000,
+          "light": 10000,
+          "contents_thermal": 10000,
+          "contents_elements": 10000,
+          "contents_light": 10000,
+          "room_tau_ms": 180000
+        }
+      },
+      "variants": {
+        "wood": {
+          "id": "wood_chair",
+          "label": "木椅",
+          "amount": 4
+        }
+      }
+    },
+    "screen": {
+      "category": "家具",
+      "subcategory": "起居",
+      "label": "屏风",
+      "properties": {
+        "kind": "screen",
+        "work_ms": 180000,
+        "demolish_ms": 60000,
+        "salvage": 2,
+        "door": false,
+        "layer": "ground",
+        "size": [
+          2,
+          1
+        ],
+        "perception_cost": 2,
+        "facts": {
+          "movement_blocked": true,
+          "enclosure_boundary": false,
+          "thermal_barrier": false,
+          "light_blocked": true,
+          "wall_connection": false
+        },
+        "max_hp": 100,
+        "armor": 2,
+        "capabilities": {},
+        "slots": [],
+        "environment": {
+          "source": "",
+          "thermal": 10000,
+          "elements": 10000,
+          "light": 0,
+          "contents_thermal": 10000,
+          "contents_elements": 10000,
+          "contents_light": 10000,
+          "room_tau_ms": 180000
+        }
+      },
+      "variants": {
+        "wood": {
+          "id": "wood_screen",
+          "label": "屏风",
+          "amount": 4
+        }
+      }
+    },
+    "chest": {
+      "category": "家具",
+      "subcategory": "收纳",
+      "label": "储藏箱",
+      "properties": {
+        "kind": "chest",
+        "work_ms": 180000,
+        "demolish_ms": 60000,
+        "salvage": 2,
+        "door": false,
+        "layer": "ground",
+        "size": [
+          1,
+          1
+        ],
+        "perception_cost": 1,
+        "facts": {
+          "movement_blocked": true,
+          "enclosure_boundary": false,
+          "thermal_barrier": false,
+          "light_blocked": false,
+          "wall_connection": false
+        },
+        "max_hp": 100,
+        "armor": 2,
+        "capabilities": {
+          "storage": {
+            "capacity": 24,
+            "items": []
+          }
+        },
+        "slots": [
+          {
+            "id": "front",
+            "capability": "storage",
+            "cell": [
+              0,
+              1
+            ],
+            "facing": [
+              0,
+              -1
+            ],
+            "requires": ""
+          }
+        ],
+        "environment": {
+          "source": "",
+          "thermal": 10000,
+          "elements": 10000,
+          "light": 10000,
+          "contents_thermal": 2500,
+          "contents_elements": 5000,
+          "contents_light": 0,
+          "room_tau_ms": 180000
+        }
+      },
+      "variants": {
+        "wood": {
+          "id": "wood_chest",
+          "label": "储藏箱",
+          "amount": 4
+        }
+      }
+    },
+    "desk_chair": {
+      "category": "家具",
+      "subcategory": "工作",
+      "label": "书案座椅",
+      "properties": {
+        "kind": "chair",
+        "work_ms": 180000,
+        "demolish_ms": 60000,
+        "salvage": 2,
+        "door": false,
+        "layer": "ground",
+        "size": [
+          1,
+          1
+        ],
+        "perception_cost": 1,
+        "facts": {
+          "movement_blocked": false,
+          "enclosure_boundary": false,
+          "thermal_barrier": false,
+          "light_blocked": false,
+          "wall_connection": false
+        },
+        "max_hp": 100,
+        "armor": 2,
+        "capabilities": {
+          "seat": {}
+        },
+        "slots": [
+          {
+            "id": "seat",
+            "capability": "seat",
+            "cell": [
+              0,
+              0
+            ],
+            "facing": [
+              0,
+              -1
+            ],
+            "requires": "surface"
+          }
+        ],
+        "environment": {
+          "source": "",
+          "thermal": 10000,
+          "elements": 10000,
+          "light": 10000,
+          "contents_thermal": 10000,
+          "contents_elements": 10000,
+          "contents_light": 10000,
+          "room_tau_ms": 180000
+        }
+      },
+      "variants": {
+        "wood": {
+          "id": "desk_chair",
+          "label": "书案座椅",
+          "amount": 4
+        }
+      }
+    },
+    "notice_desk": {
+      "category": "家具",
+      "subcategory": "工作",
+      "label": "告示案",
+      "properties": {
+        "kind": "table",
+        "work_ms": 180000,
+        "demolish_ms": 60000,
+        "salvage": 3,
+        "door": false,
+        "layer": "ground",
+        "size": [
+          2,
+          1
+        ],
+        "perception_cost": 1,
+        "facts": {
+          "movement_blocked": true,
+          "enclosure_boundary": false,
+          "thermal_barrier": false,
+          "light_blocked": false,
+          "wall_connection": false
+        },
+        "max_hp": 100,
+        "armor": 2,
+        "capabilities": {
+          "records": {}
+        },
+        "slots": [],
+        "environment": {
+          "source": "",
+          "thermal": 10000,
+          "elements": 10000,
+          "light": 10000,
+          "contents_thermal": 10000,
+          "contents_elements": 10000,
+          "contents_light": 10000,
+          "room_tau_ms": 180000
+        }
+      },
+      "variants": {
+        "wood": {
+          "id": "notice_desk",
+          "label": "告示案",
+          "amount": 6
+        }
+      }
+    },
+    "planter": {
+      "category": "家具",
+      "subcategory": "栽培",
+      "label": "花盆",
+      "properties": {
+        "kind": "furniture",
+        "work_ms": 180000,
+        "demolish_ms": 60000,
+        "salvage": 3,
+        "door": false,
+        "layer": "ground",
+        "size": [
+          1,
+          1
+        ],
+        "perception_cost": 1,
+        "facts": {
+          "movement_blocked": true,
+          "enclosure_boundary": false,
+          "thermal_barrier": false,
+          "light_blocked": false,
+          "wall_connection": false
+        },
+        "max_hp": 100,
+        "armor": 2,
+        "capabilities": {
+          "cultivation": {
+            "substrate": "soil",
+            "water_capacity": 100,
+            "initial_water": 80,
+            "root_capacity": 1,
+            "water_decay_ms": 30000,
+            "water_per_item": 40
+          }
+        },
+        "slots": [],
+        "environment": {
+          "source": "",
+          "thermal": 10000,
+          "elements": 10000,
+          "light": 10000,
+          "contents_thermal": 10000,
+          "contents_elements": 10000,
+          "contents_light": 10000,
+          "room_tau_ms": 180000
+        }
+      },
+      "variants": {
+        "wood": {
+          "id": "planter",
+          "label": "花盆",
+          "amount": 6
+        }
+      }
     }
   }
 }

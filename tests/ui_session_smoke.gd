@@ -68,11 +68,13 @@ func _run() -> void:
 	await process_frame
 	var selected: int = game.selected
 	var reached: bool = true
-	for category: String in ["建筑", "工作", "工作台", "灶台"]:
-		if not await open_build_group(category): reached = false; break
+	for choice: String in ["建筑", "工作", "灶台"]:
+		check(game.controls.tool.is_empty() and game.ui.build_menu._leaves.is_empty(), "Materials appeared before the item was selected")
+		if not await open_build_group(choice): reached = false; break
 	if reached:
 		var leaf: Button = game.ui.build_menu._leaves.get("cook_stove")
-		check(leaf != null and leaf.is_visible_in_tree() and leaf.text.contains("木料"), "Stove did not reach its material leaf")
+		check(leaf != null and leaf.is_visible_in_tree() and leaf.text.begins_with("木\n木料"), "Stove did not offer an explicit wood choice")
+		check(game.ui.build_menu._columns.size() == 4 and game.ui.build_menu._leaves.size() == 1, "Single-material object did not have exactly four levels")
 		check(not game.ui.build_menu._columns[0].visible and not leaf.get_global_rect().intersects(game.ui._map_panel.get_global_rect()), "Expanded build columns overran the usable screen")
 		check(game.selected == selected and game.controls.tool.is_empty(), "Category click reached the world or started a placement")
 		await capture("narrow-drawer")

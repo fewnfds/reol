@@ -400,6 +400,8 @@ func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dict
 		world.knowledge.created(world, actor, int(planted.target), now)
 		world._sync_inventory(actor)
 		return outcome
+	if action.kind == "mine":
+		return _mine_stone(world, actor, action.target, now)
 	var facts: Dictionary = {"definition": rec.definition}
 	if rec.kind == "resource":
 		if action.kind not in ["cut", "uproot"]:
@@ -465,6 +467,17 @@ func commit(world: RefCounted, actor: int, action: Dictionary, now: int) -> Dict
 				remove(world, action.target, now)
 				if int(rec.host) > 0: world.knowledge.refresh(world, actor, int(rec.host), now)
 	world._sync_inventory(actor)
+	return Results.completed(facts)
+
+
+func _mine_stone(world: RefCounted, actor: int, target: int, now: int) -> Dictionary:
+	var rock: Dictionary = world.objects.records[target]
+	if rock.kind != "rock" or rock.definition != "stone": return Results.refused("invalid_target")
+	var moved: int = world.institutions.acquire_yield(world, actor, target, "stone", 4, now, "supply")
+	if moved <= 0: return Results.refused("empty_or_full")
+	world._sync_inventory(actor)
+	var facts: Dictionary = {"item": "stone", "amount": moved, "source": target, "destination": actor}
+	if world.remove_static(target, now): facts["removed"] = target
 	return Results.completed(facts)
 
 

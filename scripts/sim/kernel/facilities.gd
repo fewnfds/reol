@@ -19,15 +19,7 @@ var sources := PackedInt64Array() # Derived from completed carriers, never a sec
 
 
 func _init() -> void:
-	if not Query.BUILDINGS.is_empty():
-		definitions = Query.BUILDINGS.duplicate(true)
-		for key: String in definitions.keys():
-			var errors: PackedStringArray = Positions.errors(definitions[key].get("work_positions", {}))
-			errors.append_array(Sources.errors(definitions[key]))
-			errors.append_array(Cultivation.errors(definitions[key]))
-			if not errors.is_empty():
-				push_error(key + ": " + str(errors))
-				definitions.erase(key)
+	definitions = Query.BUILDINGS.duplicate(true)
 
 
 func footprint(definition: String, tile: int, facing: int = 0) -> PackedInt32Array:
@@ -206,7 +198,7 @@ static func placement_at(layer: String, surface: int, occupants: Array[Dictionar
 		var vegetation: int = int(plants.get(other.definition, {}).get("vegetation_level", 0)) if other.kind == "plant" else (int(other.get("vegetation_level", 3)) if other.kind == "resource" else 0)
 		var loose_stock: bool = other.kind == "pile" or (other.kind == "resource" and vegetation == 0)
 		if layer == "floor":
-			if other_layer == "floor": return "occupied"
+			if other_layer == "floor" or other.kind == "rock": return "occupied"
 			if vegetation >= 2: return "clear_shrub_tree_or_stump_first"
 		elif not loose_stock and (other_layer == layer or (layer == "ground" and other_layer != "floor")): return "occupied"
 	return "accepted"
