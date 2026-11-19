@@ -52,7 +52,10 @@ func known_dead_obligation() -> void:
 	w.kill(3, 0); w.knowledge.refresh(w, 2, 3, 0)
 	autonomous(w, 2, [])
 	advance(w, 8000)
-	check(w.institutions.shares[share].state == "accepted" and w.livelihood.records[2].explore_count == 0 and w.gate.current(2).is_empty(), "Known dead student caused pointless searching or silently erased a formal obligation")
+	# A blocked teaching obligation can coexist with unrelated personal work.
+	var task: Dictionary = w.decisions.records[2].task
+	check(w.institutions.shares[share].state == "accepted" and w.livelihood.records[2].explore_count == 0 and int(task.get("target", 0)) != 3,
+		"Known dead student caused pointless searching or silently erased a formal obligation")
 	check(Persistence.candidate(Persistence.capture(w), 0) != null, "A blocked historical obligation failed recovery")
 
 func duplicate_student_host_reply() -> void:

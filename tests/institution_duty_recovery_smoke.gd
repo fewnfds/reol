@@ -16,7 +16,9 @@ func exhausted_materials_report_return_and_resume() -> void:
 	w.objects.add(f.source, "water", -w.objects.amount(f.source, "water"))
 	advance(w, w.elapsed_ms + 25000)
 	var posted: Dictionary = w.institutions.channels[f.board].posts[int(share.matter)]
-	check(w.institutions.shares[share.id].state == "released" and posted.signatures[share.id].status == "blocked" and posted.state == "closed" and w.objects.amount(4, "grain") == 0 and w.objects.amount(f.source, "grain") == 12, "Exhausted prerequisite caused hoarding, repeated issue or unreported silent release")
+	var public_grain: int = w.objects.amount(f.source, "grain", Stock.right(0, f.org)) + w.objects.amount(f.stove, "grain", Stock.right(0, f.org))
+	check(w.institutions.shares[share.id].state == "released" and posted.signatures[share.id].status == "blocked" and posted.state == "closed" and w.objects.amount(4, "grain") == 0 and public_grain == 12,
+		"Exhausted prerequisite caused hoarding, repeated issue or unreported silent release")
 	check(w.institutions.matters.values().filter(func(value: Dictionary): return value.state == "active").is_empty(), "Source exhaustion caused administrative reissue without a real source")
 	check(Persistence.candidate(Persistence.capture(w), 0) != null, "Reported shortage and returned entrusted materials failed restore")
 	w.objects.add(f.source, "water", 6, Stock.right(0, f.org))

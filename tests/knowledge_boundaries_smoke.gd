@@ -5,7 +5,7 @@ func location_scoped_absence() -> void:
 	w.knowledge.records.clear()
 	# Isolate the two explicitly timed location accounts from the independent
 	# periodic schedule. A second observation at the same timestamp is not newer.
-	for actor: int in w.actor_slots: w.knowledge.record(actor).due_ms = 5000
+	for actor: int in w.actor_slots: w.knowledge.set_observation_due(w, actor, 5000)
 	move_actor(w, 1, Vector2(123.5, 120.5))
 	move_actor(w, 3, Vector2(124.5, 120.5))
 	w.knowledge.refresh(w, 1, 3, 0)
@@ -117,7 +117,7 @@ func observation_during_activity() -> void:
 	move_actor(w, 2, Vector2(123.5, 120.5))
 	var chest: int = w.facilities.create_completed(w, "wood_chest", w.Terrain.index(Vector2i(124, 123)))
 	w.flush_topology()
-	w.knowledge.record(2).due_ms = 1000
+	w.knowledge.set_observation_due(w, 2, 1000)
 	check(w.command({"kind": "move", "actor": 2, "position": Vector2(140.5, 120.5)}).ok, "Travel observation fixture refused")
 	advance(w, 1000)
 	check(not w.gate.current(2).is_empty() and w.knowledge.view(2, chest, 1000).get("tile", -1) >= 0, "Busy manual traveller only observed after its activity ended")

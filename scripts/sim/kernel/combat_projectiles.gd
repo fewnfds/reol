@@ -46,18 +46,27 @@ static func collect(combat: RefCounted, world: RefCounted, start: int, now: int,
 		var first: float = wall.fraction
 		var contacts: Array[Dictionary] = []
 		var pad: float = float(bolt.radius) + 1.0 + combat.scan.sweep_padding
+		var low: float = float(segment_start - start) / maxi(1, now - start)
+		var high: float = float(until - start) / maxi(1, now - start)
+		var no_knots := PackedVector3Array()
 		for target: int in combat.scan.nearby(from.min(to) - Vector2.ONE * pad, from.max(to) + Vector2.ONE * pad):
 			if not combat.eligible(world, bolt.actor, target, bolt.filter, bolt.side) or bolt.passed.has(target): continue
 			var slot: int = world.actor_slots[target]
 			var page: RefCounted = world.pages[slot / 256]
 			var row: int = slot % 256
 			var before: Vector2 = combat.previous[slot / 256][row]
-			var path: PackedVector3Array = page.motion.get(row, PackedVector3Array())
-			var low: float = float(segment_start - start) / maxi(1, now - start)
-			var high: float = float(until - start) / maxi(1, now - start)
-			var clipped: PackedVector3Array = Motion.subpath(before, page.positions[row], path, low, high)
-			var begin: Vector2 = Vector2(clipped[0].x, clipped[0].y)
-			var finish: Vector2 = Vector2(clipped[-1].x, clipped[-1].y)
+			var path: PackedVector3Array = page.motion.get(row, no_knots)
+			var point: Vector2 = page.positions[row]
+			var begin: Vector2
+			var finish: Vector2
+			var clipped: PackedVector3Array = no_knots
+			if path.is_empty():
+				begin = before.lerp(point, low)
+				finish = before.lerp(point, high)
+			else:
+				clipped = Motion.subpath(before, point, path, low, high)
+				begin = Vector2(clipped[0].x, clipped[0].y)
+				finish = Vector2(clipped[-1].x, clipped[-1].y)
 			var fraction: float = Motion.hit_fraction(from, to, begin, finish, page.radii[row] + float(bolt.radius), clipped)
 			if fraction >= 0 and (first < 0 or fraction < first): contacts.append({"target": target, "fraction": fraction, "implement": 0, "position": Motion.at(begin, finish, clipped, fraction)})
 		var receiver_pad: Vector2 = Vector2.ONE * (float(bolt.radius) + 0.4)
@@ -70,8 +79,6 @@ static func collect(combat: RefCounted, world: RefCounted, start: int, now: int,
 			var segment: Dictionary = world.implements.segment_at(value.id, start)
 			if segment.is_empty() or not combat.eligible(world, bolt.actor, value.owner, bolt.filter, bolt.side): continue
 			if bolt.passed.has("implement:%d" % value.id): continue
-			var low: float = float(segment_start - start) / maxi(1, now - start)
-			var high: float = float(until - start) / maxi(1, now - start)
 			var clipped: PackedVector3Array = Motion.subpath(segment.from, segment.to, segment.knots, low, high)
 			var before: Vector2 = Vector2(clipped[0].x, clipped[0].y)
 			var finish: Vector2 = Vector2(clipped[-1].x, clipped[-1].y)
@@ -121,7 +128,7 @@ static func accept(combat: RefCounted, world: RefCounted, impact: Dictionary) ->
 		var key: Variant = impact.target if implement == 0 else "implement:%d" % implement
 		if bolt.passed.has(key): return false
 		bolt.passed[key] = true
-		if implement == 0 and Defs.evading(combat.action_snapshot(impact.target), impact.at_ms):
+		if implement == 0 and Defs.evading(combat.defensive_action(impact.target), impact.at_ms):
 			world.emit({"kind": "evaded", "actor": bolt.actor, "target": impact.target, "activation": bolt.activation, "at_ms": impact.at_ms, "position": impact.position})
 			return false
 		if int(bolt.pierce) > 0: bolt.pierce -= 1; return true

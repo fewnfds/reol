@@ -11,6 +11,8 @@ const Costs = preload("res://scripts/sim/kernel/action_costs.gd")
 const Payload = preload("res://scripts/sim/kernel/effect_payload.gd")
 const CONTACT_MEMORY_MS: int = 5000
 const STATE_FIELDS: Array = ["engagements", "states", "cooldowns", "chains", "status", "intents", "bolts", "next_bolt", "next_activation", "shots", "hits", "resumed", "unreachable", "_brain_bucket", "catalog_signature"]
+const IMPACT_TIE_FIELDS = ["bolt_id", "contact_order", "implement_target", "target"]
+
 var catalog_signature: String = Defs.SIGNATURE
 var engagements: Dictionary = {} # AI contacts, never player attack-move orders.
 var states: Dictionary = {}
@@ -29,7 +31,7 @@ var resumed: int = 0
 var repaths: int = 0
 var work_usec: int = 0
 var prepare_usec: int = 0
-var resolve_usec: int = 0
+var resolve_usec: int = 0 # Full contact slice, including collect_usec.
 var collect_usec: int = 0
 var damage_usec: int = 0
 var slices: int = 0
@@ -39,11 +41,13 @@ var scan := Scan.new()
 var previous: Array[PackedVector2Array] = []
 var projectile_segments: Array[Dictionary] = []
 var action_segments: Array[Dictionary] = []
+var _segments_by_actor: Dictionary[int, Array] = {}
 var reaction_segments: Array[Dictionary] = []
 var _settling: bool = false
 var _frozen_states: Dictionary = {}
 var _interruptions: Dictionary = {}
 var _brain_bucket: int = -1
+var _action_boundaries: Dictionary = {} # Immutable catalog offsets by kind and confirmation.
 
 func position(world: RefCounted, id: int) -> Vector2:
 	if world.actor_slots.has(id):
@@ -265,17 +269,30 @@ func intent_ready_at(world: RefCounted, actor: int, intent: Dictionary, now: int
 	var kind: String = ability(world, actor, intent.button, now)
 	return maxi(ready, int(cooldowns.get(actor, {}).get(Defs.ACTIONS[kind].cd_group, 0)))
 
+func _boundary_offsets(kind: String, confirmed: bool) -> PackedInt32Array:
+	if not _action_boundaries.has(kind):
+		var definition: Dictionary = Defs.ACTIONS[kind]
+		var active: int = definition.windup
+		var recovery: int = active + int(definition.active)
+		var offsets: Array[PackedInt32Array] = []
+		for landed: bool in [false, true]:
+			var state: Dictionary = {"kind": kind, "started_ms": 0, "confirmed": landed}
+			var times := PackedInt32Array([definition.get("lock", 0), definition.get("lunge_from", 0),
+				definition.get("lunge_to", 0), definition.get("free_at", 0), definition.evade_ms,
+				active, recovery, recovery + int(definition.recovery)])
+			for button: String in ["primary", "skill", "step"]: times.append(Defs.cancel_ms(state, button))
+			times.sort()
+			offsets.append(times)
+		_action_boundaries[kind] = offsets
+	return _action_boundaries[kind][int(confirmed)]
+
 func next_boundary(world: RefCounted, now: int, end: int) -> int:
 	var result: int = end
 	for state: Dictionary in states.values():
-		var def: Dictionary = Defs.ACTIONS[state.kind]
-		var offsets: Array = [def.get("lock", 0), def.get("lunge_from", 0), def.get("lunge_to", 0), def.get("free_at", 0), def.evade_ms]
-		for button: String in ["primary", "skill", "step"]: offsets.append(Defs.cancel_ms(state, button) - int(state.started_ms))
-		for offset: int in offsets:
-			var boundary: int = int(state.started_ms) + offset
-			if boundary > now: result = mini(result, boundary)
-		for boundary: int in [Defs.active_ms(state), Defs.recovery_ms(state), Defs.end_ms(state)]:
-			if boundary > now: result = mini(result, boundary)
+		var started: int = state.started_ms
+		var offsets: PackedInt32Array = _boundary_offsets(state.kind, state.confirmed)
+		var next: int = offsets.bsearch(now - started, false)
+		if next < offsets.size(): result = mini(result, started + offsets[next])
 	for value: Dictionary in status.values():
 		for key: String in ["stun_until", "push_until", "ready_ms"]:
 			var boundary: int = int(value.get(key, 0))
@@ -485,23 +502,32 @@ func before_motion(world: RefCounted) -> void:
 	if bolts.is_empty() and states.is_empty() and world.implements.records.is_empty() and world.actions.is_empty() and world.work_runs.is_empty() and world.areas.records.is_empty() and world.effects.records.is_empty() and world.reactions.pending.is_empty(): return
 	for page: RefCounted in world.pages: previous.append(page.positions.duplicate())
 
+func reset_segments() -> void:
+	projectile_segments = []
+	action_segments = []
+	reaction_segments = []
+	_segments_by_actor.clear()
+
 func step(world: RefCounted, start: int, now: int, world_events: Array[Dictionary] = []) -> void:
 	var started: int = Time.get_ticks_usec()
 	slices += 1
-	var actions: Dictionary = view()
-	for actor: int in actions:
-		var segment: Dictionary = actions[actor]
-		segment.merge({"actor": actor, "from_ms": start, "until_ms": now})
-		action_segments.append(segment)
 	var melee: Array[int] = []
-	for actor: int in states:
-		var state: Dictionary = states[actor]
-		if start >= Defs.active_ms(state) and start < Defs.recovery_ms(state) and Defs.ACTIONS[state.kind].has("reach"): melee.append(actor)
 	var direct_activations: Array[Dictionary] = []
 	for actor: int in states:
 		var state: Dictionary = states[actor]
-		if not state.fired and Defs.ACTIONS[state.kind].delivery.kind == "direct" and Defs.active_ms(state) >= start and Defs.active_ms(state) <= now:
-			direct_activations.append({"event": "direct_activation", "actor": actor, "activation": state.activation, "at_ms": Defs.active_ms(state)})
+		var segment: Dictionary = _action_view(state)
+		segment["actor"] = actor
+		segment["from_ms"] = start
+		segment["until_ms"] = now
+		action_segments.append(segment)
+		if not _segments_by_actor.has(actor): _segments_by_actor[actor] = []
+		_segments_by_actor[actor].append(segment)
+		var definition: Dictionary = Defs.ACTIONS[state.kind]
+		var active: int = segment.active_ms
+		if start >= active and start < int(segment.recovery_ms) and definition.has("reach"):
+			melee.append(actor)
+		if not state.fired and definition.delivery.kind == "direct" and active >= start and active <= now:
+			direct_activations.append({"event": "direct_activation", "actor": actor, "activation": state.activation, "at_ms": active})
 	if world.reactions.pending.is_empty() and direct_activations.is_empty() and world_events.is_empty() and bolts.is_empty() and melee.is_empty() and world.areas.records.is_empty() and world.effects.records.is_empty() and world.implements.records.is_empty():
 		_record_reactions(start, now)
 		return
@@ -513,36 +539,7 @@ func step(world: RefCounted, start: int, now: int, world_events: Array[Dictionar
 	impacts.append_array(world.areas.collect(world, now))
 	impacts.append_array(world.implements.collect(world, start, now, melee))
 	impacts.append_array(Projectiles.collect(self, world, start, now))
-	for actor: int in melee:
-		var state: Dictionary = states[actor]
-		var def: Dictionary = Defs.ACTIONS[state.kind].merged(Payload.summary(Defs.ACTIONS[state.kind].payload), true)
-		var origin: Vector2 = position(world, actor)
-		var own_slot: int = world.actor_slots[actor]
-		var before_origin: Vector2 = previous[own_slot / 256][own_slot % 256]
-		var own_knots: PackedVector3Array = world.pages[own_slot / 256].motion.get(own_slot % 256, PackedVector3Array())
-		var polygon: PackedVector2Array = Defs.sector(def, state.direction)
-		var reach: float = float(def.reach) + 1.0 + scan.sweep_padding
-		for target: int in scan.nearby(origin - Vector2.ONE * reach, origin + Vector2.ONE * reach):
-			if not eligible(world, actor, target, def.delivery.filter, state.side) or state.hit.has(target): continue
-			melee_candidates += 1
-			var slot: int = world.actor_slots[target]
-			var page: RefCounted = world.pages[slot / 256]
-			var row: int = slot % 256
-			# Bucket cells are coarser than a sword arc. Reject far bodies before
-			# constructing relative paths, retaining both bodies' swept distance.
-			var limit: float = float(def.reach) + page.radii[row] + scan.sweep_padding * 2.0
-			if origin.distance_squared_to(page.positions[row]) > limit * limit: continue
-			melee_tests += 1
-			var before: Vector2 = previous[slot / 256][row]
-			var knots: PackedVector3Array = page.motion.get(row, PackedVector3Array())
-			var fraction: float = Motion.shape_hit(before_origin, origin, own_knots, before, page.positions[row], knots, polygon, page.radii[row])
-			if fraction < 0: continue
-			var contact: Vector2 = Motion.at(before, page.positions[row], knots, fraction)
-			var source: Vector2 = Motion.at(before_origin, origin, own_knots, fraction)
-			if Terrain.blocking_fraction(world.terrain.blocked, source, contact) >= 0: continue
-			impacts.append({"actor": actor, "target": target, "damage": state.damage, "activation": state.activation,
-				"at_ms": start + roundi((now - start) * fraction), "incoming": (source - contact).normalized(), "stun": def.stun, "push": def.push, "melee": true,
-				"action": state.kind, "position": contact, "heavy_hit": def.heavy_hit, "punish_ms": def.punish_ms, "rules": def.reactions, "lineage": state.get("lineage", {}), "payload": def.payload, "evadable": true, "group_ms": def.group_ms, "side": state.side, "power": state.power})
+	_collect_body_melee(world, melee, start, now, impacts)
 	for actor: int in melee:
 		var state: Dictionary = states[actor]
 		var definition: Dictionary = Defs.ACTIONS[state.kind]
@@ -594,10 +591,10 @@ func step(world: RefCounted, start: int, now: int, world_events: Array[Dictionar
 			if not impact.get("melee", false) or (alive(world, impact.actor) and states.get(impact.actor, {}).get("activation") == impact.activation): accepted.append(impact)
 		world._commit_ms = int(impacts[index].at_ms)
 		world.effects.expire(world, int(impacts[index].at_ms))
-		var snapshot: Array[Dictionary] = accepted.duplicate()
+		_begin_wave(accepted)
 		for event: Dictionary in directs:
-			snapshot.append({"actor": event.actor, "target": states.get(event.actor, {}).get("target_id", event.actor)})
-		_begin_wave(snapshot)
+			_freeze_action(event.actor)
+			_freeze_action(int(states.get(event.actor, {}).get("target_id", event.actor)))
 		# Equal-time contacts trade; an earlier death/stagger cancels later melee.
 		world._commit_ms = int(impacts[index].at_ms)
 		for event: Dictionary in directs:
@@ -657,9 +654,78 @@ func step(world: RefCounted, start: int, now: int, world_events: Array[Dictionar
 	resolve_usec += cost
 	work_usec += cost
 
+func _collect_body_melee(world: RefCounted, melee: Array[int], start: int, now: int, impacts: Array[Dictionary]) -> void:
+	var summaries: Dictionary = {}
+	var no_knots := PackedVector3Array()
+	for actor: int in melee:
+		var state: Dictionary = states[actor]
+		var definition: Dictionary = Defs.ACTIONS[state.kind]
+		if not summaries.has(state.kind): summaries[state.kind] = Payload.summary(definition.payload)
+		var summary: Dictionary = summaries[state.kind]
+		var source_slot: int = world.actor_slots[actor]
+		var source_page: int = source_slot / Units.PAGE_SIZE
+		var source_row: int = source_slot % Units.PAGE_SIZE
+		var origin: Vector2 = scan.positions[source_slot]
+		var before_origin: Vector2 = previous[source_page][source_row]
+		var own_knots: PackedVector3Array = world.pages[source_page].motion.get(source_row, no_knots)
+		var polygon: PackedVector2Array = Defs.sector(definition, state.direction)
+		var shape_low := Vector2.ZERO
+		var shape_high := Vector2.ZERO
+		for vertex: Vector2 in polygon:
+			shape_low = shape_low.min(vertex)
+			shape_high = shape_high.max(vertex)
+		var reach: float = definition.reach
+		var extent: Vector2 = Vector2.ONE * (reach + 1.0 + scan.sweep_padding)
+		var policy: String = definition.delivery.filter
+		var side: int = state.side
+		var hit: Dictionary = state.hit
+		# The post-motion index contains the live bodies for this slice. No
+		# impact has been adopted yet, so slot identity and side are still valid.
+		for slot: int in scan.receiver_slots(origin - extent, origin + extent, policy, side):
+			var target: int = scan.ids[slot]
+			if (target == actor) != (policy == "self") or hit.has(target): continue
+			melee_candidates += 1
+			var page_index: int = slot / Units.PAGE_SIZE
+			var row: int = slot % Units.PAGE_SIZE
+			var page: RefCounted = world.pages[page_index]
+			var radius: float = page.radii[row]
+			var point: Vector2 = scan.positions[slot]
+			var limit: float = reach + radius + scan.sweep_padding * 2.0
+			if origin.distance_squared_to(point) > limit * limit: continue
+			var before: Vector2 = previous[page_index][row]
+			var knots: PackedVector3Array = page.motion.get(row, no_knots)
+			# A straight relative path stays inside its endpoint bounds. Curved
+			# or sliding paths still go through the complete swept test.
+			if own_knots.is_empty() and knots.is_empty():
+				var from: Vector2 = before - before_origin
+				var to: Vector2 = point - origin
+				var clearance: float = radius + 0.00001
+				if maxf(from.x, to.x) < shape_low.x - clearance or minf(from.x, to.x) > shape_high.x + clearance: continue
+				if maxf(from.y, to.y) < shape_low.y - clearance or minf(from.y, to.y) > shape_high.y + clearance: continue
+			melee_tests += 1
+			var fraction: float = Motion.shape_hit(before_origin, origin, own_knots, before, point, knots, polygon, radius)
+			if fraction < 0.0: continue
+			var contact: Vector2 = Motion.at(before, point, knots, fraction)
+			var source: Vector2 = Motion.at(before_origin, origin, own_knots, fraction)
+			if Terrain.blocking_fraction(scan.blocked, source, contact) >= 0.0: continue
+			impacts.append({"actor": actor, "target": target, "damage": state.damage, "activation": state.activation,
+				"at_ms": start + roundi((now - start) * fraction), "incoming": (source - contact).normalized(),
+				"stun": summary.stun, "push": summary.push, "melee": true, "action": state.kind, "position": contact,
+				"heavy_hit": summary.heavy_hit, "punish_ms": summary.punish_ms, "rules": definition.reactions,
+				"lineage": state.get("lineage", {}), "payload": definition.payload, "evadable": true,
+				"group_ms": definition.group_ms, "side": side, "power": state.power})
+
 func _impact_before(a: Dictionary, b: Dictionary) -> bool:
-	for key: String in ["at_ms", "actor", "bolt_id", "contact_order", "implement_target", "target"]:
-		if int(a.get(key, 0)) != int(b.get(key, 0)): return int(a.get(key, 0)) < int(b.get(key, 0))
+	var left: int = a.at_ms
+	var right: int = b.at_ms
+	if left != right: return left < right
+	left = int(a.get("actor", 0))
+	right = int(b.get("actor", 0))
+	if left != right: return left < right
+	for key: String in IMPACT_TIE_FIELDS:
+		left = int(a.get(key, 0))
+		right = int(b.get(key, 0))
+		if left != right: return left < right
 	return false
 
 func _record_reactions(start: int, now: int) -> void:
@@ -669,8 +735,8 @@ func _record_reactions(start: int, now: int) -> void:
 			reaction_segments.append({"actor": actor, "from_ms": start, "until_ms": now, "stun_from": value.get("stun_from", 0), "stun_until": value.stun_until})
 
 func _cut_action(actor: int, at: int) -> void:
-	for segment: Dictionary in action_segments:
-		if segment.actor == actor and int(segment.until_ms) > at: segment.until_ms = maxi(int(segment.from_ms), at)
+	for segment: Dictionary in _segments_by_actor.get(actor, []):
+		if int(segment.until_ms) > at: segment.until_ms = maxi(int(segment.from_ms), at)
 
 func launch(actor: int, origin: Vector2, destination: Vector2, now: int, amount: int = 20, activation: int = 0, speed: float = 22.0, source: Dictionary = {}) -> void:
 	if origin.is_equal_approx(destination): return
@@ -681,7 +747,7 @@ func launch(actor: int, origin: Vector2, destination: Vector2, now: int, amount:
 
 func damage(world: RefCounted, actor: int, target: int, amount: int, now: int, incoming: Vector2 = Vector2.ZERO, activation: int = 0, stun_ms: int = 0, push: float = 0.0, context: Dictionary = {}) -> Dictionary:
 	if not alive(world, target): return {}
-	if context.get("evadable", false) and Defs.evading(action_snapshot(target), now):
+	if context.get("evadable", false) and Defs.evading(defensive_action(target), now):
 		world.emit({"kind": "evaded", "actor": actor, "target": target, "activation": activation, "at_ms": now, "position": context.get("position", position(world, target))})
 		return {"evaded": true}
 	var applied: int
@@ -714,7 +780,7 @@ func damage(world: RefCounted, actor: int, target: int, amount: int, now: int, i
 		page.health[row] -= applied
 		if applied > 0: world.livelihood.resource_changed(world, target, "hp", page.health[row] + applied, page.health[row], now)
 		var work_interrupted: bool = not control_suppressed and not context.get("periodic", false) and (world.actions.has(target) or world.work_runs.has(target) or world.society.waits.has(target))
-		var target_state: Dictionary = action_snapshot(target)
+		var target_state: Dictionary = defensive_action(target)
 		var steady: bool = not target_state.is_empty() and bool(Defs.ACTIONS[target_state.kind].get("steady", false)) and now < Defs.recovery_ms(target_state)
 		if now >= int(value.stun_window) + Defs.CONTROL_WINDOW_MS or int(value.stun_used) == 0:
 			value.stun_window = now
@@ -760,15 +826,22 @@ func damage(world: RefCounted, actor: int, target: int, amount: int, now: int, i
 	if not context.get("status_control", false): hits += 1
 	return {"kind": "damage", "contact": true, "actor": actor, "target": target, "at_ms": now, "activation": activation, "damage": applied, "guarded": context.get("guarded", false), "blocked": context.get("blocked", 0), "absorbed": context.get("absorbed", 0), "broken": context.get("broken", []), "fatal": not alive(world, target), "stun_ms": duration, "control_until": control_until, "armored": armored, "off_balance": off_balance}
 
-func action_snapshot(actor: int) -> Dictionary:
+func defensive_action(actor: int) -> Dictionary:
 	return _frozen_states.get(actor, {}) if _settling else states.get(actor, {})
 
 func _begin_wave(impacts: Array[Dictionary]) -> void:
 	_settling = true
 	_frozen_states.clear()
 	for impact: Dictionary in impacts:
-		for actor: int in [int(impact.get("actor", 0)), int(impact.get("target", 0))]:
-			if not _frozen_states.has(actor): _frozen_states[actor] = states.get(actor, {}).duplicate(true)
+		_freeze_action(int(impact.get("actor", 0)))
+		_freeze_action(int(impact.get("target", 0)))
+
+func _freeze_action(actor: int) -> void:
+	if _frozen_states.has(actor): return
+	var state: Dictionary = states.get(actor, {})
+	# These are the only fields used to settle evasion and armor. Keep them
+	# across cancellation without copying hit history, lineage or other state.
+	_frozen_states[actor] = {} if state.is_empty() else {"kind": state.kind, "started_ms": state.started_ms}
 
 func _close_wave(world: RefCounted) -> void:
 	var pending: Dictionary = _interruptions
@@ -865,10 +938,12 @@ func blocked(world: RefCounted, actor: int, now: int) -> void:
 func view() -> Dictionary:
 	var result: Dictionary = {}
 	for actor: int in states:
-		var state: Dictionary = states[actor]
-		result[actor] = {"kind": state.kind, "started_ms": state.started_ms, "direction": state.direction, "activation": state.activation,
-			"active_ms": Defs.active_ms(state), "recovery_ms": Defs.recovery_ms(state), "end_ms": Defs.end_ms(state), "confirmed": state.confirmed, "point": state.point, "visual": "evade" if Defs.is_evade(state.kind) else "shoot" if Defs.ACTIONS[state.kind].stat == "ranged" else "melee"}
+		result[actor] = _action_view(states[actor])
 	return result
+
+func _action_view(state: Dictionary) -> Dictionary:
+	return {"kind": state.kind, "started_ms": state.started_ms, "direction": state.direction, "activation": state.activation,
+		"active_ms": Defs.active_ms(state), "recovery_ms": Defs.recovery_ms(state), "end_ms": Defs.end_ms(state), "confirmed": state.confirmed, "point": state.point, "visual": "evade" if Defs.is_evade(state.kind) else "shoot" if Defs.ACTIONS[state.kind].stat == "ranged" else "melee"}
 
 func valid(world: RefCounted) -> bool:
 	if catalog_signature != Defs.SIGNATURE or not Defs.ERRORS.is_empty(): return false

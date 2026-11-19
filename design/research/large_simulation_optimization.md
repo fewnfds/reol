@@ -1,8 +1,10 @@
 # 大型模拟：参考来源与选型理由
 
-核查日期：2026-11-12至15。本页只保留来源、局部实验和选型理由。当前实现见[架构](../../docs/engineering/architecture.md)，周期/近似见[运行与精度](../../docs/engineering/simulation-pacing.md)，成品测量见[BASELINE](../../docs/status/baseline.md)，当前工作查[主计划](../../docs/plans/foundation-priorities.md)。
+2026 年 11 月 12 日至 19 日的公开来源与历史实验。各实验与当时的场景和版本对应。当前实现见[架构](../../docs/engineering/architecture.md)，周期/近似见[运行与精度](../../docs/engineering/simulation-pacing.md)，成品测量见[BASELINE](../../docs/status/baseline.md)，当前工作查[主计划](../../docs/plans/foundation-priorities.md)。
 
 旧框架的逐步借还活世界、全域刷新和同步GPU回读链已经退出运行。完整排错、咨询次数、阶段顺序、失败原型与当时结论查[整理前研究](https://github.com/fewnfds/reol/blob/02958cc/design/research/large_simulation_optimization.md)；这些过程不再作为当前任务保存。
+
+当前采用与拒绝的试验见[性能收尾对照](../../docs/status/baseline.md#性能收尾对照)。下文的开工咨询、临时原型与数值描述历史阶段。可迁移的方法按实际依赖、访问集合和可接受的响应延迟判断。
 
 ## 成熟项目与引擎
 
@@ -39,6 +41,18 @@ Unity Entities 提供按组件查询与分块执行，Jobs 根据读写建立依
 | [CCP 的 FWST-8 战报](https://www.eveonline.com/news/view/fury-at-fwst-8-battle-report) | 2020 年在同一星系有 6,557 并发角色。强化节点仍过载，战斗期间时间膨胀达到最大 | 同一热点的并发规模需同时读运行速率，服务器容量与单机完整模拟倍率分别测 |
 | Godot [线程安全](https://docs.godotengine.org/en/4.7/tutorials/performance/thread_safe_apis.html)、[WorkerThreadPool](https://docs.godotengine.org/en/4.7/classes/class_workerthreadpool.html) | 活SceneTree不能任意多线程访问；任务量不足时调度可能负收益 | 不碰场景的独占页批；引擎管理池，不自造每域线程池 |
 | Godot [PackedVector2Array](https://docs.godotengine.org/en/4.7/classes/class_packedvector2array.html)、[C++ core types](https://docs.godotengine.org/en/4.7/tutorials/scripting/cpp/core_types.html)、[cowdata.h](https://github.com/godotengine/godot/blob/4.7/core/templates/cowdata.h) | GDScript Packed数组是引用值，需要duplicate/新目标拷贝才能独立；C++容器的CoW不能证明脚本共享写安全 | 生产者新建脱离Frame，发布后不写；保留旧帧不导致槽位覆盖 |
+
+### 计算、分批提交与裁决窗口
+
+| 一手资料 | 公开实践与对 Reol 的对应点 |
+|---|---|
+| [Factorio FFF-364](https://www.factorio.com/blog/post/fff-364)、[FFF-421](https://www.factorio.com/blog/post/fff-421) | 传送带按实际可交互关系分组，组内更新，多线程汇回共享唤醒请求再按稳定顺序处理。电网试验的子阶段从 0.50ms 降为 0.39ms，CPU 使用增加，整档未更快。Reol 应按读写依赖切组，把通知汇合、内存访问和真实实速计进收益 |
+| [Beyond All Reason 寻路改造](https://www.beyondallreason.info/news/groundbreaking-engine-improvements-are-live-multithreaded-pathing-and-new-renderer-deployed)、[Recoil 并行说明](https://github.com/beyond-all-reason/RecoilEngine/blob/master/coding-agents/ENGINE_PERFORMANCE.md) | 早期按完整路径请求批量并行，随后更新共享路径热度。Recoil 公开说明也记录 QTPFS 用工作线程的私有搜索状态在后台处理。可借来设计 Reol 的稳定输入、私有结果和及时复核，再测当前复制与命中率 |
+| [《魔兽世界》经典版开发说明](https://us.forums.blizzard.com/en/wow/t/spell-batching-in-classic/137118/)、[1.13.7 补丁](https://us.forums.blizzard.com/en/wow/t/world-of-warcraft-classic-patch-notes-version-1137/942908) | 2019 年官方说明同批打断与变羊可能同时成立，2021 年实际把法术批窗从 400ms 缩到 10ms 以提高响应。为 Reol 的同批格挡、打断和互击提供了具体反例与体验取舍 |
+| [Box2D 模拟手册](https://box2d.org/documentation/md_simulation.html)、[Valve 的 CS2 说明](https://www.counter-strike.net/cs2) | Box2D 外步允许多个内部子步，应用在步后读取事件。Valve 说明服务器保留移动、开火与投掷的子刻度时刻。采样精度、事件时间及交付频率可以分别决定 |
+| [D3Planner 间隔计算](https://github.com/d07RiV/d3planner/blob/master/simulator/cast.js)、[攻速断点表](https://github.com/d07RiV/d3planner/blob/master/scripts/skilldata.js)、[《暗黑 II：狱火重生》开发者问答](https://www.retbit.com/2021/02/23/diablo-2-resurrected-press-qa-from-blizzconline-2021-xbox-series-x-ps5-remake/) | D3Planner 是社区计算器。它用 60 帧/秒作时间基准，按各技能取整动作间隔。若表中写 36 帧一次，按该基准约为 1.67 次/秒。现有证据只支持技能断点模型，对《暗黑 III》全局 36 Hz、同批互击和统一 36 刀/秒上限缺官方依据。《暗黑 II》重制的开发者确认沿用原逻辑和断点。Reol 若采用断点，需观察局部技能收益曲线，也可按到期时戳保留细粒度攻速收益 |
+
+《暗黑 III》2.3.0 的开发者问答另以 Haunt 说明，攻速可提高施放次数，持续伤害的数值收益有自己的规则。为 Reol 设计攻速时，也可分别定施放间隔、命中时刻和后续效果周期。见[暴雪问答的 Attack Speed 部分](https://news.blizzard.com/en-us/article/19889980/patch-2-3-0-developer-q-a-transcript)。
 
 ## 官方性能指南逐篇核查
 

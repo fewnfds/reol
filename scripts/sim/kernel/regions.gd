@@ -38,6 +38,7 @@ func seed_examples(world: RefCounted) -> void:
 			page.positions[slot % 256] = Vector2(312.5 + offset, 192.5)
 			page.modes[slot % 256] = Units.Mode.REST
 			page.due_ms[slot % 256] = 50 + offset * 50
+			world.ensure_work_binding(actor)
 			world.knowledge.forget_actor(actor)
 
 

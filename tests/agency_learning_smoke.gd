@@ -11,7 +11,7 @@ func learning_changes_method() -> void:
  w.pages[0].hunger[3]=10000;w.pages[0].energy[3]=10000
  resident(w,4,[3,tree])
  var goal: int = w.livelihood.add_goal(w,4,"development",{"method":"wood_breath"})
- w.decisions.prepare(w,0)
+ decide(w, 0)
  check(w.actions.get(4,{}).get("kind")=="learn" and w.actions[4].target==3,"Self-directed learner did not try the only known contact")
  advance(w,1600)
  check(w.knowledge.records[4].experiences.any(func(e:Dictionary):return e.reason=="teacher_does_not_know"),"Failed teaching had no actual experience")

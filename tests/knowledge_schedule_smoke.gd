@@ -3,6 +3,7 @@ extends "res://tests/activities_smoke.gd"
 func scheduled_world() -> RefCounted:
 	var w: RefCounted = peaceful()
 	w.knowledge.records.clear() # No seed/record side effect may be required for first perception.
+	w.knowledge.rebuild_observation_schedule(w)
 	return w
 
 func changing_dependencies() -> void:
@@ -57,7 +58,57 @@ func planning_projection_lifetime() -> void:
 	k.forget_actor(2)
 	check(k.planning_clues(2, 0).is_empty(), "Retiring private evidence retained the cached subjects")
 
+func indexed_admission() -> void:
+	var w := World.new()
+	check(w.initialize(101, 0, false, "empty"), "Admission fixture did not initialize")
+	var k: RefCounted = w.knowledge
+	for actor: int in w.actor_slots: k.set_observation_due(w, actor, 5000)
+	for actor: int in [2, 9, 10, 11]: k.set_observation_due(w, actor, 0)
+	w.kill(101, 0)
+	k.admit(w, 9, 0, 0) # An urgent dependency does not spend an ordinary slot.
+	for piece: int in 2:
+		var item: Dictionary = w.deferred.take(0, {})
+		if item.is_empty():
+			check(false, "Admitted observation lost its continuation")
+			return
+		check(int(item.actor) == 9 and not k.service(w, 9, 0), "Urgent scan fixture did not leave a continuation")
+		w.deferred.again(item, 0)
+	check(int(k._scans.get(9, {}).get("cursor", 0)) > 0, "Urgent scan did not run its first slice")
+	k.request(w, 9, 25)
+	k.request(w, 9, 30)
+	check(not k._scans.has(9), "Repeated arrival reused the previous location's scan")
+	k.pulse(w, 50)
+	check(w.deferred.ready.size() == 3 and w.deferred.ready.has("observe:2") and w.deferred.ready.has("observe:10") and not w.deferred.ready.has("observe:11"), "Admission changed living quota or numeric deadline tie order")
+	check(w.deferred.ready.get("observe:9", {}).get("priority") == 0, "Ordinary admission changed an urgent request")
+	w.kill(10, 0) # Cancel an already admitted scan.
+	check(w.remove_actor(11, 0), "Admission fixture failed to remove an overdue actor")
+	var born: int = w.spawn_actor(w.Terrain.index(Vector2i(140, 132)))
+	check(born > 101, "Admission fixture failed to reuse an actor slot")
+	k.pulse(w, 100)
+	check(w.deferred.ready.size() == 3 and not w.deferred.ready.has("observe:10") and not w.deferred.ready.has("observe:11") and w.deferred.ready.has(w.deferred.key("observe", born)), "Repeated arrivals, death or slot reuse corrupted admission")
+	check(w.deferred.ready.get("observe:9", {}).get("first_ms") == 0, "Repeated arrivals reset the oldest request")
+
+func direct_observation_while_queued() -> void:
+	var w := World.new()
+	check(w.initialize(1, 0, false, "empty"), "Direct observation fixture did not initialize")
+	var k: RefCounted = w.knowledge
+	k.admit(w, 1, 0, 0)
+	k.observe(w, 1, 0)
+	w.step(50)
+	check(k.observations == 1 and w.deferred.ready.is_empty(), "A completed direct observation ran again as a queued scan")
+	var restored: RefCounted = Persistence.candidate(Persistence.capture(w), 0)
+	check(restored != null, "Future observation was rejected at restore")
+	if restored == null: return
+	k.pulse(w, 4999)
+	restored.knowledge.pulse(restored, 4999)
+	check(w.deferred.ready.is_empty() and restored.deferred.ready.is_empty(), "Future observation was admitted early")
+	k.pulse(w, 5000)
+	restored.knowledge.pulse(restored, 5000)
+	check(w.deferred.ready.has("observe:1") and w.deferred.ready == restored.deferred.ready, "Next deadline was lost after a direct observation met a queued dependency")
+
 func _run() -> void:
+	indexed_admission()
+	direct_observation_while_queued()
 	changing_dependencies()
 	planning_projection_lifetime()
 	var w: RefCounted = scheduled_world()

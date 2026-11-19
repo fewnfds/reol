@@ -8,7 +8,7 @@ python tools/godot.py import
 python tools/godot.py run
 python tools/godot.py test
 python tools/godot.py test --suite equipment
-python tools/godot.py export --preset "Windows Demo" --output build/windows/sect-foundation/reol-sect.exe
+python tools/godot.py export --preset "Windows Demo" --output build/windows/reol/reol.exe
 ```
 
 `run`和新导出的Windows Demo默认进入同一100人青禾宗（玩家1＋99自主），每次启动新局；源码F5/F9主动保存/加载format33，默认`user://sect-quicksave-v33.reol`，旧32档保留。需要独立包时按上方示例从当前源码导出，键位与试玩路线查[FEATURES](../../status/features.md)。
@@ -28,7 +28,7 @@ python tools/godot.py export --preset "Windows Demo" --output build/windows/sect
 
 ACT测试入口相当于`python tools/godot.py run -- --combat-lab=true`：同一512²世界保留后台生活，默认血刃＋轻重敌/射手混战；顶栏可切近远组合和基础范例或单轻敌/单重敌。切换会替换整个练习世界且不写存档。WASD、鼠标瞄准、左键主攻击、右键技能、E/C额外主动槽、空格闪步；Tab切日常／战斗，F附近交互；正常宗门默认日常，WASD仍可用，左键点选、右键对象菜单。普通世界按1/2装备铁剑或短弓，其中铁剑右键为重斩。练习场的血刃和守势剑配置右键为守势，范例由练习场顶栏选择。
 
-历史 ACT 包是性能比较基线，位于`build/windows/act-p5/`，默认档为 format14 的`act-p5-quicksave-v14.reol`。Esc→设置可调整音量、震动、闪光和键位。
+Esc→设置可调整音量、震动、闪光和键位。历史 ACT P5 包和 format14 存档可用于复核历史样本，入口见[历史资料](../../archive/README.md)。
 
 技能制作从`data/definitions/combat/library.tres`与其引用的`.tres`进入，编辑器“工具→Reol 战斗技能库”可直达；技能Inspector有阶段/范围预览，共同Resource有字段/引用校验与引用跳转。保存后关闭并重新运行游戏采用新定义，重练不重载；配置字段与制作流程见[规格10](../../../design/systems/combat_framework/act_and_barrage.md#101-定义施放和表现的接入合同)。短检查命令示例（`GODOT_EXE`为实际引擎路径）：
 
@@ -68,7 +68,7 @@ python tools/benchmark.py --actors 24 --speed 1 --fps 120 --screenshot
 python tools/benchmark.py --actors 1000 --speed 4 --fps 60 --workers 0
 ```
 
-采样器使用已导出的release，默认仍固定历史ACT基线包`build/windows/act-p5/reol-act.exe`；测当前构建时先按上方示例导出，再显式给`--binary build/windows/sect-foundation/reol-sect.exe`。采样器的`--actors=N`选择开发负载。正常宗门窗口直接运行新导出的exe并给`-- --opening=sect --duration=15 --warmup=3 --fps=60 --metrics=绝对路径`，不要把两种开局混算。3秒运行预热，默认采样20秒，可用`--seconds`设5..60秒；装配/预热不计世界倍率。记录实际世界推进、步数/帧时、路径与交付、战斗/植物、材料审计、GPU绘制、线程及有界CPU/内存采样。CPU采样含装配，不能把整进程CPU秒直接当测量窗计算。
+采样器默认使用`build/windows/reol/reol.exe`。测当前源码时可先按上面的命令重新导出。历史包或独立对照包可以显式通过`--binary`指定。采样器的`--actors=N`选择开发负载。正常宗门窗口直接运行新导出的exe并给`-- --opening=sect --duration=15 --warmup=3 --fps=60 --metrics=绝对路径`，不要把两种开局混算。3秒运行预热，默认采样20秒，可用`--seconds`设5..60秒；装配/预热不计世界倍率。记录实际世界推进、步数/帧时、路径与交付、战斗/植物、材料审计、GPU绘制、线程及有界CPU/内存采样。CPU采样含装配，不能把整进程CPU秒直接当测量窗计算。
 
 新源码默认`--sim-hz 60`，20/100只供对照；JSON记录实际配置。`--combat-lab`选上述测试开局，不能与响应探针混用，普通与压力场景不混算。采样保持固定镜头，日常试玩默认跟随玩家。
 
@@ -98,7 +98,7 @@ step_mean_ms由全窗累计成本差得到；step_ms分位数仍是有界尾部�
 
 ### 基础框架的持续战斗归因
 
-`python tools/benchmark.py --binary build/windows/act-p5/reol-act.exe --actors 24 --speed 1 --fps 60 --workers -1 --seconds 5 --gpu-index 0 --fog --combat-probe --out logs/framework-capture.json`显式开启`framework-combat-v1`。只允许有界1×、至少4人，不与mixed/capacity/response混用；普通启动不启用。原P4星焰控制/动作在同一World中推进，三敌和玩家有明示耐久覆盖，后台正常生活。v1开局保留默认血刃到星焰的配置过渡，固定比较场景；不读取或保存用户世界。它不是手动输入延迟测量，也不与capacity标签混算。
+`python tools/benchmark.py --binary build/windows/reol/reol.exe --actors 24 --speed 1 --fps 60 --workers -1 --seconds 5 --gpu-index 0 --fog --combat-probe --out logs/framework-capture.json`显式开启`framework-combat-v1`。只允许有界1×、至少4人，不与mixed/capacity/response混用；普通启动不启用。原P4星焰控制/动作在同一World中推进，三敌和玩家有明示耐久覆盖，后台正常生活。v1开局保留默认血刃到星焰的配置过渡，固定比较场景；不读取或保存用户世界。它不是手动输入延迟测量，也不与capacity标签混算。
 
 报告`profile`含外层准备、身体、共同提交、环境/观察及全步累计，还有嵌套索引与发布计时、细段/索引/full次数。外层剩余可由全步减去互斥分项得到，索引子计时不能再相加。峰值仅为自开局在主步边界的观察，不是细段内或单独采样窗最大值；不输出峰值差。快profile与慢counters的边界可能相差几步，原值保留，不能据命中差1次判定规则改变。参考实现的固定步结果比较只用于本次改动，未设永久确定性门禁。
 

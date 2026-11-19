@@ -30,7 +30,9 @@ func field_rights_and_work() -> void:
 	w.decisions.wake(w, 3, w.elapsed_ms, "knowledge_observed")
 	advance(w, 60000)
 	check(f.beds.all(func(bed: int): return w.objects.records[bed].water > 35), "Farmer did not actually collect public water for cultivation and care for both crops: " + str(w.livelihood.describe(3)))
-	check(int(w.facilities.completed.get("draw_water", 0)) == 2 and int(w.objects.records[f.well].source_generated) - w.objects.amount(f.well, "water") == 2, "Field care did not collect and consume two real public water items")
+	var water_taken: int = int(w.objects.records[f.well].source_generated) - w.objects.amount(f.well, "water")
+	check(water_taken == 2 and w.objects.amount(3, "water") == 0,
+		"Field care did not collect and consume two real public water items")
 	check(Persistence.candidate(Persistence.capture(w), 0) != null, "Running field duty did not restore")
 	# The same authority must follow the next real plant, not the old plant ID.
 	var first: int = w.objects.records[f.beds[0]].guest
@@ -214,6 +216,9 @@ func interrupted_delivery_keeps_service_capacity() -> void:
 	check(w.nature.collections == 5 and w.objects.amount(3, "grain") == 5, "Could not intercept an actual harvest in transit")
 	w.objects.records[f.destination].capacity = 1
 	w.objects.add(f.destination, "wood", 1, Stock.right(0, f.org))
+	# The finite stove is also a material store, so block it in this fixture.
+	w.objects.records[f.stove].capacity = 0
+	w.knowledge.refresh(w, 3, int(f.stove), w.elapsed_ms)
 	w.knowledge.refresh(w, 3, int(f.destination), w.elapsed_ms)
 	w.objects.records[f.source].capacity = w.objects.count_inventory(f.source)
 	w.knowledge.refresh(w, 3, int(f.source), w.elapsed_ms)

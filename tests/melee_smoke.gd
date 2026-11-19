@@ -184,11 +184,37 @@ func late_contacts() -> void:
 	advance(dead, 32)
 	check(dead.pages[0].health[1] == 0 and dead.combat.action_segments[0].until_ms < 32, "An unstaggered arrow death retained a future danger segment")
 
+func turning_target_inside_an_arc() -> void:
+	var w: RefCounted = fixture()
+	var page: RefCounted = w.pages[0]
+	check(w.combat.request(w, 1, "primary", Vector2.RIGHT) == "started", "Could not set up the swept arc")
+	if not w.combat.states.has(1): return
+	var state: Dictionary = w.combat.states[1]
+	var action: Dictionary = Defs.ACTIONS[state.kind]
+	var origin: Vector2 = page.positions[0]
+	var reach: float = action.reach
+	var outside: Vector2 = origin + Vector2(reach * 0.2, reach * sin(float(action.angle)) + page.radii[1] + 0.05)
+	var inside: Vector2 = origin + Vector2(reach * 0.2, 0.0)
+	page.positions[1] = outside
+	var start: int = Defs.active_ms(state)
+	w.combat.prepare(w, start) # Activate the real action and freeze its delivery facts.
+	w.combat.before_motion(w)
+	w.combat.scan.index(w)
+	var strikes: Array[int] = [1]
+	var impacts: Array[Dictionary] = []
+	w.combat._collect_body_melee(w, strikes, start, start + 16, impacts)
+	check(impacts.is_empty(), "A body outside the arc registered a stationary contact")
+	page.motion[1] = PackedVector3Array([Vector3(outside.x, outside.y, 0.0), Vector3(inside.x, inside.y, 0.5), Vector3(outside.x, outside.y, 1.0)])
+	w.combat._collect_body_melee(w, strikes, start, start + 16, impacts)
+	check(impacts.size() == 1 and impacts[0].target == 2 and impacts[0].at_ms > start and impacts[0].at_ms <= start + 8,
+		"Endpoint filtering skipped a body that turned into the arc")
+
 func _run() -> void:
 	combo()
 	defense()
 	projectiles()
 	reactions()
 	late_contacts()
+	turning_target_inside_an_arc()
 	print("MELEE_SMOKE errors=", errors)
 	quit(0 if errors == 0 else 1)

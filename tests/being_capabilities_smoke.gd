@@ -112,7 +112,11 @@ func contact_and_work() -> void:
 	if plan.reason == "accepted":
 		var target: int = plan.target
 		w.objects.records[target].remaining_ms = 1000 # Short work fixture, same real lifecycle.
-		check(w.society.finish(w, 1, {"kind": "request_help", "target": 2, "task_target": target}, w.elapsed_ms) == "completed", "Temporary help could not be accepted")
+		var delivered: Dictionary = w.society.deliver_request(w, 1, {"kind": "request_help", "target": 2, "task_target": target}, w.elapsed_ms)
+		check(delivered.status == "completed", "Temporary help request could not reach the other actor")
+		if delivered.status != "completed": return
+		var accepted: Dictionary = w.society.respond(w, 2, int(delivered.facts.request), "accept", w.elapsed_ms)
+		check(accepted.reason == "accepted_share", "Temporary helper could not explicitly accept: " + str(accepted.reason))
 		page.positions[1] = Vector2(151.5, 147.5)
 		check(w.begin_interaction(2, {"kind": "construct", "target": target, "autonomous": true}) == "accepted", "Temporary builder could not start")
 		w.step(300)

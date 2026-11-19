@@ -129,4 +129,4 @@ P3八套基础范例继续保留：
 
 制作诊断：DEV可开关“反应追踪”，F12输入`actions`查看最近64条采用规则（时间/来源/目标/链/深度/预算）；`export`随诊断导出。追踪默认关闭，不入世界存档。
 
-P5制作诊断：编辑器“工具→Reol 单位策略库”编辑Policy/Rule、校验字段并跳转引用。F12输入`decisions`查看最近选择、当前选中/玩家的政策、任务和拒绝；诊断不进入单位认识。源码与当前宗门包默认档为format32的`sect-quicksave-v32.reol`；旧独立P5包仍用format14的`act-p5-quicksave-v14.reol`，旧档保留。
+P5制作诊断：编辑器“工具→Reol 单位策略库”编辑Policy/Rule、校验字段并跳转引用。F12输入`decisions`查看最近选择、当前选中/玩家的政策、任务和拒绝；诊断不进入单位认识。当前快速存读和旧档范围见[兼容说明](../engineering/compatibility.md#当前格式)。

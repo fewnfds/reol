@@ -1,5 +1,6 @@
 extends RefCounted
 ## Personal evidence, never live entity state or another perception bitmap.
+const MinTimeQueue = preload("res://scripts/sim/execution/min_time_queue.gd")
 const State = preload("res://scripts/sim/kernel/state.gd")
 const Terrain = preload("res://scripts/sim/kernel/terrain.gd")
 const Items = preload("res://scripts/sim/kernel/items.gd")
@@ -20,6 +21,9 @@ var observe_usec: int = 0
 var _batch_actor: int = 0
 var _protected: Dictionary = {}
 var _protection_dirty: bool = true
+# Transient index of living observers. An admitted scan is served by DeferredWork.
+var _observer_keys: Dictionary[int, String] = {}
+var _next_observation := MinTimeQueue.new()
 var _scans: Dictionary = {} # Transient cursor; overdue persisted due_ms rebuilds it.
 var _planning_views: Dictionary = {} # Immutable projections, rebuilt from records.
 # Amortize queue service and eye/protection setup across nearby targets.
@@ -312,26 +316,47 @@ func observe(world: RefCounted, actor: int, at: int) -> void:
 	for target: int in entry.subjects.keys():
 		var tile: int = entry.subjects[target].view.tile
 		if not checked.has(target) and tile >= 0 and world.sight.sees_tile(eye, tile, radius): _refresh_from(world, actor, target, at, eye, radius)
-	entry.due_ms = at + OBSERVATION_MS
+	set_observation_due(world, actor, at + OBSERVATION_MS)
 	if entry.next_revision != previous_revision: world.decisions.knowledge_changed(world, actor, at, "knowledge_observed")
 	_batch_actor = 0
 	_protected = {}
 	observations += 1
 	observe_usec += Time.get_ticks_usec() - started
 
-func pulse(world: RefCounted, at: int) -> void:
-	# Use existing 50ms boundaries. Old simultaneous deadlines remain valid and
-	# drain in a deterministic bounded order, including after candidate restore.
-	var eligible: Array[int] = []
-	var living: int = 0
+func rebuild_observation_schedule(world: RefCounted) -> void:
+	_observer_keys.clear()
+	_next_observation.clear()
 	for actor: int in world.actor_slots:
-		if not world.combat.alive(world, actor): continue
-		living += 1
-		if int(record(actor).due_ms) <= at and not _scans.has(actor) and not world.deferred.ready.has(world.deferred.key("observe", actor)): eligible.append(actor)
-	eligible.sort_custom(func(a: int, b: int): return int(records[a].due_ms) < int(records[b].due_ms) if records[a].due_ms != records[b].due_ms else a < b)
-	var quota: int = maxi(2, ceili(float(living) * 50.0 / OBSERVATION_MS) + 1)
-	for index: int in mini(quota, eligible.size()):
-		world.deferred.request("observe", eligible[index], int(records[eligible[index]].due_ms), 2)
+		if world.combat.alive(world, actor): track_actor(world, actor)
+
+func track_actor(world: RefCounted, actor: int) -> void:
+	# The shared heap orders ties by string. Pad positive int64 IDs to retain
+	# numeric admission order, including when 2 and 10 have the same deadline.
+	_observer_keys[actor] = "%019d" % actor
+	_index_observation(world, actor, int(records.get(actor, {}).get("due_ms", 0)))
+
+func set_observation_due(world: RefCounted, actor: int, at: int) -> void:
+	record(actor).due_ms = at
+	_index_observation(world, actor, at)
+
+func _index_observation(world: RefCounted, actor: int, at: int) -> void:
+	var key: String = _observer_keys.get(actor, "")
+	if not key.is_empty() and not world.deferred.ready.has(world.deferred.key("observe", actor)):
+		_next_observation.set_time(key, at)
+
+func admit(world: RefCounted, actor: int, at: int, priority: int) -> void:
+	# Ordinary and exploration admission both transfer the request to DeferredWork.
+	var key: String = _observer_keys.get(actor, "")
+	if not key.is_empty(): _next_observation.erase(key)
+	world.deferred.request("observe", actor, at, priority)
+
+func pulse(world: RefCounted, at: int) -> void:
+	var quota: int = maxi(2, ceili(float(_observer_keys.size()) * 50.0 / OBSERVATION_MS) + 1)
+	for index: int in quota:
+		var key: String = _next_observation.first_through(at)
+		if key.is_empty(): break
+		var actor: int = int(key)
+		admit(world, actor, int(records.get(actor, {}).get("due_ms", 0)), 2)
 
 func service(world: RefCounted, actor: int, at: int) -> bool:
 	if not world.actor_slots.has(actor) or not world.combat.alive(world, actor):
@@ -342,7 +367,10 @@ func service(world: RefCounted, actor: int, at: int) -> bool:
 	if not _scans.has(actor):
 		world.sight.sync(world)
 		if int(entry.due_ms) > at:
-			_finish_wait(world, actor, at) # A direct observation may have already met this dependency.
+			# A direct observation may have met this dependency while queued.
+			# DeferredWork.take removed the item before calling this service.
+			_index_observation(world, actor, int(entry.due_ms))
+			_finish_wait(world, actor, at)
 			return true
 		var position: Vector2 = world.combat.position(world, actor)
 		var eye: int = Terrain.index(Vector2i(position.floor()))
@@ -379,7 +407,7 @@ func service(world: RefCounted, actor: int, at: int) -> bool:
 	if entry.next_revision != previous_revision: world.decisions.knowledge_changed(world, actor, at, "knowledge_observed")
 	var done: bool = int(scan.cursor) >= scan.targets.size()
 	if done:
-		entry.due_ms = at + OBSERVATION_MS
+		set_observation_due(world, actor, at + OBSERVATION_MS)
 		_scans.erase(actor)
 		observations += 1
 		_finish_wait(world, actor, at)
@@ -393,14 +421,16 @@ func _finish_wait(world: RefCounted, actor: int, at: int) -> void:
 	world.decisions._sync_next(actor)
 	world.livelihood.think(world, actor, at)
 
-func request(actor: int, at: int) -> void:
+func request(world: RefCounted, actor: int, at: int) -> void:
 	# Arrivals request ordinary coverage; direct target/contact receipts remain
 	# immediate. No nested whole-radius observation during a work commit.
-	var entry: Dictionary = record(actor)
-	entry.due_ms = mini(int(entry.due_ms), at)
+	set_observation_due(world, actor, mini(int(records.get(actor, {}).get("due_ms", 0)), at))
 	_scans.erase(actor) # A new arrival must enumerate its new location.
 
 func stop(actor: int) -> void:
+	var key: String = _observer_keys.get(actor, "")
+	if not key.is_empty(): _next_observation.erase(key)
+	_observer_keys.erase(actor)
 	_scans.erase(actor)
 	_planning_views.erase(actor)
 

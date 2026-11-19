@@ -43,10 +43,18 @@ def capture(*, binary: Path, actors: int, speed: float, fps: int, workers: int,
     # at 1000 actors. Capacity comparisons must not inherit that transition.
     command.append("--fog=true" if fog else "--fog=false")
     with output.with_suffix(".log").open("w", encoding="utf-8") as log:
-        process = subprocess.Popen(command, cwd=godot.ROOT, stdout=log, stderr=subprocess.STDOUT)
+        for attempt in range(8):
+            try:
+                process = subprocess.Popen(command, cwd=godot.ROOT, stdout=log, stderr=subprocess.STDOUT)
+                break
+            except OSError as error:
+                # A freshly exported executable can be briefly locked by Windows.
+                if getattr(error, "winerror", None) != 32 or attempt == 7:
+                    raise
+                time.sleep(0.25)
         sampler = ProcessSample(output.with_suffix(".cpu.json"))
-        sampler.start(process.pid)
         try:
+            sampler.start(process.pid)
             code = process.wait(timeout=seconds + 25)
         except subprocess.TimeoutExpired:
             process.kill()
@@ -65,6 +73,7 @@ def capture(*, binary: Path, actors: int, speed: float, fps: int, workers: int,
     result["capture_exit_code"] = code or int(bool(errors))
     result["capture_errors"] = errors[:8]
     result["cpu_sample_file"] = str(output.with_suffix(".cpu.json"))
+    result["binary"] = str(binary)
     result["binary_sha256"] = hashlib.sha256(binary.read_bytes()).hexdigest()
     pack = binary.with_suffix(".pck")
     if pack.is_file():

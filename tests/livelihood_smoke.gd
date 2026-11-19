@@ -1,14 +1,14 @@
 extends "res://tests/abilities_smoke.gd"
 const Status = preload("res://scripts/sim/definitions/actions/status_def.gd")
 
-func decide(w: RefCounted, targets: Array) -> void:
+func decide_with_known_targets(w: RefCounted, targets: Array) -> void:
 	var person: Dictionary = w.objects.records[2]
 	person.autonomous = true
 	w.knowledge.record(2).subjects = {}
-	w.knowledge.record(2).due_ms = 5000
+	w.knowledge.set_observation_due(w, 2, 5000)
 	for target: int in targets: w.knowledge.seed(w, 2, w.operation_target(target), 0)
 	w.decisions.resume(w, 2, 0)
-	w.decisions.prepare(w, 0)
+	decide(w, 0)
 
 func known_sites_and_growth() -> void:
 	var tree_world: RefCounted = fixture()
@@ -33,14 +33,14 @@ func known_sites_and_growth() -> void:
 	var other: int = storage.objects.create("chest", "wood_chest", storage.Terrain.index(Vector2i(125, 120)), 20)
 	storage.objects.add(2, "wood", 1)
 	storage._sync_inventory(2)
-	decide(storage, [full, other])
+	decide_with_known_targets(storage, [full, other])
 	check(storage.actions.get(2, {}).get("target") == other, "Resident selected a known full chest over usable storage")
 	var seeded: RefCounted = fixture()
 	var plant: int = seeded.nature.create(seeded, "perennial_herb", seeded.Terrain.index(Vector2i(124, 120)), true)
 	check(plant > 0, "Seed fixture could not be planted")
 	if plant > 0:
 		seeded.objects.add(plant, "herb", 1)
-		decide(seeded, [plant])
+		decide_with_known_targets(seeded, [plant])
 		check(seeded.actions.get(2, {}).get("kind", "") != "gather", "Resident mistook an unplanted seed for ripe produce")
 	var commitment: RefCounted = fixture()
 	commitment.pages[0].hunger[1] = 10000
@@ -107,8 +107,11 @@ func cooperation_and_control() -> void:
 	distant.livelihood.forget(2)
 	distant.objects.claim(distant.source_objects[0], 1, "wood", 20)
 	var far: Dictionary = distant.facilities.blueprint(distant, 1, "wood_wall", distant.Terrain.index(Vector2i(160, 120)))
-	var far_offer: String = distant.society.finish(distant, 1, {"kind": "request_help", "target": 2, "task_target": far.target}, 0)
-	check(far_offer == "accepted_share", "The builder forgot its own blueprint when requesting distant help: " + far_offer)
+	# Knowledge of the blueprint lets the builder make the request. Whether
+	# the other person accepts is a separate judgment.
+	var far_offer: Dictionary = distant.society.Requests.deliver(distant.society, distant, 1, {"kind": "request_help", "target": 2, "task_target": far.target}, 0)
+	check(far_offer.status == "completed" and distant.society.requests[far_offer.facts.request].target == far.target,
+		"The builder forgot its own blueprint when requesting distant help: " + str(far_offer))
 	var rooted: RefCounted = fixture()
 	var nearby: int = rooted.objects.create("pile", "grain", rooted.Terrain.index(Vector2i(120, 120)))
 	rooted.objects.add(nearby, "grain", 1)

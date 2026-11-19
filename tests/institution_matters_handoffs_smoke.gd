@@ -41,10 +41,11 @@ func revoked_source_releases_only_the_original_host() -> void:
 func cancelled_temporary_search_stops() -> void:
 	var f: Dictionary = commission_fixture()
 	var w: RefCounted = f.world
-	w.knowledge.record(4).subjects.clear(); w.knowledge.record(4).due_ms = 5000
+	w.knowledge.record(4).subjects.clear(); w.knowledge.set_observation_due(w, 4, 5000)
 	var matter: int = w.institutions.create_matter(w, 1, delivery_spec(f, 2, 2))
 	check(w.institutions.accept_share(w, 4, matter, 2, true) > 0, "Temporary responsibility could not enable an idle helper")
-	w.decisions.resume(w, 4, 0); w.decisions.prepare(w, 0)
+	w.decisions.resume(w, 4, 0)
+	decide(w, 0)
 	check(w.pages[0].modes[3] == w.Units.Mode.EXPLORE, "Unknown-site helper did not really start an autonomous search")
 	check(w.institutions.cancel_matter(w, 1, matter) and not w.objects.records[4].autonomous and w.gate.current(4).is_empty() and w.pages[0].modes[3] == w.Units.Mode.IDLE, "Cancelled borrowed autonomy retained an unrelated future search")
 	advance(w, 1000)

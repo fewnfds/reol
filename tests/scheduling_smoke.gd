@@ -45,7 +45,7 @@ func local_clearance() -> void:
 	move_actor(w, 2, Vector2(123.5, 120.5))
 	move_actor(w, 3, Vector2(123.5, 120.5))
 	w.objects.records[2].autonomous = true
-	for actor: int in w.actor_slots: w.knowledge.record(actor).due_ms = 5000
+	for actor: int in w.actor_slots: w.knowledge.set_observation_due(w, actor, 5000)
 	var observed: int = w.knowledge.observations
 	w.decisions.wake(w, 2, 0, "space_needed", 31)
 	w.step(31)

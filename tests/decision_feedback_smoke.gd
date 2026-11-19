@@ -10,7 +10,7 @@ func resident(w: RefCounted, targets: Array) -> void:
 	w._sync_inventory(2)
 	w.objects.records[2].autonomous = true
 	w.knowledge.record(2).subjects = {}
-	w.knowledge.record(2).due_ms = 5000
+	w.knowledge.set_observation_due(w, 2, 5000)
 	for target: int in targets: w.knowledge.seed(w, 2, w.operation_target(target), 0)
 	w.decisions.resume(w, 2, 0)
 
@@ -28,7 +28,7 @@ func immediate_alternative() -> void:
 			if x != 124 or y != 120: w.queue_structure(w.Terrain.index(Vector2i(x, y)), true, false)
 	w.flush_topology()
 	resident(w, [blocked, usable])
-	w.decisions.prepare(w, 0)
+	decide(w, 0)
 	check(failure_for(w, 2, "put", blocked).get("reason") == "no_operation_place", "Immediate work rejection lost its operation/subject")
 	check(not w.actions.has(2), "Rejected candidate left a host action")
 	var restored: RefCounted = Persistence.candidate(Persistence.capture(w), 0)
@@ -50,7 +50,7 @@ func asynchronous_remembered_goal() -> void:
 	w.flush_topology()
 	resident(w, [blocked, usable])
 	w.objects.records[2].sight_range = 2.0
-	w.decisions.prepare(w, 0)
+	decide(w, 0)
 	var task: Dictionary = w.decisions.records[2].task
 	check(task.get("operation") == "put" and task.get("target") == blocked and task.get("approach", false), "Remembered-goal exploration discarded the intended operation/subject")
 	var restored: RefCounted = Persistence.candidate(Persistence.capture(w), 0)
@@ -120,8 +120,10 @@ func commitment_and_disproved_memory() -> void:
 			if x != 124 or y != 120: w.queue_structure(w.Terrain.index(Vector2i(x, y)), true, false)
 	w.flush_topology()
 	resident(w, [target])
-	check(w.society.finish(w, 1, {"kind": "request_help", "target": 2, "task_target": target}, 0) == "completed", "Construction commitment fixture failed")
-	w.decisions.prepare(w, 0)
+	# Use the real accepted commitment, with delivery covered by the contact tests.
+	var matter: int = w.institutions.create_matter(w, 1, {"kind": "operation", "target": target, "operation": "construct"})
+	check(matter > 0 and w.institutions.accept_share(w, 2, matter, 1) > 0, "Construction commitment fixture failed")
+	decide(w, 0)
 	advance(w, 4000)
 	check(failure_for(w, 2, "construct", target).get("at_ms") == 0 and not w.actions.has(2), "Commitment bypassed structural refusal and repeatedly planned the same blocked site")
 	check(not w.institutions.Matters.shares_for(w.institutions, 2).is_empty() and w.operation_actor(2).task_access.has(target), "Temporary inability silently cancelled a construction responsibility")
@@ -140,7 +142,7 @@ func commitment_and_disproved_memory() -> void:
 	memory.pages[0].positions[2] = Vector2(180.5, 180.5)
 	memory.objects.transfer(missing, 1, "meal", 1)
 	memory.objects.remove_empty(missing)
-	memory.decisions.prepare(memory, 0)
+	decide(memory, 0)
 	check(memory.knowledge.view(2, missing, memory.elapsed_ms).tile < 0, "Visible absence left a disproved personal clue until the next observation sweep: " + str({"choice": memory.livelihood.describe(2), "binding": memory.gate.current(2), "clue": memory.knowledge.view(2, missing, memory.elapsed_ms)}))
 	check(memory.knowledge.view(3, missing, memory.elapsed_ms).tile >= 0, "Another actor learned a remote disappearance without observation")
 	check(memory.decisions.records[2].task.get("target", 0) != missing, "Disproved clue still produced a remembered-goal exploration task")

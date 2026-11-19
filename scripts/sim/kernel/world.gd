@@ -184,6 +184,7 @@ func initialize(count: int = 1000, requested_workers: int = 4, stress_environmen
 		Development.after_bodies(self)
 		perception.update(self, 0, true)
 		knowledge.observe(self, 1, 0)
+	knowledge.rebuild_observation_schedule(self)
 	return true
 
 
@@ -215,9 +216,7 @@ func step(milliseconds: int = 50) -> void:
 	var start: int = Time.get_ticks_usec()
 	var begin: int = elapsed_ms
 	var end: int = begin + milliseconds
-	combat.projectile_segments = []
-	combat.action_segments = []
-	combat.reaction_segments = []
+	combat.reset_segments()
 	implements.segments = []
 	var origins: Array[PackedVector2Array] = []
 	var origin_ids: Array[PackedInt64Array] = []
@@ -514,7 +513,7 @@ func settle(id: int, at: int, expected: Variant = null) -> void:
 		if not clearance: livelihood.arrived(self, id, at)
 		end_run(id, at, "completed", {}, not clearance)
 		if not clearance:
-			knowledge.request(id, at)
+			knowledge.request(self, id, at)
 			if exploring: decisions.wake(self, id, at, "exploration_observe")
 			else: livelihood.think(self, id, at)
 	elif mode == Units.Mode.COMBAT_MOVE:
@@ -886,7 +885,7 @@ func _command(input: Dictionary) -> Dictionary:
 			if livelihood.records.has(id): livelihood.records[id].borrowed_autonomy = false
 			objects.records[id].autonomous = true
 			decisions.resume(self, id, elapsed_ms)
-			knowledge.request(id, elapsed_ms)
+			knowledge.request(self, id, elapsed_ms)
 			livelihood.think(self, id, elapsed_ms)
 			decisions.prepare(self, elapsed_ms)
 		"heal":
@@ -1750,6 +1749,7 @@ func spawn_actor(tile: int, body_profile: String = "human", origin: String = "in
 	stations.invalidate()
 	Equipment.rebuild(self, id)
 	if Beings.population_member(objects.records[id]): actor_count += 1
+	knowledge.track_actor(self, id)
 	return id
 
 

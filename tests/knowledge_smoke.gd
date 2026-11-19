@@ -97,14 +97,14 @@ func actual_talk_changes_life() -> void:
 	w.objects.records[3].sight_range = 3.0
 	check(w.knowledge.refresh(w, 2, stove, 0), "Speaker did not observe real remote meal")
 	# Isolate transmission of this clue from the independent periodic observer.
-	w.knowledge.record(2).due_ms = w.knowledge.OBSERVATION_MS
+	w.knowledge.set_observation_due(w, 2, w.knowledge.OBSERVATION_MS)
 	check(w.begin_interaction(3, {"kind": "talk", "target": 2}) == "accepted", "Actual conversation not accepted")
 	w.settle_action(3, 0)
 	advance(w, 1100)
 	check(latest(w, 3).reason == "shared_clue" and w.knowledge.records[3].subjects[stove].origin == "heard", "Conversation did not transfer speaker knowledge")
 	w.pages[0].hunger[2] = 3000
 	w.objects.records[3].autonomous = true
-	w.knowledge.record(3).due_ms = w.elapsed_ms + 3000
+	w.knowledge.set_observation_due(w, 3, w.elapsed_ms + 3000)
 	w.decisions.resume(w, 3, w.elapsed_ms)
 	w.decisions.prepare(w, w.elapsed_ms)
 	# Planning advances through deferred slices after prepare admits the request.

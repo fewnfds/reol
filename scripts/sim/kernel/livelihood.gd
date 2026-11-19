@@ -537,7 +537,7 @@ func _idle(world: RefCounted, id: int, at: int, searching: bool) -> void:
 		# An empty proposal is not evidence that this location has nothing useful.
 		# Finish the already due look before committing to blind exploration.
 		world.decisions.wake(world, id, at, "exploration_observe")
-		world.deferred.request("observe", id, int(world.knowledge.records[id].due_ms), 0)
+		world.knowledge.admit(world, id, int(world.knowledge.records[id].due_ms), 0)
 		return
 	entry.idle_attempts = mini(6, int(entry.idle_attempts) + 1) if searching else 0
 	if preload("res://scripts/sim/kernel/service_positions.gd").step_aside(world, id, at, not searching): return

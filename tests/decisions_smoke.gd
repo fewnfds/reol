@@ -212,7 +212,7 @@ func edge_handoffs() -> void:
 	resident.command({"kind": "take", "actor": 2, "target": source, "item": "wood", "amount": 1})
 	resident.forget_target(source)
 	check(resident.decisions.wakeups.has(2), "Removed one-off target permanently suspended an autonomous resident")
-	resident.objects.transfer(source, 2, "wood", 1)
+	check(resident.objects.claim(source, 2, "wood", 1) == 1, "Resident did not acquire personal wood to drop")
 	check(resident.command({"kind": "drop", "actor": 2, "item": "wood", "amount": 1}).ok and resident.decisions.wakeups.has(2), "Immediate drop lost the autonomous wakeup")
 	var manual: RefCounted = fixture()
 	manual.command({"kind": "action", "actor": 2, "button": "primary", "aim": Vector2.LEFT})
@@ -259,7 +259,7 @@ func edge_handoffs() -> void:
 	# to be the only known meal, otherwise eating from one's bag is correct.
 	memory.objects.add(2, "meal", -memory.objects.amount(2, "meal"))
 	memory.objects.records[2].autonomous = true
-	memory.knowledge.record(2).due_ms = 5000
+	memory.knowledge.set_observation_due(memory, 2, 5000)
 	memory.decisions.resume(memory, 2, 0)
 	decide(memory, 0)
 	check(memory.pages[0].modes[1] == memory.Units.Mode.EXPLORE and memory.work_runs.has(2) and memory.knowledge.view(2, stove, memory.elapsed_ms).inventory.get("meal") == 1, "Unseen stale evidence queried live availability instead of approaching to observe")

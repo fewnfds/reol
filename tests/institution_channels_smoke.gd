@@ -5,9 +5,18 @@ func onsite(w: RefCounted, actor: int, board: int, kind: String, parameters: Dic
 	request.merge(parameters, true)
 	var cell: Vector2i = w.Terrain.cell(w.objects.records[board].tile)
 	move_actor(w, actor, Vector2(cell) + Vector2(-0.5, 0.5))
-	check(w.execute_operation(actor, request) == "accepted", "Records operation failed common admission: " + str(request))
-	w.settle_action(actor, w.elapsed_ms); advance(w, w.elapsed_ms + 450)
-	return w.activity_results.view(actor).back()
+	var admitted: String = w.execute_operation(actor, request)
+	check(admitted == "accepted", "Records operation failed common admission: %s (%s)" % [request, admitted])
+	if admitted != "accepted": return {"reason": admitted, "facts": {}}
+	var run: int = w.gate.current(actor).run_id
+	w.settle_action(actor, w.elapsed_ms)
+	var deadline: int = w.elapsed_ms + 4000
+	while w.elapsed_ms < deadline:
+		advance(w, w.elapsed_ms + 50)
+		for result: Dictionary in w.activity_results.view(actor):
+			if int(result.run_id) == run: return result
+	check(false, "Admitted records operation had no result: %s (run %d)" % [request, run])
+	return {"reason": "missing_result", "facts": {}}
 
 func local_records_and_explicit_reports() -> void:
 	var f: Dictionary = duties_fixture()
@@ -19,7 +28,7 @@ func local_records_and_explicit_reports() -> void:
 	var matter: int = result.facts.matter
 	# Move beyond sight before reading; only the board is visited, not the stove.
 	move_actor(w, 4, Vector2(180.5, 180.5)); w.objects.records[4].sight_range = 2.0
-	w.knowledge.record(4).subjects.clear(); w.knowledge.record(4).channels.clear(); w.knowledge.record(4).due_ms = 10000
+	w.knowledge.record(4).subjects.clear(); w.knowledge.record(4).channels.clear(); w.knowledge.set_observation_due(w, 4, 10000)
 	var remote_cell := Vector2i(150, 140)
 	check(w.facilities.placement(w, "ground", w.facilities.footprint("notice_desk", w.Terrain.index(remote_cell))) == "accepted", "Remote desk fixture overlaps an original facility")
 	var board: int = workshop(w, f.org, "notice_desk", remote_cell)

@@ -375,7 +375,7 @@ func prepare(world: RefCounted, now: int) -> void:
 				if not world.deferred.ready.has(identity) and not world.deferred.jobs.has(identity):
 					if not world.gate.current(actor).is_empty() and _life_preemptible(world, actor): entry.life_dirty = true
 					world.deferred.request("life", actor, int(timers.life_pending), 0 if entry.life_dirty else 1)
-			if timers.has("exploration_observe"): world.deferred.request("observe", actor, int(timers.exploration_observe), 1)
+			if timers.has("exploration_observe"): world.knowledge.admit(world, actor, int(timers.exploration_observe), 1)
 		var reasons: Array[String] = _take_due(actor, now)
 		if reasons.is_empty(): continue
 		# A real changed input may justify a new self-contained plan before the
@@ -464,7 +464,7 @@ func service(world: RefCounted, actor: int, now: int) -> bool:
 		return false
 	if wakeups.get(actor, {}).has("exploration_observe") and world.gate.current(actor).is_empty():
 		cancel_life(world, actor)
-		world.deferred.request("observe", actor, now, 0)
+		world.knowledge.admit(world, actor, now, 0)
 		# Observation owns the dependency and wakes life when done. Keeping this
 		# older blocked item at the queue head would starve its own prerequisite.
 		_clear_pending(actor)

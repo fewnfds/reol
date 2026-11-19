@@ -20,6 +20,11 @@ class SideIndex extends RefCounted:
 		heads.resize(WIDTH * WIDTH)
 		heads.fill(-1)
 
+	func push(cell: int, slot: int) -> int:
+		var previous: int = heads[cell]
+		heads[cell] = slot
+		return previous
+
 class Chunk extends RefCounted:
 	var data: RefCounted
 	var sight: RefCounted
@@ -166,8 +171,7 @@ func index(world: RefCounted) -> void:
 				side_groups[side] = SideIndex.new(side)
 			var group: RefCounted = side_groups[side]
 			var cell: int = key.y * WIDTH + key.x
-			links[slot] = group.heads[cell]
-			group.heads[cell] = slot
+			links[slot] = group.push(cell, slot)
 		sweep_padding = maxf(sweep_padding, max_speed * page.delta_ms / 1000.0)
 		base += page_ids.size()
 	groups.assign(side_groups.values())
@@ -192,6 +196,21 @@ func nearby(low: Vector2, high: Vector2, include_corpses: bool = false) -> Array
 	return result
 
 
+func receiver_slots(low: Vector2, high: Vector2, policy: String, source_side: int) -> Array[int]:
+	var result: Array[int] = []
+	var first: Vector2i = bucket(low).max(Vector2i.ZERO)
+	var last: Vector2i = bucket(high).min(Vector2i.ONE * (WIDTH - 1))
+	for group: RefCounted in groups:
+		if policy != "physical" and policy != "self" and group.side == source_side: continue
+		var heads: PackedInt32Array = group.heads
+		for y: int in range(first.y, last.y + 1):
+			for x: int in range(first.x, last.x + 1):
+				var slot: int = heads[y * WIDTH + x]
+				while slot >= 0:
+					result.append(slot)
+					slot = links[slot]
+	return result
+
 func observe(world: RefCounted, orders: Dictionary, now: int, unreachable: Dictionary = {}) -> void:
 	watchers.clear()
 	tracking.clear()
@@ -200,6 +219,7 @@ func observe(world: RefCounted, orders: Dictionary, now: int, unreachable: Dicti
 	stationary.clear()
 	exclusions.clear()
 	contacts.clear()
+	if orders.is_empty() and sides_present.size() < 2: return
 	var phase: int = (now / 50) % DISCOVERY_STEPS
 	for slot: int in ids.size():
 		var id: int = ids[slot]

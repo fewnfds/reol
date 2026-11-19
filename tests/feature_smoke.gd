@@ -104,39 +104,52 @@ static func run(check: Callable) -> void:
 	check.call(task > 0, "Could not create a physical cooperation task")
 	if task > 0:
 		w.objects.records[task].remaining_ms = 1000
+		page.positions[0] = Vector2(159.5, 173.5)
+		page.positions[4] = Vector2(159.5, 174.5)
 		var action: Dictionary = {"kind": "request_help", "target": 5, "task_target": task}
-		check.call(w.society.finish(w, 1, action, w.elapsed_ms) == "completed" and w.objects.records[task].kind == "blueprint" and not w.reservations.has(task), "Accepted promise fabricated completed construction")
-		w.livelihood.think(w, 5, w.elapsed_ms)
+		var delivery: Dictionary = w.society.Requests.deliver(w.society, w, 1, action, w.elapsed_ms)
+		check.call(delivery.status == "completed", "Could not deliver the construction request: " + str(delivery.reason))
+		if delivery.status == "completed":
+			var response: Dictionary = w.society.respond(w, 5, delivery.facts.request, "accept", w.elapsed_ms)
+			check.call(response.reason == "accepted_share", "Could not accept the construction request: " + str(response.reason))
+			check.call(w.objects.records[task].kind == "blueprint" and w.objects.records[task].remaining_ms == 1000 and not w.reservations.has(task), "Accepting the commitment changed the blueprint before work began")
+		# The remaining checks inspect the same local terrain as the teaching scene.
+		page.positions[0] = Vector2(174.5, 180.5)
 	var saved: RefCounted = Persistence.candidate(Persistence.capture(w), 0)
 	check.call(saved != null and saved.describe(1).abilities.has("wood_mend"), "Integrated domains could not resume from a candidate")
 	var memory_tile: int = Terrain.index(Vector2i(175, 179))
 	var object: int = w.objects.create("chest", "wood_chest", memory_tile)
+	var herb: int = 0
+	for id: int in w.objects.by_tile.get(Terrain.index(Vector2i(178, 179)), []):
+		if w.objects.records[id].definition == "perennial_herb": herb = id
 	w.perception.update(w, w.elapsed_ms, true)
-	check.call(w.perception.memories.has(object), "Visible static object was not remembered")
+	check.call(w.perception.memories.has(object) and w.perception.memories.has(herb), "Visible object or living plant was not remembered")
+	if not w.perception.memories.has(herb): return
 	w.terrain.set_floor(memory_tile, true)
 	w.terrain.revision += 1
 	w.perception.update(w, w.elapsed_ms + 200)
 	check.call((w.perception.ground[memory_tile] & 8) != 0, "Observed ground was not cached")
 	for tile: int in w.perception.seen_tiles:
 		check.call(w.perception.explored[tile] != 0 and w.perception.ground[tile] != 0, "Visible tile left a hole in exploration or remembered terrain")
-	var previous_tree_stage: int = w.perception.memories[tree].stage
+	var observed_stage: int = w.perception.memories[herb].stage
 	var original_position: Vector2 = page.positions[0]
 	page.positions[5] = Terrain.center(memory_tile)
 	page.positions[0] = Vector2(310.5, 195.5)
 	w.objects.remove_empty(object)
 	w.terrain.set_floor(memory_tile, false)
 	w.terrain.revision += 1
-	w.objects.records[tree].stage = 3
-	w.objects.layout_revision += 1
+	w.objects.records[herb].hp = 0
+	w.nature.evaluate(w, herb, w.elapsed_ms)
+	w.flush_topology()
 	w.perception.update(w, w.elapsed_ms, true)
 	check.call(w.perception.explored[memory_tile] != 0 and w.perception.tiles[memory_tile] == 0 and w.perception.visible[5] == 0, "Explored fog revealed a live unit or remained currently visible")
-	check.call((w.perception.ground[memory_tile] & 8) != 0 and w.perception.memories[tree].stage == previous_tree_stage, "Offscreen terrain or plant changes leaked into memory")
+	check.call((w.perception.ground[memory_tile] & 8) != 0 and w.perception.memories[herb].stage == observed_stage, "Offscreen terrain or plant changes leaked into memory")
 	saved = Persistence.candidate(Persistence.capture(w), 0)
-	check.call(saved != null and saved.perception.memories.has(object) and (saved.perception.ground[memory_tile] & 8) != 0 and saved.perception.memories[tree].stage == previous_tree_stage, "Loading or unseen removal refreshed frozen terrain/object memory")
+	check.call(saved != null and saved.perception.memories.has(object) and (saved.perception.ground[memory_tile] & 8) != 0 and saved.perception.memories[herb].stage == observed_stage, "Loading or unseen removal refreshed frozen terrain/object memory")
 	page.positions[0] = original_position
 	w.perception.update(w, w.elapsed_ms, true)
 	check.call(not w.perception.memories.has(object), "Returning to an empty observed place retained a ghost object")
-	check.call((w.perception.ground[memory_tile] & 8) == 0 and w.perception.memories[tree].stage == 3 and w.perception.visible[5] != 0, "Reobservation did not refresh terrain, plant and unit visibility together")
+	check.call((w.perception.ground[memory_tile] & 8) == 0 and w.perception.memories[herb].stage == w.nature.Stage.WITHERED and w.perception.visible[5] != 0, "Reobservation did not refresh terrain, plant and unit visibility together")
 	var carried: int = w.objects.amount(1, "breath_manual")
 	var before: int = w.nature.evaluations
 	w.command({"kind": "journey", "region": 1})
@@ -152,3 +165,11 @@ static func run(check: Callable) -> void:
 	# The old instant-hit/pursuit commands cannot bypass the action executor.
 	check.call(not w.command({"kind": "attack", "target": 4}).ok and not w.command({"kind": "pursue", "target": 4}).ok, "Retired attack API still accepted")
 	preload("res://tests/tile_smoke.gd").run(w, check)
+
+	var opening := World.new()
+	opening.initialize(24, 0)
+	var regional_actor: int = opening.actor_count - 4
+	var rest: Dictionary = opening.gate.current(regional_actor)
+	saved = Persistence.candidate(Persistence.capture(opening), 0)
+	check.call(rest.get("domain") == "work" and saved != null and saved.gate.current(regional_actor) == rest,
+		"The remote resident's initial rest could not be restored before the first step")

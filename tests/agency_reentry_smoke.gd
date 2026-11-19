@@ -53,7 +53,9 @@ func competing_material_purposes() -> void:
 	w.livelihood.add_goal(w, 4, "delivery", {"item": "grain", "amount": 2, "organization": org})
 	w.decisions.prepare(w, 0)
 	advance(w, 14000)
-	check(w.objects.transfers - transfers <= 1 and w.objects.amount(4, "grain") == 2, "Missing water made another goal return and reissue cooking grain: transfers=%d held=%d goals=%s" % [w.objects.transfers - transfers, w.objects.amount(4, "grain"), w.livelihood.describe(4)])
+	var prepared: int = w.objects.amount(4, "grain") + w.objects.amount(stove, "grain", Stock.right(0, org))
+	check(w.objects.transfers - transfers in [1, 2] and prepared == 2 and w.objects.amount(chest, "grain") == 0,
+		"Missing water made another goal return and reissue the cooking grain")
 	check(w.facilities.completed.get("cook", 0) == 0 and Persistence.candidate(Persistence.capture(w), 0) != null, "Missing second ingredient was fabricated or corrupted state")
 
 func _run() -> void:

@@ -8,7 +8,7 @@ func resident(w: RefCounted, actor: int, targets: Array) -> void:
 	for target: int in targets:
 		if w.actor_slots.has(target): w.knowledge.refresh(w, actor, target, w.elapsed_ms)
 		else: w.knowledge.seed(w, actor, w.operation_target(target), w.elapsed_ms)
-	w.knowledge.record(actor).due_ms = w.elapsed_ms + 5000
+	w.knowledge.set_observation_due(w, actor, w.elapsed_ms + 5000)
 	w.decisions.resume(w, actor, w.elapsed_ms)
 
 func food_prerequisites_and_reentry() -> void:

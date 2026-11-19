@@ -132,6 +132,7 @@ static func candidate(data: Dictionary, workers: int) -> RefCounted:
 			for id: int in subjects.keys():
 				if subjects[id].view.definition == "wood_roof": subjects.erase(id)
 	world.combat.scan.index(world)
+	world.knowledge.rebuild_observation_schedule(world)
 	return world
 
 
