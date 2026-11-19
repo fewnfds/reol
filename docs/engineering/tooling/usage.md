@@ -28,7 +28,7 @@ python tools/godot.py export --preset "Windows Demo" --output build/windows/reol
 
 ACT测试入口相当于`python tools/godot.py run -- --combat-lab=true`：同一512²世界保留后台生活，默认血刃＋轻重敌/射手混战；顶栏可切近远组合和基础范例或单轻敌/单重敌。切换会替换整个练习世界且不写存档。WASD、鼠标瞄准、左键主攻击、右键技能、E/C额外主动槽、空格闪步；Tab切日常／战斗，F附近交互；正常宗门默认日常，WASD仍可用，左键点选、右键对象菜单。普通世界按1/2装备铁剑或短弓，其中铁剑右键为重斩。练习场的血刃和守势剑配置右键为守势，范例由练习场顶栏选择。
 
-Esc→设置可调整音量、震动、闪光和键位。历史 ACT P5 包和 format14 存档可用于复核历史样本，入口见[历史资料](../../archive/README.md)。
+Esc→设置可调整音量、震动、闪光和键位。
 
 技能制作从`data/definitions/combat/library.tres`与其引用的`.tres`进入，编辑器“工具→Reol 战斗技能库”可直达；技能Inspector有阶段/范围预览，共同Resource有字段/引用校验与引用跳转。保存后关闭并重新运行游戏采用新定义，重练不重载；配置字段与制作流程见[规格10](../../../design/systems/combat_framework/act_and_barrage.md#101-定义施放和表现的接入合同)。短检查命令示例（`GODOT_EXE`为实际引擎路径）：
 

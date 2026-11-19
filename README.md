@@ -4,7 +4,7 @@ GDScript / Godot 4.7的纯二维斜俯视修仙模拟世界。当前正常开局
 
 双击根目录的[启动.cmd](启动.cmd)，选 **2** 运行当前源码的百人宗门，选 **1** 打开同一源码的能力练习场，选 **3** 打开 Godot 编辑器。源码修改后重启生效。[运行与导出](docs/engineering/tooling/usage.md)。
 
-宗门的井、田、粮仓、灶台和餐箱使用真实物资。居民会耕作、照料、采收、加工、取食和休养，也会求学、授业、练习与办理已接受的事项。设施、人物起点和任职由Godot原生Resource装配，共用原World与行动框架。战斗P4机制及P5决策仍保留；阶段完成证据与限制见[主计划](docs/plans/foundation-priorities.md)和[构建验证](docs/status/baseline.md)。
+宗门的井、田、粮仓、灶台和餐箱使用真实物资。居民会耕作、照料、采收、加工、取食和休养，也会求学、授业、练习与办理已接受的事项。设施、人物起点和任职由Godot原生Resource装配，共用原World与行动框架。现有玩法和已验证范围见[游戏状态](docs/status/README.md)。
 
 初次试玩：
 
@@ -15,12 +15,12 @@ GDScript / Godot 4.7的纯二维斜俯视修仙模拟世界。当前正常开局
 - 采集材料后放蓝图，点“协作”选择同门，主角会当面请求。NPC可以拒绝；接受后还需实际办理，人物“约定”页可发起当面核对。
 - F5保存，关闭重开后F9接续。当前源码使用`sect-quicksave-v33.reol`，位于`%APPDATA%/Godot/app_userdata/reol/`。
 
-按主题查[记忆地图](docs/README.md)；未完任务见[HANDOFF](docs/status/handoff.md)，agent入口为[AGENTS](AGENTS.md)。
+按主题查[文档地图](docs/README.md)。
 
 - [可玩能力、键位和明确未迁回的玩法](docs/status/features.md)
 - [实际性能与构建](docs/status/baseline.md)
 - [运行和导出命令](docs/engineering/tooling/usage.md)
-- [当前运行架构](docs/engineering/architecture.md)与[唯一主计划](docs/plans/foundation-priorities.md)
-- [产品愿景](design/vision.md)、[已定规则](design/rules/README.md)、[文档职责](docs/DOCUMENTATION.md)
+- [运行架构](docs/engineering/README.md)
+- [产品愿景](design/vision.md)、[已定规则](design/rules/README.md)
 
-构建产物不入库。新检出安装Godot 4.7.2和Python后可直接运行源码入口；独立包按[导出命令](docs/engineering/tooling/usage.md)生成。退役实现与旧报告由[Git历史](docs/archive/README.md)追溯。代码许可证尚未选定，第三方来源见[NOTICES](THIRD_PARTY_NOTICES.md)。
+构建产物不入库。新检出安装Godot 4.7.2和Python后可直接运行源码入口；独立包按[导出命令](docs/engineering/tooling/usage.md)生成。代码许可证尚未选定，第三方来源见[NOTICES](THIRD_PARTY_NOTICES.md)。

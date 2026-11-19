@@ -3,7 +3,7 @@
 
 Checks local links/heading anchors and literal Godot resource paths. Static
 reachability includes native Resource references and the project's editor plugin;
-computed paths still require review. Historical production notes are excluded.
+computed paths still require review.
 """
 
 from __future__ import annotations
@@ -17,18 +17,17 @@ from urllib.parse import unquote, urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 ENTRY_FILES = (
     "project.godot", "README.md", "AGENTS.md", "docs/README.md",
-    "docs/status/handoff.md", "docs/status/baseline.md", "docs/status/features.md",
+    "docs/status/README.md", "docs/status/baseline.md", "docs/status/features.md",
     "docs/engineering/architecture.md", "docs/status/performance.json",
-    "docs/plans/roadmap.md", "docs/plans/foundation-priorities.md",
-    "docs/DOCUMENTATION.md", "design/vision.md", "design/rules/README.md",
+    "docs/engineering/README.md", "design/vision.md", "design/rules/README.md",
     "design/README.md", "assets/README.md", "data/README.md",
     "scripts/README.md", "tests/README.md", "tests/kernel_smoke.gd",
 )
 ROLE_DIRECTORIES = (
     "scripts/sim/kernel", "scripts/presentation",
     "data/definitions", "scripts/sim/definitions/actions", "scripts/sim/definitions/combat",
-    "design/rules", "design/systems", "design/research", "docs/plans",
-    "docs/status", "docs/engineering", "docs/archive",
+    "design/rules", "design/systems", "design/proposals",
+    "docs/status", "docs/engineering",
 )
 LINK = re.compile(
     r"!?\[[^\]\n]*\]\(\s*(?:<(?P<angle>[^>\n]+)>|"
@@ -154,10 +153,7 @@ def check_project(root: Path) -> tuple[list[str], int, int]:
             issues.append(f"{name}: missing responsibility directory")
     documents = set(root.glob("*.md"))
     for name in ("docs", "design"):
-        documents.update(
-            path for path in (root / name).rglob("*.md")
-            if not (name == "docs" and "archive" in path.relative_to(root / name).parts)
-        )
+        documents.update((root / name).rglob("*.md"))
     for name in ("assets", "data", "scripts", "tests"):
         if (root / name / "README.md").is_file():
             documents.add(root / name / "README.md")
@@ -241,7 +237,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR {issue}")
     for note in notes:
         print(note)
-    print(f"Structure: {document_count} current documents, {script_count} Godot sources, {len(issues)} errors; historical production notes excluded")
+    print(f"Structure: {document_count} current documents, {script_count} Godot sources, {len(issues)} errors")
     return 1 if issues else 0
 
 

@@ -25,7 +25,6 @@
 - 生成结果按[Gemini API附加条款](https://ai.google.dev/gemini-api/terms)和[AI Studio条款](https://aistudio.google.com/docs/terms)记录来源。Google不主张输出所有权不等于独占权、CC0或对第三方权利的保证；本记录不另行给整个项目指定许可证。
 - 精选物品底图采用Kenney的[Tiny Town](https://kenney.nl/assets/tiny-town)、[Tiny Farm](https://kenney.nl/assets/tiny-farm)、[Tiny Dungeon](https://kenney.nl/assets/tiny-dungeon)，均CC0。原切片、原始`LICENSE.txt`和来源日期在[third_party/kenney](third_party/kenney/)。图集保留每格来源；部分语义不准确的现成图标已改为程序原创。
 - 地形、墙门、轴对齐家具、工具附件、动作派生和特效由本项目脚本绘制。原生成world稿仅自然地物继续使用，斜向家具稿保留追溯、不作为当前运行图块。调研过Kenney Furniture/Roguelike与LPC Wooden Furniture，本轮未新增外部素材或混入不同许可的家具。无需运行时模型或网络。
-- 顾问用于清单和源码反例审查，采纳/拒绝理由只归[研究页](../design/research/large_simulation_optimization.md#临时像素美术的清单与源码核查)。本机请求、凭据、下载评估包不入库。
 
 ## 重建和代码入口
 

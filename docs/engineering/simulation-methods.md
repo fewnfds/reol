@@ -1,6 +1,6 @@
 # 模拟设计与实验方法
 
-本页用于新增或评估相互影响的玩法规则，不规定每次改动都走一套研究流程。既有事实查对应领域正文，访问范围与计算接入分别归[复杂度](simulation-costs.md)和[执行方式](execution-batches.md)。外部来源、阅读深度与采用理由见[研究取舍](../../design/research/development-paradigms.md)。
+本页用于新增或评估相互影响的玩法规则，不规定每次改动都走一套研究流程。既有事实查对应领域正文，访问范围与计算接入分别归[复杂度](simulation-costs.md)和[执行方式](execution-batches.md)。
 
 ## 先确定要产生什么体验
 

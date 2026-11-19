@@ -1,30 +1,13 @@
-# 项目记忆地图
+# Reol 文档地图
 
-按问题定位正文，表格没有阅读顺序。载入机制与维护方法见[文档职责](DOCUMENTATION.md)。
+按当前问题进入对应目录。
 
-| 要回答的问题 / 检索词 | 正文归属 | 性质 |
-|---|---|---|
-| 正在做什么、允许做到哪、停点、未提交、受保护工作 | [HANDOFF](status/handoff.md) | 当前接续，直接替换过时内容 |
-| 技术栈、目标硬件、共同因果、数据安全等不可擅改边界 | [constraints](engineering/constraints.md) | 稳定约束 |
-| 世界、空间、环境、生命、认识的已定规则 | [design/rules](../design/rules/README.md) | 用户已定；各页“未定”仍是开放问题 |
-| 当前做什么框架、先后取舍、性能目标 | [唯一主计划](plans/foundation-priorities.md) | 当前计划；不自动授权执行 |
-| 引擎/存档版本、有效测量、性能是否达标 | [BASELINE](status/baseline.md)、[数值样本](status/performance.json) | 当前解释 / 可执行的历史数值 |
-| 能玩什么、键位、未实现玩法 | [FEATURES](status/features.md) | 当前能力；不重复测量和计划 |
-| 已确认问题、处理状态、触发条件与定位 | [问题清单](status/issues.md) | 已核实发现与关闭证据；不以记录代替验证 |
-| 领域谁负责、跨域影响、原owner在哪 | [领域职责](engineering/architecture/05-framework-domains.md)、[当前实现](engineering/architecture.md) | 逻辑边界 / 当前代码索引 |
-| 宗门自主模拟缺哪些共享框架、已有框架怎样扩 | [共享框架审查](engineering/architecture/foundation-audit.md) | 静态源码证据与演进理由，建设顺序仍归主计划 |
-| 厨房部门/管事面板、工作组、台内生产、数量预约与供料 | [基层部门管理方案](../design/proposals/department-management.md) | 当前待实施方案；步骤/状态只归主计划 |
-| 新计算接入、时间/事件、空间/行动、环境/植物、存读接口 | [工程接口地图](engineering/README.md) | 实现参考；可重构 |
-| 系统越来越慢、复杂度放大、查询/缓存/调度扩展范式 | [复杂度与扩展范式](engineering/simulation-costs.md) | 当前源码访问地图与接入约定；整改尚未实施 |
-| 当前美术素材、动作、来源、图鉴与离线重建 | [assets](../assets/README.md) | 当前素材唯一清单 |
-| 数据定义、开局、内容装配 | [data](../data/README.md) | 数据入口与实际清单 |
-| 游戏愿景、候选机制与研究来源 | [design](../design/README.md)、[产品层次](plans/roadmap.md) | 愿景 / 候选 / 研究 |
-| 当前怎样开发和验证、运行/测量命令 | [开发循环](engineering/workflow/testing.md)、[命令](engineering/tooling/usage.md) | 当前方法 / 工具语法 |
-| 玩法规则、社会自治怎样验证，低美术怎样表达因果 | [模拟设计与实验方法](engineering/simulation-methods.md)、[来源与工具取舍](../design/research/development-paradigms.md) | 按需方法 / 研究，不是已实现玩法 |
-| MCP配置、插件/技能来源、升级与恢复 | [tooling/setup](engineering/tooling/setup.md) | 按工具故障或更新需求读取 |
-| 删并的33项技能是否丢约束、当前领域入口与外部替代 | [技能覆盖审查](engineering/tooling/skill-coverage.md) | 一次逐项审查及当前去向，不是每轮必读清单 |
-| 过去为何这样做、旧报告/截图/提示词 | [历史入口](archive/README.md) | 退役报告由Git追溯；保留的制作原件不产生当前要求 |
-
-## 查找已有内容
-
-可按概念或代码标识搜索，例如`rg -n "存档|restore" docs/engineering scripts/sim/kernel`。退役报告从历史入口给出的固定Git版本取回；保留的制作资料按需用`rg --no-ignore "关键词" docs/archive`搜索。
+| 要查的内容 | 入口 |
+|---|---|
+| 试玩方式、操作和现有玩法 | [项目首页](../README.md) · [当前功能](status/README.md) |
+| 世界、环境、社会和成长的已定规则 | [游戏规则](../design/rules/README.md) |
+| 系统设计和候选机制 | [设计入口](../design/README.md) |
+| 架构、模拟时间、计算接入、存档和开发工具 | [工程地图](engineering/README.md) |
+| 已验证的构建和性能、已知限制 | [状态入口](status/README.md) |
+| 测试、开局装配、素材和来源 | [测试](../tests/README.md) · [数据](../data/README.md) · [素材](../assets/README.md) |
+| 跨任务的编码和文档规则 | [项目约定](../AGENTS.md) |

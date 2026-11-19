@@ -42,4 +42,4 @@
 
 ## 公开依据与适用范围
 
-Godot 的优化与线程文档可帮助定位 CPU、内存访问和任务开销。Factorio 的休眠与电网实验可用于对照工作集和多核瓶颈，Box2D 的接触对处理可用于对照并行搜索与可复现的裁决次序。更多适用前提见[大型模拟研究](../../design/research/large_simulation_optimization.md)。[Godot CPU 优化](https://docs.godotengine.org/en/4.7/tutorials/performance/cpu_optimization.html) · [Factorio FFF421](https://www.factorio.com/blog/post/fff-421) · [Box2D 开发者说明](https://box2d.org/posts/2024/08/determinism/)
+Godot 的优化与线程文档可帮助定位 CPU、内存访问和任务开销。Factorio 的休眠与电网实验可用于对照工作集和多核瓶颈，Box2D 的接触对处理可用于对照并行搜索与可复现的裁决次序。[Godot CPU 优化](https://docs.godotengine.org/en/4.7/tutorials/performance/cpu_optimization.html) · [Factorio FFF421](https://www.factorio.com/blog/post/fff-421) · [Box2D 开发者说明](https://box2d.org/posts/2024/08/determinism/)

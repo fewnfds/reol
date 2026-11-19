@@ -4,7 +4,7 @@
 
 T01已接入主体能力：`data/definitions/beings/library.tres`显式注册形态，编译后由`BeingDefs`查询work/contact/metabolism/environment；个体只存稀疏覆盖，`World.set_capability_overrides`在变更时重建热列并终止失去资格的原run。工傀可劳动但无代谢/环境响应，原召唤形态保持原无劳动/无需求。形态不决定临时召唤寿命或组织成员资格。无移动身体的实物/qi费用可安全检查/支付，身体费用和移动过程明确拒绝；这尚不是静止主体的完整自主支持。
 
-共同工作流归[自主生命](agency.md)，学习过程归[修行与学习](../cultivation_and_learning/learning.md)，关系与职务归[社会系统](../social_system.md)，首个宗门的运转样本归[宗门生活](../sect_life.md)。实施顺序只归[主计划](../../../docs/plans/foundation-priorities.md#宗门共享基座)。
+共同工作流归[自主生命](agency.md)，学习过程归[修行与学习](../cultivation_and_learning/learning.md)，关系与职务归[社会系统](../social_system.md)，首个宗门的运转样本归[宗门生活](../sect_life.md)。
 
 ## T04已接入的最小模型
 

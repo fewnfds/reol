@@ -23,7 +23,7 @@
 - 许可证原文：`docs/third-party/awesome-gamedev-agent-skills-LICENSE`
 - 上游归属原文：`docs/third-party/awesome-gamedev-agent-skills-NOTICE`，对应上述固定commit。
 - 当前分发：`.agents/skills/create-game-assets/`保留图片QA脚本、依赖声明和改写后的二维指导；`godot-verify/references/troubleshooting.md`含经本地收窄的headless排错；原资源引用检查器恢复到`godot-gdscript/scripts/check_godot_project.py`，其代码未修改。
-- 本地修订：2026-11-18复核前轮删减，原Godot/游戏领域指导按Reol纯二维GDScript、Packed模拟与已有owner重新编写/合并。含派生指导的入口为`godot-gdscript`、`godot-resources`、`godot-ui-input`、`godot-motion-navigation`、`godot-decision-systems`、`colony-sim-systems`、`godot-character-rules`、`dialogue-systems`、`save-systems`、`godot-world-generation`、`godot-2d-presentation`、`godot-audio`、`godot-export`、`performance-optimization`与`level-design`，各文件含本地重写/合并说明及本页链接；来源与逐项去向见[覆盖审查](docs/engineering/tooling/skill-coverage.md)。未恢复三维、跨引擎实现和品类玩法模板。
+- 本地修订：2026-11-18复核前轮删减，原Godot/游戏领域指导按Reol纯二维GDScript、Packed模拟与已有owner重新编写/合并。含派生指导的入口为`godot-gdscript`、`godot-resources`、`godot-ui-input`、`godot-motion-navigation`、`godot-decision-systems`、`colony-sim-systems`、`godot-character-rules`、`dialogue-systems`、`save-systems`、`godot-world-generation`、`godot-2d-presentation`、`godot-audio`、`godot-export`、`performance-optimization`与`level-design`，各文件含本地重写/合并说明及本页链接。未恢复三维、跨引擎实现和品类玩法模板。
 - 原选取的31个第三方入口不再整套分发；`godot-sim-architecture`及`godot-verify/SKILL.md`为项目自有指导。图片QA脚本、依赖声明及恢复的引用检查器保持原代码；其新增隔离反例检查为本项目代码。Apache许可证及NOTICE原文继续保留，本地差异由Git维护，不因重命名/合并丢失来源。
 - 本次比较的其他skill库与官方资料仅阅读/链接，未复制其代码、安装或形成新运行依赖；不以本次检索HEAD更改上述采用pin。
 
@@ -53,7 +53,7 @@
 - 许可证：**MIT**
 - 分发形式：**不随仓库分发**；运行时由 `npx` 安装。
 - 用途：无头启动、运行项目、抓调试输出、建场景。
-- 配置：Codex 用 `tools/setup_codex.py` 生成 `.codex/config.toml` → `mcp_servers.godot` → `tools/mcp/godot_mcp.py`，默认关闭、作为备用；项目不再分发OpenCode专属配置。
+- 配置：Coding-Solo 的可选本机连接独立于游戏运行，配置由使用者在本机维护。
 
 ---
 
@@ -102,4 +102,4 @@
 - 许可证：**MIT**；原文与版权声明见`docs/third-party/pbzona-godot-skills-LICENSE`。
 - 来源：`skills/game-systems-design/SKILL.md`、`skills/game-balance/SKILL.md`。
 - 当前分发：`.agents/skills/simulation-game-design/SKILL.md`；2026-11-18按Reol玩家单角色、自治社会、纯二维、原owner与按需验证重写/收窄。采用体验/规则/反馈的联系、存量流量、机会条件与证据分层；移除上游多份必交文档、全套平衡/遥测流程和泛引擎入口。
-- 只采用开发指导，不安装整库、运行依赖或第三方模拟后端；此技能的许可不改变项目游戏代码的许可证状态。其余本轮仅阅读的游戏源码/论文/工具及取舍见[研究记录](design/research/development-paradigms.md)。
+- 只采用开发指导，不安装整库、运行依赖或第三方模拟后端；此技能的许可不改变项目游戏代码的许可证状态。
