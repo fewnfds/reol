@@ -256,14 +256,11 @@ func run() -> void:
 	game.controls.action("character", {})
 	game.ui.open_bag(2)
 	await settle(4)
-	check(game.ui.character.subject_id == 2 and game.ui.inventory.subject_id == 2, "NPC inspection switched to a different identity")
+	check(game.ui.character.subject_id == 1 and game.ui.inventory.subject_id == 2, "The player character panel and explicit NPC inspection shared an identity")
 	game.ui.inventory.bag.select("potion")
 	check(game.ui.inventory._use.disabled and game.ui.inventory._equip.disabled and game.ui.inventory._drop.disabled, "NPC bag inspection granted control")
 	await capture("npc-readonly")
-	game.ui.character._tabs.current_tab = 1
-	await settle(4)
-	check(game.ui.character._practice.text.contains("木息法") and game.ui.character._practice.text.contains("炊事") and game.ui.character._study.disabled, "NPC mastery view lacked real methods or granted player control")
-	await capture("npc-learning")
+	check(not game.ui._target.has("methods") and not game.ui._target.has("stock_rights"), "NPC selection exposed private methods or stock")
 	game.ui.inventory.hide()
 	game.controls.action("close_drawer", {})
 	# Exercise the actual numeric form without overwriting the user's preferences.

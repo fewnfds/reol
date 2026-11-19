@@ -7,6 +7,18 @@ func capture(name_key: String) -> void:
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png(directory + name_key + ".png")
 
+func build_button(text: String) -> Button:
+	for child: Node in game.ui.build_menu.find_children("*", "Button", true, false):
+		if child.is_visible_in_tree() and child.text == text: return child
+	return null
+
+func open_build_group(text: String) -> bool:
+	var button: Button = build_button(text + "  ›")
+	check(button != null, "Build category missing: " + text)
+	if button == null: return false
+	await click(button)
+	return true
+
 func _run() -> void:
 	game = Game.new(); game._opening = "development"
 	game._fps = 60
@@ -23,6 +35,8 @@ func _run() -> void:
 	await key(KEY_I, true)
 	await key(KEY_I, false)
 	check(game.ui.inventory.visible, "Inventory shortcut did not open its panel")
+	check(game.ui.inventory.bag.get_child_count() == 12 and game.ui.inventory.cargo.get_child_count() == 1, "Player bag did not present 12 personal slots and one hauling slot")
+	await capture("personal-bag")
 	await key(KEY_I, true)
 	await key(KEY_I, false)
 	check(not game.ui.inventory.visible, "Inventory shortcut could not close its own panel")
@@ -45,10 +59,31 @@ func _run() -> void:
 	game.ui.open_bag(1)
 	game.ui.toggle_drawer("build")
 	await process_frame
-	check(game.ui._drawer_panel.visible and not game.ui.inventory.visible, "Narrow drawer stayed hidden behind inventory")
-	await capture("narrow-drawer")
-	game.ui.inventory.hide()
-	game.ui.toggle_drawer(game.ui._drawer_name)
+	check(game.ui.build_menu.visible and not game.ui.inventory.visible, "Narrow drawer stayed hidden behind inventory")
+	game.ui.open_bag(1)
+	check(game.ui._drawer_name.is_empty() and game.ui.inventory.visible, "Opening the narrow bag kept a hidden build menu active")
+	game.ui.toggle_drawer("build")
+	check(game.ui.build_menu.visible and not game.ui.inventory.visible, "Returning from the narrow bag took more than one action")
+	await process_frame
+	await process_frame
+	var selected: int = game.selected
+	var reached: bool = true
+	for category: String in ["建筑", "工作", "工作台", "灶台"]:
+		if not await open_build_group(category): reached = false; break
+	if reached:
+		var leaf: Button = game.ui.build_menu._leaves.get("cook_stove")
+		check(leaf != null and leaf.is_visible_in_tree() and leaf.text.contains("木料"), "Stove did not reach its material leaf")
+		check(not game.ui.build_menu._columns[0].visible and not leaf.get_global_rect().intersects(game.ui._map_panel.get_global_rect()), "Expanded build columns overran the usable screen")
+		check(game.selected == selected and game.controls.tool.is_empty(), "Category click reached the world or started a placement")
+		await capture("narrow-drawer")
+		await key(KEY_ESCAPE, true)
+		await key(KEY_ESCAPE, false)
+		check(build_button("灶台  ›") != null, "Escape closed the build menu instead of returning to its parent category")
+		if await open_build_group("灶台"):
+			await click(game.ui.build_menu._leaves.cook_stove)
+			check(game.controls.tool == "build" and game.controls.definition == "cook_stove" and not game.ui.build_menu.visible, "Material choice did not enter the original placement tool")
+	game.controls.cancel_tool()
+	if game.ui.build_menu.visible: game.ui.toggle_drawer("build")
 	game.ui.apply_scale(100, false)
 	root.content_scale_size = original_size
 	root.size = original_window
@@ -69,17 +104,33 @@ func _run() -> void:
 		check(admitted > 0, "Visible tool target was rejected because it was not inspected")
 		game.runner.send({"kind": "interrupt"})
 		game.controls._select(chest, -1)
-		check(await until(func(): return game.ui._target.get("id", 0) == chest), "Container inspection never arrived")
+		check(await until(func(): return game.ui._target.get("id", 0) == chest and game.ui._target.get("kind") == "chest"), "Container inspection never arrived")
 		game.ui.open_stock("take", chest)
-		check(game.ui.inventory.visible, "Container workspace failed to open")
+		var panel: PanelContainer = game.ui.inventory
+		check(panel.visible and panel._dual, "Wide container workspace failed to open in two columns")
+		game.ui.apply_scale(200, false)
+		root.content_scale_size = Vector2i(700, 720)
+		root.size = Vector2i(700, 720)
+		await process_frame
+		await process_frame
+		check(not panel._dual and panel._container_sheet.is_visible_in_tree() and not panel._bag_sheet.is_visible_in_tree(), "Narrow container workspace showed both pages at once")
+		game.ui.apply_scale(100, false)
+		root.content_scale_size = original_size
+		root.size = original_window
 		game.controls._select(2, -1)
 		check(not game.ui.inventory.visible, "Selection replaced the inspection but left a stale container open")
 	root.gui_release_focus()
 	check(await until(func(): return game.ui._target.get("id", 0) == 2), "NPC inspection never arrived")
-	game.ui.toggle_drawer("character")
-	check(game.ui._character_id == 2, "Character drawer lost its selected subject")
-	game.controls._select(1, -1)
-	check(game.ui._drawer_name.is_empty(), "Selection left an NPC character panel without its inspection")
+	var person: Button
+	for child: Node in game.ui._toolbar.find_children("*", "Button", true, false):
+		if child.text == "人物": person = child; break
+	check(person != null, "The player character button is missing")
+	if person != null:
+		await click(person)
+		check(game.selected == 2 and game.ui.character != null and game.ui.character.subject_id == 1, "The character button followed the NPC selection")
+		game.controls._select(1, -1)
+		check(game.ui._drawer_name == "character", "Selecting a world actor closed the player's character panel")
+		game.controls.action("close_drawer", {})
 	game.controls.action("pause", {})
 	check(await until(func(): return game.frame.paused), "Tool fixture pause failed")
 	var floor_id: int = 0

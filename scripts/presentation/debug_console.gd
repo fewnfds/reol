@@ -2,10 +2,19 @@ extends CanvasLayer
 ## Read-only diagnostics. Works without the editor and without simulation progress.
 ## No live-world access, arbitrary script evaluation, or per-frame log formatting.
 
+signal tool_requested(action: String, payload: Dictionary)
+signal launcher_resized(bottom_space: float)
+
 const RuntimeLog = preload("res://scripts/presentation/runtime_log.gd")
+const Style = preload("res://scripts/presentation/ui/style.gd")
+const LAUNCHER_MARGIN: float = 8.0
 var journal := RuntimeLog.new()
 var _provider: Callable
 var _panel := PanelContainer.new()
+var _launcher_panel := PanelContainer.new()
+var _launcher_available: bool = false
+var _dev_tools := GridContainer.new()
+var _region_tools := GridContainer.new()
 var _badge := Button.new()
 var _status := Label.new()
 var _output := RichTextLabel.new()
@@ -24,17 +33,7 @@ func _ready() -> void:
 	layer = 100
 	var font := SystemFont.new()
 	font.font_names = PackedStringArray(["Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC"])
-	add_child(_badge)
-	_badge.text = "F12 调试"
-	_badge.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	_badge.offset_left = -230
-	_badge.offset_right = -12
-	_badge.offset_top = -44
-	_badge.offset_bottom = -12
-	_badge.add_theme_font_override("font", font)
-	_badge.focus_mode = Control.FOCUS_NONE
-	_badge.pressed.connect(toggle)
-	_badge.resized.connect(func(): _badge.pivot_offset = _badge.size)
+	_build_launcher()
 	add_child(_panel)
 	_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_panel.anchor_left = 0.3
@@ -73,12 +72,86 @@ func _ready() -> void:
 	_panel.hide()
 
 
+func _build_launcher() -> void:
+	add_child(_launcher_panel)
+	_launcher_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	_launcher_panel.theme = Style.theme()
+	_launcher_panel.add_theme_stylebox_override("panel", Style.box(Color("18251ff2"), Style.GOLD))
+	var body := VBoxContainer.new()
+	_launcher_panel.add_child(body)
+	_dev_tools.columns = 3
+	_region_tools.columns = 3
+	body.add_child(_dev_tools)
+	body.add_child(_region_tools)
+	for i: int in 5:
+		_tool_button(_dev_tools, "weather", ["自动", "晴", "雨", "寒风", "热浪"][i], "", {"weather": i - 1})
+	for i: int in 3:
+		_tool_button(_dev_tools, "body", ["普通", "飞行", "大体型"][i], "person", {"flight": int(i == 1), "large": i == 2})
+		_tool_button(_region_tools, "journey", ["谷地", "寒林", "旱地"][i], "map", {"region": i})
+	_tool_button(_dev_tools, "source", "场源", "target")
+	_tool_button(_dev_tools, "source_overlay", "场源标记", "eye")
+	_tool_button(_dev_tools, "action_trace", "反应追踪", "gear")
+	close_tools()
+	_badge.text = "F12 调试 · 错误 0 / 警告 0"
+	_badge.focus_mode = Control.FOCUS_NONE
+	_badge.pressed.connect(toggle)
+	body.add_child(_badge)
+	var row := HBoxContainer.new()
+	body.add_child(row)
+	_tool_button(row, "gallery", "图鉴", "book").tooltip_text = "素材图鉴 · F8"
+	_tool_button(row, "dev", "DEV", "gear")
+	_tool_button(row, "travel", "地区", "map")
+	_launcher_panel.minimum_size_changed.connect(_fit_launcher)
+	_fit_launcher()
+	_launcher_panel.hide()
+
+
+func _tool_button(parent: Control, action: String, title: String, icon: String, payload: Dictionary = {}) -> Button:
+	var button := Button.new()
+	button.text = title
+	if not icon.is_empty(): button.icon = Style.icon(icon)
+	button.focus_mode = Control.FOCUS_NONE
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.pressed.connect(func(): tool_requested.emit(action, payload))
+	parent.add_child(button)
+	return button
+
+
+func _fit_launcher() -> void:
+	var extent: Vector2 = _launcher_panel.get_combined_minimum_size()
+	var margin: float = LAUNCHER_MARGIN * _launcher_panel.scale.x
+	_launcher_panel.offset_left = -margin - extent.x
+	_launcher_panel.offset_top = -margin - extent.y
+	_launcher_panel.offset_right = -margin
+	_launcher_panel.offset_bottom = -margin
+	_launcher_panel.pivot_offset = extent
+	launcher_resized.emit(extent.y + LAUNCHER_MARGIN)
+
+
+func toggle_tools(kind: String) -> void:
+	_dev_tools.visible = kind == "dev" and not _dev_tools.visible
+	_region_tools.visible = kind == "travel" and not _region_tools.visible
+
+
+func close_tools() -> bool:
+	var was_open: bool = _dev_tools.visible or _region_tools.visible
+	_dev_tools.hide()
+	_region_tools.hide()
+	return was_open
+
+
+func set_launcher_available(value: bool) -> void:
+	_launcher_available = value
+	_launcher_panel.visible = value and not is_open()
+	if not value: close_tools()
+
+
 func attach(provider: Callable) -> void:
 	_provider = provider
 
 func set_ui_scale(factor: float) -> void:
-	_badge.pivot_offset = _badge.size
-	_badge.scale = Vector2.ONE * factor
+	_launcher_panel.scale = Vector2.ONE * factor
+	_fit_launcher()
 
 
 func is_open() -> bool:
@@ -87,7 +160,9 @@ func is_open() -> bool:
 
 func toggle() -> void:
 	_panel.visible = not _panel.visible
+	_launcher_panel.visible = _launcher_available and not _panel.visible
 	if _panel.visible:
+		close_tools()
 		_next_refresh = 0
 		_command.grab_focus()
 	else:
@@ -107,7 +182,8 @@ func _process(_delta: float) -> void:
 		return
 	_next_refresh = now + 250
 	var counts: Dictionary = journal.summary()
-	_badge.text = "F12 调试 · 错误 %d / 警告 %d" % [counts.errors, counts.warnings]
+	var caption: String = "F12 调试 · 错误 %d / 警告 %d" % [counts.errors, counts.warnings]
+	if _badge.text != caption: _badge.text = caption
 	_badge.modulate = Color(1.0, 0.45, 0.4) if counts.errors > 0 else Color.WHITE
 	if not is_open():
 		return

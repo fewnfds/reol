@@ -35,7 +35,7 @@ func _run() -> void:
 	game.runner.send({"kind": "load", "path": path})
 	check(await until(func(): return game.frame.epoch > epoch), "Real role/service file failed to load")
 	game.controls._select(chest, -1)
-	check(await until(func(): return game.ui._target.get("id", 0) == chest), "Scoped chest not inspected")
+	check(await until(func(): return game.ui._target.get("id", 0) == chest and game.ui._target.get("organization", 0) == org), "Scoped chest not inspected")
 	game.controls.action("take", {"target": chest})
 	check(await until(func(): return game.ui.inventory.visible), "Scoped inventory workspace missing")
 	var panel: Control = game.ui.inventory

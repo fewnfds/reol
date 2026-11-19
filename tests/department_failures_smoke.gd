@@ -26,17 +26,17 @@ func saveable(w: RefCounted, label: String) -> void:
 	check(candidate != null, label + ": legal state did not restore")
 	if candidate != null: candidate.deferred.close()
 
-func supply_claim(f: Dictionary, item: String = "grain", amount: int = 2) -> int:
+func supply_claim(f: Dictionary, item: String = "grain", amount: int = 2, actor: int = 2) -> int:
 	f.w.objects.add(f.store, item, amount, Stock.right(0, f.org))
 	var request: int = f.o.Logistics.request(f.o, f.w, f.kitchen, f.supply, f.stove, item, amount)
 	check(f.o.Logistics.accept(f.o, f.w, f.supply, request), "Fixture request refused")
-	return f.o.Logistics.claim(f.o, f.w, 2, {"department": f.supply, "source": f.store, "target": f.stove, "item": item, "amount": amount, "request": request})
+	return f.o.Logistics.claim(f.o, f.w, actor, {"department": f.supply, "source": f.store, "target": f.stove, "item": item, "amount": amount, "request": request})
 
-func take_shipment(f: Dictionary, id: int) -> void:
+func take_shipment(f: Dictionary, id: int, actor: int = 2) -> void:
 	var s: Dictionary = f.o.shipments[id]
-	if not place_at(f.w, 2, f.store, "take"): return
-	check(f.w.begin_transfer(2, {"kind": "take", "target": f.store, "item": s.item, "amount": s.amount, "shipment": id, "purpose": "supply"}) == "accepted", "Take shipment refused")
-	f.w.settle_action(2, f.w.elapsed_ms)
+	if not place_at(f.w, actor, f.store, "take"): return
+	check(f.w.begin_transfer(actor, {"kind": "take", "target": f.store, "item": s.item, "amount": s.amount, "shipment": id, "purpose": "supply"}) == "accepted", "Take shipment refused")
+	f.w.settle_action(actor, f.w.elapsed_ms)
 	advance(f.w, f.w.elapsed_ms + 400)
 	check(s.state == "carrying", "Actual take failed to retain transport obligation")
 
@@ -101,6 +101,35 @@ func transport_interruptions() -> void:
 	w.settle_action(2, w.elapsed_ms); advance(w, w.elapsed_ms + 400)
 	check(s.state == "completed" and w.objects.amount(s.destination, "grain", Stock.right(0, f.org)) == 2 and o.Logistics.current(o, 2).is_empty(), "Return lost goods or kept carrier locked")
 	saveable(w, "Returned")
+	w.deferred.close()
+
+func player_shipment_view() -> void:
+	var f: Dictionary = setup_work()
+	var w: RefCounted = f.w
+	var owner: RefCounted = f.o
+	check(Departments.assign(owner, f.supply, 1, ["haul"], [], true), "Player transport duty was not assigned")
+	var own: int = w.objects.amount(1, "grain", Stock.right(1))
+	var id: int = supply_claim(f, "grain", 3, 1)
+	check(id > 0 and not w.describe(1).has("carried_shipment"), "A reservation appeared as physically carried goods")
+	if id <= 0: w.deferred.close(); return
+	take_shipment(f, id, 1)
+	var view: Dictionary = w.describe(1)
+	var subject: Dictionary = view.get("carried_shipment", {})
+	check(subject.get("item") == "grain" and subject.get("count") == 3 and view.inventory.grain == own + 3, "Carrying view lost or duplicated the owned and shipped quantities")
+	var restored: RefCounted = Persistence.candidate(Persistence.capture(w), 0)
+	check(restored != null, "Player carrying state could not restore")
+	if restored != null:
+		check(restored.describe(1).get("carried_shipment") == subject, "Restore changed the carrying view")
+		restored.deferred.close()
+	owner.Logistics.cancel_request(owner, w, int(owner.shipments[id].request))
+	var returning: Dictionary = w.describe(1).get("carried_shipment", {})
+	check(returning.get("state") == "returning" and returning.get("count") == 3, "Cancelling the request hid the goods on the return trip")
+	var destination: int = int(owner.shipments[id].destination)
+	if place_at(w, 1, destination, "put"):
+		check(w.begin_transfer(1, {"kind": "put", "target": destination, "item": "grain", "amount": 3, "shipment": id, "purpose": "supply"}) == "accepted", "Player return was refused")
+		w.settle_action(1, w.elapsed_ms)
+		advance(w, w.elapsed_ms + 400)
+		check(not w.describe(1).has("carried_shipment") and w.objects.amount(1, "grain") == own, "Return left cargo behind or used personal goods")
 	w.deferred.close()
 
 func transport_deaths_and_removal() -> void:
@@ -312,6 +341,7 @@ func rollover_compaction_headroom() -> void:
 func _run() -> void:
 	permissions_and_scopes()
 	transport_interruptions()
+	player_shipment_view()
 	transport_deaths_and_removal()
 	in_transit_is_not_ready()
 	loose_goods_and_manual_policy()

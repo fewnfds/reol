@@ -185,10 +185,17 @@ func _ready() -> void:
 	layer.add_child(ui)
 	markers.font = ui.theme.default_font
 	marker_overlay.paint = markers.paint.bind(self)
+	controls.configure(self, ui)
 	if _debug_console != null:
+		_debug_console.launcher_resized.connect(ui.set_debug_bottom_space)
 		ui.scale_applied.connect(_debug_console.set_ui_scale)
 		_debug_console.set_ui_scale(ui.scale.x)
-	controls.configure(self, ui)
+		_debug_console.tool_requested.connect(controls.action)
+		art_gallery.open_changed.connect(_refresh_debug_launcher)
+		ui._modal.visibility_changed.connect(_refresh_debug_launcher)
+		ui._context_panel.visibility_changed.connect(_refresh_debug_launcher)
+		ui.work_panel.visibility_changed.connect(_refresh_debug_launcher)
+		_refresh_debug_launcher()
 	feedback.load_settings()
 	view.sync()
 	world_overlay.paint = _paint_world
@@ -619,5 +626,10 @@ func _percentiles(values: Variant, scale: float = 1.0) -> Dictionary:
 		"p95": float(sorted[int((sorted.size() - 1) * 0.95)]) * scale, "p99": float(sorted[int((sorted.size() - 1) * 0.99)]) * scale, "max": float(sorted[-1]) * scale}
 
 
+func _refresh_debug_launcher() -> void:
+	_debug_console.set_launcher_available(not art_gallery.is_open() and not ui.blocks_world())
+
+
 func _exit_tree() -> void:
+	if is_instance_valid(_debug_console): _debug_console.set_launcher_available(false)
 	runner.close()

@@ -19,7 +19,7 @@ const SPECS: Array[Dictionary] = [
 	{"id": "game_context", "label": "日常／战斗姿态", "key": KEY_TAB, "contexts": GLOBAL},
 	{"id": "game_interact", "label": "附近交互", "key": KEY_F, "contexts": GLOBAL},
 	{"id": "game_inventory", "label": "背包", "key": KEY_I, "contexts": GLOBAL},
-	{"id": "game_build_menu", "label": "营造", "key": KEY_B, "contexts": GLOBAL},
+	{"id": "game_build_menu", "label": "建造", "key": KEY_B, "contexts": GLOBAL},
 	{"id": "game_equip_sword", "label": "装备剑", "key": KEY_1, "contexts": GLOBAL},
 	{"id": "game_equip_bow", "label": "装备弓", "key": KEY_2, "contexts": GLOBAL},
 	{"id": "game_work", "label": "自主工作", "key": KEY_J, "contexts": INTERACT},

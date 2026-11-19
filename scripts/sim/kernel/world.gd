@@ -1559,6 +1559,12 @@ func describe(id: int) -> Dictionary:
 					if not result.equippable.has(item): result.equippable.append(item)
 		if id == 1:
 			result["stock_rights"] = State.copy(objects.records[id].stock)
+			var shipment: Dictionary = institutions.Logistics.current(institutions, id)
+			if shipment.get("state") in ["carrying", "returning"]:
+				var right: Dictionary = objects.Stock.right(0, int(shipment.right.organization), int(shipment.entrust))
+				var count: int = objects.amount(id, shipment.item, right)
+				if count > 0:
+					result["carried_shipment"] = {"item": shipment.item, "count": count, "entrust": shipment.entrust, "state": shipment.state}
 			result["requests"] = society.request_views(self, id, operation_time())
 	return result
 

@@ -10,8 +10,7 @@ const OPERATION_CLIPS: Dictionary = {
 	"cook": Art.Clip.CRAFT, "cut": Art.Clip.HARVEST, "gather": Art.Clip.HARVEST, "uproot": Art.Clip.HARVEST,
 	"tend": Art.Clip.WATER, "sow": Art.Clip.WATER, "plant": Art.Clip.WATER,
 	"rest": Art.Clip.REST, "eat": Art.Clip.EAT, "study": Art.Clip.READ, "learn": Art.Clip.READ,
-	"talk": Art.Clip.READ, "trade": Art.Clip.READ, "practice": Art.Clip.MEDITATE,
-	"take": Art.Clip.CARRY, "put": Art.Clip.CARRY}
+	"talk": Art.Clip.READ, "trade": Art.Clip.READ, "practice": Art.Clip.MEDITATE}
 const SHADER = preload("res://scripts/presentation/population.gdshader")
 const TILE: float = Art.TILE
 var _shader := ShaderMaterial.new()
@@ -124,9 +123,8 @@ func adopt(frame: RefCounted, previous: RefCounted, current_pose: RefCounted, ac
 		var mode: int = frame.modes[index]
 		if mode == Units.Mode.ACTION and frame.operations.has(id):
 			clip = OPERATION_CLIPS.get(Operations.OPERATIONS[frame.operations[id]].handler, Art.Clip.IDLE)
-		elif not frame.combat.has(id):
-			if mode == Units.Mode.HARVEST: clip = Art.Clip.HARVEST
-			elif frame.cargo[index] > 0: clip = Art.Clip.CARRY
+		elif mode == Units.Mode.HARVEST and not frame.combat.has(id):
+			clip = Art.Clip.HARVEST
 		if actions.has(id) and actions[id].visual != "evade": clip = Art.Clip.SHOOT if actions[id].visual == "shoot" else Art.Clip.MELEE
 		var hurt: bool = hurts.has(id)
 		if frame.paused or at_ms >= frame.world_ms:

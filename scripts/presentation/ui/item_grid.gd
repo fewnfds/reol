@@ -1,4 +1,4 @@
-extends ScrollContainer
+extends GridContainer
 ## Shared detached inventory view for a person or a container.
 signal chosen(key: String)
 const Items = preload("res://scripts/sim/kernel/items.gd")
@@ -7,16 +7,8 @@ const Art = preload("res://scripts/presentation/art.gd")
 const Style = preload("res://scripts/presentation/ui/style.gd")
 var selected: String = ""
 var buttons: Dictionary = {}
-var _grid := GridContainer.new()
+var minimum_slots: int = 16
 var _signature: String = ""
-
-func _ready() -> void:
-	horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	size_flags_vertical = Control.SIZE_EXPAND_FILL
-	custom_minimum_size = Vector2(294, 200)
-	_grid.columns = 4
-	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	add_child(_grid)
 
 func refresh(contents: Dictionary, equipped: Dictionary = {}, base: Dictionary = {}) -> void:
 	if not contents.has(selected): selected = ""
@@ -26,10 +18,11 @@ func refresh(contents: Dictionary, equipped: Dictionary = {}, base: Dictionary =
 	buttons.clear()
 	var keys: Array = contents.keys()
 	keys.sort()
-	while _grid.get_child_count() < maxi(16, keys.size()): _create_slot()
-	for index: int in _grid.get_child_count():
-		var button: Button = _grid.get_child(index)
-		button.visible = index < maxi(16, keys.size())
+	var slots: int = maxi(minimum_slots, keys.size())
+	while get_child_count() < slots: _create_slot()
+	for index: int in get_child_count():
+		var button: Button = get_child(index)
+		button.visible = index < slots
 		var filled: bool = index < keys.size()
 		button.disabled = not filled
 		for child: CanvasItem in button.get_children(): child.visible = filled
@@ -54,7 +47,7 @@ func _create_slot() -> void:
 	button.custom_minimum_size = Vector2(64, 64)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.focus_mode = Control.FOCUS_NONE
-	_grid.add_child(button)
+	add_child(button)
 	# Read the slot's current binding, never a key captured before a refresh.
 	button.pressed.connect(func(): select(str(button.get_meta("item_key", ""))))
 	var image := TextureRect.new()
@@ -78,10 +71,11 @@ func _create_slot() -> void:
 	count.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	count.position = Vector2(40, 40)
 
-func select(key: String) -> void:
-	selected = key
-	_signature = ""
-	chosen.emit(key)
+func select(key: String, notify: bool = true) -> void:
+	if buttons.has(selected): buttons[selected].modulate = Color.WHITE
+	selected = key if buttons.has(key) else ""
+	if buttons.has(selected): buttons[selected].modulate = Style.GOLD
+	if notify: chosen.emit(selected)
 
 static func item_icon(key: String) -> Texture2D:
 	var spec: Dictionary = Items.spec(key)

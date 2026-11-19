@@ -7,15 +7,14 @@ func capture(name_key: String) -> void:
 	root.get_texture().get_image().save_png(directory + name_key + ".png")
 
 func gallery_preview() -> void:
-	var toolbar_button: Button
-	for button: Button in game.ui.find_children("*", "Button", true, false):
-		if button.text == "图鉴": toolbar_button = button; break
-	check(toolbar_button != null, "Normal toolbar omitted its gallery entry")
-	if toolbar_button == null: return
-	await mouse(MOUSE_BUTTON_LEFT, true, toolbar_button.get_global_rect().get_center())
-	await mouse(MOUSE_BUTTON_LEFT, false, toolbar_button.get_global_rect().get_center())
+	var gallery_button: Button
+	for button: Button in game._debug_console.find_children("*", "Button", true, false):
+		if button.text == "图鉴": gallery_button = button; break
+	check(gallery_button != null, "Debug tools omitted the gallery entry")
+	if gallery_button == null: return
+	await click(gallery_button)
 	var gallery: CanvasLayer = game.art_gallery
-	check(gallery.is_open() and game.controls.locked(), "Toolbar did not open a modal gallery")
+	check(gallery.is_open() and game.controls.locked(), "Debug tools did not open a modal gallery")
 	if not gallery.is_open(): return
 	var tabs: TabContainer = gallery._tabs
 	var bar: TabBar = tabs.get_tab_bar()
@@ -51,22 +50,12 @@ func _run() -> void:
 	await gallery_preview()
 	game.controls.action("context", {})
 	game.controls._select(8, -1)
-	check(await until(func(): return game.ui._target.get("id", 0) == 8), "Normal NPC could not be inspected")
-	game.controls.action("character", {})
-	check(await until(func(): return game.ui.character != null and game.ui.character.subject_id == 8), "Normal NPC character view did not open")
-	check(await until(func(): return game.ui.character._header.text.contains("传功弟子")), "Normal NPC detail view never refreshed")
-	var resident: Dictionary = game.frame.inspected
-	check(game.ui.character._header.text.begins_with(resident.name + " #8") and game.ui.character._header.text.contains(" · " + ("女" if resident.sex == "female" else "男")), "Detail header omitted the NPC's name or sex")
-	check(game.ui.character._header.text.contains("传功弟子") and game.ui.character._overview.text.contains("青禾宗") and game.ui.character._overview.text.contains("床榻"), "Normal fellow member lost their identity, institutional membership or assigned rest place")
-	check(not game.ui.character._bag.visible and not game.ui.character._stats.text.contains("HP") and game.ui.character.events.text == "暂无可知记录。", "Normal observation opened another person's private bag, exact vitals or personal journal")
-	var bar: TabBar = game.ui.character._tabs.get_tab_bar()
-	await process_frame; await process_frame
-	var point: Vector2 = bar.get_global_transform_with_canvas() * bar.get_tab_rect(1).get_center()
-	await mouse(MOUSE_BUTTON_LEFT, true, point); await mouse(MOUSE_BUTTON_LEFT, false, point)
-	check(game.ui.character._practice.text.contains("木息法"), "Normal initial mentor was not an actual practitioner")
-	check(not game.ui.character._practice.text.contains("灵力") and not game.ui.character._practice.text.contains("理解"), "Public instruction revealed the mentor's private cultivation values")
+	check(await until(func(): return game.ui._target.get("id", 0) == 8 and game.ui._target.get("observed_other", false)), "Normal NPC could not be inspected")
+	var resident: Dictionary = game.ui._target
+	check(game.ui._inspect_title.text.begins_with(str(resident.get("name", "")) + " #8") and resident.get("resident_title") == "传功弟子", "Normal NPC inspection lost the resident's identity")
+	check(resident.get("memberships", []).any(func(entry: Dictionary): return entry.get("name") == "青禾宗") and not resident.get("service_targets", {}).get("rest", []).is_empty(), "Normal fellow member lost their membership or assigned rest place")
+	check(resident.get("teaches", {}).has("wood_breath") and not resident.has("methods") and not resident.has("inventory") and not resident.has("events"), "Normal NPC inspection lost public instruction or opened private data")
 	await capture("settlement-normal-character")
-	game.ui._drawer_name = ""; game.ui._drawer_panel.hide()
 	await resume()
 	check(await until(func(): return game.frame.world_ms >= 5000, 8000), "Normal autonomous world did not advance")
 	await pause()

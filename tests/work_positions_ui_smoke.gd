@@ -55,14 +55,13 @@ func _run() -> void:
 	game.camera.zoom = Vector2.ONE * 1.5
 	game.camera.force_update_scroll()
 	game.controls._select(stove, -1)
-	check(await until(func(): return game.ui._target.get("id", 0) == stove), "Cooking station detail not published")
-	check(game.ui._target.work_cells.craft.size() == 1, "Single cooking cell absent from detached UI")
+	check(await until(func(): return game.ui._target.get("id", 0) == stove and game.ui._target.get("work_cells", {}).get("craft", []).size() == 1), "Single cooking cell absent from detached UI")
 	check(Art.catalog().entries.has("construction_0") and Art.catalog().entries.has("construction_15"), "Joined unfinished sprites missing from runtime atlas")
 	for site: int in sites:
 		check(game.frame.perception.memories.get(site, {}).get("construction_started", false), "Observed unfinished stage lost during file restore")
 	await capture("unfinished-and-station")
 	game.controls._select(sites[1], -1)
-	check(await until(func(): return game.ui._target.get("id", 0) == sites[1]), "Unfinished detail not published")
+	check(await until(func(): return game.ui._target.get("id", 0) == sites[1] and game.ui._target.get("kind") == "blueprint"), "Unfinished detail not published")
 	check(game.ui._inspect_values.text.contains("施工中"), "Unfinished site still described as a placement preview")
 	var action: Button
 	for child: Node in game.ui._commands.get_children():

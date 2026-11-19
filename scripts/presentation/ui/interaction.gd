@@ -110,6 +110,7 @@ func _input(event: InputEvent) -> void:
 			get_viewport().gui_release_focus()
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE and not event.pressed:
 		_pan_drag = false # Release can land on GUI instead of the world.
+	if host._debug_console != null and host._debug_console.is_open(): return
 	if event is InputEventKey and event.pressed and not event.echo:
 		var gallery_open: bool = host.art_gallery.is_open()
 		if (gallery_open and event.keycode in [KEY_F8, KEY_ESCAPE]) or (event.keycode == KEY_F8 and not external_modal() and not ui.blocks_world()):
@@ -130,6 +131,8 @@ func _input(event: InputEvent) -> void:
 			ui.close_context()
 		elif not tool.is_empty():
 			cancel_tool()
+		elif host._debug_console != null and host._debug_console.close_tools():
+			pass
 		elif ui.close_layer():
 			pass
 		else:
@@ -255,7 +258,7 @@ func action(kind: String, payload: Dictionary) -> void:
 			host.runner.control(host.paused, host.speed)
 		"follow": host.following = not host.following
 		"path": host._show_path = not host._show_path
-		"build_menu", "plant_menu", "character", "travel", "dev":
+		"build_menu", "plant_menu", "character":
 			clear_direct()
 			if kind in ["build_menu", "plant_menu"]: combat_stance = false
 			cancel_tool()
@@ -355,10 +358,14 @@ func action(kind: String, payload: Dictionary) -> void:
 		"map_follow": ui.minimap.follow_player = not ui.minimap.follow_player
 		"cancel_tool": cancel_tool()
 		"gallery":
+			if not host.art_gallery.is_open() and (external_modal() or ui.blocks_world()): return
 			clear_direct()
 			host.art_gallery.toggle()
-		"debug":
-			if host._debug_console != null: host._debug_console.toggle()
+		"dev", "travel":
+			if host._debug_console == null or external_modal() or ui.blocks_world(): return
+			clear_direct()
+			cancel_tool()
+			host._debug_console.toggle_tools(kind)
 		"source_overlay": host._show_sources = not host._show_sources
 		"source": _send({"kind": "source", "tile": host.selected_tile})
 		"journey":
@@ -476,6 +483,7 @@ func reset_session() -> void:
 		host.runner.control(host.paused, host.speed)
 	help_target = 0
 	_pan_drag = false
+	if host._debug_console != null: host._debug_console.close_tools()
 	ui.reset_session()
 
 func move_vector() -> Vector2:

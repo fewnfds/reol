@@ -181,8 +181,6 @@ static func for_target(data: Dictionary, player: Dictionary, help_target: int) -
 	var alive: bool = int(player.get("hp", 0)) > 0
 	if data.get("kind", "") == "blueprint": result.append(command("request_worker", "协作", "link", alive))
 	var capabilities: Dictionary = buildings.get(data.get("definition", ""), {}).get("capabilities", {})
-	if capabilities.has("cultivation") and data.get("kind") != "blueprint":
-		result.append(command("plant_menu", "种植", "plant", alive and int(data.get("guest", 0)) == 0))
 	if capabilities.has("records") and data.get("kind") != "blueprint":
 		var read: Dictionary = player.get("known_channels", {}).get(int(data.id), {})
 		for post: Dictionary in read.get("posts", {}).values():

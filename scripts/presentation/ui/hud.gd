@@ -10,6 +10,7 @@ const Art = preload("res://scripts/presentation/art.gd")
 const Units = preload("res://scripts/sim/kernel/units.gd")
 const EventText = preload("res://scripts/presentation/ui/event_text.gd")
 const Items = preload("res://scripts/sim/kernel/items.gd")
+const BuildMenu = preload("res://scripts/presentation/ui/build_menu.gd")
 const CharacterPanel = preload("res://scripts/presentation/ui/character_panel.gd")
 const InventoryPanel = preload("res://scripts/presentation/ui/inventory_panel.gd")
 const Bindings = preload("res://scripts/presentation/ui/input_bindings.gd")
@@ -18,10 +19,9 @@ const CombatDefs = preload("res://scripts/sim/kernel/action_defs.gd")
 const BASE_SCALE: float = 0.5
 var ui_percent: int = 100
 var minimap := Minimap.new()
-var _top := VBoxContainer.new()
+var _top_panel: PanelContainer
 var _clock: Label
 var _performance: Label
-var _tides: Label
 var _player_values: Label
 var _action_values: Label
 var _progress := ProgressBar.new()
@@ -35,7 +35,9 @@ var _commands := GridContainer.new()
 var _drawer_panel: PanelContainer
 var _drawer_body := VBoxContainer.new()
 var _drawer_name: String = ""
+var build_menu := BuildMenu.new()
 var _map_panel: PanelContainer
+var _debug_bottom_space: float = 0.0
 var _probe_panel: PanelContainer
 var _probe: Label
 var _notice := HBoxContainer.new()
@@ -63,8 +65,6 @@ var _modal_kind: String = ""
 var work_panel := preload("res://scripts/presentation/ui/work_panel.gd").new()
 var inventory := InventoryPanel.new()
 var character: Control
-var _character_id: int = 1
-var _use_fog: bool = true
 var _scale_input: SpinBox
 var _toolbar: PanelContainer
 var _events: RichTextLabel
@@ -76,8 +76,7 @@ var bindings: RefCounted
 var binding_editor: VBoxContainer
 var _direct: bool = true
 var feedback_settings: RefCounted
-var _practice_bar := HBoxContainer.new()
-var _practice_hint: Label
+var _practice_bar := VBoxContainer.new()
 var _loadout_choice := OptionButton.new()
 var _loadout_ids: Array[String] = []
 var _skill_slots: Dictionary = {}
@@ -87,22 +86,32 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	theme = Style.theme()
-	var top_panel: PanelContainer = _panel(self, Control.PRESET_TOP_WIDE, Vector4(8, 8, -8, 78))
-	top_panel.add_child(_top)
-	var first := HBoxContainer.new()
-	_top.add_child(first)
-	_clock = Style.label(first)
-	_clock.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_pause = _button(first, "pause", "", "pause")
+	_top_panel = _panel(self, Control.PRESET_TOP_LEFT, Vector4(8, 8, 388, 8))
+	var top := VBoxContainer.new()
+	_top_panel.add_child(top)
+	var status := HBoxContainer.new()
+	top.add_child(status)
+	var readings := VBoxContainer.new()
+	readings.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	readings.add_theme_constant_override("separation", 0)
+	status.add_child(readings)
+	_clock = Style.label(readings)
+	_performance = Style.label(readings)
+	_button(status, "save", "", "save")
+	_button(status, "load", "", "load")
+	_button(status, "pause_menu", "", "menu")
+	var speeds := HBoxContainer.new()
+	top.add_child(speeds)
+	_pause = _button(speeds, "pause", "", "pause")
 	for value: int in [1, 2, 4, 8, 16]:
-		_speed_buttons[value] = _button(first, "speed", "%d×" % value, "", {"speed": value})
-	_performance = Style.label(first)
-	_button(first, "save", "", "save")
-	_button(first, "load", "", "load")
-	_button(first, "pause_menu", "", "menu")
-	_tides = Style.label(_top)
-	_top.add_child(_practice_bar)
-	for row: Array in [["轻敌", "light"], ["重敌", "heavy"], ["混战", "mixed"]]: _button(_practice_bar, "combat_practice", row[0] + " · 重练", "", {"mode": row[1]})
+		var button: Button = _button(speeds, "speed", "%d×" % value, "", {"speed": value})
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_speed_buttons[value] = button
+	top.add_child(_practice_bar)
+	var practice_modes := HBoxContainer.new()
+	_practice_bar.add_child(practice_modes)
+	for row: Array in [["轻敌", "light"], ["重敌", "heavy"], ["混战", "mixed"]]:
+		_button(practice_modes, "combat_practice", row[0] + " · 重练", "", {"mode": row[1]}).size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_practice_bar.add_child(_loadout_choice)
 	_loadout_choice.focus_mode = Control.FOCUS_NONE
 	_loadout_choice.tooltip_text = "选择技能范例并新开练习世界；不会覆盖存档。"
@@ -112,7 +121,7 @@ func _ready() -> void:
 		_loadout_choice.add_item(profile.title)
 	_loadout_choice.item_selected.connect(func(index: int):
 		if _frame != null: requested.emit("combat_practice", {"loadout": _loadout_ids[index], "mode": _frame.practice_mode}))
-	_practice_hint = Style.label(_practice_bar, "")
+	Style.label(_practice_bar, "切换范例会新开练习世界")
 	_practice_bar.hide()
 	var dock: PanelContainer = _panel(self, Control.PRESET_CENTER_BOTTOM, Vector4(-292, -128, 292, -8))
 	dock.grow_vertical = Control.GROW_DIRECTION_BEGIN
@@ -174,14 +183,17 @@ func _ready() -> void:
 	_drawer_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	drawer_scroll.add_child(_drawer_body)
 	_drawer_panel.hide()
-	_toolbar = _panel(self, Control.PRESET_BOTTOM_LEFT, Vector4(8, -126, 330, -8))
+	add_child(build_menu)
+	build_menu.hide()
+	build_menu.definition_picked.connect(func(definition: String): requested.emit("place_build", {"definition": definition}))
+	build_menu.dismissed.connect(func(): requested.emit("close_drawer", {}))
+	_toolbar = _panel(self, Control.PRESET_BOTTOM_LEFT, Vector4(8, -100, 268, -8))
 	_toolbar.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	var tabs := GridContainer.new()
 	tabs.columns = 2
 	_toolbar.add_child(tabs)
-	for row: Array in [["build_menu", "营造", "build"], ["plant_menu", "种植", "plant"], ["inventory", "背包", "bag"], ["character", "人物", "person"], ["work_panel", "职责", "person"], ["travel", "地区", "map"], ["dev", "DEV", "gear"], ["gallery", "图鉴", "book"]]:
-		var button: Button = _button(tabs, row[0], row[1], row[2])
-		if row[0] == "gallery": button.tooltip_text = "素材图鉴 · F8"
+	for row: Array in [["build_menu", "建造", "build"], ["character", "人物", "person"], ["inventory", "背包", "bag"], ["work_panel", "职责", "work"]]:
+		_button(tabs, row[0], row[1], row[2]).size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_map_panel = _panel(self, Control.PRESET_BOTTOM_RIGHT, Vector4(-226, -306, -8, -72))
 	var map_body := VBoxContainer.new()
 	_map_panel.add_child(map_body)
@@ -195,9 +207,10 @@ func _ready() -> void:
 	_map_in = _button(map_tools, "map_in", "+")
 	minimap.camera_requested.connect(func(point: Vector2): requested.emit("camera", {"position": point}))
 	minimap.move_requested.connect(func(point: Vector2): requested.emit("map_move", {"position": point}))
-	_probe_panel = _panel(self, Control.PRESET_TOP_RIGHT, Vector4(-370, 94, -8, 222))
+	_probe_panel = _panel(self, Control.PRESET_TOP_RIGHT, Vector4(-370, 8, -8, 128))
 	_probe_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_probe = Style.label(_probe_panel, "—")
+	_probe.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_notice.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_notice)
 	_notice.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
@@ -221,6 +234,7 @@ func _ready() -> void:
 	context_scroll.add_child(_context_body)
 	_context_panel.hide()
 	get_viewport().size_changed.connect(_layout)
+	_top_panel.minimum_size_changed.connect(_layout, CONNECT_DEFERRED)
 	var config := ConfigFile.new()
 	if config.load("user://interface.cfg") == OK: ui_percent = clampi(int(config.get_value("ui", "percent", 100)), 50, 200)
 	apply_scale(ui_percent, false)
@@ -334,11 +348,32 @@ func _clear(parent: Node) -> void:
 		parent.remove_child(child)
 		child.queue_free()
 
+func set_debug_bottom_space(value: float) -> void:
+	if _debug_bottom_space == value: return
+	_debug_bottom_space = value
+	_layout_minimap()
+
+func _layout_minimap() -> void:
+	var height: float = _map_panel.get_combined_minimum_size().y
+	var narrow: bool = size.x < 1220
+	_map_panel.anchor_top = 0 if narrow else 1
+	_map_panel.anchor_bottom = _map_panel.anchor_top
+	if narrow:
+		_map_panel.offset_top = _probe_panel.offset_bottom + 8
+		_map_panel.offset_bottom = _map_panel.offset_top + height
+	else:
+		_map_panel.offset_bottom = -maxf(72, _debug_bottom_space + 8)
+		_map_panel.offset_top = _map_panel.offset_bottom - height
+
 func _layout() -> void:
 	size = get_viewport_rect().size / scale
 	work_panel.fit(size)
 	if _modal_panel != null: _layout_modal()
 	var width: float = size.x
+	_top_panel.offset_bottom = _top_panel.offset_top + _top_panel.get_combined_minimum_size().y
+	var below_status: float = _top_panel.offset_bottom + 8
+	_probe_panel.offset_top = below_status if _top_panel.offset_right + 8 > width + _probe_panel.offset_left else 8.0
+	_probe_panel.offset_bottom = _probe_panel.offset_top + 120
 	var toolbar_top: float = 8.0 + _toolbar.get_combined_minimum_size().y
 	_toolbar.offset_top = -toolbar_top
 	var inspect_inset: float = toolbar_top + 9.0
@@ -347,43 +382,43 @@ func _layout() -> void:
 	dock.offset_left = -dock_width * 0.5
 	dock.offset_right = dock_width * 0.5
 	if width < 1220:
-		_probe_panel.offset_top = 340
-		_probe_panel.offset_bottom = 468
 		_inspect_panel.anchor_top = 0
 		_inspect_panel.anchor_bottom = 0
-		_inspect_panel.offset_top = 92
-		_inspect_panel.offset_bottom = maxf(270, size.y - inspect_inset)
-		_map_panel.anchor_top = 0
-		_map_panel.anchor_bottom = 0
-		_map_panel.offset_top = 94
-		_map_panel.offset_bottom = 328
+		_inspect_panel.offset_top = below_status
+		_inspect_panel.offset_bottom = maxf(below_status + 160, size.y - inspect_inset)
 	else:
-		_probe_panel.offset_top = 94
-		_probe_panel.offset_bottom = 222
 		_inspect_panel.anchor_top = 1
 		_inspect_panel.anchor_bottom = 1
-		_inspect_panel.offset_top = -450
+		_inspect_panel.offset_top = maxf(-450, below_status - size.y)
 		_inspect_panel.offset_bottom = -inspect_inset
-		_map_panel.anchor_top = 1
-		_map_panel.anchor_bottom = 1
-		_map_panel.offset_top = -306
-		_map_panel.offset_bottom = -72
+	_layout_minimap()
 	_notice.offset_left = -180
 	_notice.offset_right = 180
 	_drawer_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	_drawer_panel.position = Vector2(8, 92)
-	_drawer_panel.size = Vector2(360, maxf(200, minf(560, size.y - 232)))
-	inventory.position = Vector2(380 if width >= 1100 and not _drawer_name.is_empty() else 8, 92)
+	_drawer_panel.position = Vector2(8, below_status)
+	_drawer_panel.size = Vector2(360, maxf(200, minf(560, size.y - below_status - 140)))
+	inventory.position = Vector2(380 if width >= 1100 and not _drawer_name.is_empty() else 8, below_status)
 	var dual: bool = inventory.target_id > 0 and width - inventory.position.x >= 740
 	inventory.layout_columns(dual)
-	inventory.size = Vector2(710 if dual else 360, maxf(280, minf(560, size.y - 232)))
-	if width < 1100 and inventory.visible: _drawer_panel.hide()
-	else: _drawer_panel.visible = not _drawer_name.is_empty()
+	inventory.size = Vector2(710 if dual else 360, maxf(280, minf(560, size.y - below_status - 140)))
+	if width < 1100 and inventory.visible: _drawer_name = ""
+	_update_inspect_visibility()
+	_drawer_panel.visible = _drawer_name in ["character", "plant"]
+	build_menu.visible = _drawer_name == "build"
+	if build_menu.visible:
+		var build_width: float = inventory.position.x - 16 if inventory.visible else width - 16
+		if _map_panel.visible:
+			build_width = minf(build_width, _map_panel.position.x - 16)
+		if _probe_panel.visible and _probe_panel.get_rect().end.y > below_status:
+			build_width = minf(build_width, _probe_panel.position.x - 16)
+		build_menu.fit(Vector2(8, below_status), build_width)
+
+func _update_inspect_visibility() -> void:
+	_inspect_panel.visible = not _target.is_empty() and _drawer_name.is_empty() and not inventory.visible
 
 func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: float, following: bool, help_target: int, direct: bool = true) -> void:
 	work_panel.adopt(frame.work, frame.epoch)
 	_frame = frame
-	_use_fog = use_fog
 	if _selected != selected: selection_changed(selected)
 	_selected = selected
 	_help_target = help_target
@@ -391,7 +426,6 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 	var player: Dictionary = frame.player
 	_practice_bar.visible = not frame.practice_mode.is_empty()
 	if _practice_bar.visible:
-		set_text(_practice_hint, "能力练习场 · 切换范例会新开练习世界")
 		var index: int = _loadout_ids.find(frame.loadout.id)
 		if index >= 0 and _loadout_choice.selected != index: _loadout_choice.select(index)
 	var calendar: Dictionary = frame.counters.get("calendar", {})
@@ -400,9 +434,6 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 	_pause.icon = Style.icon("play" if frame.paused else "pause")
 	for value: int in _speed_buttons:
 		_speed_buttons[value].modulate = Style.GOLD if frame.speed == value else Color.WHITE
-	var tide_text := PackedStringArray()
-	for i: int in mini(frame.tides.size(), 5): tide_text.append("%s %d%%" % [["金", "木", "水", "火", "土"][i], frame.tides[i]])
-	set_text(_tides, "   ".join(tide_text))
 	set_text(_player_values, "#1  HP %d/%d  耐受 %.0f/%.0f  精力 %d  饥饿 %d" % [int(player.get("hp", 0)), int(player.get("stats", {}).get("max_hp", 100)), float(player.get("tolerance", 0)), float(player.get("max_tolerance", 100)), int(player.get("energy", 0)), int(player.get("hunger", 0))])
 	var action: Dictionary = player.get("action", {})
 	var current: String = action_name(str(action.get("kind", "")))
@@ -422,7 +453,7 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 	_map_follow.modulate = Style.GOLD if minimap.follow_player else Color.WHITE
 	if dead:
 		show_tool("skull", "HP 0", true)
-	_inspect_panel.visible = not _target.is_empty() and _drawer_name.is_empty()
+	_update_inspect_visibility()
 	if not _target.is_empty():
 		set_text(_inspect_title, ("◷ " if _target.get("memory", false) else "") + Actions.title(_target))
 		var rows := PackedStringArray()
@@ -482,9 +513,9 @@ func refresh(frame: RefCounted, selected: int, use_fog: bool, actual_speed: floa
 	if _context_panel.visible:
 		if _context.get("target", 0) != _target.get("id", -1) or _target.get("memory", false): close_context()
 		else: _context_buttons(Actions.for_target(_target, player, help_target), _context)
-	if not _drawer_name.is_empty(): _refresh_drawer()
-	if _drawer_name == "character" and is_instance_valid(character):
-		character.refresh(Actions.observed(frame, _character_id, use_fog))
+	if _drawer_name == "build": build_menu.refresh(player.get("usable_inventory", {}))
+	elif _drawer_name == "plant": _refresh_drawer()
+	elif _drawer_name == "character" and is_instance_valid(character): character.refresh(player)
 	inventory.refresh(frame, use_fog)
 	advance_progress(frame.world_ms)
 	if Time.get_ticks_msec() > _tooltip_until: set_text(_receipt, "")
@@ -524,58 +555,45 @@ static func action_name(kind: String) -> String:
 
 
 func toggle_drawer(kind: String) -> void:
-	if kind == "character" and _drawer_name != kind:
-		_character_id = int(_target.id) if _target.get("kind", "") == "actor" and not _target.get("memory", false) else 1
 	_drawer_name = "" if _drawer_name == kind else kind
 	if not _drawer_name.is_empty() and size.x < 1100: inventory.hide()
-	_drawer_panel.visible = not _drawer_name.is_empty()
 	_drawer_signature = ""
-	if _frame != null: _refresh_drawer()
+	if _frame != null and not _drawer_name.is_empty():
+		if _drawer_name == "build": build_menu.open(_frame.player.get("usable_inventory", {}))
+		else: _refresh_drawer()
 	_layout()
 
 func _refresh_drawer() -> void:
-	var signature: String = _drawer_name + str(_frame.player.get("inventory", {})) + str(_frame.player.get("methods", {})) + str(_frame.player.get("conditions", {}))
-	if _drawer_name == "character": signature = "character#%d" % _character_id
+	var inventory_view: Dictionary = _frame.player.get("usable_inventory", {})
+	var signature: String = "character" if _drawer_name == "character" else _drawer_name + str(inventory_view)
 	if signature == _drawer_signature: return
 	_drawer_signature = signature
 	_clear(_drawer_body)
 	var header := HBoxContainer.new()
 	_drawer_body.add_child(header)
-	Style.label(header, str({"build": "营造", "plant": "种植", "character": "人物", "travel": "地区", "dev": "DEV"}.get(_drawer_name, _drawer_name))).size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	Style.label(header, "人物" if _drawer_name == "character" else "种植").size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_button(header, "close_drawer", "", "close")
+	if _drawer_name == "character":
+		character = CharacterPanel.new()
+		character.subject_id = 1
+		_drawer_body.add_child(character)
+		character.requested.connect(func(action: String, payload: Dictionary): requested.emit(action, payload))
+		character.refresh(_frame.player)
+		_events = character.events
+		return
 	var grid := GridContainer.new()
 	grid.columns = 2
 	_drawer_body.add_child(grid)
-	var inventory: Dictionary = _frame.player.get("usable_inventory", {})
-	if _drawer_name in ["build", "plant"]:
-		var definitions: Dictionary = Actions.buildings if _drawer_name == "build" else Actions.plants
-		for key: String in definitions:
-			var definition: Dictionary = definitions[key]
-			var item: String = str(definition.get("item", "")) if _drawer_name == "build" else str(definition.get("product", {}).get("item", ""))
-			var amount: int = int(definition.get("amount", 1))
-			var button: Button = _button(grid, "place_build" if _drawer_name == "build" else "place_plant", str(definition.get("label", key)), "", {"definition": key})
-			button.icon = Art.icon(Actions.art_key(key))
-			button.expand_icon = true
-			button.custom_minimum_size.x = 150
-			var cost: Label = Style.label(grid, "%s %d/%d" % [Actions.items.get(item, {}).get("label", item), int(inventory.get(item, 0)), amount])
-			cost.modulate = Color.WHITE if int(inventory.get(item, 0)) >= amount else Style.DANGER
-			grid.columns = 2
-	elif _drawer_name == "character":
-		character = CharacterPanel.new()
-		character.subject_id = _character_id
-		_drawer_body.add_child(character)
-		character.requested.connect(func(action: String, payload: Dictionary): requested.emit(action, payload))
-		character.refresh(Actions.observed(_frame, _character_id, _use_fog))
-		_events = character.events
-	elif _drawer_name == "travel":
-		for i: int in 3: _button(grid, "journey", ["谷地", "寒林", "旱地"][i], "map", {"region": i})
-	elif _drawer_name == "dev":
-		for i: int in 5: _button(grid, "weather", ["自动", "晴", "雨", "寒风", "热浪"][i], "", {"weather": i - 1})
-		for i: int in 3: _button(grid, "body", ["普通", "飞行", "大体型"][i], "person", {"flight": int(i == 1), "large": i == 2})
-		_button(grid, "source", "场源", "target")
-		_button(grid, "source_overlay", "场源标记", "eye")
-		_button(grid, "debug", "F12", "gear")
-		_button(grid, "action_trace", "反应追踪 开／关", "gear")
+	for key: String in Actions.plants:
+		var definition: Dictionary = Actions.plants[key]
+		var item: String = str(definition.get("product", {}).get("item", ""))
+		var amount: int = int(definition.get("amount", 1))
+		var button: Button = _button(grid, "place_plant", str(definition.get("label", key)), "", {"definition": key})
+		button.icon = Art.icon(Actions.art_key(key))
+		button.expand_icon = true
+		button.custom_minimum_size.x = 150
+		var cost: Label = Style.label(grid, "%s %d/%d" % [Items.label(item), int(inventory_view.get(item, 0)), amount])
+		cost.modulate = Color.WHITE if int(inventory_view.get(item, 0)) >= amount else Style.DANGER
 
 func _build_modal() -> void:
 	add_child(_modal)
@@ -702,9 +720,6 @@ func selection_changed(id: int) -> void:
 	# Non-player detail panels share the owner's single inspection request.
 	if inventory.visible and ((inventory.target_id > 0 and inventory.target_id != id) or (inventory.subject_id != 1 and inventory.subject_id != id)):
 		inventory.hide()
-	if _drawer_name == "character" and _character_id != 1 and _character_id != id:
-		_drawer_name = ""
-		_drawer_panel.hide()
 	_layout()
 
 func blocks_world() -> bool:
@@ -727,6 +742,7 @@ func close_layer() -> bool:
 		inventory.hide()
 		_layout()
 		return true
+	if _drawer_name == "build" and build_menu.back(): return true
 	if not _drawer_name.is_empty():
 		toggle_drawer(_drawer_name)
 		return true
@@ -740,12 +756,13 @@ func reset_session() -> void:
 	set_text(_probe, "—")
 	_drawer_name = ""
 	_drawer_panel.hide()
+	build_menu.hide()
 	_command_signature = ""
 	show_tool("")
 
 func advance_progress(at: float) -> void:
 	if _frame != null:
-		if _drawer_name == "character" and is_instance_valid(character): character.advance_progress(Actions.observed(_frame, _character_id, _use_fog), at)
+		if _drawer_name == "character" and is_instance_valid(character): character.advance_progress(_frame.player, at)
 		var own: float = ActivityText.progress(_frame.player, at)
 		_progress.visible = own >= 0.0
 		if own >= 0.0: _progress.value = own

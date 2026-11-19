@@ -1,5 +1,7 @@
 extends CanvasLayer
 ## Optional art contact sheet. Preview animation does not issue world commands.
+signal open_changed
+
 const Art = preload("res://scripts/presentation/art.gd")
 var _backdrop := Control.new()
 var _panel := PanelContainer.new()
@@ -21,6 +23,7 @@ func _ready() -> void:
 	_panel.offset_right = -20
 	_panel.offset_bottom = -20
 	_backdrop.hide()
+	_backdrop.visibility_changed.connect(func(): open_changed.emit())
 	set_process(false)
 
 
